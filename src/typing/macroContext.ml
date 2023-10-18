@@ -116,7 +116,7 @@ let typing_timer ctx need_type f =
 		exit();
 		raise e
 
-let make_macro_com_api com p =
+let make_macro_com_api com mcom p =
 	let parse_metadata s p =
 		try
 			match ParserEntry.parse_string Grammar.parse_meta com.defines s null_pos raise_typing_error false with
@@ -128,6 +128,7 @@ let make_macro_com_api com p =
 	{
 		MacroApi.pos = p;
 		get_com = (fun () -> com);
+		get_macro_com = (fun () -> mcom);
 		get_macro_stack = (fun () ->
 			let envs = Interp.call_stack (Interp.get_eval (Interp.get_ctx ())) in
 			let envs = match envs with
@@ -316,7 +317,7 @@ let make_macro_com_api com p =
 		);
 	}
 
-let make_macro_api ctx p =
+let make_macro_api ctx mctx p =
 	let parse_metadata s p =
 		try
 			match ParserEntry.parse_string Grammar.parse_meta ctx.com.defines s null_pos raise_typing_error false with
@@ -325,7 +326,7 @@ let make_macro_api ctx p =
 		with _ ->
 			raise_typing_error "Malformed metadata string" p
 	in
-	let com_api = make_macro_com_api ctx.com p in
+	let com_api = make_macro_com_api ctx.com mctx.com p in
 	{
 		com_api with
 		MacroApi.get_type = (fun s ->
@@ -736,7 +737,7 @@ let get_macro_context ctx =
 		ctx
 	| None ->
 		let mctx = create_macro_context ctx.com in
-		let api = make_macro_api ctx null_pos in
+		let api = make_macro_api ctx mctx null_pos in
 		let init,_ = create_macro_interp api mctx in
 		ctx.g.macros <- Some (init,mctx);
 		mctx.g.macros <- Some (init,mctx);
@@ -830,8 +831,8 @@ type macro_arg_type =
 	| MAOther
 
 let type_macro ctx mode cpath f (el:Ast.expr list) p =
-	let api = make_macro_api ctx p in
 	let mctx = get_macro_context ctx in
+	let api = make_macro_api ctx mctx p in
 	let mctx, (margs,mret,mclass,mfield), call_macro = load_macro ctx ctx.com mctx api (mode = MDisplay) cpath f p in
 	let margs =
 		(*
@@ -1047,11 +1048,11 @@ let call_init_macro com mctx e =
 	let (path,meth,args,p) = resolve_init_macro com e in
 	let (mctx, api) = match mctx with
 	| Some mctx ->
-		let api = make_macro_com_api com p in
+		let api = make_macro_com_api com mctx.com p in
 		(mctx, api)
 	| None ->
 		let mctx = create_macro_context com in
-		let api = make_macro_com_api com p in
+		let api = make_macro_com_api com mctx.com p in
 		let init,_ = create_macro_interp api mctx in
 		mctx.g.macros <- Some (init,mctx);
 		(mctx, api)
@@ -1062,13 +1063,14 @@ let call_init_macro com mctx e =
 	mctx
 
 let finalize_macro_api tctx mctx =
-	let api = make_macro_api tctx null_pos in
+	let api = make_macro_api tctx mctx null_pos in
 	match !macro_interp_cache with
 		| None -> ignore(create_macro_interp api mctx)
 		| Some mint -> mint.curapi <- api
 
 let interpret ctx =
-	let mctx = Interp.create ctx.com (make_macro_api ctx null_pos) false in
+	let mctx = get_macro_context ctx in
+	let mctx = Interp.create ctx.com (make_macro_api ctx mctx null_pos) false in
 	Interp.add_types mctx ctx.com.types (fun t -> ());
 	match ctx.com.main with
 		| None -> ()
