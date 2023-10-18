@@ -21,6 +21,7 @@ type compiler_options = {
 type 'value compiler_api = {
 	pos : Globals.pos;
 	get_com : unit -> Common.context;
+	get_macro_com : unit -> Common.context;
 	get_macro_stack : unit -> pos list;
 	init_macros_done : unit -> bool;
 	get_type : string -> Type.t option;

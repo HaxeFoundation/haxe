@@ -101,7 +101,6 @@ let create com api is_macro =
 	let evals = IntMap.singleton 0 eval in
 	let ctx = {
 		ctx_id = !GlobalState.sid;
-		basic = com.basic;
 		is_macro = is_macro;
 		debug = debug;
 		detail_times = detail_times;
