@@ -904,7 +904,7 @@ and type_object_decl ctx fl with_type p =
 				(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
 			with Not_found ->
 				if is_valid then
-					extra_fields := n :: !extra_fields;
+					extra_fields := (n,pn) :: !extra_fields;
 				type_expr ctx e WithType.value
 			in
 			if is_valid then begin
@@ -923,7 +923,12 @@ and type_object_decl ctx fl with_type p =
 				| depth -> raise_or_display ctx [Unify_custom ("Object requires fields: " ^ (String.concat ", " depth))] p);
 			(match !extra_fields with
 			| [] -> ()
-			| _ -> raise_or_display ctx (List.map (fun n -> has_extra_field t n) !extra_fields) p);
+			| _ ->
+				List.iter (fun (n,pn) ->
+					let err = has_extra_field t n in
+					raise_or_display ctx [err] pn
+				) !extra_fields
+			);
 		end;
 		t, fl
 	in
