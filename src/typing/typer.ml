@@ -1991,15 +1991,14 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)
 
-let create com =
+let create com macros =
 	let ctx = {
 		com = com;
 		t = com.basic;
 		g = {
 			core_api = None;
-			macros = None;
+			macros = macros;
 			type_patches = Hashtbl.create 0;
-			global_metadata = [];
 			module_check_policies = [];
 			delayed = [];
 			debug_delayed = [];

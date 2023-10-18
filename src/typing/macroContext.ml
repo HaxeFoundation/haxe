@@ -117,6 +117,14 @@ let typing_timer ctx need_type f =
 		raise e
 
 let make_macro_com_api com p =
+	let parse_metadata s p =
+		try
+			match ParserEntry.parse_string Grammar.parse_meta com.defines s null_pos raise_typing_error false with
+			| ParseSuccess(meta,_,_) -> meta
+			| ParseError(_,_,_) -> raise_typing_error "Malformed metadata string" p
+		with _ ->
+			raise_typing_error "Malformed metadata string" p
+	in
 	{
 		MacroApi.pos = p;
 		get_com = (fun () -> com);
@@ -278,7 +286,11 @@ let make_macro_com_api com p =
 			Interp.exc_string "unsupported"
 		);
 		add_global_metadata = (fun s1 s2 config p ->
-			Interp.exc_string "unsupported"
+			let meta = parse_metadata s2 p in
+			List.iter (fun (m,el,_) ->
+				let m = (m,el,p) in
+				com.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: com.global_metadata;
+			) meta;
 		);
 		add_module_check_policy = (fun sl il b i ->
 			Interp.exc_string "unsupported"
@@ -537,7 +549,7 @@ let make_macro_api ctx p =
 			let meta = parse_metadata s2 p in
 			List.iter (fun (m,el,_) ->
 				let m = (m,el,p) in
-				ctx.g.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.g.global_metadata;
+				ctx.com.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.com.global_metadata;
 			) meta;
 		);
 		MacroApi.add_module_check_policy = (fun sl il b i ->
@@ -695,7 +707,7 @@ let create_macro_interp api mctx =
 	init();
 	let init = (fun() -> Interp.select mint) in
 	mctx.g.macros <- Some (init,mctx);
-	init
+	(init, mint)
 
 let create_macro_context com =
 	let com2 = Common.clone com true in
@@ -712,7 +724,7 @@ let create_macro_context com =
 	com2.defines.defines_signature <- None;
 	com2.platform <- !Globals.macro_platform;
 	Common.init_platform com2;
-	let mctx = !create_context_ref com2 in
+	let mctx = !create_context_ref com2 None in
 	mctx.is_display_file <- false;
 	CommonCache.lock_signature com2 "get_macro_context";
 	mctx
@@ -725,7 +737,7 @@ let get_macro_context ctx =
 	| None ->
 		let mctx = create_macro_context ctx.com in
 		let api = make_macro_api ctx null_pos in
-		let init = create_macro_interp api mctx in
+		let init,_ = create_macro_interp api mctx in
 		ctx.g.macros <- Some (init,mctx);
 		mctx.g.macros <- Some (init,mctx);
 		mctx
@@ -803,10 +815,8 @@ let do_call_macro com api cpath f args p =
 	if com.verbose then Common.log com ("Exiting macro " ^ s_type_path cpath ^ "." ^ f);
 	r
 
-let load_macro ctx display cpath f p =
-	let api = make_macro_api ctx p in
-	let mctx = get_macro_context ctx in
-	let meth,mloaded = load_macro'' ctx.com mctx display cpath f p in
+let load_macro ctx com mctx api display cpath f p =
+	let meth,mloaded = load_macro'' com mctx display cpath f p in
 	let _,_,{cl_path = cpath},_ = meth in
 	let call args =
 		add_dependency ctx.m.curmod mloaded;
@@ -820,7 +830,9 @@ type macro_arg_type =
 	| MAOther
 
 let type_macro ctx mode cpath f (el:Ast.expr list) p =
-	let mctx, (margs,mret,mclass,mfield), call_macro = load_macro ctx (mode = MDisplay) cpath f p in
+	let api = make_macro_api ctx p in
+	let mctx = get_macro_context ctx in
+	let mctx, (margs,mret,mclass,mfield), call_macro = load_macro ctx ctx.com mctx api (mode = MDisplay) cpath f p in
 	let margs =
 		(*
 			Replace "rest:haxe.Rest<Expr>" in macro signatures with "rest:Array<Expr>".
@@ -1031,27 +1043,29 @@ let resolve_init_macro com e =
 	| _ ->
 		raise_typing_error "Invalid macro call" p
 
-let call_init_macro ctx e =
-	let (path,meth,args,p) = resolve_init_macro ctx.com e in
-	let mctx, (margs,_,mclass,mfield), call = load_macro ctx false path meth p in
+let call_init_macro com mctx e =
+	let (path,meth,args,p) = resolve_init_macro com e in
+	let (mctx, api) = match mctx with
+	| Some mctx ->
+		let api = make_macro_com_api com p in
+		(mctx, api)
+	| None ->
+		let mctx = create_macro_context com in
+		let api = make_macro_com_api com p in
+		let init,_ = create_macro_interp api mctx in
+		mctx.g.macros <- Some (init,mctx);
+		(mctx, api)
+	in
+
+	let mctx, (margs,_,mclass,mfield), call = load_macro mctx com mctx api false path meth p in
 	ignore(call_macro mctx args margs call p);
+	mctx
 
-module MacroLight = struct
-	let load_macro_light com mctx api display cpath f p =
-		let api = {api with MacroApi.pos = p} in
-		let meth,mloaded = load_macro'' com mctx display cpath f p in
-		let _,_,{cl_path = cpath},_ = meth in
-		let call args =
-			do_call_macro com api cpath f args p
-		in
-		mctx, meth, call
-
-	let call_init_macro com mctx api e =
-		let (path,meth,args,p) = resolve_init_macro com e in
-		let mctx, (margs,_,mclass,mfield), call = load_macro_light com mctx api false path meth p in
-		ignore(call_macro mctx args margs call p);
-
-end
+let finalize_macro_api tctx mctx =
+	let api = make_macro_api tctx null_pos in
+	match !macro_interp_cache with
+		| None -> ignore(create_macro_interp api mctx)
+		| Some mint -> mint.curapi <- api
 
 let interpret ctx =
 	let mctx = Interp.create ctx.com (make_macro_api ctx null_pos) false in

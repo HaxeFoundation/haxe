@@ -256,7 +256,6 @@ type json_api = {
 type compiler_stage =
 	| CCreated          (* Context was just created *)
 	| CInitialized      (* Context was initialized (from CLI args and such). *)
-	| CTyperCreated     (* The typer context was just created. *)
 	| CInitMacrosStart  (* Init macros are about to run. *)
 	| CInitMacrosDone   (* Init macros did run - at this point the signature is locked. *)
 	| CTypingDone       (* The typer is done - at this point com.types/modules/main is filled. *)
@@ -274,7 +273,6 @@ type compiler_stage =
 let s_compiler_stage = function
 	| CCreated          -> "CCreated"
 	| CInitialized      -> "CInitialized"
-	| CTyperCreated     -> "CTyperCreated"
 	| CInitMacrosStart  -> "CInitMacrosStart"
 	| CInitMacrosDone   -> "CInitMacrosDone"
 	| CTypingDone       -> "CTypingDone"
@@ -397,6 +395,7 @@ type context = {
 	mutable user_metas : (string, Meta.user_meta) Hashtbl.t;
 	mutable get_macros : unit -> context option;
 	(* typing state *)
+	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	shared : shared_context;
 	display_information : display_information;
 	file_lookup_cache : (string,string option) lookup;
@@ -829,6 +828,7 @@ let create compilation_step cs version args =
 		file = "";
 		types = [];
 		callbacks = new compiler_callbacks;
+		global_metadata = [];
 		modules = [];
 		module_lut = new hashtbl_lookup;
 		module_nonexistent_lut = new hashtbl_lookup;

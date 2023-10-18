@@ -1894,7 +1894,7 @@ let macro_api ccom get_api =
 		);
 		"on_after_init_macros", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
-			(get_api()).after_init_macros (fun tl -> ignore(f []));
+			(get_api()).after_init_macros (fun tctx -> ignore(f []));
 			vnull
 		);
 		"on_after_typing", vfun1 (fun f ->
