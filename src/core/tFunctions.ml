@@ -172,6 +172,13 @@ let module_extra file sign time kind policy =
 		m_check_policy = policy;
 	}
 
+let mk_class_field_ref (c : tclass) (cf : tclass_field) (kind : class_field_ref_kind) (is_macro : bool) = {
+	cfr_sign = c.cl_module.m_extra.m_sign;
+	cfr_path = c.cl_path;
+	cfr_field = cf.cf_name;
+	cfr_kind = kind;
+	cfr_is_macro = is_macro;
+}
 
 let mk_field name ?(public = true) ?(static = false) t p name_pos = {
 	cf_name = name;

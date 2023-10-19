@@ -389,6 +389,11 @@ let s_class_kind = function
 	| KModuleFields m ->
 		Printf.sprintf "KModuleFields %s" (s_type_path m.m_path)
 
+let s_class_field_ref_kind = function
+	| CfrStatic -> "CfrStatic"
+	| CfrMember -> "CfrMember"
+	| CfrConstructor -> "CfrConstructor"
+
 module Printer = struct
 
 	let s_type t =

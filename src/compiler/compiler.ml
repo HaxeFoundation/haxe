@@ -156,7 +156,7 @@ module Setup = struct
 				add_std "eval";
 				"eval"
 
-	let create_typer_context ctx native_libs =
+	let create_typer_context ctx macros native_libs =
 		let com = ctx.com in
 		Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
 		let buffer = Buffer.create 64 in
@@ -167,12 +167,12 @@ module Setup = struct
 		) com.defines.values;
 		Buffer.truncate buffer (Buffer.length buffer - 1);
 		Common.log com (Buffer.contents buffer);
-		com.callbacks#run com.callbacks#get_before_typer_create;
+		com.callbacks#run com.error_ext com.callbacks#get_before_typer_create;
 		(* Native lib pass 1: Register *)
 		let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
 		(* Native lib pass 2: Initialize *)
 		List.iter (fun f -> f()) fl;
-		Typer.create com
+		Typer.create com macros
 
 	let executable_path() =
 		Extc.executable_path()
@@ -270,35 +270,53 @@ let check_defines com =
 	end
 
 (** Creates the typer context and types [classes] into it. *)
-let do_type ctx tctx actx =
-	let com = tctx.Typecore.com in
+let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
+	let com = ctx.com in
 	let t = Timer.timer ["typing"] in
 	let cs = com.cs in
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	com.stage <- CInitMacrosStart;
-	List.iter (MacroContext.call_init_macro tctx) (List.rev actx.config_macros);
+	ServerMessage.compiler_stage com;
+
+	let mctx = List.fold_left (fun mctx path ->
+		Some (MacroContext.call_init_macro ctx.com mctx path)
+	) mctx (List.rev actx.config_macros) in
 	com.stage <- CInitMacrosDone;
+	ServerMessage.compiler_stage com;
+	MacroContext.macro_enable_cache := macro_cache_enabled;
+
+	let macros = match mctx with None -> None | Some mctx -> mctx.g.macros in
+	let tctx = Setup.create_typer_context ctx macros actx.native_libs in
+	let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
 	check_defines ctx.com;
 	CommonCache.lock_signature com "after_init_macros";
-	com.callbacks#run com.callbacks#get_after_init_macros;
-	run_or_diagnose ctx (fun () ->
-		if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
-		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
-		Finalization.finalize tctx;
-	) ();
+	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;
+	(try begin
+		com.callbacks#run com.error_ext com.callbacks#get_after_init_macros;
+		run_or_diagnose ctx (fun () ->
+			if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
+			List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
+			Finalization.finalize tctx;
+		) ();
+	end with TypeloadParse.DisplayInMacroBlock ->
+		ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true)
+	);
 	com.stage <- CTypingDone;
+	ServerMessage.compiler_stage com;
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		identifier we are interested in. We then type only those modules that contain the identifier. *)
 	begin match com.display.dms_kind with
 		| (DMUsage _ | DMImplementation) -> FindReferences.find_possible_references tctx cs;
 		| _ -> ()
 	end;
-	t()
+	t();
+	(tctx, display_file_dot_path)
 
 let finalize_typing ctx tctx =
 	let t = Timer.timer ["finalize"] in
 	let com = ctx.com in
 	com.stage <- CFilteringStart;
+	ServerMessage.compiler_stage com;
 	let main, types, modules = run_or_diagnose ctx Finalization.generate tctx in
 	com.main <- main;
 	com.types <- types;
@@ -311,23 +329,17 @@ let filter ctx tctx =
 	Filters.run tctx ctx.com.main;
 	t()
 
-let call_light_init_macro com path =
-	let open MacroContext in
-	let mctx = create_macro_context com in
-	let api = make_macro_com_api com null_pos in
-	let init = create_macro_interp api mctx in
-	MacroContext.MacroLight.call_init_macro com mctx api path;
-	(init,mctx)
-
 let compile ctx actx callbacks =
 	let com = ctx.com in
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
 	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
+	let macro_cache_enabled = !MacroContext.macro_enable_cache in
+	MacroContext.macro_enable_cache := true;
 	let mctx = match com.platform with
 		| CustomTarget name ->
 			begin try
-				Some (call_light_init_macro com (Printf.sprintf "%s.Init.init()" name))
+				Some (MacroContext.call_init_macro com None (Printf.sprintf "%s.Init.init()" name))
 			with (Error.Error { err_message = Module_not_found ([pack],"Init") }) when pack = name ->
 				(* ignore if <target_name>.Init doesn't exist *)
 				None
@@ -343,19 +355,12 @@ let compile ctx actx callbacks =
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
 	t();
 	com.stage <- CInitialized;
+	ServerMessage.compiler_stage com;
 	if actx.classes = [([],"Std")] && not actx.force_typing then begin
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
 	end else begin
 		(* Actual compilation starts here *)
-		let tctx = Setup.create_typer_context ctx actx.native_libs in
-		tctx.g.macros <- mctx;
-		com.stage <- CTyperCreated;
-		let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
-		begin try
-			do_type ctx tctx actx
-		with TypeloadParse.DisplayInMacroBlock ->
-			ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true);
-		end;
+		let (tctx,display_file_dot_path) = do_type ctx mctx actx display_file_dot_path macro_cache_enabled in
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
 		DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
@@ -363,11 +368,13 @@ let compile ctx actx callbacks =
 		if ctx.has_error then raise Abort;
 		Generate.check_auxiliary_output com actx;
 		com.stage <- CGenerationStart;
+		ServerMessage.compiler_stage com;
 		if not actx.no_output then Generate.generate ctx tctx ext actx;
 		com.stage <- CGenerationDone;
+		ServerMessage.compiler_stage com;
 	end;
 	Sys.catch_break false;
-	com.callbacks#run com.callbacks#get_after_generation;
+	com.callbacks#run com.error_ext com.callbacks#get_after_generation;
 	if not actx.no_output then begin
 		List.iter (fun c ->
 			let r = run_command ctx c in
