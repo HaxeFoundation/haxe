@@ -69,7 +69,9 @@ class hxb_restore
 				m_added = com.compilation_step;
 				m_checked = 0;
 				m_processed = 1;
-				m_time = (Common.file_time file)
+				m_features = Hashtbl.create 0; (* ? *)
+				m_if_feature = [];
+				m_time = (Common.file_time file) (* TODO check that... *)
 			}
 		}
 

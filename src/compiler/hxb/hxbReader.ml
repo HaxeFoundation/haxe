@@ -651,7 +651,9 @@ class hxb_reader
 			TEnum(self#read_enum_ref,[])
 		| 12 ->
 			begin match self#read_u8 with
-				(* TODO wrap those two in TType? *)
+				(* TODO does it make more sense to wrap in tdef like in source? *)
+				(* | 0 -> TType({null_typedef with t_type = (mk_anon (ref Closed))},[]) *)
+				(* | 1 -> TType({null_typedef with t_type = (TAnon self#read_anon_ref)},[]) *)
 				| 0 -> mk_anon (ref Closed)
 				| 1 -> TAnon self#read_anon_ref
 				| _ -> TType(self#read_typedef_ref,[])
@@ -678,10 +680,19 @@ class hxb_reader
 					let tl = self#read_types in
 					let td = { null_typedef with t_type = an } in
 					TType(td,tl)
+				(* TODO: does this help with anything? *)
+				(* | 2 -> *)
+				(* 	let t = self#read_type_instance in *)
+				(* 	let tl = self#read_types in *)
+				(* 	let tmono = !monomorph_create_ref () in (1* TODO identity *1) *)
+				(* 	tmono.tm_type <- Some t; *)
+				(* 	let td = { null_typedef with t_type = TMono tmono } in *)
+				(* 	TType(td,tl) *)
 				| _ ->
-					let t = self#read_typedef_ref in
+					let t = self#read_type_instance in
 					let tl = self#read_types in
-					TType(t,tl)
+					let td = { null_typedef with t_type = t } in
+					TType(td,tl)
 			end
 		| 17 ->
 			let a = self#read_abstract_ref in

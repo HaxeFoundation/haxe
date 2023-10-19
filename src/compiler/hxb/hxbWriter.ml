@@ -397,7 +397,7 @@ class ['a] hxb_writer
 			(* DynArray.iter (fun ttp -> debug_msg (Printf.sprintf "FTP %s %s" ttp.ttp_name (s_type_kind ttp.ttp_type)) field_type_parameters#items); *)
 			(* DynArray.iter (fun ttp -> debug_msg (Printf.sprintf "TTP %s %s" ttp.ttp_name (s_type_kind ttp.ttp_type)) type_type_parameters#items); *)
 			(* print_stacktrace (); *)
-			chunk#write_byte 40
+			chunk#write_byte 0 (* TMono None *)
 		end
 
 	method write_type_instance ?(debug:bool = false) t =
@@ -439,6 +439,7 @@ class ['a] hxb_writer
 				| TAnon an ->
 					chunk#write_byte 1;
 					self#write_anon_ref an td.t_params
+				(* TODO: do something about TMono? *)
 				| _ ->
 					chunk#write_byte 2;
 					self#write_typedef_ref td;
@@ -464,9 +465,14 @@ class ['a] hxb_writer
 					chunk#write_byte 1;
 					self#write_anon_ref an td.t_params;
 					self#write_types tl
-				| _ ->
+				(* TODO: does this help with anything? *)
+				| TMono _ ->
 					chunk#write_byte 2;
-					self#write_typedef_ref td;
+					self#write_type_instance ~debug (apply_typedef td tl);
+					self#write_types tl
+				| _ ->
+					chunk#write_byte 3;
+					self#write_type_instance ~debug (apply_typedef td tl);
 					self#write_types tl
 			end;
 		| TAbstract(a,tl) ->

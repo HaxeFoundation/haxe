@@ -91,12 +91,6 @@ let rec clear_cache cs com =
 	let cc = get_cache com in
 	cc#clear_cache;
 
-	com.module_lut#clear;
-	com.stored_typed_exprs#clear;
-	com.module_nonexistent_lut#clear;
-	(* Hashtbl.clear com.features; *)
-	(* com.type_to_module#clear; *)
-
 	match com.get_macros() with
 	| None -> ()
 	| Some com -> clear_cache cs com
