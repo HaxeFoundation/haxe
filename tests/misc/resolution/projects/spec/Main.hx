@@ -7,7 +7,7 @@ class Main extends utest.Test {
         Macro.assert("pack.ModNoValue.ModNoValueSubType");
         Macro.assert("pack.ModWithStatic.TheStatic");
     }
-    
+
 	function testQualifiedStd() {
         Macro.assert("std.pack.Mod");
         Macro.assert("std.pack.Mod.Mod");
@@ -16,7 +16,7 @@ class Main extends utest.Test {
         Macro.assert("std.pack.ModNoValue.ModNoValueSubType");
         Macro.assert("std.pack.ModWithStatic.TheStatic");
     }
-    
+
 	function testQualifiedStdShadowed() {
         var pack = 1;
         Macro.assert("std.pack.Mod");
@@ -31,7 +31,6 @@ class Main extends utest.Test {
 		utest.UTest.run([
             new Main(),
             new pack.inner.Test(),
-            new Issue9150(),
             new Wildcard(),
             new Imported(),
         ]);

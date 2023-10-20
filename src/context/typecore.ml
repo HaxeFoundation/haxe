@@ -22,6 +22,7 @@ open Ast
 open Common
 open Type
 open Error
+open Resolution
 
 type type_patch = {
 	mutable tp_type : complex_type option;
@@ -59,10 +60,10 @@ type typer_pass =
 
 type typer_module = {
 	curmod : module_def;
-	mutable module_imports : (module_type * pos) list;
+	import_resolution : resolution_list;
+	mutable own_resolution : resolution_list option;
+	mutable enum_with_type : module_type option;
 	mutable module_using : (tclass * pos) list;
-	mutable module_globals : (string, (module_type * string * pos)) PMap.t;
-	mutable wildcard_packages : (string list * pos) list;
 	mutable import_statements : import list;
 }
 

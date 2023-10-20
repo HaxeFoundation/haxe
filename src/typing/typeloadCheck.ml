@@ -527,30 +527,9 @@ module Inheritance = struct
 				raise (Build_canceled state)
 		in
 		let has_interf = ref false in
-		(*
-			resolve imports before calling build_inheritance, since it requires full paths.
-			that means that typedefs are not working, but that's a fair limitation
-		*)
-		let resolve_imports (t,p) =
-			match t.tpackage with
-			| _ :: _ -> t,p
-			| [] ->
-				try
-					let path_matches lt = snd (t_path lt) = t.tname in
-					let lt = try
-						List.find path_matches ctx.m.curmod.m_types
-					with Not_found ->
-						let t,pi = List.find (fun (lt,_) -> path_matches lt) ctx.m.module_imports in
-						ImportHandling.mark_import_position ctx pi;
-						t
-					in
-					{ t with tpackage = fst (t_path lt) },p
-				with
-					Not_found -> t,p
-		in
 		let herits = ExtList.List.filter_map (function
-			| HExtends t -> Some(true,resolve_imports t)
-			| HImplements t -> Some(false,resolve_imports t)
+			| HExtends t -> Some(true,t)
+			| HImplements t -> Some(false,t)
 			| t -> None
 		) herits in
 		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in

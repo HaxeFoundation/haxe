@@ -22,6 +22,7 @@ open DisplayTypes.DisplayMode
 open Common
 open Type
 open Typecore
+open Resolution
 open Error
 open Globals
 
@@ -569,23 +570,20 @@ let make_macro_api ctx mctx p =
 			| NormalAndMacroContext -> add ctx; add_macro ctx;
 		);
 		MacroApi.with_imports = (fun imports usings f ->
-			let old_globals = ctx.m.module_globals in
-			let old_imports = ctx.m.module_imports in
+			let restore_resolution = ctx.m.import_resolution#save in
 			let old_using = ctx.m.module_using in
 			let run () =
-				let context_init = new TypeloadFields.context_init in
 				List.iter (fun (path,mode) ->
-					ImportHandling.init_import ctx context_init path mode null_pos
+					ImportHandling.init_import ctx path mode null_pos
 				) imports;
 				List.iter (fun path ->
-					ImportHandling.init_using ctx context_init path null_pos
+					ImportHandling.init_using ctx path null_pos
 				) usings;
-				context_init#run;
+				flush_pass ctx PConnectField "with_imports";
 				f()
 			in
 			let restore () =
-				ctx.m.module_globals <- old_globals;
-				ctx.m.module_imports <- old_imports;
+				restore_resolution();
 				ctx.m.module_using <- old_using;
 			in
 			Std.finally restore run ()
@@ -751,10 +749,10 @@ let load_macro_module mctx com cpath display p =
 	let mloaded = TypeloadModule.load_module mctx m p in
 	mctx.m <- {
 		curmod = mloaded;
-		module_imports = [];
+		import_resolution = new resolution_list ["import";s_type_path cpath];
+		own_resolution = None;
+		enum_with_type = None;
 		module_using = [];
-		module_globals = PMap.empty;
-		wildcard_packages = [];
 		import_statements = [];
 	};
 	mloaded,(fun () -> mctx.com.display <- old)
@@ -792,10 +790,10 @@ let load_macro'' com mctx display cpath f p =
 		mctx.com.cached_macros#add (cpath,f) meth;
 		mctx.m <- {
 			curmod = null_module;
-			module_imports = [];
+			import_resolution = new resolution_list ["import";s_type_path cpath];
+			own_resolution = None;
+			enum_with_type = None;
 			module_using = [];
-			module_globals = PMap.empty;
-			wildcard_packages = [];
 			import_statements = [];
 		};
 		t();

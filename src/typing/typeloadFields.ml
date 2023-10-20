@@ -30,18 +30,6 @@ open CompletionItem.ClassFieldOrigin
 open Common
 open Error
 
-class context_init = object(self)
-	val mutable l = []
-
-	method add (f : unit -> unit) =
-		l <- f :: l
-
-	method run =
-		let l' = l in
-		l <- [];
-		List.iter (fun f -> f()) (List.rev l')
-end
-
 type class_init_ctx = {
 	tclass : tclass; (* I don't trust ctx.curclass because it's mutable. *)
 	is_lib : bool;
@@ -50,7 +38,6 @@ type class_init_ctx = {
 	is_class_debug : bool;
 	extends_public : bool;
 	abstract : tabstract option;
-	context_init : context_init;
 	mutable has_display_field : bool;
 	mutable delayed_expr : (typer * tlazy ref option) list;
 	mutable force_constructor : bool;
@@ -479,7 +466,7 @@ let apply_macro ctx mode path el p =
 	) in
 	ctx.g.do_macro ctx mode cpath meth el p
 
-let build_module_def ctx mt meta fvars context_init fbuild =
+let build_module_def ctx mt meta fvars fbuild =
 	let is_typedef = match mt with TTypeDecl _ -> true | _ -> false in
 	let loop f_build = function
 		| Meta.Build,args,p when not is_typedef -> (fun () ->
@@ -491,7 +478,6 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 				if ctx.com.is_macro_context then raise_typing_error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
 				let old = ctx.get_build_infos in
 				ctx.get_build_infos <- (fun() -> Some (mt, extract_param_types (t_infos mt).mt_params, fvars()));
-				context_init#run;
 				let r = try apply_macro ctx MBuild s el p with e -> ctx.get_build_infos <- old; raise e in
 				ctx.get_build_infos <- old;
 				(match r with
@@ -524,7 +510,6 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 	let f_enum = match mt with
 		| TClassDecl ({cl_kind = KAbstractImpl a} as c) when a.a_enum ->
 			Some (fun () ->
-				context_init#run;
 				let e = build_enum_abstract ctx c a (fvars()) a.a_name_pos in
 				fbuild e;
 			)
@@ -545,7 +530,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 	List.iter (fun f -> f()) (List.rev f_build);
 	(match f_enum with None -> () | Some f -> f())
 
-let create_class_context c context_init p =
+let create_class_context c p =
 	let abstract = match c.cl_kind with
 		| KAbstractImpl a -> Some a
 		| _ -> None
@@ -567,7 +552,6 @@ let create_class_context c context_init p =
 		is_class_debug = Meta.has (Meta.Custom ":debug.typeload") c.cl_meta;
 		extends_public = extends_public c;
 		abstract = abstract;
-		context_init = context_init;
 		force_constructor = false;
 		uninitialized_final = [];
 		delayed_expr = [];
@@ -738,7 +722,7 @@ let build_fields (ctx,cctx) c fields =
 	let get_fields() = !fields in
 	let pending = ref [] in
 	c.cl_build <- (fun() -> BuildMacro pending);
-	build_module_def ctx (TClassDecl c) c.cl_meta get_fields cctx.context_init (fun (e,p) ->
+	build_module_def ctx (TClassDecl c) c.cl_meta get_fields (fun (e,p) ->
 		match e with
 		| EVars [{ ev_type = Some (CTAnonymous f,p); ev_expr = None }] ->
 			let f = List.map (fun f -> transform_field (ctx,cctx) c f fields p) f in
@@ -877,7 +861,6 @@ module TypeBinding = struct
 			(* type constant init fields (issue #1956) *)
 			if not !return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				r := lazy_processing (fun() -> t);
-				cctx.context_init#run;
 				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
@@ -954,7 +937,6 @@ module TypeBinding = struct
 		let c = cctx.tclass in
 		let bind r =
 			r := lazy_processing (fun() -> t);
-			cctx.context_init#run;
 			incr stats.s_methods_typed;
 			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 			let fmode = (match cctx.abstract with
@@ -1752,8 +1734,8 @@ let check_functional_interface ctx c =
 		add_class_flag c CFunctionalInterface;
 		ctx.g.functional_interface_lut#add c.cl_path cf
 
-let init_class ctx c p context_init herits fields =
-	let cctx = create_class_context c context_init p in
+let init_class ctx c p herits fields =
+	let cctx = create_class_context c p in
 	let ctx = create_typer_context_for_class ctx cctx p in
 	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
 	let fields = patch_class ctx c fields in
