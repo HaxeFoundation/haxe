@@ -104,9 +104,7 @@ class resolution_list (id : string list) = object(self)
 		in
 		if not resolved_lazies then begin
 			resolved_lazies <- true;
-			let close = Timer.timer ("resolution" :: "lazies" :: id) in
 			l <- loop [] l;
-			close();
 		end
 
 	method resolve (i : string) : resolution =
@@ -148,8 +146,7 @@ class resolution_list (id : string list) = object(self)
 					loop l
 				end
 		in
-		let close = Timer.timer ("resolution" :: "resolve" :: id) in
-		Std.finally close loop l
+		loop l
 
 	method expand_enum_constructors (mt : module_type) = match mt with
 		| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
@@ -200,12 +197,10 @@ class resolution_list (id : string list) = object(self)
 		end;
 
 	method find_type_import alias =
-		let close = Timer.timer ("resolution" :: "find_type_import" :: id) in
 		self#cache_type_imports;
-		Std.finally close StringMap.find alias type_import_cache
+		StringMap.find alias type_import_cache
 
 	method find_type_import_weirdly pack name =
-		let close = Timer.timer ("resolution" :: "find_type_import_weirdly" :: id) in
 		let rec find l = match l with
 			| [] ->
 				raise Not_found
@@ -214,7 +209,7 @@ class resolution_list (id : string list) = object(self)
 			| _ :: l ->
 				find l
 		in
-		Std.finally close find l
+		find l
 
 	method extract_type_imports =
 		ExtList.List.filter_map (fun res -> match res.r_kind with
@@ -226,7 +221,6 @@ class resolution_list (id : string list) = object(self)
 
 	method extract_field_imports =
 		self#resolve_lazies;
-		let close = Timer.timer ("resolution" :: "extract_field_imports" :: id) in
 		let l = List.fold_left (fun acc res -> match res.r_kind with
 			| RClassFieldImport(alias,c,cf) ->
 				PMap.add alias ((TClassDecl c),cf.cf_name,res.r_pos) acc
@@ -242,7 +236,6 @@ class resolution_list (id : string list) = object(self)
 			| _ ->
 				acc
 		) PMap.empty l in
-		close();
 		l
 
 	method extract_wildcard_packages =
