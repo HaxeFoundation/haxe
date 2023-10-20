@@ -200,17 +200,6 @@ class resolution_list (id : string list) = object(self)
 		self#cache_type_imports;
 		StringMap.find alias type_import_cache
 
-	method find_type_import_weirdly pack name =
-		let rec find l = match l with
-			| [] ->
-				raise Not_found
-			| {r_kind = RTypeImport(alias,mt); r_pos = p} :: l ->
-				if  t_path mt = (pack,name) then (mt,p) else find l
-			| _ :: l ->
-				find l
-		in
-		find l
-
 	method extract_type_imports =
 		ExtList.List.filter_map (fun res -> match res.r_kind with
 			| RTypeImport(_,mt) ->
