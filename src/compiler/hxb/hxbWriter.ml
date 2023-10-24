@@ -400,11 +400,15 @@ class ['a] hxb_writer
 			chunk#write_byte 40
 		end
 
-	method write_type_instance t =
+	method write_type_instance ?(debug:bool = false) t =
+		let debug_trace = (fun _ -> ()) in
+		(* let debug_trace = if debug then (fun s -> trace s) else (fun _ -> ()) in *)
+		ignore(debug_trace);
+
 		let write_function_arg (n,o,t) =
 			chunk#write_string n;
 			chunk#write_bool o;
-			self#write_type_instance t;
+			self#write_type_instance ~debug t;
 		in
 		match t with
 		| TMono r ->
@@ -413,7 +417,7 @@ class ['a] hxb_writer
 				chunk#write_byte 0
 			| Some t ->
 				chunk#write_byte 1;
-				self#write_type_instance t
+				self#write_type_instance ~debug t
 			end
 		| TInst({cl_kind = KTypeParameter _} as c,[]) ->
 			(* debug_msg (Printf.sprintf "[%s] KTypeParameter for %s" (s_type_path current_module.m_path) (s_type_path c.cl_path)); *)
@@ -477,15 +481,15 @@ class ['a] hxb_writer
 		| TFun(args,t) ->
 			chunk#write_byte 32;
 			chunk#write_list args write_function_arg;
-			self#write_type_instance t;
+			self#write_type_instance ~debug t;
 		| TLazy r ->
 			chunk#write_byte 33;
-			self#write_type_instance (lazy_type r);
+			self#write_type_instance ~debug (lazy_type r);
 		| TDynamic None ->
 			chunk#write_byte 40
 		| TDynamic (Some t) ->
 			chunk#write_byte 41;
-			self#write_type_instance t;
+			self#write_type_instance ~debug t;
 		| TAnon an when PMap.is_empty an.a_fields ->
 			chunk#write_byte 50;
 			chunk#write_bool true
@@ -853,8 +857,8 @@ class ['a] hxb_writer
 		self#write_pos v.v_pos
 
 	method write_texpr (e : texpr) =
-		let rec loop e =
-			(try self#write_type_instance e.etype; with _ -> begin
+		let rec loop ?(debug:bool = false) e =
+			(try self#write_type_instance ~debug e.etype; with _ -> begin
 				print_endline (Printf.sprintf "Error while writing type instance for:");
 				(* MessageReporting.display_source_at com e.epos; *)
 			end);
