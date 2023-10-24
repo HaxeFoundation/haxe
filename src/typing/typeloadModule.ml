@@ -797,8 +797,10 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 
 let type_module_hook = ref (fun _ _ _ -> None)
 
-(* TODO: get rid of `p` here? *)
-let rec get_reader ctx p =
+let rec get_reader ctx =
+	(* TODO: create typer context for this module? *)
+	(* let ctx = create_typer_context_for_module tctx m in *)
+
 	let make_module path file =
 		let m = ModuleLevel.make_module ctx path file in
 		(* m.m_extra.m_added <- ctx.com.compilation_step; *)
@@ -810,12 +812,17 @@ let rec get_reader ctx p =
 		ctx.com.module_lut#add m.m_path m
 	in
 
+	let flush_fields () =
+		flush_pass ctx PConnectField "hxb"
+	in
+
 	let resolve_type pack mname tname =
-		let m = try ctx.com.module_lut#find (pack,mname) with Not_found -> load_module' ctx ctx.g (pack,mname) p in
+		let cc = CommonCache.get_cache ctx.Typecore.com in
+		let m = HxbRestore.find cc ctx.Typecore.com (pack,mname) in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 	in
 
-	new HxbReader.hxb_reader make_module add_module resolve_type
+	new HxbReader.hxb_reader make_module add_module resolve_type flush_fields
 
 and load_hxb_module ctx path p =
 	let compose_path no_rename =
@@ -836,7 +843,7 @@ and load_hxb_module ctx path p =
 	(* TODO use finally instead *)
 	try
 		(* Printf.eprintf "[%s] Read module %s\n" target (s_type_path path); *)
-		let m = (get_reader ctx p)#read input true p in
+		let m = (get_reader ctx)#read input true p in
 		(* Printf.eprintf "[%s] Done reading module %s\n" target (s_type_path path); *)
 		close_in ch;
 		m

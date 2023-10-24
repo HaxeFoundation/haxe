@@ -24,6 +24,7 @@ class hxb_reader
 	(make_module : path -> string -> module_def)
 	(add_module : module_def -> unit)
 	(resolve_type : string list -> string -> string -> module_type)
+	(flush_fields : unit -> unit)
 = object(self)
 
 	val mutable m = null_module
@@ -1538,6 +1539,7 @@ class hxb_reader
 			| CLSD ->
 				self#read_clsd;
 			| CFLD ->
+				flush_fields ();
 				self#read_cfld;
 			| ENMD ->
 				self#read_enmd;

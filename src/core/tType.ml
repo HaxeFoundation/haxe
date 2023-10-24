@@ -366,14 +366,6 @@ and module_type =
 	| TTypeDecl of tdef
 	| TAbstractDecl of tabstract
 
-and module_def = {
-	m_id : int;
-	m_path : path;
-	mutable m_types : module_type list;
-	mutable m_statics : tclass option;
-	mutable m_extra : module_def_extra;
-}
-
 and module_def_display = {
 	mutable m_inline_calls : (pos * pos) list; (* calls whatever is at pos1 from pos2 *)
 	mutable m_type_hints : (pos * pos) list;
@@ -416,6 +408,20 @@ and module_kind =
 	| MFake
 	| MExtern
 	| MImport
+
+and module_def = {
+	m_id : int;
+	m_path : path;
+	mutable m_types : module_type list;
+	mutable m_statics : tclass option;
+	mutable m_extra : module_def_extra;
+}
+
+and module_cache = {
+	mc_path : path;
+	mc_bytes : bytes;
+	mc_extra : module_def_extra;
+}
 
 and build_state =
 	| Built

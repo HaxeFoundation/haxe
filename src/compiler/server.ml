@@ -221,34 +221,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 	dirs
 
 let find_or_restore_module (cc : context_cache) ctx path =
-	match cc#find_module_opt path with
-	| None ->
-		begin match cc#get_hxb path with
-		| None -> raise Not_found
-		| Some mc ->
-			let reader = TypeloadModule.get_reader ctx null_pos in
-
-			let m = try
-				reader#read (IO.input_bytes mc.mc_bytes) true null_pos
-			(* Avoid exception chain when loading module dependencies, and print stack *)
-			with | Exit -> raise Exit
-			| e ->
-				print_endline (Printf.sprintf "Error while reading module %s from hxb:\n%s" (s_type_path path) (Printexc.to_string e));
-				print_endline (Printexc.get_backtrace ());
-				raise Exit
-			in
-
-			ServerMessage.restore_hxb ctx.Typecore.com mc.mc_path;
-			assert (cc#get_sign = mc.mc_extra.m_sign);
-			assert (m.m_extra.m_sign = mc.mc_extra.m_sign);
-
-			(* TODO restore some things from m_extra? *)
-			(* m.m_extra.m_cache_state <- mc.mc_extra.m_cache_state; *)
-			m
-		end
-	| Some m ->
-		assert (cc#get_sign = m.m_extra.m_sign);
-		m
+	HxbRestore.find cc ctx.Typecore.com path
 
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
@@ -339,8 +312,7 @@ let check_module sctx ctx m p =
 		in
 		let check_dependencies () =
 			PMap.iter (fun _ (sign,mpath) ->
-				let m2 = (com.cs#get_context sign)#find_module mpath in
-				(* let m2 = find_or_restore_module (com.cs#get_context sign) ctx mpath in *)
+				let m2 = find_or_restore_module (com.cs#get_context sign) ctx mpath in
 				match check m2 with
 				| None -> ()
 				| Some reason -> raise (Dirty (DependencyDirty(m2.m_path,reason)))
@@ -442,7 +414,6 @@ let add_modules sctx ctx m p =
 				TypeloadModule.ModuleLevel.add_module ctx m p;
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
 				PMap.iter (fun _ (sign,mpath) ->
-					(* let m2 = (com.cs#get_context sign)#find_module mpath in *)
 					let m2 = find_or_restore_module (com.cs#get_context sign) ctx mpath in
 					assert (m2.m_extra.m_sign == sign);
 					add_modules (tabs ^ "  ") m0 m2
@@ -458,8 +429,6 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 	let t = Timer.timer ["server";"module cache"] in
 	let com = ctx.Typecore.com in
 	let cc = CommonCache.get_cache com in
-	(* let sign = Define.get_signature com.defines in *)
-	(* let cc = com.cs#get_context sign in *)
 	try
 		let m = find_or_restore_module cc ctx mpath in
 		let tcheck = Timer.timer ["server";"module cache";"check"] in

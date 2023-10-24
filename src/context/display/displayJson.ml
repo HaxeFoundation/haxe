@@ -185,7 +185,7 @@ let handler =
 			let cs = hctx.display#get_cs in
 			let cc = cs#get_context sign in
 			let m = try
-				cc#find_module path
+				HxbRestore.find cc hctx.com path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
@@ -197,7 +197,7 @@ let handler =
 			let typeName = hctx.jsonrpc#get_string_param "typeName" in
 			let cc = hctx.display#get_cs#get_context sign in
 			let m = try
-				cc#find_module path
+				HxbRestore.find cc hctx.com path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in

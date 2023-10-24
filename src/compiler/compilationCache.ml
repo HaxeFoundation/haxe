@@ -23,13 +23,6 @@ type cached_native_lib = {
 	c_nl_files : (path,Ast.package) Hashtbl.t;
 }
 
-(* TODO find a better place (and name?) to store this? *)
-type module_cache = {
-	mc_path : path;
-	mc_bytes : bytes;
-	mc_extra : module_def_extra;
-}
-
 let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 	| None ->
 		let name = Path.module_name_of_file file in
@@ -58,7 +51,6 @@ class context_cache (index : int) (sign : string) = object(self)
 		try
 			let f = Hashtbl.find files key in
 			Hashtbl.remove files key;
-			Hashtbl.remove binary_cache (f.c_package, get_module_name_of_cfile f.c_file_path f);
 			Hashtbl.replace removed_files key f.c_file_path
 		with Not_found -> ()
 
@@ -86,9 +78,7 @@ class context_cache (index : int) (sign : string) = object(self)
 		Hashtbl.replace binary_cache path {
 			mc_path = path;
 			mc_bytes = bytes;
-			(* TODO warning, this m_extra will be updated from module cache *)
-			mc_extra = m.m_extra;
-			(* mc_extra = { m.m_extra with m_processed = 1 } *)
+			mc_extra = { m.m_extra with m_cache_state = MSGood }
 		}
 
 	method clear_cache =
@@ -105,7 +95,8 @@ class context_cache (index : int) (sign : string) = object(self)
 	method get_modules = modules
 
 	(* TODO rename all this to something that makes sense *)
-	method get_hxb path = Hashtbl.find_opt binary_cache path
+	method get_hxb = binary_cache
+	method get_hxb_module path = Hashtbl.find_opt binary_cache path
 
 	(* TODO handle hxb cache there too *)
 	method get_removed_files = removed_files
@@ -213,8 +204,9 @@ class cache = object(self)
 	method taint_modules file_key reason =
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
-				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_cache_state <- MSBad (Tainted reason)
-			) cc#get_modules
+				if Path.UniqueKey.lazy_key m.mc_extra.m_file = file_key then m.mc_extra.m_cache_state <- MSBad (Tainted reason)
+			) cc#get_hxb
+			(* ) cc#get_modules *)
 		) contexts
 
 	(* haxelibs *)
