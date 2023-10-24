@@ -838,6 +838,8 @@ let log com str =
 	if com.verbose then com.print (str ^ "\n")
 
 let clone com is_macro_context =
+	(* trace (Printf.sprintf "Common.clone was_macro=%b is_macro=%b" com.is_macro_context is_macro_context); *)
+	(* trace_call_stack (); *)
 	let t = com.basic in
 	{ com with
 		cache = None;

@@ -393,7 +393,7 @@ class ['a] hxb_writer
 			chunk#write_byte 7;
 			chunk#write_uleb128 index;
 		with Not_found ->
-			print_endline (Printf.sprintf "[%s] %s Unbound type parameter %s (%s)" (s_type_path current_module.m_path) todo_error (s_type_path c.cl_path) (snd c.cl_path));
+			(* print_endline (Printf.sprintf "[%s] %s Unbound type parameter %s (%s)" (s_type_path current_module.m_path) todo_error (s_type_path c.cl_path) (snd c.cl_path)); *)
 			(* DynArray.iter (fun ttp -> debug_msg (Printf.sprintf "FTP %s %s" ttp.ttp_name (s_type_kind ttp.ttp_type)) field_type_parameters#items); *)
 			(* DynArray.iter (fun ttp -> debug_msg (Printf.sprintf "TTP %s %s" ttp.ttp_name (s_type_kind ttp.ttp_type)) type_type_parameters#items); *)
 			(* print_stacktrace (); *)

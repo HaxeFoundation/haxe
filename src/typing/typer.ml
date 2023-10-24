@@ -2028,6 +2028,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 (* TYPER INITIALIZATION *)
 
 let create com macros =
+	(* trace (Printf.sprintf "Typer.create with_macro=%b" (Option.is_some macros)); *)
 	let ctx = {
 		com = com;
 		t = com.basic;

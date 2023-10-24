@@ -4153,7 +4153,8 @@ let generate com =
 	end else
 
 	let ctx = create_context com false dump in
-	add_types ctx com.types;
+	(try add_types ctx com.types with Not_found -> trace (Printexc.get_backtrace ()); raise Not_found);
+
 	let code = build_code ctx com.types com.main in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 	if dump then begin

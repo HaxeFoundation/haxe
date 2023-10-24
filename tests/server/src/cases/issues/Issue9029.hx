@@ -7,9 +7,12 @@ class Issue9029 extends TestCase {
 		vfs.putContent("Screen.hx", getTemplate("issues/Issue9029/Screen.hx"));
 		var args = ["-main", "Main", "-D", "analyzer-optimize", "--interp"];
 		runHaxe(args);
+		debugErrorMessages();
+		assertSuccess();
 		vfs.putContent("Game.hx", getTemplate("issues/Issue9029/Game.hx.modified"));
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Game.hx")});
 		runHaxe(args);
+		debugErrorMessages();
 		assertSuccess();
 	}
 }
