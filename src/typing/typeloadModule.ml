@@ -796,6 +796,7 @@ let type_module_hook = ref (fun _ _ _ -> None)
 let rec get_reader ctx g p =
 	(* TODO: create typer context for this module? *)
 	(* let ctx = create_typer_context_for_module tctx m in *)
+	let local_module_lut = new Lookup.hashtbl_lookup in
 
 	let make_module path file =
 		let m = ModuleLevel.make_module ctx path file in
@@ -814,7 +815,8 @@ let rec get_reader ctx g p =
 	in
 
 	let resolve_type sign pack mname tname =
-		let m = load_module' ctx g (pack,mname) p in
+		let m = try HxbRestore.find local_module_lut ctx.Typecore.com.cs sign ctx.Typecore.com (pack,mname)
+		with Not_found -> load_module' ctx g (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 	in
 

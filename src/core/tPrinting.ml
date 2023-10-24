@@ -603,10 +603,11 @@ module Printer = struct
 		in
 		loop [] reason
 
-	let s_module_cache_state = function
+	let rec s_module_cache_state = function
 		| MSGood -> "Good"
 		| MSBad reason -> "Bad: " ^ (s_module_skip_reason reason)
 		| MSUnknown -> "Unknown"
+		| MSRestored s -> Printf.sprintf "Restored (%s)" (s_module_cache_state s)
 
 	let s_module_def_extra tabs me =
 		s_record_fields tabs [
