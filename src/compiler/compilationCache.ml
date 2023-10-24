@@ -156,11 +156,12 @@ class cache = object(self)
 		| Some cache -> cache
 
 	method get_context sign =
-		try
+		(* try *)
 			Hashtbl.find contexts sign
-		with Not_found ->
-			trace_call_stack ();
-			assert false
+		(* with Not_found -> *)
+			(* trace_call_stack (); *)
+			(* assert false *)
+			(* self#create_context sign *)
 
 	method add_info sign desc platform class_path defines =
 		(* TODO context should probably already exist at this point? *)

@@ -807,7 +807,7 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 
 let type_module_hook = ref (fun _ _ _ -> None)
 
-let rec get_reader ctx =
+let rec get_reader ctx g p =
 	(* TODO: create typer context for this module? *)
 	(* let ctx = create_typer_context_for_module tctx m in *)
 
@@ -828,13 +828,14 @@ let rec get_reader ctx =
 	in
 
 	let resolve_type sign pack mname tname =
-		let m = HxbRestore.find ctx.Typecore.com.cs sign ctx.Typecore.com (pack,mname) in
+		let m = try HxbRestore.find ctx.Typecore.com.cs sign ctx.Typecore.com (pack,mname)
+		with Not_found -> load_module' ctx g (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 	in
 
 	new HxbReader.hxb_reader make_module add_module resolve_type flush_fields
 
-and load_hxb_module ctx path p =
+and load_hxb_module ctx g path p =
 	let compose_path no_rename =
 		(match path with
 		| [] , name -> name
@@ -853,7 +854,7 @@ and load_hxb_module ctx path p =
 	(* TODO use finally instead *)
 	try
 		(* Printf.eprintf "[%s] Read module %s\n" target (s_type_path path); *)
-		let m = (get_reader ctx)#read input true p in
+		let m = (get_reader ctx g p)#read input true p in
 		(* Printf.eprintf "[%s] Done reading module %s\n" target (s_type_path path); *)
 		close_in ch;
 		m
@@ -876,7 +877,7 @@ and load_module' ctx g mpath p =
 			do_add_module ctx.com m;
 			m
 		(* Try loading from hxb first, then from source *)
-		| None -> try load_hxb_module ctx mpath p with Not_found ->
+		| None -> try load_hxb_module ctx g mpath p with Not_found ->
 			let raise_not_found () = raise_error_msg (Module_not_found mpath) p in
 			if ctx.com.module_nonexistent_lut#mem mpath then raise_not_found();
 			if ctx.g.load_only_cached_modules then raise_not_found();
