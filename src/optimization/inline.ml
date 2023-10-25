@@ -111,7 +111,7 @@ let api_inline ctx c field params p =
 		let m = (try ctx.com.module_lut#find path with Not_found -> die "" __LOC__) in
 		add_dependency ctx.m.curmod m;
 		Option.get (ExtList.List.find_map (function
-			| TClassDecl cl when cl.cl_path = path -> Some (Texpr.Builder.make_static_this cl p)
+			| TClassDecl cl when cl.cl_path = path -> Some (make_static_this cl p)
 			| _ -> None
 		) m.m_types)
 	in
@@ -171,7 +171,7 @@ let api_inline ctx c field params p =
 			None)
 	| (["js"],"Boot"),"__downcastCheck",[o; {eexpr = TTypeExpr (TClassDecl cls) } as t] when ctx.com.platform = Js ->
 		if (has_class_flag cls CInterface) then
-			Some (Texpr.Builder.fcall (Texpr.Builder.make_static_this c p) "__implements" [o;t] tbool p)
+			Some (Texpr.Builder.fcall (make_static_this c p) "__implements" [o;t] tbool p)
 		else
 			Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
 	| (["cs" | "java"],"Lib"),("nativeArray"),[{ eexpr = TArrayDecl args } as edecl; _]
@@ -927,7 +927,7 @@ and inline_rest_params ctx f params map_type p =
 						in
 						let array = mk (TArrayDecl params) (ctx.t.tarray t_params) p in
 						(* haxe.Rest.of(array) *)
-						let e = make_static_abstract_call ctx a [t] c cf [array] p in
+						let e = make_static_call ctx c cf (apply_params a.a_params [t]) [array] (TAbstract(a,[t_params])) p in
 						[e]
 					| _ ->
 						die ~p:v.v_pos "Unexpected rest arguments type" __LOC__

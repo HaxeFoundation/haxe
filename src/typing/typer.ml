@@ -2015,7 +2015,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 						try PMap.find "isOfType" c.cl_statics
 						with Not_found -> die "" __LOC__
 					in
-					Texpr.Builder.make_static_field_access c cf cf.cf_type (mk_zero_range_pos p)
+					Texpr.Builder.make_static_field c cf (mk_zero_range_pos p)
 				| _ -> die "" __LOC__
 			in
 			mk (TCall (e_Std_isOfType, [e; e_t])) ctx.com.basic.tbool p

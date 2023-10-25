@@ -36,8 +36,13 @@ let haxe_exception_static_call ctx method_name args p =
 		try PMap.find method_name ctx.haxe_exception_class.cl_statics
 		with Not_found -> raise_typing_error ("haxe.Exception has no field " ^ method_name) p
 	in
+	let return_type =
+		match follow method_field.cf_type with
+		| TFun(_,t) -> t
+		| _ -> raise_typing_error ("haxe.Exception." ^ method_name ^ " is not a function and cannot be called") p
+	in
 	add_dependency ctx.typer.curclass.cl_module ctx.haxe_exception_class.cl_module;
-	make_static_class_call ctx.typer ctx.haxe_exception_class method_field args p
+	make_static_call ctx.typer ctx.haxe_exception_class method_field (fun t -> t) args return_type p
 
 (**
 	Generate `haxe_exception.method_name(args)`
@@ -69,8 +74,13 @@ let std_is ctx e t p =
 		try PMap.find "isOfType" std_cls.cl_statics
 		with Not_found -> raise_typing_error ("Std has no field isOfType") p
 	in
+	let return_type =
+		match follow isOfType_field.cf_type with
+		| TFun(_,t) -> t
+		| _ -> raise_typing_error ("Std.isOfType is not a function and cannot be called") p
+	in
 	let type_expr = { eexpr = TTypeExpr(module_type_of_type t); etype = t; epos = p } in
-	make_static_class_call ctx.typer std_cls isOfType_field [e; type_expr] p
+	make_static_call ctx.typer std_cls isOfType_field (fun t -> t) [e; type_expr] return_type p
 
 (**
 	Check if type path of `t` exists in `lst`
@@ -609,10 +619,15 @@ let insert_save_stacks tctx =
 					try PMap.find "saveStack" native_stack_trace_cls.cl_statics
 					with Not_found -> raise_typing_error ("haxe.NativeStackTrace has no field saveStack") null_pos
 				in
+				let return_type =
+					match follow method_field.cf_type with
+					| TFun(_,t) -> t
+					| _ -> raise_typing_error ("haxe.NativeStackTrace." ^ method_field.cf_name ^ " is not a function and cannot be called") null_pos
+				in
 				let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
 				begin
 					add_dependency tctx.curclass.cl_module native_stack_trace_cls.cl_module;
-					make_static_class_call tctx native_stack_trace_cls method_field [catch_local] catch_var.v_pos
+					make_static_call tctx native_stack_trace_cls method_field (fun t -> t) [catch_local] return_type catch_var.v_pos
 				end
 			else
 				mk (TBlock[]) tctx.t.tvoid catch_var.v_pos

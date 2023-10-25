@@ -486,9 +486,9 @@ module Builder = struct
 		in
 		mk (TTypeExpr mt) t pos
 
-	let make_static_field_access c cf t p =
-		let ethis = make_static_this c p in
-		mk (TField (ethis,(FStatic (c,cf)))) t p
+	let make_static_field c cf p =
+		let e_this = make_static_this c p in
+		mk (TField(e_this,FStatic(c,cf))) cf.cf_type p
 
 	let make_throw e p =
 		mk (TThrow e) t_dynamic p
