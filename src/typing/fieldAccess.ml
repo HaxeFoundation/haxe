@@ -2,7 +2,7 @@ open Typecore
 open Type
 open Error
 
-type field_host =
+type field_access_mode =
 	(* Get the plain expression with applied field type parameters. *)
 	| FGet
 	(* Does not apply field type parameters. *)

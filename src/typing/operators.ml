@@ -408,7 +408,6 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 		die "" __LOC__
 
 let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type p =
-	let map = apply_params a.a_params tl in
 	let make op_cf cf e1 e2 tret needs_assign swapped =
 		if cf.cf_expr = None && not (has_class_field_flag cf CfExtern) then begin
 			if not (Meta.has Meta.NoExpr cf.cf_meta) then Common.display_error ctx.com "Recursive operator method" p;
@@ -437,11 +436,11 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 			let vr = new value_reference ctx in
 			let e2' = vr#as_var "lhs" e2 in
 			let e1' = vr#as_var "rhs" e1 in
-			let e = make_static_call ctx c cf map [e1';e2'] tret p in
+			let e = make_static_abstract_call ctx a tl c cf [e1';e2'] p in
 			let e = vr#to_texpr e in
 			BinopResult.create_special e needs_assign
 		end else
-			BinopResult.create_special (make_static_call ctx c cf map [e1;e2] tret p) needs_assign
+			BinopResult.create_special (make_static_abstract_call ctx a tl c cf [e1;e2] p) needs_assign
 	in
 	(* special case for == and !=: if the second type is a monomorph, assume that we want to unify
 		it with the first type to preserve comparison semantics. *)
@@ -467,6 +466,7 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 					let check e1 e2 swapped =
 						let map_arguments () =
 							let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
+							let map = apply_params a.a_params tl in
 							let map t = map (apply_params cf.cf_params monos t) in
 							let t1 = map t1 in
 							let t2 = map t2 in

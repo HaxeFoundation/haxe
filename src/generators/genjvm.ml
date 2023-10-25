@@ -2517,7 +2517,7 @@ class tclass_to_jvm gctx c = object(self)
 		let jm = jc#spawn_field cf.cf_name jsig flags in
 		let default e =
 			let p = null_pos in
-			let efield = Texpr.Builder.make_static_field c cf p in
+			let efield = Texpr.Builder.make_static_field_access c cf cf.cf_type p in
 			let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type p in
 			begin match c.cl_init with
 			| None -> c.cl_init <- Some eop

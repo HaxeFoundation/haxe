@@ -234,6 +234,24 @@ let warning ?(depth=0) ctx w msg p =
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
+let make_static_call_gen ctx c cf el map p =
+	let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+	let t = map (apply_params cf.cf_params monos cf.cf_type) in
+	match follow t with
+	| TFun(args,ret) ->
+		let ethis = Texpr.Builder.make_static_this c p in
+		let ef = mk (TField(ethis,FStatic(c,cf))) t p in
+		make_call ctx ef el ret p
+	| t ->
+		raise_typing_error (s_type (print_context()) t ^ " cannot be called") p
+
+let make_static_class_call ctx c cf el p =
+	make_static_call_gen ctx c cf el (fun t -> t) p
+
+let make_static_abstract_call ctx a tl c cf el p =
+	let map = apply_params a.a_params tl in
+	make_static_call_gen ctx c cf el map p
+
 let type_expr ?(mode=MGet) ctx e with_type = (!type_expr_ref) ~mode ctx e with_type
 
 let unify_min ctx el = (!unify_min_ref) ctx el
@@ -246,20 +264,6 @@ let spawn_monomorph' ctx p =
 
 let spawn_monomorph ctx p =
 	TMono (spawn_monomorph' ctx p)
-
-let make_static_this c p =
-	let ta = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
-	mk (TTypeExpr (TClassDecl c)) ta p
-
-let make_static_field_access c cf t p =
-	let ethis = make_static_this c p in
-	mk (TField (ethis,(FStatic (c,cf)))) t p
-
-let make_static_call ctx c cf map args t p =
-	let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
-	let map t = map (apply_params cf.cf_params monos t) in
-	let ef = make_static_field_access c cf (map cf.cf_type) p in
-	make_call ctx ef args (map t) p
 
 let raise_with_type_error ?(depth = 0) msg p =
 	raise (WithTypeError (make_error ~depth (Custom msg) p))

@@ -23,7 +23,7 @@ let rec make_static_call ctx c cf a pl args t p =
 				e
 			| _ -> die "" __LOC__
 	end else
-		Typecore.make_static_call ctx c cf (apply_params a.a_params pl) args t p
+		make_static_abstract_call ctx a pl c cf args p
 
 and do_check_cast ctx uctx tleft eright p =
 	let recurse cf f =
