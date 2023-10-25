@@ -625,3 +625,15 @@ let maybe_reapply_overload_call ctx e =
 			end
 		| _ ->
 			e
+
+let make_static_call_better ctx c cf tl el t p =
+	let fh = match c.cl_kind with
+		| KAbstractImpl a when has_class_field_flag cf CfImpl ->
+			FHAbstract(a,tl,c)
+		| _ ->
+			FHStatic c
+	in
+	let e1 = Builder.make_static_this c p in
+	let fa = FieldAccess.create e1 cf fh false p in
+	let fcc = unify_field_call ctx fa el [] p false in
+	fcc.fc_data()
