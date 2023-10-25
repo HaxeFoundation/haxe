@@ -49,7 +49,7 @@ and do_check_cast ctx uctx tleft eright p =
 		else match a.a_impl with
 			| Some c -> recurse cf (fun () ->
 				let ret = make_static_call ctx c cf a tl [eright] tleft p in
-				{ ret with eexpr = TMeta( (Meta.ImplicitCast,[],ret.epos), ret) }
+				{ ret with eexpr = TMeta( (Meta.ImplicitCast,[],ret.epos), ret); etype = tleft }
 			)
 			| None -> die "" __LOC__
 	in
