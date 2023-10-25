@@ -1,5 +1,4 @@
 open Globals
-open Json.Reader
 open JsonRpc
 open Jsonrpc_handler
 open Json
@@ -183,13 +182,14 @@ let handler =
 		"server/module", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
-			let cc = hctx.display#get_cs#get_context sign in
+			let cs = hctx.display#get_cs in
+			let cc = cs#get_context sign in
 			let m = try
 				cc#find_module path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
-			hctx.send_result (generate_module cc m)
+			hctx.send_result (generate_module cs cc m)
 		);
 		"server/type", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
@@ -295,6 +295,12 @@ let handler =
 				let b = hctx.jsonrpc#get_bool_param "legacyCompletion" in
 				ServerConfig.legacy_completion := b;
 				l := jstring ("Legacy completion " ^ (if b then "enabled" else "disabled")) :: !l;
+				()
+			) ();
+			hctx.jsonrpc#get_opt_param (fun () ->
+				let b = hctx.jsonrpc#get_bool_param "populateCacheFromDisplay" in
+				ServerConfig.populate_cache_from_display := b;
+				l := jstring ("Compilation cache refill from display " ^ (if b then "enabled" else "disabled")) :: !l;
 				()
 			) ();
 			hctx.send_result (jarray !l)

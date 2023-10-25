@@ -146,19 +146,19 @@ end
 
 let is_lower_ident s p =
 	try Ast.is_lower_ident s
-	with Invalid_argument msg -> typing_error msg p
+	with Invalid_argument msg -> raise_typing_error msg p
 
 let get_this ctx p =
 	match ctx.curfun with
 	| FunStatic ->
-		typing_error "Cannot access this from a static function" p
+		raise_typing_error "Cannot access this from a static function" p
 	| FunMemberClassLocal | FunMemberAbstractLocal ->
 		let v = match ctx.vthis with
 			| None ->
 				let v = if ctx.curfun = FunMemberAbstractLocal then
 					PMap.find "this" ctx.locals
 				else
-					add_local ctx VGenerated "`this" ctx.tthis p
+					add_local ctx VGenerated (Printf.sprintf "%sthis" gen_local_prefix) ctx.tthis p
 				in
 				ctx.vthis <- Some v;
 				v
@@ -168,10 +168,18 @@ let get_this ctx p =
 		in
 		mk (TLocal v) ctx.tthis p
 	| FunMemberAbstract ->
-		let v = (try PMap.find "this" ctx.locals with Not_found -> typing_error "Cannot reference this abstract here" p) in
+		let v = (try PMap.find "this" ctx.locals with Not_found -> raise_typing_error "Cannot reference this abstract here" p) in
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.tthis p
+
+let get_stored_typed_expr ctx id =
+	let e = ctx.com.stored_typed_exprs#find id in
+	Texpr.duplicate_tvars (fun e -> get_this ctx e.epos) e
+
+let type_stored_expr ctx e1 =
+	let id = match e1 with (EConst (Int (s, _)),_) -> int_of_string s | _ -> die "" __LOC__ in
+	get_stored_typed_expr ctx id
 
 let assign_to_this_is_allowed ctx =
 	match ctx.curclass.cl_kind with
@@ -183,48 +191,51 @@ let assign_to_this_is_allowed ctx =
 			)
 		| _ -> false
 
-let rec type_module_type ctx t tparams p =
-	match t with
-	| TClassDecl {cl_kind = KGenericBuild _} ->
-		let _,_,f = InstanceBuilder.build_instance ctx t p in
-		let t = f (match tparams with None -> [] | Some tl -> tl) in
-		let mt = try
-			module_type_of_type t
-		with Exit ->
-			if follow t == t_dynamic then Typeload.load_type_def ctx p (mk_type_path ([],"Dynamic"))
-			else typing_error "Invalid module type" p
-		in
-		type_module_type ctx mt None p
-	| TClassDecl c ->
-		let t_tmp = class_module_type c in
-		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
-	| TEnumDecl e ->
-		let types = (match tparams with None -> Monomorph.spawn_constrained_monos (fun t -> t) e.e_params | Some l -> l) in
-		mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
-	| TTypeDecl s ->
-		let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx p) s.t_params) in
-		DeprecationCheck.check_typedef ctx.com s p;
-		(match follow t with
-		| TEnum (e,params) ->
-			type_module_type ctx (TEnumDecl e) (Some params) p
-		| TInst (c,params) ->
-			type_module_type ctx (TClassDecl c) (Some params) p
-		| TAbstract (a,params) ->
-			type_module_type ctx (TAbstractDecl a) (Some params) p
-		| _ ->
-			typing_error (s_type_path s.t_path ^ " is not a value") p)
-	| TAbstractDecl { a_impl = Some c } ->
-		type_module_type ctx (TClassDecl c) tparams p
-	| TAbstractDecl a ->
-		if not (Meta.has Meta.RuntimeValue a.a_meta) then typing_error (s_type_path a.a_path ^ " is not a value") p;
-		let t_tmp = abstract_module_type a [] in
-		mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
+let type_module_type ctx t p =
+	let rec loop t tparams =
+		match t with
+		| TClassDecl {cl_kind = KGenericBuild _} ->
+			let _,_,f = InstanceBuilder.build_instance ctx t p in
+			let t = f (match tparams with None -> [] | Some tl -> tl) in
+			let mt = try
+				module_type_of_type t
+			with Exit ->
+				if follow t == t_dynamic then Typeload.load_type_def ctx p (mk_type_path ([],"Dynamic"))
+				else raise_typing_error "Invalid module type" p
+			in
+			loop mt None
+		| TClassDecl c ->
+			let t_tmp = class_module_type c in
+			mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
+		| TEnumDecl e ->
+			let types = (match tparams with None -> Monomorph.spawn_constrained_monos (fun t -> t) e.e_params | Some l -> l) in
+			mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
+		| TTypeDecl s ->
+			let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx p) s.t_params) in
+			DeprecationCheck.check_typedef (create_deprecation_context ctx) s p;
+			(match follow t with
+			| TEnum (e,params) ->
+				loop (TEnumDecl e) (Some params)
+			| TInst (c,params) ->
+				loop (TClassDecl c) (Some params)
+			| TAbstract (a,params) ->
+				loop (TAbstractDecl a) (Some params)
+			| _ ->
+				raise_typing_error (s_type_path s.t_path ^ " is not a value") p)
+		| TAbstractDecl { a_impl = Some c } ->
+			loop (TClassDecl c) tparams
+		| TAbstractDecl a ->
+			if not (Meta.has Meta.RuntimeValue a.a_meta) then raise_typing_error (s_type_path a.a_path ^ " is not a value") p;
+			let t_tmp = abstract_module_type a [] in
+			mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
+	in
+	loop t None
 
 let type_type ctx tpath p =
-	type_module_type ctx (Typeload.load_type_def ctx p (mk_type_path tpath)) None p
+	type_module_type ctx (Typeload.load_type_def ctx p (mk_type_path tpath)) p
 
 let mk_module_type_access ctx t p =
-	AKExpr (type_module_type ctx t None p)
+	AKExpr (type_module_type ctx t p)
 
 let s_field_access tabs fa =
 	let st = s_type (print_context()) in
@@ -282,7 +293,7 @@ let s_dot_path_part part =
 let get_constructible_constraint ctx tl p =
 	let extract_function t = match follow t with
 		| TFun(tl,tr) -> tl,tr
-		| _ -> typing_error "Constructible type parameter should be function" p
+		| _ -> raise_typing_error "Constructible type parameter should be function" p
 	in
 	let rec loop tl = match tl with
 		| [] -> None

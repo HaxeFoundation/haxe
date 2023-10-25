@@ -4,20 +4,24 @@ open CompilationContext
 
 let run_or_diagnose ctx f arg =
 	let com = ctx.com in
-	let handle_diagnostics ?(depth = 0) msg kind =
+	let handle_diagnostics ?(depth = 0) msg p kind =
 		ctx.has_error <- true;
-		add_diagnostics_message ~depth com msg kind Error;
+		add_diagnostics_message ~depth com msg p kind Error;
 		DisplayOutput.emit_diagnostics ctx.com
 	in
 	if is_diagnostics com then begin try
 			f arg
 		with
-		| Error.Error(msg,p,depth) ->
-			handle_diagnostics ~depth (Error.error_msg p msg) DKCompilerMessage
+		| Error.Error err ->
+			ctx.has_error <- true;
+			Error.recurse_error (fun depth err ->
+				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos DKCompilerMessage Error
+			) err;
+			DisplayOutput.emit_diagnostics ctx.com
 		| Parser.Error(msg,p) ->
-			handle_diagnostics (located (Parser.error_msg msg) p) DKParserError
+			handle_diagnostics (Parser.error_msg msg) p DKParserError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics (located (Lexer.error_msg msg) p) DKParserError
+			handle_diagnostics (Lexer.error_msg msg) p DKParserError
 		end
 	else
 		f arg
@@ -67,14 +71,15 @@ let run_command ctx cmd =
 
 module Setup = struct
 	let initialize_target ctx com actx =
+		init_platform com;
 		let add_std dir =
 			com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
 		in
 		match com.platform with
 			| Cross ->
-				(* no platform selected *)
-				set_platform com Cross "";
 				"?"
+			| CustomTarget name ->
+				name
 			| Flash ->
 				let rec loop = function
 					| [] -> ()
@@ -132,13 +137,20 @@ module Setup = struct
 				"python"
 			| Hl ->
 				add_std "hl";
-				if not (Common.defined com Define.HlVer) then Define.define_value com.defines Define.HlVer (try Std.input_file (Common.find_file com "hl/hl_version") with Not_found -> die "" __LOC__);
+				if not (Common.defined com Define.HlVer) then begin
+					let hl_ver = try
+						Std.input_file (Common.find_file com "hl/hl_version")
+					with Not_found ->
+						failwith "The file hl_version could not be found. Please make sure HAXE_STD_PATH is set to the standard library corresponding to the used compiler version."
+					in
+					Define.define_value com.defines Define.HlVer hl_ver
+				end;
 				"hl"
 			| Eval ->
 				add_std "eval";
 				"eval"
 
-	let create_typer_context ctx native_libs =
+	let create_typer_context ctx macros native_libs =
 		let com = ctx.com in
 		Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
 		let buffer = Buffer.create 64 in
@@ -149,13 +161,12 @@ module Setup = struct
 		) com.defines.values;
 		Buffer.truncate buffer (Buffer.length buffer - 1);
 		Common.log com (Buffer.contents buffer);
-		Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
-		com.callbacks#run com.callbacks#get_before_typer_create;
+		com.callbacks#run com.error_ext com.callbacks#get_before_typer_create;
 		(* Native lib pass 1: Register *)
 		let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
 		(* Native lib pass 2: Initialize *)
 		List.iter (fun f -> f()) fl;
-		Typer.create com
+		Typer.create com macros
 
 	let executable_path() =
 		Extc.executable_path()
@@ -205,8 +216,10 @@ module Setup = struct
 		Common.define_value com Define.Haxe s_version;
 		Common.raw_define com "true";
 		Common.define_value com Define.Dce "std";
-		com.info <- (fun ?(depth=0) msg p -> message ctx (make_compiler_message msg p depth DKCompilerMessage Information));
-		com.warning <- (fun ?(depth=0) w options msg p ->
+		com.info <- (fun ?(depth=0) ?(from_macro=false) msg p ->
+			message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Information)
+		);
+		com.warning <- (fun ?(depth=0) ?(from_macro=false) w options msg p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
 				let wobj = Warning.warning_obj w in
@@ -215,12 +228,12 @@ module Setup = struct
 				else
 					Printf.sprintf "(%s) %s" wobj.w_name msg
 				in
-				message ctx (make_compiler_message msg p depth DKCompilerMessage Warning)
+				message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Warning)
 			| WMDisable ->
 				()
 		);
-		com.located_error <- located_error ctx;
-		com.error <- (fun ?(depth = 0) msg p -> com.located_error ~depth (located msg p));
+		com.error_ext <- error_ext ctx;
+		com.error <- (fun ?(depth = 0) msg p -> com.error_ext (Error.make_error ~depth (Custom msg) p));
 		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
 			(match cm.cm_severity with
 			| MessageSeverity.Error -> keep_errors;
@@ -238,35 +251,66 @@ module Setup = struct
 
 end
 
+let check_defines com =
+	if is_next com then begin
+		PMap.iter (fun k _ ->
+			try
+				let reason = Hashtbl.find Define.deprecation_lut k in
+				let p = { pfile = "-D " ^ k; pmin = -1; pmax = -1 } in
+				com.warning WDeprecatedDefine [] reason p
+			with Not_found ->
+				()
+		) com.defines.values
+	end
+
 (** Creates the typer context and types [classes] into it. *)
-let do_type ctx tctx actx =
-	let com = tctx.Typecore.com in
+let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
+	let com = ctx.com in
 	let t = Timer.timer ["typing"] in
 	let cs = com.cs in
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	com.stage <- CInitMacrosStart;
-	List.iter (MacroContext.call_init_macro tctx) (List.rev actx.config_macros);
+	ServerMessage.compiler_stage com;
+
+	let mctx = List.fold_left (fun mctx path ->
+		Some (MacroContext.call_init_macro ctx.com mctx path)
+	) mctx (List.rev actx.config_macros) in
 	com.stage <- CInitMacrosDone;
+	ServerMessage.compiler_stage com;
+	MacroContext.macro_enable_cache := macro_cache_enabled;
+
+	let macros = match mctx with None -> None | Some mctx -> mctx.g.macros in
+	let tctx = Setup.create_typer_context ctx macros actx.native_libs in
+	let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
+	check_defines ctx.com;
 	CommonCache.lock_signature com "after_init_macros";
-	com.callbacks#run com.callbacks#get_after_init_macros;
-	run_or_diagnose ctx (fun () ->
-		if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
-		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
-		Finalization.finalize tctx;
-	) ();
+	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;
+	(try begin
+		com.callbacks#run com.error_ext com.callbacks#get_after_init_macros;
+		run_or_diagnose ctx (fun () ->
+			if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
+			List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
+			Finalization.finalize tctx;
+		) ();
+	end with TypeloadParse.DisplayInMacroBlock ->
+		ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true)
+	);
 	com.stage <- CTypingDone;
+	ServerMessage.compiler_stage com;
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		identifier we are interested in. We then type only those modules that contain the identifier. *)
 	begin match com.display.dms_kind with
 		| (DMUsage _ | DMImplementation) -> FindReferences.find_possible_references tctx cs;
 		| _ -> ()
 	end;
-	t()
+	t();
+	(tctx, display_file_dot_path)
 
 let finalize_typing ctx tctx =
 	let t = Timer.timer ["finalize"] in
 	let com = ctx.com in
 	com.stage <- CFilteringStart;
+	ServerMessage.compiler_stage com;
 	let main, types, modules = run_or_diagnose ctx Finalization.generate tctx in
 	com.main <- main;
 	com.types <- types;
@@ -276,33 +320,41 @@ let finalize_typing ctx tctx =
 let filter ctx tctx =
 	let t = Timer.timer ["filters"] in
 	DeprecationCheck.run ctx.com;
-	Filters.run ctx.com tctx ctx.com.main;
+	Filters.run tctx ctx.com.main;
 	t()
 
-let compile ctx actx =
+let compile ctx actx callbacks =
 	let com = ctx.com in
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
 	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
+	let macro_cache_enabled = !MacroContext.macro_enable_cache in
+	MacroContext.macro_enable_cache := true;
+	let mctx = match com.platform with
+		| CustomTarget name ->
+			begin try
+				Some (MacroContext.call_init_macro com None (Printf.sprintf "%s.Init.init()" name))
+			with (Error.Error { err_message = Module_not_found ([pack],"Init") }) when pack = name ->
+				(* ignore if <target_name>.Init doesn't exist *)
+				None
+			end
+		| _ ->
+			None
+		in
 	(* Initialize target: This allows access to the appropriate std packages and sets the -D defines. *)
 	let ext = Setup.initialize_target ctx com actx in
-	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
+	update_platform_config com; (* make sure to adapt all flags changes defined after platform *)
+	callbacks.after_target_init ctx;
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
 	t();
 	com.stage <- CInitialized;
+	ServerMessage.compiler_stage com;
 	if actx.classes = [([],"Std")] && not actx.force_typing then begin
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
 	end else begin
 		(* Actual compilation starts here *)
-		let tctx = Setup.create_typer_context ctx actx.native_libs in
-		com.stage <- CTyperCreated;
-		let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
-		begin try
-			do_type ctx tctx actx
-		with TypeloadParse.DisplayInMacroBlock ->
-			ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true);
-		end;
+		let (tctx,display_file_dot_path) = do_type ctx mctx actx display_file_dot_path macro_cache_enabled in
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
 		DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
@@ -310,11 +362,13 @@ let compile ctx actx =
 		if ctx.has_error then raise Abort;
 		Generate.check_auxiliary_output com actx;
 		com.stage <- CGenerationStart;
+		ServerMessage.compiler_stage com;
 		if not actx.no_output then Generate.generate ctx tctx ext actx;
 		com.stage <- CGenerationDone;
+		ServerMessage.compiler_stage com;
 	end;
 	Sys.catch_break false;
-	com.callbacks#run com.callbacks#get_after_generation;
+	com.callbacks#run com.error_ext com.callbacks#get_after_generation;
 	if not actx.no_output then begin
 		List.iter (fun c ->
 			let r = run_command ctx c in
@@ -329,10 +383,10 @@ try
 with
 	| Abort ->
 		()
-	| Error.Fatal_error (m,depth) ->
-		located_error ~depth ctx m
-	| Common.Abort msg ->
-		located_error ctx msg
+	| Error.Fatal_error err ->
+		error_ext ctx err
+	| Common.Abort err ->
+		error_ext ctx err
 	| Lexer.Error (m,p) ->
 		error ctx (Lexer.error_msg m) p
 	| Parser.Error (m,p) ->
@@ -345,14 +399,8 @@ with
 			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
 			List.iter (error ~depth:1 ctx (Error.compl_msg "referenced here")) (List.rev pl);
 		end
-	| Error.Error (Stack stack,_,depth) -> (match stack with
-		| [] -> ()
-		| (e,p) :: stack -> begin
-			located_error ~depth ctx (Error.error_msg p e);
-			List.iter (fun (e,p) -> located_error ~depth:(depth+1) ctx (Error.error_msg p e)) stack;
-		end)
-	| Error.Error (m,p,depth) ->
-		located_error ~depth ctx (Error.error_msg p m)
+	| Error.Error err ->
+		error_ext ctx err
 	| Generic.Generic_Exception(m,p) ->
 		error ctx m p
 	| Arg.Bad msg ->
@@ -402,7 +450,10 @@ let process_actx ctx actx =
 	DisplayProcessing.process_display_arg ctx actx;
 	List.iter (fun s ->
 		ctx.com.warning WDeprecated [] s null_pos
-	) actx.deprecations
+	) actx.deprecations;
+	if defined ctx.com NoDeprecationWarnings then begin
+		ctx.com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: ctx.com.warning_options
+	end
 
 let compile_ctx callbacks ctx =
 	let run ctx =
@@ -411,8 +462,7 @@ let compile_ctx callbacks ctx =
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
 			process_actx ctx actx;
-			callbacks.after_arg_parsing ctx;
-			compile ctx actx;
+			compile ctx actx callbacks;
 		);
 		finalize ctx;
 		callbacks.after_compilation ctx;
@@ -522,8 +572,8 @@ module HighLevel = struct
 					(* If we are already connected, ignore (issue #10813) *)
 					loop acc l
 				else begin
-					let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-					server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l);
+					let host, port = Helper.parse_host_port hp in
+					server_api.do_connect host port ((List.rev acc) @ l);
 					[],None
 				end
 			| "--server-connect" :: hp :: l ->

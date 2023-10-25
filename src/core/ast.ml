@@ -300,6 +300,7 @@ and access =
 	| AExtern
 	| AAbstract
 	| AOverload
+	| AEnum
 
 and placed_access = access * pos
 
@@ -440,7 +441,7 @@ let gen_doc_text_opt = Option.map gen_doc_text
 
 let get_own_doc_opt = Option.map_default (fun d -> d.doc_own) None
 
-let rec is_postfix (e,_) op = match op with
+let is_postfix (e,_) op = match op with
 	| Increment | Decrement | Not -> true
 	| Neg | NegBits | Spread -> false
 
@@ -491,6 +492,7 @@ let s_access = function
 	| AExtern -> "extern"
 	| AAbstract -> "abstract"
 	| AOverload -> "overload"
+	| AEnum -> "enum"
 
 let s_placed_access (a,_) = s_access a
 
@@ -1205,7 +1207,7 @@ module Expr = struct
 		Buffer.contents buf
 
 	let find_ident e =
-		let rec loop e = match fst e with
+		match fst e with
 			| EConst ct ->
 				begin match ct with
 				| Ident s ->
@@ -1215,8 +1217,6 @@ module Expr = struct
 				end
 			| _ ->
 				None
-		in
-		loop e
 end
 
 let has_meta_option metas meta s =

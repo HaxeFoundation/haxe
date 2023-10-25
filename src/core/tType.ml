@@ -149,7 +149,7 @@ and anon_status =
 	| Closed
 	| Const
 	| Extend of t list
-	| Statics of tclass
+	| ClassStatics of tclass
 	| EnumStatics of tenum
 	| AbstractStatics of tabstract
 
@@ -177,7 +177,7 @@ and texpr_expr =
 	| TFor of tvar * texpr * texpr
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
-	| TSwitch of texpr * (texpr list * texpr) list * texpr option
+	| TSwitch of tswitch
 	| TTry of texpr * (tvar * texpr) list
 	| TReturn of texpr option
 	| TBreak
@@ -188,6 +188,18 @@ and texpr_expr =
 	| TEnumParameter of texpr * tenum_field * int
 	| TEnumIndex of texpr
 	| TIdent of string
+
+and tswitch = {
+	switch_subject : texpr;
+	switch_cases : switch_case list;
+	switch_default: texpr option;
+	switch_exhaustive : bool;
+}
+
+and switch_case = {
+	case_patterns : texpr list;
+	case_expr : texpr;
+}
 
 and tfield_access =
 	| FInstance of tclass * tparams * tclass_field
@@ -378,11 +390,24 @@ and module_def_extra = {
 	mutable m_added : int;
 	mutable m_checked : int;
 	mutable m_processed : int;
-	mutable m_deps : (int,module_def) PMap.t;
+	mutable m_deps : (int,(string (* sign *) * path)) PMap.t;
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
-	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
+	mutable m_if_feature : (string * class_field_ref) list;
 	mutable m_features : (string,bool) Hashtbl.t;
+}
+
+and class_field_ref_kind =
+	| CfrStatic
+	| CfrMember
+	| CfrConstructor
+
+and class_field_ref = {
+	cfr_sign : string;
+	cfr_path : path;
+	cfr_field : string;
+	cfr_kind : class_field_ref_kind;
+	cfr_is_macro : bool;
 }
 
 and module_kind =
@@ -446,3 +471,7 @@ type flag_tvar =
 	| VAssigned
 	| VCaught
 	| VStatic
+
+let flag_tvar_names = [
+	"VCaptured";"VFinal";"VUsed";"VAssigned";"VCaught";"VStatic"
+]

@@ -98,7 +98,6 @@ let add_local jit var = match jit.scopes with
 		increase_num_locals jit;
 		let slot = scope.local_offset + i in
 		if jit.ctx.debug.support_debugger then begin
-			if Typecore.is_gen_local var then var.v_name <- "_g" ^ String.sub var.v_name 1 (String.length var.v_name - 1);
 			Hashtbl.replace scope.local_ids var.v_name var.v_id;
 			Hashtbl.replace scope.local_infos i (var_info_of_var var)
 		end;

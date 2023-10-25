@@ -23,8 +23,6 @@ open Globals
 open Ast
 open Type
 open Typecore
-open DisplayTypes.DisplayMode
-open DisplayException
 open Common
 open Error
 open FunctionArguments
@@ -67,9 +65,9 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 				EBlock [],p
 			else
 				if fmode = FunMember && has_class_flag ctx.curclass CAbstract then
-					typing_error "Function body or abstract modifier required" p
+					raise_typing_error "Function body or abstract modifier required" p
 				else
-					typing_error "Function body required" p
+					raise_typing_error "Function body required" p
 		| Some e -> e
 	in
 	let is_position_debug = Meta.has (Meta.Custom ":debug.position") ctx.curfield.cf_meta in

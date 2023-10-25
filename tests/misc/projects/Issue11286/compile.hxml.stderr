@@ -1,0 +1,5 @@
+Main.hx:4: characters 8-9 : Warning : Null<Int>
+Main.hx:7: characters 8-9 : Warning : Null<Unknown<0>>
+Main.hx:9: characters 8-9 : Warning : Null<Unknown<0>>
+Main.hx:11: characters 8-9 : Warning : Null<Unknown<0>>
+Main.hx:13: characters 8-9 : Warning : Null<Int>

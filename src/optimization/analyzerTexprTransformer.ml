@@ -85,7 +85,7 @@ let rec func ctx bb tf t p =
 		if is_unbound_call_that_might_have_side_effects s el then ctx.has_unbound <- true;
 	in
 	let no_void t p =
-		if ExtType.is_void (follow t) then Error.typing_error "Cannot use Void as value" p
+		if ExtType.is_void (follow t) then Error.raise_typing_error "Cannot use Void as value" p
 	in
 	let push_name s =
 		ctx.name_stack <- s :: ctx.name_stack;
@@ -179,7 +179,7 @@ let rec func ctx bb tf t p =
 			let bb = block_element bb e in
 			bb,mk (TConst TNull) t_dynamic e.epos
 		| TVar _ | TFor _ | TWhile _ ->
-			Error.typing_error "Cannot use this expression as value" e.epos
+			Error.raise_typing_error "Cannot use this expression as value" e.epos
 	and value bb e =
 		let bb,e = value' bb e in
 		no_void e.etype e.epos;
@@ -431,9 +431,9 @@ let rec func ctx bb tf t p =
 					bb_next
 				end
 			end
-		| TSwitch(e1,cases,edef) ->
-			let is_exhaustive = is_exhaustive e1 edef in
-			let bb,e1 = bind_to_temp bb e1 in
+		| TSwitch switch ->
+			let is_exhaustive = is_exhaustive switch in
+			let bb,e1 = bind_to_temp bb switch.switch_subject in
 			bb.bb_terminator <- TermCondBranch e1;
 			let reachable = ref [] in
 			let make_case e =
@@ -444,12 +444,12 @@ let rec func ctx bb tf t p =
 				close_node bb_case_next;
 				bb_case
 			in
-			let cases = List.map (fun (el,e) ->
-				let bb_case = make_case e in
-				List.iter (fun e -> add_cfg_edge bb bb_case (CFGCondBranch e)) el;
-				el,bb_case
-			) cases in
-			let def = match edef with
+			let cases = List.map (fun case ->
+				let bb_case = make_case case.case_expr in
+				List.iter (fun e -> add_cfg_edge bb bb_case (CFGCondBranch e)) case.case_patterns;
+				case.case_patterns,bb_case
+			) switch.switch_cases in
+			let def = match switch.switch_default with
 				| None ->
 					None
 				| Some e ->
@@ -457,15 +457,16 @@ let rec func ctx bb tf t p =
 					add_cfg_edge bb bb_case (CFGCondElse);
 					Some (bb_case)
 			in
+			let ss = { ss_cases = cases;ss_default = def;ss_pos = e.epos;ss_next = g.g_unreachable; ss_exhaustive = is_exhaustive} in
 			if is_exhaustive && !reachable = [] then begin
-				set_syntax_edge bb (SESwitch(cases,def,g.g_unreachable,e.epos));
+				set_syntax_edge bb (SESwitch ss);
 				close_node bb;
 				g.g_unreachable;
 			end else begin
 				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 				if not is_exhaustive then add_cfg_edge bb bb_next CFGGoto;
 				List.iter (fun bb -> add_cfg_edge bb bb_next CFGGoto) !reachable;
-				set_syntax_edge bb (SESwitch(cases,def,bb_next,e.epos));
+				set_syntax_edge bb (SESwitch {ss with ss_next = bb_next});
 				close_node bb;
 				bb_next
 			end
@@ -686,7 +687,7 @@ let rec block_to_texpr_el ctx bb =
 		let block bb = block_to_texpr ctx bb in
 		let live bb = not ctx.did_optimize || not ctx.config.local_dce || has_block_flag bb BlockDce in
 		let if_live bb = if live bb then Some bb else None in
-		let rec loop bb se =
+		let loop bb se =
 			let get_terminator() = match bb.bb_terminator with
 				| TermCondBranch e1 -> e1
 				| _ -> die "" __LOC__
@@ -707,8 +708,13 @@ let rec block_to_texpr_el ctx bb =
 			| SEWhile(bb_body,bb_next,p) ->
 				let e2 = block bb_body in
 				if_live bb_next,Some (mk (TWhile(get_terminator(),e2,NormalWhile)) ctx.com.basic.tvoid p)
-			| SESwitch(bbl,bo,bb_next,p) ->
-				Some bb_next,Some (mk (TSwitch(get_terminator(),List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo)) ctx.com.basic.tvoid p)
+			| SESwitch ss ->
+				let cases = List.map (fun (el,bb) -> {
+					case_patterns = el;
+					case_expr = block bb
+				}) ss.ss_cases in
+				let switch = mk_switch (get_terminator()) cases (Option.map block ss.ss_default) ss.ss_exhaustive in
+				Some ss.ss_next,Some (mk (TSwitch switch) ctx.com.basic.tvoid ss.ss_pos)
 		in
 		let bb_next,e_term = loop bb bb.bb_syntax_edge in
 		let el = DynArray.to_list bb.bb_el in

@@ -21,6 +21,7 @@ type compiler_options = {
 type 'value compiler_api = {
 	pos : Globals.pos;
 	get_com : unit -> Common.context;
+	get_macro_com : unit -> Common.context;
 	get_macro_stack : unit -> pos list;
 	init_macros_done : unit -> bool;
 	get_type : string -> Type.t option;
@@ -34,6 +35,7 @@ type 'value compiler_api = {
 	parse : 'a . ((Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
+	resolve_complex_type : Ast.type_hint -> Ast.type_hint;
 	store_typed_expr : Type.texpr -> Ast.expr;
 	allow_package : string -> unit;
 	type_patch : string -> string -> bool -> string option -> unit;
@@ -51,7 +53,6 @@ type 'value compiler_api = {
 	define_module : string -> 'value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
 	module_dependency : string -> string -> unit;
 	current_module : unit -> module_def;
-	mutable current_macro_module : unit -> module_def;
 	use_cache : unit -> bool;
 	format_string : string -> Globals.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Globals.pos -> bool;
@@ -99,6 +100,7 @@ type enum_type =
 	| ICapturePolicy
 	| IVarScope
 	| IVarScopingFlags
+	| IPlatform
 	| IPackageRule
 	| IMessage
 	| IFunctionKind
@@ -156,7 +158,7 @@ module type InterpApi = sig
 	val encode_ref : 'a -> ('a -> value) -> (unit -> string) -> value
 	val decode_ref : value -> 'a
 
-	val compiler_error : Globals.located -> 'a
+	val compiler_error : Error.error -> 'a
 	val error_message : string -> 'a
 	val value_to_expr : value -> Globals.pos -> Ast.expr
 	val value_signature : value -> string
@@ -316,6 +318,8 @@ and encode_access a =
 		| AExtern -> 8
 		| AAbstract -> 9
 		| AOverload -> 10
+		| AEnum -> 11
+
 	in
 	encode_enum ~pos:(Some (pos a)) IAccess tag []
 
@@ -420,9 +424,22 @@ and encode_display_mode dm =
 	in
 	encode_enum ~pos:None IDisplayMode tag pl
 
-(** encoded to haxe.display.Display.Platform, an enum abstract of String *)
 and encode_platform p =
-	encode_string (platform_name p)
+	let tag, pl = match p with
+		| Cross -> 0, []
+		| Js -> 1, []
+		| Lua -> 2, []
+		| Neko -> 3, []
+		| Flash -> 4, []
+		| Php -> 5, []
+		| Cpp -> 6, []
+		| Jvm -> 8, []
+		| Python -> 9, []
+		| Hl -> 10, []
+		| Eval -> 11, []
+		| CustomTarget s -> 12, [(encode_string s)]
+	in
+	encode_enum ~pos:None IPlatform tag pl
 
 and encode_platform_config pc =
 	encode_obj [
@@ -432,7 +449,6 @@ and encode_platform_config pc =
 		"padNulls", vbool pc.pf_pad_nulls;
 		"addFinalReturn", vbool pc.pf_add_final_return;
 		"overloadFunctions", vbool pc.pf_overload;
-		"canSkipNonNullableArgument", vbool pc.pf_can_skip_non_nullable_argument;
 		"reservedTypePaths", encode_array (List.map encode_path pc.pf_reserved_type_paths);
 		"supportsFunctionEquality", vbool pc.pf_supports_function_equality;
 		"usesUtf16", vbool pc.pf_uses_utf16;
@@ -544,7 +560,7 @@ and encode_expr e =
 				10, [encode_array (List.map (fun v ->
 					encode_obj [
 						"name",encode_placed_name v.ev_name;
-						"name_pos",encode_pos (pos v.ev_name);
+						"namePos",encode_pos (pos v.ev_name);
 						"isFinal",vbool v.ev_final;
 						"isStatic",vbool v.ev_static;
 						"type",null encode_ctype v.ev_type;
@@ -786,6 +802,7 @@ and decode_access v =
 	| 8 -> AExtern
 	| 9 -> AAbstract
 	| 10 -> AOverload
+	| 11 -> AEnum
 	| _ -> raise Invalid_expr
 	in
 	a,p
@@ -907,7 +924,9 @@ and decode_expr v =
 				let static = if vstatic == vnull then false else decode_bool vstatic in
 				let vmeta = field v "meta" in
 				let meta = if vmeta == vnull then [] else decode_meta_content vmeta in
-				let name = (decode_placed_name (field v "name_pos") (field v "name"))
+				let name_pos = maybe_decode_pos (field v "namePos") in
+				let name_pos = if name_pos = null_pos then p else name_pos in
+				let name = ((decode_string (field v "name")), name_pos)
 				and t = opt decode_ctype (field v "type")
 				and eo = opt loop (field v "expr") in
 				mk_evar ~final ~static ?t ?eo ~meta name
@@ -1166,7 +1185,7 @@ and encode_anon_status s =
 		| Closed -> 0, []
 		| Type.Const -> 2, []
 		| Extend tl -> 3, [encode_ref tl (fun tl -> encode_array (List.map encode_type tl)) (fun() -> "<extended types>")]
-		| Statics cl -> 4, [encode_clref cl]
+		| ClassStatics cl -> 4, [encode_clref cl]
 		| EnumStatics en -> 5, [encode_enref en]
 		| AbstractStatics ab -> 6, [encode_abref ab]
 	)
@@ -1361,10 +1380,17 @@ and encode_texpr e =
 			| TFor(v,e1,e2) -> 15,[encode_tvar v;loop e1;loop e2]
 			| TIf(eif,ethen,eelse) -> 16,[loop eif;loop ethen;vopt encode_texpr eelse]
 			| TWhile(econd,e1,flag) -> 17,[loop econd;loop e1;vbool (flag = NormalWhile)]
-			| TSwitch(e1,cases,edef) -> 18,[
-				loop e1;
-				encode_array (List.map (fun (el,e) -> encode_obj ["values",encode_texpr_list el;"expr",loop e]) cases);
-				vopt encode_texpr edef
+			| TSwitch switch ->
+				let switch_subject = if switch.switch_exhaustive then
+					let meta = (Meta.Exhaustive,[],null_pos) in
+					{switch.switch_subject with eexpr = (TMeta(meta,switch.switch_subject))}
+				else
+					switch.switch_subject
+				in
+				18,[
+					loop switch_subject;
+					encode_array (List.map (fun case -> encode_obj ["values",encode_texpr_list case.case_patterns;"expr",loop case.case_expr]) switch.switch_cases);
+					vopt encode_texpr switch.switch_default
 				]
 			| TTry(e1,catches) -> 19,[
 				loop e1;
@@ -1537,7 +1563,24 @@ and decode_texpr v =
 		| 15, [v;v1;v2] -> TFor(decode_tvar v,loop v1,loop v2)
 		| 16, [vif;vthen;velse] -> TIf(loop vif,loop vthen,opt loop velse)
 		| 17, [vcond;v1;b] -> TWhile(loop vcond,loop v1,if decode_bool b then NormalWhile else DoWhile)
-		| 18, [v1;cl;vdef] -> TSwitch(loop v1,List.map (fun v -> List.map loop (decode_array (field v "values")),loop (field v "expr")) (decode_array cl),opt loop vdef)
+		| 18, [v1;cl;vdef] ->
+			let is_exhaustive e1 def =
+				let rec loop e1 = match e1.eexpr with
+					| TMeta((Meta.Exhaustive,_,_),_) -> true
+					| TMeta(_, e1) | TParenthesis e1 -> loop e1
+					| _ -> false
+				in
+				def <> None || loop e1
+			in
+			let subject = loop v1 in
+			let cases = List.map (fun v -> {
+					case_patterns = List.map loop (decode_array (field v "values"));
+					case_expr = loop (field v "expr")
+				}) (decode_array cl)
+			in
+			let default = opt loop vdef in
+			let switch = mk_switch subject cases default (is_exhaustive subject default) in
+			TSwitch switch
 		| 19, [v1;cl] -> TTry(loop v1,List.map (fun v -> decode_tvar (field v "v"),loop (field v "expr")) (decode_array cl))
 		| 20, [vo] -> TReturn(opt loop vo)
 		| 21, [] -> TBreak
@@ -1621,10 +1664,19 @@ let decode_type_def v =
 		EClass (mk flags fields)
 	| 3, [t] ->
 		ETypedef (mk (if isExtern then [EExtern] else []) (decode_ctype t))
-	| 4, [tthis;tfrom;tto] ->
-		let flags = match opt decode_array tfrom with None -> [] | Some ta -> List.map (fun t -> AbFrom (decode_ctype t)) ta in
+	| 4, [tthis;tflags;tfrom;tto] ->
+		let flags = match opt decode_array tflags with
+			| None -> []
+			| Some ta -> List.map (fun f -> match decode_enum f with
+				| 0, [] -> AbEnum
+				| 1, [ct] -> AbFrom (decode_ctype ct)
+				| 2, [ct] -> AbTo (decode_ctype ct)
+				| _ -> raise Invalid_expr
+		) ta in
+		let flags = match opt decode_array tfrom with None -> flags | Some ta -> List.map (fun t -> AbFrom (decode_ctype t)) ta @ flags in
 		let flags = match opt decode_array tto with None -> flags | Some ta -> (List.map (fun t -> AbTo (decode_ctype t)) ta) @ flags in
 		let flags = match opt decode_ctype tthis with None -> flags | Some t -> (AbOver t) :: flags in
+		let flags = if isExtern then AbExtern :: flags else flags in
 		EAbstract(mk flags fields)
 	| 5, [fk;al] ->
 		let fk = decode_class_field_kind fk in
@@ -1640,6 +1692,68 @@ let decode_type_def v =
 		| _ -> pack, fst name
 	) in
 	(pack, name), tdef, pos
+
+let decode_path v =
+	let pack = List.map decode_string (decode_array (field v "pack"))
+	and name = decode_string (field v "name") in
+	(pack,name)
+
+let decode_platform_config v =
+	let open Common in
+	let capture_policy = match decode_enum (field v "capturePolicy") with
+		| 0, [] -> CPNone
+		| 1, [] -> CPWrapRef
+		| 2, [] -> CPLoopVars
+		| _ -> raise Invalid_expr
+	in
+	let v_exc = field v "exceptions" in
+	let exception_config = {
+		ec_native_throws = List.map decode_path (decode_array (field v_exc "nativeThrows"));
+		ec_native_catches = List.map decode_path (decode_array (field v_exc "nativeCatches"));
+		ec_avoid_wrapping = decode_bool (field v_exc "avoidWrapping");
+		ec_wildcard_catch = decode_path (field v_exc "wildcardCatch");
+		ec_base_throw = decode_path (field v_exc "baseThrow");
+		ec_special_throw = (fun _ -> (* wtf is this? *) false);
+	} in
+	let v_scoping = field v "scoping" in
+	let decode_scope_flag v = match decode_enum v with
+		| 0, [] -> VarHoisting
+		| 1, [] -> NoShadowing
+		| 2, [] -> NoCatchVarShadowing
+		| 3, [] -> ReserveCurrentTopLevelSymbol
+		| 4, [] -> ReserveAllTopLevelSymbols
+		| 5, [] -> ReserveAllTypesFlat
+		| 6, [sl] -> ReserveNames (List.map decode_string (decode_array sl))
+		| 7, [] -> SwitchCasesNoBlocks
+		| _ -> raise Invalid_expr
+	in
+	let var_scoping_config = {
+		vs_scope = (match decode_enum (field v_scoping "scope") with
+			| 0,[] -> FunctionScope
+			| 1,[] -> BlockScope
+			| _ -> raise Invalid_expr
+		);
+		vs_flags = List.map decode_scope_flag (decode_array (field v_scoping "flags"));
+	} in
+	{
+		pf_static = decode_bool (field v "staticTypeSystem");
+		pf_sys = decode_bool (field v "sys");
+		pf_capture_policy = capture_policy;
+		pf_pad_nulls = decode_bool (field v "padNulls");
+		pf_add_final_return = decode_bool (field v "addFinalReturn");
+		pf_overload = decode_bool (field v "overloadFunctions");
+		pf_can_skip_non_nullable_argument = false;
+		pf_reserved_type_paths = List.map decode_path (decode_array (field v "reservedTypePaths"));
+		pf_supports_function_equality = decode_bool (field v "supportsFunctionEquality");
+		pf_uses_utf16 = decode_bool (field v "usesUtf16");
+		pf_this_before_super = decode_bool (field v "thisBeforeSuper");
+		pf_supports_threads = decode_bool (field v "supportsThreads");
+		pf_supports_unicode = decode_bool (field v "supportsUnicode");
+		pf_supports_rest_args = decode_bool (field v "supportsRestArgs");
+		pf_exceptions = exception_config;
+		pf_scoping = var_scoping_config;
+		pf_supports_atomics = decode_bool (field v "supportsAtomics");
+	}
 
 (* ---------------------------------------------------------------------- *)
 (* VALUE-TO-CONSTANT *)
@@ -1711,7 +1825,7 @@ let macro_api ccom get_api =
 			let msg = decode_string msg in
 			let p = decode_pos p in
 			let depth = decode_int depth in
-			raise (Error.Fatal_error ((Globals.located msg p),depth))
+			raise (Error.Fatal_error (Error.make_error ~depth (Custom msg) p))
 		);
 		"report_error", vfun3 (fun msg p depth ->
 			let msg = decode_string msg in
@@ -1754,11 +1868,10 @@ let macro_api ccom get_api =
 		"define", vfun2 (fun s v ->
 			let s = decode_string s in
 			let com = ccom() in
-			(* TODO: use external_define and external_define_value for #8690 *)
 			if v = vnull then
-				Common.external_define_no_check com s
+				Common.external_define com s
 			else
-				Common.external_define_value_no_check com s (decode_string v);
+				Common.external_define_value com s (decode_string v);
 			vnull
 		);
 		"defined", vfun1 (fun s ->
@@ -1781,7 +1894,7 @@ let macro_api ccom get_api =
 		);
 		"on_after_init_macros", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
-			(get_api()).after_init_macros (fun tl -> ignore(f []));
+			(get_api()).after_init_macros (fun tctx -> ignore(f []));
 			vnull
 		);
 		"on_after_typing", vfun1 (fun f ->
@@ -1831,6 +1944,9 @@ let macro_api ccom get_api =
 		);
 		"resolve_type", vfun2 (fun t p ->
 			encode_type ((get_api()).resolve_type (fst (decode_ctype t)) (decode_pos p));
+		);
+		"resolve_complex_type", vfun2 (fun ct p ->
+			encode_ctype ((get_api()).resolve_complex_type (fst (decode_ctype ct),decode_pos p))
 		);
 		"s_type", vfun1 (fun v ->
 			encode_string (Type.s_type (print_context()) (decode_type v))
@@ -1980,7 +2096,7 @@ let macro_api ccom get_api =
 			let data = Bytes.unsafe_to_string data in
 			if name = "" then failwith "Empty resource name";
 			Hashtbl.replace (ccom()).resources name data;
-			let m = if Globals.starts_with name '$' then (get_api()).current_macro_module() else (get_api()).current_module() in
+			let m = (get_api()).current_module() in
 			m.m_extra.m_binded_res <- PMap.add name data m.m_extra.m_binded_res;
 			vnull
 		);
@@ -2144,6 +2260,10 @@ let macro_api ccom get_api =
 				"mainClass", (match com.main_class with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
 			]
+		);
+		"set_platform_configuration", vfun1 (fun v ->
+			(ccom()).config <- decode_platform_config v;
+			vnull
 		);
 		"get_main_expr", vfun0 (fun() ->
 			match (ccom()).main with None -> vnull | Some e -> encode_texpr e

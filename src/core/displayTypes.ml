@@ -1,8 +1,6 @@
 open Globals
-open Path
 open Ast
 open Type
-open Json
 open Genjson
 
 module SymbolKind = struct
@@ -198,6 +196,7 @@ module DisplayMode = struct
 		dms_inline : bool;
 		dms_display_file_policy : display_file_policy;
 		dms_exit_during_typing : bool;
+		dms_populate_cache : bool;
 		dms_per_file : bool;
 	}
 
@@ -210,6 +209,7 @@ module DisplayMode = struct
 		dms_inline = false;
 		dms_display_file_policy = DFPOnly;
 		dms_exit_during_typing = true;
+		dms_populate_cache = false;
 		dms_per_file = false;
 	}
 
@@ -222,6 +222,7 @@ module DisplayMode = struct
 		dms_inline = true;
 		dms_display_file_policy = DFPNo;
 		dms_exit_during_typing = false;
+		dms_populate_cache = true;
 		dms_per_file = false;
 	}
 
@@ -232,6 +233,7 @@ module DisplayMode = struct
 		| DMDefault | DMDefinition | DMTypeDefinition | DMPackage | DMHover | DMSignature -> settings
 		| DMUsage _ | DMImplementation -> { settings with
 				dms_full_typing = true;
+				dms_populate_cache = !ServerConfig.populate_cache_from_display;
 				dms_force_macro_typing = true;
 				dms_display_file_policy = DFPAlso;
 				dms_exit_during_typing = false
@@ -332,7 +334,7 @@ type diagnostics_context = {
 	mutable import_positions : (pos,bool ref) PMap.t;
 	mutable dead_blocks : (Path.UniqueKey.t,(pos * expr) list) Hashtbl.t;
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
-	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t * int (* depth *)) list;
+	mutable diagnostics_messages : diagnostic list;
 	mutable missing_fields : (pos,(module_type * (missing_fields_diagnostics list ref))) PMap.t;
 }
 

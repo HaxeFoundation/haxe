@@ -39,7 +39,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	with
 		| Sedlexing.MalFormed ->
 			t();
-			typing_error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
+			raise_typing_error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
 		| e ->
 			t();
 			raise e
@@ -76,7 +76,7 @@ let parse_file com file p =
 		in
 		parse_file_from_string com file p s
 	else
-		let ch = try open_in_bin file with _ -> typing_error ("Could not open " ^ file) p in
+		let ch = try open_in_bin file with _ -> raise_typing_error ("Could not open " ^ file) p in
 		Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Sedlexing.Utf8.from_channel ch)
 
 let parse_hook = ref parse_file
@@ -102,7 +102,7 @@ let resolve_module_file com m remap p =
 		with Not_found ->
 			Common.find_file com (compose_path true)
 	in
-	let file = (match String.lowercase (snd m) with
+	let file = (match ExtString.String.lowercase (snd m) with
 	| "con" | "aux" | "prn" | "nul" | "com1" | "com2" | "com3" | "lpt1" | "lpt2" | "lpt3" when Sys.os_type = "Win32" ->
 		(* these names are reserved by the OS - old DOS legacy, such files cannot be easily created but are reported as visible *)
 		if (try (Unix.stat file).Unix.st_size with _ -> 0) > 0 then file else raise Not_found
@@ -150,7 +150,6 @@ let resolve_module_file com m remap p =
 
 module ConditionDisplay = struct
 	open ParserEntry
-	open CompletionItem.CompletionType
 	open DisplayPosition
 
 	exception Result of expr
@@ -270,8 +269,8 @@ let handle_parser_result com p result =
 		let msg = Parser.error_msg msg in
 		match com.display.dms_error_policy with
 			| EPShow ->
-				if is_diagnostics com then add_diagnostics_message com (located msg p) DKParserError Error
-				else typing_error msg p
+				if is_diagnostics com then add_diagnostics_message com msg p DKParserError Error
+				else raise_typing_error msg p
 			| EPIgnore ->
 				com.has_error <- true
 	in

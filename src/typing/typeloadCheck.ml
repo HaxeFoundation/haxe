@@ -52,7 +52,6 @@ let valid_redefinition ctx map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		Type.unify t1 t2;
 		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);
 	in
-	let open OptimizerTexpr in
 	begin match PurityState.get_purity_from_meta f2.cf_meta,PurityState.get_purity_from_meta f1.cf_meta with
 		| PurityState.Pure,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),f2.cf_pos],null_pos) :: f1.cf_meta
 		| PurityState.ExpectPure p,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),p],null_pos) :: f1.cf_meta
@@ -148,10 +147,11 @@ let get_native_name meta =
 	| [] ->
 		raise Not_found
 	| _ ->
-		typing_error "String expected" mp
+		raise_typing_error "String expected" mp
 
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
+		(* TODO construct error *)
 		display_error ctx.com ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child_pos;
 		display_error ~depth:1 ctx.com (compl_msg "Base field is defined here") base_pos
 	in
@@ -210,9 +210,10 @@ let check_overriding ctx c f =
 				valid_redefinition ctx map map f f.cf_type f2 t;
 			with
 				Unify_error l ->
+					(* TODO construct error with sub *)
 					display_error ctx.com ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
 					display_error ~depth:1 ctx.com (compl_msg "Base field is defined here") f2.cf_name_pos;
-					located_display_error ~depth:1 ctx.com (compl_located_msg (error_msg p (Unify l)));
+					display_error ~depth:1 ctx.com (compl_msg (error_msg (Unify l))) p;
 		with
 			Not_found ->
 				if has_class_field_flag f CfOverride then
@@ -284,11 +285,11 @@ let rec return_flow ctx e =
 	| TIf (_,e1,Some e2) ->
 		return_flow e1;
 		return_flow e2;
-	| TSwitch (v,cases,Some e) ->
-		List.iter (fun (_,e) -> return_flow e) cases;
+	| TSwitch ({switch_default = Some e} as switch) ->
+		List.iter (fun case -> return_flow case.case_expr) switch.switch_cases;
 		return_flow e
-	| TSwitch ({eexpr = TMeta((Meta.Exhaustive,_,_),_)},cases,None) ->
-		List.iter (fun (_,e) -> return_flow e) cases;
+	| TSwitch ({switch_exhaustive = true} as switch) ->
+		List.iter (fun case -> return_flow case.case_expr) switch.switch_cases;
 	| TTry (e,cases) ->
 		return_flow e;
 		List.iter (fun (_,e) -> return_flow e) cases;
@@ -310,19 +311,19 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 	List.iter (fun (sl2,m,(recursive,to_types,to_fields)) ->
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in
 		if add then f_add m
-	) ctx.g.global_metadata;
+	) ctx.com.global_metadata;
 	if ctx.is_display_file then delay ctx PCheckConstraint (fun () -> DisplayEmitter.check_display_metadata ctx meta)
 
 let check_module_types ctx m p t =
 	let t = t_infos t in
 	try
 		let path2 = ctx.com.type_to_module#find t.mt_path in
-		if m.m_path <> path2 && String.lowercase (s_type_path path2) = String.lowercase (s_type_path m.m_path) then typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
+		if m.m_path <> path2 && String.lowercase_ascii (s_type_path path2) = String.lowercase_ascii (s_type_path m.m_path) then raise_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
 		let m2 = ctx.com.module_lut#find path2 in
 		let hex1 = Digest.to_hex m.m_extra.m_sign in
 		let hex2 = Digest.to_hex m2.m_extra.m_sign in
 		let s = if hex1 = hex2 then hex1 else Printf.sprintf "was %s, is %s" hex2 hex1 in
-		typing_error (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p
+		raise_typing_error (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p
 	with
 		Not_found ->
 			ctx.com.type_to_module#add t.mt_path m.m_path
@@ -334,15 +335,15 @@ module Inheritance = struct
 
 	let check_extends ctx c t p = match follow t with
 		| TInst (csup,params) ->
-			if is_basic_class_path csup.cl_path && not ((has_class_flag c CExtern) && (has_class_flag csup CExtern)) then typing_error "Cannot extend basic class" p;
-			if extends csup c then typing_error "Recursive class" p;
+			if is_basic_class_path csup.cl_path && not ((has_class_flag c CExtern) && (has_class_flag csup CExtern)) then raise_typing_error "Cannot extend basic class" p;
+			if extends csup c then raise_typing_error "Recursive class" p;
 			begin match csup.cl_kind with
 				| KTypeParameter _ ->
-					if is_generic_parameter ctx csup then typing_error "Extending generic type parameters is no longer allowed in Haxe 4" p;
-					typing_error "Cannot extend type parameters" p
+					if is_generic_parameter ctx csup then raise_typing_error "Extending generic type parameters is no longer allowed in Haxe 4" p;
+					raise_typing_error "Cannot extend type parameters" p
 				| _ -> csup,params
 			end
-		| t -> typing_error (Printf.sprintf "Should extend by using a class, found %s" (s_type_kind t)) p
+		| t -> raise_typing_error (Printf.sprintf "Should extend by using a class, found %s" (s_type_kind t)) p
 
 	let rec check_interface ctx missing c intf params =
 		List.iter (fun (i2,p2) ->
@@ -394,9 +395,12 @@ module Inheritance = struct
 						valid_redefinition ctx map1 map2 f2 t2 f (apply_params intf.cl_params params f.cf_type)
 					with
 						Unify_error l ->
-							display_error ctx.com ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-							display_error ~depth:1 ctx.com (compl_msg "Interface field is defined here") f.cf_pos;
-							located_display_error ~depth:1 ctx.com (compl_located_msg (error_msg p (Unify l)));
+							if not ((has_class_flag c CExtern)) then begin
+								(* TODO construct error with sub *)
+								display_error ctx.com ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+								display_error ~depth:1 ctx.com (compl_msg "Interface field is defined here") f.cf_pos;
+								display_error ~depth:1 ctx.com (compl_msg (error_msg (Unify l))) p;
+							end
 				)
 			with Not_found ->
 				if (has_class_flag c CAbstract) && is_method() then begin
@@ -485,6 +489,7 @@ module Inheritance = struct
 		| l ->
 			let singular = match l with [_] -> true | _ -> false in
 			display_error ctx.com (Printf.sprintf "This class extends abstract class %s but doesn't implement the following method%s" (s_type_path csup.cl_path) (if singular then "" else "s")) c.cl_name_pos;
+			(* TODO sub error ? *)
 			display_error ctx.com (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path)) c.cl_name_pos;
 			let pctx = print_context() in
 			List.iter (fun (cf,_) ->
@@ -508,7 +513,7 @@ module Inheritance = struct
 				| _ -> ()
 			) csup.cl_meta;
 			if has_class_flag csup CFinal && not (((has_class_flag csup CExtern) && Meta.has Meta.Hack c.cl_meta) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then
-				typing_error ("Cannot extend a final " ^ if (has_class_flag c CInterface) then "interface" else "class") p;
+				raise_typing_error ("Cannot extend a final " ^ if (has_class_flag c CInterface) then "interface" else "class") p;
 		in
 		let check_cancel_build csup =
 			match csup.cl_build() with
@@ -520,30 +525,9 @@ module Inheritance = struct
 				raise (Build_canceled state)
 		in
 		let has_interf = ref false in
-		(*
-			resolve imports before calling build_inheritance, since it requires full paths.
-			that means that typedefs are not working, but that's a fair limitation
-		*)
-		let resolve_imports (t,p) =
-			match t.tpackage with
-			| _ :: _ -> t,p
-			| [] ->
-				try
-					let path_matches lt = snd (t_path lt) = t.tname in
-					let lt = try
-						List.find path_matches ctx.m.curmod.m_types
-					with Not_found ->
-						let t,pi = List.find (fun (lt,_) -> path_matches lt) ctx.m.module_imports in
-						ImportHandling.mark_import_position ctx pi;
-						t
-					in
-					{ t with tpackage = fst (t_path lt) },p
-				with
-					Not_found -> t,p
-		in
 		let herits = ExtList.List.filter_map (function
-			| HExtends t -> Some(true,resolve_imports t)
-			| HImplements t -> Some(false,resolve_imports t)
+			| HExtends t -> Some(true,t)
+			| HImplements t -> Some(false,t)
 			| t -> None
 		) herits in
 		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
@@ -557,21 +541,23 @@ module Inheritance = struct
 					   purpose. However, we STILL have to delay the check because at the time pending is handled, the class
 					   is not built yet. See issue #10847. *)
 					pending := (fun () -> delay ctx PConnectField check_interfaces_or_delay) :: !pending
-				| _ ->
+				| _ when ctx.com.display.dms_full_typing ->
 					check_interfaces ctx c
+				| _ ->
+					()
 			in
 			if is_extends then begin
-				if c.cl_super <> None then typing_error "Cannot extend several classes" p;
+				if c.cl_super <> None then raise_typing_error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
 				if (has_class_flag c CInterface) then begin
-					if not (has_class_flag csup CInterface) then typing_error "Cannot extend by using a class" p;
+					if not (has_class_flag csup CInterface) then raise_typing_error "Cannot extend by using a class" p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
 					if not !has_interf then begin
 						if not is_lib then delay ctx PConnectField check_interfaces_or_delay;
 						has_interf := true;
 					end
 				end else begin
-					if (has_class_flag csup CInterface) then typing_error "Cannot extend by using an interface" p;
+					if (has_class_flag csup CInterface) then raise_typing_error "Cannot extend by using an interface" p;
 					c.cl_super <- Some (csup,params)
 				end;
 				(fun () ->
@@ -580,13 +566,13 @@ module Inheritance = struct
 				)
 			end else begin match follow t with
 				| TInst ({ cl_path = [],"ArrayAccess" } as ca,[t]) when (has_class_flag ca CExtern) ->
-					if c.cl_array_access <> None then typing_error "Duplicate array access" p;
+					if c.cl_array_access <> None then raise_typing_error "Duplicate array access" p;
 					c.cl_array_access <- Some t;
 					(fun () -> ())
 				| TInst (intf,params) ->
-					if extends intf c then typing_error "Recursive class" p;
-					if (has_class_flag c CInterface) then typing_error "Interfaces cannot implement another interface (use extends instead)" p;
-					if not (has_class_flag intf CInterface) then typing_error "You can only implement an interface" p;
+					if extends intf c then raise_typing_error "Recursive class" p;
+					if (has_class_flag c CInterface) then raise_typing_error "Interfaces cannot implement another interface (use extends instead)" p;
+					if not (has_class_flag intf CInterface) then raise_typing_error "You can only implement an interface" p;
 					c.cl_implements <- (intf, params) :: c.cl_implements;
 					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
 						delay ctx PConnectField check_interfaces_or_delay;
@@ -597,12 +583,12 @@ module Inheritance = struct
 						process_meta intf;
 					)
 				| TDynamic t ->
-					if c.cl_dynamic <> None then typing_error "Cannot have several dynamics" p;
+					if c.cl_dynamic <> None then raise_typing_error "Cannot have several dynamics" p;
 					if not (has_class_flag c CExtern) then display_error ctx.com "In haxe 4, implements Dynamic is only supported on externs" p;
 					c.cl_dynamic <- Some (match t with None -> t_dynamic | Some t -> t);
 					(fun () -> ())
 				| _ ->
-					typing_error "Should implement by using an interface" p
+					raise_typing_error "Should implement by using an interface" p
 			end
 		in
 		let fl = ExtList.List.filter_map (fun (is_extends,(ct,p)) ->
@@ -623,7 +609,7 @@ module Inheritance = struct
 					raise_fields l (if is_extends then CRExtends else CRImplements) r.fsubject
 				in
 				Some (check_herit t is_extends p)
-			with Error(Module_not_found(([],name)),p,_) when ctx.com.display.dms_kind <> DMNone ->
+			with Error { err_message = Module_not_found(([],name)); err_pos = p } when ctx.com.display.dms_kind <> DMNone ->
 				if Diagnostics.error_in_diagnostics_run ctx.com p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None
 		) herits in

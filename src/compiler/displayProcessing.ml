@@ -48,7 +48,7 @@ let handle_display_argument_old com file_pos actx =
 			| "diagnostics" ->
 				com.report_mode <- RMDiagnostics [file_unique];
 				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true}
+				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display}
 			| "statistics" ->
 				com.report_mode <- RMStatistics;
 				let dm = create DMNone in
@@ -92,13 +92,14 @@ let process_display_arg ctx actx =
 let process_display_configuration ctx =
 	let com = ctx.com in
 	if is_diagnostics com then begin
-		com.info <- (fun ?depth s p ->
-			add_diagnostics_message ?depth com (located s p) DKCompilerMessage Information
+		com.info <- (fun ?depth ?from_macro s p ->
+			add_diagnostics_message ?depth com s p DKCompilerMessage Information
 		);
-		com.warning <- (fun ?depth w options s p ->
+		com.warning <- (fun ?(depth = 0) ?from_macro w options s p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
-				add_diagnostics_message ?depth com (located s p) DKCompilerMessage Warning
+				let wobj = Warning.warning_obj w in
+				add_diagnostics_message ~depth ~code:(Some wobj.w_name) com s p DKCompilerMessage Warning
 			| WMDisable ->
 				()
 		);
@@ -192,7 +193,7 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 		let p = null_pos in
 		begin try
 			let open Typecore in
-			let _, mctx = MacroContext.get_macro_context tctx p in
+			let mctx = MacroContext.get_macro_context tctx in
 			(* Tricky stuff: We want to remove the module from our lookups and load it again in
 				display mode. This covers some cases like --macro typing it in non-display mode (issue #7017). *)
 			if clear then begin
@@ -209,7 +210,7 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 					()
 				end;
 			end;
-			let _ = MacroContext.load_macro_module tctx cpath true p in
+			let _ = MacroContext.load_macro_module (MacroContext.get_macro_context tctx) tctx.com cpath true p in
 			Finalization.finalize mctx;
 			Some mctx
 		with DisplayException.DisplayException _ | Parser.TypePath _ as exc ->
@@ -268,7 +269,7 @@ let maybe_load_display_file_before_typing tctx display_file_dot_path = match dis
 
 let handle_display_after_typing ctx tctx display_file_dot_path =
 	let com = ctx.com in
-	if ctx.com.display.dms_kind = DMNone & ctx.has_error then raise Abort;
+	if ctx.com.display.dms_kind = DMNone && ctx.has_error then raise Abort;
 	begin match ctx.com.display.dms_kind,!Parser.delayed_syntax_completion with
 		| DMDefault,Some(kind,subj) -> DisplayOutput.handle_syntax_completion com kind subj
 		| _ -> ()
@@ -311,7 +312,6 @@ let process_global_display_mode com tctx =
 		FindReferences.find_references tctx com with_definition
 	| DMImplementation ->
 		FindReferences.find_implementations tctx com
-	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->
 		let open CompilationCache in
 		let cs = com.cs in

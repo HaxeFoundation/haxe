@@ -1,12 +1,8 @@
 open Globals
 open Ast
 open Type
-open Typecore
 open Common
-open Display
-open DisplayTypes.DisplayMode
 open DisplayTypes
-open DisplayException
 
 let add_removable_code ctx s p prange =
 	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
@@ -43,23 +39,23 @@ let find_unused_variables com e =
 let check_other_things com e =
 	let had_effect = ref false in
 	let no_effect p =
-		add_diagnostics_message com (located "This code has no effect" p) DKCompilerMessage Warning;
+		add_diagnostics_message com "This code has no effect" p DKCompilerMessage Warning;
 	in
 	let pointless_compound s p =
-		add_diagnostics_message com (located (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p) DKCompilerMessage Warning;
+		add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p DKCompilerMessage Warning;
 	in
-	let rec compound s el p =
+	let rec compound compiler_generated s el p =
 		let old = !had_effect in
 		had_effect := false;
-		List.iter (loop true) el;
-		if not !had_effect then no_effect p else pointless_compound s p;
+		List.iter (loop true compiler_generated) el;
+		if not !had_effect then no_effect p else if not compiler_generated then pointless_compound s p;
 		had_effect := old;
-	and loop in_value e = match e.eexpr with
+	and loop in_value compiler_generated e = match e.eexpr with
 		| TBlock el ->
 			let rec loop2 el = match el with
 				| [] -> ()
-				| [e] -> loop in_value e
-				| e :: el -> loop false e; loop2 el
+				| [e] -> loop in_value compiler_generated e
+				| e :: el -> loop false compiler_generated e; loop2 el
 			in
 			loop2 el
 		| TMeta((Meta.Extern,_,_),_) ->
@@ -71,42 +67,46 @@ let check_other_things com e =
 			()
 		| TField (_, fa) when PurityState.is_explicitly_impure fa -> ()
 		| TFunction tf ->
-			loop false tf.tf_expr
-		| TCall({eexpr = TField(e1,fa)},el) when not in_value && PurityState.is_pure_field_access fa -> compound "call" el e.epos
+			loop false compiler_generated tf.tf_expr
+		| TCall({eexpr = TField(e1,fa)},el) when not in_value && PurityState.is_pure_field_access fa -> compound compiler_generated "call" el e.epos
 		| TNew _ | TCall _ | TBinop ((Ast.OpAssignOp _ | Ast.OpAssign),_,_) | TUnop ((Ast.Increment | Ast.Decrement),_,_)
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _)
 		| TIf _ | TTry _ | TSwitch _ | TWhile _ | TFor _ ->
 			had_effect := true;
-			Type.iter (loop true) e
+			Type.iter (loop true compiler_generated) e
+		| TMeta((Meta.CompilerGenerated,_,_),e1) ->
+			loop in_value true e1
 		| TParenthesis e1 | TMeta(_,e1) ->
-			loop in_value e1
+			loop in_value compiler_generated e1
 		| TArray _ | TCast (_,None) | TBinop _ | TUnop _
 		| TField _ | TArrayDecl _ | TObjectDecl _ when in_value ->
-			Type.iter (loop true) e;
-		| TArray(e1,e2) -> compound "array access" [e1;e2] e.epos
-		| TCast(e1,None) -> compound "cast" [e1] e.epos
-		| TBinop(op,e1,e2) -> compound (Printf.sprintf "'%s' operator" (s_binop op)) [e1;e2] e.epos
-		| TUnop(op,_,e1) -> compound (Printf.sprintf "'%s' operator" (s_unop op)) [e1] e.epos
-		| TField(e1,_) -> compound "field access" [e1] e.epos
-		| TArrayDecl el -> compound "array declaration" el e.epos
-		| TObjectDecl fl -> compound "object declaration" (List.map snd fl) e.epos
+			Type.iter (loop true compiler_generated) e;
+		| TArray(e1,e2) -> compound compiler_generated "array access" [e1;e2] e.epos
+		| TCast(e1,None) -> compound compiler_generated "cast" [e1] e.epos
+		| TBinop(op,e1,e2) -> compound compiler_generated (Printf.sprintf "'%s' operator" (s_binop op)) [e1;e2] e.epos
+		| TUnop(op,_,e1) -> compound compiler_generated (Printf.sprintf "'%s' operator" (s_unop op)) [e1] e.epos
+		| TField(e1,_) -> compound compiler_generated "field access" [e1] e.epos
+		| TArrayDecl el -> compound compiler_generated "array declaration" el e.epos
+		| TObjectDecl fl -> compound compiler_generated "object declaration" (List.map snd fl) e.epos
 	in
-	loop true e
+	loop true false e
 
-let prepare_field dctx com cf = match cf.cf_expr with
+let prepare_field dctx dectx com cf = match cf.cf_expr with
 	| None -> ()
 	| Some e ->
 		find_unused_variables dctx e;
 		check_other_things com e;
-		DeprecationCheck.run_on_expr ~force:true com e
+		DeprecationCheck.run_on_expr {dectx with field_meta = cf.cf_meta} e
 
 let collect_diagnostics dctx com =
 	let open CompilationCache in
+	let dectx = DeprecationCheck.create_context com in
 	List.iter (function
 		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get c.cl_pos.pfile) ->
-			List.iter (prepare_field dctx com) c.cl_ordered_fields;
-			List.iter (prepare_field dctx com) c.cl_ordered_statics;
-			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx com cf);
+			let dectx = {dectx with class_meta = c.cl_meta} in
+			List.iter (prepare_field dctx dectx com) c.cl_ordered_fields;
+			List.iter (prepare_field dctx dectx com) c.cl_ordered_statics;
+			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx dectx com cf);
 		| _ ->
 			()
 	) com.types;
@@ -143,7 +143,7 @@ let prepare com =
 		unresolved_identifiers = [];
 		missing_fields = PMap.empty;
 	} in
-	if not (List.exists (fun (_,_,_,sev,_) -> sev = MessageSeverity.Error) com.shared.shared_display_information.diagnostics_messages) then
+	if not (List.exists (fun diag -> diag.diag_severity = MessageSeverity.Error) com.shared.shared_display_information.diagnostics_messages) then
 		collect_diagnostics dctx com;
 	let process_modules com =
 		List.iter (fun m ->
@@ -178,9 +178,7 @@ let prepare com =
 	dctx
 
 let secure_generated_code ctx e =
-	(* This causes problems and sucks in general... need a different solution. But I forgot which problem this solved anyway. *)
-	(* mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos *)
-	e
+	if is_diagnostics ctx then mk (TMeta((Meta.CompilerGenerated,[],e.epos),e)) e.etype e.epos else e
 
 let print com =
 	let dctx = prepare com in

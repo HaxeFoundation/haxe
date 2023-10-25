@@ -257,9 +257,9 @@ class builder jc name jsig = object(self)
 		| _ -> die "" __LOC__
 
 	(** Emits an invokestatic instruction to invoke method [name] on [path] with signature [jsigm]. **)
-	method invokestatic (path : jpath) (name : string) (jsigm : jsignature) = match jsigm with
+	method invokestatic (path : jpath) (name : string) ?(kind=FKMethod) (jsigm : jsignature) = match jsigm with
 		| TMethod(tl,tr) ->
-			let offset = code#get_pool#add_field path name jsigm FKMethod in
+			let offset = code#get_pool#add_field path name jsigm kind in
 			code#invokestatic offset tl (match tr with None -> [] | Some tr -> [tr])
 		| _ -> die "" __LOC__
 
@@ -496,7 +496,7 @@ class builder jc name jsig = object(self)
 			| _ ->
 				die "" __LOC__
 		in
-		let rec unboxed_to_int () = match code#get_stack#top with
+		let unboxed_to_int () = match code#get_stack#top with
 			| TBool | TByte | TShort | TChar | TInt ->
 				self#replace_top TInt;
 			| TLong ->
@@ -508,7 +508,7 @@ class builder jc name jsig = object(self)
 			| _ ->
 				die "" __LOC__
 		in
-		let rec unboxed_to_long () = match code#get_stack#top with
+		let unboxed_to_long () = match code#get_stack#top with
 			| TBool | TByte | TShort | TChar | TInt ->
 				code#i2l;
 			| TLong ->
@@ -520,7 +520,7 @@ class builder jc name jsig = object(self)
 			| _ ->
 				die "" __LOC__
 		in
-		let rec unboxed_to_float () = match code#get_stack#top with
+		let unboxed_to_float () = match code#get_stack#top with
 			| TBool | TByte | TShort | TChar | TInt ->
 				code#i2f;
 			| TLong ->
@@ -532,7 +532,7 @@ class builder jc name jsig = object(self)
 			| _ ->
 				die "" __LOC__
 		in
-		let rec unboxed_to_double () = match code#get_stack#top with
+		let unboxed_to_double () = match code#get_stack#top with
 			| TBool | TByte | TShort | TChar | TInt ->
 				code#i2d;
 			| TLong ->

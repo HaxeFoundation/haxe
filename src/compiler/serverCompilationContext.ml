@@ -58,7 +58,7 @@ let reset sctx =
 	Helper.start_time := get_time()
 
 let maybe_cache_context sctx com =
-	if com.display.dms_full_typing then begin
+	if com.display.dms_full_typing && com.display.dms_populate_cache then begin
 		CommonCache.cache_context sctx.cs com;
 		ServerMessage.cached_modules com "" (List.length com.modules);
 	end

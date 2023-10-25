@@ -24,7 +24,7 @@ package haxe.zip;
 
 extern class Compress {
 	function new(level:Int):Void;
-	function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, wriet:Int};
+	function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int};
 	function setFlushMode(f:FlushMode):Void;
 	function close():Void;
 	static function run(s:haxe.io.Bytes, level:Int):haxe.io.Bytes;

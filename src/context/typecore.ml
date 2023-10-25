@@ -22,7 +22,7 @@ open Ast
 open Common
 open Type
 open Error
-open DisplayTypes
+open Resolution
 
 type type_patch = {
 	mutable tp_type : complex_type option;
@@ -60,15 +60,20 @@ type typer_pass =
 
 type typer_module = {
 	curmod : module_def;
-	mutable module_imports : (module_type * pos) list;
+	import_resolution : resolution_list;
+	mutable own_resolution : resolution_list option;
+	mutable enum_with_type : module_type option;
 	mutable module_using : (tclass * pos) list;
-	mutable module_globals : (string, (module_type * string * pos)) PMap.t;
-	mutable wildcard_packages : (string list * pos) list;
 	mutable import_statements : import list;
 }
 
+type delay = {
+	delay_pass : typer_pass;
+	delay_functions : (unit -> unit) list;
+}
+
 type typer_globals = {
-	mutable delayed : (typer_pass * (unit -> unit) list) list;
+	mutable delayed : delay list;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * string * typer) list) list;
 	doinline : bool;
 	retain_meta : bool;
@@ -76,7 +81,6 @@ type typer_globals = {
 	mutable macros : ((unit -> unit) * typer) option;
 	mutable std : module_def;
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
-	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
 	mutable global_using : (tclass * pos) list;
 	(* Indicates that Typer.create() finished building this instance *)
@@ -86,7 +90,6 @@ type typer_globals = {
 	functional_interface_lut : (path,tclass_field) lookup;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
-	do_create : Common.context -> typer;
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> expr option;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
 	do_load_module : typer -> path -> pos -> module_def;
@@ -199,7 +202,7 @@ type dot_path_part = {
 
 exception Forbid_package of (string * path * pos) * pos list * string
 
-exception WithTypeError of error_msg * pos * int (* depth *)
+exception WithTypeError of error
 
 let memory_marker = [|Unix.time()|]
 
@@ -213,6 +216,8 @@ let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_s
 let analyzer_run_on_expr_ref : (Common.context -> string -> texpr -> texpr) ref = ref (fun _ _ _ -> die "" __LOC__)
 let cast_or_unify_raise_ref : (typer -> ?uctx:unification_context option -> Type.t -> texpr -> pos -> texpr) ref = ref (fun _ ?uctx _ _ _ -> assert false)
 let type_generic_function_ref : (typer -> field_access -> (unit -> texpr) field_call_candidate -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
+
+let create_context_ref : (Common.context -> ((unit -> unit) * typer) option -> typer) ref = ref (fun _ -> assert false)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
@@ -229,6 +234,24 @@ let warning ?(depth=0) ctx w msg p =
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
+let make_static_call_gen ctx c cf el map p =
+	let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+	let t = map (apply_params cf.cf_params monos cf.cf_type) in
+	match follow t with
+	| TFun(args,ret) ->
+		let ethis = Texpr.Builder.make_static_this c p in
+		let ef = mk (TField(ethis,FStatic(c,cf))) t p in
+		make_call ctx ef el ret p
+	| t ->
+		raise_typing_error (s_type (print_context()) t ^ " cannot be called") p
+
+let make_static_class_call ctx c cf el p =
+	make_static_call_gen ctx c cf el (fun t -> t) p
+
+let make_static_abstract_call ctx a tl c cf el p =
+	let map = apply_params a.a_params tl in
+	make_static_call_gen ctx c cf el map p
+
 let type_expr ?(mode=MGet) ctx e with_type = (!type_expr_ref) ~mode ctx e with_type
 
 let unify_min ctx el = (!unify_min_ref) ctx el
@@ -242,27 +265,21 @@ let spawn_monomorph' ctx p =
 let spawn_monomorph ctx p =
 	TMono (spawn_monomorph' ctx p)
 
-let make_static_this c p =
-	let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
-	mk (TTypeExpr (TClassDecl c)) ta p
-
-let make_static_field_access c cf t p =
-	let ethis = make_static_this c p in
-	mk (TField (ethis,(FStatic (c,cf)))) t p
-
-let make_static_call ctx c cf map args t p =
-	let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
-	let map t = map (apply_params cf.cf_params monos t) in
-	let ef = make_static_field_access c cf (map cf.cf_type) p in
-	make_call ctx ef args (map t) p
+let raise_with_type_error ?(depth = 0) msg p =
+	raise (WithTypeError (make_error ~depth (Custom msg) p))
 
 let raise_or_display ctx l p =
 	if ctx.untyped then ()
-	else if ctx.in_call_args then raise (WithTypeError(Unify l,p,0))
-	else located_display_error ctx.com (error_msg p (Unify l))
+	else if ctx.in_call_args then raise (WithTypeError (make_error (Unify l) p))
+	else display_error_ext ctx.com (make_error (Unify l) p)
+
+let raise_or_display_error ctx err =
+	if ctx.untyped then ()
+	else if ctx.in_call_args then raise (WithTypeError err)
+	else display_error_ext ctx.com err
 
 let raise_or_display_message ctx msg p =
-	if ctx.in_call_args then raise (WithTypeError (Custom msg,p,0))
+	if ctx.in_call_args then raise_with_type_error msg p
 	else display_error ctx.com msg p
 
 let unify ctx t1 t2 p =
@@ -278,7 +295,7 @@ let unify_raise_custom uctx t1 t2 p =
 	with
 		Unify_error l ->
 			(* no untyped check *)
-			raise (Error (Unify l,p,0))
+			raise_error_msg (Unify l) p
 
 let unify_raise = unify_raise_custom default_unification_context
 
@@ -336,8 +353,11 @@ let check_module_path ctx (pack,name) p =
 	try
 		List.iter (fun part -> Path.check_package_name part) pack;
 	with Failure msg ->
-		display_error ctx.com ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:") p;
-		display_error ctx.com msg p
+		display_error_ext ctx.com (make_error
+			~sub:[make_error (Custom msg) p]
+			(Custom ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:"))
+			p
+		)
 
 let check_local_variable_name ctx name origin p =
 	match name with
@@ -361,32 +381,42 @@ let add_local_with_origin ctx origin n t p =
 let gen_local_prefix = "`"
 
 let gen_local ctx t p =
-	add_local ctx VGenerated "`" t p
+	add_local ctx VGenerated gen_local_prefix t p
 
-let is_gen_local v =
-	String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0
+let is_gen_local v = match v.v_kind with
+	| VGenerated ->
+		true
+	| _ ->
+		false
+
+let make_delay pass fl = {
+	delay_pass = pass;
+	delay_functions = fl;
+}
 
 let delay ctx p f =
 	let rec loop = function
-		| [] -> [p,[f]]
-		| (p2,l) :: rest ->
-			if p2 = p then
-				(p, f :: l) :: rest
-			else if p2 < p then
-				(p2,l) :: loop rest
+		| [] ->
+			[make_delay p [f]]
+		| delay :: rest ->
+			if delay.delay_pass = p then
+				(make_delay p (f :: delay.delay_functions)) :: rest
+			else if delay.delay_pass < p then
+				delay :: loop rest
 			else
-				(p,[f]) :: (p2,l) :: rest
+				(make_delay p [f]) :: delay :: rest
 	in
 	ctx.g.delayed <- loop ctx.g.delayed
 
 let delay_late ctx p f =
 	let rec loop = function
-		| [] -> [p,[f]]
-		| (p2,l) :: rest ->
-			if p2 <= p then
-				(p2,l) :: loop rest
+		| [] ->
+			[make_delay p [f]]
+		| delay :: rest ->
+			if delay.delay_pass <= p then
+				delay :: loop rest
 			else
-				(p,[f]) :: (p2,l) :: rest
+				(make_delay p [f]) :: delay :: rest
 	in
 	ctx.g.delayed <- loop ctx.g.delayed
 
@@ -398,12 +428,12 @@ let delay_if_mono ctx p t f = match follow t with
 
 let rec flush_pass ctx p (where:string) =
 	match ctx.g.delayed with
-	| (p2,l) :: rest when p2 <= p ->
-		(match l with
+	| delay :: rest when delay.delay_pass <= p ->
+		(match delay.delay_functions with
 		| [] ->
 			ctx.g.delayed <- rest;
 		| f :: l ->
-			ctx.g.delayed <- (p2,l) :: rest;
+			ctx.g.delayed <- (make_delay delay.delay_pass l) :: rest;
 			f());
 		flush_pass ctx p where
 	| _ ->
@@ -422,8 +452,8 @@ let exc_protect ?(force=true) ctx f (where:string) =
 			r := lazy_available t;
 			t
 		with
-			| Error (m,p,depth) ->
-				raise (Fatal_error ((error_msg p m),depth))
+			| Error e ->
+				raise (Fatal_error e)
 	);
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
@@ -455,8 +485,18 @@ let is_removable_field com f =
 			| _ -> false)
 	)
 
+let is_forced_inline c cf =
+	match c with
+	| Some { cl_kind = KAbstractImpl _ } -> true
+	| Some c when has_class_flag c CExtern -> true
+	| _ when has_class_field_flag cf CfExtern -> true
+	| _ -> false
+
+let needs_inline ctx c cf =
+	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.g.doinline || is_forced_inline c cf)
+
 (** checks if we can access to a given class field using current context *)
-let rec can_access ctx c cf stat =
+let can_access ctx c cf stat =
 	if (has_class_field_flag cf CfPublic) then
 		true
 	else if c == ctx.curclass then
@@ -592,7 +632,7 @@ let merge_core_doc ctx mt =
 
 let field_to_type_path com e =
 	let rec loop e pack name = match e with
-		| EField(e,f,_),p when Char.lowercase (String.get f 0) <> String.get f 0 -> (match name with
+		| EField(e,f,_),p when Char.lowercase_ascii (String.get f 0) <> String.get f 0 -> (match name with
 			| [] | _ :: [] ->
 				loop e pack (f :: name)
 			| _ -> (* too many name paths *)
@@ -604,7 +644,7 @@ let field_to_type_path com e =
 			let pack, name, sub = match name with
 				| [] ->
 					let fchar = String.get f 0 in
-					if Char.uppercase fchar = fchar then
+					if Char.uppercase_ascii fchar = fchar then
 						pack, f, None
 					else begin
 						display_error com "A class name must start with an uppercase letter" (snd e);
@@ -654,12 +694,12 @@ let s_field_call_candidate fcc =
 let relative_path ctx file =
 	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
 	let fpath = slashes (Path.get_full_path file) in
-	let fpath_lower = String.lowercase fpath in
+	let fpath_lower = String.lowercase_ascii fpath in
 	let flen = String.length fpath_lower in
 	let rec loop = function
 		| [] -> file
 		| path :: l ->
-			let spath = String.lowercase (slashes path) in
+			let spath = String.lowercase_ascii (slashes path) in
 			let slen = String.length spath in
 			if slen > 0 && slen < flen && String.sub fpath_lower 0 slen = spath then String.sub fpath slen (flen - slen) else loop l
 	in
@@ -703,14 +743,13 @@ let get_next_stored_typed_expr_id =
 	let uid = ref 0 in
 	(fun() -> incr uid; !uid)
 
-let get_stored_typed_expr com id =
-	let e = com.stored_typed_exprs#find id in
-	Texpr.duplicate_tvars e
+let make_stored_id_expr id p =
+	(EConst (Int (string_of_int id, None))), p
 
 let store_typed_expr com te p =
 	let id = get_next_stored_typed_expr_id() in
 	com.stored_typed_exprs#add id te;
-	let eid = (EConst (Int (string_of_int id, None))), p in
+	let eid = make_stored_id_expr id p in
 	id,((EMeta ((Meta.StoredTypedExpr,[],null_pos), eid)),p)
 
 let push_this ctx e = match e.eexpr with
@@ -720,29 +759,35 @@ let push_this ctx e = match e.eexpr with
 	let id,er = store_typed_expr ctx.com e e.epos in
 	er,fun () -> ctx.com.stored_typed_exprs#remove id
 
+let create_deprecation_context ctx = {
+	(DeprecationCheck.create_context ctx.com) with
+	class_meta = ctx.curclass.cl_meta;
+	field_meta = ctx.curfield.cf_meta;
+}
+
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
 
 let delay_tabs = ref ""
 
-let context_ident ctx =
-	if Common.defined ctx.com Common.Define.CoreApi then
+let context_ident com =
+	if Common.defined com Common.Define.CoreApi then
 		" core "
-	else if Common.defined ctx.com Common.Define.Macro then
+	else if Common.defined com Common.Define.Macro then
 		"macro "
 	else
 		"  out "
 
-let debug ctx str =
-	if Common.raw_defined ctx.com "cdebug" then begin
-		let s = (context_ident ctx ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
-		match ctx.com.json_out with
+let debug com str =
+	if Common.raw_defined com "cdebug" then begin
+		let s = (context_ident com ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
+		match com.json_out with
 		| None -> print_endline s
-		| Some _ -> DynArray.add ctx.com.pass_debug_messages s
+		| Some _ -> DynArray.add com.pass_debug_messages s
 	end
 
 let init_class_done ctx =
-	debug ctx ("init_class_done " ^ s_type_path ctx.curclass.cl_path);
+	debug ctx.com ("init_class_done " ^ s_type_path ctx.curclass.cl_path);
 	init_class_done ctx
 
 let ctx_pos ctx =
@@ -769,7 +814,7 @@ let delay ctx p f =
 				(p,[f,inf,ctx]) :: (p2,l) :: rest
 	in
 	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
-	debug ctx ("add " ^ inf)
+	debug ctx.com ("add " ^ inf)
 
 let delay_late ctx p f =
 	let inf = pass_infos ctx p in
@@ -782,7 +827,7 @@ let delay_late ctx p f =
 				(p,[f,inf,ctx]) :: (p2,l) :: rest
 	in
 	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
-	debug ctx ("add late " ^ inf)
+	debug ctx.com ("add late " ^ inf)
 
 let pending_passes ctx =
 	let rec loop acc = function
@@ -793,28 +838,28 @@ let pending_passes ctx =
 	| [] -> ""
 	| l -> " ??PENDING[" ^ String.concat ";" (List.map (fun (_,i,_) -> i) l) ^ "]"
 
-let display_error ctx.com msg p =
-	debug ctx ("ERROR " ^ msg);
-	display_error ctx.com msg p
+let display_error com ?(depth=0) msg p =
+	debug com ("ERROR " ^ msg);
+	display_error com ~depth msg p
 
-let located_display_error ctx.com msg =
-	debug ctx ("ERROR " ^ msg);
-	located_display_error ctx.com msg
+let display_error_ext com err =
+	debug com ("ERROR " ^ (error_msg err.err_message));
+	display_error_ext com err
 
 let make_pass ?inf ctx f =
 	let inf = (match inf with None -> pass_infos ctx ctx.pass | Some inf -> inf) in
 	(fun v ->
-		debug ctx ("run " ^ inf ^ pending_passes ctx);
+		debug ctx.com ("run " ^ inf ^ pending_passes ctx);
 		let old = !delay_tabs in
 		delay_tabs := !delay_tabs ^ "\t";
 		let t = (try
 			f v
 		with
-			| Fatal_error (e,p) ->
+			| Fatal_error _ as exc ->
 				delay_tabs := old;
-				raise (Fatal_error (e,p))
+				raise exc
 			| exc when not (Common.raw_defined ctx.com "stack") ->
-				debug ctx ("FATAL " ^ Printexc.to_string exc);
+				debug ctx.com ("FATAL " ^ Printexc.to_string exc);
 				delay_tabs := old;
 				raise exc
 		) in
@@ -841,11 +886,11 @@ let rec flush_pass ctx p where =
 	match ctx.g.debug_delayed with
 	| (p2,_) :: _ when p2 <= p ->
 		let old = !delay_tabs in
-		debug ctx ("flush " ^ pass_name p ^ "(" ^ where ^ ")");
+		debug ctx.com ("flush " ^ pass_name p ^ "(" ^ where ^ ")");
 		delay_tabs := !delay_tabs ^ "\t";
 		loop();
 		delay_tabs := old;
-		debug ctx "flush-done";
+		debug ctx.com "flush-done";
 	| _ ->
 		()
 
@@ -860,8 +905,8 @@ let exc_protect ?(force=true) ctx f (where:string) =
 			r := lazy_available t;
 			t
 		with
-			| Error (m,p,depth) ->
-				raise (Fatal_error ((error_msg m),p,depth))
+			| Error e ->
+				raise (Fatal_error e)
 	));
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r

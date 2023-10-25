@@ -4,9 +4,7 @@ open Ast
 open Type
 open Typecore
 open DisplayPosition
-open CompletionItem
 open CompilationCache
-open ClassFieldOrigin
 
 let find_field_by_position sc p =
 	List.find (fun cff ->
@@ -59,12 +57,11 @@ let find_abstract_by_position decls p =
 	loop decls
 
 let actually_check_display_field ctx c cff p =
-	let context_init = new TypeloadFields.context_init in
-	let cctx = TypeloadFields.create_class_context c context_init p in
+	let cctx = TypeloadFields.create_class_context c p in
 	let ctx = TypeloadFields.create_typer_context_for_class ctx cctx p in
 	let cff = TypeloadFields.transform_field (ctx,cctx) c cff (ref []) (pos cff.cff_name) in
 	let display_modifier = Typeload.check_field_access ctx cff in
-	let fctx = TypeloadFields.create_field_context cctx cff true display_modifier in
+	let fctx = TypeloadFields.create_field_context ctx cctx cff true display_modifier in
 	let cf = TypeloadFields.init_field (ctx,cctx,fctx) cff in
 	flush_pass ctx PTypeField "check_display_field";
 	ignore(follow cf.cf_type)

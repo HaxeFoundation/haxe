@@ -103,6 +103,12 @@ class SubConstrOpt3 extends BaseConstrOpt {
 	}
 }
 
+enum abstract MyEnumAbstract(Int) {
+	var A = 1;
+	var B = 2;
+	var C = 3;
+}
+
 class TestMisc extends Test {
 
 	static var unit = "testing package conflict";
@@ -603,5 +609,10 @@ class TestMisc extends Test {
 	function testNullFieldAccess() {
 		eq("NPE", try nf1.s catch (e:Any) "NPE");
 		eq("NPE", try nf2.s catch (e:Any) "NPE");
+	}
+
+	function testAbstractEnumTools() {
+		var values = AbstractEnumTools.getValues(MyEnumAbstract);
+		eq(values.join(","), "1,2,3");
 	}
 }

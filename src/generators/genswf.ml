@@ -18,7 +18,6 @@
 *)
 open Swf
 open As3hl
-open Genswf9
 open ExtString
 open Type
 open Common

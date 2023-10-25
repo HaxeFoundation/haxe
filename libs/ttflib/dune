@@ -1,5 +1,11 @@
 (include_subdirs no)
 
+(env
+	(_
+		(flags (-w -3 -w -27 -w -35))
+	)
+)
+
 (library
 	(name ttflib)
 	(libraries extlib extlib_leftovers swflib unix)

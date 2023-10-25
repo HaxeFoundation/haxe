@@ -373,13 +373,13 @@ and gen_expr ctx e =
 		gen_expr ctx (Codegen.default_cast ~vtmp:"@tmp" ctx.com e1 t e.etype e.epos)
 	| TIdent s ->
 		ident p s
-	| TSwitch (e,cases,eo) ->
+	| TSwitch {switch_subject = e;switch_cases = cases;switch_default = eo} ->
 		let e = gen_expr ctx e in
 		let eo = (match eo with None -> None | Some e -> Some (gen_expr ctx e)) in
 		try
 			(ESwitch (
 				e,
-				List.map (fun (el,e2) ->
+				List.map (fun {case_patterns = el;case_expr = e2} ->
 					match List.map (gen_expr ctx) el with
 					| [] -> die "" __LOC__
 					| [e] -> e, gen_expr ctx e2
@@ -391,7 +391,7 @@ and gen_expr ctx e =
 			Exit ->
 				(EBlock [
 					(EVars ["@tmp",Some e],p);
-					List.fold_left (fun acc (el,e) ->
+					List.fold_left (fun acc {case_patterns = el;case_expr = e} ->
 						let cond = (match el with
 							| [] -> die "" __LOC__
 							| e :: l ->

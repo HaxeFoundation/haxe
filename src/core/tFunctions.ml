@@ -172,6 +172,13 @@ let module_extra file sign time kind policy =
 		m_check_policy = policy;
 	}
 
+let mk_class_field_ref (c : tclass) (cf : tclass_field) (kind : class_field_ref_kind) (is_macro : bool) = {
+	cfr_sign = c.cl_module.m_extra.m_sign;
+	cfr_path = c.cl_path;
+	cfr_field = cf.cf_name;
+	cfr_kind = kind;
+	cfr_is_macro = is_macro;
+}
 
 let mk_field name ?(public = true) ?(static = false) t p name_pos = {
 	cf_name = name;
@@ -233,8 +240,8 @@ let null_abstract = {
 }
 
 let add_dependency ?(skip_postprocess=false) m mdep =
-	if m != null_module && m != mdep then begin
-		m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps;
+	if m != null_module && (m.m_path != mdep.m_path || m.m_extra.m_sign != mdep.m_extra.m_sign) then begin
+		m.m_extra.m_deps <- PMap.add mdep.m_id (mdep.m_extra.m_sign, mdep.m_path) m.m_extra.m_deps;
 		(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
 		if not skip_postprocess then m.m_extra.m_processed <- 0
 	end
@@ -249,6 +256,8 @@ let t_infos t : tinfos =
 	| TAbstractDecl a -> Obj.magic a
 
 let t_path t = (t_infos t).mt_path
+
+let t_name t = snd (t_path t)
 
 let rec extends c csup =
 	if c == csup || List.exists (fun (i,_) -> extends i csup) c.cl_implements then
@@ -781,7 +790,7 @@ let quick_field t n =
 		| EnumStatics e ->
 			let ef = PMap.find n e.e_constrs in
 			FEnum(e,ef)
-		| Statics c ->
+		| ClassStatics c ->
 			FStatic (c,PMap.find n c.cl_statics)
 		| AbstractStatics a ->
 			begin match a.a_impl with

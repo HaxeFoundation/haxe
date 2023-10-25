@@ -92,9 +92,9 @@ module IterationKind = struct
 			| TDynamic _ | TMono _ ->
 				(* try to find something better than a dynamic value to iterate on *)
 				dynamic_iterator := Some e;
-				raise (Error (Unify [Unify_custom "Avoid iterating on a dynamic value"], p, 0))
+				raise_error_msg (Unify [Unify_custom "Avoid iterating on a dynamic value"]) p
 			| _ -> e
-		with Error (Unify _,_,depth) ->
+		with Error { err_message = Unify _ } ->
 			let try_last_resort after =
 				try
 					match last_resort with
@@ -108,14 +108,13 @@ module IterationKind = struct
 				try
 					unify_raise acc_expr.etype t acc_expr.epos;
 					acc_expr
-				with Error (Unify(l),p,n) ->
+				with Error ({ err_message = Unify _ } as err) ->
 					try_last_resort (fun () ->
 						match !dynamic_iterator with
 						| Some e -> e
 						| None ->
 							if resume then raise Not_found;
-							display_error ~depth ctx.com "Field iterator has an invalid type" acc_expr.epos;
-							located_display_error ~depth:(depth+1) ctx.com (error_msg p (Unify l));
+							display_error_ext ctx.com (make_error ~depth:err.err_depth ~sub:[err] (Custom "Field iterator has an invalid type") acc_expr.epos);
 							mk (TConst TNull) t_dynamic p
 					)
 			in
@@ -140,7 +139,7 @@ module IterationKind = struct
 		| TAbstract({a_impl = Some c} as a,tl) ->
 			let cf_length = PMap.find "get_length" c.cl_statics in
 			let get_length e p =
-				make_static_call ctx c cf_length (apply_params a.a_params tl) [e] ctx.com.basic.tint p
+				make_static_abstract_call ctx a tl c cf_length [e] p
 			in
 			(match follow cf_length.cf_type with
 				| TFun(_,tr) ->
@@ -156,7 +155,7 @@ module IterationKind = struct
 				let todo = mk (TConst TNull) ctx.t.tint p in
 				let cf,_,r,_ = AbstractCast.find_array_read_access_raise ctx a tl todo p in
 				let get_next e_base e_index t p =
-					make_static_call ctx c cf (apply_params a.a_params tl) [e_base;e_index] r p
+					make_static_abstract_call ctx a tl c cf [e_base;e_index] p
 				in
 				IteratorCustom(get_next,get_length),e,r
 			with Not_found ->
@@ -280,7 +279,7 @@ module IterationKind = struct
 				| TBinop (OpAssignOp _,{ eexpr = TLocal l },_)
 				| TUnop (Increment,_,{ eexpr = TLocal l })
 				| TUnop (Decrement,_,{ eexpr = TLocal l })  when List.memq l vl ->
-					typing_error "Loop variable cannot be modified" e.epos
+					raise_typing_error "Loop variable cannot be modified" e.epos
 				| _ ->
 					Type.iter loop e
 			in
@@ -319,7 +318,7 @@ module IterationKind = struct
 			mk (TFor(v,e1,e2)) t_void p
 		| IteratorIntUnroll(offset,length,ascending) ->
 			check_loop_var_modification [v] e2;
-			if not ascending then typing_error "Cannot iterate backwards" p;
+			if not ascending then raise_typing_error "Cannot iterate backwards" p;
 			let el = ExtList.List.init length (fun i ->
 				let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
 				let rec loop e = match e.eexpr with
@@ -327,12 +326,12 @@ module IterationKind = struct
 					| _ -> map_expr loop e
 				in
 				let e2 = loop e2 in
-				Texpr.duplicate_tvars e2
+				Texpr.duplicate_tvars e_identity e2
 			) in
 			mk (TBlock el) t_void p
 		| IteratorIntConst(a,b,ascending) ->
 			check_loop_var_modification [v] e2;
-			if not ascending then typing_error "Cannot iterate backwards" p;
+			if not ascending then raise_typing_error "Cannot iterate backwards" p;
 			let v_index = gen_local ctx t_int a.epos in
 			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
 			let ev_index = make_local v_index v_index.v_pos in
@@ -368,7 +367,7 @@ module IterationKind = struct
 			let el = List.map (fun e ->
 				let ev = mk (TVar(v,Some e)) t_void e.epos in
 				let e = concat ev e2 in
-				Texpr.duplicate_tvars e
+				Texpr.duplicate_tvars e_identity e
 			) el in
 			mk (TBlock el) t_void p
 		| IteratorArray | IteratorArrayAccess ->
@@ -462,7 +461,7 @@ let type_for_loop ctx handle_display it e2 p =
 	let rec loop_ident dko e1 = match e1 with
 		| EConst(Ident i),p -> i,p,dko
 		| EDisplay(e1,dk),_ -> loop_ident (Some dk) e1
-		| _ -> typing_error "Identifier expected" (pos e1)
+		| _ -> raise_typing_error "Identifier expected" (pos e1)
 	in
 	let rec loop dko e1 = match fst e1 with
 		| EBinop(OpIn,e1,e2) ->
@@ -477,7 +476,7 @@ let type_for_loop ctx handle_display it e2 p =
 			| Some dk -> ignore(handle_display ctx e1 dk MGet WithType.value);
 			| None -> ()
 			end;
-			typing_error "For expression should be 'v in expr'" (snd it)
+			raise_typing_error "For expression should be 'v in expr'" (snd it)
 	in
 	let ik,e1 = loop None it in
 	let e1 = type_expr ctx e1 WithType.value in

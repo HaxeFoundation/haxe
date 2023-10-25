@@ -26,16 +26,13 @@ class ImportAll {
 	static function isSysTarget() {
 		return Context.defined("neko") || Context.defined("php") || Context.defined("cpp") ||
 		       Context.defined("java") || Context.defined("python") ||
-		       Context.defined("lua") || Context.defined("hl") || Context.defined("eval"); // TODO: have to add cs here, SPOD gets in the way at the moment
+		       Context.defined("lua") || Context.defined("hl") || Context.defined("eval");
 	}
 
 	public static function run( ?pack ) {
 		if( pack == null ) {
 			pack = "";
 			haxe.macro.Compiler.define("doc_gen");
-		}
-		if (Context.defined("interp")) {
-			haxe.macro.Compiler.define("macro");
 		}
 		switch( pack ) {
 		case "php":
@@ -72,42 +69,44 @@ class ImportAll {
 			if (!Context.defined("neko") && !Context.defined("cpp")) return;
 		case "tools", "build-tool", "jar-tool": return;
 		}
-		for( p in Context.getClassPath() ) {
-			if( p == "/" || p == "" )
-				continue;
-			// skip if we have a classpath to haxe
-			if( pack.length == 0 && sys.FileSystem.exists(p+"std") )
-				continue;
-			var p = p + pack.split(".").join("/");
-			if( StringTools.endsWith(p,"/") )
-				p = p.substr(0,-1);
-			if( !sys.FileSystem.exists(p) || !sys.FileSystem.isDirectory(p) )
-				continue;
-			for( file in sys.FileSystem.readDirectory(p) ) {
-				if( file == ".svn" || file == "_std" )
+		Context.onAfterInitMacros(() -> {
+			for( p in Context.getClassPath() ) {
+				if( p == "/" || p == "" )
 					continue;
-				var full = (pack == "") ? file : pack + "." + file;
-				if( StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0 ) {
-					var cl = full.substr(0, full.length - 3);
-					switch( cl ) {
-					case "ImportAll", "neko.db.MacroManager": continue;
-					case "haxe.TimerQueue": if( Context.defined("neko") || Context.defined("php") || Context.defined("cpp") ) continue;
-					case "Sys": if(!isSysTarget()) continue;
-					case "haxe.web.Request": if( !(Context.defined("neko") || Context.defined("php") || Context.defined("js")) ) continue;
-					case "haxe.macro.ExampleJSGenerator","haxe.macro.Context", "haxe.macro.Compiler": if( !Context.defined("eval") ) continue;
-					case "haxe.remoting.SocketWrapper": if( !Context.defined("flash") ) continue;
-					case "haxe.remoting.SyncSocketConnection": if( !(Context.defined("neko") || Context.defined("php") || Context.defined("cpp")) ) continue;
-					case "neko.vm.Ui" | "sys.db.Sqlite" | "sys.db.Mysql" if ( Context.defined("interp") ): continue;
-					case "sys.db.Sqlite" | "sys.db.Mysql" | "cs.db.AdoNet" if ( Context.defined("cs") ): continue;
-					case "haxe.atomic.AtomicBool" if(!Context.defined("target.atomics")): continue;
-					case "haxe.atomic.AtomicInt" if(!Context.defined("target.atomics")): continue;
-					case "haxe.atomic.AtomicObject" if(!Context.defined("target.atomics") || Context.defined("js") || Context.defined("cpp")): continue;
-					}
-					Context.getModule(cl);
-				} else if( sys.FileSystem.isDirectory(p + "/" + file) )
-					run(full);
+				// skip if we have a classpath to haxe
+				if( pack.length == 0 && sys.FileSystem.exists(p+"std") )
+					continue;
+				var p = p + pack.split(".").join("/");
+				if( StringTools.endsWith(p,"/") )
+					p = p.substr(0,-1);
+				if( !sys.FileSystem.exists(p) || !sys.FileSystem.isDirectory(p) )
+					continue;
+				for( file in sys.FileSystem.readDirectory(p) ) {
+					if( file == ".svn" || file == "_std" )
+						continue;
+					var full = (pack == "") ? file : pack + "." + file;
+					if( StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0 ) {
+						var cl = full.substr(0, full.length - 3);
+						switch( cl ) {
+						case "ImportAll", "neko.db.MacroManager": continue;
+						case "haxe.TimerQueue": if( Context.defined("neko") || Context.defined("php") || Context.defined("cpp") ) continue;
+						case "Sys": if(!isSysTarget()) continue;
+						case "haxe.web.Request": if( !(Context.defined("neko") || Context.defined("php") || Context.defined("js")) ) continue;
+						case "haxe.macro.ExampleJSGenerator","haxe.macro.Context", "haxe.macro.Compiler": if( !Context.defined("eval") ) continue;
+						case "haxe.remoting.SocketWrapper": if( !Context.defined("flash") ) continue;
+						case "haxe.remoting.SyncSocketConnection": if( !(Context.defined("neko") || Context.defined("php") || Context.defined("cpp")) ) continue;
+						case "neko.vm.Ui" | "sys.db.Sqlite" | "sys.db.Mysql" if ( Context.defined("interp") ): continue;
+						case "sys.db.Sqlite" | "sys.db.Mysql" | "cs.db.AdoNet" if ( Context.defined("cs") ): continue;
+						case "haxe.atomic.AtomicBool" if(!Context.defined("target.atomics")): continue;
+						case "haxe.atomic.AtomicInt" if(!Context.defined("target.atomics")): continue;
+						case "haxe.atomic.AtomicObject" if(!Context.defined("target.atomics") || Context.defined("js") || Context.defined("cpp")): continue;
+						}
+						Context.getModule(cl);
+					} else if( sys.FileSystem.isDirectory(p + "/" + file) )
+						run(full);
+				}
 			}
-		}
+		});
 	}
 
 }

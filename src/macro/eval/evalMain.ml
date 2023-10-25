@@ -25,8 +25,6 @@ open EvalValue
 open EvalContext
 open EvalPrototype
 open EvalExceptions
-open EvalJit
-open EvalJitContext
 open EvalPrinting
 open EvalMisc
 open EvalHash
@@ -101,7 +99,7 @@ let create com api is_macro =
 	} in
 	let eval = EvalThread.create_eval thread in
 	let evals = IntMap.singleton 0 eval in
-	let rec ctx = {
+	let ctx = {
 		ctx_id = !GlobalState.sid;
 		is_macro = is_macro;
 		debug = debug;
@@ -149,18 +147,13 @@ let create com api is_macro =
 		match ex with
 		| Sys_exit _ -> raise ex
 		| _ ->
-			let msg =
-				match ex with
-				| Error.Error (err,p,_) ->
-						(* TODO hook global error reporting *)
-						(match (extract_located (Error.error_msg p err)) with
-						| [] -> ""
-						| (s,_) :: [] -> s
-						| (s,_) :: stack ->
-							List.fold_left (fun acc (s,p) ->
-								Printf.sprintf "%s%s\n" acc (Lexer.get_error_pos (Printf.sprintf "%s:%d: ") p)
-							) (s ^ "\n") stack
-						);
+			let msg = match ex with
+				| Error.Error err ->
+						let messages = ref [] in
+						Error.recurse_error (fun depth err ->
+							messages := (make_compiler_message ~from_macro:err.err_from_macro (Error.error_msg err.err_message) err.err_pos depth DKCompilerMessage Error) :: !messages;
+						) err;
+						MessageReporting.format_messages com !messages
 				| _ -> Printexc.to_string ex
 			in
 			Printf.eprintf "%s\n" msg;
@@ -422,30 +415,38 @@ let make_runtime_error msg pos =
 	| _ ->
 		die "" __LOC__
 
-let compiler_error msg =
-	let pos = extract_located_pos msg in
-	let items = extract_located msg in
-		let vi = make_runtime_error (fst (List.hd items)) pos in
-		match vi with
-		| VInstance i ->
-			(match items with
-			| [] | _ :: [] ->
-				let ctx = get_ctx() in
-				let eval = get_eval ctx in
-				(match eval.env with
-				| Some _ ->
-					let stack = EvalStackTrace.make_stack_value (call_stack eval) in
-					set_instance_field i key_native_stack stack;
-				| None -> ());
+let compiler_error (err : Error.error) =
+	let vi = make_runtime_error (Error.error_msg err.err_message) err.err_pos in
+	match vi with
+	| VInstance i ->
+		(match err.err_sub with
+		| [] ->
+			let ctx = get_ctx() in
+			let eval = get_eval ctx in
+			(match eval.env with
+			| Some _ ->
+				let stack = EvalStackTrace.make_stack_value (call_stack eval) in
+				set_instance_field i key_native_stack stack;
+			| None -> ());
 
-			| (hd :: stack) ->
-				let stack = List.map (fun (s,p) -> make_runtime_error s p) stack in
-				set_instance_field i key_child_errors (encode_array stack);
-			);
-
-			exc vi
 		| _ ->
-			die "" __LOC__
+			let stack = ref [] in
+			let depth = err.err_depth + 1 in
+
+			List.iter (fun err ->
+				Error.recurse_error ~depth (fun depth err ->
+					(* TODO indent child errors depending on depth *)
+					stack := make_runtime_error (Error.error_msg err.err_message) err.err_pos :: !stack;
+				) err;
+			(* TODO: not sure if we want rev or not here.. tests don't help atm *)
+			) (List.rev err.err_sub);
+
+			set_instance_field i key_child_errors (encode_array (List.rev !stack));
+		);
+
+		exc vi
+	| _ ->
+		die "" __LOC__
 
 let rec value_to_expr v p =
 	let path i =

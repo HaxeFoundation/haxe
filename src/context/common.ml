@@ -201,14 +201,14 @@ class compiler_callbacks = object(self)
 	method add_null_safety_report (f : (string*pos) list -> unit) : unit =
 		null_safety_report <- f :: null_safety_report
 
-	method run r =
+	method run handle_error r =
 		match !r with
 		| [] ->
 			()
 		| l ->
 			r := [];
-			List.iter (fun f -> f()) (List.rev l);
-			self#run r
+			List.iter (fun f -> try f() with Error.Error err -> handle_error err) (List.rev l);
+			self#run handle_error r
 
 	method get_before_typer_create = before_typer_create
 	method get_after_init_macros = after_init_macros
@@ -233,7 +233,7 @@ class file_keys = object(self)
 end
 
 type shared_display_information = {
-	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t * int (* depth *)) list;
+	mutable diagnostics_messages : diagnostic list;
 }
 
 type display_information = {
@@ -256,7 +256,6 @@ type json_api = {
 type compiler_stage =
 	| CCreated          (* Context was just created *)
 	| CInitialized      (* Context was initialized (from CLI args and such). *)
-	| CTyperCreated     (* The typer context was just created. *)
 	| CInitMacrosStart  (* Init macros are about to run. *)
 	| CInitMacrosDone   (* Init macros did run - at this point the signature is locked. *)
 	| CTypingDone       (* The typer is done - at this point com.types/modules/main is filled. *)
@@ -270,6 +269,23 @@ type compiler_stage =
 	| CFilteringDone    (* Filtering just finished. *)
 	| CGenerationStart  (* Generation is about to begin. *)
 	| CGenerationDone   (* Generation just finished. *)
+
+let s_compiler_stage = function
+	| CCreated          -> "CCreated"
+	| CInitialized      -> "CInitialized"
+	| CInitMacrosStart  -> "CInitMacrosStart"
+	| CInitMacrosDone   -> "CInitMacrosDone"
+	| CTypingDone       -> "CTypingDone"
+	| CFilteringStart   -> "CFilteringStart"
+	| CAnalyzerStart    -> "CAnalyzerStart"
+	| CAnalyzerDone     -> "CAnalyzerDone"
+	| CSaveStart        -> "CSaveStart"
+	| CSaveDone         -> "CSaveDone"
+	| CDceStart         -> "CDceStart"
+	| CDceDone          -> "CDceDone"
+	| CFilteringDone    -> "CFilteringDone"
+	| CGenerationStart  -> "CGenerationStart"
+	| CGenerationDone   -> "CGenerationDone"
 
 type report_mode =
 	| RMNone
@@ -363,9 +379,9 @@ type context = {
 	(* communication *)
 	mutable print : string -> unit;
 	mutable error : ?depth:int -> string -> pos -> unit;
-	mutable located_error : ?depth:int -> located -> unit;
-	mutable info : ?depth:int -> string -> pos -> unit;
-	mutable warning : ?depth:int -> warning -> Warning.warning_option list list -> string -> pos -> unit;
+	mutable error_ext : Error.error -> unit;
+	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
+	mutable warning : ?depth:int -> ?from_macro:bool -> warning -> Warning.warning_option list list -> string -> pos -> unit;
 	mutable warning_options : Warning.warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
@@ -379,6 +395,7 @@ type context = {
 	mutable user_metas : (string, Meta.user_meta) Hashtbl.t;
 	mutable get_macros : unit -> context option;
 	(* typing state *)
+	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	shared : shared_context;
 	display_information : display_information;
 	file_lookup_cache : (string,string option) lookup;
@@ -415,12 +432,11 @@ type context = {
 	memory_marker : float array;
 }
 
-exception Abort of located
+exception Abort of Error.error
 
 let ignore_error com =
 	let b = com.display.dms_error_policy = EPIgnore in
-	if b then
-		if b then com.has_error <- true;
+	if b then com.has_error <- true;
 	b
 
 (* Defines *)
@@ -453,6 +469,8 @@ let define_value com k v =
 let convert_define k =
 	String.concat "_" (ExtString.String.nsplit k "-")
 
+let is_next com = defined com HaxeNext
+
 let external_defined ctx k =
 	Define.raw_defined ctx.defines (convert_define k)
 
@@ -462,7 +480,7 @@ let external_defined_value ctx k =
 let reserved_flags = [
 	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
 	"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
-	]
+]
 
 let reserved_flag_namespaces = ["target"]
 
@@ -482,16 +500,8 @@ let convert_and_validate k =
 let external_define_value ctx k v =
 	raw_define_value ctx.defines (convert_and_validate k) v
 
-(* TODO: Temporary function until #8690, remove after *)
-let external_define_value_no_check ctx k v =
-	Define.raw_define_value ctx.defines (convert_define k) v
-
 let external_define ctx k =
 	Define.raw_define ctx.defines (convert_and_validate k)
-
-(* TODO: Temporary function until #8690, remove after *)
-let external_define_no_check ctx k =
-	Define.raw_define ctx.defines (convert_define k)
 
 let defines_for_external ctx =
 	PMap.foldi (fun k v acc ->
@@ -516,6 +526,7 @@ let short_platform_name = function
 	| Python -> "py"
 	| Hl -> "hl"
 	| Eval -> "evl"
+	| CustomTarget n -> "c_" ^ n
 
 let stats =
 	{
@@ -561,6 +572,9 @@ let get_config com =
 	match com.platform with
 	| Cross ->
 		default_config
+	| CustomTarget _ ->
+		(* impossible to reach. see update_platform_config *)
+		raise Exit
 	| Js ->
 		let es6 = get_es_version com >= 6 in
 		{
@@ -723,6 +737,10 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_supports_threads = true;
 			pf_supports_atomics = true;
+			pf_scoping = {
+				vs_scope = BlockScope;
+				vs_flags = [NoShadowing]
+			};
 		}
 	| Eval ->
 		{
@@ -773,6 +791,7 @@ let create compilation_step cs version args =
 		file = "";
 		types = [];
 		callbacks = new compiler_callbacks;
+		global_metadata = [];
 		modules = [];
 		module_lut = new hashtbl_lookup;
 		module_nonexistent_lut = new hashtbl_lookup;
@@ -795,11 +814,11 @@ let create compilation_step cs version args =
 		user_defines = Hashtbl.create 0;
 		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);
-		info = (fun ?depth _ _ -> die "" __LOC__);
-		warning = (fun ?depth _ _ _ -> die "" __LOC__);
+		info = (fun ?depth ?from_macro _ _ -> die "" __LOC__);
+		warning = (fun ?depth ?from_macro _ _ _ -> die "" __LOC__);
 		warning_options = [];
 		error = (fun ?depth _ _ -> die "" __LOC__);
-		located_error = (fun ?depth _ -> die "" __LOC__);
+		error_ext = (fun _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
@@ -897,12 +916,22 @@ let flash_version_tag = function
 	| v when v >= 12.0 && float_of_int (int_of_float v) = v -> int_of_float v + 11
 	| v -> failwith ("Invalid SWF version " ^ string_of_float v)
 
-let init_platform com pf =
-	com.platform <- pf;
-	let name = platform_name pf in
+let update_platform_config com =
+	match com.platform with
+	| CustomTarget _ ->
+		() (* do nothing, configured with macro api *)
+	| _ ->
+		com.config <- get_config com
+
+let init_platform com =
+	let name = platform_name com.platform in
+	if (com.platform = Flash) && Path.file_extension com.file = "swc" then define com Define.Swc;
+	(* Set the source header, unless the user has set one already or the platform sets a custom one *)
+	if not (defined com Define.SourceHeader) && (com.platform <> Hl) then
+		define_value com Define.SourceHeader ("Generated by Haxe " ^ s_version_full);
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
-	com.package_rules <- List.fold_left forbid com.package_rules ("java" :: (List.map platform_name platforms));
-	com.config <- get_config com;
+	com.package_rules <- List.fold_left forbid com.package_rules ("jvm" :: (List.map platform_name platforms));
+	update_platform_config com;
 	if com.config.pf_static then begin
 		raw_define com "target.static";
 		define com Define.Static;
@@ -923,26 +952,26 @@ let init_platform com pf =
 		raw_define com "target.unicode";
 	end;
 	raw_define_value com.defines "target.name" name;
-	raw_define com name;
+	raw_define com (match com.platform with | CustomTarget _ -> "custom_target" | _ -> name);
 	if com.config.pf_supports_atomics then begin
 		raw_define com "target.atomics"
 	end
 
 let set_platform com pf file =
 	if com.platform <> Cross then failwith "Multiple targets";
-	init_platform com pf;
-	com.file <- file;
-	begin match pf with
-		| Flash ->
-			if Path.file_extension file = "swc" then define com Define.Swc;
-		| Jvm ->
-			raw_define com "java"
-		| _ ->
-			()
-	end;
-	(* Set the source header, unless the user has set one already or the platform sets a custom one *)
-	if not (defined com Define.SourceHeader) && (pf <> Hl) then
-		define_value com Define.SourceHeader ("Generated by Haxe " ^ s_version_full)
+	com.platform <- pf;
+	com.file <- file
+
+let set_custom_target com name path =
+	if List.find_opt (fun pf -> (platform_name pf) = name) platforms <> None then
+		raise (Arg.Bad (Printf.sprintf "--custom-target cannot use reserved name %s" name));
+	if String.length name > max_custom_target_len then
+		raise (Arg.Bad (Printf.sprintf "--custom-target name %s exceeds the maximum of %d characters" name max_custom_target_len));
+	let name_regexp = Str.regexp "^[a-zA-Z0-9\\_]+$" in
+	if Str.string_match name_regexp name 0 then
+		set_platform com (CustomTarget name) path
+	else
+		raise (Arg.Bad (Printf.sprintf "--custom-target name %s may only contain alphanumeric or underscore characters" name))
 
 let add_feature com f =
 	Hashtbl.replace com.features f true
@@ -994,13 +1023,13 @@ let allow_package ctx s =
 	with Not_found ->
 		()
 
-let abort_located ?depth msg = raise (Abort msg)
-let abort ?depth msg p = abort_located ~depth (located msg p)
+let abort ?(depth = 0) msg p = raise (Abort (Error.make_error ~depth (Custom msg) p))
 
 let platform ctx p = ctx.platform = p
 
 let platform_name_macro com =
-	if defined com Define.Macro then "macro" else platform_name com.platform
+	if defined com Define.Macro then "macro"
+	else platform_name com.platform
 
 let remove_extension file =
 	try String.sub file 0 (String.rindex file '.')
@@ -1199,33 +1228,27 @@ let utf16_to_utf8 str =
 	loop 0;
 	Buffer.contents b
 
-let add_diagnostics_message ?(depth = 0) com msg kind sev =
+let add_diagnostics_message ?(depth = 0) ?(code = None) com s p kind sev =
 	if sev = MessageSeverity.Error then com.has_error <- true;
 	let di = com.shared.shared_display_information in
-	match (extract_located msg) with
-	| [] -> ()
-	| (s,p) :: [] ->
-		di.diagnostics_messages <- (s,p,kind,sev,depth) :: di.diagnostics_messages
-	| (s,p) :: stack ->
-		let stack_diag = (List.map (fun (s,p) -> (s,p,kind,sev,depth+1)) (List.rev stack)) in
-		di.diagnostics_messages <- stack_diag @ ((s,p,kind,sev,depth) :: di.diagnostics_messages)
+	di.diagnostics_messages <- (make_diagnostic ~depth ~code s p kind sev) :: di.diagnostics_messages
 
-let located_display_error com ?(depth = 0) msg =
-	if is_diagnostics com then
-		add_diagnostics_message ~depth com msg MessageKind.DKCompilerMessage MessageSeverity.Error
-	else
-		com.located_error msg ~depth
+let display_error_ext com err =
+	if is_diagnostics com then begin
+		Error.recurse_error (fun depth err ->
+			add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MessageKind.DKCompilerMessage MessageSeverity.Error;
+		) err;
+	end else
+		com.error_ext err
 
 let display_error com ?(depth = 0) msg p =
-	located_display_error com ~depth (Globals.located msg p)
-
-open Printer
+	display_error_ext com (Error.make_error ~depth (Custom msg) p)
 
 let dump_path com =
 	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
 
 let adapt_defines_to_macro_context defines =
-	let to_remove = "java" :: List.map Globals.platform_name Globals.platforms in
+	let to_remove = List.map Globals.platform_name Globals.platforms in
 	let to_remove = List.fold_left (fun acc d -> Define.get_define_key d :: acc) to_remove [Define.NoTraces] in
 	let to_remove = List.fold_left (fun acc (_, d) -> ("flash" ^ d) :: acc) to_remove flash_versions in
 	let macro_defines = {
@@ -1257,3 +1280,100 @@ let get_entry_point com =
 		let e = Option.get com.main in (* must be present at this point *)
 		(snd path, c, e)
 	) com.main_class
+
+let format_string com s p process_expr =
+	let e = ref None in
+	let pmin = ref p.pmin in
+	let min = ref (p.pmin + 1) in
+	let add_expr (enext,p) len =
+		min := !min + len;
+		let enext = process_expr enext p in
+		match !e with
+		| None -> e := Some enext
+		| Some prev ->
+			e := Some (EBinop (OpAdd,prev,enext),punion (pos prev) p)
+	in
+	let add enext len =
+		let p = { p with pmin = !min; pmax = !min + len } in
+		add_expr (enext,p) len
+	in
+	let add_sub start pos =
+		let len = pos - start in
+		if len > 0 || !e = None then add (EConst (String (String.sub s start len,SDoubleQuotes))) len
+	in
+	let len = String.length s in
+	let rec parse start pos =
+		if pos = len then add_sub start pos else
+		let c = String.unsafe_get s pos in
+		let pos = pos + 1 in
+		if c = '\'' then begin
+			incr pmin;
+			incr min;
+		end;
+		if c <> '$' || pos = len then parse start pos else
+		match String.unsafe_get s pos with
+		| '$' ->
+			(* double $ *)
+			add_sub start pos;
+			parse (pos + 1) (pos + 1)
+		| '{' ->
+			parse_group start pos '{' '}' "brace"
+		| 'a'..'z' | 'A'..'Z' | '_' ->
+			add_sub start (pos - 1);
+			incr min;
+			let rec loop i =
+				if i = len then i else
+				let c = String.unsafe_get s i in
+				match c with
+				| 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' -> loop (i+1)
+				| _ -> i
+			in
+			let iend = loop (pos + 1) in
+			let len = iend - pos in
+			add (EConst (Ident (String.sub s pos len))) len;
+			parse (pos + len) (pos + len)
+		| _ ->
+			(* keep as-it *)
+			parse start pos
+	and parse_group start pos gopen gclose gname =
+		add_sub start (pos - 1);
+		let rec loop groups i =
+			if i = len then
+				match groups with
+				| [] -> die "" __LOC__
+				| g :: _ -> Error.raise_typing_error ("Unclosed " ^ gname) { p with pmin = !pmin + g + 1; pmax = !pmin + g + 2 }
+			else
+				let c = String.unsafe_get s i in
+				if c = gopen then
+					loop (i :: groups) (i + 1)
+				else if c = gclose then begin
+					let groups = List.tl groups in
+					if groups = [] then i else loop groups (i + 1)
+				end else
+					loop groups (i + 1)
+		in
+		let send = loop [pos] (pos + 1) in
+		let slen = send - pos - 1 in
+		let scode = String.sub s (pos + 1) slen in
+		min := !min + 2;
+		begin
+			let e =
+				let ep = { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } in
+				let error msg pos =
+					if Lexer.string_is_whitespace scode then Error.raise_typing_error "Expression cannot be empty" ep
+					else Error.raise_typing_error msg pos
+				in
+				match ParserEntry.parse_expr_string com.defines scode ep error true with
+					| ParseSuccess(data,_,_) -> data
+					| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
+			in
+			add_expr e slen
+		end;
+		min := !min + 1;
+		parse (send + 1) (send + 1)
+	in
+	parse 0 0;
+	match !e with
+	| None -> die "" __LOC__
+	| Some e -> e
+

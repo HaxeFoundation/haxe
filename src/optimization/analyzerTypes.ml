@@ -68,12 +68,20 @@ module BasicBlock = struct
 	and syntax_edge =
 		| SEIfThen of t * t * pos                                (* `if` with "then" and "next" *)
 		| SEIfThenElse of t * t * t * Type.t * pos               (* `if` with "then", "else" and "next" *)
-		| SESwitch of (texpr list * t) list * t option * t * pos (* `switch` with cases, "default" and "next" *)
+		| SESwitch of syntax_switch                              (* `switch` with cases, "default" and "next" *)
 		| SETry of t * t * (tvar * t) list * t *  pos            (* `try` with "exc", catches and "next" *)
 		| SEWhile of t * t * pos                                 (* `while` with "body" and "next" *)
 		| SESubBlock of t * t                                    (* "sub" with "next" *)
 		| SEMerge of t                                           (* Merge to same block *)
 		| SENone                                                 (* No syntax exit *)
+
+	and syntax_switch = {
+		ss_cases : (texpr list * t) list;
+		ss_default : t option;
+		ss_next : t;
+		ss_pos : pos;
+		ss_exhaustive : bool;
+	}
 
 	and suspend_call = {
 		efun : texpr;      (* coroutine function expression *)
@@ -563,10 +571,10 @@ module Graph = struct
 					loop (next_scope scopes) bb_then;
 					loop (next_scope scopes) bb_else;
 					loop scopes bb_next
-				| SESwitch(cases,bbo,bb_next,_) ->
-					List.iter (fun (_,bb_case) -> loop (next_scope scopes) bb_case) cases;
-					(match bbo with None -> () | Some bb -> loop (next_scope scopes) bb);
-					loop scopes bb_next;
+				| SESwitch ss ->
+					List.iter (fun (_,bb_case) -> loop (next_scope scopes) bb_case) ss.ss_cases;
+					(match ss.ss_default with None -> () | Some bb -> loop (next_scope scopes) bb);
+					loop scopes ss.ss_next;
 				| SETry(bb_try,bb_exc,catches,bb_next,_) ->
 					let scopes' = next_scope scopes in
 					loop scopes' bb_try;

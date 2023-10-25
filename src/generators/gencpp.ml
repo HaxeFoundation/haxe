@@ -393,7 +393,12 @@ let keyword_remap name =
    | "HX_" | "HXLINE" | "HXDLIN"
    | "NO" | "YES"
    | "abstract" | "decltype" | "finally" | "nullptr" | "static_assert"
-   | "struct" -> "_hx_" ^ name
+   | "struct" | "_Atomic"
+   | "constexpr" | "consteval" | "constinit"
+   | "co_await" | "co_return" | "co_yield"
+   | "alignas" | "alignof"
+   | "_Alignas" | "_Alignof"
+   | "requires" -> "_hx_" ^ name
    | x -> x
 ;;
 
@@ -843,7 +848,7 @@ and type_string_suff suffix haxe_type remap =
    | TAnon a -> "Dynamic"
       (*
       (match !(a.a_status) with
-      | Statics c -> type_string_suff suffix (TInst (c,List.map snd c.cl_params))
+      | ClassStatics c -> type_string_suff suffix (TInst (c,List.map snd c.cl_params))
       | EnumStatics e -> type_string_suff suffix (TEnum (e,List.map snd e.e_params))
       | _ -> "Dynamic"  ^ suffix )
       *)
@@ -1698,7 +1703,7 @@ and tcpp_to_string tcpp =
 
 and cpp_class_path_of klass params =
    match (get_meta_string klass.cl_meta Meta.Native)<>"" with
-   | true -> 
+   | true ->
       let typeParams = match params with
       | [] -> ""
       | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >" in
@@ -3134,7 +3139,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             CppIf(ec, e1, e2), if return_type=TCppVoid then TCppVoid else cpp_type_of expr.etype
 
           (* Switch internal return - wrap whole thing in block  *)
-         | TSwitch (condition,cases,def) ->
+         | TSwitch {switch_subject = condition;switch_cases = cases;switch_default = def} ->
             if return_type<>TCppVoid then
                abort "Value from a switch not handled" expr.epos;
 
@@ -3142,19 +3147,19 @@ let retype_expression ctx request_type function_args function_type expression_tr
             let condition = retype conditionType condition in
             let cppDef = match def with None -> None | Some e -> Some (retype TCppVoid (mk_block e)) in
             if forCppia then begin
-               let cases = List.map (fun (el,e2) ->
+               let cases = List.map (fun {case_patterns = el;case_expr = e2} ->
                   let cppBlock = retype TCppVoid (mk_block e2) in
                   (List.map (retype conditionType) el), cppBlock ) cases in
                CppSwitch(condition, conditionType, cases, cppDef, -1), TCppVoid
             end else (try
                (match conditionType with TCppScalar("int") | TCppScalar("bool") -> () | _ -> raise Not_found );
-               let cases = List.map (fun (el,e2) ->
+               let cases = List.map (fun {case_patterns = el;case_expr = e2} ->
                   (List.map const_int_of el), (retype TCppVoid (mk_block e2)) ) cases in
                CppIntSwitch(condition, cases, cppDef), TCppVoid
             with Not_found ->
                let label = alloc_file_id () in
                (* do something better maybe ... *)
-               let cases = List.map (fun (el,e2) ->
+               let cases = List.map (fun {case_patterns = el;case_expr = e2} ->
                   let cppBlock = retype TCppVoid (mk_block e2) in
                   let gotoExpr = { cppexpr = CppGoto(label); cpptype = TCppVoid; cpppos = e2.epos } in
                   let cppBlock = cpp_append_block cppBlock  gotoExpr in
@@ -4906,7 +4911,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
          visited := List.tl !visited;
       end
    in
-   let rec visit_params expression =
+   let visit_params expression =
       begin
       let rec visit_expression = fun expression ->
          (* Expand out TTypeExpr (ie, the name of a class, as used for static access etc ... *)
@@ -7030,8 +7035,8 @@ let write_build_options common_ctx filename defines =
       | _ ->  write_define name (escape_command value)) defines;
    let pin,pid = Process_helper.open_process_args_in_pid "haxelib" [|"haxelib"; "path"; "hxcpp"|] in
    set_binary_mode_in pin false;
-   write_define "hxcpp" (Pervasives.input_line pin);
-   Pervasives.ignore (Process_helper.close_process_in_pid (pin,pid));
+   write_define "hxcpp" (Stdlib.input_line pin);
+   Stdlib.ignore (Process_helper.close_process_in_pid (pin,pid));
    writer#close;;
 
 let create_member_types common_ctx =
@@ -7952,11 +7957,11 @@ class script_writer ctx filename asciiOut =
    | TEnumIndex expr ->
          this#write ( (this#op IaCallMember) ^ (this#typeTextString "::hx::EnumBase") ^ " " ^ (this#stringText "__Index") ^ "0" ^ (this#commentOf ("Enum index") ) ^ "\n");
          this#gen_expression expr;
-   | TSwitch (condition,cases,optional_default)  ->
+   | TSwitch {switch_subject = condition;switch_cases = cases;switch_default = optional_default} ->
          this#write ( (this#op IaSwitch) ^ (string_of_int (List.length cases)) ^ " " ^
                            (match optional_default with None -> "0" | Some _ -> "1") ^ "\n");
          this#gen_expression condition;
-         List.iter (fun (cases_list,expression) ->
+         List.iter (fun {case_patterns = cases_list;case_expr = expression} ->
             this#writeList ("\t\t\t"^indent) (List.length cases_list);
             List.iter (fun value -> this#gen_expression value ) cases_list;
             this#gen_expression expression;

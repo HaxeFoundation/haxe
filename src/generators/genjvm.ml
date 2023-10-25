@@ -31,6 +31,7 @@ open JvmSignature
 open JvmMethod
 open JvmBuilder
 open Genshared
+open Tanon_identification
 
 (* Note: This module is the bridge between Haxe structures and JVM structures. No module in generators/jvm should reference any
    Haxe-specific type. *)
@@ -244,10 +245,10 @@ let convert_fields gctx pfm =
 module AnnotationHandler = struct
 	let convert_annotations meta =
 		let parse_path e =
-			let sl = try string_list_of_expr_path_raise e with Exit -> Error.typing_error "Field expression expected" (pos e) in
+			let sl = try string_list_of_expr_path_raise e with Exit -> Error.raise_typing_error "Field expression expected" (pos e) in
 			let path = match sl with
 				| s :: sl -> List.rev sl,s
-				| _ -> Error.typing_error "Field expression expected" (pos e)
+				| _ -> Error.raise_typing_error "Field expression expected" (pos e)
 			in
 			path
 		in
@@ -268,12 +269,12 @@ module AnnotationHandler = struct
 				let values = List.map parse_value_pair el in
 				AAnnotation(TObject(path, []),values)
 
-			| _ -> Error.typing_error "Expected value expression" (pos e)
+			| _ -> Error.raise_typing_error "Expected value expression" (pos e)
 		and parse_value_pair e = match fst e with
 			| EBinop(OpAssign,(EConst(Ident s),_),e1) ->
 				s,parse_value e1
 			| _ ->
-				Error.typing_error "Assignment expression expected" (pos e)
+				Error.raise_typing_error "Assignment expression expected" (pos e)
 		in
 		let parse_expr e = match fst e with
 			| ECall(e1,el) ->
@@ -283,7 +284,7 @@ module AnnotationHandler = struct
 				let values = List.map parse_value_pair el in
 				path,values
 			| _ ->
-				Error.typing_error "Call expression expected" (pos e)
+				Error.raise_typing_error "Call expression expected" (pos e)
 		in
 		ExtList.List.filter_map (fun (m,el,_) -> match m,el with
 			| Meta.Meta,[e] ->
@@ -347,17 +348,17 @@ let write_class gctx path jc =
 	gctx.out#add_entry (Bytes.unsafe_to_string (IO.close_out ch)) path;
 	t()
 
-let is_const_int_pattern (el,_) =
+let is_const_int_pattern case =
 	List.for_all (fun e -> match e.eexpr with
 		| TConst (TInt _) -> true
 		| _ -> false
-	) el
+	) case.case_patterns
 
-let is_const_string_pattern (el,_) =
+let is_const_string_pattern case =
 	List.for_all (fun e -> match e.eexpr with
 		| TConst (TString _) -> true
 		| _ -> false
-	) el
+	) case.case_patterns
 
 let is_interface_var_access c cf =
 	(has_class_flag c CInterface) && match cf.cf_kind with
@@ -909,21 +910,22 @@ class texpr_to_jvm
 			label_else#if_ (if flip then CmpNe else CmpEq)
 		end
 
-	method switch ret e1 cases def =
+	method switch ret {switch_subject = e1;switch_cases = cases;switch_default = def} =
 		let need_val = match ret with
 			| RValue _ -> true
 			| RReturn -> return_type <> None
 			| _ -> false
 		in
+		(* TODO: this seems to be missing the default, though in that case there probably wouldn't be a TSwitch in the AST *)
 		if cases = [] then
 			self#texpr ret e1
 		else if List.for_all is_const_int_pattern cases then begin
-			let cases = List.map (fun (el,e) ->
+			let cases = List.map (fun case ->
 				let il = List.map (fun e -> match e.eexpr with
 					| TConst (TInt i32) -> i32
 					| _ -> die "" __LOC__
-				) el in
-				(il,(fun () -> self#texpr ret e))
+				) case.case_patterns in
+				(il,(fun () -> self#texpr ret case.case_expr))
 			) cases in
 			let def = match def with
 				| None -> None
@@ -933,12 +935,12 @@ class texpr_to_jvm
 			jm#cast TInt;
 			jm#int_switch need_val cases def
 		end else if List.for_all is_const_string_pattern cases then begin
-			let cases = List.map (fun (el,e) ->
+			let cases = List.map (fun case ->
 				let sl = List.map (fun e -> match e.eexpr with
 					| TConst (TString s) -> s
 					| _ -> die "" __LOC__
-				) el in
-				(sl,(fun () -> self#texpr ret e))
+				) case.case_patterns in
+				(sl,(fun () -> self#texpr ret case.case_expr))
 			) cases in
 			let def = match def with
 				| None -> None
@@ -958,9 +960,9 @@ class texpr_to_jvm
 			self#cast v.v_type;
 			store();
 			let ev = mk (TLocal v) v.v_type null_pos in
-			let el = List.rev_map (fun (el,e) ->
+			let el = List.rev_map (fun case ->
 				let f e' = mk (TBinop(OpEq,ev,e')) com.basic.tbool e'.epos in
-				let e_cond = match el with
+				let e_cond = match case.case_patterns with
 					| [] -> die "" __LOC__
 					| [e] -> f e
 					| e :: el ->
@@ -968,10 +970,10 @@ class texpr_to_jvm
 							mk (TBinop(OpBoolOr,eacc,f e)) com.basic.tbool e.epos
 						) (f e) el
 				in
-				(e_cond,e)
+				(e_cond,case.case_expr)
 			) cases in
 			(* If we rewrite an exhaustive switch that has no default value, treat the last case as the default case to satisfy control flow. *)
-			let cases,def = if need_val && def = None then (match List.rev cases with (_,e) :: cases -> List.rev cases,Some e | _ -> die "" __LOC__) else cases,def in
+			let cases,def = if need_val && def = None then (match List.rev cases with case :: cases -> List.rev cases,Some case.case_expr | _ -> die "" __LOC__) else cases,def in
 			let e = List.fold_left (fun e_else (e_cond,e_then) -> Some (mk (TIf(e_cond,e_then,e_else)) e_then.etype e_then.epos)) def el in
 			self#texpr ret (Option.get e);
 			pop_scope()
@@ -1516,11 +1518,11 @@ class texpr_to_jvm
 					self#expect_reference_type;
 					let path = match jsignature_of_type gctx (type_of_module_type mt) with
 						| TObject(path,_) -> path
-						| _ -> Error.typing_error "Class expected" pe
+						| _ -> Error.raise_typing_error "Class expected" pe
 					in
 					code#instanceof path;
 					Some TBool
-				| _ -> Error.typing_error "Type expression expected" e1.epos
+				| _ -> Error.raise_typing_error "Type expression expected" e1.epos
 			end;
 		| TField(_,FStatic({cl_path = (["java";"lang"],"Math")},{cf_name = ("isNaN" | "isFinite") as name})) ->
 			begin match el with
@@ -1579,7 +1581,7 @@ class texpr_to_jvm
 				self#new_native_array jsig el;
 				Some (array_sig jsig)
 			| _ ->
-				Error.typing_error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
+				Error.raise_typing_error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
 			end
 		| TField(_,FStatic({cl_path = (["haxe"],"EnumTools")}, {cf_name = "values"})) ->
 			begin match el with
@@ -1595,7 +1597,8 @@ class texpr_to_jvm
 			end
 		| TField(e1,FStatic(c,({cf_kind = Method (MethNormal | MethInline)} as cf))) ->
 			let tl,tr = self#call_arguments cf.cf_type el in
-			jm#invokestatic c.cl_path cf.cf_name (method_sig tl tr);
+			let kind = if has_class_flag c CInterface then FKInterfaceMethod else FKMethod in
+			jm#invokestatic c.cl_path cf.cf_name ~kind (method_sig tl tr);
 			tr
 		| TField(e1,FInstance({cl_path=(["haxe";"root"],"StringBuf");cl_descendants=[]} as c,_,({cf_name="add"} as cf))) ->
 			self#texpr rvalue_any e1;
@@ -1664,7 +1667,7 @@ class texpr_to_jvm
 					info.super_call_fields <- tl;
 					hd
 				| _ ->
-					Error.typing_error "Something went wrong" e1.epos
+					Error.raise_typing_error "Something went wrong" e1.epos
 			in
 			let kind = get_construction_mode c cf in
 			begin match kind with
@@ -1928,8 +1931,8 @@ class texpr_to_jvm
 					self#texpr ret (mk_block e3);
 					if need_val ret then self#cast e.etype;
 				)
-		| TSwitch(e1,cases,def) ->
-			self#switch ret e1 cases def
+		| TSwitch switch ->
+			self#switch ret switch
 		| TWhile(e1,e2,flag) ->
 			block_exits <- ExitLoop :: block_exits;
 			let is_true_loop = match (Texpr.skip e1).eexpr with TConst (TBool true) -> true | _ -> false in
@@ -1995,7 +1998,7 @@ class texpr_to_jvm
 			)
 		| TNew(c,tl,el) ->
 			begin match OverloadResolution.maybe_resolve_constructor_overload c tl el with
-			| None -> Error.typing_error "Could not find overload" e.epos
+			| None -> Error.raise_typing_error "Could not find overload" e.epos
 			| Some (c',cf,_) ->
 				let f () =
 					let tl,_ = self#call_arguments cf.cf_type el in
@@ -2163,7 +2166,7 @@ class texpr_to_jvm
 				) fl;
 			end
 		| TIdent _ ->
-			Error.typing_error (s_expr_ast false "" (s_type (print_context())) e) e.epos;
+			Error.raise_typing_error (s_expr_ast false "" (s_type (print_context())) e) e.epos;
 
 	(* api *)
 
@@ -2514,7 +2517,7 @@ class tclass_to_jvm gctx c = object(self)
 		let jm = jc#spawn_field cf.cf_name jsig flags in
 		let default e =
 			let p = null_pos in
-			let efield = Texpr.Builder.make_static_field c cf p in
+			let efield = Texpr.Builder.make_static_field_access c cf cf.cf_type p in
 			let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type p in
 			begin match c.cl_init with
 			| None -> c.cl_init <- Some eop
@@ -2580,7 +2583,13 @@ class tclass_to_jvm gctx c = object(self)
 		let field mtype cf = match cf.cf_kind with
 			| Method (MethNormal | MethInline) ->
 				List.iter (fun cf ->
-					if not (has_class_field_flag cf CfExtern) then self#generate_method gctx jc c mtype cf
+					let is_weird_abstract_field_without_expression = match cf.cf_expr,c.cl_kind with
+						| None,KAbstractImpl _ ->
+							true
+						| _ ->
+							false
+					in
+					if not (has_class_field_flag cf CfExtern) && not (is_weird_abstract_field_without_expression) then self#generate_method gctx jc c mtype cf
 				) (cf :: List.filter (fun cf -> has_class_field_flag cf CfOverload) cf.cf_overloads)
 			| _ ->
 				if not (has_class_flag c CInterface) && is_physical_field cf then self#generate_field gctx jc c mtype cf
@@ -3066,7 +3075,7 @@ let generate jvm_flag com =
 		end
 	) com.native_libs.java_libs in
 	Hashtbl.iter (fun name v ->
-		let filename = Codegen.escape_res_name name true in
+		let filename = Codegen.escape_res_name name ['/';'-'] in
 		gctx.out#add_entry v filename;
 	) com.resources;
 	let generate_real_types () =

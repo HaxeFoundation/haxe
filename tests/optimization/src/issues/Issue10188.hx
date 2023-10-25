@@ -12,7 +12,7 @@ enum abstract Value(Int) to Int {
 	}
 }
 
-@:enum abstract ActorStateType(Int) from Int to Int {
+enum abstract ActorStateType(Int) from Int to Int {
     var GoingLeft = 0;
     var GoingRight = 1;
 }

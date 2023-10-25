@@ -92,7 +92,7 @@ int Zflush_val(value zflush_val) {
 		case 4: return Z_FINISH;
 		// TODO: support Z_BLOCK and Z_TREE
 		// TODO: append the received value
-		default: failwith("Error in `Zflush_val` (extc_stubs.c): Unknown zflush value");
+		default: caml_failwith("Error in `Zflush_val` (extc_stubs.c): Unknown zflush value");
 	}
 	assert(0);
 }
@@ -222,14 +222,14 @@ CAMLprim value zlib_deflate_init2(value level_val, value window_bits_val) {
 			break;
 		case Z_STREAM_ERROR:
 			// TODO: use stream->msg to get _zlib_'s text message
-			failwith("Error in `zlib_deflate_init2` (extc_stubs.c): call to `deflateInit2` failed: Z_STREAM_ERROR");
+			caml_failwith("Error in `zlib_deflate_init2` (extc_stubs.c): call to `deflateInit2` failed: Z_STREAM_ERROR");
 			break;
 		case Z_VERSION_ERROR:
 			// TODO: use stream->msg to get _zlib_'s text message
-			failwith("Error in `zlib_deflate_init2` (extc_stubs.c): call to `deflateInit2` failed: Z_VERSION_ERROR");
+			caml_failwith("Error in `zlib_deflate_init2` (extc_stubs.c): call to `deflateInit2` failed: Z_VERSION_ERROR");
 			break;
 		default:
-			failwith("Error in `zlib_deflate_init2` (extc_stubs.c): unknown return code from `deflateInit2`");
+			caml_failwith("Error in `zlib_deflate_init2` (extc_stubs.c): unknown return code from `deflateInit2`");
 	}
 	assert(0);
 }
@@ -275,7 +275,7 @@ CAMLprim value zlib_deflate(value stream_val, value src, value spos, value slen,
 	if (deflate_result == Z_OK || deflate_result == Z_STREAM_END) {
 		stream->next_in = NULL;
 		stream->next_out = NULL;
-		value zresult = alloc_small(3, 0);
+		value zresult = caml_alloc_small(3, 0);
 		// z_finish
 		Field(zresult, 0) = Val_bool(deflate_result == Z_STREAM_END);
 		// z_read
@@ -291,14 +291,14 @@ CAMLprim value zlib_deflate(value stream_val, value src, value spos, value slen,
 			break;
 		case Z_STREAM_ERROR:
 			// TODO: use stream->msg to get _zlib_'s text message
-			failwith("Error in `zlib_deflate` (extc_stubs.c): call to `deflate` failed: Z_STREAM_ERROR");
+			caml_failwith("Error in `zlib_deflate` (extc_stubs.c): call to `deflate` failed: Z_STREAM_ERROR");
 			break;
 		case Z_BUF_ERROR:
 			// TODO: use stream->msg to get _zlib_'s text message
-			failwith("Error in `zlib_deflate` (extc_stubs.c): call to `deflate` failed: Z_BUF_ERROR");
+			caml_failwith("Error in `zlib_deflate` (extc_stubs.c): call to `deflate` failed: Z_BUF_ERROR");
 			break;
 		default:
-			failwith("Error in `zlib_deflate` (extc_stubs.c): unknown return code from `deflate`");
+			caml_failwith("Error in `zlib_deflate` (extc_stubs.c): unknown return code from `deflate`");
 	}
 	assert(0);
 }
@@ -309,14 +309,14 @@ CAMLprim value zlib_deflate_bytecode(value *arg, int nargs) {
 
 CAMLprim value zlib_deflate_end(value zv) {
 	if( deflateEnd(ZStreamP_val(zv)) != 0 )
-		failwith("zlib_deflate_end");
+		caml_failwith("zlib_deflate_end");
 	return Val_unit;
 }
 
 CAMLprim value zlib_inflate_init(value wbits) {
 	value z = zlib_new_stream();
 	if( inflateInit2(ZStreamP_val(z),Int_val(wbits)) != Z_OK )
-		failwith("zlib_inflate_init");
+		caml_failwith("zlib_inflate_init");
 	return z;
 }
 
@@ -330,12 +330,12 @@ CAMLprim value zlib_inflate( value zv, value src, value spos, value slen, value 
 	z->avail_in = Int_val(slen);
 	z->avail_out = Int_val(dlen);
 	if( (r = inflate(z,Int_val(flush))) < 0 )
-		failwith("zlib_inflate");
+		caml_failwith("zlib_inflate");
 
 	z->next_in = NULL;
 	z->next_out = NULL;
 
-	res = alloc_small(3, 0);
+	res = caml_alloc_small(3, 0);
 	Field(res, 0) = Val_bool(r == Z_STREAM_END);
 	Field(res, 1) = Val_int(Int_val(slen) - z->avail_in);
 	Field(res, 2) = Val_int(Int_val(dlen) - z->avail_out);
@@ -348,7 +348,7 @@ CAMLprim value zlib_inflate_bytecode(value * arg, int nargs) {
 
 CAMLprim value zlib_inflate_end(value zv) {
 	if( inflateEnd(ZStreamP_val(zv)) != 0 )
-		failwith("zlib_inflate_end");
+		caml_failwith("zlib_inflate_end");
 	return Val_unit;
 }
 
@@ -368,13 +368,13 @@ CAMLprim value executable_path(value u) {
 #ifdef _WIN32
 	char path[MAX_PATH];
 	if( GetModuleFileName(NULL,path,MAX_PATH) == 0 )
-		failwith("executable_path");
+		caml_failwith("executable_path");
 	return caml_copy_string(path);
 #elif __APPLE__
 	char path[MAXPATHLEN+1];
 	uint32_t path_len = MAXPATHLEN;
 	if ( _NSGetExecutablePath(path, &path_len) )
-		failwith("executable_path");
+		caml_failwith("executable_path");
 	return caml_copy_string(path);
 #elif __FreeBSD__
 	char path[PATH_MAX];
@@ -387,7 +387,7 @@ CAMLprim value executable_path(value u) {
 	len = sizeof(path);
 	error = sysctl(name, 4, path, &len, NULL, 0);
 	if( error < 0 )
-		failwith("executable_path");
+		caml_failwith("executable_path");
 	return caml_copy_string(path);
 #else
 	char path[PATH_MAX];
@@ -397,7 +397,7 @@ CAMLprim value executable_path(value u) {
 		if( p != NULL )
 			return caml_copy_string(p);
 		else
-			failwith("executable_path");
+			caml_failwith("executable_path");
 	}
 	path[length] = '\0';
 	return caml_copy_string(path);
@@ -408,12 +408,12 @@ CAMLprim value get_full_path( value f ) {
 #ifdef _WIN32
 	char path[MAX_PATH];
 	if( GetFullPathName(String_val(f),MAX_PATH,path,NULL) == 0 )
-		failwith("get_full_path");
+		caml_failwith("get_full_path");
 	return caml_copy_string(path);
 #else
 	char path[4096];
 	if( realpath(String_val(f),path) == NULL )
-		failwith("get_full_path");
+		caml_failwith("get_full_path");
 	return caml_copy_string(path);
 #endif
 }
@@ -428,7 +428,7 @@ CAMLprim value get_real_path( value path ) {
 
 	// this will ensure the full class path with proper casing
 	if( GetFullPathName(String_val(path),MAX_PATH,out,NULL) == 0 )
-		failwith("get_real_path");
+		caml_failwith("get_real_path");
 
 	len = strlen(out);
 	i = 0;
@@ -501,7 +501,7 @@ CAMLprim value sys_time() {
 		ULARGE_INTEGER ui;
 		GetSystemTime(&t);
 		if( !SystemTimeToFileTime(&t,&ft) )
-			failwith("sys_cpu_time");
+			caml_failwith("sys_cpu_time");
 		ui.LowPart = ft.dwLowDateTime;
 		ui.HighPart = ft.dwHighDateTime;
 		return caml_copy_double( ((double)ui.QuadPart) / 10000000.0 - EPOCH_DIFF );

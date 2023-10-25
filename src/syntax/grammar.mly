@@ -30,7 +30,7 @@ let rec plist f = parser
 	| [< v = f; l = plist f >] -> v :: l
 	| [< >] -> []
 
-let rec psep_nonempty sep f = parser
+let psep_nonempty sep f = parser
 	| [< v = f; s >] ->
 		let rec loop = parser
 			| [< '(sep2,_) when sep2 = sep; v = f; l = loop >] -> v :: l
@@ -38,7 +38,7 @@ let rec psep_nonempty sep f = parser
 		in
 		v :: loop s
 
-let rec psep sep f = parser
+let psep sep f = parser
 	| [< r = psep_nonempty sep f >] -> r
 	| [< >] -> []
 
@@ -189,7 +189,7 @@ and parse_class_content doc meta flags n p1 s =
 	let tl = parse_constraint_params s in
 	let rec loop had_display p0 acc =
 		let check_display p1 =
-			if not had_display && !in_display_file && display_position#enclosed_in p1 then
+			if not had_display && !in_display_file && !display_mode = DMDefault && display_position#enclosed_in p1 then
 				syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) None (display_position#with_pos p1)
 		in
 		match s with parser
@@ -963,6 +963,9 @@ and parse_class_field tdecl s =
 		| [< '(Kwd Final,p1) >] ->
 			check_redundant_var p1 s;
 			begin match s with parser
+			| [< opt,name = questionable_dollar_ident; '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
+				let meta = check_optional opt name in
+				name,punion p1 p2,FProp(i1,i2,t,e),(al @ [AFinal,p1]),meta
 			| [< opt,name = questionable_dollar_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
 				let meta = check_optional opt name in
 				name,punion p1 p2,FVar(t,e),(al @ [AFinal,p1]),meta
@@ -1235,6 +1238,8 @@ and parse_array_decl p1 s =
 and parse_var_decl_head final s =
 	let meta = parse_meta s in
 	match s with parser
+	| [< name, p = dollar_ident; '(POpen,p1); _ = property_ident; '(Comma,_); _ = property_ident; '(PClose,p2); t = popt parse_type_hint >] ->
+		syntax_error (Custom "Cannot define property accessors for local vars") ~pos:(Some (punion p1 p2)) s (meta,name,final,t,p)
 	| [< name, p = dollar_ident; t = popt parse_type_hint >] -> (meta,name,final,t,p)
 	| [< >] ->
 		(* This nonsense is here for the var @ case in issue #9639 *)

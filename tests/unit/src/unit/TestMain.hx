@@ -75,11 +75,11 @@ function main() {
 		new TestCasts(),
 		new TestSyntaxModule(),
 		new TestNull(),
+		new TestNullCoalescing(),
 		new TestNumericCasts(),
 		new TestHashMap(),
 		new TestRest(),
-		#if !no_http new TestHttp(),
-		#end
+		new TestHttp(),
 		#if !no_pattern_matching
 		new TestMatch(),
 		#end
@@ -107,7 +107,8 @@ function main() {
 		new TestOverloadsForEveryone(),
 		new TestInterface(),
 		new TestNaN(),
-		#if ((dce == "full") && !interp) new TestDCE(),
+		#if ((dce == "full") && !interp)
+		new TestDCE(),
 		#end
 		new TestMapComprehension(),
 		new TestMacro(),

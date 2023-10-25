@@ -77,7 +77,7 @@ let get_exposed ctx path meta = try
         (match args with
          | [ EConst (String(s,_)), _ ] -> [s]
          | [] -> [path]
-         | _ -> typing_error "Invalid @:expose parameters" pos)
+         | _ -> raise_typing_error "Invalid @:expose parameters" pos)
     with Not_found -> []
 
 let dot_path = Globals.s_type_path
@@ -159,7 +159,7 @@ let println ctx =
             newline ctx
         end)
 
-let unsupported p = typing_error "This expression cannot be compiled to Lua" p
+let unsupported p = raise_typing_error "This expression cannot be compiled to Lua" p
 
 let basename path =
     try
@@ -285,7 +285,7 @@ let rec is_string_type t =
     | TInst ({cl_path = ([], "String")}, _) -> true
     | TAnon a ->
         (match !(a.a_status) with
-         | Statics ({cl_path = ([], "String")}) -> true
+         | ClassStatics ({cl_path = ([], "String")}) -> true
          | _ -> false)
     | TAbstract (a,pl) -> is_string_type (Abstract.get_underlying_type a pl)
     | _ -> false
@@ -298,7 +298,7 @@ let is_dynamic t = match follow t with
     | TInst({ cl_kind = KTypeParameter _ }, _) -> true
     | TAnon anon ->
         (match !(anon.a_status) with
-         | EnumStatics _ | Statics _ -> false
+         | EnumStatics _ | ClassStatics _ -> false
          | _ -> true
         )
     | _ -> false
@@ -317,7 +317,7 @@ let rec is_int_type ctx t =
     | TInst ({cl_path = ([], "Int")}, _) -> true
     | TAnon a ->
         (match !(a.a_status) with
-         | Statics ({cl_path = ([], "Int")}) -> true
+         | ClassStatics ({cl_path = ([], "Int")}) -> true
          | _ -> false)
     | TAbstract ({a_path = ([],"Float")}, pl) -> false
     | TAbstract ({a_path = ([],"Int")}, pl) -> true
@@ -384,7 +384,7 @@ and gen_call ctx e el =
     (match e.eexpr , el with
      | TConst TSuper , params ->
          (match ctx.current.cl_super with
-          | None -> typing_error "Missing api.setCurrentClass" e.epos
+          | None -> raise_typing_error "Missing api.setCurrentClass" e.epos
           | Some (c,_) ->
               print ctx "%s.super(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
               List.iter (fun p -> print ctx ","; gen_argument ctx p) params;
@@ -392,7 +392,7 @@ and gen_call ctx e el =
          );
      | TField ({ eexpr = TConst TSuper },f) , params ->
          (match ctx.current.cl_super with
-          | None -> typing_error "Missing api.setCurrentClass" e.epos
+          | None -> raise_typing_error "Missing api.setCurrentClass" e.epos
           | Some (c,_) ->
               let name = field_name f in
               print ctx "%s.prototype%s(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
@@ -445,7 +445,7 @@ and gen_call ctx e el =
                   if List.length(fields) > 0 then incr count;
               | { eexpr = TConst(TNull)} -> ()
               | _ ->
-                typing_error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
+                raise_typing_error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
              )) el;
          spr ctx "})";
      | TIdent "__lua__", [{ eexpr = TConst (TString code) }] ->
@@ -640,7 +640,7 @@ and check_multireturn_param ctx t pos =
    match t with
          TAbstract(_,p) | TInst(_,p) ->
             if List.exists ttype_multireturn p then
-				 typing_error "MultiReturns must not be type parameters" pos
+				 raise_typing_error "MultiReturns must not be type parameters" pos
             else
                 ()
         | _ ->
@@ -1006,8 +1006,8 @@ and gen_expr ?(local=true) ctx e = begin
         println ctx "elseif _hx_result ~= _hx_pcall_default then";
         println ctx "  return _hx_result";
         print ctx "end";
-    | TSwitch (e,cases,def) ->
-        List.iteri (fun cnt (el,e2) ->
+    | TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->
+        List.iteri (fun cnt {case_patterns = el;case_expr = e2} ->
             if cnt == 0 then spr ctx "if "
             else (newline ctx; spr ctx "elseif ");
             List.iteri (fun ccnt e3 ->
@@ -1086,7 +1086,8 @@ and gen_block_element ctx e  =
              | Increment -> print ctx " + 1;"
              | _ -> print ctx " - 1;"
             )
-        | TSwitch (e,[],def) ->
+        | TSwitch {switch_subject = e; switch_cases = [];switch_default = def} ->
+			(* TODO: this omits the subject which is not correct in the general case *)
             (match def with
              | None -> ()
              | Some e -> gen_block_element ctx e)
@@ -1262,12 +1263,15 @@ and gen_value ctx e =
         gen_elseif ctx eo;
         spr ctx " end";
         v()
-    | TSwitch (cond,cases,def) ->
-        let v = value() in
-        gen_expr ctx (mk (TSwitch (cond,
-                                   List.map (fun (e1,e2) -> (e1,assign e2)) cases,
-                                   match def with None -> None | Some e -> Some (assign e)
-                                  )) e.etype e.epos);
+    | TSwitch switch ->
+		let v = value() in
+		let switch = { switch with
+			switch_cases = List.map (fun case -> { case with
+				case_expr = assign case.case_expr
+			}) switch.switch_cases;
+			switch_default = Option.map assign switch.switch_default
+		} in
+		gen_expr ctx (mk (TSwitch switch) e.etype e.epos);
         v()
     | TTry (b,catchs) ->
         let v = value() in
@@ -1519,20 +1523,20 @@ let check_multireturn ctx c =
     match c with
     | _ when Meta.has Meta.MultiReturn c.cl_meta ->
         if not (has_class_flag c CExtern) then
-            typing_error "MultiReturns must be externs" c.cl_pos
+            raise_typing_error "MultiReturns must be externs" c.cl_pos
         else if List.length c.cl_ordered_statics > 0 then
-            typing_error "MultiReturns must not contain static fields" c.cl_pos
+            raise_typing_error "MultiReturns must not contain static fields" c.cl_pos
         else if (List.exists (fun cf -> match cf.cf_kind with Method _ -> true | _-> false) c.cl_ordered_fields) then
-            typing_error "MultiReturns must not contain methods" c.cl_pos;
+            raise_typing_error "MultiReturns must not contain methods" c.cl_pos;
     | {cl_super = Some(csup,_)} when Meta.has Meta.MultiReturn csup.cl_meta ->
-        typing_error "Cannot extend a MultiReturn" c.cl_pos
+        raise_typing_error "Cannot extend a MultiReturn" c.cl_pos
     | _ -> ()
 
 
 let check_field_name c f =
     match f.cf_name with
     | "prototype" | "__proto__" | "constructor" ->
-        typing_error ("The field name '" ^ f.cf_name ^ "'  is not allowed in Lua") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
+        raise_typing_error ("The field name '" ^ f.cf_name ^ "'  is not allowed in Lua") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
     | _ -> ()
 
 (* convert a.b.c to ["a"]["b"]["c"] *)
@@ -1608,19 +1612,16 @@ let gen_class_field ctx c f =
 
 let generate_class___name__ ctx c =
     if has_feature ctx "lua.Boot.isClass" then begin
-        let p = s_path ctx c.cl_path in
-        print ctx "%s.__name__ = " p;
-        if has_feature ctx "Type.getClassName" then
-            println ctx "\"%s\"" (String.concat "." (List.map s_escape_lua (fst c.cl_path @ [snd c.cl_path])))
-        else
-            println ctx "true";
+        let flat_path = s_path ctx c.cl_path in
+        let dot_path = String.concat "." (List.map s_escape_lua (fst c.cl_path @ [snd c.cl_path])) in
+        println ctx "%s.__name__ = \"%s\"" flat_path dot_path;
     end
 
 let generate_class ctx c =
     ctx.current <- c;
     ctx.id_counter <- 0;
     (match c.cl_path with
-     | [],"Function" -> typing_error "This class redefines a native one" c.cl_pos
+     | [],"Function" -> raise_typing_error "This class redefines a native one" c.cl_pos
      | _ -> ());
     let p = s_path ctx c.cl_path in
     let hxClasses = has_feature ctx "Type.resolveClass" in
@@ -1818,7 +1819,7 @@ let generate_require ctx path meta =
      | [(EConst(String(module_name,_)),_) ; (EConst(String(object_path,_)),_)] ->
          print ctx "%s = _G.require(\"%s\").%s" p module_name object_path
      | _ ->
-		typing_error "Unsupported @:luaRequire format" mp);
+		raise_typing_error "Unsupported @:luaRequire format" mp);
 
     newline ctx
 
@@ -1833,7 +1834,7 @@ let generate_type ctx = function
         if p = "Std" && c.cl_ordered_statics = [] then
             ()
         else if (not (has_class_flag c CExtern)) && Meta.has Meta.LuaDotMethod c.cl_meta then
-            typing_error "LuaDotMethod is valid for externs only" c.cl_pos
+            raise_typing_error "LuaDotMethod is valid for externs only" c.cl_pos
         else if not (has_class_flag c CExtern) then
             generate_class ctx c;
         check_multireturn ctx c;
@@ -1946,7 +1947,7 @@ let transform_multireturn ctx = function
                         e
                     | TReturn Some(e2) ->
                         if is_multireturn e2.etype then
-                            typing_error "You cannot return a multireturn type from a haxe function" e2.epos
+                            raise_typing_error "You cannot return a multireturn type from a haxe function" e2.epos
                         else
                             Type.map_expr loop e;
      (*

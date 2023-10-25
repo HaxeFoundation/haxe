@@ -42,7 +42,7 @@ module TExprToExpr = struct
 				) args, (convert_type' ret))
 		| TAnon a ->
 			begin match !(a.a_status) with
-			| Statics c -> tpath ([],"Class") ([],"Class") [TPType (tpath c.cl_path c.cl_path [],null_pos)]
+			| ClassStatics c -> tpath ([],"Class") ([],"Class") [TPType (tpath c.cl_path c.cl_path [],null_pos)]
 			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [TPType (tpath e.e_path e.e_path [],null_pos)]
 			| _ ->
 				CTAnonymous (PMap.foldi (fun _ f acc ->
@@ -149,8 +149,8 @@ module TExprToExpr = struct
 			EFor (ein,convert_expr e)
 		| TIf (e,e1,e2) -> EIf (convert_expr e,convert_expr e1,eopt e2)
 		| TWhile (e1,e2,flag) -> EWhile (convert_expr e1, convert_expr e2, flag)
-		| TSwitch (e,cases,def) ->
-			let cases = List.map (fun (vl,e) ->
+		| TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->
+			let cases = List.map (fun {case_patterns = vl;case_expr = e} ->
 				List.map convert_expr vl,None,(match e.eexpr with TBlock [] -> None | _ -> Some (convert_expr e)),e.epos
 			) cases in
 			let def = match eopt def with None -> None | Some (EBlock [],_) -> Some (None,null_pos) | Some e -> Some (Some e,pos e) in
@@ -265,7 +265,7 @@ let no_meta = []
 
 let class_module_type c =
 	let path = ([],"Class<" ^ (s_type_path c.cl_path) ^ ">") in
-	let t = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
+	let t = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
 	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
 
 let enum_module_type m path p  =
