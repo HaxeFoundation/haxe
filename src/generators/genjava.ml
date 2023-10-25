@@ -1158,7 +1158,7 @@ let generate con =
 			| TInst _ -> t
 			| TType _ | TAbstract _ -> t
 			| TAnon (anon) -> (match !(anon.a_status) with
-				| Statics _ | EnumStatics _ | AbstractStatics _ -> t
+				| ClassStatics _ | EnumStatics _ | AbstractStatics _ -> t
 				| _ -> t_dynamic)
 			| TFun _ -> TInst(fn_cl,[])
 			| _ -> t_dynamic
@@ -1209,7 +1209,7 @@ let generate con =
 		| TInst({ cl_kind = KTypeParameter _ }, _) -> true
 		| TAnon anon ->
 			(match !(anon.a_status) with
-				| EnumStatics _ | Statics _ | AbstractStatics _ -> false
+				| EnumStatics _ | ClassStatics _ | AbstractStatics _ -> false
 				| _ -> true
 			)
 		| _ -> false
@@ -1271,7 +1271,7 @@ let generate con =
 				| TType (({t_path = p; t_meta = meta} as t), params) -> (path_param_s stack pos (TTypeDecl t) p params meta)
 				| TAnon (anon) ->
 					(match !(anon.a_status) with
-						| Statics _ | EnumStatics _ | AbstractStatics _ ->
+						| ClassStatics _ | EnumStatics _ | AbstractStatics _ ->
 								path_s_import pos (["java";"lang"], "Class") []
 						| _ ->
 								path_s_import pos (["java";"lang"], "Object") [])

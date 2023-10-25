@@ -165,10 +165,10 @@ let rec acc_get ctx g =
 					e_def
 				| TAnon a ->
 					begin match !(a.a_status) with
-						| Statics c when has_class_field_flag cf CfExtern ->
+						| ClassStatics c when has_class_field_flag cf CfExtern ->
 							display_error ctx.com "Cannot create closure on @:extern inline method" p;
 							e_def
-						| Statics c when chk_class c -> wrap_extern c
+						| ClassStatics c when chk_class c -> wrap_extern c
 						| _ -> e_def
 					end
 				| _ -> e_def

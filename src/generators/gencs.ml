@@ -971,7 +971,7 @@ let generate con =
 					| TInst(cl, params) -> TInst(cl, change_param_type stack (TClassDecl cl) params)
 					| TAbstract _
 					| TType _ -> t
-					| TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false) -> t
+					| TAnon (anon) when (match !(anon.a_status) with | ClassStatics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false) -> t
 					| TFun _ -> TInst(fn_cl,[])
 					| _ -> t_dynamic
 				in
@@ -1027,7 +1027,7 @@ let generate con =
 			| TInst({ cl_kind = KTypeParameter _ }, _) -> true
 			| TAnon anon ->
 				(match !(anon.a_status) with
-					| EnumStatics _ | Statics _ -> false
+					| EnumStatics _ | ClassStatics _ -> false
 					| _ -> true
 				)
 			| _ -> false
@@ -1090,7 +1090,7 @@ let generate con =
 				| TType (({ t_path = p } as t), params) -> (path_param_s (TTypeDecl t) p params)
 				| TAnon (anon) ->
 					(match !(anon.a_status) with
-						| Statics _ | EnumStatics _ -> "System.Type"
+						| ClassStatics _ | EnumStatics _ -> "System.Type"
 						| _ -> "object")
 				| TDynamic _ -> "object"
 				| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->

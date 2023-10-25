@@ -228,7 +228,7 @@ let collect ctx e_ast e dk with_type p =
 		| TAnon an ->
 			(* @:forwardStatics *)
 			let items = match !(an.a_status) with
-				| Statics { cl_kind = KAbstractImpl { a_meta = meta; a_this}} when Meta.has Meta.ForwardStatics meta ->
+				| ClassStatics { cl_kind = KAbstractImpl { a_meta = meta; a_this}} when Meta.has Meta.ForwardStatics meta ->
 					begin match follow a_this with
 					| TInst (c,_) ->
 						let items = List.fold_left (fun acc cf ->
@@ -261,7 +261,7 @@ let collect ctx e_ast e dk with_type p =
 						PMap.add name (make_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct)) acc
 					in
 					match !(an.a_status) with
-						| Statics ({cl_kind = KAbstractImpl a} as c) ->
+						| ClassStatics ({cl_kind = KAbstractImpl a} as c) ->
 							if allow_static_abstract_access c cf then
 								let make = if has_class_field_flag cf CfEnum then
 										(make_ci_enum_abstract_field a)
@@ -271,7 +271,7 @@ let collect ctx e_ast e dk with_type p =
 								add (Self (TAbstractDecl a)) make
 							else
 								acc;
-						| Statics c ->
+						| ClassStatics c ->
 							Display.merge_core_doc ctx (TClassDecl c);
 							if should_access c cf true then add (Self (TClassDecl c)) make_ci_class_field else acc;
 						| EnumStatics en ->
@@ -377,7 +377,7 @@ let handle_missing_field_raise ctx tthis i mode with_type pfield =
 		| TAbstract(a,_) -> TAbstractDecl a,CFSMember,true
 		| TAnon an ->
 			begin match !(an.a_status) with
-			| Statics c -> TClassDecl c,CFSStatic,not (can_access ctx c cf true)
+			| ClassStatics c -> TClassDecl c,CFSStatic,not (can_access ctx c cf true)
 			| EnumStatics en -> TEnumDecl en,CFSStatic,true
 			| AbstractStatics a -> TAbstractDecl a,CFSStatic,true
 			| _ -> raise Exit

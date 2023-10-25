@@ -197,7 +197,7 @@ let field_access ctx mode f fh e pfield =
 				normal false
 			| TAnon a ->
 				(match !(a.a_status) with
-				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal false
+				| ClassStatics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal false
 				| _ -> if ctx.untyped then normal false else normal_failure())
 			| _ ->
 				if ctx.untyped then normal false else normal_failure())
@@ -338,13 +338,13 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					let fmode = FEnum (en,c) in
 					let t = enum_field_type ctx en c p in
 					AKExpr (mk (TField (e,fmode)) t p)
-				| Statics c ->
+				| ClassStatics c ->
 					field_access f (FHStatic c)
 				| _ ->
 					field_access f FHAnon
 			with Not_found ->
 				match !(a.a_status) with
-				| Statics { cl_kind = KAbstractImpl a } ->
+				| ClassStatics { cl_kind = KAbstractImpl a } ->
 					type_field_by_forward_static (fun() ->
 						let mt = try module_type_of_type a.a_this with Exit -> raise Not_found in
 						let et = type_module_type ctx mt p in
@@ -568,12 +568,12 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				|| List.exists (fun cf -> cf.cf_name = i) a.a_array
 			in
 			match follow t with
-			| TAnon { a_status = { contents = Statics { cl_kind = KAbstractImpl a } } }
+			| TAnon { a_status = { contents = ClassStatics { cl_kind = KAbstractImpl a } } }
 			| TInst ({ cl_kind = KAbstractImpl a },_)
 			| TAbstract (a,_) when has_special_field a ->
 				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
 				display_error ctx.com ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
-			| TAnon { a_status = { contents = Statics c } } when PMap.mem i c.cl_fields ->
+			| TAnon { a_status = { contents = ClassStatics c } } when PMap.mem i c.cl_fields ->
 				display_error ctx.com ("Static access to instance field " ^ i ^ " is not allowed") pfield;
 			| _ ->
 				let tthis = e.etype in

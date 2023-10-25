@@ -293,7 +293,7 @@ let classify ctx t =
 		KType (HMPath ([],"Function"))
 	| TAnon a ->
 		(match !(a.a_status) with
-		| Statics _ -> KNone
+		| ClassStatics _ -> KNone
 		| _ -> KDynamic)
 	| TAbstract ({ a_path = ["flash";"utils"],"Object" },[]) ->
 		KType (HMPath ([],"Object"))
@@ -373,7 +373,7 @@ let property ctx fa t =
 		| _ -> ident p, None, false)
 	| TAnon a ->
 		(match !(a.a_status) with
-		| Statics { cl_path = [], "Math" } ->
+		| ClassStatics { cl_path = [], "Math" } ->
 			(match p with
 			| "POSITIVE_INFINITY" | "NEGATIVE_INFINITY" | "NaN" -> ident p, Some KFloat, false
 			| "floor" | "ceil" | "round" when ctx.for_call -> ident p, Some KInt, false
@@ -967,7 +967,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 				VVolatile (id,None)
 			else
 				VId id
-		| TAnon a, _ when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) ->
+		| TAnon a, _ when (match !(a.a_status) with ClassStatics _ | EnumStatics _ -> true | _ -> false) ->
 			if Codegen.is_volatile e.etype then
 				VVolatile (id,None)
 			else

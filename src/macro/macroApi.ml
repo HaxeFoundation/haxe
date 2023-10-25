@@ -1186,7 +1186,7 @@ and encode_anon_status s =
 		| Closed -> 0, []
 		| Type.Const -> 2, []
 		| Extend tl -> 3, [encode_ref tl (fun tl -> encode_array (List.map encode_type tl)) (fun() -> "<extended types>")]
-		| Statics cl -> 4, [encode_clref cl]
+		| ClassStatics cl -> 4, [encode_clref cl]
 		| EnumStatics en -> 5, [encode_enref en]
 		| AbstractStatics ab -> 6, [encode_abref ab]
 	)

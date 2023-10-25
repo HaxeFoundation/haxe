@@ -473,13 +473,13 @@ let foldmap f acc e =
 (* Collection of functions that return expressions *)
 module Builder = struct
 	let make_static_this c p =
-		let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
+		let ta = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
 		mk (TTypeExpr (TClassDecl c)) ta p
 
 	let make_typeexpr mt pos =
 		let t =
 			match resolve_typedef mt with
-			| TClassDecl c -> mk_anon ~fields:c.cl_statics (ref (Statics c))
+			| TClassDecl c -> mk_anon ~fields:c.cl_statics (ref (ClassStatics c))
 			| TEnumDecl e -> mk_anon (ref (EnumStatics e))
 			| TAbstractDecl a -> mk_anon (ref (AbstractStatics a))
 			| _ -> die "" __LOC__

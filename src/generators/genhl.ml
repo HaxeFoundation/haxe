@@ -398,9 +398,9 @@ let rec to_type ?tref ctx t =
 			let pt = to_type ctx t in
 			if o && not (is_nullable pt) then HRef pt else pt
 		) args, to_type ctx ret)
-	| TAnon a when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) ->
+	| TAnon a when (match !(a.a_status) with ClassStatics _ | EnumStatics _ -> true | _ -> false) ->
 		(match !(a.a_status) with
-		| Statics c ->
+		| ClassStatics c ->
 			class_type ctx c (extract_param_types c.cl_params) true
 		| EnumStatics e ->
 			enum_class ctx e

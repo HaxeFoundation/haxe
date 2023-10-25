@@ -470,7 +470,7 @@ and expr_field dce e fa is_call_expr =
 					field dce c n CfrMember;
 				| TAnon a, _ ->
 					(match !(a.a_status) with
-					| Statics c ->
+					| ClassStatics c ->
 						mark_class dce c;
 						field dce c n CfrStatic;
 					| _ -> ())

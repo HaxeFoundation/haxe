@@ -790,7 +790,7 @@ let quick_field t n =
 		| EnumStatics e ->
 			let ef = PMap.find n e.e_constrs in
 			FEnum(e,ef)
-		| Statics c ->
+		| ClassStatics c ->
 			FStatic (c,PMap.find n c.cl_statics)
 		| AbstractStatics a ->
 			begin match a.a_impl with

@@ -595,7 +595,7 @@ class inline_state ctx ethis params cf f p = object(self)
 			let unify_func () = unify_raise mt (TFun (tl,tret)) p in
 			(match follow ethis.etype with
 			| TAnon a -> (match !(a.a_status) with
-				| Statics {cl_kind = KAbstractImpl a } when has_class_field_flag cf CfImpl ->
+				| ClassStatics {cl_kind = KAbstractImpl a } when has_class_field_flag cf CfImpl ->
 					if cf.cf_name <> "_new" then begin
 						(* the first argument must unify with a_this for abstract implementation functions *)
 						let tb = (TFun(("",false,map_type a.a_this) :: (List.tl tl),tret)) in
@@ -651,7 +651,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	try
 		let cl = (match follow ethis.etype with
 			| TInst (c,_) -> c
-			| TAnon a -> (match !(a.a_status) with Statics c -> c | _ -> raise Exit)
+			| TAnon a -> (match !(a.a_status) with ClassStatics c -> c | _ -> raise Exit)
 			| _ -> raise Exit
 		) in
 		(match api_inline ctx cl cf.cf_name params p with

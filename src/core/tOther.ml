@@ -42,7 +42,7 @@ module TExprToExpr = struct
 				) args, (convert_type' ret))
 		| TAnon a ->
 			begin match !(a.a_status) with
-			| Statics c -> tpath ([],"Class") ([],"Class") [TPType (tpath c.cl_path c.cl_path [],null_pos)]
+			| ClassStatics c -> tpath ([],"Class") ([],"Class") [TPType (tpath c.cl_path c.cl_path [],null_pos)]
 			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [TPType (tpath e.e_path e.e_path [],null_pos)]
 			| _ ->
 				CTAnonymous (PMap.foldi (fun _ f acc ->
@@ -265,7 +265,7 @@ let no_meta = []
 
 let class_module_type c =
 	let path = ([],"Class<" ^ (s_type_path c.cl_path) ^ ">") in
-	let t = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
+	let t = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
 	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
 
 let enum_module_type m path p  =

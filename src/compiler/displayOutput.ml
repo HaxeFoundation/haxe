@@ -209,7 +209,7 @@ let find_doc t =
 	let doc = match follow t with
 		| TAnon an ->
 			begin match !(an.a_status) with
-				| Statics c -> c.cl_doc
+				| ClassStatics c -> c.cl_doc
 				| EnumStatics en -> en.e_doc
 				| AbstractStatics a -> a.a_doc
 				| _ -> None

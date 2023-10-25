@@ -386,7 +386,7 @@ let rec shallow_eq a b =
 					loop (List.sort sort_compare fields1) (List.sort sort_compare fields2)
 				in
 				(match !(a2.a_status), !(a1.a_status) with
-				| Statics c, Statics c2 -> c == c2
+				| ClassStatics c, ClassStatics c2 -> c == c2
 				| EnumStatics e, EnumStatics e2 -> e == e2
 				| AbstractStatics a, AbstractStatics a2 -> a == a2
 				| Extend tl1, Extend tl2 -> fields_eq() && List.for_all2 shallow_eq tl1 tl2
@@ -560,7 +560,7 @@ let rec type_eq uctx a b =
 	| TAnon a1, TAnon a2 ->
 		(try
 			(match !(a2.a_status) with
-			| Statics c -> (match !(a1.a_status) with Statics c2 when c == c2 -> () | _ -> error [])
+			| ClassStatics c -> (match !(a1.a_status) with ClassStatics c2 when c == c2 -> () | _ -> error [])
 			| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
 			| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
 			| _ -> ()
@@ -801,7 +801,7 @@ let rec unify (uctx : unification_context) a b =
 				| _ -> ());
 			) an.a_fields;
 			(match !(an.a_status) with
-			| Statics _ | EnumStatics _ | AbstractStatics _ -> error []
+			| ClassStatics _ | EnumStatics _ | AbstractStatics _ -> error []
 			| Closed | Extend _ | Const -> ())
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
@@ -809,7 +809,7 @@ let rec unify (uctx : unification_context) a b =
 		unify_anons uctx a b a1 a2
 	| TAnon an, TAbstract ({ a_path = [],"Class" },[pt]) ->
 		(match !(an.a_status) with
-		| Statics cl -> unify uctx (TInst (cl,List.map (fun _ -> mk_mono()) cl.cl_params)) pt
+		| ClassStatics cl -> unify uctx (TInst (cl,List.map (fun _ -> mk_mono()) cl.cl_params)) pt
 		| _ -> error [cannot_unify a b])
 	| TAnon an, TAbstract ({ a_path = [],"Enum" },[pt]) ->
 		(match !(an.a_status) with
@@ -867,7 +867,7 @@ let rec unify (uctx : unification_context) a b =
 		| TAnon an ->
 			(try
 				(match !(an.a_status) with
-				| Statics _ | EnumStatics _ -> error []
+				| ClassStatics _ | EnumStatics _ -> error []
 				| _ -> ());
 				PMap.iter (fun _ f ->
 					try
@@ -910,7 +910,7 @@ and unify_anons uctx a b a1 a2 =
 				in
 				unify_with_access uctx f1 f1_type f2;
 				(match !(a1.a_status) with
-				| Statics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
+				| ClassStatics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
 				| _ -> ());
 			with
 				Unify_error l -> error (invalid_field n :: l)
@@ -923,7 +923,7 @@ and unify_anons uctx a b a1 a2 =
 					error [has_no_field a n];
 		) a2.a_fields;
 		(match !(a2.a_status) with
-		| Statics c -> (match !(a1.a_status) with Statics c2 when c == c2 -> () | _ -> error [])
+		| ClassStatics c -> (match !(a1.a_status) with ClassStatics c2 when c == c2 -> () | _ -> error [])
 		| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
 		| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
 		| Const | Extend _ | Closed -> ())

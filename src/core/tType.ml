@@ -149,7 +149,7 @@ and anon_status =
 	| Closed
 	| Const
 	| Extend of t list
-	| Statics of tclass
+	| ClassStatics of tclass
 	| EnumStatics of tenum
 	| AbstractStatics of tabstract
 

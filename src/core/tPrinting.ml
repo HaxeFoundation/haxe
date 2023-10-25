@@ -58,7 +58,7 @@ let rec s_type ctx t =
 		(match c.cl_kind with
 		| KExpr e -> Ast.Printer.s_expr e
 		| _ -> s_type_path c.cl_path ^ s_type_params ctx tl)
-	| TType ({ t_type = TAnon { a_status = { contents = Statics { cl_kind = KAbstractImpl a }}}}, _) ->
+	| TType ({ t_type = TAnon { a_status = { contents = ClassStatics { cl_kind = KAbstractImpl a }}}}, _) ->
 		"Abstract<" ^ (s_type_path a.a_path) ^ ">"
 	| TType (t,tl) ->
 		s_type_path t.t_path ^ s_type_params ctx tl
@@ -80,7 +80,7 @@ let rec s_type ctx t =
 	| TAnon a ->
 		begin
 			match !(a.a_status) with
-			| Statics c -> Printf.sprintf "{ Statics %s }" (s_type_path c.cl_path)
+			| ClassStatics c -> Printf.sprintf "{ ClassStatics %s }" (s_type_path c.cl_path)
 			| EnumStatics e -> Printf.sprintf "{ EnumStatics %s }" (s_type_path e.e_path)
 			| AbstractStatics a -> Printf.sprintf "{ AbstractStatics %s }" (s_type_path a.a_path)
 			| _ ->

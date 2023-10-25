@@ -418,7 +418,7 @@ let rec handle_cast gen e real_to_t real_from_t =
 				mk_cast true to_t e
 		| _, TAnon(anon) -> (try
 			let p2 = match !(anon.a_status) with
-			| Statics c -> TInst(c,List.map (fun _ -> t_dynamic) c.cl_params)
+			| ClassStatics c -> TInst(c,List.map (fun _ -> t_dynamic) c.cl_params)
 			| EnumStatics e -> TEnum(e, List.map (fun _ -> t_dynamic) e.e_params)
 			| AbstractStatics a -> TAbstract(a, List.map (fun _ -> t_dynamic) a.a_params)
 			| _ -> raise Not_found
