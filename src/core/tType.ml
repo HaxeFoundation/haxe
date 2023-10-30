@@ -45,6 +45,7 @@ type module_cache_state =
 	| MSGood
 	| MSBad of module_skip_reason
 	| MSUnknown
+	| MSRestored of module_cache_state
 
 type t =
 	| TMono of tmono

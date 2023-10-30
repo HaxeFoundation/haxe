@@ -220,7 +220,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 	t();
 	dirs
 
-let find_or_restore_module cs sign ctx path =
+let find_or_restore_module local_module_lut cs sign ctx path =
 	let com = ctx.Typecore.com in
 	(* Use macro context if needed *)
 	let com = if sign <> (CommonCache.get_cache_sign com) then
@@ -234,11 +234,11 @@ let find_or_restore_module cs sign ctx path =
 	assert (sign = (CommonCache.get_cache_sign com));
 	(* Make sure cache is created *)
 	ignore(CommonCache.get_cache com);
-	HxbRestore.find cs sign com path
+	HxbRestore.find local_module_lut cs sign com path
 
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
-let check_module sctx ctx m p =
+let check_module local_module_lut sctx ctx m p =
 	let com = ctx.Typecore.com in
 	let cc = CommonCache.get_cache com in
 	let content_changed m file =
@@ -314,7 +314,7 @@ let check_module sctx ctx m p =
 		let check_file () =
 			let file = Path.UniqueKey.lazy_path m.m_extra.m_file in
 			if file_time file <> m.m_extra.m_time then begin
-				if has_policy CheckFileContentModification && not (content_changed m file) then begin
+				if (has_policy CheckFileContentModification || m.m_extra.m_cache_state = MSRestored MSGood) && not (content_changed m file) then begin
 					ServerMessage.unchanged_content com "" file;
 				end else begin
 					ServerMessage.not_cached com "" m;
@@ -325,7 +325,7 @@ let check_module sctx ctx m p =
 		in
 		let check_dependencies () =
 			PMap.iter (fun _ (sign,mpath) ->
-				let m2 = try find_or_restore_module com.cs sign ctx mpath with Bad_module (_, reason) -> raise (Dirty (DependencyDirty(mpath,reason))) in
+				let m2 = try find_or_restore_module local_module_lut com.cs sign ctx mpath with Bad_module (_, reason) -> raise (Dirty (DependencyDirty(mpath,reason))) in
 				match check m2 with
 				| None -> ()
 				| Some reason -> raise (Dirty (DependencyDirty(m2.m_path,reason)))
@@ -345,6 +345,10 @@ let check_module sctx ctx m p =
 		if m.m_extra.m_checked = start_mark then begin match m.m_extra.m_cache_state with
 			| MSGood | MSUnknown ->
 				None
+			| MSRestored (MSBad reason) ->
+				Some reason
+			| MSRestored _ ->
+				None
 			| MSBad reason ->
 				Some reason
 		end else begin
@@ -357,6 +361,12 @@ let check_module sctx ctx m p =
 				| MSUnknown	->
 					(* This should not happen because any MSUnknown module is supposed to have the current m_checked. *)
 					die "" __LOC__
+				| MSRestored (MSBad reason) ->
+					Some reason
+				| MSRestored _ ->
+					(* TODO check wanted behavior here *)
+					m.m_extra.m_cache_state <- MSUnknown;
+					check ()
 				| MSGood ->
 					(* Otherwise, run the checks *)
 					m.m_extra.m_cache_state <- MSUnknown;
@@ -402,6 +412,14 @@ let check_module sctx ctx m p =
 			| MSUnknown ->
 				m.m_extra.m_checked <- start_mark - 1;
 				m.m_extra.m_cache_state <- MSGood;
+			| MSRestored _ ->
+				(* TODO: is it possible to get there? if so, what to do? *)
+				(* m.m_extra.m_checked <- start_mark - 1; *)
+				(* m.m_extra.m_cache_state <- MSGood; *)
+				trace (s_type_path m.m_path);
+				trace (Printer.s_module_cache_state m.m_extra.m_cache_state);
+				assert false
+				(* () *)
 			| MSGood | MSBad _ ->
 				()
 		) !unknown_state_modules
@@ -410,8 +428,9 @@ let check_module sctx ctx m p =
 
 (* Adds module [m] and all its dependencies (recursively) from the cache to the current compilation
    context. *)
-let add_modules sctx ctx m p =
+let add_modules local_module_lut sctx ctx m p =
 	let com = ctx.Typecore.com in
+
 	let rec add_modules tabs m0 m =
 		if m.m_extra.m_added < ctx.com.compilation_step then begin
 			(match m0.m_extra.m_kind, m.m_extra.m_kind with
@@ -427,24 +446,32 @@ let add_modules sctx ctx m p =
 				TypeloadModule.ModuleLevel.add_module ctx m p;
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
 				PMap.iter (fun _ (sign,mpath) ->
-					let m2 = find_or_restore_module com.cs sign ctx mpath in
+					let m2 = find_or_restore_module local_module_lut com.cs sign ctx mpath in
 					assert (m2.m_extra.m_sign == sign);
 					add_modules (tabs ^ "  ") m0 m2
 				) m.m_extra.m_deps
 			)
 		end
 	in
-	add_modules "" m m
+	add_modules "" m m;
+	let com_sign = CommonCache.get_cache_sign com in
+	local_module_lut#iter (fun (sign, path) m ->
+		trace (Printf.sprintf "Adding module %s from hxb cache" (s_type_path path));
+		(if sign = com_sign then com else Option.get (com.get_macros())).module_lut#add path m
+	);
+	local_module_lut#clear
 
 (* Looks up the module referred to by [mpath] in the cache. If it exists, a check is made to
    determine if it's still valid. If this function returns None, the module is re-typed. *)
 let type_module sctx (ctx:Typecore.typer) mpath p =
 	let t = Timer.timer ["server";"module cache"] in
 	let com = ctx.Typecore.com in
+	let local_module_lut = new Lookup.hashtbl_lookup in
+
 	try
-		let m = find_or_restore_module com.cs (CommonCache.get_cache_sign com) ctx mpath in
+		let m = find_or_restore_module local_module_lut com.cs (CommonCache.get_cache_sign com) ctx mpath in
 		let tcheck = Timer.timer ["server";"module cache";"check"] in
-		begin match check_module sctx ctx m p with
+		begin match check_module local_module_lut sctx ctx m p with
 		| None -> ()
 		| Some reason ->
 			tcheck();
@@ -452,7 +479,7 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		end;
 		tcheck();
 		let tadd = Timer.timer ["server";"module cache";"add modules"] in
-		add_modules sctx ctx m p;
+		add_modules local_module_lut sctx ctx m p;
 		tadd();
 		t();
 		Some m
