@@ -66,10 +66,8 @@ class context_cache (index : int) (sign : string) = object(self)
 	method find_module_opt path =
 		Hashtbl.find_opt modules path
 
-	method cache_module path m =
+	method cache_module anon_identification path m =
 		Hashtbl.replace modules path m;
-		(* TODO move this somewhere else, factorize with generate.ml as much as possible *)
-		let anon_identification = new Tanon_identification.tanon_identification ([],"") in
 		let writer = new HxbWriter.hxb_writer anon_identification in
 		(* trace (Printf.sprintf "Write module %s to hxb cache" (s_type_path path)); *)
 		(* let t = Timer.timer ["server";"cache context";"write module"] in *)
