@@ -98,6 +98,7 @@ class context_cache (index : int) (sign : string) = object(self)
 	method get_modules = modules
 
 	(* TODO rename all this to something that makes sense *)
+	method clear_hxb () = Hashtbl.clear binary_cache
 	method get_hxb = binary_cache
 	method get_hxb_module path = Hashtbl.find_opt binary_cache path
 
