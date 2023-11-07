@@ -292,7 +292,7 @@ class Context {
 
 		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
-	public static function definedValue(key:String):String {
+	public static function definedValue(key:String):Null<String> {
 		return load("defined_value", 1)(key);
 	}
 
