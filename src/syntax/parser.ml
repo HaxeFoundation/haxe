@@ -22,11 +22,17 @@ open Globals
 open DisplayTypes.DisplayMode
 open DisplayPosition
 
+type preprocessor_error =
+	| InvalidEnd
+	| InvalidElse
+	| InvalidElseif
+	| UnclosedConditional
+
 type error_msg =
 	| Unexpected of token
 	| Duplicate_default
 	| Missing_semicolon
-	| Unclosed_conditional
+	| Preprocessor_error of preprocessor_error
 	| Unimplemented
 	| Missing_type
 	| Expected of string list
@@ -70,7 +76,13 @@ let error_msg = function
 	| Unexpected t -> "Unexpected "^(s_token t)
 	| Duplicate_default -> "Duplicate default"
 	| Missing_semicolon -> "Missing ;"
-	| Unclosed_conditional -> "Unclosed conditional compilation block"
+	| Preprocessor_error ppe ->
+		begin match ppe with
+			| UnclosedConditional -> "Unclosed conditional compilation block"
+			| InvalidEnd -> "Invalid #end"
+			| InvalidElse -> "Invalid #else"
+			| InvalidElseif -> "Invalid #elseif"
+		end
 	| Unimplemented -> "Not implemented for current platform"
 	| Missing_type -> "Missing type declaration"
 	| Expected sl -> "Expected " ^ (String.concat " or " sl)
