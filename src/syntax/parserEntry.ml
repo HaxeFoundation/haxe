@@ -143,7 +143,7 @@ class condition_handler = object(self)
 
 	method private cond_if' (e : expr) =
 		conditional_expressions <- e :: conditional_expressions;
-		conditional_stack <- e :: conditional_stack
+		conditional_stack <- (e,false) :: conditional_stack
 
 	method cond_if (e : expr) =
 		self#cond_if' e;
@@ -151,8 +151,10 @@ class condition_handler = object(self)
 
 	method cond_else (p : pos) =
 		match conditional_stack with
-		| e :: el ->
-			conditional_stack <- (self#negate e) :: el
+		| (_,true) :: _ ->
+			error (Preprocessor_error InvalidElse) p
+		| (e,false) :: el ->
+			conditional_stack <- (self#negate e,true) :: el
 		| [] ->
 			error (Preprocessor_error InvalidElse) p
 
@@ -178,8 +180,8 @@ class condition_handler = object(self)
 				depths <- depths'
 
 	method get_current_condition = match conditional_stack with
-		| e :: el ->
-			List.fold_left self#conjoin e el
+		| (e,_) :: el ->
+			List.fold_left self#conjoin e (List.map fst el)
 		| [] ->
 			(EConst (Ident "true"),null_pos)
 
