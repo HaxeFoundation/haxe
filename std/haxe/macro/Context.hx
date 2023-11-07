@@ -112,6 +112,8 @@ class Context {
 
 		If a class path was declared relative, this method returns the relative
 		file path. Otherwise it returns the absolute file path.
+
+		If no type can be found, an exception of type `String` is thrown.
 	**/
 	public static function resolvePath(file:String):String {
 		return load("resolve_path", 1)(file);
