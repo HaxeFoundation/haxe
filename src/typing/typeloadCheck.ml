@@ -316,7 +316,7 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 	List.iter (fun (sl2,m,(recursive,to_types,to_fields)) ->
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in
 		if add then f_add m
-	) ctx.g.global_metadata;
+	) ctx.com.global_metadata;
 	if ctx.is_display_file then delay ctx PCheckConstraint (fun () -> DisplayEmitter.check_display_metadata ctx meta)
 
 let check_module_types ctx m p t =
@@ -531,30 +531,9 @@ module Inheritance = struct
 				raise (Build_canceled state)
 		in
 		let has_interf = ref false in
-		(*
-			resolve imports before calling build_inheritance, since it requires full paths.
-			that means that typedefs are not working, but that's a fair limitation
-		*)
-		let resolve_imports (t,p) =
-			match t.tpackage with
-			| _ :: _ -> t,p
-			| [] ->
-				try
-					let path_matches lt = snd (t_path lt) = t.tname in
-					let lt = try
-						List.find path_matches ctx.m.curmod.m_types
-					with Not_found ->
-						let t,pi = List.find (fun (lt,_) -> path_matches lt) ctx.m.module_imports in
-						ImportHandling.mark_import_position ctx pi;
-						t
-					in
-					{ t with tpackage = fst (t_path lt) },p
-				with
-					Not_found -> t,p
-		in
 		let herits = ExtList.List.filter_map (function
-			| HExtends t -> Some(true,resolve_imports t)
-			| HImplements t -> Some(false,resolve_imports t)
+			| HExtends t -> Some(true,t)
+			| HImplements t -> Some(false,t)
 			| t -> None
 		) herits in
 		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
@@ -577,14 +556,14 @@ module Inheritance = struct
 				if c.cl_super <> None then raise_typing_error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
 				if (has_class_flag c CInterface) then begin
-					if not (has_class_flag csup CInterface) then raise_typing_error "Cannot extend by using a class" p;
+					if not (has_class_flag csup CInterface) then raise_typing_error (Printf.sprintf "Cannot extend by using a class (%s extends %s)" (s_type_path c.cl_path) (s_type_path csup.cl_path)) p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
 					if not !has_interf then begin
 						if not is_lib then delay ctx PConnectField check_interfaces_or_delay;
 						has_interf := true;
 					end
 				end else begin
-					if (has_class_flag csup CInterface) then raise_typing_error "Cannot extend by using an interface" p;
+					if (has_class_flag csup CInterface) then raise_typing_error (Printf.sprintf "Cannot extend by using an interface (%s extends %s)" (s_type_path c.cl_path) (s_type_path csup.cl_path)) p;
 					c.cl_super <- Some (csup,params)
 				end;
 				(fun () ->

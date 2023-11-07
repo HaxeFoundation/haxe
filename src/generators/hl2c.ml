@@ -1690,6 +1690,30 @@ let write_c com file (code:code) gnames =
 	) all_types;
 
 	line "";
+	line "static void dump_types( void (*fdump)( void *, int) ) {";
+	block ctx;
+	sexpr "hl_type *t";
+	sexpr "int ntypes = %d" (Array.length all_types);
+	sexpr "fdump(&ntypes,4)";
+	let fcount = ref 0 in
+	Array.iter (fun t ->
+		sexpr "t = &%s; fdump(&t, sizeof(void*))" (type_name ctx t);
+		(match t with
+		| HFun _ -> incr fcount
+		| _ -> ());
+	) all_types;
+	sexpr "int fcount = %d" (!fcount);
+	sexpr "fdump(&fcount, 4)";
+	Array.iter (fun t ->
+		match t with
+		| HFun _ ->
+			sexpr "t = (hl_type*)&%s.fun->closure_type; fdump(&t, sizeof(void*))" (type_name ctx t);
+		| _ -> ()
+	) all_types;
+	unblock ctx;
+	line "}";
+
+	line "";
 	line "void hl_init_types( hl_module_context *ctx ) {";
 	block ctx;
 	Array.iter (fun t ->
@@ -1724,6 +1748,7 @@ let write_c com file (code:code) gnames =
 		| _ ->
 			()
 	) all_types;
+	sexpr "hl_gc_set_dump_types(dump_types)";
 	unblock ctx;
 	line "}";
 

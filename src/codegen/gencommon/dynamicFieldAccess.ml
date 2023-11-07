@@ -33,7 +33,7 @@ open Gencommon
 
 	(TODO: should it be separated?)
 	As a plus, the default implementation adds something that doesn't hurt anybody, it looks for
-	TAnon with Statics / EnumStatics field accesses and transforms them into real static calls.
+	TAnon with ClassStatics / EnumStatics field accesses and transforms them into real static calls.
 	This means it will take this
 
 	var m = Math;

@@ -149,7 +149,7 @@ and anon_status =
 	| Closed
 	| Const
 	| Extend of t list
-	| Statics of tclass
+	| ClassStatics of tclass
 	| EnumStatics of tenum
 	| AbstractStatics of tabstract
 
@@ -393,8 +393,21 @@ and module_def_extra = {
 	mutable m_deps : (int,(string (* sign *) * path)) PMap.t;
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
-	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
+	mutable m_if_feature : (string * class_field_ref) list;
 	mutable m_features : (string,bool) Hashtbl.t;
+}
+
+and class_field_ref_kind =
+	| CfrStatic
+	| CfrMember
+	| CfrConstructor
+
+and class_field_ref = {
+	cfr_sign : string;
+	cfr_path : path;
+	cfr_field : string;
+	cfr_kind : class_field_ref_kind;
+	cfr_is_macro : bool;
 }
 
 and module_kind =

@@ -149,6 +149,7 @@ class builder jc name jsig = object(self)
 	inherit base_builder
 	val code = new JvmCode.builder jc#get_pool
 
+	val descriptor = generate_method_signature false jsig
 	val mutable max_num_locals = 0
 	val mutable debug_locals = []
 	val mutable stack_frames = []
@@ -257,9 +258,9 @@ class builder jc name jsig = object(self)
 		| _ -> die "" __LOC__
 
 	(** Emits an invokestatic instruction to invoke method [name] on [path] with signature [jsigm]. **)
-	method invokestatic (path : jpath) (name : string) (jsigm : jsignature) = match jsigm with
+	method invokestatic (path : jpath) (name : string) ?(kind=FKMethod) (jsigm : jsignature) = match jsigm with
 		| TMethod(tl,tr) ->
-			let offset = code#get_pool#add_field path name jsigm FKMethod in
+			let offset = code#get_pool#add_field path name jsigm kind in
 			code#invokestatic offset tl (match tr with None -> [] | Some tr -> [tr])
 		| _ -> die "" __LOC__
 
@@ -1081,6 +1082,7 @@ class builder jc name jsig = object(self)
 	method is_terminated = code#is_terminated
 	method get_name = name
 	method get_jsig = jsig
+	method get_descriptor = descriptor
 	method set_terminated b = code#set_terminated b
 
 	method private get_jcode (config : export_config) =
@@ -1149,8 +1151,7 @@ class builder jc name jsig = object(self)
 		end;
 		let attributes = self#export_attributes jc#get_pool in
 		let offset_name = jc#get_pool#add_string name in
-		let jsig = generate_method_signature false jsig in
-		let offset_desc = jc#get_pool#add_string jsig in
+		let offset_desc = jc#get_pool#add_string descriptor in
 		{
 			field_access_flags = access_flags;
 			field_name_index = offset_name;

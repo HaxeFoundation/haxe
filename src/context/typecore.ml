@@ -22,6 +22,7 @@ open Ast
 open Common
 open Type
 open Error
+open Resolution
 
 type type_patch = {
 	mutable tp_type : complex_type option;
@@ -59,10 +60,10 @@ type typer_pass =
 
 type typer_module = {
 	curmod : module_def;
-	mutable module_imports : (module_type * pos) list;
+	import_resolution : resolution_list;
+	mutable own_resolution : resolution_list option;
+	mutable enum_with_type : module_type option;
 	mutable module_using : (tclass * pos) list;
-	mutable module_globals : (string, (module_type * string * pos)) PMap.t;
-	mutable wildcard_packages : (string list * pos) list;
 	mutable import_statements : import list;
 }
 
@@ -80,7 +81,6 @@ type typer_globals = {
 	mutable macros : ((unit -> unit) * typer) option;
 	mutable std : module_def;
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
-	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
 	mutable global_using : (tclass * pos) list;
 	(* Indicates that Typer.create() finished building this instance *)
@@ -218,7 +218,7 @@ let analyzer_run_on_expr_ref : (Common.context -> string -> texpr -> texpr) ref 
 let cast_or_unify_raise_ref : (typer -> ?uctx:unification_context option -> Type.t -> texpr -> pos -> texpr) ref = ref (fun _ ?uctx _ _ _ -> assert false)
 let type_generic_function_ref : (typer -> field_access -> (unit -> texpr) field_call_candidate -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 
-let create_context_ref : (Common.context -> typer) ref = ref (fun _ -> assert false)
+let create_context_ref : (Common.context -> ((unit -> unit) * typer) option -> typer) ref = ref (fun _ -> assert false)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
@@ -249,7 +249,7 @@ let spawn_monomorph ctx p =
 	TMono (spawn_monomorph' ctx p)
 
 let make_static_this c p =
-	let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
+	let ta = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
 	mk (TTypeExpr (TClassDecl c)) ta p
 
 let make_static_field_access c cf t p =

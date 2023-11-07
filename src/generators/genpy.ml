@@ -38,7 +38,7 @@ module Utils = struct
 			abort (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
 
 	let mk_static_field c cf p =
-			let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
+			let ta = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
 			let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
 			let t = monomorphs cf.cf_params cf.cf_type in
 			mk (TField (ethis,(FStatic (c,cf)))) t p

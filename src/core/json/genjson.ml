@@ -236,7 +236,7 @@ and generate_anon_status ctx status =
 		| Closed -> "AClosed",None
 		| Const -> "AConst",None
 		| Extend tl -> "AExtend", Some (generate_types ctx tl)
-		| Statics c -> "AClassStatics",Some (class_ref ctx c)
+		| ClassStatics c -> "AClassStatics",Some (class_ref ctx c)
 		| EnumStatics en -> "AEnumStatics",Some (enum_ref ctx en)
 		| AbstractStatics a -> "AAbstractStatics", Some (abstract_ref ctx a)
 	in

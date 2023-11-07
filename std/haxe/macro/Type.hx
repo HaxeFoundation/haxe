@@ -737,42 +737,6 @@ enum TConstant {
 }
 
 /**
-	Represents a variable in the typed AST.
- */
-typedef TVar = {
-	/**
-		The unique ID of the variable.
-	**/
-	public var id(default, never):Int;
-
-	/**
-		The name of the variable.
-	**/
-	public var name(default, never):String;
-
-	/**
-		The type of the variable.
-	**/
-	public var t(default, never):Type;
-
-	/**
-		Whether or not the variable has been captured by a closure.
-	**/
-	public var capture(default, never):Bool;
-
-	/**
-		Special information which is internally used to keep track of closure.
-		information
-	**/
-	public var extra(default, never):Null<{params:Array<TypeParameter>, expr:Null<TypedExpr>}>;
-
-	/**
-		The metadata of the variable.
-	**/
-	public var meta(default, never):Null<MetaAccess>;
-}
-
-/**
 	Represents a module type. These are the types that can be declared in a Haxe
 	module and which are passed to the generators (except `TTypeDecl`).
  */
@@ -1015,6 +979,42 @@ enum TypedExprDef {
 		An unknown identifier.
 	**/
 	TIdent(s:String);
+}
+
+/**
+	Represents a variable in the typed AST.
+ */
+typedef TVar = {
+	/**
+		The unique ID of the variable.
+	**/
+	public var id(default, never):Int;
+
+	/**
+		The name of the variable.
+	**/
+	public var name(default, never):String;
+
+	/**
+		The type of the variable.
+	**/
+	public var t(default, never):Type;
+
+	/**
+		Whether or not the variable has been captured by a closure.
+	**/
+	public var capture(default, never):Bool;
+
+	/**
+		Special information which is internally used to keep track of closure.
+		information
+	**/
+	public var extra(default, never):Null<{params:Array<TypeParameter>, expr:Null<TypedExpr>}>;
+
+	/**
+		The metadata of the variable.
+	**/
+	public var meta(default, never):Null<MetaAccess>;
 }
 
 /**

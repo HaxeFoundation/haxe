@@ -116,20 +116,24 @@ with Error { err_message = (Module_not_found _ | Type_not_found _); err_pos = p2
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
 let find_type_in_current_module_context ctx pack name =
-	let no_pack = pack = [] in
-	let path_matches t2 =
-		let tp = t_path t2 in
-		(* see also https://github.com/HaxeFoundation/haxe/issues/9150 *)
-		tp = (pack,name) || (no_pack && snd tp = name)
-	in
-	try
-		(* Check the types in our own module *)
-		List.find path_matches ctx.m.curmod.m_types
-	with Not_found ->
-		(* Check the local imports *)
-		let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_imports in
-		ImportHandling.mark_import_position ctx pi;
+	if pack = [] then begin
+		try
+			(* Check the types in our own module *)
+			List.find (fun mt -> t_name mt = name) ctx.m.curmod.m_types
+		with Not_found ->
+			let t,pi = ctx.m.import_resolution#find_type_import name in
+			ImportHandling.mark_import_position ctx pi;
+			t
+	end else begin
+		(* All this is very weird *)
+		try
+			List.find (fun mt -> t_path mt = (pack,name)) ctx.m.curmod.m_types
+		with Not_found ->
+			(* see also https://github.com/HaxeFoundation/haxe/issues/9150 *)
+			let t,pi = ctx.m.import_resolution#find_type_import_weirdly pack name in
+			ImportHandling.mark_import_position ctx pi;
 		t
+	end
 
 let find_in_wildcard_imports ctx mname p f =
 	let rec loop l =
@@ -153,7 +157,7 @@ let find_in_wildcard_imports ctx mname p f =
 				loop l
 			end
 	in
-	loop ctx.m.wildcard_packages
+	loop (ctx.m.import_resolution#extract_wildcard_packages)
 
 (* TODO: move these generic find functions into a separate module *)
 let find_in_modules_starting_from_current_package ~resume ctx mname p f =
@@ -212,6 +216,12 @@ let load_qualified_type_def ctx pack mname tname p =
 	let m = load_module ctx (pack,mname) p in
 	find_type_in_module_raise ctx m tname p
 
+let load_type_def' ctx pack mname tname p =
+	if pack = [] then
+		load_unqualified_type_def ctx mname tname p
+	else
+		load_qualified_type_def ctx pack mname tname p
+
 (*
 	load a type or a subtype definition
 *)
@@ -219,17 +229,14 @@ let load_type_def ctx p t =
 	if t = Parser.magic_type_path then
 		raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRTypeHint (DisplayTypes.make_subject None p);
 	(* The type name is the module name or the module sub-type name *)
-	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
+	let tname = match t.tsub with None -> t.tname | Some n -> n in
 
 	try
 		(* If there's a sub-type, there's no reason to look in our module or its imports *)
 		if t.tsub <> None then raise Not_found;
 		find_type_in_current_module_context ctx t.tpackage tname
 	with Not_found ->
-		if t.tpackage = [] then
-			load_unqualified_type_def ctx t.tname tname p
-		else
-			load_qualified_type_def ctx t.tpackage t.tname tname p
+		load_type_def' ctx t.tpackage t.tname tname p
 
 (* let load_type_def ctx p t =
 	let timer = Timer.timer ["typing";"load_type_def"] in
@@ -709,10 +716,10 @@ let hide_params ctx =
 	let old_deps = ctx.g.std.m_extra.m_deps in
 	ctx.m <- {
 		curmod = ctx.g.std;
-		module_imports = [];
+		import_resolution = new Resolution.resolution_list ["hide_params"];
+		own_resolution = None;
+		enum_with_type = None;
 		module_using = [];
-		module_globals = PMap.empty;
-		wildcard_packages = [];
 		import_statements = [];
 	};
 	ctx.type_params <- [];
@@ -831,7 +838,7 @@ let load_core_class ctx c =
 			com2.class_path <- ctx.com.std_path;
 			if com2.display.dms_check_core_api then com2.display <- {com2.display with dms_check_core_api = false};
 			CommonCache.lock_signature com2 "load_core_class";
-			let ctx2 = !create_context_ref com2 in
+			let ctx2 = !create_context_ref com2 ctx.g.macros in
 			ctx.g.core_api <- Some ctx2;
 			ctx2
 		| Some c ->

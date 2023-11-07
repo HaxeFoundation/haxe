@@ -162,6 +162,14 @@ class TestExceptions extends Test {
 		} catch(e:String) {
 			eq('string', e);
 		}
+
+		try {
+			throw new CustomHaxeException('Terrible error');
+		} catch(e:haxe.ValueException) {
+			throw 'should not happen';
+		} catch(e) {
+			Assert.pass();
+		}
 	}
 
 	public function testCustomNativeException() {

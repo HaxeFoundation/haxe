@@ -484,7 +484,7 @@ let catch_native ctx catches t p =
 			| [], None ->
 				catches_to_ifs ctx catches t p
 			| [], Some catch ->
-				catches_to_ifs ctx [catch] t p
+				catches_to_ifs ctx (catch :: catches) t p
 			| _ ->
 				catches_as_value_exception ctx handle_as_value_exception None t p
 				:: catches_to_ifs ctx catches t p

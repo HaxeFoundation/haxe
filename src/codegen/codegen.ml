@@ -419,7 +419,7 @@ end
 let default_cast ?(vtmp="$t") com e texpr t p =
 	let api = com.basic in
 	let mk_texpr = function
-		| TClassDecl c -> mk_anon (ref (Statics c))
+		| TClassDecl c -> mk_anon (ref (ClassStatics c))
 		| TEnumDecl e -> mk_anon (ref (EnumStatics e))
 		| TAbstractDecl a -> mk_anon (ref (AbstractStatics a))
 		| TTypeDecl _ -> die "" __LOC__

@@ -24,6 +24,7 @@ open CompletionItem.ClassFieldOrigin
 open Common
 open Type
 open Typecore
+open Resolution
 open Error
 open Globals
 open TyperBase
@@ -67,6 +68,20 @@ let get_iterable_param t =
 			raise Not_found)
 	| _ -> raise Not_found
 
+let get_own_resolution ctx = match ctx.m.own_resolution with
+	| Some resolution ->
+		resolution
+	| None ->
+		let rl = new resolution_list ["own";s_type_path ctx.m.curmod.m_path] in
+		Option.may (fun c ->
+			rl#add (class_statics_resolution c null_pos)
+		) ctx.m.curmod.m_statics;
+		List.iter (fun mt ->
+			rl#add (module_type_resolution mt None null_pos)
+		) ctx.m.curmod.m_types;
+		ctx.m.own_resolution <- Some rl;
+		rl
+
 let maybe_type_against_enum ctx f with_type iscall p =
 	try
 		begin match with_type with
@@ -90,9 +105,9 @@ let maybe_type_against_enum ctx f with_type iscall p =
 					raise Exit
 			in
 			let is_enum,path,fields,mt = loop [] t in
-			let old = ctx.m.curmod.m_types in
-			let restore () = ctx.m.curmod.m_types <- old in
-			ctx.m.curmod.m_types <- ctx.m.curmod.m_types @ [mt];
+			let old = ctx.m.enum_with_type in
+			let restore () = ctx.m.enum_with_type <- old in
+			ctx.m.enum_with_type <- Some mt;
 			let e = try
 				f()
 			with
@@ -260,8 +275,66 @@ let unify_min_for_type_source ctx el src =
 	| _ ->
 		unify_min ctx el
 
+let enum_field_access ctx en ef mode p pt =
+	let et = type_module_type ctx (TEnumDecl en) p in
+	let wrap e =
+		let acc = AKExpr e in
+		let is_set = match mode with MSet _ -> true | _ -> false in
+		(* Should this really be here? *)
+		if is_set then
+			AKNo(acc,p)
+		else
+			acc
+	in
+	wrap (mk (TField (et,FEnum (en,ef))) (enum_field_type ctx en ef p) p)
+
+let resolve_against_expected_enum ctx i =
+	let rec loop mt = match mt with
+		| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
+			let cf = PMap.find i c.cl_statics in
+			if not (has_class_field_flag cf CfEnum) then
+				raise Not_found;
+			static_abstract_field_resolution a c cf None null_pos
+		| TClassDecl _ | TAbstractDecl _ ->
+			raise Not_found
+		| TTypeDecl t ->
+			begin match follow t.t_type with
+				| TEnum (e,_) -> loop (TEnumDecl e)
+				| TAbstract (a,_) when a.a_enum -> loop (TAbstractDecl a)
+				| _ -> raise Not_found
+			end
+		| TEnumDecl en ->
+			let ef = PMap.find i en.e_constrs in
+			enum_constructor_resolution en ef None null_pos
+	in
+	match ctx.m.enum_with_type with
+	| None ->
+		raise Not_found
+	| Some mt ->
+		loop mt
+
 let rec type_ident_raise ctx i p mode with_type =
-	let is_set = match mode with MSet _ -> true | _ -> false in
+	let resolve res =
+		ImportHandling.mark_import_position ctx res.r_pos;
+		match res.r_kind with
+		| RTypeImport(_,mt) ->
+			AKExpr (type_module_type ctx mt p)
+		| RClassFieldImport(_,c,cf) ->
+			let e = type_module_type ctx (TClassDecl c) p in
+			field_access ctx mode cf (FHStatic c) e p
+		| RAbstractFieldImport(_,a,c,cf) ->
+			let et = type_module_type ctx (TClassDecl c) p in
+			let inline = match cf.cf_kind with
+				| Var {v_read = AccInline} -> true
+				|  _ -> false
+			in
+			let fa = FieldAccess.create et cf (FHAbstract(a,extract_param_types a.a_params,c)) inline p in
+			AKField fa
+		| REnumConstructorImport(_,en,ef) ->
+			enum_field_access ctx en ef mode p res.r_pos
+		| RWildcardPackage _ | RLazy _ | RClassStatics _ | REnumStatics _ ->
+			assert false
+	in
 	match i with
 	| "true" ->
 		let acc = AKExpr (mk (TConst (TBool true)) ctx.t.tbool p) in
@@ -392,74 +465,17 @@ let rec type_ident_raise ctx i p mode with_type =
 				let e = {e with etype = TAbstract(a,tl)} in
 				e,FHAbstract(a,tl,ctx.curclass)
 			| _ ->
-				let e = type_type ctx ctx.curclass.cl_path p in
+				let e = type_module_type ctx (TClassDecl ctx.curclass) p in
 				e,FHStatic ctx.curclass
 		in
 		field_access ctx mode f fa e p
 	with Not_found -> try
-		(* module-level statics *)
-		(match ctx.m.curmod.m_statics with
-		| None -> raise Not_found
-		| Some c ->
-			let f = PMap.find i c.cl_statics in
-			let e = type_module_type ctx (TClassDecl c) p in
-			field_access ctx mode f (FHStatic c) e p
-		)
+		resolve (resolve_against_expected_enum ctx i)
 	with Not_found -> try
-		let wrap e =
-			let acc = AKExpr e in
-			if is_set then
-				AKNo(acc,p)
-			else
-				acc
-		in
-		(* lookup imported enums *)
-		let rec loop l =
-			match l with
-			| [] -> raise Not_found
-			| (t,pt) :: l ->
-				match t with
-				| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
-					begin try
-						let cf = PMap.find i c.cl_statics in
-						if not (has_class_field_flag cf CfEnum) then
-							loop l
-						else begin
-							let et = type_module_type ctx (TClassDecl c) p in
-							let inline = match cf.cf_kind with
-								| Var {v_read = AccInline} -> true
-								|  _ -> false
-							in
-							let fa = FieldAccess.create et cf (FHAbstract(a,extract_param_types a.a_params,c)) inline p in
-							ImportHandling.mark_import_position ctx pt;
-							AKField fa
-						end
-					with Not_found ->
-						loop l
-					end
-				| TClassDecl _ | TAbstractDecl _ ->
-					loop l
-				| TTypeDecl t ->
-					(match follow t.t_type with
-					| TEnum (e,_) -> loop ((TEnumDecl e,pt) :: l)
-					| TAbstract (a,_) when a.a_enum -> loop ((TAbstractDecl a,pt) :: l)
-					| _ -> loop l)
-				| TEnumDecl e ->
-					try
-						let ef = PMap.find i e.e_constrs in
-						let et = type_module_type ctx t p in
-						ImportHandling.mark_import_position ctx pt;
-						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef p) p)
-					with
-						Not_found -> loop l
-		in
-		(try loop (List.rev_map (fun t -> t,null_pos) ctx.m.curmod.m_types) with Not_found -> loop ctx.m.module_imports)
+		let own_resolution = get_own_resolution ctx in
+		resolve (own_resolution#resolve i)
 	with Not_found ->
-		(* lookup imported globals *)
-		let t, name, pi = PMap.find i ctx.m.module_globals in
-		ImportHandling.mark_import_position ctx pi;
-		let e = type_module_type ctx t p in
-		type_field_default_cfg ctx e name p mode with_type
+		resolve (ctx.m.import_resolution#resolve i)
 
 and type_ident ctx i p mode with_type =
 	try
@@ -467,7 +483,11 @@ and type_ident ctx i p mode with_type =
 	with Not_found -> try
 		(* lookup type *)
 		if is_lower_ident i p then raise Not_found;
-		let e = (try type_type ctx ([],i) p with Error { err_message = Module_not_found ([],name) } when name = i -> raise Not_found) in
+		let e = try
+			type_module_type ctx (Typeload.load_type_def' ctx [] i i p) p
+		with Error { err_message = Module_not_found ([],name) } when name = i ->
+			raise Not_found
+		in
 		AKExpr e
 	with Not_found ->
 		let resolved_to_type_parameter = ref false in
@@ -731,104 +751,12 @@ and type_vars ctx vl p =
 		mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos
 
 and format_string ctx s p =
-	let e = ref None in
-	let pmin = ref p.pmin in
-	let min = ref (p.pmin + 1) in
-	let add_expr (enext,p) len =
-		min := !min + len;
-		let enext = if ctx.in_display && DisplayPosition.display_position#enclosed_in p then
+	Common.format_string ctx.com s p (fun enext p ->
+		if ctx.in_display && DisplayPosition.display_position#enclosed_in p then
 			Display.ExprPreprocessing.process_expr ctx.com (enext,p)
 		else
 			enext,p
-		in
-		match !e with
-		| None -> e := Some enext
-		| Some prev ->
-			e := Some (EBinop (OpAdd,prev,enext),punion (pos prev) p)
-	in
-	let add enext len =
-		let p = { p with pmin = !min; pmax = !min + len } in
-		add_expr (enext,p) len
-	in
-	let add_sub start pos =
-		let len = pos - start in
-		if len > 0 || !e = None then add (EConst (String (String.sub s start len,SDoubleQuotes))) len
-	in
-	let len = String.length s in
-	let rec parse start pos =
-		if pos = len then add_sub start pos else
-		let c = String.unsafe_get s pos in
-		let pos = pos + 1 in
-		if c = '\'' then begin
-			incr pmin;
-			incr min;
-		end;
-		if c <> '$' || pos = len then parse start pos else
-		match String.unsafe_get s pos with
-		| '$' ->
-			(* double $ *)
-			add_sub start pos;
-			parse (pos + 1) (pos + 1)
-		| '{' ->
-			parse_group start pos '{' '}' "brace"
-		| 'a'..'z' | 'A'..'Z' | '_' ->
-			add_sub start (pos - 1);
-			incr min;
-			let rec loop i =
-				if i = len then i else
-				let c = String.unsafe_get s i in
-				match c with
-				| 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' -> loop (i+1)
-				| _ -> i
-			in
-			let iend = loop (pos + 1) in
-			let len = iend - pos in
-			add (EConst (Ident (String.sub s pos len))) len;
-			parse (pos + len) (pos + len)
-		| _ ->
-			(* keep as-it *)
-			parse start pos
-	and parse_group start pos gopen gclose gname =
-		add_sub start (pos - 1);
-		let rec loop groups i =
-			if i = len then
-				match groups with
-				| [] -> die "" __LOC__
-				| g :: _ -> raise_typing_error ("Unclosed " ^ gname) { p with pmin = !pmin + g + 1; pmax = !pmin + g + 2 }
-			else
-				let c = String.unsafe_get s i in
-				if c = gopen then
-					loop (i :: groups) (i + 1)
-				else if c = gclose then begin
-					let groups = List.tl groups in
-					if groups = [] then i else loop groups (i + 1)
-				end else
-					loop groups (i + 1)
-		in
-		let send = loop [pos] (pos + 1) in
-		let slen = send - pos - 1 in
-		let scode = String.sub s (pos + 1) slen in
-		min := !min + 2;
-		begin
-			let e =
-				let ep = { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } in
-				let error msg pos =
-					if Lexer.string_is_whitespace scode then raise_typing_error "Expression cannot be empty" ep
-					else raise_typing_error msg pos
-				in
-				match ParserEntry.parse_expr_string ctx.com.defines scode ep error true with
-					| ParseSuccess(data,_,_) -> data
-					| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
-			in
-			add_expr e slen
-		end;
-		min := !min + 1;
-		parse (send + 1) (send + 1)
-	in
-	parse 0 0;
-	match !e with
-	| None -> die "" __LOC__
-	| Some e -> e
+	)
 
 and type_block ctx el with_type p =
 	let merge acc e = match e.eexpr with
@@ -905,7 +833,7 @@ and type_object_decl ctx fl with_type p =
 				(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
 			with Not_found ->
 				if is_valid then
-					extra_fields := n :: !extra_fields;
+					extra_fields := (n,pn) :: !extra_fields;
 				type_expr ctx e WithType.value
 			in
 			if is_valid then begin
@@ -924,7 +852,12 @@ and type_object_decl ctx fl with_type p =
 				| depth -> raise_or_display ctx [Unify_custom ("Object requires fields: " ^ (String.concat ", " depth))] p);
 			(match !extra_fields with
 			| [] -> ()
-			| _ -> raise_or_display ctx (List.map (fun n -> has_extra_field t n) !extra_fields) p);
+			| _ ->
+				List.iter (fun (n,pn) ->
+					let err = has_extra_field t n in
+					raise_or_display ctx [err] pn
+				) !extra_fields
+			);
 		end;
 		t, fl
 	in
@@ -1730,6 +1663,16 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 		| (Meta.Dollar s,_,p) ->
 			display_error ctx.com (Printf.sprintf "Reification $%s is not allowed outside of `macro` expression" s) p;
 			e()
+		| (Meta.Custom ":debug.import",_,_) ->
+			let print l =
+				let sl = List.map (fun res -> s_resolution_kind res.r_kind) l in
+				print_endline (String.concat "\n" sl);
+			in
+			print_endline "OWN:";
+			print (get_own_resolution ctx)#get_list;
+			print_endline "IMPORT:";
+			print ctx.m.import_resolution#get_list;
+			e()
 		| _ ->
 			if ctx.g.retain_meta then
 				let e = e() in
@@ -2123,15 +2066,14 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)
 
-let create com =
+let create com macros =
 	let ctx = {
 		com = com;
 		t = com.basic;
 		g = {
 			core_api = None;
-			macros = None;
+			macros = macros;
 			type_patches = Hashtbl.create 0;
-			global_metadata = [];
 			module_check_policies = [];
 			delayed = [];
 			debug_delayed = [];
@@ -2154,10 +2096,10 @@ let create com =
 		};
 		m = {
 			curmod = null_module;
-			module_imports = [];
+			import_resolution = new resolution_list ["import";"typer"];
+			own_resolution = None;
+			enum_with_type = None;
 			module_using = [];
-			module_globals = PMap.empty;
-			wildcard_packages = [];
 			import_statements = [];
 		};
 		is_display_file = false;
@@ -2203,7 +2145,9 @@ let create com =
 				raise_typing_error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
-	ctx.m.module_imports <- List.map (fun t -> t,null_pos) ctx.g.std.m_types;
+	List.iter (fun mt ->
+		ctx.m.import_resolution#add (module_type_resolution mt None null_pos))
+	(List.rev ctx.g.std.m_types);
 	List.iter (fun t ->
 		match t with
 		| TAbstractDecl a ->
