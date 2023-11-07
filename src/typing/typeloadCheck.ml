@@ -550,14 +550,14 @@ module Inheritance = struct
 				if c.cl_super <> None then raise_typing_error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
 				if (has_class_flag c CInterface) then begin
-					if not (has_class_flag csup CInterface) then raise_typing_error "Cannot extend by using a class" p;
+					if not (has_class_flag csup CInterface) then raise_typing_error (Printf.sprintf "Cannot extend by using a class (%s extends %s)" (s_type_path c.cl_path) (s_type_path csup.cl_path)) p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
 					if not !has_interf then begin
 						if not is_lib then delay ctx PConnectField check_interfaces_or_delay;
 						has_interf := true;
 					end
 				end else begin
-					if (has_class_flag csup CInterface) then raise_typing_error "Cannot extend by using an interface" p;
+					if (has_class_flag csup CInterface) then raise_typing_error (Printf.sprintf "Cannot extend by using an interface (%s extends %s)" (s_type_path c.cl_path) (s_type_path csup.cl_path)) p;
 					c.cl_super <- Some (csup,params)
 				end;
 				(fun () ->

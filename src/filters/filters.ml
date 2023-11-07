@@ -116,7 +116,7 @@ module LocalStatic = struct
 			| TLocal v when has_var_flag v VStatic ->
 				begin try
 					let cf = find_local_static local_static_lut v in
-					Texpr.Builder.make_static_field_access c cf cf.cf_type e.epos
+					Texpr.Builder.make_static_field c cf e.epos
 				with Not_found ->
 					raise_typing_error (Printf.sprintf "Could not find local static %s (id %i)" v.v_name v.v_id) e.epos
 				end

@@ -24,7 +24,7 @@ let constructor_to_texpr ctx con =
 	| ConConst ct -> make_const_texpr ctx.com.basic ct p
 	| ConArray i -> make_int ctx.com.basic i p
 	| ConTypeExpr mt -> TyperBase.type_module_type ctx mt p
-	| ConStatic(c,cf) -> make_static_field_access c cf cf.cf_type p
+	| ConStatic(c,cf) -> make_static_field c cf p
 	| ConFields _ -> raise_typing_error "Something went wrong" p
 
 let s_subject v_lookup s e =

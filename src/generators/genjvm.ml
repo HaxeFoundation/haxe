@@ -2494,19 +2494,21 @@ class tclass_to_jvm gctx c = object(self)
 			let field_info = gctx.preprocessor#get_field_info cf.cf_meta in
 			self#generate_expr gctx field_info jc jm e scmode mtype;
 		end;
-		begin match cf.cf_params with
-			| [] when c.cl_params = [] ->
-				()
+		let ssig = generate_method_signature true jsig in
+		let ssig = match cf.cf_params with
+			| [] ->
+				ssig
 			| _ ->
 				let stl = String.concat "" (List.map (fun tp ->
 					Printf.sprintf "%s:Ljava/lang/Object;" tp.ttp_name
 				) cf.cf_params) in
-				let ssig = generate_method_signature true (jsignature_of_type gctx cf.cf_type) in
-				let s = if cf.cf_params = [] then ssig else Printf.sprintf "<%s>%s" stl ssig in
-				let offset = jc#get_pool#add_string s in
-				jm#add_attribute (AttributeSignature offset);
+				Printf.sprintf "<%s>%s" stl ssig
+		in
+		if ssig <> jm#get_descriptor then begin
+			let offset = jc#get_pool#add_string ssig in
+			jm#add_attribute (AttributeSignature offset);
 		end;
-		AnnotationHandler.generate_annotations (jm :> JvmBuilder.base_builder) cf.cf_meta;
+		AnnotationHandler.generate_annotations (jm :> JvmBuilder.base_builder) cf.cf_meta
 
 	method generate_field gctx (jc : JvmClass.builder) c mtype cf =
 		let jsig = jsignature_of_type gctx cf.cf_type in
@@ -2517,7 +2519,7 @@ class tclass_to_jvm gctx c = object(self)
 		let jm = jc#spawn_field cf.cf_name jsig flags in
 		let default e =
 			let p = null_pos in
-			let efield = Texpr.Builder.make_static_field_access c cf cf.cf_type p in
+			let efield = Texpr.Builder.make_static_field c cf p in
 			let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type p in
 			begin match c.cl_init with
 			| None -> c.cl_init <- Some eop

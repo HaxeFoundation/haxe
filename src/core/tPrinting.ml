@@ -28,6 +28,8 @@ let s_module_type_kind = function
 	| TAbstractDecl a -> "TAbstractDecl(" ^ (s_type_path a.a_path) ^ ")"
 	| TTypeDecl t -> "TTypeDecl(" ^ (s_type_path t.t_path) ^ ")"
 
+let show_mono_ids = true
+
 let rec s_type ctx t =
 	match t with
 	| TMono r ->
@@ -35,21 +37,27 @@ let rec s_type ctx t =
 		| None ->
 			begin try
 				let id = List.assq t (!ctx) in
-				Printf.sprintf "Unknown<%d>" id
+				if show_mono_ids then
+					Printf.sprintf "Unknown<%d>" id
+				else
+					"Unknown"
 			with Not_found ->
 				let id = List.length !ctx in
 				ctx := (t,id) :: !ctx;
-			let s_const =
-				let rec loop = function
-				| CUnknown -> ""
-				| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
-				| CStructural(fields,_) -> s_type ctx (mk_anon ~fields (ref Closed))
-				| CMixed l -> String.concat " & " (List.map loop l)
+				let s_const =
+					let rec loop = function
+					| CUnknown -> ""
+					| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
+					| CStructural(fields,_) -> s_type ctx (mk_anon ~fields (ref Closed))
+					| CMixed l -> String.concat " & " (List.map loop l)
+					in
+					let s = loop (!monomorph_classify_constraints_ref r) in
+					if s = "" then s else " : " ^ s
 				in
-				let s = loop (!monomorph_classify_constraints_ref r) in
-				if s = "" then s else " : " ^ s
-			in
-				Printf.sprintf "Unknown<%d>%s" id s_const
+				if show_mono_ids then
+					Printf.sprintf "Unknown<%d>%s" id s_const
+				else
+					Printf.sprintf "Unknown%s" s_const
 			end
 		| Some t -> s_type ctx t)
 	| TEnum (e,tl) ->

@@ -229,6 +229,20 @@
 		"doc": "Enable experimental features that are meant to be released on next Haxe version."
 	},
 	{
+		"name": "HaxeOutputFile",
+		"define": "HAXE_OUTPUT_FILE",
+		"doc": "Force the full output name of the executable/library without library prefix and debug suffix.",
+		"platforms": ["cpp"],
+		"params": ["name"]
+	},
+	{
+		"name": "HaxeOutputPart",
+		"define": "HAXE_OUTPUT_PART",
+		"doc": "Output name of the executable/library. (default: main class name)",
+		"platforms": ["cpp"],
+		"params": ["name"]
+	},
+	{
 		"name": "HlVer",
 		"define": "hl-ver",
 		"doc": "The HashLink version to target. (default: 1.10.0)",
