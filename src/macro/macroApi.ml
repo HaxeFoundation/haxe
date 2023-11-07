@@ -70,6 +70,7 @@ type 'value compiler_api = {
 	display_error : ?depth:int -> (string -> pos -> unit);
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
+	exc_string : 'a . string -> 'a;
 }
 
 
@@ -1004,12 +1005,9 @@ let encode_meta m set =
 			encode_meta_content (!meta)
 		);
 		"add", vfun3 (fun k vl p ->
-			(try
-				let el = List.map decode_expr (decode_array vl) in
-				meta := (Meta.from_string (decode_string k), el, decode_pos p) :: !meta;
-				set (!meta)
-			with Invalid_expr ->
-				failwith "Invalid expression");
+			let el = List.map decode_expr (decode_array vl) in
+			meta := (Meta.from_string (decode_string k), el, decode_pos p) :: !meta;
+			set (!meta);
 			vnull
 		);
 		"extract", vfun1 (fun k ->
@@ -1790,6 +1788,19 @@ let rec make_const e =
 **)
 
 let macro_api ccom get_api =
+	let decode_type v =
+		try decode_type v
+		with Invalid_expr -> (get_api()).exc_string "Invalid expression"
+	in
+	let decode_expr v =
+		try decode_expr v
+		with Invalid_expr -> (get_api()).exc_string "Invalid expression"
+	in
+	let decode_texpr v =
+		try decode_texpr v
+		with Invalid_expr -> (get_api()).exc_string "Invalid expression"
+	in
+	let failwith s = (get_api()).exc_string s in
 	[
 		"contains_display_position", vfun1 (fun p ->
 			let p = decode_pos p in
@@ -1920,14 +1931,17 @@ let macro_api ccom get_api =
 		);
 		"do_parse", vfun3 (fun s p b ->
 			let s = decode_string s in
-			if s = "" then raise Invalid_expr;
+			if s = "" then (get_api()).exc_string "Invalid expression";
 			encode_expr ((get_api()).parse_string s (decode_pos p) (decode_bool b))
 		);
 		"make_expr", vfun2 (fun v p ->
 			encode_expr (value_to_expr v (decode_pos p))
 		);
 		"signature", vfun1 (fun v ->
-			encode_string (Digest.to_hex (value_signature v))
+			try
+				encode_string (Digest.to_hex (value_signature v))
+			with Invalid_argument msg ->
+				(get_api()).exc_string msg
 		);
 		"to_complex_type", vfun1 (fun v ->
 			try	encode_ctype (TExprToExpr.convert_type' (decode_type v))
