@@ -48,7 +48,11 @@ class Boot {
 			i += 1;
 		}
 		e.__string = old;
+		#if haxe_next
+		return NativeString.ofString(s + untyped ")".__s);
+		#else
 		return s + untyped ")".__s;
+		#end
 	}
 
 	private static function __interfLoop(cc:Dynamic, cl:Dynamic) {
