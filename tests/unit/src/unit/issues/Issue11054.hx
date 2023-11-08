@@ -40,6 +40,7 @@ private class GreetRobot extends Robot<IGreetRobot> {
 }
 
 class Issue11054 extends Test {
+	#if jvm
 	function test() {
 		var robot1 = new MathRobot();
 		var robot2 = new GreetRobot(robot1);
@@ -55,6 +56,7 @@ class Issue11054 extends Test {
 		});
 		t(called);
 	}
+	#end
 
 	static function add(a:Int, b:Int):Int {
 		return a + b;
