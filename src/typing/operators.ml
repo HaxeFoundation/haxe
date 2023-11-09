@@ -13,7 +13,7 @@ let check_error ctx err = match err.err_message with
 	| Module_not_found ([],name) when Diagnostics.error_in_diagnostics_run ctx.com err.err_pos ->
 		DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true
 	| _ ->
-		Common.display_error_ext ctx.com err
+		raise_or_display_error ctx err
 
 module BinopResult = struct
 
