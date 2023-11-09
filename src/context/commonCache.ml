@@ -75,7 +75,6 @@ let get_cache_sign com = match com.Common.cache with
 
 let rec cache_context cs com =
 	let cc = get_cache com in
-	cc#clear_hxb ();
 	let sign = Define.get_signature com.defines in
 	let cache_module m =
 		(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heueristic. *)
