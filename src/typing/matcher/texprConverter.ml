@@ -359,7 +359,7 @@ let to_texpr ctx t_switch with_type dt =
 						let e_else = loop dt_rec params dt2 in
 						begin match e_else with
 						| None ->
-							if toplevel then
+							if toplevel && with_type = NoValue then
 								Some (mk (TIf(e_cond,e_then,None)) t_switch e_then.epos)
 							else
 								report_not_exhaustive !v_lookup e []
