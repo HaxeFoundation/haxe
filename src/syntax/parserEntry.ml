@@ -363,6 +363,14 @@ let parse entry ctx code file =
 	try
 		let l = entry s in
 		(match !mstack with p :: _ -> syntax_error Unclosed_conditional ~pos:(Some p) sraw () | _ -> ());
+		begin match Stream.peek s with
+			| None ->
+				() (* Eof could already have been consumed *)
+			| Some (Eof,_) ->
+				() (* This is what we want *)
+			| Some (tok,p) ->
+				error (Unexpected tok) p (* This isn't *)
+		end;
 		let was_display_file = !in_display_file in
 		restore();
 		Lexer.restore old;
