@@ -102,6 +102,15 @@ let get_build_info ctx mtype p =
 	| TEnumDecl e ->
 		make_build_info BuildNormal e.e_path e.e_params e.e_extern (fun t -> TEnum (e,t))
 	| TTypeDecl td ->
+		begin try
+			let msg = match Meta.get Meta.Deprecated td.t_meta with
+				| _,[EConst(String(s,_)),_],_ -> s
+				| _ -> "This typedef is deprecated in favor of " ^ (s_type (print_context()) td.t_type)
+			in
+			DeprecationCheck.warn_deprecation (create_deprecation_context ctx) msg p
+		with Not_found ->
+				()
+		end;
 		make_build_info BuildNormal td.t_path td.t_params false (fun tl -> TType(td,tl))
 	| TAbstractDecl a ->
 		make_build_info BuildNormal a.a_path a.a_params false (fun tl -> TAbstract(a,tl))
