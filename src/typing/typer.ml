@@ -944,10 +944,10 @@ and type_object_decl ctx fl with_type p =
 		mk (TBlock (List.rev (e :: (List.rev evars)))) e.etype e.epos
 	)
 
-and type_new ctx path el with_type force_inline p =
-	let path =
-		if snd path <> null_pos then
-			path
+and type_new ctx (path,p_path) el with_type force_inline p =
+	let p_path =
+		if p_path <> null_pos then
+			p_path
 		(*
 			Since macros don't have placed_type_path structure on Haxe side any ENew will have null_pos in `path`.
 			Try to calculate a better pos.
@@ -958,12 +958,15 @@ and type_new ctx path el with_type force_inline p =
 				let pmin = p.pmin + (String.length "new ")
 				and pmax = p1.pmin - 2 (* Additional "1" for an opening bracket *)
 				in
-				fst path, { p with
+				{ p with
 					pmin = if pmin < pmax then pmin else p.pmin;
 					pmax = pmax;
 				}
-			| _ -> fst path, p
+			| _ -> p
 		end
+	in
+	let display_position_in_el () =
+		List.exists (fun e -> DisplayPosition.display_position#enclosed_in (pos e)) el
 	in
 	let unify_constructor_call c fa =
 		try
@@ -973,57 +976,49 @@ and type_new ctx path el with_type force_inline p =
 		with Error err ->
 			raise_typing_error_ext err
 	in
-	let display_position_in_el () =
-		List.exists (fun e -> DisplayPosition.display_position#enclosed_in (pos e)) el
-	in
-	let t = if (fst path).tparams <> [] then begin
-		try
-			Typeload.load_instance ctx path false
-		with Error _ as exc when display_position_in_el() ->
-			(* If we fail for some reason, process the arguments in case we want to display them (#7650). *)
-			List.iter (fun e -> ignore(type_expr ctx e WithType.value)) el;
-			raise exc
-	end else try
-		ctx.call_argument_stack <- el :: ctx.call_argument_stack;
-		let t = Typeload.load_instance ctx path true in
-		let t_follow = follow t in
-		ctx.call_argument_stack <- List.tl ctx.call_argument_stack;
-		(* Try to properly build @:generic classes here (issue #2016) *)
-		begin match t_follow with
-			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Generic.build_generic_class ctx c p tl)
-			| _ -> t
-		end
-	with
-	| Generic.Generic_Exception _ ->
-		(* Try to infer generic parameters from the argument list (issue #2044) *)
-		begin match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
-		| TClassDecl ({cl_constructor = Some cf} as c) ->
-			let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
-			let fa = FieldAccess.get_constructor_access c monos p in
-			no_abstract_constructor c p;
-			ignore (unify_constructor_call c fa);
-			begin try
-				Generic.build_generic_class ctx c p monos
-			with Generic.Generic_Exception _ as exc ->
-				(* If we have an expected type, just use that (issue #3804) *)
-				begin match with_type with
-					| WithType.WithType(t,_) ->
-						begin match follow t with
-							| TMono _ -> raise exc
-							| t -> t
-						end
+	let get_params info =
+		let def () = match info.build_kind with
+			| BuildGeneric c ->
+				let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
+				let fa = FieldAccess.get_constructor_access c monos p in
+				ignore (unify_constructor_call c fa);
+				monos
+			| _ ->
+				Monomorph.spawn_constrained_monos (fun t -> t) info.build_params
+		in
+		let tl = match with_type with
+			| WithType.WithType(t,_) ->
+				(* If we have a matching expected type, use its type parameters. *)
+				begin match follow t with
+					| TInst(c,tl) when c.cl_path = info.build_path ->
+						tl
+					| TInst({cl_kind = KGenericInstance(c,tl)},_) when c.cl_path = info.build_path ->
+						tl
+					| TAbstract(a,tl) when a.a_path = info.build_path ->
+						tl
 					| _ ->
-						raise exc
+						def()
 				end
-			end
-		| mt ->
-			raise_typing_error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
-		end
-	| Error _ as exc when display_position_in_el() ->
-		List.iter (fun e -> ignore(type_expr ctx e WithType.value)) el;
+			| _ ->
+				def()
+		in
+		tl
+	in
+	let restore =
+		ctx.call_argument_stack <- el :: ctx.call_argument_stack;
+		(fun () ->
+			ctx.call_argument_stack <- List.tl ctx.call_argument_stack
+		)
+	in
+	let t = try
+		Typeload.load_instance ctx (path,p_path) (ParamCustom get_params)
+	with exc ->
+		restore();
+		(* If we fail for some reason, process the arguments in case we want to display them (#7650). *)
+		if display_position_in_el () then List.iter (fun e -> ignore(type_expr ctx e WithType.value)) el;
 		raise exc
 	in
-	DisplayEmitter.check_display_type ctx t path;
+	DisplayEmitter.check_display_type ctx t (path,p_path);
 	let t = follow t in
 	let build_constructor_call ao c tl =
 		let fa = FieldAccess.get_constructor_access c tl p in
@@ -1801,7 +1796,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EConst (Regexp (r,opt)) ->
 		let str = mk (TConst (TString r)) ctx.t.tstring p in
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
-		let t = Typeload.load_instance ctx (mk_type_path (["std"],"EReg"),null_pos) false in
+		let t = Typeload.load_instance ctx (mk_type_path (["std"],"EReg"),null_pos) ParamNormal in
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[str;opt])) t p
 	| EConst (String(s,SSingleQuotes)) when s <> "" ->
 		type_expr ctx (format_string ctx s p) with_type

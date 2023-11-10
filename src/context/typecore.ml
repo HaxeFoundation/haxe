@@ -74,7 +74,7 @@ type delay = {
 
 type build_kind =
 	| BuildNormal
-	| BuildGeneric
+	| BuildGeneric of tclass
 	| BuildGenericBuild
 	| BuildMacroType
 

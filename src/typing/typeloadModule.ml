@@ -771,7 +771,7 @@ let type_types_into_module ctx m tdecls p =
 	if ctx.g.std != null_module then begin
 		add_dependency m ctx.g.std;
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
-		ignore(load_instance ctx (mk_type_path (["std"],"String"),null_pos) false)
+		ignore(load_instance ctx (mk_type_path (["std"],"String"),null_pos) ParamNormal)
 	end;
 	ModuleLevel.init_type_params ctx decls;
 	(* setup module types *)

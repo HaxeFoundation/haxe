@@ -90,7 +90,7 @@ let get_build_info ctx mtype p =
 		in
 		let kind,f = match c.cl_kind with
 			| KGeneric ->
-				BuildGeneric,build (fun tl -> Generic.build_generic_class ctx c p tl) "build_generic"
+				(BuildGeneric c),build (fun tl -> Generic.build_generic_class ctx c p tl) "build_generic"
 			| KGenericBuild cfl ->
 				BuildGenericBuild,build (fun tl -> build_macro_build ctx c tl cfl p) "build_generic_build"
 			| KMacroType ->

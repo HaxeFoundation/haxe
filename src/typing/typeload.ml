@@ -309,7 +309,12 @@ let check_param_constraints ctx t map c p =
 
 		) ctl
 
-let rec load_and_apply_params ctx info params allow_no_params p =
+type load_instance_param_mode =
+	| ParamNormal
+	| ParamSpawnMonos
+	| ParamCustom of (build_info -> Type.t list)
+
+let rec load_and_apply_params ctx info params p =
 	let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
 	let is_java_rest = ctx.com.platform = Java && info.build_extern in
 	let is_rest = is_rest || is_java_rest in
@@ -346,7 +351,7 @@ let rec load_and_apply_params ctx info params allow_no_params p =
 			in
 			let is_rest = is_rest || name = "Rest" && info.build_kind = BuildGenericBuild in
 			let t = match follow t2 with
-				| TInst ({ cl_kind = KTypeParameter [] } as c, []) when info.build_kind <> BuildGeneric ->
+				| TInst ({ cl_kind = KTypeParameter [] } as c, []) when (match info.build_kind with BuildGeneric _ -> false | _ -> true) ->
 					check_const c;
 					t
 				| TInst (c,[]) ->
@@ -400,10 +405,10 @@ let rec load_and_apply_params ctx info params allow_no_params p =
 			) checks
 		);
 	end;
-	info.build_apply params
+	params
 
 (* build an instance from a full type *)
-and load_instance' ctx (t,p) allow_no_params =
+and load_instance' ctx (t,p) get_params =
 	try
 		if t.tpackage <> [] || t.tsub <> None then raise Not_found;
 		let pt = lookup_param t.tname ctx.type_params in
@@ -414,19 +419,27 @@ and load_instance' ctx (t,p) allow_no_params =
 		let info = ctx.g.get_build_info ctx mt p in
 		(* TODO: this is currently duplicated, but it seems suspcious anyway... *)
 		let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
-		if allow_no_params && t.tparams = [] && not is_rest then begin
-			let monos = Monomorph.spawn_constrained_monos (fun t -> t) info.build_params in
-			info.build_apply (monos)
-		end else if info.build_path = ([],"Dynamic") then match t.tparams with
+		if info.build_path = ([],"Dynamic") then match t.tparams with
 			| [] -> t_dynamic
 			| [TPType t] -> TDynamic (Some (load_complex_type ctx true t))
 			| _ -> raise_typing_error "Too many parameters for Dynamic" p
-		else
-			load_and_apply_params ctx info t.tparams allow_no_params p
+		else begin
+			let tl = if t.tparams = [] && not is_rest then begin match get_params with
+				| ParamNormal ->
+					load_and_apply_params ctx info t.tparams p
+				| ParamSpawnMonos ->
+					Monomorph.spawn_constrained_monos (fun t -> t) info.build_params
+				| ParamCustom f ->
+					f info
+			end else
+				load_and_apply_params ctx info t.tparams p
+			in
+			info.build_apply tl
+		end
 
-and load_instance ctx ?(allow_display=false) ((_,pn) as tp) allow_no_params =
+and load_instance ctx ?(allow_display=false) ((_,pn) as tp) get_params =
 	try
-		let t = load_instance' ctx tp allow_no_params in
+		let t = load_instance' ctx tp get_params in
 		if allow_display then DisplayEmitter.check_display_type ctx t tp;
 		t
 	with Error { err_message = Module_not_found path } when ctx.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
@@ -440,7 +453,7 @@ and load_complex_type' ctx allow_display (t,p) =
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display t
 	| CTPath { tpackage = ["$"]; tname = "_hx_mono" } -> spawn_monomorph ctx p
-	| CTPath t -> load_instance ~allow_display ctx (t,p) false
+	| CTPath t -> load_instance ~allow_display ctx (t,p) ParamNormal
 	| CTOptional _ -> raise_typing_error "Optional type not allowed here" p
 	| CTNamed _ -> raise_typing_error "Named type not allowed here" p
 	| CTIntersection tl ->
@@ -488,7 +501,7 @@ and load_complex_type' ctx allow_display (t,p) =
 			in
 			let il = List.map (fun (t,pn) ->
 				try
-					(load_instance ctx ~allow_display (t,pn) false,pn)
+					(load_instance ctx ~allow_display (t,pn) ParamNormal,pn)
 				with DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) ->
 					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Struct},_) -> true
@@ -824,7 +837,7 @@ let load_core_class ctx c =
 		| KAbstractImpl a -> mk_type_path a.a_path
 		| _ -> mk_type_path c.cl_path
 	in
-	let t = load_instance ctx2 (tpath,c.cl_pos) true in
+	let t = load_instance ctx2 (tpath,c.cl_pos) ParamSpawnMonos in
 	flush_pass ctx2 PFinal "core_final";
 	match t with
 	| TInst (ccore,_) | TAbstract({a_impl = Some ccore}, _) ->
