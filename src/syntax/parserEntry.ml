@@ -355,6 +355,14 @@ let parse entry ctx code file =
 	) in
 	try
 		let l = entry s in
+		begin match Stream.peek s with
+			| None ->
+				() (* Eof could already have been consumed *)
+			| Some (Eof,_) ->
+				() (* This is what we want *)
+			| Some (tok,p) ->
+				error (Unexpected tok) p (* This isn't *)
+		end;
 		let was_display_file = !in_display_file in
 		restore();
 		Lexer.restore old;

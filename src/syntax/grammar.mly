@@ -121,7 +121,7 @@ let check_redundant_var p1 = parser
 
 let parsing_macro_cond = ref false
 
-let rec	parse_file s =
+let rec parse_file s =
 	last_doc := None;
 	match s with parser
 	| [< '(Kwd Package,_); pack = parse_package; s >] ->
