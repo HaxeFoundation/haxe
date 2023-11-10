@@ -108,7 +108,7 @@ type typer_globals = {
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
 	do_load_module : typer -> path -> pos -> module_def;
 	do_load_type_def : typer -> pos -> type_path -> module_type;
-	do_build_instance : typer -> module_type -> pos -> build_info;
+	get_build_info : typer -> module_type -> pos -> build_info;
 	do_format_string : typer -> string -> pos -> Ast.expr;
 	do_load_core_class : typer -> tclass -> tclass;
 }

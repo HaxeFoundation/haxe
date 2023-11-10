@@ -83,7 +83,7 @@ let rec generic_substitute_type gctx t =
 	match t with
 	| TInst ({ cl_kind = KGeneric } as c2,tl2) ->
 		(* maybe loop, or generate cascading generics *)
-		let info = gctx.ctx.g.do_build_instance gctx.ctx (TClassDecl c2) gctx.p in
+		let info = gctx.ctx.g.get_build_info gctx.ctx (TClassDecl c2) gctx.p in
 		let t = info.build_apply (List.map (generic_substitute_type gctx) tl2) in
 		(match follow t,gctx.mg with TInst(c,_), Some m -> add_dependency m c.cl_module | _ -> ());
 		t
@@ -108,7 +108,7 @@ let generic_substitute_expr gctx e =
 	let rec build_expr e =
 		let e = match e.eexpr with
 		| TField(e1, FInstance({cl_kind = KGeneric} as c,tl,cf)) ->
-			let info = gctx.ctx.g.do_build_instance gctx.ctx (TClassDecl c) gctx.p in
+			let info = gctx.ctx.g.get_build_info gctx.ctx (TClassDecl c) gctx.p in
 			let t = info.build_apply (List.map (generic_substitute_type gctx) tl) in
 			begin match follow t with
 			| TInst(c',_) when c == c' ->

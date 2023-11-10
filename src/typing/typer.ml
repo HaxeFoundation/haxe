@@ -2050,7 +2050,7 @@ let create com macros =
 			do_load_macro = MacroContext.load_macro';
 			do_load_module = TypeloadModule.load_module;
 			do_load_type_def = Typeload.load_type_def;
-			do_build_instance = InstanceBuilder.build_instance;
+			get_build_info = InstanceBuilder.get_build_info;
 			do_format_string = format_string;
 			do_load_core_class = Typeload.load_core_class;
 		};

@@ -68,7 +68,7 @@ let build_macro_build ctx c pl cfl p =
 (* -------------------------------------------------------------------------- *)
 (* API EVENTS *)
 
-let build_instance ctx mtype p =
+let get_build_info ctx mtype p =
 	match mtype with
 	| TClassDecl c ->
 		if ctx.pass > PBuildClass then ignore(c.cl_build());

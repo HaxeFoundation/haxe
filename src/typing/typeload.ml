@@ -318,7 +318,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 		pt
 	with Not_found ->
 		let mt = load_type_def ctx p t in
-		let info = ctx.g.do_build_instance ctx mt p in
+		let info = ctx.g.get_build_info ctx mt p in
 		let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
 		if allow_no_params && t.tparams = [] && not is_rest then begin
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) info.build_params in
@@ -406,7 +406,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					let t = (match follow t with
 						| TInst ({ cl_kind = KGeneric } as c,pl) ->
 							(* if we solve a generic contraint, let's substitute with the actual generic instance before unifying *)
-							let info = ctx.g.do_build_instance ctx (TClassDecl c) p in
+							let info = ctx.g.get_build_info ctx (TClassDecl c) p in
 							info.build_apply pl
 						| _ -> t
 					) in
