@@ -309,9 +309,112 @@ let check_param_constraints ctx t map c p =
 
 		) ctl
 
+let rec load_and_apply_params ctx info params allow_no_params p =
+	let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
+	if allow_no_params && params = [] && not is_rest then begin
+		let monos = Monomorph.spawn_constrained_monos (fun t -> t) info.build_params in
+		info.build_apply (monos)
+	end else if info.build_path = ([],"Dynamic") then
+		match params with
+		| [] -> t_dynamic
+		| [TPType t] -> TDynamic (Some (load_complex_type ctx true t))
+		| _ -> raise_typing_error "Too many parameters for Dynamic" p
+	else begin
+		let is_java_rest = ctx.com.platform = Java && info.build_extern in
+		let is_rest = is_rest || is_java_rest in
+		let load_param t =
+			match t with
+			| TPExpr e ->
+				let name = (match fst e with
+					| EConst (String(s,_)) -> "S" ^ s
+					| EConst (Int (_,_) as c) -> "I" ^ s_constant c
+					| EConst (Float (_,_) as c) -> "F" ^ s_constant c
+					| EDisplay _ ->
+						ignore(type_expr ctx e WithType.value);
+						"Expr"
+					| _ -> "Expr"
+				) in
+				let c = mk_class ctx.m.curmod ([],name) p (pos e) in
+				c.cl_kind <- KExpr e;
+				TInst (c,[]),pos e
+			| TPType t -> load_complex_type ctx true t,pos t
+		in
+		let checks = DynArray.create () in
+		let rec loop tl1 tl2 is_rest = match tl1,tl2 with
+			| t :: tl1,({ttp_name=name;ttp_type=t2}) :: tl2 ->
+				let t,pt = load_param t in
+				let check_const c =
+					let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
+					let expects_expression = name = "Const" || Meta.has Meta.Const c.cl_meta in
+					let accepts_expression = name = "Rest" in
+					if is_expression then begin
+						if not expects_expression && not accepts_expression then
+							raise_typing_error "Constant value unexpected here" p
+					end else if expects_expression then
+						raise_typing_error "Type parameter is expected to be a constant value" p
+				in
+				let is_rest = is_rest || name = "Rest" && info.build_kind = BuildGenericBuild in
+				let t = match follow t2 with
+					| TInst ({ cl_kind = KTypeParameter [] } as c, []) when info.build_kind <> BuildGeneric ->
+						check_const c;
+						t
+					| TInst (c,[]) ->
+						check_const c;
+						DynArray.add checks (t,c,pt);
+						t
+					| _ -> die "" __LOC__
+				in
+				t :: loop tl1 tl2 is_rest
+			| [],[] ->
+				[]
+			| [],[{ttp_name="Rest"}] when info.build_kind = BuildGenericBuild ->
+				[]
+			| [],({ttp_type=t;ttp_default=def}) :: tl ->
+				if is_java_rest then
+					t_dynamic :: loop [] tl is_rest
+				else begin match def with
+					| None ->
+						if ignore_error ctx.com then
+							t :: loop [] tl is_rest
+						else
+							raise_typing_error ("Not enough type parameters for " ^ s_type_path info.build_path) p
+					| Some t ->
+						t :: loop [] tl is_rest
+				end
+			| t :: tl,[] ->
+				let t,pt = load_param t in
+				if is_rest then
+					t :: loop tl [] true
+				else if ignore_error ctx.com then
+					[]
+				else
+					raise_typing_error ("Too many type parameters for " ^ s_type_path info.build_path) pt
+		in
+		let params = loop params info.build_params false in
+		if not is_rest then begin
+			let map t =
+				let t = apply_params info.build_params params t in
+				let t = (match follow t with
+					| TInst ({ cl_kind = KGeneric } as c,pl) ->
+						(* if we solve a generic contraint, let's substitute with the actual generic instance before unifying *)
+						let info = ctx.g.get_build_info ctx (TClassDecl c) p in
+						info.build_apply pl
+					| _ -> t
+				) in
+				t
+			in
+			delay ctx PCheckConstraint (fun () ->
+				DynArray.iter (fun (t,c,p) ->
+					check_param_constraints ctx t map c p
+				) checks
+			);
+		end;
+		info.build_apply params
+	end
+
 (* build an instance from a full type *)
-let rec load_instance' ctx (t,p) allow_no_params =
-	let t = try
+and load_instance' ctx (t,p) allow_no_params =
+	try
 		if t.tpackage <> [] || t.tsub <> None then raise Not_found;
 		let pt = lookup_param t.tname ctx.type_params in
 		if t.tparams <> [] then raise_typing_error ("Class type parameter " ^ t.tname ^ " can't have parameters") p;
@@ -319,109 +422,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 	with Not_found ->
 		let mt = load_type_def ctx p t in
 		let info = ctx.g.get_build_info ctx mt p in
-		let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
-		if allow_no_params && t.tparams = [] && not is_rest then begin
-			let monos = Monomorph.spawn_constrained_monos (fun t -> t) info.build_params in
-			info.build_apply (monos)
-		end else if info.build_path = ([],"Dynamic") then
-			match t.tparams with
-			| [] -> t_dynamic
-			| [TPType t] -> TDynamic (Some (load_complex_type ctx true t))
-			| _ -> raise_typing_error "Too many parameters for Dynamic" p
-		else begin
-			let is_java_rest = ctx.com.platform = Java && info.build_extern in
-			let is_rest = is_rest || is_java_rest in
-			let load_param t =
-				match t with
-				| TPExpr e ->
-					let name = (match fst e with
-						| EConst (String(s,_)) -> "S" ^ s
-						| EConst (Int (_,_) as c) -> "I" ^ s_constant c
-						| EConst (Float (_,_) as c) -> "F" ^ s_constant c
-						| EDisplay _ ->
-							ignore(type_expr ctx e WithType.value);
-							"Expr"
-						| _ -> "Expr"
-					) in
-					let c = mk_class ctx.m.curmod ([],name) p (pos e) in
-					c.cl_kind <- KExpr e;
-					TInst (c,[]),pos e
-				| TPType t -> load_complex_type ctx true t,pos t
-			in
-			let checks = DynArray.create () in
-			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
-				| t :: tl1,({ttp_name=name;ttp_type=t2}) :: tl2 ->
-					let t,pt = load_param t in
-					let check_const c =
-						let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
-						let expects_expression = name = "Const" || Meta.has Meta.Const c.cl_meta in
-						let accepts_expression = name = "Rest" in
-						if is_expression then begin
-							if not expects_expression && not accepts_expression then
-								raise_typing_error "Constant value unexpected here" p
-						end else if expects_expression then
-							raise_typing_error "Type parameter is expected to be a constant value" p
-					in
-					let is_rest = is_rest || name = "Rest" && info.build_kind = BuildGenericBuild in
-					let t = match follow t2 with
-						| TInst ({ cl_kind = KTypeParameter [] } as c, []) when info.build_kind <> BuildGeneric ->
-							check_const c;
-							t
-						| TInst (c,[]) ->
-							check_const c;
-							DynArray.add checks (t,c,pt);
-							t
-						| _ -> die "" __LOC__
-					in
-					t :: loop tl1 tl2 is_rest
-				| [],[] ->
-					[]
-				| [],[{ttp_name="Rest"}] when info.build_kind = BuildGenericBuild ->
-					[]
-				| [],({ttp_type=t;ttp_default=def}) :: tl ->
-					if is_java_rest then
-						t_dynamic :: loop [] tl is_rest
-					else begin match def with
-						| None ->
-							if ignore_error ctx.com then
-								t :: loop [] tl is_rest
-							else
-								raise_typing_error ("Not enough type parameters for " ^ s_type_path info.build_path) p
-						| Some t ->
-							t :: loop [] tl is_rest
-					end
-				| t :: tl,[] ->
-					let t,pt = load_param t in
-					if is_rest then
-						t :: loop tl [] true
-					else if ignore_error ctx.com then
-						[]
-					else
-						raise_typing_error ("Too many type parameters for " ^ s_type_path info.build_path) pt
-			in
-			let params = loop t.tparams info.build_params false in
-			if not is_rest then begin
-				let map t =
-					let t = apply_params info.build_params params t in
-					let t = (match follow t with
-						| TInst ({ cl_kind = KGeneric } as c,pl) ->
-							(* if we solve a generic contraint, let's substitute with the actual generic instance before unifying *)
-							let info = ctx.g.get_build_info ctx (TClassDecl c) p in
-							info.build_apply pl
-						| _ -> t
-					) in
-					t
-				in
-				delay ctx PCheckConstraint (fun () ->
-					DynArray.iter (fun (t,c,p) ->
-						check_param_constraints ctx t map c p
-					) checks
-				);
-			end;
-			info.build_apply params
-		end
-	in
-	t
+		load_and_apply_params ctx info t.tparams allow_no_params p
 
 and load_instance ctx ?(allow_display=false) ((_,pn) as tp) allow_no_params =
 	try
