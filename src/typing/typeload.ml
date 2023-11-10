@@ -318,35 +318,18 @@ let rec load_instance' ctx (t,p) allow_no_params =
 		pt
 	with Not_found ->
 		let mt = load_type_def ctx p t in
-		let is_generic,is_generic_build,is_extern = match mt with
-			| TClassDecl {cl_kind = KGeneric} -> true,false,false
-			| TClassDecl {cl_kind = KGenericBuild _} -> false,true,false
-			| TClassDecl c when (has_class_flag c CExtern) -> false,false,true
-			| TTypeDecl td ->
-				begin try
-					let msg = match Meta.get Meta.Deprecated td.t_meta with
-						| _,[EConst(String(s,_)),_],_ -> s
-						| _ -> "This typedef is deprecated in favor of " ^ (s_type (print_context()) td.t_type)
-					in
-					DeprecationCheck.warn_deprecation (create_deprecation_context ctx) msg p
-				with Not_found ->
-						()
-				end;
-				false,false,false
-			| _ -> false,false,false
-		in
-		let types , path , f = ctx.g.do_build_instance ctx mt p in
-		let is_rest = is_generic_build && (match types with [{ttp_name="Rest"}] -> true | _ -> false) in
+		let info = ctx.g.do_build_instance ctx mt p in
+		let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
 		if allow_no_params && t.tparams = [] && not is_rest then begin
-			let monos = Monomorph.spawn_constrained_monos (fun t -> t) types in
-			f (monos)
-		end else if path = ([],"Dynamic") then
+			let monos = Monomorph.spawn_constrained_monos (fun t -> t) info.build_params in
+			info.build_apply (monos)
+		end else if info.build_path = ([],"Dynamic") then
 			match t.tparams with
 			| [] -> t_dynamic
 			| [TPType t] -> TDynamic (Some (load_complex_type ctx true t))
 			| _ -> raise_typing_error "Too many parameters for Dynamic" p
 		else begin
-			let is_java_rest = ctx.com.platform = Java && is_extern in
+			let is_java_rest = ctx.com.platform = Java && info.build_extern in
 			let is_rest = is_rest || is_java_rest in
 			let load_param t =
 				match t with
@@ -379,9 +362,9 @@ let rec load_instance' ctx (t,p) allow_no_params =
 						end else if expects_expression then
 							raise_typing_error "Type parameter is expected to be a constant value" p
 					in
-					let is_rest = is_rest || name = "Rest" && is_generic_build in
+					let is_rest = is_rest || name = "Rest" && info.build_kind = BuildGenericBuild in
 					let t = match follow t2 with
-						| TInst ({ cl_kind = KTypeParameter [] } as c, []) when not is_generic ->
+						| TInst ({ cl_kind = KTypeParameter [] } as c, []) when info.build_kind <> BuildGeneric ->
 							check_const c;
 							t
 						| TInst (c,[]) ->
@@ -393,7 +376,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					t :: loop tl1 tl2 is_rest
 				| [],[] ->
 					[]
-				| [],[{ttp_name="Rest"}] when is_generic_build ->
+				| [],[{ttp_name="Rest"}] when info.build_kind = BuildGenericBuild ->
 					[]
 				| [],({ttp_type=t;ttp_default=def}) :: tl ->
 					if is_java_rest then
@@ -403,7 +386,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 							if ignore_error ctx.com then
 								t :: loop [] tl is_rest
 							else
-								raise_typing_error ("Not enough type parameters for " ^ s_type_path path) p
+								raise_typing_error ("Not enough type parameters for " ^ s_type_path info.build_path) p
 						| Some t ->
 							t :: loop [] tl is_rest
 					end
@@ -414,17 +397,17 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					else if ignore_error ctx.com then
 						[]
 					else
-						raise_typing_error ("Too many type parameters for " ^ s_type_path path) pt
+						raise_typing_error ("Too many type parameters for " ^ s_type_path info.build_path) pt
 			in
-			let params = loop t.tparams types false in
+			let params = loop t.tparams info.build_params false in
 			if not is_rest then begin
 				let map t =
-					let t = apply_params types params t in
+					let t = apply_params info.build_params params t in
 					let t = (match follow t with
 						| TInst ({ cl_kind = KGeneric } as c,pl) ->
 							(* if we solve a generic contraint, let's substitute with the actual generic instance before unifying *)
-							let _,_, f = ctx.g.do_build_instance ctx (TClassDecl c) p in
-							f pl
+							let info = ctx.g.do_build_instance ctx (TClassDecl c) p in
+							info.build_apply pl
 						| _ -> t
 					) in
 					t
@@ -435,7 +418,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					) checks
 				);
 			end;
-			f params
+			info.build_apply params
 		end
 	in
 	t

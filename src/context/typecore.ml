@@ -72,6 +72,20 @@ type delay = {
 	delay_functions : (unit -> unit) list;
 }
 
+type build_kind =
+	| BuildNormal
+	| BuildGeneric
+	| BuildGenericBuild
+	| BuildMacroType
+
+type build_info = {
+	build_kind : build_kind;
+	build_path : path;
+	build_params : type_params;
+	build_extern : bool;
+	build_apply : Type.t list -> Type.t;
+}
+
 type typer_globals = {
 	mutable delayed : delay list;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * string * typer) list) list;
@@ -94,7 +108,7 @@ type typer_globals = {
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
 	do_load_module : typer -> path -> pos -> module_def;
 	do_load_type_def : typer -> pos -> type_path -> module_type;
-	do_build_instance : typer -> module_type -> pos -> (typed_type_param list * path * (t list -> t));
+	do_build_instance : typer -> module_type -> pos -> build_info;
 	do_format_string : typer -> string -> pos -> Ast.expr;
 	do_load_core_class : typer -> tclass -> tclass;
 }
@@ -198,6 +212,14 @@ type dot_path_part = {
 	name : string;
 	case : dot_path_part_case;
 	pos : pos
+}
+
+let make_build_info kind path params extern apply = {
+	build_kind = kind;
+	build_path = path;
+	build_params = params;
+	build_extern = extern;
+	build_apply = apply;
 }
 
 exception Forbid_package of (string * path * pos) * pos list * string
