@@ -195,7 +195,7 @@ class TestCase implements ITest {
 	}
 
 	function assertSkipping(module:String, reason:SkipReason, ?p:haxe.PosInfos) {
-		var msg = 'skipping $module (${printSkipReason(reason))})';
+		var msg = 'skipping $module (${printSkipReason(reason)})';
 		return Assert.isTrue(hasMessage(msg), null, p);
 	}
 
