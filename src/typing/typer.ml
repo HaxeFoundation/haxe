@@ -1013,7 +1013,9 @@ and type_new ctx (path,p_path) el with_type force_inline p =
 	in
 	let restore =
 		ctx.call_argument_stack <- el :: ctx.call_argument_stack;
+		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
 		(fun () ->
+			ctx.with_type_stack <- List.tl ctx.with_type_stack;
 			ctx.call_argument_stack <- List.tl ctx.call_argument_stack
 		)
 	in
