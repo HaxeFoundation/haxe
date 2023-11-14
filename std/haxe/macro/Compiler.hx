@@ -93,7 +93,7 @@ class Compiler {
 		if (!ident.match(field))
 			throw "Invalid " + field;
 		#if (neko || eval)
-		load("type_patch", 4)(className, field, isStatic == true, null);
+		Context.onAfterInitMacros(() -> load("type_patch", 4)(className, field, isStatic == true, null));
 		#else
 		typePatch(className, field, isStatic == true, null);
 		#end
@@ -109,7 +109,7 @@ class Compiler {
 		if (!ident.match((field.charAt(0) == "$") ? field.substr(1) : field))
 			throw "Invalid " + field;
 		#if (neko || eval)
-		load("type_patch", 4)(className, field, isStatic == true, type);
+		Context.onAfterInitMacros(() -> load("type_patch", 4)(className, field, isStatic == true, type));
 		#else
 		typePatch(className, field, isStatic == true, type);
 		#end
@@ -125,7 +125,7 @@ class Compiler {
 		if (field != null && !ident.match(field))
 			throw "Invalid " + field;
 		#if (neko || eval)
-		load("meta_patch", 4)(meta, className, field, isStatic == true);
+		Context.onAfterInitMacros(() -> load("meta_patch", 4)(meta, className, field, isStatic == true));
 		#else
 		metaPatch(meta, className, field, isStatic == true);
 		#end
@@ -284,11 +284,7 @@ class Compiler {
 				Context.error('Package "$pack" was not found in any of class paths', Context.currentPos());
 		}
 
-		if (!Context.initMacrosDone()) {
-			Context.onAfterInitMacros(() -> include(pack, rec, ignore, classPaths, strict));
-		} else {
-			include(pack, rec, ignore, classPaths, strict);
-		}
+		Context.onAfterInitMacros(() -> include(pack, rec, ignore, classPaths, strict));
 	}
 
 	/**
