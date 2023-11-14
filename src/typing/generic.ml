@@ -375,9 +375,19 @@ let type_generic_function ctx fa fcc with_type p =
 	in
 	let cf = fcc.fc_field in
 	if cf.cf_params = [] then raise_typing_error "Function has no type parameters and cannot be generic" p;
+	let build_instances t =
+		let rec loop t =
+			let t = Typeload.maybe_build_instance ctx t ParamNormal p in
+			Type.map loop t
+		in
+		loop t
+	in
 	begin match with_type with
-		| WithType.WithType(t,_) -> unify ctx fcc.fc_ret t p
-		| _ -> ()
+		| WithType.WithType(t,_) ->
+			(* In cases like #5482, we might have a return type that still needs expansion. *)
+			unify ctx (build_instances fcc.fc_ret) t p
+		| _ ->
+			()
 	end;
 	let monos = fcc.fc_monos in
 	List.iter (fun t -> match follow t with
@@ -386,9 +396,10 @@ let type_generic_function ctx fa fcc with_type p =
 	) monos;
 	let el = fcc.fc_args in
 	let gctx = make_generic ctx cf.cf_params monos p in
+	let fc_type = build_instances fcc.fc_type in
 	let name = cf.cf_name ^ "_" ^ gctx.name in
 	let unify_existing_field tcf pcf = try
-		unify_raise tcf fcc.fc_type p
+		unify_raise tcf fc_type p
 	with Error ({ err_message = Unify _; err_depth = depth } as err) ->
 		raise (Error { err with err_sub = (make_error
 			~depth
@@ -440,7 +451,7 @@ let type_generic_function ctx fa fcc with_type p =
 			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: cf.cf_meta
 		in
 		let mk_cf2 name =
-			mk_field ~static:stat name fcc.fc_type cf.cf_pos cf.cf_name_pos
+			mk_field ~static:stat name fc_type cf.cf_pos cf.cf_name_pos
 		in
 		if stat then begin
 			if Meta.has Meta.GenericClassPerMethod c.cl_meta then begin
