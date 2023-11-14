@@ -267,7 +267,8 @@ let rec build_generic_class ctx c p tl =
 			| NoClosure | NullSafety
 			| Pure
 			| Struct | StructInit
-			| Using ->
+			| Using
+			| AutoBuild ->
 				true
 			| _ ->
 				false
