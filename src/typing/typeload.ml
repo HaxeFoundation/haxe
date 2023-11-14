@@ -312,7 +312,21 @@ let check_param_constraints ctx t map c p =
 type load_instance_param_mode =
 	| ParamNormal
 	| ParamSpawnMonos
-	| ParamCustom of (build_info -> Type.t list)
+	| ParamCustom of (build_info -> Type.t list option -> Type.t list)
+
+let rec maybe_build_instance ctx t get_params p =
+	match follow ~no_lazy:true t with
+	| TInst({cl_kind = KGeneric} as c,tl) ->
+		let info = ctx.g.get_build_info ctx (TClassDecl c) p in
+		let tl = match get_params with
+			| ParamNormal | ParamSpawnMonos ->
+				tl
+			| ParamCustom f ->
+				f info (Some tl)
+		in
+		maybe_build_instance ctx (info.build_apply tl) get_params p
+	| _ ->
+		t
 
 let rec load_params ctx info params p =
 	let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
@@ -390,14 +404,7 @@ let rec load_params ctx info params p =
 	if not is_rest then begin
 		let map t =
 			let t = apply_params info.build_params params t in
-			let t = (match follow t with
-				| TInst ({ cl_kind = KGeneric } as c,pl) ->
-					(* if we solve a generic contraint, let's substitute with the actual generic instance before unifying *)
-					let info = ctx.g.get_build_info ctx (TClassDecl c) p in
-					info.build_apply pl
-				| _ -> t
-			) in
-			t
+			maybe_build_instance ctx t ParamNormal p;
 		in
 		delay ctx PCheckConstraint (fun () ->
 			DynArray.iter (fun (t,c,p) ->
@@ -439,11 +446,12 @@ and load_instance' ctx (t,p) get_params =
 				| ParamSpawnMonos ->
 					Monomorph.spawn_constrained_monos (fun t -> t) info.build_params
 				| ParamCustom f ->
-					f info
+					f info None
 			end else
 				load_params ctx info t.tparams p
 			in
-			info.build_apply tl
+			let t = info.build_apply tl in
+			maybe_build_instance ctx t get_params p
 		end
 
 and load_instance ctx ?(allow_display=false) ((_,pn) as tp) get_params =

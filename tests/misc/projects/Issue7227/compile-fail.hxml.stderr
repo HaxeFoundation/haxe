@@ -1,2 +1,3 @@
-Main.hx:4: characters 57-63 : Struct should be String
-Main.hx:4: characters 57-63 : ... For function argument 'v'
+Main.hx:4: characters 9-81 : error: Struct should be String
+Main.hx:4: characters 9-81 : ... have: Generic<{ url: Struct }>
+Main.hx:4: characters 9-81 : ... want: Generic<{ url: String }>

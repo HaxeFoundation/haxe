@@ -976,17 +976,22 @@ and type_new ctx (path,p_path) el with_type force_inline p =
 		with Error err ->
 			raise_typing_error_ext err
 	in
-	let get_params info =
-		let def () = match info.build_kind with
-			| BuildGeneric c ->
-				let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
-				let fa = FieldAccess.get_constructor_access c monos p in
-				ignore (unify_constructor_call c fa);
-				monos
-			| _ ->
-				Monomorph.spawn_constrained_monos (fun t -> t) info.build_params
+	let get_params info tl =
+		let tl_or_monos params = match tl with
+			| Some tl ->
+				tl
+			| None ->
+				Monomorph.spawn_constrained_monos (fun t -> t) params
 		in
-		let tl = match with_type with
+		let def c =
+			let tl = tl_or_monos c.cl_params in
+			let fa = FieldAccess.get_constructor_access c tl p in
+			ignore (unify_constructor_call c fa);
+			tl
+		in
+		match info.build_kind with
+		| BuildGeneric c ->
+			let tl = match with_type with
 			| WithType.WithType(t,_) ->
 				(* If we have a matching expected type, use its type parameters. *)
 				begin match follow t with
@@ -997,12 +1002,14 @@ and type_new ctx (path,p_path) el with_type force_inline p =
 					| TAbstract(a,tl) when a.a_path = info.build_path ->
 						tl
 					| _ ->
-						def()
+						def c
 				end
 			| _ ->
-				def()
-		in
-		tl
+				def c
+			in
+			tl
+		| _ ->
+			tl_or_monos info.build_params
 	in
 	let restore =
 		ctx.call_argument_stack <- el :: ctx.call_argument_stack;
