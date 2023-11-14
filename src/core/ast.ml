@@ -1008,10 +1008,10 @@ let get_value_meta meta =
 
 (* Type path related functions *)
 
-let rec string_list_of_expr_path_raise (e,p) =
+let rec string_list_of_expr_path_raise ?root_cb (e,p) =
 	match e with
-	| EConst (Ident i) -> [i]
-	| EField (e,f,_) -> f :: string_list_of_expr_path_raise e
+	| EConst (Ident i) -> (match root_cb with None -> [i] | Some f -> f i)
+	| EField (e,f,_) -> f :: string_list_of_expr_path_raise ?root_cb e
 	| _ -> raise Exit
 
 let rec string_pos_list_of_expr_path_raise (e,p) =

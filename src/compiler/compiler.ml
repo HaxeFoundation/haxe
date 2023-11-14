@@ -534,14 +534,13 @@ module HighLevel = struct
 			lines
 
 	(* Returns a list of contexts, but doesn't do anything yet *)
-	let process_params server_api create each_params has_display is_server pl =
-		let curdir = Unix.getcwd () in
+	let process_params server_api create each_args has_display is_server args =
+		(* We want the loop below to actually see all the --each params, so let's prepend them *)
+		let args = !each_args @ args in
 		let added_libs = Hashtbl.create 0 in
 		let server_mode = ref SMNone in
 		let create_context args =
 			let ctx = create (server_api.on_context_create()) args in
-			(* --cwd triggers immediately, so let's reset *)
-			Unix.chdir curdir;
 			ctx
 		in
 		let rec find_subsequent_libs acc args = match args with
@@ -552,16 +551,16 @@ module HighLevel = struct
 		in
 		let rec loop acc = function
 			| [] ->
-				[],Some (create_context (!each_params @ (List.rev acc)))
+				[],Some (create_context (List.rev acc))
 			| "--next" :: l when acc = [] -> (* skip empty --next *)
 				loop [] l
 			| "--next" :: l ->
-				let ctx = create_context (!each_params @ (List.rev acc)) in
+				let ctx = create_context (List.rev acc) in
 				ctx.has_next <- true;
 				l,Some ctx
 			| "--each" :: l ->
-				each_params := List.rev acc;
-				loop [] l
+				each_args := List.rev acc;
+				loop acc l
 			| "--cwd" :: dir :: l | "-C" :: dir :: l ->
 				(* we need to change it immediately since it will affect hxml loading *)
 				(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
@@ -584,14 +583,14 @@ module HighLevel = struct
 				loop acc l
 			| "--run" :: cl :: args ->
 				let acc = cl :: "-x" :: acc in
-				let ctx = create_context (!each_params @ (List.rev acc)) in
+				let ctx = create_context (List.rev acc) in
 				ctx.com.sys_args <- args;
 				[],Some ctx
 			| ("-L" | "--library" | "-lib") :: name :: args ->
 				let libs,args = find_subsequent_libs [name] args in
 				let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) libs in
 				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
-				let lines = add_libs libs pl server_api.cache has_display in
+				let lines = add_libs libs args server_api.cache has_display in
 				loop acc (lines @ args)
 			| ("--jvm" | "--java" | "-java" as arg) :: dir :: args ->
 				loop_lib arg dir "hxjava" acc args
@@ -607,7 +606,7 @@ module HighLevel = struct
 		and loop_lib arg dir lib acc args =
 			loop (dir :: arg :: acc) ("-lib" :: lib :: args)
 		in
-		let args,ctx = loop [] pl in
+		let args,ctx = loop [] args in
 		args,!server_mode,ctx
 
 	let execute_ctx server_api ctx server_mode =
@@ -635,6 +634,7 @@ module HighLevel = struct
 	let entry server_api comm args =
 		let create = create_context comm server_api.cache in
 		let each_args = ref [] in
+		let curdir = Unix.getcwd () in
 		let has_display = ref false in
 		(* put --display in front if it was last parameter *)
 		let args = match List.rev args with
@@ -654,14 +654,18 @@ module HighLevel = struct
 			in
 			let code = match ctx with
 				| Some ctx ->
+					(* Need chdir here because --cwd is eagerly applied in process_params *)
+					Unix.chdir curdir;
 					execute_ctx server_api ctx server_mode
 				| None ->
 					(* caused by --connect *)
 					0
 			in
-			if code = 0 && args <> [] && not !has_display then
+			if code = 0 && args <> [] && not !has_display then begin
+				(* We have to chdir here again because any --cwd also takes effect in execute_ctx *)
+				Unix.chdir curdir;
 				loop args
-			else
+			end else
 				code
 		in
 		let code = loop args in

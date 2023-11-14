@@ -37,19 +37,25 @@ class TestCase implements ITest {
 	public function new() {}
 
 	function debugMessages(?pos:PosInfos) {
-		for (m in messages) haxe.Log.trace(m, pos);
+		for (m in messages)
+			haxe.Log.trace(m, pos);
 	}
 
 	function debugErrorMessages(?pos:PosInfos) {
-		for (m in errorMessages) haxe.Log.trace(m, pos);
+		for (m in errorMessages)
+			haxe.Log.trace(m, pos);
 	}
 
 	function messagesWith(s:String, ?pos:PosInfos) {
-		for (m in messages) if (m.contains(s)) haxe.Log.trace(m, pos);
+		for (m in messages)
+			if (m.contains(s))
+				haxe.Log.trace(m, pos);
 	}
 
 	function errorMessagesWith(s:String, ?pos:PosInfos) {
-		for (m in errorMessages) if (m.contains(s)) haxe.Log.trace(m, pos);
+		for (m in errorMessages)
+			if (m.contains(s))
+				haxe.Log.trace(m, pos);
 	}
 
 	static public function printSkipReason(ddr:SkipReason) {
@@ -211,7 +217,7 @@ class TestCase implements ITest {
 	}
 
 	function assertSkipping(module:String, reason:SkipReason, ?p:haxe.PosInfos) {
-		var msg = 'skipping $module (${printSkipReason(reason))})';
+		var msg = 'skipping $module (${printSkipReason(reason)})';
 		return Assert.isTrue(hasMessage(msg), null, p);
 	}
 

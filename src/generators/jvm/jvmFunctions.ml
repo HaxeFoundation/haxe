@@ -294,6 +294,14 @@ module JavaFunctionalInterfaces = struct
 		jparams : string list;
 	}
 
+	let string_of_functional_interface jfi = TPrinting.Printer.s_record_fields "" [
+		"jargs",String.concat ", " (List.map (generate_signature true) jfi.jargs);
+		"jret",Option.map_default (generate_signature true) "None" jfi.jret;
+		"jpath",Globals.s_type_path jfi.jpath;
+		"jname",jfi.jname;
+		"jparams",String.concat ", " jfi.jparams;
+	]
+
 	let java_functional_interfaces = DynArray.create ()
 
 	let add args ret path name params =
@@ -307,30 +315,55 @@ module JavaFunctionalInterfaces = struct
 		DynArray.add java_functional_interfaces jfi
 
 	let unify jfi args ret =
-		let rec loop params want have = match want,have with
-			| [],[] ->
-				Some (jfi,List.map (fun s -> TType(WNone,List.assoc s params)) jfi.jparams)
-			| want1 :: want,have1 :: have ->
-				begin match want1 with
-				| TTypeParameter n ->
-					let have1 = get_boxed_type have1 in
-					loop ((n,have1) :: params) want have
-				| _ ->
-					if have1 <> want1 then None
-					else loop params want have
+		let params = ref [] in
+		let rec unify jsig1 jsig2 = match jsig1,jsig2 with
+			| TObject(path1,params1),TObject(path2,params2) ->
+				path1 = path2 &&
+				unify_params params1 params2
+			| TTypeParameter n,jsig
+			| jsig,TTypeParameter n ->
+				List.mem_assoc n !params || begin
+					params := (n,jsig) :: !params;
+					true
 				end
+			| _ ->
+				jsig1 = jsig2
+		and unify_params params1 params2 = match params1,params2 with
+			| [],_
+			| _,[] ->
+				(* Assume raw type, I guess? *)
+				true
+			| param1 :: params1,param2 :: params2 ->
+				match param1,param2 with
+				| TAny,_
+				| _,TAny ->
+					(* Is this correct in both directions? *)
+					unify_params params1 params2
+				| TType(_,jsig1),TType(_,jsig2) ->
+					(* TODO: wildcard? *)
+					unify jsig1 jsig2 && unify_params params1 params2
+		in
+		let rec loop want have = match want,have with
+			| [],[] ->
+				let params = List.map (fun s ->
+					try
+						TType(WNone,List.assoc s !params)
+					with Not_found ->
+						TAny
+				) jfi.jparams in
+				Some (jfi,params)
+			| want1 :: want,have1 :: have ->
+				if unify have1 want1 then loop want have
+				else None
 			| _ ->
 				None
 		in
 		match jfi.jret,ret with
 		| None,None ->
-			loop [] jfi.jargs args
-		| Some (TTypeParameter n),Some jsig ->
-			let jsig = get_boxed_type jsig in
-			loop [n,jsig] jfi.jargs args
+			loop jfi.jargs args
 		| Some jsig1,Some jsig2 ->
-			if jsig1 <> jsig2 then None
-			else loop [] jfi.jargs args
+			if unify jsig1 jsig2 then loop jfi.jargs args
+			else None
 		| _ ->
 			None
 

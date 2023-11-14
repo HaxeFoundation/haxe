@@ -457,12 +457,18 @@ let build_enum_abstract ctx c a fields p =
 	) fields;
 	EVars [mk_evar ~t:(CTAnonymous fields,p) ("",null_pos)],p
 
-let apply_macro ctx mode path el p =
-	let cpath, meth = (match List.rev (ExtString.String.nsplit path ".") with
-		| meth :: name :: pack -> (List.rev pack,name), meth
-		| _ -> raise_typing_error "Invalid macro path" p
-	) in
-	ctx.g.do_macro ctx mode cpath meth el p
+let resolve_type_import ctx p i =
+	try
+		let res = ctx.m.import_resolution#resolve' i in
+		begin match res.r_kind with
+		| RTypeImport(_,mt) ->
+			let path = t_path mt in
+			snd path :: (List.rev (fst path))
+		| _ ->
+			raise_typing_error "Type path expected" p
+		end
+	with Not_found ->
+		[i]
 
 let build_module_def ctx mt meta fvars fbuild =
 	let is_typedef = match mt with TTypeDecl _ -> true | _ -> false in
@@ -472,11 +478,18 @@ let build_module_def ctx mt meta fvars fbuild =
 					| [ECall (epath,el),p] -> epath, el
 					| _ -> raise_typing_error "Invalid build parameters" p
 				) in
-				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error { err_pos = p } -> raise_typing_error "Build call parameter must be a class path" p in
+				let cpath, meth =
+					let sl = try string_list_of_expr_path_raise ~root_cb:(resolve_type_import ctx p) epath with Exit -> raise_typing_error "Build call parameter must be a class path" p in
+					match sl with
+					| meth :: name :: pack ->
+						(List.rev pack,name), meth
+					| _ ->
+						raise_typing_error "Invalid macro path" p
+				in
 				if ctx.com.is_macro_context then raise_typing_error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
 				let old = ctx.get_build_infos in
 				ctx.get_build_infos <- (fun() -> Some (mt, extract_param_types (t_infos mt).mt_params, fvars()));
-				let r = try apply_macro ctx MBuild s el p with e -> ctx.get_build_infos <- old; raise e in
+				let r = try ctx.g.do_macro ctx MBuild cpath meth el p with e -> ctx.get_build_infos <- old; raise e in
 				ctx.get_build_infos <- old;
 				(match r with
 				| None -> raise_typing_error "Build failure" p
