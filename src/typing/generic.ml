@@ -211,6 +211,14 @@ let set_type_parameter_dependencies mg tl =
 	in
 	List.iter loop tl
 
+let build_instances ctx t p =
+	let rec loop t =
+		let t = Typeload.maybe_build_instance ctx t ParamNormal p in
+		Type.map loop t
+	in
+	loop t
+
+
 let rec build_generic_class ctx c p tl =
 	let pack = fst c.cl_path in
 	let recurse = ref false in
@@ -329,14 +337,9 @@ let rec build_generic_class ctx c p tl =
 		cg.cl_super <- (match c.cl_super with
 			| None -> None
 			| Some (cs,pl) ->
-				let ts = follow (apply_params c.cl_params tl (TInst(cs,pl))) in
-				let cs,pl = TypeloadCheck.Inheritance.check_extends ctx c ts p in
-				match cs.cl_kind with
-				| KGeneric ->
-					(match build_generic_class ctx cs p pl with
-					| TInst (cs,pl) -> Some (cs,pl)
-					| _ -> die "" __LOC__)
-				| _ -> Some(cs,pl)
+				let ts = build_instances ctx (follow (apply_params c.cl_params tl (TInst(cs,pl)))) p in
+				let cs,tl = TypeloadCheck.Inheritance.check_extends ctx c ts p in
+				Some(cs,tl)
 		);
 		TypeloadFunction.add_constructor ctx cg false p;
 		cg.cl_kind <- KGenericInstance (c,tl);
@@ -375,17 +378,10 @@ let type_generic_function ctx fa fcc with_type p =
 	in
 	let cf = fcc.fc_field in
 	if cf.cf_params = [] then raise_typing_error "Function has no type parameters and cannot be generic" p;
-	let build_instances t =
-		let rec loop t =
-			let t = Typeload.maybe_build_instance ctx t ParamNormal p in
-			Type.map loop t
-		in
-		loop t
-	in
 	begin match with_type with
 		| WithType.WithType(t,_) ->
 			(* In cases like #5482, we might have a return type that still needs expansion. *)
-			unify ctx (build_instances fcc.fc_ret) t p
+			unify ctx (build_instances ctx fcc.fc_ret p) t p
 		| _ ->
 			()
 	end;
@@ -396,7 +392,7 @@ let type_generic_function ctx fa fcc with_type p =
 	) monos;
 	let el = fcc.fc_args in
 	let gctx = make_generic ctx cf.cf_params monos p in
-	let fc_type = build_instances fcc.fc_type in
+	let fc_type = build_instances ctx fcc.fc_type p in
 	let name = cf.cf_name ^ "_" ^ gctx.name in
 	let unify_existing_field tcf pcf = try
 		unify_raise tcf fc_type p
