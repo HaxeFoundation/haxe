@@ -6,8 +6,6 @@ open Type
 open Typecore
 open Error
 
-exception Generic_Exception of string * pos
-
 type generic_context = {
 	ctx : typer;
 	subst : (t * (t * texpr option)) list;
@@ -62,7 +60,7 @@ let make_generic ctx ps pt p =
 	in
 	let rec loop acc_name acc_subst ttpl tl = match ttpl,tl with
 		| ttp :: ttpl,t :: tl ->
-			let name,t = try process t with Exit -> raise (Generic_Exception (("Could not determine type for parameter " ^ ttp.ttp_name), p)) in
+			let name,t = try process t with Exit -> raise_typing_error ("Could not determine type for parameter " ^ ttp.ttp_name) p in
 			loop (name :: acc_name) ((follow ttp.ttp_type,t) :: acc_subst) ttpl tl
 		| [],[] ->
 			let name = String.concat "_" (List.rev acc_name) in
@@ -387,102 +385,99 @@ let type_generic_function ctx fa fcc with_type p =
 		| _ -> ()
 	) monos;
 	let el = fcc.fc_args in
-	(try
-		let gctx = make_generic ctx cf.cf_params monos p in
-		let name = cf.cf_name ^ "_" ^ gctx.name in
-		let unify_existing_field tcf pcf = try
-			unify_raise tcf fcc.fc_type p
-		with Error ({ err_message = Unify _; err_depth = depth } as err) ->
-			raise (Error { err with err_sub = (make_error
-				~depth
-				~sub:[make_error ~depth:(depth+1) (Custom (compl_msg "Conflicting field was defined here")) pcf]
-				(Custom ("Cannot create field " ^ name ^ " due to type mismatch"))
-				p
-			) :: err.err_sub })
+	let gctx = make_generic ctx cf.cf_params monos p in
+	let name = cf.cf_name ^ "_" ^ gctx.name in
+	let unify_existing_field tcf pcf = try
+		unify_raise tcf fcc.fc_type p
+	with Error ({ err_message = Unify _; err_depth = depth } as err) ->
+		raise (Error { err with err_sub = (make_error
+			~depth
+			~sub:[make_error ~depth:(depth+1) (Custom (compl_msg "Conflicting field was defined here")) pcf]
+			(Custom ("Cannot create field " ^ name ^ " due to type mismatch"))
+			p
+		) :: err.err_sub })
+	in
+	let fa = try
+		let cf2 = if stat then
+			let cf2 = PMap.find name c.cl_statics in
+			unify_existing_field cf2.cf_type cf2.cf_pos;
+			cf2
+		else
+			let cf2 = PMap.find name c.cl_fields in
+			unify_existing_field cf2.cf_type cf2.cf_pos;
+			cf2
 		in
-		let fa = try
-			let cf2 = if stat then
-				let cf2 = PMap.find name c.cl_statics in
-				unify_existing_field cf2.cf_type cf2.cf_pos;
-				cf2
-			else
-				let cf2 = PMap.find name c.cl_fields in
-				unify_existing_field cf2.cf_type cf2.cf_pos;
-				cf2
+		{fa with fa_field = cf2}
+		(*
+			java.Lib.array() relies on the ability to shadow @:generic function for certain types
+			see https://github.com/HaxeFoundation/haxe/issues/8393#issuecomment-508685760
+		*)
+		(* if cf.cf_name_pos = cf2.cf_name_pos then
+			cf2
+		else
+			error ("Cannot specialize @:generic because the generated function name is already used: " ^ name) p *)
+	with Not_found ->
+		let finalize_field c cf2 =
+			ignore(follow cf.cf_type);
+			let rec check e = match e.eexpr with
+				| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
+					(* TODO use sub error *)
+					display_error ctx.com "Only generic type parameters can be constructed" e.epos;
+					display_error ctx.com "While specializing this call" p;
+				| _ ->
+					Type.iter check e
 			in
-			{fa with fa_field = cf2}
-			(*
-				java.Lib.array() relies on the ability to shadow @:generic function for certain types
-				see https://github.com/HaxeFoundation/haxe/issues/8393#issuecomment-508685760
-			*)
-			(* if cf.cf_name_pos = cf2.cf_name_pos then
-				cf2
-			else
-				error ("Cannot specialize @:generic because the generated function name is already used: " ^ name) p *)
-		with Not_found ->
-			let finalize_field c cf2 =
-				ignore(follow cf.cf_type);
-				let rec check e = match e.eexpr with
-					| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
-						(* TODO use sub error *)
-						display_error ctx.com "Only generic type parameters can be constructed" e.epos;
-						display_error ctx.com "While specializing this call" p;
-					| _ ->
-						Type.iter check e
-				in
-				cf2.cf_expr <- (match cf.cf_expr with
-					| None ->
-						display_error ctx.com "Recursive @:generic function" p; None;
-					| Some e ->
-						let e = generic_substitute_expr gctx e in
-						check e;
-						Some e
-				);
-				cf2.cf_kind <- cf.cf_kind;
-				if not (has_class_field_flag cf CfPublic) then remove_class_field_flag cf2 CfPublic;
-				cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: cf.cf_meta
-			in
-			let mk_cf2 name =
-				mk_field ~static:stat name fcc.fc_type cf.cf_pos cf.cf_name_pos
-			in
-			if stat then begin
-				if Meta.has Meta.GenericClassPerMethod c.cl_meta then begin
-					let c = static_method_container gctx c cf p in
-					set_type_parameter_dependencies c.cl_module monos;
-					let cf2 = try
-						let cf2 = PMap.find cf.cf_name c.cl_statics in
-						unify_existing_field cf2.cf_type cf2.cf_pos;
-						cf2
-					with Not_found ->
-						let cf2 = mk_cf2 cf.cf_name in
-						c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
-						c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
-						finalize_field c cf2;
-						cf2
-					in
-					{fa with fa_host = FHStatic c;fa_field = cf2;fa_on = Builder.make_static_this c p}
-				end else begin
-					set_type_parameter_dependencies c.cl_module monos;
-					let cf2 = mk_cf2 name in
+			cf2.cf_expr <- (match cf.cf_expr with
+				| None ->
+					display_error ctx.com "Recursive @:generic function" p; None;
+				| Some e ->
+					let e = generic_substitute_expr gctx e in
+					check e;
+					Some e
+			);
+			cf2.cf_kind <- cf.cf_kind;
+			if not (has_class_field_flag cf CfPublic) then remove_class_field_flag cf2 CfPublic;
+			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: cf.cf_meta
+		in
+		let mk_cf2 name =
+			mk_field ~static:stat name fcc.fc_type cf.cf_pos cf.cf_name_pos
+		in
+		if stat then begin
+			if Meta.has Meta.GenericClassPerMethod c.cl_meta then begin
+				let c = static_method_container gctx c cf p in
+				set_type_parameter_dependencies c.cl_module monos;
+				let cf2 = try
+					let cf2 = PMap.find cf.cf_name c.cl_statics in
+					unify_existing_field cf2.cf_type cf2.cf_pos;
+					cf2
+				with Not_found ->
+					let cf2 = mk_cf2 cf.cf_name in
 					c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
 					c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
 					finalize_field c cf2;
-					{fa with fa_field = cf2}
-				end
+					cf2
+				in
+				{fa with fa_host = FHStatic c;fa_field = cf2;fa_on = Builder.make_static_this c p}
 			end else begin
 				set_type_parameter_dependencies c.cl_module monos;
 				let cf2 = mk_cf2 name in
-				if has_class_field_flag cf CfOverride then add_class_field_flag cf2 CfOverride;
-				c.cl_fields <- PMap.add cf2.cf_name cf2 c.cl_fields;
-				c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields;
+				c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
+				c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
 				finalize_field c cf2;
 				{fa with fa_field = cf2}
 			end
-		in
-		let dispatch = new CallUnification.call_dispatcher ctx (MCall []) with_type p in
-		dispatch#field_call fa el []
-	with Generic_Exception (msg,p) ->
-		raise_typing_error msg p)
+		end else begin
+			set_type_parameter_dependencies c.cl_module monos;
+			let cf2 = mk_cf2 name in
+			if has_class_field_flag cf CfOverride then add_class_field_flag cf2 CfOverride;
+			c.cl_fields <- PMap.add cf2.cf_name cf2 c.cl_fields;
+			c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields;
+			finalize_field c cf2;
+			{fa with fa_field = cf2}
+		end
+	in
+	let dispatch = new CallUnification.call_dispatcher ctx (MCall []) with_type p in
+	dispatch#field_call fa el []
 
 ;;
 Typecore.type_generic_function_ref := type_generic_function

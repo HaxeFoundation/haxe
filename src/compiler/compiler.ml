@@ -407,8 +407,6 @@ with
 		end
 	| Error.Error err ->
 		error_ext ctx err
-	| Generic.Generic_Exception(m,p) ->
-		error ctx m p
 	| Arg.Bad msg ->
 		error ctx ("Error: " ^ msg) null_pos
 	| Failure msg when not Helper.is_debug_run ->
