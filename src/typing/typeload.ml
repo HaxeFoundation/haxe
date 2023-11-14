@@ -314,7 +314,7 @@ type load_instance_param_mode =
 	| ParamSpawnMonos
 	| ParamCustom of (build_info -> Type.t list)
 
-let rec load_and_apply_params ctx info params p =
+let rec load_params ctx info params p =
 	let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
 	let is_java_rest = ctx.com.platform = Java && info.build_extern in
 	let is_rest = is_rest || is_java_rest in
@@ -417,22 +417,31 @@ and load_instance' ctx (t,p) get_params =
 	with Not_found ->
 		let mt = load_type_def ctx p t in
 		let info = ctx.g.get_build_info ctx mt p in
-		(* TODO: this is currently duplicated, but it seems suspcious anyway... *)
-		let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
 		if info.build_path = ([],"Dynamic") then match t.tparams with
 			| [] -> t_dynamic
 			| [TPType t] -> TDynamic (Some (load_complex_type ctx true t))
 			| _ -> raise_typing_error "Too many parameters for Dynamic" p
-		else begin
+		else if info.build_params = [] then begin match t.tparams with
+			| [] ->
+				info.build_apply []
+			|  tp :: _ ->
+				let pt = match tp with
+					| TPType(_,p) | TPExpr(_,p) -> p
+				in
+				display_error ctx.com ("Too many type parameters for " ^ s_type_path info.build_path) pt;
+				info.build_apply []
+		end else begin
+			(* TODO: this is currently duplicated, but it seems suspcious anyway... *)
+			let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
 			let tl = if t.tparams = [] && not is_rest then begin match get_params with
 				| ParamNormal ->
-					load_and_apply_params ctx info t.tparams p
+					load_params ctx info t.tparams p
 				| ParamSpawnMonos ->
 					Monomorph.spawn_constrained_monos (fun t -> t) info.build_params
 				| ParamCustom f ->
 					f info
 			end else
-				load_and_apply_params ctx info t.tparams p
+				load_params ctx info t.tparams p
 			in
 			info.build_apply tl
 		end
