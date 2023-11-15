@@ -315,7 +315,7 @@ let rec build_generic_class ctx c p tl =
 				| _ -> die "" __LOC__
 			) ([],[]) cf_old.cf_params in
 			let gctx = {gctx with subst = param_subst @ gctx.subst} in
-			let cf_new = {cf_old with cf_pos = cf_old.cf_pos} in (* copy *)
+			let cf_new = {cf_old with cf_pos = cf_old.cf_pos; cf_expr_unoptimized = None} in (* copy *)
 			remove_class_field_flag cf_new CfPostProcessed;
 			(* Type parameter constraints are substituted here. *)
 			cf_new.cf_params <- List.rev_map (fun tp -> match follow tp.ttp_type with
@@ -326,6 +326,7 @@ let rec build_generic_class ctx c p tl =
 				| _ -> die "" __LOC__
 			) params;
 			let f () =
+				if gctx.generic_debug then print_endline (Printf.sprintf "[GENERIC] expanding %s" cf_old.cf_name);
 				let t = generic_substitute_type gctx cf_old.cf_type in
 				ignore (follow t);
 				begin try (match cf_old.cf_expr with
@@ -343,6 +344,7 @@ let rec build_generic_class ctx c p tl =
 				) with Unify_error l ->
 					raise_typing_error (error_msg (Unify l)) cf_new.cf_pos
 				end;
+				if gctx.generic_debug then print_endline (Printf.sprintf "[GENERIC] %s" (Printer.s_tclass_field "  " cf_new));
 				t
 			in
 			let r = exc_protect ctx (fun r ->
