@@ -314,19 +314,25 @@ type load_instance_param_mode =
 	| ParamSpawnMonos
 	| ParamCustom of (build_info -> Type.t list option -> Type.t list)
 
-let rec maybe_build_instance ctx t get_params p =
-	match follow ~no_lazy:true t with
-	| TInst({cl_kind = KGeneric} as c,tl) ->
-		let info = ctx.g.get_build_info ctx (TClassDecl c) p in
-		let tl = match get_params with
-			| ParamNormal | ParamSpawnMonos ->
-				tl
-			| ParamCustom f ->
-				f info (Some tl)
-		in
-		maybe_build_instance ctx (info.build_apply tl) get_params p
-	| _ ->
-		t
+let rec maybe_build_instance ctx t0 get_params p =
+	let rec loop t = match t with
+		| TInst({cl_kind = KGeneric} as c,tl) ->
+			let info = ctx.g.get_build_info ctx (TClassDecl c) p in
+			let tl = match get_params with
+				| ParamNormal | ParamSpawnMonos ->
+					tl
+				| ParamCustom f ->
+					f info (Some tl)
+			in
+			maybe_build_instance ctx (info.build_apply tl) get_params p
+		| TType(td,tl) ->
+			loop (apply_typedef td tl)
+		| TMono {tm_type = Some t} ->
+			loop t
+		| _ ->
+			t0
+	in
+	loop t0
 
 let rec load_params ctx info params p =
 	let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in

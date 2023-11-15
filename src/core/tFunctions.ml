@@ -499,22 +499,21 @@ let try_apply_params_rec cparams params t success =
 			apply_params_stack := old_stack;
 			raise err
 
-let rec follow ?(no_lazy=false) t =
+let rec follow t =
 	match t with
 	| TMono r ->
 		(match r.tm_type with
-		| Some t -> follow ~no_lazy t
+		| Some t -> follow t
 		| _ -> t)
 	| TLazy f ->
 		(match !f with
-		| LAvailable t -> follow ~no_lazy t
-		| _ when no_lazy -> t
+		| LAvailable t -> follow t
 		| _ -> follow (lazy_type f)
 		)
 	| TType (t,tl) ->
-		follow ~no_lazy (apply_typedef t tl)
+		follow (apply_typedef t tl)
 	| TAbstract({a_path = [],"Null"},[t]) ->
-		follow ~no_lazy t
+		follow t
 	| _ -> t
 
 let follow_once t =
