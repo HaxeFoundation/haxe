@@ -74,7 +74,7 @@ type delay = {
 
 type typer_globals = {
 	mutable delayed : delay list;
-	mutable debug_delayed : (typer_pass * ((unit -> unit) * string * typer) list) list;
+	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
 	doinline : bool;
 	retain_meta : bool;
 	mutable core_api : typer option;
@@ -422,7 +422,7 @@ let delay_if_mono ctx p t f = match follow t with
 	| _ ->
 		f()
 
-let rec flush_pass ctx p (where:string) =
+let rec flush_pass ctx p where =
 	match ctx.g.delayed with
 	| delay :: rest when delay.delay_pass <= p ->
 		(match delay.delay_functions with
@@ -440,7 +440,7 @@ let make_pass ctx f = f
 let init_class_done ctx =
 	ctx.pass <- PTypeField
 
-let exc_protect ?(force=true) ctx f (where:string) =
+let exc_protect ?(force=true) ctx f where =
 	let r = ref (lazy_available t_dynamic) in
 	r := lazy_wait (fun() ->
 		try
@@ -762,8 +762,8 @@ let create_deprecation_context ctx = {
 }
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
-(*/*
 
+(*
 let delay_tabs = ref ""
 
 let context_ident com =
@@ -774,28 +774,42 @@ let context_ident com =
 	else
 		"  out "
 
-let debug com str =
+let debug_paths = [
+	(* ["Main"] *)
+]
+
+let debug com (path : string list) str =
 	if Common.raw_defined com "cdebug" then begin
-		let s = (context_ident com ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
-		match com.json_out with
-		| None -> print_endline s
-		| Some _ -> DynArray.add com.pass_debug_messages s
+		let emit () =
+			let s = (context_ident com ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
+			match com.json_out with
+			| None -> print_endline s
+			| Some _ -> DynArray.add com.pass_debug_messages s
+		in
+		match debug_paths,path with
+		| [],_
+		| _,[] ->
+			emit()
+		| l ->
+			if List.exists (Ast.match_path false path) debug_paths then emit();
 	end
 
 let init_class_done ctx =
-	debug ctx.com ("init_class_done " ^ s_type_path ctx.curclass.cl_path);
+	let path = fst ctx.curclass.cl_path @ [snd ctx.curclass.cl_path] in
+	debug ctx.com path ("init_class_done " ^ s_type_path ctx.curclass.cl_path);
 	init_class_done ctx
 
 let ctx_pos ctx =
-	let inf = s_type_path ctx.m.curmod.m_path in
-	let inf = (match snd ctx.curclass.cl_path with "" -> inf | n when n = snd ctx.m.curmod.m_path -> inf | n -> inf ^ "." ^ n) in
-	let inf = (match ctx.curfield.cf_name with "" -> inf | n -> inf ^ ":" ^ n) in
+	let inf = fst ctx.m.curmod.m_path @ [snd ctx.m.curmod.m_path]in
+	let inf = (match snd ctx.curclass.cl_path with "" -> inf | n when n = snd ctx.m.curmod.m_path -> inf | n -> inf @ [n]) in
+	let inf = (match ctx.curfield.cf_name with "" -> inf | n -> inf @ [n]) in
 	inf
 
 let pass_infos ctx p =
-	let inf = pass_name p ^ " ("  ^ ctx_pos ctx ^ ")" in
+	let path = ctx_pos ctx in
+	let inf = pass_name p ^ " ("  ^ String.concat "." path ^ ")" in
 	let inf = if ctx.pass > p then inf ^ " ??CURPASS=" ^ pass_name ctx.pass else inf in
-	inf
+	inf,path
 
 let delay ctx p f =
 	let inf = pass_infos ctx p in
@@ -810,7 +824,7 @@ let delay ctx p f =
 				(p,[f,inf,ctx]) :: (p2,l) :: rest
 	in
 	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
-	debug ctx.com ("add " ^ inf)
+	debug ctx.com (snd inf) ("add " ^ (fst inf))
 
 let delay_late ctx p f =
 	let inf = pass_infos ctx p in
@@ -823,7 +837,7 @@ let delay_late ctx p f =
 				(p,[f,inf,ctx]) :: (p2,l) :: rest
 	in
 	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
-	debug ctx.com ("add late " ^ inf)
+	debug ctx.com (snd inf) ("add late " ^ (fst inf))
 
 let pending_passes ctx =
 	let rec loop acc = function
@@ -832,20 +846,20 @@ let pending_passes ctx =
 	in
 	match loop [] ctx.g.debug_delayed with
 	| [] -> ""
-	| l -> " ??PENDING[" ^ String.concat ";" (List.map (fun (_,i,_) -> i) l) ^ "]"
+	| l -> " ??PENDING[" ^ String.concat ";" (List.map (fun (_,(i,_),_) -> i) l) ^ "]"
 
 let display_error com ?(depth=0) msg p =
-	debug com ("ERROR " ^ msg);
+	debug com [] ("ERROR " ^ msg);
 	display_error com ~depth msg p
 
 let display_error_ext com err =
-	debug com ("ERROR " ^ (error_msg err.err_message));
+	debug com [] ("ERROR " ^ (error_msg err.err_message));
 	display_error_ext com err
 
 let make_pass ?inf ctx f =
-	let inf = (match inf with None -> pass_infos ctx ctx.pass | Some inf -> inf) in
+	let inf,path = (match inf with None -> pass_infos ctx ctx.pass | Some inf -> inf) in
 	(fun v ->
-		debug ctx.com ("run " ^ inf ^ pending_passes ctx);
+		debug ctx.com path ("run " ^ inf ^ pending_passes ctx);
 		let old = !delay_tabs in
 		delay_tabs := !delay_tabs ^ "\t";
 		let t = (try
@@ -855,7 +869,7 @@ let make_pass ?inf ctx f =
 				delay_tabs := old;
 				raise exc
 			| exc when not (Common.raw_defined ctx.com "stack") ->
-				debug ctx.com ("FATAL " ^ Printexc.to_string exc);
+				debug ctx.com path ("FATAL " ^ Printexc.to_string exc);
 				delay_tabs := old;
 				raise exc
 		) in
@@ -882,16 +896,17 @@ let rec flush_pass ctx p where =
 	match ctx.g.debug_delayed with
 	| (p2,_) :: _ when p2 <= p ->
 		let old = !delay_tabs in
-		debug ctx.com ("flush " ^ pass_name p ^ "(" ^ where ^ ")");
+		debug ctx.com (snd where) ("flush " ^ pass_name p ^ "(" ^ (fst where) ^ ")");
 		delay_tabs := !delay_tabs ^ "\t";
 		loop();
 		delay_tabs := old;
-		debug ctx.com "flush-done";
+		debug ctx.com (snd where) "flush-done";
 	| _ ->
 		()
 
 let make_where ctx where =
-	where ^ " (" ^ ctx_pos ctx ^ ")"
+	let inf = ctx_pos ctx in
+	where ^ " (" ^ String.concat "." inf ^ ")",inf
 
 let exc_protect ?(force=true) ctx f (where:string) =
 	let r = ref (lazy_available t_dynamic) in
@@ -907,7 +922,7 @@ let exc_protect ?(force=true) ctx f (where:string) =
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
 
-*/*)
+*)
 (* --------------------------------------------------- *)
 
 
