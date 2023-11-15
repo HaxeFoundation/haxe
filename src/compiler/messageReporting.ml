@@ -99,7 +99,7 @@ let compiler_pretty_message_string com ectx cm =
 				let lines = resolve_source f l1 p1 l2 p2 in
 				let epos = Lexer.get_error_pos error_printer cm.cm_pos in
 				(l1, p1, l2, p2, epos, lines)
-			end with Not_found ->
+			end with Not_found | Sys_error _ ->
 				(1, 1, 1, 1, cm.cm_pos.pfile, [])
 			in
 
