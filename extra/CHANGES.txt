@@ -11,6 +11,7 @@
 
 	all : handle non existing files for positions in pretty errors (#11364)
 	all : metadata support for local static vars
+	all : catch trailing invalid syntax in string interpolation (#10287)
 	eval : fix Array.resize retaining values (#11317)
 	eval/hl : fix catching haxe.ValueException (#11321)
 	hl : make genhl respect Meta.NoExpr (#11257)
@@ -19,6 +20,7 @@
 	hl/c : add bool to reserved keywords (#11293)
 	java/cs: fix stack overflow from closures constraints (#11350)
 	js : DOMElement insertAdjacentElement should not be pure (#11333)
+	macro : catch trailing invalid syntax in Context.parseInlineString (#11368)
 	macro : fix TDAbstract without flags in haxe.macro.Printer
 
 2023-09-01 4.3.2
