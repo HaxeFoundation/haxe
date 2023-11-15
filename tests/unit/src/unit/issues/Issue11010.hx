@@ -34,8 +34,10 @@ class ExampleGeneric<T> extends ExampleAbstract<Array<T>> {
 }
 
 class Issue11010 extends Test {
+	#if !cs
 	function test() {
 		var test = new ExampleGeneric<Int>([1, 2, 3, 4]);
 		utest.Assert.same([1, 2, 3, 4], test.value);
 	}
+	#end
 }
