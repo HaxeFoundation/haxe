@@ -316,7 +316,6 @@ let rec build_generic_class ctx c p tl =
 			) ([],[]) cf_old.cf_params in
 			let gctx = {gctx with subst = param_subst @ gctx.subst} in
 			let cf_new = {cf_old with cf_pos = cf_old.cf_pos; cf_expr_unoptimized = None} in (* copy *)
-			remove_class_field_flag cf_new CfPostProcessed;
 			(* Type parameter constraints are substituted here. *)
 			cf_new.cf_params <- List.rev_map (fun tp -> match follow tp.ttp_type with
 				| TInst({cl_kind = KTypeParameter tl1} as c,_) ->
@@ -326,9 +325,13 @@ let rec build_generic_class ctx c p tl =
 				| _ -> die "" __LOC__
 			) params;
 			let f () =
+				ignore(follow cf_old.cf_type);
+				(* We update here because the follow could resolve some TLazy things that end up modifying flags, such as
+				   the inferred CfOverride from #11010. *)
+				cf_new.cf_flags <- cf_old.cf_flags;
+				remove_class_field_flag cf_new CfPostProcessed;
 				if gctx.generic_debug then print_endline (Printf.sprintf "[GENERIC] expanding %s" cf_old.cf_name);
 				let t = generic_substitute_type gctx cf_old.cf_type in
-				ignore (follow t);
 				begin try (match cf_old.cf_expr with
 					| None ->
 						begin match cf_old.cf_kind with
