@@ -461,14 +461,9 @@ let build_enum_abstract ctx c a fields p =
 
 let resolve_type_import ctx p i =
 	try
-		let res = ctx.m.import_resolution#resolve' i in
-		begin match res.r_kind with
-		| RTypeImport(_,mt) ->
-			let path = t_path mt in
-			snd path :: (List.rev (fst path))
-		| _ ->
-			raise_typing_error "Type path expected" p
-		end
+		let mt,_ = ctx.m.import_resolution#find_type_import i in
+		let path = t_path mt in
+		snd path :: (List.rev (fst path))
 	with Not_found ->
 		[i]
 
