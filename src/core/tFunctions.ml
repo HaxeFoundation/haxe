@@ -506,7 +506,10 @@ let rec follow t =
 		| Some t -> follow t
 		| _ -> t)
 	| TLazy f ->
-		follow (lazy_type f)
+		(match !f with
+		| LAvailable t -> follow t
+		| _ -> follow (lazy_type f)
+		)
 	| TType (t,tl) ->
 		follow (apply_typedef t tl)
 	| TAbstract({a_path = [],"Null"},[t]) ->

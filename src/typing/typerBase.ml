@@ -195,8 +195,8 @@ let type_module_type ctx t p =
 	let rec loop t tparams =
 		match t with
 		| TClassDecl {cl_kind = KGenericBuild _} ->
-			let _,_,f = InstanceBuilder.build_instance ctx t p in
-			let t = f (match tparams with None -> [] | Some tl -> tl) in
+			let info = InstanceBuilder.get_build_info ctx t p in
+			let t = info.build_apply (match tparams with None -> [] | Some tl -> tl) in
 			let mt = try
 				module_type_of_type t
 			with Exit ->

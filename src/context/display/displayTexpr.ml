@@ -90,7 +90,7 @@ let check_display_class ctx decls c =
 		ignore(Typeload.type_type_params ctx TPHType c.cl_path (fun() -> c.cl_params) null_pos sc.d_params);
 		List.iter (function
 			| (HExtends(ct,p) | HImplements(ct,p)) when display_position#enclosed_in p ->
-				ignore(Typeload.load_instance ~allow_display:true ctx (ct,p) false)
+				ignore(Typeload.load_instance ~allow_display:true ctx (ct,p) ParamNormal)
 			| _ ->
 				()
 		) sc.d_flags;
