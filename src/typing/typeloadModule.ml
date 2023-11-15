@@ -837,7 +837,7 @@ let load_module' ctx g m p =
 let load_module ctx m p =
 	let m2 = load_module' ctx ctx.g m p in
 	add_dependency ~skip_postprocess:true ctx.m.curmod m2;
-	if ctx.pass = PTypeField then flush_pass ctx PConnectField "load_module";
+	if ctx.pass = PTypeField then flush_pass ctx PConnectField ("load_module",fst m @ [snd m]);
 	m2
 
 (* let load_module ctx m p =

@@ -94,7 +94,7 @@ let typing_timer ctx need_type f =
 
 	if need_type && ctx.pass < PTypeField then begin
 		ctx.pass <- PTypeField;
-		flush_pass ctx PBuildClass "typing_timer";
+		flush_pass ctx PBuildClass ("typing_timer",[] (* TODO: ? *));
 	end;
 	let exit() =
 		t();
@@ -579,7 +579,7 @@ let make_macro_api ctx mctx p =
 				List.iter (fun path ->
 					ImportHandling.init_using ctx path null_pos
 				) usings;
-				flush_pass ctx PConnectField "with_imports";
+				flush_pass ctx PConnectField ("with_imports",[] (* TODO: ? *));
 				f()
 			in
 			let restore () =

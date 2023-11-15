@@ -861,7 +861,7 @@ let load_core_class ctx c =
 		| _ -> mk_type_path c.cl_path
 	in
 	let t = load_instance ctx2 (tpath,c.cl_pos) ParamSpawnMonos in
-	flush_pass ctx2 PFinal "core_final";
+	flush_pass ctx2 PFinal ("core_final",(fst c.cl_path @ [snd c.cl_path]));
 	match t with
 	| TInst (ccore,_) | TAbstract({a_impl = Some ccore}, _) ->
 		ccore
