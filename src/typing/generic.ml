@@ -395,6 +395,8 @@ let rec build_generic_class ctx c p tl =
 			let n = get_short_name () in
 			cg.cl_meta <- (Meta.Native,[EConst(String (n,SDoubleQuotes)),p],null_pos) :: cg.cl_meta;
 		end;
+		cg.cl_using <- c.cl_using;
+		if gctx.generic_debug then print_endline (Printf.sprintf "[GENERIC] %s" (Printer.s_tclass "  " cg));
 		TInst (cg,[])
 	end
 
