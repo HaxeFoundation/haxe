@@ -12,9 +12,10 @@ type generic_context = {
 	name : string;
 	p : pos;
 	mutable mg : module_def option;
+	generic_debug : bool;
 }
 
-let make_generic ctx ps pt p =
+let make_generic ctx ps pt debug p =
 	let subst s = "_" ^ string_of_int (Char.code (String.get (Str.matched_string s) 0)) ^ "_" in
 	let ident_safe = Str.global_substitute (Str.regexp "[^a-zA-Z0-9_]") subst in
 	let s_type_path_underscore (p,s) = match p with [] -> s | _ -> String.concat "_" p ^ "_" ^ s in
@@ -25,7 +26,7 @@ let make_generic ctx ps pt p =
 					| KExpr e ->
 						let name = ident_safe (Ast.Printer.s_expr e) in
 						let e = type_expr {ctx with locals = PMap.empty} e WithType.value in
-						name,(e.etype,Some e)
+						name,(t,Some e)
 					| _ ->
 						((ident_safe (s_type_path_underscore c.cl_path)) ^ (loop_tl top tl),(t,None))
 				end
@@ -75,22 +76,33 @@ let make_generic ctx ps pt p =
 		name = name;
 		p = p;
 		mg = None;
+		generic_debug = debug;
 	}
 
-let rec generic_substitute_type gctx t =
+let rec generic_substitute_type' gctx allow_expr t =
 	match t with
 	| TInst ({ cl_kind = KGeneric } as c2,tl2) ->
 		(* maybe loop, or generate cascading generics *)
 		let info = gctx.ctx.g.get_build_info gctx.ctx (TClassDecl c2) gctx.p in
-		let t = info.build_apply (List.map (generic_substitute_type gctx) tl2) in
+		let t = info.build_apply (List.map (generic_substitute_type' gctx true) tl2) in
 		(match follow t,gctx.mg with TInst(c,_), Some m -> add_dependency m c.cl_module | _ -> ());
 		t
 	| _ ->
 		try
-			let t,_ = List.assq t gctx.subst in
-			generic_substitute_type gctx t
+			let t,eo = List.assq t gctx.subst in
+			(* Somewhat awkward: If we allow expression types, use the original KExpr one. This is so
+			   recursing into further KGeneric expands correctly. *)
+			begin match eo with
+			| Some e when not allow_expr ->
+				e.etype
+			| _ ->
+				generic_substitute_type' gctx false t
+			end
 		with Not_found ->
-			Type.map (generic_substitute_type gctx) t
+			Type.map (generic_substitute_type' gctx allow_expr) t
+
+let generic_substitute_type gctx t =
+	generic_substitute_type' gctx false t
 
 let generic_substitute_expr gctx e =
 	let vars = Hashtbl.create 0 in
@@ -107,7 +119,7 @@ let generic_substitute_expr gctx e =
 		let e = match e.eexpr with
 		| TField(e1, FInstance({cl_kind = KGeneric} as c,tl,cf)) ->
 			let info = gctx.ctx.g.get_build_info gctx.ctx (TClassDecl c) gctx.p in
-			let t = info.build_apply (List.map (generic_substitute_type gctx) tl) in
+			let t = info.build_apply (List.map (generic_substitute_type' gctx true) tl) in
 			begin match follow t with
 			| TInst(c',_) when c == c' ->
 				(* The @:generic class wasn't expanded, let's not recurse to avoid infinite loop (#6430) *)
@@ -239,7 +251,7 @@ let rec build_generic_class ctx c p tl =
 	if !recurse || not (ctx.com.display.dms_full_typing) then begin
 		TInst (c,tl) (* build a normal instance *)
 	end else begin
-	let gctx = make_generic ctx c.cl_params tl p in
+	let gctx = make_generic ctx c.cl_params tl (Meta.has (Meta.Custom ":debug.generic") c.cl_meta) p in
 	let name = (snd c.cl_path) ^ "_" ^ gctx.name in
 	try
 		let t = Typeload.load_instance ctx (mk_type_path (pack,name),p) ParamNormal in
@@ -248,6 +260,20 @@ let rec build_generic_class ctx c p tl =
 		| _ -> raise_typing_error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p
 	with Error { err_message = Module_not_found path } when path = (pack,name) ->
 		let m = (try ctx.com.module_lut#find (ctx.com.type_to_module#find c.cl_path) with Not_found -> die "" __LOC__) in
+		if gctx.generic_debug then begin
+			print_endline (Printf.sprintf "[GENERIC] Building @:generic class %s as %s with:" (s_type_path c.cl_path) name);
+			List.iter (fun (t1,(t2,eo)) ->
+				let name = match follow t1 with
+					| TInst(c,_) -> snd c.cl_path
+					| _ -> die "" __LOC__
+				in
+				let expr = match eo with
+					| None -> ""
+					| Some e -> Printf.sprintf " (expr: %s)" (s_expr_debug e)
+				in
+				print_endline (Printf.sprintf "[GENERIC]   %s: %s%s" name (s_type_kind t2) expr);
+			) gctx.subst
+		end;
 		ignore(c.cl_build()); (* make sure the super class is already setup *)
 		let mg = {
 			m_id = alloc_mid();
@@ -392,7 +418,7 @@ let type_generic_function ctx fa fcc with_type p =
 		| _ -> ()
 	) monos;
 	let el = fcc.fc_args in
-	let gctx = make_generic ctx cf.cf_params monos p in
+	let gctx = make_generic ctx cf.cf_params monos (Meta.has (Meta.Custom ":debug.generic") cf.cf_meta) p in
 	let fc_type = build_instances ctx fcc.fc_type p in
 	let name = cf.cf_name ^ "_" ^ gctx.name in
 	let unify_existing_field tcf pcf = try
