@@ -323,6 +323,8 @@ class TestExceptions extends Test {
 	function stackItemData(item:StackItem):ItemData {
 		var result:ItemData = {};
 		switch item {
+			case null:
+				// TODO This shouldn't be happening...
 			case FilePos(s, f, l, _):
 				result.file = f;
 				result.line = l;

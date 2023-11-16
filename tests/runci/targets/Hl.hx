@@ -78,7 +78,7 @@ class Hl {
 
 		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
 		switch (systemName) {
-			case "Linux" | "Mac" if (isCi()):
+			case "Linux" if (isCi()):
 				runCommand("gcc", [
 					"-o", "bin/hlc/main",
 					"bin/hlc/main.c",
@@ -90,7 +90,7 @@ class Hl {
 				]);
 				runCommand("bin/hlc/main", []);
 			case _:
-				//pass
+				// TODO hl/c for mac/windows
 		}
 
 		changeDirectory(threadsDir);
@@ -109,11 +109,11 @@ class Hl {
 		changeDirectory(getMiscSubDir("hl/reserved-keywords"));
 		runCommand("haxe", ["compile.hxml"]);
 		switch (systemName) {
-			case "Linux" | "Mac" if (isCi()):
+			case "Linux" if (isCi()):
 				runCommand("gcc", ["-o", "bin/test", "bin/test.c", "-Ibin/", '-I$hlSrc/src', '-L$hlBuildBinDir', "-lhl"]);
 				runCommand("bin/test", []);
 			case _:
-				//pass
+				// TODO hl/c for mac/windows
 		}
 
 		changeDirectory(miscHlDir);

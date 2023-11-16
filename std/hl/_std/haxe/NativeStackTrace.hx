@@ -29,6 +29,9 @@ class NativeStackTrace {
 		var count = callStackRaw(null);
 		var arr = new NativeArray(count);
 		callStackRaw(arr);
+		// This is currently needed to avoid crashes but should probably be removed once
+		// real issue is fixed
+		if (arr.length == 0) return arr;
 		return arr.sub(1, arr.length - 1);
 	}
 
