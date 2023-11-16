@@ -27,7 +27,7 @@ import python.internal.Internal;
 @:native("HxString")
 class StringImpl {
 	@:ifFeature("dynamic_read.split", "anon_optional_read.split", "python.internal.StringImpl.split")
-	public static inline function split(s:String, d:String) {
+	public static inline function split(s:String, d:String):Array<String> {
 		return if (d == "") UBuiltins.list(s) else Syntax.callField(s, "split", d);
 	}
 
@@ -45,11 +45,12 @@ class StringImpl {
 	public static inline function lastIndexOf(s:String, str:String, ?startIndex:Int):Int {
 		if (startIndex == null) {
 			return Syntax.callField(s, "rfind", str, 0, s.length);
-		} else if(str == "") {
+		} else if (str == "") {
 			var length = s.length;
-			if(startIndex < 0) {
+			if (startIndex < 0) {
 				startIndex = length + startIndex;
-				if(startIndex < 0) startIndex = 0;
+				if (startIndex < 0)
+					startIndex = 0;
 			}
 			return startIndex > length ? length : startIndex;
 		} else {
@@ -83,11 +84,12 @@ class StringImpl {
 	}
 
 	static function indexOfImpl(s:String, str:String, startIndex:Int) {
-		if(str == "") {
+		if (str == "") {
 			var length = s.length;
-			if(startIndex < 0) {
+			if (startIndex < 0) {
 				startIndex = length + startIndex;
-				if(startIndex < 0) startIndex = 0;
+				if (startIndex < 0)
+					startIndex = 0;
 			}
 			return startIndex > length ? length : startIndex;
 		}

@@ -61,7 +61,7 @@ private class SqliteConnection implements Connection {
 			s.add(quote(Std.string(v)));
 	}
 
-	public function lastInsertId() {
+	public function lastInsertId():Int {
 		return _last_id(c);
 	}
 
@@ -175,7 +175,7 @@ private class SqliteResultSet implements ResultSet {
 	}
 
 	public function getFieldsNames():Array<String> {
-		if(hasNext()) {
+		if (hasNext()) {
 			return switch cache.first() {
 				case null: null;
 				case row: Reflect.fields(row);
