@@ -869,7 +869,7 @@ module TypeBinding = struct
 			(* type constant init fields (issue #1956) *)
 			if not !return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				r := lazy_processing (fun() -> t);
-				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
+				if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing field %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
 					| TConst _ | TLocal _ | TFunction _ -> e
@@ -946,7 +946,7 @@ module TypeBinding = struct
 		let bind r =
 			r := lazy_processing (fun() -> t);
 			incr stats.s_methods_typed;
-			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
+			if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing method %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 			let fmode = (match cctx.abstract with
 				| Some _ ->
 					if fctx.is_abstract_member then FunMemberAbstract else FunStatic

@@ -53,7 +53,6 @@ let parse_file_from_lexbuf com file p lexbuf =
 			()
 	end;
 	t();
-	Common.log com ("Parsed " ^ file);
 	parse_result
 
 let parse_file_from_string com file p string =

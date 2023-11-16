@@ -806,12 +806,10 @@ let load_macro' ctx display cpath f p =
 	fst (load_macro'' ctx.com (get_macro_context ctx) display cpath f p)
 
 let do_call_macro com api cpath f args p =
-	if com.verbose then Common.log com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
 	let t = macro_timer com ["execution";s_type_path cpath ^ "." ^ f] in
 	incr stats.s_macros_called;
 	let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) f args api in
 	t();
-	if com.verbose then Common.log com ("Exiting macro " ^ s_type_path cpath ^ "." ^ f);
 	r
 
 let load_macro ctx com mctx api display cpath f p =
