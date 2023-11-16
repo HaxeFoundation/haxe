@@ -79,9 +79,8 @@ class Hl {
 		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
 		switch (systemName) {
 			case "Linux" | "Mac" if (isCi()):
-				// TODO: uncomment after fixing unit tests for hl/c
-				// runCommand("gcc", ["-o", "bin/hlc/main", "bin/hlc/main.c", "-Ibin/hlc/", '-I$hlSrc/src', '-L$hlBuildBinDir', "-luv", "-lhl"]);
-				// runCommand("bin/hlc/main", []);
+				runCommand("gcc", ["-o", "bin/hlc/main", "bin/hlc/main.c", "-Ibin/hlc/", '-I$hlSrc/src', '-L$hlBuildBinDir', "-lhl"]);
+				runCommand("bin/hlc/main", []);
 			case _:
 				//pass
 		}
