@@ -432,6 +432,10 @@ type context = {
 	memory_marker : float array;
 }
 
+let enter_stage com stage =
+	(* print_endline (Printf.sprintf "Entering stage %s" (s_compiler_stage stage)); *)
+	com.stage <- stage
+
 exception Abort of Error.error
 
 let ignore_error com =
