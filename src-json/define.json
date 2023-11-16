@@ -287,6 +287,13 @@
 		"params": ["name"]
 	},
 	{
+		"name": "Hlc",
+		"define": "hlc",
+		"doc": "Generate C code instead of hl/jit file.",
+		"platforms": ["hl"],
+		"reserved": true
+	},
+	{
 		"name": "HlVer",
 		"define": "hl-ver",
 		"doc": "The HashLink version to target. (default: 1.10.0)",
