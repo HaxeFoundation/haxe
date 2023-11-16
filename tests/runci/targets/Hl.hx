@@ -85,6 +85,7 @@ class Hl {
 					"-Ibin/hlc/",
 					'-I$hlSrc/src',
 					'$hlBuildBinDir/fmt.hdll',
+					'$hlBuildBinDir/ssl.hdll',
 					"-lm",
 					'-L$hlBuildBinDir', "-lhl"
 				]);
