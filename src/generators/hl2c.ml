@@ -91,8 +91,7 @@ let keywords =
 	(* Values *)
 	"NULL";"true";"false";
 	(* MS specific *)
-	"__asm";"dllimport2";"__int8";"naked2";"__based1";"__except";"__int16";"__stdcall";"__cdecl";"__fastcall";"__int32";
-	"thread2";"__declspec";"__finally";"__int64";"__try";"dllexport2";"__inline";"__leave";"asm";
+	"asm";"dllimport2";"dllexport2";"naked2";"thread2";
 	(* reserved by HLC *)
 	"t";
 	(* GCC *)
@@ -105,7 +104,7 @@ let keywords =
 	List.iter (fun i -> Hashtbl.add h i ()) c_kwds;
 	h
 
-let ident i = if Hashtbl.mem keywords i then "_" ^ i else i
+let ident i = if (Hashtbl.mem keywords i) || (ExtString.String.starts_with "__" i) then "_hx_" ^ i else i
 
 let s_comp = function
 	| CLt -> "<"
@@ -122,7 +121,7 @@ let core_types =
 
 let tname str =
 	let n = String.concat "__" (ExtString.String.nsplit str ".") in
-	if Hashtbl.mem keywords ("_" ^ n) then "__" ^ n else n
+	ident n
 
 let is_gc_ptr = function
 	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ | HPacked _ -> false
@@ -844,7 +843,10 @@ let generate_function ctx f =
 		| OSShr (r,a,b) ->
 			sexpr "%s = %s >> %s" (reg r) (reg a) (reg b)
 		| OUShr (r,a,b) ->
-			sexpr "%s = ((unsigned)%s) >> %s" (reg r) (reg a) (reg b)
+			(match rtype r with
+			| HI64 -> sexpr "%s = ((uint64_t)%s) >> %s" (reg r) (reg a) (reg b)
+			| _ -> sexpr "%s = ((unsigned)%s) >> %s" (reg r) (reg a) (reg b)
+			);
 		| OAnd (r,a,b) ->
 			sexpr "%s = %s & %s" (reg r) (reg a) (reg b)
 		| OOr (r,a,b) ->
