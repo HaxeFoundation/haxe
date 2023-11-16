@@ -289,7 +289,7 @@
 	{
 		"name": "Hlc",
 		"define": "hlc",
-		"doc": "Generate C code instead of hl/jit file.",
+		"doc": "Defined by compiler when using hl/c target.",
 		"platforms": ["hl"],
 		"reserved": true
 	},
