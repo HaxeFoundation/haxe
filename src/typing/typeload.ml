@@ -492,8 +492,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		) tl in
 		let tr = Monomorph.create() in
 		let t = TMono tr in
-		let r = exc_protect ctx (fun r ->
-			r := lazy_processing (fun() -> t);
+		let r = make_lazy ctx t (fun r ->
 			let ta = make_extension_type ctx tl in
 			Monomorph.bind tr ta;
 			ta
@@ -534,8 +533,7 @@ and load_complex_type' ctx allow_display (t,p) =
 			) tl in
 			let tr = Monomorph.create() in
 			let t = TMono tr in
-			let r = exc_protect ctx (fun r ->
-				r := lazy_processing (fun() -> t);
+			let r = make_lazy ctx t (fun r ->
 				Monomorph.bind tr (match il with
 					| [i] ->
 						mk_extension i
@@ -787,8 +785,7 @@ let rec type_type_param ctx host path get_params p tp =
 		| None ->
 			None
 		| Some ct ->
-			let r = exc_protect ctx (fun r ->
-				r := lazy_processing (fun() -> t);
+			let r = make_lazy ctx t (fun r ->
 				let t = load_complex_type ctx true ct in
 				begin match host with
 				| TPHType ->
@@ -806,8 +803,7 @@ let rec type_type_param ctx host path get_params p tp =
 	| None ->
 		mk_type_param n t default
 	| Some th ->
-		let r = exc_protect ctx (fun r ->
-			r := lazy_processing (fun() -> t);
+		let r = make_lazy ctx t (fun r ->
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
 			let rec loop th = match fst th with
 				| CTIntersection tl -> List.map (load_complex_type ctx true) tl

@@ -462,10 +462,11 @@ let make_pass ctx f = f
 let init_class_done ctx =
 	ctx.pass <- PTypeField
 
-let exc_protect ?(force=true) ctx f where =
+let make_lazy ?(force=true) ctx t_proc f where =
 	let r = ref (lazy_available t_dynamic) in
 	r := lazy_wait (fun() ->
 		try
+			r := lazy_processing (fun() -> t_proc);
 			let t = f r in
 			r := lazy_available t;
 			t
@@ -930,10 +931,11 @@ let make_where ctx where =
 	let inf = ctx_pos ctx in
 	where ^ " (" ^ String.concat "." inf ^ ")",inf
 
-let exc_protect ?(force=true) ctx f (where:string) =
+let make_lazy ?(force=true) ctx t f (where:string) =
 	let r = ref (lazy_available t_dynamic) in
 	r := lazy_wait (make_pass ~inf:(make_where ctx where) ctx (fun() ->
 		try
+			r := lazy_processing (fun () -> t);
 			let t = f r in
 			r := lazy_available t;
 			t

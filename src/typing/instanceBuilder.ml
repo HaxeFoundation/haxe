@@ -73,9 +73,8 @@ let get_build_info ctx mtype p =
 	| TClassDecl c ->
 		if ctx.pass > PBuildClass then ignore(c.cl_build());
 		let build f s tl =
-			let r = exc_protect ctx (fun r ->
-				let t = spawn_monomorph ctx p in
-				r := lazy_processing (fun() -> t);
+			let t = spawn_monomorph ctx p in
+			let r = make_lazy ctx t (fun r ->
 				let tf = f tl in
 				unify_raise tf t p;
 				link_dynamic t tf;
