@@ -133,6 +133,16 @@ class System {
 		}
 	}
 
+	static public function addToLIBPATH(path:String):Void {
+		infoMsg('Prepending $path to LD_LIBRARY_PATH.');
+		switch (systemName) {
+			case "Windows":
+				Sys.putEnv("LD_LIBRARY_PATH", path + ";" + Sys.getEnv("LD_LIBRARY_PATH"));
+			case "Mac", "Linux":
+				Sys.putEnv("LD_LIBRARY_PATH", path + ":" + Sys.getEnv("LD_LIBRARY_PATH"));
+		}
+	}
+
 	static function isLibraryInstalled(library:String):Bool {
 		return new Process("haxelib", ["path", library]).exitCode() == 0;
 	}

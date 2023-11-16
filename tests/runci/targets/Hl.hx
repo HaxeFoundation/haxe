@@ -65,6 +65,7 @@ class Hl {
 
 		runCommand(hlBinary, ["--version"]);
 		addToPATH(hlBuildBinDir);
+		addToLIBPATH(hlBuildBinDir);
 
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
 	}
@@ -73,8 +74,17 @@ class Hl {
 		getHlDependencies();
 
 		runCommand("haxe", ["compile-hl.hxml"].concat(args));
-		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
 		runCommand(hlBinary, ["bin/unit.hl"]);
+
+		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
+		switch (systemName) {
+			case "Linux" | "Mac" if (isCi()):
+				// TODO: uncomment after fixing unit tests for hl/c
+				// runCommand("gcc", ["-o", "bin/hlc/main", "bin/hlc/main.c", "-Ibin/hlc/", '-I$hlSrc/src', '-L$hlBuildBinDir', "-luv", "-lhl"]);
+				// runCommand("bin/hlc/main", []);
+			case _:
+				//pass
+		}
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "-hl", "export/threads.hl"]);
@@ -88,6 +98,16 @@ class Hl {
 		runCommand("haxe", ["build-hl.hxml"]);
 		// TODO: check output like misc tests do
 		runCommand(hlBinary, ["eventLoop.hl"]);
+
+		changeDirectory(getMiscSubDir("hl/reserved-keywords"));
+		runCommand("haxe", ["compile.hxml"]);
+		switch (systemName) {
+			case "Linux" | "Mac" if (isCi()):
+				runCommand("gcc", ["-o", "bin/test", "bin/test.c", "-Ibin/", '-I$hlSrc/src', '-L$hlBuildBinDir', "-lhl"]);
+				runCommand("bin/test", []);
+			case _:
+				//pass
+		}
 
 		changeDirectory(miscHlDir);
 		runCommand("haxe", ["run.hxml"]);
