@@ -956,15 +956,25 @@ module TypeBinding = struct
 					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
 					| _ -> ()
 					end;
-					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
-					(* List.iter (fun (v,_) ->
-						if v.v_name <> "_" && has_mono v.v_type then warning ctx WTemp "Uninferred function argument, please add a type-hint" v.v_pos;
-					) fargs; *)
 					let tf = {
 						tf_args = args#for_expr;
 						tf_type = ret;
 						tf_expr = e;
 					} in
+					let make_mono_dynamic in_ret t =
+						let rec loop in_ret t = match t with
+							| TMono ({tm_type = None} as mono) ->
+								Monomorph.do_bind mono (if in_ret then ctx.t.tvoid else t_dynamic);
+							| TFun(tl,tr) ->
+								List.iter (fun (_,_,t) -> loop false t) tl;
+								loop true tr
+							| _ ->
+								TFunctions.iter (loop false) t
+						in
+						loop in_ret t
+					in
+					make_mono_dynamic true ret;
+					List.iter (fun (v,_) -> make_mono_dynamic false v.v_type) tf.tf_args;
 					if fctx.field_kind = FKInit then
 						(match e.eexpr with
 						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
@@ -1042,9 +1052,9 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		fctx.expr_presence_matters <- true;
 	end in
 	let handle_from () =
+		(* the return type of a from-function must be the abstract, not the underlying type *)
+		if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> raise_typing_error_ext (make_error (Unify l) p));
 		let r = make_lazy ctx t (fun r ->
-			(* the return type of a from-function must be the abstract, not the underlying type *)
-			if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> raise_typing_error_ext (make_error (Unify l) p));
 			match t with
 				| TFun([_,_,t],_) -> t
 				| TFun([(_,_,t1);(_,true,t2)],_) when is_pos_infos t2 -> t1

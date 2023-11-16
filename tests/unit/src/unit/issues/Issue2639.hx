@@ -1,4 +1,5 @@
 package unit.issues;
+
 import unit.Test;
 
 typedef Measurable = {
@@ -6,9 +7,11 @@ typedef Measurable = {
 }
 
 private abstract A<T>(Int) {
-	public function new(i) this = i;
+	public function new(i)
+		this = i;
+
 	@:from static public inline function fromT<T:Measurable>(t:T) {
-		return new A(t.length);
+		return new A<T>(t.length);
 	}
 
 	public function get() {

@@ -1520,6 +1520,12 @@ and type_return ?(implicit=false) ctx e with_type p =
 						mk (TReturn None) t p
 					]) t e.epos;
 				| _ ->
+					begin match follow ctx.ret with
+					| TMono m when follow e.etype == t_dynamic ->
+						Monomorph.do_bind m t_dynamic
+					| _ ->
+						()
+					end;
 					mk (TReturn (Some e)) (mono_or_dynamic ctx with_type p) p
 		with Error err ->
 			let p = err.err_pos in

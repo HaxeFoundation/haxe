@@ -281,7 +281,7 @@ interface PropertyInterface {
 }
 
 class PropertyAccessorsFromBaseClass {
-	public function get_x()
+	public function get_x():String
 		return throw "must not set";
 
 	public function set_x(x:String)
