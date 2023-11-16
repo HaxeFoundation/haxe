@@ -83,7 +83,7 @@ and tmono_constraint_kind =
 
 and tlazy =
 	| LAvailable of t
-	| LProcessing of (unit -> t)
+	| LProcessing of t
 	| LWait of (unit -> t)
 
 and tsignature = (string * bool * t) list * t

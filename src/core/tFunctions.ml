@@ -271,11 +271,11 @@ let add_descendant c descendant =
 
 let lazy_type f =
 	match !f with
-	| LAvailable t -> t
-	| LProcessing f | LWait f -> f()
+	| LAvailable t | LProcessing t -> t
+	| LWait f -> f()
 
 let lazy_available t = LAvailable t
-let lazy_processing f = LProcessing f
+let lazy_processing t = LProcessing t
 let lazy_wait f = LWait f
 
 let map loop t =
