@@ -27,7 +27,7 @@ type platform =
 	| Hl
 	| Eval
 
-let version = 4302
+let version = 4303
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
