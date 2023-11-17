@@ -332,20 +332,28 @@ let rec build_generic_class ctx c p tl =
 				remove_class_field_flag cf_new CfPostProcessed;
 				if gctx.generic_debug then print_endline (Printf.sprintf "[GENERIC] expanding %s" cf_old.cf_name);
 				let t = generic_substitute_type gctx cf_old.cf_type in
-				begin try (match cf_old.cf_expr with
-					| None ->
-						begin match cf_old.cf_kind with
-							| Method _ when not (has_class_flag c CInterface) && not (has_class_flag c CExtern) && not (has_class_field_flag cf_old CfAbstract) ->
-								(* TODO use sub error *)
-								display_error ctx.com (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name) cf_new.cf_pos;
-								display_error ctx.com (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
-							| _ ->
-								()
-						end
+				let update_expr e =
+					cf_new.cf_expr <- Some (generic_substitute_expr gctx e)
+				in
+				begin match cf_old.cf_expr with
 					| Some e ->
-						cf_new.cf_expr <- Some (generic_substitute_expr gctx e)
-				) with Unify_error l ->
-					raise_typing_error (error_msg (Unify l)) cf_new.cf_pos
+						update_expr e
+					| None ->
+						(* There can be cases like #11152 where cf_expr isn't ready yet. It should be safe to delay this to the end
+						   of the PTypeField pass. *)
+						delay_late ctx PTypeField (fun () -> match cf_old.cf_expr with
+							| Some e ->
+								update_expr e
+							| None ->
+								begin match cf_old.cf_kind with
+									| Method _ when not (has_class_flag c CInterface) && not (has_class_flag c CExtern) && not (has_class_field_flag cf_old CfAbstract) ->
+										(* TODO use sub error *)
+										display_error ctx.com (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name) cf_new.cf_pos;
+										display_error ctx.com (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
+									| _ ->
+										()
+								end
+						);
 				end;
 				if gctx.generic_debug then print_endline (Printf.sprintf "[GENERIC] %s" (Printer.s_tclass_field "  " cf_new));
 				t
