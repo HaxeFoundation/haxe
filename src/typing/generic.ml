@@ -231,7 +231,7 @@ let build_instances ctx t p =
 	loop t
 
 
-let rec build_generic_class ctx c p tl =
+let build_generic_class ctx c p tl =
 	let pack = fst c.cl_path in
 	let recurse = ref false in
 	let rec check_recursive t =
