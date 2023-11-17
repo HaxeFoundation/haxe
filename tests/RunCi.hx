@@ -21,12 +21,6 @@ class RunCi {
 
 		infoMsg('Going to test: $tests');
 
-		if (isCi()) {
-			changeDirectory('echoServer');
-			runCommand('haxe', ['build.hxml']);
-			changeDirectory(cwd);
-		}
-
 		final downloadPath = getDownloadPath();
 		if (!sys.FileSystem.exists(downloadPath))
 			sys.FileSystem.createDirectory(downloadPath);
@@ -39,9 +33,6 @@ class RunCi {
 				case _:
 					//pass
 			}
-
-			//run neko-based http echo server
-			var echoServer = new sys.io.Process('nekotools', ['server', '-d', 'echoServer/www/', '-p', '20200']);
 
 			infoMsg('test $test');
 			try {
@@ -91,9 +82,6 @@ class RunCi {
 			}
 
 			successMsg('test ${test} succeeded');
-
-			echoServer.kill();
-			echoServer.close();
 		}
 
 		deploy();
