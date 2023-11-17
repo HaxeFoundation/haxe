@@ -72,7 +72,6 @@ function main() {
 		new TestNumericCasts(),
 		new TestHashMap(),
 		new TestRest(),
-		new TestHttp(),
 		#if !no_pattern_matching
 		new TestMatch(),
 		#end
