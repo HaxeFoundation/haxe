@@ -532,7 +532,6 @@ module Inheritance = struct
 			| HImplements t -> Some(false,t)
 			| t -> None
 		) herits in
-		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
 		(* Pass 1: Check and set relations *)
 		let check_herit t is_extends p =
 			let rec check_interfaces_or_delay () =
