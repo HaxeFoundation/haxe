@@ -884,6 +884,7 @@ and type_object_decl ctx fl with_type p =
 		let t, fl = type_fields a.a_fields in
 		mk (TObjectDecl fl) t p
 	| ODKWithClass (c,tl) ->
+		no_abstract_constructor c p;
 		let fa = FieldAccess.get_constructor_access c tl p in
 		let ctor = fa.fa_field in
 		let args = match follow (FieldAccess.get_map_function fa ctor.cf_type) with
