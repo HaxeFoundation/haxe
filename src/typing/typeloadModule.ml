@@ -583,8 +583,7 @@ module TypeLevel = struct
 					| _ ->
 						()
 				in
-				let r = exc_protect ctx (fun r ->
-					r := lazy_processing (fun() -> tt);
+				let r = make_lazy ctx tt (fun r ->
 					check_rec tt;
 					tt
 				) "typedef_rec_check" in
@@ -615,8 +614,7 @@ module TypeLevel = struct
 			let t = load_complex_type ctx true t in
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
-					let r = exc_protect ctx (fun r ->
-						r := lazy_processing (fun() -> t);
+					let r = make_lazy ctx t (fun r ->
 						(try (if from then Type.unify t a.a_this else Type.unify a.a_this t) with Unify_error _ -> raise_typing_error "You can only declare from/to with compatible types" pos);
 						t
 					) "constraint" in
@@ -772,7 +770,7 @@ let type_types_into_module ctx m tdecls p =
 	if ctx.g.std != null_module then begin
 		add_dependency m ctx.g.std;
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
-		ignore(load_instance ctx (mk_type_path (["std"],"String"),null_pos) false)
+		ignore(load_instance ctx (mk_type_path (["std"],"String"),null_pos) ParamNormal)
 	end;
 	ModuleLevel.init_type_params ctx decls;
 	(* setup module types *)
@@ -838,7 +836,7 @@ let load_module' ctx g m p =
 let load_module ctx m p =
 	let m2 = load_module' ctx ctx.g m p in
 	add_dependency ~skip_postprocess:true ctx.m.curmod m2;
-	if ctx.pass = PTypeField then flush_pass ctx PConnectField "load_module";
+	if ctx.pass = PTypeField then flush_pass ctx PConnectField ("load_module",fst m @ [snd m]);
 	m2
 
 (* let load_module ctx m p =

@@ -192,22 +192,7 @@ let rec acc_get ctx g =
 		else acc_get ctx acc;
 	| AKExpr e -> e
 	| AKSafeNav sn ->
-		(* generate null-check branching for the safe navigation chain *)
-		let eobj = sn.sn_base in
-		let enull = Builder.make_null eobj.etype sn.sn_pos in
-		let eneq = Builder.binop OpNotEq eobj enull ctx.t.tbool sn.sn_pos in
-		let ethen = acc_get ctx sn.sn_access in
-		let tnull = ctx.t.tnull ethen.etype in
-		let ethen = if not (is_nullable ethen.etype) then
-			mk (TCast(ethen,None)) tnull ethen.epos
-		else
-			ethen
-		in
-		let eelse = Builder.make_null tnull sn.sn_pos in
-		let eif = mk (TIf(eneq,ethen,Some eelse)) tnull sn.sn_pos in
-		(match sn.sn_temp_var with
-		| None -> eif
-		| Some evar -> { eif with eexpr = TBlock [evar; eif] })
+		safe_nav_branch ctx sn (fun () -> acc_get ctx sn.sn_access)
 	| AKAccess _ -> die "" __LOC__
 	| AKResolve(sea,name) ->
 		(dispatcher sea.se_access.fa_pos)#resolve_call sea name

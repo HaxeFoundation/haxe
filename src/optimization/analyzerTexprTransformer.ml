@@ -111,7 +111,7 @@ let rec func ctx bb tf t p =
 			block_element bb e,e1
 		| TBlock [e1] ->
 			value bb e1
-		| TBlock _ | TIf _ | TSwitch _ | TTry _ ->
+		| TBlock _ | TIf(_,_,Some _) | TSwitch _ | TTry _ ->
 			bind_to_temp bb e
 		| TCall({eexpr = TIdent s},el) when is_really_unbound s ->
 			check_unbound_call s el;
@@ -187,7 +187,7 @@ let rec func ctx bb tf t p =
 		| TThrow _ | TReturn _ | TBreak | TContinue ->
 			let bb = block_element bb e in
 			bb,mk (TConst TNull) t_dynamic e.epos
-		| TVar _ | TFor _ | TWhile _ ->
+		| TVar _ | TFor _ | TWhile _ | TIf _ ->
 			Error.raise_typing_error "Cannot use this expression as value" e.epos
 	and value bb e =
 		let bb,e = value' bb e in

@@ -275,13 +275,13 @@ let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
 	let t = Timer.timer ["typing"] in
 	let cs = com.cs in
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
-	com.stage <- CInitMacrosStart;
+	enter_stage com CInitMacrosStart;
 	ServerMessage.compiler_stage com;
 
 	let mctx = List.fold_left (fun mctx path ->
 		Some (MacroContext.call_init_macro ctx.com mctx path)
 	) mctx (List.rev actx.config_macros) in
-	com.stage <- CInitMacrosDone;
+	enter_stage com CInitMacrosDone;
 	ServerMessage.compiler_stage com;
 	MacroContext.macro_enable_cache := macro_cache_enabled;
 
@@ -301,7 +301,7 @@ let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
 	end with TypeloadParse.DisplayInMacroBlock ->
 		ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true)
 	);
-	com.stage <- CTypingDone;
+	enter_stage com CTypingDone;
 	ServerMessage.compiler_stage com;
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		identifier we are interested in. We then type only those modules that contain the identifier. *)
@@ -315,7 +315,7 @@ let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
 let finalize_typing ctx tctx =
 	let t = Timer.timer ["finalize"] in
 	let com = ctx.com in
-	com.stage <- CFilteringStart;
+	enter_stage com CFilteringStart;
 	ServerMessage.compiler_stage com;
 	let main, types, modules = run_or_diagnose ctx Finalization.generate tctx in
 	com.main <- main;
@@ -354,7 +354,7 @@ let compile ctx actx callbacks =
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
 	t();
-	com.stage <- CInitialized;
+	enter_stage com CInitialized;
 	ServerMessage.compiler_stage com;
 	if actx.classes = [([],"Std")] && not actx.force_typing then begin
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
@@ -367,10 +367,10 @@ let compile ctx actx callbacks =
 		filter ctx tctx;
 		if ctx.has_error then raise Abort;
 		Generate.check_auxiliary_output com actx;
-		com.stage <- CGenerationStart;
+		enter_stage com CGenerationStart;
 		ServerMessage.compiler_stage com;
 		if not actx.no_output then Generate.generate ctx tctx ext actx;
-		com.stage <- CGenerationDone;
+		enter_stage com CGenerationDone;
 		ServerMessage.compiler_stage com;
 	end;
 	Sys.catch_break false;
@@ -407,8 +407,6 @@ with
 		end
 	| Error.Error err ->
 		error_ext ctx err
-	| Generic.Generic_Exception(m,p) ->
-		error ctx m p
 	| Arg.Bad msg ->
 		error ctx ("Error: " ^ msg) null_pos
 	| Failure msg when not Helper.is_debug_run ->
@@ -541,14 +539,13 @@ module HighLevel = struct
 			lines
 
 	(* Returns a list of contexts, but doesn't do anything yet *)
-	let process_params server_api create each_params has_display is_server pl =
-		let curdir = Unix.getcwd () in
+	let process_params server_api create each_args has_display is_server args =
+		(* We want the loop below to actually see all the --each params, so let's prepend them *)
+		let args = !each_args @ args in
 		let added_libs = Hashtbl.create 0 in
 		let server_mode = ref SMNone in
 		let create_context args =
 			let ctx = create (server_api.on_context_create()) args in
-			(* --cwd triggers immediately, so let's reset *)
-			Unix.chdir curdir;
 			ctx
 		in
 		let rec find_subsequent_libs acc args = match args with
@@ -559,16 +556,16 @@ module HighLevel = struct
 		in
 		let rec loop acc = function
 			| [] ->
-				[],Some (create_context (!each_params @ (List.rev acc)))
+				[],Some (create_context (List.rev acc))
 			| "--next" :: l when acc = [] -> (* skip empty --next *)
 				loop [] l
 			| "--next" :: l ->
-				let ctx = create_context (!each_params @ (List.rev acc)) in
+				let ctx = create_context (List.rev acc) in
 				ctx.has_next <- true;
 				l,Some ctx
 			| "--each" :: l ->
-				each_params := List.rev acc;
-				loop [] l
+				each_args := List.rev acc;
+				loop acc l
 			| "--cwd" :: dir :: l | "-C" :: dir :: l ->
 				(* we need to change it immediately since it will affect hxml loading *)
 				(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
@@ -591,14 +588,14 @@ module HighLevel = struct
 				loop acc l
 			| "--run" :: cl :: args ->
 				let acc = cl :: "-x" :: acc in
-				let ctx = create_context (!each_params @ (List.rev acc)) in
+				let ctx = create_context (List.rev acc) in
 				ctx.com.sys_args <- args;
 				[],Some ctx
 			| ("-L" | "--library" | "-lib") :: name :: args ->
 				let libs,args = find_subsequent_libs [name] args in
 				let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) libs in
 				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
-				let lines = add_libs libs pl server_api.cache has_display in
+				let lines = add_libs libs args server_api.cache has_display in
 				loop acc (lines @ args)
 			| ("--jvm" | "--java" | "-java" as arg) :: dir :: args ->
 				loop_lib arg dir "hxjava" acc args
@@ -614,7 +611,7 @@ module HighLevel = struct
 		and loop_lib arg dir lib acc args =
 			loop (dir :: arg :: acc) ("-lib" :: lib :: args)
 		in
-		let args,ctx = loop [] pl in
+		let args,ctx = loop [] args in
 		args,!server_mode,ctx
 
 	let execute_ctx server_api ctx server_mode =
@@ -642,6 +639,7 @@ module HighLevel = struct
 	let entry server_api comm args =
 		let create = create_context comm server_api.cache in
 		let each_args = ref [] in
+		let curdir = Unix.getcwd () in
 		let has_display = ref false in
 		(* put --display in front if it was last parameter *)
 		let args = match List.rev args with
@@ -661,14 +659,18 @@ module HighLevel = struct
 			in
 			let code = match ctx with
 				| Some ctx ->
+					(* Need chdir here because --cwd is eagerly applied in process_params *)
+					Unix.chdir curdir;
 					execute_ctx server_api ctx server_mode
 				| None ->
 					(* caused by --connect *)
 					0
 			in
-			if code = 0 && args <> [] && not !has_display then
+			if code = 0 && args <> [] && not !has_display then begin
+				(* We have to chdir here again because any --cwd also takes effect in execute_ctx *)
+				Unix.chdir curdir;
 				loop args
-			else
+			end else
 				code
 		in
 		let code = loop args in

@@ -4280,7 +4280,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       | OpBoolOr -> "||"
       | OpShl -> "<<"
       | OpShr -> ">>"
-      | OpUShr -> "<<<"
+      | OpUShr -> ">>>"
       | OpMod -> "%"
       | OpInterval -> "..."
       | OpArrow -> "->"

@@ -309,10 +309,16 @@ let unify_field_call ctx fa el_typed el p inline =
 		| t ->
 			raise_typing_error (s_type (print_context()) t ^ " cannot be called") p
 	in
-	let maybe_raise_unknown_ident err =
+	let unknown_ident_error = ref None in
+	let remember_unknown_ident_error =
+		fun err -> match !unknown_ident_error with
+			| None -> unknown_ident_error := Some err
+			| Some _ -> ()
+	in
+	let check_unknown_ident err =
 		let rec loop err =
 			match err.err_message with
-			| Call_error (Could_not_unify Unknown_ident _) | Unknown_ident _ -> raise_typing_error_ext err
+			| Call_error (Could_not_unify Unknown_ident _) | Unknown_ident _ -> remember_unknown_ident_error err
 			| _ -> List.iter loop err.err_sub
 		in
 		loop err
@@ -339,7 +345,7 @@ let unify_field_call ctx fa el_typed el p inline =
 						if constr != m.tm_down_constraints then m.tm_down_constraints <- constr;
 					) known_monos;
 					ctx.monomorphs.perfunction <- current_monos;
-					maybe_raise_unknown_ident err;
+					check_unknown_ident err;
 					let candidates,failures = loop candidates in
 					candidates,(cf,err,extract_delayed_display()) :: failures
 				end
@@ -386,17 +392,21 @@ let unify_field_call ctx fa el_typed el p inline =
 			| [_,err] ->
 				raise_typing_error_ext err
 			| _ ->
-				let sub = List.fold_left (fun acc (cf,err) ->
-					(make_error
-						~depth:1 (* pretty much optional here *)
-						~sub:[err]
-						(Custom ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)))
-						p
-					) :: acc
-				) [] failures in
+				match !unknown_ident_error with
+				| None ->
+					let sub = List.fold_left (fun acc (cf,err) ->
+						(make_error
+							~depth:1 (* pretty much optional here *)
+							~sub:[err]
+							(Custom ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)))
+							p
+						) :: acc
+					) [] failures in
 
-				display_error_ext ctx.com (make_error ~sub (Custom "Could not find a suitable overload, reasons follow") p);
-				raise_typing_error_ext (make_error ~depth:1 (Custom "End of overload failure reasons") p)
+					display_error_ext ctx.com (make_error ~sub (Custom "Could not find a suitable overload, reasons follow") p);
+					raise_typing_error_ext (make_error ~depth:1 (Custom "End of overload failure reasons") p)
+				| Some err ->
+					raise_typing_error_ext err
 			end
 		in
 		if overload_kind = OverloadProper then begin match Overloads.Resolution.reduce_compatible candidates with

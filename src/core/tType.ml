@@ -83,7 +83,7 @@ and tmono_constraint_kind =
 
 and tlazy =
 	| LAvailable of t
-	| LProcessing of (unit -> t)
+	| LProcessing of t
 	| LWait of (unit -> t)
 
 and tsignature = (string * bool * t) list * t * bool (* true = coroutine *)
@@ -461,7 +461,7 @@ type flag_tclass_field =
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed"
 ]
 
 type flag_tvar =

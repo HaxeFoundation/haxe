@@ -721,7 +721,7 @@ let destruction tctx detail_times main locals =
 			check_remove_metadata t;
 		) com.types;
 	);
-	com.stage <- CDceStart;
+	enter_stage com CDceStart;
 	with_timer detail_times "dce" None (fun () ->
 		(* DCE *)
 		let dce_mode = try Common.defined_value com Define.Dce with _ -> "no" in
@@ -733,7 +733,7 @@ let destruction tctx detail_times main locals =
 		in
 		Dce.run com main dce_mode;
 	);
-	com.stage <- CDceDone;
+	enter_stage com CDceDone;
 	(* PASS 3: type filters post-DCE *)
 	List.iter
 		(run_expression_filters
@@ -772,7 +772,7 @@ let destruction tctx detail_times main locals =
 		) com.types;
 	);
 	com.callbacks#run com.error_ext com.callbacks#get_after_filters;
-	com.stage <- CFilteringDone
+	enter_stage com CFilteringDone
 
 let update_cache_dependencies com t =
 	let visited_anons = ref [] in
@@ -994,9 +994,9 @@ let run tctx main =
 	with_timer detail_times "type 1" None (fun () ->
 		List.iter (fun f -> List.iter f new_types) filters;
 	);
-	com.stage <- CAnalyzerStart;
+	enter_stage com CAnalyzerStart;
 	if com.platform <> Cross then Analyzer.Run.run_on_types com new_types;
-	com.stage <- CAnalyzerDone;
+	enter_stage com CAnalyzerDone;
 	let locals = RenameVars.init com in
 	let filters = [
 		"sanitize",Optimizer.sanitize com;
@@ -1011,14 +1011,14 @@ let run tctx main =
 	with_timer detail_times "callbacks" None (fun () ->
 		com.callbacks#run com.error_ext com.callbacks#get_before_save;
 	);
-	com.stage <- CSaveStart;
+	enter_stage com CSaveStart;
 	with_timer detail_times "save state" None (fun () ->
 		List.iter (fun mt ->
 			update_cache_dependencies com mt;
 			save_class_state com mt
 		) new_types;
 	);
-	com.stage <- CSaveDone;
+	enter_stage com CSaveDone;
 	with_timer detail_times "callbacks" None (fun () ->
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);

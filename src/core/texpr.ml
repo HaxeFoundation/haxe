@@ -189,6 +189,19 @@ let map_expr_type f ft fv e =
 		{ e with eexpr = TEnumParameter (f e1,ef,i); etype = ft e.etype }
 	| TEnumIndex e1 ->
 		{ e with eexpr = TEnumIndex (f e1); etype = ft e.etype }
+	| TField (e1,(FClosure(None,cf) as fa)) ->
+		let e1 = f e1 in
+		let fa = try
+			begin match quick_field e1.etype cf.cf_name with
+				| FInstance(c,tl,cf) ->
+					FClosure(Some(c,tl),cf)
+				| _ ->
+					raise Not_found
+			end
+		with Not_found ->
+			fa
+		in
+		{ e with eexpr = TField (e1,fa); etype = ft e.etype }
 	| TField (e1,v) ->
 		let e1 = f e1 in
 		let v = try

@@ -72,7 +72,11 @@ class TestArguments extends utest.Test {
 	#elseif neko
 		"bin/neko/TestArguments.n";
 	#elseif hl
-		"bin/hl/TestArguments.hl";
+		#if hlc
+			"bin/hlc/testArguments/TestArguments.exe";
+		#else
+			"bin/hl/TestArguments.hl";
+		#end
 	#elseif cpp
 		#if debug
 			"bin/cpp/TestArguments-debug";

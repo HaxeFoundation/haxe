@@ -533,7 +533,8 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			)
 		| _ -> raise Not_found
 	in
-	let type_field_by_module e t = match e.eexpr with
+	let type_field_by_module e t =
+		match e.eexpr with
 		| TTypeExpr mt ->
 			let infos = t_infos mt in
 			if snd infos.mt_path <> snd infos.mt_module.m_path then raise Not_found;
@@ -541,6 +542,8 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			begin match infos.mt_module.m_statics with
 			| Some c when PMap.mem i c.cl_statics ->
 				let cf = PMap.find i c.cl_statics in
+				(* We cannot use e here because in the case of module statics the type could be different (issue #11385). *)
+				let e = type_module_type ctx (TClassDecl c) e.epos in
 				field_access e cf (FHStatic c)
 			| _ ->
 				let t = Typeload.find_type_in_module infos.mt_module i in

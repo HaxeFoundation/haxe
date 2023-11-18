@@ -79,7 +79,7 @@ let get_main ctx types =
 		Some main
 
 let finalize ctx =
-	flush_pass ctx PFinal "final";
+	flush_pass ctx PFinal ("final",[]);
 	match ctx.com.callbacks#get_after_typing with
 		| [] ->
 			()
@@ -91,7 +91,7 @@ let finalize ctx =
 					()
 				| new_types ->
 					List.iter (fun f -> f new_types) fl;
-					flush_pass ctx PFinal "final";
+					flush_pass ctx PFinal ("final",[]);
 					loop all_types
 			in
 			loop []

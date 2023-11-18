@@ -362,15 +362,7 @@ let patch_class ctx c fields =
 		List.rev fields
 
 let lazy_display_type ctx f =
-	(* if ctx.is_display_file then begin
-		let r = exc_protect ctx (fun r ->
-			let t = f () in
-			r := lazy_processing (fun () -> t);
-			t
-		) "" in
-		TLazy r
-	end else *)
-		f ()
+	f ()
 
 type enum_abstract_mode =
 	| EAString
@@ -459,12 +451,13 @@ let build_enum_abstract ctx c a fields p =
 	) fields;
 	EVars [mk_evar ~t:(CTAnonymous fields,p) ("",null_pos)],p
 
-let apply_macro ctx mode path el p =
-	let cpath, meth = (match List.rev (ExtString.String.nsplit path ".") with
-		| meth :: name :: pack -> (List.rev pack,name), meth
-		| _ -> raise_typing_error "Invalid macro path" p
-	) in
-	ctx.g.do_macro ctx mode cpath meth el p
+let resolve_type_import ctx p i =
+	try
+		let mt,_ = ctx.m.import_resolution#find_type_import i in
+		let path = t_path mt in
+		snd path :: (List.rev (fst path))
+	with Not_found ->
+		[i]
 
 let build_module_def ctx mt meta fvars fbuild =
 	let is_typedef = match mt with TTypeDecl _ -> true | _ -> false in
@@ -474,11 +467,18 @@ let build_module_def ctx mt meta fvars fbuild =
 					| [ECall (epath,el),p] -> epath, el
 					| _ -> raise_typing_error "Invalid build parameters" p
 				) in
-				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error { err_pos = p } -> raise_typing_error "Build call parameter must be a class path" p in
+				let cpath, meth =
+					let sl = try string_list_of_expr_path_raise ~root_cb:(resolve_type_import ctx p) epath with Exit -> raise_typing_error "Build call parameter must be a class path" p in
+					match sl with
+					| meth :: name :: pack ->
+						(List.rev pack,name), meth
+					| _ ->
+						raise_typing_error "Invalid macro path" p
+				in
 				if ctx.com.is_macro_context then raise_typing_error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
 				let old = ctx.get_build_infos in
 				ctx.get_build_infos <- (fun() -> Some (mt, extract_param_types (t_infos mt).mt_params, fvars()));
-				let r = try apply_macro ctx MBuild s el p with e -> ctx.get_build_infos <- old; raise e in
+				let r = try ctx.g.do_macro ctx MBuild cpath meth el p with e -> ctx.get_build_infos <- old; raise e in
 				ctx.get_build_infos <- old;
 				(match r with
 				| None -> raise_typing_error "Build failure" p
@@ -857,11 +857,10 @@ module TypeBinding = struct
 					mk_cast e cf.cf_type e.epos
 			end
 		in
-		let r = exc_protect ~force:false ctx (fun r ->
+		let r = make_lazy ~force:false ctx t (fun r ->
 			(* type constant init fields (issue #1956) *)
 			if not !return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
-				r := lazy_processing (fun() -> t);
-				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
+				if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing field %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
 					| TConst _ | TLocal _ | TFunction _ -> e
@@ -936,9 +935,8 @@ module TypeBinding = struct
 	let bind_method ctx cctx fctx cf t args ret e p is_coroutine =
 		let c = cctx.tclass in
 		let bind r =
-			r := lazy_processing (fun() -> t);
 			incr stats.s_methods_typed;
-			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
+			if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing method %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 			let fmode = (match cctx.abstract with
 				| Some _ ->
 					if fctx.is_abstract_member then FunMemberAbstract else FunStatic
@@ -980,7 +978,7 @@ module TypeBinding = struct
 			if not !return_partial_type then bind r;
 			t
 		in
-		let r = exc_protect ~force:false ctx maybe_bind "type_fun" in
+		let r = make_lazy ~force:false ctx t maybe_bind "type_fun" in
 		bind_type ctx cctx fctx cf r p
 end
 
@@ -1044,8 +1042,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		fctx.expr_presence_matters <- true;
 	end in
 	let handle_from () =
-		let r = exc_protect ctx (fun r ->
-			r := lazy_processing (fun () -> t);
+		let r = make_lazy ctx t (fun r ->
 			(* the return type of a from-function must be the abstract, not the underlying type *)
 			if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> raise_typing_error_ext (make_error (Unify l) p));
 			match t with
@@ -1085,8 +1082,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		let is_multitype_cast = Meta.has Meta.MultiType a.a_meta && not fctx.is_abstract_member in
 		if is_multitype_cast && not (Meta.has Meta.MultiType cf.cf_meta) then
 			cf.cf_meta <- (Meta.MultiType,[],null_pos) :: cf.cf_meta;
-		let r = exc_protect ctx (fun r ->
-			r := lazy_processing (fun () -> t);
+		let r = make_lazy ctx t (fun r ->
 			let args = if is_multitype_cast then begin
 				let ctor = try
 					PMap.find "_new" c.cl_statics
@@ -1343,7 +1339,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				| None -> ()
 				| Some (CTPath ({ tpackage = []; tname = "Void" } as tp),p) ->
 					if ctx.is_display_file && DisplayPosition.display_position#enclosed_in p then
-						ignore(load_instance ~allow_display:true ctx (tp,p) false);
+						ignore(load_instance ~allow_display:true ctx (tp,p) ParamNormal);
 				| _ -> raise_typing_error "A class constructor can't have a return type" p;
 			end
 		| false,_ ->
