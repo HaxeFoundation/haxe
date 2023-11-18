@@ -459,6 +459,10 @@ let rec flush_pass ctx p where =
 let make_pass ctx f = f
 
 let init_class_done ctx =
+	ctx.pass <- PConnectField
+
+let enter_field_typing_pass ctx info =
+	flush_pass ctx PConnectField info;
 	ctx.pass <- PTypeField
 
 let make_lazy ?(force=true) ctx t_proc f where =

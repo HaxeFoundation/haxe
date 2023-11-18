@@ -446,10 +446,8 @@ module TypeLevel = struct
 			in
 			build()
 		in
-		ctx.pass <- PBuildClass;
 		ctx.curclass <- c;
 		c.cl_build <- make_pass ctx build;
-		ctx.pass <- PBuildModule;
 		ctx.curclass <- null_class;
 		delay ctx PBuildClass (fun() -> ignore(c.cl_build()));
 		if Meta.has Meta.InheritDoc c.cl_meta then
