@@ -371,7 +371,7 @@ jobs:
       fail-fast: false
       matrix:
         ocaml: ["4.08.1", "5.0.0"]
-        target: [macro, js, hl, cpp, 'jvm', cs, php, python, lua, flash, neko]
+        target: [macro, js, hl, cpp, 'jvm', php, python, lua, flash, neko]
         include:
           - target: hl
             APT_PACKAGES: cmake ninja-build libturbojpeg-dev
@@ -519,7 +519,7 @@ jobs:
           haxe dox.hxml
           mkdir resources
           cp ../../src-json/* resources
-          cpp/Dox -i ../../xmldoc -ex microsoft -ex javax -ex cs.internal -theme $(haxelib libpath dox)/themes/default
+          cpp/Dox -i ../../xmldoc -ex microsoft -ex javax -ex -theme $(haxelib libpath dox)/themes/default
         working-directory: ${{github.workspace}}/tests/docgen
 
   linux-arm64:
