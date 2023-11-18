@@ -521,11 +521,25 @@ class TestBasetypes extends Test {
 	}
 
 	function testAdditionalOptionalArgumentInference() {
-		eq("foo", run("foo"));
+		var ns = new NotString("foo");
+		eq(ns, run(ns));
 	}
 
-	function run(a):String {
+	function run(a):NotString {
 		a.indexOf("");
 		return a;
+	}
+}
+
+private class NotString {
+	var s:String;
+
+	public function new(s:String) {
+		this.s = s;
+	}
+
+	@:keep
+	public function indexOf(str:String, ?startIndex:Int):Int {
+		return s.indexOf(str, startIndex);
 	}
 }
