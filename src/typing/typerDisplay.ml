@@ -354,9 +354,23 @@ and display_expr ctx e_ast e dk mode with_type p =
 		| _ ->
 			e
 	in
-	let e,el_typed = match e.eexpr with
-		| TMeta((Meta.StaticExtension,[e_self],_),e1) ->
+	let e,el_typed = match fst e_ast,e.eexpr with
+		| _,TMeta((Meta.StaticExtension,[e_self],_),e1) ->
 			e1,[type_stored_expr ctx e_self]
+		| EField((_,_,EFSafe)),e1 ->
+			(* For ?. we want to extract the then-expression of the TIf. *)
+			let rec loop e1 = match e1.eexpr with
+				| TIf({eexpr = TBinop(OpNotEq,_,{eexpr = TConst TNull})},e1,Some _) ->
+					e1
+				| TBlock el ->
+					begin match List.rev el with
+						| e :: _ -> loop e
+						| _ -> e
+					end
+				| _ ->
+					e
+			in
+			loop e,[]
 		| _ ->
 			e,[]
 	in
@@ -410,6 +424,8 @@ and display_expr ctx e_ast e dk mode with_type p =
 				| Some (c,_) -> Display.ReferencePosition.set (snd c.cl_path,c.cl_name_pos,SKClass c);
 			end
 		| TCall(e1,_) ->
+			loop e1
+		| TCast(e1,_) ->
 			loop e1
 		| _ ->
 			()
@@ -465,6 +481,8 @@ and display_expr ctx e_ast e dk mode with_type p =
 				| Some (c,_) -> [c.cl_name_pos]
 			end
 		| TCall(e1,_) ->
+			loop e1
+		| TCast(e1,_) ->
 			loop e1
 		| _ ->
 			[]
