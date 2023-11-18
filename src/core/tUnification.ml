@@ -34,6 +34,7 @@ type unification_context = {
 	allow_transitive_cast : bool;
 	allow_abstract_cast   : bool; (* allows a non-transitive abstract cast (from,to,@:from,@:to) *)
 	allow_dynamic_to_cast : bool; (* allows a cast from dynamic to non-dynamic *)
+	allow_additional_optional_arguments : bool; (* allows to assign (?a) -> b to () -> b *)
 	equality_kind         : eq_kind;
 	equality_underlying   : bool;
 }
@@ -57,6 +58,7 @@ let default_unification_context = {
 	allow_transitive_cast = true;
 	allow_abstract_cast   = true;
 	allow_dynamic_to_cast = true;
+	allow_additional_optional_arguments = false;
 	equality_kind         = EqStrict;
 	equality_underlying   = false;
 }
@@ -162,7 +164,7 @@ module Monomorph = struct
 			) tl
 		| CStructural(fields,is_open) ->
 			let t2 = mk_anon ~fields (ref Closed) in
-			(!unify_ref) default_unification_context t t2
+			(!unify_ref) {default_unification_context with allow_additional_optional_arguments = true} t t2
 		| CMixed l ->
 			List.iter (fun constr -> check_down_constraints constr t) l
 
@@ -704,22 +706,39 @@ let rec unify (uctx : unification_context) a b =
 			| _ -> false)
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
-	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+	| TFun (l1,r1) , TFun (l2,r2) ->
 		let uctx = get_nested_context uctx in
 		let i = ref 0 in
-		(try
-			(match follow r2 with
-			| TAbstract ({a_path=[],"Void"},_) -> incr i
-			| _ -> unify uctx r1 r2; incr i);
-			List.iter2 (fun (_,o1,t1) (_,o2,t2) ->
-				if o1 && not o2 then error [Cant_force_optional];
-				unify uctx t1 t2;
-				incr i
-			) l2 l1 (* contravariance *)
+		begin try
+			begin match follow r2 with
+				| TAbstract ({a_path=[],"Void"},_) ->
+					incr i
+				| _ ->
+					unify uctx r1 r2;
+					incr i
+			end;
+			let rec loop args1 args2 = match args1,args2 with
+				| [],[] ->
+					()
+				| _,[] ->
+					error [cannot_unify a b]
+				| [],(_,o,_) :: args2 ->
+					if o && uctx.allow_additional_optional_arguments then
+						loop [] args2
+					else
+						error [cannot_unify a b]
+				| (_,o1,t1) :: args1,(_,o2,t2) :: args2 ->
+					if o1 && not o2 then error [Cant_force_optional];
+					unify uctx t1 t2;
+					incr i;
+					loop args1 args2
+			in
+			loop l2 l1; (* contravariance *)
 		with
 			Unify_error l ->
 				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length l1) in
-				error (cannot_unify a b :: msg :: l))
+				error (cannot_unify a b :: msg :: l)
+		end
 	| TInst (c,tl) , TAnon an ->
 		if PMap.is_empty an.a_fields then (match c.cl_kind with
 			| KTypeParameter pl ->
