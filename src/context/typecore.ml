@@ -103,7 +103,6 @@ type typer_globals = {
 	mutable load_only_cached_modules : bool;
 	functional_interface_lut : (path,tclass_field) lookup;
 	(* api *)
-	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> expr option;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
 	do_load_module : typer -> path -> pos -> module_def;
