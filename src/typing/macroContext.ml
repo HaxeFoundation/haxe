@@ -93,8 +93,7 @@ let typing_timer ctx need_type f =
 	ctx.com.error_ext <- (fun err -> raise_error { err with err_from_macro = true });
 
 	if need_type && ctx.pass < PTypeField then begin
-		ctx.pass <- PTypeField;
-		flush_pass ctx PBuildClass ("typing_timer",[] (* TODO: ? *));
+		enter_field_typing_pass ctx ("typing_timer",[] (* TODO: ? *));
 	end;
 	let exit() =
 		t();
