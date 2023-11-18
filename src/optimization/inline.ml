@@ -853,7 +853,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	let tl = arg_types params f.tf_args in
 	let e = state#finalize e tl tret has_params map_type p in
 	if Meta.has (Meta.Custom ":inlineDebug") ctx.meta then begin
-		let se t = s_expr_pretty true t true (s_type (print_context())) in
+		let se t = s_expr_ast true t (s_type (print_context())) in
 		print_endline (Printf.sprintf "Inline %s:\n\tArgs: %s\n\tExpr: %s\n\tResult: %s"
 			cf.cf_name
 			(String.concat "" (List.map (fun (i,e) -> Printf.sprintf "\n\t\t%s<%i> = %s" (i.i_subst.v_name) (i.i_subst.v_id) (se "\t\t" e)) state#inlined_vars))

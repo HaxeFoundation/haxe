@@ -269,13 +269,13 @@ let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
 	let t = Timer.timer ["typing"] in
 	let cs = com.cs in
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
-	com.stage <- CInitMacrosStart;
+	enter_stage com CInitMacrosStart;
 	ServerMessage.compiler_stage com;
 
 	let mctx = List.fold_left (fun mctx path ->
 		Some (MacroContext.call_init_macro ctx.com mctx path)
 	) mctx (List.rev actx.config_macros) in
-	com.stage <- CInitMacrosDone;
+	enter_stage com CInitMacrosDone;
 	ServerMessage.compiler_stage com;
 	MacroContext.macro_enable_cache := macro_cache_enabled;
 
@@ -295,7 +295,7 @@ let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
 	end with TypeloadParse.DisplayInMacroBlock ->
 		ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true)
 	);
-	com.stage <- CTypingDone;
+	enter_stage com CTypingDone;
 	ServerMessage.compiler_stage com;
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		identifier we are interested in. We then type only those modules that contain the identifier. *)
@@ -309,7 +309,7 @@ let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
 let finalize_typing ctx tctx =
 	let t = Timer.timer ["finalize"] in
 	let com = ctx.com in
-	com.stage <- CFilteringStart;
+	enter_stage com CFilteringStart;
 	ServerMessage.compiler_stage com;
 	let main, types, modules = run_or_diagnose ctx Finalization.generate tctx in
 	com.main <- main;
@@ -348,7 +348,7 @@ let compile ctx actx callbacks =
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
 	t();
-	com.stage <- CInitialized;
+	enter_stage com CInitialized;
 	ServerMessage.compiler_stage com;
 	if actx.classes = [([],"Std")] && not actx.force_typing then begin
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
@@ -361,10 +361,10 @@ let compile ctx actx callbacks =
 		filter ctx tctx;
 		if ctx.has_error then raise Abort;
 		Generate.check_auxiliary_output com actx;
-		com.stage <- CGenerationStart;
+		enter_stage com CGenerationStart;
 		ServerMessage.compiler_stage com;
 		if not actx.no_output then Generate.generate ctx tctx ext actx;
-		com.stage <- CGenerationDone;
+		enter_stage com CGenerationDone;
 		ServerMessage.compiler_stage com;
 	end;
 	Sys.catch_break false;
@@ -401,8 +401,6 @@ with
 		end
 	| Error.Error err ->
 		error_ext ctx err
-	| Generic.Generic_Exception(m,p) ->
-		error ctx m p
 	| Arg.Bad msg ->
 		error ctx ("Error: " ^ msg) null_pos
 	| Failure msg when not Helper.is_debug_run ->

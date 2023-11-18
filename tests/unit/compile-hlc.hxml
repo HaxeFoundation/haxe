@@ -1,5 +1,0 @@
-compile-each.hxml
---main unit.TestMain
--hl bin/hlc/main.c
--D hl-check
--D hl-ver=1.13.0

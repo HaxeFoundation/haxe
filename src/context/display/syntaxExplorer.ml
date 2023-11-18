@@ -177,7 +177,7 @@ let explore_uncached_modules tctx cs symbols =
 			begin try
 				let m = tctx.g.do_load_module tctx (cfile.c_package,module_name) null_pos in
 				(* We have to flush immediately so we catch exceptions from weird modules *)
-				Typecore.flush_pass tctx Typecore.PFinal "final";
+				Typecore.flush_pass tctx Typecore.PFinal ("final",cfile.c_package @ [module_name]);
 				m :: acc
 			with _ ->
 				acc

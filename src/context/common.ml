@@ -432,6 +432,10 @@ type context = {
 	memory_marker : float array;
 }
 
+let enter_stage com stage =
+	(* print_endline (Printf.sprintf "Entering stage %s" (s_compiler_stage stage)); *)
+	com.stage <- stage
+
 exception Abort of Error.error
 
 let ignore_error com =
@@ -478,7 +482,7 @@ let external_defined_value ctx k =
 	Define.raw_defined_value ctx.defines (convert_define k)
 
 let reserved_flags = [
-	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
+	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";"hl";"hlc";
 	"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
 ]
 
@@ -930,6 +934,8 @@ let init_platform com =
 		define com Define.Swc
 	| Jvm ->
 		raw_define com "java"
+	| Hl ->
+		if Path.file_extension com.file = "c" then define com Define.Hlc;
 	| _ ->
 		()
 	end;

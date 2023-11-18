@@ -530,7 +530,6 @@ module Inheritance = struct
 			| HImplements t -> Some(false,t)
 			| t -> None
 		) herits in
-		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
 		(* Pass 1: Check and set relations *)
 		let check_herit t is_extends p =
 			let rec check_interfaces_or_delay () =
@@ -594,7 +593,7 @@ module Inheritance = struct
 		let fl = ExtList.List.filter_map (fun (is_extends,(ct,p)) ->
 			try
 				let t = try
-					Typeload.load_instance ~allow_display:true ctx (ct,p) false
+					Typeload.load_instance ~allow_display:true ctx (ct,p) ParamNormal
 				with DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) ->
 					(* We don't allow `implements` on interfaces. Just raise fields completion with no fields. *)
 					if not is_extends && (has_class_flag c CInterface) then raise_fields [] CRImplements r.fsubject;

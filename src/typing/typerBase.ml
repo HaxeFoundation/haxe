@@ -195,8 +195,8 @@ let type_module_type ctx t p =
 	let rec loop t tparams =
 		match t with
 		| TClassDecl {cl_kind = KGenericBuild _} ->
-			let _,_,f = InstanceBuilder.build_instance ctx t p in
-			let t = f (match tparams with None -> [] | Some tl -> tl) in
+			let info = InstanceBuilder.get_build_info ctx t p in
+			let t = info.build_apply (match tparams with None -> [] | Some tl -> tl) in
 			let mt = try
 				module_type_of_type t
 			with Exit ->
@@ -351,3 +351,21 @@ let get_abstract_froms ctx a pl =
 		| _ ->
 			acc
 	) l a.a_from_field
+
+let safe_nav_branch ctx sn f_then =
+	(* generate null-check branching for the safe navigation chain *)
+	let eobj = sn.sn_base in
+	let enull = Builder.make_null eobj.etype sn.sn_pos in
+	let eneq = Builder.binop OpNotEq eobj enull ctx.t.tbool sn.sn_pos in
+	let ethen = f_then () in
+	let tnull = ctx.t.tnull ethen.etype in
+	let ethen = if not (is_nullable ethen.etype) then
+		mk (TCast(ethen,None)) tnull ethen.epos
+	else
+		ethen
+	in
+	let eelse = Builder.make_null tnull sn.sn_pos in
+	let eif = mk (TIf(eneq,ethen,Some eelse)) tnull sn.sn_pos in
+	(match sn.sn_temp_var with
+	| None -> eif
+	| Some evar -> { eif with eexpr = TBlock [evar; eif] })

@@ -187,9 +187,8 @@ let add_constructor ctx c force_constructor p =
 		cf.cf_kind <- cfsup.cf_kind;
 		cf.cf_params <- cfsup.cf_params;
 		cf.cf_meta <- List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
-		let r = exc_protect ctx (fun r ->
-			let t = mk_mono() in
-			r := lazy_processing (fun() -> t);
+		let t = spawn_monomorph ctx p in
+		let r = make_lazy ctx t (fun r ->
 			let ctx = { ctx with
 				curfield = cf;
 				pass = PTypeField;
