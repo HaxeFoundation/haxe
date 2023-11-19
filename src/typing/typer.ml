@@ -1734,17 +1734,17 @@ and type_call_builtin ctx e el mode with_type p =
 		(match follow e.etype with
 			| TFun signature -> type_bind ctx e signature args p
 			| _ -> raise Exit)
-	| (EConst (Ident "$type"),_) , [e] ->
-		begin match fst e with
-		| EConst (Ident "_") ->
-			warning ctx WInfo (WithType.to_string with_type) p;
-			mk (TConst TNull) t_dynamic p
-		| _ ->
-			let e = type_expr ctx e WithType.value in
-			warning ctx WInfo (s_type (print_context()) e.etype) e.epos;
-			let e = Diagnostics.secure_generated_code ctx.com e in
-			e
-		end
+	| (EConst (Ident "$type"),_) , e1 :: el ->
+		let e1 = type_expr ctx e1 with_type in
+		let s = s_type (print_context()) e1.etype in
+		let s = match el with
+			| [EConst (Ident "_"),_] ->
+				Printf.sprintf "%s (expected: %s)" s (WithType.to_string with_type)
+			| _ ->
+				s
+		in
+		warning ctx WInfo s e1.epos;
+		Diagnostics.secure_generated_code ctx.com e1
 	| (EField(e,"match",efk_todo),p), [epat] ->
 		let et = type_expr ctx e WithType.value in
 		let rec has_enum_match t = match follow t with
