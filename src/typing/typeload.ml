@@ -720,34 +720,11 @@ and init_meta_overloads ctx co cf =
 	) cf.cf_meta;
 	cf.cf_overloads <- (List.rev !overloads)
 
-let hide_params ctx =
-	let old_m = ctx.m in
-	let old_type_params = ctx.type_params in
-	let old_deps = ctx.g.std.m_extra.m_deps in
-	ctx.m <- {
-		curmod = ctx.g.std;
-		import_resolution = new Resolution.resolution_list ["hide_params"];
-		own_resolution = None;
-		enum_with_type = None;
-		module_using = [];
-		import_statements = [];
-	};
-	ctx.type_params <- [];
-	(fun() ->
-		ctx.m <- old_m;
-		ctx.type_params <- old_type_params;
-		(* restore dependencies that might be have been wronly inserted *)
-		ctx.g.std.m_extra.m_deps <- old_deps;
-	)
-
-let t_iterator ctx =
-	let show = hide_params ctx in
-	match load_type_def ctx null_pos (mk_type_path ([],"Iterator")) with
+let t_iterator ctx p =
+	match load_qualified_type_def ctx [] "StdTypes" "Iterator" p with
 	| TTypeDecl t ->
-		show();
 		add_dependency ctx.m.curmod t.t_module;
-		if List.length t.t_params <> 1 then die "" __LOC__;
-		let pt = mk_mono() in
+		let pt = spawn_monomorph ctx p in
 		apply_typedef t [pt], pt
 	| _ ->
 		die "" __LOC__
@@ -853,13 +830,13 @@ let load_core_class ctx c =
 			c
 	) in
 	let tpath = match c.cl_kind with
-		| KAbstractImpl a -> mk_type_path a.a_path
-		| _ -> mk_type_path c.cl_path
+		| KAbstractImpl a -> a.a_path
+		| _ -> c.cl_path
 	in
-	let t = load_instance ctx2 (tpath,c.cl_pos) ParamSpawnMonos in
+	let t = load_type_def' ctx2 (fst c.cl_module.m_path) (snd c.cl_module.m_path) (snd tpath) null_pos in
 	flush_pass ctx2 PFinal ("core_final",(fst c.cl_path @ [snd c.cl_path]));
 	match t with
-	| TInst (ccore,_) | TAbstract({a_impl = Some ccore}, _) ->
+	| TClassDecl ccore | TAbstractDecl {a_impl = Some ccore} ->
 		ccore
 	| _ ->
 		die "" __LOC__
@@ -935,7 +912,3 @@ let init_core_api ctx c =
 	| Some f, Some f2 -> compare_fields f f2
 	| None, Some cf when not (has_class_field_flag cf CfPublic) -> ()
 	| _ -> raise_typing_error "Constructor differs from core type" c.cl_pos)
-
-let string_list_of_expr_path (e,p) =
-	try string_list_of_expr_path_raise (e,p)
-	with Exit -> raise_typing_error "Invalid path" p
