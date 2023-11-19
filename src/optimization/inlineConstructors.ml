@@ -111,7 +111,7 @@ and inline_object_field =
 	inline_expression_handled
 	Defines what will happen to the expression being analized by analyze_aliases
 *)
-and inline_expression_handled =
+and inline_expression_handled = 
 	| IEHCaptured (* The expression will be assigned to a variable *)
 	| IEHIgnored (* The result of the expression will not be used *)
 	| IEHNotHandled (* Cases that are not handled (usually leads to cancelling inlining *)
@@ -378,7 +378,7 @@ let inline_constructors ctx original_e =
 		let handle_inline_object_case (io_id:int) (force_inline:bool) (e:texpr) =
 			match e.eexpr, e.etype with
 			| TNew({ cl_constructor = Some ({cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl),_
-				when captured = IEHCaptured && not (List.memq cf seen_ctors) ->
+				when captured!=IEHNotHandled && not (List.memq cf seen_ctors) ->
 				begin
 					let argvs, pl = analyze_call_args pl in
 					let _, cname = c.cl_path in
@@ -409,7 +409,7 @@ let inline_constructors ctx original_e =
 				end
 			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf)} as c,_,pl),_ when is_extern_ctor c cf ->
 				raise_typing_error "Extern constructor could not be inlined" e.epos;
-			| TObjectDecl fl, _ when captured = IEHCaptured && fl <> [] && List.for_all (fun((s,_,_),_) -> Lexer.is_valid_identifier s) fl ->
+			| TObjectDecl fl, _ when captured!=IEHNotHandled && fl <> [] && List.for_all (fun((s,_,_),_) -> Lexer.is_valid_identifier s) fl ->
 				let v = alloc_var VGenerated "inlobj" e.etype e.epos in
 				let ev = mk (TLocal v) v.v_type e.epos in
 				let el = List.map (fun ((s,_,_),e) ->
@@ -424,7 +424,7 @@ let inline_constructors ctx original_e =
 				set_iv_alias iv io;
 				List.iter (fun e -> ignore(analyze_aliases IEHIgnored e)) el;
 				Some iv
-			| TArrayDecl el, TInst(_, [elemtype]) when captured = IEHCaptured ->
+			| TArrayDecl el, TInst(_, [elemtype]) when captured!=IEHNotHandled ->
 				let len = List.length el in
 				let v = alloc_var VGenerated "inlarr" e.etype e.epos in
 				let ev = mk (TLocal v) v.v_type e.epos in
@@ -715,37 +715,34 @@ let inline_constructors ctx original_e =
 			end
 		| _ -> default_case e
 	in
-	if not (check_for_ctors original_e) then
+	if not (check_for_ctors original_e) then original_e else
+	let e = mark_ctors original_e in
+	ignore(analyze_aliases [] IEHNotHandled false e);
+	if IntMap.for_all (fun _ io -> io.io_cancelled) !inline_objs then begin
+		IntMap.iter (fun _ iv -> let v = iv.iv_var in if v.v_id < 0 then v.v_id <- -v.v_id ) !vars;
 		original_e
-	else begin
-		let e = mark_ctors original_e in
-		ignore(analyze_aliases [] IEHNotHandled false e);
-		if IntMap.for_all (fun _ io -> io.io_cancelled) !inline_objs then begin
-			IntMap.iter (fun _ iv -> let v = iv.iv_var in if v.v_id < 0 then v.v_id <- -v.v_id ) !vars;
-			original_e
-		end else begin
-			let el,_ = final_map e in
-			let cf = ctx.curfield in
-			if !included_untyped && not (Meta.has Meta.HasUntyped cf.cf_meta) then cf.cf_meta <- (Meta.HasUntyped,[],e.epos) :: cf.cf_meta;
-			let e = make_expr_for_rev_list el e.etype e.epos in
-			let rec get_pretty_name iv = match iv.iv_kind with
-				| IVKField(io,fname,None) ->
-					begin try
-						let is_user_variable iv = match iv.iv_var.v_kind with VUser _ | VInlined -> true | _ -> false in
-						let iv = List.find is_user_variable io.io_aliases in
-						(get_pretty_name iv) ^ "_" ^ fname;
-					with Not_found ->
-						(get_pretty_name (List.hd io.io_aliases)) ^ "_" ^ fname;
-					end
-				| _ -> iv.iv_var.v_name
-			in
-			IntMap.iter (fun _ iv ->
-				let v = iv.iv_var in
-				if v.v_id < 0 then begin
-					v.v_id <- -v.v_id;
-					v.v_name <- get_pretty_name iv
+	end else begin
+		let el,_ = final_map e in
+		let cf = ctx.curfield in
+		if !included_untyped && not (Meta.has Meta.HasUntyped cf.cf_meta) then cf.cf_meta <- (Meta.HasUntyped,[],e.epos) :: cf.cf_meta;
+		let e = make_expr_for_rev_list el e.etype e.epos in
+		let rec get_pretty_name iv = match iv.iv_kind with
+			| IVKField(io,fname,None) ->
+				begin try
+					let is_user_variable iv = match iv.iv_var.v_kind with VUser _ | VInlined -> true | _ -> false in
+					let iv = List.find is_user_variable io.io_aliases in
+					(get_pretty_name iv) ^ "_" ^ fname;
+				with Not_found ->
+					(get_pretty_name (List.hd io.io_aliases)) ^ "_" ^ fname;
 				end
-			) !vars;
-			e
-		end
+			| _ -> iv.iv_var.v_name
+		in
+		IntMap.iter (fun _ iv ->
+			let v = iv.iv_var in
+			if v.v_id < 0 then begin
+				v.v_id <- -v.v_id;
+				v.v_name <- get_pretty_name iv
+			end
+		) !vars;
+		e
 	end
