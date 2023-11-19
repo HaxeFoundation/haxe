@@ -62,6 +62,7 @@ let map_values ?(allow_control_flow=true) f e =
 				let e = {e with eexpr = TBlock (List.rev (e1 :: el))} in
 				{e with eexpr = TMeta((Meta.MergeBlock,[],e.epos),e)}
 			| [] ->
+				if not complex then raise Exit;
 				f e
 			end
 		| TTry(e1,catches) ->
