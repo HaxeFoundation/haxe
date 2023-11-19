@@ -138,6 +138,12 @@ class TestInlineConstructors extends TestBase {
 	}
 
 	static var condition = false;
+
+	@:js('
+		while(TestInlineConstructors.condition) {}
+		try {} catch( _g ) {}
+		return 1;'
+	)
 	static function testIgnoredValuesNotCancelling() {
 		var a = new ExternInlineClass();
 		if ( condition ) a else a;
