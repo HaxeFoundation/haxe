@@ -538,7 +538,7 @@ module Fusion = struct
 			(* no-side-effect *)
 			| {eexpr = TFunction _ | TConst _ | TTypeExpr _} :: el ->
 				block_element acc el
-			| {eexpr = TMeta((Meta.Pure,_,_),_)} :: el ->
+			| {eexpr = TMeta((Meta.Pure,_,_) as meta,_)} :: el when PurityState.get_purity_from_meta [meta] = Pure ->
 				block_element acc el
 			| {eexpr = TCall({eexpr = TField(e1,fa)},el1)} :: el2 when PurityState.is_pure_field_access fa && config.local_dce ->
 				block_element acc (e1 :: el1 @ el2)
