@@ -625,7 +625,12 @@ let inline_constructors ctx original_e =
 				default_case e
 			end
 		| TVar(v, None) when v.v_id < 0 ->
-			(get_iv_var_decls (get_iv v.v_id)), None
+			let iv = get_iv v.v_id in
+			if iv.iv_state = IVSUnassigned then
+				(* If the variable is unassigned, leave the expression unchanged *)
+				([e], None)
+			else
+				(get_iv_var_decls (iv)), None
 		| TVar(v,Some e) when v.v_id < 0 ->
 			let el = (get_iv_var_decls (get_iv v.v_id)) in
 			let e,_ = (final_map ~unwrap_block:true e) in (e@el, None)
