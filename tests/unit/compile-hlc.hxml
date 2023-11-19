@@ -1,6 +1,6 @@
 compile-each.hxml
 --main unit.TestMain
--hl bin/unit.hl
+-hl bin/hlc/unit.c
 #-D interp
 -D hl-check
 -D hl-ver=1.13.0
