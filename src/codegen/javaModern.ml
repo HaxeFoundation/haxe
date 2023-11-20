@@ -18,6 +18,7 @@ module AccessFlags = struct
 		| MAbstract
 		| MStrict
 		| MSynthetic
+		| MAnnotation
 		| MEnum
 
 	let to_int = function
@@ -34,6 +35,7 @@ module AccessFlags = struct
 		| MAbstract -> 0x400
 		| MStrict -> 0x800
 		| MSynthetic -> 0x1000
+		| MAnnotation -> 0x2000
 		| MEnum -> 0x4000
 
 	let has_flag b flag =
@@ -706,6 +708,27 @@ module Converter = struct
 	open PathConverter
 	open SignatureConverter
 
+	let extract_retention_policy l =
+		let rec loop2 l = match l with
+			| [] ->
+				None
+			| ann :: l ->
+				match ann.ann_type,ann.ann_elements with
+				| TObject((["java";"lang";"annotation"],"Retention"),_),[("value",ValEnum(_,name))] ->
+					Some name
+				| _ ->
+					loop2 l
+		in
+		let rec loop l = match l with
+			| [] ->
+				None
+			| AttrVisibleAnnotations l :: _ ->
+				loop2 l
+			| _ :: l ->
+				loop l
+		in
+		loop l
+
 	let convert_type_parameter ctx (name,extends,implements) p =
 		let jsigs = match extends with
 			| Some jsig -> jsig :: implements
@@ -957,6 +980,15 @@ module Converter = struct
 		end;
 		let _,class_name = jname_to_hx (snd jc.jc_path) in
 		add_meta (Meta.Native, [EConst (String (s_type_path jc.jc_path,SDoubleQuotes) ),p],p);
+		if AccessFlags.has_flag jc.jc_flags MAnnotation then begin
+			let args = match extract_retention_policy jc.jc_attributes with
+				| None ->
+					[]
+				| Some v ->
+					[EConst (String(v,SDoubleQuotes)),p]
+			in
+			add_meta (Meta.Annotation,args,p)
+		end;
 		let d = {
 			d_name = (class_name,p);
 			d_doc = None;

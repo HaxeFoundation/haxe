@@ -1,0 +1,24 @@
+Presence of Lhaxe/root/MyVisibleAnnotation; on haxe/root/AnnotationLib
+  0: true
+  1: false
+Presence of Lhaxe/root/MyInvisibleAnnotation; on haxe/root/AnnotationLib
+  0: false
+  1: true
+Presence of Lhaxe/root/MyVisibleAnnotation; on test
+  0: true
+  1: false
+Presence of Lhaxe/root/MyInvisibleAnnotation; on test
+  0: false
+  1: true
+Presence of Lhaxe/root/MyVisibleAnnotation; on test (arg 0)
+  0: true
+  1: false
+Presence of Lhaxe/root/MyInvisibleAnnotation; on test (arg 0)
+  0: false
+  1: false
+Presence of Lhaxe/root/MyVisibleAnnotation; on test (arg 1)
+  0: false
+  1: false
+Presence of Lhaxe/root/MyInvisibleAnnotation; on test (arg 1)
+  0: false
+  1: true

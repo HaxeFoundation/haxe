@@ -131,10 +131,26 @@ let get_strict_meta ctx meta params pos =
 			display_error ctx.com "A @:strict metadata must contain exactly one parameter. Please check the documentation for more information" pos;
 			raise Exit
 	in
+	let t = Typeload.load_complex_type ctx false (ctype,pos) in
 	let texpr = type_expr ctx changed_expr NoValue in
 	let with_type_expr = (ECheckType( (EConst (Ident "null"), pos), (ctype,null_pos) ), pos) in
 	let extra = handle_fields ctx fields_to_check with_type_expr in
-	meta, [make_meta ctx texpr extra], pos
+	let args = [make_meta ctx texpr extra] in
+	let args = match t with
+		| TInst(c,_) ->
+			let v = get_meta_string c.cl_meta Meta.Annotation in
+			begin match v with
+			| None ->
+				(* We explicitly set this to the default retention policy CLASS. This allows us to treat
+				   @:strict as default CLASS and @:meta as default RUNTIME. *)
+				args @ [EConst (String("CLASS",SDoubleQuotes)),pos]
+			| Some v ->
+				args @ [EConst (String(v,SDoubleQuotes)),pos]
+			end;
+		| _ ->
+			args
+	in
+	meta, args, pos
 
 let check_strict_meta ctx metas =
 	let pf = ctx.com.platform in
