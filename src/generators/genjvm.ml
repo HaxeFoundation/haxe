@@ -141,48 +141,54 @@ end
 
 open NativeSignatures
 
+let jsignature_of_path path = match path with
+	| [],"Bool" -> TBool
+	| ["java"],"Int8" -> TByte
+	| ["java"],"Int16" -> TShort
+	| [],"Int" -> TInt
+	| ["haxe"],"Int32" -> TInt
+	| ["haxe"],"Int64" -> TLong
+	| ["java"],"Int64" -> TLong
+	| ["java"],"Char16" -> TChar
+	| [],"Single" -> TFloat
+	| [],"Float" -> TDouble
+	| [],"Dynamic" -> object_sig
+	| _ -> raise Exit
+
 let rec jsignature_of_type gctx stack t =
 	if List.exists (fast_eq t) stack then object_sig else
 	let jsignature_of_type = jsignature_of_type gctx (t :: stack) in
 	let jtype_argument_of_type t = jtype_argument_of_type gctx stack t in
 	match t with
 	| TAbstract(a,tl) ->
-		begin match a.a_path with
-			| [],"Bool" -> TBool
-			| ["java"],"Int8" -> TByte
-			| ["java"],"Int16" -> TShort
-			| [],"Int" -> TInt
-			| ["haxe"],"Int32" -> TInt
-			| ["haxe"],"Int64" -> TLong
-			| ["java"],"Int64" -> TLong
-			| ["java"],"Char16" -> TChar
-			| [],"Single" -> TFloat
-			| [],"Float" -> TDouble
-			| [],"Void" -> void_sig
-			| [],"Null" ->
-				begin match tl with
-				| [t] -> get_boxed_type (jsignature_of_type t)
-				| _ -> die "" __LOC__
-				end
-			| ["haxe";"ds"],"Vector" ->
-				begin match tl with
-				| [t] -> TArray(jsignature_of_type t,None)
-				| _ -> die "" __LOC__
-				end
-			| [],"Dynamic" ->
-				object_sig
-			| [],("Class" | "Enum") ->
-				begin match tl with
-				| [t] -> TObject(java_class_path,[TType(WNone,jsignature_of_type t)])
-				| _ -> java_class_sig
-				end
-			| [],"EnumValue" ->
-				java_enum_sig object_sig
-			| _ ->
-				if Meta.has Meta.CoreType a.a_meta then
-					TObject(a.a_path,List.map jtype_argument_of_type tl)
-				else
-					jsignature_of_type (Abstract.get_underlying_type a tl)
+		begin try
+			jsignature_of_path a.a_path
+		with Exit ->
+			begin match a.a_path with
+				| [],"Void" -> void_sig
+				| [],"Null" ->
+					begin match tl with
+					| [t] -> get_boxed_type (jsignature_of_type t)
+					| _ -> die "" __LOC__
+					end
+				| ["haxe";"ds"],"Vector" ->
+					begin match tl with
+					| [t] -> TArray(jsignature_of_type t,None)
+					| _ -> die "" __LOC__
+					end
+				| [],("Class" | "Enum") ->
+					begin match tl with
+					| [t] -> TObject(java_class_path,[TType(WNone,jsignature_of_type t)])
+					| _ -> java_class_sig
+					end
+				| [],"EnumValue" ->
+					java_enum_sig object_sig
+				| _ ->
+					if Meta.has Meta.CoreType a.a_meta then
+						TObject(a.a_path,List.map jtype_argument_of_type tl)
+					else
+						jsignature_of_type (Abstract.get_underlying_type a tl)
+			end
 		end
 	| TDynamic _ -> object_sig
 	| TMono r ->
@@ -259,6 +265,17 @@ module AnnotationHandler = struct
 			| EConst (Ident "true") -> ABool true
 			| EConst (Ident "false") -> ABool false
 			| EArrayDecl el -> AArray (List.map parse_value el)
+			| EField(e1,"class",_) ->
+				let path = parse_path e1 in
+				let jsig =  try
+					Some (jsignature_of_path path)
+				with Exit -> match path with
+					| ([],"Void") ->
+						None
+					| _ ->
+						Some (TObject(path,[]))
+				in
+				AClass jsig
 			| EField(e1,s,_) ->
 				let path = parse_path e1 in
 				AEnum(object_path_sig path,s)

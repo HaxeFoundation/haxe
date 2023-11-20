@@ -59,11 +59,46 @@ let rec process_meta_argument ?(toplevel=true) ctx expr = match expr.eexpr with
 	| TTypeExpr md ->
 		get_native_repr md expr.epos
 	| TArrayDecl el ->
-		let el = List.map (process_meta_argument ~toplevel:false ctx) el in
+		let el = List.map (process_meta_argument ctx) el in
 		(EArrayDecl el,expr.epos)
 	| _ ->
 		display_error ctx.com "This expression is too complex to be a strict metadata argument" expr.epos;
 		(EConst(Ident "null"), expr.epos)
+
+let rec kind_of_type_against ctx t_want e_have =
+	match follow t_want with
+	| TInst({cl_path = (["java";"lang"],"Class")},[t1]) ->
+		let e = type_expr ctx e_have (WithType.with_type t_want) in
+		begin match follow e.etype with
+			| TAbstract({a_path = ([],"Class")},[t2]) ->
+				unify ctx t2 t1 e.epos
+			| TAnon an ->
+				begin match !(an.a_status) with
+					| ClassStatics c ->
+						unify ctx (TInst(c,extract_param_types c.cl_params)) t1 e.epos
+					| AbstractStatics a ->
+						unify ctx (TAbstract(a,extract_param_types a.a_params)) t1 e.epos
+					| _ ->
+						unify ctx e.etype t_want e.epos
+				end
+			| _ ->
+				unify ctx e.etype t_want e.epos
+		end;
+		e
+	| TInst({cl_path = (["java"],"NativeArray")},[t1]) ->
+		begin match fst e_have with
+			| EArrayDecl el ->
+				let el = List.map (kind_of_type_against ctx t1) el in
+				mk (TArrayDecl el) t1 (snd e_have)
+			| _ ->
+				let e = type_expr ctx e_have (WithType.with_type t_want) in
+				unify ctx e.etype t_want e.epos;
+				e
+		end
+	| t1 ->
+		let e = type_expr ctx e_have (WithType.with_type t1) in
+		unify ctx e.etype t1 e.epos;
+		e
 
 let handle_fields ctx fields_to_check with_type_expr =
 	List.map (fun ((name,_,_),expr) ->
@@ -77,16 +112,7 @@ let handle_fields ctx fields_to_check with_type_expr =
 		in
 
 		let left = type_expr ctx left_side NoValue in
-		let right = type_expr ctx expr (WithType.with_type left.etype) in
-		begin match right.eexpr,follow right.etype,follow left.etype with
-			| TArrayDecl _,TInst({cl_path = ([],"Array")},[t1]),TInst({cl_path = (["java"],"NativeArray")},[t2]) ->
-				(* Special case: We usually don't allow this assignment, but in this case this restriction is
-				   really impractical. This should be fine because the generator knows how to handle this anyway.
-				   However, we need strict equality here. *)
-				(try type_eq EqDoNotFollowNull t1 t2 with Unify_error l -> raise_error_msg (Unify l) (snd expr));
-			| _ ->
-				unify ctx right.etype left.etype (snd expr);
-		end;
+		let right = kind_of_type_against ctx left.etype expr in
 		(EBinop(Ast.OpAssign,fieldexpr,process_meta_argument ctx right), pos)
 	) fields_to_check
 

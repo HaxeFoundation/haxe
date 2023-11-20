@@ -9,9 +9,15 @@ interface MyVisibleArrayAnnotation {
 	function value():java.NativeArray<String>;
 }
 
+@:annotation("RUNTIME")
+interface MyVisibleArrayArrayAnnotation {
+	function value():java.NativeArray<java.NativeArray<String>>;
+}
+
 @:strict(MyVisibleAnnotation())
 @:strict(MyInvisibleAnnotation())
 @:strict(MyVisibleArrayAnnotation({value: ["foo", "bar"]}))
+@:strict(MyVisibleArrayArrayAnnotation({value: [["foo1", "bar1"], ["foo2", "bar2"]]}))
 class AnnotationLib {
 	@:strict(MyVisibleAnnotation())
 	@:strict(MyInvisibleAnnotation())

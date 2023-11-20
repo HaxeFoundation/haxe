@@ -75,5 +75,8 @@ function main() {
 
 		var ann = annotations.runtimeVisible.find(ann -> ann.type == "Lhaxe/root/MyVisibleArrayAnnotation;");
 		Sys.println(ann.elementValuePairs[0].elementValue.value);
+
+		var ann = annotations.runtimeVisible.find(ann -> ann.type == "Lhaxe/root/MyVisibleArrayArrayAnnotation;");
+		Sys.println(ann.elementValuePairs[0].elementValue.value);
 	}
 }

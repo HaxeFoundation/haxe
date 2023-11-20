@@ -931,10 +931,12 @@ module Converter = struct
 		let is_interface = AccessFlags.has_flag jc.jc_flags MInterface in
 		if is_interface then add_flag HInterface
 		else if AccessFlags.has_flag jc.jc_flags MAbstract then add_flag HAbstract;
+		let is_annotation = AccessFlags.has_flag jc.jc_flags MAnnotation in
 		begin match jc.jc_super with
 			| TObject(([],""),_)
 			| TObject((["java";"lang"],"Object"),_) ->
-				()
+				if is_annotation then
+					add_flag (HExtends ({tpackage = ["java";"lang";"annotation"]; tname = "Annotation"; tsub = None; tparams = []},null_pos));
 			| jsig ->
 				add_flag (HExtends (get_type_path (convert_signature ctx p jsig),p))
 		end;
@@ -980,7 +982,7 @@ module Converter = struct
 		end;
 		let _,class_name = jname_to_hx (snd jc.jc_path) in
 		add_meta (Meta.Native, [EConst (String (s_type_path jc.jc_path,SDoubleQuotes) ),p],p);
-		if AccessFlags.has_flag jc.jc_flags MAnnotation then begin
+		if is_annotation then begin
 			let args = match extract_retention_policy jc.jc_attributes with
 				| None ->
 					[]

@@ -29,6 +29,7 @@ type annotation_kind =
 	| AEnum of jsignature * string
 	| AArray of annotation_kind list
 	| AAnnotation of jsignature * annotation
+	| AClass of jsignature option
 
 and annotation = (string * annotation_kind) list
 
@@ -58,7 +59,8 @@ let convert_annotations pool annotations =
 				| AAnnotation (jsig, a) ->
 					let ann = process_annotation (jsig, a) in
 					'@',ValAnnotation(ann)
-
+				| AClass jsig ->
+					'c',ValClass(pool#add_string (Option.map_default (generate_signature false) "V" jsig))
 			in
 			offset,loop ak
 		) l in

@@ -23,3 +23,4 @@ Presence of Lhaxe/root/MyInvisibleAnnotation; on test (arg 1)
   0: false
   1: true
 ArrayValue([{tag: 115, value: ConstValue(CONSTANT_Utf8(foo))},{tag: 115, value: ConstValue(CONSTANT_Utf8(bar))}])
+ArrayValue([{tag: 91, value: ArrayValue([{tag: 115, value: ConstValue(CONSTANT_Utf8(foo1))},{tag: 115, value: ConstValue(CONSTANT_Utf8(bar1))}])},{tag: 91, value: ArrayValue([{tag: 115, value: ConstValue(CONSTANT_Utf8(foo2))},{tag: 115, value: ConstValue(CONSTANT_Utf8(bar2))}])}])
