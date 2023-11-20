@@ -177,8 +177,8 @@ and generate_metadata_entry ctx (m,el,p) =
 
 and generate_metadata ctx ml =
 	let ml = List.filter (fun (m,_,_) ->
-		let (_,(_,flags),_) = Meta.get_info m in
-		not (List.mem UsedInternally flags)
+		let (_,data) = Meta.get_info m in
+		not data.m_internal
 	) ml in
 	jlist (generate_metadata_entry ctx) ml
 

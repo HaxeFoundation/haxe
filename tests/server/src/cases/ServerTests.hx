@@ -3,6 +3,7 @@ package cases;
 import haxe.display.Display;
 import haxe.display.FsPath;
 import haxe.display.Server;
+import haxe.io.Path;
 import utest.Assert;
 
 using StringTools;
@@ -233,6 +234,34 @@ class ServerTests extends TestCase {
 			return ~/[\r\n\t]/g.replace(s, "");
 		}
 		utest.Assert.equals("function() {_Vector.Vector_Impl_.toIntVector(null);}", moreHack(type.args.statics[0].expr.testHack)); // lmao
+	}
+
+	function testMetadata() {
+		var dummy_path = Path.join(["..", "misc", "projects", "Issue10844"]);
+		Sys.command("haxelib", ["dev", "dummy_doc_dep", Path.join([dummy_path, "dummy_doc_dep"])]);
+		Sys.command("haxelib", ["dev", "dummy_doc", Path.join([dummy_path, "dummy_doc"])]);
+		var args = ["-lib", "dummy_doc"];
+		runHaxeJsonCb(args, DisplayMethods.Metadata, {}, function(meta) {
+			var analyzer = Lambda.find(meta, m -> m.name == ':analyzer');
+			Assert.notNull(analyzer);
+			Assert.equals("Used to configure the static analyzer.", analyzer.doc);
+			Assert.equals("haxe compiler", analyzer.origin);
+
+			var dummy_doc = Lambda.find(meta, m -> m.name == ':foo');
+			Assert.notNull(dummy_doc);
+			Assert.equals("Some documentation for the @:foo metadata for cpp platform", dummy_doc.doc);
+			Assert.equals("dummy_doc", dummy_doc.origin);
+			Assert.equals(Platform.Cpp, dummy_doc.platforms[0]);
+
+			var dummy_doc = Lambda.find(meta, m -> m.name == ':bar');
+			Assert.notNull(dummy_doc);
+			Assert.equals("dummy_doc", dummy_doc.origin);
+			Assert.equals(MetadataTarget.Class, dummy_doc.targets[0]);
+
+			var dummy_doc_dep = Lambda.find(meta, m -> m.name == ':baz');
+			Assert.notNull(dummy_doc_dep);
+			Assert.equals("dummy_doc_dep", dummy_doc_dep.origin);
+		});
 	}
 
 	function test10986() {

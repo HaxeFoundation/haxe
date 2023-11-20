@@ -155,6 +155,30 @@ let handler =
 			hctx.display#set_display_file (hctx.jsonrpc#get_bool_param "wasAutoTriggered") true;
 			hctx.display#enable_display DMSignature
 		);
+		"display/metadata", (fun hctx ->
+			hctx.com.callbacks#add_after_init_macros (fun () ->
+				let all = Meta.get_meta_list hctx.com.user_metas in
+
+				hctx.send_result (jarray (List.map (fun (t, (data:Meta.meta_infos)) ->
+					let fields = [
+						"name", jstring t;
+						"doc", jstring data.m_doc;
+						"parameters", jarray (List.map jstring data.m_params);
+						"platforms", jarray (List.map (fun p -> jstring (platform_name p)) data.m_platforms);
+						"targets", jarray (List.map (fun u -> jstring (Meta.print_meta_usage u)) data.m_used_on);
+						"internal", jbool data.m_internal;
+						"origin", jstring (match data.m_origin with
+							| Compiler -> "haxe compiler"
+							| UserDefined None -> "user-defined"
+							| UserDefined (Some o) -> o
+						);
+						"links", jarray (List.map jstring data.m_links)
+					] in
+
+					(jobject fields)
+				) all))
+			)
+		);
 		"server/readClassPaths", (fun hctx ->
 			hctx.com.callbacks#add_after_init_macros (fun () ->
 				let cc = hctx.display#get_cs#get_context (Define.get_signature hctx.com.defines) in

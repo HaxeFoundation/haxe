@@ -78,6 +78,11 @@ class DisplayMethods {
 	**/
 	static inline var SignatureHelp = new HaxeRequestMethod<SignatureHelpParams, SignatureHelpResult>("display/signatureHelp");
 
+	/**
+		The metadata request is sent from the client to Haxe to get a list of all registered metadata and their documentation.
+	**/
+	static inline var Metadata = new HaxeRequestMethod<{}, MetadataResult>("display/metadata");
+
 	/*
 		TODO:
 
@@ -261,7 +266,7 @@ typedef DisplayLiteral<T> = {
 	var name:String;
 }
 
-enum abstract MetadataTarget(String) {
+enum abstract MetadataTarget(String) from String {
 	var Class = "TClass";
 	var ClassField = "TClassField";
 	var Abstract = "TAbstract";
@@ -273,7 +278,7 @@ enum abstract MetadataTarget(String) {
 	var TypeParameter = "TTypeParameter";
 }
 
-enum abstract Platform(String) {
+enum abstract Platform(String) from String {
 	var Cross = "cross";
 	var Js = "js";
 	var Lua = "lua";
@@ -542,6 +547,8 @@ typedef SignatureItem = {
 }
 
 typedef SignatureHelpResult = Response<Null<SignatureItem>>;
+
+typedef MetadataResult = Response<Array<Metadata>>;
 
 /** General types **/
 typedef PositionParams = FileParams & {
