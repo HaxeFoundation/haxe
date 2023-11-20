@@ -11,7 +11,6 @@ class Java {
 
 	static public function getJavaDependencies() {
 		haxelibInstallGit("HaxeFoundation", "hxjava", true);
-		haxelibInstallGit("HaxeFoundation", "format", "jvm");
 		runCommand("javac", ["-version"]);
 	}
 
