@@ -131,12 +131,11 @@ let get_strict_meta ctx meta params pos =
 			display_error ctx.com "A @:strict metadata must contain exactly one parameter. Please check the documentation for more information" pos;
 			raise Exit
 	in
-	let t = Typeload.load_complex_type ctx false (ctype,pos) in
 	let texpr = type_expr ctx changed_expr NoValue in
 	let with_type_expr = (ECheckType( (EConst (Ident "null"), pos), (ctype,null_pos) ), pos) in
 	let extra = handle_fields ctx fields_to_check with_type_expr in
 	let args = [make_meta ctx texpr extra] in
-	let args = match t with
+	let args = if Common.defined ctx.com Define.Jvm then match Typeload.load_complex_type ctx false (ctype,pos) with
 		| TInst(c,_) ->
 			let v = get_meta_string c.cl_meta Meta.Annotation in
 			begin match v with
@@ -149,6 +148,8 @@ let get_strict_meta ctx meta params pos =
 			end;
 		| _ ->
 			args
+	else
+		args
 	in
 	meta, args, pos
 
