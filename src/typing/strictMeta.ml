@@ -3,6 +3,7 @@ open Ast
 open Type
 open Common
 open Typecore
+open Error
 
 let get_native_repr md pos =
 	let path, meta = match md with
@@ -57,6 +58,9 @@ let rec process_meta_argument ?(toplevel=true) ctx expr = match expr.eexpr with
 			(efield(get_native_repr md expr.epos, "class"), p)
 	| TTypeExpr md ->
 		get_native_repr md expr.epos
+	| TArrayDecl el ->
+		let el = List.map (process_meta_argument ~toplevel:false ctx) el in
+		(EArrayDecl el,expr.epos)
 	| _ ->
 		display_error ctx.com "This expression is too complex to be a strict metadata argument" expr.epos;
 		(EConst(Ident "null"), expr.epos)
@@ -74,7 +78,15 @@ let handle_fields ctx fields_to_check with_type_expr =
 
 		let left = type_expr ctx left_side NoValue in
 		let right = type_expr ctx expr (WithType.with_type left.etype) in
-		unify ctx left.etype right.etype (snd expr);
+		begin match right.eexpr,follow right.etype,follow left.etype with
+			| TArrayDecl _,TInst({cl_path = ([],"Array")},[t1]),TInst({cl_path = (["java"],"NativeArray")},[t2]) ->
+				(* Special case: We usually don't allow this assignment, but in this case this restriction is
+				   really impractical. This should be fine because the generator knows how to handle this anyway.
+				   However, we need strict equality here. *)
+				(try type_eq EqDoNotFollowNull t1 t2 with Unify_error l -> raise_error_msg (Unify l) (snd expr));
+			| _ ->
+				unify ctx right.etype left.etype (snd expr);
+		end;
 		(EBinop(Ast.OpAssign,fieldexpr,process_meta_argument ctx right), pos)
 	) fields_to_check
 

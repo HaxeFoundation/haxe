@@ -1,11 +1,17 @@
 @:annotation("RUNTIME")
-class MyVisibleAnnotation {}
+interface MyVisibleAnnotation {}
 
 @:annotation("CLASS")
-class MyInvisibleAnnotation {}
+interface MyInvisibleAnnotation {}
+
+@:annotation("RUNTIME")
+interface MyVisibleArrayAnnotation {
+	function value():java.NativeArray<String>;
+}
 
 @:strict(MyVisibleAnnotation())
 @:strict(MyInvisibleAnnotation())
+@:strict(MyVisibleArrayAnnotation({value: ["foo", "bar"]}))
 class AnnotationLib {
 	@:strict(MyVisibleAnnotation())
 	@:strict(MyInvisibleAnnotation())

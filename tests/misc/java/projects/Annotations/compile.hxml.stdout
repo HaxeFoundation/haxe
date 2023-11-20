@@ -22,3 +22,4 @@ Presence of Lhaxe/root/MyVisibleAnnotation; on test (arg 1)
 Presence of Lhaxe/root/MyInvisibleAnnotation; on test (arg 1)
   0: false
   1: true
+ArrayValue([{tag: 115, value: ConstValue(CONSTANT_Utf8(foo))},{tag: 115, value: ConstValue(CONSTANT_Utf8(bar))}])

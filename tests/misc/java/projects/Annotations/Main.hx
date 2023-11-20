@@ -72,5 +72,8 @@ function main() {
 				reportPresence(name, [annotations.runtimeVisibleParameter[i], annotations.runtimeInvisibleParameter[i]], "Lhaxe/root/MyInvisibleAnnotation;");
 			}
 		}
+
+		var ann = annotations.runtimeVisible.find(ann -> ann.type == "Lhaxe/root/MyVisibleArrayAnnotation;");
+		Sys.println(ann.elementValuePairs[0].elementValue.value);
 	}
 }
