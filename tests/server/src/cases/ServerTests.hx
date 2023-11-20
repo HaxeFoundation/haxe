@@ -264,6 +264,28 @@ class ServerTests extends TestCase {
 		});
 	}
 
+	function testDefines() {
+		var dummy_path = Path.join(["..", "misc", "projects", "Issue10844"]);
+		Sys.command("haxelib", ["dev", "dummy_doc_dep", Path.join([dummy_path, "dummy_doc_dep"])]);
+		Sys.command("haxelib", ["dev", "dummy_doc", Path.join([dummy_path, "dummy_doc"])]);
+		var args = ["-lib", "dummy_doc"];
+		runHaxeJsonCb(args, DisplayMethods.Defines, {}, function(defines) {
+			var debug = Lambda.find(defines, d -> d.name == 'debug');
+			Assert.notNull(debug);
+			Assert.equals("Activated when compiling with -debug.", debug.doc);
+			Assert.equals("haxe compiler", debug.origin);
+
+			var dummy_doc = Lambda.find(defines, d -> d.name == 'no-bullshit');
+			Assert.notNull(dummy_doc);
+			Assert.equals("Only very important stuff should be compiled", dummy_doc.doc);
+			Assert.equals("dummy_doc", dummy_doc.origin);
+
+			var dummy_doc_dep = Lambda.find(defines, d -> d.name == 'dummy');
+			Assert.notNull(dummy_doc_dep);
+			Assert.equals("dummy_doc_dep", dummy_doc_dep.origin);
+		});
+	}
+
 	function test10986() {
 		vfs.putContent("Main.hx", getTemplate("issues/Issue10986/Main.hx"));
 		vfs.putContent("haxe/ds/Vector.hx", getTemplate("issues/Issue10986/Vector.hx"));

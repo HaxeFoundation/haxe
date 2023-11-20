@@ -179,6 +179,29 @@ let handler =
 				) all))
 			)
 		);
+		"display/defines", (fun hctx ->
+			hctx.com.callbacks#add_after_init_macros (fun () ->
+				let all = Define.get_define_list hctx.com.user_defines in
+
+				hctx.send_result (jarray (List.map (fun (t, (data:Define.define_infos)) ->
+					let fields = [
+						"name", jstring t;
+						"doc", jstring data.d_doc;
+						"parameters", jarray (List.map jstring data.d_params);
+						"platforms", jarray (List.map (fun p -> jstring (platform_name p)) data.d_platforms);
+						"origin", jstring (match data.d_origin with
+							| Compiler -> "haxe compiler"
+							| UserDefined None -> "user-defined"
+							| UserDefined (Some o) -> o
+						);
+						"deprecated", jopt jstring data.d_deprecated;
+						"links", jarray (List.map jstring data.d_links)
+					] in
+
+					(jobject fields)
+				) all))
+			)
+		);
 		"server/readClassPaths", (fun hctx ->
 			hctx.com.callbacks#add_after_init_macros (fun () ->
 				let cc = hctx.display#get_cs#get_context (Define.get_signature hctx.com.defines) in
