@@ -7,8 +7,6 @@ import runci.Config.*;
 using StringTools;
 
 class Java {
-	static final miscJavaDir = getMiscSubDir('java');
-
 	static public function getJavaDependencies() {
 		haxelibInstallGit("HaxeFoundation", "hxjava", true);
 		haxelibInstallGit("HaxeFoundation", "format", "jvm", "--always");
@@ -24,9 +22,6 @@ class Java {
 
 		runCommand("haxe", ["compile-java.hxml","-dce","no"].concat(args));
 		runCommand("java", ["-jar", "bin/java/TestMain-Debug.jar"]);
-
-		changeDirectory(miscJavaDir);
-		runCommand("haxe", ["run.hxml"]);
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-java.hxml"].concat(args));
