@@ -272,6 +272,8 @@ module AnnotationHandler = struct
 				with Exit -> match path with
 					| ([],"Void") ->
 						None
+					| ([],name) ->
+						Some (TObject((["haxe";"root"],name),[]))
 					| _ ->
 						Some (TObject(path,[]))
 				in
