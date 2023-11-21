@@ -391,8 +391,6 @@ with
 		()
 	| Error.Fatal_error err ->
 		error_ext ctx err
-	| Common.Abort err ->
-		error_ext ctx err
 	| Lexer.Error (m,p) ->
 		error ctx (Lexer.error_msg m) p
 	| Parser.Error (m,p) ->

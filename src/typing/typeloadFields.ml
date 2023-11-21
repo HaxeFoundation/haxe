@@ -795,7 +795,6 @@ module TypeBinding = struct
 				force_macro false
 			else begin
 				cf.cf_type <- TLazy r;
-				(* is_lib ? *)
 				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
 			end
 		end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.com.is_macro_context then
@@ -1357,7 +1356,6 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	if (is_override && fctx.is_static) then invalid_modifier_combination fctx ctx.com fctx "override" "static" p;
 
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
-	(* TODO is_lib: avoid forcing the return type to be typed *)
 	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in
 	let t = TFun (args#for_type,ret) in
 	let cf = {
@@ -1448,7 +1446,6 @@ let create_method (ctx,cctx,fctx) c f fd p =
 
 let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	let name = fst f.cff_name in
-	(* TODO is_lib: lazify load_complex_type *)
 	let ret = (match t, eo with
 		| None, None -> raise_typing_error "Property requires type-hint or initialization" p;
 		| None, _ -> mk_mono()
@@ -1873,29 +1870,6 @@ let init_class ctx c p herits fields =
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
-	(* if ctx.is_display_file && not cctx.has_display_field && Display.is_display_position c.cl_pos && ctx.com.display.dms_kind = DMToplevel then begin
-		let rec loop acc c tl =
-			let maybe_add acc cf = match cf.cf_kind with
-				| Method MethNormal when not (PMap.mem cf.cf_name acc) -> PMap.add cf.cf_name cf acc
-				| _ -> acc
-			in
-			let acc = List.fold_left maybe_add PMap.empty c.cl_ordered_fields in
-			match c.cl_super with
-			| Some(c,tl) -> loop acc c tl
-			| None -> acc
-		in
-		let fields = match c.cl_super with
-			| Some(c,tl) -> loop PMap.empty c tl
-			| None -> PMap.empty
-		in
-		let open Display in
-		let l = PMap.fold (fun cf acc ->
-			if not (List.exists (fun cf' -> cf'.cf_name = cf.cf_name) c.cl_overrides) then
-				(IdentifierType.ITClassMember cf) :: acc
-			else acc
-		) fields [] in
-		raise (Display.DisplayToplevel l)
-	end; *)
 	(*
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)

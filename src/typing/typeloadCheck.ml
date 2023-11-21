@@ -436,7 +436,6 @@ module Inheritance = struct
 
 	let check_interfaces ctx c =
 		match c.cl_path with
-		| "Proxy" :: _ , _ -> ()
 		| _ when (has_class_flag c CExtern) && Meta.has Meta.CsNative c.cl_meta -> ()
 		| _ ->
 		List.iter (fun (intf,params) ->

@@ -1494,7 +1494,7 @@ module Printer = struct
 					Codegen.interpolate_code pctx.pc_com code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
 				in
 				let old = pctx.pc_com.error_ext in
-				pctx.pc_com.error_ext <- (fun err -> raise (Abort err));
+				pctx.pc_com.error_ext <- (fun err -> raise (Error.Fatal_error err));
 				Std.finally (fun() -> pctx.pc_com.error_ext <- old) interpolate ();
 				Buffer.contents buf
 			| ("python_Syntax._pythonCode"), [e] ->
