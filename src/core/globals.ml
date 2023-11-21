@@ -33,6 +33,41 @@ let version_pre = Some "alpha.1"
 
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 
+let no_color = false
+let c_reset = if no_color then "" else "\x1b[0m"
+let c_dim = if no_color then "" else "\x1b[2m"
+
+let loc_short (loc:Printexc.location) =
+	Printf.sprintf "%s:%d" loc.filename loc.line_number
+
+let loc_to_string (loc:Printexc.location) =
+	Printf.sprintf "%s, line %d, characters %d-%d" loc.filename loc.line_number loc.start_char loc.end_char
+
+let trace s =
+	let stack = Printexc.get_callstack 2 in
+	match Printexc.backtrace_slots stack with
+	| Some [|_; item |] ->
+		(match Printexc.Slot.location item with
+		| Some loc -> print_endline (Printf.sprintf "%s%s:%s %s" c_dim (loc_short loc) c_reset s)
+		| _ -> ())
+	| _ ->
+		()
+
+let trace_call_stack ?(n:int = 5) () =
+	assert (n >= 0);
+	let stack = Printexc.get_callstack (n+2) in
+	let len = Printexc.raw_backtrace_length stack - 1 in
+
+	let slot = Printexc.convert_raw_backtrace_slot (Printexc.get_raw_backtrace_slot stack 1) in
+	let loc = Printexc.Slot.location slot in
+	Option.may (fun loc -> print_endline (Printf.sprintf "%s%s:%s" c_dim (loc_short loc) c_reset)) loc;
+
+	for i = 2 to len do
+		let slot = Printexc.convert_raw_backtrace_slot (Printexc.get_raw_backtrace_slot stack i) in
+		let loc = Printexc.Slot.location slot in
+		Option.may (fun loc -> print_endline (Printf.sprintf "  called from %s" (loc_to_string loc))) loc;
+	done
+
 let macro_platform = ref Neko
 
 let return_partial_type = ref false

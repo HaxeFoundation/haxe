@@ -21,6 +21,7 @@ type compiler_options = {
 type 'value compiler_api = {
 	pos : Globals.pos;
 	get_com : unit -> Common.context;
+	get_macro_com : unit -> Common.context;
 	get_macro_stack : unit -> pos list;
 	init_macros_done : unit -> bool;
 	get_type : string -> Type.t option;
@@ -1185,7 +1186,7 @@ and encode_anon_status s =
 		| Closed -> 0, []
 		| Type.Const -> 2, []
 		| Extend tl -> 3, [encode_ref tl (fun tl -> encode_array (List.map encode_type tl)) (fun() -> "<extended types>")]
-		| Statics cl -> 4, [encode_clref cl]
+		| ClassStatics cl -> 4, [encode_clref cl]
 		| EnumStatics en -> 5, [encode_enref en]
 		| AbstractStatics ab -> 6, [encode_abref ab]
 	)
@@ -1894,7 +1895,7 @@ let macro_api ccom get_api =
 		);
 		"on_after_init_macros", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
-			(get_api()).after_init_macros (fun tl -> ignore(f []));
+			(get_api()).after_init_macros (fun tctx -> ignore(f []));
 			vnull
 		);
 		"on_after_typing", vfun1 (fun f ->

@@ -387,7 +387,8 @@ module Dump = struct
 		let dep = Hashtbl.create 0 in
 		List.iter (fun m ->
 			print "%s:\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
-			PMap.iter (fun _ m2 ->
+			PMap.iter (fun _ (sign,mpath) ->
+				let m2 = (com.cs#get_context sign)#find_module mpath in
 				let file = Path.UniqueKey.lazy_path m2.m_extra.m_file in
 				print "\t%s\n" file;
 				let l = try Hashtbl.find dep file with Not_found -> [] in
@@ -414,7 +415,7 @@ end
 let default_cast ?(vtmp="$t") com e texpr t p =
 	let api = com.basic in
 	let mk_texpr = function
-		| TClassDecl c -> mk_anon (ref (Statics c))
+		| TClassDecl c -> mk_anon (ref (ClassStatics c))
 		| TEnumDecl e -> mk_anon (ref (EnumStatics e))
 		| TAbstractDecl a -> mk_anon (ref (AbstractStatics a))
 		| TTypeDecl _ -> die "" __LOC__

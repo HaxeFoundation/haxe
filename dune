@@ -1,1 +1,2 @@
-(data_only_dirs extra lib std tests)
+(dirs :standard \ tests std extra)
+(data_only_dirs lib)

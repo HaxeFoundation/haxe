@@ -38,7 +38,7 @@ module Utils = struct
 			abort (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
 
 	let mk_static_field c cf p =
-			let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
+			let ta = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
 			let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
 			let t = monomorphs cf.cf_params cf.cf_type in
 			mk (TField (ethis,(FStatic (c,cf)))) t p
@@ -1494,7 +1494,7 @@ module Printer = struct
 					Codegen.interpolate_code pctx.pc_com code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
 				in
 				let old = pctx.pc_com.error_ext in
-				pctx.pc_com.error_ext <- (fun err -> raise (Abort err));
+				pctx.pc_com.error_ext <- (fun err -> raise (Error.Fatal_error err));
 				Std.finally (fun() -> pctx.pc_com.error_ext <- old) interpolate ();
 				Buffer.contents buf
 			| ("python_Syntax._pythonCode"), [e] ->

@@ -310,7 +310,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			in
 			handle_call tl el e1.epos
 		| ENew(tpath,el) ->
-			let t = Abstract.follow_with_forward_ctor (Typeload.load_instance ctx tpath true) in
+			let t = Abstract.follow_with_forward_ctor (Typeload.load_instance ctx tpath ParamSpawnMonos) in
 			handle_call (find_constructor_types t) el (pos tpath)
 		| EArray(e1,e2) ->
 			let e1 = type_expr ctx e1 WithType.value in
@@ -346,20 +346,40 @@ and display_expr ctx e_ast e dk mode with_type p =
 			let fa = get_constructor_access c params p in
 			fa.fa_field,c
 	in
-	let maybe_expand_overload e e_on host cf = match mode with
+	let maybe_expand_overload el_typed e e_on host cf = match mode with
 		| MCall el when cf.cf_overloads <> [] ->
 			let fa = FieldAccess.create e_on cf host false p in
-			let fcc = unify_field_call ctx fa [] el p false in
+			let fcc = unify_field_call ctx fa el_typed el p false in
 			FieldAccess.get_field_expr {fa with fa_field = fcc.fc_field} FCall
 		| _ ->
 			e
 	in
+	let e,el_typed = match fst e_ast,e.eexpr with
+		| _,TMeta((Meta.StaticExtension,[e_self],_),e1) ->
+			e1,[type_stored_expr ctx e_self]
+		| EField((_,_,EFSafe)),e1 ->
+			(* For ?. we want to extract the then-expression of the TIf. *)
+			let rec loop e1 = match e1.eexpr with
+				| TIf({eexpr = TBinop(OpNotEq,_,{eexpr = TConst TNull})},e1,Some _) ->
+					e1
+				| TBlock el ->
+					begin match List.rev el with
+						| e :: _ -> loop e
+						| _ -> e
+					end
+				| _ ->
+					e
+			in
+			loop e,[]
+		| _ ->
+			e,[]
+	in
 	(* If we display on a TField node that points to an overloaded field, let's try to unify the field call
 	   in order to resolve the correct overload (issue #7753). *)
 	let e = match e.eexpr with
-		| TField(e1,FStatic(c,cf)) -> maybe_expand_overload e e1 (FHStatic c) cf
-		| TField(e1,(FInstance(c,tl,cf) | FClosure(Some(c,tl),cf))) -> maybe_expand_overload e e1 (FHInstance(c,tl)) cf
-		| TField(e1,(FAnon cf | FClosure(None,cf))) -> maybe_expand_overload e e1 FHAnon cf
+		| TField(e1,FStatic(c,cf)) -> maybe_expand_overload el_typed e e1 (FHStatic c) cf
+		| TField(e1,(FInstance(c,tl,cf) | FClosure(Some(c,tl),cf))) -> maybe_expand_overload el_typed e e1 (FHInstance(c,tl)) cf
+		| TField(e1,(FAnon cf | FClosure(None,cf))) -> maybe_expand_overload el_typed e e1 FHAnon cf
 		| _ -> e
 	in
 	match ctx.com.display.dms_kind with
@@ -404,6 +424,8 @@ and display_expr ctx e_ast e dk mode with_type p =
 				| Some (c,_) -> Display.ReferencePosition.set (snd c.cl_path,c.cl_name_pos,SKClass c);
 			end
 		| TCall(e1,_) ->
+			loop e1
+		| TCast(e1,_) ->
 			loop e1
 		| _ ->
 			()
@@ -459,6 +481,8 @@ and display_expr ctx e_ast e dk mode with_type p =
 				| Some (c,_) -> [c.cl_name_pos]
 			end
 		| TCall(e1,_) ->
+			loop e1
+		| TCast(e1,_) ->
 			loop e1
 		| _ ->
 			[]

@@ -210,7 +210,7 @@ module BetterErrors = struct
 		| TAnon a ->
 			begin
 				match !(a.a_status) with
-				| Statics c -> Printf.sprintf "{ Statics %s }" (s_type_path c.cl_path)
+				| ClassStatics c -> Printf.sprintf "{ ClassStatics %s }" (s_type_path c.cl_path)
 				| EnumStatics e -> Printf.sprintf "{ EnumStatics %s }" (s_type_path e.e_path)
 				| AbstractStatics a -> Printf.sprintf "{ AbstractStatics %s }" (s_type_path a.a_path)
 				| _ ->

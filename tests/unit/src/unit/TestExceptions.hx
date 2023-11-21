@@ -162,6 +162,14 @@ class TestExceptions extends Test {
 		} catch(e:String) {
 			eq('string', e);
 		}
+
+		try {
+			throw new CustomHaxeException('Terrible error');
+		} catch(e:haxe.ValueException) {
+			throw 'should not happen';
+		} catch(e) {
+			Assert.pass();
+		}
 	}
 
 	public function testCustomNativeException() {
@@ -245,6 +253,10 @@ class TestExceptions extends Test {
 			var expected = null;
 			var lineShift = 0;
 			for(s in stacks) {
+				// This will avoid errors when compiling hl/c on unix
+				// See https://github.com/HaxeFoundation/haxe/pull/11382 for long term fix
+				#if hlc if (s.length == 0) continue; #end
+
 				if(expected == null) {
 					expected = stackItemData(s[0]);
 				} else {

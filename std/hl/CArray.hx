@@ -9,9 +9,14 @@ abstract CArray<T>(Abstract<"hl_carray">) {
 
 	public var length(get,never) : Int;
 
-	inline function get_length() return getLen(cast this);
 
+	#if (hl_ver >= version("1.14.0"))
+	inline function get_length() return untyped $asize(this);
+	@:arrayAccess inline function get( index : Int ) : T return untyped this[index];
+	#else
+	inline function get_length() return getLen(cast this);
 	@:arrayAccess inline function get( index : Int ) : T return getIndex(cast this, index);
+	#end
 
 	public static function alloc<T>( cl : Class<T>, size : Int ) : CArray<T> {
 		return cast alloc_carray( (cast cl:BaseType).__type__ , size );

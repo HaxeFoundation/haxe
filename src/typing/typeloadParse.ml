@@ -53,7 +53,6 @@ let parse_file_from_lexbuf com file p lexbuf =
 			()
 	end;
 	t();
-	Common.log com ("Parsed " ^ file);
 	parse_result
 
 let parse_file_from_string com file p string =
@@ -102,7 +101,7 @@ let resolve_module_file com m remap p =
 		with Not_found ->
 			Common.find_file com (compose_path true)
 	in
-	let file = (match String.lowercase (snd m) with
+	let file = (match ExtString.String.lowercase (snd m) with
 	| "con" | "aux" | "prn" | "nul" | "com1" | "com2" | "com3" | "lpt1" | "lpt2" | "lpt3" when Sys.os_type = "Win32" ->
 		(* these names are reserved by the OS - old DOS legacy, such files cannot be easily created but are reported as visible *)
 		if (try (Unix.stat file).Unix.st_size with _ -> 0) > 0 then file else raise Not_found

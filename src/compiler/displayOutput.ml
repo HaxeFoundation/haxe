@@ -67,8 +67,8 @@ let print_fields fields =
 		| ITPackage(path,_) -> "package",snd path,"",None
 		| ITModule path -> "type",snd path,"",None
 		| ITMetadata  meta ->
-			let s,(doc,_),_ = Meta.get_info meta in
-			"metadata","@" ^ s,"",doc_from_string doc
+			let s,data  = Meta.get_info meta in
+			"metadata","@" ^ s,"",doc_from_string data.m_doc
 		| ITTimer(name,value) -> "timer",name,"",doc_from_string value
 		| ITLiteral s ->
 			let t = match k.ci_type with None -> t_dynamic | Some (t,_) -> t in
@@ -209,7 +209,7 @@ let find_doc t =
 	let doc = match follow t with
 		| TAnon an ->
 			begin match !(an.a_status) with
-				| Statics c -> c.cl_doc
+				| ClassStatics c -> c.cl_doc
 				| EnumStatics en -> en.e_doc
 				| AbstractStatics a -> a.a_doc
 				| _ -> None
@@ -344,10 +344,10 @@ let handle_type_path_exception ctx p c is_import pos =
 			| None ->
 				DisplayPath.TypePathHandler.complete_type_path com p
 			| Some (c,cur_package) ->
-				let ctx = Typer.create com in
+				let ctx = Typer.create com None in
 				DisplayPath.TypePathHandler.complete_type_path_inner ctx p c cur_package is_import
-		end with Common.Abort msg ->
-			error_ext ctx msg;
+		end with Error.Fatal_error err ->
+			error_ext ctx err;
 			None
 	in
 	begin match ctx.com.json_out,fields with

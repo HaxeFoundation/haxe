@@ -1664,11 +1664,11 @@ let generate_enum ctx e =
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in begin
 			if as_objects then begin
 				let sfields = String.concat "," (List.map (fun (n,_,_) -> (ident n) ^ ":" ^ (ident n) ) args) in
-				let sparams = String.concat "," (List.map (fun (n,_,_) -> "\"" ^ (ident n) ^ "\"" ) args) in
+				let sparams = String.concat "," (List.map (fun (n,_,_) -> "this." ^ (ident n) ) args) in
 				print ctx "($_=function(%s) { return {_hx_index:%d,%s,__enum__:\"%s\"" sargs f.ef_index sfields dotp;
 				if has_enum_feature then
 					spr ctx ",toString:$estr";
-				print ctx "}; },$_._hx_name=\"%s\",$_.__params__ = [%s],$_)" f.ef_name sparams
+				print ctx ",__params__:function(){ return [%s];}}; },$_._hx_name=\"%s\",$_)" sparams f.ef_name
 			end else begin
 				print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
 				if has_enum_feature then

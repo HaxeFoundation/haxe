@@ -312,14 +312,14 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 	List.iter (fun (sl2,m,(recursive,to_types,to_fields)) ->
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in
 		if add then f_add m
-	) ctx.g.global_metadata;
+	) ctx.com.global_metadata;
 	if ctx.is_display_file then delay ctx PCheckConstraint (fun () -> DisplayEmitter.check_display_metadata ctx meta)
 
 let check_module_types ctx m p t =
 	let t = t_infos t in
 	try
 		let path2 = ctx.com.type_to_module#find t.mt_path in
-		if m.m_path <> path2 && String.lowercase (s_type_path path2) = String.lowercase (s_type_path m.m_path) then raise_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
+		if m.m_path <> path2 && String.lowercase_ascii (s_type_path path2) = String.lowercase_ascii (s_type_path m.m_path) then raise_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
 		let m2 = ctx.com.module_lut#find path2 in
 		let hex1 = Digest.to_hex m.m_extra.m_sign in
 		let hex2 = Digest.to_hex m2.m_extra.m_sign in
@@ -436,7 +436,6 @@ module Inheritance = struct
 
 	let check_interfaces ctx c =
 		match c.cl_path with
-		| "Proxy" :: _ , _ -> ()
 		| _ when (has_class_flag c CExtern) && Meta.has Meta.CsNative c.cl_meta -> ()
 		| _ ->
 		List.iter (fun (intf,params) ->
@@ -527,33 +526,11 @@ module Inheritance = struct
 				raise (Build_canceled state)
 		in
 		let has_interf = ref false in
-		(*
-			resolve imports before calling build_inheritance, since it requires full paths.
-			that means that typedefs are not working, but that's a fair limitation
-		*)
-		let resolve_imports (t,p) =
-			match t.tpackage with
-			| _ :: _ -> t,p
-			| [] ->
-				try
-					let path_matches lt = snd (t_path lt) = t.tname in
-					let lt = try
-						List.find path_matches ctx.m.curmod.m_types
-					with Not_found ->
-						let t,pi = List.find (fun (lt,_) -> path_matches lt) ctx.m.module_imports in
-						ImportHandling.mark_import_position ctx pi;
-						t
-					in
-					{ t with tpackage = fst (t_path lt) },p
-				with
-					Not_found -> t,p
-		in
 		let herits = ExtList.List.filter_map (function
-			| HExtends t -> Some(true,resolve_imports t)
-			| HImplements t -> Some(false,resolve_imports t)
+			| HExtends t -> Some(true,t)
+			| HImplements t -> Some(false,t)
 			| t -> None
 		) herits in
-		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
 		(* Pass 1: Check and set relations *)
 		let check_herit t is_extends p =
 			let rec check_interfaces_or_delay () =
@@ -573,14 +550,14 @@ module Inheritance = struct
 				if c.cl_super <> None then raise_typing_error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
 				if (has_class_flag c CInterface) then begin
-					if not (has_class_flag csup CInterface) then raise_typing_error "Cannot extend by using a class" p;
+					if not (has_class_flag csup CInterface) then raise_typing_error (Printf.sprintf "Cannot extend by using a class (%s extends %s)" (s_type_path c.cl_path) (s_type_path csup.cl_path)) p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
 					if not !has_interf then begin
 						if not is_lib then delay ctx PConnectField check_interfaces_or_delay;
 						has_interf := true;
 					end
 				end else begin
-					if (has_class_flag csup CInterface) then raise_typing_error "Cannot extend by using an interface" p;
+					if (has_class_flag csup CInterface) then raise_typing_error (Printf.sprintf "Cannot extend by using an interface (%s extends %s)" (s_type_path c.cl_path) (s_type_path csup.cl_path)) p;
 					c.cl_super <- Some (csup,params)
 				end;
 				(fun () ->
@@ -617,7 +594,7 @@ module Inheritance = struct
 		let fl = ExtList.List.filter_map (fun (is_extends,(ct,p)) ->
 			try
 				let t = try
-					Typeload.load_instance ~allow_display:true ctx (ct,p) false
+					Typeload.load_instance ~allow_display:true ctx (ct,p) ParamNormal
 				with DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) ->
 					(* We don't allow `implements` on interfaces. Just raise fields completion with no fields. *)
 					if not is_extends && (has_class_flag c CInterface) then raise_fields [] CRImplements r.fsubject;

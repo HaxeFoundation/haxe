@@ -24,7 +24,7 @@ open TTFData
 open IO
 
 type ctx = {
-	file : Pervasives.in_channel;
+	file : Stdlib.in_channel;
 	ch : input;
 	mutable entry : entry;
 }

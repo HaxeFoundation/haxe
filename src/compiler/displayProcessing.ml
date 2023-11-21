@@ -269,7 +269,7 @@ let maybe_load_display_file_before_typing tctx display_file_dot_path = match dis
 
 let handle_display_after_typing ctx tctx display_file_dot_path =
 	let com = ctx.com in
-	if ctx.com.display.dms_kind = DMNone & ctx.has_error then raise Abort;
+	if ctx.com.display.dms_kind = DMNone && ctx.has_error then raise Abort;
 	begin match ctx.com.display.dms_kind,!Parser.delayed_syntax_completion with
 		| DMDefault,Some(kind,subj) -> DisplayOutput.handle_syntax_completion com kind subj
 		| _ -> ()

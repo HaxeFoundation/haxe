@@ -1,0 +1,6 @@
+[ERROR] Main.hx:2: characters 9-21
+
+ 2 |  var foo(get, never):Int;
+   |         ^^^^^^^^^^^^
+   | Cannot define property accessors for local vars
+

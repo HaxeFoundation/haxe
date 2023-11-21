@@ -85,14 +85,13 @@ let sprintf = Printf.sprintf
 
 let keywords =
 	let c_kwds = [
-	"auto";"break";"case";"char";"const";"continue";"default";"do";"double";"else";"enum";"extern";"float";"for";"goto";
+	"auto";"bool";"break";"case";"char";"const";"continue";"default";"do";"double";"else";"enum";"extern";"float";"for";"goto";
 	"if";"int";"long";"register";"return";"short";"signed";"sizeof";"static";"struct";"switch";"typedef";"union";"unsigned";
 	"void";"volatile";"while";
 	(* Values *)
 	"NULL";"true";"false";
 	(* MS specific *)
-	"__asm";"dllimport2";"__int8";"naked2";"__based1";"__except";"__int16";"__stdcall";"__cdecl";"__fastcall";"__int32";
-	"thread2";"__declspec";"__finally";"__int64";"__try";"dllexport2";"__inline";"__leave";"asm";
+	"asm";"dllimport2";"dllexport2";"naked2";"thread2";
 	(* reserved by HLC *)
 	"t";
 	(* GCC *)
@@ -105,7 +104,7 @@ let keywords =
 	List.iter (fun i -> Hashtbl.add h i ()) c_kwds;
 	h
 
-let ident i = if Hashtbl.mem keywords i then "_" ^ i else i
+let ident i = if (Hashtbl.mem keywords i) || (ExtString.String.starts_with "__" i) then "_hx_" ^ i else i
 
 let s_comp = function
 	| CLt -> "<"
@@ -122,7 +121,7 @@ let core_types =
 
 let tname str =
 	let n = String.concat "__" (ExtString.String.nsplit str ".") in
-	if Hashtbl.mem keywords ("_" ^ n) then "__" ^ n else n
+	ident n
 
 let is_gc_ptr = function
 	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ | HPacked _ -> false
@@ -829,7 +828,7 @@ let generate_function ctx f =
 			sexpr "%s = %s == 0 ? 0 : ((unsigned)%s) / ((unsigned)%s)" (reg r) (reg b) (reg a) (reg b)
 		| OSMod (r,a,b) ->
 			(match rtype r with
-			| HUI8 | HUI16 | HI32 ->
+			| HUI8 | HUI16 | HI32 | HI64 ->
 				sexpr "%s = %s == 0 ? 0 : %s %% %s" (reg r) (reg b) (reg a) (reg b)
 			| HF32 ->
 				sexpr "%s = fmodf(%s,%s)" (reg r) (reg a) (reg b)
@@ -844,7 +843,10 @@ let generate_function ctx f =
 		| OSShr (r,a,b) ->
 			sexpr "%s = %s >> %s" (reg r) (reg a) (reg b)
 		| OUShr (r,a,b) ->
-			sexpr "%s = ((unsigned)%s) >> %s" (reg r) (reg a) (reg b)
+			(match rtype r with
+			| HI64 -> sexpr "%s = ((uint64_t)%s) >> %s" (reg r) (reg a) (reg b)
+			| _ -> sexpr "%s = ((unsigned)%s) >> %s" (reg r) (reg a) (reg b)
+			);
 		| OAnd (r,a,b) ->
 			sexpr "%s = %s & %s" (reg r) (reg a) (reg b)
 		| OOr (r,a,b) ->
@@ -1087,6 +1089,15 @@ let generate_function ctx f =
 			sexpr "%s = %s + %s" (reg r) (reg r2) (reg off)
 		| ONop _ ->
 			()
+		| OPrefetch (r,fid,mode) ->
+			let expr = (if fid = 0 then reg r else (match rtype r with
+			| HObj o | HStruct o ->
+				let name, t = resolve_field o (fid - 1) in
+				Printf.sprintf "%s->%s" (reg r) name
+			| _ ->
+				Globals.die "" __LOC__
+			)) in
+			sexpr "__hl_prefetch_m%d(%s)" mode expr
 	) f.code;
 	flush_options (Array.length f.code);
 	unblock();
@@ -1134,7 +1145,7 @@ let make_types_idents htypes =
 			try
 				PMap.find vp (!types_descs)
 			with Not_found ->
-				let arr = Array.create (Array.length vp.vfields) ("",DSimple HVoid) in
+				let arr = Array.make (Array.length vp.vfields) ("",DSimple HVoid) in
 				let td = DVirtual arr in
 				types_descs := PMap.add vp td (!types_descs);
 				Array.iteri (fun i (f,_,t) -> arr.(i) <- (f,make_desc t)) vp.vfields;
@@ -1681,6 +1692,30 @@ let write_c com file (code:code) gnames =
 	) all_types;
 
 	line "";
+	line "static void dump_types( void (*fdump)( void *, int) ) {";
+	block ctx;
+	sexpr "hl_type *t";
+	sexpr "int ntypes = %d" (Array.length all_types);
+	sexpr "fdump(&ntypes,4)";
+	let fcount = ref 0 in
+	Array.iter (fun t ->
+		sexpr "t = &%s; fdump(&t, sizeof(void*))" (type_name ctx t);
+		(match t with
+		| HFun _ -> incr fcount
+		| _ -> ());
+	) all_types;
+	sexpr "int fcount = %d" (!fcount);
+	sexpr "fdump(&fcount, 4)";
+	Array.iter (fun t ->
+		match t with
+		| HFun _ ->
+			sexpr "t = (hl_type*)&%s.fun->closure_type; fdump(&t, sizeof(void*))" (type_name ctx t);
+		| _ -> ()
+	) all_types;
+	unblock ctx;
+	line "}";
+
+	line "";
 	line "void hl_init_types( hl_module_context *ctx ) {";
 	block ctx;
 	Array.iter (fun t ->
@@ -1715,6 +1750,7 @@ let write_c com file (code:code) gnames =
 		| _ ->
 			()
 	) all_types;
+	sexpr "hl_gc_set_dump_types(dump_types)";
 	unblock ctx;
 	line "}";
 

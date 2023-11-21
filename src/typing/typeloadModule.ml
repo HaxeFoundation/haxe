@@ -27,6 +27,7 @@ open DisplayTypes.DisplayMode
 open Common
 open Typeload
 open Error
+open Resolution
 
 let get_policy g mpath =
 	let sl1 = full_dot_path2 mpath mpath in
@@ -401,7 +402,7 @@ module TypeLevel = struct
 			DisplayEmitter.display_enum_field ctx e f p;
 		f,cf
 
-	let init_class ctx context_init c d p =
+	let init_class ctx c d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
@@ -419,7 +420,7 @@ module TypeLevel = struct
 				c.cl_build <- (fun()-> Building [c]);
 				try
 					List.iter (fun f -> f()) fl;
-					TypeloadFields.init_class ctx c p context_init d.d_flags d.d_data;
+					TypeloadFields.init_class ctx c p d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
 					incr build_count;
 					List.iter (fun tp -> ignore(follow tp.ttp_type)) c.cl_params;
@@ -445,10 +446,8 @@ module TypeLevel = struct
 			in
 			build()
 		in
-		ctx.pass <- PBuildClass;
 		ctx.curclass <- c;
 		c.cl_build <- make_pass ctx build;
-		ctx.pass <- PBuildModule;
 		ctx.curclass <- null_class;
 		delay ctx PBuildClass (fun() -> ignore(c.cl_build()));
 		if Meta.has Meta.InheritDoc c.cl_meta then
@@ -469,7 +468,7 @@ module TypeLevel = struct
 					| _ -> ()
 			)
 
-	let init_enum ctx context_init e d p =
+	let init_enum ctx e d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TEnumDecl e) (pos d.d_name);
 		let ctx = { ctx with type_params = e.e_params } in
@@ -495,7 +494,7 @@ module TypeLevel = struct
 				}
 			) (!constructs)
 		in
-		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs context_init (fun (e,p) ->
+		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs (fun (e,p) ->
 			match e with
 			| EVars [{ ev_type = Some (CTAnonymous fields,p); ev_expr = None }] ->
 				constructs := List.map (fun f ->
@@ -551,7 +550,7 @@ module TypeLevel = struct
 				) e.e_constrs
 			)
 
-	let init_typedef ctx context_init t d p =
+	let init_typedef ctx t d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TTypeDecl t) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
@@ -582,8 +581,7 @@ module TypeLevel = struct
 					| _ ->
 						()
 				in
-				let r = exc_protect ctx (fun r ->
-					r := lazy_processing (fun() -> tt);
+				let r = make_lazy ctx tt (fun r ->
 					check_rec tt;
 					tt
 				) "typedef_rec_check" in
@@ -596,14 +594,14 @@ module TypeLevel = struct
 			| None -> Monomorph.bind r tt;
 			| Some _ -> die "" __LOC__);
 		| _ -> die "" __LOC__);
-		TypeloadFields.build_module_def ctx (TTypeDecl t) t.t_meta (fun _ -> []) context_init (fun _ -> ());
+		TypeloadFields.build_module_def ctx (TTypeDecl t) t.t_meta (fun _ -> []) (fun _ -> ());
 		if ctx.com.platform = Cs && t.t_meta <> [] then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx t.t_meta in
 				if metas <> [] then t.t_meta <- metas @ t.t_meta;
 			)
 
-	let init_abstract ctx context_init a d p =
+	let init_abstract ctx a d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TAbstractDecl a) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
@@ -614,8 +612,7 @@ module TypeLevel = struct
 			let t = load_complex_type ctx true t in
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
-					let r = exc_protect ctx (fun r ->
-						r := lazy_processing (fun() -> t);
+					let r = make_lazy ctx t (fun r ->
 						(try (if from then Type.unify t a.a_this else Type.unify a.a_this t) with Unify_error _ -> raise_typing_error "You can only declare from/to with compatible types" pos);
 						t
 					) "constraint" in
@@ -667,10 +664,10 @@ module TypeLevel = struct
 
 	(*
 		In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
-		since they have not been setup. We also build a context_init list that will be evaluated the first time we evaluate
+		since they have not been setup. We also build a list that will be evaluated the first time we evaluate
 		an expression into the context
 	*)
-	let init_module_type ctx context_init (decl,p) =
+	let init_module_type ctx (decl,p) =
 		let get_type name =
 			try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> die "" __LOC__
 		in
@@ -681,39 +678,44 @@ module TypeLevel = struct
 		| EImport (path,mode) ->
 			begin try
 				check_path_display path p;
-				ImportHandling.init_import ctx context_init path mode p;
+				ImportHandling.init_import ctx path mode p;
 				ImportHandling.commit_import ctx path mode p;
 			with Error err ->
 				display_error_ext ctx.com err
 			end
 		| EUsing path ->
 			check_path_display path p;
-			ImportHandling.init_using ctx context_init path p
+			ImportHandling.init_using ctx path p
 		| EClass d ->
 			let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> die "" __LOC__) in
-			init_class ctx context_init c d p
+			init_class ctx c d p
 		| EEnum d ->
 			let e = (match get_type (fst d.d_name) with TEnumDecl e -> e | _ -> die "" __LOC__) in
-			init_enum ctx context_init e d p
+			init_enum ctx e d p
 		| ETypedef d ->
 			let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> die "" __LOC__) in
-			init_typedef ctx context_init t d p
+			init_typedef ctx t d p
 		| EAbstract d ->
 			let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> die "" __LOC__) in
-			init_abstract ctx context_init a d p
+			init_abstract ctx a d p
 		| EStatic _ ->
 			(* nothing to do here as module fields are collected into a special EClass *)
 			()
 end
 
-let make_curmod ctx m = {
-	curmod = m;
-	module_imports = List.map (fun t -> t,null_pos) ctx.g.std.m_types;
-	module_using = [];
-	module_globals = PMap.empty;
-	wildcard_packages = [];
-	import_statements = [];
-}
+let make_curmod ctx m =
+	let rl = new resolution_list ["import";s_type_path m.m_path] in
+	List.iter (fun mt ->
+		rl#add (module_type_resolution mt None null_pos))
+	(List.rev ctx.g.std.m_types);
+	{
+		curmod = m;
+		import_resolution = rl;
+		own_resolution = None;
+		enum_with_type = None;
+		module_using = [];
+		import_statements = [];
+	}
 
 let create_typer_context_for_module ctx m = {
 		com = ctx.com;
@@ -765,14 +767,13 @@ let type_types_into_module ctx m tdecls p =
 	if ctx.g.std != null_module then begin
 		add_dependency m ctx.g.std;
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
-		ignore(load_instance ctx (mk_type_path (["std"],"String"),null_pos) false)
+		ignore(load_instance ctx (mk_type_path (["std"],"String"),null_pos) ParamNormal)
 	end;
 	ModuleLevel.init_type_params ctx decls;
 	(* setup module types *)
-	let context_init = new TypeloadFields.context_init in
-	List.iter (TypeLevel.init_module_type ctx context_init) tdecls;
+	List.iter (TypeLevel.init_module_type ctx) tdecls;
 	(* Make sure that we actually init the context at some point (issue #9012) *)
-	delay ctx PConnectField (fun () -> context_init#run);
+	delay ctx PConnectField (fun () -> ctx.m.import_resolution#resolve_lazies);
 	ctx
 
 (*
@@ -832,7 +833,7 @@ let load_module' ctx g m p =
 let load_module ctx m p =
 	let m2 = load_module' ctx ctx.g m p in
 	add_dependency ~skip_postprocess:true ctx.m.curmod m2;
-	if ctx.pass = PTypeField then flush_pass ctx PConnectField "load_module";
+	if ctx.pass = PTypeField then flush_pass ctx PConnectField ("load_module",fst m @ [snd m]);
 	m2
 
 (* let load_module ctx m p =

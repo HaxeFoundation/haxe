@@ -178,6 +178,8 @@ extern class Date {
 
 		The first two formats expressed a date in local time. The third is a time
 		relative to the UTC epoch.
+
+		If `s` does not match these formats, the result is unspecified.
 	**/
 	static function fromString(s:String):Date;
 }

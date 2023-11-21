@@ -146,7 +146,7 @@ let anon_class t =
 	match follow t with
 	| TAnon anon ->
 		(match !(anon.a_status) with
-		| Statics cl -> Some (TClassDecl cl)
+		| ClassStatics cl -> Some (TClassDecl cl)
 		| EnumStatics e -> Some (TEnumDecl e)
 		| AbstractStatics a -> Some (TAbstractDecl a)
 		| _ -> None)
@@ -160,7 +160,7 @@ let anon_class t =
 	| TAnon anon ->
 		(match !(anon.a_status) with
 			| EnumStatics e -> TEnumDecl e
-			| Statics cl -> TClassDecl cl
+			| ClassStatics cl -> TClassDecl cl
 			| AbstractStatics a -> TAbstractDecl a
 			| _ -> die "" __LOC__)
 	| TLazy f -> t_to_md (lazy_type f)
@@ -1274,7 +1274,7 @@ let rec field_access gen (t:t) (field:string) : (tfield_access) =
 				FNotFound)
 		| TAnon anon ->
 			(try match !(anon.a_status) with
-				| Statics cl ->
+				| ClassStatics cl ->
 					let cf = PMap.find field cl.cl_statics in
 					FClassField(cl, List.map (fun _ -> t_dynamic) cl.cl_params, cl, cf, true, cf.cf_type, cf.cf_type)
 				| EnumStatics e ->

@@ -57,12 +57,22 @@ jobs:
     env:
       PLATFORM: linux64
       OPAMYES: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        ocaml: ["4.08.1", "5.0.0"]
     steps:
       - uses: actions/checkout@main
         with:
           submodules: recursive
 
-      @import cache-opam.yml
+      - name: Cache opam
+        id: cache-opam
+        uses: actions/cache@v3.0.11
+        with:
+          path: ~/.opam/
+          key: ${{ runner.os }}-${{ matrix.ocaml }}-${{ hashFiles('./haxe.opam', './libs/') }}
+
       @import install-neko-unix.yml
 
       - name: Install dependencies
@@ -79,6 +89,7 @@ jobs:
           set -ex
           opam init # --disable-sandboxing
           opam update
+          opam switch create ${{ matrix.ocaml }}
           opam pin add haxe . --no-action
           opam install haxe --deps-only --assume-depexts
           opam list
@@ -106,6 +117,7 @@ jobs:
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Build xmldoc
+        if: matrix.ocaml == '4.08.1'
         run: |
           set -ex
           make -s xmldoc
@@ -119,11 +131,12 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: linuxBinaries
+          name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
           path: out
 
       - name: Upload xmldoc artifact
         uses: actions/upload-artifact@v3
+        if: matrix.ocaml == '4.08.1'
         with:
           name: xmldoc
           path: extra/doc
@@ -139,6 +152,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        ocaml: ["4.08.1", "5.0.0"]
         target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash, neko]
         include:
           - target: hl
@@ -155,7 +169,7 @@ jobs:
           submodules: recursive
       - uses: actions/download-artifact@v3
         with:
-          name: linuxBinaries
+          name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
           path: linuxBinaries
 
       @import install-neko-unix.yml
@@ -325,7 +339,13 @@ jobs:
         with:
           submodules: recursive
 
-      @import cache-opam.yml
+      - name: Cache opam
+        id: cache-opam
+        uses: actions/cache@v3.0.11
+        with:
+          path: ~/.opam/
+          key: ${{ runner.os }}-${{ hashFiles('./haxe.opam', './libs/') }}
+
       @import install-neko-unix.yml
       @import build-mac.yml
 

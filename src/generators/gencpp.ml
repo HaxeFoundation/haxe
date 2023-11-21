@@ -848,7 +848,7 @@ and type_string_suff suffix haxe_type remap =
    | TAnon a -> "Dynamic"
       (*
       (match !(a.a_status) with
-      | Statics c -> type_string_suff suffix (TInst (c,List.map snd c.cl_params))
+      | ClassStatics c -> type_string_suff suffix (TInst (c,List.map snd c.cl_params))
       | EnumStatics e -> type_string_suff suffix (TEnum (e,List.map snd e.e_params))
       | _ -> "Dynamic"  ^ suffix )
       *)
@@ -4280,7 +4280,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       | OpBoolOr -> "||"
       | OpShl -> "<<"
       | OpShr -> ">>"
-      | OpUShr -> "<<<"
+      | OpUShr -> ">>>"
       | OpMod -> "%"
       | OpInterval -> "..."
       | OpArrow -> "->"
@@ -7035,8 +7035,8 @@ let write_build_options common_ctx filename defines =
       | _ ->  write_define name (escape_command value)) defines;
    let pin,pid = Process_helper.open_process_args_in_pid "haxelib" [|"haxelib"; "path"; "hxcpp"|] in
    set_binary_mode_in pin false;
-   write_define "hxcpp" (Pervasives.input_line pin);
-   Pervasives.ignore (Process_helper.close_process_in_pid (pin,pid));
+   write_define "hxcpp" (Stdlib.input_line pin);
+   Stdlib.ignore (Process_helper.close_process_in_pid (pin,pid));
    writer#close;;
 
 let create_member_types common_ctx =
