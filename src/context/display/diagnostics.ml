@@ -16,13 +16,14 @@ let find_unused_variables com e =
 	let vars = Hashtbl.create 0 in
 	let pmin_map = Hashtbl.create 0 in
 	let rec loop e = match e.eexpr with
-		| TVar({v_kind = VUser _} as v,eo) when v.v_name <> "_" && not (has_var_flag v VUsedByTyper) ->
+		| TVar({v_kind = VUser origin} as v,eo) when v.v_name <> "_" && not (has_var_flag v VUsedByTyper) ->
 			Hashtbl.add pmin_map e.epos.pmin v;
 			let p = match eo with
-				| None -> e.epos
-				| Some e1 ->
-					loop e1;
-					{ e.epos with pmax = e1.epos.pmin }
+			| Some e1 when origin <> TVOPatternVariable ->
+				loop e1;
+				{ e.epos with pmax = e1.epos.pmin }
+			| _ ->
+				e.epos
 			in
 			Hashtbl.replace vars v.v_id (v,p);
 		| TLocal ({v_kind = VUser _} as v) ->
