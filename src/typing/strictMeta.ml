@@ -3,7 +3,6 @@ open Ast
 open Type
 open Common
 open Typecore
-open Error
 
 let get_native_repr md pos =
 	let path, meta = match md with
