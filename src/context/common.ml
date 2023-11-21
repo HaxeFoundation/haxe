@@ -505,6 +505,9 @@ let external_define_value ctx k v =
 let external_define ctx k =
 	Define.raw_define ctx.defines (convert_and_validate k)
 
+let external_undefine ctx k =
+	Define.raw_undefine ctx.defines (convert_and_validate k)
+
 let defines_for_external ctx =
 	PMap.foldi (fun k v acc ->
 		let added_underscore = PMap.add k v acc in
