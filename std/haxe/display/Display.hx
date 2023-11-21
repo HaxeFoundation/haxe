@@ -78,6 +78,16 @@ class DisplayMethods {
 	**/
 	static inline var SignatureHelp = new HaxeRequestMethod<SignatureHelpParams, SignatureHelpResult>("display/signatureHelp");
 
+	/**
+		The metadata request is sent from the client to Haxe to get a list of all registered metadata and their documentation.
+	**/
+	static inline var Metadata = new HaxeRequestMethod<MetadataParams, MetadataResult>("display/metadata");
+
+	/**
+		The defines request is sent from the client to Haxe to get a list of all registered defines and their documentation.
+	**/
+	static inline var Defines = new HaxeRequestMethod<DefinesParams, DefinesResult>("display/defines");
+
 	/*
 		TODO:
 
@@ -306,6 +316,8 @@ typedef Define = {
 	var parameters:Array<String>;
 	var platforms:Array<Platform>;
 	var links:Array<String>;
+	var ?origin:String;
+	var ?deprecated:String;
 }
 
 typedef Keyword = {
@@ -542,6 +554,20 @@ typedef SignatureItem = {
 }
 
 typedef SignatureHelpResult = Response<Null<SignatureItem>>;
+
+typedef MetadataParams = {
+	var compiler:Bool;
+	var user:Bool;
+}
+
+typedef MetadataResult = Response<Array<Metadata>>;
+
+typedef DefinesParams = {
+	var compiler:Bool;
+	var user:Bool;
+}
+
+typedef DefinesResult = Response<Array<Define>>;
 
 /** General types **/
 typedef PositionParams = FileParams & {
