@@ -1,4 +1,6 @@
 // from vshaxe
+package haxe.display;
+
 import haxe.display.Position.Location;
 import haxe.display.Position.Range;
 import haxe.display.JsonModuleTypes;

@@ -6,6 +6,7 @@ import haxeserver.HaxeServerRequestResult;
 import haxe.display.JsonModuleTypes;
 import haxe.display.Display;
 import haxe.display.Protocol;
+import haxe.display.Diagnostic;
 import haxe.Json;
 import haxeserver.process.HaxeServerProcessNode;
 import haxeserver.HaxeServerAsync;
@@ -189,6 +190,11 @@ class TestCase implements ITest {
 
 	function parseGotoDefintion():GotoDefinitionResult {
 		return haxe.Json.parse(lastResult.stderr).result;
+	}
+
+	function parseDiagnostics():Array<Diagnostic<Any>> {
+		var result = haxe.Json.parse(lastResult.stderr)[0];
+		return if (result == null) [] else result.diagnostics;
 	}
 
 	function parseGotoDefinitionLocations():Array<Location> {
