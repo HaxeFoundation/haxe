@@ -1135,8 +1135,6 @@ and block_with_pos' acc f p s =
 		| Stream.Error msg when !in_display_file ->
 			handle_stream_error msg s;
 			(block_with_pos acc (next_pos s) s)
-		| Error (e,p) when !in_display_file ->
-			block_with_pos acc p s
 
 and block_with_pos acc p s =
 	block_with_pos' acc parse_block_elt p s
