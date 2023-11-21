@@ -271,7 +271,7 @@ typedef DisplayLiteral<T> = {
 	var name:String;
 }
 
-enum abstract MetadataTarget(String) from String {
+enum abstract MetadataTarget(String) {
 	var Class = "TClass";
 	var ClassField = "TClassField";
 	var Abstract = "TAbstract";
@@ -283,7 +283,7 @@ enum abstract MetadataTarget(String) from String {
 	var TypeParameter = "TTypeParameter";
 }
 
-enum abstract Platform(String) from String {
+enum abstract Platform(String) {
 	var Cross = "cross";
 	var Js = "js";
 	var Lua = "lua";
