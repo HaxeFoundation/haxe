@@ -134,6 +134,10 @@ let define_value ctx k v =
 let raw_define ctx k =
 	raw_define_value ctx k "1"
 
+let raw_undefine ctx k =
+	ctx.values <- PMap.remove k ctx.values;
+	ctx.defines_signature <- None
+
 let define ctx k =
 	raw_define_value ctx (get_define_key k) "1"
 

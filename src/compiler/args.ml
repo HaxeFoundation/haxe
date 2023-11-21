@@ -136,6 +136,9 @@ let parse_args com =
 				| Some value -> Common.external_define_value com flag value
 				| None -> Common.external_define com flag;
 		),"<var[=value]>","define a conditional compilation flag");
+		("Compilation",["--undefine"],[],Arg.String (fun var ->
+			Common.external_undefine com var
+		),"","remove a conditional compilation flag");
 		("Debug",["-v";"--verbose"],[],Arg.Unit (fun () ->
 			com.verbose <- true
 		),"","turn on verbose mode");
