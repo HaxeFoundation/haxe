@@ -422,6 +422,7 @@ let rec type_ident_raise ctx i p mode with_type =
 	| _ ->
 	try
 		let v = PMap.find i ctx.locals in
+		add_var_flag v VUsedByTyper;
 		(match v.v_extra with
 		| Some ve ->
 			let (params,e) = (ve.v_params,ve.v_expr) in
