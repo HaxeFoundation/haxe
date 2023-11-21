@@ -81,12 +81,12 @@ class DisplayMethods {
 	/**
 		The metadata request is sent from the client to Haxe to get a list of all registered metadata and their documentation.
 	**/
-	static inline var Metadata = new HaxeRequestMethod<{}, MetadataResult>("display/metadata");
+	static inline var Metadata = new HaxeRequestMethod<MetadataParams, MetadataResult>("display/metadata");
 
 	/**
 		The defines request is sent from the client to Haxe to get a list of all registered defines and their documentation.
 	**/
-	static inline var Defines = new HaxeRequestMethod<{}, DefinesResult>("display/defines");
+	static inline var Defines = new HaxeRequestMethod<DefinesParams, DefinesResult>("display/defines");
 
 	/*
 		TODO:
@@ -555,7 +555,18 @@ typedef SignatureItem = {
 
 typedef SignatureHelpResult = Response<Null<SignatureItem>>;
 
+typedef MetadataParams = {
+	var compiler:Bool;
+	var user:Bool;
+}
+
 typedef MetadataResult = Response<Array<Metadata>>;
+
+typedef DefinesParams = {
+	var compiler:Bool;
+	var user:Bool;
+}
+
 typedef DefinesResult = Response<Array<Define>>;
 
 /** General types **/

@@ -156,8 +156,17 @@ let handler =
 			hctx.display#enable_display DMSignature
 		);
 		"display/metadata", (fun hctx ->
+			let include_compiler_meta = hctx.jsonrpc#get_bool_param "compiler" in
+			let include_user_meta = hctx.jsonrpc#get_bool_param "user" in
+
 			hctx.com.callbacks#add_after_init_macros (fun () ->
 				let all = Meta.get_meta_list hctx.com.user_metas in
+				let all = List.filter (fun (_, (data:Meta.meta_infos)) ->
+					match data.m_origin with
+					| Compiler when include_compiler_meta -> true
+					| UserDefined _ when include_user_meta -> true
+					| _ -> false
+				) all in
 
 				hctx.send_result (jarray (List.map (fun (t, (data:Meta.meta_infos)) ->
 					let fields = [
@@ -180,8 +189,17 @@ let handler =
 			)
 		);
 		"display/defines", (fun hctx ->
+			let include_compiler_defines = hctx.jsonrpc#get_bool_param "compiler" in
+			let include_user_defines = hctx.jsonrpc#get_bool_param "user" in
+
 			hctx.com.callbacks#add_after_init_macros (fun () ->
 				let all = Define.get_define_list hctx.com.user_defines in
+				let all = List.filter (fun (_, (data:Define.define_infos)) ->
+					match data.d_origin with
+					| Compiler when include_compiler_defines -> true
+					| UserDefined _ when include_user_defines -> true
+					| _ -> false
+				) all in
 
 				hctx.send_result (jarray (List.map (fun (t, (data:Define.define_infos)) ->
 					let fields = [

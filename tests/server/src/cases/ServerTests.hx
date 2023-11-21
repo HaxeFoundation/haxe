@@ -241,7 +241,8 @@ class ServerTests extends TestCase {
 		Sys.command("haxelib", ["dev", "dummy_doc_dep", Path.join([dummy_path, "dummy_doc_dep"])]);
 		Sys.command("haxelib", ["dev", "dummy_doc", Path.join([dummy_path, "dummy_doc"])]);
 		var args = ["-lib", "dummy_doc"];
-		runHaxeJsonCb(args, DisplayMethods.Metadata, {}, function(meta) {
+
+		runHaxeJsonCb(args, DisplayMethods.Metadata, {compiler: true, user: true}, function(meta) {
 			var analyzer = Lambda.find(meta, m -> m.name == ':analyzer');
 			Assert.notNull(analyzer);
 			Assert.equals("Used to configure the static analyzer.", analyzer.doc);
@@ -262,6 +263,32 @@ class ServerTests extends TestCase {
 			Assert.notNull(dummy_doc_dep);
 			Assert.equals("dummy_doc_dep", dummy_doc_dep.origin);
 		});
+
+		runHaxeJsonCb(args, DisplayMethods.Metadata, {compiler: true, user: false}, function(meta) {
+			var analyzer = Lambda.find(meta, m -> m.name == ':analyzer');
+			Assert.notNull(analyzer);
+
+			var dummy_doc = Lambda.find(meta, m -> m.name == ':foo');
+			Assert.isNull(dummy_doc);
+
+			var dummy_doc_dep = Lambda.find(meta, m -> m.name == ':baz');
+			Assert.isNull(dummy_doc_dep);
+		});
+
+		runHaxeJsonCb(args, DisplayMethods.Metadata, {compiler: false, user: true}, function(meta) {
+			var analyzer = Lambda.find(meta, m -> m.name == ':analyzer');
+			Assert.isNull(analyzer);
+
+			var dummy_doc = Lambda.find(meta, m -> m.name == ':foo');
+			Assert.notNull(dummy_doc);
+
+			var dummy_doc_dep = Lambda.find(meta, m -> m.name == ':baz');
+			Assert.notNull(dummy_doc_dep);
+		});
+
+		runHaxeJsonCb(args, DisplayMethods.Metadata, {compiler: false, user: false}, function(meta) {
+			Assert.equals(0, meta.length);
+		});
 	}
 
 	function testDefines() {
@@ -269,7 +296,8 @@ class ServerTests extends TestCase {
 		Sys.command("haxelib", ["dev", "dummy_doc_dep", Path.join([dummy_path, "dummy_doc_dep"])]);
 		Sys.command("haxelib", ["dev", "dummy_doc", Path.join([dummy_path, "dummy_doc"])]);
 		var args = ["-lib", "dummy_doc"];
-		runHaxeJsonCb(args, DisplayMethods.Defines, {}, function(defines) {
+
+		runHaxeJsonCb(args, DisplayMethods.Defines, {compiler: true, user: true}, function(defines) {
 			var debug = Lambda.find(defines, d -> d.name == 'debug');
 			Assert.notNull(debug);
 			Assert.equals("Activated when compiling with -debug.", debug.doc);
@@ -283,6 +311,32 @@ class ServerTests extends TestCase {
 			var dummy_doc_dep = Lambda.find(defines, d -> d.name == 'dummy');
 			Assert.notNull(dummy_doc_dep);
 			Assert.equals("dummy_doc_dep", dummy_doc_dep.origin);
+		});
+
+		runHaxeJsonCb(args, DisplayMethods.Defines, {compiler: true, user: false}, function(defines) {
+			var debug = Lambda.find(defines, d -> d.name == 'debug');
+			Assert.notNull(debug);
+
+			var dummy_doc = Lambda.find(defines, d -> d.name == 'no-bullshit');
+			Assert.isNull(dummy_doc);
+
+			var dummy_doc_dep = Lambda.find(defines, d -> d.name == 'dummy');
+			Assert.isNull(dummy_doc_dep);
+		});
+
+		runHaxeJsonCb(args, DisplayMethods.Defines, {compiler: false, user: true}, function(defines) {
+			var debug = Lambda.find(defines, d -> d.name == 'debug');
+			Assert.isNull(debug);
+
+			var dummy_doc = Lambda.find(defines, d -> d.name == 'no-bullshit');
+			Assert.notNull(dummy_doc);
+
+			var dummy_doc_dep = Lambda.find(defines, d -> d.name == 'dummy');
+			Assert.notNull(dummy_doc_dep);
+		});
+
+		runHaxeJsonCb(args, DisplayMethods.Defines, {compiler: false, user: false}, function(defines) {
+			Assert.equals(0, defines.length);
 		});
 	}
 
