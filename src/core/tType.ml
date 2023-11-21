@@ -467,11 +467,12 @@ let flag_tclass_field_names = [
 type flag_tvar =
 	| VCaptured
 	| VFinal
-	| VUsed (* used by the analyzer *)
+	| VAnalyzed
 	| VAssigned
 	| VCaught
 	| VStatic
+	| VUsedByTyper (* Set if the typer looked up this variable *)
 
 let flag_tvar_names = [
-	"VCaptured";"VFinal";"VUsed";"VAssigned";"VCaught";"VStatic"
+	"VCaptured";"VFinal";"VAnalyzed";"VAssigned";"VCaught";"VStatic";"VUsedByTyper"
 ]

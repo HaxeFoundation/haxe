@@ -503,7 +503,6 @@ object(self)
 			!ethis_f();
 			raise exc
 		in
-		let e = Diagnostics.secure_generated_code ctx.com e in
 		ctx.com.error_ext <- old;
 		!ethis_f();
 		e
