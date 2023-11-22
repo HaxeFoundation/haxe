@@ -481,8 +481,8 @@ let build_module_def ctx mt meta fvars fbuild =
 				let r = try ctx.g.do_macro ctx MBuild cpath meth el p with e -> ctx.get_build_infos <- old; raise e in
 				ctx.get_build_infos <- old;
 				(match r with
-				| None -> raise_typing_error "Build failure" p
-				| Some e -> fbuild e)
+				| MError | MMacroInMacro -> raise_typing_error "Build failure" p
+				| MSuccess e -> fbuild e)
 			) :: f_build
 		| Meta.Using,el,p -> (fun () ->
 			List.iter (fun e ->

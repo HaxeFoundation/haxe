@@ -536,7 +536,4 @@ let type_for_loop ctx handle_display it e2 p =
 	in
 	let ik,e1 = loop None it in
 	let e1 = type_expr ctx e1 WithType.value in
-	if DeadEnd.has_dead_end e1 then
-		e1
-	else
-		type_for_loop ctx handle_display ik e1 e2 p
+	type_for_loop ctx handle_display ik e1 e2 p

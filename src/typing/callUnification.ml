@@ -453,13 +453,21 @@ object(self)
 		ctx.macro_depth <- ctx.macro_depth + 1;
 		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
 		let ethis_f = ref (fun () -> ()) in
+		let macro_in_macro () =
+			(fun () ->
+				let e = (EThrow((EConst(String("macro-in-macro",SDoubleQuotes))),p),p) in
+				type_expr ~mode ctx e with_type
+			)
+		in
 		let f = (match ethis.eexpr with
 		| TTypeExpr (TClassDecl c) ->
 			DeprecationCheck.check_cf (create_deprecation_context ctx) cf p;
-			(match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name el p with
-			| None -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
-			| Some (EMeta((Meta.MergeBlock,_,_),(EBlock el,_)),_) -> (fun () -> let e = (!type_block_ref) ctx el with_type p in mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos)
-			| Some e -> (fun() -> type_expr ~mode ctx e with_type))
+			begin match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name el p with
+				| MError -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
+				| MSuccess (EMeta((Meta.MergeBlock,_,_),(EBlock el,_)),_) -> (fun () -> let e = (!type_block_ref) ctx el with_type p in mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos)
+				| MSuccess e -> (fun() -> type_expr ~mode ctx e with_type)
+				| MMacroInMacro -> macro_in_macro ()
+			end
 		| _ ->
 			(* member-macro call : since we will make a static call, let's find the actual class and not its subclass *)
 			(match follow ethis.etype with
@@ -469,8 +477,9 @@ object(self)
 						let eparam,f = push_this ctx ethis in
 						ethis_f := f;
 						let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name (eparam :: el) p with
-							| None -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
-							| Some e -> (fun() -> type_expr ~mode ctx e WithType.value)
+							| MError -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
+							| MSuccess e -> (fun() -> type_expr ~mode ctx e with_type)
+							| MMacroInMacro -> macro_in_macro ()
 						in
 						e
 					else

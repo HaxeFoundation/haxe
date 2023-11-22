@@ -966,11 +966,12 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	in
 	let call() =
 		match call_macro args with
-		| None -> None
+		| None ->
+			MError
 		| Some v ->
 			let expected,process = match mode with
 				| MExpr | MDisplay ->
-					"Expr",(fun () -> Some (Interp.decode_expr v))
+					"Expr",(fun () -> MSuccess (Interp.decode_expr v))
 				| MBuild ->
 					"Array<Field>",(fun () ->
 						let fields = if v = Interp.vnull then
@@ -980,7 +981,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 							else
 								List.map Interp.decode_field (Interp.decode_array v)
 						in
-						Some (EVars [mk_evar ~t:(CTAnonymous fields,p) ("fields",null_pos)],p)
+						MSuccess (EVars [mk_evar ~t:(CTAnonymous fields,p) ("fields",null_pos)],p)
 					)
 				| MMacroType ->
 					"ComplexType",(fun () ->
@@ -993,13 +994,13 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 							Interp.decode_type v
 						in
 						ctx.ret <- t;
-						Some (EBlock [],p)
+						MSuccess (EBlock [],p)
 					)
 			in
 			safe_decode ctx.com v expected mret p process
 	in
 	let e = if ctx.com.is_macro_context then
-		Some (EThrow((EConst(String("macro-in-macro",SDoubleQuotes))),p),p)
+		MMacroInMacro
 	else
 		call()
 	in
