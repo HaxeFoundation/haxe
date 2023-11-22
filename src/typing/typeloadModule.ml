@@ -214,8 +214,8 @@ module ModuleLevel = struct
 					acc
 				| fields ->
 					let a_t =
-						let params = List.map (fun t -> TPType (CTPath (mk_type_path ([],fst t.tp_name)),null_pos)) d.d_params in
-						CTPath (mk_type_path ~params ([],fst d.d_name)),null_pos
+						let params = List.map (fun t -> TPType (make_ptp_th (mk_type_path ([],fst t.tp_name)) null_pos)) d.d_params in
+						make_ptp_ct_null (mk_type_path ~params ([],fst d.d_name)),null_pos
 					in
 					let rec loop = function
 						| [] -> a_t
@@ -372,7 +372,7 @@ module TypeLevel = struct
 				is_flat := false;
 				let pnames = ref PMap.empty in
 				TFun (List.map (fun (s,opt,(t,tp)) ->
-					(match t with CTPath({tpackage=[];tname="Void"}) -> raise_typing_error "Arguments of type Void are not allowed in enum constructors" tp | _ -> ());
+					(match t with CTPath({path = {tpackage=[];tname="Void"}}) -> raise_typing_error "Arguments of type Void are not allowed in enum constructors" tp | _ -> ());
 					if PMap.mem s (!pnames) then raise_typing_error ("Duplicate argument `" ^ s ^ "` in enum constructor " ^ fst c.ec_name) p;
 					pnames := PMap.add s () (!pnames);
 					s, opt, load_type_hint ~opt ctx p (Some (t,tp))
@@ -558,7 +558,7 @@ module TypeLevel = struct
 		let tt = load_complex_type ctx true d.d_data in
 		let tt = (match fst d.d_data with
 		| CTExtend _ -> tt
-		| CTPath { tpackage = ["haxe";"macro"]; tname = "MacroType" } ->
+		| CTPath { path = {tpackage = ["haxe";"macro"]; tname = "MacroType" }} ->
 			(* we need to follow MacroType immediately since it might define other module types that we will load afterwards *)
 			if t.t_type == follow tt then raise_typing_error "Recursive typedef is not allowed" p;
 			tt
@@ -767,7 +767,7 @@ let type_types_into_module ctx m tdecls p =
 	if ctx.g.std != null_module then begin
 		add_dependency m ctx.g.std;
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
-		ignore(load_instance ctx (mk_type_path (["std"],"String"),null_pos) ParamNormal)
+		ignore(load_instance ctx (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal)
 	end;
 	ModuleLevel.init_type_params ctx decls;
 	(* setup module types *)

@@ -169,7 +169,7 @@ let static_method_container gctx c cf p =
 	let pack = fst c.cl_path in
 	let name = (snd c.cl_path) ^ "_" ^ cf.cf_name ^ "_" ^ gctx.name in
 	try
-		let t = Typeload.load_instance ctx (mk_type_path (pack,name),p) ParamSpawnMonos in
+		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (pack,name)) p) ParamSpawnMonos in
 		match t with
 		| TInst(cg,_) -> cg
 		| _ -> raise_typing_error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
@@ -254,7 +254,7 @@ let build_generic_class ctx c p tl =
 	let gctx = make_generic ctx c.cl_params tl (Meta.has (Meta.Custom ":debug.generic") c.cl_meta) p in
 	let name = (snd c.cl_path) ^ "_" ^ gctx.name in
 	try
-		let t = Typeload.load_instance ctx (mk_type_path (pack,name),p) ParamNormal in
+		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (pack,name)) p) ParamNormal in
 		match t with
 		| TInst({ cl_kind = KGenericInstance (csup,_) },_) when c == csup -> t
 		| _ -> raise_typing_error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p

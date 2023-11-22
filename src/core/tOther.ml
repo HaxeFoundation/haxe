@@ -5,11 +5,11 @@ open TFunctions
 open TPrinting
 
 module TExprToExpr = struct
-	let tpath p mp pl =
-		if snd mp = snd p then
-			CTPath (mk_type_path ~params:pl p)
+	let tpath path module_path params =
+		if snd module_path = snd path then
+			make_ptp_ct_null (mk_type_path ~params path)
 		else
-			CTPath (mk_type_path ~params:pl ~sub:(snd p) mp)
+			make_ptp_ct_null (mk_type_path ~params ~sub:(snd path) module_path)
 
 	let rec convert_type = function
 		| TMono r ->
@@ -20,7 +20,7 @@ module TExprToExpr = struct
 		| TEnum ({e_private = true; e_path=_,name},tl)
 		| TType ({t_private = true; t_path=_,name},tl)
 		| TAbstract ({a_private = true; a_path=_,name},tl) ->
-			CTPath (mk_type_path ~params:(List.map tparam tl) ([],name))
+			make_ptp_ct_null (mk_type_path ~params:(List.map tparam tl) ([],name))
 		| TEnum (e,pl) ->
 			tpath e.e_path e.e_module.m_path (List.map tparam pl)
 		| TInst({cl_kind = KExpr e} as c,pl) ->
@@ -133,7 +133,7 @@ module TExprToExpr = struct
 		| TObjectDecl fl -> EObjectDecl (List.map (fun (k,e) -> k, convert_expr e) fl)
 		| TArrayDecl el -> EArrayDecl (List.map convert_expr el)
 		| TCall (e,el) -> ECall (convert_expr e,List.map convert_expr el)
-		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p,null_pos | _ -> die "" __LOC__),List.map convert_expr el)
+		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath ptp -> ptp| _ -> die "" __LOC__),List.map convert_expr el)
 		| TUnop (op,p,e) -> EUnop (op,p,convert_expr e)
 		| TFunction f ->
 			let arg (v,c) = (v.v_name,v.v_pos), false, v.v_meta, mk_type_hint v.v_type null_pos, (match c with None -> None | Some c -> Some (convert_expr c)) in

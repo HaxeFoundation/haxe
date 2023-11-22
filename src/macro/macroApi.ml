@@ -290,13 +290,19 @@ let encode_path (p,n) =
 	]
 
 (* Ast.placed_type_path *)
-let rec encode_ast_path (t,p) =
+let rec encode_ast_path ptp =
+	let t = ptp.path in
 	let fields = [
 		"pack", encode_array (List.map encode_string t.tpackage);
 		"name", encode_string t.tname;
 		"params", encode_array (List.map encode_tparam t.tparams);
-		"pos", encode_pos p;
+		"pos", encode_pos ptp.pos_full;
 	] in
+	let fields = if ptp.pos_full <> ptp.pos_path then
+		("posPath", encode_pos ptp.pos_path) :: fields
+	else
+		fields
+	in
 	encode_obj (match t.tsub with
 		| None -> fields
 		| Some s -> ("sub", encode_string s) :: fields)
@@ -351,8 +357,8 @@ and encode_field (f:class_field) =
 
 and encode_ctype t =
 	let tag, pl = match fst t with
-	| CTPath p ->
-		0, [encode_ast_path (p,Globals.null_pos)]
+	| CTPath ptp ->
+		0, [encode_ast_path ptp]
 	| CTFunction (pl,r) ->
 		1, [encode_array (List.map encode_ctype pl);encode_ctype r]
 	| CTAnonymous fl ->
@@ -744,12 +750,15 @@ let decode_opt_array f v =
 
 (* Ast.placed_type_path *)
 let rec decode_ast_path t =
-	let p = field t "pos" in
 	let pack = List.map decode_string (decode_array (field t "pack"))
 	and name = decode_string (field t "name")
 	and params = decode_opt_array decode_tparam (field t "params")
 	and sub = opt decode_string (field t "sub") in
-	mk_type_path ~params ?sub (pack,name), if p = vnull then Globals.null_pos else decode_pos p
+	let p_full = field t "pos" in
+	let p_full = if p_full = vnull then Globals.null_pos else decode_pos p_full in
+	let p_path = field t "posPath" in
+	let p_path = if p_path = vnull then Globals.null_pos else decode_pos p_path in
+	make_ptp (mk_type_path ~params ?sub (pack,name)) ~p_path p_full
 
 and decode_tparam v =
 	match decode_enum v with
@@ -842,7 +851,7 @@ and decode_ctype t =
 	let (i,args),p = decode_enum_with_pos t in
 	(match i,args with
 	| 0, [p] ->
-		CTPath (fst (decode_ast_path p))
+		CTPath (decode_ast_path p)
 	| 1, [a;r] ->
 		CTFunction (List.map decode_ctype (decode_array a), decode_ctype r)
 	| 2, [fl] ->
@@ -2174,7 +2183,7 @@ let macro_api ccom get_api =
 			encode_type t
 		);
 		"define_module", vfun4 (fun path vl ui ul ->
-			(get_api()).define_module (decode_string path) (decode_array vl) (List.map decode_import (decode_array ui)) (List.map fst (List.map decode_ast_path (decode_array ul)));
+			(get_api()).define_module (decode_string path) (decode_array vl) (List.map decode_import (decode_array ui)) (List.map (fun ptp -> ptp.path) (List.map decode_ast_path (decode_array ul)));
 			vnull
 		);
 		"add_class_path", vfun1 (fun cp ->

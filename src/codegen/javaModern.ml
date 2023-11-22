@@ -617,46 +617,48 @@ type java_lib_ctx = {
 module SignatureConverter = struct
 	open PathConverter
 
-	let mk_type_path path params =
+	let mk_type_path path params p =
 		let pack,(mname,name) = jpath_to_hx path in
-		match mname with
+		let path = match mname with
 		| None ->
-			CTPath {
+			{
 				tpackage = pack;
 				tname = name;
 				tparams = params;
 				tsub = None;
 			}
 		| Some mname ->
-			CTPath {
+			{
 				tpackage = pack;
 				tname = mname;
 				tparams = params;
 				tsub = Some name;
 			}
+		in
+		make_ptp_ct path p
 
-	let ct_type_param name = CTPath {
+	let ct_type_param name = make_ptp_ct_null {
 		tpackage = [];
 		tname = name;
 		tparams = [];
 		tsub = None
 	}
 
-	let ct_void = CTPath {
+	let ct_void = make_ptp_ct_null {
 		tpackage = [];
 		tname = "Void";
 		tparams = [];
 		tsub = None;
 	}
 
-	let ct_dynamic = CTPath {
+	let ct_dynamic = make_ptp_ct_null {
 		tpackage = [];
 		tname = "Dynamic";
 		tparams = [];
 		tsub = None;
 	}
 
-	let ct_string = CTPath {
+	let ct_string = make_ptp_ct_null {
 		tpackage = [];
 		tname = "String";
 		tparams = [];
@@ -665,33 +667,33 @@ module SignatureConverter = struct
 
 	let rec convert_arg ctx p arg =
 		match arg with
-		| TAny | TType (WSuper, _) -> TPType (mk_type_path ([], "Dynamic") [],p)
+		| TAny | TType (WSuper, _) -> TPType (mk_type_path ([], "Dynamic") [] p,p)
 		| TType (_, jsig) -> TPType (convert_signature ctx p jsig,p)
 
 	and convert_signature ctx p jsig =
 		match jsig with
-		| TByte -> mk_type_path (["java"; "types"], "Int8") []
-		| TChar -> mk_type_path (["java"; "types"], "Char16") []
-		| TDouble -> mk_type_path ([], "Float") []
-		| TFloat -> mk_type_path ([], "Single") []
-		| TInt -> mk_type_path ([], "Int") []
-		| TLong -> mk_type_path (["haxe"], "Int64") []
-		| TShort -> mk_type_path (["java"; "types"], "Int16") []
-		| TBool -> mk_type_path ([], "Bool") []
-		| TObject ( (["haxe";"root"], name), args ) -> mk_type_path ([], name) (List.map (convert_arg ctx p) args)
-		| TObject ( (["java";"lang"], "Object"), [] ) -> mk_type_path ([], "Dynamic") []
-		| TObject ( (["java";"lang"], "String"), [] ) -> mk_type_path ([], "String") []
-		| TObject ( (["java";"lang"], "Enum"), [_] ) -> mk_type_path ([], "EnumValue") []
+		| TByte -> mk_type_path (["java"; "types"], "Int8") [] p
+		| TChar -> mk_type_path (["java"; "types"], "Char16") [] p
+		| TDouble -> mk_type_path ([], "Float") [] p
+		| TFloat -> mk_type_path ([], "Single") [] p
+		| TInt -> mk_type_path ([], "Int") [] p
+		| TLong -> mk_type_path (["haxe"], "Int64") [] p
+		| TShort -> mk_type_path (["java"; "types"], "Int16") [] p
+		| TBool -> mk_type_path ([], "Bool") [] p
+		| TObject ( (["haxe";"root"], name), args ) -> mk_type_path ([], name) (List.map (convert_arg ctx p) args) p
+		| TObject ( (["java";"lang"], "Object"), [] ) -> mk_type_path ([], "Dynamic") [] p
+		| TObject ( (["java";"lang"], "String"), [] ) -> mk_type_path ([], "String") [] p
+		| TObject ( (["java";"lang"], "Enum"), [_] ) -> mk_type_path ([], "EnumValue") [] p
 		| TObject ( path, [] ) ->
-			mk_type_path path []
-		| TObject ( path, args ) -> mk_type_path path (List.map (convert_arg ctx p) args)
+			mk_type_path path [] p
+		| TObject ( path, args ) -> mk_type_path path (List.map (convert_arg ctx p) args) p
 		| TObjectInner (pack, (name, params) :: inners) ->
 			let actual_param = match List.rev inners with
 			| (_, p) :: _ -> p
 			| _ -> die "" __LOC__ in
-			mk_type_path (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param)
+			mk_type_path (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param) p
 		| TObjectInner (pack, inners) -> die "" __LOC__
-		| TArray (jsig, _) -> mk_type_path (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,p) ]
+		| TArray (jsig, _) -> mk_type_path (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,p) ] p
 		| TMethod _ -> failwith "TMethod cannot be converted directly into Complex Type"
 		| TTypeParameter s ->
 			try
@@ -700,7 +702,7 @@ module SignatureConverter = struct
 				ct_dynamic
 end
 
-let get_type_path ct = match ct with | CTPath p -> p | _ -> die "" __LOC__
+let get_type_path ct = match ct with | CTPath ptp -> ptp | _ -> die "" __LOC__
 
 module Converter = struct
 
@@ -890,7 +892,7 @@ module Converter = struct
 						let hx_sig =
 							match jsig with
 							| TArray (jsig1,_) when is_varargs && i + 1 = args_count && is_eligible_for_haxe_rest_args jsig1 ->
-								mk_type_path (["haxe"], "Rest") [TPType (convert_signature ctx p jsig1,p)]
+								mk_type_path (["haxe"], "Rest") [TPType (convert_signature ctx p jsig1,p)] p
 							| _ ->
 								convert_signature ctx p jsig
 						in
@@ -936,12 +938,12 @@ module Converter = struct
 			| TObject(([],""),_)
 			| TObject((["java";"lang"],"Object"),_) ->
 				if is_annotation then
-					add_flag (HExtends ({tpackage = ["java";"lang";"annotation"]; tname = "Annotation"; tsub = None; tparams = []},null_pos));
+					add_flag (HExtends (make_ptp {tpackage = ["java";"lang";"annotation"]; tname = "Annotation"; tsub = None; tparams = []} p))
 			| jsig ->
-				add_flag (HExtends (get_type_path (convert_signature ctx p jsig),p))
+				add_flag (HExtends (get_type_path (convert_signature ctx p jsig)))
 		end;
 		List.iter (fun jsig ->
-			let path = (get_type_path (convert_signature ctx p jsig),p) in
+			let path = get_type_path (convert_signature ctx p jsig) in
 			if is_interface then
 				add_flag (HExtends path)
 			else

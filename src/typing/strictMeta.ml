@@ -137,7 +137,8 @@ let get_strict_meta ctx meta params pos =
 					| _ ->
 						el, []
 				in
-				(ENew((tpath,snd ef), el), p), fields, CTPath tpath
+				let ptp = make_ptp tpath (snd ef) in
+				(ENew(ptp, el), p), fields, CTPath ptp
 			| Java ->
 				let fields = match el with
 				| [EObjectDecl(fields),_] ->
@@ -148,22 +149,24 @@ let get_strict_meta ctx meta params pos =
 					display_error ctx.com "Object declaration expected" p;
 					[]
 				in
-				ef, fields, CTPath tpath
+				ef, fields, CTPath (make_ptp tpath (snd ef))
 			| _ ->
 				Error.raise_typing_error "@:strict is not supported on this target" p
 			end
 		| [EConst(Ident i),p as expr] ->
 			let tpath = { tpackage=[]; tname=i; tparams=[]; tsub=None } in
+			let ptp = make_ptp tpath p in
 			if pf = Cs then
-				(ENew((tpath,p), []), p), [], CTPath tpath
+				(ENew(ptp, []), p), [], CTPath ptp
 			else
-				expr, [], CTPath tpath
+				expr, [], CTPath ptp
 		| [ (EField(_),p as field) ] ->
 			let tpath = field_to_type_path ctx.com field in
+			let ptp = make_ptp tpath p in
 			if pf = Cs then
-				(ENew((tpath,p), []), p), [], CTPath tpath
+				(ENew(ptp, []), p), [], CTPath ptp
 			else
-				field, [], CTPath tpath
+				field, [], CTPath ptp
 		| _ ->
 			display_error ctx.com "A @:strict metadata must contain exactly one parameter. Please check the documentation for more information" pos;
 			raise Exit

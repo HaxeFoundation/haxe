@@ -127,12 +127,12 @@ module ExprPreprocessing = struct
 			| ECall(e1,el) when is_annotated (pos e) && is_completion ->
 				let el = loop_el el in
 				ECall(e1,el),(pos e)
-			| ENew((tp,pp),el) when is_annotated (pos e) && is_completion ->
-				if is_annotated pp || pp.pmax >= (DisplayPosition.display_position#get).pmax then
+			| ENew(ptp,el) when is_annotated (pos e) && is_completion ->
+				if is_annotated ptp.pos_full || ptp.pos_full.pmax >= (DisplayPosition.display_position#get).pmax then
 					annotate_marked e
 				else begin
 					let el = loop_el el in
-					ENew((tp,pp),el),(pos e)
+					ENew(ptp,el),(pos e)
 				end
 			| EArrayDecl el when is_annotated (pos e) && is_completion ->
 				let el = loop_el el in

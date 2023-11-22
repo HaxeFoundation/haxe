@@ -1,4 +1,4 @@
-package cases.issues;
+package cases.display.issues;
 
 class Issue8687 extends TestCase {
 	function test(_) {
