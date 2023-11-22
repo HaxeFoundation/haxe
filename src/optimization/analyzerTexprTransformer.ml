@@ -118,11 +118,15 @@ let rec func ctx bb tf t p =
 			let bb,e2 = value bb e2 in
 			bb,{e with eexpr = TBinop(op,e1,e2)}
 		| TBinop(op,e1,e2) ->
-			let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
-				| bb,[e1;e2] -> bb,e1,e2
-				| _ -> die "" __LOC__
-			in
-			bb,{e with eexpr = TBinop(op,e1,e2)}
+			begin match ordered_value_list bb [e1;e2] with
+				| bb,[e1;e2] ->
+					bb,{e with eexpr = TBinop(op,e1,e2)}
+				| bb,[e] ->
+					assert(bb == g.g_unreachable);
+					bb,e
+				| _ ->
+					die "" __LOC__
+				end
 		| TUnop(op,flag,e1) ->
 			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TUnop(op,flag,e1)}
@@ -139,11 +143,16 @@ let rec func ctx bb tf t p =
 			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TField(e1,fa)}
 		| TArray(e1,e2) ->
-			let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
-				| bb,[e1;e2] -> bb,e1,e2
-				| _ -> die "" __LOC__
-			in
-			bb,{e with eexpr = TArray(e1,e2)}
+			begin match ordered_value_list bb [e1;e2] with
+				| bb,[e1;e2] ->
+					bb,{e with eexpr = TArray(e1,e2)}
+
+				| bb,[e] ->
+					assert(bb == g.g_unreachable);
+					bb,e
+				| _ ->
+					die "" __LOC__
+				end
 		| TMeta(m,e1) ->
 			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TMeta(m,e1)}
