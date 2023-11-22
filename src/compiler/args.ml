@@ -2,8 +2,10 @@ open Globals
 open Common
 open CompilationContext
 
+let columns = lazy (match Terminal_size.get_columns () with None -> 80 | Some c -> c)
+
 let limit_string s offset =
-	let rest = 80 - offset in
+	let rest = (Lazy.force columns) - offset in
 	let words = ExtString.String.nsplit s " " in
 	let rec loop i words = match words with
 		| word :: words ->
