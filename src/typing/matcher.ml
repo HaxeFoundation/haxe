@@ -27,15 +27,35 @@ module Match = struct
 
 	let match_expr ctx e cases def with_type postfix_match p =
 		let match_debug = Meta.has (Meta.Custom ":matchDebug") ctx.curfield.cf_meta in
+		let check_mono e =
+			match follow e.etype with
+			| TMono m ->
+				begin match extract_macro_in_macro_constraint m with
+				| Some p ->
+					let sub = if p <> e.epos then [Error.make_error (Custom "Call was here") p] else [] in
+					Error.raise_typing_error_ext (Error.make_error
+						~sub
+						(Custom "Cannot match on expression from macro-in-macro call") e.epos);
+				| None ->
+					()
+				end
+			| _ ->
+				()
+		in
+		let type_expr e =
+			let e = type_expr ctx e WithType.value in
+			check_mono e;
+			e
+		in
 		let rec loop e = match fst e with
 			| EArrayDecl el when (match el with [(EFor _ | EWhile _),_] -> false | _ -> true) ->
-				let el = List.map (fun e -> type_expr ctx e WithType.value) el in
+				let el = List.map type_expr el in
 				let t = ExprToPattern.tuple_type (List.map (fun e -> e.etype) el) in
 				t,el
 			| EParenthesis e1 ->
 				loop e1
 			| _ ->
-				let e = type_expr ctx e WithType.value in
+				let e = type_expr e in
 				e.etype,[e]
 		in
 		let t,subjects = loop e in
