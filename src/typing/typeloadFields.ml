@@ -1299,11 +1299,11 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		if ctx.com.is_macro_context then begin
 			(* a class with a macro cannot be extern in macro context (issue #2015) *)
 			remove_class_flag c CExtern;
-			let texpr = CTPath (mk_type_path (["haxe";"macro"],"Expr")) in
+			let texpr = make_ptp_ct (mk_type_path (["haxe";"macro"],"Expr")) null_pos in
 			(* ExprOf type parameter might contain platform-specific type, let's replace it by Expr *)
 			let no_expr_of (t,p) = match t with
-				| CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType _] }
-				| CTPath { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType _] } -> Some (texpr,p)
+				| CTPath { path = {tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType _] }}
+				| CTPath { path = {tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType _] }} -> Some (texpr,p)
 				| t -> Some (t,p)
 			in
 			{
@@ -1313,8 +1313,8 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				f_expr = fd.f_expr;
 			}
 		end else
-			let tdyn = Some (CTPath (mk_type_path ([],"Dynamic")),null_pos) in
-			let to_dyn p t = match t with
+			let tdyn = Some (make_ptp_th (mk_type_path ([],"Dynamic")) null_pos) in
+			let to_dyn p ptp = match ptp.path with
 				| { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType t] } -> Some t
 				| { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType t] } -> Some t
 				| { tpackage = ["haxe"]; tname = ("PosInfos"); tsub = None; tparams = [] } -> raise_typing_error "haxe.PosInfos is not allowed on macro functions, use Context.currentPos() instead" p
@@ -1337,9 +1337,9 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			if fctx.is_static then invalid_modifier ctx.com fctx "static" "constructor" p;
 			begin match fd.f_type with
 				| None -> ()
-				| Some (CTPath ({ tpackage = []; tname = "Void" } as tp),p) ->
+				| Some (CTPath ({ path = {tpackage = []; tname = "Void" } as tp}),p) ->
 					if ctx.is_display_file && DisplayPosition.display_position#enclosed_in p then
-						ignore(load_instance ~allow_display:true ctx (tp,p) ParamNormal);
+						ignore(load_instance ~allow_display:true ctx (make_ptp tp p) ParamNormal);
 				| _ -> raise_typing_error "A class constructor can't have a return type" p;
 			end
 		| false,_ ->

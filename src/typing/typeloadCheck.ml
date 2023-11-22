@@ -591,10 +591,10 @@ module Inheritance = struct
 					raise_typing_error "Should implement by using an interface" p
 			end
 		in
-		let fl = ExtList.List.filter_map (fun (is_extends,(ct,p)) ->
+		let fl = ExtList.List.filter_map (fun (is_extends,ptp) ->
 			try
 				let t = try
-					Typeload.load_instance ~allow_display:true ctx (ct,p) ParamNormal
+					Typeload.load_instance ~allow_display:true ctx ptp ParamNormal
 				with DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) ->
 					(* We don't allow `implements` on interfaces. Just raise fields completion with no fields. *)
 					if not is_extends && (has_class_flag c CInterface) then raise_fields [] CRImplements r.fsubject;
@@ -608,7 +608,7 @@ module Inheritance = struct
 					) r.fitems in
 					raise_fields l (if is_extends then CRExtends else CRImplements) r.fsubject
 				in
-				Some (check_herit t is_extends p)
+				Some (check_herit t is_extends ptp.pos_full)
 			with Error { err_message = Module_not_found(([],name)); err_pos = p } when ctx.com.display.dms_kind <> DMNone ->
 				if Diagnostics.error_in_diagnostics_run ctx.com p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None

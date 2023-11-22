@@ -619,44 +619,46 @@ module SignatureConverter = struct
 
 	let mk_type_path path params =
 		let pack,(mname,name) = jpath_to_hx path in
-		match mname with
+		let path = match mname with
 		| None ->
-			CTPath {
+			{
 				tpackage = pack;
 				tname = name;
 				tparams = params;
 				tsub = None;
 			}
 		| Some mname ->
-			CTPath {
+			{
 				tpackage = pack;
 				tname = mname;
 				tparams = params;
 				tsub = Some name;
 			}
+		in
+		make_ptp_ct_null path
 
-	let ct_type_param name = CTPath {
+	let ct_type_param name = make_ptp_ct_null {
 		tpackage = [];
 		tname = name;
 		tparams = [];
 		tsub = None
 	}
 
-	let ct_void = CTPath {
+	let ct_void = make_ptp_ct_null {
 		tpackage = [];
 		tname = "Void";
 		tparams = [];
 		tsub = None;
 	}
 
-	let ct_dynamic = CTPath {
+	let ct_dynamic = make_ptp_ct_null {
 		tpackage = [];
 		tname = "Dynamic";
 		tparams = [];
 		tsub = None;
 	}
 
-	let ct_string = CTPath {
+	let ct_string = make_ptp_ct_null {
 		tpackage = [];
 		tname = "String";
 		tparams = [];
@@ -936,12 +938,12 @@ module Converter = struct
 			| TObject(([],""),_)
 			| TObject((["java";"lang"],"Object"),_) ->
 				if is_annotation then
-					add_flag (HExtends ({tpackage = ["java";"lang";"annotation"]; tname = "Annotation"; tsub = None; tparams = []},null_pos));
+					add_flag (HExtends (make_ptp {tpackage = ["java";"lang";"annotation"]; tname = "Annotation"; tsub = None; tparams = []} null_pos))
 			| jsig ->
-				add_flag (HExtends (get_type_path (convert_signature ctx p jsig),p))
+				add_flag (HExtends (get_type_path (convert_signature ctx p jsig)))
 		end;
 		List.iter (fun jsig ->
-			let path = (get_type_path (convert_signature ctx p jsig),p) in
+			let path = get_type_path (convert_signature ctx p jsig) in
 			if is_interface then
 				add_flag (HExtends path)
 			else

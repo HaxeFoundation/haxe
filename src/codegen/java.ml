@@ -104,7 +104,7 @@ let mk_type_path ctx path params =
 		| _ ->
 			pack, sub, name
 	in
-	CTPath {
+	make_ptp_ct_null {
 		tpackage = pack;
 		tname = name;
 		tparams = params;
@@ -196,7 +196,7 @@ let convert_param ctx p parent param =
 			tp_meta = [];
 		}
 
-let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> die "" __LOC__
+let get_type_path ctx ct = match ct with | CTPath ptp -> ptp | _ -> die "" __LOC__
 
 let is_override field =
 	List.exists (function | AttrVisibleAnnotations [{ ann_type = TObject( (["java";"lang"], "Override"), _ ) }] -> true | _ -> false) field.jf_attributes
@@ -308,6 +308,7 @@ let convert_java_enum ctx p pe =
 		List.iter (fun jsig ->
 			match convert_signature ctx p jsig with
 				| CTPath path ->
+					let path = path.path in
 					cff_meta := (Meta.Throws, [Ast.EConst (Ast.String (s_type_path (path.tpackage,path.tname),SDoubleQuotes)), p],p) :: !cff_meta
 				| _ -> ()
 		) field.jf_throws;
@@ -485,7 +486,7 @@ let convert_java_enum ctx p pe =
 			(match jc.csuper with
 				| TObject( (["java";"lang"], "Object"), _ ) -> ()
 				| TObject( (["haxe";"lang"], "HxObject"), _ ) -> meta := (Meta.HxGen,[],p) :: !meta
-				| _ -> flags := HExtends (get_type_path ctx (convert_signature ctx p jc.csuper),p) :: !flags
+				| _ -> flags := HExtends (get_type_path ctx (convert_signature ctx p jc.csuper)) :: !flags
 			);
 
 			List.iter (fun i ->
@@ -493,9 +494,9 @@ let convert_java_enum ctx p pe =
 				| TObject ( (["haxe";"lang"], "IHxObject"), _ ) -> meta := (Meta.HxGen,[],p) :: !meta
 				| _ -> flags :=
 					if !is_interface then
-						HExtends (get_type_path ctx (convert_signature ctx p i),p) :: !flags
+						HExtends (get_type_path ctx (convert_signature ctx p i)) :: !flags
 					else
-						HImplements (get_type_path ctx (convert_signature ctx p i),p) :: !flags
+						HImplements (get_type_path ctx (convert_signature ctx p i)) :: !flags
 			) jc.cinterfaces;
 
 			let fields = ref [] in
@@ -520,6 +521,7 @@ let convert_java_enum ctx p pe =
 					match convert_signature ctx p jsig with
 						| CTPath path ->
 							let pos = { p with pfile = p.pfile ^ " (" ^ f.jf_name ^" @:throws)" } in
+							let path = path.path in
 							EImport( List.map (fun s -> s,pos) (path.tpackage @ [path.tname]), INormal )
 						| _ -> die "" __LOC__
 				) f.jf_throws
@@ -1069,19 +1071,19 @@ class virtual java_library com name file_path = object(self)
 														d_params = c.d_params;
 														d_meta = [];
 														d_flags = [];
-														d_data = CTPath {
+														d_data = make_ptp_th_null {
 															tpackage = pack;
 															tname = snd path;
 															tparams = List.map (fun tp ->
-																TPType (CTPath {
+																TPType (make_ptp_th_null {
 																	tpackage = [];
 																	tname = fst tp.tp_name;
 																	tparams = [];
 																	tsub = None;
-																},null_pos)
+																})
 															) c.d_params;
 															tsub = Some(fst c.d_name);
-														},null_pos;
+														};
 													} in
 													inner_alias := SS.add alias_name !inner_alias;
 													alias_list := (alias_def, pos) :: !alias_list;

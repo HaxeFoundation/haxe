@@ -113,10 +113,10 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 								let e = EArrayDecl el,p in
 								(* typer requires dynamic arrays to be explicitly declared as Array<Dynamic> *)
 								if follow arg_t == t_dynamic then begin
-									let dynamic = CTPath(mk_type_path ([],"Dynamic")),p in
+									let dynamic = make_ptp_th (mk_type_path ([],"Dynamic")) p in
 									let params = [TPType dynamic] in
-									let tp = mk_type_path ~params ([],"Array") in
-									do_type (ECheckType(e,(CTPath tp, p)),p) (* ([arg1, arg2...]:Array<Dynamic>) *)
+									let ct = make_ptp_ct (mk_type_path ~params ([],"Array")) p in
+									do_type (ECheckType(e,(ct, p)),p) (* ([arg1, arg2...]:Array<Dynamic>) *)
 								end else
 									do_type e
 							with WithTypeError e ->

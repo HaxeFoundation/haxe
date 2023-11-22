@@ -323,12 +323,12 @@ let parse_module ctx m p =
 							else
 								let params =
 									List.map (fun tp ->
-										TPType (CTPath (mk_type_path ([],fst tp.tp_name)),null_pos)
+										TPType (make_ptp_th_null (mk_type_path ([],fst tp.tp_name)))
 									) d.d_params
 								in
 								mk_type_path ~params (!remap,fst d.d_name)
 						in
-						CTPath (tp),null_pos;
+						make_ptp_th_null tp
 					end
 				},p) :: acc
 			in

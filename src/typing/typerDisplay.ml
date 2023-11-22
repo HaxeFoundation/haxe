@@ -309,9 +309,9 @@ let rec handle_signature_display ctx e_ast with_type =
 				| _ -> [e1.etype,None,PMap.empty]
 			in
 			handle_call tl el e1.epos
-		| ENew(tpath,el) ->
-			let t = Abstract.follow_with_forward_ctor (Typeload.load_instance ctx tpath ParamSpawnMonos) in
-			handle_call (find_constructor_types t) el (pos tpath)
+		| ENew(ptp,el) ->
+			let t = Abstract.follow_with_forward_ctor (Typeload.load_instance ctx ptp ParamSpawnMonos) in
+			handle_call (find_constructor_types t) el ptp.pos_full
 		| EArray(e1,e2) ->
 			let e1 = type_expr ctx e1 WithType.value in
 			begin match follow e1.etype with
