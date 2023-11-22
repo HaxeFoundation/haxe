@@ -4,8 +4,13 @@ open Type
 open Common
 open DisplayTypes
 
-let add_removable_code ctx s p prange =
-	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
+let add_replaceable_code ctx reason replacement display_range replace_range =
+	ctx.replaceable_code <- {
+		reason = reason;
+		replacement = replacement;
+		display_range = display_range;
+		replace_range = replace_range;
+	} :: ctx.replaceable_code
 
 let error_in_diagnostics_run com p =
 	let b = DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get p.pfile) in
@@ -18,23 +23,23 @@ let find_unused_variables com e =
 	let rec loop e = match e.eexpr with
 		| TVar({v_kind = VUser origin} as v,eo) when v.v_name <> "_" && not (has_var_flag v VUsedByTyper) ->
 			Hashtbl.add pmin_map e.epos.pmin v;
-			let p = match eo with
+			let p,replacement = match eo with
 			| Some e1 when origin <> TVOPatternVariable ->
 				loop e1;
-				{ e.epos with pmax = e1.epos.pmin }
+				{ e.epos with pmax = e1.epos.pmin },""
 			| _ ->
-				e.epos
+				e.epos,"_"
 			in
-			Hashtbl.replace vars v.v_id (v,p);
+			Hashtbl.replace vars v.v_id (v,p,replacement);
 		| TLocal ({v_kind = VUser _} as v) ->
 			Hashtbl.remove vars v.v_id;
 		| _ ->
 			Type.iter loop e
 	in
 	loop e;
-	Hashtbl.iter (fun _ (v,p) ->
+	Hashtbl.iter (fun _ (v,p,replacement) ->
 		let p = match (Hashtbl.find_all pmin_map p.pmin) with [_] -> p | _ -> null_pos in
-		add_removable_code com "Unused variable" v.v_pos p
+		add_replaceable_code com "Unused variable" replacement v.v_pos p
 	) vars
 
 let check_other_things com e =
@@ -135,7 +140,7 @@ let collect_diagnostics dctx com =
 
 let prepare com =
 	let dctx = {
-		removable_code = [];
+		replaceable_code = [];
 		import_positions = PMap.empty;
 		dead_blocks = Hashtbl.create 0;
 		diagnostics_messages = [];

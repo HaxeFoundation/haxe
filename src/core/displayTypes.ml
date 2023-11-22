@@ -328,8 +328,15 @@ and missing_fields_diagnostics = {
 and module_diagnostics =
 	| MissingFields of missing_fields_diagnostics
 
+type replaceable_code = {
+	reason : string;
+	replacement : string;
+	display_range : pos;
+	replace_range : pos;
+}
+
 type diagnostics_context = {
-	mutable removable_code : (string * pos * pos) list;
+	mutable replaceable_code : replaceable_code list;
 	mutable import_positions : (pos,bool ref) PMap.t;
 	mutable dead_blocks : (Path.UniqueKey.t,(pos * expr) list) Hashtbl.t;
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;

@@ -64,7 +64,7 @@ let json_of_diagnostics com dctx =
 	let add dk p sev code args =
 		let append = match dk with
 			| DKUnusedImport
-			| DKRemovableCode
+			| DKReplacableCode
 			| DKDeprecationWarning
 			| DKInactiveBlock ->
 				false
@@ -193,9 +193,13 @@ let json_of_diagnostics com dctx =
 	PMap.iter (fun p r ->
 		if not !r then add DKUnusedImport p MessageSeverity.Warning None (JArray [])
 	) dctx.import_positions;
-	List.iter (fun (s,p,prange) ->
-		add DKRemovableCode p MessageSeverity.Warning None (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
-	) dctx.removable_code;
+	List.iter (fun rc ->
+		add DKReplacableCode rc.display_range MessageSeverity.Warning None (JObject [
+			"description",JString rc.reason;
+			"newCode",JString rc.replacement;
+			"range",if rc.replace_range = null_pos then JNull else Genjson.generate_pos_as_range rc.replace_range
+		])
+	) dctx.replaceable_code;
 	Hashtbl.iter (fun file ranges ->
 		List.iter (fun (p,e) ->
 			let jo = JObject [
