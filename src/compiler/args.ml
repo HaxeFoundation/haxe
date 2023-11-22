@@ -2,8 +2,16 @@ open Globals
 open Common
 open CompilationContext
 
+let terminal_width = ref None
+let get_columns = match !terminal_width with
+	| Some w -> w
+	| None ->
+		let width = match Terminal_size.get_columns () with None -> 80 | Some c -> c in
+		terminal_width := Some width;
+		width
+
 let limit_string s offset =
-	let rest = 80 - offset in
+	let rest = get_columns - offset in
 	let words = ExtString.String.nsplit s " " in
 	let rec loop i words = match words with
 		| word :: words ->
