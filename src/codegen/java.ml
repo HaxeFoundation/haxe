@@ -81,7 +81,7 @@ let lookup_jclass com path =
 		| Some p -> Some p
 	) com.native_libs.java_libs None
 
-let mk_type_path ctx path params =
+let mk_type_path ctx path params p =
 	let name, sub = try
 		let p, _ = String.split (snd path) "$" in
 		jname_to_hx p, Some (jname_to_hx (snd path))
@@ -104,31 +104,31 @@ let mk_type_path ctx path params =
 		| _ ->
 			pack, sub, name
 	in
-	make_ptp_ct_null {
+	make_ptp_ct {
 		tpackage = pack;
 		tname = name;
 		tparams = params;
 		tsub = sub;
-	}
+	} p
 
 let has_tparam name params = List.exists(fun (n,_,_) -> n = name) params
 
 let rec convert_arg ctx p arg =
 	match arg with
-	| TAny | TType (WSuper, _) -> TPType (mk_type_path ctx ([], "Dynamic") [],null_pos)
+	| TAny | TType (WSuper, _) -> TPType (mk_type_path ctx ([], "Dynamic") [] p,null_pos)
 	| TType (_, jsig) -> TPType (convert_signature ctx p jsig,null_pos)
 
 and convert_signature ctx p jsig =
 	match jsig with
-	| TByte -> mk_type_path ctx (["java"; "types"], "Int8") []
-	| TChar -> mk_type_path ctx (["java"; "types"], "Char16") []
-	| TDouble -> mk_type_path ctx ([], "Float") []
-	| TFloat -> mk_type_path ctx ([], "Single") []
-	| TInt -> mk_type_path ctx ([], "Int") []
-	| TLong -> mk_type_path ctx (["haxe"], "Int64") []
-	| TShort -> mk_type_path ctx (["java"; "types"], "Int16") []
-	| TBool -> mk_type_path ctx ([], "Bool") []
-	| TObject ( (["haxe";"root"], name), args ) -> mk_type_path ctx ([], name) (List.map (convert_arg ctx p) args)
+	| TByte -> mk_type_path ctx (["java"; "types"], "Int8") [] p
+	| TChar -> mk_type_path ctx (["java"; "types"], "Char16") [] p
+	| TDouble -> mk_type_path ctx ([], "Float") [] p
+	| TFloat -> mk_type_path ctx ([], "Single") [] p
+	| TInt -> mk_type_path ctx ([], "Int") [] p
+	| TLong -> mk_type_path ctx (["haxe"], "Int64") [] p
+	| TShort -> mk_type_path ctx (["java"; "types"], "Int16") [] p
+	| TBool -> mk_type_path ctx ([], "Bool") [] p
+	| TObject ( (["haxe";"root"], name), args ) -> mk_type_path ctx ([], name) (List.map (convert_arg ctx p) args) p
 	(** nullable types *)
 	(* replaced from Null<Type> to the actual abstract type to fix #2738 *)
 	(* | TObject ( (["java";"lang"], "Integer"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx ([], "Int") []) ] *)
@@ -140,34 +140,34 @@ and convert_signature ctx p jsig =
 	(* | TObject ( (["java";"lang"], "Short"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["java";"types"], "Int16") []) ] *)
 	(* | TObject ( (["java";"lang"], "Long"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["haxe"], "Int64") []) ] *)
 	(** other std types *)
-	| TObject ( (["java";"lang"], "Object"), [] ) -> mk_type_path ctx ([], "Dynamic") []
-	| TObject ( (["java";"lang"], "String"), [] ) -> mk_type_path ctx ([], "String") []
-	| TObject ( (["java";"lang"], "Enum"), [_] ) -> mk_type_path ctx ([], "EnumValue") []
+	| TObject ( (["java";"lang"], "Object"), [] ) -> mk_type_path ctx ([], "Dynamic") [] p
+	| TObject ( (["java";"lang"], "String"), [] ) -> mk_type_path ctx ([], "String") [] p
+	| TObject ( (["java";"lang"], "Enum"), [_] ) -> mk_type_path ctx ([], "EnumValue") [] p
 	(** other types *)
 	| TObject ( path, [] ) ->
 		(match lookup_jclass ctx.jcom path with
-		| Some (jcl, _, _) -> mk_type_path ctx path (List.map (fun _ -> convert_arg ctx p TAny) jcl.ctypes)
-		| None -> mk_type_path ctx path [])
-	| TObject ( path, args ) -> mk_type_path ctx path (List.map (convert_arg ctx p) args)
+		| Some (jcl, _, _) -> mk_type_path ctx path (List.map (fun _ -> convert_arg ctx p TAny) jcl.ctypes) p
+		| None -> mk_type_path ctx path [] p)
+	| TObject ( path, args ) -> mk_type_path ctx path (List.map (convert_arg ctx p) args) p
 	| TObjectInner (pack, (name, params) :: inners) ->
 			let actual_param = match List.rev inners with
 			| (_, p) :: _ -> p
 			| _ -> die "" __LOC__ in
-			mk_type_path ctx (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param)
+			mk_type_path ctx (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param) p
 	| TObjectInner (pack, inners) -> die "" __LOC__
-	| TArray (jsig, _) -> mk_type_path ctx (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,null_pos) ]
+	| TArray (jsig, _) -> mk_type_path ctx (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,null_pos) ] p
 	| TMethod _ -> JReader.error "TMethod cannot be converted directly into Complex Type"
 	| TTypeParameter s -> (match ctx.jtparams with
 		| cur :: others ->
 			if has_tparam s cur then
-				mk_type_path ctx ([], s) []
+				mk_type_path ctx ([], s) [] p
 			else begin
 				if ctx.jcom.verbose && not(List.exists (has_tparam s) others) then print_endline ("Type parameter " ^ s ^ " was not found while building type!");
-				mk_type_path ctx ([], "Dynamic") []
+				mk_type_path ctx ([], "Dynamic") [] p
 			end
 		| _ ->
 			if ctx.jcom.verbose then print_endline ("Empty type parameter stack!");
-			mk_type_path ctx ([], "Dynamic") [])
+			mk_type_path ctx ([], "Dynamic") [] p)
 
 let convert_constant ctx p const =
 	Option.map_default (function
@@ -361,13 +361,13 @@ let convert_java_enum ctx p pe =
 						let hx_sig =
 							match s with
 							| TArray (s1,_) when !is_varargs && !i = args_count && is_eligible_for_haxe_rest_args s1 ->
-								mk_type_path ctx (["haxe"], "Rest") [TPType (convert_signature ctx p s1,null_pos)]
+								mk_type_path ctx (["haxe"], "Rest") [TPType (convert_signature ctx p s1,null_pos)] p
 							| _ ->
 								convert_signature ctx null_pos s
 						in
 						(local_names !i,null_pos), false, [], Some(hx_sig,null_pos), None
 					) args in
-					let t = Option.map_default (convert_signature ctx p) (mk_type_path ctx ([], "Void") []) ret in
+					let t = Option.map_default (convert_signature ctx p) (mk_type_path ctx ([], "Void") [] p) ret in
 					cff_access := (AOverload,p) :: !cff_access;
 					let types = List.map (function
 						| (name, Some ext, impl) ->
