@@ -98,13 +98,13 @@ let keywords =
 	"typeof";
 	(* C11 *)
 	"_Alignas";"_Alignof";"_Atomic";"_Bool";"_Complex";"_Generic";"_Imaginary";"_Noreturn";"_Static_assert";"_Thread_local";"_Pragma";
-	"inline";"restrict"
+	"inline";"restrict";"_restrict"
 	] in
 	let h = Hashtbl.create 0 in
 	List.iter (fun i -> Hashtbl.add h i ()) c_kwds;
 	h
 
-let ident i = if (Hashtbl.mem keywords i) || (ExtString.String.starts_with "__" i) then "_hx_" ^ i else i
+let ident i = if (Hashtbl.mem keywords i) || (ExtString.String.starts_with i "__") then "_hx_" ^ i else i
 
 let s_comp = function
 	| CLt -> "<"
