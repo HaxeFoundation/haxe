@@ -79,22 +79,26 @@ class TestCase implements ITest {
 		server.stop();
 	}
 
+	function handleResult(result) {
+		lastResult = result;
+		debugLastResult = {
+			hasError: lastResult.hasError,
+			prints: lastResult.prints,
+			stderr: lastResult.stderr,
+			stdout: lastResult.stdout
+		};
+		sendLogMessage(result.stdout);
+		for (print in result.prints) {
+			var line = print.trim();
+			messages.push('Haxe print: $line');
+		}
+	}
+
 	function runHaxe(args:Array<String>, done:() -> Void) {
 		messages = [];
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
-			lastResult = result;
-			debugLastResult = {
-				hasError: lastResult.hasError,
-				prints: lastResult.prints,
-				stderr: lastResult.stderr,
-				stdout: lastResult.stdout
-			}
-			sendLogMessage(result.stdout);
-			for (print in result.prints) {
-				var line = print.trim();
-				messages.push('Haxe print: $line');
-			}
+			handleResult(result);
 			if (result.hasError) {
 				sendErrorMessage(result.stderr);
 			}
@@ -112,7 +116,10 @@ class TestCase implements ITest {
 			callback:TResponse->Void, done:() -> Void) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
+		messages = [];
+		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
+			handleResult(result);
 			callback(Json.parse(result.stderr).result.result);
 			done();
 		}, function(msg) {

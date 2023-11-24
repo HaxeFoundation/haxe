@@ -97,7 +97,9 @@ class ServerTests extends TestCase {
 		var args = ["-main", "BrokenSyntax.hx", "--interp", "--no-output"];
 		runHaxe(args);
 		assertErrorMessage("Expected }");
-		runHaxe(args.concat(["--display", "Empty.hx@0@diagnostics"]));
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Empty.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
 		runHaxe(args);
 		assertErrorMessage("Expected }");
 	}
@@ -152,7 +154,9 @@ class ServerTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
 		runHaxe(args);
 		assertSkipping("HelloWorld", Tainted("server/invalidate"));
-		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
 		runHaxe(args);
 		assertReuse("HelloWorld");
 	}
@@ -160,7 +164,9 @@ class ServerTests extends TestCase {
 	function testDiagnosticsRecache2() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
-		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
 		runHaxe(args);
 		assertReuse("HelloWorld");
 	}
@@ -172,7 +178,9 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		assertReuse("HelloWorld");
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
-		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
 		runHaxe(args.concat(["--display", "HelloWorld.hx@0@hover"]));
 		assertReuse("HelloWorld");
 	}
