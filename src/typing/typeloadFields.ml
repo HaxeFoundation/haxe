@@ -951,11 +951,23 @@ module TypeBinding = struct
 					cf.cf_type <- t
 				| _ ->
 					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
+					let f_check = match fctx.field_kind with
+						| FKNormal when not fctx.is_static ->
+							begin match TypeloadCheck.check_overriding ctx c cf with
+							| NothingToDo ->
+								(fun () -> ())
+							| NormalOverride rctx ->
+								(fun () -> 
+									TypeloadCheck.check_override_field ctx cf.cf_name_pos rctx
+								)
+							| OverloadOverride f ->
+								f
+							end
+						| _ ->
+							(fun () -> ())
+					in					
 					let e = TypeloadFunction.type_function ctx args ret fmode e fctx.is_display_field p in
-					begin match fctx.field_kind with
-					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
-					| _ -> ()
-					end;
+					f_check();
 					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
 					(* List.iter (fun (v,_) ->
 						if v.v_name <> "_" && has_mono v.v_type then warning ctx WTemp "Uninferred function argument, please add a type-hint" v.v_pos;
