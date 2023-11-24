@@ -197,7 +197,8 @@ let make_macro_com_api com mcom p =
 				let r = match ParserEntry.parse_expr_string com.defines s p raise_typing_error inl with
 					| ParseSuccess(data,true,_) when inl -> data (* ignore errors when inline-parsing in display file *)
 					| ParseSuccess(data,_,_) -> data
-					| ParseError _ -> raise MacroApi.Invalid_expr in
+					| ParseError _ -> Interp.exc_string "Invalid expression"
+				in
 				exit();
 				r
 			with Error err ->
@@ -315,6 +316,7 @@ let make_macro_com_api com mcom p =
 		warning = (fun ?(depth=0) w msg p ->
 			com.warning ~depth w [] msg p
 		);
+		exc_string = Interp.exc_string;
 	}
 
 let make_macro_api ctx mctx p =
@@ -327,6 +329,10 @@ let make_macro_api ctx mctx p =
 			raise_typing_error "Malformed metadata string" p
 	in
 	let com_api = make_macro_com_api ctx.com mctx.com p in
+	let mk_type_path ?sub path =
+		try mk_type_path ?sub path
+		with Invalid_argument s -> com_api.exc_string s
+	in
 	{
 		com_api with
 		MacroApi.get_type = (fun s ->
