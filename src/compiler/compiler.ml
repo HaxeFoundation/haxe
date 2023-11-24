@@ -4,20 +4,26 @@ open CompilationContext
 
 let run_or_diagnose ctx f arg =
 	let com = ctx.com in
-	let handle_diagnostics ?(depth = 0) msg p kind =
+	let handle_diagnostics msg p kind =
 		ctx.has_error <- true;
-		add_diagnostics_message ~depth com msg p kind Error;
-		DisplayOutput.emit_diagnostics ctx.com
+		add_diagnostics_message com msg p kind Error;
+		match com.report_mode with
+		| RMLegacyDiagnostics _ -> DisplayOutput.emit_legacy_diagnostics ctx.com
+		| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
+		| _ -> die "" __LOC__
 	in
 	if is_diagnostics com then begin try
-			f arg
+		f arg
 		with
 		| Error.Error err ->
 			ctx.has_error <- true;
 			Error.recurse_error (fun depth err ->
 				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos DKCompilerMessage Error
 			) err;
-			DisplayOutput.emit_diagnostics ctx.com
+			(match com.report_mode with
+			| RMLegacyDiagnostics _ -> DisplayOutput.emit_legacy_diagnostics ctx.com
+			| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
+			| _ -> die "" __LOC__)
 		| Parser.Error(msg,p) ->
 			handle_diagnostics (Parser.error_msg msg) p DKParserError
 		| Lexer.Error(msg,p) ->
@@ -422,7 +428,7 @@ with
 		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException.DisplayException dex ->
 		DisplayOutput.handle_display_exception ctx dex
-	| Out_of_memory | EvalExceptions.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ as exc ->
+	| Out_of_memory | EvalExceptions.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ | DisplayProcessingGlobals.Diagnostics as exc ->
 		(* We don't want these to be caught by the catchall below *)
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
@@ -443,6 +449,9 @@ let catch_completion_and_exit ctx callbacks run =
 		run ctx;
 		if ctx.has_error then 1 else 0
 	with
+		| DisplayProcessingGlobals.Diagnostics ->
+			callbacks.after_compilation ctx;
+			0
 		| DisplayProcessingGlobals.Completion str ->
 			callbacks.after_compilation ctx;
 			ServerMessage.completion str;
@@ -472,6 +481,7 @@ let compile_ctx callbacks ctx =
 			compile ctx actx callbacks;
 		);
 		finalize ctx;
+		ctx.com.callbacks#run ctx.com.error_ext ctx.com.callbacks#get_after_compilation;
 		callbacks.after_compilation ctx;
 	in
 	if ctx.has_error then begin

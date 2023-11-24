@@ -174,6 +174,7 @@ class compiler_callbacks = object(self)
 	val before_save = ref [];
 	val after_save = ref [];
 	val after_filters = ref [];
+	val after_compilation = ref [];
 	val after_generation = ref [];
 	val mutable null_safety_report = [];
 
@@ -194,6 +195,9 @@ class compiler_callbacks = object(self)
 
 	method add_after_filters (f : unit -> unit) : unit =
 		after_filters := f :: !after_filters
+
+	method add_after_compilation (f : unit -> unit) : unit =
+		after_compilation := f :: !after_compilation
 
 	method add_after_generation (f : unit -> unit) : unit =
 		after_generation := f :: !after_generation
@@ -216,6 +220,7 @@ class compiler_callbacks = object(self)
 	method get_before_save = before_save
 	method get_after_save = after_save
 	method get_after_filters = after_filters
+	method get_after_compilation = after_compilation
 	method get_after_generation = after_generation
 	method get_null_safety_report = null_safety_report
 end
@@ -289,7 +294,8 @@ let s_compiler_stage = function
 
 type report_mode =
 	| RMNone
-	| RMDiagnostics of Path.UniqueKey.t list
+	| RMLegacyDiagnostics of (Path.UniqueKey.t list)
+	| RMDiagnostics of (Path.UniqueKey.t * string option (* file contents *)) list
 	| RMStatistics
 
 class virtual ['key,'value] lookup = object(self)
@@ -890,7 +896,7 @@ let create compilation_step cs version args =
 	com
 
 let is_diagnostics com = match com.report_mode with
-	| RMDiagnostics _ -> true
+	| RMLegacyDiagnostics _ | RMDiagnostics _ -> true
 	| _ -> false
 
 let disable_report_mode com =
