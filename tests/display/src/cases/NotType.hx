@@ -1,6 +1,6 @@
 package cases;
 
-class Type extends DisplayTestCase {
+class NotType extends DisplayTestCase {
 	/**
 		abstract {-1-}A(Int) {}
 	**/
