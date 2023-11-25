@@ -290,7 +290,7 @@ let s_compiler_stage = function
 type report_mode =
 	| RMNone
 	| RMLegacyDiagnostics of (Path.UniqueKey.t list)
-	| RMDiagnostics of (Path.UniqueKey.t * string option (* file contents *)) list
+	| RMDiagnostics of (Path.UniqueKey.t list)
 	| RMStatistics
 
 class virtual ['key,'value] lookup = object(self)
@@ -401,6 +401,7 @@ type context = {
 	display_information : display_information;
 	file_lookup_cache : (string,string option) lookup;
 	file_keys : file_keys;
+	mutable file_contents : (Path.UniqueKey.t * string option) list option;
 	readdir_cache : (string * string,(string array) option) lookup;
 	parser_cache : (string,(type_def * pos) list) lookup;
 	module_to_file : (path,string) lookup;
@@ -876,6 +877,7 @@ let create compilation_step cs version args =
 		};
 		file_lookup_cache = new hashtbl_lookup;
 		file_keys = new file_keys;
+		file_contents = None;
 		readdir_cache = new hashtbl_lookup;
 		module_to_file = new hashtbl_lookup;
 		stored_typed_exprs = new hashtbl_lookup;
