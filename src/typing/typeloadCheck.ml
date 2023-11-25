@@ -272,14 +272,12 @@ let check_overriding ctx c f =
 					()
 			) overloads;
 			OverloadOverride (fun () ->
-				List.iter (fun f ->
-					(* find the exact field being overridden *)
-					Option.may (check_override_field ctx p) (find_override_field ctx c f csup params (fun csup i ->
-						List.find (fun (t,f2) ->
-							Overloads.same_overload_args f.cf_type (apply_params csup.cl_params params t) f f2
-						) overloads
-					) true p)
-				) (f :: f.cf_overloads);
+				(* find the exact field being overridden *)
+				Option.may (check_override_field ctx p) (find_override_field ctx c f csup params (fun csup i ->
+					List.find (fun (t,f2) ->
+						Overloads.same_overload_args f.cf_type (apply_params csup.cl_params params t) f f2
+					) overloads
+				) true p)
 			)
 		end else
 			let rctx = find_override_field ctx c f csup params (fun csup i ->
