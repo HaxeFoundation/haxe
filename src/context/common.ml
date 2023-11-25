@@ -289,7 +289,6 @@ let s_compiler_stage = function
 
 type report_mode =
 	| RMNone
-	| RMLegacyDiagnostics of (Path.UniqueKey.t list)
 	| RMDiagnostics of (Path.UniqueKey.t list)
 	| RMStatistics
 
@@ -893,7 +892,7 @@ let create compilation_step cs version args =
 	com
 
 let is_diagnostics com = match com.report_mode with
-	| RMLegacyDiagnostics _ | RMDiagnostics _ -> true
+	| RMDiagnostics _ -> true
 	| _ -> false
 
 let disable_report_mode com =

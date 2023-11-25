@@ -7,10 +7,7 @@ let run_or_diagnose ctx f =
 	let handle_diagnostics msg p kind =
 		ctx.has_error <- true;
 		add_diagnostics_message com msg p kind Error;
-		match com.report_mode with
-		| RMLegacyDiagnostics _ -> DisplayOutput.emit_legacy_diagnostics ctx.com
-		| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
-		| _ -> die "" __LOC__
+		DisplayOutput.emit_diagnostics ctx.com
 	in
 	if is_diagnostics com then begin try
 			f ()
@@ -20,10 +17,7 @@ let run_or_diagnose ctx f =
 			Error.recurse_error (fun depth err ->
 				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos DKCompilerMessage Error
 			) err;
-			(match com.report_mode with
-			| RMLegacyDiagnostics _ -> DisplayOutput.emit_legacy_diagnostics ctx.com
-			| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
-			| _ -> die "" __LOC__)
+			DisplayOutput.emit_diagnostics ctx.com;
 		| Parser.Error(msg,p) ->
 			handle_diagnostics (Parser.error_msg msg) p DKParserError
 		| Lexer.Error(msg,p) ->

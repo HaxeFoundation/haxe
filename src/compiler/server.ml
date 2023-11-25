@@ -3,7 +3,6 @@ open Common
 open CompilationCache
 open Timer
 open Type
-open DisplayProcessingGlobals
 open Ipaddr
 open Json
 open CompilationContext
@@ -28,15 +27,11 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 			api.send_error errors
 		end
 	| _ ->
-		if is_diagnostics ctx.com then begin
+		if is_diagnostics ctx.com then
 			List.iter (fun cm ->
 				add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
-			) (List.rev ctx.messages);
-			(match ctx.com.report_mode with
-			| RMDiagnostics _ -> ()
-			| RMLegacyDiagnostics _ -> raise (Completion (Diagnostics.print ctx.com))
-			| _ -> die "" __LOC__)
-		end else
+			) (List.rev ctx.messages)
+		else
 			f_otherwise ()
 
 let current_stdin = ref None

@@ -26,8 +26,8 @@ let make_diagnostic kd p sev code args = {
 
 let is_diagnostics_file com file_key =
 	match com.report_mode with
-	| RMLegacyDiagnostics [] | RMDiagnostics [] -> true
-	| RMLegacyDiagnostics file_keys | RMDiagnostics file_keys -> List.mem file_key file_keys
+	| RMDiagnostics [] -> true
+	| RMDiagnostics file_keys -> List.mem file_key file_keys
 	| _ -> false
 
 module UnresolvedIdentifierSuggestion = struct
