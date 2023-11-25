@@ -172,14 +172,7 @@ let handler =
 
 					DisplayPosition.display_position#set_files (List.map (fun (k, _) -> k) file_contents);
 					hctx.com.report_mode <- RMDiagnostics file_contents
-			end;
-
-			hctx.com.callbacks#add_after_compilation (fun () ->
-				let dctx = Diagnostics.run hctx.com in
-				let diagnostics = DiagnosticsPrinter.json_of_diagnostics hctx.com dctx in
-				DisplayPosition.display_position#reset;
-				hctx.send_result diagnostics
-			);
+			end
 		);
 		"display/implementation", (fun hctx ->
 			hctx.display#set_display_file false true;

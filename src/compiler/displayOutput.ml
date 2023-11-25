@@ -381,10 +381,8 @@ let emit_diagnostics com =
 		let dctx = Diagnostics.run com in
 		let diagnostics = DiagnosticsPrinter.json_of_diagnostics com dctx in
 		DisplayPosition.display_position#reset;
-		api.send_result diagnostics);
-
-	DisplayPosition.display_position#reset;
-	raise Abort
+		api.send_result diagnostics;
+		raise Abort (* not reached because send_result always raises *))
 
 let emit_statistics tctx =
 	let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in

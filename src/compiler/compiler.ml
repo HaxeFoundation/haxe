@@ -478,7 +478,6 @@ let compile_ctx callbacks ctx =
 			compile ctx actx callbacks;
 		);
 		finalize ctx;
-		ctx.com.callbacks#run ctx.com.error_ext ctx.com.callbacks#get_after_compilation;
 		callbacks.after_compilation ctx;
 	in
 	if ctx.has_error then begin
