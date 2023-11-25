@@ -486,7 +486,7 @@ class ServerTests extends TestCase {
 		var runs = 0;
 
 		function runLoop() {
-			runHaxe(args.concat(["--display", "Empty.hx@0@diagnostics"]), () -> {
+			runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Empty.hx")}, () -> {
 				runHaxe(args.concat(["-D", "compile-only-define"]), () -> {
 					if (assertSuccess() && ++runs < 20) runLoop();
 					else async.done();
