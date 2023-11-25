@@ -145,6 +145,53 @@ class ServerTests extends TestCase {
 		assertSuccess();
 	}
 
+	function testDiagnosticsFileContents() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue9134/Main.hx"));
+		vfs.putContent("Other.hx", getTemplate("issues/Issue9134/Other.hx"));
+		var args = ["-main", "Main", "Other"];
+
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {fileContents: [
+			{file: new FsPath("Other.hx")},
+			{file: new FsPath("Main.hx")},
+		]}, res -> {
+			Assert.equals(1, res.length);
+			Assert.equals(1, res[0].diagnostics.length);
+			var arg = res[0].diagnostics[0].args;
+			Assert.equals("Unused variable", (cast arg).description);
+			Assert.stringContains("Main.hx", res[0].file.toString());
+		});
+
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Other.hx")});
+
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {fileContents: [
+			{file: new FsPath("Main.hx"), contents: getTemplate("issues/Issue9134/Main2.hx")},
+			{file: new FsPath("Other.hx"), contents: getTemplate("issues/Issue9134/Other2.hx")}
+		]}, res -> {
+			Assert.equals(1, res.length);
+			Assert.equals(1, res[0].diagnostics.length);
+			var arg = res[0].diagnostics[0].args;
+			Assert.equals("Unused variable", (cast arg).description);
+			Assert.stringContains("Other.hx", res[0].file.toString());
+		});
+
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Other.hx")});
+
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {fileContents: [
+			{file: new FsPath("Main.hx"), contents: getTemplate("issues/Issue9134/Main.hx")},
+			{file: new FsPath("Other.hx"), contents: getTemplate("issues/Issue9134/Other2.hx")}
+		]}, res -> {
+			Assert.equals(2, res.length);
+
+			for (i in 0...2) {
+				Assert.equals(1, res[i].diagnostics.length);
+				var arg = res[i].diagnostics[0].args;
+				Assert.equals("Unused variable", (cast arg).description);
+			}
+		});
+	}
+
 	function testDiagnosticsRecache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
