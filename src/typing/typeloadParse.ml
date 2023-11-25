@@ -59,23 +59,11 @@ let parse_file_from_lexbuf com file p lexbuf =
 let parse_file_from_string com file p string =
 	parse_file_from_lexbuf com file p (Sedlexing.Utf8.from_string string)
 
-let current_stdin = ref None (* TODO: we're supposed to clear this at some point *)
-
 let parse_file com file p =
-	let contents = match com.report_mode with
-		| RMDiagnostics files ->
+	let contents = match com.file_contents with
+		| Some files ->
 			(try List.assoc (com.file_keys#get file) files with Not_found -> None)
-		| _ when (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file (com.file_keys#get file) ->
-			Some (match !current_stdin with
-				| Some s ->
-					s
-				| None ->
-					let s = Std.input_all stdin in
-					close_in stdin;
-					current_stdin := Some s;
-					s
-			)
-		| _ -> None
+		| None -> None
 	in
 
 	match contents with

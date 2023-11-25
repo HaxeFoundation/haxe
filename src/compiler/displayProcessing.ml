@@ -142,11 +142,11 @@ let process_display_file com actx =
 		| DFPOnly when (DisplayPosition.display_position#get).pfile = file_input_marker ->
 			actx.classes <- [];
 			com.main_class <- None;
-			begin match !TypeloadParse.current_stdin with
-			| Some input ->
-				TypeloadParse.current_stdin := None;
+			begin match com.file_contents with
+			| Some [_, Some input] ->
+				com.file_contents <- None;
 				DPKInput input
-			| None ->
+			| _ ->
 				DPKNone
 			end
 		| dfp ->

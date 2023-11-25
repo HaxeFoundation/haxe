@@ -61,11 +61,12 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 			Path.get_full_path file
 		) file_input_marker in
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
-		TypeloadParse.current_stdin := jsonrpc#get_opt_param (fun () ->
+		ignore(jsonrpc#get_opt_param (fun () ->
 			let s = jsonrpc#get_string_param "contents" in
-			Common.define com Define.DisplayStdin; (* TODO: awkward *)
+			let file_unique = com.file_keys#get file in
+			com.file_contents <- Some [file_unique, Some s];
 			Some s
-		) None;
+		) None);
 		Parser.was_auto_triggered := was_auto_triggered;
 		DisplayPosition.display_position#set {
 			pfile = file;
@@ -148,7 +149,8 @@ let handler =
 					pmax = -1;
 				};
 
-				hctx.com.report_mode <- RMDiagnostics [file_unique, contents];
+				hctx.com.file_contents <- Some [file_unique, contents];
+				hctx.com.report_mode <- RMDiagnostics [file_unique];
 				hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display};
 			end else begin
 				let file_contents = hctx.jsonrpc#get_opt_param (fun () ->
@@ -171,8 +173,10 @@ let handler =
 						| _ -> invalid_arg "fileContents"
 					) file_contents in
 
-					DisplayPosition.display_position#set_files (List.map (fun (k, _) -> k) file_contents);
-					hctx.com.report_mode <- RMDiagnostics file_contents
+					let files = (List.map (fun (k, _) -> k) file_contents) in
+					DisplayPosition.display_position#set_files files;
+					hctx.com.file_contents <- Some file_contents;
+					hctx.com.report_mode <- RMDiagnostics files
 			end
 		);
 		"display/implementation", (fun hctx ->
