@@ -428,7 +428,7 @@ with
 		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException.DisplayException dex ->
 		DisplayOutput.handle_display_exception ctx dex
-	| Out_of_memory | EvalExceptions.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ | DisplayProcessingGlobals.Diagnostics as exc ->
+	| Out_of_memory | EvalExceptions.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ as exc ->
 		(* We don't want these to be caught by the catchall below *)
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
@@ -449,9 +449,6 @@ let catch_completion_and_exit ctx callbacks run =
 		run ctx;
 		if ctx.has_error then 1 else 0
 	with
-		| DisplayProcessingGlobals.Diagnostics ->
-			callbacks.after_compilation ctx;
-			0
 		| DisplayProcessingGlobals.Completion str ->
 			callbacks.after_compilation ctx;
 			ServerMessage.completion str;

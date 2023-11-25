@@ -384,7 +384,7 @@ let emit_diagnostics com =
 		api.send_result diagnostics);
 
 	DisplayPosition.display_position#reset;
-	raise Diagnostics
+	raise Abort
 
 let emit_statistics tctx =
 	let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in
