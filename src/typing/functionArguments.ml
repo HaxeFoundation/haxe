@@ -89,7 +89,8 @@ object(self)
 		| None ->
 			let make_local name kind t meta pn =
 				let v = alloc_var kind name t pn in
-				v.v_meta <- v.v_meta @ meta;
+				let meta = (StrictMeta.check_strict_meta ctx meta) @ meta in
+				v.v_meta <- meta;
 				v
 			in
 			let rec loop acc is_abstract_this syntax typed = match syntax,typed with

@@ -20,7 +20,7 @@
 		extc extproc extlib_leftovers ilib javalib mbedtls neko objsize pcre2 camlp-streams swflib ttflib ziplib
 		json
 		unix ipaddr str bigarray threads dynlink
-		xml-light extlib sha
+		xml-light extlib sha terminal_size
 		luv
 	)
 	(modules (:standard \ haxe))

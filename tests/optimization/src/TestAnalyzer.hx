@@ -697,13 +697,13 @@ class TestAnalyzer extends TestBase {
 	}
 
 	function testIssue3869() {
-        var v1:Vec2 = {x: 1., y: 2.};
-        var r = v1 * 2;
+		var v1:Vec2 = {x: 1., y: 2.};
+		var r = v1 * 2;
 		assertEqualsConst(2., r.x);
 		assertEqualsConst(4., r.y);
 
-        var v2:Vec2 = {x: 1., y: 2.};
-        var r2 = 2 * v2;
+		var v2:Vec2 = {x: 1., y: 2.};
+		var r2 = 2 * v2;
 		assertEqualsConst(2., r2.x);
 		assertEqualsConst(4., r2.y);
 	}

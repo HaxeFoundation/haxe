@@ -125,6 +125,55 @@ let handler =
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMDefinition;
 		);
+		"display/diagnostics", (fun hctx ->
+			hctx.display#enable_display DMNone;
+
+			let file = hctx.jsonrpc#get_opt_param (fun () ->
+				let file = hctx.jsonrpc#get_string_param "file" in
+				Path.get_full_path file
+			) file_input_marker in
+
+			if file <> file_input_marker then begin
+				let file_unique = hctx.com.file_keys#get file in
+
+				let contents = hctx.jsonrpc#get_opt_param (fun () ->
+					let s = hctx.jsonrpc#get_string_param "contents" in
+					Some s
+				) None in
+
+				DisplayPosition.display_position#set {
+					pfile = file;
+					pmin = -1;
+					pmax = -1;
+				};
+
+				hctx.com.report_mode <- RMDiagnostics [file_unique, contents];
+				hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display};
+			end else begin
+				let file_contents = hctx.jsonrpc#get_opt_param (fun () ->
+					hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_array_param "fileContents") []
+				) [] in
+
+				if (List.length file_contents) = 0 then begin
+					hctx.com.report_mode <- RMDiagnostics []
+				end else
+					let file_contents = List.map (fun fc -> match fc with
+						| JObject fl ->
+							let file = hctx.jsonrpc#get_string_field "fileContents" "file" fl in
+							let file = Path.get_full_path file in
+							let file_unique = hctx.com.file_keys#get file in
+							let contents = hctx.jsonrpc#get_opt_param (fun () ->
+								let s = hctx.jsonrpc#get_string_field "fileContents" "contents" fl in
+								Some s
+							) None in
+							(file_unique, contents)
+						| _ -> invalid_arg "fileContents"
+					) file_contents in
+
+					DisplayPosition.display_position#set_files (List.map (fun (k, _) -> k) file_contents);
+					hctx.com.report_mode <- RMDiagnostics file_contents
+			end
+		);
 		"display/implementation", (fun hctx ->
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display (DMImplementation);
@@ -154,6 +203,71 @@ let handler =
 		"display/signatureHelp", (fun hctx ->
 			hctx.display#set_display_file (hctx.jsonrpc#get_bool_param "wasAutoTriggered") true;
 			hctx.display#enable_display DMSignature
+		);
+		"display/metadata", (fun hctx ->
+			let include_compiler_meta = hctx.jsonrpc#get_bool_param "compiler" in
+			let include_user_meta = hctx.jsonrpc#get_bool_param "user" in
+
+			hctx.com.callbacks#add_after_init_macros (fun () ->
+				let all = Meta.get_meta_list hctx.com.user_metas in
+				let all = List.filter (fun (_, (data:Meta.meta_infos)) ->
+					match data.m_origin with
+					| Compiler when include_compiler_meta -> true
+					| UserDefined _ when include_user_meta -> true
+					| _ -> false
+				) all in
+
+				hctx.send_result (jarray (List.map (fun (t, (data:Meta.meta_infos)) ->
+					let fields = [
+						"name", jstring t;
+						"doc", jstring data.m_doc;
+						"parameters", jarray (List.map jstring data.m_params);
+						"platforms", jarray (List.map (fun p -> jstring (platform_name p)) data.m_platforms);
+						"targets", jarray (List.map (fun u -> jstring (Meta.print_meta_usage u)) data.m_used_on);
+						"internal", jbool data.m_internal;
+						"origin", jstring (match data.m_origin with
+							| Compiler -> "haxe compiler"
+							| UserDefined None -> "user-defined"
+							| UserDefined (Some o) -> o
+						);
+						"links", jarray (List.map jstring data.m_links)
+					] in
+
+					(jobject fields)
+				) all))
+			)
+		);
+		"display/defines", (fun hctx ->
+			let include_compiler_defines = hctx.jsonrpc#get_bool_param "compiler" in
+			let include_user_defines = hctx.jsonrpc#get_bool_param "user" in
+
+			hctx.com.callbacks#add_after_init_macros (fun () ->
+				let all = Define.get_define_list hctx.com.user_defines in
+				let all = List.filter (fun (_, (data:Define.define_infos)) ->
+					match data.d_origin with
+					| Compiler when include_compiler_defines -> true
+					| UserDefined _ when include_user_defines -> true
+					| _ -> false
+				) all in
+
+				hctx.send_result (jarray (List.map (fun (t, (data:Define.define_infos)) ->
+					let fields = [
+						"name", jstring t;
+						"doc", jstring data.d_doc;
+						"parameters", jarray (List.map jstring data.d_params);
+						"platforms", jarray (List.map (fun p -> jstring (platform_name p)) data.d_platforms);
+						"origin", jstring (match data.d_origin with
+							| Compiler -> "haxe compiler"
+							| UserDefined None -> "user-defined"
+							| UserDefined (Some o) -> o
+						);
+						"deprecated", jopt jstring data.d_deprecated;
+						"links", jarray (List.map jstring data.d_links)
+					] in
+
+					(jobject fields)
+				) all))
+			)
 		);
 		"server/readClassPaths", (fun hctx ->
 			hctx.com.callbacks#add_after_init_macros (fun () ->

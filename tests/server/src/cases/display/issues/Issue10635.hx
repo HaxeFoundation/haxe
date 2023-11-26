@@ -14,12 +14,15 @@ class Issue10635 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		var args = ["-main", "Main", "--display", "Main.hx@0@diagnostics"];
+		var args = ["-main", "Main"];
 		vfs.putContent("Something.hx", getTemplate("issues/Issue10635/Something.hx"));
-		runHaxe(args);
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-		runHaxe(args);
-		Assert.isTrue(lastResult.stderr.length == 2); // dumb, but we don't have a proper diagnostics structure in these tests
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
 	}
 
 	/**
@@ -32,12 +35,15 @@ class Issue10635 extends DisplayTestCase {
 		}
 	**/
 	function testGenericClassPerMethod(_) {
-		var args = ["-main", "Main", "--display", "Main.hx@0@diagnostics"];
+		var args = ["-main", "Main"];
 		vfs.putContent("Something.hx", "@:genericClassPerMethod " + getTemplate("issues/Issue10635/Something.hx"));
-		runHaxe(args);
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-		runHaxe(args);
-		Assert.isTrue(lastResult.stderr.length == 2); // dumb, but we don't have a proper diagnostics structure in these tests
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
 	}
 
 	function testGenericAddition(_) {

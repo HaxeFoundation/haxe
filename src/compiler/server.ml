@@ -16,15 +16,7 @@ let has_error ctx =
 	ctx.has_error || ctx.com.Common.has_error
 
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
-	| None ->
-		if is_diagnostics ctx.com then begin
-			List.iter (fun cm ->
-				add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
-			) (List.rev ctx.messages);
-			raise (Completion (Diagnostics.print ctx.com))
-		end else
-			f_otherwise ()
-	| Some api ->
+	| Some api when not (is_diagnostics ctx.com) ->
 		if has_error ctx then begin
 			let errors = List.map (fun cm ->
 				JObject [
@@ -35,6 +27,17 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 			) (List.rev ctx.messages) in
 			api.send_error errors
 		end
+	| _ ->
+		if is_diagnostics ctx.com then begin
+			List.iter (fun cm ->
+				add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
+			) (List.rev ctx.messages);
+			(match ctx.com.report_mode with
+			| RMDiagnostics _ -> ()
+			| RMLegacyDiagnostics _ -> raise (Completion (Diagnostics.print ctx.com))
+			| _ -> die "" __LOC__)
+		end else
+			f_otherwise ()
 
 let current_stdin = ref None
 

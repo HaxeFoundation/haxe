@@ -62,6 +62,7 @@ let map_values ?(allow_control_flow=true) f e =
 				let e = {e with eexpr = TBlock (List.rev (e1 :: el))} in
 				{e with eexpr = TMeta((Meta.MergeBlock,[],e.epos),e)}
 			| [] ->
+				if not complex then raise Exit;
 				f e
 			end
 		| TTry(e1,catches) ->
@@ -732,7 +733,7 @@ module Fusion = struct
 			(* no-side-effect *)
 			| {eexpr = TFunction _ | TConst _ | TTypeExpr _} :: el ->
 				loop acc el
-			| {eexpr = TMeta((Meta.Pure,_,_),_)} :: el ->
+			| {eexpr = TMeta((Meta.Pure,_,_) as meta,_)} :: el when PurityState.get_purity_from_meta [meta] = Pure ->
 				loop acc el
 			| {eexpr = TCall({eexpr = TField(e1,fa)},el1)} :: el2 when PurityState.is_pure_field_access fa && config.local_dce ->
 				loop acc (e1 :: el1 @ el2)

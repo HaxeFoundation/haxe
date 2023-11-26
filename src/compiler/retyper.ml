@@ -89,16 +89,16 @@ let pair_classes rctx c d p =
 		let has_extends = ref false in
 		let implements = ref c.cl_implements in
 		List.iter (function
-			| HExtends(path,p) ->
+			| HExtends ptp ->
 				has_extends := true;
 				begin match c.cl_super with
 				| None ->
-					fail rctx (Printf.sprintf "parent %s appeared" (Ast.Printer.s_complex_type_path "" (path,p)))
+					fail rctx (Printf.sprintf "parent %s appeared" (Ast.Printer.s_complex_type_path "" ptp))
 				| Some(c,tl) ->
-					let th = pair_type (Some(CTPath path,p)) (TInst(c,tl)) in
+					let th = pair_type (Some(CTPath ptp,ptp.pos_full)) (TInst(c,tl)) in
 					ignore (disable_typeloading rctx ctx (fun () -> Typeload.load_complex_type ctx false th))
 				end
-			| HImplements(path,p) ->
+			| HImplements ptp ->
 				begin match !implements with
 					| (c,tl) :: rest ->
 						(* TODO: I think this should somehow check if it's actually the same interface. There could be cases
@@ -106,10 +106,10 @@ let pair_classes rctx c d p =
 						   However, this doesn't matter until we start retyping invalidated modules.
 						*)
 						implements := rest;
-						let th = pair_type (Some(CTPath path,p)) (TInst(c,tl)) in
+						let th = pair_type (Some(CTPath ptp,ptp.pos_full)) (TInst(c,tl)) in
 						ignore (disable_typeloading rctx ctx (fun () -> Typeload.load_complex_type ctx false th));
 					| [] ->
-						fail rctx (Printf.sprintf "interface %s appeared" (Ast.Printer.s_complex_type_path "" (path,p)))
+						fail rctx (Printf.sprintf "interface %s appeared" (Ast.Printer.s_complex_type_path "" ptp))
 				end
 			| _ ->
 				()

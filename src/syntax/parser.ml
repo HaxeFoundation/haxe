@@ -244,6 +244,10 @@ let serror() = raise (Stream.Error "")
 let magic_display_field_name = " - display - "
 let magic_type_path = { tpackage = []; tname = ""; tparams = []; tsub = None }
 
+let magic_type_ct p = make_ptp_ct magic_type_path p
+
+let magic_type_th p = magic_type_ct p,p
+
 let delay_syntax_completion kind so p =
 	delayed_syntax_completion := Some(kind,DisplayTypes.make_subject so p)
 

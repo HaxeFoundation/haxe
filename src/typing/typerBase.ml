@@ -155,9 +155,11 @@ let get_this ctx p =
 	| FunMemberClassLocal | FunMemberAbstractLocal ->
 		let v = match ctx.vthis with
 			| None ->
-				let v = if ctx.curfun = FunMemberAbstractLocal then
-					PMap.find "this" ctx.locals
-				else
+				let v = if ctx.curfun = FunMemberAbstractLocal then begin
+					let v = PMap.find "this" ctx.locals in
+					add_var_flag v VUsedByTyper;
+					v
+				end else
 					add_local ctx VGenerated (Printf.sprintf "%sthis" gen_local_prefix) ctx.tthis p
 				in
 				ctx.vthis <- Some v;

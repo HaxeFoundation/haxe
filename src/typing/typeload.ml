@@ -421,19 +421,20 @@ let rec load_params ctx info params p =
 	params
 
 (* build an instance from a full type *)
-and load_instance' ctx (t,p) get_params =
+and load_instance' ctx ptp get_params =
+	let t = ptp.path in
 	try
 		if t.tpackage <> [] || t.tsub <> None then raise Not_found;
 		let pt = lookup_param t.tname ctx.type_params in
-		if t.tparams <> [] then raise_typing_error ("Class type parameter " ^ t.tname ^ " can't have parameters") p;
+		if t.tparams <> [] then raise_typing_error ("Class type parameter " ^ t.tname ^ " can't have parameters") ptp.pos_full;
 		pt
 	with Not_found ->
-		let mt = load_type_def ctx p t in
-		let info = ctx.g.get_build_info ctx mt p in
+		let mt = load_type_def ctx ptp.pos_path t in
+		let info = ctx.g.get_build_info ctx mt ptp.pos_full in
 		if info.build_path = ([],"Dynamic") then match t.tparams with
 			| [] -> t_dynamic
 			| [TPType t] -> TDynamic (Some (load_complex_type ctx true t))
-			| _ -> raise_typing_error "Too many parameters for Dynamic" p
+			| _ -> raise_typing_error "Too many parameters for Dynamic" ptp.pos_full
 		else if info.build_params = [] then begin match t.tparams with
 			| [] ->
 				info.build_apply []
@@ -448,26 +449,26 @@ and load_instance' ctx (t,p) get_params =
 			let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
 			let tl = if t.tparams = [] && not is_rest then begin match get_params with
 				| ParamNormal ->
-					load_params ctx info t.tparams p
+					load_params ctx info t.tparams ptp.pos_full
 				| ParamSpawnMonos ->
 					Monomorph.spawn_constrained_monos (fun t -> t) info.build_params
 				| ParamCustom f ->
 					f info None
 			end else
-				load_params ctx info t.tparams p
+				load_params ctx info t.tparams ptp.pos_full
 			in
 			let t = info.build_apply tl in
-			maybe_build_instance ctx t get_params p
+			maybe_build_instance ctx t get_params ptp.pos_full
 		end
 
-and load_instance ctx ?(allow_display=false) ((_,pn) as tp) get_params =
+and load_instance ctx ?(allow_display=false) ptp get_params =
 	try
-		let t = load_instance' ctx tp get_params in
-		if allow_display then DisplayEmitter.check_display_type ctx t tp;
+		let t = load_instance' ctx ptp get_params in
+		if allow_display then DisplayEmitter.check_display_type ctx t ptp;
 		t
-	with Error { err_message = Module_not_found path } when ctx.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
+	with Error { err_message = Module_not_found path } when ctx.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in ptp.pos_path ->
 		let s = s_type_path path in
-		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint (s,pn) (patch_string_pos pn s)
+		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint (s,ptp.pos_full) ptp.pos_path
 
 (*
 	build an instance from a complex type
@@ -475,8 +476,8 @@ and load_instance ctx ?(allow_display=false) ((_,pn) as tp) get_params =
 and load_complex_type' ctx allow_display (t,p) =
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display t
-	| CTPath { tpackage = ["$"]; tname = "_hx_mono" } -> spawn_monomorph ctx p
-	| CTPath t -> load_instance ~allow_display ctx (t,p) ParamNormal
+	| CTPath { path = {tpackage = ["$"]; tname = "_hx_mono" }} -> spawn_monomorph ctx p
+	| CTPath ptp -> load_instance ~allow_display ctx ptp ParamNormal
 	| CTOptional _ -> raise_typing_error "Optional type not allowed here" p
 	| CTNamed _ -> raise_typing_error "Named type not allowed here" p
 	| CTIntersection tl ->
@@ -521,9 +522,9 @@ and load_complex_type' ctx allow_display (t,p) =
 				| _ ->
 					raise_typing_error "Can only extend structures" p
 			in
-			let il = List.map (fun (t,pn) ->
+			let il = List.map (fun ptp ->
 				try
-					(load_instance ctx ~allow_display (t,pn) ParamNormal,pn)
+					(load_instance ctx ~allow_display ptp ParamNormal,ptp.pos_full)
 				with DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) ->
 					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Struct},_) -> true
@@ -584,7 +585,7 @@ and load_complex_type' ctx allow_display (t,p) =
 					no_expr e;
 					let t = (match t with None -> raise_typing_error "Type required for structure property" p | Some t -> t) in
 					load_complex_type ctx allow_display t, Var { v_read = AccNormal; v_write = AccNever }
-				| FVar (Some (CTPath({tpackage=[];tname="Void"}),_), _)  | FProp (_,_,Some (CTPath({tpackage=[];tname="Void"}),_),_) ->
+				| FVar (Some (CTPath({path = {tpackage=[];tname="Void"}}),_), _)  | FProp (_,_,Some (CTPath({path = {tpackage=[];tname="Void"}}),_),_) ->
 					raise_typing_error "Fields of type Void are not allowed in structures" p
 				| FVar (t, e) ->
 					no_expr e;
@@ -642,7 +643,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		TAnon a
 	| CTFunction (args,r) ->
 		match args with
-		| [CTPath { tpackage = []; tparams = []; tname = "Void" },_] ->
+		| [CTPath { path = {tpackage = []; tparams = []; tname = "Void" }},_] ->
 			TFun ([],load_complex_type ctx allow_display r)
 		| _ ->
 			TFun (List.map (fun t ->
@@ -720,34 +721,11 @@ and init_meta_overloads ctx co cf =
 	) cf.cf_meta;
 	cf.cf_overloads <- (List.rev !overloads)
 
-let hide_params ctx =
-	let old_m = ctx.m in
-	let old_type_params = ctx.type_params in
-	let old_deps = ctx.g.std.m_extra.m_deps in
-	ctx.m <- {
-		curmod = ctx.g.std;
-		import_resolution = new Resolution.resolution_list ["hide_params"];
-		own_resolution = None;
-		enum_with_type = None;
-		module_using = [];
-		import_statements = [];
-	};
-	ctx.type_params <- [];
-	(fun() ->
-		ctx.m <- old_m;
-		ctx.type_params <- old_type_params;
-		(* restore dependencies that might be have been wronly inserted *)
-		ctx.g.std.m_extra.m_deps <- old_deps;
-	)
-
-let t_iterator ctx =
-	let show = hide_params ctx in
-	match load_type_def ctx null_pos (mk_type_path ([],"Iterator")) with
+let t_iterator ctx p =
+	match load_qualified_type_def ctx [] "StdTypes" "Iterator" p with
 	| TTypeDecl t ->
-		show();
 		add_dependency ctx.m.curmod t.t_module;
-		if List.length t.t_params <> 1 then die "" __LOC__;
-		let pt = mk_mono() in
+		let pt = spawn_monomorph ctx p in
 		apply_typedef t [pt], pt
 	| _ ->
 		die "" __LOC__
@@ -853,13 +831,13 @@ let load_core_class ctx c =
 			c
 	) in
 	let tpath = match c.cl_kind with
-		| KAbstractImpl a -> mk_type_path a.a_path
-		| _ -> mk_type_path c.cl_path
+		| KAbstractImpl a -> a.a_path
+		| _ -> c.cl_path
 	in
-	let t = load_instance ctx2 (tpath,c.cl_pos) ParamSpawnMonos in
+	let t = load_type_def' ctx2 (fst c.cl_module.m_path) (snd c.cl_module.m_path) (snd tpath) null_pos in
 	flush_pass ctx2 PFinal ("core_final",(fst c.cl_path @ [snd c.cl_path]));
 	match t with
-	| TInst (ccore,_) | TAbstract({a_impl = Some ccore}, _) ->
+	| TClassDecl ccore | TAbstractDecl {a_impl = Some ccore} ->
 		ccore
 	| _ ->
 		die "" __LOC__
@@ -935,7 +913,3 @@ let init_core_api ctx c =
 	| Some f, Some f2 -> compare_fields f f2
 	| None, Some cf when not (has_class_field_flag cf CfPublic) -> ()
 	| _ -> raise_typing_error "Constructor differs from core type" c.cl_pos)
-
-let string_list_of_expr_path (e,p) =
-	try string_list_of_expr_path_raise (e,p)
-	with Exit -> raise_typing_error "Invalid path" p

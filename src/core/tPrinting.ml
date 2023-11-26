@@ -645,8 +645,8 @@ module Printer = struct
 		| HInterface -> "HInterface"
 		| HExtern -> "HExtern"
 		| HPrivate -> "HPrivate"
-		| HExtends tp -> "HExtends " ^ (s_type_path (fst tp))
-		| HImplements tp -> "HImplements " ^ (s_type_path (fst tp))
+		| HExtends ptp -> "HExtends " ^ (s_type_path ptp.path)
+		| HImplements ptp -> "HImplements " ^ (s_type_path ptp.path)
 		| HFinal -> "HFinal"
 		| HAbstract -> "HAbstract"
 

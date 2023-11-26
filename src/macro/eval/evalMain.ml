@@ -376,19 +376,8 @@ let init ctx = ()
 
 let setup get_api =
 	let api = get_api (fun() -> (get_ctx()).curapi.get_com()) (fun() -> (get_ctx()).curapi) in
-	List.iter (fun (n,v) -> match v with
-		| VFunction(f,b) ->
-			let f vl = try
-				f vl
-			with
-			| Sys_error msg | Failure msg | Invalid_argument msg ->
-				exc_string msg
-			| MacroApi.Invalid_expr ->
-				exc_string "Invalid expression"
-			in
-			let v = VFunction (f,b) in
-			Hashtbl.replace GlobalState.macro_lib n v
-		| _ -> die "" __LOC__
+	List.iter (fun (n,v) ->
+		Hashtbl.replace GlobalState.macro_lib n v
 	) api;
 	Globals.macro_platform := Globals.Eval
 

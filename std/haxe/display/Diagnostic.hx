@@ -1,4 +1,6 @@
 // from vshaxe
+package haxe.display;
+
 import haxe.display.Position.Location;
 import haxe.display.Position.Range;
 import haxe.display.JsonModuleTypes;
@@ -44,11 +46,17 @@ typedef MissingFieldDiagnostics = {
 	var entries:Array<MissingFieldDiagnostic>;
 }
 
+typedef ReplacableCode = {
+	var description:String;
+	var range:Range;
+	var ?newCode:String;
+}
+
 enum abstract DiagnosticKind<T>(Int) from Int to Int {
 	final DKUnusedImport:DiagnosticKind<Void>;
 	final DKUnresolvedIdentifier:DiagnosticKind<Array<{kind:UnresolvedIdentifierSuggestion, name:String}>>;
 	final DKCompilerError:DiagnosticKind<String>;
-	final DKRemovableCode:DiagnosticKind<{description:String, range:Range}>;
+	final ReplacableCode:DiagnosticKind<ReplacableCode>;
 	final DKParserError:DiagnosticKind<String>;
 	final DeprecationWarning:DiagnosticKind<String>;
 	final InactiveBlock:DiagnosticKind<Void>;

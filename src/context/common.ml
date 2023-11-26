@@ -289,7 +289,8 @@ let s_compiler_stage = function
 
 type report_mode =
 	| RMNone
-	| RMDiagnostics of Path.UniqueKey.t list
+	| RMLegacyDiagnostics of (Path.UniqueKey.t list)
+	| RMDiagnostics of (Path.UniqueKey.t * string option (* file contents *)) list
 	| RMStatistics
 
 class virtual ['key,'value] lookup = object(self)
@@ -436,8 +437,6 @@ let enter_stage com stage =
 	(* print_endline (Printf.sprintf "Entering stage %s" (s_compiler_stage stage)); *)
 	com.stage <- stage
 
-exception Abort of Error.error
-
 let ignore_error com =
 	let b = com.display.dms_error_policy = EPIgnore in
 	if b then com.has_error <- true;
@@ -506,6 +505,9 @@ let external_define_value ctx k v =
 
 let external_define ctx k =
 	Define.raw_define ctx.defines (convert_and_validate k)
+
+let external_undefine ctx k =
+	Define.raw_undefine ctx.defines (convert_and_validate k)
 
 let defines_for_external ctx =
 	PMap.foldi (fun k v acc ->
@@ -889,7 +891,7 @@ let create compilation_step cs version args =
 	com
 
 let is_diagnostics com = match com.report_mode with
-	| RMDiagnostics _ -> true
+	| RMLegacyDiagnostics _ | RMDiagnostics _ -> true
 	| _ -> false
 
 let disable_report_mode com =
@@ -1065,7 +1067,7 @@ let allow_package ctx s =
 	with Not_found ->
 		()
 
-let abort ?(depth = 0) msg p = raise (Abort (Error.make_error ~depth (Custom msg) p))
+let abort ?(depth = 0) msg p = raise (Error.Fatal_error (Error.make_error ~depth (Custom msg) p))
 
 let platform ctx p = ctx.platform = p
 

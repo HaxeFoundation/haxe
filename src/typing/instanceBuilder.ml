@@ -39,8 +39,8 @@ let build_macro_type ctx pl p =
 	) in
 	let old = ctx.ret in
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
-		| None -> spawn_monomorph ctx p
-		| Some _ -> ctx.ret
+		| MError | MMacroInMacro -> spawn_monomorph ctx p
+		| MSuccess _ -> ctx.ret
 	) in
 	ctx.ret <- old;
 	t
@@ -58,8 +58,8 @@ let build_macro_build ctx c pl cfl p =
 	let old = ctx.ret,ctx.get_build_infos in
 	ctx.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
-		| None -> spawn_monomorph ctx p
-		| Some _ -> ctx.ret
+		| MError | MMacroInMacro -> spawn_monomorph ctx p
+		| MSuccess _ -> ctx.ret
 	) in
 	ctx.ret <- fst old;
 	ctx.get_build_infos <- snd old;
