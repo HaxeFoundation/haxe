@@ -190,6 +190,33 @@ class ServerTests extends TestCase {
 				Assert.equals("Unused variable", (cast arg).description);
 			}
 		});
+
+		// Currently, haxe compilation server will have this content anyway
+		// because of diagnostics with file contents, but that behavior may not
+		// be obvious in tests
+		vfs.putContent("Other.hx", getTemplate("issues/Issue9134/Other2.hx"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Other.hx")});
+
+		// Running project wide diagnostics; checks here aren't great since
+		// results will depend on haxe std which may change without updating
+		// this test everytime..
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {}, res -> {
+			var hasMain = false;
+			var hasOther = false;
+
+			for (result in res) {
+				var file = result.file.toString();
+				if (StringTools.endsWith(file, "Main.hx")) hasMain = true;
+				else if (StringTools.endsWith(file, "Other.hx")) hasOther = true;
+				else continue;
+
+				var arg = result.diagnostics[0].args;
+				Assert.equals("Unused variable", (cast arg).description);
+			}
+
+			Assert.isTrue(hasMain);
+			Assert.isTrue(hasOther);
+		});
 	}
 
 	function testDiagnosticsRecache() {

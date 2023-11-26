@@ -144,8 +144,8 @@ let process_display_file com actx =
 			actx.classes <- [];
 			com.main_class <- None;
 			begin match com.file_contents with
-			| Some [_, Some input] ->
-				com.file_contents <- None;
+			| [_, Some input] ->
+				com.file_contents <- [];
 				DPKInput input
 			| _ ->
 				DPKNone

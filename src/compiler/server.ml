@@ -47,7 +47,7 @@ let parse_file cs com file p =
 	and fkey = com.file_keys#get file in
 	let is_display_file = DisplayPosition.display_position#is_in_file (com.file_keys#get ffile) in
 	match is_display_file, !current_stdin with
-	| true, Some stdin when (com.file_contents <> None || Common.defined com Define.DisplayStdin) ->
+	| true, Some stdin when (com.file_contents <> [] || Common.defined com Define.DisplayStdin) ->
 		TypeloadParse.parse_file_from_string com file p stdin
 	| _ ->
 		let ftime = file_time ffile in

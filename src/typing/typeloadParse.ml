@@ -61,14 +61,14 @@ let parse_file_from_string com file p string =
 let parse_file com file p =
 	let file_key = com.file_keys#get file in
 	let contents = match com.file_contents with
-		| Some files ->
-			(try List.assoc file_key files with Not_found -> None)
-		| None when (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file file_key ->
+		| [] when (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file file_key ->
 			let s = Std.input_all stdin in
 			close_in stdin;
-			com.file_contents <- Some [file_key, Some s];
+			com.file_contents <- [file_key, Some s];
 			Some s
-		| None -> None
+		| [] -> None
+		| files ->
+			(try List.assoc file_key files with Not_found -> None)
 	in
 
 	match contents with
