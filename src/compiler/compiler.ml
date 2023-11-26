@@ -205,18 +205,14 @@ module Setup = struct
 				let share_path = Filename.concat prefix_path "share" in
 				[
 					"";
-					Path.add_trailing_slash (Filename.concat lib_path "haxe/std");
-					Path.add_trailing_slash (Filename.concat lib_path "haxe/extraLibs");
 					Path.add_trailing_slash (Filename.concat share_path "haxe/std");
-					Path.add_trailing_slash (Filename.concat share_path "haxe/extraLibs");
+					Path.add_trailing_slash (Filename.concat lib_path "haxe/std");
 					Path.add_trailing_slash (Filename.concat base_path "std");
-					Path.add_trailing_slash (Filename.concat base_path "extraLibs")
 				]
 			else
 				[
 					"";
 					Path.add_trailing_slash (Filename.concat base_path "std");
-					Path.add_trailing_slash (Filename.concat base_path "extraLibs")
 				]
 
 	let setup_common_context ctx =
