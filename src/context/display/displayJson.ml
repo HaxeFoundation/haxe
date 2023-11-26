@@ -61,12 +61,11 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 			Path.get_full_path file
 		) file_input_marker in
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
-		ignore(jsonrpc#get_opt_param (fun () ->
+		com.file_contents <- jsonrpc#get_opt_param (fun () ->
 			let s = jsonrpc#get_string_param "contents" in
 			let file_unique = com.file_keys#get file in
-			com.file_contents <- Some [file_unique, Some s];
-			Some s
-		) None);
+			Some [file_unique, Some s]
+		) None;
 		Parser.was_auto_triggered := was_auto_triggered;
 		DisplayPosition.display_position#set {
 			pfile = file;
