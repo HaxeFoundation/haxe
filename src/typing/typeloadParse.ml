@@ -59,9 +59,15 @@ let parse_file_from_string com file p string =
 	parse_file_from_lexbuf com file p (Sedlexing.Utf8.from_string string)
 
 let parse_file com file p =
+	let file_key = com.file_keys#get file in
 	let contents = match com.file_contents with
 		| Some files ->
-			(try List.assoc (com.file_keys#get file) files with Not_found -> None)
+			(try List.assoc file_key files with Not_found -> None)
+		| None when (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file file_key ->
+			let s = Std.input_all stdin in
+			close_in stdin;
+			com.file_contents <- Some [file_key, Some s];
+			Some s
 		| None -> None
 	in
 
