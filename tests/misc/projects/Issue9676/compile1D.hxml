@@ -1,2 +1,2 @@
 --main MainField
---display "MainField.hx@0@diagnostics"
+--display '{"jsonrpc":"2.0","id":0,"method":"display/diagnostics","params":{"file":"MainField.hx"}}'
