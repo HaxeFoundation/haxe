@@ -102,7 +102,7 @@ class TestPhp extends Test {
 
 	@:analyzer(ignore)
 	function testIssue9924() {
-		var v = Std.random(10);
+		var v:Any = Std.random(10);
 
 		var GLOBALS = v;
 		var _SERVER = v;
