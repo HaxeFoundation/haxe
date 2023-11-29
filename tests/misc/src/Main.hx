@@ -151,6 +151,14 @@ class Main {
 				.filter(s -> 0 != s.indexOf('Picked up JAVA_TOOL_OPTIONS:'))
 				.join('\n');
 
+			if (StringTools.startsWith(content, '{"jsonrpc":')) {
+				try {
+					content = haxe.Json.stringify(haxe.Json.parse(content).result.result);
+					// Reorder fields from expected too
+					expected = haxe.Json.stringify(haxe.Json.parse(expected));
+				} catch (_) {}
+			}
+
 			if (content != expected) {
 				final a = new diff.FileData(Bytes.ofString(expected), "expected", Date.now());
 				final b = new diff.FileData(Bytes.ofString(content), "actual", Date.now());
