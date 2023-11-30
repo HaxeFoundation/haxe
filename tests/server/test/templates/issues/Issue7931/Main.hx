@@ -1,6 +1,6 @@
 class Main {
 	static function main() {
 		var s:String;
-		s += "test";
+		{-1-}s{-2-} += "test";
 	}
 }
