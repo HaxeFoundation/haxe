@@ -58,23 +58,23 @@ let parse_file_from_lexbuf com file p lexbuf =
 let parse_file_from_string com file p string =
 	parse_file_from_lexbuf com file p (Sedlexing.Utf8.from_string string)
 
-let current_stdin = ref None (* TODO: we're supposed to clear this at some point *)
-
 let parse_file com file p =
-	let use_stdin = (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file (com.file_keys#get file) in
-	if use_stdin then
-		let s =
-			match !current_stdin with
-			| Some s ->
-				s
-			| None ->
-				let s = Std.input_all stdin in
-				close_in stdin;
-				current_stdin := Some s;
-				s
-		in
+	let file_key = com.file_keys#get file in
+	let contents = match com.file_contents with
+		| [] when (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file file_key ->
+			let s = Std.input_all stdin in
+			close_in stdin;
+			com.file_contents <- [file_key, Some s];
+			Some s
+		| [] -> None
+		| files ->
+			(try List.assoc file_key files with Not_found -> None)
+	in
+
+	match contents with
+	| Some s ->
 		parse_file_from_string com file p s
-	else
+	| _ ->
 		let ch = try open_in_bin file with _ -> raise_typing_error ("Could not open " ^ file) p in
 		Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Sedlexing.Utf8.from_channel ch)
 
@@ -323,12 +323,12 @@ let parse_module ctx m p =
 							else
 								let params =
 									List.map (fun tp ->
-										TPType (CTPath (mk_type_path ([],fst tp.tp_name)),null_pos)
+										TPType (make_ptp_th_null (mk_type_path ([],fst tp.tp_name)))
 									) d.d_params
 								in
 								mk_type_path ~params (!remap,fst d.d_name)
 						in
-						CTPath (tp),null_pos;
+						make_ptp_th_null tp
 					end
 				},p) :: acc
 			in

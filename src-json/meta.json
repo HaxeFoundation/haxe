@@ -35,7 +35,8 @@
 	{
 		"name": "Annotation",
 		"metadata": ":annotation",
-		"doc": "Annotation (`@interface`) definitions on `--java-lib` imports will be annotated with this metadata. Has no effect on types compiled by Haxe.",
+		"doc": "Marks a class as a Java annotation",
+		"params": ["Retention policy"],
 		"platforms": ["jvm"],
 		"targets": ["TClass"]
 	},
@@ -520,7 +521,6 @@
 		"metadata": ":java.default",
 		"doc": "Equivalent to the default modifier of the Java language",
 		"platforms": ["jvm"],
-		"params": [],
 		"targets": ["TClassField"]
 	},
 	{

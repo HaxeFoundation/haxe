@@ -52,23 +52,56 @@ let rec process_meta_argument ?(toplevel=true) ctx expr = match expr.eexpr with
 		(efield(get_native_repr md expr.epos, "class"), p)
 	| TTypeExpr md ->
 		get_native_repr md expr.epos
+	| TArrayDecl el ->
+		let el = List.map (process_meta_argument ctx) el in
+		(EArrayDecl el,expr.epos)
 	| _ ->
 		display_error ctx.com "This expression is too complex to be a strict metadata argument" expr.epos;
 		(EConst(Ident "null"), expr.epos)
+
+let rec kind_of_type_against ctx t_want e_have =
+	match follow t_want with
+	| TInst({cl_path = (["java";"lang"],"Class")},[t1]) ->
+		let e = type_expr ctx e_have (WithType.with_type t_want) in
+		begin match follow e.etype with
+			| TAbstract({a_path = ([],"Class")},[t2]) ->
+				unify ctx t2 t1 e.epos
+			| TAnon an ->
+				begin match !(an.a_status) with
+					| ClassStatics c ->
+						unify ctx (TInst(c,extract_param_types c.cl_params)) t1 e.epos
+					| AbstractStatics a ->
+						unify ctx (TAbstract(a,extract_param_types a.a_params)) t1 e.epos
+					| _ ->
+						unify ctx e.etype t_want e.epos
+				end
+			| _ ->
+				unify ctx e.etype t_want e.epos
+		end;
+		e
+	| TInst({cl_path = (["java"],"NativeArray")},[t1]) ->
+		begin match fst e_have with
+			| EArrayDecl el ->
+				let el = List.map (kind_of_type_against ctx t1) el in
+				mk (TArrayDecl el) t1 (snd e_have)
+			| _ ->
+				let e = type_expr ctx e_have (WithType.with_type t_want) in
+				unify ctx e.etype t_want e.epos;
+				e
+		end
+	| t1 ->
+		let e = type_expr ctx e_have (WithType.with_type t1) in
+		unify ctx e.etype t1 e.epos;
+		e
 
 let handle_fields ctx fields_to_check with_type_expr =
 	List.map (fun ((name,_,_),expr) ->
 		let pos = snd expr in
 		let field = (efield(with_type_expr,name), pos) in
 		let fieldexpr = (EConst(Ident name),pos) in
-		let left_side = match ctx.com.platform with
-			| Jvm -> (ECall(field,[]),pos)
-			| _ -> die "" __LOC__
-		in
-
+		let left_side = (ECall(field,[]),pos) in
 		let left = type_expr ctx left_side NoValue in
-		let right = type_expr ctx expr (WithType.with_type left.etype) in
-		unify ctx left.etype right.etype (snd expr);
+		let right = kind_of_type_against ctx left.etype expr in
 		(EBinop(Ast.OpAssign,fieldexpr,process_meta_argument ctx right), pos)
 	) fields_to_check
 
@@ -82,39 +115,52 @@ let make_meta ctx texpr extra =
 			display_error ctx.com "Unexpected expression" texpr.epos; die "" __LOC__
 
 let get_strict_meta ctx meta params pos =
-	let pf = ctx.com.platform in
 	let changed_expr, fields_to_check, ctype = match params with
 		| [ECall(ef, el),p] ->
 			let tpath = field_to_type_path ctx.com ef in
-			begin match pf with
-			| Jvm ->
-				let fields = match el with
-				| [EObjectDecl(fields),_] ->
-					fields
-				| [] ->
-					[]
-				| (_,p) :: _ ->
-					display_error ctx.com "Object declaration expected" p;
-					[]
-				in
-				ef, fields, CTPath tpath
-			| _ ->
-				Error.raise_typing_error "@:strict is not supported on this target" p
-			end
+			let fields = match el with
+			| [EObjectDecl(fields),_] ->
+				fields
+			| [] ->
+				[]
+			| (_,p) :: _ ->
+				display_error ctx.com "Object declaration expected" p;
+				[]
+			in
+			ef, fields, CTPath (make_ptp tpath (snd ef))
 		| [EConst(Ident i),p as expr] ->
 			let tpath = { tpackage=[]; tname=i; tparams=[]; tsub=None } in
-			expr, [], CTPath tpath
+			let ptp = make_ptp tpath p in
+			expr, [], CTPath ptp
 		| [ (EField(_),p as field) ] ->
 			let tpath = field_to_type_path ctx.com field in
-			field, [], CTPath tpath
+			let ptp = make_ptp tpath p in
+			field, [], CTPath ptp
 		| _ ->
 			display_error ctx.com "A @:strict metadata must contain exactly one parameter. Please check the documentation for more information" pos;
 			raise Exit
 	in
+	let t = Typeload.load_complex_type ctx false (ctype,pos) in
+	flush_pass ctx PBuildClass "get_strict_meta";
 	let texpr = type_expr ctx changed_expr NoValue in
 	let with_type_expr = (ECheckType( (EConst (Ident "null"), pos), (ctype,null_pos) ), pos) in
 	let extra = handle_fields ctx fields_to_check with_type_expr in
-	meta, [make_meta ctx texpr extra], pos
+	let args = [make_meta ctx texpr extra] in
+	let args = match t with
+		| TInst(c,_) ->
+			let v = get_meta_string c.cl_meta Meta.Annotation in
+			begin match v with
+			| None ->
+				(* We explicitly set this to the default retention policy CLASS. This allows us to treat
+				   @:strict as default CLASS and @:meta as default RUNTIME. *)
+				args @ [EConst (String("CLASS",SDoubleQuotes)),pos]
+			| Some v ->
+				args @ [EConst (String(v,SDoubleQuotes)),pos]
+			end;
+		| _ ->
+			args
+	in
+	meta, args, pos
 
 let check_strict_meta ctx metas =
 	let pf = ctx.com.platform in

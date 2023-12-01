@@ -189,7 +189,7 @@ module MessageKind = struct
 		| DKUnusedImport
 		| DKUnresolvedIdentifier
 		| DKCompilerMessage
-		| DKRemovableCode
+		| DKReplacableCode
 		| DKParserError
 		| DKDeprecationWarning
 		| DKInactiveBlock
@@ -199,7 +199,7 @@ module MessageKind = struct
 		| DKUnusedImport -> 0
 		| DKUnresolvedIdentifier -> 1
 		| DKCompilerMessage -> 2
-		| DKRemovableCode -> 3
+		| DKReplacableCode -> 3
 		| DKParserError -> 4
 		| DKDeprecationWarning -> 5
 		| DKInactiveBlock -> 6

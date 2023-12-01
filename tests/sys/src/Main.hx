@@ -13,10 +13,6 @@ class Main {
 		#if !js
 		runner.addCase(new io.TestProcess());
 		#end
-		#if !(java || cs || lua || python || eval || js) // Sqlite is not implemented for these targets
-		runner.addCase(new db.TestSqliteConnection());
-		runner.addCase(new db.TestSqliteResultSet());
-		#end
 		runner.addCase(new net.TestSocket());
 		var report = Report.create(runner);
 		report.displayHeader = AlwaysShowHeader;

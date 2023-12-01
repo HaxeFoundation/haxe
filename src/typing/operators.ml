@@ -88,7 +88,7 @@ module BinopResult = struct
 		| BinopSpecial(_,needs_assign) -> needs_assign
 end
 
-let rec check_assign ctx e =
+let check_assign ctx e =
 	match e.eexpr with
 	| TLocal v when has_var_flag v VFinal && not (Common.ignore_error ctx.com) ->
 		raise_typing_error "Cannot assign to final" e.epos
@@ -96,8 +96,6 @@ let rec check_assign ctx e =
 		()
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()
-	| TMeta ((Meta.CompilerGenerated,_,_),e1) ->
-		check_assign ctx e1
 	| _ ->
 		if not (Common.ignore_error ctx.com) then
 			invalid_assign e.epos
@@ -193,7 +191,7 @@ let unify_int ctx e k =
 		unify ctx e.etype ctx.t.tint e.epos;
 		true
 
-let make_binop ctx op e1 e2 is_assign_op with_type p =
+let make_binop ctx op e1 e2 is_assign_op p =
 	let tint = ctx.t.tint in
 	let tfloat = ctx.t.tfloat in
 	let tstring = ctx.t.tstring in
@@ -204,7 +202,7 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 			| KInt | KFloat | KString -> e
 			| KUnk | KDyn | KNumParam _ | KStrParam _ | KOther ->
 				let std = type_type ctx ([],"Std") e.epos in
-				let acc = acc_get ctx (type_field_default_cfg ctx std "string" e.epos (MCall []) with_type) in
+				let acc = acc_get ctx (type_field_default_cfg ctx std "string" e.epos (MCall []) WithType.value) in
 				ignore(follow acc.etype);
 				let acc = (match acc.eexpr with TField (e,FClosure (Some (c,tl),f)) -> { acc with eexpr = TField (e,FInstance (c,tl,f)) } | _ -> acc) in
 				make_call ctx acc [e] ctx.t.tstring e.epos
@@ -392,7 +390,7 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 		unify ctx e2.etype b p;
 		mk_op e1 e2 b
 	| OpInterval ->
-		let t = Typeload.load_instance ctx (mk_type_path (["std"],"IntIterator"),null_pos) ParamNormal in
+		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (["std"],"IntIterator")) null_pos) ParamNormal in
 		let e1 = AbstractCast.cast_or_unify_raise ctx tint e1 e1.epos in
 		let e2 = AbstractCast.cast_or_unify_raise ctx tint e2 e2.epos in
 		BinopSpecial (mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[e1;e2])) t p,false)
@@ -405,14 +403,14 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 	| OpAssignOp _ ->
 		die "" __LOC__
 
-let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type p =
+let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 	let map = apply_params a.a_params tl in
 	let make op_cf cf e1 e2 tret needs_assign swapped =
 		if cf.cf_expr = None && not (has_class_field_flag cf CfExtern) then begin
 			if not (Meta.has Meta.NoExpr cf.cf_meta) then Common.display_error ctx.com "Recursive operator method" p;
 			if not (Meta.has Meta.CoreType a.a_meta) then begin
 				(* for non core-types we require that the return type is compatible to the native result type *)
-				let result = make_binop ctx op {e1 with etype = Abstract.follow_with_abstracts e1.etype} {e1 with etype = Abstract.follow_with_abstracts e2.etype} is_assign_op with_type p in
+				let result = make_binop ctx op {e1 with etype = Abstract.follow_with_abstracts e1.etype} {e1 with etype = Abstract.follow_with_abstracts e2.etype} is_assign_op p in
 				let t_expected = BinopResult.get_type result in
 				begin try
 					unify_raise tret t_expected p
@@ -525,15 +523,15 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 	else
 		find (loop op)
 
-let try_abstract_binop_overloads ctx op e1 e2 is_assign_op with_type p =
+let try_abstract_binop_overloads ctx op e1 e2 is_assign_op p =
 	try
 		begin match follow e1.etype with
-			| TAbstract({a_impl = Some c} as a,tl) -> find_abstract_binop_overload ctx op e1 e2 a c tl true is_assign_op with_type p
+			| TAbstract({a_impl = Some c} as a,tl) -> find_abstract_binop_overload ctx op e1 e2 a c tl true is_assign_op p
 			| _ -> raise Not_found
 		end
 	with Not_found ->
 		begin match follow e2.etype with
-			| TAbstract({a_impl = Some c} as a,tl) -> find_abstract_binop_overload ctx op e1 e2 a c tl false is_assign_op with_type p
+			| TAbstract({a_impl = Some c} as a,tl) -> find_abstract_binop_overload ctx op e1 e2 a c tl false is_assign_op p
 			| _ -> raise Not_found
 		end
 
@@ -542,17 +540,23 @@ let type_binop_rhs ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 		| OpEq | OpNotEq | OpLt | OpLte | OpGt | OpGte -> WithType.with_type e1.etype
 		| _ -> wt
 	in
-	type_expr ctx e2 with_type,with_type
+	type_expr ctx e2 with_type
 
-let type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op with_type p =
-	let e2,with_type = type_binop_rhs ctx op e1 e2 is_assign_op with_type p in
+let type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op with_type_rhs p =
+	let e2 = type_binop_rhs ctx op e1 e2 is_assign_op with_type_rhs p in
 	try
-		try_abstract_binop_overloads ctx op e1 e2 is_assign_op with_type p
+		try_abstract_binop_overloads ctx op e1 e2 is_assign_op p
 	with Not_found ->
-		make_binop ctx op e1 e2 is_assign_op with_type p
+		make_binop ctx op e1 e2 is_assign_op p
+
+let with_type_or_value with_type = match with_type with
+| WithType.NoValue ->
+	(* Even if we expect no value, we still want to type the lhs expression as a value. *)
+	WithType.value
+| _ ->
+	with_type
 
 let type_assign ctx e1 e2 with_type p =
-	let e1 = !type_access_ref ctx (fst e1) (snd e1) (MSet (Some e2)) with_type in
 	let type_rhs with_type = try
 		type_expr ctx e2 with_type
 	with Error e ->
@@ -604,6 +608,8 @@ let type_assign ctx e1 e2 with_type p =
 			let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
 			dispatcher#field_call fa_set [sea.se_this] [e2]
 	in
+	let with_type = with_type_or_value with_type in
+	let e1 = !type_access_ref ctx (fst e1) (snd e1) (MSet (Some e2)) with_type in
 	check_acc e1
 
 let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_type p =
@@ -625,8 +631,8 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 	in
 	let e1 = type_expr ctx e1 wt in
 	let result = if abstract_overload_only then begin
-		let e2,with_type = type_binop_rhs ctx op e1 e2 is_assign_op with_type p in
-		try_abstract_binop_overloads ctx op e1 e2 is_assign_op with_type p
+		let e2 = type_binop_rhs ctx op e1 e2 is_assign_op with_type p in
+		try_abstract_binop_overloads ctx op e1 e2 is_assign_op p
 	end else
 		type_binop2 ctx op e1 e2 is_assign_op wt p
 	in
@@ -745,6 +751,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 			let e = BinopResult.to_texpr vr r_rhs assign in
 			vr#to_texpr e
 	in
+	let with_type = with_type_or_value with_type in
 	loop (!type_access_ref ctx (fst e1) (snd e1) (MSet (Some e2)) with_type)
 
 
@@ -762,7 +769,6 @@ let type_binop ctx op e1 e2 is_assign_op with_type p =
 		with Not_found ->
 			let op = if is_assign_op then OpAssignOp op else op in
 			die ~p ("Failed to type binary operation " ^ (s_binop op)) __LOC__
-
 
 let type_unop ctx op flag e with_type p =
 	let try_abstract_unop_overloads e = match follow e.etype with

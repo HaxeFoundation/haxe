@@ -2,8 +2,10 @@ open Globals
 open Common
 open CompilationContext
 
+let columns = lazy (match Terminal_size.get_columns () with None -> 80 | Some c -> c)
+
 let limit_string s offset =
-	let rest = 80 - offset in
+	let rest = (Lazy.force columns) - offset in
 	let words = ExtString.String.nsplit s " " in
 	let rec loop i words = match words with
 		| word :: words ->
@@ -132,6 +134,9 @@ let parse_args com =
 				| Some value -> Common.external_define_value com flag value
 				| None -> Common.external_define com flag;
 		),"<var[=value]>","define a conditional compilation flag");
+		("Compilation",["--undefine"],[],Arg.String (fun var ->
+			Common.external_undefine com var
+		),"","remove a conditional compilation flag");
 		("Debug",["-v";"--verbose"],[],Arg.Unit (fun () ->
 			com.verbose <- true
 		),"","turn on verbose mode");
@@ -158,7 +163,7 @@ let parse_args com =
 				let all,max_length = Define.get_user_documentation_list com.user_defines in
 				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
 				List.iter (fun msg -> com.print (msg ^ "\n")) all;
-				exit 0
+				raise Abort
 			)
 		),"","print help for all user defines");
 		("Miscellaneous",["--help-metas"],[], Arg.Unit (fun() ->
@@ -173,7 +178,7 @@ let parse_args com =
 				let all,max_length = Meta.get_user_documentation_list com.user_metas in
 				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
 				List.iter (fun msg -> com.print (msg ^ "\n")) all;
-				exit 0
+				raise Abort
 			)
 		),"","print help for all user metadatas");
 	] in

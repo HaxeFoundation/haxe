@@ -576,7 +576,6 @@ class inline_state ctx ethis params cf f p = object(self)
 				mk (TBlock (DynArray.to_list el)) tret e.epos
 		in
 		let e = inline_metadata e cf.cf_meta in
-		let e = Diagnostics.secure_generated_code ctx.com e in
 		if has_params then begin
 			let mt = map_type cf.cf_type in
 			let unify_func () = unify_raise mt (TFun (tl,tret)) p in

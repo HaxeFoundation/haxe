@@ -8,6 +8,8 @@ class Jvm {
 		haxelibInstallGit("HaxeFoundation", "hxjava", true);
 		runCommand("javac", ["-version"]);
 	}
+	
+	static final miscJavaDir = getMiscSubDir('java');
 
 	static public function run(args:Array<String>) {
 		deleteDirectoryRecursively("bin/jvm");
@@ -21,6 +23,9 @@ class Jvm {
 			runCommand("haxe", ["compile-jvm.hxml","-dce","no"].concat(args));
 			runCommand("java", ["-jar", "bin/unit.jar"]);
 		}
+
+		changeDirectory(miscJavaDir);
+		runCommand("haxe", ["run.hxml"]);
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-jvm.hxml"].concat(args));

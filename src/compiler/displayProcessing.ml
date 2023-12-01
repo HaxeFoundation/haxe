@@ -22,7 +22,7 @@ let handle_display_argument_old com file_pos actx =
 		actx.did_something <- true;
 		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
 	| "diagnostics" ->
-		com.report_mode <- RMDiagnostics []
+		com.report_mode <- RMLegacyDiagnostics []
 	| _ ->
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = Helper.unquote file in
@@ -46,7 +46,7 @@ let handle_display_argument_old com file_pos actx =
 			| "module-symbols" ->
 				create (DMModuleSymbols None)
 			| "diagnostics" ->
-				com.report_mode <- RMDiagnostics [file_unique];
+				com.report_mode <- RMLegacyDiagnostics [file_unique];
 				let dm = create DMNone in
 				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display}
 			| "statistics" ->
@@ -143,11 +143,11 @@ let process_display_file com actx =
 		| DFPOnly when (DisplayPosition.display_position#get).pfile = file_input_marker ->
 			actx.classes <- [];
 			com.main_class <- None;
-			begin match !TypeloadParse.current_stdin with
-			| Some input ->
-				TypeloadParse.current_stdin := None;
+			begin match com.file_contents with
+			| [_, Some input] ->
+				com.file_contents <- [];
 				DPKInput input
-			| None ->
+			| _ ->
 				DPKNone
 			end
 		| dfp ->
@@ -348,6 +348,8 @@ let handle_display_after_finalization ctx tctx display_file_dot_path =
 	end;
 	process_global_display_mode com tctx;
 	begin match com.report_mode with
+	| RMLegacyDiagnostics _ ->
+		DisplayOutput.emit_legacy_diagnostics com
 	| RMDiagnostics _ ->
 		DisplayOutput.emit_diagnostics com
 	| RMStatistics ->

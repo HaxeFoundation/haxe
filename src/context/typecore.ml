@@ -86,6 +86,11 @@ type build_info = {
 	build_apply : Type.t list -> Type.t;
 }
 
+type macro_result =
+	| MSuccess of expr
+	| MError
+	| MMacroInMacro
+
 type typer_globals = {
 	mutable delayed : delay list;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
@@ -103,7 +108,7 @@ type typer_globals = {
 	mutable load_only_cached_modules : bool;
 	functional_interface_lut : (path,tclass_field) lookup;
 	(* api *)
-	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> expr option;
+	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
 	do_load_module : typer -> path -> pos -> module_def;
 	do_load_type_def : typer -> pos -> type_path -> module_type;
@@ -459,6 +464,10 @@ let rec flush_pass ctx p where =
 let make_pass ctx f = f
 
 let init_class_done ctx =
+	ctx.pass <- PConnectField
+
+let enter_field_typing_pass ctx info =
+	flush_pass ctx PConnectField info;
 	ctx.pass <- PTypeField
 
 let make_lazy ?(force=true) ctx t_proc f where =

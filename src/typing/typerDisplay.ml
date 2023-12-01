@@ -309,9 +309,9 @@ let rec handle_signature_display ctx e_ast with_type =
 				| _ -> [e1.etype,None,PMap.empty]
 			in
 			handle_call tl el e1.epos
-		| ENew(tpath,el) ->
-			let t = Abstract.follow_with_forward_ctor (Typeload.load_instance ctx tpath ParamSpawnMonos) in
-			handle_call (find_constructor_types t) el (pos tpath)
+		| ENew(ptp,el) ->
+			let t = Abstract.follow_with_forward_ctor (Typeload.load_instance ctx ptp ParamSpawnMonos) in
+			handle_call (find_constructor_types t) el ptp.pos_full
 		| EArray(e1,e2) ->
 			let e1 = type_expr ctx e1 WithType.value in
 			begin match follow e1.etype with
@@ -354,9 +354,23 @@ and display_expr ctx e_ast e dk mode with_type p =
 		| _ ->
 			e
 	in
-	let e,el_typed = match e.eexpr with
-		| TMeta((Meta.StaticExtension,[e_self],_),e1) ->
+	let e,el_typed = match fst e_ast,e.eexpr with
+		| _,TMeta((Meta.StaticExtension,[e_self],_),e1) ->
 			e1,[type_stored_expr ctx e_self]
+		| EField((_,_,EFSafe)),e1 ->
+			(* For ?. we want to extract the then-expression of the TIf. *)
+			let rec loop e1 = match e1.eexpr with
+				| TIf({eexpr = TBinop(OpNotEq,_,{eexpr = TConst TNull})},e1,Some _) ->
+					e1
+				| TBlock el ->
+					begin match List.rev el with
+						| e :: _ -> loop e
+						| _ -> e
+					end
+				| _ ->
+					e
+			in
+			loop e,[]
 		| _ ->
 			e,[]
 	in
@@ -410,6 +424,8 @@ and display_expr ctx e_ast e dk mode with_type p =
 				| Some (c,_) -> Display.ReferencePosition.set (snd c.cl_path,c.cl_name_pos,SKClass c);
 			end
 		| TCall(e1,_) ->
+			loop e1
+		| TCast(e1,_) ->
 			loop e1
 		| _ ->
 			()
@@ -465,6 +481,8 @@ and display_expr ctx e_ast e dk mode with_type p =
 				| Some (c,_) -> [c.cl_name_pos]
 			end
 		| TCall(e1,_) ->
+			loop e1
+		| TCast(e1,_) ->
 			loop e1
 		| _ ->
 			[]

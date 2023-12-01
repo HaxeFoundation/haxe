@@ -34,8 +34,8 @@ let rec get_class_field c field_name =
 		| None -> raise Not_found
 		| Some (csup, _) -> get_class_field csup field_name
 
-let find_type ctx tp =
-	try Typeload.load_instance' ctx tp ParamSpawnMonos
+let find_type ctx (tp,p) =
+	try Typeload.load_instance' ctx (make_ptp tp p) ParamSpawnMonos
 	with _ -> raise Not_found
 
 (**

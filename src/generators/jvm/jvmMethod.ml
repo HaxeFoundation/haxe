@@ -155,7 +155,8 @@ class builder jc name jsig = object(self)
 	val mutable stack_frames = []
 	val mutable exceptions = []
 	val mutable argument_locals = []
-	val mutable argument_annotations = Hashtbl.create 0
+	val mutable runtime_visible_argument_annotations = Hashtbl.create 0
+	val mutable runtime_invisible_argument_annotations = Hashtbl.create 0
 	val mutable thrown_exceptions = Hashtbl.create 0
 	val mutable regex_count = 0
 
@@ -1011,9 +1012,15 @@ class builder jc name jsig = object(self)
 	method replace_top jsig =
 		code#get_stack#replace jsig
 
-	method add_argument_annotation (slot : int) (a : (path * annotation) list) =
-		let a = Array.of_list (List.map (fun (path,annot) -> TObject(path,[]),annot) a) in
-		Hashtbl.add argument_annotations slot a
+	method add_argument_annotation (slot : int) (path : jpath) (a : annotation) (is_runtime_visible : bool) =
+		let h = if is_runtime_visible then runtime_visible_argument_annotations else runtime_invisible_argument_annotations in
+		try
+			let d = Hashtbl.find h slot in
+			DynArray.add d (TObject(path,[]),a)
+		with Not_found ->
+			let d = DynArray.create () in
+			DynArray.add d (TObject(path,[]),a);
+			Hashtbl.add h slot d
 
 	(** This function has to be called once all arguments are declared. *)
 	method finalize_arguments =
@@ -1137,18 +1144,22 @@ class builder jc name jsig = object(self)
 		end;
 		if Hashtbl.length thrown_exceptions > 0 then
 			self#add_attribute (AttributeExceptions (Array.of_list (Hashtbl.fold (fun k _ c -> k :: c) thrown_exceptions [])));
-		if Hashtbl.length argument_annotations > 0 then begin
-			let l = List.length argument_locals in
-			let offset = if self#has_method_flag MStatic then 0 else 1 in
-			let a = Array.init (l - offset) (fun i ->
-				try
-					let annot = Hashtbl.find argument_annotations (i + offset) in
-					convert_annotations jc#get_pool annot
-				with Not_found ->
-					[||]
-			) in
-			DynArray.add attributes (AttributeRuntimeVisibleParameterAnnotations a)
-		end;
+		let collect_annotations h f =
+			if Hashtbl.length h > 0 then begin
+				let l = List.length argument_locals in
+				let offset = if self#has_method_flag MStatic then 0 else 1 in
+				let a = Array.init (l - offset) (fun i ->
+					try
+						let d = Hashtbl.find h (i + offset) in
+						convert_annotations jc#get_pool (DynArray.to_array d)
+					with Not_found ->
+						[||]
+				) in
+				f a
+			end;
+		in
+		collect_annotations runtime_visible_argument_annotations (fun a -> DynArray.add attributes (AttributeRuntimeVisibleParameterAnnotations a));
+		collect_annotations runtime_invisible_argument_annotations (fun a -> DynArray.add attributes (AttributeRuntimeInvisibleParameterAnnotations a));
 		let attributes = self#export_attributes jc#get_pool in
 		let offset_name = jc#get_pool#add_string name in
 		let offset_desc = jc#get_pool#add_string descriptor in

@@ -372,9 +372,9 @@ let to_texpr ctx t_switch with_type dt =
 						begin match bind.Bind.b_status with
 							| BindUsed ->
 								v_lookup := IntMap.add bind.b_var.v_id bind.b_expr !v_lookup;
-								Some (mk (TVar(bind.b_var,Some bind.b_expr)) com.basic.tvoid p)
+								Some (mk (TVar(bind.b_var,Some bind.b_expr)) com.basic.tvoid bind.b_pos)
 							| BindDeferred ->
-								Some (mk (TVar(bind.b_var,None)) com.basic.tvoid p)
+								Some (mk (TVar(bind.b_var,None)) com.basic.tvoid bind.b_pos)
 							| BindUnused ->
 								None
 						end

@@ -525,11 +525,13 @@ let filter tctx =
 	| Php | Js | Jvm | Python | Lua | Eval | Neko | Flash | Hl | Cpp ->
 		let config = tctx.com.config.pf_exceptions in
 		let tp (pack,name) =
-			match List.rev pack with
+			let tp = match List.rev pack with
 			| module_name :: pack_rev when not (Ast.is_lower_ident module_name) ->
-				(mk_type_path ~sub:name (List.rev pack_rev,module_name), null_pos)
+				mk_type_path ~sub:name (List.rev pack_rev,module_name)
 			| _ ->
-				(mk_type_path (pack,name), null_pos)
+				mk_type_path (pack,name)
+			in
+			make_ptp tp null_pos
 		in
 		let wildcard_catch_type =
 			let t = Typeload.load_instance tctx (tp config.ec_wildcard_catch) ParamSpawnMonos in
@@ -664,7 +666,7 @@ let insert_save_stacks tctx =
 	Adds `this.__shiftStack()` calls to constructors of classes which extend `haxe.Exception`
 *)
 let patch_constructors tctx =
-	let tp = (mk_type_path haxe_exception_type_path, null_pos) in
+	let tp = make_ptp (mk_type_path haxe_exception_type_path) null_pos in
 	match Typeload.load_instance tctx tp ParamSpawnMonos with
 	(* Add only if `__shiftStack` method exists *)
 	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields ->

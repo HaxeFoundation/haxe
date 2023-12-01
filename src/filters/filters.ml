@@ -859,7 +859,7 @@ let save_class_state com t =
 			a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
 		)
 
-let run tctx main =
+let run tctx main before_destruction =
 	let com = tctx.com in
 	let detail_times = (try int_of_string (Common.defined_value_safe com ~default:"0" Define.FilterTimes) with _ -> 0) in
 	let new_types = List.filter (fun t ->
@@ -954,4 +954,5 @@ let run tctx main =
 	with_timer detail_times "callbacks" None (fun () ->
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);
+	before_destruction();
 	destruction tctx detail_times main locals

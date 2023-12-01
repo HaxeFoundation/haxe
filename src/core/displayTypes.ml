@@ -233,7 +233,6 @@ module DisplayMode = struct
 		| DMDefault | DMDefinition | DMTypeDefinition | DMPackage | DMHover | DMSignature -> settings
 		| DMUsage _ | DMImplementation -> { settings with
 				dms_full_typing = true;
-				dms_populate_cache = !ServerConfig.populate_cache_from_display;
 				dms_force_macro_typing = true;
 				dms_display_file_policy = DFPAlso;
 				dms_exit_during_typing = false
@@ -329,8 +328,15 @@ and missing_fields_diagnostics = {
 and module_diagnostics =
 	| MissingFields of missing_fields_diagnostics
 
+type replaceable_code = {
+	reason : string;
+	replacement : string;
+	display_range : pos;
+	replace_range : pos;
+}
+
 type diagnostics_context = {
-	mutable removable_code : (string * pos * pos) list;
+	mutable replaceable_code : replaceable_code list;
 	mutable import_positions : (pos,bool ref) PMap.t;
 	mutable dead_blocks : (Path.UniqueKey.t,(pos * expr) list) Hashtbl.t;
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
