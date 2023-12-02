@@ -1384,7 +1384,7 @@ and get_access ctx e =
 				let t = to_type ctx t in
 				AArray (a,(t,t),i)
 			| TInst ({ cl_path = ["hl"],"Abstract" },[TInst({ cl_kind = KExpr (EConst (String("hl_carray",_)),_) },_)]) ->
-				let a = eval_null_check ctx a in
+				let a = eval_expr ctx a in
 				hold ctx a;
 				let i = eval_to ctx i HI32 in
 				free ctx a;
