@@ -9,6 +9,8 @@ abstract CArray<T>(Abstract<"hl_carray">) {
 
 	@:arrayAccess inline function get( index : Int ) : T return untyped this[index];
 
+	public inline function unsafeSet( index : Int, v : T ) return untyped this[index] = v;
+
 	public static inline function alloc<T>( cl : Class<T>, size : Int ) : CArray<T> {
 		return cast alloc_carray( (cast cl:BaseType).__type__ , size );
 	}

@@ -990,7 +990,15 @@ let generate_function ctx f =
 		| OGetMem (r,b,idx) ->
 			sexpr "%s = *(%s*)(%s + %s)" (reg r) (ctype (rtype r)) (reg b) (reg idx)
 		| OGetArray (r, arr, idx) ->
-			sexpr "%s = ((%s*)(%s + 1))[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx)
+            (match rtype arr with
+            | HAbstract _ ->
+                (match rtype r with
+                | HStruct _ | HObj _ ->
+			        sexpr "%s = ((%s)%s) + %s" (reg r) (ctype (rtype r)) (reg arr) (reg idx)
+                | _ ->
+			        sexpr "%s = ((%s*)%s)[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx))
+            | _ ->
+			    sexpr "%s = ((%s*)(%s + 1))[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx))
 		| OSetUI8 (b,idx,r) ->
 			sexpr "*(unsigned char*)(%s + %s) = (unsigned char)%s" (reg b) (reg idx) (reg r)
 		| OSetUI16 (b,idx,r) ->
@@ -998,7 +1006,11 @@ let generate_function ctx f =
 		| OSetMem (b,idx,r) ->
 			sexpr "*(%s*)(%s + %s) = %s" (ctype (rtype r)) (reg b) (reg idx) (reg r)
 		| OSetArray (arr,idx,v) ->
-			sexpr "((%s*)(%s + 1))[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v)
+            (match rtype arr with
+            | HAbstract _ ->
+			    sexpr "((%s*)%s)[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v)
+            | _ ->
+			    sexpr "((%s*)(%s + 1))[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v))
 		| OSafeCast (r,v) ->
 			let tsrc = rtype v in
 			let t = rtype r in

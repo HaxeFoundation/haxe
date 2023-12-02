@@ -2082,6 +2082,10 @@ and eval_expr ctx e =
 			| AInstanceField (f, index) -> op ctx (OPrefetch (eval_expr ctx f, index + 1, mode))
 			| _ -> op ctx (OPrefetch (eval_expr ctx value, 0, mode)));
 			alloc_tmp ctx HVoid
+        | "$unsafecast", [value] ->
+			let r = alloc_tmp ctx (to_type ctx e.etype) in
+            op ctx (OUnsafeCast (r, eval_expr ctx value));
+			r
 		| _ ->
 			abort ("Unknown native call " ^ s) e.epos)
 	| TEnumIndex v ->
@@ -2469,6 +2473,14 @@ and eval_expr ctx e =
 				free ctx ra;
 				free ctx ridx;
 				v
+            | ACArray (ra, _, ridx) ->
+				hold ctx ra;
+				hold ctx ridx;
+                let v = value() in
+                op ctx (OSetArray (ra,ridx,v));
+                free ctx ridx;
+                free ctx ra;
+                v
 			| ADynamic (ethis,f) ->
 				let obj = eval_null_check ctx ethis in
 				hold ctx obj;
@@ -2480,7 +2492,7 @@ and eval_expr ctx e =
 				let r = value() in
 				op ctx (OSetEnumField (ctx.m.mcaptreg,index,r));
 				r
-			| AEnum _ | ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ | ACArray _ ->
+			| AEnum _ | ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ ->
 				die "" __LOC__)
 		| OpBoolOr ->
 			let r = alloc_tmp ctx HBool in
