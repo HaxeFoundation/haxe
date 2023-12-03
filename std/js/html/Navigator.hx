@@ -122,4 +122,41 @@ extern class Navigator {
 	function sendBeacon( url : String, ?data : Blob ) : Bool;
 	function requestMediaKeySystemAccess( keySystem : String, supportedConfigurations : Array<js.html.eme.MediaKeySystemConfiguration> ) : Promise<js.html.eme.MediaKeySystemAccess>;
 	function taintEnabled() : Bool;
+
+	/**
+		Returns `true` if the equivalent call to `share()` would succeed.
+		Returns `false` if the data cannot be validated.
+	**/
+	function canShare(?data: NavigatorShareData): Bool;
+
+	/**
+		Invokes the native sharing mechanism of the device to share data such as text, URLs, or files.
+	**/
+	function share(data: NavigatorShareData): Promise<Void>;
+}
+
+/**
+	An object containing data to share.
+**/
+typedef NavigatorShareData = {
+
+	/**
+		An array of `File` objects representing files to be shared.
+	**/
+	var ?files: Array<File>;
+
+	/**
+		A string representing text to be shared.
+	**/
+	var ?text: String;
+
+	/**
+		A string representing the title to be shared.
+	**/
+	var ?title: String;
+
+	/**
+		A string representing a URL to be shared
+	**/
+	var ?url: String;
 }
