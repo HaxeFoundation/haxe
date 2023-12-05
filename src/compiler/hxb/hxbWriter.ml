@@ -349,10 +349,15 @@ class ['a] hxb_writer
 
 	method write_anon_ref (an : tanon) (ttp : type_params) =
 		let pfm = Option.get (anon_id#identify true (TAnon an)) in
-		let ftp = field_type_parameters#to_list in
-		let ttp = ttp @ type_type_parameters#to_list in
-		let i = anons#get_or_add pfm.pfm_path (an,ttp,ftp) in
-		chunk#write_uleb128 i
+		try
+			let index = anons#get pfm.pfm_path in
+			chunk#write_byte 0;
+			chunk#write_uleb128 index
+		with Not_found ->
+			let index = anons#add pfm.pfm_path an in
+			chunk#write_byte 1;
+			chunk#write_uleb128 index;
+			self#write_anon an ttp
 
 	method write_field_ref (source : field_source) (cf : tclass_field) =
 		chunk#write_string cf.cf_name
@@ -369,24 +374,28 @@ class ['a] hxb_writer
 			let index = anon_fields#add cf () in
 			chunk#write_byte 1;
 			chunk#write_uleb128 index;
-			List.iter (fun ttp ->
-				ignore(field_type_parameters#add ttp.ttp_name ttp);
+			let close = self#open_field_scope true cf in
+			List.iter (fun ttp -> match follow ttp.ttp_type with
+				| TInst(c,_) -> ignore(field_type_parameters#add c.cl_path ttp)
+				| _ -> die "" __LOC__
 			) cf.cf_params;
 			self#write_class_field_forward cf;
 			self#write_class_field_data cf;
+			close()
 
 	(* Type instances *)
 
 	method write_type_parameter_ref (c : tclass) =
 		begin try
-			let i = field_type_parameters#get (snd c.cl_path) in
+			let _ = field_type_parameters#get c.cl_path in
 			chunk#write_byte 5;
-			chunk#write_uleb128 i
+			self#write_path c.cl_path;
 		with Not_found -> try
-			let i = type_type_parameters#get (snd c.cl_path) in
+			let i = type_type_parameters#get c.cl_path in
 			chunk#write_byte 6;
 			chunk#write_uleb128 i
 		with Not_found -> try
+			(* trace (s_type_path c.cl_path); *)
 			let index = local_type_parameters#get c in
 			chunk#write_byte 7;
 			chunk#write_uleb128 index;
@@ -431,6 +440,7 @@ class ['a] hxb_writer
 			self#write_enum_ref en;
 		| TType(td,[]) ->
 			chunk#write_byte 12;
+			self#write_path td.t_path;
 			begin match td.t_type with
 				| TAnon an when PMap.is_empty an.a_fields ->
 					chunk#write_byte 0;
@@ -455,6 +465,7 @@ class ['a] hxb_writer
 			self#write_types tl
 		| TType(td,tl) ->
 			chunk#write_byte 16;
+			self#write_path td.t_path;
 			begin match td.t_type with
 				| TAnon an when PMap.is_empty an.a_fields ->
 					chunk#write_byte 0;
@@ -463,13 +474,8 @@ class ['a] hxb_writer
 					chunk#write_byte 1;
 					self#write_anon_ref an td.t_params;
 					self#write_types tl
-				(* TODO: does this help with anything? *)
-				| TMono _ ->
-					chunk#write_byte 2;
-					self#write_type_instance ~debug (apply_typedef td tl);
-					self#write_types tl
 				| _ ->
-					chunk#write_byte 3;
+					chunk#write_byte 2;
 					self#write_type_instance ~debug (apply_typedef td tl);
 					self#write_types tl
 			end;
@@ -1121,10 +1127,11 @@ class ['a] hxb_writer
 
 	(* Fields *)
 
-	method set_field_type_parameters (params : typed_type_param list) =
-		field_type_parameters <- new pool;
-		List.iter (fun ttp ->
-			ignore(field_type_parameters#add ttp.ttp_name ttp);
+	method set_field_type_parameters (nested : bool) params =
+		if not nested then field_type_parameters <- new pool;
+		List.iter (fun ttp -> match follow ttp.ttp_type with
+			| TInst(c,_) -> ignore(field_type_parameters#add c.cl_path ttp);
+			| _ -> die "" __LOC__
 		) params
 
 	method write_type_parameter_forward ttp = match follow ttp.ttp_type with
@@ -1179,11 +1186,11 @@ class ['a] hxb_writer
 			f r;
 			f w;
 
-	method open_field_scope (cf : tclass_field) =
+	method open_field_scope (nested : bool) (cf : tclass_field) =
 		let old_field_params = field_type_parameters in
 		let old_local_params = local_type_parameters in
-		local_type_parameters <- new identity_pool;
-		self#set_field_type_parameters cf.cf_params;
+		if not nested then local_type_parameters <- new identity_pool;
+		self#set_field_type_parameters nested cf.cf_params;
 		(fun () ->
 			field_type_parameters <- old_field_params;
 			local_type_parameters <- old_local_params;
@@ -1222,12 +1229,6 @@ class ['a] hxb_writer
 			chunk#write_list ltp self#write_type_parameter_data;
 			new_chunk#export_data chunk#ch
 		)
-
-	method write_class_field cf =
-		let close = self#open_field_scope cf in
-		self#write_class_field_forward cf;
-		self#write_class_field_data cf;
-		close()
 
 	(* Module types *)
 
@@ -1317,7 +1318,7 @@ class ['a] hxb_writer
 		chunk#write_list a.a_from self#write_type_instance;
 		chunk#write_list a.a_from_field (fun (t,cf) ->
 			chunk#write_string cf.cf_name;
-			self#set_field_type_parameters cf.cf_params;
+			self#set_field_type_parameters false cf.cf_params;
 			chunk#write_list cf.cf_params self#write_type_parameter_forward;
 			chunk#write_list cf.cf_params self#write_type_parameter_data;
 			self#write_type_instance t;
@@ -1326,7 +1327,7 @@ class ['a] hxb_writer
 		chunk#write_list a.a_to self#write_type_instance;
 		chunk#write_list a.a_to_field (fun (t,cf) ->
 			chunk#write_string cf.cf_name;
-			self#set_field_type_parameters cf.cf_params;
+			self#set_field_type_parameters false cf.cf_params;
 			chunk#write_list cf.cf_params self#write_type_parameter_forward;
 			chunk#write_list cf.cf_params self#write_type_parameter_data;
 			self#write_type_instance t;
@@ -1342,6 +1343,15 @@ class ['a] hxb_writer
 		(* debug_msg (Printf.sprintf "Write enum %s" (snd e.e_path)); *)
 		self#select_type e.e_path;
 		self#write_common_module_type (Obj.magic e);
+
+		(match e.e_type.t_type with
+		| TAnon an when PMap.is_empty an.a_fields ->
+			chunk#write_byte 0;
+		| TAnon an ->
+			chunk#write_byte 1;
+			self#write_anon_ref an e.e_type.t_params
+		| _ -> assert false);
+
 		chunk#write_bool e.e_extern;
 		chunk#write_list e.e_names chunk#write_string;
 
@@ -1351,15 +1361,22 @@ class ['a] hxb_writer
 		self#write_common_module_type (Obj.magic td);
 		self#write_type_instance td.t_type;
 
-	method write_anon (m : module_def) ((an : tanon), (ttp : type_params), (ftp : type_params)) =
+	method write_anon (an : tanon) (ttp : type_params) =
+		let old = type_type_parameters in
 		type_type_parameters <- new pool;
-		List.iter (fun ttp -> ignore(type_type_parameters#add ttp.ttp_name ttp)) ttp;
+		List.iter (fun ttp -> match follow ttp.ttp_type with
+			| TInst(c,_) -> ignore(type_type_parameters#add c.cl_path ttp)
+			| _ -> die "" __LOC__
+		) ttp;
 		chunk#write_list ttp self#write_type_parameter_forward;
 		chunk#write_list ttp self#write_type_parameter_data;
 
 		let write_fields () =
 			chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (_,cf) ->
-				self#write_class_field { cf with cf_params = (cf.cf_params @ ftp) };
+				let close = self#open_field_scope true cf in
+				self#write_class_field_forward cf;
+				self#write_class_field_data cf;
+				close()
 			)
 		in
 
@@ -1385,7 +1402,9 @@ class ['a] hxb_writer
 			chunk#write_byte 5;
 			self#write_abstract_ref a;
 			write_fields ()
-		end
+		end;
+
+		type_type_parameters <- old
 
 	(* Module *)
 
@@ -1424,8 +1443,9 @@ class ['a] hxb_writer
 		let params = new pool in
 		type_type_parameters <- params;
 		ignore(type_param_lut#add infos.mt_path params);
-		List.iter (fun ttp ->
-			ignore(type_type_parameters#add ttp.ttp_name ttp);
+		List.iter (fun ttp -> match follow ttp.ttp_type with
+			| TInst(c,_) -> ignore(type_type_parameters#add c.cl_path ttp)
+			| _ -> die "" __LOC__
 		) infos.mt_params;
 
 		(* Forward declare fields *)
@@ -1435,14 +1455,6 @@ class ['a] hxb_writer
 			chunk#write_list c.cl_ordered_fields self#write_class_field_forward;
 			chunk#write_list c.cl_ordered_statics self#write_class_field_forward;
 		| TEnumDecl e ->
-			(match e.e_type.t_type with
-			| TAnon an when PMap.is_empty an.a_fields ->
-				chunk#write_byte 0;
-			| TAnon an ->
-				chunk#write_byte 1;
-				self#write_anon_ref an e.e_type.t_params
-			| _ -> assert false);
-
 			chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
 				(* debug_msg (Printf.sprintf "  forward declare enum field %s.%s" (s_type_path e.e_path) s); *)
 				chunk#write_string s;
@@ -1491,7 +1503,7 @@ class ['a] hxb_writer
 
 				let write_field with_name cf =
 					if with_name then chunk#write_string cf.cf_name;
-					let close = self#open_field_scope cf in
+					let close = self#open_field_scope false cf in
 					self#write_class_field_data cf;
 					close();
 				in
@@ -1514,7 +1526,7 @@ class ['a] hxb_writer
 					self#select_type e.e_path;
 					(* debug_msg (Printf.sprintf "  Write enum field %s.%s" (s_type_path e.e_path) s); *)
 					chunk#write_string s;
-					self#set_field_type_parameters ef.ef_params;
+					self#set_field_type_parameters false ef.ef_params;
 					chunk#write_list ef.ef_params self#write_type_parameter_forward;
 					chunk#write_list ef.ef_params self#write_type_parameter_data;
 					self#write_type_instance ef.ef_type;
@@ -1529,29 +1541,6 @@ class ['a] hxb_writer
 		| own_typedefs ->
 			self#start_chunk TPDD;
 			chunk#write_list own_typedefs self#write_typedef;
-		end;
-
-		begin match anons#to_list with
-		| [] ->
-			()
-		| al ->
-			(* TODO clean this... currently loops until writing anons doesn't register any new anon *)
-			let rec loop written al =
-				let len = List.length al in
-				let temp_chunk = new chunk ANND cp in
-				chunk <- temp_chunk;
-				chunk#write_list al (fun an -> self#write_anon m an);
-
-				let al = anons#to_list in
-				let new_len = List.length al in
-				if len = new_len then begin
-					DynArray.add chunks temp_chunk;
-
-					self#start_chunk ANNR;
-					chunk#write_uleb128 len;
-				end else loop len al;
-			in
-			loop 0 al
 		end;
 
 		begin match classes#to_list with
@@ -1605,6 +1594,7 @@ class ['a] hxb_writer
 		self#start_chunk HHDR;
 		self#write_path m.m_path;
 		chunk#write_string (Path.UniqueKey.lazy_path m.m_extra.m_file);
+		chunk#write_uleb128 (DynArray.length anons#items);
 		chunk#write_uleb128 (DynArray.length anon_fields#items);
 		self#start_chunk HEND;
 

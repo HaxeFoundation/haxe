@@ -43,7 +43,7 @@ class hxb_reader
 
 	val vars = Hashtbl.create 0
 	val mutable type_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
-	val mutable field_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
+	val field_type_parameters = Hashtbl.create 0
 	val mutable local_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
 
 	method resolve_type sign pack mname tname =
@@ -195,12 +195,6 @@ class hxb_reader
 			prerr_endline (Printf.sprintf "[%s] %s reading typedef ref %i" (s_type_path m.m_path) todo_error i);
 			raise e
 
-	method read_anon_ref =
-		let i = self#read_uleb128 in
-		try anons.(i) with e ->
-			prerr_endline (Printf.sprintf "[%s] %s reading anon ref %i" (s_type_path m.m_path) todo_error i);
-			raise e
-
 	method read_field_ref fields =
 		let name = self#read_string in
 		try PMap.find name fields with e ->
@@ -215,6 +209,25 @@ class hxb_reader
 			prerr_endline (Printf.sprintf "  %s reading enum field ref for %s.%s" todo_error (s_type_path en.e_path) name);
 			prerr_endline (Printf.sprintf "    Available fields: %s" (PMap.fold (fun ef acc -> acc ^ " " ^ ef.ef_name) en.e_constrs ""));
 			null_enum_field
+
+	method read_anon_ref =
+		match IO.read_byte ch with
+		| 0 ->
+			let index = self#read_uleb128 in
+			(try anons.(index) with e ->
+				trace (Printf.sprintf "[%s] %s reading anon (0) ref %i" (s_type_path m.m_path) todo_error index);
+				raise e
+			)
+		| 1 ->
+			let index = self#read_uleb128 in
+			let an = (try anons.(index) with e ->
+				trace (Printf.sprintf "[%s] %s reading anon (1) ref %i" (s_type_path m.m_path) todo_error index);
+				trace (Printexc.to_string e);
+				raise e
+			) in
+			self#read_anon an
+		| _ ->
+			assert false
 
 	method read_anon_field_ref =
 		match IO.read_byte ch with
@@ -622,8 +635,22 @@ class hxb_reader
 
 	method read_type_parameter_ref = function
 		| 5 ->
-			let i = self#read_uleb128 in
-			(field_type_parameters.(i)).ttp_type
+			let p = self#read_path in
+			(try
+				let ttp = Hashtbl.find field_type_parameters p in
+				(match follow ttp.ttp_type with
+					| TInst(c, _) ->
+						if c.cl_path <> p then begin
+							Printf.eprintf "Error loading ftp: %s <> %s\n" (s_type_path c.cl_path) (s_type_path p);
+							die "" __LOC__
+						end
+					| _ -> die "" __LOC__
+				);
+				ttp.ttp_type
+			with _ ->
+				Printf.eprintf "Error loading ftp for %s\n" (s_type_path p);
+				die "" __LOC__
+			)
 		| 6 ->
 			let i = self#read_uleb128 in
 			(type_type_parameters.(i)).ttp_type
@@ -656,13 +683,24 @@ class hxb_reader
 		| 11 ->
 			TEnum(self#read_enum_ref,[])
 		| 12 ->
+			let tp = self#read_path in
 			begin match self#read_u8 with
-				(* TODO does it make more sense to wrap in tdef like in source? *)
-				(* | 0 -> TType({null_typedef with t_type = (mk_anon (ref Closed))},[]) *)
-				(* | 1 -> TType({null_typedef with t_type = (TAnon self#read_anon_ref)},[]) *)
-				| 0 -> mk_anon (ref Closed)
-				| 1 -> TAnon self#read_anon_ref
-				| _ -> TType(self#read_typedef_ref,[])
+				| 0 -> TType({null_typedef with t_type = (mk_anon (ref Closed)); t_path = tp },[])
+				| 1 -> TType({null_typedef with t_type = (TAnon self#read_anon_ref); t_path = tp },[])
+				| 4 ->
+					let c = self#read_class_ref in
+					let t_tmp = class_module_type c in
+					TType(t_tmp,[])
+				| 5 ->
+					let e = self#read_enum_ref in
+					let t_tmp = enum_module_type e.e_module e.e_path e.e_pos in
+					TType(t_tmp,[])
+				| 6 ->
+					let a = self#read_abstract_ref in
+					let t_tmp = abstract_module_type a [] in
+					TType(t_tmp,[])
+				| _ ->
+					TType(self#read_typedef_ref,[])
 			end
 		| 13 ->
 			TAbstract(self#read_abstract_ref,[])
@@ -675,29 +713,43 @@ class hxb_reader
 			let tl = self#read_types in
 			TEnum(e,tl)
 		| 16 ->
+			let tp = self#read_path in
 			begin match self#read_u8 with
 				| 0 ->
 					let an = mk_anon (ref Closed) in
 					let tl = self#read_types in
-					let td = { null_typedef with t_type = an } in
+					let td = { null_typedef with t_type = an; t_path = tp } in
 					TType(td,tl)
 				| 1 ->
 					let an = TAnon self#read_anon_ref in
 					let tl = self#read_types in
-					let td = { null_typedef with t_type = an } in
+					let td = { null_typedef with t_type = an; t_path = tp } in
 					TType(td,tl)
+				| 4 ->
+					let c = self#read_class_ref in
+					let t_tmp = class_module_type c in
+					TType(t_tmp,[])
+				| 5 ->
+					let e = self#read_enum_ref in
+					let t_tmp = enum_module_type e.e_module e.e_path e.e_pos in
+					TType(t_tmp,[])
+				| 6 ->
+					let a = self#read_abstract_ref in
+					let t_tmp = abstract_module_type a [] in
+					TType(t_tmp,[])
 				(* TODO: does this help with anything? *)
 				(* | 2 -> *)
 				(* 	let t = self#read_type_instance in *)
 				(* 	let tl = self#read_types in *)
 				(* 	let tmono = !monomorph_create_ref () in (1* TODO identity *1) *)
 				(* 	tmono.tm_type <- Some t; *)
-				(* 	let td = { null_typedef with t_type = TMono tmono } in *)
+				(* 	let td = { null_typedef with t_type = TMono tmono; t_path = tp } in *)
 				(* 	TType(td,tl) *)
 				| _ ->
 					let t = self#read_type_instance in
 					let tl = self#read_types in
-					let td = { null_typedef with t_type = t } in
+					let td = { null_typedef with t_type = t; t_path = tp } in
+					(* let td = { null_typedef with t_type = t; t_path = ([], "708") } in *)
 					TType(td,tl)
 			end
 		| 17 ->
@@ -746,6 +798,13 @@ class hxb_reader
 		self#read_list (fun () -> self#read_type_instance)
 
 	(* Fields *)
+
+	method add_field_type_parameters a = Array.iter (fun ttp ->
+			(match follow ttp.ttp_type with
+				| TInst(c,_) -> Hashtbl.add field_type_parameters c.cl_path ttp
+				| _ -> die "" __LOC__
+			)
+		) a
 
 	method read_type_parameters (path : path) (f : typed_type_param array -> unit) =
 		let l = self#read_uleb128 in
@@ -1124,13 +1183,21 @@ class hxb_reader
 	method read_class_field_data (nested : bool) (cf : tclass_field) : unit =
 		let name = cf.cf_name in
 		(* prerr_endline (Printf.sprintf "  Read class field %s" name); *)
+
+		if not nested then Hashtbl.clear field_type_parameters;
+		let params = ref [] in
 		self#read_type_parameters ([],name) (fun a ->
-			field_type_parameters <- if nested then Array.append field_type_parameters a else a
+			Array.iter (fun ttp ->
+				params := ttp :: !params;
+				(match follow ttp.ttp_type with
+					| TInst(c,_) -> Hashtbl.add field_type_parameters c.cl_path ttp
+					| _ -> die "" __LOC__
+				)
+			) a
 		);
 		self#read_type_parameters ([],name) (fun a ->
 			local_type_parameters <- if nested then Array.append local_type_parameters a else a
 		);
-		let params = Array.to_list field_type_parameters in
 		let t = self#read_type_instance in
 
 		let flags = IO.read_i32 ch in
@@ -1159,7 +1226,7 @@ class hxb_reader
 		cf.cf_kind <- kind;
 		cf.cf_expr <- expr;
 		cf.cf_expr_unoptimized <- expr_unoptimized;
-		cf.cf_params <- params;
+		cf.cf_params <- !params;
 		cf.cf_flags <- flags;
 
 	method read_class_field (nested : bool) =
@@ -1195,8 +1262,17 @@ class hxb_reader
 			let name = self#read_string in
 			(* prerr_endline (Printf.sprintf "  Read enum field %s" name); *)
 			let ef = PMap.find name e.e_constrs in
-			self#read_type_parameters ([],name) (fun a -> field_type_parameters <- a);
-			ef.ef_params <- Array.to_list field_type_parameters;
+			let params = ref [] in
+			self#read_type_parameters ([],name) (fun a ->
+				Array.iter (fun ttp ->
+					params := ttp :: !params;
+					(match follow ttp.ttp_type with
+						| TInst(c,_) -> Hashtbl.add field_type_parameters c.cl_path ttp
+						| _ -> die "" __LOC__
+					)
+				) a
+			);
+			ef.ef_params <- !params;
 			ef.ef_type <- self#read_type_instance;
 			ef.ef_doc <- self#read_option (fun () -> self#read_documentation);
 			ef.ef_meta <- self#read_metadata;
@@ -1256,7 +1332,7 @@ class hxb_reader
 		a.a_from <- self#read_list (fun () -> self#read_type_instance);
 		a.a_from_field <- self#read_list (fun () ->
 			let name = self#read_string in
-			self#read_type_parameters ([],name) (fun a -> field_type_parameters <- a);
+			self#read_type_parameters ([],name) self#add_field_type_parameters;
 			let t = self#read_type_instance in
 			let cf = self#read_field_ref impl.cl_statics in
 			(t,cf)
@@ -1264,7 +1340,7 @@ class hxb_reader
 		a.a_to <- self#read_list (fun () -> self#read_type_instance);
 		a.a_to_field <- self#read_list (fun () ->
 			let name = self#read_string in
-			self#read_type_parameters ([],name) (fun a -> field_type_parameters <- a);
+			self#read_type_parameters ([],name) self#add_field_type_parameters;
 			let t = self#read_type_instance in
 			let cf = self#read_field_ref impl.cl_statics in
 			(t,cf)
@@ -1278,6 +1354,9 @@ class hxb_reader
 
 	method read_enum (e : tenum) =
 		self#read_common_module_type (Obj.magic e);
+		(match self#read_u8 with
+		| 0 -> e.e_type.t_type <- (mk_anon (ref Closed))
+		| _ -> e.e_type.t_type <- TAnon self#read_anon_ref);
 		e.e_extern <- self#read_bool;
 		e.e_names <- self#read_list (fun () -> self#read_string);
 
@@ -1339,38 +1418,41 @@ class hxb_reader
 			self#read_enum_fields e;
 		done
 
-	method read_annd =
-		let l = self#read_uleb128 in
-		for i = 0 to l - 1 do
-			self#read_type_parameters ([],"") (fun a -> type_type_parameters <- a);
+	method read_anon an =
+		let old = type_type_parameters in
+		self#read_type_parameters ([],"") (fun a -> type_type_parameters <- Array.append type_type_parameters a);
+		let read_fields () =
+			let fields = self#read_list (fun () ->
+				let cf = self#read_class_field_forward in
+				self#read_class_field_data true cf;
+				cf
+			) in
+			List.iter (fun cf -> an.a_fields <- PMap.add cf.cf_name cf an.a_fields) fields;
+		in
 
-			let an = anons.(i) in
-			let read_fields () =
-				let fields = self#read_list (fun () -> self#read_class_field false) in
-				List.iter (fun cf -> an.a_fields <- PMap.add cf.cf_name cf an.a_fields;) fields;
-			in
+		begin match self#read_u8 with
+		| 0 ->
+			an.a_status := Closed;
+			read_fields ()
+		| 1 ->
+			an.a_status := Const;
+			read_fields ()
+		| 2 ->
+			an.a_status := Extend self#read_types;
+			read_fields ()
+		| 3 ->
+			an.a_status := ClassStatics self#read_class_ref;
+		| 4 ->
+			an.a_status := EnumStatics self#read_enum_ref;
+			read_fields ()
+		| 5 ->
+			an.a_status := AbstractStatics self#read_abstract_ref;
+			read_fields ()
+		| _ -> assert false
+		end;
 
-			begin match self#read_u8 with
-			| 0 ->
-				an.a_status := Closed;
-				read_fields ()
-			| 1 ->
-				an.a_status := Const;
-				read_fields ()
-			| 2 ->
-				an.a_status := Extend self#read_types;
-				read_fields ()
-			| 3 ->
-				an.a_status := ClassStatics self#read_class_ref;
-			| 4 ->
-				an.a_status := EnumStatics self#read_enum_ref;
-				read_fields ()
-			| 5 ->
-				an.a_status := AbstractStatics self#read_abstract_ref;
-				read_fields ()
-			| _ -> assert false
-			end;
-		done
+		type_type_parameters <- old;
+		an
 
 	method read_tpdd =
 		let l = self#read_uleb128 in
@@ -1427,10 +1509,6 @@ class hxb_reader
 				error ("Unexpected type where typedef was expected: " ^ (s_type_path (pack,tname)))
 		))
 
-	method read_annr =
-		let l = self#read_uleb128 in
-		anons <- Array.init l (fun _ -> { a_fields = PMap.empty; a_status = ref Closed });
-
 	method read_typf =
 		self#read_list (fun () ->
 			let kind = self#read_u8 in
@@ -1458,10 +1536,6 @@ class hxb_reader
 				TClassDecl c
 			| 1 ->
 				let en = mk_enum m path pos name_pos in
-				(match self#read_u8 with
-				| 0 -> en.e_type.t_type <- (mk_anon (ref Closed))
-				| _ -> en.e_type.t_type <- TAnon self#read_anon_ref);
-
 				enums <- Array.append enums (Array.make 1 en);
 
 				let read_field () =
@@ -1498,6 +1572,11 @@ class hxb_reader
 		let path = self#read_path in
 		let file = self#read_string in
 		(* prerr_endline (Printf.sprintf "Read hxb module %s" (s_type_path path)); *)
+
+		let l = self#read_uleb128 in
+		(* trace (Printf.sprintf "%d anons available" l); *)
+		anons <- Array.init l (fun _ -> { a_fields = PMap.empty; a_status = ref Closed });
+
 		anon_fields <- Array.make (self#read_uleb128) null_field;
 		make_module path file
 
@@ -1526,20 +1605,21 @@ class hxb_reader
 			| (kind,data) :: chunks ->
 				ch <- IO.input_bytes data;
 				match kind with
-				| HHDR ->
-					m <- self#read_hhdr;
-					chunks
 				| STRI ->
 					string_pool <- self#read_string_pool;
 					pass_0 chunks
 				| DOCS ->
 					doc_pool <- self#read_string_pool;
 					pass_0 chunks
+				| HHDR ->
+					m <- self#read_hhdr;
+					chunks
 				| _ ->
 					error ("Unexpected early chunk: " ^ (string_of_chunk_kind kind))
 		in
 		let chunks = pass_0 chunks in
 		assert(m != null_module);
+		(* trace (Printf.sprintf " Reading module %s from hxb" (s_type_path m.m_path)); *)
 		List.iter (fun (kind,data) ->
 			(* prerr_endline (Printf.sprintf " Reading chunk %s" (string_of_chunk_kind kind)); *)
 			ch <- IO.input_bytes data;
@@ -1551,27 +1631,23 @@ class hxb_reader
 				self#read_clsr;
 			| ABSR ->
 				self#read_absr;
-			| ENMR ->
-				self#read_enmr;
 			| TPDR ->
 				self#read_tpdr;
-			| ANNR ->
-				self#read_annr;
-			| ABSD ->
-				self#read_absd;
+			| ENMR ->
+				self#read_enmr;
 			| CLSD ->
 				self#read_clsd;
+			| ABSD ->
+				self#read_absd;
 			| CFLD ->
 				flush_fields ();
 				self#read_cfld;
+			| TPDD ->
+				self#read_tpdd;
 			| ENMD ->
 				self#read_enmd;
 			| EFLD ->
 				self#read_efld;
-			| ANND ->
-				self#read_annd;
-			| TPDD ->
-				self#read_tpdd;
 			| _ ->
 				error ("Unexpected late chunk: " ^ (string_of_chunk_kind kind))
 		) chunks;
