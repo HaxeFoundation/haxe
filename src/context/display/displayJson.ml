@@ -44,10 +44,13 @@ let send_string j =
 let send_json json =
 	send_string (string_of_json json)
 
-class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) = object(self)
-	val cs = cs;
+class display_handler (jsonrpc : jsonrpc_handler) com = object(self)
+	val cs = com.cs;
 
 	method get_cs = cs
+	method get_macro_cs = (match com.get_macros() with
+		| None -> Option.get (com.create_macros ())
+		| Some com -> com).cs
 
 	method enable_display mode =
 		com.display <- create mode;
@@ -380,6 +383,9 @@ let handler =
 			let cs = hctx.display#get_cs in
 			cs#taint_modules fkey "server/invalidate";
 			cs#remove_files fkey;
+			let mcs = hctx.display#get_macro_cs in
+			mcs#taint_modules fkey "server/invalidate";
+			mcs#remove_files fkey;
 			hctx.send_result jnull
 		);
 		"server/configure", (fun hctx ->
@@ -478,9 +484,7 @@ let parse_input com input report_times =
 		jsonrpc = jsonrpc
 	});
 
-	let cs = com.cs in
-
-	let display = new display_handler jsonrpc com cs in
+	let display = new display_handler jsonrpc com in
 
 	let hctx = {
 		com = com;
