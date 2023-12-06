@@ -34,6 +34,7 @@ let version_pre = Some "alpha.1"
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 
 let no_color = false
+let no_trace = false
 let c_reset = if no_color then "" else "\x1b[0m"
 let c_dim = if no_color then "" else "\x1b[2m"
 
@@ -44,14 +45,16 @@ let loc_to_string (loc:Printexc.location) =
 	Printf.sprintf "%s, line %d, characters %d-%d" loc.filename loc.line_number loc.start_char loc.end_char
 
 let trace s =
-	let stack = Printexc.get_callstack 2 in
-	match Printexc.backtrace_slots stack with
-	| Some [|_; item |] ->
-		(match Printexc.Slot.location item with
-		| Some loc -> print_endline (Printf.sprintf "%s%s:%s %s" c_dim (loc_short loc) c_reset s)
-		| _ -> ())
-	| _ ->
-		()
+	if not no_trace then begin
+		let stack = Printexc.get_callstack 2 in
+		match Printexc.backtrace_slots stack with
+		| Some [|_; item |] ->
+			(match Printexc.Slot.location item with
+			| Some loc -> print_endline (Printf.sprintf "%s%s:%s %s" c_dim (loc_short loc) c_reset s)
+			| _ -> ())
+		| _ ->
+			()
+	end
 
 let trace_call_stack ?(n:int = 5) () =
 	assert (n >= 0);
