@@ -43,8 +43,16 @@ let field_of_static_definition d p =
 		cff_kind = d.d_data;
 	}
 
+let do_add_module com m =
+	let sign = CommonCache.get_cache_sign com in
+	if m.m_extra.m_sign <> sign then begin
+		trace (Printf.sprintf "Adding module %s with a different sign!" (s_type_path m.m_path));
+		trace (Define.retrieve_defines sign);
+		trace (Define.retrieve_defines m.m_extra.m_sign);
+	end else com.module_lut#add m.m_path m;
+
 module ModuleLevel = struct
-	let make_module ctx mpath file loadp =
+	let make_module ctx mpath file =
 		let m = {
 			m_id = alloc_mid();
 			m_path = mpath;
@@ -56,7 +64,8 @@ module ModuleLevel = struct
 
 	let add_module ctx m p =
 		List.iter (TypeloadCheck.check_module_types ctx m p) m.m_types;
-		ctx.com.module_lut#add m.m_path m
+		(* ctx.com.module_lut#add m.m_path m *)
+		do_add_module ctx.com m
 
 	(*
 		Build module structure : should be atomic - no type loading is possible
@@ -284,7 +293,7 @@ module ModuleLevel = struct
 		let make_import_module path r =
 			com.parser_cache#add path r;
 			(* We use the file path as module name to make it unique. This may or may not be a good idea... *)
-			let m_import = make_module ctx ([],path) path p in
+			let m_import = make_module ctx ([],path) path in
 			m_import.m_extra.m_kind <- MImport;
 			m_import
 		in
@@ -301,9 +310,9 @@ module ModuleLevel = struct
 						| ParseError(_,(msg,p),_) -> Parser.error msg p
 					in
 					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> raise_typing_error "Only import and using is allowed in import.hx files" p) r;
-					let m_import = make_import_module path r in
-					add_module ctx m_import p;
-					add_dependency m m_import;
+					let mimport = make_import_module path r in
+					add_module ctx mimport p;
+					add_dependency m mimport;
 					r
 				end else begin
 					let r = [] in
@@ -770,8 +779,9 @@ let type_types_into_module ctx m tdecls p =
 	Creates a new module and types [tdecls] into it.
 *)
 let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
-	let m = ModuleLevel.make_module ctx mpath file p in
-	ctx.com.module_lut#add m.m_path m;
+	let m = ModuleLevel.make_module ctx mpath file in
+	(* ctx.com.module_lut#add m.m_path m; *)
+	do_add_module ctx.com m;
 	let tdecls = ModuleLevel.handle_import_hx ctx m tdecls p in
 	let ctx = type_types_into_module ctx m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx m.m_path p;
@@ -788,14 +798,15 @@ let rec get_reader ctx g p =
 	(* let ctx = create_typer_context_for_module tctx m in *)
 
 	let make_module path file =
-		let m = ModuleLevel.make_module ctx path file p in
+		let m = ModuleLevel.make_module ctx path file in
 		(* m.m_extra.m_added <- ctx.com.compilation_step; *)
 		m.m_extra.m_processed <- 1;
 		m
 	in
 
 	let add_module m =
-		ctx.com.module_lut#add m.m_path m
+		(* ctx.com.module_lut#add m.m_path m *)
+		do_add_module ctx.com m;
 	in
 
 	let flush_fields () =
@@ -839,32 +850,34 @@ and load_hxb_module ctx g path p =
 		close_in ch;
 		raise e
 
-and load_module' ctx g m p =
+and load_module' ctx g mpath p =
 	try
 		(* Check current context *)
-		ctx.com.module_lut#find m
+		ctx.com.module_lut#find mpath
 	with Not_found ->
 		(* Check cache *)
-		match !type_module_hook ctx m p with
+		match !type_module_hook ctx mpath p with
 		| Some m ->
+			(* ctx.com.module_lut#add mpath m; *)
+			do_add_module ctx.com m;
 			m
 		(* Try loading from hxb first, then from source *)
-		| None -> try load_hxb_module ctx g m p with Not_found ->
-			let raise_not_found () = raise_error_msg (Module_not_found m) p in
-			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
+		| None -> try load_hxb_module ctx g mpath p with Not_found ->
+			let raise_not_found () = raise_error_msg (Module_not_found mpath) p in
+			if ctx.com.module_nonexistent_lut#mem mpath then raise_not_found();
 			if ctx.g.load_only_cached_modules then raise_not_found();
 			let is_extern = ref false in
 			let file, decls = try
 				(* Try parsing *)
-				TypeloadParse.parse_module ctx m p
+				TypeloadParse.parse_module ctx mpath p
 			with Not_found ->
 				(* Nothing to parse, try loading extern type *)
 				let rec loop = function
 					| [] ->
-						ctx.com.module_nonexistent_lut#add m true;
+						ctx.com.module_nonexistent_lut#add mpath true;
 						raise_not_found()
 					| (file,load) :: l ->
-						match load m p with
+						match load mpath p with
 						| None -> loop l
 						| Some (_,a) -> file, a
 				in
@@ -873,7 +886,7 @@ and load_module' ctx g m p =
 			in
 			let is_extern = !is_extern in
 			try
-				type_module ctx m file ~is_extern decls p
+				type_module ctx mpath file ~is_extern decls p
 			with Forbid_package (inf,pl,pf) when p <> null_pos ->
 				raise (Forbid_package (inf,p::pl,pf))
 

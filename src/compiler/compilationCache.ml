@@ -23,9 +23,18 @@ type cached_native_lib = {
 	c_nl_files : (path,Ast.package) Hashtbl.t;
 }
 
-class context_cache (index : int) = object(self)
+let get_module_name_of_cfile file cfile = match cfile.c_module_name with
+	| None ->
+		let name = Path.module_name_of_file file in
+		cfile.c_module_name <- Some name;
+		name
+	| Some name ->
+		name
+
+class context_cache (index : int) (sign : string) = object(self)
 	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
+	val binary_cache : (path,module_cache) Hashtbl.t = Hashtbl.create 0
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
@@ -57,17 +66,42 @@ class context_cache (index : int) = object(self)
 	method find_module_opt path =
 		Hashtbl.find_opt modules path
 
-	method cache_module path value =
-		Hashtbl.replace modules path value
+	method cache_module path m =
+		Hashtbl.replace modules path m;
+		(* TODO move this somewhere else, factorize with generate.ml as much as possible *)
+		let anon_identification = new Tanon_identification.tanon_identification ([],"") in
+		let writer = new HxbWriter.hxb_writer anon_identification in
+		(* trace (Printf.sprintf "Write module %s to hxb cache" (s_type_path path)); *)
+		(* let t = Timer.timer ["server";"cache context";"write module"] in *)
+		writer#write_module m;
+		(* t(); *)
+		let ch = IO.output_bytes() in
+		writer#export ch;
+		let bytes = IO.close_out ch in
+		Hashtbl.replace binary_cache path {
+			mc_path = path;
+			mc_bytes = bytes;
+			mc_extra = { m.m_extra with m_cache_state = MSGood }
+		}
+
+	method clear_cache =
+		Hashtbl.clear modules
 
 	(* initialization *)
 
 	method is_initialized = initialized
 	method set_initialized value = initialized <- value
 
+	method get_sign = sign
 	method get_index = index
 	method get_files = files
 	method get_modules = modules
+
+	(* TODO rename all this to something that makes sense *)
+	method get_hxb = binary_cache
+	method get_hxb_module path = Hashtbl.find_opt binary_cache path
+
+	(* TODO handle hxb cache there too *)
 	method get_removed_files = removed_files
 
 	method get_json = json
@@ -111,17 +145,29 @@ class cache = object(self)
 
 	(* contexts *)
 
+	method create_context sign =
+		let cache = new context_cache (Hashtbl.length contexts) sign in
+		context_list <- cache :: context_list;
+		Hashtbl.add contexts sign cache;
+		cache
+
+	method get_or_create_context sign =
+		match Hashtbl.find_opt contexts sign with
+		| None -> self#create_context sign
+		| Some cache -> cache
+
 	method get_context sign =
-		try
+		(* try *)
 			Hashtbl.find contexts sign
-		with Not_found ->
-			let cache = new context_cache (Hashtbl.length contexts) in
-			context_list <- cache :: context_list;
-			Hashtbl.add contexts sign cache;
-			cache
+		(* with Not_found -> *)
+			(* trace_call_stack (); *)
+			(* assert false *)
+			(* self#create_context sign *)
 
 	method add_info sign desc platform class_path defines =
-		let cc = self#get_context sign in
+		(* TODO context should probably already exist at this point? *)
+		(* let cc = self#get_context sign in *)
+		let cc = self#get_or_create_context sign in
 		let jo = JObject [
 			"index",JInt cc#get_index;
 			"desc",JString desc;
@@ -173,8 +219,9 @@ class cache = object(self)
 	method taint_modules file_key reason =
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
-				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_cache_state <- MSBad (Tainted reason)
-			) cc#get_modules
+				if Path.UniqueKey.lazy_key m.mc_extra.m_file = file_key then m.mc_extra.m_cache_state <- MSBad (Tainted reason)
+			) cc#get_hxb
+			(* ) cc#get_modules *)
 		) contexts
 
 	(* haxelibs *)
@@ -267,11 +314,3 @@ type context_options =
 	| NormalContext
 	| MacroContext
 	| NormalAndMacroContext
-
-let get_module_name_of_cfile file cfile = match cfile.c_module_name with
-	| None ->
-		let name = Path.module_name_of_file file in
-		cfile.c_module_name <- Some name;
-		name
-	| Some name ->
-		name

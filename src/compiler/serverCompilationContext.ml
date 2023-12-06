@@ -59,12 +59,16 @@ let reset sctx =
 
 let after_save sctx com has_error =
 	if not has_error && com.display.dms_full_typing && com.display.dms_populate_cache then begin
+		(* let t = Timer.timer ["server";"cache context"] in *)
 		CommonCache.cache_context sctx.cs com;
+		(* t(); *)
 		ServerMessage.cached_modules com "" (List.length com.modules);
 	end
 
 let after_compilation sctx com has_error =
-	()
+	(* if has_error || not com.display.dms_full_typing || not com.display.dms_populate_cache then *)
+	(* TEMP: Wipe server cache to force loading from hxb *)
+	CommonCache.clear_cache sctx.cs com
 
 let ensure_macro_setup sctx =
 	if not sctx.macro_context_setup then begin
@@ -75,7 +79,7 @@ let ensure_macro_setup sctx =
 let cleanup () = match !MacroContext.macro_interp_cache with
 	| Some interp ->
 		(* curapi holds a reference to the typing context which we don't want to persist. Let's unset it so the
-		   context can be collected. *)		
+		   context can be collected. *)
 		interp.curapi <- Obj.magic ""
 	| None ->
 		()

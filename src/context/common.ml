@@ -990,7 +990,9 @@ let rec has_feature com f =
 		| field :: cl :: pack ->
 			let r = (try
 				let path = List.rev pack, cl in
-				(match List.find (fun t -> t_path t = path && not (Meta.has Meta.RealPath (t_infos t).mt_meta)) com.types with
+				(* (match List.find (fun t -> t_path t = path && not (Meta.has Meta.RealPath (t_infos t).mt_meta)) com.types with *)
+				let m = com.module_lut#find (com.type_to_module#find path) in
+				(match List.find (fun t -> snd (t_path t) = (snd path)) m.m_types with
 				| t when field = "*" ->
 					not (has_dce com) ||
 					(match t with TAbstractDecl a -> Meta.has Meta.ValueUsed a.a_meta | _ -> Meta.has Meta.Used (t_infos t).mt_meta)
