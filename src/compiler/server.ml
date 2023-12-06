@@ -469,9 +469,11 @@ let after_target_init sctx ctx =
 		Hashtbl.add sctx.class_paths sign com.class_path;
 		()
 
+let after_save sctx ctx =
+	ServerCompilationContext.after_save sctx ctx.com (has_error ctx)
+
 let after_compilation sctx ctx =
-	if not (has_error ctx) then
-		maybe_cache_context sctx ctx.com
+	ServerCompilationContext.after_compilation sctx ctx.com (has_error ctx)
 
 let mk_length_prefixed_communication allow_nonblock chin chout =
 	let sin = Unix.descr_of_in_channel chin in
@@ -622,6 +624,7 @@ let rec process sctx comm args =
 		callbacks = {
 			before_anything = before_anything sctx;
 			after_target_init = after_target_init sctx;
+			after_save = after_save sctx;
 			after_compilation = after_compilation sctx;
 		};
 		init_wait_socket = init_wait_socket;

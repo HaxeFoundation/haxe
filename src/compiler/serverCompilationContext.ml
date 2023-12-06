@@ -57,11 +57,14 @@ let reset sctx =
 	Hashtbl.clear Timer.htimers;
 	Helper.start_time := get_time()
 
-let maybe_cache_context sctx com =
-	if com.display.dms_full_typing && com.display.dms_populate_cache then begin
+let after_save sctx com has_error =
+	if not has_error && com.display.dms_full_typing && com.display.dms_populate_cache then begin
 		CommonCache.cache_context sctx.cs com;
 		ServerMessage.cached_modules com "" (List.length com.modules);
 	end
+
+let after_compilation sctx com has_error =
+	()
 
 let ensure_macro_setup sctx =
 	if not sctx.macro_context_setup then begin
