@@ -434,7 +434,7 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		begin match check_module sctx ctx m p with
 		| None -> ()
 		| Some reason ->
-			ServerMessage.skipping_dep com "" (m,(Printer.s_module_skip_reason reason));
+			ServerMessage.skipping_dep com "" (mpath,(Printer.s_module_skip_reason reason));
 			tcheck();
 			raise Not_found;
 		end;

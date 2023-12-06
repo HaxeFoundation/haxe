@@ -568,7 +568,8 @@ let rec type_eq uctx a b =
 			PMap.iter (fun n f1 ->
 				try
 					let f2 = PMap.find n a2.a_fields in
-					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
+					(* if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind]; *)
+					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || param = EqDoNotFollowNull || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 					let a = f1.cf_type and b = f2.cf_type in
 					(try type_eq uctx a b with Unify_error l -> error (invalid_field n :: l));
 					if (has_class_field_flag f1 CfPublic) != (has_class_field_flag f2 CfPublic) then error [invalid_visibility n];
