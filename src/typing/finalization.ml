@@ -1,5 +1,6 @@
 open Globals
 open Common
+open Lookup
 open Type
 open Error
 open TyperBase
