@@ -783,9 +783,13 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 
 let type_module_hook = ref (fun _ _ _ -> None)
 
-let rec get_reader ctx input mpath p =
+let rec get_reader ctx g p =
+	(* TODO: create typer context for this module? *)
+	(* let ctx = create_typer_context_for_module tctx m in *)
+
 	let make_module path file =
 		let m = ModuleLevel.make_module ctx path file p in
+		(* m.m_extra.m_added <- ctx.com.compilation_step; *)
 		m.m_extra.m_processed <- 1;
 		m
 	in
@@ -794,14 +798,18 @@ let rec get_reader ctx input mpath p =
 		ctx.com.module_lut#add m.m_path m
 	in
 
-	let resolve_type pack mname tname =
-		let m = try ctx.com.module_lut#find (pack,mname) with Not_found -> load_module' ctx ctx.g (pack,mname) p in
+	let flush_fields () =
+		flush_pass ctx PConnectField "hxb"
+	in
+
+	let resolve_type sign pack mname tname =
+		let m = load_module' ctx g (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 	in
 
-	new HxbReader.hxb_reader ctx.com input make_module add_module resolve_type
+	new HxbReader.hxb_reader make_module add_module resolve_type flush_fields
 
-and load_hxb_module ctx path p =
+and load_hxb_module ctx g path p =
 	let compose_path no_rename =
 		(match path with
 		| [] , name -> name
@@ -820,7 +828,7 @@ and load_hxb_module ctx path p =
 	(* TODO use finally instead *)
 	try
 		(* Printf.eprintf "[%s] Read module %s\n" target (s_type_path path); *)
-		let m = (get_reader ctx input path p)#read true p in
+		let m = (get_reader ctx g p)#read input true p in
 		(* Printf.eprintf "[%s] Done reading module %s\n" target (s_type_path path); *)
 		close_in ch;
 		m
@@ -841,7 +849,7 @@ and load_module' ctx g m p =
 		| Some m ->
 			m
 		(* Try loading from hxb first, then from source *)
-		| None -> try load_hxb_module ctx m p with Not_found ->
+		| None -> try load_hxb_module ctx g m p with Not_found ->
 			let raise_not_found () = raise_error_msg (Module_not_found m) p in
 			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
 			if ctx.g.load_only_cached_modules then raise_not_found();

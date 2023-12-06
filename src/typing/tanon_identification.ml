@@ -59,7 +59,7 @@ object(self)
 		DynArray.add (DynArray.get pfm_by_arity pfm.pfm_arity) pfm;
 		Hashtbl.replace pfms path pfm
 
-	method unify (tc : Type.t) (pfm : 'a path_field_mapping) =
+	method unify ?(unify_kind = TUnification.unify_kind) ?(strict:bool = false) (tc : Type.t) (pfm : 'a path_field_mapping) =
 		let check () =
 			let pair_up fields =
 				PMap.fold (fun cf acc ->
@@ -85,7 +85,16 @@ object(self)
 					List.iter (fun (cf,cf') ->
 						if not (unify_kind cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
 						fields := PMap.remove cf.cf_name !fields;
-						Type.type_eq EqDoNotFollowNull cf'.cf_type (map (monomorphs cf.cf_params cf.cf_type))
+						(* if strict && cf'.cf_type <> cf.cf_type then raise (Unify_error [Unify_custom "type strict equality failed"]); *)
+						let eq_kind = if strict then {
+							allow_transitive_cast = false;
+							allow_abstract_cast = false;
+							allow_dynamic_to_cast = false;
+							(* equality_kind = EqStrict; *)
+							equality_kind = EqDoNotFollowNull;
+							equality_underlying = true; (* ?? *)
+						} else {default_unification_context with equality_kind = EqDoNotFollowNull} in
+						type_eq_custom eq_kind cf'.cf_type (map (monomorphs cf.cf_params cf.cf_type))
 					) pairs;
 					if not (PMap.is_empty !fields) then raise (Unify_error [Unify_custom "not enough fields"]);
 					monos
@@ -110,12 +119,17 @@ object(self)
 			raise Not_found;
 		let d = DynArray.get pfm_by_arity arity in
 		let l = DynArray.length d in
+		let unify_kind cfk1 cfk2 = cfk1 = cfk2 || match cfk1, cfk2 with
+			| Var _, Var _ | Method _, Method _ -> unify_kind cfk1 cfk2
+			| _ -> false
+		in
+
 		let rec loop i =
 			if i >= l then
 				raise Not_found;
 			let pfm = DynArray.unsafe_get d i in
 			try
-				self#unify tc pfm;
+				self#unify ~unify_kind ~strict:true tc pfm;
 				pfm
 			with Unify_error _ ->
 				loop (i + 1)
