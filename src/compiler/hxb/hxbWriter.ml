@@ -348,7 +348,7 @@ class ['a] hxb_writer
 		chunk#write_uleb128 i
 
 	method write_anon_ref (an : tanon) (ttp : type_params) =
-		let pfm = Option.get (anon_id#identify true (TAnon an)) in
+		let pfm = Option.get (anon_id#identify ~strict:true true (TAnon an)) in
 		try
 			let index = anons#get pfm.pfm_path in
 			chunk#write_byte 0;

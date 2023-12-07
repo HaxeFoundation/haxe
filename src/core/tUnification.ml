@@ -445,6 +445,10 @@ let unify_kind k1 k2 =
 			| MethDynamic, MethNormal -> true
 			| _ -> false
 
+let unify_kind_strict cfk1 cfk2 = cfk1 = cfk2 || match cfk1, cfk2 with
+	| Var _, Var _ | Method _, Method _ -> unify_kind cfk1 cfk2
+	| _ -> false
+
 type 'a rec_stack = {
 	mutable rec_stack : 'a list;
 }
