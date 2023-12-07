@@ -85,16 +85,14 @@ object(self)
 					List.iter (fun (cf,cf') ->
 						if not (unify_kind cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
 						fields := PMap.remove cf.cf_name !fields;
-						(* if strict && cf'.cf_type <> cf.cf_type then raise (Unify_error [Unify_custom "type strict equality failed"]); *)
-						let eq_kind = if strict then {
+						let uctx = if strict then {
 							allow_transitive_cast = false;
 							allow_abstract_cast = false;
 							allow_dynamic_to_cast = false;
-							(* equality_kind = EqStrict; *)
 							equality_kind = EqDoNotFollowNull;
-							equality_underlying = true; (* ?? *)
+							equality_underlying = true;
 						} else {default_unification_context with equality_kind = EqDoNotFollowNull} in
-						type_eq_custom eq_kind cf'.cf_type (map (monomorphs cf.cf_params cf.cf_type))
+						type_eq_custom uctx cf'.cf_type (map (monomorphs cf.cf_params cf.cf_type))
 					) pairs;
 					if not (PMap.is_empty !fields) then raise (Unify_error [Unify_custom "not enough fields"]);
 					monos
@@ -114,22 +112,18 @@ object(self)
 		with Not_found ->
 			raise (Unify_error [])
 
-	method find_compatible (arity : int) (tc : Type.t) =
+	method find_compatible (strict : bool) (arity : int) (tc : Type.t) =
 		if arity >= DynArray.length pfm_by_arity then
 			raise Not_found;
 		let d = DynArray.get pfm_by_arity arity in
 		let l = DynArray.length d in
-		let unify_kind cfk1 cfk2 = cfk1 = cfk2 || match cfk1, cfk2 with
-			| Var _, Var _ | Method _, Method _ -> unify_kind cfk1 cfk2
-			| _ -> false
-		in
 
 		let rec loop i =
 			if i >= l then
 				raise Not_found;
 			let pfm = DynArray.unsafe_get d i in
 			try
-				self#unify ~unify_kind ~strict:true tc pfm;
+				if strict then self#unify ~unify_kind:unify_kind_strict ~strict tc pfm else self#unify tc pfm;
 				pfm
 			with Unify_error _ ->
 				loop (i + 1)
@@ -149,7 +143,7 @@ object(self)
 		in
 		loop td.t_type
 
-	method identify (accept_anons : bool) (t : Type.t) =
+	method identify ?(strict:bool = false) (accept_anons : bool) (t : Type.t) =
 		match t with
 		| TType(td,tl) ->
 			begin try
@@ -171,7 +165,7 @@ object(self)
 				i + 1
 			) an.a_fields 0 in
 			begin try
-				Some (self#find_compatible arity t)
+				Some (self#find_compatible strict arity t)
 			with Not_found ->
 				let id = num in
 				num <- num + 1;
