@@ -106,6 +106,11 @@ extern class Navigator {
 	var onLine(default,null) : Bool;
 	var storage(default,null) : StorageManager;
 
+	/**
+		Returns a `WakeLock` object which allows a document to acquire a screen wake lock.
+	**/
+	var wakeLock(default,null) : WakeLock;
+
 	@:overload( function( duration : Int ) : Bool {} )
 	function vibrate( pattern : Array<Int> ) : Bool;
 	function javaEnabled() : Bool;
