@@ -1562,8 +1562,7 @@ and type_cast ctx e t p =
 	let texpr = loop t in
 	mk (TCast (type_expr ctx e WithType.value,Some texpr)) t p
 
-and make_if_then_else ctx e0 e1 e2 with_type p =
-	let e1,e2,t = match with_type with
+and get_if_then_else_operands ctx e1 e2 with_type = match with_type with
 	| WithType.NoValue -> e1,e2,ctx.t.tvoid
 	| WithType.Value _ -> e1,e2,unify_min ctx [e1; e2]
 	| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
@@ -1572,7 +1571,9 @@ and make_if_then_else ctx e0 e1 e2 with_type p =
 		let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
 		let e2 = AbstractCast.cast_or_unify ctx t e2 e2.epos in
 		e1,e2,t
-	in
+
+and make_if_then_else ctx e0 e1 e2 with_type p =
+	let e1,e2,t = get_if_then_else_operands ctx e1 e2 with_type in
 	mk (TIf (e0,e1,Some e2)) t p
 
 and type_if ctx e e1 e2 with_type is_ternary p =
@@ -1847,26 +1848,22 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let vr = new value_reference ctx in
 		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 		let e2 = type_expr ctx (Expr.ensure_block e2) (WithType.with_type e1.etype) in
-		let tmin = unify_min ctx [e1; e2] in
-		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull tmin} in
-		let e_null = Builder.make_null e1.etype e1.epos in
-		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
-
+		let e1,e2,tmin = get_if_then_else_operands ctx e1 e2 with_type in
 		let rec follow_null t =
 			match t with
 			| TAbstract({a_path = [],"Null"},[t]) -> follow_null t
 			| _ -> t
 		in
 		let iftype = if DeadEnd.has_dead_end e2 then
-			WithType.with_type (follow_null e1.etype)
-		else
-			let t = match e2.etype with
-				| TAbstract({a_path = [],"Null"},[t]) -> tmin
-				| _ -> follow_null tmin
-			in
-			WithType.with_type t
-		in
-		let e_if = make_if_then_else ctx e_cond e1 e2 iftype p in
+			follow_null e1.etype
+		else match e2.etype with
+			| TAbstract({a_path = [],"Null"},[t]) -> tmin
+			| _ -> follow_null tmin
+		in		
+		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull tmin} in
+		let e_null = Builder.make_null e1.etype e1.epos in
+		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
+		let e_if = mk (TIf(e_cond,e1,Some e2)) iftype p in
 		vr#to_texpr e_if
 	| EBinop (OpAssignOp OpNullCoal,e1,e2) ->
 		let e_cond = EBinop(OpNotEq,e1,(EConst(Ident "null"), p)) in
