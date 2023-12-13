@@ -350,14 +350,6 @@ let unify_field_call ctx fa el_typed el p inline =
 		in
 		loop candidates
 	in
-	let fail_fun () =
-		let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic) in
-		let call () =
-			let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa fa.fa_field fa.fa_host)) tf fa.fa_pos in
-			mk (TCall(ef,[])) t_dynamic p
-		in
-		make_field_call_candidate [] t_dynamic [] tf fa.fa_field call
-	in
 	let maybe_check_access cf =
 		(* type_field doesn't check access for overloads, so let's check it here *)
 		begin match co with
@@ -367,13 +359,34 @@ let unify_field_call ctx fa el_typed el p inline =
 			()
 		end;
 	in
+	(* There's always a chance that we never even came across the EDisplay in an argument, so let's look for it (issue #11422). *)
+	let check_display_args () =
+		if ctx.is_display_file then begin
+			let rec loop el = match el with
+				| [] ->
+					()
+				| e :: el ->
+					if Ast.exists (function EDisplay _ -> true | _ -> false) e then
+						ignore(type_expr ctx e WithType.value)
+					else
+						loop el
+			in
+			loop el
+		end;
+	in
 	match candidates with
 	| [cf] ->
 		if overload_kind = OverloadProper then maybe_check_access cf;
 		begin try
 			commit_delayed_display (attempt_call cf false)
 		with Error _ when Common.ignore_error ctx.com ->
-			fail_fun();
+			check_display_args();
+			let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic) in
+			let call () =
+				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa fa.fa_field fa.fa_host)) tf fa.fa_pos in
+				mk (TCall(ef,[])) t_dynamic p
+			in
+			make_field_call_candidate [] t_dynamic [] tf fa.fa_field call
 		end
 	| _ ->
 		let candidates,failures = attempt_calls candidates in
@@ -385,6 +398,7 @@ let unify_field_call ctx fa el_typed el p inline =
 				) delayed_display;
 				cf,err
 			) failures in
+			check_display_args();
 			let failures = remove_duplicates (fun (_,e1) (_,e2) -> (MessageReporting.print_error e1) <> (MessageReporting.print_error e2)) failures in
 			begin match failures with
 			| [_,err] ->
@@ -408,7 +422,8 @@ let unify_field_call ctx fa el_typed el p inline =
 			end
 		in
 		if overload_kind = OverloadProper then begin match Overloads.Resolution.reduce_compatible candidates with
-			| [] -> fail()
+			| [] ->
+				fail()
 			| [fcc] ->
 				maybe_check_access fcc.fc_field;
 				commit_delayed_display fcc
