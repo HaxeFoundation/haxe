@@ -147,6 +147,11 @@ let prepare com =
 		unresolved_identifiers = [];
 		missing_fields = PMap.empty;
 	} in
+	(* TODO why is this check failing with hxb? *)
+	List.iter (fun diag ->
+		trace (Printf.sprintf "kind: %d" (MessageSeverity.to_int diag.diag_severity));
+		MessageReporting.display_source_at com diag.diag_pos;
+	) com.shared.shared_display_information.diagnostics_messages;
 	if not (List.exists (fun diag -> diag.diag_severity = MessageSeverity.Error) com.shared.shared_display_information.diagnostics_messages) then
 		collect_diagnostics dctx com;
 	let process_modules com =

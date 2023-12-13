@@ -21,12 +21,12 @@ let check_auxiliary_output com actx =
 			Genjson.generate com.types file
 	end
 
-let export_hxb root m =
+let export_hxb com root m =
 	match m.m_extra.m_kind with
 		| MCode | MMacro | MFake -> begin
 			(* Printf.eprintf "Export module %s\n" (s_type_path m.m_path); *)
 			let anon_identification = new tanon_identification ([],"") in
-			let writer = new HxbWriter.hxb_writer anon_identification in
+			let writer = new HxbWriter.hxb_writer (MessageReporting.display_source_at com) anon_identification in
 			writer#write_module m;
 			let ch = IO.output_bytes() in
 			writer#export ch;
@@ -72,7 +72,7 @@ let check_hxb_output com actx =
 				clean_files path;
 				let t = Timer.timer ["generate";"hxb"] in
 				Printf.eprintf "%d modules, %d types\n" (List.length com.modules) (List.length com.types);
-				List.iter (export_hxb path) com.modules;
+				List.iter (export_hxb com path) com.modules;
 				t();
 			in
 

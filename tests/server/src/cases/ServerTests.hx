@@ -150,10 +150,15 @@ class ServerTests extends TestCase {
 		vfs.putContent("Other.hx", getTemplate("issues/Issue9134/Other.hx"));
 		var args = ["-main", "Main", "Other"];
 
+		// TODO check why this makes the weird BalancedTree shadow error disappear
+		runHaxe(args);
+		// debugErrorMessages();
+
 		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {fileContents: [
 			{file: new FsPath("Other.hx")},
 			{file: new FsPath("Main.hx")},
 		]}, res -> {
+			// trace(haxe.Json.stringify(res, "  "));
 			Assert.equals(1, res.length);
 			Assert.equals(1, res[0].diagnostics.length);
 			var arg = res[0].diagnostics[0].args;
@@ -168,7 +173,10 @@ class ServerTests extends TestCase {
 			{file: new FsPath("Main.hx"), contents: getTemplate("issues/Issue9134/Main2.hx")},
 			{file: new FsPath("Other.hx"), contents: getTemplate("issues/Issue9134/Other2.hx")}
 		]}, res -> {
+			// trace(haxe.Json.stringify(res, "  "));
 			Assert.equals(1, res.length);
+			// debugMessages();
+			// debugErrorMessages();
 			Assert.equals(1, res[0].diagnostics.length);
 			var arg = res[0].diagnostics[0].args;
 			Assert.equals("Unused variable", (cast arg).description);
@@ -428,8 +436,11 @@ class ServerTests extends TestCase {
 		vfs.putContent("haxe/ds/Vector.hx", getTemplate("issues/Issue10986/Vector.hx"));
 		var args = ["-main", "Main", "--jvm", "Main.jar"];
 		runHaxe(args);
+		// debugMessages();
 		vfs.touchFile("haxe/ds/Vector.hx");
+		// Missed async call
 		runHaxe(args);
+		// debugMessages();
 		assertSuccess();
 	}
 

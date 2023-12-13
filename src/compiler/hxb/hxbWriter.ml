@@ -246,7 +246,7 @@ class chunk
 end
 
 class ['a] hxb_writer
-	(* (com : Common.context) *)
+	(display_source_at : Globals.pos -> unit)
 	(anon_id : Type.t Tanon_identification.tanon_identification)
 = object(self)
 
@@ -385,6 +385,12 @@ class ['a] hxb_writer
 
 	(* Type instances *)
 
+	method write_type_parameter_ref_debug (c : tclass) =
+			(try self#write_type_parameter_ref c with e ->
+				chunk#write_byte 0; (* TMono None *)
+				(* raise e *)
+			)
+
 	method write_type_parameter_ref (c : tclass) =
 		begin try
 			let _ = field_type_parameters#get c.cl_path in
@@ -404,7 +410,8 @@ class ['a] hxb_writer
 			(* DynArray.iter (fun ttp -> debug_msg (Printf.sprintf "FTP %s %s" ttp.ttp_name (s_type_kind ttp.ttp_type)) field_type_parameters#items); *)
 			(* DynArray.iter (fun ttp -> debug_msg (Printf.sprintf "TTP %s %s" ttp.ttp_name (s_type_kind ttp.ttp_type)) type_type_parameters#items); *)
 			(* print_stacktrace (); *)
-			chunk#write_byte 0 (* TMono None *)
+			(* chunk#write_byte 0 (1* TMono None *1) *)
+			raise Exit
 		end
 
 	method write_type_instance ?(debug:bool = false) t =
@@ -428,7 +435,7 @@ class ['a] hxb_writer
 			end
 		| TInst({cl_kind = KTypeParameter _} as c,[]) ->
 			(* debug_msg (Printf.sprintf "[%s] KTypeParameter for %s" (s_type_path current_module.m_path) (s_type_path c.cl_path)); *)
-			self#write_type_parameter_ref c
+			self#write_type_parameter_ref_debug c
 		| TInst({cl_kind = KExpr e},[]) ->
 			chunk#write_byte 8;
 			self#write_expr e;
@@ -867,12 +874,15 @@ class ['a] hxb_writer
 		self#write_metadata v.v_meta;
 		self#write_pos v.v_pos
 
+	method write_type_instance_debug (t : TType.t) (pos : pos) =
+		(try self#write_type_instance ~debug:true t; with _ -> begin
+			prerr_endline (Printf.sprintf "Error while writing type instance for:");
+			display_source_at pos;
+		end);
+
 	method write_texpr (e : texpr) =
 		let rec loop ?(debug:bool = false) e =
-			(try self#write_type_instance ~debug e.etype; with _ -> begin
-				prerr_endline (Printf.sprintf "Error while writing type instance for:");
-				(* MessageReporting.display_source_at com e.epos; *)
-			end);
+			self#write_type_instance_debug e.etype e.epos;
 			self#write_pos e.epos;
 
 			match e.eexpr with
@@ -941,7 +951,8 @@ class ['a] hxb_writer
 					self#write_var v;
 					chunk#write_option eo loop;
 				);
-				self#write_type_instance tf.tf_type;
+				(* self#write_type_instance tf.tf_type; *)
+				self#write_type_instance_debug tf.tf_type e.epos;
 				loop tf.tf_expr;
 			(* texpr compounds 60-79 *)
 			| TArray(e1,e2) ->
@@ -1073,7 +1084,7 @@ class ['a] hxb_writer
 			(* module types 120-139 *)
 			| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter []} as c)) ->
 				chunk#write_byte 128;
-				self#write_type_parameter_ref c
+				self#write_type_parameter_ref_debug c
 			| TTypeExpr (TClassDecl c) ->
 				chunk#write_byte 120;
 				self#write_class_ref c;
@@ -1098,7 +1109,7 @@ class ['a] hxb_writer
 				chunk#write_string m.m_extra.m_sign;
 			| TNew(({cl_kind = KTypeParameter _} as c),tl,el) ->
 				chunk#write_byte 127;
-				self#write_type_parameter_ref c;
+				self#write_type_parameter_ref_debug c;
 				self#write_types tl;
 				loop_el el;
 			| TNew(c,tl,el) ->
@@ -1216,7 +1227,7 @@ class ['a] hxb_writer
 		self#write_field_kind cf.cf_kind;
 		(try chunk#write_option cf.cf_expr self#write_texpr with e -> begin
 			prerr_endline (Printf.sprintf "%s while writing expr for field %s" todo_error cf.cf_name);
-			(* MessageReporting.display_source_at com cf.cf_pos; *)
+			display_source_at cf.cf_pos;
 			(* raise e *)
 		end);
 		chunk#write_option cf.cf_expr_unoptimized self#write_texpr;

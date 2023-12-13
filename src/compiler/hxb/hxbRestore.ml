@@ -30,7 +30,7 @@ class hxb_restore
 
 	method load (cc : CompilationCache.context_cache) (mc : module_cache) =
 		(* if com.module_ignore_hxb#find mc.mc_path then raise Not_found; *)
-		(* trace (Printf.sprintf "Loading module %s from hxb cache" (s_type_path mc.mc_path)); *)
+		trace (Printf.sprintf "Loading module %s from hxb cache" (s_type_path mc.mc_path));
 		let reader = new HxbReader.hxb_reader (self#make_module mc) self#add_module self#resolve_type (fun () -> ()) in
 		try reader#read (IO.input_bytes mc.mc_bytes) true null_pos with
 		| Bad_module (path, reason) ->
@@ -40,16 +40,17 @@ class hxb_restore
 			raise (Bad_module (mc.mc_path, DependencyDirty (path, reason)))
 		| HxbData.HxbFailure e ->
 			prerr_endline (Printf.sprintf "Error loading %s from hxb: %s" (s_type_path mc.mc_path) e);
-			(* trace (Printf.sprintf "Error loading %s from hxb: %s" (s_type_path mc.mc_path) e); *)
+			trace (Printf.sprintf "Error loading %s from hxb: %s" (s_type_path mc.mc_path) e);
 			local_module_lut#remove (mc.mc_extra.m_sign, mc.mc_path);
 			raise (HxbData.HxbFailure e)
 		| e ->
 			prerr_endline (Printf.sprintf "Error loading %s from hxb" (s_type_path mc.mc_path));
-			(* trace (Printf.sprintf "Error loading %s from hxb" (s_type_path mc.mc_path)); *)
+			trace (Printf.sprintf "Error loading %s from hxb" (s_type_path mc.mc_path));
 			local_module_lut#remove (mc.mc_extra.m_sign, mc.mc_path);
 			raise e
 
 	method add_module (m : module_def) =
+		trace (Printf.sprintf "Add module %s" (s_type_path m.m_path));
 		local_module_lut#add (m.m_extra.m_sign, m.m_path) m
 
 	method resolve_type (sign : string) (pack : string list) (mname : string) (tname : string) =
@@ -87,6 +88,7 @@ let find
 	(path : path)
 	=
 	(* trace (Printf.sprintf "Find module %s" (s_type_path path)); *)
+	(* trace_call_stack (); *)
 	let loader = new hxb_restore cs com local_module_lut in
 	loader#find path sign
 
@@ -98,6 +100,7 @@ let find_type
 	(path : path)
 	=
 	(* trace (Printf.sprintf "Find type %s" (s_type_path path)); *)
+	(* trace_call_stack (); *)
 	let m = find local_module_lut cs sign com path in
 	List.find (fun t -> snd (t_path t) = (snd path)) m.m_types
 

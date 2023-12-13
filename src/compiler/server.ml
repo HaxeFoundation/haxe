@@ -457,7 +457,7 @@ let add_modules local_module_lut sctx ctx m p =
 	add_modules "" m m;
 	let com_sign = CommonCache.get_cache_sign com in
 	local_module_lut#iter (fun (sign, path) m ->
-		trace (Printf.sprintf "Adding module %s from hxb cache" (s_type_path path));
+		(* trace (Printf.sprintf "Adding module %s from hxb cache" (s_type_path path)); *)
 		(if sign = com_sign then com else Option.get (com.get_macros())).module_lut#add path m
 	);
 	local_module_lut#clear

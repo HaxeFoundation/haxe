@@ -201,8 +201,9 @@ class hxb_reader
 		try PMap.find name fields with e ->
 			prerr_endline (Printf.sprintf "[%s]  %s reading field %s" (s_type_path m.m_path) todo_error name);
 			prerr_endline (Printf.sprintf "    Available fields: %s" (PMap.fold (fun f acc -> acc ^ " " ^ f.cf_name) fields ""));
-			print_stacktrace ();
-			null_field
+			(* print_stacktrace (); *)
+			(* null_field *)
+			raise e
 
 	method read_enum_field_ref en =
 		let name = self#read_string in

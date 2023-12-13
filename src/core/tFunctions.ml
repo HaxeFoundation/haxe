@@ -715,6 +715,9 @@ let rec module_type_of_type = function
 		| _ -> raise Exit)
 	| _ ->
 		raise Exit
+	(* | TFun of tsignature *)
+	(* | TAnon of tanon *)
+	(* | TDynamic of t option *)
 
 let tconst_to_const = function
 	| TInt i -> Int (Int32.to_string i, None)

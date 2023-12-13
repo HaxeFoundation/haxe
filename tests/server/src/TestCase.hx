@@ -103,7 +103,11 @@ class TestCase implements ITest {
 				sendErrorMessage(result.stderr);
 			}
 			done();
-		}, sendErrorMessage);
+		}, function(err) {
+			trace(err);
+			debugMessages();
+			sendErrorMessage(err);
+		});
 	}
 
 	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:() -> Void) {
