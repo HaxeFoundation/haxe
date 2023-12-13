@@ -511,6 +511,15 @@ and expr_field dce e fa is_call_expr =
 	end;
 	expr dce e;
 
+and check_op dce op = match op with
+	| OpMod ->
+		check_and_add_feature dce "binop_%";
+	| OpUShr ->
+		check_and_add_feature dce "binop_>>>";
+	| OpAssignOp op ->
+		check_op dce op
+	| _ ->
+		()
 
 and expr dce e =
 	mark_t dce e.epos e.etype;
@@ -605,10 +614,15 @@ and expr dce e =
 		check_and_add_feature dce "dynamic_array_read";
 		expr dce e1;
 		expr dce e2;
-	| TBinop( (OpAssign | OpAssignOp _), ({eexpr = TArray({etype = TDynamic None},_)} as e1), e2) ->
+	| TBinop(OpAssign, ({eexpr = TArray({etype = TDynamic None},_)} as e1), e2) ->
 		check_and_add_feature dce "dynamic_array_write";
 		expr dce e1;
 		expr dce e2;
+	| TBinop(OpAssignOp op, ({eexpr = TArray({etype = TDynamic None},_)} as e1), e2) ->
+		check_op dce op;
+		check_and_add_feature dce "dynamic_array_write";
+		expr dce e1;
+		expr dce e2;		
 	| TArray(({etype = t} as e1),e2) when is_array t ->
 		check_and_add_feature dce "array_read";
 		expr dce e1;
@@ -629,10 +643,12 @@ and expr dce e =
 		expr dce e1;
 		expr dce e2;
 	| TBinop(OpAssignOp op,({eexpr = TField(_,(FDynamic _ as fa) )} as e1),e2) ->
+		check_op dce op;
 		check_dynamic_write dce fa;
 		expr dce e1;
 		expr dce e2;
 	| TBinop(OpAssignOp op,({eexpr = TField(_,(FAnon cf as fa) )} as e1),e2) ->
+		check_op dce op;
 		if Meta.has Meta.Optional cf.cf_meta then
 			check_anon_optional_write dce fa
 		else
@@ -655,12 +671,8 @@ and expr dce e =
 		check_and_add_feature dce "type_param_binop_!=";
 		expr dce e1;
 		expr dce e2;
-	| TBinop(OpMod,e1,e2) ->
-		check_and_add_feature dce "binop_%";
-		expr dce e1;
-		expr dce e2;
-	| TBinop((OpUShr | OpAssignOp OpUShr),e1,e2) ->
-		check_and_add_feature dce "binop_>>>";
+	| TBinop(op,e1,e2) ->
+		check_op dce op;
 		expr dce e1;
 		expr dce e2;
 	| TCall(({ eexpr = TField(ef, fa) } as e2), el ) ->
