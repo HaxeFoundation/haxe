@@ -67,8 +67,8 @@ let after_save sctx com has_error =
 
 let after_compilation sctx com has_error =
 	(* if has_error || not com.display.dms_full_typing || not com.display.dms_populate_cache then *)
-	(* TEMP: Wipe server cache to force loading from hxb *)
-	CommonCache.clear_cache sctx.cs com
+		(* TEMP: Wipe server cache to force loading from hxb *)
+		CommonCache.clear_cache sctx.cs com
 
 let ensure_macro_setup sctx =
 	if not sctx.macro_context_setup then begin

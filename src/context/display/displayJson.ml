@@ -294,8 +294,7 @@ let handler =
 			let cs = hctx.display#get_cs in
 			let cc = cs#get_context sign in
 			let m = try
-				let local_module_lut = new Lookup.hashtbl_lookup in
-				HxbRestore.find local_module_lut cs sign hctx.com path
+				HxbRestore.find cs sign hctx.com path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
@@ -306,8 +305,7 @@ let handler =
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "modulePath") in
 			let typeName = hctx.jsonrpc#get_string_param "typeName" in
 			let m = try
-				let local_module_lut = new Lookup.hashtbl_lookup in
-				HxbRestore.find local_module_lut hctx.display#get_cs sign hctx.com path
+				HxbRestore.find hctx.display#get_cs sign hctx.com path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in

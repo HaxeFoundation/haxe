@@ -766,7 +766,7 @@ let type_types_into_module ctx m tdecls p =
 	if ctx.g.std_types != null_module then begin
 		add_dependency m ctx.g.std_types;
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
-		ignore(load_instance ctx (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal)
+		(* ignore(load_instance ctx (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal) *)
 	end;
 	ModuleLevel.init_type_params ctx decls;
 	(* setup module types *)
@@ -796,7 +796,6 @@ let type_module_hook = ref (fun _ _ _ -> None)
 let rec get_reader ctx g p =
 	(* TODO: create typer context for this module? *)
 	(* let ctx = create_typer_context_for_module tctx m in *)
-	let local_module_lut = new Lookup.hashtbl_lookup in
 
 	let make_module path file =
 		let m = ModuleLevel.make_module ctx path file in
@@ -815,7 +814,7 @@ let rec get_reader ctx g p =
 	in
 
 	let resolve_type sign pack mname tname =
-		let m = try HxbRestore.find local_module_lut ctx.Typecore.com.cs sign ctx.Typecore.com (pack,mname)
+		let m = try HxbRestore.find ctx.Typecore.com.cs sign ctx.Typecore.com (pack,mname)
 		with Not_found -> load_module' ctx g (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 	in
@@ -852,45 +851,51 @@ and load_hxb_module ctx g path p =
 		close_in ch;
 		raise e
 
+and do_type_module ctx g mpath p =
+	let raise_not_found () = raise_error_msg (Module_not_found mpath) p in
+	if ctx.com.module_nonexistent_lut#mem mpath then raise_not_found();
+	if ctx.g.load_only_cached_modules then raise_not_found();
+	let is_extern = ref false in
+	let file, decls = try
+		(* Try parsing *)
+		TypeloadParse.parse_module ctx mpath p
+	with Not_found ->
+		(* Nothing to parse, try loading extern type *)
+		let rec loop = function
+			| [] ->
+				ctx.com.module_nonexistent_lut#add mpath true;
+				raise_not_found()
+			| (file,load) :: l ->
+				match load mpath p with
+				| None -> loop l
+				| Some (_,a) -> file, a
+		in
+		is_extern := true;
+		loop ctx.com.load_extern_type
+	in
+	let is_extern = !is_extern in
+	try
+		type_module ctx mpath file ~is_extern decls p
+	with Forbid_package (inf,pl,pf) when p <> null_pos ->
+		raise (Forbid_package (inf,p::pl,pf))
+
+and do_load_module' ctx g mpath p =
+	(* Check cache *)
+	match !type_module_hook ctx mpath p with
+	| Some m ->
+		(* ctx.com.module_lut#add mpath m; *)
+		(* do_add_module ctx.com m; *)
+		m
+	(* Try loading from hxb first, then from source *)
+	| None -> try load_hxb_module ctx g mpath p with Not_found ->
+		do_type_module ctx g mpath p
+
 and load_module' ctx g mpath p =
 	try
 		(* Check current context *)
 		ctx.com.module_lut#find mpath
 	with Not_found ->
-		(* Check cache *)
-		match !type_module_hook ctx mpath p with
-		| Some m ->
-			(* ctx.com.module_lut#add mpath m; *)
-			do_add_module ctx.com m;
-			m
-		(* Try loading from hxb first, then from source *)
-		| None -> try load_hxb_module ctx g mpath p with Not_found ->
-			let raise_not_found () = raise_error_msg (Module_not_found mpath) p in
-			if ctx.com.module_nonexistent_lut#mem mpath then raise_not_found();
-			if ctx.g.load_only_cached_modules then raise_not_found();
-			let is_extern = ref false in
-			let file, decls = try
-				(* Try parsing *)
-				TypeloadParse.parse_module ctx mpath p
-			with Not_found ->
-				(* Nothing to parse, try loading extern type *)
-				let rec loop = function
-					| [] ->
-						ctx.com.module_nonexistent_lut#add mpath true;
-						raise_not_found()
-					| (file,load) :: l ->
-						match load mpath p with
-						| None -> loop l
-						| Some (_,a) -> file, a
-				in
-				is_extern := true;
-				loop ctx.com.load_extern_type
-			in
-			let is_extern = !is_extern in
-			try
-				type_module ctx mpath file ~is_extern decls p
-			with Forbid_package (inf,pl,pf) when p <> null_pos ->
-				raise (Forbid_package (inf,p::pl,pf))
+		do_load_module' ctx g mpath p
 
 let load_module ctx m p =
 	let m2 = load_module' ctx ctx.g m p in
@@ -901,5 +906,11 @@ let load_module ctx m p =
 (* let load_module ctx m p =
 	let timer = Timer.timer ["typing";"load_module"] in
 	Std.finally timer (load_module ctx m) p *)
+
+(* Same as load_module, but skips ctx.com.module_lut *)
+let do_load_module ctx m p =
+	let m2 = do_load_module' ctx ctx.g m p in
+	(* if ctx.pass = PTypeField then flush_pass ctx PConnectField ("load_module",fst m @ [snd m]); *)
+	m2
 
 ;;
