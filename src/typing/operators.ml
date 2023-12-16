@@ -630,6 +630,10 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 			WithType.value
 	in
 	let e1 = type_expr ctx e1 wt in
+	let e1 = match wt with
+		| WithType.WithType(t,_) -> AbstractCast.cast_or_unify ctx t e1 e1.epos
+		| _ -> e1
+	in
 	let result = if abstract_overload_only then begin
 		let e2 = type_binop_rhs ctx op e1 e2 is_assign_op with_type p in
 		try_abstract_binop_overloads ctx op e1 e2 is_assign_op p
