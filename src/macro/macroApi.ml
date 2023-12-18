@@ -413,7 +413,7 @@ and encode_display_kind dk =
 	| DKMarked -> 3, []
 	| DKPattern outermost -> 4, [vbool outermost]
 	in
-	encode_enum ~pos:None IDisplayKind tag pl
+	encode_enum IDisplayKind tag pl
 
 and encode_display_mode dm =
 	let tag, pl = match dm with
@@ -429,7 +429,7 @@ and encode_display_mode dm =
 		| DMModuleSymbols (Some s) -> 9, [(encode_string s)]
 		| DMSignature -> 10, []
 	in
-	encode_enum ~pos:None IDisplayMode tag pl
+	encode_enum IDisplayMode tag pl
 
 and encode_platform p =
 	let tag, pl = match p with
@@ -447,7 +447,7 @@ and encode_platform p =
 		| Eval -> 11, []
 		| CustomTarget s -> 12, [(encode_string s)]
 	in
-	encode_enum ~pos:None IPlatform tag pl
+	encode_enum IPlatform tag pl
 
 and encode_platform_config pc =
 	encode_obj [
@@ -475,7 +475,7 @@ and encode_capture_policy cp =
 		| CPWrapRef -> 1
 		| CPLoopVars -> 2
 	in
-	encode_enum ~pos:None ICapturePolicy tag []
+	encode_enum ICapturePolicy tag []
 
 and encode_var_scoping_config vsc =
 	encode_obj [
@@ -488,7 +488,7 @@ and encode_var_scope vs =
 		| FunctionScope -> 0
 		| BlockScope -> 1
 	in
-	encode_enum ~pos:None IVarScope tag []
+	encode_enum IVarScope tag []
 
 and encode_var_scoping_flags vsf =
 	let tag, pl = match vsf with
@@ -501,7 +501,7 @@ and encode_var_scoping_flags vsf =
 		| ReserveNames (names) -> 6, [encode_array (List.map encode_string names)]
 		| SwitchCasesNoBlocks -> 7, []
 	in
-	encode_enum ~pos:None IVarScopingFlags tag pl
+	encode_enum IVarScopingFlags tag pl
 
 and encode_exceptions_config ec =
 	encode_obj [
@@ -519,7 +519,7 @@ and encode_package_rule pr =
 		| Directory (path) -> 1, [encode_string path]
 		| Remap (path) -> 2, [encode_string path]
 	in
-	encode_enum ~pos:None IPackageRule tag pl
+	encode_enum IPackageRule tag pl
 
 and encode_message cm =
 	let tag, pl = match cm.cm_severity with
@@ -527,7 +527,7 @@ and encode_message cm =
 		| Warning | Hint -> 1, [(encode_string cm.cm_message); (encode_pos cm.cm_pos)]
 		| Error -> Globals.die "" __LOC__
 	in
-	encode_enum ~pos:None IMessage tag pl
+	encode_enum IMessage tag pl
 
 and encode_efield_kind efk =
 	let i = match efk with
