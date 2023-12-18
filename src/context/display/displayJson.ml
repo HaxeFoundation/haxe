@@ -293,8 +293,11 @@ let handler =
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
 			let cs = hctx.display#get_cs in
 			let cc = cs#get_context sign in
+			(* TODO? *)
 			let m = try
-				HxbRestore.find cs sign hctx.com path
+				let check _ _ _ = None in
+				let load _ _ = raise Not_found in
+				HxbRestore.find cs sign hctx.com load check path null_pos
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
@@ -305,7 +308,9 @@ let handler =
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "modulePath") in
 			let typeName = hctx.jsonrpc#get_string_param "typeName" in
 			let m = try
-				HxbRestore.find hctx.display#get_cs sign hctx.com path
+				let check _ _ _ = None in
+				let load _ _ = raise Not_found in
+				HxbRestore.find hctx.display#get_cs sign hctx.com load check path null_pos
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in

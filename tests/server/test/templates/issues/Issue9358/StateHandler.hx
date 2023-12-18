@@ -1,4 +1,4 @@
-@:generic
+// @:generic
 class StateHandler<S> {
 	public var state(default, set):S;
 

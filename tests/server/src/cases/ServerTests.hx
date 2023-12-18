@@ -42,6 +42,7 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		assertReuse("Dependency");
 		assertReuse("WithDependency");
+		debugMessages();
 	}
 
 	function testMacro() {

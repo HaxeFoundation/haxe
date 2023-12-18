@@ -175,6 +175,8 @@ let die ?p msg ml_loc =
 	let ver = s_version_full
 	and os_type = if Sys.unix then "unix" else "windows" in
 	Printf.eprintf "%s\nHaxe: %s; OS type: %s;\n%s\n%s" msg ver os_type ml_loc backtrace;
+	trace ml_loc;
+	trace backtrace;
 	assert false
 
 module MessageSeverity = struct

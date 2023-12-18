@@ -7,13 +7,21 @@ class virtual ['key,'value] lookup = object(self)
 	method virtual fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc
 	method virtual mem : 'key -> bool
 	method virtual clear : unit
+
+	method virtual start_group : int
+	method virtual commit_group : int -> int
+	method virtual discard_group : int -> int
 end
 
 class ['key,'value] pmap_lookup = object(self)
 	inherit ['key,'value] lookup
 	val mutable lut : ('key,'value) PMap.t = PMap.empty
 
+	val mutable group_id : int ref = ref 0
+	val mutable groups : (int,'key list) PMap.t = PMap.empty
+
 	method add (key : 'key) (value : 'value) =
+		groups <- PMap.map (fun modules -> key :: modules) groups;
 		lut <- PMap.add key value lut
 
 	method remove (key : 'key) =
@@ -33,13 +41,36 @@ class ['key,'value] pmap_lookup = object(self)
 
 	method clear =
 		lut <- PMap.empty
+
+	method start_group =
+		incr group_id;
+		let i = !group_id in
+		groups <- PMap.add i [] groups;
+		i
+
+	method commit_group i =
+		let group = PMap.find i groups in
+		let n = List.length group in
+		groups <- PMap.remove i groups;
+		n
+
+	method discard_group i =
+		let group = PMap.find i groups in
+		let n = List.length group in
+		List.iter (fun mpath -> self#remove mpath) group;
+		groups <- PMap.remove i groups;
+		n
 end
 
 class ['key,'value] hashtbl_lookup = object(self)
 	inherit ['key,'value] lookup
 	val lut : ('key,'value) Hashtbl.t = Hashtbl.create 0
 
+	val mutable group_id : int ref = ref 0
+	val mutable groups : (int,'key list) Hashtbl.t = Hashtbl.create 0
+
 	method add (key : 'key) (value : 'value) =
+		Hashtbl.iter (fun i modules -> Hashtbl.replace groups i (key :: modules)) groups;
 		Hashtbl.replace lut key value
 
 	method remove (key : 'key) =
@@ -59,5 +90,24 @@ class ['key,'value] hashtbl_lookup = object(self)
 
 	method clear =
 		Hashtbl.clear lut
+
+	method start_group =
+		incr group_id;
+		let i = !group_id in
+		Hashtbl.replace groups i [];
+		i
+
+	method commit_group i =
+		let group = Hashtbl.find groups i in
+		let n = List.length group in
+		Hashtbl.remove groups i;
+		n
+
+	method discard_group i =
+		let group = Hashtbl.find groups i in
+		let n = List.length group in
+		List.iter (fun mpath -> self#remove mpath) group;
+		Hashtbl.remove groups i;
+		n
 end
 

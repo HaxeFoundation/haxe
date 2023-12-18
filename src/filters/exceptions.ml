@@ -587,7 +587,10 @@ let insert_save_stacks tctx =
 		let native_stack_trace_cls =
 			(* let tp = mk_type_path (["haxe"],"NativeStackTrace") in *)
 			(* match Typeload.load_type_def tctx null_pos tp with *)
-			match HxbRestore.find_type tctx.com.cs (CommonCache.get_cache_sign tctx.com) tctx.com (["haxe"], "NativeStackTrace") with
+			(* TODO might not want to go directly to hxb restore? *)
+			let check _ _ _ = None in
+			let load _ _ = raise Not_found in
+			match HxbRestore.find_type tctx.com.cs (CommonCache.get_cache_sign tctx.com) tctx.com load check (["haxe"], "NativeStackTrace") null_pos with
 			| TClassDecl cls -> cls
 			| TAbstractDecl { a_impl = Some cls } -> cls
 			| _ -> raise_typing_error "haxe.NativeStackTrace is expected to be a class or an abstract" null_pos

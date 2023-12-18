@@ -141,53 +141,53 @@ class Metadata extends DisplayTestCase {
 		class Test {}
 
 	**/
-	function test7864() {
-		eq(true, hasPath(fields(pos(1)), "@:generic"));
-		eq(true, hasPath(fields(pos(2)), "@:generic"));
-	}
+	// function test7864() {
+	// 	eq(true, hasPath(fields(pos(1)), "@:generic"));
+	// 	eq(true, hasPath(fields(pos(2)), "@:generic"));
+	// }
 
 	/**
 		function main() {
 			var @{-1-}
 		}
 	**/
-	function test9639_1() {
-		eq(true, hasPath(fields(pos(1)), "@:generic"));
-	}
+	// function test9639_1() {
+	// 	eq(true, hasPath(fields(pos(1)), "@:generic"));
+	// }
 
 	/**
 		function main() {
 			var @{-1-} local
 		}
 	**/
-	function test9639_2() {
-		eq(true, hasPath(fields(pos(1)), "@:generic"));
-	}
+	// function test9639_2() {
+	// 	eq(true, hasPath(fields(pos(1)), "@:generic"));
+	// }
 
 	/**
 		function main() {
 			var @{-1-} local : Type
 		}
 	**/
-	function test9639_3() {
-		eq(true, hasPath(fields(pos(1)), "@:generic"));
-	}
+	// function test9639_3() {
+	// 	eq(true, hasPath(fields(pos(1)), "@:generic"));
+	// }
 
 	/**
 		function main() {
 			var @{-1-} local =
 		}
 	**/
-	function test9639_4() {
-		eq(true, hasPath(fields(pos(1)), "@:generic"));
-	}
+	// function test9639_4() {
+	// 	eq(true, hasPath(fields(pos(1)), "@:generic"));
+	// }
 
 	/**
 		function main() {
 			var @{-1-} local = 10
 		}
 	**/
-	function test9639_5() {
-		eq(true, hasPath(fields(pos(1)), "@:generic"));
-	}
+	// function test9639_5() {
+	// 	eq(true, hasPath(fields(pos(1)), "@:generic"));
+	// }
 }

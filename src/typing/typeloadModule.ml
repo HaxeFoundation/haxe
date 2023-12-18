@@ -49,7 +49,13 @@ let do_add_module com m =
 		trace (Printf.sprintf "Adding module %s with a different sign!" (s_type_path m.m_path));
 		trace (Define.retrieve_defines sign);
 		trace (Define.retrieve_defines m.m_extra.m_sign);
-	end else com.module_lut#add m.m_path m;
+	end else begin
+		match m.m_extra.m_cache_state with
+		| MSBad _ ->
+		(* | MSBad _ | MSRestored MSBad _ -> *)
+			trace (Printf.sprintf "[typeloadModule] Trying to add module %s with state %s" (s_type_path m.m_path) (Printer.s_module_cache_state m.m_extra.m_cache_state));
+		| _ -> com.module_lut#add m.m_path m
+	end
 
 module ModuleLevel = struct
 	let make_module ctx mpath file =
@@ -814,7 +820,10 @@ let rec get_reader ctx g p =
 	in
 
 	let resolve_type sign pack mname tname =
-		let m = try HxbRestore.find ctx.Typecore.com.cs sign ctx.Typecore.com (pack,mname)
+		(* TODO? *)
+		let check _ _ _ = None in
+		let load _ _ = raise Not_found in
+		let m = try HxbRestore.find ctx.Typecore.com.cs sign ctx.Typecore.com load check (pack,mname) p
 		with Not_found -> load_module' ctx g (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 	in
@@ -891,10 +900,21 @@ and do_load_module' ctx g mpath p =
 		do_type_module ctx g mpath p
 
 and load_module' ctx g mpath p =
-	try
+	try begin
 		(* Check current context *)
-		ctx.com.module_lut#find mpath
-	with Not_found ->
+		let m = ctx.com.module_lut#find mpath in
+		(* (match m.m_extra.m_cache_state with *)
+		(* 	| MSBad reason -> *)
+		(* 		trace (Printf.sprintf "com.module_lut has dirty module %s ?!" (s_type_path mpath)); *)
+		(* 		(1* ctx.com.module_lut#remove mpath; *1) *)
+		(* 		(1* self#maybe_remove_dirty path; *1) *)
+		(* 		(1* self#remove_dirty_dep (DependencyDirty (path, reason)); *1) *)
+		(* 		raise (Bad_module (mpath, reason)) *)
+		(* 		(1* raise Not_found *1) *)
+		(* 	| _ -> () *)
+		(* ); *)
+		m
+	end with Not_found ->
 		do_load_module' ctx g mpath p
 
 let load_module ctx m p =

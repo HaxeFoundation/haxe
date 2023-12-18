@@ -199,8 +199,8 @@ class hxb_reader
 	method read_field_ref fields =
 		let name = self#read_string in
 		try PMap.find name fields with e ->
-			prerr_endline (Printf.sprintf "[%s]  %s reading field %s" (s_type_path m.m_path) todo_error name);
-			prerr_endline (Printf.sprintf "    Available fields: %s" (PMap.fold (fun f acc -> acc ^ " " ^ f.cf_name) fields ""));
+			trace (Printf.sprintf "[%s]  %s reading field %s" (s_type_path m.m_path) todo_error name);
+			trace (Printf.sprintf "    Available fields: %s" (PMap.fold (fun f acc -> acc ^ " " ^ f.cf_name) fields ""));
 			(* print_stacktrace (); *)
 			(* null_field *)
 			raise e
@@ -210,7 +210,9 @@ class hxb_reader
 		try PMap.find name en.e_constrs with e ->
 			prerr_endline (Printf.sprintf "  %s reading enum field ref for %s.%s" todo_error (s_type_path en.e_path) name);
 			prerr_endline (Printf.sprintf "    Available fields: %s" (PMap.fold (fun ef acc -> acc ^ " " ^ ef.ef_name) en.e_constrs ""));
-			null_enum_field
+			(* print_stacktrace (); *)
+			(* null_enum_field *)
+			raise e
 
 	method read_anon_ref =
 		match IO.read_byte ch with

@@ -66,6 +66,9 @@ class context_cache (index : int) (sign : string) = object(self)
 	method find_module_opt path =
 		Hashtbl.find_opt modules path
 
+	method find_module_extra path =
+		try (Hashtbl.find modules path).m_extra with Not_found -> (Hashtbl.find binary_cache path).mc_extra
+
 	method cache_module display_source_at anon_identification path m =
 		Hashtbl.replace modules path m;
 		let writer = new HxbWriter.hxb_writer display_source_at anon_identification in

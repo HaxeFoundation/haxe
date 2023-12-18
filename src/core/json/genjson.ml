@@ -713,8 +713,8 @@ let generate_module cs cc m =
 		"cacheState",jstring (match m.m_extra.m_cache_state with
 			| MSGood -> "Good"
 			| MSBad reason -> Printer.s_module_skip_reason reason
-			| MSUnknown -> "Unknown"
-			| MSRestored _ -> "Restored");
+			| MSUnknown -> "Unknown");
+			(* | MSRestored _ -> "Restored"); *)
 		"dependencies",jarray (PMap.fold (fun (sign,mpath) acc ->
 			(jobject [
 				"path",jstring (s_type_path mpath);
