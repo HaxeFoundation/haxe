@@ -360,7 +360,7 @@ let value_signature v =
 		| VHandle _ ->
 			custom_name 'H'
 		| VLazy f ->
-			loop (!f())
+			loop (Lazy.force f)
 	and loop_fields fields =
 		List.iter (fun (name,v) ->
 			adds (rev_hash name);
