@@ -758,7 +758,7 @@ let rec decode_ast_path t =
 	let p_full = field t "pos" in
 	let p_full = if p_full = vnull then Globals.null_pos else decode_pos p_full in
 	let p_path = field t "posPath" in
-	let p_path = if p_path = vnull then Globals.null_pos else decode_pos p_path in
+	let p_path = if p_path = vnull then p_full else decode_pos p_path in
 	make_ptp (mk_type_path ~params ?sub (pack,name)) ~p_path p_full
 
 and decode_tparam v =

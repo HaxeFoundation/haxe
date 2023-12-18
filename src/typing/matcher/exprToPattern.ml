@@ -361,9 +361,15 @@ let rec make pctx toplevel t e =
 			let is_matchable cf =
 				match cf.cf_kind with Method _ -> false | _ -> true
 			in
+			(* TODO: This needs a better check, but it's not obvious how to approach this. *)
+			let is_probably_pos cf = match cf.cf_name with
+				| "pos" | "posPath" -> true
+				| _ -> false
+			in
 			let patterns,fields = List.fold_left (fun (patterns,fields) (cf,t) ->
 				try
-					if pctx.in_reification && cf.cf_name = "pos" then raise Not_found;
+					if pctx.in_reification && is_probably_pos cf then
+						raise Not_found;					
 					let e1 = Expr.field_assoc cf.cf_name fl in
 					make pctx false t e1 :: patterns,cf.cf_name :: fields
 				with Not_found ->
