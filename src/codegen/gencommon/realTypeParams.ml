@@ -400,7 +400,7 @@ struct
 		let rec loop curcls params level reverse_params =
 			if (level <> 0 || (has_class_flag curcls CInterface) || (has_class_flag curcls CAbstract) ) && params <> [] && is_hxgeneric (TClassDecl curcls) then begin
 				let cparams = List.map (fun ttp ->
-					mk_type_param ttp.ttp_name (map_param ttp.ttp_class) ttp.ttp_default ttp.ttp_constraints
+					mk_type_param (map_param ttp.ttp_class) ttp.ttp_default ttp.ttp_constraints
 				) curcls.cl_params in
 				let name = get_cast_name curcls in
 				if not (PMap.mem name cl.cl_fields) then begin
@@ -461,7 +461,7 @@ struct
 		reset_temps();
 		let basic = gen.gcon.basic in
 		let cparams = List.map (fun ttp ->
-			mk_type_param ttp.ttp_name (map_param ttp.ttp_class) ttp.ttp_default ttp.ttp_constraints
+			mk_type_param (map_param ttp.ttp_class) ttp.ttp_default ttp.ttp_constraints
 		) cl.cl_params in
 		let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
 		let params = extract_param_types cparams in
@@ -594,7 +594,7 @@ struct
 		let p = iface.cl_pos in
 		let basic = gen.gcon.basic in
 		let cparams = List.map (fun ttp ->
-			mk_type_param ("To_" ^ ttp.ttp_name) (map_param ttp.ttp_class) ttp.ttp_default ttp.ttp_constraints
+			mk_type_param (map_param ttp.ttp_class) ttp.ttp_default ttp.ttp_constraints
 		) cf.cf_params in
 		let me_type = TInst(iface,[]) in
 		let cfield = mk_class_field ~static:true "__hx_cast" (TFun(["me",false,me_type], t_dynamic)) false iface.cl_pos (Method MethNormal) (cparams) in
@@ -643,7 +643,7 @@ struct
 			let name = get_cast_name iface in
 			if not (PMap.mem name cthis.cl_fields) then begin
 				let cparams = List.map (fun ttp ->
-					mk_type_param ("To_" ^ ttp.ttp_name) (map_param ttp.ttp_class) ttp.ttp_default ttp.ttp_constraints)
+					mk_type_param (map_param ttp.ttp_class) ttp.ttp_default ttp.ttp_constraints)
 				iface.cl_params in
 				let field = mk_class_field name (TFun([],t_dynamic)) false iface.cl_pos (Method MethNormal) cparams in
 				let this = { eexpr = TConst TThis; etype = TInst(cthis, extract_param_types cthis.cl_params); epos = cthis.cl_pos } in

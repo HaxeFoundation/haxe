@@ -393,7 +393,7 @@ let configure gen ft =
 		in
 
 		(*let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(map_param cl, []) )) tparams in*)
-		let cltypes = List.map (fun cl -> mk_type_param (snd cl.cl_path) cl None None) tparams in
+		let cltypes = List.map (fun cl -> mk_type_param cl None None) tparams in
 
 		(* create a new class that extends abstract function class, with a ctor implementation that will setup all captured variables *)
 		let cfield = match gen.gcurrent_classfield with

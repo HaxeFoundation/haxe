@@ -774,7 +774,7 @@ let rec type_type_param ctx host path get_params p tp =
 	in
 	let ttp = match tp.tp_constraints with
 		| None ->
-			mk_type_param n c default None
+			mk_type_param c default None
 		| Some th ->
 			let constraints = lazy (
 				let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
@@ -797,7 +797,7 @@ let rec type_type_param ctx host path get_params p tp =
 				List.iter loop constr;
 				constr
 			) in
-			mk_type_param n c default (Some constraints)
+			mk_type_param c default (Some constraints)
 	in
 	c.cl_kind <- KTypeParameter ttp;
 	ttp

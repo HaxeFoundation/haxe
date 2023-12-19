@@ -2271,14 +2271,13 @@ let macro_api ccom get_api =
 		"apply_params", vfun3 (fun tpl tl t ->
 			let tl = List.map decode_type (decode_array tl) in
 			let tpl = List.map (fun v ->
-				let name = decode_string (field v "name") in
 				let t = decode_type (field v "t") in
 				let default = None in (* we don't care here *)
 				let c = match t with
 					| TInst(c,_) -> c
 					| _ -> die "" __LOC__
 				in				
-				mk_type_param  name c default None
+				mk_type_param c default None
 			) (decode_array tpl) in
 			let rec map t = match t with
 				| TInst({cl_kind = KTypeParameter _},_) ->

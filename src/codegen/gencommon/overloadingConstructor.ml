@@ -114,7 +114,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 		let static_ctor_name = make_static_ctor_name cl in
 		(* create the static constructor *)
 		let ctor_types = List.map (fun ttp ->
-			mk_type_param ttp.ttp_name (map_param ttp.ttp_class) ttp.ttp_default ttp.ttp_constraints
+			mk_type_param (map_param ttp.ttp_class) ttp.ttp_default ttp.ttp_constraints
 		) cl.cl_params in
 		let ctor_type_params = extract_param_types ctor_types in
 		List.iter (fun ttp -> match get_constraints ttp with

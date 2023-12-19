@@ -655,8 +655,8 @@ let lookup_param n l =
 	in
 	loop l
 
-let mk_type_param n c def constraints = {
-	ttp_name = n;
+let mk_type_param c def constraints = {
+	ttp_name = snd c.cl_path;
 	ttp_type = TInst(c,[]);
 	ttp_class = c;
 	ttp_constraints = constraints;
