@@ -48,7 +48,8 @@ let handle_display_argument_old com file_pos actx =
 			| "diagnostics" ->
 				com.report_mode <- RMLegacyDiagnostics [file_unique];
 				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display}
+				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = false}
+				(* {dm with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display} *)
 			| "statistics" ->
 				com.report_mode <- RMStatistics;
 				let dm = create DMNone in

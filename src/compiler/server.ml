@@ -463,7 +463,7 @@ let add_modules sctx ctx m p =
 				PMap.iter (fun _ (sign,mpath) ->
 					(* let m2 = find_or_restore_module com.cs sign sctx ctx mpath in *)
 					let m2 = (com.cs#get_context sign)#find_module mpath in
-					assert (m2.m_extra.m_sign == sign);
+					(* assert (m2.m_extra.m_sign == sign); *)
 					add_modules (tabs ^ "  ") m0 m2
 				) m.m_extra.m_deps
 			)

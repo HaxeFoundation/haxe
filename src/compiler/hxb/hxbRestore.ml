@@ -68,7 +68,15 @@ class hxb_restore
 		(* if com.module_ignore_hxb#find mc.mc_path then raise Not_found; *)
 		(* trace (Printf.sprintf "Loading module %s from hxb cache" (s_type_path mc.mc_path)); *)
 		let reader = new HxbReader.hxb_reader (self#make_module mc) self#add_module self#resolve_type (fun () -> ()) in
-		try reader#read (IO.input_bytes mc.mc_bytes) true null_pos with
+		try
+			let m = reader#read (IO.input_bytes mc.mc_bytes) true null_pos in
+
+			let spath = s_type_path m.m_path in
+			if spath = "alchimix.utils.Set" || spath = "alchimix.core.GameSolver" then
+				trace (Printf.sprintf "Restored module %s" spath);
+
+			m
+		with
 		| Bad_module (path, reason) ->
 			trace (Printf.sprintf "Error loading module %s from hxb cache: dirty!" (s_type_path mc.mc_path));
 			ServerMessage.skipping_dep com "" (path,(Printer.s_module_skip_reason reason));
@@ -91,7 +99,7 @@ class hxb_restore
 			raise e
 
 	method add_module (m : module_def) =
-		trace (Printf.sprintf "Add module %s" (s_type_path m.m_path));
+		(* trace (Printf.sprintf "Add module %s" (s_type_path m.m_path)); *)
 		if com.module_lut#mem m.m_path then
 				prerr_endline (Printf.sprintf "Hxb restore adding already existing module %s" (s_type_path m.m_path));
 
@@ -121,7 +129,7 @@ class hxb_restore
 			m_extra = { mc.mc_extra with
 				m_added = com.compilation_step;
 				m_checked = 0;
-				m_processed = 1;
+				m_processed = 0;
 				m_features = Hashtbl.create 0; (* ? *)
 				m_if_feature = [];
 				m_cache_state = MSGood;

@@ -20,7 +20,26 @@ let find_cast_field uctx find =
 		| None -> raise Not_found
 
 let find_field_from uctx a b ab tl =
-	List.find (unifies_from_field uctx a b ab tl) ab.a_from_field
+	(match b with
+	| TAbstract ({a_path = (["alchimix";"utils"],"Set")}, _) ->
+		Globals.trace (s_type_kind b);
+		Globals.trace (s_type_kind a);
+		Globals.trace (Printf.sprintf "Has %d @:from fields" (List.length ab.a_from_field));
+		let res = List.find_all (unifies_from_field uctx a b ab tl) ab.a_from_field in
+		Globals.trace (Printf.sprintf "Found %d compatible @:from" (List.length res));
+		let (t,cf) = List.hd ab.a_from_field in
+
+		Globals.trace (s_type_kind (follow_lazy t)); (* TLazy *)
+		List.iter (fun cp ->
+			Globals.trace cp.ttp_name; (* T *)
+			Globals.trace (s_type_kind cp.ttp_type) (* TInst(fromArray.T, []) *)
+		) cf.cf_params;
+
+		(t,cf)
+	| _ ->
+		(* ()); *)
+		List.find (unifies_from_field uctx a b ab tl) ab.a_from_field
+	)
 
 let find_field_to uctx a b ab tl =
 	List.find (unifies_to_field uctx a b ab tl) ab.a_to_field

@@ -166,7 +166,7 @@ let handler =
 
 			(match hctx.com.file_contents with
 			| [file, None] ->
-				hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display};
+				hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = false};
 			| _ -> ());
 		);
 		"display/implementation", (fun hctx ->
@@ -387,9 +387,12 @@ let handler =
 			let cs = hctx.display#get_cs in
 			cs#taint_modules fkey "server/invalidate";
 			cs#remove_files fkey;
-			let mcs = hctx.display#get_macro_cs in
-			mcs#taint_modules fkey "server/invalidate";
-			mcs#remove_files fkey;
+			try
+				(* TODO: this probably shouldn't fail? *)
+				let mcs = hctx.display#get_macro_cs in
+				mcs#taint_modules fkey "server/invalidate";
+				mcs#remove_files fkey
+			with Option.No_value -> ();
 			hctx.send_result jnull
 		);
 		"server/configure", (fun hctx ->

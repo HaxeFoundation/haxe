@@ -480,12 +480,16 @@ let apply_params ?stack cparams params t =
 			| [] -> t
 			| _ -> TAbstract (a,List.map loop tl))
 		| TInst ({cl_kind = KTypeParameter _} as c,[]) ->
+			let spath = (s_type_path c.cl_path) in
+			if spath = "alchimix.utils.Set.T" || spath = "fromArray.T" then trace spath;
 			begin try
 				List.assq c subst
 			with Not_found ->
 				t
 			end
 		| TInst (c,tl) ->
+			let spath = (s_type_path c.cl_path) in
+			if spath = "alchimix.utils.Set.T" || spath = "fromArray.T" then trace spath;
 			(match tl with
 			| [] ->
 				t
@@ -555,6 +559,15 @@ let rec follow t =
 		follow (apply_typedef t tl)
 	| TAbstract({a_path = [],"Null"},[t]) ->
 		follow t
+	| _ -> t
+
+let rec follow_lazy t =
+	match t with
+	| TLazy f ->
+		(match !f with
+		| LAvailable t -> follow_lazy t
+		| _ -> follow_lazy (lazy_type f)
+		)
 	| _ -> t
 
 let follow_once t =

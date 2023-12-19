@@ -375,7 +375,7 @@ class ['a] hxb_writer
 			chunk#write_byte 1;
 			chunk#write_uleb128 index;
 			let close = self#open_field_scope true cf in
-			List.iter (fun ttp -> match follow ttp.ttp_type with
+			List.iter (fun ttp -> match follow_lazy ttp.ttp_type with
 				| TInst(c,_) -> ignore(field_type_parameters#add c.cl_path ttp)
 				| _ -> die "" __LOC__
 			) cf.cf_params;
@@ -430,7 +430,8 @@ class ['a] hxb_writer
 			| None ->
 				chunk#write_byte 0
 			| Some t ->
-				chunk#write_byte 1;
+				(* chunk#write_byte 1; *)
+				(* self#write_type_instance ~debug t *)
 				self#write_type_instance ~debug t
 			end
 		| TInst({cl_kind = KTypeParameter _} as c,[]) ->
@@ -484,6 +485,7 @@ class ['a] hxb_writer
 				| _ ->
 					chunk#write_byte 2;
 					self#write_type_instance ~debug (apply_typedef td tl);
+					(* self#write_typedef_ref td; *)
 					self#write_types tl
 			end;
 		| TAbstract(a,tl) ->
@@ -859,7 +861,7 @@ class ['a] hxb_writer
 		chunk#write_i32 v.v_id;
 		chunk#write_string v.v_name;
 		chunk#write_option v.v_extra (fun ve ->
-			chunk#write_list ve.v_params (fun ttp -> match follow ttp.ttp_type with
+			chunk#write_list ve.v_params (fun ttp -> match follow_lazy ttp.ttp_type with
 				| TInst(c,_) ->
 					let index = local_type_parameters#add c ttp in
 					chunk#write_uleb128 index
@@ -884,6 +886,12 @@ class ['a] hxb_writer
 		let rec loop ?(debug:bool = false) e =
 			self#write_type_instance_debug e.etype e.epos;
 			self#write_pos e.epos;
+
+			(* trace (Printer.s_pos e.epos); *)
+			if (Printer.s_pos e.epos = "src/alchimix/core/GameSolver.hx: 5047-5070") then begin
+				trace (Printer.s_pos e.epos);
+				trace (s_expr_debug e);
+			end;
 
 			match e.eexpr with
 			(* values 0-19 *)
@@ -1140,24 +1148,25 @@ class ['a] hxb_writer
 
 	method set_field_type_parameters (nested : bool) params =
 		if not nested then field_type_parameters <- new pool;
-		List.iter (fun ttp -> match follow ttp.ttp_type with
+		List.iter (fun ttp -> match follow_lazy ttp.ttp_type with
 			| TInst(c,_) -> ignore(field_type_parameters#add c.cl_path ttp);
 			| _ -> die "" __LOC__
 		) params
 
-	method write_type_parameter_forward ttp = match follow ttp.ttp_type with
+	method write_type_parameter_forward ttp = match follow_lazy ttp.ttp_type with
 		| TInst({cl_kind = KTypeParameter _} as c,_) ->
 			chunk#write_string ttp.ttp_name;
 			self#write_pos c.cl_name_pos
 		| _ ->
 			die "" __LOC__
 
-	method write_type_parameter_data ttp = match follow ttp.ttp_type with
+	method write_type_parameter_data ttp = match follow_lazy ttp.ttp_type with
 		| TInst({cl_kind = KTypeParameter tl1} as c,tl2) ->
 			self#write_types tl1;
 			self#write_types tl2;
 			self#write_metadata c.cl_meta
 		| _ ->
+			trace (s_type_kind ttp.ttp_type);
 			die "" __LOC__
 
 	method write_field_kind = function
@@ -1375,7 +1384,7 @@ class ['a] hxb_writer
 	method write_anon (an : tanon) (ttp : type_params) =
 		let old = type_type_parameters in
 		type_type_parameters <- new pool;
-		List.iter (fun ttp -> match follow ttp.ttp_type with
+		List.iter (fun ttp -> match follow_lazy ttp.ttp_type with
 			| TInst(c,_) -> ignore(type_type_parameters#add c.cl_path ttp)
 			| _ -> die "" __LOC__
 		) ttp;
@@ -1454,7 +1463,7 @@ class ['a] hxb_writer
 		let params = new pool in
 		type_type_parameters <- params;
 		ignore(type_param_lut#add infos.mt_path params);
-		List.iter (fun ttp -> match follow ttp.ttp_type with
+		List.iter (fun ttp -> match follow_lazy ttp.ttp_type with
 			| TInst(c,_) -> ignore(type_type_parameters#add c.cl_path ttp)
 			| _ -> die "" __LOC__
 		) infos.mt_params;

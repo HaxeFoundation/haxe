@@ -750,11 +750,13 @@ class hxb_reader
 				(* 	let td = { null_typedef with t_type = TMono tmono; t_path = tp } in *)
 				(* 	TType(td,tl) *)
 				| _ ->
+					(* let t = self#read_typedef_ref in *)
 					let t = self#read_type_instance in
 					let tl = self#read_types in
 					let td = { null_typedef with t_type = t; t_path = tp } in
 					(* let td = { null_typedef with t_type = t; t_path = ([], "708") } in *)
 					TType(td,tl)
+					(* TType(t,tl) *)
 			end
 		| 17 ->
 			let a = self#read_abstract_ref in
@@ -1167,11 +1169,18 @@ class hxb_reader
 		(* prerr_endline (Printf.sprintf "   Done reading texpr at:"); *)
 		(* MessageReporting.display_source_at com pos; *)
 
-		{
+		let e = {
 			eexpr = e;
 			etype = t;
 			epos = pos;
-		}
+		} in
+
+		if (Printer.s_pos e.epos = "src/alchimix/core/GameSolver.hx: 5047-5070") then begin
+			trace (Printer.s_pos e.epos);
+			trace (s_expr_debug e);
+		end;
+
+		e
 
 	method read_texpr_list =
 		let len = IO.read_ui16 ch in
@@ -1228,7 +1237,10 @@ class hxb_reader
 		cf.cf_doc <- doc;
 		cf.cf_meta <- meta;
 		cf.cf_kind <- kind;
+		(* ignore(expr); *)
+		(* ignore(expr_unoptimized); *)
 		cf.cf_expr <- expr;
+		(* cf.cf_expr <- expr_unoptimized; *)
 		cf.cf_expr_unoptimized <- expr_unoptimized;
 		cf.cf_params <- !params;
 		cf.cf_flags <- flags;

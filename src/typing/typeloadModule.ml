@@ -785,6 +785,10 @@ let type_types_into_module ctx m tdecls p =
 	Creates a new module and types [tdecls] into it.
 *)
 let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
+	let spath = s_type_path mpath in
+	if spath = "alchimix.utils.Set" || spath = "alchimix.core.GameSolver" then
+		trace (Printf.sprintf "Type module %s" spath);
+
 	let m = ModuleLevel.make_module ctx mpath file in
 	(* ctx.com.module_lut#add m.m_path m; *)
 	do_add_module ctx.com m;
