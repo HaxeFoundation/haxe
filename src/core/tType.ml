@@ -292,6 +292,7 @@ and tclass = {
 		Populated automatically in post-processing step (Filters.run)
 	*)
 	mutable cl_descendants : tclass list;
+	mutable cl_created_from : string;
 }
 
 and tenum_field = {

@@ -279,7 +279,7 @@ class ['a] typedef_interfaces (infos : 'a info_context) (anon_identification : '
 					acc
 			) pfm.pfm_fields PMap.empty in
 			if PMap.is_empty fields then raise (Unify_error [Unify_custom "no fields"]);
-			let c = mk_class null_module path null_pos null_pos in
+			let c = mk_class null_module path null_pos null_pos "genshared:make_interface_class" in
 			add_class_flag c CInterface;
 			c.cl_fields <- fields;
 			c.cl_ordered_fields <- PMap.fold (fun cf acc -> cf :: acc) fields [];

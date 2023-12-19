@@ -56,6 +56,19 @@ let trace s =
 			()
 	end
 
+let do_trace' = ref false
+let trace' s =
+	if !do_trace' then begin
+		let stack = Printexc.get_callstack 2 in
+		match Printexc.backtrace_slots stack with
+		| Some [|_; item |] ->
+			(match Printexc.Slot.location item with
+			| Some loc -> print_endline (Printf.sprintf "%s%s:%s %s" c_dim (loc_short loc) c_reset s)
+			| _ -> ())
+		| _ ->
+			()
+	end
+
 let trace_call_stack ?(n:int = 5) () =
 	assert (n >= 0);
 	let stack = Printexc.get_callstack (n+2) in

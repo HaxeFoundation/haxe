@@ -107,7 +107,7 @@ let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
 let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 
-let mk_class m path pos name_pos =
+let mk_class m path pos name_pos called_from =
 	{
 		cl_path = path;
 		cl_module = m;
@@ -133,6 +133,7 @@ let mk_class m path pos name_pos =
 		cl_build = (fun() -> Built);
 		cl_restore = (fun() -> ());
 		cl_descendants = [];
+		cl_created_from = called_from;
 	}
 
 let mk_typedef m path pos name_pos t =
@@ -207,7 +208,7 @@ let null_module = {
 }
 
 let null_class =
-	let c = mk_class null_module ([],"") null_pos null_pos in
+	let c = mk_class null_module ([],"") null_pos null_pos "null_class" in
 	c.cl_private <- true;
 	c
 
@@ -480,16 +481,28 @@ let apply_params ?stack cparams params t =
 			| [] -> t
 			| _ -> TAbstract (a,List.map loop tl))
 		| TInst ({cl_kind = KTypeParameter _} as c,[]) ->
-			let spath = (s_type_path c.cl_path) in
-			if spath = "alchimix.utils.Set.T" || spath = "fromArray.T" then trace spath;
+			(* let spath = (s_type_path c.cl_path) in *)
 			begin try
+				(* if spath = "alchimix.utils.Set.T" || spath = "fromArray.T" then begin *)
+				(* if c.cl_created_from = "hxbReader:read_type_parameters" then *)
+				(* 	snd (List.find (fun (c',_) -> *)
+				(* 		let ret = c'.cl_path = c.cl_path in *)
+				(* 		(1* if ret && not (c == c') then begin *1) *)
+				(* 		(1* 	trace' (s_type_path c.cl_path); *1) *)
+				(* 		(1* 	trace' (s_type_path c'.cl_path); *1) *)
+				(* 		(1* 	trace' ("c created from: " ^ c.cl_created_from); *1) *)
+				(* 		(1* 	trace' ("c' created from: " ^ c'.cl_created_from); *1) *)
+				(* 		(1* end; *1) *)
+				(* 		ret && c'.cl_created_from = "hxbReader:read_type_parameters" *)
+				(* 	) subst) *)
+				(* else *)
 				List.assq c subst
 			with Not_found ->
 				t
 			end
 		| TInst (c,tl) ->
-			let spath = (s_type_path c.cl_path) in
-			if spath = "alchimix.utils.Set.T" || spath = "fromArray.T" then trace spath;
+			(* let spath = (s_type_path c.cl_path) in *)
+			(* if spath = "alchimix.utils.Set.T" || spath = "fromArray.T" then trace' spath; *)
 			(match tl with
 			| [] ->
 				t

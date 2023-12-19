@@ -19,7 +19,7 @@ type pattern_context = {
 
 exception Bad_pattern of string
 
-let fake_tuple_type = TInst(mk_class null_module ([],"-Tuple") null_pos null_pos, [])
+let fake_tuple_type = TInst(mk_class null_module ([],"-Tuple") null_pos null_pos "exprToPattern:fake_tuple_type", [])
 
 let tuple_type tl =
 	tfun tl fake_tuple_type

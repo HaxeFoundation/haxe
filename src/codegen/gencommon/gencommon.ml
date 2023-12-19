@@ -568,7 +568,7 @@ let new_ctx con =
 	let cl_dyn = match get_type  ([], "Dynamic") with
 		| TClassDecl c -> c
 		| TAbstractDecl a ->
-				mk_class a.a_module ([], "Dynamic") a.a_pos null_pos
+				mk_class a.a_module ([], "Dynamic") a.a_pos null_pos "mordor:get_type"
 		| _ -> die "" __LOC__
 	in
 
@@ -1139,7 +1139,7 @@ let mk_class_field ?(static = false) name t public pos kind params =
 (* between both *)
 let clone_param ttp =
 	let cl = ttp.ttp_class in
-	let ret = mk_class cl.cl_module (fst cl.cl_path, snd cl.cl_path ^ "_c") cl.cl_pos null_pos in
+	let ret = mk_class cl.cl_module (fst cl.cl_path, snd cl.cl_path ^ "_c") cl.cl_pos null_pos "gencommon:clone_param" in
 	ret.cl_implements <- cl.cl_implements;
 	ret.cl_kind <- cl.cl_kind;
 	let ttp = mk_type_param ret ttp.ttp_default ttp.ttp_constraints in
@@ -1150,7 +1150,7 @@ let get_cl_t t =
 	match follow t with | TInst (cl,_) -> cl | _ -> die "" __LOC__
 
 let mk_class m path pos =
-	let cl = Type.mk_class m path pos null_pos in
+	let cl = Type.mk_class m path pos null_pos "mordor:mk_class" in
 	cl.cl_meta <- [ Meta.CompilerGenerated, [], null_pos ];
 	cl
 

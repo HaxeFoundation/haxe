@@ -750,13 +750,13 @@ class hxb_reader
 				(* 	let td = { null_typedef with t_type = TMono tmono; t_path = tp } in *)
 				(* 	TType(td,tl) *)
 				| _ ->
-					(* let t = self#read_typedef_ref in *)
-					let t = self#read_type_instance in
+					let t = self#read_typedef_ref in
+					(* let t = self#read_type_instance in *)
 					let tl = self#read_types in
-					let td = { null_typedef with t_type = t; t_path = tp } in
+					(* let td = { null_typedef with t_type = t; t_path = tp } in *)
 					(* let td = { null_typedef with t_type = t; t_path = ([], "708") } in *)
-					TType(td,tl)
-					(* TType(t,tl) *)
+					(* TType(td,tl) *)
+					TType(t,tl)
 			end
 		| 17 ->
 			let a = self#read_abstract_ref in
@@ -813,13 +813,25 @@ class hxb_reader
 		) a
 
 	method read_type_parameters (path : path) (f : typed_type_param array -> unit) =
+		if m.m_path = (["alchimix";"core"],"Pair") then
+			trace (Printf.sprintf "%s read_type_parameters" (s_type_path m.m_path));
+
 		let l = self#read_uleb128 in
 		let a = Array.init l (fun _ ->
 			let name = self#read_string in
 			let pos = self#read_pos in
-			(* prerr_endline (Printf.sprintf "      Read ttp pos for %s: %s" name (Printer.s_pos pos)); *)
-			(* prerr_endline (Printf.sprintf "      - Path was %s" (s_type_path path)); *)
-			let c = mk_class m (fst path @ [snd path],name) pos pos in
+			let cpath = (fst path @ [snd path],name) in
+			let spath = s_type_path cpath in
+			(* if spath = "alchimix.utils.Set.T" || spath = "fromArray.T" then begin *)
+			if m.m_path = (["alchimix";"core"],"Pair") then begin
+				trace (Printf.sprintf "      Read ttp pos for %s: %s" name (Printer.s_pos pos));
+				trace (Printf.sprintf "      - Path was %s" (spath));
+			end;
+			if m.m_path = ([],"Lambda") then begin
+				trace (Printf.sprintf "      Read ttp pos for %s: %s" name (Printer.s_pos pos));
+				trace (Printf.sprintf "      - Path was %s" (spath));
+			end;
+			let c = mk_class m cpath pos pos "hxbReader:read_type_parameters" in
 			mk_type_param name (TInst(c,[])) None
 		) in
 		f a;
@@ -837,6 +849,10 @@ class hxb_reader
 				die "" __LOC__
 			end;
 		done;
+
+		if m.m_path = (["alchimix";"core"],"Pair") then
+			trace (Printf.sprintf "%s read_type_parameters (done)" (s_type_path m.m_path));
+
 
 	method read_field_kind = match self#read_u8 with
 		| 0 -> Method MethNormal
@@ -1106,6 +1122,8 @@ class hxb_reader
 				let en = self#read_enum_ref in
 				let ef = self#read_enum_field_ref en in
 				let params = ref [] in
+		(* if m.m_path = (["alchimix";"utils"],"Set") then *)
+		(* 	trace "107"; *)
 				self#read_type_parameters ([],ef.ef_name) (fun a -> params := Array.to_list a);
 				ef.ef_params <- !params;
 				TField(e1,FEnum(en,ef))
@@ -1175,10 +1193,10 @@ class hxb_reader
 			epos = pos;
 		} in
 
-		if (Printer.s_pos e.epos = "src/alchimix/core/GameSolver.hx: 5047-5070") then begin
-			trace (Printer.s_pos e.epos);
-			trace (s_expr_debug e);
-		end;
+		(* if (Printer.s_pos e.epos = "src/alchimix/core/GameSolver.hx: 5047-5070") then begin *)
+		(* 	trace (Printer.s_pos e.epos); *)
+		(* 	trace (s_expr_debug e); *)
+		(* end; *)
 
 		e
 
@@ -1195,7 +1213,8 @@ class hxb_reader
 
 	method read_class_field_data (nested : bool) (cf : tclass_field) : unit =
 		let name = cf.cf_name in
-		(* prerr_endline (Printf.sprintf "  Read class field %s" name); *)
+		(* if m.m_path = (["alchimix";"utils"],"Set") then *)
+		(* trace (Printf.sprintf "  Read class field %s" name); *)
 
 		if not nested then Hashtbl.clear field_type_parameters;
 		let params = ref [] in
@@ -1276,7 +1295,8 @@ class hxb_reader
 		type_type_parameters <- Array.of_list e.e_params;
 		ignore(self#read_list (fun () ->
 			let name = self#read_string in
-			(* prerr_endline (Printf.sprintf "  Read enum field %s" name); *)
+		(* if m.m_path = (["alchimix";"utils"],"Set") then *)
+		(* 	trace (Printf.sprintf "  Read enum field %s" name); *)
 			let ef = PMap.find name e.e_constrs in
 			let params = ref [] in
 			self#read_type_parameters ([],name) (fun a ->
@@ -1298,7 +1318,8 @@ class hxb_reader
 
 	method read_common_module_type (infos : tinfos) =
 		(* if (snd m.m_path) = "Issue9149" then *)
-		(* prerr_endline (Printf.sprintf "[%s] Read module type %s" (s_type_path m.m_path) (s_type_path infos.mt_path)); *)
+		(* if m.m_path = (["alchimix";"utils"],"Set") then *)
+		(* trace (Printf.sprintf "[%s] Read module type %s" (s_type_path m.m_path) (s_type_path infos.mt_path)); *)
 		infos.mt_private <- self#read_bool;
 		infos.mt_doc <- self#read_option (fun () -> self#read_documentation);
 		infos.mt_meta <- self#read_metadata;
@@ -1342,6 +1363,8 @@ class hxb_reader
 
 	method read_abstract (a : tabstract) =
 		self#read_common_module_type (Obj.magic a);
+		(* if m.m_path = (["alchimix";"utils"],"Set") then *)
+		(* 	trace "read abstract"; *)
 		a.a_impl <- self#read_option (fun () -> self#read_class_ref);
 		let impl = match a.a_impl with None -> null_class | Some c -> c in
 		a.a_this <- self#read_type_instance;
@@ -1449,6 +1472,8 @@ class hxb_reader
 		done
 
 	method read_anon an =
+		(* if m.m_path = (["alchimix";"utils"],"Set") then *)
+		(* trace "read_anon"; *)
 		let old = type_type_parameters in
 		self#read_type_parameters ([],"") (fun a -> type_type_parameters <- Array.append type_type_parameters a);
 		let read_fields () =
@@ -1549,7 +1574,7 @@ class hxb_reader
 			let name_pos = self#read_pos in
 			let mt = match kind with
 			| 0 ->
-				let c = mk_class m path pos name_pos in
+				let c = mk_class m path pos name_pos "hxbReader:read_typf" in
 				classes <- Array.append classes (Array.make 1 c);
 
 				let read_field () =

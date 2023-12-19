@@ -435,7 +435,7 @@ let rec type_ident_raise ctx i p mode with_type =
 					| MGet -> raise_typing_error "Cannot create closure on inline closure" p
 					| MCall _ ->
 						(* create a fake class with a fake field to emulate inlining *)
-						let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos null_pos in
+						let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos null_pos "typer:type_ident_raise" in
 						let cf = { (mk_field v.v_name v.v_type e.epos null_pos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
 						add_class_flag c CExtern;
 						c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;

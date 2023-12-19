@@ -143,7 +143,7 @@ let rec acc_get ctx g =
 						in
 						loop c.cl_module.m_types
 					with Not_found ->
-						let c2 = mk_class c.cl_module mpath c.cl_pos null_pos in
+						let c2 = mk_class c.cl_module mpath c.cl_pos null_pos "calls:wrap_extern" in
 						c.cl_module.m_types <- (TClassDecl c2) :: c.cl_module.m_types;
 						c2
 				in

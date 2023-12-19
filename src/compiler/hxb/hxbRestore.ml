@@ -51,10 +51,10 @@ class hxb_restore
 					| Some { mc_extra = { m_cache_state = MSBad reason }} ->
 						raise (Bad_module (path, reason))
 						(* raise Not_found *)
-					| Some mc -> self#load cc mc
+					| Some mc -> self#load cc mc sign
 				end
 
-	method load (cc : CompilationCache.context_cache) (mc : module_cache) =
+	method load (cc : CompilationCache.context_cache) (mc : module_cache) (sign : string) =
 		let tcheck = Timer.timer ["server";"module cache";"check"] in
 		begin match check_module mc.mc_path mc.mc_extra pos with
 		| None -> ()
@@ -72,8 +72,12 @@ class hxb_restore
 			let m = reader#read (IO.input_bytes mc.mc_bytes) true null_pos in
 
 			let spath = s_type_path m.m_path in
-			if spath = "alchimix.utils.Set" || spath = "alchimix.core.GameSolver" then
+			(* if spath = "alchimix.utils.Set" || spath = "alchimix.core.GameSolver" then *)
+			if spath = "alchimix.core.Pair" || spath = "Lambda" then begin
 				trace (Printf.sprintf "Restored module %s" spath);
+				trace (sign);
+				trace (m.m_extra.m_sign);
+			end;
 
 			m
 		with

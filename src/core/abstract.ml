@@ -20,26 +20,31 @@ let find_cast_field uctx find =
 		| None -> raise Not_found
 
 let find_field_from uctx a b ab tl =
-	(match b with
-	| TAbstract ({a_path = (["alchimix";"utils"],"Set")}, _) ->
-		Globals.trace (s_type_kind b);
-		Globals.trace (s_type_kind a);
-		Globals.trace (Printf.sprintf "Has %d @:from fields" (List.length ab.a_from_field));
-		let res = List.find_all (unifies_from_field uctx a b ab tl) ab.a_from_field in
-		Globals.trace (Printf.sprintf "Found %d compatible @:from" (List.length res));
-		let (t,cf) = List.hd ab.a_from_field in
+	(* (match b with *)
+	(* | TAbstract ({a_path = (["alchimix";"utils"],"Set")}, _) -> *)
+	(* 	(1* Globals.trace (s_type_kind b); *1) *)
+	(* 	(1* Globals.trace (s_type_kind a); *1) *)
+	(* 	(1* Globals.trace (Printf.sprintf "Has %d @:from fields" (List.length ab.a_from_field)); *1) *)
 
-		Globals.trace (s_type_kind (follow_lazy t)); (* TLazy *)
-		List.iter (fun cp ->
-			Globals.trace cp.ttp_name; (* T *)
-			Globals.trace (s_type_kind cp.ttp_type) (* TInst(fromArray.T, []) *)
-		) cf.cf_params;
+	(* 	Globals.do_trace' := true; *)
+	(* 	let res = List.find_all (unifies_from_field uctx a b ab tl) ab.a_from_field in *)
+	(* 	Globals.do_trace' := false; *)
+	(* 	Globals.trace (Printf.sprintf "Found %d compatible @:from" (List.length res)); *)
 
-		(t,cf)
-	| _ ->
+	(* 	(1* let (t,cf) = List.hd ab.a_from_field in *1) *)
+
+	(* 	(1* Globals.trace (s_type_kind (follow_lazy t)); (2* TLazy *2) *1) *)
+	(* 	(1* List.iter (fun cp -> *1) *)
+	(* 	(1* 	Globals.trace cp.ttp_name; (2* T *2) *1) *)
+	(* 	(1* 	Globals.trace (s_type_kind cp.ttp_type) (2* TInst(fromArray.T, []) *2) *1) *)
+	(* 	(1* ) cf.cf_params; *1) *)
+
+	(* 	(1* (t,cf) *1) *)
+	(* 	List.find (unifies_from_field uctx a b ab tl) ab.a_from_field *)
+	(* | _ -> *)
 		(* ()); *)
 		List.find (unifies_from_field uctx a b ab tl) ab.a_from_field
-	)
+	(* ) *)
 
 let find_field_to uctx a b ab tl =
 	List.find (unifies_to_field uctx a b ab tl) ab.a_to_field

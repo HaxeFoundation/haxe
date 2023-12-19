@@ -119,7 +119,7 @@ module ModuleLevel = struct
 				has_declaration := true;
 				let priv = List.mem HPrivate d.d_flags in
 				let path = make_path name priv d.d_meta (snd d.d_name) in
-				let c = mk_class m path p (pos d.d_name) in
+				let c = mk_class m path p (pos d.d_name) "typeloadModule:make_decl" in
 				(* we shouldn't load any other type until we propertly set cl_build *)
 				c.cl_build <- (fun() -> raise_typing_error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
 				c.cl_module <- m;
@@ -786,7 +786,7 @@ let type_types_into_module ctx m tdecls p =
 *)
 let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
 	let spath = s_type_path mpath in
-	if spath = "alchimix.utils.Set" || spath = "alchimix.core.GameSolver" then
+	if spath = "alchimix.core.Pair" || spath = "Lambda" then
 		trace (Printf.sprintf "Type module %s" spath);
 
 	let m = ModuleLevel.make_module ctx mpath file in

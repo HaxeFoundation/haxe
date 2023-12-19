@@ -2814,7 +2814,7 @@ let rec generate_type ctx t =
 				hlf_metas = extract_meta e.e_meta;
 			})
 	| TAbstractDecl ({ a_path = [],"Dynamic" } as a) ->
-		generate_type ctx (TClassDecl (mk_class a.a_module a.a_path a.a_pos null_pos))
+		generate_type ctx (TClassDecl (mk_class a.a_module a.a_path a.a_pos null_pos "genswf9:2817"))
 	| TTypeDecl _ | TAbstractDecl _ ->
 		None
 
@@ -2822,8 +2822,8 @@ let resource_path name =
 	(["_res"],"_" ^ String.concat "_" (ExtString.String.nsplit name "."))
 
 let generate_resource ctx name =
-	let c = mk_class null_module (resource_path name) null_pos null_pos in
-	c.cl_super <- Some (mk_class null_module (["flash";"utils"],"ByteArray") null_pos null_pos,[]);
+	let c = mk_class null_module (resource_path name) null_pos null_pos "genswf9:2825" in
+	c.cl_super <- Some (mk_class null_module (["flash";"utils"],"ByteArray") null_pos null_pos "genswf9:2826",[]);
 	let t = TClassDecl c in
 	match generate_type ctx t with
 	| Some (m,f) -> (t,m,f)

@@ -387,7 +387,8 @@ class ['a] hxb_writer
 
 	method write_type_parameter_ref_debug (c : tclass) =
 			(try self#write_type_parameter_ref c with e ->
-				chunk#write_byte 0; (* TMono None *)
+				(* chunk#write_byte 0; (1* TMono None *1) *)
+				chunk#write_byte 40; (* TDynamic None *)
 				(* raise e *)
 			)
 
@@ -484,8 +485,8 @@ class ['a] hxb_writer
 					self#write_types tl
 				| _ ->
 					chunk#write_byte 2;
-					self#write_type_instance ~debug (apply_typedef td tl);
-					(* self#write_typedef_ref td; *)
+					(* self#write_type_instance ~debug (apply_typedef td tl); *)
+					self#write_typedef_ref td;
 					self#write_types tl
 			end;
 		| TAbstract(a,tl) ->
@@ -888,10 +889,10 @@ class ['a] hxb_writer
 			self#write_pos e.epos;
 
 			(* trace (Printer.s_pos e.epos); *)
-			if (Printer.s_pos e.epos = "src/alchimix/core/GameSolver.hx: 5047-5070") then begin
-				trace (Printer.s_pos e.epos);
-				trace (s_expr_debug e);
-			end;
+			(* if (Printer.s_pos e.epos = "src/alchimix/core/GameSolver.hx: 5047-5070") then begin *)
+			(* 	trace (Printer.s_pos e.epos); *)
+			(* 	trace (s_expr_debug e); *)
+			(* end; *)
 
 			match e.eexpr with
 			(* values 0-19 *)

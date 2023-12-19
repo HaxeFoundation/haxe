@@ -397,8 +397,9 @@ let display_messages ctx on_message = begin
 			end
 	end;
 
-	let do_filter = true in
-	let filter_file = "src/alchimix/core/GameSolver.hx" in
+	let do_filter = not true in
+	let filter_file = "src/alchimix/core/net/GameData.hx" in
+	trace (Printf.sprintf "%d messages" (List.length ctx.messages));
 
 	List.iter (fun cm ->
 		if not do_filter || cm.cm_pos.pfile = filter_file then begin
