@@ -610,10 +610,10 @@ let configure gen ft =
 
 			let monos = List.map (fun t -> apply_params types (List.map (fun _ -> t_dynamic) types) t) monos in
 
-			let passoc = List.map2 (fun tp m -> tp.ttp_type,m) types monos in
+			let passoc = List.map2 (fun tp m -> tp.ttp_class,m) types monos in
 			let cltparams = List.map (fun tp ->
 				try
-					snd (List.find (fun (t2,_) -> tp.ttp_type == t2) passoc)
+					snd (List.find (fun (t2,_) -> tp.ttp_class == t2) passoc)
 				with | Not_found -> tp.ttp_type) cls.cl_params
 			in
 			{ e with eexpr = TNew(cls, cltparams, List.rev captured) }

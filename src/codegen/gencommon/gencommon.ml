@@ -1141,7 +1141,7 @@ let map_param cl =
 	let ret = mk_class cl.cl_module (fst cl.cl_path, snd cl.cl_path ^ "_c") cl.cl_pos null_pos in
 	ret.cl_implements <- cl.cl_implements;
 	ret.cl_kind <- cl.cl_kind;
-	TInst(ret,[])
+	ret
 
 let get_cl_t t =
 	match follow t with | TInst (cl,_) -> cl | _ -> die "" __LOC__
