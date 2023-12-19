@@ -102,9 +102,7 @@ struct
 			| _ -> ());
 		let c_types =
 			if handle_type_params then
-				List.map (fun ttp ->
-					mk_type_param (map_param ttp.ttp_class) ttp.ttp_default ttp.ttp_constraints
-				) en.e_params
+				List.map clone_param en.e_params
 			else
 				[]
 		in
@@ -122,9 +120,7 @@ struct
 				| TFun(params,ret) ->
 					let dup_types =
 						if handle_type_params then
-							List.map (fun ttp ->
-								mk_type_param (map_param ttp.ttp_class) ttp.ttp_default ttp.ttp_constraints
-							) en.e_params
+							List.map clone_param en.e_params
 						else
 							[]
 					in
