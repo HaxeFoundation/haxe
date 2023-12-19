@@ -408,12 +408,7 @@ let apply_params ?stack cparams params t =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
-		(* | ttp :: l1 , t2 :: l2 -> (ttp.ttp_class,t2) :: loop l1 l2 *)
-		| ttp :: l1 , t2 :: l2 ->
-			begin match ttp.ttp_type with
-				| TInst(c,_) -> (c,t2) :: loop l1 l2
-				| _ -> die "" __LOC__
-			end
+		| ttp :: l1 , t2 :: l2 -> (ttp.ttp_class,t2) :: loop l1 l2
 		| _ -> die "" __LOC__
 	in
 	let subst = loop cparams params in
@@ -481,21 +476,7 @@ let apply_params ?stack cparams params t =
 			| [] -> t
 			| _ -> TAbstract (a,List.map loop tl))
 		| TInst ({cl_kind = KTypeParameter _} as c,[]) ->
-			(* let spath = (s_type_path c.cl_path) in *)
 			begin try
-				(* if spath = "alchimix.utils.Set.T" || spath = "fromArray.T" then begin *)
-				(* if c.cl_created_from = "hxbReader:read_type_parameters" then *)
-				(* 	snd (List.find (fun (c',_) -> *)
-				(* 		let ret = c'.cl_path = c.cl_path in *)
-				(* 		(1* if ret && not (c == c') then begin *1) *)
-				(* 		(1* 	trace' (s_type_path c.cl_path); *1) *)
-				(* 		(1* 	trace' (s_type_path c'.cl_path); *1) *)
-				(* 		(1* 	trace' ("c created from: " ^ c.cl_created_from); *1) *)
-				(* 		(1* 	trace' ("c' created from: " ^ c'.cl_created_from); *1) *)
-				(* 		(1* end; *1) *)
-				(* 		ret && c'.cl_created_from = "hxbReader:read_type_parameters" *)
-				(* 	) subst) *)
-				(* else *)
 				List.assq c subst
 			with Not_found ->
 				t
