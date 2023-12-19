@@ -407,7 +407,12 @@ let apply_params ?stack cparams params t =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
-		| ttp :: l1 , t2 :: l2 -> (ttp.ttp_class,t2) :: loop l1 l2
+		(* | ttp :: l1 , t2 :: l2 -> (ttp.ttp_class,t2) :: loop l1 l2 *)
+		| ttp :: l1 , t2 :: l2 ->
+			begin match ttp.ttp_type with
+				| TInst(c,_) -> (c,t2) :: loop l1 l2
+				| _ -> die "" __LOC__
+			end
 		| _ -> die "" __LOC__
 	in
 	let subst = loop cparams params in
