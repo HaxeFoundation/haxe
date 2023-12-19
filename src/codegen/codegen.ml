@@ -122,8 +122,13 @@ let fix_override com c f fd =
 					(* Flash generates type parameters with a single constraint as that constraint type, so we
 					   have to detect this case and change the variable (issue #2712). *)
 					begin match follow v.v_type with
-						| TInst({cl_kind = KTypeParameter [tc]} as cp,_) when com.platform = Flash ->
-							if List.exists (fun tp -> tp.ttp_name = (snd cp.cl_path)) c.cl_params then raise (Unify_error [])
+						| TInst({cl_kind = KTypeParameter ttp} as cp,_) when com.platform = Flash ->
+							begin match get_constraints ttp with
+							| [tc] ->
+								if List.exists (fun tp -> tp.ttp_name = (snd cp.cl_path)) c.cl_params then raise (Unify_error [])
+							| _ ->
+								()
+							end
 						| _ ->
 							()
 					end;

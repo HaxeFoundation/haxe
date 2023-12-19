@@ -247,10 +247,10 @@ and mark_t dce p t =
 	if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.t_stack) then begin
 		dce.t_stack <- t :: dce.t_stack;
 		begin match follow t with
-		| TInst({cl_kind = KTypeParameter tl} as c,pl) ->
+		| TInst({cl_kind = KTypeParameter ttp} as c,pl) ->
 			if not (Meta.has Meta.Used c.cl_meta) then begin
 				c.cl_meta <- (mk_used_meta c.cl_pos) :: c.cl_meta;
-				List.iter (mark_t dce p) tl;
+				List.iter (mark_t dce p) (get_constraints ttp);
 			end;
 			List.iter (mark_t dce p) pl
 		| TInst(c,pl) ->
@@ -358,7 +358,7 @@ and field dce c n kind =
 		end else match c.cl_super with Some (csup,_) -> field dce csup n kind | None -> raise Not_found
 	with Not_found -> try
 		match c.cl_kind with
-		| KTypeParameter tl ->
+		| KTypeParameter ttp ->
 			let rec loop tl = match tl with
 				| [] -> raise Not_found
 				| TInst(c,_) :: cl ->
@@ -366,7 +366,7 @@ and field dce c n kind =
 				| t :: tl ->
 					loop tl
 			in
-			loop tl
+			loop (get_constraints ttp)
 		| _ -> raise Not_found
 	with Not_found ->
 		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else ())

@@ -373,15 +373,11 @@ let apply_params ?stack cparams params t =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
-		| {ttp_type = TLazy f} as tp :: l1, _ -> loop ({tp with ttp_type = lazy_type f} :: l1) l2
-		| tp :: l1 , t2 :: l2 -> (tp.ttp_type,t2) :: loop l1 l2
+		| ttp :: l1 , t2 :: l2 -> (ttp.ttp_class,t2) :: loop l1 l2
 		| _ -> die "" __LOC__
 	in
 	let subst = loop cparams params in
 	let rec loop t =
-		try
-			List.assq t subst
-		with Not_found ->
 		match t with
 		| TMono r ->
 			(match r.tm_type with
@@ -444,6 +440,12 @@ let apply_params ?stack cparams params t =
 			(match tl with
 			| [] -> t
 			| _ -> TAbstract (a,List.map loop tl))
+		| TInst ({cl_kind = KTypeParameter _} as c,[]) ->
+			begin try
+				List.assq c subst
+			with Not_found ->
+				t
+			end
 		| TInst (c,tl) ->
 			(match tl with
 			| [] ->
@@ -653,9 +655,11 @@ let lookup_param n l =
 	in
 	loop l
 
-let mk_type_param n t def = {
-	ttp_name = n;
-	ttp_type = t;
+let mk_type_param c def constraints = {
+	ttp_name = snd c.cl_path;
+	ttp_type = TInst(c,[]);
+	ttp_class = c;
+	ttp_constraints = constraints;
 	ttp_default = def;
 }
 
@@ -687,13 +691,19 @@ let tconst_to_const = function
 	| TThis -> Ident "this"
 	| TSuper -> Ident "super"
 
+let get_constraints ttp = match ttp.ttp_constraints with
+	| None ->
+		[]
+	| Some r ->
+		Lazy.force r
+
 let has_ctor_constraint c = match c.cl_kind with
-	| KTypeParameter tl ->
+	| KTypeParameter ttp ->
 		List.exists (fun t -> match follow t with
 			| TAnon a when PMap.mem "new" a.a_fields -> true
 			| TAbstract({a_path=["haxe"],"Constructible"},_) -> true
 			| _ -> false
-		) tl;
+		) (get_constraints ttp);
 	| _ -> false
 
 (* ======= Field utility ======= *)
@@ -741,7 +751,7 @@ let rec raw_class_field build_type c tl i =
 			c2, apply_params c.cl_params tl t , f
 	with Not_found ->
 		match c.cl_kind with
-		| KTypeParameter tl ->
+		| KTypeParameter ttp ->
 			let rec loop = function
 				| [] ->
 					raise Not_found
@@ -762,7 +772,7 @@ let rec raw_class_field build_type c tl i =
 					| _ ->
 						loop ctl
 			in
-			loop tl
+			loop (get_constraints ttp)
 		| _ ->
 			if not (has_class_flag c CInterface) then raise Not_found;
 			(*

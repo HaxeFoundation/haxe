@@ -1137,11 +1137,14 @@ let mk_class_field ?(static = false) name t public pos kind params =
 (* this helper just duplicates the type parameter class, which is assumed that cl is. *)
 (* This is so we can use class parameters on function parameters, without running the risk of name clash *)
 (* between both *)
-let map_param cl =
+let clone_param ttp =
+	let cl = ttp.ttp_class in
 	let ret = mk_class cl.cl_module (fst cl.cl_path, snd cl.cl_path ^ "_c") cl.cl_pos null_pos in
 	ret.cl_implements <- cl.cl_implements;
 	ret.cl_kind <- cl.cl_kind;
-	ret
+	let ttp = mk_type_param ret ttp.ttp_default ttp.ttp_constraints in
+	ret.cl_kind <- KTypeParameter ttp;
+	ttp
 
 let get_cl_t t =
 	match follow t with | TInst (cl,_) -> cl | _ -> die "" __LOC__

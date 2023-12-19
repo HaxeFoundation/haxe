@@ -93,6 +93,8 @@ and tparams = t list
 and typed_type_param = {
 	ttp_name : string;
 	ttp_type : t;
+	ttp_class : tclass;
+	mutable ttp_constraints : t list Lazy.t option;
 	ttp_default : t option;
 }
 
@@ -232,7 +234,7 @@ and tclass_field = {
 
 and tclass_kind =
 	| KNormal
-	| KTypeParameter of t list
+	| KTypeParameter of typed_type_param
 	| KExpr of Ast.expr
 	| KGeneric
 	| KGenericInstance of tclass * tparams

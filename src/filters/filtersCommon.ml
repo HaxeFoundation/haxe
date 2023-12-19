@@ -27,11 +27,8 @@ let rec is_removable_class c =
 		(match c.cl_super with
 			| Some (c,_) -> is_removable_class c
 			| _ -> false) ||
-		List.exists (fun tp -> match follow tp.ttp_type with
-			| TInst(c,_) ->
-				has_ctor_constraint c || Meta.has Meta.Const c.cl_meta
-			| _ ->
-				false
+		List.exists (fun tp ->
+			has_ctor_constraint tp.ttp_class || Meta.has Meta.Const tp.ttp_class.cl_meta
 		) c.cl_params)
 	| KTypeParameter _ ->
 		(* this shouldn't happen, have to investigate (see #4092) *)
