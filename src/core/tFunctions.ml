@@ -374,14 +374,15 @@ let apply_params ?stack cparams params t =
 		match l1, l2 with
 		| [] , [] -> []
 		| {ttp_type = TLazy f} as tp :: l1, _ -> loop ({tp with ttp_type = lazy_type f} :: l1) l2
-		| tp :: l1 , t2 :: l2 -> (tp.ttp_type,t2) :: loop l1 l2
+		| tp :: l1 , t2 :: l2 ->
+			begin match tp.ttp_type with
+				| TInst(c,_) -> (c,t2) :: loop l1 l2
+				| _ -> die "" __LOC__
+			end
 		| _ -> die "" __LOC__
 	in
 	let subst = loop cparams params in
 	let rec loop t =
-		try
-			List.assq t subst
-		with Not_found ->
 		match t with
 		| TMono r ->
 			(match r.tm_type with
@@ -444,6 +445,12 @@ let apply_params ?stack cparams params t =
 			(match tl with
 			| [] -> t
 			| _ -> TAbstract (a,List.map loop tl))
+		| TInst ({cl_kind = KTypeParameter _} as c,[]) ->
+			begin try
+				List.assq c subst
+			with Not_found ->
+				t
+			end
 		| TInst (c,tl) ->
 			(match tl with
 			| [] ->
