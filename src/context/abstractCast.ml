@@ -119,10 +119,11 @@ let prepare_array_access_field ctx a pl cf p =
 	let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
 	let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
 	let check_constraints () =
-		List.iter2 (fun m tp -> match follow tp.ttp_type with
-			| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+		List.iter2 (fun m ttp -> match get_constraints ttp with
+			| [] ->
+				()
+			| constr ->
 				List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> Type.unify m (map tc) ) constr
-			| _ -> ()
 		) monos cf.cf_params;
 	in
 	let get_ta() =

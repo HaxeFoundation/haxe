@@ -62,28 +62,27 @@ let valid_redefinition ctx map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		| l1, l2 when List.length l1 = List.length l2 ->
 			let to_check = ref [] in
 			(* TPTODO: defaults *)
-			let monos = List.map2 (fun tp1 tp2 ->
-				(match follow tp1.ttp_type, follow tp2.ttp_type with
-				| TInst ({ cl_kind = KTypeParameter ct1 } as c1,pl1), TInst ({ cl_kind = KTypeParameter ct2 } as c2,pl2) ->
-					(match ct1, ct2 with
-					| [], [] -> ()
-					| _, _ when List.length ct1 = List.length ct2 ->
-						(* if same constraints, they are the same type *)
-						let check monos =
-							List.iter2 (fun t1 t2  ->
-								try
-									let t1 = apply_params l1 monos (apply_params c1.cl_params pl1 (map2 t1)) in
-									let t2 = apply_params l2 monos (apply_params c2.cl_params pl2 (map1 t2)) in
-									type_eq EqStrict t1 t2
-								with Unify_error l ->
-									raise (Unify_error (Unify_custom "Constraints differ" :: l))
-							) ct1 ct2
-						in
-						to_check := check :: !to_check;
-					| _ ->
-						raise (Unify_error [Unify_custom "Different number of constraints"]))
-				| _ -> ());
-				TInst (mk_class null_module ([],tp1.ttp_name) null_pos null_pos,[])
+			let monos = List.map2 (fun ttp1 ttp2 ->
+				let ct1 = get_constraints ttp1 in
+				let ct2 = get_constraints ttp2 in
+				(match ct1, ct2 with
+				| [], [] -> ()
+				| _, _ when List.length ct1 = List.length ct2 ->
+					(* if same constraints, they are the same type *)
+					let check monos =
+						List.iter2 (fun t1 t2  ->
+							try
+								let t1 = apply_params l1 monos (map2 t1) in
+								let t2 = apply_params l2 monos (map1 t2) in
+								type_eq EqStrict t1 t2
+							with Unify_error l ->
+								raise (Unify_error (Unify_custom "Constraints differ" :: l))
+						) ct1 ct2
+					in
+					to_check := check :: !to_check;
+				| _ ->
+					raise (Unify_error [Unify_custom "Different number of constraints"]));
+				TInst (mk_class null_module ([],ttp1.ttp_name) null_pos null_pos,[])
 			) l1 l2 in
 			List.iter (fun f -> f monos) !to_check;
 			apply_params l1 monos t1, apply_params l2 monos t2

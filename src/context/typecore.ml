@@ -616,8 +616,8 @@ let can_access ctx c cf stat =
 	loop c
 	(* access is also allowed of we access a type parameter which is constrained to our (base) class *)
 	|| (match c.cl_kind with
-		| KTypeParameter tl ->
-			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
+		| KTypeParameter ttp ->
+			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) (get_constraints ttp)
 		| _ -> false)
 	|| (Meta.has Meta.PrivateAccess ctx.meta)
 

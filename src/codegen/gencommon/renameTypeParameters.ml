@@ -41,22 +41,16 @@ let run types =
 		end else found_types := PMap.add name true !found_types
 	in
 
-	let get_cls t =
-		match follow t with
-		| TInst(cl,_) -> cl
-		| _ -> Globals.die "" __LOC__
-	in
-
 	let iter_types tp =
-		let cls = get_cls tp.ttp_type in
+		let cls = tp.ttp_class in
 		let orig = cls.cl_path in
 		check_type (snd orig) (fun name -> cls.cl_path <- (fst orig, name))
 	in
 
 	let save_params save params =
 		List.fold_left (fun save tp ->
-			let cls = get_cls tp.ttp_type in
-			(cls.cl_path,tp.ttp_type) :: save) save params
+			let cls = tp.ttp_class in
+			(cls.cl_path,tp.ttp_class) :: save) save params
 	in
 
 	List.iter (function
@@ -82,7 +76,7 @@ let run types =
 				cl.cl_restore <- (fun () ->
 					res();
 					List.iter (fun (path,t) ->
-						let cls = get_cls t in
+						let cls = t in
 						cls.cl_path <- path) save
 				);
 			end

@@ -380,8 +380,8 @@ let s_types ?(sep = ", ") tl =
 let s_class_kind = function
 	| KNormal ->
 		"KNormal"
-	| KTypeParameter tl ->
-		Printf.sprintf "KTypeParameter [%s]" (s_types tl)
+	| KTypeParameter ttp ->
+		Printf.sprintf "KTypeParameter [%s]" (s_types (get_constraints ttp))
 	| KExpr _ ->
 		"KExpr"
 	| KGeneric ->
@@ -441,19 +441,17 @@ module Printer = struct
 	let s_metadata metadata =
 		s_list " " s_metadata_entry metadata
 
-	let s_type_param tp = match follow tp.ttp_type with
-		| TInst({cl_kind = KTypeParameter tl1},tl2) ->
-			let s = match tl1 with
-				| [] -> tp.ttp_name
-				| _ -> Printf.sprintf "%s:%s" tp.ttp_name (String.concat " & " (List.map s_type tl1))
-			in
-			begin match tp.ttp_default with
-			| None ->
-				s
-			| Some t ->
-				Printf.sprintf "%s = %s" s (s_type t)
-			end
-		| _ -> die "" __LOC__
+	let s_type_param ttp = 
+		let s = match (get_constraints ttp) with
+			| [] -> ttp.ttp_name
+			| tl1 -> Printf.sprintf "%s:%s" ttp.ttp_name (String.concat " & " (List.map s_type tl1))
+		in
+		begin match ttp.ttp_default with
+		| None ->
+			s
+		| Some t ->
+			Printf.sprintf "%s = %s" s (s_type t)
+		end
 
 	let s_type_params tl =
 		s_list ", " s_type_param tl

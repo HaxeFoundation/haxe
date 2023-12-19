@@ -202,8 +202,11 @@ let rec jsignature_of_type gctx stack t =
 		TObject((["haxe";"root"],"Array"),[TType(WNone,t)])
 	| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
 		TArray(jsignature_of_type t,None)
-	| TInst({cl_kind = KTypeParameter [t]},_) when t != t_dynamic -> jsignature_of_type t
-	| TInst({cl_kind = KTypeParameter _; cl_path = (_,name)},_) -> TTypeParameter name
+	| TInst({cl_kind = KTypeParameter ttp; cl_path = (_,name)},_) ->
+		begin match get_constraints ttp with
+			| [t] when t != t_dynamic -> jsignature_of_type t
+			| _ -> TTypeParameter name
+		end
 	| TInst({cl_path = ["_Class"],"Class_Impl_"},_) -> java_class_sig
 	| TInst({cl_path = ["_Enum"],"Enum_Impl_"},_) -> java_class_sig
 	| TInst(c,tl) -> TObject(c.cl_path,List.map jtype_argument_of_type tl)
@@ -2640,16 +2643,11 @@ class tclass_to_jvm gctx c = object(self)
 		end
 
 	method private generate_signature =
-		jc#set_type_parameters (List.map (fun tp ->
-			let jsigs = match follow tp.ttp_type with
-			| TInst({cl_kind = KTypeParameter tl},_) ->
-				List.map (fun t ->
-					get_boxed_type (jsignature_of_type gctx t)
-				 ) tl
-			| _ ->
-				[]
-			in
-			(tp.ttp_name,jsigs)
+		jc#set_type_parameters (List.map (fun ttp ->
+			let jsigs = List.map (fun t ->
+				get_boxed_type (jsignature_of_type gctx t)
+			) (get_constraints ttp) in
+			(ttp.ttp_name,jsigs)
 		) c.cl_params);
 		match c.cl_super with
 			| Some(c,tl) -> jc#set_super_parameters (List.map (jtype_argument_of_type gctx []) tl)

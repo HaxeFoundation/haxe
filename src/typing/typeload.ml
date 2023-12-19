@@ -286,28 +286,24 @@ let make_extension_type ctx tl =
 	let ta = mk_anon ~fields (ref (Extend tl)) in
 	ta
 
-let check_param_constraints ctx t map c p =
-	match follow t with
-	| TMono _ -> ()
-	| _ ->
-		let ctl = (match c.cl_kind with KTypeParameter l -> l | _ -> []) in
-		List.iter (fun ti ->
-			let ti = map ti in
-			try
-				unify_raise t ti p
-			with Error ({ err_message = Unify l } as err) ->
-				let fail() =
-					if not ctx.untyped then display_error_ext ctx.com { err with err_message = (Unify (Constraint_failure (s_type_path c.cl_path) :: l)) }
-				in
-				match follow t with
-				| TInst({cl_kind = KExpr e},_) ->
-					let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
-					begin try unify_raise e.etype ti p
-					with Error { err_message = Unify _ } -> fail() end
-				| _ ->
-					fail()
+let check_param_constraints ctx t map ttp p =
+	List.iter (fun ti ->
+		let ti = map ti in
+		try
+			unify_raise t ti p
+		with Error ({ err_message = Unify l } as err) ->
+			let fail() =
+				if not ctx.untyped then display_error_ext ctx.com { err with err_message = (Unify (Constraint_failure (s_type_path ttp.ttp_class.cl_path) :: l)) }
+			in
+			match follow t with
+			| TInst({cl_kind = KExpr e},_) ->
+				let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
+				begin try unify_raise e.etype ti p
+				with Error { err_message = Unify _ } -> fail() end
+			| _ ->
+				fail()
 
-		) ctl
+	) (get_constraints ttp)
 
 type load_instance_param_mode =
 	| ParamNormal
@@ -357,7 +353,8 @@ let rec load_params ctx info params p =
 	in
 	let checks = DynArray.create () in
 	let rec loop tl1 tl2 is_rest = match tl1,tl2 with
-		| t :: tl1,({ttp_name=name;ttp_type=t2}) :: tl2 ->
+		| t :: tl1,ttp:: tl2 ->
+			let name = ttp.ttp_name in
 			let t,pt = load_param t in
 			let check_const c =
 				let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
@@ -370,15 +367,14 @@ let rec load_params ctx info params p =
 					raise_typing_error "Type parameter is expected to be a constant value" p
 			in
 			let is_rest = is_rest || name = "Rest" && info.build_kind = BuildGenericBuild in
-			let t = match follow t2 with
-				| TInst ({ cl_kind = KTypeParameter [] } as c, []) when (match info.build_kind with BuildGeneric _ -> false | _ -> true) ->
-					check_const c;
+			let t = match ttp.ttp_constraints with
+				| None when (match info.build_kind with BuildGeneric _ -> false | _ -> true) ->
+					check_const ttp.ttp_class;
 					t
-				| TInst (c,[]) ->
-					check_const c;
-					DynArray.add checks (t,c,pt);
+				| _ ->
+					check_const ttp.ttp_class;
+					DynArray.add checks (t,ttp,pt);
 					t
-				| _ -> die "" __LOC__
 			in
 			t :: loop tl1 tl2 is_rest
 		| [],[] ->
@@ -753,7 +749,6 @@ let rec type_type_param ctx host path get_params p tp =
 	let n = fst tp.tp_name in
 	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) (pos tp.tp_name) (pos tp.tp_name) in
 	c.cl_params <- type_type_params ctx host c.cl_path get_params p tp.tp_params;
-	c.cl_kind <- KTypeParameter [];
 	c.cl_meta <- tp.Ast.tp_meta;
 	if host = TPHEnumConstructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
 	let t = TInst (c,extract_param_types c.cl_params) in
@@ -777,32 +772,35 @@ let rec type_type_param ctx host path get_params p tp =
 			) "default" in
 			Some (TLazy r)
 	in
-	match tp.tp_constraints with
-	| None ->
-		mk_type_param n t default
-	| Some th ->
-		let r = make_lazy ctx t (fun r ->
-			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
-			let rec loop th = match fst th with
-				| CTIntersection tl -> List.map (load_complex_type ctx true) tl
-				| CTParent ct -> loop ct
-				| _ -> [load_complex_type ctx true th]
-			in
-			let constr = loop th in
-			(* check against direct recursion *)
-			let rec loop t =
-				match follow t with
-				| TInst (c2,_) when c == c2 -> raise_typing_error "Recursive constraint parameter is not allowed" p
-				| TInst ({ cl_kind = KTypeParameter cl },_) ->
-					List.iter loop cl
-				| _ ->
-					()
-			in
-			List.iter loop constr;
-			c.cl_kind <- KTypeParameter constr;
-			t
-		) "constraint" in
-		mk_type_param n (TLazy r) default
+	let ttp = match tp.tp_constraints with
+		| None ->
+			mk_type_param n c default None
+		| Some th ->
+			let constraints = lazy (
+				let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
+				let rec loop th = match fst th with
+					| CTIntersection tl -> List.map (load_complex_type ctx true) tl
+					| CTParent ct -> loop ct
+					| _ -> [load_complex_type ctx true th]
+				in
+				let constr = loop th in
+				(* check against direct recursion *)
+				let rec loop t =
+					match follow t with
+					| TInst (c2,_) when c == c2 ->
+						raise_typing_error "Recursive constraint parameter is not allowed" p
+					| TInst ({ cl_kind = KTypeParameter ttp },_) ->
+						List.iter loop (get_constraints ttp)
+					| _ ->
+						()
+				in
+				List.iter loop constr;
+				constr
+			) in
+			mk_type_param n c default (Some constraints)
+	in
+	c.cl_kind <- KTypeParameter ttp;
+	ttp
 
 and type_type_params ctx host path get_params p tpl =
 	let names = ref [] in
@@ -845,21 +843,16 @@ let load_core_class ctx c =
 let init_core_api ctx c =
 	let ccore = load_core_class ctx c in
 	begin try
-		List.iter2 (fun tp1 tp2 -> match follow tp1.ttp_type, follow tp2.ttp_type with
-			| TInst({cl_kind = KTypeParameter l1},_),TInst({cl_kind = KTypeParameter l2},_) ->
-				begin try
-					List.iter2 (fun t1 t2 -> type_eq EqCoreType t2 t1) l1 l2
-				with
-					| Invalid_argument _ ->
-						raise_typing_error "Type parameters must have the same number of constraints as core type" c.cl_pos
-					| Unify_error l ->
-						(* TODO send as one call with sub errors *)
-						display_error ctx.com ("Type parameter " ^ tp2.ttp_name ^ " has different constraint than in core type") c.cl_pos;
-						display_error ctx.com (error_msg (Unify l)) c.cl_pos;
-				end
-			| t1,t2 ->
-				Printf.printf "%s %s" (s_type (print_context()) t1) (s_type (print_context()) t2);
-				die "" __LOC__
+		List.iter2 (fun ttp1 ttp2 ->
+			try
+				List.iter2 (fun t1 t2 -> type_eq EqCoreType t2 t1) (get_constraints ttp1) (get_constraints ttp2)
+			with
+				| Invalid_argument _ ->
+					raise_typing_error "Type parameters must have the same number of constraints as core type" c.cl_pos
+				| Unify_error l ->
+					(* TODO send as one call with sub errors *)
+					display_error ctx.com ("Type parameter " ^ ttp2.ttp_name ^ " has different constraint than in core type") c.cl_pos;
+					display_error ctx.com (error_msg (Unify l)) c.cl_pos;
 		) ccore.cl_params c.cl_params;
 	with Invalid_argument _ ->
 		raise_typing_error "Class must have the same number of type parameters as core type" c.cl_pos

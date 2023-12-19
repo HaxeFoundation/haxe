@@ -2009,18 +2009,17 @@ let generate con =
 			let hxgen = is_hxgen (TClassDecl cl) in
 			match cl_params with
 				| (_ :: _) when not (erase_generics && is_hxgeneric (TClassDecl cl)) ->
-					let get_param_name t = match follow t with TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__ in
 					let combination_error c1 c2 =
 						gen.gcon.error ("The " ^ (get_constraint c1) ^ " constraint cannot be combined with the " ^ (get_constraint c2) ^ " constraint.") cl.cl_pos in
 
-					let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> get_param_name tp.ttp_type) cl_params)) in
+					let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> snd tp.ttp_class.cl_path) cl_params)) in
 					let params_extends =
 						if hxgen || not (Meta.has (Meta.NativeGen) cl.cl_meta) then
 							[""]
 						else
 							List.fold_left (fun acc {ttp_name=name;ttp_type=t} ->
-								match run_follow gen t with
-									| TInst({cl_kind = KTypeParameter constraints}, _) when constraints <> [] ->
+								match t with
+									| TInst({cl_kind = KTypeParameter ttp} as c,_) when get_constraints ttp <> [] ->
 										(* base class should come before interface constraints *)
 										let base_class_constraints = ref [] in
 										let other_constraints = List.fold_left (fun acc t ->
@@ -2069,7 +2068,7 @@ let generate con =
 												(* skip anything other *)
 												| _ ->
 													acc
-										) [] constraints in
+										) [] (get_constraints ttp ) in
 
 										let s_constraints = (List.sort
 											(* C# expects some ordering for built-in constraints: *)
@@ -2085,7 +2084,7 @@ let generate con =
 										) (!base_class_constraints @ other_constraints)) in
 
 										if s_constraints <> [] then
-											(sprintf " where %s : %s" (get_param_name t) (String.concat ", " (List.map get_constraint s_constraints)) :: acc)
+											(sprintf " where %s : %s" (snd c.cl_path) (String.concat ", " (List.map get_constraint s_constraints)) :: acc)
 										else
 											acc;
 									| _ -> acc
