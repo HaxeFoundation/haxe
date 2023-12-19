@@ -791,6 +791,11 @@
 		"doc": "Disable ANSI color codes in message reporting."
 	},
 	{
+		"name": "MessageAbsolutePositions",
+		"define": "message.absolute-positions",
+		"doc": "Use absolute character positions instead of line/columns for message reporting."
+	},
+	{
 		"name": "MessageLogFile",
 		"define": "message.log-file",
 		"doc": "Path to a text file to write message reporting to, in addition to regular output."

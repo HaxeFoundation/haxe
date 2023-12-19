@@ -554,7 +554,8 @@ let uv_error_fields = [
 						let messages = ref [] in
 						HaxeError.recurse_error (fun depth err ->
 							let cm = make_compiler_message ~from_macro:err.err_from_macro (HaxeError.error_msg err.err_message) err.err_pos depth DKCompilerMessage Error in
-							match MessageReporting.compiler_message_string cm with
+							let ectx = MessageReporting.create_error_context false in
+							match MessageReporting.compiler_message_string ectx cm with
 								| None -> ()
 								| Some str -> messages := str :: !messages
 						) err;
