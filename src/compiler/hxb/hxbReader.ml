@@ -1346,27 +1346,34 @@ class hxb_reader
 		let impl = match a.a_impl with None -> null_class | Some c -> c in
 		a.a_this <- self#read_type_instance;
 		a.a_from <- self#read_list (fun () -> self#read_type_instance);
-		a.a_from_field <- self#read_list (fun () ->
-			let name = self#read_string in
-			self#read_type_parameters ([],name) self#add_field_type_parameters;
-			let t = self#read_type_instance in
-			let cf = self#read_field_ref impl.cl_statics in
-			(t,cf)
-		);
 		a.a_to <- self#read_list (fun () -> self#read_type_instance);
-		a.a_to_field <- self#read_list (fun () ->
-			let name = self#read_string in
-			self#read_type_parameters ([],name) self#add_field_type_parameters;
-			let t = self#read_type_instance in
-			let cf = self#read_field_ref impl.cl_statics in
-			(t,cf)
-		);
 
 		a.a_array <- self#read_list (fun () -> self#read_field_ref impl.cl_statics);
 		a.a_read <- self#read_option (fun () -> self#read_field_ref impl.cl_statics);
 		a.a_write <- self#read_option (fun () -> self#read_field_ref impl.cl_statics);
 		a.a_call <- self#read_option (fun () -> self#read_field_ref impl.cl_statics);
 		a.a_enum <- self#read_bool;
+
+	method read_abstract_fields (a : tabstract) =
+		let impl = match a.a_impl with None -> null_class | Some c -> c in
+
+		a.a_from_field <- self#read_list (fun () ->
+			let cf = self#read_field_ref impl.cl_statics in
+			let t = match cf.cf_type with
+				| TFun((_,_,t) :: _, _) -> t
+				| _ -> die "" __LOC__
+			in
+			(t,cf)
+		);
+
+		a.a_to_field <- self#read_list (fun () ->
+			let cf = self#read_field_ref impl.cl_statics in
+			let t = match cf.cf_type with
+				| TFun((_,_,t) :: _, _) -> t
+				| _ -> die "" __LOC__
+			in
+			(t,cf)
+		);
 
 	method read_enum (e : tenum) =
 		self#read_common_module_type (Obj.magic e);
@@ -1404,6 +1411,13 @@ class hxb_reader
 		for i = 0 to l - 1 do
 			let c = classes.(i) in
 			self#read_class_fields c;
+		done
+
+	method read_afld =
+		let l = self#read_uleb128 in
+		for i = 0 to l - 1 do
+			let a = abstracts.(i) in
+			self#read_abstract_fields a;
 		done
 
 	method read_clsd =
@@ -1658,6 +1672,9 @@ class hxb_reader
 			| CFLD ->
 				flush_fields ();
 				self#read_cfld;
+			| AFLD ->
+				flush_fields ();
+				self#read_afld;
 			| TPDD ->
 				self#read_tpdd;
 			| ENMD ->

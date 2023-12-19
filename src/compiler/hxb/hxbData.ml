@@ -12,6 +12,7 @@ type chunk_kind =
 	| CLSD (* class definition *)
 	| ABSD (* abstract definition *)
 	| CFLD (* class fields *)
+	| AFLD (* abstract fields *)
 	| TPDD (* typedef definition *)
 	| ENMD (* enum definition *)
 	| EFLD (* enum fields *)
@@ -29,6 +30,7 @@ let string_of_chunk_kind = function
 	| CLSD -> "CLSD"
 	| ABSD -> "ABSD"
 	| CFLD -> "CFLD"
+	| AFLD -> "AFLD"
 	| TPDD -> "TPDD"
 	| ENMD -> "ENMD"
 	| EFLD -> "EFLD"
@@ -46,6 +48,7 @@ let chunk_kind_of_string = function
 	| "CLSD" -> CLSD
 	| "ABSD" -> ABSD
 	| "CFLD" -> CFLD
+	| "AFLD" -> AFLD
 	| "TPDD" -> TPDD
 	| "ENMD" -> ENMD
 	| "EFLD" -> EFLD

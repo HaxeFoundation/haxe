@@ -1336,28 +1336,28 @@ class ['a] hxb_writer
 		in
 		self#write_type_instance a.a_this;
 		chunk#write_list a.a_from self#write_type_instance;
-		chunk#write_list a.a_from_field (fun (t,cf) ->
-			chunk#write_string cf.cf_name;
-			self#set_field_type_parameters false cf.cf_params;
-			chunk#write_list cf.cf_params self#write_type_parameter_forward;
-			chunk#write_list cf.cf_params self#write_type_parameter_data;
-			self#write_type_instance t;
-			self#write_field_ref (ClassStatic c) cf;
-		);
 		chunk#write_list a.a_to self#write_type_instance;
-		chunk#write_list a.a_to_field (fun (t,cf) ->
-			chunk#write_string cf.cf_name;
-			self#set_field_type_parameters false cf.cf_params;
-			chunk#write_list cf.cf_params self#write_type_parameter_forward;
-			chunk#write_list cf.cf_params self#write_type_parameter_data;
-			self#write_type_instance t;
-			self#write_field_ref (ClassStatic c) cf;
-		);
 		chunk#write_list a.a_array (self#write_field_ref (ClassStatic c));
 		chunk#write_option a.a_read (self#write_field_ref (ClassStatic c));
 		chunk#write_option a.a_write (self#write_field_ref (ClassStatic c));
 		chunk#write_option a.a_call (self#write_field_ref (ClassStatic c));
 		chunk#write_bool a.a_enum
+
+	method write_abstract_fields (a : tabstract) =
+		let c = match a.a_impl with
+			| None ->
+				null_class
+			| Some c ->
+				c
+		in
+
+		chunk#write_list a.a_from_field (fun (t,cf) ->
+			self#write_field_ref (ClassStatic c) cf;
+		);
+
+		chunk#write_list a.a_to_field (fun (t,cf) ->
+			self#write_field_ref (ClassStatic c) cf;
+		);
 
 	method write_enum (e : tenum) =
 		(* debug_msg (Printf.sprintf "Write enum %s" (snd e.e_path)); *)
@@ -1505,6 +1505,8 @@ class ['a] hxb_writer
 		| own_abstracts ->
 			self#start_chunk ABSD;
 			chunk#write_list own_abstracts self#write_abstract;
+			self#start_chunk AFLD;
+			chunk#write_list own_abstracts self#write_abstract_fields;
 		end;
 		begin match own_classes#to_list with
 		| [] ->
