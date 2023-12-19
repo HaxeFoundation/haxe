@@ -797,6 +797,7 @@ let rec type_type_param ctx host path get_params p tp =
 				List.iter loop constr;
 				constr
 			) in
+			delay ctx PConnectField (fun () -> ignore (Lazy.force constraints));
 			mk_type_param c default (Some constraints)
 	in
 	c.cl_kind <- KTypeParameter ttp;
