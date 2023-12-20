@@ -310,7 +310,8 @@ let get_max_line max_lines messages =
 	) max_lines messages
 
 let display_source_at com p =
-	let ectx = create_error_context () in
+	let absolute_positions = Define.defined com.defines Define.MessageAbsolutePositions in
+	let ectx = create_error_context absolute_positions in
 	let msg = make_compiler_message "" p 0 MessageKind.DKCompilerMessage MessageSeverity.Information in
 	ectx.max_lines <- get_max_line ectx.max_lines [msg];
 	match compiler_pretty_message_string com ectx msg with
