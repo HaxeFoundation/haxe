@@ -5282,6 +5282,10 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
    output_cpp ("HX_DEFINE_CREATE_ENUM(" ^ class_name ^ ")\n\n");
 
+   output_cpp ("bool " ^ class_name ^ "::_hx_isInstanceOf(int inClassId) {\n");
+   output_cpp ("\treturn inClassId == (int)0x00000001 || inClassId == ::hx::EnumBase_obj::_hx_ClassId || inClassId == _hx_ClassId;\n");
+   output_cpp ("}\n");
+
    output_cpp ("int " ^ class_name ^ "::__FindIndex(::String inName)\n{\n");
    PMap.iter (fun _ constructor ->
       let name = constructor.ef_name in
@@ -5400,7 +5404,8 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    output_h ("\t\tstatic void __register();\n");
    output_h ("\t\tstatic bool __GetStatic(const ::String &inName, Dynamic &outValue, ::hx::PropertyAccess inCallProp);\n");
    output_h ("\t\t::String GetEnumName( ) const { return " ^ (strq (join_class_path class_path "."))  ^ "; }\n" );
-   output_h ("\t\t::String __ToString() const { return " ^ (strq (just_class_name ^ ".") )^ " + _hx_tag; }\n\n");
+   output_h ("\t\t::String __ToString() const { return " ^ (strq (just_class_name ^ ".") )^ " + _hx_tag; }\n");
+   output_h ("\t\tbool _hx_isInstanceOf(int inClassId);\n\n");
 
 
    PMap.iter (fun _ constructor ->
