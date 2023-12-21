@@ -3442,7 +3442,7 @@ let cpp_class_hash interface =
 let rec is_constant_zero expr =
   match expr.cppexpr with
   | CppFloat x when (float_of_string x) = 0.0 -> true
-  | CppInt i when i = Int32.of_int 0 -> true
+  | CppInt i when i = Int32.zero -> true
   | CppCastScalar(expr,_) -> is_constant_zero(expr)
   | _ -> false
 ;;
@@ -5238,7 +5238,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    let ctx = file_context baseCtx cpp_file debug false in
    let strq = strq ctx.ctx_common in
 
-   let classId = try Hashtbl.find baseCtx.ctx_type_ids (class_text enum_def.e_path) with Not_found -> Int32.of_int 0 in
+   let classId = try Hashtbl.find baseCtx.ctx_type_ids (class_text enum_def.e_path) with Not_found -> Int32.zero in
    let classIdTxt = Printf.sprintf "0x%08lx" classId in
 
    if (debug>1) then
@@ -5770,7 +5770,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       then 0 else 1 in
    let scriptable = inScriptable && not class_def.cl_private in
 
-   let classId = try Hashtbl.find baseCtx.ctx_type_ids (class_text class_def.cl_path) with Not_found -> Int32.of_int 0 in
+   let classId = try Hashtbl.find baseCtx.ctx_type_ids (class_text class_def.cl_path) with Not_found -> Int32.zero in
    let classIdTxt = Printf.sprintf "0x%08lx" classId in
 
    (* Config *)
