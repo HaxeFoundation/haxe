@@ -5238,6 +5238,9 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    let ctx = file_context baseCtx cpp_file debug false in
    let strq = strq ctx.ctx_common in
 
+   let classId = try Hashtbl.find baseCtx.ctx_type_ids (class_text enum_def.e_path) with Not_found -> Int32.of_int 0 in
+   let classIdTxt = Printf.sprintf "0x%08lx" classId in
+
    if (debug>1) then
       print_endline ("Found enum definition:" ^ (join_class_path  class_path "::" ));
 
@@ -5390,6 +5393,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    output_h ("{\n\ttypedef " ^ super ^ " super;\n");
    output_h ("\t\ttypedef " ^ class_name ^ " OBJ_;\n");
    output_h "\n\tpublic:\n";
+   output_h ("\t\tenum { _hx_ClassId = " ^ classIdTxt ^ " };\n\n");
    output_h ("\t\t" ^ class_name ^ "() {};\n");
    output_h ("\t\tHX_DO_ENUM_RTTI;\n");
    output_h ("\t\tstatic void __boot();\n");
@@ -8564,6 +8568,17 @@ let generate_source ctx =
          if (is_internal) then
             (if (debug>1) then print_endline (" internal enum " ^ name ))
          else begin
+            let rec makeId enum_name seed =
+               let id = gen_hash32 seed enum_name in
+               (* reserve first 100 ids for runtime *)
+               if id < Int32.of_int 100 || Hashtbl.mem existingIds id then
+                  makeId enum_name (seed+100)
+               else begin
+                  Hashtbl.add existingIds id true;
+                  Hashtbl.add ctx.ctx_type_ids enum_name id;
+               end in
+            makeId name 0;
+
             let meta = Texpr.build_metadata common_ctx.basic object_def in
             if (enum_def.e_extern) then
                (if (debug>1) then print_endline ("external enum " ^ name ));
