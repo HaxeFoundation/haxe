@@ -153,7 +153,7 @@ module ConditionDisplay = struct
 
 	exception Result of expr
 
-	let t_semver = TInst(mk_class null_module ([],"SemVer") null_pos null_pos "typeloadParse:t_semver",[])
+	let t_semver = TInst(mk_class null_module ([],"SemVer") null_pos null_pos,[])
 
 	let convert_small_type com = function
 		| TNull -> "null",Type.mk_mono()

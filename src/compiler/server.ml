@@ -225,26 +225,28 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 
 let rec find_or_restore_module cs sign sctx ctx path =
 	let com = ctx.Typecore.com in
+
 	(* Use macro context if needed *)
 	let com = if sign <> (CommonCache.get_cache_sign com) then
+		(* TODO yuck *)
 		(match com.get_macros() with
 			| None -> Option.get (com.create_macros())
 			| Some com -> com)
 		else com
 	in
+
 	assert (sign = (CommonCache.get_cache_sign com));
 	(* Make sure cache is created *)
 	ignore(CommonCache.get_cache com);
 	(* TODO pos *)
 
 	let load_module path sign =
-		(* TODO check sign *)
 		let m = TypeloadModule.do_type_module ctx ctx.g path null_pos in
-		if m.m_extra.m_sign <> sign then trace "Sign mismatch!";
+		assert (m.m_extra.m_sign = sign);
 		m
 	in
+
 	HxbRestore.find cs sign com load_module (check_module sctx ctx) path null_pos
-	(* HxbRestore.find cs sign com (fun path -> !TypeloadModule.type_module_hook ctx path null_pos) (check_module sctx ctx) path null_pos *)
 
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
@@ -325,7 +327,6 @@ and check_module sctx ctx mpath m_extra p =
 		let check_file () =
 			let file = Path.UniqueKey.lazy_path m_extra.m_file in
 			if file_time file <> m_extra.m_time then begin
-				(* if (has_policy CheckFileContentModification || m_extra.m_cache_state = MSRestored MSGood) && not (content_changed mpath file) then begin *)
 				if (has_policy CheckFileContentModification) && not (content_changed mpath file) then begin
 					ServerMessage.unchanged_content com "" file;
 				end else begin
@@ -340,6 +341,7 @@ and check_module sctx ctx mpath m_extra p =
 			PMap.iter (fun _ (sign,mpath) ->
 				(* let m2 = try find_or_restore_module com.cs sign sctx ctx mpath with Bad_module (_, reason) -> raise (Dirty (DependencyDirty(mpath,reason))) in *)
 				let m2_extra = (com.cs#get_context sign)#find_module_extra mpath in
+				assert (m2_extra.m_sign = sign);
 				match check mpath m2_extra with
 				| None -> ()
 				| Some reason -> raise (Dirty (DependencyDirty(mpath,reason)))
@@ -359,10 +361,6 @@ and check_module sctx ctx mpath m_extra p =
 		if m_extra.m_checked = start_mark then begin match m_extra.m_cache_state with
 			| MSGood | MSUnknown ->
 				None
-			(* | MSRestored (MSBad reason) -> *)
-			(* 	Some reason *)
-			(* | MSRestored _ -> *)
-			(* 	None *)
 			| MSBad reason ->
 				Some reason
 		end else begin
@@ -372,15 +370,9 @@ and check_module sctx ctx mpath m_extra p =
 				| MSBad reason ->
 					(* If we are already dirty, stick to it. *)
 					Some reason
-				| MSUnknown
+				| MSUnknown ->
 					(* This should not happen because any MSUnknown module is supposed to have the current m_checked. *)
-					(* die "" __LOC__ *)
-				(* | MSRestored (MSBad reason) -> *)
-				(* 	Some reason *)
-				(* | MSRestored _ -> *)
-				(* 	(1* TODO check wanted behavior here *1) *)
-				(* 	m_extra.m_cache_state <- MSUnknown; *)
-				(* 	check () *)
+					die "" __LOC__
 				| MSGood ->
 					(* Otherwise, run the checks *)
 					m_extra.m_cache_state <- MSUnknown;
@@ -427,14 +419,6 @@ and check_module sctx ctx mpath m_extra p =
 			| MSUnknown ->
 				m_extra.m_checked <- start_mark - 1;
 				m_extra.m_cache_state <- MSGood;
-			(* | MSRestored _ -> *)
-			(* 	(1* TODO: is it possible to get there? if so, what to do? *1) *)
-			(* 	(1* m_extra.m_checked <- start_mark - 1; *1) *)
-			(* 	(1* m_extra.m_cache_state <- MSGood; *1) *)
-			(* 	trace (s_type_path mpath); *)
-			(* 	trace (Printer.s_module_cache_state m_extra.m_cache_state); *)
-			(* 	assert false *)
-			(* 	(1* () *1) *)
 			| MSGood | MSBad _ ->
 				()
 		) !unknown_state_modules
@@ -479,7 +463,8 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 	(* trace (Printf.sprintf "Server.type_module %s" (s_type_path mpath)); *)
 
 	try
-		let m = find_or_restore_module com.cs (CommonCache.get_cache_sign com) sctx ctx mpath in
+		let sign = (CommonCache.get_cache_sign com) in
+		let m = find_or_restore_module com.cs sign sctx ctx mpath in
 		let tcheck = Timer.timer ["server";"module cache";"check"] in
 		begin match check_module sctx ctx m.m_path m.m_extra p with
 		| None -> ()

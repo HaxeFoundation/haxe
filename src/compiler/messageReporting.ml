@@ -315,7 +315,7 @@ let display_source_at com p =
 	ectx.max_lines <- get_max_line ectx.max_lines [msg];
 	match compiler_pretty_message_string com ectx msg with
 		| None -> ()
-		| Some s -> Printf.eprintf "%s\n" s
+		| Some s -> prerr_endline s
 
 exception ConfigError of string
 

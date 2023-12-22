@@ -52,7 +52,6 @@ let do_add_module com m =
 	end else begin
 		match m.m_extra.m_cache_state with
 		| MSBad _ ->
-		(* | MSBad _ | MSRestored MSBad _ -> *)
 			trace (Printf.sprintf "[typeloadModule] Trying to add module %s with state %s" (s_type_path m.m_path) (Printer.s_module_cache_state m.m_extra.m_cache_state));
 		| _ -> com.module_lut#add m.m_path m
 	end
@@ -70,7 +69,6 @@ module ModuleLevel = struct
 
 	let add_module ctx m p =
 		List.iter (TypeloadCheck.check_module_types ctx m p) m.m_types;
-		(* ctx.com.module_lut#add m.m_path m *)
 		do_add_module ctx.com m
 
 	(*
@@ -119,7 +117,7 @@ module ModuleLevel = struct
 				has_declaration := true;
 				let priv = List.mem HPrivate d.d_flags in
 				let path = make_path name priv d.d_meta (snd d.d_name) in
-				let c = mk_class m path p (pos d.d_name) "typeloadModule:make_decl" in
+				let c = mk_class m path p (pos d.d_name) in
 				(* we shouldn't load any other type until we propertly set cl_build *)
 				c.cl_build <- (fun() -> raise_typing_error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
 				c.cl_module <- m;
@@ -785,12 +783,7 @@ let type_types_into_module ctx m tdecls p =
 	Creates a new module and types [tdecls] into it.
 *)
 let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
-	let spath = s_type_path mpath in
-	if spath = "alchimix.core.Pair" || spath = "Lambda" then
-		trace (Printf.sprintf "Type module %s" spath);
-
 	let m = ModuleLevel.make_module ctx mpath file in
-	(* ctx.com.module_lut#add m.m_path m; *)
 	do_add_module ctx.com m;
 	let tdecls = ModuleLevel.handle_import_hx ctx m tdecls p in
 	let ctx = type_types_into_module ctx m tdecls p in
@@ -804,9 +797,6 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 let type_module_hook = ref (fun _ _ _ -> None)
 
 let rec get_reader ctx g p =
-	(* TODO: create typer context for this module? *)
-	(* let ctx = create_typer_context_for_module tctx m in *)
-
 	let make_module path file =
 		let m = ModuleLevel.make_module ctx path file in
 		(* m.m_extra.m_added <- ctx.com.compilation_step; *)
@@ -815,7 +805,6 @@ let rec get_reader ctx g p =
 	in
 
 	let add_module m =
-		(* ctx.com.module_lut#add m.m_path m *)
 		do_add_module ctx.com m;
 	in
 

@@ -82,7 +82,7 @@ let valid_redefinition ctx map1 map2 f1 t1 f2 t2 = (* child, parent *)
 					to_check := check :: !to_check;
 				| _ ->
 					raise (Unify_error [Unify_custom "Different number of constraints"]));
-				TInst (mk_class null_module ([],ttp1.ttp_name) null_pos null_pos "typeloadCheck:valid_redefinition",[])
+				TInst (mk_class null_module ([],ttp1.ttp_name) null_pos null_pos,[])
 			) l1 l2 in
 			List.iter (fun f -> f monos) !to_check;
 			apply_params l1 monos t1, apply_params l2 monos t2

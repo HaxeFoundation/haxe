@@ -431,7 +431,7 @@ class ['a] hxb_writer
 			| None ->
 				chunk#write_byte 0
 			| Some t ->
-				(* chunk#write_byte 1; *)
+				chunk#write_byte 1;
 				(* self#write_type_instance ~debug t *)
 				self#write_type_instance ~debug t
 			end
@@ -1165,7 +1165,7 @@ class ['a] hxb_writer
 			self#write_types tl2;
 			chunk#write_option ttp.ttp_default self#write_type_instance
 		| _ ->
-			trace (s_type_kind ttp.ttp_type);
+			(* trace (s_type_kind ttp.ttp_type); *)
 			die "" __LOC__
 
 	method write_field_kind = function
@@ -1326,22 +1326,10 @@ class ['a] hxb_writer
 			prerr_endline ("Could not select abstract " ^ (s_type_path a.a_path));
 		end;
 		self#write_common_module_type (Obj.magic a);
-		(* ops *)
-		(* unops *)
 		chunk#write_option a.a_impl self#write_class_ref;
-		let c = match a.a_impl with
-			| None ->
-				null_class
-			| Some c ->
-				c
-		in
 		self#write_type_instance a.a_this;
 		chunk#write_list a.a_from self#write_type_instance;
 		chunk#write_list a.a_to self#write_type_instance;
-		chunk#write_list a.a_array (self#write_field_ref (ClassStatic c));
-		chunk#write_option a.a_read (self#write_field_ref (ClassStatic c));
-		chunk#write_option a.a_write (self#write_field_ref (ClassStatic c));
-		chunk#write_option a.a_call (self#write_field_ref (ClassStatic c));
 		chunk#write_bool a.a_enum
 
 	method write_abstract_fields (a : tabstract) =
@@ -1351,6 +1339,21 @@ class ['a] hxb_writer
 			| Some c ->
 				c
 		in
+
+		chunk#write_list a.a_array (self#write_field_ref (ClassStatic c));
+		chunk#write_option a.a_read (self#write_field_ref (ClassStatic c));
+		chunk#write_option a.a_write (self#write_field_ref (ClassStatic c));
+		chunk#write_option a.a_call (self#write_field_ref (ClassStatic c));
+
+		chunk#write_list a.a_ops (fun (op, cf) ->
+			chunk#write_byte (binop_index op);
+			self#write_field_ref (ClassStatic c) cf
+		);
+
+		chunk#write_list a.a_unops (fun (op, flag, cf) ->
+			chunk#write_byte (unop_index op flag);
+			self#write_field_ref (ClassStatic c) cf
+		);
 
 		chunk#write_list a.a_from_field (fun (t,cf) ->
 			self#write_field_ref (ClassStatic c) cf;
@@ -1383,15 +1386,6 @@ class ['a] hxb_writer
 		self#write_type_instance td.t_type;
 
 	method write_anon (an : tanon) (ttp : type_params) =
-		let old = type_type_parameters in
-		type_type_parameters <- new pool;
-		List.iter (fun ttp -> match follow_lazy ttp.ttp_type with
-			| TInst(c,_) -> ignore(type_type_parameters#add c.cl_path ttp)
-			| _ -> die "" __LOC__
-		) ttp;
-		chunk#write_list ttp self#write_type_parameter_forward;
-		chunk#write_list ttp self#write_type_parameter_data;
-
 		let write_fields () =
 			chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (_,cf) ->
 				let close = self#open_field_scope true cf in
@@ -1424,8 +1418,6 @@ class ['a] hxb_writer
 			self#write_abstract_ref a;
 			write_fields ()
 		end;
-
-		type_type_parameters <- old
 
 	(* Module *)
 

@@ -957,7 +957,7 @@ module TypeBinding = struct
 							| NothingToDo ->
 								(fun () -> ())
 							| NormalOverride rctx ->
-								(fun () -> 
+								(fun () ->
 									TypeloadCheck.check_override_field ctx cf.cf_name_pos rctx
 								)
 							| OverloadOverride f ->
@@ -965,7 +965,7 @@ module TypeBinding = struct
 							end
 						| _ ->
 							(fun () -> ())
-					in					
+					in
 					let e = TypeloadFunction.type_function ctx args ret fmode e fctx.is_display_field p in
 					f_check();
 					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)

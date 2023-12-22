@@ -714,7 +714,6 @@ let generate_module cs cc m =
 			| MSGood -> "Good"
 			| MSBad reason -> Printer.s_module_skip_reason reason
 			| MSUnknown -> "Unknown");
-			(* | MSRestored _ -> "Restored"); *)
 		"dependencies",jarray (PMap.fold (fun (sign,mpath) acc ->
 			(jobject [
 				"path",jstring (s_type_path mpath);

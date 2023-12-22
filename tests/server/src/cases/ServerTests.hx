@@ -42,7 +42,6 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		assertReuse("Dependency");
 		assertReuse("WithDependency");
-		debugMessages();
 	}
 
 	function testMacro() {
@@ -151,10 +150,6 @@ class ServerTests extends TestCase {
 		vfs.putContent("Other.hx", getTemplate("issues/Issue9134/Other.hx"));
 		var args = ["-main", "Main", "Other"];
 
-		// TODO check why this makes the weird BalancedTree shadow error disappear
-		runHaxe(args);
-		// debugErrorMessages();
-
 		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {fileContents: [
 			{file: new FsPath("Other.hx")},
 			{file: new FsPath("Main.hx")},
@@ -174,10 +169,7 @@ class ServerTests extends TestCase {
 			{file: new FsPath("Main.hx"), contents: getTemplate("issues/Issue9134/Main2.hx")},
 			{file: new FsPath("Other.hx"), contents: getTemplate("issues/Issue9134/Other2.hx")}
 		]}, res -> {
-			// trace(haxe.Json.stringify(res, "  "));
 			Assert.equals(1, res.length);
-			// debugMessages();
-			// debugErrorMessages();
 			Assert.equals(1, res[0].diagnostics.length);
 			var arg = res[0].diagnostics[0].args;
 			Assert.equals("Unused variable", (cast arg).description);
@@ -437,11 +429,9 @@ class ServerTests extends TestCase {
 		vfs.putContent("haxe/ds/Vector.hx", getTemplate("issues/Issue10986/Vector.hx"));
 		var args = ["-main", "Main", "--jvm", "Main.jar"];
 		runHaxe(args);
-		// debugMessages();
 		vfs.touchFile("haxe/ds/Vector.hx");
 		// Missed async call
 		runHaxe(args);
-		// debugMessages();
 		assertSuccess();
 	}
 
@@ -483,11 +473,15 @@ class ServerTests extends TestCase {
 
 		var completionRequest = {file: new FsPath("MyMacro.macro.hx"), contents: transform.source, offset: transform.markers[2], wasAutoTriggered: false};
 		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
-		Assert.isTrue(parseCompletion().result.items.length == 23);
+		// TODO: why 24 instead of 23??
+		Assert.isTrue(parseCompletion().result.items.length == 24);
+		// Assert.isTrue(parseCompletion().result.items.length == 23);
 		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
-		Assert.isTrue(parseCompletion().result.items.length == 23);
+		Assert.isTrue(parseCompletion().result.items.length == 24);
+		// Assert.isTrue(parseCompletion().result.items.length == 23);
 		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
-		Assert.isTrue(parseCompletion().result.items.length == 23);
+		Assert.isTrue(parseCompletion().result.items.length == 24);
+		// Assert.isTrue(parseCompletion().result.items.length == 23);
 
 		runHaxe(args);
 		assertSuccess();

@@ -532,7 +532,6 @@ let filter tctx =
 			| TInst(cls,_) as t -> (t,cls)
 			| TAbstract({ a_impl = Some cls },_) as t -> (t,cls)
 			| _ ->
-				trace "¿?????";
 				raise_typing_error "haxe.NativeStackTrace is expected to be a class or an abstract" null_pos
 			in
 			add_dependency ~skip_postprocess:true tctx.m.curmod (t_infos (module_type_of_type t)).mt_module;
@@ -578,8 +577,8 @@ let filter tctx =
 	Inserts `haxe.NativeStackTrace.saveStack(e)` in non-haxe.Exception catches.
 *)
 let insert_save_stacks tctx =
-	(* TODO *)
-	trace(Printf.sprintf "Has exception stack = %b" (has_feature tctx.com "haxe.NativeStackTrace.exceptionStack"));
+	(* TODO? *)
+	(* trace(Printf.sprintf "Has exception stack = %b" (has_feature tctx.com "haxe.NativeStackTrace.exceptionStack")); *)
 
 	if not (has_feature tctx.com "haxe.NativeStackTrace.exceptionStack") then
 		(fun e -> e)

@@ -335,7 +335,7 @@ let rec load_params ctx info params p =
 					"Expr"
 				| _ -> "Expr"
 			) in
-			let c = mk_class ctx.m.curmod ([],name) p (pos e) "typeload:load_params" in
+			let c = mk_class ctx.m.curmod ([],name) p (pos e) in
 			c.cl_kind <- KExpr e;
 			TInst (c,[]),pos e
 		| TPType t -> load_complex_type ctx true t,pos t
@@ -736,7 +736,7 @@ type type_param_host =
 
 let rec type_type_param ctx host path get_params p tp =
 	let n = fst tp.tp_name in
-	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) (pos tp.tp_name) (pos tp.tp_name) "typeload:type_type_param" in
+	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) (pos tp.tp_name) (pos tp.tp_name) in
 	c.cl_params <- type_type_params ctx host c.cl_path get_params p tp.tp_params;
 	c.cl_meta <- tp.Ast.tp_meta;
 	if host = TPHEnumConstructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;

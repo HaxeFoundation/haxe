@@ -45,7 +45,6 @@ type module_cache_state =
 	| MSGood
 	| MSBad of module_skip_reason
 	| MSUnknown
-	(* | MSRestored of module_cache_state *)
 
 type t =
 	| TMono of tmono
@@ -292,7 +291,6 @@ and tclass = {
 		Populated automatically in post-processing step (Filters.run)
 	*)
 	mutable cl_descendants : tclass list;
-	mutable cl_created_from : string;
 }
 
 and tenum_field = {

@@ -441,7 +441,7 @@ module Printer = struct
 	let s_metadata metadata =
 		s_list " " s_metadata_entry metadata
 
-	let s_type_param ttp = 
+	let s_type_param ttp =
 		let s = match (get_constraints ttp) with
 			| [] -> ttp.ttp_name
 			| tl1 -> Printf.sprintf "%s:%s" ttp.ttp_name (String.concat " & " (List.map s_type tl1))
@@ -604,11 +604,9 @@ module Printer = struct
 		loop [] reason
 
 	let s_module_cache_state = function
-	(* let rec s_module_cache_state = function *)
 		| MSGood -> "Good"
 		| MSBad reason -> "Bad: " ^ (s_module_skip_reason reason)
 		| MSUnknown -> "Unknown"
-		(* | MSRestored s -> Printf.sprintf "Restored (%s)" (s_module_cache_state s) *)
 
 	let s_module_def_extra tabs me =
 		s_record_fields tabs [

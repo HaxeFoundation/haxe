@@ -107,7 +107,7 @@ let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
 let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 
-let mk_class m path pos name_pos called_from =
+let mk_class m path pos name_pos =
 	{
 		cl_path = path;
 		cl_module = m;
@@ -133,7 +133,6 @@ let mk_class m path pos name_pos called_from =
 		cl_build = (fun() -> Built);
 		cl_restore = (fun() -> ());
 		cl_descendants = [];
-		cl_created_from = called_from;
 	}
 
 let mk_typedef m path pos name_pos t =
@@ -208,7 +207,7 @@ let null_module = {
 }
 
 let null_class =
-	let c = mk_class null_module ([],"") null_pos null_pos "null_class" in
+	let c = mk_class null_module ([],"") null_pos null_pos in
 	c.cl_private <- true;
 	c
 

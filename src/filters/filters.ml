@@ -358,7 +358,7 @@ let add_meta_field com t = match t with
 			if (has_class_flag c CInterface) && not (can_deal_with_interface_metadata()) then begin
 				(* borrowed from gencommon, but I did wash my hands afterwards *)
 				let path = fst c.cl_path,snd c.cl_path ^ "_HxMeta" in
-				let ncls = mk_class c.cl_module path c.cl_pos null_pos "filters:add_meta_field" in
+				let ncls = mk_class c.cl_module path c.cl_pos null_pos in
 				ncls.cl_ordered_statics <- cf :: ncls.cl_ordered_statics;
 				ncls.cl_statics <- PMap.add cf.cf_name cf ncls.cl_statics;
 				com.types <- com.types @ [ TClassDecl ncls ];

@@ -48,9 +48,9 @@ class display_handler (jsonrpc : jsonrpc_handler) com = object(self)
 	val cs = com.cs;
 
 	method get_cs = cs
-	method get_macro_cs = (match com.get_macros() with
-		| None -> Option.get (com.create_macros ())
-		| Some com -> com).cs
+
+	method maybe_get_macro_cs =
+		Option.map (fun com -> com.cs) (com.get_macros())
 
 	method enable_display mode =
 		com.display <- create mode;
@@ -385,15 +385,16 @@ let handler =
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let fkey = hctx.com.file_keys#get file in
 			let cs = hctx.display#get_cs in
-			cs#taint_modules fkey "server/invalidate";
-			cs#remove_files fkey;
-			try
-				(* TODO: this probably shouldn't fail? *)
-				let mcs = hctx.display#get_macro_cs in
-				mcs#taint_modules fkey "server/invalidate";
-				mcs#remove_files fkey
-			with Option.No_value -> ();
-			hctx.send_result jnull
+			(* TODO: better way to restore macro context? *)
+			hctx.com.callbacks#add_after_init_macros (fun () ->
+				cs#taint_modules fkey "server/invalidate";
+				cs#remove_files fkey;
+				Option.may (fun mcs ->
+					mcs#taint_modules fkey "server/invalidate";
+					mcs#remove_files fkey
+				) hctx.display#maybe_get_macro_cs;
+				hctx.send_result jnull
+			)
 		);
 		"server/configure", (fun hctx ->
 			let l = ref (List.map (fun (name,value) ->
