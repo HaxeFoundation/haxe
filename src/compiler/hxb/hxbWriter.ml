@@ -1091,7 +1091,7 @@ class ['a] hxb_writer
 				loop e1;
 				chunk#write_string s;
 			(* module types 120-139 *)
-			| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter []} as c)) ->
+			| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter {ttp_constraints = None}} as c)) ->
 				chunk#write_byte 128;
 				self#write_type_parameter_ref_debug c
 			| TTypeExpr (TClassDecl c) ->
@@ -1154,18 +1154,16 @@ class ['a] hxb_writer
 			| _ -> die "" __LOC__
 		) params
 
-	method write_type_parameter_forward ttp = match follow_lazy ttp.ttp_type with
-		| TInst({cl_kind = KTypeParameter _} as c,_) ->
-			chunk#write_string ttp.ttp_name;
-			self#write_pos c.cl_name_pos
-		| _ ->
-			die "" __LOC__
+	method write_type_parameter_forward ttp =
+		chunk#write_string ttp.ttp_name;
+		self#write_pos ttp.ttp_class.cl_name_pos
 
 	method write_type_parameter_data ttp = match follow_lazy ttp.ttp_type with
-		| TInst({cl_kind = KTypeParameter tl1} as c,tl2) ->
-			self#write_types tl1;
+		| TInst({cl_kind = KTypeParameter ttp} as c,tl2) ->
+			self#write_metadata c.cl_meta;
+			self#write_types (get_constraints ttp);
 			self#write_types tl2;
-			self#write_metadata c.cl_meta
+			chunk#write_option ttp.ttp_default self#write_type_instance
 		| _ ->
 			trace (s_type_kind ttp.ttp_type);
 			die "" __LOC__
@@ -1272,9 +1270,11 @@ class ['a] hxb_writer
 	method write_class_kind = function
 		| KNormal ->
 			chunk#write_byte 0
-		| KTypeParameter tl ->
-			chunk#write_byte 1;
-			self#write_types tl;
+		| KTypeParameter ttp ->
+			(* chunk#write_byte 1; *)
+			(* let tl = get_constraints ttp in *)
+			(* self#write_types tl; *)
+			die "TODO" __LOC__
 		| KExpr e ->
 			chunk#write_byte 2;
 			self#write_expr e;

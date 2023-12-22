@@ -42,9 +42,9 @@ class hxb_reader
 	val mutable anon_fields = Array.make 0 null_field
 
 	val vars = Hashtbl.create 0
-	val mutable type_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
+	val mutable type_type_parameters = Array.make 0 (mk_type_param null_class None None)
 	val field_type_parameters = Hashtbl.create 0
-	val mutable local_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
+	val mutable local_type_parameters = Array.make 0 (mk_type_param null_class None None)
 
 	method resolve_type sign pack mname tname =
 		try resolve_type sign pack mname tname with
@@ -821,33 +821,26 @@ class hxb_reader
 			let name = self#read_string in
 			let pos = self#read_pos in
 			let cpath = (fst path @ [snd path],name) in
-			let spath = s_type_path cpath in
-			(* if spath = "alchimix.utils.Set.T" || spath = "fromArray.T" then begin *)
-			if m.m_path = (["alchimix";"core"],"Pair") then begin
-				trace (Printf.sprintf "      Read ttp pos for %s: %s" name (Printer.s_pos pos));
-				trace (Printf.sprintf "      - Path was %s" (spath));
-			end;
-			if m.m_path = ([],"Lambda") then begin
-				trace (Printf.sprintf "      Read ttp pos for %s: %s" name (Printer.s_pos pos));
-				trace (Printf.sprintf "      - Path was %s" (spath));
-			end;
 			let c = mk_class m cpath pos pos "hxbReader:read_type_parameters" in
-			mk_type_param name (TInst(c,[])) None
+			mk_type_param c None None
 		) in
 		f a;
 		let l = self#read_uleb128 in
 		for i = 0 to l - 1 do
+			let meta = self#read_metadata in
 			let tl1 = self#read_types in
 			let tl2 = self#read_types in
-			let meta = self#read_metadata in
-			begin match a.(i) with
-			| {ttp_type = TInst(c,_)} as ttp ->
-				c.cl_kind <- KTypeParameter tl1;
-				c.cl_meta <- meta;
-				a.(i) <- {ttp with ttp_type = (TInst(c,tl2))}
-			| _ ->
-				die "" __LOC__
-			end;
+			let def = self#read_type_instance in (* TODO *)
+
+			let ttp = a.(i) in
+			let c = ttp.ttp_class in
+			a.(i) <- {ttp with
+				ttp_type = (TInst(c,tl2));
+				ttp_default = Some def;
+				ttp_constraints = Some (Lazy.from_val tl1)
+			};
+			c.cl_meta <- meta;
+			c.cl_kind <- KTypeParameter a.(i)
 		done;
 
 		if m.m_path = (["alchimix";"core"],"Pair") then
@@ -1333,7 +1326,11 @@ class hxb_reader
 
 	method read_class_kind = match self#read_u8 with
 		| 0 -> KNormal
-		| 1 -> KTypeParameter self#read_types
+		| 1 ->
+			(* TODO *)
+			(* let tl = self#read_types in *)
+			(* KTypeParameter *)
+			die "TODO" __LOC__
 		| 2 -> KExpr self#read_expr
 		| 3 -> KGeneric
 		| 4 ->
