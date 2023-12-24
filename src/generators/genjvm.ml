@@ -2116,7 +2116,11 @@ class texpr_to_jvm
 		| TEnumParameter(e1,ef,i) ->
 			self#texpr rvalue_any e1;
 			let path,name,jsig_arg = match follow ef.ef_type with
-				| TFun(tl,TEnum(en,_)) ->
+				| TFun(tl,tr) ->
+					let en = match follow tr with
+						| TEnum(en,_) -> en
+						| _ -> die "" __LOC__
+					in
 					let n,_,t = List.nth tl i in
 					en.e_path,n,self#vtype t
 				| _ -> die "" __LOC__
