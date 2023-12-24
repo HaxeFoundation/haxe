@@ -1154,6 +1154,8 @@ let interp ctx f args =
 			(match get r2, get off with
 			| VRef (RArray (a,pos),t), VInt i -> set r (VRef (RArray (a,pos + Int32.to_int i),t))
 			| _ -> Globals.die "" __LOC__)
+		| OAsm _ ->
+			throw_msg ctx "Unsupported ASM"
 		| ONop _ | OPrefetch _ ->
 			()
 		);
@@ -2545,6 +2547,8 @@ let check code macros =
 				();
 			| OPrefetch (r,f,_) ->
 				if f = 0 then ignore(rtype r) else ignore(tfield r (f - 1) false)
+			| OAsm (_,_,r) ->
+				if r > 0 then ignore(rtype (r - 1))
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in

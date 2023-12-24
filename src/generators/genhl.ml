@@ -2086,6 +2086,28 @@ and eval_expr ctx e =
 			let r = alloc_tmp ctx (to_type ctx e.etype) in
             op ctx (OUnsafeCast (r, eval_expr ctx value));
 			r
+		| "$asm", [mode; value] ->
+			let mode = (match get_const mode with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant mode required" e.epos
+			) in
+			let value = (match get_const value with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant value required" e.epos
+			) in
+			op ctx (OAsm (mode, value, 0));
+			alloc_tmp ctx HVoid
+		| "$asm", [mode; value; reg] ->
+			let mode = (match get_const mode with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant mode required" e.epos
+			) in
+			let value = (match get_const value with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant value required" e.epos
+			) in
+			op ctx (OAsm (mode, value, (eval_expr ctx reg) + 1));
+			alloc_tmp ctx HVoid
 		| _ ->
 			abort ("Unknown native call " ^ s) e.epos)
 	| TEnumIndex v ->
