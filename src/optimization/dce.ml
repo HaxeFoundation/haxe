@@ -622,7 +622,7 @@ and expr dce e =
 		check_op dce op;
 		check_and_add_feature dce "dynamic_array_write";
 		expr dce e1;
-		expr dce e2;		
+		expr dce e2;
 	| TArray(({etype = t} as e1),e2) when is_array t ->
 		check_and_add_feature dce "array_read";
 		expr dce e1;
@@ -733,8 +733,9 @@ let collect_entry_points dce com =
 		match t with
 		| TClassDecl c ->
 			let keep_class = keep_whole_class dce c && (not (has_class_flag c CExtern) || (has_class_flag c CInterface)) in
+			let is_struct = dce.com.platform = Hl && Meta.has Meta.Struct c.cl_meta in
 			let loop kind cf =
-				if keep_class || keep_field dce cf c kind then mark_field dce c cf kind
+				if keep_class || is_struct || keep_field dce cf c kind then mark_field dce c cf kind
 			in
 			List.iter (loop CfrStatic) c.cl_ordered_statics;
 			List.iter (loop CfrMember) c.cl_ordered_fields;
