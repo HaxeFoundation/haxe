@@ -727,6 +727,12 @@
 		"targets": ["TExpr"]
 	},
 	{
+		"name": "MessageFollow",
+		"metadata": ":message.follow",
+		"doc": "Follows a typedef when printing it.",
+		"targets": ["TTypedef"]
+	},
+	{
 		"name": "MultiReturn",
 		"metadata": ":multiReturn",
 		"doc": "Annotates an extern class as the result of multi-return function.",
