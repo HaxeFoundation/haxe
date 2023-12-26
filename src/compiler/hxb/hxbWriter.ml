@@ -431,8 +431,7 @@ class ['a] hxb_writer
 			| None ->
 				chunk#write_byte 0
 			| Some t ->
-				chunk#write_byte 1;
-				(* self#write_type_instance ~debug t *)
+				(* Don't write bound monomorphs, write underlying type directly *)
 				self#write_type_instance ~debug t
 			end
 		| TInst({cl_kind = KTypeParameter _} as c,[]) ->

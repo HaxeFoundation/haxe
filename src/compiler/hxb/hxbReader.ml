@@ -682,12 +682,12 @@ class hxb_reader
 		| 0 ->
 			(* prerr_endline (Printf.sprintf "  %s identity" todo); *)
 			mk_mono() (* TODO: identity *)
-		| 1 ->
-			(* prerr_endline (Printf.sprintf "  %s TMono Some" todo); *)
-			let t = self#read_type_instance in
-			let tmono = !monomorph_create_ref () in (* TODO identity *)
-			tmono.tm_type <- Some t;
-			TMono tmono;
+		(* Bound monomorphs directly write their underlying type *)
+		(* | 1 -> *)
+		(* 	let t = self#read_type_instance in *)
+		(* 	let tmono = !monomorph_create_ref () in (1* TODO identity *1) *)
+		(* 	tmono.tm_type <- Some t; *)
+		(* 	TMono tmono; *)
 		| 5 | 6 | 7 -> self#read_type_parameter_ref kind
 		| 8 ->
 			let e = self#read_expr in
