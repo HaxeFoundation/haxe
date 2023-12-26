@@ -44,6 +44,7 @@ class hxb_reader
 	val mutable typedefs = Array.make 0 null_typedef
 	val mutable anons = Array.make 0 null_tanon
 	val mutable anon_fields = Array.make 0 null_field
+	val mutable tmonos = Array.make 0 (mk_mono())
 
 	val vars = Hashtbl.create 0
 	val mutable type_type_parameters = Array.make 0 (mk_type_param null_class None None)
@@ -680,8 +681,8 @@ class hxb_reader
 
 		match kind with
 		| 0 ->
-			(* prerr_endline (Printf.sprintf "  %s identity" todo); *)
-			mk_mono() (* TODO: identity *)
+			let i = self#read_uleb128 in
+			tmonos.(i)
 		(* Bound monomorphs directly write their underlying type *)
 		(* | 1 -> *)
 		(* 	let t = self#read_type_instance in *)
@@ -1624,6 +1625,7 @@ class hxb_reader
 		anons <- Array.init l (fun _ -> { a_fields = PMap.empty; a_status = ref Closed });
 
 		anon_fields <- Array.make (self#read_uleb128) null_field;
+		tmonos <- Array.init (self#read_uleb128) (fun _ -> mk_mono());
 		make_module path file
 
 	method read (file_ch : IO.input) (debug : bool) (p : pos) =

@@ -263,6 +263,7 @@ class ['a] hxb_writer
 	val abstracts = new pool
 	val anons = new pool
 	val anon_fields = new identity_pool
+	val tmonos = new identity_pool
 
 	val own_classes = new pool
 	val own_abstracts = new pool
@@ -359,6 +360,10 @@ class ['a] hxb_writer
 			chunk#write_uleb128 index;
 			self#write_anon an ttp
 
+	method write_tmono_ref (mono : tmono) =
+		let index = try tmonos#get mono with Not_found -> tmonos#add mono () in
+		chunk#write_uleb128 index;
+
 	method write_field_ref (source : field_source) (cf : tclass_field) =
 		chunk#write_string cf.cf_name
 
@@ -387,7 +392,7 @@ class ['a] hxb_writer
 
 	method write_type_parameter_ref_debug (c : tclass) =
 			(try self#write_type_parameter_ref c with e ->
-				(* chunk#write_byte 0; (1* TMono None *1) *)
+				(* TODO: handle unbound type parameters? *)
 				chunk#write_byte 40; (* TDynamic None *)
 				(* raise e *)
 			)
@@ -411,7 +416,6 @@ class ['a] hxb_writer
 			(* DynArray.iter (fun ttp -> debug_msg (Printf.sprintf "FTP %s %s" ttp.ttp_name (s_type_kind ttp.ttp_type)) field_type_parameters#items); *)
 			(* DynArray.iter (fun ttp -> debug_msg (Printf.sprintf "TTP %s %s" ttp.ttp_name (s_type_kind ttp.ttp_type)) type_type_parameters#items); *)
 			(* print_stacktrace (); *)
-			(* chunk#write_byte 0 (1* TMono None *1) *)
 			raise Exit
 		end
 
@@ -429,7 +433,8 @@ class ['a] hxb_writer
 		| TMono r ->
 			begin match r.tm_type with
 			| None ->
-				chunk#write_byte 0
+				chunk#write_byte 0;
+				self#write_tmono_ref r
 			| Some t ->
 				(* Don't write bound monomorphs, write underlying type directly *)
 				self#write_type_instance ~debug t
@@ -1610,6 +1615,7 @@ class ['a] hxb_writer
 		chunk#write_string (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		chunk#write_uleb128 (DynArray.length anons#items);
 		chunk#write_uleb128 (DynArray.length anon_fields#items);
+		chunk#write_uleb128 (DynArray.length tmonos#items);
 		self#start_chunk HEND;
 
 	(* Export *)
