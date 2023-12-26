@@ -38,7 +38,7 @@ module Utils = struct
 			abort (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
 
 	let mk_static_field c cf p =
-			let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
+			let ta = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
 			let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
 			let t = monomorphs cf.cf_params cf.cf_type in
 			mk (TField (ethis,(FStatic (c,cf)))) t p
@@ -386,7 +386,7 @@ module Transformer = struct
 
 	and transform_switch ae is_value e1 cases edef =
 		let case_functions = ref [] in
-		let case_to_if (el,e) eelse =
+		let case_to_if {case_patterns = el;case_expr = e} eelse =
 			let val_reversed = List.rev el in
 			let mk_eq e = mk (TBinop(OpEq,e1,e)) !t_bool (punion e1.epos e.epos) in
 			let cond = match val_reversed with
@@ -435,7 +435,7 @@ module Transformer = struct
 
 	and transform_string_switch ae is_value e1 cases edef =
 		let length_map = Hashtbl.create 0 in
-		List.iter (fun (el,e) ->
+		List.iter (fun {case_patterns = el;case_expr = e} ->
 			List.iter (fun es ->
 				match es.eexpr with
 				| TConst (TString s) ->
@@ -464,7 +464,7 @@ module Transformer = struct
 			let cases = Hashtbl.fold (fun i el acc ->
 				let eint = mk (TConst (TInt (Int32.of_int i))) !t_int e1.epos in
 				let fs = match List.fold_left (fun eacc ec -> Some (mk_if ec eacc)) edef !el with Some e -> e | None -> die "" __LOC__ in
-				([eint],fs) :: acc
+				({case_patterns = [eint];case_expr = fs}) :: acc
 			) length_map [] in
 			let c_string = match !t_string with TInst(c,_) -> c | _ -> die "" __LOC__ in
 			let cf_length = PMap.find "length" c_string.cl_fields in
@@ -472,9 +472,10 @@ module Transformer = struct
 			let res_var = alloc_var (ae.a_next_id()) ef.etype ef.epos in
 			let res_local = {ef with eexpr = TLocal res_var} in
 			let var_expr = {ef with eexpr = TVar(res_var,Some ef)} in
+			let switch = mk_switch res_local cases edef (edef <> None) in
 			let e = mk (TBlock [
 				var_expr;
-				mk (TSwitch(res_local,cases,edef)) ae.a_expr.etype e1.epos
+				mk (TSwitch switch) ae.a_expr.etype e1.epos
 			]) ae.a_expr.etype e1.epos in
 			forward_transform e ae
 
@@ -826,7 +827,7 @@ module Transformer = struct
 			let new_expr = { ae.a_expr with eexpr = TWhile( true_expr, new_e, NormalWhile) } in
 			forward_transform new_expr ae
 
-		| (is_value, TSwitch(e, cases, edef)) ->
+		| (is_value, TSwitch {switch_subject = e;switch_cases = cases;switch_default = edef}) ->
 			begin match follow e.etype with
 				| TInst({cl_path = [],"str"},_) ->
 					transform_string_switch ae is_value e cases edef
@@ -1492,9 +1493,9 @@ module Printer = struct
 				let interpolate () =
 					Codegen.interpolate_code pctx.pc_com code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
 				in
-				let old = pctx.pc_com.error in
-				pctx.pc_com.error <- abort;
-				Std.finally (fun() -> pctx.pc_com.error <- old) interpolate ();
+				let old = pctx.pc_com.error_ext in
+				pctx.pc_com.error_ext <- (fun err -> raise (Error.Fatal_error err));
+				Std.finally (fun() -> pctx.pc_com.error_ext <- old) interpolate ();
 				Buffer.contents buf
 			| ("python_Syntax._pythonCode"), [e] ->
 				print_expr pctx e
@@ -1894,7 +1895,7 @@ module Generator = struct
 						| TConst (TSuper | TThis) | TThrow _ | TReturn _ ->
 							raise Exit
 						(* TODO: We could do some branch intersection stunts to make this more accurate. *)
-						| TIf(e1,_,_) | TSwitch(e1,_,_) | TWhile(e1,_,_) ->
+						| TIf(e1,_,_) | TSwitch ({switch_subject = e1; _}) | TWhile(e1,_,_) ->
 							loop e1
 						| _ ->
 							Type.iter loop e
@@ -2269,7 +2270,7 @@ module Generator = struct
 				end else
 					","
 				in
-				let k_enc = Codegen.escape_res_name k false in
+				let k_enc = Codegen.escape_res_name k [] in
 				print ctx "%s\"%s\": open('%%s.%%s'%%(_file,'%s'),'rb').read()" prefix (StringHelper.s_escape k) k_enc;
 
 				let f = open_out_bin (ctx.com.file ^ "." ^ k_enc) in

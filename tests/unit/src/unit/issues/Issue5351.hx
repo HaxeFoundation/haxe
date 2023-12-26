@@ -1,4 +1,5 @@
 package unit.issues;
+
 import scripthost.Issue5351;
 
 class Issue5351 extends Test {
@@ -10,20 +11,20 @@ class Issue5351 extends Test {
 
 		eq(scripthost.Issue5351.callDoTest1(t3), 'doTest1 override');
 		eq(scripthost.Issue5351.callDoTest2(t3), 'doTest2 override');
-		eq(scripthost.Issue5351_2.callDoTest1(t3), 'doTest1 override');
-		eq(scripthost.Issue5351_2.callDoTest2(t3), 'doTest2 override');
-		eq(scripthost.Issue5351_2.callDoTest3(t3), 'doTest3 override');
+		eq(Issue5351_2.callDoTest1(t3), 'doTest1 override');
+		eq(Issue5351_2.callDoTest2(t3), 'doTest2 override');
+		eq(Issue5351_2.callDoTest3(t3), 'doTest3 override');
 
-    var t3 = new Issue5351_3();
+		var t3 = new Issue5351_3();
 		eq(t3.doTest1(), 'doTest1 override');
 		eq(t3.doTest2(), 'doTest2 override');
 		eq(t3.doTest3(), 'doTest3 override');
 
 		eq(scripthost.Issue5351.callDoTest1(t3), 'doTest1 override');
 		eq(scripthost.Issue5351.callDoTest2(t3), 'doTest2 override');
-		eq(scripthost.Issue5351_2.callDoTest1(t3), 'doTest1 override');
-		eq(scripthost.Issue5351_2.callDoTest2(t3), 'doTest2 override');
-		eq(scripthost.Issue5351_2.callDoTest3(t3), 'doTest3 override');
+		eq(Issue5351_2.callDoTest1(t3), 'doTest1 override');
+		eq(Issue5351_2.callDoTest2(t3), 'doTest2 override');
+		eq(Issue5351_2.callDoTest3(t3), 'doTest3 override');
 
 		eq(t3.doTest4(), 'doTest4');
 	}
@@ -42,7 +43,7 @@ class Issue5351 extends Test {
 		return 'doTest3 override';
 	}
 
-  public function doTest4() {
+	public function doTest4() {
 		return 'doTest4';
-  }
+	}
 }

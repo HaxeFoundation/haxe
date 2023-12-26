@@ -1,5 +1,11 @@
 (include_subdirs no)
 
+(env
+	(_
+		(flags (-w -3 -w -27))
+	)
+)
+
 (library
 	(name ilib)
 	(modules_without_implementation ilData ilMeta)

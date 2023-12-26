@@ -24,7 +24,6 @@ open Typecore
 open CompletionItem
 open ClassFieldOrigin
 open DisplayTypes
-open Genjson
 open Globals
 
 (* Merges argument and return types from macro and non-macro context, preferring the one that isn't Dynamic.
@@ -188,7 +187,7 @@ module CollectionContext = struct
 			Shadowed
 		with Not_found ->
 			let check_wildcard () =
-				List.exists (fun (sl,_) -> (sl,snd path) = path) ctx.ctx.m.wildcard_packages
+				List.exists (fun (sl,_) -> (sl,snd path) = path) ctx.ctx.m.import_resolution#extract_wildcard_packages
 			in
 			if is_import || (fst path = []) || check_wildcard () then Imported else Unimported
 
@@ -378,7 +377,7 @@ let collect ctx tk with_type sort =
 				()
 		in
 		List.iter enum_ctors ctx.m.curmod.m_types;
-		List.iter enum_ctors (List.map fst ctx.m.module_imports);
+		List.iter enum_ctors (List.map fst ctx.m.import_resolution#extract_type_imports);
 
 		(* enum constructors of expected type *)
 		begin match with_type with
@@ -415,7 +414,7 @@ let collect ctx tk with_type sort =
 					| _ -> raise Not_found
 			with Not_found ->
 				()
-		) ctx.m.module_globals;
+		) ctx.m.import_resolution#extract_field_imports;
 
 		(* literals *)
 		add (make_ci_literal "null" (tpair t_dynamic)) (Some "null");
@@ -450,17 +449,15 @@ let collect ctx tk with_type sort =
 	end;
 
 	(* type params *)
-	List.iter (fun tp -> match follow tp.ttp_type with
-		| TInst(c,_) ->
-			add (make_ci_type_param c (tpair tp.ttp_type)) (Some (snd c.cl_path))
-		| _ -> die "" __LOC__
+	List.iter (fun tp ->
+		add (make_ci_type_param tp.ttp_class (tpair tp.ttp_type)) (Some (snd tp.ttp_class.cl_path))
 	) ctx.type_params;
 
 	(* module types *)
 	List.iter add_type ctx.m.curmod.m_types;
 
 	(* module imports *)
-	List.iter add_type (List.rev_map fst ctx.m.module_imports); (* reverse! *)
+	List.iter add_type (List.rev_map fst ctx.m.import_resolution#extract_type_imports); (* reverse! *)
 
 	(* types from files *)
 	let cs = ctx.com.cs in

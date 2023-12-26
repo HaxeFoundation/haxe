@@ -164,6 +164,14 @@ let opcode_fx frw op =
 		write r;
 	| ONop _  ->
 		()
+	| OPrefetch (r,_,_) ->
+		read r
+    | OAsm (_,_,r) ->
+        if r > 0 then begin
+            (* assume both *)
+            read (r - 1);
+            write (r - 1);
+        end
 
 let opcode_eq a b =
 	match a, b with
@@ -432,6 +440,14 @@ let opcode_map read write op =
 		ORefOffset (write r,r2,off);
 	| ONop _ ->
 		op
+	| OPrefetch (r, fid, mode) ->
+		let r2 = read r in
+		OPrefetch (r2, fid, mode)
+	| OAsm (_, _, 0) ->
+		op
+	| OAsm (mode, value, r) ->
+		let r2 = read (r - 1) in
+		OAsm (mode, value, (write r2) + 1)
 
 (* build code graph *)
 
@@ -875,6 +891,11 @@ let _optimize (f:fundecl) =
 			| OGetThis (r,fid) when (match f.regs.(r) with HStruct _ -> true | _ -> false) ->
 				do_write r;
 				if is_packed_field 0 fid then state.(r).rnullcheck <- true;
+			| OGetArray (r,arr,idx) ->
+				do_read arr;
+				do_read idx;
+				do_write r;
+				(match f.regs.(arr) with HAbstract _ -> state.(r).rnullcheck <- true | _ -> ());
 			| _ ->
 				opcode_fx (fun r read ->
 					if read then do_read r else do_write r

@@ -6,7 +6,6 @@ open DisplayException
 open DisplayTypes
 open DisplayMode
 open CompletionItem
-open CompletionType
 open ClassFieldOrigin
 open DisplayTypes.CompletionResultKind
 open Common
@@ -18,6 +17,17 @@ let symbol_of_module_type = function
 	| TEnumDecl en -> SKEnum en
 	| TTypeDecl td -> SKTypedef td
 	| TAbstractDecl a -> SKAbstract a
+
+let display_alias ctx name t p = match ctx.com.display.dms_kind with
+	| DMDefinition | DMTypeDefinition ->
+		raise_positions [p];
+	| DMUsage _ | DMImplementation ->
+		ReferencePosition.set (name,p,SKOther)
+	| DMHover ->
+		let ct = CompletionType.from_type (get_import_status ctx) t in
+		raise_hover (make_ci_literal name (t,ct)) None p
+	| _ ->
+		()
 
 let display_module_type ctx mt p = match ctx.com.display.dms_kind with
 	| DMDefinition | DMTypeDefinition ->
@@ -56,20 +66,13 @@ let rec display_type ctx t p =
 			| _ ->
 				()
 
-let check_display_type ctx t path =
+let check_display_type ctx t ptp =
 	let add_type_hint () =
-		ctx.g.type_hints <- (ctx.m.curmod.m_extra.m_display,pos path,t) :: ctx.g.type_hints;
+		ctx.g.type_hints <- (ctx.m.curmod.m_extra.m_display,ptp.pos_full,t) :: ctx.g.type_hints;
 	in
 	let maybe_display_type () =
-		if ctx.is_display_file && display_position#enclosed_in (pos path) then
-			let p =
-				match path with
-				| ({ tpackage = pack; tname = name; tsub = sub },p) ->
-					let strings = match sub with None -> name :: pack | Some s -> s :: name :: pack in
-					let length = String.length (String.concat "." strings) in
-					{ p with pmax = p.pmin + length }
-			in
-			display_type ctx t p
+		if ctx.is_display_file && display_position#enclosed_in ptp.pos_full then
+			display_type ctx t ptp.pos_path
 	in
 	add_type_hint();
 	maybe_display_type()
@@ -109,7 +112,7 @@ let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 				(* For constructors, we care about the class name so we don't end up looking for "new". *)
 				snd c.cl_path,SKConstructor cf
 			| _,(Self (TClassDecl c) | Parent(TClassDecl c)) ->
-				cf.cf_name,SKField (cf,Some c.cl_path)
+				cf.cf_name,SKField (cf,Some c)
 			| _ ->
 				cf.cf_name,SKField (cf,None)
 		in

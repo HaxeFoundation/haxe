@@ -1,0 +1,6 @@
+[ERROR] Macro.macro.hx:4: characters 22-23
+
+ 4 |   function bar() var a = main();
+   |                      ^
+   | Variables of type Void are not allowed
+

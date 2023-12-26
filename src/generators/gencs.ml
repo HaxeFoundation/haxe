@@ -24,7 +24,6 @@ open Common
 open Type
 open Gencommon
 open Gencommon.SourceWriter
-open Codegen
 open Texpr.Builder
 open Printf
 open Option
@@ -972,7 +971,7 @@ let generate con =
 					| TInst(cl, params) -> TInst(cl, change_param_type stack (TClassDecl cl) params)
 					| TAbstract _
 					| TType _ -> t
-					| TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false) -> t
+					| TAnon (anon) when (match !(anon.a_status) with | ClassStatics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false) -> t
 					| TFun _ -> TInst(fn_cl,[])
 					| _ -> t_dynamic
 				in
@@ -1028,7 +1027,7 @@ let generate con =
 			| TInst({ cl_kind = KTypeParameter _ }, _) -> true
 			| TAnon anon ->
 				(match !(anon.a_status) with
-					| EnumStatics _ | Statics _ -> false
+					| EnumStatics _ | ClassStatics _ -> false
 					| _ -> true
 				)
 			| _ -> false
@@ -1091,7 +1090,7 @@ let generate con =
 				| TType (({ t_path = p } as t), params) -> (path_param_s (TTypeDecl t) p params)
 				| TAnon (anon) ->
 					(match !(anon.a_status) with
-						| Statics _ | EnumStatics _ -> "System.Type"
+						| ClassStatics _ | EnumStatics _ -> "System.Type"
 						| _ -> "object")
 				| TDynamic _ -> "object"
 				| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
@@ -1153,7 +1152,7 @@ let generate con =
 
 		let in_value = ref false in
 
-		let rec md_s md =
+		let md_s md =
 			let md = follow_module (gen.gfollow#run_f) md in
 			match md with
 				| TClassDecl ({ cl_params = [] } as cl) ->
@@ -1559,7 +1558,7 @@ let generate con =
 								let nblocks = loop (List.rev !fixeds) 0 in
 								in_value := false;
 								expr_s w { e with eexpr = TBlock el };
-								for i = 1 to nblocks do
+								for _ = 1 to nblocks do
 									end_block w
 								done
 							| _ ->
@@ -1722,12 +1721,12 @@ let generate con =
 								in_value := true;
 								expr_s w (mk_paren econd);
 						)
-					| TSwitch (econd, ele_l, default) ->
+					| TSwitch switch ->
 						write w "switch ";
-						expr_s w (mk_paren econd);
+						expr_s w (mk_paren switch.switch_subject);
 						write w " ";
 						begin_block w;
-						List.iter (fun (el, e) ->
+						List.iter (fun {case_patterns = el;case_expr = e}  ->
 							List.iter (fun e ->
 								write w "case ";
 								in_value := true;
@@ -1739,12 +1738,12 @@ let generate con =
 							expr_s w (mk_block e);
 							newline w;
 							newline w
-						) ele_l;
-						if is_some default then begin
+						) switch.switch_cases;
+						if is_some switch.switch_default then begin
 							write w "default:";
 							newline w;
 							in_value := false;
-							expr_s w (get default);
+							expr_s w (get switch.switch_default);
 							newline w;
 						end;
 						end_block w
@@ -2010,18 +2009,17 @@ let generate con =
 			let hxgen = is_hxgen (TClassDecl cl) in
 			match cl_params with
 				| (_ :: _) when not (erase_generics && is_hxgeneric (TClassDecl cl)) ->
-					let get_param_name t = match follow t with TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__ in
 					let combination_error c1 c2 =
 						gen.gcon.error ("The " ^ (get_constraint c1) ^ " constraint cannot be combined with the " ^ (get_constraint c2) ^ " constraint.") cl.cl_pos in
 
-					let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> get_param_name tp.ttp_type) cl_params)) in
+					let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> snd tp.ttp_class.cl_path) cl_params)) in
 					let params_extends =
 						if hxgen || not (Meta.has (Meta.NativeGen) cl.cl_meta) then
 							[""]
 						else
 							List.fold_left (fun acc {ttp_name=name;ttp_type=t} ->
-								match run_follow gen t with
-									| TInst({cl_kind = KTypeParameter constraints}, _) when constraints <> [] ->
+								match t with
+									| TInst({cl_kind = KTypeParameter ttp} as c,_) when get_constraints ttp <> [] ->
 										(* base class should come before interface constraints *)
 										let base_class_constraints = ref [] in
 										let other_constraints = List.fold_left (fun acc t ->
@@ -2070,7 +2068,7 @@ let generate con =
 												(* skip anything other *)
 												| _ ->
 													acc
-										) [] constraints in
+										) [] (get_constraints ttp ) in
 
 										let s_constraints = (List.sort
 											(* C# expects some ordering for built-in constraints: *)
@@ -2086,7 +2084,7 @@ let generate con =
 										) (!base_class_constraints @ other_constraints)) in
 
 										if s_constraints <> [] then
-											(sprintf " where %s : %s" (get_param_name t) (String.concat ", " (List.map get_constraint s_constraints)) :: acc)
+											(sprintf " where %s : %s" (snd c.cl_path) (String.concat ", " (List.map get_constraint s_constraints)) :: acc)
 										else
 											acc;
 									| _ -> acc
@@ -2105,7 +2103,7 @@ let generate con =
 			write w (String.concat " " (List.rev !parts));
 		in
 
-		let rec gen_event w is_static cl (event,t,custom,add,remove) =
+		let gen_event w is_static cl (event,t,custom,add,remove) =
 			let is_interface = (has_class_flag cl CInterface) in
 			let visibility = if is_interface then "" else "public" in
 			let visibility, modifiers = get_fun_modifiers event.cf_meta visibility ["event"] in
@@ -2125,7 +2123,7 @@ let generate con =
 			newline w;
 		in
 
-		let rec gen_prop w is_static cl is_final (prop,t,get,set) =
+		let gen_prop w is_static cl is_final (prop,t,get,set) =
 			gen_attributes w prop.cf_meta;
 			let is_interface = (has_class_flag cl CInterface) in
 			let fn_is_final = function
@@ -3387,13 +3385,13 @@ let generate con =
 
 		SwitchToIf.configure gen (fun e ->
 			match e.eexpr with
-				| TSwitch(cond, cases, def) ->
-					(match gen.gfollow#run_f cond.etype with
+				| TSwitch switch ->
+					(match gen.gfollow#run_f switch.switch_subject.etype with
 						| TAbstract ({ a_path = ([], "Int") },[])
 						| TInst({ cl_path = ([], "String") },[]) ->
-							(List.exists (fun (c,_) ->
-								List.exists (fun expr -> match expr.eexpr with | TConst _ -> false | _ -> true ) c
-							) cases)
+							(List.exists (fun case ->
+								List.exists (fun expr -> match expr.eexpr with | TConst _ -> false | _ -> true ) case.case_patterns
+							) switch.switch_cases)
 						| _ -> true
 					)
 				| _ -> die "" __LOC__
@@ -3422,7 +3420,7 @@ let generate con =
 					gen.gcon.file ^ "/src/Resources"
 			in
 			Hashtbl.iter (fun name v ->
-				let name = Codegen.escape_res_name name true in
+				let name = Codegen.escape_res_name name ['/'] in
 				let full_path = src ^ "/" ^ name in
 				Path.mkdir_from_path full_path;
 

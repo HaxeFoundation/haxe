@@ -1,5 +1,4 @@
 open Globals
-open Json.Reader
 open JsonRpc
 open Jsonrpc_handler
 open Json
@@ -60,18 +59,49 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 			let file = jsonrpc#get_string_param "file" in
 			Path.get_full_path file
 		) file_input_marker in
-		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
-		TypeloadParse.current_stdin := jsonrpc#get_opt_param (fun () ->
+		let contents = jsonrpc#get_opt_param (fun () ->
 			let s = jsonrpc#get_string_param "contents" in
-			Common.define com Define.DisplayStdin; (* TODO: awkward *)
 			Some s
-		) None;
+		) None in
+
+		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
 		Parser.was_auto_triggered := was_auto_triggered;
-		DisplayPosition.display_position#set {
-			pfile = file;
-			pmin = pos;
-			pmax = pos;
-		}
+
+		if file <> file_input_marker then begin
+			let file_unique = com.file_keys#get file in
+
+			DisplayPosition.display_position#set {
+				pfile = file;
+				pmin = pos;
+				pmax = pos;
+			};
+
+			com.file_contents <- [file_unique, contents];
+		end else begin
+			let file_contents = jsonrpc#get_opt_param (fun () ->
+				jsonrpc#get_opt_param (fun () -> jsonrpc#get_array_param "fileContents") []
+			) [] in
+
+			let file_contents = List.map (fun fc -> match fc with
+				| JObject fl ->
+					let file = jsonrpc#get_string_field "fileContents" "file" fl in
+					let file = Path.get_full_path file in
+					let file_unique = com.file_keys#get file in
+					let contents = jsonrpc#get_opt_param (fun () ->
+						let s = jsonrpc#get_string_field "fileContents" "contents" fl in
+						Some s
+					) None in
+					(file_unique, contents)
+				| _ -> invalid_arg "fileContents"
+			) file_contents in
+
+			let files = (List.map (fun (k, _) -> k) file_contents) in
+			com.file_contents <- file_contents;
+
+			match files with
+			| [] | [_] -> DisplayPosition.display_position#set { pfile = file; pmin = pos; pmax = pos; };
+			| _ -> DisplayPosition.display_position#set_files files;
+		end
 end
 
 type handler_context = {
@@ -126,6 +156,16 @@ let handler =
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMDefinition;
 		);
+		"display/diagnostics", (fun hctx ->
+			hctx.display#set_display_file false false;
+			hctx.display#enable_display DMNone;
+			hctx.com.report_mode <- RMDiagnostics (List.map (fun (f,_) -> f) hctx.com.file_contents);
+
+			(match hctx.com.file_contents with
+			| [file, None] ->
+				hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display};
+			| _ -> ());
+		);
 		"display/implementation", (fun hctx ->
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display (DMImplementation);
@@ -156,6 +196,71 @@ let handler =
 			hctx.display#set_display_file (hctx.jsonrpc#get_bool_param "wasAutoTriggered") true;
 			hctx.display#enable_display DMSignature
 		);
+		"display/metadata", (fun hctx ->
+			let include_compiler_meta = hctx.jsonrpc#get_bool_param "compiler" in
+			let include_user_meta = hctx.jsonrpc#get_bool_param "user" in
+
+			hctx.com.callbacks#add_after_init_macros (fun () ->
+				let all = Meta.get_meta_list hctx.com.user_metas in
+				let all = List.filter (fun (_, (data:Meta.meta_infos)) ->
+					match data.m_origin with
+					| Compiler when include_compiler_meta -> true
+					| UserDefined _ when include_user_meta -> true
+					| _ -> false
+				) all in
+
+				hctx.send_result (jarray (List.map (fun (t, (data:Meta.meta_infos)) ->
+					let fields = [
+						"name", jstring t;
+						"doc", jstring data.m_doc;
+						"parameters", jarray (List.map jstring data.m_params);
+						"platforms", jarray (List.map (fun p -> jstring (platform_name p)) data.m_platforms);
+						"targets", jarray (List.map (fun u -> jstring (Meta.print_meta_usage u)) data.m_used_on);
+						"internal", jbool data.m_internal;
+						"origin", jstring (match data.m_origin with
+							| Compiler -> "haxe compiler"
+							| UserDefined None -> "user-defined"
+							| UserDefined (Some o) -> o
+						);
+						"links", jarray (List.map jstring data.m_links)
+					] in
+
+					(jobject fields)
+				) all))
+			)
+		);
+		"display/defines", (fun hctx ->
+			let include_compiler_defines = hctx.jsonrpc#get_bool_param "compiler" in
+			let include_user_defines = hctx.jsonrpc#get_bool_param "user" in
+
+			hctx.com.callbacks#add_after_init_macros (fun () ->
+				let all = Define.get_define_list hctx.com.user_defines in
+				let all = List.filter (fun (_, (data:Define.define_infos)) ->
+					match data.d_origin with
+					| Compiler when include_compiler_defines -> true
+					| UserDefined _ when include_user_defines -> true
+					| _ -> false
+				) all in
+
+				hctx.send_result (jarray (List.map (fun (t, (data:Define.define_infos)) ->
+					let fields = [
+						"name", jstring t;
+						"doc", jstring data.d_doc;
+						"parameters", jarray (List.map jstring data.d_params);
+						"platforms", jarray (List.map (fun p -> jstring (platform_name p)) data.d_platforms);
+						"origin", jstring (match data.d_origin with
+							| Compiler -> "haxe compiler"
+							| UserDefined None -> "user-defined"
+							| UserDefined (Some o) -> o
+						);
+						"deprecated", jopt jstring data.d_deprecated;
+						"links", jarray (List.map jstring data.d_links)
+					] in
+
+					(jobject fields)
+				) all))
+			)
+		);
 		"server/readClassPaths", (fun hctx ->
 			hctx.com.callbacks#add_after_init_macros (fun () ->
 				let cc = hctx.display#get_cs#get_context (Define.get_signature hctx.com.defines) in
@@ -183,13 +288,14 @@ let handler =
 		"server/module", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
-			let cc = hctx.display#get_cs#get_context sign in
+			let cs = hctx.display#get_cs in
+			let cc = cs#get_context sign in
 			let m = try
 				cc#find_module path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
-			hctx.send_result (generate_module () m)
+			hctx.send_result (generate_module cs cc m)
 		);
 		"server/type", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
@@ -217,6 +323,31 @@ let handler =
 						loop mtl
 			in
 			loop m.m_types
+		);
+		"server/typeContexts", (fun hctx ->
+			let path = Path.parse_path (hctx.jsonrpc#get_string_param "modulePath") in
+			let typeName = hctx.jsonrpc#get_string_param "typeName" in
+			let contexts = hctx.display#get_cs#get_contexts in
+
+			hctx.send_result (jarray (List.fold_left (fun acc cc ->
+				match cc#find_module_opt path with
+				| None -> acc
+				| Some(m) ->
+					let rec loop mtl = match mtl with
+						| [] ->
+							acc
+						| mt :: mtl ->
+							begin match mt with
+							| TClassDecl c -> c.cl_restore()
+							| _ -> ()
+							end;
+							if snd (t_infos mt).mt_path = typeName then
+								cc#get_json :: acc
+							else
+								loop mtl
+					in
+					loop m.m_types
+			) [] contexts))
 		);
 		"server/moduleCreated", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
@@ -270,6 +401,12 @@ let handler =
 				let b = hctx.jsonrpc#get_bool_param "legacyCompletion" in
 				ServerConfig.legacy_completion := b;
 				l := jstring ("Legacy completion " ^ (if b then "enabled" else "disabled")) :: !l;
+				()
+			) ();
+			hctx.jsonrpc#get_opt_param (fun () ->
+				let b = hctx.jsonrpc#get_bool_param "populateCacheFromDisplay" in
+				ServerConfig.populate_cache_from_display := b;
+				l := jstring ("Compilation cache refill from display " ^ (if b then "enabled" else "disabled")) :: !l;
 				()
 			) ();
 			hctx.send_result (jarray !l)

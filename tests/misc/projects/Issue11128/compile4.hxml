@@ -1,0 +1,4 @@
+--main Main
+
+# Ensure no error is thrown if no_init_target.Init doesn't exist.
+--custom-target no_init_target

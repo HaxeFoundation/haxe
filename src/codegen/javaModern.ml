@@ -18,6 +18,7 @@ module AccessFlags = struct
 		| MAbstract
 		| MStrict
 		| MSynthetic
+		| MAnnotation
 		| MEnum
 
 	let to_int = function
@@ -34,6 +35,7 @@ module AccessFlags = struct
 		| MAbstract -> 0x400
 		| MStrict -> 0x800
 		| MSynthetic -> 0x1000
+		| MAnnotation -> 0x2000
 		| MEnum -> 0x4000
 
 	let has_flag b flag =
@@ -196,33 +198,34 @@ module JReaderHoldovers = struct
 
 	let parse_formal_type_params s = match s.[0] with
 		| '<' ->
-			let rec read_id i =
-			match s.[i] with
-			| ':' | '>' -> i
-			| _ -> read_id (i + 1)
+			let rec read_id i = match s.[i] with
+				| ':' | '>' -> i
+				| _ -> read_id (i + 1)
 			in
 			let len = String.length s in
 			let rec parse_params idx acc =
-			let idi = read_id (idx + 1) in
-			let id = String.sub s (idx + 1) (idi - idx - 1) in
-			(* next must be a : *)
-			(match s.[idi] with | ':' -> () | _ -> failwith ("Invalid formal type signature character: " ^ Char.escaped s.[idi] ^ " ; from " ^ s));
-			let ext, l = match s.[idi + 1] with
-				| ':' | '>' -> None, idi + 1
-				| _ ->
-				let sgn, l = parse_signature_part (String.sub s (idi + 1) (len - idi - 1)) in
-				Some sgn, l + idi + 1
-			in
-			let rec loop idx acc =
-				match s.[idx] with
-				| ':' ->
-				let ifacesig, ifacei = parse_signature_part (String.sub s (idx + 1) (len - idx - 1)) in
-				loop (idx + ifacei + 1) (ifacesig :: acc)
-				| _ -> acc, idx
-			in
-			let ifaces, idx = loop l [] in
-			let acc = (id, ext, ifaces) :: acc in
-			if s.[idx] = '>' then List.rev acc, idx + 1 else parse_params (idx - 1) acc
+				let idi = read_id (idx + 1) in
+				let id = String.sub s (idx + 1) (idi - idx - 1) in
+				(* next must be a : *)
+				(match s.[idi] with | ':' -> () | _ -> failwith ("Invalid formal type signature character: " ^ Char.escaped s.[idi] ^ " ; from " ^ s));
+				let ext, l = match s.[idi + 1] with
+					| ':' | '>' ->
+						None, idi + 1
+					| _ ->
+						let sgn, l = parse_signature_part (String.sub s (idi + 1) (len - idi - 1)) in
+						Some sgn, l + idi + 1
+				in
+				let rec loop idx acc =
+					match s.[idx] with
+					| ':' ->
+						let ifacesig, ifacei = parse_signature_part (String.sub s (idx + 1) (len - idx - 1)) in
+						loop (idx + ifacei + 1) (ifacesig :: acc)
+					| _ ->
+						acc, idx
+				in
+				let ifaces, idx = loop l [] in
+				let acc = (id, ext, ifaces) :: acc in
+				if s.[idx] = '>' then List.rev acc, idx + 1 else parse_params (idx - 1) acc
 			in
 			parse_params 0 []
 		| _ -> [], 0
@@ -421,7 +424,7 @@ module JReaderModern = struct
 			let len = read_i32 ch in
 			ignore(IO.nread_string ch len); (* code *)
 			let len = read_ui16 ch in
-			for i = 0 to len - 1 do
+			for _ = 0 to len - 1 do
 				ignore(IO.nread_string ch 8);
 			done; (* exceptions *)
 			let attribs = parse_attributes consts ch in
@@ -554,7 +557,7 @@ module PathConverter = struct
 	let jname_to_hx name =
 		let name =
 			if name <> "" && (String.get name 0 < 'A' || String.get name 0 > 'Z') then
-				Char.escaped (Char.uppercase (String.get name 0)) ^ String.sub name 1 (String.length name - 1)
+				Char.escaped (Char.uppercase_ascii (String.get name 0)) ^ String.sub name 1 (String.length name - 1)
 			else
 				name
 		in
@@ -614,46 +617,48 @@ type java_lib_ctx = {
 module SignatureConverter = struct
 	open PathConverter
 
-	let mk_type_path path params =
+	let mk_type_path path params p =
 		let pack,(mname,name) = jpath_to_hx path in
-		match mname with
+		let path = match mname with
 		| None ->
-			CTPath {
+			{
 				tpackage = pack;
 				tname = name;
 				tparams = params;
 				tsub = None;
 			}
 		| Some mname ->
-			CTPath {
+			{
 				tpackage = pack;
 				tname = mname;
 				tparams = params;
 				tsub = Some name;
 			}
+		in
+		make_ptp_ct path p
 
-	let ct_type_param name = CTPath {
+	let ct_type_param name = make_ptp_ct_null {
 		tpackage = [];
 		tname = name;
 		tparams = [];
 		tsub = None
 	}
 
-	let ct_void = CTPath {
+	let ct_void = make_ptp_ct_null {
 		tpackage = [];
 		tname = "Void";
 		tparams = [];
 		tsub = None;
 	}
 
-	let ct_dynamic = CTPath {
+	let ct_dynamic = make_ptp_ct_null {
 		tpackage = [];
 		tname = "Dynamic";
 		tparams = [];
 		tsub = None;
 	}
 
-	let ct_string = CTPath {
+	let ct_string = make_ptp_ct_null {
 		tpackage = [];
 		tname = "String";
 		tparams = [];
@@ -662,33 +667,33 @@ module SignatureConverter = struct
 
 	let rec convert_arg ctx p arg =
 		match arg with
-		| TAny | TType (WSuper, _) -> TPType (mk_type_path ([], "Dynamic") [],p)
+		| TAny | TType (WSuper, _) -> TPType (mk_type_path ([], "Dynamic") [] p,p)
 		| TType (_, jsig) -> TPType (convert_signature ctx p jsig,p)
 
 	and convert_signature ctx p jsig =
 		match jsig with
-		| TByte -> mk_type_path (["java"; "types"], "Int8") []
-		| TChar -> mk_type_path (["java"; "types"], "Char16") []
-		| TDouble -> mk_type_path ([], "Float") []
-		| TFloat -> mk_type_path ([], "Single") []
-		| TInt -> mk_type_path ([], "Int") []
-		| TLong -> mk_type_path (["haxe"], "Int64") []
-		| TShort -> mk_type_path (["java"; "types"], "Int16") []
-		| TBool -> mk_type_path ([], "Bool") []
-		| TObject ( (["haxe";"root"], name), args ) -> mk_type_path ([], name) (List.map (convert_arg ctx p) args)
-		| TObject ( (["java";"lang"], "Object"), [] ) -> mk_type_path ([], "Dynamic") []
-		| TObject ( (["java";"lang"], "String"), [] ) -> mk_type_path ([], "String") []
-		| TObject ( (["java";"lang"], "Enum"), [_] ) -> mk_type_path ([], "EnumValue") []
+		| TByte -> mk_type_path (["java"; "types"], "Int8") [] p
+		| TChar -> mk_type_path (["java"; "types"], "Char16") [] p
+		| TDouble -> mk_type_path ([], "Float") [] p
+		| TFloat -> mk_type_path ([], "Single") [] p
+		| TInt -> mk_type_path ([], "Int") [] p
+		| TLong -> mk_type_path (["haxe"], "Int64") [] p
+		| TShort -> mk_type_path (["java"; "types"], "Int16") [] p
+		| TBool -> mk_type_path ([], "Bool") [] p
+		| TObject ( (["haxe";"root"], name), args ) -> mk_type_path ([], name) (List.map (convert_arg ctx p) args) p
+		| TObject ( (["java";"lang"], "Object"), [] ) -> mk_type_path ([], "Dynamic") [] p
+		| TObject ( (["java";"lang"], "String"), [] ) -> mk_type_path ([], "String") [] p
+		| TObject ( (["java";"lang"], "Enum"), [_] ) -> mk_type_path ([], "EnumValue") [] p
 		| TObject ( path, [] ) ->
-			mk_type_path path []
-		| TObject ( path, args ) -> mk_type_path path (List.map (convert_arg ctx p) args)
+			mk_type_path path [] p
+		| TObject ( path, args ) -> mk_type_path path (List.map (convert_arg ctx p) args) p
 		| TObjectInner (pack, (name, params) :: inners) ->
 			let actual_param = match List.rev inners with
 			| (_, p) :: _ -> p
 			| _ -> die "" __LOC__ in
-			mk_type_path (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param)
+			mk_type_path (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param) p
 		| TObjectInner (pack, inners) -> die "" __LOC__
-		| TArray (jsig, _) -> mk_type_path (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,p) ]
+		| TArray (jsig, _) -> mk_type_path (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,p) ] p
 		| TMethod _ -> failwith "TMethod cannot be converted directly into Complex Type"
 		| TTypeParameter s ->
 			try
@@ -697,13 +702,34 @@ module SignatureConverter = struct
 				ct_dynamic
 end
 
-let get_type_path ct = match ct with | CTPath p -> p | _ -> die "" __LOC__
+let get_type_path ct = match ct with | CTPath ptp -> ptp | _ -> die "" __LOC__
 
 module Converter = struct
 
 	open JReaderModern
 	open PathConverter
 	open SignatureConverter
+
+	let extract_retention_policy l =
+		let rec loop2 l = match l with
+			| [] ->
+				None
+			| ann :: l ->
+				match ann.ann_type,ann.ann_elements with
+				| TObject((["java";"lang";"annotation"],"Retention"),_),[("value",ValEnum(_,name))] ->
+					Some name
+				| _ ->
+					loop2 l
+		in
+		let rec loop l = match l with
+			| [] ->
+				None
+			| AttrVisibleAnnotations l :: _ ->
+				loop2 l
+			| _ :: l ->
+				loop l
+		in
+		loop l
 
 	let convert_type_parameter ctx (name,extends,implements) p =
 		let jsigs = match extends with
@@ -866,7 +892,7 @@ module Converter = struct
 						let hx_sig =
 							match jsig with
 							| TArray (jsig1,_) when is_varargs && i + 1 = args_count && is_eligible_for_haxe_rest_args jsig1 ->
-								mk_type_path (["haxe"], "Rest") [TPType (convert_signature ctx p jsig1,p)]
+								mk_type_path (["haxe"], "Rest") [TPType (convert_signature ctx p jsig1,p)] p
 							| _ ->
 								convert_signature ctx p jsig
 						in
@@ -907,15 +933,17 @@ module Converter = struct
 		let is_interface = AccessFlags.has_flag jc.jc_flags MInterface in
 		if is_interface then add_flag HInterface
 		else if AccessFlags.has_flag jc.jc_flags MAbstract then add_flag HAbstract;
+		let is_annotation = AccessFlags.has_flag jc.jc_flags MAnnotation in
 		begin match jc.jc_super with
 			| TObject(([],""),_)
 			| TObject((["java";"lang"],"Object"),_) ->
-				()
+				if is_annotation then
+					add_flag (HExtends (make_ptp {tpackage = ["java";"lang";"annotation"]; tname = "Annotation"; tsub = None; tparams = []} p))
 			| jsig ->
-				add_flag (HExtends (get_type_path (convert_signature ctx p jsig),p))
+				add_flag (HExtends (get_type_path (convert_signature ctx p jsig)))
 		end;
 		List.iter (fun jsig ->
-			let path = (get_type_path (convert_signature ctx p jsig),p) in
+			let path = get_type_path (convert_signature ctx p jsig) in
 			if is_interface then
 				add_flag (HExtends path)
 			else
@@ -956,6 +984,15 @@ module Converter = struct
 		end;
 		let _,class_name = jname_to_hx (snd jc.jc_path) in
 		add_meta (Meta.Native, [EConst (String (s_type_path jc.jc_path,SDoubleQuotes) ),p],p);
+		if is_annotation then begin
+			let args = match extract_retention_policy jc.jc_attributes with
+				| None ->
+					[]
+				| Some v ->
+					[EConst (String(v,SDoubleQuotes)),p]
+			in
+			add_meta (Meta.Annotation,args,p)
+		end;
 		let d = {
 			d_name = (class_name,p);
 			d_doc = None;

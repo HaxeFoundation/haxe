@@ -59,6 +59,16 @@
 		"doc": "This is deprecated and should no longer be used"
 	},
 	{
+		"name": "WDeprecatedDefine",
+		"doc": "This define is deprecated and should no longer be used",
+		"parent": "WDeprecated"
+	},
+	{
+		"name": "WDeprecatedEnumAbstract",
+		"doc": "`@:enum abstract` is deprecated, `enum abstract` should be used instead",
+		"parent": "WDeprecated"
+	},
+	{
 		"name": "WVarInit",
 		"doc": "A local variable might be used before being assigned a value",
 		"parent": "WTyper"

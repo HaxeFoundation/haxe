@@ -8,7 +8,8 @@
 		"name": "AdvancedTelemetry",
 		"define": "advanced-telemetry",
 		"doc": "Allow the SWF to be measured with Monocle tool.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "AnalyzerOptimize",
@@ -160,6 +161,19 @@
 		"platforms": ["eval"]
 	},
 	{
+		"name": "EvalPrintDepth",
+		"define": "eval-print-depth",
+		"doc": "Set maximum print depth (before replacing with '<...>') for eval. (default: 5)",
+		"platforms": ["eval"],
+		"params": ["depth"]
+	},
+	{
+		"name": "EvalPrettyPrint",
+		"define": "eval-pretty-print",
+		"doc": "Enable indented output for eval printing.",
+		"platforms": ["eval"]
+	},
+	{
 		"name": "EvalStack",
 		"define": "eval-stack",
 		"doc": "Record stack information in macro/interp mode.",
@@ -186,7 +200,8 @@
 		"name": "Fdb",
 		"define": "fdb",
 		"doc": "Enable full flash debug infos for FDB interactive debugging.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "FileExtension",
@@ -198,13 +213,15 @@
 		"name": "FlashStrict",
 		"define": "flash-strict",
 		"doc": "More strict typing for flash target.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "FlashUseStage",
 		"define": "flash-use-stage",
 		"doc": "Keep the SWF library initial stage.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"devcomment": "force-lib-check is only here as a debug facility - compiler checking allows errors to be found more easily",
@@ -228,13 +245,15 @@
 	{
 		"name": "Haxe3Compat",
 		"define": "haxe3compat",
-		"doc": "Gives warnings about transition from Haxe 3.x to Haxe 4.0."
+		"doc": "Gives warnings about transition from Haxe 3.x to Haxe 4.0.",
+		"deprecated": "This flag is no longer supported in Haxe 5"
 	},
 	{
 		"name": "HaxeBoot",
 		"define": "haxe-boot",
 		"doc": "Give the name 'haxe' to the flash boot class instead of a generated name.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "HaxeVer",
@@ -246,6 +265,32 @@
 		"name": "Haxe",
 		"define": "haxe",
 		"doc": "The current Haxe version value in SemVer format.",
+		"reserved": true
+	},
+	{
+		"name": "HaxeNext",
+		"define": "haxe-next",
+		"doc": "Enable experimental features that are meant to be released on next Haxe version."
+	},
+	{
+		"name": "HaxeOutputFile",
+		"define": "HAXE_OUTPUT_FILE",
+		"doc": "Force the full output name of the executable/library without library prefix and debug suffix.",
+		"platforms": ["cpp"],
+		"params": ["name"]
+	},
+	{
+		"name": "HaxeOutputPart",
+		"define": "HAXE_OUTPUT_PART",
+		"doc": "Output name of the executable/library. (default: main class name)",
+		"platforms": ["cpp"],
+		"params": ["name"]
+	},
+	{
+		"name": "Hlc",
+		"define": "hlc",
+		"doc": "Defined by compiler when using hl/c target.",
+		"platforms": ["hl"],
 		"reserved": true
 	},
 	{
@@ -295,7 +340,8 @@
 		"name": "JarLegacyLoader",
 		"define": "jar-legacy-loader",
 		"doc": "Use the legacy loader to load .jar files on the JVM target.",
-		"platforms": ["java"]
+		"platforms": ["java"],
+		"deprecated": "The legacy JAR loader will be removed in Haxe 5"
 	},
 	{
 		"name": "JavaVer",
@@ -437,6 +483,14 @@
 		"platforms": ["neko"]
 	},
 	{
+		"name": "NekoNoHaxelibPaths",
+		"define": "neko-no-haxelib-paths",
+		"doc": "Disable hard-coded Haxelib ndll paths.",
+		"platforms": [
+			"neko"
+		]
+	},
+	{
 		"name": "NekoV1",
 		"define": "neko-v1",
 		"doc": "Keep Neko 1.x compatibility.",
@@ -446,7 +500,8 @@
 		"name": "NetworkSandbox",
 		"define": "network-sandbox",
 		"doc": "Use local network sandbox instead of local file access one.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "NoCompilation",
@@ -468,7 +523,8 @@
 		"name": "NoFlashOverride",
 		"define": "no-flash-override",
 		"doc": "Change overrides on some basic classes into HX suffixed methods",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "NoOpt",
@@ -502,7 +558,8 @@
 		"name": "NoSwfCompress",
 		"define": "no-swf-compress",
 		"doc": "Disable SWF output compression.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "NoTraces",
@@ -561,6 +618,11 @@
 		"platforms": ["cs", "java"]
 	},
 	{
+		"name": "RetainUntypedMeta",
+		"define": "retain-untyped-meta",
+		"doc": "Prevents arbitrary expression metadata from being discarded upon typing."
+	},
+	{
 		"name": "Scriptable",
 		"define": "scriptable",
 		"doc": "GenCPP internal.",
@@ -600,71 +662,82 @@
 		"define": "swc",
 		"doc": "Output a SWC instead of a SWF.",
 		"platforms": ["flash"],
-		"reserved": true
+		"reserved": true,
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "SwfCompressLevel",
 		"define": "swf-compress-level",
 		"doc": "Set the amount of compression for the SWF output.",
 		"platforms": ["flash"],
-		"params": ["level: 1-9"]
+		"params": ["level: 1-9"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "SwfDebugPassword",
 		"define": "swf-debug-password",
 		"doc": "Set a password for debugging.",
 		"platforms": ["flash"],
-		"params": ["password"]
+		"params": ["password"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "SwfDirectBlit",
 		"define": "swf-direct-blit",
 		"doc": "Use hardware acceleration to blit graphics.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "SwfGpu",
 		"define": "swf-gpu",
 		"doc": "Use GPU compositing features when drawing graphics.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "SwfHeader",
 		"define": "swf-header",
 		"doc": "define SWF header (width:height:fps:color)",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "SwfMetadata",
 		"define": "swf-metadata",
 		"doc": "Include contents of the given file as metadata in the SWF.",
 		"platforms": ["flash"],
-		"params": ["file"]
+		"params": ["file"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "SwfPreloaderFrame",
 		"define": "swf-preloader-frame",
 		"doc": "Insert empty first frame in SWF.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "SwfProtected",
 		"define": "swf-protected",
 		"doc": "Compile Haxe `private` as `protected` in the SWF instead of `public`.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "SwfScriptTimeout",
 		"define": "swf-script-timeout",
 		"doc": "Maximum ActionScript processing time before script stuck dialog box displays.",
 		"platforms": ["flash"],
-		"params": ["time in seconds"]
+		"params": ["time in seconds"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "SwfUseDoAbc",
 		"define": "swf-use-doabc",
 		"doc": "Use `DoAbc` SWF-tag instead of `DoAbcDefine`.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
 		"name": "Sys",
@@ -705,5 +778,32 @@
 		"name": "NoTre",
 		"define": "no-tre",
 		"doc": "Disable tail recursion elimination."
+	},
+	{
+		"name": "MessageReporting",
+		"define": "message.reporting",
+		"doc": "Select message reporting mode for compiler output. (default: classic)",
+		"params": ["mode: classic | pretty | indent"]
+	},
+	{
+		"name": "MessageNoColor",
+		"define": "message.no-color",
+		"doc": "Disable ANSI color codes in message reporting."
+	},
+	{
+		"name": "MessageAbsolutePositions",
+		"define": "message.absolute-positions",
+		"doc": "Use absolute character positions instead of line/columns for message reporting."
+	},
+	{
+		"name": "MessageLogFile",
+		"define": "message.log-file",
+		"doc": "Path to a text file to write message reporting to, in addition to regular output."
+	},
+	{
+		"name": "MessageLogFormat",
+		"define": "message.log-format",
+		"doc": "Select message reporting mode for message log file. (default: indent)",
+		"params": ["format: classic | pretty | indent"]
 	}
 ]

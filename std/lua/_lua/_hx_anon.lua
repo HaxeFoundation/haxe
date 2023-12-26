@@ -33,8 +33,8 @@ local function _hx_new(prototype)
 end
 
 function _hx_field_arr(obj)
-    res = {}
-    idx = 0
+    local res = {}
+    local idx = 0
     if obj.__fields__ ~= nil then
         obj = obj.__fields__
     end

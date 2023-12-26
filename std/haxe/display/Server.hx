@@ -73,6 +73,7 @@ typedef ConfigurePrintParams = {
 
 typedef ConfigureParams = {
 	final ?noModuleChecks:Bool;
+	final ?populateCacheFromDisplay:Bool;
 	final ?legacyCompletion:Bool;
 	final ?print:ConfigurePrintParams;
 }
@@ -100,6 +101,7 @@ typedef JsonModule = {
 	final sign:String;
 	final dirty:Null<String>;
 	final dependencies:Array<ModuleId>;
+	final dependents:Array<ModuleId>;
 }
 
 typedef JsonServerFile = {

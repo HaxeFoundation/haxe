@@ -21,7 +21,7 @@ let disable_typeloading rctx ctx f =
 	ctx.g.load_only_cached_modules <- true;
 	try
 		Std.finally (fun () -> ctx.g.load_only_cached_modules <- old) f ()
-	with (Error.Error (Module_not_found path,_)) ->
+	with (Error.Error { err_message = Module_not_found path }) ->
 		fail rctx (Printf.sprintf "Could not load [Module %s]" (s_type_path path))
 
 let pair_type th t = match th with
@@ -66,7 +66,7 @@ let pair_class_field rctx ctx cctx fctx cf cff p =
 		)
 	| FVar(th,eo) | FProp(_,_,th,eo) ->
 		let th = Some (pair_type th cf.cf_type) in
-		let t = disable_typeloading rctx ctx (fun () -> load_variable_type_hint ctx eo (pos cff.cff_name) th) in
+		let t = disable_typeloading rctx ctx (fun () -> load_variable_type_hint ctx fctx eo (pos cff.cff_name) th) in
 		(fun () ->
 			cf.cf_type <- t;
 			TypeBinding.bind_var ctx cctx fctx cf eo;
@@ -74,13 +74,13 @@ let pair_class_field rctx ctx cctx fctx cf cff p =
 				remove_class_field_flag cf CfPostProcessed;
 		)
 
-let pair_classes rctx context_init c d p =
+let pair_classes rctx c d p =
 	let rctx = {rctx with
 		print_stack = (Printf.sprintf "[Class %s]" (s_type_path c.cl_path)) :: rctx.print_stack
 	} in
 	c.cl_restore();
 	(* TODO: What do we do with build macros? *)
-	let cctx = create_class_context c context_init p in
+	let cctx = create_class_context c p in
 	let ctx = create_typer_context_for_class rctx.typer cctx p in
 	let _ =
 		let rctx = {rctx with
@@ -89,16 +89,16 @@ let pair_classes rctx context_init c d p =
 		let has_extends = ref false in
 		let implements = ref c.cl_implements in
 		List.iter (function
-			| HExtends(path,p) ->
+			| HExtends ptp ->
 				has_extends := true;
 				begin match c.cl_super with
 				| None ->
-					fail rctx (Printf.sprintf "parent %s appeared" (Ast.Printer.s_complex_type_path "" (path,p)))
+					fail rctx (Printf.sprintf "parent %s appeared" (Ast.Printer.s_complex_type_path "" ptp))
 				| Some(c,tl) ->
-					let th = pair_type (Some(CTPath path,p)) (TInst(c,tl)) in
+					let th = pair_type (Some(CTPath ptp,ptp.pos_full)) (TInst(c,tl)) in
 					ignore (disable_typeloading rctx ctx (fun () -> Typeload.load_complex_type ctx false th))
 				end
-			| HImplements(path,p) ->
+			| HImplements ptp ->
 				begin match !implements with
 					| (c,tl) :: rest ->
 						(* TODO: I think this should somehow check if it's actually the same interface. There could be cases
@@ -106,10 +106,10 @@ let pair_classes rctx context_init c d p =
 						   However, this doesn't matter until we start retyping invalidated modules.
 						*)
 						implements := rest;
-						let th = pair_type (Some(CTPath path,p)) (TInst(c,tl)) in
+						let th = pair_type (Some(CTPath ptp,ptp.pos_full)) (TInst(c,tl)) in
 						ignore (disable_typeloading rctx ctx (fun () -> Typeload.load_complex_type ctx false th));
 					| [] ->
-						fail rctx (Printf.sprintf "interface %s appeared" (Ast.Printer.s_complex_type_path "" (path,p)))
+						fail rctx (Printf.sprintf "interface %s appeared" (Ast.Printer.s_complex_type_path "" ptp))
 				end
 			| _ ->
 				()
@@ -130,7 +130,7 @@ let pair_classes rctx context_init c d p =
 			print_stack = (Printf.sprintf "[Field %s]" name) :: rctx.print_stack
 		} in
 		let display_modifier = Typeload.check_field_access ctx cff in
-		let fctx = create_field_context cctx cff ctx.is_display_file display_modifier in
+		let fctx = create_field_context ctx cctx cff ctx.is_display_file display_modifier in
 		let cf = match fctx.field_kind with
 			| FKConstructor ->
 				begin match c.cl_constructor with
@@ -180,14 +180,14 @@ let pair_typedefs ctx rctx td d =
 	ignore (disable_typeloading rctx ctx (fun () -> Typeload.load_complex_type ctx false d.d_data));
 	[]
 
-let pair_abstracts ctx rctx context_init a d p =
+let pair_abstracts ctx rctx a d p =
 	let rctx = {rctx with
 		print_stack = (Printf.sprintf "[Abstract %s]" (s_type_path a.a_path)) :: rctx.print_stack
 	} in
 	match a.a_impl with
 	| Some c ->
 		c.cl_restore();
-		let cctx = create_class_context c context_init p in
+		let cctx = create_class_context c p in
 		let ctx = create_typer_context_for_class rctx.typer cctx p in
 		let fl = List.map (fun cff ->
 			let cff = TypeloadFields.transform_abstract_field2 ctx a cff in
@@ -196,7 +196,7 @@ let pair_abstracts ctx rctx context_init a d p =
 				print_stack = (Printf.sprintf "[Field %s]" name) :: rctx.print_stack
 			} in
 			let display_modifier = Typeload.check_field_access ctx cff in
-			let fctx = create_field_context cctx cff ctx.is_display_file display_modifier in
+			let fctx = create_field_context ctx cctx cff ctx.is_display_file display_modifier in
 			let cf = try
 				PMap.find name c.cl_statics
 			with Not_found ->
@@ -218,7 +218,6 @@ let attempt_retyping ctx m p =
 		print_stack = [Printf.sprintf "[Module %s]" (s_type_path m.m_path)];
 	} in
 	(* log rctx 0 (Printf.sprintf "Retyping module %s" (s_type_path m.m_path)); *)
-	let context_init = new TypeloadFields.context_init in
 	let find_type name = try
 		List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types
 	with Not_found ->
@@ -230,11 +229,11 @@ let attempt_retyping ctx m p =
 		| (d,p) :: decls ->
 			begin match d with
 			| EImport (path,mode) ->
-				ImportHandling.init_import ctx context_init path mode p;
+				ImportHandling.init_import ctx path mode p;
 				ImportHandling.commit_import ctx path mode p;
 				loop acc decls
 			| EUsing path ->
-				ImportHandling.init_using ctx context_init path p;
+				ImportHandling.init_using ctx path p;
 				loop acc decls
 			| EClass c ->
 				let mt = find_type (fst c.d_name) in
@@ -257,18 +256,17 @@ let attempt_retyping ctx m p =
 		let pairs = loop [] decls in
 		let fl = List.map (fun (d,mt) -> match d,mt with
 			| EClass d,TClassDecl c ->
-				pair_classes rctx context_init c d p
+				pair_classes rctx c d p
 			| EEnum d,TEnumDecl en ->
 				pair_enums ctx rctx en d
 			| ETypedef d,TTypeDecl td ->
 				pair_typedefs ctx rctx td d
 			| EAbstract d,TAbstractDecl a ->
-				pair_abstracts ctx rctx context_init a d p
+				pair_abstracts ctx rctx a d p
 			| _ ->
 				fail rctx "?"
 		) pairs in
 		(* If we get here we know that the everything is ok. *)
-		delay ctx PConnectField (fun () -> context_init#run);
 		List.iter (fun fl ->
 			List.iter (fun f -> f()) fl
 		) fl;

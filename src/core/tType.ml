@@ -51,7 +51,7 @@ type t =
 	| TType of tdef * tparams
 	| TFun of tsignature
 	| TAnon of tanon
-	| TDynamic of t
+	| TDynamic of t option
 	| TLazy of tlazy ref
 	| TAbstract of tabstract * tparams
 
@@ -83,7 +83,7 @@ and tmono_constraint_kind =
 
 and tlazy =
 	| LAvailable of t
-	| LProcessing of (unit -> t)
+	| LProcessing of t
 	| LWait of (unit -> t)
 
 and tsignature = (string * bool * t) list * t
@@ -93,6 +93,8 @@ and tparams = t list
 and typed_type_param = {
 	ttp_name : string;
 	ttp_type : t;
+	ttp_class : tclass;
+	mutable ttp_constraints : t list Lazy.t option;
 	ttp_default : t option;
 }
 
@@ -126,6 +128,7 @@ and tvar_kind =
 	| VInlined
 	| VInlinedConstructorVariable
 	| VExtractorVariable
+	| VAbstractThis
 
 and tvar = {
 	mutable v_id : int;
@@ -148,7 +151,7 @@ and anon_status =
 	| Closed
 	| Const
 	| Extend of t list
-	| Statics of tclass
+	| ClassStatics of tclass
 	| EnumStatics of tenum
 	| AbstractStatics of tabstract
 
@@ -176,7 +179,7 @@ and texpr_expr =
 	| TFor of tvar * texpr * texpr
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
-	| TSwitch of texpr * (texpr list * texpr) list * texpr option
+	| TSwitch of tswitch
 	| TTry of texpr * (tvar * texpr) list
 	| TReturn of texpr option
 	| TBreak
@@ -187,6 +190,18 @@ and texpr_expr =
 	| TEnumParameter of texpr * tenum_field * int
 	| TEnumIndex of texpr
 	| TIdent of string
+
+and tswitch = {
+	switch_subject : texpr;
+	switch_cases : switch_case list;
+	switch_default: texpr option;
+	switch_exhaustive : bool;
+}
+
+and switch_case = {
+	case_patterns : texpr list;
+	case_expr : texpr;
+}
 
 and tfield_access =
 	| FInstance of tclass * tparams * tclass_field
@@ -219,7 +234,7 @@ and tclass_field = {
 
 and tclass_kind =
 	| KNormal
-	| KTypeParameter of t list
+	| KTypeParameter of typed_type_param
 	| KExpr of Ast.expr
 	| KGeneric
 	| KGenericInstance of tclass * tparams
@@ -240,6 +255,7 @@ and tinfos = {
 	mutable mt_meta : metadata;
 	mt_params : type_params;
 	mutable mt_using : (tclass * pos) list;
+	mutable mt_restore : unit -> unit;
 }
 
 and tclass = {
@@ -252,6 +268,7 @@ and tclass = {
 	mutable cl_meta : metadata;
 	mutable cl_params : type_params;
 	mutable cl_using : (tclass * pos) list;
+	mutable cl_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable cl_kind : tclass_kind;
 	mutable cl_flags : int;
@@ -267,7 +284,6 @@ and tclass = {
 	mutable cl_init : texpr option;
 
 	mutable cl_build : unit -> build_state;
-	mutable cl_restore : unit -> unit;
 	(*
 		These are classes which directly extend or directly implement this class.
 		Populated automatically in post-processing step (Filters.run)
@@ -296,6 +312,7 @@ and tenum = {
 	mutable e_meta : metadata;
 	mutable e_params : type_params;
 	mutable e_using : (tclass * pos) list;
+	mutable e_restore : unit -> unit;
 	(* do not insert any fields above *)
 	e_type : tdef;
 	mutable e_extern : bool;
@@ -313,6 +330,7 @@ and tdef = {
 	mutable t_meta : metadata;
 	mutable t_params : type_params;
 	mutable t_using : (tclass * pos) list;
+	mutable t_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable t_type : t;
 }
@@ -327,6 +345,7 @@ and tabstract = {
 	mutable a_meta : metadata;
 	mutable a_params : type_params;
 	mutable a_using : (tclass * pos) list;
+	mutable a_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable a_ops : (Ast.binop * tclass_field) list;
 	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;
@@ -373,11 +392,24 @@ and module_def_extra = {
 	mutable m_added : int;
 	mutable m_checked : int;
 	mutable m_processed : int;
-	mutable m_deps : (int,module_def) PMap.t;
+	mutable m_deps : (int,(string (* sign *) * path)) PMap.t;
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
-	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
+	mutable m_if_feature : (string * class_field_ref) list;
 	mutable m_features : (string,bool) Hashtbl.t;
+}
+
+and class_field_ref_kind =
+	| CfrStatic
+	| CfrMember
+	| CfrConstructor
+
+and class_field_ref = {
+	cfr_sign : string;
+	cfr_path : path;
+	cfr_field : string;
+	cfr_kind : class_field_ref_kind;
+	cfr_is_macro : bool;
 }
 
 and module_kind =
@@ -412,6 +444,7 @@ type flag_tclass =
 	| CFinal
 	| CInterface
 	| CAbstract
+	| CFunctionalInterface
 
 type flag_tclass_field =
 	| CfPublic
@@ -430,13 +463,18 @@ type flag_tclass_field =
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed"
 ]
 
 type flag_tvar =
 	| VCaptured
 	| VFinal
-	| VUsed (* used by the analyzer *)
+	| VAnalyzed
 	| VAssigned
 	| VCaught
 	| VStatic
+	| VUsedByTyper (* Set if the typer looked up this variable *)
+
+let flag_tvar_names = [
+	"VCaptured";"VFinal";"VAnalyzed";"VAssigned";"VCaught";"VStatic";"VUsedByTyper"
+]

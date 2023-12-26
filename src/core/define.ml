@@ -19,7 +19,35 @@ type define_origin =
 	| Compiler
 	| UserDefined of string option
 
-let infos ?user_defines d = match (user_defines,d) with
+type define_infos = {
+	d_doc : string;
+	d_params : string list;
+	d_platforms : Globals.platform list;
+	d_origin : define_origin;
+	d_links : string list;
+	d_deprecated : string option;
+}
+
+let infos ?user_defines d =
+	let extract_infos (t, (doc, flags), origin) =
+		let params = ref [] and pfs = ref [] and links = ref [] and deprecated = ref None in
+		List.iter (function
+			| HasParam s -> params := s :: !params
+			| Platforms fl -> pfs := fl @ !pfs
+			| Link url -> links := url :: !links
+			| Deprecated s -> deprecated := Some s
+		) flags;
+		(t, {
+			d_doc = doc;
+			d_params = !params;
+			d_platforms = !pfs;
+			d_origin = origin;
+			d_links = !links;
+			d_deprecated = !deprecated;
+		})
+	in
+
+	extract_infos (match (user_defines,d) with
 	| (Some(user_defines), Custom(s)) when (Hashtbl.mem user_defines s) ->
 		let infos = Hashtbl.find user_defines s in
 		(s, (infos.doc, infos.flags), (UserDefined infos.source))
@@ -27,29 +55,23 @@ let infos ?user_defines d = match (user_defines,d) with
 		(s, ("", []), Compiler)
 	| _ ->
 		let def,infos = DefineList.infos d in
-		(def, infos, Compiler)
+		(def, infos, Compiler))
 
 let get_define_key d =
-	match (infos d) with (s,_,_) -> s
+	match (infos d) with (s,_) -> s
 
 let get_documentation user_defines d =
-	let t, (doc,flags), origin = infos ~user_defines:user_defines d in
-	let params = ref [] and pfs = ref [] in
-	List.iter (function
-		| HasParam s -> params := s :: !params
-		| Platforms fl -> pfs := fl @ !pfs
-		| Link _ -> ()
-	) flags;
-	let params = (match List.rev !params with
+	let t, data = infos ~user_defines:user_defines d in
+	let params = (match List.rev data.d_params with
 		| [] -> ""
 		| l -> "<" ^ String.concat ">, <" l ^ "> "
 	) in
-	let origin = match origin with
+	let origin = match data.d_origin with
 		| UserDefined Some s -> " (from " ^ s ^ ")"
 		| Compiler | UserDefined None -> ""
 	in
-	let pfs = platform_list_help (List.rev !pfs) in
-	(String.concat "-" (ExtString.String.nsplit t "_")), params ^ doc ^ pfs ^ origin
+	let pfs = platform_list_help (List.rev data.d_platforms) in
+	(String.concat "-" (ExtString.String.nsplit t "_")), params ^ data.d_doc ^ pfs ^ origin
 
 let get_documentation_list user_defines =
 	let m = ref 0 in
@@ -75,6 +97,16 @@ let get_user_documentation_list user_defines =
 
 	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) user_defines_list in
 	all,!m
+
+let get_define_list user_defines =
+	let rec loop i acc =
+		let d = Obj.magic i in
+		if d <> Last then (infos ~user_defines d) :: loop (i + 1) acc
+		else acc
+	in
+
+	let all = loop 0 (Hashtbl.fold (fun str _ acc -> (infos ~user_defines (Custom str)) :: acc) user_defines []) in
+	List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) all
 
 let raw_defined ctx k =
 	PMap.mem k ctx.values
@@ -102,6 +134,10 @@ let define_value ctx k v =
 let raw_define ctx k =
 	raw_define_value ctx k "1"
 
+let raw_undefine ctx k =
+	ctx.values <- PMap.remove k ctx.values;
+	ctx.defines_signature <- None
+
 let define ctx k =
 	raw_define_value ctx (get_define_key k) "1"
 
@@ -117,6 +153,7 @@ let get_signature def =
 			   Note that we should removed flags like use_rtti_doc here.
 			*)
 			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin"
+			| "message.reporting" | "message.log_file" | "message.log_format" | "message.no_color"
 			| "dump" | "dump_dependencies" | "dump_ignore_var_ids" -> acc
 			| _ -> (k ^ "=" ^ v) :: acc
 		) def.values [] in
@@ -125,4 +162,9 @@ let get_signature def =
 		def.defines_signature <- Some s;
 		s
 
-let is_haxe3_compat def = raw_defined def "hx3compat"
+let deprecation_lut =
+	let h = Hashtbl.create 0 in
+	List.iter (fun (name,reason) ->
+		Hashtbl.add h name reason
+	) deprecated_defines;
+	h

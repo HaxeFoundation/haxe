@@ -11,9 +11,10 @@ compile-java-runner.hxml
 
 # targets
 
---next compile-flash9.hxml
+--next compile-flash.hxml
 --next compile-js.hxml
 --next compile-hl.hxml
+--next compile-hlc.hxml
 --next compile-lua.hxml
 --next compile-neko.hxml
 --next compile-php.hxml

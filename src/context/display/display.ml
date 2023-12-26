@@ -2,13 +2,10 @@ open Ast
 open Common
 open DisplayTypes
 open DisplayMode
-open DisplayPosition
 open CompletionItem
-open CompletionResultKind
 open Type
 open Typecore
 open Globals
-open Genjson
 open DisplayPosition
 open ImportStatus
 
@@ -130,12 +127,12 @@ module ExprPreprocessing = struct
 			| ECall(e1,el) when is_annotated (pos e) && is_completion ->
 				let el = loop_el el in
 				ECall(e1,el),(pos e)
-			| ENew((tp,pp),el) when is_annotated (pos e) && is_completion ->
-				if is_annotated pp || pp.pmax >= (DisplayPosition.display_position#get).pmax then
+			| ENew(ptp,el) when is_annotated (pos e) && is_completion ->
+				if is_annotated ptp.pos_full || ptp.pos_full.pmax >= (DisplayPosition.display_position#get).pmax then
 					annotate_marked e
 				else begin
 					let el = loop_el el in
-					ENew((tp,pp),el),(pos e)
+					ENew(ptp,el),(pos e)
 				end
 			| EArrayDecl el when is_annotated (pos e) && is_completion ->
 				let el = loop_el el in
@@ -290,7 +287,7 @@ let sort_fields l with_type tk =
 	in
 	let l = match with_type with
 		| WithType.WithType(t,_) when (match follow t with TMono _ -> false | _ -> true) ->
-			let rec comp item = match item.ci_type with
+			let comp item = match item.ci_type with
 				| None -> 9
 				| Some (t',_) ->
 				(* For enum constructors, we consider the return type of the constructor function

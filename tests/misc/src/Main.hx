@@ -1,3 +1,4 @@
+import haxe.io.Bytes;
 import haxe.macro.Compiler;
 import sys.FileSystem;
 import sys.io.File;
@@ -68,18 +69,22 @@ class Main {
 		s = s.replace("\r\n", "\n"); // get rid of windows newlines
 
 		var cwd = Path.removeTrailingSlashes(FileSystem.fullPath(Sys.getCwd()));
+		var std = Path.removeTrailingSlashes(getStd());
 
-		var context = {cwd: cwd};
+		var context = {cwd: cwd, std: std};
 		var macros = {normPath: normPath};
 
 		return new haxe.Template(s).execute(context, macros);
 	}
 
-	static function normPath(_, p:String):String {
+	static function normPath(_, p:String, escape:String = "false"):String {
+		var escape = escape != "false";
+
 		if (Sys.systemName() == "Windows") {
 			// on windows, haxe returns lowercase paths with backslashes, drive letter uppercased
 			p = p.substr(0, 1).toUpperCase() + p.substr(1);
 			p = p.replace("/", "\\");
+			if (escape) p = p.replace("\\", "\\\\");
 		}
 		return p;
 	}
@@ -146,14 +151,35 @@ class Main {
 				.filter(s -> 0 != s.indexOf('Picked up JAVA_TOOL_OPTIONS:'))
 				.join('\n');
 
+			if (StringTools.startsWith(content, '{"jsonrpc":')) {
+				try {
+					content = haxe.Json.stringify(haxe.Json.parse(content).result.result);
+					// Reorder fields from expected too
+					expected = haxe.Json.stringify(haxe.Json.parse(expected));
+				} catch (_) {}
+			}
+
 			if (content != expected) {
-				println('Actual $name output doesn\'t match the expected one');
-				println('Expected:\n"$expected"');
-				println('Actual:\n"$content"');
+				final a = new diff.FileData(Bytes.ofString(expected), "expected", Date.now());
+				final b = new diff.FileData(Bytes.ofString(content), "actual", Date.now());
+				var ctx:diff.Context = {
+					file1: a,
+					file2: b,
+					context: 10
+				}
+				final script = diff.Analyze.diff2Files(ctx);
+				var diff = diff.Printer.printUnidiff(ctx, script);
+				diff = diff.split("\n").slice(3).join("\n");
+				println(diff);
 				return false;
 			}
 		}
 
 		return true;
+	}
+
+	static macro function getStd() {
+		var std = Compiler.getConfiguration().stdPath;
+		return macro $v{std.shift()};
 	}
 }

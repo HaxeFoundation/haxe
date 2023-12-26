@@ -1,2 +1,2 @@
-Main.hx:2: characters 2-7 : Static method cannot be final
+Main.hx:2: characters 2-7 : Invalid modifier combination: final + static
 Main.hx:9: lines 9-11 : Cannot override final constructor

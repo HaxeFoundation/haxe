@@ -16,7 +16,6 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 *)
-open Common
 open Ast
 open Type
 open Gencommon
@@ -178,17 +177,25 @@ let init gen java_mode =
 					has_break := last_has_break;
 					return_loop { expr with eexpr = TWhile(cond,block,flag) } Normal
 				end
-			| TSwitch(cond, el_e_l, None) ->
-				{ expr with eexpr = TSwitch(cond, List.map (fun (el, e) -> (el, handle_case (process_expr e))) el_e_l, None) }, Normal
-			| TSwitch(cond, el_e_l, Some def) ->
+			| TSwitch ({switch_default = None} as switch) ->
+				let switch = { switch with
+					switch_cases = List.map (fun case -> {case with case_expr = handle_case (process_expr case.case_expr)}) switch.switch_cases;
+					switch_default = None;
+				} in
+				{ expr with eexpr = TSwitch switch }, Normal
+			| TSwitch ({switch_default = Some def} as switch) ->
 				let def, k = process_expr def in
 				let def = handle_case (def, k) in
 				let k = ref k in
-				let ret = { expr with eexpr = TSwitch(cond, List.map (fun (el, e) ->
-					let e, ek = process_expr e in
-					k := aggregate_kind !k ek;
-					(el, handle_case (e, ek))
-				) el_e_l, Some def) } in
+				let switch = { switch with
+					switch_cases = List.map (fun case ->
+						let e, ek = process_expr case.case_expr in
+						k := aggregate_kind !k ek;
+						{case with case_expr = handle_case (e, ek)}
+					) switch.switch_cases;
+					switch_default = Some def;
+				} in
+				let ret = { expr with eexpr = TSwitch switch } in
 				ret, !k
 			| TTry (e, catches) ->
 				let e, k = process_expr e in

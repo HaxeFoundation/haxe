@@ -56,10 +56,11 @@ let collect_static_extensions ctx items e p =
 		| TFun((_,_,t) :: args, ret) ->
 			begin try
 				let e = TyperBase.unify_static_extension ctx {e with etype = dup e.etype} t p in
-				List.iter2 (fun m tp -> match follow tp.ttp_type with
-					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+				List.iter2 (fun m ttp -> match get_constraints ttp with
+					| [] ->
+						()
+					| constr ->
 						List.iter (fun tc -> unify_raise m (map tc) e.epos) constr
-					| _ -> ()
 				) monos f.cf_params;
 				if not (can_access ctx c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
 					acc
@@ -75,7 +76,7 @@ let collect_static_extensions ctx items e p =
 					let item = make_ci_class_field (CompletionClassField.make f CFSMember origin true) (f.cf_type,ct) in
 					PMap.add f.cf_name item acc
 				end
-			with Error (Unify _,_) | Unify_error _ ->
+			with Error { err_message = Unify _ } | Unify_error _ ->
 				acc
 			end
 		| _ ->
@@ -157,9 +158,9 @@ let collect ctx e_ast e dk with_type p =
 				List.fold_left fold_constraints items l
 			in
 			fold_constraints items (Monomorph.classify_down_constraints m)
-		| TInst ({cl_kind = KTypeParameter tl},_) ->
+		| TInst ({cl_kind = KTypeParameter ttp},_) ->
 			(* Type parameters can access the fields of their constraints *)
-			List.fold_left (fun acc t -> loop acc t) items tl
+			List.fold_left (fun acc t -> loop acc t) items (get_constraints ttp)
 		| TInst(c0,tl) ->
 			(* For classes, browse the hierarchy *)
 			let fields = TClass.get_all_fields c0 tl in
@@ -228,21 +229,25 @@ let collect ctx e_ast e dk with_type p =
 		| TAnon an ->
 			(* @:forwardStatics *)
 			let items = match !(an.a_status) with
-				| Statics { cl_kind = KAbstractImpl { a_meta = meta; a_this = TInst (c,_) }} when Meta.has Meta.ForwardStatics meta ->
-					let items = List.fold_left (fun acc cf ->
-						if should_access c cf true && is_new_item acc cf.cf_name then begin
-							let origin = Self(TClassDecl c) in
-							let item = make_class_field origin cf in
-							PMap.add cf.cf_name item acc
-						end else
-							acc
-					) items c.cl_ordered_statics in
-					PMap.foldi (fun name item acc ->
-						if is_new_item acc name then
-							PMap.add name item acc
-						else
-							acc
-					) PMap.empty items
+				| ClassStatics { cl_kind = KAbstractImpl { a_meta = meta; a_this}} when Meta.has Meta.ForwardStatics meta ->
+					begin match follow a_this with
+					| TInst (c,_) ->
+						let items = List.fold_left (fun acc cf ->
+							if should_access c cf true && is_new_item acc cf.cf_name then begin
+								let origin = Self(TClassDecl c) in
+								let item = make_class_field origin cf in
+								PMap.add cf.cf_name item acc
+							end else
+								acc
+						) items c.cl_ordered_statics in
+						PMap.foldi (fun name item acc ->
+							if is_new_item acc name then
+								PMap.add name item acc
+							else
+								acc
+						) PMap.empty items
+					| _ -> items
+					end
 				| _ -> items
 			in
 			(* Anon own fields *)
@@ -257,7 +262,7 @@ let collect ctx e_ast e dk with_type p =
 						PMap.add name (make_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct)) acc
 					in
 					match !(an.a_status) with
-						| Statics ({cl_kind = KAbstractImpl a} as c) ->
+						| ClassStatics ({cl_kind = KAbstractImpl a} as c) ->
 							if allow_static_abstract_access c cf then
 								let make = if has_class_field_flag cf CfEnum then
 										(make_ci_enum_abstract_field a)
@@ -267,7 +272,7 @@ let collect ctx e_ast e dk with_type p =
 								add (Self (TAbstractDecl a)) make
 							else
 								acc;
-						| Statics c ->
+						| ClassStatics c ->
 							Display.merge_core_doc ctx (TClassDecl c);
 							if should_access c cf true then add (Self (TClassDecl c)) make_ci_class_field else acc;
 						| EnumStatics en ->
@@ -373,7 +378,7 @@ let handle_missing_field_raise ctx tthis i mode with_type pfield =
 		| TAbstract(a,_) -> TAbstractDecl a,CFSMember,true
 		| TAnon an ->
 			begin match !(an.a_status) with
-			| Statics c -> TClassDecl c,CFSStatic,not (can_access ctx c cf true)
+			| ClassStatics c -> TClassDecl c,CFSStatic,not (can_access ctx c cf true)
 			| EnumStatics en -> TEnumDecl en,CFSStatic,true
 			| AbstractStatics a -> TAbstractDecl a,CFSStatic,true
 			| _ -> raise Exit

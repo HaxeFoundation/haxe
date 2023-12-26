@@ -12,7 +12,11 @@ class ExitCode {
 	#elseif neko
 		"bin/neko/ExitCode.n";
 	#elseif hl
-		"bin/hl/ExitCode.hl";
+		#if hlc
+			"bin/hlc/exitCode/ExitCode.exe";
+		#else
+			"bin/hl/ExitCode.hl";
+		#end
 	#elseif cpp
 		#if debug
 			"bin/cpp/ExitCode-debug";

@@ -70,6 +70,7 @@ class Compiler {
 	**/
 	public static function define(flag:String, ?value:String) {
 		#if (neko || eval)
+		Context.assertInitMacro();
 		load("define", 2)(flag, value);
 		#end
 	}
@@ -86,13 +87,14 @@ class Compiler {
 		Removes a (static) field from a given class by name.
 		An error is thrown when `className` or `field` is invalid.
 	**/
+	@:deprecated
 	public static function removeField(className:String, field:String, ?isStatic:Bool) {
 		if (!path.match(className))
 			throw "Invalid " + className;
 		if (!ident.match(field))
 			throw "Invalid " + field;
 		#if (neko || eval)
-		load("type_patch", 4)(className, field, isStatic == true, null);
+		Context.onAfterInitMacros(() -> load("type_patch", 4)(className, field, isStatic == true, null));
 		#else
 		typePatch(className, field, isStatic == true, null);
 		#end
@@ -102,13 +104,14 @@ class Compiler {
 		Set the type of a (static) field at a given class by name.
 		An error is thrown when `className` or `field` is invalid.
 	**/
+	@:deprecated
 	public static function setFieldType(className:String, field:String, type:String, ?isStatic:Bool) {
 		if (!path.match(className))
 			throw "Invalid " + className;
 		if (!ident.match((field.charAt(0) == "$") ? field.substr(1) : field))
 			throw "Invalid " + field;
 		#if (neko || eval)
-		load("type_patch", 4)(className, field, isStatic == true, type);
+		Context.onAfterInitMacros(() -> load("type_patch", 4)(className, field, isStatic == true, type));
 		#else
 		typePatch(className, field, isStatic == true, type);
 		#end
@@ -118,13 +121,14 @@ class Compiler {
 		Add metadata to a (static) field or class by name.
 		An error is thrown when `className` or `field` is invalid.
 	**/
+	@:deprecated
 	public static function addMetadata(meta:String, className:String, ?field:String, ?isStatic:Bool) {
 		if (!path.match(className))
 			throw "Invalid " + className;
 		if (field != null && !ident.match(field))
 			throw "Invalid " + field;
 		#if (neko || eval)
-		load("meta_patch", 4)(meta, className, field, isStatic == true);
+		Context.onAfterInitMacros(() -> load("meta_patch", 4)(meta, className, field, isStatic == true));
 		#else
 		metaPatch(meta, className, field, isStatic == true);
 		#end
@@ -137,6 +141,7 @@ class Compiler {
 	**/
 	public static function addClassPath(path:String) {
 		#if (neko || eval)
+		Context.assertInitMacro();
 		load("add_class_path", 1)(path);
 		#end
 	}
@@ -177,12 +182,24 @@ class Compiler {
 	}
 
 	/**
+		Sets the target configuration.
+
+		Usage of this function outside a macro context does nothing.
+	**/
+	public static function setPlatformConfiguration(config:PlatformConfig):Void {
+		#if (neko || eval)
+		load("set_platform_configuration", 1)(config);
+		#end
+	}
+
+	/**
 		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
 
 		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
 	**/
 	public static function addNativeLib(name:String) {
 		#if (neko || eval)
+		Context.assertInitMacro();
 		load("add_native_lib", 1)(name);
 		#end
 	}
@@ -215,69 +232,74 @@ class Compiler {
 		@param strict If true and given package wasn't found in any of class paths, fail with an error.
 	**/
 	public static function include(pack:String, ?rec = true, ?ignore:Array<String>, ?classPaths:Array<String>, strict = false) {
-		var ignoreWildcard:Array<String> = [];
-		var ignoreString:Array<String> = [];
-		if (ignore != null) {
-			for (ignoreRule in ignore) {
-				if (StringTools.endsWith(ignoreRule, "*")) {
-					ignoreWildcard.push(ignoreRule.substr(0, ignoreRule.length - 1));
-				} else {
-					ignoreString.push(ignoreRule);
+		function include(pack:String, ?rec = true, ?ignore:Array<String>, ?classPaths:Array<String>, strict = false) {
+			var ignoreWildcard:Array<String> = [];
+			var ignoreString:Array<String> = [];
+			if (ignore != null) {
+				for (ignoreRule in ignore) {
+					if (StringTools.endsWith(ignoreRule, "*")) {
+						ignoreWildcard.push(ignoreRule.substr(0, ignoreRule.length - 1));
+					} else {
+						ignoreString.push(ignoreRule);
+					}
 				}
 			}
-		}
-		var skip = if (ignore == null) {
-			function(c) return false;
-		} else {
-			function(c:String) {
-				if (Lambda.has(ignoreString, c))
-					return true;
-				for (ignoreRule in ignoreWildcard)
-					if (StringTools.startsWith(c, ignoreRule))
+			var skip = if (ignore == null) {
+				function(c) return false;
+			} else {
+				function(c:String) {
+					if (Lambda.has(ignoreString, c))
 						return true;
-				return false;
+					for (ignoreRule in ignoreWildcard)
+						if (StringTools.startsWith(c, ignoreRule))
+							return true;
+					return false;
+				}
 			}
+			var displayValue = Context.definedValue("display");
+			if (classPaths == null) {
+				classPaths = Context.getClassPath();
+				// do not force inclusion when using completion
+				switch (displayValue) {
+					case null:
+					case "usage":
+					case _:
+						return;
+				}
+				// normalize class path
+				for (i in 0...classPaths.length) {
+					var cp = StringTools.replace(classPaths[i], "\\", "/");
+					if (StringTools.endsWith(cp, "/"))
+						cp = cp.substr(0, -1);
+					if (cp == "")
+						cp = ".";
+					classPaths[i] = cp;
+				}
+			}
+			var prefix = pack == '' ? '' : pack + '.';
+			var found = false;
+			for (cp in classPaths) {
+				var path = pack == '' ? cp : cp + "/" + pack.split(".").join("/");
+				if (!sys.FileSystem.exists(path) || !sys.FileSystem.isDirectory(path))
+					continue;
+				found = true;
+				for (file in sys.FileSystem.readDirectory(path)) {
+					if (StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0) {
+						if (file == "import.hx")
+							continue;
+						var cl = prefix + file.substr(0, file.length - 3);
+						if (skip(cl))
+							continue;
+						Context.getModule(cl);
+					} else if (rec && sys.FileSystem.isDirectory(path + "/" + file) && !skip(prefix + file))
+						include(prefix + file, true, ignore, classPaths);
+				}
+			}
+			if (strict && !found)
+				Context.error('Package "$pack" was not found in any of class paths', Context.currentPos());
 		}
-		var displayValue = Context.definedValue("display");
-		if (classPaths == null) {
-			classPaths = Context.getClassPath();
-			// do not force inclusion when using completion
-			switch (displayValue) {
-				case null:
-				case "usage":
-				case _:
-					return;
-			}
-			// normalize class path
-			for (i in 0...classPaths.length) {
-				var cp = StringTools.replace(classPaths[i], "\\", "/");
-				if (StringTools.endsWith(cp, "/"))
-					cp = cp.substr(0, -1);
-				if (cp == "")
-					cp = ".";
-				classPaths[i] = cp;
-			}
-		}
-		var prefix = pack == '' ? '' : pack + '.';
-		var found = false;
-		for (cp in classPaths) {
-			var path = pack == '' ? cp : cp + "/" + pack.split(".").join("/");
-			if (!sys.FileSystem.exists(path) || !sys.FileSystem.isDirectory(path))
-				continue;
-			found = true;
-			for (file in sys.FileSystem.readDirectory(path)) {
-				if (StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0) {
-					if( file == "import.hx" ) continue;
-					var cl = prefix + file.substr(0, file.length - 3);
-					if (skip(cl))
-						continue;
-					Context.getModule(cl);
-				} else if (rec && sys.FileSystem.isDirectory(path + "/" + file) && !skip(prefix + file))
-					include(prefix + file, true, ignore, classPaths);
-			}
-		}
-		if (strict && !found)
-			Context.error('Package "$pack" was not found in any of class paths', Context.currentPos());
+
+		Context.onAfterInitMacros(() -> include(pack, rec, ignore, classPaths, strict));
 	}
 
 	/**
@@ -470,8 +492,9 @@ class Compiler {
 	**/
 	public static function registerMetadataDescriptionFile(path:String, ?source:String):Void {
 		var f = sys.io.File.getContent(path);
-		var content:Array<MetadataDescription> =  haxe.Json.parse(f);
-		for (m in content) registerCustomMetadata(m, source);
+		var content:Array<MetadataDescription> = haxe.Json.parse(f);
+		for (m in content)
+			registerCustomMetadata(m, source);
 	}
 
 	/**
@@ -480,8 +503,9 @@ class Compiler {
 	**/
 	public static function registerDefinesDescriptionFile(path:String, ?source:String):Void {
 		var f = sys.io.File.getContent(path);
-		var content:Array<DefineDescription> =  haxe.Json.parse(f);
-		for (d in content) registerCustomDefine(d, source);
+		var content:Array<DefineDescription> = haxe.Json.parse(f);
+		for (d in content)
+			registerCustomDefine(d, source);
 	}
 
 	/**
@@ -525,7 +549,6 @@ class Compiler {
 		load("flush_disk_cache", 0)();
 		#end
 	}
-
 	#end
 
 	#if (js || lua || macro)
@@ -540,7 +563,7 @@ class Compiler {
 
 				var f = try sys.io.File.getContent(Context.resolvePath(file)) catch (e:Dynamic) Context.error(Std.string(e), Context.currentPos());
 				var p = Context.currentPos();
-				if(Context.defined("js")) {
+				if (Context.defined("js")) {
 					macro @:pos(p) js.Syntax.plainCode($v{f});
 				} else {
 					macro @:pos(p) untyped __lua__($v{f});
@@ -704,10 +727,10 @@ typedef CompilerConfiguration = {
 	/**
 		The target platform.
 	**/
-	final platform:haxe.display.Display.Platform;
+	final platform:Platform;
 
 	/**
-		The compilation configuration for the target platform. 
+		The compilation configuration for the target platform.
 	**/
 	final platformConfig:PlatformConfig;
 
@@ -726,7 +749,23 @@ typedef CompilerConfiguration = {
 
 		For example, the "java" package is "Forbidden" when the target platform is Python.
 	**/
-	final packageRules:Map<String,PackageRule>;
+	final packageRules:Map<String, PackageRule>;
+}
+
+enum Platform {
+	Cross;
+	Js;
+	Lua;
+	Neko;
+	Flash;
+	Php;
+	Cpp;
+	Cs;
+	Java;
+	Python;
+	Hl;
+	Eval;
+	CustomTarget(name:String);
 }
 
 enum PackageRule {

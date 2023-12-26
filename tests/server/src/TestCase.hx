@@ -6,6 +6,7 @@ import haxeserver.HaxeServerRequestResult;
 import haxe.display.JsonModuleTypes;
 import haxe.display.Display;
 import haxe.display.Protocol;
+import haxe.display.Diagnostic;
 import haxe.Json;
 import haxeserver.process.HaxeServerProcessNode;
 import haxeserver.HaxeServerAsync;
@@ -36,6 +37,28 @@ class TestCase implements ITest {
 
 	public function new() {}
 
+	function debugMessages(?pos:PosInfos) {
+		for (m in messages)
+			haxe.Log.trace(m, pos);
+	}
+
+	function debugErrorMessages(?pos:PosInfos) {
+		for (m in errorMessages)
+			haxe.Log.trace(m, pos);
+	}
+
+	function messagesWith(s:String, ?pos:PosInfos) {
+		for (m in messages)
+			if (m.contains(s))
+				haxe.Log.trace(m, pos);
+	}
+
+	function errorMessagesWith(s:String, ?pos:PosInfos) {
+		for (m in errorMessages)
+			if (m.contains(s))
+				haxe.Log.trace(m, pos);
+	}
+
 	static public function printSkipReason(ddr:SkipReason) {
 		return switch (ddr) {
 			case DependencyDirty(path): 'DependencyDirty $path';
@@ -56,22 +79,26 @@ class TestCase implements ITest {
 		server.stop();
 	}
 
+	function handleResult(result) {
+		lastResult = result;
+		debugLastResult = {
+			hasError: lastResult.hasError,
+			prints: lastResult.prints,
+			stderr: lastResult.stderr,
+			stdout: lastResult.stdout
+		};
+		sendLogMessage(result.stdout);
+		for (print in result.prints) {
+			var line = print.trim();
+			messages.push('Haxe print: $line');
+		}
+	}
+
 	function runHaxe(args:Array<String>, done:() -> Void) {
 		messages = [];
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
-			lastResult = result;
-			debugLastResult = {
-				hasError: lastResult.hasError,
-				prints: lastResult.prints,
-				stderr: lastResult.stderr,
-				stdout: lastResult.stdout
-			}
-			sendLogMessage(result.stdout);
-			for (print in result.prints) {
-				var line = print.trim();
-				messages.push('Haxe print: $line');
-			}
+			handleResult(result);
 			if (result.hasError) {
 				sendErrorMessage(result.stderr);
 			}
@@ -89,7 +116,10 @@ class TestCase implements ITest {
 			callback:TResponse->Void, done:() -> Void) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
+		messages = [];
+		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
+			handleResult(result);
 			callback(Json.parse(result.stderr).result.result);
 			done();
 		}, function(msg) {
@@ -169,6 +199,11 @@ class TestCase implements ITest {
 		return haxe.Json.parse(lastResult.stderr).result;
 	}
 
+	function parseDiagnostics():Array<Diagnostic<Any>> {
+		var result = haxe.Json.parse(lastResult.stderr)[0];
+		return if (result == null) [] else result.diagnostics;
+	}
+
 	function parseGotoDefinitionLocations():Array<Location> {
 		switch parseGotoTypeDefinition().result {
 			case null:
@@ -179,32 +214,32 @@ class TestCase implements ITest {
 	}
 
 	function assertSuccess(?p:haxe.PosInfos) {
-		Assert.isTrue(0 == errorMessages.length, p);
+		return Assert.isTrue(0 == errorMessages.length, p);
 	}
 
 	function assertErrorMessage(message:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasErrorMessage(message), p);
+		return Assert.isTrue(hasErrorMessage(message), p);
 	}
 
 	function assertHasPrint(line:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage("Haxe print: " + line), null, p);
+		return Assert.isTrue(hasMessage("Haxe print: " + line), null, p);
 	}
 
 	function assertReuse(module:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage('reusing $module'), null, p);
+		return Assert.isTrue(hasMessage('reusing $module'), null, p);
 	}
 
 	function assertSkipping(module:String, reason:SkipReason, ?p:haxe.PosInfos) {
-		var msg = 'skipping $module (${printSkipReason(reason))})';
-		Assert.isTrue(hasMessage(msg), null, p);
+		var msg = 'skipping $module (${printSkipReason(reason)})';
+		return Assert.isTrue(hasMessage(msg), null, p);
 	}
 
 	function assertNotCacheModified(module:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage('$module not cached (modified)'), null, p);
+		return Assert.isTrue(hasMessage('$module not cached (modified)'), null, p);
 	}
 
 	function assertHasType(typePackage:String, typeName:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(getStoredType(typePackage, typeName) != null, null, p);
+		return Assert.isTrue(getStoredType(typePackage, typeName) != null, null, p);
 	}
 
 	function assertHasField(typePackage:String, typeName:String, fieldName:String, isStatic:Bool, ?p:haxe.PosInfos) {

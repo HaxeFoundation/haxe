@@ -21,7 +21,6 @@ open Common
 open Ast
 open Globals
 open Type
-open Codegen
 open Gencommon
 
 (* ******************************************* *)
@@ -185,7 +184,9 @@ let rec type_eq gen param a b =
 			) l1 l2
 		with
 			Unify_error l -> Type.error (cannot_unify a b :: l))
-	| TDynamic a , TDynamic b ->
+	| TDynamic None , TDynamic None ->
+		()
+	| TDynamic (Some a) , TDynamic (Some b) ->
 		type_eq gen param a b
 	| TAnon a1, TAnon a2 ->
 		(try
@@ -239,7 +240,7 @@ let is_exactly_basic gen t1 t2 =
 		| _ ->
 			false
 
-let rec is_unsafe_cast gen to_t from_t =
+let is_unsafe_cast gen to_t from_t =
 	match (follow to_t, follow from_t) with
 		| TInst(cl_to, to_params), TInst(cl_from, from_params) ->
 			not (is_cl_related gen cl_from from_params cl_to to_params)
@@ -289,7 +290,7 @@ let do_unsafe_cast gen from_t to_t e	=
 			| _ -> raise Not_found
 	in
 	match gen.gfollow#run_f from_t, gen.gfollow#run_f to_t with
-	| TInst({ cl_kind = KTypeParameter tl },_), t2 when List.exists (fun t -> unifies t t2) tl ->
+	| TInst({ cl_kind = KTypeParameter ttp },_), t2 when List.exists (fun t -> unifies t t2) (get_constraints ttp) ->
 		mk_cast to_t (mk_cast t_dynamic e)
 	| from_t, to_t when gen.gspecial_needs_cast to_t from_t ->
 		mk_cast to_t e
@@ -417,7 +418,7 @@ let rec handle_cast gen e real_to_t real_from_t =
 				mk_cast true to_t e
 		| _, TAnon(anon) -> (try
 			let p2 = match !(anon.a_status) with
-			| Statics c -> TInst(c,List.map (fun _ -> t_dynamic) c.cl_params)
+			| ClassStatics c -> TInst(c,List.map (fun _ -> t_dynamic) c.cl_params)
 			| EnumStatics e -> TEnum(e, List.map (fun _ -> t_dynamic) e.e_params)
 			| AbstractStatics a -> TAbstract(a, List.map (fun _ -> t_dynamic) a.a_params)
 			| _ -> raise Not_found
@@ -655,7 +656,7 @@ let choose_ctor gen cl tparams etl maybe_empty_t p =
 		| _ ->
 			false
 	in
-	let rec check_cf cf =
+	let check_cf cf =
 		let t = apply_params sup.cl_params stl cf.cf_type in
 		replace_mono t;
 		let args, _ = get_fun t in
@@ -1269,8 +1270,16 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 				{ e with eexpr = TIf (handle (run econd) gen.gcon.basic.tbool econd.etype, (in_value := false; run (mk_block ethen)), Option.map (fun e -> in_value := false; run (mk_block e)) eelse) }
 			| TWhile (econd, e1, flag) ->
 				{ e with eexpr = TWhile (handle (run econd) gen.gcon.basic.tbool econd.etype, (in_value := false; run (mk_block e1)), flag) }
-			| TSwitch (cond, el_e_l, edef) ->
-				{ e with eexpr = TSwitch(run cond, List.map (fun (el,e) -> (List.map run el, (in_value := false; run (mk_block e)))) el_e_l, Option.map (fun e -> in_value := false; run (mk_block e)) edef) }
+			| TSwitch switch ->
+				let switch = { switch with
+					switch_subject = run switch.switch_subject;
+					switch_cases = List.map (fun case -> {
+						case_patterns = List.map run case.case_patterns;
+						case_expr = (in_value := false; run (mk_block case.case_expr))
+					}) switch.switch_cases;
+					switch_default = Option.map (fun e -> in_value := false; run (mk_block e)) switch.switch_default;
+				} in
+				{ e with eexpr = TSwitch switch }
 			| TFor (v,cond,e1) ->
 				{ e with eexpr = TFor(v, run cond, (in_value := false; run (mk_block e1))) }
 			| TTry (e, ve_l) ->

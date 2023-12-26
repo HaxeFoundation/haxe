@@ -15,8 +15,8 @@ open Sourcemaps
 *)
 let escape_bin s =
 	let b = Buffer.create 0 in
-	for i = 0 to String.length s - 1 do
-		match Char.code (String.unsafe_get s i) with
+	for i = 0 to ExtString.String.length s - 1 do
+		match Char.code (ExtString.String.unsafe_get s i) with
 		| c when c = Char.code('\\') || c = Char.code('"') || c = Char.code('$') ->
 			Buffer.add_string b "\\";
 			Buffer.add_char b (Char.chr c)
@@ -35,7 +35,7 @@ let write_resource dir name data =
 	let rdir = dir ^ "/res" in
 	if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
 	if not (Sys.file_exists rdir) then Unix.mkdir rdir 0o755;
-	let name = Codegen.escape_res_name name false in
+	let name = Codegen.escape_res_name name [] in
 	let ch = open_out_bin (rdir ^ "/" ^ name) in
 	output_string ch data;
 	close_out ch
@@ -46,7 +46,7 @@ let write_resource dir name data =
 *)
 let copy_file src dst =
 	let buffer_size = 8192 in
-	let buffer = String.create buffer_size in
+	let buffer = ExtString.String.create buffer_size in
 	let fd_in = Unix.openfile src [O_RDONLY] 0 in
 	let fd_out = Unix.openfile dst [O_WRONLY; O_CREAT; O_TRUNC] 0o644 in
 	let rec copy_loop () =
@@ -196,7 +196,7 @@ end
 (**
 	Check if specified string is a reserved word in PHP
 *)
-let is_keyword str = Hashtbl.mem php_keywords_tbl (String.lowercase str)
+let is_keyword str = Hashtbl.mem php_keywords_tbl (ExtString.String.lowercase str)
 
 (**
 	Check if specified type is php.NativeArray
@@ -226,7 +226,7 @@ let get_real_path path = List.map get_real_name path
 (**
 	Resolve real type (bypass abstracts and typedefs)
 *)
-let rec follow = Abstract.follow_with_abstracts
+let follow = Abstract.follow_with_abstracts
 
 (**
 	Adds packages specified by `-D php-prefix` to `type_path`.
@@ -276,7 +276,7 @@ let fail ?msg p = Globals.die (Option.default "" msg) ~p
 (**
 	Check if `target` is a `Dynamic` type
 *)
-let rec is_dynamic_type (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
+let is_dynamic_type (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
 
 (**
 	Check if `target` is `php.Ref`
@@ -286,7 +286,7 @@ let is_ref (target:Type.t) = match target with TType ({ t_path = type_path }, _)
 (**
 	Check if `field` is a `dynamic function`
 *)
-let rec is_dynamic_method (field:tclass_field) =
+let is_dynamic_method (field:tclass_field) =
 	match field.cf_kind with
 		| Method MethDynamic -> true
 		| _ -> false
@@ -531,10 +531,10 @@ let get_full_type_name ?(escape=false) ?(omit_first_slash=false) (type_path:path
 					else
 						"" :: get_real_path module_path
 				in
-				(String.concat "\\" parts) ^ "\\" ^ type_name
+				(ExtString.String.concat "\\" parts) ^ "\\" ^ type_name
 	in
 	if escape then
-		String.escaped name
+		ExtString.String.escaped name
 	else
 		name
 
@@ -618,7 +618,7 @@ let fix_call_args callee_type exprs =
 	Escapes all "$" chars and encloses `str` into double quotes
 *)
 let quote_string str =
-	"\"" ^ (Str.global_replace (Str.regexp "\\$") "\\$" (String.escaped str)) ^ "\""
+	"\"" ^ (Str.global_replace (Str.regexp "\\$") "\\$" (ExtString.String.escaped str)) ^ "\""
 
 (**
 	Check if specified field is a var with non-constant expression
@@ -978,7 +978,7 @@ class class_wrapper (cls) =
 			Returns expression of a user-defined static __init__ method
 			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
 		*)
-		method get_magic_init = cls.cl_init
+		method! get_magic_init = cls.cl_init
 		(**
 			Returns hx source file name where this type was declared
 		*)
@@ -990,7 +990,7 @@ class class_wrapper (cls) =
 		(**
 			If current type requires some additional type to be generated
 		*)
-		method get_service_type : module_type option =
+		method! get_service_type : module_type option =
 			if not (has_class_flag cls CExtern) then
 				None
 			else
@@ -1296,21 +1296,21 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			Decrease indentation by one level
 		*)
 		method indent_less =
-			indentation <- String.make ((String.length indentation) - 1) '\t';
+			indentation <- ExtString.String.make ((ExtString.String.length indentation) - 1) '\t';
 		(**
 			Set indentation level (starting from zero for no indentation)
 		*)
 		method indent level =
-			indentation <- String.make level '\t';
+			indentation <- ExtString.String.make level '\t';
 		(**
 			Get indentation level (starting from zero for no indentation)
 		*)
-		method get_indentation = String.length indentation
+		method get_indentation = ExtString.String.length indentation
 		(**
 			Set indentation level (starting from zero for no indentation)
 		*)
 		method set_indentation level =
-			indentation <- String.make level '\t'
+			indentation <- ExtString.String.make level '\t'
 		(**
 			Specify local var name declared in current scope
 		*)
@@ -1326,7 +1326,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			else if get_type_name type_path = "" then
 				match get_module_path type_path with
 				| [] -> "\\"
-				| module_path -> "\\" ^ (String.concat "\\" (get_real_path module_path)) ^ "\\"
+				| module_path -> "\\" ^ (ExtString.String.concat "\\" (get_real_path module_path)) ^ "\\"
 			else begin
 				let orig_type_path = type_path in
 				let type_path = match type_path with (pack, name) -> (pack, get_real_name name) in
@@ -1682,7 +1682,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						| _ ->
 							self#write_expr_while condition expr do_while
 					)
-				| TSwitch (switch, cases, default ) -> self#write_expr_switch switch cases default
+				| TSwitch switch -> self#write_expr_switch switch.switch_subject switch.switch_cases switch.switch_default
 				| TTry (try_expr, catches) -> self#write_expr_try_catch try_expr catches
 				| TReturn expr -> self#write_expr_return expr
 				| TBreak -> self#write "break"
@@ -1856,7 +1856,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						| TFor (_, _, _) -> false
 						| TFunction _ -> false
 						| TBlock _ -> false
-						| TSwitch (_, _, _) -> false
+						| TSwitch _ -> false
 						| _ -> true
 			in
 			if needs_closure then
@@ -1942,7 +1942,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						set_sourcemap_pointer sourcemap sm_pointer_before_body;
 						let locals = vars#pop_captured in
 						if List.length locals > 0 then begin
-							self#write ("unset($" ^ (String.concat ", $" locals) ^ ");\n");
+							self#write ("unset($" ^ (ExtString.String.concat ", $" locals) ^ ");\n");
 							self#write_indentation
 						end;
 						self#write_bypassing_sourcemap body;
@@ -2012,7 +2012,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		*)
 		method write_expr_magic name args =
 			let msg = "untyped " ^ name ^ " is deprecated. Use php.Syntax instead." in
-			DeprecationCheck.warn_deprecation ctx.pgc_common msg self#pos;
+			DeprecationCheck.warn_deprecation (DeprecationCheck.create_context ctx.pgc_common) msg self#pos;
 			let error = ("Invalid arguments for " ^ name ^ " magic call") in
 			match args with
 				| [] -> fail ~msg:error self#pos __LOC__
@@ -2836,7 +2836,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			let rec write_cases cases =
 				match cases with
 					| [] -> ()
-					| (conditions, expr) :: rest ->
+					| {case_patterns = conditions;case_expr = expr} :: rest ->
 						self#write "if (";
 						write_conditions conditions;
 						self#write ") ";
@@ -2999,7 +2999,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			Returns generated file contents
 		*)
 		method get_contents =
-			if (String.length contents) = 0 then begin
+			if (ExtString.String.length contents) = 0 then begin
 				self#write_declaration;
 				writer#write_line " {"; (** opening bracket for a class *)
 				self#write_body;
@@ -3016,7 +3016,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 						writer#write_statement ("require_once __DIR__.'/" ^ polyfills_file ^ "'");
 						writer#write_statement (boot_class ^ "::__hx__init()")
 					end;
-					let haxe_class = match wrapper#get_type_path with (path, name) -> String.concat "." (path @ [name]) in
+					let haxe_class = match wrapper#get_type_path with (path, name) -> ExtString.String.concat "." (path @ [name]) in
 					writer#write_statement (boot_class ^ "::registerClass(" ^ (self#get_name) ^ "::class, '" ^ haxe_class ^ "')");
 					self#write_rtti_meta;
 					self#write_pre_hx_init;
@@ -3051,7 +3051,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			writer#write "\n";
 			let namespace = self#get_namespace in
 			if List.length namespace > 0 then
-				writer#write_line ("namespace " ^ (String.concat "\\" namespace) ^ ";\n");
+				writer#write_line ("namespace " ^ (ExtString.String.concat "\\" namespace) ^ ";\n");
 			writer#write_use
 		(**
 			Generates PHP docblock and attributes to output buffer.
@@ -3082,11 +3082,11 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			Writes description section of docblocks
 		*)
 		method write_doc_description (doc:string) =
-			let lines = Str.split (Str.regexp "\n") (String.trim doc)
+			let lines = Str.split (Str.regexp "\n") (ExtString.String.trim doc)
 			and write_line line =
-				let trimmed = String.trim line in
-				if String.length trimmed > 0 then (
-					if String.get trimmed 0 = '*' then
+				let trimmed = ExtString.String.trim line in
+				if ExtString.String.length trimmed > 0 then (
+					if ExtString.String.get trimmed 0 = '*' then
 						writer#write_line (" " ^ trimmed)
 					else
 						writer#write_line (" * " ^ trimmed)
@@ -3434,7 +3434,7 @@ class class_builder ctx (cls:tclass) =
 		(**
 			Indicates if type should be declared as `final`
 		*)
-		method is_final =
+		method! is_final =
 			if not (has_class_flag cls CFinal) then
 				false
 			else begin
@@ -3454,7 +3454,7 @@ class class_builder ctx (cls:tclass) =
 			Get amount of arguments of a parent method.
 			Returns `None` if no such parent method exists.
 		*)
-		method private get_parent_method_args_count name is_static : (int * int) option =
+		method! private get_parent_method_args_count name is_static : (int * int) option =
 			match cls.cl_super with
 				| None -> None
 				| Some (cls, _) ->
@@ -3478,14 +3478,14 @@ class class_builder ctx (cls:tclass) =
 		(**
 			Indicates if `field` should be declared as `final`
 		*)
-		method is_final_field (field:tclass_field) : bool =
+		method! is_final_field (field:tclass_field) : bool =
 			has_class_field_flag field CfFinal
 		(**
 			Check if there is no native php constructor in inheritance chain of this class.
 			E.g. `StdClass` does have a constructor while still can be called with `new StdClass()`.
 			So this method will return true for `MyClass` if `MyClass extends StdClass`.
 		*)
-		method private extends_no_constructor =
+		method! private extends_no_constructor =
 			let rec extends_no_constructor tcls =
 				match tcls.cl_super with
 					| None -> true
@@ -3554,7 +3554,7 @@ class class_builder ctx (cls:tclass) =
 					cls.cl_implements
 				in
 				let interfaces = List.map use_interface unique in
-				writer#write (String.concat ", " interfaces);
+				writer#write (ExtString.String.concat ", " interfaces);
 			end;
 		(**
 			Returns either user-defined constructor or creates empty constructor if instance initialization is required.
@@ -3639,7 +3639,7 @@ class class_builder ctx (cls:tclass) =
 			(* Generate `__toString()` if not defined by user, but has `toString()` *)
 			self#write_toString_if_required
 		method private write_toString_if_required =
-			try 
+			try
 				let toString = PMap.find "toString" cls.cl_fields in
 				if (not (has_class_flag cls CInterface)) && (not (PMap.exists "__toString" cls.cl_statics)) && (not (PMap.exists "__toString" cls.cl_fields)) then
 					begin
@@ -3667,7 +3667,7 @@ class class_builder ctx (cls:tclass) =
 				List.iter
 					(fun field ->
 						if not !required then
-							required := (String.lowercase field.cf_name = String.lowercase self#get_name)
+							required := (ExtString.String.lowercase field.cf_name = ExtString.String.lowercase self#get_name)
 					)
 					(cls.cl_ordered_statics @ cls.cl_ordered_fields);
 				!required
@@ -3676,10 +3676,10 @@ class class_builder ctx (cls:tclass) =
 			Writes `-D php-prefix` value as class constant PHP_PREFIX
 		*)
 		method private write_php_prefix () =
-			let prefix = String.concat "\\" ctx.pgc_prefix in
+			let prefix = ExtString.String.concat "\\" ctx.pgc_prefix in
 			let indentation = writer#get_indentation in
 			writer#indent 1;
-			writer#write_statement ("const PHP_PREFIX = \"" ^ (String.escaped prefix) ^ "\"");
+			writer#write_statement ("const PHP_PREFIX = \"" ^ (ExtString.String.escaped prefix) ^ "\"");
 			writer#indent indentation
 		(**
 			Writes expressions for `__hx__init` method
@@ -3874,7 +3874,7 @@ class class_builder ctx (cls:tclass) =
 		*)
 		method private write_instance_initialization =
 			let init_dynamic_method field =
-				let field_name = field_name field 
+				let field_name = field_name field
 				and hx_closure = writer#use hxclosure_type_path in
 				writer#write_statement ("if ($this->" ^ field_name ^ " === null) $this->" ^ field_name ^ " = new " ^ hx_closure ^ "($this, '__hx__default__" ^ field_name ^ "')");
 			in
@@ -3998,8 +3998,8 @@ class generator (ctx:php_generator_context) =
 					if front_dirs <> [] then
 						ignore(create_dir_recursive (root_dir :: front_dirs));
 					let lib_path =
-						(String.concat "" (List.fold_left (fun acc s -> if s <> "." then "../" :: acc else acc) [] front_dirs))
-						^ (String.concat "/" self#get_lib_path)
+						(ExtString.String.concat "" (List.fold_left (fun acc s -> if s <> "." then "../" :: acc else acc) [] front_dirs))
+						^ (ExtString.String.concat "/" self#get_lib_path)
 					in
 					let channel = open_out (root_dir ^ "/" ^ filename) in
 					output_string channel "<?php\n";

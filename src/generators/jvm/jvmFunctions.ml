@@ -294,78 +294,96 @@ module JavaFunctionalInterfaces = struct
 		jparams : string list;
 	}
 
-	let java_functional_interfaces =
-		let juf = ["java";"util";"function"] in
-		let tp name = TTypeParameter name in
-		[
-			{
-				jargs = [];
-				jret = None;
-				jpath = ["java";"lang"],"Runnable";
-				jname = "run";
-				jparams = []
-			};
-			{
-				jargs = [tp "T"];
-				jret = None;
-				jpath = juf,"Consumer";
-				jname = "accept";
-				jparams = ["T"]
-			};
-			{
-				jargs = [tp "T";tp "U"];
-				jret = None;
-				jpath = juf,"BiConsumer";
-				jname = "accept";
-				jparams = ["T";"U"]
-			};
-			{
-				jargs = [tp "T"];
-				jret = Some (tp "R");
-				jpath = juf,"Function";
-				jname = "apply";
-				jparams = ["T";"R"]
-			};
-		]
+	let string_of_functional_interface jfi = TPrinting.Printer.s_record_fields "" [
+		"jargs",String.concat ", " (List.map (generate_signature true) jfi.jargs);
+		"jret",Option.map_default (generate_signature true) "None" jfi.jret;
+		"jpath",Globals.s_type_path jfi.jpath;
+		"jname",jfi.jname;
+		"jparams",String.concat ", " jfi.jparams;
+	]
+
+	let java_functional_interfaces = DynArray.create ()
+
+	let add args ret path name params =
+		let jfi = {
+			jargs = args;
+			jret = ret;
+			jpath = path;
+			jname = name;
+			jparams = params;
+		} in
+		DynArray.add java_functional_interfaces jfi
 
 	let unify jfi args ret =
-		let rec loop params want have = match want,have with
-			| [],[] ->
-				Some (jfi,List.map (fun s -> TType(WNone,List.assoc s params)) jfi.jparams)
-			| want1 :: want,have1 :: have ->
-				begin match want1 with
-				| TTypeParameter n ->
-					let have1 = get_boxed_type have1 in
-					loop ((n,have1) :: params) want have
-				| _ ->
-					if have1 <> want1 then None
-					else loop params want have
+		let params = ref [] in
+		let rec unify jsig1 jsig2 = match jsig1,jsig2 with
+			| TObject(path1,params1),TObject(path2,params2) ->
+				path1 = path2 &&
+				unify_params params1 params2
+			| TTypeParameter n,jsig
+			| jsig,TTypeParameter n ->
+				List.mem_assoc n !params || begin
+					params := (n,jsig) :: !params;
+					true
 				end
+			| _ ->
+				jsig1 = jsig2
+		and unify_params params1 params2 = match params1,params2 with
+			| [],_
+			| _,[] ->
+				(* Assume raw type, I guess? *)
+				true
+			| param1 :: params1,param2 :: params2 ->
+				match param1,param2 with
+				| TAny,_
+				| _,TAny ->
+					(* Is this correct in both directions? *)
+					unify_params params1 params2
+				| TType(_,jsig1),TType(_,jsig2) ->
+					(* TODO: wildcard? *)
+					unify jsig1 jsig2 && unify_params params1 params2
+		in
+		let rec loop want have = match want,have with
+			| [],[] ->
+				let params = List.map (fun s ->
+					try
+						TType(WNone,List.assoc s !params)
+					with Not_found ->
+						TAny
+				) jfi.jparams in
+				Some (jfi,params)
+			| want1 :: want,have1 :: have ->
+				if unify have1 want1 then loop want have
+				else None
 			| _ ->
 				None
 		in
 		match jfi.jret,ret with
 		| None,None ->
-			loop [] jfi.jargs args
-		| Some (TTypeParameter n),Some jsig ->
-			let jsig = get_boxed_type jsig in
-			loop [n,jsig] jfi.jargs args
+			loop jfi.jargs args
 		| Some jsig1,Some jsig2 ->
-			if jsig1 <> jsig2 then None
-			else loop [] jfi.jargs args
+			if unify jsig1 jsig2 then loop jfi.jargs args
+			else None
 		| _ ->
 			None
 
 
-	let find_compatible args ret =
-		ExtList.List.filter_map (fun jfi ->
-			if jfi.jparams = [] then begin
-				if jfi.jargs = args && jfi.jret = ret then
-					Some (jfi,[])
-				else None
+	let find_compatible args ret filter =
+		DynArray.fold_left (fun acc jfi ->
+			if filter = [] || List.mem jfi.jpath filter then begin
+				if jfi.jparams = [] then begin
+					if jfi.jargs = args && jfi.jret = ret then
+						(jfi,[]) :: acc
+					else
+						acc
+				end else match unify jfi args ret with
+					| Some x ->
+						x :: acc
+					| None ->
+						acc
 			end else
-				unify jfi args ret
-		) java_functional_interfaces
+				acc
+		) [] java_functional_interfaces
 end
 
 open JavaFunctionalInterfaces
@@ -411,7 +429,7 @@ class typed_function
 		jm_ctor#return;
 		jm_ctor
 
-	method generate_invoke (args : (string * jsignature) list) (ret : jsignature option)=
+	method generate_invoke (args : (string * jsignature) list) (ret : jsignature option) (functional_interface_filter : jpath list) =
 		let arg_sigs = List.map snd args in
 		let meth = functions#register_signature arg_sigs ret in
 		let jsig_invoke = method_sig arg_sigs ret in
@@ -424,14 +442,17 @@ class typed_function
 			end
 		in
 		let spawn_forward_function meth_from meth_to is_bridge =
-			let flags = [MPublic] in
-			let flags = if is_bridge then MBridge :: MSynthetic :: flags else flags in
-			let jm_invoke_next = jc_closure#spawn_method meth_from.name (method_sig meth_from.dargs meth_from.dret) flags in
-			functions#make_forward_method jc_closure jm_invoke_next meth_from meth_to;
+			let msig = method_sig meth_from.dargs meth_from.dret in
+			if not (jc_closure#has_method meth_from.name msig) then begin
+				let flags = [MPublic] in
+				let flags = if is_bridge then MBridge :: MSynthetic :: flags else flags in
+				let jm_invoke_next = jc_closure#spawn_method meth_from.name msig flags in
+				functions#make_forward_method jc_closure jm_invoke_next meth_from meth_to;
+			end
 		in
 		let check_functional_interfaces meth =
 			try
-				let l = JavaFunctionalInterfaces.find_compatible meth.dargs meth.dret in
+				let l = JavaFunctionalInterfaces.find_compatible meth.dargs meth.dret functional_interface_filter in
 				List.iter (fun (jfi,params) ->
 					add_interface jfi.jpath params;
 					spawn_forward_function {meth with name=jfi.jname} meth false;

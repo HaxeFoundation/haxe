@@ -68,7 +68,7 @@ let cs_unops =
 let netname_to_hx name =
 	let len = String.length name in
 	let chr = String.get name 0 in
-	String.make 1 (Char.uppercase chr) ^ (String.sub name 1 (len-1))
+	String.make 1 (Char.uppercase_ascii chr) ^ (String.sub name 1 (len-1))
 
 (* -net-lib implementation *)
 
@@ -105,7 +105,7 @@ let escape_chars =
 
 let netcl_to_hx cl =
 	let cl = if String.length cl > 0 && String.get cl 0 >= 'a' && String.get cl 0 <= 'z' then
-			Char.escaped (Char.uppercase (String.get cl 0)) ^ (String.sub cl 1 (String.length cl - 1))
+			Char.escaped (Char.uppercase_ascii (String.get cl 0)) ^ (String.sub cl 1 (String.length cl - 1))
 		else
 			cl
 	in
@@ -145,7 +145,7 @@ let mk_type_path ctx path params =
 			let nested = List.map (netcl_to_hx) nested in
 			ns, Some (String.concat "_" nested ^ "_" ^ netcl_to_hx cl), nhd
 	in
-	CTPath {
+	make_ptp_ct_null {
 		tpackage = fst (netpath_to_hx ctx.nstd (pack,[],""));
 		Ast.tname = name;
 		tparams = params;
@@ -153,12 +153,13 @@ let mk_type_path ctx path params =
 	}
 
 let raw_type_path ctx path params =
-	{
+	let tp = {
 		tpackage = fst path;
 		Ast.tname = snd path;
 		tparams = params;
 		tsub = None;
-	}
+	} in
+	make_ptp tp null_pos
 
 let rec convert_signature ctx p = function
 	| LVoid ->
@@ -577,7 +578,7 @@ let convert_ilprop ctx p prop is_explicit_impl =
 		cff_kind = kind;
 	}
 
-let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> die "" __LOC__
+let get_type_path ctx ct = match ct with | CTPath ptp -> ptp | _ -> die "" __LOC__
 
 let is_explicit ctx ilcls i =
 	let s = match i with
@@ -754,12 +755,12 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 		(match ilcls.csuper with
 			| Some { snorm = LClass ( (["System"],[],"Object"), [] ) } -> ()
 			| Some ({ snorm = LClass ( (["System"],[],"ValueType"), [] ) } as s) ->
-				flags := HExtends (get_type_path ctx (convert_signature ctx p s.snorm),null_pos) :: !flags;
+				flags := HExtends (get_type_path ctx (convert_signature ctx p s.snorm)) :: !flags;
 				meta := (Meta.Struct,[],p) :: !meta
 			| Some { snorm = LClass ( (["haxe";"lang"],[],"HxObject"), [] ) } ->
 				meta := (Meta.HxGen,[],p) :: !meta
 			| Some s ->
-				flags := HExtends (get_type_path ctx (convert_signature ctx p s.snorm),null_pos) :: !flags
+				flags := HExtends (get_type_path ctx (convert_signature ctx p s.snorm)) :: !flags
 			| _ -> ());
 
 			let has_explicit_ifaces = ref false in
@@ -771,9 +772,9 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 				| i ->
 					if is_explicit ctx ilcls i then has_explicit_ifaces := true;
 					flags := if !is_interface then
-						HExtends (get_type_path ctx (convert_signature ctx p i),null_pos) :: !flags
+						HExtends (get_type_path ctx (convert_signature ctx p i)) :: !flags
 					else
-						HImplements (get_type_path ctx (convert_signature ctx p i),null_pos) :: !flags
+						HImplements (get_type_path ctx (convert_signature ctx p i)) :: !flags
 			) ilcls.cimplements;
 			(* this is needed because of explicit interfaces. see http://msdn.microsoft.com/en-us/library/aa288461(v=vs.71).aspx *)
 			(* explicit interfaces can't be mapped into Haxe in any way - since their fields can't be accessed directly, but they still implement that interface *)
@@ -784,9 +785,9 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 			ignore (List.exists (function
 			| { psig = { snorm = LMethod(_,ret,[v]) } } ->
 				flags := if !is_interface then
-					(HExtends( raw_type_path ctx ([],"ArrayAccess") [ TPType (convert_signature ctx p ret,null_pos) ],null_pos) :: !flags)
+					(HExtends( raw_type_path ctx ([],"ArrayAccess") [ TPType (convert_signature ctx p ret,null_pos) ]) :: !flags)
 				else
-					(HImplements( raw_type_path ctx ([],"ArrayAccess") [ TPType (convert_signature ctx p ret,null_pos) ],null_pos) :: !flags);
+					(HImplements( raw_type_path ctx ([],"ArrayAccess") [ TPType (convert_signature ctx p ret,null_pos) ]) :: !flags);
 				true
 			| _ -> false) ilcls.cprops);
 
@@ -1112,7 +1113,7 @@ let normalize_ilcls ctx cls =
 	in
 	let refclsfields = List.fold_left fold_field [] refclsfields in
 
-	let rec fold (fields,methods,props) f = match !f with
+	let fold (fields,methods,props) f = match !f with
 		| IlField f,_,_,_ -> f :: fields,methods,props
 		| IlMethod m,_,_,_ -> fields,m :: methods,props
 		| IlProp p,_,_,_ -> fields,methods,p :: props

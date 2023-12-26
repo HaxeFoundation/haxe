@@ -223,7 +223,7 @@ end = struct
 
 	let create =
 		if Globals.is_windows then
-			(fun f -> String.lowercase (get_full_path f))
+			(fun f -> ExtString.String.lowercase (get_full_path f))
 		else
 			get_full_path
 
@@ -378,7 +378,7 @@ let full_dot_path pack mname tname =
 
 let file_extension file =
 	match List.rev (ExtString.String.nsplit file ".") with
-	| e :: _ -> String.lowercase e
+	| e :: _ -> ExtString.String.lowercase e
 	| [] -> ""
 
 module FilePath = struct

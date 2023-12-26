@@ -60,7 +60,6 @@ open Globals
 open Option
 open Printf
 open ExtString
-open Codegen
 open Overloads
 
 (* ******************************************* *)
@@ -132,7 +131,7 @@ let path_of_md_def md_def =
 		| _ -> md_def.m_path
 
 let debug_type t = (s_type (print_context())) t
-let debug_expr = s_expr debug_type
+let debug_expr = s_expr_ast true "" debug_type
 
 let debug_mode = ref false
 let trace s = if !debug_mode then print_endline s else ()
@@ -147,7 +146,7 @@ let anon_class t =
 	match follow t with
 	| TAnon anon ->
 		(match !(anon.a_status) with
-		| Statics cl -> Some (TClassDecl cl)
+		| ClassStatics cl -> Some (TClassDecl cl)
 		| EnumStatics e -> Some (TEnumDecl e)
 		| AbstractStatics a -> Some (TAbstractDecl a)
 		| _ -> None)
@@ -161,7 +160,7 @@ let anon_class t =
 	| TAnon anon ->
 		(match !(anon.a_status) with
 			| EnumStatics e -> TEnumDecl e
-			| Statics cl -> TClassDecl cl
+			| ClassStatics cl -> TClassDecl cl
 			| AbstractStatics a -> TAbstractDecl a
 			| _ -> die "" __LOC__)
 	| TLazy f -> t_to_md (lazy_type f)
@@ -730,9 +729,9 @@ let run_filters_from gen t filters =
 		()
 
 let run_filters gen =
-	let last_error = gen.gcon.error in
+	let last_error = gen.gcon.error_ext in
 	let has_errors = ref false in
-	gen.gcon.error <- (fun msg pos -> has_errors := true; last_error msg pos);
+	gen.gcon.error_ext <- (fun err -> has_errors := true; last_error err);
 	(* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
 	let t = Timer.timer ["gencommon_filters"] in
 	(if Common.defined gen.gcon Define.GencommonDebug then debug_mode := true else debug_mode := false);
@@ -820,7 +819,7 @@ let run_filters gen =
 
 	reorder_modules gen;
 	t();
-	if !has_errors then raise (Abort("Compilation aborted with errors",null_pos))
+	if !has_errors then abort "Compilation aborted with errors" null_pos
 
 (* ******************************************* *)
 (* basic generation module that source code compilation implementations can use *)
@@ -1138,11 +1137,14 @@ let mk_class_field ?(static = false) name t public pos kind params =
 (* this helper just duplicates the type parameter class, which is assumed that cl is. *)
 (* This is so we can use class parameters on function parameters, without running the risk of name clash *)
 (* between both *)
-let map_param cl =
+let clone_param ttp =
+	let cl = ttp.ttp_class in
 	let ret = mk_class cl.cl_module (fst cl.cl_path, snd cl.cl_path ^ "_c") cl.cl_pos null_pos in
 	ret.cl_implements <- cl.cl_implements;
 	ret.cl_kind <- cl.cl_kind;
-	ret
+	let ttp = mk_type_param ret ttp.ttp_default ttp.ttp_constraints in
+	ret.cl_kind <- KTypeParameter ttp;
+	ttp
 
 let get_cl_t t =
 	match follow t with | TInst (cl,_) -> cl | _ -> die "" __LOC__
@@ -1275,7 +1277,7 @@ let rec field_access gen (t:t) (field:string) : (tfield_access) =
 				FNotFound)
 		| TAnon anon ->
 			(try match !(anon.a_status) with
-				| Statics cl ->
+				| ClassStatics cl ->
 					let cf = PMap.find field cl.cl_statics in
 					FClassField(cl, List.map (fun _ -> t_dynamic) cl.cl_params, cl, cf, true, cf.cf_type, cf.cf_type)
 				| EnumStatics e ->
@@ -1291,7 +1293,7 @@ let rec field_access gen (t:t) (field:string) : (tfield_access) =
 		| _ when PMap.mem field gen.gbase_class_fields ->
 			let cf = PMap.find field gen.gbase_class_fields in
 			FClassField(gen.gclasses.cl_dyn, [t_dynamic], gen.gclasses.cl_dyn, cf, false, cf.cf_type, cf.cf_type)
-		| TDynamic t -> FDynamicField t
+		| TDynamic t -> FDynamicField (match t with None -> t_dynamic | Some t -> t)
 		| TMono _ -> FDynamicField t_dynamic
 		| _ -> FNotFound
 

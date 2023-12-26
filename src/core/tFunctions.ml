@@ -91,7 +91,7 @@ let null t p = mk (TConst TNull) t p
 
 let mk_mono() = TMono (!monomorph_create_ref ())
 
-let rec t_dynamic = TDynamic t_dynamic
+let t_dynamic = TDynamic None
 
 let mk_anon ?fields status =
 	let fields = match fields with Some fields -> fields | None -> PMap.empty in
@@ -147,6 +147,7 @@ let mk_typedef m path pos name_pos t =
 		t_params = [];
 		t_using = [];
 		t_type = t;
+		t_restore = (fun () -> ());
 	}
 
 let module_extra file sign time kind policy =
@@ -171,6 +172,13 @@ let module_extra file sign time kind policy =
 		m_check_policy = policy;
 	}
 
+let mk_class_field_ref (c : tclass) (cf : tclass_field) (kind : class_field_ref_kind) (is_macro : bool) = {
+	cfr_sign = c.cl_module.m_extra.m_sign;
+	cfr_path = c.cl_path;
+	cfr_field = cf.cf_name;
+	cfr_kind = kind;
+	cfr_is_macro = is_macro;
+}
 
 let mk_field name ?(public = true) ?(static = false) t p name_pos = {
 	cf_name = name;
@@ -215,6 +223,7 @@ let null_abstract = {
 	a_meta = [];
 	a_params = [];
 	a_using = [];
+	a_restore = (fun () -> ());
 	a_ops = [];
 	a_unops = [];
 	a_impl = None;
@@ -230,11 +239,11 @@ let null_abstract = {
 	a_enum = false;
 }
 
-let add_dependency m mdep =
-	if m != null_module && m != mdep then begin
-		m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps;
+let add_dependency ?(skip_postprocess=false) m mdep =
+	if m != null_module && (m.m_path != mdep.m_path || m.m_extra.m_sign != mdep.m_extra.m_sign) then begin
+		m.m_extra.m_deps <- PMap.add mdep.m_id (mdep.m_extra.m_sign, mdep.m_path) m.m_extra.m_deps;
 		(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
-		m.m_extra.m_processed <- 0
+		if not skip_postprocess then m.m_extra.m_processed <- 0
 	end
 
 let arg_name (a,_) = a.v_name
@@ -248,6 +257,8 @@ let t_infos t : tinfos =
 
 let t_path t = (t_infos t).mt_path
 
+let t_name t = snd (t_path t)
+
 let rec extends c csup =
 	if c == csup || List.exists (fun (i,_) -> extends i csup) c.cl_implements then
 		true
@@ -260,11 +271,11 @@ let add_descendant c descendant =
 
 let lazy_type f =
 	match !f with
-	| LAvailable t -> t
-	| LProcessing f | LWait f -> f()
+	| LAvailable t | LProcessing t -> t
+	| LWait f -> f()
 
 let lazy_available t = LAvailable t
-let lazy_processing f = LProcessing f
+let lazy_processing t = LProcessing t
 let lazy_wait f = LWait f
 
 let map loop t =
@@ -292,8 +303,10 @@ let map loop t =
 		let ft = lazy_type f in
 		let ft2 = loop ft in
 		if ft == ft2 then t else ft2
-	| TDynamic t2 ->
-		if t == t2 then	t else TDynamic (loop t2)
+	| TDynamic None ->
+		t
+	| TDynamic (Some t2) ->
+		TDynamic (Some (loop t2))
 
 let iter loop t =
 	match t with
@@ -319,8 +332,10 @@ let iter loop t =
 	| TLazy f ->
 		let ft = lazy_type f in
 		loop ft
-	| TDynamic t2 ->
-		if t != t2 then	loop t2
+	| TDynamic None ->
+		()
+	| TDynamic (Some t2) ->
+		loop t2
 
 let duplicate t =
 	let monos = ref [] in
@@ -358,15 +373,11 @@ let apply_params ?stack cparams params t =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
-		| {ttp_type = TLazy f} as tp :: l1, _ -> loop ({tp with ttp_type = lazy_type f} :: l1) l2
-		| tp :: l1 , t2 :: l2 -> (tp.ttp_type,t2) :: loop l1 l2
+		| ttp :: l1 , t2 :: l2 -> (ttp.ttp_class,t2) :: loop l1 l2
 		| _ -> die "" __LOC__
 	in
 	let subst = loop cparams params in
 	let rec loop t =
-		try
-			List.assq t subst
-		with Not_found ->
 		match t with
 		| TMono r ->
 			(match r.tm_type with
@@ -429,6 +440,12 @@ let apply_params ?stack cparams params t =
 			(match tl with
 			| [] -> t
 			| _ -> TAbstract (a,List.map loop tl))
+		| TInst ({cl_kind = KTypeParameter _} as c,[]) ->
+			begin try
+				List.assq c subst
+			with Not_found ->
+				t
+			end
 		| TInst (c,tl) ->
 			(match tl with
 			| [] ->
@@ -456,11 +473,10 @@ let apply_params ?stack cparams params t =
 				t
 			else
 				ft2
-		| TDynamic t2 ->
-			if t == t2 then
-				t
-			else
-				TDynamic (loop t2)
+		| TDynamic None ->
+			t
+		| TDynamic (Some t2) ->
+			TDynamic (Some (loop t2))
 	in
 	loop t
 
@@ -492,7 +508,10 @@ let rec follow t =
 		| Some t -> follow t
 		| _ -> t)
 	| TLazy f ->
-		follow (lazy_type f)
+		(match !f with
+		| LAvailable t -> follow t
+		| _ -> follow (lazy_type f)
+		)
 	| TType (t,tl) ->
 		follow (apply_typedef t tl)
 	| TAbstract({a_path = [],"Null"},[t]) ->
@@ -636,9 +655,11 @@ let lookup_param n l =
 	in
 	loop l
 
-let mk_type_param n t def = {
-	ttp_name = n;
-	ttp_type = t;
+let mk_type_param c def constraints = {
+	ttp_name = snd c.cl_path;
+	ttp_type = TInst(c,[]);
+	ttp_class = c;
+	ttp_constraints = constraints;
 	ttp_default = def;
 }
 
@@ -670,13 +691,19 @@ let tconst_to_const = function
 	| TThis -> Ident "this"
 	| TSuper -> Ident "super"
 
+let get_constraints ttp = match ttp.ttp_constraints with
+	| None ->
+		[]
+	| Some r ->
+		Lazy.force r
+
 let has_ctor_constraint c = match c.cl_kind with
-	| KTypeParameter tl ->
+	| KTypeParameter ttp ->
 		List.exists (fun t -> match follow t with
 			| TAnon a when PMap.mem "new" a.a_fields -> true
 			| TAbstract({a_path=["haxe"],"Constructible"},_) -> true
 			| _ -> false
-		) tl;
+		) (get_constraints ttp);
 	| _ -> false
 
 (* ======= Field utility ======= *)
@@ -724,7 +751,7 @@ let rec raw_class_field build_type c tl i =
 			c2, apply_params c.cl_params tl t , f
 	with Not_found ->
 		match c.cl_kind with
-		| KTypeParameter tl ->
+		| KTypeParameter ttp ->
 			let rec loop = function
 				| [] ->
 					raise Not_found
@@ -745,7 +772,7 @@ let rec raw_class_field build_type c tl i =
 					| _ ->
 						loop ctl
 			in
-			loop tl
+			loop (get_constraints ttp)
 		| _ ->
 			if not (has_class_flag c CInterface) then raise Not_found;
 			(*
@@ -776,7 +803,7 @@ let quick_field t n =
 		| EnumStatics e ->
 			let ef = PMap.find n e.e_constrs in
 			FEnum(e,ef)
-		| Statics c ->
+		| ClassStatics c ->
 			FStatic (c,PMap.find n c.cl_statics)
 		| AbstractStatics a ->
 			begin match a.a_impl with

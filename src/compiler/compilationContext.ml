@@ -44,7 +44,7 @@ and compilation_context = {
 
 type compilation_callbacks = {
 	before_anything : compilation_context -> unit;
-	after_arg_parsing : compilation_context -> unit;
+	after_target_init : compilation_context -> unit;
 	after_compilation : compilation_context -> unit;
 }
 
@@ -54,16 +54,22 @@ type server_api = {
 	cache : CompilationCache.t;
 	callbacks : compilation_callbacks;
 	on_context_create : unit -> int;
-	init_wait_socket : string -> int -> server_accept;
-	init_wait_connect : string -> int -> server_accept;
+	init_wait_socket : (Ipaddr.V4.t, Ipaddr.V6.t) Ipaddr.v4v6 -> int -> server_accept;
+	init_wait_connect : (Ipaddr.V4.t, Ipaddr.V6.t) Ipaddr.v4v6 -> int -> server_accept;
 	init_wait_stdio : unit -> server_accept;
 	wait_loop : bool -> server_accept -> int;
-	do_connect : string -> int -> string list -> unit;
+	do_connect : (Ipaddr.V4.t, Ipaddr.V6.t) Ipaddr.v4v6 -> int -> string list -> unit;
 }
 
 let message ctx msg =
 	ctx.messages <- msg :: ctx.messages
 
-let error ctx msg p =
-	message ctx (msg,p,DKCompilerMessage,Error);
+let error ctx ?(depth=0) ?(from_macro = false) msg p =
+	message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Error);
 	ctx.has_error <- true
+
+let error_ext ctx (err : Error.error) =
+	Error.recurse_error (fun depth err ->
+		error ~depth ~from_macro:err.err_from_macro ctx (Error.error_msg err.err_message) err.err_pos
+	) err
+

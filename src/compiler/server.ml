@@ -1,14 +1,13 @@
-open Printf
 open Globals
-open Ast
 open Common
 open CompilationCache
 open Timer
 open Type
 open DisplayProcessingGlobals
+open Ipaddr
 open Json
-open Compiler
 open CompilationContext
+open MessageReporting
 
 exception Dirty of module_skip_reason
 exception ServerError of string
@@ -17,25 +16,28 @@ let has_error ctx =
 	ctx.has_error || ctx.com.Common.has_error
 
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
-	| None ->
-		if is_diagnostics ctx.com then begin
-			List.iter (fun (msg,p,kind,sev) ->
-				add_diagnostics_message ctx.com msg p kind sev
-			) (List.rev ctx.messages);
-			raise (Completion (Diagnostics.print ctx.com))
-		end else
-			f_otherwise ()
-	| Some api ->
+	| Some api when not (is_diagnostics ctx.com) ->
 		if has_error ctx then begin
-			let errors = List.map (fun (msg,p,_,sev) ->
+			let errors = List.map (fun cm ->
 				JObject [
-					"severity",JInt (MessageSeverity.to_int sev);
-					"location",Genjson.generate_pos_as_location p;
-					"message",JString msg;
+					"severity",JInt (MessageSeverity.to_int cm.cm_severity);
+					"location",Genjson.generate_pos_as_location cm.cm_pos;
+					"message",JString cm.cm_message;
 				]
 			) (List.rev ctx.messages) in
 			api.send_error errors
 		end
+	| _ ->
+		if is_diagnostics ctx.com then begin
+			List.iter (fun cm ->
+				add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
+			) (List.rev ctx.messages);
+			(match ctx.com.report_mode with
+			| RMDiagnostics _ -> ()
+			| RMLegacyDiagnostics _ -> raise (Completion (Diagnostics.print ctx.com))
+			| _ -> die "" __LOC__)
+		end else
+			f_otherwise ()
 
 let current_stdin = ref None
 
@@ -45,7 +47,7 @@ let parse_file cs com file p =
 	and fkey = com.file_keys#get file in
 	let is_display_file = DisplayPosition.display_position#is_in_file (com.file_keys#get ffile) in
 	match is_display_file, !current_stdin with
-	| true, Some stdin when Common.defined com Define.DisplayStdin ->
+	| true, Some stdin when (com.file_contents <> [] || Common.defined com Define.DisplayStdin) ->
 		TypeloadParse.parse_file_from_string com file p stdin
 	| _ ->
 		let ftime = file_time ffile in
@@ -86,28 +88,6 @@ let parse_file cs com file p =
 open ServerCompilationContext
 
 module Communication = struct
-
-	let compiler_message_string (str,p,_,sev) =
-		let str = match sev with
-			| MessageSeverity.Warning -> "Warning : " ^ str
-			| Information | Error | Hint -> str
-		in
-		if p = null_pos then
-			str
-		else begin
-			let error_printer file line = Printf.sprintf "%s:%d:" file line in
-			let epos = Lexer.get_error_pos error_printer p in
-			let str =
-				let lines =
-					match (ExtString.String.nsplit str "\n") with
-					| first :: rest -> first :: List.map Error.compl_msg rest
-					| l -> l
-				in
-				String.concat ("\n" ^ epos ^ " : ") lines
-			in
-			Printf.sprintf "%s : %s" epos str
-		end
-
 	let create_stdio () =
 		let rec self = {
 			write_out = (fun s ->
@@ -118,10 +98,12 @@ module Communication = struct
 				prerr_string s;
 			);
 			flush = (fun ctx ->
-				List.iter (fun ((_,_,_,sev) as cm) -> match sev with
-					| MessageSeverity.Information -> print_endline (compiler_message_string cm)
-					| Warning | Error | Hint -> prerr_endline (compiler_message_string cm)
-				) (List.rev ctx.messages);
+				display_messages ctx (fun sev output ->
+					match sev with
+						| MessageSeverity.Information -> print_endline output
+						| Warning | Error | Hint -> prerr_endline output
+				);
+
 				if has_error ctx && !Helper.prompt then begin
 					print_endline "Press enter to exit...";
 					ignore(read_line());
@@ -139,34 +121,38 @@ module Communication = struct
 		} in
 		self
 
-	let create_pipe sctx write = {
-		write_out = (fun s ->
-			write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
-		);
-		write_err = (fun s ->
-			write s
-		);
-		flush = (fun ctx ->
-			check_display_flush ctx (fun () ->
-				List.iter
-					(fun msg ->
-						let s = compiler_message_string msg in
-						write (s ^ "\n");
-						ServerMessage.message s;
-					)
-					(List.rev ctx.messages);
-				sctx.was_compilation <- ctx.com.display.dms_full_typing;
-				if has_error ctx then begin
-					measure_times := false;
-					write "\x02\n"
-				end
-			)
-		);
-		exit = (fun i ->
-			()
-		);
-		is_server = true;
-	}
+	let create_pipe sctx write =
+		let rec self = {
+			write_out = (fun s ->
+				write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
+			);
+			write_err = (fun s ->
+				write s
+			);
+			flush = (fun ctx ->
+				check_display_flush ctx (fun () ->
+					display_messages ctx (fun _ output ->
+						write (output ^ "\n");
+						ServerMessage.message output;
+					);
+
+					sctx.was_compilation <- ctx.com.display.dms_full_typing;
+					if has_error ctx then begin
+						measure_times := false;
+						write "\x02\n"
+					end else begin
+						Timer.close_times();
+						if !Timer.measure_times then Timer.report_times (fun s -> self.write_err (s ^ "\n"));
+					end
+				)
+			);
+			exit = (fun i ->
+				()
+			);
+			is_server = true;
+		}
+		in
+		self
 end
 
 let stat dir =
@@ -305,7 +291,7 @@ let check_module sctx ctx m p =
 					raise (ServerError ("Infinite loop in Haxe server detected. "
 						^ "Probably caused by shadowing a module of the standard library. "
 						^ "Make sure shadowed module does not pull macro context."));
-				let _, mctx = MacroContext.get_macro_context ctx p in
+				let mctx = MacroContext.get_macro_context ctx in
 				check_module_shadowing (get_changed_directories sctx mctx) m
 		in
 		let has_policy policy = List.mem policy m.m_extra.m_check_policy || match policy with
@@ -325,7 +311,9 @@ let check_module sctx ctx m p =
 			end
 		in
 		let check_dependencies () =
-			PMap.iter (fun _ m2 -> match check m2 with
+			PMap.iter (fun _ (sign,mpath) ->
+				let m2 = (com.cs#get_context sign)#find_module mpath in
+				match check m2 with
 				| None -> ()
 				| Some reason -> raise (Dirty (DependencyDirty(m2.m_path,reason)))
 			) m.m_extra.m_deps;
@@ -421,24 +409,14 @@ let add_modules sctx ctx m p =
 				m.m_extra.m_added <- ctx.com.compilation_step;
 				ServerMessage.reusing com tabs m;
 				List.iter (fun t ->
-					match t with
-					| TClassDecl c -> c.cl_restore()
-					| TEnumDecl e ->
-						let rec loop acc = function
-							| [] -> ()
-							| (Meta.RealPath,[Ast.EConst (Ast.String(path,_)),_],_) :: l ->
-								e.e_path <- Ast.parse_path path;
-								e.e_meta <- (List.rev acc) @ l;
-							| x :: l -> loop (x::acc) l
-						in
-						loop [] e.e_meta
-					| TAbstractDecl a ->
-						a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
-					| _ -> ()
+					(t_infos t).mt_restore()
 				) m.m_types;
 				TypeloadModule.ModuleLevel.add_module ctx m p;
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
-				PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps
+				PMap.iter (fun _ (sign,mpath) ->
+					let m2 = (com.cs#get_context sign)#find_module mpath in
+					add_modules (tabs ^ "  ") m0 m2
+				) m.m_extra.m_deps
 			)
 		end
 	in
@@ -473,7 +451,7 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 let before_anything sctx ctx =
 	ensure_macro_setup sctx
 
-let after_arg_parsing sctx ctx =
+let after_target_init sctx ctx =
 	let com = ctx.com in
 	let cs = sctx.cs in
 	let sign = Define.get_signature com.defines in
@@ -568,9 +546,16 @@ let init_wait_stdio() =
 	mk_length_prefixed_communication false stdin stderr
 
 (* The connect function to connect to [host] at [port] and send arguments [args]. *)
-let do_connect host port args =
-	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port));
+let do_connect ip port args =
+	let (domain, host) = match ip with
+		| V4 ip -> (Unix.PF_INET, V4.to_string ip)
+		| V6 ip -> (Unix.PF_INET6, V6.to_string ip)
+	in
+	let sock = Unix.socket domain Unix.SOCK_STREAM 0 in
+	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with
+		| Unix.Unix_error(code,_,_) -> failwith("Couldn't connect on " ^ host ^ ":" ^ string_of_int port ^ " (" ^ (Unix.error_message code) ^ ")");
+		| _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port)
+	);
 	let rec display_stdin args =
 		match args with
 		| [] -> ""
@@ -585,7 +570,7 @@ let do_connect host port args =
 	let s = (String.concat "" (List.map (fun a -> a ^ "\n") args)) ^ (display_stdin args) in
 	ssend sock (Bytes.of_string (s ^ "\000"));
 	let has_error = ref false in
-	let rec print line =
+	let print line =
 		match (if line = "" then '\x00' else line.[0]) with
 		| '\x01' ->
 			print_string (String.concat "\n" (List.tl (ExtString.String.nsplit line "\x01")));
@@ -636,7 +621,7 @@ let rec process sctx comm args =
 		cache = sctx.cs;
 		callbacks = {
 			before_anything = before_anything sctx;
-			after_arg_parsing = after_arg_parsing sctx;
+			after_target_init = after_target_init sctx;
 			after_compilation = after_compilation sctx;
 		};
 		init_wait_socket = init_wait_socket;
@@ -733,14 +718,22 @@ and wait_loop verbose accept =
 	0
 
 (* Connect to given host/port and return accept function for communication *)
-and init_wait_connect host port =
+and init_wait_connect ip port =
+	let host = match ip with
+		| V4 ip -> V4.to_string ip
+		| V6 ip -> V6.to_string ip
+	in
 	let host = Unix.inet_addr_of_string host in
 	let chin, chout = Unix.open_connection (Unix.ADDR_INET (host,port)) in
 	mk_length_prefixed_communication true chin chout
 
 (* The accept-function to wait for a socket connection. *)
-and init_wait_socket host port =
-	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+and init_wait_socket ip port =
+	let (domain, host) = match ip with
+		| V4 ip -> (Unix.PF_INET, V4.to_string ip)
+		| V6 ip -> (Unix.PF_INET6, V6.to_string ip)
+	in
+	let sock = Unix.socket domain Unix.SOCK_STREAM 0 in
 	(try Unix.setsockopt sock Unix.SO_REUSEADDR true with _ -> ());
 	(try Unix.bind sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't wait on " ^ host ^ ":" ^ string_of_int port));
 	ServerMessage.socket_message ("Waiting on " ^ host ^ ":" ^ string_of_int port);

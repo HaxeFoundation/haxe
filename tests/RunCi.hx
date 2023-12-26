@@ -21,12 +21,6 @@ class RunCi {
 
 		infoMsg('Going to test: $tests');
 
-		if (isCi()) {
-			changeDirectory('echoServer');
-			runCommand('haxe', ['build.hxml']);
-			changeDirectory(cwd);
-		}
-
 		final downloadPath = getDownloadPath();
 		if (!sys.FileSystem.exists(downloadPath))
 			sys.FileSystem.createDirectory(downloadPath);
@@ -40,13 +34,10 @@ class RunCi {
 					//pass
 			}
 
-			//run neko-based http echo server
-			var echoServer = new sys.io.Process('nekotools', ['server', '-d', 'echoServer/www/', '-p', '20200']);
-
 			infoMsg('test $test');
 			try {
 				changeDirectory(unitDir);
-				haxelibInstallGit("haxe-utest", "utest", "master", "--always");
+				haxelibInstallGit("haxe-utest", "utest", "424a7182a93057730fada54b9d27d90b3cb7065c", "--always");
 
 				var args = switch (ci) {
 					case null:
@@ -78,7 +69,7 @@ class RunCi {
 						runci.targets.Jvm.run(args);
 					case Cs:
 						runci.targets.Cs.run(args);
-					case Flash9:
+					case Flash:
 						runci.targets.Flash.run(args);
 					case Hl:
 						runci.targets.Hl.run(args);
@@ -91,9 +82,6 @@ class RunCi {
 			}
 
 			successMsg('test ${test} succeeded');
-
-			echoServer.kill();
-			echoServer.close();
 		}
 
 		deploy();

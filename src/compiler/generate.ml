@@ -57,8 +57,6 @@ let generate ctx tctx ext actx =
 	end;
 	if actx.interp then
 		Std.finally (Timer.timer ["interp"]) MacroContext.interpret tctx
-	else if com.platform = Cross then
-		()
 	else begin
 		let generate,name = match com.platform with
 		| Flash ->
@@ -91,11 +89,15 @@ let generate ctx tctx ext actx =
 			Genhl.generate,"hl"
 		| Eval ->
 			(fun _ -> MacroContext.interpret tctx),"eval"
-		| Cross ->
-			die "" __LOC__
+		| Cross
+		| CustomTarget _ ->
+			(fun _ -> ()),""
 		in
-		Common.log com ("Generating " ^ name ^ ": " ^ com.file);
-		let t = Timer.timer ["generate";name] in
-		generate com;
-		t()
+		if name = "" then ()
+		else begin
+			Common.log com ("Generating " ^ name ^ ": " ^ com.file);
+			let t = Timer.timer ["generate";name] in
+			generate com;
+			t()
+		end
 	end

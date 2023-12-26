@@ -1,0 +1,4 @@
+-cp src
+-main Main
+--jvm run.jar
+--cmd java -jar run.jar

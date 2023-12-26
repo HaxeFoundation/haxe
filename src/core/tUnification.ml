@@ -166,7 +166,7 @@ module Monomorph = struct
 		| CMixed l ->
 			List.iter (fun constr -> check_down_constraints constr t) l
 
-	let rec collect_up_constraints m =
+	let collect_up_constraints m =
 		let rec collect m acc =
 			List.fold_left (fun acc (t,name) ->
 				match t with
@@ -260,13 +260,13 @@ module Monomorph = struct
 
 	let spawn_constrained_monos map params =
 		let checks = DynArray.create () in
-		let monos = List.map (fun tp ->
+		let monos = List.map (fun ttp ->
 			let mono = create () in
-			begin match follow tp.ttp_type with
-				| TInst ({ cl_kind = KTypeParameter constr; cl_path = path },_) when constr <> [] ->
-					DynArray.add checks (mono,constr,s_type_path path)
-				| _ ->
+			begin match get_constraints ttp with
+				| [] ->
 					()
+				| constr ->
+					DynArray.add checks (mono,constr,s_type_path ttp.ttp_class.cl_path)
 			end;
 			TMono mono
 		) params in
@@ -286,7 +286,7 @@ let rec follow_and_close t = match follow t with
 	| t ->
 		t
 
-let rec link e a b =
+let link e a b =
 	(* tell if setting a == b will create a type-loop *)
 	let rec loop t =
 		if t == a then
@@ -296,11 +296,10 @@ let rec link e a b =
 		| TEnum (_,tl) -> List.exists loop tl
 		| TInst (_,tl) | TType (_,tl) | TAbstract (_,tl) -> List.exists loop tl
 		| TFun (tl,t) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
-		| TDynamic t2 ->
-			if t == t2 then
-				false
-			else
-				loop t2
+		| TDynamic None ->
+			false
+		| TDynamic (Some t2) ->
+			loop t2
 		| TLazy f ->
 			loop (lazy_type f)
 		| TAnon a ->
@@ -387,7 +386,7 @@ let rec shallow_eq a b =
 					loop (List.sort sort_compare fields1) (List.sort sort_compare fields2)
 				in
 				(match !(a2.a_status), !(a1.a_status) with
-				| Statics c, Statics c2 -> c == c2
+				| ClassStatics c, ClassStatics c2 -> c == c2
 				| EnumStatics e, EnumStatics e2 -> e == e2
 				| AbstractStatics a, AbstractStatics a2 -> a == a2
 				| Extend tl1, Extend tl2 -> fields_eq() && List.for_all2 shallow_eq tl1 tl2
@@ -508,7 +507,9 @@ let rec type_eq uctx a b =
 		(match t.tm_type with
 		| None -> if param = EqCoreType || not (link t b a) then error [cannot_unify a b]
 		| Some t -> type_eq uctx a t)
-	| TDynamic a , TDynamic b ->
+	| TDynamic None, TDynamic None ->
+		()
+	| TDynamic (Some a) , TDynamic (Some b) ->
 		type_eq uctx a b
 	| _ , _ when a == t_dynamic && param = EqBothDynamic ->
 		()
@@ -559,7 +560,7 @@ let rec type_eq uctx a b =
 	| TAnon a1, TAnon a2 ->
 		(try
 			(match !(a2.a_status) with
-			| Statics c -> (match !(a1.a_status) with Statics c2 when c == c2 -> () | _ -> error [])
+			| ClassStatics c -> (match !(a1.a_status) with ClassStatics c2 when c == c2 -> () | _ -> error [])
 			| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
 			| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
 			| _ -> ()
@@ -694,12 +695,13 @@ let rec unify (uctx : unification_context) a b =
 				loop cs (List.map (apply_params c.cl_params tl) tls)
 			) c.cl_implements
 			|| (match c.cl_kind with
-			| KTypeParameter pl -> List.exists (fun t ->
-				match follow t with
-				| TInst (cs,tls) -> loop cs (List.map (apply_params c.cl_params tl) tls)
-				| TAbstract(aa,tl) -> unifies_to uctx a b aa tl
-				| _ -> false
-			) pl
+			| KTypeParameter ttp ->
+				List.exists (fun t ->
+					match follow t with
+					| TInst (cs,tls) -> loop cs (List.map (apply_params c.cl_params tl) tls)
+					| TAbstract(aa,tl) -> unifies_to uctx a b aa tl
+					| _ -> false
+				) (get_constraints ttp)
 			| _ -> false)
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
@@ -721,9 +723,9 @@ let rec unify (uctx : unification_context) a b =
 				error (cannot_unify a b :: msg :: l))
 	| TInst (c,tl) , TAnon an ->
 		if PMap.is_empty an.a_fields then (match c.cl_kind with
-			| KTypeParameter pl ->
+			| KTypeParameter ttp ->
 				(* one of the constraints must unify with { } *)
-				if not (List.exists (fun t -> match follow t with TInst _ | TAnon _ -> true | _ -> false) pl) then error [cannot_unify a b]
+				if not (List.exists (fun t -> match follow t with TInst _ | TAnon _ -> true | _ -> false) (get_constraints ttp)) then error [cannot_unify a b]
 			| _ -> ());
 		ignore(c.cl_build());
 		(try
@@ -800,7 +802,7 @@ let rec unify (uctx : unification_context) a b =
 				| _ -> ());
 			) an.a_fields;
 			(match !(an.a_status) with
-			| Statics _ | EnumStatics _ | AbstractStatics _ -> error []
+			| ClassStatics _ | EnumStatics _ | AbstractStatics _ -> error []
 			| Closed | Extend _ | Const -> ())
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
@@ -808,7 +810,7 @@ let rec unify (uctx : unification_context) a b =
 		unify_anons uctx a b a1 a2
 	| TAnon an, TAbstract ({ a_path = [],"Class" },[pt]) ->
 		(match !(an.a_status) with
-		| Statics cl -> unify uctx (TInst (cl,List.map (fun _ -> mk_mono()) cl.cl_params)) pt
+		| ClassStatics cl -> unify uctx (TInst (cl,List.map (fun _ -> mk_mono()) cl.cl_params)) pt
 		| _ -> error [cannot_unify a b])
 	| TAnon an, TAbstract ({ a_path = [],"Enum" },[pt]) ->
 		(match !(an.a_status) with
@@ -823,9 +825,9 @@ let rec unify (uctx : unification_context) a b =
 	| TInst(c,tl),TAbstract({a_path = ["haxe"],"Constructible"},[t1]) ->
 		begin try
 			begin match c.cl_kind with
-				| KTypeParameter tl ->
+				| KTypeParameter ttp ->
 					(* type parameters require an equal Constructible constraint *)
-					if not (List.exists (fun t -> match follow t with TAbstract({a_path = ["haxe"],"Constructible"},[t2]) -> type_iseq uctx t1 t2 | _ -> false) tl) then error [cannot_unify a b]
+					if not (List.exists (fun t -> match follow t with TAbstract({a_path = ["haxe"],"Constructible"},[t2]) -> type_iseq uctx t1 t2 | _ -> false) (get_constraints ttp)) then error [cannot_unify a b]
 				| _ ->
 					let _,t,cf = class_field c tl "new" in
 					if not (has_class_field_flag cf CfPublic) then error [invalid_visibility "new"];
@@ -835,38 +837,42 @@ let rec unify (uctx : unification_context) a b =
 		with Not_found ->
 			error [has_no_field a "new"]
 		end
-	| TDynamic t , _ ->
-		if t == a && uctx.allow_dynamic_to_cast then
+	| TDynamic None , _ ->
+		if uctx.allow_dynamic_to_cast then
 			()
-		else (match b with
-		| TDynamic t2 ->
-			if t2 != b then
+		else begin match b with
+			| TDynamic None ->
+				()
+			| _ ->
+				error [cannot_unify a b]
+		end
+	| TDynamic (Some t1) , _ ->
+		begin match b with
+		| TDynamic None ->
+			()
+		| TDynamic (Some t2) ->
+			if t2 != t1 then
 				(try
-					type_eq {uctx with equality_kind = EqRightDynamic} t t2
+					type_eq {uctx with equality_kind = EqRightDynamic} t1 t2
 				with
 					Unify_error l -> error (cannot_unify a b :: l));
 		| TAbstract(bb,tl) ->
 			unify_from uctx a b bb tl
 		| _ ->
-			error [cannot_unify a b])
-	| _ , TDynamic t ->
-		if t == b then
-			()
-		else (match a with
-		| TDynamic t2 ->
-			if t2 != a then
-				(try
-					type_eq {uctx with equality_kind = EqRightDynamic} t t2
-				with
-					Unify_error l -> error (cannot_unify a b :: l));
+			error [cannot_unify a b]
+		end
+	| _ , TDynamic None ->
+		()
+	| _ , TDynamic (Some t1) ->
+		begin match a with
 		| TAnon an ->
 			(try
 				(match !(an.a_status) with
-				| Statics _ | EnumStatics _ -> error []
+				| ClassStatics _ | EnumStatics _ -> error []
 				| _ -> ());
 				PMap.iter (fun _ f ->
 					try
-						type_eq uctx (field_type f) t
+						type_eq uctx (field_type f) t1
 					with Unify_error l ->
 						error (invalid_field f.cf_name :: l)
 				) an.a_fields
@@ -875,15 +881,16 @@ let rec unify (uctx : unification_context) a b =
 		| TAbstract(aa,tl) ->
 			unify_to uctx a b aa tl
 		| _ ->
-			error [cannot_unify a b])
+			error [cannot_unify a b]
+		end
 	| TAbstract (aa,tl), _  ->
 		unify_to uctx a b aa tl
-	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract (bb,tl) ->
+	| TInst ({ cl_kind = KTypeParameter ttp } as c,pl), TAbstract (bb,tl) ->
 		(* one of the constraints must satisfy the abstract *)
 		if not (List.exists (fun t ->
 			let t = apply_params c.cl_params pl t in
 			try unify uctx t b; true with Unify_error _ -> false
-		) ctl) then unify_from uctx a b bb tl
+		) (get_constraints ttp)) then unify_from uctx a b bb tl
 	| _, TAbstract (bb,tl) ->
 		unify_from uctx a b bb tl
 	| _ , _ ->
@@ -904,7 +911,7 @@ and unify_anons uctx a b a1 a2 =
 				in
 				unify_with_access uctx f1 f1_type f2;
 				(match !(a1.a_status) with
-				| Statics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
+				| ClassStatics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
 				| _ -> ());
 			with
 				Unify_error l -> error (invalid_field n :: l)
@@ -917,7 +924,7 @@ and unify_anons uctx a b a1 a2 =
 					error [has_no_field a n];
 		) a2.a_fields;
 		(match !(a2.a_status) with
-		| Statics c -> (match !(a1.a_status) with Statics c2 when c == c2 -> () | _ -> error [])
+		| ClassStatics c -> (match !(a1.a_status) with ClassStatics c2 when c == c2 -> () | _ -> error [])
 		| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
 		| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
 		| Const | Extend _ | Closed -> ())
@@ -1130,7 +1137,7 @@ module UnifyMinT = struct
 		let rec loop t = (match t with
 			| TInst(cl, params) ->
 				(match cl.cl_kind with
-				| KTypeParameter tl -> List.iter loop tl
+				| KTypeParameter ttp -> List.iter loop (get_constraints ttp)
 				| _ -> ());
 				List.iter (fun (ic, ip) ->
 					let t = apply_params cl.cl_params params (TInst (ic,ip)) in

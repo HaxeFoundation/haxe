@@ -63,7 +63,7 @@ devcontainer:
             ocaml-nox \
             camlp5 \
             opam \
-            libpcre3-dev \
+            libpcre2-dev \
             zlib1g-dev \
             libgtk2.0-dev \
             libmbedtls-dev \
@@ -91,8 +91,11 @@ devcontainer:
     RUN git config --global codespaces-theme.hide-status 1
 
     # Install OCaml libraries
-    COPY opam .
+    COPY haxe.opam .
     RUN opam init --disable-sandboxing
+    RUN opam switch create 4.08.1
+    RUN eval $(opam env)
+    RUN opam env
     RUN opam install . --yes --deps-only --no-depexts
     RUN opam list
     RUN ocamlopt -v
@@ -281,7 +284,7 @@ test-environment-hl:
 test-environment-lua:
     # hererocks uses pip
     FROM +test-environment-python
-    DO +INSTALL_PACKAGES --PACKAGES="libssl-dev libreadline-dev python3-pip unzip libpcre3-dev cmake"
+    DO +INSTALL_PACKAGES --PACKAGES="libssl-dev libreadline-dev python3-pip unzip libpcre2-dev cmake"
     RUN ln -s /root/.local/bin/hererocks /bin/
     SAVE IMAGE --cache-hint
 
@@ -386,7 +389,7 @@ test-flash:
     FROM +test-environment-flash
     ARG GITHUB_ACTIONS
     ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
-    DO +RUN_CI --TEST=flash9
+    DO +RUN_CI --TEST=flash
 
 test-all:
     ARG TARGETPLATFORM
@@ -399,7 +402,7 @@ test-all:
     BUILD +test-jvm
     BUILD +test-cs
     BUILD +test-cpp
-    # BUILD +test-lua
+    BUILD +test-lua
     BUILD +test-js
     BUILD +test-flash
 

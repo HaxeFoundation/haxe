@@ -20,7 +20,6 @@
 open Ast
 open Type
 open Common
-open Error
 open Globals
 open Extlib_leftovers
 
@@ -66,12 +65,12 @@ let add_property_field com c =
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
 		c.cl_ordered_statics <- cf :: c.cl_ordered_statics
 
-let escape_res_name name allow_dirs =
+let escape_res_name name allowed =
 	ExtString.String.replace_chars (fun chr ->
 		if (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr = '_' || chr = '.' then
 			Char.escaped chr
-		else if chr = '/' && allow_dirs then
-			"/"
+		else if List.mem chr allowed then
+			Char.escaped chr
 		else
 			"-x" ^ (string_of_int (Char.code chr))) name
 
@@ -123,8 +122,13 @@ let fix_override com c f fd =
 					(* Flash generates type parameters with a single constraint as that constraint type, so we
 					   have to detect this case and change the variable (issue #2712). *)
 					begin match follow v.v_type with
-						| TInst({cl_kind = KTypeParameter [tc]} as cp,_) when com.platform = Flash ->
-							if List.exists (fun tp -> tp.ttp_name = (snd cp.cl_path)) c.cl_params then raise (Unify_error [])
+						| TInst({cl_kind = KTypeParameter ttp} as cp,_) when com.platform = Flash ->
+							begin match get_constraints ttp with
+							| [tc] ->
+								if List.exists (fun tp -> tp.ttp_name = (snd cp.cl_path)) c.cl_params then raise (Unify_error [])
+							| _ ->
+								()
+							end
 						| _ ->
 							()
 					end;
@@ -373,7 +377,6 @@ module Dump = struct
 	let dump_types com =
 		match Common.defined_value_safe com Define.Dump with
 			| "pretty" -> dump_types com (Type.s_expr_pretty false "\t" true)
-			| "legacy" -> dump_types com Type.s_expr
 			| "record" -> dump_record com
 			| "position" -> dump_position com
 			| _ -> dump_types com (Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t")
@@ -389,7 +392,8 @@ module Dump = struct
 		let dep = Hashtbl.create 0 in
 		List.iter (fun m ->
 			print "%s:\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
-			PMap.iter (fun _ m2 ->
+			PMap.iter (fun _ (sign,mpath) ->
+				let m2 = com.module_lut#find mpath in
 				let file = Path.UniqueKey.lazy_path m2.m_extra.m_file in
 				print "\t%s\n" file;
 				let l = try Hashtbl.find dep file with Not_found -> [] in
@@ -416,7 +420,7 @@ end
 let default_cast ?(vtmp="$t") com e texpr t p =
 	let api = com.basic in
 	let mk_texpr = function
-		| TClassDecl c -> mk_anon (ref (Statics c))
+		| TClassDecl c -> mk_anon (ref (ClassStatics c))
 		| TEnumDecl e -> mk_anon (ref (EnumStatics e))
 		| TAbstractDecl a -> mk_anon (ref (AbstractStatics a))
 		| TTypeDecl _ -> die "" __LOC__
@@ -477,10 +481,6 @@ let interpolate_code com code tl f_string f_expr p =
 		| Str.Text txt :: tl ->
 			i := !i + String.length txt;
 			f_string txt;
-			loop tl
-		| Str.Delim a :: Str.Delim b :: tl when a = b ->
-			i := !i + 2;
-			f_string a;
 			loop tl
 		| Str.Delim "{" :: Str.Text n :: Str.Delim "}" :: tl ->
 			begin try

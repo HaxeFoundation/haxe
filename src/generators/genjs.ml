@@ -62,6 +62,7 @@ type ctx = {
 	mutable separator : bool;
 	mutable found_expose : bool;
 	mutable catch_vars : texpr list;
+	mutable deprecation_context : DeprecationCheck.deprecation_context;
 }
 
 type object_store = {
@@ -502,22 +503,22 @@ let rec gen_call ctx e el in_value =
 				abort "js.Lib.getOriginalException can only be called inside a catch block" e.epos
 		)
 	| TIdent "__new__", args ->
-		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
 		gen_syntax ctx "construct" args e.epos
 	| TIdent "__js__", args ->
-		print_deprecation_message ctx.com "__js__ is deprecated, use js.Syntax.code instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__js__ is deprecated, use js.Syntax.code instead" e.epos;
 		gen_syntax ctx "code" args e.epos
 	| TIdent "__instanceof__",  args ->
-		print_deprecation_message ctx.com "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
 		gen_syntax ctx "instanceof" args e.epos
 	| TIdent "__typeof__",  args ->
-		print_deprecation_message ctx.com "__typeof__ is deprecated, use js.Syntax.typeof instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__typeof__ is deprecated, use js.Syntax.typeof instead" e.epos;
 		gen_syntax ctx "typeof" args e.epos
 	| TIdent "__strict_eq__" , args ->
-		print_deprecation_message ctx.com "__strict_eq__ is deprecated, use js.Syntax.strictEq instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__strict_eq__ is deprecated, use js.Syntax.strictEq instead" e.epos;
 		gen_syntax ctx "strictEq" args e.epos
 	| TIdent "__strict_neq__" , args ->
-		print_deprecation_message ctx.com "__strict_neq__ is deprecated, use js.Syntax.strictNeq instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__strict_neq__ is deprecated, use js.Syntax.strictNeq instead" e.epos;
 		gen_syntax ctx "strictNeq" args e.epos
 	| TIdent "__define_feature__", [_;e] ->
 		gen_expr ctx e
@@ -865,12 +866,12 @@ and gen_expr ctx e =
 		ctx.catch_vars <- List.tl ctx.catch_vars
 	| TTry _ ->
 		abort "Unhandled try/catch, please report" e.epos
-	| TSwitch (e,cases,def) ->
+	| TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->
 		spr ctx "switch";
 		gen_value ctx e;
 		spr ctx " {";
 		newline ctx;
-		List.iter (fun (el,e2) ->
+		List.iter (fun {case_patterns = el;case_expr = e2} ->
 			List.iter (fun e ->
 				match e.eexpr with
 				| TConst(c) when c = TNull ->
@@ -1077,12 +1078,15 @@ and gen_value ctx e =
 		(match eo with
 		| None -> spr ctx "null"
 		| Some e -> gen_value ctx e);
-	| TSwitch (cond,cases,def) ->
+	| TSwitch switch ->
 		let v = value() in
-		gen_expr ctx (mk (TSwitch (cond,
-			List.map (fun (e1,e2) -> (e1,assign e2)) cases,
-			match def with None -> None | Some e -> Some (assign e)
-		)) e.etype e.epos);
+		let switch = { switch with
+			switch_cases = List.map (fun case -> { case with
+				case_expr = assign case.case_expr
+			}) switch.switch_cases;
+			switch_default = Option.map assign switch.switch_default
+		} in
+		gen_expr ctx (mk (TSwitch switch) e.etype e.epos);
 		v()
 	| TTry (b,catchs) ->
 		let v = value() in
@@ -1278,6 +1282,7 @@ let can_gen_class_field ctx = function
 		is_physical_field f
 
 let gen_class_field ctx c f =
+	ctx.deprecation_context <- {ctx.deprecation_context with field_meta = f.cf_meta};
 	check_field_name c f;
 	match f.cf_expr with
 	| None ->
@@ -1295,13 +1300,7 @@ let generate_class___name__ ctx cl_path =
 	if has_feature ctx "js.Boot.isClass" then begin
 		let p = s_path ctx cl_path in
 		print ctx "%s.__name__ = " p;
-		(match has_feature ctx "Type.getClassName", cl_path with
-			| true, _
-			| _, ([], ("Array" | "String")) ->
-				print ctx "\"%s\"" (dot_path cl_path)
-			| _ ->
-				print ctx "true"
-		);
+		print ctx "\"%s\"" (dot_path cl_path);
 		newline ctx;
 	end
 
@@ -1332,15 +1331,17 @@ let generate_class_es3 ctx c =
 
 	let p = s_path ctx cl_path in
 	let dotp = dot_path cl_path in
-
 	let added_to_hxClasses = ctx.has_resolveClass && not is_abstract_impl in
 
-	if ctx.js_modern || not added_to_hxClasses then
+	(* Do not add to $hxClasses on same line as declaration to make sure not to trip js debugger *)
+	(* when it tries to get a string representation of a class. Will be added below *)
+	if ctx.com.debug || ctx.js_modern || not added_to_hxClasses then
 		print ctx "%s = " p
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p dotp;
 
-	process_expose c.cl_meta (fun () -> dotp) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+	if not ctx.com.debug then
+		process_expose c.cl_meta (fun () -> dotp) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 
 	if is_abstract_impl then begin
 		(* abstract implementations only contain static members and don't need to have constructor functions *)
@@ -1354,10 +1355,16 @@ let generate_class_es3 ctx c =
 
 	newline ctx;
 
-	if ctx.js_modern && added_to_hxClasses then begin
+	if (ctx.js_modern || ctx.com.debug) && added_to_hxClasses then begin
 		print ctx "$hxClasses[\"%s\"] = %s" dotp p;
 		newline ctx;
 	end;
+
+	if ctx.com.debug then
+		process_expose c.cl_meta (fun () -> dotp) (fun s -> begin
+			print ctx "$hx_exports%s = %s" (path_to_brackets s) p;
+			newline ctx;
+		end);
 
 	if not is_abstract_impl then begin
 		generate_class___name__ ctx cl_path;
@@ -1601,6 +1608,7 @@ let generate_class_es6 ctx c =
 
 let generate_class ctx c =
 	ctx.current <- c;
+	ctx.deprecation_context <- {ctx.deprecation_context with class_meta = c.cl_meta};
 	ctx.id_counter <- 0;
 	(match c.cl_path with
 	| [],"Function" -> abort "This class redefine a native one" c.cl_pos
@@ -1656,11 +1664,11 @@ let generate_enum ctx e =
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in begin
 			if as_objects then begin
 				let sfields = String.concat "," (List.map (fun (n,_,_) -> (ident n) ^ ":" ^ (ident n) ) args) in
-				let sparams = String.concat "," (List.map (fun (n,_,_) -> "\"" ^ (ident n) ^ "\"" ) args) in
+				let sparams = String.concat "," (List.map (fun (n,_,_) -> "this." ^ (ident n) ) args) in
 				print ctx "($_=function(%s) { return {_hx_index:%d,%s,__enum__:\"%s\"" sargs f.ef_index sfields dotp;
 				if has_enum_feature then
 					spr ctx ",toString:$estr";
-				print ctx "}; },$_._hx_name=\"%s\",$_.__params__ = [%s],$_)" f.ef_name sparams
+				print ctx ",__params__:function(){ return [%s];}}; },$_._hx_name=\"%s\",$_)" sparams f.ef_name
 			end else begin
 				print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
 				if has_enum_feature then
@@ -1816,6 +1824,7 @@ let alloc_ctx com es_version =
 		separator = false;
 		found_expose = false;
 		catch_vars = [];
+		deprecation_context = DeprecationCheck.create_context com;
 	} in
 
 	ctx.type_accessor <- (fun t ->

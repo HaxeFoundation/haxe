@@ -18,7 +18,6 @@
 *)
 open Swf
 open As3hl
-open Genswf9
 open ExtString
 open Type
 open Common
@@ -84,7 +83,7 @@ let build_dependencies t =
 		| TAnon a ->
 			PMap.iter (fun _ f -> add_type_rec (t::l) f.cf_type) a.a_fields
 		| TDynamic t2 ->
-			add_type_rec (t::l) t2;
+			add_type_rec (t::l) (match t2 with None -> t_dynamic | Some t2 -> t2);
 		| TLazy f ->
 			add_type_rec l (lazy_type f)
 		| TMono r ->
@@ -150,9 +149,7 @@ let build_dependencies t =
 		| Some x -> add_inherit x);
 		List.iter (fun tp ->
 			(* add type-parameters constraints dependencies *)
-			match follow tp.ttp_type with
-			| TInst (c,_) -> List.iter add_inherit c.cl_implements
-			| _ -> ()
+			List.iter add_inherit tp.ttp_class.cl_implements
 		) c.cl_params;
 		List.iter add_inherit c.cl_implements;
 	| TEnumDecl e when not e.e_extern ->

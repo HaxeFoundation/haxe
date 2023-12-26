@@ -20,7 +20,6 @@ open Option
 open Common
 open Ast
 open Type
-open Codegen
 open Texpr.Builder
 open Gencommon
 
@@ -91,7 +90,7 @@ let rec has_type_params t =
 			List.exists (fun (n,o,t) -> has_type_params t) args || has_type_params ret
 		| _ -> false
 
-let rec follow_all_md md =
+let follow_all_md md =
 	let t = match md with
 		| TClassDecl { cl_kind = KAbstractImpl a } ->
 			TAbstract(a, extract_param_types a.a_params)
@@ -309,10 +308,9 @@ let set_hxgeneric gen md =
 		if not ret then begin
 			match md with
 			| TClassDecl c ->
-				let set_hxgeneric tp = match follow tp.ttp_type with
-					| TInst(c,_) ->
-						c.cl_meta <- (Meta.NativeGeneric, [], c.cl_pos) :: c.cl_meta
-					| _ -> ()
+				let set_hxgeneric tp =
+					let c = tp.ttp_class in
+					c.cl_meta <- (Meta.NativeGeneric, [], c.cl_pos) :: c.cl_meta
 				in
 				List.iter set_hxgeneric c.cl_params;
 				let rec handle_field cf =
@@ -366,7 +364,7 @@ module RealTypeParamsModf =
 struct
 
 	let set_only_hxgeneric gen =
-		let rec run md =
+		let run md =
 			match md with
 				| TTypeDecl _ | TAbstractDecl _ -> md
 				| _ -> ignore (set_hxgeneric gen md); md
@@ -401,7 +399,7 @@ struct
 
 		let rec loop curcls params level reverse_params =
 			if (level <> 0 || (has_class_flag curcls CInterface) || (has_class_flag curcls CAbstract) ) && params <> [] && is_hxgeneric (TClassDecl curcls) then begin
-				let cparams = List.map (fun tp -> {tp with ttp_type=TInst (map_param (get_cl_t tp.ttp_type), [])}) curcls.cl_params in
+				let cparams = List.map clone_param curcls.cl_params in
 				let name = get_cast_name curcls in
 				if not (PMap.mem name cl.cl_fields) then begin
 					let reverse_params = List.map (apply_params curcls.cl_params params) reverse_params in
@@ -460,7 +458,7 @@ struct
 	let create_cast_cfield gen cl name =
 		reset_temps();
 		let basic = gen.gcon.basic in
-		let cparams = List.map (fun tp -> {tp with ttp_type = TInst (map_param (get_cl_t tp.ttp_type), [])}) cl.cl_params in
+		let cparams = List.map clone_param cl.cl_params in
 		let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
 		let params = extract_param_types cparams in
 
@@ -522,7 +520,10 @@ struct
 						t_cf
 						pos
 				in
-				[make_string gen.gcon.basic cf.cf_name pos], expr
+				{
+					case_patterns = [make_string gen.gcon.basic cf.cf_name pos];
+					case_expr = expr;
+				}
 			) fields
 		in
 
@@ -567,10 +568,11 @@ struct
 						(
 							(* default: Reflect.setField(new_me, field, Reflect.field(this, field)) *)
 							let edef = gen.gtools.r_set_field basic.tvoid local_new_me local_field (gen.gtools.r_field false basic.tvoid this local_field) in
-							if fields <> [] then
+							if fields <> [] then begin
 								(* switch(field) { ... } *)
-								mk (TSwitch (local_field, fields_to_cases fields, Some edef)) basic.tvoid pos
-							else
+								let switch = mk_switch local_field (fields_to_cases fields) (Some edef) true in
+								mk (TSwitch switch) basic.tvoid pos
+							end else
 								edef;
 						)
 					]) basic.tvoid pos,
@@ -587,7 +589,7 @@ struct
 	let create_static_cast_cf gen iface cf =
 		let p = iface.cl_pos in
 		let basic = gen.gcon.basic in
-		let cparams = List.map (fun tp -> {tp with ttp_name = "To_" ^ tp.ttp_name;ttp_type = TInst (map_param (get_cl_t tp.ttp_type), [])}) cf.cf_params in
+		let cparams = List.map clone_param cf.cf_params in
 		let me_type = TInst(iface,[]) in
 		let cfield = mk_class_field ~static:true "__hx_cast" (TFun(["me",false,me_type], t_dynamic)) false iface.cl_pos (Method MethNormal) (cparams) in
 		let params = extract_param_types cparams in
@@ -634,7 +636,7 @@ struct
 		let implement_stub_cast cthis iface tl =
 			let name = get_cast_name iface in
 			if not (PMap.mem name cthis.cl_fields) then begin
-				let cparams = List.map (fun tp -> {tp with ttp_name = "To_" ^ tp.ttp_name;ttp_type = TInst(map_param (get_cl_t tp.ttp_type), [])}) iface.cl_params in
+				let cparams = List.map clone_param iface.cl_params in
 				let field = mk_class_field name (TFun([],t_dynamic)) false iface.cl_pos (Method MethNormal) cparams in
 				let this = { eexpr = TConst TThis; etype = TInst(cthis, extract_param_types cthis.cl_params); epos = cthis.cl_pos } in
 				field.cf_expr <- Some {
@@ -651,7 +653,7 @@ struct
 			end
 		in
 
-		let rec run md =
+		let run md =
 			match md with
 				| TClassDecl ({ cl_params = [] } as cl) ->
 					(* see if we're implementing any generic interface *)

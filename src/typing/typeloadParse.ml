@@ -39,7 +39,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	with
 		| Sedlexing.MalFormed ->
 			t();
-			typing_error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
+			raise_typing_error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
 		| e ->
 			t();
 			raise e
@@ -53,30 +53,29 @@ let parse_file_from_lexbuf com file p lexbuf =
 			()
 	end;
 	t();
-	Common.log com ("Parsed " ^ file);
 	parse_result
 
 let parse_file_from_string com file p string =
 	parse_file_from_lexbuf com file p (Sedlexing.Utf8.from_string string)
 
-let current_stdin = ref None (* TODO: we're supposed to clear this at some point *)
-
 let parse_file com file p =
-	let use_stdin = (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file (com.file_keys#get file) in
-	if use_stdin then
-		let s =
-			match !current_stdin with
-			| Some s ->
-				s
-			| None ->
-				let s = Std.input_all stdin in
-				close_in stdin;
-				current_stdin := Some s;
-				s
-		in
+	let file_key = com.file_keys#get file in
+	let contents = match com.file_contents with
+		| [] when (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file file_key ->
+			let s = Std.input_all stdin in
+			close_in stdin;
+			com.file_contents <- [file_key, Some s];
+			Some s
+		| [] -> None
+		| files ->
+			(try List.assoc file_key files with Not_found -> None)
+	in
+
+	match contents with
+	| Some s ->
 		parse_file_from_string com file p s
-	else
-		let ch = try open_in_bin file with _ -> typing_error ("Could not open " ^ file) p in
+	| _ ->
+		let ch = try open_in_bin file with _ -> raise_typing_error ("Could not open " ^ file) p in
 		Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Sedlexing.Utf8.from_channel ch)
 
 let parse_hook = ref parse_file
@@ -102,7 +101,7 @@ let resolve_module_file com m remap p =
 		with Not_found ->
 			Common.find_file com (compose_path true)
 	in
-	let file = (match String.lowercase (snd m) with
+	let file = (match ExtString.String.lowercase (snd m) with
 	| "con" | "aux" | "prn" | "nul" | "com1" | "com2" | "com3" | "lpt1" | "lpt2" | "lpt3" when Sys.os_type = "Win32" ->
 		(* these names are reserved by the OS - old DOS legacy, such files cannot be easily created but are reported as visible *)
 		if (try (Unix.stat file).Unix.st_size with _ -> 0) > 0 then file else raise Not_found
@@ -150,7 +149,6 @@ let resolve_module_file com m remap p =
 
 module ConditionDisplay = struct
 	open ParserEntry
-	open CompletionItem.CompletionType
 	open DisplayPosition
 
 	exception Result of expr
@@ -271,7 +269,7 @@ let handle_parser_result com p result =
 		match com.display.dms_error_policy with
 			| EPShow ->
 				if is_diagnostics com then add_diagnostics_message com msg p DKParserError Error
-				else typing_error msg p
+				else raise_typing_error msg p
 			| EPIgnore ->
 				com.has_error <- true
 	in
@@ -325,12 +323,12 @@ let parse_module ctx m p =
 							else
 								let params =
 									List.map (fun tp ->
-										TPType (CTPath (mk_type_path ([],fst tp.tp_name)),null_pos)
+										TPType (make_ptp_th_null (mk_type_path ([],fst tp.tp_name)))
 									) d.d_params
 								in
 								mk_type_path ~params (!remap,fst d.d_name)
 						in
-						CTPath (tp),null_pos;
+						make_ptp_th_null tp
 					end
 				},p) :: acc
 			in

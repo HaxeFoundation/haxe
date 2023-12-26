@@ -89,6 +89,10 @@ let emit_capture_declaration i exec env =
 
 let emit_const v _ = v
 
+let emit_null_check exec p env = match exec env with
+	| VNull -> throw_string "Null Access" p
+	| v -> v
+
 let emit_new_array env =
 	encode_array_instance (EvalArray.create [||])
 
@@ -187,11 +191,11 @@ let emit_int_switch_array shift exec cases exec_def p env = match exec env with
 
 let rec run_while_continue exec_cond exec_body env =
 	try
-		while is_true (exec_cond env) do exec_body env done;
+		while is_true (exec_cond env) do ignore(exec_body env) done;
 	with Continue ->
 		run_while_continue exec_cond exec_body env
 
-let rec run_while exec_cond exec_body env =
+let run_while exec_cond exec_body env =
 	while is_true (exec_cond env) do exec_body env done
 
 let emit_while_break exec_cond exec_body env =
@@ -242,7 +246,7 @@ let emit_try exec catches env =
 			with Not_found ->
 				raise_notrace exc
 		in
-		varacc (fun _ -> v) env;
+		ignore(varacc (fun _ -> v) env);
 		exec env
 	in
 	v

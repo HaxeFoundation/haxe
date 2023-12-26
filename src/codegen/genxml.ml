@@ -122,7 +122,8 @@ let rec gen_type ?(values=None) t =
 		) args in
 		node "f" (("a",names) :: values) (List.map gen_type (args @ [r]))
 	| TAnon a -> node "a" [] (pmap (fun f -> gen_field [] { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) }) a.a_fields)
-	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
+	| TDynamic None -> node "d" [] []
+	| TDynamic (Some t2) -> node "d" [] [gen_type t2]
 	| TLazy f -> gen_type (lazy_type f)
 
 and gen_type_decl n t pl =
@@ -216,7 +217,7 @@ let rec gen_type_decl com pos t =
 	match t with
 	| TClassDecl c ->
 		let stats = List.filter (fun cf ->
-			cf.cf_name <> "__meta__" && not (Meta.has Meta.GenericInstance cf.cf_meta)
+			cf.cf_name <> "__meta__" && not (Meta.has Meta.GenericInstance cf.cf_meta) && not (Meta.has Meta.NoDoc cf.cf_meta)
 		) c.cl_ordered_statics in
 		let stats = List.map (gen_field ["static","1"]) stats in
 		let fields = List.filter (fun cf ->
@@ -253,9 +254,9 @@ let rec gen_type_decl com pos t =
 		let doc = gen_doc_opt a.a_doc in
 		let meta = gen_meta a.a_meta in
 		let mk_cast t = node "icast" [] [gen_type t] in
-		let mk_field_cast (t,cf) = node "icast" ["field",cf.cf_name] [gen_type t] in
-		let sub = (match a.a_from,a.a_from_field with [],[] -> [] | l1,l2 -> [node "from" [] ((List.map mk_cast l1) @ (List.map mk_field_cast l2))]) in
-		let super = (match a.a_to,a.a_to_field with [],[] -> [] | l1,l2 -> [node "to" [] ((List.map mk_cast l1) @ (List.map mk_field_cast l2))]) in
+		let mk_field_cast (t,cf) = if Meta.has Meta.NoDoc cf.cf_meta then None else Some (node "icast" ["field",cf.cf_name] [gen_type t]) in
+		let sub = (match a.a_from,a.a_from_field with [],[] -> [] | l1,l2 -> [node "from" [] ((List.map mk_cast l1) @ (ExtList.List.filter_map mk_field_cast l2))]) in
+		let super = (match a.a_to,a.a_to_field with [],[] -> [] | l1,l2 -> [node "to" [] ((List.map mk_cast l1) @ (ExtList.List.filter_map mk_field_cast l2))]) in
 		let impl = (match a.a_impl with None -> [] | Some c -> [node "impl" [] [gen_type_decl com pos (TClassDecl c)]]) in
 		let this = [node "this" [] [gen_type a.a_this]] in
 		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_params a.a_pos m) (sub @ this @ super @ doc @ meta @ impl)
