@@ -646,7 +646,6 @@ let do_connect ip port args =
 	if !has_error then exit 1
 
 let enable_cache_mode sctx =
-	trace "enable cache mode";
 	TypeloadModule.type_module_hook := type_module sctx;
 	MacroContext.macro_enable_cache := true;
 	ServerCompilationContext.ensure_macro_setup sctx;
