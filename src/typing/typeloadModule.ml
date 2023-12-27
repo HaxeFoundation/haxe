@@ -380,18 +380,9 @@ module TypeLevel = struct
 			ef_meta = c.ec_meta;
 		} in
 		DeprecationCheck.check_is ctx.com e.e_meta f.ef_meta f.ef_name f.ef_meta f.ef_name_pos;
-		let cf = {
-			(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
-			cf_kind = (match follow f.ef_type with
-				| TFun _ -> Method MethNormal
-				| _ -> Var { v_read = AccNormal; v_write = AccNo }
-			);
-			cf_doc = f.ef_doc;
-			cf_params = f.ef_params;
-		} in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in f.ef_name_pos then
 			DisplayEmitter.display_enum_field ctx e f p;
-		f,cf
+		f
 
 	let init_class ctx c d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
@@ -513,12 +504,10 @@ module TypeLevel = struct
 		let names = ref [] in
 		let index = ref 0 in
 		let is_flat = ref true in
-		let fields = ref PMap.empty in
 		List.iter (fun c ->
 			if PMap.mem (fst c.ec_name) e.e_constrs then raise_typing_error ("Duplicate constructor " ^ fst c.ec_name) (pos c.ec_name);
-			let f,cf = load_enum_field ctx e et is_flat index c in
+			let f = load_enum_field ctx e et is_flat index c in
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
-			fields := PMap.add cf.cf_name cf !fields;
 			incr index;
 			names := (fst c.ec_name) :: !names;
 			if Meta.has Meta.InheritDoc f.ef_meta then
@@ -526,7 +515,7 @@ module TypeLevel = struct
 		) (!constructs);
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
-		unify ctx (TType(enum_module_type e !fields,[])) e.e_type p;
+		unify ctx (TType(enum_module_type e,[])) e.e_type p;
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
 			delay ctx PConnectField (fun() -> InheritDoc.build_enum_doc ctx e);
