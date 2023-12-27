@@ -25,7 +25,7 @@ open Error
 open Globals
 open FiltersCommon
 
-let get_native_name = TypeloadCheck.get_native_name
+let get_native_name = Naming.get_native_name
 
 (* PASS 1 begin *)
 

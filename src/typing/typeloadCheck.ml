@@ -130,24 +130,6 @@ let copy_meta meta_src meta_target sl =
 	) meta_src;
 	!meta
 
-(** retrieve string from @:native metadata or raise Not_found *)
-let get_native_name meta =
-	let rec get_native meta = match meta with
-		| [] -> raise Not_found
-		| (Meta.Native,[v],p as meta) :: _ ->
-			meta
-		| _ :: meta ->
-			get_native meta
-	in
-	let (_,e,mp) = get_native meta in
-	match e with
-	| [Ast.EConst (Ast.String(name,_)),p] ->
-		name,p
-	| [] ->
-		raise Not_found
-	| _ ->
-		raise_typing_error "String expected" mp
-
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
 		(* TODO construct error *)
@@ -155,9 +137,9 @@ let check_native_name_override ctx child base =
 		display_error ~depth:1 ctx.com (compl_msg "Base field is defined here") base_pos
 	in
 	try
-		let child_name, child_pos = get_native_name child.cf_meta in
+		let child_name, child_pos = Naming.get_native_name child.cf_meta in
 		try
-			let base_name, base_pos = get_native_name base.cf_meta in
+			let base_name, base_pos = Naming.get_native_name base.cf_meta in
 			if base_name <> child_name then
 				error base_pos child_pos
 		with Not_found ->
