@@ -483,7 +483,7 @@ let compile_ctx callbacks ctx =
 		catch_completion_and_exit ctx callbacks run
 
 let create_context comm cs compilation_step params = {
-	com = Common.create compilation_step cs version params;
+	com = Common.create compilation_step cs version params (DisplayTypes.DisplayMode.create !Parser.display_mode);
 	messages = [];
 	has_next = false;
 	has_error = false;

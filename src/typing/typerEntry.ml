@@ -151,3 +151,4 @@ let create com macros =
 
 ;;
 create_context_ref := create;
+Inline.maybe_reapply_overload_call_ref := CallUnification.maybe_reapply_overload_call;

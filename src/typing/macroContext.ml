@@ -282,7 +282,7 @@ let make_macro_com_api com mcom p =
 			!macro_enable_cache
 		);
 		format_string = (fun s p ->
-			Common.format_string com s p (fun e p -> (e,p))
+			FormatString.format_string com.defines s p (fun e p -> (e,p))
 		);
 		cast_or_unify = (fun t e p ->
 			Interp.exc_string "unsupported"

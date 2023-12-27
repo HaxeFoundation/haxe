@@ -6,6 +6,8 @@ open Common
 open Typecore
 open Error
 
+let maybe_reapply_overload_call_ref = ref (fun _ _ -> assert false)
+
 let mk_untyped_call name p params =
 	{
 		eexpr = TCall({ eexpr = TIdent name; etype = t_dynamic; epos = p }, params);
@@ -627,7 +629,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				else map_type
 			in
 			let e = Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e in
-			CallUnification.maybe_reapply_overload_call ctx e
+			(!maybe_reapply_overload_call_ref) ctx e
 		in
 		let e = map_expr_type map_type e in
 		let rec drop_unused_vars e =

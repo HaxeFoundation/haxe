@@ -750,7 +750,7 @@ and type_vars ctx vl p =
 		mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos
 
 and format_string ctx s p =
-	Common.format_string ctx.com s p (fun enext p ->
+	FormatString.format_string ctx.com.defines s p (fun enext p ->
 		if ctx.in_display && DisplayPosition.display_position#enclosed_in p then
 			Display.preprocess_expr ctx.com (enext,p)
 		else
