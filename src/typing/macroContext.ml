@@ -26,14 +26,6 @@ open Resolution
 open Error
 open Globals
 
-module Eval = struct
-	include EvalEncode
-	include EvalDecode
-	include EvalValue
-	include EvalContext
-	include EvalMain
-end
-
 module InterpImpl = Eval (* Hlmacro *)
 
 module Interp = struct
@@ -48,7 +40,7 @@ let macro_interp_cache = ref None
 let safe_decode com v expected t p f =
 	try
 		f ()
-	with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
+	with MacroApi.Invalid_expr ->
 		let path = [dump_path com;"decoding_error"] in
 		let ch = Path.create_file false ".txt" [] path  in
 		let errors = Interp.handle_decoding_error (output_string ch) v t in
@@ -996,7 +988,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 						else try
 							let ct = Interp.decode_ctype v in
 							Typeload.load_complex_type ctx false ct;
-						with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
+						with MacroApi.Invalid_expr ->
 							Interp.decode_type v
 						in
 						ctx.ret <- t;

@@ -27,7 +27,6 @@ open EvalField
 exception Break
 exception Continue
 exception Return of value
-exception Sys_exit of int
 
 let s_value_kind = function
 	| VNull -> "VNull"

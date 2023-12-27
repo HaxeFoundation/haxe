@@ -2590,7 +2590,7 @@ module StdSys = struct
 	)
 
 	let exit = vfun1 (fun code ->
-		raise (Sys_exit(decode_int code));
+		raise (EvalTypes.Sys_exit(decode_int code));
 	)
 
 	let getChar = vfun1 (fun echo ->
