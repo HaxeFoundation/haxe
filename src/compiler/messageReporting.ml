@@ -183,6 +183,7 @@ let compiler_pretty_message_string com ectx cm =
 		(* Error source *)
 		if display_source then out := List.fold_left (fun out (l, line) ->
 			let nb_len = String.length (string_of_int l) in
+			let gutter = gutter_len - nb_len - 1 in
 
 			(* Replace tabs with 1 space to avoid column misalignments *)
 			let line = String.concat " " (ExtString.String.nsplit line "\t") in
@@ -190,7 +191,7 @@ let compiler_pretty_message_string com ectx cm =
 
 			out ^ Printf.sprintf "%s%s | %s\n"
 				(* left-padded line number *)
-				(String.make (gutter_len-nb_len-1) ' ')
+				(if gutter < 1 then "" else String.make gutter ' ')
 				(if l = 0 then "-" else Printf.sprintf "%d" l)
 				(* Source code at that line *)
 				(
@@ -307,6 +308,15 @@ let get_max_line max_lines messages =
 		if l2 > old then IntMap.add cm.cm_depth l2 max_lines
 		else max_lines
 	) max_lines messages
+
+let display_source_at com p =
+	let absolute_positions = Define.defined com.defines Define.MessageAbsolutePositions in
+	let ectx = create_error_context absolute_positions in
+	let msg = make_compiler_message "" p 0 MessageKind.DKCompilerMessage MessageSeverity.Information in
+	ectx.max_lines <- get_max_line ectx.max_lines [msg];
+	match compiler_pretty_message_string com ectx msg with
+		| None -> ()
+		| Some s -> prerr_endline s
 
 exception ConfigError of string
 
