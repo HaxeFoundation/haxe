@@ -473,15 +473,11 @@ class ServerTests extends TestCase {
 
 		var completionRequest = {file: new FsPath("MyMacro.macro.hx"), contents: transform.source, offset: transform.markers[2], wasAutoTriggered: false};
 		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
-		// TODO: why 24 instead of 23??
-		Assert.isTrue(parseCompletion().result.items.length == 24);
-		// Assert.isTrue(parseCompletion().result.items.length == 23);
+		Assert.isTrue(parseCompletion().result.items.length == 23);
 		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
-		Assert.isTrue(parseCompletion().result.items.length == 24);
-		// Assert.isTrue(parseCompletion().result.items.length == 23);
+		Assert.isTrue(parseCompletion().result.items.length == 23);
 		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
-		Assert.isTrue(parseCompletion().result.items.length == 24);
-		// Assert.isTrue(parseCompletion().result.items.length == 23);
+		Assert.isTrue(parseCompletion().result.items.length == 23);
 
 		runHaxe(args);
 		assertSuccess();
