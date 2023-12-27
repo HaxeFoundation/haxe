@@ -199,19 +199,44 @@ let mk_field name ?(public = true) ?(static = false) t p name_pos = {
 }
 
 let null_module = {
-		m_id = alloc_mid();
-		m_path = [] , "";
-		m_types = [];
-		m_statics = None;
-		m_extra = module_extra "" "" 0. MFake [];
-	}
+	m_id = alloc_mid();
+	m_path = [] , "";
+	m_types = [];
+	m_statics = None;
+	m_extra = module_extra "" "" 0. MFake [];
+}
 
 let null_class =
 	let c = mk_class null_module ([],"") null_pos null_pos in
 	c.cl_private <- true;
 	c
 
+let null_typedef =
+	let t = mk_typedef null_module ([],"") null_pos null_pos (TDynamic None) in
+	t.t_private <- true;
+	t
+
+let null_enum = {
+	e_path = ([],"");
+	e_module = null_module;
+	e_pos = null_pos;
+	e_name_pos = null_pos;
+	e_private = true;
+	e_doc = None;
+	e_meta = [];
+	e_params = [];
+	e_using = [];
+	e_restore = (fun () -> ());
+	e_type = null_typedef;
+	e_extern = false;
+	e_constrs = PMap.empty;
+	e_names = [];
+}
+
 let null_field = mk_field "" t_dynamic null_pos null_pos
+(* TODO null_class_field *)
+(* TODO null_abstract_field *)
+(* TODO null_enum_field *)
 
 let null_abstract = {
 	a_path = ([],"");
@@ -237,6 +262,17 @@ let null_abstract = {
 	a_write = None;
 	a_call = None;
 	a_enum = false;
+}
+
+let null_tvar = {
+	v_id = -1;
+	v_name = "";
+	v_type = t_dynamic;
+	v_kind = VGenerated;
+	v_flags = 0;
+	v_extra = None;
+	v_meta = [];
+	v_pos = null_pos;
 }
 
 let add_dependency ?(skip_postprocess=false) m mdep =

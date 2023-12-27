@@ -783,32 +783,28 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 
 let type_module_hook = ref (fun _ _ _ -> None)
 
-let rec load_hxb_module ctx path p =
-	(* Modules failing to load so far *)
-	match snd path with
-	(* | "ArrayIterattnameor" *)
-	(* | "ArrayKeyValueIterator" *)
-	(* | "StdTypes" *)
-	| "Any"
-		-> raise Not_found
-	| _ -> ();
+let rec get_reader ctx input p =
+		let make_module path file = ModuleLevel.make_module ctx path file p in
+		let add_module m = ctx.com.module_lut#add m.m_path m in
 
+		let resolve_type pack mname tname =
+			Printf.eprintf "  [typeloadModule] resolve type %s.%s\n" mname tname;
+			let m = try ctx.com.module_lut#find (pack,mname) with Not_found -> load_module' ctx ctx.g (pack,mname) p in
+			let t = List.find (fun t -> snd (t_path t) = tname) m.m_types in
+			Printf.eprintf "  [typeloadModule] resolved type %s.%s\n" mname tname;
+			t
+		in
+
+		new HxbReader.hxb_reader ctx.com input make_module add_module resolve_type
+
+and load_hxb_module ctx path p =
 	let l = ((Common.dump_path ctx.com) :: "hxb" :: (Common.platform_name_macro ctx.com) :: fst path @ [snd path]) in
 	let filepath = (List.fold_left (fun acc s -> acc ^ "/" ^ s) "." l) ^ ".hxb" in
 	let ch = try open_in_bin filepath with Sys_error _ -> raise Not_found in
 	let input = IO.input_channel ch in
 
-	let make_module path file = ModuleLevel.make_module ctx path file p in
-	let add_module m = ctx.com.module_lut#add m.m_path m in
-
-	let resolve_type pack mname tname =
-		let m = try ctx.com.module_lut#find (pack,mname) with Not_found -> load_module' ctx ctx.g (pack,mname) p in
-		List.find (fun t -> snd (t_path t) = tname) m.m_types;
-	in
-
-	(* TODO store reader somewhere *)
-	let reader = new HxbReader.hxb_reader input make_module add_module resolve_type in
-	let m = reader#read true p in
+	Printf.eprintf "Loading %s from %s...\n" (snd path) filepath;
+	let m = (get_reader ctx input p)#read true p in
 	close_in ch;
 	Printf.eprintf "Loaded %s from %s\n" (snd m.m_path) filepath;
 	m
