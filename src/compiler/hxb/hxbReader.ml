@@ -1248,7 +1248,7 @@ class hxb_reader
 		cf.cf_kind <- kind;
 		cf.cf_expr <- expr;
 		cf.cf_expr_unoptimized <- expr_unoptimized;
-		cf.cf_params <- !params;
+		cf.cf_params <- List.rev !params;
 		cf.cf_flags <- flags;
 
 	method read_class_field (nested : bool) =
