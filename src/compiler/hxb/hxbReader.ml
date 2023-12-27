@@ -201,10 +201,24 @@ class hxb_reader
 			raise e
 
 	method read_typedef_ref =
-		let i = self#read_uleb128 in
-		try typedefs.(i) with e ->
-			prerr_endline (Printf.sprintf "[%s] %s reading typedef ref %i" (s_type_path current_module.m_path) todo_error i);
-			raise e
+		match IO.read_byte ch with
+		| 0 ->
+			let i = self#read_uleb128 in
+			begin try typedefs.(i) with e ->
+				prerr_endline (Printf.sprintf "[%s] %s reading typedef ref %i" (s_type_path current_module.m_path) todo_error i);
+				raise e
+			end
+		| 1 ->
+			let c = self#read_class_ref in
+			class_module_type c
+		| 2 ->
+			let en = self#read_enum_ref in
+			en.e_type
+		| 3 ->
+			let a = self#read_abstract_ref in
+			abstract_module_type a []
+		| _ ->
+			assert false
 
 	method read_field_ref c fields =
 		let name = self#read_string in
@@ -699,25 +713,26 @@ class hxb_reader
 		| 11 ->
 			TEnum(self#read_enum_ref,[])
 		| 12 ->
-			let tp = self#read_path in
-			begin match self#read_u8 with
-				| 0 -> TType({null_typedef with t_type = (mk_anon (ref Closed)); t_path = tp; t_module = current_module },[])
-				| 1 -> TType({null_typedef with t_type = (TAnon self#read_anon_ref); t_path = tp; t_module = current_module },[])
-				| 4 ->
-					let c = self#read_class_ref in
-					let t_tmp = class_module_type c in
-					TType(t_tmp,[])
-				| 5 ->
-					let e = self#read_enum_ref in
-					let t_tmp = enum_module_type e.e_module e.e_path e.e_pos in
-					TType(t_tmp,[])
-				| 6 ->
-					let a = self#read_abstract_ref in
-					let t_tmp = abstract_module_type a [] in
-					TType(t_tmp,[])
-				| _ ->
-					TType(self#read_typedef_ref,[])
-			end
+			(* let tp = self#read_path in *)
+			(* begin match self#read_u8 with *)
+			(* 	| 0 -> TType({null_typedef with t_type = (mk_anon (ref Closed)); t_path = tp; t_module = current_module },[]) *)
+			(* 	| 1 -> TType({null_typedef with t_type = (TAnon self#read_anon_ref); t_path = tp; t_module = current_module },[]) *)
+			(* 	| 4 -> *)
+			(* 		let c = self#read_class_ref in *)
+			(* 		let t_tmp = class_module_type c in *)
+			(* 		TType(t_tmp,[]) *)
+			(* 	| 5 -> *)
+			(* 		let e = self#read_enum_ref in *)
+			(* 		let t_tmp = enum_module_type e.e_module e.e_path e.e_pos in *)
+			(* 		TType(t_tmp,[]) *)
+			(* 	| 6 -> *)
+			(* 		let a = self#read_abstract_ref in *)
+			(* 		let t_tmp = abstract_module_type a [] in *)
+			(* 		TType(t_tmp,[]) *)
+			(* 	| _ -> *)
+			(* 		TType(self#read_typedef_ref,[]) *)
+			(* end *)
+			TType(self#read_typedef_ref,[])
 		| 13 ->
 			TAbstract(self#read_abstract_ref,[])
 		| 14 ->
@@ -729,47 +744,50 @@ class hxb_reader
 			let tl = self#read_types in
 			TEnum(e,tl)
 		| 16 ->
-			let tp = self#read_path in
-			begin match self#read_u8 with
-				| 0 ->
-					let an = mk_anon (ref Closed) in
-					let tl = self#read_types in
-					let td = { null_typedef with t_type = an; t_path = tp; t_module = current_module } in
-					TType(td,tl)
-				| 1 ->
-					let an = TAnon self#read_anon_ref in
-					let tl = self#read_types in
-					let td = { null_typedef with t_type = an; t_path = tp; t_module = current_module } in
-					TType(td,tl)
-				| 4 ->
-					let c = self#read_class_ref in
-					let t_tmp = class_module_type c in
-					TType(t_tmp,[])
-				| 5 ->
-					let e = self#read_enum_ref in
-					let t_tmp = enum_module_type e.e_module e.e_path e.e_pos in
-					TType(t_tmp,[])
-				| 6 ->
-					let a = self#read_abstract_ref in
-					let t_tmp = abstract_module_type a [] in
-					TType(t_tmp,[])
-				(* TODO: does this help with anything? *)
-				(* | 2 -> *)
-				(* 	let t = self#read_type_instance in *)
-				(* 	let tl = self#read_types in *)
-				(* 	let tmono = !monomorph_create_ref () in (1* TODO identity *1) *)
-				(* 	tmono.tm_type <- Some t; *)
-				(* 	let td = { null_typedef with t_type = TMono tmono; t_path = tp; t_module = current_module } in *)
-				(* 	TType(td,tl) *)
-				| _ ->
-					let t = self#read_typedef_ref in
-					(* let t = self#read_type_instance in *)
-					let tl = self#read_types in
-					(* let td = { null_typedef with t_type = t; t_path = tp; t_module = current_module } in *)
-					(* let td = { null_typedef with t_type = t; t_path = ([], "708"); t_module = current_module } in *)
-					(* TType(td,tl) *)
-					TType(t,tl)
-			end
+			let t = self#read_typedef_ref in
+			let tl = self#read_types in
+			TType(t,tl)
+			(* let tp = self#read_path in *)
+			(* begin match self#read_u8 with *)
+			(* 	| 0 -> *)
+			(* 		let an = mk_anon (ref Closed) in *)
+			(* 		let tl = self#read_types in *)
+			(* 		let td = { null_typedef with t_type = an; t_path = tp; t_module = current_module } in *)
+			(* 		TType(td,tl) *)
+			(* 	| 1 -> *)
+			(* 		let an = TAnon self#read_anon_ref in *)
+			(* 		let tl = self#read_types in *)
+			(* 		let td = { null_typedef with t_type = an; t_path = tp; t_module = current_module } in *)
+			(* 		TType(td,tl) *)
+			(* 	| 4 -> *)
+			(* 		let c = self#read_class_ref in *)
+			(* 		let t_tmp = class_module_type c in *)
+			(* 		TType(t_tmp,[]) *)
+			(* 	| 5 -> *)
+			(* 		let e = self#read_enum_ref in *)
+			(* 		let t_tmp = enum_module_type e.e_module e.e_path e.e_pos in *)
+			(* 		TType(t_tmp,[]) *)
+			(* 	| 6 -> *)
+			(* 		let a = self#read_abstract_ref in *)
+			(* 		let t_tmp = abstract_module_type a [] in *)
+			(* 		TType(t_tmp,[]) *)
+			(* 	(1* TODO: does this help with anything? *1) *)
+			(* 	(1* | 2 -> *1) *)
+			(* 	(1* 	let t = self#read_type_instance in *1) *)
+			(* 	(1* 	let tl = self#read_types in *1) *)
+			(* 	(1* 	let tmono = !monomorph_create_ref () in (2* TODO identity *2) *1) *)
+			(* 	(1* 	tmono.tm_type <- Some t; *1) *)
+			(* 	(1* 	let td = { null_typedef with t_type = TMono tmono; t_path = tp; t_module = current_module } in *1) *)
+			(* 	(1* 	TType(td,tl) *1) *)
+			(* 	| _ -> *)
+			(* 		let t = self#read_typedef_ref in *)
+			(* 		(1* let t = self#read_type_instance in *1) *)
+			(* 		let tl = self#read_types in *)
+			(* 		(1* let td = { null_typedef with t_type = t; t_path = tp; t_module = current_module } in *1) *)
+			(* 		(1* let td = { null_typedef with t_type = t; t_path = ([], "708"); t_module = current_module } in *1) *)
+			(* 		(1* TType(td,tl) *1) *)
+			(* 		TType(t,tl) *)
+			(* end *)
 		| 17 ->
 			let a = self#read_abstract_ref in
 			let tl = self#read_types in
@@ -1398,11 +1416,12 @@ class hxb_reader
 
 	method read_enum (e : tenum) =
 		self#read_common_module_type (Obj.magic e);
-		(match self#read_u8 with
-		| 0 -> e.e_type.t_type <- (mk_anon (ref Closed))
-		| _ -> e.e_type.t_type <- TAnon self#read_anon_ref);
+		(* (match self#read_u8 with *)
+		(* | 0 -> e.e_type.t_type <- (mk_anon (ref Closed)) *)
+		(* | _ -> e.e_type.t_type <- TAnon self#read_anon_ref); *)
 		e.e_extern <- self#read_bool;
 		e.e_names <- self#read_list (fun () -> self#read_string);
+		e.e_type <- enum_module_type e.e_module e.e_path e.e_pos
 
 	method read_typedef (td : tdef) =
 		self#read_common_module_type (Obj.magic td);
@@ -1489,14 +1508,15 @@ class hxb_reader
 		| 2 ->
 			an.a_status := Extend self#read_types;
 			read_fields ()
-		| 3 ->
-			an.a_status := ClassStatics self#read_class_ref;
-		| 4 ->
-			an.a_status := EnumStatics self#read_enum_ref;
-			read_fields ()
-		| 5 ->
-			an.a_status := AbstractStatics self#read_abstract_ref;
-			read_fields ()
+		(* | 3 -> *)
+		(* 	an.a_status := ClassStatics self#read_class_ref; *)
+		(* 	read_fields () *)
+		(* | 4 -> *)
+		(* 	an.a_status := EnumStatics self#read_enum_ref; *)
+		(* 	read_fields () *)
+		(* | 5 -> *)
+		(* 	an.a_status := AbstractStatics self#read_abstract_ref; *)
+		(* 	read_fields () *)
 		| _ -> assert false
 		end;
 

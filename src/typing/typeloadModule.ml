@@ -814,10 +814,11 @@ let rec get_reader ctx g p =
 
 	let resolve_type sign pack mname tname =
 		(* TODO? *)
-		let check _ _ _ = None in
-		let load _ _ = raise Not_found in
-		let m = try HxbRestore.find ctx.Typecore.com.cs sign ctx.Typecore.com load check (pack,mname) p
-		with Not_found -> load_module' ctx g (pack,mname) p in
+		(* let check _ _ _ = None in *)
+		(* let load _ _ = raise Not_found in *)
+		(* let m = try HxbRestore.find ctx.Typecore.com.cs sign ctx.Typecore.com load check (pack,mname) p *)
+		(* with Not_found -> load_module' ctx g (pack,mname) p in *)
+		let m = load_module' ctx g (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 	in
 
@@ -923,7 +924,7 @@ let load_module ctx m p =
 (* Same as load_module, but skips ctx.com.module_lut *)
 let do_load_module ctx m p =
 	let m2 = do_load_module' ctx ctx.g m p in
-	(* if ctx.pass = PTypeField then flush_pass ctx PConnectField ("load_module",fst m @ [snd m]); *)
+	if ctx.pass = PTypeField then flush_pass ctx PConnectField ("load_module",fst m @ [snd m]);
 	m2
 
 ;;
