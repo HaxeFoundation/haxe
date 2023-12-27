@@ -143,7 +143,7 @@ object(self)
 		in
 		loop td.t_type
 
-	method identity_anon ?(strict:bool = false) (an : tanon) =
+	method identify_anon ?(strict:bool = false) (an : tanon) =
 		let make_pfm path = {
 			pfm_path = path;
 			pfm_params = [];
@@ -199,7 +199,7 @@ object(self)
 		| TLazy f ->
 			self#identify accept_anons (lazy_type f)
 		| TAnon an when accept_anons && not (PMap.is_empty an.a_fields) ->
-			self#identity_anon ~strict an
+			self#identify_anon ~strict an
 		| _ ->
 			None
 end
