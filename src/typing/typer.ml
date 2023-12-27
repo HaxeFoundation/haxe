@@ -2015,14 +2015,13 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 				DisplayEmitter.display_module_type ctx mt p_t;
 			let e_t = type_module_type ctx mt p_t in
 			let e_Std_isOfType =
-				match Typeload.load_type_raise ctx ([],"Std") "Std" p with
-				| TClassDecl c ->
-					let cf =
-						try PMap.find "isOfType" c.cl_statics
-						with Not_found -> die "" __LOC__
-					in
-					Texpr.Builder.make_static_field c cf (mk_zero_range_pos p)
-				| _ -> die "" __LOC__
+				ignore(ctx.g.std.cl_build());
+				let cf = try
+					PMap.find "isOfType" ctx.g.std.cl_statics
+				with Not_found ->
+					die "" __LOC__
+				in
+				Texpr.Builder.make_static_field ctx.g.std cf (mk_zero_range_pos p)
 			in
 			mk (TCall (e_Std_isOfType, [e; e_t])) ctx.com.basic.tbool p
 		| _ ->
@@ -2045,7 +2044,8 @@ let create com macros =
 			debug_delayed = [];
 			doinline = com.display.dms_inline && not (Common.defined com Define.NoInline);
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
-			std = null_module;
+			std_types = null_module;
+			std = null_class;
 			global_using = [];
 			complete = false;
 			type_hints = [];
@@ -2098,7 +2098,7 @@ let create com macros =
 		};
 		memory_marker = Typecore.memory_marker;
 	} in
-	ctx.g.std <- (try
+	ctx.g.std_types <- (try
 		TypeloadModule.load_module ctx ([],"StdTypes") null_pos
 	with
 		Error { err_message = Module_not_found ([],"StdTypes") } ->
@@ -2111,7 +2111,7 @@ let create com macros =
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
 	List.iter (fun mt ->
 		ctx.m.import_resolution#add (module_type_resolution mt None null_pos))
-	(List.rev ctx.g.std.m_types);
+	(List.rev ctx.g.std_types.m_types);
 	List.iter (fun t ->
 		match t with
 		| TAbstractDecl a ->
@@ -2139,12 +2139,17 @@ let create com macros =
 			| _ -> ())
 		| TEnumDecl _ | TClassDecl _ | TTypeDecl _ ->
 			()
-	) ctx.g.std.m_types;
+	) ctx.g.std_types.m_types;
 	let m = TypeloadModule.load_module ctx ([],"String") null_pos in
 	List.iter (fun mt -> match mt with
 		| TClassDecl c -> ctx.t.tstring <- TInst (c,[])
 		| _ -> ()
 	) m.m_types;
+	let m = TypeloadModule.load_module ctx ([],"Std") null_pos in
+	List.iter (fun mt -> match mt with
+		| TClassDecl c -> ctx.g.std <- c;
+		| _ -> ()
+	) m.m_types;	
 	let m = TypeloadModule.load_module ctx ([],"Array") null_pos in
 	(try
 		List.iter (fun t -> (

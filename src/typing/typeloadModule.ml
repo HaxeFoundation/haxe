@@ -707,7 +707,7 @@ let make_curmod ctx m =
 	let rl = new resolution_list ["import";s_type_path m.m_path] in
 	List.iter (fun mt ->
 		rl#add (module_type_resolution mt None null_pos))
-	(List.rev ctx.g.std.m_types);
+	(List.rev ctx.g.std_types.m_types);
 	{
 		curmod = m;
 		import_resolution = rl;
@@ -764,8 +764,8 @@ let type_types_into_module ctx m tdecls p =
 	List.iter (TypeloadCheck.check_module_types ctx m p) types;
 	m.m_types <- m.m_types @ types;
 	(* define the per-module context for the next pass *)
-	if ctx.g.std != null_module then begin
-		add_dependency m ctx.g.std;
+	if ctx.g.std_types != null_module then begin
+		add_dependency m ctx.g.std_types;
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
 		ignore(load_instance ctx (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal)
 	end;

@@ -65,11 +65,7 @@ let haxe_exception_instance_call ctx haxe_exception method_name args p =
 *)
 let std_is ctx e t p =
 	let t = follow t in
-	let std_cls =
-		match Typeload.load_type_raise ctx.typer ([],"Std") "Std" p with
-		| TClassDecl cls -> cls
-		| _ -> raise_typing_error "Std is expected to be a class" p
-	in
+	let std_cls = ctx.typer.g.std in
 	let isOfType_field =
 		try PMap.find "isOfType" std_cls.cl_statics
 		with Not_found -> raise_typing_error ("Std has no field isOfType") p
