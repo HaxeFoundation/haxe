@@ -2,7 +2,6 @@ open Globals
 open Ast
 open TType
 open TFunctions
-open TPrinting
 
 module TExprToExpr = struct
 	let tpath path module_path params =
