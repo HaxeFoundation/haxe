@@ -102,17 +102,6 @@ let find_type_in_module_raise ctx m tname p =
 	with Not_found ->
 		raise_typing_error_ext (make_error (Type_not_found (m.m_path,tname,Not_defined)) p)
 
-(* raises Module_not_found or Type_not_found *)
-let load_type_raise ctx mpath tname p =
-	let m = ctx.g.do_load_module ctx mpath p in
-	find_type_in_module_raise ctx m tname p
-
-(* raises Not_found *)
-let load_type ctx mpath tname p = try
-	load_type_raise ctx mpath tname p
-with Error { err_message = (Module_not_found _ | Type_not_found _); err_pos = p2 } when p = p2 ->
-	raise Not_found
-
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
 let find_type_in_current_module_context ctx pack name =

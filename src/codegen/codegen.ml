@@ -520,3 +520,4 @@ module ExtClass = struct
 		let e_assign = mk (TBinop(OpAssign,ef1,e)) e.etype p in
 		add_cl_init c e_assign
 end
+	

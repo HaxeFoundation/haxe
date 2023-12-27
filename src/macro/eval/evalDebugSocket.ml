@@ -486,7 +486,7 @@ module ValueCompletion = struct
 		DisplayPosition.display_position#set {p with pmin = offset; pmax = offset};
 		begin try
 			let e = parse_expr ctx text p in
-			let e = Display.ExprPreprocessing.find_before_pos DMDefault e in
+			let e = ExprPreprocessing.find_before_pos DMDefault e in
 			save();
 			let rec loop e = match fst e with
 			| EDisplay(e1,DKDot) ->

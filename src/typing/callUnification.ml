@@ -5,6 +5,7 @@ open Common
 open Typecore
 open Error
 open FieldAccess
+open FieldCallCandidate
 
 let unify_call_args ctx el args r callp inline force_inline in_overload =
 	let call_error err p = raise_error_msg (Call_error err) p in

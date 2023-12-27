@@ -395,7 +395,7 @@ let is_interface_var_access c cf =
 let follow = Abstract.follow_with_abstracts
 
 class haxe_exception gctx (t : Type.t) =
-	let is_haxe_exception = Exceptions.is_haxe_exception t
+	let is_haxe_exception = ExceptionFunctions.is_haxe_exception t
 	and native_type = jsignature_of_type gctx t in
 object(self)
 	val native_path = (match native_type with TObject(path,_) -> path | _ -> die "" __LOC__)
@@ -2134,7 +2134,7 @@ class texpr_to_jvm
 			self#texpr rvalue_any e1;
 			(* There could be something like `throw throw`, so we should only throw if we aren't terminated (issue #10363) *)
 			if not (jm#is_terminated) then begin
-				if not (Exceptions.is_haxe_exception e1.etype) && not (does_unify e1.etype gctx.t_runtime_exception) then begin
+				if not (ExceptionFunctions.is_haxe_exception e1.etype) && not (does_unify e1.etype gctx.t_runtime_exception) then begin
 					let exc = new haxe_exception gctx e1.etype in
 					if not (List.exists (fun exc' -> exc#is_assignable_to exc') caught_exceptions) then
 						jm#add_thrown_exception exc#get_native_path;

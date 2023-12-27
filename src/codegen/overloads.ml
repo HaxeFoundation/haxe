@@ -1,6 +1,6 @@
 open Globals
 open Type
-open Typecore
+open FieldCallCandidate
 
 let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 	let f_transform = match get_vmtype with

@@ -4,9 +4,7 @@ open Type
 open Common
 open Typecore
 open Error
-
-let haxe_exception_type_path = (["haxe"],"Exception")
-let value_exception_type_path = (["haxe"],"ValueException")
+open ExceptionFunctions
 
 type context = {
 	typer : typer;
@@ -65,11 +63,7 @@ let haxe_exception_instance_call ctx haxe_exception method_name args p =
 *)
 let std_is ctx e t p =
 	let t = follow t in
-	let std_cls =
-		match Typeload.load_type_raise ctx.typer ([],"Std") "Std" p with
-		| TClassDecl cls -> cls
-		| _ -> raise_typing_error "Std is expected to be a class" p
-	in
+	let std_cls = ctx.typer.g.std in
 	let isOfType_field =
 		try PMap.find "isOfType" std_cls.cl_statics
 		with Not_found -> raise_typing_error ("Std has no field isOfType") p
@@ -122,23 +116,6 @@ let is_haxe_wildcard_catch ctx t =
 	let t = Abstract.follow_with_abstracts t in
 	t == t_dynamic || fast_eq ctx.haxe_exception_type t
 
-(**
-	Check if `cls` is or extends (if `check_parent=true`) `haxe.Exception`
-*)
-let rec is_haxe_exception_class ?(check_parent=true) cls =
-	cls.cl_path = haxe_exception_type_path
-	|| (check_parent && match cls.cl_super with
-		| None -> false
-		| Some (cls, _) -> is_haxe_exception_class ~check_parent cls
-	)
-
-(**
-	Check if `t` is or extends `haxe.Exception`
-*)
-let is_haxe_exception ?(check_parent=true) (t:Type.t) =
-	match Abstract.follow_with_abstracts t with
-		| TInst (cls, _) -> is_haxe_exception_class ~check_parent cls
-		| _ -> false
 
 (**
 	Check if `v` variable is used in `e` expression

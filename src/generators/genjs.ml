@@ -154,13 +154,13 @@ let static_field ctx c f =
 
 let module_field m f =
 	try
-		fst (TypeloadCheck.get_native_name f.cf_meta)
+		fst (Naming.get_native_name f.cf_meta)
 	with Not_found ->
 		Path.flat_path m.m_path ^ "_" ^ f.cf_name
 
 let module_field_expose_path mpath f =
 	try
-		fst (TypeloadCheck.get_native_name f.cf_meta)
+		fst (Naming.get_native_name f.cf_meta)
 	with Not_found ->
 		(dot_path mpath) ^ "." ^ f.cf_name
 

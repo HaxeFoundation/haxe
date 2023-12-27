@@ -5,6 +5,7 @@ open Ast
 open Type
 open Typecore
 open Error
+open FieldCallCandidate
 
 type generic_context = {
 	ctx : typer;

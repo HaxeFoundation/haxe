@@ -25,7 +25,7 @@ open Error
 open Globals
 open FiltersCommon
 
-let get_native_name = TypeloadCheck.get_native_name
+let get_native_name = Naming.get_native_name
 
 (* PASS 1 begin *)
 
@@ -65,66 +65,6 @@ let rec add_final_return e =
 			) in
 			{ e with eexpr = TFunction f }
 		| _ -> e
-
-module LocalStatic = struct
-	let promote_local_static ctx lut v eo =
-		let name = Printf.sprintf "%s_%s" ctx.curfield.cf_name v.v_name in
-		begin try
-			let cf = PMap.find name ctx.curclass.cl_statics in
-			display_error ctx.com (Printf.sprintf "The expanded name of this local (%s) conflicts with another static field" name) v.v_pos;
-			raise_typing_error ~depth:1 "Conflicting field was found here" cf.cf_name_pos;
-		with Not_found ->
-			let cf = mk_field name ~static:true v.v_type v.v_pos v.v_pos in
-			cf.cf_meta <- v.v_meta;
-			begin match eo with
-			| None ->
-				()
-			| Some e ->
-				let rec loop e = match e.eexpr with
-					| TLocal _ | TFunction _ ->
-						raise_typing_error "Accessing local variables in static initialization is not allowed" e.epos
-					| TConst (TThis | TSuper) ->
-						raise_typing_error "Accessing `this` in static initialization is not allowed" e.epos
-					| TReturn _ | TBreak | TContinue ->
-						raise_typing_error "This kind of control flow in static initialization is not allowed" e.epos
-					| _ ->
-						iter loop e
-				in
-				loop e;
-				cf.cf_expr <- Some e
-			end;
-			TClass.add_field ctx.curclass cf;
-			Hashtbl.add lut v.v_id cf
-		end
-
-	let find_local_static lut v =
-		Hashtbl.find lut v.v_id
-
-	let run ctx e =
-		let local_static_lut = Hashtbl.create 0 in
-		let c = ctx.curclass in
-		let rec run e = match e.eexpr with
-			| TBlock el ->
-				let el = ExtList.List.filter_map (fun e -> match e.eexpr with
-					| TVar(v,eo) when has_var_flag v VStatic ->
-						promote_local_static ctx local_static_lut v eo;
-						None
-					| _ ->
-						Some (run e)
-				) el in
-				{ e with eexpr = TBlock el }
-			| TLocal v when has_var_flag v VStatic ->
-				begin try
-					let cf = find_local_static local_static_lut v in
-					Texpr.Builder.make_static_field c cf e.epos
-				with Not_found ->
-					raise_typing_error (Printf.sprintf "Could not find local static %s (id %i)" v.v_name v.v_id) e.epos
-				end
-			| _ ->
-				Type.map_expr run e
-		in
-		run e
-end
 
 (* -------------------------------------------------------------------------- *)
 (* CHECK LOCAL VARS INIT *)
@@ -356,12 +296,6 @@ let check_abstract_as_value e =
 
 (* PASS 2 begin *)
 
-let remove_generic_base t = match t with
-	| TClassDecl c when is_removable_class c ->
-		add_class_flag c CExtern;
-	| _ ->
-		()
-
 (* Removes extern and macro fields, also checks for Void fields *)
 
 let remove_extern_fields com t = match t with
@@ -393,71 +327,6 @@ let check_private_path com t = match t with
 	| _ ->
 		()
 
-(* Rewrites class or enum paths if @:native metadata is set *)
-let apply_native_paths t =
-	let get_real_name meta name =
-		let name',p = get_native_name meta in
-		(Meta.RealPath,[Ast.EConst (Ast.String (name,SDoubleQuotes)), p], p), name'
-	in
-	let get_real_path meta path =
-		let name,p = get_native_name meta in
-		(Meta.RealPath,[Ast.EConst (Ast.String (s_type_path path,SDoubleQuotes)), p], p), parse_path name
-	in
-	try
-		(match t with
-		| TClassDecl c ->
-			let did_change = ref false in
-			let field cf = try
-				let meta,name = get_real_name cf.cf_meta cf.cf_name in
-				cf.cf_name <- name;
-				cf.cf_meta <- meta :: cf.cf_meta;
-				List.iter (fun cf -> cf.cf_name <- name) cf.cf_overloads;
-				did_change := true
-			with Not_found ->
-				()
-			in
-			let fields cfs old_map =
-				did_change := false;
-				List.iter field cfs;
-				if !did_change then
-					List.fold_left (fun map f -> PMap.add f.cf_name f map) PMap.empty cfs
-				else
-					old_map
-			in
-			c.cl_fields <- fields c.cl_ordered_fields c.cl_fields;
-			c.cl_statics <- fields c.cl_ordered_statics c.cl_statics;
-			let meta,path = get_real_path c.cl_meta c.cl_path in
-			c.cl_meta <- meta :: c.cl_meta;
-			c.cl_path <- path;
-		| TEnumDecl e ->
-			let did_change = ref false in
-			let field _ ef = try
-				let meta,name = get_real_name ef.ef_meta ef.ef_name in
-				ef.ef_name <- name;
-				ef.ef_meta <- meta :: ef.ef_meta;
-				did_change := true;
-			with Not_found ->
-				()
-			in
-			PMap.iter field e.e_constrs;
-			if !did_change then begin
-				let names = ref [] in
-				e.e_constrs <- PMap.fold
-					(fun ef map ->
-						names := ef.ef_name :: !names;
-						PMap.add ef.ef_name ef map
-					)
-					e.e_constrs PMap.empty;
-				e.e_names <- !names;
-			end;
-			let meta,path = get_real_path e.e_meta e.e_path in
-			e.e_meta <- meta :: e.e_meta;
-			e.e_path <- path;
-		| _ ->
-			())
-	with Not_found ->
-		()
-
 (* Adds the __rtti field if required *)
 let add_rtti com t =
 	let rec has_rtti c =
@@ -470,71 +339,6 @@ let add_rtti com t =
 		f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);
 		c.cl_ordered_statics <- f :: c.cl_ordered_statics;
 		c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
-	| _ ->
-		()
-
-(* Adds member field initializations as assignments to the constructor *)
-let add_field_inits cl_path locals com t =
-	let apply c =
-		let ethis = mk (TConst TThis) (TInst (c,extract_param_types c.cl_params)) c.cl_pos in
-		(* TODO: we have to find a variable name which is not used in any of the functions *)
-		let v = alloc_var VGenerated "_g" ethis.etype ethis.epos in
-		let need_this = ref false in
-		let inits,fields = List.fold_left (fun (inits,fields) cf ->
-			match cf.cf_kind,cf.cf_expr with
-			| Var _, Some _ -> (cf :: inits, cf :: fields)
-			| _ -> (inits, cf :: fields)
-		) ([],[]) c.cl_ordered_fields in
-		c.cl_ordered_fields <- (List.rev fields);
-		match inits with
-		| [] -> ()
-		| _ ->
-			let el = List.map (fun cf ->
-				match cf.cf_expr with
-				| None -> die "" __LOC__
-				| Some e ->
-					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,extract_param_types c.cl_params,cf))) cf.cf_type cf.cf_pos in
-					cf.cf_expr <- None;
-					mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos
-			) inits in
-			let el = if !need_this then (mk (TVar((v, Some ethis))) ethis.etype ethis.epos) :: el else el in
-			let cf = match c.cl_constructor with
-			| None ->
-				let ct = TFun([],com.basic.tvoid) in
-				let ce = mk (TFunction {
-					tf_args = [];
-					tf_type = com.basic.tvoid;
-					tf_expr = mk (TBlock el) com.basic.tvoid c.cl_pos;
-				}) ct c.cl_pos in
-				let ctor = mk_field "new" ct c.cl_pos null_pos in
-				ctor.cf_kind <- Method MethNormal;
-				{ ctor with cf_expr = Some ce }
-			| Some cf ->
-				match cf.cf_expr with
-				| Some { eexpr = TFunction f } ->
-					let bl = match f.tf_expr with {eexpr = TBlock b } -> b | x -> [x] in
-					let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) com.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
-					{cf with cf_expr = Some ce };
-				| _ ->
-					die "" __LOC__
-			in
-			let config = AnalyzerConfig.get_field_config com c cf in
-			remove_class_field_flag cf CfPostProcessed;
-			Analyzer.Run.run_on_field com config c cf;
-			add_class_field_flag cf CfPostProcessed;
-			(match cf.cf_expr with
-			| Some e ->
-				(* This seems a bit expensive, but hopefully constructor expressions aren't that massive. *)
-				let e = RenameVars.run cl_path locals e in
-				let e = Optimizer.sanitize com e in
-				cf.cf_expr <- Some e
-			| _ ->
-				());
-			c.cl_constructor <- Some cf
-	in
-	match t with
-	| TClassDecl c ->
-		apply c
 	| _ ->
 		()
 
@@ -667,14 +471,6 @@ let check_reserved_type_paths com t =
 
 (* PASS 3 end *)
 
-let is_cached com t =
-	let m = (t_infos t).mt_module.m_extra in
-	m.m_processed <> 0 && m.m_processed < com.compilation_step
-
-let apply_filters_once ctx filters t =
-	let detail_times = (try int_of_string (Common.defined_value_safe ctx.com ~default:"0" Define.FilterTimes) with _ -> 0) in
-	if not (is_cached ctx.com t) then run_expression_filters ctx detail_times filters t
-
 let iter_expressions fl mt =
 	match mt with
 	| TClassDecl c ->
@@ -715,7 +511,7 @@ let destruction tctx detail_times main locals =
 	with_timer detail_times "type 2" None (fun () ->
 		(* PASS 2: type filters pre-DCE *)
 		List.iter (fun t ->
-			remove_generic_base t;
+			FiltersCommon.remove_generic_base t;
 			remove_extern_fields com t;
 			(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
 			check_remove_metadata t;
@@ -747,9 +543,9 @@ let destruction tctx detail_times main locals =
 	let type_filters = [
 		Exceptions.patch_constructors tctx; (* TODO: I don't believe this should load_instance anything at this point... *)
 		check_private_path com;
-		apply_native_paths;
+		Naming.apply_native_paths;
 		add_rtti com;
-		(match com.platform with | Java | Cs -> (fun _ -> ()) | _ -> (fun mt -> add_field_inits tctx.curclass.cl_path locals com mt));
+		(match com.platform with | Java | Cs -> (fun _ -> ()) | _ -> (fun mt -> AddFieldInits.add_field_inits tctx.curclass.cl_path locals com mt));
 		(match com.platform with Hl -> (fun _ -> ()) | _ -> add_meta_field com);
 		check_void_field;
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ()));
