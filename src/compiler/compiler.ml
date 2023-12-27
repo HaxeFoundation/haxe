@@ -375,7 +375,6 @@ let compile ctx actx callbacks =
 			callbacks.after_save ctx;
 			Generate.check_hxb_output com actx;
 		);
-		com.callbacks#add_before_save (fun () -> Generate.check_hxb_output com actx);
 		if is_diagnostics com then
 			filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)
 		else begin
