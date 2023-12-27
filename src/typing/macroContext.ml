@@ -988,7 +988,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 						else try
 							let ct = Interp.decode_ctype v in
 							Typeload.load_complex_type ctx false ct;
-						with MacroApi.Invalid_expr ->
+						with MacroApi.Invalid_expr  | EvalContext.RunTimeException _ ->
 							Interp.decode_type v
 						in
 						ctx.ret <- t;
