@@ -132,20 +132,11 @@ module ModuleLevel = struct
 				let path = make_path name priv d.d_meta p in
 				if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then raise_typing_error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
 				let e = {
-					e_path = path;
-					e_module = m;
-					e_pos = p;
-					e_name_pos = (pos d.d_name);
+					(mk_enum m path p (pos d.d_name)) with
 					e_doc = d.d_doc;
 					e_meta = d.d_meta;
-					e_params = [];
-					e_using = [];
-					e_restore = (fun () -> ());
 					e_private = priv;
 					e_extern = List.mem EExtern d.d_flags;
-					e_constrs = PMap.empty;
-					e_names = [];
-					e_type = enum_module_type m path p;
 				} in
 				if not e.e_extern then check_type_name name d.d_meta;
 				decls := (TEnumDecl e, decl) :: !decls;
@@ -535,8 +526,7 @@ module TypeLevel = struct
 		) (!constructs);
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
-		e.e_type.t_params <- e.e_params;
-		e.e_type.t_type <- mk_anon ~fields:!fields (ref (EnumStatics e));
+		unify ctx (TType(enum_module_type e !fields,[])) e.e_type p;
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
 			delay ctx PConnectField (fun() -> InheritDoc.build_enum_doc ctx e);

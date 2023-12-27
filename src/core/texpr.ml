@@ -492,7 +492,7 @@ module Builder = struct
 		let t =
 			match resolve_typedef mt with
 			| TClassDecl c -> TType(class_module_type c,[])
-			| TEnumDecl e -> TType(e.e_type,[])
+			| TEnumDecl e -> e.e_type
 			| TAbstractDecl a -> TType(abstract_module_type a [],[])
 			| _ -> die "" __LOC__
 		in

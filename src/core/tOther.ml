@@ -278,7 +278,7 @@ let mk_enum m path pos name_pos =
 		e_extern = false;
 		e_constrs = PMap.empty;
 		e_names = [];
-		e_type = enum_module_type m path pos;
+		e_type = mk_mono();
 	}
 
 let mk_abstract m path pos name_pos =
