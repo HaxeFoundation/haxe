@@ -1259,7 +1259,11 @@ class ['a] hxb_writer
 		chunk#write_string cf.cf_name;
 		self#write_pos cf.cf_pos;
 		self#write_pos cf.cf_name_pos;
-		chunk#write_list cf.cf_overloads (self#write_class_field_forward);
+		chunk#write_list cf.cf_overloads (fun cf ->
+			let close = self#open_field_scope false cf in
+			self#write_class_field_forward cf;
+			close()
+		);
 
 	method write_class_field_data cf =
 		let restore = self#start_temporary_chunk in
@@ -1279,7 +1283,11 @@ class ['a] hxb_writer
 			(* raise e *)
 		end);
 		chunk#write_option cf.cf_expr_unoptimized self#write_texpr;
-		chunk#write_list cf.cf_overloads (fun f -> self#write_class_field_data f);
+		chunk#write_list cf.cf_overloads (fun f ->
+			let close = self#open_field_scope false f in
+			self#write_class_field_data f;
+			close();
+		);
 		restore (fun chunk new_chunk ->
 			chunk#write_list cf.cf_params self#write_type_parameter_forward;
 			chunk#write_list cf.cf_params self#write_type_parameter_data;
