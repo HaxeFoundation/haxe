@@ -431,6 +431,7 @@ class ['a] hxb_writer
 		in
 		match t with
 		| TMono r ->
+			Monomorph.close r;
 			begin match r.tm_type with
 			| None ->
 				chunk#write_byte 0;
