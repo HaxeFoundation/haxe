@@ -752,7 +752,7 @@ and type_vars ctx vl p =
 and format_string ctx s p =
 	Common.format_string ctx.com s p (fun enext p ->
 		if ctx.in_display && DisplayPosition.display_position#enclosed_in p then
-			Display.ExprPreprocessing.process_expr ctx.com (enext,p)
+			Display.preprocess_expr ctx.com (enext,p)
 		else
 			enext,p
 	)
