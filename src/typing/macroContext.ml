@@ -632,7 +632,7 @@ and flush_macro_context mint mctx =
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
 	let expr_filters = [
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts mctx;
-		"local_statics",Filters.LocalStatic.run mctx;
+		"local_statics",LocalStatic.run mctx;
 		"Exceptions",Exceptions.filter mctx;
 		"captured_vars",CapturedVars.captured_vars mctx.com;
 	] in
@@ -668,14 +668,14 @@ and flush_macro_context mint mctx =
 			()
 	in
 	let type_filters = [
-		Filters.remove_generic_base;
+		FiltersCommon.remove_generic_base;
 		Exceptions.patch_constructors mctx;
-		(fun mt -> Filters.add_field_inits mctx.curclass.cl_path (RenameVars.init mctx.com) mctx.com mt);
+		(fun mt -> AddFieldInits.add_field_inits mctx.curclass.cl_path (RenameVars.init mctx.com) mctx.com mt);
 		minimal_restore;
-		Filters.apply_native_paths
+		Naming.apply_native_paths
 	] in
 	let ready = fun t ->
-		Filters.apply_filters_once mctx expr_filters t;
+		FiltersCommon.apply_filters_once mctx expr_filters t;
 		List.iter (fun f -> f t) type_filters
 	in
 	(try Interp.add_types mint types ready
