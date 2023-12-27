@@ -692,7 +692,8 @@ class hxb_reader
 		| 5 | 6 | 7 -> self#read_type_parameter_ref kind
 		| 8 ->
 			let e = self#read_expr in
-			TInst({null_class with cl_kind = KExpr e}, [])
+			let c = {null_class with cl_kind = KExpr e; cl_module = current_module } in
+			TInst(c, [])
 		| 10 ->
 			TInst(self#read_class_ref,[])
 		| 11 ->
@@ -700,8 +701,8 @@ class hxb_reader
 		| 12 ->
 			let tp = self#read_path in
 			begin match self#read_u8 with
-				| 0 -> TType({null_typedef with t_type = (mk_anon (ref Closed)); t_path = tp },[])
-				| 1 -> TType({null_typedef with t_type = (TAnon self#read_anon_ref); t_path = tp },[])
+				| 0 -> TType({null_typedef with t_type = (mk_anon (ref Closed)); t_path = tp; t_module = current_module },[])
+				| 1 -> TType({null_typedef with t_type = (TAnon self#read_anon_ref); t_path = tp; t_module = current_module },[])
 				| 4 ->
 					let c = self#read_class_ref in
 					let t_tmp = class_module_type c in
@@ -733,12 +734,12 @@ class hxb_reader
 				| 0 ->
 					let an = mk_anon (ref Closed) in
 					let tl = self#read_types in
-					let td = { null_typedef with t_type = an; t_path = tp } in
+					let td = { null_typedef with t_type = an; t_path = tp; t_module = current_module } in
 					TType(td,tl)
 				| 1 ->
 					let an = TAnon self#read_anon_ref in
 					let tl = self#read_types in
-					let td = { null_typedef with t_type = an; t_path = tp } in
+					let td = { null_typedef with t_type = an; t_path = tp; t_module = current_module } in
 					TType(td,tl)
 				| 4 ->
 					let c = self#read_class_ref in
@@ -758,14 +759,14 @@ class hxb_reader
 				(* 	let tl = self#read_types in *)
 				(* 	let tmono = !monomorph_create_ref () in (1* TODO identity *1) *)
 				(* 	tmono.tm_type <- Some t; *)
-				(* 	let td = { null_typedef with t_type = TMono tmono; t_path = tp } in *)
+				(* 	let td = { null_typedef with t_type = TMono tmono; t_path = tp; t_module = current_module } in *)
 				(* 	TType(td,tl) *)
 				| _ ->
 					let t = self#read_typedef_ref in
 					(* let t = self#read_type_instance in *)
 					let tl = self#read_types in
-					(* let td = { null_typedef with t_type = t; t_path = tp } in *)
-					(* let td = { null_typedef with t_type = t; t_path = ([], "708") } in *)
+					(* let td = { null_typedef with t_type = t; t_path = tp; t_module = current_module } in *)
+					(* let td = { null_typedef with t_type = t; t_path = ([], "708"); t_module = current_module } in *)
 					(* TType(td,tl) *)
 					TType(t,tl)
 			end

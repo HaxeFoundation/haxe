@@ -30,12 +30,11 @@ class hxb_restore
 
 	method load (cc : CompilationCache.context_cache) (mc : module_cache) (sign : string) =
 		let tcheck = Timer.timer ["server";"module cache";"check"] in
-		(try match check_module mc.mc_path mc.mc_extra pos with
+		(match check_module mc.mc_path mc.mc_extra pos with
 		| None -> ()
 		| Some reason ->
 			tcheck();
-			raise (Bad_module (mc.mc_path, reason))
-		with Not_found -> trace (Printf.sprintf "[hxb] check_module failed for %s" (s_type_path mc.mc_path))); (* TODO *)
+			raise (Bad_module (mc.mc_path, reason)));
 		tcheck();
 
 		let reader = new HxbReader.hxb_reader (self#make_module mc) self#add_module self#resolve_type (fun () -> ()) in
