@@ -25,7 +25,7 @@ let export_hxb com root m =
 	match m.m_extra.m_kind with
 		| MCode | MMacro | MFake -> begin
 			(* Printf.eprintf "Export module %s\n" (s_type_path m.m_path); *)
-			let anon_identification = new tanon_identification ([],"") in
+			let anon_identification = new tanon_identification in
 			let writer = new HxbWriter.hxb_writer (MessageReporting.display_source_at com) anon_identification in
 			writer#write_module m;
 			let ch = IO.output_bytes() in

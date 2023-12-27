@@ -77,7 +77,7 @@ let rec cache_context cs com =
 	let cc = get_cache com in
 	(* cc#clear_hxb (); *)
 	let sign = Define.get_signature com.defines in
-	let anon_identification = new Tanon_identification.tanon_identification ([],"") in
+	let anon_identification = new Tanon_identification.tanon_identification in
 	let cache_module m =
 		(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heueristic. *)
 		let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in

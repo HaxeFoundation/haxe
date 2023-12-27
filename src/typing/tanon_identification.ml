@@ -39,7 +39,7 @@ let pfm_of_typedef td = match follow td.t_type with
 	| _ ->
 		die "" __LOC__
 
-class ['a] tanon_identification (empty_path : string list * string) =
+class ['a] tanon_identification =
 	let is_normal_anon an = match !(an.a_status) with
 		| Closed | Const -> true
 		| _ -> false
