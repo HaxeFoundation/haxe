@@ -339,31 +339,8 @@ class ['a] hxb_writer
 		chunk#write_uleb128 i
 
 	method write_typedef_ref (td : tdef) =
-		(* let i = typedefs#get_or_add td.t_path td in *)
-		(* (1* debug_msg (Printf.sprintf "  Write typedef ref %d for %s" i (s_type_path td.t_path)); *1) *)
-		(* chunk#write_uleb128 i *)
-		let default () =
-			chunk#write_byte 0;
-			let i = typedefs#get_or_add td.t_path td in
-			chunk#write_uleb128 i
-		in
-		match td.t_type with
-		| TAnon an ->
-			begin match !(an.a_status) with
-				| ClassStatics c ->
-					chunk#write_byte 1;
-					self#write_class_ref c
-				| EnumStatics en ->
-					chunk#write_byte 2;
-					self#write_enum_ref en;
-				| AbstractStatics a ->
-					chunk#write_byte 3;
-					self#write_abstract_ref a
-				| _ ->
-					default()
-			end
-		| _ ->
-			default()
+		let i = typedefs#get_or_add td.t_path td in
+		chunk#write_uleb128 i
 
 	method write_abstract_ref (a : tabstract) =
 		let i = abstracts#get_or_add a.a_path a in
@@ -475,33 +452,41 @@ class ['a] hxb_writer
 			chunk#write_byte 11;
 			self#write_enum_ref en;
 		| TType(td,[]) ->
-			chunk#write_byte 12;
-			self#write_typedef_ref td;
-			(* self#write_path td.t_path; *)
-			(* begin match td.t_type with *)
-			(* 	| TAnon an when PMap.is_empty an.a_fields -> *)
-			(* 		chunk#write_byte 0; *)
-			(* 	| TAnon an -> *)
-			(* 		chunk#write_byte 1; *)
-			(* 		self#write_anon_ref an td.t_params *)
-			(* 	(1* TODO: do something about TMono? *1) *)
-			(* 	| _ -> *)
-			(* 		chunk#write_byte 2; *)
-			(* 		self#write_typedef_ref td; *)
-			(* end; *)
+			let default () =
+				chunk#write_byte 12;
+				self#write_typedef_ref td;
+			in
+			begin match td.t_type with
+			| TAnon an ->
+				begin match !(an.a_status) with
+					| ClassStatics c ->
+						chunk#write_byte 13;
+						self#write_class_ref c
+					| EnumStatics en ->
+						chunk#write_byte 14;
+						self#write_enum_ref en;
+					| AbstractStatics a ->
+						chunk#write_byte 15;
+						self#write_abstract_ref a
+					| _ ->
+						default()
+				end
+			| _ ->
+				default()
+			end
 		| TAbstract(a,[]) ->
-			chunk#write_byte 13;
+			chunk#write_byte 16;
 			self#write_abstract_ref a;
 		| TInst(c,tl) ->
-			chunk#write_byte 14;
+			chunk#write_byte 17;
 			self#write_class_ref c;
 			self#write_types tl
 		| TEnum(en,tl) ->
-			chunk#write_byte 15;
+			chunk#write_byte 18;
 			self#write_enum_ref en;
 			self#write_types tl
 		| TType(td,tl) ->
-			chunk#write_byte 16;
+			chunk#write_byte 19;
 			self#write_typedef_ref td;
 			self#write_types tl
 			(* self#write_path td.t_path; *)
@@ -520,7 +505,7 @@ class ['a] hxb_writer
 			(* 		self#write_types tl *)
 			(* end; *)
 		| TAbstract(a,tl) ->
-			chunk#write_byte 17;
+			chunk#write_byte 20;
 			self#write_abstract_ref a;
 			self#write_types tl
 		| TFun([],t) when ExtType.is_void (follow t) ->

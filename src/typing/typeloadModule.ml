@@ -393,15 +393,7 @@ module TypeLevel = struct
 			ef_meta = c.ec_meta;
 		} in
 		DeprecationCheck.check_is ctx.com e.e_meta f.ef_meta f.ef_name f.ef_meta f.ef_name_pos;
-		let cf = {
-			(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
-			cf_kind = (match follow f.ef_type with
-				| TFun _ -> Method MethNormal
-				| _ -> Var { v_read = AccNormal; v_write = AccNo }
-			);
-			cf_doc = f.ef_doc;
-			cf_params = f.ef_params;
-		} in
+		let cf = class_field_of_enum_field f in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in f.ef_name_pos then
 			DisplayEmitter.display_enum_field ctx e f p;
 		f,cf

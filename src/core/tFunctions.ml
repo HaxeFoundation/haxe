@@ -941,3 +941,13 @@ let abstract_module_type a tl =
 	let path = ([],Printf.sprintf "Abstract<%s>" (s_type_path a.a_path)) in
 	let t = mk_anon (ref (AbstractStatics a)) in
 	{(mk_typedef a.a_module path a.a_pos null_pos t) with t_private = true}
+
+let class_field_of_enum_field ef = {
+	(mk_field ef.ef_name ef.ef_type ef.ef_pos ef.ef_name_pos) with
+	cf_kind = (match follow ef.ef_type with
+		| TFun _ -> Method MethNormal
+		| _ -> Var { v_read = AccNormal; v_write = AccNo }
+	);
+	cf_doc = ef.ef_doc;
+	cf_params = ef.ef_params;
+}
