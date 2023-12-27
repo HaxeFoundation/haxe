@@ -22,7 +22,6 @@ open DisplayTypes.DisplayMode
 open DisplayTypes.CompletionResultKind
 open CompletionItem.ClassFieldOrigin
 open Common
-open Lookup
 open Type
 open Typecore
 open Resolution

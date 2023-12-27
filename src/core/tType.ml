@@ -316,7 +316,7 @@ and tenum = {
 	mutable e_using : (tclass * pos) list;
 	mutable e_restore : unit -> unit;
 	(* do not insert any fields above *)
-	e_type : t;
+	mutable e_type : t;
 	mutable e_extern : bool;
 	mutable e_constrs : (string , tenum_field) PMap.t;
 	mutable e_names : string list;

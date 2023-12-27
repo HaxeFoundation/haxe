@@ -213,7 +213,7 @@ class hxb_reader
 			class_module_type c
 		| 2 ->
 			let en = self#read_enum_ref in
-			en.e_type
+			enum_module_type en PMap.empty (* TODO: this should not be empty, need to handle it differently *)
 		| 3 ->
 			let a = self#read_abstract_ref in
 			abstract_module_type a []
@@ -1421,7 +1421,6 @@ class hxb_reader
 		(* | _ -> e.e_type.t_type <- TAnon self#read_anon_ref); *)
 		e.e_extern <- self#read_bool;
 		e.e_names <- self#read_list (fun () -> self#read_string);
-		e.e_type <- enum_module_type e.e_module e.e_path e.e_pos
 
 	method read_typedef (td : tdef) =
 		self#read_common_module_type (Obj.magic td);
