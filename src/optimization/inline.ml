@@ -113,7 +113,7 @@ let api_inline ctx c field params p =
 		let m = (try ctx.com.module_lut#find path with Not_found -> die "" __LOC__) in
 		add_dependency ctx.m.curmod m;
 		Option.get (ExtList.List.find_map (function
-			| TClassDecl cl when cl.cl_path = path -> Some (make_static_this cl p)
+			| TClassDecl cl when cl.cl_path = path -> Some (Texpr.Builder.make_static_this cl p)
 			| _ -> None
 		) m.m_types)
 	in
@@ -173,7 +173,7 @@ let api_inline ctx c field params p =
 			None)
 	| (["js"],"Boot"),"__downcastCheck",[o; {eexpr = TTypeExpr (TClassDecl cls) } as t] when ctx.com.platform = Js ->
 		if (has_class_flag cls CInterface) then
-			Some (Texpr.Builder.fcall (make_static_this c p) "__implements" [o;t] tbool p)
+			Some (Texpr.Builder.fcall (Texpr.Builder.make_static_this c p) "__implements" [o;t] tbool p)
 		else
 			Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
 	| (["cs" | "java"],"Lib"),("nativeArray"),[{ eexpr = TArrayDecl args } as edecl; _]

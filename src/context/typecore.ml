@@ -257,12 +257,8 @@ let spawn_monomorph' ctx p =
 let spawn_monomorph ctx p =
 	TMono (spawn_monomorph' ctx p)
 
-let make_static_this c p =
-	let ta = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
-	mk (TTypeExpr (TClassDecl c)) ta p
-
 let make_static_field_access c cf t p =
-	let ethis = make_static_this c p in
+	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
 let make_static_call ctx c cf map args t p =

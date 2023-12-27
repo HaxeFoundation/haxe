@@ -145,9 +145,13 @@ object(self)
 		} in
 		match !(an.a_status) with
 		| ClassStatics {cl_path = path} | EnumStatics {e_path = path} | AbstractStatics {a_path = path} ->
-			let pfm = make_pfm path in
-			self#add_pfm path pfm;
-			Some pfm
+			begin try
+				Some (Hashtbl.find pfms path)			
+			with Not_found ->
+				let pfm = make_pfm path in
+				self#add_pfm path pfm;
+				Some pfm
+			end
 		| _ ->
 			let arity = PMap.fold (fun cf i ->
 				replace_mono cf.cf_type;

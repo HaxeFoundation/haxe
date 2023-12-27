@@ -419,16 +419,10 @@ end
 *)
 let default_cast ?(vtmp="$t") com e texpr t p =
 	let api = com.basic in
-	let mk_texpr = function
-		| TClassDecl c -> mk_anon (ref (ClassStatics c))
-		| TEnumDecl e -> mk_anon (ref (EnumStatics e))
-		| TAbstractDecl a -> mk_anon (ref (AbstractStatics a))
-		| TTypeDecl _ -> die "" __LOC__
-	in
 	let vtmp = alloc_var VGenerated vtmp e.etype e.epos in
 	let var = mk (TVar (vtmp,Some e)) api.tvoid p in
 	let vexpr = mk (TLocal vtmp) e.etype p in
-	let texpr = mk (TTypeExpr texpr) (mk_texpr texpr) p in
+	let texpr = Texpr.Builder.make_typeexpr texpr p in
 	let std = (try List.find (fun t -> t_path t = ([],"Std")) com.types with Not_found -> die "" __LOC__) in
 	let fis = (try
 			let c = (match std with TClassDecl c -> c | _ -> die "" __LOC__) in
@@ -436,7 +430,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 		with Not_found ->
 			die "" __LOC__
 	) in
-	let std = mk (TTypeExpr std) (mk_texpr std) p in
+	let std = Texpr.Builder.make_typeexpr std p in
 	let is = mk (TField (std,fis)) (tfun [t_dynamic;t_dynamic] api.tbool) p in
 	let is = mk (TCall (is,[vexpr;texpr])) api.tbool p in
 	let enull = Texpr.Builder.make_null vexpr.etype p in

@@ -49,7 +49,7 @@ let get_main ctx types =
 			let et = List.find (fun t -> t_path t = path) types in
 			let ec = (match et with TClassDecl c -> c | _ -> die "" __LOC__) in
 			let ef = PMap.find method_name ec.cl_statics in
-			let et = mk (TTypeExpr et) (mk_anon (ref (ClassStatics ec))) null_pos in
+			let et = Texpr.Builder.make_typeexpr et null_pos in
 			mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type null_pos,[])) ctx.t.tvoid null_pos
 		in
 		(* add haxe.EntryPoint.run() call *)
