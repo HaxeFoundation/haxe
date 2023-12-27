@@ -94,10 +94,10 @@ and tparams = t list
 
 and typed_type_param = {
 	ttp_name : string;
-	ttp_type : t;
 	ttp_class : tclass;
+	mutable ttp_type : t;
 	mutable ttp_constraints : t list Lazy.t option;
-	ttp_default : t option;
+	mutable ttp_default : t option;
 }
 
 and type_params = typed_type_param list

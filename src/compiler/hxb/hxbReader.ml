@@ -842,13 +842,12 @@ class hxb_reader
 
 			let ttp = a.(i) in
 			let c = ttp.ttp_class in
-			a.(i) <- {ttp with
-				ttp_type = (TInst(c,tl2));
-				ttp_default = def;
-				ttp_constraints = Some (Lazy.from_val tl1)
-			};
+			let ttp = a.(i) in
+			ttp.ttp_type <- (TInst(c,tl2));
+			ttp.ttp_default <- def;
+			ttp.ttp_constraints <- Some (Lazy.from_val tl1);
 			c.cl_meta <- meta;
-			c.cl_kind <- KTypeParameter a.(i)
+			c.cl_kind <- KTypeParameter ttp
 		done;
 
 	method read_field_kind = match self#read_u8 with
