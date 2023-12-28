@@ -1237,16 +1237,28 @@ class hxb_reader
 		end;
 		(* prerr_endline (Printf.sprintf "  read class fields with type parameters for %s: %d" (s_type_path c.cl_path) (Array.length type_type_parameters); *)
 		(* prerr_endline (Printf.sprintf "    own class params: %d" (List.length c.cl_params); *)
+		let cl_if_feature = Feature.check_if_feature c.cl_meta in
+		let handle_feature ref_kind cf =	
+			let set_feature s =
+				let cf_ref = mk_class_field_ref c cf ref_kind false (* TODO: ? *) in
+				Feature.set_feature current_module cf_ref s;
+			in
+			List.iter set_feature cl_if_feature;
+			List.iter set_feature (Feature.check_if_feature cf.cf_meta);
+		in			
 		let _ = self#read_option (fun f ->
-			self#read_class_field_data false (Option.get c.cl_constructor)
-		) in
-		let f fields =
+			let cf = Option.get c.cl_constructor in
+			handle_feature CfrConstructor cf;
+			self#read_class_field_data false cf
+		) in		
+		let f ref_kind fields =
 			let name = self#read_string in
 			let cf = PMap.find name fields in
-			self#read_class_field_data false cf
+			self#read_class_field_data false cf;
+			handle_feature ref_kind cf;
 		in
-		let _ = self#read_list (fun () -> f c.cl_fields) in
-		let _ = self#read_list (fun () -> f c.cl_statics) in
+		let _ = self#read_list (fun () -> f CfrMember c.cl_fields) in
+		let _ = self#read_list (fun () -> f CfrStatic c.cl_statics) in
 		c.cl_init <- self#read_option (fun () -> self#read_texpr);
 		(match c.cl_kind with KModuleFields md -> md.m_statics <- Some c; | _ -> ());
 

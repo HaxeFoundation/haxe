@@ -1782,12 +1782,7 @@ let init_class ctx c p herits fields =
 		| _ :: l ->
 			check_require l
 	in
-	let rec check_if_feature = function
-		| [] -> []
-		| (Meta.IfFeature,el,_) :: _ -> List.map (fun (e,p) -> match e with EConst (String(s,_)) -> s | _ -> raise_typing_error "String expected" p) el
-		| _ :: l -> check_if_feature l
-	in
-	let cl_if_feature = check_if_feature c.cl_meta in
+	let cl_if_feature = Feature.check_if_feature c.cl_meta in
 	let cl_req = check_require c.cl_meta in
 	let has_init = ref false in
 	List.iter (fun f ->
@@ -1812,10 +1807,11 @@ let init_class ctx c p herits fields =
 					| FKConstructor -> CfrConstructor
 					| _ -> if fctx.is_static then CfrStatic else CfrMember
 				in
-				ctx.m.curmod.m_extra.m_if_feature <- (s, (mk_class_field_ref c cf ref_kind fctx.is_macro)) :: ctx.m.curmod.m_extra.m_if_feature;
+				let cf_ref = mk_class_field_ref c cf ref_kind fctx.is_macro in
+				Feature.set_feature ctx.m.curmod cf_ref s;
 			in
 			List.iter set_feature cl_if_feature;
-			List.iter set_feature (check_if_feature cf.cf_meta);
+			List.iter set_feature (Feature.check_if_feature cf.cf_meta);
 			let req = check_require f.cff_meta in
 			let req = (match req with None -> if fctx.is_static || fctx.field_kind = FKConstructor then cl_req else None | _ -> req) in
 			(match req with
