@@ -241,7 +241,7 @@ let rec find_or_restore_module cs sign sctx ctx path =
 	(* TODO pos *)
 
 	let load_module path sign =
-		let m = TypeloadModule.do_type_module ctx ctx.g path null_pos in
+		let m = TypeloadModule.load_module ctx path null_pos in
 		assert (m.m_extra.m_sign = sign);
 		m
 	in
