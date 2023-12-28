@@ -66,8 +66,7 @@ let after_save sctx com has_error =
 	end
 
 let after_compilation sctx com has_error =
-	(* TODO: why does it only work when I _always_ clear cache? *)
-	(* if has_error || not com.display.dms_full_typing || not com.display.dms_populate_cache then *)
+	if has_error || not com.display.dms_full_typing || not com.display.dms_populate_cache then
 		(* TEMP: Wipe server cache to force loading from hxb *)
 		CommonCache.clear_cache sctx.cs com
 

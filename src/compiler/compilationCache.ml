@@ -222,8 +222,10 @@ class cache = object(self)
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
 				if Path.UniqueKey.lazy_key m.mc_extra.m_file = file_key then m.mc_extra.m_cache_state <- MSBad (Tainted reason)
-			) cc#get_hxb
-			(* ) cc#get_modules *)
+			) cc#get_hxb;
+			Hashtbl.iter (fun _ m ->
+				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_cache_state <- MSBad (Tainted reason)
+			) cc#get_modules
 		) contexts
 
 	(* haxelibs *)
