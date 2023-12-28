@@ -201,11 +201,11 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 				begin try
 					let m = mctx.com.module_lut#find cpath in
 					mctx.com.module_lut#remove cpath;
-					mctx.com.type_to_module#remove cpath;
+					mctx.com.module_lut#get_type_lut#remove cpath;
 					List.iter (fun mt ->
 						let ti = Type.t_infos mt in
 						mctx.com.module_lut#remove ti.mt_path;
-						mctx.com.type_to_module#remove ti.mt_path;
+						mctx.com.module_lut#get_type_lut#remove ti.mt_path;
 					) m.m_types
 				with Not_found ->
 					()

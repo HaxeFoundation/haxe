@@ -337,7 +337,7 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 let check_module_types ctx m p t =
 	let t = t_infos t in
 	try
-		let path2 = ctx.com.type_to_module#find t.mt_path in
+		let path2 = ctx.com.module_lut#get_type_lut#find t.mt_path in
 		if m.m_path <> path2 && String.lowercase_ascii (s_type_path path2) = String.lowercase_ascii (s_type_path m.m_path) then raise_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
 		let m2 = ctx.com.module_lut#find path2 in
 		let hex1 = Digest.to_hex m.m_extra.m_sign in
@@ -347,7 +347,7 @@ let check_module_types ctx m p t =
 		(* ctx.com.warning WInfo [] (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p; *)
 	with
 		Not_found ->
-			ctx.com.type_to_module#add t.mt_path m.m_path
+			ctx.com.module_lut#get_type_lut#add t.mt_path m.m_path
 
 module Inheritance = struct
 	let is_basic_class_path path = match path with
