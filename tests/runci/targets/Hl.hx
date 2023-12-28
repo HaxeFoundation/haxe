@@ -100,8 +100,8 @@ class Hl {
 		runCommand("haxe", [hxml, "-hl", '$target/hl-jit.hl'].concat(args));
 		runCommand(hlBinary, ['$target/hl-jit.hl']);
 
-		// runCommand("haxe", [hxml, "-hl", '$target/hlc.c'].concat(args));
-		// buildAndRunHlc(target, "hlc");
+		runCommand("haxe", [hxml, "-hl", '$target/hlc.c'].concat(args));
+		buildAndRunHlc(target, "hlc");
 	}
 
 	static public function run(args:Array<String>) {
@@ -109,8 +109,8 @@ class Hl {
 
 		runCommand("haxe", ["compile-hl.hxml"].concat(args));
 		runCommand(hlBinary, ['bin/unit.hl']);
-		// runCommand("haxe", ["compile-hlc.hxml"].concat(args));
-		// buildAndRunHlc("bin/hlc", "unit", runCommand);
+		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
+		buildAndRunHlc("bin/hlc", "unit", runCommand);
 
 		changeDirectory(threadsDir);
 		buildAndRun("build.hxml", "export/threads");
@@ -119,11 +119,11 @@ class Hl {
 		runCommand("haxe", ["compile-hl.hxml"].concat(args));
 		runSysTest(hlBinary, ["bin/hl/sys.hl"]);
 		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
-		// function dontRun(cmd,?args) {}
-		// buildAndRunHlc("bin/hlc/testArguments", "TestArguments", dontRun);
-		// buildAndRunHlc("bin/hlc/exitCode", "ExitCode", dontRun);
-		// buildAndRunHlc("bin/hlc/utilityProcess", "UtilityProcess", dontRun);
-		// buildAndRunHlc("bin/hlc/sys", "sys", (cmd, ?args) -> runSysTest(FileSystem.fullPath(cmd), args));
+		function dontRun(cmd,?args) {}
+		buildAndRunHlc("bin/hlc/testArguments", "TestArguments", dontRun);
+		buildAndRunHlc("bin/hlc/exitCode", "ExitCode", dontRun);
+		buildAndRunHlc("bin/hlc/utilityProcess", "UtilityProcess", dontRun);
+		buildAndRunHlc("bin/hlc/sys", "sys", (cmd, ?args) -> runSysTest(FileSystem.fullPath(cmd), args));
 
 		changeDirectory(getMiscSubDir("eventLoop"));
 		buildAndRun("build-hl.hxml", "bin/eventLoop");

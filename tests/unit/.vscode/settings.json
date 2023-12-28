@@ -7,8 +7,8 @@
 		{"label": "Lua", "args": ["compile-lua.hxml", "-cmd", "lua bin/unit.lua"]},
 	],
 	"[haxe]": {
-		"editor.formatOnSave": false,
-		"editor.formatOnPaste": false
+		"editor.formatOnSave": true,
+		"editor.formatOnPaste": true
 	},
 	"editor.codeActionsOnSave": {
 		"source.sortImports": true

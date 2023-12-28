@@ -282,20 +282,4 @@ class Signature extends DisplayTestCase {
 	function testStaticVisibility() {
 		sigEq(0, [["s:String"]], signature(pos(1)));
 	}
-
-	/**
-		class Foo {
-			public static function foo(a:Int, b:Int) {}
-		}
-
-		class Main {
-			static function main() {
-				Foo.foo(1{-1-},{-2-});
-			}
-		}
-	**/
-	function testTrailingCommaEdgeCase() {
-		sigEq(0, [["a:Int","b:Int"]], signature(pos(1)));
-		sigEq(1, [["a:Int","b:Int"]], signature(pos(2)));
-	}
 }

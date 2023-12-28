@@ -65,13 +65,13 @@ class ServerTests extends TestCase {
 		assertHasPrint("2");
 	}
 
-	// function testDceEmpty() {
-	// 	vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
-	// 	var args = ["-main", "Empty", "--no-output", "-java", "java"];
-	// 	runHaxe(args);
-	// 	runHaxeJson(args, cast "typer/compiledTypes" /* TODO */, {});
-	// 	assertHasField("", "Type", "enumIndex", true);
-	// }
+	function testDceEmpty() {
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		var args = ["-main", "Empty", "--no-output", "-java", "java"];
+		runHaxe(args);
+		runHaxeJson(args, cast "typer/compiledTypes" /* TODO */, {});
+		assertHasField("", "Type", "enumIndex", true);
+	}
 
 	function testBuildMacro() {
 		vfs.putContent("BuildMacro.hx", getTemplate("BuildMacro.hx"));
@@ -154,7 +154,6 @@ class ServerTests extends TestCase {
 			{file: new FsPath("Other.hx")},
 			{file: new FsPath("Main.hx")},
 		]}, res -> {
-			// trace(haxe.Json.stringify(res, "  "));
 			Assert.equals(1, res.length);
 			Assert.equals(1, res[0].diagnostics.length);
 			var arg = res[0].diagnostics[0].args;
@@ -430,7 +429,6 @@ class ServerTests extends TestCase {
 		var args = ["-main", "Main", "--jvm", "Main.jar"];
 		runHaxe(args);
 		vfs.touchFile("haxe/ds/Vector.hx");
-		// Missed async call
 		runHaxe(args);
 		assertSuccess();
 	}

@@ -19,9 +19,9 @@ class Issue9841 extends DisplayTestCase {
 		}
 	**/
 	function test() {
-		// var fields = fields(pos(1));
-		// eq(true, hasField(fields, "x", "Null<Float>", "var"));
-		// eq(true, hasField(fields, "y", "Null<Float>", "var"));
-		// eq(true, hasField(fields, "scale", "Null<Float>", "var"));
+		var fields = fields(pos(1));
+		eq(true, hasField(fields, "x", "Null<Float>", "var"));
+		eq(true, hasField(fields, "y", "Null<Float>", "var"));
+		eq(true, hasField(fields, "scale", "Null<Float>", "var"));
 	}
 }

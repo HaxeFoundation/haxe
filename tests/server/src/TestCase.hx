@@ -95,7 +95,6 @@ class TestCase implements ITest {
 	}
 
 	function runHaxe(args:Array<String>, done:() -> Void) {
-		// trace(Sys.getCwd(), args);
 		messages = [];
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {

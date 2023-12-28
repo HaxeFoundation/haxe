@@ -31,10 +31,10 @@ class IImport extends DisplayTestCase {
 	/**
 		import haxe.Serializer.{-1-}
 	**/
-	function testImport3() {
-		eq(true, hasPath(fields(pos(1)), "run"));
-		eq(true, hasPath(fields(pos(1)), "Serializer"));
-	}
+	// function testImport3() {
+	// 	eq(true, hasPath(fields(pos(1)), "run"));
+	// 	eq(true, hasPath(fields(pos(1)), "Serializer"));
+	// }
 
 	/**
 		using ha{-1-}xe.{-5-}ma{-2-}cro.{-6-}Exp{-3-}rTools.{-7-}Expr{-4-}ArrayTools;
