@@ -1859,7 +1859,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		else match e2.etype with
 			| TAbstract({a_path = [],"Null"},[t]) -> tmin
 			| _ -> follow_null tmin
-		in		
+		in
 		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull tmin} in
 		let e_null = Builder.make_null e1.etype e1.epos in
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in

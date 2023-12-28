@@ -199,19 +199,53 @@ let mk_field name ?(public = true) ?(static = false) t p name_pos = {
 }
 
 let null_module = {
-		m_id = alloc_mid();
-		m_path = [] , "";
-		m_types = [];
-		m_statics = None;
-		m_extra = module_extra "" "" 0. MFake [];
-	}
+	m_id = alloc_mid();
+	m_path = [] , "";
+	m_types = [];
+	m_statics = None;
+	m_extra = module_extra "" "" 0. MFake [];
+}
 
 let null_class =
 	let c = mk_class null_module ([],"") null_pos null_pos in
 	c.cl_private <- true;
 	c
 
+let null_typedef =
+	let t = mk_typedef null_module ([],"") null_pos null_pos (TDynamic None) in
+	t.t_private <- true;
+	t
+
+let null_tanon = { a_fields = PMap.empty; a_status = ref Closed }
+
+let null_enum = {
+	e_path = ([],"");
+	e_module = null_module;
+	e_pos = null_pos;
+	e_name_pos = null_pos;
+	e_private = true;
+	e_doc = None;
+	e_meta = [];
+	e_params = [];
+	e_using = [];
+	e_restore = (fun () -> ());
+	e_type = t_dynamic;
+	e_extern = false;
+	e_constrs = PMap.empty;
+	e_names = [];
+}
+
 let null_field = mk_field "" t_dynamic null_pos null_pos
+let null_enum_field = {
+	ef_name = "";
+	ef_type = TEnum (null_enum, []);
+	ef_pos = null_pos;
+	ef_name_pos = null_pos;
+	ef_doc = None;
+	ef_index = 0;
+	ef_params = [];
+	ef_meta = [];
+}
 
 let null_abstract = {
 	a_path = ([],"");
@@ -516,6 +550,15 @@ let rec follow t =
 		follow (apply_typedef t tl)
 	| TAbstract({a_path = [],"Null"},[t]) ->
 		follow t
+	| _ -> t
+
+let rec follow_lazy t =
+	match t with
+	| TLazy f ->
+		(match !f with
+		| LAvailable t -> follow_lazy t
+		| _ -> follow_lazy (lazy_type f)
+		)
 	| _ -> t
 
 let follow_once t =
@@ -893,3 +936,13 @@ let abstract_module_type a tl =
 	let path = ([],Printf.sprintf "Abstract<%s>" (s_type_path a.a_path)) in
 	let t = mk_anon (ref (AbstractStatics a)) in
 	{(mk_typedef a.a_module path a.a_pos null_pos t) with t_private = true}
+
+let class_field_of_enum_field ef = {
+	(mk_field ef.ef_name ef.ef_type ef.ef_pos ef.ef_name_pos) with
+	cf_kind = (match follow ef.ef_type with
+		| TFun _ -> Method MethNormal
+		| _ -> Var { v_read = AccNormal; v_write = AccNo }
+	);
+	cf_doc = ef.ef_doc;
+	cf_params = ef.ef_params;
+}

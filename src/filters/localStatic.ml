@@ -1,4 +1,3 @@
-open Global
 open Common
 open Type
 open Typecore

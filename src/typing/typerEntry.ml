@@ -25,7 +25,7 @@ let create com macros =
 			complete = false;
 			type_hints = [];
 			load_only_cached_modules = false;
-			functional_interface_lut = new pmap_lookup;
+			functional_interface_lut = new Lookup.pmap_lookup;
 			do_macro = MacroContext.type_macro;
 			do_load_macro = MacroContext.load_macro';
 			do_load_module = TypeloadModule.load_module;
@@ -124,7 +124,7 @@ let create com macros =
 	List.iter (fun mt -> match mt with
 		| TClassDecl c -> ctx.g.std <- c;
 		| _ -> ()
-	) m.m_types;	
+	) m.m_types;
 	let m = TypeloadModule.load_module ctx ([],"Array") null_pos in
 	(try
 		List.iter (fun t -> (

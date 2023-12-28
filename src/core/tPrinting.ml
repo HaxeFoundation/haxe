@@ -441,7 +441,7 @@ module Printer = struct
 	let s_metadata metadata =
 		s_list " " s_metadata_entry metadata
 
-	let s_type_param ttp = 
+	let s_type_param ttp =
 		let s = match (get_constraints ttp) with
 			| [] -> ttp.ttp_name
 			| tl1 -> Printf.sprintf "%s:%s" ttp.ttp_name (String.concat " & " (List.map s_type tl1))

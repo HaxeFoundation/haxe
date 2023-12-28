@@ -55,7 +55,6 @@ module ModuleLevel = struct
 		m
 
 	let add_module ctx m p =
-		List.iter (TypeloadCheck.check_module_types ctx m p) m.m_types;
 		ctx.com.module_lut#add m.m_path m
 
 	(*
@@ -380,15 +379,7 @@ module TypeLevel = struct
 			ef_meta = c.ec_meta;
 		} in
 		DeprecationCheck.check_is ctx.com e.e_meta f.ef_meta f.ef_name f.ef_meta f.ef_name_pos;
-		let cf = {
-			(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
-			cf_kind = (match follow f.ef_type with
-				| TFun _ -> Method MethNormal
-				| _ -> Var { v_read = AccNormal; v_write = AccNo }
-			);
-			cf_doc = f.ef_doc;
-			cf_params = f.ef_params;
-		} in
+		let cf = class_field_of_enum_field f in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in f.ef_name_pos then
 			DisplayEmitter.display_enum_field ctx e f p;
 		f,cf
@@ -751,7 +742,10 @@ let type_types_into_module ctx m tdecls p =
 	let ctx = create_typer_context_for_module ctx m in
 	let decls,tdecls = ModuleLevel.create_module_types ctx m tdecls p in
 	let types = List.map fst decls in
-	List.iter (TypeloadCheck.check_module_types ctx m p) types;
+	(* During the initial module_lut#add in type_module, m has no m_types yet by design.
+	   We manually add them here. This and module_lut#add itself should be the only places
+	   in the compiler that call add_module_type. *)
+	List.iter (fun mt -> ctx.com.module_lut#add_module_type m mt) types;
 	m.m_types <- m.m_types @ types;
 	(* define the per-module context for the next pass *)
 	if ctx.g.std_types != null_module then begin

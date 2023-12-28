@@ -1,8 +1,6 @@
 open Globals
 open Ast
-open Meta
 open Type
-open Error
 
 (** retrieve string from @:native metadata or raise Not_found *)
 let get_native_name meta =
@@ -85,4 +83,4 @@ let apply_native_paths t =
 		| _ ->
 			())
 	with Not_found ->
-		()		
+		()

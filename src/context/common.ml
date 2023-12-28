@@ -20,6 +20,7 @@ open Extlib_leftovers
 open Ast
 open Type
 open Globals
+open Lookup
 open Define
 open NativeLibraries
 open Warning
@@ -293,75 +294,42 @@ type report_mode =
 	| RMDiagnostics of (Path.UniqueKey.t list)
 	| RMStatistics
 
-class virtual ['key,'value] lookup = object(self)
-	method virtual add : 'key -> 'value -> unit
-	method virtual remove : 'key -> unit
-	method virtual find : 'key -> 'value
-	method virtual iter : ('key -> 'value -> unit) -> unit
-	method virtual fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc
-	method virtual mem : 'key -> bool
-	method virtual clear : unit
-end
-
-class ['key,'value] pmap_lookup = object(self)
-	inherit ['key,'value] lookup
-	val mutable lut : ('key,'value) PMap.t = PMap.empty
-
-	method add (key : 'key) (value : 'value) =
-		lut <- PMap.add key value lut
-
-	method remove (key : 'key) =
-		lut <- PMap.remove key lut
-
-	method find (key : 'key) : 'value =
-		PMap.find key lut
-
-	method iter (f : 'key -> 'value -> unit) =
-		PMap.iter f lut
-
-	method fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc = fun f acc ->
-		PMap.foldi f lut acc
-
-	method mem (key : 'key) =
-		PMap.mem key lut
-
-	method clear =
-		lut <- PMap.empty
-end
-
-class ['key,'value] hashtbl_lookup = object(self)
-	inherit ['key,'value] lookup
-	val lut : ('key,'value) Hashtbl.t = Hashtbl.create 0
-
-	method add (key : 'key) (value : 'value) =
-		Hashtbl.replace lut key value
-
-	method remove (key : 'key) =
-		Hashtbl.remove lut key
-
-	method find (key : 'key) : 'value =
-		Hashtbl.find lut key
-
-	method iter (f : 'key -> 'value -> unit) =
-		Hashtbl.iter f lut
-
-	method fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc = fun f acc ->
-		Hashtbl.fold f lut acc
-
-	method mem (key : 'key) =
-		Hashtbl.mem lut key
-
-	method clear =
-		Hashtbl.clear lut
-end
-
 class module_lut = object(self)
 	inherit [path,module_def] hashtbl_lookup as super
 
 	val type_lut : (path,path) lookup = new hashtbl_lookup
 
+	method add_module_type (m : module_def) (mt : module_type) =
+		let t = t_infos mt in
+		try
+			let path2 = type_lut#find t.mt_path in
+			let p = t.mt_pos in
+			if m.m_path <> path2 && String.lowercase_ascii (s_type_path path2) = String.lowercase_ascii (s_type_path m.m_path) then Error.raise_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
+			let m2 = self#find path2 in
+			let hex1 = Digest.to_hex m.m_extra.m_sign in
+			let hex2 = Digest.to_hex m2.m_extra.m_sign in
+			let s = if hex1 = hex2 then hex1 else Printf.sprintf "was %s, is %s" hex2 hex1 in
+			Error.raise_typing_error (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p
+		with Not_found ->
+			type_lut#add t.mt_path m.m_path
+
+	method add (path : path) (m : module_def) =
+		super#add path m;
+		List.iter (fun mt -> self#add_module_type m mt) m.m_types
+
+	method remove (path : path) =
+		try
+			List.iter (fun mt -> type_lut#remove (t_path mt)) (self#find path).m_types;
+			super#remove path;
+		with Not_found ->
+			()
+
 	method find_by_type (path : path) =
 		self#find (type_lut#find path)
+
+	method clear =
+		super#clear;
+		type_lut#clear
 
 	method get_type_lut = type_lut
 end
