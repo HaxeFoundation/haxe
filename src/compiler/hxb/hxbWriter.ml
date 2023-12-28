@@ -1659,6 +1659,8 @@ class ['a] hxb_writer
 	(* Export *)
 
 	method export : 'a . 'a IO.output -> unit = fun ch ->
+		IO.nwrite_string ch "hxb";
+		IO.write_byte ch hxb_version;
 		cp#export ch;
 		if not docs#is_empty then
 			docs#export ch;

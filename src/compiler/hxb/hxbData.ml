@@ -63,3 +63,5 @@ let chunk_kind_of_string = function
 let error (s : string) =
 	Printf.eprintf "[error] %s\n" s;
 	raise (HxbFailure s)
+
+let hxb_version = 1
