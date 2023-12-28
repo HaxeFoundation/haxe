@@ -1617,77 +1617,69 @@ class hxb_reader
 		make_module path file
 
 	method read (file_ch : IO.input) (debug : bool) (p : pos) =
-		(* TODO: add magic & version to writer! *)
-		(* if (Bytes.to_string (IO.nread ch 3)) <> "hxb" then *)
-		(* 	raise (HxbFailure "magic"); *)
-		(* let version = self#read_u8 in *)
-		(* ignore(version); *)
-		let rec loop acc =
+		if (Bytes.to_string (IO.nread file_ch 3)) <> "hxb" then
+			raise (HxbFailure "magic");
+		let version = IO.read_byte file_ch in
+		if version <> hxb_version then
+			raise (HxbFailure (Printf.sprintf "version mismatch: hxb version %i, reader version %i" version hxb_version));
+
+		let rec loop () =
 			ch <- file_ch;
-			let chunk = self#read_chunk in
-			match fst chunk with
-			| HEND ->
-				List.rev acc
-			| _ ->
-				loop (chunk :: acc)
-		in
-		let chunks = loop [] in
-		let chunks = List.sort (fun (kind1,_) (kind2,_) ->
-			(Obj.magic kind1) - (Obj.magic kind2)
-		) chunks in
-		let rec pass_0 chunks = match chunks with
-			| [] ->
-				error "Missing HHDR chunk"
-			| (kind,data) :: chunks ->
-				ch <- IO.input_bytes data;
-				match kind with
-				| STRI ->
-					string_pool <- self#read_string_pool;
-					pass_0 chunks
-				| DOCS ->
-					doc_pool <- self#read_string_pool;
-					pass_0 chunks
-				| HHDR ->
-					current_module <- self#read_hhdr;
-					chunks
-				| _ ->
-					error ("Unexpected early chunk: " ^ (string_of_chunk_kind kind))
-		in
-		let chunks = pass_0 chunks in
-		assert(current_module != null_module);
-		List.iter (fun (kind,data) ->
+			let (chunk,data) = self#read_chunk in
 			ch <- IO.input_bytes data;
-			match kind with
+			match chunk with
+			| HEND ->
+				()
+			| STRI ->
+				string_pool <- self#read_string_pool;
+				loop()
+			| DOCS ->
+				doc_pool <- self#read_string_pool;
+				loop()
+			| HHDR ->
+				current_module <- self#read_hhdr;
+				loop()
 			| TYPF ->
 				current_module.m_types <- self#read_typf;
 				add_module current_module;
+				loop()
 			| CLSR ->
 				self#read_clsr;
+				loop()
 			| ABSR ->
 				self#read_absr;
+				loop()
 			| TPDR ->
 				self#read_tpdr;
+				loop()
 			| ENMR ->
 				self#read_enmr;
+				loop()
 			| CLSD ->
 				self#read_clsd;
+				loop()
 			| ABSD ->
 				self#read_absd;
+				loop()
 			| CFLD ->
 				flush_fields ();
 				self#read_cfld;
+				loop()
 			| AFLD ->
 				flush_fields ();
 				self#read_afld;
+				loop()
 			| TPDD ->
 				self#read_tpdd;
+				loop()
 			| ENMD ->
 				self#read_enmd;
+				loop()
 			| EFLD ->
 				self#read_efld;
-			| _ ->
-				error ("Unexpected late chunk: " ^ (string_of_chunk_kind kind))
-		) chunks;
+				loop()
+		in
+		loop();
 		(* prerr_endline (Printf.sprintf "Done reading hxb module %s" (s_type_path current_module.m_path)); *)
 		current_module
 end
