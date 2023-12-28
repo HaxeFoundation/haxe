@@ -267,7 +267,7 @@ module IterationKind = struct
 		let t_void = ctx.t.tvoid in
 		let t_int = ctx.t.tint in
 		let mk_field e n =
-			TField (e,try quick_field e.etype n with Not_found -> die "" __LOC__)
+			TField (e,try quick_field e.etype n with Not_found -> Error.raise_msg (Printf.sprintf "Could not find field %s on %s" n (s_type_kind e.etype)) e.epos)
 		in
 		let get_array_length arr p =
 			mk (mk_field arr "length") ctx.com.basic.tint p
