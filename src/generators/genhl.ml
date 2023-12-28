@@ -25,7 +25,6 @@ open Ast
 open Type
 open Common
 open Hlcode
-open Tanon_identification
 
 (* compiler *)
 
@@ -101,8 +100,7 @@ type context = {
 	mutable dump_out : (unit IO.output) option;
 	mutable cached_types : (string list, ttype) PMap.t;
 	mutable m : method_context;
-	anons_cache : (Globals.path, ttype) Hashtbl.t;
-	anon_identification : ttype tanon_identification;
+	mutable anons_cache : (tanon, ttype) PMap.t;
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
 	mutable rec_cache : (Type.t * ttype option ref) list;
 	mutable cached_tuples : (ttype list, ttype) PMap.t;
@@ -408,31 +406,27 @@ let rec to_type ?tref ctx t =
 			enum_class ctx e
 		| _ -> die "" __LOC__)
 	| TAnon a ->
-		if PMap.is_empty a.a_fields then HDyn else begin
-		match ctx.anon_identification#identify_anon ~strict:true a with
-		| Some pfm ->
-			(match Hashtbl.find_opt ctx.anons_cache pfm.pfm_path with
-			| Some t -> t
-			| None ->
-				let vp = {
-					vfields = [||];
-					vindex = PMap.empty;
-				} in
-				let t = HVirtual vp in
-				(match tref with
-				| None -> ()
-				| Some r -> r := Some t);
-				Hashtbl.add ctx.anons_cache pfm.pfm_path t;
-				let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
-				let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
-				vp.vfields <- Array.of_list fields;
-				Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
-				t
-			)
-		| None ->
-			trace "uh..";
-			die "" __LOC__
-		end
+		if PMap.is_empty a.a_fields then HDyn else
+		(try
+			(* can't use physical comparison in PMap since addresses might change in GC compact,
+				maybe add an uid to tanon if too slow ? *)
+			PMap.find a ctx.anons_cache
+		with Not_found ->
+			let vp = {
+				vfields = [||];
+				vindex = PMap.empty;
+			} in
+			let t = HVirtual vp in
+			(match tref with
+			| None -> ()
+			| Some r -> r := Some t);
+			ctx.anons_cache <- PMap.add a t ctx.anons_cache;
+			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
+			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
+			vp.vfields <- Array.of_list fields;
+			Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
+			t
+		)
 	| TDynamic _ ->
 		HDyn
 	| TEnum (e,_) ->
@@ -4041,7 +4035,6 @@ let write_code ch code debug =
 (* --------------------------------------------------------------------------------------------------------------------- *)
 
 let create_context com is_macro dump =
-	let anon_identification = new tanon_identification in
 	let get_type name =
 		try
 			List.find (fun t -> (t_infos t).mt_path = (["hl"],name)) com.types
@@ -4096,8 +4089,7 @@ let create_context com is_macro dump =
 		core_type = get_class "CoreType";
 		core_enum = get_class "CoreEnum";
 		ref_abstract = get_abstract "Ref";
-		anon_identification = anon_identification;
-		anons_cache = Hashtbl.create 0;
+		anons_cache = PMap.empty;
 		rec_cache = [];
 		method_wrappers = PMap.empty;
 		cdebug_files = new_lookup();
@@ -4195,8 +4187,7 @@ let generate com =
 	end else
 
 	let ctx = create_context com false dump in
-	(try add_types ctx com.types with Not_found -> trace (Printexc.get_backtrace ()); raise Not_found);
-
+	add_types ctx com.types;
 	let code = build_code ctx com.types com.main in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 	if dump then begin
