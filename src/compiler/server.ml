@@ -445,10 +445,11 @@ let add_modules sctx ctx m p =
 				TypeloadModule.ModuleLevel.add_module ctx m p;
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
 				PMap.iter (fun _ (sign,mpath) ->
-					(* let m2 = find_or_restore_module com.cs sign sctx ctx mpath in *)
-					let m2 = (com.cs#get_context sign)#find_module mpath in
-					(* assert (m2.m_extra.m_sign == sign); *)
-					add_modules (tabs ^ "  ") m0 m2
+					try
+						let m2 = find_or_restore_module com.cs sign sctx ctx mpath in
+						add_modules (tabs ^ "  ") m0 m2
+					with Not_found ->
+						Error.raise_msg (Printf.sprintf "Could not find dependency %s of %s in cache" (s_type_path mpath) (s_type_path m0.m_path)) p
 				) m.m_extra.m_deps
 			)
 		end

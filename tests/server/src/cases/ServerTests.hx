@@ -128,6 +128,7 @@ class ServerTests extends TestCase {
 		// make sure we still invalidate if the file does change
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
 		runHaxe(args2);
+		assertSuccess();
 		assertSkipping("HelloWorld", Tainted("check_display_file"));
 
 		runHaxe(args);
