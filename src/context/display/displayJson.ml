@@ -387,10 +387,11 @@ let handler =
 			let cs = hctx.display#get_cs in
 			(* TODO: better way to restore macro context? *)
 			hctx.com.callbacks#add_after_init_macros (fun () ->
-				cs#taint_modules fkey "server/invalidate";
+				cs#taint_modules fkey ServerInvalidate;
 				cs#remove_files fkey;
+				(* TODO try removing that *)
 				Option.may (fun mcs ->
-					mcs#taint_modules fkey "server/invalidate";
+					mcs#taint_modules fkey ServerInvalidate;
 					mcs#remove_files fkey
 				) hctx.display#maybe_get_macro_cs;
 				hctx.send_result jnull

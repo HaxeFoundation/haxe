@@ -1,5 +1,10 @@
 exception HxbFailure of string
 
+(* TEMP: Wipe server cache to force loading from hxb *)
+(* See ServerCompilationContext.after_compilation *)
+(* Also see ServerTests.testDisplayModuleRecache test which needs updating if set to false *)
+let always_wipe_cache = true
+
 type chunk_kind =
 	| STRI (* string pool *)
 	| DOCS (* doc pool *)

@@ -592,11 +592,16 @@ module Printer = struct
 		| MExtern -> "MExtern"
 		| MImport -> "MImport"
 
+	let s_module_tainting_reason = function
+		| CheckDisplayFile -> "check_display_file"
+		| ServerInvalidate -> "server/invalidate"
+		| ServerInvalidateFiles -> "server_invalidate_files"
+
 	let s_module_skip_reason reason =
 		let rec loop stack = function
 			| DependencyDirty(path,reason) ->
 				(Printf.sprintf "%s%s - %s" (if stack = [] then "DependencyDirty " else "") (s_type_path path) (if List.mem path stack then "rec" else loop (path :: stack) reason))
-			| Tainted cause -> "Tainted " ^ cause
+			| Tainted cause -> "Tainted " ^ (s_module_tainting_reason cause)
 			| FileChanged file -> "FileChanged " ^ file
 			| Shadowed file -> "Shadowed " ^ file
 			| LibraryChanged -> "LibraryChanged"

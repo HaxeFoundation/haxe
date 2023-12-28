@@ -128,9 +128,12 @@ class ServerTests extends TestCase {
 		// make sure we still invalidate if the file does change
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
 		runHaxe(args2);
+		assertSkipping("HelloWorld", Tainted("check_display_file"));
 
 		runHaxe(args);
-		assertSkipping("HelloWorld", Tainted("server/invalidate"));
+		assertSkipping("HelloWorld", Tainted("check_display_file"));
+		// switch to this check when HxbData.always_wipe_cache = false
+		// assertSkipping("HelloWorld", Tainted("server/invalidate"));
 	}
 
 	function testMutuallyDependent() {
