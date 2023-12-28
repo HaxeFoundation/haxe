@@ -848,62 +848,42 @@ and load_hxb_module ctx g path p =
 		close_in ch;
 		raise e
 
-and do_type_module ctx g mpath p =
-	let raise_not_found () = raise_error_msg (Module_not_found mpath) p in
-	if ctx.com.module_nonexistent_lut#mem mpath then raise_not_found();
-	if ctx.g.load_only_cached_modules then raise_not_found();
-	let is_extern = ref false in
-	let file, decls = try
-		(* Try parsing *)
-		TypeloadParse.parse_module ctx mpath p
-	with Not_found ->
-		(* Nothing to parse, try loading extern type *)
-		let rec loop = function
-			| [] ->
-				ctx.com.module_nonexistent_lut#add mpath true;
-				raise_not_found()
-			| (file,load) :: l ->
-				match load mpath p with
-				| None -> loop l
-				| Some (_,a) -> file, a
-		in
-		is_extern := true;
-		loop ctx.com.load_extern_type
-	in
-	let is_extern = !is_extern in
-	try
-		type_module ctx mpath file ~is_extern decls p
-	with Forbid_package (inf,pl,pf) when p <> null_pos ->
-		raise (Forbid_package (inf,p::pl,pf))
-
-and do_load_module' ctx g mpath p =
-	(* Check cache *)
-	match !type_module_hook ctx mpath p with
-	| Some m ->
-		(* ctx.com.module_lut#add mpath m; *)
-		(* do_add_module ctx.com m; *)
-		m
-	(* Try loading from hxb first, then from source *)
-	| None -> try load_hxb_module ctx g mpath p with Not_found ->
-		do_type_module ctx g mpath p
-
 and load_module' ctx g mpath p =
-	try begin
+	try
 		(* Check current context *)
-		let m = ctx.com.module_lut#find mpath in
-		(* (match m.m_extra.m_cache_state with *)
-		(* 	| MSBad reason -> *)
-		(* 		trace (Printf.sprintf "com.module_lut has dirty module %s ?!" (s_type_path mpath)); *)
-		(* 		(1* ctx.com.module_lut#remove mpath; *1) *)
-		(* 		(1* self#maybe_remove_dirty path; *1) *)
-		(* 		(1* self#remove_dirty_dep (DependencyDirty (path, reason)); *1) *)
-		(* 		raise (Bad_module (mpath, reason)) *)
-		(* 		(1* raise Not_found *1) *)
-		(* 	| _ -> () *)
-		(* ); *)
-		m
-	end with Not_found ->
-		do_load_module' ctx g mpath p
+		ctx.com.module_lut#find mpath
+	with Not_found ->
+		(* Check cache *)
+		match !type_module_hook ctx mpath p with
+		| Some m ->
+				m
+		| None -> try load_hxb_module ctx g mpath p with Not_found ->
+				let raise_not_found () = raise_error_msg (Module_not_found mpath) p in
+				if ctx.com.module_nonexistent_lut#mem mpath then raise_not_found();
+				if ctx.g.load_only_cached_modules then raise_not_found();
+				let is_extern = ref false in
+				let file, decls = try
+					(* Try parsing *)
+					TypeloadParse.parse_module ctx mpath p
+				with Not_found ->
+					(* Nothing to parse, try loading extern type *)
+					let rec loop = function
+						| [] ->
+							ctx.com.module_nonexistent_lut#add mpath true;
+							raise_not_found()
+						| (file,load) :: l ->
+							match load mpath p with
+							| None -> loop l
+							| Some (_,a) -> file, a
+					in
+					is_extern := true;
+					loop ctx.com.load_extern_type
+				in
+				let is_extern = !is_extern in
+				try
+					type_module ctx mpath file ~is_extern decls p
+				with Forbid_package (inf,pl,pf) when p <> null_pos ->
+					raise (Forbid_package (inf,p::pl,pf))
 
 let load_module ctx m p =
 	let m2 = load_module' ctx ctx.g m p in
@@ -914,11 +894,5 @@ let load_module ctx m p =
 (* let load_module ctx m p =
 	let timer = Timer.timer ["typing";"load_module"] in
 	Std.finally timer (load_module ctx m) p *)
-
-(* Same as load_module, but skips ctx.com.module_lut *)
-let do_load_module ctx m p =
-	let m2 = do_load_module' ctx ctx.g m p in
-	if ctx.pass = PTypeField then flush_pass ctx PConnectField ("load_module",fst m @ [snd m]);
-	m2
 
 ;;
