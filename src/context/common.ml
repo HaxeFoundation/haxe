@@ -294,6 +294,17 @@ type report_mode =
 	| RMDiagnostics of (Path.UniqueKey.t list)
 	| RMStatistics
 
+class module_lut = object(self)
+	inherit [path,module_def] hashtbl_lookup as super
+
+	val type_lut : (path,path) lookup = new hashtbl_lookup
+
+	method find_by_type (path : path) =
+		self#find (type_lut#find path)
+
+	method get_type_lut = type_lut
+end
+
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
@@ -349,9 +360,8 @@ type context = {
 	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) lookup;
 	stored_typed_exprs : (int, texpr) lookup;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
-	module_lut : (path,module_def) lookup;
+	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
-	type_to_module : (path,path) lookup;
 	mutable has_error : bool;
 	pass_debug_messages : string DynArray.t;
 	(* output *)
@@ -779,9 +789,8 @@ let create compilation_step cs version args display_mode =
 		callbacks = new compiler_callbacks;
 		global_metadata = [];
 		modules = [];
-		module_lut = new hashtbl_lookup;
+		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
-		type_to_module = new hashtbl_lookup;
 		main = None;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
@@ -871,8 +880,7 @@ let clone com is_macro_context =
 		parser_cache = new hashtbl_lookup;
 		module_to_file = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
-		module_lut = new hashtbl_lookup;
-		type_to_module = new hashtbl_lookup;
+		module_lut = new module_lut;
 	}
 
 let file_time file = Extc.filetime file
@@ -991,7 +999,7 @@ let rec has_feature com f =
 			let r = (try
 				let path = List.rev pack, cl in
 				(* (match List.find (fun t -> t_path t = path && not (Meta.has Meta.RealPath (t_infos t).mt_meta)) com.types with *)
-				let m = com.module_lut#find (com.type_to_module#find path) in
+				let m = com.module_lut#find (com.module_lut#get_type_lut#find path) in
 				(match List.find (fun t -> snd (t_path t) = (snd path)) m.m_types with
 				| t when field = "*" ->
 					not (has_dce com) ||

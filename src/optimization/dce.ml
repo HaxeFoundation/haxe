@@ -61,8 +61,7 @@ let find_field c name kind =
 
 let resolve_class_field_ref ctx cfr =
 	let ctx = if cfr.cfr_is_macro && not ctx.is_macro_context then Option.get (ctx.get_macros()) else ctx in
-	let path = ctx.type_to_module#find cfr.cfr_path in
-	let m = ctx.module_lut#find path in
+	let m = ctx.module_lut#find_by_type cfr.cfr_path in
 
 	Option.get (ExtList.List.find_map (fun mt -> match mt with
 		| TClassDecl c when c.cl_path = cfr.cfr_path ->

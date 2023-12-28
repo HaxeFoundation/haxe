@@ -102,7 +102,7 @@ type state =
 	| Done
 	| NotYet
 
-let sort_types com (modules : (path,module_def) lookup) =
+let sort_types com (modules : module_lut) =
 	let types = ref [] in
 	let states = Hashtbl.create 0 in
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
