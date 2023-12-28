@@ -44,13 +44,10 @@ let send_string j =
 let send_json json =
 	send_string (string_of_json json)
 
-class display_handler (jsonrpc : jsonrpc_handler) com = object(self)
-	val cs = com.cs;
+class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) = object(self)
+	val cs = cs;
 
 	method get_cs = cs
-
-	method maybe_get_macro_cs =
-		Option.map (fun com -> com.cs) (com.get_macros())
 
 	method enable_display mode =
 		com.display <- create mode;
@@ -166,7 +163,7 @@ let handler =
 
 			(match hctx.com.file_contents with
 			| [file, None] ->
-				hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = false};
+				hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display};
 			| _ -> ());
 		);
 		"display/implementation", (fun hctx ->
@@ -385,16 +382,9 @@ let handler =
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let fkey = hctx.com.file_keys#get file in
 			let cs = hctx.display#get_cs in
-			(* TODO: better way to restore macro context? *)
-			hctx.com.callbacks#add_after_init_macros (fun () ->
-				cs#taint_modules fkey "server/invalidate";
-				cs#remove_files fkey;
-				Option.may (fun mcs ->
-					mcs#taint_modules fkey "server/invalidate";
-					mcs#remove_files fkey
-				) hctx.display#maybe_get_macro_cs;
-				hctx.send_result jnull
-			)
+			cs#taint_modules fkey "server/invalidate";
+			cs#remove_files fkey;
+			hctx.send_result jnull
 		);
 		"server/configure", (fun hctx ->
 			let l = ref (List.map (fun (name,value) ->
@@ -492,7 +482,9 @@ let parse_input com input report_times =
 		jsonrpc = jsonrpc
 	});
 
-	let display = new display_handler jsonrpc com in
+	let cs = com.cs in
+
+	let display = new display_handler jsonrpc com cs in
 
 	let hctx = {
 		com = com;

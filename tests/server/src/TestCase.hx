@@ -95,7 +95,6 @@ class TestCase implements ITest {
 	}
 
 	function runHaxe(args:Array<String>, done:() -> Void) {
-		// trace(Sys.getCwd(), args);
 		messages = [];
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
@@ -104,11 +103,7 @@ class TestCase implements ITest {
 				sendErrorMessage(result.stderr);
 			}
 			done();
-		}, function(err) {
-			trace(err);
-			debugMessages();
-			sendErrorMessage(err);
-		});
+		}, sendErrorMessage);
 	}
 
 	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:() -> Void) {
@@ -125,14 +120,7 @@ class TestCase implements ITest {
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
 			handleResult(result);
-			// callback(Json.parse(result.stderr).result.result);
-			try callback(Json.parse(result.stderr).result.result)
-			catch (e) {
-					trace(result.stderr);
-					trace(e);
-					trace(args);
-					debugMessages();
-			}
+			callback(Json.parse(result.stderr).result.result);
 			done();
 		}, function(msg) {
 			sendErrorMessage(msg);

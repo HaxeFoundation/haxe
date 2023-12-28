@@ -141,36 +141,26 @@ let raw_undefine ctx k =
 let define ctx k =
 	raw_define_value ctx (get_define_key k) "1"
 
-let get_signature_raw def =
-	let defines = PMap.foldi (fun k v acc ->
-		(* don't make much difference between these special compilation flags *)
-		match String.concat "_" (ExtString.String.nsplit k "-") with
-		(* If we add something here that might be used in conditional compilation it should be added to
-			 Parser.parse_macro_ident as well (issue #5682).
-			 Note that we should removed flags like use_rtti_doc here.
-		*)
-		| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin"
-		| "message.reporting" | "message.log_file" | "message.log_format" | "message.no_color"
-		| "dump" | "dump_dependencies" | "dump_ignore_var_ids" -> acc
-		| _ -> (k ^ "=" ^ v) :: acc
-	) def.values [] in
-	String.concat "@" (List.sort compare defines)
-
-let digest_tbl = Hashtbl.create 0
-
 let get_signature def =
 	match def.defines_signature with
 	| Some s -> s
 	| None ->
-		let str = get_signature_raw def in
-		(* Printf.eprintf "Defines: %s\n" str; *)
+		let defines = PMap.foldi (fun k v acc ->
+			(* don't make much difference between these special compilation flags *)
+			match String.concat "_" (ExtString.String.nsplit k "-") with
+			(* If we add something here that might be used in conditional compilation it should be added to
+			   Parser.parse_macro_ident as well (issue #5682).
+			   Note that we should removed flags like use_rtti_doc here.
+			*)
+			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin"
+			| "message.reporting" | "message.log_file" | "message.log_format" | "message.no_color"
+			| "dump" | "dump_dependencies" | "dump_ignore_var_ids" -> acc
+			| _ -> (k ^ "=" ^ v) :: acc
+		) def.values [] in
+		let str = String.concat "@" (List.sort compare defines) in
 		let s = Digest.string str in
 		def.defines_signature <- Some s;
-		Hashtbl.add digest_tbl s str;
 		s
-
-let retrieve_defines sign =
-	try Hashtbl.find digest_tbl sign with Not_found -> (Printf.sprintf "[cannot find defines for sign %s]" sign)
 
 let deprecation_lut =
 	let h = Hashtbl.create 0 in

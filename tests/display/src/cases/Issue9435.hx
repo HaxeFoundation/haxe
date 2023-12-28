@@ -12,7 +12,7 @@ class Issue9435 extends DisplayTestCase {
 		}
 	**/
 	function testCatch_noTypeHint() {
-		// var fields = toplevel(pos(1));
-		// eq(true, hasToplevel(fields, "local", "i"));
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "local", "i"));
 	}
 }

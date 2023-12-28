@@ -11,7 +11,6 @@ class Issue9843 extends DisplayTestCase {
 		}
 	**/
 	function test() {
-		arrayEq([], []);
-		// arrayEq([], diagnostics());
+		arrayEq([], diagnostics());
 	}
 }

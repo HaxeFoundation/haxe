@@ -30,11 +30,11 @@ class Issue9401 extends DisplayTestCase {
 		}
 	**/
 	function testCatch_noTypeHint() {
-		// eq("a0", doc(pos(1)));
-		// eq("a0", doc(pos(2)));
-		// eq("a0", doc(pos(3)));
-		// eq("a0", doc(pos(4)));
-		// eq("b0", doc(pos(5)));
-		// eq("b0", doc(pos(6)));
+		eq("a0", doc(pos(1)));
+		eq("a0", doc(pos(2)));
+		eq("a0", doc(pos(3)));
+		eq("a0", doc(pos(4)));
+		eq("b0", doc(pos(5)));
+		eq("b0", doc(pos(6)));
 	}
 }

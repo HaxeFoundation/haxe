@@ -344,7 +344,6 @@ let check_module_types ctx m p t =
 		let hex2 = Digest.to_hex m2.m_extra.m_sign in
 		let s = if hex1 = hex2 then hex1 else Printf.sprintf "was %s, is %s" hex2 hex1 in
 		raise_typing_error (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p
-		(* ctx.com.warning WInfo [] (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p; *)
 	with
 		Not_found ->
 			ctx.com.type_to_module#add t.mt_path m.m_path

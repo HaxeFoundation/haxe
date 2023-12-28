@@ -481,8 +481,6 @@ let apply_params ?stack cparams params t =
 				t
 			end
 		| TInst (c,tl) ->
-			(* let spath = (s_type_path c.cl_path) in *)
-			(* if spath = "alchimix.utils.Set.T" || spath = "fromArray.T" then trace' spath; *)
 			(match tl with
 			| [] ->
 				t
@@ -726,9 +724,6 @@ let rec module_type_of_type = function
 		| _ -> raise Exit)
 	| _ ->
 		raise Exit
-	(* | TFun of tsignature *)
-	(* | TAnon of tanon *)
-	(* | TDynamic of t option *)
 
 let tconst_to_const = function
 	| TInt i -> Int (Int32.to_string i, None)

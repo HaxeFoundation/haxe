@@ -175,7 +175,7 @@ let static_method_container gctx c cf p =
 		| TInst(cg,_) -> cg
 		| _ -> raise_typing_error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
 	with Error { err_message = Module_not_found path } when path = (pack,name) ->
-		let m = (try ctx.com.module_lut#find (ctx.com.type_to_module#find c.cl_path) with Not_found -> die "" __LOC__) in
+		let m = c.cl_module in
 		let mg = {
 			m_id = alloc_mid();
 			m_path = (pack,name);

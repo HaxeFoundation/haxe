@@ -28,6 +28,7 @@ class IImport extends DisplayTestCase {
 		eq(true, hasPath(fields(pos(1)), "Serializer"));
 	}
 
+	#if HXB_PERFECT
 	/**
 		import haxe.Serializer.{-1-}
 	**/
@@ -35,6 +36,7 @@ class IImport extends DisplayTestCase {
 		eq(true, hasPath(fields(pos(1)), "run"));
 		eq(true, hasPath(fields(pos(1)), "Serializer"));
 	}
+	#end
 
 	/**
 		using ha{-1-}xe.{-5-}ma{-2-}cro.{-6-}Exp{-3-}rTools.{-7-}Expr{-4-}ArrayTools;
