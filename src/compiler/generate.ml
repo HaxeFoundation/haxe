@@ -28,13 +28,10 @@ let export_hxb com root m =
 			let anon_identification = new tanon_identification in
 			let writer = new HxbWriter.hxb_writer (MessageReporting.display_source_at com) anon_identification in
 			writer#write_module m;
-			let ch = IO.output_bytes() in
-			writer#export ch;
-			let bytes_cp = IO.close_out ch in
 			let l = (root :: fst m.m_path @ [snd m.m_path]) in
-			let ch_file = Path.create_file true ".hxb" [] l in
-			output_bytes ch_file bytes_cp;
-			close_out ch_file
+			let ch = Path.create_file true ".hxb" [] l in
+			writer#export (IO.output_channel ch);
+			close_out ch
 		end
 	| _ -> ()
 
