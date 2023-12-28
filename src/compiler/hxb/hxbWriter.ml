@@ -379,9 +379,8 @@ class ['a] hxb_writer
 			chunk#write_byte 1;
 			chunk#write_uleb128 index;
 			let close = self#open_field_scope true cf in
-			List.iter (fun ttp -> match follow_lazy ttp.ttp_type with
-				| TInst(c,_) -> ignore(field_type_parameters#add c.cl_path ttp)
-				| _ -> die "" __LOC__
+			List.iter (fun ttp ->
+				ignore(field_type_parameters#add ttp.ttp_name ttp)
 			) cf.cf_params;
 			self#write_class_field_forward cf;
 			self#write_class_field_data cf;
@@ -389,29 +388,29 @@ class ['a] hxb_writer
 
 	(* Type instances *)
 
-	method write_type_parameter_ref_debug (c : tclass) =
-			(try self#write_type_parameter_ref c with e ->
+	method write_type_parameter_ref_debug (ttp : typed_type_param)  =
+			(try self#write_type_parameter_ref ttp with e ->
 				(* TODO: handle unbound type parameters? *)
 				chunk#write_byte 40; (* TDynamic None *)
 				(* raise e *)
 			)
 
-	method write_type_parameter_ref (c : tclass) =
+	method write_type_parameter_ref (ttp : typed_type_param) =
 		begin try
-			let _ = field_type_parameters#get c.cl_path in
+			let _ = field_type_parameters#get ttp.ttp_name in
 			chunk#write_byte 5;
-			self#write_path c.cl_path;
+			chunk#write_string ttp.ttp_name;
 		with Not_found -> try
-			let i = type_type_parameters#get c.cl_path in
+			let i = type_type_parameters#get ttp.ttp_name in
 			chunk#write_byte 6;
 			chunk#write_uleb128 i
 		with Not_found -> try
 			(* trace (s_type_path c.cl_path); *)
-			let index = local_type_parameters#get c in
+			let index = local_type_parameters#get ttp.ttp_name in
 			chunk#write_byte 7;
 			chunk#write_uleb128 index;
 		with Not_found ->
-			prerr_endline (Printf.sprintf "[%s] %s Unbound type parameter %s (%s)" (s_type_path current_module.m_path) todo_error (s_type_path c.cl_path) (snd c.cl_path));
+			prerr_endline (Printf.sprintf "[%s] %s Unbound type parameter %s" (s_type_path current_module.m_path) todo_error ttp.ttp_name);
 			(* DynArray.iter (fun ttp -> debug_msg (Printf.sprintf "FTP %s %s" ttp.ttp_name (s_type_kind ttp.ttp_type)) field_type_parameters#items); *)
 			(* DynArray.iter (fun ttp -> debug_msg (Printf.sprintf "TTP %s %s" ttp.ttp_name (s_type_kind ttp.ttp_type)) type_type_parameters#items); *)
 			(* print_stacktrace (); *)
@@ -439,9 +438,9 @@ class ['a] hxb_writer
 				(* Don't write bound monomorphs, write underlying type directly *)
 				self#write_type_instance ~debug t
 			end
-		| TInst({cl_kind = KTypeParameter _} as c,[]) ->
+		| TInst({cl_kind = KTypeParameter ttp},[]) ->
 			(* debug_msg (Printf.sprintf "[%s] KTypeParameter for %s" (s_type_path current_module.m_path) (s_type_path c.cl_path)); *)
-			self#write_type_parameter_ref_debug c
+			self#write_type_parameter_ref_debug ttp
 		| TInst({cl_kind = KExpr e},[]) ->
 			chunk#write_byte 8;
 			self#write_expr e;
@@ -879,7 +878,7 @@ class ['a] hxb_writer
 		chunk#write_option v.v_extra (fun ve ->
 			chunk#write_list ve.v_params (fun ttp -> match follow_lazy ttp.ttp_type with
 				| TInst(c,_) ->
-					let index = local_type_parameters#add c ttp in
+					let index = local_type_parameters#add ttp.ttp_name ttp in
 					chunk#write_uleb128 index
 				| _ ->
 					die "" __LOC__
@@ -1116,9 +1115,9 @@ class ['a] hxb_writer
 				loop e1;
 				chunk#write_string s;
 			(* module types 120-139 *)
-			| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter {ttp_constraints = None}} as c)) ->
+			| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter ttp})) ->
 				chunk#write_byte 128;
-				self#write_type_parameter_ref_debug c
+				self#write_type_parameter_ref_debug ttp
 			| TTypeExpr (TClassDecl c) ->
 				chunk#write_byte 120;
 				self#write_class_ref c;
@@ -1141,9 +1140,9 @@ class ['a] hxb_writer
 				let m = infos.mt_module in
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd infos.mt_path);
 				chunk#write_string m.m_extra.m_sign;
-			| TNew(({cl_kind = KTypeParameter _} as c),tl,el) ->
+			| TNew(({cl_kind = KTypeParameter ttp}),tl,el) ->
 				chunk#write_byte 127;
-				self#write_type_parameter_ref_debug c;
+				self#write_type_parameter_ref_debug ttp;
 				self#write_types tl;
 				loop_el el;
 			| TNew(c,tl,el) ->
@@ -1174,9 +1173,8 @@ class ['a] hxb_writer
 
 	method set_field_type_parameters (nested : bool) params =
 		if not nested then field_type_parameters <- new pool;
-		List.iter (fun ttp -> match follow_lazy ttp.ttp_type with
-			| TInst(c,_) -> ignore(field_type_parameters#add c.cl_path ttp);
-			| _ -> die "" __LOC__
+		List.iter (fun ttp ->
+			ignore(field_type_parameters#add ttp.ttp_name ttp);
 		) params
 
 	method write_type_parameter_forward ttp =
@@ -1498,9 +1496,8 @@ class ['a] hxb_writer
 		let params = new pool in
 		type_type_parameters <- params;
 		ignore(type_param_lut#add infos.mt_path params);
-		List.iter (fun ttp -> match follow_lazy ttp.ttp_type with
-			| TInst(c,_) -> ignore(type_type_parameters#add c.cl_path ttp)
-			| _ -> die "" __LOC__
+		List.iter (fun ttp -> 
+			ignore(type_type_parameters#add ttp.ttp_name ttp)
 		) infos.mt_params;
 
 		(* Forward declare fields *)

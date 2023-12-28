@@ -650,20 +650,17 @@ class hxb_reader
 
 	method read_type_parameter_ref = function
 		| 5 ->
-			let p = self#read_path in
+			let name = self#read_string in
 			(try
-				let ttp = Hashtbl.find field_type_parameters p in
-				(match follow ttp.ttp_type with
-					| TInst(c, _) ->
-						if c.cl_path <> p then begin
-							Printf.eprintf "Error loading ftp: %s <> %s\n" (s_type_path c.cl_path) (s_type_path p);
-							die "" __LOC__
-						end
-					| _ -> die "" __LOC__
-				);
+				let ttp = Hashtbl.find field_type_parameters name in
+				if ttp.ttp_name <> name then begin
+					(* How would this ever trigger though? *)
+					Printf.eprintf "Error loading ftp: %s <> %s\n" ttp.ttp_name name;
+					die "" __LOC__
+				end;
 				ttp.ttp_type
 			with _ ->
-				Printf.eprintf "Error loading ftp for %s\n" (s_type_path p);
+				Printf.eprintf "Error loading ttp for %s\n" name;
 				die "" __LOC__
 			)
 		| 6 ->
@@ -790,10 +787,7 @@ class hxb_reader
 	(* Fields *)
 
 	method add_field_type_parameters a = Array.iter (fun ttp ->
-			(match follow ttp.ttp_type with
-				| TInst(c,_) -> Hashtbl.add field_type_parameters c.cl_path ttp
-				| _ -> die "" __LOC__
-			)
+			Hashtbl.add field_type_parameters ttp.ttp_name ttp
 		) a
 
 	method read_type_parameters (path : path) (f : typed_type_param array -> unit) =
@@ -1183,10 +1177,7 @@ class hxb_reader
 		self#read_type_parameters ([],name) (fun a ->
 			Array.iter (fun ttp ->
 				params := ttp :: !params;
-				(match follow ttp.ttp_type with
-					| TInst(c,_) -> Hashtbl.add field_type_parameters c.cl_path ttp
-					| _ -> die "" __LOC__
-				)
+				Hashtbl.add field_type_parameters ttp.ttp_name ttp
 			) a
 		);
 		self#read_type_parameters ([],name) (fun a ->
@@ -1271,10 +1262,7 @@ class hxb_reader
 			self#read_type_parameters ([],name) (fun a ->
 				Array.iter (fun ttp ->
 					params := ttp :: !params;
-					(match follow ttp.ttp_type with
-						| TInst(c,_) -> Hashtbl.add field_type_parameters c.cl_path ttp
-						| _ -> die "" __LOC__
-					)
+					Hashtbl.add field_type_parameters ttp.ttp_name ttp
 				) a
 			);
 			ef.ef_params <- !params;
