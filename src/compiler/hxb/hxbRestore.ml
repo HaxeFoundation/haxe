@@ -48,8 +48,8 @@ class hxb_restore
 			prerr_endline (Printf.sprintf "Error loading %s from hxb: %s" (s_type_path mc.mc_path) e);
 			raise (HxbData.HxbFailure e)
 		| e ->
-			prerr_endline (Printf.sprintf "Error loading %s from hxb" (s_type_path mc.mc_path));
-			trace (Printexc.to_string e);
+			(* prerr_endline (Printf.sprintf "Error loading %s from hxb" (s_type_path mc.mc_path)); *)
+			(* trace (Printexc.to_string e); *)
 			(* trace (Printexc.get_backtrace ()); *)
 			raise e
 
