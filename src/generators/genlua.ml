@@ -582,9 +582,10 @@ and gen_loop ctx cond do_while e =
     if do_while then
         print ctx " or _hx_do_first_%i" ctx.break_depth;
     print ctx " do ";
-    if do_while then
+    if do_while then begin
         newline ctx;
         println ctx "_hx_do_first_%i = false;" ctx.break_depth;
+    end;
     if will_continue then print ctx "repeat ";
     gen_block_element ctx e;
     if will_continue then begin
