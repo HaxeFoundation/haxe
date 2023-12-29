@@ -406,7 +406,7 @@ class ['a] hxb_writer
 			chunk#write_uleb128 i
 		with Not_found -> try
 			(* trace (s_type_path c.cl_path); *)
-			let index = local_type_parameters#get ttp.ttp_name in
+			let index = local_type_parameters#get ttp in
 			chunk#write_byte 7;
 			chunk#write_uleb128 index;
 		with Not_found ->
@@ -878,7 +878,7 @@ class ['a] hxb_writer
 		chunk#write_option v.v_extra (fun ve ->
 			chunk#write_list ve.v_params (fun ttp -> match follow_lazy ttp.ttp_type with
 				| TInst(c,_) ->
-					let index = local_type_parameters#add ttp.ttp_name ttp in
+					let index = local_type_parameters#add ttp () in
 					chunk#write_uleb128 index
 				| _ ->
 					die "" __LOC__
@@ -1271,7 +1271,7 @@ class ['a] hxb_writer
 		restore (fun chunk new_chunk ->
 			chunk#write_list cf.cf_params self#write_type_parameter_forward;
 			chunk#write_list cf.cf_params self#write_type_parameter_data;
-			let ltp = List.map snd local_type_parameters#to_list in
+			let ltp = List.map fst local_type_parameters#to_list in
 			chunk#write_list ltp self#write_type_parameter_forward;
 			chunk#write_list ltp self#write_type_parameter_data;
 			new_chunk#export_data chunk#ch
