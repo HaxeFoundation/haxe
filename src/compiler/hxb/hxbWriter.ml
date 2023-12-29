@@ -379,9 +379,6 @@ class ['a] hxb_writer
 			chunk#write_byte 1;
 			chunk#write_uleb128 index;
 			let close = self#open_field_scope true cf in
-			List.iter (fun ttp ->
-				ignore(field_type_parameters#add ttp ())
-			) cf.cf_params;
 			self#write_class_field_forward cf;
 			self#write_class_field_data cf;
 			close()
@@ -399,19 +396,21 @@ class ['a] hxb_writer
 
 	method write_type_parameter_ref (ttp : typed_type_param) =
 		begin try
-			let _ = field_type_parameters#get ttp in
-			chunk#write_byte 5;
-			chunk#write_string ttp.ttp_name;
-		with Not_found -> try
-			let i = type_type_parameters#get ttp.ttp_name in
-			chunk#write_byte 6;
-			chunk#write_uleb128 i
-		with Not_found -> try
-			(* trace (s_type_path c.cl_path); *)
-			let index = local_type_parameters#get ttp in
-			chunk#write_byte 7;
-			chunk#write_uleb128 index;
-		with Not_found ->
+			begin match ttp.ttp_host with
+			| TPHMethod | TPHEnumConstructor | TPHAnonField | TPHConstructor ->
+				let i = field_type_parameters#get ttp in
+				chunk#write_byte 5;
+				chunk#write_uleb128 i;
+			| TPHType ->
+				let i = type_type_parameters#get ttp.ttp_name in
+				chunk#write_byte 6;
+				chunk#write_uleb128 i
+			| TPHLocal ->
+				(* trace (s_type_path c.cl_path); *)
+				let index = local_type_parameters#get ttp in
+				chunk#write_byte 7;
+				chunk#write_uleb128 index;
+		end with Not_found ->
 			let msg = Printf.sprintf "[%s] %s Unbound type parameter %s" (s_type_path current_module.m_path) todo_error (s_type_path ttp.ttp_class.cl_path) in
 			if not (Hashtbl.mem warn_strings msg) then begin
 				Hashtbl.add warn_strings msg ();

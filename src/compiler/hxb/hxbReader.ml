@@ -48,7 +48,7 @@ class hxb_reader
 
 	val vars = Hashtbl.create 0
 	val mutable type_type_parameters = Array.make 0 (mk_type_param null_class TPHType None None)
-	val field_type_parameters = Hashtbl.create 0
+	val mutable field_type_parameters = Array.make 0 (mk_type_param null_class TPHMethod None None)
 	val mutable local_type_parameters = Array.make 0 (mk_type_param null_class TPHLocal None None)
 
 	method resolve_type sign pack mname tname =
@@ -650,19 +650,8 @@ class hxb_reader
 
 	method read_type_parameter_ref = function
 		| 5 ->
-			let name = self#read_string in
-			(try
-				let ttp = Hashtbl.find field_type_parameters name in
-				if ttp.ttp_name <> name then begin
-					(* How would this ever trigger though? *)
-					Printf.eprintf "Error loading ftp: %s <> %s\n" ttp.ttp_name name;
-					die "" __LOC__
-				end;
-				ttp.ttp_type
-			with _ ->
-				Printf.eprintf "Error loading ttp for %s\n" name;
-				die "" __LOC__
-			)
+			let i = self#read_uleb128 in
+			(field_type_parameters.(i)).ttp_type
 		| 6 ->
 			let i = self#read_uleb128 in
 			(type_type_parameters.(i)).ttp_type
@@ -785,10 +774,6 @@ class hxb_reader
 		self#read_list (fun () -> self#read_type_instance)
 
 	(* Fields *)
-
-	method add_field_type_parameters a = Array.iter (fun ttp ->
-			Hashtbl.add field_type_parameters ttp.ttp_name ttp
-		) a
 
 	method read_type_parameters (path : path) (host : type_param_host) (f : typed_type_param array -> unit) =
 		let l = self#read_uleb128 in
@@ -1169,13 +1154,10 @@ class hxb_reader
 		current_field <- cf;
 		let name = cf.cf_name in
 
-		if not nested then Hashtbl.clear field_type_parameters;
 		let params = ref [] in
 		self#read_type_parameters ([],name) (if nested then TPHAnonField else TPHMethod) (fun a ->
-			Array.iter (fun ttp ->
-				params := ttp :: !params;
-				Hashtbl.add field_type_parameters ttp.ttp_name ttp
-			) a
+			params := Array.to_list a;
+			field_type_parameters <- if nested then Array.append field_type_parameters a else a
 		);
 		self#read_type_parameters ([],name) TPHLocal (fun a ->
 			local_type_parameters <- if nested then Array.append local_type_parameters a else a
@@ -1199,7 +1181,7 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		for i = 0 to l - 1 do
 			let f = List.nth cf.cf_overloads i in
-			self#read_class_field_data true f
+			self#read_class_field_data false f
 		done;
 
 		cf.cf_type <- t;
@@ -1208,7 +1190,7 @@ class hxb_reader
 		cf.cf_kind <- kind;
 		cf.cf_expr <- expr;
 		cf.cf_expr_unoptimized <- expr_unoptimized;
-		cf.cf_params <- List.rev !params;
+		cf.cf_params <- !params;
 		cf.cf_flags <- flags;
 
 	method read_class_field (nested : bool) =
@@ -1257,10 +1239,8 @@ class hxb_reader
 			let ef = PMap.find name e.e_constrs in
 			let params = ref [] in
 			self#read_type_parameters ([],name) TPHEnumConstructor (fun a ->
-				Array.iter (fun ttp ->
-					params := ttp :: !params;
-					Hashtbl.add field_type_parameters ttp.ttp_name ttp
-				) a
+				params := Array.to_list a;
+				field_type_parameters <- a;
 			);
 			ef.ef_params <- !params;
 			ef.ef_type <- self#read_type_instance;
