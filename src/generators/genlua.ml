@@ -20,11 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  *)
 
+open Extlib_leftovers
 open Ast
 open Type
 open Common
 open ExtList
 open Error
+open JsSourcemap
 
 type pos = Globals.pos
 
@@ -32,6 +34,7 @@ type ctx = {
     com : Common.context;
     buf : Buffer.t;
     packages : (string list,unit) Hashtbl.t;
+    smap : sourcemap option;
     mutable current : tclass;
     mutable statics : (tclass * tclass_field * texpr) list;
     mutable inits : texpr list;
@@ -143,11 +146,15 @@ let temp ctx =
 
 let spr ctx s =
     ctx.separator <- false;
+	handle_newlines ctx.smap s;
     Buffer.add_string ctx.buf s
 
 let print ctx =
     ctx.separator <- false;
-    Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
+    Printf.kprintf (fun s -> begin
+        handle_newlines ctx.smap s;
+        Buffer.add_string ctx.buf s
+    end)
 
 let newline ctx = print ctx "\n%s" ctx.tabs
 
@@ -662,6 +669,7 @@ and lua_arg_name(a,_) =
         | _, _, _ ->  ident a.v_name;
 
 and gen_expr ?(local=true) ctx e = begin
+    let clear_mapping = add_mapping ctx.smap e in
     match e.eexpr with
       TConst c ->
         gen_constant ctx e.epos c;
@@ -1043,13 +1051,16 @@ and gen_expr ?(local=true) ctx e = begin
     | TCast (e1,None) ->
         gen_value ctx e1;
     | TIdent s ->
-        spr ctx s
+        spr ctx s;
+
+    clear_mapping ()
 end;
 
     (* gen_block_element handles expressions that map to "statements" in lua. *)
     (* It handles no-op situations, and ensures that expressions are formatted with newlines *)
 and gen_block_element ctx e  =
     ctx.iife_assign <- false;
+    let clear_mapping = add_mapping ctx.smap e in
     begin match e.eexpr with
         | TTypeExpr _ | TConst _ | TLocal _ | TFunction _ ->
             ()
@@ -1109,6 +1120,7 @@ and gen_block_element ctx e  =
             gen_expr ctx e;
             semicolon ctx;
     end;
+    clear_mapping ()
 
 and is_const_null e =
     match e.eexpr with
@@ -1147,6 +1159,7 @@ and gen_anon_value ctx e =
         gen_value ctx e
 
 and gen_value ctx e =
+    let clear_mapping = add_mapping ctx.smap e in
     let assign e =
         mk (TBinop (Ast.OpAssign,
                     mk (TLocal (match ctx.in_value with None -> Globals.die "" __LOC__ | Some v -> v)) t_dynamic e.epos,
@@ -1280,7 +1293,8 @@ and gen_value ctx e =
         gen_block_element ctx (mk (TTry (block (assign b),
                                          List.map (fun (v,e) -> v, block (assign e)) catchs
                                         )) e.etype e.epos);
-        v()
+        v();
+    clear_mapping ()
 
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
@@ -1866,10 +1880,26 @@ let generate_type_forward ctx = function
     | TTypeDecl _ | TAbstractDecl _ -> ()
 
 let alloc_ctx com =
+    let smap =
+		if com.debug || Common.defined com Define.SourceMap then
+			Some {
+				source_last_pos = { file = 0; line = 0; col = 0};
+				print_comma = false;
+				output_last_col = 0;
+				output_current_col = 0;
+				sources = DynArray.create();
+				sources_hash = Hashtbl.create 0;
+				mappings = Rbuffer.create 16;
+				current_expr = None;
+			}
+		else
+			None
+	in
     let ctx = {
         com = com;
         buf = Buffer.create 16000;
         packages = Hashtbl.create 0;
+        smap = smap;
         statics = [];
         inits = [];
         current = null_class;
@@ -2174,6 +2204,10 @@ let generate com =
 
     if anyExposed then
         println ctx "return _hx_exports";
+
+    (match ctx.smap with
+    | Some smap -> write_mappings ctx.com smap ""
+    | None -> try Sys.remove (com.file ^ ".map") with _ -> ());
 
     let ch = open_out_bin com.file in
     output_string ch (Buffer.contents ctx.buf);

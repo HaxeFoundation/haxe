@@ -669,8 +669,8 @@ and init_meta_overloads ctx co cf =
 				| [] ->
 					()
 				| l ->
-					ctx.type_params <- List.filter (fun t ->
-						not (List.mem t l) (* TODO: this still looks suspicious *)
+					ctx.type_params <- List.filter (fun ttp ->
+						ttp.ttp_host <> TPHMethod
 					) ctx.type_params
 			end;
 			let params : type_params = (!type_function_params_ref) ctx f TPHMethod cf.cf_name p in
@@ -761,8 +761,9 @@ let rec type_type_param ctx host path get_params p tp =
 		| None ->
 			mk_type_param c host default None
 		| Some th ->
+			let current_type_params = ctx.type_params in
 			let constraints = lazy (
-				let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
+				let ctx = { ctx with type_params = get_params() @ current_type_params } in
 				let rec loop th = match fst th with
 					| CTIntersection tl -> List.map (load_complex_type ctx true) tl
 					| CTParent ct -> loop ct
