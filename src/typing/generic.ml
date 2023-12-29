@@ -231,6 +231,17 @@ let build_instances ctx t p =
 	in
 	loop t
 
+let clone_type_parameter gctx mg ttp =
+	let c = ttp.ttp_class in
+	let c = {c with cl_module = mg; cl_path = (fst c.cl_path,(snd c.cl_path) ^ "_Clone")} in
+	let def = Option.map (generic_substitute_type gctx) ttp.ttp_default in
+	let constraints = match ttp.ttp_constraints with
+		| None -> None
+		| Some constraints -> Some (lazy (List.map (generic_substitute_type gctx) (Lazy.force constraints)))
+	in
+	let ttp' = mk_type_param c ttp.ttp_host def constraints in
+	c.cl_kind <- KTypeParameter ttp';
+	ttp'
 
 let build_generic_class ctx c p tl =
 	let pack = fst c.cl_path in
@@ -309,14 +320,7 @@ let build_generic_class ctx c p tl =
 		set_type_parameter_dependencies mg tl;
 		let build_field cf_old =
 			let params = List.map (fun ttp ->
-				let c = {ttp.ttp_class with cl_module = mg} in
-				let def = Option.map (generic_substitute_type gctx) ttp.ttp_default in
-				let constraints = match ttp.ttp_constraints with
-					| None -> None
-					| Some constraints -> Some (lazy (List.map (generic_substitute_type gctx) (Lazy.force constraints)))
-				in
-				let ttp' = mk_type_param c ttp.ttp_host def constraints in
-				c.cl_kind <- KTypeParameter ttp';
+				let ttp' = clone_type_parameter gctx mg ttp in
 				(ttp.ttp_type,ttp')
 			) cf_old.cf_params in
 			let param_subst = List.map (fun (t,ttp) -> t,(ttp.ttp_type,None)) params in
@@ -409,6 +413,17 @@ let build_generic_class ctx c p tl =
 		TInst (cg,[])
 	end
 
+let extract_type_parameters tl =
+	let params = DynArray.create () in
+	let rec loop t = match follow t with
+		| TInst({cl_kind = KTypeParameter ttp},[]) ->
+			DynArray.add params ttp;
+		| _ ->
+			TFunctions.iter loop t
+	in
+	List.iter loop tl;
+	DynArray.to_list params
+
 let type_generic_function ctx fa fcc with_type p =
 	let c,stat = match fa.fa_host with
 		| FHInstance(c,tl) -> c,false
@@ -432,7 +447,14 @@ let type_generic_function ctx fa fcc with_type p =
 	) monos;
 	let el = fcc.fc_args in
 	let gctx = make_generic ctx cf.cf_params monos (Meta.has (Meta.Custom ":debug.generic") cf.cf_meta) p in
-	let fc_type = build_instances ctx fcc.fc_type p in
+	let params = extract_type_parameters monos in
+	let clones = List.map (clone_type_parameter gctx c.cl_module) params in
+	let param_subst = List.map2 (fun ttp ttp' ->
+		(ttp.ttp_type,ttp')
+	) params clones in
+	let param_subst = List.map (fun (t,ttp) -> t,(ttp.ttp_type,None)) param_subst in
+	let gctx = {gctx with subst = param_subst @ gctx.subst} in	
+	let fc_type = build_instances ctx (generic_substitute_type gctx fcc.fc_type) p in
 	let name = cf.cf_name ^ "_" ^ gctx.name in
 	let unify_existing_field tcf pcf = try
 		unify_raise tcf fc_type p
@@ -484,7 +506,8 @@ let type_generic_function ctx fa fcc with_type p =
 			);
 			cf2.cf_kind <- cf.cf_kind;
 			if not (has_class_field_flag cf CfPublic) then remove_class_field_flag cf2 CfPublic;
-			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: cf.cf_meta
+			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: cf.cf_meta;
+			cf2.cf_params <- clones
 		in
 		let mk_cf2 name =
 			mk_field ~static:stat name fc_type cf.cf_pos cf.cf_name_pos
