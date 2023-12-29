@@ -441,20 +441,26 @@ module Printer = struct
 	let s_metadata metadata =
 		s_list " " s_metadata_entry metadata
 
-	let s_type_param ttp =
-		let s = match (get_constraints ttp) with
-			| [] -> ttp.ttp_name
-			| tl1 -> Printf.sprintf "%s:%s" ttp.ttp_name (String.concat " & " (List.map s_type tl1))
-		in
-		begin match ttp.ttp_default with
-		| None ->
-			s
-		| Some t ->
-			Printf.sprintf "%s = %s" s (s_type t)
-		end
+	let s_ttp_host = function
+		| TPHType -> "TPHType"
+		| TPHConstructor -> "TPHConstructor"
+		| TPHMethod -> "TPHMethod"
+		| TPHEnumConstructor -> "TPHEnumConstructor"
+		| TPHAnonField -> "TPHAnonField"
+		| TPHLocal -> "TPHLocal"
+		
+	let s_type_param tabs ttp =
+		s_record_fields tabs [
+			"name",ttp.ttp_name;
+			"class",s_type_path ttp.ttp_class.cl_path;
+			"host",s_ttp_host ttp.ttp_host;
+			"type",s_type_kind ttp.ttp_type;
+			"constraints",s_list ", " s_type_kind (get_constraints ttp)	;
+			"default",s_opt s_type_kind ttp.ttp_default;
+		]
 
-	let s_type_params tl =
-		s_list ", " s_type_param tl
+	let s_type_params tabs tl =
+		s_list ", " (s_type_param tabs) tl
 
 	let s_tclass_field_flags flags =
 		s_flags flags flag_tclass_field_names
@@ -468,7 +474,7 @@ module Printer = struct
 			"cf_name_pos",s_pos cf.cf_name_pos;
 			"cf_meta",s_metadata cf.cf_meta;
 			"cf_kind",s_kind cf.cf_kind;
-			"cf_params",s_type_params cf.cf_params;
+			"cf_params",s_type_params (tabs ^ "\t") cf.cf_params;
 			"cf_expr",s_opt (s_expr_ast true "\t\t" s_type) cf.cf_expr;
 			"cf_flags",s_tclass_field_flags cf.cf_flags;
 		]
@@ -482,7 +488,7 @@ module Printer = struct
 			"cl_private",string_of_bool c.cl_private;
 			"cl_doc",s_doc c.cl_doc;
 			"cl_meta",s_metadata c.cl_meta;
-			"cl_params",s_type_params c.cl_params;
+			"cl_params",s_type_params (tabs ^ "\t") c.cl_params;
 			"cl_kind",s_class_kind c.cl_kind;
 			"cl_super",s_opt (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_super;
 			"cl_implements",s_list ", " (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_implements;
@@ -502,7 +508,7 @@ module Printer = struct
 			"t_private",string_of_bool t.t_private;
 			"t_doc",s_doc t.t_doc;
 			"t_meta",s_metadata t.t_meta;
-			"t_params",s_type_params t.t_params;
+			"t_params",s_type_params (tabs ^ "\t") t.t_params;
 			"t_type",s_type_kind t.t_type
 		]
 
@@ -514,7 +520,7 @@ module Printer = struct
 			"ef_name_pos",s_pos ef.ef_name_pos;
 			"ef_type",s_type_kind ef.ef_type;
 			"ef_index",string_of_int ef.ef_index;
-			"ef_params",s_type_params ef.ef_params;
+			"ef_params",s_type_params (tabs ^ "\t") ef.ef_params;
 			"ef_meta",s_metadata ef.ef_meta
 		]
 
@@ -527,7 +533,7 @@ module Printer = struct
 			"e_private",string_of_bool en.e_private;
 			"d_doc",s_doc en.e_doc;
 			"e_meta",s_metadata en.e_meta;
-			"e_params",s_type_params en.e_params;
+			"e_params",s_type_params (tabs ^ "\t") en.e_params;
 			"e_type",s_type_kind en.e_type;
 			"e_extern",string_of_bool en.e_extern;
 			"e_constrs",s_list "\n\t" (s_tenum_field (tabs ^ "\t")) (PMap.fold (fun ef acc -> ef :: acc) en.e_constrs []);
@@ -543,7 +549,7 @@ module Printer = struct
 			"a_private",string_of_bool a.a_private;
 			"a_doc",s_doc a.a_doc;
 			"a_meta",s_metadata a.a_meta;
-			"a_params",s_type_params a.a_params;
+			"a_params",s_type_params (tabs ^ "\t") a.a_params;
 			"a_ops",s_list ", " (fun (op,cf) -> Printf.sprintf "%s: %s" (s_binop op) cf.cf_name) a.a_ops;
 			"a_unops",s_list ", " (fun (op,flag,cf) -> Printf.sprintf "%s (%s): %s" (s_unop op) (if flag = Postfix then "postfix" else "prefix") cf.cf_name) a.a_unops;
 			"a_impl",s_opt (fun c -> s_type_path c.cl_path) a.a_impl;
@@ -558,7 +564,7 @@ module Printer = struct
 		]
 
 	let s_tvar_extra ve =
-		Printf.sprintf "Some(%s, %s)" (s_type_params ve.v_params) (s_opt (s_expr_ast true "" s_type) ve.v_expr)
+		Printf.sprintf "Some(%s, %s)" (s_type_params "" ve.v_params) (s_opt (s_expr_ast true "" s_type) ve.v_expr)
 
 	let s_tvar v =
 		s_record_fields "" [

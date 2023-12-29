@@ -316,6 +316,7 @@ let build_generic_class ctx c p tl =
 					| Some constraints -> Some (lazy (List.map (generic_substitute_type gctx) (Lazy.force constraints)))
 				in
 				let ttp' = mk_type_param c ttp.ttp_host def constraints in
+				c.cl_kind <- KTypeParameter ttp';
 				(ttp.ttp_type,ttp')
 			) cf_old.cf_params in
 			let param_subst = List.map (fun (t,ttp) -> t,(ttp.ttp_type,None)) params in
