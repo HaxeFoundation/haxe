@@ -242,10 +242,10 @@ module Dump = struct
 
 	let dump_types com pretty =
 		let s_type = s_type (Type.print_context()) in
-		let s_expr,s_type_param = if pretty then
-			(Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t"),(s_type_param s_type)
+		let s_expr,s_type_param = if not pretty then
+			(Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t"),(Printer.s_type_param "")
 		else
-			(Type.s_expr_pretty false "\t" true),(Printer.s_type_param "")
+			(Type.s_expr_pretty false "\t" true),(s_type_param s_type)
 		in
 		let params tl = match tl with
 			| [] -> ""
