@@ -258,9 +258,7 @@ let rec make pctx toplevel t e =
 						| _ -> fail()
 					in
 					let map = apply_params en.e_params tl in
-					let ef_params = List.map (fun ttp -> clone_type_parameter map (ttp.ttp_name ^ "_Clone") ttp) ef.ef_params in
-					ctx.curfield.cf_params <- ctx.curfield.cf_params @ ef_params;
-					let monos = Monomorph.spawn_constrained_monos map ef_params in
+					let monos = Monomorph.spawn_constrained_monos map ef.ef_params in
 					let map t = map (apply_params ef.ef_params monos t) in
 					unify ctx (map ef.ef_type) e1.etype e1.epos;
 					let args = match follow e1.etype with
@@ -285,7 +283,7 @@ let rec make pctx toplevel t e =
 							raise_typing_error "Too many arguments" p
 					in
 					let patterns = loop el args in
-					ignore(unapply_type_parameters ef_params monos);
+					ignore(unapply_type_parameters ef.ef_params monos);
 					PatConstructor(con_enum en ef e1.epos,patterns)
 				| _ ->
 					fail()

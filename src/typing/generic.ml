@@ -232,7 +232,7 @@ let build_instances ctx t p =
 	loop t
 
 let clone_type_parameter gctx mg ttp =
-	let ttp = clone_type_parameter (generic_substitute_type gctx) ((snd ttp.ttp_class.cl_path) ^ "_Clone") ttp in
+	let ttp = clone_type_parameter (generic_substitute_type gctx) ttp.ttp_name ttp in
 	ttp.ttp_class.cl_module <- mg;
 	ttp
 
