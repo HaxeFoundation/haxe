@@ -313,11 +313,11 @@ class module_lut = object(self)
 		with Not_found ->
 			type_lut#add t.mt_path m.m_path
 
-	method add (path : path) (m : module_def) =
+	method! add (path : path) (m : module_def) =
 		super#add path m;
 		List.iter (fun mt -> self#add_module_type m mt) m.m_types
 
-	method remove (path : path) =
+	method! remove (path : path) =
 		try
 			List.iter (fun mt -> type_lut#remove (t_path mt)) (self#find path).m_types;
 			super#remove path;
@@ -327,7 +327,7 @@ class module_lut = object(self)
 	method find_by_type (path : path) =
 		self#find (type_lut#find path)
 
-	method clear =
+	method! clear =
 		super#clear;
 		type_lut#clear
 
