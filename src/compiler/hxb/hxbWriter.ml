@@ -1107,9 +1107,6 @@ class ['a] hxb_writer
 				loop e1;
 				self#write_enum_ref en;
 				self#write_enum_field_ref ef;
-				(* TODO ef.ef_params here triggers unbound type params later *)
-				chunk#write_list ef.ef_params self#write_type_parameter_forward;
-				chunk#write_list ef.ef_params self#write_type_parameter_data;
 			| TField(e1,FDynamic s) ->
 				chunk#write_byte 108;
 				loop e1;

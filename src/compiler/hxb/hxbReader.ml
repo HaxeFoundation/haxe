@@ -47,9 +47,9 @@ class hxb_reader
 	val mutable tmonos = Array.make 0 (mk_mono())
 
 	val vars = Hashtbl.create 0
-	val mutable type_type_parameters = Array.make 0 (mk_type_param null_class None None)
+	val mutable type_type_parameters = Array.make 0 (mk_type_param null_class TPHType None None)
 	val field_type_parameters = Hashtbl.create 0
-	val mutable local_type_parameters = Array.make 0 (mk_type_param null_class None None)
+	val mutable local_type_parameters = Array.make 0 (mk_type_param null_class TPHLocal None None)
 
 	method resolve_type sign pack mname tname =
 		try resolve_type sign pack mname tname with
@@ -790,14 +790,14 @@ class hxb_reader
 			Hashtbl.add field_type_parameters ttp.ttp_name ttp
 		) a
 
-	method read_type_parameters (path : path) (f : typed_type_param array -> unit) =
+	method read_type_parameters (path : path) (host : type_param_host) (f : typed_type_param array -> unit) =
 		let l = self#read_uleb128 in
 		let a = Array.init l (fun _ ->
 			let name = self#read_string in
 			let pos = self#read_pos in
 			let cpath = (fst path @ [snd path],name) in
 			let c = mk_class current_module cpath pos pos in
-			mk_type_param c None None
+			mk_type_param c host None None
 		) in
 		f a;
 		let l = self#read_uleb128 in
@@ -1084,9 +1084,6 @@ class hxb_reader
 				let e1 = self#read_texpr in
 				let en = self#read_enum_ref in
 				let ef = self#read_enum_field_ref en in
-				let params = ref [] in
-				self#read_type_parameters ([],ef.ef_name) (fun a -> params := Array.to_list a);
-				ef.ef_params <- !params;
 				TField(e1,FEnum(en,ef))
 			| 108 ->
 				let e1 = self#read_texpr in
@@ -1174,13 +1171,13 @@ class hxb_reader
 
 		if not nested then Hashtbl.clear field_type_parameters;
 		let params = ref [] in
-		self#read_type_parameters ([],name) (fun a ->
+		self#read_type_parameters ([],name) (if nested then TPHAnonField else TPHMethod) (fun a ->
 			Array.iter (fun ttp ->
 				params := ttp :: !params;
 				Hashtbl.add field_type_parameters ttp.ttp_name ttp
 			) a
 		);
-		self#read_type_parameters ([],name) (fun a ->
+		self#read_type_parameters ([],name) TPHLocal (fun a ->
 			local_type_parameters <- if nested then Array.append local_type_parameters a else a
 		);
 		let t = self#read_type_instance in
@@ -1259,7 +1256,7 @@ class hxb_reader
 			let name = self#read_string in
 			let ef = PMap.find name e.e_constrs in
 			let params = ref [] in
-			self#read_type_parameters ([],name) (fun a ->
+			self#read_type_parameters ([],name) TPHEnumConstructor (fun a ->
 				Array.iter (fun ttp ->
 					params := ttp :: !params;
 					Hashtbl.add field_type_parameters ttp.ttp_name ttp
@@ -1279,7 +1276,7 @@ class hxb_reader
 		infos.mt_private <- self#read_bool;
 		infos.mt_doc <- self#read_option (fun () -> self#read_documentation);
 		infos.mt_meta <- self#read_metadata;
-		self#read_type_parameters infos.mt_path (fun a -> type_type_parameters <- a);
+		self#read_type_parameters infos.mt_path TPHType (fun a -> type_type_parameters <- a);
 		infos.mt_params <- Array.to_list type_type_parameters;
 		infos.mt_using <- self#read_list (fun () ->
 			let c = self#read_class_ref in
