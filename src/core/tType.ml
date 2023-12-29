@@ -44,6 +44,14 @@ type module_cache_state =
 	| MSBad of module_skip_reason
 	| MSUnknown
 
+type type_param_host =
+	| TPHType
+	| TPHConstructor
+	| TPHMethod
+	| TPHEnumConstructor
+	| TPHAnonField
+	| TPHLocal
+
 type t =
 	| TMono of tmono
 	| TEnum of tenum * tparams
@@ -93,6 +101,7 @@ and tparams = t list
 and typed_type_param = {
 	ttp_name : string;
 	ttp_class : tclass;
+	ttp_host : type_param_host;
 	mutable ttp_type : t;
 	mutable ttp_constraints : t list Lazy.t option;
 	mutable ttp_default : t option;

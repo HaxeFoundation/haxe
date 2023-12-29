@@ -43,9 +43,9 @@ let save_field_state ctx =
 		ctx.in_function <- old_in_function;
 	)
 
-let type_function_params ctx fd fname p =
+let type_function_params ctx fd host fname p =
 	let params = ref [] in
-	params := Typeload.type_type_params ctx TPHMethod ([],fname) (fun() -> !params) p fd.f_params;
+	params := Typeload.type_type_params ctx host ([],fname) (fun() -> !params) p fd.f_params;
 	!params
 
 let type_function ctx (args : function_arguments) ret fmode e do_display p =
@@ -257,4 +257,4 @@ let add_constructor ctx c force_constructor p =
 		(* nothing to do *)
 		()
 ;;
-Typeload.type_function_params_rec := type_function_params
+Typeload.type_function_params_ref := type_function_params
