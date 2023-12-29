@@ -506,7 +506,11 @@ let type_generic_function ctx fa fcc with_type p =
 			);
 			cf2.cf_kind <- cf.cf_kind;
 			if not (has_class_field_flag cf CfPublic) then remove_class_field_flag cf2 CfPublic;
-			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: cf.cf_meta;
+			let meta = List.filter (fun (meta,_,_) -> match meta with
+				| Meta.Generic -> false
+				| _ -> true
+			) cf.cf_meta in
+			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: meta;
 			cf2.cf_params <- clones
 		in
 		let mk_cf2 name =
