@@ -395,6 +395,8 @@ class ['a] hxb_writer
 				(* raise e *)
 			)
 
+	val warn_strings = Hashtbl.create 0
+
 	method write_type_parameter_ref (ttp : typed_type_param) =
 		begin try
 			let _ = field_type_parameters#get ttp.ttp_name in
@@ -410,7 +412,11 @@ class ['a] hxb_writer
 			chunk#write_byte 7;
 			chunk#write_uleb128 index;
 		with Not_found ->
-			prerr_endline (Printf.sprintf "[%s] %s Unbound type parameter %s" (s_type_path current_module.m_path) todo_error ttp.ttp_name);
+			let msg = Printf.sprintf "[%s] %s Unbound type parameter %s" (s_type_path current_module.m_path) todo_error ttp.ttp_name in
+			if not (Hashtbl.mem warn_strings msg) then begin
+				Hashtbl.add warn_strings msg ();
+				prerr_endline msg;
+			end;
 			(* DynArray.iter (fun ttp -> debug_msg (Printf.sprintf "FTP %s %s" ttp.ttp_name (s_type_kind ttp.ttp_type)) field_type_parameters#items); *)
 			(* DynArray.iter (fun ttp -> debug_msg (Printf.sprintf "TTP %s %s" ttp.ttp_name (s_type_kind ttp.ttp_type)) type_type_parameters#items); *)
 			(* print_stacktrace (); *)
