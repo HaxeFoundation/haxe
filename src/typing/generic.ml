@@ -231,8 +231,8 @@ let build_instances ctx t p =
 	in
 	loop t
 
-let clone_type_parameter gctx mg ttp =
-	let ttp = clone_type_parameter (generic_substitute_type gctx) ttp.ttp_name ttp in
+let clone_type_parameter gctx mg path ttp =
+	let ttp = clone_type_parameter (generic_substitute_type gctx) path ttp in
 	ttp.ttp_class.cl_module <- mg;
 	ttp
 
@@ -313,7 +313,7 @@ let build_generic_class ctx c p tl =
 		set_type_parameter_dependencies mg tl;
 		let build_field cf_old =
 			let params = List.map (fun ttp ->
-				let ttp' = clone_type_parameter gctx mg ttp in
+				let ttp' = clone_type_parameter gctx mg cg.cl_path ttp in
 				(ttp.ttp_type,ttp')
 			) cf_old.cf_params in
 			let param_subst = List.map (fun (t,ttp) -> t,(ttp.ttp_type,None)) params in
@@ -440,15 +440,15 @@ let type_generic_function ctx fa fcc with_type p =
 	) monos;
 	let el = fcc.fc_args in
 	let gctx = make_generic ctx cf.cf_params monos (Meta.has (Meta.Custom ":debug.generic") cf.cf_meta) p in
+	let name = cf.cf_name ^ "_" ^ gctx.name in
 	let params = extract_type_parameters monos in
-	let clones = List.map (clone_type_parameter gctx c.cl_module) params in
+	let clones = List.map (fun ttp -> clone_type_parameter gctx c.cl_module ([],name) ttp) params in
 	let param_subst = List.map2 (fun ttp ttp' ->
 		(ttp.ttp_type,ttp')
 	) params clones in
 	let param_subst = List.map (fun (t,ttp) -> t,(ttp.ttp_type,None)) param_subst in
 	let gctx = {gctx with subst = param_subst @ gctx.subst} in	
 	let fc_type = build_instances ctx (generic_substitute_type gctx fcc.fc_type) p in
-	let name = cf.cf_name ^ "_" ^ gctx.name in
 	let unify_existing_field tcf pcf = try
 		unify_raise tcf fc_type p
 	with Error ({ err_message = Unify _; err_depth = depth } as err) ->

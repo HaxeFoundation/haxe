@@ -503,9 +503,9 @@ let is_forced_inline c cf =
 let needs_inline ctx c cf =
 	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.g.doinline || is_forced_inline c cf)
 
-let clone_type_parameter map name ttp =
+let clone_type_parameter map path ttp =
 	let c = ttp.ttp_class in
-	let c = {c with cl_path = (fst c.cl_path,name)} in
+	let c = {c with cl_path = ((fst path @ [snd path],ttp.ttp_name))} in
 	let def = Option.map map ttp.ttp_default in
 	let constraints = match ttp.ttp_constraints with
 		| None -> None
