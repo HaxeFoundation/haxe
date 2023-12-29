@@ -1421,10 +1421,7 @@ class ['a] hxb_writer
 	method write_anon (an : tanon) (ttp : type_params) =
 		let write_fields () =
 			chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (_,cf) ->
-				let close = self#open_field_scope true cf in
-				self#write_class_field_forward cf;
-				self#write_class_field_data cf;
-				close()
+				self#write_anon_field_ref cf
 			)
 		in
 
@@ -1439,20 +1436,6 @@ class ['a] hxb_writer
 			chunk#write_byte 2;
 			self#write_types tl;
 			write_fields ()
-		(* | ClassStatics c -> *)
-		(* 	chunk#write_byte 3; *)
-		(* 	self#write_class_ref c; *)
-		(* 	(1* let count = PMap.fold (fun _ acc -> acc + 1) an.a_fields 0 in *1) *)
-		(* 	(1* trace (Printf.sprintf "ClassStatics tanon has %d fields" count); *1) *)
-		(* 	write_fields () *)
-		(* | EnumStatics en -> *)
-		(* 	chunk#write_byte 4; *)
-		(* 	self#write_enum_ref en; *)
-		(* 	write_fields () *)
-		(* | AbstractStatics a -> *)
-		(* 	chunk#write_byte 5; *)
-		(* 	self#write_abstract_ref a; *)
-		(* 	write_fields () *)
 		| ClassStatics _ ->
 			assert false
 		| EnumStatics _ ->

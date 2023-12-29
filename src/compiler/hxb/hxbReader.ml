@@ -1424,9 +1424,7 @@ class hxb_reader
 	method read_anon an =
 		let read_fields () =
 			let fields = self#read_list (fun () ->
-				let cf = self#read_class_field_forward in
-				self#read_class_field_data true cf;
-				cf
+				self#read_anon_field_ref
 			) in
 			List.iter (fun cf -> an.a_fields <- PMap.add cf.cf_name cf an.a_fields) fields;
 		in
