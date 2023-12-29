@@ -244,7 +244,7 @@ module Dump = struct
 		let s_type = s_type (Type.print_context()) in
 		let params tl = match tl with
 			| [] -> ""
-			| l -> Printf.sprintf "<%s>" (String.concat ", " (List.map Printer.s_type_param l))
+			| l -> Printf.sprintf "<%s>" (String.concat ", " (List.map (Printer.s_type_param "") l))
 		in
 		List.iter (fun mt ->
 			let path = Type.t_path mt in
