@@ -240,11 +240,16 @@ module Dump = struct
 		let buf,close = create_dumpfile [] ((dump_path com) :: (platform_name_macro com) :: fst path @ [snd path]) in
 		buf,close
 
-	let dump_types com s_expr =
+	let dump_types com pretty =
 		let s_type = s_type (Type.print_context()) in
+		let s_expr,s_type_param = if pretty then
+			(Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t"),(s_type_param s_type)
+		else
+			(Type.s_expr_pretty false "\t" true),(Printer.s_type_param "")
+		in
 		let params tl = match tl with
 			| [] -> ""
-			| l -> Printf.sprintf "<%s>" (String.concat ", " (List.map (Printer.s_type_param "") l))
+			| l -> Printf.sprintf "<%s>" (String.concat ", " (List.map s_type_param l))
 		in
 		List.iter (fun mt ->
 			let path = Type.t_path mt in
@@ -376,10 +381,10 @@ module Dump = struct
 
 	let dump_types com =
 		match Common.defined_value_safe com Define.Dump with
-			| "pretty" -> dump_types com (Type.s_expr_pretty false "\t" true)
+			| "pretty" -> dump_types com true
 			| "record" -> dump_record com
 			| "position" -> dump_position com
-			| _ -> dump_types com (Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t")
+			| _ -> dump_types com false 
 
 	let dump_dependencies ?(target_override=None) com =
 		let target_name = match target_override with

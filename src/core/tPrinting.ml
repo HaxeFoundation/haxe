@@ -128,6 +128,18 @@ and s_constraint = function
 	| MOpenStructure -> "MOpenStructure"
 	| MEmptyStructure -> "MEmptyStructure"
 
+let s_type_param s_type ttp =
+	let s = match (get_constraints ttp) with
+		| [] -> ttp.ttp_name
+		| tl1 -> Printf.sprintf "%s:%s" ttp.ttp_name (String.concat " & " (List.map s_type tl1))
+	in
+	begin match ttp.ttp_default with
+	| None ->
+		s
+	| Some t ->
+		Printf.sprintf "%s = %s" s (s_type t)
+	end
+		
 let s_access is_read = function
 	| AccNormal -> "default"
 	| AccNo -> "null"
