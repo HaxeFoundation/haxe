@@ -1142,7 +1142,7 @@ let clone_param ttp =
 	let ret = mk_class cl.cl_module (fst cl.cl_path, snd cl.cl_path ^ "_c") cl.cl_pos null_pos in
 	ret.cl_implements <- cl.cl_implements;
 	ret.cl_kind <- cl.cl_kind;
-	let ttp = mk_type_param ret ttp.ttp_default ttp.ttp_constraints in
+	let ttp = mk_type_param ret ttp.ttp_host ttp.ttp_default ttp.ttp_constraints in
 	ret.cl_kind <- KTypeParameter ttp;
 	ttp
 

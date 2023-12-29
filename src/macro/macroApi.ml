@@ -2277,7 +2277,7 @@ let macro_api ccom get_api =
 					| TInst(c,_) -> c
 					| _ -> die "" __LOC__
 				in				
-				mk_type_param c default None
+				mk_type_param c TPHType default None
 			) (decode_array tpl) in
 			let rec map t = match t with
 				| TInst({cl_kind = KTypeParameter _},_) ->

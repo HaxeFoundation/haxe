@@ -698,10 +698,11 @@ let lookup_param n l =
 	in
 	loop l
 
-let mk_type_param c def constraints = {
+let mk_type_param c host def constraints = {
 	ttp_name = snd c.cl_path;
 	ttp_type = TInst(c,[]);
 	ttp_class = c;
+	ttp_host = host;
 	ttp_constraints = constraints;
 	ttp_default = def;
 }
