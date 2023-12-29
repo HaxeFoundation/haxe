@@ -219,11 +219,20 @@ class cache = object(self)
 		) contexts []
 
 	method taint_modules file_key reason =
+		let maybe_taint m_extra =
+			if Path.UniqueKey.lazy_key m_extra.m_file = file_key then m_extra.m_cache_state <- MSBad (Tainted reason)
+		in
+
 		Hashtbl.iter (fun _ cc ->
-			Hashtbl.iter (fun _ m ->
-				if Path.UniqueKey.lazy_key m.mc_extra.m_file = file_key then m.mc_extra.m_cache_state <- MSBad (Tainted reason)
-			) cc#get_hxb
-			(* ) cc#get_modules *)
+			Hashtbl.iter (fun _ m -> maybe_taint m.m_extra) cc#get_modules;
+
+			match reason with
+			| CheckDisplayFile when not HxbData.always_wipe_cache ->
+				(* Only invalidating for current display request, don't update hxb *)
+				()
+			| _ ->
+			(* | ServerInvalidate | ServerInvalidateFiles -> *)
+				Hashtbl.iter (fun _ mc -> maybe_taint mc.mc_extra) cc#get_hxb
 		) contexts
 
 	(* haxelibs *)

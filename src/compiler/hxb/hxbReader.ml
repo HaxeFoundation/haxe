@@ -724,7 +724,7 @@ class hxb_reader
 			en.e_type
 		| 15 ->
 			let a = self#read_abstract_ref in
-			TType(abstract_module_type a [],[])	
+			TType(abstract_module_type a [],[])
 		| 16 ->
 			TAbstract(self#read_abstract_ref,[])
 		| 17 ->
