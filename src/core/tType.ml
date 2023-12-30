@@ -59,6 +59,10 @@ type type_param_host =
 	| TPHAnonField
 	| TPHLocal
 
+type cache_bound_object =
+	| Resource of string * string
+	| IncludeFile of string * string
+
 type t =
 	| TMono of tmono
 	| TEnum of tenum * tparams
@@ -402,7 +406,7 @@ and module_def_extra = {
 	mutable m_processed : int;
 	mutable m_deps : (int,(string (* sign *) * path)) PMap.t;
 	mutable m_kind : module_kind;
-	mutable m_binded_res : (string, string) PMap.t;
+	mutable m_cache_bound_objects : cache_bound_object list;
 	mutable m_if_feature : (string * class_field_ref) list;
 	mutable m_features : (string,bool) Hashtbl.t;
 }

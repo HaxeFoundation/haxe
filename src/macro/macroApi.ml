@@ -2088,7 +2088,7 @@ let macro_api ccom get_api =
 			if name = "" then failwith "Empty resource name";
 			Hashtbl.replace (ccom()).resources name data;
 			let m = (get_api()).current_module() in
-			m.m_extra.m_binded_res <- PMap.add name data m.m_extra.m_binded_res;
+			m.m_extra.m_cache_bound_objects <- (Resource(name,data)) :: m.m_extra.m_cache_bound_objects;
 			vnull
 		);
 		"get_resources", vfun0 (fun() ->
@@ -2301,6 +2301,8 @@ let macro_api ccom get_api =
 					failwith ("unable to find file for inclusion: " ^ file)
 			in
 			(ccom()).include_files <- (file, position) :: (ccom()).include_files;
+			let m = (get_api()).current_module() in
+			m.m_extra.m_cache_bound_objects <- (IncludeFile(file,position)) :: m.m_extra.m_cache_bound_objects;
 			vnull
 		);
 		(* Compilation server *)
