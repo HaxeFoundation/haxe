@@ -1,7 +1,16 @@
 open Globals
 open Type
+open Common
 
 let restore_counter = ref 0
+
+let handle_cache_bound_objects com cbol =
+	List.iter (function
+		| Resource(name,data) ->
+			Hashtbl.replace com.resources name data
+		| IncludeFile(file,position) ->
+			com.include_files <- (file,position) :: com.include_files
+	) cbol
 
 class hxb_restore
 	(cs : CompilationCache.t)
@@ -66,6 +75,7 @@ class hxb_restore
 			trace (Printf.sprintf "[hxb restore] Trying to add module %s with state %s" (s_type_path m.m_path) (Printer.s_module_cache_state m.m_extra.m_cache_state))
 		| _ ->
 			com.module_lut#add m.m_path m;
+			handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
 
 	method resolve_type (sign : string) (pack : string list) (mname : string) (tname : string) =
 		let path = (pack,mname) in

@@ -443,7 +443,7 @@ let add_modules sctx ctx m p =
 			(match m0.m_extra.m_kind, m.m_extra.m_kind with
 			| MCode, MMacro | MMacro, MCode ->
 				(* this was just a dependency to check : do not add to the context *)
-				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
+				HxbRestore.handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
 			| _ ->
 				m.m_extra.m_added <- ctx.com.compilation_step;
 				ServerMessage.reusing com tabs m;
@@ -451,7 +451,7 @@ let add_modules sctx ctx m p =
 					(t_infos t).mt_restore()
 				) m.m_types;
 				TypeloadModule.ModuleLevel.add_module ctx m p;
-				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
+				HxbRestore.handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
 				PMap.iter (fun _ (sign,mpath) ->
 					try
 						let m2 = find_or_restore_module com.cs sign sctx ctx mpath in
