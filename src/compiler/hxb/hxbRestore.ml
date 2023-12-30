@@ -1,6 +1,8 @@
 open Globals
 open Type
 
+let restore_counter = ref 0
+
 class hxb_restore
 	(cs : CompilationCache.t)
 	(com : Common.context)
@@ -38,7 +40,11 @@ class hxb_restore
 		tcheck();
 
 		let reader = new HxbReader.hxb_reader (self#make_module mc) self#add_module self#resolve_type (fun () -> ()) in
-		try reader#read (IO.input_bytes mc.mc_bytes) true null_pos with
+		try
+			let m = reader#read (IO.input_bytes mc.mc_bytes) true null_pos in
+			incr restore_counter;
+			m
+		with
 		| Bad_module (path, reason) ->
 			prerr_endline (Printf.sprintf "Error loading module %s from hxb cache: dirty!" (s_type_path mc.mc_path));
 			ServerMessage.skipping_dep com "" (path,(Printer.s_module_skip_reason reason));

@@ -70,7 +70,7 @@ class context_cache (index : int) (sign : string) = object(self)
 		try (Hashtbl.find modules path).m_extra with Not_found -> (Hashtbl.find binary_cache path).mc_extra
 
 	method cache_module display_source_at anon_identification path m =
-		Hashtbl.replace modules path m;
+		(* Hashtbl.replace modules path m; *)
 		let writer = new HxbWriter.hxb_writer display_source_at anon_identification in
 		(* trace (Printf.sprintf "Write module %s to hxb cache" (s_type_path path)); *)
 		(* let t = Timer.timer ["server";"cache context";"write module"] in *)

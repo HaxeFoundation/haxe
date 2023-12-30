@@ -3,6 +3,8 @@ open Common
 open Timer
 open CompilationCache
 
+exception HxbRoundtrip
+
 type t = {
 	(* If true, prints some debug information *)
 	verbose : bool;
@@ -59,10 +61,13 @@ let reset sctx =
 
 let after_save sctx com has_error =
 	if not has_error && com.display.dms_full_typing && com.display.dms_populate_cache then begin
-		let t = Timer.timer ["server";"cache context"] in
-		CommonCache.cache_context sctx.cs com;
-		t();
-		ServerMessage.cached_modules com "" (List.length com.modules);
+		if Common.raw_defined com "hxb.roundtrip" then begin
+			let t = Timer.timer ["server";"cache context"] in
+			CommonCache.cache_context sctx.cs com;
+			t();
+			ServerMessage.cached_modules com "" (List.length com.modules);
+			raise HxbRoundtrip
+		end;
 	end
 
 let after_compilation sctx com has_error =
