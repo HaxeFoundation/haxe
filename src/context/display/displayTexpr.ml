@@ -171,8 +171,12 @@ let check_display_file ctx cs =
 			(* We have to go through type_module_hook because one of the module's dependencies could be
 			   invalid (issue #8991). *)
 			begin match !TypeloadModule.type_module_hook ctx path null_pos with
-			| NoModule | BadModule _ | BinaryModule _ -> raise Not_found
-			| GoodModule m -> check_display_module ctx cfile.c_decls m
+			| NoModule | BadModule _ -> raise Not_found
+			| BinaryModule mc ->
+				let m = (TypeloadModule.get_reader ctx p)#read_hxb (IO.input_bytes mc.mc_bytes) in
+				check_display_module ctx cfile.c_decls m
+			| GoodModule m ->
+				check_display_module ctx cfile.c_decls m
 			end
 		with Not_found ->
 			let fkey = DisplayPosition.display_position#get_file_key in
