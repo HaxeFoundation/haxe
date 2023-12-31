@@ -62,6 +62,7 @@ type type_param_host =
 type cache_bound_object =
 	| Resource of string * string
 	| IncludeFile of string * string
+	| Warning of WarningList.warning * string * pos
 
 type t =
 	| TMono of tmono
@@ -406,7 +407,7 @@ and module_def_extra = {
 	mutable m_processed : int;
 	mutable m_deps : (int,(Digest.t (* sign *) * path)) PMap.t;
 	mutable m_kind : module_kind;
-	mutable m_cache_bound_objects : cache_bound_object list;
+	mutable m_cache_bound_objects : cache_bound_object DynArray.t;
 	mutable m_if_feature : (string * class_field_ref) list;
 	mutable m_features : (string,bool) Hashtbl.t;
 }
