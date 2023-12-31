@@ -50,7 +50,7 @@ module ModuleLevel = struct
 			m_path = mpath;
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (Path.get_full_path file) (Define.get_signature ctx.com.defines) (file_time file) (if ctx.com.is_macro_context then MMacro else MCode) (get_policy ctx.g mpath);
+			m_extra = module_extra (Path.get_full_path file) (Define.get_signature ctx.com.defines) (file_time file) (if ctx.com.is_macro_context then MMacro else MCode) ctx.com.compilation_step (get_policy ctx.g mpath);
 		} in
 		m
 
@@ -152,11 +152,12 @@ module ModuleLevel = struct
 					t_meta = d.d_meta;
 				} in
 				(* failsafe in case the typedef is not initialized (see #3933) *)
-				delay ctx PBuildModule (fun () ->
+				(* HXB_TODO: Investigate the problem here. It might come from a flush_fields in hxbReader. *)
+				(* delay ctx PBuildModule (fun () ->
 					match t.t_type with
 					| TMono r -> (match r.tm_type with None -> Monomorph.bind r com.basic.tvoid | _ -> ())
 					| _ -> ()
-				);
+				); *)
 				decls := (TTypeDecl t, decl) :: !decls;
 				acc
 			| EAbstract d ->
@@ -573,7 +574,7 @@ module TypeLevel = struct
 		| TMono r ->
 			(match r.tm_type with
 			| None -> Monomorph.bind r tt;
-			| Some _ -> die "" __LOC__);
+			| Some t' -> die (Printf.sprintf "typedef %s is already initialized to %s, but new init to %s was attempted" (s_type_path t.t_path) (s_type_kind t') (s_type_kind tt)) __LOC__);
 		| _ -> die "" __LOC__);
 		TypeloadFields.build_module_def ctx (TTypeDecl t) t.t_meta (fun _ -> []) (fun _ -> ());
 		if ctx.com.platform = Cs && t.t_meta <> [] then
@@ -775,37 +776,35 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 	let timer = Timer.timer ["typing";"type_module"] in
 	Std.finally timer (type_module ctx mpath file ~is_extern tdecls) p *)
 
-let type_module_hook = ref (fun _ _ _ -> None)
+let type_module_hook = ref (fun _ _ _ -> NoModule)
 
-let rec get_reader ctx g p =
-	let make_module path file =
+class hxb_reader_api_typeload
+	(ctx : typer)
+	(load_module : typer -> path -> pos -> module_def)
+	(p : pos)
+= object(self)
+	inherit HxbAbstractReader.hxb_abstract_reader p
+
+	method make_module (path : path) (file : string) =
 		let m = ModuleLevel.make_module ctx path file p in
-		(* m.m_extra.m_added <- ctx.com.compilation_step; *)
 		m.m_extra.m_processed <- 1;
 		m
-	in
 
-	let add_module m =
+	method add_module (m : module_def) =
 		ctx.com.module_lut#add m.m_path m
-	in
 
-	let flush_fields () =
-		flush_pass ctx PConnectField "hxb"
-	in
-
-	let resolve_type sign pack mname tname =
-		(* TODO? *)
-		(* let check _ _ _ = None in *)
-		(* let load _ _ = raise Not_found in *)
-		(* let m = try HxbRestore.find ctx.Typecore.com.cs sign ctx.Typecore.com load check (pack,mname) p *)
-		(* with Not_found -> load_module' ctx g (pack,mname) p in *)
-		let m = load_module' ctx g (pack,mname) p in
+	method resolve_type (pack : string list) (mname : string) (tname : string) =
+		let m = load_module ctx (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
-	in
 
-	new HxbReader.hxb_reader make_module add_module resolve_type flush_fields
+	method flush_fields () =
+		flush_pass ctx PConnectField "hxb"
+end
 
-and load_hxb_module ctx g path p =
+let rec get_reader ctx p =
+	new hxb_reader_api_typeload ctx load_module' p
+
+and load_hxb_module ctx path p =
 	let compose_path no_rename =
 		(match path with
 		| [] , name -> name
@@ -824,7 +823,7 @@ and load_hxb_module ctx g path p =
 	(* TODO use finally instead *)
 	try
 		(* Printf.eprintf "[%s] Read module %s\n" target (s_type_path path); *)
-		let m = (get_reader ctx g p)#read input true p in
+		let m = (get_reader ctx p)#read_hxb input in
 		(* Printf.eprintf "[%s] Done reading module %s\n" target (s_type_path path); *)
 		close_in ch;
 		m
@@ -835,16 +834,20 @@ and load_hxb_module ctx g path p =
 		close_in ch;
 		raise e
 
-and load_module' ctx g m p =
+and load_module' ctx m p =
 	try
 		(* Check current context *)
 		ctx.com.module_lut#find m
 	with Not_found ->
 		(* Check cache *)
 		match !type_module_hook ctx m p with
-		| Some m ->
+		| GoodModule m ->
 			m
-		| None -> try load_hxb_module ctx g m p with Not_found ->
+		| BinaryModule _ ->
+			die "" __LOC__ (* The server builds those *)
+		| NoModule | BadModule _ -> try
+			load_hxb_module ctx m p
+		with Not_found ->
 			let raise_not_found () = raise_error_msg (Module_not_found m) p in
 			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
 			if ctx.g.load_only_cached_modules then raise_not_found();
@@ -873,7 +876,7 @@ and load_module' ctx g m p =
 				raise (Forbid_package (inf,p::pl,pf))
 
 let load_module ctx m p =
-	let m2 = load_module' ctx ctx.g m p in
+	let m2 = load_module' ctx m p in
 	add_dependency ~skip_postprocess:true ctx.m.curmod m2;
 	if ctx.pass = PTypeField then flush_pass ctx PConnectField ("load_module",fst m @ [snd m]);
 	m2

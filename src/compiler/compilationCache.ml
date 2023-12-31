@@ -31,7 +31,7 @@ let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 	| Some name ->
 		name
 
-class context_cache (index : int) (sign : string) = object(self)
+class context_cache (index : int) (sign : Digest.t) = object(self)
 	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val binary_cache : (path,module_cache) Hashtbl.t = Hashtbl.create 0
@@ -70,17 +70,14 @@ class context_cache (index : int) (sign : string) = object(self)
 		try (Hashtbl.find modules path).m_extra with Not_found -> (Hashtbl.find binary_cache path).mc_extra
 
 	method cache_module display_source_at anon_identification path m =
-		(* Hashtbl.replace modules path m; *)
 		let writer = new HxbWriter.hxb_writer display_source_at anon_identification in
-		(* trace (Printf.sprintf "Write module %s to hxb cache" (s_type_path path)); *)
-		(* let t = Timer.timer ["server";"cache context";"write module"] in *)
 		writer#write_module m;
-		(* t(); *)
 		let ch = IO.output_bytes() in
 		writer#export ch;
 		let bytes = IO.close_out ch in
 		Hashtbl.replace binary_cache path {
 			mc_path = path;
+			mc_id = m.m_id;
 			mc_bytes = bytes;
 			mc_extra = { m.m_extra with m_cache_state = MSGood }
 		}
@@ -98,10 +95,8 @@ class context_cache (index : int) (sign : string) = object(self)
 	method get_files = files
 	method get_modules = modules
 
-	(* TODO rename all this to something that makes sense *)
 	method get_hxb = binary_cache
-	(* method clear_hxb () = Hashtbl.clear binary_cache *)
-	method get_hxb_module path = Hashtbl.find_opt binary_cache path
+	method get_hxb_module path = Hashtbl.find binary_cache path
 
 	(* TODO handle hxb cache there too *)
 	method get_removed_files = removed_files
@@ -147,29 +142,17 @@ class cache = object(self)
 
 	(* contexts *)
 
-	method create_context sign =
-		let cache = new context_cache (Hashtbl.length contexts) sign in
-		context_list <- cache :: context_list;
-		Hashtbl.add contexts sign cache;
-		cache
-
-	method get_or_create_context sign =
-		match Hashtbl.find_opt contexts sign with
-		| None -> self#create_context sign
-		| Some cache -> cache
-
 	method get_context sign =
-		(* try *)
+		try
 			Hashtbl.find contexts sign
-		(* with Not_found -> *)
-			(* trace_call_stack (); *)
-			(* assert false *)
-			(* self#create_context sign *)
+		with Not_found ->
+			let cache = new context_cache (Hashtbl.length contexts) sign in
+			context_list <- cache :: context_list;
+			Hashtbl.add contexts sign cache;
+			cache
 
 	method add_info sign desc platform class_path defines =
-		(* TODO context should probably already exist at this point? *)
-		(* let cc = self#get_context sign in *)
-		let cc = self#get_or_create_context sign in
+		let cc = self#get_context sign in
 		let jo = JObject [
 			"index",JInt cc#get_index;
 			"desc",JString desc;
@@ -219,20 +202,13 @@ class cache = object(self)
 		) contexts []
 
 	method taint_modules file_key reason =
-		let maybe_taint m_extra =
-			if Path.UniqueKey.lazy_key m_extra.m_file = file_key then m_extra.m_cache_state <- MSBad (Tainted reason)
-		in
-
 		Hashtbl.iter (fun _ cc ->
-			Hashtbl.iter (fun _ m -> maybe_taint m.m_extra) cc#get_modules;
-
-			match reason with
-			| CheckDisplayFile when not HxbData.always_wipe_cache ->
-				(* Only invalidating for current display request, don't update hxb *)
-				()
-			| _ ->
-			(* | ServerInvalidate | ServerInvalidateFiles -> *)
-				Hashtbl.iter (fun _ mc -> maybe_taint mc.mc_extra) cc#get_hxb
+			Hashtbl.iter (fun _ m ->
+				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_cache_state <- MSBad (Tainted reason)
+			) cc#get_modules;
+			Hashtbl.iter (fun _ mc ->
+				if Path.UniqueKey.lazy_key mc.mc_extra.m_file = file_key then mc.mc_extra.m_cache_state <- MSBad (Tainted reason)
+			) cc#get_hxb
 		) contexts
 
 	(* haxelibs *)

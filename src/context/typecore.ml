@@ -203,6 +203,12 @@ type dot_path_part = {
 	pos : pos
 }
 
+type find_module_result =
+	| GoodModule of module_def
+	| BadModule of module_skip_reason
+	| BinaryModule of module_cache
+	| NoModule
+
 let make_build_info kind path params extern apply = {
 	build_kind = kind;
 	build_path = path;
@@ -476,7 +482,7 @@ let create_fake_module ctx file =
 			m_path = (["$DEP"],file);
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake [];
+			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake ctx.com.compilation_step [];
 		} in
 		Hashtbl.add fake_modules key mdep;
 		mdep

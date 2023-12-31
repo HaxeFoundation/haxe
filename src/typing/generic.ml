@@ -181,7 +181,7 @@ let static_method_container gctx c cf p =
 			m_path = (pack,name);
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake m.m_extra.m_check_policy;
+			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake gctx.ctx.com.compilation_step m.m_extra.m_check_policy;
 		} in
 		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
@@ -286,7 +286,7 @@ let build_generic_class ctx c p tl =
 			m_path = (pack,name);
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake m.m_extra.m_check_policy;
+			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake gctx.ctx.com.compilation_step m.m_extra.m_check_policy;
 		} in
 		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
@@ -447,7 +447,7 @@ let type_generic_function ctx fa fcc with_type p =
 		(ttp.ttp_type,ttp')
 	) params clones in
 	let param_subst = List.map (fun (t,ttp) -> t,(ttp.ttp_type,None)) param_subst in
-	let gctx = {gctx with subst = param_subst @ gctx.subst} in	
+	let gctx = {gctx with subst = param_subst @ gctx.subst} in
 	let fc_type = build_instances ctx (generic_substitute_type gctx fcc.fc_type) p in
 	let unify_existing_field tcf pcf = try
 		unify_raise tcf fc_type p

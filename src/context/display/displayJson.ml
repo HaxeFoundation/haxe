@@ -104,6 +104,49 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 		end
 end
 
+class hxb_reader_api_com
+	(com : Common.context)
+	(cc : CompilationCache.context_cache)
+	(p : pos)
+= object(self)
+	inherit HxbAbstractReader.hxb_abstract_reader p
+
+	method make_module (path : path) (file : string) =
+		let mc = cc#get_hxb_module path in
+		{
+			m_id = mc.mc_id;
+			m_path = path;
+			m_types = [];
+			m_statics = None;
+			m_extra = mc.mc_extra
+		}
+
+	method add_module (m : module_def) =
+		com.module_lut#add m.m_path m;
+
+	method resolve_type (pack : string list) (mname : string) (tname : string) =
+		let path = (pack,mname) in
+		let m = self#find_module path in
+		List.find (fun t -> snd (t_path t) = tname) m.m_types
+
+	method flush_fields () =
+		(* TODO: We don't have a typer, so we cannot flush anything. The hxb reader shouldn't read
+		   any tables that require this. *)
+		()
+
+	method find_module (m_path : path) =
+		try
+			com.module_lut#find m_path
+		with Not_found -> try
+			cc#find_module m_path
+		with Not_found ->
+			let mc = cc#get_hxb_module m_path in
+			self#read_hxb (IO.input_bytes mc.mc_bytes)
+end
+
+let find_module com cc path p =
+	(new hxb_reader_api_com com cc p)#find_module path
+
 type handler_context = {
 	com : Common.context;
 	jsonrpc : jsonrpc_handler;
@@ -290,11 +333,8 @@ let handler =
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
 			let cs = hctx.display#get_cs in
 			let cc = cs#get_context sign in
-			(* TODO? *)
 			let m = try
-				let check _ _ _ = None in
-				let load _ _ = raise Not_found in
-				HxbRestore.find cs sign hctx.com load check path null_pos
+				find_module hctx.com cc path null_pos
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
@@ -304,10 +344,9 @@ let handler =
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "modulePath") in
 			let typeName = hctx.jsonrpc#get_string_param "typeName" in
+			let cc = hctx.display#get_cs#get_context sign in
 			let m = try
-				let check _ _ _ = None in
-				let load _ _ = raise Not_found in
-				HxbRestore.find hctx.display#get_cs sign hctx.com load check path null_pos
+				find_module hctx.com cc path null_pos
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in

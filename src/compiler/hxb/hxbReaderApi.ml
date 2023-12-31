@@ -1,0 +1,9 @@
+open Globals
+open Type
+
+class virtual hxb_reader_api = object(self)
+	method virtual make_module : path -> string -> module_def
+	method virtual add_module : module_def -> unit
+	method virtual resolve_type : string list -> string -> string -> module_type
+	method virtual flush_fields : unit -> unit
+end

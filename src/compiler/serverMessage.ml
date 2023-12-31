@@ -75,12 +75,12 @@ let found_directories com tabs dirs =
 let changed_directories com tabs dirs =
 	if config.print_changed_directories then print_endline (Printf.sprintf "%schanged directories: [%s]" (sign_string com) (String.concat ", " (List.map (fun dir -> "\"" ^ dir.c_path ^ "\"") dirs)))
 
-let module_path_changed com tabs (m,time,file) =
+let module_path_changed com tabs (m_path,m_extra,time,file) =
 	if config.print_module_path_changed then print_endline (Printf.sprintf "%smodule path might have changed: %s\n\twas: %2.0f %s\n\tnow: %2.0f %s"
-		(sign_string com) (s_type_path m.m_path) m.m_extra.m_time (Path.UniqueKey.lazy_path m.m_extra.m_file) time file)
+		(sign_string com) (s_type_path m_path) m_extra.m_time (Path.UniqueKey.lazy_path m_extra.m_file) time file)
 
-let not_cached com tabs m =
-	if config.print_not_cached then print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com) (s_type_path m.m_path) "modified")
+let not_cached com tabs m_path =
+	if config.print_not_cached then print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com) (s_type_path m_path) "modified")
 
 let parsed com tabs (ffile,info) =
 	if config.print_parsed then print_endline (Printf.sprintf "%sparsed %s (%s)" (sign_string com) ffile info)
@@ -143,17 +143,16 @@ let message s =
 	if config.print_message then print_endline ("> " ^ s)
 
 let gc_stats time stats_before did_compact space_overhead =
-	()
-	(* if config.print_stats then begin *)
-	(* 	let stats = Gc.quick_stat() in *)
-	(* 	print_endline (Printf.sprintf "GC %s done in %.2fs with space_overhead = %i\n\tbefore: %s\n\tafter: %s" *)
-	(* 		(if did_compact then "compaction" else "collection") *)
-	(* 		time *)
-	(* 		space_overhead *)
-	(* 		(Memory.fmt_word (float_of_int stats_before.Gc.heap_words)) *)
-	(* 		(Memory.fmt_word (float_of_int stats.heap_words)) *)
-	(* 	) *)
-	(* end *)
+	if config.print_stats then begin
+		let stats = Gc.quick_stat() in
+		print_endline (Printf.sprintf "GC %s done in %.2fs with space_overhead = %i\n\tbefore: %s\n\tafter: %s"
+			(if did_compact then "compaction" else "collection")
+			time
+			space_overhead
+			(Memory.fmt_word (float_of_int stats_before.Gc.heap_words))
+			(Memory.fmt_word (float_of_int stats.heap_words))
+		)
+	end
 
 let socket_message s =
 	if config.print_socket_message then print_endline s

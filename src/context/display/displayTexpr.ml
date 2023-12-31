@@ -171,8 +171,8 @@ let check_display_file ctx cs =
 			(* We have to go through type_module_hook because one of the module's dependencies could be
 			   invalid (issue #8991). *)
 			begin match !TypeloadModule.type_module_hook ctx path null_pos with
-			| None -> raise Not_found
-			| Some m -> check_display_module ctx cfile.c_decls m
+			| NoModule | BadModule _ | BinaryModule _ -> raise Not_found
+			| GoodModule m -> check_display_module ctx cfile.c_decls m
 			end
 		with Not_found ->
 			let fkey = DisplayPosition.display_position#get_file_key in

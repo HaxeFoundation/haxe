@@ -375,7 +375,6 @@ type context = {
 	mutable user_defines : (string, Define.user_define) Hashtbl.t;
 	mutable user_metas : (string, Meta.user_meta) Hashtbl.t;
 	mutable get_macros : unit -> context option;
-	mutable create_macros : unit -> context option;
 	(* typing state *)
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	shared : shared_context;
@@ -838,7 +837,6 @@ let create compilation_step cs version args display_mode =
 		user_defines = Hashtbl.create 0;
 		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);
-		create_macros = (fun() -> None);
 		info = (fun ?depth ?from_macro _ _ -> die "" __LOC__);
 		warning = (fun ?depth ?from_macro _ _ _ -> die "" __LOC__);
 		warning_options = [];

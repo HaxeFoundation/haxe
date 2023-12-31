@@ -178,12 +178,7 @@ module Setup = struct
 		let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
 		(* Native lib pass 2: Initialize *)
 		List.iter (fun f -> f()) fl;
-		let typer = TyperEntry.create com macros in
-		com.create_macros <- (fun () ->
-			let _ = MacroContext.get_macro_context typer in
-			com.get_macros ()
-		);
-		typer
+		TyperEntry.create com macros
 
 	let executable_path() =
 		Extc.executable_path()

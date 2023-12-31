@@ -458,7 +458,7 @@ class ['a] hxb_writer
 		| TType(td,[]) ->
 			let default () =
 				chunk#write_byte 12;
-				self#write_typedef_ref td;			
+				self#write_typedef_ref td;
 			in
 			begin match td.t_type with
 			| TAnon an ->
@@ -1141,7 +1141,6 @@ class ['a] hxb_writer
 				let infos = t_infos md in
 				let m = infos.mt_module in
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd infos.mt_path);
-				chunk#write_string m.m_extra.m_sign;
 			| TNew(({cl_kind = KTypeParameter ttp}),tl,el) ->
 				chunk#write_byte 127;
 				self#write_type_parameter_ref_debug ttp;
@@ -1481,7 +1480,7 @@ class ['a] hxb_writer
 		let params = new pool in
 		type_type_parameters <- params;
 		ignore(type_param_lut#add infos.mt_path params);
-		List.iter (fun ttp -> 
+		List.iter (fun ttp ->
 			ignore(type_type_parameters#add ttp.ttp_name ttp)
 		) infos.mt_params;
 
@@ -1591,7 +1590,6 @@ class ['a] hxb_writer
 				let m = c.cl_module in
 				(* debug_msg (Printf.sprintf "  [cls] Write full path %s" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd c.cl_path)]))); *)
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd c.cl_path);
-				chunk#write_string m.m_extra.m_sign
 			)
 		end;
 		begin match abstracts#to_list with
@@ -1603,7 +1601,6 @@ class ['a] hxb_writer
 				let m = a.a_module in
 				(* debug_msg (Printf.sprintf "  [abs] Write full path %s" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd a.a_path)]))); *)
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd a.a_path);
-				chunk#write_string m.m_extra.m_sign
 			)
 		end;
 		begin match enums#to_list with
@@ -1615,7 +1612,6 @@ class ['a] hxb_writer
 				let m = en.e_module in
 				(* debug_msg (Printf.sprintf "  [enm] Write full path %s" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd en.e_path)]))); *)
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd en.e_path);
-				chunk#write_string m.m_extra.m_sign
 			)
 		end;
 		begin match typedefs#to_list with
@@ -1627,7 +1623,6 @@ class ['a] hxb_writer
 				let m = td.t_module in
 				(* debug_msg (Printf.sprintf "  [tpdr] Write full path %s" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd td.t_path)]))); *)
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd td.t_path);
-				chunk#write_string m.m_extra.m_sign
 			)
 		end;
 		self#start_chunk HHDR;

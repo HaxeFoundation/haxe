@@ -29,7 +29,7 @@ let create verbose = {
 	cs = new CompilationCache.cache;
 	class_paths = Hashtbl.create 0;
 	changed_directories = Hashtbl.create 0;
-	compilation_step = 1;
+	compilation_step = 0;
 	delays = [];
 	was_compilation = false;
 	macro_context_setup = false;
@@ -59,22 +59,15 @@ let reset sctx =
 	Hashtbl.clear Timer.htimers;
 	Helper.start_time := get_time()
 
-let after_save sctx com has_error =
-	if not has_error && com.display.dms_full_typing && com.display.dms_populate_cache then begin
-		if Common.raw_defined com "hxb.roundtrip" then begin
-			let t = Timer.timer ["server";"cache context"] in
-			CommonCache.cache_context sctx.cs com;
-			t();
-			ServerMessage.cached_modules com "" (List.length com.modules);
+let maybe_cache_context sctx com =
+	if com.display.dms_full_typing && com.display.dms_populate_cache then begin
+		let t = Timer.timer ["server";"cache context"] in
+		CommonCache.cache_context sctx.cs com;
+		t();
+		ServerMessage.cached_modules com "" (List.length com.modules);
+		if Common.raw_defined com "hxb.roundtrip" then
 			raise HxbRoundtrip
-		end;
 	end
-
-let after_compilation sctx com has_error =
-	(* TODO remove HxbData.always_wipe_cache from here once stabilized *)
-	if HxbData.always_wipe_cache || has_error || not com.display.dms_full_typing || not com.display.dms_populate_cache then
-		(* TEMP: Wipe server cache to force loading from hxb *)
-		CommonCache.clear_cache sctx.cs com
 
 let ensure_macro_setup sctx =
 	if not sctx.macro_context_setup then begin

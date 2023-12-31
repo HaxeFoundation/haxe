@@ -22,11 +22,7 @@ let print_stacktrace () =
 		| _ -> die "" __LOC__
 
 class hxb_reader
-	(* (com : Common.context) *)
-	(make_module : path -> string -> module_def)
-	(add_module : module_def -> unit)
-	(resolve_type : string -> string list -> string -> string -> module_type)
-	(flush_fields : unit -> unit)
+	(api : HxbReaderApi.hxb_reader_api)
 = object(self)
 
 	val mutable current_module = null_module
@@ -51,10 +47,12 @@ class hxb_reader
 	val mutable field_type_parameters = Array.make 0 (mk_type_param null_class TPHMethod None None)
 	val mutable local_type_parameters = Array.make 0 (mk_type_param null_class TPHLocal None None)
 
-	method resolve_type sign pack mname tname =
-		try resolve_type sign pack mname tname with
+	method resolve_type pack mname tname =
+		try api#resolve_type pack mname tname with
 		| Bad_module (path, reason) -> raise (Bad_module (current_module.m_path, DependencyDirty (path, reason)))
-		| Not_found -> error (Printf.sprintf "Cannot resolve type %s" (s_type_path ((pack @ [mname]),tname)))
+		| Not_found ->
+			dump_backtrace();
+			error (Printf.sprintf "Cannot resolve type %s" (s_type_path ((pack @ [mname]),tname)))
 
 	method print_reader_state =
 		prerr_endline (Printf.sprintf "  Current field: %s" current_field.cf_name);
@@ -66,9 +64,9 @@ class hxb_reader
 		match tvoid with
 		| Some tvoid -> tvoid
 		| None ->
-				let t = type_of_module_type (self#resolve_type current_module.m_extra.m_sign [] "StdTypes" "Void") in
-				tvoid <- Some t;
-				t
+			let t = type_of_module_type (self#resolve_type [] "StdTypes" "Void") in
+			tvoid <- Some t;
+			t
 
 	(* Primitives *)
 
@@ -1084,8 +1082,7 @@ class hxb_reader
 			| 125 ->
 				let e1 = self#read_texpr in
 				let (pack,mname,tname) = self#read_full_path in
-				let sign = self#read_string in
-				let md = self#resolve_type sign pack mname tname in
+				let md = self#resolve_type pack mname tname in
 				TCast(e1,Some md)
 			| 126 ->
 				let c = self#read_class_ref in
@@ -1208,19 +1205,19 @@ class hxb_reader
 		(* prerr_endline (Printf.sprintf "  read class fields with type parameters for %s: %d" (s_type_path c.cl_path) (Array.length type_type_parameters); *)
 		(* prerr_endline (Printf.sprintf "    own class params: %d" (List.length c.cl_params); *)
 		let cl_if_feature = Feature.check_if_feature c.cl_meta in
-		let handle_feature ref_kind cf =	
+		let handle_feature ref_kind cf =
 			let set_feature s =
 				let cf_ref = mk_class_field_ref c cf ref_kind false (* TODO: ? *) in
 				Feature.set_feature current_module cf_ref s;
 			in
 			List.iter set_feature cl_if_feature;
 			List.iter set_feature (Feature.check_if_feature cf.cf_meta);
-		in			
+		in
 		let _ = self#read_option (fun f ->
 			let cf = Option.get c.cl_constructor in
 			handle_feature CfrConstructor cf;
 			self#read_class_field_data false cf
-		) in		
+		) in
 		let f ref_kind fields =
 			let name = self#read_string in
 			let cf = PMap.find name fields in
@@ -1464,8 +1461,7 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		classes <- (Array.init l (fun i ->
 				let (pack,mname,tname) = self#read_full_path in
-				let sign = self#read_string in
-				match self#resolve_type sign pack mname tname with
+				match self#resolve_type pack mname tname with
 				| TClassDecl c ->
 					c
 				| _ ->
@@ -1476,8 +1472,7 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		abstracts <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
-			let sign = self#read_string in
-			match self#resolve_type sign pack mname tname with
+			match self#resolve_type pack mname tname with
 			| TAbstractDecl a ->
 				a
 			| _ ->
@@ -1488,8 +1483,7 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		enums <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
-			let sign = self#read_string in
-			match self#resolve_type sign pack mname tname with
+			match self#resolve_type pack mname tname with
 			| TEnumDecl en ->
 				en
 			| _ ->
@@ -1500,8 +1494,7 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		typedefs <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
-			let sign = self#read_string in
-			match self#resolve_type sign pack mname tname with
+			match self#resolve_type pack mname tname with
 			| TTypeDecl tpd ->
 				tpd
 			| _ ->
@@ -1577,7 +1570,7 @@ class hxb_reader
 
 		anon_fields <- Array.make (self#read_uleb128) null_field;
 		tmonos <- Array.init (self#read_uleb128) (fun _ -> mk_mono());
-		make_module path file
+		api#make_module path file
 
 	method read (file_ch : IO.input) (debug : bool) (p : pos) =
 		if (Bytes.to_string (IO.nread file_ch 3)) <> "hxb" then
@@ -1604,7 +1597,7 @@ class hxb_reader
 				loop()
 			| TYPF ->
 				current_module.m_types <- self#read_typf;
-				add_module current_module;
+				api#add_module current_module;
 				loop()
 			| CLSR ->
 				self#read_clsr;
@@ -1625,11 +1618,11 @@ class hxb_reader
 				self#read_absd;
 				loop()
 			| CFLD ->
-				flush_fields ();
+				api#flush_fields ();
 				self#read_cfld;
 				loop()
 			| AFLD ->
-				flush_fields ();
+				api#flush_fields ();
 				self#read_afld;
 				loop()
 			| TPDD ->

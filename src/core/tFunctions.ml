@@ -150,7 +150,7 @@ let mk_typedef m path pos name_pos t =
 		t_restore = (fun () -> ());
 	}
 
-let module_extra file sign time kind policy =
+let module_extra file sign time kind added policy =
 	{
 		m_file = Path.UniqueKey.create_lazy file;
 		m_sign = sign;
@@ -160,7 +160,7 @@ let module_extra file sign time kind policy =
 			m_import_positions = PMap.empty;
 		};
 		m_cache_state = MSGood;
-		m_added = 0;
+		m_added = added;
 		m_checked = 0;
 		m_time = time;
 		m_processed = 0;
@@ -203,7 +203,7 @@ let null_module = {
 	m_path = [] , "";
 	m_types = [];
 	m_statics = None;
-	m_extra = module_extra "" "" 0. MFake [];
+	m_extra = module_extra "" (Digest.string "") 0. MFake 0 [];
 }
 
 let null_class =

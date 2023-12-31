@@ -34,7 +34,6 @@ let version_pre = Some "alpha.1"
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 
 let no_color = false
-let no_trace = false
 let c_reset = if no_color then "" else "\x1b[0m"
 let c_dim = if no_color then "" else "\x1b[2m"
 
@@ -45,29 +44,14 @@ let loc_to_string (loc:Printexc.location) =
 	Printf.sprintf "%s, line %d, characters %d-%d" loc.filename loc.line_number loc.start_char loc.end_char
 
 let trace s =
-	if not no_trace then begin
-		let stack = Printexc.get_callstack 2 in
-		match Printexc.backtrace_slots stack with
-		| Some [|_; item |] ->
-			(match Printexc.Slot.location item with
-			| Some loc -> print_endline (Printf.sprintf "%s%s:%s %s" c_dim (loc_short loc) c_reset s)
-			| _ -> ())
-		| _ ->
-			()
-	end
-
-let do_trace' = ref false
-let trace' s =
-	if !do_trace' then begin
-		let stack = Printexc.get_callstack 2 in
-		match Printexc.backtrace_slots stack with
-		| Some [|_; item |] ->
-			(match Printexc.Slot.location item with
-			| Some loc -> print_endline (Printf.sprintf "%s%s:%s %s" c_dim (loc_short loc) c_reset s)
-			| _ -> ())
-		| _ ->
-			()
-	end
+	let stack = Printexc.get_callstack 2 in
+	match Printexc.backtrace_slots stack with
+	| Some [|_; item |] ->
+		(match Printexc.Slot.location item with
+		| Some loc -> print_endline (Printf.sprintf "%s%s:%s %s" c_dim (loc_short loc) c_reset s)
+		| _ -> ())
+	| _ ->
+		()
 
 let trace_call_stack ?(n:int = 5) () =
 	assert (n >= 0);
@@ -187,10 +171,14 @@ let die ?p msg ml_loc =
 	in
 	let ver = s_version_full
 	and os_type = if Sys.unix then "unix" else "windows" in
-	Printf.eprintf "%s\nHaxe: %s; OS type: %s;\n%s\n%s" msg ver os_type ml_loc backtrace;
-	trace ml_loc;
-	trace backtrace;
-	assert false
+	let s = Printf.sprintf "%s\nHaxe: %s; OS type: %s;\n%s\n%s" msg ver os_type ml_loc backtrace in
+	failwith s
+
+let dump_callstack () =
+	print_endline (Printexc.raw_backtrace_to_string (Printexc.get_callstack 200))
+
+let dump_backtrace () =
+	print_endline (Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()))
 
 module MessageSeverity = struct
 	type t =

@@ -626,11 +626,11 @@ let new_ctx con =
 		gadd_type = (fun md should_filter ->
 			if should_filter then begin
 				gen.gtypes_list <- md :: gen.gtypes_list;
-				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_statics = None; m_extra = module_extra "" "" 0. MFake [] } :: gen.gmodules;
+				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_statics = None; m_extra = module_extra "" "" 0. MFake gen.gcon.compilation_step [] } :: gen.gmodules;
 				Hashtbl.add gen.gtypes (t_path md) md;
 			end else gen.gafter_filters_ended <- (fun () ->
 				gen.gtypes_list <- md :: gen.gtypes_list;
-				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_statics = None; m_extra = module_extra "" "" 0. MFake [] } :: gen.gmodules;
+				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_statics = None; m_extra = module_extra "" "" 0. MFake gen.gcon.compilation_step [] } :: gen.gmodules;
 				Hashtbl.add gen.gtypes (t_path md) md;
 			) :: gen.gafter_filters_ended;
 		);
