@@ -442,7 +442,10 @@ let type_generic_function ctx fa fcc with_type p =
 	let gctx = make_generic ctx cf.cf_params monos (Meta.has (Meta.Custom ":debug.generic") cf.cf_meta) p in
 	let name = cf.cf_name ^ "_" ^ gctx.name in
 	let params = extract_type_parameters monos in
-	let clones = List.map (fun ttp -> clone_type_parameter gctx c.cl_module ([],name) ttp) params in
+	let clones = List.map (fun ttp ->
+		let name_path = if ttp.ttp_host = TPHMethod then ([],name) else ttp.ttp_class.cl_path in
+		clone_type_parameter gctx c.cl_module name_path ttp
+	) params in
 	let param_subst = List.map2 (fun ttp ttp' ->
 		(ttp.ttp_type,ttp')
 	) params clones in
