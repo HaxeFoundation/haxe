@@ -139,7 +139,7 @@ let s_type_param s_type ttp =
 	| Some t ->
 		Printf.sprintf "%s = %s" s (s_type t)
 	end
-		
+
 let s_access is_read = function
 	| AccNormal -> "default"
 	| AccNo -> "null"
@@ -460,7 +460,7 @@ module Printer = struct
 		| TPHEnumConstructor -> "TPHEnumConstructor"
 		| TPHAnonField -> "TPHAnonField"
 		| TPHLocal -> "TPHLocal"
-		
+
 	let s_type_param tabs ttp =
 		s_record_fields tabs [
 			"name",ttp.ttp_name;
@@ -477,7 +477,7 @@ module Printer = struct
 	let s_tclass_field_flags flags =
 		s_flags flags flag_tclass_field_names
 
-	let s_tclass_field tabs cf =
+	let rec s_tclass_field tabs cf =
 		s_record_fields tabs [
 			"cf_name",cf.cf_name;
 			"cf_doc",s_doc cf.cf_doc;
@@ -489,6 +489,7 @@ module Printer = struct
 			"cf_params",s_type_params (tabs ^ "\t") cf.cf_params;
 			"cf_expr",s_opt (s_expr_ast true "\t\t" s_type) cf.cf_expr;
 			"cf_flags",s_tclass_field_flags cf.cf_flags;
+			"cf_overloads",s_list "\n" (s_tclass_field (tabs ^ "\t")) cf.cf_overloads
 		]
 
 	let s_tclass tabs c =
