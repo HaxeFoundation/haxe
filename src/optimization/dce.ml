@@ -50,15 +50,6 @@ let push_class dce c =
 		dce.curclass <- old
 	)
 
-let find_field c name kind =
-	match kind with
-	| CfrConstructor ->
-		begin match c.cl_constructor with Some cf -> cf | None -> raise Not_found end
-	| CfrStatic ->
-		PMap.find name c.cl_statics
-	| CfrMember ->
-		PMap.find name c.cl_fields
-
 let resolve_class_field_ref ctx cfr =
 	let ctx = if cfr.cfr_is_macro && not ctx.is_macro_context then Option.get (ctx.get_macros()) else ctx in
 	let m = ctx.module_lut#find_by_type cfr.cfr_path in

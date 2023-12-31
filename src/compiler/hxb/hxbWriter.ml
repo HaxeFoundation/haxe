@@ -12,11 +12,6 @@ let c_dim = if no_color then "" else "\x1b[2m"
 let todo = "\x1b[33m[TODO]" ^ c_reset
 let todo_error = "\x1b[31m[TODO] error:" ^ c_reset
 
-type field_source =
-	| ClassStatic of tclass
-	| ClassMember of tclass
-	| CLassConstructor of tclass
-
 let rec binop_index op = match op with
 	| OpAdd -> 0
 	| OpMult -> 1
@@ -271,6 +266,7 @@ class ['a] hxb_writer
 	val own_typedefs = new pool
 
 	val type_param_lut = new pool
+	val class_fields = new identity_pool
 	val mutable type_type_parameters = new pool
 	val mutable field_type_parameters = new identity_pool
 	val mutable local_type_parameters = new identity_pool
@@ -363,8 +359,27 @@ class ['a] hxb_writer
 		let index = try tmonos#get mono with Not_found -> tmonos#add mono () in
 		chunk#write_uleb128 index;
 
-	method write_field_ref (source : field_source) (cf : tclass_field) =
-		chunk#write_string cf.cf_name
+	method write_field_ref (c : tclass) (kind : class_field_ref_kind)  (cf : tclass_field) =
+		try
+			chunk#write_uleb128 (class_fields#get cf)
+		with Not_found ->
+			let depth = if has_class_field_flag cf CfOverload then
+				0
+			else begin
+				let cf_base = find_field c cf.cf_name kind in
+				let rec loop depth cfl = match cfl with
+					| cf' :: cfl ->
+						if cf' == cf then
+							depth
+						else
+							loop (depth + 1) cfl
+					| [] ->
+						print_endline (Printf.sprintf "Could not resolve %s overload for %s on %s" (s_class_field_ref_kind kind) cf.cf_name (s_type_path c.cl_path));
+						0
+				in
+				loop 0 (cf_base :: cf_base.cf_overloads)
+			end in
+			chunk#write_uleb128 (class_fields#add cf (c,kind,depth));
 
 	method write_enum_field_ref ef =
 		chunk#write_string ef.ef_name
@@ -1087,12 +1102,12 @@ class ['a] hxb_writer
 				loop e1;
 				self#write_class_ref c;
 				self#write_types tl;
-				self#write_field_ref (ClassMember c) cf; (* TODO check source *)
+				self#write_field_ref c CfrMember cf;
 			| TField(e1,FStatic(c,cf)) ->
 				chunk#write_byte 103;
 				loop e1;
 				self#write_class_ref c;
-				self#write_field_ref (ClassMember c) cf; (* TODO check source *)
+				self#write_field_ref c CfrStatic cf;
 			| TField(e1,FAnon cf) ->
 				chunk#write_byte 104;
 				loop e1;
@@ -1102,7 +1117,7 @@ class ['a] hxb_writer
 				loop e1;
 				self#write_class_ref c;
 				self#write_types tl;
-				self#write_field_ref (ClassMember c) cf; (* TODO check source *)
+				self#write_field_ref c CfrMember cf
 			| TField(e1,FClosure(None,cf)) ->
 				chunk#write_byte 106;
 				loop e1;
@@ -1372,27 +1387,27 @@ class ['a] hxb_writer
 				c
 		in
 
-		chunk#write_list a.a_array (self#write_field_ref (ClassStatic c));
-		chunk#write_option a.a_read (self#write_field_ref (ClassStatic c));
-		chunk#write_option a.a_write (self#write_field_ref (ClassStatic c));
-		chunk#write_option a.a_call (self#write_field_ref (ClassStatic c));
+		chunk#write_list a.a_array (self#write_field_ref c CfrStatic);
+		chunk#write_option a.a_read (self#write_field_ref c CfrStatic );
+		chunk#write_option a.a_write (self#write_field_ref c CfrStatic);
+		chunk#write_option a.a_call (self#write_field_ref c CfrStatic);
 
 		chunk#write_list a.a_ops (fun (op, cf) ->
 			chunk#write_byte (binop_index op);
-			self#write_field_ref (ClassStatic c) cf
+			self#write_field_ref c CfrStatic cf
 		);
 
 		chunk#write_list a.a_unops (fun (op, flag, cf) ->
 			chunk#write_byte (unop_index op flag);
-			self#write_field_ref (ClassStatic c) cf
+			self#write_field_ref c CfrStatic cf
 		);
 
 		chunk#write_list a.a_from_field (fun (t,cf) ->
-			self#write_field_ref (ClassStatic c) cf;
+			self#write_field_ref c CfrStatic cf;
 		);
 
 		chunk#write_list a.a_to_field (fun (t,cf) ->
-			self#write_field_ref (ClassStatic c) cf;
+			self#write_field_ref c CfrStatic cf;
 		);
 
 	method write_enum (e : tenum) =
@@ -1539,16 +1554,16 @@ class ['a] hxb_writer
 					self#select_type c.cl_path;
 				end;
 
-				let write_field with_name cf =
-					if with_name then chunk#write_string cf.cf_name;
+				let write_field source cf =
+					self#write_field_ref c source cf;
 					let close = self#open_field_scope false cf in
 					self#write_class_field_data cf;
 					close();
 				in
 
-				chunk#write_option c.cl_constructor (write_field false);
-				chunk#write_list c.cl_ordered_fields (write_field true);
-				chunk#write_list c.cl_ordered_statics (write_field true);
+				chunk#write_option c.cl_constructor (write_field CfrConstructor);
+				chunk#write_list c.cl_ordered_fields (write_field CfrMember);
+				chunk#write_list c.cl_ordered_statics (write_field CfrStatic);
 				chunk#write_option c.cl_init self#write_texpr;
 			)
 		end;
@@ -1625,6 +1640,24 @@ class ['a] hxb_writer
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd td.t_path);
 			)
 		end;
+		self#start_chunk CFLR;
+		let items = class_fields#items in
+		chunk#write_uleb128 (DynArray.length items);
+		DynArray.iter (fun (cf,(c,kind,depth)) ->
+			self#write_class_ref c;
+			begin match kind with
+			| CfrStatic ->
+				chunk#write_byte 0;
+				chunk#write_string cf.cf_name
+			| CfrMember ->
+				chunk#write_byte 1;
+				chunk#write_string cf.cf_name
+			| CfrConstructor ->
+				chunk#write_byte 2;
+			end;
+			chunk#write_uleb128 depth
+		) items;
+
 		self#start_chunk HHDR;
 		self#write_path m.m_path;
 		chunk#write_string (Path.UniqueKey.lazy_path m.m_extra.m_file);

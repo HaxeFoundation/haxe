@@ -16,6 +16,7 @@ type chunk_kind =
 	| ENMR (* enum reference array *)
 	| CLSD (* class definition *)
 	| ABSD (* abstract definition *)
+	| CFLR (* class field references *)
 	| CFLD (* class fields *)
 	| AFLD (* abstract fields *)
 	| TPDD (* typedef definition *)
@@ -34,6 +35,7 @@ let string_of_chunk_kind = function
 	| ENMR -> "ENMR"
 	| CLSD -> "CLSD"
 	| ABSD -> "ABSD"
+	| CFLR -> "CFLR"
 	| CFLD -> "CFLD"
 	| AFLD -> "AFLD"
 	| TPDD -> "TPDD"
@@ -52,6 +54,7 @@ let chunk_kind_of_string = function
 	| "ENMR" -> ENMR
 	| "CLSD" -> CLSD
 	| "ABSD" -> ABSD
+	| "CFLR" -> CFLR
 	| "CFLD" -> CFLD
 	| "AFLD" -> AFLD
 	| "TPDD" -> TPDD

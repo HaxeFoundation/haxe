@@ -41,6 +41,7 @@ class hxb_reader
 	val mutable anons = Array.make 0 null_tanon
 	val mutable anon_fields = Array.make 0 null_field
 	val mutable tmonos = Array.make 0 (mk_mono())
+	val mutable class_fields = Array.make 0 null_field
 
 	val vars = Hashtbl.create 0
 	val mutable type_type_parameters = Array.make 0 (mk_type_param null_class TPHType None None)
@@ -204,14 +205,8 @@ class hxb_reader
 			prerr_endline (Printf.sprintf "[%s] %s reading typedef ref %i" (s_type_path current_module.m_path) todo_error i);
 			raise e
 
-	method read_field_ref c fields =
-		let name = self#read_string in
-		try PMap.find name fields with e ->
-			prerr_endline (Printf.sprintf "[%s]  %s reading field %s.%s" (s_type_path current_module.m_path) todo_error (s_type_path c.cl_path) name);
-			prerr_endline (Printf.sprintf "    Available fields: %s" (PMap.fold (fun f acc -> acc ^ " " ^ f.cf_name) fields ""));
-			self#print_reader_state;
-			(* print_stacktrace (); *)
-			raise e
+	method read_field_ref =
+		class_fields.(self#read_uleb128)
 
 	method read_enum_field_ref en =
 		let name = self#read_string in
@@ -1042,12 +1037,12 @@ class hxb_reader
 				let e1 = self#read_texpr in
 				let c = self#read_class_ref in
 				let tl = self#read_types in
-				let cf = self#read_field_ref c c.cl_fields in
+				let cf = self#read_field_ref in
 				TField(e1,FInstance(c,tl,cf))
 			| 103 ->
 				let e1 = self#read_texpr in
 				let c = self#read_class_ref in
-				let cf = self#read_field_ref c c.cl_statics in
+				let cf = self#read_field_ref in
 				TField(e1,FStatic(c,cf))
 			| 104 ->
 				let e1 = self#read_texpr in
@@ -1057,7 +1052,7 @@ class hxb_reader
 				let e1 = self#read_texpr in
 				let c = self#read_class_ref in
 				let tl = self#read_types in
-				let cf = self#read_field_ref c c.cl_fields in
+				let cf = self#read_field_ref in
 				TField(e1,FClosure(Some(c,tl),cf))
 			| 106 ->
 				let e1 = self#read_texpr in
@@ -1214,18 +1209,17 @@ class hxb_reader
 			List.iter set_feature (Feature.check_if_feature cf.cf_meta);
 		in
 		let _ = self#read_option (fun f ->
-			let cf = Option.get c.cl_constructor in
+			let cf = self#read_field_ref in
 			handle_feature CfrConstructor cf;
 			self#read_class_field_data false cf
 		) in
-		let f ref_kind fields =
-			let name = self#read_string in
-			let cf = PMap.find name fields in
+		let f ref_kind =
+			let cf = self#read_field_ref in
 			self#read_class_field_data false cf;
 			handle_feature ref_kind cf;
 		in
-		let _ = self#read_list (fun () -> f CfrMember c.cl_fields) in
-		let _ = self#read_list (fun () -> f CfrStatic c.cl_statics) in
+		let _ = self#read_list (fun () -> f CfrMember) in
+		let _ = self#read_list (fun () -> f CfrStatic) in
 		c.cl_init <- self#read_option (fun () -> self#read_texpr);
 		(match c.cl_kind with KModuleFields md -> md.m_statics <- Some c; | _ -> ());
 
@@ -1304,29 +1298,27 @@ class hxb_reader
 		a.a_enum <- self#read_bool;
 
 	method read_abstract_fields (a : tabstract) =
-		let impl = match a.a_impl with None -> null_class | Some c -> c in
-
-		a.a_array <- self#read_list (fun () -> self#read_field_ref impl impl.cl_statics);
-		a.a_read <- self#read_option (fun () -> self#read_field_ref impl impl.cl_statics);
-		a.a_write <- self#read_option (fun () -> self#read_field_ref impl impl.cl_statics);
-		a.a_call <- self#read_option (fun () -> self#read_field_ref impl impl.cl_statics);
+		a.a_array <- self#read_list (fun () -> self#read_field_ref);
+		a.a_read <- self#read_option (fun () -> self#read_field_ref);
+		a.a_write <- self#read_option (fun () -> self#read_field_ref);
+		a.a_call <- self#read_option (fun () -> self#read_field_ref);
 
 		a.a_ops <- self#read_list (fun () ->
 			let i = IO.read_byte ch in
 			let op = self#get_binop i in
-			let cf = self#read_field_ref impl impl.cl_statics in
+			let cf = self#read_field_ref in
 			(op, cf)
 		);
 
 		a.a_unops <- self#read_list (fun () ->
 			let i = IO.read_byte ch in
 			let (op, flag) = self#get_unop i in
-			let cf = self#read_field_ref impl impl.cl_statics in
+			let cf = self#read_field_ref in
 			(op, flag, cf)
 		);
 
 		a.a_from_field <- self#read_list (fun () ->
-			let cf = self#read_field_ref impl impl.cl_statics in
+			let cf = self#read_field_ref in
 			let t = match cf.cf_type with
 				| TFun((_,_,t) :: _, _) -> t
 				| _ -> die "" __LOC__
@@ -1335,7 +1327,7 @@ class hxb_reader
 		);
 
 		a.a_to_field <- self#read_list (fun () ->
-			let cf = self#read_field_ref impl impl.cl_statics in
+			let cf = self#read_field_ref in
 			let t = match cf.cf_type with
 				| TFun(_, t) -> t
 				| _ -> die "" __LOC__
@@ -1373,6 +1365,48 @@ class hxb_reader
 		(* prerr_endline (Printf.sprintf "%s check crc (%d)" todo (Int32.to_int crc)); *)
 		let kind = chunk_kind_of_string name in
 		(kind,data)
+
+	method read_cflr =
+		let l = self#read_uleb128 in
+		let a = Array.init l (fun i ->
+			let c = self#read_class_ref in
+			ignore(c.cl_build());
+			let cf =  match self#read_u8 with
+				| 0 ->
+					let name = self#read_string in
+					begin try
+						PMap.find name c.cl_statics
+					with Not_found ->
+						raise (HxbFailure (Printf.sprintf "Could not read static field %s on %s while hxbing %s" name (s_type_path c.cl_path) (s_type_path current_module.m_path)))
+					end;
+				| 1 ->
+					let name = self#read_string in
+					begin try
+						PMap.find name c.cl_fields
+					with Not_found ->
+						raise (HxbFailure (Printf.sprintf "Could not read instance field %s on %s while hxbing %s" name (s_type_path c.cl_path) (s_type_path current_module.m_path)))
+					end
+				| 2 ->
+					Option.get c.cl_constructor
+				| _ ->
+					die "" __LOC__
+			in
+			let depth = self#read_uleb128 in
+			let pick_overload cf depth =
+				let rec loop depth cfl = match cfl with
+					| cf :: cfl ->
+						if depth = 0 then
+							cf
+						else
+							loop (depth - 1) cfl
+					| [] ->
+						raise (HxbFailure (Printf.sprintf "Bad overload depth for %s on %s: %i" cf.cf_name (s_type_path c.cl_path) depth))
+				in
+				loop depth (cf :: cf.cf_overloads)
+			in
+			pick_overload cf depth;
+		) in
+		class_fields <- a
 
 	method read_cfld =
 		let l = self#read_uleb128 in
@@ -1617,12 +1651,14 @@ class hxb_reader
 			| ABSD ->
 				self#read_absd;
 				loop()
-			| CFLD ->
+			| CFLR ->
 				api#flush_fields ();
+				self#read_cflr;
+				loop();
+			| CFLD ->
 				self#read_cfld;
 				loop()
 			| AFLD ->
-				api#flush_fields ();
 				self#read_afld;
 				loop()
 			| TPDD ->

@@ -198,6 +198,15 @@ let mk_field name ?(public = true) ?(static = false) t p name_pos = {
 	);
 }
 
+let find_field c name kind =
+	match kind with
+	| CfrConstructor ->
+		begin match c.cl_constructor with Some cf -> cf | None -> raise Not_found end
+	| CfrStatic ->
+		PMap.find name c.cl_statics
+	| CfrMember ->
+		PMap.find name c.cl_fields
+
 let null_module = {
 	m_id = alloc_mid();
 	m_path = [] , "";
