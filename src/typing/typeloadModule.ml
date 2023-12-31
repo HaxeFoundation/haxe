@@ -152,12 +152,11 @@ module ModuleLevel = struct
 					t_meta = d.d_meta;
 				} in
 				(* failsafe in case the typedef is not initialized (see #3933) *)
-				(* HXB_TODO: Investigate the problem here. It might come from a flush_fields in hxbReader. *)
-				(* delay ctx PBuildModule (fun () ->
+				delay ctx PBuildModule (fun () ->
 					match t.t_type with
 					| TMono r -> (match r.tm_type with None -> Monomorph.bind r com.basic.tvoid | _ -> ())
 					| _ -> ()
-				); *)
+				);
 				decls := (TTypeDecl t, decl) :: !decls;
 				acc
 			| EAbstract d ->
@@ -796,9 +795,6 @@ class hxb_reader_api_typeload
 	method resolve_type (pack : string list) (mname : string) (tname : string) =
 		let m = load_module ctx (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
-
-	method flush_fields () =
-		flush_pass ctx PConnectField "hxb"
 end
 
 let rec get_reader ctx p =

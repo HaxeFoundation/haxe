@@ -129,11 +129,6 @@ class hxb_reader_api_com
 		let m = self#find_module path in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 
-	method flush_fields () =
-		(* TODO: We don't have a typer, so we cannot flush anything. The hxb reader shouldn't read
-		   any tables that require this. *)
-		()
-
 	method find_module (m_path : path) =
 		try
 			com.module_lut#find m_path

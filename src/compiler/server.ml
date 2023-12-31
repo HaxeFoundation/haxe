@@ -421,9 +421,6 @@ class hxb_reader_api_server
 		in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 
-	method flush_fields () =
-		Typecore.flush_pass ctx PConnectField "hxb"
-
 	method find_module (m_path : path) =
 		try
 			GoodModule (ctx.com.module_lut#find m_path)

@@ -1652,7 +1652,6 @@ class hxb_reader
 				self#read_absd;
 				loop()
 			| CFLR ->
-				api#flush_fields ();
 				self#read_cflr;
 				loop();
 			| CFLD ->
