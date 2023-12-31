@@ -670,8 +670,8 @@ module HighLevel = struct
 				in
 				let code = match ctx with
 					| Some ctx ->
-						if not did_hxb && server_mode == SMNone && not !has_display && args = [] then
-							Define.raw_define ctx.com.defines "hxb.roundtrip";
+						(* if not did_hxb && server_mode == SMNone && not !has_display && args = [] then
+							Define.raw_define ctx.com.defines "hxb.roundtrip"; *)
 						(* Need chdir here because --cwd is eagerly applied in process_params *)
 						Unix.chdir curdir;
 						execute_ctx server_api ctx server_mode
