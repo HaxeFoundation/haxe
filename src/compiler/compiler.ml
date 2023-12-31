@@ -689,6 +689,7 @@ module HighLevel = struct
 			with ServerCompilationContext.HxbRoundtrip ->
 				(* print_endline "Caught HxbRoundtrip, recursing"; *)
 				each_args := current_each;
+				Unix.chdir curdir;
 				loop args0 true
 			end
 		in
