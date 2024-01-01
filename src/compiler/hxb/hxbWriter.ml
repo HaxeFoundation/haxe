@@ -398,6 +398,7 @@ class ['a] hxb_writer
 			chunk#write_uleb128 (class_fields#add cf (c,kind,depth));
 
 	method write_enum_field_ref (en : tenum) (ef : tenum_field) =
+		ignore(enums#get_or_add en.e_path en);
 		let key = (en.e_path,ef.ef_name) in
 		try
 			chunk#write_uleb128 (enum_fields#get key)
