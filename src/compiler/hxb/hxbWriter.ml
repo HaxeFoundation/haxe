@@ -278,7 +278,6 @@ class ['a] hxb_writer
 	(* Chunks *)
 
 	method start_chunk (kind : chunk_kind) =
-		(* debug_msg (Printf.sprintf "Writing chunk %s" (string_of_chunk_kind kind)); *)
 		let new_chunk = new chunk kind cp in
 		DynArray.add chunks new_chunk;
 		chunk <- new_chunk
@@ -312,11 +311,9 @@ class ['a] hxb_writer
 		);
 
 	method write_pos (p : pos) =
-		(* let t = Timer.timer ["server";"cache context";"write module";"write pos"] in *)
 		chunk#write_string p.pfile;
 		chunk#write_leb128 p.pmin;
 		chunk#write_leb128 p.pmax;
-		(* t() *)
 
 	method write_metadata_entry ((meta,el,p) : metadata_entry) =
 		chunk#write_string (Meta.to_string meta);
@@ -330,12 +327,10 @@ class ['a] hxb_writer
 
 	method write_class_ref (c : tclass) =
 		let i = classes#get_or_add c.cl_path c in
-		(* debug_msg (Printf.sprintf "  Write class ref %d for %s" i (snd c.cl_path)); *)
 		chunk#write_uleb128 i
 
 	method write_enum_ref (en : tenum) =
 		let i = enums#get_or_add en.e_path en in
-		(* debug_msg (Printf.sprintf "  Write enum ref %d for %s" i (snd en.e_path)); *)
 		chunk#write_uleb128 i
 
 	method write_typedef_ref (td : tdef) =
@@ -344,7 +339,6 @@ class ['a] hxb_writer
 
 	method write_abstract_ref (a : tabstract) =
 		let i = abstracts#get_or_add a.a_path a in
-		(* debug_msg (Printf.sprintf "  Write abstract ref %d for %s" i (snd a.a_path)); *)
 		chunk#write_uleb128 i
 
 	method write_anon_ref (an : tanon) (ttp : type_params) =
@@ -421,13 +415,6 @@ class ['a] hxb_writer
 
 	(* Type instances *)
 
-	method write_type_parameter_ref_debug (ttp : typed_type_param)  =
-			(try self#write_type_parameter_ref ttp with e ->
-				(* TODO: handle unbound type parameters? *)
-				chunk#write_byte 40; (* TDynamic None *)
-				(* raise e *)
-			)
-
 	val warn_strings = Hashtbl.create 0
 
 	method write_type_parameter_ref (ttp : typed_type_param) =
@@ -442,7 +429,6 @@ class ['a] hxb_writer
 				chunk#write_byte 6;
 				chunk#write_uleb128 i
 			| TPHLocal ->
-				(* trace (s_type_path c.cl_path); *)
 				let index = local_type_parameters#get ttp in
 				chunk#write_byte 7;
 				chunk#write_uleb128 index;
@@ -452,21 +438,15 @@ class ['a] hxb_writer
 				Hashtbl.add warn_strings msg ();
 				prerr_endline msg;
 			end;
-			(* DynArray.iter (fun ttp -> debug_msg (Printf.sprintf "FTP %s %s" ttp.ttp_name (s_type_kind ttp.ttp_type)) field_type_parameters#items); *)
-			(* DynArray.iter (fun ttp -> debug_msg (Printf.sprintf "TTP %s %s" ttp.ttp_name (s_type_kind ttp.ttp_type)) type_type_parameters#items); *)
-			(* print_stacktrace (); *)
-			raise Exit
+			(* TODO: handle unbound type parameters? *)
+			chunk#write_byte 40; (* TDynamic None *)
 		end
 
-	method write_type_instance ?(debug:bool = false) t =
-		let debug_trace = (fun _ -> ()) in
-		(* let debug_trace = if debug then (fun s -> trace s) else (fun _ -> ()) in *)
-		ignore(debug_trace);
-
+	method write_type_instance t =
 		let write_function_arg (n,o,t) =
 			chunk#write_string n;
 			chunk#write_bool o;
-			self#write_type_instance ~debug t;
+			self#write_type_instance t;
 		in
 		match t with
 		| TMono r ->
@@ -477,11 +457,10 @@ class ['a] hxb_writer
 				self#write_tmono_ref r
 			| Some t ->
 				(* Don't write bound monomorphs, write underlying type directly *)
-				self#write_type_instance ~debug t
+				self#write_type_instance t
 			end
 		| TInst({cl_kind = KTypeParameter ttp},[]) ->
-			(* debug_msg (Printf.sprintf "[%s] KTypeParameter for %s" (s_type_path current_module.m_path) (s_type_path c.cl_path)); *)
-			self#write_type_parameter_ref_debug ttp
+			self#write_type_parameter_ref ttp
 		| TInst({cl_kind = KExpr e},[]) ->
 			chunk#write_byte 8;
 			self#write_expr e;
@@ -541,15 +520,15 @@ class ['a] hxb_writer
 		| TFun(args,t) ->
 			chunk#write_byte 32;
 			chunk#write_list args write_function_arg;
-			self#write_type_instance ~debug t;
+			self#write_type_instance t;
 		| TLazy r ->
 			chunk#write_byte 33;
-			self#write_type_instance ~debug (lazy_type r);
+			self#write_type_instance (lazy_type r);
 		| TDynamic None ->
 			chunk#write_byte 40
 		| TDynamic (Some t) ->
 			chunk#write_byte 41;
-			self#write_type_instance ~debug t;
+			self#write_type_instance t;
 		| TAnon an when PMap.is_empty an.a_fields ->
 			chunk#write_byte 50;
 			chunk#write_bool true
@@ -914,22 +893,10 @@ class ['a] hxb_writer
 		self#write_metadata v.v_meta;
 		self#write_pos v.v_pos
 
-	method write_type_instance_debug (t : TType.t) (pos : pos) =
-		(try self#write_type_instance ~debug:true t; with _ -> begin
-			prerr_endline (Printf.sprintf "Error while writing type instance for:");
-			display_source_at pos;
-		end);
-
 	method write_texpr (e : texpr) =
 		let rec loop ?(debug:bool = false) e =
-			self#write_type_instance_debug e.etype e.epos;
+			self#write_type_instance e.etype;
 			self#write_pos e.epos;
-
-			(* trace (Printer.s_pos e.epos); *)
-			(* if (Printer.s_pos e.epos = "src/alchimix/core/GameSolver.hx: 5047-5070") then begin *)
-			(* 	trace (Printer.s_pos e.epos); *)
-			(* 	trace (s_expr_debug e); *)
-			(* end; *)
 
 			match e.eexpr with
 			(* values 0-19 *)
@@ -997,8 +964,7 @@ class ['a] hxb_writer
 					self#write_var v;
 					chunk#write_option eo loop;
 				);
-				(* self#write_type_instance tf.tf_type; *)
-				self#write_type_instance_debug tf.tf_type e.epos;
+				self#write_type_instance tf.tf_type;
 				loop tf.tf_expr;
 			(* texpr compounds 60-79 *)
 			| TArray(e1,e2) ->
@@ -1081,7 +1047,6 @@ class ['a] hxb_writer
 			| TEnumIndex e1 ->
 				chunk#write_byte 100;
 				loop e1;
-			(* | TEnumParameter(e1,({ ef_type = TEnum(en,_) | TFun(_, TEnum(en,_)) } as ef),i) -> *)
 			| TEnumParameter(e1,ef,i) ->
 				chunk#write_byte 101;
 				loop e1;
@@ -1133,7 +1098,7 @@ class ['a] hxb_writer
 			(* module types 120-139 *)
 			| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter ttp})) ->
 				chunk#write_byte 128;
-				self#write_type_parameter_ref_debug ttp
+				self#write_type_parameter_ref ttp
 			| TTypeExpr (TClassDecl c) ->
 				chunk#write_byte 120;
 				self#write_class_ref c;
@@ -1157,7 +1122,7 @@ class ['a] hxb_writer
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd infos.mt_path);
 			| TNew(({cl_kind = KTypeParameter ttp}),tl,el) ->
 				chunk#write_byte 127;
-				self#write_type_parameter_ref_debug ttp;
+				self#write_type_parameter_ref ttp;
 				self#write_types tl;
 				loop_el el;
 			| TNew(c,tl,el) ->
@@ -1203,7 +1168,6 @@ class ['a] hxb_writer
 			self#write_types tl2;
 			chunk#write_option ttp.ttp_default self#write_type_instance
 		| _ ->
-			(* trace (s_type_kind ttp.ttp_type); *)
 			die "" __LOC__
 
 	method write_field_kind = function
@@ -1265,11 +1229,9 @@ class ['a] hxb_writer
 
 	method write_class_field_data cf =
 		let restore = self#start_temporary_chunk in
-		(* if (snd current_module.m_path) = "Main" then *)
-		(* 	debug_msg (Printf.sprintf " (1) Write class field %s" cf.cf_name); *)
 		(try self#write_type_instance cf.cf_type with e -> begin
 			prerr_endline (Printf.sprintf "%s while writing type instance for field %s" todo_error cf.cf_name);
-			(* raise e *)
+			raise e
 		end);
 		chunk#write_i32 cf.cf_flags;
 		chunk#write_option cf.cf_doc self#write_documentation;
@@ -1278,7 +1240,7 @@ class ['a] hxb_writer
 		(try chunk#write_option cf.cf_expr self#write_texpr with e -> begin
 			prerr_endline (Printf.sprintf "%s while writing expr for field %s" todo_error cf.cf_name);
 			display_source_at cf.cf_pos;
-			(* raise e *)
+			raise e
 		end);
 		chunk#write_option cf.cf_expr_unoptimized self#write_texpr;
 		chunk#write_list cf.cf_overloads (fun f ->
@@ -1298,11 +1260,9 @@ class ['a] hxb_writer
 	(* Module types *)
 
 	method select_type (path : path) =
-		(* debug_msg (Printf.sprintf "Select type %s" (s_type_path path)); *)
 		type_type_parameters <- type_param_lut#extract path
 
 	method write_common_module_type (infos : tinfos) : unit =
-		(* self#write_path infos.mt_path; *)
 		chunk#write_bool infos.mt_private;
 		chunk#write_option infos.mt_doc self#write_documentation;
 		self#write_metadata infos.mt_meta;
@@ -1317,9 +1277,6 @@ class ['a] hxb_writer
 		| KNormal ->
 			chunk#write_byte 0
 		| KTypeParameter ttp ->
-			(* chunk#write_byte 1; *)
-			(* let tl = get_constraints ttp in *)
-			(* self#write_types tl; *)
 			die "TODO" __LOC__
 		| KExpr e ->
 			chunk#write_byte 2;
@@ -1344,13 +1301,10 @@ class ['a] hxb_writer
 	method write_class (c : tclass) =
 		begin match c.cl_kind with
 		| KAbstractImpl a ->
-			(* debug_msg (Printf.sprintf "Write abstract impl %s with %d type params" (snd c.cl_path) (List.length a.a_params)); *)
 			self#select_type a.a_path
 		| _ ->
 			self#select_type c.cl_path;
 		end;
-		(* if (snd current_module.m_path) = "Bar_String" then *)
-		(* debug_msg (Printf.sprintf "[%s] Write class %s with %d type params" (s_type_path current_module.m_path) (snd c.cl_path) (List.length c.cl_params)); *)
 		self#write_common_module_type (Obj.magic c);
 		self#write_class_kind c.cl_kind;
 		chunk#write_u32 (Int32.of_int c.cl_flags);
@@ -1474,9 +1428,7 @@ class ['a] hxb_writer
 		in
 
 		let infos = t_infos mt in
-		(* debug_msg (Printf.sprintf "Forward declare type %s" (s_type_path infos.mt_path)); *)
 		chunk#write_byte i;
-		(* self#write_path infos.mt_path; *)
 		self#write_full_path (fst infos.mt_path) (snd infos.mt_path) !name;
 		self#write_pos infos.mt_pos;
 		self#write_pos infos.mt_name_pos;
@@ -1495,7 +1447,6 @@ class ['a] hxb_writer
 			chunk#write_list c.cl_ordered_statics self#write_class_field_forward;
 		| TEnumDecl e ->
 			chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
-				(* debug_msg (Printf.sprintf "  forward declare enum field %s.%s" (s_type_path e.e_path) s); *)
 				chunk#write_string s;
 				self#write_pos ef.ef_pos;
 				self#write_pos ef.ef_name_pos;
@@ -1513,10 +1464,6 @@ class ['a] hxb_writer
 
 		self#start_chunk TYPF;
 		chunk#write_list m.m_types self#forward_declare_type;
-
-		(* if (snd current_module.m_path) = "Issue3090" then *)
-		(* debug_msg (Printf.sprintf "Write module %s with %d own classes, %d own abstracts, %d own enums, %d own typedefs" *)
-		(* 	(snd m.m_path) (List.length own_classes#to_list) (List.length own_abstracts#to_list) (List.length own_enums#to_list) (List.length own_typedefs#to_list)); *)
 
 		begin match own_abstracts#to_list with
 		| [] ->
@@ -1564,7 +1511,6 @@ class ['a] hxb_writer
 			chunk#write_list own_enums (fun e ->
 				chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
 					self#select_type e.e_path;
-					(* debug_msg (Printf.sprintf "  Write enum field %s.%s" (s_type_path e.e_path) s); *)
 					chunk#write_string s;
 					self#set_field_type_parameters false ef.ef_params;
 					chunk#write_list ef.ef_params self#write_type_parameter_forward;
@@ -1590,7 +1536,6 @@ class ['a] hxb_writer
 			self#start_chunk CLSR;
 			chunk#write_list l (fun c ->
 				let m = c.cl_module in
-				(* debug_msg (Printf.sprintf "  [cls] Write full path %s" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd c.cl_path)]))); *)
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd c.cl_path);
 			)
 		end;
@@ -1601,7 +1546,6 @@ class ['a] hxb_writer
 			self#start_chunk ABSR;
 			chunk#write_list l (fun a ->
 				let m = a.a_module in
-				(* debug_msg (Printf.sprintf "  [abs] Write full path %s" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd a.a_path)]))); *)
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd a.a_path);
 			)
 		end;
@@ -1612,7 +1556,6 @@ class ['a] hxb_writer
 			self#start_chunk ENMR;
 			chunk#write_list l (fun en ->
 				let m = en.e_module in
-				(* debug_msg (Printf.sprintf "  [enm] Write full path %s" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd en.e_path)]))); *)
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd en.e_path);
 			)
 		end;
@@ -1623,7 +1566,6 @@ class ['a] hxb_writer
 			self#start_chunk TPDR;
 			chunk#write_list l (fun td ->
 				let m = td.t_module in
-				(* debug_msg (Printf.sprintf "  [tpdr] Write full path %s" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd td.t_path)]))); *)
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd td.t_path);
 			)
 		end;
