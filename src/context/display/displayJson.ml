@@ -322,8 +322,8 @@ let handler =
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let cc = hctx.display#get_cs#get_context sign in
 			let l = Hashtbl.fold (fun _ m acc ->
-				if m.m_extra.m_kind <> MFake then jstring (s_type_path m.m_path) :: acc else acc
-			) cc#get_modules [] in
+				if m.mc_extra.m_kind <> MFake then jstring (s_type_path m.mc_path) :: acc else acc
+			) cc#get_hxb [] in
 			hctx.send_result (jarray l)
 		);
 		"server/module", (fun hctx ->
