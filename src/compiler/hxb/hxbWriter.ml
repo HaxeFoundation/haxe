@@ -389,7 +389,7 @@ class ['a] hxb_writer
 						try
 							Hashtbl.find instance_overload_cache key
 						with Not_found ->
-							let l = get_instance_overloads c cf_base in
+							let l = get_instance_overloads c cf_base.cf_name in
 							Hashtbl.add instance_overload_cache key l;
 							l
 				in

@@ -1405,7 +1405,7 @@ class hxb_reader
 						try
 							Hashtbl.find instance_overload_cache key
 						with Not_found ->
-							let l = get_instance_overloads c cf in
+							let l = get_instance_overloads c cf.cf_name in
 							Hashtbl.add instance_overload_cache key l;
 							l
 				in
