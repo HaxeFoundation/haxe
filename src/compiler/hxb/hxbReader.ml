@@ -13,13 +13,13 @@ let todo = "\x1b[33m[TODO]" ^ c_reset
 let todo_error = "\x1b[31m[TODO] error:" ^ c_reset
 
 let debug_msg msg =
-	prerr_endline msg
+	print_endline msg
 
 let print_stacktrace () =
 	let stack = Printexc.get_callstack 10 in
 	let lines = Printf.sprintf "%s\n" (Printexc.raw_backtrace_to_string stack) in
 	match (ExtString.String.split_on_char '\n' lines) with
-		| (_ :: (_ :: lines)) -> prerr_endline (Printf.sprintf "%s" (ExtString.String.join "\n" lines))
+		| (_ :: (_ :: lines)) -> print_endline (Printf.sprintf "%s" (ExtString.String.join "\n" lines))
 		| _ -> die "" __LOC__
 
 type field_reader_context = {
@@ -69,9 +69,9 @@ class hxb_reader
 			error (Printf.sprintf "Cannot resolve type %s" (s_type_path ((pack @ [mname]),tname)))
 
 	method print_reader_state =
-		prerr_endline (Printf.sprintf "  Current field: %s" current_field.cf_name);
-		Option.may (fun tinfos -> prerr_endline (Printf.sprintf "  Current type: %s" (s_type_path tinfos.mt_path))) current_type;
-		Option.may (fun e -> prerr_endline (Printf.sprintf "  Last texpr: %s" (TPrinting.s_expr_debug e))) last_texpr
+		print_endline (Printf.sprintf "  Current field: %s" current_field.cf_name);
+		Option.may (fun tinfos -> print_endline (Printf.sprintf "  Current type: %s" (s_type_path tinfos.mt_path))) current_type;
+		Option.may (fun e -> print_endline (Printf.sprintf "  Last texpr: %s" (TPrinting.s_expr_debug e))) last_texpr
 
 	(* Primitives *)
 
@@ -114,10 +114,7 @@ class hxb_reader
 		self#read_u8 <> 0
 
 	method read_from_string_pool pool =
-		let l = self#read_uleb128 in
-		try pool.(l) with e ->
-			prerr_endline (Printf.sprintf "  Failed getting string #%d" l);
-			raise e
+		pool.(self#read_uleb128)
 
 	method read_string =
 		self#read_from_string_pool string_pool
@@ -149,7 +146,6 @@ class hxb_reader
 		let pack = self#read_list (fun () -> self#read_string) in
 		let mname = self#read_string in
 		let tname = self#read_string in
-		(* prerr_endline (Printf.sprintf "    Read full path %s" (ExtString.String.join "." (pack @ [mname; tname]))); *)
 		(pack,mname,tname)
 
 	method read_documentation =
@@ -170,8 +166,6 @@ class hxb_reader
 			pmin = min;
 			pmax = max;
 		} in
-		(* prerr_endline (Printf.sprintf "Read pos: %s" (Printer.s_pos pos)); *)
-		(* MessageReporting.display_source_at com pos; *)
 		pos
 
 	method read_metadata_entry : metadata_entry =
@@ -186,28 +180,16 @@ class hxb_reader
 	(* References *)
 
 	method read_class_ref =
-		let i = self#read_uleb128 in
-		try classes.(i) with e ->
-			prerr_endline (Printf.sprintf "[%s] %s reading class ref %i" (s_type_path current_module.m_path) todo_error i);
-			raise e
+		classes.(self#read_uleb128)
 
 	method read_abstract_ref =
-		let i = self#read_uleb128 in
-		try abstracts.(i) with e ->
-			prerr_endline (Printf.sprintf "[%s] %s reading abstract ref %i" (s_type_path current_module.m_path) todo_error i);
-			raise e
+		abstracts.(self#read_uleb128)
 
 	method read_enum_ref =
-		let i = self#read_uleb128 in
-		try enums.(i) with e ->
-			prerr_endline (Printf.sprintf "[%s] %s reading enum ref %i" (s_type_path current_module.m_path) todo_error i);
-			raise e
+		enums.(self#read_uleb128)
 
 	method read_typedef_ref =
-		let i = self#read_uleb128 in
-		try typedefs.(i) with e ->
-			prerr_endline (Printf.sprintf "[%s] %s reading typedef ref %i" (s_type_path current_module.m_path) todo_error i);
-			raise e
+		typedefs.(self#read_uleb128)
 
 	method read_field_ref =
 		class_fields.(self#read_uleb128)
@@ -218,19 +200,9 @@ class hxb_reader
 	method read_anon_ref =
 		match IO.read_byte ch with
 		| 0 ->
-			let index = self#read_uleb128 in
-			(try anons.(index) with e ->
-				prerr_endline (Printf.sprintf "[%s] %s reading anon (0) ref %i" (s_type_path current_module.m_path) todo_error index);
-				prerr_endline (Printexc.to_string e);
-				raise e
-			)
+			anons.(self#read_uleb128)
 		| 1 ->
-			let index = self#read_uleb128 in
-			let an = (try anons.(index) with e ->
-				prerr_endline (Printf.sprintf "[%s] %s reading anon (1) ref %i" (s_type_path current_module.m_path) todo_error index);
-				prerr_endline (Printexc.to_string e);
-				raise e
-			) in
+			let an = anons.(self#read_uleb128) in
 			self#read_anon an
 		| _ ->
 			assert false
@@ -238,21 +210,11 @@ class hxb_reader
 	method read_anon_field_ref =
 		match IO.read_byte ch with
 		| 0 ->
-			let index = self#read_uleb128 in
-			(try anon_fields.(index) with e ->
-				prerr_endline (Printf.sprintf "[%s] %s reading anon field (0) ref %i" (s_type_path current_module.m_path) todo_error index);
-				raise e
-			)
+			anon_fields.(self#read_uleb128)
 		| 1 ->
-			let index = self#read_uleb128 in
-			(try begin
-				let cf = anon_fields.(index) in
-				self#read_class_field_data true cf;
-				cf
-			end with e ->
-				prerr_endline (Printf.sprintf "[%s] %s reading anon field (1) ref %i" (s_type_path current_module.m_path) todo_error index);
-				raise e
-			)
+			let cf = anon_fields.(self#read_uleb128) in
+			self#read_class_field_data true cf;
+			cf
 		| _ ->
 			assert false
 
@@ -654,7 +616,6 @@ class hxb_reader
 
 	method read_type_instance =
 		let kind = self#read_u8 in
-		(* prerr_endline (Printf.sprintf "   Read type instance %d" kind); *)
 
 		match kind with
 		| 0 ->
@@ -709,7 +670,6 @@ class hxb_reader
 		| 31 ->
 			let f () =
 				let name = self#read_string in
-				(* prerr_endline (Printf.sprintf "  Read type instance for %s" name); *)
 				let opt = self#read_bool in
 				let t = self#read_type_instance in
 				(name,opt,t)
@@ -719,19 +679,15 @@ class hxb_reader
 		| 32 ->
 			let f () =
 				let name = self#read_string in
-				(* prerr_endline (Printf.sprintf "  Read type instance for %s" name); *)
 				let opt = self#read_bool in
 				let t = self#read_type_instance in
 				(name,opt,t)
 			in
 			let args = self#read_list f in
-			(* prerr_endline (Printf.sprintf "  Read type instance for TFun"); *)
 			let ret = self#read_type_instance in
 			TFun(args,ret)
 		| 33 ->
-			let t = self#read_type_instance in
-			(* TLazy (ref (LAvailable t)) *)
-			t
+			self#read_type_instance
 		| 40 ->
 			t_dynamic
 		| 41 ->
@@ -1122,9 +1078,7 @@ class hxb_reader
 						TIdent (self#read_string)
 
 					| i ->
-						prerr_endline (Printf.sprintf "  [ERROR] Unhandled texpr %d at:" i);
-						(* MessageReporting.display_source_at com pos; *)
-						assert false
+						die (Printf.sprintf "  [ERROR] Unhandled texpr %d at:" i) __LOC__
 				in
 				let e = loop2 () in
 				let e = {
@@ -1209,8 +1163,6 @@ class hxb_reader
 		| _ ->
 			type_type_parameters <- Array.of_list c.cl_params
 		end;
-		(* prerr_endline (Printf.sprintf "  read class fields with type parameters for %s: %d" (s_type_path c.cl_path) (Array.length type_type_parameters); *)
-		(* prerr_endline (Printf.sprintf "    own class params: %d" (List.length c.cl_params); *)
 		let cl_if_feature = Feature.check_if_feature c.cl_meta in
 		let handle_feature ref_kind cf =
 			let set_feature s =
@@ -1376,7 +1328,6 @@ class hxb_reader
 
 	method read_string_pool =
 		let l = self#read_uleb128 in
-		(* prerr_endline (Printf.sprintf "  Read string pool of size %d" l); *)
 		Array.init l (fun i ->
 			self#read_raw_string;
 		);
@@ -1387,7 +1338,6 @@ class hxb_reader
 		let data = IO.nread ch size in
 		let crc = self#read_u32 in
 		ignore(crc); (* TODO *)
-		(* prerr_endline (Printf.sprintf "%s check crc (%d)" todo (Int32.to_int crc)); *)
 		let kind = chunk_kind_of_string name in
 		(kind,data)
 
@@ -1610,7 +1560,6 @@ class hxb_reader
 				c.cl_constructor <- self#read_option read_field;
 				c.cl_ordered_fields <- self#read_list read_field;
 				c.cl_ordered_statics <- self#read_list read_field;
-				(* prerr_endline (Printf.sprintf "  Forward declare %s with %d fields, %d statics\n" (s_type_path path) (List.length c.cl_ordered_fields) (List.length c.cl_ordered_statics)); *)
 				List.iter (fun cf -> c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields) c.cl_ordered_fields;
 				List.iter (fun cf -> c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics) c.cl_ordered_statics;
 
@@ -1652,7 +1601,6 @@ class hxb_reader
 	method read_hhdr =
 		let path = self#read_path in
 		let file = self#read_string in
-		(* prerr_endline (Printf.sprintf "Read hxb module %s" (s_type_path path)); *)
 
 		let l = self#read_uleb128 in
 		anons <- Array.init l (fun _ -> { a_fields = PMap.empty; a_status = ref Closed });
