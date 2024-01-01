@@ -1161,14 +1161,11 @@ class ['a] hxb_writer
 		self#write_path ttp.ttp_class.cl_path;
 		self#write_pos ttp.ttp_class.cl_name_pos
 
-	method write_type_parameter_data ttp = match follow_lazy ttp.ttp_type with
-		| TInst({cl_kind = KTypeParameter ttp} as c,tl2) ->
-			self#write_metadata c.cl_meta;
-			self#write_types (get_constraints ttp);
-			self#write_types tl2;
-			chunk#write_option ttp.ttp_default self#write_type_instance
-		| _ ->
-			die "" __LOC__
+	method write_type_parameter_data ttp =
+		let c = ttp.ttp_class in
+		self#write_metadata c.cl_meta;
+		self#write_types (get_constraints ttp);
+		chunk#write_option ttp.ttp_default self#write_type_instance
 
 	method write_field_kind = function
 		| Method MethNormal -> chunk#write_byte 0;

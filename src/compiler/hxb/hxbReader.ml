@@ -757,16 +757,14 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		for i = 0 to l - 1 do
 			let meta = self#read_metadata in
-			let tl1 = self#read_types in
-			let tl2 = self#read_types in
+			let constraints = self#read_types in
 			let def = self#read_option (fun () -> self#read_type_instance) in
 
 			let ttp = a.(i) in
 			let c = ttp.ttp_class in
 			let ttp = a.(i) in
-			ttp.ttp_type <- (TInst(c,tl2));
 			ttp.ttp_default <- def;
-			ttp.ttp_constraints <- Some (Lazy.from_val tl1);
+			ttp.ttp_constraints <- Some (Lazy.from_val constraints);
 			c.cl_meta <- meta;
 			c.cl_kind <- KTypeParameter ttp
 		done;
