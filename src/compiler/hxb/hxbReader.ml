@@ -808,21 +808,6 @@ class hxb_reader
 		| i ->
 			error (Printf.sprintf "Bad field kind: %i" i)
 
-	method read_tfunction_arg =
-		let v = self#read_var in
-		let cto = self#read_option (fun () -> self#read_texpr) in
-		(v,cto)
-
-	method read_tfunction =
-		let args = self#read_list (fun () -> self#read_tfunction_arg) in
-		let r = self#read_type_instance in
-		let e = self#read_texpr in
-		{
-			tf_args = args;
-			tf_type = r;
-			tf_expr = e;
-		}
-
 	method read_var_kind =
 		match IO.read_byte ch with
 			| 0 -> VUser TVOLocalVariable
@@ -871,244 +856,269 @@ class hxb_reader
 		v
 
 	method read_texpr =
-		let t = self#read_type_instance in
-		let pos = self#read_pos in
+		let pos = ref self#read_pos in
+		let rec loop () =
+			let t = self#read_type_instance in
+			let rec loop2 () =
+				match IO.read_byte ch with
+					(* values 0-19 *)
+					| 0 -> TConst TNull
+					| 1 -> TConst TThis
+					| 2 -> TConst TSuper
+					| 3 -> TConst (TBool false)
+					| 4 -> TConst (TBool true)
+					| 5 -> TConst (TInt (IO.read_real_i32 ch))
+					| 6 -> TConst (TFloat self#read_string)
+					| 7 -> TConst (TString self#read_string)
 
-		let i = IO.read_byte ch in
-		(* prerr_endline (Printf.sprintf "      -- texpr [%d] --" i); *)
-		let e = match i with
-			(* values 0-19 *)
-			| 0 -> TConst TNull
-			| 1 -> TConst TThis
-			| 2 -> TConst TSuper
-			| 3 -> TConst (TBool false)
-			| 4 -> TConst (TBool true)
-			| 5 -> TConst (TInt (IO.read_real_i32 ch))
-			| 6 -> TConst (TFloat self#read_string)
-			| 7 -> TConst (TString self#read_string)
+					(* vars 20-29 *)
+					| 20 -> TLocal (Hashtbl.find vars (IO.read_i32 ch))
+					| 21 ->
+						let v = self#read_var in
+						TVar (v,None)
+					| 22 ->
+							let v = self#read_var in
+							let e = loop () in
+							TVar (v, Some e)
 
-			(* vars 20-29 *)
-			| 20 -> TLocal (Hashtbl.find vars (IO.read_i32 ch))
-			| 21 ->
-				let v = self#read_var in
-				TVar (v,None)
-			| 22 ->
-					let v = self#read_var in
-					let e = self#read_texpr in
-					TVar (v, Some e)
+					(* blocks 30-49 *)
+					| 30 -> TBlock []
+					| 31 | 32 | 33 | 34 | 35 as i ->
+						let l = i - 30 in
+						let el = List.init l (fun _ -> loop ()) in
+						TBlock el;
+					| 36 ->
+						let l = IO.read_byte ch in
+						let el = List.init l (fun _ -> loop ()) in
+						TBlock el;
+					| 37 ->
+						let l = IO.read_ui16 ch in
+						let el = List.init l (fun _ -> loop ()) in
+						TBlock el;
+					| 38 ->
+						let l = IO.read_i32 ch in
+						let el = List.init l (fun _ -> loop ()) in
+						TBlock el;
 
-			(* blocks 30-49 *)
-			| 30 -> TBlock []
-			| 31 | 32 | 33 | 34 | 35 ->
-				let l = i - 30 in
-				let el = List.init l (fun _ -> self#read_texpr) in
-				TBlock el;
-			| 36 ->
-				let l = IO.read_byte ch in
-				let el = List.init l (fun _ -> self#read_texpr) in
-				TBlock el;
-			| 37 ->
-				let l = IO.read_ui16 ch in
-				let el = List.init l (fun _ -> self#read_texpr) in
-				TBlock el;
-			| 38 ->
-				let l = IO.read_i32 ch in
-				let el = List.init l (fun _ -> self#read_texpr) in
-				TBlock el;
+					(* function 50-59 *)
+					| 50 ->
+						let read_tfunction_arg () =
+							let v = self#read_var in
+							let cto = self#read_option loop in
+							(v,cto)
+						in
+						let args = self#read_list read_tfunction_arg in
+						let r = self#read_type_instance in
+						let e = loop () in
+						TFunction {
+							tf_args = args;
+							tf_type = r;
+							tf_expr = e;
+						}
+					(* texpr compounds 60-79 *)
+					| 60 ->
+						let e1 = loop () in
+						let e2 = loop () in
+						TArray (e1,e2)
+					| 61 ->
+						TParenthesis (loop ())
+					| 62 ->
+						TArrayDecl (loop_el())
+					| 63 ->
+						let fl = self#read_list (fun () ->
+							let name = self#read_string in
+							let p = self#read_pos in
+							let qs = match IO.read_byte ch with
+								| 0 -> NoQuotes
+								| 1 -> DoubleQuotes
+								| _ -> assert false
+							in
+							let e = loop () in
+							((name,p,qs),e)
+						) in
+						TObjectDecl fl
+					| 64 ->
+						let e1 = loop () in
+						let el = loop_el() in
+						TCall(e1,el)
+					| 65 ->
+						let m = self#read_metadata_entry in
+						let e1 = loop () in
+						TMeta (m,e1)
 
-			(* function 50-59 *)
-			| 50 -> TFunction self#read_tfunction
+					(* branching 80-89 *)
+					| 80 ->
+						let e1 = loop () in
+						let e2 = loop () in
+						TIf(e1,e2,None)
+					| 81 ->
+						let e1 = loop () in
+						let e2 = loop () in
+						let e3 = loop () in
+						TIf(e1,e2,Some e3)
+					| 82 ->
+						let subject = loop () in
+						let cases = self#read_list (fun () ->
+							let patterns = loop_el() in
+							let ec = loop () in
+							{ case_patterns = patterns; case_expr = ec}
+						) in
+						let def = self#read_option (fun () -> loop ()) in
+						TSwitch {
+							switch_subject = subject;
+							switch_cases = cases;
+							switch_default = def;
+							switch_exhaustive = true;
+						}
+					| 83 ->
+						let e1 = loop () in
+						let catches = self#read_list (fun () ->
+							let v = self#read_var in
+							let e = loop () in
+							(v,e)
+						) in
+						TTry(e1,catches)
+					| 84 ->
+						let e1 = loop () in
+						let e2 = loop () in
+						TWhile(e1,e2,NormalWhile)
+					| 85 ->
+						let e1 = loop () in
+						let e2 = loop () in
+						TWhile(e1,e2,DoWhile)
+					| 86 ->
+						let v  = self#read_var in
+						let e1 = loop () in
+						let e2 = loop () in
+						TFor(v,e1,e2)
 
-			(* texpr compounds 60-79 *)
-			| 60 ->
-				let e1 = self#read_texpr in
-				let e2 = self#read_texpr in
-				TArray (e1,e2)
-			| 61 -> TParenthesis self#read_texpr
-			| 62 -> TArrayDecl self#read_texpr_list
-			| 63 ->
-				let fl = self#read_list (fun () ->
-					let name = self#read_string in
-					let p = self#read_pos in
-					let qs = match IO.read_byte ch with
-						| 0 -> NoQuotes
-						| 1 -> DoubleQuotes
-						| _ -> assert false
-					in
-					let e = self#read_texpr in
-					((name,p,qs),e)
-				) in
-				TObjectDecl fl
-			| 64 ->
-				let e1 = self#read_texpr in
-				let el = self#read_texpr_list in
-				TCall(e1,el)
-			| 65 ->
-				let m = self#read_metadata_entry in
-				let e1 = self#read_texpr in
-				TMeta (m,e1)
+					(* control flow 90-99 *)
+					| 90 -> TReturn None
+					| 91 -> TReturn (Some (loop ()))
+					| 92 -> TContinue
+					| 93 -> TBreak
+					| 94 -> TThrow (loop ())
 
-			(* branching 80-89 *)
-			| 80 ->
-				let e1 = self#read_texpr in
-				let e2 = self#read_texpr in
-				TIf(e1,e2,None)
-			| 81 ->
-				let e1 = self#read_texpr in
-				let e2 = self#read_texpr in
-				let e3 = self#read_texpr in
-				TIf(e1,e2,Some e3)
-			| 82 ->
-				let subject = self#read_texpr in
-				let cases = self#read_list (fun () ->
-					let patterns = self#read_texpr_list in
-					let ec = self#read_texpr in
-					{ case_patterns = patterns; case_expr = ec}
-				) in
-				let def = self#read_option (fun () -> self#read_texpr) in
-				TSwitch {
-					switch_subject = subject;
-					switch_cases = cases;
-					switch_default = def;
-					switch_exhaustive = true;
-				}
-			| 83 ->
-				let e1 = self#read_texpr in
-				let catches = self#read_list (fun () ->
-					let v = self#read_var in
-					let e = self#read_texpr in
-					(v,e)
-				) in
-				TTry(e1,catches)
-			| 84 ->
-				let e1 = self#read_texpr in
-				let e2 = self#read_texpr in
-				TWhile(e1,e2,NormalWhile)
-			| 85 ->
-				let e1 = self#read_texpr in
-				let e2 = self#read_texpr in
-				TWhile(e1,e2,DoWhile)
-			| 86 ->
-				let v  = self#read_var in
-				let e1 = self#read_texpr in
-				let e2 = self#read_texpr in
-				TFor(v,e1,e2)
+					(* access 100-119 *)
+					| 100 -> TEnumIndex (loop ())
+					| 101 ->
+						let e1 = loop () in
+						let ef = self#read_enum_field_ref in
+						let i = IO.read_i32 ch in
+						TEnumParameter(e1,ef,i)
+					| 102 ->
+						let e1 = loop () in
+						let c = self#read_class_ref in
+						let tl = self#read_types in
+						let cf = self#read_field_ref in
+						TField(e1,FInstance(c,tl,cf))
+					| 103 ->
+						let e1 = loop () in
+						let c = self#read_class_ref in
+						let cf = self#read_field_ref in
+						TField(e1,FStatic(c,cf))
+					| 104 ->
+						let e1 = loop () in
+						let cf = self#read_anon_field_ref in
+						TField(e1,FAnon(cf))
+					| 105 ->
+						let e1 = loop () in
+						let c = self#read_class_ref in
+						let tl = self#read_types in
+						let cf = self#read_field_ref in
+						TField(e1,FClosure(Some(c,tl),cf))
+					| 106 ->
+						let e1 = loop () in
+						let cf = self#read_anon_field_ref in
+						TField(e1,FClosure(None,cf))
+					| 107 ->
+						let e1 = loop () in
+						let en = self#read_enum_ref in
+						let ef = self#read_enum_field_ref in
+						TField(e1,FEnum(en,ef))
+					| 108 ->
+						let e1 = loop () in
+						let s = self#read_string in
+						TField(e1,FDynamic s)
 
-			(* control flow 90-99 *)
-			| 90 -> TReturn None
-			| 91 -> TReturn (Some self#read_texpr)
-			| 92 -> TContinue
-			| 93 -> TBreak
-			| 94 -> TThrow (self#read_texpr)
+					(* module types 120-139 *)
+					| 120 -> TTypeExpr (TClassDecl self#read_class_ref)
+					| 121 -> TTypeExpr (TEnumDecl self#read_enum_ref)
+					| 122 -> TTypeExpr (TAbstractDecl self#read_abstract_ref)
+					| 123 -> TTypeExpr (TTypeDecl self#read_typedef_ref)
+					| 124 -> TCast(loop (),None)
+					| 125 ->
+						let e1 = loop () in
+						let (pack,mname,tname) = self#read_full_path in
+						let md = self#resolve_type pack mname tname in
+						TCast(e1,Some md)
+					| 126 ->
+						let c = self#read_class_ref in
+						let tl = self#read_types in
+						let el = loop_el() in
+						TNew(c,tl,el)
+					| 127 ->
+						(* TODO: this is giga awkward *)
+						let t = self#read_type_parameter_ref self#read_uleb128 in
+						let c = match t with | TInst(c,_) -> c | _ -> die "" __LOC__ in
+						let tl = self#read_types in
+						let el = loop_el() in
+						TNew(c,tl,el)
+					| 128 ->
+						(* TODO: this is giga awkward *)
+						let t = self#read_type_parameter_ref self#read_uleb128 in
+						let c = match t with | TInst(c,_) -> c | _ -> die "" __LOC__ in
+						TTypeExpr (TClassDecl c)
 
-			(* access 100-119 *)
-			| 100 -> TEnumIndex (self#read_texpr)
-			| 101 ->
-				let e1 = self#read_texpr in
-				let ef = self#read_enum_field_ref in
-				let i = IO.read_i32 ch in
-				TEnumParameter(e1,ef,i)
-			| 102 ->
-				let e1 = self#read_texpr in
-				let c = self#read_class_ref in
-				let tl = self#read_types in
-				let cf = self#read_field_ref in
-				TField(e1,FInstance(c,tl,cf))
-			| 103 ->
-				let e1 = self#read_texpr in
-				let c = self#read_class_ref in
-				let cf = self#read_field_ref in
-				TField(e1,FStatic(c,cf))
-			| 104 ->
-				let e1 = self#read_texpr in
-				let cf = self#read_anon_field_ref in
-				TField(e1,FAnon(cf))
-			| 105 ->
-				let e1 = self#read_texpr in
-				let c = self#read_class_ref in
-				let tl = self#read_types in
-				let cf = self#read_field_ref in
-				TField(e1,FClosure(Some(c,tl),cf))
-			| 106 ->
-				let e1 = self#read_texpr in
-				let cf = self#read_anon_field_ref in
-				TField(e1,FClosure(None,cf))
-			| 107 ->
-				let e1 = self#read_texpr in
-				let en = self#read_enum_ref in
-				let ef = self#read_enum_field_ref in
-				TField(e1,FEnum(en,ef))
-			| 108 ->
-				let e1 = self#read_texpr in
-				let s = self#read_string in
-				TField(e1,FDynamic s)
+					(* unops 140-159 *)
+					| i when i >= 140 && i < 160 ->
+						let (op,flag) = self#get_unop (i - 140) in
+						let e = loop () in
+						TUnop(op,flag,e)
 
-			(* module types 120-139 *)
-			| 120 -> TTypeExpr (TClassDecl self#read_class_ref)
-			| 121 -> TTypeExpr (TEnumDecl self#read_enum_ref)
-			| 122 -> TTypeExpr (TAbstractDecl self#read_abstract_ref)
-			| 123 -> TTypeExpr (TTypeDecl self#read_typedef_ref)
-			| 124 -> TCast(self#read_texpr,None)
-			| 125 ->
-				let e1 = self#read_texpr in
-				let (pack,mname,tname) = self#read_full_path in
-				let md = self#resolve_type pack mname tname in
-				TCast(e1,Some md)
-			| 126 ->
-				let c = self#read_class_ref in
-				let tl = self#read_types in
-				let el = self#read_texpr_list in
-				TNew(c,tl,el)
-			| 127 ->
-				(* TODO: this is giga awkward *)
-				let t = self#read_type_parameter_ref self#read_uleb128 in
-				let c = match t with | TInst(c,_) -> c | _ -> die "" __LOC__ in
-				let tl = self#read_types in
-				let el = self#read_texpr_list in
-				TNew(c,tl,el)
-			| 128 ->
-				(* TODO: this is giga awkward *)
-				let t = self#read_type_parameter_ref self#read_uleb128 in
-				let c = match t with | TInst(c,_) -> c | _ -> die "" __LOC__ in
-				TTypeExpr (TClassDecl c)
+					(* binops 160-219 *)
+					| i when i >= 160 && i < 220 ->
+						let op = self#get_binop (i - 160) in
+						let e1 = loop () in
+						let e2 = loop () in
+						TBinop(op,e1,e2)
+					(* pos 241-244*)
+					| 241 ->
+						pos := {!pos with pmin = self#read_leb128};
+						loop2 ()
+					| 242 ->
+						pos := {!pos with pmax = self#read_leb128};
+						loop2 ()
+					| 243 ->
+						let pmin = self#read_leb128 in
+						let pmax = self#read_leb128 in
+						pos := {!pos with pmin; pmax};
+						loop2 ()
+					| 244 ->
+						pos := self#read_pos;
+						loop2 ()
+					(* rest 250-254 *)
+					| 250 ->
+						TIdent (self#read_string)
 
-			(* unops 140-159 *)
-			| _ when i >= 140 && i < 160 ->
-				let (op,flag) = self#get_unop (i - 140) in
-				let e = self#read_texpr in
-				TUnop(op,flag,e)
-
-			(* binops 160-219 *)
-			| _ when i >= 160 && i < 220 ->
-				let op = self#get_binop (i - 160) in
-				let e1 = self#read_texpr in
-				let e2 = self#read_texpr in
-				TBinop(op,e1,e2)
-
-			(* rest 250-254 *)
-			| 250 -> TIdent (self#read_string)
-
-			| i ->
-				prerr_endline (Printf.sprintf "  [ERROR] Unhandled texpr %d at:" i);
-				(* MessageReporting.display_source_at com pos; *)
-				assert false
+					| i ->
+						prerr_endline (Printf.sprintf "  [ERROR] Unhandled texpr %d at:" i);
+						(* MessageReporting.display_source_at com pos; *)
+						assert false
+				in
+				let e = loop2 () in
+				let e = {
+					eexpr = e;
+					etype = t;
+					epos = !pos;
+				} in
+				e
+		and loop_el () =
+			self#read_list loop
 		in
-
-		(* prerr_endline (Printf.sprintf "   Done reading texpr at:"); *)
-		(* MessageReporting.display_source_at com pos; *)
-
-		let e = {
-			eexpr = e;
-			etype = t;
-			epos = pos;
-		} in
-
+		let e = loop() in
 		last_texpr <- Some e;
 		e
-
-	method read_texpr_list =
-		let len = IO.read_ui16 ch in
-		List.init len (fun _ -> self#read_texpr);
 
 	method read_class_field_forward =
 		let name = self#read_string in

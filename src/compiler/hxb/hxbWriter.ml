@@ -244,6 +244,45 @@ class chunk
 		kind
 end
 
+class pos_writer
+	(chunk : chunk)
+	(p_initial : pos)
+	(offset : int)
+	(write_equal : bool)
+= object(self)
+
+	val mutable p_cur = p_initial
+
+	method private do_write_pos (p : pos) =
+		chunk#write_string p.pfile;
+		chunk#write_leb128 p.pmin;
+		chunk#write_leb128 p.pmax;
+
+	method write_pos (p : pos) =
+		if p.pfile <> p_cur.pfile then begin
+			(* File changed, write full pos *)
+			chunk#write_u8 (4 + offset);
+			self#do_write_pos p;
+		end else if p.pmin <> p_cur.pmin then begin
+			if p.pmax <> p_cur.pmax then begin
+				(* pmin and pmax changed *)
+				chunk#write_u8 (3 + offset);
+				chunk#write_leb128 p.pmin;
+				chunk#write_leb128 p.pmax;
+			end else begin
+				(* pmin changed *)
+				chunk#write_u8 (1 + offset);
+				chunk#write_leb128 p.pmin
+			end
+		end else if p.pmax <> p_cur.pmax then begin
+			(* pmax changed *)
+			chunk#write_u8 (2 + offset);
+			chunk#write_leb128 p.pmax;
+		end else if write_equal then
+			chunk#write_u8 offset;
+		p_cur <- p
+end
+
 class ['a] hxb_writer
 	(display_source_at : Globals.pos -> unit)
 	(anon_id : Type.t Tanon_identification.tanon_identification)
@@ -904,9 +943,11 @@ class ['a] hxb_writer
 		self#write_pos v.v_pos
 
 	method write_texpr (e : texpr) =
-		let rec loop ?(debug:bool = false) e =
+		let pos_writer = new pos_writer chunk e.epos 240 false in
+		self#write_pos e.epos;
+		let rec loop e =
 			self#write_type_instance e.etype;
-			self#write_pos e.epos;
+			pos_writer#write_pos e.epos;
 
 			match e.eexpr with
 			(* values 0-19 *)
@@ -1149,13 +1190,13 @@ class ['a] hxb_writer
 				chunk#write_byte (160 + binop_index op);
 				loop e1;
 				loop e2;
+			(* pos 241-244 *)
 			(* rest 250-254 *)
 			| TIdent s ->
 				chunk#write_byte 250;
 				chunk#write_string s;
 		and loop_el el =
-			chunk#write_ui16 (List.length el);
-			List.iter loop el
+			chunk#write_list el loop
 		in
 		loop e
 
