@@ -13,6 +13,12 @@ let c_dim = if no_color then "" else "\x1b[2m"
 let todo = "\x1b[33m[TODO]" ^ c_reset
 let todo_error = "\x1b[31m[TODO] error:" ^ c_reset
 
+let unopt_write_counter = ref 0
+let unopt_skip_counter = ref 0
+
+let t_pool_hits = ref 0
+let t_pool_misses = ref 0
+
 let rec binop_index op = match op with
 	| OpAdd -> 0
 	| OpMult -> 1
@@ -247,22 +253,21 @@ end
 class pos_writer
 	(chunk : chunk)
 	(p_initial : pos)
-	(offset : int)
 	(write_equal : bool)
 = object(self)
 
 	val mutable p_cur = p_initial
 
-	method private do_write_pos (p : pos) =
+	method private do_write_pos (chunk : chunk) (p : pos) =
 		chunk#write_string p.pfile;
 		chunk#write_leb128 p.pmin;
 		chunk#write_leb128 p.pmax;
 
-	method write_pos (p : pos) =
+	method write_pos (chunk : chunk) (offset : int) (p : pos) =
 		if p.pfile <> p_cur.pfile then begin
 			(* File changed, write full pos *)
 			chunk#write_u8 (4 + offset);
-			self#do_write_pos p;
+			self#do_write_pos chunk p;
 		end else if p.pmin <> p_cur.pmin then begin
 			if p.pmax <> p_cur.pmax then begin
 				(* pmin and pmax changed *)
@@ -281,7 +286,20 @@ class pos_writer
 		end else if write_equal then
 			chunk#write_u8 offset;
 		p_cur <- p
+
+	initializer
+		self#do_write_pos chunk p_initial
 end
+
+type field_writer_context = {
+	t_pool : (bytes,unit) pool;
+	pos_writer : pos_writer;
+}
+
+let create_field_writer_context pos_writer = {
+	t_pool = new pool;
+	pos_writer = pos_writer;
+}
 
 class ['a] hxb_writer
 	(display_source_at : Globals.pos -> unit)
@@ -926,7 +944,7 @@ class ['a] hxb_writer
 		in
 		chunk#write_byte b
 
-	method write_var v =
+	method write_var fctx v =
 		chunk#write_i32 v.v_id;
 		chunk#write_string v.v_name;
 		chunk#write_option v.v_extra (fun ve ->
@@ -934,7 +952,7 @@ class ['a] hxb_writer
 				let index = local_type_parameters#add ttp () in
 				chunk#write_uleb128 index
 			);
-			chunk#write_option ve.v_expr self#write_texpr;
+			chunk#write_option ve.v_expr (self#write_texpr fctx);
 		);
 		self#write_type_instance v.v_type;
 		self#write_var_kind v.v_kind;
@@ -942,12 +960,23 @@ class ['a] hxb_writer
 		self#write_metadata v.v_meta;
 		self#write_pos v.v_pos
 
-	method write_texpr (e : texpr) =
-		let pos_writer = new pos_writer chunk e.epos 240 false in
-		self#write_pos e.epos;
+	method write_texpr fctx (e : texpr) =
 		let rec loop e =
+			let restore = self#start_temporary_chunk in
 			self#write_type_instance e.etype;
-			pos_writer#write_pos e.epos;
+			let t_bytes = restore (fun chunk new_chunk ->
+				new_chunk#get_bytes
+			) in
+			begin try
+				let index = fctx.t_pool#get t_bytes in
+				chunk#write_byte 0;
+				chunk#write_uleb128 index
+			with Not_found ->
+				chunk#write_byte 1;
+				ignore(fctx.t_pool#add t_bytes ());
+				IO.nwrite chunk#ch t_bytes
+			end;
+			fctx.pos_writer#write_pos chunk 240 e.epos;
 
 			match e.eexpr with
 			(* values 0-19 *)
@@ -979,10 +1008,10 @@ class ['a] hxb_writer
 				chunk#write_i32 v.v_id;
 			| TVar(v,None) ->
 				chunk#write_byte 21;
-				self#write_var v
+				self#write_var fctx v
 			| TVar(v,Some e1) ->
 				chunk#write_byte 22;
-				self#write_var v;
+				self#write_var fctx v;
 				loop e1;
 			(* blocks 30-49 *)
 			| TBlock [] ->
@@ -1012,7 +1041,7 @@ class ['a] hxb_writer
 			| TFunction tf ->
 				chunk#write_byte 50;
 				chunk#write_list tf.tf_args (fun (v,eo) ->
-					self#write_var v;
+					self#write_var fctx v;
 					chunk#write_option eo loop;
 				);
 				self#write_type_instance tf.tf_type;
@@ -1069,7 +1098,7 @@ class ['a] hxb_writer
 				chunk#write_byte 83;
 				loop e1;
 				chunk#write_list catches  (fun (v,e) ->
-					self#write_var v;
+					self#write_var fctx v;
 					loop e
 				);
 			| TWhile(e1,e2,flag) ->
@@ -1078,7 +1107,7 @@ class ['a] hxb_writer
 				loop e2;
 			| TFor(v,e1,e2) ->
 				chunk#write_byte 86;
-				self#write_var v;
+				self#write_var fctx v;
 				loop e1;
 				loop e2;
 			(* control flow 90-99 *)
@@ -1290,8 +1319,9 @@ class ['a] hxb_writer
 				chunk#write_byte 0
 			| Some e ->
 				chunk#write_byte 1;
+				let fctx = create_field_writer_context (new pos_writer chunk e.epos false) in
 				let flush_texpr = self#start_temporary_chunk in
-				self#write_texpr e;
+				self#write_texpr fctx e;
 				let texpr_bytes = flush_texpr (fun chunk new_chunk ->
 					new_chunk#get_bytes
 				) in
@@ -1301,7 +1331,7 @@ class ['a] hxb_writer
 						chunk#write_byte 0
 					| Some e ->
 						let flush_texpr = self#start_temporary_chunk in
-						self#write_texpr e;
+						self#write_texpr fctx e;
 						let texpr_unoptimized_bytes = flush_texpr (fun chunk new_chunk ->
 							new_chunk#get_bytes
 						) in
@@ -1573,7 +1603,7 @@ class ['a] hxb_writer
 				chunk#write_option c.cl_constructor (write_field CfrConstructor);
 				chunk#write_list c.cl_ordered_fields (write_field CfrMember);
 				chunk#write_list c.cl_ordered_statics (write_field CfrStatic);
-				chunk#write_option c.cl_init self#write_texpr;
+				chunk#write_option c.cl_init (fun e -> self#write_texpr (create_field_writer_context (new pos_writer chunk e.epos false)) e);
 			)
 		end;
 		begin match own_enums#to_list with

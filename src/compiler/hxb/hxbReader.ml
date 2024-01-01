@@ -22,6 +22,16 @@ let print_stacktrace () =
 		| (_ :: (_ :: lines)) -> prerr_endline (Printf.sprintf "%s" (ExtString.String.join "\n" lines))
 		| _ -> die "" __LOC__
 
+type field_reader_context = {
+	t_pool : Type.t DynArray.t;
+	pos : pos ref;
+}
+
+let create_field_reader_context p = {
+	t_pool = DynArray.create ();
+	pos = ref p;
+}
+
 class hxb_reader
 	(api : HxbReaderApi.hxb_reader_api)
 = object(self)
@@ -823,7 +833,7 @@ class hxb_reader
 			| 10 -> VAbstractThis
 			| _ -> assert false
 
-	method read_var =
+	method read_var fctx =
 		let id = IO.read_i32 ch in
 		let name = self#read_string in
 		let extra = self#read_option (fun () ->
@@ -831,7 +841,7 @@ class hxb_reader
 				let i = self#read_uleb128 in
 				local_type_parameters.(i)
 			) in
-			let vexpr = self#read_option (fun () -> self#read_texpr) in
+			let vexpr = self#read_option (fun () -> self#read_texpr fctx) in
 			{
 				v_params = params;
 				v_expr = vexpr;
@@ -855,10 +865,18 @@ class hxb_reader
 		Hashtbl.add vars id v;
 		v
 
-	method read_texpr =
-		let pos = ref self#read_pos in
+	method read_texpr fctx =
 		let rec loop () =
-			let t = self#read_type_instance in
+			let t = match self#read_u8 with
+				| 0 ->
+					DynArray.get fctx.t_pool self#read_uleb128
+				| 1 ->
+					let t = self#read_type_instance in
+					DynArray.add fctx.t_pool t;
+					t
+				| _ ->
+					die "" __LOC__
+			in
 			let rec loop2 () =
 				match IO.read_byte ch with
 					(* values 0-19 *)
@@ -874,10 +892,10 @@ class hxb_reader
 					(* vars 20-29 *)
 					| 20 -> TLocal (Hashtbl.find vars (IO.read_i32 ch))
 					| 21 ->
-						let v = self#read_var in
+						let v = self#read_var fctx in
 						TVar (v,None)
 					| 22 ->
-							let v = self#read_var in
+							let v = self#read_var fctx in
 							let e = loop () in
 							TVar (v, Some e)
 
@@ -903,7 +921,7 @@ class hxb_reader
 					(* function 50-59 *)
 					| 50 ->
 						let read_tfunction_arg () =
-							let v = self#read_var in
+							let v = self#read_var fctx in
 							let cto = self#read_option loop in
 							(v,cto)
 						in
@@ -973,7 +991,7 @@ class hxb_reader
 					| 83 ->
 						let e1 = loop () in
 						let catches = self#read_list (fun () ->
-							let v = self#read_var in
+							let v = self#read_var fctx in
 							let e = loop () in
 							(v,e)
 						) in
@@ -987,7 +1005,7 @@ class hxb_reader
 						let e2 = loop () in
 						TWhile(e1,e2,DoWhile)
 					| 86 ->
-						let v  = self#read_var in
+						let v  = self#read_var fctx in
 						let e1 = loop () in
 						let e2 = loop () in
 						TFor(v,e1,e2)
@@ -1084,18 +1102,18 @@ class hxb_reader
 						TBinop(op,e1,e2)
 					(* pos 241-244*)
 					| 241 ->
-						pos := {!pos with pmin = self#read_leb128};
+						fctx.pos := {!(fctx.pos) with pmin = self#read_leb128};
 						loop2 ()
 					| 242 ->
-						pos := {!pos with pmax = self#read_leb128};
+						fctx.pos := {!(fctx.pos) with pmax = self#read_leb128};
 						loop2 ()
 					| 243 ->
 						let pmin = self#read_leb128 in
 						let pmax = self#read_leb128 in
-						pos := {!pos with pmin; pmax};
+						fctx.pos := {!(fctx.pos) with pmin; pmax};
 						loop2 ()
 					| 244 ->
-						pos := self#read_pos;
+						fctx.pos := self#read_pos;
 						loop2 ()
 					(* rest 250-254 *)
 					| 250 ->
@@ -1110,7 +1128,7 @@ class hxb_reader
 				let e = {
 					eexpr = e;
 					etype = t;
-					epos = !pos;
+					epos = !(fctx.pos);
 				} in
 				e
 		and loop_el () =
@@ -1150,8 +1168,9 @@ class hxb_reader
 			| 0 ->
 				None,None
 			| _ ->
-				let e = self#read_texpr in
-				let e_unopt = self#read_option (fun () -> self#read_texpr) in
+				let fctx = create_field_reader_context self#read_pos in
+				let e = self#read_texpr fctx in
+				let e_unopt = self#read_option (fun () -> self#read_texpr fctx) in
 				(Some e,e_unopt)
 		in
 
@@ -1208,7 +1227,7 @@ class hxb_reader
 		in
 		loop CfrMember (self#read_uleb128) c.cl_ordered_fields;
 		loop CfrStatic (self#read_uleb128) c.cl_ordered_statics;
-		c.cl_init <- self#read_option (fun () -> self#read_texpr);
+		c.cl_init <- self#read_option (fun () -> self#read_texpr (create_field_reader_context self#read_pos));
 		(match c.cl_kind with KModuleFields md -> md.m_statics <- Some c; | _ -> ());
 
 	method read_enum_fields (e : tenum) =
