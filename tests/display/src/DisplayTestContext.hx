@@ -93,8 +93,13 @@ class DisplayTestContext {
 	}
 
 	public function diagnostics():Array<Diagnostic<Dynamic>> {
-		var result = haxe.Json.parse(callHaxe('0@diagnostics'))[0];
-		return if (result == null) [] else result.diagnostics;
+		var args = ["--display", haxe.Json.stringify({jsonrpc:"2.0",id:0,method:"display/diagnostics",params:{"file":source.path}})];
+		var result = runHaxe(args, source.content);
+		if (result.hasError || result.stderr == "") {
+			throw new HaxeInvocationException(result.stderr, fieldName, args, source.content);
+		}
+		var result = haxe.Json.parse(result.stderr).result;
+		return if (result.result.length == 0) [] else result.result[0].diagnostics;
 	}
 
 	public function hasErrorMessage(f:()->Void, message:String) {

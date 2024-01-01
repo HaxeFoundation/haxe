@@ -368,12 +368,6 @@ let handle_type_path_exception ctx p c is_import pos =
 		api.send_result (DisplayException.fields_to_json ctx fields kind (DisplayTypes.make_subject None pos));
 	end
 
-let emit_legacy_diagnostics com =
-	let dctx = Diagnostics.run com in
-	let s = Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics com dctx) in
-	DisplayPosition.display_position#reset;
-	raise (Completion s)
-
 let emit_diagnostics com =
 	(match com.Common.json_out with
 	| None -> die "" __LOC__

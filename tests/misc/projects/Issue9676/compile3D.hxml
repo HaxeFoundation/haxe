@@ -1,2 +1,2 @@
 --main MainMacro
---display "MainMacro.hx@0@diagnostics"
+--display '{"jsonrpc":"2.0","id":0,"method":"display/diagnostics","params":{"file":"MainMacro.hx"}}'
