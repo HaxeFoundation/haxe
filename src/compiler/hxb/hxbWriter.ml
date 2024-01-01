@@ -513,21 +513,6 @@ class ['a] hxb_writer
 			chunk#write_byte 19;
 			self#write_typedef_ref td;
 			self#write_types tl
-			(* self#write_path td.t_path; *)
-			(* begin match td.t_type with *)
-			(* 	| TAnon an when PMap.is_empty an.a_fields -> *)
-			(* 		chunk#write_byte 0; *)
-			(* 		self#write_types tl *)
-			(* 	| TAnon an -> *)
-			(* 		chunk#write_byte 1; *)
-			(* 		self#write_anon_ref an td.t_params; *)
-			(* 		self#write_types tl *)
-			(* 	| _ -> *)
-			(* 		chunk#write_byte 2; *)
-			(* 		(1* self#write_type_instance ~debug (apply_typedef td tl); *1) *)
-			(* 		self#write_typedef_ref td; *)
-			(* 		self#write_types tl *)
-			(* end; *)
 		| TAbstract(a,tl) ->
 			chunk#write_byte 20;
 			self#write_abstract_ref a;
@@ -1412,23 +1397,12 @@ class ['a] hxb_writer
 		);
 
 	method write_enum (e : tenum) =
-		(* debug_msg (Printf.sprintf "Write enum %s" (snd e.e_path)); *)
 		self#select_type e.e_path;
 		self#write_common_module_type (Obj.magic e);
-
-		(* (match e.e_type.t_type with *)
-		(* | TAnon an when PMap.is_empty an.a_fields -> *)
-		(* 	chunk#write_byte 0; *)
-		(* | TAnon an -> *)
-		(* 	chunk#write_byte 1; *)
-		(* 	self#write_anon_ref an e.e_type.t_params *)
-		(* | _ -> assert false); *)
-
 		chunk#write_bool e.e_extern;
 		chunk#write_list e.e_names chunk#write_string;
 
 	method write_typedef (td : tdef) =
-		(* debug_msg (Printf.sprintf "Write typedef %s %s >>" (s_type_path td.t_path) (s_type_kind td.t_type)); *)
 		self#select_type td.t_path;
 		self#write_common_module_type (Obj.magic td);
 		self#write_type_instance td.t_type;

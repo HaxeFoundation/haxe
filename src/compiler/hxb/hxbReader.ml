@@ -673,25 +673,6 @@ class hxb_reader
 		| 11 ->
 			TEnum(self#read_enum_ref,[])
 		| 12 ->
-			(* let tp = self#read_path in *)
-			(* begin match self#read_u8 with *)
-			(* 	| 0 -> TType({null_typedef with t_type = (mk_anon (ref Closed)); t_path = tp; t_module = current_module },[]) *)
-			(* 	| 1 -> TType({null_typedef with t_type = (TAnon self#read_anon_ref); t_path = tp; t_module = current_module },[]) *)
-			(* 	| 4 -> *)
-			(* 		let c = self#read_class_ref in *)
-			(* 		let t_tmp = class_module_type c in *)
-			(* 		TType(t_tmp,[]) *)
-			(* 	| 5 -> *)
-			(* 		let e = self#read_enum_ref in *)
-			(* 		let t_tmp = enum_module_type e.e_module e.e_path e.e_pos in *)
-			(* 		TType(t_tmp,[]) *)
-			(* 	| 6 -> *)
-			(* 		let a = self#read_abstract_ref in *)
-			(* 		let t_tmp = abstract_module_type a [] in *)
-			(* 		TType(t_tmp,[]) *)
-			(* 	| _ -> *)
-			(* 		TType(self#read_typedef_ref,[]) *)
-			(* end *)
 			TType(self#read_typedef_ref,[])
 		| 13 ->
 			let c = self#read_class_ref in
@@ -1331,9 +1312,6 @@ class hxb_reader
 
 	method read_enum (e : tenum) =
 		self#read_common_module_type (Obj.magic e);
-		(* (match self#read_u8 with *)
-		(* | 0 -> e.e_type.t_type <- (mk_anon (ref Closed)) *)
-		(* | _ -> e.e_type.t_type <- TAnon self#read_anon_ref); *)
 		e.e_extern <- self#read_bool;
 		e.e_names <- self#read_list (fun () -> self#read_string);
 
