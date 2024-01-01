@@ -193,6 +193,9 @@ object(self)
 		let bytes = IO.close_out ch in
 		IO.nwrite chex bytes;
 
+	method get_bytes =
+		IO.close_out ch
+
 	method ch =
 		ch
 end
@@ -282,7 +285,7 @@ class ['a] hxb_writer
 		DynArray.add chunks new_chunk;
 		chunk <- new_chunk
 
-	method start_temporary_chunk =
+	method start_temporary_chunk : 'a . (chunk -> chunk -> 'a) -> 'a =
 		let new_chunk = new chunk HEND (* TODO: something else? *) cp in
 		let old_chunk = chunk in
 		chunk <- new_chunk;
@@ -1241,12 +1244,34 @@ class ['a] hxb_writer
 		chunk#write_option cf.cf_doc self#write_documentation;
 		self#write_metadata cf.cf_meta;
 		self#write_field_kind cf.cf_kind;
-		(try chunk#write_option cf.cf_expr self#write_texpr with e -> begin
-			prerr_endline (Printf.sprintf "%s while writing expr for field %s" todo_error cf.cf_name);
-			display_source_at cf.cf_pos;
-			raise e
-		end);
-		chunk#write_option cf.cf_expr_unoptimized self#write_texpr;
+		begin match cf.cf_expr with
+			| None ->
+				chunk#write_byte 0
+			| Some e ->
+				chunk#write_byte 1;
+				let flush_texpr = self#start_temporary_chunk in
+				self#write_texpr e;
+				let texpr_bytes = flush_texpr (fun chunk new_chunk ->
+					new_chunk#get_bytes
+				) in
+				IO.nwrite chunk#ch texpr_bytes;
+				begin match cf.cf_expr_unoptimized with
+					| None ->
+						chunk#write_byte 0
+					| Some e ->
+						let flush_texpr = self#start_temporary_chunk in
+						self#write_texpr e;
+						let texpr_unoptimized_bytes = flush_texpr (fun chunk new_chunk ->
+							new_chunk#get_bytes
+						) in
+						if Bytes.equal texpr_bytes texpr_unoptimized_bytes then begin
+							chunk#write_byte 0
+						end else begin
+							chunk#write_byte 1;
+							IO.nwrite chunk#ch texpr_unoptimized_bytes;
+						end
+				end
+		end;
 		chunk#write_list cf.cf_overloads (fun f ->
 			let close = self#open_field_scope false f in
 			self#write_class_field_data f;

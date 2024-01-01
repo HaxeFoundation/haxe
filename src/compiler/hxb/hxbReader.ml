@@ -1136,13 +1136,14 @@ class hxb_reader
 		let meta = self#read_metadata in
 		let kind = self#read_field_kind in
 
-		let expr = try
-			self#read_option (fun () -> self#read_texpr)
-		with e ->
-			prerr_endline (Printf.sprintf "Error reading field expr for %s" cf.cf_name);
-			raise e
+		let expr,expr_unoptimized = match self#read_u8 with
+			| 0 ->
+				None,None
+			| _ ->
+				let e = self#read_texpr in
+				let e_unopt = self#read_option (fun () -> self#read_texpr) in
+				(Some e,e_unopt)
 		in
-		let expr_unoptimized = self#read_option (fun () -> self#read_texpr) in
 
 		let rec loop depth cfl = match cfl with
 			| cf :: cfl ->
