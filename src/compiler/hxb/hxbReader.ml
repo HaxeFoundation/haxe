@@ -686,16 +686,13 @@ class hxb_reader
 			let args = self#read_list f in
 			let ret = self#read_type_instance in
 			TFun(args,ret)
-		| 33 ->
-			self#read_type_instance
 		| 40 ->
 			t_dynamic
 		| 41 ->
 			TDynamic (Some self#read_type_instance)
 		| 50 ->
-			let empty = self#read_bool in
-			if empty then mk_anon (ref Closed)
-			else TAnon self#read_anon_ref
+			(* HXB_TODO: Do we really want to make a new TAnon for every empty anon? *)
+			mk_anon (ref Closed)
 		| 51 ->
 			TAnon self#read_anon_ref
 		| 100 ->
@@ -1226,9 +1223,6 @@ class hxb_reader
 	method read_class_kind = match self#read_u8 with
 		| 0 -> KNormal
 		| 1 ->
-			(* TODO *)
-			(* let tl = self#read_types in *)
-			(* KTypeParameter *)
 			die "TODO" __LOC__
 		| 2 -> KExpr self#read_expr
 		| 3 -> KGeneric

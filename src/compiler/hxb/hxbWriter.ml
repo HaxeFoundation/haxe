@@ -588,7 +588,6 @@ class ['a] hxb_writer
 			chunk#write_list args write_function_arg;
 			self#write_type_instance t;
 		| TLazy r ->
-			chunk#write_byte 33;
 			self#write_type_instance (lazy_type r);
 		| TDynamic None ->
 			chunk#write_byte 40
@@ -597,7 +596,6 @@ class ['a] hxb_writer
 			self#write_type_instance t;
 		| TAnon an when PMap.is_empty an.a_fields ->
 			chunk#write_byte 50;
-			chunk#write_bool true
 		| TAnon an ->
 			chunk#write_byte 51;
 			self#write_anon_ref an []
@@ -971,9 +969,11 @@ class ['a] hxb_writer
 			) in
 			begin try
 				let index = fctx.t_pool#get t_bytes in
+				incr t_pool_hits;
 				chunk#write_byte 0;
 				chunk#write_uleb128 index
 			with Not_found ->
+				incr t_pool_misses;
 				chunk#write_byte 1;
 				ignore(fctx.t_pool#add t_bytes ());
 				IO.nwrite chunk#ch t_bytes
