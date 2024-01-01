@@ -1193,7 +1193,7 @@ class ['a] hxb_writer
 		) params
 
 	method write_type_parameter_forward ttp =
-		chunk#write_string ttp.ttp_name;
+		self#write_path ttp.ttp_class.cl_path;
 		self#write_pos ttp.ttp_class.cl_name_pos
 
 	method write_type_parameter_data ttp = match follow_lazy ttp.ttp_type with

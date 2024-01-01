@@ -745,13 +745,12 @@ class hxb_reader
 
 	(* Fields *)
 
-	method read_type_parameters (path : path) (host : type_param_host) (f : typed_type_param array -> unit) =
+	method read_type_parameters (host : type_param_host) (f : typed_type_param array -> unit) =
 		let l = self#read_uleb128 in
 		let a = Array.init l (fun _ ->
-			let name = self#read_string in
+			let path = self#read_path in
 			let pos = self#read_pos in
-			let cpath = (fst path @ [snd path],name) in
-			let c = mk_class current_module cpath pos pos in
+			let c = mk_class current_module path pos pos in
 			mk_type_param c host None None
 		) in
 		f a;
@@ -1120,14 +1119,13 @@ class hxb_reader
 
 	method read_class_field_data (nested : bool) (cf : tclass_field) : unit =
 		current_field <- cf;
-		let name = cf.cf_name in
 
 		let params = ref [] in
-		self#read_type_parameters ([],name) (if nested then TPHAnonField else TPHMethod) (fun a ->
+		self#read_type_parameters (if nested then TPHAnonField else TPHMethod) (fun a ->
 			params := Array.to_list a;
 			field_type_parameters <- if nested then Array.append field_type_parameters a else a
 		);
-		self#read_type_parameters ([],name) TPHLocal (fun a ->
+		self#read_type_parameters TPHLocal (fun a ->
 			local_type_parameters <- if nested then Array.append local_type_parameters a else a
 		);
 		let t = self#read_type_instance in
@@ -1213,7 +1211,7 @@ class hxb_reader
 			let name = self#read_string in
 			let ef = PMap.find name e.e_constrs in
 			let params = ref [] in
-			self#read_type_parameters ([],name) TPHEnumConstructor (fun a ->
+			self#read_type_parameters TPHEnumConstructor (fun a ->
 				params := Array.to_list a;
 				field_type_parameters <- a;
 			);
@@ -1231,7 +1229,7 @@ class hxb_reader
 		infos.mt_private <- self#read_bool;
 		infos.mt_doc <- self#read_option (fun () -> self#read_documentation);
 		infos.mt_meta <- self#read_metadata;
-		self#read_type_parameters infos.mt_path TPHType (fun a -> type_type_parameters <- a);
+		self#read_type_parameters TPHType (fun a -> type_type_parameters <- a);
 		infos.mt_params <- Array.to_list type_type_parameters;
 		infos.mt_using <- self#read_list (fun () ->
 			let c = self#read_class_ref in
