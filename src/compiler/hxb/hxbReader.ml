@@ -2,6 +2,7 @@ open Globals
 open Ast
 open Type
 open HxbData
+open HxbShared
 
 (* Debug utils *)
 let no_color = false
@@ -1145,11 +1146,15 @@ class hxb_reader
 		in
 		let expr_unoptimized = self#read_option (fun () -> self#read_texpr) in
 
-		let l = self#read_uleb128 in
-		for i = 0 to l - 1 do
-			let f = List.nth cf.cf_overloads i in
-			self#read_class_field_data false f
-		done;
+		let rec loop depth cfl = match cfl with
+			| cf :: cfl ->
+				assert (depth > 0);
+				self#read_class_field_data false cf;
+				loop (depth - 1) cfl
+			| [] ->
+				assert (depth = 0)
+		in
+		loop self#read_uleb128 cf.cf_overloads;
 
 		cf.cf_type <- t;
 		cf.cf_doc <- doc;
@@ -1184,17 +1189,21 @@ class hxb_reader
 			List.iter set_feature (Feature.check_if_feature cf.cf_meta);
 		in
 		let _ = self#read_option (fun f ->
-			let cf = self#read_field_ref in
+			let cf = Option.get c.cl_constructor in
 			handle_feature CfrConstructor cf;
 			self#read_class_field_data false cf
 		) in
-		let f ref_kind =
-			let cf = self#read_field_ref in
-			self#read_class_field_data false cf;
-			handle_feature ref_kind cf;
+		let rec loop ref_kind num cfl = match cfl with
+			| cf :: cfl ->
+				assert (num > 0);
+				handle_feature ref_kind cf;
+				self#read_class_field_data false cf;
+				loop ref_kind (num - 1) cfl
+			| [] ->
+				assert (num = 0)
 		in
-		let _ = self#read_list (fun () -> f CfrMember) in
-		let _ = self#read_list (fun () -> f CfrStatic) in
+		loop CfrMember (self#read_uleb128) c.cl_ordered_fields;
+		loop CfrStatic (self#read_uleb128) c.cl_ordered_statics;
 		c.cl_init <- self#read_option (fun () -> self#read_texpr);
 		(match c.cl_kind with KModuleFields md -> md.m_statics <- Some c; | _ -> ());
 
@@ -1349,28 +1358,33 @@ class hxb_reader
 
 	method read_cflr =
 		let l = self#read_uleb128 in
+		let instance_overload_cache = Hashtbl.create 0 in
 		let a = Array.init l (fun i ->
 			let c = self#read_class_ref in
 			ignore(c.cl_build());
-			let cf =  match self#read_u8 with
-				| 0 ->
+			let kind = match self#read_u8 with
+				| 0 -> CfrStatic
+				| 1 -> CfrMember
+				| 2 -> CfrConstructor
+				| _ -> die "" __LOC__
+			in
+			let cf =  match kind with
+				| CfrStatic ->
 					let name = self#read_string in
 					begin try
 						PMap.find name c.cl_statics
 					with Not_found ->
 						raise (HxbFailure (Printf.sprintf "Could not read static field %s on %s while hxbing %s" name (s_type_path c.cl_path) (s_type_path current_module.m_path)))
 					end;
-				| 1 ->
+				| CfrMember ->
 					let name = self#read_string in
 					begin try
 						PMap.find name c.cl_fields
 					with Not_found ->
 						raise (HxbFailure (Printf.sprintf "Could not read instance field %s on %s while hxbing %s" name (s_type_path c.cl_path) (s_type_path current_module.m_path)))
 					end
-				| 2 ->
+				| CfrConstructor ->
 					Option.get c.cl_constructor
-				| _ ->
-					die "" __LOC__
 			in
 			let depth = self#read_uleb128 in
 			let pick_overload cf depth =
@@ -1383,7 +1397,19 @@ class hxb_reader
 					| [] ->
 						raise (HxbFailure (Printf.sprintf "Bad overload depth for %s on %s: %i" cf.cf_name (s_type_path c.cl_path) depth))
 				in
-				loop depth (cf :: cf.cf_overloads)
+				let cfl = match kind with
+					| CfrStatic | CfrConstructor ->
+						(cf :: cf.cf_overloads)
+					| CfrMember ->
+						let key = (c.cl_path,cf.cf_name) in
+						try
+							Hashtbl.find instance_overload_cache key
+						with Not_found ->
+							let l = get_instance_overloads c cf in
+							Hashtbl.add instance_overload_cache key l;
+							l
+				in
+				loop depth cfl
 			in
 			pick_overload cf depth;
 		) in

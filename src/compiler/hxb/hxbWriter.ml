@@ -3,6 +3,7 @@ open Ast
 open Type
 open HxbData
 open Tanon_identification
+open HxbShared
 
 (* Debug utils *)
 let no_color = false
@@ -272,6 +273,8 @@ class ['a] hxb_writer
 	val mutable field_type_parameters = new identity_pool
 	val mutable local_type_parameters = new identity_pool
 
+	val instance_overload_cache = Hashtbl.create 0
+
 	(* Chunks *)
 
 	method start_chunk (kind : chunk_kind) =
@@ -378,7 +381,19 @@ class ['a] hxb_writer
 						print_endline (Printf.sprintf "Could not resolve %s overload for %s on %s" (s_class_field_ref_kind kind) cf.cf_name (s_type_path c.cl_path));
 						0,cf
 				in
-				loop 0 (cf_base :: cf_base.cf_overloads)
+				let cfl = match kind with
+					| CfrStatic | CfrConstructor ->
+						(cf_base :: cf_base.cf_overloads)
+					| CfrMember ->
+						let key = (c.cl_path,cf_base.cf_name) in
+						try
+							Hashtbl.find instance_overload_cache key
+						with Not_found ->
+							let l = get_instance_overloads c cf_base in
+							Hashtbl.add instance_overload_cache key l;
+							l
+				in
+				loop 0 cfl
 			end in
 			chunk#write_uleb128 (class_fields#add cf (c,kind,depth));
 
@@ -1080,9 +1095,6 @@ class ['a] hxb_writer
 				in
 				self#write_enum_field_ref en ef;
 				chunk#write_i32 i;
-			(* | TEnumParameter(e1,({ ef_type = eft}),i) -> *)
-			(* 	prerr_endline (Printf.sprintf "en = %s" (s_type_kind eft)); *)
-			(* 	assert false *)
 			| TField(e1,FInstance(c,tl,cf)) ->
 				chunk#write_byte 102;
 				loop e1;
@@ -1530,7 +1542,6 @@ class ['a] hxb_writer
 				end;
 
 				let write_field source cf =
-					self#write_field_ref c source cf;
 					let close = self#open_field_scope false cf in
 					self#write_class_field_data cf;
 					close();
