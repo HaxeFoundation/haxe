@@ -258,16 +258,16 @@ class pos_writer
 
 	val mutable p_cur = p_initial
 
-	method private do_write_pos (chunk : chunk) (p : pos) =
+	method private do_write_pos (p : pos) =
 		chunk#write_string p.pfile;
 		chunk#write_leb128 p.pmin;
 		chunk#write_leb128 p.pmax;
 
-	method write_pos (chunk : chunk) (offset : int) (p : pos) =
+	method write_pos (offset : int) (p : pos) =
 		if p.pfile <> p_cur.pfile then begin
 			(* File changed, write full pos *)
 			chunk#write_u8 (4 + offset);
-			self#do_write_pos chunk p;
+			self#do_write_pos p;
 		end else if p.pmin <> p_cur.pmin then begin
 			if p.pmax <> p_cur.pmax then begin
 				(* pmin and pmax changed *)
@@ -288,7 +288,7 @@ class pos_writer
 		p_cur <- p
 
 	initializer
-		self#do_write_pos chunk p_initial
+		self#do_write_pos p_initial
 end
 
 type field_writer_context = {
@@ -976,7 +976,7 @@ class ['a] hxb_writer
 				ignore(fctx.t_pool#add t_bytes ());
 				IO.nwrite chunk#ch t_bytes
 			end;
-			fctx.pos_writer#write_pos chunk 240 e.epos;
+			fctx.pos_writer#write_pos 240 e.epos;
 
 			match e.eexpr with
 			(* values 0-19 *)
@@ -1320,28 +1320,8 @@ class ['a] hxb_writer
 			| Some e ->
 				chunk#write_byte 1;
 				let fctx = create_field_writer_context (new pos_writer chunk e.epos false) in
-				let flush_texpr = self#start_temporary_chunk in
 				self#write_texpr fctx e;
-				let texpr_bytes = flush_texpr (fun chunk new_chunk ->
-					new_chunk#get_bytes
-				) in
-				IO.nwrite chunk#ch texpr_bytes;
-				begin match cf.cf_expr_unoptimized with
-					| None ->
-						chunk#write_byte 0
-					| Some e ->
-						let flush_texpr = self#start_temporary_chunk in
-						self#write_texpr fctx e;
-						let texpr_unoptimized_bytes = flush_texpr (fun chunk new_chunk ->
-							new_chunk#get_bytes
-						) in
-						if Bytes.equal texpr_bytes texpr_unoptimized_bytes then begin
-							chunk#write_byte 0
-						end else begin
-							chunk#write_byte 1;
-							IO.nwrite chunk#ch texpr_unoptimized_bytes;
-						end
-				end
+				chunk#write_option cf.cf_expr_unoptimized (self#write_texpr fctx)
 		end;
 		chunk#write_list cf.cf_overloads (fun f ->
 			let close = self#open_field_scope false f in
