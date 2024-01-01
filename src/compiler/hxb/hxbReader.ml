@@ -42,6 +42,7 @@ class hxb_reader
 	val mutable anon_fields = Array.make 0 null_field
 	val mutable tmonos = Array.make 0 (mk_mono())
 	val mutable class_fields = Array.make 0 null_field
+	val mutable enum_fields = Array.make 0 null_enum_field
 
 	val vars = Hashtbl.create 0
 	val mutable type_type_parameters = Array.make 0 (mk_type_param null_class TPHType None None)
@@ -208,14 +209,8 @@ class hxb_reader
 	method read_field_ref =
 		class_fields.(self#read_uleb128)
 
-	method read_enum_field_ref en =
-		let name = self#read_string in
-		try PMap.find name en.e_constrs with e ->
-			prerr_endline (Printf.sprintf "  %s reading enum field ref for %s.%s" todo_error (s_type_path en.e_path) name);
-			prerr_endline (Printf.sprintf "    Available fields: %s" (PMap.fold (fun ef acc -> acc ^ " " ^ ef.ef_name) en.e_constrs ""));
-			self#print_reader_state;
-			(* print_stacktrace (); *)
-			raise e
+	method read_enum_field_ref =
+		enum_fields.(self#read_uleb128)
 
 	method read_anon_ref =
 		match IO.read_byte ch with
@@ -1029,8 +1024,7 @@ class hxb_reader
 			| 100 -> TEnumIndex (self#read_texpr)
 			| 101 ->
 				let e1 = self#read_texpr in
-				let en = self#read_enum_ref in
-				let ef = self#read_enum_field_ref en in
+				let ef = self#read_enum_field_ref in
 				let i = IO.read_i32 ch in
 				TEnumParameter(e1,ef,i)
 			| 102 ->
@@ -1061,7 +1055,7 @@ class hxb_reader
 			| 107 ->
 				let e1 = self#read_texpr in
 				let en = self#read_enum_ref in
-				let ef = self#read_enum_field_ref en in
+				let ef = self#read_enum_field_ref in
 				TField(e1,FEnum(en,ef))
 			| 108 ->
 				let e1 = self#read_texpr in
@@ -1366,6 +1360,15 @@ class hxb_reader
 		let kind = chunk_kind_of_string name in
 		(kind,data)
 
+	method read_enfr =
+		let l = self#read_uleb128 in
+		let a = Array.init l (fun i ->
+			let en = self#read_enum_ref in
+			let name = self#read_string in
+			PMap.find name en.e_constrs
+		) in
+		enum_fields <- a
+
 	method read_cflr =
 		let l = self#read_uleb128 in
 		let a = Array.init l (fun i ->
@@ -1650,6 +1653,9 @@ class hxb_reader
 				loop()
 			| ABSD ->
 				self#read_absd;
+				loop()
+			| ENFR ->
+				self#read_enfr;
 				loop()
 			| CFLR ->
 				self#read_cflr;

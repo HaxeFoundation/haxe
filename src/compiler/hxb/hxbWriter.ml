@@ -267,6 +267,7 @@ class ['a] hxb_writer
 
 	val type_param_lut = new pool
 	val class_fields = new identity_pool
+	val enum_fields = new pool
 	val mutable type_type_parameters = new pool
 	val mutable field_type_parameters = new identity_pool
 	val mutable local_type_parameters = new identity_pool
@@ -381,8 +382,12 @@ class ['a] hxb_writer
 			end in
 			chunk#write_uleb128 (class_fields#add cf (c,kind,depth));
 
-	method write_enum_field_ref ef =
-		chunk#write_string ef.ef_name
+	method write_enum_field_ref (en : tenum) (ef : tenum_field) =
+		let key = (en.e_path,ef.ef_name) in
+		try
+			chunk#write_uleb128 (enum_fields#get key)
+		with Not_found ->
+			chunk#write_uleb128 (enum_fields#add key (en,ef))
 
 	method write_anon_field_ref cf =
 		try
@@ -896,12 +901,9 @@ class ['a] hxb_writer
 		chunk#write_i32 v.v_id;
 		chunk#write_string v.v_name;
 		chunk#write_option v.v_extra (fun ve ->
-			chunk#write_list ve.v_params (fun ttp -> match follow_lazy ttp.ttp_type with
-				| TInst(c,_) ->
-					let index = local_type_parameters#add ttp () in
-					chunk#write_uleb128 index
-				| _ ->
-					die "" __LOC__
+			chunk#write_list ve.v_params (fun ttp ->
+				let index = local_type_parameters#add ttp () in
+				chunk#write_uleb128 index
 			);
 			chunk#write_option ve.v_expr self#write_texpr;
 		);
@@ -1091,8 +1093,7 @@ class ['a] hxb_writer
 					| _ ->
 						die "" __LOC__
 				in
-				self#write_enum_ref en;
-				self#write_enum_field_ref ef;
+				self#write_enum_field_ref en ef;
 				chunk#write_i32 i;
 			(* | TEnumParameter(e1,({ ef_type = eft}),i) -> *)
 			(* 	prerr_endline (Printf.sprintf "en = %s" (s_type_kind eft)); *)
@@ -1126,7 +1127,7 @@ class ['a] hxb_writer
 				chunk#write_byte 107;
 				loop e1;
 				self#write_enum_ref en;
-				self#write_enum_field_ref ef;
+				self#write_enum_field_ref en ef;
 			| TField(e1,FDynamic s) ->
 				chunk#write_byte 108;
 				loop e1;
@@ -1640,6 +1641,7 @@ class ['a] hxb_writer
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd td.t_path);
 			)
 		end;
+
 		self#start_chunk CFLR;
 		let items = class_fields#items in
 		chunk#write_uleb128 (DynArray.length items);
@@ -1656,6 +1658,14 @@ class ['a] hxb_writer
 				chunk#write_byte 2;
 			end;
 			chunk#write_uleb128 depth
+		) items;
+
+		self#start_chunk ENFR;
+		let items = enum_fields#items in
+		chunk#write_uleb128 (DynArray.length items);
+		DynArray.iter (fun (en,ef) ->
+			self#write_enum_ref en;
+			chunk#write_string ef.ef_name;
 		) items;
 
 		self#start_chunk HHDR;
