@@ -235,8 +235,8 @@ class hxb_reader
 		| 1 ->
 			let index = self#read_uleb128 in
 			(try begin
-				let cf = self#read_class_field true in
-				anon_fields.(index) <- cf;
+				let cf = anon_fields.(index) in
+				self#read_class_field_data true cf;
 				cf
 			end with e ->
 				prerr_endline (Printf.sprintf "[%s] %s reading anon field (1) ref %i" (s_type_path current_module.m_path) todo_error index);
@@ -1366,6 +1366,16 @@ class hxb_reader
 		) in
 		enum_fields <- a
 
+	method read_anfr =
+		let l = self#read_uleb128 in
+		let a = Array.init l (fun i ->
+			let name = self#read_string in
+			let pos = self#read_pos in
+			let name_pos = self#read_pos in
+			{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos }
+		) in
+		anon_fields <- a
+
 	method read_cflr =
 		let l = self#read_uleb128 in
 		let instance_overload_cache = Hashtbl.create 0 in
@@ -1612,8 +1622,6 @@ class hxb_reader
 
 		let l = self#read_uleb128 in
 		anons <- Array.init l (fun _ -> { a_fields = PMap.empty; a_status = ref Closed });
-
-		anon_fields <- Array.make (self#read_uleb128) null_field;
 		tmonos <- Array.init (self#read_uleb128) (fun _ -> mk_mono());
 		api#make_module path file
 
@@ -1664,6 +1672,9 @@ class hxb_reader
 				loop()
 			| ENFR ->
 				self#read_enfr;
+				loop()
+			| ANFR ->
+				self#read_anfr;
 				loop()
 			| CFLR ->
 				self#read_cflr;

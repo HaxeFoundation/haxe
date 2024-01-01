@@ -17,6 +17,7 @@ type chunk_kind =
 	| CLSD (* class definition *)
 	| ABSD (* abstract definition *)
 	| ENFR (* enum field references *)
+	| ANFR (* anon field references *)
 	| CFLR (* class field references *)
 	| CFLD (* class fields *)
 	| AFLD (* abstract fields *)
@@ -37,6 +38,7 @@ let string_of_chunk_kind = function
 	| CLSD -> "CLSD"
 	| ABSD -> "ABSD"
 	| ENFR -> "ENFR"
+	| ANFR -> "ANFR"
 	| CFLR -> "CFLR"
 	| CFLD -> "CFLD"
 	| AFLD -> "AFLD"
@@ -57,6 +59,7 @@ let chunk_kind_of_string = function
 	| "CLSD" -> CLSD
 	| "ABSD" -> ABSD
 	| "ENFR" -> ENFR
+	| "ANFR" -> ANFR
 	| "CFLR" -> CFLR
 	| "CFLD" -> CFLD
 	| "AFLD" -> AFLD

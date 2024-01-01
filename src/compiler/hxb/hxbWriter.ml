@@ -409,7 +409,6 @@ class ['a] hxb_writer
 			chunk#write_byte 1;
 			chunk#write_uleb128 index;
 			let close = self#open_field_scope true cf in
-			self#write_class_field_forward cf;
 			self#write_class_field_data cf;
 			close()
 
@@ -1606,11 +1605,19 @@ class ['a] hxb_writer
 			chunk#write_string ef.ef_name;
 		) items;
 
+		self#start_chunk ANFR;
+		let items = anon_fields#items in
+		chunk#write_uleb128 (DynArray.length items);
+		DynArray.iter (fun (cf,_) ->
+			chunk#write_string cf.cf_name;
+			self#write_pos cf.cf_pos;
+			self#write_pos cf.cf_name_pos;
+		) items;
+
 		self#start_chunk HHDR;
 		self#write_path m.m_path;
 		chunk#write_string (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		chunk#write_uleb128 (DynArray.length anons#items);
-		chunk#write_uleb128 (DynArray.length anon_fields#items);
 		chunk#write_uleb128 (DynArray.length tmonos#items);
 		self#start_chunk HEND;
 
