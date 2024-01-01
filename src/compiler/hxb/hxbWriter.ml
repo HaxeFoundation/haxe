@@ -367,10 +367,10 @@ class ['a] hxb_writer
 		try
 			chunk#write_uleb128 (class_fields#get cf)
 		with Not_found ->
-			let depth,cf = if not (has_class_field_flag cf CfOverload) then
+			let cf_base = find_field c cf.cf_name kind in
+			let depth,cf = if cf_base.cf_overloads = [] then
 				0,cf
 			else begin
-				let cf_base = find_field c cf.cf_name kind in
 				let rec loop depth cfl = match cfl with
 					| cf' :: cfl ->
 						if cf' == cf then
