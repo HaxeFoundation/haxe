@@ -364,13 +364,11 @@ class ['a] hxb_writer
 		chunk#write_uleb128 index;
 
 	method write_field_ref (c : tclass) (kind : class_field_ref_kind)  (cf : tclass_field) =
-		try
-			chunk#write_uleb128 (class_fields#get cf)
+		let index = try
+			class_fields#get cf
 		with Not_found ->
 			let cf_base = find_field c cf.cf_name kind in
-			let depth,cf = if cf_base.cf_overloads = [] then
-				0,cf
-			else begin
+			let depth,cf =
 				let rec loop depth cfl = match cfl with
 					| cf' :: cfl ->
 						if cf' == cf then
@@ -394,15 +392,17 @@ class ['a] hxb_writer
 							l
 				in
 				loop 0 cfl
-			end in
-			chunk#write_uleb128 (class_fields#add cf (c,kind,depth));
+			in
+			class_fields#add cf (c,kind,depth)
+		in
+		chunk#write_uleb128 index
 
 	method write_enum_field_ref (en : tenum) (ef : tenum_field) =
-		ignore(enums#get_or_add en.e_path en);
 		let key = (en.e_path,ef.ef_name) in
 		try
 			chunk#write_uleb128 (enum_fields#get key)
 		with Not_found ->
+			ignore(enums#get_or_add en.e_path en);
 			chunk#write_uleb128 (enum_fields#add key (en,ef))
 
 	method write_anon_field_ref cf =

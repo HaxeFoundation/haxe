@@ -1477,15 +1477,6 @@ class hxb_reader
 		| 2 ->
 			an.a_status := Extend self#read_types;
 			read_fields ()
-		(* | 3 -> *)
-		(* 	an.a_status := ClassStatics self#read_class_ref; *)
-		(* 	read_fields () *)
-		(* | 4 -> *)
-		(* 	an.a_status := EnumStatics self#read_enum_ref; *)
-		(* 	read_fields () *)
-		(* | 5 -> *)
-		(* 	an.a_status := AbstractStatics self#read_abstract_ref; *)
-		(* 	read_fields () *)
 		| _ -> assert false
 		end;
 
@@ -1681,6 +1672,5 @@ class hxb_reader
 				loop()
 		in
 		loop();
-		(* prerr_endline (Printf.sprintf "Done reading hxb module %s" (s_type_path current_module.m_path)); *)
 		current_module
 end
