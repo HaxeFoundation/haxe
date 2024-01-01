@@ -515,7 +515,7 @@ let needs_inline ctx c cf =
 
 let clone_type_parameter map path ttp =
 	let c = ttp.ttp_class in
-	let c = {c with cl_path = ((fst path @ [snd path],ttp.ttp_name))} in
+	let c = {c with cl_path = path} in
 	let def = Option.map map ttp.ttp_default in
 	let constraints = match ttp.ttp_constraints with
 		| None -> None

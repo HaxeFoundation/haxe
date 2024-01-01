@@ -313,7 +313,7 @@ let build_generic_class ctx c p tl =
 		set_type_parameter_dependencies mg tl;
 		let build_field cf_old =
 			let params = List.map (fun ttp ->
-				let ttp' = clone_type_parameter gctx mg cg.cl_path ttp in
+				let ttp' = clone_type_parameter gctx mg ([cf_old.cf_name],ttp.ttp_name) ttp in
 				(ttp.ttp_type,ttp')
 			) cf_old.cf_params in
 			let param_subst = List.map (fun (t,ttp) -> t,(ttp.ttp_type,None)) params in
@@ -443,7 +443,7 @@ let type_generic_function ctx fa fcc with_type p =
 	let name = cf.cf_name ^ "_" ^ gctx.name in
 	let params = extract_type_parameters monos in
 	let clones = List.map (fun ttp ->
-		let name_path = if ttp.ttp_host = TPHMethod then ([],name) else ttp.ttp_class.cl_path in
+		let name_path = if (fst ttp.ttp_class.cl_path) = [cf.cf_name] then ([name],ttp.ttp_name) else ttp.ttp_class.cl_path in
 		clone_type_parameter gctx c.cl_module name_path ttp
 	) params in
 	let param_subst = List.map2 (fun ttp ttp' ->
