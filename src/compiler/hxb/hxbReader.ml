@@ -1326,7 +1326,14 @@ class hxb_reader
 
 	method read_typedef (td : tdef) =
 		self#read_common_module_type (Obj.magic td);
-		td.t_type <- self#read_type_instance;
+		let t = self#read_type_instance in
+		match td.t_type with
+		| TMono r ->
+			(match r.tm_type with
+			| None -> Monomorph.bind r t;
+			| Some t' -> die (Printf.sprintf "typedef %s is already initialized to %s, but new init to %s was attempted" (s_type_path td.t_path) (s_type_kind t') (s_type_kind t)) __LOC__)
+		| _ ->
+			die "" __LOC__
 
 	(* Chunks *)
 
