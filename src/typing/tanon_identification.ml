@@ -5,15 +5,16 @@ let replace_mono t =
 	let visited_anons = ref [] in
 	let rec loop t =
 		match t with
-		| TMono ({ tm_type = None } as tmono) ->
-			Monomorph.bind tmono t_dynamic
+		| TMono ({ tm_type = None }) ->
+			t_dynamic
 		| TAnon an ->
 			if not (List.memq an !visited_anons) then begin
 				visited_anons := an :: !visited_anons;
-				TFunctions.iter loop t
-			end
+				TFunctions.map loop t
+			end else
+				t
 		| _ ->
-			TFunctions.iter loop t
+			TFunctions.map loop t
 	in
 	loop t
 
@@ -165,11 +166,12 @@ object(self)
 				Some pfm
 			end
 		| _ ->
-			let arity = PMap.fold (fun cf i ->
-				replace_mono cf.cf_type;
-				i + 1
-			) an.a_fields 0 in
-			begin try
+			let arity,fields = PMap.fold (fun cf (i,acc) ->
+				let t = replace_mono cf.cf_type in
+				(i + 1),(PMap.add cf.cf_name {cf with cf_type = t} acc)
+			) an.a_fields (0,PMap.empty) in
+			let an = { a_fields = fields; a_status = an.a_status; } in
+			try
 				Some (self#find_compatible strict arity (TAnon an))
 			with Not_found ->
 				let id = num in
@@ -184,7 +186,6 @@ object(self)
 				} in
 				self#add_pfm path pfm;
 				Some pfm
-			end
 
 	method identify ?(strict:bool = false) (accept_anons : bool) (t : Type.t) =
 		match t with
