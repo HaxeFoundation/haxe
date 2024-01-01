@@ -13,9 +13,6 @@ let c_dim = if no_color then "" else "\x1b[2m"
 let todo = "\x1b[33m[TODO]" ^ c_reset
 let todo_error = "\x1b[31m[TODO] error:" ^ c_reset
 
-let unopt_write_counter = ref 0
-let unopt_skip_counter = ref 0
-
 let t_pool_hits = ref 0
 let t_pool_misses = ref 0
 
@@ -294,11 +291,13 @@ end
 type field_writer_context = {
 	t_pool : (bytes,unit) pool;
 	pos_writer : pos_writer;
+	vars : (int,tvar) pool;
 }
 
 let create_field_writer_context pos_writer = {
 	t_pool = new pool;
 	pos_writer = pos_writer;
+	vars = new pool;
 }
 
 class ['a] hxb_writer
@@ -947,20 +946,23 @@ class ['a] hxb_writer
 	method write_var fctx v =
 		chunk#write_i32 v.v_id;
 		chunk#write_string v.v_name;
-		chunk#write_option v.v_extra (fun ve ->
-			chunk#write_list ve.v_params (fun ttp ->
-				let index = local_type_parameters#add ttp () in
-				chunk#write_uleb128 index
-			);
-			chunk#write_option ve.v_expr (self#write_texpr fctx);
-		);
-		self#write_type_instance v.v_type;
 		self#write_var_kind v.v_kind;
 		chunk#write_i32 v.v_flags;
 		self#write_metadata v.v_meta;
 		self#write_pos v.v_pos
 
 	method write_texpr fctx (e : texpr) =
+		let declare_var v =
+			chunk#write_uleb128 (fctx.vars#add v.v_id v);
+			chunk#write_option v.v_extra (fun ve ->
+				chunk#write_list ve.v_params (fun ttp ->
+					let index = local_type_parameters#add ttp () in
+					chunk#write_uleb128 index
+				);
+				chunk#write_option ve.v_expr (self#write_texpr fctx);
+			);
+			self#write_type_instance v.v_type;
+		in
 		let rec loop e =
 			let restore = self#start_temporary_chunk in
 			self#write_type_instance e.etype;
@@ -1005,13 +1007,13 @@ class ['a] hxb_writer
 			(* vars 20-29 *)
 			| TLocal v ->
 				chunk#write_byte 20;
-				chunk#write_i32 v.v_id;
+				chunk#write_uleb128 (fctx.vars#get v.v_id)
 			| TVar(v,None) ->
 				chunk#write_byte 21;
-				self#write_var fctx v
+				declare_var v;
 			| TVar(v,Some e1) ->
 				chunk#write_byte 22;
-				self#write_var fctx v;
+				declare_var v;
 				loop e1;
 			(* blocks 30-49 *)
 			| TBlock [] ->
@@ -1041,7 +1043,7 @@ class ['a] hxb_writer
 			| TFunction tf ->
 				chunk#write_byte 50;
 				chunk#write_list tf.tf_args (fun (v,eo) ->
-					self#write_var fctx v;
+					declare_var v;
 					chunk#write_option eo loop;
 				);
 				self#write_type_instance tf.tf_type;
@@ -1098,7 +1100,7 @@ class ['a] hxb_writer
 				chunk#write_byte 83;
 				loop e1;
 				chunk#write_list catches  (fun (v,e) ->
-					self#write_var fctx v;
+					declare_var v;
 					loop e
 				);
 			| TWhile(e1,e2,flag) ->
@@ -1107,7 +1109,7 @@ class ['a] hxb_writer
 				loop e2;
 			| TFor(v,e1,e2) ->
 				chunk#write_byte 86;
-				self#write_var fctx v;
+				declare_var v;
 				loop e1;
 				loop e2;
 			(* control flow 90-99 *)
@@ -1304,6 +1306,20 @@ class ['a] hxb_writer
 			close()
 		);
 
+	method start_texpr (p: pos) =
+		let restore = self#start_temporary_chunk in
+		let fctx = create_field_writer_context (new pos_writer chunk p false) in
+		fctx,(fun () ->
+			restore(fun chunk new_chunk ->
+				let items = fctx.vars#items in
+				chunk#write_uleb128 (DynArray.length items);
+				DynArray.iter (fun v ->
+					self#write_var fctx v;
+				) items;
+				new_chunk#export_data chunk#ch
+			)
+		)
+
 	method write_class_field_data cf =
 		let restore = self#start_temporary_chunk in
 		(try self#write_type_instance cf.cf_type with e -> begin
@@ -1319,9 +1335,10 @@ class ['a] hxb_writer
 				chunk#write_byte 0
 			| Some e ->
 				chunk#write_byte 1;
-				let fctx = create_field_writer_context (new pos_writer chunk e.epos false) in
+				let fctx,close = self#start_texpr e.epos in
 				self#write_texpr fctx e;
-				chunk#write_option cf.cf_expr_unoptimized (self#write_texpr fctx)
+				chunk#write_option cf.cf_expr_unoptimized (self#write_texpr fctx);
+				close();
 		end;
 		chunk#write_list cf.cf_overloads (fun f ->
 			let close = self#open_field_scope false f in
@@ -1583,7 +1600,11 @@ class ['a] hxb_writer
 				chunk#write_option c.cl_constructor (write_field CfrConstructor);
 				chunk#write_list c.cl_ordered_fields (write_field CfrMember);
 				chunk#write_list c.cl_ordered_statics (write_field CfrStatic);
-				chunk#write_option c.cl_init (fun e -> self#write_texpr (create_field_writer_context (new pos_writer chunk e.epos false)) e);
+				chunk#write_option c.cl_init (fun e ->
+					let fctx,close = self#start_texpr e.epos in
+					self#write_texpr fctx e;
+					close()
+				);
 			)
 		end;
 		begin match own_enums#to_list with

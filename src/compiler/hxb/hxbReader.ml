@@ -25,11 +25,13 @@ let print_stacktrace () =
 type field_reader_context = {
 	t_pool : Type.t DynArray.t;
 	pos : pos ref;
+	vars : tvar Array.t;
 }
 
-let create_field_reader_context p = {
+let create_field_reader_context p vars = {
 	t_pool = DynArray.create ();
 	pos = ref p;
+	vars = vars;
 }
 
 class hxb_reader
@@ -55,7 +57,6 @@ class hxb_reader
 	val mutable class_fields = Array.make 0 null_field
 	val mutable enum_fields = Array.make 0 null_enum_field
 
-	val vars = Hashtbl.create 0
 	val mutable type_type_parameters = Array.make 0 (mk_type_param null_class TPHType None None)
 	val mutable field_type_parameters = Array.make 0 (mk_type_param null_class TPHMethod None None)
 	val mutable local_type_parameters = Array.make 0 (mk_type_param null_class TPHLocal None None)
@@ -833,21 +834,9 @@ class hxb_reader
 			| 10 -> VAbstractThis
 			| _ -> assert false
 
-	method read_var fctx =
+	method read_var =
 		let id = IO.read_i32 ch in
 		let name = self#read_string in
-		let extra = self#read_option (fun () ->
-			let params = self#read_list (fun () ->
-				let i = self#read_uleb128 in
-				local_type_parameters.(i)
-			) in
-			let vexpr = self#read_option (fun () -> self#read_texpr fctx) in
-			{
-				v_params = params;
-				v_expr = vexpr;
-			};
-		) in
-		let t = self#read_type_instance in
 		let kind = self#read_var_kind in
 		let flags = IO.read_i32 ch in
 		let meta = self#read_metadata in
@@ -855,17 +844,33 @@ class hxb_reader
 		let v = {
 			v_id = id;
 			v_name = name;
-			v_type = t;
+			v_type = t_dynamic;
 			v_kind = kind;
 			v_meta = meta;
 			v_pos = pos;
-			v_extra = extra;
+			v_extra = None;
 			v_flags = flags;
 		} in
-		Hashtbl.add vars id v;
 		v
 
 	method read_texpr fctx =
+
+		let declare_local () =
+			let v = fctx.vars.(self#read_uleb128) in
+			v.v_extra <- self#read_option (fun () ->
+				let params = self#read_list (fun () ->
+					let i = self#read_uleb128 in
+					local_type_parameters.(i)
+				) in
+				let vexpr = self#read_option (fun () -> self#read_texpr fctx) in
+				{
+					v_params = params;
+					v_expr = vexpr;
+				};
+			);
+			v.v_type <- self#read_type_instance;
+			v
+		in
 		let rec loop () =
 			let t = match self#read_u8 with
 				| 0 ->
@@ -890,12 +895,13 @@ class hxb_reader
 					| 7 -> TConst (TString self#read_string)
 
 					(* vars 20-29 *)
-					| 20 -> TLocal (Hashtbl.find vars (IO.read_i32 ch))
+					| 20 ->
+						TLocal (fctx.vars.(self#read_uleb128))
 					| 21 ->
-						let v = self#read_var fctx in
+						let v = declare_local () in
 						TVar (v,None)
 					| 22 ->
-							let v = self#read_var fctx in
+							let v = declare_local () in
 							let e = loop () in
 							TVar (v, Some e)
 
@@ -921,7 +927,7 @@ class hxb_reader
 					(* function 50-59 *)
 					| 50 ->
 						let read_tfunction_arg () =
-							let v = self#read_var fctx in
+							let v = declare_local () in
 							let cto = self#read_option loop in
 							(v,cto)
 						in
@@ -991,7 +997,7 @@ class hxb_reader
 					| 83 ->
 						let e1 = loop () in
 						let catches = self#read_list (fun () ->
-							let v = self#read_var fctx in
+							let v = declare_local () in
 							let e = loop () in
 							(v,e)
 						) in
@@ -1005,7 +1011,7 @@ class hxb_reader
 						let e2 = loop () in
 						TWhile(e1,e2,DoWhile)
 					| 86 ->
-						let v  = self#read_var fctx in
+						let v  = declare_local () in
 						let e1 = loop () in
 						let e2 = loop () in
 						TFor(v,e1,e2)
@@ -1145,6 +1151,13 @@ class hxb_reader
 		let overloads = self#read_list (fun () -> self#read_class_field_forward) in
 		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos; cf_overloads = overloads }
 
+	method start_texpr =
+		let l = self#read_uleb128 in
+		let a = Array.init l (fun _ ->
+			self#read_var
+		) in
+		create_field_reader_context self#read_pos a
+
 	method read_class_field_data (nested : bool) (cf : tclass_field) : unit =
 		current_field <- cf;
 
@@ -1168,7 +1181,7 @@ class hxb_reader
 			| 0 ->
 				None,None
 			| _ ->
-				let fctx = create_field_reader_context self#read_pos in
+				let fctx = self#start_texpr in
 				let e = self#read_texpr fctx in
 				let e_unopt = self#read_option (fun () -> self#read_texpr fctx) in
 				(Some e,e_unopt)
@@ -1227,7 +1240,7 @@ class hxb_reader
 		in
 		loop CfrMember (self#read_uleb128) c.cl_ordered_fields;
 		loop CfrStatic (self#read_uleb128) c.cl_ordered_statics;
-		c.cl_init <- self#read_option (fun () -> self#read_texpr (create_field_reader_context self#read_pos));
+		c.cl_init <- self#read_option (fun () -> self#read_texpr self#start_texpr);
 		(match c.cl_kind with KModuleFields md -> md.m_statics <- Some c; | _ -> ());
 
 	method read_enum_fields (e : tenum) =
