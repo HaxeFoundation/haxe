@@ -449,6 +449,14 @@ class ['a] hxb_writer
 			self#write_type_instance t;
 		in
 		match t with
+		| TAbstract ({a_path = ([],"Int")},[]) ->
+			chunk#write_byte 100
+		| TAbstract ({a_path = ([],"Float")},[]) ->
+			chunk#write_byte 101
+		| TAbstract ({a_path = ([],"Bool")},[]) ->
+			chunk#write_byte 102
+		| TInst ({cl_path = ([],"String")},[]) ->
+			chunk#write_byte 103
 		| TMono r ->
 			Monomorph.close r;
 			begin match r.tm_type with
@@ -1324,7 +1332,12 @@ class ['a] hxb_writer
 		end;
 		self#write_common_module_type (Obj.magic a);
 		chunk#write_option a.a_impl self#write_class_ref;
-		self#write_type_instance a.a_this;
+		if Meta.has Meta.CoreType a.a_meta then
+			chunk#write_byte 0
+		else begin
+			chunk#write_byte 1;
+			self#write_type_instance a.a_this;
+		end;
 		chunk#write_list a.a_from self#write_type_instance;
 		chunk#write_list a.a_to self#write_type_instance;
 		chunk#write_bool a.a_enum

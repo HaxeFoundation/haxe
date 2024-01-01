@@ -62,15 +62,6 @@ class hxb_reader
 		Option.may (fun tinfos -> prerr_endline (Printf.sprintf "  Current type: %s" (s_type_path tinfos.mt_path))) current_type;
 		Option.may (fun e -> prerr_endline (Printf.sprintf "  Last texpr: %s" (TPrinting.s_expr_debug e))) last_texpr
 
-	val mutable tvoid = None
-	method get_tvoid =
-		match tvoid with
-		| Some tvoid -> tvoid
-		| None ->
-			let t = type_of_module_type (self#resolve_type [] "StdTypes" "Void") in
-			tvoid <- Some t;
-			t
-
 	(* Primitives *)
 
 	method read_u8 =
@@ -702,7 +693,8 @@ class hxb_reader
 			let a = self#read_abstract_ref in
 			let tl = self#read_types in
 			TAbstract(a,tl)
-		| 30 -> TFun([],self#get_tvoid)
+		| 30 ->
+			TFun([],api#basic_types.tvoid)
 		| 31 ->
 			let f () =
 				let name = self#read_string in
@@ -712,7 +704,7 @@ class hxb_reader
 				(name,opt,t)
 			in
 			let args = self#read_list f in
-			TFun(args,self#get_tvoid)
+			TFun(args,api#basic_types.tvoid)
 		| 32 ->
 			let f () =
 				let name = self#read_string in
@@ -737,8 +729,18 @@ class hxb_reader
 			let empty = self#read_bool in
 			if empty then mk_anon (ref Closed)
 			else TAnon self#read_anon_ref
-		| 51 -> TAnon self#read_anon_ref
-		| i -> error (Printf.sprintf "Bad type instance id: %i" i)
+		| 51 ->
+			TAnon self#read_anon_ref
+		| 100 ->
+			api#basic_types.tint
+		| 101 ->
+			api#basic_types.tfloat
+		| 102 ->
+			api#basic_types.tbool
+		| 103 ->
+			api#basic_types.tstring
+		| i ->
+			error (Printf.sprintf "Bad type instance id: %i" i)
 
 	method read_types =
 		self#read_list (fun () -> self#read_type_instance)
@@ -1272,7 +1274,12 @@ class hxb_reader
 	method read_abstract (a : tabstract) =
 		self#read_common_module_type (Obj.magic a);
 		a.a_impl <- self#read_option (fun () -> self#read_class_ref);
-		a.a_this <- self#read_type_instance;
+		begin match self#read_u8 with
+			| 0 ->
+				a.a_this <- TAbstract(a,extract_param_types a.a_params)
+			| _ ->
+				a.a_this <- self#read_type_instance;
+		end;
 		a.a_from <- self#read_list (fun () -> self#read_type_instance);
 		a.a_to <- self#read_list (fun () -> self#read_type_instance);
 		a.a_enum <- self#read_bool;

@@ -432,6 +432,9 @@ class hxb_reader_api_server
 			end
 		with Not_found ->
 			NoModule
+
+	method basic_types =
+		ctx.com.basic
 end
 
 let handle_cache_bound_objects com cbol =
