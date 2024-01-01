@@ -639,16 +639,16 @@ class hxb_reader
 
 	(* Type instances *)
 
-	method read_type_parameter_ref = function
+	method resolve_ttp_ref = function
 		| 5 ->
 			let i = self#read_uleb128 in
-			(field_type_parameters.(i)).ttp_type
+			(field_type_parameters.(i))
 		| 6 ->
 			let i = self#read_uleb128 in
-			(type_type_parameters.(i)).ttp_type
+			(type_type_parameters.(i))
 		| 7 ->
 			let k = self#read_uleb128 in
-			local_type_parameters.(k).ttp_type
+			local_type_parameters.(k)
 		| _ ->
 			die "" __LOC__
 
@@ -666,7 +666,7 @@ class hxb_reader
 		(* 	let tmono = !monomorph_create_ref () in (1* TODO identity *1) *)
 		(* 	tmono.tm_type <- Some t; *)
 		(* 	TMono tmono; *)
-		| 5 | 6 | 7 -> self#read_type_parameter_ref kind
+		| 5 | 6 | 7 -> (self#resolve_ttp_ref kind).ttp_type
 		| 8 ->
 			let e = self#read_expr in
 			let c = {null_class with cl_kind = KExpr e; cl_module = current_module } in
@@ -1082,17 +1082,13 @@ class hxb_reader
 						let el = loop_el() in
 						TNew(c,tl,el)
 					| 127 ->
-						(* TODO: this is giga awkward *)
-						let t = self#read_type_parameter_ref self#read_uleb128 in
-						let c = match t with | TInst(c,_) -> c | _ -> die "" __LOC__ in
+						let ttp = self#resolve_ttp_ref self#read_uleb128 in
 						let tl = self#read_types in
 						let el = loop_el() in
-						TNew(c,tl,el)
+						TNew(ttp.ttp_class,tl,el)
 					| 128 ->
-						(* TODO: this is giga awkward *)
-						let t = self#read_type_parameter_ref self#read_uleb128 in
-						let c = match t with | TInst(c,_) -> c | _ -> die "" __LOC__ in
-						TTypeExpr (TClassDecl c)
+						let ttp = self#resolve_ttp_ref self#read_uleb128 in
+						TTypeExpr (TClassDecl ttp.ttp_class)
 
 					(* unops 140-159 *)
 					| i when i >= 140 && i < 160 ->
