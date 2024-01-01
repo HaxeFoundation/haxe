@@ -42,7 +42,7 @@ let process_args arg_spec =
 
 let parse_args com =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2023 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
+		"Haxe Compiler %s - (C)2005-2024 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
 		s_version_full (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let actx = {
