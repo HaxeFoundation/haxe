@@ -1386,7 +1386,6 @@ class hxb_reader
 				| CfrConstructor ->
 					Option.get c.cl_constructor
 			in
-			let depth = self#read_uleb128 in
 			let pick_overload cf depth =
 				let rec loop depth cfl = match cfl with
 					| cf :: cfl ->
@@ -1411,7 +1410,11 @@ class hxb_reader
 				in
 				loop depth cfl
 			in
-			pick_overload cf depth;
+			let depth = self#read_uleb128 in
+			if depth = 0 then
+				cf
+			else
+				pick_overload cf depth;
 		) in
 		class_fields <- a
 
