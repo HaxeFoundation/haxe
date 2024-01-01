@@ -607,6 +607,14 @@ let rec follow_without_type t =
 		follow_without_type t
 	| _ -> t
 
+let rec follow_lazy_and_mono t = match t with
+	| TMono {tm_type = Some t} ->
+		follow_lazy_and_mono t
+	| TLazy f ->
+		follow_lazy_and_mono (lazy_type f)
+	| _ ->
+		t
+
 let rec ambiguate_funs t =
 	match follow t with
 	| TFun _ -> TFun ([], t_dynamic)

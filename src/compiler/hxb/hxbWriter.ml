@@ -512,9 +512,9 @@ class ['a] hxb_writer
 			chunk#write_byte 20;
 			self#write_abstract_ref a;
 			self#write_types tl
-		| TFun([],t) when ExtType.is_void (follow t) ->
+		| TFun([],t) when ExtType.is_void (follow_lazy_and_mono t) ->
 			chunk#write_byte 30;
-		| TFun(args,t) when ExtType.is_void (follow t) ->
+		| TFun(args,t) when ExtType.is_void (follow_lazy_and_mono t) ->
 			chunk#write_byte 31;
 			chunk#write_list args write_function_arg;
 		| TFun(args,t) ->
