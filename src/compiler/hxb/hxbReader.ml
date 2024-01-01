@@ -1163,11 +1163,6 @@ class hxb_reader
 		cf.cf_params <- !params;
 		cf.cf_flags <- flags;
 
-	method read_class_field (nested : bool) =
-		let cf = self#read_class_field_forward in
-		self#read_class_field_data nested cf;
-		cf
-
 	method read_class_fields (c : tclass) =
 		begin match c.cl_kind with
 		| KAbstractImpl a ->
@@ -1648,6 +1643,9 @@ class hxb_reader
 			| HHDR ->
 				current_module <- self#read_hhdr;
 				loop()
+			| ANFR ->
+				self#read_anfr;
+				loop()
 			| TYPF ->
 				current_module.m_types <- self#read_typf;
 				api#add_module current_module;
@@ -1672,9 +1670,6 @@ class hxb_reader
 				loop()
 			| ENFR ->
 				self#read_enfr;
-				loop()
-			| ANFR ->
-				self#read_anfr;
 				loop()
 			| CFLR ->
 				self#read_cflr;
