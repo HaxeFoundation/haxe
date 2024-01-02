@@ -2276,7 +2276,7 @@ let macro_api ccom get_api =
 				let c = match t with
 					| TInst(c,_) -> c
 					| _ -> die "" __LOC__
-				in				
+				in
 				mk_type_param c TPHType default None
 			) (decode_array tpl) in
 			let rec map t = match t with
@@ -2318,7 +2318,7 @@ let macro_api ccom get_api =
 			List.iter (fun v ->
 				let s = decode_string v in
 				let s = com.file_keys#get s in
-				cs#taint_modules s "server_invalidate_files";
+				cs#taint_modules s ServerInvalidateFiles;
 				cs#remove_files s;
 			) (decode_array a);
 			vnull

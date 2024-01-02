@@ -32,9 +32,14 @@ type module_check_policy =
 	| NoCheckShadowing
 	| Retype
 
+type module_tainting_reason =
+	| CheckDisplayFile
+	| ServerInvalidate
+	| ServerInvalidateFiles
+
 type module_skip_reason =
 	| DependencyDirty of path * module_skip_reason
-	| Tainted of string
+	| Tainted of module_tainting_reason
 	| FileChanged of string
 	| Shadowed of string
 	| LibraryChanged
