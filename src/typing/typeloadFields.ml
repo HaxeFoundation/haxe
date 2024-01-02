@@ -1878,12 +1878,12 @@ let init_class ctx c p herits fields =
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
-	begin match follow c.cl_type with
+	delay ctx PConnectField (fun () -> match follow c.cl_type with
 		| TAnon an ->
 			an.a_fields <- c.cl_statics
 		| _ ->
 			die "" __LOC__
-	end;
+	);
 	(*
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)
