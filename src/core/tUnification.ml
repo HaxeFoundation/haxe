@@ -918,7 +918,8 @@ and unify_anons uctx a b a1 a2 =
 		let f1 = PMap.find n a1_fields in
 		if not (unify_kind ~strict:uctx.strict_field_kind f1.cf_kind f2.cf_kind) then
 			error [invalid_kind n f1.cf_kind f2.cf_kind];
-		if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
+		if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then
+			error [invalid_visibility n];
 		try
 			let f1_type =
 				if fast_eq f1.cf_type f2.cf_type then f1.cf_type
@@ -926,17 +927,20 @@ and unify_anons uctx a b a1 a2 =
 			in
 			unify_with_access uctx f1 f1_type f2;
 			f1
-		with
-			Unify_error l -> error (invalid_field n :: l)
+		with Unify_error l ->
+				error (invalid_field n :: l)
 	in
 	let unify_fields a1_fields f_good f_bad =
-		PMap.iter (fun _ f2 ->
-			try
-				f_good (unify_field a1_fields f2)
-			with Not_found ->
-				if not (f_bad f2) then
-					error [has_no_field a f2.cf_name]
-		) a2.a_fields
+		try
+			PMap.iter (fun _ f2 ->
+				try
+					f_good (unify_field a1_fields f2)
+				with Not_found ->
+					if not (f_bad f2) then
+						error [has_no_field a f2.cf_name]
+			) a2.a_fields
+		with Unify_error l ->
+			error (cannot_unify a b :: l)
 	in
 	begin match !(a1.a_status),!(a2.a_status) with
 		| ClassStatics c1,ClassStatics c2 when c1 == c2 ->

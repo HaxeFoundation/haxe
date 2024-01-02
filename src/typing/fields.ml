@@ -333,6 +333,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				| ClassStatics c ->
 					begin try
 						let cf = PMap.find i c.cl_statics in
+						if has_class_field_flag cf CfImpl && not (has_class_field_flag cf CfEnum) then display_error ctx.com "Cannot access non-static abstract field statically" pfield;
 						field_access cf (FHStatic c)
 					with Not_found ->
 						begin match c.cl_kind with
