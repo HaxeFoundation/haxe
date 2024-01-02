@@ -970,9 +970,10 @@ let _optimize (f:fundecl) =
 
 	(* nop *)
 
+	let is_assign i = Array.exists (fun (var,pos) -> pos = i) f.assigns in
 	for i=0 to Array.length f.code - 1 do
 		(match op i with
-		| OMov (d,r) when not (is_live d (i + 1)) ->
+		| OMov (d,r) when not (is_live d (i + 1)) && not (is_assign i) ->
 			let n = read_counts.(r) - 1 in
 			read_counts.(r) <- n;
 			write_counts.(d) <- write_counts.(d) - 1;
