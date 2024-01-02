@@ -198,6 +198,15 @@ let mk_field name ?(public = true) ?(static = false) t p name_pos = {
 	);
 }
 
+let find_field c name kind =
+	match kind with
+	| CfrConstructor ->
+		begin match c.cl_constructor with Some cf -> cf | None -> raise Not_found end
+	| CfrStatic ->
+		PMap.find name c.cl_statics
+	| CfrMember ->
+		PMap.find name c.cl_fields
+
 let null_module = {
 	m_id = alloc_mid();
 	m_path = [] , "";
@@ -597,6 +606,14 @@ let rec follow_without_type t =
 	| TAbstract({a_path = [],"Null"},[t]) ->
 		follow_without_type t
 	| _ -> t
+
+let rec follow_lazy_and_mono t = match t with
+	| TMono {tm_type = Some t} ->
+		follow_lazy_and_mono t
+	| TLazy f ->
+		follow_lazy_and_mono (lazy_type f)
+	| _ ->
+		t
 
 let rec ambiguate_funs t =
 	match follow t with

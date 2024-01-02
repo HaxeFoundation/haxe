@@ -573,7 +573,7 @@ module TypeLevel = struct
 		| TMono r ->
 			(match r.tm_type with
 			| None -> Monomorph.bind r tt;
-			| Some _ -> die "" __LOC__);
+			| Some t' -> die (Printf.sprintf "typedef %s is already initialized to %s, but new init to %s was attempted" (s_type_path t.t_path) (s_type_kind t') (s_type_kind tt)) __LOC__);
 		| _ -> die "" __LOC__);
 		TypeloadFields.build_module_def ctx (TTypeDecl t) t.t_meta (fun _ -> []) (fun _ -> ());
 		if ctx.com.platform = Cs && t.t_meta <> [] then
