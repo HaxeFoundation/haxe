@@ -13,6 +13,7 @@ let c_dim = if no_color then "" else "\x1b[2m"
 let todo = "\x1b[33m[TODO]" ^ c_reset
 let todo_error = "\x1b[31m[TODO] error:" ^ c_reset
 
+let t_pool_ring_hits = ref 0
 let t_pool_hits = ref 0
 let t_pool_misses = ref 0
 
@@ -281,14 +282,58 @@ class pos_writer
 		self#do_write_pos p_initial
 end
 
+let ghetto_bottom_type = TInst({(null_class) with cl_path = ([],"Bottom")},[])
+
+class t_rings (length : int) = object(self)
+	val ring_inst = Ring.create length (ghetto_bottom_type,0)
+	val ring_enum = Ring.create length (ghetto_bottom_type,0)
+	val ring_type = Ring.create length (ghetto_bottom_type,0)
+	val ring_abstract = Ring.create length (ghetto_bottom_type,0)
+	val ring_fun = Ring.create length (ghetto_bottom_type,0)
+	val ring_anon = Ring.create length (ghetto_bottom_type,0)
+	val ring_dynamic = Ring.create 1 (ghetto_bottom_type,0)
+	val ring_mono = Ring.create 1 (ghetto_bottom_type,0)
+
+	method get_ring (t : Type.t) =
+		let rec loop t = match t with
+		| TLazy f ->
+			loop (lazy_type f)
+		| TMono {tm_type = Some t} ->
+			loop t
+		| TInst _ ->
+			ring_inst
+		| TEnum _ ->
+			ring_enum
+		| TType _ ->
+			ring_type
+		| TAbstract _ ->
+			ring_abstract
+		| TFun _ ->
+			ring_fun
+		| TAnon _ ->
+			ring_anon
+		| TDynamic _ ->
+			ring_dynamic
+		| TMono _ ->
+			ring_mono (* Doesn't make much sense but we have to return something *)
+		in
+		loop t
+
+	method find (ring : (Type.t * int) Ring.t) (t : Type.t) =
+		let _,index = Ring.find ring (fun (t',_) -> fast_eq t t') in
+		index
+end
+
 type field_writer_context = {
 	t_pool : (bytes,unit) pool;
+	t_rings : t_rings;
 	pos_writer : pos_writer;
 	vars : (int,tvar) pool;
 }
 
 let create_field_writer_context pos_writer = {
 	t_pool = new pool;
+	t_rings = new t_rings 5;
 	pos_writer = pos_writer;
 	vars = new pool;
 }
@@ -955,21 +1000,31 @@ class hxb_writer
 			self#write_type_instance v.v_type;
 		in
 		let rec loop e =
-			let restore = self#start_temporary_chunk in
-			self#write_type_instance e.etype;
-			let t_bytes = restore (fun chunk new_chunk ->
-				new_chunk#get_bytes
-			) in
+			let ring = fctx.t_rings#get_ring e.etype in
 			begin try
-				let index = fctx.t_pool#get t_bytes in
-				incr t_pool_hits;
+				let index = fctx.t_rings#find ring e.etype in
+				incr t_pool_ring_hits;
 				chunk#write_u8 0;
-				chunk#write_uleb128 index
+				chunk#write_uleb128 index;
 			with Not_found ->
-				incr t_pool_misses;
-				chunk#write_u8 1;
-				ignore(fctx.t_pool#add t_bytes ());
-				chunk#write_bytes t_bytes
+				let restore = self#start_temporary_chunk in
+				self#write_type_instance e.etype;
+				let t_bytes = restore (fun chunk new_chunk ->
+					new_chunk#get_bytes
+				) in
+				let index = try
+					let index = fctx.t_pool#get t_bytes in
+					incr t_pool_hits;
+					chunk#write_u8 0;
+					chunk#write_uleb128 index;
+					index
+				with Not_found ->
+					incr t_pool_misses;
+					chunk#write_u8 1;
+					chunk#write_bytes t_bytes;
+					fctx.t_pool#add t_bytes ()
+				in
+				Ring.push ring (e.etype,index)
 			end;
 			fctx.pos_writer#write_pos 240 e.epos;
 
