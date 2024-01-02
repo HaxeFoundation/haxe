@@ -577,6 +577,10 @@ let rec type_eq uctx a b =
 			| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
 			| _ -> ()
 			);
+			let fields = match !(a1.a_status) with
+				| ClassStatics c -> c.cl_statics
+				| _ -> a1.a_fields
+			in
 			PMap.iter (fun n f1 ->
 				try
 					let f2 = PMap.find n a2.a_fields in
@@ -587,9 +591,9 @@ let rec type_eq uctx a b =
 				with
 					Not_found ->
 						error [has_no_field b n];
-			) a1.a_fields;
+			) fields;
 			PMap.iter (fun n f2 ->
-				if not (PMap.mem n a1.a_fields) then begin
+				if not (PMap.mem n fields) then begin
 					error [has_no_field a n];
 				end;
 			) a2.a_fields;
@@ -909,39 +913,54 @@ let rec unify (uctx : unification_context) a b =
 		error [cannot_unify a b]
 
 and unify_anons uctx a b a1 a2 =
-	(try
-		PMap.iter (fun n f2 ->
+	let unify_field a1_fields f2 =
+		let n = f2.cf_name in
+		let f1 = PMap.find n a1_fields in
+		if not (unify_kind ~strict:uctx.strict_field_kind f1.cf_kind f2.cf_kind) then
+			error [invalid_kind n f1.cf_kind f2.cf_kind];
+		if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
 		try
-			let f1 = PMap.find n a1.a_fields in
-			if not (unify_kind ~strict:uctx.strict_field_kind f1.cf_kind f2.cf_kind) then
-				error [invalid_kind n f1.cf_kind f2.cf_kind];
-			if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
-			try
-				let f1_type =
-					if fast_eq f1.cf_type f2.cf_type then f1.cf_type
-					else field_type f1
-				in
-				unify_with_access uctx f1 f1_type f2;
-				(match !(a1.a_status) with
-				| ClassStatics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
-				| _ -> ());
-			with
-				Unify_error l -> error (invalid_field n :: l)
+			let f1_type =
+				if fast_eq f1.cf_type f2.cf_type then f1.cf_type
+				else field_type f1
+			in
+			unify_with_access uctx f1 f1_type f2;
+			f1
 		with
-			Not_found ->
-				match !(a1.a_status) with
-				| Const when Meta.has Meta.Optional f2.cf_meta ->
-					a1.a_fields <- PMap.add f2.cf_name f2 a1.a_fields
-				| _ ->
-					error [has_no_field a n];
-		) a2.a_fields;
-		(match !(a2.a_status) with
-		| ClassStatics c -> (match !(a1.a_status) with ClassStatics c2 when c == c2 -> () | _ -> error [])
-		| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
-		| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
-		| Const | Extend _ | Closed -> ())
-	with
-		Unify_error l -> error (cannot_unify a b :: l))
+			Unify_error l -> error (invalid_field n :: l)
+	in
+	let unify_fields a1_fields f_good f_bad =
+		PMap.iter (fun _ f2 ->
+			try
+				f_good (unify_field a1_fields f2)
+			with Not_found ->
+				if not (f_bad f2) then
+					error [has_no_field a f2.cf_name]
+		) a2.a_fields
+	in
+	begin match !(a1.a_status),!(a2.a_status) with
+		| ClassStatics c1,ClassStatics c2 when c1 == c2 ->
+			()
+		| EnumStatics en1,EnumStatics en2 when en1 == en2 ->
+			()
+		| AbstractStatics a1,AbstractStatics a2 when a1 == a2 ->
+			()
+		| Const,_ ->
+			unify_fields a1.a_fields (fun _ -> ()) (fun f2 ->
+				if Meta.has Meta.Optional f2.cf_meta then begin
+					a1.a_fields <- PMap.add f2.cf_name f2 a1.a_fields;
+					true
+				end else
+					false
+			)
+		| ClassStatics c1,_ ->
+			unify_fields c1.cl_statics (fun f1 ->
+					if not (Meta.has Meta.MaybeUsed f1.cf_meta) then
+						f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
+			) (fun _ -> false)
+		| _ ->
+			unify_fields a1.a_fields (fun _ -> ()) (fun _ -> false)
+	end
 
 and does_func_unify f =
 	try f(); true with Unify_error _ -> false

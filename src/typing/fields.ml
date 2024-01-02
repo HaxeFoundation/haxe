@@ -329,29 +329,32 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				type_field_by_interfaces e c
 			)
 		| TAnon a ->
-			(try
-				let f = PMap.find i a.a_fields in
-				if has_class_field_flag f CfImpl && not (has_class_field_flag f CfEnum) then display_error ctx.com "Cannot access non-static abstract field statically" pfield;
-				match !(a.a_status) with
+			begin match !(a.a_status) with
+				| ClassStatics c ->
+					begin try
+						let cf = PMap.find i c.cl_statics in
+						field_access cf (FHStatic c)
+					with Not_found ->
+						begin match c.cl_kind with
+						| KAbstractImpl a ->
+							type_field_by_forward_static (fun() ->
+								let mt = try module_type_of_type a.a_this with Exit -> raise Not_found in
+								let et = type_module_type ctx mt p in
+								type_field_by_e type_field_by_type et
+							) a
+						| _ ->
+							raise Not_found
+						end
+					end
 				| EnumStatics en ->
-					let c = try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__ in
+					let c = PMap.find i en.e_constrs in
 					let fmode = FEnum (en,c) in
 					let t = enum_field_type ctx en c p in
 					AKExpr (mk (TField (e,fmode)) t p)
-				| ClassStatics c ->
-					field_access f (FHStatic c)
 				| _ ->
-					field_access f FHAnon
-			with Not_found ->
-				match !(a.a_status) with
-				| ClassStatics { cl_kind = KAbstractImpl a } ->
-					type_field_by_forward_static (fun() ->
-						let mt = try module_type_of_type a.a_this with Exit -> raise Not_found in
-						let et = type_module_type ctx mt p in
-						type_field_by_e type_field_by_type et
-					) a
-				| _ -> raise Not_found
-			)
+					let cf = PMap.find i a.a_fields in
+					field_access cf FHAnon
+			end;
 		| TMono r ->
 			let mk_field () = {
 				(mk_field i (mk_mono()) p null_pos) with
