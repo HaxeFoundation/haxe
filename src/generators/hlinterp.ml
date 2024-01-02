@@ -538,6 +538,7 @@ let rec dyn_compare ctx a at b bt =
 	let fcompare (a:float) (b:float) = if a = b then 0 else if a > b then 1 else if a < b then -1 else invalid_comparison in
 	match a, b with
 	| VInt a, VInt b -> Int32.compare a b
+	| VInt64 a, VInt64 b -> Int64.compare a b
 	| VInt a, VFloat b -> fcompare (Int32.to_float a) b
 	| VFloat a, VInt b -> fcompare a (Int32.to_float b)
 	| VFloat a, VFloat b -> fcompare a b
@@ -799,6 +800,7 @@ let interp ctx f args =
 			(match get a, get b with
 			| VInt a, VInt b -> VInt (iop a b)
 			| _ -> Globals.die "" __LOC__)
+		| HI64 -> Globals.die "i64 operation via dynamic not yet implemented" __LOC__ (* todo *)
 		| HF32 | HF64 ->
 			(match get a, get b with
 			| VFloat a, VFloat b -> VFloat (fop a b)
