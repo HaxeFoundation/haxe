@@ -92,10 +92,20 @@ let create com macros =
 		| TAbstractDecl a ->
 			(match snd a.a_path with
 			| "Void" -> ctx.t.tvoid <- TAbstract (a,[]);
-			| "Float" -> ctx.t.tfloat <- TAbstract (a,[]);
-			| "Int" -> ctx.t.tint <- TAbstract (a,[])
-			| "Bool" -> ctx.t.tbool <- TAbstract (a,[])
-			| "Dynamic" -> t_dynamic_def := TAbstract(a,extract_param_types a.a_params);
+			| "Float" ->
+				let t = (TAbstract (a,[])) in
+				Type.unify t ctx.t.tfloat;
+				ctx.t.tfloat <- t
+			| "Int" ->
+				let t = (TAbstract (a,[])) in
+				Type.unify t ctx.t.tint;
+				ctx.t.tint <- t
+			| "Bool" ->
+				let t = (TAbstract (a,[])) in
+				Type.unify t ctx.t.tbool;
+				ctx.t.tbool <- t
+			| "Dynamic" ->
+				t_dynamic_def := TAbstract(a,extract_param_types a.a_params);
 			| "Null" ->
 				let mk_null t =
 					try
@@ -117,7 +127,10 @@ let create com macros =
 	) ctx.g.std_types.m_types;
 	let m = TypeloadModule.load_module ctx ([],"String") null_pos in
 	List.iter (fun mt -> match mt with
-		| TClassDecl c -> ctx.t.tstring <- TInst (c,[])
+		| TClassDecl c ->
+			let t = (TInst (c,[])) in
+			Type.unify t ctx.t.tstring;
+			ctx.t.tstring <- t
 		| _ -> ()
 	) m.m_types;
 	let m = TypeloadModule.load_module ctx ([],"Std") null_pos in

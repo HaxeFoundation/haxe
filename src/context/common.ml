@@ -781,7 +781,6 @@ let get_config com =
 let memory_marker = [|Unix.time()|]
 
 let create compilation_step cs version args display_mode =
-	let m = Type.mk_mono() in
 	let rec com = {
 		compilation_step = compilation_step;
 		cs = cs;
@@ -848,12 +847,12 @@ let create compilation_step cs version args display_mode =
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
 		basic = {
-			tvoid = m;
-			tint = m;
-			tfloat = m;
-			tbool = m;
+			tvoid = mk_mono();
+			tint = mk_mono();
+			tfloat = mk_mono();
+			tbool = mk_mono();
+			tstring = mk_mono();
 			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
-			tstring = m;
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 		};
 		file_lookup_cache = new hashtbl_lookup;
@@ -889,7 +888,12 @@ let clone com is_macro_context =
 	let t = com.basic in
 	{ com with
 		cache = None;
-		basic = { t with tvoid = t.tvoid };
+		basic = { t with
+			tint = mk_mono();
+			tfloat = mk_mono();
+			tbool = mk_mono();
+			tstring = mk_mono();
+		};
 		main_class = None;
 		features = Hashtbl.create 0;
 		callbacks = new compiler_callbacks;
