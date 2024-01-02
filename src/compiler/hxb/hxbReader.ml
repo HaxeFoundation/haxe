@@ -3,6 +3,7 @@ open Ast
 open Type
 open HxbData
 open HxbShared
+open HxbReaderApi
 
 (* Debug utils *)
 let no_color = false
@@ -35,9 +36,9 @@ let create_field_reader_context p vars = {
 }
 
 class hxb_reader
-	(api : HxbReaderApi.hxb_reader_api)
-= object(self)
 
+= object(self)
+	val mutable api = Obj.magic ""
 	val mutable current_module = null_module
 	val mutable current_type = None
 	val mutable current_field = null_field
@@ -1601,13 +1602,16 @@ class hxb_reader
 		tmonos <- Array.init (self#read_uleb128) (fun _ -> mk_mono());
 		api#make_module path file
 
-	method read (file_ch : IO.input) (debug : bool) (p : pos) =
+	method read (api : hxb_reader_api) (file_ch : IO.input) =
 		if (Bytes.to_string (IO.nread file_ch 3)) <> "hxb" then
 			raise (HxbFailure "magic");
 		let version = IO.read_byte file_ch in
 		if version <> hxb_version then
 			raise (HxbFailure (Printf.sprintf "version mismatch: hxb version %i, reader version %i" version hxb_version));
+		self#continue api file_ch
 
+	method continue (new_api : hxb_reader_api) (file_ch : IO.input) =
+		api <- new_api;
 		let rec loop () =
 			ch <- file_ch;
 			let (chunk,data) = self#read_chunk in

@@ -390,9 +390,8 @@ let check_module sctx ctx m_path m_extra p =
 class hxb_reader_api_server
 	(ctx : Typecore.typer)
 	(cc : context_cache)
-	(p : pos)
 = object(self)
-	inherit HxbAbstractReader.hxb_abstract_reader p
+	inherit HxbAbstractReader.hxb_abstract_reader
 
 	method make_module (path : path) (file : string) =
 		let mc = cc#get_hxb_module path in
@@ -482,7 +481,7 @@ let rec add_modules sctx ctx (m : module_def) (from_binary : bool) (p : pos) =
 							| GoodModule m ->
 								m
 							| BinaryModule mc ->
-								(new hxb_reader_api_server ctx cc p)#read_hxb (IO.input_bytes mc.mc_bytes);
+								(new hxb_reader_api_server ctx cc)#read_hxb (IO.input_bytes mc.mc_bytes);
 							| NoModule ->
 								failwith (Printf.sprintf "Unexpectedly could not find module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
 							| BadModule reason ->
@@ -550,7 +549,7 @@ and type_module sctx (ctx:Typecore.typer) mpath p =
 			   checking dependencies. This means that the actual decoding never has any reason to fail. *)
 			begin match check_module sctx ctx mpath mc.mc_extra p with
 				| None ->
-					let m = (new hxb_reader_api_server ctx cc p)#read_hxb (IO.input_bytes mc.mc_bytes) in
+					let m = (new hxb_reader_api_server ctx cc)#read_hxb (IO.input_bytes mc.mc_bytes) in
 					add_modules true m;
 				| Some reason ->
 					skip mpath reason

@@ -782,7 +782,7 @@ class hxb_reader_api_typeload
 	(load_module : typer -> path -> pos -> module_def)
 	(p : pos)
 = object(self)
-	inherit HxbAbstractReader.hxb_abstract_reader p
+	inherit HxbAbstractReader.hxb_abstract_reader
 
 	method make_module (path : path) (file : string) =
 		let m = ModuleLevel.make_module ctx path file p in

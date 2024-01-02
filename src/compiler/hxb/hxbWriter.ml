@@ -300,7 +300,7 @@ let create_field_writer_context pos_writer = {
 	vars = new pool;
 }
 
-class ['a] hxb_writer
+class hxb_writer
 	(display_source_at : Globals.pos -> unit)
 	(anon_id : Type.t Tanon_identification.tanon_identification)
 = object(self)

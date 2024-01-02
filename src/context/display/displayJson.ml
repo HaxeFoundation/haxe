@@ -107,9 +107,8 @@ end
 class hxb_reader_api_com
 	(com : Common.context)
 	(cc : CompilationCache.context_cache)
-	(p : pos)
 = object(self)
-	inherit HxbAbstractReader.hxb_abstract_reader p
+	inherit HxbAbstractReader.hxb_abstract_reader
 
 	method make_module (path : path) (file : string) =
 		let mc = cc#get_hxb_module path in
@@ -143,7 +142,7 @@ class hxb_reader_api_com
 end
 
 let find_module com cc path p =
-	(new hxb_reader_api_com com cc p)#find_module path
+	(new hxb_reader_api_com com cc)#find_module path
 
 type handler_context = {
 	com : Common.context;
