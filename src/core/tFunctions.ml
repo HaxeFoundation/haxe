@@ -128,7 +128,7 @@ let class_module_type c =
 	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
 
 let mk_class m path pos name_pos =
-	let rec c = {
+	let c = {
 		cl_path = path;
 		cl_module = m;
 		cl_pos = pos;

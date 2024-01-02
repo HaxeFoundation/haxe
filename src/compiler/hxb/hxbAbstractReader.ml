@@ -1,4 +1,3 @@
-open Globals
 open HxbReaderApi
 open HxbReader
 
