@@ -23,13 +23,20 @@ class CsSafeTypeBuilding extends TestCase {
 	}
 
 	#if debug
+	var failed:Bool;
 	function _assertHasPrint(s:String, ?pos:haxe.PosInfos) {
-		if (!assertHasPrint(s)) haxe.Log.trace("Fail", pos);
+		if (!assertHasPrint(s)) {
+			failed = true;
+			haxe.Log.trace("Fail: doesn't contain \"" + s + "\"", pos);
+		}
 	}
 	#end
 
 	function assertResult(target:String) {
-		#if debug var assertHasPrint = _assertHasPrint; #end
+		#if debug
+		failed = false;
+		var assertHasPrint = _assertHasPrint;
+		#end
 		assertSuccess();
 
 		// Make sure all types are generated
@@ -39,6 +46,10 @@ class CsSafeTypeBuilding extends TestCase {
 		assertHasPrint("[runtime] Hello from Foo__Baz__Baz");
 		assertHasPrint("[runtime] Hello from Foo__Main__Main");
 		assertHasPrint("[runtime] Hello from Main");
+
+		#if debug
+		if (failed) messages.filter(m -> StringTools.startsWith(m, "Haxe print: ")).iter(m -> trace(m));
+		#end
 
 		// Disabled this check because types move around a bit so we get false negatives
 		// Kept for debugging purposes
