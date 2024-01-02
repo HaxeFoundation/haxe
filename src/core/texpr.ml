@@ -486,12 +486,12 @@ let foldmap f acc e =
 (* Collection of functions that return expressions *)
 module Builder = struct
 	let make_static_this c p =
-		mk (TTypeExpr (TClassDecl c)) (TType(TFunctions.class_module_type c,[])) p
+		mk (TTypeExpr (TClassDecl c)) c.cl_type p
 
 	let make_typeexpr mt pos =
 		let t =
 			match resolve_typedef mt with
-			| TClassDecl c -> TType(class_module_type c,[])
+			| TClassDecl c -> c.cl_type
 			| TEnumDecl e -> e.e_type
 			| TAbstractDecl a -> TType(abstract_module_type a [],[])
 			| _ -> die "" __LOC__

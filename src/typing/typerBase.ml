@@ -207,8 +207,7 @@ let type_module_type ctx t p =
 			in
 			loop mt None
 		| TClassDecl c ->
-			let t_tmp = class_module_type c in
-			mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
+			mk (TTypeExpr (TClassDecl c)) c.cl_type p
 		| TEnumDecl e ->
 			mk (TTypeExpr (TEnumDecl e)) e.e_type p
 		| TTypeDecl s ->

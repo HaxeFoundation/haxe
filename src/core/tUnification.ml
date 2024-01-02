@@ -343,6 +343,13 @@ let fast_eq_check type_param_check a b =
 		c1 == c2 && List.for_all2 type_param_check l1 l2
 	| TAbstract (a1,l1), TAbstract (a2,l2) ->
 		a1 == a2 && List.for_all2 type_param_check l1 l2
+	| TAnon an1,TAnon an2 ->
+		begin match !(an1.a_status),!(an2.a_status) with
+			| ClassStatics c, ClassStatics c2 -> c == c2
+			| EnumStatics e, EnumStatics e2 -> e == e2
+			| AbstractStatics a, AbstractStatics a2 -> a == a2
+			| _ -> false
+		end
 	| _ , _ ->
 		false
 
@@ -391,9 +398,6 @@ let rec shallow_eq a b =
 					loop (List.sort sort_compare fields1) (List.sort sort_compare fields2)
 				in
 				(match !(a2.a_status), !(a1.a_status) with
-				| ClassStatics c, ClassStatics c2 -> c == c2
-				| EnumStatics e, EnumStatics e2 -> e == e2
-				| AbstractStatics a, AbstractStatics a2 -> a == a2
 				| Extend tl1, Extend tl2 -> fields_eq() && List.for_all2 shallow_eq tl1 tl2
 				| Closed, Closed -> fields_eq()
 				| Const, Const -> fields_eq()

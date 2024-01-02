@@ -647,7 +647,7 @@ class hxb_reader
 			TType(self#read_typedef_ref,[])
 		| 13 ->
 			let c = self#read_class_ref in
-			TType(class_module_type c,[])
+			c.cl_type
 		| 14 ->
 			let en = self#read_enum_ref in
 			en.e_type
