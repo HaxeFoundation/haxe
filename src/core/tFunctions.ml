@@ -166,7 +166,7 @@ let module_extra file sign time kind policy =
 		m_processed = 0;
 		m_deps = PMap.empty;
 		m_kind = kind;
-		m_cache_bound_objects = [];
+		m_cache_bound_objects = DynArray.create ();
 		m_if_feature = [];
 		m_features = Hashtbl.create 0;
 		m_check_policy = policy;
@@ -203,7 +203,7 @@ let null_module = {
 	m_path = [] , "";
 	m_types = [];
 	m_statics = None;
-	m_extra = module_extra "" "" 0. MFake [];
+	m_extra = module_extra "" (Digest.string "") 0. MFake 0 [];
 }
 
 let null_class =

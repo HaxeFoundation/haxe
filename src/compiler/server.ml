@@ -396,11 +396,13 @@ let check_module sctx ctx m p =
 	state
 
 let handle_cache_bound_objects com cbol =
-	List.iter (function
+	DynArray.iter (function
 		| Resource(name,data) ->
 			Hashtbl.replace com.resources name data
 		| IncludeFile(file,position) ->
 			com.include_files <- (file,position) :: com.include_files
+		| Warning(w,msg,p) ->
+			com.warning w [] msg p
 	) cbol
 
 (* Adds module [m] and all its dependencies (recursively) from the cache to the current compilation

@@ -241,7 +241,11 @@ let pass_name = function
 
 let warning ?(depth=0) ctx w msg p =
 	let options = (Warning.from_meta ctx.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
-	ctx.com.warning ~depth w options msg p
+	match Warning.get_mode w options with
+	| WMEnable ->
+		module_warning ctx.com ctx.m.curmod w options msg p
+	| WMDisable ->
+		()
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
@@ -751,6 +755,7 @@ let create_deprecation_context ctx = {
 	(DeprecationCheck.create_context ctx.com) with
 	class_meta = ctx.curclass.cl_meta;
 	field_meta = ctx.curfield.cf_meta;
+	curmod = ctx.m.curmod;
 }
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)

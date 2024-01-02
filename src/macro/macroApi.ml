@@ -2088,7 +2088,7 @@ let macro_api ccom get_api =
 			if name = "" then failwith "Empty resource name";
 			Hashtbl.replace (ccom()).resources name data;
 			let m = (get_api()).current_module() in
-			m.m_extra.m_cache_bound_objects <- (Resource(name,data)) :: m.m_extra.m_cache_bound_objects;
+			DynArray.add m.m_extra.m_cache_bound_objects (Resource(name,data));
 			vnull
 		);
 		"get_resources", vfun0 (fun() ->
@@ -2302,7 +2302,7 @@ let macro_api ccom get_api =
 			in
 			(ccom()).include_files <- (file, position) :: (ccom()).include_files;
 			let m = (get_api()).current_module() in
-			m.m_extra.m_cache_bound_objects <- (IncludeFile(file,position)) :: m.m_extra.m_cache_bound_objects;
+			DynArray.add m.m_extra.m_cache_bound_objects (IncludeFile(file,position));
 			vnull
 		);
 		(* Compilation server *)

@@ -421,6 +421,10 @@ let ignore_error com =
 	if b then com.has_error <- true;
 	b
 
+let module_warning com m w options msg p =
+	DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
+	com.warning w options msg p
+
 (* Defines *)
 
 module Define = Define

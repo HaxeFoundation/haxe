@@ -60,6 +60,7 @@ type type_param_host =
 type cache_bound_object =
 	| Resource of string * string
 	| IncludeFile of string * string
+	| Warning of WarningList.warning * string * pos
 
 type t =
 	| TMono of tmono
@@ -402,7 +403,7 @@ and module_def_display = {
 
 and module_def_extra = {
 	m_file : Path.UniqueKey.lazy_t;
-	m_sign : string;
+	m_sign : Digest.t;
 	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
@@ -410,9 +411,9 @@ and module_def_extra = {
 	mutable m_added : int;
 	mutable m_checked : int;
 	mutable m_processed : int;
-	mutable m_deps : (int,(string (* sign *) * path)) PMap.t;
+	mutable m_deps : (int,(Digest.t (* sign *) * path)) PMap.t;
 	mutable m_kind : module_kind;
-	mutable m_cache_bound_objects : cache_bound_object list;
+	mutable m_cache_bound_objects : cache_bound_object DynArray.t;
 	mutable m_if_feature : (string * class_field_ref) list;
 	mutable m_features : (string,bool) Hashtbl.t;
 }
