@@ -633,7 +633,7 @@ let create_field_context ctx cctx cff is_display_file display_modifier =
 	fctx
 
 let create_typer_context_for_field ctx cctx fctx cff =
-	DeprecationCheck.check_is ctx.com ctx.curclass.cl_meta cff.cff_meta (fst cff.cff_name) cff.cff_meta (snd cff.cff_name);
+	DeprecationCheck.check_is ctx.com ctx.m.curmod ctx.curclass.cl_meta cff.cff_meta (fst cff.cff_name) cff.cff_meta (snd cff.cff_name);
 	let ctx = {
 		ctx with
 		pass = PBuildClass; (* will be set later to PTypeExpr *)
@@ -692,7 +692,7 @@ let transform_field (ctx,cctx) c f fields p =
 	in
 	if List.mem_assoc AMacro f.cff_access then
 		(match ctx.g.macros with
-		| Some (_,mctx) when mctx.com.type_to_module#mem c.cl_path ->
+		| Some (_,mctx) when mctx.com.module_lut#get_type_lut#mem c.cl_path ->
 			(* assume that if we had already a macro with the same name, it has not been changed during the @:build operation *)
 			if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem_assoc AMacro f2.cff_access) (!fields)) then
 				raise_typing_error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p
@@ -701,7 +701,7 @@ let transform_field (ctx,cctx) c f fields p =
 
 let type_var_field ctx t e stat do_display p =
 	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
-	let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
+	let e = if do_display then Display.preprocess_expr ctx.com e else e in
 	let e = type_expr ctx e (WithType.with_type t) in
 	let e = AbstractCast.cast_or_unify ctx t e p in
 	match t with
@@ -950,7 +950,7 @@ module TypeBinding = struct
 							| NothingToDo ->
 								(fun () -> ())
 							| NormalOverride rctx ->
-								(fun () -> 
+								(fun () ->
 									TypeloadCheck.check_override_field ctx cf.cf_name_pos rctx
 								)
 							| OverloadOverride f ->
@@ -958,7 +958,7 @@ module TypeBinding = struct
 							end
 						| _ ->
 							(fun () -> ())
-					in					
+					in
 					let e = TypeloadFunction.type_function ctx args ret fmode e fctx.is_display_field p in
 					f_check();
 					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
@@ -1288,7 +1288,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 
 let create_method (ctx,cctx,fctx) c f fd p =
 	let name = fst f.cff_name in
-	let params = TypeloadFunction.type_function_params ctx fd name p in
+	let params = TypeloadFunction.type_function_params ctx fd TPHMethod name p in
 	if fctx.is_generic then begin
 		if params = [] then raise_typing_error "Generic functions must have type parameters" p;
 	end;
@@ -1775,12 +1775,7 @@ let init_class ctx c p herits fields =
 		| _ :: l ->
 			check_require l
 	in
-	let rec check_if_feature = function
-		| [] -> []
-		| (Meta.IfFeature,el,_) :: _ -> List.map (fun (e,p) -> match e with EConst (String(s,_)) -> s | _ -> raise_typing_error "String expected" p) el
-		| _ :: l -> check_if_feature l
-	in
-	let cl_if_feature = check_if_feature c.cl_meta in
+	let cl_if_feature = Feature.check_if_feature c.cl_meta in
 	let cl_req = check_require c.cl_meta in
 	let has_init = ref false in
 	List.iter (fun f ->
@@ -1805,10 +1800,11 @@ let init_class ctx c p herits fields =
 					| FKConstructor -> CfrConstructor
 					| _ -> if fctx.is_static then CfrStatic else CfrMember
 				in
-				ctx.m.curmod.m_extra.m_if_feature <- (s, (mk_class_field_ref c cf ref_kind fctx.is_macro)) :: ctx.m.curmod.m_extra.m_if_feature;
+				let cf_ref = mk_class_field_ref c cf ref_kind fctx.is_macro in
+				Feature.set_feature ctx.m.curmod cf_ref s;
 			in
 			List.iter set_feature cl_if_feature;
-			List.iter set_feature (check_if_feature cf.cf_meta);
+			List.iter set_feature (Feature.check_if_feature cf.cf_meta);
 			let req = check_require f.cff_meta in
 			let req = (match req with None -> if fctx.is_static || fctx.field_kind = FKConstructor then cl_req else None | _ -> req) in
 			(match req with

@@ -5,6 +5,7 @@ open Ast
 open Type
 open Typecore
 open Error
+open FieldCallCandidate
 
 type generic_context = {
 	ctx : typer;
@@ -62,7 +63,7 @@ let make_generic ctx ps pt debug p =
 	let rec loop acc_name acc_subst ttpl tl = match ttpl,tl with
 		| ttp :: ttpl,t :: tl ->
 			let name,t = try process t with Exit -> raise_typing_error ("Could not determine type for parameter " ^ ttp.ttp_name) p in
-			loop (name :: acc_name) ((follow ttp.ttp_type,t) :: acc_subst) ttpl tl
+			loop (name :: acc_name) ((ttp.ttp_type,t) :: acc_subst) ttpl tl
 		| [],[] ->
 			let name = String.concat "_" (List.rev acc_name) in
 			name,acc_subst
@@ -174,13 +175,13 @@ let static_method_container gctx c cf p =
 		| TInst(cg,_) -> cg
 		| _ -> raise_typing_error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
 	with Error { err_message = Module_not_found path } when path = (pack,name) ->
-		let m = (try ctx.com.module_lut#find (ctx.com.type_to_module#find c.cl_path) with Not_found -> die "" __LOC__) in
+		let m = c.cl_module in
 		let mg = {
 			m_id = alloc_mid();
 			m_path = (pack,name);
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake m.m_extra.m_check_policy;
+			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake gctx.ctx.com.compilation_step m.m_extra.m_check_policy;
 		} in
 		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
@@ -239,8 +240,9 @@ let build_generic_class ctx c p tl =
 		| TInst (c2,tl) ->
 			(match c2.cl_kind with
 			| KTypeParameter tl ->
-				if not (TypeloadCheck.is_generic_parameter ctx c2) && has_ctor_constraint c2 then
-					raise_typing_error "Type parameters with a constructor cannot be used non-generically" p;
+				(* TPTODO *)
+				(* if not (TypeloadCheck.is_generic_parameter ctx c2) && has_ctor_constraint c2 then
+					raise_typing_error "Type parameters with a constructor cannot be used non-generically" p; *)
 				recurse := true
 			| _ -> ());
 			List.iter check_recursive tl;
@@ -259,7 +261,7 @@ let build_generic_class ctx c p tl =
 		| TInst({ cl_kind = KGenericInstance (csup,_) },_) when c == csup -> t
 		| _ -> raise_typing_error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p
 	with Error { err_message = Module_not_found path } when path = (pack,name) ->
-		let m = (try ctx.com.module_lut#find (ctx.com.type_to_module#find c.cl_path) with Not_found -> die "" __LOC__) in
+		let m = c.cl_module in
 		if gctx.generic_debug then begin
 			print_endline (Printf.sprintf "[GENERIC] Building @:generic class %s as %s with:" (s_type_path c.cl_path) name);
 			List.iter (fun (t1,(t2,eo)) ->
@@ -280,7 +282,7 @@ let build_generic_class ctx c p tl =
 			m_path = (pack,name);
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake m.m_extra.m_check_policy;
+			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake gctx.ctx.com.compilation_step m.m_extra.m_check_policy;
 		} in
 		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
@@ -305,24 +307,21 @@ let build_generic_class ctx c p tl =
 		add_dependency ctx.m.curmod mg;
 		set_type_parameter_dependencies mg tl;
 		let build_field cf_old =
-			(* We have to clone the type parameters (issue #4672). We cannot substitute the constraints immediately because
-			   we need the full substitution list first. *)
-			let param_subst,params = List.fold_left (fun (subst,params) tp -> match follow tp.ttp_type with
-				| TInst(c,tl) as t ->
-					let t2 = TInst({c with cl_module = mg;},tl) in
-					(t,(t2,None)) :: subst,({tp with ttp_type=t2}) :: params
-				| _ -> die "" __LOC__
-			) ([],[]) cf_old.cf_params in
+			let params = List.map (fun ttp ->
+				let c = {ttp.ttp_class with cl_module = mg} in
+				let def = Option.map (generic_substitute_type gctx) ttp.ttp_default in
+				let constraints = match ttp.ttp_constraints with
+					| None -> None
+					| Some constraints -> Some (lazy (List.map (generic_substitute_type gctx) (Lazy.force constraints)))
+				in
+				let ttp' = mk_type_param c ttp.ttp_host def constraints in
+				c.cl_kind <- KTypeParameter ttp';
+				(ttp.ttp_type,ttp')
+			) cf_old.cf_params in
+			let param_subst = List.map (fun (t,ttp) -> t,(ttp.ttp_type,None)) params in
 			let gctx = {gctx with subst = param_subst @ gctx.subst} in
 			let cf_new = {cf_old with cf_pos = cf_old.cf_pos; cf_expr_unoptimized = None} in (* copy *)
-			(* Type parameter constraints are substituted here. *)
-			cf_new.cf_params <- List.rev_map (fun tp -> match follow tp.ttp_type with
-				| TInst({cl_kind = KTypeParameter tl1} as c,_) ->
-					let tl1 = List.map (generic_substitute_type gctx) tl1 in
-					c.cl_kind <- KTypeParameter tl1;
-					tp (* TPTODO: weird mapping *)
-				| _ -> die "" __LOC__
-			) params;
+			cf_new.cf_params <- List.map (fun (_,ttp) -> ttp) params;
 			let f () =
 				ignore(follow cf_old.cf_type);
 				(* We update here because the follow could resolve some TLazy things that end up modifying flags, such as

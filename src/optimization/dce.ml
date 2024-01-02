@@ -50,19 +50,9 @@ let push_class dce c =
 		dce.curclass <- old
 	)
 
-let find_field c name kind =
-	match kind with
-	| CfrConstructor ->
-		begin match c.cl_constructor with Some cf -> cf | None -> raise Not_found end
-	| CfrStatic ->
-		PMap.find name c.cl_statics
-	| CfrMember ->
-		PMap.find name c.cl_fields
-
 let resolve_class_field_ref ctx cfr =
 	let ctx = if cfr.cfr_is_macro && not ctx.is_macro_context then Option.get (ctx.get_macros()) else ctx in
-	let path = ctx.type_to_module#find cfr.cfr_path in
-	let m = ctx.module_lut#find path in
+	let m = ctx.module_lut#find_by_type cfr.cfr_path in
 
 	Option.get (ExtList.List.find_map (fun mt -> match mt with
 		| TClassDecl c when c.cl_path = cfr.cfr_path ->
@@ -247,10 +237,10 @@ and mark_t dce p t =
 	if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.t_stack) then begin
 		dce.t_stack <- t :: dce.t_stack;
 		begin match follow t with
-		| TInst({cl_kind = KTypeParameter tl} as c,pl) ->
+		| TInst({cl_kind = KTypeParameter ttp} as c,pl) ->
 			if not (Meta.has Meta.Used c.cl_meta) then begin
 				c.cl_meta <- (mk_used_meta c.cl_pos) :: c.cl_meta;
-				List.iter (mark_t dce p) tl;
+				List.iter (mark_t dce p) (get_constraints ttp);
 			end;
 			List.iter (mark_t dce p) pl
 		| TInst(c,pl) ->
@@ -358,7 +348,7 @@ and field dce c n kind =
 		end else match c.cl_super with Some (csup,_) -> field dce csup n kind | None -> raise Not_found
 	with Not_found -> try
 		match c.cl_kind with
-		| KTypeParameter tl ->
+		| KTypeParameter ttp ->
 			let rec loop tl = match tl with
 				| [] -> raise Not_found
 				| TInst(c,_) :: cl ->
@@ -366,7 +356,7 @@ and field dce c n kind =
 				| t :: tl ->
 					loop tl
 			in
-			loop tl
+			loop (get_constraints ttp)
 		| _ -> raise Not_found
 	with Not_found ->
 		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else ())
@@ -511,6 +501,15 @@ and expr_field dce e fa is_call_expr =
 	end;
 	expr dce e;
 
+and check_op dce op = match op with
+	| OpMod ->
+		check_and_add_feature dce "binop_%";
+	| OpUShr ->
+		check_and_add_feature dce "binop_>>>";
+	| OpAssignOp op ->
+		check_op dce op
+	| _ ->
+		()
 
 and expr dce e =
 	mark_t dce e.epos e.etype;
@@ -605,7 +604,12 @@ and expr dce e =
 		check_and_add_feature dce "dynamic_array_read";
 		expr dce e1;
 		expr dce e2;
-	| TBinop( (OpAssign | OpAssignOp _), ({eexpr = TArray({etype = TDynamic None},_)} as e1), e2) ->
+	| TBinop(OpAssign, ({eexpr = TArray({etype = TDynamic None},_)} as e1), e2) ->
+		check_and_add_feature dce "dynamic_array_write";
+		expr dce e1;
+		expr dce e2;
+	| TBinop(OpAssignOp op, ({eexpr = TArray({etype = TDynamic None},_)} as e1), e2) ->
+		check_op dce op;
 		check_and_add_feature dce "dynamic_array_write";
 		expr dce e1;
 		expr dce e2;
@@ -629,10 +633,12 @@ and expr dce e =
 		expr dce e1;
 		expr dce e2;
 	| TBinop(OpAssignOp op,({eexpr = TField(_,(FDynamic _ as fa) )} as e1),e2) ->
+		check_op dce op;
 		check_dynamic_write dce fa;
 		expr dce e1;
 		expr dce e2;
 	| TBinop(OpAssignOp op,({eexpr = TField(_,(FAnon cf as fa) )} as e1),e2) ->
+		check_op dce op;
 		if Meta.has Meta.Optional cf.cf_meta then
 			check_anon_optional_write dce fa
 		else
@@ -655,12 +661,8 @@ and expr dce e =
 		check_and_add_feature dce "type_param_binop_!=";
 		expr dce e1;
 		expr dce e2;
-	| TBinop(OpMod,e1,e2) ->
-		check_and_add_feature dce "binop_%";
-		expr dce e1;
-		expr dce e2;
-	| TBinop((OpUShr | OpAssignOp OpUShr),e1,e2) ->
-		check_and_add_feature dce "binop_>>>";
+	| TBinop(op,e1,e2) ->
+		check_op dce op;
 		expr dce e1;
 		expr dce e2;
 	| TCall(({ eexpr = TField(ef, fa) } as e2), el ) ->
@@ -721,8 +723,9 @@ let collect_entry_points dce com =
 		match t with
 		| TClassDecl c ->
 			let keep_class = keep_whole_class dce c && (not (has_class_flag c CExtern) || (has_class_flag c CInterface)) in
+			let is_struct = dce.com.platform = Hl && Meta.has Meta.Struct c.cl_meta in
 			let loop kind cf =
-				if keep_class || keep_field dce cf c kind then mark_field dce c cf kind
+				if keep_class || is_struct || keep_field dce cf c kind then mark_field dce c cf kind
 			in
 			List.iter (loop CfrStatic) c.cl_ordered_statics;
 			List.iter (loop CfrMember) c.cl_ordered_fields;

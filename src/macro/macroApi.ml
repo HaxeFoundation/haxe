@@ -1142,7 +1142,7 @@ and encode_method_kind m =
 and encode_class_kind k =
 	let tag, pl = (match k with
 		| KNormal -> 0, []
-		| KTypeParameter pl -> 1, [encode_tparams pl]
+		| KTypeParameter ttp -> 1, [encode_tparams (get_constraints ttp)] (* TTPTODO *)
 		| KModuleFields m -> 2, [encode_string (s_type_path m.m_path)]
 		| KExpr e -> 3, [encode_expr e]
 		| KGeneric -> 4, []
@@ -1442,14 +1442,6 @@ let decode_tconst c =
 	| 6, [] -> TSuper
 	| _ -> raise Invalid_expr
 
-let decode_type_params v =
-	List.map (fun v ->
-		let name = decode_string (field v "name") in
-		let t = decode_type (field v "t") in
-		let default = opt decode_type (field v "defaultType") in
-		mk_type_param name t default
-	) (decode_array v)
-
 let decode_tvar v =
 	(Obj.obj (decode_unsafe (field v "$")) : tvar)
 
@@ -1477,31 +1469,6 @@ let decode_field_kind v =
 	| 0, [vr;vw] -> Type.Var({v_read = decode_var_access vr; v_write = decode_var_access vw})
 	| 1, [m] -> Method (decode_method_kind m)
 	| _ -> raise Invalid_expr
-
-let decode_cfield v =
-	let public = decode_bool (field v "isPublic") in
-	let extern = decode_bool (field v "isExtern") in
-	let final = decode_bool (field v "isFinal") in
-	let abstract = decode_bool (field v "isAbstract") in
-	let cf = {
-		cf_name = decode_string (field v "name");
-		cf_type = decode_type (field v "type");
-		cf_pos = decode_pos (field v "pos");
-		cf_name_pos = decode_pos (field v "namePos");
-		cf_doc = decode_doc (field v "doc");
-		cf_meta = []; (* TODO *)
-		cf_kind = decode_field_kind (field v "kind");
-		cf_params = decode_type_params (field v "params");
-		cf_expr = None;
-		cf_expr_unoptimized = None;
-		cf_overloads = decode_ref (field v "overloads");
-		cf_flags = 0;
-	} in
-	if public then add_class_field_flag cf CfPublic;
-	if extern then add_class_field_flag cf CfExtern;
-	if final then add_class_field_flag cf CfFinal;
-	if abstract then add_class_field_flag cf CfAbstract;
-	cf
 
 let decode_efield v =
 	let rec get_enum t =
@@ -2120,7 +2087,7 @@ let macro_api ccom get_api =
 			if name = "" then failwith "Empty resource name";
 			Hashtbl.replace (ccom()).resources name data;
 			let m = (get_api()).current_module() in
-			m.m_extra.m_binded_res <- PMap.add name data m.m_extra.m_binded_res;
+			DynArray.add m.m_extra.m_cache_bound_objects (Resource(name,data));
 			vnull
 		);
 		"get_resources", vfun0 (fun() ->
@@ -2303,10 +2270,13 @@ let macro_api ccom get_api =
 		"apply_params", vfun3 (fun tpl tl t ->
 			let tl = List.map decode_type (decode_array tl) in
 			let tpl = List.map (fun v ->
-				let name = decode_string (field v "name") in
 				let t = decode_type (field v "t") in
 				let default = None in (* we don't care here *)
-				mk_type_param  name t default
+				let c = match t with
+					| TInst(c,_) -> c
+					| _ -> die "" __LOC__
+				in
+				mk_type_param c TPHType default None
 			) (decode_array tpl) in
 			let rec map t = match t with
 				| TInst({cl_kind = KTypeParameter _},_) ->
@@ -2330,6 +2300,8 @@ let macro_api ccom get_api =
 					failwith ("unable to find file for inclusion: " ^ file)
 			in
 			(ccom()).include_files <- (file, position) :: (ccom()).include_files;
+			let m = (get_api()).current_module() in
+			DynArray.add m.m_extra.m_cache_bound_objects (IncludeFile(file,position));
 			vnull
 		);
 		(* Compilation server *)
@@ -2345,7 +2317,7 @@ let macro_api ccom get_api =
 			List.iter (fun v ->
 				let s = decode_string v in
 				let s = com.file_keys#get s in
-				cs#taint_modules s "server_invalidate_files";
+				cs#taint_modules s ServerInvalidateFiles;
 				cs#remove_files s;
 			) (decode_array a);
 			vnull

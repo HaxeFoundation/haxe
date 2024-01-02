@@ -252,7 +252,11 @@ let rec make pctx toplevel t e =
 		| ECall(e1,el) ->
 			let e1 = type_expr ctx e1 (WithType.with_type t) in
 			begin match e1.eexpr,follow e1.etype with
-				| TField(_, FEnum(en,ef)),TFun(_,TEnum(_,tl)) ->
+				| TField(_, FEnum(en,ef)),TFun(_,tr) ->
+					let tl = match follow tr with
+						| TEnum(_,tl) -> tl
+						| _ -> fail()
+					in
 					let map = apply_params en.e_params tl in
 					let monos = Monomorph.spawn_constrained_monos map ef.ef_params in
 					let map t = map (apply_params ef.ef_params monos t) in

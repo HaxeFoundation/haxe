@@ -202,8 +202,11 @@ let rec jsignature_of_type gctx stack t =
 		TObject((["haxe";"root"],"Array"),[TType(WNone,t)])
 	| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
 		TArray(jsignature_of_type t,None)
-	| TInst({cl_kind = KTypeParameter [t]},_) when t != t_dynamic -> jsignature_of_type t
-	| TInst({cl_kind = KTypeParameter _; cl_path = (_,name)},_) -> TTypeParameter name
+	| TInst({cl_kind = KTypeParameter ttp; cl_path = (_,name)},_) ->
+		begin match get_constraints ttp with
+			| [t] when t != t_dynamic -> jsignature_of_type t
+			| _ -> TTypeParameter name
+		end
 	| TInst({cl_path = ["_Class"],"Class_Impl_"},_) -> java_class_sig
 	| TInst({cl_path = ["_Enum"],"Enum_Impl_"},_) -> java_class_sig
 	| TInst(c,tl) -> TObject(c.cl_path,List.map jtype_argument_of_type tl)
@@ -392,7 +395,7 @@ let is_interface_var_access c cf =
 let follow = Abstract.follow_with_abstracts
 
 class haxe_exception gctx (t : Type.t) =
-	let is_haxe_exception = Exceptions.is_haxe_exception t
+	let is_haxe_exception = ExceptionFunctions.is_haxe_exception t
 	and native_type = jsignature_of_type gctx t in
 object(self)
 	val native_path = (match native_type with TObject(path,_) -> path | _ -> die "" __LOC__)
@@ -2113,7 +2116,11 @@ class texpr_to_jvm
 		| TEnumParameter(e1,ef,i) ->
 			self#texpr rvalue_any e1;
 			let path,name,jsig_arg = match follow ef.ef_type with
-				| TFun(tl,TEnum(en,_)) ->
+				| TFun(tl,tr) ->
+					let en = match follow tr with
+						| TEnum(en,_) -> en
+						| _ -> die "" __LOC__
+					in
 					let n,_,t = List.nth tl i in
 					en.e_path,n,self#vtype t
 				| _ -> die "" __LOC__
@@ -2127,7 +2134,7 @@ class texpr_to_jvm
 			self#texpr rvalue_any e1;
 			(* There could be something like `throw throw`, so we should only throw if we aren't terminated (issue #10363) *)
 			if not (jm#is_terminated) then begin
-				if not (Exceptions.is_haxe_exception e1.etype) && not (does_unify e1.etype gctx.t_runtime_exception) then begin
+				if not (ExceptionFunctions.is_haxe_exception e1.etype) && not (does_unify e1.etype gctx.t_runtime_exception) then begin
 					let exc = new haxe_exception gctx e1.etype in
 					if not (List.exists (fun exc' -> exc#is_assignable_to exc') caught_exceptions) then
 						jm#add_thrown_exception exc#get_native_path;
@@ -2640,16 +2647,11 @@ class tclass_to_jvm gctx c = object(self)
 		end
 
 	method private generate_signature =
-		jc#set_type_parameters (List.map (fun tp ->
-			let jsigs = match follow tp.ttp_type with
-			| TInst({cl_kind = KTypeParameter tl},_) ->
-				List.map (fun t ->
-					get_boxed_type (jsignature_of_type gctx t)
-				 ) tl
-			| _ ->
-				[]
-			in
-			(tp.ttp_name,jsigs)
+		jc#set_type_parameters (List.map (fun ttp ->
+			let jsigs = List.map (fun t ->
+				get_boxed_type (jsignature_of_type gctx t)
+			) (get_constraints ttp) in
+			(ttp.ttp_name,jsigs)
 		) c.cl_params);
 		match c.cl_super with
 			| Some(c,tl) -> jc#set_super_parameters (List.map (jtype_argument_of_type gctx []) tl)

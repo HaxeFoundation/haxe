@@ -62,28 +62,27 @@ let valid_redefinition ctx map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		| l1, l2 when List.length l1 = List.length l2 ->
 			let to_check = ref [] in
 			(* TPTODO: defaults *)
-			let monos = List.map2 (fun tp1 tp2 ->
-				(match follow tp1.ttp_type, follow tp2.ttp_type with
-				| TInst ({ cl_kind = KTypeParameter ct1 } as c1,pl1), TInst ({ cl_kind = KTypeParameter ct2 } as c2,pl2) ->
-					(match ct1, ct2 with
-					| [], [] -> ()
-					| _, _ when List.length ct1 = List.length ct2 ->
-						(* if same constraints, they are the same type *)
-						let check monos =
-							List.iter2 (fun t1 t2  ->
-								try
-									let t1 = apply_params l1 monos (apply_params c1.cl_params pl1 (map2 t1)) in
-									let t2 = apply_params l2 monos (apply_params c2.cl_params pl2 (map1 t2)) in
-									type_eq EqStrict t1 t2
-								with Unify_error l ->
-									raise (Unify_error (Unify_custom "Constraints differ" :: l))
-							) ct1 ct2
-						in
-						to_check := check :: !to_check;
-					| _ ->
-						raise (Unify_error [Unify_custom "Different number of constraints"]))
-				| _ -> ());
-				TInst (mk_class null_module ([],tp1.ttp_name) null_pos null_pos,[])
+			let monos = List.map2 (fun ttp1 ttp2 ->
+				let ct1 = get_constraints ttp1 in
+				let ct2 = get_constraints ttp2 in
+				(match ct1, ct2 with
+				| [], [] -> ()
+				| _, _ when List.length ct1 = List.length ct2 ->
+					(* if same constraints, they are the same type *)
+					let check monos =
+						List.iter2 (fun t1 t2  ->
+							try
+								let t1 = apply_params l1 monos (map2 t1) in
+								let t2 = apply_params l2 monos (map1 t2) in
+								type_eq EqStrict t1 t2
+							with Unify_error l ->
+								raise (Unify_error (Unify_custom "Constraints differ" :: l))
+						) ct1 ct2
+					in
+					to_check := check :: !to_check;
+				| _ ->
+					raise (Unify_error [Unify_custom "Different number of constraints"]));
+				TInst (mk_class null_module ([],ttp1.ttp_name) null_pos null_pos,[])
 			) l1 l2 in
 			List.iter (fun f -> f monos) !to_check;
 			apply_params l1 monos t1, apply_params l2 monos t2
@@ -131,24 +130,6 @@ let copy_meta meta_src meta_target sl =
 	) meta_src;
 	!meta
 
-(** retrieve string from @:native metadata or raise Not_found *)
-let get_native_name meta =
-	let rec get_native meta = match meta with
-		| [] -> raise Not_found
-		| (Meta.Native,[v],p as meta) :: _ ->
-			meta
-		| _ :: meta ->
-			get_native meta
-	in
-	let (_,e,mp) = get_native meta in
-	match e with
-	| [Ast.EConst (Ast.String(name,_)),p] ->
-		name,p
-	| [] ->
-		raise Not_found
-	| _ ->
-		raise_typing_error "String expected" mp
-
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
 		(* TODO construct error *)
@@ -156,9 +137,9 @@ let check_native_name_override ctx child base =
 		display_error ~depth:1 ctx.com (compl_msg "Base field is defined here") base_pos
 	in
 	try
-		let child_name, child_pos = get_native_name child.cf_meta in
+		let child_name, child_pos = Naming.get_native_name child.cf_meta in
 		try
-			let base_name, base_pos = get_native_name base.cf_meta in
+			let base_name, base_pos = Naming.get_native_name base.cf_meta in
 			if base_name <> child_name then
 				error base_pos child_pos
 		with Not_found ->
@@ -350,20 +331,6 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 		if add then f_add m
 	) ctx.com.global_metadata;
 	if ctx.is_display_file then delay ctx PCheckConstraint (fun () -> DisplayEmitter.check_display_metadata ctx meta)
-
-let check_module_types ctx m p t =
-	let t = t_infos t in
-	try
-		let path2 = ctx.com.type_to_module#find t.mt_path in
-		if m.m_path <> path2 && String.lowercase_ascii (s_type_path path2) = String.lowercase_ascii (s_type_path m.m_path) then raise_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
-		let m2 = ctx.com.module_lut#find path2 in
-		let hex1 = Digest.to_hex m.m_extra.m_sign in
-		let hex2 = Digest.to_hex m2.m_extra.m_sign in
-		let s = if hex1 = hex2 then hex1 else Printf.sprintf "was %s, is %s" hex2 hex1 in
-		raise_typing_error (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p
-	with
-		Not_found ->
-			ctx.com.type_to_module#add t.mt_path m.m_path
 
 module Inheritance = struct
 	let is_basic_class_path path = match path with

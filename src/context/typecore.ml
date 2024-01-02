@@ -20,9 +20,11 @@
 open Globals
 open Ast
 open Common
+open Lookup
 open Type
 open Error
 open Resolution
+open FieldCallCandidate
 
 type type_patch = {
 	mutable tp_type : complex_type option;
@@ -98,7 +100,8 @@ type typer_globals = {
 	retain_meta : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
-	mutable std : module_def;
+	mutable std : tclass;
+	mutable std_types : module_def;
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
 	mutable global_using : (tclass * pos) list;
@@ -160,24 +163,6 @@ and typer = {
 
 and monomorphs = {
 	mutable perfunction : (tmono * pos) list;
-}
-
-(* This record holds transient information about an (attempted) call on a field. It is created when resolving
-   field calls and is passed to overload filters. *)
-type 'a field_call_candidate = {
-	(* The argument expressions for this call and whether or not the argument is optional on the
-	   target function. *)
-	fc_args  : texpr list;
-	(* The applied return type. *)
-	fc_ret   : Type.t;
-	(* The applied function type. *)
-	fc_type  : Type.t;
-	(* The class field being called. *)
-	fc_field : tclass_field;
-	(* The field monomorphs that were created for this call. *)
-	fc_monos : Type.t list;
-	(* The custom data associated with this call. *)
-	fc_data  : 'a;
 }
 
 type field_host =
@@ -256,7 +241,11 @@ let pass_name = function
 
 let warning ?(depth=0) ctx w msg p =
 	let options = (Warning.from_meta ctx.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
-	ctx.com.warning ~depth w options msg p
+	match Warning.get_mode w options with
+	| WMEnable ->
+		module_warning ctx.com ctx.m.curmod w options msg p
+	| WMDisable ->
+		()
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
@@ -273,12 +262,8 @@ let spawn_monomorph' ctx p =
 let spawn_monomorph ctx p =
 	TMono (spawn_monomorph' ctx p)
 
-let make_static_this c p =
-	let ta = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
-	mk (TTypeExpr (TClassDecl c)) ta p
-
 let make_static_field_access c cf t p =
-	let ethis = make_static_this c p in
+	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
 let make_static_call ctx c cf map args t p =
@@ -495,7 +480,7 @@ let create_fake_module ctx file =
 			m_path = (["$DEP"],file);
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake [];
+			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake ctx.com.compilation_step [];
 		} in
 		Hashtbl.add fake_modules key mdep;
 		mdep
@@ -616,8 +601,8 @@ let can_access ctx c cf stat =
 	loop c
 	(* access is also allowed of we access a type parameter which is constrained to our (base) class *)
 	|| (match c.cl_kind with
-		| KTypeParameter tl ->
-			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
+		| KTypeParameter ttp ->
+			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) (get_constraints ttp)
 		| _ -> false)
 	|| (Meta.has Meta.PrivateAccess ctx.meta)
 
@@ -698,26 +683,6 @@ let safe_mono_close ctx m p =
 		Unify_error l ->
 			raise_or_display ctx l p
 
-let make_field_call_candidate args ret monos t cf data = {
-	fc_args  = args;
-	fc_type  = t;
-	fc_field = cf;
-	fc_data  = data;
-	fc_ret   = ret;
-	fc_monos = monos;
-}
-
-let s_field_call_candidate fcc =
-	let pctx = print_context() in
-	let se = s_expr_pretty false "" false (s_type pctx) in
-	let sl_args = List.map se fcc.fc_args in
-	Printer.s_record_fields "" [
-		"fc_args",String.concat ", " sl_args;
-		"fc_type",s_type pctx fcc.fc_type;
-		"fc_field",Printf.sprintf "%s: %s" fcc.fc_field.cf_name (s_type pctx fcc.fc_field.cf_type)
-	]
-
-
 let relative_path ctx file =
 	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
 	let fpath = slashes (Path.get_full_path file) in
@@ -790,6 +755,7 @@ let create_deprecation_context ctx = {
 	(DeprecationCheck.create_context ctx.com) with
 	class_meta = ctx.curclass.cl_meta;
 	field_meta = ctx.curfield.cf_meta;
+	curmod = ctx.m.curmod;
 }
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)

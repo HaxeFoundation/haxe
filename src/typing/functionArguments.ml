@@ -22,7 +22,7 @@ let type_function_arg_value ctx t c do_display =
 		| None -> None
 		| Some e ->
 			let p = pos e in
-			let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
+			let e = if do_display then Display.preprocess_expr ctx.com e else e in
 			let e = Optimizer.reduce_expression ctx (type_expr ctx e (WithType.with_type t)) in
 			unify ctx e.etype t p;
 			let rec loop e = match e.eexpr with

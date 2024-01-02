@@ -118,9 +118,9 @@ let rec classify t =
 	| TAbstract ({ a_path = [],"Int" },[]) -> KInt
 	| TAbstract ({ a_path = [],"Float" },[]) -> KFloat
 	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) a.a_to -> KNumParam t
-	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) ctl -> KNumParam t
+	| TInst ({ cl_kind = KTypeParameter ttp },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) (get_constraints ttp) -> KNumParam t
 	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KString -> true | _ -> false) a.a_to -> KStrParam t
-	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KString -> true | _ -> false) ctl -> KStrParam t
+	| TInst ({ cl_kind = KTypeParameter ttp },_) when List.exists (fun t -> match classify t with KString -> true | _ -> false) (get_constraints ttp) -> KStrParam t
 	| TMono r when r.tm_type = None -> KUnk
 	| TDynamic _ -> KDyn
 	| _ -> KOther
@@ -630,6 +630,10 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 			WithType.value
 	in
 	let e1 = type_expr ctx e1 wt in
+	let e1 = match wt with
+		| WithType.WithType(t,_) -> AbstractCast.cast_or_unify ctx t e1 e1.epos
+		| _ -> e1
+	in
 	let result = if abstract_overload_only then begin
 		let e2 = type_binop_rhs ctx op e1 e2 is_assign_op with_type p in
 		try_abstract_binop_overloads ctx op e1 e2 is_assign_op p

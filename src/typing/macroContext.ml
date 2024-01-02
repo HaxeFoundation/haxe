@@ -26,14 +26,6 @@ open Resolution
 open Error
 open Globals
 
-module Eval = struct
-	include EvalEncode
-	include EvalDecode
-	include EvalValue
-	include EvalContext
-	include EvalMain
-end
-
 module InterpImpl = Eval (* Hlmacro *)
 
 module Interp = struct
@@ -48,7 +40,7 @@ let macro_interp_cache = ref None
 let safe_decode com v expected t p f =
 	try
 		f ()
-	with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
+	with MacroApi.Invalid_expr ->
 		let path = [dump_path com;"decoding_error"] in
 		let ch = Path.create_file false ".txt" [] path  in
 		let errors = Interp.handle_decoding_error (output_string ch) v t in
@@ -282,7 +274,7 @@ let make_macro_com_api com mcom p =
 			!macro_enable_cache
 		);
 		format_string = (fun s p ->
-			Common.format_string com s p (fun e p -> (e,p))
+			FormatString.format_string com.defines s p (fun e p -> (e,p))
 		);
 		cast_or_unify = (fun t e p ->
 			Interp.exc_string "unsupported"
@@ -632,7 +624,7 @@ and flush_macro_context mint mctx =
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
 	let expr_filters = [
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts mctx;
-		"local_statics",Filters.LocalStatic.run mctx;
+		"local_statics",LocalStatic.run mctx;
 		"Exceptions",Exceptions.filter mctx;
 		"captured_vars",CapturedVars.captured_vars mctx.com;
 	] in
@@ -668,14 +660,14 @@ and flush_macro_context mint mctx =
 			()
 	in
 	let type_filters = [
-		Filters.remove_generic_base;
+		FiltersCommon.remove_generic_base;
 		Exceptions.patch_constructors mctx;
-		(fun mt -> Filters.add_field_inits mctx.curclass.cl_path (RenameVars.init mctx.com) mctx.com mt);
+		(fun mt -> AddFieldInits.add_field_inits mctx.curclass.cl_path (RenameVars.init mctx.com) mctx.com mt);
 		minimal_restore;
-		Filters.apply_native_paths
+		Naming.apply_native_paths
 	] in
 	let ready = fun t ->
-		Filters.apply_filters_once mctx expr_filters t;
+		FiltersCommon.apply_filters_once mctx expr_filters t;
 		List.iter (fun f -> f t) type_filters
 	in
 	(try Interp.add_types mint types ready
@@ -747,7 +739,7 @@ let get_macro_context ctx =
 		mctx
 
 let load_macro_module mctx com cpath display p =
-	let m = (try com.type_to_module#find cpath with Not_found -> cpath) in
+	let m = (try com.module_lut#get_type_lut#find cpath with Not_found -> cpath) in
 	(* Temporarily enter display mode while typing the macro. *)
 	let old = mctx.com.display in
 	if display then mctx.com.display <- com.display;
@@ -996,7 +988,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 						else try
 							let ct = Interp.decode_ctype v in
 							Typeload.load_complex_type ctx false ct;
-						with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
+						with MacroApi.Invalid_expr  | EvalContext.RunTimeException _ ->
 							Interp.decode_type v
 						in
 						ctx.ret <- t;
