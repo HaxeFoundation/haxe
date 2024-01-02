@@ -35,6 +35,12 @@ let create_field_reader_context p vars = {
 	vars = vars;
 }
 
+type hxb_reader_result =
+	| FullModule of module_def
+	| HeaderOnly of module_def * hxb_continuation (* HHDR *)
+
+and hxb_continuation = hxb_reader_api -> chunk_kind -> hxb_reader_result
+
 class hxb_reader
 
 = object(self)
@@ -1602,15 +1608,15 @@ class hxb_reader
 		tmonos <- Array.init (self#read_uleb128) (fun _ -> mk_mono());
 		api#make_module path file
 
-	method read (api : hxb_reader_api) (file_ch : IO.input) =
+	method read (api : hxb_reader_api) (stop : chunk_kind) (file_ch : IO.input) =
 		if (Bytes.to_string (IO.nread file_ch 3)) <> "hxb" then
 			raise (HxbFailure "magic");
 		let version = IO.read_byte file_ch in
 		if version <> hxb_version then
 			raise (HxbFailure (Printf.sprintf "version mismatch: hxb version %i, reader version %i" version hxb_version));
-		self#continue api file_ch
+		self#continue file_ch api stop
 
-	method continue (new_api : hxb_reader_api) (file_ch : IO.input) =
+	method continue (file_ch : IO.input) (new_api : hxb_reader_api) stop =
 		api <- new_api;
 		let rec loop () =
 			ch <- file_ch;
@@ -1618,7 +1624,7 @@ class hxb_reader
 			ch <- IO.input_bytes data;
 			match chunk with
 			| HEND ->
-				()
+				FullModule current_module
 			| STRI ->
 				string_pool <- self#read_string_pool;
 				loop()
@@ -1627,7 +1633,10 @@ class hxb_reader
 				loop()
 			| HHDR ->
 				current_module <- self#read_hhdr;
-				loop()
+				if stop = HHDR then
+					HeaderOnly(current_module,self#continue file_ch)
+				else
+					loop()
 			| ANFR ->
 				self#read_anfr;
 				loop()
@@ -1675,6 +1684,5 @@ class hxb_reader
 				self#read_efld;
 				loop()
 		in
-		loop();
-		current_module
+		loop()
 end
