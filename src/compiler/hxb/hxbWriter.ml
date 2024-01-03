@@ -13,10 +13,6 @@ let c_dim = if no_color then "" else "\x1b[2m"
 let todo = "\x1b[33m[TODO]" ^ c_reset
 let todo_error = "\x1b[31m[TODO] error:" ^ c_reset
 
-let t_pool_ring_hits = ref 0
-let t_pool_hits = ref 0
-let t_pool_misses = ref 0
-
 let rec binop_index op = match op with
 	| OpAdd -> 0
 	| OpMult -> 1
@@ -75,6 +71,43 @@ let print_types source tl =
 let print_params source ttp =
 	debug_msg (Printf.sprintf "Params from %s:" source);
 	List.iter (fun t -> debug_msg (Printf.sprintf "  %s" t.ttp_name)) ttp
+
+type hxb_writer_stats = {
+	type_instance_kind_writes : int array;
+	type_instance_ring_hits : int ref;
+	type_instance_cache_hits : int ref;
+	type_instance_cache_misses : int ref;
+	pos_writes_full : int ref;
+	pos_writes_min : int ref;
+	pos_writes_max : int ref;
+	pos_writes_minmax : int ref;
+}
+
+let create_hxb_writer_stats () = {
+	type_instance_kind_writes = Array.make 255 0;
+	type_instance_ring_hits = ref 0;
+	type_instance_cache_hits = ref 0;
+	type_instance_cache_misses = ref 0;
+	pos_writes_full = ref 0;
+	pos_writes_min = ref 0;
+	pos_writes_max = ref 0;
+	pos_writes_minmax = ref 0;
+}
+
+let dump_stats name stats =
+	let _,kind_writes = Array.fold_left (fun (index,acc) writes ->
+		(index + 1,if writes = 0 then acc else (index,writes) :: acc)
+	) (0,[]) stats.type_instance_kind_writes in
+	let kind_writes = List.sort (fun (_,writes1) (_,writes2) -> compare writes2 writes1) kind_writes in
+	let kind_writes = List.map (fun (index,writes) -> Printf.sprintf "    %-3i: %i" index writes) kind_writes in
+	print_endline (Printf.sprintf "hxb_writer stats for %s" name);
+	print_endline "  type instance kind writes:";
+	List.iter print_endline kind_writes;
+	print_endline (Printf.sprintf "  type instance ring hits: %i" !(stats.type_instance_ring_hits));
+	print_endline (Printf.sprintf "  type instance cache hits: %i" !(stats.type_instance_cache_hits));
+	print_endline (Printf.sprintf "  type instance cache miss: %i" !(stats.type_instance_cache_misses));
+	print_endline "  pos writes:";
+	print_endline (Printf.sprintf "      full: %i\n       min: %i\n       max: %i\n    minmax: %i" !(stats.pos_writes_full) !(stats.pos_writes_min) !(stats.pos_writes_max) !(stats.pos_writes_minmax))
 
 class ['key,'value] pool = object(self)
 	val lut = Hashtbl.create 0
@@ -243,6 +276,7 @@ end
 
 class pos_writer
 	(chunk : chunk)
+	(stats : hxb_writer_stats)
 	(p_initial : pos)
 	(write_equal : bool)
 = object(self)
@@ -250,6 +284,7 @@ class pos_writer
 	val mutable p_cur = p_initial
 
 	method private do_write_pos (p : pos) =
+		incr stats.pos_writes_full;
 		chunk#write_string p.pfile;
 		chunk#write_leb128 p.pmin;
 		chunk#write_leb128 p.pmax;
@@ -262,16 +297,19 @@ class pos_writer
 		end else if p.pmin <> p_cur.pmin then begin
 			if p.pmax <> p_cur.pmax then begin
 				(* pmin and pmax changed *)
+				incr stats.pos_writes_minmax;
 				chunk#write_u8 (3 + offset);
 				chunk#write_leb128 p.pmin;
 				chunk#write_leb128 p.pmax;
 			end else begin
 				(* pmin changed *)
+				incr stats.pos_writes_min;
 				chunk#write_u8 (1 + offset);
 				chunk#write_leb128 p.pmin
 			end
 		end else if p.pmax <> p_cur.pmax then begin
 			(* pmax changed *)
+			incr stats.pos_writes_max;
 			chunk#write_u8 (2 + offset);
 			chunk#write_leb128 p.pmax;
 		end else if write_equal then
@@ -341,6 +379,7 @@ let create_field_writer_context pos_writer = {
 class hxb_writer
 	(display_source_at : Globals.pos -> unit)
 	(anon_id : Type.t Tanon_identification.tanon_identification)
+	(stats : hxb_writer_stats)
 = object(self)
 
 	val mutable current_module = null_module
@@ -538,6 +577,10 @@ class hxb_writer
 			chunk#write_u8 40; (* TDynamic None *)
 		end
 
+	method write_type_instance_byte i =
+		stats.type_instance_kind_writes.(i) <- stats.type_instance_kind_writes.(i) + 1;
+		chunk#write_u8 i
+
 	method write_type_instance t =
 		let write_function_arg (n,o,t) =
 			chunk#write_string n;
@@ -546,18 +589,18 @@ class hxb_writer
 		in
 		match t with
 		| TAbstract ({a_path = ([],"Int")},[]) ->
-			chunk#write_u8 100
+			self#write_type_instance_byte 100
 		| TAbstract ({a_path = ([],"Float")},[]) ->
-			chunk#write_u8 101
+			self#write_type_instance_byte 101
 		| TAbstract ({a_path = ([],"Bool")},[]) ->
-			chunk#write_u8 102
+			self#write_type_instance_byte 102
 		| TInst ({cl_path = ([],"String")},[]) ->
-			chunk#write_u8 103
+			self#write_type_instance_byte 103
 		| TMono r ->
 			Monomorph.close r;
 			begin match r.tm_type with
 			| None ->
-				chunk#write_u8 0;
+				self#write_type_instance_byte 0;
 				self#write_tmono_ref r
 			| Some t ->
 				(* Don't write bound monomorphs, write underlying type directly *)
@@ -566,30 +609,30 @@ class hxb_writer
 		| TInst({cl_kind = KTypeParameter ttp},[]) ->
 			self#write_type_parameter_ref ttp
 		| TInst({cl_kind = KExpr e},[]) ->
-			chunk#write_u8 8;
+			self#write_type_instance_byte 8;
 			self#write_expr e;
 		| TInst(c,[]) ->
-			chunk#write_u8 10;
+			self#write_type_instance_byte 10;
 			self#write_class_ref c;
 		| TEnum(en,[]) ->
-			chunk#write_u8 11;
+			self#write_type_instance_byte 11;
 			self#write_enum_ref en;
 		| TType(td,[]) ->
 			let default () =
-				chunk#write_u8 12;
+				self#write_type_instance_byte 12;
 				self#write_typedef_ref td;
 			in
 			begin match td.t_type with
 			| TAnon an ->
 				begin match !(an.a_status) with
 					| ClassStatics c ->
-						chunk#write_u8 13;
+						self#write_type_instance_byte 13;
 						self#write_class_ref c
 					| EnumStatics en ->
-						chunk#write_u8 14;
+						self#write_type_instance_byte 14;
 						self#write_enum_ref en;
 					| AbstractStatics a ->
-						chunk#write_u8 15;
+						self#write_type_instance_byte 15;
 						self#write_abstract_ref a
 					| _ ->
 						default()
@@ -598,44 +641,44 @@ class hxb_writer
 				default()
 			end
 		| TAbstract(a,[]) ->
-			chunk#write_u8 16;
+			self#write_type_instance_byte 16;
 			self#write_abstract_ref a;
 		| TInst(c,tl) ->
-			chunk#write_u8 17;
+			self#write_type_instance_byte 17;
 			self#write_class_ref c;
 			self#write_types tl
 		| TEnum(en,tl) ->
-			chunk#write_u8 18;
+			self#write_type_instance_byte 18;
 			self#write_enum_ref en;
 			self#write_types tl
 		| TType(td,tl) ->
-			chunk#write_u8 19;
+			self#write_type_instance_byte 19;
 			self#write_typedef_ref td;
 			self#write_types tl
 		| TAbstract(a,tl) ->
-			chunk#write_u8 20;
+			self#write_type_instance_byte 20;
 			self#write_abstract_ref a;
 			self#write_types tl
 		| TFun([],t) when ExtType.is_void (follow_lazy_and_mono t) ->
-			chunk#write_u8 30;
+			self#write_type_instance_byte 30;
 		| TFun(args,t) when ExtType.is_void (follow_lazy_and_mono t) ->
-			chunk#write_u8 31;
+			self#write_type_instance_byte 31;
 			chunk#write_list args write_function_arg;
 		| TFun(args,t) ->
-			chunk#write_u8 32;
+			self#write_type_instance_byte 32;
 			chunk#write_list args write_function_arg;
 			self#write_type_instance t;
 		| TLazy r ->
 			self#write_type_instance (lazy_type r);
 		| TDynamic None ->
-			chunk#write_u8 40
+			self#write_type_instance_byte 40
 		| TDynamic (Some t) ->
-			chunk#write_u8 41;
+			self#write_type_instance_byte 41;
 			self#write_type_instance t;
 		| TAnon an when PMap.is_empty an.a_fields ->
-			chunk#write_u8 50;
+			self#write_type_instance_byte 50;
 		| TAnon an ->
-			chunk#write_u8 51;
+			self#write_type_instance_byte 51;
 			self#write_anon_ref an []
 
 	method write_types tl =
@@ -1003,7 +1046,7 @@ class hxb_writer
 			let ring = fctx.t_rings#get_ring e.etype in
 			begin try
 				let index = fctx.t_rings#find ring e.etype in
-				incr t_pool_ring_hits;
+				incr stats.type_instance_ring_hits;
 				chunk#write_u8 0;
 				chunk#write_uleb128 index;
 			with Not_found ->
@@ -1014,12 +1057,12 @@ class hxb_writer
 				) in
 				let index = try
 					let index = fctx.t_pool#get t_bytes in
-					incr t_pool_hits;
+					incr stats.type_instance_cache_hits;
 					chunk#write_u8 0;
 					chunk#write_uleb128 index;
 					index
 				with Not_found ->
-					incr t_pool_misses;
+					incr stats.type_instance_cache_misses;
 					chunk#write_u8 1;
 					chunk#write_bytes t_bytes;
 					fctx.t_pool#add t_bytes ()
@@ -1356,7 +1399,7 @@ class hxb_writer
 
 	method start_texpr (p: pos) =
 		let restore = self#start_temporary_chunk in
-		let fctx = create_field_writer_context (new pos_writer chunk p false) in
+		let fctx = create_field_writer_context (new pos_writer chunk stats p false) in
 		fctx,(fun () ->
 			restore(fun chunk new_chunk ->
 				let items = fctx.vars#items in

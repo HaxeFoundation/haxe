@@ -26,7 +26,7 @@ let export_hxb com root m =
 		| MCode | MMacro | MFake -> begin
 			(* Printf.eprintf "Export module %s\n" (s_type_path m.m_path); *)
 			let anon_identification = new tanon_identification in
-			let writer = new HxbWriter.hxb_writer (MessageReporting.display_source_at com) anon_identification in
+			let writer = new HxbWriter.hxb_writer (MessageReporting.display_source_at com) anon_identification com.hxb_writer_stats in
 			writer#write_module m;
 			let l = (root :: fst m.m_path @ [snd m.m_path]) in
 			let ch = Path.create_file true ".hxb" [] l in
