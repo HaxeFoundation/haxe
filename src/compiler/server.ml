@@ -124,7 +124,7 @@ module Communication = struct
 	let create_pipe sctx write =
 		let rec self = {
 			write_out = (fun s ->
-				write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
+				write ("\x01" ^ String.concat "\n\x01" (ExtString.String.nsplit s "\n") ^ "\n")
 			);
 			write_err = (fun s ->
 				write s
