@@ -127,7 +127,7 @@ let create com macros =
 	) ctx.g.std_types.m_types;
 	let m = TypeloadModule.load_module ctx ([],"String") null_pos in
 	List.iter (fun mt -> match mt with
-		| TClassDecl c ->
+		| TClassDecl ({cl_path = ([],"String")} as c) ->
 			let t = (TInst (c,[])) in
 			Type.unify t ctx.t.tstring;
 			ctx.t.tstring <- t
@@ -135,7 +135,7 @@ let create com macros =
 	) m.m_types;
 	let m = TypeloadModule.load_module ctx ([],"Std") null_pos in
 	List.iter (fun mt -> match mt with
-		| TClassDecl c -> ctx.g.std <- c;
+		| TClassDecl ({cl_path = ([],"Std")} as c) -> ctx.g.std <- c;
 		| _ -> ()
 	) m.m_types;
 	let m = TypeloadModule.load_module ctx ([],"Array") null_pos in
