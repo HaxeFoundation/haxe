@@ -287,7 +287,9 @@ class pos_writer
 	(write_equal : bool)
 = object(self)
 
-	val mutable p_cur = p_initial
+	val mutable p_file = p_initial.pfile
+	val mutable p_min = p_initial.pmin
+	val mutable p_max = p_initial.pmax
 
 	method private do_write_pos (p : pos) =
 		incr stats.pos_writes_full;
@@ -296,31 +298,37 @@ class pos_writer
 		chunk#write_leb128 p.pmax;
 
 	method write_pos (offset : int) (p : pos) =
-		if p.pfile <> p_cur.pfile then begin
+		if p.pfile <> p_file then begin
 			(* File changed, write full pos *)
 			chunk#write_u8 (4 + offset);
 			self#do_write_pos p;
-		end else if p.pmin <> p_cur.pmin then begin
-			if p.pmax <> p_cur.pmax then begin
+			p_file <- p.pfile;
+			p_min <- p.pmin;
+			p_max <- p.pmax;
+		end else if p.pmin <> p_min then begin
+			if p.pmax <> p_max then begin
 				(* pmin and pmax changed *)
 				incr stats.pos_writes_minmax;
 				chunk#write_u8 (3 + offset);
 				chunk#write_leb128 p.pmin;
 				chunk#write_leb128 p.pmax;
+				p_min <- p.pmin;
+				p_max <- p.pmax;
 			end else begin
 				(* pmin changed *)
 				incr stats.pos_writes_min;
 				chunk#write_u8 (1 + offset);
-				chunk#write_leb128 p.pmin
+				chunk#write_leb128 p.pmin;
+				p_min <- p.pmin;
 			end
-		end else if p.pmax <> p_cur.pmax then begin
+		end else if p.pmax <> p_max then begin
 			(* pmax changed *)
 			incr stats.pos_writes_max;
 			chunk#write_u8 (2 + offset);
 			chunk#write_leb128 p.pmax;
+			p_max <- p.pmax;
 		end else if write_equal then
 			chunk#write_u8 offset;
-		p_cur <- p
 
 	initializer
 		self#do_write_pos p_initial
