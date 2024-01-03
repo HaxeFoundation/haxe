@@ -83,6 +83,19 @@ class hxb_reader
 	val mutable field_type_parameters = Array.make 0 (mk_type_param null_class TPHMethod None None)
 	val mutable local_type_parameters = Array.make 0 (mk_type_param null_class TPHLocal None None)
 
+	val mutable field_stack = []
+
+	method in_nested_scope = match field_stack with
+		| [] -> assert false
+		| [_] -> false
+		| _ -> true
+
+	method open_field_scope =
+		field_stack <- () :: field_stack;
+		(fun () ->
+			field_stack <- List.tl field_stack
+		)
+
 	method resolve_type pack mname tname =
 		try api#resolve_type pack mname tname with
 		| Bad_module (path, reason) -> raise (Bad_module (current_module.m_path, DependencyDirty (path, reason)))
@@ -235,7 +248,9 @@ class hxb_reader
 			anon_fields.(self#read_uleb128)
 		| 1 ->
 			let cf = anon_fields.(self#read_uleb128) in
-			self#read_class_field_data true cf;
+			let close = self#open_field_scope in
+			self#read_class_field_data cf;
+			close();
 			cf
 		| _ ->
 			assert false
@@ -1121,9 +1136,10 @@ class hxb_reader
 		) in
 		create_field_reader_context self#read_pos a
 
-	method read_class_field_data (nested : bool) (cf : tclass_field) : unit =
+	method read_class_field_data (cf : tclass_field) : unit =
 		current_field <- cf;
 
+		let nested = self#in_nested_scope in
 		let params = ref [] in
 		self#read_type_parameters (if nested then TPHAnonField else TPHMethod) (fun a ->
 			params := Array.to_list a;
@@ -1161,7 +1177,9 @@ class hxb_reader
 
 	method read_class_field_and_overloads_data (cf : tclass_field) =
 		let write cf =
-			self#read_class_field_data false cf;
+			let close = self#open_field_scope in
+			self#read_class_field_data cf;
+			close();
 		in
 		write cf;
 		let rec loop depth cfl = match cfl with
@@ -1214,6 +1232,7 @@ class hxb_reader
 		type_type_parameters <- Array.of_list e.e_params;
 		self#read_list (fun () ->
 			let name = self#read_string in
+			let close = self#open_field_scope in
 			let ef = PMap.find name e.e_constrs in
 			let params = ref [] in
 			self#read_type_parameters TPHEnumConstructor (fun a ->
@@ -1224,6 +1243,7 @@ class hxb_reader
 			ef.ef_type <- self#read_type_instance;
 			ef.ef_doc <- self#read_option (fun () -> self#read_documentation);
 			ef.ef_meta <- self#read_metadata;
+			close();
 			class_field_of_enum_field ef
 		)
 

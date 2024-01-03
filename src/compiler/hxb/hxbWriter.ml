@@ -439,6 +439,13 @@ class hxb_writer
 
 	val instance_overload_cache = Hashtbl.create 0
 
+	val mutable field_stack = []
+
+	method in_nested_scope = match field_stack with
+		| [] -> assert false
+		| [_] -> false
+		| _ -> true
+
 	(* Chunks *)
 
 	method start_chunk (kind : chunk_kind) =
@@ -895,7 +902,7 @@ class hxb_writer
 			chunk#write_uleb128 index;
 			(* TODO: nested here may or not be true. We should handle this accurately for type
 			   parameter reasons. This is also true for the reader. *)
-			let close = self#open_field_scope true cf.cf_params in
+			let close = self#open_field_scope cf.cf_params in
 			self#write_class_field_data cf;
 			close()
 
@@ -1459,7 +1466,9 @@ class hxb_writer
 			f r;
 			f w;
 
-	method open_field_scope (nested : bool) (params : type_params) =
+	method open_field_scope (params : type_params) =
+		field_stack <- () :: field_stack;
+		let nested = self#in_nested_scope in
 		let old_field_params = field_type_parameters in
 		let old_local_params = local_type_parameters in
 		if not nested then begin
@@ -1472,6 +1481,7 @@ class hxb_writer
 		(fun () ->
 			field_type_parameters <- old_field_params;
 			local_type_parameters <- old_local_params;
+			field_stack <- List.tl field_stack
 		)
 
 	method write_class_field_forward cf =
@@ -1528,7 +1538,7 @@ class hxb_writer
 
 	method write_class_field_and_overloads_data (cf : tclass_field) =
 		let write cf =
-			let close = self#open_field_scope false cf.cf_params in
+			let close = self#open_field_scope cf.cf_params in
 			self#write_class_field_data cf;
 			close();
 		in
@@ -1796,7 +1806,7 @@ class hxb_writer
 			chunk#write_list own_enums (fun e ->
 				chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
 					self#select_type e.e_path;
-					let close = self#open_field_scope false ef.ef_params in
+					let close = self#open_field_scope ef.ef_params in
 					chunk#write_string s;
 					chunk#write_list ef.ef_params self#write_type_parameter_forward;
 					chunk#write_list ef.ef_params self#write_type_parameter_data;
