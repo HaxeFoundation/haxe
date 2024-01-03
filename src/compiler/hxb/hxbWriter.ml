@@ -459,230 +459,6 @@ class hxb_writer
 	method write_metadata ml =
 		chunk#write_list ml self#write_metadata_entry
 
-	(* References *)
-
-	method write_class_ref (c : tclass) =
-		let i = classes#get_or_add c.cl_path c in
-		chunk#write_uleb128 i
-
-	method write_enum_ref (en : tenum) =
-		let i = enums#get_or_add en.e_path en in
-		chunk#write_uleb128 i
-
-	method write_typedef_ref (td : tdef) =
-		let i = typedefs#get_or_add td.t_path td in
-		chunk#write_uleb128 i
-
-	method write_abstract_ref (a : tabstract) =
-		let i = abstracts#get_or_add a.a_path a in
-		chunk#write_uleb128 i
-
-	method write_anon_ref (an : tanon) (ttp : type_params) =
-		let pfm = Option.get (anon_id#identify_anon ~strict:true an) in
-		try
-			let index = anons#get pfm.pfm_path in
-			chunk#write_u8 0;
-			chunk#write_uleb128 index
-		with Not_found ->
-			let index = anons#add pfm.pfm_path an in
-			chunk#write_u8 1;
-			chunk#write_uleb128 index;
-			self#write_anon an ttp
-
-	method write_tmono_ref (mono : tmono) =
-		let index = try tmonos#get mono with Not_found -> tmonos#add mono () in
-		chunk#write_uleb128 index;
-
-	method write_field_ref (c : tclass) (kind : class_field_ref_kind)  (cf : tclass_field) =
-		let index = try
-			class_fields#get cf
-		with Not_found ->
-			let cf_base = find_field c cf.cf_name kind in
-			let depth,cf =
-				let rec loop depth cfl = match cfl with
-					| cf' :: cfl ->
-						if cf' == cf then
-							depth,cf
-						else
-							loop (depth + 1) cfl
-					| [] ->
-						print_endline (Printf.sprintf "Could not resolve %s overload for %s on %s" (s_class_field_ref_kind kind) cf.cf_name (s_type_path c.cl_path));
-						0,cf
-				in
-				let cfl = match kind with
-					| CfrStatic | CfrConstructor ->
-						(cf_base :: cf_base.cf_overloads)
-					| CfrMember ->
-						let key = (c.cl_path,cf_base.cf_name) in
-						try
-							Hashtbl.find instance_overload_cache key
-						with Not_found ->
-							let l = get_instance_overloads c cf_base.cf_name in
-							Hashtbl.add instance_overload_cache key l;
-							l
-				in
-				loop 0 cfl
-			in
-			class_fields#add cf (c,kind,depth)
-		in
-		chunk#write_uleb128 index
-
-	method write_enum_field_ref (en : tenum) (ef : tenum_field) =
-		let key = (en.e_path,ef.ef_name) in
-		try
-			chunk#write_uleb128 (enum_fields#get key)
-		with Not_found ->
-			ignore(enums#get_or_add en.e_path en);
-			chunk#write_uleb128 (enum_fields#add key (en,ef))
-
-	method write_anon_field_ref cf =
-		try
-			let index = anon_fields#get cf in
-			chunk#write_u8 0;
-			chunk#write_uleb128 index
-		with Not_found ->
-			let index = anon_fields#add cf () in
-			chunk#write_u8 1;
-			chunk#write_uleb128 index;
-			let close = self#open_field_scope true cf in
-			self#write_class_field_data cf;
-			close()
-
-	(* Type instances *)
-
-	val warn_strings = Hashtbl.create 0
-
-	method write_type_parameter_ref (ttp : typed_type_param) =
-		begin try
-			begin match ttp.ttp_host with
-			| TPHMethod | TPHEnumConstructor | TPHAnonField | TPHConstructor ->
-				let i = field_type_parameters#get ttp in
-				chunk#write_u8 5;
-				chunk#write_uleb128 i;
-			| TPHType ->
-				let i = type_type_parameters#get ttp.ttp_name in
-				chunk#write_u8 6;
-				chunk#write_uleb128 i
-			| TPHLocal ->
-				let index = local_type_parameters#get ttp in
-				chunk#write_u8 7;
-				chunk#write_uleb128 index;
-		end with Not_found ->
-			let msg = Printf.sprintf "[%s] %s Unbound type parameter %s" (s_type_path current_module.m_path) todo_error (s_type_path ttp.ttp_class.cl_path) in
-			if not (Hashtbl.mem warn_strings msg) then begin
-				Hashtbl.add warn_strings msg ();
-				prerr_endline msg;
-			end;
-			(* TODO: handle unbound type parameters? *)
-			chunk#write_u8 40; (* TDynamic None *)
-		end
-
-	method write_type_instance_byte i =
-		stats.type_instance_kind_writes.(i) <- stats.type_instance_kind_writes.(i) + 1;
-		chunk#write_u8 i
-
-	method write_type_instance t =
-		let write_function_arg (n,o,t) =
-			chunk#write_string n;
-			chunk#write_bool o;
-			self#write_type_instance t;
-		in
-		match t with
-		| TAbstract ({a_path = ([],"Int")},[]) ->
-			self#write_type_instance_byte 100
-		| TAbstract ({a_path = ([],"Float")},[]) ->
-			self#write_type_instance_byte 101
-		| TAbstract ({a_path = ([],"Bool")},[]) ->
-			self#write_type_instance_byte 102
-		| TInst ({cl_path = ([],"String")},[]) ->
-			self#write_type_instance_byte 103
-		| TMono r ->
-			Monomorph.close r;
-			begin match r.tm_type with
-			| None ->
-				self#write_type_instance_byte 0;
-				self#write_tmono_ref r
-			| Some t ->
-				(* Don't write bound monomorphs, write underlying type directly *)
-				self#write_type_instance t
-			end
-		| TInst({cl_kind = KTypeParameter ttp},[]) ->
-			self#write_type_parameter_ref ttp
-		| TInst({cl_kind = KExpr e},[]) ->
-			self#write_type_instance_byte 8;
-			self#write_expr e;
-		| TInst(c,[]) ->
-			self#write_type_instance_byte 10;
-			self#write_class_ref c;
-		| TEnum(en,[]) ->
-			self#write_type_instance_byte 11;
-			self#write_enum_ref en;
-		| TType(td,[]) ->
-			let default () =
-				self#write_type_instance_byte 12;
-				self#write_typedef_ref td;
-			in
-			begin match td.t_type with
-			| TAnon an ->
-				begin match !(an.a_status) with
-					| ClassStatics c ->
-						self#write_type_instance_byte 13;
-						self#write_class_ref c
-					| EnumStatics en ->
-						self#write_type_instance_byte 14;
-						self#write_enum_ref en;
-					| AbstractStatics a ->
-						self#write_type_instance_byte 15;
-						self#write_abstract_ref a
-					| _ ->
-						default()
-				end
-			| _ ->
-				default()
-			end
-		| TAbstract(a,[]) ->
-			self#write_type_instance_byte 16;
-			self#write_abstract_ref a;
-		| TInst(c,tl) ->
-			self#write_type_instance_byte 17;
-			self#write_class_ref c;
-			self#write_types tl
-		| TEnum(en,tl) ->
-			self#write_type_instance_byte 18;
-			self#write_enum_ref en;
-			self#write_types tl
-		| TType(td,tl) ->
-			self#write_type_instance_byte 19;
-			self#write_typedef_ref td;
-			self#write_types tl
-		| TAbstract(a,tl) ->
-			self#write_type_instance_byte 20;
-			self#write_abstract_ref a;
-			self#write_types tl
-		| TFun([],t) when ExtType.is_void (follow_lazy_and_mono t) ->
-			self#write_type_instance_byte 30;
-		| TFun(args,t) when ExtType.is_void (follow_lazy_and_mono t) ->
-			self#write_type_instance_byte 31;
-			chunk#write_list args write_function_arg;
-		| TFun(args,t) ->
-			self#write_type_instance_byte 32;
-			chunk#write_list args write_function_arg;
-			self#write_type_instance t;
-		| TLazy r ->
-			self#write_type_instance (lazy_type r);
-		| TDynamic None ->
-			self#write_type_instance_byte 40
-		| TDynamic (Some t) ->
-			self#write_type_instance_byte 41;
-			self#write_type_instance t;
-		| TAnon an when PMap.is_empty an.a_fields ->
-			self#write_type_instance_byte 50;
-		| TAnon an ->
-			self#write_type_instance_byte 51;
-			self#write_anon_ref an []
-
-	method write_types tl =
-		chunk#write_list tl self#write_type_instance
 
 	(* expr *)
 
@@ -1003,6 +779,231 @@ class hxb_writer
 			chunk#write_u8 36;
 			self#write_metadata_entry m;
 			self#write_expr e1
+
+	(* References *)
+
+	method write_class_ref (c : tclass) =
+		let i = classes#get_or_add c.cl_path c in
+		chunk#write_uleb128 i
+
+	method write_enum_ref (en : tenum) =
+		let i = enums#get_or_add en.e_path en in
+		chunk#write_uleb128 i
+
+	method write_typedef_ref (td : tdef) =
+		let i = typedefs#get_or_add td.t_path td in
+		chunk#write_uleb128 i
+
+	method write_abstract_ref (a : tabstract) =
+		let i = abstracts#get_or_add a.a_path a in
+		chunk#write_uleb128 i
+
+	method write_anon_ref (an : tanon) (ttp : type_params) =
+		let pfm = Option.get (anon_id#identify_anon ~strict:true an) in
+		try
+			let index = anons#get pfm.pfm_path in
+			chunk#write_u8 0;
+			chunk#write_uleb128 index
+		with Not_found ->
+			let index = anons#add pfm.pfm_path an in
+			chunk#write_u8 1;
+			chunk#write_uleb128 index;
+			self#write_anon an ttp
+
+	method write_tmono_ref (mono : tmono) =
+		let index = try tmonos#get mono with Not_found -> tmonos#add mono () in
+		chunk#write_uleb128 index;
+
+	method write_field_ref (c : tclass) (kind : class_field_ref_kind)  (cf : tclass_field) =
+		let index = try
+			class_fields#get cf
+		with Not_found ->
+			let cf_base = find_field c cf.cf_name kind in
+			let depth,cf =
+				let rec loop depth cfl = match cfl with
+					| cf' :: cfl ->
+						if cf' == cf then
+							depth,cf
+						else
+							loop (depth + 1) cfl
+					| [] ->
+						print_endline (Printf.sprintf "Could not resolve %s overload for %s on %s" (s_class_field_ref_kind kind) cf.cf_name (s_type_path c.cl_path));
+						0,cf
+				in
+				let cfl = match kind with
+					| CfrStatic | CfrConstructor ->
+						(cf_base :: cf_base.cf_overloads)
+					| CfrMember ->
+						let key = (c.cl_path,cf_base.cf_name) in
+						try
+							Hashtbl.find instance_overload_cache key
+						with Not_found ->
+							let l = get_instance_overloads c cf_base.cf_name in
+							Hashtbl.add instance_overload_cache key l;
+							l
+				in
+				loop 0 cfl
+			in
+			class_fields#add cf (c,kind,depth)
+		in
+		chunk#write_uleb128 index
+
+	method write_enum_field_ref (en : tenum) (ef : tenum_field) =
+		let key = (en.e_path,ef.ef_name) in
+		try
+			chunk#write_uleb128 (enum_fields#get key)
+		with Not_found ->
+			ignore(enums#get_or_add en.e_path en);
+			chunk#write_uleb128 (enum_fields#add key (en,ef))
+
+	method write_anon_field_ref cf =
+		try
+			let index = anon_fields#get cf in
+			chunk#write_u8 0;
+			chunk#write_uleb128 index
+		with Not_found ->
+			let index = anon_fields#add cf () in
+			chunk#write_u8 1;
+			chunk#write_uleb128 index;
+			let close = self#open_field_scope true cf in
+			self#write_class_field_data cf;
+			close()
+
+	(* Type instances *)
+
+	val warn_strings = Hashtbl.create 0
+
+	method write_type_parameter_ref (ttp : typed_type_param) =
+		begin try
+			begin match ttp.ttp_host with
+			| TPHMethod | TPHEnumConstructor | TPHAnonField | TPHConstructor ->
+				let i = field_type_parameters#get ttp in
+				chunk#write_u8 5;
+				chunk#write_uleb128 i;
+			| TPHType ->
+				let i = type_type_parameters#get ttp.ttp_name in
+				chunk#write_u8 6;
+				chunk#write_uleb128 i
+			| TPHLocal ->
+				let index = local_type_parameters#get ttp in
+				chunk#write_u8 7;
+				chunk#write_uleb128 index;
+		end with Not_found ->
+			let msg = Printf.sprintf "[%s] %s Unbound type parameter %s" (s_type_path current_module.m_path) todo_error (s_type_path ttp.ttp_class.cl_path) in
+			if not (Hashtbl.mem warn_strings msg) then begin
+				Hashtbl.add warn_strings msg ();
+				prerr_endline msg;
+			end;
+			(* TODO: handle unbound type parameters? *)
+			chunk#write_u8 40; (* TDynamic None *)
+		end
+
+	method write_type_instance_byte i =
+		stats.type_instance_kind_writes.(i) <- stats.type_instance_kind_writes.(i) + 1;
+		chunk#write_u8 i
+
+	method write_type_instance t =
+		let write_function_arg (n,o,t) =
+			chunk#write_string n;
+			chunk#write_bool o;
+			self#write_type_instance t;
+		in
+		match t with
+		| TAbstract ({a_path = ([],"Int")},[]) ->
+			self#write_type_instance_byte 100
+		| TAbstract ({a_path = ([],"Float")},[]) ->
+			self#write_type_instance_byte 101
+		| TAbstract ({a_path = ([],"Bool")},[]) ->
+			self#write_type_instance_byte 102
+		| TInst ({cl_path = ([],"String")},[]) ->
+			self#write_type_instance_byte 103
+		| TMono r ->
+			Monomorph.close r;
+			begin match r.tm_type with
+			| None ->
+				self#write_type_instance_byte 0;
+				self#write_tmono_ref r
+			| Some t ->
+				(* Don't write bound monomorphs, write underlying type directly *)
+				self#write_type_instance t
+			end
+		| TInst({cl_kind = KTypeParameter ttp},[]) ->
+			self#write_type_parameter_ref ttp
+		| TInst({cl_kind = KExpr e},[]) ->
+			self#write_type_instance_byte 8;
+			self#write_expr e;
+		| TInst(c,[]) ->
+			self#write_type_instance_byte 10;
+			self#write_class_ref c;
+		| TEnum(en,[]) ->
+			self#write_type_instance_byte 11;
+			self#write_enum_ref en;
+		| TType(td,[]) ->
+			let default () =
+				self#write_type_instance_byte 12;
+				self#write_typedef_ref td;
+			in
+			begin match td.t_type with
+			| TAnon an ->
+				begin match !(an.a_status) with
+					| ClassStatics c ->
+						self#write_type_instance_byte 13;
+						self#write_class_ref c
+					| EnumStatics en ->
+						self#write_type_instance_byte 14;
+						self#write_enum_ref en;
+					| AbstractStatics a ->
+						self#write_type_instance_byte 15;
+						self#write_abstract_ref a
+					| _ ->
+						default()
+				end
+			| _ ->
+				default()
+			end
+		| TAbstract(a,[]) ->
+			self#write_type_instance_byte 16;
+			self#write_abstract_ref a;
+		| TInst(c,tl) ->
+			self#write_type_instance_byte 17;
+			self#write_class_ref c;
+			self#write_types tl
+		| TEnum(en,tl) ->
+			self#write_type_instance_byte 18;
+			self#write_enum_ref en;
+			self#write_types tl
+		| TType(td,tl) ->
+			self#write_type_instance_byte 19;
+			self#write_typedef_ref td;
+			self#write_types tl
+		| TAbstract(a,tl) ->
+			self#write_type_instance_byte 20;
+			self#write_abstract_ref a;
+			self#write_types tl
+		| TFun([],t) when ExtType.is_void (follow_lazy_and_mono t) ->
+			self#write_type_instance_byte 30;
+		| TFun(args,t) when ExtType.is_void (follow_lazy_and_mono t) ->
+			self#write_type_instance_byte 31;
+			chunk#write_list args write_function_arg;
+		| TFun(args,t) ->
+			self#write_type_instance_byte 32;
+			chunk#write_list args write_function_arg;
+			self#write_type_instance t;
+		| TLazy r ->
+			self#write_type_instance (lazy_type r);
+		| TDynamic None ->
+			self#write_type_instance_byte 40
+		| TDynamic (Some t) ->
+			self#write_type_instance_byte 41;
+			self#write_type_instance t;
+		| TAnon an when PMap.is_empty an.a_fields ->
+			self#write_type_instance_byte 50;
+		| TAnon an ->
+			self#write_type_instance_byte 51;
+			self#write_anon_ref an []
+
+	method write_types tl =
+		chunk#write_list tl self#write_type_instance
 
 	(* texpr *)
 
