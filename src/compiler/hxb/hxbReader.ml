@@ -622,19 +622,15 @@ class hxb_reader
 			die "" __LOC__
 
 	method read_type_instance =
-		let kind = self#read_u8 in
+		self#process_type_instance (self#read_u8)
 
+	method process_type_instance (kind : int) =
 		match kind with
-		| 0 ->
+		| 1 ->
 			let i = self#read_uleb128 in
 			tmonos.(i)
-		(* Bound monomorphs directly write their underlying type *)
-		(* | 1 -> *)
-		(* 	let t = self#read_type_instance in *)
-		(* 	let tmono = !monomorph_create_ref () in (1* TODO identity *1) *)
-		(* 	tmono.tm_type <- Some t; *)
-		(* 	TMono tmono; *)
-		| 5 | 6 | 7 -> (self#resolve_ttp_ref kind).ttp_type
+		| 5 | 6 | 7 ->
+			(self#resolve_ttp_ref kind).ttp_type
 		| 8 ->
 			let e = self#read_expr in
 			let c = {null_class with cl_kind = KExpr e; cl_module = current_module } in
@@ -835,12 +831,10 @@ class hxb_reader
 			let t = match self#read_u8 with
 				| 0 ->
 					DynArray.get fctx.t_pool self#read_uleb128
-				| 1 ->
-					let t = self#read_type_instance in
+				| i ->
+					let t = self#process_type_instance i in
 					DynArray.add fctx.t_pool t;
 					t
-				| _ ->
-					die "" __LOC__
 			in
 			let rec loop2 () =
 				match IO.read_byte ch with

@@ -921,7 +921,7 @@ class hxb_writer
 			Monomorph.close r;
 			begin match r.tm_type with
 			| None ->
-				self#write_type_instance_byte 0;
+				self#write_type_instance_byte 1;
 				self#write_tmono_ref r
 			| Some t ->
 				(* Don't write bound monomorphs, write underlying type directly *)
@@ -1031,7 +1031,33 @@ class hxb_writer
 		self#write_metadata v.v_meta;
 		self#write_pos v.v_pos
 
-	method write_texpr fctx (e : texpr) =
+	method write_texpr_type_instance (fctx : field_writer_context) (t: Type.t) =
+		let ring = fctx.t_rings#get_ring t in
+		try
+			let index = fctx.t_rings#find ring t in
+			incr stats.type_instance_ring_hits;
+			chunk#write_u8 0;
+			chunk#write_uleb128 index;
+		with Not_found ->
+			let restore = self#start_temporary_chunk in
+			self#write_type_instance t;
+			let t_bytes = restore (fun chunk new_chunk ->
+				new_chunk#get_bytes
+			) in
+			let index = try
+				let index = fctx.t_pool#get t_bytes in
+				incr stats.type_instance_cache_hits;
+				chunk#write_u8 0;
+				chunk#write_uleb128 index;
+				index
+			with Not_found ->
+				incr stats.type_instance_cache_misses;
+				chunk#write_bytes t_bytes;
+				fctx.t_pool#add t_bytes ()
+			in
+			Ring.push ring (t,index)
+
+	method write_texpr (fctx : field_writer_context) (e : texpr) =
 		let declare_var v =
 			chunk#write_uleb128 (fctx.vars#add v.v_id v);
 			chunk#write_option v.v_extra (fun ve ->
@@ -1044,32 +1070,8 @@ class hxb_writer
 			self#write_type_instance v.v_type;
 		in
 		let rec loop e =
-			let ring = fctx.t_rings#get_ring e.etype in
-			begin try
-				let index = fctx.t_rings#find ring e.etype in
-				incr stats.type_instance_ring_hits;
-				chunk#write_u8 0;
-				chunk#write_uleb128 index;
-			with Not_found ->
-				let restore = self#start_temporary_chunk in
-				self#write_type_instance e.etype;
-				let t_bytes = restore (fun chunk new_chunk ->
-					new_chunk#get_bytes
-				) in
-				let index = try
-					let index = fctx.t_pool#get t_bytes in
-					incr stats.type_instance_cache_hits;
-					chunk#write_u8 0;
-					chunk#write_uleb128 index;
-					index
-				with Not_found ->
-					incr stats.type_instance_cache_misses;
-					chunk#write_u8 1;
-					chunk#write_bytes t_bytes;
-					fctx.t_pool#add t_bytes ()
-				in
-				Ring.push ring (e.etype,index)
-			end;
+
+			self#write_texpr_type_instance fctx e.etype;
 			fctx.pos_writer#write_pos 240 e.epos;
 
 			match e.eexpr with
