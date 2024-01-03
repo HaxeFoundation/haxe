@@ -1150,16 +1150,6 @@ class hxb_reader
 				(Some e,e_unopt)
 		in
 
-		let rec loop depth cfl = match cfl with
-			| cf :: cfl ->
-				assert (depth > 0);
-				self#read_class_field_data false cf;
-				loop (depth - 1) cfl
-			| [] ->
-				assert (depth = 0)
-		in
-		loop self#read_uleb128 cf.cf_overloads;
-
 		cf.cf_type <- t;
 		cf.cf_doc <- doc;
 		cf.cf_meta <- meta;
@@ -1168,6 +1158,22 @@ class hxb_reader
 		cf.cf_expr_unoptimized <- expr_unoptimized;
 		cf.cf_params <- !params;
 		cf.cf_flags <- flags;
+
+	method read_class_field_and_overloads_data (cf : tclass_field) =
+		let write cf =
+			self#read_class_field_data false cf;
+		in
+		write cf;
+		let rec loop depth cfl = match cfl with
+			| cf :: cfl ->
+				assert (depth > 0);
+				write cf;
+				loop (depth - 1) cfl
+			| [] ->
+				assert (depth = 0)
+		in
+		loop self#read_uleb128 cf.cf_overloads;
+
 
 	method read_class_fields (c : tclass) =
 		begin match c.cl_kind with
@@ -1188,13 +1194,13 @@ class hxb_reader
 		let _ = self#read_option (fun f ->
 			let cf = Option.get c.cl_constructor in
 			handle_feature CfrConstructor cf;
-			self#read_class_field_data false cf
+			self#read_class_field_and_overloads_data cf
 		) in
 		let rec loop ref_kind num cfl = match cfl with
 			| cf :: cfl ->
 				assert (num > 0);
 				handle_feature ref_kind cf;
-				self#read_class_field_data false cf;
+				self#read_class_field_and_overloads_data cf;
 				loop ref_kind (num - 1) cfl
 			| [] ->
 				assert (num = 0)

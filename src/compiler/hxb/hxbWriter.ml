@@ -893,6 +893,8 @@ class hxb_writer
 			let index = anon_fields#add cf () in
 			chunk#write_u8 1;
 			chunk#write_uleb128 index;
+			(* TODO: nested here may or not be true. We should handle this accurately for type
+			   parameter reasons. This is also true for the reader. *)
 			let close = self#open_field_scope true cf.cf_params in
 			self#write_class_field_data cf;
 			close()
@@ -1477,9 +1479,7 @@ class hxb_writer
 		self#write_pos cf.cf_pos;
 		self#write_pos cf.cf_name_pos;
 		chunk#write_list cf.cf_overloads (fun cf ->
-			let close = self#open_field_scope false cf.cf_params in
 			self#write_class_field_forward cf;
-			close()
 		);
 
 	method start_texpr (p: pos) =
@@ -1516,11 +1516,7 @@ class hxb_writer
 				chunk#write_option cf.cf_expr_unoptimized (self#write_texpr fctx);
 				close();
 		end;
-		chunk#write_list cf.cf_overloads (fun cf ->
-			let close = self#open_field_scope false cf.cf_params in
-			self#write_class_field_data cf;
-			close();
-		);
+
 		restore (fun new_chunk ->
 			chunk#write_list cf.cf_params self#write_type_parameter_forward;
 			chunk#write_list cf.cf_params self#write_type_parameter_data;
@@ -1529,6 +1525,15 @@ class hxb_writer
 			chunk#write_list ltp self#write_type_parameter_data;
 			new_chunk#export_data chunk
 		)
+
+	method write_class_field_and_overloads_data (cf : tclass_field) =
+		let write cf =
+			let close = self#open_field_scope false cf.cf_params in
+			self#write_class_field_data cf;
+			close();
+		in
+		write cf;
+		chunk#write_list cf.cf_overloads write
 
 	(* Module types *)
 
@@ -1767,15 +1772,13 @@ class hxb_writer
 					self#select_type c.cl_path;
 				end;
 
-				let write_field source cf =
-					let close = self#open_field_scope false cf.cf_params in
-					self#write_class_field_data cf;
-					close();
+				let write_field cf =
+					self#write_class_field_and_overloads_data cf;
 				in
 
-				chunk#write_option c.cl_constructor (write_field CfrConstructor);
-				chunk#write_list c.cl_ordered_fields (write_field CfrMember);
-				chunk#write_list c.cl_ordered_statics (write_field CfrStatic);
+				chunk#write_option c.cl_constructor write_field;
+				chunk#write_list c.cl_ordered_fields write_field;
+				chunk#write_list c.cl_ordered_statics write_field;
 				chunk#write_option c.cl_init (fun e ->
 					let fctx,close = self#start_texpr e.epos in
 					self#write_texpr fctx e;
