@@ -84,6 +84,7 @@ class hxb_reader
 	val mutable local_type_parameters = Array.make 0 (mk_type_param null_class TPHLocal None None)
 
 	val mutable field_stack = []
+	val mutable field_type_parameter_offset = 0
 
 	method in_nested_scope = match field_stack with
 		| [] -> assert false
@@ -1136,18 +1137,30 @@ class hxb_reader
 		) in
 		create_field_reader_context self#read_pos a
 
+	method read_field_type_parameters kind =
+		let num_params = self#read_uleb128 in
+		if not self#in_nested_scope then begin
+			self#read_type_parameters kind (* TODO: need to encode this because we don't know *) (fun a ->
+				field_type_parameters <- a;
+			);
+			field_type_parameter_offset <- 0;
+		end;
+		let params = List.init num_params (fun offset ->
+			field_type_parameters.(field_type_parameter_offset + offset)
+		) in
+		field_type_parameter_offset <- field_type_parameter_offset + num_params;
+		params
+
 	method read_class_field_data (cf : tclass_field) : unit =
 		current_field <- cf;
 
 		let nested = self#in_nested_scope in
-		let params = ref [] in
-		self#read_type_parameters (if nested then TPHAnonField else TPHMethod) (fun a ->
-			params := Array.to_list a;
-			field_type_parameters <- if nested then Array.append field_type_parameters a else a
-		);
-		self#read_type_parameters TPHLocal (fun a ->
-			local_type_parameters <- if nested then Array.append local_type_parameters a else a
-		);
+		let params = self#read_field_type_parameters TPHMethod in
+
+		if not nested then
+			self#read_type_parameters TPHLocal (fun a ->
+				local_type_parameters <- a
+			);
 		let t = self#read_type_instance in
 
 		let flags = IO.read_i32 ch in
@@ -1172,7 +1185,7 @@ class hxb_reader
 		cf.cf_kind <- kind;
 		cf.cf_expr <- expr;
 		cf.cf_expr_unoptimized <- expr_unoptimized;
-		cf.cf_params <- !params;
+		cf.cf_params <- params;
 		cf.cf_flags <- flags;
 
 	method read_class_field_and_overloads_data (cf : tclass_field) =
@@ -1234,12 +1247,7 @@ class hxb_reader
 			let name = self#read_string in
 			let close = self#open_field_scope in
 			let ef = PMap.find name e.e_constrs in
-			let params = ref [] in
-			self#read_type_parameters TPHEnumConstructor (fun a ->
-				params := Array.to_list a;
-				field_type_parameters <- a;
-			);
-			ef.ef_params <- !params;
+			ef.ef_params <- self#read_field_type_parameters TPHEnumConstructor;
 			ef.ef_type <- self#read_type_instance;
 			ef.ef_doc <- self#read_option (fun () -> self#read_documentation);
 			ef.ef_meta <- self#read_metadata;

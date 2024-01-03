@@ -900,8 +900,6 @@ class hxb_writer
 			let index = anon_fields#add cf () in
 			chunk#write_u8 1;
 			chunk#write_uleb128 index;
-			(* TODO: nested here may or not be true. We should handle this accurately for type
-			   parameter reasons. This is also true for the reader. *)
 			let close = self#open_field_scope cf.cf_params in
 			self#write_class_field_data cf;
 			close()
@@ -1506,6 +1504,14 @@ class hxb_writer
 			)
 		)
 
+	method commit_field_type_parameters (params : type_params) =
+		chunk#write_uleb128 (List.length params);
+		if not self#in_nested_scope then begin
+			let ftp = List.map fst field_type_parameters#to_list in
+			chunk#write_list ftp self#write_type_parameter_forward;
+			chunk#write_list ftp self#write_type_parameter_data;
+		end
+
 	method write_class_field_data cf =
 		let restore = self#start_temporary_chunk in
 		(try self#write_type_instance cf.cf_type with e -> begin
@@ -1528,11 +1534,12 @@ class hxb_writer
 		end;
 
 		restore (fun new_chunk ->
-			chunk#write_list cf.cf_params self#write_type_parameter_forward;
-			chunk#write_list cf.cf_params self#write_type_parameter_data;
-			let ltp = List.map fst local_type_parameters#to_list in
-			chunk#write_list ltp self#write_type_parameter_forward;
-			chunk#write_list ltp self#write_type_parameter_data;
+			self#commit_field_type_parameters cf.cf_params;
+			if not self#in_nested_scope then begin
+				let ltp = List.map fst local_type_parameters#to_list in
+				chunk#write_list ltp self#write_type_parameter_forward;
+				chunk#write_list ltp self#write_type_parameter_data;
+			end;
 			new_chunk#export_data chunk
 		)
 
@@ -1808,9 +1815,11 @@ class hxb_writer
 					self#select_type e.e_path;
 					let close = self#open_field_scope ef.ef_params in
 					chunk#write_string s;
-					chunk#write_list ef.ef_params self#write_type_parameter_forward;
-					chunk#write_list ef.ef_params self#write_type_parameter_data;
+					let restore = self#start_temporary_chunk in
 					self#write_type_instance ef.ef_type;
+					let t_bytes = restore (fun new_chunk -> new_chunk#get_bytes) in
+					self#commit_field_type_parameters ef.ef_params;
+					chunk#write_bytes t_bytes;
 					chunk#write_option ef.ef_doc self#write_documentation;
 					self#write_metadata ef.ef_meta;
 					close();
