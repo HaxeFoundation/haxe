@@ -87,8 +87,10 @@ let rec cache_context cs com =
 		| None -> ()
 		| Some com -> cache_context cs com
 	end;
-	if Define.raw_defined com.defines "hxb.stats" then
+	if Define.raw_defined com.defines "hxb.stats" then begin
+		HxbReader.dump_stats (platform_name com.platform) com.hxb_reader_stats;
 		HxbWriter.dump_stats (platform_name com.platform) com.hxb_writer_stats
+	end
 
 let maybe_add_context_sign cs com desc =
 	let sign = Define.get_signature com.defines in

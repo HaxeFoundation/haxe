@@ -135,7 +135,7 @@ class hxb_reader_api_com
 			cc#find_module m_path
 		with Not_found ->
 			let mc = cc#get_hxb_module m_path in
-			self#read_hxb (IO.input_bytes mc.mc_bytes)
+			self#read_hxb (IO.input_bytes mc.mc_bytes) com.hxb_reader_stats
 
 	method basic_types =
 		com.basic

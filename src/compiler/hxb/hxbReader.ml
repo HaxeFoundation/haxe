@@ -41,8 +41,23 @@ type hxb_reader_result =
 
 and hxb_continuation = hxb_reader_api -> chunk_kind -> hxb_reader_result
 
-class hxb_reader
+type hxb_reader_stats = {
+	modules_fully_restored : int ref;
+	modules_partially_restored : int ref;
+}
 
+let create_hxb_reader_stats () = {
+	modules_fully_restored = ref 0;
+	modules_partially_restored = ref 0;
+}
+
+let dump_stats name stats =
+	print_endline (Printf.sprintf "hxb_reader stats for %s" name);
+	print_endline (Printf.sprintf "  modules partially restored: %i" (!(stats.modules_fully_restored) - !(stats.modules_partially_restored)));
+	print_endline (Printf.sprintf "  modules fully restored: %i" !(stats.modules_fully_restored));
+
+class hxb_reader
+	(stats : hxb_reader_stats)
 = object(self)
 	val mutable api = Obj.magic ""
 	val mutable current_module = null_module
@@ -1618,6 +1633,7 @@ class hxb_reader
 			ch <- IO.input_bytes data;
 			match chunk with
 			| HEND ->
+				incr stats.modules_fully_restored;
 				FullModule current_module
 			| STRI ->
 				string_pool <- self#read_string_pool;
@@ -1626,6 +1642,7 @@ class hxb_reader
 				doc_pool <- self#read_string_pool;
 				loop()
 			| HHDR ->
+				incr stats.modules_partially_restored;
 				current_module <- self#read_hhdr;
 				if stop = HHDR then
 					HeaderOnly(current_module,self#continue file_ch)

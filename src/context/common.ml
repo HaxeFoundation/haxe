@@ -411,6 +411,7 @@ type context = {
 	(* misc *)
 	mutable basic : basic_types;
 	memory_marker : float array;
+	hxb_reader_stats : HxbReader.hxb_reader_stats;
 	hxb_writer_stats : HxbWriter.hxb_writer_stats;
 }
 
@@ -872,6 +873,7 @@ let create compilation_step cs version args display_mode =
 		has_error = false;
 		report_mode = RMNone;
 		is_macro_context = false;
+		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_stats = HxbWriter.create_hxb_writer_stats ();
 	} in
 	com
@@ -918,6 +920,7 @@ let clone com is_macro_context =
 		module_to_file = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
 		module_lut = new module_lut;
+		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_stats = HxbWriter.create_hxb_writer_stats ();
 }
 
