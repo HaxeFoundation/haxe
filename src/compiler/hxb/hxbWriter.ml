@@ -391,7 +391,7 @@ end
 let dummy_rings = new t_rings 0
 
 type field_writer_context = {
-	t_pool : (bytes,unit) pool;
+	t_pool : (bytes,bytes) pool;
 	t_rings : t_rings;
 	pos_writer : pos_writer;
 	vars : (int,tvar) pool;
@@ -1107,45 +1107,37 @@ class hxb_writer
 		self#write_pos v.v_pos
 
 	method write_texpr_type_instance (fctx : field_writer_context) (t: Type.t) =
-		match
-			(* First we see if the type instance is simple (just byte + reference). In this case no caching
-			   mechanism is going to improve anything, so we write we value immediately. *)
-			self#write_type_instance_simple fctx.t_rings t
-		with
+		let restore = self#start_temporary_chunk in
+		let r = self#write_type_instance_simple fctx.t_rings t in
+		let index = match r with
 		| None ->
-			(* A bit tricky: The reader pushes any immediate value onto its cache, so we have to advance
-			   our pool here to make sure the indices align. *)
-			fctx.t_pool#advance ();
+			let t_bytes = restore (fun new_chunk -> new_chunk#get_bytes) in
 			incr stats.type_instance_immediate;
-		| Some (t,ring) ->
+			fctx.t_pool#get_or_add t_bytes t_bytes
+		| Some(t,ring) ->
+			ignore(restore (fun new_chunk -> new_chunk#get_bytes));
 			try
-				(* Next we check if we find the type in our small ring cache. The correct ring is given to
-				   us by write_type_instance_simple because it already checks the type instance kinds anyway. *)
 				let index = fctx.t_rings#find ring t in
 				incr stats.type_instance_ring_hits;
-				chunk#write_u8 0;
-				chunk#write_uleb128 index;
+				index
 			with Not_found ->
-				(* Now we write the type into a temporary chunk in order to identify it. *)
 				let restore = self#start_temporary_chunk in
 				self#write_type_instance_not_simple t;
 				let t_bytes = restore (fun new_chunk ->
 					new_chunk#get_bytes
 				) in
 				let index = try
-					(* If we find it in the cache, write the reference accordingly. *)
 					let index = fctx.t_pool#get t_bytes in
 					incr stats.type_instance_cache_hits;
-					chunk#write_u8 0;
-					chunk#write_uleb128 index;
 					index
 				with Not_found ->
-					(* Otherwise write the full type by copying the bytes into the output. *)
 					incr stats.type_instance_cache_misses;
-					chunk#write_bytes t_bytes;
-					fctx.t_pool#add t_bytes ()
+					fctx.t_pool#add t_bytes t_bytes
 				in
-				Ring.push ring (t,index)
+				Ring.push ring (t,index);
+				index
+		in
+		chunk#write_uleb128 index
 
 	method write_texpr (fctx : field_writer_context) (e : texpr) =
 		let declare_var v =
@@ -1495,6 +1487,12 @@ class hxb_writer
 		let fctx = create_field_writer_context (new pos_writer chunk stats p false) in
 		fctx,(fun () ->
 			restore(fun new_chunk ->
+				let items = fctx.t_pool#items in
+				chunk#write_uleb128 (DynArray.length items);
+				DynArray.iter (fun bytes ->
+					chunk#write_bytes bytes
+				) items;
+
 				let items = fctx.vars#items in
 				chunk#write_uleb128 (DynArray.length items);
 				DynArray.iter (fun v ->

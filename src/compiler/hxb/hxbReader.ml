@@ -24,13 +24,13 @@ let print_stacktrace () =
 		| _ -> die "" __LOC__
 
 type field_reader_context = {
-	t_pool : Type.t DynArray.t;
+	t_pool : Type.t Array.t;
 	pos : pos ref;
 	vars : tvar Array.t;
 }
 
-let create_field_reader_context p vars = {
-	t_pool = DynArray.create ();
+let create_field_reader_context p ts vars = {
+	t_pool = ts;
 	pos = ref p;
 	vars = vars;
 }
@@ -859,14 +859,7 @@ class hxb_reader
 			v
 		in
 		let rec loop () =
-			let t = match self#read_u8 with
-				| 0 ->
-					DynArray.get fctx.t_pool self#read_uleb128
-				| i ->
-					let t = self#process_type_instance i in
-					DynArray.add fctx.t_pool t;
-					t
-			in
+			let t = fctx.t_pool.(self#read_uleb128) in
 			let rec loop2 () =
 				match IO.read_byte ch with
 					(* values 0-19 *)
@@ -1132,10 +1125,14 @@ class hxb_reader
 
 	method start_texpr =
 		let l = self#read_uleb128 in
-		let a = Array.init l (fun _ ->
+		let ts = Array.init l (fun _ ->
+			self#read_type_instance
+		) in
+		let l = self#read_uleb128 in
+		let vars = Array.init l (fun _ ->
 			self#read_var
 		) in
-		create_field_reader_context self#read_pos a
+		create_field_reader_context self#read_pos ts vars
 
 	method read_field_type_parameters kind =
 		let num_params = self#read_uleb128 in
