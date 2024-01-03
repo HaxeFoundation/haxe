@@ -354,7 +354,36 @@ class t_rings (length : int) = object(self)
 	method ring_anon = ring_anon
 	method ring_dynamic = ring_dynamic
 
+	method fast_eq_check type_param_check a b =
+		if a == b then
+			true
+		else match a , b with
+		| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+			List.for_all2 (fun (n1,o1,t1) (n2,o2,t2) ->
+				n1 = n2 &&
+				o1 = o2 &&
+				type_param_check t1 t2
+			) l1 l2 && type_param_check r1 r2
+		| TType (t1,l1), TType (t2,l2) ->
+			t1 == t2 && List.for_all2 type_param_check l1 l2
+		| TEnum (e1,l1), TEnum (e2,l2) ->
+			e1 == e2 && List.for_all2 type_param_check l1 l2
+		| TInst (c1,l1), TInst (c2,l2) ->
+			c1 == c2 && List.for_all2 type_param_check l1 l2
+		| TAbstract (a1,l1), TAbstract (a2,l2) ->
+			a1 == a2 && List.for_all2 type_param_check l1 l2
+		| TAnon an1,TAnon an2 ->
+			begin match !(an1.a_status),!(an2.a_status) with
+				| ClassStatics c, ClassStatics c2 -> c == c2
+				| EnumStatics e, EnumStatics e2 -> e == e2
+				| AbstractStatics a, AbstractStatics a2 -> a == a2
+				| _ -> false
+			end
+		| _ , _ ->
+			false
+
 	method find (ring : (Type.t * int) Ring.t) (t : Type.t) =
+		let rec fast_eq a b = self#fast_eq_check fast_eq a b in
 		let _,index = Ring.find ring (fun (t',_) -> fast_eq t t') in
 		index
 end
