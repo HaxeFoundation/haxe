@@ -446,13 +446,13 @@ class hxb_writer
 		DynArray.add chunks new_chunk;
 		chunk <- new_chunk
 
-	method start_temporary_chunk : 'a . (chunk -> chunk -> 'a) -> 'a =
+	method start_temporary_chunk : 'a . (chunk -> 'a) -> 'a =
 		let new_chunk = new chunk HEND (* TODO: something else? *) cp in
 		let old_chunk = chunk in
 		chunk <- new_chunk;
 		(fun f ->
 			chunk <- old_chunk;
-			f old_chunk new_chunk;
+			f new_chunk
 		)
 
 	(* Basic compounds *)
@@ -893,7 +893,7 @@ class hxb_writer
 			let index = anon_fields#add cf () in
 			chunk#write_u8 1;
 			chunk#write_uleb128 index;
-			let close = self#open_field_scope true cf in
+			let close = self#open_field_scope true cf.cf_params in
 			self#write_class_field_data cf;
 			close()
 
@@ -1122,7 +1122,7 @@ class hxb_writer
 				(* Now we write the type into a temporary chunk in order to identify it. *)
 				let restore = self#start_temporary_chunk in
 				self#write_type_instance_not_simple t;
-				let t_bytes = restore (fun chunk new_chunk ->
+				let t_bytes = restore (fun new_chunk ->
 					new_chunk#get_bytes
 				) in
 				let index = try
@@ -1410,12 +1410,6 @@ class hxb_writer
 
 	(* Fields *)
 
-	method set_field_type_parameters (nested : bool) params =
-		if not nested then field_type_parameters <- new identity_pool;
-		List.iter (fun ttp ->
-			ignore(field_type_parameters#add ttp ());
-		) params
-
 	method write_type_parameter_forward ttp =
 		self#write_path ttp.ttp_class.cl_path;
 		self#write_pos ttp.ttp_class.cl_name_pos
@@ -1463,11 +1457,16 @@ class hxb_writer
 			f r;
 			f w;
 
-	method open_field_scope (nested : bool) (cf : tclass_field) =
+	method open_field_scope (nested : bool) (params : type_params) =
 		let old_field_params = field_type_parameters in
 		let old_local_params = local_type_parameters in
-		if not nested then local_type_parameters <- new identity_pool;
-		self#set_field_type_parameters nested cf.cf_params;
+		if not nested then begin
+			local_type_parameters <- new identity_pool;
+			field_type_parameters <- new identity_pool;
+		end;
+		List.iter (fun ttp ->
+			ignore(field_type_parameters#add ttp ());
+		) params;
 		(fun () ->
 			field_type_parameters <- old_field_params;
 			local_type_parameters <- old_local_params;
@@ -1478,7 +1477,7 @@ class hxb_writer
 		self#write_pos cf.cf_pos;
 		self#write_pos cf.cf_name_pos;
 		chunk#write_list cf.cf_overloads (fun cf ->
-			let close = self#open_field_scope false cf in
+			let close = self#open_field_scope false cf.cf_params in
 			self#write_class_field_forward cf;
 			close()
 		);
@@ -1487,7 +1486,7 @@ class hxb_writer
 		let restore = self#start_temporary_chunk in
 		let fctx = create_field_writer_context (new pos_writer chunk stats p false) in
 		fctx,(fun () ->
-			restore(fun chunk new_chunk ->
+			restore(fun new_chunk ->
 				let items = fctx.vars#items in
 				chunk#write_uleb128 (DynArray.length items);
 				DynArray.iter (fun v ->
@@ -1517,12 +1516,12 @@ class hxb_writer
 				chunk#write_option cf.cf_expr_unoptimized (self#write_texpr fctx);
 				close();
 		end;
-		chunk#write_list cf.cf_overloads (fun f ->
-			let close = self#open_field_scope false f in
-			self#write_class_field_data f;
+		chunk#write_list cf.cf_overloads (fun cf ->
+			let close = self#open_field_scope false cf.cf_params in
+			self#write_class_field_data cf;
 			close();
 		);
-		restore (fun chunk new_chunk ->
+		restore (fun new_chunk ->
 			chunk#write_list cf.cf_params self#write_type_parameter_forward;
 			chunk#write_list cf.cf_params self#write_type_parameter_data;
 			let ltp = List.map fst local_type_parameters#to_list in
@@ -1769,7 +1768,7 @@ class hxb_writer
 				end;
 
 				let write_field source cf =
-					let close = self#open_field_scope false cf in
+					let close = self#open_field_scope false cf.cf_params in
 					self#write_class_field_data cf;
 					close();
 				in
@@ -1794,13 +1793,14 @@ class hxb_writer
 			chunk#write_list own_enums (fun e ->
 				chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
 					self#select_type e.e_path;
+					let close = self#open_field_scope false ef.ef_params in
 					chunk#write_string s;
-					self#set_field_type_parameters false ef.ef_params;
 					chunk#write_list ef.ef_params self#write_type_parameter_forward;
 					chunk#write_list ef.ef_params self#write_type_parameter_data;
 					self#write_type_instance ef.ef_type;
 					chunk#write_option ef.ef_doc self#write_documentation;
 					self#write_metadata ef.ef_meta;
+					close();
 				);
 			)
 		end;
