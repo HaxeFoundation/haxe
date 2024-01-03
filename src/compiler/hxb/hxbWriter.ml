@@ -74,6 +74,7 @@ let print_params source ttp =
 
 type hxb_writer_stats = {
 	type_instance_kind_writes : int array;
+	type_instance_immediate : int ref;
 	type_instance_ring_hits : int ref;
 	type_instance_cache_hits : int ref;
 	type_instance_cache_misses : int ref;
@@ -85,6 +86,7 @@ type hxb_writer_stats = {
 
 let create_hxb_writer_stats () = {
 	type_instance_kind_writes = Array.make 255 0;
+	type_instance_immediate = ref 0;
 	type_instance_ring_hits = ref 0;
 	type_instance_cache_hits = ref 0;
 	type_instance_cache_misses = ref 0;
@@ -103,7 +105,8 @@ let dump_stats name stats =
 	print_endline (Printf.sprintf "hxb_writer stats for %s" name);
 	print_endline "  type instance kind writes:";
 	List.iter print_endline kind_writes;
-	print_endline (Printf.sprintf "  type instance ring hits: %i" !(stats.type_instance_ring_hits));
+	print_endline (Printf.sprintf "   type instance immediate: %i" !(stats.type_instance_immediate));
+	print_endline (Printf.sprintf "   type instance ring hits: %i" !(stats.type_instance_ring_hits));
 	print_endline (Printf.sprintf "  type instance cache hits: %i" !(stats.type_instance_cache_hits));
 	print_endline (Printf.sprintf "  type instance cache miss: %i" !(stats.type_instance_cache_misses));
 	print_endline "  pos writes:";
@@ -136,6 +139,9 @@ class ['key,'value] pool = object(self)
 
 	method is_empty =
 		DynArray.length items = 0
+
+	method advance dummy =
+		DynArray.add items dummy
 
 	method to_list =
 		DynArray.to_list items
@@ -332,35 +338,20 @@ class t_rings (length : int) = object(self)
 	val ring_dynamic = Ring.create 1 (ghetto_bottom_type,0)
 	val ring_mono = Ring.create 1 (ghetto_bottom_type,0)
 
-	method get_ring (t : Type.t) =
-		let rec loop t = match t with
-		| TLazy f ->
-			loop (lazy_type f)
-		| TMono {tm_type = Some t} ->
-			loop t
-		| TInst _ ->
-			ring_inst
-		| TEnum _ ->
-			ring_enum
-		| TType _ ->
-			ring_type
-		| TAbstract _ ->
-			ring_abstract
-		| TFun _ ->
-			ring_fun
-		| TAnon _ ->
-			ring_anon
-		| TDynamic _ ->
-			ring_dynamic
-		| TMono _ ->
-			ring_mono (* Doesn't make much sense but we have to return something *)
-		in
-		loop t
+	method ring_inst = ring_inst
+	method ring_enum = ring_enum
+	method ring_type = ring_type
+	method ring_abstract = ring_abstract
+	method ring_fun = ring_fun
+	method ring_anon = ring_anon
+	method ring_dynamic = ring_dynamic
 
 	method find (ring : (Type.t * int) Ring.t) (t : Type.t) =
 		let _,index = Ring.find ring (fun (t',_) -> fast_eq t t') in
 		index
 end
+
+let dummy_rings = new t_rings 0
 
 type field_writer_context = {
 	t_pool : (bytes,unit) pool;
@@ -902,42 +893,46 @@ class hxb_writer
 		stats.type_instance_kind_writes.(i) <- stats.type_instance_kind_writes.(i) + 1;
 		chunk#write_u8 i
 
-	method write_type_instance t =
-		let write_function_arg (n,o,t) =
-			chunk#write_string n;
-			chunk#write_bool o;
-			self#write_type_instance t;
-		in
+	method write_type_instance_simple (rings : t_rings) (t : Type.t) =
 		match t with
 		| TAbstract ({a_path = ([],"Int")},[]) ->
-			self#write_type_instance_byte 100
+			self#write_type_instance_byte 100;
+			None
 		| TAbstract ({a_path = ([],"Float")},[]) ->
-			self#write_type_instance_byte 101
+			self#write_type_instance_byte 101;
+			None
 		| TAbstract ({a_path = ([],"Bool")},[]) ->
-			self#write_type_instance_byte 102
+			self#write_type_instance_byte 102;
+			None
 		| TInst ({cl_path = ([],"String")},[]) ->
-			self#write_type_instance_byte 103
+			self#write_type_instance_byte 103;
+			None
 		| TMono r ->
 			Monomorph.close r;
 			begin match r.tm_type with
 			| None ->
 				self#write_type_instance_byte 1;
-				self#write_tmono_ref r
+				self#write_tmono_ref r;
+				None
 			| Some t ->
 				(* Don't write bound monomorphs, write underlying type directly *)
-				self#write_type_instance t
+				self#write_type_instance_simple rings t
 			end
+		| TLazy f ->
+			self#write_type_instance_simple rings (lazy_type f)
 		| TInst({cl_kind = KTypeParameter ttp},[]) ->
-			self#write_type_parameter_ref ttp
-		| TInst({cl_kind = KExpr e},[]) ->
-			self#write_type_instance_byte 8;
-			self#write_expr e;
+			self#write_type_parameter_ref ttp;
+			None
+		| TInst({cl_kind = KExpr _},_) ->
+			Some (t,rings#ring_inst)
 		| TInst(c,[]) ->
 			self#write_type_instance_byte 10;
 			self#write_class_ref c;
+			None
 		| TEnum(en,[]) ->
 			self#write_type_instance_byte 11;
 			self#write_enum_ref en;
+			None
 		| TType(td,[]) ->
 			let default () =
 				self#write_type_instance_byte 12;
@@ -960,10 +955,45 @@ class hxb_writer
 				end
 			| _ ->
 				default()
-			end
+			end;
+			None
 		| TAbstract(a,[]) ->
 			self#write_type_instance_byte 16;
 			self#write_abstract_ref a;
+			None
+		| TDynamic None ->
+			self#write_type_instance_byte 40;
+			None
+		| TFun([],t) when ExtType.is_void (follow_lazy_and_mono t) ->
+			self#write_type_instance_byte 30;
+			None
+		| TInst _ ->
+			Some (t,rings#ring_inst)
+		| TEnum _ ->
+			Some (t,rings#ring_enum)
+		| TType _ ->
+			Some (t,rings#ring_type)
+		| TAbstract _ ->
+			Some (t,rings#ring_abstract)
+		| TFun _ ->
+			Some (t,rings#ring_fun)
+		| TAnon _ ->
+			Some (t,rings#ring_anon)
+		| TDynamic _ ->
+			Some (t,rings#ring_dynamic)
+
+	method write_type_instance_not_simple t =
+		let write_function_arg (n,o,t) =
+			chunk#write_string n;
+			chunk#write_bool o;
+			self#write_type_instance t;
+		in
+		match t with
+		| TMono _ | TLazy _ | TDynamic None ->
+			die "" __LOC__
+		| TInst({cl_kind = KExpr e},[]) ->
+			self#write_type_instance_byte 8;
+			self#write_expr e;
 		| TInst(c,tl) ->
 			self#write_type_instance_byte 17;
 			self#write_class_ref c;
@@ -980,8 +1010,6 @@ class hxb_writer
 			self#write_type_instance_byte 20;
 			self#write_abstract_ref a;
 			self#write_types tl
-		| TFun([],t) when ExtType.is_void (follow_lazy_and_mono t) ->
-			self#write_type_instance_byte 30;
 		| TFun(args,t) when ExtType.is_void (follow_lazy_and_mono t) ->
 			self#write_type_instance_byte 31;
 			chunk#write_list args write_function_arg;
@@ -989,10 +1017,6 @@ class hxb_writer
 			self#write_type_instance_byte 32;
 			chunk#write_list args write_function_arg;
 			self#write_type_instance t;
-		| TLazy r ->
-			self#write_type_instance (lazy_type r);
-		| TDynamic None ->
-			self#write_type_instance_byte 40
 		| TDynamic (Some t) ->
 			self#write_type_instance_byte 41;
 			self#write_type_instance t;
@@ -1001,6 +1025,13 @@ class hxb_writer
 		| TAnon an ->
 			self#write_type_instance_byte 51;
 			self#write_anon_ref an []
+
+	method write_type_instance (t: Type.t) =
+		match self#write_type_instance_simple dummy_rings t with
+			| None ->
+				()
+			| Some(t,_) ->
+				self#write_type_instance_not_simple t
 
 	method write_types tl =
 		chunk#write_list tl self#write_type_instance
@@ -1032,30 +1063,45 @@ class hxb_writer
 		self#write_pos v.v_pos
 
 	method write_texpr_type_instance (fctx : field_writer_context) (t: Type.t) =
-		let ring = fctx.t_rings#get_ring t in
-		try
-			let index = fctx.t_rings#find ring t in
-			incr stats.type_instance_ring_hits;
-			chunk#write_u8 0;
-			chunk#write_uleb128 index;
-		with Not_found ->
-			let restore = self#start_temporary_chunk in
-			self#write_type_instance t;
-			let t_bytes = restore (fun chunk new_chunk ->
-				new_chunk#get_bytes
-			) in
-			let index = try
-				let index = fctx.t_pool#get t_bytes in
-				incr stats.type_instance_cache_hits;
+		match
+			(* First we see if the type instance is simple (just byte + reference). In this case no caching
+			   mechanism is going to improve anything, so we write we value immediately. *)
+			self#write_type_instance_simple fctx.t_rings t
+		with
+		| None ->
+			(* A bit tricky: The reader pushes any immediate value onto its cache, so we have to advance
+			   our pool here to make sure the indices align. *)
+			fctx.t_pool#advance ();
+			incr stats.type_instance_immediate;
+		| Some (t,ring) ->
+			try
+				(* Next we check if we find the type in our small ring cache. The correct ring is given to
+				   us by write_type_instance_simple because it already checks the type instance kinds anyway. *)
+				let index = fctx.t_rings#find ring t in
+				incr stats.type_instance_ring_hits;
 				chunk#write_u8 0;
 				chunk#write_uleb128 index;
-				index
 			with Not_found ->
-				incr stats.type_instance_cache_misses;
-				chunk#write_bytes t_bytes;
-				fctx.t_pool#add t_bytes ()
-			in
-			Ring.push ring (t,index)
+				(* Now we write the type into a temporary chunk in order to identify it. *)
+				let restore = self#start_temporary_chunk in
+				self#write_type_instance_not_simple t;
+				let t_bytes = restore (fun chunk new_chunk ->
+					new_chunk#get_bytes
+				) in
+				let index = try
+					(* If we find it in the cache, write the reference accordingly. *)
+					let index = fctx.t_pool#get t_bytes in
+					incr stats.type_instance_cache_hits;
+					chunk#write_u8 0;
+					chunk#write_uleb128 index;
+					index
+				with Not_found ->
+					(* Otherwise write the full type by copying the bytes into the output. *)
+					incr stats.type_instance_cache_misses;
+					chunk#write_bytes t_bytes;
+					fctx.t_pool#add t_bytes ()
+				in
+				Ring.push ring (t,index)
 
 	method write_texpr (fctx : field_writer_context) (e : texpr) =
 		let declare_var v =
