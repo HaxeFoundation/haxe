@@ -41,11 +41,11 @@ let check_hxb_output com actx =
 	begin match actx.hxb_out with
 		| None -> ()
 		| Some path ->
+			Path.mkdir_from_path path;
 			let zip = new Zip_output.zip_output path 6 in
 			let export com =
 				Common.log com ("Generating hxb to " ^ path);
 				Printf.eprintf "Generating hxb to %s\n" path;
-				Path.mkdir_from_path path;
 				let t = Timer.timer ["generate";"hxb"] in
 				Printf.eprintf "%d modules, %d types\n" (List.length com.modules) (List.length com.types);
 				let target = Common.platform_name_macro com in
