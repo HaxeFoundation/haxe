@@ -19,7 +19,6 @@
 open Option
 open Common
 open Globals
-open Codegen
 open Texpr.Builder
 open Ast
 open Type
@@ -278,9 +277,8 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 
 let rec get_type_params acc t =
 	match t with
-		| TInst(( { cl_kind = KTypeParameter constraints } as cl), []) ->
-			let params = List.fold_left get_type_params acc constraints in
-			List.filter (fun t -> not (List.memq t acc)) (cl :: params) @ acc;
+		| TInst(( { cl_kind = KTypeParameter _ } as cl), []) ->
+			if List.memq cl acc then acc else cl :: acc
 		| TFun (params,tret) ->
 			List.fold_left get_type_params acc ( tret :: List.map (fun (_,_,t) -> t) params )
 		| TDynamic None ->
@@ -291,10 +289,7 @@ let rec get_type_params acc t =
 				get_type_params acc ( Abstract.get_underlying_type a pl)
 		| TAnon a ->
 			PMap.fold (fun cf acc ->
-				let params = List.map (fun tp -> match follow tp.ttp_type with
-					| TInst(c,_) -> c
-					| _ -> die "" __LOC__) cf.cf_params
-				in
+				let params = List.map (fun tp -> tp.ttp_class) cf.cf_params in
 				List.filter (fun t -> not (List.memq t params)) (get_type_params acc cf.cf_type)
 			) a.a_fields acc
 		| TType(_, [])
@@ -398,7 +393,7 @@ let configure gen ft =
 		in
 
 		(*let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(map_param cl, []) )) tparams in*)
-		let cltypes = List.map (fun cl -> mk_type_param (snd cl.cl_path) (TInst(cl, [])) None) tparams in
+		let cltypes = List.map (fun cl -> mk_type_param cl TPHType None None) tparams in
 
 		(* create a new class that extends abstract function class, with a ctor implementation that will setup all captured variables *)
 		let cfield = match gen.gcurrent_classfield with
@@ -615,14 +610,10 @@ let configure gen ft =
 
 			let monos = List.map (fun t -> apply_params types (List.map (fun _ -> t_dynamic) types) t) monos in
 
-			let same_cl t1 t2 = match follow t1, follow t2 with
-				| TInst(c,_), TInst(c2,_) -> c == c2
-				| _ -> false
-			in
-			let passoc = List.map2 (fun tp m -> tp.ttp_type,m) types monos in
+			let passoc = List.map2 (fun tp m -> tp.ttp_class,m) types monos in
 			let cltparams = List.map (fun tp ->
 				try
-					snd (List.find (fun (t2,_) -> same_cl tp.ttp_type t2) passoc)
+					snd (List.find (fun (t2,_) -> tp.ttp_class == t2) passoc)
 				with | Not_found -> tp.ttp_type) cls.cl_params
 			in
 			{ e with eexpr = TNew(cls, cltparams, List.rev captured) }
@@ -1080,7 +1071,7 @@ struct
 			let cl = parent_func_class in
 			let pos = cl.cl_pos in
 
-			let rec mk_dyn_call arity api =
+			let mk_dyn_call arity api =
 				let zero = make_float gen.gcon.basic "0.0" pos in
 				let rec loop i acc =
 					if i = 0 then
@@ -1099,7 +1090,10 @@ struct
 			let mk_invoke_switch i api =
 				let t = TFun (func_sig_i i, t_dynamic) in
 				(* case i: return this.invokeX_o(0, 0, 0, 0, 0, ... arg[0], args[1]....); *)
-				[make_int gen.gcon.basic i pos], mk_return (mk (TCall(mk_this (iname i false) t, mk_dyn_call i api)) t_dynamic pos)
+				{
+					case_patterns = [make_int gen.gcon.basic i pos];
+					case_expr = mk_return (mk (TCall(mk_this (iname i false) t, mk_dyn_call i api)) t_dynamic pos)
+				}
 			in
 			let rec loop_cases api arity acc =
 				if arity < 0 then
@@ -1148,11 +1142,9 @@ struct
 						epos = pos;
 					} in
 
+					let switch = mk_switch switch_cond (loop_cases api !max_arity []) (Some(make_throw (mk_arg_exception "Too many arguments" pos) pos)) true in
 					{
-						eexpr = TSwitch(
-							switch_cond,
-							loop_cases api !max_arity [],
-							Some(make_throw (mk_arg_exception "Too many arguments" pos) pos));
+						eexpr = TSwitch switch;
 						etype = basic.tvoid;
 						epos = pos;
 					}

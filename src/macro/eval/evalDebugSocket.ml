@@ -1,6 +1,4 @@
-open Gc
 open Ast
-open Type
 open Globals
 open MacroApi
 open JsonRpcSocket
@@ -488,7 +486,7 @@ module ValueCompletion = struct
 		DisplayPosition.display_position#set {p with pmin = offset; pmax = offset};
 		begin try
 			let e = parse_expr ctx text p in
-			let e = Display.ExprPreprocessing.find_before_pos DMDefault e in
+			let e = ExprPreprocessing.find_before_pos DMDefault e in
 			save();
 			let rec loop e = match fst e with
 			| EDisplay(e1,DKDot) ->
@@ -789,7 +787,7 @@ let make_connection socket =
 		debug.debug_context <- new eval_debug_context;
 		send_event socket "exceptionStop" (Some (JObject ["threadId",JInt (Thread.id (Thread.self()));"text",JString (value_string v)]))
 	in
-	let rec wait () : unit =
+	let wait () : unit =
 		let rec process_outcome id outcome =
 			let output j = send_json socket (JsonRpc.result id j) in
 			output outcome;

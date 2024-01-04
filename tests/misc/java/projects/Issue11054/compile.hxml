@@ -1,0 +1,12 @@
+--main Setup
+--interp
+
+--next
+
+--main Main
+--java-lib test.jar
+--jvm run.jar
+
+--next
+
+--cmd java -jar run.jar

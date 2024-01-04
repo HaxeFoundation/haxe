@@ -14,7 +14,9 @@ class Issue10194 extends DisplayTestCase {
 			{
 				kind: DKCompilerError,
 				severity: Error,
+				code: null,
 				range: diagnosticsRange(pos(1), pos(2)),
+				relatedInformation: [],
 				args: "String should be Int\nFor function argument 'a'"
 			}
 		], diagnostics());

@@ -62,7 +62,7 @@ class String {
 	public inline function toLowerCase():String
 		return BaseString.lower(this);
 
-	public inline function indexOf(str:String, ?startIndex:Int):Int {
+	public function indexOf(str:String, ?startIndex:Int):Int {
 		if (startIndex == null)
 			startIndex = 1;
 		else
@@ -86,7 +86,7 @@ class String {
 		return startIndex > length ? length : startIndex;
 	}
 
-	public inline function lastIndexOf(str:String, ?startIndex:Int):Int {
+	public function lastIndexOf(str:String, ?startIndex:Int):Int {
 		var ret = -1;
 		if (startIndex == null)
 			startIndex = length;
@@ -99,11 +99,11 @@ class String {
 		return ret;
 	}
 
-	public inline function split(delimiter:String):Array<String> {
-		var idx = 1;
+	public function split(delimiter:String):Array<String> {
+		var idx:Null<Int> = 1;
 		var ret = [];
 		while (idx != null) {
-			var newidx = 0;
+			var newidx:Null<Int> = 0;
 			if (delimiter.length > 0) {
 				newidx = BaseString.find(this, delimiter, idx, true).begin;
 			} else if (idx >= this.length) {
@@ -128,7 +128,7 @@ class String {
 		return this;
 	}
 
-	public inline function substring(startIndex:Int, ?endIndex:Int):String {
+	public function substring(startIndex:Int, ?endIndex:Int):String {
 		if (endIndex == null)
 			endIndex = this.length;
 		if (endIndex < 0)
@@ -151,7 +151,7 @@ class String {
 		return BaseString.byte(this, index + 1);
 	}
 
-	public inline function substr(pos:Int, ?len:Int):String {
+	public function substr(pos:Int, ?len:Int):String {
 		if (len == null || len > pos + this.length)
 			len = this.length;
 		else if (len < 0)

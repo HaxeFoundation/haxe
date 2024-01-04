@@ -546,11 +546,20 @@ let uv_error_fields = [
 		Error.set_on_unhandled_exception (fun ex ->
 			let msg =
 				match ex with
-				| HaxeError.Error (Custom msg,_,_) ->
+				(* TODO beware of err_sub here *)
+				| HaxeError.Error { err_message = Custom msg } ->
 					(* Eval interpreter rethrows runtime exceptions as `Custom "Exception message\nException stack"` *)
-					(try fst (ExtString.String.split msg "\n")
-					with _ -> msg)
-				| HaxeError.Error (err,p,_) -> extract_located_msg (HaxeError.error_msg p err)
+					(try fst (ExtString.String.split msg "\n") with _ -> msg)
+				| HaxeError.Error err ->
+						let messages = ref [] in
+						HaxeError.recurse_error (fun depth err ->
+							let cm = make_compiler_message ~from_macro:err.err_from_macro (HaxeError.error_msg err.err_message) err.err_pos depth DKCompilerMessage Error in
+							let ectx = MessageReporting.create_error_context false in
+							match MessageReporting.compiler_message_string ectx cm with
+								| None -> ()
+								| Some str -> messages := str :: !messages
+						) err;
+						ExtLib.String.join "\n" (List.rev !messages)
 				| _ -> Printexc.to_string ex
 			in
 			let e = create_haxe_exception ~stack:(get_ctx()).exception_stack msg in
@@ -2380,8 +2389,8 @@ let passwd_fields = [
 		encode_result (fun (p:Passwd.t) ->
 			encode_obj_s [
 				"username",encode_string p.username;
-				"uid",vint p.uid;
-				"gid",vint p.gid;
+				"uid",vint (Unsigned.ULong.to_int p.uid);
+				"gid",vint (Unsigned.ULong.to_int p.gid);
 				"shell",encode_nullable encode_string p.shell;
 				"homedir",vnative_string p.homedir;
 			]

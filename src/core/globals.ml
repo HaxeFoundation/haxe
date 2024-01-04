@@ -5,11 +5,8 @@ type pos = {
 }
 
 type path = string list * string
-type located =
-	| Message of string * pos
-	| Stack of located list
 
-module IntMap = Ptmap
+module IntMap = Map.Make(struct type t = int let compare i1 i2 = i2 - i1 end)
 module StringMap = Map.Make(struct type t = string let compare = String.compare end)
 module Int32Map = Map.Make(struct type t = Int32.t let compare = Int32.compare end)
 
@@ -26,32 +23,58 @@ type platform =
 	| Python
 	| Hl
 	| Eval
+	| CustomTarget of string
 
-let version = 4300
+let version = 5000
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
-let version_pre = Some "rc.1"
+let version_pre = Some "alpha.1"
 
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 
-let located msg p = Message (msg,p)
-let located_stack stack = Stack stack
+let no_color = false
+let c_reset = if no_color then "" else "\x1b[0m"
+let c_dim = if no_color then "" else "\x1b[2m"
 
-let rec extract_located_msg = function
-	 | Message (msg,p) -> msg
-	 | Stack stack -> String.concat "\n" (List.map extract_located_msg stack)
+let loc_short (loc:Printexc.location) =
+	Printf.sprintf "%s:%d" loc.filename loc.line_number
 
-let rec extract_located_pos = function
-	 | Message (_,p) -> p
-	 | Stack [] -> null_pos
-	 | Stack (hd :: _) -> extract_located_pos hd
+let loc_to_string (loc:Printexc.location) =
+	Printf.sprintf "%s, line %d, characters %d-%d" loc.filename loc.line_number loc.start_char loc.end_char
+
+let trace s =
+	let stack = Printexc.get_callstack 2 in
+	match Printexc.backtrace_slots stack with
+	| Some [|_; item |] ->
+		(match Printexc.Slot.location item with
+		| Some loc -> print_endline (Printf.sprintf "%s%s:%s %s" c_dim (loc_short loc) c_reset s)
+		| _ -> ())
+	| _ ->
+		()
+
+let trace_call_stack ?(n:int = 5) () =
+	assert (n >= 0);
+	let stack = Printexc.get_callstack (n+2) in
+	let len = Printexc.raw_backtrace_length stack - 1 in
+
+	let slot = Printexc.convert_raw_backtrace_slot (Printexc.get_raw_backtrace_slot stack 1) in
+	let loc = Printexc.Slot.location slot in
+	Option.may (fun loc -> print_endline (Printf.sprintf "%s%s:%s" c_dim (loc_short loc) c_reset)) loc;
+
+	for i = 2 to len do
+		let slot = Printexc.convert_raw_backtrace_slot (Printexc.get_raw_backtrace_slot stack i) in
+		let loc = Printexc.Slot.location slot in
+		Option.may (fun loc -> print_endline (Printf.sprintf "  called from %s" (loc_to_string loc))) loc;
+	done
 
 let macro_platform = ref Neko
 
 let return_partial_type = ref false
 
 let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
+
+let max_custom_target_len = 16
 
 let platforms = [
 	Js;
@@ -81,6 +104,7 @@ let platform_name = function
 	| Python -> "python"
 	| Hl -> "hl"
 	| Eval -> "eval"
+	| CustomTarget c -> c
 
 let parse_platform = function
 	| "cross" -> Cross
@@ -95,7 +119,7 @@ let parse_platform = function
 	| "python" -> Python
 	| "hl" -> Hl
 	| "eval" -> Eval
-	| p -> raise (failwith ("invalid platform " ^ p))
+	| p -> CustomTarget p
 
 let platform_list_help = function
 	| [] -> ""
@@ -147,8 +171,14 @@ let die ?p msg ml_loc =
 	in
 	let ver = s_version_full
 	and os_type = if Sys.unix then "unix" else "windows" in
-	Printf.eprintf "%s\nHaxe: %s; OS type: %s;\n%s\n%s" msg ver os_type ml_loc backtrace;
-	assert false
+	let s = Printf.sprintf "%s\nHaxe: %s; OS type: %s;\n%s\n%s" msg ver os_type ml_loc backtrace in
+	failwith s
+
+let dump_callstack () =
+	print_endline (Printexc.raw_backtrace_to_string (Printexc.get_callstack 200))
+
+let dump_backtrace () =
+	print_endline (Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()))
 
 module MessageSeverity = struct
 	type t =
@@ -169,7 +199,7 @@ module MessageKind = struct
 		| DKUnusedImport
 		| DKUnresolvedIdentifier
 		| DKCompilerMessage
-		| DKRemovableCode
+		| DKReplacableCode
 		| DKParserError
 		| DKDeprecationWarning
 		| DKInactiveBlock
@@ -179,7 +209,7 @@ module MessageKind = struct
 		| DKUnusedImport -> 0
 		| DKUnresolvedIdentifier -> 1
 		| DKCompilerMessage -> 2
-		| DKRemovableCode -> 3
+		| DKReplacableCode -> 3
 		| DKParserError -> 4
 		| DKDeprecationWarning -> 5
 		| DKInactiveBlock -> 6
@@ -190,16 +220,36 @@ type compiler_message = {
 	cm_message : string;
 	cm_pos : pos;
 	cm_depth : int;
+	cm_from_macro : bool;
 	cm_kind : MessageKind.t;
 	cm_severity : MessageSeverity.t;
 }
 
-let make_compiler_message msg p depth kind sev = {
-		cm_message = msg;
-		cm_pos = p;
-		cm_depth = depth;
-		cm_kind = kind;
-		cm_severity = sev;
+let make_compiler_message ?(from_macro = false) msg p depth kind sev = {
+	cm_message = msg;
+	cm_pos = p;
+	cm_depth = depth;
+	cm_from_macro = from_macro;
+	cm_kind = kind;
+	cm_severity = sev;
+}
+
+type diagnostic = {
+	diag_message : string;
+	diag_code : string option;
+	diag_pos : pos;
+	diag_kind : MessageKind.t;
+	diag_severity : MessageSeverity.t;
+	diag_depth : int;
+}
+
+let make_diagnostic ?(depth = 0) ?(code = None) message pos kind sev = {
+	diag_message = message;
+	diag_pos = pos;
+	diag_code = code;
+	diag_kind = kind;
+	diag_severity = sev;
+	diag_depth = depth;
 }
 
 let i32_31 = Int32.of_int 31

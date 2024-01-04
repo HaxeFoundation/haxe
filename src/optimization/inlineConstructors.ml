@@ -107,6 +107,15 @@ and inline_object_field =
 	| IOFInlineVar of inline_var
 	| IOFNone
 
+(*
+	inline_expression_handled
+	Defines what will happen to the expression being analized by analyze_aliases
+*)
+and inline_expression_handled = 
+	| IEHCaptured (* The expression will be assigned to a variable *)
+	| IEHIgnored (* The result of the expression will not be used *)
+	| IEHNotHandled (* Cases that are not handled (usually leads to cancelling inlining *)
+
 let inline_constructors ctx original_e =
 	let inline_objs = ref IntMap.empty in
 	let vars = ref IntMap.empty in
@@ -122,6 +131,7 @@ let inline_constructors ctx original_e =
 			| IOKCtor(ioc) ->
 				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) io.io_dependent_vars;
 				if ioc.ioc_forced then begin
+					(* TODO construct error with sub *)
 					display_error ctx.com "Forced inline constructor could not be inlined" io.io_pos;
 					display_error ~depth:1 ctx.com (compl_msg "Cancellation happened here") p;
 				end
@@ -212,7 +222,7 @@ let inline_constructors ctx original_e =
 			| TNew _, true ->
 				true, false
 			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
-				Inline.needs_inline ctx (has_class_flag c CExtern) cf, false
+				needs_inline ctx (Some c) cf, false
 			| _ -> false, false
 		in
 		is_ctor || Type.check_expr (check_for_ctors ~force_inline:is_meta_inline) e
@@ -237,7 +247,7 @@ let inline_constructors ctx original_e =
 			| TNew _, true ->
 				mark()
 			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
-				if Inline.needs_inline ctx (has_class_flag c CExtern) cf then mark()
+				if needs_inline ctx (Some c) cf then mark()
 				else e
 			| _ -> e
 	in
@@ -258,7 +268,7 @@ let inline_constructors ctx original_e =
 
 		e: The expression to analyze
 	*)
-	let rec analyze_aliases (seen_ctors:tclass_field list) (captured:bool) (is_lvalue:bool) (e:texpr) : inline_var option =
+	let rec analyze_aliases (seen_ctors:tclass_field list) (captured:inline_expression_handled) (is_lvalue:bool) (e:texpr) : inline_var option =
 		let mk_io ?(has_untyped=false) (iok : inline_object_kind) (id:int) (expr:texpr) : inline_object =
 			let io = {
 				io_kind = iok;
@@ -285,7 +295,7 @@ let inline_constructors ctx original_e =
 					let f = PMap.find fname ctor.ioc_class.cl_fields in
 					begin match f.cf_params, f.cf_kind, f.cf_expr with
 					| [], Method MethInline, Some({eexpr = TFunction tf}) ->
-						if Inline.needs_inline ctx (has_class_flag ctor.ioc_class CExtern) f then
+						if needs_inline ctx (Some ctor.ioc_class) f then
 							Some (ctor.ioc_class, ctor.ioc_tparams, f, tf)
 						else
 							None
@@ -296,8 +306,8 @@ let inline_constructors ctx original_e =
 			| _ -> None
 			end
 		in
-		let handle_field_case ?(captured=false) ?(is_lvalue=false) efield ethis fname validate_io : inline_object_field =
-			begin match analyze_aliases true ethis with
+		let handle_field_case ?(captured=IEHNotHandled) ?(is_lvalue=false) efield ethis fname validate_io : inline_object_field =
+			begin match analyze_aliases IEHCaptured ethis with
 			| Some({iv_state = IVSAliasing io} as iv) when validate_io io ->
 				begin match get_io_inline_method io fname with
 				| Some(c, tl, cf, tf)->
@@ -320,7 +330,7 @@ let inline_constructors ctx original_e =
 							warning ctx WConstructorInliningCancelled ("Constructor inlining cancelled because of use of uninitialized member field " ^ fname) ethis.epos;
 							raise Not_found
 						);
-						if not captured then cancel_iv fiv efield.epos;
+						if captured == IEHNotHandled then cancel_iv fiv efield.epos;
 						IOFInlineVar(fiv)
 					with Not_found ->
 						cancel_iv iv efield.epos;
@@ -342,7 +352,7 @@ let inline_constructors ctx original_e =
 		let handle_default_case e =
 			let old = !scoped_ivs in
 			scoped_ivs := [];
-			let f e = ignore(analyze_aliases false e) in
+			let f e = ignore(analyze_aliases IEHNotHandled e) in
 			Type.iter f e;
 			List.iter (fun iv -> iv.iv_closed <- true) !scoped_ivs;
 			scoped_ivs := old;
@@ -356,7 +366,7 @@ let inline_constructors ctx original_e =
 					| _ ->
 						let v = alloc_var VGenerated "arg" e.etype e.epos in
 						let decle = mk (TVar(v, Some e)) ctx.t.tvoid e.epos in
-						ignore(analyze_aliases true decle);
+						ignore(analyze_aliases IEHIgnored decle);
 						let mde = (Meta.InlineConstructorArgument (v.v_id, 0)), [], e.epos in
 						let e = mk (TMeta(mde, e)) e.etype e.epos in
 						loop (v::vs, e::es) el
@@ -368,43 +378,38 @@ let inline_constructors ctx original_e =
 		let handle_inline_object_case (io_id:int) (force_inline:bool) (e:texpr) =
 			match e.eexpr, e.etype with
 			| TNew({ cl_constructor = Some ({cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl),_
-				when captured && not (List.memq cf seen_ctors) ->
+				when captured!=IEHNotHandled && not (List.memq cf seen_ctors) ->
 				begin
 					let argvs, pl = analyze_call_args pl in
 					let _, cname = c.cl_path in
 					let v = alloc_var VGenerated ("inl"^cname) e.etype e.epos in
-					match Inline.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
-					| Some inlined_expr ->
-						let inlined_expr = mark_ctors inlined_expr in
-						let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
-						let forced = is_extern_ctor c cf || force_inline in
-						let io = mk_io (IOKCtor{ioc_class=c; ioc_tparams=tl; ioc_field=cf; ioc_forced=forced}) io_id inlined_expr ~has_untyped:has_untyped in
-						io.io_dependent_vars <- argvs;
-						let rec loop (c:tclass) (tl:t list) =
-							let apply = apply_params c.cl_params tl in
-							List.iter (fun cf ->
-								match cf.cf_kind,cf.cf_expr with
-								| Var _, _ ->
-									let fieldt = apply cf.cf_type in
-									ignore(alloc_io_field io cf.cf_name fieldt v.v_pos);
-								| _ -> ()
-							) c.cl_ordered_fields;
-							match c.cl_super with
-							| Some (c,tl) -> loop c (List.map apply tl)
-							| None -> ()
-						in loop c tl;
-						let iv = add v IVKLocal in
-						set_iv_alias iv io;
-						ignore(analyze_aliases_in_ctor cf true io.io_expr);
-						Some iv
-					| _ ->
-						List.iter (fun v -> cancel_v v v.v_pos) argvs;
-						if is_extern_ctor c cf then display_error ctx.com "Extern constructor could not be inlined" e.epos;
-						None
+					let inlined_expr = Inline.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos in
+					let inlined_expr = mark_ctors inlined_expr in
+					let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
+					let forced = is_extern_ctor c cf || force_inline in
+					let io = mk_io (IOKCtor{ioc_class=c; ioc_tparams=tl; ioc_field=cf; ioc_forced=forced}) io_id inlined_expr ~has_untyped:has_untyped in
+					io.io_dependent_vars <- argvs;
+					let rec loop (c:tclass) (tl:t list) =
+						let apply = apply_params c.cl_params tl in
+						List.iter (fun cf ->
+							match cf.cf_kind,cf.cf_expr with
+							| Var _, _ ->
+								let fieldt = apply cf.cf_type in
+								ignore(alloc_io_field io cf.cf_name fieldt v.v_pos);
+							| _ -> ()
+						) c.cl_ordered_fields;
+						match c.cl_super with
+						| Some (c,tl) -> loop c (List.map apply tl)
+						| None -> ()
+					in loop c tl;
+					let iv = add v IVKLocal in
+					set_iv_alias iv io;
+					ignore(analyze_aliases_in_ctor cf IEHIgnored io.io_expr);
+					Some iv
 				end
 			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf)} as c,_,pl),_ when is_extern_ctor c cf ->
-				typing_error "Extern constructor could not be inlined" e.epos;
-			| TObjectDecl fl, _ when captured && fl <> [] && List.for_all (fun((s,_,_),_) -> Lexer.is_valid_identifier s) fl ->
+				raise_typing_error "Extern constructor could not be inlined" e.epos;
+			| TObjectDecl fl, _ when captured!=IEHNotHandled && fl <> [] && List.for_all (fun((s,_,_),_) -> Lexer.is_valid_identifier s) fl ->
 				let v = alloc_var VGenerated "inlobj" e.etype e.epos in
 				let ev = mk (TLocal v) v.v_type e.epos in
 				let el = List.map (fun ((s,_,_),e) ->
@@ -417,9 +422,9 @@ let inline_constructors ctx original_e =
 				List.iter (fun ((s,_,_),e) -> ignore(alloc_io_field io s e.etype v.v_pos)) fl;
 				let iv = add v IVKLocal in
 				set_iv_alias iv io;
-				List.iter (fun e -> ignore(analyze_aliases true e)) el;
+				List.iter (fun e -> ignore(analyze_aliases IEHIgnored e)) el;
 				Some iv
-			| TArrayDecl el, TInst(_, [elemtype]) when captured ->
+			| TArrayDecl el, TInst(_, [elemtype]) when captured!=IEHNotHandled ->
 				let len = List.length el in
 				let v = alloc_var VGenerated "inlarr" e.etype e.epos in
 				let ev = mk (TLocal v) v.v_type e.epos in
@@ -433,7 +438,7 @@ let inline_constructors ctx original_e =
 				for i = 0 to len-1 do ignore(alloc_io_field io (int_field_name i) elemtype v.v_pos) done;
 				let iv = add v IVKLocal in
 				set_iv_alias iv io;
-				List.iter (fun e -> ignore(analyze_aliases true e)) el;
+				List.iter (fun e -> ignore(analyze_aliases IEHIgnored e)) el;
 				Some iv
 			| _ ->
 				handle_default_case e
@@ -447,7 +452,7 @@ let inline_constructors ctx original_e =
 			handle_inline_object_case io_id false e
 		| TVar(v,None) -> ignore(add v IVKLocal); None
 		| TVar(v,Some rve) ->
-			begin match analyze_aliases true rve with
+			begin match analyze_aliases IEHCaptured rve with
 			| Some({iv_state = IVSAliasing(io)}) ->
 				let iv = add v IVKLocal in
 				set_iv_alias iv io;
@@ -457,15 +462,15 @@ let inline_constructors ctx original_e =
 		| TBinop(OpAssign, lve, rve) ->
 			begin match analyze_aliases_in_lvalue lve with
 			| Some({iv_state = IVSUnassigned} as iv) ->
-				begin match analyze_aliases true rve with
+				begin match analyze_aliases IEHCaptured rve with
 				| Some({iv_state = IVSAliasing(io)}) ->
 					scoped_ivs := iv :: !scoped_ivs;
 					set_iv_alias iv io
 				| _ -> cancel_iv iv lve.epos
 				end;
 				Some iv
-			| Some(iv) -> cancel_iv iv e.epos; ignore(analyze_aliases false rve); None
-			| _ -> ignore(analyze_aliases false rve); None
+			| Some(iv) -> cancel_iv iv e.epos; ignore(analyze_aliases IEHNotHandled rve); None
+			| _ -> ignore(analyze_aliases IEHNotHandled rve); None
 			end
 		| TField(ethis, fa) ->
 			handle_field_case_no_methods e ethis (field_name fa) (fun _ -> true)
@@ -475,19 +480,19 @@ let inline_constructors ctx original_e =
 			handle_field_case_no_methods e ethis (int_field_name i) validate_io
 		| TLocal(v) when v.v_id < 0 ->
 			let iv = get_iv v.v_id in
-			if iv.iv_closed || not captured then cancel_iv iv e.epos;
+			if iv.iv_closed || captured==IEHNotHandled then cancel_iv iv e.epos;
 			Some iv
 		| TBlock(el) ->
 			let rec loop = function
 				| [e] -> analyze_aliases captured e
-				| e::el -> ignore(analyze_aliases true e); loop (el)
+				| e::el -> ignore(analyze_aliases IEHIgnored e); loop (el)
 				| [] -> None
 			in loop el
 		| TMeta((Meta.InlineConstructorArgument (vid,_),_,_),_) ->
 			(* The contents have already been analyzed, so we must skip the wrapped expression *)
 			(try
 				let iv = get_iv vid in
-				if iv.iv_closed || not captured then cancel_iv iv e.epos;
+				if iv.iv_closed || captured==IEHNotHandled then cancel_iv iv e.epos;
 				Some(get_iv vid)
 			with Not_found -> None)
 		| TParenthesis e | TMeta(_,e) | TCast(e,None) ->
@@ -499,41 +504,54 @@ let inline_constructors ctx original_e =
 			| IOFInlineMethod(io,io_var,c,tl,cf,tf) ->
 				let argvs, pl = analyze_call_args call_args in
 				io.io_dependent_vars <- io.io_dependent_vars @ argvs;
-				io.io_has_untyped <- io.io_has_untyped or (Meta.has Meta.HasUntyped cf.cf_meta);
-				begin match Inline.type_inline ctx cf tf (mk (TLocal io_var.iv_var) (TInst (c,tl)) e.epos) pl e.etype None e.epos true with
-				| Some e ->
-					let e = mark_ctors e in
-					io.io_inline_methods <- io.io_inline_methods @ [e];
-					begin match analyze_aliases captured e with
-						| Some(iv) ->
-							(*
-								The parent inline object might have been cancelled while analyzing the inlined method body
-								If the parent inline object is cancelled the inlining of this method will no longer happen,
-								so the return value must be cancelled.
-							*)
-							if io.io_cancelled then begin
-								cancel_iv iv e.epos;
-								None
-							end else begin
-								io.io_dependent_vars <- iv.iv_var :: io.io_dependent_vars;
-								Some(iv)
-							end
-						| None -> None
-					end
-				| None ->
-					cancel_io io e.epos;
-					None
+				io.io_has_untyped <- io.io_has_untyped || (Meta.has Meta.HasUntyped cf.cf_meta);
+				let e = Inline.type_inline ctx cf tf (mk (TLocal io_var.iv_var) (TInst (c,tl)) e.epos) pl e.etype None e.epos true in
+				let e = mark_ctors e in
+				io.io_inline_methods <- io.io_inline_methods @ [e];
+				begin match analyze_aliases captured e with
+					| Some(iv) ->
+						(*
+							The parent inline object might have been cancelled while analyzing the inlined method body
+							If the parent inline object is cancelled the inlining of this method will no longer happen,
+							so the return value must be cancelled.
+						*)
+						if io.io_cancelled then begin
+							cancel_iv iv e.epos;
+							None
+						end else begin
+							io.io_dependent_vars <- iv.iv_var :: io.io_dependent_vars;
+							Some(iv)
+						end
+					| None -> None
 				end
 			| IOFInlineVar(iv) ->
 				cancel_iv iv e.epos;
-				List.iter (fun ca -> ignore(analyze_aliases false ca)) call_args;
+				List.iter (fun ca -> ignore(analyze_aliases IEHNotHandled ca)) call_args;
 				None
 			| IOFNone ->
-				List.iter (fun ca -> ignore(analyze_aliases false ca)) call_args;
+				List.iter (fun ca -> ignore(analyze_aliases IEHNotHandled ca)) call_args;
 				None
 			end
 		| TFunction tf ->
-			analyze_aliases true tf.tf_expr
+			let old = !scoped_ivs in
+			scoped_ivs := [];
+			ignore(analyze_aliases IEHIgnored tf.tf_expr);
+			List.iter (fun iv -> iv.iv_closed <- true) !scoped_ivs;
+			scoped_ivs := old;
+			None
+		| TWhile(condition, body, _)  ->
+			ignore(analyze_aliases IEHNotHandled condition);
+			ignore(analyze_aliases IEHIgnored body);
+			None
+		| TIf (e,e1,e2) when captured=IEHIgnored ->
+			ignore(analyze_aliases IEHNotHandled e);
+			ignore(analyze_aliases IEHIgnored e1);
+			(match e2 with None -> () | Some e -> ignore(analyze_aliases IEHIgnored e));
+			None
+		| TTry (e,catches) when captured==IEHIgnored ->
+			ignore(analyze_aliases IEHIgnored e);
+			List.iter (fun (_,e) -> ignore(analyze_aliases IEHIgnored e)) catches;
+			None
 		| _ ->
 			handle_default_case e
 	in
@@ -607,7 +625,12 @@ let inline_constructors ctx original_e =
 				default_case e
 			end
 		| TVar(v, None) when v.v_id < 0 ->
-			(get_iv_var_decls (get_iv v.v_id)), None
+			let iv = get_iv v.v_id in
+			if iv.iv_state = IVSUnassigned then
+				(* If the variable is unassigned, leave the expression unchanged *)
+				([e], None)
+			else
+				(get_iv_var_decls (iv)), None
 		| TVar(v,Some e) when v.v_id < 0 ->
 			let el = (get_iv_var_decls (get_iv v.v_id)) in
 			let e,_ = (final_map ~unwrap_block:true e) in (e@el, None)
@@ -699,7 +722,7 @@ let inline_constructors ctx original_e =
 	in
 	if not (check_for_ctors original_e) then original_e else
 	let e = mark_ctors original_e in
-	ignore(analyze_aliases [] false false e);
+	ignore(analyze_aliases [] IEHNotHandled false e);
 	if IntMap.for_all (fun _ io -> io.io_cancelled) !inline_objs then begin
 		IntMap.iter (fun _ iv -> let v = iv.iv_var in if v.v_id < 0 then v.v_id <- -v.v_id ) !vars;
 		original_e

@@ -28,7 +28,7 @@ open Gencommon
 	not via reflection and not to be called instantly
 
 	dependencies:
-		must run after DynamicFieldAccess, so any TAnon { Statics / EnumStatics } will be changed to the corresponding TTypeExpr
+		must run after DynamicFieldAccess, so any TAnon { ClassStatics / EnumStatics } will be changed to the corresponding TTypeExpr
 *)
 let name = "filter_closures"
 let priority = solve_deps name [DAfter DynamicFieldAccess.priority]

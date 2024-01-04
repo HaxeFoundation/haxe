@@ -2,8 +2,10 @@ open Globals
 open Common
 open CompilationContext
 
+let columns = lazy (match Terminal_size.get_columns () with None -> 80 | Some c -> c)
+
 let limit_string s offset =
-	let rest = 80 - offset in
+	let rest = (Lazy.force columns) - offset in
 	let words = ExtString.String.nsplit s " " in
 	let rec loop i words = match words with
 		| word :: words ->
@@ -40,7 +42,7 @@ let process_args arg_spec =
 
 let parse_args com =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2022 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
+		"Haxe Compiler %s - (C)2005-2024 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
 		s_version_full (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let actx = {
@@ -64,7 +66,10 @@ let parse_args com =
 	let add_deprecation s =
 		actx.deprecations <- s :: actx.deprecations
 	in
-	let add_native_lib file extern = actx.native_libs <- (file,extern) :: actx.native_libs in
+	let add_native_lib file extern kind =
+		let lib = create_native_lib file extern kind in
+		actx.native_libs <- lib :: actx.native_libs
+	in
 	let basic_args_spec = [
 		("Target",["--js"],["-js"],Arg.String (set_platform com Js),"<file>","generate JavaScript code into target file");
 		("Target",["--lua"],["-lua"],Arg.String (set_platform com Lua),"<file>","generate Lua code into target file");
@@ -98,6 +103,10 @@ let parse_args com =
 		("Target",["--hl"],["-hl"],Arg.String (fun file ->
 			set_platform com Hl file;
 		),"<file>","generate HashLink .hl bytecode or .c code into target file");
+		("Target",["--custom-target"],["-custom"],Arg.String (fun target ->
+			let name, path = try let split = ExtString.String.split target "=" in split with _ -> target, "" in
+			set_custom_target com name path;
+		),"<name[=path]>","generate code for a custom target");
 		("Target",[],["-x"], Arg.String (fun cl ->
 			let cpath = Path.parse_type_path cl in
 			(match com.main_class with
@@ -125,12 +134,16 @@ let parse_args com =
 			com.main_class <- Some cpath;
 			actx.classes <- cpath :: actx.classes
 		),"<class>","select startup class");
+		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun _ -> ()),"<name[:ver]>","use a haxelib library");
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
 			let flag, value = try let split = ExtString.String.split var "=" in (fst split, Some (snd split)) with _ -> var, None in
 			match value with
 				| Some value -> Common.external_define_value com flag value
 				| None -> Common.external_define com flag;
 		),"<var[=value]>","define a conditional compilation flag");
+		("Compilation",["--undefine"],[],Arg.String (fun var ->
+			Common.external_undefine com var
+		),"","remove a conditional compilation flag");
 		("Debug",["-v";"--verbose"],[],Arg.Unit (fun () ->
 			com.verbose <- true
 		),"","turn on verbose mode");
@@ -157,7 +170,7 @@ let parse_args com =
 				let all,max_length = Define.get_user_documentation_list com.user_defines in
 				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
 				List.iter (fun msg -> com.print (msg ^ "\n")) all;
-				exit 0
+				raise Abort
 			)
 		),"","print help for all user defines");
 		("Miscellaneous",["--help-metas"],[], Arg.Unit (fun() ->
@@ -172,7 +185,7 @@ let parse_args com =
 				let all,max_length = Meta.get_user_documentation_list com.user_metas in
 				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
 				List.iter (fun msg -> com.print (msg ^ "\n")) all;
-				exit 0
+				raise Abort
 			)
 		),"","print help for all user metadatas");
 	] in
@@ -196,22 +209,22 @@ let parse_args com =
 			Common.define com Define.FlashStrict
 		), "","more type strict flash API");
 		("Target-specific",["--swf-lib"],["-swf-lib"],Arg.String (fun file ->
-			add_native_lib file false;
+			add_native_lib file false SwfLib;
 		),"<file>","add the SWF library to the compiled SWF");
-		("Target-specific",["--neko-lib"],[],Arg.String (fun file ->
-			com.neko_libs <- file :: com.neko_libs
-		),"<file>","add the neko library");
+		("Target-specific",[],["--neko-lib-path"],Arg.String (fun dir ->
+			com.neko_lib_paths <- dir :: com.neko_lib_paths
+		),"<directory>","add the neko library path");
 		("Target-specific",["--swf-lib-extern"],["-swf-lib-extern"],Arg.String (fun file ->
-			add_native_lib file true;
+			add_native_lib file true SwfLib;
 		),"<file>","use the SWF library for type checking");
 		("Target-specific",["--java-lib"],["-java-lib"],Arg.String (fun file ->
-			add_native_lib file false;
+			add_native_lib file false JavaLib;
 		),"<file>","add an external JAR or directory of JAR files");
 		("Target-specific",["--java-lib-extern"],[],Arg.String (fun file ->
-			add_native_lib file true;
+			add_native_lib file true JavaLib;
 		),"<file>","use an external JAR or directory of JAR files for type checking");
 		("Target-specific",["--net-lib"],["-net-lib"],Arg.String (fun file ->
-			add_native_lib file false;
+			add_native_lib file false NetLib;
 		),"<file>[@std]","add an external .NET DLL file");
 		("Target-specific",["--net-std"],["-net-std"],Arg.String (fun file ->
 			Dotnet.add_net_std com file

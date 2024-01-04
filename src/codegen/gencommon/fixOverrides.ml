@@ -19,7 +19,6 @@
 open Option
 open Common
 open Type
-open Codegen
 open Gencommon
 
 (* ******************************************* *)
@@ -161,7 +160,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 			in
 			List.iter (fun (iface,itl) -> loop_iface iface itl) c.cl_implements;
 			(* now go through all overrides, *)
-			let rec check_f f =
+			let check_f f =
 				(* find the first declared field *)
 				let is_overload = has_class_field_flag f CfOverload in
 				let decl = if is_overload then

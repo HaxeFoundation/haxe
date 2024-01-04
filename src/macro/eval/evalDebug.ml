@@ -1,17 +1,9 @@
-open Gc
-open Globals
-open Ast
 open Type
 open EvalJitContext
 open EvalContext
 open EvalValue
 open EvalExceptions
-open EvalPrinting
-open EvalHash
-open EvalEncode
-open EvalMisc
 open EvalDebugMisc
-open MacroApi
 
 let is_caught eval v =
 	try

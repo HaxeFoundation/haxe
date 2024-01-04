@@ -1,2 +1,2 @@
--D messages-log-file=logfile-02-fail.hxml.stderr
+-D message.log-file=logfile-02-fail.hxml.stderr
 compile-fail.hxml

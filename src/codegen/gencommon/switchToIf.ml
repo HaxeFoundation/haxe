@@ -18,7 +18,6 @@
 *)
 open Common
 open Type
-open Codegen
 open Gencommon
 
 (* ******************************************* *)
@@ -42,7 +41,7 @@ let configure gen (should_convert:texpr->bool) =
 	let basic = gen.gcon.basic in
 	let rec run e =
 		match e.eexpr with
-		| TSwitch (cond, cases, default) when should_convert e ->
+		| TSwitch ({switch_subject = cond;switch_cases = cases;switch_default = default} as switch) when should_convert e ->
 			let cond_etype, should_cache =
 				match gen.gfollow#run_f cond.etype with
 				| TAbstract ({ a_path = [], "Null" }, [t]) ->
@@ -56,8 +55,13 @@ let configure gen (should_convert:texpr->bool) =
 					cond.etype, false
 			in
 
-			if should_cache && not (should_convert { e with eexpr = TSwitch ({ cond with etype = cond_etype }, cases, default) }) then begin
-				{ e with eexpr = TSwitch (mk_cast cond_etype (run cond), List.map (fun (cs,e) -> (List.map run cs, run e)) cases, Option.map run default) }
+			if should_cache && not (should_convert { e with eexpr = TSwitch {switch with switch_subject = { cond with etype = cond_etype }}}) then begin
+				let switch = { switch with
+					switch_subject = mk_cast cond_etype (run cond);
+					switch_cases = List.map (fun case -> {case_patterns = List.map run case.case_patterns;case_expr = run case.case_expr}) cases;
+					switch_default = Option.map run default;
+				} in
+				{ e with eexpr = TSwitch switch }
 			end else begin
 				let local, fst_block =
 					match cond.eexpr, should_cache with
@@ -96,9 +100,9 @@ let configure gen (should_convert:texpr->bool) =
 
 				let rec loop cases =
 					match cases with
-					| (conds, e) :: [] ->
+					| {case_patterns = conds;case_expr = e} :: [] ->
 						mk (TIf (mk_many_cond conds, run e, Option.map run default)) e.etype e.epos
-					| (conds, e) :: tl ->
+					| {case_patterns = conds;case_expr = e} :: tl ->
 						mk (TIf (mk_many_cond conds, run e, Some (loop tl))) e.etype e.epos
 					| [] ->
 						match default with
@@ -120,7 +124,7 @@ let configure gen (should_convert:texpr->bool) =
 			`switch e { case MyEnum.A: ...; case MyEnum.B: ...; }`, which is supported natively
 			by some target languages like Java and C#.
 		*)
-		| TSwitch (cond, cases, default) ->
+		| TSwitch ({switch_subject = cond;switch_cases = cases;switch_default = default} as switch)  ->
 			begin
 				try
 					match (simplify_expr cond).eexpr with
@@ -138,7 +142,7 @@ let configure gen (should_convert:texpr->bool) =
 						PMap.iter (fun _ ef -> Hashtbl.add fields ef.ef_index ef) real_enum.e_constrs;
 
 						let enum_expr = Texpr.Builder.make_typeexpr (TEnumDecl real_enum) e.epos in
-						let cases = List.map (fun (patterns, body) ->
+						let cases = List.map (fun {case_patterns = patterns; case_expr = body} ->
 							let patterns = List.map (fun e ->
 								match e.eexpr with
 								| TConst (TInt i) ->
@@ -148,9 +152,10 @@ let configure gen (should_convert:texpr->bool) =
 									raise Not_found
 							) patterns in
 							let body = run body in
-							patterns, body
+							{ case_patterns = patterns;case_expr = body}
 						) cases in
-						{ e with eexpr = TSwitch (enum, cases, Option.map run default) }
+						let switch = mk_switch enum cases (Option.map run default) switch.switch_exhaustive in
+						{ e with eexpr = TSwitch switch }
 					| _ ->
 						raise Not_found
 				with Not_found ->

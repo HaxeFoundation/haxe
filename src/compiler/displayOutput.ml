@@ -1,20 +1,16 @@
 open Globals
 open Ast
 open Common
-open Filename
 open Timer
 open DisplayTypes.DisplayMode
 open DisplayTypes.CompletionResultKind
 open CompletionItem
 open CompletionClassField
 open CompletionEnumField
-open ClassFieldOrigin
 open DisplayException
 open Type
-open Display
 open DisplayTypes
 open CompletionModuleType
-open Typecore
 open Genjson
 open CompilationContext
 open DisplayProcessingGlobals
@@ -71,8 +67,8 @@ let print_fields fields =
 		| ITPackage(path,_) -> "package",snd path,"",None
 		| ITModule path -> "type",snd path,"",None
 		| ITMetadata  meta ->
-			let s,(doc,_),_ = Meta.get_info meta in
-			"metadata","@" ^ s,"",doc_from_string doc
+			let s,data  = Meta.get_info meta in
+			"metadata","@" ^ s,"",doc_from_string data.m_doc
 		| ITTimer(name,value) -> "timer",name,"",doc_from_string value
 		| ITLiteral s ->
 			let t = match k.ci_type with None -> t_dynamic | Some (t,_) -> t in
@@ -213,7 +209,7 @@ let find_doc t =
 	let doc = match follow t with
 		| TAnon an ->
 			begin match !(an.a_status) with
-				| Statics c -> c.cl_doc
+				| ClassStatics c -> c.cl_doc
 				| EnumStatics en -> en.e_doc
 				| AbstractStatics a -> a.a_doc
 				| _ -> None
@@ -348,10 +344,10 @@ let handle_type_path_exception ctx p c is_import pos =
 			| None ->
 				DisplayPath.TypePathHandler.complete_type_path com p
 			| Some (c,cur_package) ->
-				let ctx = Typer.create com in
+				let ctx = TyperEntry.create com None in
 				DisplayPath.TypePathHandler.complete_type_path_inner ctx p c cur_package is_import
-		end with Common.Abort(msg,p) ->
-			error ctx msg p;
+		end with Error.Fatal_error err ->
+			error_ext ctx err;
 			None
 	in
 	begin match ctx.com.json_out,fields with
@@ -372,11 +368,21 @@ let handle_type_path_exception ctx p c is_import pos =
 		api.send_result (DisplayException.fields_to_json ctx fields kind (DisplayTypes.make_subject None pos));
 	end
 
-let emit_diagnostics com =
+let emit_legacy_diagnostics com =
 	let dctx = Diagnostics.run com in
 	let s = Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics com dctx) in
 	DisplayPosition.display_position#reset;
 	raise (Completion s)
+
+let emit_diagnostics com =
+	(match com.Common.json_out with
+	| None -> die "" __LOC__
+	| Some api ->
+		let dctx = Diagnostics.run com in
+		let diagnostics = DiagnosticsPrinter.json_of_diagnostics com dctx in
+		DisplayPosition.display_position#reset;
+		api.send_result diagnostics;
+		raise Abort (* not reached because send_result always raises *))
 
 let emit_statistics tctx =
 	let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in

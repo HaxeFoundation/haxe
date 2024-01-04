@@ -1,10 +1,10 @@
 package unit.issues;
 
 private abstract Continue(Dynamic) {
-	@:commutative @:op(a+b)
-	@:extern static inline function then<A>(e:Continue, a:A):A
-	  return a;
-  }
+	@:commutative @:op(a + b)
+	extern static inline function then<A>(e:Continue, a:A):A
+		return a;
+}
 
 class Issue9771 extends unit.Test {
 	var buf:StringBuf;

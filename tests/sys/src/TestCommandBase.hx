@@ -37,7 +37,11 @@ class TestCommandBase extends utest.Test {
 			#elseif neko
 				run("neko", [bin].concat(args));
 			#elseif hl
+				#if hlc
+				run(bin, args);
+				#else
 				run("hl", [bin].concat(args));
+				#end
 			#elseif php
 				run(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [bin].concat(args));
 			#elseif lua
@@ -130,7 +134,11 @@ class TestCommandBase extends utest.Test {
 				#elseif neko
 					run("neko", [bin].concat(args));
 				#elseif hl
+					#if hlc
+					run(bin, args);
+					#else
 					run("hl", [bin].concat(args));
+					#end
 				#elseif php
 					run(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [bin].concat(args));
 				#elseif lua

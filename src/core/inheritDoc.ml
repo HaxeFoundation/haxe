@@ -1,14 +1,12 @@
-open Globals
 open Ast
 open Type
-open Typecore
 
 let expr_to_target e =
 	let rec loop (e,p) =
 		match e with
 		| EConst (Ident s) when s <> "" -> [s]
 		| EField (e,s,_) -> s :: loop e
-		| _ -> Error.typing_error "Invalid target expression for @:inheritDoc" p
+		| _ -> Error.raise_typing_error "Invalid target expression for @:inheritDoc" p
 	in
 	match loop e with
 	| sub_name :: type_name :: pack when not (is_lower_ident type_name) ->
@@ -16,7 +14,7 @@ let expr_to_target e =
 	| type_name :: pack ->
 		(List.rev pack, type_name), None
 	| [] ->
-		Error.typing_error "Invalid target path for @:inheritDoc" (snd e)
+		Error.raise_typing_error "Invalid target path for @:inheritDoc" (snd e)
 
 let rec get_constructor c =
 	match c.cl_constructor, c.cl_super with
@@ -36,8 +34,8 @@ let rec get_class_field c field_name =
 		| None -> raise Not_found
 		| Some (csup, _) -> get_class_field csup field_name
 
-let find_type ctx tp allow_no_params =
-	try Typeload.load_instance' ctx tp allow_no_params
+let find_type ctx (tp,p) =
+	try Typeload.load_instance' ctx (make_ptp tp p) ParamSpawnMonos
 	with _ -> raise Not_found
 
 (**
@@ -162,7 +160,7 @@ and get_target_doc ctx e_target =
 			| _ ->
 				mk_type_path path
 		in
-		let t = (find_type ctx (tp,snd e_target) true) in
+		let t = (find_type ctx (tp,snd e_target)) in
 		try
 			match follow t with
 			| TInst (c, _) ->
@@ -194,7 +192,7 @@ and get_target_doc ctx e_target =
 		with Not_found ->
 			None
 	in
-	let rec resolve_type_t t =
+	let resolve_type_t t =
 		match follow t with
 		| TInst (c, _) ->
 			build_class_doc ctx c;
@@ -209,11 +207,11 @@ and get_target_doc ctx e_target =
 	in
 	let resolve_type () =
 		let tp = mk_type_path path, snd e_target in
-		resolve_type_t (find_type ctx tp true)
+		resolve_type_t (find_type ctx tp)
 	in
 	let resolve_sub_type sub =
 		let tp = mk_type_path ~sub path, snd e_target in
-		resolve_type_t (find_type ctx tp true)
+		resolve_type_t (find_type ctx tp)
 	in
 	try
 		match sub with

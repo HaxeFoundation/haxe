@@ -18,7 +18,6 @@
 *)
 open Common
 open Ast
-open Codegen
 open Texpr.Builder
 open Type
 open Gencommon

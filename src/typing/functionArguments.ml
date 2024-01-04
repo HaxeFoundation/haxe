@@ -22,7 +22,7 @@ let type_function_arg_value ctx t c do_display =
 		| None -> None
 		| Some e ->
 			let p = pos e in
-			let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
+			let e = if do_display then Display.preprocess_expr ctx.com e else e in
 			let e = Optimizer.reduce_expression ctx (type_expr ctx e (WithType.with_type t)) in
 			unify ctx e.etype t p;
 			let rec loop e = match e.eexpr with
@@ -76,9 +76,9 @@ object(self)
 
 	method private check_rest (is_last : bool) (eo : expr option) (opt : bool) (t : Type.t) (pn : pos) =
 		if ExtType.is_rest (follow t) then begin
-			if opt then typing_error "Rest argument cannot be optional" pn;
-			begin match eo with None -> () | Some (_,p) -> typing_error "Rest argument cannot have default value" p end;
-			if not is_last then typing_error "Rest should only be used for the last function argument" pn;
+			if opt then raise_typing_error "Rest argument cannot be optional" pn;
+			begin match eo with None -> () | Some (_,p) -> raise_typing_error "Rest argument cannot have default value" p end;
+			if not is_last then raise_typing_error "Rest should only be used for the last function argument" pn;
 		end
 
 	(* Returns the `(tvar * texpr option) list` for `tf_args`. Also checks the validity of argument names and whether or not
@@ -87,21 +87,22 @@ object(self)
 		| Some l ->
 			l
 		| None ->
-			let make_local name t meta pn =
-				let v = alloc_var (VUser TVOArgument) name t pn in
-				v.v_meta <- v.v_meta @ meta;
+			let make_local name kind t meta pn =
+				let v = alloc_var kind name t pn in
+				let meta = (StrictMeta.check_strict_meta ctx meta) @ meta in
+				v.v_meta <- meta;
 				v
 			in
 			let rec loop acc is_abstract_this syntax typed = match syntax,typed with
 				| syntax,(name,_,t) :: typed when is_abstract_this ->
-					let v = make_local name t [] null_pos in
+					let v = make_local name VAbstractThis t [] null_pos in
 					v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 					loop ((v,None) :: acc) false syntax typed
 				| ((_,pn),opt,m,_,_) :: syntax,(name,eo,t) :: typed ->
 					delay ctx PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
 					if not is_extern then check_local_variable_name ctx name TVOArgument pn;
 					let eo = type_function_arg_value ctx t eo do_display in
-					let v = make_local name t m pn in
+					let v = make_local name (VUser TVOArgument) t m pn in
 					if do_display && DisplayPosition.display_position#enclosed_in pn then
 						DisplayEmitter.display_variable ctx v pn;
 					loop ((v,eo) :: acc) false syntax typed

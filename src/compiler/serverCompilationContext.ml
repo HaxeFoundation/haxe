@@ -58,7 +58,7 @@ let reset sctx =
 	Helper.start_time := get_time()
 
 let maybe_cache_context sctx com =
-	if com.display.dms_full_typing then begin
+	if com.display.dms_full_typing && com.display.dms_populate_cache then begin
 		CommonCache.cache_context sctx.cs com;
 		ServerMessage.cached_modules com "" (List.length com.modules);
 	end
@@ -70,5 +70,9 @@ let ensure_macro_setup sctx =
 	end
 
 let cleanup () = match !MacroContext.macro_interp_cache with
-	| Some interp -> EvalContext.GlobalState.cleanup interp
-	| None -> ()
+	| Some interp ->
+		(* curapi holds a reference to the typing context which we don't want to persist. Let's unset it so the
+		   context can be collected. *)
+		interp.curapi <- Obj.magic ""
+	| None ->
+		()

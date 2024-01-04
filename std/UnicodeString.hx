@@ -442,7 +442,7 @@ abstract UnicodeString(String) from String to String {
 
 	@:op(A += B) static function assignAdd(a:UnicodeString, b:UnicodeString):UnicodeString;
 
-	@:op(A + B) @:commutative static function add(a:UnicodeString, b:String):UnicodeString;
+	@:op(A + B) @:commutative static function addString(a:UnicodeString, b:String):UnicodeString;
 
-	@:op(A += B) @:commutative static function assignAdd(a:UnicodeString, b:String):UnicodeString;
+	@:op(A += B) @:commutative static function assignAddString(a:UnicodeString, b:String):UnicodeString;
 }

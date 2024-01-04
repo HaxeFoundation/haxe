@@ -16,14 +16,11 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 *)
-open Globals
-open Type
 open Typecore
 open TType
 open TyperBase
 open Calls
 open Fields
-open TFunctions
 open Error
 
 let mk_dot_path_part s p : dot_path_part =
@@ -44,7 +41,7 @@ let resolve_module_field ctx m path p mode with_type =
 		raise Not_found
 	| {name = name; pos = p} :: path_rest, Some c ->
 		let f = PMap.find name c.cl_statics in (* raises Not_found *)
-		let e = type_module_type ctx (TClassDecl c) None p in
+		let e = type_module_type ctx (TClassDecl c) p in
 		field_access ctx mode f (FHStatic c) e p, path_rest
 
 let resolve_module_type ctx m name p =
@@ -74,7 +71,7 @@ let resolve_qualified ctx pack name next_path p mode with_type =
 	try
 		let m = Typeload.load_module ctx (pack,name) p in
 		resolve_in_module ctx m next_path p mode with_type
-	with Error (Module_not_found mpath,_,_) when mpath = (pack,name) ->
+	with Error { err_message = Module_not_found mpath } when mpath = (pack,name) ->
 		(* might be an instance of https://github.com/HaxeFoundation/haxe/issues/9150
 		   so let's also check (pack,name) of a TYPE in the current module context ¯\_(ツ)_/¯ *)
 		let t = Typeload.find_type_in_current_module_context ctx pack name in (* raises Not_found *)
@@ -93,7 +90,7 @@ let resolve_unqualified ctx name next_path p mode with_type =
 			*)
 			match next_path with
 			| {name = field; pos = pfield} :: next_path ->
-				let e = type_module_type ctx t None p in
+				let e = type_module_type ctx t p in
 				let access = type_field (TypeFieldConfig.create true) ctx e field pfield mode with_type in
 				access, next_path
 			| _ ->

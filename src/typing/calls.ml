@@ -34,8 +34,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 				raise Exit
 		in
 		if not force_inline then begin
-			let is_extern_class = match cl with Some c -> (has_class_flag c CExtern) | _ -> false in
-			if not (Inline.needs_inline ctx is_extern_class f) then raise Exit;
+			if not (needs_inline ctx cl f) then raise Exit;
 		end else begin
 			match cl with
 			| None ->
@@ -47,7 +46,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 						PMap.mem f.cf_name c.cl_fields
 						|| List.exists has_override c.cl_descendants
 					in
-					if List.exists has_override c.cl_descendants then typing_error (Printf.sprintf "Cannot force inline-call to %s because it is overridden" f.cf_name) p
+					if List.exists has_override c.cl_descendants then raise_typing_error (Printf.sprintf "Cannot force inline-call to %s because it is overridden" f.cf_name) p
 				)
 		end;
 		let config = Inline.inline_config cl f params t in
@@ -63,7 +62,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 						(* Current method needs to infer CfModifiesThis flag, since we are calling a method, which modifies `this` *)
 						add_class_field_flag ctx.curfield CfModifiesThis
 					else
-						typing_error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
+						raise_typing_error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
 			| _ -> ()
 		);
 		let params = List.map (Optimizer.reduce_expression ctx) params in
@@ -71,11 +70,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 		(match f.cf_expr_unoptimized,f.cf_expr with
 		| Some {eexpr = TFunction fd},_
 		| None,Some { eexpr = TFunction fd } ->
-			(match Inline.type_inline ctx f fd ethis params t config p force_inline with
-			| None ->
-				if force_inline then typing_error "Inline could not be done" p;
-				raise Exit;
-			| Some e -> e)
+			Inline.type_inline ctx f fd ethis params t config p force_inline
 		| _ ->
 			(*
 				we can't inline because there is most likely a loop in the typing.
@@ -91,7 +86,7 @@ let mk_array_get_call ctx (cf,tf,r,e1) c ebase p = match cf.cf_expr with
 		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array get method" p;
 		mk (TArray(ebase,e1)) r p
 	| _ ->
-		let et = type_module_type ctx (TClassDecl c) None p in
+		let et = type_module_type ctx (TClassDecl c) p in
 		let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
 		make_call ctx ef [ebase;e1] r p
 
@@ -102,7 +97,7 @@ let mk_array_set_call ctx (cf,tf,r,e1,evalue) c ebase p =
 			let ea = mk (TArray(ebase,e1)) r p in
 			mk (TBinop(OpAssign,ea,evalue)) r p
 		| _ ->
-			let et = type_module_type ctx (TClassDecl c) None p in
+			let et = type_module_type ctx (TClassDecl c) p in
 			let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
 			make_call ctx ef [ebase;e1;evalue] r p
 
@@ -160,7 +155,7 @@ let rec acc_get ctx g =
 					c2.cl_ordered_statics <- cf :: c2.cl_ordered_statics;
 					cf
 				in
-				let e_t = type_module_type ctx (TClassDecl c2) None p in
+				let e_t = type_module_type ctx (TClassDecl c2) p in
 				FieldAccess.get_field_expr (FieldAccess.create e_t cf (FHStatic c2) true p) FRead
 			in
 			let e_def = FieldAccess.get_field_expr fa FRead in
@@ -170,10 +165,10 @@ let rec acc_get ctx g =
 					e_def
 				| TAnon a ->
 					begin match !(a.a_status) with
-						| Statics c when has_class_field_flag cf CfExtern ->
+						| ClassStatics c when has_class_field_flag cf CfExtern ->
 							display_error ctx.com "Cannot create closure on @:extern inline method" p;
 							e_def
-						| Statics c when chk_class c -> wrap_extern c
+						| ClassStatics c when chk_class c -> wrap_extern c
 						| _ -> e_def
 					end
 				| _ -> e_def
@@ -186,38 +181,26 @@ let rec acc_get ctx g =
 			if not (type_iseq tf e.etype) then mk (TCast(e,None)) tf e.epos
 			else e
 		| Var _,None ->
-			typing_error "Recursive inline is not supported" p
+			raise_typing_error "Recursive inline is not supported" p
 		end
 	in
 	let dispatcher p = new call_dispatcher ctx MGet WithType.value p in
 	match g with
-	| AKNo(_,p) -> typing_error ("This expression cannot be accessed for reading") p
+	| AKNo(acc,p) ->
+		if not (Common.ignore_error ctx.com) then
+			raise_typing_error ("This expression cannot be accessed for reading") p
+		else acc_get ctx acc;
 	| AKExpr e -> e
 	| AKSafeNav sn ->
-		(* generate null-check branching for the safe navigation chain *)
-		let eobj = sn.sn_base in
-		let enull = Builder.make_null eobj.etype sn.sn_pos in
-		let eneq = Builder.binop OpNotEq eobj enull ctx.t.tbool sn.sn_pos in
-		let ethen = acc_get ctx sn.sn_access in
-		let tnull = ctx.t.tnull ethen.etype in
-		let ethen = if not (is_nullable ethen.etype) then
-			mk (TCast(ethen,None)) tnull ethen.epos
-		else
-			ethen
-		in
-		let eelse = Builder.make_null tnull sn.sn_pos in
-		let eif = mk (TIf(eneq,ethen,Some eelse)) tnull sn.sn_pos in
-		(match sn.sn_temp_var with
-		| None -> eif
-		| Some evar -> { eif with eexpr = TBlock [evar; eif] })
+		safe_nav_branch ctx sn (fun () -> acc_get ctx sn.sn_access)
 	| AKAccess _ -> die "" __LOC__
 	| AKResolve(sea,name) ->
 		(dispatcher sea.se_access.fa_pos)#resolve_call sea name
 	| AKUsingAccessor sea | AKUsingField sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
-		(* TODO *)
-		(* let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in *)
+		let id,_ = store_typed_expr ctx.com sea.se_this e_field.epos in
+		let e_field = {e_field with eexpr = (TMeta((Meta.StaticExtension,[make_stored_id_expr id e_field.epos],null_pos),e_field))} in
 		let t = match follow e_field.etype with
 			| TFun (_ :: args,ret) -> TFun(args,ret)
 			| t -> t
@@ -230,7 +213,7 @@ let rec acc_get ctx g =
 			if ctx.in_display then
 				FieldAccess.get_field_expr fa FRead
 			else
-				typing_error "Invalid macro access" fa.fa_pos
+				raise_typing_error "Invalid macro access" fa.fa_pos
 		| _ ->
 			if fa.fa_inline then
 				inline_read fa
@@ -305,9 +288,9 @@ let rec build_call_access ctx acc el mode with_type p =
 	| AKResolve(sea,name) ->
 		AKExpr (dispatch#expr_call (dispatch#resolve_call sea name) [] el)
 	| AKNo(_,p) ->
-		typing_error "This expression cannot be called" p
+		raise_typing_error "This expression cannot be called" p
 	| AKAccess _ ->
-		typing_error "This expression cannot be called" p
+		raise_typing_error "This expression cannot be called" p
 	| AKAccessor fa ->
 		let e = get_accessor_to_call fa [] in
 		AKExpr (dispatch#expr_call e [] el)
@@ -374,7 +357,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 	in
 	let rec loop args params given_args missing_args ordered_args = match args, params with
 		| [], [] -> given_args,missing_args,ordered_args
-		| [], _ -> typing_error "Too many callback arguments" p
+		| [], _ -> raise_typing_error "Too many callback arguments" p
 		| (n,o,t) :: args , [] when o ->
 			let a = if is_pos_infos t then
 					let infos = mk_infos ctx p [] in
@@ -386,7 +369,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			in
 			loop args [] given_args missing_args a
 		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when not ctx.com.config.pf_can_skip_non_nullable_argument && o && not (is_nullable t) ->
-			typing_error "Usage of _ is not supported for optional non-nullable arguments" p
+			raise_typing_error "Usage of _ is not supported for optional non-nullable arguments" p
 		| (n,o,t) :: args , ([] as params)
 		| (n,o,t) :: args , (EConst(Ident "_"),_) :: params ->
 			let v = alloc_var VGenerated (alloc_name n) (if o then ctx.t.tnull t else t) p in
@@ -414,12 +397,12 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 				since we'll create a closure for the binding anyway, instead store the instance and
 				call its method inside a bind-generated closure
 			*)
-			let vobj = alloc_var VGenerated "`" eobj.etype eobj.epos in
+			let vobj = alloc_var VGenerated gen_local_prefix eobj.etype eobj.epos in
 			let var_decl = mk (TVar(vobj, Some eobj)) ctx.t.tvoid eobj.epos in
 			let eobj = { eobj with eexpr = TLocal vobj } in
 			{ e with eexpr = TField(eobj, FInstance (cl, tp, cf)) }, var_decl :: var_decls
 		| _ ->
-			let e_var = alloc_var VGenerated "`" e.etype e.epos in
+			let e_var = alloc_var VGenerated gen_local_prefix e.etype e.epos in
 			(mk (TLocal e_var) e.etype e.epos), (mk (TVar(e_var,Some e)) ctx.t.tvoid e.epos) :: var_decls
 	in
 	let call = make_call ctx e ordered_args ret p in
@@ -485,7 +468,7 @@ let array_access ctx e1 e2 mode p =
 				let t = ctx.t.tarray pt in
 				begin try
 					unify_raise et t p
-				with Error(Unify _,_,_) ->
+				with Error { err_message = Unify _ } ->
 					if not ctx.untyped then begin
 						let msg = if !has_abstract_array_access then
 							"No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)

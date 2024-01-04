@@ -61,6 +61,10 @@
 			"reserved": {
 				"type": "boolean",
 				"markdownDescription": "Reserved defines may not be defined from the command line."
+			},
+			"deprecated": {
+				"type": "string",
+				"markdownDescription": "Reason for the define to be deprecated."
 			}
 		},
 		"required": [
