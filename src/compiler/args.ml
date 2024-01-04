@@ -67,7 +67,10 @@ let parse_args com =
 	let add_deprecation s =
 		actx.deprecations <- s :: actx.deprecations
 	in
-	let add_native_lib file extern = actx.native_libs <- (file,extern) :: actx.native_libs in
+	let add_native_lib file extern kind =
+		let lib = create_native_lib file extern kind in
+		actx.native_libs <- lib :: actx.native_libs
+	in
 	let basic_args_spec = [
 		("Target",["--js"],["-js"],Arg.String (set_platform com Js),"<file>","generate JavaScript code into target file");
 		("Target",["--lua"],["-lua"],Arg.String (set_platform com Lua),"<file>","generate Lua code into target file");
@@ -210,22 +213,22 @@ let parse_args com =
 			Common.define com Define.FlashStrict
 		), "","more type strict flash API");
 		("Target-specific",["--swf-lib"],["-swf-lib"],Arg.String (fun file ->
-			add_native_lib file false;
+			add_native_lib file false SwfLib;
 		),"<file>","add the SWF library to the compiled SWF");
 		("Target-specific",[],["--neko-lib-path"],Arg.String (fun dir ->
 			com.neko_lib_paths <- dir :: com.neko_lib_paths
 		),"<directory>","add the neko library path");
 		("Target-specific",["--swf-lib-extern"],["-swf-lib-extern"],Arg.String (fun file ->
-			add_native_lib file true;
+			add_native_lib file true SwfLib;
 		),"<file>","use the SWF library for type checking");
 		("Target-specific",["--java-lib"],["-java-lib"],Arg.String (fun file ->
-			add_native_lib file false;
+			add_native_lib file false JavaLib;
 		),"<file>","add an external JAR or directory of JAR files");
 		("Target-specific",["--java-lib-extern"],[],Arg.String (fun file ->
-			add_native_lib file true;
+			add_native_lib file true JavaLib;
 		),"<file>","use an external JAR or directory of JAR files for type checking");
 		("Target-specific",["--net-lib"],["-net-lib"],Arg.String (fun file ->
-			add_native_lib file false;
+			add_native_lib file false NetLib;
 		),"<file>[@std]","add an external .NET DLL file");
 		("Target-specific",["--net-std"],["-net-std"],Arg.String (fun file ->
 			Dotnet.add_net_std com file
