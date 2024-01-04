@@ -904,6 +904,7 @@ let clone com is_macro_context =
 	{ com with
 		cache = None;
 		basic = { t with
+			tvoid = mk_mono();
 			tint = mk_mono();
 			tfloat = mk_mono();
 			tbool = mk_mono();

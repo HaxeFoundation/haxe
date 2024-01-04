@@ -952,6 +952,9 @@ class hxb_writer
 		| TInst ({cl_path = ([],"String")},[]) ->
 			self#write_type_instance_byte 103;
 			None
+		| TAbstract ({a_path = ([],"Void")},[]) ->
+			self#write_type_instance_byte 104;
+			None
 		| TMono r ->
 			Monomorph.close r;
 			begin match r.tm_type with

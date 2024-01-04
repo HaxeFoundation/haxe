@@ -737,6 +737,8 @@ class hxb_reader
 			api#basic_types.tbool
 		| 103 ->
 			api#basic_types.tstring
+		| 104 ->
+			api#basic_types.tvoid
 		| i ->
 			error (Printf.sprintf "Bad type instance id: %i" i)
 
