@@ -1,6 +1,5 @@
 open Globals
 open Common
-open NativeLibraries
 open ExtString
 
 class hxb_library file_path = object(self)
