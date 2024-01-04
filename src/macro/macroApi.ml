@@ -2184,7 +2184,15 @@ let macro_api ccom get_api =
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
-			NativeLibraryHandler.add_native_lib com file false ();
+			let open CompilationContext in
+			let kind = match com.platform with
+				| Java -> JavaLib
+				| Cs -> NetLib
+				| Flash -> SwfLib
+				| _ -> failwith "Unsupported platform"
+			in
+			let lib = create_native_lib file false kind in
+			NativeLibraryHandler.add_native_lib com lib ();
 			vnull
 		);
 		"add_native_arg", vfun1 (fun arg ->
