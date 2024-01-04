@@ -19,11 +19,15 @@
 
 open Globals
 open Common
+open CompilationContext
 
-let add_native_lib com file is_extern = match com.platform with
-	| Globals.Flash ->
+let add_native_lib com lib =
+	let file = lib.lib_file in
+	let is_extern = lib.lib_extern in
+	match lib.lib_kind with
+	| SwfLib ->
 		SwfLoader.add_swf_lib com file is_extern
-	| Globals.Java ->
+	| JavaLib ->
 		let use_modern = Common.defined com Define.Jvm && not (Common.defined com Define.JarLegacyLoader) in
 		let add file =
 			let std = file = "lib/hxjava-std.jar" in
@@ -36,7 +40,7 @@ let add_native_lib com file is_extern = match com.platform with
 			) (Sys.readdir file))
 		else
 			add file
-	| Globals.Cs ->
+	| NetLib ->
 		let file, is_std = match ExtString.String.nsplit file "@" with
 			| [file] ->
 				file,false
@@ -45,5 +49,3 @@ let add_native_lib com file is_extern = match com.platform with
 			| _ -> failwith ("unsupported file@`std` format: " ^ file)
 		in
 		Dotnet.add_net_lib com file is_std is_extern
-	| pf ->
-		failwith (Printf.sprintf "Target %s does not support native libraries (trying to load %s)" (platform_name pf) file);

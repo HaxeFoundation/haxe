@@ -20,6 +20,7 @@
 open Globals
 open Ast
 open Common
+open Lookup
 open Type
 open Error
 open Resolution
@@ -240,7 +241,11 @@ let pass_name = function
 
 let warning ?(depth=0) ctx w msg p =
 	let options = (Warning.from_meta ctx.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
-	ctx.com.warning ~depth w options msg p
+	match Warning.get_mode w options with
+	| WMEnable ->
+		module_warning ctx.com ctx.m.curmod w options msg p
+	| WMDisable ->
+		()
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
@@ -475,7 +480,7 @@ let create_fake_module ctx file =
 			m_path = (["$DEP"],file);
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake [];
+			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake ctx.com.compilation_step [];
 		} in
 		Hashtbl.add fake_modules key mdep;
 		mdep
@@ -750,6 +755,7 @@ let create_deprecation_context ctx = {
 	(DeprecationCheck.create_context ctx.com) with
 	class_meta = ctx.curclass.cl_meta;
 	field_meta = ctx.curfield.cf_meta;
+	curmod = ctx.m.curmod;
 }
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)

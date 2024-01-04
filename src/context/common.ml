@@ -20,6 +20,7 @@ open Extlib_leftovers
 open Ast
 open Type
 open Globals
+open Lookup
 open Define
 open NativeLibraries
 open Warning
@@ -293,66 +294,44 @@ type report_mode =
 	| RMDiagnostics of (Path.UniqueKey.t list)
 	| RMStatistics
 
-class virtual ['key,'value] lookup = object(self)
-	method virtual add : 'key -> 'value -> unit
-	method virtual remove : 'key -> unit
-	method virtual find : 'key -> 'value
-	method virtual iter : ('key -> 'value -> unit) -> unit
-	method virtual fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc
-	method virtual mem : 'key -> bool
-	method virtual clear : unit
-end
+class module_lut = object(self)
+	inherit [path,module_def] hashtbl_lookup as super
 
-class ['key,'value] pmap_lookup = object(self)
-	inherit ['key,'value] lookup
-	val mutable lut : ('key,'value) PMap.t = PMap.empty
+	val type_lut : (path,path) lookup = new hashtbl_lookup
 
-	method add (key : 'key) (value : 'value) =
-		lut <- PMap.add key value lut
+	method add_module_type (m : module_def) (mt : module_type) =
+		let t = t_infos mt in
+		try
+			let path2 = type_lut#find t.mt_path in
+			let p = t.mt_pos in
+			if m.m_path <> path2 && String.lowercase_ascii (s_type_path path2) = String.lowercase_ascii (s_type_path m.m_path) then Error.raise_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
+			let m2 = self#find path2 in
+			let hex1 = Digest.to_hex m.m_extra.m_sign in
+			let hex2 = Digest.to_hex m2.m_extra.m_sign in
+			let s = if hex1 = hex2 then hex1 else Printf.sprintf "was %s, is %s" hex2 hex1 in
+			Error.raise_typing_error (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p
+		with Not_found ->
+			type_lut#add t.mt_path m.m_path
 
-	method remove (key : 'key) =
-		lut <- PMap.remove key lut
+	method! add (path : path) (m : module_def) =
+		super#add path m;
+		List.iter (fun mt -> self#add_module_type m mt) m.m_types
 
-	method find (key : 'key) : 'value =
-		PMap.find key lut
+	method! remove (path : path) =
+		try
+			List.iter (fun mt -> type_lut#remove (t_path mt)) (self#find path).m_types;
+			super#remove path;
+		with Not_found ->
+			()
 
-	method iter (f : 'key -> 'value -> unit) =
-		PMap.iter f lut
+	method find_by_type (path : path) =
+		self#find (type_lut#find path)
 
-	method fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc = fun f acc ->
-		PMap.foldi f lut acc
+	method! clear =
+		super#clear;
+		type_lut#clear
 
-	method mem (key : 'key) =
-		PMap.mem key lut
-
-	method clear =
-		lut <- PMap.empty
-end
-
-class ['key,'value] hashtbl_lookup = object(self)
-	inherit ['key,'value] lookup
-	val lut : ('key,'value) Hashtbl.t = Hashtbl.create 0
-
-	method add (key : 'key) (value : 'value) =
-		Hashtbl.replace lut key value
-
-	method remove (key : 'key) =
-		Hashtbl.remove lut key
-
-	method find (key : 'key) : 'value =
-		Hashtbl.find lut key
-
-	method iter (f : 'key -> 'value -> unit) =
-		Hashtbl.iter f lut
-
-	method fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc = fun f acc ->
-		Hashtbl.fold f lut acc
-
-	method mem (key : 'key) =
-		Hashtbl.mem lut key
-
-	method clear =
-		Hashtbl.clear lut
+	method get_type_lut = type_lut
 end
 
 type context = {
@@ -408,9 +387,8 @@ type context = {
 	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) lookup;
 	stored_typed_exprs : (int, texpr) lookup;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
-	module_lut : (path,module_def) lookup;
+	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
-	type_to_module : (path,path) lookup;
 	mutable has_error : bool;
 	pass_debug_messages : string DynArray.t;
 	(* output *)
@@ -442,6 +420,10 @@ let ignore_error com =
 	let b = com.display.dms_error_policy = EPIgnore in
 	if b then com.has_error <- true;
 	b
+
+let module_warning com m w options msg p =
+	DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
+	com.warning w options msg p
 
 (* Defines *)
 
@@ -799,7 +781,6 @@ let get_config com =
 let memory_marker = [|Unix.time()|]
 
 let create compilation_step cs version args display_mode =
-	let m = Type.mk_mono() in
 	let rec com = {
 		compilation_step = compilation_step;
 		cs = cs;
@@ -837,9 +818,8 @@ let create compilation_step cs version args display_mode =
 		callbacks = new compiler_callbacks;
 		global_metadata = [];
 		modules = [];
-		module_lut = new hashtbl_lookup;
+		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
-		type_to_module = new hashtbl_lookup;
 		main = None;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
@@ -867,12 +847,12 @@ let create compilation_step cs version args display_mode =
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
 		basic = {
-			tvoid = m;
-			tint = m;
-			tfloat = m;
-			tbool = m;
+			tvoid = mk_mono();
+			tint = mk_mono();
+			tfloat = mk_mono();
+			tbool = mk_mono();
+			tstring = mk_mono();
 			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
-			tstring = m;
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 		};
 		file_lookup_cache = new hashtbl_lookup;
@@ -908,7 +888,12 @@ let clone com is_macro_context =
 	let t = com.basic in
 	{ com with
 		cache = None;
-		basic = { t with tvoid = t.tvoid };
+		basic = { t with
+			tint = mk_mono();
+			tfloat = mk_mono();
+			tbool = mk_mono();
+			tstring = mk_mono();
+		};
 		main_class = None;
 		features = Hashtbl.create 0;
 		callbacks = new compiler_callbacks;
@@ -928,8 +913,7 @@ let clone com is_macro_context =
 		parser_cache = new hashtbl_lookup;
 		module_to_file = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
-		module_lut = new hashtbl_lookup;
-		type_to_module = new hashtbl_lookup;
+		module_lut = new module_lut;
 	}
 
 let file_time file = Extc.filetime file
@@ -1135,7 +1119,7 @@ let cache_directory ctx class_path dir f_dir =
 	in
 	Option.may (Array.iter prepare_file) dir_listing
 
-let find_file ctx f =
+let find_file ctx ?(class_path=ctx.class_path) f =
 	try
 		match ctx.file_lookup_cache#find f with
 		| None -> raise Exit
@@ -1170,7 +1154,7 @@ let find_file ctx f =
 						loop (had_empty || p = "") l
 				end
 		in
-		let r = try Some (loop false ctx.class_path) with Not_found -> None in
+		let r = try Some (loop false class_path) with Not_found -> None in
 		ctx.file_lookup_cache#add f r;
 		match r with
 		| None -> raise Not_found

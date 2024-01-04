@@ -320,6 +320,114 @@
 		"platforms": ["cpp"]
 	},
 	{
+		"name": "HxcppGcMoving",
+		"define": "HXCPP-GC-MOVING",
+		"doc": "Allow garbage collector to move memory to reduce fragmentation",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppGcSummary",
+		"define": "HXCPP-GC-SUMMARY",
+		"doc": "Print small profiling summary at end of program",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppGcDynamicSize",
+		"define": "HXCPP-GC-DYNAMIC-SIZE",
+		"doc": "Monitor GC times and expand memory working space if required",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppGcBigBlocks",
+		"define": "HXCPP-GC-BIG-BLOCKS",
+		"doc": "Allow working memory greater than 1 Gig",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppGcDebugLevel",
+		"define": "HXCPP-GC-DEBUG-LEVEL",
+		"doc": "Number 1-4 indicating additional debugging in GC",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppDebugLink",
+		"define": "HXCPP-DEBUG-LINK",
+		"doc": "Add symbols to final binary, even in release mode.",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppStackTrace",
+		"define": "HXCPP-STACK-TRACE",
+		"doc": "Have valid function-level stack traces, even in release mode.",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppStackLine",
+		"define": "HXCPP-STACK-LINE",
+		"doc": "Include line information in stack traces, even in release mode.",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppCheckPointer",
+		"define": "HXCPP-CHECK-POINTER",
+		"doc": "Add null-pointer checks, even in release mode.",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppProfiler",
+		"define": "HXCPP-PROFILER",
+		"doc": "Add profiler support",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppTelemetry",
+		"define": "HXCPP-TELEMETRY",
+		"doc": "Add telemetry support",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppCpp11",
+		"define": "HXCPP-CPP11",
+		"doc": "Use C++11 features and link libraries",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppVerbose",
+		"define": "HXCPP-VERBOSE",
+		"doc": "Print extra output from build tool.",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppTimes",
+		"define": "HXCPP-TIMES",
+		"doc": "Show some basic profiling information",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppM32",
+		"define": "HXCPP-M32",
+		"doc": "Force 32-bit compile for current desktop",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppM64",
+		"define": "HXCPP-M64",
+		"doc": "Force 64-bit compile for current desktop",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppArm64",
+		"define": "HXCPP-ARM64",
+		"doc": "Compile arm-based devices for 64 bits",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "HxcppLinuxArm64",
+		"define": "HXCPP-LINUX-ARM64",
+		"doc": "Run on a linux ARM64 device",
+		"platforms": ["cpp"]
+	},
+	{
 		"name": "HxcppSmartStings",
 		"define": "hxcpp-smart-strings",
 		"doc": "Use wide strings in hxcpp. (Turned on by default unless `-D disable-unicode-strings` is specified.)",

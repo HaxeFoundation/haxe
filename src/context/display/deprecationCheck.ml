@@ -7,12 +7,14 @@ type deprecation_context = {
 	com        : Common.context;
 	class_meta : metadata_entry list;
 	field_meta : metadata_entry list;
+	curmod     : module_def;
 }
 
 let create_context com = {
 	com = com;
 	class_meta = [];
 	field_meta = [];
+	curmod = null_module;
 }
 
 let warned_positions = Hashtbl.create 0
@@ -23,7 +25,7 @@ let warn_deprecation dctx s p_usage =
 		Hashtbl.add warned_positions (pkey p_usage) (s,p_usage);
 		if not (is_diagnostics dctx.com) then begin
 			let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
-			dctx.com.warning WDeprecated options s p_usage;
+			module_warning dctx.com dctx.curmod WDeprecated options s p_usage;
 		end
 	end
 
@@ -103,7 +105,7 @@ let run com =
 	let dctx = create_context com in
 	List.iter (fun t -> match t with
 		| TClassDecl c when not (Meta.has Meta.Deprecated c.cl_meta) ->
-			let dctx = {dctx with class_meta = c.cl_meta} in
+			let dctx = {dctx with class_meta = c.cl_meta; curmod = c.cl_module} in
 			(match c.cl_constructor with None -> () | Some cf -> run_on_field dctx cf);
 			(match c.cl_init with None -> () | Some e -> run_on_expr dctx e);
 			List.iter (run_on_field dctx) c.cl_ordered_statics;
@@ -112,11 +114,12 @@ let run com =
 			()
 	) com.types
 
-let check_is com cl_meta cf_meta name meta p =
+let check_is com m cl_meta cf_meta name meta p =
 	let dctx = {
 		com = com;
 		class_meta = cl_meta;
 		field_meta = cf_meta;
+		curmod = m;
 	} in
 	if is_next dctx.com && name = "is" && not (Meta.has Meta.Deprecated meta) then
 		warn_deprecation dctx "Using \"is\" as an identifier is deprecated" p

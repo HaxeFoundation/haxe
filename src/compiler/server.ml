@@ -124,7 +124,7 @@ module Communication = struct
 	let create_pipe sctx write =
 		let rec self = {
 			write_out = (fun s ->
-				write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
+				write ("\x01" ^ String.concat "\n\x01" (ExtString.String.nsplit s "\n") ^ "\n")
 			);
 			write_err = (fun s ->
 				write s
@@ -395,6 +395,16 @@ let check_module sctx ctx m p =
 	end;
 	state
 
+let handle_cache_bound_objects com cbol =
+	DynArray.iter (function
+		| Resource(name,data) ->
+			Hashtbl.replace com.resources name data
+		| IncludeFile(file,position) ->
+			com.include_files <- (file,position) :: com.include_files
+		| Warning(w,msg,p) ->
+			com.warning w [] msg p
+	) cbol
+
 (* Adds module [m] and all its dependencies (recursively) from the cache to the current compilation
    context. *)
 let add_modules sctx ctx m p =
@@ -404,7 +414,7 @@ let add_modules sctx ctx m p =
 			(match m0.m_extra.m_kind, m.m_extra.m_kind with
 			| MCode, MMacro | MMacro, MCode ->
 				(* this was just a dependency to check : do not add to the context *)
-				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
+				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
 			| _ ->
 				m.m_extra.m_added <- ctx.com.compilation_step;
 				ServerMessage.reusing com tabs m;
@@ -412,7 +422,7 @@ let add_modules sctx ctx m p =
 					(t_infos t).mt_restore()
 				) m.m_types;
 				TypeloadModule.ModuleLevel.add_module ctx m p;
-				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
+				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
 				PMap.iter (fun _ (sign,mpath) ->
 					let m2 = (com.cs#get_context sign)#find_module mpath in
 					add_modules (tabs ^ "  ") m0 m2

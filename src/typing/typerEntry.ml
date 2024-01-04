@@ -25,7 +25,7 @@ let create com macros =
 			complete = false;
 			type_hints = [];
 			load_only_cached_modules = false;
-			functional_interface_lut = new pmap_lookup;
+			functional_interface_lut = new Lookup.pmap_lookup;
 			do_macro = MacroContext.type_macro;
 			do_load_macro = MacroContext.load_macro';
 			do_load_module = TypeloadModule.load_module;
@@ -92,10 +92,20 @@ let create com macros =
 		| TAbstractDecl a ->
 			(match snd a.a_path with
 			| "Void" -> ctx.t.tvoid <- TAbstract (a,[]);
-			| "Float" -> ctx.t.tfloat <- TAbstract (a,[]);
-			| "Int" -> ctx.t.tint <- TAbstract (a,[])
-			| "Bool" -> ctx.t.tbool <- TAbstract (a,[])
-			| "Dynamic" -> t_dynamic_def := TAbstract(a,extract_param_types a.a_params);
+			| "Float" ->
+				let t = (TAbstract (a,[])) in
+				Type.unify t ctx.t.tfloat;
+				ctx.t.tfloat <- t
+			| "Int" ->
+				let t = (TAbstract (a,[])) in
+				Type.unify t ctx.t.tint;
+				ctx.t.tint <- t
+			| "Bool" ->
+				let t = (TAbstract (a,[])) in
+				Type.unify t ctx.t.tbool;
+				ctx.t.tbool <- t
+			| "Dynamic" ->
+				t_dynamic_def := TAbstract(a,extract_param_types a.a_params);
 			| "Null" ->
 				let mk_null t =
 					try
@@ -117,14 +127,17 @@ let create com macros =
 	) ctx.g.std_types.m_types;
 	let m = TypeloadModule.load_module ctx ([],"String") null_pos in
 	List.iter (fun mt -> match mt with
-		| TClassDecl c -> ctx.t.tstring <- TInst (c,[])
+		| TClassDecl ({cl_path = ([],"String")} as c) ->
+			let t = (TInst (c,[])) in
+			Type.unify t ctx.t.tstring;
+			ctx.t.tstring <- t
 		| _ -> ()
 	) m.m_types;
 	let m = TypeloadModule.load_module ctx ([],"Std") null_pos in
 	List.iter (fun mt -> match mt with
-		| TClassDecl c -> ctx.g.std <- c;
+		| TClassDecl ({cl_path = ([],"Std")} as c) -> ctx.g.std <- c;
 		| _ -> ()
-	) m.m_types;	
+	) m.m_types;
 	let m = TypeloadModule.load_module ctx ([],"Array") null_pos in
 	(try
 		List.iter (fun t -> (

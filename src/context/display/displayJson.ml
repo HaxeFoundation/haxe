@@ -378,7 +378,7 @@ let handler =
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let fkey = hctx.com.file_keys#get file in
 			let cs = hctx.display#get_cs in
-			cs#taint_modules fkey "server/invalidate";
+			cs#taint_modules fkey ServerInvalidate;
 			cs#remove_files fkey;
 			hctx.send_result jnull
 		);

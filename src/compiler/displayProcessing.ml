@@ -48,7 +48,7 @@ let handle_display_argument_old com file_pos actx =
 			| "diagnostics" ->
 				com.report_mode <- RMLegacyDiagnostics [file_unique];
 				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display}
+				{dm with dms_display_file_policy = DFPOnly; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display}
 			| "statistics" ->
 				com.report_mode <- RMStatistics;
 				let dm = create DMNone in
@@ -200,11 +200,11 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 				begin try
 					let m = mctx.com.module_lut#find cpath in
 					mctx.com.module_lut#remove cpath;
-					mctx.com.type_to_module#remove cpath;
+					mctx.com.module_lut#get_type_lut#remove cpath;
 					List.iter (fun mt ->
 						let ti = Type.t_infos mt in
 						mctx.com.module_lut#remove ti.mt_path;
-						mctx.com.type_to_module#remove ti.mt_path;
+						mctx.com.module_lut#get_type_lut#remove ti.mt_path;
 					) m.m_types
 				with Not_found ->
 					()

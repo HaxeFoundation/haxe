@@ -72,7 +72,7 @@ let ensure_macro_setup sctx =
 let cleanup () = match !MacroContext.macro_interp_cache with
 	| Some interp ->
 		(* curapi holds a reference to the typing context which we don't want to persist. Let's unset it so the
-		   context can be collected. *)		
+		   context can be collected. *)
 		interp.curapi <- Obj.magic ""
 	| None ->
 		()

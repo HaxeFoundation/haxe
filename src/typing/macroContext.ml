@@ -739,7 +739,7 @@ let get_macro_context ctx =
 		mctx
 
 let load_macro_module mctx com cpath display p =
-	let m = (try com.type_to_module#find cpath with Not_found -> cpath) in
+	let m = (try com.module_lut#get_type_lut#find cpath with Not_found -> cpath) in
 	(* Temporarily enter display mode while typing the macro. *)
 	let old = mctx.com.display in
 	if display then mctx.com.display <- com.display;

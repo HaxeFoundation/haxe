@@ -42,7 +42,7 @@ let get_main ctx types =
 			| _ -> raise_typing_error ("Invalid -main : " ^ s_type_path path ^ " has invalid main function") c.cl_pos
 		in
 		if not (ExtType.is_void (follow r)) then raise_typing_error (Printf.sprintf "Return type of main function should be Void (found %s)" (s_type (print_context()) r)) f.cf_name_pos;
-		f.cf_meta <- (Dce.mk_keep_meta f.cf_pos) :: f.cf_meta;
+		if not (Meta.has Meta.Keep f.cf_meta) then f.cf_meta <- (Dce.mk_keep_meta f.cf_pos) :: f.cf_meta;
 		let emain = type_module_type ctx (TClassDecl c) null_pos in
 		let main = mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos in
 		let call_static path method_name =
@@ -101,7 +101,7 @@ type state =
 	| Done
 	| NotYet
 
-let sort_types com (modules : (path,module_def) lookup) =
+let sort_types com (modules : module_lut) =
 	let types = ref [] in
 	let states = Hashtbl.create 0 in
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
@@ -112,7 +112,7 @@ let sort_types com (modules : (path,module_def) lookup) =
 		match state p with
 		| Done -> ()
 		| Generating ->
-			com.warning WStaticInitOrder [] ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
+			module_warning com (t_infos t).mt_module WStaticInitOrder [] ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
 		| NotYet ->
 			Hashtbl.add states p Generating;
 			let t = (match t with
