@@ -101,16 +101,17 @@ let dump_stats name stats =
 		(index + 1,if writes = 0 then acc else (index,writes) :: acc)
 	) (0,[]) stats.type_instance_kind_writes in
 	let kind_writes = List.sort (fun (_,writes1) (_,writes2) -> compare writes2 writes1) kind_writes in
-	let kind_writes = List.map (fun (index,writes) -> Printf.sprintf "    %-3i: %i" index writes) kind_writes in
+	let kind_writes = List.map (fun (index,writes) -> Printf.sprintf "    %3i: %9i" index writes) kind_writes in
 	print_endline (Printf.sprintf "hxb_writer stats for %s" name);
 	print_endline "  type instance kind writes:";
 	List.iter print_endline kind_writes;
-	print_endline (Printf.sprintf "   type instance immediate: %i" !(stats.type_instance_immediate));
-	print_endline (Printf.sprintf "   type instance ring hits: %i" !(stats.type_instance_ring_hits));
-	print_endline (Printf.sprintf "  type instance cache hits: %i" !(stats.type_instance_cache_hits));
-	print_endline (Printf.sprintf "  type instance cache miss: %i" !(stats.type_instance_cache_misses));
+	print_endline "  type instance writes:";
+	print_endline (Printf.sprintf "     immediate: %9i" !(stats.type_instance_immediate));
+	print_endline (Printf.sprintf "     ring hits: %9i" !(stats.type_instance_ring_hits));
+	print_endline (Printf.sprintf "    cache hits: %9i" !(stats.type_instance_cache_hits));
+	print_endline (Printf.sprintf "    cache miss: %9i" !(stats.type_instance_cache_misses));
 	print_endline "  pos writes:";
-	print_endline (Printf.sprintf "      full: %i\n       min: %i\n       max: %i\n    minmax: %i" !(stats.pos_writes_full) !(stats.pos_writes_min) !(stats.pos_writes_max) !(stats.pos_writes_minmax))
+	print_endline (Printf.sprintf "      full: %9i\n       min: %9i\n       max: %9i\n    minmax: %9i" !(stats.pos_writes_full) !(stats.pos_writes_min) !(stats.pos_writes_max) !(stats.pos_writes_minmax))
 
 class ['key,'value] pool = object(self)
 	val lut = Hashtbl.create 0
