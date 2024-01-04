@@ -18,6 +18,7 @@
 *)
 open Globals
 open Type
+open Common
 open Typecore
 
 let rec is_removable_class c =
@@ -27,17 +28,20 @@ let rec is_removable_class c =
 		(match c.cl_super with
 			| Some (c,_) -> is_removable_class c
 			| _ -> false) ||
-		List.exists (fun tp -> match follow tp.ttp_type with
-			| TInst(c,_) ->
-				has_ctor_constraint c || Meta.has Meta.Const c.cl_meta
-			| _ ->
-				false
+		List.exists (fun tp ->
+			has_ctor_constraint tp.ttp_class || Meta.has Meta.Const tp.ttp_class.cl_meta
 		) c.cl_params)
 	| KTypeParameter _ ->
 		(* this shouldn't happen, have to investigate (see #4092) *)
 		true
 	| _ ->
 		false
+
+let remove_generic_base t = match t with
+	| TClassDecl c when is_removable_class c ->
+		add_class_flag c CExtern;
+	| _ ->
+		()
 
 (**
 	Check if `field` is overridden in subclasses
@@ -85,3 +89,11 @@ let run_expression_filters ?(ignore_processed_status=false) ctx detail_times fil
 	| TEnumDecl _ -> ()
 	| TTypeDecl _ -> ()
 	| TAbstractDecl _ -> ()
+
+let is_cached com t =
+	let m = (t_infos t).mt_module.m_extra in
+	m.m_processed <> 0 && m.m_processed < com.compilation_step
+
+let apply_filters_once ctx filters t =
+	let detail_times = (try int_of_string (Common.defined_value_safe ctx.com ~default:"0" Define.FilterTimes) with _ -> 0) in
+	if not (is_cached ctx.com t) then run_expression_filters ctx detail_times filters t

@@ -20,6 +20,7 @@ open Extlib_leftovers
 open Ast
 open Type
 open Globals
+open Lookup
 open Define
 open NativeLibraries
 open Warning
@@ -289,69 +290,48 @@ let s_compiler_stage = function
 
 type report_mode =
 	| RMNone
-	| RMDiagnostics of Path.UniqueKey.t list
+	| RMLegacyDiagnostics of (Path.UniqueKey.t list)
+	| RMDiagnostics of (Path.UniqueKey.t list)
 	| RMStatistics
 
-class virtual ['key,'value] lookup = object(self)
-	method virtual add : 'key -> 'value -> unit
-	method virtual remove : 'key -> unit
-	method virtual find : 'key -> 'value
-	method virtual iter : ('key -> 'value -> unit) -> unit
-	method virtual fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc
-	method virtual mem : 'key -> bool
-	method virtual clear : unit
-end
+class module_lut = object(self)
+	inherit [path,module_def] hashtbl_lookup as super
 
-class ['key,'value] pmap_lookup = object(self)
-	inherit ['key,'value] lookup
-	val mutable lut : ('key,'value) PMap.t = PMap.empty
+	val type_lut : (path,path) lookup = new hashtbl_lookup
 
-	method add (key : 'key) (value : 'value) =
-		lut <- PMap.add key value lut
+	method add_module_type (m : module_def) (mt : module_type) =
+		let t = t_infos mt in
+		try
+			let path2 = type_lut#find t.mt_path in
+			let p = t.mt_pos in
+			if m.m_path <> path2 && String.lowercase_ascii (s_type_path path2) = String.lowercase_ascii (s_type_path m.m_path) then Error.raise_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
+			let m2 = self#find path2 in
+			let hex1 = Digest.to_hex m.m_extra.m_sign in
+			let hex2 = Digest.to_hex m2.m_extra.m_sign in
+			let s = if hex1 = hex2 then hex1 else Printf.sprintf "was %s, is %s" hex2 hex1 in
+			Error.raise_typing_error (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p
+		with Not_found ->
+			type_lut#add t.mt_path m.m_path
 
-	method remove (key : 'key) =
-		lut <- PMap.remove key lut
+	method! add (path : path) (m : module_def) =
+		super#add path m;
+		List.iter (fun mt -> self#add_module_type m mt) m.m_types
 
-	method find (key : 'key) : 'value =
-		PMap.find key lut
+	method! remove (path : path) =
+		try
+			List.iter (fun mt -> type_lut#remove (t_path mt)) (self#find path).m_types;
+			super#remove path;
+		with Not_found ->
+			()
 
-	method iter (f : 'key -> 'value -> unit) =
-		PMap.iter f lut
+	method find_by_type (path : path) =
+		self#find (type_lut#find path)
 
-	method fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc = fun f acc ->
-		PMap.foldi f lut acc
+	method! clear =
+		super#clear;
+		type_lut#clear
 
-	method mem (key : 'key) =
-		PMap.mem key lut
-
-	method clear =
-		lut <- PMap.empty
-end
-
-class ['key,'value] hashtbl_lookup = object(self)
-	inherit ['key,'value] lookup
-	val lut : ('key,'value) Hashtbl.t = Hashtbl.create 0
-
-	method add (key : 'key) (value : 'value) =
-		Hashtbl.replace lut key value
-
-	method remove (key : 'key) =
-		Hashtbl.remove lut key
-
-	method find (key : 'key) : 'value =
-		Hashtbl.find lut key
-
-	method iter (f : 'key -> 'value -> unit) =
-		Hashtbl.iter f lut
-
-	method fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc = fun f acc ->
-		Hashtbl.fold f lut acc
-
-	method mem (key : 'key) =
-		Hashtbl.mem lut key
-
-	method clear =
-		Hashtbl.clear lut
+	method get_type_lut = type_lut
 end
 
 type context = {
@@ -400,15 +380,15 @@ type context = {
 	display_information : display_information;
 	file_lookup_cache : (string,string option) lookup;
 	file_keys : file_keys;
+	mutable file_contents : (Path.UniqueKey.t * string option) list;
 	readdir_cache : (string * string,(string array) option) lookup;
 	parser_cache : (string,(type_def * pos) list) lookup;
 	module_to_file : (path,string) lookup;
 	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) lookup;
 	stored_typed_exprs : (int, texpr) lookup;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
-	module_lut : (path,module_def) lookup;
+	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
-	type_to_module : (path,path) lookup;
 	mutable has_error : bool;
 	pass_debug_messages : string DynArray.t;
 	(* output *)
@@ -436,12 +416,14 @@ let enter_stage com stage =
 	(* print_endline (Printf.sprintf "Entering stage %s" (s_compiler_stage stage)); *)
 	com.stage <- stage
 
-exception Abort of Error.error
-
 let ignore_error com =
 	let b = com.display.dms_error_policy = EPIgnore in
 	if b then com.has_error <- true;
 	b
+
+let module_warning com m w options msg p =
+	DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
+	com.warning w options msg p
 
 (* Defines *)
 
@@ -506,6 +488,9 @@ let external_define_value ctx k v =
 
 let external_define ctx k =
 	Define.raw_define ctx.defines (convert_and_validate k)
+
+let external_undefine ctx k =
+	Define.raw_undefine ctx.defines (convert_and_validate k)
 
 let defines_for_external ctx =
 	PMap.foldi (fun k v acc ->
@@ -795,8 +780,7 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create compilation_step cs version args =
-	let m = Type.mk_mono() in
+let create compilation_step cs version args display_mode =
 	let rec com = {
 		compilation_step = compilation_step;
 		cs = cs;
@@ -816,7 +800,7 @@ let create compilation_step cs version args =
 		};
 		sys_args = args;
 		debug = false;
-		display = DisplayTypes.DisplayMode.create !Parser.display_mode;
+		display = display_mode;
 		verbose = false;
 		foptimize = true;
 		features = Hashtbl.create 0;
@@ -834,9 +818,8 @@ let create compilation_step cs version args =
 		callbacks = new compiler_callbacks;
 		global_metadata = [];
 		modules = [];
-		module_lut = new hashtbl_lookup;
+		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
-		type_to_module = new hashtbl_lookup;
 		main = None;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
@@ -864,16 +847,17 @@ let create compilation_step cs version args =
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
 		basic = {
-			tvoid = m;
-			tint = m;
-			tfloat = m;
-			tbool = m;
+			tvoid = mk_mono();
+			tint = mk_mono();
+			tfloat = mk_mono();
+			tbool = mk_mono();
+			tstring = mk_mono();
 			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
-			tstring = m;
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 		};
 		file_lookup_cache = new hashtbl_lookup;
 		file_keys = new file_keys;
+		file_contents = [];
 		readdir_cache = new hashtbl_lookup;
 		module_to_file = new hashtbl_lookup;
 		stored_typed_exprs = new hashtbl_lookup;
@@ -889,7 +873,7 @@ let create compilation_step cs version args =
 	com
 
 let is_diagnostics com = match com.report_mode with
-	| RMDiagnostics _ -> true
+	| RMLegacyDiagnostics _ | RMDiagnostics _ -> true
 	| _ -> false
 
 let disable_report_mode com =
@@ -904,7 +888,12 @@ let clone com is_macro_context =
 	let t = com.basic in
 	{ com with
 		cache = None;
-		basic = { t with tvoid = t.tvoid };
+		basic = { t with
+			tint = mk_mono();
+			tfloat = mk_mono();
+			tbool = mk_mono();
+			tstring = mk_mono();
+		};
 		main_class = None;
 		features = Hashtbl.create 0;
 		callbacks = new compiler_callbacks;
@@ -924,8 +913,7 @@ let clone com is_macro_context =
 		parser_cache = new hashtbl_lookup;
 		module_to_file = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
-		module_lut = new hashtbl_lookup;
-		type_to_module = new hashtbl_lookup;
+		module_lut = new module_lut;
 	}
 
 let file_time file = Extc.filetime file
@@ -1065,7 +1053,7 @@ let allow_package ctx s =
 	with Not_found ->
 		()
 
-let abort ?(depth = 0) msg p = raise (Abort (Error.make_error ~depth (Custom msg) p))
+let abort ?(depth = 0) msg p = raise (Error.Fatal_error (Error.make_error ~depth (Custom msg) p))
 
 let platform ctx p = ctx.platform = p
 
@@ -1131,7 +1119,7 @@ let cache_directory ctx class_path dir f_dir =
 	in
 	Option.may (Array.iter prepare_file) dir_listing
 
-let find_file ctx f =
+let find_file ctx ?(class_path=ctx.class_path) f =
 	try
 		match ctx.file_lookup_cache#find f with
 		| None -> raise Exit
@@ -1166,7 +1154,7 @@ let find_file ctx f =
 						loop (had_empty || p = "") l
 				end
 		in
-		let r = try Some (loop false ctx.class_path) with Not_found -> None in
+		let r = try Some (loop false class_path) with Not_found -> None in
 		ctx.file_lookup_cache#add f r;
 		match r with
 		| None -> raise Not_found
@@ -1322,100 +1310,3 @@ let get_entry_point com =
 		let e = Option.get com.main in (* must be present at this point *)
 		(snd path, c, e)
 	) com.main_class
-
-let format_string com s p process_expr =
-	let e = ref None in
-	let pmin = ref p.pmin in
-	let min = ref (p.pmin + 1) in
-	let add_expr (enext,p) len =
-		min := !min + len;
-		let enext = process_expr enext p in
-		match !e with
-		| None -> e := Some enext
-		| Some prev ->
-			e := Some (EBinop (OpAdd,prev,enext),punion (pos prev) p)
-	in
-	let add enext len =
-		let p = { p with pmin = !min; pmax = !min + len } in
-		add_expr (enext,p) len
-	in
-	let add_sub start pos =
-		let len = pos - start in
-		if len > 0 || !e = None then add (EConst (String (String.sub s start len,SDoubleQuotes))) len
-	in
-	let len = String.length s in
-	let rec parse start pos =
-		if pos = len then add_sub start pos else
-		let c = String.unsafe_get s pos in
-		let pos = pos + 1 in
-		if c = '\'' then begin
-			incr pmin;
-			incr min;
-		end;
-		if c <> '$' || pos = len then parse start pos else
-		match String.unsafe_get s pos with
-		| '$' ->
-			(* double $ *)
-			add_sub start pos;
-			parse (pos + 1) (pos + 1)
-		| '{' ->
-			parse_group start pos '{' '}' "brace"
-		| 'a'..'z' | 'A'..'Z' | '_' ->
-			add_sub start (pos - 1);
-			incr min;
-			let rec loop i =
-				if i = len then i else
-				let c = String.unsafe_get s i in
-				match c with
-				| 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' -> loop (i+1)
-				| _ -> i
-			in
-			let iend = loop (pos + 1) in
-			let len = iend - pos in
-			add (EConst (Ident (String.sub s pos len))) len;
-			parse (pos + len) (pos + len)
-		| _ ->
-			(* keep as-it *)
-			parse start pos
-	and parse_group start pos gopen gclose gname =
-		add_sub start (pos - 1);
-		let rec loop groups i =
-			if i = len then
-				match groups with
-				| [] -> die "" __LOC__
-				| g :: _ -> Error.raise_typing_error ("Unclosed " ^ gname) { p with pmin = !pmin + g + 1; pmax = !pmin + g + 2 }
-			else
-				let c = String.unsafe_get s i in
-				if c = gopen then
-					loop (i :: groups) (i + 1)
-				else if c = gclose then begin
-					let groups = List.tl groups in
-					if groups = [] then i else loop groups (i + 1)
-				end else
-					loop groups (i + 1)
-		in
-		let send = loop [pos] (pos + 1) in
-		let slen = send - pos - 1 in
-		let scode = String.sub s (pos + 1) slen in
-		min := !min + 2;
-		begin
-			let e =
-				let ep = { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } in
-				let error msg pos =
-					if Lexer.string_is_whitespace scode then Error.raise_typing_error "Expression cannot be empty" ep
-					else Error.raise_typing_error msg pos
-				in
-				match ParserEntry.parse_expr_string com.defines scode ep error true with
-					| ParseSuccess(data,_,_) -> data
-					| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
-			in
-			add_expr e slen
-		end;
-		min := !min + 1;
-		parse (send + 1) (send + 1)
-	in
-	parse 0 0;
-	match !e with
-	| None -> die "" __LOC__
-	| Some e -> e
-

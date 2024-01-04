@@ -481,8 +481,8 @@ let build_module_def ctx mt meta fvars fbuild =
 				let r = try ctx.g.do_macro ctx MBuild cpath meth el p with e -> ctx.get_build_infos <- old; raise e in
 				ctx.get_build_infos <- old;
 				(match r with
-				| None -> raise_typing_error "Build failure" p
-				| Some e -> fbuild e)
+				| MError | MMacroInMacro -> raise_typing_error "Build failure" p
+				| MSuccess e -> fbuild e)
 			) :: f_build
 		| Meta.Using,el,p -> (fun () ->
 			List.iter (fun e ->
@@ -638,7 +638,7 @@ let create_field_context ctx cctx cff is_display_file display_modifier =
 	fctx
 
 let create_typer_context_for_field ctx cctx fctx cff =
-	DeprecationCheck.check_is ctx.com ctx.curclass.cl_meta cff.cff_meta (fst cff.cff_name) cff.cff_meta (snd cff.cff_name);
+	DeprecationCheck.check_is ctx.com ctx.m.curmod ctx.curclass.cl_meta cff.cff_meta (fst cff.cff_name) cff.cff_meta (snd cff.cff_name);
 	let ctx = {
 		ctx with
 		pass = PBuildClass; (* will be set later to PTypeExpr *)
@@ -697,7 +697,7 @@ let transform_field (ctx,cctx) c f fields p =
 	in
 	if List.mem_assoc AMacro f.cff_access then
 		(match ctx.g.macros with
-		| Some (_,mctx) when mctx.com.type_to_module#mem c.cl_path ->
+		| Some (_,mctx) when mctx.com.module_lut#get_type_lut#mem c.cl_path ->
 			(* assume that if we had already a macro with the same name, it has not been changed during the @:build operation *)
 			if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem_assoc AMacro f2.cff_access) (!fields)) then
 				raise_typing_error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p
@@ -706,7 +706,7 @@ let transform_field (ctx,cctx) c f fields p =
 
 let type_var_field ctx t e stat do_display p =
 	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
-	let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
+	let e = if do_display then Display.preprocess_expr ctx.com e else e in
 	let e = type_expr ctx e (WithType.with_type t) in
 	let e = AbstractCast.cast_or_unify ctx t e p in
 	match t with
@@ -795,7 +795,6 @@ module TypeBinding = struct
 				force_macro false
 			else begin
 				cf.cf_type <- TLazy r;
-				(* is_lib ? *)
 				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
 			end
 		end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.com.is_macro_context then
@@ -860,6 +859,7 @@ module TypeBinding = struct
 		let r = make_lazy ~force:false ctx t (fun r ->
 			(* type constant init fields (issue #1956) *)
 			if not !return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
+				enter_field_typing_pass ctx ("bind_var_expression",fst ctx.curclass.cl_path @ [snd ctx.curclass.cl_path;ctx.curfield.cf_name]);
 				if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing field %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
@@ -951,11 +951,23 @@ module TypeBinding = struct
 					cf.cf_type <- t
 				| _ ->
 					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
+					let f_check = match fctx.field_kind with
+						| FKNormal when not fctx.is_static ->
+							begin match TypeloadCheck.check_overriding ctx c cf with
+							| NothingToDo ->
+								(fun () -> ())
+							| NormalOverride rctx ->
+								(fun () ->
+									TypeloadCheck.check_override_field ctx cf.cf_name_pos rctx
+								)
+							| OverloadOverride f ->
+								f
+							end
+						| _ ->
+							(fun () -> ())
+					in
 					let e = TypeloadFunction.type_function ctx args ret fmode e is_coroutine fctx.is_display_field p in
-					begin match fctx.field_kind with
-					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
-					| _ -> ()
-					end;
+					f_check();
 					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
 					(* List.iter (fun (v,_) ->
 						if v.v_name <> "_" && has_mono v.v_type then warning ctx WTemp "Uninferred function argument, please add a type-hint" v.v_pos;
@@ -1283,7 +1295,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 
 let create_method (ctx,cctx,fctx) c f fd p =
 	let name = fst f.cff_name in
-	let params = TypeloadFunction.type_function_params ctx fd name p in
+	let params = TypeloadFunction.type_function_params ctx fd TPHMethod name p in
 	if fctx.is_generic then begin
 		if params = [] then raise_typing_error "Generic functions must have type parameters" p;
 	end;
@@ -1299,11 +1311,11 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		if ctx.com.is_macro_context then begin
 			(* a class with a macro cannot be extern in macro context (issue #2015) *)
 			remove_class_flag c CExtern;
-			let texpr = CTPath (mk_type_path (["haxe";"macro"],"Expr")) in
+			let texpr = make_ptp_ct (mk_type_path (["haxe";"macro"],"Expr")) null_pos in
 			(* ExprOf type parameter might contain platform-specific type, let's replace it by Expr *)
 			let no_expr_of (t,p) = match t with
-				| CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType _] }
-				| CTPath { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType _] } -> Some (texpr,p)
+				| CTPath { path = {tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType _] }}
+				| CTPath { path = {tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType _] }} -> Some (texpr,p)
 				| t -> Some (t,p)
 			in
 			{
@@ -1313,8 +1325,8 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				f_expr = fd.f_expr;
 			}
 		end else
-			let tdyn = Some (CTPath (mk_type_path ([],"Dynamic")),null_pos) in
-			let to_dyn p t = match t with
+			let tdyn = Some (make_ptp_th (mk_type_path ([],"Dynamic")) null_pos) in
+			let to_dyn p ptp = match ptp.path with
 				| { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType t] } -> Some t
 				| { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType t] } -> Some t
 				| { tpackage = ["haxe"]; tname = ("PosInfos"); tsub = None; tparams = [] } -> raise_typing_error "haxe.PosInfos is not allowed on macro functions, use Context.currentPos() instead" p
@@ -1337,9 +1349,9 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			if fctx.is_static then invalid_modifier ctx.com fctx "static" "constructor" p;
 			begin match fd.f_type with
 				| None -> ()
-				| Some (CTPath ({ tpackage = []; tname = "Void" } as tp),p) ->
+				| Some (CTPath ({ path = {tpackage = []; tname = "Void" } as tp}),p) ->
 					if ctx.is_display_file && DisplayPosition.display_position#enclosed_in p then
-						ignore(load_instance ~allow_display:true ctx (tp,p) ParamNormal);
+						ignore(load_instance ~allow_display:true ctx (make_ptp tp p) ParamNormal);
 				| _ -> raise_typing_error "A class constructor can't have a return type" p;
 			end
 		| false,_ ->
@@ -1356,7 +1368,6 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	if (is_override && fctx.is_static) then invalid_modifier_combination fctx ctx.com fctx "override" "static" p;
 
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
-	(* TODO is_lib: avoid forcing the return type to be typed *)
 	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in
 	let is_coroutine = Meta.has Meta.Coroutine f.cff_meta in
 	let t = TFun (args#for_type,ret,is_coroutine) in
@@ -1448,7 +1459,6 @@ let create_method (ctx,cctx,fctx) c f fd p =
 
 let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	let name = fst f.cff_name in
-	(* TODO is_lib: lazify load_complex_type *)
 	let ret = (match t, eo with
 		| None, None -> raise_typing_error "Property requires type-hint or initialization" p;
 		| None, _ -> mk_mono()
@@ -1773,12 +1783,7 @@ let init_class ctx c p herits fields =
 		| _ :: l ->
 			check_require l
 	in
-	let rec check_if_feature = function
-		| [] -> []
-		| (Meta.IfFeature,el,_) :: _ -> List.map (fun (e,p) -> match e with EConst (String(s,_)) -> s | _ -> raise_typing_error "String expected" p) el
-		| _ :: l -> check_if_feature l
-	in
-	let cl_if_feature = check_if_feature c.cl_meta in
+	let cl_if_feature = Feature.check_if_feature c.cl_meta in
 	let cl_req = check_require c.cl_meta in
 	let has_init = ref false in
 	List.iter (fun f ->
@@ -1803,10 +1808,11 @@ let init_class ctx c p herits fields =
 					| FKConstructor -> CfrConstructor
 					| _ -> if fctx.is_static then CfrStatic else CfrMember
 				in
-				ctx.m.curmod.m_extra.m_if_feature <- (s, (mk_class_field_ref c cf ref_kind fctx.is_macro)) :: ctx.m.curmod.m_extra.m_if_feature;
+				let cf_ref = mk_class_field_ref c cf ref_kind fctx.is_macro in
+				Feature.set_feature ctx.m.curmod cf_ref s;
 			in
 			List.iter set_feature cl_if_feature;
-			List.iter set_feature (check_if_feature cf.cf_meta);
+			List.iter set_feature (Feature.check_if_feature cf.cf_meta);
 			let req = check_require f.cff_meta in
 			let req = (match req with None -> if fctx.is_static || fctx.field_kind = FKConstructor then cl_req else None | _ -> req) in
 			(match req with
@@ -1873,29 +1879,6 @@ let init_class ctx c p herits fields =
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
-	(* if ctx.is_display_file && not cctx.has_display_field && Display.is_display_position c.cl_pos && ctx.com.display.dms_kind = DMToplevel then begin
-		let rec loop acc c tl =
-			let maybe_add acc cf = match cf.cf_kind with
-				| Method MethNormal when not (PMap.mem cf.cf_name acc) -> PMap.add cf.cf_name cf acc
-				| _ -> acc
-			in
-			let acc = List.fold_left maybe_add PMap.empty c.cl_ordered_fields in
-			match c.cl_super with
-			| Some(c,tl) -> loop acc c tl
-			| None -> acc
-		in
-		let fields = match c.cl_super with
-			| Some(c,tl) -> loop PMap.empty c tl
-			| None -> PMap.empty
-		in
-		let open Display in
-		let l = PMap.fold (fun cf acc ->
-			if not (List.exists (fun cf' -> cf'.cf_name = cf.cf_name) c.cl_overrides) then
-				(IdentifierType.ITClassMember cf) :: acc
-			else acc
-		) fields [] in
-		raise (Display.DisplayToplevel l)
-	end; *)
 	(*
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)

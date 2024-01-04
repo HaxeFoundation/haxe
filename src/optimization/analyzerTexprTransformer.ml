@@ -127,11 +127,15 @@ let rec func ctx bb tf t p =
 			let bb,e2 = value bb e2 in
 			bb,{e with eexpr = TBinop(op,e1,e2)}
 		| TBinop(op,e1,e2) ->
-			let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
-				| bb,[e1;e2] -> bb,e1,e2
-				| _ -> die "" __LOC__
-			in
-			bb,{e with eexpr = TBinop(op,e1,e2)}
+			begin match ordered_value_list bb [e1;e2] with
+				| bb,[e1;e2] ->
+					bb,{e with eexpr = TBinop(op,e1,e2)}
+				| bb,[e] ->
+					assert(bb == g.g_unreachable);
+					bb,e
+				| _ ->
+					die "" __LOC__
+				end
 		| TUnop(op,flag,e1) ->
 			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TUnop(op,flag,e1)}
@@ -148,11 +152,16 @@ let rec func ctx bb tf t p =
 			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TField(e1,fa)}
 		| TArray(e1,e2) ->
-			let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
-				| bb,[e1;e2] -> bb,e1,e2
-				| _ -> die "" __LOC__
-			in
-			bb,{e with eexpr = TArray(e1,e2)}
+			begin match ordered_value_list bb [e1;e2] with
+				| bb,[e1;e2] ->
+					bb,{e with eexpr = TArray(e1,e2)}
+
+				| bb,[e] ->
+					assert(bb == g.g_unreachable);
+					bb,e
+				| _ ->
+					die "" __LOC__
+				end
 		| TMeta(m,e1) ->
 			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TMeta(m,e1)}
@@ -404,14 +413,14 @@ let rec func ctx bb tf t p =
 			bb
 		(* branching *)
 		| TMeta((Meta.MergeBlock,_,_),{eexpr = TBlock el}) ->
-			block_el bb el
+			block_el true bb el
 		| TBlock [] when (ExtType.is_void (follow e.etype)) ->
 			bb
 		| TBlock el ->
 			let bb_sub = create_node BKSub e.etype e.epos in
 			add_cfg_edge bb bb_sub CFGGoto;
 			close_node bb;
-			let bb_sub_next = block_el bb_sub el in
+			let bb_sub_next = block_el true bb_sub el in
 			if bb_sub_next != g.g_unreachable then begin
 				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 				set_syntax_edge bb (SESubBlock(bb_sub,bb_next));
@@ -654,12 +663,18 @@ let rec func ctx bb tf t p =
 			let bb = block_element bb e1 in
 			block_element bb e2
 		| TArrayDecl el ->
-			block_el bb el
+			block_el false bb el
 		| TObjectDecl fl ->
-			block_el bb (List.map snd fl)
+			block_el false bb (List.map snd fl)
 		| TFor _ | TWhile(_,_,DoWhile) ->
 			die "" __LOC__
-	and block_el bb el =
+	and block_el allow_void bb el =
+		let block_element = if allow_void then
+			block_element
+		else (fun bb e ->
+			no_void e.etype e.epos;
+			block_element bb e
+		) in
 		match !b_try_stack with
 		| [] ->
 			let rec loop bb el = match el with
@@ -691,7 +706,7 @@ let rec func ctx bb tf t p =
 			| TBlock el -> el
 			| _ -> [e]
 		in
-		block_el bb el
+		block_el true bb el
 	in
 	let bb_last = block bb_root tf.tf_expr in
 	close_node bb_last;

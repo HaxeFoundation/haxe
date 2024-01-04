@@ -361,7 +361,7 @@ let make_debug ctx arr =
 let fake_tnull =
 	{null_abstract with
 		a_path = [],"Null";
-		a_params = [{ttp_name = "T"; ttp_type = t_dynamic; ttp_default = None}];
+		a_params = [mk_type_param null_class TPHType None None];
 	}
 
 let get_rec_cache ctx t none_callback not_found_callback =
@@ -435,7 +435,7 @@ let rec to_type ?tref ctx t =
 		HAbstract (name, alloc_string ctx name)
 	| TInst (c,pl) ->
 		(match c.cl_kind with
-		| KTypeParameter tl ->
+		| KTypeParameter ttp ->
 			let rec loop = function
 				| [] -> HDyn
 				| t :: tl ->
@@ -443,7 +443,7 @@ let rec to_type ?tref ctx t =
 					| TInst (c,_) as t when not (has_class_flag c CInterface) -> to_type ?tref ctx t
 					| _ -> loop tl
 			in
-			loop tl
+			loop (get_constraints ttp)
 		| _ -> class_type ~tref ctx c pl false)
 	| TAbstract ({a_path = [],"Null"},[t1]) ->
 		let t = to_type ?tref ctx t1 in
@@ -1384,7 +1384,7 @@ and get_access ctx e =
 				let t = to_type ctx t in
 				AArray (a,(t,t),i)
 			| TInst ({ cl_path = ["hl"],"Abstract" },[TInst({ cl_kind = KExpr (EConst (String("hl_carray",_)),_) },_)]) ->
-				let a = eval_null_check ctx a in
+				let a = eval_expr ctx a in
 				hold ctx a;
 				let i = eval_to ctx i HI32 in
 				free ctx a;
@@ -2082,6 +2082,32 @@ and eval_expr ctx e =
 			| AInstanceField (f, index) -> op ctx (OPrefetch (eval_expr ctx f, index + 1, mode))
 			| _ -> op ctx (OPrefetch (eval_expr ctx value, 0, mode)));
 			alloc_tmp ctx HVoid
+        | "$unsafecast", [value] ->
+			let r = alloc_tmp ctx (to_type ctx e.etype) in
+            op ctx (OUnsafeCast (r, eval_expr ctx value));
+			r
+		| "$asm", [mode; value] ->
+			let mode = (match get_const mode with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant mode required" e.epos
+			) in
+			let value = (match get_const value with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant value required" e.epos
+			) in
+			op ctx (OAsm (mode, value, 0));
+			alloc_tmp ctx HVoid
+		| "$asm", [mode; value; reg] ->
+			let mode = (match get_const mode with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant mode required" e.epos
+			) in
+			let value = (match get_const value with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant value required" e.epos
+			) in
+			op ctx (OAsm (mode, value, (eval_expr ctx reg) + 1));
+			alloc_tmp ctx HVoid
 		| _ ->
 			abort ("Unknown native call " ^ s) e.epos)
 	| TEnumIndex v ->
@@ -2169,9 +2195,9 @@ and eval_expr ctx e =
 				match follow t with
 				| TFun (_,rt,_) ->
 					(match follow rt with
-					| TInst({ cl_kind = KTypeParameter tl },_) ->
+					| TInst({ cl_kind = KTypeParameter ttp },_) ->
 						(* don't allow if we have a constraint virtual, see hxbit.Serializer.getRef *)
-						not (List.exists (fun t -> match to_type ctx t with HVirtual _ -> true | _ -> false) tl)
+						not (List.exists (fun t -> match to_type ctx t with HVirtual _ -> true | _ -> false) (get_constraints ttp))
 					| _ -> false)
 				| _ ->
 					false
@@ -2469,6 +2495,14 @@ and eval_expr ctx e =
 				free ctx ra;
 				free ctx ridx;
 				v
+            | ACArray (ra, _, ridx) ->
+				hold ctx ra;
+				hold ctx ridx;
+                let v = value() in
+                op ctx (OSetArray (ra,ridx,v));
+                free ctx ridx;
+                free ctx ra;
+                v
 			| ADynamic (ethis,f) ->
 				let obj = eval_null_check ctx ethis in
 				hold ctx obj;
@@ -2480,7 +2514,7 @@ and eval_expr ctx e =
 				let r = value() in
 				op ctx (OSetEnumField (ctx.m.mcaptreg,index,r));
 				r
-			| AEnum _ | ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ | ACArray _ ->
+			| AEnum _ | ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ ->
 				die "" __LOC__)
 		| OpBoolOr ->
 			let r = alloc_tmp ctx HBool in
@@ -2664,13 +2698,10 @@ and eval_expr ctx e =
 		ctx.m.mbreaks <- [];
 		ctx.m.mcontinues <- [];
 		ctx.m.mloop_trys <- ctx.m.mtrys;
-		let start = jump ctx (fun p -> OJAlways p) in
 		let continue_pos = current_pos ctx in
 		let ret = jump_back ctx in
-		let j = jump_expr ctx cond false in
-		start();
 		ignore(eval_expr ctx eloop);
-		set_curpos ctx (max_pos e);
+		let j = jump_expr ctx cond false in
 		ret();
 		j();
 		List.iter (fun f -> f (current_pos ctx)) ctx.m.mbreaks;

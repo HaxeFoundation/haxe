@@ -70,6 +70,7 @@ type 'value compiler_api = {
 	display_error : ?depth:int -> (string -> pos -> unit);
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
+	exc_string : 'a . string -> 'a;
 }
 
 
@@ -290,13 +291,19 @@ let encode_path (p,n) =
 	]
 
 (* Ast.placed_type_path *)
-let rec encode_ast_path (t,p) =
+let rec encode_ast_path ptp =
+	let t = ptp.path in
 	let fields = [
 		"pack", encode_array (List.map encode_string t.tpackage);
 		"name", encode_string t.tname;
 		"params", encode_array (List.map encode_tparam t.tparams);
-		"pos", encode_pos p;
+		"pos", encode_pos ptp.pos_full;
 	] in
+	let fields = if ptp.pos_full <> ptp.pos_path then
+		("posPath", encode_pos ptp.pos_path) :: fields
+	else
+		fields
+	in
 	encode_obj (match t.tsub with
 		| None -> fields
 		| Some s -> ("sub", encode_string s) :: fields)
@@ -351,8 +358,8 @@ and encode_field (f:class_field) =
 
 and encode_ctype t =
 	let tag, pl = match fst t with
-	| CTPath p ->
-		0, [encode_ast_path (p,Globals.null_pos)]
+	| CTPath ptp ->
+		0, [encode_ast_path ptp]
 	| CTFunction (pl,r) ->
 		1, [encode_array (List.map encode_ctype pl);encode_ctype r]
 	| CTAnonymous fl ->
@@ -744,12 +751,15 @@ let decode_opt_array f v =
 
 (* Ast.placed_type_path *)
 let rec decode_ast_path t =
-	let p = field t "pos" in
 	let pack = List.map decode_string (decode_array (field t "pack"))
 	and name = decode_string (field t "name")
 	and params = decode_opt_array decode_tparam (field t "params")
 	and sub = opt decode_string (field t "sub") in
-	mk_type_path ~params ?sub (pack,name), if p = vnull then Globals.null_pos else decode_pos p
+	let p_full = field t "pos" in
+	let p_full = if p_full = vnull then Globals.null_pos else decode_pos p_full in
+	let p_path = field t "posPath" in
+	let p_path = if p_path = vnull then Globals.null_pos else decode_pos p_path in
+	make_ptp (mk_type_path ~params ?sub (pack,name)) ~p_path p_full
 
 and decode_tparam v =
 	match decode_enum v with
@@ -842,7 +852,7 @@ and decode_ctype t =
 	let (i,args),p = decode_enum_with_pos t in
 	(match i,args with
 	| 0, [p] ->
-		CTPath (fst (decode_ast_path p))
+		CTPath (decode_ast_path p)
 	| 1, [a;r] ->
 		CTFunction (List.map decode_ctype (decode_array a), decode_ctype r)
 	| 2, [fl] ->
@@ -1004,12 +1014,9 @@ let encode_meta m set =
 			encode_meta_content (!meta)
 		);
 		"add", vfun3 (fun k vl p ->
-			(try
-				let el = List.map decode_expr (decode_array vl) in
-				meta := (Meta.from_string (decode_string k), el, decode_pos p) :: !meta;
-				set (!meta)
-			with Invalid_expr ->
-				failwith "Invalid expression");
+			let el = List.map decode_expr (decode_array vl) in
+			meta := (Meta.from_string (decode_string k), el, decode_pos p) :: !meta;
+			set (!meta);
 			vnull
 		);
 		"extract", vfun1 (fun k ->
@@ -1136,7 +1143,7 @@ and encode_method_kind m =
 and encode_class_kind k =
 	let tag, pl = (match k with
 		| KNormal -> 0, []
-		| KTypeParameter pl -> 1, [encode_tparams pl]
+		| KTypeParameter ttp -> 1, [encode_tparams (get_constraints ttp)] (* TTPTODO *)
 		| KModuleFields m -> 2, [encode_string (s_type_path m.m_path)]
 		| KExpr e -> 3, [encode_expr e]
 		| KGeneric -> 4, []
@@ -1436,14 +1443,6 @@ let decode_tconst c =
 	| 6, [] -> TSuper
 	| _ -> raise Invalid_expr
 
-let decode_type_params v =
-	List.map (fun v ->
-		let name = decode_string (field v "name") in
-		let t = decode_type (field v "t") in
-		let default = opt decode_type (field v "defaultType") in
-		mk_type_param name t default
-	) (decode_array v)
-
 let decode_tvar v =
 	(Obj.obj (decode_unsafe (field v "$")) : tvar)
 
@@ -1471,31 +1470,6 @@ let decode_field_kind v =
 	| 0, [vr;vw] -> Type.Var({v_read = decode_var_access vr; v_write = decode_var_access vw})
 	| 1, [m] -> Method (decode_method_kind m)
 	| _ -> raise Invalid_expr
-
-let decode_cfield v =
-	let public = decode_bool (field v "isPublic") in
-	let extern = decode_bool (field v "isExtern") in
-	let final = decode_bool (field v "isFinal") in
-	let abstract = decode_bool (field v "isAbstract") in
-	let cf = {
-		cf_name = decode_string (field v "name");
-		cf_type = decode_type (field v "type");
-		cf_pos = decode_pos (field v "pos");
-		cf_name_pos = decode_pos (field v "namePos");
-		cf_doc = decode_doc (field v "doc");
-		cf_meta = []; (* TODO *)
-		cf_kind = decode_field_kind (field v "kind");
-		cf_params = decode_type_params (field v "params");
-		cf_expr = None;
-		cf_expr_unoptimized = None;
-		cf_overloads = decode_ref (field v "overloads");
-		cf_flags = 0;
-	} in
-	if public then add_class_field_flag cf CfPublic;
-	if extern then add_class_field_flag cf CfExtern;
-	if final then add_class_field_flag cf CfFinal;
-	if abstract then add_class_field_flag cf CfAbstract;
-	cf
 
 let decode_efield v =
 	let rec get_enum t =
@@ -1790,6 +1764,19 @@ let rec make_const e =
 **)
 
 let macro_api ccom get_api =
+	let decode_type v =
+		try decode_type v
+		with Invalid_expr -> (get_api()).exc_string "Invalid expression"
+	in
+	let decode_expr v =
+		try decode_expr v
+		with Invalid_expr -> (get_api()).exc_string "Invalid expression"
+	in
+	let decode_texpr v =
+		try decode_texpr v
+		with Invalid_expr -> (get_api()).exc_string "Invalid expression"
+	in
+	let failwith s = (get_api()).exc_string s in
 	[
 		"contains_display_position", vfun1 (fun p ->
 			let p = decode_pos p in
@@ -1920,14 +1907,17 @@ let macro_api ccom get_api =
 		);
 		"do_parse", vfun3 (fun s p b ->
 			let s = decode_string s in
-			if s = "" then raise Invalid_expr;
+			if s = "" then (get_api()).exc_string "Invalid expression";
 			encode_expr ((get_api()).parse_string s (decode_pos p) (decode_bool b))
 		);
 		"make_expr", vfun2 (fun v p ->
 			encode_expr (value_to_expr v (decode_pos p))
 		);
 		"signature", vfun1 (fun v ->
-			encode_string (Digest.to_hex (value_signature v))
+			try
+				encode_string (Digest.to_hex (value_signature v))
+			with Invalid_argument msg ->
+				(get_api()).exc_string msg
 		);
 		"to_complex_type", vfun1 (fun v ->
 			try	encode_ctype (TExprToExpr.convert_type' (decode_type v))
@@ -2098,7 +2088,7 @@ let macro_api ccom get_api =
 			if name = "" then failwith "Empty resource name";
 			Hashtbl.replace (ccom()).resources name data;
 			let m = (get_api()).current_module() in
-			m.m_extra.m_binded_res <- PMap.add name data m.m_extra.m_binded_res;
+			DynArray.add m.m_extra.m_cache_bound_objects (Resource(name,data));
 			vnull
 		);
 		"get_resources", vfun0 (fun() ->
@@ -2174,7 +2164,7 @@ let macro_api ccom get_api =
 			encode_type t
 		);
 		"define_module", vfun4 (fun path vl ui ul ->
-			(get_api()).define_module (decode_string path) (decode_array vl) (List.map decode_import (decode_array ui)) (List.map fst (List.map decode_ast_path (decode_array ul)));
+			(get_api()).define_module (decode_string path) (decode_array vl) (List.map decode_import (decode_array ui)) (List.map (fun ptp -> ptp.path) (List.map decode_ast_path (decode_array ul)));
 			vnull
 		);
 		"add_class_path", vfun1 (fun cp ->
@@ -2194,7 +2184,15 @@ let macro_api ccom get_api =
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
-			NativeLibraryHandler.add_native_lib com file false ();
+			let open CompilationContext in
+			let kind = match com.platform with
+				| Java -> JavaLib
+				| Cs -> NetLib
+				| Flash -> SwfLib
+				| _ -> failwith "Unsupported platform"
+			in
+			let lib = create_native_lib file false kind in
+			NativeLibraryHandler.add_native_lib com lib ();
 			vnull
 		);
 		"add_native_arg", vfun1 (fun arg ->
@@ -2281,10 +2279,13 @@ let macro_api ccom get_api =
 		"apply_params", vfun3 (fun tpl tl t ->
 			let tl = List.map decode_type (decode_array tl) in
 			let tpl = List.map (fun v ->
-				let name = decode_string (field v "name") in
 				let t = decode_type (field v "t") in
 				let default = None in (* we don't care here *)
-				mk_type_param  name t default
+				let c = match t with
+					| TInst(c,_) -> c
+					| _ -> die "" __LOC__
+				in
+				mk_type_param c TPHType default None
 			) (decode_array tpl) in
 			let rec map t = match t with
 				| TInst({cl_kind = KTypeParameter _},_) ->
@@ -2308,6 +2309,8 @@ let macro_api ccom get_api =
 					failwith ("unable to find file for inclusion: " ^ file)
 			in
 			(ccom()).include_files <- (file, position) :: (ccom()).include_files;
+			let m = (get_api()).current_module() in
+			DynArray.add m.m_extra.m_cache_bound_objects (IncludeFile(file,position));
 			vnull
 		);
 		(* Compilation server *)
@@ -2323,7 +2326,7 @@ let macro_api ccom get_api =
 			List.iter (fun v ->
 				let s = decode_string v in
 				let s = com.file_keys#get s in
-				cs#taint_modules s "server_invalidate_files";
+				cs#taint_modules s ServerInvalidateFiles;
 				cs#remove_files s;
 			) (decode_array a);
 			vnull

@@ -19,18 +19,26 @@ class Macro {
 			"typeof",
 			// C11
 			"_Alignas", "_Alignof", "_Atomic", "_Bool", "_Complex", "_Generic", "_Imaginary", "_Noreturn", "_Static_assert", "_Thread_local", "_Pragma",
-			"inline", "restrict"
+			"inline", "restrict", "_restrict"
 		];
 
 		var pos = Context.currentPos();
 
-		for (k in keywords)
+		for (k in keywords) {
 			fields.push({
 				pos: pos,
 				name: "_test_" + k,
 				meta: [{pos: pos, name: ":native", params: [macro $v{k}]}],
 				kind: FVar(macro :String, null)
 			});
+
+			fields.push({
+				pos: pos,
+				name: "_test2_" + k,
+				meta: [{pos: pos, name: ":native", params: [macro $v{'__' + k}]}],
+				kind: FVar(macro :String, null)
+			});
+		}
 
 		return fields;
 	}

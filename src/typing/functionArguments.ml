@@ -22,7 +22,7 @@ let type_function_arg_value ctx t c do_display =
 		| None -> None
 		| Some e ->
 			let p = pos e in
-			let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
+			let e = if do_display then Display.preprocess_expr ctx.com e else e in
 			let e = Optimizer.reduce_expression ctx (type_expr ctx e (WithType.with_type t)) in
 			unify ctx e.etype t p;
 			let rec loop e = match e.eexpr with
@@ -89,7 +89,8 @@ object(self)
 		| None ->
 			let make_local name kind t meta pn =
 				let v = alloc_var kind name t pn in
-				v.v_meta <- v.v_meta @ meta;
+				let meta = (StrictMeta.check_strict_meta ctx meta) @ meta in
+				v.v_meta <- meta;
 				v
 			in
 			let rec loop acc is_abstract_this syntax typed = match syntax,typed with

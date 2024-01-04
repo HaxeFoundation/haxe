@@ -1154,6 +1154,8 @@ let interp ctx f args =
 			(match get r2, get off with
 			| VRef (RArray (a,pos),t), VInt i -> set r (VRef (RArray (a,pos + Int32.to_int i),t))
 			| _ -> Globals.die "" __LOC__)
+		| OAsm _ ->
+			throw_msg ctx "Unsupported ASM"
 		| ONop _ | OPrefetch _ ->
 			()
 		);
@@ -2456,17 +2458,13 @@ let check code macros =
 				reg p HI32;
 				(match rtype v with HI32 | HI64 | HF32 | HF64 -> () | _ -> error (reg_inf r ^ " should be numeric"));
 			| OSetArray (a,i,v) ->
-				reg a HArray;
+				(match rtype a with HAbstract ("hl_carray",_) -> () | _ -> reg a HArray);
 				reg i HI32;
 				ignore(rtype v);
-			| OUnsafeCast (a,b) ->
-				is_dyn a;
-				is_dyn b;
-			| OSafeCast (a,b) ->
+            | OUnsafeCast (a,b) | OSafeCast (a,b) ->
 				ignore(rtype a);
 				ignore(rtype b);
 			| OArraySize (r,a) ->
-				(match rtype a with HAbstract ("hl_carray",_) -> () | _ -> reg a HArray);
 				reg r HI32
 			| OType (r,_) ->
 				reg r HType
@@ -2549,6 +2547,8 @@ let check code macros =
 				();
 			| OPrefetch (r,f,_) ->
 				if f = 0 then ignore(rtype r) else ignore(tfield r (f - 1) false)
+			| OAsm (_,_,r) ->
+				if r > 0 then ignore(rtype (r - 1))
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in

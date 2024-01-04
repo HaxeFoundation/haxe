@@ -5,6 +5,7 @@ open Common
 open Typecore
 open Error
 open FieldAccess
+open FieldCallCandidate
 
 let unify_call_args ctx el args r callp inline force_inline in_overload =
 	let call_error err p = raise_error_msg (Call_error err) p in
@@ -113,10 +114,10 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 								let e = EArrayDecl el,p in
 								(* typer requires dynamic arrays to be explicitly declared as Array<Dynamic> *)
 								if follow arg_t == t_dynamic then begin
-									let dynamic = CTPath(mk_type_path ([],"Dynamic")),p in
+									let dynamic = make_ptp_th (mk_type_path ([],"Dynamic")) p in
 									let params = [TPType dynamic] in
-									let tp = mk_type_path ~params ([],"Array") in
-									do_type (ECheckType(e,(CTPath tp, p)),p) (* ([arg1, arg2...]:Array<Dynamic>) *)
+									let ct = make_ptp_ct (mk_type_path ~params ([],"Array")) p in
+									do_type (ECheckType(e,(ct, p)),p) (* ([arg1, arg2...]:Array<Dynamic>) *)
 								end else
 									do_type e
 							with WithTypeError e ->
@@ -352,14 +353,6 @@ let unify_field_call ctx fa el_typed el p inline =
 		in
 		loop candidates
 	in
-	let fail_fun () =
-		let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic,false) in
-		let call () =
-			let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa fa.fa_field fa.fa_host)) tf fa.fa_pos in
-			mk (TCall(ef,[])) t_dynamic p
-		in
-		make_field_call_candidate [] t_dynamic [] tf fa.fa_field call
-	in
 	let maybe_check_access cf =
 		(* type_field doesn't check access for overloads, so let's check it here *)
 		begin match co with
@@ -369,13 +362,34 @@ let unify_field_call ctx fa el_typed el p inline =
 			()
 		end;
 	in
+	(* There's always a chance that we never even came across the EDisplay in an argument, so let's look for it (issue #11422). *)
+	let check_display_args () =
+		if ctx.is_display_file then begin
+			let rec loop el = match el with
+				| [] ->
+					()
+				| e :: el ->
+					if Ast.exists (function EDisplay _ -> true | _ -> false) e then
+						ignore(type_expr ctx e WithType.value)
+					else
+						loop el
+			in
+			loop el
+		end;
+	in
 	match candidates with
 	| [cf] ->
 		if overload_kind = OverloadProper then maybe_check_access cf;
 		begin try
 			commit_delayed_display (attempt_call cf false)
 		with Error _ when Common.ignore_error ctx.com ->
-			fail_fun();
+			check_display_args();
+			let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic,false) in
+			let call () =
+				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa fa.fa_field fa.fa_host)) tf fa.fa_pos in
+				mk (TCall(ef,[])) t_dynamic p
+			in
+			make_field_call_candidate [] t_dynamic [] tf fa.fa_field call
 		end
 	| _ ->
 		let candidates,failures = attempt_calls candidates in
@@ -387,6 +401,7 @@ let unify_field_call ctx fa el_typed el p inline =
 				) delayed_display;
 				cf,err
 			) failures in
+			check_display_args();
 			let failures = remove_duplicates (fun (_,e1) (_,e2) -> (MessageReporting.print_error e1) <> (MessageReporting.print_error e2)) failures in
 			begin match failures with
 			| [_,err] ->
@@ -410,7 +425,8 @@ let unify_field_call ctx fa el_typed el p inline =
 			end
 		in
 		if overload_kind = OverloadProper then begin match Overloads.Resolution.reduce_compatible candidates with
-			| [] -> fail()
+			| [] ->
+				fail()
 			| [fcc] ->
 				maybe_check_access fcc.fc_field;
 				commit_delayed_display fcc
@@ -455,13 +471,21 @@ object(self)
 		ctx.macro_depth <- ctx.macro_depth + 1;
 		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
 		let ethis_f = ref (fun () -> ()) in
+		let macro_in_macro () =
+			(fun () ->
+				let e = (EThrow((EConst(String("macro-in-macro",SDoubleQuotes))),p),p) in
+				type_expr ~mode ctx e with_type
+			)
+		in
 		let f = (match ethis.eexpr with
 		| TTypeExpr (TClassDecl c) ->
 			DeprecationCheck.check_cf (create_deprecation_context ctx) cf p;
-			(match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name el p with
-			| None -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
-			| Some (EMeta((Meta.MergeBlock,_,_),(EBlock el,_)),_) -> (fun () -> let e = (!type_block_ref) ctx el with_type p in mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos)
-			| Some e -> (fun() -> type_expr ~mode ctx e with_type))
+			begin match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name el p with
+				| MError -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
+				| MSuccess (EMeta((Meta.MergeBlock,_,_),(EBlock el,_)),_) -> (fun () -> let e = (!type_block_ref) ctx el with_type p in mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos)
+				| MSuccess e -> (fun() -> type_expr ~mode ctx e with_type)
+				| MMacroInMacro -> macro_in_macro ()
+			end
 		| _ ->
 			(* member-macro call : since we will make a static call, let's find the actual class and not its subclass *)
 			(match follow ethis.etype with
@@ -471,8 +495,9 @@ object(self)
 						let eparam,f = push_this ctx ethis in
 						ethis_f := f;
 						let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name (eparam :: el) p with
-							| None -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
-							| Some e -> (fun() -> type_expr ~mode ctx e WithType.value)
+							| MError -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
+							| MSuccess e -> (fun() -> type_expr ~mode ctx e with_type)
+							| MMacroInMacro -> macro_in_macro ()
 						in
 						e
 					else
@@ -505,7 +530,6 @@ object(self)
 			!ethis_f();
 			raise exc
 		in
-		let e = Diagnostics.secure_generated_code ctx.com e in
 		ctx.com.error_ext <- old;
 		!ethis_f();
 		e

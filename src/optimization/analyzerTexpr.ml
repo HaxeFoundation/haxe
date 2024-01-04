@@ -62,6 +62,7 @@ let map_values ?(allow_control_flow=true) f e =
 				let e = {e with eexpr = TBlock (List.rev (e1 :: el))} in
 				{e with eexpr = TMeta((Meta.MergeBlock,[],e.epos),e)}
 			| [] ->
+				if not complex then raise Exit;
 				f e
 			end
 		| TTry(e1,catches) ->
@@ -742,7 +743,7 @@ module Fusion = struct
 			(* no-side-effect *)
 			| {eexpr = TFunction _ | TConst _ | TTypeExpr _} :: el ->
 				loop acc el
-			| {eexpr = TMeta((Meta.Pure,_,_),_)} :: el ->
+			| {eexpr = TMeta((Meta.Pure,_,_) as meta,_)} :: el when PurityState.get_purity_from_meta [meta] = Pure ->
 				loop acc el
 			| {eexpr = TCall({eexpr = TField(e1,fa)},el1)} :: el2 when PurityState.is_pure_field_access fa && config.local_dce ->
 				loop acc (e1 :: el1 @ el2)
@@ -1078,12 +1079,11 @@ module Cleanup = struct
 							| TLocal v when IntMap.mem v.v_id !locals -> true
 							| _ -> check_expr references_local e
 						in
-						let can_do = match com.platform with Hl -> false | _ -> true in
 						let rec loop2 el = match el with
-							| [{eexpr = TBreak}] when is_true_expr e1 && can_do && not has_continue ->
+							| [{eexpr = TBreak}] when is_true_expr e1 && not has_continue ->
 								do_while := Some (Texpr.Builder.make_bool com.basic true e1.epos);
 								[]
-							| [{eexpr = TIf(econd,{eexpr = TBlock[{eexpr = TBreak}]},None)}] when is_true_expr e1 && not (references_local econd) && can_do && not has_continue ->
+							| [{eexpr = TIf(econd,{eexpr = TBlock[{eexpr = TBreak}]},None)}] when is_true_expr e1 && not (references_local econd) && not has_continue ->
 								do_while := Some econd;
 								[]
 							| {eexpr = TBreak | TContinue | TReturn _ | TThrow _} as e :: el ->

@@ -89,8 +89,8 @@ let check_display_class ctx decls c =
 		let sc = find_class_by_position decls c.cl_name_pos in
 		ignore(Typeload.type_type_params ctx TPHType c.cl_path (fun() -> c.cl_params) null_pos sc.d_params);
 		List.iter (function
-			| (HExtends(ct,p) | HImplements(ct,p)) when display_position#enclosed_in p ->
-				ignore(Typeload.load_instance ~allow_display:true ctx (ct,p) ParamNormal)
+			| (HExtends ptp | HImplements ptp) when display_position#enclosed_in ptp.pos_full ->
+				ignore(Typeload.load_instance ~allow_display:true ctx ptp ParamNormal)
 			| _ ->
 				()
 		) sc.d_flags;
@@ -178,7 +178,7 @@ let check_display_file ctx cs =
 			let fkey = DisplayPosition.display_position#get_file_key in
 			(* force parsing again : if the completion point have been changed *)
 			cs#remove_files fkey;
-			cs#taint_modules fkey "check_display_file";
+			cs#taint_modules fkey CheckDisplayFile;
 		end
 	| None ->
 		()

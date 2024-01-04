@@ -1,3 +1,5 @@
+--cmd rm -rf bin
+--next
 cs.Boot
 --dce no
 -cs bin/haxeboot

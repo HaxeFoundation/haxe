@@ -113,16 +113,15 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 	| false ->
 		let static_ctor_name = make_static_ctor_name cl in
 		(* create the static constructor *)
-		let ctor_types = List.map (fun tp -> {tp with ttp_type = TInst(map_param (get_cl_t tp.ttp_type), [])}) cl.cl_params in
+		let ctor_types = List.map clone_param cl.cl_params in
 		let ctor_type_params = extract_param_types ctor_types in
-		List.iter (function {ttp_type=TInst(c,[])} -> (
-			match c.cl_kind with
-			| KTypeParameter (hd :: tail) ->
-				let before = hd :: tail in
-				let after = List.map (apply_params cl.cl_params ctor_type_params) (before) in
-				c.cl_kind <- KTypeParameter(after)
-			| _ -> ())
-		| _ -> ()) ctor_types;
+		List.iter (fun ttp -> match get_constraints ttp with
+			| [] ->
+				()
+			| before ->
+				let after = List.map (apply_params cl.cl_params ctor_type_params) before in
+				ttp.ttp_constraints <- Some (lazy after)
+		) ctor_types;
 		let me = alloc_var "__hx_this" (TInst(cl, extract_param_types ctor_types)) in
 		add_var_flag me VCaptured;
 

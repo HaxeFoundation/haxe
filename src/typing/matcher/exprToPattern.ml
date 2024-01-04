@@ -58,7 +58,7 @@ let get_general_module_type ctx mt p =
 			end
 		| _ -> raise_typing_error "Cannot use this type as a value" p
 	in
-	Typeload.load_instance ctx ({tname=loop mt;tpackage=[];tsub=None;tparams=[]},p) ParamSpawnMonos
+	Typeload.load_instance ctx (make_ptp {tname=loop mt;tpackage=[];tsub=None;tparams=[]} p) ParamSpawnMonos
 
 let unify_type_pattern ctx mt t p =
 	let tcl = get_general_module_type ctx mt p in
@@ -216,7 +216,7 @@ let rec make pctx toplevel t e =
 	let rec loop e = match fst e with
 		| EParenthesis e1 | ECast(e1,None) ->
 			loop e1
-		| ECheckType(e, (CTPath({tpackage=["haxe";"macro"]; tname="Expr"}),_)) ->
+		| ECheckType(e, (CTPath({path = {tpackage=["haxe";"macro"]; tname="Expr"}}),_)) ->
 			let old = pctx.in_reification in
 			pctx.in_reification <- true;
 			let e = loop e in
@@ -252,7 +252,11 @@ let rec make pctx toplevel t e =
 		| ECall(e1,el) ->
 			let e1 = type_expr ctx e1 (WithType.with_type t) in
 			begin match e1.eexpr,follow e1.etype with
-				| TField(_, FEnum(en,ef)),TFun(_,TEnum(_,tl),_) ->
+				| TField(_, FEnum(en,ef)),TFun(_,tr,_) ->
+					let tl = match follow tr with
+						| TEnum(_,tl) -> tl
+						| _ -> fail()
+					in
 					let map = apply_params en.e_params tl in
 					let monos = Monomorph.spawn_constrained_monos map ef.ef_params in
 					let map t = map (apply_params ef.ef_params monos t) in

@@ -224,8 +224,6 @@ let reduce_expr com e =
 			) l with
 			| [] -> ec
 			| l -> { e with eexpr = TBlock (List.rev (ec :: l)) })
-	| TMeta ((Meta.CompilerGenerated,_,_),ec) ->
-		{ ec with epos = e.epos }
 	| TParenthesis ec ->
 		{ ec with epos = e.epos }
 	| TTry (e,[]) ->

@@ -4,9 +4,7 @@ open Type
 open Common
 open Typecore
 open Error
-
-let haxe_exception_type_path = (["haxe"],"Exception")
-let value_exception_type_path = (["haxe"],"ValueException")
+open ExceptionFunctions
 
 type context = {
 	typer : typer;
@@ -65,11 +63,7 @@ let haxe_exception_instance_call ctx haxe_exception method_name args p =
 *)
 let std_is ctx e t p =
 	let t = follow t in
-	let std_cls =
-		match Typeload.load_type_raise ctx.typer ([],"Std") "Std" p with
-		| TClassDecl cls -> cls
-		| _ -> raise_typing_error "Std is expected to be a class" p
-	in
+	let std_cls = ctx.typer.g.std in
 	let isOfType_field =
 		try PMap.find "isOfType" std_cls.cl_statics
 		with Not_found -> raise_typing_error ("Std has no field isOfType") p
@@ -122,23 +116,6 @@ let is_haxe_wildcard_catch ctx t =
 	let t = Abstract.follow_with_abstracts t in
 	t == t_dynamic || fast_eq ctx.haxe_exception_type t
 
-(**
-	Check if `cls` is or extends (if `check_parent=true`) `haxe.Exception`
-*)
-let rec is_haxe_exception_class ?(check_parent=true) cls =
-	cls.cl_path = haxe_exception_type_path
-	|| (check_parent && match cls.cl_super with
-		| None -> false
-		| Some (cls, _) -> is_haxe_exception_class ~check_parent cls
-	)
-
-(**
-	Check if `t` is or extends `haxe.Exception`
-*)
-let is_haxe_exception ?(check_parent=true) (t:Type.t) =
-	match Abstract.follow_with_abstracts t with
-		| TInst (cls, _) -> is_haxe_exception_class ~check_parent cls
-		| _ -> false
 
 (**
 	Check if `v` variable is used in `e` expression
@@ -525,11 +502,13 @@ let filter tctx =
 	| Php | Js | Java | Cs | Python | Lua | Eval | Neko | Flash | Hl | Cpp ->
 		let config = tctx.com.config.pf_exceptions in
 		let tp (pack,name) =
-			match List.rev pack with
+			let tp = match List.rev pack with
 			| module_name :: pack_rev when not (Ast.is_lower_ident module_name) ->
-				(mk_type_path ~sub:name (List.rev pack_rev,module_name), null_pos)
+				mk_type_path ~sub:name (List.rev pack_rev,module_name)
 			| _ ->
-				(mk_type_path (pack,name), null_pos)
+				mk_type_path (pack,name)
+			in
+			make_ptp tp null_pos
 		in
 		let wildcard_catch_type =
 			let t = Typeload.load_instance tctx (tp config.ec_wildcard_catch) ParamSpawnMonos in
@@ -664,7 +643,7 @@ let insert_save_stacks tctx =
 	Adds `this.__shiftStack()` calls to constructors of classes which extend `haxe.Exception`
 *)
 let patch_constructors tctx =
-	let tp = (mk_type_path haxe_exception_type_path, null_pos) in
+	let tp = make_ptp (mk_type_path haxe_exception_type_path) null_pos in
 	match Typeload.load_instance tctx tp ParamSpawnMonos with
 	(* Add only if `__shiftStack` method exists *)
 	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields ->

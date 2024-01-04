@@ -2,29 +2,35 @@ open Globals
 open Common
 open CompilationContext
 
-let run_or_diagnose ctx f arg =
+let run_or_diagnose ctx f =
 	let com = ctx.com in
-	let handle_diagnostics ?(depth = 0) msg p kind =
+	let handle_diagnostics msg p kind =
 		ctx.has_error <- true;
-		add_diagnostics_message ~depth com msg p kind Error;
-		DisplayOutput.emit_diagnostics ctx.com
+		add_diagnostics_message com msg p kind Error;
+		match com.report_mode with
+		| RMLegacyDiagnostics _ -> DisplayOutput.emit_legacy_diagnostics ctx.com
+		| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
+		| _ -> die "" __LOC__
 	in
 	if is_diagnostics com then begin try
-			f arg
+			f ()
 		with
 		| Error.Error err ->
 			ctx.has_error <- true;
 			Error.recurse_error (fun depth err ->
 				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos DKCompilerMessage Error
 			) err;
-			DisplayOutput.emit_diagnostics ctx.com
+			(match com.report_mode with
+			| RMLegacyDiagnostics _ -> DisplayOutput.emit_legacy_diagnostics ctx.com
+			| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
+			| _ -> die "" __LOC__)
 		| Parser.Error(msg,p) ->
 			handle_diagnostics (Parser.error_msg msg) p DKParserError
 		| Lexer.Error(msg,p) ->
 			handle_diagnostics (Lexer.error_msg msg) p DKParserError
 		end
 	else
-		f arg
+		f ()
 
 let run_command ctx cmd =
 	let t = Timer.timer ["command";cmd] in
@@ -169,10 +175,10 @@ module Setup = struct
 		Common.log com (Buffer.contents buffer);
 		com.callbacks#run com.error_ext com.callbacks#get_before_typer_create;
 		(* Native lib pass 1: Register *)
-		let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
+		let fl = List.map (fun lib -> NativeLibraryHandler.add_native_lib com lib) (List.rev native_libs) in
 		(* Native lib pass 2: Initialize *)
 		List.iter (fun f -> f()) fl;
-		Typer.create com macros
+		TyperEntry.create com macros
 
 	let executable_path() =
 		Extc.executable_path()
@@ -199,18 +205,14 @@ module Setup = struct
 				let share_path = Filename.concat prefix_path "share" in
 				[
 					"";
-					Path.add_trailing_slash (Filename.concat lib_path "haxe/std");
-					Path.add_trailing_slash (Filename.concat lib_path "haxe/extraLibs");
 					Path.add_trailing_slash (Filename.concat share_path "haxe/std");
-					Path.add_trailing_slash (Filename.concat share_path "haxe/extraLibs");
+					Path.add_trailing_slash (Filename.concat lib_path "haxe/std");
 					Path.add_trailing_slash (Filename.concat base_path "std");
-					Path.add_trailing_slash (Filename.concat base_path "extraLibs")
 				]
 			else
 				[
 					"";
 					Path.add_trailing_slash (Filename.concat base_path "std");
-					Path.add_trailing_slash (Filename.concat base_path "extraLibs")
 				]
 
 	let setup_common_context ctx =
@@ -297,7 +299,7 @@ let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
 			if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
 			List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
 			Finalization.finalize tctx;
-		) ();
+		);
 	end with TypeloadParse.DisplayInMacroBlock ->
 		ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true)
 	);
@@ -317,16 +319,16 @@ let finalize_typing ctx tctx =
 	let com = ctx.com in
 	enter_stage com CFilteringStart;
 	ServerMessage.compiler_stage com;
-	let main, types, modules = run_or_diagnose ctx Finalization.generate tctx in
+	let main, types, modules = run_or_diagnose ctx (fun () -> Finalization.generate tctx) in
 	com.main <- main;
 	com.types <- types;
 	com.modules <- modules;
 	t()
 
-let filter ctx tctx =
+let filter ctx tctx before_destruction =
 	let t = Timer.timer ["filters"] in
 	DeprecationCheck.run ctx.com;
-	Filters.run tctx ctx.com.main;
+	run_or_diagnose ctx (fun () -> Filters.run tctx ctx.com.main before_destruction);
 	t()
 
 let compile ctx actx callbacks =
@@ -363,8 +365,12 @@ let compile ctx actx callbacks =
 		let (tctx,display_file_dot_path) = do_type ctx mctx actx display_file_dot_path macro_cache_enabled in
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
-		DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
-		filter ctx tctx;
+		if is_diagnostics com then
+			filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)
+		else begin
+			DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
+			filter ctx tctx (fun () -> ());
+		end;
 		if ctx.has_error then raise Abort;
 		Generate.check_auxiliary_output com actx;
 		enter_stage com CGenerationStart;
@@ -390,8 +396,6 @@ with
 	| Abort ->
 		()
 	| Error.Fatal_error err ->
-		error_ext ctx err
-	| Common.Abort err ->
 		error_ext ctx err
 	| Lexer.Error (m,p) ->
 		error ctx (Lexer.error_msg m) p
@@ -420,7 +424,7 @@ with
 		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException.DisplayException dex ->
 		DisplayOutput.handle_display_exception ctx dex
-	| Out_of_memory | EvalExceptions.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ as exc ->
+	| Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ as exc ->
 		(* We don't want these to be caught by the catchall below *)
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
@@ -446,7 +450,7 @@ let catch_completion_and_exit ctx callbacks run =
 			ServerMessage.completion str;
 			ctx.comm.write_err str;
 			0
-		| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->
+		| EvalTypes.Sys_exit i | Hlinterp.Sys_exit i ->
 			if i <> 0 then ctx.has_error <- true;
 			finalize ctx;
 			i
@@ -479,7 +483,7 @@ let compile_ctx callbacks ctx =
 		catch_completion_and_exit ctx callbacks run
 
 let create_context comm cs compilation_step params = {
-	com = Common.create compilation_step cs version params;
+	com = Common.create compilation_step cs version params (DisplayTypes.DisplayMode.create !Parser.display_mode);
 	messages = [];
 	has_next = false;
 	has_error = false;

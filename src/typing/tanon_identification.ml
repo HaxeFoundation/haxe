@@ -135,6 +135,45 @@ object(self)
 		in
 		loop td.t_type
 
+	method identity_anon (an : tanon) =
+		let make_pfm path = {
+			pfm_path = path;
+			pfm_params = [];
+			pfm_fields = an.a_fields;
+			pfm_converted = None;
+			pfm_arity = count_fields an.a_fields;
+		} in
+		match !(an.a_status) with
+		| ClassStatics {cl_path = path} | EnumStatics {e_path = path} | AbstractStatics {a_path = path} ->
+			begin try
+				Some (Hashtbl.find pfms path)			
+			with Not_found ->
+				let pfm = make_pfm path in
+				self#add_pfm path pfm;
+				Some pfm
+			end
+		| _ ->
+			let arity = PMap.fold (fun cf i ->
+				replace_mono cf.cf_type;
+				i + 1
+			) an.a_fields 0 in
+			begin try
+				Some (self#find_compatible arity (TAnon an))
+			with Not_found ->
+				let id = num in
+				num <- num + 1;
+				let path = (["haxe";"generated"],Printf.sprintf "Anon%i" id) in
+				let pfm = {
+					pfm_path = path;
+					pfm_params = [];
+					pfm_fields = an.a_fields;
+					pfm_converted = None;
+					pfm_arity = count_fields an.a_fields;
+				} in
+				self#add_pfm path pfm;
+				Some pfm
+			end
+
 	method identify (accept_anons : bool) (t : Type.t) =
 		match t with
 		| TType(td,tl) ->
@@ -152,26 +191,7 @@ object(self)
 		| TLazy f ->
 			self#identify accept_anons (lazy_type f)
 		| TAnon an when accept_anons && not (PMap.is_empty an.a_fields) ->
-			let arity = PMap.fold (fun cf i ->
-				replace_mono cf.cf_type;
-				i + 1
-			) an.a_fields 0 in
-			begin try
-				Some (self#find_compatible arity t)
-			with Not_found ->
-				let id = num in
-				num <- num + 1;
-				let path = (["haxe";"generated"],Printf.sprintf "Anon%i" id) in
-				let pfm = {
-					pfm_path = path;
-					pfm_params = [];
-					pfm_fields = an.a_fields;
-					pfm_converted = None;
-					pfm_arity = count_fields an.a_fields;
-				} in
-				self#add_pfm path pfm;
-				Some pfm
-			end;
+			self#identity_anon an
 		| _ ->
 			None
 end

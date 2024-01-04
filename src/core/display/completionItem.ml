@@ -223,16 +223,14 @@ module CompletionModuleType = struct
 		in
 		let is_extern,is_final,is_abstract,kind,ctor = ctor_info mt in
 		let infos = t_infos mt in
-		let convert_type_param tp = match follow tp.ttp_type with
-			| TInst(c,_) -> {
-				tp_name = tp.ttp_name,null_pos;
+		let convert_type_param ttp =
+			{
+				tp_name = ttp.ttp_name,null_pos;
 				tp_params = [];
 				tp_constraints = None; (* TODO? *)
 				tp_default = None; (* TODO? *)
-				tp_meta = c.cl_meta
+				tp_meta = ttp.ttp_class.cl_meta
 			}
-			| _ ->
-				die "" __LOC__
 		in
 		{
 			pack = fst infos.mt_path;
@@ -764,42 +762,21 @@ let to_json ctx index item =
 		]
 		| ITMetadata meta ->
 			let open Meta in
-			let name,(doc,params),origin = Meta.get_info meta in
+			let name,data = Meta.get_info meta in
 			let name = "@" ^ name in
-			let usage_to_string = function
-				| TClass -> "TClass"
-				| TClassField -> "TClassField"
-				| TAbstract -> "TAbstract"
-				| TAbstractField -> "TAbstractField"
-				| TEnum -> "TEnum"
-				| TTypedef -> "TTypedef"
-				| TAnyField -> "TAnyField"
-				| TExpr -> "TExpr"
-				| TTypeParameter -> "TTypeParameter"
-				| TVariable -> "TVariable"
-			in
-			let origin = match origin with
-				| Compiler -> Some "haxe compiler"
-				| UserDefined s -> s
-			in
-			let rec loop internal params platforms targets links l = match l with
-				| HasParam s :: l -> loop internal (s :: params) platforms targets links l
-				| Platforms pls :: l -> loop internal params ((List.map platform_name pls) @ platforms) targets links l
-				| UsedOn usages :: l -> loop internal params platforms ((List.map usage_to_string usages) @ targets) links l
-				| UsedInternally :: l -> loop true params platforms targets links l
-				| Link url :: l -> loop internal params platforms targets (url :: links) l
-				| [] -> internal,params,platforms,targets,links
-			in
-			let internal,params,platforms,targets,links = loop false [] [] [] [] params in
 			"Metadata",jobject [
-				"name",jstring name;
-				"doc",jstring doc;
-				"parameters",jlist jstring params;
-				"platforms",jlist jstring platforms;
-				"targets",jlist jstring targets;
-				"internal",jbool internal;
-				"links",jlist jstring links;
-				"origin",jopt jstring origin;
+				"name", jstring name;
+				"doc", jstring data.m_doc;
+				"parameters", jarray (List.map jstring data.m_params);
+				"platforms", jarray (List.map (fun p -> jstring (platform_name p)) data.m_platforms);
+				"targets", jarray (List.map (fun u -> jstring (Meta.print_meta_usage u)) data.m_used_on);
+				"internal", jbool data.m_internal;
+				"origin", jstring (match data.m_origin with
+					| Compiler -> "haxe compiler"
+					| UserDefined None -> "user-defined"
+					| UserDefined (Some o) -> o
+				);
+				"links", jarray (List.map jstring data.m_links)
 			]
 		| ITKeyword kwd ->"Keyword",jobject [
 			"name",jstring (s_keyword kwd)
@@ -808,11 +785,11 @@ let to_json ctx index item =
 		| ITExpression e -> "Expression",generate_texpr ctx e
 		| ITTypeParameter c ->
 			begin match c.cl_kind with
-			| KTypeParameter tl ->
+			| KTypeParameter ttp ->
 				"TypeParameter",jobject [
 					"name",jstring (snd c.cl_path);
 					"meta",generate_metadata ctx c.cl_meta;
-					"constraints",jlist (generate_type ctx) tl;
+					"constraints",jlist (generate_type ctx) (get_constraints ttp);
 				]
 			| _ -> die "" __LOC__
 			end

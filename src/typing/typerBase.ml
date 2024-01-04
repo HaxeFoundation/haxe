@@ -155,9 +155,11 @@ let get_this ctx p =
 	| FunMemberClassLocal | FunMemberAbstractLocal ->
 		let v = match ctx.vthis with
 			| None ->
-				let v = if ctx.curfun = FunMemberAbstractLocal then
-					PMap.find "this" ctx.locals
-				else
+				let v = if ctx.curfun = FunMemberAbstractLocal then begin
+					let v = PMap.find "this" ctx.locals in
+					add_var_flag v VUsedByTyper;
+					v
+				end else
 					add_local ctx VGenerated (Printf.sprintf "%sthis" gen_local_prefix) ctx.tthis p
 				in
 				ctx.vthis <- Some v;
@@ -208,8 +210,7 @@ let type_module_type ctx t p =
 			let t_tmp = class_module_type c in
 			mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
 		| TEnumDecl e ->
-			let types = (match tparams with None -> Monomorph.spawn_constrained_monos (fun t -> t) e.e_params | Some l -> l) in
-			mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
+			mk (TTypeExpr (TEnumDecl e)) e.e_type p
 		| TTypeDecl s ->
 			let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx p) s.t_params) in
 			DeprecationCheck.check_typedef (create_deprecation_context ctx) s p;
@@ -307,8 +308,8 @@ let get_constructible_constraint ctx tl p =
 				end;
 			| TAbstract({a_path = ["haxe"],"Constructible"},[t1]) ->
 				Some (extract_function t1)
-			| TInst({cl_kind = KTypeParameter tl1},_) ->
-				begin match loop tl1 with
+			| TInst({cl_kind = KTypeParameter ttp},_) ->
+				begin match loop (get_constraints ttp) with
 				| None -> loop tl
 				| Some _ as t -> t
 				end

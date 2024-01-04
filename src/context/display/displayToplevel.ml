@@ -449,10 +449,8 @@ let collect ctx tk with_type sort =
 	end;
 
 	(* type params *)
-	List.iter (fun tp -> match follow tp.ttp_type with
-		| TInst(c,_) ->
-			add (make_ci_type_param c (tpair tp.ttp_type)) (Some (snd c.cl_path))
-		| _ -> die "" __LOC__
+	List.iter (fun tp ->
+		add (make_ci_type_param tp.ttp_class (tpair tp.ttp_type)) (Some (snd tp.ttp_class.cl_path))
 	) ctx.type_params;
 
 	(* module types *)

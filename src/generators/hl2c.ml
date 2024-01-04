@@ -98,13 +98,13 @@ let keywords =
 	"typeof";
 	(* C11 *)
 	"_Alignas";"_Alignof";"_Atomic";"_Bool";"_Complex";"_Generic";"_Imaginary";"_Noreturn";"_Static_assert";"_Thread_local";"_Pragma";
-	"inline";"restrict"
+	"inline";"restrict";"_restrict"
 	] in
 	let h = Hashtbl.create 0 in
 	List.iter (fun i -> Hashtbl.add h i ()) c_kwds;
 	h
 
-let ident i = if (Hashtbl.mem keywords i) || (ExtString.String.starts_with "__" i) then "_hx_" ^ i else i
+let ident i = if (Hashtbl.mem keywords i) || (ExtString.String.starts_with i "__") then "_hx_" ^ i else i
 
 let s_comp = function
 	| CLt -> "<"
@@ -990,7 +990,15 @@ let generate_function ctx f =
 		| OGetMem (r,b,idx) ->
 			sexpr "%s = *(%s*)(%s + %s)" (reg r) (ctype (rtype r)) (reg b) (reg idx)
 		| OGetArray (r, arr, idx) ->
-			sexpr "%s = ((%s*)(%s + 1))[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx)
+            (match rtype arr with
+            | HAbstract _ ->
+                (match rtype r with
+                | HStruct _ | HObj _ ->
+			        sexpr "%s = ((%s)%s) + %s" (reg r) (ctype (rtype r)) (reg arr) (reg idx)
+                | _ ->
+			        sexpr "%s = ((%s*)%s)[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx))
+            | _ ->
+			    sexpr "%s = ((%s*)(%s + 1))[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx))
 		| OSetUI8 (b,idx,r) ->
 			sexpr "*(unsigned char*)(%s + %s) = (unsigned char)%s" (reg b) (reg idx) (reg r)
 		| OSetUI16 (b,idx,r) ->
@@ -998,7 +1006,11 @@ let generate_function ctx f =
 		| OSetMem (b,idx,r) ->
 			sexpr "*(%s*)(%s + %s) = %s" (ctype (rtype r)) (reg b) (reg idx) (reg r)
 		| OSetArray (arr,idx,v) ->
-			sexpr "((%s*)(%s + 1))[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v)
+            (match rtype arr with
+            | HAbstract _ ->
+			    sexpr "((%s*)%s)[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v)
+            | _ ->
+			    sexpr "((%s*)(%s + 1))[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v))
 		| OSafeCast (r,v) ->
 			let tsrc = rtype v in
 			let t = rtype r in
@@ -1098,6 +1110,8 @@ let generate_function ctx f =
 				Globals.die "" __LOC__
 			)) in
 			sexpr "__hl_prefetch_m%d(%s)" mode expr
+		| OAsm _ ->
+			sexpr "UNSUPPORTED ASM OPCODE";
 	) f.code;
 	flush_options (Array.length f.code);
 	unblock();

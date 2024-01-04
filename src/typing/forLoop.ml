@@ -84,7 +84,7 @@ module IterationKind = struct
 		(mk (TArray (arr,iexpr)) pt p)
 
 	let check_iterator ?(resume=false) ?last_resort ctx s e p =
-		let t,pt = Typeload.t_iterator ctx in
+		let t,pt = Typeload.t_iterator ctx p in
 		let dynamic_iterator = ref None in
 		let e1 = try
 			let e = AbstractCast.cast_or_unify_raise ctx t e p in
@@ -267,7 +267,7 @@ module IterationKind = struct
 		let t_void = ctx.t.tvoid in
 		let t_int = ctx.t.tint in
 		let mk_field e n =
-			TField (e,try quick_field e.etype n with Not_found -> die "" __LOC__)
+			TField (e,try quick_field e.etype n with Not_found -> Error.raise_msg (Printf.sprintf "Could not find field %s on %s" n (s_type_kind e.etype)) e.epos)
 		in
 		let get_array_length arr p =
 			mk (mk_field arr "length") ctx.com.basic.tint p
@@ -457,29 +457,7 @@ type iteration_kind =
 	| IKNormal of iteration_ident
 	| IKKeyValue of iteration_ident * iteration_ident
 
-let type_for_loop ctx handle_display it e2 p =
-	let rec loop_ident dko e1 = match e1 with
-		| EConst(Ident i),p -> i,p,dko
-		| EDisplay(e1,dk),_ -> loop_ident (Some dk) e1
-		| _ -> raise_typing_error "Identifier expected" (pos e1)
-	in
-	let rec loop dko e1 = match fst e1 with
-		| EBinop(OpIn,e1,e2) ->
-			begin match fst e1 with
-			| EBinop(OpArrow,ei1,ei2) -> IKKeyValue(loop_ident None ei1,loop_ident None ei2),e2
-			| _ -> IKNormal (loop_ident dko e1),e2
-			end
-		| EDisplay(e1,dk) -> loop (Some dk) e1
-		| EBinop(OpArrow,ei1,(EBinop(OpIn,ei2,e2),_)) -> IKKeyValue(loop_ident None ei1,loop_ident None ei2),e2
-		| _ ->
-			begin match dko with
-			| Some dk -> ignore(handle_display ctx e1 dk MGet WithType.value);
-			| None -> ()
-			end;
-			raise_typing_error "For expression should be 'v in expr'" (snd it)
-	in
-	let ik,e1 = loop None it in
-	let e1 = type_expr ctx e1 WithType.value in
+let type_for_loop ctx handle_display ik e1 e2 p =
 	let old_loop = ctx.in_loop in
 	let old_locals = save_locals ctx in
 	ctx.in_loop <- true;
@@ -535,4 +513,27 @@ let type_for_loop ctx handle_display it e2 p =
 		old_locals();
 		e
 
-
+let type_for_loop ctx handle_display it e2 p =
+	let rec loop_ident dko e1 = match e1 with
+		| EConst(Ident i),p -> i,p,dko
+		| EDisplay(e1,dk),_ -> loop_ident (Some dk) e1
+		| _ -> raise_typing_error "Identifier expected" (pos e1)
+	in
+	let rec loop dko e1 = match fst e1 with
+		| EBinop(OpIn,e1,e2) ->
+			begin match fst e1 with
+			| EBinop(OpArrow,ei1,ei2) -> IKKeyValue(loop_ident None ei1,loop_ident None ei2),e2
+			| _ -> IKNormal (loop_ident dko e1),e2
+			end
+		| EDisplay(e1,dk) -> loop (Some dk) e1
+		| EBinop(OpArrow,ei1,(EBinop(OpIn,ei2,e2),_)) -> IKKeyValue(loop_ident None ei1,loop_ident None ei2),e2
+		| _ ->
+			begin match dko with
+			| Some dk -> ignore(handle_display ctx e1 dk MGet WithType.value);
+			| None -> ()
+			end;
+			raise_typing_error "For expression should be 'v in expr'" (snd it)
+	in
+	let ik,e1 = loop None it in
+	let e1 = type_expr ctx e1 WithType.value in
+	type_for_loop ctx handle_display ik e1 e2 p
