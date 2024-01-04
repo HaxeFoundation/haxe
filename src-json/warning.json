@@ -99,6 +99,11 @@
 		"parent": "WTyper"
 	},
 	{
+		"name": "WInlineOptimizedField",
+		"doc": "A cached field which was optimized might lead to different output when inlined",
+		"parent": "WTyper"
+	},
+	{
 		"name": "WPatternMatcher",
 		"doc": "Warnings related to the pattern matcher",
 		"parent": "WTyper"

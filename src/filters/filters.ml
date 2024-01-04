@@ -708,6 +708,15 @@ let save_class_state com t =
 			a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
 		)
 
+let might_need_cf_unoptimized c cf =
+	match cf.cf_kind,c.cl_kind with
+	| Method MethInline,_ ->
+		true
+	| _,KGeneric ->
+		true
+	| _ ->
+		has_class_field_flag cf CfGeneric
+
 let run tctx main before_destruction =
 	let com = tctx.com in
 	let detail_times = (try int_of_string (Common.defined_value_safe com ~default:"0" Define.FilterTimes) with _ -> 0) in
@@ -723,8 +732,11 @@ let run tctx main before_destruction =
 				(* Save cf_expr_unoptimized early: We want to inline with the original expression
 				   on the next compilation. *)
 				if not cached then begin
-					let field cf =
-						cf.cf_expr_unoptimized <- cf.cf_expr
+					let field cf = match cf.cf_expr,cf.cf_expr_unoptimized with
+						| Some e,None when might_need_cf_unoptimized cls cf ->
+							cf.cf_expr_unoptimized <- Some e
+						| _ ->
+							()
 					in
 					List.iter field cls.cl_ordered_fields;
 					List.iter field cls.cl_ordered_statics;
