@@ -950,8 +950,8 @@ let _optimize (f:fundecl) =
 				(* loop : first pass does not recurse, second pass uses cache *)
 				if b2.bloop && b2.bstart < b.bstart then (match b2.bneed_all with None -> acc | Some s -> ISet.union acc s) else
 				ISet.union acc (live b2)
-			) ISet.empty b.bnext in
-			let need_sub = ISet.filter (fun r ->
+			) ISet.empty in
+			let need_sub bl = ISet.filter (fun r ->
 				try
 					let w = PMap.find r b.bwrite in
 					set_live r (w + 1) b.bend;
@@ -959,8 +959,8 @@ let _optimize (f:fundecl) =
 				with Not_found ->
 					set_live r b.bstart b.bend;
 					true
-			) need_sub in
-			let need = ISet.union b.bneed need_sub in
+			) (need_sub bl) in
+			let need = ISet.union b.bneed (need_sub b.bnext) in
 			b.bneed_all <- Some need;
 			if b.bloop then begin
 				(*
@@ -977,8 +977,11 @@ let _optimize (f:fundecl) =
 				in
 				List.iter (fun b2 -> if b2.bstart > b.bstart then clear b2) b.bprev;
 				List.iter (fun b -> ignore(live b)) b.bnext;
+				(* do-while loop : recompute self after recompute all next *)
+				let need = ISet.union b.bneed (need_sub b.bnext) in
+				b.bneed_all <- Some need;
 			end;
-			need
+			Option.get b.bneed_all
 	in
 	ignore(live root);
 
