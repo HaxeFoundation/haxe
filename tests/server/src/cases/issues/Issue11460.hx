@@ -14,13 +14,13 @@ class Issue11460 extends TestCase {
 		assertSilence();
 
 		// touching Main doesn't do anything
-		vfs.touchFile("Main.hx");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
 		runHaxe(args);
 		assertSilence();
 
 		// touching both doesn't do anything
-		vfs.touchFile("Main.hx");
-		vfs.touchFile("C.hx");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("C.hx")});
 		runHaxe(args);
 		assertSilence();
 
@@ -36,7 +36,7 @@ class Issue11460 extends TestCase {
 
 		// removing the inline and changing C is still fine
 		vfs.putContent("Main.hx", mainContent.replace("inline", ""));
-		vfs.touchFile("C.hx");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("C.hx")});
 		runHaxe(args);
 		assertSilence();
 
