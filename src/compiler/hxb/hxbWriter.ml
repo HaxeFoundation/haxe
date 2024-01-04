@@ -912,17 +912,17 @@ class hxb_writer
 	method write_type_parameter_ref (ttp : typed_type_param) =
 		begin try
 			begin match ttp.ttp_host with
-			| TPHMethod | TPHEnumConstructor | TPHAnonField | TPHConstructor ->
-				let i = field_type_parameters#get ttp in
-				chunk#write_u8 5;
-				chunk#write_uleb128 i;
 			| TPHType ->
 				let i = type_type_parameters#get ttp.ttp_name in
-				chunk#write_u8 6;
+				chunk#write_u8 1;
 				chunk#write_uleb128 i
+			| TPHMethod | TPHEnumConstructor | TPHAnonField | TPHConstructor ->
+				let i = field_type_parameters#get ttp in
+				chunk#write_u8 2;
+				chunk#write_uleb128 i;
 			| TPHLocal ->
 				let index = local_type_parameters#get ttp in
-				chunk#write_u8 7;
+				chunk#write_u8 3;
 				chunk#write_uleb128 index;
 		end with Not_found ->
 			let msg = Printf.sprintf "[%s] %s Unbound type parameter %s" (s_type_path current_module.m_path) todo_error (s_type_path ttp.ttp_class.cl_path) in
@@ -931,35 +931,101 @@ class hxb_writer
 				prerr_endline msg;
 			end;
 			(* TODO: handle unbound type parameters? *)
-			chunk#write_u8 40; (* TDynamic None *)
+			chunk#write_u8 4; (* TDynamic None *)
 		end
 
 	method write_type_instance_byte i =
 		stats.type_instance_kind_writes.(i) <- stats.type_instance_kind_writes.(i) + 1;
 		chunk#write_u8 i
 
+	(*
+		simple references:
+		     0 - mono
+		     1 -> type ttp
+		     2 -> field ttp
+		     3 -> local ttp
+		     4 -> Dynamic
+
+		special references:
+		    10 - class statics
+		    11 - enum statics
+		    12 - abstract statics
+		    13 - KExpr
+
+		void functions:
+		    20: () -> Void
+		    21: (A) -> Void
+		    22: (A, B) -> Void
+		    23: (A, B, C) -> Void
+		    24: (A, B, C) -> Void
+		    29: (?) -> Void
+
+		non-void functions:
+		    30: () -> T
+		    31: (A) -> T
+		    32: (A, B) -> T
+		    33: (A, B, C) -> T
+		    34: (A, B, C, D) -> T
+		    39: (?) -> T
+
+		class:
+		    40: C
+		    41: C<A>
+		    42: C<A, B>
+		    49: C<?>
+
+		enum:
+		    50: E
+		    51: E<A>
+		    52: E<A, B>
+		    59: E<?>
+
+		typedef:
+		    60: T
+		    61: T<A>
+		    62: T<A, B>
+		    69: T<?>
+
+		abstract:
+		    70: A
+		    71: A<A>
+		    72: A<A, B>
+		    79: A<?>
+
+		anons:
+		    80: {}
+			81: any anon
+			89: Dynamic<T>
+
+		concrete types:
+		   100: Void
+		   101: Int
+		   102: Float
+		   103: Bool
+		   104: String
+	*)
 	method write_type_instance_simple (rings : t_rings) (t : Type.t) =
 		match t with
-		| TAbstract ({a_path = ([],"Int")},[]) ->
+		| TAbstract ({a_path = ([],"Void")},[]) ->
 			self#write_type_instance_byte 100;
 			None
-		| TAbstract ({a_path = ([],"Float")},[]) ->
+		| TAbstract ({a_path = ([],"Int")},[]) ->
 			self#write_type_instance_byte 101;
 			None
-		| TAbstract ({a_path = ([],"Bool")},[]) ->
+		| TAbstract ({a_path = ([],"Float")},[]) ->
 			self#write_type_instance_byte 102;
 			None
-		| TInst ({cl_path = ([],"String")},[]) ->
+		| TAbstract ({a_path = ([],"Bool")},[]) ->
 			self#write_type_instance_byte 103;
 			None
-		| TAbstract ({a_path = ([],"Void")},[]) ->
+		| TInst ({cl_path = ([],"String")},[]) ->
 			self#write_type_instance_byte 104;
 			None
 		| TMono r ->
 			Monomorph.close r;
 			begin match r.tm_type with
 			| None ->
-				self#write_type_instance_byte 1;
+				self#write_type_instance_byte 0;
 				self#write_tmono_ref r;
 				None
 			| Some t ->
@@ -974,29 +1040,29 @@ class hxb_writer
 		| TInst({cl_kind = KExpr _},_) ->
 			Some (t,rings#ring_inst)
 		| TInst(c,[]) ->
-			self#write_type_instance_byte 10;
+			self#write_type_instance_byte 40;
 			self#write_class_ref c;
 			None
 		| TEnum(en,[]) ->
-			self#write_type_instance_byte 11;
+			self#write_type_instance_byte 50;
 			self#write_enum_ref en;
 			None
 		| TType(td,[]) ->
 			let default () =
-				self#write_type_instance_byte 12;
+				self#write_type_instance_byte 60;
 				self#write_typedef_ref td;
 			in
 			begin match td.t_type with
 			| TAnon an ->
 				begin match !(an.a_status) with
 					| ClassStatics c ->
-						self#write_type_instance_byte 13;
+						self#write_type_instance_byte 10;
 						self#write_class_ref c
 					| EnumStatics en ->
-						self#write_type_instance_byte 14;
+						self#write_type_instance_byte 11;
 						self#write_enum_ref en;
 					| AbstractStatics a ->
-						self#write_type_instance_byte 15;
+						self#write_type_instance_byte 12;
 						self#write_abstract_ref a
 					| _ ->
 						default()
@@ -1006,14 +1072,14 @@ class hxb_writer
 			end;
 			None
 		| TAbstract(a,[]) ->
-			self#write_type_instance_byte 16;
+			self#write_type_instance_byte 70;
 			self#write_abstract_ref a;
 			None
 		| TDynamic None ->
-			self#write_type_instance_byte 40;
+			self#write_type_instance_byte 4;
 			None
 		| TFun([],t) when ExtType.is_void (follow_lazy_and_mono t) ->
-			self#write_type_instance_byte 30;
+			self#write_type_instance_byte 20;
 			None
 		| TInst _ ->
 			Some (t,rings#ring_inst)
@@ -1036,43 +1102,47 @@ class hxb_writer
 			chunk#write_bool o;
 			self#write_type_instance t;
 		in
+		let write_inlined_list offset max f_first f_elt l =
+			let length = List.length l in
+			if length > max then begin
+				self#write_type_instance_byte (offset + 9);
+				f_first ();
+				chunk#write_list l f_elt
+			end else begin
+				self#write_type_instance_byte (offset + length);
+				f_first();
+				List.iter (fun elt ->
+					f_elt elt
+				) l
+			end
+		in
 		match t with
 		| TMono _ | TLazy _ | TDynamic None ->
 			die "" __LOC__
 		| TInst({cl_kind = KExpr e},[]) ->
-			self#write_type_instance_byte 8;
+			self#write_type_instance_byte 13;
 			self#write_expr e;
-		| TInst(c,tl) ->
-			self#write_type_instance_byte 17;
-			self#write_class_ref c;
-			self#write_types tl
-		| TEnum(en,tl) ->
-			self#write_type_instance_byte 18;
-			self#write_enum_ref en;
-			self#write_types tl
-		| TType(td,tl) ->
-			self#write_type_instance_byte 19;
-			self#write_typedef_ref td;
-			self#write_types tl
-		| TAbstract(a,tl) ->
-			self#write_type_instance_byte 20;
-			self#write_abstract_ref a;
-			self#write_types tl
 		| TFun(args,t) when ExtType.is_void (follow_lazy_and_mono t) ->
-			self#write_type_instance_byte 31;
-			chunk#write_list args write_function_arg;
+			write_inlined_list 20 4 (fun () -> ()) write_function_arg args;
 		| TFun(args,t) ->
-			self#write_type_instance_byte 32;
-			chunk#write_list args write_function_arg;
+			write_inlined_list 30 4 (fun () -> ()) write_function_arg args;
 			self#write_type_instance t;
-		| TDynamic (Some t) ->
-			self#write_type_instance_byte 41;
-			self#write_type_instance t;
+		| TInst(c,tl) ->
+			write_inlined_list 40 2 (fun () -> self#write_class_ref c) self#write_type_instance tl;
+		| TEnum(en,tl) ->
+			write_inlined_list 50 2 (fun () -> self#write_enum_ref en) self#write_type_instance tl;
+		| TType(td,tl) ->
+			write_inlined_list 60 2 (fun () -> self#write_typedef_ref td) self#write_type_instance tl;
+		| TAbstract(a,tl) ->
+			write_inlined_list 70 2 (fun () -> self#write_abstract_ref a) self#write_type_instance tl;
 		| TAnon an when PMap.is_empty an.a_fields ->
-			self#write_type_instance_byte 50;
+			self#write_type_instance_byte 80;
 		| TAnon an ->
-			self#write_type_instance_byte 51;
+			self#write_type_instance_byte 81;
 			self#write_anon_ref an []
+		| TDynamic (Some t) ->
+			self#write_type_instance_byte 89;
+			self#write_type_instance t;
 
 	method write_type_instance (t: Type.t) =
 		match self#write_type_instance_simple dummy_rings t with

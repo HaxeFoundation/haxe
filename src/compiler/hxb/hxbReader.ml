@@ -640,13 +640,13 @@ class hxb_reader
 	(* Type instances *)
 
 	method resolve_ttp_ref = function
-		| 5 ->
-			let i = self#read_uleb128 in
-			(field_type_parameters.(i))
-		| 6 ->
+		| 1 ->
 			let i = self#read_uleb128 in
 			(type_type_parameters.(i))
-		| 7 ->
+		| 2 ->
+			let i = self#read_uleb128 in
+			(field_type_parameters.(i))
+		| 3 ->
 			let k = self#read_uleb128 in
 			local_type_parameters.(k)
 		| _ ->
@@ -656,89 +656,166 @@ class hxb_reader
 		self#process_type_instance (self#read_u8)
 
 	method process_type_instance (kind : int) =
+		let read_fun_arg () =
+			let name = self#read_string in
+			let opt = self#read_bool in
+			let t = self#read_type_instance in
+			(name,opt,t)
+		in
 		match kind with
-		| 1 ->
+		| 0 ->
 			let i = self#read_uleb128 in
 			tmonos.(i)
-		| 5 | 6 | 7 ->
+		| 1 | 2 | 3 ->
 			(self#resolve_ttp_ref kind).ttp_type
-		| 8 ->
+		| 4 ->
+			t_dynamic
+		| 10 ->
+			let c = self#read_class_ref in
+			c.cl_type
+		| 11 ->
+			let en = self#read_enum_ref in
+			en.e_type
+		| 12 ->
+			let a = self#read_abstract_ref in
+			TType(abstract_module_type a [],[])
+		| 13 ->
 			let e = self#read_expr in
 			let c = {null_class with cl_kind = KExpr e; cl_module = current_module } in
 			TInst(c, [])
-		| 10 ->
-			TInst(self#read_class_ref,[])
-		| 11 ->
-			TEnum(self#read_enum_ref,[])
-		| 12 ->
-			TType(self#read_typedef_ref,[])
-		| 13 ->
-			let c = self#read_class_ref in
-			c.cl_type
-		| 14 ->
-			let en = self#read_enum_ref in
-			en.e_type
-		| 15 ->
-			let a = self#read_abstract_ref in
-			TType(abstract_module_type a [],[])
-		| 16 ->
-			TAbstract(self#read_abstract_ref,[])
-		| 17 ->
-			let c = self#read_class_ref in
-			let tl = self#read_types in
-			TInst(c,tl)
-		| 18 ->
-			let e = self#read_enum_ref in
-			let tl = self#read_types in
-			TEnum(e,tl)
-		| 19 ->
-			let t = self#read_typedef_ref in
-			let tl = self#read_types in
-			TType(t,tl)
 		| 20 ->
-			let a = self#read_abstract_ref in
-			let tl = self#read_types in
-			TAbstract(a,tl)
-		| 30 ->
 			TFun([],api#basic_types.tvoid)
-		| 31 ->
-			let f () =
-				let name = self#read_string in
-				let opt = self#read_bool in
-				let t = self#read_type_instance in
-				(name,opt,t)
-			in
-			let args = self#read_list f in
+		| 21 ->
+			let arg1 = read_fun_arg () in
+			TFun([arg1],api#basic_types.tvoid)
+		| 22 ->
+			let arg1 = read_fun_arg () in
+			let arg2 = read_fun_arg () in
+			TFun([arg1;arg2],api#basic_types.tvoid)
+		| 23 ->
+			let arg1 = read_fun_arg () in
+			let arg2 = read_fun_arg () in
+			let arg3 = read_fun_arg () in
+			TFun([arg1;arg2;arg3],api#basic_types.tvoid)
+		| 24 ->
+			let arg1 = read_fun_arg () in
+			let arg2 = read_fun_arg () in
+			let arg3 = read_fun_arg () in
+			let arg4 = read_fun_arg () in
+			TFun([arg1;arg2;arg3;arg4],api#basic_types.tvoid)
+		| 29 ->
+			let args = self#read_list read_fun_arg in
 			TFun(args,api#basic_types.tvoid)
+		| 30 ->
+			let ret = self#read_type_instance in
+			TFun([],ret)
+		| 31 ->
+			let arg1 = read_fun_arg () in
+			let ret = self#read_type_instance in
+			TFun([arg1],ret)
 		| 32 ->
-			let f () =
-				let name = self#read_string in
-				let opt = self#read_bool in
-				let t = self#read_type_instance in
-				(name,opt,t)
-			in
-			let args = self#read_list f in
+			let arg1 = read_fun_arg () in
+			let arg2 = read_fun_arg () in
+			let ret = self#read_type_instance in
+			TFun([arg1;arg2],ret)
+		| 33 ->
+			let arg1 = read_fun_arg () in
+			let arg2 = read_fun_arg () in
+			let arg3 = read_fun_arg () in
+			let ret = self#read_type_instance in
+			TFun([arg1;arg2;arg3],ret)
+		| 34 ->
+			let arg1 = read_fun_arg () in
+			let arg2 = read_fun_arg () in
+			let arg3 = read_fun_arg () in
+			let arg4 = read_fun_arg () in
+			let ret = self#read_type_instance in
+			TFun([arg1;arg2;arg3;arg4],ret)
+		| 39 ->
+			let args = self#read_list read_fun_arg in
 			let ret = self#read_type_instance in
 			TFun(args,ret)
 		| 40 ->
-			t_dynamic
+			let c = self#read_class_ref in
+			TInst(c,[])
 		| 41 ->
-			TDynamic (Some self#read_type_instance)
+			let c = self#read_class_ref in
+			let t1 = self#read_type_instance in
+			TInst(c,[t1])
+		| 42 ->
+			let c = self#read_class_ref in
+			let t1 = self#read_type_instance in
+			let t2 = self#read_type_instance in
+			TInst(c,[t1;t2])
+		| 49 ->
+			let c = self#read_class_ref in
+			let tl = self#read_types in
+			TInst(c,tl)
 		| 50 ->
+			let en = self#read_enum_ref in
+			TEnum(en,[])
+		| 51 ->
+			let en = self#read_enum_ref in
+			let t1 = self#read_type_instance in
+			TEnum(en,[t1])
+		| 52 ->
+			let en = self#read_enum_ref in
+			let t1 = self#read_type_instance in
+			let t2 = self#read_type_instance in
+			TEnum(en,[t1;t2])
+		| 59 ->
+			let e = self#read_enum_ref in
+			let tl = self#read_types in
+			TEnum(e,tl)
+		| 60 ->
+			let td = self#read_typedef_ref in
+			TType(td,[])
+		| 61 ->
+			let td = self#read_typedef_ref in
+			let t1 = self#read_type_instance in
+			TType(td,[t1])
+		| 62 ->
+			let td = self#read_typedef_ref in
+			let t1 = self#read_type_instance in
+			let t2 = self#read_type_instance in
+			TType(td,[t1;t2])
+		| 69 ->
+			let t = self#read_typedef_ref in
+			let tl = self#read_types in
+			TType(t,tl)
+		| 70 ->
+			let a = self#read_abstract_ref in
+			TAbstract(a,[])
+		| 71 ->
+			let a = self#read_abstract_ref in
+			let t1 = self#read_type_instance in
+			TAbstract(a,[t1])
+		| 72 ->
+			let a = self#read_abstract_ref in
+			let t1 = self#read_type_instance in
+			let t2 = self#read_type_instance in
+			TAbstract(a,[t1;t2])
+		| 79 ->
+			let a = self#read_abstract_ref in
+			let tl = self#read_types in
+			TAbstract(a,tl)
+		| 80 ->
 			(* HXB_TODO: Do we really want to make a new TAnon for every empty anon? *)
 			mk_anon (ref Closed)
-		| 51 ->
+		| 81 ->
 			TAnon self#read_anon_ref
+		| 89 ->
+			TDynamic (Some self#read_type_instance)
 		| 100 ->
-			api#basic_types.tint
-		| 101 ->
-			api#basic_types.tfloat
-		| 102 ->
-			api#basic_types.tbool
-		| 103 ->
-			api#basic_types.tstring
-		| 104 ->
 			api#basic_types.tvoid
+		| 101 ->
+			api#basic_types.tint
+		| 102 ->
+			api#basic_types.tfloat
+		| 103 ->
+			api#basic_types.tbool
+		| 104 ->
+			api#basic_types.tstring
 		| i ->
 			error (Printf.sprintf "Bad type instance id: %i" i)
 
