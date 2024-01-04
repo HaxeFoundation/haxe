@@ -334,6 +334,13 @@ class module_lut = object(self)
 	method get_type_lut = type_lut
 end
 
+class virtual abstract_hxb_lib = object(self)
+	method virtual load : unit
+	method virtual load_module : string -> path -> IO.input option
+	method virtual close : unit
+	method virtual get_file_path : string
+end
+
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
@@ -404,6 +411,7 @@ type context = {
 	mutable neko_lib_paths : string list;
 	mutable include_files : (string * string) list;
 	mutable native_libs : native_libraries;
+	mutable hxb_libs : abstract_hxb_lib list;
 	mutable net_std : string list;
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
@@ -829,6 +837,7 @@ let create compilation_step cs version args display_mode =
 		resources = Hashtbl.create 0;
 		net_std = [];
 		native_libs = create_native_libs();
+		hxb_libs = [];
 		net_path_map = Hashtbl.create 0;
 		c_args = [];
 		neko_lib_paths = [];

@@ -11,6 +11,7 @@ type native_lib_kind =
 	| NetLib
 	| JavaLib
 	| SwfLib
+	| HxbLib
 
 type native_lib_arg = {
 	lib_file : string;
@@ -32,6 +33,7 @@ type arg_context = {
 	mutable interp : bool;
 	mutable jvm_flag : bool;
 	mutable swf_version : bool;
+	mutable hxb_libs : native_lib_arg list;
 	mutable native_libs : native_lib_arg list;
 	mutable raise_usage : unit -> unit;
 	mutable display_arg : string option;

@@ -59,6 +59,7 @@ let parse_args com =
 		interp = false;
 		jvm_flag = false;
 		swf_version = false;
+		hxb_libs = [];
 		native_libs = [];
 		raise_usage = (fun () -> ());
 		display_arg = None;
@@ -129,9 +130,10 @@ let parse_args com =
 		("Compilation",["-p";"--class-path"],["-cp"],Arg.String (fun path ->
 			com.class_path <- Path.add_trailing_slash path :: com.class_path
 		),"<path>","add a directory to find source files");
-		("Compilation",["--binary-class-path"],["-bcp"],Arg.String (fun path ->
-			com.binary_class_path <- Path.add_trailing_slash path :: com.binary_class_path
-		),"<path>","add a directory to find binary source files");
+		("Compilation",["--hxb-lib"],["-hxb-lib"],Arg.String (fun file ->
+			let lib = create_native_lib file false HxbLib in
+			actx.hxb_libs <- lib :: actx.hxb_libs
+		),"<path>","add a hxb library");
 		("Compilation",["-m";"--main"],["-main"],Arg.String (fun cl ->
 			if com.main_class <> None then raise (Arg.Bad "Multiple --main classes specified");
 			let cpath = Path.parse_type_path cl in

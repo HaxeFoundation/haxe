@@ -21,60 +21,41 @@ let check_auxiliary_output com actx =
 			Genjson.generate com.types file
 	end
 
-let export_hxb com root m =
+let export_hxb com platform zip m =
 	match m.m_extra.m_kind with
 		| MCode | MMacro | MFake -> begin
 			(* Printf.eprintf "Export module %s\n" (s_type_path m.m_path); *)
 			let anon_identification = new tanon_identification in
 			let writer = new HxbWriter.hxb_writer (MessageReporting.display_source_at com) anon_identification com.hxb_writer_stats in
 			writer#write_module m;
-			let l = (root :: fst m.m_path @ [snd m.m_path]) in
-			let ch = Path.create_file true ".hxb" [] l in
-			writer#export (IO.output_channel ch);
-			close_out ch
+			let l = platform :: (fst m.m_path @ [snd m.m_path]) in
+			let path = (String.concat "/" l) ^ ".hxb" in
+			let out = IO.output_string () in
+			writer#export out;
+			zip#add_entry (IO.close_out out) path;
 		end
-	| _ -> ()
+	| _ ->
+		()
 
 let check_hxb_output com actx =
 	begin match actx.hxb_out with
 		| None -> ()
 		| Some path ->
-			(* TODO move somewhere else *)
-			let clean_files path =
-				let rec iter_files pack dir path = try
-					let file = Unix.readdir dir in
-
-					if file <> "." && file <> ".." then begin
-						let filepath = path ^ "/" ^ file in
-						if (Unix.stat filepath).st_kind = S_DIR then
-							let pack = pack @ [file] in
-							iter_files (pack) (Unix.opendir filepath) filepath;
-							try Unix.rmdir filepath with Unix.Unix_error (ENOTEMPTY,_,_) -> ();
-						else
-							Sys.remove filepath
-					end;
-
-					iter_files pack dir path
-				with | End_of_file | Unix.Unix_error _ ->
-					Unix.closedir dir
-				in
-				iter_files [] (Unix.opendir path) path
-			in
-
+			let zip = new Zip_output.zip_output path 6 in
 			let export com =
-				let path = Path.add_trailing_slash (path ^ Path.path_sep ^ (Common.platform_name_macro com)) in
 				Common.log com ("Generating hxb to " ^ path);
 				Printf.eprintf "Generating hxb to %s\n" path;
 				Path.mkdir_from_path path;
-				clean_files path;
 				let t = Timer.timer ["generate";"hxb"] in
 				Printf.eprintf "%d modules, %d types\n" (List.length com.modules) (List.length com.types);
-				List.iter (export_hxb com path) com.modules;
+				let target = Common.platform_name_macro com in
+				List.iter (export_hxb com target zip) com.modules;
 				t();
 			in
-
-			export com;
-			Option.may export (com.get_macros());
+			Std.finally (fun () -> zip#close) (fun () ->
+				export com;
+				Option.may export (com.get_macros());
+			) ()
 	end
 
 let parse_swf_header ctx h = match ExtString.String.nsplit h ":" with

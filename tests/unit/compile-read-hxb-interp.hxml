@@ -17,4 +17,4 @@
 --main unit.TestMain
 --interp
 # --hxb bin/hxb
--bcp bin/hxb
+--hxb-lib bin/hxb/eval.zip

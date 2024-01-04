@@ -804,34 +804,28 @@ let rec get_reader ctx p =
 	new hxb_reader_api_typeload ctx load_module' p
 
 and load_hxb_module ctx path p =
-	let compose_path no_rename =
-		(match path with
-		| [] , name -> name
-		| x :: l , name ->
-			String.concat "/" (x :: l) ^ "/" ^ name
-		) ^ ".hxb"
+	let read file input =
+		try
+			(get_reader ctx p)#read_hxb input ctx.com.hxb_reader_stats
+		with e ->
+			Printf.eprintf "\x1b[30;41mError loading %s from %s\x1b[0m\n" (snd path) file;
+			let msg = Printexc.to_string e and stack = Printexc.get_backtrace () in
+			Printf.eprintf " => %s\n%s\n" msg stack;
+			raise e
 	in
-
 	let target = Common.platform_name_macro ctx.com in
-	let bcp = List.map (fun p -> p ^ target ^ Path.path_sep) ctx.com.binary_class_path in
-	let find_file = Common.find_file ctx.com ~class_path:bcp in
-	let file = try find_file (compose_path false) with Not_found -> find_file (compose_path true) in
-	let ch = try open_in_bin file with Sys_error _ -> raise Not_found in
-	let input = IO.input_channel ch in
-
-	(* TODO use finally instead *)
-	try
-		(* Printf.eprintf "[%s] Read module %s\n" target (s_type_path path); *)
-		let m = (get_reader ctx p)#read_hxb input ctx.com.hxb_reader_stats in
-		(* Printf.eprintf "[%s] Done reading module %s\n" target (s_type_path path); *)
-		close_in ch;
-		m
-	with e ->
-		Printf.eprintf "\x1b[30;41mError loading %s from %s\x1b[0m\n" (snd path) file;
-		let msg = Printexc.to_string e and stack = Printexc.get_backtrace () in
-		Printf.eprintf " => %s\n%s\n" msg stack;
-		close_in ch;
-		raise e
+	let rec loop l = match l with
+		| hxb_lib :: l ->
+			begin match hxb_lib#load_module target path with
+				| Some input ->
+					read hxb_lib#get_file_path input
+				| None ->
+					loop l
+			end
+		| [] ->
+			raise Not_found
+	in
+	loop ctx.com.hxb_libs
 
 and load_module' ctx m p =
 	try
