@@ -100,6 +100,7 @@ type typer_pass_tasks = {
 
 type typer_globals = {
 	mutable delayed : typer_pass_tasks Array.t;
+	mutable delayed_min_index : int;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
 	doinline : bool;
 	retain_meta : bool;
@@ -402,12 +403,18 @@ let is_gen_local v = match v.v_kind with
 		false
 
 let delay ctx p f =
-	let tasks = ctx.g.delayed.(Obj.magic p) in
-	tasks.tasks <- f :: tasks.tasks
+	let p = Obj.magic p in
+	let tasks = ctx.g.delayed.(p) in
+	tasks.tasks <- f :: tasks.tasks;
+	if p < ctx.g.delayed_min_index then
+		ctx.g.delayed_min_index <- p
 
 let delay_late ctx p f =
-	let tasks = ctx.g.delayed.(Obj.magic p) in
-	tasks.tasks <- tasks.tasks @ [f]
+	let p = Obj.magic p in
+	let tasks = ctx.g.delayed.(p) in
+	tasks.tasks <- tasks.tasks @ [f];
+	if p < ctx.g.delayed_min_index then
+		ctx.g.delayed_min_index <- p
 
 let delay_if_mono ctx p t f = match follow t with
 	| TMono _ ->
@@ -427,10 +434,13 @@ let rec flush_pass ctx p where =
 				f();
 				flush_pass ctx p where
 			| [] ->
-				loop (i + 1)
+				(* Done with this pass (for now), update min index to next one *)
+				let i = i + 1 in
+				ctx.g.delayed_min_index <- i;
+				loop i
 		end
 	in
-	loop 0
+	loop ctx.g.delayed_min_index
 
 let make_pass ctx f = f
 
