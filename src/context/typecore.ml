@@ -60,6 +60,12 @@ type typer_pass =
 	| PForce				(* usually ensure that lazy have been evaluated *)
 	| PFinal				(* not used, only mark for finalize *)
 
+let all_typer_passes = [
+	PBuildModule;PBuildClass;PConnectField;PTypeField;PCheckConstraint;PForce;PFinal
+]
+
+let all_typer_passes_length = List.length all_typer_passes
+
 type typer_module = {
 	curmod : module_def;
 	import_resolution : resolution_list;
@@ -67,11 +73,6 @@ type typer_module = {
 	mutable enum_with_type : module_type option;
 	mutable module_using : (tclass * pos) list;
 	mutable import_statements : import list;
-}
-
-type delay = {
-	delay_pass : typer_pass;
-	delay_functions : (unit -> unit) list;
 }
 
 type build_kind =
@@ -93,8 +94,12 @@ type macro_result =
 	| MError
 	| MMacroInMacro
 
+type typer_pass_tasks = {
+	mutable tasks : (unit -> unit) list;
+}
+
 type typer_globals = {
-	mutable delayed : delay list;
+	mutable delayed : typer_pass_tasks Array.t;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
 	doinline : bool;
 	retain_meta : bool;
@@ -396,36 +401,13 @@ let is_gen_local v = match v.v_kind with
 	| _ ->
 		false
 
-let make_delay pass fl = {
-	delay_pass = pass;
-	delay_functions = fl;
-}
-
 let delay ctx p f =
-	let rec loop = function
-		| [] ->
-			[make_delay p [f]]
-		| delay :: rest ->
-			if delay.delay_pass = p then
-				(make_delay p (f :: delay.delay_functions)) :: rest
-			else if delay.delay_pass < p then
-				delay :: loop rest
-			else
-				(make_delay p [f]) :: delay :: rest
-	in
-	ctx.g.delayed <- loop ctx.g.delayed
+	let tasks = ctx.g.delayed.(Obj.magic p) in
+	tasks.tasks <- f :: tasks.tasks
 
 let delay_late ctx p f =
-	let rec loop = function
-		| [] ->
-			[make_delay p [f]]
-		| delay :: rest ->
-			if delay.delay_pass <= p then
-				delay :: loop rest
-			else
-				(make_delay p [f]) :: delay :: rest
-	in
-	ctx.g.delayed <- loop ctx.g.delayed
+	let tasks = ctx.g.delayed.(Obj.magic p) in
+	tasks.tasks <- tasks.tasks @ [f]
 
 let delay_if_mono ctx p t f = match follow t with
 	| TMono _ ->
@@ -434,17 +416,21 @@ let delay_if_mono ctx p t f = match follow t with
 		f()
 
 let rec flush_pass ctx p where =
-	match ctx.g.delayed with
-	| delay :: rest when delay.delay_pass <= p ->
-		(match delay.delay_functions with
-		| [] ->
-			ctx.g.delayed <- rest;
-		| f :: l ->
-			ctx.g.delayed <- (make_delay delay.delay_pass l) :: rest;
-			f());
-		flush_pass ctx p where
-	| _ ->
-		()
+	let rec loop i =
+		if i > (Obj.magic p) then
+			()
+		else begin
+			let tasks = ctx.g.delayed.(i) in
+			match tasks.tasks with
+			| f :: l ->
+				tasks.tasks <- l;
+				f();
+				flush_pass ctx p where
+			| [] ->
+				loop (i + 1)
+		end
+	in
+	loop 0
 
 let make_pass ctx f = f
 

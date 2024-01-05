@@ -15,7 +15,7 @@ let create com macros =
 			macros = macros;
 			type_patches = Hashtbl.create 0;
 			module_check_policies = [];
-			delayed = [];
+			delayed = Array.init all_typer_passes_length (fun _ -> { tasks = []});
 			debug_delayed = [];
 			doinline = com.display.dms_inline && not (Common.defined com Define.NoInline);
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
