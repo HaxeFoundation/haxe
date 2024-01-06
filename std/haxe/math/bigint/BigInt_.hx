@@ -399,7 +399,7 @@ class BigInt_ {
 
 	public function modPow(exponent:BigInt_, modulus:BigInt_):BigInt_ {
 		if (BigIntArithmetic.compareInt(modulus, 0) < 0)
-			throw BigIntExceptions.NEGATIVE_MODULUS;
+			throw BigIntError.NEGATIVE_MODULUS;
 		if (BigIntArithmetic.compareInt(modulus, 1) == 0)
 			return BigInt.fromInt(0);
 		if (BigIntArithmetic.compareInt(exponent, 0) == 0)
