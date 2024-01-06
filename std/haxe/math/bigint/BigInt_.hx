@@ -398,21 +398,29 @@ class BigInt_ {
 	}
 
 	public function modPow(exponent:BigInt_, modulus:BigInt_):BigInt_ {
-		if (BigIntArithmetic.compareInt(exponent, 0) < 0)
-			throw new BigIntException(BigIntError.NEGATIVE_EXPONENT);
+		if (BigIntArithmetic.compareInt(modulus, 0) < 0)
+			throw BigIntExceptions.NEGATIVE_MODULUS;
+		if (BigIntArithmetic.compareInt(modulus, 1) == 0)
+			return BigInt.fromInt(0);
+		if (BigIntArithmetic.compareInt(exponent, 0) == 0)
+			return BigInt.fromInt(1);
 		if (this.isZero())
-			return (BigIntArithmetic.compareInt(exponent, 0) == 0 ? BigInt.fromInt(1) : this);
-		var r = BigInt_.newFromInt(1);
-		var p:BigInt_ = this;
-		while (true) {
-			if (BigIntArithmetic.bitwiseAndInt(exponent, 1) == 1)
-				r = modulus2(multiply2(p, r), modulus);
-			exponent = BigInt_.arithmeticShiftRight2(exponent, 1);
-			if (BigIntArithmetic.compareInt(exponent, 0) == 0)
-				break;
-			p = modulus2(multiply2(p, p), modulus);
+			return BigInt.fromInt(0);
+		var negExponent:Bool = (BigIntArithmetic.compareInt(exponent, 0) < 0);
+		if (negExponent)
+			exponent = BigInt_.negate1(exponent);
+		var result:BigInt_ = modulus2(this, modulus);
+		if (BigIntArithmetic.compareInt(exponent, 1) != 0) {
+			if ((modulus.m_data.get(0) & 1) == 0) {
+				result = modPowBarrett(result, exponent, modulus);
+			} else {
+				result = modPowMonty(result, exponent, modulus, true);
+			}
 		}
-		return r;
+		if (negExponent) {
+			result = result.modInverse(modulus);
+		}
+		return result;
 	}
 
 	public function pow(exponent:UInt):BigInt_ {
@@ -681,6 +689,421 @@ class BigInt_ {
 		return d;
 	}
 
+	private function modPowMonty(b:BigInt_, _e:BigInt_, _m:BigInt_, convert:Bool):BigInt_ {
+		var n:Int,
+			powR:Int,
+			extraBits:Int,
+			expLength:Int,
+			numPowers:Int32,
+			i:Int,
+			window:Int32,
+			mult:Int,
+			lastZeroes:Int,
+			windowPos:Int,
+			bits:Int,
+			j:Int;
+		var smallMontyModulus:Bool;
+		var mDash:Int32;
+		var yAccum:Vector<Int32>,
+			zVal:Vector<Int32>,
+			tmp:Vector<Int32>,
+			zSquared:Vector<Int32>,
+			windowList:Vector<Int32>,
+			yVal:Vector<Int32>;
+		var oddPowers:Vector<Vector<Int32>>;
+		var m:BigInt_ = _m, e:BigInt_ = _e;
+		n = m.m_count;
+		powR = 32 * n;
+		smallMontyModulus = (m.bitLength() + 2) <= powR;
+		mDash = m.getMQuote();
+		if (convert) {
+			b = divMod(BigInt_.arithmeticShiftLeft2(b, powR), m).remainder;
+		}
+		yAccum = new Vector<Int32>(n + 1);
+		zVal = b.m_data;
+		var zLen = b.m_count;
+		if (zLen < n) {
+			tmp = new Vector<Int32>(n);
+			Vector.blit(zVal, 0, tmp, n - zLen, zLen);
+			zVal = tmp;
+		}
+		extraBits = 0;
+		if (e.m_count > 1 || e.bitCount() > 2) {
+			expLength = e.bitLength();
+			while (expLength > expWindowThresholds[extraBits])
+				extraBits++;
+		}
+		numPowers = 1 << extraBits;
+		oddPowers = new Vector<Vector<Int32>>(numPowers);
+		oddPowers[0] = zVal;
+		zSquared = zVal.copy();
+		squareMonty(yAccum, zSquared, m.m_data, m.m_count, mDash, smallMontyModulus);
+		for (i in 1...numPowers) {
+			oddPowers[i] = oddPowers[i - 1].copy();
+			multiplyMonty(yAccum, oddPowers[i], zSquared, m.m_data, m.m_count, mDash, smallMontyModulus);
+		}
+		windowList = getWindowList(e.m_data, e.m_count, extraBits);
+		window = windowList[0];
+		mult = window & 0xFF;
+		lastZeroes = window >> 8;
+		if (mult == 1) {
+			yVal = zSquared;
+			lastZeroes--;
+		} else {
+			yVal = oddPowers[mult >> 1].copy();
+		}
+		windowPos = 1;
+		window = windowList[windowPos];
+		windowPos++;
+		while (window != -1) {
+			mult = window & 0xFF;
+			bits = lastZeroes + BitLengthTable[mult];
+			j = 0;
+			while (j < bits) {
+				squareMonty(yAccum, yVal, m.m_data, m.m_count, mDash, smallMontyModulus);
+				j++;
+			}
+			multiplyMonty(yAccum, yVal, oddPowers[mult >> 1], m.m_data, m.m_count, mDash, smallMontyModulus);
+			lastZeroes = window >> 8;
+			window = windowList[windowPos];
+			windowPos++;
+		}
+		for (i in 0...lastZeroes) {
+			squareMonty(yAccum, yVal, m.m_data, m.m_count, mDash, smallMontyModulus);
+		}
+		if (convert) {
+			montgomeryReduce(yVal, m.m_data, m.m_count, mDash);
+		} else if (smallMontyModulus && MultiwordArithmetic.compareUnsigned(yVal, m.m_data, yVal.length) >= 0) {
+			var result:Vector<Int32> = new Vector<Int32>(yVal.length);
+			MultiwordArithmetic.subtract(result, yVal, m.m_data, result.length); // a = a-m;
+			Vector.blit(result, 0, yVal, 0, result.length);
+		}
+		var montResult:BigInt_ = BigInt_.fromUnsignedInts(yVal);
+		return montResult;
+	}
+
+	private function squareMonty(a:Vector<Int32>, x:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32, smallMontyModulus:Bool):Void {
+		var n:Int, aMax:Int, j:Int, i:Int;
+		var xVal:Int, a0:Int;
+		var x0:Int64, carry:Int64, t:Int64, prod1:Int64, prod2:Int64, xi:Int64, u:Int64;
+		n = mLen;
+		x0 = Int64.make(0, x[0]);
+		carry = Int64.mul(x0, x0);
+		u = Int64.make(0, Int64.mul(carry.low, mDash).low);
+		prod2 = Int64.mul(u, Int64.make(0, m[0]));
+		carry = Int64.add(carry, Int64.make(0, prod2.low));
+		carry = Int64.add(Int64.ushr(carry, 32), Int64.ushr(prod2, 32));
+		j = 1;
+		while (j < mLen) {
+			prod1 = Int64.mul(x0, Int64.make(0, x[j]));
+			prod2 = Int64.mul(u, Int64.make(0, m[j]));
+			carry = Int64.add(carry, Int64.add(Int64.make(0, Int64.shl(prod1, 1).low), Int64.make(0, prod2.low)));
+			a[j - 1] = carry.low;
+			carry = Int64.add(Int64.add(Int64.ushr(carry, 32), Int64.ushr(prod2, 32)), Int64.ushr(prod1, 31));
+			j++;
+		}
+		a[mLen] = Int64.ushr(carry, 32).low;
+		a[mLen - 1] = carry.low;
+		i = 1;
+		while (i < mLen) {
+			a0 = a[0];
+			u = Int64.make(0, Int64.mul(a0, mDash).low);
+			carry = Int64.add(Int64.mul(u, Int64.make(0, m[0])), Int64.make(0, a0));
+			carry = Int64.ushr(carry, 32);
+			j = 1;
+			while (j < i) {
+				carry = Int64.add(carry, Int64.add(Int64.mul(u, Int64.make(0, m[j])), Int64.make(0, a[j])));
+				a[j - 1] = carry.low;
+				carry = Int64.ushr(carry, 32);
+				j++;
+			}
+			xi = Int64.make(0, x[i]);
+			prod1 = Int64.mul(xi, xi);
+			prod2 = Int64.mul(u, Int64.make(0, m[i]));
+			carry += Int64.add(Int64.add(Int64.make(0, prod1.low), Int64.make(0, prod2.low)), Int64.make(0, a[i]));
+			a[i - 1] = carry.low;
+			carry = Int64.add(Int64.add(Int64.ushr(carry, 32), Int64.ushr(prod1, 32)), Int64.ushr(prod2, 32));
+			j = i + 1;
+			while (j < n) {
+				prod1 = Int64.mul(xi, Int64.make(0, x[j]));
+				prod2 = Int64.mul(u, Int64.make(0, m[j]));
+				carry = Int64.add(carry, Int64.add(Int64.add(Int64.make(0, Int64.shl(prod1, 1).low), Int64.make(0, prod2.low)), Int64.make(0, a[j])));
+				a[j - 1] = carry.low;
+				carry = Int64.add(Int64.add(Int64.ushr(carry, 32), Int64.ushr(prod1, 31)), Int64.ushr(prod2, 32));
+				j++;
+			}
+			carry = Int64.add(carry, Int64.make(0, a[n]));
+			a[n] = Int64.ushr(carry, 32).low;
+			a[n - 1] = carry.low;
+			i++;
+		}
+
+		if (!smallMontyModulus && MultiwordArithmetic.compareUnsigned(a, m, a.length) >= 0) {
+			var result:Vector<Int32> = new Vector<Int32>(a.length);
+			MultiwordArithmetic.subtract(result, a, m, result.length);
+			Vector.blit(result, 0, a, 0, result.length);
+		}
+		Vector.blit(a, 0, x, 0, n);
+	}
+
+	private function multiplyMonty(a:Vector<Int32>, x:Vector<Int32>, y:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32, smallMontyModulus:Bool):Void {
+		var n:Int, aMax:Int, j:Int, i:Int;
+		var a0:Int64, y0:Int64;
+		var carry:Int64, t:Int64, prod1:Int64, prod2:Int64, xi:Int64, u:Int64;
+		n = mLen;
+		y0 = Int64.make(0, y[0]);
+		i = 0;
+		while (i <= n) {
+			a[i] = 0;
+			i++;
+		}
+		i = 0;
+		while (i < n) {
+			a0 = Int64.make(0, a[0]);
+			xi = Int64.make(0, x[i]);
+			prod1 = Int64.mul(xi, y0);
+			carry = Int64.add(Int64.make(0, prod1.low), a0);
+			u = Int64.make(0, Int64.mul(carry.low, mDash).low);
+			prod2 = Int64.mul(u, Int64.make(0, m[0]));
+			carry = Int64.add(carry, Int64.make(0, prod2.low));
+			carry = Int64.add(Int64.add(Int64.ushr(carry, 32), Int64.ushr(prod1, 32)), Int64.ushr(prod2, 32));
+			j = 1;
+			while (j <= (n - 1)) {
+				prod1 = Int64.mul(xi, Int64.make(0, y[j]));
+				prod2 = Int64.mul(u, Int64.make(0, m[j]));
+				carry = Int64.add(Int64.add(Int64.make(0, prod1.low), Int64.make(0, prod2.low)), Int64.add(Int64.make(0, a[j]), carry));
+				a[j - 1] = carry.low;
+				carry = Int64.add(Int64.add(Int64.ushr(carry, 32), Int64.ushr(prod1, 32)), Int64.ushr(prod2, 32));
+				j++;
+			}
+			carry = Int64.add(carry, Int64.make(0, a[n]));
+			a[n] = Int64.ushr(carry, 32).low;
+			a[n - 1] = carry.low;
+			i++;
+		}
+
+		if (!smallMontyModulus && MultiwordArithmetic.compareUnsigned(a, m, a.length) >= 0) {
+			var result:Vector<Int32> = new Vector<Int32>(a.length);
+			MultiwordArithmetic.subtract(result, a, m, result.length);
+			Vector.blit(result, 0, a, 0, result.length);
+		}
+		Vector.blit(a, 0, x, 0, n);
+	}
+
+	private function montgomeryReduce(x:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32):Void {
+		var n:Int, i:Int, j:Int;
+		var x0:Int;
+		var t:Int64, carry:Int64;
+		n = mLen;
+		i = 0;
+		while (i < n) {
+			x0 = x[0];
+			t = Int64.make(0, Int64.mul(x0, mDash).low);
+			carry = Int64.add(Int64.mul(t, Int64.make(0, m[0])), Int64.make(0, x0));
+			carry = Int64.ushr(carry, 32);
+			j = 1;
+			while (j < n) {
+				carry = Int64.add(carry, Int64.add(Int64.mul(t, Int64.make(0, m[j])), Int64.make(0, x[j])));
+				x[j - 1] = carry.low;
+				carry = Int64.ushr(carry, 32);
+				j++;
+			}
+			x[n - 1] = carry.low;
+			i++;
+		}
+		if (MultiwordArithmetic.compareUnsigned(x, m, x.length) >= 0) {
+			var result:Vector<Int32> = new Vector<Int32>(x.length);
+			MultiwordArithmetic.subtract(result, x, m, result.length);
+			Vector.blit(result, 0, x, 0, result.length);
+		}
+	}
+
+	private function getMQuote():Int32 {
+		var d:Int = -m_data[0];
+		var mQuote:Int32 = modInverse32(d);
+		return mQuote;
+	}
+
+	private function modInverse32(d:Int):Int32 {
+		var x:Int32;
+		x = d + (((d + 1) & 4) << 1);
+		x = x * (2 - (d * x));
+		x = x * (2 - (d * x));
+		x = x * (2 - (d * x));
+		return x;
+	}
+
+	private function modPowBarrett(base:BigInt_, exponent:BigInt_, modulus:BigInt_):BigInt_ {
+		var i:Int, j:Int, k:Int;
+		var extraBits:Int,
+			expLength:Int,
+			numPowers:Int32,
+			window:Int32,
+			mult:Int,
+			lastZeroes:Int,
+			windowPos:Int,
+			bits:Int;
+		var mr:BigInt_, yu:BigInt_, b2:BigInt_, y:BigInt_;
+		var e:BigInt_ = exponent;
+		var m:BigInt_ = modulus;
+		var oddPowers:Vector<BigInt_>;
+		var windowList:Vector<Int32>;
+
+		k = m.m_count;
+		mr = BigInt_.arithmeticShiftLeft2(BigInt.ONE, (k + 1) << 5);
+		yu = BigInt_.divide2(BigInt_.arithmeticShiftLeft2(BigInt.ONE, k << 6), m);
+		extraBits = 0;
+		expLength = e.bitLength();
+		while (expLength > expWindowThresholds[extraBits])
+			extraBits++;
+		numPowers = 1 << extraBits;
+		oddPowers = new Vector<BigInt_>(numPowers);
+		oddPowers[0] = base;
+		b2 = reduceBarrett(base.square(), m, mr, yu);
+		for (i in 1...numPowers) {
+			oddPowers[i] = reduceBarrett(multiply2(oddPowers[i - 1], b2), m, mr, yu);
+		}
+
+		windowList = getWindowList(e.m_data, e.m_count, extraBits);
+		window = windowList[0];
+		mult = window & 0xFF;
+		lastZeroes = window >> 8;
+		if (mult == 1) {
+			y = b2;
+			lastZeroes--;
+		} else {
+			y = oddPowers[mult >> 1];
+		}
+
+		windowPos = 1;
+		window = windowList[windowPos];
+		windowPos++;
+		while (window != -1) {
+			mult = window & 0xFF;
+			bits = lastZeroes + BitLengthTable[mult];
+			j = 0;
+			while (j < bits) {
+				y = reduceBarrett(y.square(), m, mr, yu);
+				j++;
+			}
+			y = reduceBarrett(multiply2(y, (oddPowers[mult >> 1])), m, mr, yu);
+			lastZeroes = window >> 8;
+			window = windowList[windowPos];
+			windowPos++;
+		}
+		i = 0;
+		while (i < lastZeroes) {
+			y = reduceBarrett(y.square(), m, mr, yu);
+			i++;
+		}
+
+		return y;
+	}
+
+	private function getWindowList(mag:Vector<Int32>, magLen:Int, extraBits:Int):Vector<Int32> {
+		var i:Int,
+			v:Int32,
+			leadingBits:Int,
+			resultSize:Int,
+			resultPos:Int,
+			bitPos:Int,
+			mult:Int32,
+			multLimit:Int32,
+			zeroes:Int32;
+		v = mag[magLen - 1];
+		leadingBits = BigIntHelper.bitLen(v);
+		resultSize = Math.floor((((magLen - 1) << 5) + leadingBits) / (1 + extraBits) + 2);
+		var result:Vector<Int32> = new Vector<Int32>(resultSize);
+		resultPos = 0;
+		bitPos = 33 - leadingBits;
+		v = v << bitPos;
+		mult = 1;
+		multLimit = 1 << extraBits;
+		zeroes = 0;
+		i = magLen - 1;
+		while (i >= 0) {
+			while (bitPos < 32) {
+				if (mult < multLimit) {
+					mult = (mult << 1) | (v >>> 31);
+				} else if (v < 0) {
+					result[resultPos] = createWindowEntry(mult, zeroes);
+					resultPos++;
+					mult = 1;
+					zeroes = 0;
+				} else
+					zeroes++;
+
+				v = v << 1;
+				bitPos++;
+			}
+			i--;
+			if (i < 0) {
+				result[resultPos] = createWindowEntry(mult, zeroes);
+				resultPos++;
+				break;
+			}
+			v = mag[i];
+			bitPos = 0;
+		}
+		result[resultPos] = -1;
+		return result;
+	}
+
+	private function createWindowEntry(mult:Int32, zeroes:Int32):Int32 {
+		while ((mult & 1) == 0) {
+			mult >>>= 1;
+			++zeroes;
+		}
+		return mult | (zeroes << 8);
+	}
+
+	private function reduceBarrett(x:BigInt_, m:BigInt_, mr:BigInt_, yu:BigInt_):BigInt_ {
+		var timestamp:Float = Timer.stamp();
+		var xLen:Int, mLen:Int, k:Int;
+		var q1:BigInt_, q2:BigInt_, q3:BigInt_, r1:BigInt_, r2:BigInt_, r3:BigInt_;
+		xLen = x.bitLength();
+		mLen = m.bitLength();
+		if (xLen < mLen) {
+			return x;
+		}
+		if ((xLen - mLen) > 1) {
+			var k:Int = m.m_count;
+			var q1:BigInt_ = x.divideWords(k - 1);
+			var q2:BigInt_ = multiply2(yu, q1);
+			var q3:BigInt_ = q2.divideWords(k + 1);
+			var r1:BigInt_ = x.remainderWords(k + 1);
+			var r2:BigInt_ = multiply2(q3, m);
+			var r3:BigInt_ = r2.remainderWords(k + 1);
+			x = sub2(r1, r3);
+			if (x.sign() < 0) {
+				x = add2(x, mr);
+			}
+		}
+
+		while (BigIntArithmetic.compare(x, m) >= 0) {
+			x = sub2(x, m);
+		}
+		return x;
+	}
+
+	private function divideWords(w:Int):BigInt_ {
+		var n:Int = m_count;
+		if (w >= n)
+			return BigInt.ZERO;
+		var bi = new MutableBigInt_();
+		bi.setFromVector(m_data, m_count - (n - w), n - w);
+		return bi;
+	}
+
+	private function remainderWords(w:Int):BigInt_ {
+		var n:Int = m_count;
+		if (w >= n)
+			return this;
+		var bi = new MutableBigInt_();
+		bi.setFromVector(m_data, 0, w);
+		return bi;
+	}
+
 	private static function newFromInt(value:Int):BigInt_ {
 		var bi = new MutableBigInt_();
 		bi.setFromInt(value);
@@ -882,4 +1305,15 @@ class BigInt_ {
 	private static inline function toInts1(a:BigInt_, v:Vector<Int>):Int {
 		return a.toInts(v);
 	}
+
+	static final BitLengthTable:Array<Int> = [
+		0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+		6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+		7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+		8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+		8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+		8, 8, 8, 8, 8, 8
+	];
+
+	var expWindowThresholds:Vector<Int> = Vector.fromArrayCopy([7, 25, 81, 241, 673, 1793, 4609, 2147483647]);
 }

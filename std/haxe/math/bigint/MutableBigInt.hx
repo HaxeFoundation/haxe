@@ -68,6 +68,12 @@ abstract MutableBigInt(MutableBigInt_) {
 		var a:MutableBigInt_ = this;
 		a.setFromUnsignedInts(value, length);
 	}
+	
+	public inline function setFromVector(source : Vector<Int32>, sourcePosition:Int, length : Int ) : Void
+	{
+		var a:MutableBigInt_ = this;
+		a.setFromVector(source,sourcePosition, length);
+	}
 
 	public inline function setFromBigEndianBytesUnsigned(value:Bytes, offset:Int = 0, length:Int = 0):Void {
 		var a:MutableBigInt_ = this;

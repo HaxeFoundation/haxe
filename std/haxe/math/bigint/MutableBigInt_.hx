@@ -135,6 +135,13 @@ class MutableBigInt_ extends BigInt_ {
 		m_count = length + neg;
 		compact();
 	}
+	
+	public function setFromVector(source : Vector<Int32>, sourcePosition:Int, length : Int ) : Void
+	{
+		ensureCapacity(length , false);
+		Vector.blit(source, sourcePosition, m_data, 0, length);
+		m_count = length;
+	}
 
 	public function setFromBigEndianBytesSigned(value:Bytes, offset:Int = 0, valueLength:Int = 0):Void {
 		if (value == null) {
