@@ -1021,6 +1021,19 @@ class hxb_reader
 						let e1 = loop () in
 						TMeta (m,e1)
 
+					(* calls 70 - 79 *)
+					| 70 ->
+						let e1 = loop () in
+						TCall(e1,[])
+					| 71 | 72 | 73 | 74 as i ->
+						let e1 = loop () in
+						let el = List.init (i - 70) (fun _ -> loop ()) in
+						TCall(e1,el)
+					| 79 ->
+						let e1 = loop () in
+						let el = self#read_list loop in
+						TCall(e1,el)
+
 					(* branching 80-89 *)
 					| 80 ->
 						let e1 = loop () in

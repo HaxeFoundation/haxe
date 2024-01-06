@@ -1107,6 +1107,21 @@ class hxb_writer
 		| TDynamic _ ->
 			Some (t,rings#ring_dynamic)
 
+	method write_inlined_list : 'a . int -> int -> (int -> unit) -> (unit -> unit) -> ('a -> unit) -> 'a list -> unit
+		= fun offset max f_byte f_first f_elt l ->
+		let length = List.length l in
+		if length > max then begin
+			f_byte (offset + 9);
+			f_first ();
+			chunk#write_list l f_elt
+		end else begin
+			f_byte (offset + length);
+			f_first();
+			List.iter (fun elt ->
+				f_elt elt
+			) l
+		end
+
 	method write_type_instance_not_simple t =
 		let write_function_arg (n,o,t) =
 			chunk#write_string n;
@@ -1114,18 +1129,7 @@ class hxb_writer
 			self#write_type_instance t;
 		in
 		let write_inlined_list offset max f_first f_elt l =
-			let length = List.length l in
-			if length > max then begin
-				self#write_type_instance_byte (offset + 9);
-				f_first ();
-				chunk#write_list l f_elt
-			end else begin
-				self#write_type_instance_byte (offset + length);
-				f_first();
-				List.iter (fun elt ->
-					f_elt elt
-				) l
-			end
+			self#write_inlined_list offset max self#write_type_instance_byte f_first f_elt l
 		in
 		match t with
 		| TMono _ | TLazy _ | TDynamic None ->
@@ -1340,9 +1344,7 @@ class hxb_writer
 					loop e
 				);
 			| TCall(e1,el) ->
-				self#write_texpr_byte 64;
-				loop e1;
-				loop_el el;
+				self#write_inlined_list 70 4 self#write_texpr_byte (fun () -> loop e1) loop el
 			| TMeta(m,e1) ->
 				self#write_texpr_byte 65;
 				self#write_metadata_entry m;
