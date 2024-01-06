@@ -1129,6 +1129,13 @@ class hxb_reader
 						let s = self#read_string in
 						TField(e1,FDynamic s)
 
+					| 110 ->
+						let p = self#read_pos in
+						let c = self#read_class_ref in
+						let cf = self#read_field_ref in
+						let e1 = Texpr.Builder.make_static_this c p in
+						TField(e1,FStatic(c,cf))
+
 					(* module types 120-139 *)
 					| 120 -> TTypeExpr (TClassDecl self#read_class_ref)
 					| 121 -> TTypeExpr (TEnumDecl self#read_enum_ref)

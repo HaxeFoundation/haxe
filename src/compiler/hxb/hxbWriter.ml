@@ -1420,6 +1420,11 @@ class hxb_writer
 				self#write_class_ref c;
 				self#write_types tl;
 				self#write_field_ref c CfrMember cf;
+			| TField({eexpr = TTypeExpr (TClassDecl c'); epos = p1},FStatic(c,cf)) when c == c' ->
+				self#write_texpr_byte 110;
+				self#write_pos p1;
+				self#write_class_ref c;
+				self#write_field_ref c CfrStatic cf;
 			| TField(e1,FStatic(c,cf)) ->
 				self#write_texpr_byte 103;
 				loop e1;
