@@ -74,6 +74,7 @@ let print_params source ttp =
 
 type hxb_writer_stats = {
 	type_instance_kind_writes : int array;
+	texpr_writes : int array;
 	type_instance_immediate : int ref;
 	type_instance_ring_hits : int ref;
 	type_instance_cache_hits : int ref;
@@ -82,10 +83,12 @@ type hxb_writer_stats = {
 	pos_writes_min : int ref;
 	pos_writes_max : int ref;
 	pos_writes_minmax : int ref;
+	pos_writes_eq : int ref;
 }
 
 let create_hxb_writer_stats () = {
 	type_instance_kind_writes = Array.make 255 0;
+	texpr_writes = Array.make 255 0;
 	type_instance_immediate = ref 0;
 	type_instance_ring_hits = ref 0;
 	type_instance_cache_hits = ref 0;
@@ -94,24 +97,32 @@ let create_hxb_writer_stats () = {
 	pos_writes_min = ref 0;
 	pos_writes_max = ref 0;
 	pos_writes_minmax = ref 0;
+	pos_writes_eq = ref 0;
 }
 
 let dump_stats name stats =
-	let _,kind_writes = Array.fold_left (fun (index,acc) writes ->
-		(index + 1,if writes = 0 then acc else (index,writes) :: acc)
-	) (0,[]) stats.type_instance_kind_writes in
-	let kind_writes = List.sort (fun (_,writes1) (_,writes2) -> compare writes2 writes1) kind_writes in
-	let kind_writes = List.map (fun (index,writes) -> Printf.sprintf "    %3i: %9i" index writes) kind_writes in
+	let sort_and_filter_array a =
+		let _,kind_writes = Array.fold_left (fun (index,acc) writes ->
+			(index + 1,if writes = 0 then acc else (index,writes) :: acc)
+		) (0,[]) a in
+		let kind_writes = List.sort (fun (_,writes1) (_,writes2) -> compare writes2 writes1) kind_writes in
+		List.map (fun (index,writes) -> Printf.sprintf "    %3i: %9i" index writes) kind_writes
+	in
+	let t_kind_writes = sort_and_filter_array stats.type_instance_kind_writes in
 	print_endline (Printf.sprintf "hxb_writer stats for %s" name);
 	print_endline "  type instance kind writes:";
-	List.iter print_endline kind_writes;
+	List.iter print_endline t_kind_writes;
+	let texpr_writes = sort_and_filter_array stats.texpr_writes in
+	print_endline "  texpr writes:";
+	List.iter print_endline texpr_writes;
+
 	print_endline "  type instance writes:";
 	print_endline (Printf.sprintf "     immediate: %9i" !(stats.type_instance_immediate));
 	print_endline (Printf.sprintf "     ring hits: %9i" !(stats.type_instance_ring_hits));
 	print_endline (Printf.sprintf "    cache hits: %9i" !(stats.type_instance_cache_hits));
 	print_endline (Printf.sprintf "    cache miss: %9i" !(stats.type_instance_cache_misses));
 	print_endline "  pos writes:";
-	print_endline (Printf.sprintf "      full: %9i\n       min: %9i\n       max: %9i\n    minmax: %9i" !(stats.pos_writes_full) !(stats.pos_writes_min) !(stats.pos_writes_max) !(stats.pos_writes_minmax))
+	print_endline (Printf.sprintf "      full: %9i\n       min: %9i\n       max: %9i\n    minmax: %9i\n     equal: %9i" !(stats.pos_writes_full) !(stats.pos_writes_min) !(stats.pos_writes_max) !(stats.pos_writes_minmax) !(stats.pos_writes_eq))
 
 class ['key,'value] pool = object(self)
 	val lut = Hashtbl.create 0
@@ -325,8 +336,11 @@ class pos_writer
 			chunk#write_u8 (2 + offset);
 			chunk#write_leb128 p.pmax;
 			p_max <- p.pmax;
-		end else if write_equal then
-			chunk#write_u8 offset;
+		end else begin
+			incr stats.pos_writes_eq;
+			if write_equal then
+				chunk#write_u8 offset;
+		end
 
 	initializer
 		self#do_write_pos chunk_initial p_initial
@@ -1210,6 +1224,10 @@ class hxb_writer
 		in
 		chunk#write_uleb128 index
 
+	method write_texpr_byte (i : int) =
+		stats.texpr_writes.(i) <- stats.texpr_writes.(i) + 1;
+		chunk#write_u8 i
+
 	method write_texpr (fctx : field_writer_context) (e : texpr) =
 		let declare_var v =
 			chunk#write_uleb128 (fctx.vars#add v.v_id v);
@@ -1232,39 +1250,39 @@ class hxb_writer
 			| TConst ct ->
 				begin match ct with
 				| TNull ->
-					chunk#write_u8 0;
+					self#write_texpr_byte 0;
 				| TThis ->
-					chunk#write_u8 1;
+					self#write_texpr_byte 1;
 				| TSuper ->
-					chunk#write_u8 2;
+					self#write_texpr_byte 2;
 				| TBool false ->
-					chunk#write_u8 3;
+					self#write_texpr_byte 3;
 				| TBool true ->
-					chunk#write_u8 4;
+					self#write_texpr_byte 4;
 				| TInt i32 ->
-					chunk#write_u8 5;
+					self#write_texpr_byte 5;
 					chunk#write_i32 i32;
 				| TFloat f ->
-					chunk#write_u8 6;
+					self#write_texpr_byte 6;
 					chunk#write_string f;
 				| TString s ->
-					chunk#write_u8 7;
+					self#write_texpr_byte 7;
 					chunk#write_string s
 				end
 			(* vars 20-29 *)
 			| TLocal v ->
-				chunk#write_u8 20;
+				self#write_texpr_byte 20;
 				chunk#write_uleb128 (fctx.vars#get v.v_id)
 			| TVar(v,None) ->
-				chunk#write_u8 21;
+				self#write_texpr_byte 21;
 				declare_var v;
 			| TVar(v,Some e1) ->
-				chunk#write_u8 22;
+				self#write_texpr_byte 22;
 				declare_var v;
 				loop e1;
 			(* blocks 30-49 *)
 			| TBlock [] ->
-				chunk#write_u8 30;
+				self#write_texpr_byte 30;
 			| TBlock el ->
 				let restore = self#start_temporary_chunk in
 				let i = ref 0 in
@@ -1275,24 +1293,24 @@ class hxb_writer
 				let bytes = restore (fun new_chunk -> new_chunk#get_bytes) in
 				let l = !i in
 				begin match l with
-				| 1 -> chunk#write_u8 31;
-				| 2 -> chunk#write_u8 32;
-				| 3 -> chunk#write_u8 33;
-				| 4 -> chunk#write_u8 34;
-				| 5 -> chunk#write_u8 35;
+				| 1 -> self#write_texpr_byte 31;
+				| 2 -> self#write_texpr_byte 32;
+				| 3 -> self#write_texpr_byte 33;
+				| 4 -> self#write_texpr_byte 34;
+				| 5 -> self#write_texpr_byte 35;
 				| _ ->
 					if l <= 0xFF then begin
-						chunk#write_u8 36;
+						self#write_texpr_byte 36;
 						chunk#write_u8 l;
 					end else begin
-						chunk#write_u8 39;
+						self#write_texpr_byte 39;
 						chunk#write_uleb128 l;
 					end;
 				end;
 				chunk#write_bytes bytes;
 			(* function 50-59 *)
 			| TFunction tf ->
-				chunk#write_u8 50;
+				self#write_texpr_byte 50;
 				chunk#write_list tf.tf_args (fun (v,eo) ->
 					declare_var v;
 					chunk#write_option eo loop;
@@ -1301,17 +1319,17 @@ class hxb_writer
 				loop tf.tf_expr;
 			(* texpr compounds 60-79 *)
 			| TArray(e1,e2) ->
-				chunk#write_u8 60;
+				self#write_texpr_byte 60;
 				loop e1;
 				loop e2;
 			| TParenthesis e1 ->
-				chunk#write_u8 61;
+				self#write_texpr_byte 61;
 				loop e1;
 			| TArrayDecl el ->
-				chunk#write_u8 62;
+				self#write_texpr_byte 62;
 				loop_el el;
 			| TObjectDecl fl ->
-				chunk#write_u8 63;
+				self#write_texpr_byte 63;
 				chunk#write_list fl (fun ((name,p,qs),e) ->
 					chunk#write_string name;
 					self#write_pos p;
@@ -1322,25 +1340,25 @@ class hxb_writer
 					loop e
 				);
 			| TCall(e1,el) ->
-				chunk#write_u8 64;
+				self#write_texpr_byte 64;
 				loop e1;
 				loop_el el;
 			| TMeta(m,e1) ->
-				chunk#write_u8 65;
+				self#write_texpr_byte 65;
 				self#write_metadata_entry m;
 				loop e1;
 			(* branching 80-89 *)
 			| TIf(e1,e2,None) ->
-				chunk#write_u8 80;
+				self#write_texpr_byte 80;
 				loop e1;
 				loop e2;
 			| TIf(e1,e2,Some e3) ->
-				chunk#write_u8 81;
+				self#write_texpr_byte 81;
 				loop e1;
 				loop e2;
 				loop e3;
 			| TSwitch s ->
-				chunk#write_u8 82;
+				self#write_texpr_byte 82;
 				loop s.switch_subject;
 				chunk#write_list s.switch_cases (fun c ->
 					loop_el c.case_patterns;
@@ -1348,40 +1366,40 @@ class hxb_writer
 				);
 				chunk#write_option s.switch_default loop;
 			| TTry(e1,catches) ->
-				chunk#write_u8 83;
+				self#write_texpr_byte 83;
 				loop e1;
 				chunk#write_list catches  (fun (v,e) ->
 					declare_var v;
 					loop e
 				);
 			| TWhile(e1,e2,flag) ->
-				chunk#write_u8 (if flag = NormalWhile then 84 else 85);
+				self#write_texpr_byte (if flag = NormalWhile then 84 else 85);
 				loop e1;
 				loop e2;
 			| TFor(v,e1,e2) ->
-				chunk#write_u8 86;
+				self#write_texpr_byte 86;
 				declare_var v;
 				loop e1;
 				loop e2;
 			(* control flow 90-99 *)
 			| TReturn None ->
-				chunk#write_u8 90;
+				self#write_texpr_byte 90;
 			| TReturn (Some e1) ->
-				chunk#write_u8 91;
+				self#write_texpr_byte 91;
 				loop e1;
 			| TContinue ->
-				chunk#write_u8 92;
+				self#write_texpr_byte 92;
 			| TBreak ->
-				chunk#write_u8 93;
+				self#write_texpr_byte 93;
 			| TThrow e1 ->
-				chunk#write_u8 94;
+				self#write_texpr_byte 94;
 				loop e1;
 			(* access 100-119 *)
 			| TEnumIndex e1 ->
-				chunk#write_u8 100;
+				self#write_texpr_byte 100;
 				loop e1;
 			| TEnumParameter(e1,ef,i) ->
-				chunk#write_u8 101;
+				self#write_texpr_byte 101;
 				loop e1;
 				let en = match follow ef.ef_type with
 					| TFun(_,tr) ->
@@ -1395,87 +1413,87 @@ class hxb_writer
 				self#write_enum_field_ref en ef;
 				chunk#write_uleb128 i;
 			| TField(e1,FInstance(c,tl,cf)) ->
-				chunk#write_u8 102;
+				self#write_texpr_byte 102;
 				loop e1;
 				self#write_class_ref c;
 				self#write_types tl;
 				self#write_field_ref c CfrMember cf;
 			| TField(e1,FStatic(c,cf)) ->
-				chunk#write_u8 103;
+				self#write_texpr_byte 103;
 				loop e1;
 				self#write_class_ref c;
 				self#write_field_ref c CfrStatic cf;
 			| TField(e1,FAnon cf) ->
-				chunk#write_u8 104;
+				self#write_texpr_byte 104;
 				loop e1;
 				self#write_anon_field_ref cf
 			| TField(e1,FClosure(Some(c,tl),cf)) ->
-				chunk#write_u8 105;
+				self#write_texpr_byte 105;
 				loop e1;
 				self#write_class_ref c;
 				self#write_types tl;
 				self#write_field_ref c CfrMember cf
 			| TField(e1,FClosure(None,cf)) ->
-				chunk#write_u8 106;
+				self#write_texpr_byte 106;
 				loop e1;
 				self#write_anon_field_ref cf
 			| TField(e1,FEnum(en,ef)) ->
-				chunk#write_u8 107;
+				self#write_texpr_byte 107;
 				loop e1;
 				self#write_enum_ref en;
 				self#write_enum_field_ref en ef;
 			| TField(e1,FDynamic s) ->
-				chunk#write_u8 108;
+				self#write_texpr_byte 108;
 				loop e1;
 				chunk#write_string s;
 			(* module types 120-139 *)
 			| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter ttp})) ->
-				chunk#write_u8 128;
+				self#write_texpr_byte 128;
 				self#write_type_parameter_ref ttp
 			| TTypeExpr (TClassDecl c) ->
-				chunk#write_u8 120;
+				self#write_texpr_byte 120;
 				self#write_class_ref c;
 			| TTypeExpr (TEnumDecl en) ->
-				chunk#write_u8 121;
+				self#write_texpr_byte 121;
 				self#write_enum_ref en;
 			| TTypeExpr (TAbstractDecl a) ->
-				chunk#write_u8 122;
+				self#write_texpr_byte 122;
 				self#write_abstract_ref a
 			| TTypeExpr (TTypeDecl td) ->
-				chunk#write_u8 123;
+				self#write_texpr_byte 123;
 				self#write_typedef_ref td
 			| TCast(e1,None) ->
-				chunk#write_u8 124;
+				self#write_texpr_byte 124;
 				loop e1;
 			| TCast(e1,Some md) ->
-				chunk#write_u8 125;
+				self#write_texpr_byte 125;
 				loop e1;
 				let infos = t_infos md in
 				let m = infos.mt_module in
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd infos.mt_path);
 			| TNew(({cl_kind = KTypeParameter ttp}),tl,el) ->
-				chunk#write_u8 127;
+				self#write_texpr_byte 127;
 				self#write_type_parameter_ref ttp;
 				self#write_types tl;
 				loop_el el;
 			| TNew(c,tl,el) ->
-				chunk#write_u8 126;
+				self#write_texpr_byte 126;
 				self#write_class_ref c;
 				self#write_types tl;
 				loop_el el;
 			(* unops 140-159 *)
 			| TUnop(op,flag,e1) ->
-				chunk#write_u8 (140 + unop_index op flag);
+				self#write_texpr_byte (140 + unop_index op flag);
 				loop e1;
 			(* binops 160-219 *)
 			| TBinop(op,e1,e2) ->
-				chunk#write_u8 (160 + binop_index op);
+				self#write_texpr_byte (160 + binop_index op);
 				loop e1;
 				loop e2;
 			(* pos 241-244 *)
 			(* rest 250-254 *)
 			| TIdent s ->
-				chunk#write_u8 250;
+				self#write_texpr_byte 250;
 				chunk#write_string s;
 		and loop_el el =
 			chunk#write_list el loop
