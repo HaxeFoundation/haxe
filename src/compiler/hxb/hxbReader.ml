@@ -114,7 +114,7 @@ class hxb_reader
 	method read_u8 =
 		IO.read_byte ch
 
-	method read_u32 =
+	method read_i32 =
 		IO.read_real_i32 ch
 
 	method read_i16 =
@@ -900,10 +900,10 @@ class hxb_reader
 			| _ -> assert false
 
 	method read_var =
-		let id = IO.read_i32 ch in
+		let id = self#read_uleb128 in
 		let name = self#read_string in
 		let kind = self#read_var_kind in
-		let flags = IO.read_i32 ch in
+		let flags = self#read_uleb128 in
 		let meta = self#read_metadata in
 		let pos = self#read_pos in
 		let v = {
@@ -946,7 +946,7 @@ class hxb_reader
 					| 2 -> TConst TSuper
 					| 3 -> TConst (TBool false)
 					| 4 -> TConst (TBool true)
-					| 5 -> TConst (TInt (IO.read_real_i32 ch))
+					| 5 -> TConst (TInt self#read_i32)
 					| 6 -> TConst (TFloat self#read_string)
 					| 7 -> TConst (TString self#read_string)
 
@@ -1079,7 +1079,7 @@ class hxb_reader
 					| 101 ->
 						let e1 = loop () in
 						let ef = self#read_enum_field_ref in
-						let i = IO.read_i32 ch in
+						let i = self#read_uleb128 in
 						TEnumParameter(e1,ef,i)
 					| 102 ->
 						let e1 = loop () in
@@ -1233,7 +1233,7 @@ class hxb_reader
 			);
 		let t = self#read_type_instance in
 
-		let flags = IO.read_i32 ch in
+		let flags = self#read_uleb128 in
 
 		let doc = self#read_option (fun () -> self#read_documentation) in
 		let meta = self#read_metadata in
@@ -1360,7 +1360,7 @@ class hxb_reader
 	method read_class (c : tclass) =
 		self#read_common_module_type (Obj.magic c);
 		c.cl_kind <- self#read_class_kind;
-		c.cl_flags <- (Int32.to_int self#read_u32);
+		c.cl_flags <- self#read_uleb128;
 		let read_relation () =
 			let c = self#read_class_ref in
 			let tl = self#read_types in
@@ -1447,10 +1447,10 @@ class hxb_reader
 		);
 
 	method read_chunk =
-		let size = Int32.to_int self#read_u32 in
+		let size = Int32.to_int self#read_i32 in
 		let name = Bytes.unsafe_to_string (IO.nread ch 4) in
 		let data = IO.nread ch size in
-		let crc = self#read_u32 in
+		let crc = self#read_i32 in
 		ignore(crc); (* TODO *)
 		let kind = chunk_kind_of_string name in
 		(kind,data)

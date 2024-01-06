@@ -175,7 +175,7 @@ object(self)
 	method write_u8 v =
 		IO.write_byte ch v
 
-	method write_u32 v =
+	method write_i32 v =
 		IO.write_real_i32 ch v
 
 	method write_f64 v =
@@ -220,9 +220,6 @@ class abstract_chunk (name : string) = object(self)
 
 	method write_bool b =
 		self#write_u8 (if b then 1 else 0)
-
-	method write_i32 i =
-		self#write_u32 (Int32.of_int i);
 
 	method export : 'a . 'a IO.output -> unit = fun chex ->
 		let bytes = self#get_bytes in
@@ -1173,10 +1170,10 @@ class hxb_writer
 		chunk#write_u8 b
 
 	method write_var fctx v =
-		chunk#write_i32 v.v_id;
+		chunk#write_uleb128 v.v_id;
 		chunk#write_string v.v_name;
 		self#write_var_kind v.v_kind;
-		chunk#write_i32 v.v_flags;
+		chunk#write_uleb128 v.v_flags;
 		self#write_metadata v.v_meta;
 		self#write_pos v.v_pos
 
@@ -1246,7 +1243,7 @@ class hxb_writer
 					chunk#write_u8 4;
 				| TInt i32 ->
 					chunk#write_u8 5;
-					chunk#write_u32 i32;
+					chunk#write_i32 i32;
 				| TFloat f ->
 					chunk#write_u8 6;
 					chunk#write_string f;
@@ -1396,7 +1393,7 @@ class hxb_writer
 						die "" __LOC__
 				in
 				self#write_enum_field_ref en ef;
-				chunk#write_i32 i;
+				chunk#write_uleb128 i;
 			| TField(e1,FInstance(c,tl,cf)) ->
 				chunk#write_u8 102;
 				loop e1;
@@ -1594,7 +1591,7 @@ class hxb_writer
 			prerr_endline (Printf.sprintf "%s while writing type instance for field %s" todo_error cf.cf_name);
 			raise e
 		end);
-		chunk#write_i32 cf.cf_flags;
+		chunk#write_uleb128 cf.cf_flags;
 		chunk#write_option cf.cf_doc self#write_documentation;
 		self#write_metadata cf.cf_meta;
 		self#write_field_kind cf.cf_kind;
@@ -1678,7 +1675,7 @@ class hxb_writer
 		end;
 		self#write_common_module_type (Obj.magic c);
 		self#write_class_kind c.cl_kind;
-		chunk#write_u32 (Int32.of_int c.cl_flags);
+		chunk#write_uleb128 c.cl_flags;
 		chunk#write_option c.cl_super (fun (c,tl) ->
 			self#write_class_ref c;
 			self#write_types tl
