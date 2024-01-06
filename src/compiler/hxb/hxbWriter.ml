@@ -279,7 +279,7 @@ class chunk
 end
 
 class pos_writer
-	(chunk : chunk)
+	(chunk_initial : chunk)
 	(stats : hxb_writer_stats)
 	(p_initial : pos)
 	(write_equal : bool)
@@ -289,17 +289,17 @@ class pos_writer
 	val mutable p_min = p_initial.pmin
 	val mutable p_max = p_initial.pmax
 
-	method private do_write_pos (p : pos) =
+	method private do_write_pos (chunk : chunk) (p : pos) =
 		incr stats.pos_writes_full;
 		chunk#write_string p.pfile;
 		chunk#write_leb128 p.pmin;
 		chunk#write_leb128 p.pmax;
 
-	method write_pos (offset : int) (p : pos) =
+	method write_pos (chunk : chunk) (offset : int) (p : pos) =
 		if p.pfile != p_file then begin
 			(* File changed, write full pos *)
 			chunk#write_u8 (4 + offset);
-			self#do_write_pos p;
+			self#do_write_pos chunk p;
 			p_file <- p.pfile;
 			p_min <- p.pmin;
 			p_max <- p.pmax;
@@ -329,7 +329,7 @@ class pos_writer
 			chunk#write_u8 offset;
 
 	initializer
-		self#do_write_pos p_initial
+		self#do_write_pos chunk_initial p_initial
 end
 
 let ghetto_bottom_type = TInst({(null_class) with cl_path = ([],"Bottom")},[])
@@ -1225,7 +1225,7 @@ class hxb_writer
 		let rec loop e =
 
 			self#write_texpr_type_instance fctx e.etype;
-			fctx.pos_writer#write_pos 240 e.epos;
+			fctx.pos_writer#write_pos chunk 240 e.epos;
 
 			match e.eexpr with
 			(* values 0-19 *)
