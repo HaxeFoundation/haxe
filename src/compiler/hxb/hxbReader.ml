@@ -27,12 +27,14 @@ type field_reader_context = {
 	t_pool : Type.t Array.t;
 	pos : pos ref;
 	vars : tvar Array.t;
+	mutable tthis : Type.t;
 }
 
 let create_field_reader_context p ts vars = {
 	t_pool = ts;
 	pos = ref p;
 	vars = vars;
+	tthis = t_dynamic;
 }
 
 type hxb_reader_result =
@@ -970,7 +972,9 @@ class hxb_reader
 				match IO.read_byte ch with
 					(* values 0-19 *)
 					| 0 -> TConst TNull
-					| 1 -> TConst TThis
+					| 1 ->
+						fctx.tthis <- t;
+						TConst TThis
 					| 2 -> TConst TSuper
 					| 3 -> TConst (TBool false)
 					| 4 -> TConst (TBool true)
@@ -1158,11 +1162,20 @@ class hxb_reader
 						TField(e1,FDynamic s)
 
 					| 110 ->
-						let p = self#read_pos in
+						read_relpos ();
+						let p = !(fctx.pos) in
 						let c = self#read_class_ref in
 						let cf = self#read_field_ref in
 						let e1 = Texpr.Builder.make_static_this c p in
 						TField(e1,FStatic(c,cf))
+					| 111 ->
+						read_relpos ();
+						let p = !(fctx.pos) in
+						let c = self#read_class_ref in
+						let tl = self#read_types in
+						let cf = self#read_field_ref in
+						let ethis = mk (TConst TThis) fctx.tthis p in
+						TField(ethis,FInstance(c,tl,cf))
 
 					(* module types 120-139 *)
 					| 120 -> TTypeExpr (TClassDecl self#read_class_ref)

@@ -405,6 +405,7 @@ type field_writer_context = {
 	t_pool : (bytes,bytes) pool;
 	t_rings : t_rings;
 	pos_writer : pos_writer;
+	mutable texpr_this : texpr option;
 	vars : (int,tvar) pool;
 }
 
@@ -412,6 +413,7 @@ let create_field_writer_context pos_writer = {
 	t_pool = new pool;
 	t_rings = new t_rings 5;
 	pos_writer = pos_writer;
+	texpr_this = None;
 	vars = new pool;
 }
 
@@ -1255,6 +1257,7 @@ class hxb_writer
 				| TNull ->
 					self#write_texpr_byte 0;
 				| TThis ->
+					fctx.texpr_this <- Some e;
 					self#write_texpr_byte 1;
 				| TSuper ->
 					self#write_texpr_byte 2;
@@ -1413,6 +1416,12 @@ class hxb_writer
 				in
 				self#write_enum_field_ref en ef;
 				chunk#write_uleb128 i;
+			| TField({eexpr = TConst TThis; epos = p1},FInstance(c,tl,cf)) when fctx.texpr_this <> None ->
+				self#write_texpr_byte 111;
+				fctx.pos_writer#write_pos chunk true 0 p1;
+				self#write_class_ref c;
+				self#write_types tl;
+				self#write_field_ref c CfrMember cf;
 			| TField(e1,FInstance(c,tl,cf)) ->
 				self#write_texpr_byte 102;
 				loop e1;
@@ -1421,7 +1430,7 @@ class hxb_writer
 				self#write_field_ref c CfrMember cf;
 			| TField({eexpr = TTypeExpr (TClassDecl c'); epos = p1},FStatic(c,cf)) when c == c' ->
 				self#write_texpr_byte 110;
-				self#write_pos p1;
+				fctx.pos_writer#write_pos chunk true 0 p1;
 				self#write_class_ref c;
 				self#write_field_ref c CfrStatic cf;
 			| TField(e1,FStatic(c,cf)) ->
