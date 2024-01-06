@@ -293,7 +293,6 @@ class pos_writer
 	(chunk_initial : chunk)
 	(stats : hxb_writer_stats)
 	(p_initial : pos)
-	(write_equal : bool)
 = object(self)
 
 	val mutable p_file = p_initial.pfile
@@ -306,7 +305,7 @@ class pos_writer
 		chunk#write_leb128 p.pmin;
 		chunk#write_leb128 p.pmax;
 
-	method write_pos (chunk : chunk) (offset : int) (p : pos) =
+	method write_pos (chunk : chunk) (write_equal : bool) (offset : int) (p : pos) =
 		if p.pfile != p_file then begin
 			(* File changed, write full pos *)
 			chunk#write_u8 (4 + offset);
@@ -1247,7 +1246,7 @@ class hxb_writer
 		let rec loop e =
 
 			self#write_texpr_type_instance fctx e.etype;
-			fctx.pos_writer#write_pos chunk 240 e.epos;
+			fctx.pos_writer#write_pos chunk false 240 e.epos;
 
 			match e.eexpr with
 			(* values 0-19 *)
@@ -1584,7 +1583,7 @@ class hxb_writer
 
 	method start_texpr (p: pos) =
 		let restore = self#start_temporary_chunk in
-		let fctx = create_field_writer_context (new pos_writer chunk stats p false) in
+		let fctx = create_field_writer_context (new pos_writer chunk stats p) in
 		fctx,(fun () ->
 			restore(fun new_chunk ->
 				let items = fctx.t_pool#items in

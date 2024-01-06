@@ -936,6 +936,34 @@ class hxb_reader
 			v.v_type <- self#read_type_instance;
 			v
 		in
+		let update_pmin () =
+			fctx.pos := {!(fctx.pos) with pmin = self#read_leb128};
+		in
+		let update_pmax () =
+			fctx.pos := {!(fctx.pos) with pmax = self#read_leb128};
+		in
+		let update_pminmax () =
+			let pmin = self#read_leb128 in
+			let pmax = self#read_leb128 in
+			fctx.pos := {!(fctx.pos) with pmin; pmax};
+		in
+		let update_p () =
+			fctx.pos := self#read_pos;
+		in
+		let read_relpos () =  match self#read_u8 with
+			| 0 ->
+				()
+			| 1 ->
+				update_pmin ()
+			| 2 ->
+				update_pmax ()
+			| 3 ->
+				update_pminmax ()
+			| 4 ->
+				update_p ()
+			| _ ->
+				assert false
+		in
 		let rec loop () =
 			let t = fctx.t_pool.(self#read_uleb128) in
 			let rec loop2 () =
@@ -1175,18 +1203,16 @@ class hxb_reader
 						TBinop(op,e1,e2)
 					(* pos 241-244*)
 					| 241 ->
-						fctx.pos := {!(fctx.pos) with pmin = self#read_leb128};
+						update_pmin();
 						loop2 ()
 					| 242 ->
-						fctx.pos := {!(fctx.pos) with pmax = self#read_leb128};
+						update_pmax();
 						loop2 ()
 					| 243 ->
-						let pmin = self#read_leb128 in
-						let pmax = self#read_leb128 in
-						fctx.pos := {!(fctx.pos) with pmin; pmax};
+						update_pminmax();
 						loop2 ()
 					| 244 ->
-						fctx.pos := self#read_pos;
+						update_p();
 						loop2 ()
 					(* rest 250-254 *)
 					| 250 ->
