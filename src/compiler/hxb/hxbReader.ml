@@ -163,8 +163,7 @@ class hxb_reader
 
 	method read_list : 'a . (unit -> 'a) -> 'a list = fun f ->
 		let l = self#read_uleb128 in
-		let a = Array.init l (fun _ -> f ()) in
-		Array.to_list a
+		List.init l (fun _ -> f ())
 
 	method read_option : 'a . (unit -> 'a) -> 'a option = fun f ->
 		match self#read_u8 with
@@ -972,13 +971,8 @@ class hxb_reader
 						let l = IO.read_byte ch in
 						let el = List.init l (fun _ -> loop ()) in
 						TBlock el;
-					| 37 ->
-						let l = IO.read_ui16 ch in
-						let el = List.init l (fun _ -> loop ()) in
-						TBlock el;
-					| 38 ->
-						let l = IO.read_i32 ch in
-						let el = List.init l (fun _ -> loop ()) in
+					| 39 ->
+						let el = self#read_list loop in
 						TBlock el;
 
 					(* function 50-59 *)

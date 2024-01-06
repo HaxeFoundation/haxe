@@ -299,7 +299,7 @@ class pos_writer
 		chunk#write_leb128 p.pmax;
 
 	method write_pos (offset : int) (p : pos) =
-		if p.pfile <> p_file then begin
+		if p.pfile != p_file then begin
 			(* File changed, write full pos *)
 			chunk#write_u8 (4 + offset);
 			self#do_write_pos p;
@@ -1269,7 +1269,14 @@ class hxb_writer
 			| TBlock [] ->
 				chunk#write_u8 30;
 			| TBlock el ->
-				let l = List.length el in
+				let restore = self#start_temporary_chunk in
+				let i = ref 0 in
+				List.iter (fun e ->
+					incr i;
+					loop e;
+				) el;
+				let bytes = restore (fun new_chunk -> new_chunk#get_bytes) in
+				let l = !i in
 				begin match l with
 				| 1 -> chunk#write_u8 31;
 				| 2 -> chunk#write_u8 32;
@@ -1280,15 +1287,12 @@ class hxb_writer
 					if l <= 0xFF then begin
 						chunk#write_u8 36;
 						chunk#write_u8 l;
-					end else if l < 0xFFFF then begin
-						chunk#write_u8 37;
-						chunk#write_ui16 l;
 					end else begin
-						chunk#write_u8 38;
-						chunk#write_i32 l;
+						chunk#write_u8 39;
+						chunk#write_uleb128 l;
 					end;
 				end;
-				List.iter loop el
+				chunk#write_bytes bytes;
 			(* function 50-59 *)
 			| TFunction tf ->
 				chunk#write_u8 50;
