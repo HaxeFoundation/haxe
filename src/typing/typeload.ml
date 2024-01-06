@@ -35,7 +35,7 @@ open Globals
 
 let build_count = ref 0
 
-let type_function_params_rec = ref (fun _ _ _ _ -> die "" __LOC__)
+let type_function_params_ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
 
 let check_field_access ctx cff =
 	let display_access = ref None in
@@ -101,17 +101,6 @@ let find_type_in_module_raise ctx m tname p =
 		) m.m_types
 	with Not_found ->
 		raise_typing_error_ext (make_error (Type_not_found (m.m_path,tname,Not_defined)) p)
-
-(* raises Module_not_found or Type_not_found *)
-let load_type_raise ctx mpath tname p =
-	let m = ctx.g.do_load_module ctx mpath p in
-	find_type_in_module_raise ctx m tname p
-
-(* raises Not_found *)
-let load_type ctx mpath tname p = try
-	load_type_raise ctx mpath tname p
-with Error { err_message = (Module_not_found _ | Type_not_found _); err_pos = p2 } when p = p2 ->
-	raise Not_found
 
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
@@ -587,7 +576,7 @@ and load_complex_type' ctx allow_display (t,p) =
 					no_expr e;
 					topt t, Var { v_read = AccNormal; v_write = AccNormal }
 				| FFun fd ->
-					params := (!type_function_params_rec) ctx fd (fst f.cff_name) p;
+					params := (!type_function_params_ref) ctx fd TPHAnonField (fst f.cff_name) p;
 					no_expr fd.f_expr;
 					let old = ctx.type_params in
 					ctx.type_params <- !params @ old;
@@ -680,11 +669,11 @@ and init_meta_overloads ctx co cf =
 				| [] ->
 					()
 				| l ->
-					ctx.type_params <- List.filter (fun t ->
-						not (List.mem t l) (* TODO: this still looks suspicious *)
+					ctx.type_params <- List.filter (fun ttp ->
+						ttp.ttp_host <> TPHMethod
 					) ctx.type_params
 			end;
-			let params : type_params = (!type_function_params_rec) ctx f cf.cf_name p in
+			let params : type_params = (!type_function_params_ref) ctx f TPHMethod cf.cf_name p in
 			ctx.type_params <- params @ ctx.type_params;
 			let topt = function None -> raise_typing_error "Explicit type required" p | Some t -> load_complex_type ctx true t in
 			let args =
@@ -739,12 +728,6 @@ let load_type_hint ?(opt=false) ctx pcur t =
 (* ---------------------------------------------------------------------- *)
 (* PASS 1 & 2 : Module and Class Structure *)
 
-type type_param_host =
-	| TPHType
-	| TPHConstructor
-	| TPHMethod
-	| TPHEnumConstructor
-
 let rec type_type_param ctx host path get_params p tp =
 	let n = fst tp.tp_name in
 	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) (pos tp.tp_name) (pos tp.tp_name) in
@@ -765,7 +748,9 @@ let rec type_type_param ctx host path get_params p tp =
 					()
 				| TPHConstructor
 				| TPHMethod
-				| TPHEnumConstructor ->
+				| TPHEnumConstructor
+				| TPHAnonField
+				| TPHLocal ->
 					display_error ctx.com "Default type parameters are only supported on types" (pos ct)
 				end;
 				t
@@ -774,10 +759,11 @@ let rec type_type_param ctx host path get_params p tp =
 	in
 	let ttp = match tp.tp_constraints with
 		| None ->
-			mk_type_param c default None
+			mk_type_param c host default None
 		| Some th ->
+			let current_type_params = ctx.type_params in
 			let constraints = lazy (
-				let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
+				let ctx = { ctx with type_params = get_params() @ current_type_params } in
 				let rec loop th = match fst th with
 					| CTIntersection tl -> List.map (load_complex_type ctx true) tl
 					| CTParent ct -> loop ct
@@ -798,7 +784,7 @@ let rec type_type_param ctx host path get_params p tp =
 				constr
 			) in
 			delay ctx PConnectField (fun () -> ignore (Lazy.force constraints));
-			mk_type_param c default (Some constraints)
+			mk_type_param c host default (Some constraints)
 	in
 	c.cl_kind <- KTypeParameter ttp;
 	ttp

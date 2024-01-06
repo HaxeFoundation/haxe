@@ -50,12 +50,11 @@ module ModuleLevel = struct
 			m_path = mpath;
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (Path.get_full_path file) (Define.get_signature ctx.com.defines) (file_time file) (if ctx.com.is_macro_context then MMacro else MCode) (get_policy ctx.g mpath);
+			m_extra = module_extra (Path.get_full_path file) (Define.get_signature ctx.com.defines) (file_time file) (if ctx.com.is_macro_context then MMacro else MCode) ctx.com.compilation_step (get_policy ctx.g mpath);
 		} in
 		m
 
 	let add_module ctx m p =
-		List.iter (TypeloadCheck.check_module_types ctx m p) m.m_types;
 		ctx.com.module_lut#add m.m_path m
 
 	(*
@@ -66,7 +65,7 @@ module ModuleLevel = struct
 		let decls = ref [] in
 		let statics = ref [] in
 		let check_name name meta also_statics p =
-			DeprecationCheck.check_is com meta [] name meta p;
+			DeprecationCheck.check_is com ctx.m.curmod meta [] name meta p;
 			let error prev_pos =
 				display_error ctx.com ("Name " ^ name ^ " is already defined in this module") p;
 				raise_typing_error ~depth:1 (compl_msg "Previous declaration here") prev_pos;
@@ -132,20 +131,11 @@ module ModuleLevel = struct
 				let path = make_path name priv d.d_meta p in
 				if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then raise_typing_error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
 				let e = {
-					e_path = path;
-					e_module = m;
-					e_pos = p;
-					e_name_pos = (pos d.d_name);
+					(mk_enum m path p (pos d.d_name)) with
 					e_doc = d.d_doc;
 					e_meta = d.d_meta;
-					e_params = [];
-					e_using = [];
-					e_restore = (fun () -> ());
 					e_private = priv;
 					e_extern = List.mem EExtern d.d_flags;
-					e_constrs = PMap.empty;
-					e_names = [];
-					e_type = enum_module_type m path p;
 				} in
 				if not e.e_extern then check_type_name name d.d_meta;
 				decls := (TEnumDecl e, decl) :: !decls;
@@ -205,7 +195,7 @@ module ModuleLevel = struct
 					| None -> ()
 					| Some p ->
 						let options = Warning.from_meta d.d_meta in
-						ctx.com.warning WDeprecatedEnumAbstract options "`@:enum abstract` is deprecated in favor of `enum abstract`" p
+						module_warning ctx.com ctx.m.curmod WDeprecatedEnumAbstract options "`@:enum abstract` is deprecated in favor of `enum abstract`" p
 				end;
 				decls := (TAbstractDecl a, decl) :: !decls;
 				match d.d_data with
@@ -388,16 +378,8 @@ module TypeLevel = struct
 			ef_params = params;
 			ef_meta = c.ec_meta;
 		} in
-		DeprecationCheck.check_is ctx.com e.e_meta f.ef_meta f.ef_name f.ef_meta f.ef_name_pos;
-		let cf = {
-			(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
-			cf_kind = (match follow f.ef_type with
-				| TFun _ -> Method MethNormal
-				| _ -> Var { v_read = AccNormal; v_write = AccNo }
-			);
-			cf_doc = f.ef_doc;
-			cf_params = f.ef_params;
-		} in
+		DeprecationCheck.check_is ctx.com ctx.m.curmod e.e_meta f.ef_meta f.ef_name f.ef_meta f.ef_name_pos;
+		let cf = class_field_of_enum_field f in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in f.ef_name_pos then
 			DisplayEmitter.display_enum_field ctx e f p;
 		f,cf
@@ -535,8 +517,7 @@ module TypeLevel = struct
 		) (!constructs);
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
-		e.e_type.t_params <- e.e_params;
-		e.e_type.t_type <- mk_anon ~fields:!fields (ref (EnumStatics e));
+		unify ctx (TType(enum_module_type e !fields,[])) e.e_type p;
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
 			delay ctx PConnectField (fun() -> InheritDoc.build_enum_doc ctx e);
@@ -592,7 +573,7 @@ module TypeLevel = struct
 		| TMono r ->
 			(match r.tm_type with
 			| None -> Monomorph.bind r tt;
-			| Some _ -> die "" __LOC__);
+			| Some t' -> die (Printf.sprintf "typedef %s is already initialized to %s, but new init to %s was attempted" (s_type_path t.t_path) (s_type_kind t') (s_type_kind tt)) __LOC__);
 		| _ -> die "" __LOC__);
 		TypeloadFields.build_module_def ctx (TTypeDecl t) t.t_meta (fun _ -> []) (fun _ -> ());
 		if ctx.com.platform = Cs && t.t_meta <> [] then
@@ -707,7 +688,7 @@ let make_curmod ctx m =
 	let rl = new resolution_list ["import";s_type_path m.m_path] in
 	List.iter (fun mt ->
 		rl#add (module_type_resolution mt None null_pos))
-	(List.rev ctx.g.std.m_types);
+	(List.rev ctx.g.std_types.m_types);
 	{
 		curmod = m;
 		import_resolution = rl;
@@ -761,11 +742,14 @@ let type_types_into_module ctx m tdecls p =
 	let ctx = create_typer_context_for_module ctx m in
 	let decls,tdecls = ModuleLevel.create_module_types ctx m tdecls p in
 	let types = List.map fst decls in
-	List.iter (TypeloadCheck.check_module_types ctx m p) types;
+	(* During the initial module_lut#add in type_module, m has no m_types yet by design.
+	   We manually add them here. This and module_lut#add itself should be the only places
+	   in the compiler that call add_module_type. *)
+	List.iter (fun mt -> ctx.com.module_lut#add_module_type m mt) types;
 	m.m_types <- m.m_types @ types;
 	(* define the per-module context for the next pass *)
-	if ctx.g.std != null_module then begin
-		add_dependency m ctx.g.std;
+	if ctx.g.std_types != null_module then begin
+		add_dependency m ctx.g.std_types;
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
 		ignore(load_instance ctx (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal)
 	end;

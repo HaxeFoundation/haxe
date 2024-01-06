@@ -88,7 +88,9 @@ and do_check_cast ctx uctx tleft eright p =
 					end
 				| TInst(c,tl), TFun _ when has_class_flag c CFunctionalInterface ->
 					let cf = ctx.g.functional_interface_lut#find c.cl_path in
-					unify_raise_custom uctx eright.etype (apply_params c.cl_params tl cf.cf_type) p;
+					let map = apply_params c.cl_params tl in
+					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+					unify_raise_custom uctx eright.etype (map (apply_params cf.cf_params monos cf.cf_type)) p;
 					eright
 				| _ ->
 					raise Not_found

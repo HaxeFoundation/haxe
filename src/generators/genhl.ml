@@ -361,7 +361,7 @@ let make_debug ctx arr =
 let fake_tnull =
 	{null_abstract with
 		a_path = [],"Null";
-		a_params = [mk_type_param null_class None None];
+		a_params = [mk_type_param null_class TPHType None None];
 	}
 
 let get_rec_cache ctx t none_callback not_found_callback =
@@ -2698,13 +2698,10 @@ and eval_expr ctx e =
 		ctx.m.mbreaks <- [];
 		ctx.m.mcontinues <- [];
 		ctx.m.mloop_trys <- ctx.m.mtrys;
-		let start = jump ctx (fun p -> OJAlways p) in
 		let continue_pos = current_pos ctx in
 		let ret = jump_back ctx in
-		let j = jump_expr ctx cond false in
-		start();
 		ignore(eval_expr ctx eloop);
-		set_curpos ctx (max_pos e);
+		let j = jump_expr ctx cond false in
 		ret();
 		j();
 		List.iter (fun f -> f (current_pos ctx)) ctx.m.mbreaks;

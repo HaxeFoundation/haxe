@@ -67,17 +67,27 @@ let make_call ctx e params t ?(force_inline=false) p =
 		);
 		let params = List.map (Optimizer.reduce_expression ctx) params in
 		let force_inline = is_forced_inline cl f in
-		(match f.cf_expr_unoptimized,f.cf_expr with
-		| Some {eexpr = TFunction fd},_
-		| None,Some { eexpr = TFunction fd } ->
+		let inline fd =
 			Inline.type_inline ctx f fd ethis params t config p force_inline
+		in
+		begin match f.cf_expr_unoptimized with
+		| Some {eexpr = TFunction fd} ->
+			inline fd
 		| _ ->
-			(*
-				we can't inline because there is most likely a loop in the typing.
-				this can be caused by mutually recursive vars/functions, some of them
-				being inlined or not. In that case simply ignore inlining.
-			*)
-			raise Exit)
+			if has_class_field_flag f CfPostProcessed then
+				warning ctx  WInlineOptimizedField (Printf.sprintf "Inlining of cached field %s might lead to unexpected output" f.cf_name) p;
+			match f.cf_expr with
+			| Some ({ eexpr = TFunction fd } as e) ->
+				f.cf_expr_unoptimized <- Some (e);
+				inline fd
+			| _ ->
+				(*
+					we can't inline because there is most likely a loop in the typing.
+					this can be caused by mutually recursive vars/functions, some of them
+					being inlined or not. In that case simply ignore inlining.
+				*)
+				raise Exit
+		end
 	with Exit ->
 		mk (TCall (e,params)) t p
 

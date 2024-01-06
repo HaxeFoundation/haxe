@@ -213,6 +213,10 @@ class TestCase implements ITest {
 		}
 	}
 
+	function assertSilence() {
+		return Assert.isTrue(lastResult.stderr == "");
+	}
+
 	function assertSuccess(?p:haxe.PosInfos) {
 		return Assert.isTrue(0 == errorMessages.length, p);
 	}

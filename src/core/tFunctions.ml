@@ -150,7 +150,7 @@ let mk_typedef m path pos name_pos t =
 		t_restore = (fun () -> ());
 	}
 
-let module_extra file sign time kind policy =
+let module_extra file sign time kind added policy =
 	{
 		m_file = Path.UniqueKey.create_lazy file;
 		m_sign = sign;
@@ -160,13 +160,13 @@ let module_extra file sign time kind policy =
 			m_import_positions = PMap.empty;
 		};
 		m_cache_state = MSGood;
-		m_added = 0;
+		m_added = added;
 		m_checked = 0;
 		m_time = time;
 		m_processed = 0;
 		m_deps = PMap.empty;
 		m_kind = kind;
-		m_binded_res = PMap.empty;
+		m_cache_bound_objects = DynArray.create ();
 		m_if_feature = [];
 		m_features = Hashtbl.create 0;
 		m_check_policy = policy;
@@ -198,20 +198,63 @@ let mk_field name ?(public = true) ?(static = false) t p name_pos = {
 	);
 }
 
+let find_field c name kind =
+	match kind with
+	| CfrConstructor ->
+		begin match c.cl_constructor with Some cf -> cf | None -> raise Not_found end
+	| CfrStatic ->
+		PMap.find name c.cl_statics
+	| CfrMember ->
+		PMap.find name c.cl_fields
+
 let null_module = {
-		m_id = alloc_mid();
-		m_path = [] , "";
-		m_types = [];
-		m_statics = None;
-		m_extra = module_extra "" "" 0. MFake [];
-	}
+	m_id = alloc_mid();
+	m_path = [] , "";
+	m_types = [];
+	m_statics = None;
+	m_extra = module_extra "" (Digest.string "") 0. MFake 0 [];
+}
 
 let null_class =
 	let c = mk_class null_module ([],"") null_pos null_pos in
 	c.cl_private <- true;
 	c
 
+let null_typedef =
+	let t = mk_typedef null_module ([],"") null_pos null_pos (TDynamic None) in
+	t.t_private <- true;
+	t
+
+let null_tanon = { a_fields = PMap.empty; a_status = ref Closed }
+
+let null_enum = {
+	e_path = ([],"");
+	e_module = null_module;
+	e_pos = null_pos;
+	e_name_pos = null_pos;
+	e_private = true;
+	e_doc = None;
+	e_meta = [];
+	e_params = [];
+	e_using = [];
+	e_restore = (fun () -> ());
+	e_type = t_dynamic;
+	e_extern = false;
+	e_constrs = PMap.empty;
+	e_names = [];
+}
+
 let null_field = mk_field "" t_dynamic null_pos null_pos
+let null_enum_field = {
+	ef_name = "";
+	ef_type = TEnum (null_enum, []);
+	ef_pos = null_pos;
+	ef_name_pos = null_pos;
+	ef_doc = None;
+	ef_index = 0;
+	ef_params = [];
+	ef_meta = [];
+}
 
 let null_abstract = {
 	a_path = ([],"");
@@ -518,6 +561,15 @@ let rec follow t =
 		follow t
 	| _ -> t
 
+let rec follow_lazy t =
+	match t with
+	| TLazy f ->
+		(match !f with
+		| LAvailable t -> follow_lazy t
+		| _ -> follow_lazy (lazy_type f)
+		)
+	| _ -> t
+
 let follow_once t =
 	match t with
 	| TMono r ->
@@ -554,6 +606,14 @@ let rec follow_without_type t =
 	| TAbstract({a_path = [],"Null"},[t]) ->
 		follow_without_type t
 	| _ -> t
+
+let rec follow_lazy_and_mono t = match t with
+	| TMono {tm_type = Some t} ->
+		follow_lazy_and_mono t
+	| TLazy f ->
+		follow_lazy_and_mono (lazy_type f)
+	| _ ->
+		t
 
 let rec ambiguate_funs t =
 	match follow t with
@@ -655,10 +715,11 @@ let lookup_param n l =
 	in
 	loop l
 
-let mk_type_param c def constraints = {
+let mk_type_param c host def constraints = {
 	ttp_name = snd c.cl_path;
 	ttp_type = TInst(c,[]);
 	ttp_class = c;
+	ttp_host = host;
 	ttp_constraints = constraints;
 	ttp_default = def;
 }
@@ -877,4 +938,29 @@ let type_has_meta t m =
 let var_extra params e = {
 	v_params = params;
 	v_expr = e;
+}
+
+let class_module_type c =
+	let path = ([],"Class<" ^ (s_type_path c.cl_path) ^ ">") in
+	let t = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
+	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
+
+let enum_module_type en fields =
+	let path = ([], "Enum<" ^ (s_type_path en.e_path) ^ ">") in
+	let t = mk_anon ~fields (ref (EnumStatics en)) in
+	{(mk_typedef en.e_module path en.e_pos null_pos t) with t_private = true}
+
+let abstract_module_type a tl =
+	let path = ([],Printf.sprintf "Abstract<%s>" (s_type_path a.a_path)) in
+	let t = mk_anon (ref (AbstractStatics a)) in
+	{(mk_typedef a.a_module path a.a_pos null_pos t) with t_private = true}
+
+let class_field_of_enum_field ef = {
+	(mk_field ef.ef_name ef.ef_type ef.ef_pos ef.ef_name_pos) with
+	cf_kind = (match follow ef.ef_type with
+		| TFun _ -> Method MethNormal
+		| _ -> Var { v_read = AccNormal; v_write = AccNo }
+	);
+	cf_doc = ef.ef_doc;
+	cf_params = ef.ef_params;
 }

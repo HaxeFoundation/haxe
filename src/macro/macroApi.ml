@@ -2088,7 +2088,7 @@ let macro_api ccom get_api =
 			if name = "" then failwith "Empty resource name";
 			Hashtbl.replace (ccom()).resources name data;
 			let m = (get_api()).current_module() in
-			m.m_extra.m_binded_res <- PMap.add name data m.m_extra.m_binded_res;
+			DynArray.add m.m_extra.m_cache_bound_objects (Resource(name,data));
 			vnull
 		);
 		"get_resources", vfun0 (fun() ->
@@ -2184,7 +2184,15 @@ let macro_api ccom get_api =
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
-			NativeLibraryHandler.add_native_lib com file false ();
+			let open CompilationContext in
+			let kind = match com.platform with
+				| Java -> JavaLib
+				| Cs -> NetLib
+				| Flash -> SwfLib
+				| _ -> failwith "Unsupported platform"
+			in
+			let lib = create_native_lib file false kind in
+			NativeLibraryHandler.add_native_lib com lib ();
 			vnull
 		);
 		"add_native_arg", vfun1 (fun arg ->
@@ -2276,8 +2284,8 @@ let macro_api ccom get_api =
 				let c = match t with
 					| TInst(c,_) -> c
 					| _ -> die "" __LOC__
-				in				
-				mk_type_param c default None
+				in
+				mk_type_param c TPHType default None
 			) (decode_array tpl) in
 			let rec map t = match t with
 				| TInst({cl_kind = KTypeParameter _},_) ->
@@ -2301,6 +2309,8 @@ let macro_api ccom get_api =
 					failwith ("unable to find file for inclusion: " ^ file)
 			in
 			(ccom()).include_files <- (file, position) :: (ccom()).include_files;
+			let m = (get_api()).current_module() in
+			DynArray.add m.m_extra.m_cache_bound_objects (IncludeFile(file,position));
 			vnull
 		);
 		(* Compilation server *)
@@ -2316,7 +2326,7 @@ let macro_api ccom get_api =
 			List.iter (fun v ->
 				let s = decode_string v in
 				let s = com.file_keys#get s in
-				cs#taint_modules s "server_invalidate_files";
+				cs#taint_modules s ServerInvalidateFiles;
 				cs#remove_files s;
 			) (decode_array a);
 			vnull
