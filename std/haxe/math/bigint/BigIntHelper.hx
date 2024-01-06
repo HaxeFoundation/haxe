@@ -56,6 +56,11 @@ class BigIntHelper {
 		m = y & (~y >> 1);
 		return n + 2 - m;
 	}
+	
+	public static function bitLen(x:Int):Int {
+		var sign:Int = (x<0)?-1:0;
+		return ( 32 - BigIntHelper.nlz(x^sign) );
+	}
 
 	/**
 		"Ceiling power of two" -- round up to the least power of two
