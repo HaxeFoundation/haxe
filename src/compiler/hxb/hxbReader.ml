@@ -982,7 +982,7 @@ class hxb_reader
 					| 2 -> TConst TSuper
 					| 3 -> TConst (TBool false)
 					| 4 -> TConst (TBool true)
-					| 5 -> TConst (TInt self#read_i32)
+					| 5 -> TConst (TInt (Int32.of_int self#read_leb128))
 					| 6 -> TConst (TFloat self#read_string)
 					| 7 -> TConst (TString self#read_string)
 
