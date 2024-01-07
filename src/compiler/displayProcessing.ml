@@ -121,6 +121,7 @@ let process_display_file com actx =
 		let rec loop = function
 			| [] -> None
 			| cp :: l ->
+				let cp = cp.Path.path in
 				let cp = (if cp = "" then "./" else cp) in
 				let c = Path.add_trailing_slash (Path.get_real_path cp) in
 				let clen = String.length c in
@@ -236,7 +237,7 @@ let load_display_file_standalone (ctx : Typecore.typer) file =
 			let parts = ExtString.String.nsplit dir (if path.backslash then "\\" else "/") in
 			let parts = List.rev (ExtList.List.drop (List.length pack) (List.rev parts)) in
 			let dir = ExtString.String.join (if path.backslash then "\\" else "/") parts in
-			com.class_path <- dir :: com.class_path
+			com.class_path <- (Path.create_class_path dir Directory) :: com.class_path
 	end;
 	ignore(TypeloadModule.type_module ctx (pack,name) file ~dont_check_path:true decls null_pos)
 

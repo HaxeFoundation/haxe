@@ -1847,7 +1847,7 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"class_path", vfun0 (fun() ->
-			encode_array (List.map encode_string (ccom()).class_path);
+			encode_array (List.map (fun path -> encode_string (Path.string_of_class_path path)) (ccom()).class_path);
 		);
 		"resolve_path", vfun1 (fun file ->
 			let file = decode_string file in
@@ -2170,7 +2170,7 @@ let macro_api ccom get_api =
 		"add_class_path", vfun1 (fun cp ->
 			let com = ccom() in
 			let cp = decode_string cp in
-			let cp = Path.add_trailing_slash cp in
+			let cp = Path.create_class_path (Path.add_trailing_slash cp) Directory in
 			com.class_path <- cp :: com.class_path;
 			(match com.get_macros() with
 			| Some(mcom) ->
@@ -2255,7 +2255,7 @@ let macro_api ccom get_api =
 				"foptimize", vbool com.foptimize;
 				"platform", encode_platform com.platform;
 				"platformConfig", encode_platform_config com.config;
-				"stdPath", encode_array (List.map encode_string com.std_path);
+				"stdPath", encode_array (List.map (fun path -> encode_string (Path.string_of_class_path path)) com.std_path);
 				"mainClass", (match com.main_class with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
 			]

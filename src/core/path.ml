@@ -1,5 +1,25 @@
 open StringHelper
 
+type class_path_kind =
+	| Directory
+
+type class_path = {
+	path : string;
+	kind : class_path_kind;
+}
+
+let create_class_path path kind = {
+	path = path;
+	kind = kind;
+}
+
+let empty_class_path = create_class_path "" Directory
+
+let string_of_class_path path =
+	path.path
+
+let class_path_strings paths = List.map string_of_class_path paths
+
 let get_path_parts f =
 	(*
 		this function is quite weird: it tries to determine whether the given

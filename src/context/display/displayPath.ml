@@ -34,6 +34,7 @@ module TypePathHandler = struct
 			| _ -> p
 		) in
 		List.iter (fun path ->
+			let path = Path.string_of_class_path path in
 			let dir = path ^ String.concat "/" p in
 			let r = (try Sys.readdir dir with _ -> [||]) in
 			Array.iter (fun f ->

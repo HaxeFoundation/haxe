@@ -208,8 +208,9 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 					with Unix.Unix_error _ ->
 						()
 				in
-				List.iter add_dir com.class_path;
-				List.iter add_dir (Path.find_directories (platform_name com.platform) true com.class_path);
+				let class_path_strings = Path.class_path_strings com.class_path in
+				List.iter add_dir class_path_strings;
+				List.iter add_dir (Path.find_directories (platform_name com.platform) true class_path_strings);
 				ServerMessage.found_directories com "" !dirs;
 				cs#add_directories sign !dirs
 			) :: sctx.delays;
@@ -472,15 +473,16 @@ let after_target_init sctx ctx =
 	ServerMessage.defines com "";
 	ServerMessage.signature com "" sign;
 	ServerMessage.display_position com "" (DisplayPosition.display_position#get);
+	let class_path_strings = Path.class_path_strings com.class_path in
 	try
-		if (Hashtbl.find sctx.class_paths sign) <> com.class_path then begin
+		if (Hashtbl.find sctx.class_paths sign) <> class_path_strings then begin
 			ServerMessage.class_paths_changed com "";
-			Hashtbl.replace sctx.class_paths sign com.class_path;
+			Hashtbl.replace sctx.class_paths sign class_path_strings;
 			cs#clear_directories sign;
 			(cs#get_context sign)#set_initialized false;
 		end;
 	with Not_found ->
-		Hashtbl.add sctx.class_paths sign com.class_path;
+		Hashtbl.add sctx.class_paths sign class_path_strings;
 		()
 
 let after_compilation sctx ctx =

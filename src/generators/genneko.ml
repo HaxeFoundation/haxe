@@ -58,10 +58,11 @@ let pos ctx p =
 					(* lookup relative path *)
 					let len = String.length p.pfile in
 					let base = List.find (fun path ->
+						let path = path.Path.path in
 						let l = String.length path in
 						len > l && String.sub p.pfile 0 l = path
 					) ctx.com.Common.class_path in
-					let l = String.length base in
+					let l = String.length base.Path.path in
 					String.sub p.pfile l (len - l)
 
 					with Not_found -> p.pfile

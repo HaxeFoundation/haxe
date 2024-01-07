@@ -79,7 +79,11 @@ module Setup = struct
 	let initialize_target ctx com actx =
 		init_platform com;
 		let add_std dir =
-			com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
+			com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @
+			let open Path in
+			List.map (fun path ->
+				create_class_path (path.path ^ dir ^ "/_std/") Directory
+			) com.std_path @ com.std_path
 		in
 		match com.platform with
 			| Cross ->
@@ -164,7 +168,6 @@ module Setup = struct
 
 	let create_typer_context ctx macros native_libs =
 		let com = ctx.com in
-		Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
 		let buffer = Buffer.create 64 in
 		Buffer.add_string buffer "Defines: ";
 		PMap.iter (fun k v -> match v with
@@ -215,6 +218,9 @@ module Setup = struct
 					Path.add_trailing_slash (Filename.concat base_path "std");
 				]
 
+	let get_std_class_paths () =
+		List.map (fun s -> Path.create_class_path s Directory) (get_std_class_paths ())
+
 	let setup_common_context ctx =
 		let com = ctx.com in
 		ctx.com.print <- ctx.comm.write_out;
@@ -255,7 +261,10 @@ module Setup = struct
 		com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
 		com.run_command <- run_command ctx;
 		com.class_path <- get_std_class_paths ();
-		com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path
+		let open Path in
+		com.std_path <- List.filter (fun path ->
+			ExtString.String.ends_with path.path "std/" || ExtString.String.ends_with path.path "std\\"
+		) com.class_path
 
 end
 

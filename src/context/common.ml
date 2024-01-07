@@ -351,8 +351,8 @@ type context = {
 	mutable foptimize : bool;
 	mutable platform : platform;
 	mutable config : platform_config;
-	mutable std_path : string list;
-	mutable class_path : string list;
+	mutable std_path : Path.class_path list;
+	mutable class_path : Path.class_path list;
 	mutable main_class : path option;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
@@ -1135,24 +1135,27 @@ let find_file ctx ?(class_path=ctx.class_path) f =
 		let f_dir = Filename.dirname f in
 		let rec loop had_empty = function
 			| [] when had_empty -> raise Not_found
-			| [] -> loop true [""]
+			| [] -> loop true [Path.empty_class_path]
 			| p :: l ->
-				let file = p ^ f in
-				let dir = Filename.dirname file in
-				(* If we have seen the directory before, we can assume that the file isn't in there because the else case
-				   below would have added it to `file_lookup_cache`, which we check before we get here. *)
-				if ctx.readdir_cache#mem (p,dir) then
-					loop (had_empty || p = "") l
-				else begin
-					cache_directory ctx p dir f_dir;
-					(* Caching might have located the file we're looking for, so check the lookup cache again. *)
-					try
-						begin match ctx.file_lookup_cache#find f with
-						| Some f -> f
-						| None -> raise Not_found
-						end
-					with Not_found ->
-						loop (had_empty || p = "") l
+				begin match p.kind with
+				| Directory ->
+					let file = p.path ^ f in
+					let dir = Filename.dirname file in
+					(* If we have seen the directory before, we can assume that the file isn't in there because the else case
+					below would have added it to `file_lookup_cache`, which we check before we get here. *)
+					if ctx.readdir_cache#mem (p.path,dir) then
+						loop (had_empty || p == Path.empty_class_path) l
+					else begin
+						cache_directory ctx p.path dir f_dir;
+						(* Caching might have located the file we're looking for, so check the lookup cache again. *)
+						try
+							begin match ctx.file_lookup_cache#find f with
+							| Some f -> f
+							| None -> raise Not_found
+							end
+						with Not_found ->
+							loop (had_empty || p == Path.empty_class_path) l
+					end
 				end
 		in
 		let r = try Some (loop false class_path) with Not_found -> None in

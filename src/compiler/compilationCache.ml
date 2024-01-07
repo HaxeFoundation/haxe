@@ -1,5 +1,6 @@
 open Globals
 open Ast
+open Path
 open Json
 open Type
 open Define
@@ -126,7 +127,7 @@ class cache = object(self)
 			"index",JInt cc#get_index;
 			"desc",JString desc;
 			"platform",JString (platform_name platform);
-			"classPaths",JArray (List.map (fun s -> JString s) class_path);
+			"classPaths",JArray (List.map (fun path -> JString (string_of_class_path path)) class_path);
 			"signature",JString (Digest.to_hex sign);
 			"defines",JArray (PMap.foldi (fun k v acc -> JObject [
 				"key",JString k;
