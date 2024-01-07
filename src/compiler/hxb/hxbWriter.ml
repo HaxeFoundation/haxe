@@ -1248,7 +1248,7 @@ class hxb_writer
 		let rec loop e =
 
 			self#write_texpr_type_instance fctx e.etype;
-			fctx.pos_writer#write_pos chunk false 240 e.epos;
+			fctx.pos_writer#write_pos chunk true 0 e.epos;
 
 			match e.eexpr with
 			(* values 0-19 *)
@@ -1505,7 +1505,6 @@ class hxb_writer
 				self#write_texpr_byte (160 + binop_index op);
 				loop e1;
 				loop e2;
-			(* pos 241-244 *)
 			(* rest 250-254 *)
 			| TIdent s ->
 				self#write_texpr_byte 250;

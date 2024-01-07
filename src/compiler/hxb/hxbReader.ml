@@ -952,22 +952,26 @@ class hxb_reader
 		let update_p () =
 			fctx.pos := self#read_pos;
 		in
-		let read_relpos () =  match self#read_u8 with
-			| 0 ->
-				()
-			| 1 ->
-				update_pmin ()
-			| 2 ->
-				update_pmax ()
-			| 3 ->
-				update_pminmax ()
-			| 4 ->
-				update_p ()
-			| _ ->
-				assert false
+		let read_relpos () =
+			begin match self#read_u8 with
+				| 0 ->
+					()
+				| 1 ->
+					update_pmin ()
+				| 2 ->
+					update_pmax ()
+				| 3 ->
+					update_pminmax ()
+				| 4 ->
+					update_p ()
+				| _ ->
+					assert false
+			end;
+			!(fctx.pos)
 		in
 		let rec loop () =
 			let t = fctx.t_pool.(self#read_uleb128) in
+			let p = read_relpos () in
 			let rec loop2 () =
 				match IO.read_byte ch with
 					(* values 0-19 *)
@@ -1162,15 +1166,13 @@ class hxb_reader
 						TField(e1,FDynamic s)
 
 					| 110 ->
-						read_relpos ();
-						let p = !(fctx.pos) in
+						let p = read_relpos () in
 						let c = self#read_class_ref in
 						let cf = self#read_field_ref in
 						let e1 = Texpr.Builder.make_static_this c p in
 						TField(e1,FStatic(c,cf))
 					| 111 ->
-						read_relpos ();
-						let p = !(fctx.pos) in
+						let p = read_relpos () in
 						let c = self#read_class_ref in
 						let tl = self#read_types in
 						let cf = self#read_field_ref in
@@ -1214,19 +1216,6 @@ class hxb_reader
 						let e1 = loop () in
 						let e2 = loop () in
 						TBinop(op,e1,e2)
-					(* pos 241-244*)
-					| 241 ->
-						update_pmin();
-						loop2 ()
-					| 242 ->
-						update_pmax();
-						loop2 ()
-					| 243 ->
-						update_pminmax();
-						loop2 ()
-					| 244 ->
-						update_p();
-						loop2 ()
 					(* rest 250-254 *)
 					| 250 ->
 						TIdent (self#read_string)
@@ -1238,7 +1227,7 @@ class hxb_reader
 				let e = {
 					eexpr = e;
 					etype = t;
-					epos = !(fctx.pos);
+					epos = p;
 				} in
 				e
 		and loop_el () =
