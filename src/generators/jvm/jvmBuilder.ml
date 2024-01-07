@@ -29,6 +29,7 @@ type annotation_kind =
 	| AEnum of jsignature * string
 	| AArray of annotation_kind list
 	| AAnnotation of jsignature * annotation
+	| AClass of jsignature option
 
 and annotation = (string * annotation_kind) list
 
@@ -58,7 +59,8 @@ let convert_annotations pool annotations =
 				| AAnnotation (jsig, a) ->
 					let ann = process_annotation (jsig, a) in
 					'@',ValAnnotation(ann)
-
+				| AClass jsig ->
+					'c',ValClass(pool#add_string (Option.map_default (generate_signature false) "V" jsig))
 			in
 			offset,loop ak
 		) l in
@@ -67,13 +69,13 @@ let convert_annotations pool annotations =
 			ann_elements = Array.of_list l;
 		}
 	in
-	let a = Array.map process_annotation annotations in
-	a
+	Array.map process_annotation annotations
 
 class base_builder = object(self)
 	val mutable access_flags = 0
 	val attributes = DynArray.create ()
-	val annotations = DynArray.create ()
+	val runtime_visible_annotations = DynArray.create ()
+	val runtime_invisible_annotations = DynArray.create ()
 	val mutable was_exported = false
 
 	method add_access_flag i =
@@ -82,14 +84,19 @@ class base_builder = object(self)
 	method add_attribute (a : j_attribute) =
 		DynArray.add attributes a
 
-	method add_annotation (path : jpath) (a : annotation) =
-		DynArray.add annotations ((TObject(path,[])),a)
+	method add_annotation (path : jpath) (a : annotation) (is_runtime_visible : bool) =
+		DynArray.add (if is_runtime_visible then runtime_visible_annotations else runtime_invisible_annotations) ((TObject(path,[])),a)
 
 	method private commit_annotations pool =
-		if DynArray.length annotations > 0 then begin
+		if DynArray.length runtime_visible_annotations > 0 then begin
 			let open JvmAttribute in
-			let a = convert_annotations pool (DynArray.to_array annotations) in
+			let a = convert_annotations pool (DynArray.to_array runtime_visible_annotations) in
 			self#add_attribute (AttributeRuntimeVisibleAnnotations a)
+		end;
+		if DynArray.length runtime_invisible_annotations > 0 then begin
+			let open JvmAttribute in
+			let a = convert_annotations pool (DynArray.to_array runtime_invisible_annotations) in
+			self#add_attribute (AttributeRuntimeInvisibleAnnotations a)
 		end
 
 	method export_attributes (pool : JvmConstantPool.constant_pool) =

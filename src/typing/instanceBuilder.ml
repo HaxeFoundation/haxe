@@ -17,7 +17,7 @@ let get_macro_path ctx e args p =
 				if not (PMap.mem i ctx.curclass.cl_statics) then raise Not_found;
 				ctx.curclass.cl_path
 			with Not_found -> try
-				(t_infos (let path,_,_ = PMap.find i ctx.m.module_globals in path)).mt_path
+				(t_infos (let path,_,_ = PMap.find i (ctx.m.import_resolution#extract_field_imports) in path)).mt_path
 			with Not_found ->
 				raise_typing_error "Invalid macro call" p
 			in
@@ -39,8 +39,8 @@ let build_macro_type ctx pl p =
 	) in
 	let old = ctx.ret in
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
-		| None -> spawn_monomorph ctx p
-		| Some _ -> ctx.ret
+		| MError | MMacroInMacro -> spawn_monomorph ctx p
+		| MSuccess _ -> ctx.ret
 	) in
 	ctx.ret <- old;
 	t
@@ -58,8 +58,8 @@ let build_macro_build ctx c pl cfl p =
 	let old = ctx.ret,ctx.get_build_infos in
 	ctx.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
-		| None -> spawn_monomorph ctx p
-		| Some _ -> ctx.ret
+		| MError | MMacroInMacro -> spawn_monomorph ctx p
+		| MSuccess _ -> ctx.ret
 	) in
 	ctx.ret <- fst old;
 	ctx.get_build_infos <- snd old;
@@ -68,15 +68,14 @@ let build_macro_build ctx c pl cfl p =
 (* -------------------------------------------------------------------------- *)
 (* API EVENTS *)
 
-let build_instance ctx mtype p =
+let get_build_info ctx mtype p =
 	match mtype with
 	| TClassDecl c ->
 		if ctx.pass > PBuildClass then ignore(c.cl_build());
-		let build f s =
-			let r = exc_protect ctx (fun r ->
-				let t = spawn_monomorph ctx p in
-				r := lazy_processing (fun() -> t);
-				let tf = (f()) in
+		let build f s tl =
+			let t = spawn_monomorph ctx p in
+			let r = make_lazy ctx t (fun r ->
+				let tf = f tl in
 				unify_raise tf t p;
 				link_dynamic t tf;
 				(match tf with
@@ -88,21 +87,29 @@ let build_instance ctx mtype p =
 			) s in
 			TLazy r
 		in
-		let ft = (fun pl ->
-			match c.cl_kind with
+		let kind,f = match c.cl_kind with
 			| KGeneric ->
-				build (fun () -> Generic.build_generic_class ctx c p pl) "build_generic"
-			| KMacroType ->
-				build (fun () -> build_macro_type ctx pl p) "macro_type"
+				(BuildGeneric c),build (fun tl -> Generic.build_generic_class ctx c p tl) "build_generic"
 			| KGenericBuild cfl ->
-				build (fun () -> build_macro_build ctx c pl cfl p) "generic_build"
+				BuildGenericBuild,build (fun tl -> build_macro_build ctx c tl cfl p) "build_generic_build"
+			| KMacroType ->
+				BuildMacroType,build (fun tl -> build_macro_type ctx tl p) "build_macro_type"
 			| _ ->
-				TInst (c,pl)
-		) in
-		c.cl_params , c.cl_path , ft
+				BuildNormal,(fun tl -> TInst(c,tl))
+		in
+		make_build_info kind c.cl_path c.cl_params (has_class_flag c CExtern) f
 	| TEnumDecl e ->
-		e.e_params , e.e_path , (fun t -> TEnum (e,t))
-	| TTypeDecl t ->
-		t.t_params , t.t_path , (fun tl -> TType(t,tl))
+		make_build_info BuildNormal e.e_path e.e_params e.e_extern (fun t -> TEnum (e,t))
+	| TTypeDecl td ->
+		begin try
+			let msg = match Meta.get Meta.Deprecated td.t_meta with
+				| _,[EConst(String(s,_)),_],_ -> s
+				| _ -> "This typedef is deprecated in favor of " ^ (s_type (print_context()) td.t_type)
+			in
+			DeprecationCheck.warn_deprecation (create_deprecation_context ctx) msg p
+		with Not_found ->
+				()
+		end;
+		make_build_info BuildNormal td.t_path td.t_params false (fun tl -> TType(td,tl))
 	| TAbstractDecl a ->
-		a.a_params, a.a_path, (fun tl -> TAbstract(a,tl))
+		make_build_info BuildNormal a.a_path a.a_params false (fun tl -> TAbstract(a,tl))

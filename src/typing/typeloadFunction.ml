@@ -54,6 +54,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 	ctx.ret <- ret;
 	ctx.opened <- [];
 	ctx.monomorphs.perfunction <- [];
+	enter_field_typing_pass ctx ("type_function",fst ctx.curclass.cl_path @ [snd ctx.curclass.cl_path;ctx.curfield.cf_name]);
 	args#bring_into_context;
 	let e = match e with
 		| None ->
@@ -187,12 +188,11 @@ let add_constructor ctx c force_constructor p =
 		cf.cf_kind <- cfsup.cf_kind;
 		cf.cf_params <- cfsup.cf_params;
 		cf.cf_meta <- List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
-		let r = exc_protect ctx (fun r ->
-			let t = mk_mono() in
-			r := lazy_processing (fun() -> t);
+		let t = spawn_monomorph ctx p in
+		let r = make_lazy ctx t (fun r ->
 			let ctx = { ctx with
 				curfield = cf;
-				pass = PTypeField;
+				pass = PConnectField;
 			} in
 			ignore (follow cfsup.cf_type); (* make sure it's typed *)
 			List.iter (fun cf -> ignore (follow cf.cf_type)) cf.cf_overloads;

@@ -19,6 +19,12 @@ class InlineClass {
 	}
 }
 
+class ExternInlineClass {
+	public var a = 1;
+	public extern inline function new() {
+	}
+}
+
 class InlineIterator {
 	public var i = 0;
 	public inline function new() {};
@@ -129,5 +135,16 @@ class TestInlineConstructors extends TestBase {
 			acc += v;
 		}
 		return acc;
+	}
+
+	static var condition = false;
+	@:js('while(TestInlineConstructors.condition) {}try {} catch( _g ) {}return 1;')
+	static function testIgnoredValuesNotCancelling() {
+		new ExternInlineClass();
+		var a = new ExternInlineClass();
+		if ( condition ) a else a;
+		while ( condition ) a;
+		try { a; } catch(_) { a; };
+		return a.a;
 	}
 }

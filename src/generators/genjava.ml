@@ -1158,7 +1158,7 @@ let generate con =
 			| TInst _ -> t
 			| TType _ | TAbstract _ -> t
 			| TAnon (anon) -> (match !(anon.a_status) with
-				| Statics _ | EnumStatics _ | AbstractStatics _ -> t
+				| ClassStatics _ | EnumStatics _ | AbstractStatics _ -> t
 				| _ -> t_dynamic)
 			| TFun _ -> TInst(fn_cl,[])
 			| _ -> t_dynamic
@@ -1209,7 +1209,7 @@ let generate con =
 		| TInst({ cl_kind = KTypeParameter _ }, _) -> true
 		| TAnon anon ->
 			(match !(anon.a_status) with
-				| EnumStatics _ | Statics _ | AbstractStatics _ -> false
+				| EnumStatics _ | ClassStatics _ | AbstractStatics _ -> false
 				| _ -> true
 			)
 		| _ -> false
@@ -1271,7 +1271,7 @@ let generate con =
 				| TType (({t_path = p; t_meta = meta} as t), params) -> (path_param_s stack pos (TTypeDecl t) p params meta)
 				| TAnon (anon) ->
 					(match !(anon.a_status) with
-						| Statics _ | EnumStatics _ | AbstractStatics _ ->
+						| ClassStatics _ | EnumStatics _ | AbstractStatics _ ->
 								path_s_import pos (["java";"lang"], "Class") []
 						| _ ->
 								path_s_import pos (["java";"lang"], "Object") [])
@@ -1904,17 +1904,8 @@ let generate con =
 			| [] ->
 				("","")
 			| _ ->
-				let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> match follow tp.ttp_type with | TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__) cl_params)) in
-				let params_extends = List.fold_left (fun acc {ttp_name=name;ttp_type=t} ->
-					match run_follow gen t with
-						| TInst (cl, p) ->
-							(match cl.cl_implements with
-								| [] -> acc
-								| _ -> acc) (* TODO
-								| _ -> (sprintf " where %s : %s" name (String.concat ", " (List.map (fun (cl,p) -> path_param_s (TClassDecl cl) cl.cl_path p) cl.cl_implements))) :: acc ) *)
-						| _ -> trace (t_s null_pos t); die "" __LOC__ (* FIXME it seems that a cl_params will never be anything other than cl.cl_params. I'll take the risk and fail if not, just to see if that confirms *)
-				) [] cl_params in
-				(params, String.concat " " params_extends)
+				let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> snd tp.ttp_class.cl_path) cl_params)) in
+				(params, "")
 	in
 
 	let write_parts w parts =
@@ -2661,7 +2652,7 @@ let generate con =
 	let res = ref [] in
 	Hashtbl.iter (fun name v ->
 		res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = null_pos } :: !res;
-		let name = Codegen.escape_res_name name true in
+		let name = Codegen.escape_res_name name ['/'] in
 		let full_path = gen.gcon.file ^ "/src/" ^ name in
 		Path.mkdir_from_path full_path;
 

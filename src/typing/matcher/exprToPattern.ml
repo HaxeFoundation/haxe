@@ -58,7 +58,7 @@ let get_general_module_type ctx mt p =
 			end
 		| _ -> raise_typing_error "Cannot use this type as a value" p
 	in
-	Typeload.load_instance ctx ({tname=loop mt;tpackage=[];tsub=None;tparams=[]},p) true
+	Typeload.load_instance ctx (make_ptp {tname=loop mt;tpackage=[];tsub=None;tparams=[]} p) ParamSpawnMonos
 
 let unify_type_pattern ctx mt t p =
 	let tcl = get_general_module_type ctx mt p in
@@ -216,7 +216,7 @@ let rec make pctx toplevel t e =
 	let rec loop e = match fst e with
 		| EParenthesis e1 | ECast(e1,None) ->
 			loop e1
-		| ECheckType(e, (CTPath({tpackage=["haxe";"macro"]; tname="Expr"}),_)) ->
+		| ECheckType(e, (CTPath({path = {tpackage=["haxe";"macro"]; tname="Expr"}}),_)) ->
 			let old = pctx.in_reification in
 			pctx.in_reification <- true;
 			let e = loop e in
@@ -412,6 +412,9 @@ let rec make pctx toplevel t e =
 			restore();
 			let pat = make pctx toplevel e1.etype e2 in
 			PatExtractor {ex_var = v; ex_expr = e1; ex_pattern = pat}
+		| EBinop((OpEq | OpNotEq | OpLt | OpLte | OpGt | OpGte | OpBoolAnd | OpBoolOr),_,_) ->
+			let e_rhs = (EConst (Ident "true"),null_pos) in
+			loop (EBinop(OpArrow,e,e_rhs),(pos e))
 		(* Special case for completion on a pattern local: We don't want to add the local to the context
 		   while displaying (#7319) *)
 		| EDisplay((EConst (Ident _),_ as e),dk) when pctx.ctx.com.display.dms_kind = DMDefault ->
@@ -433,7 +436,7 @@ let rec make pctx toplevel t e =
 			ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) MGet (WithType.with_type t));
 			pat
 		| EMeta((Meta.StoredTypedExpr,_,_),e1) ->
-			let e1 = MacroContext.type_stored_expr ctx e1 in
+			let e1 = TyperBase.type_stored_expr ctx e1 in
 			loop (TExprToExpr.convert_expr e1)
 		| _ ->
 			fail()

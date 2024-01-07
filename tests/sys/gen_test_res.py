@@ -82,6 +82,7 @@ for data in all_filenames:
         ("../../bin/cs/bin/UtilityProcess-Debug.exe", "bin-cs-debug"),
         ("../../bin/cs/bin/UtilityProcess.exe", "bin-cs"),
         ("../../bin/hl/UtilityProcess.hl", "bin-hl"),
+        ("../../bin/hlc/utilityProcess/UtilityProcess.exe", "bin-hlc"),
         ("../../bin/lua/UtilityProcess.lua", "bin-lua"),
         ("../../bin/java/UtilityProcess-Debug.jar", "bin-java-debug"),
         ("../../bin/java/UtilityProcess.jar", "bin-java"),

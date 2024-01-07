@@ -155,9 +155,11 @@ let get_this ctx p =
 	| FunMemberClassLocal | FunMemberAbstractLocal ->
 		let v = match ctx.vthis with
 			| None ->
-				let v = if ctx.curfun = FunMemberAbstractLocal then
-					PMap.find "this" ctx.locals
-				else
+				let v = if ctx.curfun = FunMemberAbstractLocal then begin
+					let v = PMap.find "this" ctx.locals in
+					add_var_flag v VUsedByTyper;
+					v
+				end else
 					add_local ctx VGenerated (Printf.sprintf "%sthis" gen_local_prefix) ctx.tthis p
 				in
 				ctx.vthis <- Some v;
@@ -173,6 +175,14 @@ let get_this ctx p =
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.tthis p
 
+let get_stored_typed_expr ctx id =
+	let e = ctx.com.stored_typed_exprs#find id in
+	Texpr.duplicate_tvars (fun e -> get_this ctx e.epos) e
+
+let type_stored_expr ctx e1 =
+	let id = match e1 with (EConst (Int (s, _)),_) -> int_of_string s | _ -> die "" __LOC__ in
+	get_stored_typed_expr ctx id
+
 let assign_to_this_is_allowed ctx =
 	match ctx.curclass.cl_kind with
 		| KAbstractImpl _ ->
@@ -187,8 +197,8 @@ let type_module_type ctx t p =
 	let rec loop t tparams =
 		match t with
 		| TClassDecl {cl_kind = KGenericBuild _} ->
-			let _,_,f = InstanceBuilder.build_instance ctx t p in
-			let t = f (match tparams with None -> [] | Some tl -> tl) in
+			let info = InstanceBuilder.get_build_info ctx t p in
+			let t = info.build_apply (match tparams with None -> [] | Some tl -> tl) in
 			let mt = try
 				module_type_of_type t
 			with Exit ->
@@ -299,8 +309,8 @@ let get_constructible_constraint ctx tl p =
 				end;
 			| TAbstract({a_path = ["haxe"],"Constructible"},[t1]) ->
 				Some (extract_function t1)
-			| TInst({cl_kind = KTypeParameter tl1},_) ->
-				begin match loop tl1 with
+			| TInst({cl_kind = KTypeParameter ttp},_) ->
+				begin match loop (get_constraints ttp) with
 				| None -> loop tl
 				| Some _ as t -> t
 				end
@@ -343,3 +353,21 @@ let get_abstract_froms ctx a pl =
 		| _ ->
 			acc
 	) l a.a_from_field
+
+let safe_nav_branch ctx sn f_then =
+	(* generate null-check branching for the safe navigation chain *)
+	let eobj = sn.sn_base in
+	let enull = Builder.make_null eobj.etype sn.sn_pos in
+	let eneq = Builder.binop OpNotEq eobj enull ctx.t.tbool sn.sn_pos in
+	let ethen = f_then () in
+	let tnull = ctx.t.tnull ethen.etype in
+	let ethen = if not (is_nullable ethen.etype) then
+		mk (TCast(ethen,None)) tnull ethen.epos
+	else
+		ethen
+	in
+	let eelse = Builder.make_null tnull sn.sn_pos in
+	let eif = mk (TIf(eneq,ethen,Some eelse)) tnull sn.sn_pos in
+	(match sn.sn_temp_var with
+	| None -> eif
+	| Some evar -> { eif with eexpr = TBlock [evar; eif] })

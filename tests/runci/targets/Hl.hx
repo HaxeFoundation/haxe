@@ -39,6 +39,7 @@ class Hl {
 			case "Mac":
 				runNetworkCommand("brew", ["update", '--preinstall']);
 				runNetworkCommand("brew", ["bundle", '--file=${hlSrc}/Brewfile']);
+				runNetworkCommand("brew", ["link", "mbedtls@2", "--force"]);
 			case "Windows":
 				//pass
 		}
@@ -65,28 +66,70 @@ class Hl {
 
 		runCommand(hlBinary, ["--version"]);
 		addToPATH(hlBuildBinDir);
+		addToLIBPATH(hlBuildBinDir);
 
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
+	}
+
+	static function buildAndRunHlc(dir:String, filename:String, ?run) {
+		if (run == null) run = runCommand;
+
+		switch (systemName) {
+			case "Linux" if (isCi()):
+				runCommand("gcc", [
+					"-o", '$dir/$filename.exe',
+					'$dir/$filename.c',
+					'-I$dir',
+					'-I$hlSrc/src',
+					'$hlBuildBinDir/fmt.hdll',
+					'$hlBuildBinDir/ssl.hdll',
+					'$hlBuildBinDir/sqlite.hdll',
+					"-lm",
+					'-L$hlBuildBinDir', "-lhl"
+				]);
+
+				run('$dir/$filename.exe', []);
+
+			case _: // TODO hl/c for mac/windows
+		}
+	}
+
+	static function buildAndRun(hxml:String, target:String, ?args:Array<String>) {
+		if (args == null) args = [];
+
+		runCommand("haxe", [hxml, "-hl", '$target/hl-jit.hl'].concat(args));
+		runCommand(hlBinary, ['$target/hl-jit.hl']);
+
+		runCommand("haxe", [hxml, "-hl", '$target/hlc.c'].concat(args));
+		buildAndRunHlc(target, "hlc");
 	}
 
 	static public function run(args:Array<String>) {
 		getHlDependencies();
 
 		runCommand("haxe", ["compile-hl.hxml"].concat(args));
-		runCommand(hlBinary, ["bin/unit.hl"]);
+		runCommand(hlBinary, ['bin/unit.hl']);
+		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
+		buildAndRunHlc("bin/hlc", "unit", runCommand);
 
 		changeDirectory(threadsDir);
-		runCommand("haxe", ["build.hxml", "-hl", "export/threads.hl"]);
-		runCommand(hlBinary, ["export/threads.hl"]);
+		buildAndRun("build.hxml", "export/threads");
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-hl.hxml"].concat(args));
 		runSysTest(hlBinary, ["bin/hl/sys.hl"]);
+		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
+		function dontRun(cmd,?args) {}
+		buildAndRunHlc("bin/hlc/testArguments", "TestArguments", dontRun);
+		buildAndRunHlc("bin/hlc/exitCode", "ExitCode", dontRun);
+		buildAndRunHlc("bin/hlc/utilityProcess", "UtilityProcess", dontRun);
+		buildAndRunHlc("bin/hlc/sys", "sys", (cmd, ?args) -> runSysTest(FileSystem.fullPath(cmd), args));
 
 		changeDirectory(getMiscSubDir("eventLoop"));
-		runCommand("haxe", ["build-hl.hxml"]);
-		// TODO: check output like misc tests do
-		runCommand(hlBinary, ["eventLoop.hl"]);
+		buildAndRun("build-hl.hxml", "bin/eventLoop");
+
+		changeDirectory(getMiscSubDir("hl/reservedKeywords"));
+		buildAndRun("compile.hxml", "bin/reservedKeywords");
 
 		changeDirectory(miscHlDir);
 		runCommand("haxe", ["run.hxml"]);

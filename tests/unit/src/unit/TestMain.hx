@@ -31,13 +31,6 @@ function main() {
 	cs.system.threading.Thread.CurrentThread.CurrentCulture = new cs.system.globalization.CultureInfo('tr-TR');
 	cs.Lib.applyCultureChanges();
 	#end
-	#if neko
-	if (neko.Web.isModNeko)
-		neko.Web.setHeader("Content-Type", "text/plain");
-	#elseif php
-	if (php.Web.isModNeko)
-		php.Web.setHeader("Content-Type", "text/plain");
-	#end
 	#if !macro
 	trace("Generated at: " + HelperMacros.getCompilationDate());
 	#end
@@ -75,10 +68,10 @@ function main() {
 		new TestCasts(),
 		new TestSyntaxModule(),
 		new TestNull(),
+		new TestNullCoalescing(),
 		new TestNumericCasts(),
 		new TestHashMap(),
 		new TestRest(),
-		new TestHttp(),
 		#if !no_pattern_matching
 		new TestMatch(),
 		#end
@@ -106,7 +99,8 @@ function main() {
 		new TestOverloadsForEveryone(),
 		new TestInterface(),
 		new TestNaN(),
-		#if ((dce == "full") && !interp) new TestDCE(),
+		#if ((dce == "full") && !interp)
+		new TestDCE(),
 		#end
 		new TestMapComprehension(),
 		new TestMacro(),

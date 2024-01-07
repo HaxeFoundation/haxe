@@ -1041,6 +1041,8 @@ class expr_checker mode immediate_execution report =
 				| TMeta (_, e) -> self#is_nullable_expr e
 				| TThrow _ -> false
 				| TReturn _ -> false
+				| TContinue -> false
+				| TBreak -> false
 				| TBinop ((OpAssign | OpAssignOp _), _, right) -> self#is_nullable_expr right
 				| TBlock exprs ->
 					local_safety#block_declared;

@@ -238,8 +238,8 @@ let rec type_id ctx t =
 		| _ -> def())
 	| TInst (c,_) ->
 		(match c.cl_kind with
-		| KTypeParameter l ->
-			(match l with
+		| KTypeParameter ttp ->
+			(match get_constraints ttp with
 			| [t] -> type_id ctx t
 			| _ -> type_path ctx ([],"Object"))
 		| _ ->
@@ -293,7 +293,7 @@ let classify ctx t =
 		KType (HMPath ([],"Function"))
 	| TAnon a ->
 		(match !(a.a_status) with
-		| Statics _ -> KNone
+		| ClassStatics _ -> KNone
 		| _ -> KDynamic)
 	| TAbstract ({ a_path = ["flash";"utils"],"Object" },[]) ->
 		KType (HMPath ([],"Object"))
@@ -373,7 +373,7 @@ let property ctx fa t =
 		| _ -> ident p, None, false)
 	| TAnon a ->
 		(match !(a.a_status) with
-		| Statics { cl_path = [], "Math" } ->
+		| ClassStatics { cl_path = [], "Math" } ->
 			(match p with
 			| "POSITIVE_INFINITY" | "NEGATIVE_INFINITY" | "NaN" -> ident p, Some KFloat, false
 			| "floor" | "ceil" | "round" when ctx.for_call -> ident p, Some KInt, false
@@ -645,7 +645,7 @@ let begin_switch ctx =
 		constructs := (tag,ctx.infos.ipos) :: !constructs;
 	in
 	let fend() =
-		let cases = Array.create (!max + 1) 1 in
+		let cases = Array.make (!max + 1) 1 in
 		List.iter (fun (tag,pos) -> Array.set cases tag (pos - switch_pos)) !constructs;
 		DynArray.set ctx.code switch_index (HSwitch (1,Array.to_list cases));
 		branch();
@@ -967,7 +967,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 				VVolatile (id,None)
 			else
 				VId id
-		| TAnon a, _ when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) ->
+		| TAnon a, _ when (match !(a.a_status) with ClassStatics _ | EnumStatics _ -> true | _ -> false) ->
 			if Codegen.is_volatile e.etype then
 				VVolatile (id,None)
 			else

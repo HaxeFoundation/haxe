@@ -234,7 +234,7 @@ let inline_default_config cf t =
 			c.cl_params @ ct, pl @ cpl
 	in
 	let rec loop t = match follow t with
-		| TInst({cl_kind = KTypeParameter tl},_) -> List.fold_left (fun (params',tl') (params,tl) -> (params @ params',tl @ tl')) ([],[]) (List.map loop tl)
+		| TInst({cl_kind = KTypeParameter ttp},_) -> List.fold_left (fun (params',tl') (params,tl) -> (params @ params',tl @ tl')) ([],[]) (List.map loop (get_constraints ttp))
 		| TInst (c,pl) -> get_params c pl
 		| _ -> ([],[])
 	in
@@ -506,14 +506,14 @@ class inline_state ctx ethis params cf f p = object(self)
 						| VIInline ->
 							begin match e'.eexpr with
 								(* If we inline a function expression, we have to duplicate its locals. *)
-								| TFunction _ -> Texpr.duplicate_tvars e'
+								| TFunction _ -> Texpr.duplicate_tvars e_identity e'
 								| TCast(e1,None) when in_assignment -> e1
 								| _ -> e'
 							end
 						| VIInlineIfCalled when in_call ->
 							(* We allow inlining function expressions into call-places. However, we have to substitute
 							   their locals to avoid duplicate declarations. *)
-							Texpr.duplicate_tvars e'
+							Texpr.duplicate_tvars e_identity e'
 						| _ -> e
 					end
 				with Not_found ->
@@ -589,13 +589,12 @@ class inline_state ctx ethis params cf f p = object(self)
 				mk (TBlock (DynArray.to_list el)) tret e.epos
 		in
 		let e = inline_metadata e cf.cf_meta in
-		let e = Diagnostics.secure_generated_code ctx.com e in
 		if has_params then begin
 			let mt = map_type cf.cf_type in
 			let unify_func () = unify_raise mt (TFun (tl,tret)) p in
 			(match follow ethis.etype with
 			| TAnon a -> (match !(a.a_status) with
-				| Statics {cl_kind = KAbstractImpl a } when has_class_field_flag cf CfImpl ->
+				| ClassStatics {cl_kind = KAbstractImpl a } when has_class_field_flag cf CfImpl ->
 					if cf.cf_name <> "_new" then begin
 						(* the first argument must unify with a_this for abstract implementation functions *)
 						let tb = (TFun(("",false,map_type a.a_this) :: (List.tl tl),tret)) in
@@ -651,12 +650,12 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	try
 		let cl = (match follow ethis.etype with
 			| TInst (c,_) -> c
-			| TAnon a -> (match !(a.a_status) with Statics c -> c | _ -> raise Exit)
+			| TAnon a -> (match !(a.a_status) with ClassStatics c -> c | _ -> raise Exit)
 			| _ -> raise Exit
 		) in
 		(match api_inline ctx cl cf.cf_name params p with
 		| None -> raise Exit
-		| Some e -> Some e)
+		| Some e -> e)
 	with Exit ->
 	let has_params,map_type = match config with Some config -> config | None -> inline_default_config cf ethis.etype in
 	let params = inline_rest_params ctx f params map_type p in
@@ -831,10 +830,8 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			state#set_side_effect;
 			begin match follow t with
 			| TInst({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,_) ->
-				begin match type_inline_ctor ctx c cf tf ethis el po with
-				| Some e -> map term false e
-				| None -> raise_typing_error "Could not inline super constructor call" po
-				end
+				let e = type_inline_ctor ctx c cf tf ethis el po in
+				map term false e
 			| _ -> raise_typing_error "Cannot inline function containing super" po
 			end
 		| TCall(e1,el) ->
@@ -868,7 +865,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	let tl = arg_types params f.tf_args in
 	let e = state#finalize e tl tret has_params map_type p in
 	if Meta.has (Meta.Custom ":inlineDebug") ctx.meta then begin
-		let se t = s_expr_pretty true t true (s_type (print_context())) in
+		let se t = s_expr_ast true t (s_type (print_context())) in
 		print_endline (Printf.sprintf "Inline %s:\n\tArgs: %s\n\tExpr: %s\n\tResult: %s"
 			cf.cf_name
 			(String.concat "" (List.map (fun (i,e) -> Printf.sprintf "\n\t\t%s<%i> = %s" (i.i_subst.v_name) (i.i_subst.v_id) (se "\t\t" e)) state#inlined_vars))
@@ -876,7 +873,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			(se "\t" e)
 		);
 	end;
-	Some e
+	e
 
 (* Same as type_inline, but modifies the function body to add field inits *)
 and type_inline_ctor ctx c cf tf ethis el po =

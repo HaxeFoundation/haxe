@@ -22,7 +22,7 @@
 
 package jvm.annotation;
 
-@:annotation
+@:annotation("RUNTIME")
 @:native("haxe.jvm.annotation.EnumValueReflectionInformation")
 @:keep
 interface EnumValueReflectionInformation extends java.lang.annotation.Annotation {

@@ -4,8 +4,13 @@ open Type
 open Common
 open DisplayTypes
 
-let add_removable_code ctx s p prange =
-	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
+let add_replaceable_code ctx reason replacement display_range replace_range =
+	ctx.replaceable_code <- {
+		reason = reason;
+		replacement = replacement;
+		display_range = display_range;
+		replace_range = replace_range;
+	} :: ctx.replaceable_code
 
 let error_in_diagnostics_run com p =
 	let b = DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get p.pfile) in
@@ -16,24 +21,25 @@ let find_unused_variables com e =
 	let vars = Hashtbl.create 0 in
 	let pmin_map = Hashtbl.create 0 in
 	let rec loop e = match e.eexpr with
-		| TVar({v_kind = VUser _} as v,eo) when v.v_name <> "_" ->
+		| TVar({v_kind = VUser origin} as v,eo) when v.v_name <> "_" && not (has_var_flag v VUsedByTyper) ->
 			Hashtbl.add pmin_map e.epos.pmin v;
-			let p = match eo with
-				| None -> e.epos
-				| Some e1 ->
-					loop e1;
-					{ e.epos with pmax = e1.epos.pmin }
+			let p,replacement = match eo with
+			| Some e1 when origin <> TVOPatternVariable ->
+				loop e1;
+				{ e.epos with pmax = e1.epos.pmin },""
+			| _ ->
+				e.epos,"_"
 			in
-			Hashtbl.replace vars v.v_id (v,p);
+			Hashtbl.replace vars v.v_id (v,p,replacement);
 		| TLocal ({v_kind = VUser _} as v) ->
 			Hashtbl.remove vars v.v_id;
 		| _ ->
 			Type.iter loop e
 	in
 	loop e;
-	Hashtbl.iter (fun _ (v,p) ->
+	Hashtbl.iter (fun _ (v,p,replacement) ->
 		let p = match (Hashtbl.find_all pmin_map p.pmin) with [_] -> p | _ -> null_pos in
-		add_removable_code com "Unused variable" v.v_pos p
+		add_replaceable_code com "Unused variable" replacement v.v_pos p
 	) vars
 
 let check_other_things com e =
@@ -44,18 +50,18 @@ let check_other_things com e =
 	let pointless_compound s p =
 		add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p DKCompilerMessage Warning;
 	in
-	let rec compound compiler_generated s el p =
+	let rec compound s el p =
 		let old = !had_effect in
 		had_effect := false;
-		List.iter (loop true compiler_generated) el;
-		if not !had_effect then no_effect p else if not compiler_generated then pointless_compound s p;
+		List.iter (loop true) el;
+		if not !had_effect then no_effect p else pointless_compound s p;
 		had_effect := old;
-	and loop in_value compiler_generated e = match e.eexpr with
+	and loop in_value e = match e.eexpr with
 		| TBlock el ->
 			let rec loop2 el = match el with
 				| [] -> ()
-				| [e] -> loop in_value compiler_generated e
-				| e :: el -> loop false compiler_generated e; loop2 el
+				| [e] -> loop in_value e
+				| e :: el -> loop false e; loop2 el
 			in
 			loop2 el
 		| TMeta((Meta.Extern,_,_),_) ->
@@ -67,29 +73,27 @@ let check_other_things com e =
 			()
 		| TField (_, fa) when PurityState.is_explicitly_impure fa -> ()
 		| TFunction tf ->
-			loop false compiler_generated tf.tf_expr
-		| TCall({eexpr = TField(e1,fa)},el) when not in_value && PurityState.is_pure_field_access fa -> compound compiler_generated "call" el e.epos
+			loop false tf.tf_expr
+		| TCall({eexpr = TField(e1,fa)},el) when not in_value && PurityState.is_pure_field_access fa -> compound "call" el e.epos
 		| TNew _ | TCall _ | TBinop ((Ast.OpAssignOp _ | Ast.OpAssign),_,_) | TUnop ((Ast.Increment | Ast.Decrement),_,_)
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _)
 		| TIf _ | TTry _ | TSwitch _ | TWhile _ | TFor _ ->
 			had_effect := true;
-			Type.iter (loop true compiler_generated) e
-		| TMeta((Meta.CompilerGenerated,_,_),e1) ->
-			loop in_value true e1
+			Type.iter (loop true) e
 		| TParenthesis e1 | TMeta(_,e1) ->
-			loop in_value compiler_generated e1
+			loop in_value e1
 		| TArray _ | TCast (_,None) | TBinop _ | TUnop _
 		| TField _ | TArrayDecl _ | TObjectDecl _ when in_value ->
-			Type.iter (loop true compiler_generated) e;
-		| TArray(e1,e2) -> compound compiler_generated "array access" [e1;e2] e.epos
-		| TCast(e1,None) -> compound compiler_generated "cast" [e1] e.epos
-		| TBinop(op,e1,e2) -> compound compiler_generated (Printf.sprintf "'%s' operator" (s_binop op)) [e1;e2] e.epos
-		| TUnop(op,_,e1) -> compound compiler_generated (Printf.sprintf "'%s' operator" (s_unop op)) [e1] e.epos
-		| TField(e1,_) -> compound compiler_generated "field access" [e1] e.epos
-		| TArrayDecl el -> compound compiler_generated "array declaration" el e.epos
-		| TObjectDecl fl -> compound compiler_generated "object declaration" (List.map snd fl) e.epos
+			Type.iter (loop true) e;
+		| TArray(e1,e2) -> compound "array access" [e1;e2] e.epos
+		| TCast(e1,None) -> compound "cast" [e1] e.epos
+		| TBinop(op,e1,e2) -> compound (Printf.sprintf "'%s' operator" (s_binop op)) [e1;e2] e.epos
+		| TUnop(op,_,e1) -> compound (Printf.sprintf "'%s' operator" (s_unop op)) [e1] e.epos
+		| TField(e1,_) -> compound "field access" [e1] e.epos
+		| TArrayDecl el -> compound "array declaration" el e.epos
+		| TObjectDecl fl -> compound "object declaration" (List.map snd fl) e.epos
 	in
-	loop true false e
+	loop true e
 
 let prepare_field dctx dectx com cf = match cf.cf_expr with
 	| None -> ()
@@ -136,7 +140,7 @@ let collect_diagnostics dctx com =
 
 let prepare com =
 	let dctx = {
-		removable_code = [];
+		replaceable_code = [];
 		import_positions = PMap.empty;
 		dead_blocks = Hashtbl.create 0;
 		diagnostics_messages = [];
@@ -176,9 +180,6 @@ let prepare com =
 	dctx.diagnostics_messages <- com.shared.shared_display_information.diagnostics_messages;
 	dctx.unresolved_identifiers <- com.display_information.unresolved_identifiers;
 	dctx
-
-let secure_generated_code ctx e =
-	if is_diagnostics ctx then mk (TMeta((Meta.CompilerGenerated,[],e.epos),e)) e.etype e.epos else e
 
 let print com =
 	let dctx = prepare com in

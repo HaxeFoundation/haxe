@@ -121,7 +121,7 @@ let check_redundant_var p1 = parser
 
 let parsing_macro_cond = ref false
 
-let rec	parse_file s =
+let rec parse_file s =
 	last_doc := None;
 	match s with parser
 	| [< '(Kwd Package,_); pack = parse_package; s >] ->
@@ -189,22 +189,22 @@ and parse_class_content doc meta flags n p1 s =
 	let tl = parse_constraint_params s in
 	let rec loop had_display p0 acc =
 		let check_display p1 =
-			if not had_display && !in_display_file && display_position#enclosed_in p1 then
+			if not had_display && !in_display_file && !display_mode = DMDefault && display_position#enclosed_in p1 then
 				syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) None (display_position#with_pos p1)
 		in
 		match s with parser
-		| [< '(Kwd Extends,p1); t,b = parse_type_path_or_resume p1 >] ->
+		| [< '(Kwd Extends,p1); ptp,b = parse_type_path_or_resume p1 >] ->
 			check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
-			let p0 = pos t in
+			let p0 = ptp.pos_full in
 			(* If we don't have type parameters, we have to offset by one so to not complete `extends`
 				and `implements` after the identifier. *)
-			let p0 = {p0 with pmax = p0.pmax + (if (fst t).tparams = [] then 1 else 0)} in
-			loop (had_display || b) p0 ((HExtends t) :: acc)
-		| [< '(Kwd Implements,p1); t,b = parse_type_path_or_resume p1 >] ->
+			let p0 = {p0 with pmax = p0.pmax + (if ptp.path.tparams = [] then 1 else 0)} in
+			loop (had_display || b) p0 ((HExtends ptp) :: acc)
+		| [< '(Kwd Implements,p1); ptp,b = parse_type_path_or_resume p1 >] ->
 			check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
-			let p0 = pos t in
-			let p0 = {p0 with pmax = p0.pmax + (if (fst t).tparams = [] then 1 else 0)} in
-			loop (had_display || b) p0 ((HImplements t) :: acc)
+			let p0 = ptp.pos_full in
+			let p0 = {p0 with pmax = p0.pmax + (if ptp.path.tparams = [] then 1 else 0)} in
+			loop (had_display || b) p0 ((HImplements ptp) :: acc)
 		| [< '(BrOpen,p1) >] ->
 			check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
 			List.rev acc
@@ -446,7 +446,7 @@ and parse_abstract_relations s =
 		if !in_display_file && p1.pmax < (display_position#get).pmin && p2.pmin >= (display_position#get).pmax then
 			(* This means we skipped the display position between the to/from and the type-hint we parsed.
 			   Very weird case, it was probably a {} like in #7137. Let's discard it and use magic. *)
-			((CTPath magic_type_path,display_position#with_pos p2))
+			(magic_type_th (display_position#with_pos p2))
 		else
 			(ct,p2)
 	in
@@ -629,7 +629,7 @@ and parse_complex_type_at p = parser
 	| [< t = parse_complex_type >] -> t
 	| [< s >] ->
 		if would_skip_display_position p false s then
-			CTPath magic_type_path,display_position#with_pos p
+			(magic_type_th (display_position#with_pos p))
 		else
 			serror()
 
@@ -638,9 +638,8 @@ and parse_type_hint = parser
 		let f () = parse_complex_type_at p1 s in
 		check_resume_range p1 s
 			(fun p2 ->
-				let ct = CTPath magic_type_path in
 				pignore(f);
-				ct,display_position#with_pos p1
+				magic_type_th (display_position#with_pos p1)
 			)
 			f
 
@@ -682,8 +681,10 @@ and parse_structural_extension = parser
 					| [< '(Comma,_) >] -> ()
 					| [< >] -> ()
 				end;
-				magic_type_path,display_position#with_pos p1
-			end else raise Stream.Failure
+				let p = display_position#with_pos p1 in
+				make_ptp magic_type_path p
+			end else
+				raise Stream.Failure
 
 and parse_complex_type_inner allow_named = parser
 	| [< '(POpen,p1); t = parse_complex_type; '(PClose,p2) >] -> CTParent t,punion p1 p2
@@ -705,7 +706,8 @@ and parse_complex_type_inner allow_named = parser
 			| CTNamed (_,hint) -> hint
 			| _ -> (t,p2)
 		in
-		CTPath (mk_type_path ~params:[TPType hint] (["haxe"],"Rest")),punion p1 p2
+		let p = punion p1 p2 in
+		CTPath (make_ptp (mk_type_path ~params:[TPType hint] (["haxe"],"Rest")) p),p
 	| [< n = dollar_ident; s >] ->
 		(match s with parser
 		| [< '(DblDot,_) when allow_named; t = parse_complex_type >] ->
@@ -714,10 +716,10 @@ and parse_complex_type_inner allow_named = parser
 			CTNamed (n,t),punion p1 p2
 		| [< s >] ->
 			let n,p = n in
-			let t,p = parse_type_path2 None [] n p s in
-			CTPath t,p)
-	| [< t,p = parse_type_path >] ->
-		CTPath t,p
+			let ptp = parse_type_path2 None [] n p s in
+			CTPath ptp,ptp.pos_full)
+	| [< ptp = parse_type_path >] ->
+		CTPath ptp,ptp.pos_full
 
 and parse_type_path s = parse_type_path1 None [] s
 
@@ -725,14 +727,14 @@ and parse_type_path1 p0 pack = parser
 	| [< name, p1 = dollar_ident_macro pack; s >] ->
 		parse_type_path2 p0 pack name p1 s
 
-and parse_type_path2 p0 pack name p1 s =
+and parse_type_path2 p0 pack name p1 s : placed_type_path =
 	let check_display f =
 		let p = match p0 with
 			| None -> p1
 			| Some p -> punion p p1
 		in
 		if !in_display_file && display_position#enclosed_in p then begin
-			mk_type_path (List.rev pack,name), p
+			make_ptp (mk_type_path (List.rev pack,name)) p
 		end else
 			f()
 	in
@@ -756,6 +758,8 @@ and parse_type_path2 p0 pack name p1 s =
 					| [< >] -> serror()))
 			| [< >] -> None,p1
 		) in
+		let p1 = match p0 with None -> p1 | Some p -> p in
+		let p_path = punion p1 p2 in
 		let params,p2 = (match s with parser
 			| [< '(Binop OpLt,plt); l = psep Comma (parse_type_path_or_const plt) >] ->
 				begin match s with parser
@@ -766,8 +770,8 @@ and parse_type_path2 p0 pack name p1 s =
 			| [< >] -> [],p2
 		) in
 		let tp = mk_type_path ~params ?sub (List.rev pack,name)
-		and pos = punion (match p0 with None -> p1 | Some p -> p) p2 in
-		tp,pos
+		and p_full = punion p1 p2 in
+		make_ptp tp ~p_path p_full
 
 and type_name = parser
 	| [< '(Const (Ident name),p); s >] ->
@@ -790,8 +794,7 @@ and parse_type_path_or_const plt = parser
 	| [< s >] ->
 		if !in_display_file then begin
 			if would_skip_display_position plt false s then begin
-				let ct = CTPath magic_type_path in
-				TPType (ct,display_position#with_pos plt)
+				TPType (magic_type_th (display_position#with_pos plt))
 			end else
 				raise Stream.Failure
 		end else
@@ -816,8 +819,8 @@ and parse_complex_type_next (t : type_hint) s =
 		| [< t2,p2 = parse_complex_type >] -> make_fun t2 p2
 		| [< >] ->
 			if would_skip_display_position pa false s then begin
-				let ct = CTPath magic_type_path in
-				make_fun ct (display_position#with_pos pa)
+				let p = display_position#with_pos pa in
+				make_fun (magic_type_ct p) p
 			end else serror()
 		end
 	| [< '(Binop OpAnd,pa); s >] ->
@@ -825,8 +828,8 @@ and parse_complex_type_next (t : type_hint) s =
 		| [< t2,p2 = parse_complex_type >] -> make_intersection t2 p2
 		| [< >] ->
 			if would_skip_display_position pa false s then begin
-				let ct = CTPath magic_type_path in
-				make_intersection ct (display_position#with_pos pa)
+				let p = display_position#with_pos pa in
+				make_intersection (magic_type_ct p) p
 			end else serror()
 		end
 	| [< >] -> t
@@ -836,7 +839,7 @@ and parse_function_type_next tl p1 = parser
 		begin match s with parser
 		| [< tret = parse_complex_type_inner false >] -> CTFunction (tl,tret), punion p1 (snd tret)
 		| [< >] -> if would_skip_display_position pa false s then begin
-				let ct = (CTPath magic_type_path),(display_position#with_pos pa) in
+				let ct = magic_type_th (display_position#with_pos pa) in
 				CTFunction (tl,ct), punion p1 pa
 			end else serror()
 		end
@@ -963,6 +966,9 @@ and parse_class_field tdecl s =
 		| [< '(Kwd Final,p1) >] ->
 			check_redundant_var p1 s;
 			begin match s with parser
+			| [< opt,name = questionable_dollar_ident; '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
+				let meta = check_optional opt name in
+				name,punion p1 p2,FProp(i1,i2,t,e),(al @ [AFinal,p1]),meta
 			| [< opt,name = questionable_dollar_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
 				let meta = check_optional opt name in
 				name,punion p1 p2,FVar(t,e),(al @ [AFinal,p1]),meta
@@ -1032,7 +1038,7 @@ and parse_fun_param s =
 	| [< name, pn = dollar_ident; t = popt parse_type_hint; c = parse_fun_param_value >] -> ((name,pn),false,meta,t,c)
 	| [< '(Spread,_); name, pn = dollar_ident; t = popt parse_type_hint; c = parse_fun_param_value >] ->
 		let t = match t with Some t -> t | None -> (ct_mono,null_pos) in
-		let t = CTPath (mk_type_path ~params:[TPType t] (["haxe"],"Rest")), snd t in
+		let t = CTPath (make_ptp (mk_type_path ~params:[TPType t] (["haxe"],"Rest")) (snd t)),(snd t) in
 		((name,pn),false,meta,Some t,c)
 
 and parse_fun_param_value = parser
@@ -1088,9 +1094,10 @@ and parse_constraint_param s =
 
 and parse_type_path_or_resume p1 s =
 	let check_resume exc =
-		if would_skip_display_position p1 true s then
-			(magic_type_path,display_position#with_pos p1),true
-		else
+		if would_skip_display_position p1 true s then begin
+			let p = display_position#with_pos p1 in
+			make_ptp magic_type_path p,true
+		end else
 			raise exc
 	in
 	try
@@ -1135,8 +1142,6 @@ and block_with_pos' acc f p s =
 		| Stream.Error msg when !in_display_file ->
 			handle_stream_error msg s;
 			(block_with_pos acc (next_pos s) s)
-		| Error (e,p) when !in_display_file ->
-			block_with_pos acc p s
 
 and block_with_pos acc p s =
 	block_with_pos' acc parse_block_elt p s
@@ -1235,6 +1240,8 @@ and parse_array_decl p1 s =
 and parse_var_decl_head final s =
 	let meta = parse_meta s in
 	match s with parser
+	| [< name, p = dollar_ident; '(POpen,p1); _ = property_ident; '(Comma,_); _ = property_ident; '(PClose,p2); t = popt parse_type_hint >] ->
+		syntax_error (Custom "Cannot define property accessors for local vars") ~pos:(Some (punion p1 p2)) s (meta,name,final,t,p)
 	| [< name, p = dollar_ident; t = popt parse_type_hint >] -> (meta,name,final,t,p)
 	| [< >] ->
 		(* This nonsense is here for the var @ case in issue #9639 *)
@@ -1278,7 +1285,8 @@ and parse_macro_expr p = parser
 	| [< '(DblDot,_); t = parse_complex_type >] ->
 		let _, to_type, _  = reify !in_macro in
 		let t = to_type t p in
-		(ECheckType (t,(CTPath (mk_type_path ~sub:"ComplexType" (["haxe";"macro"],"Expr")),null_pos)),p)
+		let ct = make_ptp_ct_null (mk_type_path ~sub:"ComplexType" (["haxe";"macro"],"Expr")) in
+		(ECheckType (t,(ct,p)),p)
 	| [< '(Kwd Var,p1); vl = psep Comma (parse_var_decl false) >] ->
 		reify_expr (EVars vl,p1) !in_macro
 	| [< '(Kwd Final,p1); s >] ->
@@ -1291,7 +1299,8 @@ and parse_macro_expr p = parser
 		end
 	| [< d = parse_class None [] [] false >] ->
 		let _,_,to_type = reify !in_macro in
-		(ECheckType (to_type d,(CTPath (mk_type_path ~sub:"TypeDefinition" (["haxe";"macro"],"Expr")),null_pos)),p)
+		let ct = make_ptp_ct_null (mk_type_path ~sub:"TypeDefinition" (["haxe";"macro"],"Expr")) in
+		(ECheckType (to_type d,(ct,null_pos)),p)
 	| [< e = secure_expr >] ->
 		reify_expr e !in_macro
 
@@ -1435,7 +1444,7 @@ and expr = parser
 		begin match s with parser
 		| [< '(POpen,po); e = parse_call_params (fun el p2 -> (ENew(t,el)),punion p1 p2) po >] -> expr_next e s
 		| [< >] ->
-			syntax_error (Expected ["("]) s (ENew(t,[]),punion p1 (pos t))
+			syntax_error (Expected ["("]) s (ENew(t,[]),punion p1 t.pos_full)
 		end
 	| [< '(POpen,p1); s >] -> (match s with parser
 		| [< '(PClose,p2); er = arrow_expr; >] ->

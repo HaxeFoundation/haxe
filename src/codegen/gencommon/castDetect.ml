@@ -290,7 +290,7 @@ let do_unsafe_cast gen from_t to_t e	=
 			| _ -> raise Not_found
 	in
 	match gen.gfollow#run_f from_t, gen.gfollow#run_f to_t with
-	| TInst({ cl_kind = KTypeParameter tl },_), t2 when List.exists (fun t -> unifies t t2) tl ->
+	| TInst({ cl_kind = KTypeParameter ttp },_), t2 when List.exists (fun t -> unifies t t2) (get_constraints ttp) ->
 		mk_cast to_t (mk_cast t_dynamic e)
 	| from_t, to_t when gen.gspecial_needs_cast to_t from_t ->
 		mk_cast to_t e
@@ -418,7 +418,7 @@ let rec handle_cast gen e real_to_t real_from_t =
 				mk_cast true to_t e
 		| _, TAnon(anon) -> (try
 			let p2 = match !(anon.a_status) with
-			| Statics c -> TInst(c,List.map (fun _ -> t_dynamic) c.cl_params)
+			| ClassStatics c -> TInst(c,List.map (fun _ -> t_dynamic) c.cl_params)
 			| EnumStatics e -> TEnum(e, List.map (fun _ -> t_dynamic) e.e_params)
 			| AbstractStatics a -> TAbstract(a, List.map (fun _ -> t_dynamic) a.a_params)
 			| _ -> raise Not_found

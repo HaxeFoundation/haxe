@@ -26,6 +26,9 @@ extern class Api {
 	static inline function rethrow(v:Dynamic):Void {
 		untyped $rethrow(v);
 	}
+	static inline function unsafeCast<From,To>(v:From):To {
+		return untyped $unsafecast(v);
+	}
 	@:hlNative("std", "obj_get_field") static function getField(obj:Dynamic, hash:Int):Dynamic;
 	@:hlNative("std", "obj_set_field") static function setField(obj:Dynamic, hash:Int, value:Dynamic):Void;
 	@:hlNative("std", "obj_has_field") static function hasField(obj:Dynamic, hash:Int):Bool;

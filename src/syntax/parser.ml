@@ -22,11 +22,17 @@ open Globals
 open DisplayTypes.DisplayMode
 open DisplayPosition
 
+type preprocessor_error =
+	| InvalidEnd
+	| InvalidElse
+	| InvalidElseif
+	| UnclosedConditional
+
 type error_msg =
 	| Unexpected of token
 	| Duplicate_default
 	| Missing_semicolon
-	| Unclosed_conditional
+	| Preprocessor_error of preprocessor_error
 	| Unimplemented
 	| Missing_type
 	| Expected of string list
@@ -70,7 +76,13 @@ let error_msg = function
 	| Unexpected t -> "Unexpected "^(s_token t)
 	| Duplicate_default -> "Duplicate default"
 	| Missing_semicolon -> "Missing ;"
-	| Unclosed_conditional -> "Unclosed conditional compilation block"
+	| Preprocessor_error ppe ->
+		begin match ppe with
+			| UnclosedConditional -> "Unclosed conditional compilation block"
+			| InvalidEnd -> "Invalid #end"
+			| InvalidElse -> "Invalid #else"
+			| InvalidElseif -> "Invalid #elseif"
+		end
 	| Unimplemented -> "Not implemented for current platform"
 	| Missing_type -> "Missing type declaration"
 	| Expected sl -> "Expected " ^ (String.concat " or " sl)
@@ -232,6 +244,10 @@ let serror() = raise (Stream.Error "")
 let magic_display_field_name = " - display - "
 let magic_type_path = { tpackage = []; tname = ""; tparams = []; tsub = None }
 
+let magic_type_ct p = make_ptp_ct magic_type_path p
+
+let magic_type_th p = magic_type_ct p,p
+
 let delay_syntax_completion kind so p =
 	delayed_syntax_completion := Some(kind,DisplayTypes.make_subject so p)
 
@@ -266,12 +282,13 @@ let precedence op =
 	| OpAdd | OpSub -> 3, left
 	| OpShl | OpShr | OpUShr -> 4, left
 	| OpOr | OpAnd | OpXor -> 5, left
-	| OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte -> 6, left
-	| OpInterval -> 7, left
-	| OpBoolAnd -> 8, left
-	| OpBoolOr | OpNullCoal -> 9, left
-	| OpArrow -> 10, right
-	| OpAssign | OpAssignOp _ -> 11, right
+	| OpNullCoal -> 6, left
+	| OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte -> 7, left
+	| OpInterval -> 8, left
+	| OpBoolAnd -> 9, left
+	| OpBoolOr -> 10, left
+	| OpArrow -> 11, right
+	| OpAssign | OpAssignOp _ -> 12, right
 
 let is_higher_than_ternary = function
 	| OpAssign | OpAssignOp _ | OpArrow -> false

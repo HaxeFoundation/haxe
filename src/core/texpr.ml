@@ -189,6 +189,19 @@ let map_expr_type f ft fv e =
 		{ e with eexpr = TEnumParameter (f e1,ef,i); etype = ft e.etype }
 	| TEnumIndex e1 ->
 		{ e with eexpr = TEnumIndex (f e1); etype = ft e.etype }
+	| TField (e1,(FClosure(None,cf) as fa)) ->
+		let e1 = f e1 in
+		let fa = try
+			begin match quick_field e1.etype cf.cf_name with
+				| FInstance(c,tl,cf) ->
+					FClosure(Some(c,tl),cf)
+				| _ ->
+					raise Not_found
+			end
+		with Not_found ->
+			fa
+		in
+		{ e with eexpr = TField (e1,fa); etype = ft e.etype }
 	| TField (e1,v) ->
 		let e1 = f e1 in
 		let v = try
@@ -232,7 +245,7 @@ let map_expr_type f ft fv e =
 	| TFunction fu ->
 		let fu = {
 			tf_expr = f fu.tf_expr;
-			tf_args = List.map (fun (v,o) -> fv v, o) fu.tf_args;
+			tf_args = List.map (fun (v,o) -> fv v, (Option.map f o)) fu.tf_args;
 			tf_type = ft fu.tf_type;
 		} in
 		{ e with eexpr = TFunction fu; etype = ft e.etype }
@@ -307,7 +320,9 @@ let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
 	| TEnumParameter(e1,ef1,i1),TEnumParameter(e2,ef2,i2) -> equal e1 e2 && ef1 == ef2 && i1 = i2
 	| _ -> false
 
-let duplicate_tvars e =
+let e_identity e = e
+
+let duplicate_tvars f_this e =
 	let vars = Hashtbl.create 0 in
 	let copy_var v =
 		let v2 = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
@@ -344,6 +359,8 @@ let duplicate_tvars e =
 				{e with eexpr = TLocal v2}
 			with _ ->
 				e)
+		| TConst TThis ->
+			f_this e
 		| _ ->
 			map_expr build_expr e
 	in
@@ -469,13 +486,13 @@ let foldmap f acc e =
 (* Collection of functions that return expressions *)
 module Builder = struct
 	let make_static_this c p =
-		let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
+		let ta = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
 		mk (TTypeExpr (TClassDecl c)) ta p
 
 	let make_typeexpr mt pos =
 		let t =
 			match resolve_typedef mt with
-			| TClassDecl c -> mk_anon ~fields:c.cl_statics (ref (Statics c))
+			| TClassDecl c -> mk_anon ~fields:c.cl_statics (ref (ClassStatics c))
 			| TEnumDecl e -> mk_anon (ref (EnumStatics e))
 			| TAbstractDecl a -> mk_anon (ref (AbstractStatics a))
 			| _ -> die "" __LOC__

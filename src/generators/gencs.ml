@@ -971,7 +971,7 @@ let generate con =
 					| TInst(cl, params) -> TInst(cl, change_param_type stack (TClassDecl cl) params)
 					| TAbstract _
 					| TType _ -> t
-					| TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false) -> t
+					| TAnon (anon) when (match !(anon.a_status) with | ClassStatics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false) -> t
 					| TFun _ -> TInst(fn_cl,[])
 					| _ -> t_dynamic
 				in
@@ -1027,7 +1027,7 @@ let generate con =
 			| TInst({ cl_kind = KTypeParameter _ }, _) -> true
 			| TAnon anon ->
 				(match !(anon.a_status) with
-					| EnumStatics _ | Statics _ -> false
+					| EnumStatics _ | ClassStatics _ -> false
 					| _ -> true
 				)
 			| _ -> false
@@ -1090,7 +1090,7 @@ let generate con =
 				| TType (({ t_path = p } as t), params) -> (path_param_s (TTypeDecl t) p params)
 				| TAnon (anon) ->
 					(match !(anon.a_status) with
-						| Statics _ | EnumStatics _ -> "System.Type"
+						| ClassStatics _ | EnumStatics _ -> "System.Type"
 						| _ -> "object")
 				| TDynamic _ -> "object"
 				| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
@@ -2009,18 +2009,17 @@ let generate con =
 			let hxgen = is_hxgen (TClassDecl cl) in
 			match cl_params with
 				| (_ :: _) when not (erase_generics && is_hxgeneric (TClassDecl cl)) ->
-					let get_param_name t = match follow t with TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__ in
 					let combination_error c1 c2 =
 						gen.gcon.error ("The " ^ (get_constraint c1) ^ " constraint cannot be combined with the " ^ (get_constraint c2) ^ " constraint.") cl.cl_pos in
 
-					let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> get_param_name tp.ttp_type) cl_params)) in
+					let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> snd tp.ttp_class.cl_path) cl_params)) in
 					let params_extends =
 						if hxgen || not (Meta.has (Meta.NativeGen) cl.cl_meta) then
 							[""]
 						else
 							List.fold_left (fun acc {ttp_name=name;ttp_type=t} ->
-								match run_follow gen t with
-									| TInst({cl_kind = KTypeParameter constraints}, _) when constraints <> [] ->
+								match t with
+									| TInst({cl_kind = KTypeParameter ttp} as c,_) when get_constraints ttp <> [] ->
 										(* base class should come before interface constraints *)
 										let base_class_constraints = ref [] in
 										let other_constraints = List.fold_left (fun acc t ->
@@ -2069,7 +2068,7 @@ let generate con =
 												(* skip anything other *)
 												| _ ->
 													acc
-										) [] constraints in
+										) [] (get_constraints ttp ) in
 
 										let s_constraints = (List.sort
 											(* C# expects some ordering for built-in constraints: *)
@@ -2085,7 +2084,7 @@ let generate con =
 										) (!base_class_constraints @ other_constraints)) in
 
 										if s_constraints <> [] then
-											(sprintf " where %s : %s" (get_param_name t) (String.concat ", " (List.map get_constraint s_constraints)) :: acc)
+											(sprintf " where %s : %s" (snd c.cl_path) (String.concat ", " (List.map get_constraint s_constraints)) :: acc)
 										else
 											acc;
 									| _ -> acc
@@ -3421,7 +3420,7 @@ let generate con =
 					gen.gcon.file ^ "/src/Resources"
 			in
 			Hashtbl.iter (fun name v ->
-				let name = Codegen.escape_res_name name true in
+				let name = Codegen.escape_res_name name ['/'] in
 				let full_path = src ^ "/" ^ name in
 				Path.mkdir_from_path full_path;
 

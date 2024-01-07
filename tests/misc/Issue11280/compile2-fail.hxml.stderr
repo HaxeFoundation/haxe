@@ -1,0 +1,6 @@
+[ERROR] Main2.hx:2: characters 9-14
+
+ 2 |  public final bar(get, never):Int;
+   |         ^^^^^
+   | Invalid modifier: final is not supported on properties
+

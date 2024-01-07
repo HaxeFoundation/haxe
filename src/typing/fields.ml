@@ -197,7 +197,7 @@ let field_access ctx mode f fh e pfield =
 				normal false
 			| TAnon a ->
 				(match !(a.a_status) with
-				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal false
+				| ClassStatics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal false
 				| _ -> if ctx.untyped then normal false else normal_failure())
 			| _ ->
 				if ctx.untyped then normal false else normal_failure())
@@ -319,11 +319,11 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				snd (class_field_with_access e c tl)
 			with Not_found -> try
 				match c.cl_kind with
-				| KTypeParameter tl ->
+				| KTypeParameter ttp ->
 					type_field_by_list (fun t -> match follow t with
 						| TAbstract _ -> type_field_by_e type_field_by_type (mk_cast e t p);
 						| _ -> raise Not_found
-					) tl
+					) (get_constraints ttp)
 				| _ -> raise Not_found
 			with Not_found ->
 				type_field_by_interfaces e c
@@ -338,13 +338,13 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					let fmode = FEnum (en,c) in
 					let t = enum_field_type ctx en c p in
 					AKExpr (mk (TField (e,fmode)) t p)
-				| Statics c ->
+				| ClassStatics c ->
 					field_access f (FHStatic c)
 				| _ ->
 					field_access f FHAnon
 			with Not_found ->
 				match !(a.a_status) with
-				| Statics { cl_kind = KAbstractImpl a } ->
+				| ClassStatics { cl_kind = KAbstractImpl a } ->
 					type_field_by_forward_static (fun() ->
 						let mt = try module_type_of_type a.a_this with Exit -> raise Not_found in
 						let et = type_module_type ctx mt p in
@@ -533,6 +533,25 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			)
 		| _ -> raise Not_found
 	in
+	let type_field_by_module e t =
+		match e.eexpr with
+		| TTypeExpr mt ->
+			let infos = t_infos mt in
+			if snd infos.mt_path <> snd infos.mt_module.m_path then raise Not_found;
+			(* TODO: This duplicates some code from typerDotPath.ml *)
+			begin match infos.mt_module.m_statics with
+			| Some c when PMap.mem i c.cl_statics ->
+				let cf = PMap.find i c.cl_statics in
+				(* We cannot use e here because in the case of module statics the type could be different (issue #11385). *)
+				let e = type_module_type ctx (TClassDecl c) e.epos in
+				field_access e cf (FHStatic c)
+			| _ ->
+				let t = Typeload.find_type_in_module infos.mt_module i in
+				mk_module_type_access ctx t p
+			end
+		| _ ->
+			raise Not_found
+	in
 	let t = follow_without_type e.etype in
 	try
 		type_field_by_type e t
@@ -542,6 +561,8 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		type_field_by_module_extension e t
 	with Not_found -> try
 		type_field_by_fallback e t
+	with Not_found -> try
+		type_field_by_module e t
 	with Not_found when not (TypeFieldConfig.do_resume cfg) ->
 		if not ctx.untyped then begin
 			let has_special_field a =
@@ -550,12 +571,12 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				|| List.exists (fun cf -> cf.cf_name = i) a.a_array
 			in
 			match follow t with
-			| TAnon { a_status = { contents = Statics { cl_kind = KAbstractImpl a } } }
+			| TAnon { a_status = { contents = ClassStatics { cl_kind = KAbstractImpl a } } }
 			| TInst ({ cl_kind = KAbstractImpl a },_)
 			| TAbstract (a,_) when has_special_field a ->
 				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
 				display_error ctx.com ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
-			| TAnon { a_status = { contents = Statics c } } when PMap.mem i c.cl_fields ->
+			| TAnon { a_status = { contents = ClassStatics c } } when PMap.mem i c.cl_fields ->
 				display_error ctx.com ("Static access to instance field " ^ i ^ " is not allowed") pfield;
 			| _ ->
 				let tthis = e.etype in

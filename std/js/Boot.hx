@@ -71,9 +71,12 @@ class Boot {
 						var e = $hxEnums[o.__enum__];
 						var con = e.__constructs__[o._hx_index];
 						var n = con._hx_name;
-						if (con.__params__) {
+						if (o.__params__) {
 							s += "\t";
-							return n + "(" + [for (p in (con.__params__ : Array<String>)) __string_rec(o[p], s)].join(",") + ")";
+							var params:Array<Any> = o.__params__();
+							for (i in 0...params.length)
+								params[i] = __string_rec(params[i], s);
+							return n + "(" + params.join(",") + ")";
 						} else {
 							return n;
 						}

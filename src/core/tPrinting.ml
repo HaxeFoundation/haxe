@@ -28,6 +28,8 @@ let s_module_type_kind = function
 	| TAbstractDecl a -> "TAbstractDecl(" ^ (s_type_path a.a_path) ^ ")"
 	| TTypeDecl t -> "TTypeDecl(" ^ (s_type_path t.t_path) ^ ")"
 
+let show_mono_ids = true
+
 let rec s_type ctx t =
 	match t with
 	| TMono r ->
@@ -35,21 +37,27 @@ let rec s_type ctx t =
 		| None ->
 			begin try
 				let id = List.assq t (!ctx) in
-				Printf.sprintf "Unknown<%d>" id
+				if show_mono_ids then
+					Printf.sprintf "Unknown<%d>" id
+				else
+					"Unknown"
 			with Not_found ->
 				let id = List.length !ctx in
 				ctx := (t,id) :: !ctx;
-			let s_const =
-				let rec loop = function
-				| CUnknown -> ""
-				| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
-				| CStructural(fields,_) -> s_type ctx (mk_anon ~fields (ref Closed))
-				| CMixed l -> String.concat " & " (List.map loop l)
+				let s_const =
+					let rec loop = function
+					| CUnknown -> ""
+					| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
+					| CStructural(fields,_) -> s_type ctx (mk_anon ~fields (ref Closed))
+					| CMixed l -> String.concat " & " (List.map loop l)
+					in
+					let s = loop (!monomorph_classify_constraints_ref r) in
+					if s = "" then s else " : " ^ s
 				in
-				let s = loop (!monomorph_classify_constraints_ref r) in
-				if s = "" then s else " : " ^ s
-			in
-				Printf.sprintf "Unknown<%d>%s" id s_const
+				if show_mono_ids then
+					Printf.sprintf "Unknown<%d>%s" id s_const
+				else
+					Printf.sprintf "Unknown%s" s_const
 			end
 		| Some t -> s_type ctx t)
 	| TEnum (e,tl) ->
@@ -58,7 +66,7 @@ let rec s_type ctx t =
 		(match c.cl_kind with
 		| KExpr e -> Ast.Printer.s_expr e
 		| _ -> s_type_path c.cl_path ^ s_type_params ctx tl)
-	| TType ({ t_type = TAnon { a_status = { contents = Statics { cl_kind = KAbstractImpl a }}}}, _) ->
+	| TType ({ t_type = TAnon { a_status = { contents = ClassStatics { cl_kind = KAbstractImpl a }}}}, _) ->
 		"Abstract<" ^ (s_type_path a.a_path) ^ ">"
 	| TType (t,tl) ->
 		s_type_path t.t_path ^ s_type_params ctx tl
@@ -80,7 +88,7 @@ let rec s_type ctx t =
 	| TAnon a ->
 		begin
 			match !(a.a_status) with
-			| Statics c -> Printf.sprintf "{ Statics %s }" (s_type_path c.cl_path)
+			| ClassStatics c -> Printf.sprintf "{ ClassStatics %s }" (s_type_path c.cl_path)
 			| EnumStatics e -> Printf.sprintf "{ EnumStatics %s }" (s_type_path e.e_path)
 			| AbstractStatics a -> Printf.sprintf "{ AbstractStatics %s }" (s_type_path a.a_path)
 			| _ ->
@@ -372,8 +380,8 @@ let s_types ?(sep = ", ") tl =
 let s_class_kind = function
 	| KNormal ->
 		"KNormal"
-	| KTypeParameter tl ->
-		Printf.sprintf "KTypeParameter [%s]" (s_types tl)
+	| KTypeParameter ttp ->
+		Printf.sprintf "KTypeParameter [%s]" (s_types (get_constraints ttp))
 	| KExpr _ ->
 		"KExpr"
 	| KGeneric ->
@@ -388,6 +396,11 @@ let s_class_kind = function
 		Printf.sprintf "KAbstractImpl %s" (s_type_path a.a_path)
 	| KModuleFields m ->
 		Printf.sprintf "KModuleFields %s" (s_type_path m.m_path)
+
+let s_class_field_ref_kind = function
+	| CfrStatic -> "CfrStatic"
+	| CfrMember -> "CfrMember"
+	| CfrConstructor -> "CfrConstructor"
 
 module Printer = struct
 
@@ -428,19 +441,17 @@ module Printer = struct
 	let s_metadata metadata =
 		s_list " " s_metadata_entry metadata
 
-	let s_type_param tp = match follow tp.ttp_type with
-		| TInst({cl_kind = KTypeParameter tl1},tl2) ->
-			let s = match tl1 with
-				| [] -> tp.ttp_name
-				| _ -> Printf.sprintf "%s:%s" tp.ttp_name (String.concat " & " (List.map s_type tl1))
-			in
-			begin match tp.ttp_default with
-			| None ->
-				s
-			| Some t ->
-				Printf.sprintf "%s = %s" s (s_type t)
-			end
-		| _ -> die "" __LOC__
+	let s_type_param ttp = 
+		let s = match (get_constraints ttp) with
+			| [] -> ttp.ttp_name
+			| tl1 -> Printf.sprintf "%s:%s" ttp.ttp_name (String.concat " & " (List.map s_type tl1))
+		in
+		begin match ttp.ttp_default with
+		| None ->
+			s
+		| Some t ->
+			Printf.sprintf "%s = %s" s (s_type t)
+		end
 
 	let s_type_params tl =
 		s_list ", " s_type_param tl
@@ -600,12 +611,12 @@ module Printer = struct
 	let s_module_def_extra tabs me =
 		s_record_fields tabs [
 			"m_file",Path.UniqueKey.lazy_path me.m_file;
-			"m_sign",me.m_sign;
+			"m_sign",(Digest.to_hex me.m_sign);
 			"m_time",string_of_float me.m_time;
 			"m_cache_state",s_module_cache_state me.m_cache_state;
 			"m_added",string_of_int me.m_added;
 			"m_checked",string_of_int me.m_checked;
-			"m_deps",s_pmap string_of_int (fun m -> snd m.m_path) me.m_deps;
+			"m_deps",s_pmap string_of_int (fun (_,m) -> snd m) me.m_deps;
 			"m_processed",string_of_int me.m_processed;
 			"m_kind",s_module_kind me.m_kind;
 			"m_binded_res",""; (* TODO *)
@@ -632,8 +643,8 @@ module Printer = struct
 		| HInterface -> "HInterface"
 		| HExtern -> "HExtern"
 		| HPrivate -> "HPrivate"
-		| HExtends tp -> "HExtends " ^ (s_type_path (fst tp))
-		| HImplements tp -> "HImplements " ^ (s_type_path (fst tp))
+		| HExtends ptp -> "HExtends " ^ (s_type_path ptp.path)
+		| HImplements ptp -> "HImplements " ^ (s_type_path ptp.path)
 		| HFinal -> "HFinal"
 		| HAbstract -> "HAbstract"
 

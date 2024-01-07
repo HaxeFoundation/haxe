@@ -201,14 +201,14 @@ class compiler_callbacks = object(self)
 	method add_null_safety_report (f : (string*pos) list -> unit) : unit =
 		null_safety_report <- f :: null_safety_report
 
-	method run r =
+	method run handle_error r =
 		match !r with
 		| [] ->
 			()
 		| l ->
 			r := [];
-			List.iter (fun f -> f()) (List.rev l);
-			self#run r
+			List.iter (fun f -> try f() with Error.Error err -> handle_error err) (List.rev l);
+			self#run handle_error r
 
 	method get_before_typer_create = before_typer_create
 	method get_after_init_macros = after_init_macros
@@ -256,7 +256,6 @@ type json_api = {
 type compiler_stage =
 	| CCreated          (* Context was just created *)
 	| CInitialized      (* Context was initialized (from CLI args and such). *)
-	| CTyperCreated     (* The typer context was just created. *)
 	| CInitMacrosStart  (* Init macros are about to run. *)
 	| CInitMacrosDone   (* Init macros did run - at this point the signature is locked. *)
 	| CTypingDone       (* The typer is done - at this point com.types/modules/main is filled. *)
@@ -271,9 +270,27 @@ type compiler_stage =
 	| CGenerationStart  (* Generation is about to begin. *)
 	| CGenerationDone   (* Generation just finished. *)
 
+let s_compiler_stage = function
+	| CCreated          -> "CCreated"
+	| CInitialized      -> "CInitialized"
+	| CInitMacrosStart  -> "CInitMacrosStart"
+	| CInitMacrosDone   -> "CInitMacrosDone"
+	| CTypingDone       -> "CTypingDone"
+	| CFilteringStart   -> "CFilteringStart"
+	| CAnalyzerStart    -> "CAnalyzerStart"
+	| CAnalyzerDone     -> "CAnalyzerDone"
+	| CSaveStart        -> "CSaveStart"
+	| CSaveDone         -> "CSaveDone"
+	| CDceStart         -> "CDceStart"
+	| CDceDone          -> "CDceDone"
+	| CFilteringDone    -> "CFilteringDone"
+	| CGenerationStart  -> "CGenerationStart"
+	| CGenerationDone   -> "CGenerationDone"
+
 type report_mode =
 	| RMNone
-	| RMDiagnostics of Path.UniqueKey.t list
+	| RMLegacyDiagnostics of (Path.UniqueKey.t list)
+	| RMDiagnostics of (Path.UniqueKey.t list)
 	| RMStatistics
 
 class virtual ['key,'value] lookup = object(self)
@@ -379,10 +396,12 @@ type context = {
 	mutable user_metas : (string, Meta.user_meta) Hashtbl.t;
 	mutable get_macros : unit -> context option;
 	(* typing state *)
+	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	shared : shared_context;
 	display_information : display_information;
 	file_lookup_cache : (string,string option) lookup;
 	file_keys : file_keys;
+	mutable file_contents : (Path.UniqueKey.t * string option) list;
 	readdir_cache : (string * string,(string array) option) lookup;
 	parser_cache : (string,(type_def * pos) list) lookup;
 	module_to_file : (path,string) lookup;
@@ -415,12 +434,13 @@ type context = {
 	memory_marker : float array;
 }
 
-exception Abort of Error.error
+let enter_stage com stage =
+	(* print_endline (Printf.sprintf "Entering stage %s" (s_compiler_stage stage)); *)
+	com.stage <- stage
 
 let ignore_error com =
 	let b = com.display.dms_error_policy = EPIgnore in
-	if b then
-		if b then com.has_error <- true;
+	if b then com.has_error <- true;
 	b
 
 (* Defines *)
@@ -462,7 +482,7 @@ let external_defined_value ctx k =
 	Define.raw_defined_value ctx.defines (convert_define k)
 
 let reserved_flags = [
-	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
+	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";"hl";"hlc";
 	"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
 ]
 
@@ -486,6 +506,9 @@ let external_define_value ctx k v =
 
 let external_define ctx k =
 	Define.raw_define ctx.defines (convert_and_validate k)
+
+let external_undefine ctx k =
+	Define.raw_undefine ctx.defines (convert_and_validate k)
 
 let defines_for_external ctx =
 	PMap.foldi (fun k v acc ->
@@ -812,6 +835,7 @@ let create compilation_step cs version args =
 		file = "";
 		types = [];
 		callbacks = new compiler_callbacks;
+		global_metadata = [];
 		modules = [];
 		module_lut = new hashtbl_lookup;
 		module_nonexistent_lut = new hashtbl_lookup;
@@ -853,6 +877,7 @@ let create compilation_step cs version args =
 		};
 		file_lookup_cache = new hashtbl_lookup;
 		file_keys = new file_keys;
+		file_contents = [];
 		readdir_cache = new hashtbl_lookup;
 		module_to_file = new hashtbl_lookup;
 		stored_typed_exprs = new hashtbl_lookup;
@@ -868,7 +893,7 @@ let create compilation_step cs version args =
 	com
 
 let is_diagnostics com = match com.report_mode with
-	| RMDiagnostics _ -> true
+	| RMLegacyDiagnostics _ | RMDiagnostics _ -> true
 	| _ -> false
 
 let disable_report_mode com =
@@ -945,7 +970,8 @@ let update_platform_config com =
 
 let init_platform com =
 	let name = platform_name com.platform in
-	if (com.platform = Flash) && Path.file_extension com.file = "swc" then define com Define.Swc;
+	if (com.platform = Flash) && Path.file_extension com.file = "swc" then define com Define.Swc
+	else if (com.platform = Hl) && Path.file_extension com.file = "c" then define com Define.Hlc;
 	(* Set the source header, unless the user has set one already or the platform sets a custom one *)
 	if not (defined com Define.SourceHeader) && (com.platform <> Hl) then
 		define_value com Define.SourceHeader ("Generated by Haxe " ^ s_version_full);
@@ -1043,7 +1069,7 @@ let allow_package ctx s =
 	with Not_found ->
 		()
 
-let abort ?(depth = 0) msg p = raise (Abort (Error.make_error ~depth (Custom msg) p))
+let abort ?(depth = 0) msg p = raise (Error.Fatal_error (Error.make_error ~depth (Custom msg) p))
 
 let platform ctx p = ctx.platform = p
 
@@ -1300,3 +1326,100 @@ let get_entry_point com =
 		let e = Option.get com.main in (* must be present at this point *)
 		(snd path, c, e)
 	) com.main_class
+
+let format_string com s p process_expr =
+	let e = ref None in
+	let pmin = ref p.pmin in
+	let min = ref (p.pmin + 1) in
+	let add_expr (enext,p) len =
+		min := !min + len;
+		let enext = process_expr enext p in
+		match !e with
+		| None -> e := Some enext
+		| Some prev ->
+			e := Some (EBinop (OpAdd,prev,enext),punion (pos prev) p)
+	in
+	let add enext len =
+		let p = { p with pmin = !min; pmax = !min + len } in
+		add_expr (enext,p) len
+	in
+	let add_sub start pos =
+		let len = pos - start in
+		if len > 0 || !e = None then add (EConst (String (String.sub s start len,SDoubleQuotes))) len
+	in
+	let len = String.length s in
+	let rec parse start pos =
+		if pos = len then add_sub start pos else
+		let c = String.unsafe_get s pos in
+		let pos = pos + 1 in
+		if c = '\'' then begin
+			incr pmin;
+			incr min;
+		end;
+		if c <> '$' || pos = len then parse start pos else
+		match String.unsafe_get s pos with
+		| '$' ->
+			(* double $ *)
+			add_sub start pos;
+			parse (pos + 1) (pos + 1)
+		| '{' ->
+			parse_group start pos '{' '}' "brace"
+		| 'a'..'z' | 'A'..'Z' | '_' ->
+			add_sub start (pos - 1);
+			incr min;
+			let rec loop i =
+				if i = len then i else
+				let c = String.unsafe_get s i in
+				match c with
+				| 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' -> loop (i+1)
+				| _ -> i
+			in
+			let iend = loop (pos + 1) in
+			let len = iend - pos in
+			add (EConst (Ident (String.sub s pos len))) len;
+			parse (pos + len) (pos + len)
+		| _ ->
+			(* keep as-it *)
+			parse start pos
+	and parse_group start pos gopen gclose gname =
+		add_sub start (pos - 1);
+		let rec loop groups i =
+			if i = len then
+				match groups with
+				| [] -> die "" __LOC__
+				| g :: _ -> Error.raise_typing_error ("Unclosed " ^ gname) { p with pmin = !pmin + g + 1; pmax = !pmin + g + 2 }
+			else
+				let c = String.unsafe_get s i in
+				if c = gopen then
+					loop (i :: groups) (i + 1)
+				else if c = gclose then begin
+					let groups = List.tl groups in
+					if groups = [] then i else loop groups (i + 1)
+				end else
+					loop groups (i + 1)
+		in
+		let send = loop [pos] (pos + 1) in
+		let slen = send - pos - 1 in
+		let scode = String.sub s (pos + 1) slen in
+		min := !min + 2;
+		begin
+			let e =
+				let ep = { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } in
+				let error msg pos =
+					if Lexer.string_is_whitespace scode then Error.raise_typing_error "Expression cannot be empty" ep
+					else Error.raise_typing_error msg pos
+				in
+				match ParserEntry.parse_expr_string com.defines scode ep error true with
+					| ParseSuccess(data,_,_) -> data
+					| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
+			in
+			add_expr e slen
+		end;
+		min := !min + 1;
+		parse (send + 1) (send + 1)
+	in
+	parse 0 0;
+	match !e with
+	| None -> die "" __LOC__
+	| Some e -> e
+

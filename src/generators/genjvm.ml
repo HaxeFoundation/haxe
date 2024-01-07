@@ -31,6 +31,7 @@ open JvmSignature
 open JvmMethod
 open JvmBuilder
 open Genshared
+open Tanon_identification
 
 (* Note: This module is the bridge between Haxe structures and JVM structures. No module in generators/jvm should reference any
    Haxe-specific type. *)
@@ -140,48 +141,54 @@ end
 
 open NativeSignatures
 
+let jsignature_of_path path = match path with
+	| [],"Bool" -> TBool
+	| ["java"],"Int8" -> TByte
+	| ["java"],"Int16" -> TShort
+	| [],"Int" -> TInt
+	| ["haxe"],"Int32" -> TInt
+	| ["haxe"],"Int64" -> TLong
+	| ["java"],"Int64" -> TLong
+	| ["java"],"Char16" -> TChar
+	| [],"Single" -> TFloat
+	| [],"Float" -> TDouble
+	| [],"Dynamic" -> object_sig
+	| _ -> raise Exit
+
 let rec jsignature_of_type gctx stack t =
 	if List.exists (fast_eq t) stack then object_sig else
 	let jsignature_of_type = jsignature_of_type gctx (t :: stack) in
 	let jtype_argument_of_type t = jtype_argument_of_type gctx stack t in
 	match t with
 	| TAbstract(a,tl) ->
-		begin match a.a_path with
-			| [],"Bool" -> TBool
-			| ["java"],"Int8" -> TByte
-			| ["java"],"Int16" -> TShort
-			| [],"Int" -> TInt
-			| ["haxe"],"Int32" -> TInt
-			| ["haxe"],"Int64" -> TLong
-			| ["java"],"Int64" -> TLong
-			| ["java"],"Char16" -> TChar
-			| [],"Single" -> TFloat
-			| [],"Float" -> TDouble
-			| [],"Void" -> void_sig
-			| [],"Null" ->
-				begin match tl with
-				| [t] -> get_boxed_type (jsignature_of_type t)
-				| _ -> die "" __LOC__
-				end
-			| ["haxe";"ds"],"Vector" ->
-				begin match tl with
-				| [t] -> TArray(jsignature_of_type t,None)
-				| _ -> die "" __LOC__
-				end
-			| [],"Dynamic" ->
-				object_sig
-			| [],("Class" | "Enum") ->
-				begin match tl with
-				| [t] -> TObject(java_class_path,[TType(WNone,jsignature_of_type t)])
-				| _ -> java_class_sig
-				end
-			| [],"EnumValue" ->
-				java_enum_sig object_sig
-			| _ ->
-				if Meta.has Meta.CoreType a.a_meta then
-					TObject(a.a_path,List.map jtype_argument_of_type tl)
-				else
-					jsignature_of_type (Abstract.get_underlying_type a tl)
+		begin try
+			jsignature_of_path a.a_path
+		with Exit ->
+			begin match a.a_path with
+				| [],"Void" -> void_sig
+				| [],"Null" ->
+					begin match tl with
+					| [t] -> get_boxed_type (jsignature_of_type t)
+					| _ -> die "" __LOC__
+					end
+				| ["haxe";"ds"],"Vector" ->
+					begin match tl with
+					| [t] -> TArray(jsignature_of_type t,None)
+					| _ -> die "" __LOC__
+					end
+				| [],("Class" | "Enum") ->
+					begin match tl with
+					| [t] -> TObject(java_class_path,[TType(WNone,jsignature_of_type t)])
+					| _ -> java_class_sig
+					end
+				| [],"EnumValue" ->
+					java_enum_sig object_sig
+				| _ ->
+					if Meta.has Meta.CoreType a.a_meta then
+						TObject(a.a_path,List.map jtype_argument_of_type tl)
+					else
+						jsignature_of_type (Abstract.get_underlying_type a tl)
+			end
 		end
 	| TDynamic _ -> object_sig
 	| TMono r ->
@@ -195,8 +202,11 @@ let rec jsignature_of_type gctx stack t =
 		TObject((["haxe";"root"],"Array"),[TType(WNone,t)])
 	| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
 		TArray(jsignature_of_type t,None)
-	| TInst({cl_kind = KTypeParameter [t]},_) when t != t_dynamic -> jsignature_of_type t
-	| TInst({cl_kind = KTypeParameter _; cl_path = (_,name)},_) -> TTypeParameter name
+	| TInst({cl_kind = KTypeParameter ttp; cl_path = (_,name)},_) ->
+		begin match get_constraints ttp with
+			| [t] when t != t_dynamic -> jsignature_of_type t
+			| _ -> TTypeParameter name
+		end
 	| TInst({cl_path = ["_Class"],"Class_Impl_"},_) -> java_class_sig
 	| TInst({cl_path = ["_Enum"],"Enum_Impl_"},_) -> java_class_sig
 	| TInst(c,tl) -> TObject(c.cl_path,List.map jtype_argument_of_type tl)
@@ -258,6 +268,19 @@ module AnnotationHandler = struct
 			| EConst (Ident "true") -> ABool true
 			| EConst (Ident "false") -> ABool false
 			| EArrayDecl el -> AArray (List.map parse_value el)
+			| EField(e1,"class",_) ->
+				let path = parse_path e1 in
+				let jsig =  try
+					Some (jsignature_of_path path)
+				with Exit -> match path with
+					| ([],"Void") ->
+						None
+					| ([],name) ->
+						Some (TObject((["haxe";"root"],name),[]))
+					| _ ->
+						Some (TObject(path,[]))
+				in
+				AClass jsig
 			| EField(e1,s,_) ->
 				let path = parse_path e1 in
 				AEnum(object_path_sig path,s)
@@ -286,20 +309,25 @@ module AnnotationHandler = struct
 				Error.raise_typing_error "Call expression expected" (pos e)
 		in
 		ExtList.List.filter_map (fun (m,el,_) -> match m,el with
-			| Meta.Meta,[e] ->
-				let path,annotation = parse_expr e in
+			| Meta.Meta,(e1 :: el) ->
+				let path,annotation = parse_expr e1 in
 				let path = match path with
 					| [],name -> ["haxe";"root"],name
 					| _ -> path
 				in
-				Some(path,annotation)
+				(* If there's no value this was an untyped @:meta. Let's assume RUNTIME retention. *)
+				let is_runtime_visible = match el with
+					| [(EConst (String("CLASS",_)),_)] -> false
+					| _ -> true
+				in
+				Some(path,annotation,is_runtime_visible)
 			| _ ->
 				None
 		) meta
 
 	let generate_annotations builder meta =
-		List.iter (fun (path,annotation) ->
-			builder#add_annotation path annotation
+		List.iter (fun (path,annotation,is_runtime_visible) ->
+			builder#add_annotation path annotation is_runtime_visible
 		) (convert_annotations meta)
 end
 
@@ -1596,7 +1624,8 @@ class texpr_to_jvm
 			end
 		| TField(e1,FStatic(c,({cf_kind = Method (MethNormal | MethInline)} as cf))) ->
 			let tl,tr = self#call_arguments cf.cf_type el in
-			jm#invokestatic c.cl_path cf.cf_name (method_sig tl tr);
+			let kind = if has_class_flag c CInterface then FKInterfaceMethod else FKMethod in
+			jm#invokestatic c.cl_path cf.cf_name ~kind (method_sig tl tr);
 			tr
 		| TField(e1,FInstance({cl_path=(["haxe";"root"],"StringBuf");cl_descendants=[]} as c,_,({cf_name="add"} as cf))) ->
 			self#texpr rvalue_any e1;
@@ -2284,8 +2313,11 @@ class tclass_to_jvm gctx c = object(self)
 		if is_annotation then begin
 			jc#add_access_flag 0x2000;
 			jc#add_interface (["java";"lang";"annotation"],"Annotation") [];
-			(* TODO: this should be done via Haxe metadata instead of hardcoding it here *)
-			jc#add_annotation retention_path ["value",(AEnum(retention_policy_sig,"RUNTIME"))];
+			let value = match get_meta_string c.cl_meta Meta.Annotation with
+				| None -> "CLASS"
+				| Some value -> value
+			in
+			jc#add_annotation retention_path ["value",(AEnum(retention_policy_sig,value))] true;
 		end;
 		if (has_class_flag c CAbstract) then jc#add_access_flag 0x0400; (* abstract *)
 		if Meta.has Meta.JvmSynthetic c.cl_meta then jc#add_access_flag 0x1000 (* synthetic *)
@@ -2434,12 +2466,8 @@ class tclass_to_jvm gctx c = object(self)
 		let handler = new texpr_to_jvm gctx field_info jc jm tr in
 		List.iter (fun (v,_) ->
 			let slot,_,_ = handler#add_local v VarArgument in
-			let annot = AnnotationHandler.convert_annotations v.v_meta in
-			match annot with
-			| [] ->
-				()
-			| _ ->
-				jm#add_argument_annotation slot annot;
+			let l = AnnotationHandler.convert_annotations v.v_meta in
+			List.iter (fun (path,annotation,is_runtime_visible) -> jm#add_argument_annotation slot path annotation is_runtime_visible) l;
 		) args;
 		jm#finalize_arguments;
 		begin match mtype with
@@ -2492,19 +2520,21 @@ class tclass_to_jvm gctx c = object(self)
 			let field_info = gctx.preprocessor#get_field_info cf.cf_meta in
 			self#generate_expr gctx field_info jc jm e scmode mtype;
 		end;
-		begin match cf.cf_params with
-			| [] when c.cl_params = [] ->
-				()
+		let ssig = generate_method_signature true jsig in
+		let ssig = match cf.cf_params with
+			| [] ->
+				ssig
 			| _ ->
 				let stl = String.concat "" (List.map (fun tp ->
 					Printf.sprintf "%s:Ljava/lang/Object;" tp.ttp_name
 				) cf.cf_params) in
-				let ssig = generate_method_signature true (jsignature_of_type gctx cf.cf_type) in
-				let s = if cf.cf_params = [] then ssig else Printf.sprintf "<%s>%s" stl ssig in
-				let offset = jc#get_pool#add_string s in
-				jm#add_attribute (AttributeSignature offset);
+				Printf.sprintf "<%s>%s" stl ssig
+		in
+		if ssig <> jm#get_descriptor then begin
+			let offset = jc#get_pool#add_string ssig in
+			jm#add_attribute (AttributeSignature offset);
 		end;
-		AnnotationHandler.generate_annotations (jm :> JvmBuilder.base_builder) cf.cf_meta;
+		AnnotationHandler.generate_annotations (jm :> JvmBuilder.base_builder) cf.cf_meta
 
 	method generate_field gctx (jc : JvmClass.builder) c mtype cf =
 		let jsig = jsignature_of_type gctx cf.cf_type in
@@ -2581,7 +2611,13 @@ class tclass_to_jvm gctx c = object(self)
 		let field mtype cf = match cf.cf_kind with
 			| Method (MethNormal | MethInline) ->
 				List.iter (fun cf ->
-					if not (has_class_field_flag cf CfExtern) then self#generate_method gctx jc c mtype cf
+					let is_weird_abstract_field_without_expression = match cf.cf_expr,c.cl_kind with
+						| None,KAbstractImpl _ ->
+							true
+						| _ ->
+							false
+					in
+					if not (has_class_field_flag cf CfExtern) && not (is_weird_abstract_field_without_expression) then self#generate_method gctx jc c mtype cf
 				) (cf :: List.filter (fun cf -> has_class_field_flag cf CfOverload) cf.cf_overloads)
 			| _ ->
 				if not (has_class_flag c CInterface) && is_physical_field cf then self#generate_field gctx jc c mtype cf
@@ -2607,16 +2643,11 @@ class tclass_to_jvm gctx c = object(self)
 		end
 
 	method private generate_signature =
-		jc#set_type_parameters (List.map (fun tp ->
-			let jsigs = match follow tp.ttp_type with
-			| TInst({cl_kind = KTypeParameter tl},_) ->
-				List.map (fun t ->
-					get_boxed_type (jsignature_of_type gctx t)
-				 ) tl
-			| _ ->
-				[]
-			in
-			(tp.ttp_name,jsigs)
+		jc#set_type_parameters (List.map (fun ttp ->
+			let jsigs = List.map (fun t ->
+				get_boxed_type (jsignature_of_type gctx t)
+			) (get_constraints ttp) in
+			(ttp.ttp_name,jsigs)
 		) c.cl_params);
 		match c.cl_super with
 			| Some(c,tl) -> jc#set_super_parameters (List.map (jtype_argument_of_type gctx []) tl)
@@ -2624,7 +2655,7 @@ class tclass_to_jvm gctx c = object(self)
 
 	method generate_annotations =
 		AnnotationHandler.generate_annotations (jc :> JvmBuilder.base_builder) c.cl_meta;
-		jc#add_annotation (["haxe";"jvm";"annotation"],"ClassReflectionInformation") (["hasSuperClass",(ABool (c.cl_super <> None))])
+		jc#add_annotation (["haxe";"jvm";"annotation"],"ClassReflectionInformation") (["hasSuperClass",(ABool (c.cl_super <> None))]) true
 
 	method private do_generate =
 		self#set_access_flags;
@@ -2748,7 +2779,7 @@ let generate_enum gctx en =
 				jm_ctor#add_argument_and_field n jsig [FdPublic;FdFinal]
 			) args;
 			jm_ctor#return;
-			jc_ctor#add_annotation (["haxe";"jvm";"annotation"],"EnumValueReflectionInformation") (["argumentNames",AArray (List.map (fun (name,_) -> AString name) args)]);
+			jc_ctor#add_annotation (["haxe";"jvm";"annotation"],"EnumValueReflectionInformation") (["argumentNames",AArray (List.map (fun (name,_) -> AString name) args)]) true;
 			if args <> [] then begin
 				let jm_params = jc_ctor#spawn_method "_hx_getParameters" (method_sig [] (Some (array_sig object_sig))) [MPublic;MSynthetic] in
 				let jm_equals,compare_field = generate_enum_equals gctx jc_ctor in
@@ -2815,7 +2846,7 @@ let generate_enum gctx en =
 		jm_clinit#return;
 	end;
 	AnnotationHandler.generate_annotations (jc_enum :> JvmBuilder.base_builder) en.e_meta;
-	jc_enum#add_annotation (["haxe";"jvm";"annotation"],"EnumReflectionInformation") (["constructorNames",AArray names]);
+	jc_enum#add_annotation (["haxe";"jvm";"annotation"],"EnumReflectionInformation") (["constructorNames",AArray names]) true;
 	write_class gctx en.e_path (jc_enum#export_class gctx.default_export_config)
 
 let generate_module_type ctx mt =
@@ -3067,7 +3098,7 @@ let generate jvm_flag com =
 		end
 	) com.native_libs.java_libs in
 	Hashtbl.iter (fun name v ->
-		let filename = Codegen.escape_res_name name true in
+		let filename = Codegen.escape_res_name name ['/';'-'] in
 		gctx.out#add_entry v filename;
 	) com.resources;
 	let generate_real_types () =

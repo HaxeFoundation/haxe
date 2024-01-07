@@ -70,11 +70,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 		(match f.cf_expr_unoptimized,f.cf_expr with
 		| Some {eexpr = TFunction fd},_
 		| None,Some { eexpr = TFunction fd } ->
-			(match Inline.type_inline ctx f fd ethis params t config p force_inline with
-			| None ->
-				if force_inline then raise_typing_error "Inline could not be done" p;
-				raise Exit;
-			| Some e -> e)
+			Inline.type_inline ctx f fd ethis params t config p force_inline
 		| _ ->
 			(*
 				we can't inline because there is most likely a loop in the typing.
@@ -169,10 +165,10 @@ let rec acc_get ctx g =
 					e_def
 				| TAnon a ->
 					begin match !(a.a_status) with
-						| Statics c when has_class_field_flag cf CfExtern ->
+						| ClassStatics c when has_class_field_flag cf CfExtern ->
 							display_error ctx.com "Cannot create closure on @:extern inline method" p;
 							e_def
-						| Statics c when chk_class c -> wrap_extern c
+						| ClassStatics c when chk_class c -> wrap_extern c
 						| _ -> e_def
 					end
 				| _ -> e_def
@@ -196,30 +192,15 @@ let rec acc_get ctx g =
 		else acc_get ctx acc;
 	| AKExpr e -> e
 	| AKSafeNav sn ->
-		(* generate null-check branching for the safe navigation chain *)
-		let eobj = sn.sn_base in
-		let enull = Builder.make_null eobj.etype sn.sn_pos in
-		let eneq = Builder.binop OpNotEq eobj enull ctx.t.tbool sn.sn_pos in
-		let ethen = acc_get ctx sn.sn_access in
-		let tnull = ctx.t.tnull ethen.etype in
-		let ethen = if not (is_nullable ethen.etype) then
-			mk (TCast(ethen,None)) tnull ethen.epos
-		else
-			ethen
-		in
-		let eelse = Builder.make_null tnull sn.sn_pos in
-		let eif = mk (TIf(eneq,ethen,Some eelse)) tnull sn.sn_pos in
-		(match sn.sn_temp_var with
-		| None -> eif
-		| Some evar -> { eif with eexpr = TBlock [evar; eif] })
+		safe_nav_branch ctx sn (fun () -> acc_get ctx sn.sn_access)
 	| AKAccess _ -> die "" __LOC__
 	| AKResolve(sea,name) ->
 		(dispatcher sea.se_access.fa_pos)#resolve_call sea name
 	| AKUsingAccessor sea | AKUsingField sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
-		(* TODO *)
-		(* let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in *)
+		let id,_ = store_typed_expr ctx.com sea.se_this e_field.epos in
+		let e_field = {e_field with eexpr = (TMeta((Meta.StaticExtension,[make_stored_id_expr id e_field.epos],null_pos),e_field))} in
 		let t = match follow e_field.etype with
 			| TFun (_ :: args,ret) -> TFun(args,ret)
 			| t -> t

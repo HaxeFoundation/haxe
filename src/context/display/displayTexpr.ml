@@ -57,14 +57,13 @@ let find_abstract_by_position decls p =
 	loop decls
 
 let actually_check_display_field ctx c cff p =
-	let context_init = new TypeloadFields.context_init in
-	let cctx = TypeloadFields.create_class_context c context_init p in
+	let cctx = TypeloadFields.create_class_context c p in
 	let ctx = TypeloadFields.create_typer_context_for_class ctx cctx p in
 	let cff = TypeloadFields.transform_field (ctx,cctx) c cff (ref []) (pos cff.cff_name) in
 	let display_modifier = Typeload.check_field_access ctx cff in
 	let fctx = TypeloadFields.create_field_context ctx cctx cff true display_modifier in
 	let cf = TypeloadFields.init_field (ctx,cctx,fctx) cff in
-	flush_pass ctx PTypeField "check_display_field";
+	flush_pass ctx PTypeField ("check_display_field",(fst c.cl_path @ [snd c.cl_path;fst cff.cff_name]));
 	ignore(follow cf.cf_type)
 
 let check_display_field ctx sc c cf =
@@ -90,8 +89,8 @@ let check_display_class ctx decls c =
 		let sc = find_class_by_position decls c.cl_name_pos in
 		ignore(Typeload.type_type_params ctx TPHType c.cl_path (fun() -> c.cl_params) null_pos sc.d_params);
 		List.iter (function
-			| (HExtends(ct,p) | HImplements(ct,p)) when display_position#enclosed_in p ->
-				ignore(Typeload.load_instance ~allow_display:true ctx (ct,p) false)
+			| (HExtends ptp | HImplements ptp) when display_position#enclosed_in ptp.pos_full ->
+				ignore(Typeload.load_instance ~allow_display:true ctx ptp ParamNormal)
 			| _ ->
 				()
 		) sc.d_flags;

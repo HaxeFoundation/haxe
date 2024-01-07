@@ -281,11 +281,11 @@ let mk_mr_select com e ecall name =
 (* from genphp *)
 let rec is_string_type t =
     match follow t with
-    | TInst ({cl_kind = KTypeParameter constraints}, _) -> List.exists is_string_type constraints
+    | TInst ({cl_kind = KTypeParameter ttp}, _) -> List.exists is_string_type (get_constraints ttp)
     | TInst ({cl_path = ([], "String")}, _) -> true
     | TAnon a ->
         (match !(a.a_status) with
-         | Statics ({cl_path = ([], "String")}) -> true
+         | ClassStatics ({cl_path = ([], "String")}) -> true
          | _ -> false)
     | TAbstract (a,pl) -> is_string_type (Abstract.get_underlying_type a pl)
     | _ -> false
@@ -298,7 +298,7 @@ let is_dynamic t = match follow t with
     | TInst({ cl_kind = KTypeParameter _ }, _) -> true
     | TAnon anon ->
         (match !(anon.a_status) with
-         | EnumStatics _ | Statics _ -> false
+         | EnumStatics _ | ClassStatics _ -> false
          | _ -> true
         )
     | _ -> false
@@ -317,7 +317,7 @@ let rec is_int_type ctx t =
     | TInst ({cl_path = ([], "Int")}, _) -> true
     | TAnon a ->
         (match !(a.a_status) with
-         | Statics ({cl_path = ([], "Int")}) -> true
+         | ClassStatics ({cl_path = ([], "Int")}) -> true
          | _ -> false)
     | TAbstract ({a_path = ([],"Float")}, pl) -> false
     | TAbstract ({a_path = ([],"Int")}, pl) -> true

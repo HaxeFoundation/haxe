@@ -375,11 +375,11 @@ module ConstPropagation = DataFlow(struct
 	let top = Top
 	let bottom = Bottom
 
-	let rec equals lat1 lat2 = match lat1,lat2 with
+	let equals lat1 lat2 = match lat1,lat2 with
 		| Top,Top | Bottom,Bottom -> true
 		| Const ct1,Const ct2 -> ct1 = ct2
 		| Null t1,Null t2 -> t1 == t2
-		| EnumValue(i1,tl1),EnumValue(i2,tl2) -> i1 = i2 && safe_for_all2 equals tl1 tl2
+		| EnumValue(i1,[]),EnumValue(i2,[]) -> i1 = i2
 		| ModuleType(mt1,_),ModuleType (mt2,_) -> mt1 == mt2
 		| _ -> false
 
@@ -661,14 +661,14 @@ module LocalDce = struct
 
 	let apply ctx =
 		let is_used v =
-			has_var_flag v VUsed
+			has_var_flag v VAnalyzed
 		in
 		let keep v =
 			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || has_var_flag v VCaptured || Meta.has Meta.This v.v_meta
 		in
 		let rec use v =
 			if not (is_used v) then begin
-				add_var_flag v VUsed;
+				add_var_flag v VAnalyzed;
 				(try expr (get_var_value ctx.graph v) with Not_found -> ());
 				begin match Ssa.get_reaching_def ctx.graph v with
 					| None ->
@@ -676,7 +676,7 @@ module LocalDce = struct
 						   reaching definition (issue #10972). Simply marking it as being used should be sufficient. *)
 						let v' = get_var_origin ctx.graph v in
 						if not (is_used v') then
-							add_var_flag v' VUsed
+							add_var_flag v' VAnalyzed
 					| Some v ->
 						use v;
 				end
@@ -1098,7 +1098,7 @@ module Run = struct
 			let e = try
 				run_on_expr actx e
 			with
-			| Error.Error _ | Abort _ | Sys.Break as exc ->
+			| Error.Error _ | Sys.Break as exc ->
 				maybe_debug();
 				raise exc
 			| exc ->

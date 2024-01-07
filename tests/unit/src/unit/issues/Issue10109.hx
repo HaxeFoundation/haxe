@@ -1,7 +1,8 @@
 package unit.issues;
 
 class Issue10109 extends Test {
-#if hl
+// Disabled for hl/c until https://github.com/HaxeFoundation/haxe/pull/11382 is implemented
+#if (hl && !hlc)
 	@:pure(false)
 	static function foo( o : String ) {
 		return o.length;

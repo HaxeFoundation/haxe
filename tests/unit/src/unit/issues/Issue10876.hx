@@ -12,7 +12,7 @@ extern class MyDefine {}
 extern class MyExtern<T> {
 	function new();
 
-	function create() : T;
+	function create():T;
 }
 
 @:headerCode('
@@ -30,12 +30,12 @@ public:
 ')
 #end
 class Issue10876 extends Test {
-    #if (cpp && !cppia)
-    function test() {
-        final vec = cpp.Pointer.fromStar(new MyExtern<MyDefine>());
+	#if (cpp && !cppia)
+	function test() {
+		final vec = cpp.Pointer.fromStar(new MyExtern<MyDefine>());
 		final num = vec.ptr.create();
 
-        Assert.equals(0, num);
-    }
-    #end
+		Assert.equals(0, cast num);
+	}
+	#end
 }

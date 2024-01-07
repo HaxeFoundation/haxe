@@ -13,7 +13,11 @@ class UtilityProcess {
 #elseif cs
 		Path.join(["bin", "cs", "bin"]);
 #elseif hl
+	#if hlc
+		Path.join(["bin", "hlc/utilityProcess"]);
+	#else
 		Path.join(["bin", "hl"]);
+	#end
 #elseif lua
 		Path.join(["bin", "lua"]);
 #elseif jvm
@@ -47,7 +51,11 @@ class UtilityProcess {
 			"UtilityProcess.exe";
 		#end
 #elseif hl
+	#if hlc
+		"UtilityProcess.exe";
+	#else
 		"UtilityProcess.hl";
+	#end
 #elseif lua
 		"UtilityProcess.lua";
 #elseif jvm
@@ -100,7 +108,11 @@ class UtilityProcess {
 		#elseif neko
 		new Process("neko", [execFull].concat(args));
 		#elseif hl
-		new Process("hl", [execFull].concat(args));
+			#if hlc
+			new Process(execFull, args);
+			#else
+			new Process("hl", [execFull].concat(args));
+			#end
 		#elseif php
 		new Process(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [execFull].concat(args));
 		#elseif lua

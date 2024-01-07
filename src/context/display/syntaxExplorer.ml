@@ -29,7 +29,7 @@ let find_in_syntax symbols (pack,decls) =
 					()
 		) symbols
 	in
-	let rec type_path kind path =
+	let rec type_path kind { path } =
 		check KModuleType path.tname;
 		Option.may (check KModuleType) path.tsub;
 		List.iter (function
@@ -45,7 +45,7 @@ let find_in_syntax symbols (pack,decls) =
 		| CTAnonymous cffl ->
 			List.iter field cffl
 		| CTExtend(tl,cffl) ->
-			List.iter (fun (path,_) -> type_path KModuleType path) tl;
+			List.iter (fun ptp -> type_path KModuleType ptp) tl;
 			List.iter field cffl;
 		| CTIntersection tl ->
 			List.iter type_hint tl
@@ -67,8 +67,8 @@ let find_in_syntax symbols (pack,decls) =
 		| ECast(e1,tho) ->
 			expr e1;
 			Option.may type_hint tho;
-		| ENew((path,_),el) ->
-			type_path KConstructor path;
+		| ENew(ptp,el) ->
+			type_path KConstructor ptp;
 			List.iter expr el;
 		| EFunction(_,f) ->
 			func f
@@ -129,7 +129,7 @@ let find_in_syntax symbols (pack,decls) =
 		| EClass d ->
 			check KModuleType (fst d.d_name);
 			List.iter (function
-				| HExtends(path,_) | HImplements(path,_) -> type_path KModuleType path
+				| HExtends ptp | HImplements ptp -> type_path KModuleType ptp
 				| _ -> ()
 			) d.d_flags;
 			List.iter type_param d.d_params;
@@ -177,7 +177,7 @@ let explore_uncached_modules tctx cs symbols =
 			begin try
 				let m = tctx.g.do_load_module tctx (cfile.c_package,module_name) null_pos in
 				(* We have to flush immediately so we catch exceptions from weird modules *)
-				Typecore.flush_pass tctx Typecore.PFinal "final";
+				Typecore.flush_pass tctx Typecore.PFinal ("final",cfile.c_package @ [module_name]);
 				m :: acc
 			with _ ->
 				acc
