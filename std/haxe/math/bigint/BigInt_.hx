@@ -773,10 +773,8 @@ class BigInt_ {
 		}
 		if (convert) {
 			montgomeryReduce(yVal, m.m_data, m.m_count, mDash);
-		} else if (smallMontyModulus && MultiwordArithmetic.compareUnsigned(yVal, m.m_data, yVal.length) >= 0) {
-			var result:Vector<Int32> = new Vector<Int32>(yVal.length);
-			MultiwordArithmetic.subtract(result, yVal, m.m_data, result.length); // a = a-m;
-			Vector.blit(result, 0, yVal, 0, result.length);
+		} else if (smallMontyModulus && compareMonty(yVal, m.m_data) >= 0) {
+			subtractMonty(yVal,m.m_data);
 		}
 		var montResult:BigInt_ = BigInt_.fromUnsignedInts(yVal);
 		return montResult;
@@ -838,10 +836,8 @@ class BigInt_ {
 			i++;
 		}
 
-		if (!smallMontyModulus && MultiwordArithmetic.compareUnsigned(a, m, a.length) >= 0) {
-			var result:Vector<Int32> = new Vector<Int32>(a.length);
-			MultiwordArithmetic.subtract(result, a, m, result.length);
-			Vector.blit(result, 0, a, 0, result.length);
+		if (!smallMontyModulus && compareMonty(a, m) >= 0) {
+			subtractMonty(a,m);
 		}
 		Vector.blit(a, 0, x, 0, n);
 	}
@@ -882,10 +878,8 @@ class BigInt_ {
 			i++;
 		}
 
-		if (!smallMontyModulus && MultiwordArithmetic.compareUnsigned(a, m, a.length) >= 0) {
-			var result:Vector<Int32> = new Vector<Int32>(a.length);
-			MultiwordArithmetic.subtract(result, a, m, result.length);
-			Vector.blit(result, 0, a, 0, result.length);
+		if (!smallMontyModulus && compareMonty(a, m) >= 0) {
+			subtractMonty(a,m);
 		}
 		Vector.blit(a, 0, x, 0, n);
 	}
@@ -911,11 +905,53 @@ class BigInt_ {
 			x[n - 1] = carry.low;
 			i++;
 		}
-		if (MultiwordArithmetic.compareUnsigned(x, m, x.length) >= 0) {
-			var result:Vector<Int32> = new Vector<Int32>(x.length);
-			MultiwordArithmetic.subtract(result, x, m, result.length);
-			Vector.blit(result, 0, x, 0, result.length);
+		if (compareMonty(x, m) >= 0) {
+			subtractMonty(x,m);
 		}
+	}
+	
+	// x = x - y - where x is >= y
+	private function subtractMonty(x:Vector<Int32>,y:Vector<Int32>):Void {
+		var yIndex:Int = y.length-1;
+		while(yIndex>=0 && y[yIndex]==0) {
+			yIndex--;
+		}
+		var xn : Int, yn : Int, i:Int = 0;
+		var c : Int = 0, z : Int = 0;
+		while(i<=yIndex)
+		{
+			xn = x.get(i);
+			yn = y.get(i);
+			z = xn - yn - c;
+			x.set(i, z);
+			c = ((~xn & yn) | (~(xn ^ yn) & z)) >>> 31;
+			i++;
+		}
+	}
+
+	private function compareMonty(x:Vector<Int32>,y:Vector<Int32>):Int {
+		var xIndex:Int = x.length-1;
+		var yIndex:Int = y.length-1;
+		while(xIndex>=0 && x[xIndex]==0) {
+			xIndex--;
+		}
+		while(yIndex>=0 && y[yIndex]==0) {
+			yIndex--;
+		}
+		var diff:Int = (x.length-y.length)-(xIndex-yIndex);
+		if (diff != 0)
+		{
+			return diff < 0 ? -1 : 1;
+		}
+		var xn : Int, yn : Int;
+		while(xIndex >=0) {
+			xn = x[xIndex--];
+			yn = y[yIndex--];
+			if ( xn != yn) {
+				return (xn ^ -2147483648) < (yn ^ -2147483648) ? -1 : 1;
+			}
+		}
+		return 0;
 	}
 
 	private function getMQuote():Int32 {
