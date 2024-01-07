@@ -193,7 +193,7 @@ class BigInt_ {
 		return hash;
 	}
 
-	public function isProbablePrime(tolerance:UInt):Bool {
+	public function isProbablePrime(tolerance:Int):Bool {
 		if (tolerance <= 0)
 			return true;
 		var b:BigInt_ = this.abs();
@@ -204,7 +204,7 @@ class BigInt_ {
 		if (b.m_data.get(0) & 1 == 0)
 			return false;
 
-		var rounds:UInt = 0;
+		var rounds:Int = 0;
 		if (b.m_count <= 4) {
 			rounds = (tolerance > 64) ? 64 : tolerance;
 		} else if (b.m_count < 8) {
@@ -527,7 +527,7 @@ class BigInt_ {
 		return c;
 	}
 
-	public static function randomPrime(bits:Int32, tolerance:UInt):BigInt_ {
+	public static function randomPrime(bits:Int32, tolerance:Int):BigInt_ {
 		if (bits < 2)
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		if (bits == 2)
@@ -620,28 +620,36 @@ class BigInt_ {
 		}
 	}
 
-	private function millerRabin(rounds:UInt):Bool {
-		var minusOne:BigInt_ = subInt2(this, 1);
+	private function millerRabin(rounds:Int):Bool {
 		var m = subInt2(this, 1);
 		var lsb = m.getLowestSetBit();
 		if (lsb <= 0)
 			return false;
 		m = arithmeticShiftRight2(m, lsb);
+		var montyRadix:BigInt_ = divMod(arithmeticShiftLeft2(BigInt.ONE, 32 * this.m_count), this).remainder;
+		var minusMontyRadix:BigInt_ = sub2(this, montyRadix);
 		var num:BigInt_;
-		for (i in 0...rounds) {
-			num = randomInRange(BigInt.TWO, minusOne);
-			var z:BigInt_ = num.modPow(m, this);
-			if (BigIntArithmetic.compare(z, BigInt.ONE) != 0 && BigIntArithmetic.compare(z, minusOne) != 0) {
+		do {
+			do {
+				num = random(this.bitLength());
+			} while (BigIntArithmetic.compare(num, BigInt.ZERO) == 0
+				|| BigIntArithmetic.compare(num, montyRadix) == 0
+				|| BigIntArithmetic.compare(num, minusMontyRadix) == 0
+				|| BigIntArithmetic.compare(num, this) >= 0);
+			var y = modPowMonty(num, m, this, false);
+			if (BigIntArithmetic.compare(y, montyRadix) != 0) {
 				var j:Int = 1;
-				while (j <= lsb && BigIntArithmetic.compare(z, minusOne) != 0) {
-					if (BigIntArithmetic.compare(z, BigInt.ONE) == 0 || j == lsb) {
+				while (BigIntArithmetic.compare(y, minusMontyRadix) != 0) {
+					if (j == lsb)
 						return false;
-					}
-					z = z.modPow(BigInt.TWO, this);
+					y = modPowMonty(y, BigInt.TWO, this, false);
+					if (BigIntArithmetic.compare(y, montyRadix) == 0)
+						return false;
 					j++;
 				}
 			}
-		}
+			rounds -= 2;
+		} while (rounds >= 0);
 		return true;
 	}
 
@@ -929,25 +937,28 @@ class BigInt_ {
 		}
 	}
 
-	private function compareMonty(x:Vector<Int32>,y:Vector<Int32>):Int {
-		var xIndex:Int = x.length-1;
-		var yIndex:Int = y.length-1;
-		while(xIndex>=0 && x[xIndex]==0) {
-			xIndex--;
+	private function compareMonty(x:Vector<Int32>, y:Vector<Int32>):Int {
+		var xIndex:Int = 0;
+		var yIndex:Int = 0;
+		var xLen:Int = x.length - 1;
+		var yLen:Int = y.length - 1;
+		while (xIndex != x.length && x[xLen - xIndex] == 0) {
+			xIndex++;
 		}
-		while(yIndex>=0 && y[yIndex]==0) {
-			yIndex--;
+		while (yIndex != y.length && y[yLen - yIndex] == 0) {
+			yIndex++;
 		}
-		var diff:Int = (x.length-y.length)-(xIndex-yIndex);
-		if (diff != 0)
-		{
+		var diff:Int = (x.length - y.length) - (xIndex - yIndex);
+		if (diff != 0) {
 			return diff < 0 ? -1 : 1;
 		}
-		var xn : Int, yn : Int;
-		while(xIndex >=0) {
-			xn = x[xIndex--];
-			yn = y[yIndex--];
-			if ( xn != yn) {
+		var xn:Int, yn:Int;
+		while (xIndex >= 0) {
+			xn = x[xLen - xIndex];
+			xIndex--;
+			yn = y[yLen - yIndex];
+			yIndex--;
+			if (xn != yn) {
 				return (xn ^ -2147483648) < (yn ^ -2147483648) ? -1 : 1;
 			}
 		}
