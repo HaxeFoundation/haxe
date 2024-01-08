@@ -312,7 +312,11 @@ let check_module sctx ctx m p =
 		in
 		let check_dependencies () =
 			PMap.iter (fun _ (sign,mpath) ->
-				let m2 = (com.cs#get_context sign)#find_module mpath in
+				let m2 = try
+					(com.cs#get_context sign)#find_module mpath
+				with Not_found ->
+					die (Printf.sprintf "Could not find dependency %s of %s in the cache" (s_type_path mpath) (s_type_path m.m_path)) __LOC__;
+				in
 				match check m2 with
 				| None -> ()
 				| Some reason -> raise (Dirty (DependencyDirty(m2.m_path,reason)))
