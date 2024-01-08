@@ -1798,7 +1798,7 @@ let generate con =
 					let code, code_pos =
 						match code.eexpr with
 						| TConst (TString s) -> s, code.epos
-						| _ -> abort "The `code` argument for cs.Syntax.code must be a string constant" code.epos
+						| _ -> Error.abort "The `code` argument for cs.Syntax.code must be a string constant" code.epos
 					in
 					begin
 						let rec reveal_expr expr =
@@ -1820,11 +1820,11 @@ let generate con =
 					let code =
 						match code.eexpr with
 						| TConst (TString s) -> s
-						| _ -> abort "The `code` argument for cs.Syntax.plainCode must be a string constant" code.epos
+						| _ -> Error.abort "The `code` argument for cs.Syntax.plainCode must be a string constant" code.epos
 					in
 					write w (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 				| _ ->
-					abort (Printf.sprintf "Unknown cs.Syntax method `%s` with %d arguments" meth (List.length args)) pos
+					Error.abort (Printf.sprintf "Unknown cs.Syntax method `%s` with %d arguments" meth (List.length args)) pos
 			and do_call w e el =
 				let params, el = extract_tparams [] el in
 				let params = List.rev params in
@@ -3420,7 +3420,7 @@ let generate con =
 					gen.gcon.file ^ "/src/Resources"
 			in
 			Hashtbl.iter (fun name v ->
-				let name = Codegen.escape_res_name name ['/'] in
+				let name = StringHelper.escape_res_name name ['/'] in
 				let full_path = src ^ "/" ^ name in
 				Path.mkdir_from_path full_path;
 

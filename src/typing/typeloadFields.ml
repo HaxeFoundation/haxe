@@ -1475,7 +1475,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			let cf = PMap.find m c.cl_statics in
 			(cf.cf_type,cf) :: (List.map (fun cf -> cf.cf_type,cf) cf.cf_overloads)
 		end else
-			Overloads.get_overloads ctx.com c m
+			get_overloads ctx.com c m
 	in
 	let cf = {
 		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access None) ret f.cff_pos (pos f.cff_name)) with

@@ -100,7 +100,6 @@ type typer_globals = {
 	retain_meta : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
-	mutable std : tclass;
 	mutable std_types : module_def;
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
@@ -775,6 +774,14 @@ let create_deprecation_context ctx = {
 	field_meta = ctx.curfield.cf_meta;
 	curmod = ctx.m.curmod;
 }
+
+let get_overloads (com : Common.context) c i =
+	try
+		com.overload_cache#find (c.cl_path,i)
+	with Not_found ->
+		let l = Overloads.collect_overloads (fun t -> t) c i in
+		com.overload_cache#add (c.cl_path,i) l;
+		l
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 

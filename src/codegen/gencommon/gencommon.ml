@@ -819,7 +819,7 @@ let run_filters gen =
 
 	reorder_modules gen;
 	t();
-	if !has_errors then abort "Compilation aborted with errors" null_pos
+	if !has_errors then Error.abort "Compilation aborted with errors" null_pos
 
 (* ******************************************* *)
 (* basic generation module that source code compilation implementations can use *)

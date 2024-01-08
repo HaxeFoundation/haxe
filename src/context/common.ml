@@ -383,6 +383,7 @@ type context = {
 	mutable user_metas : (string, Meta.user_meta) Hashtbl.t;
 	mutable get_macros : unit -> context option;
 	(* typing state *)
+	mutable std : tclass;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	shared : shared_context;
 	display_information : display_information;
@@ -868,6 +869,7 @@ let create compilation_step cs version args display_mode =
 			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 		};
+		std = null_class;
 		file_lookup_cache = new hashtbl_lookup;
 		file_keys = new file_keys;
 		file_contents = [];
@@ -932,7 +934,8 @@ let clone com is_macro_context =
 		module_lut = new module_lut;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_stats = HxbWriter.create_hxb_writer_stats ();
-}
+		std = null_class;
+	}
 
 let file_time file = Extc.filetime file
 
@@ -1070,8 +1073,6 @@ let allow_package ctx s =
 		if (PMap.find s ctx.package_rules) = Forbidden then ctx.package_rules <- PMap.remove s ctx.package_rules
 	with Not_found ->
 		()
-
-let abort ?(depth = 0) msg p = raise (Error.Fatal_error (Error.make_error ~depth (Custom msg) p))
 
 let platform ctx p = ctx.platform = p
 
@@ -1226,7 +1227,7 @@ let to_utf8 str p =
 	let ccount = ref 0 in
 	UTF8.iter (fun c ->
 		let c = UCharExt.code c in
-		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort "Invalid unicode char" p;
+		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then Error.abort "Invalid unicode char" p;
 		incr ccount;
 		if c > 0x10000 then incr ccount;
 	) u8;

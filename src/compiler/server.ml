@@ -313,15 +313,14 @@ let check_module sctx ctx m_path m_extra p =
 		in
 		let check_dependencies () =
 			PMap.iter (fun _ (sign,mpath) ->
-				try
-					let m2_extra = (com.cs#get_context sign)#find_module_extra mpath in
-					match check mpath m2_extra with
-					| None -> ()
-					| Some reason -> raise (Dirty (DependencyDirty(mpath,reason)))
+				let m2_extra = try
+					(com.cs#get_context sign)#find_module_extra mpath
 				with Not_found ->
-					()
-					(* HXB_TODO: Investigate why some modules depend on null_module or whatever else has an empty sign string *)
-					(* print_endline ("NOT_FOUND: " ^ (s_type_path mpath) ^ " " ^ (Digest.to_hex sign)); *)
+					die (Printf.sprintf "Could not find dependency %s of %s in the cache" (s_type_path mpath) (s_type_path m_path)) __LOC__;
+				in
+				match check mpath m2_extra with
+				| None -> ()
+				| Some reason -> raise (Dirty (DependencyDirty(mpath,reason)))
 			) m_extra.m_deps;
 		in
 		let check () =
