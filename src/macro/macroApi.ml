@@ -40,7 +40,6 @@ type 'value compiler_api = {
 	allow_package : string -> unit;
 	type_patch : string -> string -> bool -> string option -> unit;
 	meta_patch : string -> string -> string option -> bool -> pos -> unit;
-	set_js_generator : (Genjs.ctx -> unit) -> unit;
 	get_local_type : unit -> t option;
 	get_expected_type : unit -> t option;
 	get_call_arguments : unit -> Ast.expr list option;
@@ -2013,59 +2012,6 @@ let macro_api ccom get_api =
 				flags = flags;
 				source = opt decode_string src;
 			};
-			vnull
-		);
-		"set_custom_js_generator", vfun1 (fun f ->
-			let f = prepare_callback f 1 in
-			(get_api()).set_js_generator (fun js_ctx ->
-				let com = ccom() in
-				Genjs.setup_kwds com;
-				let api = encode_obj [
-					"outputFile", encode_string com.file;
-					"types", encode_array (List.map (fun t -> encode_type (type_of_module_type t)) com.types);
-					"main", (match com.main with None -> vnull | Some e -> encode_texpr e);
-					"generateValue", vfun1 (fun v ->
-						let e = decode_texpr v in
-						let str = Genjs.gen_single_expr js_ctx e false in
-						encode_string str
-					);
-					"isKeyword", vfun1 (fun v ->
-						vbool (Hashtbl.mem Genjs.kwds (decode_string v))
-					);
-					"hasFeature", vfun1 (fun v ->
-						vbool (Common.has_feature com (decode_string v))
-					);
-					"addFeature", vfun1 (fun v ->
-						Common.add_feature com (decode_string v);
-						vnull
-					);
-					"quoteString", vfun1 (fun v ->
-						encode_string ("\"" ^ StringHelper.s_escape (decode_string v) ^ "\"")
-					);
-					"buildMetaData", vfun1 (fun t ->
-						match Texpr.build_metadata com.basic (decode_type_decl t) with
-						| None -> vnull
-						| Some e -> encode_texpr e
-					);
-					"generateStatement", vfun1 (fun v ->
-						let e = decode_texpr v in
-						let str = Genjs.gen_single_expr js_ctx e true in
-						encode_string str
-					);
-					"setTypeAccessor", vfun1 (fun callb ->
-						let callb = prepare_callback callb 1 in
-						js_ctx.Genjs.type_accessor <- (fun t ->
-							decode_string (callb [encode_type (type_of_module_type t)])
-						);
-						vnull
-					);
-					"setCurrentClass", vfun1 (fun c ->
-						Genjs.set_current_class js_ctx (match decode_type_decl c with TClassDecl c -> c | _ -> Globals.die "" __LOC__);
-						vnull
-					);
-				] in
-				ignore(f [api]);
-			);
 			vnull
 		);
 		"flush_disk_cache", vfun0 (fun () ->

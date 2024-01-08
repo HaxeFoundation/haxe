@@ -526,15 +526,6 @@ class Compiler {
 		#end
 	}
 
-	/**
-		Change the default JS output by using a custom generator callback
-	**/
-	public static function setCustomJSGenerator(callb:JSGenApi->Void) {
-		#if (neko || eval)
-		load("set_custom_js_generator", 1)(callb);
-		#end
-	}
-
 	#if (neko || eval)
 	static inline function load(f, nargs):Dynamic {
 		return @:privateAccess Context.load(f, nargs);

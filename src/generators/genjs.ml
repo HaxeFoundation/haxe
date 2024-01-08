@@ -1648,9 +1648,6 @@ let generate_type ctx = function
 	| TEnumDecl e -> generate_enum ctx e
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
-let set_current_class ctx c =
-	ctx.current <- c
-
 let alloc_ctx com es_version =
 	let smap =
 		if com.debug || Common.defined com Define.JsSourceMap || Common.defined com Define.SourceMap then
@@ -1706,13 +1703,6 @@ let alloc_ctx com es_version =
 			s_path ctx (t_path t)
 	);
 	ctx
-
-let gen_single_expr ctx e expr =
-	if expr then gen_expr ctx e else gen_value ctx e;
-	let str = Rbuffer.unsafe_contents ctx.buf in
-	Rbuffer.reset ctx.buf;
-	ctx.id_counter <- 0;
-	str
 
 let generate com =
 	(match com.js_gen with

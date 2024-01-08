@@ -1,5 +1,0 @@
--main Main
---macro Main.setupGenerator()
--js bin/test.js
-
---cmd node bin/test.js

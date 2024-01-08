@@ -225,15 +225,6 @@ let make_macro_com_api com mcom p =
 		meta_patch = (fun m t f s p ->
 			Interp.exc_string "unsupported"
 		);
-		set_js_generator = (fun gen ->
-			com.js_gen <- Some (fun() ->
-				Path.mkdir_from_path com.file;
-				let js_ctx = Genjs.alloc_ctx com (get_es_version com) in
-				let t = macro_timer com ["jsGenerator"] in
-				gen js_ctx;
-				t()
-			);
-		);
 		get_local_type = (fun() ->
 			Interp.exc_string "unsupported"
 		);
