@@ -407,7 +407,6 @@ type context = {
 	mutable net_std : string list;
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
-	mutable js_gen : (unit -> unit) option;
 	(* misc *)
 	mutable basic : basic_types;
 	memory_marker : float array;
@@ -830,7 +829,6 @@ let create compilation_step cs version args display_mode =
 		c_args = [];
 		neko_lib_paths = [];
 		include_files = [];
-		js_gen = None;
 		load_extern_type = [];
 		defines = {
 			defines_signature = None;

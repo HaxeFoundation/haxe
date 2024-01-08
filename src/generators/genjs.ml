@@ -1705,10 +1705,6 @@ let alloc_ctx com es_version =
 	ctx
 
 let generate com =
-	(match com.js_gen with
-	| Some g -> g()
-	| None ->
-
 	let es_version = get_es_version com in
 
 	if es_version >= 6 then
@@ -2000,5 +1996,4 @@ let generate com =
 	| None -> try Sys.remove (com.file ^ ".map") with _ -> ());
 	flush ctx;
 	Option.may (fun chan -> close_out chan) ctx.chan
-	)
 
