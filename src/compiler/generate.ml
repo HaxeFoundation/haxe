@@ -80,7 +80,9 @@ let generate ctx tctx ext actx =
 			Gencs.generate,"cs"
 		| Java ->
 			if Common.defined com Jvm then
-				Genjvm.generate actx.jvm_flag,"java"
+				(fun com ->
+					Genjvm.generate actx.jvm_flag (Common.to_gctx com)
+				),"java"
 			else
 				Genjava.generate,"java"
 		| Python ->

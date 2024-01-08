@@ -412,6 +412,25 @@ type context = {
 	memory_marker : float array;
 }
 
+let to_gctx com = {
+	Gctx.platform = com.platform;
+	defines = com.defines;
+	basic = com.basic;
+	debug = com.debug;
+	file = com.file;
+	features = com.features;
+	modules = com.modules;
+	main = com.main;
+	types = com.types;
+	resources = com.resources;
+	main_class = com.main_class;
+	native_libs = match com.platform with
+		| Java -> (com.native_libs.java_libs :> NativeLibraries.native_library_base list)
+		| Cs -> (com.native_libs.net_libs  :> NativeLibraries.native_library_base list)
+		| Flash -> (com.native_libs.swf_libs  :> NativeLibraries.native_library_base list)
+		| _ -> [];
+}
+
 let enter_stage com stage =
 	(* print_endline (Printf.sprintf "Entering stage %s" (s_compiler_stage stage)); *)
 	com.stage <- stage
