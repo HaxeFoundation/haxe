@@ -443,6 +443,10 @@ class BigInt_ {
 
 	/* hac 14.61, pp. 608 */
 	public function modInverse(modulus:BigInt_):BigInt_ {
+		#if (lua)
+		trace("moduluse: "+toString1(modulus,10));
+		trace("this: "+toString1(this,10));
+		#end
 		if (modulus.sign() == -1 || modulus.isZero())
 			throw new BigIntException(BigIntError.NEGATIVE_MODULUS);
 		if (equals2Int(modulus, 1))
@@ -465,6 +469,9 @@ class BigInt_ {
 
 		if (!isModulusEven) {
 			// fast odd calculation
+			#if (lua)
+			trace("odd calculation");
+			#end
 			return modInverseOdd(x, y);
 		}
 
@@ -674,17 +681,29 @@ class BigInt_ {
 		var v:BigInt_ = MutableBigInt_.fromBigInt(y);
 		do {
 			while ((BigIntArithmetic.bitwiseAndInt(u, 1) == 0)) {
+				#if (lua)
+				trace("u: "+toString1(u,10));
+				#end
 				u = arithmeticShiftRight2(u, 1);
 				if (BigIntArithmetic.bitwiseAndInt(b, 1) == 1)
 					b = sub2(b, x);
 				b = arithmeticShiftRight2(b, 1);
+				#if (lua)
+				trace("b: "+toString1(b,10));
+				#end
 			}
 			while ((BigIntArithmetic.bitwiseAndInt(v, 1) == 0)) {
+				#if (lua)
+				trace("v: "+toString1(v,10));
+				#end
 				v = arithmeticShiftRight2(v, 1);
 				if (BigIntArithmetic.bitwiseAndInt(d, 1) == 1)
 					d = sub2(d, x);
 
 				d = arithmeticShiftRight2(d, 1);
+				#if (lua)
+				trace("d: "+toString1(d,10));
+				#end
 			}
 			if (BigIntArithmetic.compare(u, v) >= 0) {
 				u = sub2(u, v);
