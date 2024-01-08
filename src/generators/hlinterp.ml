@@ -293,7 +293,7 @@ let fstr = function
 	| FFun f -> "function@" ^ string_of_int f.findex
 	| FNativeFun (s,_,_) -> "native[" ^ s ^ "]"
 
-let caml_to_hl str = Common.utf8_to_utf16 str true
+let caml_to_hl str = StringHelper.utf8_to_utf16 str true
 
 let hash ctx str =
 	let h = hl_hash str in
@@ -318,7 +318,7 @@ let utf16_iter f s =
 	loop 0
 
 let utf16_char buf c =
-	Common.utf16_add buf (int_of_char c)
+	StringHelper.utf16_add buf (int_of_char c)
 
 let hl_to_caml str =
 	let utf16_eof s =
@@ -1777,9 +1777,9 @@ let load_native ctx lib name t =
 						if c >= int_of_char 'a' && c <= int_of_char 'z' then c + int_of_char 'A' - int_of_char 'a'
 						else c
 					in
-					Common.utf16_add buf c
+					StringHelper.utf16_add buf c
 				) (String.sub s (int pos) ((int len) lsl 1));
-				Common.utf16_add buf 0;
+				StringHelper.utf16_add buf 0;
 				VBytes (Buffer.contents buf)
 			| _ -> Globals.die "" __LOC__)
 		| "ucs2_lower" ->
@@ -1791,9 +1791,9 @@ let load_native ctx lib name t =
 						if c >= int_of_char 'A' && c <= int_of_char 'Z' then c + int_of_char 'a' - int_of_char 'A'
 						else c
 					in
-					Common.utf16_add buf c
+					StringHelper.utf16_add buf c
 				) (String.sub s (int pos) ((int len) lsl 1));
-				Common.utf16_add buf 0;
+				StringHelper.utf16_add buf 0;
 				VBytes (Buffer.contents buf)
 			| _ -> Globals.die "" __LOC__)
 		| "url_encode" ->
@@ -1801,8 +1801,8 @@ let load_native ctx lib name t =
 			| [VBytes s; VRef (r, HI32)] ->
 				let s = hl_to_caml s in
 				let buf = Buffer.create 0 in
-				Common.url_encode s (utf16_char buf);
-				Common.utf16_add buf 0;
+				StringHelper.url_encode s (utf16_char buf);
+				StringHelper.utf16_add buf 0;
 				let str = Buffer.contents buf in
 				set_ref r (to_int (String.length str lsr 1 - 1));
 				VBytes str

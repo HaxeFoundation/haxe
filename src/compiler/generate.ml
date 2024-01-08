@@ -88,7 +88,9 @@ let generate ctx tctx ext actx =
 		| Python ->
 			Genpy.generate,"python"
 		| Hl ->
-			Genhl.generate,"hl"
+			(fun com ->
+				Genhl.generate (Common.to_gctx com)
+			),"hl"
 		| Eval ->
 			(fun _ -> MacroContext.interpret tctx),"eval"
 		| Cross

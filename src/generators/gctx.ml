@@ -4,9 +4,13 @@ open Type
 type t = {
 	platform : platform;
 	defines : Define.define;
+	class_path : string list;
+	run_command : string -> int;
+	run_command_args : string -> string list -> int;
 	basic : basic_types;
 	debug : bool;
 	file : string;
+	version : int;
 	features : (string,bool) Hashtbl.t;
 	modules : Type.module_def list;
 	main : Type.texpr option;
@@ -15,6 +19,20 @@ type t = {
 	main_class : path option;
 	native_libs : NativeLibraries.native_library_base list;
 }
+
+let defined com s =
+	Define.defined com.defines s
+
+let defined_value com v =
+	Define.defined_value com.defines v
+
+let define_value com k v =
+	Define.define_value com.defines k v
+
+let defined_value_safe ?default com v =
+	match default with
+		| Some s -> Define.defined_value_safe ~default:s com.defines v
+		| None -> Define.defined_value_safe com.defines v
 
 let raw_defined gctx v =
 	Define.raw_defined gctx.defines v
@@ -63,3 +81,8 @@ let get_entry_point gctx =
 		let e = Option.get gctx.main in (* must be present at this point *)
 		(snd path, c, e)
 	) gctx.main_class
+
+let map_source_header com f =
+	match defined_value_safe com Define.SourceHeader with
+	| "" -> ()
+	| s -> f s
