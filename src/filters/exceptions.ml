@@ -63,7 +63,7 @@ let haxe_exception_instance_call ctx haxe_exception method_name args p =
 *)
 let std_is ctx e t p =
 	let t = follow t in
-	let std_cls = ctx.typer.g.std in
+	let std_cls = ctx.typer.com.std in
 	let isOfType_field =
 		try PMap.find "isOfType" std_cls.cl_statics
 		with Not_found -> raise_typing_error ("Std has no field isOfType") p

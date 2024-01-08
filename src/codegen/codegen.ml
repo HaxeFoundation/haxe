@@ -65,15 +65,6 @@ let add_property_field com c =
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
 		c.cl_ordered_statics <- cf :: c.cl_ordered_statics
 
-let escape_res_name name allowed =
-	ExtString.String.replace_chars (fun chr ->
-		if (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr = '_' || chr = '.' then
-			Char.escaped chr
-		else if List.mem chr allowed then
-			Char.escaped chr
-		else
-			"-x" ^ (string_of_int (Char.code chr))) name
-
 (* -------------------------------------------------------------------------- *)
 (* FIX OVERRIDES *)
 
@@ -384,7 +375,7 @@ module Dump = struct
 			| "pretty" -> dump_types com true
 			| "record" -> dump_record com
 			| "position" -> dump_position com
-			| _ -> dump_types com false 
+			| _ -> dump_types com false
 
 	let dump_dependencies ?(target_override=None) com =
 		let target_name = match target_override with
@@ -428,16 +419,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	let var = mk (TVar (vtmp,Some e)) api.tvoid p in
 	let vexpr = mk (TLocal vtmp) e.etype p in
 	let texpr = Texpr.Builder.make_typeexpr texpr p in
-	let std = (try List.find (fun t -> t_path t = ([],"Std")) com.types with Not_found -> die "" __LOC__) in
-	let fis = (try
-			let c = (match std with TClassDecl c -> c | _ -> die "" __LOC__) in
-			FStatic (c, PMap.find "isOfType" c.cl_statics)
-		with Not_found ->
-			die "" __LOC__
-	) in
-	let std = Texpr.Builder.make_typeexpr std p in
-	let is = mk (TField (std,fis)) (tfun [t_dynamic;t_dynamic] api.tbool) p in
-	let is = mk (TCall (is,[vexpr;texpr])) api.tbool p in
+	let is = Texpr.Builder.resolve_and_make_static_call com.std "isOfType" [vexpr;texpr] p in
 	let enull = Texpr.Builder.make_null vexpr.etype p in
 	let eop = Texpr.Builder.binop OpEq vexpr enull api.tbool p in
 	let echeck = Texpr.Builder.binop OpBoolOr is eop api.tbool p in
@@ -519,4 +501,3 @@ module ExtClass = struct
 		let e_assign = mk (TBinop(OpAssign,ef1,e)) e.etype p in
 		add_cl_init c e_assign
 end
-	

@@ -19,11 +19,15 @@
 
 open Globals
 open Common
+open CompilationContext
 
-let add_native_lib com file is_extern = match com.platform with
-	| Globals.Flash ->
+let add_native_lib com lib =
+	let file = lib.lib_file in
+	let is_extern = lib.lib_extern in
+	match lib.lib_kind with
+	| SwfLib ->
 		SwfLoader.add_swf_lib com file is_extern
-	| Globals.Jvm ->
+	| JavaLib ->
 		let add file =
 			let std = file = "lib/hxjava-std.jar" in
 			JavaModern.add_java_lib com file std is_extern
@@ -35,5 +39,3 @@ let add_native_lib com file is_extern = match com.platform with
 			) (Sys.readdir file))
 		else
 			add file
-	| pf ->
-		failwith (Printf.sprintf "Target %s does not support native libraries (trying to load %s)" (platform_name pf) file);

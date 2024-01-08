@@ -7,6 +7,16 @@ type server_mode =
 	| SMListen of string
 	| SMConnect of string
 
+type native_lib_kind =
+	| JavaLib
+	| SwfLib
+
+type native_lib_arg = {
+	lib_file : string;
+	lib_kind : native_lib_kind;
+	lib_extern : bool;
+}
+
 type arg_context = {
 	mutable classes : Globals.path list;
 	mutable xml_out : string option;
@@ -20,7 +30,7 @@ type arg_context = {
 	mutable interp : bool;
 	mutable jvm_flag : bool;
 	mutable swf_version : bool;
-	mutable native_libs : (string * bool) list;
+	mutable native_libs : native_lib_arg list;
 	mutable raise_usage : unit -> unit;
 	mutable display_arg : string option;
 	mutable deprecations : string list;
@@ -73,3 +83,8 @@ let error_ext ctx (err : Error.error) =
 		error ~depth ~from_macro:err.err_from_macro ctx (Error.error_msg err.err_message) err.err_pos
 	) err
 
+let create_native_lib file extern kind = {
+	lib_file = file;
+	lib_extern = extern;
+	lib_kind = kind;
+}

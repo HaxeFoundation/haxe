@@ -228,7 +228,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			else
 				List.map (fun (t,cf) ->
 					cf
-				) (Overloads.get_overloads ctx.com c cf.cf_name)
+				) (get_overloads ctx.com c cf.cf_name)
 			in
 			cfl,Some c,false,TClass.get_map_function c tl,(fun t -> t)
 		| FHAbstract(a,tl,c) ->

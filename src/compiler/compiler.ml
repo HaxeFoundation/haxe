@@ -169,7 +169,7 @@ module Setup = struct
 		Common.log com (Buffer.contents buffer);
 		com.callbacks#run com.error_ext com.callbacks#get_before_typer_create;
 		(* Native lib pass 1: Register *)
-		let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
+		let fl = List.map (fun lib -> NativeLibraryHandler.add_native_lib com lib) (List.rev native_libs) in
 		(* Native lib pass 2: Initialize *)
 		List.iter (fun f -> f()) fl;
 		TyperEntry.create com macros

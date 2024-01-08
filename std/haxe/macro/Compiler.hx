@@ -205,15 +205,6 @@ class Compiler {
 	}
 
 	/**
-		Adds an argument to be passed to the native compiler (e.g. `-javac-arg` for Java).
-	**/
-	public static function addNativeArg(argument:String) {
-		#if (neko || eval)
-		load("add_native_arg", 1)(argument);
-		#end
-	}
-
-	/**
 		Includes all modules in package `pack` in the compilation.
 
 		In order to include single modules, their paths can be listed directly

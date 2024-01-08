@@ -3102,7 +3102,7 @@ let generate jvm_flag com =
 		end
 	) com.native_libs.java_libs in
 	Hashtbl.iter (fun name v ->
-		let filename = Codegen.escape_res_name name ['/';'-'] in
+		let filename = StringHelper.escape_res_name name ['/';'-'] in
 		gctx.out#add_entry v filename;
 	) com.resources;
 	let generate_real_types () =

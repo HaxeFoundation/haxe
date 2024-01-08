@@ -20,6 +20,7 @@ open Extlib_leftovers
 open Globals
 open Ast
 open Type
+open Error
 open Common
 open JsSourcemap
 

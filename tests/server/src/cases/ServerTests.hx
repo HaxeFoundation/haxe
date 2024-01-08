@@ -433,7 +433,7 @@ class ServerTests extends TestCase {
 		vfs.putContent("haxe/ds/Vector.hx", getTemplate("issues/Issue10986/Vector.hx"));
 		var args = ["-main", "Main", "--jvm", "Main.jar"];
 		runHaxe(args);
-		vfs.touchFile("haxe/ds/Vector.hx");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("haxe/ds/Vector.hx")});
 		runHaxe(args);
 		assertSuccess();
 	}

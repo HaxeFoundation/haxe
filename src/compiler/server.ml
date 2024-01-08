@@ -124,7 +124,7 @@ module Communication = struct
 	let create_pipe sctx write =
 		let rec self = {
 			write_out = (fun s ->
-				write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
+				write ("\x01" ^ String.concat "\n\x01" (ExtString.String.nsplit s "\n") ^ "\n")
 			);
 			write_err = (fun s ->
 				write s
@@ -312,7 +312,11 @@ let check_module sctx ctx m p =
 		in
 		let check_dependencies () =
 			PMap.iter (fun _ (sign,mpath) ->
-				let m2 = (com.cs#get_context sign)#find_module mpath in
+				let m2 = try
+					(com.cs#get_context sign)#find_module mpath
+				with Not_found ->
+					die (Printf.sprintf "Could not find dependency %s of %s in the cache" (s_type_path mpath) (s_type_path m.m_path)) __LOC__;
+				in
 				match check m2 with
 				| None -> ()
 				| Some reason -> raise (Dirty (DependencyDirty(m2.m_path,reason)))
