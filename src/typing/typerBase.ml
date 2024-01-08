@@ -232,9 +232,6 @@ let type_module_type ctx t p =
 	in
 	loop t None
 
-let type_type ctx tpath p =
-	type_module_type ctx (Typeload.load_type_def ctx p (mk_type_path tpath)) p
-
 let mk_module_type_access ctx t p =
 	AKExpr (type_module_type ctx t p)
 

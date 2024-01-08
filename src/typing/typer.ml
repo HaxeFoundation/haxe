@@ -2014,16 +2014,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in p_t then
 				DisplayEmitter.display_module_type ctx mt p_t;
 			let e_t = type_module_type ctx mt p_t in
-			let e_Std_isOfType =
-				ignore(ctx.g.std.cl_build());
-				let cf = try
-					PMap.find "isOfType" ctx.g.std.cl_statics
-				with Not_found ->
-					die "" __LOC__
-				in
-				Texpr.Builder.make_static_field ctx.g.std cf (mk_zero_range_pos p)
-			in
-			mk (TCall (e_Std_isOfType, [e; e_t])) ctx.com.basic.tbool p
+			Texpr.Builder.resolve_and_make_static_call ctx.com.std "isOfType" [e;e_t] p
 		| _ ->
 			display_error ctx.com "Unsupported type for `is` operator" p_t;
 			Texpr.Builder.make_bool ctx.com.basic false p

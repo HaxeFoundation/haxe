@@ -100,7 +100,6 @@ type typer_globals = {
 	retain_meta : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
-	mutable std : tclass;
 	mutable std_types : module_def;
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;

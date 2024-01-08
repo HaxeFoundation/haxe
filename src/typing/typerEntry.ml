@@ -20,7 +20,6 @@ let create com macros =
 			doinline = com.display.dms_inline && not (Common.defined com Define.NoInline);
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
 			std_types = null_module;
-			std = null_class;
 			global_using = [];
 			complete = false;
 			type_hints = [];
@@ -135,7 +134,7 @@ let create com macros =
 	) m.m_types;
 	let m = TypeloadModule.load_module ctx ([],"Std") null_pos in
 	List.iter (fun mt -> match mt with
-		| TClassDecl ({cl_path = ([],"Std")} as c) -> ctx.g.std <- c;
+		| TClassDecl ({cl_path = ([],"Std")} as c) -> ctx.com.std <- c;
 		| _ -> ()
 	) m.m_types;
 	let m = TypeloadModule.load_module ctx ([],"Array") null_pos in

@@ -375,6 +375,7 @@ type context = {
 	mutable user_metas : (string, Meta.user_meta) Hashtbl.t;
 	mutable get_macros : unit -> context option;
 	(* typing state *)
+	mutable std : tclass;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	shared : shared_context;
 	display_information : display_information;
@@ -855,6 +856,7 @@ let create compilation_step cs version args display_mode =
 			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 		};
+		std = null_class;
 		file_lookup_cache = new hashtbl_lookup;
 		file_keys = new file_keys;
 		file_contents = [];
@@ -914,6 +916,7 @@ let clone com is_macro_context =
 		module_to_file = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
 		module_lut = new module_lut;
+		std = null_class;
 	}
 
 let file_time file = Extc.filetime file
