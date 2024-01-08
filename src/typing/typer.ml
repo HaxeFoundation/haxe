@@ -878,7 +878,7 @@ and type_object_decl ctx fl with_type p =
 		let t = if Lazy.is_val anon || not !all_fields_equal then
 			Lazy.force anon
 		else match with_type with
-			| WithType(t,_) ->
+			| WithType(t,_) when ExtType.is_anon (follow t) ->
 				(* If the expected type is nullable, we know that our expression is not nullable, so let's
 				   follow away Null<T>. *)
 				follow_without_type t
