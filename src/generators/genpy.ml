@@ -19,6 +19,7 @@
 open Extlib_leftovers
 open Globals
 open Ast
+open Error
 open Type
 open Common
 open Texpr.Builder

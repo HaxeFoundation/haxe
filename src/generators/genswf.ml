@@ -20,6 +20,7 @@ open Swf
 open As3hl
 open ExtString
 open Type
+open Error
 open Common
 open Ast
 open Globals

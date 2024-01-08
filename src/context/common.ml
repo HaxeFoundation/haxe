@@ -1053,8 +1053,6 @@ let allow_package ctx s =
 	with Not_found ->
 		()
 
-let abort ?(depth = 0) msg p = raise (Error.Fatal_error (Error.make_error ~depth (Custom msg) p))
-
 let platform ctx p = ctx.platform = p
 
 let platform_name_macro com =
@@ -1208,7 +1206,7 @@ let to_utf8 str p =
 	let ccount = ref 0 in
 	UTF8.iter (fun c ->
 		let c = UCharExt.code c in
-		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort "Invalid unicode char" p;
+		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then Error.abort "Invalid unicode char" p;
 		incr ccount;
 		if c > 0x10000 then incr ccount;
 	) u8;
