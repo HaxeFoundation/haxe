@@ -65,15 +65,6 @@ let add_property_field com c =
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
 		c.cl_ordered_statics <- cf :: c.cl_ordered_statics
 
-let escape_res_name name allowed =
-	ExtString.String.replace_chars (fun chr ->
-		if (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr = '_' || chr = '.' then
-			Char.escaped chr
-		else if List.mem chr allowed then
-			Char.escaped chr
-		else
-			"-x" ^ (string_of_int (Char.code chr))) name
-
 (* -------------------------------------------------------------------------- *)
 (* FIX OVERRIDES *)
 
@@ -384,7 +375,7 @@ module Dump = struct
 			| "pretty" -> dump_types com true
 			| "record" -> dump_record com
 			| "position" -> dump_position com
-			| _ -> dump_types com false 
+			| _ -> dump_types com false
 
 	let dump_dependencies ?(target_override=None) com =
 		let target_name = match target_override with
@@ -519,4 +510,3 @@ module ExtClass = struct
 		let e_assign = mk (TBinop(OpAssign,ef1,e)) e.etype p in
 		add_cl_init c e_assign
 end
-	

@@ -758,6 +758,14 @@ let create_deprecation_context ctx = {
 	curmod = ctx.m.curmod;
 }
 
+let get_overloads (com : Common.context) c i =
+	try
+		com.overload_cache#find (c.cl_path,i)
+	with Not_found ->
+		let l = Overloads.collect_overloads (fun t -> t) c i in
+		com.overload_cache#add (c.cl_path,i) l;
+		l
+
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 
 (*

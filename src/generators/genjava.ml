@@ -2652,7 +2652,7 @@ let generate con =
 	let res = ref [] in
 	Hashtbl.iter (fun name v ->
 		res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = null_pos } :: !res;
-		let name = Codegen.escape_res_name name ['/'] in
+		let name = StringHelper.escape_res_name name ['/'] in
 		let full_path = gen.gcon.file ^ "/src/" ^ name in
 		Path.mkdir_from_path full_path;
 

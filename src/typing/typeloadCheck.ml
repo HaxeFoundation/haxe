@@ -243,7 +243,7 @@ let check_overriding ctx c f =
 		let p = f.cf_name_pos in
 		let i = f.cf_name in
 		if has_class_field_flag f CfOverload then begin
-			let overloads = Overloads.get_overloads ctx.com csup i in
+			let overloads = get_overloads ctx.com csup i in
 			List.iter (fun (t,f2) ->
 				(* check if any super class fields are vars *)
 				match f2.cf_kind with
@@ -378,7 +378,7 @@ module Inheritance = struct
 				let map2, t2, f2 = class_field_no_interf c f.cf_name in
 				let t2, f2 =
 					if f2.cf_overloads <> [] || has_class_field_flag f2 CfOverload then
-						let overloads = Overloads.get_overloads ctx.com c f.cf_name in
+						let overloads = get_overloads ctx.com c f.cf_name in
 						is_overload := true;
 						List.find (fun (t1,f1) -> Overloads.same_overload_args t t1 f f1) overloads
 					else

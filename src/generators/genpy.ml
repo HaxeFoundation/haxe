@@ -2269,7 +2269,7 @@ module Generator = struct
 				end else
 					","
 				in
-				let k_enc = Codegen.escape_res_name k [] in
+				let k_enc = StringHelper.escape_res_name k [] in
 				print ctx "%s\"%s\": open('%%s.%%s'%%(_file,'%s'),'rb').read()" prefix (StringHelper.s_escape k) k_enc;
 
 				let f = open_out_bin (ctx.com.file ^ "." ^ k_enc) in

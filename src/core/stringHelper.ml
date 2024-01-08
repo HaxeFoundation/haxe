@@ -49,3 +49,12 @@ let s_escape ?(hex=true) s =
 		| c -> Buffer.add_char b c
 	done;
 	Buffer.contents b
+
+let escape_res_name name allowed =
+	ExtString.String.replace_chars (fun chr ->
+		if (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr = '_' || chr = '.' then
+			Char.escaped chr
+		else if List.mem chr allowed then
+			Char.escaped chr
+		else
+			"-x" ^ (string_of_int (Char.code chr))) name

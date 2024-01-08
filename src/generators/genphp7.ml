@@ -35,7 +35,7 @@ let write_resource dir name data =
 	let rdir = dir ^ "/res" in
 	if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
 	if not (Sys.file_exists rdir) then Unix.mkdir rdir 0o755;
-	let name = Codegen.escape_res_name name [] in
+	let name = StringHelper.escape_res_name name [] in
 	let ch = open_out_bin (rdir ^ "/" ^ name) in
 	output_string ch data;
 	close_out ch
