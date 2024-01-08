@@ -993,6 +993,16 @@ module Converter = struct
 			in
 			add_meta (Meta.Annotation,args,p)
 		end;
+		List.iter (fun attr -> match attr with
+			| AttrVisibleAnnotations ann ->
+				List.iter (function
+					| { ann_type = TObject( (["java";"lang"], "FunctionalInterface"), [] ) } ->
+						add_meta (Meta.FunctionalInterface,[],p);
+					| _ -> ()
+				) ann
+			| _ ->
+				()
+		) jc.jc_attributes;
 		let d = {
 			d_name = (class_name,p);
 			d_doc = None;

@@ -399,6 +399,7 @@ type context = {
 	mutable main : Type.texpr option;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
+	functional_interface_lut : (path,(tclass * tclass_field)) lookup;
 	(* target-specific *)
 	mutable flash_version : float;
 	mutable neko_lib_paths : string list;
@@ -871,6 +872,7 @@ let create compilation_step cs version args display_mode =
 		has_error = false;
 		report_mode = RMNone;
 		is_macro_context = false;
+		functional_interface_lut = new Lookup.hashtbl_lookup;
 	} in
 	com
 
@@ -917,6 +919,7 @@ let clone com is_macro_context =
 		overload_cache = new hashtbl_lookup;
 		module_lut = new module_lut;
 		std = null_class;
+		functional_interface_lut = new Lookup.hashtbl_lookup;
 	}
 
 let file_time file = Extc.filetime file

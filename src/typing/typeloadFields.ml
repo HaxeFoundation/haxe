@@ -1718,8 +1718,9 @@ let finalize_class ctx cctx =
 
 let check_functional_interface ctx c =
 	let is_normal_field cf =
-		(* TODO: more? *)
-		not (has_class_field_flag cf CfDefault)
+		not (has_class_field_flag cf CfDefault) && match cf.cf_kind with
+			| Method MethNormal -> true
+			| _ -> false
 	in
 	let rec loop o l = match l with
 		| cf :: l ->
@@ -1738,7 +1739,7 @@ let check_functional_interface ctx c =
 		()
 	| Some cf ->
 		add_class_flag c CFunctionalInterface;
-		ctx.g.functional_interface_lut#add c.cl_path cf
+		ctx.com.functional_interface_lut#add c.cl_path (c,cf)
 
 let init_class ctx c p herits fields =
 	let cctx = create_class_context c p in
@@ -1874,7 +1875,7 @@ let init_class ctx c p herits fields =
 			a.a_unops <- List.rev a.a_unops;
 			a.a_array <- List.rev a.a_array;
 		| None ->
-			if (has_class_flag c CInterface) && ctx.com.platform = Java then check_functional_interface ctx c;
+			if (has_class_flag c CFunctionalInterface) && ctx.com.platform = Java then check_functional_interface ctx c;
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;

@@ -322,6 +322,12 @@ module ModuleLevel = struct
 			| (TClassDecl c, (EClass d, p)) ->
 				c.cl_params <- type_type_params ctx TPHType c.cl_path (fun() -> c.cl_params) p d.d_params;
 				if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
+				if Meta.has Meta.FunctionalInterface c.cl_meta then begin
+					if not (has_class_flag c CInterface) then
+						raise_typing_error "@:functionalInterface is only allowed on interfaces, as the name implies" c.cl_name_pos
+					else
+						add_class_flag c CFunctionalInterface
+				end;
 				if Meta.has Meta.GenericBuild c.cl_meta then begin
 					if ctx.com.is_macro_context then raise_typing_error "@:genericBuild cannot be used in macros" c.cl_pos;
 					c.cl_kind <- KGenericBuild d.d_data;

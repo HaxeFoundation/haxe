@@ -87,10 +87,11 @@ and do_check_cast ctx uctx tleft eright p =
 						loop2 a.a_to
 					end
 				| TInst(c,tl), TFun _ when has_class_flag c CFunctionalInterface ->
-					let cf = ctx.g.functional_interface_lut#find c.cl_path in
+					let _,cf = ctx.com.functional_interface_lut#find c.cl_path in
 					let map = apply_params c.cl_params tl in
 					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
-					unify_raise_custom uctx eright.etype (map (apply_params cf.cf_params monos cf.cf_type)) p;
+					unify_raise_custom native_unification_context eright.etype (map (apply_params cf.cf_params monos cf.cf_type)) p;
+					if has_mono tright then raise_typing_error ("Cannot use this function as a functional interface because it has unknown types: " ^ (s_type (print_context()) tright)) p;
 					eright
 				| _ ->
 					raise Not_found
