@@ -341,6 +341,9 @@ class MutableBigInt_ extends BigInt_ {
 				m_data = newData;
 			} else {
 				m_data = new Vector<Int>(n);
+				for(i in 0...n) {
+					m_data.set(i,0);
+				}
 			}
 		}
 		m_owned = true;
