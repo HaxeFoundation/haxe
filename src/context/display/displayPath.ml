@@ -33,8 +33,8 @@ module TypePathHandler = struct
 					Not_found -> p)
 			| _ -> p
 		) in
-		List.iter (fun path ->
-			let path = Path.string_of_class_path path in
+		com.class_path#iter (fun path ->
+			let path = path#path in
 			let dir = path ^ String.concat "/" p in
 			let r = (try Sys.readdir dir with _ -> [||]) in
 			Array.iter (fun f ->
@@ -62,7 +62,7 @@ module TypePathHandler = struct
 						if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
 				end;
 			) r;
-		) com.class_path;
+		);
 		let process_lib lib =
 			List.iter (fun (path,name) ->
 				if path = p then classes := name :: !classes else

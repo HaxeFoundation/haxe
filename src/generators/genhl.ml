@@ -329,12 +329,12 @@ let make_debug ctx arr =
 		| false -> try
 			(* lookup relative path *)
 			let len = String.length p.pfile in
-			let base = List.find (fun path ->
-				let path = path.Path.path in
+			let base = ctx.com.class_path#find (fun path ->
+				let path = path#path in
 				let l = String.length path in
 				len > l && String.sub p.pfile 0 l = path
-			) ctx.com.Common.class_path in
-			let l = String.length base.Path.path in
+			) in
+			let l = String.length base#path in
 			String.sub p.pfile l (len - l)
 		with Not_found ->
 			p.pfile

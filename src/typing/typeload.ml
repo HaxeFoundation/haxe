@@ -806,7 +806,13 @@ let load_core_class ctx c =
 			Common.define com2 Define.Sys;
 			Define.raw_define_value com2.defines "target.threaded" "true"; (* hack because we check this in sys.thread classes *)
 			if ctx.com.is_macro_context then Common.define com2 Define.Macro;
-			com2.class_path <- ctx.com.std_path;
+			com2.class_path#lock_context (platform_name_macro ctx.com) true;
+			com2.class_path#modify (fun cp -> match cp#scope with
+				| Std ->
+					[cp#clone]
+				| _ ->
+					[]
+			) ctx.com.class_path#as_list;
 			if com2.display.dms_check_core_api then com2.display <- {com2.display with dms_check_core_api = false};
 			CommonCache.lock_signature com2 "load_core_class";
 			let ctx2 = !create_context_ref com2 ctx.g.macros in

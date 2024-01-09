@@ -712,12 +712,20 @@ let create_macro_context com =
 	com2.main_class <- None;
 	(* Inherit most display settings, but require normal typing. *)
 	com2.display <- {com.display with dms_kind = DMNone; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
-	com2.class_path <- List.filter (fun path -> not (ExtString.String.exists path.Path.path "/_std/")) com2.class_path;
+	com2.class_path#lock_context "macro" false;
 	let name = platform_name !Globals.macro_platform in
-	let open Path in
-	com2.class_path <- List.map (fun path ->
-		create_class_path (path.path ^ name ^ "/_std/") path.kind
-	) com2.std_path @ com2.class_path;
+	let eval_std = ref None in
+	com2.class_path#modify (fun cp -> match cp#scope with
+		| StdTarget ->
+			[]
+		| Std ->
+			eval_std := Some (new ClassPath.directory_class_path (cp#path ^ name ^ "/_std/") StdTarget);
+			[cp#clone]
+		| _ ->
+			[cp#clone]
+	) com.class_path#as_list;
+	(* Eval _std must be in front so we don't look into hxnodejs or something. *)
+	com2.class_path#add (Option.get !eval_std);
 	let defines = adapt_defines_to_macro_context com2.defines; in
 	com2.defines.values <- defines.values;
 	com2.defines.defines_signature <- None;

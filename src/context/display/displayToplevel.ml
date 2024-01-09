@@ -112,10 +112,12 @@ let explore_class_paths com timer class_paths recursive f_pack f_module =
 	let cs = com.cs in
 	let t = Timer.timer (timer @ ["class path exploration"]) in
 	let checked = Hashtbl.create 0 in
-	let tasks = List.map (fun path ->
-		match path.Path.kind with
-			| Directory ->
-				new explore_class_path_task com checked recursive f_pack f_module path.path []
+	let tasks = ExtList.List.filter_map (fun path ->
+		match path#get_directory_path with
+			| Some path ->
+				Some (new explore_class_path_task com checked recursive f_pack f_module path [])
+			| None ->
+				None
 	) class_paths in
 	let task = new arbitrary_task ["explore"] 50 (fun () ->
 		List.iter (fun task -> task#run) tasks
@@ -124,7 +126,7 @@ let explore_class_paths com timer class_paths recursive f_pack f_module =
 	t()
 
 let read_class_paths com timer =
-	explore_class_paths com timer (List.filter ((!=) Path.empty_class_path) com.class_path) true (fun _ -> ()) (fun file path ->
+	explore_class_paths com timer (com.class_path#filter (fun cp -> cp#path <> "")) true (fun _ -> ()) (fun file path ->
 		(* Don't parse the display file as that would maybe overwrite the content from stdin with the file contents. *)
 		if not (DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then begin
 			let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in

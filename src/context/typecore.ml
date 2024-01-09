@@ -317,7 +317,7 @@ let add_local ctx k n t p =
 			begin try
 				let v' = PMap.find n ctx.locals in
 				(* ignore std lib *)
-				if not (List.exists (fun path -> ExtLib.String.starts_with p.pfile (path.Path.path)) ctx.com.std_path) then begin
+				if not (List.exists (fun path -> ExtLib.String.starts_with p.pfile (path#path)) ctx.com.class_path#get_std_paths) then begin
 					warning ctx WVarShadow "This variable shadows a previously declared variable" p;
 					warning ~depth:1 ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
 				end
@@ -683,19 +683,7 @@ let safe_mono_close ctx m p =
 			raise_or_display ctx l p
 
 let relative_path ctx file =
-	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
-	let fpath = slashes (Path.get_full_path file) in
-	let fpath_lower = String.lowercase_ascii fpath in
-	let flen = String.length fpath_lower in
-	let rec loop = function
-		| [] -> file
-		| path :: l ->
-			let path = path.Path.path in
-			let spath = String.lowercase_ascii (slashes path) in
-			let slen = String.length spath in
-			if slen > 0 && slen < flen && String.sub fpath_lower 0 slen = spath then String.sub fpath slen (flen - slen) else loop l
-	in
-	loop ctx.com.Common.class_path
+	ctx.com.class_path#relative_path file
 
 let mk_infos ctx p params =
 	let file = if ctx.com.is_macro_context then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in

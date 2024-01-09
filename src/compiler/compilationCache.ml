@@ -121,13 +121,13 @@ class cache = object(self)
 			Hashtbl.add contexts sign cache;
 			cache
 
-	method add_info sign desc platform class_path defines =
+	method add_info sign desc platform (class_paths : ClassPaths.class_paths) defines =
 		let cc = self#get_context sign in
 		let jo = JObject [
 			"index",JInt cc#get_index;
 			"desc",JString desc;
 			"platform",JString (platform_name platform);
-			"classPaths",JArray (List.map (fun path -> JString (string_of_class_path path)) class_path);
+			"classPaths",JArray (List.map (fun s -> JString s) class_paths#as_string_list);
 			"signature",JString (Digest.to_hex sign);
 			"defines",JArray (PMap.foldi (fun k v acc -> JObject [
 				"key",JString k;
