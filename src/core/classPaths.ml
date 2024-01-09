@@ -128,11 +128,7 @@ class class_paths = object(self)
 									loop l
 					end
 			in
-			let r = if Path.is_absolute_path f then
-				Some f
-			else
-				loop l
-			in
+			let r = loop l in
 			file_lookup_cache#add f r;
 			r
 
