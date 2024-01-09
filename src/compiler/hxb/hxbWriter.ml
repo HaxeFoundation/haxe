@@ -1267,7 +1267,7 @@ class hxb_writer
 					self#write_texpr_byte 4;
 				| TInt i32 ->
 					self#write_texpr_byte 5;
-					chunk#write_leb128 (Int32.to_int i32);
+					chunk#write_i32 i32;
 				| TFloat f ->
 					self#write_texpr_byte 6;
 					chunk#write_string f;
