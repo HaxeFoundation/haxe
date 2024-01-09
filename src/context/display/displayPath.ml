@@ -26,7 +26,6 @@ module TypePathHandler = struct
 			| x :: l ->
 				(try
 					match PMap.find x com.package_rules with
-					| Directory d -> d :: l
 					| Remap s -> s :: l
 					| _ -> p
 				with
@@ -47,7 +46,6 @@ module TypePathHandler = struct
 									match PMap.find f com.package_rules with
 									| Forbidden -> ()
 									| Remap f -> packages := f :: !packages
-									| Directory _ -> raise Not_found
 								with Not_found ->
 									packages := f :: !packages
 						else
