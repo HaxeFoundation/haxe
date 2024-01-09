@@ -516,7 +516,6 @@ and encode_exceptions_config ec =
 and encode_package_rule pr =
 	let tag, pl = match pr with
 		| Forbidden -> 0, []
-		| Directory (path) -> 1, [encode_string path]
 		| Remap (path) -> 2, [encode_string path]
 	in
 	encode_enum ~pos:None IPackageRule tag pl
