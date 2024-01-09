@@ -364,7 +364,6 @@ let compile ctx actx callbacks =
 		in
 	(* Initialize target: This allows access to the appropriate std packages and sets the -D defines. *)
 	let ext = Setup.initialize_target ctx com actx in
-	ctx.com.class_paths#dump;
 	update_platform_config com; (* make sure to adapt all flags changes defined after platform *)
 	callbacks.after_target_init ctx;
 	let t = Timer.timer ["init"] in
