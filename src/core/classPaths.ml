@@ -100,22 +100,17 @@ class class_paths = object(self)
 		in
 		Array.iter prepare_file dir_listing
 
-	method find_file (f : string) =
+	method find_file_noraise (f : string) =
 		try
 			match file_lookup_cache#find f with
 			| None ->
-				raise Exit
+				None
 			| Some f ->
-				f
-		with
-		| Exit ->
-			raise Not_found
-		| Not_found when Path.is_absolute_path f ->
-			file_lookup_cache#add f (Some f);
-			f
-		| Not_found ->
+				Some f
+		with Not_found ->
 			let rec loop = function
-				| [] -> raise Not_found
+				| [] ->
+					None
 				| p :: l ->
 					begin match p#get_uncached_dir_listing f with
 						| None ->
@@ -127,18 +122,26 @@ class class_paths = object(self)
 							try
 								begin match file_lookup_cache#find f with
 								| Some f ->
-									f
-								| None -> raise Not_found
+									Some f
+								| None ->
+									loop l
 								end
 							with Not_found ->
 								loop l
 					end
 			in
-			let r = try Some (loop l) with Not_found -> None in
+			let r = if Path.is_absolute_path f then
+				Some f
+			else
+				loop l
+			in
 			file_lookup_cache#add f r;
-			match r with
-			| None -> raise Not_found
-			| Some f -> f
+			r
+
+	method find_file (f : string) =
+		match self#find_file_noraise f with
+		| None -> raise Not_found
+		| Some f -> f
 
 	method relative_path file =
 		let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
