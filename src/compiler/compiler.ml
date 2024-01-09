@@ -544,7 +544,7 @@ module HighLevel = struct
 				if l = "" then
 					acc
 				else if l.[0] <> '-' then
-					"-cp" :: l :: acc
+					"-libcp" :: l :: acc
 				else match (try ExtString.String.split l " " with _ -> l, "") with
 				| ("-L",dir) ->
 					"--neko-lib-path" :: (String.sub l 3 (String.length l - 3)) :: acc

@@ -1,7 +1,7 @@
 type class_path_scope =
 	| Std
 	| StdTarget
-	| Lib of string
+	| Lib
 	| User
 
 class virtual class_path (path : string) (scope : class_path_scope) = object(self)
@@ -21,7 +21,7 @@ class virtual class_path (path : string) (scope : class_path_scope) = object(sel
 	method scope_string = match scope with
 		| Std -> "Std"
 		| StdTarget -> "StdTarget"
-		| Lib s -> "Lib " ^ s
+		| Lib -> "Lib"
 		| User -> "User"
 end
 
