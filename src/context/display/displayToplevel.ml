@@ -75,7 +75,6 @@ class explore_class_path_task com checked recursive f_pack f_module dir pack = o
 						begin try
 							begin match PMap.find file com.package_rules with
 								| Forbidden | Remap _ -> ()
-								| _ -> raise Not_found
 							end
 						with Not_found ->
 							f_pack (List.rev pack,file);

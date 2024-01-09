@@ -83,25 +83,20 @@ let parse_hook = ref parse_file
 
 let resolve_module_file com m remap p =
 	let forbid = ref false in
-	let compose_path no_rename =
+	let compose_path =
 		(match m with
 		| [] , name -> name
 		| x :: l , name ->
 			let x = (try
 				match PMap.find x com.package_rules with
 				| Forbidden -> forbid := true; x
-				| Directory d -> if no_rename then x else d
 				| Remap d -> remap := d :: l; d
 				with Not_found -> x
 			) in
 			String.concat "/" (x :: l) ^ "/" ^ name
 		) ^ ".hx"
 	in
-	let file = try
-			Common.find_file com (compose_path false)
-		with Not_found ->
-			Common.find_file com (compose_path true)
-	in
+	let file = Common.find_file com compose_path in
 	let file = (match ExtString.String.lowercase (snd m) with
 	| "con" | "aux" | "prn" | "nul" | "com1" | "com2" | "com3" | "lpt1" | "lpt2" | "lpt3" when Sys.os_type = "Win32" ->
 		(* these names are reserved by the OS - old DOS legacy, such files cannot be easily created but are reported as visible *)
