@@ -863,10 +863,7 @@ and load_module' ctx m p =
 				loop ctx.com.load_extern_type
 			in
 			let is_extern = !is_extern in
-			try
-				type_module ctx m file ~is_extern decls p
-			with Forbid_package (inf,pl,pf) when p <> null_pos ->
-				raise (Forbid_package (inf,p::pl,pf))
+			type_module ctx m file ~is_extern decls p
 
 let load_module ctx m p =
 	let m2 = load_module' ctx m p in
