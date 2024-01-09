@@ -50,5 +50,6 @@ let args = List.tl (Array.to_list Sys.argv) in
 set_binary_mode_out stdout true;
 set_binary_mode_out stderr true;
 let sctx = ServerCompilationContext.create false in
+Server.enable_cache_mode sctx;
 Server.process sctx (Communication.create_stdio ()) args;
 other()
