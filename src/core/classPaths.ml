@@ -59,7 +59,7 @@ class class_paths = object(self)
 		file_lookup_cache#clear;
 		List.iter (fun cp -> cp#clear_cache) l
 
-	method cache_directory (dir : string) (f_dir : string) (dir_listing : string array) =
+	method cache_directory (dir : string) (f_search : string) (dir_listing : string array) =
 		(*
 			This function is invoked for each file in the `dir`.
 			Each file is checked if it's specific for current platform
@@ -70,6 +70,8 @@ class class_paths = object(self)
 				Store the full file path in the lookup cache probably replacing the cached path to a
 				non-platform-specific file.
 		*)
+		let found = ref None in
+		let f_dir = Filename.dirname f_search in
 		let prepare_file file_own_name =
 			let relative_to_classpath = if f_dir = "." then file_own_name else f_dir ^ "/" ^ file_own_name in
 			(* `representation` is how the file is referenced to. E.g. when it's deduced from a module path. *)
@@ -95,10 +97,13 @@ class class_paths = object(self)
 			*)
 			if is_loading_core_api || is_platform_specific || not (file_lookup_cache#mem representation) then begin
 				let full_path = if dir = "." then file_own_name else dir ^ "/" ^ file_own_name in
-				file_lookup_cache#add representation (Some full_path);
+				let full_path = Some full_path in
+				file_lookup_cache#add representation full_path;
+				if representation = f_search then found := full_path
 			end
 		in
-		Array.iter prepare_file dir_listing
+		Array.iter prepare_file dir_listing;
+		!found
 
 	method find_file_noraise (f : string) =
 		try
@@ -111,23 +116,16 @@ class class_paths = object(self)
 			let rec loop = function
 				| [] ->
 					None
-				| p :: l ->
-					begin match p#get_uncached_dir_listing f with
+				| cp :: l ->
+					begin match cp#get_uncached_dir_listing f with
 						| None ->
 							loop l
 						| Some(dir,dir_listing) ->
-							let f_dir = Filename.dirname f in
-							self#cache_directory dir f_dir dir_listing;
-							(* Caching might have located the file we're looking for, so check the lookup cache again. *)
-							try
-								begin match file_lookup_cache#find f with
+							match self#cache_directory dir f dir_listing with
 								| Some f ->
 									Some f
 								| None ->
 									loop l
-								end
-							with Not_found ->
-								loop l
 					end
 			in
 			let r = if Path.is_absolute_path f then
