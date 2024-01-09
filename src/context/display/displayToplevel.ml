@@ -126,7 +126,7 @@ let explore_class_paths com timer class_paths recursive f_pack f_module =
 	t()
 
 let read_class_paths com timer =
-	explore_class_paths com timer (com.class_path#filter (fun cp -> cp#path <> "")) true (fun _ -> ()) (fun file path ->
+	explore_class_paths com timer (com.class_paths#filter (fun cp -> cp#path <> "")) true (fun _ -> ()) (fun file path ->
 		(* Don't parse the display file as that would maybe overwrite the content from stdin with the file contents. *)
 		if not (DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then begin
 			let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in

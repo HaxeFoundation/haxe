@@ -111,7 +111,7 @@ let resolve_module_file com m remap p =
 	(match fst m with
 	| "std" :: _ ->
 		let file_key = com.file_keys#get file in
-		if List.exists (fun path -> Path.UniqueKey.starts_with file_key (com.file_keys#get path#path)) com.class_path#get_std_paths then raise Not_found;
+		if List.exists (fun path -> Path.UniqueKey.starts_with file_key (com.file_keys#get path#path)) com.class_paths#get_std_paths then raise Not_found;
 	| _ -> ());
 	if !forbid then begin
 		let parse_result = (!parse_hook) com file p in

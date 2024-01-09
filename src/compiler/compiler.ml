@@ -78,9 +78,9 @@ let run_command ctx cmd =
 module Setup = struct
 	let initialize_target ctx com actx =
 		init_platform com;
-		com.class_path#lock_context (platform_name com.platform) false;
+		com.class_paths#lock_context (platform_name com.platform) false;
 		let add_std dir =
-			com.class_path#modify_inplace (fun cp -> match cp#scope with
+			com.class_paths#modify_inplace (fun cp -> match cp#scope with
 				| Std ->
 					let cp' = new ClassPath.directory_class_path (cp#path ^ dir ^ "/_std/") StdTarget in
 					cp :: [cp']
@@ -226,7 +226,7 @@ module Setup = struct
 	let init_std_class_paths com =
 		List.iter (fun (s,scope) ->
 			let cp = new ClassPath.directory_class_path s scope in
-			com.class_path#add cp
+			com.class_paths#add cp
 		) (List.rev (get_std_class_paths ()))
 
 	let setup_common_context ctx =
@@ -364,6 +364,7 @@ let compile ctx actx callbacks =
 		in
 	(* Initialize target: This allows access to the appropriate std packages and sets the -D defines. *)
 	let ext = Setup.initialize_target ctx com actx in
+	ctx.com.class_paths#dump;
 	update_platform_config com; (* make sure to adapt all flags changes defined after platform *)
 	callbacks.after_target_init ctx;
 	let t = Timer.timer ["init"] in

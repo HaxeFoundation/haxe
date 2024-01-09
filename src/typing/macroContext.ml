@@ -712,10 +712,10 @@ let create_macro_context com =
 	com2.main_class <- None;
 	(* Inherit most display settings, but require normal typing. *)
 	com2.display <- {com.display with dms_kind = DMNone; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
-	com2.class_path#lock_context "macro" false;
+	com2.class_paths#lock_context "macro" false;
 	let name = platform_name !Globals.macro_platform in
 	let eval_std = ref None in
-	com2.class_path#modify (fun cp -> match cp#scope with
+	com2.class_paths#modify (fun cp -> match cp#scope with
 		| StdTarget ->
 			[]
 		| Std ->
@@ -723,9 +723,9 @@ let create_macro_context com =
 			[cp#clone]
 		| _ ->
 			[cp#clone]
-	) com.class_path#as_list;
+	) com.class_paths#as_list;
 	(* Eval _std must be in front so we don't look into hxnodejs or something. *)
-	com2.class_path#add (Option.get !eval_std);
+	com2.class_paths#add (Option.get !eval_std);
 	let defines = adapt_defines_to_macro_context com2.defines; in
 	com2.defines.values <- defines.values;
 	com2.defines.defines_signature <- None;

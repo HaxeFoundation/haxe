@@ -351,7 +351,7 @@ type context = {
 	mutable foptimize : bool;
 	mutable platform : platform;
 	mutable config : platform_config;
-	class_path : ClassPaths.class_paths;
+	class_paths : ClassPaths.class_paths;
 	mutable main_class : path option;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
@@ -807,7 +807,7 @@ let create compilation_step cs version args display_mode =
 		print = (fun s -> print_string s; flush stdout);
 		run_command = Sys.command;
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
-		class_path = new ClassPaths.class_paths;
+		class_paths = new ClassPaths.class_paths;
 		main_class = None;
 		package_rules = PMap.empty;
 		file = "";
@@ -909,7 +909,7 @@ let clone com is_macro_context =
 		overload_cache = new hashtbl_lookup;
 		module_lut = new module_lut;
 		std = null_class;
-		class_path = new ClassPaths.class_paths;
+		class_paths = new ClassPaths.class_paths;
 	}
 
 let file_time file = Extc.filetime file
@@ -1055,8 +1055,8 @@ let platform_name_macro com =
 	if defined com Define.Macro then "macro"
 	else platform_name com.platform
 
-let find_file ctx ?(class_path=ctx.class_path) f =
-	ctx.class_path#find_file f
+let find_file ctx f =
+	ctx.class_paths#find_file f
 
 (* let find_file ctx f =
 	let timer = Timer.timer ["find_file"] in

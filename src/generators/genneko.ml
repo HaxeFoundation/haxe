@@ -57,7 +57,7 @@ let pos ctx p =
 				| false -> try
 					(* lookup relative path *)
 					let len = String.length p.pfile in
-					let base = ctx.com.class_path#find (fun path ->
+					let base = ctx.com.class_paths#find (fun path ->
 						let path = path#path in
 						let l = String.length path in
 						len > l && String.sub p.pfile 0 l = path

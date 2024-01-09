@@ -1322,7 +1322,7 @@ exception PathFound of string;;
 
 let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath with
    | true -> file
-   | false -> ctx.class_path#relative_path file)
+   | false -> ctx.class_paths#relative_path file)
 ;;
 
 let with_debug ctx metadata run =
@@ -8669,7 +8669,7 @@ let generate_source ctx =
          | "true" | "sys" | "dce" | "cpp" | "debug" -> ();
          | _ -> cmd := !cmd @ [Printf.sprintf "-D%s=\"%s\"" name (escape_command value)];
       ) common_ctx.defines.values;
-      common_ctx.class_path#iter (fun path ->
+      common_ctx.class_paths#iter (fun path ->
 		let path = path#path in
 		cmd := !cmd @ [Printf.sprintf "-I%s" (escape_command path)]
 	  );
