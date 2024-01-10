@@ -84,6 +84,7 @@ type hxb_writer_stats = {
 	pos_writes_max : int ref;
 	pos_writes_minmax : int ref;
 	pos_writes_eq : int ref;
+	chunk_sizes : (string,int ref * int ref) Hashtbl.t;
 }
 
 let create_hxb_writer_stats () = {
@@ -98,6 +99,7 @@ let create_hxb_writer_stats () = {
 	pos_writes_max = ref 0;
 	pos_writes_minmax = ref 0;
 	pos_writes_eq = ref 0;
+	chunk_sizes = Hashtbl.create 0;
 }
 
 let dump_stats name stats =
@@ -122,7 +124,13 @@ let dump_stats name stats =
 	print_endline (Printf.sprintf "    cache hits: %9i" !(stats.type_instance_cache_hits));
 	print_endline (Printf.sprintf "    cache miss: %9i" !(stats.type_instance_cache_misses));
 	print_endline "  pos writes:";
-	print_endline (Printf.sprintf "      full: %9i\n       min: %9i\n       max: %9i\n    minmax: %9i\n     equal: %9i" !(stats.pos_writes_full) !(stats.pos_writes_min) !(stats.pos_writes_max) !(stats.pos_writes_minmax) !(stats.pos_writes_eq))
+	print_endline (Printf.sprintf "      full: %9i\n       min: %9i\n       max: %9i\n    minmax: %9i\n     equal: %9i" !(stats.pos_writes_full) !(stats.pos_writes_min) !(stats.pos_writes_max) !(stats.pos_writes_minmax) !(stats.pos_writes_eq));
+	(* let chunk_sizes = Hashtbl.fold (fun name (imin,imax) acc -> (name,!imin,!imax) :: acc) stats.chunk_sizes [] in
+	let chunk_sizes = List.sort (fun (_,imin1,imax1) (_,imin2,imax2) -> compare imax1 imax2) chunk_sizes in
+	print_endline "chunk sizes:";
+	List.iter (fun (name,imin,imax) ->
+		print_endline (Printf.sprintf "    %s: %i - %i" name imin imax)
+	) chunk_sizes *)
 
 class ['key,'value] pool = object(self)
 	val lut = Hashtbl.create 0
@@ -178,34 +186,107 @@ class ['key,'value] identity_pool = object(self)
 	method items = items
 end
 
+module SimnBuffer = struct
+	type t = {
+		buffer_size : int;
+		mutable buffer : bytes;
+		mutable buffers : bytes Queue.t;
+		mutable offset : int;
+	}
+
+	let create buffer_size = {
+		buffer = Bytes.create buffer_size;
+		buffers = Queue.create ();
+		offset = 0;
+		buffer_size = buffer_size;
+	}
+
+	let promote_buffer sb =
+		Queue.add sb.buffer sb.buffers;
+		sb.buffer <- Bytes.create sb.buffer_size;
+		sb.offset <- 0
+
+	let add_u8 sb i =
+		if sb.offset = sb.buffer_size then begin
+			(* Current buffer is full, promote it. *)
+			promote_buffer sb;
+			Bytes.unsafe_set sb.buffer 0 i;
+			sb.offset <- 1;
+		end else begin
+			(* There's room, put it in. *)
+			Bytes.unsafe_set sb.buffer sb.offset i;
+			sb.offset <- sb.offset + 1
+		end
+
+	let add_bytes sb bytes =
+		let rec loop offset left =
+			let space = sb.buffer_size - sb.offset in
+			if left > space then begin
+				(* We need more than we have. Blit as much as we can, promote buffer, recurse. *)
+				Bytes.unsafe_blit bytes offset sb.buffer sb.offset space;
+				promote_buffer sb;
+				loop (offset + space) (left - space)
+			end else begin
+				(* It fits, blit it. *)
+				Bytes.unsafe_blit bytes offset sb.buffer sb.offset left;
+				sb.offset <- sb.offset + left;
+			end
+		in
+		loop 0 (Bytes.length bytes)
+
+	let contents sb =
+		let size = sb.offset + sb.buffer_size * Queue.length sb.buffers in
+		let out = Bytes.create size in
+		let offset = ref 0 in
+		(* We know that all sb.buffers are of sb.buffer_size length, so blit them together. *)
+		Queue.iter (fun bytes ->
+			Bytes.unsafe_blit bytes 0 out !offset sb.buffer_size;
+			offset := !offset + sb.buffer_size;
+		) sb.buffers;
+		(* Append our current buffer until sb.offset *)
+		Bytes.unsafe_blit sb.buffer 0 out !offset sb.offset;
+		out
+end
+
 module IOChunk = struct
 	type t = {
 		name : string;
-		ch : bytes IO.output;
+		ch : SimnBuffer.t;
 	}
 
-	let create name = {
-		name = name;
-		ch = IO.output_bytes ()
-	}
+	let create name initial_size =
+		{
+			name = name;
+			ch = SimnBuffer.create initial_size;
+		}
 
 	let write_u8 io v =
-		IO.write_byte io.ch v
+		SimnBuffer.add_u8 io.ch (Char.unsafe_chr v)
 
 	let write_i32 io v =
-		IO.write_real_i32 io.ch v
+		let base = Int32.to_int v in
+		let big = Int32.to_int (Int32.shift_right_logical v 24) in
+		write_u8 io base;
+		write_u8 io (base lsr 8);
+		write_u8 io (base lsr 16);
+		write_u8 io big
+
+	let write_i64 io v =
+		write_i32 io (Int64.to_int32 v);
+		write_i32 io (Int64.to_int32 (Int64.shift_right_logical v 32))
 
 	let write_f64 io v =
-		IO.write_double io.ch v
+		write_i64 io (Int64.bits_of_float v)
 
 	let write_bytes io b =
-		IO.nwrite io.ch b
+		SimnBuffer.add_bytes io.ch b
 
 	let write_ui16 io i =
-		IO.write_ui16 io.ch i
+		write_u8 io i;
+		write_u8 io (i lsr 8)
 
 	let get_bytes io =
-		IO.close_out io.ch
+		SimnBuffer.contents io.ch
 
 	let rec write_uleb128 io v =
 		let b = v land 0x7F in
@@ -234,9 +315,17 @@ module IOChunk = struct
 	let write_bool io b =
 		write_u8 io (if b then 1 else 0)
 
-	let export : 'a . t -> 'a IO.output -> unit = fun io chex ->
+	let export : 'a . hxb_writer_stats -> t -> 'a IO.output -> unit = fun stats io chex ->
 		let bytes = get_bytes io in
-		IO.write_real_i32 chex (Int32.of_int (Bytes.length bytes));
+		let length = Bytes.length bytes in
+		IO.write_real_i32 chex (Int32.of_int length);
+		(* begin try
+			let (imin,imax) = Hashtbl.find stats.chunk_sizes io.name in
+			if length < !imin then imin := length;
+			if length > !imax then imax := length
+		with Not_found ->
+			Hashtbl.add stats.chunk_sizes io.name (ref length,ref length);
+		end; *)
 		IO.nwrite chex (Bytes.unsafe_of_string io.name);
 		IO.nwrite chex bytes;
 		let crc = Int32.of_int 0x1234567 in (* TODO *)
@@ -245,7 +334,7 @@ end
 
 class string_pool (kind : chunk_kind) = object(self)
 
-	val io = IOChunk.create (string_of_chunk_kind kind)
+	val io = IOChunk.create (string_of_chunk_kind kind) 512
 	val pool = new pool
 
 	method get (s : string) =
@@ -254,13 +343,13 @@ class string_pool (kind : chunk_kind) = object(self)
 	method is_empty =
 		pool#is_empty
 
-	method export : 'a . 'a IO.output -> unit = fun chex ->
+	method export : 'a . hxb_writer_stats -> 'a IO.output -> unit = fun stats chex ->
 		IOChunk.write_uleb128 io (DynArray.length pool#items);
 		DynArray.iter (fun s ->
 			let b = Bytes.unsafe_of_string s in
 			IOChunk.write_bytes_length_prefixed io b;
 		) pool#items;
-		IOChunk.export io chex
+		IOChunk.export stats io chex
 end
 
 module Chunk = struct
@@ -270,10 +359,10 @@ module Chunk = struct
 		io : IOChunk.t;
 	}
 
-	let create kind cp = {
+	let create kind cp initial_size = {
 		kind;
 		cp;
-		io = IOChunk.create (string_of_chunk_kind kind);
+		io = IOChunk.create (string_of_chunk_kind kind) initial_size;
 	}
 
 	let write_string chunk s =
@@ -468,12 +557,20 @@ class hxb_writer
 	(* Chunks *)
 
 	method start_chunk (kind : chunk_kind) =
-		let new_chunk = Chunk.create kind cp in
+		let initial_size = match kind with
+			| HEND -> 0
+			| HHDR -> 16
+			| TYPF | CLSR | ENMD | ABSD | ENMR | ABSR | TPDR | ENFR | CFLR | AFLD -> 64
+			| ANFR | CLSD | TPDD | EFLD -> 128
+			| STRI | DOCS -> 256
+			| CFLD -> 512
+		in
+		let new_chunk = Chunk.create kind cp initial_size in
 		DynArray.add chunks new_chunk;
 		chunk <- new_chunk
 
-	method start_temporary_chunk : 'a . (Chunk.t -> 'a) -> 'a =
-		let new_chunk = Chunk.create HEND (* TODO: something else? *) cp in
+	method start_temporary_chunk : 'a . int -> (Chunk.t -> 'a) -> 'a = fun initial_size ->
+		let new_chunk = Chunk.create HEND (* TODO: something else? *) cp initial_size in
 		let old_chunk = chunk in
 		chunk <- new_chunk;
 		(fun f ->
@@ -1203,7 +1300,7 @@ class hxb_writer
 		self#write_pos v.v_pos
 
 	method write_texpr_type_instance (fctx : field_writer_context) (t: Type.t) =
-		let restore = self#start_temporary_chunk in
+		let restore = self#start_temporary_chunk 32 in
 		let r = self#write_type_instance_simple fctx.t_rings t in
 		let index = match r with
 		| None ->
@@ -1217,7 +1314,7 @@ class hxb_writer
 				incr stats.type_instance_ring_hits;
 				index
 			with Not_found ->
-				let restore = self#start_temporary_chunk in
+				let restore = self#start_temporary_chunk 32 in
 				self#write_type_instance_not_simple t;
 				let t_bytes = restore (fun new_chunk ->
 					IOChunk.get_bytes new_chunk.io
@@ -1296,7 +1393,7 @@ class hxb_writer
 			| TBlock [] ->
 				self#write_texpr_byte 30;
 			| TBlock el ->
-				let restore = self#start_temporary_chunk in
+				let restore = self#start_temporary_chunk 256 in
 				let i = ref 0 in
 				List.iter (fun e ->
 					incr i;
@@ -1596,7 +1693,7 @@ class hxb_writer
 		);
 
 	method start_texpr (p: pos) =
-		let restore = self#start_temporary_chunk in
+		let restore = self#start_temporary_chunk 512 in
 		let fctx = create_field_writer_context (new pos_writer chunk stats p) in
 		fctx,(fun () ->
 			restore(fun new_chunk ->
@@ -1624,7 +1721,7 @@ class hxb_writer
 		end
 
 	method write_class_field_data cf =
-		let restore = self#start_temporary_chunk in
+		let restore = self#start_temporary_chunk 512 in
 		(try self#write_type_instance cf.cf_type with e -> begin
 			prerr_endline (Printf.sprintf "%s while writing type instance for field %s" todo_error cf.cf_name);
 			raise e
@@ -1926,7 +2023,7 @@ class hxb_writer
 					self#select_type e.e_path;
 					let close = self#open_field_scope ef.ef_params in
 					Chunk.write_string chunk s;
-					let restore = self#start_temporary_chunk in
+					let restore = self#start_temporary_chunk 32 in
 					self#write_type_instance ef.ef_type;
 					let t_bytes = restore (fun new_chunk -> IOChunk.get_bytes new_chunk.io) in
 					self#commit_field_type_parameters ef.ef_params;
@@ -2033,14 +2130,14 @@ class hxb_writer
 	method export : 'a . 'a IO.output -> unit = fun ch ->
 		IO.nwrite_string ch "hxb";
 		IO.write_byte ch hxb_version;
-		cp#export ch;
+		cp#export stats ch;
 		if not docs#is_empty then
-			docs#export ch;
+			docs#export stats ch;
 		let l = DynArray.to_list chunks in
 		let l = List.sort (fun chunk1 chunk2 ->
 			(Obj.magic chunk1.Chunk.kind - (Obj.magic chunk2.kind))
 		) l in
 		List.iter (fun (chunk : Chunk.t) ->
-			IOChunk.export chunk.io ch
+			IOChunk.export stats chunk.io ch
 		) l
 end
