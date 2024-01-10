@@ -211,7 +211,7 @@ let pair_abstracts ctx rctx a d p =
 
 let attempt_retyping ctx m p =
 	let com = ctx.com in
-	let file,_,_,decls = TypeloadParse.parse_module' com m.m_path p in
+	let rfile,_,_,decls = TypeloadParse.parse_module' com m.m_path p in
 	let ctx = create_typer_context_for_module ctx m in
 	let rctx = {
 		typer = ctx;
@@ -271,7 +271,7 @@ let attempt_retyping ctx m p =
 			List.iter (fun f -> f()) fl
 		) fl;
 		m.m_extra.m_cache_state <- MSGood;
-		m.m_extra.m_time <- Common.file_time file;
+		m.m_extra.m_time <- Common.file_time rfile.file;
 		None
 	with Fail s ->
 		Some s

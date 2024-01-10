@@ -1,6 +1,16 @@
 open StringHelper
 open ClassPath
 
+type resolved_file = {
+	file : string;
+	class_path : class_path;
+}
+
+let create_resolved_file file class_path = {
+	file;
+	class_path;
+}
+
 class class_paths = object(self)
 	val mutable l = []
 	val file_lookup_cache = new Lookup.hashtbl_lookup;
@@ -59,7 +69,7 @@ class class_paths = object(self)
 		file_lookup_cache#clear;
 		List.iter (fun cp -> cp#clear_cache) l
 
-	method cache_directory (dir : string) (f_search : string) (dir_listing : string array) =
+	method cache_directory (cp : class_path) (dir : string) (f_search : string) (dir_listing : string array) =
 		(*
 			This function is invoked for each file in the `dir`.
 			Each file is checked if it's specific for current platform
@@ -97,7 +107,7 @@ class class_paths = object(self)
 			*)
 			if is_loading_core_api || is_platform_specific || not (file_lookup_cache#mem representation) then begin
 				let full_path = if dir = "." then file_own_name else dir ^ "/" ^ file_own_name in
-				let full_path = Some full_path in
+				let full_path = Some(create_resolved_file full_path cp) in
 				file_lookup_cache#add representation full_path;
 				if representation = f_search then found := full_path
 			end
@@ -121,7 +131,7 @@ class class_paths = object(self)
 						| None ->
 							loop l
 						| Some(dir,dir_listing) ->
-							match self#cache_directory dir f dir_listing with
+							match self#cache_directory cp dir f dir_listing with
 								| Some f ->
 									Some f
 								| None ->

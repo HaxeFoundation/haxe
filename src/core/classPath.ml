@@ -4,9 +4,13 @@ type class_path_scope =
 	| Lib
 	| User
 
-class virtual class_path (path : string) (scope : class_path_scope) = object(self)
+type file_kind =
+	| FFile
+
+class virtual class_path (path : string) (scope : class_path_scope) (file_kind : file_kind) = object(self)
 	method path = path;
 	method scope = scope;
+	method file_kind = file_kind;
 
 	method virtual clone : class_path
 	method virtual clear_cache : unit
@@ -26,7 +30,7 @@ class virtual class_path (path : string) (scope : class_path_scope) = object(sel
 end
 
 class directory_class_path (path : string) (scope : class_path_scope) = object(self)
-	inherit class_path path scope
+	inherit class_path path scope FFile
 
 	val readdir_cache = new Lookup.hashtbl_lookup
 
@@ -42,8 +46,6 @@ class directory_class_path (path : string) (scope : class_path_scope) = object(s
 	method get_uncached_dir_listing (f : string) =
 		let file = path ^ f in
 		let dir = Filename.dirname file in
-		(* If we have seen the directory before, we can assume that the file isn't in there because the else case
-		below would have added it to `file_lookup_cache`, which we check before we get here. *)
 		if readdir_cache#mem dir then
 			None
 		else begin

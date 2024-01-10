@@ -6,7 +6,7 @@ open Type
 open Define
 
 type cached_file = {
-	c_file_path : string;
+	c_file_path : ClassPaths.resolved_file;
 	c_time : float;
 	c_package : string list;
 	c_decls : type_decl list;

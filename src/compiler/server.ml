@@ -41,9 +41,10 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 
 let current_stdin = ref None
 
-let parse_file cs com file p =
+let parse_file cs com (rfile : ClassPaths.resolved_file) p =
 	let cc = CommonCache.get_cache com in
-	let ffile = Path.get_full_path file
+	let file = rfile.file in
+	let ffile = Path.get_full_path rfile.file
 	and fkey = com.file_keys#get file in
 	let is_display_file = DisplayPosition.display_position#is_in_file (com.file_keys#get ffile) in
 	match is_display_file, !current_stdin with
@@ -57,7 +58,7 @@ let parse_file cs com file p =
 				if cfile.c_time <> ftime then raise Not_found;
 				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),false,cfile.c_pdi)
 			with Not_found ->
-				let parse_result = TypeloadParse.parse_file com file p in
+				let parse_result = TypeloadParse.parse_file com rfile p in
 				let info,is_unusual = match parse_result with
 					| ParseError(_,_,_) -> "not cached, has parse error",true
 					| ParseSuccess(data,is_display_file,pdi) ->
@@ -65,7 +66,7 @@ let parse_file cs com file p =
 							if pdi.pd_errors <> [] then
 								"not cached, is display file with parse errors",true
 							else if com.display.dms_per_file then begin
-								cc#cache_file fkey ffile ftime data pdi;
+								cc#cache_file fkey rfile ftime data pdi;
 								"cached, is intact display file",true
 							end else
 								"not cached, is display file",true
@@ -76,7 +77,7 @@ let parse_file cs com file p =
 							let ident = Hashtbl.find Parser.special_identifier_files fkey in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
-							cc#cache_file fkey ffile ftime data pdi;
+							cc#cache_file fkey rfile ftime data pdi;
 							"cached",false
 						end
 				in

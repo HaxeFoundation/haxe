@@ -204,7 +204,7 @@ module Setup = struct
 					l
 			in
 			let parts = Str.split_delim (Str.regexp "[;:]") p in
-			("",User) :: List.map (fun s -> Path.add_trailing_slash s,Std) (loop parts)
+			List.map (fun s -> Path.add_trailing_slash s,Std) (loop parts)
 		with Not_found ->
 			let base_path = Path.get_real_path (try executable_path() with _ -> "./") in
 			if Sys.os_type = "Unix" then
@@ -212,18 +212,17 @@ module Setup = struct
 				let lib_path = Filename.concat prefix_path "lib" in
 				let share_path = Filename.concat prefix_path "share" in
 				[
-					("",User);
 					(Path.add_trailing_slash (Filename.concat share_path "haxe/std"),Std);
 					(Path.add_trailing_slash (Filename.concat lib_path "haxe/std"),Std);
 					(Path.add_trailing_slash (Filename.concat base_path "std"),Std);
 				]
 			else
 				[
-					("",User);
 					(Path.add_trailing_slash (Filename.concat base_path "std"),Std);
 				]
 
 	let init_std_class_paths com =
+		com.class_paths#add com.empty_class_path;
 		List.iter (fun (s,scope) ->
 			let cp = new ClassPath.directory_class_path s scope in
 			com.class_paths#add cp

@@ -350,6 +350,7 @@ type context = {
 	mutable foptimize : bool;
 	mutable platform : platform;
 	mutable config : platform_config;
+	empty_class_path : ClassPath.class_path;
 	class_paths : ClassPaths.class_paths;
 	mutable main_class : path option;
 	mutable package_rules : (string,package_rule) PMap.t;
@@ -380,7 +381,7 @@ type context = {
 	file_keys : file_keys;
 	mutable file_contents : (Path.UniqueKey.t * string option) list;
 	parser_cache : (string,(type_def * pos) list) lookup;
-	module_to_file : (path,string) lookup;
+	module_to_file : (path,ClassPaths.resolved_file) lookup;
 	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) lookup;
 	stored_typed_exprs : (int, texpr) lookup;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
@@ -806,6 +807,7 @@ let create compilation_step cs version args display_mode =
 		print = (fun s -> print_string s; flush stdout);
 		run_command = Sys.command;
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
+		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;
 		main_class = None;
 		package_rules = PMap.empty;
@@ -908,6 +910,7 @@ let clone com is_macro_context =
 		overload_cache = new hashtbl_lookup;
 		module_lut = new module_lut;
 		std = null_class;
+		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;
 	}
 
@@ -1055,7 +1058,7 @@ let platform_name_macro com =
 	else platform_name com.platform
 
 let find_file ctx f =
-	ctx.class_paths#find_file f
+	(ctx.class_paths#find_file f).file
 
 (* let find_file ctx f =
 	let timer = Timer.timer ["find_file"] in

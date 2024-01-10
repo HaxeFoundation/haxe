@@ -352,11 +352,12 @@ let handler =
 		"server/moduleCreated", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.get_full_path file in
-			let key = hctx.com.file_keys#get file in
-			let cs = hctx.display#get_cs in
-			List.iter (fun cc ->
+			(* TODO: What is this doing? *)
+			(* let key = hctx.com.file_keys#get file in
+			let cs = hctx.display#get_cs in *)
+			(* List.iter (fun cc ->
 				Hashtbl.replace cc#get_removed_files key file
-			) cs#get_contexts;
+			) cs#get_contexts; *)
 			hctx.send_result (jstring file);
 		);
 		"server/files", (fun hctx ->
@@ -366,7 +367,7 @@ let handler =
 			let files = List.sort (fun (file1,_) (file2,_) -> compare file1 file2) files in
 			let files = List.map (fun (fkey,cfile) ->
 				jobject [
-					"file",jstring cfile.c_file_path;
+					"file",jstring cfile.c_file_path.file;
 					"time",jfloat cfile.c_time;
 					"pack",jstring (String.concat "." cfile.c_package);
 					"moduleName",jopt jstring cfile.c_module_name;
