@@ -1383,7 +1383,7 @@ type tcpp =
    | TCppFastIterator of tcpp
    | TCppPointer of string * tcpp
    | TCppRawPointer of string * tcpp
-   | TCppCallable of string
+   | TCppCallable of tcpp list * tcpp
    | TCppFunction of tcpp list * tcpp * string
    | TCppObjCBlock of tcpp list * tcpp
    | TCppRest of tcpp
@@ -1398,7 +1398,7 @@ type tcpp =
    | TCppScalarArray of tcpp
    | TCppObjC of tclass
    | TCppNativePointer of tclass
-   | TCppVariant
+   | TCppVariant of tcpp option
    | TCppCode of tcpp
    | TCppInst of tclass * tcpp list
    | TCppInterface of tclass
@@ -1635,10 +1635,11 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppRest _ -> "vaarg_list"
    | TCppVarArg -> "vararg"
    | TCppAutoCast -> "::cpp::AutoCast"
-   | TCppVariant -> "::cpp::Variant"
+   | TCppVariant Some t -> "::cpp::Variant ( " ^ (tcpp_to_string t) ^ " ) "
+   | TCppVariant None -> "::cpp::Variant"
    | TCppEnum(enum) -> " ::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
-   | TCppCallable signature ->
-      "::hx::Callable< " ^ signature ^ ">"
+   | TCppCallable (farg, fret) ->
+      "::hx::Callable< " ^ tcpp_to_string fret ^ "(" ^ ((List.map tcpp_to_string farg) |> (String.concat ",")) ^ ")>"
    | TCppScalar(scalar) -> scalar
    | TCppString -> "::String"
    | TCppFastIterator it -> "::cpp::FastIterator" ^ suffix ^ "< " ^ (tcpp_to_string it) ^ " >";
@@ -1779,7 +1780,7 @@ let rec cpp_is_native_array_access t =
 ;;
 
 let cpp_is_dynamic_type = function
-   | TCppDynamic | TCppObject | TCppVariant | TCppGlobal | TCppNull
+   | TCppDynamic | TCppObject | TCppVariant _ | TCppGlobal | TCppNull
    | TCppInterface _
       -> true
    | _ -> false
@@ -1855,11 +1856,10 @@ let rec cpp_type_of stack ctx haxe_type =
             cpp_type_from_path stack ctx type_def.t_path params (fun () -> cpp_type_of stack ctx (apply_typedef type_def params))
 
       | TFun (args, return) ->
-         let fargs = List.map (fun (_, o, t) -> cpp_tfun_arg_type_of stack ctx o t) args |> List.map tcpp_to_string in
-         let ret   = cpp_type_of stack ctx return |> tcpp_to_string in
-         let signature = ret ^ "(" ^ (String.concat "," fargs) ^ ")" in
+         let fargs = List.map (fun (_, o, t) -> cpp_tfun_arg_type_of stack ctx o t) args  in
+         let fret  = cpp_type_of stack ctx return in
         
-         TCppCallable (signature)
+         TCppCallable (fargs, fret)
       | TAnon _ -> TCppObject
       | TDynamic _ -> TCppDynamic
       | TLazy func -> cpp_type_of stack ctx (lazy_type func)
@@ -2131,7 +2131,7 @@ let cpp_variant_type_of t = match t with
    | TCppScalar "double"
    | TCppScalar "float" -> TCppScalar("Float")
    | TCppScalar _  -> TCppScalar("int")
-   | TCppVariant -> TCppVariant
+   | TCppVariant o -> TCppVariant o
 ;;
 
 let cpp_cast_variant_type_of t = match t with
@@ -2614,7 +2614,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   if is_internal_member member.cf_name then
                     CppFunction( FuncInstance(retypedObj,InstPtr(clazzType),member), funcReturn ), exprType
                   else
-                     CppDynamicField(retypedObj, member.cf_name), TCppVariant
+                     CppDynamicField(retypedObj, member.cf_name), TCppVariant (Some (cpp_type_of member.cf_type))
                end else if cpp_is_struct_access retypedObj.cpptype then begin
 
                   match retypedObj.cppexpr with
@@ -2647,7 +2647,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
 
                      | TCppInterface _,_
                      | TCppDynamic,_ ->
-                        CppDynamicField(retypedObj, member.cf_name), TCppVariant
+                        CppDynamicField(retypedObj, member.cf_name), TCppVariant (Some (cpp_type_of member.cf_type))
                      | TCppObjC _,_ ->
                         CppVar(VarInstance(retypedObj,member,tcpp_to_string clazzType, ".") ), exprType
 
@@ -2723,7 +2723,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   else
                      CppFunction( FuncInternal(obj,fieldName,"->"), cppType), cppType
                end else
-                  CppDynamicField(obj, field.cf_name), TCppVariant
+                  CppDynamicField(obj, field.cf_name), TCppVariant (Some (cpp_type_of field.cf_type))
 
             | FDynamic fieldName ->
                let obj = retype TCppDynamic obj in
@@ -2750,7 +2750,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   | _ ->
                      CppVar( VarInternal(obj,"->",fieldName)), cpp_type_of expr.etype
                end else
-                  CppDynamicField(obj, fieldName), TCppVariant
+                  CppDynamicField(obj, fieldName), TCppVariant None
 
             | FEnum (enum, enum_field) ->
                   CppEnumField(enum, enum_field), TCppEnum(enum)
@@ -2777,6 +2777,10 @@ let retype_expression ctx request_type function_args function_type expression_tr
             |  TCppObjCBlock(argTypes,retType) ->
                let retypedArgs = retype_function_args args argTypes in
                CppCall( FuncExpression(retypedFunc) ,retypedArgs), retType
+            | TCppVariant Some TCppCallable (fargs, fret) ->
+               let retypedArgs = List.map (retype TCppUnchanged ) args in
+
+               CppCall (FuncExpression (retype (TCppCallable (fargs, fret)) func), retypedArgs), fret
 
             | _ ->
                let cppType = cpp_type_of expr.etype in
@@ -2970,7 +2974,6 @@ let retype_expression ctx request_type function_args function_type expression_tr
             List.iter ( fun (tvar,_) ->
                Hashtbl.add !declarations tvar.v_name () ) func.tf_args;
             let cppExpr = retype TCppVoid (mk_block func.tf_expr) in
-            let signature = ctx_callable_signature ctx func in
             let result = { close_expr=cppExpr;
                            close_id= !closureId;
                            close_undeclared= !undeclared;
@@ -2989,7 +2992,9 @@ let retype_expression ctx request_type function_args function_type expression_tr
             uses_this := if !uses_this != None then Some old_this_real else old_uses_this;
             gc_stack := old_gc_stack;
             rev_closures := result:: !rev_closures;
-            CppCallable(result), (TCppCallable signature)
+            let fargs = List.map (fun (v,o) -> cpp_fun_arg_type_of ctx v.v_type o) func.tf_args in
+            let fret  = cpp_type_of func.tf_type in
+            CppCallable(result), (TCppCallable (fargs, fret))
 
          | TArray (e1,e2) ->
             let arrayExpr, elemType = match cpp_is_native_array_access (cpp_type_of e1.etype) with
@@ -3092,8 +3097,8 @@ let retype_expression ctx request_type function_args function_type expression_tr
             in
             (match op,e1.cpptype,e2.cpptype  with
             (* Variant + Variant = Variant *)
-            | OpAdd, _, TCppVariant | OpAdd, TCppVariant, _
-                -> reference, TCppVariant
+            | OpAdd, _, TCppVariant o | OpAdd, TCppVariant o, _
+                -> reference, TCppVariant o
             | _,_,_ -> reference, cpp_type_of expr.etype
             )
 
@@ -3286,6 +3291,9 @@ let retype_expression ctx request_type function_args function_type expression_tr
             )
       in
       let cppExpr = mk_cppexpr retypedExpr retypedType in
+      let isVariant t = match t with
+         | TCppVariant _ -> true
+         | _ -> false in
 
       (* Autocast rules... *)
       if return_type=TCppVoid then
@@ -3298,7 +3306,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | TCppDynamic ->  mk_cppexpr (CppCastNative(cppExpr)) TCppVoidStar
          | _ -> let toDynamic = mk_cppexpr (CppCast(cppExpr, TCppDynamic)) TCppDynamic in
                 mk_cppexpr (CppCastNative(toDynamic)) TCppVoidStar
-      end else if (cppExpr.cpptype=TCppVariant || cppExpr.cpptype=TCppDynamic || cppExpr.cpptype==TCppObject) then begin
+      end else if (isVariant cppExpr.cpptype || cppExpr.cpptype=TCppDynamic || cppExpr.cpptype==TCppObject) then begin
          match return_type with
          | TCppUnchanged -> cppExpr
          | TCppInst(t, _) when (has_meta_key t.cl_meta Meta.StructAccess) ->
@@ -3328,10 +3336,10 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | TCppString
              -> mk_cppexpr (CppCastScalar(cppExpr,"::String")) return_type
 
-         | TCppInterface _ when cppExpr.cpptype=TCppVariant
+         | TCppInterface _ when isVariant cppExpr.cpptype
               -> mk_cppexpr (CppCastVariant(cppExpr)) return_type
 
-         | TCppDynamic when cppExpr.cpptype=TCppVariant
+         | TCppDynamic when isVariant cppExpr.cpptype
               -> mk_cppexpr (CppCastVariant(cppExpr)) return_type
 
          | TCppStar(t,const) ->
@@ -4295,7 +4303,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       | CppExternRef(name,isGlobal) -> if isGlobal then out " ::"; out name
       | CppDynamicRef(expr,name) ->
          let objPtr = match expr.cpptype with
-         |  TCppVariant -> "getObject()"
+         |  TCppVariant _ -> "getObject()"
          | _ -> ".mPtr"
          in
          out "::hx::FieldRef(("; gen expr ; out (")" ^ objPtr ^ "," ^ strq name ^ ")")
@@ -7234,7 +7242,7 @@ let rec script_cpptype_string cppType = match cppType with
    | TCppRest _ -> "vaarg_list"
    | TCppVarArg -> "vararg"
    | TCppAutoCast -> ".cpp.AutoCast"
-   | TCppVariant -> ".cpp.Variant"
+   | TCppVariant _ -> ".cpp.Variant"
    | TCppEnum(enum) -> (join_class_path enum.e_path ".")
    | TCppScalar(scalar) -> scalar
    | TCppString -> "String"
