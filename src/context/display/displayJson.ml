@@ -352,12 +352,11 @@ let handler =
 		"server/moduleCreated", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.get_full_path file in
-			(* TODO: What is this doing? *)
-			(* let key = hctx.com.file_keys#get file in
-			let cs = hctx.display#get_cs in *)
-			(* List.iter (fun cc ->
-				Hashtbl.replace cc#get_removed_files key file
-			) cs#get_contexts; *)
+			let key = hctx.com.file_keys#get file in
+			let cs = hctx.display#get_cs in
+			List.iter (fun cc ->
+				Hashtbl.replace cc#get_removed_files key (ClassPaths.create_resolved_file file hctx.com.empty_class_path)
+			) cs#get_contexts;
 			hctx.send_result (jstring file);
 		);
 		"server/files", (fun hctx ->
