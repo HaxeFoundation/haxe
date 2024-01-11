@@ -379,10 +379,9 @@ module TypeLevel = struct
 			ef_meta = c.ec_meta;
 		} in
 		DeprecationCheck.check_is ctx.com ctx.m.curmod e.e_meta f.ef_meta f.ef_name f.ef_meta f.ef_name_pos;
-		let cf = class_field_of_enum_field f in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in f.ef_name_pos then
 			DisplayEmitter.display_enum_field ctx e f p;
-		f,cf
+		f
 
 	let init_class ctx c d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
@@ -394,7 +393,7 @@ module TypeLevel = struct
 				add_class_flag c CFinal;
 			end
 		) d.d_meta;
-		let prev_build_count = ref (!build_count - 1) in
+		let prev_build_count = ref (ctx.g.build_count - 1) in
 		let build() =
 			c.cl_build <- (fun()-> Building [c]);
 			let fl = TypeloadCheck.Inheritance.set_heritance ctx c herits p in
@@ -404,7 +403,7 @@ module TypeLevel = struct
 					List.iter (fun f -> f()) fl;
 					TypeloadFields.init_class ctx c p d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
-					incr build_count;
+					ctx.g.build_count <- ctx.g.build_count + 1;
 					List.iter (fun tp -> ignore(follow tp.ttp_type)) c.cl_params;
 					Built;
 				with TypeloadCheck.Build_canceled state ->
@@ -415,8 +414,8 @@ module TypeLevel = struct
 					(match state with
 					| Built -> die "" __LOC__
 					| Building cl ->
-						if !build_count = !prev_build_count then raise_typing_error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
-						prev_build_count := !build_count;
+						if ctx.g.build_count = !prev_build_count then raise_typing_error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
+						prev_build_count := ctx.g.build_count;
 						rebuild();
 						Building (c :: cl)
 					| BuildMacro f ->
@@ -504,12 +503,10 @@ module TypeLevel = struct
 		let names = ref [] in
 		let index = ref 0 in
 		let is_flat = ref true in
-		let fields = ref PMap.empty in
 		List.iter (fun c ->
 			if PMap.mem (fst c.ec_name) e.e_constrs then raise_typing_error ("Duplicate constructor " ^ fst c.ec_name) (pos c.ec_name);
-			let f,cf = load_enum_field ctx e et is_flat index c in
+			let f = load_enum_field ctx e et is_flat index c in
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
-			fields := PMap.add cf.cf_name cf !fields;
 			incr index;
 			names := (fst c.ec_name) :: !names;
 			if Meta.has Meta.InheritDoc f.ef_meta then
@@ -517,7 +514,7 @@ module TypeLevel = struct
 		) (!constructs);
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
-		unify ctx (TType(enum_module_type e !fields,[])) e.e_type p;
+		unify ctx (TType(enum_module_type e,[])) e.e_type p;
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
 			delay ctx PConnectField (fun() -> InheritDoc.build_enum_doc ctx e);

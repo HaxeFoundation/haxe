@@ -97,43 +97,9 @@ let mk_anon ?fields status =
 	let fields = match fields with Some fields -> fields | None -> PMap.empty in
 	TAnon { a_fields = fields; a_status = status; }
 
-(* We use this for display purposes because otherwise we never see the Dynamic type that
-   is defined in StdTypes.hx. This is set each time a typer is created, but this is fine
-   because Dynamic is the same in all contexts. If this ever changes we'll have to review
-   how we handle this. *)
-let t_dynamic_def = ref t_dynamic
-
 let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
 let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
-
-let mk_class m path pos name_pos =
-	{
-		cl_path = path;
-		cl_module = m;
-		cl_pos = pos;
-		cl_name_pos = name_pos;
-		cl_doc = None;
-		cl_meta = [];
-		cl_private = false;
-		cl_kind = KNormal;
-		cl_flags = 0;
-		cl_params = [];
-		cl_using = [];
-		cl_super = None;
-		cl_implements = [];
-		cl_fields = PMap.empty;
-		cl_ordered_statics = [];
-		cl_ordered_fields = [];
-		cl_statics = PMap.empty;
-		cl_dynamic = None;
-		cl_array_access = None;
-		cl_constructor = None;
-		cl_init = None;
-		cl_build = (fun() -> Built);
-		cl_restore = (fun() -> ());
-		cl_descendants = [];
-	}
 
 let mk_typedef m path pos name_pos t =
 	{
@@ -149,6 +115,42 @@ let mk_typedef m path pos name_pos t =
 		t_type = t;
 		t_restore = (fun () -> ());
 	}
+
+let class_module_type c =
+	let path = ([],"Class<" ^ (s_type_path c.cl_path) ^ ">") in
+	let t = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
+	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
+
+let mk_class m path pos name_pos =
+	let c = {
+		cl_path = path;
+		cl_module = m;
+		cl_pos = pos;
+		cl_name_pos = name_pos;
+		cl_doc = None;
+		cl_meta = [];
+		cl_private = false;
+		cl_kind = KNormal;
+		cl_flags = 0;
+		cl_type = t_dynamic;
+		cl_params = [];
+		cl_using = [];
+		cl_super = None;
+		cl_implements = [];
+		cl_fields = PMap.empty;
+		cl_ordered_statics = [];
+		cl_ordered_fields = [];
+		cl_statics = PMap.empty;
+		cl_dynamic = None;
+		cl_array_access = None;
+		cl_constructor = None;
+		cl_init = None;
+		cl_build = (fun() -> Built);
+		cl_restore = (fun() -> ());
+		cl_descendants = [];
+	} in
+	c.cl_type <- TType(class_module_type c,[]);
+	c
 
 let module_extra file sign time kind added policy =
 	{
@@ -940,14 +942,9 @@ let var_extra params e = {
 	v_expr = e;
 }
 
-let class_module_type c =
-	let path = ([],"Class<" ^ (s_type_path c.cl_path) ^ ">") in
-	let t = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
-	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
-
-let enum_module_type en fields =
+let enum_module_type en =
 	let path = ([], "Enum<" ^ (s_type_path en.e_path) ^ ">") in
-	let t = mk_anon ~fields (ref (EnumStatics en)) in
+	let t = mk_anon (ref (EnumStatics en)) in
 	{(mk_typedef en.e_module path en.e_pos null_pos t) with t_private = true}
 
 let abstract_module_type a tl =

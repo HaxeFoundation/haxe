@@ -60,6 +60,12 @@ type typer_pass =
 	| PForce				(* usually ensure that lazy have been evaluated *)
 	| PFinal				(* not used, only mark for finalize *)
 
+let all_typer_passes = [
+	PBuildModule;PBuildClass;PConnectField;PTypeField;PCheckConstraint;PForce;PFinal
+]
+
+let all_typer_passes_length = List.length all_typer_passes
+
 type typer_module = {
 	curmod : module_def;
 	import_resolution : resolution_list;
@@ -67,11 +73,6 @@ type typer_module = {
 	mutable enum_with_type : module_type option;
 	mutable module_using : (tclass * pos) list;
 	mutable import_statements : import list;
-}
-
-type delay = {
-	delay_pass : typer_pass;
-	delay_functions : (unit -> unit) list;
 }
 
 type build_kind =
@@ -93,8 +94,13 @@ type macro_result =
 	| MError
 	| MMacroInMacro
 
+type typer_pass_tasks = {
+	mutable tasks : (unit -> unit) list;
+}
+
 type typer_globals = {
-	mutable delayed : delay list;
+	mutable delayed : typer_pass_tasks Array.t;
+	mutable delayed_min_index : int;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
 	doinline : bool;
 	retain_meta : bool;
@@ -109,6 +115,9 @@ type typer_globals = {
 	mutable type_hints : (module_def_display * pos * t) list;
 	mutable load_only_cached_modules : bool;
 	functional_interface_lut : (path,tclass_field) lookup;
+	mutable return_partial_type : bool;
+	mutable build_count : int;
+	mutable t_dynamic_def : Type.t;
 	(* api *)
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
@@ -215,8 +224,6 @@ exception Forbid_package of (string * path * pos) * pos list * string
 exception WithTypeError of error
 
 let memory_marker = [|Unix.time()|]
-
-let locate_macro_error = ref true
 
 let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?force_inline:bool _ -> die "" __LOC__)
 let type_expr_ref : (?mode:access_mode -> typer -> expr -> WithType.t -> texpr) ref = ref (fun ?(mode=MGet) _ _ _ -> die "" __LOC__)
@@ -395,36 +402,19 @@ let is_gen_local v = match v.v_kind with
 	| _ ->
 		false
 
-let make_delay pass fl = {
-	delay_pass = pass;
-	delay_functions = fl;
-}
-
 let delay ctx p f =
-	let rec loop = function
-		| [] ->
-			[make_delay p [f]]
-		| delay :: rest ->
-			if delay.delay_pass = p then
-				(make_delay p (f :: delay.delay_functions)) :: rest
-			else if delay.delay_pass < p then
-				delay :: loop rest
-			else
-				(make_delay p [f]) :: delay :: rest
-	in
-	ctx.g.delayed <- loop ctx.g.delayed
+	let p = Obj.magic p in
+	let tasks = ctx.g.delayed.(p) in
+	tasks.tasks <- f :: tasks.tasks;
+	if p < ctx.g.delayed_min_index then
+		ctx.g.delayed_min_index <- p
 
 let delay_late ctx p f =
-	let rec loop = function
-		| [] ->
-			[make_delay p [f]]
-		| delay :: rest ->
-			if delay.delay_pass <= p then
-				delay :: loop rest
-			else
-				(make_delay p [f]) :: delay :: rest
-	in
-	ctx.g.delayed <- loop ctx.g.delayed
+	let p = Obj.magic p in
+	let tasks = ctx.g.delayed.(p) in
+	tasks.tasks <- tasks.tasks @ [f];
+	if p < ctx.g.delayed_min_index then
+		ctx.g.delayed_min_index <- p
 
 let delay_if_mono ctx p t f = match follow t with
 	| TMono _ ->
@@ -433,17 +423,24 @@ let delay_if_mono ctx p t f = match follow t with
 		f()
 
 let rec flush_pass ctx p where =
-	match ctx.g.delayed with
-	| delay :: rest when delay.delay_pass <= p ->
-		(match delay.delay_functions with
-		| [] ->
-			ctx.g.delayed <- rest;
-		| f :: l ->
-			ctx.g.delayed <- (make_delay delay.delay_pass l) :: rest;
-			f());
-		flush_pass ctx p where
-	| _ ->
-		()
+	let rec loop i =
+		if i > (Obj.magic p) then
+			()
+		else begin
+			let tasks = ctx.g.delayed.(i) in
+			match tasks.tasks with
+			| f :: l ->
+				tasks.tasks <- l;
+				f();
+				flush_pass ctx p where
+			| [] ->
+				(* Done with this pass (for now), update min index to next one *)
+				let i = i + 1 in
+				ctx.g.delayed_min_index <- i;
+				loop i
+		end
+	in
+	loop ctx.g.delayed_min_index
 
 let make_pass ctx f = f
 

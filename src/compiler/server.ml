@@ -611,7 +611,6 @@ let do_connect ip port args =
 
 let enable_cache_mode sctx =
 	TypeloadModule.type_module_hook := type_module sctx;
-	MacroContext.macro_enable_cache := true;
 	ServerCompilationContext.ensure_macro_setup sctx;
 	TypeloadParse.parse_hook := parse_file sctx.cs
 

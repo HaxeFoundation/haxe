@@ -114,12 +114,12 @@ let parse_args com =
 				| None -> com.main_class <- Some cpath);
 			actx.classes <- cpath :: actx.classes;
 			Common.define com Define.Interp;
-			set_platform com (!Globals.macro_platform) "";
+			set_platform com Eval "";
 			actx.interp <- true;
 		),"<class>","interpret the program using internal macro system");
 		("Target",["--interp"],[], Arg.Unit (fun() ->
 			Common.define com Define.Interp;
-			set_platform com (!Globals.macro_platform) "";
+			set_platform com Eval "";
 			actx.interp <- true;
 		),"","interpret the program using internal macro system");
 		("Target",["--run"],[], Arg.Unit (fun() ->

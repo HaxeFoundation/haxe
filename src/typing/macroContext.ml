@@ -34,7 +34,6 @@ module Interp = struct
 	include BuiltApi
 end
 
-let macro_enable_cache = ref false
 let macro_interp_cache = ref None
 
 let safe_decode com v expected t p f =
@@ -269,9 +268,6 @@ let make_macro_com_api com mcom p =
 		);
 		current_module = (fun() ->
 			null_module
-		);
-		use_cache = (fun() ->
-			!macro_enable_cache
 		);
 		format_string = (fun s p ->
 			FormatString.format_string com.defines s p (fun e p -> (e,p))
@@ -610,9 +606,7 @@ let init_macro_interp mctx mint =
 	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Expr") p);
 	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Type") p);
 	Interp.init mint;
-	if !macro_enable_cache && not (Common.defined mctx.com Define.NoMacroCache) then begin
-		macro_interp_cache := Some mint;
-	end
+	macro_interp_cache := Some mint
 
 and flush_macro_context mint mctx =
 	let t = macro_timer mctx.com ["flush"] in
@@ -712,7 +706,7 @@ let create_macro_context com =
 	(* Inherit most display settings, but require normal typing. *)
 	com2.display <- {com.display with dms_kind = DMNone; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
 	com2.class_paths#lock_context "macro" false;
-	let name = platform_name !Globals.macro_platform in
+	let name = platform_name Eval in
 	let eval_std = ref None in
 	com2.class_paths#modify (fun cp -> match cp#scope with
 		| StdTarget ->
@@ -728,7 +722,7 @@ let create_macro_context com =
 	let defines = adapt_defines_to_macro_context com2.defines; in
 	com2.defines.values <- defines.values;
 	com2.defines.defines_signature <- None;
-	com2.platform <- !Globals.macro_platform;
+	com2.platform <- Eval;
 	Common.init_platform com2;
 	let mctx = !create_context_ref com2 None in
 	mctx.is_display_file <- false;

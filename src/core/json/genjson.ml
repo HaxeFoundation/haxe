@@ -215,9 +215,7 @@ let rec generate_type ctx t =
 			| Some t -> loop t
 			end
 		| TLazy f ->
-			(* return_partial_type := true; *)
 			let t = lazy_type f in
-			(* return_partial_type := false; *)
 			loop t
 		| TDynamic None -> "TDynamic", Some jnull
 		| TDynamic (Some t) -> "TDynamic",Some (generate_type ctx t)
