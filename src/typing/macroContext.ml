@@ -706,12 +706,12 @@ let create_macro_context com =
 	(* Inherit most display settings, but require normal typing. *)
 	com2.display <- {com.display with dms_kind = DMNone; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
 	com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
-	let name = platform_name !Globals.macro_platform in
+	let name = platform_name Eval in
 	com2.class_path <- List.map (fun p -> p ^ name ^ "/_std/") com2.std_path @ com2.class_path;
 	let defines = adapt_defines_to_macro_context com2.defines; in
 	com2.defines.values <- defines.values;
 	com2.defines.defines_signature <- None;
-	com2.platform <- !Globals.macro_platform;
+	com2.platform <- Eval;
 	Common.init_platform com2;
 	let mctx = !create_context_ref com2 None in
 	mctx.is_display_file <- false;

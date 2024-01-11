@@ -1288,7 +1288,7 @@ let adapt_defines_to_macro_context defines =
 		defines_signature = None
 	} in
 	Define.define macro_defines Define.Macro;
-	Define.raw_define macro_defines (platform_name !Globals.macro_platform);
+	Define.raw_define macro_defines (platform_name Eval);
 	macro_defines
 
 let adapt_defines_to_display_context defines =
