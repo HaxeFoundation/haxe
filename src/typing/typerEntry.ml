@@ -25,6 +25,7 @@ let create com macros =
 			type_hints = [];
 			load_only_cached_modules = false;
 			return_partial_type = false;
+			build_count = 0;
 			functional_interface_lut = new Lookup.pmap_lookup;
 			do_macro = MacroContext.type_macro;
 			do_load_macro = MacroContext.load_macro';

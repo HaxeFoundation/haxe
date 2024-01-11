@@ -33,8 +33,6 @@ open Typecore
 open Error
 open Globals
 
-let build_count = ref 0
-
 let type_function_params_ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
 
 let check_field_access ctx cff =
