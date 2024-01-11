@@ -40,7 +40,7 @@ type dce = {
 	mutable marked_maybe_fields : tclass_field list;
 	mutable t_stack : t list;
 	mutable ts_stack : t list;
-	mutable features : (string, class_field_ref list) Hashtbl.t;
+	mutable features : (string, class_field_ref list ref) Hashtbl.t;
 }
 
 let push_class dce c =
@@ -153,7 +153,7 @@ let rec check_feature dce s =
 		List.iter (fun cfr ->
 			let (c, cf) = resolve_class_field_ref dce.com cfr in
 			mark_field dce c cf cfr.cfr_kind
-		) l;
+		) !l;
 		Hashtbl.remove dce.features s;
 	with Not_found ->
 		()
@@ -717,6 +717,7 @@ let fix_accessors com =
 	) com.types
 
 let collect_entry_points dce com =
+	let delayed = ref [] in
 	List.iter (fun t ->
 		let mt = t_infos t in
 		mt.mt_meta <- Meta.remove Meta.Used mt.mt_meta;
@@ -725,7 +726,25 @@ let collect_entry_points dce com =
 			let keep_class = keep_whole_class dce c && (not (has_class_flag c CExtern) || (has_class_flag c CInterface)) in
 			let is_struct = dce.com.platform = Hl && Meta.has Meta.Struct c.cl_meta in
 			let loop kind cf =
-				if keep_class || is_struct || keep_field dce cf c kind then mark_field dce c cf kind
+				List.iter (fun (m,el,p) -> match m with
+					| Meta.IfFeature ->
+						let cf_ref = mk_class_field_ref c cf kind com.is_macro_context in
+						List.iter (fun (e,p) -> match e with
+							| EConst (String(s,_)) ->
+								begin try
+									let l = Hashtbl.find dce.features s in
+									l := cf_ref :: !l
+								with Not_found ->
+									Hashtbl.add dce.features s (ref [cf_ref])
+								end
+							| _ ->
+								Error.raise_typing_error "String expected" p
+						) el
+					| _ ->
+						()
+				) cf.cf_meta;
+				(* Have to delay mark_field so that we see all @:ifFeature *)
+				if keep_class || is_struct || keep_field dce cf c kind then delayed := (fun () -> mark_field dce c cf kind) :: !delayed
 			in
 			List.iter (loop CfrStatic) c.cl_ordered_statics;
 			List.iter (loop CfrMember) c.cl_ordered_fields;
@@ -743,12 +762,15 @@ let collect_entry_points dce com =
 					()
 			end;
 		| TEnumDecl en when keep_whole_enum dce en ->
-			let pop = push_class dce {null_class with cl_module = en.e_module} in
-			mark_enum dce en;
-			pop()
+			delayed := (fun () ->
+				let pop = push_class dce {null_class with cl_module = en.e_module} in
+				mark_enum dce en;
+				pop()
+			) :: !delayed;
 		| _ ->
 			()
 	) com.types;
+	List.iter (fun f -> f()) !delayed;
 	if dce.debug then begin
 		List.iter (fun (c,cf,_) -> match cf.cf_expr with
 			| None -> ()
@@ -879,12 +901,6 @@ let run com main mode =
 		features = Hashtbl.create 0;
 		curclass = null_class;
 	} in
-	List.iter (fun m ->
-		List.iter (fun (s,v) ->
-			if Hashtbl.mem dce.features s then Hashtbl.replace dce.features s (v :: Hashtbl.find dce.features s)
-			else Hashtbl.add dce.features s [v]
-		) m.m_extra.m_if_feature;
-	) com.modules;
 
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
 	collect_entry_points dce com;

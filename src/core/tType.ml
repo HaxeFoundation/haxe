@@ -414,7 +414,6 @@ and module_def_extra = {
 	mutable m_deps : (int,(Digest.t (* sign *) * path)) PMap.t;
 	mutable m_kind : module_kind;
 	mutable m_cache_bound_objects : cache_bound_object DynArray.t;
-	mutable m_if_feature : (string * class_field_ref) list;
 	mutable m_features : (string,bool) Hashtbl.t;
 }
 
