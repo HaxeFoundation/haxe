@@ -53,6 +53,29 @@ let create_hxb_reader_stats () = {
 	modules_partially_restored = ref 0;
 }
 
+let rec read_uleb128 ch =
+	let b = IO.read_byte ch in
+	if b >= 0x80 then
+		(b land 0x7F) lor ((read_uleb128 ch) lsl 7)
+	else
+		b
+
+let rec read_leb128 ch =
+	let rec read acc shift =
+		let b = IO.read_byte ch in
+		let acc = ((b land 0x7F) lsl shift) lor acc in
+		if b >= 0x80 then
+			read acc (shift + 7)
+		else
+			(b, acc, shift + 7)
+	in
+	let last, acc, shift = read 0 0 in
+	let res = (if (last land 0x40) <> 0 then
+		acc lor ((lnot 0) lsl shift)
+	else
+		acc) in
+	res
+
 let dump_stats name stats =
 	print_endline (Printf.sprintf "hxb_reader stats for %s" name);
 	print_endline (Printf.sprintf "  modules partially restored: %i" (!(stats.modules_fully_restored) - !(stats.modules_partially_restored)));
@@ -113,9 +136,6 @@ class hxb_reader
 
 	(* Primitives *)
 
-	method read_u8 =
-		IO.read_byte ch
-
 	method read_i32 =
 		IO.read_real_i32 ch
 
@@ -125,50 +145,27 @@ class hxb_reader
 	method read_f64 =
 		IO.read_double ch
 
-	method read_uleb128 =
-		let b = self#read_u8 in
-		if b >= 0x80 then
-			(b land 0x7F) lor ((self#read_uleb128) lsl 7)
-		else
-			b
-
-	method read_leb128 =
-		let rec read acc shift =
-			let b = self#read_u8 in
-			let acc = ((b land 0x7F) lsl shift) lor acc in
-			if b >= 0x80 then
-				read acc (shift + 7)
-			else
-				(b, acc, shift + 7)
-		in
-		let last, acc, shift = read 0 0 in
-		let res = (if (last land 0x40) <> 0 then
-			acc lor ((lnot 0) lsl shift)
-		else
-			acc) in
-		res
-
 	method read_bool =
-		self#read_u8 <> 0
+		IO.read_byte ch <> 0
 
 	method read_from_string_pool pool =
-		pool.(self#read_uleb128)
+		pool.(read_uleb128 ch)
 
 	method read_string =
 		self#read_from_string_pool string_pool
 
 	method read_raw_string =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		Bytes.unsafe_to_string (IO.nread ch l)
 
 	(* Basic compounds *)
 
 	method read_list : 'a . (unit -> 'a) -> 'a list = fun f ->
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		List.init l (fun _ -> f ())
 
 	method read_option : 'a . (unit -> 'a) -> 'a option = fun f ->
-		match self#read_u8 with
+		match IO.read_byte ch with
 		| 0 ->
 			None
 		| _ ->
@@ -196,8 +193,8 @@ class hxb_reader
 
 	method read_pos =
 		let file = self#read_string in
-		let min = self#read_leb128 in
-		let max = self#read_leb128 in
+		let min = read_leb128 ch in
+		let max = read_leb128 ch in
 		let pos = {
 			pfile = file;
 			pmin = min;
@@ -217,29 +214,29 @@ class hxb_reader
 	(* References *)
 
 	method read_class_ref =
-		classes.(self#read_uleb128)
+		classes.(read_uleb128 ch)
 
 	method read_abstract_ref =
-		abstracts.(self#read_uleb128)
+		abstracts.(read_uleb128 ch)
 
 	method read_enum_ref =
-		enums.(self#read_uleb128)
+		enums.(read_uleb128 ch)
 
 	method read_typedef_ref =
-		typedefs.(self#read_uleb128)
+		typedefs.(read_uleb128 ch)
 
 	method read_field_ref =
-		class_fields.(self#read_uleb128)
+		class_fields.(read_uleb128 ch)
 
 	method read_enum_field_ref =
-		enum_fields.(self#read_uleb128)
+		enum_fields.(read_uleb128 ch)
 
 	method read_anon_ref =
 		match IO.read_byte ch with
 		| 0 ->
-			anons.(self#read_uleb128)
+			anons.(read_uleb128 ch)
 		| 1 ->
-			let an = anons.(self#read_uleb128) in
+			let an = anons.(read_uleb128 ch) in
 			self#read_anon an
 		| _ ->
 			assert false
@@ -247,9 +244,9 @@ class hxb_reader
 	method read_anon_field_ref =
 		match IO.read_byte ch with
 		| 0 ->
-			anon_fields.(self#read_uleb128)
+			anon_fields.(read_uleb128 ch)
 		| 1 ->
-			let cf = anon_fields.(self#read_uleb128) in
+			let cf = anon_fields.(read_uleb128 ch) in
 			let close = self#open_field_scope in
 			self#read_class_field_data cf;
 			close();
@@ -395,7 +392,7 @@ class hxb_reader
 		(ct,p)
 
 	method read_access =
-		match self#read_u8 with
+		match IO.read_byte ch with
 		| 0 -> APublic
 		| 1 -> APrivate
 		| 2 -> AStatic
@@ -416,7 +413,7 @@ class hxb_reader
 		(ac,p)
 
 	method read_cfield_kind =
-		match self#read_u8 with
+		match IO.read_byte ch with
 		| 0 ->
 			let tho = self#read_option (fun () -> self#read_type_hint) in
 			let eo = self#read_option (fun () -> self#read_expr) in
@@ -448,7 +445,7 @@ class hxb_reader
 
 	method read_expr =
 		let p = self#read_pos in
-		let e = match self#read_u8 with
+		let e = match IO.read_byte ch with
 		| 0 ->
 			let s = self#read_string in
 			let suffix = self#read_option (fun () -> self#read_string) in
@@ -459,7 +456,7 @@ class hxb_reader
 			EConst (Float (s, suffix))
 		| 2 ->
 			let s = self#read_string in
-			let qs = begin match self#read_u8 with
+			let qs = begin match IO.read_byte ch with
 			| 0 -> SDoubleQuotes
 			| 1 -> SSingleQuotes
 			| _ -> assert false
@@ -476,14 +473,14 @@ class hxb_reader
 			let e2 = self#read_expr in
 			EArray(e1,e2)
 		| 6 ->
-			let op = self#get_binop (self#read_u8) in
+			let op = self#get_binop (IO.read_byte ch) in
 			let e1 = self#read_expr in
 			let e2 = self#read_expr in
 			EBinop(op,e1,e2)
 		| 7 ->
 			let e = self#read_expr in
 			let s = self#read_string in
-			let kind = begin match self#read_u8 with
+			let kind = begin match IO.read_byte ch with
 			| 0 -> EFNormal
 			| 1 -> EFSafe
 			| _ -> assert false
@@ -495,7 +492,7 @@ class hxb_reader
 			let fields = self#read_list (fun () ->
 				let n = self#read_string in
 				let p = self#read_pos in
-				let qs = begin match self#read_u8 with
+				let qs = begin match IO.read_byte ch with
 				| 0 -> NoQuotes
 				| 1 -> DoubleQuotes
 				| _ -> assert false
@@ -516,7 +513,7 @@ class hxb_reader
 			let el = self#read_list (fun () -> self#read_expr) in
 			ENew(ptp,el)
 		| 13 ->
-			let (op,flag) = self#get_unop (self#read_u8) in
+			let (op,flag) = self#get_unop (IO.read_byte ch) in
 			let e = self#read_expr in
 			EUnop(op,flag,e)
 		| 14 ->
@@ -538,7 +535,7 @@ class hxb_reader
 			) in
 			EVars vl
 		| 15 ->
-			let fk = begin match self#read_u8 with
+			let fk = begin match IO.read_byte ch with
 			| 0 -> FKAnonymous
 			| 1 ->
 				let pn = self#read_placed_name in
@@ -613,7 +610,7 @@ class hxb_reader
 			EIs(e1,th)
 		| 33 ->
 			let e1 = self#read_expr in
-			let dk = begin match self#read_u8 with
+			let dk = begin match IO.read_byte ch with
 			| 0 -> DKCall
 			| 1 -> DKDot
 			| 2 -> DKStructure
@@ -642,19 +639,19 @@ class hxb_reader
 
 	method resolve_ttp_ref = function
 		| 1 ->
-			let i = self#read_uleb128 in
+			let i = read_uleb128 ch in
 			(type_type_parameters.(i))
 		| 2 ->
-			let i = self#read_uleb128 in
+			let i = read_uleb128 ch in
 			(field_type_parameters.(i))
 		| 3 ->
-			let k = self#read_uleb128 in
+			let k = read_uleb128 ch in
 			local_type_parameters.(k)
 		| _ ->
 			die "" __LOC__
 
 	method read_type_instance =
-		self#process_type_instance (self#read_u8)
+		self#process_type_instance (IO.read_byte ch)
 
 	method process_type_instance (kind : int) =
 		let read_fun_arg () =
@@ -665,7 +662,7 @@ class hxb_reader
 		in
 		match kind with
 		| 0 ->
-			let i = self#read_uleb128 in
+			let i = read_uleb128 ch in
 			tmonos.(i)
 		| 1 | 2 | 3 ->
 			(self#resolve_ttp_ref kind).ttp_type
@@ -826,7 +823,7 @@ class hxb_reader
 	(* Fields *)
 
 	method read_type_parameters (host : type_param_host) (f : typed_type_param array -> unit) =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		let a = Array.init l (fun _ ->
 			let path = self#read_path in
 			let pos = self#read_pos in
@@ -834,7 +831,7 @@ class hxb_reader
 			mk_type_param c host None None
 		) in
 		f a;
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let meta = self#read_metadata in
 			let constraints = self#read_types in
@@ -849,7 +846,7 @@ class hxb_reader
 			c.cl_kind <- KTypeParameter ttp
 		done;
 
-	method read_field_kind = match self#read_u8 with
+	method read_field_kind = match IO.read_byte ch with
 		| 0 -> Method MethNormal
 		| 1 -> Method MethInline
 		| 2 -> Method MethDynamic
@@ -880,8 +877,8 @@ class hxb_reader
 				| i ->
 					error (Printf.sprintf "Bad accessor kind: %i" i)
 			in
-			let r = f self#read_u8 in
-			let w = f self#read_u8 in
+			let r = f (IO.read_byte ch) in
+			let w = f (IO.read_byte ch) in
 			Var {v_read = r;v_write = w}
 		| i ->
 			error (Printf.sprintf "Bad field kind: %i" i)
@@ -902,10 +899,10 @@ class hxb_reader
 			| _ -> assert false
 
 	method read_var =
-		let id = self#read_uleb128 in
+		let id = read_uleb128 ch in
 		let name = self#read_string in
 		let kind = self#read_var_kind in
-		let flags = self#read_uleb128 in
+		let flags = read_uleb128 ch in
 		let meta = self#read_metadata in
 		let pos = self#read_pos in
 		let v = {
@@ -923,10 +920,10 @@ class hxb_reader
 	method read_texpr fctx =
 
 		let declare_local () =
-			let v = fctx.vars.(self#read_uleb128) in
+			let v = fctx.vars.(read_uleb128 ch) in
 			v.v_extra <- self#read_option (fun () ->
 				let params = self#read_list (fun () ->
-					let i = self#read_uleb128 in
+					let i = read_uleb128 ch in
 					local_type_parameters.(i)
 				) in
 				let vexpr = self#read_option (fun () -> self#read_texpr fctx) in
@@ -939,21 +936,21 @@ class hxb_reader
 			v
 		in
 		let update_pmin () =
-			fctx.pos := {!(fctx.pos) with pmin = self#read_leb128};
+			fctx.pos := {!(fctx.pos) with pmin = read_leb128 ch};
 		in
 		let update_pmax () =
-			fctx.pos := {!(fctx.pos) with pmax = self#read_leb128};
+			fctx.pos := {!(fctx.pos) with pmax = read_leb128 ch};
 		in
 		let update_pminmax () =
-			let pmin = self#read_leb128 in
-			let pmax = self#read_leb128 in
+			let pmin = read_leb128 ch in
+			let pmax = read_leb128 ch in
 			fctx.pos := {!(fctx.pos) with pmin; pmax};
 		in
 		let update_p () =
 			fctx.pos := self#read_pos;
 		in
 		let read_relpos () =
-			begin match self#read_u8 with
+			begin match IO.read_byte ch with
 				| 0 ->
 					()
 				| 1 ->
@@ -970,7 +967,7 @@ class hxb_reader
 			!(fctx.pos)
 		in
 		let rec loop () =
-			let t = fctx.t_pool.(self#read_uleb128) in
+			let t = fctx.t_pool.(read_uleb128 ch) in
 			let p = read_relpos () in
 			let rec loop2 () =
 				match IO.read_byte ch with
@@ -988,7 +985,7 @@ class hxb_reader
 
 					(* vars 20-29 *)
 					| 20 ->
-						TLocal (fctx.vars.(self#read_uleb128))
+						TLocal (fctx.vars.(read_uleb128 ch))
 					| 21 ->
 						let v = declare_local () in
 						TVar (v,None)
@@ -1128,7 +1125,7 @@ class hxb_reader
 					| 101 ->
 						let e1 = loop () in
 						let ef = self#read_enum_field_ref in
-						let i = self#read_uleb128 in
+						let i = read_uleb128 ch in
 						TEnumParameter(e1,ef,i)
 					| 102 ->
 						let e1 = loop () in
@@ -1196,12 +1193,12 @@ class hxb_reader
 						let el = loop_el() in
 						TNew(c,tl,el)
 					| 127 ->
-						let ttp = self#resolve_ttp_ref self#read_uleb128 in
+						let ttp = self#resolve_ttp_ref (read_uleb128 ch) in
 						let tl = self#read_types in
 						let el = loop_el() in
 						TNew(ttp.ttp_class,tl,el)
 					| 128 ->
-						let ttp = self#resolve_ttp_ref self#read_uleb128 in
+						let ttp = self#resolve_ttp_ref (read_uleb128 ch) in
 						TTypeExpr (TClassDecl ttp.ttp_class)
 
 					(* unops 140-159 *)
@@ -1245,18 +1242,18 @@ class hxb_reader
 		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos; cf_overloads = overloads }
 
 	method start_texpr =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		let ts = Array.init l (fun _ ->
 			self#read_type_instance
 		) in
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		let vars = Array.init l (fun _ ->
 			self#read_var
 		) in
 		create_field_reader_context self#read_pos ts vars
 
 	method read_field_type_parameters kind =
-		let num_params = self#read_uleb128 in
+		let num_params = read_uleb128 ch in
 		if not self#in_nested_scope then begin
 			self#read_type_parameters kind (* TODO: need to encode this because we don't know *) (fun a ->
 				field_type_parameters <- a;
@@ -1281,13 +1278,13 @@ class hxb_reader
 			);
 		let t = self#read_type_instance in
 
-		let flags = self#read_uleb128 in
+		let flags = read_uleb128 ch in
 
 		let doc = self#read_option (fun () -> self#read_documentation) in
 		let meta = self#read_metadata in
 		let kind = self#read_field_kind in
 
-		let expr,expr_unoptimized = match self#read_u8 with
+		let expr,expr_unoptimized = match IO.read_byte ch with
 			| 0 ->
 				None,None
 			| _ ->
@@ -1321,7 +1318,7 @@ class hxb_reader
 			| [] ->
 				assert (depth = 0)
 		in
-		loop self#read_uleb128 cf.cf_overloads;
+		loop (read_uleb128 ch) cf.cf_overloads;
 
 
 	method read_class_fields (c : tclass) =
@@ -1354,8 +1351,8 @@ class hxb_reader
 			| [] ->
 				assert (num = 0)
 		in
-		loop CfrMember (self#read_uleb128) c.cl_ordered_fields;
-		loop CfrStatic (self#read_uleb128) c.cl_ordered_statics;
+		loop CfrMember (read_uleb128 ch) c.cl_ordered_fields;
+		loop CfrStatic (read_uleb128 ch) c.cl_ordered_statics;
 		c.cl_init <- self#read_option (fun () -> self#read_texpr self#start_texpr);
 		(match c.cl_kind with KModuleFields md -> md.m_statics <- Some c; | _ -> ());
 
@@ -1387,7 +1384,7 @@ class hxb_reader
 			(c,p)
 		)
 
-	method read_class_kind = match self#read_u8 with
+	method read_class_kind = match IO.read_byte ch with
 		| 0 -> KNormal
 		| 1 ->
 			die "TODO" __LOC__
@@ -1407,7 +1404,7 @@ class hxb_reader
 	method read_class (c : tclass) =
 		self#read_common_module_type (Obj.magic c);
 		c.cl_kind <- self#read_class_kind;
-		c.cl_flags <- self#read_uleb128;
+		c.cl_flags <- read_uleb128 ch;
 		let read_relation () =
 			let c = self#read_class_ref in
 			let tl = self#read_types in
@@ -1421,7 +1418,7 @@ class hxb_reader
 	method read_abstract (a : tabstract) =
 		self#read_common_module_type (Obj.magic a);
 		a.a_impl <- self#read_option (fun () -> self#read_class_ref);
-		begin match self#read_u8 with
+		begin match IO.read_byte ch with
 			| 0 ->
 				a.a_this <- TAbstract(a,extract_param_types a.a_params)
 			| _ ->
@@ -1488,7 +1485,7 @@ class hxb_reader
 	(* Chunks *)
 
 	method read_string_pool =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		Array.init l (fun i ->
 			self#read_raw_string;
 		);
@@ -1503,7 +1500,7 @@ class hxb_reader
 		(kind,data)
 
 	method read_enfr =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		let a = Array.init l (fun i ->
 			let en = self#read_enum_ref in
 			let name = self#read_string in
@@ -1512,7 +1509,7 @@ class hxb_reader
 		enum_fields <- a
 
 	method read_anfr =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		let a = Array.init l (fun i ->
 			let name = self#read_string in
 			let pos = self#read_pos in
@@ -1522,12 +1519,12 @@ class hxb_reader
 		anon_fields <- a
 
 	method read_cflr =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		let instance_overload_cache = Hashtbl.create 0 in
 		let a = Array.init l (fun i ->
 			let c = self#read_class_ref in
 			ignore(c.cl_build());
-			let kind = match self#read_u8 with
+			let kind = match IO.read_byte ch with
 				| 0 -> CfrStatic
 				| 1 -> CfrMember
 				| 2 -> CfrConstructor
@@ -1575,7 +1572,7 @@ class hxb_reader
 				in
 				loop depth cfl
 			in
-			let depth = self#read_uleb128 in
+			let depth = read_uleb128 ch in
 			if depth = 0 then
 				cf
 			else
@@ -1584,42 +1581,42 @@ class hxb_reader
 		class_fields <- a
 
 	method read_cfld =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let c = classes.(i) in
 			self#read_class_fields c;
 		done
 
 	method read_afld =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let a = abstracts.(i) in
 			self#read_abstract_fields a;
 		done
 
 	method read_clsd =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let c = classes.(i) in
 			self#read_class c;
 		done
 
 	method read_absd =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let a = abstracts.(i) in
 			self#read_abstract a;
 		done
 
 	method read_enmd =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let en = enums.(i) in
 			self#read_enum en;
 		done
 
 	method read_efld =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let e = enums.(i) in
 			self#read_enum_fields e;
@@ -1634,7 +1631,7 @@ class hxb_reader
 			List.iter (fun cf -> an.a_fields <- PMap.add cf.cf_name cf an.a_fields) fields;
 		in
 
-		begin match self#read_u8 with
+		begin match IO.read_byte ch with
 		| 0 ->
 			an.a_status := Closed;
 			read_fields ()
@@ -1650,14 +1647,14 @@ class hxb_reader
 		an
 
 	method read_tpdd =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let t = typedefs.(i) in
 			self#read_typedef t;
 		done
 
 	method read_clsr =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		classes <- (Array.init l (fun i ->
 				let (pack,mname,tname) = self#read_full_path in
 				match self#resolve_type pack mname tname with
@@ -1668,7 +1665,7 @@ class hxb_reader
 		))
 
 	method read_absr =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		abstracts <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
 			match self#resolve_type pack mname tname with
@@ -1679,7 +1676,7 @@ class hxb_reader
 		))
 
 	method read_enmr =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		enums <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
 			match self#resolve_type pack mname tname with
@@ -1690,7 +1687,7 @@ class hxb_reader
 		))
 
 	method read_tpdr =
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		typedefs <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
 			match self#resolve_type pack mname tname with
@@ -1702,7 +1699,7 @@ class hxb_reader
 
 	method read_typf =
 		self#read_list (fun () ->
-			let kind = self#read_u8 in
+			let kind = IO.read_byte ch in
 			(* let path = self#read_path in *)
 			let (pack,_,tname) = self#read_full_path in
 			let path = (pack, tname) in
@@ -1732,7 +1729,7 @@ class hxb_reader
 					let name = self#read_string in
 					let pos = self#read_pos in
 					let name_pos = self#read_pos in
-					let index = self#read_u8 in
+					let index = IO.read_byte ch in
 
 					{ null_enum_field with
 						ef_name = name;
@@ -1762,9 +1759,9 @@ class hxb_reader
 		let path = self#read_path in
 		let file = self#read_string in
 
-		let l = self#read_uleb128 in
+		let l = read_uleb128 ch in
 		anons <- Array.init l (fun _ -> { a_fields = PMap.empty; a_status = ref Closed });
-		tmonos <- Array.init (self#read_uleb128) (fun _ -> mk_mono());
+		tmonos <- Array.init (read_uleb128 ch) (fun _ -> mk_mono());
 		api#make_module path file
 
 	method read (api : hxb_reader_api) (stop : chunk_kind) (file_ch : IO.input) =
