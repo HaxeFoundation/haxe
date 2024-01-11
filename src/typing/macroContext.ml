@@ -34,7 +34,6 @@ module Interp = struct
 	include BuiltApi
 end
 
-let macro_enable_cache = ref false
 let macro_interp_cache = ref None
 
 let safe_decode com v expected t p f =
@@ -269,9 +268,6 @@ let make_macro_com_api com mcom p =
 		);
 		current_module = (fun() ->
 			null_module
-		);
-		use_cache = (fun() ->
-			!macro_enable_cache
 		);
 		format_string = (fun s p ->
 			FormatString.format_string com.defines s p (fun e p -> (e,p))
@@ -610,9 +606,7 @@ let init_macro_interp mctx mint =
 	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Expr") p);
 	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Type") p);
 	Interp.init mint;
-	if !macro_enable_cache && not (Common.defined mctx.com Define.NoMacroCache) then begin
-		macro_interp_cache := Some mint;
-	end
+	macro_interp_cache := Some mint
 
 and flush_macro_context mint mctx =
 	let t = macro_timer mctx.com ["flush"] in
