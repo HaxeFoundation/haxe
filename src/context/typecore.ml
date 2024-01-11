@@ -506,6 +506,18 @@ let is_forced_inline c cf =
 let needs_inline ctx c cf =
 	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.g.doinline || is_forced_inline c cf)
 
+let clone_type_parameter map path ttp =
+	let c = ttp.ttp_class in
+	let c = {c with cl_path = path} in
+	let def = Option.map map ttp.ttp_default in
+	let constraints = match ttp.ttp_constraints with
+		| None -> None
+		| Some constraints -> Some (lazy (List.map map (Lazy.force constraints)))
+	in
+	let ttp' = mk_type_param c ttp.ttp_host def constraints in
+	c.cl_kind <- KTypeParameter ttp';
+	ttp'
+
 (** checks if we can access to a given class field using current context *)
 let can_access ctx c cf stat =
 	if (has_class_field_flag cf CfPublic) then
