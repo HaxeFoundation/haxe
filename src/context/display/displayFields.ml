@@ -39,9 +39,9 @@ let collect_static_extensions ctx items e p =
 	let opt_type t =
 		match t with
 		| TLazy f ->
-			return_partial_type := true;
+			ctx.g.return_partial_type <- true;
 			let t = lazy_type f in
-			return_partial_type := false;
+			ctx.g.return_partial_type <- false;
 			t
 		| _ ->
 			t
