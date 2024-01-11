@@ -139,6 +139,9 @@ class hxb_reader_api_com
 
 	method basic_types =
 		com.basic
+
+	method get_var_id (i : int) =
+		i
 end
 
 let find_module com cc path p =

@@ -795,6 +795,12 @@ class hxb_reader_api_typeload
 
 	method basic_types =
 		ctx.com.basic
+
+	method get_var_id (i : int) =
+		(* The v_id in .hxb has no relation to this context, make a new one. *)
+		let uid = fst alloc_var' in
+		incr uid;
+		!uid
 end
 
 let rec get_reader ctx p =

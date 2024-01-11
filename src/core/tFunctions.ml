@@ -58,9 +58,9 @@ let has_var_flag v (flag : flag_tvar) =
 
 (* ======= General utility ======= *)
 
-let alloc_var =
+let alloc_var' =
 	let uid = ref 0 in
-	(fun kind n t p ->
+	uid,(fun kind n t p ->
 		incr uid;
 		{
 			v_kind = kind;
@@ -73,6 +73,10 @@ let alloc_var =
 			v_flags = (match kind with VUser TVOLocalFunction -> int_of_var_flag VFinal | _ -> 0);
 		}
 	)
+
+let alloc_var =
+	let _,alloc_var = alloc_var' in
+	alloc_var
 
 let alloc_mid =
 	let mid = ref 0 in

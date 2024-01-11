@@ -906,7 +906,7 @@ class hxb_reader
 		let meta = self#read_metadata in
 		let pos = self#read_pos in
 		let v = {
-			v_id = id;
+			v_id = api#get_var_id id;
 			v_name = name;
 			v_type = t_dynamic;
 			v_kind = kind;

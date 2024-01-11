@@ -436,6 +436,9 @@ class hxb_reader_api_server
 
 	method basic_types =
 		ctx.com.basic
+
+	method get_var_id (i : int) =
+		i
 end
 
 let handle_cache_bound_objects com cbol =
