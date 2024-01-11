@@ -227,27 +227,27 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
-let check_module sctx ctx m p =
+let check_module sctx ctx m_path m_extra p =
 	let com = ctx.Typecore.com in
 	let cc = CommonCache.get_cache com in
-	let content_changed m file =
+	let content_changed m_path file =
 		let fkey = ctx.com.file_keys#get file in
 		try
 			let cfile = cc#find_file fkey in
 			(* We must use the module path here because the file path is absolute and would cause
 				positions in the parsed declarations to differ. *)
-			let new_data = TypeloadParse.parse_module ctx m.m_path p in
+			let new_data = TypeloadParse.parse_module ctx m_path p in
 			cfile.c_decls <> snd new_data
 		with Not_found ->
 			true
 	in
-	let check_module_shadowing paths m =
+	let check_module_shadowing paths m_path m_extra =
 		List.iter (fun dir ->
-			let file = (dir.c_path ^ (snd m.m_path)) ^ ".hx" in
+			let file = (dir.c_path ^ (snd m_path)) ^ ".hx" in
 			if Sys.file_exists file then begin
 				let time = file_time file in
-				if time > m.m_extra.m_time then begin
-					ServerMessage.module_path_changed com "" (m,time,file);
+				if time > m_extra.m_time then begin
+					ServerMessage.module_path_changed com "" (m_path,m_extra,time,file);
 					raise (Dirty (Shadowed file))
 				end
 			end
@@ -255,33 +255,33 @@ let check_module sctx ctx m p =
 	in
 	let start_mark = sctx.compilation_step in
 	let unknown_state_modules = ref [] in
-	let rec check m =
+	let rec check m_path m_extra =
 		let check_module_path () =
 			let directories = get_changed_directories sctx ctx in
-			match m.m_extra.m_kind with
+			match m_extra.m_kind with
 			| MFake | MImport -> () (* don't get classpath *)
 			| MExtern ->
 				(* if we have a file then this will override our extern type *)
-				check_module_shadowing directories m;
+				check_module_shadowing directories m_path m_extra;
 				let rec loop = function
 					| [] ->
-						if sctx.verbose then print_endline ("No library file was found for " ^ s_type_path m.m_path); (* TODO *)
+						if sctx.verbose then print_endline ("No library file was found for " ^ s_type_path m_path); (* TODO *)
 						raise (Dirty LibraryChanged)
 					| (file,load) :: l ->
-						match load m.m_path p with
+						match load m_path p with
 						| None ->
 							loop l
 						| Some _ ->
-							if com.file_keys#get file <> (Path.UniqueKey.lazy_key m.m_extra.m_file) then begin
-								if sctx.verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path); (* TODO *)
+							if com.file_keys#get file <> (Path.UniqueKey.lazy_key m_extra.m_file) then begin
+								if sctx.verbose then print_endline ("Library file was changed for " ^ s_type_path m_path); (* TODO *)
 								raise (Dirty LibraryChanged)
 							end
 				in
 				loop com.load_extern_type
 			| MCode ->
-				check_module_shadowing directories m
+				check_module_shadowing directories m_path m_extra
 			| MMacro when com.is_macro_context ->
-				check_module_shadowing directories m
+				check_module_shadowing directories m_path m_extra
 			| MMacro ->
 				(*
 					Creating another context while the previous one is incomplete means we have an infinite loop in the compiler.
@@ -294,40 +294,43 @@ let check_module sctx ctx m p =
 						^ "Probably caused by shadowing a module of the standard library. "
 						^ "Make sure shadowed module does not pull macro context."));
 				let mctx = MacroContext.get_macro_context ctx in
-				check_module_shadowing (get_changed_directories sctx mctx) m
+				check_module_shadowing (get_changed_directories sctx mctx) m_path m_extra
 		in
-		let has_policy policy = List.mem policy m.m_extra.m_check_policy || match policy with
+		let has_policy policy = List.mem policy m_extra.m_check_policy || match policy with
 			| NoCheckShadowing | NoCheckFileTimeModification when !ServerConfig.do_not_check_modules && !Parser.display_mode <> DMNone -> true
 			| _ -> false
 		in
 		let check_file () =
-			let file = Path.UniqueKey.lazy_path m.m_extra.m_file in
-			if file_time file <> m.m_extra.m_time then begin
-				if has_policy CheckFileContentModification && not (content_changed m file) then begin
+			let file = Path.UniqueKey.lazy_path m_extra.m_file in
+			if file_time file <> m_extra.m_time then begin
+				if has_policy CheckFileContentModification && not (content_changed m_path file) then begin
 					ServerMessage.unchanged_content com "" file;
 				end else begin
-					ServerMessage.not_cached com "" m;
-					if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules (Path.UniqueKey.lazy_key m.m_extra.m_file);
+					ServerMessage.not_cached com "" m_path;
+					if m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules (Path.UniqueKey.lazy_key m_extra.m_file);
 					raise (Dirty (FileChanged file))
 				end
 			end
 		in
+		let find_module_extra sign mpath =
+			((com.cs#get_context sign)#find_module mpath).m_extra
+		in
 		let check_dependencies () =
 			PMap.iter (fun _ (sign,mpath) ->
-				let m2 = try
-					(com.cs#get_context sign)#find_module mpath
+				let m2_extra = try
+					find_module_extra sign mpath
 				with Not_found ->
-					die (Printf.sprintf "Could not find dependency %s of %s in the cache" (s_type_path mpath) (s_type_path m.m_path)) __LOC__;
+					die (Printf.sprintf "Could not find dependency %s of %s in the cache" (s_type_path mpath) (s_type_path m_path)) __LOC__;
 				in
-				match check m2 with
+				match check mpath m2_extra with
 				| None -> ()
-				| Some reason -> raise (Dirty (DependencyDirty(m2.m_path,reason)))
-			) m.m_extra.m_deps;
+				| Some reason -> raise (Dirty (DependencyDirty(mpath,reason)))
+			) m_extra.m_deps;
 		in
 		let check () =
 			try
 				if not (has_policy NoCheckShadowing) then check_module_path();
-				if not (has_policy NoCheckFileTimeModification) || Path.file_extension (Path.UniqueKey.lazy_path m.m_extra.m_file) <> "hx" then check_file();
+				if not (has_policy NoCheckFileTimeModification) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
 				if not (has_policy NoCheckDependencies) then check_dependencies();
 				None
 			with
@@ -335,15 +338,15 @@ let check_module sctx ctx m p =
 				Some reason
 		in
 		(* If the module mark matches our compilation mark, we are done *)
-		if m.m_extra.m_checked = start_mark then begin match m.m_extra.m_cache_state with
+		if m_extra.m_checked = start_mark then begin match m_extra.m_cache_state with
 			| MSGood | MSUnknown ->
 				None
 			| MSBad reason ->
 				Some reason
 		end else begin
 			(* Otherwise, set to current compilation mark for recursion *)
-			m.m_extra.m_checked <- start_mark;
-			let dirty = match m.m_extra.m_cache_state with
+			m_extra.m_checked <- start_mark;
+			let dirty = match m_extra.m_cache_state with
 				| MSBad reason ->
 					(* If we are already dirty, stick to it. *)
 					Some reason
@@ -352,49 +355,35 @@ let check_module sctx ctx m p =
 					die "" __LOC__
 				| MSGood ->
 					(* Otherwise, run the checks *)
-					m.m_extra.m_cache_state <- MSUnknown;
+					m_extra.m_cache_state <- MSUnknown;
 					check ()
-			in
-			let dirty = match dirty with
-				| Some (DependencyDirty _) when has_policy Retype ->
-					let result = Retyper.attempt_retyping ctx m p in
-					begin match result with
-					| None ->
-						ServerMessage.retyper_ok com "" m;
-						None
-					| Some reason ->
-						ServerMessage.retyper_fail com "" m reason;
-						dirty
-					end
-				| _ ->
-					dirty
 			in
 			(* Update the module now. It will use this dirty status for the remainder of this compilation. *)
 			begin match dirty with
 			| Some reason ->
 				(* Update the state if we're dirty. *)
-				m.m_extra.m_cache_state <- MSBad reason;
+				m_extra.m_cache_state <- MSBad reason;
 			| None ->
 				(* We cannot update if we're clean because at this point it might just be an assumption.
 				   Instead We add the module to a list which is updated at the end of handling this subgraph. *)
-				unknown_state_modules := m :: !unknown_state_modules;
+				unknown_state_modules := m_extra :: !unknown_state_modules;
 			end;
 			dirty
 		end
 	in
-	let state = check m in
+	let state = check m_path m_extra in
 	begin match state with
 	| None ->
 		(* If the entire subgraph is clean, we can set all modules to good state *)
-		List.iter (fun m -> m.m_extra.m_cache_state <- MSGood) !unknown_state_modules;
+		List.iter (fun m_extra -> m_extra.m_cache_state <- MSGood) !unknown_state_modules;
 	| Some _ ->
 		(* Otherwise, unknown state module may or may not be dirty. We didn't check everything eagerly, so we have
 		   to make sure that the module is checked again if it appears in a different check. This is achieved by
 		   setting m_checked to a lower value and assuming Good state again. *)
-		List.iter (fun m -> match m.m_extra.m_cache_state with
+		List.iter (fun m_extra -> match m_extra.m_cache_state with
 			| MSUnknown ->
-				m.m_extra.m_checked <- start_mark - 1;
-				m.m_extra.m_cache_state <- MSGood;
+				m_extra.m_checked <- start_mark - 1;
+				m_extra.m_cache_state <- MSGood;
 			| MSGood | MSBad _ ->
 				()
 		) !unknown_state_modules
@@ -447,10 +436,10 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 	try
 		let m = cc#find_module mpath in
 		let tcheck = Timer.timer ["server";"module cache";"check"] in
-		begin match check_module sctx ctx m p with
+		begin match check_module sctx ctx m.m_path m.m_extra p with
 		| None -> ()
 		| Some reason ->
-			ServerMessage.skipping_dep com "" (m,(Printer.s_module_skip_reason reason));
+			ServerMessage.skipping_dep com "" (m.m_path,(Printer.s_module_skip_reason reason));
 			tcheck();
 			raise Not_found;
 		end;

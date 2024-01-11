@@ -90,7 +90,10 @@ let create com macros =
 		match t with
 		| TAbstractDecl a ->
 			(match snd a.a_path with
-			| "Void" -> ctx.t.tvoid <- TAbstract (a,[]);
+			| "Void" ->
+				let t = TAbstract (a,[]) in
+				Type.unify t ctx.t.tvoid;
+				ctx.t.tvoid <- t;
 			| "Float" ->
 				let t = (TAbstract (a,[])) in
 				Type.unify t ctx.t.tfloat;

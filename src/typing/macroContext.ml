@@ -664,7 +664,6 @@ and flush_macro_context mint mctx =
 		Exceptions.patch_constructors mctx;
 		(fun mt -> AddFieldInits.add_field_inits mctx.curclass.cl_path (RenameVars.init mctx.com) mctx.com mt);
 		minimal_restore;
-		Naming.apply_native_paths
 	] in
 	let ready = fun t ->
 		FiltersCommon.apply_filters_once mctx expr_filters t;

@@ -169,7 +169,13 @@ module Setup = struct
 				add_std "eval";
 				"eval"
 
-	let create_typer_context ctx macros native_libs =
+	let init_native_libs com native_libs =
+		(* Native lib pass 1: Register *)
+		let fl = List.map (fun lib -> NativeLibraryHandler.add_native_lib com lib) (List.rev native_libs) in
+		(* Native lib pass 2: Initialize *)
+		List.iter (fun f -> f()) fl
+
+	let create_typer_context ctx macros =
 		let com = ctx.com in
 		let buffer = Buffer.create 64 in
 		Buffer.add_string buffer "Defines: ";
@@ -180,10 +186,6 @@ module Setup = struct
 		Buffer.truncate buffer (Buffer.length buffer - 1);
 		Common.log com (Buffer.contents buffer);
 		com.callbacks#run com.error_ext com.callbacks#get_before_typer_create;
-		(* Native lib pass 1: Register *)
-		let fl = List.map (fun lib -> NativeLibraryHandler.add_native_lib com lib) (List.rev native_libs) in
-		(* Native lib pass 2: Initialize *)
-		List.iter (fun f -> f()) fl;
 		TyperEntry.create com macros
 
 	let executable_path() =
@@ -291,7 +293,6 @@ let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	enter_stage com CInitMacrosStart;
 	ServerMessage.compiler_stage com;
-
 	let mctx = List.fold_left (fun mctx path ->
 		Some (MacroContext.call_init_macro ctx.com mctx path)
 	) mctx (List.rev actx.config_macros) in
@@ -300,7 +301,8 @@ let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
 	MacroContext.macro_enable_cache := macro_cache_enabled;
 
 	let macros = match mctx with None -> None | Some mctx -> mctx.g.macros in
-	let tctx = Setup.create_typer_context ctx macros actx.native_libs in
+	Setup.init_native_libs com actx.native_libs;
+	let tctx = Setup.create_typer_context ctx macros in
 	let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
 	check_defines ctx.com;
 	CommonCache.lock_signature com "after_init_macros";
