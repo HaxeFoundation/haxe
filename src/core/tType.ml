@@ -463,6 +463,7 @@ type flag_tclass =
 	| CInterface
 	| CAbstract
 	| CFunctionalInterface
+	| CUsed (* Marker for DCE *)
 
 type flag_tclass_field =
 	| CfPublic
@@ -478,10 +479,12 @@ type flag_tclass_field =
 	| CfGeneric
 	| CfDefault (* Interface field with default implementation (only valid on Java) *)
 	| CfPostProcessed (* Marker to indicate the field has been post-processed *)
+	| CfUsed (* Marker for DCE *)
+	| CfMaybeUsed (* Marker for DCE *)
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed"
 ]
 
 type flag_tvar =

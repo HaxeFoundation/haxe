@@ -121,7 +121,8 @@ let mk_keep_meta pos =
 *)
 let rec keep_field dce cf c kind =
 	let is_static = kind = CfrStatic in
-	Meta.has_one_of (Meta.Used :: keep_metas) cf.cf_meta
+	Meta.has_one_of keep_metas cf.cf_meta
+	|| has_class_field_flag cf CfUsed
 	|| cf.cf_name = "__init__"
 	|| has_class_field_flag cf CfExtern
 	|| (not is_static && overrides_extern_field cf c)
@@ -166,8 +167,8 @@ and check_and_add_feature dce s =
 (* mark a field as kept *)
 and mark_field dce c cf kind =
 	let add c' cf =
-		if not (Meta.has Meta.Used cf.cf_meta) then begin
-			cf.cf_meta <- (mk_used_meta cf.cf_pos) :: cf.cf_meta;
+		if not (has_class_field_flag cf CfUsed) then begin
+			add_class_field_flag cf CfUsed;
 			dce.added_fields <- (c',cf,kind) :: dce.added_fields;
 			dce.marked_fields <- cf :: dce.marked_fields;
 			check_feature dce (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name);
@@ -202,10 +203,10 @@ let rec update_marked_class_fields dce c =
 	let pop = push_class dce c in
 	(* mark all :?used fields as surely :used now *)
 	List.iter (fun cf ->
-		if Meta.has Meta.MaybeUsed cf.cf_meta then mark_field dce c cf CfrStatic
+		if has_class_field_flag cf CfMaybeUsed then mark_field dce c cf CfrStatic
 	) c.cl_ordered_statics;
 	List.iter (fun cf ->
-		if Meta.has Meta.MaybeUsed cf.cf_meta then mark_field dce c cf CfrMember
+		if has_class_field_flag cf CfMaybeUsed then mark_field dce c cf CfrMember
 	) c.cl_ordered_fields;
 	(* we always have to keep super classes and implemented interfaces *)
 	(match c.cl_init with None -> () | Some init -> dce.follow_expr dce init);
@@ -214,8 +215,8 @@ let rec update_marked_class_fields dce c =
 	pop()
 
 (* mark a class as kept. If the class has fields marked as @:?keep, make sure to keep them *)
-and mark_class dce c = if not (Meta.has Meta.Used c.cl_meta) then begin
-	c.cl_meta <- (mk_used_meta c.cl_pos) :: c.cl_meta;
+and mark_class dce c = if not (has_class_flag c CUsed) then begin
+	add_class_flag c CUsed;
 	check_feature dce (Printf.sprintf "%s.*" (s_type_path c.cl_path));
 	update_marked_class_fields dce c;
 end
@@ -238,8 +239,8 @@ and mark_t dce p t =
 		dce.t_stack <- t :: dce.t_stack;
 		begin match follow t with
 		| TInst({cl_kind = KTypeParameter ttp} as c,pl) ->
-			if not (Meta.has Meta.Used c.cl_meta) then begin
-				c.cl_meta <- (mk_used_meta c.cl_pos) :: c.cl_meta;
+			if not (has_class_flag c CUsed) then begin
+				add_class_flag c CUsed;
 				List.iter (mark_t dce p) (get_constraints ttp);
 			end;
 			List.iter (mark_t dce p) pl
@@ -288,10 +289,10 @@ let mark_dependent_fields dce csup n kind =
 			let cf = PMap.find n (if stat then c.cl_statics else c.cl_fields) in
 			(* if it's clear that the class is kept, the field has to be kept as well. This is also true for
 				extern interfaces because we cannot remove fields from them *)
-			if Meta.has Meta.Used c.cl_meta || ((has_class_flag csup CInterface) && (has_class_flag csup CExtern)) then mark_field dce c cf kind
+			if has_class_flag c CUsed || ((has_class_flag csup CInterface) && (has_class_flag csup CExtern)) then mark_field dce c cf kind
 			(* otherwise it might be kept if the class is kept later, so mark it as :?used *)
-			else if not (Meta.has Meta.MaybeUsed cf.cf_meta) then begin
-				cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;
+			else if not (has_class_field_flag cf CfMaybeUsed) then begin
+				add_class_field_flag cf CfMaybeUsed;
 				dce.marked_maybe_fields <- cf :: dce.marked_maybe_fields;
 			end
 		with Not_found ->
@@ -685,7 +686,7 @@ and expr dce e =
 let fix_accessors com =
 	List.iter (fun mt -> match mt with
 		(* filter empty abstract implementation classes (issue #1885). *)
-		| TClassDecl({cl_kind = KAbstractImpl _} as c) when c.cl_ordered_statics = [] && c.cl_ordered_fields = [] && not (Meta.has Meta.Used c.cl_meta) ->
+		| TClassDecl({cl_kind = KAbstractImpl _} as c) when c.cl_ordered_statics = [] && c.cl_ordered_fields = [] && not (has_class_flag c CUsed) ->
 			add_class_flag c CExtern;
 		| TClassDecl({cl_kind = KAbstractImpl a} as c) when a.a_enum ->
 			let is_runtime_field cf =
@@ -719,10 +720,9 @@ let fix_accessors com =
 let collect_entry_points dce com =
 	let delayed = ref [] in
 	List.iter (fun t ->
-		let mt = t_infos t in
-		mt.mt_meta <- Meta.remove Meta.Used mt.mt_meta;
 		match t with
 		| TClassDecl c ->
+			remove_class_flag c CUsed;
 			let keep_class = keep_whole_class dce c && (not (has_class_flag c CExtern) || (has_class_flag c CInterface)) in
 			let is_struct = dce.com.platform = Hl && Meta.has Meta.Struct c.cl_meta in
 			let loop kind cf =
@@ -762,6 +762,7 @@ let collect_entry_points dce com =
 					()
 			end;
 		| TEnumDecl en when keep_whole_enum dce en ->
+			en.e_meta <- Meta.remove Meta.Used en.e_meta;
 			delayed := (fun () ->
 				let pop = push_class dce {null_class with cl_module = en.e_module} in
 				mark_enum dce en;
@@ -862,7 +863,7 @@ let sweep dce com =
 			let inef cf = is_physical_field cf in
 			let has_non_extern_fields = List.exists inef c.cl_ordered_fields || List.exists inef c.cl_ordered_statics in
 			(* we keep a class if it was used or has a used field *)
-			if Meta.has Meta.Used c.cl_meta || has_non_extern_fields then loop (mt :: acc) l else begin
+			if has_class_flag c CUsed || has_non_extern_fields then loop (mt :: acc) l else begin
 				(match c.cl_init with
 				| Some f when Meta.has Meta.KeepInit c.cl_meta ->
 					(* it means that we only need the __init__ block *)
@@ -944,5 +945,4 @@ let run com main mode =
 	) com.types;
 
 	(* cleanup added fields metadata - compatibility with compilation server *)
-	List.iter (fun cf -> cf.cf_meta <- Meta.remove Meta.Used cf.cf_meta) dce.marked_fields;
-	List.iter (fun cf -> cf.cf_meta <- Meta.remove Meta.MaybeUsed cf.cf_meta) dce.marked_maybe_fields
+	List.iter (fun cf -> remove_class_field_flag cf CfUsed) dce.marked_fields
