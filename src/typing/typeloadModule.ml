@@ -393,7 +393,7 @@ module TypeLevel = struct
 				add_class_flag c CFinal;
 			end
 		) d.d_meta;
-		let prev_build_count = ref (!build_count - 1) in
+		let prev_build_count = ref (ctx.g.build_count - 1) in
 		let build() =
 			c.cl_build <- (fun()-> Building [c]);
 			let fl = TypeloadCheck.Inheritance.set_heritance ctx c herits p in
@@ -403,7 +403,7 @@ module TypeLevel = struct
 					List.iter (fun f -> f()) fl;
 					TypeloadFields.init_class ctx c p d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
-					incr build_count;
+					ctx.g.build_count <- ctx.g.build_count + 1;
 					List.iter (fun tp -> ignore(follow tp.ttp_type)) c.cl_params;
 					Built;
 				with TypeloadCheck.Build_canceled state ->
@@ -414,8 +414,8 @@ module TypeLevel = struct
 					(match state with
 					| Built -> die "" __LOC__
 					| Building cl ->
-						if !build_count = !prev_build_count then raise_typing_error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
-						prev_build_count := !build_count;
+						if ctx.g.build_count = !prev_build_count then raise_typing_error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
+						prev_build_count := ctx.g.build_count;
 						rebuild();
 						Building (c :: cl)
 					| BuildMacro f ->
