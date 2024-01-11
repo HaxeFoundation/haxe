@@ -97,12 +97,6 @@ let mk_anon ?fields status =
 	let fields = match fields with Some fields -> fields | None -> PMap.empty in
 	TAnon { a_fields = fields; a_status = status; }
 
-(* We use this for display purposes because otherwise we never see the Dynamic type that
-   is defined in StdTypes.hx. This is set each time a typer is created, but this is fine
-   because Dynamic is the same in all contexts. If this ever changes we'll have to review
-   how we handle this. *)
-let t_dynamic_def = ref t_dynamic
-
 let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
 let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
