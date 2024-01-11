@@ -107,8 +107,28 @@ let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
 let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 
-let mk_class m path pos name_pos =
+let mk_typedef m path pos name_pos t =
 	{
+		t_path = path;
+		t_module = m;
+		t_pos = pos;
+		t_name_pos = name_pos;
+		t_private = false;
+		t_doc = None;
+		t_meta = [];
+		t_params = [];
+		t_using = [];
+		t_type = t;
+		t_restore = (fun () -> ());
+	}
+
+let class_module_type c =
+	let path = ([],"Class<" ^ (s_type_path c.cl_path) ^ ">") in
+	let t = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
+	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
+
+let mk_class m path pos name_pos =
+	let c = {
 		cl_path = path;
 		cl_module = m;
 		cl_pos = pos;
@@ -118,6 +138,7 @@ let mk_class m path pos name_pos =
 		cl_private = false;
 		cl_kind = KNormal;
 		cl_flags = 0;
+		cl_type = t_dynamic;
 		cl_params = [];
 		cl_using = [];
 		cl_super = None;
@@ -133,22 +154,9 @@ let mk_class m path pos name_pos =
 		cl_build = (fun() -> Built);
 		cl_restore = (fun() -> ());
 		cl_descendants = [];
-	}
-
-let mk_typedef m path pos name_pos t =
-	{
-		t_path = path;
-		t_module = m;
-		t_pos = pos;
-		t_name_pos = name_pos;
-		t_private = false;
-		t_doc = None;
-		t_meta = [];
-		t_params = [];
-		t_using = [];
-		t_type = t;
-		t_restore = (fun () -> ());
-	}
+	} in
+	c.cl_type <- TType(class_module_type c,[]);
+	c
 
 let module_extra file sign time kind added policy =
 	{
@@ -939,11 +947,6 @@ let var_extra params e = {
 	v_params = params;
 	v_expr = e;
 }
-
-let class_module_type c =
-	let path = ([],"Class<" ^ (s_type_path c.cl_path) ^ ">") in
-	let t = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
-	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
 
 let enum_module_type en =
 	let path = ([], "Enum<" ^ (s_type_path en.e_path) ^ ">") in

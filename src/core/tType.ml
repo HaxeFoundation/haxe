@@ -288,6 +288,7 @@ and tclass = {
 	mutable cl_using : (tclass * pos) list;
 	mutable cl_restore : unit -> unit;
 	(* do not insert any fields above *)
+	mutable cl_type : t;
 	mutable cl_kind : tclass_kind;
 	mutable cl_flags : int;
 	mutable cl_super : (tclass * tparams) option;
