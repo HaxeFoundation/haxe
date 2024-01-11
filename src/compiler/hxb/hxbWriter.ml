@@ -250,13 +250,13 @@ end
 
 module IOChunk = struct
 	type t = {
-		name : string;
+		kind : chunk_kind;
 		ch : SimnBuffer.t;
 	}
 
-	let create name initial_size =
+	let create kind initial_size =
 		{
-			name = name;
+			kind = kind;
 			ch = SimnBuffer.create initial_size;
 		}
 
@@ -316,7 +316,7 @@ module IOChunk = struct
 		write_u8 io (if b then 1 else 0)
 
 	let export : 'a . hxb_writer_stats -> t -> 'a IO.output -> unit = fun stats io chex ->
-		IO.nwrite chex (Bytes.unsafe_of_string io.name);
+		IO.nwrite chex (Bytes.unsafe_of_string (string_of_chunk_kind io.kind));
 		let bytes = get_bytes io in
 		let length = Bytes.length bytes in
 		IO.write_real_i32 chex (Int32.of_int length);
@@ -332,7 +332,6 @@ end
 
 class string_pool (kind : chunk_kind) = object(self)
 
-	val io = IOChunk.create (string_of_chunk_kind kind) 512
 	val pool = new pool
 
 	method get (s : string) =
@@ -341,13 +340,14 @@ class string_pool (kind : chunk_kind) = object(self)
 	method is_empty =
 		pool#is_empty
 
-	method export : 'a . hxb_writer_stats -> 'a IO.output -> unit = fun stats chex ->
+	method finalize =
+		let io = IOChunk.create kind 512 in
 		IOChunk.write_uleb128 io (DynArray.length pool#items);
 		DynArray.iter (fun s ->
 			let b = Bytes.unsafe_of_string s in
 			IOChunk.write_bytes_length_prefixed io b;
 		) pool#items;
-		IOChunk.export stats io chex
+		io
 end
 
 module Chunk = struct
@@ -360,7 +360,7 @@ module Chunk = struct
 	let create kind cp initial_size = {
 		kind;
 		cp;
-		io = IOChunk.create (string_of_chunk_kind kind) initial_size;
+		io = IOChunk.create kind initial_size;
 	}
 
 	let write_string chunk s =
@@ -564,7 +564,7 @@ class hxb_writer
 			| CFLD -> 512
 		in
 		let new_chunk = Chunk.create kind cp initial_size in
-		DynArray.add chunks new_chunk;
+		DynArray.add chunks new_chunk.io;
 		chunk <- new_chunk
 
 	method start_temporary_chunk : 'a . int -> (Chunk.t -> 'a) -> 'a = fun initial_size ->
@@ -2122,20 +2122,24 @@ class hxb_writer
 		IOChunk.write_uleb128 chunk.io (DynArray.length anons#items);
 		IOChunk.write_uleb128 chunk.io (DynArray.length tmonos#items);
 		self#start_chunk HEND;
+		DynArray.add chunks cp#finalize;
+		if not docs#is_empty then
+			DynArray.add chunks docs#finalize
 
 	(* Export *)
+
+	method get_sorted_chunks =
+		let l = DynArray.to_list chunks in
+		let l = List.sort (fun chunk1 chunk2 ->
+			(Obj.magic chunk1.IOChunk.kind - (Obj.magic chunk2.kind))
+		) l in
+		l
 
 	method export : 'a . 'a IO.output -> unit = fun ch ->
 		IO.nwrite_string ch "hxb";
 		IO.write_byte ch hxb_version;
-		cp#export stats ch;
-		if not docs#is_empty then
-			docs#export stats ch;
-		let l = DynArray.to_list chunks in
-		let l = List.sort (fun chunk1 chunk2 ->
-			(Obj.magic chunk1.Chunk.kind - (Obj.magic chunk2.kind))
-		) l in
-		List.iter (fun (chunk : Chunk.t) ->
-			IOChunk.export stats chunk.io ch
+		let l = self#get_sorted_chunks in
+		List.iter (fun io ->
+			IOChunk.export stats io ch
 		) l
 end
