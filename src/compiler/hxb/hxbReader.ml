@@ -37,12 +37,6 @@ let create_field_reader_context p ts vars = {
 	tthis = t_dynamic;
 }
 
-type hxb_reader_result =
-	| FullModule of module_def
-	| HeaderOnly of module_def * hxb_continuation (* HHDR *)
-
-and hxb_continuation = hxb_reader_api -> chunk_kind -> hxb_reader_result
-
 type hxb_reader_stats = {
 	modules_fully_restored : int ref;
 	modules_partially_restored : int ref;
@@ -1490,13 +1484,6 @@ class hxb_reader
 			self#read_raw_string;
 		);
 
-	method read_chunk =
-		let name = Bytes.unsafe_to_string (IO.nread ch 4) in
-		let size = Int32.to_int self#read_i32 in
-		let data = IO.nread ch size in
-		let kind = chunk_kind_of_string name in
-		(kind,data)
-
 	method read_enfr =
 		let l = read_uleb128 ch in
 		let a = Array.init l (fun i ->
@@ -1762,83 +1749,75 @@ class hxb_reader
 		tmonos <- Array.init (read_uleb128 ch) (fun _ -> mk_mono());
 		api#make_module path file
 
-	method read (api : hxb_reader_api) (stop : chunk_kind) (file_ch : IO.input) =
+	method private read_chunk_prefix =
+		let name = Bytes.unsafe_to_string (IO.nread ch 4) in
+		let size = Int32.to_int self#read_i32 in
+		(name,size)
+
+	method private read_chunk_data (kind : chunk_kind) =
+		match kind with
+		| HEND ->
+			incr stats.modules_fully_restored;
+		| STRI ->
+			string_pool <- self#read_string_pool;
+		| DOCS ->
+			doc_pool <- self#read_string_pool;
+		| HHDR ->
+			current_module <- self#read_hhdr;
+		| ANFR ->
+			self#read_anfr;
+		| TYPF ->
+			current_module.m_types <- self#read_typf;
+			api#add_module current_module;
+		| CLSR ->
+			self#read_clsr;
+		| ABSR ->
+			self#read_absr;
+		| TPDR ->
+			self#read_tpdr;
+		| ENMR ->
+			self#read_enmr;
+		| CLSD ->
+			self#read_clsd;
+		| ABSD ->
+			self#read_absd;
+		| ENFR ->
+			self#read_enfr;
+		| CFLR ->
+			self#read_cflr;
+		| CFLD ->
+			self#read_cfld;
+		| AFLD ->
+			self#read_afld;
+		| TPDD ->
+			self#read_tpdd;
+		| ENMD ->
+			self#read_enmd;
+		| EFLD ->
+			self#read_efld
+
+	method read_chunk_data_from (kind : chunk_kind) (input : IO.input) =
+		let old = ch in
+		ch <- input;
+		self#read_chunk_data kind;
+		ch <- old
+
+	method read (new_api : hxb_reader_api) (file_ch : IO.input) =
+		api <- new_api;
+		ch <- file_ch;
 		if (Bytes.to_string (IO.nread file_ch 3)) <> "hxb" then
 			raise (HxbFailure "magic");
 		let version = IO.read_byte file_ch in
 		if version <> hxb_version then
 			raise (HxbFailure (Printf.sprintf "version mismatch: hxb version %i, reader version %i" version hxb_version));
-		self#continue file_ch api stop
-
-	method continue (file_ch : IO.input) (new_api : hxb_reader_api) stop =
-		api <- new_api;
 		let rec loop () =
-			ch <- file_ch;
-			let (chunk,data) = self#read_chunk in
-			ch <- IO.input_bytes data;
-			match chunk with
-			| HEND ->
-				incr stats.modules_fully_restored;
-				FullModule current_module
-			| STRI ->
-				string_pool <- self#read_string_pool;
+			let (name,size) = self#read_chunk_prefix in
+			let kind = chunk_kind_of_string name in
+			if kind <> HEND then begin
+				self#read_chunk_data kind;
 				loop()
-			| DOCS ->
-				doc_pool <- self#read_string_pool;
-				loop()
-			| HHDR ->
-				incr stats.modules_partially_restored;
-				current_module <- self#read_hhdr;
-				if stop = HHDR then
-					HeaderOnly(current_module,self#continue file_ch)
-				else
-					loop()
-			| ANFR ->
-				self#read_anfr;
-				loop()
-			| TYPF ->
-				current_module.m_types <- self#read_typf;
-				api#add_module current_module;
-				loop()
-			| CLSR ->
-				self#read_clsr;
-				loop()
-			| ABSR ->
-				self#read_absr;
-				loop()
-			| TPDR ->
-				self#read_tpdr;
-				loop()
-			| ENMR ->
-				self#read_enmr;
-				loop()
-			| CLSD ->
-				self#read_clsd;
-				loop()
-			| ABSD ->
-				self#read_absd;
-				loop()
-			| ENFR ->
-				self#read_enfr;
-				loop()
-			| CFLR ->
-				self#read_cflr;
-				loop();
-			| CFLD ->
-				self#read_cfld;
-				loop()
-			| AFLD ->
-				self#read_afld;
-				loop()
-			| TPDD ->
-				self#read_tpdd;
-				loop()
-			| ENMD ->
-				self#read_enmd;
-				loop()
-			| EFLD ->
-				self#read_efld;
-				loop()
+			end
 		in
-		loop()
+		loop();
+		current_module
 end
