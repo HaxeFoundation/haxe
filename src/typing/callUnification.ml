@@ -513,9 +513,7 @@ object(self)
 			let ep = err.err_pos in
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
-				locate_macro_error := false;
 				old (if (ep = null_pos) then { err with err_pos = p } else err);
-				locate_macro_error := true;
 				(* TODO add as sub for above error *)
 				if ep <> null_pos then old (make_error ~depth:(err.err_depth+1) (Custom (compl_msg "Called from macro here")) p);
 			end else
