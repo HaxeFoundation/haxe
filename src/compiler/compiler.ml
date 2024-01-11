@@ -281,9 +281,7 @@ let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	enter_stage com CInitMacrosStart;
 	ServerMessage.compiler_stage com;
-
 	Setup.init_native_libs com actx.hxb_libs;
-
 	let mctx = List.fold_left (fun mctx path ->
 		Some (MacroContext.call_init_macro ctx.com mctx path)
 	) mctx (List.rev actx.config_macros) in

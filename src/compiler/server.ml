@@ -311,10 +311,13 @@ let check_module sctx ctx m_path m_extra p =
 				end
 			end
 		in
+		let find_module_extra sign mpath =
+			(com.cs#get_context sign)#find_module_extra mpath
+		in
 		let check_dependencies () =
 			PMap.iter (fun _ (sign,mpath) ->
 				let m2_extra = try
-					(com.cs#get_context sign)#find_module_extra mpath
+					find_module_extra sign mpath
 				with Not_found ->
 					die (Printf.sprintf "Could not find dependency %s of %s in the cache" (s_type_path mpath) (s_type_path m_path)) __LOC__;
 				in

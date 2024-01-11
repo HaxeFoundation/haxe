@@ -959,8 +959,8 @@ and unify_anons uctx a b a1 a2 =
 			)
 		| ClassStatics c1,_ ->
 			unify_fields c1.cl_statics (fun f1 ->
-					if not (Meta.has Meta.MaybeUsed f1.cf_meta) then
-						f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
+				if not (Meta.has Meta.MaybeUsed f1.cf_meta) then
+					f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
 			) (fun _ -> false)
 		| _ ->
 			unify_fields a1.a_fields (fun _ -> ()) (fun _ -> false)
