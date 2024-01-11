@@ -26,6 +26,7 @@ let create com macros =
 			load_only_cached_modules = false;
 			return_partial_type = false;
 			build_count = 0;
+			t_dynamic_def = t_dynamic;
 			functional_interface_lut = new Lookup.pmap_lookup;
 			do_macro = MacroContext.type_macro;
 			do_load_macro = MacroContext.load_macro';
@@ -109,7 +110,7 @@ let create com macros =
 				Type.unify t ctx.t.tbool;
 				ctx.t.tbool <- t
 			| "Dynamic" ->
-				t_dynamic_def := TAbstract(a,extract_param_types a.a_params);
+				ctx.g.t_dynamic_def <- TAbstract(a,extract_param_types a.a_params);
 			| "Null" ->
 				let mk_null t =
 					try

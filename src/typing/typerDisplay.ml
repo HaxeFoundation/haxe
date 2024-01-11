@@ -490,7 +490,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 		let pl = loop e in
 		raise_positions pl
 	| DMTypeDefinition ->
-		raise_position_of_type e.etype
+		raise_position_of_type ctx e.etype
 	| DMDefault when not (!Parser.had_resume)->
 		let display_fields e_ast e1 so =
 			let l = match so with None -> 0 | Some s -> String.length s in
