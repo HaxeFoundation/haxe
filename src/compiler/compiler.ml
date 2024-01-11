@@ -377,19 +377,19 @@ let compile ctx actx callbacks =
 		let (tctx,display_file_dot_path) = do_type ctx mctx actx display_file_dot_path in
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
-		let is_diagnostics = is_diagnostics com in
+		let is_compilation = is_compilation com in
 		com.callbacks#add_after_save (fun () ->
 			callbacks.after_save ctx;
-			if not is_diagnostics then Generate.check_hxb_output com actx;
+			if is_compilation then Generate.check_hxb_output com actx;
 		);
-		if is_diagnostics then
+		if is_diagnostics com then
 			filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)
 		else begin
 			DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
 			filter ctx tctx (fun () -> ());
 		end;
 		if ctx.has_error then raise Abort;
-		if not is_diagnostics then Generate.check_auxiliary_output com actx;
+		if is_compilation then Generate.check_auxiliary_output com actx;
 		enter_stage com CGenerationStart;
 		ServerMessage.compiler_stage com;
 		if not actx.no_output then Generate.generate ctx tctx ext actx;
