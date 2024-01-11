@@ -242,6 +242,7 @@ class hxb_reader
 		| 1 ->
 			let cf = anon_fields.(read_uleb128 ch) in
 			let close = self#open_field_scope in
+			cf.cf_meta <- self#read_metadata; (* TODO: ghjkl *)
 			self#read_class_field_data cf;
 			close();
 			cf

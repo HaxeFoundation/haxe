@@ -1015,6 +1015,7 @@ class hxb_writer
 			IOChunk.write_u8 chunk.io 1;
 			IOChunk.write_uleb128 chunk.io index;
 			let close = self#open_field_scope cf.cf_params in
+			self#write_metadata cf.cf_meta; (* TODO: asdf *)
 			self#write_class_field_data cf;
 			close()
 
