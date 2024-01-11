@@ -21,18 +21,23 @@ let check_auxiliary_output com actx =
 			Genjson.generate com.types file
 	end
 
-let export_hxb com platform zip m =
+let export_hxb com cc platform zip m =
 	match m.m_extra.m_kind with
 		| MCode | MMacro | MFake -> begin
 			(* Printf.eprintf "Export module %s\n" (s_type_path m.m_path); *)
-			let anon_identification = new tanon_identification in
-			let writer = new HxbWriter.hxb_writer (MessageReporting.display_source_at com) anon_identification com.hxb_writer_stats in
-			writer#write_module m;
 			let l = platform :: (fst m.m_path @ [snd m.m_path]) in
 			let path = (String.concat "/" l) ^ ".hxb" in
-			let out = IO.output_string () in
-			writer#export out;
-			zip#add_entry (IO.close_out out) path;
+
+			try
+				let hxb_cache = cc#get_hxb_module m.m_path in
+				zip#add_entry (Bytes.to_string hxb_cache.mc_bytes) path;
+			with Not_found ->
+				let anon_identification = new tanon_identification in
+				let writer = new HxbWriter.hxb_writer (MessageReporting.display_source_at com) anon_identification com.hxb_writer_stats in
+				writer#write_module m;
+				let out = IO.output_string () in
+				writer#export out;
+				zip#add_entry (IO.close_out out) path;
 		end
 	| _ ->
 		()
@@ -46,9 +51,10 @@ let check_hxb_output com actx =
 			Printf.eprintf "Generating hxb to %s\n" path;
 			let zip = new Zip_output.zip_output path 6 in
 			let export com =
+				let cc = CommonCache.get_cache com in
 				let target = Common.platform_name_macro com in
 				Printf.eprintf "\t%s: %d modules, %d types\n" target (List.length com.Common.modules) (List.length com.types);
-				List.iter (export_hxb com target zip) com.modules;
+				List.iter (export_hxb com cc target zip) com.modules;
 			in
 			Std.finally (fun () ->
 				zip#close;
