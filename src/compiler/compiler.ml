@@ -368,19 +368,19 @@ let compile ctx actx callbacks =
 		let (tctx,display_file_dot_path) = do_type ctx mctx actx display_file_dot_path macro_cache_enabled in
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
+		let is_diagnostics = is_diagnostics com in
 		com.callbacks#add_after_save (fun () ->
-			(* TODO use hxb cache for hxb output *)
 			callbacks.after_save ctx;
-			Generate.check_hxb_output com actx;
+			if not is_diagnostics then Generate.check_hxb_output com actx;
 		);
-		if is_diagnostics com then
+		if is_diagnostics then
 			filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)
 		else begin
 			DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
 			filter ctx tctx (fun () -> ());
 		end;
 		if ctx.has_error then raise Abort;
-		Generate.check_auxiliary_output com actx;
+		if not is_diagnostics then Generate.check_auxiliary_output com actx;
 		enter_stage com CGenerationStart;
 		ServerMessage.compiler_stage com;
 		if not actx.no_output then Generate.generate ctx tctx ext actx;
