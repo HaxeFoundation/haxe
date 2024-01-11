@@ -590,7 +590,7 @@ let after_target_init sctx ctx =
 		()
 
 let after_save sctx ctx =
-	if not (has_error ctx) then
+	if ctx.comm.is_server && not (has_error ctx) then
 		maybe_cache_context sctx ctx.com
 
 let after_compilation sctx ctx =
