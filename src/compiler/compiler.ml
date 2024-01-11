@@ -434,7 +434,7 @@ with
 		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException.DisplayException dex ->
 		DisplayOutput.handle_display_exception ctx dex
-	| Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ | ServerCompilationContext.HxbRoundtrip as exc ->
+	| Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ as exc ->
 		(* We don't want these to be caught by the catchall below *)
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
@@ -664,41 +664,30 @@ module HighLevel = struct
 			| _ ->
 				args
 		in
-		let rec loop args0 did_hxb =
-			let current_each = !each_args in
-			begin try
-				let args,server_mode,ctx = try
-					process_params server_api create each_args !has_display comm.is_server args0
-				with Arg.Bad msg ->
-					let ctx = create 0 args in
-					error ctx ("Error: " ^ msg) null_pos;
-					[],SMNone,Some ctx
-				in
-				let code = match ctx with
-					| Some ctx ->
-						if not did_hxb && server_mode == SMNone && not !has_display && args = [] && not (List.mem "source-map" ctx.com.args) then
-							Define.raw_define ctx.com.defines "hxb.roundtrip";
-						(* Need chdir here because --cwd is eagerly applied in process_params *)
-						Unix.chdir curdir;
-						execute_ctx server_api ctx server_mode
-					| None ->
-						(* caused by --connect *)
-						0
-				in
-				(* print_endline (Printf.sprintf "restore_counter: %i" !HxbRestore.restore_counter); *)
-				if code = 0 && args <> [] && not !has_display then begin
-					(* We have to chdir here again because any --cwd also takes effect in execute_ctx *)
+		let rec loop args =
+			let args,server_mode,ctx = try
+				process_params server_api create each_args !has_display comm.is_server args
+			with Arg.Bad msg ->
+				let ctx = create 0 args in
+				error ctx ("Error: " ^ msg) null_pos;
+				[],SMNone,Some ctx
+			in
+			let code = match ctx with
+				| Some ctx ->
+					(* Need chdir here because --cwd is eagerly applied in process_params *)
 					Unix.chdir curdir;
-					loop args false
-				end else
-					code
-			with ServerCompilationContext.HxbRoundtrip ->
-				(* print_endline "Caught HxbRoundtrip, recursing"; *)
-				each_args := current_each;
+					execute_ctx server_api ctx server_mode
+				| None ->
+					(* caused by --connect *)
+					0
+			in
+			if code = 0 && args <> [] && not !has_display then begin
+				(* We have to chdir here again because any --cwd also takes effect in execute_ctx *)
 				Unix.chdir curdir;
-				loop args0 true
-			end
+				loop args
+			end else
+				code
 		in
-		let code = loop args false in
+		let code = loop args in
 		comm.exit code
 end

@@ -3,8 +3,6 @@ open Common
 open Timer
 open CompilationCache
 
-exception HxbRoundtrip
-
 type t = {
 	(* If true, prints some debug information *)
 	verbose : bool;
@@ -65,12 +63,6 @@ let maybe_cache_context sctx com =
 		CommonCache.cache_context sctx.cs com;
 		t();
 		ServerMessage.cached_modules com "" (List.length com.modules);
-		match com.platform with
-		| Cross | Eval ->
-			()
-		| _ ->
-			if Common.raw_defined com "hxb.roundtrip" then
-				raise HxbRoundtrip
 	end
 
 let ensure_macro_setup sctx =
