@@ -60,7 +60,7 @@ let rec read_uleb128 ch =
 	else
 		b
 
-let rec read_leb128 ch =
+let read_leb128 ch =
 	let rec read acc shift =
 		let b = IO.read_byte ch in
 		let acc = ((b land 0x7F) lsl shift) lor acc in
@@ -969,7 +969,7 @@ class hxb_reader
 		let rec loop () =
 			let t = fctx.t_pool.(read_uleb128 ch) in
 			let p = read_relpos () in
-			let rec loop2 () =
+			let loop2 () =
 				match IO.read_byte ch with
 					(* values 0-19 *)
 					| 0 -> TConst TNull
