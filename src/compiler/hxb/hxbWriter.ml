@@ -316,6 +316,7 @@ module IOChunk = struct
 		write_u8 io (if b then 1 else 0)
 
 	let export : 'a . hxb_writer_stats -> t -> 'a IO.output -> unit = fun stats io chex ->
+		IO.nwrite chex (Bytes.unsafe_of_string io.name);
 		let bytes = get_bytes io in
 		let length = Bytes.length bytes in
 		IO.write_real_i32 chex (Int32.of_int length);
@@ -326,10 +327,7 @@ module IOChunk = struct
 		with Not_found ->
 			Hashtbl.add stats.chunk_sizes io.name (ref length,ref length);
 		end; *)
-		IO.nwrite chex (Bytes.unsafe_of_string io.name);
-		IO.nwrite chex bytes;
-		let crc = Int32.of_int 0x1234567 in (* TODO *)
-		IO.write_real_i32 chex crc
+		IO.nwrite chex bytes
 end
 
 class string_pool (kind : chunk_kind) = object(self)

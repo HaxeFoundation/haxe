@@ -1491,11 +1491,9 @@ class hxb_reader
 		);
 
 	method read_chunk =
-		let size = Int32.to_int self#read_i32 in
 		let name = Bytes.unsafe_to_string (IO.nread ch 4) in
+		let size = Int32.to_int self#read_i32 in
 		let data = IO.nread ch size in
-		let crc = self#read_i32 in
-		ignore(crc); (* TODO *)
 		let kind = chunk_kind_of_string name in
 		(kind,data)
 
