@@ -274,7 +274,7 @@ let check_defines com =
 	end
 
 (** Creates the typer context and types [classes] into it. *)
-let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
+let do_type ctx mctx actx display_file_dot_path =
 	let com = ctx.com in
 	let t = Timer.timer ["typing"] in
 	let cs = com.cs in
@@ -286,7 +286,6 @@ let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
 	) mctx (List.rev actx.config_macros) in
 	enter_stage com CInitMacrosDone;
 	ServerMessage.compiler_stage com;
-	MacroContext.macro_enable_cache := macro_cache_enabled;
 
 	let macros = match mctx with None -> None | Some mctx -> mctx.g.macros in
 	Setup.init_native_libs com actx.native_libs;
@@ -338,8 +337,6 @@ let compile ctx actx callbacks =
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
 	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
-	let macro_cache_enabled = !MacroContext.macro_enable_cache in
-	MacroContext.macro_enable_cache := true;
 	let mctx = match com.platform with
 		| CustomTarget name ->
 			begin try
@@ -364,7 +361,7 @@ let compile ctx actx callbacks =
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
 	end else begin
 		(* Actual compilation starts here *)
-		let (tctx,display_file_dot_path) = do_type ctx mctx actx display_file_dot_path macro_cache_enabled in
+		let (tctx,display_file_dot_path) = do_type ctx mctx actx display_file_dot_path in
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
 		if is_diagnostics com then

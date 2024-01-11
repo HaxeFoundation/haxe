@@ -53,7 +53,6 @@ type 'value compiler_api = {
 	define_module : string -> 'value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
 	module_dependency : string -> string -> unit;
 	current_module : unit -> module_def;
-	use_cache : unit -> bool;
 	format_string : string -> Globals.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Globals.pos -> bool;
 	add_global_metadata : string -> string -> (bool * bool * bool) -> pos -> unit;
