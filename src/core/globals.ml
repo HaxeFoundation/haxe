@@ -70,8 +70,6 @@ let trace_call_stack ?(n:int = 5) () =
 
 let macro_platform = ref Neko
 
-let return_partial_type = ref false
-
 let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
 
 let max_custom_target_len = 16

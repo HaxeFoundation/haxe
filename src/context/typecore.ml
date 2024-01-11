@@ -109,6 +109,7 @@ type typer_globals = {
 	mutable type_hints : (module_def_display * pos * t) list;
 	mutable load_only_cached_modules : bool;
 	functional_interface_lut : (path,tclass_field) lookup;
+	mutable return_partial_type : bool;
 	(* api *)
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
