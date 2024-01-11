@@ -1322,17 +1322,7 @@ exception PathFound of string;;
 
 let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath with
    | true -> file
-   | false -> let flen = String.length file in
-   (* Not quite right - should probably test is file exists *)
-   try
-      List.iter (fun path ->
-         let plen = String.length path in
-         if (flen>plen && path=(String.sub file 0 plen ))
-            then raise (PathFound (String.sub file plen (flen-plen)) ) )
-         (ctx.class_path @ ctx.std_path);
-      file;
-   with PathFound tail ->
-      tail)
+   | false -> ctx.class_paths#relative_path file)
 ;;
 
 let with_debug ctx metadata run =
@@ -8679,7 +8669,10 @@ let generate_source ctx =
          | "true" | "sys" | "dce" | "cpp" | "debug" -> ();
          | _ -> cmd := !cmd @ [Printf.sprintf "-D%s=\"%s\"" name (escape_command value)];
       ) common_ctx.defines.values;
-      List.iter (fun path -> cmd := !cmd @ [Printf.sprintf "-I%s" (escape_command path)]) common_ctx.class_path;
+      common_ctx.class_paths#iter (fun path ->
+		let path = path#path in
+		cmd := !cmd @ [Printf.sprintf "-I%s" (escape_command path)]
+	  );
       common_ctx.print ("haxelib " ^ (String.concat " " !cmd) ^ "\n");
       if common_ctx.run_command_args "haxelib" !cmd <> 0 then failwith "Build failed";
       Sys.chdir old_dir;

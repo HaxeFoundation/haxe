@@ -355,7 +355,7 @@ let handler =
 			let key = hctx.com.file_keys#get file in
 			let cs = hctx.display#get_cs in
 			List.iter (fun cc ->
-				Hashtbl.replace cc#get_removed_files key file
+				Hashtbl.replace cc#get_removed_files key (ClassPaths.create_resolved_file file hctx.com.empty_class_path)
 			) cs#get_contexts;
 			hctx.send_result (jstring file);
 		);
@@ -366,7 +366,7 @@ let handler =
 			let files = List.sort (fun (file1,_) (file2,_) -> compare file1 file2) files in
 			let files = List.map (fun (fkey,cfile) ->
 				jobject [
-					"file",jstring cfile.c_file_path;
+					"file",jstring cfile.c_file_path.file;
 					"time",jfloat cfile.c_time;
 					"pack",jstring (String.concat "." cfile.c_package);
 					"moduleName",jopt jstring cfile.c_module_name;

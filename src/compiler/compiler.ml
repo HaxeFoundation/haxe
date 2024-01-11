@@ -78,8 +78,15 @@ let run_command ctx cmd =
 module Setup = struct
 	let initialize_target ctx com actx =
 		init_platform com;
+		com.class_paths#lock_context (platform_name com.platform) false;
 		let add_std dir =
-			com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
+			com.class_paths#modify_inplace (fun cp -> match cp#scope with
+				| Std ->
+					let cp' = new ClassPath.directory_class_path (cp#path ^ dir ^ "/_std/") StdTarget in
+					cp :: [cp']
+				| _ ->
+					[cp]
+			);
 		in
 		match com.platform with
 			| Cross ->
@@ -170,7 +177,6 @@ module Setup = struct
 
 	let create_typer_context ctx macros =
 		let com = ctx.com in
-		Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
 		let buffer = Buffer.create 64 in
 		Buffer.add_string buffer "Defines: ";
 		PMap.iter (fun k v -> match v with
@@ -185,6 +191,8 @@ module Setup = struct
 	let executable_path() =
 		Extc.executable_path()
 
+	open ClassPath
+
 	let get_std_class_paths () =
 		try
 			let p = Sys.getenv "HAXE_STD_PATH" in
@@ -198,7 +206,7 @@ module Setup = struct
 					l
 			in
 			let parts = Str.split_delim (Str.regexp "[;:]") p in
-			"" :: List.map Path.add_trailing_slash (loop parts)
+			List.map (fun s -> Path.add_trailing_slash s,Std) (loop parts)
 		with Not_found ->
 			let base_path = Path.get_real_path (try executable_path() with _ -> "./") in
 			if Sys.os_type = "Unix" then
@@ -206,16 +214,21 @@ module Setup = struct
 				let lib_path = Filename.concat prefix_path "lib" in
 				let share_path = Filename.concat prefix_path "share" in
 				[
-					"";
-					Path.add_trailing_slash (Filename.concat share_path "haxe/std");
-					Path.add_trailing_slash (Filename.concat lib_path "haxe/std");
-					Path.add_trailing_slash (Filename.concat base_path "std");
+					(Path.add_trailing_slash (Filename.concat share_path "haxe/std"),Std);
+					(Path.add_trailing_slash (Filename.concat lib_path "haxe/std"),Std);
+					(Path.add_trailing_slash (Filename.concat base_path "std"),Std);
 				]
 			else
 				[
-					"";
-					Path.add_trailing_slash (Filename.concat base_path "std");
+					(Path.add_trailing_slash (Filename.concat base_path "std"),Std);
 				]
+
+	let init_std_class_paths com =
+		com.class_paths#add com.empty_class_path;
+		List.iter (fun (s,scope) ->
+			let cp = new ClassPath.directory_class_path s scope in
+			com.class_paths#add cp
+		) (List.rev (get_std_class_paths ()))
 
 	let setup_common_context ctx =
 		let com = ctx.com in
@@ -256,8 +269,7 @@ module Setup = struct
 		) (filter_messages false (fun _ -> true))));
 		com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
 		com.run_command <- run_command ctx;
-		com.class_path <- get_std_class_paths ();
-		com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path
+		init_std_class_paths com
 
 end
 
@@ -530,7 +542,7 @@ module HighLevel = struct
 				if l = "" then
 					acc
 				else if l.[0] <> '-' then
-					"-cp" :: l :: acc
+					"-libcp" :: l :: acc
 				else match (try ExtString.String.split l " " with _ -> l, "") with
 				| ("-L",dir) ->
 					"--neko-lib-path" :: (String.sub l 3 (String.length l - 3)) :: acc

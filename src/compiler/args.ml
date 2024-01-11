@@ -126,7 +126,10 @@ let parse_args com =
 			raise (Arg.Bad "--run requires an argument: a Haxe module name")
 		), "<module> [args...]","interpret a Haxe module with command line arguments");
 		("Compilation",["-p";"--class-path"],["-cp"],Arg.String (fun path ->
-			com.class_path <- Path.add_trailing_slash path :: com.class_path
+			com.class_paths#add (new ClassPath.directory_class_path (Path.add_trailing_slash path) User);
+		),"<path>","add a directory to find source files");
+		("Compilation",[],["-libcp"],Arg.String (fun path ->
+			com.class_paths#add (new ClassPath.directory_class_path (Path.add_trailing_slash path) Lib);
 		),"<path>","add a directory to find source files");
 		("Compilation",["-m";"--main"],["-main"],Arg.String (fun cl ->
 			if com.main_class <> None then raise (Arg.Bad "Multiple --main classes specified");

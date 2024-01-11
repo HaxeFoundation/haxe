@@ -295,7 +295,7 @@ module ModuleLevel = struct
 				r
 			with Not_found ->
 				if Sys.file_exists path then begin
-					let _,r = match !TypeloadParse.parse_hook com path p with
+					let _,r = match !TypeloadParse.parse_hook com (ClassPaths.create_resolved_file path ctx.com.empty_class_path) p with
 						| ParseSuccess(data,_,_) -> data
 						| ParseError(_,(msg,p),_) -> Parser.error msg p
 					in
@@ -790,7 +790,8 @@ let load_module' ctx g m p =
 			let is_extern = ref false in
 			let file, decls = try
 				(* Try parsing *)
-				TypeloadParse.parse_module ctx m p
+				let rfile,decls = TypeloadParse.parse_module ctx m p in
+				rfile.file,decls
 			with Not_found ->
 				(* Nothing to parse, try loading extern type *)
 				let rec loop = function

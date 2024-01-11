@@ -1845,7 +1845,7 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"class_path", vfun0 (fun() ->
-			encode_array (List.map encode_string (ccom()).class_path);
+			encode_array (List.map encode_string (ccom()).class_paths#as_string_list);
 		);
 		"resolve_path", vfun1 (fun file ->
 			let file = decode_string file in
@@ -2068,8 +2068,7 @@ let macro_api ccom get_api =
 		);
 		"flush_disk_cache", vfun0 (fun () ->
 			let com = (get_api()).get_com() in
-			com.file_lookup_cache#clear;
-			com.readdir_cache#clear;
+			com.class_paths#clear_cache;
 			vnull
 		);
 		"get_pos_infos", vfun1 (fun p ->
@@ -2168,15 +2167,15 @@ let macro_api ccom get_api =
 		"add_class_path", vfun1 (fun cp ->
 			let com = ccom() in
 			let cp = decode_string cp in
-			let cp = Path.add_trailing_slash cp in
-			com.class_path <- cp :: com.class_path;
+			let path = Path.add_trailing_slash cp in
+			let cp = new ClassPath.directory_class_path path User in
+			com.class_paths#add cp;
 			(match com.get_macros() with
 			| Some(mcom) ->
-				mcom.class_path <- cp :: mcom.class_path;
+				mcom.class_paths#add cp#clone;
 			| None ->
 				());
-			com.file_lookup_cache#clear;
-			com.readdir_cache#clear;
+			com.class_paths#clear_cache;
 			vnull
 		);
 		"add_native_lib", vfun1 (fun file ->
@@ -2253,7 +2252,7 @@ let macro_api ccom get_api =
 				"foptimize", vbool com.foptimize;
 				"platform", encode_platform com.platform;
 				"platformConfig", encode_platform_config com.config;
-				"stdPath", encode_array (List.map encode_string com.std_path);
+				"stdPath", encode_array (List.map (fun path -> encode_string path#path) com.class_paths#get_std_paths);
 				"mainClass", (match com.main_class with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
 			]
