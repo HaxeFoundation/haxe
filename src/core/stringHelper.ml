@@ -58,3 +58,14 @@ let escape_res_name name allowed =
 			Char.escaped chr
 		else
 			"-x" ^ (string_of_int (Char.code chr))) name
+
+let remove_extension file =
+	try String.sub file 0 (String.rindex file '.')
+	with Not_found -> file
+
+let extension file =
+	try
+		let dot_pos = String.rindex file '.' in
+		String.sub file dot_pos (String.length file - dot_pos)
+	with Not_found ->
+		file

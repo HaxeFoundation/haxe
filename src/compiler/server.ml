@@ -42,9 +42,10 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 
 let current_stdin = ref None
 
-let parse_file cs com file p =
+let parse_file cs com (rfile : ClassPaths.resolved_file) p =
 	let cc = CommonCache.get_cache com in
-	let ffile = Path.get_full_path file
+	let file = rfile.file in
+	let ffile = Path.get_full_path rfile.file
 	and fkey = com.file_keys#get file in
 	let is_display_file = DisplayPosition.display_position#is_in_file (com.file_keys#get ffile) in
 	match is_display_file, !current_stdin with
@@ -58,7 +59,7 @@ let parse_file cs com file p =
 				if cfile.c_time <> ftime then raise Not_found;
 				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),false,cfile.c_pdi)
 			with Not_found ->
-				let parse_result = TypeloadParse.parse_file com file p in
+				let parse_result = TypeloadParse.parse_file com rfile p in
 				let info,is_unusual = match parse_result with
 					| ParseError(_,_,_) -> "not cached, has parse error",true
 					| ParseSuccess(data,is_display_file,pdi) ->
@@ -66,7 +67,7 @@ let parse_file cs com file p =
 							if pdi.pd_errors <> [] then
 								"not cached, is display file with parse errors",true
 							else if com.display.dms_per_file then begin
-								cc#cache_file fkey ffile ftime data pdi;
+								cc#cache_file fkey rfile ftime data pdi;
 								"cached, is intact display file",true
 							end else
 								"not cached, is display file",true
@@ -77,7 +78,7 @@ let parse_file cs com file p =
 							let ident = Hashtbl.find Parser.special_identifier_files fkey in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
-							cc#cache_file fkey ffile ftime data pdi;
+							cc#cache_file fkey rfile ftime data pdi;
 							"cached",false
 						end
 				in
@@ -209,8 +210,9 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 					with Unix.Unix_error _ ->
 						()
 				in
-				List.iter add_dir com.class_path;
-				List.iter add_dir (Path.find_directories (platform_name com.platform) true com.class_path);
+				let class_path_strings = com.class_paths#as_string_list in
+				List.iter add_dir class_path_strings;
+				List.iter add_dir (Path.find_directories (platform_name com.platform) true class_path_strings);
 				ServerMessage.found_directories com "" !dirs;
 				cs#add_directories sign !dirs
 			) :: sctx.delays;
@@ -578,15 +580,16 @@ let after_target_init sctx ctx =
 	ServerMessage.defines com "";
 	ServerMessage.signature com "" sign;
 	ServerMessage.display_position com "" (DisplayPosition.display_position#get);
+	let class_path_strings = com.class_paths#as_string_list in
 	try
-		if (Hashtbl.find sctx.class_paths sign) <> com.class_path then begin
+		if (Hashtbl.find sctx.class_paths sign) <> class_path_strings then begin
 			ServerMessage.class_paths_changed com "";
-			Hashtbl.replace sctx.class_paths sign com.class_path;
+			Hashtbl.replace sctx.class_paths sign class_path_strings;
 			cs#clear_directories sign;
 			(cs#get_context sign)#set_initialized false;
 		end;
 	with Not_found ->
-		Hashtbl.add sctx.class_paths sign com.class_path;
+		Hashtbl.add sctx.class_paths sign class_path_strings;
 		()
 
 let after_save sctx ctx =
@@ -728,7 +731,6 @@ let do_connect ip port args =
 
 let enable_cache_mode sctx =
 	TypeloadModule.type_module_hook := type_module sctx;
-	MacroContext.macro_enable_cache := true;
 	ServerCompilationContext.ensure_macro_setup sctx;
 	TypeloadParse.parse_hook := parse_file sctx.cs
 

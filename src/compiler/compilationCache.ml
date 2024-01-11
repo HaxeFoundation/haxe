@@ -1,11 +1,12 @@
 open Globals
 open Ast
+open Path
 open Json
 open Type
 open Define
 
 type cached_file = {
-	c_file_path : string;
+	c_file_path : ClassPaths.resolved_file;
 	c_time : float;
 	c_package : string list;
 	c_decls : type_decl list;
@@ -155,13 +156,13 @@ class cache = object(self)
 			Hashtbl.add contexts sign cache;
 			cache
 
-	method add_info sign desc platform class_path defines =
+	method add_info sign desc platform (class_paths : ClassPaths.class_paths) defines =
 		let cc = self#get_context sign in
 		let jo = JObject [
 			"index",JInt cc#get_index;
 			"desc",JString desc;
 			"platform",JString (platform_name platform);
-			"classPaths",JArray (List.map (fun s -> JString s) class_path);
+			"classPaths",JArray (List.map (fun s -> JString s) class_paths#as_string_list);
 			"signature",JString (Digest.to_hex sign);
 			"defines",JArray (PMap.foldi (fun k v acc -> JObject [
 				"key",JString k;

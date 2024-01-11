@@ -357,9 +357,8 @@ type context = {
 	mutable foptimize : bool;
 	mutable platform : platform;
 	mutable config : platform_config;
-	mutable std_path : string list;
-	mutable class_path : string list;
-	mutable binary_class_path : string list;
+	empty_class_path : ClassPath.class_path;
+	class_paths : ClassPaths.class_paths;
 	mutable main_class : path option;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
@@ -386,12 +385,10 @@ type context = {
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	shared : shared_context;
 	display_information : display_information;
-	file_lookup_cache : (string,string option) lookup;
 	file_keys : file_keys;
 	mutable file_contents : (Path.UniqueKey.t * string option) list;
-	readdir_cache : (string * string,(string array) option) lookup;
 	parser_cache : (string,(type_def * pos) list) lookup;
-	module_to_file : (path,string) lookup;
+	module_to_file : (path,ClassPaths.resolved_file) lookup;
 	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) lookup;
 	stored_typed_exprs : (int, texpr) lookup;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
@@ -820,9 +817,8 @@ let create compilation_step cs version args display_mode =
 		print = (fun s -> print_string s; flush stdout);
 		run_command = Sys.command;
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
-		std_path = [];
-		class_path = [];
-		binary_class_path = [];
+		empty_class_path = new ClassPath.directory_class_path "" User;
+		class_paths = new ClassPaths.class_paths;
 		main_class = None;
 		package_rules = PMap.empty;
 		file = "";
@@ -869,10 +865,8 @@ let create compilation_step cs version args display_mode =
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 		};
 		std = null_class;
-		file_lookup_cache = new hashtbl_lookup;
 		file_keys = new file_keys;
 		file_contents = [];
-		readdir_cache = new hashtbl_lookup;
 		module_to_file = new hashtbl_lookup;
 		stored_typed_exprs = new hashtbl_lookup;
 		cached_macros = new hashtbl_lookup;
@@ -925,8 +919,6 @@ let clone com is_macro_context =
 		};
 		native_libs = create_native_libs();
 		is_macro_context = is_macro_context;
-		file_lookup_cache = new hashtbl_lookup;
-		readdir_cache = new hashtbl_lookup;
 		parser_cache = new hashtbl_lookup;
 		module_to_file = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
@@ -934,6 +926,8 @@ let clone com is_macro_context =
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_stats = HxbWriter.create_hxb_writer_stats ();
 		std = null_class;
+		empty_class_path = new ClassPath.directory_class_path "" User;
+		class_paths = new ClassPaths.class_paths;
 	}
 
 let file_time file = Extc.filetime file
@@ -1079,104 +1073,8 @@ let platform_name_macro com =
 	if defined com Define.Macro then "macro"
 	else platform_name com.platform
 
-let remove_extension file =
-	try String.sub file 0 (String.rindex file '.')
-	with Not_found -> file
-
-let extension file =
-	try
-		let dot_pos = String.rindex file '.' in
-		String.sub file dot_pos (String.length file - dot_pos)
-	with Not_found -> file
-
-let cache_directory ctx class_path dir f_dir =
-	let platform_ext = "." ^ (platform_name_macro ctx)
-	and is_loading_core_api = defined ctx Define.CoreApi in
-	let dir_listing =
-		try Some (Sys.readdir dir);
-		with Sys_error _ -> None
-	in
-	ctx.readdir_cache#add (class_path,dir) dir_listing;
-	(*
-		This function is invoked for each file in the `dir`.
-		Each file is checked if it's specific for current platform
-		(e.g. ends with `.js.hx` while compiling for JS).
-		If it's not platform-specific:
-			Check the lookup cache and if the file is not there store full file path in the cache.
-		If the file is platform-specific:
-			Store the full file path in the lookup cache probably replacing the cached path to a
-			non-platform-specific file.
-	*)
-	let prepare_file file_own_name =
-		let relative_to_classpath = if f_dir = "." then file_own_name else f_dir ^ "/" ^ file_own_name in
-		(* `representation` is how the file is referenced to. E.g. when it's deduced from a module path. *)
-		let is_platform_specific,representation =
-			(* Platform specific file extensions are not allowed for loading @:coreApi types. *)
-			if is_loading_core_api then
-				false,relative_to_classpath
-			else begin
-				let ext = extension relative_to_classpath in
-				let second_ext = extension (remove_extension relative_to_classpath) in
-				(* The file contains double extension and the secondary one matches current platform *)
-				if platform_ext = second_ext then
-					true,(remove_extension (remove_extension relative_to_classpath)) ^ ext
-				else
-					false,relative_to_classpath
-			end
-		in
-		(*
-			Store current full path for `representation` if
-			- we're loading @:coreApi
-			- or this is a platform-specific file for `representation`
-			- this `representation` was never found before
-		*)
-		if is_loading_core_api || is_platform_specific || not (ctx.file_lookup_cache#mem representation) then begin
-			let full_path = if dir = "." then file_own_name else dir ^ "/" ^ file_own_name in
-			ctx.file_lookup_cache#add representation (Some full_path);
-		end
-	in
-	Option.may (Array.iter prepare_file) dir_listing
-
-let find_file ctx ?(class_path=ctx.class_path) f =
-	try
-		match ctx.file_lookup_cache#find f with
-		| None -> raise Exit
-		| Some f -> f
-	with
-	| Exit ->
-		raise Not_found
-	| Not_found when Path.is_absolute_path f ->
-		ctx.file_lookup_cache#add f (Some f);
-		f
-	| Not_found ->
-		let f_dir = Filename.dirname f in
-		let rec loop had_empty = function
-			| [] when had_empty -> raise Not_found
-			| [] -> loop true [""]
-			| p :: l ->
-				let file = p ^ f in
-				let dir = Filename.dirname file in
-				(* If we have seen the directory before, we can assume that the file isn't in there because the else case
-				   below would have added it to `file_lookup_cache`, which we check before we get here. *)
-				if ctx.readdir_cache#mem (p,dir) then
-					loop (had_empty || p = "") l
-				else begin
-					cache_directory ctx p dir f_dir;
-					(* Caching might have located the file we're looking for, so check the lookup cache again. *)
-					try
-						begin match ctx.file_lookup_cache#find f with
-						| Some f -> f
-						| None -> raise Not_found
-						end
-					with Not_found ->
-						loop (had_empty || p = "") l
-				end
-		in
-		let r = try Some (loop false class_path) with Not_found -> None in
-		ctx.file_lookup_cache#add f r;
-		match r with
-		| None -> raise Not_found
-		| Some f -> f
+let find_file ctx f =
+	(ctx.class_paths#find_file f).file
 
 (* let find_file ctx f =
 	let timer = Timer.timer ["find_file"] in
@@ -1305,7 +1203,7 @@ let adapt_defines_to_macro_context defines =
 		defines_signature = None
 	} in
 	Define.define macro_defines Define.Macro;
-	Define.raw_define macro_defines (platform_name !Globals.macro_platform);
+	Define.raw_define macro_defines (platform_name Eval);
 	macro_defines
 
 let adapt_defines_to_display_context defines =
