@@ -717,32 +717,42 @@ let fix_accessors com =
 		| _ -> ()
 	) com.types
 
+let extract_if_feature meta =
+	let rec loop = function
+		| [] ->
+			[]
+		| (Meta.IfFeature,el,_) :: _ ->
+			List.map (fun (e,p) -> match e with
+				| EConst (String(s,_)) -> s
+				| _ -> Error.raise_typing_error "String expected" p
+			) el
+		| _ :: l ->
+			loop l
+	in
+	loop meta
+
 let collect_entry_points dce com =
 	let delayed = ref [] in
+	let check_feature cf_ref meta =
+		List.iter (fun s ->
+			try
+				let l = Hashtbl.find dce.features s in
+				l := cf_ref :: !l
+			with Not_found ->
+				Hashtbl.add dce.features s (ref [cf_ref])
+		) meta;
+	in
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c ->
 			remove_class_flag c CUsed;
+			let cl_if_feature = extract_if_feature c.cl_meta in
 			let keep_class = keep_whole_class dce c && (not (has_class_flag c CExtern) || (has_class_flag c CInterface)) in
 			let is_struct = dce.com.platform = Hl && Meta.has Meta.Struct c.cl_meta in
 			let loop kind cf =
-				List.iter (fun (m,el,p) -> match m with
-					| Meta.IfFeature ->
-						let cf_ref = mk_class_field_ref c cf kind com.is_macro_context in
-						List.iter (fun (e,p) -> match e with
-							| EConst (String(s,_)) ->
-								begin try
-									let l = Hashtbl.find dce.features s in
-									l := cf_ref :: !l
-								with Not_found ->
-									Hashtbl.add dce.features s (ref [cf_ref])
-								end
-							| _ ->
-								Error.raise_typing_error "String expected" p
-						) el
-					| _ ->
-						()
-				) cf.cf_meta;
+				let cf_ref = mk_class_field_ref c cf kind com.is_macro_context in
+				let cf_if_feature = extract_if_feature cf.cf_meta in
+				check_feature cf_ref (cl_if_feature @ cf_if_feature);
 				(* Have to delay mark_field so that we see all @:ifFeature *)
 				if keep_class || is_struct || keep_field dce cf c kind then delayed := (fun () -> mark_field dce c cf kind) :: !delayed
 			in

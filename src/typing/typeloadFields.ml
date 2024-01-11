@@ -1781,15 +1781,6 @@ let init_class ctx c p herits fields =
 		| _ :: l ->
 			check_require l
 	in
-	let rec check_if_feature = function
-		| [] ->
-			[]
-		| (Meta.IfFeature,el,_) :: _ ->
-			el
-		| _ :: l ->
-			check_if_feature l
-	in
-	let cl_if_feature = check_if_feature c.cl_meta in
 	let cl_req = check_require c.cl_meta in
 	let has_init = ref false in
 	List.iter (fun f ->
@@ -1809,12 +1800,6 @@ let init_class ctx c p herits fields =
 			if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
 			if fctx.is_static && (has_class_flag c CInterface) && fctx.field_kind <> FKInit && not cctx.is_lib && not ((has_class_flag c CExtern)) then
 				raise_typing_error "You can only declare static fields in extern interfaces" p;
-			begin match cl_if_feature with
-				| [] ->
-					()
-				| el ->
-					f.cff_meta <- (Meta.IfFeature,el,null_pos) :: f.cff_meta
-			end;
 			let req = check_require f.cff_meta in
 			let req = (match req with None -> if fctx.is_static || fctx.field_kind = FKConstructor then cl_req else None | _ -> req) in
 			(match req with
