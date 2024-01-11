@@ -1361,7 +1361,7 @@ class hxb_reader
 
 	method read_enum_fields (e : tenum) =
 		type_type_parameters <- Array.of_list e.e_params;
-		self#read_list (fun () ->
+		ignore(self#read_list (fun () ->
 			let name = self#read_string in
 			let close = self#open_field_scope in
 			let ef = PMap.find name e.e_constrs in
@@ -1369,9 +1369,8 @@ class hxb_reader
 			ef.ef_type <- self#read_type_instance;
 			ef.ef_doc <- self#read_option (fun () -> self#read_documentation);
 			ef.ef_meta <- self#read_metadata;
-			close();
-			class_field_of_enum_field ef
-		)
+			close()
+		))
 
 	(* Module types *)
 
@@ -1623,9 +1622,8 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		for i = 0 to l - 1 do
 			let e = enums.(i) in
-			let cfl = self#read_enum_fields e in
-			let cfl = List.fold_left (fun acc cf -> PMap.add cf.cf_name cf acc) PMap.empty cfl in
-			Type.unify (TType(enum_module_type e cfl,[])) e.e_type
+			self#read_enum_fields e;
+			Type.unify (TType(enum_module_type e,[])) e.e_type
 		done
 
 	method read_anon an =
