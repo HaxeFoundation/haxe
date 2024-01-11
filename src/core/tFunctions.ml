@@ -945,9 +945,9 @@ let class_module_type c =
 	let t = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
 	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
 
-let enum_module_type en fields =
+let enum_module_type en =
 	let path = ([], "Enum<" ^ (s_type_path en.e_path) ^ ">") in
-	let t = mk_anon ~fields (ref (EnumStatics en)) in
+	let t = mk_anon (ref (EnumStatics en)) in
 	{(mk_typedef en.e_module path en.e_pos null_pos t) with t_private = true}
 
 let abstract_module_type a tl =
