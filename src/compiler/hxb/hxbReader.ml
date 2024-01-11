@@ -1232,8 +1232,9 @@ class hxb_reader
 		let name = self#read_string in
 		let pos = self#read_pos in
 		let name_pos = self#read_pos in
+		let meta = self#read_metadata in
 		let overloads = self#read_list (fun () -> self#read_class_field_forward) in
-		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos; cf_overloads = overloads }
+		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos; cf_overloads = overloads; cf_meta = meta }
 
 	method start_texpr =
 		let l = read_uleb128 ch in
@@ -1271,13 +1272,9 @@ class hxb_reader
 				local_type_parameters <- a
 			);
 		let t = self#read_type_instance in
-
 		let flags = read_uleb128 ch in
-
 		let doc = self#read_option (fun () -> self#read_documentation) in
-		let meta = self#read_metadata in
 		let kind = self#read_field_kind in
-
 		let expr,expr_unoptimized = match IO.read_byte ch with
 			| 0 ->
 				None,None
@@ -1290,7 +1287,6 @@ class hxb_reader
 
 		cf.cf_type <- t;
 		cf.cf_doc <- doc;
-		cf.cf_meta <- meta;
 		cf.cf_kind <- kind;
 		cf.cf_expr <- expr;
 		cf.cf_expr_unoptimized <- expr_unoptimized;
