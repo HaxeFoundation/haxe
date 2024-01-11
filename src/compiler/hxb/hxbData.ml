@@ -1,3 +1,6 @@
+open Globals
+open Type
+
 exception HxbFailure of string
 
 (* TEMP: Wipe server cache to force loading from hxb *)
@@ -29,6 +32,13 @@ type chunk_kind =
 	| EFLD (* enum fields *)
 	| AFLD (* abstract fields *)
 	| HEND (* the end *)
+
+type module_cache = {
+	mc_path : path;
+	mc_id : int;
+	mc_bytes : bytes;
+	mc_extra : module_def_extra;
+}
 
 let string_of_chunk_kind = function
 	| STRI -> "STRI"

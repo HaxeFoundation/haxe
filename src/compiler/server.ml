@@ -9,6 +9,7 @@ open Ipaddr
 open Json
 open CompilationContext
 open MessageReporting
+open HxbData
 
 exception Dirty of module_skip_reason
 exception ServerError of string

@@ -214,7 +214,7 @@ type dot_path_part = {
 type find_module_result =
 	| GoodModule of module_def
 	| BadModule of module_skip_reason
-	| BinaryModule of module_cache
+	| BinaryModule of HxbData.module_cache
 	| NoModule
 
 let make_build_info kind path params extern apply = {

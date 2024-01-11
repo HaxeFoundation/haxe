@@ -43,8 +43,6 @@ type module_skip_reason =
 	| Shadowed of string
 	| LibraryChanged
 
-exception Bad_module of path * module_skip_reason
-
 type module_cache_state =
 	| MSGood
 	| MSBad of module_skip_reason
@@ -438,13 +436,6 @@ and module_def = {
 	mutable m_types : module_type list;
 	mutable m_statics : tclass option;
 	mutable m_extra : module_def_extra;
-}
-
-and module_cache = {
-	mc_path : path;
-	mc_id : int;
-	mc_bytes : bytes;
-	mc_extra : module_def_extra;
 }
 
 and build_state =

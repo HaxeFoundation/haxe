@@ -22,6 +22,7 @@ let check_auxiliary_output com actx =
 	end
 
 let export_hxb com cc platform zip m =
+	let open HxbData in
 	match m.m_extra.m_kind with
 		| MCode | MMacro | MFake -> begin
 			(* Printf.eprintf "Export module %s\n" (s_type_path m.m_path); *)

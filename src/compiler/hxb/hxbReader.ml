@@ -123,9 +123,9 @@ class hxb_reader
 		)
 
 	method resolve_type pack mname tname =
-		try api#resolve_type pack mname tname with
-		| Bad_module (path, reason) -> raise (Bad_module (current_module.m_path, DependencyDirty (path, reason)))
-		| Not_found ->
+		try
+			api#resolve_type pack mname tname
+		with Not_found ->
 			dump_backtrace();
 			error (Printf.sprintf "Cannot resolve type %s" (s_type_path ((pack @ [mname]),tname)))
 

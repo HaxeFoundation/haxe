@@ -34,7 +34,7 @@ let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 class context_cache (index : int) (sign : Digest.t) = object(self)
 	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
-	val binary_cache : (path,module_cache) Hashtbl.t = Hashtbl.create 0
+	val binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
@@ -210,6 +210,7 @@ class cache = object(self)
 			Hashtbl.iter (fun _ m ->
 				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_cache_state <- MSBad (Tainted reason)
 			) cc#get_modules;
+			let open HxbData in
 			Hashtbl.iter (fun _ mc ->
 				if Path.UniqueKey.lazy_key mc.mc_extra.m_file = file_key then mc.mc_extra.m_cache_state <- MSBad (Tainted reason)
 			) cc#get_hxb
