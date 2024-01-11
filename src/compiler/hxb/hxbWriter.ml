@@ -316,10 +316,9 @@ module IOChunk = struct
 		write_u8 io (if b then 1 else 0)
 
 	let export : 'a . hxb_writer_stats -> t -> 'a IO.output -> unit = fun stats io chex ->
-		IO.nwrite chex (Bytes.unsafe_of_string (string_of_chunk_kind io.kind));
 		let bytes = get_bytes io in
 		let length = Bytes.length bytes in
-		IO.write_real_i32 chex (Int32.of_int length);
+		write_chunk_prefix io.kind length chex;
 		(* begin try
 			let (imin,imax) = Hashtbl.find stats.chunk_sizes io.name in
 			if length < !imin then imin := length;
@@ -2136,9 +2135,13 @@ class hxb_writer
 		) l in
 		l
 
+	method get_chunks =
+		List.map (fun chunk ->
+			(chunk.IOChunk.kind,IOChunk.get_bytes chunk)
+		) (self#get_sorted_chunks)
+
 	method export : 'a . 'a IO.output -> unit = fun ch ->
-		IO.nwrite_string ch "hxb";
-		IO.write_byte ch hxb_version;
+		write_header ch;
 		let l = self#get_sorted_chunks in
 		List.iter (fun io ->
 			IOChunk.export stats io ch

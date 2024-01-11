@@ -1793,11 +1793,13 @@ class hxb_reader
 		| EFLD ->
 			self#read_efld
 
-	method read_chunk_data_from (kind : chunk_kind) (input : IO.input) =
-		let old = ch in
-		ch <- input;
-		self#read_chunk_data kind;
-		ch <- old
+	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =
+		api <- new_api;
+		List.iter (fun (kind,data) ->
+			ch <- IO.input_bytes data;
+			self#read_chunk_data kind
+		) chunks;
+		current_module
 
 	method read (new_api : hxb_reader_api) (file_ch : IO.input) =
 		api <- new_api;

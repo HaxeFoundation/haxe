@@ -31,7 +31,14 @@ let export_hxb com cc platform zip m =
 
 			try
 				let hxb_cache = cc#get_hxb_module m.m_path in
-				zip#add_entry (Bytes.to_string hxb_cache.mc_bytes) path;
+				let out = IO.output_string () in
+				write_header out;
+				List.iter (fun (kind,data) ->
+					write_chunk_prefix kind (Bytes.length data) out;
+					IO.write_bytes out data
+				) hxb_cache.mc_chunks;
+				let data = IO.close_out out in
+				zip#add_entry data path;
 			with Not_found ->
 				let anon_identification = new tanon_identification in
 				let writer = new HxbWriter.hxb_writer (MessageReporting.display_source_at com) anon_identification com.hxb_writer_stats in

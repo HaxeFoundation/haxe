@@ -33,10 +33,13 @@ type chunk_kind =
 	| AFLD (* abstract fields *)
 	| HEND (* the end *)
 
+type cached_chunk = chunk_kind * bytes
+type cached_chunks = cached_chunk list
+
 type module_cache = {
 	mc_path : path;
 	mc_id : int;
-	mc_bytes : bytes;
+	mc_chunks : cached_chunks;
 	mc_extra : module_def_extra;
 }
 
@@ -88,3 +91,11 @@ let error (s : string) =
 	raise (HxbFailure s)
 
 let hxb_version = 1
+
+let write_header ch =
+	IO.nwrite_string ch "hxb";
+	IO.write_byte ch hxb_version
+
+let write_chunk_prefix kind length ch =
+	IO.nwrite ch (Bytes.unsafe_of_string (string_of_chunk_kind kind));
+	IO.write_real_i32 ch (Int32.of_int length)

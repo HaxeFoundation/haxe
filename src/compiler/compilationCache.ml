@@ -76,13 +76,11 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		| _ ->
 			let writer = new HxbWriter.hxb_writer display_source_at anon_identification hxb_writer_stats in
 			writer#write_module m;
-			let ch = IO.output_bytes() in
-			writer#export ch;
-			let bytes = IO.close_out ch in
+			let chunks = writer#get_chunks in
 			Hashtbl.replace binary_cache path {
 				mc_path = path;
 				mc_id = m.m_id;
-				mc_bytes = bytes;
+				mc_chunks = chunks;
 				mc_extra = { m.m_extra with m_cache_state = MSGood }
 			}
 

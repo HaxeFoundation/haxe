@@ -176,7 +176,7 @@ let check_display_file ctx cs =
 				begin match !TypeloadModule.type_module_hook ctx path null_pos with
 				| NoModule | BadModule _ -> raise Not_found
 				| BinaryModule mc ->
-					let m = (TypeloadModule.get_reader ctx p)#read_hxb (IO.input_bytes mc.mc_bytes) ctx.com.hxb_reader_stats in
+					let m = (TypeloadModule.get_reader ctx p)#read_chunks mc.mc_chunks ctx.com.hxb_reader_stats in
 					m
 				| GoodModule m ->
 					m
