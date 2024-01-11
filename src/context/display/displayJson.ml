@@ -261,6 +261,14 @@ let handler =
 				) all))
 			)
 		);
+		"server/resetCache", (fun hctx ->
+			hctx.com.cs#clear;
+			DisplayException.last_completion_result := (Array.make 0 (CompletionItem.make (ITModule ([],"")) None));
+			DisplayException.last_completion_pos := None;
+			hctx.send_result (jobject [
+				"success", jbool true
+			]);
+		);
 		"server/readClassPaths", (fun hctx ->
 			hctx.com.callbacks#add_after_init_macros (fun () ->
 				let cc = hctx.display#get_cs#get_context (Define.get_signature hctx.com.defines) in

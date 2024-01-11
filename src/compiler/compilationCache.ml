@@ -109,6 +109,14 @@ class cache = object(self)
 	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
 	val mutable tasks : (server_task PriorityQueue.t) = PriorityQueue.Empty
 
+	method clear =
+		Hashtbl.clear contexts;
+		context_list <- [];
+		Hashtbl.clear haxelib;
+		Hashtbl.clear directories;
+		Hashtbl.clear native_libs;
+		tasks <- PriorityQueue.Empty
+
 	(* contexts *)
 
 	method get_context sign =
