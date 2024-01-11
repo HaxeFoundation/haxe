@@ -30,7 +30,6 @@ type module_check_policy =
 	| CheckFileContentModification
 	| NoCheckDependencies
 	| NoCheckShadowing
-	| Retype
 
 type module_tainting_reason =
 	| CheckDisplayFile
