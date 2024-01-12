@@ -1,5 +1,4 @@
 open HxbReaderApi
-open HxbReader
 open HxbData
 
 class virtual hxb_abstract_reader = object(self)
