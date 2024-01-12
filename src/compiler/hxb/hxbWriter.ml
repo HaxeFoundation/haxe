@@ -1014,9 +1014,7 @@ class hxb_writer
 			let index = anon_fields#add cf () in
 			IOChunk.write_u8 chunk.io 1;
 			IOChunk.write_uleb128 chunk.io index;
-			let close = self#open_field_scope cf.cf_params in
-			self#write_class_field_data cf;
-			close()
+			self#write_class_field_and_overloads_data cf;
 
 	(* Type instances *)
 
@@ -2113,9 +2111,7 @@ class hxb_writer
 		let items = anon_fields#items in
 		IOChunk.write_uleb128 chunk.io (DynArray.length items);
 		DynArray.iter (fun (cf,_) ->
-			Chunk.write_string chunk cf.cf_name;
-			self#write_pos cf.cf_pos;
-			self#write_pos cf.cf_name_pos;
+			self#write_class_field_forward cf
 		) items;
 
 		self#start_chunk HHDR;

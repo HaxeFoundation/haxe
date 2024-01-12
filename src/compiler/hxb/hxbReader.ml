@@ -241,9 +241,7 @@ class hxb_reader
 			anon_fields.(read_uleb128 ch)
 		| 1 ->
 			let cf = anon_fields.(read_uleb128 ch) in
-			let close = self#open_field_scope in
-			self#read_class_field_data cf;
-			close();
+			self#read_class_field_and_overloads_data cf;
 			cf
 		| _ ->
 			assert false
@@ -1484,12 +1482,7 @@ class hxb_reader
 
 	method read_anfr =
 		let l = read_uleb128 ch in
-		let a = Array.init l (fun i ->
-			let name = self#read_string in
-			let pos = self#read_pos in
-			let name_pos = self#read_pos in
-			{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos }
-		) in
+		let a = Array.init l (fun _ -> self#read_class_field_forward) in
 		anon_fields <- a
 
 	method read_cflr =
