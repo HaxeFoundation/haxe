@@ -3036,7 +3036,7 @@ let generate jvm_flag com =
 		let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
 		jar_dir,create_jar jar_path
 	end in
-	let anon_identification = new tanon_identification haxe_dynamic_object_path in
+	let anon_identification = new tanon_identification in
 	let dynamic_level = try
 		int_of_string (Define.defined_value com.defines Define.JvmDynamicLevel)
 	with _ ->

@@ -1,21 +1,22 @@
 open Globals
 open Type
 
-let rec replace_mono t =
-	match t with
-	| TMono t ->
-		(match t.tm_type with
-		| None -> Monomorph.bind t t_dynamic
-		| Some _ -> ())
-	| TEnum (_,p) | TInst (_,p) | TType (_,p) | TAbstract (_,p) ->
-		List.iter replace_mono p
-	| TFun (args,ret) ->
-		List.iter (fun (_,_,t) -> replace_mono t) args;
-		replace_mono ret
-	| TAnon _
-	| TDynamic _ -> ()
-	| TLazy f ->
-		replace_mono (lazy_type f)
+let replace_mono t =
+	let visited_anons = ref [] in
+	let rec loop t =
+		match t with
+		| TMono ({ tm_type = None }) ->
+			t_dynamic
+		| TAnon an ->
+			if not (List.memq an !visited_anons) then begin
+				visited_anons := an :: !visited_anons;
+				TFunctions.map loop t
+			end else
+				t
+		| _ ->
+			TFunctions.map loop t
+	in
+	loop t
 
 type 'a path_field_mapping = {
 	pfm_path : path;
@@ -39,7 +40,7 @@ let pfm_of_typedef td = match follow td.t_type with
 	| _ ->
 		die "" __LOC__
 
-class ['a] tanon_identification (empty_path : string list * string) =
+class ['a] tanon_identification =
 	let is_normal_anon an = match !(an.a_status) with
 		| Closed | Const -> true
 		| _ -> false
@@ -59,7 +60,17 @@ object(self)
 		DynArray.add (DynArray.get pfm_by_arity pfm.pfm_arity) pfm;
 		Hashtbl.replace pfms path pfm
 
-	method unify (tc : Type.t) (pfm : 'a path_field_mapping) =
+	method unify ?(strict:bool = false) (tc : Type.t) (pfm : 'a path_field_mapping) =
+		let uctx = if strict then {
+			allow_transitive_cast = false;
+			allow_abstract_cast = false;
+			allow_dynamic_to_cast = false;
+			allow_arg_name_mismatch = false;
+			equality_kind = EqStrictStrict;
+			equality_underlying = false;
+			strict_field_kind = true;
+		} else {default_unification_context with equality_kind = EqDoNotFollowNull} in
+
 		let check () =
 			let pair_up fields =
 				PMap.fold (fun cf acc ->
@@ -73,7 +84,7 @@ object(self)
 					let monos = List.map (fun _ -> mk_mono()) pfm.pfm_params in
 					let map = apply_params pfm.pfm_params monos in
 					List.iter (fun (cf,cf') ->
-						if not (unify_kind cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
+						if not (unify_kind ~strict:uctx.strict_field_kind cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
 						Type.unify (apply_params c.cl_params tl (monomorphs cf'.cf_params cf'.cf_type)) (map (monomorphs cf.cf_params cf.cf_type))
 					) pairs;
 					monos
@@ -83,9 +94,10 @@ object(self)
 					let monos = List.map (fun _ -> mk_mono()) pfm.pfm_params in
 					let map = apply_params pfm.pfm_params monos in
 					List.iter (fun (cf,cf') ->
-						if not (unify_kind cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
+						if strict && (Meta.has Meta.Optional cf.cf_meta) != (Meta.has Meta.Optional cf'.cf_meta) then raise (Unify_error [Unify_custom "optional mismatch"]);
+						if not (unify_kind ~strict:uctx.strict_field_kind cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
 						fields := PMap.remove cf.cf_name !fields;
-						Type.type_eq EqDoNotFollowNull cf'.cf_type (map (monomorphs cf.cf_params cf.cf_type))
+						type_eq_custom uctx cf'.cf_type (map (monomorphs cf.cf_params cf.cf_type))
 					) pairs;
 					if not (PMap.is_empty !fields) then raise (Unify_error [Unify_custom "not enough fields"]);
 					monos
@@ -105,17 +117,18 @@ object(self)
 		with Not_found ->
 			raise (Unify_error [])
 
-	method find_compatible (arity : int) (tc : Type.t) =
+	method find_compatible (strict : bool) (arity : int) (tc : Type.t) =
 		if arity >= DynArray.length pfm_by_arity then
 			raise Not_found;
 		let d = DynArray.get pfm_by_arity arity in
 		let l = DynArray.length d in
+
 		let rec loop i =
 			if i >= l then
 				raise Not_found;
 			let pfm = DynArray.unsafe_get d i in
 			try
-				self#unify tc pfm;
+				if strict then self#unify ~strict tc pfm else self#unify tc pfm;
 				pfm
 			with Unify_error _ ->
 				loop (i + 1)
@@ -135,7 +148,7 @@ object(self)
 		in
 		loop td.t_type
 
-	method identity_anon (an : tanon) =
+	method identify_anon ?(strict:bool = false) (an : tanon) =
 		let make_pfm path = {
 			pfm_path = path;
 			pfm_params = [];
@@ -146,19 +159,20 @@ object(self)
 		match !(an.a_status) with
 		| ClassStatics {cl_path = path} | EnumStatics {e_path = path} | AbstractStatics {a_path = path} ->
 			begin try
-				Some (Hashtbl.find pfms path)			
+				Some (Hashtbl.find pfms path)
 			with Not_found ->
 				let pfm = make_pfm path in
 				self#add_pfm path pfm;
 				Some pfm
 			end
 		| _ ->
-			let arity = PMap.fold (fun cf i ->
-				replace_mono cf.cf_type;
-				i + 1
-			) an.a_fields 0 in
-			begin try
-				Some (self#find_compatible arity (TAnon an))
+			let arity,fields = PMap.fold (fun cf (i,acc) ->
+				let t = replace_mono cf.cf_type in
+				(i + 1),(PMap.add cf.cf_name {cf with cf_type = t} acc)
+			) an.a_fields (0,PMap.empty) in
+			let an = { a_fields = fields; a_status = an.a_status; } in
+			try
+				Some (self#find_compatible strict arity (TAnon an))
 			with Not_found ->
 				let id = num in
 				num <- num + 1;
@@ -172,9 +186,8 @@ object(self)
 				} in
 				self#add_pfm path pfm;
 				Some pfm
-			end
 
-	method identify (accept_anons : bool) (t : Type.t) =
+	method identify ?(strict:bool = false) (accept_anons : bool) (t : Type.t) =
 		match t with
 		| TType(td,tl) ->
 			begin try
@@ -191,7 +204,7 @@ object(self)
 		| TLazy f ->
 			self#identify accept_anons (lazy_type f)
 		| TAnon an when accept_anons && not (PMap.is_empty an.a_fields) ->
-			self#identity_anon an
+			self#identify_anon ~strict an
 		| _ ->
 			None
 end
