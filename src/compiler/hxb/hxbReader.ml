@@ -242,7 +242,6 @@ class hxb_reader
 		| 1 ->
 			let cf = anon_fields.(read_uleb128 ch) in
 			let close = self#open_field_scope in
-			cf.cf_meta <- self#read_metadata; (* TODO: ghjkl *)
 			self#read_class_field_data cf;
 			close();
 			cf
@@ -1233,9 +1232,8 @@ class hxb_reader
 		let name = self#read_string in
 		let pos = self#read_pos in
 		let name_pos = self#read_pos in
-		let meta = self#read_metadata in
 		let overloads = self#read_list (fun () -> self#read_class_field_forward) in
-		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos; cf_overloads = overloads; cf_meta = meta }
+		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos; cf_overloads = overloads }
 
 	method start_texpr =
 		let l = read_uleb128 ch in
@@ -1273,9 +1271,13 @@ class hxb_reader
 				local_type_parameters <- a
 			);
 		let t = self#read_type_instance in
+
 		let flags = read_uleb128 ch in
+
 		let doc = self#read_option (fun () -> self#read_documentation) in
+		let meta = self#read_metadata in
 		let kind = self#read_field_kind in
+
 		let expr,expr_unoptimized = match IO.read_byte ch with
 			| 0 ->
 				None,None
@@ -1288,6 +1290,7 @@ class hxb_reader
 
 		cf.cf_type <- t;
 		cf.cf_doc <- doc;
+		cf.cf_meta <- meta;
 		cf.cf_kind <- kind;
 		cf.cf_expr <- expr;
 		cf.cf_expr_unoptimized <- expr_unoptimized;
@@ -1319,24 +1322,13 @@ class hxb_reader
 		| _ ->
 			type_type_parameters <- Array.of_list c.cl_params
 		end;
-		let cl_if_feature = Feature.check_if_feature c.cl_meta in
-		let handle_feature ref_kind cf =
-			let set_feature s =
-				let cf_ref = mk_class_field_ref c cf ref_kind false (* TODO: ? *) in
-				Feature.set_feature current_module cf_ref s;
-			in
-			List.iter set_feature cl_if_feature;
-			List.iter set_feature (Feature.check_if_feature cf.cf_meta);
-		in
 		let _ = self#read_option (fun f ->
 			let cf = Option.get c.cl_constructor in
-			handle_feature CfrConstructor cf;
 			self#read_class_field_and_overloads_data cf
 		) in
 		let rec loop ref_kind num cfl = match cfl with
 			| cf :: cfl ->
 				assert (num > 0);
-				handle_feature ref_kind cf;
 				self#read_class_field_and_overloads_data cf;
 				loop ref_kind (num - 1) cfl
 			| [] ->

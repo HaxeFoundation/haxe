@@ -1014,7 +1014,6 @@ class hxb_writer
 			IOChunk.write_u8 chunk.io 1;
 			IOChunk.write_uleb128 chunk.io index;
 			let close = self#open_field_scope cf.cf_params in
-			self#write_metadata cf.cf_meta; (* TODO: asdf *)
 			self#write_class_field_data cf;
 			close()
 
@@ -1686,7 +1685,6 @@ class hxb_writer
 		Chunk.write_string chunk cf.cf_name;
 		self#write_pos cf.cf_pos;
 		self#write_pos cf.cf_name_pos;
-		self#write_metadata cf.cf_meta;
 		Chunk.write_list chunk cf.cf_overloads (fun cf ->
 			self#write_class_field_forward cf;
 		);
@@ -1727,6 +1725,7 @@ class hxb_writer
 		end);
 		IOChunk.write_uleb128 chunk.io cf.cf_flags;
 		Chunk.write_option chunk cf.cf_doc self#write_documentation;
+		self#write_metadata cf.cf_meta;
 		self#write_field_kind cf.cf_kind;
 		begin match cf.cf_expr with
 			| None ->
