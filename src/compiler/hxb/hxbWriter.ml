@@ -1038,13 +1038,13 @@ class hxb_writer
 				IOChunk.write_u8 chunk.io 3;
 				IOChunk.write_uleb128 chunk.io index;
 		end with Not_found ->
-			try ignore(unbound_ttp#get ttp) with Not_found -> begin
+			(try ignore(unbound_ttp#get ttp) with Not_found -> begin
 				ignore(unbound_ttp#add ttp ());
 				let p = { null_pos with pfile = (Path.UniqueKey.lazy_path current_module.m_extra.m_file) } in
 				let msg = Printf.sprintf "Unbound type parameter %s" (s_type_path ttp.ttp_class.cl_path) in
 				(* if p = null_pos then trace_call_stack ~n:20 (); *)
 				warn WUnboundTypeParameter msg p
-			end;
+			end);
 			(* TODO: handle unbound type parameters? *)
 			IOChunk.write_u8 chunk.io 4; (* TDynamic None *)
 		end
