@@ -210,7 +210,10 @@ class cache = object(self)
 			) cc#get_modules;
 			let open HxbData in
 			Hashtbl.iter (fun _ mc ->
-				if Path.UniqueKey.lazy_key mc.mc_extra.m_file = file_key then mc.mc_extra.m_cache_state <- MSBad (Tainted reason)
+				if Path.UniqueKey.lazy_key mc.mc_extra.m_file = file_key then
+					mc.mc_extra.m_cache_state <- match reason, mc.mc_extra.m_cache_state with
+					| CheckDisplayFile, (MSBad _ as state) -> state
+					| _ -> MSBad (Tainted reason)
 			) cc#get_hxb
 		) contexts
 
