@@ -66,7 +66,7 @@ object(self)
 			allow_abstract_cast = false;
 			allow_dynamic_to_cast = false;
 			allow_arg_name_mismatch = false;
-			equality_kind = EqStrictStrict;
+			equality_kind = EqStricter;
 			equality_underlying = false;
 			strict_field_kind = true;
 		} else {default_unification_context with equality_kind = EqDoNotFollowNull} in
