@@ -41,7 +41,8 @@ let export_hxb com cc platform zip m =
 				zip#add_entry data path;
 			with Not_found ->
 				let anon_identification = new tanon_identification in
-				let writer = new HxbWriter.hxb_writer (MessageReporting.display_source_at com) anon_identification com.hxb_writer_stats in
+				let warn w s p = com.Common.warning w com.warning_options s p in
+				let writer = new HxbWriter.hxb_writer (MessageReporting.display_source_at com) warn anon_identification com.hxb_writer_stats in
 				writer#write_module m;
 				let out = IO.output_string () in
 				writer#export out;
