@@ -169,7 +169,6 @@ let module_extra file sign time kind added policy =
 		m_deps = PMap.empty;
 		m_kind = kind;
 		m_cache_bound_objects = DynArray.create ();
-		m_if_feature = [];
 		m_features = Hashtbl.create 0;
 		m_check_policy = policy;
 	}
