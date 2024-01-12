@@ -47,21 +47,21 @@ let string_of_chunk_kind = function
 	| STRI -> "STRI"
 	| DOCS -> "DOCS"
 	| HHDR -> "HHDR"
-	| ANFR -> "ANFR"
 	| TYPF -> "TYPF"
 	| CLSR -> "CLSR"
+	| ENMR -> "ENMR"
 	| ABSR -> "ABSR"
 	| TPDR -> "TPDR"
-	| ENMR -> "ENMR"
+	| ANFR -> "ANFR"
 	| CLSD -> "CLSD"
+	| ENMD -> "ENMD"
 	| ABSD -> "ABSD"
+	| TPDD -> "TPDD"
 	| ENFR -> "ENFR"
 	| CFLR -> "CFLR"
 	| CFLD -> "CFLD"
-	| AFLD -> "AFLD"
-	| TPDD -> "TPDD"
-	| ENMD -> "ENMD"
 	| EFLD -> "EFLD"
+	| AFLD -> "AFLD"
 	| HEND -> "HEND"
 
 let chunk_kind_of_string = function
@@ -70,19 +70,19 @@ let chunk_kind_of_string = function
 	| "HHDR" -> HHDR
 	| "TYPF" -> TYPF
 	| "CLSR" -> CLSR
+	| "ENMR" -> ENMR
 	| "ABSR" -> ABSR
 	| "TPDR" -> TPDR
-	| "ENMR" -> ENMR
-	| "CLSD" -> CLSD
-	| "ABSD" -> ABSD
-	| "ENFR" -> ENFR
 	| "ANFR" -> ANFR
+	| "CLSD" -> CLSD
+	| "ENMD" -> ENMD
+	| "ABSD" -> ABSD
+	| "TPDD" -> TPDD
+	| "ENFR" -> ENFR
 	| "CFLR" -> CFLR
 	| "CFLD" -> CFLD
-	| "AFLD" -> AFLD
-	| "TPDD" -> TPDD
-	| "ENMD" -> ENMD
 	| "EFLD" -> EFLD
+	| "AFLD" -> AFLD
 	| "HEND" -> HEND
 	| name -> raise (HxbFailure ("Invalid chunk name: " ^ name))
 
