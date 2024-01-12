@@ -947,7 +947,7 @@ class hxb_writer
 		let i = abstracts#get_or_add a.a_path a in
 		IOChunk.write_uleb128 chunk.io i
 
-	method write_anon_ref (an : tanon) (ttp : type_params) (p : Globals.pos) =
+	method write_anon_ref (an : tanon) (ttp : type_params) =
 		let pfm = Option.get (anon_id#identify_anon ~strict:true an) in
 		try
 			let index = anons#get pfm.pfm_path in
@@ -957,7 +957,7 @@ class hxb_writer
 			let index = anons#add pfm.pfm_path an in
 			IOChunk.write_u8 chunk.io 1;
 			IOChunk.write_uleb128 chunk.io index;
-			self#write_anon an ttp p
+			self#write_anon an ttp
 
 	method write_tmono_ref (mono : tmono) =
 		let index = try tmonos#get mono with Not_found -> tmonos#add mono () in
@@ -1022,7 +1022,7 @@ class hxb_writer
 
 	val unbound_ttp = new identity_pool
 
-	method write_type_parameter_ref (ttp : typed_type_param) (p : Globals.pos) =
+	method write_type_parameter_ref (ttp : typed_type_param) =
 		begin try
 			begin match ttp.ttp_host with
 			| TPHType ->
@@ -1039,8 +1039,9 @@ class hxb_writer
 				IOChunk.write_uleb128 chunk.io index;
 		end with Not_found ->
 			try ignore(unbound_ttp#get ttp) with Not_found -> begin
-				let msg = Printf.sprintf "Unbound type parameter %s" (s_type_path ttp.ttp_class.cl_path) in
 				ignore(unbound_ttp#add ttp ());
+				let p = { null_pos with pfile = (Path.UniqueKey.lazy_path current_module.m_extra.m_file) } in
+				let msg = Printf.sprintf "Unbound type parameter %s" (s_type_path ttp.ttp_class.cl_path) in
 				(* if p = null_pos then trace_call_stack ~n:20 (); *)
 				warn WUnboundTypeParameter msg p
 			end;
@@ -1118,7 +1119,7 @@ class hxb_writer
 		   103: Bool
 		   104: String
 	*)
-	method write_type_instance_simple (rings : t_rings) (t : Type.t) (p : Globals.pos) =
+	method write_type_instance_simple (rings : t_rings) (t : Type.t) =
 		match t with
 		| TAbstract ({a_path = ([],"Void")},[]) ->
 			self#write_type_instance_byte 100;
@@ -1144,12 +1145,12 @@ class hxb_writer
 				None
 			| Some t ->
 				(* Don't write bound monomorphs, write underlying type directly *)
-				self#write_type_instance_simple rings t p
+				self#write_type_instance_simple rings t
 			end
 		| TLazy f ->
-			self#write_type_instance_simple rings (lazy_type f) p
+			self#write_type_instance_simple rings (lazy_type f)
 		| TInst({cl_kind = KTypeParameter ttp},[]) ->
-			self#write_type_parameter_ref ttp p;
+			self#write_type_parameter_ref ttp;
 			None
 		| TInst({cl_kind = KExpr _},_) ->
 			Some (t,rings#ring_inst)
@@ -1225,11 +1226,11 @@ class hxb_writer
 			) l
 		end
 
-	method write_type_instance_not_simple t p =
+	method write_type_instance_not_simple t =
 		let write_function_arg (n,o,t) =
 			Chunk.write_string chunk n;
 			IOChunk.write_bool chunk.io o;
-			self#write_type_instance t p;
+			self#write_type_instance t;
 		in
 		let write_inlined_list offset max f_first f_elt l =
 			self#write_inlined_list offset max self#write_type_instance_byte f_first f_elt l
@@ -1244,33 +1245,33 @@ class hxb_writer
 			write_inlined_list 20 4 (fun () -> ()) write_function_arg args;
 		| TFun(args,t) ->
 			write_inlined_list 30 4 (fun () -> ()) write_function_arg args;
-			self#write_type_instance t p;
+			self#write_type_instance t;
 		| TInst(c,tl) ->
-			write_inlined_list 40 2 (fun () -> self#write_class_ref c) (fun t -> self#write_type_instance t p) tl;
+			write_inlined_list 40 2 (fun () -> self#write_class_ref c) self#write_type_instance tl;
 		| TEnum(en,tl) ->
-			write_inlined_list 50 2 (fun () -> self#write_enum_ref en) (fun t -> self#write_type_instance t p) tl;
+			write_inlined_list 50 2 (fun () -> self#write_enum_ref en) self#write_type_instance tl;
 		| TType(td,tl) ->
-			write_inlined_list 60 2 (fun () -> self#write_typedef_ref td) (fun t -> self#write_type_instance t p) tl;
+			write_inlined_list 60 2 (fun () -> self#write_typedef_ref td) self#write_type_instance tl;
 		| TAbstract(a,tl) ->
-			write_inlined_list 70 2 (fun () -> self#write_abstract_ref a) (fun t -> self#write_type_instance t p) tl;
+			write_inlined_list 70 2 (fun () -> self#write_abstract_ref a) self#write_type_instance tl;
 		| TAnon an when PMap.is_empty an.a_fields ->
 			self#write_type_instance_byte 80;
 		| TAnon an ->
 			self#write_type_instance_byte 81;
-			self#write_anon_ref an [] p
+			self#write_anon_ref an []
 		| TDynamic (Some t) ->
 			self#write_type_instance_byte 89;
-			self#write_type_instance t p;
+			self#write_type_instance t;
 
-	method write_type_instance (t: Type.t) (p: Globals.pos) =
-		match self#write_type_instance_simple dummy_rings t p with
+	method write_type_instance (t: Type.t) =
+		match self#write_type_instance_simple dummy_rings t with
 			| None ->
 				()
 			| Some(t,_) ->
-				self#write_type_instance_not_simple t p
+				self#write_type_instance_not_simple t
 
-	method write_types tl p =
-		Chunk.write_list chunk tl (fun t -> self#write_type_instance t p)
+	method write_types tl =
+		Chunk.write_list chunk tl self#write_type_instance
 
 	(* texpr *)
 
@@ -1298,9 +1299,9 @@ class hxb_writer
 		self#write_metadata v.v_meta;
 		self#write_pos v.v_pos
 
-	method write_texpr_type_instance (fctx : field_writer_context) (t: Type.t) (p: Globals.pos) =
+	method write_texpr_type_instance (fctx : field_writer_context) (t: Type.t) =
 		let restore = self#start_temporary_chunk 32 in
-		let r = self#write_type_instance_simple fctx.t_rings t p in
+		let r = self#write_type_instance_simple fctx.t_rings t in
 		let index = match r with
 		| None ->
 			let t_bytes = restore (fun new_chunk -> IOChunk.get_bytes new_chunk.io) in
@@ -1314,7 +1315,7 @@ class hxb_writer
 				index
 			with Not_found ->
 				let restore = self#start_temporary_chunk 32 in
-				self#write_type_instance_not_simple t p;
+				self#write_type_instance_not_simple t;
 				let t_bytes = restore (fun new_chunk ->
 					IOChunk.get_bytes new_chunk.io
 				) in
@@ -1345,11 +1346,11 @@ class hxb_writer
 				);
 				Chunk.write_option chunk ve.v_expr (self#write_texpr fctx);
 			);
-			self#write_type_instance v.v_type v.v_pos;
+			self#write_type_instance v.v_type;
 		in
 		let rec loop e =
 
-			self#write_texpr_type_instance fctx e.etype e.epos;
+			self#write_texpr_type_instance fctx e.etype;
 			fctx.pos_writer#write_pos chunk true 0 e.epos;
 
 			match e.eexpr with
@@ -1423,7 +1424,7 @@ class hxb_writer
 					declare_var v;
 					Chunk.write_option chunk eo loop;
 				);
-				self#write_type_instance tf.tf_type e.epos;
+				self#write_type_instance tf.tf_type;
 				loop tf.tf_expr;
 			(* texpr compounds 60-79 *)
 			| TArray(e1,e2) ->
@@ -1522,13 +1523,13 @@ class hxb_writer
 				self#write_texpr_byte 111;
 				fctx.pos_writer#write_pos chunk true 0 p1;
 				self#write_class_ref c;
-				self#write_types tl e.epos;
+				self#write_types tl;
 				self#write_field_ref c CfrMember cf;
 			| TField(e1,FInstance(c,tl,cf)) ->
 				self#write_texpr_byte 102;
 				loop e1;
 				self#write_class_ref c;
-				self#write_types tl e.epos;
+				self#write_types tl;
 				self#write_field_ref c CfrMember cf;
 			| TField({eexpr = TTypeExpr (TClassDecl c'); epos = p1},FStatic(c,cf)) when c == c' ->
 				self#write_texpr_byte 110;
@@ -1548,7 +1549,7 @@ class hxb_writer
 				self#write_texpr_byte 105;
 				loop e1;
 				self#write_class_ref c;
-				self#write_types tl e.epos;
+				self#write_types tl;
 				self#write_field_ref c CfrMember cf
 			| TField(e1,FClosure(None,cf)) ->
 				self#write_texpr_byte 106;
@@ -1566,7 +1567,7 @@ class hxb_writer
 			(* module types 120-139 *)
 			| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter ttp})) ->
 				self#write_texpr_byte 128;
-				self#write_type_parameter_ref ttp e.epos
+				self#write_type_parameter_ref ttp
 			| TTypeExpr (TClassDecl c) ->
 				self#write_texpr_byte 120;
 				self#write_class_ref c;
@@ -1590,13 +1591,13 @@ class hxb_writer
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd infos.mt_path);
 			| TNew(({cl_kind = KTypeParameter ttp}),tl,el) ->
 				self#write_texpr_byte 127;
-				self#write_type_parameter_ref ttp e.epos;
-				self#write_types tl e.epos;
+				self#write_type_parameter_ref ttp;
+				self#write_types tl;
 				loop_el el;
 			| TNew(c,tl,el) ->
 				self#write_texpr_byte 126;
 				self#write_class_ref c;
-				self#write_types tl e.epos;
+				self#write_types tl;
 				loop_el el;
 			(* unops 140-159 *)
 			| TUnop(op,flag,e1) ->
@@ -1622,11 +1623,11 @@ class hxb_writer
 		self#write_path ttp.ttp_class.cl_path;
 		self#write_pos ttp.ttp_class.cl_name_pos
 
-	method write_type_parameter_data ttp p =
+	method write_type_parameter_data ttp =
 		let c = ttp.ttp_class in
 		self#write_metadata c.cl_meta;
-		self#write_types (get_constraints ttp) p;
-		Chunk.write_option chunk ttp.ttp_default (fun t -> self#write_type_instance t p)
+		self#write_types (get_constraints ttp);
+		Chunk.write_option chunk ttp.ttp_default self#write_type_instance
 
 	method write_field_kind = function
 		| Method MethNormal -> IOChunk.write_u8 chunk.io 0;
@@ -1711,17 +1712,17 @@ class hxb_writer
 			)
 		)
 
-	method commit_field_type_parameters (params : type_params) (p : Globals.pos) =
+	method commit_field_type_parameters (params : type_params) =
 		IOChunk.write_uleb128 chunk.io (List.length params);
 		if not self#in_nested_scope then begin
 			let ftp = List.map fst field_type_parameters#to_list in
 			Chunk.write_list chunk ftp self#write_type_parameter_forward;
-			Chunk.write_list chunk ftp (fun ftp -> self#write_type_parameter_data ftp p);
+			Chunk.write_list chunk ftp self#write_type_parameter_data;
 		end
 
 	method write_class_field_data cf =
 		let restore = self#start_temporary_chunk 512 in
-		(try self#write_type_instance cf.cf_type cf.cf_pos with e -> begin
+		(try self#write_type_instance cf.cf_type with e -> begin
 			prerr_endline (Printf.sprintf "%s while writing type instance for field %s" todo_error cf.cf_name);
 			raise e
 		end);
@@ -1741,11 +1742,11 @@ class hxb_writer
 		end;
 
 		restore (fun new_chunk ->
-			self#commit_field_type_parameters cf.cf_params cf.cf_pos;
+			self#commit_field_type_parameters cf.cf_params;
 			if not self#in_nested_scope then begin
 				let ltp = List.map fst local_type_parameters#to_list in
 				Chunk.write_list chunk ltp self#write_type_parameter_forward;
-				Chunk.write_list chunk ltp (fun ltp -> self#write_type_parameter_data ltp cf.cf_pos);
+				Chunk.write_list chunk ltp self#write_type_parameter_data;
 			end;
 			Chunk.export_data new_chunk chunk
 		)
@@ -1769,13 +1770,13 @@ class hxb_writer
 		Chunk.write_option chunk infos.mt_doc self#write_documentation;
 		self#write_metadata infos.mt_meta;
 		Chunk.write_list chunk infos.mt_params self#write_type_parameter_forward;
-		Chunk.write_list chunk infos.mt_params (fun mtp -> self#write_type_parameter_data mtp infos.mt_pos);
+		Chunk.write_list chunk infos.mt_params self#write_type_parameter_data;
 		Chunk.write_list chunk infos.mt_using (fun (c,p) ->
 			self#write_class_ref c;
 			self#write_pos p;
 		);
 
-	method write_class_kind k p = match k with
+	method write_class_kind = function
 		| KNormal ->
 			IOChunk.write_u8 chunk.io 0
 		| KTypeParameter ttp ->
@@ -1788,7 +1789,7 @@ class hxb_writer
 		| KGenericInstance(c,tl) ->
 			IOChunk.write_u8 chunk.io 4;
 			self#write_class_ref c;
-			self#write_types tl p
+			self#write_types tl
 		| KMacroType ->
 			IOChunk.write_u8 chunk.io 5;
 		| KGenericBuild l ->
@@ -1808,18 +1809,18 @@ class hxb_writer
 			self#select_type c.cl_path;
 		end;
 		self#write_common_module_type (Obj.magic c);
-		self#write_class_kind c.cl_kind c.cl_pos;
+		self#write_class_kind c.cl_kind;
 		IOChunk.write_uleb128 chunk.io c.cl_flags;
 		Chunk.write_option chunk c.cl_super (fun (c,tl) ->
 			self#write_class_ref c;
-			self#write_types tl c.cl_pos
+			self#write_types tl
 		);
 		Chunk.write_list chunk c.cl_implements (fun (c,tl) ->
 			self#write_class_ref c;
-			self#write_types tl c.cl_pos
+			self#write_types tl
 		);
-		Chunk.write_option chunk c.cl_dynamic (fun t -> self#write_type_instance t c.cl_pos);
-		Chunk.write_option chunk c.cl_array_access (fun t -> self#write_type_instance t c.cl_pos);
+		Chunk.write_option chunk c.cl_dynamic self#write_type_instance;
+		Chunk.write_option chunk c.cl_array_access self#write_type_instance;
 
 	method write_abstract (a : tabstract) =
 		begin try
@@ -1833,10 +1834,10 @@ class hxb_writer
 			IOChunk.write_u8 chunk.io 0
 		else begin
 			IOChunk.write_u8 chunk.io 1;
-			self#write_type_instance a.a_this a.a_pos;
+			self#write_type_instance a.a_this;
 		end;
-		Chunk.write_list chunk a.a_from (fun t -> self#write_type_instance t a.a_pos);
-		Chunk.write_list chunk a.a_to (fun t -> self#write_type_instance t a.a_pos);
+		Chunk.write_list chunk a.a_from self#write_type_instance;
+		Chunk.write_list chunk a.a_to self#write_type_instance;
 		IOChunk.write_bool chunk.io a.a_enum
 
 	method write_abstract_fields (a : tabstract) =
@@ -1879,9 +1880,9 @@ class hxb_writer
 	method write_typedef (td : tdef) =
 		self#select_type td.t_path;
 		self#write_common_module_type (Obj.magic td);
-		self#write_type_instance td.t_type td.t_pos;
+		self#write_type_instance td.t_type;
 
-	method write_anon (an : tanon) (ttp : type_params) (p : Globals.pos) =
+	method write_anon (an : tanon) (ttp : type_params) =
 		let write_fields () =
 			Chunk.write_list chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (_,cf) ->
 				self#write_anon_field_ref cf
@@ -1897,7 +1898,7 @@ class hxb_writer
 			write_fields ()
 		| Extend tl ->
 			IOChunk.write_u8 chunk.io 2;
-			self#write_types tl p;
+			self#write_types tl;
 			write_fields ()
 		| ClassStatics _ ->
 			assert false
@@ -2023,9 +2024,9 @@ class hxb_writer
 					let close = self#open_field_scope ef.ef_params in
 					Chunk.write_string chunk s;
 					let restore = self#start_temporary_chunk 32 in
-					self#write_type_instance ef.ef_type ef.ef_pos;
+					self#write_type_instance ef.ef_type;
 					let t_bytes = restore (fun new_chunk -> IOChunk.get_bytes new_chunk.io) in
-					self#commit_field_type_parameters ef.ef_params ef.ef_pos;
+					self#commit_field_type_parameters ef.ef_params;
 					IOChunk.write_bytes chunk.io t_bytes;
 					Chunk.write_option chunk ef.ef_doc self#write_documentation;
 					self#write_metadata ef.ef_meta;
