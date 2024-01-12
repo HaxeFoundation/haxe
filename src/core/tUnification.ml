@@ -29,13 +29,16 @@ type eq_kind =
 	| EqRightDynamic
 	| EqBothDynamic
 	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
+	| EqStricter
 
 type unification_context = {
-	allow_transitive_cast : bool;
-	allow_abstract_cast   : bool; (* allows a non-transitive abstract cast (from,to,@:from,@:to) *)
-	allow_dynamic_to_cast : bool; (* allows a cast from dynamic to non-dynamic *)
-	equality_kind         : eq_kind;
-	equality_underlying   : bool;
+	allow_transitive_cast   : bool;
+	allow_abstract_cast     : bool; (* allows a non-transitive abstract cast (from,to,@:from,@:to) *)
+	allow_dynamic_to_cast   : bool; (* allows a cast from dynamic to non-dynamic *)
+	allow_arg_name_mismatch : bool;
+	equality_kind           : eq_kind;
+	equality_underlying     : bool;
+	strict_field_kind       : bool;
 }
 
 type unify_min_result =
@@ -54,11 +57,13 @@ let unify_ref : (unification_context -> t -> t -> unit) ref = ref (fun _ _ _ -> 
 let unify_min_ref : (unification_context -> t -> t list -> unify_min_result) ref = ref (fun _ _ _ -> assert false)
 
 let default_unification_context = {
-	allow_transitive_cast = true;
-	allow_abstract_cast   = true;
-	allow_dynamic_to_cast = true;
-	equality_kind         = EqStrict;
-	equality_underlying   = false;
+	allow_transitive_cast   = true;
+	allow_abstract_cast     = true;
+	allow_dynamic_to_cast   = true;
+	allow_arg_name_mismatch = true;
+	equality_kind           = EqStrict;
+	equality_underlying     = false;
+	strict_field_kind       = false;
 }
 
 module Monomorph = struct
@@ -427,15 +432,20 @@ let direct_access = function
 	| AccNo | AccNever | AccNormal | AccInline | AccRequire _ | AccCtor -> true
 	| AccCall -> false
 
-let unify_kind k1 k2 =
+let unify_kind ~(strict:bool) k1 k2 =
 	k1 = k2 || match k1, k2 with
 		| Var v1, Var v2 -> unify_access v1.v_read v2.v_read && unify_access v1.v_write v2.v_write
-		| Var v, Method m ->
+		| Method m1, Method m2 ->
+			(match m1,m2 with
+			| MethInline, MethNormal
+			| MethDynamic, MethNormal -> true
+			| _ -> false)
+		| Var v, Method m when not strict ->
 			(match v.v_read, v.v_write, m with
 			| AccNormal, _, MethNormal -> true
 			| AccNormal, AccNormal, MethDynamic -> true
 			| _ -> false)
-		| Method m, Var v ->
+		| Method m, Var v when not strict ->
 			(match m with
 			| MethDynamic -> direct_access v.v_read && direct_access v.v_write
 			| MethMacro -> false
@@ -443,11 +453,7 @@ let unify_kind k1 k2 =
 				match v.v_read,v.v_write with
 				| AccNormal,(AccNo | AccNever) -> true
 				| _ -> false)
-		| Method m1, Method m2 ->
-			match m1,m2 with
-			| MethInline, MethNormal
-			| MethDynamic, MethNormal -> true
-			| _ -> false
+		| _ -> false
 
 type 'a rec_stack = {
 	mutable rec_stack : 'a list;
@@ -489,7 +495,12 @@ let rec_stack_default stack value fcheck frun def =
 
 let rec type_eq uctx a b =
 	let param = uctx.equality_kind in
+	let can_follow_null = match param with
+		| EqStricter | EqDoNotFollowNull -> false
+		| _ -> true
+	in
 	let can_follow t = match param with
+		| EqStricter -> false
 		| EqCoreType -> false
 		| EqDoNotFollowNull -> not (is_explicit_null t)
 		| _ -> true
@@ -521,9 +532,9 @@ let rec type_eq uctx a b =
 		()
 	| TAbstract ({a_path=[],"Null"},[t1]),TAbstract ({a_path=[],"Null"},[t2]) ->
 		type_eq uctx t1 t2
-	| TAbstract ({a_path=[],"Null"},[t]),_ when param <> EqDoNotFollowNull ->
+	| TAbstract ({a_path=[],"Null"},[t]),_ when can_follow_null ->
 		type_eq uctx t b
-	| _,TAbstract ({a_path=[],"Null"},[t]) when param <> EqDoNotFollowNull ->
+	| _,TAbstract ({a_path=[],"Null"},[t]) when can_follow_null ->
 		type_eq uctx a t
 	| TType (t1,tl1), TType (t2,tl2) when (t1 == t2 || (param = EqCoreType && t1.t_path = t2.t_path)) && List.length tl1 = List.length tl2 ->
 		type_eq_params uctx a b tl1 tl2
@@ -545,9 +556,10 @@ let rec type_eq uctx a b =
 		let i = ref 0 in
 		(try
 			type_eq uctx r1 r2;
-			List.iter2 (fun (n,o1,t1) (_,o2,t2) ->
+			List.iter2 (fun (n1,o1,t1) (n2,o2,t2) ->
 				incr i;
-				if o1 <> o2 then error [Not_matching_optional n];
+				if not uctx.allow_arg_name_mismatch && n1 <> n2 then error [Unify_custom (Printf.sprintf "Arg name mismatch: %s should be %s" n2 n1)];
+				if o1 <> o2 then error [Not_matching_optional n1];
 				type_eq uctx t1 t2
 			) l1 l2
 		with
@@ -576,7 +588,11 @@ let rec type_eq uctx a b =
 			PMap.iter (fun n f1 ->
 				try
 					let f2 = PMap.find n a2.a_fields in
-					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
+					let kind_should_match = match param with
+						| EqStrict | EqCoreType | EqDoNotFollowNull | EqStricter -> true
+						| _ -> false
+					in
+					if f1.cf_kind <> f2.cf_kind && (kind_should_match || not (unify_kind ~strict:uctx.strict_field_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 					let a = f1.cf_type and b = f2.cf_type in
 					(try type_eq uctx a b with Unify_error l -> error (invalid_field n :: l));
 					if (has_class_field_flag f1 CfPublic) != (has_class_field_flag f2 CfPublic) then error [invalid_visibility n];
@@ -753,7 +769,7 @@ let rec unify (uctx : unification_context) a b =
 				in
 				let _, ft, f1 = (try raw_class_field make_type c tl n with Not_found -> error [has_no_field a n]) in
 				let ft = apply_params c.cl_params tl ft in
-				if not (unify_kind f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
+				if not (unify_kind ~strict:uctx.strict_field_kind f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 				if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
 
 				(match f2.cf_kind with
@@ -907,7 +923,7 @@ and unify_anons uctx a b a1 a2 =
 	let unify_field a1_fields f2 =
 		let n = f2.cf_name in
 		let f1 = PMap.find n a1_fields in
-		if not (unify_kind f1.cf_kind f2.cf_kind) then
+		if not (unify_kind ~strict:uctx.strict_field_kind f1.cf_kind f2.cf_kind) then
 			error [invalid_kind n f1.cf_kind f2.cf_kind];
 		if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then
 			error [invalid_visibility n];
