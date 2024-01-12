@@ -701,7 +701,7 @@ let generate_module_type ctx mt =
 
 (* module *)
 
-let generate_module cs cc m =
+let generate_module modules find_module m =
 	jobject [
 		"id",jint m.m_id;
 		"path",generate_module_path m.m_path;
@@ -715,16 +715,16 @@ let generate_module cs cc m =
 		"dependencies",jarray (PMap.fold (fun (sign,mpath) acc ->
 			(jobject [
 				"path",jstring (s_type_path mpath);
-				"sign",jstring (Digest.to_hex ((cs#get_context sign)#find_module mpath).m_extra.m_sign);
+				"sign",jstring (Digest.to_hex (find_module mpath).m_extra.m_sign);
 			]) :: acc
 		) m.m_extra.m_deps []);
-		"dependents",jarray (List.map (fun m -> (jobject [
-			"path",jstring (s_type_path m.m_path);
-			"sign",jstring (Digest.to_hex m.m_extra.m_sign);
-		])) (Hashtbl.fold (fun _ m' acc ->
-			if PMap.mem m.m_id m'.m_extra.m_deps then m' :: acc
+		"dependents",jarray (List.map (fun (path, sign) -> (jobject [
+			"path",jstring (s_type_path path);
+			"sign",jstring (Digest.to_hex sign);
+		])) (Hashtbl.fold (fun _ (m':HxbData.module_cache) acc ->
+			if PMap.mem m.m_id m'.mc_extra.m_deps then (m'.mc_path, m'.mc_extra.m_sign) :: acc
 			else acc
-		) cc#get_modules []));
+		) modules []));
 	]
 
 let create_context ?jsonrpc gm = {

@@ -105,6 +105,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 end
 
 class hxb_reader_api_com
+	~(headers_only : bool)
 	(com : Common.context)
 	(cc : CompilationCache.context_cache)
 = object(self)
@@ -125,6 +126,7 @@ class hxb_reader_api_com
 
 	method resolve_type (pack : string list) (mname : string) (tname : string) =
 		let path = (pack,mname) in
+
 		let m = self#find_module path in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 
@@ -135,7 +137,7 @@ class hxb_reader_api_com
 			cc#find_module m_path
 		with Not_found ->
 			let mc = cc#get_hxb_module m_path in
-			self#read_chunks mc.mc_chunks com.hxb_reader_stats
+			fst (self#read_chunks_until mc.mc_chunks com.hxb_reader_stats (if headers_only then HEND else TYPF))
 
 	method basic_types =
 		com.basic
@@ -144,8 +146,8 @@ class hxb_reader_api_com
 		i
 end
 
-let find_module com cc path p =
-	(new hxb_reader_api_com com cc)#find_module path
+let find_module ~(headers_only : bool) com cc path =
+	(new hxb_reader_api_com ~headers_only com cc)#find_module path
 
 type handler_context = {
 	com : Common.context;
@@ -335,11 +337,11 @@ let handler =
 			let cs = hctx.display#get_cs in
 			let cc = cs#get_context sign in
 			let m = try
-				find_module hctx.com cc path null_pos
+				find_module ~headers_only:true hctx.com cc path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
-			hctx.send_result (generate_module cs cc m)
+			hctx.send_result (generate_module (cc#get_hxb) (find_module ~headers_only:true hctx.com cc) m)
 		);
 		"server/type", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
@@ -347,7 +349,8 @@ let handler =
 			let typeName = hctx.jsonrpc#get_string_param "typeName" in
 			let cc = hctx.display#get_cs#get_context sign in
 			let m = try
-				find_module hctx.com cc path null_pos
+				(* TODO: try with headers only *)
+				find_module ~headers_only:false hctx.com cc path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in

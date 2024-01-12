@@ -1786,12 +1786,19 @@ class hxb_reader
 			self#read_efld
 
 	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =
+		fst (self#read_chunks_until new_api chunks HEND)
+
+	method read_chunks_until (new_api : hxb_reader_api) (chunks : cached_chunks) end_chunk =
 		api <- new_api;
-		List.iter (fun (kind,data) ->
-			ch <- IO.input_bytes data;
-			self#read_chunk_data kind
-		) chunks;
-		current_module
+		let rec loop = function
+			| (kind,data) :: chunks ->
+				ch <- IO.input_bytes data;
+				self#read_chunk_data kind;
+				if kind = end_chunk then chunks else loop chunks
+			| [] -> die "" __LOC__
+		in
+		let remaining = loop chunks in
+		(current_module, remaining)
 
 	method read (new_api : hxb_reader_api) (file_ch : IO.input) =
 		api <- new_api;
