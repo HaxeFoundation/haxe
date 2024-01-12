@@ -432,7 +432,7 @@ let direct_access = function
 	| AccNo | AccNever | AccNormal | AccInline | AccRequire _ | AccCtor -> true
 	| AccCall -> false
 
-let unify_kind ?(strict:bool = false) k1 k2 =
+let unify_kind ~(strict:bool) k1 k2 =
 	k1 = k2 || match k1, k2 with
 		| Var v1, Var v2 -> unify_access v1.v_read v2.v_read && unify_access v1.v_write v2.v_write
 		| Method m1, Method m2 ->
