@@ -1,6 +1,5 @@
 open Globals
 open Ast
-open Path
 open Json
 open Type
 open Define

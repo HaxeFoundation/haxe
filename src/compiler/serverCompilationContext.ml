@@ -1,4 +1,3 @@
-open Globals
 open Common
 open Timer
 open CompilationCache
