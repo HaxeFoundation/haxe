@@ -644,7 +644,6 @@ module Printer = struct
 			"m_processed",string_of_int me.m_processed;
 			"m_kind",s_module_kind me.m_kind;
 			"m_binded_res",""; (* TODO *)
-			"m_if_feature",""; (* TODO *)
 			"m_features",""; (* TODO *)
 		]
 

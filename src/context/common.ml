@@ -1050,9 +1050,15 @@ let rec has_feature com f =
 				(match List.find (fun t -> t_path t = path && not (Meta.has Meta.RealPath (t_infos t).mt_meta)) com.types with
 				| t when field = "*" ->
 					not (has_dce com) ||
-					(match t with TAbstractDecl a -> Meta.has Meta.ValueUsed a.a_meta | _ -> Meta.has Meta.Used (t_infos t).mt_meta)
+					begin match t with
+						| TClassDecl c ->
+							has_class_flag c CUsed;
+						| TAbstractDecl a ->
+							Meta.has Meta.ValueUsed a.a_meta
+						| _ -> Meta.has Meta.Used (t_infos t).mt_meta
+					end;
 				| TClassDecl c when (has_class_flag c CExtern) && (com.platform <> Js || cl <> "Array" && cl <> "Math") ->
-					not (has_dce com) || Meta.has Meta.Used (try PMap.find field c.cl_statics with Not_found -> PMap.find field c.cl_fields).cf_meta
+					not (has_dce com) || has_class_field_flag (try PMap.find field c.cl_statics with Not_found -> PMap.find field c.cl_fields) CfUsed
 				| TClassDecl c ->
 					PMap.exists field c.cl_statics || PMap.exists field c.cl_fields
 				| _ ->

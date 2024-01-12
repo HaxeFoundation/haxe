@@ -796,15 +796,14 @@ let rec unify (uctx : unification_context) a b =
 					then error [Missing_overload (f1, f2o.cf_type)]
 				) f2.cf_overloads;
 				(* we mark the field as :?used because it might be used through the structure *)
-				if not (Meta.has Meta.MaybeUsed f1.cf_meta) then begin
-					f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta;
+				if not (has_class_field_flag f1 CfMaybeUsed) then begin
+					add_class_field_flag f1 CfMaybeUsed;
 					match f2.cf_kind with
 					| Var vk ->
 						let check name =
 							try
 								let _,_,cf = raw_class_field make_type c tl name in
-								if not (Meta.has Meta.MaybeUsed cf.cf_meta) then
-									cf.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: cf.cf_meta
+								add_class_field_flag cf CfMaybeUsed
 							with Not_found ->
 								()
 						in
@@ -959,8 +958,7 @@ and unify_anons uctx a b a1 a2 =
 			)
 		| ClassStatics c1,_ ->
 			unify_fields c1.cl_statics (fun f1 ->
-				if not (Meta.has Meta.MaybeUsed f1.cf_meta) then
-					f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
+				add_class_field_flag f1 CfMaybeUsed
 			) (fun _ -> false)
 		| _ ->
 			unify_fields a1.a_fields (fun _ -> ()) (fun _ -> false)
