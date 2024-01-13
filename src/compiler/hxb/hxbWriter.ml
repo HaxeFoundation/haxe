@@ -1930,11 +1930,7 @@ class hxb_writer
 
 		let infos = t_infos mt in
 		IOChunk.write_u8 chunk.io i;
-		if (fst infos.mt_path) <> (fst current_module.m_path) then begin
-			IOChunk.write_u8 chunk.io 1;
-			Chunk.write_list chunk (fst infos.mt_path) (Chunk.write_string chunk);
-		end else IOChunk.write_u8 chunk.io 0;
-		Chunk.write_string chunk !name;
+		self#write_path (fst infos.mt_path, !name);
 		self#write_pos infos.mt_pos;
 		self#write_pos infos.mt_name_pos;
 		let params = new pool in
