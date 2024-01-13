@@ -18,7 +18,8 @@ class ValueException extends Exception {
 	/**
 		Thrown value.
 	**/
-	public var value(default,null):Any;
+	@:keep
+	public var value(default, null):Any;
 
 	public function new(value:Any, ?previous:Exception, ?native:Any):Void {
 		super(#if js js.Syntax.code('String({0})', value) #else Std.string(value) #end, previous, native);
