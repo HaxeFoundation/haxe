@@ -1258,6 +1258,12 @@ class hxb_reader
 		field_type_parameter_offset <- field_type_parameter_offset + num_params;
 		params
 
+	method read_expression =
+		let fctx = self#start_texpr in
+		let e = self#read_texpr fctx in
+		let e_unopt = self#read_option (fun () -> self#read_texpr fctx) in
+		e,e_unopt
+
 	method read_class_field_data (cf : tclass_field) : unit =
 		current_field <- cf;
 
@@ -1280,9 +1286,7 @@ class hxb_reader
 			| 0 ->
 				None,None
 			| _ ->
-				let fctx = self#start_texpr in
-				let e = self#read_texpr fctx in
-				let e_unopt = self#read_option (fun () -> self#read_texpr fctx) in
+				let e,e_unopt = self#read_expression in
 				(Some e,e_unopt)
 		in
 
@@ -1549,6 +1553,14 @@ class hxb_reader
 			self#read_class_fields c;
 		done
 
+	method read_cfex =
+		ignore(self#read_list (fun () ->
+			let cf = self#read_field_ref in
+			let e,e_unopt = self#read_expression in
+			cf.cf_expr <- Some e;
+			cf.cf_expr_unoptimized <- e_unopt
+		))
+
 	method read_afld =
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
@@ -1770,6 +1782,8 @@ class hxb_reader
 			self#read_enmd;
 		| EFLD ->
 			self#read_efld
+		| CFEX ->
+			self#read_cfex
 
 	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =
 		fst (self#read_chunks_until new_api chunks HEND)

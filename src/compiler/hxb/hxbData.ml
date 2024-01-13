@@ -31,6 +31,7 @@ type chunk_kind =
 	| CFLD (* class fields *)
 	| EFLD (* enum fields *)
 	| AFLD (* abstract fields *)
+	| CFEX (* class field expressions *)
 	| HEND (* the end *)
 
 type cached_chunk = chunk_kind * bytes
@@ -62,6 +63,7 @@ let string_of_chunk_kind = function
 	| CFLD -> "CFLD"
 	| EFLD -> "EFLD"
 	| AFLD -> "AFLD"
+	| CFEX -> "CFEX"
 	| HEND -> "HEND"
 
 let chunk_kind_of_string = function
@@ -83,6 +85,7 @@ let chunk_kind_of_string = function
 	| "CFLD" -> CFLD
 	| "EFLD" -> EFLD
 	| "AFLD" -> AFLD
+	| "CFEX" -> CFEX
 	| "HEND" -> HEND
 	| name -> raise (HxbFailure ("Invalid chunk name: " ^ name))
 

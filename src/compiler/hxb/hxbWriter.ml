@@ -561,7 +561,7 @@ class hxb_writer
 			| TYPF | CLSR | ENMD | ABSD | ENMR | ABSR | TPDR | ENFR | CFLR | AFLD -> 64
 			| ANFR | CLSD | TPDD | EFLD -> 128
 			| STRI | DOCS -> 256
-			| CFLD -> 512
+			| CFLD | CFEX -> 512
 		in
 		let new_chunk = Chunk.create kind cp initial_size in
 		DynArray.add chunks new_chunk.io;
@@ -1014,7 +1014,7 @@ class hxb_writer
 			let index = anon_fields#add cf () in
 			IOChunk.write_u8 chunk.io 1;
 			IOChunk.write_uleb128 chunk.io index;
-			self#write_class_field_and_overloads_data cf;
+			ignore(self#write_class_field_and_overloads_data true cf)
 
 	(* Type instances *)
 
@@ -1693,6 +1693,7 @@ class hxb_writer
 		let fctx = create_field_writer_context (new pos_writer chunk stats p) in
 		fctx,(fun () ->
 			restore(fun new_chunk ->
+				let restore = self#start_temporary_chunk 512 in
 				let items = fctx.t_pool#items in
 				IOChunk.write_uleb128 chunk.io (DynArray.length items);
 				DynArray.iter (fun bytes ->
@@ -1704,7 +1705,8 @@ class hxb_writer
 				DynArray.iter (fun v ->
 					self#write_var fctx v;
 				) items;
-				Chunk.export_data new_chunk chunk
+				Chunk.export_data new_chunk chunk;
+				restore(fun new_chunk -> new_chunk)
 			)
 		)
 
@@ -1716,24 +1718,33 @@ class hxb_writer
 			Chunk.write_list chunk ftp self#write_type_parameter_data;
 		end
 
-	method write_class_field_data cf =
+	method write_class_field_data (write_expr_immediately : bool) (cf : tclass_field) =
 		let restore = self#start_temporary_chunk 512 in
 		self#write_type_instance cf.cf_type;
 		IOChunk.write_uleb128 chunk.io cf.cf_flags;
 		Chunk.write_option chunk cf.cf_doc self#write_documentation;
 		self#write_metadata cf.cf_meta;
 		self#write_field_kind cf.cf_kind;
-		begin match cf.cf_expr with
+		let expr_chunk = match cf.cf_expr with
 			| None ->
-				IOChunk.write_u8 chunk.io 0
+				IOChunk.write_u8 chunk.io 0;
+				None
+			(* | Some e when not write_expr_immediately ->
+				IOChunk.write_u8 chunk.io 0;
+				let fctx,close = self#start_texpr e.epos in
+				self#write_texpr fctx e;
+				Chunk.write_option chunk cf.cf_expr_unoptimized (self#write_texpr fctx);
+				let expr_chunk = close() in
+				Some expr_chunk *)
 			| Some e ->
 				IOChunk.write_u8 chunk.io 1;
 				let fctx,close = self#start_texpr e.epos in
 				self#write_texpr fctx e;
 				Chunk.write_option chunk cf.cf_expr_unoptimized (self#write_texpr fctx);
-				close();
-		end;
-
+				let expr_chunk = close() in
+				Chunk.export_data expr_chunk chunk;
+				None
+		in
 		restore (fun new_chunk ->
 			self#commit_field_type_parameters cf.cf_params;
 			if not self#in_nested_scope then begin
@@ -1742,15 +1753,17 @@ class hxb_writer
 				Chunk.write_list chunk ltp self#write_type_parameter_data;
 			end;
 			Chunk.export_data new_chunk chunk
-		)
+		);
+		expr_chunk
 
-	method write_class_field_and_overloads_data (cf : tclass_field) =
+	method write_class_field_and_overloads_data (write_expr_immediately : bool) (cf : tclass_field) =
 		let cfl = cf :: cf.cf_overloads in
 		IOChunk.write_uleb128 chunk.io (List.length cfl);
-		List.iter (fun cf ->
+		ExtList.List.filter_map (fun cf ->
 			let close = self#open_field_scope cf.cf_params in
-			self#write_class_field_data cf;
+			let expr_chunk = self#write_class_field_data write_expr_immediately cf in
 			close();
+			Option.map (fun expr_chunk -> (cf,expr_chunk)) expr_chunk
 		) cfl
 
 	(* Module types *)
@@ -1982,6 +1995,7 @@ class hxb_writer
 			self#start_chunk CLSD;
 			Chunk.write_list chunk own_classes self#write_class;
 			self#start_chunk CFLD;
+			let expr_chunks = ref [] in
 			Chunk.write_list chunk own_classes (fun c ->
 				begin match c.cl_kind with
 				| KAbstractImpl a ->
@@ -1990,18 +2004,27 @@ class hxb_writer
 					self#select_type c.cl_path;
 				end;
 
-				let write_field cf =
-					self#write_class_field_and_overloads_data cf;
+				let write_field ref_kind cf =
+					let l = self#write_class_field_and_overloads_data false cf in
+					List.iter (fun (cf,e) ->
+						expr_chunks := (c,cf,ref_kind,e) :: !expr_chunks
+					) l
 				in
 
-				Chunk.write_option chunk c.cl_constructor write_field;
-				Chunk.write_list chunk c.cl_ordered_fields write_field;
-				Chunk.write_list chunk c.cl_ordered_statics write_field;
+				Chunk.write_option chunk c.cl_constructor (write_field CfrConstructor);
+				Chunk.write_list chunk c.cl_ordered_fields (write_field CfrMember);
+				Chunk.write_list chunk c.cl_ordered_statics (write_field CfrStatic);
 				Chunk.write_option chunk c.cl_init (fun e ->
 					let fctx,close = self#start_texpr e.epos in
 					self#write_texpr fctx e;
-					close()
+					let new_chunk = close() in
+					Chunk.export_data new_chunk chunk
 				);
+			);
+			self#start_chunk CFEX;
+			Chunk.write_list chunk !expr_chunks (fun (c,cf,ref_kind,e) ->
+				self#write_field_ref c ref_kind cf;
+				Chunk.export_data e chunk
 			)
 		end;
 		begin match own_enums#to_list with
