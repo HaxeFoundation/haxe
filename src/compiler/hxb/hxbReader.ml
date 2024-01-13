@@ -1296,22 +1296,17 @@ class hxb_reader
 		cf.cf_flags <- flags;
 
 	method read_class_field_and_overloads_data (cf : tclass_field) =
-		let write cf =
-			let close = self#open_field_scope in
-			self#read_class_field_data cf;
-			close();
-		in
-		write cf;
 		let rec loop depth cfl = match cfl with
 			| cf :: cfl ->
 				assert (depth > 0);
-				write cf;
+				let close = self#open_field_scope in
+				self#read_class_field_data cf;
+				close();
 				loop (depth - 1) cfl
 			| [] ->
 				assert (depth = 0)
 		in
-		loop (read_uleb128 ch) cf.cf_overloads;
-
+		loop (read_uleb128 ch) (cf :: cf.cf_overloads);
 
 	method read_class_fields (c : tclass) =
 		begin match c.cl_kind with

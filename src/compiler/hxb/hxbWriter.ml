@@ -1750,13 +1750,13 @@ class hxb_writer
 		)
 
 	method write_class_field_and_overloads_data (cf : tclass_field) =
-		let write cf =
+		let cfl = cf :: cf.cf_overloads in
+		IOChunk.write_uleb128 chunk.io (List.length cfl);
+		List.iter (fun cf ->
 			let close = self#open_field_scope cf.cf_params in
 			self#write_class_field_data cf;
 			close();
-		in
-		write cf;
-		Chunk.write_list chunk cf.cf_overloads write
+		) cfl
 
 	(* Module types *)
 
