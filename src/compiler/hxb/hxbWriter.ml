@@ -1040,10 +1040,8 @@ class hxb_writer
 				ignore(unbound_ttp#add ttp ());
 				let p = { null_pos with pfile = (Path.UniqueKey.lazy_path current_module.m_extra.m_file) } in
 				let msg = Printf.sprintf "Unbound type parameter %s" (s_type_path ttp.ttp_class.cl_path) in
-				(* if p = null_pos then trace_call_stack ~n:20 (); *)
 				warn WUnboundTypeParameter msg p
 			end);
-			(* TODO: handle unbound type parameters? *)
 			IOChunk.write_u8 chunk.io 4; (* TDynamic None *)
 		end
 
@@ -1720,10 +1718,7 @@ class hxb_writer
 
 	method write_class_field_data cf =
 		let restore = self#start_temporary_chunk 512 in
-		(try self#write_type_instance cf.cf_type with e -> begin
-			prerr_endline (Printf.sprintf "%s while writing type instance for field %s" todo_error cf.cf_name);
-			raise e
-		end);
+		self#write_type_instance cf.cf_type;
 		IOChunk.write_uleb128 chunk.io cf.cf_flags;
 		Chunk.write_option chunk cf.cf_doc self#write_documentation;
 		self#write_metadata cf.cf_meta;
