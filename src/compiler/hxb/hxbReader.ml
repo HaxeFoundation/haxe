@@ -1662,8 +1662,11 @@ class hxb_reader
 	method read_typf =
 		self#read_list (fun () ->
 			let kind = IO.read_byte ch in
-			(* let path = self#read_path in *)
-			let (pack,_,tname) = self#read_full_path in
+			let pack = match IO.read_byte ch with
+			| 0 -> fst current_module.m_path
+			| _ -> self#read_list (fun () -> self#read_string)
+			in
+			let tname = self#read_string in
 			let path = (pack, tname) in
 			let pos = self#read_pos in
 			let name_pos = self#read_pos in
