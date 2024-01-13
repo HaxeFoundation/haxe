@@ -68,10 +68,6 @@ let trace_call_stack ?(n:int = 5) () =
 		Option.may (fun loc -> print_endline (Printf.sprintf "  called from %s" (loc_to_string loc))) loc;
 	done
 
-let macro_platform = ref Neko
-
-let return_partial_type = ref false
-
 let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
 
 let max_custom_target_len = 16

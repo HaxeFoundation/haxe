@@ -288,6 +288,7 @@ and tclass = {
 	mutable cl_using : (tclass * pos) list;
 	mutable cl_restore : unit -> unit;
 	(* do not insert any fields above *)
+	mutable cl_type : t;
 	mutable cl_kind : tclass_kind;
 	mutable cl_flags : int;
 	mutable cl_super : (tclass * tparams) option;
@@ -413,7 +414,6 @@ and module_def_extra = {
 	mutable m_deps : (int,(Digest.t (* sign *) * path)) PMap.t;
 	mutable m_kind : module_kind;
 	mutable m_cache_bound_objects : cache_bound_object DynArray.t;
-	mutable m_if_feature : (string * class_field_ref) list;
 	mutable m_features : (string,bool) Hashtbl.t;
 }
 
@@ -463,6 +463,7 @@ type flag_tclass =
 	| CInterface
 	| CAbstract
 	| CFunctionalInterface
+	| CUsed (* Marker for DCE *)
 
 type flag_tclass_field =
 	| CfPublic
@@ -478,10 +479,12 @@ type flag_tclass_field =
 	| CfGeneric
 	| CfDefault (* Interface field with default implementation (only valid on Java) *)
 	| CfPostProcessed (* Marker to indicate the field has been post-processed *)
+	| CfUsed (* Marker for DCE *)
+	| CfMaybeUsed (* Marker for DCE *)
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed"
 ]
 
 type flag_tvar =

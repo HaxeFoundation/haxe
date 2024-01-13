@@ -1,4 +1,3 @@
-open Globals
 open Common
 open Timer
 open CompilationCache
@@ -46,7 +45,6 @@ let reset sctx =
 	Hashtbl.clear sctx.changed_directories;
 	sctx.was_compilation <- false;
 	Parser.reset_state();
-	return_partial_type := false;
 	measure_times := false;
 	Hashtbl.clear DeprecationCheck.warned_positions;
 	close_times();
