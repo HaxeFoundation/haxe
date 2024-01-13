@@ -107,7 +107,7 @@ class hxb_reader
 	val empty_anon = mk_anon (ref Closed)
 
 	method in_nested_scope = match field_stack with
-		| [] -> assert false
+		| [] -> false
 		| [_] -> false
 		| _ -> true
 
@@ -1234,6 +1234,10 @@ class hxb_reader
 		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos; cf_overloads = overloads }
 
 	method start_texpr =
+		if not self#in_nested_scope then
+			self#read_type_parameters TPHLocal (fun a ->
+				local_type_parameters <- a
+			);
 		let l = read_uleb128 ch in
 		let ts = Array.init l (fun _ ->
 			self#read_type_instance
@@ -1267,13 +1271,8 @@ class hxb_reader
 	method read_class_field_data (cf : tclass_field) : unit =
 		current_field <- cf;
 
-		let nested = self#in_nested_scope in
 		let params = self#read_field_type_parameters TPHMethod in
 
-		if not nested then
-			self#read_type_parameters TPHLocal (fun a ->
-				local_type_parameters <- a
-			);
 		let t = self#read_type_instance in
 
 		let flags = read_uleb128 ch in

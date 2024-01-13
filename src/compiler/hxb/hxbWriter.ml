@@ -548,7 +548,7 @@ class hxb_writer
 	val mutable field_stack = []
 
 	method in_nested_scope = match field_stack with
-		| [] -> assert false
+		| [] -> false (* can happen for cl_init and in CFEX *)
 		| [_] -> false
 		| _ -> true
 
@@ -1694,6 +1694,11 @@ class hxb_writer
 		fctx,(fun () ->
 			restore(fun new_chunk ->
 				let restore = self#start_temporary_chunk 512 in
+				if not self#in_nested_scope then begin
+					let ltp = List.map fst local_type_parameters#to_list in
+					Chunk.write_list chunk ltp self#write_type_parameter_forward;
+					Chunk.write_list chunk ltp self#write_type_parameter_data;
+				end;
 				let items = fctx.t_pool#items in
 				IOChunk.write_uleb128 chunk.io (DynArray.length items);
 				DynArray.iter (fun bytes ->
@@ -1747,11 +1752,6 @@ class hxb_writer
 		in
 		restore (fun new_chunk ->
 			self#commit_field_type_parameters cf.cf_params;
-			if not self#in_nested_scope then begin
-				let ltp = List.map fst local_type_parameters#to_list in
-				Chunk.write_list chunk ltp self#write_type_parameter_forward;
-				Chunk.write_list chunk ltp self#write_type_parameter_data;
-			end;
 			Chunk.export_data new_chunk chunk
 		);
 		expr_chunk
