@@ -104,6 +104,7 @@ class hxb_reader
 
 	val mutable field_stack = []
 	val mutable field_type_parameter_offset = 0
+	val empty_anon = mk_anon (ref Closed)
 
 	method in_nested_scope = match field_stack with
 		| [] -> assert false
@@ -790,8 +791,7 @@ class hxb_reader
 			let tl = self#read_types in
 			TAbstract(a,tl)
 		| 80 ->
-			(* HXB_TODO: Do we really want to make a new TAnon for every empty anon? *)
-			mk_anon (ref Closed)
+			empty_anon
 		| 81 ->
 			TAnon self#read_anon_ref
 		| 89 ->
