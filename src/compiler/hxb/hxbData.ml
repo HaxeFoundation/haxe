@@ -8,31 +8,48 @@ exception HxbFailure of string
 (* Also see ServerTests.testDisplayModuleRecache test which needs updating if set to false *)
 let always_wipe_cache = true
 
+(*
+	MD = module
+	MT = module type
+	CL = class
+	EN = enum
+	AB = abstract
+	TD = typedef
+	AN = anon
+	CF = class field
+	EF = enum field
+	AF = anon field
+	EX = expression
+	...F = forward definition
+	...R = reference
+	...D = definition
+*)
+
 type chunk_kind =
-	| STRI (* string pool *)
-	| DOCS (* doc pool *)
-	| HHDR (* module header *)
-	| TYPF (* forward types *)
+	| STR (* string pool *)
+	| DOC (* doc pool *)
+	| MDF (* module foward *)
+	| MTF (* module types forward *)
 	(* Module type references *)
-	| CLSR (* class reference array *)
-	| ENMR (* enum reference array *)
-	| ABSR (* abstract reference array *)
-	| TPDR (* typedef reference array *)
+	| CLR (* class references *)
+	| ENR (* enum references *)
+	| ABR (* abstract references *)
+	| TDR (* typedef references *)
+	| AFR (* anon field references *)
 	(* Own module type definitions *)
-	| ANFR (* anon field references *)
-	| CLSD (* class definition *)
-	| ENMD (* enum definition *)
-	| ABSD (* abstract definition *)
-	| TPDD (* typedef definition *)
+	| CLD (* class definition *)
+	| END (* enum definition *)
+	| ABD (* abstract definition *)
+	| TDD (* typedef definition *)
 	(* Field references *)
-	| ENFR (* enum field references *)
-	| CFLR (* class field references *)
+	| EFR (* enum field references *)
+	| CFR (* class field references *)
 	(* Own field definitions *)
-	| CFLD (* class fields *)
-	| EFLD (* enum fields *)
-	| AFLD (* abstract fields *)
-	| CFEX (* class field expressions *)
-	| HEND (* the end *)
+	| CFD (* class fields *)
+	| EFD (* enum fields *)
+	| AFD (* abstract fields *)
+	| EXD (* class field expressions *)
+	| LST (* last *)
 
 type cached_chunk = chunk_kind * bytes
 type cached_chunks = cached_chunk list
@@ -45,48 +62,48 @@ type module_cache = {
 }
 
 let string_of_chunk_kind = function
-	| STRI -> "STRI"
-	| DOCS -> "DOCS"
-	| HHDR -> "HHDR"
-	| TYPF -> "TYPF"
-	| CLSR -> "CLSR"
-	| ENMR -> "ENMR"
-	| ABSR -> "ABSR"
-	| TPDR -> "TPDR"
-	| ANFR -> "ANFR"
-	| CLSD -> "CLSD"
-	| ENMD -> "ENMD"
-	| ABSD -> "ABSD"
-	| TPDD -> "TPDD"
-	| ENFR -> "ENFR"
-	| CFLR -> "CFLR"
-	| CFLD -> "CFLD"
-	| EFLD -> "EFLD"
-	| AFLD -> "AFLD"
-	| CFEX -> "CFEX"
-	| HEND -> "HEND"
+	| STR -> "STR"
+	| DOC -> "DOC"
+	| MDF -> "MDF"
+	| MTF -> "MTF"
+	| CLR -> "CLR"
+	| ENR -> "ENR"
+	| ABR -> "ABR"
+	| TDR -> "TDR"
+	| AFR -> "AFR"
+	| CLD -> "CLD"
+	| END -> "END"
+	| ABD -> "ABD"
+	| TDD -> "TDD"
+	| EFR -> "EFR"
+	| CFR -> "CFR"
+	| CFD -> "CFD"
+	| EFD -> "EFD"
+	| AFD -> "AFD"
+	| EXD -> "EXD"
+	| LST -> "LST"
 
 let chunk_kind_of_string = function
-	| "STRI" -> STRI
-	| "DOCS" -> DOCS
-	| "HHDR" -> HHDR
-	| "TYPF" -> TYPF
-	| "CLSR" -> CLSR
-	| "ENMR" -> ENMR
-	| "ABSR" -> ABSR
-	| "TPDR" -> TPDR
-	| "ANFR" -> ANFR
-	| "CLSD" -> CLSD
-	| "ENMD" -> ENMD
-	| "ABSD" -> ABSD
-	| "TPDD" -> TPDD
-	| "ENFR" -> ENFR
-	| "CFLR" -> CFLR
-	| "CFLD" -> CFLD
-	| "EFLD" -> EFLD
-	| "AFLD" -> AFLD
-	| "CFEX" -> CFEX
-	| "HEND" -> HEND
+	| "STR" -> STR
+	| "DOC" -> DOC
+	| "MDF" -> MDF
+	| "MTF" -> MTF
+	| "CLR" -> CLR
+	| "ENR" -> ENR
+	| "ABR" -> ABR
+	| "TDR" -> TDR
+	| "AFR" -> AFR
+	| "CLD" -> CLD
+	| "END" -> END
+	| "ABD" -> ABD
+	| "TDD" -> TDD
+	| "EFR" -> EFR
+	| "CFR" -> CFR
+	| "CFD" -> CFD
+	| "EFD" -> EFD
+	| "AFD" -> AFD
+	| "EXD" -> EXD
+	| "LST" -> LST
 	| name -> raise (HxbFailure ("Invalid chunk name: " ^ name))
 
 let error (s : string) =

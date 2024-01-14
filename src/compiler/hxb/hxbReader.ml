@@ -1756,56 +1756,56 @@ class hxb_reader
 		api#make_module path file
 
 	method private read_chunk_prefix =
-		let name = Bytes.unsafe_to_string (IO.nread ch 4) in
+		let name = Bytes.unsafe_to_string (IO.nread ch 3) in
 		let size = Int32.to_int self#read_i32 in
 		(name,size)
 
 	method private read_chunk_data (kind : chunk_kind) =
 		match kind with
-		| HEND ->
+		| LST ->
 			incr stats.modules_fully_restored;
-		| STRI ->
+		| STR ->
 			string_pool <- self#read_string_pool;
-		| DOCS ->
+		| DOC ->
 			doc_pool <- self#read_string_pool;
-		| HHDR ->
+		| MDF ->
 			current_module <- self#read_hhdr;
-		| ANFR ->
+		| AFR ->
 			self#read_anfr;
-		| TYPF ->
+		| MTF ->
 			current_module.m_types <- self#read_typf;
 			api#add_module current_module;
-		| CLSR ->
+		| CLR ->
 			self#read_clsr;
-		| ABSR ->
+		| ABR ->
 			self#read_absr;
-		| TPDR ->
+		| TDR ->
 			self#read_tpdr;
-		| ENMR ->
+		| ENR ->
 			self#read_enmr;
-		| CLSD ->
+		| CLD ->
 			self#read_clsd;
-		| ABSD ->
+		| ABD ->
 			self#read_absd;
-		| ENFR ->
+		| EFR ->
 			self#read_enfr;
-		| CFLR ->
+		| CFR ->
 			self#read_cflr;
-		| CFLD ->
+		| CFD ->
 			self#read_cfld;
-		| AFLD ->
+		| AFD ->
 			self#read_afld;
-		| TPDD ->
+		| TDD ->
 			self#read_tpdd;
-		| ENMD ->
+		| END ->
 			self#read_enmd;
-		| EFLD ->
+		| EFD ->
 			self#read_efld
-		| CFEX ->
+		| EXD ->
 			self#read_cfex
 
 	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =
-		fst (self#read_chunks_until new_api chunks HEND)
+		fst (self#read_chunks_until new_api chunks LST)
 
 	method read_chunks_until (new_api : hxb_reader_api) (chunks : cached_chunks) end_chunk =
 		api <- new_api;
@@ -1830,7 +1830,7 @@ class hxb_reader
 		let rec loop () =
 			let (name,size) = self#read_chunk_prefix in
 			let kind = chunk_kind_of_string name in
-			if kind <> HEND then begin
+			if kind <> LST then begin
 				self#read_chunk_data kind;
 				loop()
 			end

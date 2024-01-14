@@ -9,7 +9,7 @@ class virtual hxb_abstract_reader = object(self)
 		reader#read (self :> hxb_reader_api) input
 
 	method read_chunks (chunks : cached_chunks) (stats : HxbReader.hxb_reader_stats) =
-		fst (self#read_chunks_until chunks stats HEND)
+		fst (self#read_chunks_until chunks stats LST)
 
 	method read_chunks_until (chunks : cached_chunks) (stats : HxbReader.hxb_reader_stats) (until : HxbData.chunk_kind) =
 		let reader = new HxbReader.hxb_reader stats in

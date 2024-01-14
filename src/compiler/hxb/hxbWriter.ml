@@ -520,8 +520,8 @@ class hxb_writer
 
 	val mutable current_module = null_module
 	val chunks = DynArray.create ()
-	val cp = new string_pool STRI
-	val docs = new string_pool DOCS
+	val cp = new string_pool STR
+	val docs = new string_pool DOC
 
 	val mutable chunk = Obj.magic ()
 
@@ -550,7 +550,7 @@ class hxb_writer
 	val mutable field_stack = []
 
 	method in_nested_scope = match field_stack with
-		| [] -> false (* can happen for cl_init and in CFEX *)
+		| [] -> false (* can happen for cl_init and in EXD *)
 		| [_] -> false
 		| _ -> true
 
@@ -558,19 +558,19 @@ class hxb_writer
 
 	method start_chunk (kind : chunk_kind) =
 		let initial_size = match kind with
-			| HEND -> 0
-			| HHDR -> 16
-			| TYPF | CLSR | ENMD | ABSD | ENMR | ABSR | TPDR | ENFR | CFLR | AFLD -> 64
-			| ANFR | CLSD | TPDD | EFLD -> 128
-			| STRI | DOCS -> 256
-			| CFLD | CFEX -> 512
+			| LST -> 0
+			| MDF -> 16
+			| MTF | CLR | END | ABD | ENR | ABR | TDR | EFR | CFR | AFD -> 64
+			| AFR | CLD | TDD | EFD -> 128
+			| STR | DOC -> 256
+			| CFD | EXD -> 512
 		in
 		let new_chunk = Chunk.create kind cp initial_size in
 		DynArray.add chunks new_chunk.io;
 		chunk <- new_chunk
 
 	method start_temporary_chunk : 'a . int -> (Chunk.t -> 'a) -> 'a = fun initial_size ->
-		let new_chunk = Chunk.create HEND (* TODO: something else? *) cp initial_size in
+		let new_chunk = Chunk.create LST (* TODO: something else? *) cp initial_size in
 		let old_chunk = chunk in
 		chunk <- new_chunk;
 		(fun f ->
@@ -2003,25 +2003,25 @@ class hxb_writer
 	method write_module (m : module_def) =
 		current_module <- m;
 
-		self#start_chunk TYPF;
+		self#start_chunk MTF;
 		Chunk.write_list chunk m.m_types self#forward_declare_type;
 
 		begin match own_abstracts#to_list with
 		| [] ->
 			()
 		| own_abstracts ->
-			self#start_chunk ABSD;
+			self#start_chunk ABD;
 			Chunk.write_list chunk own_abstracts self#write_abstract;
-			self#start_chunk AFLD;
+			self#start_chunk AFD;
 			Chunk.write_list chunk own_abstracts self#write_abstract_fields;
 		end;
 		begin match own_classes#to_list with
 		| [] ->
 			()
 		| own_classes ->
-			self#start_chunk CLSD;
+			self#start_chunk CLD;
 			Chunk.write_list chunk own_classes self#write_class;
-			self#start_chunk CFLD;
+			self#start_chunk CFD;
 			let expr_chunks = ref [] in
 			Chunk.write_list chunk own_classes (fun c ->
 				begin match c.cl_kind with
@@ -2050,7 +2050,7 @@ class hxb_writer
 				);
 				expr_chunks := (c,!c_expr_chunks) :: !expr_chunks
 			);
-			self#start_chunk CFEX;
+			self#start_chunk EXD;
 			Chunk.write_list chunk !expr_chunks (fun (c,l) ->
 				self#write_class_ref c;
 				Chunk.write_list chunk l (fun (cf,ref_kind,e) ->
@@ -2063,9 +2063,9 @@ class hxb_writer
 		| [] ->
 			()
 		| own_enums ->
-			self#start_chunk ENMD;
+			self#start_chunk END;
 			Chunk.write_list chunk own_enums self#write_enum;
-			self#start_chunk EFLD;
+			self#start_chunk EFD;
 			Chunk.write_list chunk own_enums (fun e ->
 				Chunk.write_list chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
 					self#select_type e.e_path;
@@ -2086,7 +2086,7 @@ class hxb_writer
 		| [] ->
 			()
 		| own_typedefs ->
-			self#start_chunk TPDD;
+			self#start_chunk TDD;
 			Chunk.write_list chunk own_typedefs self#write_typedef;
 		end;
 
@@ -2094,7 +2094,7 @@ class hxb_writer
 		| [] ->
 			()
 		| l ->
-			self#start_chunk CLSR;
+			self#start_chunk CLR;
 			Chunk.write_list chunk l (fun c ->
 				let m = c.cl_module in
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd c.cl_path);
@@ -2104,7 +2104,7 @@ class hxb_writer
 		| [] ->
 			()
 		| l ->
-			self#start_chunk ABSR;
+			self#start_chunk ABR;
 			Chunk.write_list chunk l (fun a ->
 				let m = a.a_module in
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd a.a_path);
@@ -2114,7 +2114,7 @@ class hxb_writer
 		| [] ->
 			()
 		| l ->
-			self#start_chunk ENMR;
+			self#start_chunk ENR;
 			Chunk.write_list chunk l (fun en ->
 				let m = en.e_module in
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd en.e_path);
@@ -2124,14 +2124,14 @@ class hxb_writer
 		| [] ->
 			()
 		| l ->
-			self#start_chunk TPDR;
+			self#start_chunk TDR;
 			Chunk.write_list chunk l (fun td ->
 				let m = td.t_module in
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd td.t_path);
 			)
 		end;
 
-		self#start_chunk CFLR;
+		self#start_chunk CFR;
 		let items = class_fields#items in
 		IOChunk.write_uleb128 chunk.io (DynArray.length items);
 		DynArray.iter (fun (cf,(c,kind,depth)) ->
@@ -2149,7 +2149,7 @@ class hxb_writer
 			IOChunk.write_uleb128 chunk.io depth
 		) items;
 
-		self#start_chunk ENFR;
+		self#start_chunk EFR;
 		let items = enum_fields#items in
 		IOChunk.write_uleb128 chunk.io (DynArray.length items);
 		DynArray.iter (fun (en,ef) ->
@@ -2157,19 +2157,19 @@ class hxb_writer
 			Chunk.write_string chunk ef.ef_name;
 		) items;
 
-		self#start_chunk ANFR;
+		self#start_chunk AFR;
 		let items = anon_fields#items in
 		IOChunk.write_uleb128 chunk.io (DynArray.length items);
 		DynArray.iter (fun (cf,_) ->
 			self#write_class_field_forward cf
 		) items;
 
-		self#start_chunk HHDR;
+		self#start_chunk MDF;
 		self#write_path m.m_path;
 		Chunk.write_string chunk (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		IOChunk.write_uleb128 chunk.io (DynArray.length anons#items);
 		IOChunk.write_uleb128 chunk.io (DynArray.length tmonos#items);
-		self#start_chunk HEND;
+		self#start_chunk LST;
 		DynArray.add chunks cp#finalize;
 		if not docs#is_empty then
 			DynArray.add chunks docs#finalize
