@@ -823,7 +823,6 @@ class hxb_reader
 			mk_type_param c host None None
 		) in
 		f a;
-		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let meta = self#read_metadata in
 			let constraints = self#read_types in
@@ -1311,13 +1310,15 @@ class hxb_reader
 		in
 		loop (read_uleb128 ch) (cf :: cf.cf_overloads);
 
-	method read_class_fields (c : tclass) =
-		begin match c.cl_kind with
+	method select_class_type_parameters (c: tclass) =
+		match c.cl_kind with
 		| KAbstractImpl a ->
 			type_type_parameters <- Array.of_list a.a_params
 		| _ ->
 			type_type_parameters <- Array.of_list c.cl_params
-		end;
+
+	method read_class_fields (c : tclass) =
+		self#select_class_type_parameters c;
 		let _ = self#read_option (fun f ->
 			let cf = Option.get c.cl_constructor in
 			self#read_class_field_and_overloads_data cf

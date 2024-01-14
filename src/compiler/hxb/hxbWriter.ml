@@ -1615,15 +1615,20 @@ class hxb_writer
 
 	(* Fields *)
 
-	method write_type_parameter_forward ttp =
-		self#write_path ttp.ttp_class.cl_path;
-		self#write_pos ttp.ttp_class.cl_name_pos
-
-	method write_type_parameter_data ttp =
-		let c = ttp.ttp_class in
-		self#write_metadata c.cl_meta;
-		self#write_types (get_constraints ttp);
-		Chunk.write_option chunk ttp.ttp_default self#write_type_instance
+	method write_type_parameters (ttps : typed_type_param list) =
+		IOChunk.write_uleb128 chunk.io (List.length ttps);
+		let write_type_parameter_forward ttp =
+			self#write_path ttp.ttp_class.cl_path;
+			self#write_pos ttp.ttp_class.cl_name_pos
+		in
+		let write_type_parameter_data ttp =
+			let c = ttp.ttp_class in
+			self#write_metadata c.cl_meta;
+			self#write_types (get_constraints ttp);
+			Chunk.write_option chunk ttp.ttp_default self#write_type_instance
+		in
+		List.iter write_type_parameter_forward ttps;
+		List.iter write_type_parameter_data ttps;
 
 	method write_field_kind = function
 		| Method MethNormal -> IOChunk.write_u8 chunk.io 0;
@@ -1696,8 +1701,7 @@ class hxb_writer
 				let restore = self#start_temporary_chunk 512 in
 				if not self#in_nested_scope then begin
 					let ltp = List.map fst local_type_parameters#to_list in
-					Chunk.write_list chunk ltp self#write_type_parameter_forward;
-					Chunk.write_list chunk ltp self#write_type_parameter_data;
+					self#write_type_parameters ltp
 				end;
 				let items = fctx.t_pool#items in
 				IOChunk.write_uleb128 chunk.io (DynArray.length items);
@@ -1719,8 +1723,7 @@ class hxb_writer
 		IOChunk.write_uleb128 chunk.io (List.length params);
 		if not self#in_nested_scope then begin
 			let ftp = List.map fst field_type_parameters#to_list in
-			Chunk.write_list chunk ftp self#write_type_parameter_forward;
-			Chunk.write_list chunk ftp self#write_type_parameter_data;
+			self#write_type_parameters ftp
 		end
 
 	method write_class_field_data (write_expr_immediately : bool) (cf : tclass_field) =
@@ -1775,8 +1778,7 @@ class hxb_writer
 		IOChunk.write_bool chunk.io infos.mt_private;
 		Chunk.write_option chunk infos.mt_doc self#write_documentation;
 		self#write_metadata infos.mt_meta;
-		Chunk.write_list chunk infos.mt_params self#write_type_parameter_forward;
-		Chunk.write_list chunk infos.mt_params self#write_type_parameter_data;
+		self#write_type_parameters infos.mt_params;
 		Chunk.write_list chunk infos.mt_using (fun (c,p) ->
 			self#write_class_ref c;
 			self#write_pos p;
