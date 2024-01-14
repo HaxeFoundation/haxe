@@ -35,15 +35,15 @@ type chunk_kind =
 	| ENR (* enum references *)
 	| ABR (* abstract references *)
 	| TDR (* typedef references *)
+	(* Field references *)
 	| AFR (* anon field references *)
+	| EFR (* enum field references *)
+	| CFR (* class field references *)
 	(* Own module type definitions *)
 	| CLD (* class definition *)
 	| END (* enum definition *)
 	| ABD (* abstract definition *)
 	| TDD (* typedef definition *)
-	(* Field references *)
-	| EFR (* enum field references *)
-	| CFR (* class field references *)
 	(* Own field definitions *)
 	| CFD (* class fields *)
 	| EFD (* enum fields *)
@@ -71,12 +71,12 @@ let string_of_chunk_kind = function
 	| ABR -> "ABR"
 	| TDR -> "TDR"
 	| AFR -> "AFR"
+	| EFR -> "EFR"
+	| CFR -> "CFR"
 	| CLD -> "CLD"
 	| END -> "END"
 	| ABD -> "ABD"
 	| TDD -> "TDD"
-	| EFR -> "EFR"
-	| CFR -> "CFR"
 	| CFD -> "CFD"
 	| EFD -> "EFD"
 	| AFD -> "AFD"
@@ -93,12 +93,12 @@ let chunk_kind_of_string = function
 	| "ABR" -> ABR
 	| "TDR" -> TDR
 	| "AFR" -> AFR
+	| "EFR" -> EFR
+	| "CFR" -> CFR
 	| "CLD" -> CLD
 	| "END" -> END
 	| "ABD" -> ABD
 	| "TDD" -> TDD
-	| "EFR" -> EFR
-	| "CFR" -> CFR
 	| "CFD" -> CFD
 	| "EFD" -> EFD
 	| "AFD" -> AFD
