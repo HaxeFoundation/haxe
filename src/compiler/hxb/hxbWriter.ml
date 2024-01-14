@@ -1619,7 +1619,16 @@ class hxb_writer
 		IOChunk.write_uleb128 chunk.io (List.length ttps);
 		let write_type_parameter_forward ttp =
 			self#write_path ttp.ttp_class.cl_path;
-			self#write_pos ttp.ttp_class.cl_name_pos
+			self#write_pos ttp.ttp_class.cl_name_pos;
+			let i = match ttp.ttp_host with
+				| TPHType -> 0
+				| TPHConstructor -> 1
+				| TPHMethod -> 2
+				| TPHEnumConstructor -> 3
+				| TPHAnonField -> 4
+				| TPHLocal -> 5
+			in
+			IOChunk.write_u8 chunk.io i
 		in
 		let write_type_parameter_data ttp =
 			let c = ttp.ttp_class in

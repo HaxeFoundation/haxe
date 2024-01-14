@@ -814,11 +814,20 @@ class hxb_reader
 
 	(* Fields *)
 
-	method read_type_parameters (host : type_param_host) (f : typed_type_param array -> unit) =
+	method read_type_parameters (f : typed_type_param array -> unit) =
 		let l = read_uleb128 ch in
 		let a = Array.init l (fun _ ->
 			let path = self#read_path in
 			let pos = self#read_pos in
+			let host = match IO.read_byte ch with
+				| 0 -> TPHType
+				| 1 -> TPHConstructor
+				| 2 -> TPHMethod
+				| 3 -> TPHEnumConstructor
+				| 4 -> TPHAnonField
+				| 5 -> TPHLocal
+				| i -> die (Printf.sprintf "Invalid type paramter host: %i" i) __LOC__
+			in
 			let c = mk_class current_module path pos pos in
 			mk_type_param c host None None
 		) in
@@ -1234,7 +1243,7 @@ class hxb_reader
 
 	method start_texpr =
 		if not self#in_nested_scope then
-			self#read_type_parameters TPHLocal (fun a ->
+			self#read_type_parameters (fun a ->
 				local_type_parameters <- a
 			);
 		let l = read_uleb128 ch in
@@ -1250,7 +1259,7 @@ class hxb_reader
 	method read_field_type_parameters kind =
 		let num_params = read_uleb128 ch in
 		if not self#in_nested_scope then begin
-			self#read_type_parameters kind (* TODO: need to encode this because we don't know *) (fun a ->
+			self#read_type_parameters (fun a ->
 				field_type_parameters <- a;
 			);
 			field_type_parameter_offset <- 0;
@@ -1356,7 +1365,7 @@ class hxb_reader
 		infos.mt_private <- self#read_bool;
 		infos.mt_doc <- self#read_option (fun () -> self#read_documentation);
 		infos.mt_meta <- self#read_metadata;
-		self#read_type_parameters TPHType (fun a -> type_type_parameters <- a);
+		self#read_type_parameters (fun a -> type_type_parameters <- a);
 		infos.mt_params <- Array.to_list type_type_parameters;
 		infos.mt_using <- self#read_list (fun () ->
 			let c = self#read_class_ref in
