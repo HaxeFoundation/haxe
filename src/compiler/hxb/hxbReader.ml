@@ -1237,6 +1237,13 @@ class hxb_reader
 				self#read_type_parameters (fun a ->
 					local_type_parameters <- a
 				);
+			| 2 ->
+				let num_params = read_uleb128 ch in
+				field_type_parameters <- Array.make num_params (mk_type_param null_class TPHMethod None None);
+				field_type_parameter_offset <- 0;
+				self#read_type_parameters (fun a ->
+					local_type_parameters <- a
+				);
 			| i ->
 				die "" __LOC__
 		end;
@@ -1250,7 +1257,7 @@ class hxb_reader
 		) in
 		create_field_reader_context self#read_pos ts vars
 
-	method read_field_type_parameters kind =
+	method read_field_type_parameters =
 		let num_params = read_uleb128 ch in
 		begin match IO.read_byte ch with
 			| 0 ->
@@ -1259,7 +1266,7 @@ class hxb_reader
 				self#read_type_parameters (fun a ->
 					field_type_parameters <- a;
 				);
-				field_type_parameter_offset <- 0;
+				field_type_parameter_offset <- 0; (* num_params is added below *)
 			| i ->
 				die "" __LOC__
 		end;
@@ -1269,8 +1276,7 @@ class hxb_reader
 		field_type_parameter_offset <- field_type_parameter_offset + num_params;
 		params
 
-	method read_expression =
-		let fctx = self#start_texpr in
+	method read_expression (fctx : field_reader_context) =
 		let e = self#read_texpr fctx in
 		let e_unopt = self#read_option (fun () -> self#read_texpr fctx) in
 		e,e_unopt
@@ -1278,7 +1284,7 @@ class hxb_reader
 	method read_class_field_data (cf : tclass_field) : unit =
 		current_field <- cf;
 
-		let params = self#read_field_type_parameters TPHMethod in
+		let params = self#read_field_type_parameters in
 
 		let t = self#read_type_instance in
 
@@ -1292,7 +1298,8 @@ class hxb_reader
 			| 0 ->
 				None,None
 			| _ ->
-				let e,e_unopt = self#read_expression in
+				let fctx = self#start_texpr in
+				let e,e_unopt = self#read_expression fctx in
 				(Some e,e_unopt)
 		in
 
@@ -1347,7 +1354,7 @@ class hxb_reader
 		ignore(self#read_list (fun () ->
 			let name = self#read_string in
 			let ef = PMap.find name e.e_constrs in
-			ef.ef_params <- self#read_field_type_parameters TPHEnumConstructor;
+			ef.ef_params <- self#read_field_type_parameters;
 			ef.ef_type <- self#read_type_instance;
 			ef.ef_doc <- self#read_option (fun () -> self#read_documentation);
 			ef.ef_meta <- self#read_metadata;
@@ -1559,10 +1566,18 @@ class hxb_reader
 
 	method read_cfex =
 		ignore(self#read_list (fun () ->
-			let cf = self#read_field_ref in
-			let e,e_unopt = self#read_expression in
-			cf.cf_expr <- Some e;
-			cf.cf_expr_unoptimized <- e_unopt
+			let c = self#read_class_ref in
+			self#select_class_type_parameters c;
+			self#read_list (fun () ->
+				let cf = self#read_field_ref in
+				let fctx = self#start_texpr in
+				List.iteri (fun i ttp ->
+					field_type_parameters.(i) <- ttp
+				) cf.cf_params;
+				let e,e_unopt = self#read_expression fctx in
+				cf.cf_expr <- Some e;
+				cf.cf_expr_unoptimized <- e_unopt
+			)
 		))
 
 	method read_afld =
