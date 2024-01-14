@@ -1481,7 +1481,7 @@ class hxb_reader
 			self#read_raw_string;
 		);
 
-	method read_enfr =
+	method read_efr =
 		let l = read_uleb128 ch in
 		let a = Array.init l (fun i ->
 			let en = self#read_enum_ref in
@@ -1490,12 +1490,12 @@ class hxb_reader
 		) in
 		enum_fields <- a
 
-	method read_anfr =
+	method read_afr =
 		let l = read_uleb128 ch in
 		let a = Array.init l (fun _ -> self#read_class_field_forward) in
 		anon_fields <- a
 
-	method read_cflr =
+	method read_cfr =
 		let l = read_uleb128 ch in
 		let instance_overload_cache = Hashtbl.create 0 in
 		let a = Array.init l (fun i ->
@@ -1557,14 +1557,14 @@ class hxb_reader
 		) in
 		class_fields <- a
 
-	method read_cfld =
+	method read_cfd =
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let c = classes.(i) in
 			self#read_class_fields c;
 		done
 
-	method read_cfex =
+	method read_exd =
 		ignore(self#read_list (fun () ->
 			let c = self#read_class_ref in
 			self#select_class_type_parameters c;
@@ -1580,35 +1580,35 @@ class hxb_reader
 			)
 		))
 
-	method read_afld =
+	method read_afd =
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let a = abstracts.(i) in
 			self#read_abstract_fields a;
 		done
 
-	method read_clsd =
+	method read_cld =
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let c = classes.(i) in
 			self#read_class c;
 		done
 
-	method read_absd =
+	method read_abd =
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let a = abstracts.(i) in
 			self#read_abstract a;
 		done
 
-	method read_enmd =
+	method read_end =
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let en = enums.(i) in
 			self#read_enum en;
 		done
 
-	method read_efld =
+	method read_efd =
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let e = enums.(i) in
@@ -1639,14 +1639,14 @@ class hxb_reader
 
 		an
 
-	method read_tpdd =
+	method read_tdd =
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let t = typedefs.(i) in
 			self#read_typedef t;
 		done
 
-	method read_clsr =
+	method read_clr =
 		let l = read_uleb128 ch in
 		classes <- (Array.init l (fun i ->
 				let (pack,mname,tname) = self#read_full_path in
@@ -1657,7 +1657,7 @@ class hxb_reader
 					error ("Unexpected type where class was expected: " ^ (s_type_path (pack,tname)))
 		))
 
-	method read_absr =
+	method read_abr =
 		let l = read_uleb128 ch in
 		abstracts <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
@@ -1668,7 +1668,7 @@ class hxb_reader
 				error ("Unexpected type where abstract was expected: " ^ (s_type_path (pack,tname)))
 		))
 
-	method read_enmr =
+	method read_enr =
 		let l = read_uleb128 ch in
 		enums <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
@@ -1679,7 +1679,7 @@ class hxb_reader
 				error ("Unexpected type where enum was expected: " ^ (s_type_path (pack,tname)))
 		))
 
-	method read_tpdr =
+	method read_tdr =
 		let l = read_uleb128 ch in
 		typedefs <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
@@ -1690,7 +1690,7 @@ class hxb_reader
 				error ("Unexpected type where typedef was expected: " ^ (s_type_path (pack,tname)))
 		))
 
-	method read_typf =
+	method read_mtf =
 		self#read_list (fun () ->
 			let kind = IO.read_byte ch in
 			let path = self#read_path in
@@ -1746,7 +1746,7 @@ class hxb_reader
 			mt
 		)
 
-	method read_hhdr =
+	method read_mdf =
 		let path = self#read_path in
 		let file = self#read_string in
 
@@ -1769,40 +1769,40 @@ class hxb_reader
 		| DOC ->
 			doc_pool <- self#read_string_pool;
 		| MDF ->
-			current_module <- self#read_hhdr;
+			current_module <- self#read_mdf;
 		| AFR ->
-			self#read_anfr;
+			self#read_afr;
 		| MTF ->
-			current_module.m_types <- self#read_typf;
+			current_module.m_types <- self#read_mtf;
 			api#add_module current_module;
 		| CLR ->
-			self#read_clsr;
+			self#read_clr;
 		| ABR ->
-			self#read_absr;
+			self#read_abr;
 		| TDR ->
-			self#read_tpdr;
+			self#read_tdr;
 		| ENR ->
-			self#read_enmr;
+			self#read_enr;
 		| CLD ->
-			self#read_clsd;
+			self#read_cld;
 		| ABD ->
-			self#read_absd;
+			self#read_abd;
 		| EFR ->
-			self#read_enfr;
+			self#read_efr;
 		| CFR ->
-			self#read_cflr;
+			self#read_cfr;
 		| CFD ->
-			self#read_cfld;
+			self#read_cfd;
 		| AFD ->
-			self#read_afld;
+			self#read_afd;
 		| TDD ->
-			self#read_tpdd;
+			self#read_tdd;
 		| END ->
-			self#read_enmd;
+			self#read_end;
 		| EFD ->
-			self#read_efld
+			self#read_efd;
 		| EXD ->
-			self#read_cfex
+			self#read_exd;
 
 	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =
 		fst (self#read_chunks_until new_api chunks LST)

@@ -1994,10 +1994,8 @@ class hxb_writer
 				IOChunk.write_u8 chunk.io ef.ef_index
 			);
 		| TAbstractDecl a ->
-			(* TODO ? *)
 			()
 		| TTypeDecl t ->
-			(* TODO ? *)
 			()
 
 	method write_module (m : module_def) =
