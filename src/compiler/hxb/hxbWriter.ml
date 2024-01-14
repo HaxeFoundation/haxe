@@ -1708,7 +1708,10 @@ class hxb_writer
 		fctx,(fun () ->
 			restore(fun new_chunk ->
 				let restore = self#start_temporary_chunk 512 in
-				if not self#in_nested_scope then begin
+				if self#in_nested_scope then
+					IOChunk.write_u8 chunk.io 0
+				else begin
+					IOChunk.write_u8 chunk.io 1;
 					let ltp = List.map fst local_type_parameters#to_list in
 					self#write_type_parameters ltp
 				end;
@@ -1730,7 +1733,10 @@ class hxb_writer
 
 	method commit_field_type_parameters (params : type_params) =
 		IOChunk.write_uleb128 chunk.io (List.length params);
-		if not self#in_nested_scope then begin
+		if self#in_nested_scope then
+			IOChunk.write_u8 chunk.io 0
+		else begin
+			IOChunk.write_u8 chunk.io 1;
 			let ftp = List.map fst field_type_parameters#to_list in
 			self#write_type_parameters ftp
 		end

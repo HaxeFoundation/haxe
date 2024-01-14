@@ -102,20 +102,8 @@ class hxb_reader
 	val mutable field_type_parameters = Array.make 0 (mk_type_param null_class TPHMethod None None)
 	val mutable local_type_parameters = Array.make 0 (mk_type_param null_class TPHLocal None None)
 
-	val mutable field_stack = []
 	val mutable field_type_parameter_offset = 0
 	val empty_anon = mk_anon (ref Closed)
-
-	method in_nested_scope = match field_stack with
-		| [] -> false
-		| [_] -> false
-		| _ -> true
-
-	method open_field_scope =
-		field_stack <- () :: field_stack;
-		(fun () ->
-			field_stack <- List.tl field_stack
-		)
 
 	method resolve_type pack mname tname =
 		try
@@ -1242,10 +1230,16 @@ class hxb_reader
 		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos; cf_overloads = overloads }
 
 	method start_texpr =
-		if not self#in_nested_scope then
-			self#read_type_parameters (fun a ->
-				local_type_parameters <- a
-			);
+		begin match IO.read_byte ch with
+			| 0 ->
+				()
+			| 1 ->
+				self#read_type_parameters (fun a ->
+					local_type_parameters <- a
+				);
+			| i ->
+				die "" __LOC__
+		end;
 		let l = read_uleb128 ch in
 		let ts = Array.init l (fun _ ->
 			self#read_type_instance
@@ -1258,11 +1252,16 @@ class hxb_reader
 
 	method read_field_type_parameters kind =
 		let num_params = read_uleb128 ch in
-		if not self#in_nested_scope then begin
-			self#read_type_parameters (fun a ->
-				field_type_parameters <- a;
-			);
-			field_type_parameter_offset <- 0;
+		begin match IO.read_byte ch with
+			| 0 ->
+				()
+			| 1 ->
+				self#read_type_parameters (fun a ->
+					field_type_parameters <- a;
+				);
+				field_type_parameter_offset <- 0;
+			| i ->
+				die "" __LOC__
 		end;
 		let params = List.init num_params (fun offset ->
 			field_type_parameters.(field_type_parameter_offset + offset)
@@ -1310,9 +1309,7 @@ class hxb_reader
 		let rec loop depth cfl = match cfl with
 			| cf :: cfl ->
 				assert (depth > 0);
-				let close = self#open_field_scope in
 				self#read_class_field_data cf;
-				close();
 				loop (depth - 1) cfl
 			| [] ->
 				assert (depth = 0)
@@ -1349,13 +1346,11 @@ class hxb_reader
 		type_type_parameters <- Array.of_list e.e_params;
 		ignore(self#read_list (fun () ->
 			let name = self#read_string in
-			let close = self#open_field_scope in
 			let ef = PMap.find name e.e_constrs in
 			ef.ef_params <- self#read_field_type_parameters TPHEnumConstructor;
 			ef.ef_type <- self#read_type_instance;
 			ef.ef_doc <- self#read_option (fun () -> self#read_documentation);
 			ef.ef_meta <- self#read_metadata;
-			close()
 		))
 
 	(* Module types *)
