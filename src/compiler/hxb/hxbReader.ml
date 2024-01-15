@@ -802,11 +802,9 @@ class hxb_reader
 	method read_types =
 		self#read_list (fun () -> self#read_type_instance)
 
-	(* Fields *)
-
-	method read_type_parameters (f : typed_type_param array -> unit) =
-		let l = read_uleb128 ch in
-		let a = Array.init l (fun _ ->
+	method read_type_parameters_forward =
+		let length = read_uleb128 ch in
+		Array.init length (fun _ ->
 			let path = self#read_path in
 			let pos = self#read_pos in
 			let host = match IO.read_byte ch with
@@ -819,22 +817,28 @@ class hxb_reader
 				| i -> die (Printf.sprintf "Invalid type paramter host: %i" i) __LOC__
 			in
 			let c = mk_class current_module path pos pos in
-			mk_type_param c host None None
-		) in
-		f a;
-		for i = 0 to l - 1 do
+			let ttp = mk_type_param c host None None in
+			c.cl_kind <- KTypeParameter ttp;
+			ttp
+		)
+
+	method read_type_parameters_data (a : typed_type_param array) =
+		Array.iter (fun ttp ->
 			let meta = self#read_metadata in
 			let constraints = self#read_types in
 			let def = self#read_option (fun () -> self#read_type_instance) in
-
-			let ttp = a.(i) in
 			let c = ttp.ttp_class in
-			let ttp = a.(i) in
 			ttp.ttp_default <- def;
 			ttp.ttp_constraints <- Some (Lazy.from_val constraints);
 			c.cl_meta <- meta;
-			c.cl_kind <- KTypeParameter ttp
-		done;
+		) a
+
+	method read_type_parameters (f : typed_type_param array -> unit) =
+		let a = self#read_type_parameters_forward in
+		f a;
+		self#read_type_parameters_data a
+
+	(* Fields *)
 
 	method read_field_kind = match IO.read_byte ch with
 		| 0 -> Method MethNormal
@@ -1369,7 +1373,9 @@ class hxb_reader
 		infos.mt_private <- self#read_bool;
 		infos.mt_doc <- self#read_option (fun () -> self#read_documentation);
 		infos.mt_meta <- self#read_metadata;
-		self#read_type_parameters (fun a -> type_type_parameters <- a);
+		let params = Array.of_list infos.mt_params in
+		type_type_parameters <- params;
+		self#read_type_parameters_data params;
 		infos.mt_params <- Array.to_list type_type_parameters;
 		infos.mt_using <- self#read_list (fun () ->
 			let c = self#read_class_ref in
@@ -1702,10 +1708,11 @@ class hxb_reader
 			let path = self#read_path in
 			let pos = self#read_pos in
 			let name_pos = self#read_pos in
+			let params = self#read_type_parameters_forward in
 			let mt = match kind with
 			| 0 ->
 				let c = mk_class current_module path pos name_pos in
-				classes <- Array.append classes (Array.make 1 c);
+				c.cl_params <- Array.to_list params;
 
 				let read_field () =
 					self#read_class_field_forward;
@@ -1720,7 +1727,7 @@ class hxb_reader
 				TClassDecl c
 			| 1 ->
 				let en = mk_enum current_module path pos name_pos in
-				enums <- Array.append enums (Array.make 1 en);
+				en.e_params <- Array.to_list params;
 
 				let read_field () =
 					let name = self#read_string in
@@ -1740,10 +1747,12 @@ class hxb_reader
 				TEnumDecl en
 			| 2 ->
 				let td = mk_typedef current_module path pos name_pos (mk_mono()) in
+				td.t_params <- Array.to_list params;
 				typedefs <- Array.append typedefs (Array.make 1 td);
 				TTypeDecl td
 			| 3 ->
 				let a = mk_abstract current_module path pos name_pos in
+				a.a_params <- Array.to_list params;
 				abstracts <- Array.append abstracts (Array.make 1 a);
 				TAbstractDecl a
 			| _ ->

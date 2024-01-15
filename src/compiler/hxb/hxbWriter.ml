@@ -1615,10 +1615,7 @@ class hxb_writer
 		in
 		loop e
 
-	(* Fields *)
-
-	method write_type_parameters (ttps : typed_type_param list) =
-		IOChunk.write_uleb128 chunk.io (List.length ttps);
+	method write_type_parameters_forward (ttps : typed_type_param list) =
 		let write_type_parameter_forward ttp =
 			self#write_path ttp.ttp_class.cl_path;
 			self#write_pos ttp.ttp_class.cl_name_pos;
@@ -1632,14 +1629,22 @@ class hxb_writer
 			in
 			IOChunk.write_u8 chunk.io i
 		in
+		Chunk.write_list chunk ttps write_type_parameter_forward
+
+	method write_type_parameters_data (ttps : typed_type_param list) =
 		let write_type_parameter_data ttp =
 			let c = ttp.ttp_class in
 			self#write_metadata c.cl_meta;
 			self#write_types (get_constraints ttp);
 			Chunk.write_option chunk ttp.ttp_default self#write_type_instance
 		in
-		List.iter write_type_parameter_forward ttps;
-		List.iter write_type_parameter_data ttps;
+		List.iter write_type_parameter_data ttps
+
+	method write_type_parameters (ttps : typed_type_param list) =
+		self#write_type_parameters_forward ttps;
+		self#write_type_parameters_data ttps;
+
+	(* Fields *)
 
 	method write_field_kind = function
 		| Method MethNormal -> IOChunk.write_u8 chunk.io 0;
@@ -1803,7 +1808,7 @@ class hxb_writer
 		IOChunk.write_bool chunk.io infos.mt_private;
 		Chunk.write_option chunk infos.mt_doc self#write_documentation;
 		self#write_metadata infos.mt_meta;
-		self#write_type_parameters infos.mt_params;
+		self#write_type_parameters_data infos.mt_params;
 		Chunk.write_list chunk infos.mt_using (fun (c,p) ->
 			self#write_class_ref c;
 			self#write_pos p;
@@ -1973,6 +1978,7 @@ class hxb_writer
 		self#write_path (fst infos.mt_path, !name);
 		self#write_pos infos.mt_pos;
 		self#write_pos infos.mt_name_pos;
+		self#write_type_parameters_forward infos.mt_params;
 		let params = new pool in
 		type_type_parameters <- params;
 		ignore(type_param_lut#add infos.mt_path params);
