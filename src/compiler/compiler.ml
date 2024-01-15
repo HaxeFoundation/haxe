@@ -206,7 +206,7 @@ module Setup = struct
 					l
 			in
 			let parts = Str.split_delim (Str.regexp "[;:]") p in
-			List.map (fun s -> Path.add_trailing_slash s,Std) (loop parts)
+			List.map (fun s -> s,Std) (loop parts)
 		with Not_found ->
 			let base_path = Path.get_real_path (try executable_path() with _ -> "./") in
 			if Sys.os_type = "Unix" then
@@ -214,20 +214,21 @@ module Setup = struct
 				let lib_path = Filename.concat prefix_path "lib" in
 				let share_path = Filename.concat prefix_path "share" in
 				[
-					(Path.add_trailing_slash (Filename.concat share_path "haxe/std"),Std);
-					(Path.add_trailing_slash (Filename.concat lib_path "haxe/std"),Std);
-					(Path.add_trailing_slash (Filename.concat base_path "std"),Std);
+					(Filename.concat share_path "haxe/std"),Std;
+					(Filename.concat lib_path "haxe/std"),Std;
+					(Filename.concat base_path "std"),Std;
 				]
 			else
 				[
-					(Path.add_trailing_slash (Filename.concat base_path "std"),Std);
+					(Filename.concat base_path "std"),Std;
 				]
 
 	let init_std_class_paths com =
 		List.iter (fun (s,scope) ->
-			if Sys.file_exists s then
-				let cp = new ClassPath.directory_class_path s scope in
+			try if Sys.is_directory s then
+				let cp = new ClassPath.directory_class_path (Path.add_trailing_slash s) scope in
 				com.class_paths#add cp
+			with Sys_error _ -> ()
 		) (List.rev (get_std_class_paths ()));
 		com.class_paths#add com.empty_class_path
 
