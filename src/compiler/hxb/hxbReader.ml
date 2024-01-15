@@ -1506,11 +1506,6 @@ class hxb_reader
 		let l = read_uleb128 ch in
 		let a = Array.init l (fun i ->
 			let c = self#read_class_ref in
-			begin try
-				ignore(c.cl_build())
-			with Error.Error err ->
-				error (Printf.sprintf "[HXB] [%s] Error while building class %s: %s" (s_type_path current_module.m_path) (s_type_path c.cl_path) (Error.error_msg err.err_message))
-			end;
 			let kind = match IO.read_byte ch with
 				| 0 -> CfrStatic
 				| 1 -> CfrMember
@@ -1790,8 +1785,10 @@ class hxb_reader
 		| ABD ->
 			self#read_abd;
 		| EFR ->
+			api#enable_field_access;
 			self#read_efr;
 		| CFR ->
+			api#enable_field_access;
 			self#read_cfr;
 		| CFD ->
 			self#read_cfd;

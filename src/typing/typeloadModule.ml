@@ -801,6 +801,9 @@ class hxb_reader_api_typeload
 		let uid = fst alloc_var' in
 		incr uid;
 		!uid
+
+	method enable_field_access =
+		enter_field_typing_pass ctx ("enable_field_access",fst ctx.curclass.cl_path @ [snd ctx.curclass.cl_path;ctx.curfield.cf_name]);
 end
 
 let rec get_reader ctx p =
