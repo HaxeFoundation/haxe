@@ -224,11 +224,12 @@ module Setup = struct
 				]
 
 	let init_std_class_paths com =
-		com.class_paths#add com.empty_class_path;
 		List.iter (fun (s,scope) ->
-			let cp = new ClassPath.directory_class_path s scope in
-			com.class_paths#add cp
-		) (List.rev (get_std_class_paths ()))
+			if Sys.file_exists s then
+				let cp = new ClassPath.directory_class_path s scope in
+				com.class_paths#add cp
+		) (List.rev (get_std_class_paths ()));
+		com.class_paths#add com.empty_class_path
 
 	let setup_common_context ctx =
 		let com = ctx.com in
