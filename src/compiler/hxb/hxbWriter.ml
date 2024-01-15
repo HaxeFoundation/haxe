@@ -3,7 +3,6 @@ open Ast
 open Type
 open HxbData
 open Tanon_identification
-open HxbShared
 
 (* Debug utils *)
 let no_color = false
@@ -969,31 +968,60 @@ class hxb_writer
 		let index = try
 			class_fields#get cf
 		with Not_found ->
-			let cf_base = find_field c cf.cf_name kind in
-			let depth,cf =
+			let find_overload c cf_base =
 				let rec loop depth cfl = match cfl with
 					| cf' :: cfl ->
 						if cf' == cf then
-							depth,cf
+							Some(c,depth)
 						else
 							loop (depth + 1) cfl
 					| [] ->
-						print_endline (Printf.sprintf "Could not resolve %s overload for %s on %s" (s_class_field_ref_kind kind) cf.cf_name (s_type_path c.cl_path));
-						0,cf
+						None
 				in
-				let cfl = match kind with
-					| CfrStatic | CfrConstructor ->
-						(cf_base :: cf_base.cf_overloads)
-					| CfrMember ->
-						let key = (c.cl_path,cf_base.cf_name) in
-						try
-							Hashtbl.find instance_overload_cache key
-						with Not_found ->
-							let l = get_instance_overloads c cf_base.cf_name in
-							Hashtbl.add instance_overload_cache key l;
-							l
-				in
+				let cfl = cf_base :: cf_base.cf_overloads in
 				loop 0 cfl
+			in
+			let find_overload c =
+				try
+					find_overload c (find_field c cf.cf_name kind)
+				with Not_found ->
+					None
+			in
+			let r = match kind with
+				| CfrStatic | CfrConstructor ->
+					find_overload c;
+				| CfrMember ->
+					(* For member overloads we need to find the correct class, which is a mess. *)
+					let rec loop c = match find_overload c with
+						| Some _ as r ->
+							r
+						| None ->
+							if has_class_flag c CInterface then
+								let rec loopi l = match l with
+									| [] ->
+										None
+									| (c,_) :: l ->
+										match loop c with
+										| Some _ as r ->
+											r
+										| None ->
+											loopi l
+								in
+								loopi c.cl_implements
+							else match c.cl_super with
+								| Some(c,_) ->
+									loop c
+								| None ->
+									None
+					in
+					loop c;
+			in
+			let c,depth = match r with
+				| None ->
+					print_endline (Printf.sprintf "Could not resolve %s overload for %s on %s" (s_class_field_ref_kind kind) cf.cf_name (s_type_path c.cl_path));
+					c,0
+				| Some(c,depth) ->
+					c,depth
 			in
 			class_fields#add cf (c,kind,depth)
 		in

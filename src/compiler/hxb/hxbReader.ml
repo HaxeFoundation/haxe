@@ -2,7 +2,6 @@ open Globals
 open Ast
 open Type
 open HxbData
-open HxbShared
 open HxbReaderApi
 
 (* Debug utils *)
@@ -1505,7 +1504,6 @@ class hxb_reader
 
 	method read_cfr =
 		let l = read_uleb128 ch in
-		let instance_overload_cache = Hashtbl.create 0 in
 		let a = Array.init l (fun i ->
 			let c = self#read_class_ref in
 			begin try
@@ -1547,18 +1545,7 @@ class hxb_reader
 					| [] ->
 						raise (HxbFailure (Printf.sprintf "Bad overload depth for %s on %s: %i" cf.cf_name (s_type_path c.cl_path) depth))
 				in
-				let cfl = match kind with
-					| CfrStatic | CfrConstructor ->
-						(cf :: cf.cf_overloads)
-					| CfrMember ->
-						let key = (c.cl_path,cf.cf_name) in
-						try
-							Hashtbl.find instance_overload_cache key
-						with Not_found ->
-							let l = get_instance_overloads c cf.cf_name in
-							Hashtbl.add instance_overload_cache key l;
-							l
-				in
+				let cfl = cf :: cf.cf_overloads in
 				loop depth cfl
 			in
 			let depth = read_uleb128 ch in
