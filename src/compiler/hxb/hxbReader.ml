@@ -110,7 +110,9 @@ class hxb_reader
 			api#resolve_type pack mname tname
 		with Not_found ->
 			dump_backtrace();
-			error (Printf.sprintf "Cannot resolve type %s" (s_type_path ((pack @ [mname]),tname)))
+			error (Printf.sprintf "[HXB] [%s] Cannot resolve type %s" (s_type_path current_module.m_path) (s_type_path ((pack @ [mname]),tname)))
+		| Error.Error err ->
+			error (Printf.sprintf "[HXB] [%s] Error while resolving type %s: %s" (s_type_path current_module.m_path) (s_type_path ((pack @ [mname]),tname)) (Error.error_msg err.err_message))
 
 	method print_reader_state =
 		print_endline (Printf.sprintf "  Current field: %s" current_field.cf_name);
