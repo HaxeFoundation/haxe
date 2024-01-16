@@ -2078,16 +2078,24 @@ class hxb_writer
 					let new_chunk = close() in
 					Chunk.export_data new_chunk chunk
 				);
-				expr_chunks := (c,!c_expr_chunks) :: !expr_chunks
+				match !c_expr_chunks with
+				| [] ->
+					()
+				| c_expr_chunks ->
+					expr_chunks := (c,c_expr_chunks) :: !expr_chunks
 			);
-			self#start_chunk EXD;
-			Chunk.write_list chunk !expr_chunks (fun (c,l) ->
-				self#write_class_ref c;
-				Chunk.write_list chunk l (fun (cf,ref_kind,e) ->
-					self#write_field_ref c ref_kind cf;
-					Chunk.export_data e chunk
+			match !expr_chunks with
+			| [] ->
+				()
+			| expr_chunks ->
+				self#start_chunk EXD;
+				Chunk.write_list chunk expr_chunks (fun (c,l) ->
+					self#write_class_ref c;
+					Chunk.write_list chunk l (fun (cf,ref_kind,e) ->
+						self#write_field_ref c ref_kind cf;
+						Chunk.export_data e chunk
+					)
 				)
-			)
 		end;
 		begin match own_enums#to_list with
 		| [] ->
@@ -2161,38 +2169,44 @@ class hxb_writer
 			)
 		end;
 
-		self#start_chunk CFR;
 		let items = class_fields#items in
-		IOChunk.write_uleb128 chunk.io (DynArray.length items);
-		DynArray.iter (fun (cf,(c,kind,depth)) ->
-			self#write_class_ref c;
-			begin match kind with
-			| CfrStatic ->
-				IOChunk.write_u8 chunk.io 0;
-				Chunk.write_string chunk cf.cf_name
-			| CfrMember ->
-				IOChunk.write_u8 chunk.io 1;
-				Chunk.write_string chunk cf.cf_name
-			| CfrConstructor ->
-				IOChunk.write_u8 chunk.io 2;
-			end;
-			IOChunk.write_uleb128 chunk.io depth
-		) items;
+		if DynArray.length items > 0 then begin
+			self#start_chunk CFR;
+			IOChunk.write_uleb128 chunk.io (DynArray.length items);
+			DynArray.iter (fun (cf,(c,kind,depth)) ->
+				self#write_class_ref c;
+				begin match kind with
+				| CfrStatic ->
+					IOChunk.write_u8 chunk.io 0;
+					Chunk.write_string chunk cf.cf_name
+				| CfrMember ->
+					IOChunk.write_u8 chunk.io 1;
+					Chunk.write_string chunk cf.cf_name
+				| CfrConstructor ->
+					IOChunk.write_u8 chunk.io 2;
+				end;
+				IOChunk.write_uleb128 chunk.io depth
+			) items;
+		end;
 
-		self#start_chunk EFR;
 		let items = enum_fields#items in
-		IOChunk.write_uleb128 chunk.io (DynArray.length items);
-		DynArray.iter (fun (en,ef) ->
-			self#write_enum_ref en;
-			Chunk.write_string chunk ef.ef_name;
-		) items;
+		if DynArray.length items > 0 then begin
+			self#start_chunk EFR;
+			IOChunk.write_uleb128 chunk.io (DynArray.length items);
+			DynArray.iter (fun (en,ef) ->
+				self#write_enum_ref en;
+				Chunk.write_string chunk ef.ef_name;
+			) items;
+		end;
 
-		self#start_chunk AFR;
 		let items = anon_fields#items in
-		IOChunk.write_uleb128 chunk.io (DynArray.length items);
-		DynArray.iter (fun (cf,_) ->
-			self#write_class_field_forward cf
-		) items;
+		if DynArray.length items > 0 then begin
+			self#start_chunk AFR;
+			IOChunk.write_uleb128 chunk.io (DynArray.length items);
+			DynArray.iter (fun (cf,_) ->
+				self#write_class_field_forward cf
+			) items;
+		end;
 
 		self#start_chunk MDF;
 		self#write_path m.m_path;
