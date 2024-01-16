@@ -380,7 +380,7 @@ let compile ctx actx callbacks =
 		let is_compilation = is_compilation com in
 		com.callbacks#add_after_save (fun () ->
 			callbacks.after_save ctx;
-			if is_compilation then Generate.check_hxb_output com actx;
+			if is_compilation then Generate.check_hxb_output ctx actx;
 		);
 		if is_diagnostics com then
 			filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)

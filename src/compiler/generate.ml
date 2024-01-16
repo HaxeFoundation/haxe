@@ -51,27 +51,35 @@ let export_hxb com cc platform zip m =
 	| _ ->
 		()
 
-let check_hxb_output com actx =
+let check_hxb_output ctx actx =
+	let com = ctx.com in
+	let try_write path =
+		let t = Timer.timer ["generate";"hxb"] in
+		Path.mkdir_from_path path;
+		Printf.eprintf "Generating hxb to %s\n" path;
+		let zip = new Zip_output.zip_output path 6 in
+		let export com =
+			let cc = CommonCache.get_cache com in
+			let target = Common.platform_name_macro com in
+			Printf.eprintf "\t%s: %d modules, %d types\n" target (List.length com.Common.modules) (List.length com.types);
+			List.iter (export_hxb com cc target zip) com.modules;
+		in
+		Std.finally (fun () ->
+			zip#close;
+			t()
+		) (fun () ->
+			export com;
+			Option.may export (com.get_macros());
+		) ()
+	in
 	begin match actx.hxb_out with
-		| None -> ()
+		| None ->
+			()
 		| Some path ->
-			let t = Timer.timer ["generate";"hxb"] in
-			Path.mkdir_from_path path;
-			Printf.eprintf "Generating hxb to %s\n" path;
-			let zip = new Zip_output.zip_output path 6 in
-			let export com =
-				let cc = CommonCache.get_cache com in
-				let target = Common.platform_name_macro com in
-				Printf.eprintf "\t%s: %d modules, %d types\n" target (List.length com.Common.modules) (List.length com.types);
-				List.iter (export_hxb com cc target zip) com.modules;
-			in
-			Std.finally (fun () ->
-				zip#close;
-				t()
-			) (fun () ->
-				export com;
-				Option.may export (com.get_macros());
-			) ()
+			try
+				try_write path
+			with Sys_error s ->
+				error ctx (Printf.sprintf "Could not write to %s: %s" path s) null_pos
 	end
 
 let parse_swf_header ctx h = match ExtString.String.nsplit h ":" with
