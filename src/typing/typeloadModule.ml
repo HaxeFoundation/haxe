@@ -801,9 +801,6 @@ class hxb_reader_api_typeload
 		let uid = fst alloc_var' in
 		incr uid;
 		!uid
-
-	method enable_field_access =
-		enter_field_typing_pass ctx ("enable_field_access",fst ctx.curclass.cl_path @ [snd ctx.curclass.cl_path;ctx.curfield.cf_name]);
 end
 
 let rec get_reader ctx p =
@@ -813,10 +810,15 @@ and load_hxb_module ctx path p =
 	let read file input =
 		try
 			let read = (get_reader ctx p)#read_hxb input ctx.com.hxb_reader_stats in
-			let m = read EOT in
+			let m = read MTF in
 			delay ctx PBuildClass (fun () ->
-				ignore(read EOF);
-				delay ctx PTypeField (fun () -> ignore(read EOM));
+				ignore(read EOT);
+				delay ctx PConnectField (fun () ->
+					ignore(read EOF);
+					delay ctx PTypeField (fun () ->
+						ignore(read EOM)
+					)
+				);
 			);
 			m
 		with e ->

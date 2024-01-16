@@ -144,9 +144,6 @@ class hxb_reader_api_com
 
 	method get_var_id (i : int) =
 		i
-
-	method enable_field_access =
-		()
 end
 
 let find_module ~(headers_only : bool) com cc path =

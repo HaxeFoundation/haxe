@@ -1789,10 +1789,8 @@ class hxb_reader
 		| EOT ->
 			()
 		| EFR ->
-			api#enable_field_access;
 			self#read_efr;
 		| CFR ->
-			api#enable_field_access;
 			self#read_cfr;
 		| CFD ->
 			self#read_cfd;

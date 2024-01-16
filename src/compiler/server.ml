@@ -442,9 +442,6 @@ class hxb_reader_api_server
 
 	method get_var_id (i : int) =
 		i
-
-	method enable_field_access =
-		()
 end
 
 let handle_cache_bound_objects com cbol =
