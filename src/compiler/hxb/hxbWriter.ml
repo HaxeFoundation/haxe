@@ -1876,7 +1876,6 @@ class hxb_writer
 		end;
 		self#write_common_module_type (Obj.magic c);
 		self#write_class_kind c.cl_kind;
-		IOChunk.write_uleb128 chunk.io c.cl_flags;
 		Chunk.write_option chunk c.cl_super (fun (c,tl) ->
 			self#write_class_ref c;
 			self#write_types tl
@@ -2017,6 +2016,7 @@ class hxb_writer
 		(* Forward declare fields *)
 		match mt with
 		| TClassDecl c ->
+			IOChunk.write_uleb128 chunk.io c.cl_flags;
 			Chunk.write_option chunk c.cl_constructor self#write_class_field_forward;
 			Chunk.write_list chunk c.cl_ordered_fields self#write_class_field_forward;
 			Chunk.write_list chunk c.cl_ordered_statics self#write_class_field_forward;

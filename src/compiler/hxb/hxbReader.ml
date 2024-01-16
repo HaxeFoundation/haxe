@@ -1402,7 +1402,6 @@ class hxb_reader
 	method read_class (c : tclass) =
 		self#read_common_module_type (Obj.magic c);
 		c.cl_kind <- self#read_class_kind;
-		c.cl_flags <- read_uleb128 ch;
 		let read_relation () =
 			let c = self#read_class_ref in
 			let tl = self#read_types in
@@ -1695,6 +1694,7 @@ class hxb_reader
 			| 0 ->
 				let c = mk_class current_module path pos name_pos in
 				c.cl_params <- Array.to_list params;
+				c.cl_flags <- read_uleb128 ch;
 
 				let read_field () =
 					self#read_class_field_forward;
