@@ -1242,13 +1242,6 @@ class hxb_reader
 				self#read_type_parameters (fun a ->
 					local_type_parameters <- a
 				);
-			| 2 ->
-				let num_params = read_uleb128 ch in
-				field_type_parameters <- Array.make num_params (mk_type_param null_class TPHMethod None None);
-				field_type_parameter_offset <- 0;
-				self#read_type_parameters (fun a ->
-					local_type_parameters <- a
-				);
 			| i ->
 				die "" __LOC__
 		end;
@@ -1286,10 +1279,13 @@ class hxb_reader
 		let e_unopt = self#read_option (fun () -> self#read_texpr fctx) in
 		e,e_unopt
 
+	val mutable awful = []
+
 	method read_class_field_data (cf : tclass_field) : unit =
 		current_field <- cf;
 
 		let params = self#read_field_type_parameters in
+		awful <- (cf,field_type_parameters) :: awful;
 
 		let t = self#read_type_instance in
 
@@ -1563,10 +1559,9 @@ class hxb_reader
 			self#select_class_type_parameters c;
 			self#read_list (fun () ->
 				let cf = self#read_field_ref in
+				field_type_parameters <- List.assq cf awful;
+				field_type_parameter_offset <- 0;
 				let fctx = self#start_texpr in
-				List.iteri (fun i ttp ->
-					field_type_parameters.(i) <- ttp
-				) cf.cf_params;
 				let e,e_unopt = self#read_expression fctx in
 				cf.cf_expr <- Some e;
 				cf.cf_expr_unoptimized <- e_unopt

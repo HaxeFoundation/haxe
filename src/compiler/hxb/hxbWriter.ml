@@ -179,6 +179,12 @@ class ['key,'value] identity_pool = object(self)
 	method get (key : 'key) =
 		DynArray.index_of (fun (key',_) -> key == key') items
 
+	method get_or_add (key : 'key) (value : 'value) =
+		try
+			self#get key
+		with Not_found ->
+			self#add key value
+
 	method to_list =
 		DynArray.to_list items
 
@@ -1737,7 +1743,7 @@ class hxb_writer
 			self#write_class_field_forward cf;
 		);
 
-	method start_texpr (write_expr_immediately : bool) (p: pos) =
+	method start_texpr (p: pos) =
 		let restore = self#start_temporary_chunk 512 in
 		let fctx = create_field_writer_context (new pos_writer chunk stats p) in
 		fctx,(fun () ->
@@ -1746,15 +1752,7 @@ class hxb_writer
 				if self#in_nested_scope then
 					IOChunk.write_u8 chunk.io 0
 				else begin
-					if write_expr_immediately then
-						IOChunk.write_u8 chunk.io 1
-					else begin
-						IOChunk.write_u8 chunk.io 2;
-						(* For CFEX, we give the total number of field type parameters so that
-						   the reader can allocate a fixed array. The first elements correspond
-						   to cf_params, the rest will be filled by nested anon field params. *)
-						IOChunk.write_uleb128 chunk.io field_type_parameters#length;
-					end;
+					IOChunk.write_u8 chunk.io 1;
 					let ltp = List.map fst local_type_parameters#to_list in
 					self#write_type_parameters ltp
 				end;
@@ -1795,16 +1793,16 @@ class hxb_writer
 			| None ->
 				IOChunk.write_u8 chunk.io 0;
 				None
-			(* | Some e when not write_expr_immediately ->
+			| Some e when not write_expr_immediately ->
 				IOChunk.write_u8 chunk.io 0;
-				let fctx,close = self#start_texpr false e.epos in
+				let fctx,close = self#start_texpr e.epos in
 				self#write_texpr fctx e;
 				Chunk.write_option chunk cf.cf_expr_unoptimized (self#write_texpr fctx);
 				let expr_chunk = close() in
-				Some expr_chunk *)
+				Some expr_chunk
 			| Some e ->
 				IOChunk.write_u8 chunk.io 1;
-				let fctx,close = self#start_texpr true e.epos in
+				let fctx,close = self#start_texpr e.epos in
 				self#write_texpr fctx e;
 				Chunk.write_option chunk cf.cf_expr_unoptimized (self#write_texpr fctx);
 				let expr_chunk = close() in
@@ -2075,7 +2073,7 @@ class hxb_writer
 				Chunk.write_list chunk c.cl_ordered_fields (write_field CfrMember);
 				Chunk.write_list chunk c.cl_ordered_statics (write_field CfrStatic);
 				Chunk.write_option chunk c.cl_init (fun e ->
-					let fctx,close = self#start_texpr true e.epos in
+					let fctx,close = self#start_texpr e.epos in
 					self#write_texpr fctx e;
 					let new_chunk = close() in
 					Chunk.export_data new_chunk chunk
