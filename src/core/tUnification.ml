@@ -1043,10 +1043,6 @@ and unifies_from_field uctx a b ab tl (t,cf) =
 			let map = apply_params ab.a_params tl in
 			let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 			let map t = map (apply_params cf.cf_params monos t) in
-			(* trace' (s_type_kind t); *)
-			(* trace' (s_type_kind r); *)
-			(* trace' (s_type_kind (map t)); *)
-			(* trace' (s_type_kind (map r)); *)
 			let uctx = get_abstract_context uctx a b ab in
 			let unify_func = get_abstract_unify_func uctx EqStrict in
 			unify_func a (map t);

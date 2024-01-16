@@ -6,4 +6,3 @@
 --interp
 -D use-rtti-doc
 #-D test=11285
--D UTEST-PRINT-TESTS

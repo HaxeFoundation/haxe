@@ -454,8 +454,8 @@ let init_class_done ctx =
 	ctx.pass <- PConnectField
 
 let enter_field_typing_pass ctx info =
-	ctx.pass <- PTypeField;
-	flush_pass ctx PConnectField info
+	flush_pass ctx PConnectField info;
+	ctx.pass <- PTypeField
 
 let make_lazy ?(force=true) ctx t_proc f where =
 	let r = ref (lazy_available t_dynamic) in
