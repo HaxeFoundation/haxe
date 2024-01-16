@@ -774,7 +774,7 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 
 let type_module_hook = ref (fun _ _ _ -> None)
 
-let load_module' ctx g m p =
+let load_module' ctx m p =
 	try
 		(* Check current context *)
 		ctx.com.module_lut#find m
@@ -810,7 +810,7 @@ let load_module' ctx g m p =
 			type_module ctx m file ~is_extern decls p
 
 let load_module ctx m p =
-	let m2 = load_module' ctx ctx.g m p in
+	let m2 = load_module' ctx m p in
 	add_dependency ~skip_postprocess:true ctx.m.curmod m2;
 	if ctx.pass = PTypeField then flush_pass ctx PConnectField ("load_module",fst m @ [snd m]);
 	m2
