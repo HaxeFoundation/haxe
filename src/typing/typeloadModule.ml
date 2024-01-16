@@ -812,7 +812,13 @@ let rec get_reader ctx p =
 and load_hxb_module ctx path p =
 	let read file input =
 		try
-			(get_reader ctx p)#read_hxb input ctx.com.hxb_reader_stats
+			let read = (get_reader ctx p)#read_hxb input ctx.com.hxb_reader_stats in
+			let m = read EOT in
+			delay ctx PBuildClass (fun () ->
+				ignore(read EOF);
+				delay ctx PTypeField (fun () -> ignore(read EOM));
+			);
+			m
 		with e ->
 			Printf.eprintf "\x1b[30;41mError loading %s from %s\x1b[0m\n" (snd path) file;
 			let msg = Printexc.to_string e and stack = Printexc.get_backtrace () in

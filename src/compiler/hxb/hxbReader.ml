@@ -1759,31 +1759,35 @@ class hxb_reader
 
 	method private read_chunk_data (kind : chunk_kind) =
 		match kind with
-		| LST ->
-			incr stats.modules_fully_restored;
 		| STR ->
 			string_pool <- self#read_string_pool;
 		| DOC ->
 			doc_pool <- self#read_string_pool;
 		| MDF ->
 			current_module <- self#read_mdf;
-		| AFR ->
-			self#read_afr;
 		| MTF ->
 			current_module.m_types <- self#read_mtf;
 			api#add_module current_module;
 		| CLR ->
 			self#read_clr;
+		| ENR ->
+			self#read_enr;
 		| ABR ->
 			self#read_abr;
 		| TDR ->
 			self#read_tdr;
-		| ENR ->
-			self#read_enr;
+		| AFR ->
+			self#read_afr;
 		| CLD ->
 			self#read_cld;
+		| END ->
+			self#read_end;
 		| ABD ->
 			self#read_abd;
+		| TDD ->
+			self#read_tdd;
+		| EOT ->
+			()
 		| EFR ->
 			api#enable_field_access;
 			self#read_efr;
@@ -1792,19 +1796,19 @@ class hxb_reader
 			self#read_cfr;
 		| CFD ->
 			self#read_cfd;
-		| AFD ->
-			self#read_afd;
-		| TDD ->
-			self#read_tdd;
-		| END ->
-			self#read_end;
 		| EFD ->
 			self#read_efd;
+		| AFD ->
+			self#read_afd;
+		| EOF ->
+			()
 		| EXD ->
 			self#read_exd;
+		| EOM ->
+			incr stats.modules_fully_restored;
 
 	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =
-		fst (self#read_chunks_until new_api chunks LST)
+		fst (self#read_chunks_until new_api chunks EOM)
 
 	method read_chunks_until (new_api : hxb_reader_api) (chunks : cached_chunks) end_chunk =
 		api <- new_api;
@@ -1826,14 +1830,16 @@ class hxb_reader
 		let version = IO.read_byte file_ch in
 		if version <> hxb_version then
 			raise (HxbFailure (Printf.sprintf "version mismatch: hxb version %i, reader version %i" version hxb_version));
-		let rec loop () =
-			let (name,size) = self#read_chunk_prefix in
-			let kind = chunk_kind_of_string name in
-			if kind <> LST then begin
+		(fun end_chunk ->
+			let rec loop () =
+				let (name,size) = self#read_chunk_prefix in
+				let kind = chunk_kind_of_string name in
 				self#read_chunk_data kind;
-				loop()
-			end
-		in
-		loop();
-		current_module
+				if kind <> end_chunk then begin
+					loop()
+				end
+			in
+			loop();
+			current_module
+		)
 end

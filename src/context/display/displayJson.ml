@@ -137,7 +137,7 @@ class hxb_reader_api_com
 			cc#find_module m_path
 		with Not_found ->
 			let mc = cc#get_hxb_module m_path in
-			fst (self#read_chunks_until mc.mc_chunks com.hxb_reader_stats (if headers_only then LST else MTF))
+			fst (self#read_chunks_until mc.mc_chunks com.hxb_reader_stats (if headers_only then EOM else MTF))
 
 	method basic_types =
 		com.basic

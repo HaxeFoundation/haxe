@@ -557,7 +557,7 @@ class hxb_writer
 
 	method start_chunk (kind : chunk_kind) =
 		let initial_size = match kind with
-			| LST -> 0
+			| EOT | EOF | EOM -> 0
 			| MDF -> 16
 			| MTF | CLR | END | ABD | ENR | ABR | TDR | EFR | CFR | AFD -> 64
 			| AFR | CLD | TDD | EFD -> 128
@@ -569,7 +569,7 @@ class hxb_writer
 		chunk <- new_chunk
 
 	method start_temporary_chunk : 'a . int -> (Chunk.t -> 'a) -> 'a = fun initial_size ->
-		let new_chunk = Chunk.create LST (* TODO: something else? *) cp initial_size in
+		let new_chunk = Chunk.create EOM (* TODO: something else? *) cp initial_size in
 		let old_chunk = chunk in
 		chunk <- new_chunk;
 		(fun f ->
@@ -2201,7 +2201,9 @@ class hxb_writer
 		Chunk.write_string chunk (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		IOChunk.write_uleb128 chunk.io (DynArray.length anons#items);
 		IOChunk.write_uleb128 chunk.io (DynArray.length tmonos#items);
-		self#start_chunk LST;
+		self#start_chunk EOT;
+		self#start_chunk EOF;
+		self#start_chunk EOM;
 		DynArray.add chunks cp#finalize;
 		if not docs#is_empty then
 			DynArray.add chunks docs#finalize

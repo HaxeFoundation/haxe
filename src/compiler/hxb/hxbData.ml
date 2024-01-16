@@ -15,9 +15,10 @@ exception HxbFailure of string
 	EF = enum field
 	AF = anon field
 	EX = expression
-	...F = forward definition
-	...R = reference
-	...D = definition
+	EO = end of (Types | Fields | Module)
+	..F = forward definition
+	..R = reference
+	..D = definition
 *)
 
 type chunk_kind =
@@ -37,6 +38,7 @@ type chunk_kind =
 	| END (* enum definition *)
 	| ABD (* abstract definition *)
 	| TDD (* typedef definition *)
+	| EOT (* end of module types *)
 	(* Field references *)
 	| EFR (* enum field references *)
 	| CFR (* class field references *)
@@ -44,8 +46,9 @@ type chunk_kind =
 	| CFD (* class fields *)
 	| EFD (* enum fields *)
 	| AFD (* abstract fields *)
+	| EOF (* end of fields *)
 	| EXD (* class field expressions *)
-	| LST (* last *)
+	| EOM (* end of module *)
 
 type cached_chunk = chunk_kind * bytes
 type cached_chunks = cached_chunk list
@@ -73,11 +76,13 @@ let string_of_chunk_kind = function
 	| END -> "END"
 	| ABD -> "ABD"
 	| TDD -> "TDD"
+	| EOT -> "EOT"
 	| CFD -> "CFD"
 	| EFD -> "EFD"
 	| AFD -> "AFD"
+	| EOF -> "EOF"
 	| EXD -> "EXD"
-	| LST -> "LST"
+	| EOM -> "EOM"
 
 let chunk_kind_of_string = function
 	| "STR" -> STR
@@ -95,11 +100,13 @@ let chunk_kind_of_string = function
 	| "END" -> END
 	| "ABD" -> ABD
 	| "TDD" -> TDD
+	| "EOT" -> EOT
 	| "CFD" -> CFD
 	| "EFD" -> EFD
 	| "AFD" -> AFD
+	| "EOF" -> EOF
 	| "EXD" -> EXD
-	| "LST" -> LST
+	| "EOM" -> EOM
 	| name -> raise (HxbFailure ("Invalid chunk name: " ^ name))
 
 let error (s : string) =
