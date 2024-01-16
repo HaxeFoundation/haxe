@@ -18,7 +18,6 @@ class ValueException extends Exception {
 	/**
 		Thrown value.
 	**/
-	@:keep
 	public var value(default, null):Any;
 
 	public function new(value:Any, ?previous:Exception, ?native:Any):Void {
