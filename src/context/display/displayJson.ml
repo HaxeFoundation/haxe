@@ -263,6 +263,7 @@ let handler =
 		);
 		"server/resetCache", (fun hctx ->
 			hctx.com.cs#clear;
+			supports_resolve := false;
 			DisplayException.reset();
 			ServerConfig.reset();
 			hctx.send_result (jobject [
