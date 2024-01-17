@@ -75,7 +75,6 @@ type hxb_writer_stats = {
 	type_instance_kind_writes : int array;
 	texpr_writes : int array;
 	type_instance_immediate : int ref;
-	type_instance_ring_hits : int ref;
 	type_instance_cache_hits : int ref;
 	type_instance_cache_misses : int ref;
 	pos_writes_full : int ref;
@@ -90,7 +89,6 @@ let create_hxb_writer_stats () = {
 	type_instance_kind_writes = Array.make 255 0;
 	texpr_writes = Array.make 255 0;
 	type_instance_immediate = ref 0;
-	type_instance_ring_hits = ref 0;
 	type_instance_cache_hits = ref 0;
 	type_instance_cache_misses = ref 0;
 	pos_writes_full = ref 0;
@@ -119,7 +117,6 @@ let dump_stats name stats =
 
 	print_endline "  type instance writes:";
 	print_endline (Printf.sprintf "     immediate: %9i" !(stats.type_instance_immediate));
-	print_endline (Printf.sprintf "     ring hits: %9i" !(stats.type_instance_ring_hits));
 	print_endline (Printf.sprintf "    cache hits: %9i" !(stats.type_instance_cache_hits));
 	print_endline (Printf.sprintf "    cache miss: %9i" !(stats.type_instance_cache_misses));
 	print_endline "  pos writes:";
@@ -461,65 +458,8 @@ class pos_writer
 		self#do_write_pos chunk_initial p_initial
 end
 
-let ghetto_bottom_type = TInst({(null_class) with cl_path = ([],"Bottom")},[])
-
-class t_rings (length : int) = object(self)
-	val ring_inst = Ring.create length (ghetto_bottom_type,0)
-	val ring_enum = Ring.create length (ghetto_bottom_type,0)
-	val ring_type = Ring.create length (ghetto_bottom_type,0)
-	val ring_abstract = Ring.create length (ghetto_bottom_type,0)
-	val ring_fun = Ring.create length (ghetto_bottom_type,0)
-	val ring_anon = Ring.create length (ghetto_bottom_type,0)
-	val ring_dynamic = Ring.create 1 (ghetto_bottom_type,0)
-	val ring_mono = Ring.create 1 (ghetto_bottom_type,0)
-
-	method ring_inst = ring_inst
-	method ring_enum = ring_enum
-	method ring_type = ring_type
-	method ring_abstract = ring_abstract
-	method ring_fun = ring_fun
-	method ring_anon = ring_anon
-	method ring_dynamic = ring_dynamic
-
-	method fast_eq_check type_param_check a b =
-		if a == b then
-			true
-		else match a , b with
-		| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
-			List.for_all2 (fun (n1,o1,t1) (n2,o2,t2) ->
-				n1 = n2 &&
-				o1 = o2 &&
-				type_param_check t1 t2
-			) l1 l2 && type_param_check r1 r2
-		| TType (t1,l1), TType (t2,l2) ->
-			t1 == t2 && List.for_all2 type_param_check l1 l2
-		| TEnum (e1,l1), TEnum (e2,l2) ->
-			e1 == e2 && List.for_all2 type_param_check l1 l2
-		| TInst (c1,l1), TInst (c2,l2) ->
-			c1 == c2 && List.for_all2 type_param_check l1 l2
-		| TAbstract (a1,l1), TAbstract (a2,l2) ->
-			a1 == a2 && List.for_all2 type_param_check l1 l2
-		| TAnon an1,TAnon an2 ->
-			begin match !(an1.a_status),!(an2.a_status) with
-				| ClassStatics c, ClassStatics c2 -> c == c2
-				| EnumStatics e, EnumStatics e2 -> e == e2
-				| AbstractStatics a, AbstractStatics a2 -> a == a2
-				| _ -> false
-			end
-		| _ , _ ->
-			false
-
-	method find (ring : (Type.t * int) Ring.t) (t : Type.t) =
-		let rec fast_eq a b = self#fast_eq_check fast_eq a b in
-		let _,index = Ring.find ring (fun (t',_) -> fast_eq t t') in
-		index
-end
-
-let dummy_rings = new t_rings 0
-
 type field_writer_context = {
 	t_pool : (bytes,bytes) pool;
-	t_rings : t_rings;
 	pos_writer : pos_writer;
 	mutable texpr_this : texpr option;
 	vars : (int,tvar) pool;
@@ -527,7 +467,6 @@ type field_writer_context = {
 
 let create_field_writer_context pos_writer = {
 	t_pool = new pool;
-	t_rings = new t_rings 5;
 	pos_writer = pos_writer;
 	texpr_this = None;
 	vars = new pool;
@@ -1168,7 +1107,7 @@ class hxb_writer
 		   103: Bool
 		   104: String
 	*)
-	method write_type_instance_simple (rings : t_rings) (t : Type.t) =
+	method write_type_instance_simple (t : Type.t) =
 		match t with
 		| TAbstract ({a_path = ([],"Void")},[]) ->
 			self#write_type_instance_byte 100;
@@ -1194,15 +1133,15 @@ class hxb_writer
 				None
 			| Some t ->
 				(* Don't write bound monomorphs, write underlying type directly *)
-				self#write_type_instance_simple rings t
+				self#write_type_instance_simple t
 			end
 		| TLazy f ->
-			self#write_type_instance_simple rings (lazy_type f)
+			self#write_type_instance_simple (lazy_type f)
 		| TInst({cl_kind = KTypeParameter ttp},[]) ->
 			self#write_type_parameter_ref ttp;
 			None
 		| TInst({cl_kind = KExpr _},_) ->
-			Some (t,rings#ring_inst)
+			Some t
 		| TInst(c,[]) ->
 			self#write_type_instance_byte 40;
 			self#write_class_ref c;
@@ -1246,19 +1185,19 @@ class hxb_writer
 			self#write_type_instance_byte 20;
 			None
 		| TInst _ ->
-			Some (t,rings#ring_inst)
+			Some t
 		| TEnum _ ->
-			Some (t,rings#ring_enum)
+			Some t
 		| TType _ ->
-			Some (t,rings#ring_type)
+			Some t
 		| TAbstract _ ->
-			Some (t,rings#ring_abstract)
+			Some t
 		| TFun _ ->
-			Some (t,rings#ring_fun)
+			Some t
 		| TAnon _ ->
-			Some (t,rings#ring_anon)
+			Some t
 		| TDynamic _ ->
-			Some (t,rings#ring_dynamic)
+			Some t
 
 	method write_inlined_list : 'a . int -> int -> (int -> unit) -> (unit -> unit) -> ('a -> unit) -> 'a list -> unit
 		= fun offset max f_byte f_first f_elt l ->
@@ -1313,10 +1252,10 @@ class hxb_writer
 			self#write_type_instance t;
 
 	method write_type_instance (t: Type.t) =
-		match self#write_type_instance_simple dummy_rings t with
+		match self#write_type_instance_simple t with
 			| None ->
 				()
-			| Some(t,_) ->
+			| Some t ->
 				self#write_type_instance_not_simple t
 
 	method write_types tl =
@@ -1350,34 +1289,28 @@ class hxb_writer
 
 	method write_texpr_type_instance (fctx : field_writer_context) (t: Type.t) =
 		let restore = self#start_temporary_chunk 32 in
-		let r = self#write_type_instance_simple fctx.t_rings t in
+		let r = self#write_type_instance_simple t in
 		let index = match r with
 		| None ->
 			let t_bytes = restore (fun new_chunk -> IOChunk.get_bytes new_chunk.io) in
 			incr stats.type_instance_immediate;
 			fctx.t_pool#get_or_add t_bytes t_bytes
-		| Some(t,ring) ->
+		| Some t ->
 			ignore(restore (fun new_chunk -> IOChunk.get_bytes new_chunk.io));
-			try
-				let index = fctx.t_rings#find ring t in
-				incr stats.type_instance_ring_hits;
+			let restore = self#start_temporary_chunk 32 in
+			self#write_type_instance_not_simple t;
+			let t_bytes = restore (fun new_chunk ->
+				IOChunk.get_bytes new_chunk.io
+			) in
+			let index = try
+				let index = fctx.t_pool#get t_bytes in
+				incr stats.type_instance_cache_hits;
 				index
 			with Not_found ->
-				let restore = self#start_temporary_chunk 32 in
-				self#write_type_instance_not_simple t;
-				let t_bytes = restore (fun new_chunk ->
-					IOChunk.get_bytes new_chunk.io
-				) in
-				let index = try
-					let index = fctx.t_pool#get t_bytes in
-					incr stats.type_instance_cache_hits;
-					index
-				with Not_found ->
-					incr stats.type_instance_cache_misses;
-					fctx.t_pool#add t_bytes t_bytes
-				in
-				Ring.push ring (t,index);
-				index
+				incr stats.type_instance_cache_misses;
+				fctx.t_pool#add t_bytes t_bytes
+			in
+			index
 		in
 		IOChunk.write_uleb128 chunk.io index
 
