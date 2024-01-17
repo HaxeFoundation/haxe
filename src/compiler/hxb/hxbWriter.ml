@@ -196,6 +196,11 @@ module SimnBuffer = struct
 		buffer_size = buffer_size;
 	}
 
+	let reset sb =
+		sb.buffer <- Bytes.create sb.buffer_size;
+		sb.buffers <- Queue.create ();
+		sb.offset <- 0
+
 	let promote_buffer sb =
 		Queue.add sb.buffer sb.buffers;
 		sb.buffer <- Bytes.create sb.buffer_size;
@@ -255,6 +260,9 @@ module Chunk = struct
 		cp;
 		ch = SimnBuffer.create initial_size;
 	}
+
+	let reset chunk =
+		SimnBuffer.reset chunk.ch
 
 	let write_u8 io v =
 		SimnBuffer.add_u8 io.ch (Char.unsafe_chr v)
@@ -447,6 +455,7 @@ type hxb_writer = {
 	mutable local_type_parameters : (typed_type_param,unit) identity_pool;
 	mutable field_stack : unit list;
 	unbound_ttp : (typed_type_param,unit) identity_pool;
+	t_instance_chunk : Chunk.t;
 }
 
 module HxbWriter = struct
@@ -1104,99 +1113,7 @@ module HxbWriter = struct
 			103: Bool
 			104: String
 	*)
-	and write_type_instance_simple writer (t : Type.t) =
-		match t with
-		| TAbstract ({a_path = ([],"Void")},[]) ->
-			Chunk.write_u8 writer.chunk 100;
-			None
-		| TAbstract ({a_path = ([],"Int")},[]) ->
-			Chunk.write_u8 writer.chunk 101;
-			None
-		| TAbstract ({a_path = ([],"Float")},[]) ->
-			Chunk.write_u8 writer.chunk 102;
-			None
-		| TAbstract ({a_path = ([],"Bool")},[]) ->
-			Chunk.write_u8 writer.chunk 103;
-			None
-		| TInst ({cl_path = ([],"String")},[]) ->
-			Chunk.write_u8 writer.chunk 104;
-			None
-		| TMono r ->
-			Monomorph.close r;
-			begin match r.tm_type with
-			| None ->
-				Chunk.write_u8 writer.chunk 0;
-				write_tmono_ref writer r;
-				None
-			| Some t ->
-				(* Don't write bound monomorphs, write underlying type directly *)
-				write_type_instance_simple writer t
-			end
-		| TLazy f ->
-			write_type_instance_simple writer (lazy_type f)
-		| TInst({cl_kind = KTypeParameter ttp},[]) ->
-			write_type_parameter_ref writer ttp;
-			None
-		| TInst({cl_kind = KExpr _},_) ->
-			Some t
-		| TInst(c,[]) ->
-			Chunk.write_u8 writer.chunk 40;
-			write_class_ref writer c;
-			None
-		| TEnum(en,[]) ->
-			Chunk.write_u8 writer.chunk 50;
-			write_enum_ref writer en;
-			None
-		| TType(td,[]) ->
-			let default () =
-				Chunk.write_u8 writer.chunk 60;
-				write_typedef_ref writer td;
-			in
-			begin match td.t_type with
-			| TAnon an ->
-				begin match !(an.a_status) with
-					| ClassStatics c ->
-						Chunk.write_u8 writer.chunk 10;
-						write_class_ref writer c
-					| EnumStatics en ->
-						Chunk.write_u8 writer.chunk 11;
-						write_enum_ref writer en;
-					| AbstractStatics a ->
-						Chunk.write_u8 writer.chunk 12;
-						write_abstract_ref writer a
-					| _ ->
-						default()
-				end
-			| _ ->
-				default()
-			end;
-			None
-		| TAbstract(a,[]) ->
-			Chunk.write_u8 writer.chunk 70;
-			write_abstract_ref writer a;
-			None
-		| TDynamic None ->
-			Chunk.write_u8 writer.chunk 4;
-			None
-		| TFun([],t) when ExtType.is_void (follow_lazy_and_mono t) ->
-			Chunk.write_u8 writer.chunk 20;
-			None
-		| TInst _ ->
-			Some t
-		| TEnum _ ->
-			Some t
-		| TType _ ->
-			Some t
-		| TAbstract _ ->
-			Some t
-		| TFun _ ->
-			Some t
-		| TAnon _ ->
-			Some t
-		| TDynamic _ ->
-			Some t
-
-	and write_type_instance_not_simple writer t =
+	and write_type_instance writer t =
 		let write_function_arg (n,o,t) =
 			Chunk.write_string writer.chunk n;
 			Chunk.write_bool writer.chunk o;
@@ -1206,39 +1123,90 @@ module HxbWriter = struct
 			write_inlined_list writer offset max (Chunk.write_u8 writer.chunk) f_first f_elt l
 		in
 		match t with
-		| TMono _ | TLazy _ | TDynamic None ->
-			die "" __LOC__
-		| TInst({cl_kind = KExpr e},[]) ->
-			Chunk.write_u8 writer.chunk 13;
-			write_expr writer e;
-		| TFun(args,t) when ExtType.is_void (follow_lazy_and_mono t) ->
-			write_inlined_list 20 4 (fun () -> ()) write_function_arg args;
-		| TFun(args,t) ->
-			write_inlined_list 30 4 (fun () -> ()) write_function_arg args;
-			write_type_instance writer t;
-		| TInst(c,tl) ->
-			write_inlined_list 40 2 (fun () -> write_class_ref writer c) (write_type_instance writer) tl;
-		| TEnum(en,tl) ->
-			write_inlined_list 50 2 (fun () -> write_enum_ref writer en) (write_type_instance writer) tl;
-		| TType(td,tl) ->
-			write_inlined_list 60 2 (fun () -> write_typedef_ref writer td) (write_type_instance writer) tl;
-		| TAbstract(a,tl) ->
-			write_inlined_list 70 2 (fun () -> write_abstract_ref writer a) (write_type_instance writer) tl;
-		| TAnon an when PMap.is_empty an.a_fields ->
-			Chunk.write_u8 writer.chunk 80;
-		| TAnon an ->
-			Chunk.write_u8 writer.chunk 81;
-			write_anon_ref writer an []
-		| TDynamic (Some t) ->
-			Chunk.write_u8 writer.chunk 89;
-			write_type_instance writer t;
-
-	and write_type_instance writer (t: Type.t) =
-		match write_type_instance_simple writer t with
-			| None ->
-				()
-			| Some t ->
-				write_type_instance_not_simple writer t
+			| TAbstract ({a_path = ([],"Void")},[]) ->
+				Chunk.write_u8 writer.chunk 100;
+			| TAbstract ({a_path = ([],"Int")},[]) ->
+				Chunk.write_u8 writer.chunk 101;
+			| TAbstract ({a_path = ([],"Float")},[]) ->
+				Chunk.write_u8 writer.chunk 102;
+			| TAbstract ({a_path = ([],"Bool")},[]) ->
+				Chunk.write_u8 writer.chunk 103;
+			| TInst ({cl_path = ([],"String")},[]) ->
+				Chunk.write_u8 writer.chunk 104;
+			| TMono r ->
+				Monomorph.close r;
+				begin match r.tm_type with
+				| None ->
+					Chunk.write_u8 writer.chunk 0;
+					write_tmono_ref writer r;
+					| Some t ->
+					(* Don't write bound monomorphs, write underlying type directly *)
+					write_type_instance writer t
+				end
+			| TLazy f ->
+				write_type_instance writer (lazy_type f)
+			| TInst({cl_kind = KTypeParameter ttp},[]) ->
+				write_type_parameter_ref writer ttp;
+			| TInst({cl_kind = KExpr e},[]) ->
+				Chunk.write_u8 writer.chunk 13;
+				write_expr writer e;
+			| TInst(c,[]) ->
+				Chunk.write_u8 writer.chunk 40;
+				write_class_ref writer c;
+			| TEnum(en,[]) ->
+				Chunk.write_u8 writer.chunk 50;
+				write_enum_ref writer en;
+			| TType(td,[]) ->
+				let default () =
+					Chunk.write_u8 writer.chunk 60;
+					write_typedef_ref writer td;
+				in
+				begin match td.t_type with
+				| TAnon an ->
+					begin match !(an.a_status) with
+						| ClassStatics c ->
+							Chunk.write_u8 writer.chunk 10;
+							write_class_ref writer c
+						| EnumStatics en ->
+							Chunk.write_u8 writer.chunk 11;
+							write_enum_ref writer en;
+						| AbstractStatics a ->
+							Chunk.write_u8 writer.chunk 12;
+							write_abstract_ref writer a
+						| _ ->
+							default()
+					end
+				| _ ->
+					default()
+				end;
+			| TAbstract(a,[]) ->
+				Chunk.write_u8 writer.chunk 70;
+				write_abstract_ref writer a;
+			| TDynamic None ->
+				Chunk.write_u8 writer.chunk 4;
+			| TFun([],t) when ExtType.is_void (follow_lazy_and_mono t) ->
+				Chunk.write_u8 writer.chunk 20;
+			| TFun(args,t) when ExtType.is_void (follow_lazy_and_mono t) ->
+				write_inlined_list 20 4 (fun () -> ()) write_function_arg args;
+			| TFun(args,t) ->
+				write_inlined_list 30 4 (fun () -> ()) write_function_arg args;
+				write_type_instance writer t;
+			| TInst(c,tl) ->
+				write_inlined_list 40 2 (fun () -> write_class_ref writer c) (write_type_instance writer) tl;
+			| TEnum(en,tl) ->
+				write_inlined_list 50 2 (fun () -> write_enum_ref writer en) (write_type_instance writer) tl;
+			| TType(td,tl) ->
+				write_inlined_list 60 2 (fun () -> write_typedef_ref writer td) (write_type_instance writer) tl;
+			| TAbstract(a,tl) ->
+				write_inlined_list 70 2 (fun () -> write_abstract_ref writer a) (write_type_instance writer) tl;
+			| TAnon an when PMap.is_empty an.a_fields ->
+				Chunk.write_u8 writer.chunk 80;
+			| TAnon an ->
+				Chunk.write_u8 writer.chunk 81;
+				write_anon_ref writer an []
+			| TDynamic (Some t) ->
+				Chunk.write_u8 writer.chunk 89;
+				write_type_instance writer t
 
 	and write_types writer tl =
 		Chunk.write_list writer.chunk tl (write_type_instance writer)
@@ -1246,30 +1214,13 @@ module HxbWriter = struct
 	(* texpr *)
 
 	and write_texpr_type_instance writer (fctx : field_writer_context) (t: Type.t) =
-		let restore = start_temporary_chunk writer 32 in
-		let r = write_type_instance_simple writer t in
-		let index = match r with
-		| None ->
-			let t_bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
-			(* incr stats.type_instance_immediate; *)
-			fctx.t_pool#get_or_add t_bytes t_bytes
-		| Some t ->
-			ignore(restore (fun new_chunk -> Chunk.get_bytes new_chunk));
-			let restore = start_temporary_chunk writer 32 in
-			write_type_instance_not_simple writer t;
-			let t_bytes = restore (fun new_chunk ->
-				Chunk.get_bytes new_chunk
-			) in
-			let index = try
-				let index = fctx.t_pool#get t_bytes in
-				(* incr stats.type_instance_cache_hits; *)
-				index
-			with Not_found ->
-				(* incr stats.type_instance_cache_misses; *)
-				fctx.t_pool#add t_bytes t_bytes
-			in
-			index
-		in
+		let old_chunk = writer.chunk in
+		writer.chunk <- writer.t_instance_chunk;
+		Chunk.reset writer.chunk;
+		write_type_instance writer t;
+		let t_bytes = Chunk.get_bytes writer.chunk in
+		writer.chunk <- old_chunk;
+		let index = fctx.t_pool#get_or_add t_bytes t_bytes in
 		Chunk.write_uleb128 writer.chunk index
 
 	and write_texpr writer (fctx : field_writer_context) (e : texpr) =
@@ -2115,13 +2066,15 @@ module HxbWriter = struct
 		l
 end
 
-let create warn anon_id stats = {
+let create warn anon_id stats =
+	let cp = new pool in
+{
 	warn;
 	anon_id;
 	stats;
 	current_module = null_module;
 	chunks = DynArray.create ();
-	cp = new pool;
+	cp = cp;
 	docs = new pool;
 	chunk = Obj.magic ();
 	classes = new pool;
@@ -2143,6 +2096,7 @@ let create warn anon_id stats = {
 	local_type_parameters = new identity_pool;
 	field_stack = [];
 	unbound_ttp = new identity_pool;
+	t_instance_chunk = Chunk.create EOM cp 32;
 }
 
 let write_module writer m =
