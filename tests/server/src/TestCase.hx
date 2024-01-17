@@ -71,6 +71,7 @@ class TestCase implements ITest {
 		}
 	}
 
+	@:timeout(3000)
 	public function setup(async:utest.Async) {
 		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
