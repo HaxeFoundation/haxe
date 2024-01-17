@@ -89,7 +89,7 @@ let rec cache_context cs com =
 		(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heueristic. *)
 		let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
 		let warn w s p = com.warning w com.warning_options s p in
-		cc#cache_module (MessageReporting.display_source_at com) warn anon_identification com.hxb_writer_stats m.m_path m;
+		cc#cache_module warn anon_identification com.hxb_writer_stats m.m_path m;
 	in
 	List.iter cache_module com.modules;
 	begin match com.get_macros() with

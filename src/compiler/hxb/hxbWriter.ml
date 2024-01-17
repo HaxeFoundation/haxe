@@ -343,65 +343,69 @@ module Chunk = struct
 		write_bytes chunk_to bytes
 end
 
-class pos_writer
-	(chunk_initial : Chunk.t)
-	(stats : hxb_writer_stats)
-	(p_initial : pos)
-= object(self)
+module PosWriter = struct
+	type t = {
+		stats : hxb_writer_stats;
+		mutable p_file : string;
+		mutable p_min : int;
+		mutable p_max : int;
+	}
 
-	val mutable p_file = p_initial.pfile
-	val mutable p_min = p_initial.pmin
-	val mutable p_max = p_initial.pmax
-
-	method private do_write_pos (chunk : Chunk.t) (p : pos) =
+	let do_write_pos (chunk : Chunk.t) (p : pos) =
 		(* incr stats.pos_writes_full; *)
 		Chunk.write_string chunk p.pfile;
 		Chunk.write_leb128 chunk p.pmin;
-		Chunk.write_leb128 chunk p.pmax;
+		Chunk.write_leb128 chunk p.pmax
 
-	method write_pos (chunk : Chunk.t) (write_equal : bool) (offset : int) (p : pos) =
-		if p.pfile != p_file then begin
+	let create stats chunk p =
+		do_write_pos chunk p;
+	{
+		stats;
+		p_file = p.pfile;
+		p_min = p.pmin;
+		p_max = p.pmax;
+	}
+
+	let write_pos pw (chunk : Chunk.t) (write_equal : bool) (offset : int) (p : pos) =
+		if p.pfile != pw.p_file then begin
 			(* File changed, write full pos *)
 			Chunk.write_u8 chunk (4 + offset);
-			self#do_write_pos chunk p;
-			p_file <- p.pfile;
-			p_min <- p.pmin;
-			p_max <- p.pmax;
-		end else if p.pmin <> p_min then begin
-			if p.pmax <> p_max then begin
+			do_write_pos chunk p;
+			pw.p_file <- p.pfile;
+			pw.p_min <- p.pmin;
+			pw.p_max <- p.pmax;
+		end else if p.pmin <> pw.p_min then begin
+			if p.pmax <> pw.p_max then begin
 				(* pmin and pmax changed *)
 				(* incr stats.pos_writes_minmax; *)
 				Chunk.write_u8 chunk (3 + offset);
 				Chunk.write_leb128 chunk p.pmin;
 				Chunk.write_leb128 chunk p.pmax;
-				p_min <- p.pmin;
-				p_max <- p.pmax;
+				pw.p_min <- p.pmin;
+				pw.p_max <- p.pmax;
 			end else begin
 				(* pmin changed *)
 				(* incr stats.pos_writes_min; *)
 				Chunk.write_u8 chunk (1 + offset);
 				Chunk.write_leb128 chunk p.pmin;
-				p_min <- p.pmin;
+				pw.p_min <- p.pmin;
 			end
-		end else if p.pmax <> p_max then begin
+		end else if p.pmax <> pw.p_max then begin
 			(* pmax changed *)
 			(* incr stats.pos_writes_max; *)
 			Chunk.write_u8 chunk (2 + offset);
 			Chunk.write_leb128 chunk p.pmax;
-			p_max <- p.pmax;
+			pw.p_max <- p.pmax;
 		end else begin
 			(* incr stats.pos_writes_eq; *)
 			if write_equal then
 				Chunk.write_u8 chunk offset;
 		end
-
-	initializer
-		self#do_write_pos chunk_initial p_initial
 end
 
 type field_writer_context = {
 	t_pool : (bytes,bytes) pool;
-	pos_writer : pos_writer;
+	pos_writer : PosWriter.t;
 	mutable texpr_this : texpr option;
 	vars : (int,tvar) pool;
 }
@@ -413,52 +417,47 @@ let create_field_writer_context pos_writer = {
 	vars = new pool;
 }
 
-class hxb_writer
-	(display_source_at : Globals.pos -> unit)
-	(warn : Warning.warning -> string -> Globals.pos -> unit)
-	(anon_id : Type.t Tanon_identification.tanon_identification)
-	(stats : hxb_writer_stats)
-= object(self)
+type hxb_writer = {
+	warn : Warning.warning -> string -> Globals.pos -> unit;
+	anon_id : Type.t Tanon_identification.tanon_identification;
+	stats : hxb_writer_stats;
+	mutable current_module : module_def;
+	chunks : Chunk.t DynArray.t;
+	cp : (string,string) pool;
+	docs : (string,string) pool;
+	mutable chunk : Chunk.t;
 
-	val mutable current_module = null_module
-	val chunks = DynArray.create ()
-	val cp = new pool
-	val docs = new pool
+	classes : (path,tclass) pool;
+	enums : (path,tenum) pool;
+	typedefs : (path,tdef) pool;
+	abstracts : (path,tabstract) pool;
+	anons : (path,tanon) pool;
+	anon_fields : (tclass_field,unit) identity_pool;
+	tmonos : (tmono,unit) identity_pool;
 
-	val mutable chunk = Obj.magic ()
+	own_classes : (path,tclass) pool;
+	own_enums : (path,tenum) pool;
+	own_typedefs : (path,tdef) pool;
+	own_abstracts : (path,tabstract) pool;
+	type_param_lut : (path,(string,typed_type_param) pool) pool;
+	class_fields : (string,tclass_field,(tclass * class_field_ref_kind * int)) hashed_identity_pool;
+	enum_fields : ((path * string),(tenum * tenum_field)) pool;
+	mutable type_type_parameters : (string,typed_type_param) pool;
+	mutable field_type_parameters : (typed_type_param,unit) identity_pool;
+	mutable local_type_parameters : (typed_type_param,unit) identity_pool;
+	mutable field_stack : unit list;
+	unbound_ttp : (typed_type_param,unit) identity_pool;
+}
 
-	val classes = new pool
-	val enums = new pool
-	val typedefs = new pool
-	val abstracts = new pool
-	val anons = new pool
-	val anon_fields = new identity_pool
-	val tmonos = new identity_pool
-
-	val own_classes = new pool
-	val own_abstracts = new pool
-	val own_enums = new pool
-	val own_typedefs = new pool
-
-	val type_param_lut = new pool
-	val class_fields = new hashed_identity_pool
-	val enum_fields = new pool
-	val mutable type_type_parameters = new pool
-	val mutable field_type_parameters = new identity_pool
-	val mutable local_type_parameters = new identity_pool
-
-	val instance_overload_cache = Hashtbl.create 0
-
-	val mutable field_stack = []
-
-	method in_nested_scope = match field_stack with
+module HxbWriter = struct
+	let in_nested_scope writer = match writer.field_stack with
 		| [] -> false (* can happen for cl_init and in EXD *)
 		| [_] -> false
 		| _ -> true
 
 	(* Chunks *)
 
-	method start_chunk (kind : chunk_kind) =
+	let start_chunk writer (kind : chunk_kind) =
 		let initial_size = match kind with
 			| EOT | EOF | EOM -> 0
 			| MDF -> 16
@@ -467,139 +466,153 @@ class hxb_writer
 			| STR | DOC -> 256
 			| CFD | EXD -> 512
 		in
-		let new_chunk = Chunk.create kind cp initial_size in
-		DynArray.add chunks new_chunk;
-		chunk <- new_chunk
+		let new_chunk = Chunk.create kind writer.cp initial_size in
+		DynArray.add writer.chunks new_chunk;
+		writer.chunk <- new_chunk
 
-	method start_temporary_chunk : 'a . int -> (Chunk.t -> 'a) -> 'a = fun initial_size ->
-		let new_chunk = Chunk.create EOM (* TODO: something else? *) cp initial_size in
-		let old_chunk = chunk in
-		chunk <- new_chunk;
+	let start_temporary_chunk : 'a . hxb_writer -> int -> (Chunk.t -> 'a) -> 'a = fun writer initial_size ->
+		let new_chunk = Chunk.create EOM (* TODO: something else? *) writer.cp initial_size in
+		let old_chunk = writer.chunk in
+		writer.chunk <- new_chunk;
 		(fun f ->
-			chunk <- old_chunk;
+			writer.chunk <- old_chunk;
 			f new_chunk
 		)
 
+	let write_inlined_list : 'a . hxb_writer -> int -> int -> (int -> unit) -> (unit -> unit) -> ('a -> unit) -> 'a list -> unit
+		= fun writer offset max f_byte f_first f_elt l ->
+		let length = List.length l in
+		if length > max then begin
+			f_byte (offset + 9);
+			f_first ();
+			Chunk.write_list writer.chunk l f_elt
+		end else begin
+			f_byte (offset + length);
+			f_first();
+			List.iter (fun elt ->
+				f_elt elt
+			) l
+		end
+
 	(* Basic compounds *)
 
-	method write_path (path : path) =
-		Chunk.write_list chunk (fst path) (Chunk.write_string chunk);
-		Chunk.write_string chunk (snd path);
+	let write_path writer (path : path) =
+		Chunk.write_list writer.chunk (fst path) (Chunk.write_string writer.chunk);
+		Chunk.write_string writer.chunk (snd path)
 
-	method write_full_path (pack : string list) (mname : string) (tname : string) =
-		Chunk.write_list chunk pack (Chunk.write_string chunk);
-		Chunk.write_string chunk mname;
-		Chunk.write_string chunk tname;
+	let write_full_path writer (pack : string list) (mname : string) (tname : string) =
+		Chunk.write_list writer.chunk pack (Chunk.write_string writer.chunk);
+		Chunk.write_string writer.chunk mname;
+		Chunk.write_string writer.chunk tname
 
-	method write_documentation (doc : doc_block) =
-		Chunk.write_option chunk doc.doc_own (fun s ->
-			Chunk.write_uleb128 chunk (docs#get_or_add s s)
+	let write_documentation writer (doc : doc_block) =
+		Chunk.write_option writer.chunk doc.doc_own (fun s ->
+			Chunk.write_uleb128 writer.chunk (writer.docs#get_or_add s s)
 		);
-		Chunk.write_list chunk doc.doc_inherited (fun s ->
-			Chunk.write_uleb128 chunk (docs#get_or_add s s)
-		);
+		Chunk.write_list writer.chunk doc.doc_inherited (fun s ->
+			Chunk.write_uleb128 writer.chunk (writer.docs#get_or_add s s)
+		)
 
-	method write_pos (p : pos) =
-		Chunk.write_string chunk p.pfile;
-		Chunk.write_leb128 chunk p.pmin;
-		Chunk.write_leb128 chunk p.pmax;
+	let write_pos writer (p : pos) =
+		Chunk.write_string writer.chunk p.pfile;
+		Chunk.write_leb128 writer.chunk p.pmin;
+		Chunk.write_leb128 writer.chunk p.pmax
 
-	method write_metadata_entry ((meta,el,p) : metadata_entry) =
-		Chunk.write_string chunk (Meta.to_string meta);
-		self#write_pos p;
-		Chunk.write_list chunk el self#write_expr;
+	let rec write_metadata_entry writer ((meta,el,p) : metadata_entry) =
+		Chunk.write_string writer.chunk (Meta.to_string meta);
+		write_pos writer p;
+		Chunk.write_list writer.chunk el (write_expr writer)
 
-	method write_metadata ml =
-		Chunk.write_list chunk ml self#write_metadata_entry
-
+	and write_metadata writer ml =
+		Chunk.write_list writer.chunk ml (write_metadata_entry writer)
 
 	(* expr *)
 
-	method write_object_field_key (n,p,qs) =
-		Chunk.write_string chunk n;
-		self#write_pos p;
+	and write_object_field_key writer (n,p,qs) =
+		Chunk.write_string writer.chunk n;
+		write_pos writer p;
 		begin match qs with
-			| NoQuotes -> Chunk.write_u8 chunk 0
-			| DoubleQuotes -> Chunk.write_u8 chunk 1
+			| NoQuotes -> Chunk.write_u8 writer.chunk 0
+			| DoubleQuotes -> Chunk.write_u8 writer.chunk 1
 		end
 
-	method write_type_path tp =
-		Chunk.write_list chunk tp.tpackage (Chunk.write_string chunk);
-		Chunk.write_string chunk tp.tname;
-		Chunk.write_list chunk tp.tparams self#write_type_param_or_const;
-		Chunk.write_option chunk tp.tsub (Chunk.write_string chunk)
+	and write_type_path writer tp =
+		Chunk.write_list writer.chunk tp.tpackage (Chunk.write_string writer.chunk);
+		Chunk.write_string writer.chunk tp.tname;
+		Chunk.write_list writer.chunk tp.tparams (write_type_param_or_const writer);
+		Chunk.write_option writer.chunk tp.tsub (Chunk.write_string writer.chunk)
 
-	method write_placed_type_path ptp =
-		self#write_type_path ptp.path;
-		self#write_pos ptp.pos_full;
-		self#write_pos ptp.pos_path
+	and write_placed_type_path writer ptp =
+		write_type_path writer ptp.path;
+		write_pos writer ptp.pos_full;
+		write_pos writer ptp.pos_path
 
-	method write_type_param_or_const = function
+	and write_type_param_or_const writer = function
 		| TPType th ->
-			Chunk.write_u8 chunk 0;
-			self#write_type_hint th
+			Chunk.write_u8 writer.chunk 0;
+			write_type_hint writer th
 		| TPExpr e ->
-			Chunk.write_u8 chunk 1;
-			self#write_expr e
+			Chunk.write_u8 writer.chunk 1;
+			write_expr writer e
 
-	method write_complex_type = function
+	and write_complex_type writer = function
 		| CTPath tp ->
-			Chunk.write_u8 chunk 0;
-			self#write_placed_type_path tp
+			Chunk.write_u8 writer.chunk 0;
+			write_placed_type_path writer tp
 		| CTFunction(thl,th) ->
-			Chunk.write_u8 chunk 1;
-			Chunk.write_list chunk thl self#write_type_hint;
-			self#write_type_hint th
+			Chunk.write_u8 writer.chunk 1;
+			Chunk.write_list writer.chunk thl (write_type_hint writer);
+			write_type_hint writer th
 		| CTAnonymous cffl ->
-			Chunk.write_u8 chunk 2;
-			Chunk.write_list chunk cffl self#write_cfield;
+			Chunk.write_u8 writer.chunk 2;
+			Chunk.write_list writer.chunk cffl (write_cfield writer);
 		| CTParent th ->
-			Chunk.write_u8 chunk 3;
-			self#write_type_hint th
+			Chunk.write_u8 writer.chunk 3;
+			write_type_hint writer th
 		| CTExtend(ptp,cffl) ->
-			Chunk.write_u8 chunk 4;
-			Chunk.write_list chunk ptp self#write_placed_type_path;
-			Chunk.write_list chunk cffl self#write_cfield;
+			Chunk.write_u8 writer.chunk 4;
+			Chunk.write_list writer.chunk ptp (write_placed_type_path writer);
+			Chunk.write_list writer.chunk cffl (write_cfield writer);
 		| CTOptional th ->
-			Chunk.write_u8 chunk 5;
-			self#write_type_hint th
+			Chunk.write_u8 writer.chunk 5;
+			write_type_hint writer th
 		| CTNamed(pn,th) ->
-			Chunk.write_u8 chunk 6;
-			self#write_placed_name pn;
-			self#write_type_hint th
+			Chunk.write_u8 writer.chunk 6;
+			write_placed_name writer pn;
+			write_type_hint writer th
 		| CTIntersection(thl) ->
-			Chunk.write_u8 chunk 7;
-			Chunk.write_list chunk thl self#write_type_hint;
+			Chunk.write_u8 writer.chunk 7;
+			Chunk.write_list writer.chunk thl (write_type_hint writer)
 
-	method write_type_hint (ct,p) =
-		self#write_complex_type ct;
-		self#write_pos p
+	and write_type_hint writer (ct,p) =
+		write_complex_type writer ct;
+		write_pos writer p
 
-	method write_type_param tp =
-		self#write_placed_name tp.tp_name;
-		Chunk.write_list chunk tp.tp_params self#write_type_param;
-		Chunk.write_option chunk tp.tp_constraints self#write_type_hint;
-		Chunk.write_option chunk tp.tp_default self#write_type_hint;
-		Chunk.write_list chunk tp.tp_meta self#write_metadata_entry;
+	and write_type_param writer tp =
+		write_placed_name writer tp.tp_name;
+		Chunk.write_list writer.chunk tp.tp_params (write_type_param writer);
+		Chunk.write_option writer.chunk tp.tp_constraints (write_type_hint writer);
+		Chunk.write_option writer.chunk tp.tp_default (write_type_hint writer);
+		Chunk.write_list writer.chunk tp.tp_meta (write_metadata_entry writer)
 
-	method write_func_arg (pn,b,meta,tho,eo) =
-		self#write_placed_name pn;
-		Chunk.write_bool chunk b;
-		self#write_metadata meta;
-		Chunk.write_option chunk tho self#write_type_hint;
-		Chunk.write_option chunk eo self#write_expr;
+	and write_func_arg writer (pn,b,meta,tho,eo) =
+		write_placed_name writer pn;
+		Chunk.write_bool writer.chunk b;
+		write_metadata writer meta;
+		Chunk.write_option writer.chunk tho (write_type_hint writer);
+		Chunk.write_option writer.chunk eo (write_expr writer);
 
-	method write_func f =
-		Chunk.write_list chunk f.f_params self#write_type_param;
-		Chunk.write_list chunk f.f_args self#write_func_arg;
-		Chunk.write_option chunk f.f_type self#write_type_hint;
-		Chunk.write_option chunk f.f_expr self#write_expr
+	and write_func writer f =
+		Chunk.write_list writer.chunk f.f_params (write_type_param writer);
+		Chunk.write_list writer.chunk f.f_args (write_func_arg writer);
+		Chunk.write_option writer.chunk f.f_type (write_type_hint writer);
+		Chunk.write_option writer.chunk f.f_expr (write_expr writer)
 
-	method write_placed_name (s,p) =
-		Chunk.write_string chunk s;
-		self#write_pos p
+	and write_placed_name writer (s,p) =
+		Chunk.write_string writer.chunk s;
+		write_pos writer p
 
-	method write_access ac =
+	and write_access writer ac =
 		let i = match ac with
 		| APublic -> 0
 		| APrivate -> 1
@@ -614,262 +627,250 @@ class hxb_writer
 		| AOverload -> 10
 		| AEnum -> 11
 		in
-		Chunk.write_u8 chunk i;
+		Chunk.write_u8 writer.chunk i
 
-	method write_placed_access (ac,p) =
-		self#write_access ac;
-		self#write_pos p;
+	and write_placed_access writer (ac,p) =
+		write_access writer ac;
+		write_pos writer p
 
-	method write_cfield_kind = function
+	and write_cfield_kind writer = function
 		| FVar(tho,eo) ->
-			Chunk.write_u8 chunk 0;
-			Chunk.write_option chunk tho self#write_type_hint;
-			Chunk.write_option chunk eo self#write_expr;
+			Chunk.write_u8 writer.chunk 0;
+			Chunk.write_option writer.chunk tho (write_type_hint writer);
+			Chunk.write_option writer.chunk eo (write_expr writer);
 		| FFun f ->
-			Chunk.write_u8 chunk 1;
-			self#write_func f;
+			Chunk.write_u8 writer.chunk 1;
+			write_func writer f;
 		| FProp(pn1,pn2,tho,eo) ->
-			Chunk.write_u8 chunk 2;
-			self#write_placed_name pn1;
-			self#write_placed_name pn2;
-			Chunk.write_option chunk tho self#write_type_hint;
-			Chunk.write_option chunk eo self#write_expr;
+			Chunk.write_u8 writer.chunk 2;
+			write_placed_name writer pn1;
+			write_placed_name writer pn2;
+			Chunk.write_option writer.chunk tho (write_type_hint writer);
+			Chunk.write_option writer.chunk eo (write_expr writer)
 
-	method write_cfield cff =
-		self#write_placed_name cff.cff_name;
-		Chunk.write_option chunk cff.cff_doc self#write_documentation;
-		self#write_pos cff.cff_pos;
-		self#write_metadata cff.cff_meta;
-		Chunk.write_list chunk cff.cff_access self#write_placed_access;
-		self#write_cfield_kind cff.cff_kind;
+	and write_cfield writer cff =
+		write_placed_name writer cff.cff_name;
+		Chunk.write_option writer.chunk cff.cff_doc (write_documentation writer);
+		write_pos writer cff.cff_pos;
+		write_metadata writer cff.cff_meta;
+		Chunk.write_list writer.chunk cff.cff_access (write_placed_access writer);
+		write_cfield_kind writer cff.cff_kind
 
-	method write_expr (e,p) =
-		self#write_pos p;
+	and write_expr writer (e,p) =
+		write_pos writer p;
 		match e with
 		| EConst (Int (s, suffix)) ->
-			Chunk.write_u8 chunk 0;
-			Chunk.write_string chunk s;
-			Chunk.write_option chunk suffix (Chunk.write_string chunk);
+			Chunk.write_u8 writer.chunk 0;
+			Chunk.write_string writer.chunk s;
+			Chunk.write_option writer.chunk suffix (Chunk.write_string writer.chunk);
 		| EConst (Float (s, suffix)) ->
-			Chunk.write_u8 chunk 1;
-			Chunk.write_string chunk s;
-			Chunk.write_option chunk suffix (Chunk.write_string chunk);
+			Chunk.write_u8 writer.chunk 1;
+			Chunk.write_string writer.chunk s;
+			Chunk.write_option writer.chunk suffix (Chunk.write_string writer.chunk);
 		| EConst (String (s,qs)) ->
-			Chunk.write_u8 chunk 2;
-			Chunk.write_string chunk s;
+			Chunk.write_u8 writer.chunk 2;
+			Chunk.write_string writer.chunk s;
 			begin match qs with
-			| SDoubleQuotes -> Chunk.write_u8 chunk 0;
-			| SSingleQuotes -> Chunk.write_u8 chunk 1;
+			| SDoubleQuotes -> Chunk.write_u8 writer.chunk 0;
+			| SSingleQuotes -> Chunk.write_u8 writer.chunk 1;
 			end
 		| EConst (Ident s) ->
-			Chunk.write_u8 chunk 3;
-			Chunk.write_string chunk s;
+			Chunk.write_u8 writer.chunk 3;
+			Chunk.write_string writer.chunk s;
 		| EConst (Regexp(s1,s2)) ->
-			Chunk.write_u8 chunk 4;
-			Chunk.write_string chunk s1;
-			Chunk.write_string chunk s2;
+			Chunk.write_u8 writer.chunk 4;
+			Chunk.write_string writer.chunk s1;
+			Chunk.write_string writer.chunk s2;
 		| EArray(e1,e2) ->
-			Chunk.write_u8 chunk 5;
-			self#write_expr e1;
-			self#write_expr e2;
+			Chunk.write_u8 writer.chunk 5;
+			write_expr writer e1;
+			write_expr writer e2;
 		| EBinop(op,e1,e2) ->
-			Chunk.write_u8 chunk 6;
-			Chunk.write_u8 chunk (binop_index op);
-			self#write_expr e1;
-			self#write_expr e2;
+			Chunk.write_u8 writer.chunk 6;
+			Chunk.write_u8 writer.chunk (binop_index op);
+			write_expr writer e1;
+			write_expr writer e2;
 		| EField(e1,s,kind) ->
-			Chunk.write_u8 chunk 7;
-			self#write_expr e1;
-			Chunk.write_string chunk s;
+			Chunk.write_u8 writer.chunk 7;
+			write_expr writer e1;
+			Chunk.write_string writer.chunk s;
 			begin match kind with
-			| EFNormal -> Chunk.write_u8 chunk 0;
-			| EFSafe -> Chunk.write_u8 chunk 1;
+			| EFNormal -> Chunk.write_u8 writer.chunk 0;
+			| EFSafe -> Chunk.write_u8 writer.chunk 1;
 			end
 		| EParenthesis e1 ->
-			Chunk.write_u8 chunk 8;
-			self#write_expr e1
+			Chunk.write_u8 writer.chunk 8;
+			write_expr writer e1;
 		| EObjectDecl fl ->
-			Chunk.write_u8 chunk 9;
+			Chunk.write_u8 writer.chunk 9;
 			let write_field (k,e1) =
-				self#write_object_field_key k;
-				self#write_expr e1
+				write_object_field_key writer k;
+				write_expr writer e1
 			in
-			Chunk.write_list chunk fl write_field;
+			Chunk.write_list writer.chunk fl write_field;
 		| EArrayDecl el ->
-			Chunk.write_u8 chunk 10;
-			Chunk.write_list chunk el self#write_expr;
+			Chunk.write_u8 writer.chunk 10;
+			Chunk.write_list writer.chunk el (write_expr writer);
 		| ECall(e1,el) ->
-			Chunk.write_u8 chunk 11;
-			self#write_expr e1;
-			Chunk.write_list chunk el self#write_expr
+			Chunk.write_u8 writer.chunk 11;
+			write_expr writer e1;
+			Chunk.write_list writer.chunk el (write_expr writer)
 		| ENew(ptp,el) ->
-			Chunk.write_u8 chunk 12;
-			self#write_placed_type_path ptp;
-			Chunk.write_list chunk el self#write_expr;
+			Chunk.write_u8 writer.chunk 12;
+			write_placed_type_path writer ptp;
+			Chunk.write_list writer.chunk el (write_expr writer);
 		| EUnop(op,flag,e1) ->
-			Chunk.write_u8 chunk 13;
-			Chunk.write_u8 chunk (unop_index op flag);
-			self#write_expr e1;
+			Chunk.write_u8 writer.chunk 13;
+			Chunk.write_u8 writer.chunk (unop_index op flag);
+			write_expr writer e1;
 		| EVars vl ->
-			Chunk.write_u8 chunk 14;
+			Chunk.write_u8 writer.chunk 14;
 			let write_var v =
-				self#write_placed_name v.ev_name;
-				Chunk.write_bool chunk v.ev_final;
-				Chunk.write_bool chunk v.ev_static;
-				Chunk.write_option chunk v.ev_type self#write_type_hint;
-				Chunk.write_option chunk v.ev_expr self#write_expr;
-				self#write_metadata v.ev_meta;
+				write_placed_name writer v.ev_name;
+				Chunk.write_bool writer.chunk v.ev_final;
+				Chunk.write_bool writer.chunk v.ev_static;
+				Chunk.write_option writer.chunk v.ev_type (write_type_hint writer);
+				Chunk.write_option writer.chunk v.ev_expr (write_expr writer);
+				write_metadata writer v.ev_meta;
 			in
-			Chunk.write_list chunk vl write_var
+			Chunk.write_list writer.chunk vl write_var
 		| EFunction(fk,f) ->
-			Chunk.write_u8 chunk 15;
+			Chunk.write_u8 writer.chunk 15;
 			begin match fk with
-			| FKAnonymous -> Chunk.write_u8 chunk 0;
+			| FKAnonymous -> Chunk.write_u8 writer.chunk 0;
 			| FKNamed (pn,inline) ->
-				Chunk.write_u8 chunk 1;
-				self#write_placed_name pn;
-				Chunk.write_bool chunk inline;
-			| FKArrow -> Chunk.write_u8 chunk 2;
+				Chunk.write_u8 writer.chunk 1;
+				write_placed_name writer pn;
+				Chunk.write_bool writer.chunk inline;
+			| FKArrow -> Chunk.write_u8 writer.chunk 2;
 			end;
-			self#write_func f;
+			write_func writer f;
 		| EBlock el ->
-			Chunk.write_u8 chunk 16;
-			Chunk.write_list chunk el self#write_expr
+			Chunk.write_u8 writer.chunk 16;
+			Chunk.write_list writer.chunk el (write_expr writer)
 		| EFor(e1,e2) ->
-			Chunk.write_u8 chunk 17;
-			self#write_expr e1;
-			self#write_expr e2;
+			Chunk.write_u8 writer.chunk 17;
+			write_expr writer e1;
+			write_expr writer e2;
 		| EIf(e1,e2,None) ->
-			Chunk.write_u8 chunk 18;
-			self#write_expr e1;
-			self#write_expr e2;
+			Chunk.write_u8 writer.chunk 18;
+			write_expr writer e1;
+			write_expr writer e2;
 		| EIf(e1,e2,Some e3) ->
-			Chunk.write_u8 chunk 19;
-			self#write_expr e1;
-			self#write_expr e2;
-			self#write_expr e3;
+			Chunk.write_u8 writer.chunk 19;
+			write_expr writer e1;
+			write_expr writer e2;
+			write_expr writer e3;
 		| EWhile(e1,e2,NormalWhile) ->
-			Chunk.write_u8 chunk 20;
-			self#write_expr e1;
-			self#write_expr e2;
+			Chunk.write_u8 writer.chunk 20;
+			write_expr writer e1;
+			write_expr writer e2;
 		| EWhile(e1,e2,DoWhile) ->
-			Chunk.write_u8 chunk 21;
-			self#write_expr e1;
-			self#write_expr e2;
+			Chunk.write_u8 writer.chunk 21;
+			write_expr writer e1;
+			write_expr writer e2;
 		| ESwitch(e1,cases,def) ->
-			Chunk.write_u8 chunk 22;
-			self#write_expr e1;
+			Chunk.write_u8 writer.chunk 22;
+			write_expr writer e1;
 			let write_case (el,eg,eo,p) =
-				Chunk.write_list chunk el self#write_expr;
-				Chunk.write_option chunk eg self#write_expr;
-				Chunk.write_option chunk eo self#write_expr;
-				self#write_pos p;
+				Chunk.write_list writer.chunk el (write_expr writer);
+				Chunk.write_option writer.chunk eg (write_expr writer);
+				Chunk.write_option writer.chunk eo (write_expr writer);
+				write_pos writer p;
 			in
-			Chunk.write_list chunk cases write_case;
+			Chunk.write_list writer.chunk cases write_case;
 			let write_default (eo,p) =
-				Chunk.write_option chunk eo self#write_expr;
-				self#write_pos p
+				Chunk.write_option writer.chunk eo (write_expr writer);
+				write_pos writer p
 			in
-			Chunk.write_option chunk def write_default;
+			Chunk.write_option writer.chunk def write_default;
 		| ETry(e1,catches) ->
-			Chunk.write_u8 chunk 23;
-			self#write_expr e1;
+			Chunk.write_u8 writer.chunk 23;
+			write_expr writer e1;
 			let write_catch (pn,th,e,p) =
-				self#write_placed_name pn;
-				Chunk.write_option chunk th self#write_type_hint;
-				self#write_expr e;
-				self#write_pos p;
+				write_placed_name writer pn;
+				Chunk.write_option writer.chunk th (write_type_hint writer);
+				write_expr writer e;
+				write_pos writer p;
 			in
-			Chunk.write_list chunk catches write_catch;
+			Chunk.write_list writer.chunk catches write_catch;
 		| EReturn None ->
-			Chunk.write_u8 chunk 24;
+			Chunk.write_u8 writer.chunk 24;
 		| EReturn (Some e1) ->
-			Chunk.write_u8 chunk 25;
-			self#write_expr e1;
+			Chunk.write_u8 writer.chunk 25;
+			write_expr writer e1;
 		| EBreak ->
-			Chunk.write_u8 chunk 26;
+			Chunk.write_u8 writer.chunk 26;
 		| EContinue ->
-			Chunk.write_u8 chunk 27;
+			Chunk.write_u8 writer.chunk 27;
 		| EUntyped e1 ->
-			Chunk.write_u8 chunk 28;
-			self#write_expr e1;
+			Chunk.write_u8 writer.chunk 28;
+			write_expr writer e1;
 		| EThrow e1 ->
-			Chunk.write_u8 chunk 29;
-			self#write_expr e1;
+			Chunk.write_u8 writer.chunk 29;
+			write_expr writer e1;
 		| ECast(e1,None) ->
-			Chunk.write_u8 chunk 30;
-			self#write_expr e1;
+			Chunk.write_u8 writer.chunk 30;
+			write_expr writer e1;
 		| ECast(e1,Some th) ->
-			Chunk.write_u8 chunk 31;
-			self#write_expr e1;
-			self#write_type_hint th;
+			Chunk.write_u8 writer.chunk 31;
+			write_expr writer e1;
+			write_type_hint writer th;
 		| EIs(e1,th) ->
-			Chunk.write_u8 chunk 32;
-			self#write_expr e1;
-			self#write_type_hint th;
+			Chunk.write_u8 writer.chunk 32;
+			write_expr writer e1;
+			write_type_hint writer th;
 		| EDisplay(e1,dk) ->
-			Chunk.write_u8 chunk 33;
-			self#write_expr e1;
+			Chunk.write_u8 writer.chunk 33;
+			write_expr writer e1;
 			begin match dk with
-			| DKCall -> Chunk.write_u8 chunk 0;
-			| DKDot -> Chunk.write_u8 chunk 1;
-			| DKStructure -> Chunk.write_u8 chunk 2;
-			| DKMarked -> Chunk.write_u8 chunk 3;
+			| DKCall -> Chunk.write_u8 writer.chunk 0;
+			| DKDot -> Chunk.write_u8 writer.chunk 1;
+			| DKStructure -> Chunk.write_u8 writer.chunk 2;
+			| DKMarked -> Chunk.write_u8 writer.chunk 3;
 			| DKPattern b ->
-				Chunk.write_u8 chunk 4;
-				Chunk.write_bool chunk b;
+				Chunk.write_u8 writer.chunk 4;
+				Chunk.write_bool writer.chunk b;
 			end
 		| ETernary(e1,e2,e3) ->
-			Chunk.write_u8 chunk 34;
-			self#write_expr e1;
-			self#write_expr e2;
-			self#write_expr e3;
+			Chunk.write_u8 writer.chunk 34;
+			write_expr writer e1;
+			write_expr writer e2;
+			write_expr writer e3;
 		| ECheckType(e1,th) ->
-			Chunk.write_u8 chunk 35;
-			self#write_expr e1;
-			self#write_type_hint th;
+			Chunk.write_u8 writer.chunk 35;
+			write_expr writer e1;
+			write_type_hint writer th;
 		| EMeta(m,e1) ->
-			Chunk.write_u8 chunk 36;
-			self#write_metadata_entry m;
-			self#write_expr e1
+			Chunk.write_u8 writer.chunk 36;
+			write_metadata_entry writer m;
+			write_expr writer e1
 
 	(* References *)
 
-	method write_class_ref (c : tclass) =
-		let i = classes#get_or_add c.cl_path c in
-		Chunk.write_uleb128 chunk i
+	let write_class_ref writer (c : tclass) =
+		let i = writer.classes#get_or_add c.cl_path c in
+		Chunk.write_uleb128 writer.chunk i
 
-	method write_enum_ref (en : tenum) =
-		let i = enums#get_or_add en.e_path en in
-		Chunk.write_uleb128 chunk i
+	let write_enum_ref writer (en : tenum) =
+		let i = writer.enums#get_or_add en.e_path en in
+		Chunk.write_uleb128 writer.chunk i
 
-	method write_typedef_ref (td : tdef) =
-		let i = typedefs#get_or_add td.t_path td in
-		Chunk.write_uleb128 chunk i
+	let write_typedef_ref writer (td : tdef) =
+		let i = writer.typedefs#get_or_add td.t_path td in
+		Chunk.write_uleb128 writer.chunk i
 
-	method write_abstract_ref (a : tabstract) =
-		let i = abstracts#get_or_add a.a_path a in
-		Chunk.write_uleb128 chunk i
+	let write_abstract_ref writer (a : tabstract) =
+		let i = writer.abstracts#get_or_add a.a_path a in
+		Chunk.write_uleb128 writer.chunk i
 
-	method write_anon_ref (an : tanon) (ttp : type_params) =
-		let pfm = Option.get (anon_id#identify_anon ~strict:true an) in
-		try
-			let index = anons#get pfm.pfm_path in
-			Chunk.write_u8 chunk 0;
-			Chunk.write_uleb128 chunk index
-		with Not_found ->
-			let index = anons#add pfm.pfm_path an in
-			Chunk.write_u8 chunk 1;
-			Chunk.write_uleb128 chunk index;
-			self#write_anon an ttp
+	let write_tmono_ref writer (mono : tmono) =
+		let index = try writer.tmonos#get mono with Not_found -> writer.tmonos#add mono () in
+		Chunk.write_uleb128 writer.chunk index
 
-	method write_tmono_ref (mono : tmono) =
-		let index = try tmonos#get mono with Not_found -> tmonos#add mono () in
-		Chunk.write_uleb128 chunk index;
-
-	method write_field_ref (c : tclass) (kind : class_field_ref_kind)  (cf : tclass_field) =
+	let write_field_ref writer (c : tclass) (kind : class_field_ref_kind)  (cf : tclass_field) =
 		let index = try
-			class_fields#get cf.cf_name cf
+			writer.class_fields#get cf.cf_name cf
 		with Not_found ->
 			let find_overload c cf_base =
 				let rec loop depth cfl = match cfl with
@@ -926,188 +927,243 @@ class hxb_writer
 				| Some(c,depth) ->
 					c,depth
 			in
-			class_fields#add cf.cf_name cf (c,kind,depth)
+			writer.class_fields#add cf.cf_name cf (c,kind,depth)
 		in
-		Chunk.write_uleb128 chunk index
+		Chunk.write_uleb128 writer.chunk index
 
-	method write_enum_field_ref (en : tenum) (ef : tenum_field) =
+	let write_enum_field_ref writer (en : tenum) (ef : tenum_field) =
 		let key = (en.e_path,ef.ef_name) in
 		try
-			Chunk.write_uleb128 chunk (enum_fields#get key)
+			Chunk.write_uleb128 writer.chunk (writer.enum_fields#get key)
 		with Not_found ->
-			ignore(enums#get_or_add en.e_path en);
-			Chunk.write_uleb128 chunk (enum_fields#add key (en,ef))
+			ignore(writer.enums#get_or_add en.e_path en);
+			Chunk.write_uleb128 writer.chunk (writer.enum_fields#add key (en,ef))
 
-	method write_anon_field_ref cf =
+	let write_var_kind writer vk =
+		let b = match vk with
+			| VUser TVOLocalVariable -> 0
+			| VUser TVOArgument -> 1
+			| VUser TVOForVariable -> 2
+			| VUser TVOPatternVariable -> 3
+			| VUser TVOCatchVariable -> 4
+			| VUser TVOLocalFunction -> 5
+			| VGenerated -> 6
+			| VInlined -> 7
+			| VInlinedConstructorVariable -> 8
+			| VExtractorVariable -> 9
+			| VAbstractThis -> 10
+		in
+		Chunk.write_u8 writer.chunk b
+
+	let write_var writer fctx v =
+		Chunk.write_uleb128 writer.chunk v.v_id;
+		Chunk.write_string writer.chunk v.v_name;
+		write_var_kind writer v.v_kind;
+		Chunk.write_uleb128 writer.chunk v.v_flags;
+		write_metadata writer v.v_meta;
+		write_pos writer v.v_pos
+
+	let rec write_anon writer (an : tanon) (ttp : type_params) =
+		let write_fields () =
+			Chunk.write_list writer.chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (_,cf) ->
+				write_anon_field_ref writer cf
+			)
+		in
+		begin match !(an.a_status) with
+		| Closed ->
+			Chunk.write_u8 writer.chunk 0;
+			write_fields ()
+		| Const ->
+			Chunk.write_u8 writer.chunk 1;
+			write_fields ()
+		| Extend tl ->
+			Chunk.write_u8 writer.chunk 2;
+			write_types writer tl;
+			write_fields ()
+		| ClassStatics _ ->
+			assert false
+		| EnumStatics _ ->
+			assert false
+		| AbstractStatics _ ->
+			assert false
+		end
+
+	and write_anon_ref writer (an : tanon) (ttp : type_params) =
+		let pfm = Option.get (writer.anon_id#identify_anon ~strict:true an) in
 		try
-			let index = anon_fields#get cf in
-			Chunk.write_u8 chunk 0;
-			Chunk.write_uleb128 chunk index
+			let index = writer.anons#get pfm.pfm_path in
+			Chunk.write_u8 writer.chunk 0;
+			Chunk.write_uleb128 writer.chunk index
 		with Not_found ->
-			let index = anon_fields#add cf () in
-			Chunk.write_u8 chunk 1;
-			Chunk.write_uleb128 chunk index;
-			ignore(self#write_class_field_and_overloads_data true cf)
+			let index = writer.anons#add pfm.pfm_path an in
+			Chunk.write_u8 writer.chunk 1;
+			Chunk.write_uleb128 writer.chunk index;
+			write_anon writer an ttp
+
+	and write_anon_field_ref writer cf =
+		try
+			let index = writer.anon_fields#get cf in
+			Chunk.write_u8 writer.chunk 0;
+			Chunk.write_uleb128 writer.chunk index
+		with Not_found ->
+			let index = writer.anon_fields#add cf () in
+			Chunk.write_u8 writer.chunk 1;
+			Chunk.write_uleb128 writer.chunk index;
+			ignore(write_class_field_and_overloads_data writer true cf)
 
 	(* Type instances *)
 
-	val unbound_ttp = new identity_pool
-
-	method write_type_parameter_ref (ttp : typed_type_param) =
+	and write_type_parameter_ref writer (ttp : typed_type_param) =
 		begin try
 			begin match ttp.ttp_host with
 			| TPHType ->
-				let i = type_type_parameters#get ttp.ttp_name in
-				Chunk.write_u8 chunk 1;
-				Chunk.write_uleb128 chunk i
+				let i = writer.type_type_parameters#get ttp.ttp_name in
+				Chunk.write_u8 writer.chunk 1;
+				Chunk.write_uleb128 writer.chunk i
 			| TPHMethod | TPHEnumConstructor | TPHAnonField | TPHConstructor ->
-				let i = field_type_parameters#get ttp in
-				Chunk.write_u8 chunk 2;
-				Chunk.write_uleb128 chunk i;
+				let i = writer.field_type_parameters#get ttp in
+				Chunk.write_u8 writer.chunk 2;
+				Chunk.write_uleb128 writer.chunk i;
 			| TPHLocal ->
-				let index = local_type_parameters#get ttp in
-				Chunk.write_u8 chunk 3;
-				Chunk.write_uleb128 chunk index;
+				let index = writer.local_type_parameters#get ttp in
+				Chunk.write_u8 writer.chunk 3;
+				Chunk.write_uleb128 writer.chunk index;
 		end with Not_found ->
-			(try ignore(unbound_ttp#get ttp) with Not_found -> begin
-				ignore(unbound_ttp#add ttp ());
-				let p = { null_pos with pfile = (Path.UniqueKey.lazy_path current_module.m_extra.m_file) } in
+			(try ignore(writer.unbound_ttp#get ttp) with Not_found -> begin
+				ignore(writer.unbound_ttp#add ttp ());
+				let p = { null_pos with pfile = (Path.UniqueKey.lazy_path writer.current_module.m_extra.m_file) } in
 				let msg = Printf.sprintf "Unbound type parameter %s" (s_type_path ttp.ttp_class.cl_path) in
-				warn WUnboundTypeParameter msg p
+				writer.warn WUnboundTypeParameter msg p
 			end);
-			Chunk.write_u8 chunk 4; (* TDynamic None *)
+			Chunk.write_u8 writer.chunk 4; (* TDynamic None *)
 		end
-
-	method write_type_instance_byte i =
-		(* stats.type_instance_kind_writes.(i) <- stats.type_instance_kind_writes.(i) + 1; *)
-		Chunk.write_u8 chunk i
 
 	(*
 		simple references:
-		     0 - mono
-		     1 -> type ttp
-		     2 -> field ttp
-		     3 -> local ttp
-		     4 -> Dynamic
+				0 - mono
+				1 -> type ttp
+				2 -> field ttp
+				3 -> local ttp
+				4 -> Dynamic
 
 		special references:
-		    10 - class statics
-		    11 - enum statics
-		    12 - abstract statics
-		    13 - KExpr
+			10 - class statics
+			11 - enum statics
+			12 - abstract statics
+			13 - KExpr
 
 		void functions:
-		    20: () -> Void
-		    21: (A) -> Void
-		    22: (A, B) -> Void
-		    23: (A, B, C) -> Void
-		    24: (A, B, C) -> Void
-		    29: (?) -> Void
+			20: () -> Void
+			21: (A) -> Void
+			22: (A, B) -> Void
+			23: (A, B, C) -> Void
+			24: (A, B, C) -> Void
+			29: (?) -> Void
 
 		non-void functions:
-		    30: () -> T
-		    31: (A) -> T
-		    32: (A, B) -> T
-		    33: (A, B, C) -> T
-		    34: (A, B, C, D) -> T
-		    39: (?) -> T
+			30: () -> T
+			31: (A) -> T
+			32: (A, B) -> T
+			33: (A, B, C) -> T
+			34: (A, B, C, D) -> T
+			39: (?) -> T
 
 		class:
-		    40: C
-		    41: C<A>
-		    42: C<A, B>
-		    49: C<?>
+			40: C
+			41: C<A>
+			42: C<A, B>
+			49: C<?>
 
 		enum:
-		    50: E
-		    51: E<A>
-		    52: E<A, B>
-		    59: E<?>
+			50: E
+			51: E<A>
+			52: E<A, B>
+			59: E<?>
 
 		typedef:
-		    60: T
-		    61: T<A>
-		    62: T<A, B>
-		    69: T<?>
+			60: T
+			61: T<A>
+			62: T<A, B>
+			69: T<?>
 
 		abstract:
-		    70: A
-		    71: A<A>
-		    72: A<A, B>
-		    79: A<?>
+			70: A
+			71: A<A>
+			72: A<A, B>
+			79: A<?>
 
 		anons:
-		    80: {}
+			80: {}
 			81: any anon
 			89: Dynamic<T>
 
 		concrete types:
-		   100: Void
-		   101: Int
-		   102: Float
-		   103: Bool
-		   104: String
+			100: Void
+			101: Int
+			102: Float
+			103: Bool
+			104: String
 	*)
-	method write_type_instance_simple (t : Type.t) =
+	and write_type_instance_simple writer (t : Type.t) =
 		match t with
 		| TAbstract ({a_path = ([],"Void")},[]) ->
-			Chunk.write_u8 chunk 100;
+			Chunk.write_u8 writer.chunk 100;
 			None
 		| TAbstract ({a_path = ([],"Int")},[]) ->
-			Chunk.write_u8 chunk 101;
+			Chunk.write_u8 writer.chunk 101;
 			None
 		| TAbstract ({a_path = ([],"Float")},[]) ->
-			Chunk.write_u8 chunk 102;
+			Chunk.write_u8 writer.chunk 102;
 			None
 		| TAbstract ({a_path = ([],"Bool")},[]) ->
-			Chunk.write_u8 chunk 103;
+			Chunk.write_u8 writer.chunk 103;
 			None
 		| TInst ({cl_path = ([],"String")},[]) ->
-			Chunk.write_u8 chunk 104;
+			Chunk.write_u8 writer.chunk 104;
 			None
 		| TMono r ->
 			Monomorph.close r;
 			begin match r.tm_type with
 			| None ->
-				Chunk.write_u8 chunk 0;
-				self#write_tmono_ref r;
+				Chunk.write_u8 writer.chunk 0;
+				write_tmono_ref writer r;
 				None
 			| Some t ->
 				(* Don't write bound monomorphs, write underlying type directly *)
-				self#write_type_instance_simple t
+				write_type_instance_simple writer t
 			end
 		| TLazy f ->
-			self#write_type_instance_simple (lazy_type f)
+			write_type_instance_simple writer (lazy_type f)
 		| TInst({cl_kind = KTypeParameter ttp},[]) ->
-			self#write_type_parameter_ref ttp;
+			write_type_parameter_ref writer ttp;
 			None
 		| TInst({cl_kind = KExpr _},_) ->
 			Some t
 		| TInst(c,[]) ->
-			Chunk.write_u8 chunk 40;
-			self#write_class_ref c;
+			Chunk.write_u8 writer.chunk 40;
+			write_class_ref writer c;
 			None
 		| TEnum(en,[]) ->
-			Chunk.write_u8 chunk 50;
-			self#write_enum_ref en;
+			Chunk.write_u8 writer.chunk 50;
+			write_enum_ref writer en;
 			None
 		| TType(td,[]) ->
 			let default () =
-				Chunk.write_u8 chunk 60;
-				self#write_typedef_ref td;
+				Chunk.write_u8 writer.chunk 60;
+				write_typedef_ref writer td;
 			in
 			begin match td.t_type with
 			| TAnon an ->
 				begin match !(an.a_status) with
 					| ClassStatics c ->
-						Chunk.write_u8 chunk 10;
-						self#write_class_ref c
+						Chunk.write_u8 writer.chunk 10;
+						write_class_ref writer c
 					| EnumStatics en ->
-						Chunk.write_u8 chunk 11;
-						self#write_enum_ref en;
+						Chunk.write_u8 writer.chunk 11;
+						write_enum_ref writer en;
 					| AbstractStatics a ->
-						Chunk.write_u8 chunk 12;
-						self#write_abstract_ref a
+						Chunk.write_u8 writer.chunk 12;
+						write_abstract_ref writer a
 					| _ ->
 						default()
 				end
@@ -1116,14 +1172,14 @@ class hxb_writer
 			end;
 			None
 		| TAbstract(a,[]) ->
-			Chunk.write_u8 chunk 70;
-			self#write_abstract_ref a;
+			Chunk.write_u8 writer.chunk 70;
+			write_abstract_ref writer a;
 			None
 		| TDynamic None ->
-			Chunk.write_u8 chunk 4;
+			Chunk.write_u8 writer.chunk 4;
 			None
 		| TFun([],t) when ExtType.is_void (follow_lazy_and_mono t) ->
-			Chunk.write_u8 chunk 20;
+			Chunk.write_u8 writer.chunk 20;
 			None
 		| TInst _ ->
 			Some t
@@ -1140,97 +1196,58 @@ class hxb_writer
 		| TDynamic _ ->
 			Some t
 
-	method write_inlined_list : 'a . int -> int -> (int -> unit) -> (unit -> unit) -> ('a -> unit) -> 'a list -> unit
-		= fun offset max f_byte f_first f_elt l ->
-		let length = List.length l in
-		if length > max then begin
-			f_byte (offset + 9);
-			f_first ();
-			Chunk.write_list chunk l f_elt
-		end else begin
-			f_byte (offset + length);
-			f_first();
-			List.iter (fun elt ->
-				f_elt elt
-			) l
-		end
-
-	method write_type_instance_not_simple t =
+	and write_type_instance_not_simple writer t =
 		let write_function_arg (n,o,t) =
-			Chunk.write_string chunk n;
-			Chunk.write_bool chunk o;
-			self#write_type_instance t;
+			Chunk.write_string writer.chunk n;
+			Chunk.write_bool writer.chunk o;
+			write_type_instance writer t;
 		in
 		let write_inlined_list offset max f_first f_elt l =
-			self#write_inlined_list offset max (Chunk.write_u8 chunk) f_first f_elt l
+			write_inlined_list writer offset max (Chunk.write_u8 writer.chunk) f_first f_elt l
 		in
 		match t with
 		| TMono _ | TLazy _ | TDynamic None ->
 			die "" __LOC__
 		| TInst({cl_kind = KExpr e},[]) ->
-			Chunk.write_u8 chunk 13;
-			self#write_expr e;
+			Chunk.write_u8 writer.chunk 13;
+			write_expr writer e;
 		| TFun(args,t) when ExtType.is_void (follow_lazy_and_mono t) ->
 			write_inlined_list 20 4 (fun () -> ()) write_function_arg args;
 		| TFun(args,t) ->
 			write_inlined_list 30 4 (fun () -> ()) write_function_arg args;
-			self#write_type_instance t;
+			write_type_instance writer t;
 		| TInst(c,tl) ->
-			write_inlined_list 40 2 (fun () -> self#write_class_ref c) self#write_type_instance tl;
+			write_inlined_list 40 2 (fun () -> write_class_ref writer c) (write_type_instance writer) tl;
 		| TEnum(en,tl) ->
-			write_inlined_list 50 2 (fun () -> self#write_enum_ref en) self#write_type_instance tl;
+			write_inlined_list 50 2 (fun () -> write_enum_ref writer en) (write_type_instance writer) tl;
 		| TType(td,tl) ->
-			write_inlined_list 60 2 (fun () -> self#write_typedef_ref td) self#write_type_instance tl;
+			write_inlined_list 60 2 (fun () -> write_typedef_ref writer td) (write_type_instance writer) tl;
 		| TAbstract(a,tl) ->
-			write_inlined_list 70 2 (fun () -> self#write_abstract_ref a) self#write_type_instance tl;
+			write_inlined_list 70 2 (fun () -> write_abstract_ref writer a) (write_type_instance writer) tl;
 		| TAnon an when PMap.is_empty an.a_fields ->
-			Chunk.write_u8 chunk 80;
+			Chunk.write_u8 writer.chunk 80;
 		| TAnon an ->
-			Chunk.write_u8 chunk 81;
-			self#write_anon_ref an []
+			Chunk.write_u8 writer.chunk 81;
+			write_anon_ref writer an []
 		| TDynamic (Some t) ->
-			Chunk.write_u8 chunk 89;
-			self#write_type_instance t;
+			Chunk.write_u8 writer.chunk 89;
+			write_type_instance writer t;
 
-	method write_type_instance (t: Type.t) =
-		match self#write_type_instance_simple t with
+	and write_type_instance writer (t: Type.t) =
+		match write_type_instance_simple writer t with
 			| None ->
 				()
 			| Some t ->
-				self#write_type_instance_not_simple t
+				write_type_instance_not_simple writer t
 
-	method write_types tl =
-		Chunk.write_list chunk tl self#write_type_instance
+	and write_types writer tl =
+		Chunk.write_list writer.chunk tl (write_type_instance writer)
 
 	(* texpr *)
 
-	method write_var_kind vk =
-		let b = match vk with
-			| VUser TVOLocalVariable -> 0
-			| VUser TVOArgument -> 1
-			| VUser TVOForVariable -> 2
-			| VUser TVOPatternVariable -> 3
-			| VUser TVOCatchVariable -> 4
-			| VUser TVOLocalFunction -> 5
-			| VGenerated -> 6
-			| VInlined -> 7
-			| VInlinedConstructorVariable -> 8
-			| VExtractorVariable -> 9
-			| VAbstractThis -> 10
-		in
-		Chunk.write_u8 chunk b
-
-	method write_var fctx v =
-		Chunk.write_uleb128 chunk v.v_id;
-		Chunk.write_string chunk v.v_name;
-		self#write_var_kind v.v_kind;
-		Chunk.write_uleb128 chunk v.v_flags;
-		self#write_metadata v.v_meta;
-		self#write_pos v.v_pos
-
-	method write_texpr_type_instance (fctx : field_writer_context) (t: Type.t) =
-		let restore = self#start_temporary_chunk 32 in
-		let r = self#write_type_instance_simple t in
+	and write_texpr_type_instance writer (fctx : field_writer_context) (t: Type.t) =
+		let restore = start_temporary_chunk writer 32 in
+		let r = write_type_instance_simple writer t in
 		let index = match r with
 		| None ->
 			let t_bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
@@ -1238,8 +1255,8 @@ class hxb_writer
 			fctx.t_pool#get_or_add t_bytes t_bytes
 		| Some t ->
 			ignore(restore (fun new_chunk -> Chunk.get_bytes new_chunk));
-			let restore = self#start_temporary_chunk 32 in
-			self#write_type_instance_not_simple t;
+			let restore = start_temporary_chunk writer 32 in
+			write_type_instance_not_simple writer t;
 			let t_bytes = restore (fun new_chunk ->
 				Chunk.get_bytes new_chunk
 			) in
@@ -1253,70 +1270,66 @@ class hxb_writer
 			in
 			index
 		in
-		Chunk.write_uleb128 chunk index
+		Chunk.write_uleb128 writer.chunk index
 
-	method write_texpr_byte (i : int) =
-		(* stats.texpr_writes.(i) <- stats.texpr_writes.(i) + 1; *)
-		Chunk.write_u8 chunk i
-
-	method write_texpr (fctx : field_writer_context) (e : texpr) =
+	and write_texpr writer (fctx : field_writer_context) (e : texpr) =
 		let declare_var v =
-			Chunk.write_uleb128 chunk (fctx.vars#add v.v_id v);
-			Chunk.write_option chunk v.v_extra (fun ve ->
-				Chunk.write_list chunk ve.v_params (fun ttp ->
-					let index = local_type_parameters#add ttp () in
-					Chunk.write_uleb128 chunk index
+			Chunk.write_uleb128 writer.chunk (fctx.vars#add v.v_id v);
+			Chunk.write_option writer.chunk v.v_extra (fun ve ->
+				Chunk.write_list writer.chunk ve.v_params (fun ttp ->
+					let index = writer.local_type_parameters#add ttp () in
+					Chunk.write_uleb128 writer.chunk index
 				);
-				Chunk.write_option chunk ve.v_expr (self#write_texpr fctx);
+				Chunk.write_option writer.chunk ve.v_expr (write_texpr writer fctx);
 			);
-			self#write_type_instance v.v_type;
+			write_type_instance writer v.v_type;
 		in
 		let rec loop e =
 
-			self#write_texpr_type_instance fctx e.etype;
-			fctx.pos_writer#write_pos chunk true 0 e.epos;
+			write_texpr_type_instance writer fctx e.etype;
+			PosWriter.write_pos fctx.pos_writer writer.chunk true 0 e.epos;
 
 			match e.eexpr with
 			(* values 0-19 *)
 			| TConst ct ->
 				begin match ct with
 				| TNull ->
-					Chunk.write_u8 chunk 0;
+					Chunk.write_u8 writer.chunk 0;
 				| TThis ->
 					fctx.texpr_this <- Some e;
-					Chunk.write_u8 chunk 1;
+					Chunk.write_u8 writer.chunk 1;
 				| TSuper ->
-					Chunk.write_u8 chunk 2;
+					Chunk.write_u8 writer.chunk 2;
 				| TBool false ->
-					Chunk.write_u8 chunk 3;
+					Chunk.write_u8 writer.chunk 3;
 				| TBool true ->
-					Chunk.write_u8 chunk 4;
+					Chunk.write_u8 writer.chunk 4;
 				| TInt i32 ->
-					Chunk.write_u8 chunk 5;
-					Chunk.write_i32 chunk i32;
+					Chunk.write_u8 writer.chunk 5;
+					Chunk.write_i32 writer.chunk i32;
 				| TFloat f ->
-					Chunk.write_u8 chunk 6;
-					Chunk.write_string chunk f;
+					Chunk.write_u8 writer.chunk 6;
+					Chunk.write_string writer.chunk f;
 				| TString s ->
-					Chunk.write_u8 chunk 7;
-					Chunk.write_string chunk s
+					Chunk.write_u8 writer.chunk 7;
+					Chunk.write_string writer.chunk s
 				end
 			(* vars 20-29 *)
 			| TLocal v ->
-				Chunk.write_u8 chunk 20;
-				Chunk.write_uleb128 chunk (fctx.vars#get v.v_id)
+				Chunk.write_u8 writer.chunk 20;
+				Chunk.write_uleb128 writer.chunk (fctx.vars#get v.v_id)
 			| TVar(v,None) ->
-				Chunk.write_u8 chunk 21;
+				Chunk.write_u8 writer.chunk 21;
 				declare_var v;
 			| TVar(v,Some e1) ->
-				Chunk.write_u8 chunk 22;
+				Chunk.write_u8 writer.chunk 22;
 				declare_var v;
 				loop e1;
 			(* blocks 30-49 *)
 			| TBlock [] ->
-				Chunk.write_u8 chunk 30;
+				Chunk.write_u8 writer.chunk 30;
 			| TBlock el ->
-				let restore = self#start_temporary_chunk 256 in
+				let restore = start_temporary_chunk writer 256 in
 				let i = ref 0 in
 				List.iter (fun e ->
 					incr i;
@@ -1325,111 +1338,111 @@ class hxb_writer
 				let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
 				let l = !i in
 				begin match l with
-				| 1 -> Chunk.write_u8 chunk 31;
-				| 2 -> Chunk.write_u8 chunk 32;
-				| 3 -> Chunk.write_u8 chunk 33;
-				| 4 -> Chunk.write_u8 chunk 34;
-				| 5 -> Chunk.write_u8 chunk 35;
+				| 1 -> Chunk.write_u8 writer.chunk 31;
+				| 2 -> Chunk.write_u8 writer.chunk 32;
+				| 3 -> Chunk.write_u8 writer.chunk 33;
+				| 4 -> Chunk.write_u8 writer.chunk 34;
+				| 5 -> Chunk.write_u8 writer.chunk 35;
 				| _ ->
 					if l <= 0xFF then begin
-						Chunk.write_u8 chunk 36;
-						Chunk.write_u8 chunk l;
+						Chunk.write_u8 writer.chunk 36;
+						Chunk.write_u8 writer.chunk l;
 					end else begin
-						Chunk.write_u8 chunk 39;
-						Chunk.write_uleb128 chunk l;
+						Chunk.write_u8 writer.chunk 39;
+						Chunk.write_uleb128 writer.chunk l;
 					end;
 				end;
-				Chunk.write_bytes chunk bytes;
+				Chunk.write_bytes writer.chunk bytes;
 			(* function 50-59 *)
 			| TFunction tf ->
-				Chunk.write_u8 chunk 50;
-				Chunk.write_list chunk tf.tf_args (fun (v,eo) ->
+				Chunk.write_u8 writer.chunk 50;
+				Chunk.write_list writer.chunk tf.tf_args (fun (v,eo) ->
 					declare_var v;
-					Chunk.write_option chunk eo loop;
+					Chunk.write_option writer.chunk eo loop;
 				);
-				self#write_type_instance tf.tf_type;
+				write_type_instance writer tf.tf_type;
 				loop tf.tf_expr;
 			(* texpr compounds 60-79 *)
 			| TArray(e1,e2) ->
-				Chunk.write_u8 chunk 60;
+				Chunk.write_u8 writer.chunk 60;
 				loop e1;
 				loop e2;
 			| TParenthesis e1 ->
-				Chunk.write_u8 chunk 61;
+				Chunk.write_u8 writer.chunk 61;
 				loop e1;
 			| TArrayDecl el ->
-				Chunk.write_u8 chunk 62;
+				Chunk.write_u8 writer.chunk 62;
 				loop_el el;
 			| TObjectDecl fl ->
-				Chunk.write_u8 chunk 63;
-				Chunk.write_list chunk fl (fun ((name,p,qs),e) ->
-					Chunk.write_string chunk name;
-					self#write_pos p;
+				Chunk.write_u8 writer.chunk 63;
+				Chunk.write_list writer.chunk fl (fun ((name,p,qs),e) ->
+					Chunk.write_string writer.chunk name;
+					write_pos writer p;
 					begin match qs with
-					| NoQuotes -> Chunk.write_u8 chunk 0;
-					| DoubleQuotes -> Chunk.write_u8 chunk 1;
+					| NoQuotes -> Chunk.write_u8 writer.chunk 0;
+					| DoubleQuotes -> Chunk.write_u8 writer.chunk 1;
 					end;
 					loop e
 				);
 			| TCall(e1,el) ->
-				self#write_inlined_list 70 4 (Chunk.write_u8 chunk) (fun () -> loop e1) loop el
+				write_inlined_list writer 70 4 (Chunk.write_u8 writer.chunk) (fun () -> loop e1) loop el
 			| TMeta(m,e1) ->
-				Chunk.write_u8 chunk 65;
-				self#write_metadata_entry m;
+				Chunk.write_u8 writer.chunk 65;
+				write_metadata_entry writer m;
 				loop e1;
 			(* branching 80-89 *)
 			| TIf(e1,e2,None) ->
-				Chunk.write_u8 chunk 80;
+				Chunk.write_u8 writer.chunk 80;
 				loop e1;
 				loop e2;
 			| TIf(e1,e2,Some e3) ->
-				Chunk.write_u8 chunk 81;
+				Chunk.write_u8 writer.chunk 81;
 				loop e1;
 				loop e2;
 				loop e3;
 			| TSwitch s ->
-				Chunk.write_u8 chunk 82;
+				Chunk.write_u8 writer.chunk 82;
 				loop s.switch_subject;
-				Chunk.write_list chunk s.switch_cases (fun c ->
+				Chunk.write_list writer.chunk s.switch_cases (fun c ->
 					loop_el c.case_patterns;
 					loop c.case_expr;
 				);
-				Chunk.write_option chunk s.switch_default loop;
+				Chunk.write_option writer.chunk s.switch_default loop;
 			| TTry(e1,catches) ->
-				Chunk.write_u8 chunk 83;
+				Chunk.write_u8 writer.chunk 83;
 				loop e1;
-				Chunk.write_list chunk catches  (fun (v,e) ->
+				Chunk.write_list writer.chunk catches  (fun (v,e) ->
 					declare_var v;
 					loop e
 				);
 			| TWhile(e1,e2,flag) ->
-				Chunk.write_u8 chunk (if flag = NormalWhile then 84 else 85);
+				Chunk.write_u8 writer.chunk (if flag = NormalWhile then 84 else 85);
 				loop e1;
 				loop e2;
 			| TFor(v,e1,e2) ->
-				Chunk.write_u8 chunk 86;
+				Chunk.write_u8 writer.chunk 86;
 				declare_var v;
 				loop e1;
 				loop e2;
 			(* control flow 90-99 *)
 			| TReturn None ->
-				Chunk.write_u8 chunk 90;
+				Chunk.write_u8 writer.chunk 90;
 			| TReturn (Some e1) ->
-				Chunk.write_u8 chunk 91;
+				Chunk.write_u8 writer.chunk 91;
 				loop e1;
 			| TContinue ->
-				Chunk.write_u8 chunk 92;
+				Chunk.write_u8 writer.chunk 92;
 			| TBreak ->
-				Chunk.write_u8 chunk 93;
+				Chunk.write_u8 writer.chunk 93;
 			| TThrow e1 ->
-				Chunk.write_u8 chunk 94;
+				Chunk.write_u8 writer.chunk 94;
 				loop e1;
 			(* access 100-119 *)
 			| TEnumIndex e1 ->
-				Chunk.write_u8 chunk 100;
+				Chunk.write_u8 writer.chunk 100;
 				loop e1;
 			| TEnumParameter(e1,ef,i) ->
-				Chunk.write_u8 chunk 101;
+				Chunk.write_u8 writer.chunk 101;
 				loop e1;
 				let en = match follow ef.ef_type with
 					| TFun(_,tr) ->
@@ -1440,110 +1453,110 @@ class hxb_writer
 					| _ ->
 						die "" __LOC__
 				in
-				self#write_enum_field_ref en ef;
-				Chunk.write_uleb128 chunk i;
+				write_enum_field_ref writer en ef;
+				Chunk.write_uleb128 writer.chunk i;
 			| TField({eexpr = TConst TThis; epos = p1},FInstance(c,tl,cf)) when fctx.texpr_this <> None ->
-				Chunk.write_u8 chunk 111;
-				fctx.pos_writer#write_pos chunk true 0 p1;
-				self#write_class_ref c;
-				self#write_types tl;
-				self#write_field_ref c CfrMember cf;
+				Chunk.write_u8 writer.chunk 111;
+				PosWriter.write_pos fctx.pos_writer writer.chunk true 0 p1;
+				write_class_ref writer c;
+				write_types writer tl;
+				write_field_ref writer c CfrMember cf;
 			| TField(e1,FInstance(c,tl,cf)) ->
-				Chunk.write_u8 chunk 102;
+				Chunk.write_u8 writer.chunk 102;
 				loop e1;
-				self#write_class_ref c;
-				self#write_types tl;
-				self#write_field_ref c CfrMember cf;
+				write_class_ref writer c;
+				write_types writer tl;
+				write_field_ref writer c CfrMember cf;
 			| TField({eexpr = TTypeExpr (TClassDecl c'); epos = p1},FStatic(c,cf)) when c == c' ->
-				Chunk.write_u8 chunk 110;
-				fctx.pos_writer#write_pos chunk true 0 p1;
-				self#write_class_ref c;
-				self#write_field_ref c CfrStatic cf;
+				Chunk.write_u8 writer.chunk 110;
+				PosWriter.write_pos fctx.pos_writer writer.chunk true 0 p1;
+				write_class_ref writer c;
+				write_field_ref writer c CfrStatic cf;
 			| TField(e1,FStatic(c,cf)) ->
-				Chunk.write_u8 chunk 103;
+				Chunk.write_u8 writer.chunk 103;
 				loop e1;
-				self#write_class_ref c;
-				self#write_field_ref c CfrStatic cf;
+				write_class_ref writer c;
+				write_field_ref writer c CfrStatic cf;
 			| TField(e1,FAnon cf) ->
-				Chunk.write_u8 chunk 104;
+				Chunk.write_u8 writer.chunk 104;
 				loop e1;
-				self#write_anon_field_ref cf
+				write_anon_field_ref writer cf
 			| TField(e1,FClosure(Some(c,tl),cf)) ->
-				Chunk.write_u8 chunk 105;
+				Chunk.write_u8 writer.chunk 105;
 				loop e1;
-				self#write_class_ref c;
-				self#write_types tl;
-				self#write_field_ref c CfrMember cf
+				write_class_ref writer c;
+				write_types writer tl;
+				write_field_ref writer c CfrMember cf
 			| TField(e1,FClosure(None,cf)) ->
-				Chunk.write_u8 chunk 106;
+				Chunk.write_u8 writer.chunk 106;
 				loop e1;
-				self#write_anon_field_ref cf
+				write_anon_field_ref writer cf
 			| TField(e1,FEnum(en,ef)) ->
-				Chunk.write_u8 chunk 107;
+				Chunk.write_u8 writer.chunk 107;
 				loop e1;
-				self#write_enum_ref en;
-				self#write_enum_field_ref en ef;
+				write_enum_ref writer en;
+				write_enum_field_ref writer en ef;
 			| TField(e1,FDynamic s) ->
-				Chunk.write_u8 chunk 108;
+				Chunk.write_u8 writer.chunk 108;
 				loop e1;
-				Chunk.write_string chunk s;
+				Chunk.write_string writer.chunk s;
 			(* module types 120-139 *)
 			| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter ttp})) ->
-				Chunk.write_u8 chunk 128;
-				self#write_type_parameter_ref ttp
+				Chunk.write_u8 writer.chunk 128;
+				write_type_parameter_ref writer ttp
 			| TTypeExpr (TClassDecl c) ->
-				Chunk.write_u8 chunk 120;
-				self#write_class_ref c;
+				Chunk.write_u8 writer.chunk 120;
+				write_class_ref writer c;
 			| TTypeExpr (TEnumDecl en) ->
-				Chunk.write_u8 chunk 121;
-				self#write_enum_ref en;
+				Chunk.write_u8 writer.chunk 121;
+				write_enum_ref writer en;
 			| TTypeExpr (TAbstractDecl a) ->
-				Chunk.write_u8 chunk 122;
-				self#write_abstract_ref a
+				Chunk.write_u8 writer.chunk 122;
+				write_abstract_ref writer a
 			| TTypeExpr (TTypeDecl td) ->
-				Chunk.write_u8 chunk 123;
-				self#write_typedef_ref td
+				Chunk.write_u8 writer.chunk 123;
+				write_typedef_ref writer td
 			| TCast(e1,None) ->
-				Chunk.write_u8 chunk 124;
+				Chunk.write_u8 writer.chunk 124;
 				loop e1;
 			| TCast(e1,Some md) ->
-				Chunk.write_u8 chunk 125;
+				Chunk.write_u8 writer.chunk 125;
 				loop e1;
 				let infos = t_infos md in
 				let m = infos.mt_module in
-				self#write_full_path (fst m.m_path) (snd m.m_path) (snd infos.mt_path);
+				write_full_path writer (fst m.m_path) (snd m.m_path) (snd infos.mt_path);
 			| TNew(({cl_kind = KTypeParameter ttp}),tl,el) ->
-				Chunk.write_u8 chunk 127;
-				self#write_type_parameter_ref ttp;
-				self#write_types tl;
+				Chunk.write_u8 writer.chunk 127;
+				write_type_parameter_ref writer ttp;
+				write_types writer tl;
 				loop_el el;
 			| TNew(c,tl,el) ->
-				Chunk.write_u8 chunk 126;
-				self#write_class_ref c;
-				self#write_types tl;
+				Chunk.write_u8 writer.chunk 126;
+				write_class_ref writer c;
+				write_types writer tl;
 				loop_el el;
 			(* unops 140-159 *)
 			| TUnop(op,flag,e1) ->
-				Chunk.write_u8 chunk (140 + unop_index op flag);
+				Chunk.write_u8 writer.chunk (140 + unop_index op flag);
 				loop e1;
 			(* binops 160-219 *)
 			| TBinop(op,e1,e2) ->
-				Chunk.write_u8 chunk (160 + binop_index op);
+				Chunk.write_u8 writer.chunk (160 + binop_index op);
 				loop e1;
 				loop e2;
 			(* rest 250-254 *)
 			| TIdent s ->
-				Chunk.write_u8 chunk 250;
-				Chunk.write_string chunk s;
+				Chunk.write_u8 writer.chunk 250;
+				Chunk.write_string writer.chunk s;
 		and loop_el el =
-			Chunk.write_list chunk el loop
+			Chunk.write_list writer.chunk el loop
 		in
 		loop e
 
-	method write_type_parameters_forward (ttps : typed_type_param list) =
+	and write_type_parameters_forward writer (ttps : typed_type_param list) =
 		let write_type_parameter_forward ttp =
-			self#write_path ttp.ttp_class.cl_path;
-			self#write_pos ttp.ttp_class.cl_name_pos;
+			write_path writer ttp.ttp_class.cl_path;
+			write_pos writer ttp.ttp_class.cl_name_pos;
 			let i = match ttp.ttp_host with
 				| TPHType -> 0
 				| TPHConstructor -> 1
@@ -1552,249 +1565,249 @@ class hxb_writer
 				| TPHAnonField -> 4
 				| TPHLocal -> 5
 			in
-			Chunk.write_u8 chunk i
+			Chunk.write_u8 writer.chunk i
 		in
-		Chunk.write_list chunk ttps write_type_parameter_forward
+		Chunk.write_list writer.chunk ttps write_type_parameter_forward
 
-	method write_type_parameters_data (ttps : typed_type_param list) =
+	and write_type_parameters_data writer (ttps : typed_type_param list) =
 		let write_type_parameter_data ttp =
 			let c = ttp.ttp_class in
-			self#write_metadata c.cl_meta;
-			self#write_types (get_constraints ttp);
-			Chunk.write_option chunk ttp.ttp_default self#write_type_instance
+			write_metadata writer c.cl_meta;
+			write_types writer (get_constraints ttp);
+			Chunk.write_option writer.chunk ttp.ttp_default (write_type_instance writer)
 		in
 		List.iter write_type_parameter_data ttps
 
-	method write_type_parameters (ttps : typed_type_param list) =
-		self#write_type_parameters_forward ttps;
-		self#write_type_parameters_data ttps;
+	and write_type_parameters writer (ttps : typed_type_param list) =
+		write_type_parameters_forward writer ttps;
+		write_type_parameters_data writer ttps;
 
 	(* Fields *)
 
-	method write_field_kind = function
-		| Method MethNormal -> Chunk.write_u8 chunk 0;
-		| Method MethInline -> Chunk.write_u8 chunk 1;
-		| Method MethDynamic -> Chunk.write_u8 chunk 2;
-		| Method MethMacro -> Chunk.write_u8 chunk 3;
+	and write_field_kind writer = function
+		| Method MethNormal -> Chunk.write_u8 writer.chunk 0;
+		| Method MethInline -> Chunk.write_u8 writer.chunk 1;
+		| Method MethDynamic -> Chunk.write_u8 writer.chunk 2;
+		| Method MethMacro -> Chunk.write_u8 writer.chunk 3;
 		(* normal read *)
-		| Var {v_read = AccNormal; v_write = AccNormal } -> Chunk.write_u8 chunk 10
-		| Var {v_read = AccNormal; v_write = AccNo } -> Chunk.write_u8 chunk 11
-		| Var {v_read = AccNormal; v_write = AccNever } -> Chunk.write_u8 chunk 12
-		| Var {v_read = AccNormal; v_write = AccCtor } -> Chunk.write_u8 chunk 13
-		| Var {v_read = AccNormal; v_write = AccCall } -> Chunk.write_u8 chunk 14
+		| Var {v_read = AccNormal; v_write = AccNormal } -> Chunk.write_u8 writer.chunk 10
+		| Var {v_read = AccNormal; v_write = AccNo } -> Chunk.write_u8 writer.chunk 11
+		| Var {v_read = AccNormal; v_write = AccNever } -> Chunk.write_u8 writer.chunk 12
+		| Var {v_read = AccNormal; v_write = AccCtor } -> Chunk.write_u8 writer.chunk 13
+		| Var {v_read = AccNormal; v_write = AccCall } -> Chunk.write_u8 writer.chunk 14
 		(* inline read *)
-		| Var {v_read = AccInline; v_write = AccNever } -> Chunk.write_u8 chunk 20
+		| Var {v_read = AccInline; v_write = AccNever } -> Chunk.write_u8 writer.chunk 20
 		(* getter read *)
-		| Var {v_read = AccCall; v_write = AccNormal } -> Chunk.write_u8 chunk 30
-		| Var {v_read = AccCall; v_write = AccNo } -> Chunk.write_u8 chunk 31
-		| Var {v_read = AccCall; v_write = AccNever } -> Chunk.write_u8 chunk 32
-		| Var {v_read = AccCall; v_write = AccCtor } -> Chunk.write_u8 chunk 33
-		| Var {v_read = AccCall; v_write = AccCall } -> Chunk.write_u8 chunk 34
+		| Var {v_read = AccCall; v_write = AccNormal } -> Chunk.write_u8 writer.chunk 30
+		| Var {v_read = AccCall; v_write = AccNo } -> Chunk.write_u8 writer.chunk 31
+		| Var {v_read = AccCall; v_write = AccNever } -> Chunk.write_u8 writer.chunk 32
+		| Var {v_read = AccCall; v_write = AccCtor } -> Chunk.write_u8 writer.chunk 33
+		| Var {v_read = AccCall; v_write = AccCall } -> Chunk.write_u8 writer.chunk 34
 		(* weird/overlooked combinations *)
 		| Var {v_read = r;v_write = w } ->
-			Chunk.write_u8 chunk 100;
+			Chunk.write_u8 writer.chunk 100;
 			let f = function
-				| AccNormal -> Chunk.write_u8 chunk 0
-				| AccNo -> Chunk.write_u8 chunk 1
-				| AccNever -> Chunk.write_u8 chunk 2
-				| AccCtor -> Chunk.write_u8 chunk 3
-				| AccCall -> Chunk.write_u8 chunk 4
-				| AccInline -> Chunk.write_u8 chunk 5
+				| AccNormal -> Chunk.write_u8 writer.chunk 0
+				| AccNo -> Chunk.write_u8 writer.chunk 1
+				| AccNever -> Chunk.write_u8 writer.chunk 2
+				| AccCtor -> Chunk.write_u8 writer.chunk 3
+				| AccCall -> Chunk.write_u8 writer.chunk 4
+				| AccInline -> Chunk.write_u8 writer.chunk 5
 				| AccRequire(s,so) ->
-					Chunk.write_u8 chunk 6;
-					Chunk.write_string chunk s;
-					Chunk.write_option chunk so (Chunk.write_string chunk)
+					Chunk.write_u8 writer.chunk 6;
+					Chunk.write_string writer.chunk s;
+					Chunk.write_option writer.chunk so (Chunk.write_string writer.chunk)
 			in
 			f r;
-			f w;
+			f w
 
-	method open_field_scope (params : type_params) =
-		field_stack <- () :: field_stack;
-		let nested = self#in_nested_scope in
-		let old_field_params = field_type_parameters in
-		let old_local_params = local_type_parameters in
+	and open_field_scope writer (params : type_params) =
+		writer.field_stack <- () :: writer.field_stack;
+		let nested = in_nested_scope writer in
+		let old_field_params = writer.field_type_parameters in
+		let old_local_params = writer.local_type_parameters in
 		if not nested then begin
-			local_type_parameters <- new identity_pool;
-			field_type_parameters <- new identity_pool;
+			writer.local_type_parameters <- new identity_pool;
+			writer.field_type_parameters <- new identity_pool;
 		end;
 		List.iter (fun ttp ->
-			ignore(field_type_parameters#add ttp ());
+			ignore(writer.field_type_parameters#add ttp ());
 		) params;
 		(fun () ->
-			field_type_parameters <- old_field_params;
-			local_type_parameters <- old_local_params;
-			field_stack <- List.tl field_stack
+			writer.field_type_parameters <- old_field_params;
+			writer.local_type_parameters <- old_local_params;
+			writer.field_stack <- List.tl writer.field_stack
 		)
 
-	method write_class_field_forward cf =
-		Chunk.write_string chunk cf.cf_name;
-		self#write_pos cf.cf_pos;
-		self#write_pos cf.cf_name_pos;
-		Chunk.write_list chunk cf.cf_overloads (fun cf ->
-			self#write_class_field_forward cf;
+	and write_class_field_forward writer cf =
+		Chunk.write_string writer.chunk cf.cf_name;
+		write_pos writer cf.cf_pos;
+		write_pos writer cf.cf_name_pos;
+		Chunk.write_list writer.chunk cf.cf_overloads (fun cf ->
+			write_class_field_forward writer cf;
 		);
 
-	method start_texpr (p: pos) =
-		let restore = self#start_temporary_chunk 512 in
-		let fctx = create_field_writer_context (new pos_writer chunk stats p) in
+	and start_texpr writer (p: pos) =
+		let restore = start_temporary_chunk writer 512 in
+		let fctx = create_field_writer_context (PosWriter.create writer.stats writer.chunk p) in
 		fctx,(fun () ->
 			restore(fun new_chunk ->
-				let restore = self#start_temporary_chunk 512 in
-				if self#in_nested_scope then
-					Chunk.write_u8 chunk 0
+				let restore = start_temporary_chunk writer 512 in
+				if in_nested_scope writer then
+					Chunk.write_u8 writer.chunk 0
 				else begin
-					Chunk.write_u8 chunk 1;
-					let ltp = List.map fst local_type_parameters#to_list in
-					self#write_type_parameters ltp
+					Chunk.write_u8 writer.chunk 1;
+					let ltp = List.map fst writer.local_type_parameters#to_list in
+					write_type_parameters writer ltp
 				end;
 				let items = fctx.t_pool#items in
-				Chunk.write_uleb128 chunk (DynArray.length items);
+				Chunk.write_uleb128 writer.chunk (DynArray.length items);
 				DynArray.iter (fun bytes ->
-					Chunk.write_bytes chunk bytes
+					Chunk.write_bytes writer.chunk bytes
 				) items;
 
 				let items = fctx.vars#items in
-				Chunk.write_uleb128 chunk (DynArray.length items);
+				Chunk.write_uleb128 writer.chunk (DynArray.length items);
 				DynArray.iter (fun v ->
-					self#write_var fctx v;
+					write_var writer fctx v;
 				) items;
-				Chunk.export_data new_chunk chunk;
+				Chunk.export_data new_chunk writer.chunk;
 				restore(fun new_chunk -> new_chunk)
 			)
 		)
 
-	method commit_field_type_parameters (params : type_params) =
-		Chunk.write_uleb128 chunk (List.length params);
-		if self#in_nested_scope then
-			Chunk.write_u8 chunk 0
+	and commit_field_type_parameters writer (params : type_params) =
+		Chunk.write_uleb128 writer.chunk (List.length params);
+		if in_nested_scope writer then
+			Chunk.write_u8 writer.chunk 0
 		else begin
-			Chunk.write_u8 chunk 1;
-			let ftp = List.map fst field_type_parameters#to_list in
-			self#write_type_parameters ftp
+			Chunk.write_u8 writer.chunk 1;
+			let ftp = List.map fst writer.field_type_parameters#to_list in
+			write_type_parameters writer ftp
 		end
 
-	method write_class_field_data (write_expr_immediately : bool) (cf : tclass_field) =
-		let restore = self#start_temporary_chunk 512 in
-		self#write_type_instance cf.cf_type;
-		Chunk.write_uleb128 chunk cf.cf_flags;
-		Chunk.write_option chunk cf.cf_doc self#write_documentation;
-		self#write_metadata cf.cf_meta;
-		self#write_field_kind cf.cf_kind;
+	and write_class_field_data writer (write_expr_immediately : bool) (cf : tclass_field) =
+		let restore = start_temporary_chunk writer 512 in
+		write_type_instance writer cf.cf_type;
+		Chunk.write_uleb128 writer.chunk cf.cf_flags;
+		Chunk.write_option writer.chunk cf.cf_doc (write_documentation writer);
+		write_metadata writer cf.cf_meta;
+		write_field_kind writer cf.cf_kind;
 		let expr_chunk = match cf.cf_expr with
 			| None ->
-				Chunk.write_u8 chunk 0;
+				Chunk.write_u8 writer.chunk 0;
 				None
 			| Some e when not write_expr_immediately ->
-				Chunk.write_u8 chunk 0;
-				let fctx,close = self#start_texpr e.epos in
-				self#write_texpr fctx e;
-				Chunk.write_option chunk cf.cf_expr_unoptimized (self#write_texpr fctx);
+				Chunk.write_u8 writer.chunk 0;
+				let fctx,close = start_texpr writer e.epos in
+				write_texpr writer fctx e;
+				Chunk.write_option writer.chunk cf.cf_expr_unoptimized (write_texpr writer fctx);
 				let expr_chunk = close() in
 				Some expr_chunk
 			| Some e ->
-				Chunk.write_u8 chunk 1;
-				let fctx,close = self#start_texpr e.epos in
-				self#write_texpr fctx e;
-				Chunk.write_option chunk cf.cf_expr_unoptimized (self#write_texpr fctx);
+				Chunk.write_u8 writer.chunk 1;
+				let fctx,close = start_texpr writer e.epos in
+				write_texpr writer fctx e;
+				Chunk.write_option writer.chunk cf.cf_expr_unoptimized (write_texpr writer fctx);
 				let expr_chunk = close() in
-				Chunk.export_data expr_chunk chunk;
+				Chunk.export_data expr_chunk writer.chunk;
 				None
 		in
 		restore (fun new_chunk ->
-			self#commit_field_type_parameters cf.cf_params;
-			Chunk.export_data new_chunk chunk
+			commit_field_type_parameters writer cf.cf_params;
+			Chunk.export_data new_chunk writer.chunk
 		);
 		expr_chunk
 
-	method write_class_field_and_overloads_data (write_expr_immediately : bool) (cf : tclass_field) =
+	and write_class_field_and_overloads_data writer (write_expr_immediately : bool) (cf : tclass_field) =
 		let cfl = cf :: cf.cf_overloads in
-		Chunk.write_uleb128 chunk (List.length cfl);
+		Chunk.write_uleb128 writer.chunk (List.length cfl);
 		ExtList.List.filter_map (fun cf ->
-			let close = self#open_field_scope cf.cf_params in
-			let expr_chunk = self#write_class_field_data write_expr_immediately cf in
+			let close = open_field_scope writer cf.cf_params in
+			let expr_chunk = write_class_field_data writer write_expr_immediately cf in
 			close();
 			Option.map (fun expr_chunk -> (cf,expr_chunk)) expr_chunk
 		) cfl
 
 	(* Module types *)
 
-	method select_type (path : path) =
-		type_type_parameters <- type_param_lut#extract path
+	let select_type writer (path : path) =
+		writer.type_type_parameters <- writer.type_param_lut#extract path
 
-	method write_common_module_type (infos : tinfos) : unit =
-		Chunk.write_bool chunk infos.mt_private;
-		Chunk.write_option chunk infos.mt_doc self#write_documentation;
-		self#write_metadata infos.mt_meta;
-		self#write_type_parameters_data infos.mt_params;
-		Chunk.write_list chunk infos.mt_using (fun (c,p) ->
-			self#write_class_ref c;
-			self#write_pos p;
-		);
+	let write_common_module_type writer (infos : tinfos) : unit =
+		Chunk.write_bool writer.chunk infos.mt_private;
+		Chunk.write_option writer.chunk infos.mt_doc (write_documentation writer);
+		write_metadata writer infos.mt_meta;
+		write_type_parameters_data writer infos.mt_params;
+		Chunk.write_list writer.chunk infos.mt_using (fun (c,p) ->
+			write_class_ref writer c;
+			write_pos writer p;
+		)
 
-	method write_class_kind = function
+	let write_class_kind writer = function
 		| KNormal ->
-			Chunk.write_u8 chunk 0
+			Chunk.write_u8 writer.chunk 0
 		| KTypeParameter ttp ->
 			die "TODO" __LOC__
 		| KExpr e ->
-			Chunk.write_u8 chunk 2;
-			self#write_expr e;
+			Chunk.write_u8 writer.chunk 2;
+			write_expr writer e;
 		| KGeneric ->
-			Chunk.write_u8 chunk 3;
+			Chunk.write_u8 writer.chunk 3;
 		| KGenericInstance(c,tl) ->
-			Chunk.write_u8 chunk 4;
-			self#write_class_ref c;
-			self#write_types tl
+			Chunk.write_u8 writer.chunk 4;
+			write_class_ref writer c;
+			write_types writer tl
 		| KMacroType ->
-			Chunk.write_u8 chunk 5;
+			Chunk.write_u8 writer.chunk 5;
 		| KGenericBuild l ->
-			Chunk.write_u8 chunk 6;
-			Chunk.write_list chunk l self#write_cfield;
+			Chunk.write_u8 writer.chunk 6;
+			Chunk.write_list writer.chunk l (write_cfield writer);
 		| KAbstractImpl a ->
-			Chunk.write_u8 chunk 7;
-			self#write_abstract_ref a;
+			Chunk.write_u8 writer.chunk 7;
+			write_abstract_ref writer a;
 		| KModuleFields md ->
-			Chunk.write_u8 chunk 8;
+			Chunk.write_u8 writer.chunk 8
 
-	method write_class (c : tclass) =
+	let write_class writer (c : tclass) =
 		begin match c.cl_kind with
 		| KAbstractImpl a ->
-			self#select_type a.a_path
+			select_type writer a.a_path
 		| _ ->
-			self#select_type c.cl_path;
+			select_type writer c.cl_path;
 		end;
-		self#write_common_module_type (Obj.magic c);
-		self#write_class_kind c.cl_kind;
-		Chunk.write_option chunk c.cl_super (fun (c,tl) ->
-			self#write_class_ref c;
-			self#write_types tl
+		write_common_module_type writer (Obj.magic c);
+		write_class_kind writer c.cl_kind;
+		Chunk.write_option writer.chunk c.cl_super (fun (c,tl) ->
+			write_class_ref writer c;
+			write_types writer tl
 		);
-		Chunk.write_list chunk c.cl_implements (fun (c,tl) ->
-			self#write_class_ref c;
-			self#write_types tl
+		Chunk.write_list writer.chunk c.cl_implements (fun (c,tl) ->
+			write_class_ref writer c;
+			write_types writer tl
 		);
-		Chunk.write_option chunk c.cl_dynamic self#write_type_instance;
-		Chunk.write_option chunk c.cl_array_access self#write_type_instance;
+		Chunk.write_option writer.chunk c.cl_dynamic (write_type_instance writer);
+		Chunk.write_option writer.chunk c.cl_array_access (write_type_instance writer)
 
-	method write_abstract (a : tabstract) =
+	let write_abstract writer (a : tabstract) =
 		begin try
-			self#select_type a.a_path
+			select_type writer a.a_path
 		with Not_found ->
 			prerr_endline ("Could not select abstract " ^ (s_type_path a.a_path));
 		end;
-		self#write_common_module_type (Obj.magic a);
-		Chunk.write_option chunk a.a_impl self#write_class_ref;
+		write_common_module_type writer (Obj.magic a);
+		Chunk.write_option writer.chunk a.a_impl (write_class_ref writer);
 		if Meta.has Meta.CoreType a.a_meta then
-			Chunk.write_u8 chunk 0
+			Chunk.write_u8 writer.chunk 0
 		else begin
-			Chunk.write_u8 chunk 1;
-			self#write_type_instance a.a_this;
+			Chunk.write_u8 writer.chunk 1;
+			write_type_instance writer a.a_this;
 		end;
-		Chunk.write_list chunk a.a_from self#write_type_instance;
-		Chunk.write_list chunk a.a_to self#write_type_instance;
-		Chunk.write_bool chunk a.a_enum
+		Chunk.write_list writer.chunk a.a_from (write_type_instance writer);
+		Chunk.write_list writer.chunk a.a_to (write_type_instance writer);
+		Chunk.write_bool writer.chunk a.a_enum
 
-	method write_abstract_fields (a : tabstract) =
+	let write_abstract_fields writer (a : tabstract) =
 		let c = match a.a_impl with
 			| None ->
 				null_class
@@ -1802,172 +1815,146 @@ class hxb_writer
 				c
 		in
 
-		Chunk.write_list chunk a.a_array (self#write_field_ref c CfrStatic);
-		Chunk.write_option chunk a.a_read (self#write_field_ref c CfrStatic );
-		Chunk.write_option chunk a.a_write (self#write_field_ref c CfrStatic);
-		Chunk.write_option chunk a.a_call (self#write_field_ref c CfrStatic);
+		Chunk.write_list writer.chunk a.a_array (write_field_ref writer c CfrStatic);
+		Chunk.write_option writer.chunk a.a_read (write_field_ref writer c CfrStatic );
+		Chunk.write_option writer.chunk a.a_write (write_field_ref writer c CfrStatic);
+		Chunk.write_option writer.chunk a.a_call (write_field_ref writer c CfrStatic);
 
-		Chunk.write_list chunk a.a_ops (fun (op, cf) ->
-			Chunk.write_u8 chunk (binop_index op);
-			self#write_field_ref c CfrStatic cf
+		Chunk.write_list writer.chunk a.a_ops (fun (op, cf) ->
+			Chunk.write_u8 writer.chunk (binop_index op);
+			write_field_ref writer c CfrStatic cf
 		);
 
-		Chunk.write_list chunk a.a_unops (fun (op, flag, cf) ->
-			Chunk.write_u8 chunk (unop_index op flag);
-			self#write_field_ref c CfrStatic cf
+		Chunk.write_list writer.chunk a.a_unops (fun (op, flag, cf) ->
+			Chunk.write_u8 writer.chunk (unop_index op flag);
+			write_field_ref writer c CfrStatic cf
 		);
 
-		Chunk.write_list chunk a.a_from_field (fun (t,cf) ->
-			self#write_field_ref c CfrStatic cf;
+		Chunk.write_list writer.chunk a.a_from_field (fun (t,cf) ->
+			write_field_ref writer c CfrStatic cf;
 		);
 
-		Chunk.write_list chunk a.a_to_field (fun (t,cf) ->
-			self#write_field_ref c CfrStatic cf;
-		);
+		Chunk.write_list writer.chunk a.a_to_field (fun (t,cf) ->
+			write_field_ref writer c CfrStatic cf;
+		)
 
-	method write_enum (e : tenum) =
-		self#select_type e.e_path;
-		self#write_common_module_type (Obj.magic e);
-		Chunk.write_bool chunk e.e_extern;
-		Chunk.write_list chunk e.e_names (Chunk.write_string chunk);
+	let write_enum writer (e : tenum) =
+		select_type writer e.e_path;
+		write_common_module_type writer (Obj.magic e);
+		Chunk.write_bool writer.chunk e.e_extern;
+		Chunk.write_list writer.chunk e.e_names (Chunk.write_string writer.chunk)
 
-	method write_typedef (td : tdef) =
-		self#select_type td.t_path;
-		self#write_common_module_type (Obj.magic td);
-		self#write_type_instance td.t_type;
-
-	method write_anon (an : tanon) (ttp : type_params) =
-		let write_fields () =
-			Chunk.write_list chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (_,cf) ->
-				self#write_anon_field_ref cf
-			)
-		in
-
-		begin match !(an.a_status) with
-		| Closed ->
-			Chunk.write_u8 chunk 0;
-			write_fields ()
-		| Const ->
-			Chunk.write_u8 chunk 1;
-			write_fields ()
-		| Extend tl ->
-			Chunk.write_u8 chunk 2;
-			self#write_types tl;
-			write_fields ()
-		| ClassStatics _ ->
-			assert false
-		| EnumStatics _ ->
-			assert false
-		| AbstractStatics _ ->
-			assert false
-		end;
+	let write_typedef writer (td : tdef) =
+		select_type writer td.t_path;
+		write_common_module_type writer (Obj.magic td);
+		write_type_instance writer td.t_type
 
 	(* Module *)
 
-	method forward_declare_type (mt : module_type) =
+	let forward_declare_type writer (mt : module_type) =
 		let name = ref "" in
 		let i = match mt with
 		| TClassDecl c ->
-			ignore(classes#add c.cl_path c);
-			ignore(own_classes#add c.cl_path c);
+			ignore(writer.classes#add c.cl_path c);
+			ignore(writer.own_classes#add c.cl_path c);
 			name := snd c.cl_path;
 			0
 		| TEnumDecl e ->
-			ignore(enums#get_or_add e.e_path e);
-			ignore(own_enums#add e.e_path e);
+			ignore(writer.enums#get_or_add e.e_path e);
+			ignore(writer.own_enums#add e.e_path e);
 			name := snd e.e_path;
 			1
 		| TTypeDecl t ->
-			ignore(typedefs#get_or_add t.t_path t);
-			ignore(own_typedefs#add t.t_path t);
+			ignore(writer.typedefs#get_or_add t.t_path t);
+			ignore(writer.own_typedefs#add t.t_path t);
 			name := snd t.t_path;
 			2
 		| TAbstractDecl a ->
-			ignore(abstracts#add a.a_path a);
-			ignore(own_abstracts#add a.a_path a);
+			ignore(writer.abstracts#add a.a_path a);
+			ignore(writer.own_abstracts#add a.a_path a);
 			name := snd a.a_path;
 			3
 		in
 
 		let infos = t_infos mt in
-		Chunk.write_u8 chunk i;
-		self#write_path (fst infos.mt_path, !name);
-		self#write_pos infos.mt_pos;
-		self#write_pos infos.mt_name_pos;
-		self#write_type_parameters_forward infos.mt_params;
+		Chunk.write_u8 writer.chunk i;
+		write_path writer (fst infos.mt_path, !name);
+		write_pos writer infos.mt_pos;
+		write_pos writer infos.mt_name_pos;
+		write_type_parameters_forward writer infos.mt_params;
 		let params = new pool in
-		type_type_parameters <- params;
-		ignore(type_param_lut#add infos.mt_path params);
+		writer.type_type_parameters <- params;
+		ignore(writer.type_param_lut#add infos.mt_path params);
 		List.iter (fun ttp ->
-			ignore(type_type_parameters#add ttp.ttp_name ttp)
+			ignore(writer.type_type_parameters#add ttp.ttp_name ttp)
 		) infos.mt_params;
 
 		(* Forward declare fields *)
 		match mt with
 		| TClassDecl c ->
-			Chunk.write_uleb128 chunk c.cl_flags;
-			Chunk.write_option chunk c.cl_constructor self#write_class_field_forward;
-			Chunk.write_list chunk c.cl_ordered_fields self#write_class_field_forward;
-			Chunk.write_list chunk c.cl_ordered_statics self#write_class_field_forward;
+			Chunk.write_uleb128 writer.chunk c.cl_flags;
+			Chunk.write_option writer.chunk c.cl_constructor (write_class_field_forward writer);
+			Chunk.write_list writer.chunk c.cl_ordered_fields (write_class_field_forward writer);
+			Chunk.write_list writer.chunk c.cl_ordered_statics (write_class_field_forward writer);
 		| TEnumDecl e ->
-			Chunk.write_list chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
-				Chunk.write_string chunk s;
-				self#write_pos ef.ef_pos;
-				self#write_pos ef.ef_name_pos;
-				Chunk.write_u8 chunk ef.ef_index
+			Chunk.write_list writer.chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
+				Chunk.write_string writer.chunk s;
+				write_pos writer ef.ef_pos;
+				write_pos writer ef.ef_name_pos;
+				Chunk.write_u8 writer.chunk ef.ef_index
 			);
 		| TAbstractDecl a ->
 			()
 		| TTypeDecl t ->
 			()
 
-	method write_module (m : module_def) =
-		current_module <- m;
+	let write_module writer (m : module_def) =
+		writer.current_module <- m;
 
-		self#start_chunk MTF;
-		Chunk.write_list chunk m.m_types self#forward_declare_type;
+		start_chunk writer MTF;
+		Chunk.write_list writer.chunk m.m_types (forward_declare_type writer);
 
-		begin match own_abstracts#to_list with
+		begin match writer.own_abstracts#to_list with
 		| [] ->
 			()
 		| own_abstracts ->
-			self#start_chunk ABD;
-			Chunk.write_list chunk own_abstracts self#write_abstract;
-			self#start_chunk AFD;
-			Chunk.write_list chunk own_abstracts self#write_abstract_fields;
+			start_chunk writer ABD;
+			Chunk.write_list writer.chunk own_abstracts (write_abstract writer);
+			start_chunk writer AFD;
+			Chunk.write_list writer.chunk own_abstracts (write_abstract_fields writer);
 		end;
-		begin match own_classes#to_list with
+		begin match writer.own_classes#to_list with
 		| [] ->
 			()
 		| own_classes ->
-			self#start_chunk CLD;
-			Chunk.write_list chunk own_classes self#write_class;
-			self#start_chunk CFD;
+			start_chunk writer CLD;
+			Chunk.write_list writer.chunk own_classes (write_class writer);
+			start_chunk writer CFD;
 			let expr_chunks = ref [] in
-			Chunk.write_list chunk own_classes (fun c ->
+			Chunk.write_list writer.chunk own_classes (fun c ->
 				begin match c.cl_kind with
 				| KAbstractImpl a ->
-					self#select_type a.a_path
+					select_type writer a.a_path
 				| _ ->
-					self#select_type c.cl_path;
+					select_type writer c.cl_path;
 				end;
 
 				let c_expr_chunks = ref [] in
 				let write_field ref_kind cf =
-					let l = self#write_class_field_and_overloads_data false cf in
+					let l = write_class_field_and_overloads_data writer false cf in
 					List.iter (fun (cf,e) ->
 						c_expr_chunks := (cf,ref_kind,e) :: !c_expr_chunks
 					) l
 				in
 
-				Chunk.write_option chunk c.cl_constructor (write_field CfrConstructor);
-				Chunk.write_list chunk c.cl_ordered_fields (write_field CfrMember);
-				Chunk.write_list chunk c.cl_ordered_statics (write_field CfrStatic);
-				Chunk.write_option chunk c.cl_init (fun e ->
-					let fctx,close = self#start_texpr e.epos in
-					self#write_texpr fctx e;
+				Chunk.write_option writer.chunk c.cl_constructor (write_field CfrConstructor);
+				Chunk.write_list writer.chunk c.cl_ordered_fields (write_field CfrMember);
+				Chunk.write_list writer.chunk c.cl_ordered_statics (write_field CfrStatic);
+				Chunk.write_option writer.chunk c.cl_init (fun e ->
+					let fctx,close = start_texpr writer e.epos in
+					write_texpr writer fctx e;
 					let new_chunk = close() in
-					Chunk.export_data new_chunk chunk
+					Chunk.export_data new_chunk writer.chunk
 				);
 				match !c_expr_chunks with
 				| [] ->
@@ -1979,165 +1966,196 @@ class hxb_writer
 			| [] ->
 				()
 			| expr_chunks ->
-				self#start_chunk EXD;
-				Chunk.write_list chunk expr_chunks (fun (c,l) ->
-					self#write_class_ref c;
-					Chunk.write_list chunk l (fun (cf,ref_kind,e) ->
-						self#write_field_ref c ref_kind cf;
-						Chunk.export_data e chunk
+				start_chunk writer EXD;
+				Chunk.write_list writer.chunk expr_chunks (fun (c,l) ->
+					write_class_ref writer c;
+					Chunk.write_list writer.chunk l (fun (cf,ref_kind,e) ->
+						write_field_ref writer c ref_kind cf;
+						Chunk.export_data e writer.chunk
 					)
 				)
 		end;
-		begin match own_enums#to_list with
+		begin match writer.own_enums#to_list with
 		| [] ->
 			()
 		| own_enums ->
-			self#start_chunk END;
-			Chunk.write_list chunk own_enums self#write_enum;
-			self#start_chunk EFD;
-			Chunk.write_list chunk own_enums (fun e ->
-				Chunk.write_list chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
-					self#select_type e.e_path;
-					let close = self#open_field_scope ef.ef_params in
-					Chunk.write_string chunk s;
-					let restore = self#start_temporary_chunk 32 in
-					self#write_type_instance ef.ef_type;
+			start_chunk writer END;
+			Chunk.write_list writer.chunk own_enums (write_enum writer);
+			start_chunk writer EFD;
+			Chunk.write_list writer.chunk own_enums (fun e ->
+				Chunk.write_list writer.chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
+					select_type writer e.e_path;
+					let close = open_field_scope writer ef.ef_params in
+					Chunk.write_string writer.chunk s;
+					let restore = start_temporary_chunk writer 32 in
+					write_type_instance writer ef.ef_type;
 					let t_bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
-					self#commit_field_type_parameters ef.ef_params;
-					Chunk.write_bytes chunk t_bytes;
-					Chunk.write_option chunk ef.ef_doc self#write_documentation;
-					self#write_metadata ef.ef_meta;
+					commit_field_type_parameters writer ef.ef_params;
+					Chunk.write_bytes writer.chunk t_bytes;
+					Chunk.write_option writer.chunk ef.ef_doc (write_documentation writer);
+					write_metadata writer ef.ef_meta;
 					close();
 				);
 			)
 		end;
-		begin match own_typedefs#to_list with
+		begin match writer.own_typedefs#to_list with
 		| [] ->
 			()
 		| own_typedefs ->
-			self#start_chunk TDD;
-			Chunk.write_list chunk own_typedefs self#write_typedef;
+			start_chunk writer TDD;
+			Chunk.write_list writer.chunk own_typedefs (write_typedef writer);
 		end;
 
-		begin match classes#to_list with
+		begin match writer.classes#to_list with
 		| [] ->
 			()
 		| l ->
-			self#start_chunk CLR;
-			Chunk.write_list chunk l (fun c ->
+			start_chunk writer CLR;
+			Chunk.write_list writer.chunk l (fun c ->
 				let m = c.cl_module in
-				self#write_full_path (fst m.m_path) (snd m.m_path) (snd c.cl_path);
+				write_full_path writer (fst m.m_path) (snd m.m_path) (snd c.cl_path);
 			)
 		end;
-		begin match abstracts#to_list with
+		begin match writer.abstracts#to_list with
 		| [] ->
 			()
 		| l ->
-			self#start_chunk ABR;
-			Chunk.write_list chunk l (fun a ->
+			start_chunk writer ABR;
+			Chunk.write_list writer.chunk l (fun a ->
 				let m = a.a_module in
-				self#write_full_path (fst m.m_path) (snd m.m_path) (snd a.a_path);
+				write_full_path writer (fst m.m_path) (snd m.m_path) (snd a.a_path);
 			)
 		end;
-		begin match enums#to_list with
+		begin match writer.enums#to_list with
 		| [] ->
 			()
 		| l ->
-			self#start_chunk ENR;
-			Chunk.write_list chunk l (fun en ->
+			start_chunk writer ENR;
+			Chunk.write_list writer.chunk l (fun en ->
 				let m = en.e_module in
-				self#write_full_path (fst m.m_path) (snd m.m_path) (snd en.e_path);
+				write_full_path writer (fst m.m_path) (snd m.m_path) (snd en.e_path);
 			)
 		end;
-		begin match typedefs#to_list with
+		begin match writer.typedefs#to_list with
 		| [] ->
 			()
 		| l ->
-			self#start_chunk TDR;
-			Chunk.write_list chunk l (fun td ->
+			start_chunk writer TDR;
+			Chunk.write_list writer.chunk l (fun td ->
 				let m = td.t_module in
-				self#write_full_path (fst m.m_path) (snd m.m_path) (snd td.t_path);
+				write_full_path writer (fst m.m_path) (snd m.m_path) (snd td.t_path);
 			)
 		end;
 
-		let items = class_fields#items in
+		let items = writer.class_fields#items in
 		if DynArray.length items > 0 then begin
-			self#start_chunk CFR;
-			Chunk.write_uleb128 chunk (DynArray.length items);
+			start_chunk writer CFR;
+			Chunk.write_uleb128 writer.chunk (DynArray.length items);
 			DynArray.iter (fun (cf,(c,kind,depth)) ->
-				self#write_class_ref c;
+				write_class_ref writer c;
 				begin match kind with
 				| CfrStatic ->
-					Chunk.write_u8 chunk 0;
-					Chunk.write_string chunk cf.cf_name
+					Chunk.write_u8 writer.chunk 0;
+					Chunk.write_string writer.chunk cf.cf_name
 				| CfrMember ->
-					Chunk.write_u8 chunk 1;
-					Chunk.write_string chunk cf.cf_name
+					Chunk.write_u8 writer.chunk 1;
+					Chunk.write_string writer.chunk cf.cf_name
 				| CfrConstructor ->
-					Chunk.write_u8 chunk 2;
+					Chunk.write_u8 writer.chunk 2;
 				end;
-				Chunk.write_uleb128 chunk depth
+				Chunk.write_uleb128 writer.chunk depth
 			) items;
 		end;
 
-		let items = enum_fields#items in
+		let items = writer.enum_fields#items in
 		if DynArray.length items > 0 then begin
-			self#start_chunk EFR;
-			Chunk.write_uleb128 chunk (DynArray.length items);
+			start_chunk writer EFR;
+			Chunk.write_uleb128 writer.chunk (DynArray.length items);
 			DynArray.iter (fun (en,ef) ->
-				self#write_enum_ref en;
-				Chunk.write_string chunk ef.ef_name;
+				write_enum_ref writer en;
+				Chunk.write_string writer.chunk ef.ef_name;
 			) items;
 		end;
 
-		let items = anon_fields#items in
+		let items = writer.anon_fields#items in
 		if DynArray.length items > 0 then begin
-			self#start_chunk AFR;
-			Chunk.write_uleb128 chunk (DynArray.length items);
+			start_chunk writer AFR;
+			Chunk.write_uleb128 writer.chunk (DynArray.length items);
 			DynArray.iter (fun (cf,_) ->
-				self#write_class_field_forward cf
+				write_class_field_forward writer cf
 			) items;
 		end;
 
-		self#start_chunk MDF;
-		self#write_path m.m_path;
-		Chunk.write_string chunk (Path.UniqueKey.lazy_path m.m_extra.m_file);
-		Chunk.write_uleb128 chunk (DynArray.length anons#items);
-		Chunk.write_uleb128 chunk (DynArray.length tmonos#items);
-		self#start_chunk EOT;
-		self#start_chunk EOF;
-		self#start_chunk EOM;
+		start_chunk writer MDF;
+		write_path writer m.m_path;
+		Chunk.write_string writer.chunk (Path.UniqueKey.lazy_path m.m_extra.m_file);
+		Chunk.write_uleb128 writer.chunk (DynArray.length writer.anons#items);
+		Chunk.write_uleb128 writer.chunk (DynArray.length writer.tmonos#items);
+		start_chunk writer EOT;
+		start_chunk writer EOF;
+		start_chunk writer EOM;
 
 		let finalize_string_pool kind (pool : (string,string) pool) =
-			self#start_chunk kind;
-			Chunk.write_uleb128 chunk (DynArray.length pool#items);
+			start_chunk writer kind;
+			Chunk.write_uleb128 writer.chunk (DynArray.length pool#items);
 			DynArray.iter (fun s ->
 				let b = Bytes.unsafe_of_string s in
-				Chunk.write_bytes_length_prefixed chunk b;
+				Chunk.write_bytes_length_prefixed writer.chunk b;
 			) pool#items
 		in
-		finalize_string_pool STR cp;
-		if not docs#is_empty then
-			finalize_string_pool DOC docs
+		finalize_string_pool STR writer.cp;
+		if not writer.docs#is_empty then
+			finalize_string_pool DOC writer.docs
 
-	(* Export *)
-
-	method get_sorted_chunks =
-		let l = DynArray.to_list chunks in
+	let get_sorted_chunks writer =
+		let l = DynArray.to_list writer.chunks in
 		let l = List.sort (fun chunk1 chunk2 ->
 			(Obj.magic chunk1.Chunk.kind - (Obj.magic chunk2.kind))
 		) l in
 		l
-
-	method get_chunks =
-		List.map (fun chunk ->
-			(chunk.Chunk.kind,Chunk.get_bytes chunk)
-		) (self#get_sorted_chunks)
-
-	method export : 'a . 'a IO.output -> unit = fun ch ->
-		write_header ch;
-		let l = self#get_sorted_chunks in
-		List.iter (fun io ->
-			Chunk.export stats io ch
-		) l
 end
+
+let create warn anon_id stats = {
+	warn;
+	anon_id;
+	stats;
+	current_module = null_module;
+	chunks = DynArray.create ();
+	cp = new pool;
+	docs = new pool;
+	chunk = Obj.magic ();
+	classes = new pool;
+	enums = new pool;
+	typedefs = new pool;
+	abstracts = new pool;
+	anons = new pool;
+	anon_fields = new identity_pool;
+	tmonos = new identity_pool;
+	own_classes = new pool;
+	own_abstracts = new pool;
+	own_enums = new pool;
+	own_typedefs = new pool;
+	type_param_lut = new pool;
+	class_fields = new hashed_identity_pool;
+	enum_fields = new pool;
+	type_type_parameters = new pool;
+	field_type_parameters = new identity_pool;
+	local_type_parameters = new identity_pool;
+	field_stack = [];
+	unbound_ttp = new identity_pool;
+}
+
+let write_module writer m =
+	HxbWriter.write_module writer m
+
+let get_chunks writer =
+	List.map (fun chunk ->
+		(chunk.Chunk.kind,Chunk.get_bytes chunk)
+	) (HxbWriter.get_sorted_chunks writer)
+
+let export : 'a . hxb_writer -> 'a IO.output -> unit = fun writer ch ->
+	write_header ch;
+	let l = HxbWriter.get_sorted_chunks writer in
+	List.iter (fun io ->
+		Chunk.export writer.stats io ch
+	) l

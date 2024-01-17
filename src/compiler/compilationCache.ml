@@ -69,14 +69,14 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method find_module_extra path =
 		try (Hashtbl.find modules path).m_extra with Not_found -> (Hashtbl.find binary_cache path).mc_extra
 
-	method cache_module display_source_at warn anon_identification hxb_writer_stats path m =
+	method cache_module warn anon_identification hxb_writer_stats path m =
 		match m.m_extra.m_kind with
 		| MImport ->
 			Hashtbl.add modules m.m_path m
 		| _ ->
-			let writer = new HxbWriter.hxb_writer display_source_at warn anon_identification hxb_writer_stats in
-			writer#write_module m;
-			let chunks = writer#get_chunks in
+			let writer = HxbWriter.create warn anon_identification hxb_writer_stats in
+			HxbWriter.write_module writer m;
+			let chunks = HxbWriter.get_chunks writer in
 			Hashtbl.replace binary_cache path {
 				mc_path = path;
 				mc_id = m.m_id;
