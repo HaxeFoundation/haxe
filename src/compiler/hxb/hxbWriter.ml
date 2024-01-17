@@ -4,14 +4,6 @@ open Type
 open HxbData
 open Tanon_identification
 
-(* Debug utils *)
-let no_color = false
-let c_reset = if no_color then "" else "\x1b[0m"
-let c_bold = if no_color then "" else "\x1b[1m"
-let c_dim = if no_color then "" else "\x1b[2m"
-let todo = "\x1b[33m[TODO]" ^ c_reset
-let todo_error = "\x1b[31m[TODO] error:" ^ c_reset
-
 let rec binop_index op = match op with
 	| OpAdd -> 0
 	| OpMult -> 1
@@ -52,24 +44,6 @@ let unop_index op flag = match op,flag with
 	| Neg,Postfix -> 9
 	| NegBits,Postfix -> 10
 	| Spread,Postfix -> 11
-
-let debug_msg msg =
-	prerr_endline msg
-
-let print_stacktrace () =
-	let stack = Printexc.get_callstack 10 in
-	let lines = Printf.sprintf "%s\n" (Printexc.raw_backtrace_to_string stack) in
-	match (ExtString.String.split_on_char '\n' lines) with
-		| (_ :: (_ :: lines)) -> debug_msg (Printf.sprintf "%s" (ExtString.String.join "\n" lines))
-		| _ -> die "" __LOC__
-
-let print_types source tl =
-	debug_msg (Printf.sprintf "Types from %s:" source);
-	List.iter (fun t -> debug_msg (Printf.sprintf "  %s" (s_type_kind t))) tl
-
-let print_params source ttp =
-	debug_msg (Printf.sprintf "Params from %s:" source);
-	List.iter (fun t -> debug_msg (Printf.sprintf "  %s" t.ttp_name)) ttp
 
 type hxb_writer_stats = {
 	type_instance_kind_writes : int array;

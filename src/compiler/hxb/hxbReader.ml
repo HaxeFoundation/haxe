@@ -4,24 +4,6 @@ open Type
 open HxbData
 open HxbReaderApi
 
-(* Debug utils *)
-let no_color = false
-let c_reset = if no_color then "" else "\x1b[0m"
-let c_bold = if no_color then "" else "\x1b[1m"
-let c_dim = if no_color then "" else "\x1b[2m"
-let todo = "\x1b[33m[TODO]" ^ c_reset
-let todo_error = "\x1b[31m[TODO] error:" ^ c_reset
-
-let debug_msg msg =
-	print_endline msg
-
-let print_stacktrace () =
-	let stack = Printexc.get_callstack 10 in
-	let lines = Printf.sprintf "%s\n" (Printexc.raw_backtrace_to_string stack) in
-	match (ExtString.String.split_on_char '\n' lines) with
-		| (_ :: (_ :: lines)) -> print_endline (Printf.sprintf "%s" (ExtString.String.join "\n" lines))
-		| _ -> die "" __LOC__
-
 type field_reader_context = {
 	t_pool : Type.t Array.t;
 	pos : pos ref;
@@ -79,9 +61,6 @@ class hxb_reader
 = object(self)
 	val mutable api = Obj.magic ""
 	val mutable current_module = null_module
-	val mutable current_type = None
-	val mutable current_field = null_field
-	val mutable last_texpr = None
 
 	val mutable ch = IO.input_bytes Bytes.empty
 	val mutable string_pool = Array.make 0 ""
@@ -110,13 +89,6 @@ class hxb_reader
 		with Not_found ->
 			dump_backtrace();
 			error (Printf.sprintf "[HXB] [%s] Cannot resolve type %s" (s_type_path current_module.m_path) (s_type_path ((pack @ [mname]),tname)))
-		| Error.Error err ->
-			error (Printf.sprintf "[HXB] [%s] Error while resolving type %s: %s" (s_type_path current_module.m_path) (s_type_path ((pack @ [mname]),tname)) (Error.error_msg err.err_message))
-
-	method print_reader_state =
-		print_endline (Printf.sprintf "  Current field: %s" current_field.cf_name);
-		Option.may (fun tinfos -> print_endline (Printf.sprintf "  Current type: %s" (s_type_path tinfos.mt_path))) current_type;
-		Option.may (fun e -> print_endline (Printf.sprintf "  Last texpr: %s" (TPrinting.s_expr_debug e))) last_texpr
 
 	(* Primitives *)
 
@@ -1178,8 +1150,8 @@ class hxb_reader
 					| 125 ->
 						let e1 = loop () in
 						let (pack,mname,tname) = self#read_full_path in
-						let md = self#resolve_type pack mname tname in
-						TCast(e1,Some md)
+						let mt = self#resolve_type pack mname tname in
+						TCast(e1,Some mt)
 					| 126 ->
 						let c = self#read_class_ref in
 						let tl = self#read_types in
@@ -1223,9 +1195,7 @@ class hxb_reader
 		and loop_el () =
 			self#read_list loop
 		in
-		let e = loop() in
-		last_texpr <- Some e;
-		e
+		loop()
 
 	method read_class_field_forward =
 		let name = self#read_string in
@@ -1282,8 +1252,6 @@ class hxb_reader
 	val mutable awful = []
 
 	method read_class_field_data (cf : tclass_field) : unit =
-		current_field <- cf;
-
 		let params = self#read_field_type_parameters in
 		awful <- (cf,field_type_parameters) :: awful;
 
@@ -1364,7 +1332,6 @@ class hxb_reader
 	(* Module types *)
 
 	method read_common_module_type (infos : tinfos) =
-		current_type <- Some infos;
 		infos.mt_private <- self#read_bool;
 		infos.mt_doc <- self#read_option (fun () -> self#read_documentation);
 		infos.mt_meta <- self#read_metadata;
