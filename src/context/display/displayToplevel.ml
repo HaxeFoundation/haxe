@@ -74,7 +74,6 @@ class explore_class_path_task com checked recursive f_pack f_module dir pack = o
 						begin try
 							begin match PMap.find file com.package_rules with
 								| Forbidden | Remap _ -> ()
-								| _ -> raise Not_found
 							end
 						with Not_found ->
 							f_pack (List.rev pack,file);
@@ -112,8 +111,12 @@ let explore_class_paths com timer class_paths recursive f_pack f_module =
 	let cs = com.cs in
 	let t = Timer.timer (timer @ ["class path exploration"]) in
 	let checked = Hashtbl.create 0 in
-	let tasks = List.map (fun dir ->
-		new explore_class_path_task com checked recursive f_pack f_module dir []
+	let tasks = ExtList.List.filter_map (fun path ->
+		match path#get_directory_path with
+			| Some path ->
+				Some (new explore_class_path_task com checked recursive f_pack f_module path [])
+			| None ->
+				None
 	) class_paths in
 	let task = new arbitrary_task ["explore"] 50 (fun () ->
 		List.iter (fun task -> task#run) tasks
@@ -122,10 +125,10 @@ let explore_class_paths com timer class_paths recursive f_pack f_module =
 	t()
 
 let read_class_paths com timer =
-	explore_class_paths com timer (List.filter ((<>) "") com.class_path) true (fun _ -> ()) (fun file path ->
+	explore_class_paths com timer (com.class_paths#filter (fun cp -> cp#path <> "")) true (fun _ -> ()) (fun file path ->
 		(* Don't parse the display file as that would maybe overwrite the content from stdin with the file contents. *)
 		if not (DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then begin
-			let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in
+			let rfile,_,pack,_ = Display.parse_module' com path Globals.null_pos in
 			if pack <> fst path then begin
 				let file_key = com.file_keys#get file in
 				(CommonCache.get_cache com)#remove_file_for_real file_key
@@ -476,7 +479,7 @@ let collect ctx tk with_type sort =
 		| s :: sl -> add_package (List.rev sl,s)
 	in
 	List.iter (fun ((file_key,cfile),_) ->
-		let module_name = CompilationCache.get_module_name_of_cfile cfile.c_file_path cfile in
+		let module_name = CompilationCache.get_module_name_of_cfile cfile.c_file_path.file cfile in
 		let dot_path = s_type_path (cfile.c_package,module_name) in
 		(* In legacy mode we only show toplevel types. *)
 		if is_legacy_completion && cfile.c_package <> [] then begin

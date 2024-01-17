@@ -50,16 +50,11 @@ let get_construction_mode c cf =
 	if Meta.has Meta.HxGen cf.cf_meta then ConstructInitPlusNew
 	else ConstructInit
 
-class virtual jvm_output = object(self)
-	method virtual add_entry : string -> string -> unit
-	method virtual close : unit
-end
-
 (* Haxe *)
 
 type generation_context = {
 	com : Common.context;
-	out : jvm_output;
+	out : Zip_output.any_output;
 	t_runtime_exception : Type.t;
 	entry_point : (tclass * texpr) option;
 	t_exception : Type.t;
@@ -109,24 +104,10 @@ let run_timed gctx detail name f =
 		sub#run_finally f (fun () -> gctx.timer <- old)
 	end
 
-class jar_output
-	(jar_path : string)
-	(compression_level : int)
-= object(self)
-	inherit jvm_output
-	val jar = Zip.open_out jar_path
-
-	method add_entry (content : string) (name : string) =
-		Zip.add_entry ~level:compression_level content jar name
-
-	method close =
-		Zip.close_out jar
-end
-
 class file_output
 	(base_path : string)
 	= object(self)
-	inherit jvm_output
+	inherit Zip_output.any_output
 
 	method add_entry (content : string) (name : string) =
 		let path = base_path ^ name in
@@ -3031,7 +3012,7 @@ let generate jvm_flag com =
 	in
 	if compression_level < 0 || compression_level > 9 then failwith "Invalid value for -D jvm.compression-level: Must be >=0 and <= 9";
 	let create_jar path =
-		new jar_output path compression_level
+		new Zip_output.zip_output path compression_level
 	in
 	let out_dir,out = if jvm_flag then begin
 		match path.file_name with
@@ -3055,7 +3036,7 @@ let generate jvm_flag com =
 		let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
 		jar_dir,create_jar jar_path
 	end in
-	let anon_identification = new tanon_identification haxe_dynamic_object_path in
+	let anon_identification = new tanon_identification in
 	let dynamic_level = try
 		int_of_string (Define.defined_value com.defines Define.JvmDynamicLevel)
 	with _ ->

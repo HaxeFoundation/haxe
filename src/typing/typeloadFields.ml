@@ -560,7 +560,6 @@ let create_class_context c p =
 	cctx
 
 let create_typer_context_for_class ctx cctx p =
-	locate_macro_error := true;
 	incr stats.s_classes_built;
 	let c = cctx.tclass in
 	if cctx.is_lib && not (has_class_flag c CExtern) then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
@@ -858,7 +857,7 @@ module TypeBinding = struct
 		in
 		let r = make_lazy ~force:false ctx t (fun r ->
 			(* type constant init fields (issue #1956) *)
-			if not !return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
+			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				enter_field_typing_pass ctx ("bind_var_expression",fst ctx.curclass.cl_path @ [snd ctx.curclass.cl_path;ctx.curfield.cf_name]);
 				if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing field %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
@@ -987,7 +986,7 @@ module TypeBinding = struct
 			end;
 		in
 		let maybe_bind r =
-			if not !return_partial_type then bind r;
+			if not ctx.g.return_partial_type then bind r;
 			t
 		in
 		let r = make_lazy ~force:false ctx t maybe_bind "type_fun" in
@@ -1782,7 +1781,6 @@ let init_class ctx c p herits fields =
 		| _ :: l ->
 			check_require l
 	in
-	let cl_if_feature = Feature.check_if_feature c.cl_meta in
 	let cl_req = check_require c.cl_meta in
 	let has_init = ref false in
 	List.iter (fun f ->
@@ -1802,16 +1800,6 @@ let init_class ctx c p herits fields =
 			if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
 			if fctx.is_static && (has_class_flag c CInterface) && fctx.field_kind <> FKInit && not cctx.is_lib && not ((has_class_flag c CExtern)) then
 				raise_typing_error "You can only declare static fields in extern interfaces" p;
-			let set_feature s =
-				let ref_kind = match fctx.field_kind with
-					| FKConstructor -> CfrConstructor
-					| _ -> if fctx.is_static then CfrStatic else CfrMember
-				in
-				let cf_ref = mk_class_field_ref c cf ref_kind fctx.is_macro in
-				Feature.set_feature ctx.m.curmod cf_ref s;
-			in
-			List.iter set_feature cl_if_feature;
-			List.iter set_feature (Feature.check_if_feature cf.cf_meta);
 			let req = check_require f.cff_meta in
 			let req = (match req with None -> if fctx.is_static || fctx.field_kind = FKConstructor then cl_req else None | _ -> req) in
 			(match req with
@@ -1878,6 +1866,12 @@ let init_class ctx c p herits fields =
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
+	delay ctx PConnectField (fun () -> match follow c.cl_type with
+		| TAnon an ->
+			an.a_fields <- c.cl_statics
+		| _ ->
+			die "" __LOC__
+	);
 	(*
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)

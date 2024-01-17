@@ -193,7 +193,7 @@ let rec type_eq gen param a b =
 			PMap.iter (fun n f1 ->
 				try
 					let f2 = PMap.find n a2.a_fields in
-					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then Type.error [invalid_kind n f1.cf_kind f2.cf_kind];
+					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind ~strict:false f1.cf_kind f2.cf_kind)) then Type.error [invalid_kind n f1.cf_kind f2.cf_kind];
 					try
 						type_eq gen param f1.cf_type f2.cf_type
 					with

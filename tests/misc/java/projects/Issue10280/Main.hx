@@ -29,11 +29,10 @@ class OldClass {
 					public function new() {}
 				}
 			);
-
-			Compiler.exclude('OldClass');
-
 			defined = true;
 		});
+
+		Context.onGenerate(_ -> Compiler.exclude('OldClass'));
 
 		return null;
 	}
