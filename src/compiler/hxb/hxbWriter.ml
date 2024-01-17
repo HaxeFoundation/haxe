@@ -413,7 +413,7 @@ class pos_writer
 	val mutable p_max = p_initial.pmax
 
 	method private do_write_pos (chunk : Chunk.t) (p : pos) =
-		incr stats.pos_writes_full;
+		(* incr stats.pos_writes_full; *)
 		Chunk.write_string chunk p.pfile;
 		IOChunk.write_leb128 chunk.io p.pmin;
 		IOChunk.write_leb128 chunk.io p.pmax;
@@ -429,7 +429,7 @@ class pos_writer
 		end else if p.pmin <> p_min then begin
 			if p.pmax <> p_max then begin
 				(* pmin and pmax changed *)
-				incr stats.pos_writes_minmax;
+				(* incr stats.pos_writes_minmax; *)
 				IOChunk.write_u8 chunk.io (3 + offset);
 				IOChunk.write_leb128 chunk.io p.pmin;
 				IOChunk.write_leb128 chunk.io p.pmax;
@@ -437,19 +437,19 @@ class pos_writer
 				p_max <- p.pmax;
 			end else begin
 				(* pmin changed *)
-				incr stats.pos_writes_min;
+				(* incr stats.pos_writes_min; *)
 				IOChunk.write_u8 chunk.io (1 + offset);
 				IOChunk.write_leb128 chunk.io p.pmin;
 				p_min <- p.pmin;
 			end
 		end else if p.pmax <> p_max then begin
 			(* pmax changed *)
-			incr stats.pos_writes_max;
+			(* incr stats.pos_writes_max; *)
 			IOChunk.write_u8 chunk.io (2 + offset);
 			IOChunk.write_leb128 chunk.io p.pmax;
 			p_max <- p.pmax;
 		end else begin
-			incr stats.pos_writes_eq;
+			(* incr stats.pos_writes_eq; *)
 			if write_equal then
 				IOChunk.write_u8 chunk.io offset;
 		end
@@ -1038,7 +1038,7 @@ class hxb_writer
 		end
 
 	method write_type_instance_byte i =
-		stats.type_instance_kind_writes.(i) <- stats.type_instance_kind_writes.(i) + 1;
+		(* stats.type_instance_kind_writes.(i) <- stats.type_instance_kind_writes.(i) + 1; *)
 		IOChunk.write_u8 chunk.io i
 
 	(*
@@ -1293,7 +1293,7 @@ class hxb_writer
 		let index = match r with
 		| None ->
 			let t_bytes = restore (fun new_chunk -> IOChunk.get_bytes new_chunk.io) in
-			incr stats.type_instance_immediate;
+			(* incr stats.type_instance_immediate; *)
 			fctx.t_pool#get_or_add t_bytes t_bytes
 		| Some t ->
 			ignore(restore (fun new_chunk -> IOChunk.get_bytes new_chunk.io));
@@ -1304,10 +1304,10 @@ class hxb_writer
 			) in
 			let index = try
 				let index = fctx.t_pool#get t_bytes in
-				incr stats.type_instance_cache_hits;
+				(* incr stats.type_instance_cache_hits; *)
 				index
 			with Not_found ->
-				incr stats.type_instance_cache_misses;
+				(* incr stats.type_instance_cache_misses; *)
 				fctx.t_pool#add t_bytes t_bytes
 			in
 			index
@@ -1315,7 +1315,7 @@ class hxb_writer
 		IOChunk.write_uleb128 chunk.io index
 
 	method write_texpr_byte (i : int) =
-		stats.texpr_writes.(i) <- stats.texpr_writes.(i) + 1;
+		(* stats.texpr_writes.(i) <- stats.texpr_writes.(i) + 1; *)
 		IOChunk.write_u8 chunk.io i
 
 	method write_texpr (fctx : field_writer_context) (e : texpr) =
