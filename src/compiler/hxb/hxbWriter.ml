@@ -1110,25 +1110,25 @@ class hxb_writer
 	method write_type_instance_simple (t : Type.t) =
 		match t with
 		| TAbstract ({a_path = ([],"Void")},[]) ->
-			self#write_type_instance_byte 100;
+			IOChunk.write_u8 chunk.io 100;
 			None
 		| TAbstract ({a_path = ([],"Int")},[]) ->
-			self#write_type_instance_byte 101;
+			IOChunk.write_u8 chunk.io 101;
 			None
 		| TAbstract ({a_path = ([],"Float")},[]) ->
-			self#write_type_instance_byte 102;
+			IOChunk.write_u8 chunk.io 102;
 			None
 		| TAbstract ({a_path = ([],"Bool")},[]) ->
-			self#write_type_instance_byte 103;
+			IOChunk.write_u8 chunk.io 103;
 			None
 		| TInst ({cl_path = ([],"String")},[]) ->
-			self#write_type_instance_byte 104;
+			IOChunk.write_u8 chunk.io 104;
 			None
 		| TMono r ->
 			Monomorph.close r;
 			begin match r.tm_type with
 			| None ->
-				self#write_type_instance_byte 0;
+				IOChunk.write_u8 chunk.io 0;
 				self#write_tmono_ref r;
 				None
 			| Some t ->
@@ -1143,29 +1143,29 @@ class hxb_writer
 		| TInst({cl_kind = KExpr _},_) ->
 			Some t
 		| TInst(c,[]) ->
-			self#write_type_instance_byte 40;
+			IOChunk.write_u8 chunk.io 40;
 			self#write_class_ref c;
 			None
 		| TEnum(en,[]) ->
-			self#write_type_instance_byte 50;
+			IOChunk.write_u8 chunk.io 50;
 			self#write_enum_ref en;
 			None
 		| TType(td,[]) ->
 			let default () =
-				self#write_type_instance_byte 60;
+				IOChunk.write_u8 chunk.io 60;
 				self#write_typedef_ref td;
 			in
 			begin match td.t_type with
 			| TAnon an ->
 				begin match !(an.a_status) with
 					| ClassStatics c ->
-						self#write_type_instance_byte 10;
+						IOChunk.write_u8 chunk.io 10;
 						self#write_class_ref c
 					| EnumStatics en ->
-						self#write_type_instance_byte 11;
+						IOChunk.write_u8 chunk.io 11;
 						self#write_enum_ref en;
 					| AbstractStatics a ->
-						self#write_type_instance_byte 12;
+						IOChunk.write_u8 chunk.io 12;
 						self#write_abstract_ref a
 					| _ ->
 						default()
@@ -1175,14 +1175,14 @@ class hxb_writer
 			end;
 			None
 		| TAbstract(a,[]) ->
-			self#write_type_instance_byte 70;
+			IOChunk.write_u8 chunk.io 70;
 			self#write_abstract_ref a;
 			None
 		| TDynamic None ->
-			self#write_type_instance_byte 4;
+			IOChunk.write_u8 chunk.io 4;
 			None
 		| TFun([],t) when ExtType.is_void (follow_lazy_and_mono t) ->
-			self#write_type_instance_byte 20;
+			IOChunk.write_u8 chunk.io 20;
 			None
 		| TInst _ ->
 			Some t
@@ -1221,13 +1221,13 @@ class hxb_writer
 			self#write_type_instance t;
 		in
 		let write_inlined_list offset max f_first f_elt l =
-			self#write_inlined_list offset max self#write_type_instance_byte f_first f_elt l
+			self#write_inlined_list offset max (IOChunk.write_u8 chunk.io) f_first f_elt l
 		in
 		match t with
 		| TMono _ | TLazy _ | TDynamic None ->
 			die "" __LOC__
 		| TInst({cl_kind = KExpr e},[]) ->
-			self#write_type_instance_byte 13;
+			IOChunk.write_u8 chunk.io 13;
 			self#write_expr e;
 		| TFun(args,t) when ExtType.is_void (follow_lazy_and_mono t) ->
 			write_inlined_list 20 4 (fun () -> ()) write_function_arg args;
@@ -1243,12 +1243,12 @@ class hxb_writer
 		| TAbstract(a,tl) ->
 			write_inlined_list 70 2 (fun () -> self#write_abstract_ref a) self#write_type_instance tl;
 		| TAnon an when PMap.is_empty an.a_fields ->
-			self#write_type_instance_byte 80;
+			IOChunk.write_u8 chunk.io 80;
 		| TAnon an ->
-			self#write_type_instance_byte 81;
+			IOChunk.write_u8 chunk.io 81;
 			self#write_anon_ref an []
 		| TDynamic (Some t) ->
-			self#write_type_instance_byte 89;
+			IOChunk.write_u8 chunk.io 89;
 			self#write_type_instance t;
 
 	method write_type_instance (t: Type.t) =
@@ -1340,40 +1340,40 @@ class hxb_writer
 			| TConst ct ->
 				begin match ct with
 				| TNull ->
-					self#write_texpr_byte 0;
+					IOChunk.write_u8 chunk.io 0;
 				| TThis ->
 					fctx.texpr_this <- Some e;
-					self#write_texpr_byte 1;
+					IOChunk.write_u8 chunk.io 1;
 				| TSuper ->
-					self#write_texpr_byte 2;
+					IOChunk.write_u8 chunk.io 2;
 				| TBool false ->
-					self#write_texpr_byte 3;
+					IOChunk.write_u8 chunk.io 3;
 				| TBool true ->
-					self#write_texpr_byte 4;
+					IOChunk.write_u8 chunk.io 4;
 				| TInt i32 ->
-					self#write_texpr_byte 5;
+					IOChunk.write_u8 chunk.io 5;
 					IOChunk.write_i32 chunk.io i32;
 				| TFloat f ->
-					self#write_texpr_byte 6;
+					IOChunk.write_u8 chunk.io 6;
 					Chunk.write_string chunk f;
 				| TString s ->
-					self#write_texpr_byte 7;
+					IOChunk.write_u8 chunk.io 7;
 					Chunk.write_string chunk s
 				end
 			(* vars 20-29 *)
 			| TLocal v ->
-				self#write_texpr_byte 20;
+				IOChunk.write_u8 chunk.io 20;
 				IOChunk.write_uleb128 chunk.io (fctx.vars#get v.v_id)
 			| TVar(v,None) ->
-				self#write_texpr_byte 21;
+				IOChunk.write_u8 chunk.io 21;
 				declare_var v;
 			| TVar(v,Some e1) ->
-				self#write_texpr_byte 22;
+				IOChunk.write_u8 chunk.io 22;
 				declare_var v;
 				loop e1;
 			(* blocks 30-49 *)
 			| TBlock [] ->
-				self#write_texpr_byte 30;
+				IOChunk.write_u8 chunk.io 30;
 			| TBlock el ->
 				let restore = self#start_temporary_chunk 256 in
 				let i = ref 0 in
@@ -1384,24 +1384,24 @@ class hxb_writer
 				let bytes = restore (fun new_chunk -> IOChunk.get_bytes new_chunk.io) in
 				let l = !i in
 				begin match l with
-				| 1 -> self#write_texpr_byte 31;
-				| 2 -> self#write_texpr_byte 32;
-				| 3 -> self#write_texpr_byte 33;
-				| 4 -> self#write_texpr_byte 34;
-				| 5 -> self#write_texpr_byte 35;
+				| 1 -> IOChunk.write_u8 chunk.io 31;
+				| 2 -> IOChunk.write_u8 chunk.io 32;
+				| 3 -> IOChunk.write_u8 chunk.io 33;
+				| 4 -> IOChunk.write_u8 chunk.io 34;
+				| 5 -> IOChunk.write_u8 chunk.io 35;
 				| _ ->
 					if l <= 0xFF then begin
-						self#write_texpr_byte 36;
+						IOChunk.write_u8 chunk.io 36;
 						IOChunk.write_u8 chunk.io l;
 					end else begin
-						self#write_texpr_byte 39;
+						IOChunk.write_u8 chunk.io 39;
 						IOChunk.write_uleb128 chunk.io l;
 					end;
 				end;
 				IOChunk.write_bytes chunk.io bytes;
 			(* function 50-59 *)
 			| TFunction tf ->
-				self#write_texpr_byte 50;
+				IOChunk.write_u8 chunk.io 50;
 				Chunk.write_list chunk tf.tf_args (fun (v,eo) ->
 					declare_var v;
 					Chunk.write_option chunk eo loop;
@@ -1410,17 +1410,17 @@ class hxb_writer
 				loop tf.tf_expr;
 			(* texpr compounds 60-79 *)
 			| TArray(e1,e2) ->
-				self#write_texpr_byte 60;
+				IOChunk.write_u8 chunk.io 60;
 				loop e1;
 				loop e2;
 			| TParenthesis e1 ->
-				self#write_texpr_byte 61;
+				IOChunk.write_u8 chunk.io 61;
 				loop e1;
 			| TArrayDecl el ->
-				self#write_texpr_byte 62;
+				IOChunk.write_u8 chunk.io 62;
 				loop_el el;
 			| TObjectDecl fl ->
-				self#write_texpr_byte 63;
+				IOChunk.write_u8 chunk.io 63;
 				Chunk.write_list chunk fl (fun ((name,p,qs),e) ->
 					Chunk.write_string chunk name;
 					self#write_pos p;
@@ -1431,23 +1431,23 @@ class hxb_writer
 					loop e
 				);
 			| TCall(e1,el) ->
-				self#write_inlined_list 70 4 self#write_texpr_byte (fun () -> loop e1) loop el
+				self#write_inlined_list 70 4 (IOChunk.write_u8 chunk.io) (fun () -> loop e1) loop el
 			| TMeta(m,e1) ->
-				self#write_texpr_byte 65;
+				IOChunk.write_u8 chunk.io 65;
 				self#write_metadata_entry m;
 				loop e1;
 			(* branching 80-89 *)
 			| TIf(e1,e2,None) ->
-				self#write_texpr_byte 80;
+				IOChunk.write_u8 chunk.io 80;
 				loop e1;
 				loop e2;
 			| TIf(e1,e2,Some e3) ->
-				self#write_texpr_byte 81;
+				IOChunk.write_u8 chunk.io 81;
 				loop e1;
 				loop e2;
 				loop e3;
 			| TSwitch s ->
-				self#write_texpr_byte 82;
+				IOChunk.write_u8 chunk.io 82;
 				loop s.switch_subject;
 				Chunk.write_list chunk s.switch_cases (fun c ->
 					loop_el c.case_patterns;
@@ -1455,40 +1455,40 @@ class hxb_writer
 				);
 				Chunk.write_option chunk s.switch_default loop;
 			| TTry(e1,catches) ->
-				self#write_texpr_byte 83;
+				IOChunk.write_u8 chunk.io 83;
 				loop e1;
 				Chunk.write_list chunk catches  (fun (v,e) ->
 					declare_var v;
 					loop e
 				);
 			| TWhile(e1,e2,flag) ->
-				self#write_texpr_byte (if flag = NormalWhile then 84 else 85);
+				IOChunk.write_u8 chunk.io (if flag = NormalWhile then 84 else 85);
 				loop e1;
 				loop e2;
 			| TFor(v,e1,e2) ->
-				self#write_texpr_byte 86;
+				IOChunk.write_u8 chunk.io 86;
 				declare_var v;
 				loop e1;
 				loop e2;
 			(* control flow 90-99 *)
 			| TReturn None ->
-				self#write_texpr_byte 90;
+				IOChunk.write_u8 chunk.io 90;
 			| TReturn (Some e1) ->
-				self#write_texpr_byte 91;
+				IOChunk.write_u8 chunk.io 91;
 				loop e1;
 			| TContinue ->
-				self#write_texpr_byte 92;
+				IOChunk.write_u8 chunk.io 92;
 			| TBreak ->
-				self#write_texpr_byte 93;
+				IOChunk.write_u8 chunk.io 93;
 			| TThrow e1 ->
-				self#write_texpr_byte 94;
+				IOChunk.write_u8 chunk.io 94;
 				loop e1;
 			(* access 100-119 *)
 			| TEnumIndex e1 ->
-				self#write_texpr_byte 100;
+				IOChunk.write_u8 chunk.io 100;
 				loop e1;
 			| TEnumParameter(e1,ef,i) ->
-				self#write_texpr_byte 101;
+				IOChunk.write_u8 chunk.io 101;
 				loop e1;
 				let en = match follow ef.ef_type with
 					| TFun(_,tr) ->
@@ -1502,97 +1502,97 @@ class hxb_writer
 				self#write_enum_field_ref en ef;
 				IOChunk.write_uleb128 chunk.io i;
 			| TField({eexpr = TConst TThis; epos = p1},FInstance(c,tl,cf)) when fctx.texpr_this <> None ->
-				self#write_texpr_byte 111;
+				IOChunk.write_u8 chunk.io 111;
 				fctx.pos_writer#write_pos chunk true 0 p1;
 				self#write_class_ref c;
 				self#write_types tl;
 				self#write_field_ref c CfrMember cf;
 			| TField(e1,FInstance(c,tl,cf)) ->
-				self#write_texpr_byte 102;
+				IOChunk.write_u8 chunk.io 102;
 				loop e1;
 				self#write_class_ref c;
 				self#write_types tl;
 				self#write_field_ref c CfrMember cf;
 			| TField({eexpr = TTypeExpr (TClassDecl c'); epos = p1},FStatic(c,cf)) when c == c' ->
-				self#write_texpr_byte 110;
+				IOChunk.write_u8 chunk.io 110;
 				fctx.pos_writer#write_pos chunk true 0 p1;
 				self#write_class_ref c;
 				self#write_field_ref c CfrStatic cf;
 			| TField(e1,FStatic(c,cf)) ->
-				self#write_texpr_byte 103;
+				IOChunk.write_u8 chunk.io 103;
 				loop e1;
 				self#write_class_ref c;
 				self#write_field_ref c CfrStatic cf;
 			| TField(e1,FAnon cf) ->
-				self#write_texpr_byte 104;
+				IOChunk.write_u8 chunk.io 104;
 				loop e1;
 				self#write_anon_field_ref cf
 			| TField(e1,FClosure(Some(c,tl),cf)) ->
-				self#write_texpr_byte 105;
+				IOChunk.write_u8 chunk.io 105;
 				loop e1;
 				self#write_class_ref c;
 				self#write_types tl;
 				self#write_field_ref c CfrMember cf
 			| TField(e1,FClosure(None,cf)) ->
-				self#write_texpr_byte 106;
+				IOChunk.write_u8 chunk.io 106;
 				loop e1;
 				self#write_anon_field_ref cf
 			| TField(e1,FEnum(en,ef)) ->
-				self#write_texpr_byte 107;
+				IOChunk.write_u8 chunk.io 107;
 				loop e1;
 				self#write_enum_ref en;
 				self#write_enum_field_ref en ef;
 			| TField(e1,FDynamic s) ->
-				self#write_texpr_byte 108;
+				IOChunk.write_u8 chunk.io 108;
 				loop e1;
 				Chunk.write_string chunk s;
 			(* module types 120-139 *)
 			| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter ttp})) ->
-				self#write_texpr_byte 128;
+				IOChunk.write_u8 chunk.io 128;
 				self#write_type_parameter_ref ttp
 			| TTypeExpr (TClassDecl c) ->
-				self#write_texpr_byte 120;
+				IOChunk.write_u8 chunk.io 120;
 				self#write_class_ref c;
 			| TTypeExpr (TEnumDecl en) ->
-				self#write_texpr_byte 121;
+				IOChunk.write_u8 chunk.io 121;
 				self#write_enum_ref en;
 			| TTypeExpr (TAbstractDecl a) ->
-				self#write_texpr_byte 122;
+				IOChunk.write_u8 chunk.io 122;
 				self#write_abstract_ref a
 			| TTypeExpr (TTypeDecl td) ->
-				self#write_texpr_byte 123;
+				IOChunk.write_u8 chunk.io 123;
 				self#write_typedef_ref td
 			| TCast(e1,None) ->
-				self#write_texpr_byte 124;
+				IOChunk.write_u8 chunk.io 124;
 				loop e1;
 			| TCast(e1,Some md) ->
-				self#write_texpr_byte 125;
+				IOChunk.write_u8 chunk.io 125;
 				loop e1;
 				let infos = t_infos md in
 				let m = infos.mt_module in
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd infos.mt_path);
 			| TNew(({cl_kind = KTypeParameter ttp}),tl,el) ->
-				self#write_texpr_byte 127;
+				IOChunk.write_u8 chunk.io 127;
 				self#write_type_parameter_ref ttp;
 				self#write_types tl;
 				loop_el el;
 			| TNew(c,tl,el) ->
-				self#write_texpr_byte 126;
+				IOChunk.write_u8 chunk.io 126;
 				self#write_class_ref c;
 				self#write_types tl;
 				loop_el el;
 			(* unops 140-159 *)
 			| TUnop(op,flag,e1) ->
-				self#write_texpr_byte (140 + unop_index op flag);
+				IOChunk.write_u8 chunk.io (140 + unop_index op flag);
 				loop e1;
 			(* binops 160-219 *)
 			| TBinop(op,e1,e2) ->
-				self#write_texpr_byte (160 + binop_index op);
+				IOChunk.write_u8 chunk.io (160 + binop_index op);
 				loop e1;
 				loop e2;
 			(* rest 250-254 *)
 			| TIdent s ->
-				self#write_texpr_byte 250;
+				IOChunk.write_u8 chunk.io 250;
 				Chunk.write_string chunk s;
 		and loop_el el =
 			Chunk.write_list chunk el loop
