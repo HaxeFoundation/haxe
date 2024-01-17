@@ -102,6 +102,47 @@ let dump_stats name stats =
 		print_endline (Printf.sprintf "    %s: %i - %i" name imin imax)
 	) chunk_sizes *)
 
+module StringHashtbl = Hashtbl.Make(struct
+	type t = string
+
+	let equal =
+		String.equal
+
+	let hash s =
+		(* What's the best here? *)
+		Hashtbl.hash s
+end)
+
+module StringPool = struct
+	type t = {
+		lut : int StringHashtbl.t;
+		items : string DynArray.t;
+	}
+
+	let create () = {
+		lut = StringHashtbl.create 16;
+		items = DynArray.create ();
+	}
+
+	let add sp s =
+		let index = DynArray.length sp.items in
+		StringHashtbl.add sp.lut s index;
+		DynArray.add sp.items s;
+		index
+
+	let get sp s =
+		StringHashtbl.find sp.lut s
+
+	let get_or_add sp s =
+		try
+			get sp s
+		with Not_found ->
+			add sp s
+
+	let get_sorted_items sp =
+		DynArray.to_list sp.items,DynArray.length sp.items
+end
+
 class ['key,'value] pool = object(self)
 	val lut = Hashtbl.create 0
 	val items = DynArray.create ()
@@ -251,7 +292,7 @@ end
 module Chunk = struct
 	type t = {
 		kind : chunk_kind;
-		cp : (string,string) pool;
+		cp : StringPool.t;
 		ch : SimnBuffer.t;
 	}
 
@@ -333,7 +374,7 @@ module Chunk = struct
 		IO.nwrite chex bytes
 
 	let write_string chunk s =
-		write_uleb128 chunk (chunk.cp#get_or_add s s)
+		write_uleb128 chunk (StringPool.get_or_add chunk.cp s)
 
 	let write_list : 'b . t -> 'b list -> ('b -> unit) -> unit = fun chunk l f ->
 		write_uleb128 chunk (List.length l);
@@ -412,14 +453,14 @@ module PosWriter = struct
 end
 
 type field_writer_context = {
-	t_pool : (bytes,bytes) pool;
+	t_pool : StringPool.t;
 	pos_writer : PosWriter.t;
 	mutable texpr_this : texpr option;
 	vars : (int,tvar) pool;
 }
 
 let create_field_writer_context pos_writer = {
-	t_pool = new pool;
+	t_pool = StringPool.create ();
 	pos_writer = pos_writer;
 	texpr_this = None;
 	vars = new pool;
@@ -431,8 +472,8 @@ type hxb_writer = {
 	stats : hxb_writer_stats;
 	mutable current_module : module_def;
 	chunks : Chunk.t DynArray.t;
-	cp : (string,string) pool;
-	docs : (string,string) pool;
+	cp : StringPool.t;
+	docs : StringPool.t;
 	mutable chunk : Chunk.t;
 
 	classes : (path,tclass) pool;
@@ -516,10 +557,10 @@ module HxbWriter = struct
 
 	let write_documentation writer (doc : doc_block) =
 		Chunk.write_option writer.chunk doc.doc_own (fun s ->
-			Chunk.write_uleb128 writer.chunk (writer.docs#get_or_add s s)
+			Chunk.write_uleb128 writer.chunk (StringPool.get_or_add writer.docs s)
 		);
 		Chunk.write_list writer.chunk doc.doc_inherited (fun s ->
-			Chunk.write_uleb128 writer.chunk (writer.docs#get_or_add s s)
+			Chunk.write_uleb128 writer.chunk (StringPool.get_or_add writer.docs s)
 		)
 
 	let write_pos writer (p : pos) =
@@ -1220,7 +1261,7 @@ module HxbWriter = struct
 		write_type_instance writer t;
 		let t_bytes = Chunk.get_bytes writer.chunk in
 		writer.chunk <- old_chunk;
-		let index = fctx.t_pool#get_or_add t_bytes t_bytes in
+		let index = StringPool.get_or_add fctx.t_pool (Bytes.unsafe_to_string t_bytes) in
 		Chunk.write_uleb128 writer.chunk index
 
 	and write_texpr writer (fctx : field_writer_context) (e : texpr) =
@@ -1611,10 +1652,10 @@ module HxbWriter = struct
 					let ltp = List.map fst writer.local_type_parameters#to_list in
 					write_type_parameters writer ltp
 				end;
-				let items = fctx.t_pool#items in
-				Chunk.write_uleb128 writer.chunk (DynArray.length items);
-				DynArray.iter (fun bytes ->
-					Chunk.write_bytes writer.chunk bytes
+				let items,length = StringPool.get_sorted_items fctx.t_pool in
+				Chunk.write_uleb128 writer.chunk length;
+				List.iter (fun bytes ->
+					Chunk.write_bytes writer.chunk (Bytes.unsafe_of_string bytes)
 				) items;
 
 				let items = fctx.vars#items in
@@ -2046,17 +2087,23 @@ module HxbWriter = struct
 		start_chunk writer EOF;
 		start_chunk writer EOM;
 
-		let finalize_string_pool kind (pool : (string,string) pool) =
+		let finalize_string_pool kind items length =
 			start_chunk writer kind;
-			Chunk.write_uleb128 writer.chunk (DynArray.length pool#items);
-			DynArray.iter (fun s ->
+			Chunk.write_uleb128 writer.chunk length;
+			List.iter (fun s ->
 				let b = Bytes.unsafe_of_string s in
 				Chunk.write_bytes_length_prefixed writer.chunk b;
-			) pool#items
+			) items
 		in
-		finalize_string_pool STR writer.cp;
-		if not writer.docs#is_empty then
-			finalize_string_pool DOC writer.docs
+		begin
+			let items,length = StringPool.get_sorted_items writer.cp in
+			finalize_string_pool STR items length
+		end;
+		begin
+			let items,length = StringPool.get_sorted_items writer.docs in
+			if length > 0 then
+				finalize_string_pool DOC items length
+		end
 
 	let get_sorted_chunks writer =
 		let l = DynArray.to_list writer.chunks in
@@ -2067,7 +2114,7 @@ module HxbWriter = struct
 end
 
 let create warn anon_id stats =
-	let cp = new pool in
+	let cp = StringPool.create ()in
 {
 	warn;
 	anon_id;
@@ -2075,7 +2122,7 @@ let create warn anon_id stats =
 	current_module = null_module;
 	chunks = DynArray.create ();
 	cp = cp;
-	docs = new pool;
+	docs = StringPool.create ();
 	chunk = Obj.magic ();
 	classes = new pool;
 	enums = new pool;
