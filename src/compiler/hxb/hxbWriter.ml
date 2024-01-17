@@ -1266,11 +1266,19 @@ module HxbWriter = struct
 
 	and write_texpr writer (fctx : field_writer_context) (e : texpr) =
 		let declare_var v =
-			let index = DynArray.length fctx.vars in
-			DynArray.add fctx.vars (v,v.v_id);
-			(* Store local index in v_id so we find it easily for all the TLocal expressions.
-			   This is set back by the var writer in start_texpr. *)
-			v.v_id <- index;
+			let index = if v.v_id < 0 then begin
+				(* Duplicate var declaration! Can happen when writing both cf_expr and cf_expr_unoptimized,
+				   although it arguably shouldn't. In this case we don't add the var again and instead write
+				   out the existing ID.*)
+				   -v.v_id
+			end else begin
+				let index = DynArray.length fctx.vars in
+				DynArray.add fctx.vars (v,v.v_id);
+				(* Store local index in v_id so we find it easily for all the TLocal expressions.
+				   This is set back by the var writer in start_texpr. *)
+				v.v_id <- -index;
+				index;
+			end in
 			Chunk.write_uleb128 writer.chunk index;
 			Chunk.write_option writer.chunk v.v_extra (fun ve ->
 				Chunk.write_list writer.chunk ve.v_params (fun ttp ->
@@ -1314,7 +1322,7 @@ module HxbWriter = struct
 			(* vars 20-29 *)
 			| TLocal v ->
 				Chunk.write_u8 writer.chunk 20;
-				Chunk.write_uleb128 writer.chunk v.v_id;
+				Chunk.write_uleb128 writer.chunk (-v.v_id);
 			| TVar(v,None) ->
 				Chunk.write_u8 writer.chunk 21;
 				declare_var v;
