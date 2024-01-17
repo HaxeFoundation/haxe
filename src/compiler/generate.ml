@@ -56,13 +56,14 @@ let check_hxb_output ctx actx =
 	let try_write path =
 		let t = Timer.timer ["generate";"hxb"] in
 		Path.mkdir_from_path path;
-		Printf.eprintf "Generating hxb to %s\n" path;
 		let zip = new Zip_output.zip_output path 6 in
 		let export com =
 			let cc = CommonCache.get_cache com in
 			let target = Common.platform_name_macro com in
-			Printf.eprintf "\t%s: %d modules, %d types\n" target (List.length com.Common.modules) (List.length com.types);
-			List.iter (export_hxb com cc target zip) com.modules;
+			List.iter (fun m ->
+				let t = Timer.timer ["generate";"hxb";s_type_path m.m_path] in
+				Std.finally t (export_hxb com cc target zip) m
+			) com.modules;
 		in
 		Std.finally (fun () ->
 			zip#close;
