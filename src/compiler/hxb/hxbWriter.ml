@@ -193,6 +193,23 @@ class ['key,'value] identity_pool = object(self)
 	method length = DynArray.length items
 end
 
+class ['hkey,'key,'value] hashed_identity_pool = object(self)
+	val lut = Hashtbl.create 0
+	val items = DynArray.create ()
+
+	method add (hkey : 'hkey) (key : 'key) (value : 'value) =
+		let index = DynArray.length items in
+		DynArray.add items (key,value);
+		Hashtbl.add lut hkey (key,index);
+		index
+
+	method get (hkey : 'hkey) (key : 'key) =
+		let l = Hashtbl.find_all lut hkey in
+		List.assq key l
+
+	method items = items
+end
+
 module SimnBuffer = struct
 	type t = {
 		buffer_size : int;
@@ -544,7 +561,7 @@ class hxb_writer
 	val own_typedefs = new pool
 
 	val type_param_lut = new pool
-	val class_fields = new identity_pool
+	val class_fields = new hashed_identity_pool
 	val enum_fields = new pool
 	val mutable type_type_parameters = new pool
 	val mutable field_type_parameters = new identity_pool
@@ -972,7 +989,7 @@ class hxb_writer
 
 	method write_field_ref (c : tclass) (kind : class_field_ref_kind)  (cf : tclass_field) =
 		let index = try
-			class_fields#get cf
+			class_fields#get cf.cf_name cf
 		with Not_found ->
 			let find_overload c cf_base =
 				let rec loop depth cfl = match cfl with
@@ -1029,7 +1046,7 @@ class hxb_writer
 				| Some(c,depth) ->
 					c,depth
 			in
-			class_fields#add cf (c,kind,depth)
+			class_fields#add cf.cf_name cf (c,kind,depth)
 		in
 		IOChunk.write_uleb128 chunk.io index
 
