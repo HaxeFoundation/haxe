@@ -243,17 +243,18 @@ module SimnBuffer = struct
 		out
 end
 
-module IOChunk = struct
+module Chunk = struct
 	type t = {
 		kind : chunk_kind;
+		cp : (string,string) pool;
 		ch : SimnBuffer.t;
 	}
 
-	let create kind initial_size =
-		{
-			kind = kind;
-			ch = SimnBuffer.create initial_size;
-		}
+	let create kind cp initial_size = {
+		kind;
+		cp;
+		ch = SimnBuffer.create initial_size;
+	}
 
 	let write_u8 io v =
 		SimnBuffer.add_u8 io.ch (Char.unsafe_chr v)
@@ -322,58 +323,24 @@ module IOChunk = struct
 			Hashtbl.add stats.chunk_sizes io.name (ref length,ref length);
 		end; *)
 		IO.nwrite chex bytes
-end
-
-class string_pool (kind : chunk_kind) = object(self)
-
-	val pool = new pool
-
-	method get (s : string) =
-		pool#get_or_add s s
-
-	method is_empty =
-		pool#is_empty
-
-	method finalize =
-		let io = IOChunk.create kind 512 in
-		IOChunk.write_uleb128 io (DynArray.length pool#items);
-		DynArray.iter (fun s ->
-			let b = Bytes.unsafe_of_string s in
-			IOChunk.write_bytes_length_prefixed io b;
-		) pool#items;
-		io
-end
-
-module Chunk = struct
-	type t = {
-		kind : chunk_kind;
-		cp : string_pool;
-		io : IOChunk.t;
-	}
-
-	let create kind cp initial_size = {
-		kind;
-		cp;
-		io = IOChunk.create kind initial_size;
-	}
 
 	let write_string chunk s =
-		IOChunk.write_uleb128 chunk.io (chunk.cp#get s)
+		write_uleb128 chunk (chunk.cp#get_or_add s s)
 
 	let write_list : 'b . t -> 'b list -> ('b -> unit) -> unit = fun chunk l f ->
-		IOChunk.write_uleb128 chunk.io (List.length l);
+		write_uleb128 chunk (List.length l);
 		List.iter f l
 
 	let write_option : 'b . t -> 'b option -> ('b -> unit) -> unit = fun chunk v f -> match v with
 	| None ->
-		IOChunk.write_u8 chunk.io 0
+		write_u8 chunk 0
 	| Some v ->
-		IOChunk.write_u8 chunk.io 1;
+		write_u8 chunk 1;
 		f v
 
 	let export_data chunk_from chunk_to =
-		let bytes = IOChunk.get_bytes chunk_from.io in
-		IOChunk.write_bytes chunk_to.io bytes
+		let bytes = get_bytes chunk_from in
+		write_bytes chunk_to bytes
 end
 
 class pos_writer
@@ -389,13 +356,13 @@ class pos_writer
 	method private do_write_pos (chunk : Chunk.t) (p : pos) =
 		(* incr stats.pos_writes_full; *)
 		Chunk.write_string chunk p.pfile;
-		IOChunk.write_leb128 chunk.io p.pmin;
-		IOChunk.write_leb128 chunk.io p.pmax;
+		Chunk.write_leb128 chunk p.pmin;
+		Chunk.write_leb128 chunk p.pmax;
 
 	method write_pos (chunk : Chunk.t) (write_equal : bool) (offset : int) (p : pos) =
 		if p.pfile != p_file then begin
 			(* File changed, write full pos *)
-			IOChunk.write_u8 chunk.io (4 + offset);
+			Chunk.write_u8 chunk (4 + offset);
 			self#do_write_pos chunk p;
 			p_file <- p.pfile;
 			p_min <- p.pmin;
@@ -404,28 +371,28 @@ class pos_writer
 			if p.pmax <> p_max then begin
 				(* pmin and pmax changed *)
 				(* incr stats.pos_writes_minmax; *)
-				IOChunk.write_u8 chunk.io (3 + offset);
-				IOChunk.write_leb128 chunk.io p.pmin;
-				IOChunk.write_leb128 chunk.io p.pmax;
+				Chunk.write_u8 chunk (3 + offset);
+				Chunk.write_leb128 chunk p.pmin;
+				Chunk.write_leb128 chunk p.pmax;
 				p_min <- p.pmin;
 				p_max <- p.pmax;
 			end else begin
 				(* pmin changed *)
 				(* incr stats.pos_writes_min; *)
-				IOChunk.write_u8 chunk.io (1 + offset);
-				IOChunk.write_leb128 chunk.io p.pmin;
+				Chunk.write_u8 chunk (1 + offset);
+				Chunk.write_leb128 chunk p.pmin;
 				p_min <- p.pmin;
 			end
 		end else if p.pmax <> p_max then begin
 			(* pmax changed *)
 			(* incr stats.pos_writes_max; *)
-			IOChunk.write_u8 chunk.io (2 + offset);
-			IOChunk.write_leb128 chunk.io p.pmax;
+			Chunk.write_u8 chunk (2 + offset);
+			Chunk.write_leb128 chunk p.pmax;
 			p_max <- p.pmax;
 		end else begin
 			(* incr stats.pos_writes_eq; *)
 			if write_equal then
-				IOChunk.write_u8 chunk.io offset;
+				Chunk.write_u8 chunk offset;
 		end
 
 	initializer
@@ -455,8 +422,8 @@ class hxb_writer
 
 	val mutable current_module = null_module
 	val chunks = DynArray.create ()
-	val cp = new string_pool STR
-	val docs = new string_pool DOC
+	val cp = new pool
+	val docs = new pool
 
 	val mutable chunk = Obj.magic ()
 
@@ -501,7 +468,7 @@ class hxb_writer
 			| CFD | EXD -> 512
 		in
 		let new_chunk = Chunk.create kind cp initial_size in
-		DynArray.add chunks new_chunk.io;
+		DynArray.add chunks new_chunk;
 		chunk <- new_chunk
 
 	method start_temporary_chunk : 'a . int -> (Chunk.t -> 'a) -> 'a = fun initial_size ->
@@ -526,16 +493,16 @@ class hxb_writer
 
 	method write_documentation (doc : doc_block) =
 		Chunk.write_option chunk doc.doc_own (fun s ->
-			IOChunk.write_uleb128 chunk.io (docs#get s)
+			Chunk.write_uleb128 chunk (docs#get_or_add s s)
 		);
 		Chunk.write_list chunk doc.doc_inherited (fun s ->
-			IOChunk.write_uleb128 chunk.io (docs#get s)
+			Chunk.write_uleb128 chunk (docs#get_or_add s s)
 		);
 
 	method write_pos (p : pos) =
 		Chunk.write_string chunk p.pfile;
-		IOChunk.write_leb128 chunk.io p.pmin;
-		IOChunk.write_leb128 chunk.io p.pmax;
+		Chunk.write_leb128 chunk p.pmin;
+		Chunk.write_leb128 chunk p.pmax;
 
 	method write_metadata_entry ((meta,el,p) : metadata_entry) =
 		Chunk.write_string chunk (Meta.to_string meta);
@@ -552,8 +519,8 @@ class hxb_writer
 		Chunk.write_string chunk n;
 		self#write_pos p;
 		begin match qs with
-			| NoQuotes -> IOChunk.write_u8 chunk.io 0
-			| DoubleQuotes -> IOChunk.write_u8 chunk.io 1
+			| NoQuotes -> Chunk.write_u8 chunk 0
+			| DoubleQuotes -> Chunk.write_u8 chunk 1
 		end
 
 	method write_type_path tp =
@@ -569,39 +536,39 @@ class hxb_writer
 
 	method write_type_param_or_const = function
 		| TPType th ->
-			IOChunk.write_u8 chunk.io 0;
+			Chunk.write_u8 chunk 0;
 			self#write_type_hint th
 		| TPExpr e ->
-			IOChunk.write_u8 chunk.io 1;
+			Chunk.write_u8 chunk 1;
 			self#write_expr e
 
 	method write_complex_type = function
 		| CTPath tp ->
-			IOChunk.write_u8 chunk.io 0;
+			Chunk.write_u8 chunk 0;
 			self#write_placed_type_path tp
 		| CTFunction(thl,th) ->
-			IOChunk.write_u8 chunk.io 1;
+			Chunk.write_u8 chunk 1;
 			Chunk.write_list chunk thl self#write_type_hint;
 			self#write_type_hint th
 		| CTAnonymous cffl ->
-			IOChunk.write_u8 chunk.io 2;
+			Chunk.write_u8 chunk 2;
 			Chunk.write_list chunk cffl self#write_cfield;
 		| CTParent th ->
-			IOChunk.write_u8 chunk.io 3;
+			Chunk.write_u8 chunk 3;
 			self#write_type_hint th
 		| CTExtend(ptp,cffl) ->
-			IOChunk.write_u8 chunk.io 4;
+			Chunk.write_u8 chunk 4;
 			Chunk.write_list chunk ptp self#write_placed_type_path;
 			Chunk.write_list chunk cffl self#write_cfield;
 		| CTOptional th ->
-			IOChunk.write_u8 chunk.io 5;
+			Chunk.write_u8 chunk 5;
 			self#write_type_hint th
 		| CTNamed(pn,th) ->
-			IOChunk.write_u8 chunk.io 6;
+			Chunk.write_u8 chunk 6;
 			self#write_placed_name pn;
 			self#write_type_hint th
 		| CTIntersection(thl) ->
-			IOChunk.write_u8 chunk.io 7;
+			Chunk.write_u8 chunk 7;
 			Chunk.write_list chunk thl self#write_type_hint;
 
 	method write_type_hint (ct,p) =
@@ -617,7 +584,7 @@ class hxb_writer
 
 	method write_func_arg (pn,b,meta,tho,eo) =
 		self#write_placed_name pn;
-		IOChunk.write_bool chunk.io b;
+		Chunk.write_bool chunk b;
 		self#write_metadata meta;
 		Chunk.write_option chunk tho self#write_type_hint;
 		Chunk.write_option chunk eo self#write_expr;
@@ -647,7 +614,7 @@ class hxb_writer
 		| AOverload -> 10
 		| AEnum -> 11
 		in
-		IOChunk.write_u8 chunk.io i;
+		Chunk.write_u8 chunk i;
 
 	method write_placed_access (ac,p) =
 		self#write_access ac;
@@ -655,14 +622,14 @@ class hxb_writer
 
 	method write_cfield_kind = function
 		| FVar(tho,eo) ->
-			IOChunk.write_u8 chunk.io 0;
+			Chunk.write_u8 chunk 0;
 			Chunk.write_option chunk tho self#write_type_hint;
 			Chunk.write_option chunk eo self#write_expr;
 		| FFun f ->
-			IOChunk.write_u8 chunk.io 1;
+			Chunk.write_u8 chunk 1;
 			self#write_func f;
 		| FProp(pn1,pn2,tho,eo) ->
-			IOChunk.write_u8 chunk.io 2;
+			Chunk.write_u8 chunk 2;
 			self#write_placed_name pn1;
 			self#write_placed_name pn2;
 			Chunk.write_option chunk tho self#write_type_hint;
@@ -680,117 +647,117 @@ class hxb_writer
 		self#write_pos p;
 		match e with
 		| EConst (Int (s, suffix)) ->
-			IOChunk.write_u8 chunk.io 0;
+			Chunk.write_u8 chunk 0;
 			Chunk.write_string chunk s;
 			Chunk.write_option chunk suffix (Chunk.write_string chunk);
 		| EConst (Float (s, suffix)) ->
-			IOChunk.write_u8 chunk.io 1;
+			Chunk.write_u8 chunk 1;
 			Chunk.write_string chunk s;
 			Chunk.write_option chunk suffix (Chunk.write_string chunk);
 		| EConst (String (s,qs)) ->
-			IOChunk.write_u8 chunk.io 2;
+			Chunk.write_u8 chunk 2;
 			Chunk.write_string chunk s;
 			begin match qs with
-			| SDoubleQuotes -> IOChunk.write_u8 chunk.io 0;
-			| SSingleQuotes -> IOChunk.write_u8 chunk.io 1;
+			| SDoubleQuotes -> Chunk.write_u8 chunk 0;
+			| SSingleQuotes -> Chunk.write_u8 chunk 1;
 			end
 		| EConst (Ident s) ->
-			IOChunk.write_u8 chunk.io 3;
+			Chunk.write_u8 chunk 3;
 			Chunk.write_string chunk s;
 		| EConst (Regexp(s1,s2)) ->
-			IOChunk.write_u8 chunk.io 4;
+			Chunk.write_u8 chunk 4;
 			Chunk.write_string chunk s1;
 			Chunk.write_string chunk s2;
 		| EArray(e1,e2) ->
-			IOChunk.write_u8 chunk.io 5;
+			Chunk.write_u8 chunk 5;
 			self#write_expr e1;
 			self#write_expr e2;
 		| EBinop(op,e1,e2) ->
-			IOChunk.write_u8 chunk.io 6;
-			IOChunk.write_u8 chunk.io (binop_index op);
+			Chunk.write_u8 chunk 6;
+			Chunk.write_u8 chunk (binop_index op);
 			self#write_expr e1;
 			self#write_expr e2;
 		| EField(e1,s,kind) ->
-			IOChunk.write_u8 chunk.io 7;
+			Chunk.write_u8 chunk 7;
 			self#write_expr e1;
 			Chunk.write_string chunk s;
 			begin match kind with
-			| EFNormal -> IOChunk.write_u8 chunk.io 0;
-			| EFSafe -> IOChunk.write_u8 chunk.io 1;
+			| EFNormal -> Chunk.write_u8 chunk 0;
+			| EFSafe -> Chunk.write_u8 chunk 1;
 			end
 		| EParenthesis e1 ->
-			IOChunk.write_u8 chunk.io 8;
+			Chunk.write_u8 chunk 8;
 			self#write_expr e1
 		| EObjectDecl fl ->
-			IOChunk.write_u8 chunk.io 9;
+			Chunk.write_u8 chunk 9;
 			let write_field (k,e1) =
 				self#write_object_field_key k;
 				self#write_expr e1
 			in
 			Chunk.write_list chunk fl write_field;
 		| EArrayDecl el ->
-			IOChunk.write_u8 chunk.io 10;
+			Chunk.write_u8 chunk 10;
 			Chunk.write_list chunk el self#write_expr;
 		| ECall(e1,el) ->
-			IOChunk.write_u8 chunk.io 11;
+			Chunk.write_u8 chunk 11;
 			self#write_expr e1;
 			Chunk.write_list chunk el self#write_expr
 		| ENew(ptp,el) ->
-			IOChunk.write_u8 chunk.io 12;
+			Chunk.write_u8 chunk 12;
 			self#write_placed_type_path ptp;
 			Chunk.write_list chunk el self#write_expr;
 		| EUnop(op,flag,e1) ->
-			IOChunk.write_u8 chunk.io 13;
-			IOChunk.write_u8 chunk.io (unop_index op flag);
+			Chunk.write_u8 chunk 13;
+			Chunk.write_u8 chunk (unop_index op flag);
 			self#write_expr e1;
 		| EVars vl ->
-			IOChunk.write_u8 chunk.io 14;
+			Chunk.write_u8 chunk 14;
 			let write_var v =
 				self#write_placed_name v.ev_name;
-				IOChunk.write_bool chunk.io v.ev_final;
-				IOChunk.write_bool chunk.io v.ev_static;
+				Chunk.write_bool chunk v.ev_final;
+				Chunk.write_bool chunk v.ev_static;
 				Chunk.write_option chunk v.ev_type self#write_type_hint;
 				Chunk.write_option chunk v.ev_expr self#write_expr;
 				self#write_metadata v.ev_meta;
 			in
 			Chunk.write_list chunk vl write_var
 		| EFunction(fk,f) ->
-			IOChunk.write_u8 chunk.io 15;
+			Chunk.write_u8 chunk 15;
 			begin match fk with
-			| FKAnonymous -> IOChunk.write_u8 chunk.io 0;
+			| FKAnonymous -> Chunk.write_u8 chunk 0;
 			| FKNamed (pn,inline) ->
-				IOChunk.write_u8 chunk.io 1;
+				Chunk.write_u8 chunk 1;
 				self#write_placed_name pn;
-				IOChunk.write_bool chunk.io inline;
-			| FKArrow -> IOChunk.write_u8 chunk.io 2;
+				Chunk.write_bool chunk inline;
+			| FKArrow -> Chunk.write_u8 chunk 2;
 			end;
 			self#write_func f;
 		| EBlock el ->
-			IOChunk.write_u8 chunk.io 16;
+			Chunk.write_u8 chunk 16;
 			Chunk.write_list chunk el self#write_expr
 		| EFor(e1,e2) ->
-			IOChunk.write_u8 chunk.io 17;
+			Chunk.write_u8 chunk 17;
 			self#write_expr e1;
 			self#write_expr e2;
 		| EIf(e1,e2,None) ->
-			IOChunk.write_u8 chunk.io 18;
+			Chunk.write_u8 chunk 18;
 			self#write_expr e1;
 			self#write_expr e2;
 		| EIf(e1,e2,Some e3) ->
-			IOChunk.write_u8 chunk.io 19;
+			Chunk.write_u8 chunk 19;
 			self#write_expr e1;
 			self#write_expr e2;
 			self#write_expr e3;
 		| EWhile(e1,e2,NormalWhile) ->
-			IOChunk.write_u8 chunk.io 20;
+			Chunk.write_u8 chunk 20;
 			self#write_expr e1;
 			self#write_expr e2;
 		| EWhile(e1,e2,DoWhile) ->
-			IOChunk.write_u8 chunk.io 21;
+			Chunk.write_u8 chunk 21;
 			self#write_expr e1;
 			self#write_expr e2;
 		| ESwitch(e1,cases,def) ->
-			IOChunk.write_u8 chunk.io 22;
+			Chunk.write_u8 chunk 22;
 			self#write_expr e1;
 			let write_case (el,eg,eo,p) =
 				Chunk.write_list chunk el self#write_expr;
@@ -805,7 +772,7 @@ class hxb_writer
 			in
 			Chunk.write_option chunk def write_default;
 		| ETry(e1,catches) ->
-			IOChunk.write_u8 chunk.io 23;
+			Chunk.write_u8 chunk 23;
 			self#write_expr e1;
 			let write_catch (pn,th,e,p) =
 				self#write_placed_name pn;
@@ -815,54 +782,54 @@ class hxb_writer
 			in
 			Chunk.write_list chunk catches write_catch;
 		| EReturn None ->
-			IOChunk.write_u8 chunk.io 24;
+			Chunk.write_u8 chunk 24;
 		| EReturn (Some e1) ->
-			IOChunk.write_u8 chunk.io 25;
+			Chunk.write_u8 chunk 25;
 			self#write_expr e1;
 		| EBreak ->
-			IOChunk.write_u8 chunk.io 26;
+			Chunk.write_u8 chunk 26;
 		| EContinue ->
-			IOChunk.write_u8 chunk.io 27;
+			Chunk.write_u8 chunk 27;
 		| EUntyped e1 ->
-			IOChunk.write_u8 chunk.io 28;
+			Chunk.write_u8 chunk 28;
 			self#write_expr e1;
 		| EThrow e1 ->
-			IOChunk.write_u8 chunk.io 29;
+			Chunk.write_u8 chunk 29;
 			self#write_expr e1;
 		| ECast(e1,None) ->
-			IOChunk.write_u8 chunk.io 30;
+			Chunk.write_u8 chunk 30;
 			self#write_expr e1;
 		| ECast(e1,Some th) ->
-			IOChunk.write_u8 chunk.io 31;
+			Chunk.write_u8 chunk 31;
 			self#write_expr e1;
 			self#write_type_hint th;
 		| EIs(e1,th) ->
-			IOChunk.write_u8 chunk.io 32;
+			Chunk.write_u8 chunk 32;
 			self#write_expr e1;
 			self#write_type_hint th;
 		| EDisplay(e1,dk) ->
-			IOChunk.write_u8 chunk.io 33;
+			Chunk.write_u8 chunk 33;
 			self#write_expr e1;
 			begin match dk with
-			| DKCall -> IOChunk.write_u8 chunk.io 0;
-			| DKDot -> IOChunk.write_u8 chunk.io 1;
-			| DKStructure -> IOChunk.write_u8 chunk.io 2;
-			| DKMarked -> IOChunk.write_u8 chunk.io 3;
+			| DKCall -> Chunk.write_u8 chunk 0;
+			| DKDot -> Chunk.write_u8 chunk 1;
+			| DKStructure -> Chunk.write_u8 chunk 2;
+			| DKMarked -> Chunk.write_u8 chunk 3;
 			| DKPattern b ->
-				IOChunk.write_u8 chunk.io 4;
-				IOChunk.write_bool chunk.io b;
+				Chunk.write_u8 chunk 4;
+				Chunk.write_bool chunk b;
 			end
 		| ETernary(e1,e2,e3) ->
-			IOChunk.write_u8 chunk.io 34;
+			Chunk.write_u8 chunk 34;
 			self#write_expr e1;
 			self#write_expr e2;
 			self#write_expr e3;
 		| ECheckType(e1,th) ->
-			IOChunk.write_u8 chunk.io 35;
+			Chunk.write_u8 chunk 35;
 			self#write_expr e1;
 			self#write_type_hint th;
 		| EMeta(m,e1) ->
-			IOChunk.write_u8 chunk.io 36;
+			Chunk.write_u8 chunk 36;
 			self#write_metadata_entry m;
 			self#write_expr e1
 
@@ -870,35 +837,35 @@ class hxb_writer
 
 	method write_class_ref (c : tclass) =
 		let i = classes#get_or_add c.cl_path c in
-		IOChunk.write_uleb128 chunk.io i
+		Chunk.write_uleb128 chunk i
 
 	method write_enum_ref (en : tenum) =
 		let i = enums#get_or_add en.e_path en in
-		IOChunk.write_uleb128 chunk.io i
+		Chunk.write_uleb128 chunk i
 
 	method write_typedef_ref (td : tdef) =
 		let i = typedefs#get_or_add td.t_path td in
-		IOChunk.write_uleb128 chunk.io i
+		Chunk.write_uleb128 chunk i
 
 	method write_abstract_ref (a : tabstract) =
 		let i = abstracts#get_or_add a.a_path a in
-		IOChunk.write_uleb128 chunk.io i
+		Chunk.write_uleb128 chunk i
 
 	method write_anon_ref (an : tanon) (ttp : type_params) =
 		let pfm = Option.get (anon_id#identify_anon ~strict:true an) in
 		try
 			let index = anons#get pfm.pfm_path in
-			IOChunk.write_u8 chunk.io 0;
-			IOChunk.write_uleb128 chunk.io index
+			Chunk.write_u8 chunk 0;
+			Chunk.write_uleb128 chunk index
 		with Not_found ->
 			let index = anons#add pfm.pfm_path an in
-			IOChunk.write_u8 chunk.io 1;
-			IOChunk.write_uleb128 chunk.io index;
+			Chunk.write_u8 chunk 1;
+			Chunk.write_uleb128 chunk index;
 			self#write_anon an ttp
 
 	method write_tmono_ref (mono : tmono) =
 		let index = try tmonos#get mono with Not_found -> tmonos#add mono () in
-		IOChunk.write_uleb128 chunk.io index;
+		Chunk.write_uleb128 chunk index;
 
 	method write_field_ref (c : tclass) (kind : class_field_ref_kind)  (cf : tclass_field) =
 		let index = try
@@ -961,25 +928,25 @@ class hxb_writer
 			in
 			class_fields#add cf.cf_name cf (c,kind,depth)
 		in
-		IOChunk.write_uleb128 chunk.io index
+		Chunk.write_uleb128 chunk index
 
 	method write_enum_field_ref (en : tenum) (ef : tenum_field) =
 		let key = (en.e_path,ef.ef_name) in
 		try
-			IOChunk.write_uleb128 chunk.io (enum_fields#get key)
+			Chunk.write_uleb128 chunk (enum_fields#get key)
 		with Not_found ->
 			ignore(enums#get_or_add en.e_path en);
-			IOChunk.write_uleb128 chunk.io (enum_fields#add key (en,ef))
+			Chunk.write_uleb128 chunk (enum_fields#add key (en,ef))
 
 	method write_anon_field_ref cf =
 		try
 			let index = anon_fields#get cf in
-			IOChunk.write_u8 chunk.io 0;
-			IOChunk.write_uleb128 chunk.io index
+			Chunk.write_u8 chunk 0;
+			Chunk.write_uleb128 chunk index
 		with Not_found ->
 			let index = anon_fields#add cf () in
-			IOChunk.write_u8 chunk.io 1;
-			IOChunk.write_uleb128 chunk.io index;
+			Chunk.write_u8 chunk 1;
+			Chunk.write_uleb128 chunk index;
 			ignore(self#write_class_field_and_overloads_data true cf)
 
 	(* Type instances *)
@@ -991,16 +958,16 @@ class hxb_writer
 			begin match ttp.ttp_host with
 			| TPHType ->
 				let i = type_type_parameters#get ttp.ttp_name in
-				IOChunk.write_u8 chunk.io 1;
-				IOChunk.write_uleb128 chunk.io i
+				Chunk.write_u8 chunk 1;
+				Chunk.write_uleb128 chunk i
 			| TPHMethod | TPHEnumConstructor | TPHAnonField | TPHConstructor ->
 				let i = field_type_parameters#get ttp in
-				IOChunk.write_u8 chunk.io 2;
-				IOChunk.write_uleb128 chunk.io i;
+				Chunk.write_u8 chunk 2;
+				Chunk.write_uleb128 chunk i;
 			| TPHLocal ->
 				let index = local_type_parameters#get ttp in
-				IOChunk.write_u8 chunk.io 3;
-				IOChunk.write_uleb128 chunk.io index;
+				Chunk.write_u8 chunk 3;
+				Chunk.write_uleb128 chunk index;
 		end with Not_found ->
 			(try ignore(unbound_ttp#get ttp) with Not_found -> begin
 				ignore(unbound_ttp#add ttp ());
@@ -1008,12 +975,12 @@ class hxb_writer
 				let msg = Printf.sprintf "Unbound type parameter %s" (s_type_path ttp.ttp_class.cl_path) in
 				warn WUnboundTypeParameter msg p
 			end);
-			IOChunk.write_u8 chunk.io 4; (* TDynamic None *)
+			Chunk.write_u8 chunk 4; (* TDynamic None *)
 		end
 
 	method write_type_instance_byte i =
 		(* stats.type_instance_kind_writes.(i) <- stats.type_instance_kind_writes.(i) + 1; *)
-		IOChunk.write_u8 chunk.io i
+		Chunk.write_u8 chunk i
 
 	(*
 		simple references:
@@ -1084,25 +1051,25 @@ class hxb_writer
 	method write_type_instance_simple (t : Type.t) =
 		match t with
 		| TAbstract ({a_path = ([],"Void")},[]) ->
-			IOChunk.write_u8 chunk.io 100;
+			Chunk.write_u8 chunk 100;
 			None
 		| TAbstract ({a_path = ([],"Int")},[]) ->
-			IOChunk.write_u8 chunk.io 101;
+			Chunk.write_u8 chunk 101;
 			None
 		| TAbstract ({a_path = ([],"Float")},[]) ->
-			IOChunk.write_u8 chunk.io 102;
+			Chunk.write_u8 chunk 102;
 			None
 		| TAbstract ({a_path = ([],"Bool")},[]) ->
-			IOChunk.write_u8 chunk.io 103;
+			Chunk.write_u8 chunk 103;
 			None
 		| TInst ({cl_path = ([],"String")},[]) ->
-			IOChunk.write_u8 chunk.io 104;
+			Chunk.write_u8 chunk 104;
 			None
 		| TMono r ->
 			Monomorph.close r;
 			begin match r.tm_type with
 			| None ->
-				IOChunk.write_u8 chunk.io 0;
+				Chunk.write_u8 chunk 0;
 				self#write_tmono_ref r;
 				None
 			| Some t ->
@@ -1117,29 +1084,29 @@ class hxb_writer
 		| TInst({cl_kind = KExpr _},_) ->
 			Some t
 		| TInst(c,[]) ->
-			IOChunk.write_u8 chunk.io 40;
+			Chunk.write_u8 chunk 40;
 			self#write_class_ref c;
 			None
 		| TEnum(en,[]) ->
-			IOChunk.write_u8 chunk.io 50;
+			Chunk.write_u8 chunk 50;
 			self#write_enum_ref en;
 			None
 		| TType(td,[]) ->
 			let default () =
-				IOChunk.write_u8 chunk.io 60;
+				Chunk.write_u8 chunk 60;
 				self#write_typedef_ref td;
 			in
 			begin match td.t_type with
 			| TAnon an ->
 				begin match !(an.a_status) with
 					| ClassStatics c ->
-						IOChunk.write_u8 chunk.io 10;
+						Chunk.write_u8 chunk 10;
 						self#write_class_ref c
 					| EnumStatics en ->
-						IOChunk.write_u8 chunk.io 11;
+						Chunk.write_u8 chunk 11;
 						self#write_enum_ref en;
 					| AbstractStatics a ->
-						IOChunk.write_u8 chunk.io 12;
+						Chunk.write_u8 chunk 12;
 						self#write_abstract_ref a
 					| _ ->
 						default()
@@ -1149,14 +1116,14 @@ class hxb_writer
 			end;
 			None
 		| TAbstract(a,[]) ->
-			IOChunk.write_u8 chunk.io 70;
+			Chunk.write_u8 chunk 70;
 			self#write_abstract_ref a;
 			None
 		| TDynamic None ->
-			IOChunk.write_u8 chunk.io 4;
+			Chunk.write_u8 chunk 4;
 			None
 		| TFun([],t) when ExtType.is_void (follow_lazy_and_mono t) ->
-			IOChunk.write_u8 chunk.io 20;
+			Chunk.write_u8 chunk 20;
 			None
 		| TInst _ ->
 			Some t
@@ -1191,17 +1158,17 @@ class hxb_writer
 	method write_type_instance_not_simple t =
 		let write_function_arg (n,o,t) =
 			Chunk.write_string chunk n;
-			IOChunk.write_bool chunk.io o;
+			Chunk.write_bool chunk o;
 			self#write_type_instance t;
 		in
 		let write_inlined_list offset max f_first f_elt l =
-			self#write_inlined_list offset max (IOChunk.write_u8 chunk.io) f_first f_elt l
+			self#write_inlined_list offset max (Chunk.write_u8 chunk) f_first f_elt l
 		in
 		match t with
 		| TMono _ | TLazy _ | TDynamic None ->
 			die "" __LOC__
 		| TInst({cl_kind = KExpr e},[]) ->
-			IOChunk.write_u8 chunk.io 13;
+			Chunk.write_u8 chunk 13;
 			self#write_expr e;
 		| TFun(args,t) when ExtType.is_void (follow_lazy_and_mono t) ->
 			write_inlined_list 20 4 (fun () -> ()) write_function_arg args;
@@ -1217,12 +1184,12 @@ class hxb_writer
 		| TAbstract(a,tl) ->
 			write_inlined_list 70 2 (fun () -> self#write_abstract_ref a) self#write_type_instance tl;
 		| TAnon an when PMap.is_empty an.a_fields ->
-			IOChunk.write_u8 chunk.io 80;
+			Chunk.write_u8 chunk 80;
 		| TAnon an ->
-			IOChunk.write_u8 chunk.io 81;
+			Chunk.write_u8 chunk 81;
 			self#write_anon_ref an []
 		| TDynamic (Some t) ->
-			IOChunk.write_u8 chunk.io 89;
+			Chunk.write_u8 chunk 89;
 			self#write_type_instance t;
 
 	method write_type_instance (t: Type.t) =
@@ -1251,13 +1218,13 @@ class hxb_writer
 			| VExtractorVariable -> 9
 			| VAbstractThis -> 10
 		in
-		IOChunk.write_u8 chunk.io b
+		Chunk.write_u8 chunk b
 
 	method write_var fctx v =
-		IOChunk.write_uleb128 chunk.io v.v_id;
+		Chunk.write_uleb128 chunk v.v_id;
 		Chunk.write_string chunk v.v_name;
 		self#write_var_kind v.v_kind;
-		IOChunk.write_uleb128 chunk.io v.v_flags;
+		Chunk.write_uleb128 chunk v.v_flags;
 		self#write_metadata v.v_meta;
 		self#write_pos v.v_pos
 
@@ -1266,15 +1233,15 @@ class hxb_writer
 		let r = self#write_type_instance_simple t in
 		let index = match r with
 		| None ->
-			let t_bytes = restore (fun new_chunk -> IOChunk.get_bytes new_chunk.io) in
+			let t_bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
 			(* incr stats.type_instance_immediate; *)
 			fctx.t_pool#get_or_add t_bytes t_bytes
 		| Some t ->
-			ignore(restore (fun new_chunk -> IOChunk.get_bytes new_chunk.io));
+			ignore(restore (fun new_chunk -> Chunk.get_bytes new_chunk));
 			let restore = self#start_temporary_chunk 32 in
 			self#write_type_instance_not_simple t;
 			let t_bytes = restore (fun new_chunk ->
-				IOChunk.get_bytes new_chunk.io
+				Chunk.get_bytes new_chunk
 			) in
 			let index = try
 				let index = fctx.t_pool#get t_bytes in
@@ -1286,19 +1253,19 @@ class hxb_writer
 			in
 			index
 		in
-		IOChunk.write_uleb128 chunk.io index
+		Chunk.write_uleb128 chunk index
 
 	method write_texpr_byte (i : int) =
 		(* stats.texpr_writes.(i) <- stats.texpr_writes.(i) + 1; *)
-		IOChunk.write_u8 chunk.io i
+		Chunk.write_u8 chunk i
 
 	method write_texpr (fctx : field_writer_context) (e : texpr) =
 		let declare_var v =
-			IOChunk.write_uleb128 chunk.io (fctx.vars#add v.v_id v);
+			Chunk.write_uleb128 chunk (fctx.vars#add v.v_id v);
 			Chunk.write_option chunk v.v_extra (fun ve ->
 				Chunk.write_list chunk ve.v_params (fun ttp ->
 					let index = local_type_parameters#add ttp () in
-					IOChunk.write_uleb128 chunk.io index
+					Chunk.write_uleb128 chunk index
 				);
 				Chunk.write_option chunk ve.v_expr (self#write_texpr fctx);
 			);
@@ -1314,40 +1281,40 @@ class hxb_writer
 			| TConst ct ->
 				begin match ct with
 				| TNull ->
-					IOChunk.write_u8 chunk.io 0;
+					Chunk.write_u8 chunk 0;
 				| TThis ->
 					fctx.texpr_this <- Some e;
-					IOChunk.write_u8 chunk.io 1;
+					Chunk.write_u8 chunk 1;
 				| TSuper ->
-					IOChunk.write_u8 chunk.io 2;
+					Chunk.write_u8 chunk 2;
 				| TBool false ->
-					IOChunk.write_u8 chunk.io 3;
+					Chunk.write_u8 chunk 3;
 				| TBool true ->
-					IOChunk.write_u8 chunk.io 4;
+					Chunk.write_u8 chunk 4;
 				| TInt i32 ->
-					IOChunk.write_u8 chunk.io 5;
-					IOChunk.write_i32 chunk.io i32;
+					Chunk.write_u8 chunk 5;
+					Chunk.write_i32 chunk i32;
 				| TFloat f ->
-					IOChunk.write_u8 chunk.io 6;
+					Chunk.write_u8 chunk 6;
 					Chunk.write_string chunk f;
 				| TString s ->
-					IOChunk.write_u8 chunk.io 7;
+					Chunk.write_u8 chunk 7;
 					Chunk.write_string chunk s
 				end
 			(* vars 20-29 *)
 			| TLocal v ->
-				IOChunk.write_u8 chunk.io 20;
-				IOChunk.write_uleb128 chunk.io (fctx.vars#get v.v_id)
+				Chunk.write_u8 chunk 20;
+				Chunk.write_uleb128 chunk (fctx.vars#get v.v_id)
 			| TVar(v,None) ->
-				IOChunk.write_u8 chunk.io 21;
+				Chunk.write_u8 chunk 21;
 				declare_var v;
 			| TVar(v,Some e1) ->
-				IOChunk.write_u8 chunk.io 22;
+				Chunk.write_u8 chunk 22;
 				declare_var v;
 				loop e1;
 			(* blocks 30-49 *)
 			| TBlock [] ->
-				IOChunk.write_u8 chunk.io 30;
+				Chunk.write_u8 chunk 30;
 			| TBlock el ->
 				let restore = self#start_temporary_chunk 256 in
 				let i = ref 0 in
@@ -1355,27 +1322,27 @@ class hxb_writer
 					incr i;
 					loop e;
 				) el;
-				let bytes = restore (fun new_chunk -> IOChunk.get_bytes new_chunk.io) in
+				let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
 				let l = !i in
 				begin match l with
-				| 1 -> IOChunk.write_u8 chunk.io 31;
-				| 2 -> IOChunk.write_u8 chunk.io 32;
-				| 3 -> IOChunk.write_u8 chunk.io 33;
-				| 4 -> IOChunk.write_u8 chunk.io 34;
-				| 5 -> IOChunk.write_u8 chunk.io 35;
+				| 1 -> Chunk.write_u8 chunk 31;
+				| 2 -> Chunk.write_u8 chunk 32;
+				| 3 -> Chunk.write_u8 chunk 33;
+				| 4 -> Chunk.write_u8 chunk 34;
+				| 5 -> Chunk.write_u8 chunk 35;
 				| _ ->
 					if l <= 0xFF then begin
-						IOChunk.write_u8 chunk.io 36;
-						IOChunk.write_u8 chunk.io l;
+						Chunk.write_u8 chunk 36;
+						Chunk.write_u8 chunk l;
 					end else begin
-						IOChunk.write_u8 chunk.io 39;
-						IOChunk.write_uleb128 chunk.io l;
+						Chunk.write_u8 chunk 39;
+						Chunk.write_uleb128 chunk l;
 					end;
 				end;
-				IOChunk.write_bytes chunk.io bytes;
+				Chunk.write_bytes chunk bytes;
 			(* function 50-59 *)
 			| TFunction tf ->
-				IOChunk.write_u8 chunk.io 50;
+				Chunk.write_u8 chunk 50;
 				Chunk.write_list chunk tf.tf_args (fun (v,eo) ->
 					declare_var v;
 					Chunk.write_option chunk eo loop;
@@ -1384,44 +1351,44 @@ class hxb_writer
 				loop tf.tf_expr;
 			(* texpr compounds 60-79 *)
 			| TArray(e1,e2) ->
-				IOChunk.write_u8 chunk.io 60;
+				Chunk.write_u8 chunk 60;
 				loop e1;
 				loop e2;
 			| TParenthesis e1 ->
-				IOChunk.write_u8 chunk.io 61;
+				Chunk.write_u8 chunk 61;
 				loop e1;
 			| TArrayDecl el ->
-				IOChunk.write_u8 chunk.io 62;
+				Chunk.write_u8 chunk 62;
 				loop_el el;
 			| TObjectDecl fl ->
-				IOChunk.write_u8 chunk.io 63;
+				Chunk.write_u8 chunk 63;
 				Chunk.write_list chunk fl (fun ((name,p,qs),e) ->
 					Chunk.write_string chunk name;
 					self#write_pos p;
 					begin match qs with
-					| NoQuotes -> IOChunk.write_u8 chunk.io 0;
-					| DoubleQuotes -> IOChunk.write_u8 chunk.io 1;
+					| NoQuotes -> Chunk.write_u8 chunk 0;
+					| DoubleQuotes -> Chunk.write_u8 chunk 1;
 					end;
 					loop e
 				);
 			| TCall(e1,el) ->
-				self#write_inlined_list 70 4 (IOChunk.write_u8 chunk.io) (fun () -> loop e1) loop el
+				self#write_inlined_list 70 4 (Chunk.write_u8 chunk) (fun () -> loop e1) loop el
 			| TMeta(m,e1) ->
-				IOChunk.write_u8 chunk.io 65;
+				Chunk.write_u8 chunk 65;
 				self#write_metadata_entry m;
 				loop e1;
 			(* branching 80-89 *)
 			| TIf(e1,e2,None) ->
-				IOChunk.write_u8 chunk.io 80;
+				Chunk.write_u8 chunk 80;
 				loop e1;
 				loop e2;
 			| TIf(e1,e2,Some e3) ->
-				IOChunk.write_u8 chunk.io 81;
+				Chunk.write_u8 chunk 81;
 				loop e1;
 				loop e2;
 				loop e3;
 			| TSwitch s ->
-				IOChunk.write_u8 chunk.io 82;
+				Chunk.write_u8 chunk 82;
 				loop s.switch_subject;
 				Chunk.write_list chunk s.switch_cases (fun c ->
 					loop_el c.case_patterns;
@@ -1429,40 +1396,40 @@ class hxb_writer
 				);
 				Chunk.write_option chunk s.switch_default loop;
 			| TTry(e1,catches) ->
-				IOChunk.write_u8 chunk.io 83;
+				Chunk.write_u8 chunk 83;
 				loop e1;
 				Chunk.write_list chunk catches  (fun (v,e) ->
 					declare_var v;
 					loop e
 				);
 			| TWhile(e1,e2,flag) ->
-				IOChunk.write_u8 chunk.io (if flag = NormalWhile then 84 else 85);
+				Chunk.write_u8 chunk (if flag = NormalWhile then 84 else 85);
 				loop e1;
 				loop e2;
 			| TFor(v,e1,e2) ->
-				IOChunk.write_u8 chunk.io 86;
+				Chunk.write_u8 chunk 86;
 				declare_var v;
 				loop e1;
 				loop e2;
 			(* control flow 90-99 *)
 			| TReturn None ->
-				IOChunk.write_u8 chunk.io 90;
+				Chunk.write_u8 chunk 90;
 			| TReturn (Some e1) ->
-				IOChunk.write_u8 chunk.io 91;
+				Chunk.write_u8 chunk 91;
 				loop e1;
 			| TContinue ->
-				IOChunk.write_u8 chunk.io 92;
+				Chunk.write_u8 chunk 92;
 			| TBreak ->
-				IOChunk.write_u8 chunk.io 93;
+				Chunk.write_u8 chunk 93;
 			| TThrow e1 ->
-				IOChunk.write_u8 chunk.io 94;
+				Chunk.write_u8 chunk 94;
 				loop e1;
 			(* access 100-119 *)
 			| TEnumIndex e1 ->
-				IOChunk.write_u8 chunk.io 100;
+				Chunk.write_u8 chunk 100;
 				loop e1;
 			| TEnumParameter(e1,ef,i) ->
-				IOChunk.write_u8 chunk.io 101;
+				Chunk.write_u8 chunk 101;
 				loop e1;
 				let en = match follow ef.ef_type with
 					| TFun(_,tr) ->
@@ -1474,99 +1441,99 @@ class hxb_writer
 						die "" __LOC__
 				in
 				self#write_enum_field_ref en ef;
-				IOChunk.write_uleb128 chunk.io i;
+				Chunk.write_uleb128 chunk i;
 			| TField({eexpr = TConst TThis; epos = p1},FInstance(c,tl,cf)) when fctx.texpr_this <> None ->
-				IOChunk.write_u8 chunk.io 111;
+				Chunk.write_u8 chunk 111;
 				fctx.pos_writer#write_pos chunk true 0 p1;
 				self#write_class_ref c;
 				self#write_types tl;
 				self#write_field_ref c CfrMember cf;
 			| TField(e1,FInstance(c,tl,cf)) ->
-				IOChunk.write_u8 chunk.io 102;
+				Chunk.write_u8 chunk 102;
 				loop e1;
 				self#write_class_ref c;
 				self#write_types tl;
 				self#write_field_ref c CfrMember cf;
 			| TField({eexpr = TTypeExpr (TClassDecl c'); epos = p1},FStatic(c,cf)) when c == c' ->
-				IOChunk.write_u8 chunk.io 110;
+				Chunk.write_u8 chunk 110;
 				fctx.pos_writer#write_pos chunk true 0 p1;
 				self#write_class_ref c;
 				self#write_field_ref c CfrStatic cf;
 			| TField(e1,FStatic(c,cf)) ->
-				IOChunk.write_u8 chunk.io 103;
+				Chunk.write_u8 chunk 103;
 				loop e1;
 				self#write_class_ref c;
 				self#write_field_ref c CfrStatic cf;
 			| TField(e1,FAnon cf) ->
-				IOChunk.write_u8 chunk.io 104;
+				Chunk.write_u8 chunk 104;
 				loop e1;
 				self#write_anon_field_ref cf
 			| TField(e1,FClosure(Some(c,tl),cf)) ->
-				IOChunk.write_u8 chunk.io 105;
+				Chunk.write_u8 chunk 105;
 				loop e1;
 				self#write_class_ref c;
 				self#write_types tl;
 				self#write_field_ref c CfrMember cf
 			| TField(e1,FClosure(None,cf)) ->
-				IOChunk.write_u8 chunk.io 106;
+				Chunk.write_u8 chunk 106;
 				loop e1;
 				self#write_anon_field_ref cf
 			| TField(e1,FEnum(en,ef)) ->
-				IOChunk.write_u8 chunk.io 107;
+				Chunk.write_u8 chunk 107;
 				loop e1;
 				self#write_enum_ref en;
 				self#write_enum_field_ref en ef;
 			| TField(e1,FDynamic s) ->
-				IOChunk.write_u8 chunk.io 108;
+				Chunk.write_u8 chunk 108;
 				loop e1;
 				Chunk.write_string chunk s;
 			(* module types 120-139 *)
 			| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter ttp})) ->
-				IOChunk.write_u8 chunk.io 128;
+				Chunk.write_u8 chunk 128;
 				self#write_type_parameter_ref ttp
 			| TTypeExpr (TClassDecl c) ->
-				IOChunk.write_u8 chunk.io 120;
+				Chunk.write_u8 chunk 120;
 				self#write_class_ref c;
 			| TTypeExpr (TEnumDecl en) ->
-				IOChunk.write_u8 chunk.io 121;
+				Chunk.write_u8 chunk 121;
 				self#write_enum_ref en;
 			| TTypeExpr (TAbstractDecl a) ->
-				IOChunk.write_u8 chunk.io 122;
+				Chunk.write_u8 chunk 122;
 				self#write_abstract_ref a
 			| TTypeExpr (TTypeDecl td) ->
-				IOChunk.write_u8 chunk.io 123;
+				Chunk.write_u8 chunk 123;
 				self#write_typedef_ref td
 			| TCast(e1,None) ->
-				IOChunk.write_u8 chunk.io 124;
+				Chunk.write_u8 chunk 124;
 				loop e1;
 			| TCast(e1,Some md) ->
-				IOChunk.write_u8 chunk.io 125;
+				Chunk.write_u8 chunk 125;
 				loop e1;
 				let infos = t_infos md in
 				let m = infos.mt_module in
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd infos.mt_path);
 			| TNew(({cl_kind = KTypeParameter ttp}),tl,el) ->
-				IOChunk.write_u8 chunk.io 127;
+				Chunk.write_u8 chunk 127;
 				self#write_type_parameter_ref ttp;
 				self#write_types tl;
 				loop_el el;
 			| TNew(c,tl,el) ->
-				IOChunk.write_u8 chunk.io 126;
+				Chunk.write_u8 chunk 126;
 				self#write_class_ref c;
 				self#write_types tl;
 				loop_el el;
 			(* unops 140-159 *)
 			| TUnop(op,flag,e1) ->
-				IOChunk.write_u8 chunk.io (140 + unop_index op flag);
+				Chunk.write_u8 chunk (140 + unop_index op flag);
 				loop e1;
 			(* binops 160-219 *)
 			| TBinop(op,e1,e2) ->
-				IOChunk.write_u8 chunk.io (160 + binop_index op);
+				Chunk.write_u8 chunk (160 + binop_index op);
 				loop e1;
 				loop e2;
 			(* rest 250-254 *)
 			| TIdent s ->
-				IOChunk.write_u8 chunk.io 250;
+				Chunk.write_u8 chunk 250;
 				Chunk.write_string chunk s;
 		and loop_el el =
 			Chunk.write_list chunk el loop
@@ -1585,7 +1552,7 @@ class hxb_writer
 				| TPHAnonField -> 4
 				| TPHLocal -> 5
 			in
-			IOChunk.write_u8 chunk.io i
+			Chunk.write_u8 chunk i
 		in
 		Chunk.write_list chunk ttps write_type_parameter_forward
 
@@ -1605,36 +1572,36 @@ class hxb_writer
 	(* Fields *)
 
 	method write_field_kind = function
-		| Method MethNormal -> IOChunk.write_u8 chunk.io 0;
-		| Method MethInline -> IOChunk.write_u8 chunk.io 1;
-		| Method MethDynamic -> IOChunk.write_u8 chunk.io 2;
-		| Method MethMacro -> IOChunk.write_u8 chunk.io 3;
+		| Method MethNormal -> Chunk.write_u8 chunk 0;
+		| Method MethInline -> Chunk.write_u8 chunk 1;
+		| Method MethDynamic -> Chunk.write_u8 chunk 2;
+		| Method MethMacro -> Chunk.write_u8 chunk 3;
 		(* normal read *)
-		| Var {v_read = AccNormal; v_write = AccNormal } -> IOChunk.write_u8 chunk.io 10
-		| Var {v_read = AccNormal; v_write = AccNo } -> IOChunk.write_u8 chunk.io 11
-		| Var {v_read = AccNormal; v_write = AccNever } -> IOChunk.write_u8 chunk.io 12
-		| Var {v_read = AccNormal; v_write = AccCtor } -> IOChunk.write_u8 chunk.io 13
-		| Var {v_read = AccNormal; v_write = AccCall } -> IOChunk.write_u8 chunk.io 14
+		| Var {v_read = AccNormal; v_write = AccNormal } -> Chunk.write_u8 chunk 10
+		| Var {v_read = AccNormal; v_write = AccNo } -> Chunk.write_u8 chunk 11
+		| Var {v_read = AccNormal; v_write = AccNever } -> Chunk.write_u8 chunk 12
+		| Var {v_read = AccNormal; v_write = AccCtor } -> Chunk.write_u8 chunk 13
+		| Var {v_read = AccNormal; v_write = AccCall } -> Chunk.write_u8 chunk 14
 		(* inline read *)
-		| Var {v_read = AccInline; v_write = AccNever } -> IOChunk.write_u8 chunk.io 20
+		| Var {v_read = AccInline; v_write = AccNever } -> Chunk.write_u8 chunk 20
 		(* getter read *)
-		| Var {v_read = AccCall; v_write = AccNormal } -> IOChunk.write_u8 chunk.io 30
-		| Var {v_read = AccCall; v_write = AccNo } -> IOChunk.write_u8 chunk.io 31
-		| Var {v_read = AccCall; v_write = AccNever } -> IOChunk.write_u8 chunk.io 32
-		| Var {v_read = AccCall; v_write = AccCtor } -> IOChunk.write_u8 chunk.io 33
-		| Var {v_read = AccCall; v_write = AccCall } -> IOChunk.write_u8 chunk.io 34
+		| Var {v_read = AccCall; v_write = AccNormal } -> Chunk.write_u8 chunk 30
+		| Var {v_read = AccCall; v_write = AccNo } -> Chunk.write_u8 chunk 31
+		| Var {v_read = AccCall; v_write = AccNever } -> Chunk.write_u8 chunk 32
+		| Var {v_read = AccCall; v_write = AccCtor } -> Chunk.write_u8 chunk 33
+		| Var {v_read = AccCall; v_write = AccCall } -> Chunk.write_u8 chunk 34
 		(* weird/overlooked combinations *)
 		| Var {v_read = r;v_write = w } ->
-			IOChunk.write_u8 chunk.io 100;
+			Chunk.write_u8 chunk 100;
 			let f = function
-				| AccNormal -> IOChunk.write_u8 chunk.io 0
-				| AccNo -> IOChunk.write_u8 chunk.io 1
-				| AccNever -> IOChunk.write_u8 chunk.io 2
-				| AccCtor -> IOChunk.write_u8 chunk.io 3
-				| AccCall -> IOChunk.write_u8 chunk.io 4
-				| AccInline -> IOChunk.write_u8 chunk.io 5
+				| AccNormal -> Chunk.write_u8 chunk 0
+				| AccNo -> Chunk.write_u8 chunk 1
+				| AccNever -> Chunk.write_u8 chunk 2
+				| AccCtor -> Chunk.write_u8 chunk 3
+				| AccCall -> Chunk.write_u8 chunk 4
+				| AccInline -> Chunk.write_u8 chunk 5
 				| AccRequire(s,so) ->
-					IOChunk.write_u8 chunk.io 6;
+					Chunk.write_u8 chunk 6;
 					Chunk.write_string chunk s;
 					Chunk.write_option chunk so (Chunk.write_string chunk)
 			in
@@ -1674,20 +1641,20 @@ class hxb_writer
 			restore(fun new_chunk ->
 				let restore = self#start_temporary_chunk 512 in
 				if self#in_nested_scope then
-					IOChunk.write_u8 chunk.io 0
+					Chunk.write_u8 chunk 0
 				else begin
-					IOChunk.write_u8 chunk.io 1;
+					Chunk.write_u8 chunk 1;
 					let ltp = List.map fst local_type_parameters#to_list in
 					self#write_type_parameters ltp
 				end;
 				let items = fctx.t_pool#items in
-				IOChunk.write_uleb128 chunk.io (DynArray.length items);
+				Chunk.write_uleb128 chunk (DynArray.length items);
 				DynArray.iter (fun bytes ->
-					IOChunk.write_bytes chunk.io bytes
+					Chunk.write_bytes chunk bytes
 				) items;
 
 				let items = fctx.vars#items in
-				IOChunk.write_uleb128 chunk.io (DynArray.length items);
+				Chunk.write_uleb128 chunk (DynArray.length items);
 				DynArray.iter (fun v ->
 					self#write_var fctx v;
 				) items;
@@ -1697,11 +1664,11 @@ class hxb_writer
 		)
 
 	method commit_field_type_parameters (params : type_params) =
-		IOChunk.write_uleb128 chunk.io (List.length params);
+		Chunk.write_uleb128 chunk (List.length params);
 		if self#in_nested_scope then
-			IOChunk.write_u8 chunk.io 0
+			Chunk.write_u8 chunk 0
 		else begin
-			IOChunk.write_u8 chunk.io 1;
+			Chunk.write_u8 chunk 1;
 			let ftp = List.map fst field_type_parameters#to_list in
 			self#write_type_parameters ftp
 		end
@@ -1709,23 +1676,23 @@ class hxb_writer
 	method write_class_field_data (write_expr_immediately : bool) (cf : tclass_field) =
 		let restore = self#start_temporary_chunk 512 in
 		self#write_type_instance cf.cf_type;
-		IOChunk.write_uleb128 chunk.io cf.cf_flags;
+		Chunk.write_uleb128 chunk cf.cf_flags;
 		Chunk.write_option chunk cf.cf_doc self#write_documentation;
 		self#write_metadata cf.cf_meta;
 		self#write_field_kind cf.cf_kind;
 		let expr_chunk = match cf.cf_expr with
 			| None ->
-				IOChunk.write_u8 chunk.io 0;
+				Chunk.write_u8 chunk 0;
 				None
 			| Some e when not write_expr_immediately ->
-				IOChunk.write_u8 chunk.io 0;
+				Chunk.write_u8 chunk 0;
 				let fctx,close = self#start_texpr e.epos in
 				self#write_texpr fctx e;
 				Chunk.write_option chunk cf.cf_expr_unoptimized (self#write_texpr fctx);
 				let expr_chunk = close() in
 				Some expr_chunk
 			| Some e ->
-				IOChunk.write_u8 chunk.io 1;
+				Chunk.write_u8 chunk 1;
 				let fctx,close = self#start_texpr e.epos in
 				self#write_texpr fctx e;
 				Chunk.write_option chunk cf.cf_expr_unoptimized (self#write_texpr fctx);
@@ -1741,7 +1708,7 @@ class hxb_writer
 
 	method write_class_field_and_overloads_data (write_expr_immediately : bool) (cf : tclass_field) =
 		let cfl = cf :: cf.cf_overloads in
-		IOChunk.write_uleb128 chunk.io (List.length cfl);
+		Chunk.write_uleb128 chunk (List.length cfl);
 		ExtList.List.filter_map (fun cf ->
 			let close = self#open_field_scope cf.cf_params in
 			let expr_chunk = self#write_class_field_data write_expr_immediately cf in
@@ -1755,7 +1722,7 @@ class hxb_writer
 		type_type_parameters <- type_param_lut#extract path
 
 	method write_common_module_type (infos : tinfos) : unit =
-		IOChunk.write_bool chunk.io infos.mt_private;
+		Chunk.write_bool chunk infos.mt_private;
 		Chunk.write_option chunk infos.mt_doc self#write_documentation;
 		self#write_metadata infos.mt_meta;
 		self#write_type_parameters_data infos.mt_params;
@@ -1766,28 +1733,28 @@ class hxb_writer
 
 	method write_class_kind = function
 		| KNormal ->
-			IOChunk.write_u8 chunk.io 0
+			Chunk.write_u8 chunk 0
 		| KTypeParameter ttp ->
 			die "TODO" __LOC__
 		| KExpr e ->
-			IOChunk.write_u8 chunk.io 2;
+			Chunk.write_u8 chunk 2;
 			self#write_expr e;
 		| KGeneric ->
-			IOChunk.write_u8 chunk.io 3;
+			Chunk.write_u8 chunk 3;
 		| KGenericInstance(c,tl) ->
-			IOChunk.write_u8 chunk.io 4;
+			Chunk.write_u8 chunk 4;
 			self#write_class_ref c;
 			self#write_types tl
 		| KMacroType ->
-			IOChunk.write_u8 chunk.io 5;
+			Chunk.write_u8 chunk 5;
 		| KGenericBuild l ->
-			IOChunk.write_u8 chunk.io 6;
+			Chunk.write_u8 chunk 6;
 			Chunk.write_list chunk l self#write_cfield;
 		| KAbstractImpl a ->
-			IOChunk.write_u8 chunk.io 7;
+			Chunk.write_u8 chunk 7;
 			self#write_abstract_ref a;
 		| KModuleFields md ->
-			IOChunk.write_u8 chunk.io 8;
+			Chunk.write_u8 chunk 8;
 
 	method write_class (c : tclass) =
 		begin match c.cl_kind with
@@ -1818,14 +1785,14 @@ class hxb_writer
 		self#write_common_module_type (Obj.magic a);
 		Chunk.write_option chunk a.a_impl self#write_class_ref;
 		if Meta.has Meta.CoreType a.a_meta then
-			IOChunk.write_u8 chunk.io 0
+			Chunk.write_u8 chunk 0
 		else begin
-			IOChunk.write_u8 chunk.io 1;
+			Chunk.write_u8 chunk 1;
 			self#write_type_instance a.a_this;
 		end;
 		Chunk.write_list chunk a.a_from self#write_type_instance;
 		Chunk.write_list chunk a.a_to self#write_type_instance;
-		IOChunk.write_bool chunk.io a.a_enum
+		Chunk.write_bool chunk a.a_enum
 
 	method write_abstract_fields (a : tabstract) =
 		let c = match a.a_impl with
@@ -1841,12 +1808,12 @@ class hxb_writer
 		Chunk.write_option chunk a.a_call (self#write_field_ref c CfrStatic);
 
 		Chunk.write_list chunk a.a_ops (fun (op, cf) ->
-			IOChunk.write_u8 chunk.io (binop_index op);
+			Chunk.write_u8 chunk (binop_index op);
 			self#write_field_ref c CfrStatic cf
 		);
 
 		Chunk.write_list chunk a.a_unops (fun (op, flag, cf) ->
-			IOChunk.write_u8 chunk.io (unop_index op flag);
+			Chunk.write_u8 chunk (unop_index op flag);
 			self#write_field_ref c CfrStatic cf
 		);
 
@@ -1861,7 +1828,7 @@ class hxb_writer
 	method write_enum (e : tenum) =
 		self#select_type e.e_path;
 		self#write_common_module_type (Obj.magic e);
-		IOChunk.write_bool chunk.io e.e_extern;
+		Chunk.write_bool chunk e.e_extern;
 		Chunk.write_list chunk e.e_names (Chunk.write_string chunk);
 
 	method write_typedef (td : tdef) =
@@ -1878,13 +1845,13 @@ class hxb_writer
 
 		begin match !(an.a_status) with
 		| Closed ->
-			IOChunk.write_u8 chunk.io 0;
+			Chunk.write_u8 chunk 0;
 			write_fields ()
 		| Const ->
-			IOChunk.write_u8 chunk.io 1;
+			Chunk.write_u8 chunk 1;
 			write_fields ()
 		| Extend tl ->
-			IOChunk.write_u8 chunk.io 2;
+			Chunk.write_u8 chunk 2;
 			self#write_types tl;
 			write_fields ()
 		| ClassStatics _ ->
@@ -1923,7 +1890,7 @@ class hxb_writer
 		in
 
 		let infos = t_infos mt in
-		IOChunk.write_u8 chunk.io i;
+		Chunk.write_u8 chunk i;
 		self#write_path (fst infos.mt_path, !name);
 		self#write_pos infos.mt_pos;
 		self#write_pos infos.mt_name_pos;
@@ -1938,7 +1905,7 @@ class hxb_writer
 		(* Forward declare fields *)
 		match mt with
 		| TClassDecl c ->
-			IOChunk.write_uleb128 chunk.io c.cl_flags;
+			Chunk.write_uleb128 chunk c.cl_flags;
 			Chunk.write_option chunk c.cl_constructor self#write_class_field_forward;
 			Chunk.write_list chunk c.cl_ordered_fields self#write_class_field_forward;
 			Chunk.write_list chunk c.cl_ordered_statics self#write_class_field_forward;
@@ -1947,7 +1914,7 @@ class hxb_writer
 				Chunk.write_string chunk s;
 				self#write_pos ef.ef_pos;
 				self#write_pos ef.ef_name_pos;
-				IOChunk.write_u8 chunk.io ef.ef_index
+				Chunk.write_u8 chunk ef.ef_index
 			);
 		| TAbstractDecl a ->
 			()
@@ -2035,9 +2002,9 @@ class hxb_writer
 					Chunk.write_string chunk s;
 					let restore = self#start_temporary_chunk 32 in
 					self#write_type_instance ef.ef_type;
-					let t_bytes = restore (fun new_chunk -> IOChunk.get_bytes new_chunk.io) in
+					let t_bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
 					self#commit_field_type_parameters ef.ef_params;
-					IOChunk.write_bytes chunk.io t_bytes;
+					Chunk.write_bytes chunk t_bytes;
 					Chunk.write_option chunk ef.ef_doc self#write_documentation;
 					self#write_metadata ef.ef_meta;
 					close();
@@ -2096,27 +2063,27 @@ class hxb_writer
 		let items = class_fields#items in
 		if DynArray.length items > 0 then begin
 			self#start_chunk CFR;
-			IOChunk.write_uleb128 chunk.io (DynArray.length items);
+			Chunk.write_uleb128 chunk (DynArray.length items);
 			DynArray.iter (fun (cf,(c,kind,depth)) ->
 				self#write_class_ref c;
 				begin match kind with
 				| CfrStatic ->
-					IOChunk.write_u8 chunk.io 0;
+					Chunk.write_u8 chunk 0;
 					Chunk.write_string chunk cf.cf_name
 				| CfrMember ->
-					IOChunk.write_u8 chunk.io 1;
+					Chunk.write_u8 chunk 1;
 					Chunk.write_string chunk cf.cf_name
 				| CfrConstructor ->
-					IOChunk.write_u8 chunk.io 2;
+					Chunk.write_u8 chunk 2;
 				end;
-				IOChunk.write_uleb128 chunk.io depth
+				Chunk.write_uleb128 chunk depth
 			) items;
 		end;
 
 		let items = enum_fields#items in
 		if DynArray.length items > 0 then begin
 			self#start_chunk EFR;
-			IOChunk.write_uleb128 chunk.io (DynArray.length items);
+			Chunk.write_uleb128 chunk (DynArray.length items);
 			DynArray.iter (fun (en,ef) ->
 				self#write_enum_ref en;
 				Chunk.write_string chunk ef.ef_name;
@@ -2126,7 +2093,7 @@ class hxb_writer
 		let items = anon_fields#items in
 		if DynArray.length items > 0 then begin
 			self#start_chunk AFR;
-			IOChunk.write_uleb128 chunk.io (DynArray.length items);
+			Chunk.write_uleb128 chunk (DynArray.length items);
 			DynArray.iter (fun (cf,_) ->
 				self#write_class_field_forward cf
 			) items;
@@ -2135,33 +2102,42 @@ class hxb_writer
 		self#start_chunk MDF;
 		self#write_path m.m_path;
 		Chunk.write_string chunk (Path.UniqueKey.lazy_path m.m_extra.m_file);
-		IOChunk.write_uleb128 chunk.io (DynArray.length anons#items);
-		IOChunk.write_uleb128 chunk.io (DynArray.length tmonos#items);
+		Chunk.write_uleb128 chunk (DynArray.length anons#items);
+		Chunk.write_uleb128 chunk (DynArray.length tmonos#items);
 		self#start_chunk EOT;
 		self#start_chunk EOF;
 		self#start_chunk EOM;
-		DynArray.add chunks cp#finalize;
+
+		let finalize_string_pool kind (pool : (string,string) pool) =
+			self#start_chunk kind;
+			Chunk.write_uleb128 chunk (DynArray.length pool#items);
+			DynArray.iter (fun s ->
+				let b = Bytes.unsafe_of_string s in
+				Chunk.write_bytes_length_prefixed chunk b;
+			) pool#items
+		in
+		finalize_string_pool STR cp;
 		if not docs#is_empty then
-			DynArray.add chunks docs#finalize
+			finalize_string_pool DOC docs
 
 	(* Export *)
 
 	method get_sorted_chunks =
 		let l = DynArray.to_list chunks in
 		let l = List.sort (fun chunk1 chunk2 ->
-			(Obj.magic chunk1.IOChunk.kind - (Obj.magic chunk2.kind))
+			(Obj.magic chunk1.Chunk.kind - (Obj.magic chunk2.kind))
 		) l in
 		l
 
 	method get_chunks =
 		List.map (fun chunk ->
-			(chunk.IOChunk.kind,IOChunk.get_bytes chunk)
+			(chunk.Chunk.kind,Chunk.get_bytes chunk)
 		) (self#get_sorted_chunks)
 
 	method export : 'a . 'a IO.output -> unit = fun ch ->
 		write_header ch;
 		let l = self#get_sorted_chunks in
 		List.iter (fun io ->
-			IOChunk.export stats io ch
+			Chunk.export stats io ch
 		) l
 end
