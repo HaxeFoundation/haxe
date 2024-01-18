@@ -557,7 +557,19 @@ and type_module sctx (ctx:Typecore.typer) mpath p =
 			   checking dependencies. This means that the actual decoding never has any reason to fail. *)
 			begin match check_module sctx ctx mpath mc.mc_extra p with
 				| None ->
-					let m = (new hxb_reader_api_server ctx cc)#read_chunks mc.mc_chunks com.hxb_reader_stats in
+					let reader = new HxbReader.hxb_reader com.hxb_reader_stats in
+					let api = (new hxb_reader_api_server ctx cc :> HxbReaderApi.hxb_reader_api) in
+					let f_next chunks until =
+						let t_hxb = Timer.timer ["server";"module cache";"hxb read"] in
+						let r = reader#read_chunks_until api chunks until in
+						t_hxb();
+						r
+					in
+					let m,chunks = f_next mc.mc_chunks EOF in
+					(* We try to avoid reading expressions as much as possible, so we only eagerly do this for
+					   our current display file if we're in display mode. Otherwise this is delayed to PTypeField. *)
+					if ctx.is_display_file || ctx.com.display.dms_full_typing then ignore(f_next chunks EOM)
+					else delay ctx PTypeField (fun () -> ignore(f_next chunks EOM));
 					add_modules true m;
 				| Some reason ->
 					skip mpath reason
