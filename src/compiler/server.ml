@@ -79,7 +79,7 @@ let parse_file cs com (rfile : ClassPaths.resolved_file) p =
 							let ident = Hashtbl.find Parser.special_identifier_files fkey in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
-							cc#cache_file fkey rfile ftime data pdi;
+							cc#cache_file fkey (ClassPaths.create_resolved_file ffile rfile.class_path) ftime data pdi;
 							"cached",false
 						end
 				in

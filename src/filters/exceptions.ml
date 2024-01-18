@@ -73,7 +73,7 @@ let std_is ctx e t p =
 		| TFun(_,t) -> t
 		| _ -> raise_typing_error ("Std.isOfType is not a function and cannot be called") p
 	in
-	let type_expr = { eexpr = TTypeExpr(module_type_of_type t); etype = t; epos = p } in
+	let type_expr = TyperBase.type_module_type ctx.typer (module_type_of_type t) p in
 	make_static_call ctx.typer std_cls isOfType_field (fun t -> t) [e; type_expr] return_type p
 
 (**
