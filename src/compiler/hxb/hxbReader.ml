@@ -1590,10 +1590,15 @@ class hxb_reader
 
 	method read_anon an =
 		let read_fields () =
-			let fields = self#read_list (fun () ->
-				self#read_anon_field_ref
-			) in
-			List.iter (fun cf -> an.a_fields <- PMap.add cf.cf_name cf an.a_fields) fields;
+			let rec loop acc i =
+				if i = 0 then
+					acc
+				else begin
+					let cf = self#read_anon_field_ref in
+					loop (PMap.add cf.cf_name cf acc) (i - 1)
+				end
+			in
+			an.a_fields <- loop PMap.empty (read_uleb128 ch)
 		in
 
 		begin match IO.read_byte ch with
@@ -1703,8 +1708,15 @@ class hxb_reader
 						ef_index = index;
 					}
 				in
-
-				List.iter (fun ef -> en.e_constrs <- PMap.add ef.ef_name ef en.e_constrs) (self#read_list read_field);
+				let rec loop acc i =
+					if i = 0 then
+						acc
+					else begin
+						let ef = read_field () in
+						loop (PMap.add ef.ef_name ef acc) (i - 1)
+					end
+				in
+				en.e_constrs <- loop PMap.empty (read_uleb128 ch);
 				TEnumDecl en
 			| 2 ->
 				let td = mk_typedef current_module path pos name_pos (mk_mono()) in
