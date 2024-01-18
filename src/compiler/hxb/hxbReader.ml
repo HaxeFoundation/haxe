@@ -28,8 +28,63 @@ let create_hxb_reader_stats () = {
 	modules_partially_restored = ref 0;
 }
 
+module BytesWithPosition = struct
+	type t = {
+		bytes : bytes;
+		mutable pos : int;
+	}
+
+	let create bytes = {
+		bytes;
+		pos = 0;
+	}
+
+	let read_byte b =
+		let i = Bytes.unsafe_get b.bytes b.pos in
+		b.pos <- b.pos + 1;
+		int_of_char i
+
+	let read_bytes b length =
+		let out = Bytes.create length in
+		Bytes.blit b.bytes b.pos out 0 length;
+		b.pos <- b.pos + length;
+		out
+
+	let read_i16 i =
+		let ch2 = read_byte i in
+		let ch1 = read_byte i in
+		let n = ch1 lor (ch2 lsl 8) in
+		if ch2 land 128 <> 0 then
+			n - 65536
+		else
+			n
+
+	let read_real_i32 ch =
+		let ch1 = read_byte ch in
+		let ch2 = read_byte ch in
+		let ch3 = read_byte ch in
+		let base = Int32.of_int (ch1 lor (ch2 lsl 8) lor (ch3 lsl 16)) in
+		let big = Int32.shift_left (Int32.of_int (read_byte ch)) 24 in
+		Int32.logor base big
+
+		let read_i64 ch =
+			let big = Int64.of_int32 (read_real_i32 ch) in
+			let ch4 = read_byte ch in
+			let ch3 = read_byte ch in
+			let ch2 = read_byte ch in
+			let ch1 = read_byte ch in
+			let base = Int64.of_int (ch1 lor (ch2 lsl 8) lor (ch3 lsl 16)) in
+			let small = Int64.logor base (Int64.shift_left (Int64.of_int ch4) 24) in
+			Int64.logor (Int64.shift_left big 32) small
+
+	let read_double ch =
+		Int64.float_of_bits (read_i64 ch)
+end
+
+open BytesWithPosition
+
 let rec read_uleb128 ch =
-	let b = IO.read_byte ch in
+	let b = read_byte ch in
 	if b >= 0x80 then
 		(b land 0x7F) lor ((read_uleb128 ch) lsl 7)
 	else
@@ -37,7 +92,7 @@ let rec read_uleb128 ch =
 
 let read_leb128 ch =
 	let rec read acc shift =
-		let b = IO.read_byte ch in
+		let b = read_byte ch in
 		let acc = ((b land 0x7F) lsl shift) lor acc in
 		if b >= 0x80 then
 			read acc (shift + 7)
@@ -62,7 +117,7 @@ class hxb_reader
 	val mutable api = Obj.magic ""
 	val mutable current_module = null_module
 
-	val mutable ch = IO.input_bytes Bytes.empty
+	val mutable ch = BytesWithPosition.create (Bytes.create 0)
 	val mutable string_pool = Array.make 0 ""
 	val mutable doc_pool = Array.make 0 ""
 
@@ -93,16 +148,16 @@ class hxb_reader
 	(* Primitives *)
 
 	method read_i32 =
-		IO.read_real_i32 ch
+		read_real_i32 ch
 
 	method read_i16 =
-		IO.read_i16 ch
+		read_i16 ch
 
 	method read_f64 =
-		IO.read_double ch
+		read_double ch
 
 	method read_bool =
-		IO.read_byte ch <> 0
+		read_byte ch <> 0
 
 	method read_from_string_pool pool =
 		pool.(read_uleb128 ch)
@@ -112,7 +167,7 @@ class hxb_reader
 
 	method read_raw_string =
 		let l = read_uleb128 ch in
-		Bytes.unsafe_to_string (IO.nread ch l)
+		Bytes.unsafe_to_string (read_bytes ch l)
 
 	(* Basic compounds *)
 
@@ -121,7 +176,7 @@ class hxb_reader
 		List.init l (fun _ -> f ())
 
 	method read_option : 'a . (unit -> 'a) -> 'a option = fun f ->
-		match IO.read_byte ch with
+		match read_byte ch with
 		| 0 ->
 			None
 		| _ ->
@@ -206,7 +261,7 @@ class hxb_reader
 		enum_fields.(read_uleb128 ch)
 
 	method read_anon_ref =
-		match IO.read_byte ch with
+		match read_byte ch with
 		| 0 ->
 			anons.(read_uleb128 ch)
 		| 1 ->
@@ -216,7 +271,7 @@ class hxb_reader
 			assert false
 
 	method read_anon_field_ref =
-		match IO.read_byte ch with
+		match read_byte ch with
 		| 0 ->
 			anon_fields.(read_uleb128 ch)
 		| 1 ->
@@ -311,7 +366,7 @@ class hxb_reader
 		}
 
 	method read_type_param_or_const =
-		match IO.read_byte ch with
+		match read_byte ch with
 		| 0 -> TPType (self#read_type_hint)
 		| 1 -> TPExpr (self#read_expr)
 		| _ -> assert false
@@ -337,7 +392,7 @@ class hxb_reader
 		}
 
 	method read_complex_type =
-		match IO.read_byte ch with
+		match read_byte ch with
 		| 0 -> CTPath (self#read_placed_type_path)
 		| 1 ->
 			let thl = self#read_list (fun () -> self#read_type_hint) in
@@ -363,7 +418,7 @@ class hxb_reader
 		(ct,p)
 
 	method read_access =
-		match IO.read_byte ch with
+		match read_byte ch with
 		| 0 -> APublic
 		| 1 -> APrivate
 		| 2 -> AStatic
@@ -384,7 +439,7 @@ class hxb_reader
 		(ac,p)
 
 	method read_cfield_kind =
-		match IO.read_byte ch with
+		match read_byte ch with
 		| 0 ->
 			let tho = self#read_option (fun () -> self#read_type_hint) in
 			let eo = self#read_option (fun () -> self#read_expr) in
@@ -416,7 +471,7 @@ class hxb_reader
 
 	method read_expr =
 		let p = self#read_pos in
-		let e = match IO.read_byte ch with
+		let e = match read_byte ch with
 		| 0 ->
 			let s = self#read_string in
 			let suffix = self#read_option (fun () -> self#read_string) in
@@ -427,7 +482,7 @@ class hxb_reader
 			EConst (Float (s, suffix))
 		| 2 ->
 			let s = self#read_string in
-			let qs = begin match IO.read_byte ch with
+			let qs = begin match read_byte ch with
 			| 0 -> SDoubleQuotes
 			| 1 -> SSingleQuotes
 			| _ -> assert false
@@ -444,14 +499,14 @@ class hxb_reader
 			let e2 = self#read_expr in
 			EArray(e1,e2)
 		| 6 ->
-			let op = self#get_binop (IO.read_byte ch) in
+			let op = self#get_binop (read_byte ch) in
 			let e1 = self#read_expr in
 			let e2 = self#read_expr in
 			EBinop(op,e1,e2)
 		| 7 ->
 			let e = self#read_expr in
 			let s = self#read_string in
-			let kind = begin match IO.read_byte ch with
+			let kind = begin match read_byte ch with
 			| 0 -> EFNormal
 			| 1 -> EFSafe
 			| _ -> assert false
@@ -463,7 +518,7 @@ class hxb_reader
 			let fields = self#read_list (fun () ->
 				let n = self#read_string in
 				let p = self#read_pos in
-				let qs = begin match IO.read_byte ch with
+				let qs = begin match read_byte ch with
 				| 0 -> NoQuotes
 				| 1 -> DoubleQuotes
 				| _ -> assert false
@@ -484,7 +539,7 @@ class hxb_reader
 			let el = self#read_list (fun () -> self#read_expr) in
 			ENew(ptp,el)
 		| 13 ->
-			let (op,flag) = self#get_unop (IO.read_byte ch) in
+			let (op,flag) = self#get_unop (read_byte ch) in
 			let e = self#read_expr in
 			EUnop(op,flag,e)
 		| 14 ->
@@ -506,7 +561,7 @@ class hxb_reader
 			) in
 			EVars vl
 		| 15 ->
-			let fk = begin match IO.read_byte ch with
+			let fk = begin match read_byte ch with
 			| 0 -> FKAnonymous
 			| 1 ->
 				let pn = self#read_placed_name in
@@ -581,7 +636,7 @@ class hxb_reader
 			EIs(e1,th)
 		| 33 ->
 			let e1 = self#read_expr in
-			let dk = begin match IO.read_byte ch with
+			let dk = begin match read_byte ch with
 			| 0 -> DKCall
 			| 1 -> DKDot
 			| 2 -> DKStructure
@@ -628,7 +683,7 @@ class hxb_reader
 			let t = self#read_type_instance in
 			(name,opt,t)
 		in
-		match (IO.read_byte ch) with
+		match (read_byte ch) with
 		| 0 ->
 			let i = read_uleb128 ch in
 			tmonos.(i)
@@ -799,7 +854,7 @@ class hxb_reader
 		Array.init length (fun _ ->
 			let path = self#read_path in
 			let pos = self#read_pos in
-			let host = match IO.read_byte ch with
+			let host = match read_byte ch with
 				| 0 -> TPHType
 				| 1 -> TPHConstructor
 				| 2 -> TPHMethod
@@ -827,7 +882,7 @@ class hxb_reader
 
 	(* Fields *)
 
-	method read_field_kind = match IO.read_byte ch with
+	method read_field_kind = match read_byte ch with
 		| 0 -> Method MethNormal
 		| 1 -> Method MethInline
 		| 2 -> Method MethDynamic
@@ -858,14 +913,14 @@ class hxb_reader
 				| i ->
 					error (Printf.sprintf "Bad accessor kind: %i" i)
 			in
-			let r = f (IO.read_byte ch) in
-			let w = f (IO.read_byte ch) in
+			let r = f (read_byte ch) in
+			let w = f (read_byte ch) in
 			Var {v_read = r;v_write = w}
 		| i ->
 			error (Printf.sprintf "Bad field kind: %i" i)
 
 	method read_var_kind =
-		match IO.read_byte ch with
+		match read_byte ch with
 			| 0 -> VUser TVOLocalVariable
 			| 1 -> VUser TVOArgument
 			| 2 -> VUser TVOForVariable
@@ -931,7 +986,7 @@ class hxb_reader
 			fctx.pos := self#read_pos;
 		in
 		let read_relpos () =
-			begin match IO.read_byte ch with
+			begin match read_byte ch with
 				| 0 ->
 					()
 				| 1 ->
@@ -949,7 +1004,7 @@ class hxb_reader
 		in
 		let rec loop () =
 			let loop2 () =
-				match IO.read_byte ch with
+				match read_byte ch with
 					(* values 0-19 *)
 					| 0 -> TConst TNull,None
 					| 1 -> TConst TThis,fctx.tthis
@@ -984,7 +1039,7 @@ class hxb_reader
 						let el = List.init l (fun _ -> loop ()) in
 						TBlock el,None
 					| 36 ->
-						let l = IO.read_byte ch in
+						let l = read_byte ch in
 						let el = List.init l (fun _ -> loop ()) in
 						TBlock el,None
 					| 39 ->
@@ -1020,7 +1075,7 @@ class hxb_reader
 						let fl = self#read_list (fun () ->
 							let name = self#read_string in
 							let p = self#read_pos in
-							let qs = match IO.read_byte ch with
+							let qs = match read_byte ch with
 								| 0 -> NoQuotes
 								| 1 -> DoubleQuotes
 								| _ -> assert false
@@ -1237,7 +1292,7 @@ class hxb_reader
 		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos; cf_overloads = overloads }
 
 	method start_texpr =
-		begin match IO.read_byte ch with
+		begin match read_byte ch with
 			| 0 ->
 				()
 			| 1 ->
@@ -1260,7 +1315,7 @@ class hxb_reader
 
 	method read_field_type_parameters =
 		let num_params = read_uleb128 ch in
-		begin match IO.read_byte ch with
+		begin match read_byte ch with
 			| 0 ->
 				()
 			| 1 ->
@@ -1296,7 +1351,7 @@ class hxb_reader
 		let meta = self#read_metadata in
 		let kind = self#read_field_kind in
 
-		let expr,expr_unoptimized = match IO.read_byte ch with
+		let expr,expr_unoptimized = match read_byte ch with
 			| 0 ->
 				None,None
 			| _ ->
@@ -1378,7 +1433,7 @@ class hxb_reader
 			(c,p)
 		)
 
-	method read_class_kind = match IO.read_byte ch with
+	method read_class_kind = match read_byte ch with
 		| 0 -> KNormal
 		| 1 ->
 			die "TODO" __LOC__
@@ -1411,7 +1466,7 @@ class hxb_reader
 	method read_abstract (a : tabstract) =
 		self#read_common_module_type (Obj.magic a);
 		a.a_impl <- self#read_option (fun () -> self#read_class_ref);
-		begin match IO.read_byte ch with
+		begin match read_byte ch with
 			| 0 ->
 				a.a_this <- TAbstract(a,extract_param_types a.a_params)
 			| _ ->
@@ -1428,14 +1483,14 @@ class hxb_reader
 		a.a_call <- self#read_option (fun () -> self#read_field_ref);
 
 		a.a_ops <- self#read_list (fun () ->
-			let i = IO.read_byte ch in
+			let i = read_byte ch in
 			let op = self#get_binop i in
 			let cf = self#read_field_ref in
 			(op, cf)
 		);
 
 		a.a_unops <- self#read_list (fun () ->
-			let i = IO.read_byte ch in
+			let i = read_byte ch in
 			let (op, flag) = self#get_unop i in
 			let cf = self#read_field_ref in
 			(op, flag, cf)
@@ -1501,7 +1556,7 @@ class hxb_reader
 		let l = read_uleb128 ch in
 		let a = Array.init l (fun i ->
 			let c = self#read_class_ref in
-			let kind = match IO.read_byte ch with
+			let kind = match read_byte ch with
 				| 0 -> CfrStatic
 				| 1 -> CfrMember
 				| 2 -> CfrConstructor
@@ -1617,7 +1672,7 @@ class hxb_reader
 			an.a_fields <- loop PMap.empty (read_uleb128 ch)
 		in
 
-		begin match IO.read_byte ch with
+		begin match read_byte ch with
 		| 0 ->
 			an.a_status := Closed;
 			read_fields ()
@@ -1685,7 +1740,7 @@ class hxb_reader
 
 	method read_mtf =
 		self#read_list (fun () ->
-			let kind = IO.read_byte ch in
+			let kind = read_byte ch in
 			let path = self#read_path in
 			let pos,name_pos = self#read_pos_pair in
 			let params = self#read_type_parameters_forward in
@@ -1728,7 +1783,7 @@ class hxb_reader
 				let read_field () =
 					let name = self#read_string in
 					let pos,name_pos = self#read_pos_pair in
-					let index = IO.read_byte ch in
+					let index = read_byte ch in
 
 					{ null_enum_field with
 						ef_name = name;
@@ -1773,7 +1828,7 @@ class hxb_reader
 		api#make_module path file
 
 	method private read_chunk_prefix =
-		let name = Bytes.unsafe_to_string (IO.nread ch 3) in
+		let name = Bytes.unsafe_to_string (read_bytes ch 3) in
 		let size = Int32.to_int self#read_i32 in
 		(name,size)
 
@@ -1837,7 +1892,7 @@ class hxb_reader
 		api <- new_api;
 		let rec loop = function
 			| (kind,data) :: chunks ->
-				ch <- IO.input_bytes data;
+				ch <- BytesWithPosition.create data;
 				self#read_chunk_data kind;
 				if kind = end_chunk then chunks else loop chunks
 			| [] -> die "" __LOC__
@@ -1845,12 +1900,12 @@ class hxb_reader
 		let remaining = loop chunks in
 		(current_module, remaining)
 
-	method read (new_api : hxb_reader_api) (file_ch : IO.input) =
+	method read (new_api : hxb_reader_api) (bytes : bytes) =
 		api <- new_api;
-		ch <- file_ch;
-		if (Bytes.to_string (IO.nread file_ch 3)) <> "hxb" then
+		ch <- BytesWithPosition.create bytes;
+		if (Bytes.to_string (read_bytes ch 3)) <> "hxb" then
 			raise (HxbFailure "magic");
-		let version = IO.read_byte file_ch in
+		let version = read_byte ch in
 		if version <> hxb_version then
 			raise (HxbFailure (Printf.sprintf "version mismatch: hxb version %i, reader version %i" version hxb_version));
 		(fun end_chunk ->

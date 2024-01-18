@@ -4,9 +4,9 @@ open HxbData
 class virtual hxb_abstract_reader = object(self)
 	inherit hxb_reader_api
 
-	method read_hxb (input : IO.input) (stats : HxbReader.hxb_reader_stats) =
+	method read_hxb (bytes : bytes) (stats : HxbReader.hxb_reader_stats) =
 		let reader = new HxbReader.hxb_reader stats in
-		reader#read (self :> hxb_reader_api) input
+		reader#read (self :> hxb_reader_api) bytes
 
 	method read_chunks (chunks : cached_chunks) (stats : HxbReader.hxb_reader_stats) =
 		fst (self#read_chunks_until chunks stats EOM)
