@@ -1291,45 +1291,57 @@ module HxbWriter = struct
 			write_type_instance writer v.v_type;
 		in
 		let rec loop e =
-			begin match e.eexpr with
+			let write_type = match e.eexpr with
 			(* values 0-19 *)
 			| TConst ct ->
 				begin match ct with
 				| TNull ->
 					Chunk.write_u8 writer.chunk 0;
+					true
 				| TThis ->
 					fctx.texpr_this <- Some e;
 					Chunk.write_u8 writer.chunk 1;
+					false;
 				| TSuper ->
 					Chunk.write_u8 writer.chunk 2;
+					true; (* TODO: ? *)
 				| TBool false ->
 					Chunk.write_u8 writer.chunk 3;
+					false;
 				| TBool true ->
 					Chunk.write_u8 writer.chunk 4;
+					false;
 				| TInt i32 ->
 					Chunk.write_u8 writer.chunk 5;
 					Chunk.write_i32 writer.chunk i32;
+					false;
 				| TFloat f ->
 					Chunk.write_u8 writer.chunk 6;
 					Chunk.write_string writer.chunk f;
+					false;
 				| TString s ->
 					Chunk.write_u8 writer.chunk 7;
-					Chunk.write_string writer.chunk s
+					Chunk.write_string writer.chunk s;
+					false
 				end
 			(* vars 20-29 *)
 			| TLocal v ->
 				Chunk.write_u8 writer.chunk 20;
 				Chunk.write_uleb128 writer.chunk v.v_id;
+				true; (* I think there are cases where v_type != etype *)
 			| TVar(v,None) ->
 				Chunk.write_u8 writer.chunk 21;
 				declare_var v;
+				false;
 			| TVar(v,Some e1) ->
 				Chunk.write_u8 writer.chunk 22;
 				declare_var v;
 				loop e1;
+				false;
 			(* blocks 30-49 *)
 			| TBlock [] ->
 				Chunk.write_u8 writer.chunk 30;
+				true;
 			| TBlock el ->
 				let restore = start_temporary_chunk writer 256 in
 				let i = ref 0 in
@@ -1355,6 +1367,7 @@ module HxbWriter = struct
 					end;
 				end;
 				Chunk.write_bytes writer.chunk bytes;
+				true;
 			(* function 50-59 *)
 			| TFunction tf ->
 				Chunk.write_u8 writer.chunk 50;
@@ -1364,17 +1377,21 @@ module HxbWriter = struct
 				);
 				write_type_instance writer tf.tf_type;
 				loop tf.tf_expr;
+				true;
 			(* texpr compounds 60-79 *)
 			| TArray(e1,e2) ->
 				Chunk.write_u8 writer.chunk 60;
 				loop e1;
 				loop e2;
+				true;
 			| TParenthesis e1 ->
 				Chunk.write_u8 writer.chunk 61;
 				loop e1;
+				false; (* surely this is always the nested type *)
 			| TArrayDecl el ->
 				Chunk.write_u8 writer.chunk 62;
 				loop_el el;
+				true;
 			| TObjectDecl fl ->
 				Chunk.write_u8 writer.chunk 63;
 				Chunk.write_list writer.chunk fl (fun ((name,p,qs),e) ->
@@ -1386,22 +1403,27 @@ module HxbWriter = struct
 					end;
 					loop e
 				);
+				true;
 			| TCall(e1,el) ->
-				write_inlined_list writer 70 4 (Chunk.write_u8 writer.chunk) (fun () -> loop e1) loop el
+				write_inlined_list writer 70 4 (Chunk.write_u8 writer.chunk) (fun () -> loop e1) loop el;
+				true;
 			| TMeta(m,e1) ->
 				Chunk.write_u8 writer.chunk 65;
 				write_metadata_entry writer m;
 				loop e1;
+				false;
 			(* branching 80-89 *)
 			| TIf(e1,e2,None) ->
 				Chunk.write_u8 writer.chunk 80;
 				loop e1;
 				loop e2;
+				false;
 			| TIf(e1,e2,Some e3) ->
 				Chunk.write_u8 writer.chunk 81;
 				loop e1;
 				loop e2;
 				loop e3;
+				true;
 			| TSwitch s ->
 				Chunk.write_u8 writer.chunk 82;
 				loop s.switch_subject;
@@ -1410,6 +1432,7 @@ module HxbWriter = struct
 					loop c.case_expr;
 				);
 				Chunk.write_option writer.chunk s.switch_default loop;
+				true;
 			| TTry(e1,catches) ->
 				Chunk.write_u8 writer.chunk 83;
 				loop e1;
@@ -1417,32 +1440,41 @@ module HxbWriter = struct
 					declare_var v;
 					loop e
 				);
+				true;
 			| TWhile(e1,e2,flag) ->
 				Chunk.write_u8 writer.chunk (if flag = NormalWhile then 84 else 85);
 				loop e1;
 				loop e2;
+				false;
 			| TFor(v,e1,e2) ->
 				Chunk.write_u8 writer.chunk 86;
 				declare_var v;
 				loop e1;
 				loop e2;
+				false;
 			(* control flow 90-99 *)
 			| TReturn None ->
 				Chunk.write_u8 writer.chunk 90;
+				false;
 			| TReturn (Some e1) ->
 				Chunk.write_u8 writer.chunk 91;
 				loop e1;
+				false;
 			| TContinue ->
 				Chunk.write_u8 writer.chunk 92;
+				false;
 			| TBreak ->
 				Chunk.write_u8 writer.chunk 93;
+				false;
 			| TThrow e1 ->
 				Chunk.write_u8 writer.chunk 94;
 				loop e1;
+				false;
 			(* access 100-119 *)
 			| TEnumIndex e1 ->
 				Chunk.write_u8 writer.chunk 100;
 				loop e1;
+				false;
 			| TEnumParameter(e1,ef,i) ->
 				Chunk.write_u8 writer.chunk 101;
 				loop e1;
@@ -1457,101 +1489,124 @@ module HxbWriter = struct
 				in
 				write_enum_field_ref writer en ef;
 				Chunk.write_uleb128 writer.chunk i;
+				true;
 			| TField({eexpr = TConst TThis; epos = p1},FInstance(c,tl,cf)) when fctx.texpr_this <> None ->
 				Chunk.write_u8 writer.chunk 111;
 				PosWriter.write_pos fctx.pos_writer writer.chunk true 0 p1;
 				write_class_ref writer c;
 				write_types writer tl;
 				write_field_ref writer c CfrMember cf;
+				true;
 			| TField(e1,FInstance(c,tl,cf)) ->
 				Chunk.write_u8 writer.chunk 102;
 				loop e1;
 				write_class_ref writer c;
 				write_types writer tl;
 				write_field_ref writer c CfrMember cf;
+				true;
 			| TField({eexpr = TTypeExpr (TClassDecl c'); epos = p1},FStatic(c,cf)) when c == c' ->
 				Chunk.write_u8 writer.chunk 110;
 				PosWriter.write_pos fctx.pos_writer writer.chunk true 0 p1;
 				write_class_ref writer c;
 				write_field_ref writer c CfrStatic cf;
+				true;
 			| TField(e1,FStatic(c,cf)) ->
 				Chunk.write_u8 writer.chunk 103;
 				loop e1;
 				write_class_ref writer c;
 				write_field_ref writer c CfrStatic cf;
+				true;
 			| TField(e1,FAnon cf) ->
 				Chunk.write_u8 writer.chunk 104;
 				loop e1;
-				write_anon_field_ref writer cf
+				write_anon_field_ref writer cf;
+				true;
 			| TField(e1,FClosure(Some(c,tl),cf)) ->
 				Chunk.write_u8 writer.chunk 105;
 				loop e1;
 				write_class_ref writer c;
 				write_types writer tl;
-				write_field_ref writer c CfrMember cf
+				write_field_ref writer c CfrMember cf;
+				true;
 			| TField(e1,FClosure(None,cf)) ->
 				Chunk.write_u8 writer.chunk 106;
 				loop e1;
-				write_anon_field_ref writer cf
+				write_anon_field_ref writer cf;
+				true;
 			| TField(e1,FEnum(en,ef)) ->
 				Chunk.write_u8 writer.chunk 107;
 				loop e1;
 				write_enum_ref writer en;
 				write_enum_field_ref writer en ef;
+				true;
 			| TField(e1,FDynamic s) ->
 				Chunk.write_u8 writer.chunk 108;
 				loop e1;
 				Chunk.write_string writer.chunk s;
+				true;
 			(* module types 120-139 *)
 			| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter ttp})) ->
 				Chunk.write_u8 writer.chunk 128;
-				write_type_parameter_ref writer ttp
+				write_type_parameter_ref writer ttp;
+				true;
 			| TTypeExpr (TClassDecl c) ->
 				Chunk.write_u8 writer.chunk 120;
 				write_class_ref writer c;
+				false;
 			| TTypeExpr (TEnumDecl en) ->
 				Chunk.write_u8 writer.chunk 121;
 				write_enum_ref writer en;
+				false;
 			| TTypeExpr (TAbstractDecl a) ->
 				Chunk.write_u8 writer.chunk 122;
-				write_abstract_ref writer a
+				write_abstract_ref writer a;
+				true;
 			| TTypeExpr (TTypeDecl td) ->
 				Chunk.write_u8 writer.chunk 123;
-				write_typedef_ref writer td
+				write_typedef_ref writer td;
+				true;
 			| TCast(e1,None) ->
 				Chunk.write_u8 writer.chunk 124;
 				loop e1;
+				true;
 			| TCast(e1,Some md) ->
 				Chunk.write_u8 writer.chunk 125;
 				loop e1;
 				let infos = t_infos md in
 				let m = infos.mt_module in
 				write_full_path writer (fst m.m_path) (snd m.m_path) (snd infos.mt_path);
+				true;
 			| TNew(({cl_kind = KTypeParameter ttp}),tl,el) ->
 				Chunk.write_u8 writer.chunk 127;
 				write_type_parameter_ref writer ttp;
 				write_types writer tl;
 				loop_el el;
+				true;
 			| TNew(c,tl,el) ->
 				Chunk.write_u8 writer.chunk 126;
 				write_class_ref writer c;
 				write_types writer tl;
 				loop_el el;
+				true;
 			(* unops 140-159 *)
 			| TUnop(op,flag,e1) ->
 				Chunk.write_u8 writer.chunk (140 + unop_index op flag);
 				loop e1;
+				true;
 			(* binops 160-219 *)
 			| TBinop(op,e1,e2) ->
 				Chunk.write_u8 writer.chunk (160 + binop_index op);
 				loop e1;
 				loop e2;
+				true;
 			(* rest 250-254 *)
 			| TIdent s ->
 				Chunk.write_u8 writer.chunk 250;
 				Chunk.write_string writer.chunk s;
-			end;
-			write_texpr_type_instance writer fctx e.etype;
+				true;
+			in
+			if write_type then
+				write_texpr_type_instance writer fctx e.etype;
 			PosWriter.write_pos fctx.pos_writer writer.chunk true 0 e.epos;
 
 		and loop_el el =
