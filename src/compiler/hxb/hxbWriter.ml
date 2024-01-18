@@ -456,14 +456,14 @@ type field_writer_context = {
 	t_pool : StringPool.t;
 	pos_writer : PosWriter.t;
 	mutable texpr_this : texpr option;
-	vars : (int,tvar) pool;
+	vars : (tvar * int) DynArray.t;
 }
 
 let create_field_writer_context pos_writer = {
 	t_pool = StringPool.create ();
 	pos_writer = pos_writer;
 	texpr_this = None;
-	vars = new pool;
+	vars = DynArray.create ();
 }
 
 type hxb_writer = {
@@ -1266,7 +1266,21 @@ module HxbWriter = struct
 
 	and write_texpr writer (fctx : field_writer_context) (e : texpr) =
 		let declare_var v =
-			Chunk.write_uleb128 writer.chunk (fctx.vars#add v.v_id v);
+			let index = if has_var_flag v VHxb then begin
+				(* Duplicate var declaration! Can happen when writing both cf_expr and cf_expr_unoptimized,
+				   although it arguably shouldn't. In this case we don't add the var again and instead write
+				   out the existing ID.*)
+				   v.v_id
+			end else begin
+				let index = DynArray.length fctx.vars in
+				DynArray.add fctx.vars (v,v.v_id);
+				(* Store local index in v_id so we find it easily for all the TLocal expressions.
+				   This is set back by the var writer in start_texpr. *)
+				v.v_id <- index;
+				add_var_flag v VHxb;
+				index;
+			end in
+			Chunk.write_uleb128 writer.chunk index;
 			Chunk.write_option writer.chunk v.v_extra (fun ve ->
 				Chunk.write_list writer.chunk ve.v_params (fun ttp ->
 					let index = writer.local_type_parameters#add ttp () in
@@ -1309,7 +1323,7 @@ module HxbWriter = struct
 			(* vars 20-29 *)
 			| TLocal v ->
 				Chunk.write_u8 writer.chunk 20;
-				Chunk.write_uleb128 writer.chunk (fctx.vars#get v.v_id)
+				Chunk.write_uleb128 writer.chunk v.v_id;
 			| TVar(v,None) ->
 				Chunk.write_u8 writer.chunk 21;
 				declare_var v;
@@ -1657,12 +1671,12 @@ module HxbWriter = struct
 				List.iter (fun bytes ->
 					Chunk.write_bytes writer.chunk (Bytes.unsafe_of_string bytes)
 				) items;
-
-				let items = fctx.vars#items in
-				Chunk.write_uleb128 writer.chunk (DynArray.length items);
-				DynArray.iter (fun v ->
+				Chunk.write_uleb128 writer.chunk (DynArray.length fctx.vars);
+				DynArray.iter (fun (v,v_id) ->
+					v.v_id <- v_id;
+					remove_var_flag v VHxb;
 					write_var writer fctx v;
-				) items;
+				) fctx.vars;
 				Chunk.export_data new_chunk writer.chunk;
 				restore(fun new_chunk -> new_chunk)
 			)
