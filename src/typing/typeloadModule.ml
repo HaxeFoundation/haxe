@@ -807,8 +807,9 @@ let rec get_reader ctx p =
 	new hxb_reader_api_typeload ctx load_module' p
 
 and load_hxb_module ctx path p =
-	let read file input =
+	let read file bytes =
 		try
+			let input = IO.input_bytes bytes in
 			let read = (get_reader ctx p)#read_hxb input ctx.com.hxb_reader_stats in
 			let m = read MTF in
 			delay ctx PBuildClass (fun () ->
@@ -830,9 +831,9 @@ and load_hxb_module ctx path p =
 	let target = Common.platform_name_macro ctx.com in
 	let rec loop l = match l with
 		| hxb_lib :: l ->
-			begin match hxb_lib#load_module target path with
-				| Some input ->
-					read hxb_lib#get_file_path input
+			begin match hxb_lib#get_bytes target path with
+				| Some bytes ->
+					read hxb_lib#get_file_path bytes
 				| None ->
 					loop l
 			end

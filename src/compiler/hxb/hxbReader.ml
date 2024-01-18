@@ -1777,7 +1777,7 @@ class hxb_reader
 		let size = Int32.to_int self#read_i32 in
 		(name,size)
 
-	method private read_chunk_data (kind : chunk_kind) =
+	method private read_chunk_data' (kind : chunk_kind) =
 		match kind with
 		| STR ->
 			string_pool <- self#read_string_pool;
@@ -1824,6 +1824,11 @@ class hxb_reader
 			self#read_exd;
 		| EOM ->
 			incr stats.modules_fully_restored;
+
+	method private read_chunk_data kind =
+		let close = Timer.timer ["hxb";"read";string_of_chunk_kind kind] in
+		self#read_chunk_data' kind;
+		close()
 
 	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =
 		fst (self#read_chunks_until new_api chunks EOM)

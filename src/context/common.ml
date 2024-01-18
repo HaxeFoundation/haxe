@@ -335,7 +335,7 @@ end
 
 class virtual abstract_hxb_lib = object(self)
 	method virtual load : unit
-	method virtual load_module : string -> path -> IO.input option
+	method virtual get_bytes : string -> path -> bytes option
 	method virtual close : unit
 	method virtual get_file_path : string
 end

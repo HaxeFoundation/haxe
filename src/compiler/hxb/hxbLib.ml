@@ -30,17 +30,15 @@ class hxb_library file_path = object(self)
 			close();
 		end
 
-	method load_module (target : string) (path : path) =
+	method get_bytes (target : string) (path : path) =
 		try
-			(* HXB_TODO: See if we can bucket by target a bit nicer. *)
 			let path = (target :: fst path,snd path) in
 			let (filename,entry) = Hashtbl.find modules path in
-			let close = Timer.timer ["hxblib";"load_module"] in
+			let close = Timer.timer ["hxblib";"get bytes"] in
 			let zip = Lazy.force zip in
 			let data = Zip.read_entry zip entry in
-			let input = IO.input_string data in
 			close();
-			Some input
+			Some (Bytes.unsafe_of_string data)
 		with Not_found ->
 			None
 
