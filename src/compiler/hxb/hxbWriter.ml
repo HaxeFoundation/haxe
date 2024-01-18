@@ -1291,11 +1291,7 @@ module HxbWriter = struct
 			write_type_instance writer v.v_type;
 		in
 		let rec loop e =
-
-			write_texpr_type_instance writer fctx e.etype;
-			PosWriter.write_pos fctx.pos_writer writer.chunk true 0 e.epos;
-
-			match e.eexpr with
+			begin match e.eexpr with
 			(* values 0-19 *)
 			| TConst ct ->
 				begin match ct with
@@ -1554,6 +1550,10 @@ module HxbWriter = struct
 			| TIdent s ->
 				Chunk.write_u8 writer.chunk 250;
 				Chunk.write_string writer.chunk s;
+			end;
+			write_texpr_type_instance writer fctx e.etype;
+			PosWriter.write_pos fctx.pos_writer writer.chunk true 0 e.epos;
+
 		and loop_el el =
 			Chunk.write_list writer.chunk el loop
 		in
@@ -1666,6 +1666,7 @@ module HxbWriter = struct
 					let ltp = List.map fst writer.local_type_parameters#to_list in
 					write_type_parameters writer ltp
 				end;
+				Chunk.write_option writer.chunk fctx.texpr_this (fun e -> write_type_instance writer e.etype);
 				let items,length = StringPool.get_sorted_items fctx.t_pool in
 				Chunk.write_uleb128 writer.chunk length;
 				List.iter (fun bytes ->

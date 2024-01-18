@@ -8,14 +8,14 @@ type field_reader_context = {
 	t_pool : Type.t Array.t;
 	pos : pos ref;
 	vars : tvar Array.t;
-	mutable tthis : Type.t;
+	mutable tthis : Type.t option;
 }
 
-let create_field_reader_context p ts vars = {
+let create_field_reader_context p ts vars tthis = {
 	t_pool = ts;
 	pos = ref p;
 	vars = vars;
-	tthis = t_dynamic;
+	tthis = tthis;
 }
 
 type hxb_reader_stats = {
@@ -932,15 +932,11 @@ class hxb_reader
 			!(fctx.pos)
 		in
 		let rec loop () =
-			let t = fctx.t_pool.(read_uleb128 ch) in
-			let p = read_relpos () in
 			let loop2 () =
 				match IO.read_byte ch with
 					(* values 0-19 *)
 					| 0 -> TConst TNull
-					| 1 ->
-						fctx.tthis <- t;
-						TConst TThis
+					| 1 -> TConst TThis
 					| 2 -> TConst TSuper
 					| 3 -> TConst (TBool false)
 					| 4 -> TConst (TBool true)
@@ -1138,7 +1134,7 @@ class hxb_reader
 						let c = self#read_class_ref in
 						let tl = self#read_types in
 						let cf = self#read_field_ref in
-						let ethis = mk (TConst TThis) fctx.tthis p in
+						let ethis = mk (TConst TThis) (Option.get fctx.tthis) p in
 						TField(ethis,FInstance(c,tl,cf))
 
 					(* module types 120-139 *)
@@ -1186,6 +1182,8 @@ class hxb_reader
 						die (Printf.sprintf "  [ERROR] Unhandled texpr %d at:" i) __LOC__
 				in
 				let e = loop2 () in
+				let t = fctx.t_pool.(read_uleb128 ch) in
+				let p = read_relpos () in
 				let e = {
 					eexpr = e;
 					etype = t;
@@ -1215,6 +1213,7 @@ class hxb_reader
 			| i ->
 				die "" __LOC__
 		end;
+		let tthis = self#read_option (fun () -> self#read_type_instance) in
 		let l = read_uleb128 ch in
 		let ts = Array.init l (fun _ ->
 			self#read_type_instance
@@ -1223,7 +1222,7 @@ class hxb_reader
 		let vars = Array.init l (fun _ ->
 			self#read_var
 		) in
-		create_field_reader_context self#read_pos ts vars
+		create_field_reader_context self#read_pos ts vars tthis
 
 	method read_field_type_parameters =
 		let num_params = read_uleb128 ch in
