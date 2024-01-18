@@ -225,7 +225,7 @@ let is_pack_visible pack =
 	not (List.exists (fun s -> String.length s > 0 && s.[0] = '_') pack)
 
 let collect ctx tk with_type sort =
-	let t = Timer.timer ["display";"toplevel"] in
+	let t = Timer.timer ["display";"toplevel collect"] in
 	let cctx = CollectionContext.create ctx in
 	let curpack = fst ctx.curclass.cl_path in
 	(* Note: This checks for the explicit `ServerConfig.legacy_completion` setting instead of using
@@ -298,10 +298,12 @@ let collect ctx tk with_type sort =
 	| TKType | TKOverride -> ()
 	| TKExpr p | TKPattern p | TKField p ->
 		(* locals *)
+		let t = Timer.timer ["display";"toplevel collect";"locals"] in
 		PMap.iter (fun _ v ->
 			if not (is_gen_local v) then
 				add (make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)) (Some v.v_name)
 		) ctx.locals;
+		t();
 
 		let add_field scope origin cf =
 			let origin,cf = match origin with
@@ -326,6 +328,8 @@ let collect ctx tk with_type sort =
 		let maybe_add_field scope origin cf =
 			if not (Meta.has Meta.NoCompletion cf.cf_meta) then add_field scope origin cf
 		in
+
+		let t = Timer.timer ["display";"toplevel collect";"fields"] in
 		(* member fields *)
 		if ctx.curfun <> FunStatic then begin
 			let all_fields = Type.TClass.get_all_fields ctx.curclass (extract_param_types ctx.curclass.cl_params) in
@@ -353,7 +357,9 @@ let collect ctx tk with_type sort =
 		| _ ->
 			List.iter (maybe_add_field CFSStatic (Self (TClassDecl ctx.curclass))) ctx.curclass.cl_ordered_statics
 		end;
+		t();
 
+		let t = Timer.timer ["display";"toplevel collect";"enum ctors"] in
 		(* enum constructors *)
 		let rec enum_ctors t =
 			match t with
@@ -388,7 +394,9 @@ let collect ctx tk with_type sort =
 				(try enum_ctors (module_type_of_type (follow t)) with Exit -> ())
 			| _ -> ()
 		end;
+		t();
 
+		let t = Timer.timer ["display";"toplevel collect";"globals"] in
 		(* imported globals *)
 		PMap.iter (fun name (mt,s,_) ->
 			try
@@ -418,7 +426,9 @@ let collect ctx tk with_type sort =
 			with Not_found ->
 				()
 		) ctx.m.import_resolution#extract_field_imports;
+		t();
 
+		let t = Timer.timer ["display";"toplevel collect";"rest"] in
 		(* literals *)
 		add (make_ci_literal "null" (tpair t_dynamic)) (Some "null");
 		add (make_ci_literal "true" (tpair ctx.com.basic.tbool)) (Some "true");
@@ -448,7 +458,8 @@ let collect ctx tk with_type sort =
 
 			(* builtins *)
 			add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace")
-		end
+		end;
+		t()
 	end;
 
 	(* type params *)
@@ -462,6 +473,7 @@ let collect ctx tk with_type sort =
 	(* module imports *)
 	List.iter add_type (List.rev_map fst ctx.m.import_resolution#extract_type_imports); (* reverse! *)
 
+	let t_syntax = Timer.timer ["display";"toplevel collect";"syntax"] in
 	(* types from files *)
 	let cs = ctx.com.cs in
 	(* online: iter context files *)
@@ -494,6 +506,9 @@ let collect ctx tk with_type sort =
 			if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
 		end
 	) files;
+	t_syntax();
+
+	let t_native_lib = Timer.timer ["display";"toplevel collect";"native lib"] in
 	List.iter (fun file ->
 		match cs#get_native_lib file with
 		| Some lib ->
@@ -503,13 +518,19 @@ let collect ctx tk with_type sort =
 		| None ->
 			()
 	) ctx.com.native_libs.all_libs;
+	t_native_lib();
 
+	let t_packages = Timer.timer ["display";"toplevel collect";"packages"] in
 	(* packages *)
 	Hashtbl.iter (fun path _ ->
 		let full_pack = fst path @ [snd path] in
 		if is_pack_visible full_pack then add (make_ci_package path []) (Some (snd path))
 	) packages;
+	t_packages();
 
+	t();
+
+	let t = Timer.timer ["display";"toplevel sorting"] in
 	(* sorting *)
 	let l = DynArray.to_list cctx.items in
 	let l = if is_legacy_completion then
