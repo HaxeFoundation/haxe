@@ -417,7 +417,7 @@ class hxb_reader_api_server
 			| GoodModule m ->
 				m
 			| BinaryModule mc ->
-				self#read_chunks mc.mc_chunks ctx.com.hxb_reader_stats
+				self#read_chunks mc.mc_path mc.mc_chunks ctx.com.hxb_reader_stats
 			| BadModule reason ->
 				die (Printf.sprintf "Unexpected BadModule %s" (s_type_path path)) __LOC__
 			| NoModule ->
@@ -489,7 +489,7 @@ let rec add_modules sctx ctx (m : module_def) (from_binary : bool) (p : pos) =
 							| GoodModule m ->
 								m
 							| BinaryModule mc ->
-								(new hxb_reader_api_server ctx cc)#read_chunks mc.mc_chunks ctx.com.hxb_reader_stats
+								(new hxb_reader_api_server ctx cc)#read_chunks mc.mc_path mc.mc_chunks ctx.com.hxb_reader_stats
 							| NoModule ->
 								failwith (Printf.sprintf "Unexpectedly could not find module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
 							| BadModule reason ->
@@ -557,7 +557,7 @@ and type_module sctx (ctx:Typecore.typer) mpath p =
 			   checking dependencies. This means that the actual decoding never has any reason to fail. *)
 			begin match check_module sctx ctx mpath mc.mc_extra p with
 				| None ->
-					let reader = new HxbReader.hxb_reader com.hxb_reader_stats in
+					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats in
 					let api = (new hxb_reader_api_server ctx cc :> HxbReaderApi.hxb_reader_api) in
 					let f_next chunks until =
 						let t_hxb = Timer.timer ["server";"module cache";"hxb read"] in

@@ -809,7 +809,7 @@ let rec get_reader ctx p =
 and load_hxb_module ctx path p =
 	let read file bytes =
 		try
-			let read = (get_reader ctx p)#read_hxb bytes ctx.com.hxb_reader_stats in
+			let read = (get_reader ctx p)#read_hxb path bytes ctx.com.hxb_reader_stats in
 			let m = read MTF in
 			delay ctx PBuildClass (fun () ->
 				ignore(read EOT);
