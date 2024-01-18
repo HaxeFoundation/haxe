@@ -1974,8 +1974,30 @@ module HxbWriter = struct
 		| TClassDecl c ->
 			Chunk.write_uleb128 writer.chunk c.cl_flags;
 			Chunk.write_option writer.chunk c.cl_constructor (write_class_field_forward writer);
-			Chunk.write_list writer.chunk c.cl_ordered_fields (write_class_field_forward writer);
-			Chunk.write_list writer.chunk c.cl_ordered_statics (write_class_field_forward writer);
+
+			(* Write in reverse order so reader can read tail-recursively without List.rev *)
+			let write_fields cfl =
+				let i = ref 0 in
+				let rec loop cfl = match cfl with
+					| [] ->
+						()
+					| cf :: cfl ->
+						loop cfl;
+						write_class_field_forward writer cf;
+						incr i;
+				in
+				let restore = start_temporary_chunk writer 256 in
+				loop cfl;
+				let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
+				!i,bytes
+			in
+			let num_fields,field_bytes = write_fields c.cl_ordered_fields in
+			let num_statics,static_bytes = write_fields c.cl_ordered_statics in
+			Chunk.write_uleb128 writer.chunk num_fields;
+			Chunk.write_uleb128 writer.chunk num_statics;
+			Chunk.write_bytes writer.chunk field_bytes;
+			Chunk.write_bytes writer.chunk static_bytes;
+
 		| TEnumDecl e ->
 			Chunk.write_list writer.chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
 				Chunk.write_string writer.chunk s;

@@ -1685,10 +1685,25 @@ class hxb_reader
 				in
 
 				c.cl_constructor <- self#read_option read_field;
-				c.cl_ordered_fields <- self#read_list read_field;
-				c.cl_ordered_statics <- self#read_list read_field;
-				List.iter (fun cf -> c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields) c.cl_ordered_fields;
-				List.iter (fun cf -> c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics) c.cl_ordered_statics;
+				let read_fields i =
+					let rec loop acc_l acc_pm i =
+						if i = 0 then
+							acc_l,acc_pm
+						else begin
+							let cf = self#read_class_field_forward in
+							loop (cf :: acc_l) (PMap.add cf.cf_name cf acc_pm) (i - 1)
+						end
+					in
+					loop [] PMap.empty i
+				in
+				let num_fields = read_uleb128 ch in
+				let num_statics = read_uleb128 ch in
+				let l,pm = read_fields num_fields in
+				c.cl_ordered_fields <- l;
+				c.cl_fields <- pm;
+				let l,pm = read_fields num_statics in
+				c.cl_ordered_statics <- l;
+				c.cl_statics <- pm;
 
 				TClassDecl c
 			| 1 ->
