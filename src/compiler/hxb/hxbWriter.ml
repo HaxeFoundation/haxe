@@ -1015,9 +1015,15 @@ module HxbWriter = struct
 
 	let rec write_anon writer (an : tanon) (ttp : type_params) =
 		let write_fields () =
-			Chunk.write_list writer.chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (_,cf) ->
-				write_anon_field_ref writer cf
-			)
+			let restore = start_temporary_chunk writer 256 in
+			let i = ref 0 in
+			PMap.iter (fun _ cf ->
+				write_anon_field_ref writer cf;
+				incr i;
+			) an.a_fields;
+			let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
+			Chunk.write_uleb128 writer.chunk !i;
+			Chunk.write_bytes writer.chunk bytes;
 		in
 		begin match !(an.a_status) with
 		| Closed ->
