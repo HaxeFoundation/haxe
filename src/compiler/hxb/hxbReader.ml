@@ -158,6 +158,24 @@ class hxb_reader
 		} in
 		pos
 
+	method read_pos_pair =
+		let file = self#read_string in
+		let min1 = read_leb128 ch in
+		let max1 = read_leb128 ch in
+		let min2 = read_leb128 ch in
+		let max2 = read_leb128 ch in
+		let pos1 = {
+			pfile = file;
+			pmin = min1;
+			pmax = max1;
+		} in
+		let pos2 = {
+			pos1 with
+			pmin = pos1.pmin + min2;
+			pmax = pos1.pmin + max2;
+		} in
+		pos1,pos2
+
 	method read_metadata_entry : metadata_entry =
 		let name = self#read_string in
 		let p = self#read_pos in
@@ -271,8 +289,7 @@ class hxb_reader
 
 	method read_placed_type_path =
 		let tp = self#read_type_path in
-		let pfull = self#read_pos in
-		let ppath = self#read_pos in
+		let pfull,ppath = self#read_pos_pair in
 		{
 			path = tp;
 			pos_full = pfull;
@@ -1215,8 +1232,7 @@ class hxb_reader
 
 	method read_class_field_forward =
 		let name = self#read_string in
-		let pos = self#read_pos in
-		let name_pos = self#read_pos in
+		let pos,name_pos = self#read_pos_pair in
 		let overloads = self#read_list (fun () -> self#read_class_field_forward) in
 		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos; cf_overloads = overloads }
 
@@ -1671,8 +1687,7 @@ class hxb_reader
 		self#read_list (fun () ->
 			let kind = IO.read_byte ch in
 			let path = self#read_path in
-			let pos = self#read_pos in
-			let name_pos = self#read_pos in
+			let pos,name_pos = self#read_pos_pair in
 			let params = self#read_type_parameters_forward in
 			let mt = match kind with
 			| 0 ->
@@ -1712,8 +1727,7 @@ class hxb_reader
 
 				let read_field () =
 					let name = self#read_string in
-					let pos = self#read_pos in
-					let name_pos = self#read_pos in
+					let pos,name_pos = self#read_pos_pair in
 					let index = IO.read_byte ch in
 
 					{ null_enum_field with

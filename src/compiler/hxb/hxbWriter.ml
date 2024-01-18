@@ -568,6 +568,14 @@ module HxbWriter = struct
 		Chunk.write_leb128 writer.chunk p.pmin;
 		Chunk.write_leb128 writer.chunk p.pmax
 
+	let write_pos_pair writer (p1 : pos) (p2 : pos) =
+		(* Write second position offset relative to first position's pmin, which is often within 1 byte range. *)
+		Chunk.write_string writer.chunk p1.pfile;
+		Chunk.write_leb128 writer.chunk p1.pmin;
+		Chunk.write_leb128 writer.chunk p1.pmax;
+		Chunk.write_leb128 writer.chunk (p2.pmin - p1.pmin);
+		Chunk.write_leb128 writer.chunk (p2.pmax - p1.pmin)
+
 	let rec write_metadata_entry writer ((meta,el,p) : metadata_entry) =
 		Chunk.write_string writer.chunk (Meta.to_string meta);
 		write_pos writer p;
@@ -594,8 +602,7 @@ module HxbWriter = struct
 
 	and write_placed_type_path writer ptp =
 		write_type_path writer ptp.path;
-		write_pos writer ptp.pos_full;
-		write_pos writer ptp.pos_path
+		write_pos_pair writer ptp.pos_full ptp.pos_path
 
 	and write_type_param_or_const writer = function
 		| TPType th ->
@@ -1726,8 +1733,7 @@ module HxbWriter = struct
 
 	and write_class_field_forward writer cf =
 		Chunk.write_string writer.chunk cf.cf_name;
-		write_pos writer cf.cf_pos;
-		write_pos writer cf.cf_name_pos;
+		write_pos_pair writer cf.cf_pos cf.cf_name_pos;
 		Chunk.write_list writer.chunk cf.cf_overloads (fun cf ->
 			write_class_field_forward writer cf;
 		);
@@ -1965,8 +1971,7 @@ module HxbWriter = struct
 		let infos = t_infos mt in
 		Chunk.write_u8 writer.chunk i;
 		write_path writer (fst infos.mt_path, !name);
-		write_pos writer infos.mt_pos;
-		write_pos writer infos.mt_name_pos;
+		write_pos_pair writer infos.mt_pos infos.mt_name_pos;
 		write_type_parameters_forward writer infos.mt_params;
 		let params = new pool in
 		writer.type_type_parameters <- params;
@@ -2007,8 +2012,7 @@ module HxbWriter = struct
 		| TEnumDecl e ->
 			Chunk.write_list writer.chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
 				Chunk.write_string writer.chunk s;
-				write_pos writer ef.ef_pos;
-				write_pos writer ef.ef_name_pos;
+				write_pos_pair writer ef.ef_pos ef.ef_name_pos;
 				Chunk.write_u8 writer.chunk ef.ef_index
 			);
 		| TAbstractDecl a ->
