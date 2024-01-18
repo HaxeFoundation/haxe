@@ -18,7 +18,7 @@
  *)
 
 type timer_infos = {
-	id : string list;
+	mutable id : string list;
 	mutable start : float list;
 	mutable pauses : float list;
 	mutable total : float;
@@ -76,6 +76,14 @@ let timer id =
 		(function() -> close (get_time()) t)
 	) else
 		(fun() -> ())
+
+let timer_with_ref id =
+	if !measure_times then (
+		let t = new_timer id in
+		curtime := t :: !curtime;
+		((function() -> close (get_time()) t), Some t)
+	) else
+		((fun() -> ()), None)
 
 let current_id() =
 	match !curtime with

@@ -116,6 +116,7 @@ class hxb_reader
 = object(self)
 	val mutable api = Obj.magic ""
 	val mutable current_module = null_module
+	val mutable timers = Array.make 3 (EOM,None)
 
 	val mutable ch = BytesWithPosition.create (Bytes.create 0)
 	val mutable string_pool = Array.make 0 ""
@@ -1840,6 +1841,17 @@ class hxb_reader
 			doc_pool <- self#read_string_pool;
 		| MDF ->
 			current_module <- self#read_mdf;
+
+			let module_name = String.concat "_" (ExtLib.String.nsplit (s_type_path current_module.m_path) ".") in
+			Array.iter (fun (kind, timer) ->
+				match timer with
+					| None -> ()
+					| Some (t:Timer.timer_infos) ->
+						let infos = match kind with STR -> Printf.sprintf "%d strings." (Array.length string_pool) | _ -> "" in
+						Hashtbl.remove Timer.htimers t.id;
+						t.id <- t.id @ [infos ^ module_name];
+						Hashtbl.add Timer.htimers t.id t;
+			) timers;
 		| MTF ->
 			current_module.m_types <- self#read_mtf;
 			api#add_module current_module;
@@ -1881,7 +1893,18 @@ class hxb_reader
 			incr stats.modules_fully_restored;
 
 	method private read_chunk_data kind =
-		let close = Timer.timer ["hxb";"read";string_of_chunk_kind kind] in
+		let id = ["hxb";"read";string_of_chunk_kind kind] in
+		let id = match kind with
+			| STR | DOC | MDF -> id
+			| _ -> id @ [String.concat "_" (ExtLib.String.nsplit (s_type_path current_module.m_path) ".")]
+		in
+
+		let close,t = Timer.timer_with_ref id in
+		(match kind with
+			| STR -> timers.(0) <- (kind, t)
+			| DOC -> timers.(1) <- (kind, t)
+			| MDF -> timers.(2) <- (kind, t)
+			| _ -> ());
 		self#read_chunk_data' kind;
 		close()
 
