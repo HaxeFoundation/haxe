@@ -943,6 +943,11 @@ class hxb_reader
 					| 5 -> TConst (TInt self#read_i32),(Some api#basic_types.tint)
 					| 6 -> TConst (TFloat self#read_string),(Some api#basic_types.tfloat)
 					| 7 -> TConst (TString self#read_string),(Some api#basic_types.tstring)
+					| 13 -> TConst (TBool false),None
+					| 14 -> TConst (TBool true),None
+					| 15 -> TConst (TInt self#read_i32),None
+					| 16 -> TConst (TFloat self#read_string),None
+					| 17 -> TConst (TString self#read_string),None
 
 					(* vars 20-29 *)
 					| 20 ->
@@ -1074,15 +1079,15 @@ class hxb_reader
 
 					(* control flow 90-99 *)
 					| 90 ->
-						TReturn None,(Some t_dynamic)
+						TReturn None,None
 					| 91 ->
-						TReturn (Some (loop ())),(Some t_dynamic)
+						TReturn (Some (loop ())),None
 					| 92 ->
-						TContinue,(Some t_dynamic)
+						TContinue,None
 					| 93 ->
-						TBreak,(Some t_dynamic)
+						TBreak,None
 					| 94 ->
-						TThrow (loop ()),(Some t_dynamic)
+						TThrow (loop ()),None
 
 					(* access 100-119 *)
 					| 100 ->

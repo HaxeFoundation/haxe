@@ -1305,24 +1305,42 @@ module HxbWriter = struct
 				| TSuper ->
 					Chunk.write_u8 writer.chunk 2;
 					true; (* TODO: ? *)
-				| TBool false ->
+				| TBool false when (ExtType.is_bool (follow_lazy_and_mono e.etype)) ->
 					Chunk.write_u8 writer.chunk 3;
 					false;
-				| TBool true ->
+				| TBool true when (ExtType.is_bool (follow_lazy_and_mono e.etype)) ->
 					Chunk.write_u8 writer.chunk 4;
 					false;
-				| TInt i32 ->
+				| TInt i32 when (ExtType.is_int (follow_lazy_and_mono e.etype)) ->
 					Chunk.write_u8 writer.chunk 5;
 					Chunk.write_i32 writer.chunk i32;
 					false;
-				| TFloat f ->
+				| TFloat f when (ExtType.is_float (follow_lazy_and_mono e.etype)) ->
 					Chunk.write_u8 writer.chunk 6;
 					Chunk.write_string writer.chunk f;
 					false;
-				| TString s ->
+				| TString s when (ExtType.is_string (follow_lazy_and_mono e.etype)) ->
 					Chunk.write_u8 writer.chunk 7;
 					Chunk.write_string writer.chunk s;
 					false
+				| TBool false ->
+					Chunk.write_u8 writer.chunk 13;
+					true;
+				| TBool true ->
+					Chunk.write_u8 writer.chunk 14;
+					true;
+				| TInt i32 ->
+					Chunk.write_u8 writer.chunk 15;
+					Chunk.write_i32 writer.chunk i32;
+					true;
+				| TFloat f ->
+					Chunk.write_u8 writer.chunk 16;
+					Chunk.write_string writer.chunk f;
+					true;
+				| TString s ->
+					Chunk.write_u8 writer.chunk 17;
+					Chunk.write_string writer.chunk s;
+					true;
 				end
 			(* vars 20-29 *)
 			| TLocal v ->
@@ -1455,21 +1473,21 @@ module HxbWriter = struct
 			(* control flow 90-99 *)
 			| TReturn None ->
 				Chunk.write_u8 writer.chunk 90;
-				false;
+				true;
 			| TReturn (Some e1) ->
 				Chunk.write_u8 writer.chunk 91;
 				loop e1;
-				false;
+				true;
 			| TContinue ->
 				Chunk.write_u8 writer.chunk 92;
-				false;
+				true;
 			| TBreak ->
 				Chunk.write_u8 writer.chunk 93;
-				false;
+				true;
 			| TThrow e1 ->
 				Chunk.write_u8 writer.chunk 94;
 				loop e1;
-				false;
+				true;
 			(* access 100-119 *)
 			| TEnumIndex e1 ->
 				Chunk.write_u8 writer.chunk 100;
