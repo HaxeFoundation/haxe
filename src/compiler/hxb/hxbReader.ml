@@ -605,16 +605,13 @@ class hxb_reader
 			die "" __LOC__
 
 	method read_type_instance =
-		self#process_type_instance (IO.read_byte ch)
-
-	method process_type_instance (kind : int) =
 		let read_fun_arg () =
 			let name = self#read_string in
 			let opt = self#read_bool in
 			let t = self#read_type_instance in
 			(name,opt,t)
 		in
-		match kind with
+		match (IO.read_byte ch) with
 		| 0 ->
 			let i = read_uleb128 ch in
 			tmonos.(i)
@@ -810,11 +807,6 @@ class hxb_reader
 			ttp.ttp_constraints <- Some (Lazy.from_val constraints);
 			c.cl_meta <- meta;
 		) a
-
-	method read_type_parameters (f : typed_type_param array -> unit) =
-		let a = self#read_type_parameters_forward in
-		f a;
-		self#read_type_parameters_data a
 
 	(* Fields *)
 
@@ -1233,9 +1225,9 @@ class hxb_reader
 			| 0 ->
 				()
 			| 1 ->
-				self#read_type_parameters (fun a ->
-					local_type_parameters <- a
-				);
+				let a = self#read_type_parameters_forward in
+				local_type_parameters <- a;
+				self#read_type_parameters_data a;
 			| i ->
 				die "" __LOC__
 		end;
@@ -1256,9 +1248,9 @@ class hxb_reader
 			| 0 ->
 				()
 			| 1 ->
-				self#read_type_parameters (fun a ->
-					field_type_parameters <- a;
-				);
+				let a = self#read_type_parameters_forward in
+				field_type_parameters <- a;
+				self#read_type_parameters_data a;
 				field_type_parameter_offset <- 0; (* num_params is added below *)
 			| i ->
 				die "" __LOC__
