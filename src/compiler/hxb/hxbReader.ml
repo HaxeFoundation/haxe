@@ -618,8 +618,15 @@ class hxb_reader
 		| 0 ->
 			let i = read_uleb128 ch in
 			tmonos.(i)
-		| 1 | 2 | 3 ->
-			(self#resolve_ttp_ref kind).ttp_type
+		| 1 ->
+			let i = read_uleb128 ch in
+			(type_type_parameters.(i)).ttp_type
+		| 2 ->
+			let i = read_uleb128 ch in
+			(field_type_parameters.(i)).ttp_type
+		| 3 ->
+			let k = read_uleb128 ch in
+			local_type_parameters.(k).ttp_type
 		| 4 ->
 			t_dynamic
 		| 10 ->
