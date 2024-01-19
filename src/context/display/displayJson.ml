@@ -143,6 +143,9 @@ class hxb_reader_api_com
 
 	method get_var_id (i : int) =
 		i
+
+	method read_expression_eagerly (cf : tclass_field) =
+		false
 end
 
 let find_module ~(headers_only : bool) com cc path =

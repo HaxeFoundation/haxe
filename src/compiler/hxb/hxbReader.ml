@@ -1612,15 +1612,35 @@ class hxb_reader
 	method read_exd =
 		ignore(self#read_list (fun () ->
 			let c = self#read_class_ref in
-			self#select_class_type_parameters c;
 			self#read_list (fun () ->
 				let cf = self#read_field_ref in
-				field_type_parameters <- List.assq cf awful;
-				field_type_parameter_offset <- 0;
-				let fctx = self#start_texpr in
-				let e,e_unopt = self#read_expression fctx in
-				cf.cf_expr <- Some e;
-				cf.cf_expr_unoptimized <- e_unopt
+				let length = read_uleb128 ch in
+				let bytes = read_bytes ch length in
+				let ch_cf = BytesWithPosition.create bytes in
+				let read_expressions () =
+					self#select_class_type_parameters c;
+					field_type_parameters <- List.assq cf awful;
+					field_type_parameter_offset <- 0;
+					let old = ch in
+					ch <- ch_cf;
+					let fctx = self#start_texpr in
+					let e,e_unopt = self#read_expression fctx in
+					ch <- old;
+					cf.cf_expr <- Some e;
+					cf.cf_expr_unoptimized <- e_unopt;
+				in
+				if true || api#read_expression_eagerly cf then
+					read_expressions ()
+				else begin
+					let t = cf.cf_type in
+					let r = ref (lazy_available t) in
+					r := lazy_wait (fun() ->
+						r := lazy_available t;
+						read_expressions ();
+						t
+					);
+					cf.cf_type <- TLazy r
+				end
 			)
 		))
 

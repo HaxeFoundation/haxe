@@ -799,6 +799,9 @@ class hxb_reader_api_typeload
 		let uid = fst alloc_var' in
 		incr uid;
 		!uid
+
+	method read_expression_eagerly (cf : tclass_field) =
+		ctx.com.is_macro_context
 end
 
 let rec load_hxb_module ctx path p =
@@ -811,10 +814,7 @@ let rec load_hxb_module ctx path p =
 			delay ctx PBuildClass (fun () ->
 				ignore(read EOT);
 				delay ctx PConnectField (fun () ->
-					ignore(read EOF);
-					delay ctx PTypeField (fun () ->
-						ignore(read EOM)
-					)
+					ignore(read EOM);
 				);
 			);
 			m

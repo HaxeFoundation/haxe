@@ -2083,7 +2083,8 @@ module HxbWriter = struct
 					write_class_ref writer c;
 					Chunk.write_list writer.chunk l (fun (cf,ref_kind,e) ->
 						write_field_ref writer c ref_kind cf;
-						Chunk.export_data e writer.chunk
+						let bytes = Chunk.get_bytes e in
+						Chunk.write_bytes_length_prefixed writer.chunk bytes;
 					)
 				)
 		end;
