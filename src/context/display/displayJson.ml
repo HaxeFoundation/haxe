@@ -109,8 +109,6 @@ class hxb_reader_api_com
 	(com : Common.context)
 	(cc : CompilationCache.context_cache)
 = object(self)
-	inherit HxbAbstractReader.hxb_abstract_reader
-
 	method make_module (path : path) (file : string) =
 		let mc = cc#get_hxb_module path in
 		{
@@ -137,7 +135,8 @@ class hxb_reader_api_com
 			cc#find_module m_path
 		with Not_found ->
 			let mc = cc#get_hxb_module m_path in
-			fst (self#read_chunks_until mc.mc_path mc.mc_chunks com.hxb_reader_stats (if headers_only then EOM else MTF))
+			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats in
+			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if headers_only then EOM else MTF))
 
 	method basic_types =
 		com.basic

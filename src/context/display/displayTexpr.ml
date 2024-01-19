@@ -176,7 +176,9 @@ let check_display_file ctx cs =
 				begin match !TypeloadModule.type_module_hook ctx path null_pos with
 				| NoModule | BadModule _ -> raise Not_found
 				| BinaryModule mc ->
-					let m = (TypeloadModule.get_reader ctx p)#read_chunks mc.mc_path mc.mc_chunks ctx.com.hxb_reader_stats in
+					let api = (new TypeloadModule.hxb_reader_api_typeload ctx TypeloadModule.load_module' p :> HxbReaderApi.hxb_reader_api) in
+					let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats in
+					let m = reader#read_chunks api mc.mc_chunks in
 					m
 				| GoodModule m ->
 					m

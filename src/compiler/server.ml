@@ -396,7 +396,6 @@ class hxb_reader_api_server
 	(ctx : Typecore.typer)
 	(cc : context_cache)
 = object(self)
-	inherit HxbAbstractReader.hxb_abstract_reader
 
 	method make_module (path : path) (file : string) =
 		let mc = cc#get_hxb_module path in
@@ -417,7 +416,8 @@ class hxb_reader_api_server
 			| GoodModule m ->
 				m
 			| BinaryModule mc ->
-				self#read_chunks mc.mc_path mc.mc_chunks ctx.com.hxb_reader_stats
+				let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats in
+				reader#read_chunks (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks
 			| BadModule reason ->
 				die (Printf.sprintf "Unexpected BadModule %s" (s_type_path path)) __LOC__
 			| NoModule ->
@@ -478,7 +478,6 @@ let rec add_modules sctx ctx (m : module_def) (from_binary : bool) (p : pos) =
 				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
 				PMap.iter (fun _ (sign,mpath) ->
 					if sign = own_sign then begin
-						let cc = com.cs#get_context sign in
 						let m2 = try
 							com.module_lut#find mpath
 						with Not_found ->
@@ -489,7 +488,7 @@ let rec add_modules sctx ctx (m : module_def) (from_binary : bool) (p : pos) =
 							| GoodModule m ->
 								m
 							| BinaryModule mc ->
-								(new hxb_reader_api_server ctx cc)#read_chunks mc.mc_path mc.mc_chunks ctx.com.hxb_reader_stats
+								failwith (Printf.sprintf "Unexpectedly found unresolved binary module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
 							| NoModule ->
 								failwith (Printf.sprintf "Unexpectedly could not find module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
 							| BadModule reason ->

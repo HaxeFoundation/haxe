@@ -779,8 +779,6 @@ class hxb_reader_api_typeload
 	(load_module : typer -> path -> pos -> module_def)
 	(p : pos)
 = object(self)
-	inherit HxbAbstractReader.hxb_abstract_reader
-
 	method make_module (path : path) (file : string) =
 		let m = ModuleLevel.make_module ctx path file p in
 		m.m_extra.m_processed <- 1;
@@ -803,13 +801,12 @@ class hxb_reader_api_typeload
 		!uid
 end
 
-let rec get_reader ctx p =
-	new hxb_reader_api_typeload ctx load_module' p
-
-and load_hxb_module ctx path p =
+let rec load_hxb_module ctx path p =
 	let read file bytes =
 		try
-			let read = (get_reader ctx p)#read_hxb path bytes ctx.com.hxb_reader_stats in
+			let api = (new hxb_reader_api_typeload ctx load_module' p :> HxbReaderApi.hxb_reader_api) in
+			let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats in
+			let read = reader#read api bytes in
 			let m = read MTF in
 			delay ctx PBuildClass (fun () ->
 				ignore(read EOT);
