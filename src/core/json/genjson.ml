@@ -621,7 +621,7 @@ let generate_class ctx c =
 		"fields",jlist (generate_class_field ctx CFSMember) c.cl_ordered_fields;
 		"statics",jlist (generate_class_field ctx CFSStatic) c.cl_ordered_statics;
 		"constructor",jopt (generate_class_field ctx CFSConstructor) c.cl_constructor;
-		"init",jopt (generate_texpr ctx) c.cl_init;
+		"init",jopt (generate_texpr ctx) (TClass.get_cl_init c);
 		"overrides",jlist (classfield_ref ctx) (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields);
 		"isExtern",jbool (has_class_flag c CExtern);
 		"isFinal",jbool (has_class_flag c CFinal);

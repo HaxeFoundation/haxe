@@ -81,11 +81,11 @@ let run_expression_filters ?(ignore_processed_status=false) ctx detail_times fil
 		(match c.cl_constructor with
 		| None -> ()
 		| Some f -> process_field f);
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e ->
 			let identifier = Printf.sprintf "%s.__init__" (s_type_path c.cl_path) in
-			c.cl_init <- Some (run (Some identifier) e));
+			TClass.set_cl_init c (run (Some identifier) e))
 	| TEnumDecl _ -> ()
 	| TTypeDecl _ -> ()
 	| TAbstractDecl _ -> ()

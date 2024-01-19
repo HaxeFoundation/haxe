@@ -723,8 +723,8 @@ let run_filters_from gen t filters =
 		gen.gcurrent_classfield <- None;
 		(match c.cl_init with
 		| None -> ()
-		| Some e ->
-			c.cl_init <- Some (List.fold_left (fun e f -> f e) e filters));
+		| Some f ->
+			process_field f);
 	| TClassDecl _ | TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 		()
 

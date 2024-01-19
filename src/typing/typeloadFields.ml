@@ -979,7 +979,7 @@ module TypeBinding = struct
 					if fctx.field_kind = FKInit then
 						(match e.eexpr with
 						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
-						| _ -> c.cl_init <- Some e);
+						| _ -> TClass.set_cl_init c e);
 					cf.cf_expr <- Some (mk (TFunction tf) t p);
 					cf.cf_type <- t;
 					check_field_display ctx fctx c cf;

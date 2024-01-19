@@ -1623,7 +1623,7 @@ let need_to_generate_interface ctx cl_iface =
 
 let generate_type ctx = function
 	| TClassDecl c ->
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
