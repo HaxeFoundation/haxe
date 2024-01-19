@@ -417,7 +417,19 @@ class hxb_reader_api_server
 				m
 			| BinaryModule mc ->
 				let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats in
-				reader#read_chunks (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks
+				let f_next chunks until =
+					let t_hxb = Timer.timer ["server";"module cache";"hxb read"] in
+					let r = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until in
+					t_hxb();
+					r
+				in
+				let m,chunks = f_next mc.mc_chunks EOF in
+
+				(* We try to avoid reading expressions as much as possible, so we only do this for
+					 our current display file if we're in display mode. *)
+				let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file) in
+				if is_display_file || ctx.com.display.dms_full_typing then ignore(f_next chunks EOM);
+				m
 			| BadModule reason ->
 				die (Printf.sprintf "Unexpected BadModule %s" (s_type_path path)) __LOC__
 			| NoModule ->
@@ -565,10 +577,10 @@ and type_module sctx (ctx:Typecore.typer) mpath p =
 						r
 					in
 					let m,chunks = f_next mc.mc_chunks EOF in
-					(* We try to avoid reading expressions as much as possible, so we only eagerly do this for
-					   our current display file if we're in display mode. Otherwise this is delayed to PTypeField. *)
-					if ctx.is_display_file || ctx.com.display.dms_full_typing then ignore(f_next chunks EOM)
-					else delay ctx PTypeField (fun () -> ignore(f_next chunks EOM));
+					(* We try to avoid reading expressions as much as possible, so we only do this for
+					   our current display file if we're in display mode. *)
+					let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file) in
+					if is_display_file || ctx.com.display.dms_full_typing then ignore(f_next chunks EOM);
 					add_modules true m;
 				| Some reason ->
 					skip mpath reason
