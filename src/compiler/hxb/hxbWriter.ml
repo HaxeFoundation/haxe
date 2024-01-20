@@ -481,7 +481,7 @@ type hxb_writer = {
 	typedefs : (path,tdef) pool;
 	abstracts : (path,tabstract) pool;
 	anons : (path,tanon) pool;
-	anon_fields : (tclass_field,unit) identity_pool;
+	anon_fields : (string,tclass_field,unit) hashed_identity_pool;
 	tmonos : (tmono,unit) identity_pool;
 
 	own_classes : (path,tclass) pool;
@@ -1067,11 +1067,11 @@ module HxbWriter = struct
 
 	and write_anon_field_ref writer cf =
 		try
-			let index = writer.anon_fields#get cf in
+			let index = writer.anon_fields#get cf.cf_name cf in
 			Chunk.write_u8 writer.chunk 0;
 			Chunk.write_uleb128 writer.chunk index
 		with Not_found ->
-			let index = writer.anon_fields#add cf () in
+			let index = writer.anon_fields#add cf.cf_name cf () in
 			Chunk.write_u8 writer.chunk 1;
 			Chunk.write_uleb128 writer.chunk index;
 			ignore(write_class_field_and_overloads_data writer true cf)
@@ -2250,7 +2250,7 @@ let create warn anon_id stats =
 	typedefs = new pool;
 	abstracts = new pool;
 	anons = new pool;
-	anon_fields = new identity_pool;
+	anon_fields = new hashed_identity_pool;
 	tmonos = new identity_pool;
 	own_classes = new pool;
 	own_abstracts = new pool;
