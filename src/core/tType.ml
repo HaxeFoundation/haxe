@@ -401,6 +401,12 @@ and module_def_display = {
 	mutable m_import_positions : (pos,bool ref) PMap.t;
 }
 
+and module_dep = {
+	md_sign : Digest.t;
+	md_kind : module_kind;
+	md_path : path;
+}
+
 and module_def_extra = {
 	m_file : Path.UniqueKey.lazy_t;
 	m_sign : Digest.t;
@@ -411,7 +417,7 @@ and module_def_extra = {
 	mutable m_added : int;
 	mutable m_checked : int;
 	mutable m_processed : int;
-	mutable m_deps : (int,(Digest.t (* sign *) * path)) PMap.t;
+	mutable m_deps : (int,module_dep) PMap.t;
 	mutable m_kind : module_kind;
 	mutable m_cache_bound_objects : cache_bound_object DynArray.t;
 	mutable m_features : (string,bool) Hashtbl.t;

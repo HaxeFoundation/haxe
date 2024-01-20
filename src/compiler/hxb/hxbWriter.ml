@@ -2207,12 +2207,12 @@ module HxbWriter = struct
 
 		begin
 			let deps = DynArray.create () in
-			PMap.iter (fun _ (sign,path) ->
-				if sign = m.m_extra.m_sign then begin
-					(* TODO: We probably need module_kind in m_deps to handle this properly. *)
-					if not (ExtString.String.ends_with (snd path) "import.hx") then
-						DynArray.add deps path;
-				end
+			PMap.iter (fun _ mdep ->
+				match mdep.md_kind with
+				| MCode | MExtern | MFake when mdep.md_sign = m.m_extra.m_sign ->
+						DynArray.add deps mdep.md_path;
+				| _ ->
+					()
 			) m.m_extra.m_deps;
 			if DynArray.length deps > 0 then begin
 				start_chunk writer MDR;

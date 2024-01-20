@@ -318,7 +318,9 @@ let check_module sctx ctx m_path m_extra p =
 			(com.cs#get_context sign)#find_module_extra mpath
 		in
 		let check_dependencies () =
-			PMap.iter (fun _ (sign,mpath) ->
+			PMap.iter (fun _ mdep ->
+				let sign = mdep.md_sign in
+				let mpath = mdep.md_path in
 				let m2_extra = try
 					find_module_extra sign mpath
 				with Not_found ->
@@ -493,8 +495,9 @@ let rec add_modules sctx ctx (m : module_def) (from_binary : bool) (p : pos) =
 				if not from_binary || m != m then
 					com.module_lut#add m.m_path m;
 				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
-				PMap.iter (fun _ (sign,mpath) ->
-					if sign = own_sign then begin
+				PMap.iter (fun _ mdep ->
+					let mpath = mdep.md_path in
+					if mdep.md_sign = own_sign then begin
 						let m2 = try
 							com.module_lut#find mpath
 						with Not_found ->
