@@ -2062,7 +2062,7 @@ module HxbWriter = struct
 			start_chunk writer CLD;
 			Chunk.write_dynarray writer.chunk items (write_class writer);
 			start_chunk writer CFD;
-			let expr_chunks = ref [] in
+			let expr_chunks = DynArray.create () in
 			Chunk.write_dynarray writer.chunk items (fun c ->
 				begin match c.cl_kind with
 				| KAbstractImpl a ->
@@ -2071,11 +2071,11 @@ module HxbWriter = struct
 					select_type writer c.cl_path;
 				end;
 
-				let c_expr_chunks = ref [] in
+				let c_expr_chunks = DynArray.create () in
 				let write_field ref_kind cf =
 					let l = write_class_field_and_overloads_data writer false cf in
 					List.iter (fun (cf,e) ->
-						c_expr_chunks := (cf,ref_kind,e) :: !c_expr_chunks
+						DynArray.add c_expr_chunks (cf,ref_kind,e);
 					) l
 				in
 
@@ -2083,25 +2083,20 @@ module HxbWriter = struct
 				Chunk.write_option writer.chunk c.cl_init (write_field CfrInit);
 				Chunk.write_list writer.chunk c.cl_ordered_fields (write_field CfrMember);
 				Chunk.write_list writer.chunk c.cl_ordered_statics (write_field CfrStatic);
-				match !c_expr_chunks with
-				| [] ->
-					()
-				| c_expr_chunks ->
-					expr_chunks := (c,c_expr_chunks) :: !expr_chunks
+				if DynArray.length c_expr_chunks > 0 then
+					DynArray.add expr_chunks (c,c_expr_chunks)
 			);
-			match !expr_chunks with
-			| [] ->
-				()
-			| expr_chunks ->
+			if DynArray.length expr_chunks > 0 then begin
 				start_chunk writer EXD;
-				Chunk.write_list writer.chunk expr_chunks (fun (c,l) ->
+				Chunk.write_dynarray writer.chunk expr_chunks (fun (c,l) ->
 					write_class_ref writer c;
-					Chunk.write_list writer.chunk l (fun (cf,ref_kind,e) ->
+					Chunk.write_dynarray writer.chunk l (fun (cf,ref_kind,e) ->
 						write_field_ref writer c ref_kind cf;
 						let bytes = Chunk.get_bytes e in
 						Chunk.write_bytes_length_prefixed writer.chunk bytes;
 					)
 				)
+			end
 		end;
 		let items = Pool.items writer.own_enums in
 		if DynArray.length items > 0 then begin
