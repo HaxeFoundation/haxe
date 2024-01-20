@@ -205,21 +205,28 @@ class ['key,'value] identity_pool = object(self)
 	method length = DynArray.length items
 end
 
-class ['hkey,'key,'value] hashed_identity_pool = object(self)
-	val lut = Hashtbl.create 0
-	val items = DynArray.create ()
+module HashedIdentityPool = struct
+	type ('hkey,'key,'value) t = {
+		lut : ('hkey,('key * int)) Hashtbl.t;
+		items : ('key * 'value) DynArray.t;
+	}
 
-	method add (hkey : 'hkey) (key : 'key) (value : 'value) =
-		let index = DynArray.length items in
-		DynArray.add items (key,value);
-		Hashtbl.add lut hkey (key,index);
+	let create () = {
+		lut = Hashtbl.create 16;
+		items = DynArray.create ();
+	}
+
+	let add pool (hkey : 'hkey) (key : 'key) (value : 'value) =
+		let index = DynArray.length pool.items in
+		DynArray.add pool.items (key,value);
+		Hashtbl.add pool.lut hkey (key,index);
 		index
 
-	method get (hkey : 'hkey) (key : 'key) =
-		let l = Hashtbl.find_all lut hkey in
+	let get pool (hkey : 'hkey) (key : 'key) =
+		let l = Hashtbl.find_all pool.lut hkey in
 		List.assq key l
 
-	method items = items
+	let items pool = pool.items
 end
 
 module SimnBuffer = struct
@@ -481,7 +488,7 @@ type hxb_writer = {
 	typedefs : (path,tdef) pool;
 	abstracts : (path,tabstract) pool;
 	anons : (path,tanon) pool;
-	anon_fields : (string,tclass_field,unit) hashed_identity_pool;
+	anon_fields : (string,tclass_field,unit) HashedIdentityPool.t;
 	tmonos : (tmono,unit) identity_pool;
 
 	own_classes : (path,tclass) pool;
@@ -489,7 +496,7 @@ type hxb_writer = {
 	own_typedefs : (path,tdef) pool;
 	own_abstracts : (path,tabstract) pool;
 	type_param_lut : (path,(string,typed_type_param) pool) pool;
-	class_fields : (string,tclass_field,(tclass * class_field_ref_kind * int)) hashed_identity_pool;
+	class_fields : (string,tclass_field,(tclass * class_field_ref_kind * int)) HashedIdentityPool.t;
 	enum_fields : ((path * string),(tenum * tenum_field)) pool;
 	mutable type_type_parameters : (string,typed_type_param) pool;
 	mutable field_type_parameters : (typed_type_param,unit) identity_pool;
@@ -927,7 +934,7 @@ module HxbWriter = struct
 
 	let write_field_ref writer (c : tclass) (kind : class_field_ref_kind)  (cf : tclass_field) =
 		let index = try
-			writer.class_fields#get cf.cf_name cf
+			HashedIdentityPool.get writer.class_fields cf.cf_name cf
 		with Not_found ->
 			let find_overload c cf_base =
 				let rec loop depth cfl = match cfl with
@@ -986,7 +993,7 @@ module HxbWriter = struct
 				| Some(c,depth) ->
 					c,depth
 			in
-			writer.class_fields#add cf.cf_name cf (c,kind,depth)
+			HashedIdentityPool.add writer.class_fields cf.cf_name cf (c,kind,depth)
 		in
 		Chunk.write_uleb128 writer.chunk index
 
@@ -1067,11 +1074,11 @@ module HxbWriter = struct
 
 	and write_anon_field_ref writer cf =
 		try
-			let index = writer.anon_fields#get cf.cf_name cf in
+			let index = HashedIdentityPool.get writer.anon_fields cf.cf_name cf in
 			Chunk.write_u8 writer.chunk 0;
 			Chunk.write_uleb128 writer.chunk index
 		with Not_found ->
-			let index = writer.anon_fields#add cf.cf_name cf () in
+			let index = HashedIdentityPool.add writer.anon_fields cf.cf_name cf () in
 			Chunk.write_u8 writer.chunk 1;
 			Chunk.write_uleb128 writer.chunk index;
 			ignore(write_class_field_and_overloads_data writer true cf)
@@ -2158,7 +2165,7 @@ module HxbWriter = struct
 			)
 		end;
 
-		let items = writer.class_fields#items in
+		let items = HashedIdentityPool.items writer.class_fields in
 		if DynArray.length items > 0 then begin
 			start_chunk writer CFR;
 			Chunk.write_uleb128 writer.chunk (DynArray.length items);
@@ -2190,7 +2197,7 @@ module HxbWriter = struct
 			) items;
 		end;
 
-		let items = writer.anon_fields#items in
+		let items = HashedIdentityPool.items writer.anon_fields in
 		if DynArray.length items > 0 then begin
 			start_chunk writer AFR;
 			Chunk.write_uleb128 writer.chunk (DynArray.length items);
@@ -2250,14 +2257,14 @@ let create warn anon_id stats =
 	typedefs = new pool;
 	abstracts = new pool;
 	anons = new pool;
-	anon_fields = new hashed_identity_pool;
+	anon_fields = HashedIdentityPool.create ();
 	tmonos = new identity_pool;
 	own_classes = new pool;
 	own_abstracts = new pool;
 	own_enums = new pool;
 	own_typedefs = new pool;
 	type_param_lut = new pool;
-	class_fields = new hashed_identity_pool;
+	class_fields = HashedIdentityPool.create ();
 	enum_fields = new pool;
 	type_type_parameters = new pool;
 	field_type_parameters = new identity_pool;
