@@ -421,6 +421,7 @@ and class_field_ref_kind =
 	| CfrStatic
 	| CfrMember
 	| CfrConstructor
+	| CfrInit
 
 and class_field_ref = {
 	cfr_sign : string;

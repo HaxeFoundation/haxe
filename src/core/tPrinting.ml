@@ -413,6 +413,7 @@ let s_class_field_ref_kind = function
 	| CfrStatic -> "CfrStatic"
 	| CfrMember -> "CfrMember"
 	| CfrConstructor -> "CfrConstructor"
+	| CfrInit -> "CfrInit"
 
 module Printer = struct
 

@@ -186,6 +186,11 @@ and mark_field dce c cf kind =
 			| None -> ()
 		in
 		loop c
+	| CfrInit ->
+		begin match c.cl_init with
+			| Some cf -> add c cf
+			| None -> ()
+		end
 	| CfrStatic | CfrMember ->
 		let stat = kind = CfrStatic in
 		if not (PMap.mem cf.cf_name (if stat then c.cl_statics else c.cl_fields)) then begin
@@ -764,7 +769,7 @@ let collect_entry_points dce com =
 			end;
 			begin match c.cl_init with
 				| Some cf when keep_class || Meta.has Meta.KeepInit c.cl_meta ->
-					loop CfrStatic cf
+					loop CfrInit cf
 				| _ ->
 					()
 			end;
