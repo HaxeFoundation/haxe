@@ -142,7 +142,7 @@ let build_dependencies t =
 			add_field f;
 			if c.cl_path <> (["flash"],"Boot") then add_path (["flash"],"Boot") DKExpr;
 		);
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e -> add_expr e);
 		(match c.cl_super with

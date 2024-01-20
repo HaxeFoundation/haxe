@@ -413,6 +413,7 @@ let s_class_field_ref_kind = function
 	| CfrStatic -> "CfrStatic"
 	| CfrMember -> "CfrMember"
 	| CfrConstructor -> "CfrConstructor"
+	| CfrInit -> "CfrInit"
 
 module Printer = struct
 
@@ -506,7 +507,7 @@ module Printer = struct
 			"cl_super",s_opt (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_super;
 			"cl_implements",s_list ", " (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_implements;
 			"cl_array_access",s_opt s_type c.cl_array_access;
-			"cl_init",s_opt (s_expr_ast true "" s_type) c.cl_init;
+			"cl_init",s_opt (s_expr_ast true "" s_type) (TOther.TClass.get_cl_init c);
 			"cl_constructor",s_opt (s_tclass_field (tabs ^ "\t")) c.cl_constructor;
 			"cl_ordered_fields",s_list "\n\t" (s_tclass_field (tabs ^ "\t")) c.cl_ordered_fields;
 			"cl_ordered_statics",s_list "\n\t" (s_tclass_field (tabs ^ "\t")) c.cl_ordered_statics;

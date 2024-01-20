@@ -3696,7 +3696,7 @@ let generate_static_init ctx types main =
 	(* init class statics *)
 	let init_exprs = ref [] in
 	List.iter (fun t ->
-		(match t with TClassDecl { cl_init = Some e } -> init_exprs := e :: !init_exprs | _ -> ());
+		(match t with TClassDecl { cl_init = Some {cf_expr = Some e} } -> init_exprs := e :: !init_exprs | _ -> ());
 		match t with
 		| TClassDecl c when not (has_class_flag c CExtern) ->
 			List.iter (fun f ->

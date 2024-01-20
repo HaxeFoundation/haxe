@@ -300,7 +300,7 @@ and tclass = {
 	mutable cl_dynamic : t option;
 	mutable cl_array_access : t option;
 	mutable cl_constructor : tclass_field option;
-	mutable cl_init : texpr option;
+	mutable cl_init : tclass_field option;
 
 	mutable cl_build : unit -> build_state;
 	(*
@@ -421,6 +421,7 @@ and class_field_ref_kind =
 	| CfrStatic
 	| CfrMember
 	| CfrConstructor
+	| CfrInit
 
 and class_field_ref = {
 	cfr_sign : string;

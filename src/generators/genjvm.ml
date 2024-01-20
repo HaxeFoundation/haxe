@@ -2532,10 +2532,7 @@ class tclass_to_jvm gctx c = object(self)
 			let p = null_pos in
 			let efield = Texpr.Builder.make_static_field c cf p in
 			let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type p in
-			begin match c.cl_init with
-			| None -> c.cl_init <- Some eop
-			| Some e -> c.cl_init <- Some (concat e eop)
-			end
+			TClass.add_cl_init c eop
 		in
 		begin match cf.cf_expr with
 			| None ->
@@ -2618,7 +2615,7 @@ class tclass_to_jvm gctx c = object(self)
 			| Some cf,None -> field MConstructor cf
 			| None,_ -> ()
 		end;
-		begin match c.cl_init with
+		begin match TClass.get_cl_init c with
 			| None ->
 				()
 			| Some e ->

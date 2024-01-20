@@ -959,7 +959,7 @@ class class_wrapper (cls) =
 			if (has_class_flag cls CInterface) then
 				false
 			else
-				match cls.cl_init with
+				match TClass.get_cl_init cls with
 					| Some _ -> true
 					| None ->
 						List.exists
@@ -978,7 +978,7 @@ class class_wrapper (cls) =
 			Returns expression of a user-defined static __init__ method
 			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
 		*)
-		method! get_magic_init = cls.cl_init
+		method! get_magic_init = TClass.get_cl_init cls
 		(**
 			Returns hx source file name where this type was declared
 		*)
@@ -994,7 +994,7 @@ class class_wrapper (cls) =
 			if not (has_class_flag cls CExtern) then
 				None
 			else
-				match cls.cl_init with
+				match TClass.get_cl_init cls with
 					| None -> None
 					| Some body ->
 						let path =
@@ -1009,8 +1009,8 @@ class class_wrapper (cls) =
 								cl_ordered_fields  = [];
 								cl_ordered_statics  = [];
 								cl_constructor = None;
-								cl_init = Some body
 						} in
+						TClass.set_cl_init additional_cls body;
 						remove_class_flag additional_cls CExtern;
 						Some (TClassDecl additional_cls)
 	end

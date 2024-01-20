@@ -666,15 +666,14 @@ let save_class_state com t =
 		let csr = Option.map (mk_field_restore) c.cl_constructor in
 		let ofr = List.map (mk_field_restore) c.cl_ordered_fields in
 		let osr = List.map (mk_field_restore) c.cl_ordered_statics in
-		let init = c.cl_init in
-		Option.may save_vars init;
+		let init = Option.map mk_field_restore c.cl_init in
 		c.cl_restore <- (fun() ->
 			c.cl_super <- sup;
 			c.cl_implements <- impl;
 			c.cl_meta <- meta;
 			if ext then add_class_flag c CExtern else remove_class_flag c CExtern;
 			c.cl_path <- path;
-			c.cl_init <- init;
+			c.cl_init <- Option.map restore_field init;
 			c.cl_ordered_fields <- List.map restore_field ofr;
 			c.cl_ordered_statics <- List.map restore_field osr;
 			c.cl_fields <- mk_pmap c.cl_ordered_fields;
