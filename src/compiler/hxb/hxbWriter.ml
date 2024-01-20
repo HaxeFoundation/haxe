@@ -143,41 +143,48 @@ module StringPool = struct
 		DynArray.to_list sp.items,DynArray.length sp.items
 end
 
-class ['key,'value] pool = object(self)
-	val lut = Hashtbl.create 0
-	val items = DynArray.create ()
+module Pool = struct
+	type ('key,'value) t = {
+		lut : ('key,int) Hashtbl.t;
+		items : 'value DynArray.t;
+	}
 
-	method add (key : 'key) (value : 'value) =
-		let index = DynArray.length items in
-		DynArray.add items value;
-		Hashtbl.add lut key index;
+	let create () = {
+		lut = Hashtbl.create 0;
+		items = DynArray.create ();
+	}
+
+	let add pool (key : 'key) (value : 'value) =
+		let index = DynArray.length pool.items in
+		DynArray.add pool.items value;
+		Hashtbl.add pool.lut key index;
 		index
 
-	method extract (key : 'key) =
-		DynArray.get items (self#get key)
+	let get pool (key : 'key) =
+		Hashtbl.find pool.lut key
 
-	method has (key : 'key) =
-		Hashtbl.mem lut key
+	let extract pool (key : 'key) =
+		DynArray.get pool.items (get pool key)
 
-	method get (key : 'key) =
-		Hashtbl.find lut key
+	let has pool (key : 'key) =
+		Hashtbl.mem pool.lut key
 
-	method get_or_add (key : 'key) (value : 'value) =
+	let get_or_add pool (key : 'key) (value : 'value) =
 		try
-			self#get key
+			get pool key
 		with Not_found ->
-			self#add key value
+			add pool key value
 
-	method is_empty =
-		DynArray.length items = 0
+	let is_empty pool =
+		DynArray.length pool.items = 0
 
-	method advance dummy =
-		DynArray.add items dummy
+	let advance pool dummy =
+		DynArray.add pool.items dummy
 
-	method to_list =
-		DynArray.to_list items
+	let to_list pool =
+		DynArray.to_list pool.items
 
-	method items = items
+	let items pool = pool.items
 end
 
 class ['key,'value] identity_pool = object(self)
@@ -483,22 +490,22 @@ type hxb_writer = {
 	docs : StringPool.t;
 	mutable chunk : Chunk.t;
 
-	classes : (path,tclass) pool;
-	enums : (path,tenum) pool;
-	typedefs : (path,tdef) pool;
-	abstracts : (path,tabstract) pool;
-	anons : (path,tanon) pool;
+	classes : (path,tclass) Pool.t;
+	enums : (path,tenum) Pool.t;
+	typedefs : (path,tdef) Pool.t;
+	abstracts : (path,tabstract) Pool.t;
+	anons : (path,tanon) Pool.t;
 	anon_fields : (string,tclass_field,unit) HashedIdentityPool.t;
 	tmonos : (tmono,unit) identity_pool;
 
-	own_classes : (path,tclass) pool;
-	own_enums : (path,tenum) pool;
-	own_typedefs : (path,tdef) pool;
-	own_abstracts : (path,tabstract) pool;
-	type_param_lut : (path,(string,typed_type_param) pool) pool;
+	own_classes : (path,tclass) Pool.t;
+	own_enums : (path,tenum) Pool.t;
+	own_typedefs : (path,tdef) Pool.t;
+	own_abstracts : (path,tabstract) Pool.t;
+	type_param_lut : (path,(string,typed_type_param) Pool.t) Pool.t;
 	class_fields : (string,tclass_field,(tclass * class_field_ref_kind * int)) HashedIdentityPool.t;
-	enum_fields : ((path * string),(tenum * tenum_field)) pool;
-	mutable type_type_parameters : (string,typed_type_param) pool;
+	enum_fields : ((path * string),(tenum * tenum_field)) Pool.t;
+	mutable type_type_parameters : (string,typed_type_param) Pool.t;
 	mutable field_type_parameters : (typed_type_param,unit) identity_pool;
 	mutable local_type_parameters : (typed_type_param,unit) identity_pool;
 	mutable field_stack : unit list;
@@ -913,19 +920,19 @@ module HxbWriter = struct
 	(* References *)
 
 	let write_class_ref writer (c : tclass) =
-		let i = writer.classes#get_or_add c.cl_path c in
+		let i = Pool.get_or_add writer.classes c.cl_path c in
 		Chunk.write_uleb128 writer.chunk i
 
 	let write_enum_ref writer (en : tenum) =
-		let i = writer.enums#get_or_add en.e_path en in
+		let i = Pool.get_or_add writer.enums en.e_path en in
 		Chunk.write_uleb128 writer.chunk i
 
 	let write_typedef_ref writer (td : tdef) =
-		let i = writer.typedefs#get_or_add td.t_path td in
+		let i = Pool.get_or_add writer.typedefs td.t_path td in
 		Chunk.write_uleb128 writer.chunk i
 
 	let write_abstract_ref writer (a : tabstract) =
-		let i = writer.abstracts#get_or_add a.a_path a in
+		let i = Pool.get_or_add writer.abstracts a.a_path a in
 		Chunk.write_uleb128 writer.chunk i
 
 	let write_tmono_ref writer (mono : tmono) =
@@ -1000,10 +1007,10 @@ module HxbWriter = struct
 	let write_enum_field_ref writer (en : tenum) (ef : tenum_field) =
 		let key = (en.e_path,ef.ef_name) in
 		try
-			Chunk.write_uleb128 writer.chunk (writer.enum_fields#get key)
+			Chunk.write_uleb128 writer.chunk (Pool.get writer.enum_fields key)
 		with Not_found ->
-			ignore(writer.enums#get_or_add en.e_path en);
-			Chunk.write_uleb128 writer.chunk (writer.enum_fields#add key (en,ef))
+			ignore(Pool.get_or_add writer.enums en.e_path en);
+			Chunk.write_uleb128 writer.chunk (Pool.add writer.enum_fields key (en,ef))
 
 	let write_var_kind writer vk =
 		let b = match vk with
@@ -1063,11 +1070,11 @@ module HxbWriter = struct
 	and write_anon_ref writer (an : tanon) (ttp : type_params) =
 		let pfm = Option.get (writer.anon_id#identify_anon ~strict:true an) in
 		try
-			let index = writer.anons#get pfm.pfm_path in
+			let index = Pool.get writer.anons pfm.pfm_path in
 			Chunk.write_u8 writer.chunk 0;
 			Chunk.write_uleb128 writer.chunk index
 		with Not_found ->
-			let index = writer.anons#add pfm.pfm_path an in
+			let index = Pool.add writer.anons pfm.pfm_path an in
 			Chunk.write_u8 writer.chunk 1;
 			Chunk.write_uleb128 writer.chunk index;
 			write_anon writer an ttp
@@ -1089,7 +1096,7 @@ module HxbWriter = struct
 		begin try
 			begin match ttp.ttp_host with
 			| TPHType ->
-				let i = writer.type_type_parameters#get ttp.ttp_name in
+				let i = Pool.get writer.type_type_parameters ttp.ttp_name in
 				Chunk.write_u8 writer.chunk 1;
 				Chunk.write_uleb128 writer.chunk i
 			| TPHMethod | TPHEnumConstructor | TPHAnonField | TPHConstructor ->
@@ -1833,7 +1840,7 @@ module HxbWriter = struct
 	(* Module types *)
 
 	let select_type writer (path : path) =
-		writer.type_type_parameters <- writer.type_param_lut#extract path
+		writer.type_type_parameters <- Pool.extract writer.type_param_lut path
 
 	let write_common_module_type writer (infos : tinfos) : unit =
 		Chunk.write_bool writer.chunk infos.mt_private;
@@ -1956,23 +1963,23 @@ module HxbWriter = struct
 		let name = ref "" in
 		let i = match mt with
 		| TClassDecl c ->
-			ignore(writer.classes#add c.cl_path c);
-			ignore(writer.own_classes#add c.cl_path c);
+			ignore(Pool.add writer.classes c.cl_path c);
+			ignore(Pool.add writer.own_classes c.cl_path c);
 			name := snd c.cl_path;
 			0
 		| TEnumDecl e ->
-			ignore(writer.enums#get_or_add e.e_path e);
-			ignore(writer.own_enums#add e.e_path e);
+			ignore(Pool.add writer.enums e.e_path e);
+			ignore(Pool.add writer.own_enums e.e_path e);
 			name := snd e.e_path;
 			1
 		| TTypeDecl t ->
-			ignore(writer.typedefs#get_or_add t.t_path t);
-			ignore(writer.own_typedefs#add t.t_path t);
+			ignore(Pool.add writer.typedefs t.t_path t);
+			ignore(Pool.add writer.own_typedefs t.t_path t);
 			name := snd t.t_path;
 			2
 		| TAbstractDecl a ->
-			ignore(writer.abstracts#add a.a_path a);
-			ignore(writer.own_abstracts#add a.a_path a);
+			ignore(Pool.add writer.abstracts a.a_path a);
+			ignore(Pool.add writer.own_abstracts a.a_path a);
 			name := snd a.a_path;
 			3
 		in
@@ -1982,11 +1989,11 @@ module HxbWriter = struct
 		write_path writer (fst infos.mt_path, !name);
 		write_pos_pair writer infos.mt_pos infos.mt_name_pos;
 		write_type_parameters_forward writer infos.mt_params;
-		let params = new pool in
+		let params = Pool.create () in
 		writer.type_type_parameters <- params;
-		ignore(writer.type_param_lut#add infos.mt_path params);
+		ignore(Pool.add writer.type_param_lut infos.mt_path params);
 		List.iter (fun ttp ->
-			ignore(writer.type_type_parameters#add ttp.ttp_name ttp)
+			ignore(Pool.add writer.type_type_parameters ttp.ttp_name ttp)
 		) infos.mt_params;
 
 		(* Forward declare fields *)
@@ -2036,7 +2043,7 @@ module HxbWriter = struct
 		start_chunk writer MTF;
 		Chunk.write_list writer.chunk m.m_types (forward_declare_type writer);
 
-		begin match writer.own_abstracts#to_list with
+		begin match Pool.to_list writer.own_abstracts with
 		| [] ->
 			()
 		| own_abstracts ->
@@ -2045,7 +2052,7 @@ module HxbWriter = struct
 			start_chunk writer AFD;
 			Chunk.write_list writer.chunk own_abstracts (write_abstract_fields writer);
 		end;
-		begin match writer.own_classes#to_list with
+		begin match Pool.to_list writer.own_classes with
 		| [] ->
 			()
 		| own_classes ->
@@ -2093,7 +2100,7 @@ module HxbWriter = struct
 					)
 				)
 		end;
-		begin match writer.own_enums#to_list with
+		begin match Pool.to_list writer.own_enums with
 		| [] ->
 			()
 		| own_enums ->
@@ -2116,7 +2123,7 @@ module HxbWriter = struct
 				);
 			)
 		end;
-		begin match writer.own_typedefs#to_list with
+		begin match Pool.to_list writer.own_typedefs with
 		| [] ->
 			()
 		| own_typedefs ->
@@ -2124,7 +2131,7 @@ module HxbWriter = struct
 			Chunk.write_list writer.chunk own_typedefs (write_typedef writer);
 		end;
 
-		begin match writer.classes#to_list with
+		begin match Pool.to_list writer.classes with
 		| [] ->
 			()
 		| l ->
@@ -2134,7 +2141,7 @@ module HxbWriter = struct
 				write_full_path writer (fst m.m_path) (snd m.m_path) (snd c.cl_path);
 			)
 		end;
-		begin match writer.abstracts#to_list with
+		begin match Pool.to_list writer.abstracts with
 		| [] ->
 			()
 		| l ->
@@ -2144,7 +2151,7 @@ module HxbWriter = struct
 				write_full_path writer (fst m.m_path) (snd m.m_path) (snd a.a_path);
 			)
 		end;
-		begin match writer.enums#to_list with
+		begin match Pool.to_list writer.enums with
 		| [] ->
 			()
 		| l ->
@@ -2154,7 +2161,7 @@ module HxbWriter = struct
 				write_full_path writer (fst m.m_path) (snd m.m_path) (snd en.e_path);
 			)
 		end;
-		begin match writer.typedefs#to_list with
+		begin match Pool.to_list writer.typedefs with
 		| [] ->
 			()
 		| l ->
@@ -2187,7 +2194,7 @@ module HxbWriter = struct
 			) items;
 		end;
 
-		let items = writer.enum_fields#items in
+		let items = Pool.items writer.enum_fields in
 		if DynArray.length items > 0 then begin
 			start_chunk writer EFR;
 			Chunk.write_uleb128 writer.chunk (DynArray.length items);
@@ -2209,7 +2216,7 @@ module HxbWriter = struct
 		start_chunk writer MDF;
 		write_path writer m.m_path;
 		Chunk.write_string writer.chunk (Path.UniqueKey.lazy_path m.m_extra.m_file);
-		Chunk.write_uleb128 writer.chunk (DynArray.length writer.anons#items);
+		Chunk.write_uleb128 writer.chunk (DynArray.length (Pool.items writer.anons));
 		Chunk.write_uleb128 writer.chunk (DynArray.length writer.tmonos#items);
 		start_chunk writer EOT;
 		start_chunk writer EOF;
@@ -2252,21 +2259,21 @@ let create warn anon_id stats =
 	cp = cp;
 	docs = StringPool.create ();
 	chunk = Obj.magic ();
-	classes = new pool;
-	enums = new pool;
-	typedefs = new pool;
-	abstracts = new pool;
-	anons = new pool;
+	classes = Pool.create ();
+	enums = Pool.create ();
+	typedefs = Pool.create ();
+	abstracts = Pool.create ();
+	anons = Pool.create ();
 	anon_fields = HashedIdentityPool.create ();
 	tmonos = new identity_pool;
-	own_classes = new pool;
-	own_abstracts = new pool;
-	own_enums = new pool;
-	own_typedefs = new pool;
-	type_param_lut = new pool;
+	own_classes = Pool.create ();
+	own_abstracts = Pool.create ();
+	own_enums = Pool.create ();
+	own_typedefs = Pool.create ();
+	type_param_lut = Pool.create ();
 	class_fields = HashedIdentityPool.create ();
-	enum_fields = new pool;
-	type_type_parameters = new pool;
+	enum_fields = Pool.create ();
+	type_type_parameters = Pool.create ();
 	field_type_parameters = new identity_pool;
 	local_type_parameters = new identity_pool;
 	field_stack = [];
