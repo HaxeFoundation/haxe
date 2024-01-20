@@ -187,29 +187,35 @@ module Pool = struct
 	let items pool = pool.items
 end
 
-class ['key,'value] identity_pool = object(self)
-	val items = DynArray.create ()
+module IdentityPool = struct
+	type ('key,'value) t = {
+		items : ('key * 'value) DynArray.t;
+	}
 
-	method add (key : 'key) (value : 'value) =
-		let index = DynArray.length items in
-		DynArray.add items (key,value);
+	let create () = {
+		items = DynArray.create ();
+	}
+
+	let add pool (key : 'key) (value : 'value) =
+		let index = DynArray.length pool.items in
+		DynArray.add pool.items (key,value);
 		index
 
-	method get (key : 'key) =
-		DynArray.index_of (fun (key',_) -> key == key') items
+	let get pool (key : 'key) =
+		DynArray.index_of (fun (key',_) -> key == key') pool.items
 
-	method get_or_add (key : 'key) (value : 'value) =
+	let get_or_add pool (key : 'key) (value : 'value) =
 		try
-			self#get key
+			get pool key
 		with Not_found ->
-			self#add key value
+			add pool key value
 
-	method to_list =
-		DynArray.to_list items
+	let to_list pool =
+		DynArray.to_list pool.items
 
-	method items = items
+	let items pool = pool.items
 
-	method length = DynArray.length items
+	let length pool = DynArray.length pool.items
 end
 
 module HashedIdentityPool = struct
@@ -496,7 +502,7 @@ type hxb_writer = {
 	abstracts : (path,tabstract) Pool.t;
 	anons : (path,tanon) Pool.t;
 	anon_fields : (string,tclass_field,unit) HashedIdentityPool.t;
-	tmonos : (tmono,unit) identity_pool;
+	tmonos : (tmono,unit) IdentityPool.t;
 
 	own_classes : (path,tclass) Pool.t;
 	own_enums : (path,tenum) Pool.t;
@@ -506,10 +512,10 @@ type hxb_writer = {
 	class_fields : (string,tclass_field,(tclass * class_field_ref_kind * int)) HashedIdentityPool.t;
 	enum_fields : ((path * string),(tenum * tenum_field)) Pool.t;
 	mutable type_type_parameters : (string,typed_type_param) Pool.t;
-	mutable field_type_parameters : (typed_type_param,unit) identity_pool;
-	mutable local_type_parameters : (typed_type_param,unit) identity_pool;
+	mutable field_type_parameters : (typed_type_param,unit) IdentityPool.t;
+	mutable local_type_parameters : (typed_type_param,unit) IdentityPool.t;
 	mutable field_stack : unit list;
-	unbound_ttp : (typed_type_param,unit) identity_pool;
+	unbound_ttp : (typed_type_param,unit) IdentityPool.t;
 	t_instance_chunk : Chunk.t;
 }
 
@@ -936,7 +942,7 @@ module HxbWriter = struct
 		Chunk.write_uleb128 writer.chunk i
 
 	let write_tmono_ref writer (mono : tmono) =
-		let index = try writer.tmonos#get mono with Not_found -> writer.tmonos#add mono () in
+		let index = IdentityPool.get_or_add writer.tmonos mono () in
 		Chunk.write_uleb128 writer.chunk index
 
 	let write_field_ref writer (c : tclass) (kind : class_field_ref_kind)  (cf : tclass_field) =
@@ -1100,16 +1106,16 @@ module HxbWriter = struct
 				Chunk.write_u8 writer.chunk 1;
 				Chunk.write_uleb128 writer.chunk i
 			| TPHMethod | TPHEnumConstructor | TPHAnonField | TPHConstructor ->
-				let i = writer.field_type_parameters#get ttp in
+				let i = IdentityPool.get writer.field_type_parameters ttp in
 				Chunk.write_u8 writer.chunk 2;
 				Chunk.write_uleb128 writer.chunk i;
 			| TPHLocal ->
-				let index = writer.local_type_parameters#get ttp in
+				let index = IdentityPool.get writer.local_type_parameters ttp in
 				Chunk.write_u8 writer.chunk 3;
 				Chunk.write_uleb128 writer.chunk index;
 		end with Not_found ->
-			(try ignore(writer.unbound_ttp#get ttp) with Not_found -> begin
-				ignore(writer.unbound_ttp#add ttp ());
+			(try ignore(IdentityPool.get writer.unbound_ttp ttp) with Not_found -> begin
+				ignore(IdentityPool.add writer.unbound_ttp ttp ());
 				let p = { null_pos with pfile = (Path.UniqueKey.lazy_path writer.current_module.m_extra.m_file) } in
 				let msg = Printf.sprintf "Unbound type parameter %s" (s_type_path ttp.ttp_class.cl_path) in
 				writer.warn WUnboundTypeParameter msg p
@@ -1312,7 +1318,7 @@ module HxbWriter = struct
 			Chunk.write_uleb128 writer.chunk index;
 			Chunk.write_option writer.chunk v.v_extra (fun ve ->
 				Chunk.write_list writer.chunk ve.v_params (fun ttp ->
-					let index = writer.local_type_parameters#add ttp () in
+					let index = IdentityPool.add writer.local_type_parameters ttp () in
 					Chunk.write_uleb128 writer.chunk index
 				);
 				Chunk.write_option writer.chunk ve.v_expr (write_texpr writer fctx);
@@ -1735,11 +1741,11 @@ module HxbWriter = struct
 		let old_field_params = writer.field_type_parameters in
 		let old_local_params = writer.local_type_parameters in
 		if not nested then begin
-			writer.local_type_parameters <- new identity_pool;
-			writer.field_type_parameters <- new identity_pool;
+			writer.local_type_parameters <- IdentityPool.create ();
+			writer.field_type_parameters <- IdentityPool.create ();
 		end;
 		List.iter (fun ttp ->
-			ignore(writer.field_type_parameters#add ttp ());
+			ignore(IdentityPool.add writer.field_type_parameters ttp ());
 		) params;
 		(fun () ->
 			writer.field_type_parameters <- old_field_params;
@@ -1764,7 +1770,7 @@ module HxbWriter = struct
 					Chunk.write_u8 writer.chunk 0
 				else begin
 					Chunk.write_u8 writer.chunk 1;
-					let ltp = List.map fst writer.local_type_parameters#to_list in
+					let ltp = List.map fst (IdentityPool.to_list writer.local_type_parameters) in
 					write_type_parameters writer ltp
 				end;
 				Chunk.write_option writer.chunk fctx.texpr_this (fun e -> write_type_instance writer e.etype);
@@ -1790,7 +1796,7 @@ module HxbWriter = struct
 			Chunk.write_u8 writer.chunk 0
 		else begin
 			Chunk.write_u8 writer.chunk 1;
-			let ftp = List.map fst writer.field_type_parameters#to_list in
+			let ftp = List.map fst (IdentityPool.to_list writer.field_type_parameters) in
 			write_type_parameters writer ftp
 		end
 
@@ -2217,7 +2223,7 @@ module HxbWriter = struct
 		write_path writer m.m_path;
 		Chunk.write_string writer.chunk (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		Chunk.write_uleb128 writer.chunk (DynArray.length (Pool.items writer.anons));
-		Chunk.write_uleb128 writer.chunk (DynArray.length writer.tmonos#items);
+		Chunk.write_uleb128 writer.chunk (DynArray.length (IdentityPool.items writer.tmonos));
 		start_chunk writer EOT;
 		start_chunk writer EOF;
 		start_chunk writer EOM;
@@ -2265,7 +2271,7 @@ let create warn anon_id stats =
 	abstracts = Pool.create ();
 	anons = Pool.create ();
 	anon_fields = HashedIdentityPool.create ();
-	tmonos = new identity_pool;
+	tmonos = IdentityPool.create ();
 	own_classes = Pool.create ();
 	own_abstracts = Pool.create ();
 	own_enums = Pool.create ();
@@ -2274,10 +2280,10 @@ let create warn anon_id stats =
 	class_fields = HashedIdentityPool.create ();
 	enum_fields = Pool.create ();
 	type_type_parameters = Pool.create ();
-	field_type_parameters = new identity_pool;
-	local_type_parameters = new identity_pool;
+	field_type_parameters = IdentityPool.create ();
+	local_type_parameters = IdentityPool.create ();
 	field_stack = [];
-	unbound_ttp = new identity_pool;
+	unbound_ttp = IdentityPool.create ();
 	t_instance_chunk = Chunk.create EOM cp 32;
 }
 
