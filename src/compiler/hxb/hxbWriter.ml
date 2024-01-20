@@ -951,6 +951,8 @@ module HxbWriter = struct
 			let r = match kind with
 				| CfrStatic | CfrConstructor ->
 					find_overload c;
+				| CfrInit ->
+					Some(c,0)
 				| CfrMember ->
 					(* For member overloads we need to find the correct class, which is a mess. *)
 					let rec loop c = match find_overload c with
@@ -1985,6 +1987,7 @@ module HxbWriter = struct
 		| TClassDecl c ->
 			Chunk.write_uleb128 writer.chunk c.cl_flags;
 			Chunk.write_option writer.chunk c.cl_constructor (write_class_field_forward writer);
+			Chunk.write_option writer.chunk c.cl_init (write_class_field_forward writer);
 
 			(* Write in reverse order so reader can read tail-recursively without List.rev *)
 			let write_fields cfl =
@@ -2060,14 +2063,9 @@ module HxbWriter = struct
 				in
 
 				Chunk.write_option writer.chunk c.cl_constructor (write_field CfrConstructor);
+				Chunk.write_option writer.chunk c.cl_init (write_field CfrInit);
 				Chunk.write_list writer.chunk c.cl_ordered_fields (write_field CfrMember);
 				Chunk.write_list writer.chunk c.cl_ordered_statics (write_field CfrStatic);
-				Chunk.write_option writer.chunk c.cl_init (fun e ->
-					let fctx,close = start_texpr writer e.epos in
-					write_texpr writer fctx e;
-					let new_chunk = close() in
-					Chunk.export_data new_chunk writer.chunk
-				);
 				match !c_expr_chunks with
 				| [] ->
 					()
@@ -2175,6 +2173,8 @@ module HxbWriter = struct
 					Chunk.write_string writer.chunk cf.cf_name
 				| CfrConstructor ->
 					Chunk.write_u8 writer.chunk 2;
+				| CfrInit ->
+					Chunk.write_u8 writer.chunk 3;
 				end;
 				Chunk.write_uleb128 writer.chunk depth
 			) items;

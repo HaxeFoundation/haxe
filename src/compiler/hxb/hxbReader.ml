@@ -1394,6 +1394,10 @@ class hxb_reader
 			let cf = Option.get c.cl_constructor in
 			self#read_class_field_and_overloads_data cf
 		) in
+		let _ = self#read_option (fun f ->
+			let cf = Option.get c.cl_init in
+			self#read_class_field_and_overloads_data cf
+		) in
 		let rec loop ref_kind num cfl = match cfl with
 			| cf :: cfl ->
 				assert (num > 0);
@@ -1404,7 +1408,6 @@ class hxb_reader
 		in
 		loop CfrMember (read_uleb128 ch) c.cl_ordered_fields;
 		loop CfrStatic (read_uleb128 ch) c.cl_ordered_statics;
-		c.cl_init <- self#read_option (fun () -> self#read_texpr self#start_texpr);
 		(match c.cl_kind with KModuleFields md -> md.m_statics <- Some c; | _ -> ());
 
 	method read_enum_fields (e : tenum) =
@@ -1561,6 +1564,7 @@ class hxb_reader
 				| 0 -> CfrStatic
 				| 1 -> CfrMember
 				| 2 -> CfrConstructor
+				| 3 -> CfrInit
 				| _ -> die "" __LOC__
 			in
 			let cf =  match kind with
@@ -1580,6 +1584,8 @@ class hxb_reader
 					end
 				| CfrConstructor ->
 					Option.get c.cl_constructor
+				| CfrInit ->
+					Option.get c.cl_init
 			in
 			let pick_overload cf depth =
 				let rec loop depth cfl = match cfl with
@@ -1776,6 +1782,7 @@ class hxb_reader
 				in
 
 				c.cl_constructor <- self#read_option read_field;
+				c.cl_init <- self#read_option read_field;
 				let read_fields i =
 					let rec loop acc_l acc_pm i =
 						if i = 0 then
