@@ -801,7 +801,12 @@ class hxb_reader_api_typeload
 		!uid
 
 	method read_expression_eagerly (cf : tclass_field) =
-		ctx.com.is_macro_context
+		ctx.com.is_macro_context || match cf.cf_kind with
+			| Var _ ->
+				true
+			| Method _ ->
+				delay ctx PTypeField (fun () -> ignore(follow cf.cf_type));
+				false
 end
 
 let rec load_hxb_module ctx path p =

@@ -1629,7 +1629,7 @@ class hxb_reader
 					cf.cf_expr <- Some e;
 					cf.cf_expr_unoptimized <- e_unopt;
 				in
-				if true || api#read_expression_eagerly cf then
+				if api#read_expression_eagerly cf then
 					read_expressions ()
 				else begin
 					let t = cf.cf_type in

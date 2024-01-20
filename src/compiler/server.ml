@@ -456,7 +456,7 @@ class hxb_reader_api_server
 		i
 
 	method read_expression_eagerly (cf : tclass_field) =
-		false (* TODO: Check this please Rudy! *)
+		true (* TODO: Check this please Rudy! *)
 end
 
 let handle_cache_bound_objects com cbol =
