@@ -211,6 +211,8 @@ let find_field c name kind =
 		PMap.find name c.cl_statics
 	| CfrMember ->
 		PMap.find name c.cl_fields
+	| CfrInit ->
+		begin match c.cl_init with Some cf -> cf | None -> raise Not_found end
 
 let null_module = {
 	m_id = alloc_mid();

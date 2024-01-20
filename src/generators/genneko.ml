@@ -555,7 +555,7 @@ let gen_enum ctx e =
 let gen_type ctx t acc =
 	match t with
 	| TClassDecl c ->
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e -> ctx.inits <- (c,e) :: ctx.inits);
 		if (has_class_flag c CExtern) then
