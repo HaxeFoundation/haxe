@@ -38,9 +38,10 @@ let rec scan_module_deps cs m h =
 		()
 	else begin
 		Hashtbl.add h m.m_id m;
-		PMap.iter (fun _ (sign,mpath) ->
-			let m = (cs#get_context sign)#find_module mpath in
-			scan_module_deps cs m h) m.m_extra.m_deps
+		PMap.iter (fun _ mdep ->
+			let m = (cs#get_context mdep.md_sign)#find_module mdep.md_path in
+			scan_module_deps cs m h
+		) m.m_extra.m_deps
 	end
 
 let module_sign key md =
@@ -274,9 +275,9 @@ let display_memory com =
 			());
 		if verbose then begin
 			print (Printf.sprintf "      %d total deps" (List.length deps));
-			PMap.iter (fun _ (sign,mpath) ->
-				let md = (com.cs#get_context sign)#find_module mpath in
-				print (Printf.sprintf "      dep %s%s" (s_type_path mpath) (module_sign key md));
+			PMap.iter (fun _ mdep ->
+				let md = (com.cs#get_context mdep.md_sign)#find_module mdep.md_path in
+				print (Printf.sprintf "      dep %s%s" (s_type_path mdep.md_path) (module_sign key md));
 			) m.m_extra.m_deps;
 		end;
 		flush stdout

@@ -712,10 +712,10 @@ let generate_module cs cc m =
 			| MSGood -> "Good"
 			| MSBad reason -> Printer.s_module_skip_reason reason
 			| MSUnknown -> "Unknown");
-		"dependencies",jarray (PMap.fold (fun (sign,mpath) acc ->
+		"dependencies",jarray (PMap.fold (fun mdep acc ->
 			(jobject [
-				"path",jstring (s_type_path mpath);
-				"sign",jstring (Digest.to_hex ((cs#get_context sign)#find_module mpath).m_extra.m_sign);
+				"path",jstring (s_type_path mdep.md_path);
+				"sign",jstring (Digest.to_hex ((cs#get_context mdep.md_sign)#find_module mdep.md_path).m_extra.m_sign);
 			]) :: acc
 		) m.m_extra.m_deps []);
 		"dependents",jarray (List.map (fun m -> (jobject [
