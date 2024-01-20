@@ -791,6 +791,9 @@ class hxb_reader_api_typeload
 		let m = load_module ctx (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 
+	method resolve_module (path : path) =
+		load_module ctx path p
+
 	method basic_types =
 		ctx.com.basic
 

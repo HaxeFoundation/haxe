@@ -1765,6 +1765,13 @@ class hxb_reader
 				error ("Unexpected type where typedef was expected: " ^ (s_type_path (pack,tname)))
 		))
 
+	method read_mdr =
+		let length = read_uleb128 ch in
+		for i = 0 to length - 1 do
+			let path = self#read_path in
+			ignore(api#resolve_module path)
+		done
+
 	method read_mtf =
 		self#read_list (fun () ->
 			let kind = read_byte ch in
@@ -1871,6 +1878,8 @@ class hxb_reader
 		| MTF ->
 			current_module.m_types <- self#read_mtf;
 			api#add_module current_module;
+		| MDR ->
+			self#read_mdr;
 		| CLR ->
 			self#read_clr;
 		| ENR ->

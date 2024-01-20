@@ -532,7 +532,7 @@ module HxbWriter = struct
 		let initial_size = match kind with
 			| EOT | EOF | EOM -> 0
 			| MDF -> 16
-			| MTF | CLR | END | ABD | ENR | ABR | TDR | EFR | CFR | AFD -> 64
+			| MTF | MDR | CLR | END | ABD | ENR | ABR | TDR | EFR | CFR | AFD -> 64
 			| AFR | CLD | TDD | EFD -> 128
 			| STR | DOC -> 256
 			| CFD | EXD -> 512
@@ -2204,6 +2204,25 @@ module HxbWriter = struct
 		Chunk.write_string writer.chunk (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		Chunk.write_uleb128 writer.chunk (DynArray.length (Pool.items writer.anons));
 		Chunk.write_uleb128 writer.chunk (DynArray.length (IdentityPool.items writer.tmonos));
+
+		begin
+			let deps = DynArray.create () in
+			PMap.iter (fun _ (sign,path) ->
+				if sign = m.m_extra.m_sign then begin
+					(* TODO: We probably need module_kind in m_deps to handle this properly. *)
+					if not (ExtString.String.ends_with (snd path) "import.hx") then
+						DynArray.add deps path;
+				end
+			) m.m_extra.m_deps;
+			if DynArray.length deps > 0 then begin
+				start_chunk writer MDR;
+				Chunk.write_uleb128 writer.chunk (DynArray.length deps);
+				DynArray.iter (fun path ->
+					write_path writer path
+				) deps
+			end
+		end;
+
 		start_chunk writer EOT;
 		start_chunk writer EOF;
 		start_chunk writer EOM;
