@@ -181,9 +181,6 @@ module Pool = struct
 	let advance pool dummy =
 		DynArray.add pool.items dummy
 
-	let to_list pool =
-		DynArray.to_list pool.items
-
 	let items pool = pool.items
 end
 
@@ -399,6 +396,10 @@ module Chunk = struct
 	let write_list : 'b . t -> 'b list -> ('b -> unit) -> unit = fun chunk l f ->
 		write_uleb128 chunk (List.length l);
 		List.iter f l
+
+	let write_dynarray chunk d f =
+		write_uleb128 chunk (DynArray.length d);
+		DynArray.iter f d
 
 	let write_option : 'b . t -> 'b option -> ('b -> unit) -> unit = fun chunk v f -> match v with
 	| None ->
@@ -2049,24 +2050,20 @@ module HxbWriter = struct
 		start_chunk writer MTF;
 		Chunk.write_list writer.chunk m.m_types (forward_declare_type writer);
 
-		begin match Pool.to_list writer.own_abstracts with
-		| [] ->
-			()
-		| own_abstracts ->
+		let items = Pool.items writer.own_abstracts in
+		if DynArray.length items > 0 then begin
 			start_chunk writer ABD;
-			Chunk.write_list writer.chunk own_abstracts (write_abstract writer);
+			Chunk.write_dynarray writer.chunk items (write_abstract writer);
 			start_chunk writer AFD;
-			Chunk.write_list writer.chunk own_abstracts (write_abstract_fields writer);
+			Chunk.write_dynarray writer.chunk items (write_abstract_fields writer);
 		end;
-		begin match Pool.to_list writer.own_classes with
-		| [] ->
-			()
-		| own_classes ->
+		let items = Pool.items writer.own_classes in
+		if DynArray.length items > 0 then begin
 			start_chunk writer CLD;
-			Chunk.write_list writer.chunk own_classes (write_class writer);
+			Chunk.write_dynarray writer.chunk items (write_class writer);
 			start_chunk writer CFD;
 			let expr_chunks = ref [] in
-			Chunk.write_list writer.chunk own_classes (fun c ->
+			Chunk.write_dynarray writer.chunk items (fun c ->
 				begin match c.cl_kind with
 				| KAbstractImpl a ->
 					select_type writer a.a_path
@@ -2106,14 +2103,12 @@ module HxbWriter = struct
 					)
 				)
 		end;
-		begin match Pool.to_list writer.own_enums with
-		| [] ->
-			()
-		| own_enums ->
+		let items = Pool.items writer.own_enums in
+		if DynArray.length items > 0 then begin
 			start_chunk writer END;
-			Chunk.write_list writer.chunk own_enums (write_enum writer);
+			Chunk.write_dynarray writer.chunk items (write_enum writer);
 			start_chunk writer EFD;
-			Chunk.write_list writer.chunk own_enums (fun e ->
+			Chunk.write_dynarray writer.chunk items (fun e ->
 				Chunk.write_list writer.chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
 					select_type writer e.e_path;
 					let close = open_field_scope writer ef.ef_params in
@@ -2129,50 +2124,40 @@ module HxbWriter = struct
 				);
 			)
 		end;
-		begin match Pool.to_list writer.own_typedefs with
-		| [] ->
-			()
-		| own_typedefs ->
+		let items = Pool.items writer.own_typedefs in
+		if DynArray.length items > 0 then begin
 			start_chunk writer TDD;
-			Chunk.write_list writer.chunk own_typedefs (write_typedef writer);
+			Chunk.write_dynarray writer.chunk items (write_typedef writer);
 		end;
 
-		begin match Pool.to_list writer.classes with
-		| [] ->
-			()
-		| l ->
+		let items = Pool.items writer.classes in
+		if DynArray.length items > 0 then begin
 			start_chunk writer CLR;
-			Chunk.write_list writer.chunk l (fun c ->
+			Chunk.write_dynarray writer.chunk items (fun c ->
 				let m = c.cl_module in
 				write_full_path writer (fst m.m_path) (snd m.m_path) (snd c.cl_path);
 			)
 		end;
-		begin match Pool.to_list writer.abstracts with
-		| [] ->
-			()
-		| l ->
+		let items = Pool.items writer.abstracts in
+		if DynArray.length items > 0 then begin
 			start_chunk writer ABR;
-			Chunk.write_list writer.chunk l (fun a ->
+			Chunk.write_dynarray writer.chunk items (fun a ->
 				let m = a.a_module in
 				write_full_path writer (fst m.m_path) (snd m.m_path) (snd a.a_path);
 			)
 		end;
-		begin match Pool.to_list writer.enums with
-		| [] ->
-			()
-		| l ->
+		let items = Pool.items writer.enums in
+		if DynArray.length items > 0 then begin
 			start_chunk writer ENR;
-			Chunk.write_list writer.chunk l (fun en ->
+			Chunk.write_dynarray writer.chunk items (fun en ->
 				let m = en.e_module in
 				write_full_path writer (fst m.m_path) (snd m.m_path) (snd en.e_path);
 			)
 		end;
-		begin match Pool.to_list writer.typedefs with
-		| [] ->
-			()
-		| l ->
+		let items = Pool.items writer.typedefs in
+		if DynArray.length items > 0 then begin
 			start_chunk writer TDR;
-			Chunk.write_list writer.chunk l (fun td ->
+			Chunk.write_dynarray writer.chunk items (fun td ->
 				let m = td.t_module in
 				write_full_path writer (fst m.m_path) (snd m.m_path) (snd td.t_path);
 			)
