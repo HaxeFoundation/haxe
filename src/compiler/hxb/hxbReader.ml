@@ -1641,6 +1641,7 @@ class hxb_reader
 					let t = cf.cf_type in
 					let r = ref (lazy_available t) in
 					r := lazy_wait (fun() ->
+						cf.cf_type <- t;
 						r := lazy_available t;
 						read_expressions ();
 						t
