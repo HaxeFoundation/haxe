@@ -117,14 +117,17 @@ module StringPool = struct
 	type t = {
 		lut : int StringHashtbl.t;
 		items : string DynArray.t;
+		mutable closed : bool;
 	}
 
 	let create () = {
 		lut = StringHashtbl.create 16;
 		items = DynArray.create ();
+		closed = false;
 	}
 
 	let add sp s =
+		assert (not sp.closed);
 		let index = DynArray.length sp.items in
 		StringHashtbl.add sp.lut s index;
 		DynArray.add sp.items s;
@@ -139,7 +142,9 @@ module StringPool = struct
 		with Not_found ->
 			add sp s
 
-	let get_sorted_items sp =
+	let finalize sp =
+		assert (not sp.closed);
+		sp.closed <- true;
 		DynArray.to_list sp.items,DynArray.length sp.items
 end
 
@@ -147,14 +152,17 @@ module Pool = struct
 	type ('key,'value) t = {
 		lut : ('key,int) Hashtbl.t;
 		items : 'value DynArray.t;
+		mutable closed : bool;
 	}
 
 	let create () = {
 		lut = Hashtbl.create 0;
 		items = DynArray.create ();
+		closed = false;
 	}
 
 	let add pool (key : 'key) (value : 'value) =
+		assert (not pool.closed);
 		let index = DynArray.length pool.items in
 		DynArray.add pool.items value;
 		Hashtbl.add pool.lut key index;
@@ -181,19 +189,25 @@ module Pool = struct
 	let advance pool dummy =
 		DynArray.add pool.items dummy
 
-	let items pool = pool.items
+	let finalize pool =
+		assert (not pool.closed);
+		pool.closed <- true;
+		pool.items
 end
 
 module IdentityPool = struct
 	type ('key,'value) t = {
 		items : ('key * 'value) DynArray.t;
+		mutable closed : bool;
 	}
 
 	let create () = {
 		items = DynArray.create ();
+		closed = false;
 	}
 
 	let add pool (key : 'key) (value : 'value) =
+		assert (not pool.closed);
 		let index = DynArray.length pool.items in
 		DynArray.add pool.items (key,value);
 		index
@@ -210,7 +224,10 @@ module IdentityPool = struct
 	let to_list pool =
 		DynArray.to_list pool.items
 
-	let items pool = pool.items
+	let finalize pool =
+		assert (not pool.closed);
+		pool.closed <- true;
+		pool.items
 
 	let length pool = DynArray.length pool.items
 end
@@ -219,14 +236,17 @@ module HashedIdentityPool = struct
 	type ('hkey,'key,'value) t = {
 		lut : ('hkey,('key * int)) Hashtbl.t;
 		items : ('key * 'value) DynArray.t;
+		mutable closed : bool;
 	}
 
 	let create () = {
 		lut = Hashtbl.create 16;
 		items = DynArray.create ();
+		closed = false;
 	}
 
 	let add pool (hkey : 'hkey) (key : 'key) (value : 'value) =
+		assert (not pool.closed);
 		let index = DynArray.length pool.items in
 		DynArray.add pool.items (key,value);
 		Hashtbl.add pool.lut hkey (key,index);
@@ -236,7 +256,10 @@ module HashedIdentityPool = struct
 		let l = Hashtbl.find_all pool.lut hkey in
 		List.assq key l
 
-	let items pool = pool.items
+	let finalize pool =
+		assert (not pool.closed);
+		pool.closed <- true;
+		pool.items
 end
 
 module SimnBuffer = struct
@@ -1775,7 +1798,7 @@ module HxbWriter = struct
 					write_type_parameters writer ltp
 				end;
 				Chunk.write_option writer.chunk fctx.texpr_this (fun e -> write_type_instance writer e.etype);
-				let items,length = StringPool.get_sorted_items fctx.t_pool in
+				let items,length = StringPool.finalize fctx.t_pool in
 				Chunk.write_uleb128 writer.chunk length;
 				List.iter (fun bytes ->
 					Chunk.write_bytes writer.chunk (Bytes.unsafe_of_string bytes)
@@ -2050,14 +2073,14 @@ module HxbWriter = struct
 		start_chunk writer MTF;
 		Chunk.write_list writer.chunk m.m_types (forward_declare_type writer);
 
-		let items = Pool.items writer.own_abstracts in
+		let items = Pool.finalize writer.own_abstracts in
 		if DynArray.length items > 0 then begin
 			start_chunk writer ABD;
 			Chunk.write_dynarray writer.chunk items (write_abstract writer);
 			start_chunk writer AFD;
 			Chunk.write_dynarray writer.chunk items (write_abstract_fields writer);
 		end;
-		let items = Pool.items writer.own_classes in
+		let items = Pool.finalize writer.own_classes in
 		if DynArray.length items > 0 then begin
 			start_chunk writer CLD;
 			Chunk.write_dynarray writer.chunk items (write_class writer);
@@ -2098,7 +2121,7 @@ module HxbWriter = struct
 				)
 			end
 		end;
-		let items = Pool.items writer.own_enums in
+		let items = Pool.finalize writer.own_enums in
 		if DynArray.length items > 0 then begin
 			start_chunk writer END;
 			Chunk.write_dynarray writer.chunk items (write_enum writer);
@@ -2119,46 +2142,13 @@ module HxbWriter = struct
 				);
 			)
 		end;
-		let items = Pool.items writer.own_typedefs in
+		let items = Pool.finalize writer.own_typedefs in
 		if DynArray.length items > 0 then begin
 			start_chunk writer TDD;
 			Chunk.write_dynarray writer.chunk items (write_typedef writer);
 		end;
 
-		let items = Pool.items writer.classes in
-		if DynArray.length items > 0 then begin
-			start_chunk writer CLR;
-			Chunk.write_dynarray writer.chunk items (fun c ->
-				let m = c.cl_module in
-				write_full_path writer (fst m.m_path) (snd m.m_path) (snd c.cl_path);
-			)
-		end;
-		let items = Pool.items writer.abstracts in
-		if DynArray.length items > 0 then begin
-			start_chunk writer ABR;
-			Chunk.write_dynarray writer.chunk items (fun a ->
-				let m = a.a_module in
-				write_full_path writer (fst m.m_path) (snd m.m_path) (snd a.a_path);
-			)
-		end;
-		let items = Pool.items writer.enums in
-		if DynArray.length items > 0 then begin
-			start_chunk writer ENR;
-			Chunk.write_dynarray writer.chunk items (fun en ->
-				let m = en.e_module in
-				write_full_path writer (fst m.m_path) (snd m.m_path) (snd en.e_path);
-			)
-		end;
-		let items = Pool.items writer.typedefs in
-		if DynArray.length items > 0 then begin
-			start_chunk writer TDR;
-			Chunk.write_dynarray writer.chunk items (fun td ->
-				let m = td.t_module in
-				write_full_path writer (fst m.m_path) (snd m.m_path) (snd td.t_path);
-			)
-		end;
-
-		let items = HashedIdentityPool.items writer.class_fields in
+		let items = HashedIdentityPool.finalize writer.class_fields in
 		if DynArray.length items > 0 then begin
 			start_chunk writer CFR;
 			Chunk.write_uleb128 writer.chunk (DynArray.length items);
@@ -2180,7 +2170,7 @@ module HxbWriter = struct
 			) items;
 		end;
 
-		let items = Pool.items writer.enum_fields in
+		let items = Pool.finalize writer.enum_fields in
 		if DynArray.length items > 0 then begin
 			start_chunk writer EFR;
 			Chunk.write_uleb128 writer.chunk (DynArray.length items);
@@ -2190,7 +2180,7 @@ module HxbWriter = struct
 			) items;
 		end;
 
-		let items = HashedIdentityPool.items writer.anon_fields in
+		let items = HashedIdentityPool.finalize writer.anon_fields in
 		if DynArray.length items > 0 then begin
 			start_chunk writer AFR;
 			Chunk.write_uleb128 writer.chunk (DynArray.length items);
@@ -2199,11 +2189,44 @@ module HxbWriter = struct
 			) items;
 		end;
 
+		let items = Pool.finalize writer.classes in
+		if DynArray.length items > 0 then begin
+			start_chunk writer CLR;
+			Chunk.write_dynarray writer.chunk items (fun c ->
+				let m = c.cl_module in
+				write_full_path writer (fst m.m_path) (snd m.m_path) (snd c.cl_path);
+			)
+		end;
+		let items = Pool.finalize writer.abstracts in
+		if DynArray.length items > 0 then begin
+			start_chunk writer ABR;
+			Chunk.write_dynarray writer.chunk items (fun a ->
+				let m = a.a_module in
+				write_full_path writer (fst m.m_path) (snd m.m_path) (snd a.a_path);
+			)
+		end;
+		let items = Pool.finalize writer.enums in
+		if DynArray.length items > 0 then begin
+			start_chunk writer ENR;
+			Chunk.write_dynarray writer.chunk items (fun en ->
+				let m = en.e_module in
+				write_full_path writer (fst m.m_path) (snd m.m_path) (snd en.e_path);
+			)
+		end;
+		let items = Pool.finalize writer.typedefs in
+		if DynArray.length items > 0 then begin
+			start_chunk writer TDR;
+			Chunk.write_dynarray writer.chunk items (fun td ->
+				let m = td.t_module in
+				write_full_path writer (fst m.m_path) (snd m.m_path) (snd td.t_path);
+			)
+		end;
+
 		start_chunk writer MDF;
 		write_path writer m.m_path;
 		Chunk.write_string writer.chunk (Path.UniqueKey.lazy_path m.m_extra.m_file);
-		Chunk.write_uleb128 writer.chunk (DynArray.length (Pool.items writer.anons));
-		Chunk.write_uleb128 writer.chunk (DynArray.length (IdentityPool.items writer.tmonos));
+		Chunk.write_uleb128 writer.chunk (DynArray.length (Pool.finalize writer.anons));
+		Chunk.write_uleb128 writer.chunk (DynArray.length (IdentityPool.finalize writer.tmonos));
 
 		begin
 			let deps = DynArray.create () in
@@ -2236,11 +2259,11 @@ module HxbWriter = struct
 			) items
 		in
 		begin
-			let items,length = StringPool.get_sorted_items writer.cp in
+			let items,length = StringPool.finalize writer.cp in
 			finalize_string_pool STR items length
 		end;
 		begin
-			let items,length = StringPool.get_sorted_items writer.docs in
+			let items,length = StringPool.finalize writer.docs in
 			if length > 0 then
 				finalize_string_pool DOC items length
 		end
