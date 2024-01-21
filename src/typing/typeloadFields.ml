@@ -44,11 +44,6 @@ type class_init_ctx = {
 	mutable uninitialized_final : tclass_field list;
 }
 
-type field_kind =
-	| FKNormal
-	| FKConstructor
-	| FKInit
-
 type field_init_ctx = {
 	is_inline : bool;
 	is_final : bool;
@@ -63,7 +58,7 @@ type field_init_ctx = {
 	is_display_field : bool;
 	is_field_debug : bool;
 	is_generic : bool;
-	field_kind : field_kind;
+	field_kind : class_field_ref_kind;
 	display_modifier : placed_access option;
 	mutable do_bind : bool;
 	(* If true, cf_expr = None makes a difference in the logic. We insert a dummy expression in
@@ -117,11 +112,6 @@ let dump_class_context cctx =
 		"force_constructor",string_of_bool cctx.force_constructor;
 	]
 
-let s_field_kind = function
-	| FKNormal -> "FKNormal"
-	| FKConstructor -> "FKConstructor"
-	| FKInit -> "FKInit"
-
 let dump_field_context fctx =
 	Printer.s_record_fields "" [
 		"is_inline",string_of_bool fctx.is_inline;
@@ -131,7 +121,7 @@ let dump_field_context fctx =
 		"is_abstract_member",string_of_bool fctx.is_abstract_member;
 		"is_display_field",string_of_bool fctx.is_display_field;
 		"is_field_debug",string_of_bool fctx.is_field_debug;
-		"field_kind",s_field_kind fctx.field_kind;
+		"field_kind",s_class_field_ref_kind fctx.field_kind;
 		"do_bind",string_of_bool fctx.do_bind;
 		"expr_presence_matters",string_of_bool fctx.expr_presence_matters;
 	]
@@ -560,7 +550,6 @@ let create_class_context c p =
 	cctx
 
 let create_typer_context_for_class ctx cctx p =
-	locate_macro_error := true;
 	incr stats.s_classes_built;
 	let c = cctx.tclass in
 	if cctx.is_lib && not (has_class_flag c CExtern) then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
@@ -603,9 +592,9 @@ let create_field_context ctx cctx cff is_display_file display_modifier =
 	let overload = try Some (List.assoc AOverload cff.cff_access) with Not_found -> None in
 	let is_macro = List.mem_assoc AMacro cff.cff_access in
 	let field_kind = match fst cff.cff_name with
-		| "new" -> FKConstructor
-		| "__init__" when is_static -> FKInit
-		| _ -> FKNormal
+		| "new" -> CfrConstructor
+		| "__init__" when is_static -> CfrInit
+		| _ -> if is_static then CfrStatic else CfrMember
 	in
 	let default = try
 		let (_,_,p) = Meta.get Meta.JavaDefault cff.cff_meta in
@@ -630,7 +619,7 @@ let create_field_context ctx cctx cff is_display_file display_modifier =
 		is_abstract_member = is_abstract_member;
 		is_generic = Meta.has Meta.Generic cff.cff_meta;
 		field_kind = field_kind;
-		do_bind = (((not ((has_class_flag c CExtern) || !is_extern) || is_inline) && not is_abstract && not (has_class_flag c CInterface)) || field_kind = FKInit);
+		do_bind = (((not ((has_class_flag c CExtern) || !is_extern) || is_inline) && not is_abstract && not (has_class_flag c CInterface)) || field_kind = CfrInit);
 		expr_presence_matters = false;
 		had_error = false;
 	} in
@@ -747,7 +736,7 @@ let check_field_display ctx fctx c cf =
 			| _ ->
 				(if fctx.is_static then
 					CFSStatic
-				else if fctx.field_kind = FKConstructor then
+				else if fctx.field_kind = CfrConstructor then
 					CFSConstructor
 				else
 					CFSMember), cf;
@@ -858,7 +847,7 @@ module TypeBinding = struct
 		in
 		let r = make_lazy ~force:false ctx t (fun r ->
 			(* type constant init fields (issue #1956) *)
-			if not !return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
+			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				enter_field_typing_pass ctx ("bind_var_expression",fst ctx.curclass.cl_path @ [snd ctx.curclass.cl_path;ctx.curfield.cf_name]);
 				if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing field %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
@@ -941,7 +930,7 @@ module TypeBinding = struct
 				| Some _ ->
 					if fctx.is_abstract_member then FunMemberAbstract else FunStatic
 				| None ->
-					if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
+					if fctx.field_kind = CfrConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
 			) in
 			begin match ctx.com.platform with
 				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
@@ -952,7 +941,7 @@ module TypeBinding = struct
 				| _ ->
 					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
 					let f_check = match fctx.field_kind with
-						| FKNormal when not fctx.is_static ->
+						| CfrMember ->
 							begin match TypeloadCheck.check_overriding ctx c cf with
 							| NothingToDo ->
 								(fun () -> ())
@@ -977,17 +966,17 @@ module TypeBinding = struct
 						tf_type = ret;
 						tf_expr = e;
 					} in
-					if fctx.field_kind = FKInit then
+					if fctx.field_kind = CfrInit then
 						(match e.eexpr with
 						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
-						| _ -> c.cl_init <- Some e);
+						| _ -> TClass.set_cl_init c e);
 					cf.cf_expr <- Some (mk (TFunction tf) t p);
 					cf.cf_type <- t;
 					check_field_display ctx fctx c cf;
 			end;
 		in
 		let maybe_bind r =
-			if not !return_partial_type then bind r;
+			if not ctx.g.return_partial_type then bind r;
 			t
 		in
 		let r = make_lazy ~force:false ctx t maybe_bind "type_fun" in
@@ -1269,7 +1258,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 		else
 			def()
 	in
-	let ret = if fctx.field_kind = FKConstructor then
+	let ret = if fctx.field_kind = CfrConstructor then
 		ctx.t.tvoid
 	else begin
 		let def () =
@@ -1340,12 +1329,12 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			}
 	end in
 	begin match (has_class_flag c CInterface),fctx.field_kind with
-		| true,FKConstructor ->
+		| true,CfrConstructor ->
 			raise_typing_error "An interface cannot have a constructor" p;
 		| true,_ ->
 			if not fctx.is_static && fd.f_expr <> None then unexpected_expression ctx.com fctx ("An interface method cannot have a body") p;
 			if fctx.is_inline && (has_class_flag c CInterface) then invalid_modifier ctx.com fctx "inline" "method of interface" p;
-		| false,FKConstructor ->
+		| false,CfrConstructor ->
 			if fctx.is_static then invalid_modifier ctx.com fctx "static" "constructor" p;
 			begin match fd.f_type with
 				| None -> ()
@@ -1380,7 +1369,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if fctx.is_abstract then begin
-		if fctx.field_kind = FKConstructor then begin
+		if fctx.field_kind = CfrConstructor then begin
 			let p =
 				try List.assoc AAbstract f.cff_access
 				with Not_found -> p
@@ -1407,7 +1396,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	| Some p ->
 		if ctx.com.config.pf_overload then
 			add_class_field_flag cf CfOverload
-		else if fctx.field_kind = FKConstructor then
+		else if fctx.field_kind = CfrConstructor then
 			invalid_modifier ctx.com fctx "overload" "constructor" p
 		else begin
 			add_class_field_flag cf CfOverload;
@@ -1782,7 +1771,6 @@ let init_class ctx c p herits fields =
 		| _ :: l ->
 			check_require l
 	in
-	let cl_if_feature = Feature.check_if_feature c.cl_meta in
 	let cl_req = check_require c.cl_meta in
 	let has_init = ref false in
 	List.iter (fun f ->
@@ -1793,32 +1781,22 @@ let init_class ctx c p herits fields =
 			let ctx = create_typer_context_for_field ctx cctx fctx f in
 			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
 			let cf = init_field (ctx,cctx,fctx) f in
-			if fctx.field_kind = FKInit then begin
+			if fctx.field_kind = CfrInit then begin
 				if !has_init then
 					display_error ctx.com ("Duplicate class field declaration : " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name) cf.cf_name_pos
 				else
 					has_init := true
 			end;
 			if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
-			if fctx.is_static && (has_class_flag c CInterface) && fctx.field_kind <> FKInit && not cctx.is_lib && not ((has_class_flag c CExtern)) then
+			if fctx.is_static && (has_class_flag c CInterface) && fctx.field_kind <> CfrInit && not cctx.is_lib && not ((has_class_flag c CExtern)) then
 				raise_typing_error "You can only declare static fields in extern interfaces" p;
-			let set_feature s =
-				let ref_kind = match fctx.field_kind with
-					| FKConstructor -> CfrConstructor
-					| _ -> if fctx.is_static then CfrStatic else CfrMember
-				in
-				let cf_ref = mk_class_field_ref c cf ref_kind fctx.is_macro in
-				Feature.set_feature ctx.m.curmod cf_ref s;
-			in
-			List.iter set_feature cl_if_feature;
-			List.iter set_feature (Feature.check_if_feature cf.cf_meta);
 			let req = check_require f.cff_meta in
-			let req = (match req with None -> if fctx.is_static || fctx.field_kind = FKConstructor then cl_req else None | _ -> req) in
+			let req = (match req with None -> if fctx.is_static || fctx.field_kind = CfrConstructor then cl_req else None | _ -> req) in
 			(match req with
 			| None -> ()
 			| Some r -> cf.cf_kind <- Var { v_read = AccRequire (fst r, snd r); v_write = AccRequire (fst r, snd r) });
 			begin match fctx.field_kind with
-			| FKConstructor ->
+			| CfrConstructor ->
 				begin match c.cl_super with
 				| Some ({ cl_constructor = Some ctor_sup } as c, _) when not (has_class_flag c CExtern) && has_class_field_flag ctor_sup CfFinal ->
 					ctx.com.error "Cannot override final constructor" cf.cf_pos
@@ -1835,9 +1813,9 @@ let init_class ctx c p herits fields =
 				| Some ctor ->
 						display_error ctx.com "Duplicate constructor" p
 				end
-			| FKInit ->
+			| CfrInit ->
 				()
-			| FKNormal ->
+			| CfrStatic | CfrMember ->
 				let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
 				if not cctx.is_native && not (has_class_flag c CExtern) && dup then raise_typing_error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
 				if fctx.override <> None then
@@ -1878,6 +1856,12 @@ let init_class ctx c p herits fields =
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
+	delay ctx PConnectField (fun () -> match follow c.cl_type with
+		| TAnon an ->
+			an.a_fields <- c.cl_statics
+		| _ ->
+			die "" __LOC__
+	);
 	(*
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)

@@ -54,13 +54,13 @@ let resolve_source file l1 p1 l2 p2 =
 	List.rev !lines
 
 let resolve_file ctx f =
-		let ext = Common.extension f in
-		let second_ext = Common.extension (Common.remove_extension f) in
-		let platform_ext = "." ^ (platform_name_macro ctx) in
-		if platform_ext = second_ext then
-			(Common.remove_extension (Common.remove_extension f)) ^ ext
-		else
-			f
+	let ext = StringHelper.extension f in
+	let second_ext = StringHelper.extension (StringHelper.remove_extension f) in
+	let platform_ext = "." ^ (platform_name_macro ctx) in
+	if platform_ext = second_ext then
+		(StringHelper.remove_extension (StringHelper.remove_extension f)) ^ ext
+	else
+		f
 
 let error_printer file line = Printf.sprintf "%s:%d:" file line
 

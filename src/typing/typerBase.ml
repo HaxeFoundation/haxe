@@ -207,8 +207,7 @@ let type_module_type ctx t p =
 			in
 			loop mt None
 		| TClassDecl c ->
-			let t_tmp = class_module_type c in
-			mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
+			mk (TTypeExpr (TClassDecl c)) c.cl_type p
 		| TEnumDecl e ->
 			mk (TTypeExpr (TEnumDecl e)) e.e_type p
 		| TTypeDecl s ->
@@ -231,9 +230,6 @@ let type_module_type ctx t p =
 			mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
 	in
 	loop t None
-
-let type_type ctx tpath p =
-	type_module_type ctx (Typeload.load_type_def ctx p (mk_type_path tpath)) p
 
 let mk_module_type_access ctx t p =
 	AKExpr (type_module_type ctx t p)

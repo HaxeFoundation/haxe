@@ -715,12 +715,6 @@
 		"doc": "(deprecated)"
 	},
 	{
-		"name": "MaybeUsed",
-		"metadata": ":maybeUsed",
-		"doc": "Internally used by DCE to mark fields that might be kept.",
-		"internal": true
-	},
-	{
 		"name": "MergeBlock",
 		"metadata": ":mergeBlock",
 		"doc": "Merge the annotated block into the current scope.",

@@ -4,7 +4,7 @@ open Type
 type t = {
 	platform : platform;
 	defines : Define.define;
-	class_path : string list;
+	class_paths : ClassPaths.class_paths;
 	run_command : string -> int;
 	run_command_args : string -> string list -> int;
 	basic : basic_types;

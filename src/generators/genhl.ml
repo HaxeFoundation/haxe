@@ -329,11 +329,12 @@ let make_debug ctx arr =
 		| false -> try
 			(* lookup relative path *)
 			let len = String.length p.pfile in
-			let base = List.find (fun path ->
+			let base = ctx.com.class_paths#find (fun path ->
+				let path = path#path in
 				let l = String.length path in
 				len > l && String.sub p.pfile 0 l = path
-			) ctx.com.Gctx.class_path in
-			let l = String.length base in
+			) in
+			let l = String.length base#path in
 			String.sub p.pfile l (len - l)
 		with Not_found ->
 			p.pfile
@@ -3695,7 +3696,7 @@ let generate_static_init ctx types main =
 	(* init class statics *)
 	let init_exprs = ref [] in
 	List.iter (fun t ->
-		(match t with TClassDecl { cl_init = Some e } -> init_exprs := e :: !init_exprs | _ -> ());
+		(match t with TClassDecl { cl_init = Some {cf_expr = Some e} } -> init_exprs := e :: !init_exprs | _ -> ());
 		match t with
 		| TClassDecl c when not (has_class_flag c CExtern) ->
 			List.iter (fun f ->

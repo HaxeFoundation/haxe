@@ -26,7 +26,15 @@ end
 
 let handle_native_lib com lib =
 	com.native_libs.all_libs <- lib#get_file_path :: com.native_libs.all_libs;
-	com.load_extern_type <- com.load_extern_type @ [lib#get_file_path,lib#build];
+	let build path =
+		(* The first build has to load, afterwards we install a direct lib#build call. *)
+		lib#load;
+		com.load_extern_type <- List.map (fun (name,f) ->
+			name,if name = lib#get_file_path then lib#build else f
+		) com.load_extern_type;
+		lib#build path;
+	in
+	com.load_extern_type <- com.load_extern_type @ [lib#get_file_path,build];
 	if not (Define.raw_defined com.defines "haxe.noNativeLibsCache") then begin
 		let cs = com.cs in
 		let init () =
@@ -54,7 +62,7 @@ let handle_native_lib com lib =
 					name,if name = lib#get_file_path then build else f
 				) com.load_extern_type
 			| None ->
-				lib#load
+				()
 		)
 	end else
 		(* Offline mode, just read library as usual. *)
@@ -84,7 +92,7 @@ let rec cache_context cs com =
 
 let maybe_add_context_sign cs com desc =
 	let sign = Define.get_signature com.defines in
-	ignore(cs#add_info sign desc com.platform com.class_path com.defines)
+	ignore(cs#add_info sign desc com.platform com.class_paths com.defines)
 
 let lock_signature com name =
 	let cs = com.cs in

@@ -30,7 +30,6 @@ type module_check_policy =
 	| CheckFileContentModification
 	| NoCheckDependencies
 	| NoCheckShadowing
-	| Retype
 
 type module_tainting_reason =
 	| CheckDisplayFile
@@ -289,6 +288,7 @@ and tclass = {
 	mutable cl_using : (tclass * pos) list;
 	mutable cl_restore : unit -> unit;
 	(* do not insert any fields above *)
+	mutable cl_type : t;
 	mutable cl_kind : tclass_kind;
 	mutable cl_flags : int;
 	mutable cl_super : (tclass * tparams) option;
@@ -300,7 +300,7 @@ and tclass = {
 	mutable cl_dynamic : t option;
 	mutable cl_array_access : t option;
 	mutable cl_constructor : tclass_field option;
-	mutable cl_init : texpr option;
+	mutable cl_init : tclass_field option;
 
 	mutable cl_build : unit -> build_state;
 	(*
@@ -401,6 +401,12 @@ and module_def_display = {
 	mutable m_import_positions : (pos,bool ref) PMap.t;
 }
 
+and module_dep = {
+	md_sign : Digest.t;
+	md_kind : module_kind;
+	md_path : path;
+}
+
 and module_def_extra = {
 	m_file : Path.UniqueKey.lazy_t;
 	m_sign : Digest.t;
@@ -411,10 +417,9 @@ and module_def_extra = {
 	mutable m_added : int;
 	mutable m_checked : int;
 	mutable m_processed : int;
-	mutable m_deps : (int,(Digest.t (* sign *) * path)) PMap.t;
+	mutable m_deps : (int,module_dep) PMap.t;
 	mutable m_kind : module_kind;
 	mutable m_cache_bound_objects : cache_bound_object DynArray.t;
-	mutable m_if_feature : (string * class_field_ref) list;
 	mutable m_features : (string,bool) Hashtbl.t;
 }
 
@@ -422,6 +427,7 @@ and class_field_ref_kind =
 	| CfrStatic
 	| CfrMember
 	| CfrConstructor
+	| CfrInit
 
 and class_field_ref = {
 	cfr_sign : string;
@@ -464,6 +470,7 @@ type flag_tclass =
 	| CInterface
 	| CAbstract
 	| CFunctionalInterface
+	| CUsed (* Marker for DCE *)
 
 type flag_tclass_field =
 	| CfPublic
@@ -479,10 +486,12 @@ type flag_tclass_field =
 	| CfGeneric
 	| CfDefault (* Interface field with default implementation (only valid on Java) *)
 	| CfPostProcessed (* Marker to indicate the field has been post-processed *)
+	| CfUsed (* Marker for DCE *)
+	| CfMaybeUsed (* Marker for DCE *)
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed"
 ]
 
 type flag_tvar =

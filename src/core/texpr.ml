@@ -486,12 +486,12 @@ let foldmap f acc e =
 (* Collection of functions that return expressions *)
 module Builder = struct
 	let make_static_this c p =
-		mk (TTypeExpr (TClassDecl c)) (TType(TFunctions.class_module_type c,[])) p
+		mk (TTypeExpr (TClassDecl c)) c.cl_type p
 
 	let make_typeexpr mt pos =
 		let t =
 			match resolve_typedef mt with
-			| TClassDecl c -> TType(class_module_type c,[])
+			| TClassDecl c -> c.cl_type
 			| TEnumDecl e -> e.e_type
 			| TAbstractDecl a -> TType(abstract_module_type a [],[])
 			| _ -> die "" __LOC__
@@ -561,6 +561,21 @@ module Builder = struct
 
 	let index basic e index t p =
 		mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) basic.tint p)) t p
+
+	let resolve_and_make_static_call c name args p =
+		ignore(c.cl_build());
+		let cf = try
+			PMap.find name c.cl_statics
+		with Not_found ->
+			die "" __LOC__
+		in
+		let ef = make_static_field c cf (mk_zero_range_pos p) in
+		let tret = match follow ef.etype with
+			| TFun(_,r) -> r
+			| _ -> assert false
+		in
+		mk (TCall (ef, args)) tret p
+
 end
 
 let set_default basic a c p =

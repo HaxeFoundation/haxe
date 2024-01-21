@@ -215,9 +215,7 @@ let rec generate_type ctx t =
 			| Some t -> loop t
 			end
 		| TLazy f ->
-			(* return_partial_type := true; *)
 			let t = lazy_type f in
-			(* return_partial_type := false; *)
 			loop t
 		| TDynamic None -> "TDynamic", Some jnull
 		| TDynamic (Some t) -> "TDynamic",Some (generate_type ctx t)
@@ -623,7 +621,7 @@ let generate_class ctx c =
 		"fields",jlist (generate_class_field ctx CFSMember) c.cl_ordered_fields;
 		"statics",jlist (generate_class_field ctx CFSStatic) c.cl_ordered_statics;
 		"constructor",jopt (generate_class_field ctx CFSConstructor) c.cl_constructor;
-		"init",jopt (generate_texpr ctx) c.cl_init;
+		"init",jopt (generate_texpr ctx) (TClass.get_cl_init c);
 		"overrides",jlist (classfield_ref ctx) (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields);
 		"isExtern",jbool (has_class_flag c CExtern);
 		"isFinal",jbool (has_class_flag c CFinal);
@@ -714,10 +712,10 @@ let generate_module cs cc m =
 			| MSGood -> "Good"
 			| MSBad reason -> Printer.s_module_skip_reason reason
 			| MSUnknown -> "Unknown");
-		"dependencies",jarray (PMap.fold (fun (sign,mpath) acc ->
+		"dependencies",jarray (PMap.fold (fun mdep acc ->
 			(jobject [
-				"path",jstring (s_type_path mpath);
-				"sign",jstring (Digest.to_hex ((cs#get_context sign)#find_module mpath).m_extra.m_sign);
+				"path",jstring (s_type_path mdep.md_path);
+				"sign",jstring (Digest.to_hex ((cs#get_context mdep.md_sign)#find_module mdep.md_path).m_extra.m_sign);
 			]) :: acc
 		) m.m_extra.m_deps []);
 		"dependents",jarray (List.map (fun m -> (jobject [

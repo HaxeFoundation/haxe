@@ -40,6 +40,8 @@ import jvm.annotation.EnumValueReflectionInformation;
 @:keep
 @:native('haxe.jvm.Jvm')
 class Jvm {
+	extern static final init:java.Init;
+
 	extern static public function instanceof<S, T>(obj:S, type:T):Bool;
 
 	extern static public function referenceEquals<T>(v1:T, v2:T):Bool;

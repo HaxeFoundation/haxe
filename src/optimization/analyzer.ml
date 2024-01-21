@@ -1126,7 +1126,7 @@ module Run = struct
 			| None -> ()
 			| Some f -> process_field false f;
 		end;
-		begin match c.cl_init with
+		begin match TClass.get_cl_init c with
 			| None ->
 				()
 			| Some e ->
@@ -1138,7 +1138,7 @@ module Run = struct
 					| TFunction tf -> tf.tf_expr
 					| _ -> die "" __LOC__
 				in
-				c.cl_init <- Some e
+				TClass.set_cl_init c e
 		end
 
 	let run_on_type com config t =
