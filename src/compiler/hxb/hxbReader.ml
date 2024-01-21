@@ -28,6 +28,40 @@ let create_hxb_reader_stats () = {
 	modules_partially_restored = ref 0;
 }
 
+module ClassFieldInfo = struct
+	type t = {
+		type_parameters : typed_type_param array;
+	}
+
+	let create params = {
+		type_parameters = params;
+	}
+end
+
+module ClassFieldInfos = struct
+	type t = {
+		infos : ClassFieldInfo.t DynArray.t;
+	}
+
+	let meta = Meta.HxbId
+
+	let create () = {
+		infos = DynArray.create ()
+	}
+
+	let get infos cf =
+		let _,_,p = Meta.get meta cf.cf_meta in
+		DynArray.get infos.infos p.pmin
+
+	let unset infos cf =
+		cf.cf_meta <- Meta.remove meta cf.cf_meta
+
+	let set infos info cf =
+		let index = DynArray.length infos.infos in
+		DynArray.add infos.infos info;
+		cf.cf_meta <- (meta,[],{null_pos with pmin = index}) :: cf.cf_meta
+end
+
 module BytesWithPosition = struct
 	type t = {
 		bytes : bytes;
@@ -1338,11 +1372,10 @@ class hxb_reader
 		let e_unopt = self#read_option (fun () -> self#read_texpr fctx) in
 		e,e_unopt
 
-	val mutable awful = []
+	val class_field_infos = ClassFieldInfos.create ()
 
 	method read_class_field_data (cf : tclass_field) : unit =
 		let params = self#read_field_type_parameters in
-		awful <- (cf,field_type_parameters) :: awful;
 
 		let t = self#read_type_instance in
 
@@ -1369,6 +1402,11 @@ class hxb_reader
 		cf.cf_expr_unoptimized <- expr_unoptimized;
 		cf.cf_params <- params;
 		cf.cf_flags <- flags;
+
+		(* store type parameter info for EXD *)
+		let info = ClassFieldInfo.create field_type_parameters in
+		ClassFieldInfos.set class_field_infos info cf;
+
 
 	method read_class_field_and_overloads_data (cf : tclass_field) =
 		let rec loop depth cfl = match cfl with
@@ -1625,7 +1663,8 @@ class hxb_reader
 				let ch_cf = BytesWithPosition.create bytes in
 				let read_expressions () =
 					self#select_class_type_parameters c;
-					field_type_parameters <- List.assq cf awful;
+					field_type_parameters <- (ClassFieldInfos.get class_field_infos cf).type_parameters;
+					ClassFieldInfos.unset class_field_infos cf;
 					field_type_parameter_offset <- 0;
 					let old = ch in
 					ch <- ch_cf;

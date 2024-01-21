@@ -519,6 +519,12 @@
 		"targets": ["TClass", "TClassField"]
 	},
 	{
+		"name": "HxbId",
+		"metadata": ":hxb.id",
+		"doc": "Internally used by hxb",
+		"internal": true
+	},
+	{
 		"name": "HxCompletion",
 		"metadata": ":hx.completion",
 		"doc": "Internally used for completion",
