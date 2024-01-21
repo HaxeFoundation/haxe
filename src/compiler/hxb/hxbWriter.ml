@@ -1809,8 +1809,7 @@ module HxbWriter = struct
 					remove_var_flag v VHxb;
 					write_var writer fctx v;
 				) fctx.vars;
-				Chunk.export_data new_chunk writer.chunk;
-				restore(fun new_chunk -> new_chunk)
+				restore(fun newer_chunk -> newer_chunk,new_chunk)
 			)
 		)
 
@@ -1847,7 +1846,8 @@ module HxbWriter = struct
 				let fctx,close = start_texpr writer e.epos in
 				write_texpr writer fctx e;
 				Chunk.write_option writer.chunk cf.cf_expr_unoptimized (write_texpr writer fctx);
-				let expr_chunk = close() in
+				let expr_pre_chunk,expr_chunk = close() in
+				Chunk.export_data expr_pre_chunk writer.chunk;
 				Chunk.export_data expr_chunk writer.chunk;
 				None
 		in
@@ -2113,10 +2113,13 @@ module HxbWriter = struct
 				start_chunk writer EXD;
 				Chunk.write_dynarray writer.chunk expr_chunks (fun (c,l) ->
 					write_class_ref writer c;
-					Chunk.write_dynarray writer.chunk l (fun (cf,ref_kind,e) ->
+					Chunk.write_dynarray writer.chunk l (fun (cf,ref_kind,(e_pre,e)) ->
 						write_field_ref writer c ref_kind cf;
-						let bytes = Chunk.get_bytes e in
-						Chunk.write_bytes_length_prefixed writer.chunk bytes;
+						let bytes_pre = Chunk.get_bytes e_pre in
+						let bytes_e = Chunk.get_bytes e in
+						Chunk.write_uleb128 writer.chunk (Bytes.length bytes_pre + Bytes.length bytes_e);
+						Chunk.write_bytes writer.chunk bytes_pre;
+						Chunk.write_bytes writer.chunk bytes_e;
 					)
 				)
 			end
