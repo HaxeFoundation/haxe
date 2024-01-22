@@ -1835,7 +1835,7 @@ module HxbWriter = struct
 				Chunk.write_u8 writer.chunk 0;
 				None
 			| Some e when not write_expr_immediately ->
-				Chunk.write_u8 writer.chunk 0;
+				Chunk.write_u8 writer.chunk 2;
 				let fctx,close = start_texpr writer e.epos in
 				write_texpr writer fctx e;
 				Chunk.write_option writer.chunk cf.cf_expr_unoptimized (write_texpr writer fctx);
