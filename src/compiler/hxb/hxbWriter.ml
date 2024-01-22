@@ -1488,7 +1488,7 @@ module HxbWriter = struct
 				Chunk.write_u8 writer.chunk 65;
 				write_metadata_entry writer m;
 				loop e1;
-				false;
+				true;
 			(* branching 80-89 *)
 			| TIf(e1,e2,None) ->
 				Chunk.write_u8 writer.chunk 80;

@@ -1122,7 +1122,7 @@ class hxb_reader
 					| 65 ->
 						let m = self#read_metadata_entry in
 						let e1 = loop () in
-						TMeta (m,e1),(Some e1.etype)
+						TMeta (m,e1),None
 
 					(* calls 70 - 79 *)
 					| 70 ->
