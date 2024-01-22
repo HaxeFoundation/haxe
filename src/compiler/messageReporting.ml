@@ -398,20 +398,14 @@ let display_messages ctx on_message = begin
 			end
 	end;
 
-	let do_filter = not true in
-	let filter_file = "src/alchimix/core/net/GameData.hx" in
-	(* trace (Printf.sprintf "%d messages" (List.length ctx.messages)); *)
-
 	List.iter (fun cm ->
-		if not do_filter || cm.cm_pos.pfile = filter_file then begin
-			if !log_messages then (Option.get !log_message) cm;
+		if !log_messages then (Option.get !log_message) cm;
 
-			match (message_formatter ectx cm) with
-				| None -> ()
-				| Some str -> on_message cm.cm_severity str;
-		end
+		match (message_formatter ectx cm) with
+			| None -> ()
+			| Some str -> on_message cm.cm_severity str
 	) (List.rev ctx.messages);
 
-	if !log_messages then (Option.get !close_logs) ()
+	if !log_messages then (Option.get !close_logs) ();
 end
 
