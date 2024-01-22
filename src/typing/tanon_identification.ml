@@ -1,12 +1,12 @@
 open Globals
 open Type
 
-let replace_mono t =
+let replace_mono tmono_as_tdynamic t =
 	let visited_anons = ref [] in
 	let rec loop t =
 		match t with
 		| TMono ({ tm_type = None }) ->
-			t_dynamic
+			if tmono_as_tdynamic then t_dynamic else t
 		| TAnon an ->
 			if not (List.memq an !visited_anons) then begin
 				visited_anons := an :: !visited_anons;
@@ -167,7 +167,7 @@ object(self)
 			end
 		| _ ->
 			let arity,fields = PMap.fold (fun cf (i,acc) ->
-				let t = replace_mono cf.cf_type in
+				let t = replace_mono (not strict) cf.cf_type in
 				(i + 1),(PMap.add cf.cf_name {cf with cf_type = t} acc)
 			) an.a_fields (0,PMap.empty) in
 			let an = { a_fields = fields; a_status = an.a_status; } in
