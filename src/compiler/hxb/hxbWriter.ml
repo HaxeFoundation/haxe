@@ -1239,7 +1239,7 @@ module HxbWriter = struct
 				| None ->
 					Chunk.write_u8 writer.chunk 0;
 					write_tmono_ref writer r;
-					| Some t ->
+				| Some t ->
 					(* Don't write bound monomorphs, write underlying type directly *)
 					write_type_instance writer t
 				end
