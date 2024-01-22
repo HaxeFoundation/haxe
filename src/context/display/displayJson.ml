@@ -353,8 +353,7 @@ let handler =
 			let typeName = hctx.jsonrpc#get_string_param "typeName" in
 			let cc = hctx.display#get_cs#get_context sign in
 			let m = try
-				(* TODO: try with headers only *)
-				find_module ~headers_only:false hctx.com cc path
+				find_module ~headers_only:true hctx.com cc path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
