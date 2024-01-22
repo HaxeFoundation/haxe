@@ -1808,7 +1808,7 @@ class hxb_reader
 
 	method read_mdr =
 		let length = read_uleb128 ch in
-		for i = 0 to length - 1 do
+		for _ = 0 to length - 1 do
 			let path = self#read_path in
 			ignore(api#resolve_module path)
 		done
