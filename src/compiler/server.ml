@@ -460,7 +460,7 @@ class hxb_reader_api_server
 		i
 
 	method read_expression_eagerly (cf : tclass_field) =
-		true (* TODO: Check this please Rudy! *)
+		ctx.com.display.dms_full_typing
 end
 
 let handle_cache_bound_objects com cbol =
