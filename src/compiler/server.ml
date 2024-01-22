@@ -501,9 +501,6 @@ let rec add_modules sctx ctx (m : module_def) (from_binary : bool) (p : pos) =
 						let m2 = try
 							com.module_lut#find mpath
 						with Not_found ->
-							(* HXB_TODO: This should go through everything Typeload.load_module (and TypeloadModule.load_module)
-							   goes through except the actual typing. A dependency never needs typing because in that case it
-							   can't be in the cache. *)
 							match type_module sctx ctx mpath p with
 							| GoodModule m ->
 								m
