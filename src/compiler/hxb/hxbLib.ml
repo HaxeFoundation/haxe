@@ -58,6 +58,6 @@ let create_hxb_lib com file_path =
 	else try
 		Common.find_file com file_path
 	with Not_found ->
-			failwith ("hxb lib " ^ file_path ^ " not found")
+		failwith ("hxb lib " ^ file_path ^ " not found")
 	in
 	new hxb_library file

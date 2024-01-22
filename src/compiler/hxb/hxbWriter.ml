@@ -1149,11 +1149,11 @@ module HxbWriter = struct
 
 	(*
 		simple references:
-				0 - mono
-				1 -> type ttp
-				2 -> field ttp
-				3 -> local ttp
-				4 -> Dynamic
+			0 - mono
+			1 -> type ttp
+			2 -> field ttp
+			3 -> local ttp
+			4 -> Dynamic
 
 		special references:
 			10 - class statics
@@ -2280,37 +2280,37 @@ module HxbWriter = struct
 end
 
 let create warn anon_id stats =
-	let cp = StringPool.create ()in
-{
-	warn;
-	anon_id;
-	stats;
-	current_module = null_module;
-	chunks = DynArray.create ();
-	cp = cp;
-	docs = StringPool.create ();
-	chunk = Obj.magic ();
-	classes = Pool.create ();
-	enums = Pool.create ();
-	typedefs = Pool.create ();
-	abstracts = Pool.create ();
-	anons = Pool.create ();
-	anon_fields = HashedIdentityPool.create ();
-	tmonos = IdentityPool.create ();
-	own_classes = Pool.create ();
-	own_abstracts = Pool.create ();
-	own_enums = Pool.create ();
-	own_typedefs = Pool.create ();
-	type_param_lut = Pool.create ();
-	class_fields = HashedIdentityPool.create ();
-	enum_fields = Pool.create ();
-	type_type_parameters = Pool.create ();
-	field_type_parameters = IdentityPool.create ();
-	local_type_parameters = IdentityPool.create ();
-	field_stack = [];
-	unbound_ttp = IdentityPool.create ();
-	t_instance_chunk = Chunk.create EOM cp 32;
-}
+	let cp = StringPool.create () in
+	{
+		warn;
+		anon_id;
+		stats;
+		current_module = null_module;
+		chunks = DynArray.create ();
+		cp = cp;
+		docs = StringPool.create ();
+		chunk = Obj.magic ();
+		classes = Pool.create ();
+		enums = Pool.create ();
+		typedefs = Pool.create ();
+		abstracts = Pool.create ();
+		anons = Pool.create ();
+		anon_fields = HashedIdentityPool.create ();
+		tmonos = IdentityPool.create ();
+		own_classes = Pool.create ();
+		own_abstracts = Pool.create ();
+		own_enums = Pool.create ();
+		own_typedefs = Pool.create ();
+		type_param_lut = Pool.create ();
+		class_fields = HashedIdentityPool.create ();
+		enum_fields = Pool.create ();
+		type_type_parameters = Pool.create ();
+		field_type_parameters = IdentityPool.create ();
+		local_type_parameters = IdentityPool.create ();
+		field_stack = [];
+		unbound_ttp = IdentityPool.create ();
+		t_instance_chunk = Chunk.create EOM cp 32;
+	}
 
 let write_module writer m =
 	HxbWriter.write_module writer m

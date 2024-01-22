@@ -566,7 +566,7 @@ and type_module sctx (ctx:Typecore.typer) mpath p =
 			(* "Good" here is an assumption, it only means that the module wasn't explicitly invalidated
 			   in the cache. The true cache state will be known after check_module. *)
 			begin match check_module sctx ctx mpath m.m_extra p with
-			   | None ->
+				| None ->
 					add_modules false m;
 				| Some reason ->
 					skip m.m_path reason
