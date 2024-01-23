@@ -1363,7 +1363,7 @@ module HxbWriter = struct
 					false;
 				| TSuper ->
 					Chunk.write_u8 writer.chunk 2;
-					true; (* TODO: ? *)
+					true;
 				| TBool false when (ExtType.is_bool (follow_lazy_and_mono e.etype)) ->
 					Chunk.write_u8 writer.chunk 3;
 					false;
@@ -1886,7 +1886,7 @@ module HxbWriter = struct
 		| KNormal ->
 			Chunk.write_u8 writer.chunk 0
 		| KTypeParameter ttp ->
-			die "TODO" __LOC__
+			die "" __LOC__
 		| KExpr e ->
 			Chunk.write_u8 writer.chunk 2;
 			write_expr writer e;

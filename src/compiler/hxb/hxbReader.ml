@@ -1478,8 +1478,7 @@ class hxb_reader
 
 	method read_class_kind = match read_byte ch with
 		| 0 -> KNormal
-		| 1 ->
-			die "TODO" __LOC__
+		| 1 -> die "" __LOC__
 		| 2 -> KExpr self#read_expr
 		| 3 -> KGeneric
 		| 4 ->
