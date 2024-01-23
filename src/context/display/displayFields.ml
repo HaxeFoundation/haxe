@@ -251,6 +251,10 @@ let collect ctx e_ast e dk with_type p =
 				| _ -> items
 			in
 			(* Anon own fields *)
+			let fields = match !(an.a_status) with
+				| ClassStatics c -> c.cl_statics
+				| _ -> an.a_fields
+			in
 			PMap.foldi (fun name cf acc ->
 				if is_new_item acc name then begin
 					let allow_static_abstract_access c cf =
@@ -293,7 +297,7 @@ let collect ctx e_ast e dk with_type p =
 							add origin make_ci_class_field;
 				end else
 					acc
-			) an.a_fields items
+			) fields items
 		| TFun (args,ret) ->
 			(* A function has no field except the magic .bind one. *)
 			if is_new_item items "bind" then begin
