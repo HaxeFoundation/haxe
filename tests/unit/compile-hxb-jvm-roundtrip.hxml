@@ -1,0 +1,7 @@
+compile-jvm-only.hxml
+--hxb bin/hxb/jvm.zip
+
+--next
+
+compile-jvm-only.hxml
+--hxb-lib bin/hxb/jvm.zip

@@ -3,4 +3,3 @@ compile-each.hxml
 --java-lib native_java/native.jar
 --jvm bin/unit.jar
 -D jvm.compression-level=0
---hxb bin/hxb/jvm.zip
