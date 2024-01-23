@@ -35,7 +35,7 @@ let export_hxb com cc platform zip m =
 				write_header out;
 				List.iter (fun (kind,data) ->
 					write_chunk_prefix kind (Bytes.length data) out;
-					IO.write_bytes out data
+					IO.nwrite out data
 				) hxb_cache.mc_chunks;
 				let data = IO.close_out out in
 				zip#add_entry data path;
