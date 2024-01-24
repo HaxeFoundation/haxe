@@ -1,11 +1,7 @@
 import haxe.Json;
 import haxe.display.Display;
-import haxe.display.FsPath;
 import haxe.display.Protocol;
-import haxe.io.Bytes;
-import haxe.io.BytesBuffer;
 
-import BaseDisplayTestContext;
 import BaseDisplayTestContext.normalizePath;
 
 using StringTools;
@@ -19,10 +15,6 @@ class XmlDisplayTestContext extends BaseDisplayTestContext {
 
 	public function fields(pos:Position):Array<FieldElement> {
 		return extractFields(callHaxe('$pos'));
-	}
-
-	public function signatures(pos:Position):Array<String> {
-		return extractSignatures(callHaxe('$pos'));
 	}
 
 	public function toplevel(pos:Position):Array<ToplevelElement> {
@@ -50,7 +42,7 @@ class XmlDisplayTestContext extends BaseDisplayTestContext {
 	}
 
 	public function signature(pos:Position):SignatureHelp {
-		return haxe.Json.parse(callHaxe('$pos@signature'));
+		return Json.parse(callHaxe('$pos@signature'));
 	}
 
 	public function doc(pos:Position):String {
@@ -62,7 +54,7 @@ class XmlDisplayTestContext extends BaseDisplayTestContext {
 	}
 
 	public function diagnostics():Array<Diagnostic<Dynamic>> {
-		var result = haxe.Json.parse(callHaxe('0@diagnostics'))[0];
+		var result = Json.parse(callHaxe('0@diagnostics'))[0];
 		return if (result == null) [] else result.diagnostics;
 	}
 
@@ -82,16 +74,6 @@ class XmlDisplayTestContext extends BaseDisplayTestContext {
 			return null;
 		}
 		return StringTools.trim(xml.firstChild().nodeValue);
-	}
-
-	static function extractSignatures(result:String) {
-		var xml = Xml.parse('<x>$result</x>');
-		xml = xml.firstElement();
-		var ret = [];
-		for (xml in xml.elementsNamed("type")) {
-			ret.push(StringTools.trim(xml.firstChild().nodeValue));
-		}
-		return ret;
 	}
 
 	static function extractPositions(result:String) {
@@ -131,11 +113,6 @@ class XmlDisplayTestContext extends BaseDisplayTestContext {
 			ret.push({name: xml.get("n"), type: xml.firstElement().firstChild().nodeValue, kind: xml.get("k")});
 		}
 		return ret;
-	}
-
-	static function extractFieldsNew(result:CompletionResult) {
-		trace(haxe.Json.stringify(result.timers));
-		return result.result.items;
 	}
 
 	static function extractDoc(result:String) {

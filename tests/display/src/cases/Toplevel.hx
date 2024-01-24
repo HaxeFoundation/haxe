@@ -186,9 +186,10 @@ class Toplevel extends DisplayTestCase {
 	**/
 	function testDuplicates() {
 		var toplevels = toplevel(pos(1));
-		toplevels = toplevels.filter(function(t) return t.name == "a");
+		toplevels = toplevels.filter(t -> isToplevel(t, "a"));
+		// TODO: fix that with display/completion
 		eq(1, toplevels.length);
-		eq("local", toplevels[0].kind);
+		eq(true, isToplevel(toplevels[0], "a", null, "local"));
 	}
 
 	/**

@@ -1,3 +1,4 @@
+import haxe.display.Display;
 import haxe.display.Position.Range;
 import utest.Assert;
 import Types;
@@ -5,8 +6,8 @@ import Types;
 using Lambda;
 
 @:autoBuild(Macro.buildTestCase())
-class XmlDisplayTestCase implements utest.ITest {
-	var ctx:XmlDisplayTestContext;
+class RpcDisplayTestCase implements utest.ITest {
+	var ctx:RpcDisplayTestContext;
 
 	public function new() {}
 
@@ -75,24 +76,81 @@ class XmlDisplayTestCase implements utest.ITest {
 		}
 	}
 
-	function hasField(a:Array<FieldElement>, name:String, type:String, ?kind:String):Bool {
+	function hasField<T>(a:Array<DisplayItem<T>>, name:String, type:String, ?kind:String):Bool {
 		return a.exists(t -> isField(t, name, type, kind));
 	}
 
-	function isField(t:FieldElement, name:String, ?type:String, ?kind:String):Bool {
-		return (type == null || t.type == type) && t.name == name && (kind == null || t.kind == kind);
+	function isField<T>(t:DisplayItem<T>, name:String, ?type:String, ?kind:String):Bool {
+		return switch (t.kind) {
+			case ClassField:
+				var f = t.args.field;
+				if (f.name != name) return false;
+
+				// Oh dear...
+				switch [kind, f.kind.kind] {
+					case [null, _]:
+					case ["static", _]: if (f.scope != Static) return false;
+					case ["member", _]: if (f.scope != Member) return false;
+					case ["method", FMethod]:
+					case ["var", FVar]:
+					case _: return false;
+				}
+
+				if (type == null || f.type.args.path.typeName == type) return true;
+				return type == ctx.displayPrinter.printType(f.type);
+			case EnumField:
+				if (kind != null && kind != "enum") return false;
+				t.args.field.name == name;
+			case EnumAbstractField:
+				if (kind != null && kind != "var") return false;
+				t.args.field.name == name;
+			case Module:
+				if (kind != null && kind != "type") return false;
+				t.args.path.moduleName == name;
+			case Type:
+				if (kind != null && kind != "type") return false;
+				t.args.path.typeName == name;
+			case TypeParameter:
+				if (kind != null && kind != "type") return false;
+				t.args.name == name;
+			case Package:
+				if (kind != null && kind != "package") return false;
+				t.args.path.pack[0] == name;
+			case Local:
+				if (kind != null && kind != "local") return false;
+				t.args.name == name;
+			case Literal:
+				if (kind != null && kind != "literal") return false;
+				t.args.name == name;
+			case Keyword:
+				if (kind != null && kind != "keyword") return false;
+				t.args.name == name;
+			case Metadata:
+				if (kind != null && kind != "metadata") return false;
+				t.args.name == name;
+			case _:
+				false;
+		}
 	}
 
-	function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String, ?type:String = null):Bool {
+	function hasToplevel<T>(a:Array<DisplayItem<T>>, kind:String, name:String, ?type:String = null):Bool {
 		return a.exists(t -> isToplevel(t, name, type, kind));
 	}
 
-	function isToplevel(t:ToplevelElement, name:String, ?type:String = null, ?kind:String = null):Bool {
-		return (kind == null || t.kind == kind) && t.name == name && (type == null || t.type == type);
+	function isToplevel<T>(t:DisplayItem<T>, name:String, ?type:String = null, ?kind:String = null):Bool {
+		return isField(t, name, type, kind);
 	}
 
-	function hasPath(a:Array<FieldElement>, name:String):Bool {
-		return a.exists(function(t) return t.name == name);
+	function hasPath<T>(a:Array<DisplayItem<T>>, name:String):Bool {
+		return a.exists(function(t) {
+			return switch (t.kind) {
+				case ClassField: t.args.field.name == name;
+				case Type: t.args.path.typeName == name;
+				case Module: t.args.path.moduleName == name;
+				case Metadata: t.args.name == name;
+				case _: false;
+			}
+		});
 	}
 
 	function diagnosticsRange(start:Position, end:Position):Range {

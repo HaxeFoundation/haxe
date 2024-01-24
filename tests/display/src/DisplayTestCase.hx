@@ -1,2 +1,5 @@
-// TODO: switch to RpcDisplayTestCase depending on define
+#if (display.protocol == "jsonrpc")
+typedef DisplayTestCase = RpcDisplayTestCase;
+#else
 typedef DisplayTestCase = XmlDisplayTestCase;
+#end
