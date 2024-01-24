@@ -11,6 +11,9 @@ let create_resolved_file file class_path = {
 	class_path;
 }
 
+(* We need to clean-up absolute ("") vs. cwd ("."). *)
+let absolute_class_path = new directory_class_path "" User
+
 class class_paths = object(self)
 	val mutable l = []
 	val file_lookup_cache = new Lookup.hashtbl_lookup;
@@ -122,7 +125,16 @@ class class_paths = object(self)
 				None
 			| Some f ->
 				Some f
-		with Not_found ->
+		with
+		| Not_found when Path.is_absolute_path f ->
+			let r = if Sys.file_exists f then
+				Some (create_resolved_file f absolute_class_path)
+			else
+				None
+			in
+			file_lookup_cache#add f r;
+			r
+		| Not_found ->
 			let rec loop = function
 				| [] ->
 					None
