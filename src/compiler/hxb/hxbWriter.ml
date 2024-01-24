@@ -596,6 +596,8 @@ module HxbWriter = struct
 
 	let write_full_path writer (pack : string list) (mname : string) (tname : string) =
 		Chunk.write_list writer.chunk pack (Chunk.write_string writer.chunk);
+		if mname = "" || tname = "" then
+			die (Printf.sprintf "write_full_path: pack = %s, mname = %s, tname = %s" (String.concat "." pack) mname tname) __LOC__;
 		Chunk.write_string writer.chunk mname;
 		Chunk.write_string writer.chunk tname
 
