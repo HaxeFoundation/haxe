@@ -1169,7 +1169,7 @@ and encode_tclass c =
 		"fields", encode_ref c.cl_ordered_fields (encode_and_map_array encode_cfield) (fun() -> "class fields");
 		"statics", encode_ref c.cl_ordered_statics (encode_and_map_array encode_cfield) (fun() -> "class fields");
 		"constructor", (match c.cl_constructor with None -> vnull | Some cf -> encode_cfref cf);
-		"init", (match c.cl_init with None -> vnull | Some e -> encode_texpr e);
+		"init", (match TClass.get_cl_init c with None -> vnull | Some e -> encode_texpr e);
 		"overrides", (encode_array (List.map encode_cfref (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields)))
 	]
 

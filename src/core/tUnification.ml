@@ -516,11 +516,11 @@ let rec type_eq uctx a b =
 	| _ , TLazy f -> type_eq uctx a (lazy_type f)
 	| TMono t , _ ->
 		(match t.tm_type with
-		| None -> if param = EqCoreType || not (link t a b) then error [cannot_unify a b]
+		| None -> if param = EqCoreType || param = EqStricter || not (link t a b) then error [cannot_unify a b]
 		| Some t -> type_eq uctx t b)
 	| _ , TMono t ->
 		(match t.tm_type with
-		| None -> if param = EqCoreType || not (link t b a) then error [cannot_unify a b]
+		| None -> if param = EqCoreType || param = EqStricter || not (link t b a) then error [cannot_unify a b]
 		| Some t -> type_eq uctx a t)
 	| TDynamic None, TDynamic None ->
 		()
@@ -630,7 +630,7 @@ let type_iseq uctx a b =
 
 let type_iseq_strict a b =
 	try
-		type_eq {default_unification_context with equality_kind = EqDoNotFollowNull} a b;
+		type_eq {default_unification_context with equality_kind = EqStricter} a b;
 		true
 	with Unify_error _ ->
 		false
@@ -660,11 +660,11 @@ let rec unify (uctx : unification_context) a b =
 	| _ , TLazy f -> unify uctx a (lazy_type f)
 	| TMono t , _ ->
 		(match t.tm_type with
-		| None -> if not (link t a b) then error [cannot_unify a b]
+		| None -> if uctx.equality_kind = EqStricter || not (link t a b) then error [cannot_unify a b]
 		| Some t -> unify uctx t b)
 	| _ , TMono t ->
 		(match t.tm_type with
-		| None -> if not (link t b a) then error [cannot_unify a b]
+		| None -> if uctx.equality_kind = EqStricter || not (link t b a) then error [cannot_unify a b]
 		| Some t -> unify uctx a t)
 	| TType (t,tl) , _ ->
 		rec_stack unify_stack (a,b)
@@ -885,7 +885,7 @@ let rec unify (uctx : unification_context) a b =
 			error [cannot_unify a b]
 		end
 	| _ , TDynamic None ->
-		()
+		if uctx.equality_kind = EqStricter then error [cannot_unify a b]
 	| _ , TDynamic (Some t1) ->
 		begin match a with
 		| TAnon an ->

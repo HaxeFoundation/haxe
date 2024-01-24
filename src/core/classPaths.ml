@@ -27,11 +27,11 @@ class class_paths = object(self)
 
 	method add (cp : class_path) =
 		l <- cp :: l;
-		file_lookup_cache#clear
+		self#clear_cache
 
 	method push (cp : class_path) =
 		l <- l @ [cp];
-		file_lookup_cache#clear
+		self#clear_cache
 
 	method find (f : class_path -> bool) =
 		List.find f l
@@ -54,7 +54,7 @@ class class_paths = object(self)
 				loop (cpl @ acc) l
 		in
 		l <- loop [] cpl;
-		file_lookup_cache#clear
+		self#clear_cache
 
 	method modify_inplace (f : class_path -> class_path list) =
 		self#modify f l

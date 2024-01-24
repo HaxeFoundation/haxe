@@ -307,7 +307,7 @@ module Dump = struct
 				| Some f -> print_field false f);
 				List.iter (print_field false) c.cl_ordered_fields;
 				List.iter (print_field true) c.cl_ordered_statics;
-				(match c.cl_init with
+				(match TClass.get_cl_init c with
 				| None -> ()
 				| Some e ->
 					print "\n\tstatic function __init__() ";
@@ -388,8 +388,8 @@ module Dump = struct
 		let dep = Hashtbl.create 0 in
 		List.iter (fun m ->
 			print "%s:\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
-			PMap.iter (fun _ (sign,mpath) ->
-				let m2 = com.module_lut#find mpath in
+			PMap.iter (fun _ mdep ->
+				let m2 = com.module_lut#find mdep.md_path in
 				let file = Path.UniqueKey.lazy_path m2.m_extra.m_file in
 				print "\t%s\n" file;
 				let l = try Hashtbl.find dep file with Not_found -> [] in
@@ -490,14 +490,9 @@ let map_source_header com f =
 
 (* Static extensions for classes *)
 module ExtClass = struct
-
-	let add_cl_init c e = match c.cl_init with
-			| None -> c.cl_init <- Some e
-			| Some e' -> c.cl_init <- Some (concat e' e)
-
 	let add_static_init c cf e p =
 		let ethis = Texpr.Builder.make_static_this c p in
 		let ef1 = mk (TField(ethis,FStatic(c,cf))) cf.cf_type p in
 		let e_assign = mk (TBinop(OpAssign,ef1,e)) e.etype p in
-		add_cl_init c e_assign
+		TClass.add_cl_init c e_assign
 end

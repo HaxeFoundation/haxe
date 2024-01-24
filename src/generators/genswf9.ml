@@ -1982,7 +1982,7 @@ let generate_extern_inits ctx =
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c when (has_class_flag c CExtern) ->
-			(match c.cl_init with
+			(match TClass.get_cl_init c with
 			| None -> ()
 			| Some e -> gen_expr ctx false e);
 		| _ -> ()
@@ -2035,7 +2035,7 @@ let generate_class_init ctx c hc =
 	if not (has_class_flag c CInterface) then write ctx HPopScope;
 	write ctx (HInitProp (type_path ctx c.cl_path));
 	if ctx.swc && c.cl_path = ctx.boot then generate_extern_inits ctx;
-	(match c.cl_init with
+	(match TClass.get_cl_init c with
 	| None -> ()
 	| Some e ->
 		gen_expr ctx false e;

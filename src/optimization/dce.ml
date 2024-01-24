@@ -186,6 +186,11 @@ and mark_field dce c cf kind =
 			| None -> ()
 		in
 		loop c
+	| CfrInit ->
+		begin match c.cl_init with
+			| Some cf -> add c cf
+			| None -> ()
+		end
 	| CfrStatic | CfrMember ->
 		let stat = kind = CfrStatic in
 		if not (PMap.mem cf.cf_name (if stat then c.cl_statics else c.cl_fields)) then begin
@@ -209,7 +214,7 @@ let rec update_marked_class_fields dce c =
 		if has_class_field_flag cf CfMaybeUsed then mark_field dce c cf CfrMember
 	) c.cl_ordered_fields;
 	(* we always have to keep super classes and implemented interfaces *)
-	(match c.cl_init with None -> () | Some init -> dce.follow_expr dce init);
+	(match TClass.get_cl_init c with None -> () | Some init -> dce.follow_expr dce init);
 	List.iter (fun (c,_) -> mark_class dce c) c.cl_implements;
 	(match c.cl_super with None -> () | Some (csup,pl) -> mark_class dce csup);
 	pop()
@@ -763,11 +768,8 @@ let collect_entry_points dce com =
 				| None -> ()
 			end;
 			begin match c.cl_init with
-				| Some e when keep_class || Meta.has Meta.KeepInit c.cl_meta ->
-					(* create a fake field to deal with our internal logic (issue #3286) *)
-					let cf = mk_field "__init__" e.etype e.epos null_pos in
-					cf.cf_expr <- Some e;
-					loop CfrStatic cf
+				| Some cf when keep_class || Meta.has Meta.KeepInit c.cl_meta ->
+					loop CfrInit cf
 				| _ ->
 					()
 			end;
@@ -874,7 +876,7 @@ let sweep dce com =
 			let has_non_extern_fields = List.exists inef c.cl_ordered_fields || List.exists inef c.cl_ordered_statics in
 			(* we keep a class if it was used or has a used field *)
 			if has_class_flag c CUsed || has_non_extern_fields then loop (mt :: acc) l else begin
-				(match c.cl_init with
+				(match TClass.get_cl_init c with
 				| Some f when Meta.has Meta.KeepInit c.cl_meta ->
 					(* it means that we only need the __init__ block *)
 					add_class_flag c CExtern;

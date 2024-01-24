@@ -58,9 +58,9 @@ let has_var_flag v (flag : flag_tvar) =
 
 (* ======= General utility ======= *)
 
-let alloc_var =
+let alloc_var' =
 	let uid = ref 0 in
-	(fun kind n t p ->
+	uid,(fun kind n t p ->
 		incr uid;
 		{
 			v_kind = kind;
@@ -73,6 +73,10 @@ let alloc_var =
 			v_flags = (match kind with VUser TVOLocalFunction -> int_of_var_flag VFinal | _ -> 0);
 		}
 	)
+
+let alloc_var =
+	let _,alloc_var = alloc_var' in
+	alloc_var
 
 let alloc_mid =
 	let mid = ref 0 in
@@ -207,6 +211,8 @@ let find_field c name kind =
 		PMap.find name c.cl_statics
 	| CfrMember ->
 		PMap.find name c.cl_fields
+	| CfrInit ->
+		begin match c.cl_init with Some cf -> cf | None -> raise Not_found end
 
 let null_module = {
 	m_id = alloc_mid();
@@ -285,7 +291,7 @@ let null_abstract = {
 
 let add_dependency ?(skip_postprocess=false) m mdep =
 	if m != null_module && mdep != null_module && (m.m_path != mdep.m_path || m.m_extra.m_sign != mdep.m_extra.m_sign) then begin
-		m.m_extra.m_deps <- PMap.add mdep.m_id (mdep.m_extra.m_sign, mdep.m_path) m.m_extra.m_deps;
+		m.m_extra.m_deps <- PMap.add mdep.m_id ({md_sign = mdep.m_extra.m_sign; md_path = mdep.m_path; md_kind = mdep.m_extra.m_kind}) m.m_extra.m_deps;
 		(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
 		if not skip_postprocess then m.m_extra.m_processed <- 0
 	end

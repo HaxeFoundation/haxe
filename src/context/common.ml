@@ -873,6 +873,8 @@ let is_diagnostics com = match com.report_mode with
 	| RMLegacyDiagnostics _ | RMDiagnostics _ -> true
 	| _ -> false
 
+let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
+
 let disable_report_mode com =
 	let old = com.report_mode in
 	com.report_mode <- RMNone;

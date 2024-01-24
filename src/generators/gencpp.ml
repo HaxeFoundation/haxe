@@ -5003,7 +5003,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
    (* Body of main function *)
    (match obj with
    | TClassDecl class_def -> visit_class class_def;
-      (match class_def.cl_init with Some expression -> visit_params expression | _ -> ())
+      (match TClass.get_cl_init class_def with Some expression -> visit_params expression | _ -> ())
    | TEnumDecl enum_def -> visit_enum enum_def
    | TTypeDecl _ | TAbstractDecl _ -> (* These are expanded *) ());
 
@@ -5455,7 +5455,7 @@ let rec find_next_super_iteration ctx class_def =
 ;;
 
 let has_init_field class_def =
-   match class_def.cl_init with
+   match TClass.get_cl_init class_def with
    | Some _ -> true
    | _ -> false;;
 
@@ -5533,7 +5533,7 @@ let has_compare_field class_def =
 
 
 let has_boot_field class_def =
-   match class_def.cl_init with
+   match TClass.get_cl_init class_def with
    | None -> List.exists has_field_init (List.filter should_implement_field class_def.cl_ordered_statics)
    | _ -> true
 ;;
@@ -6094,7 +6094,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       end;
    end;
 
-   (match class_def.cl_init with
+   (match TClass.get_cl_init class_def with
    | Some expression ->
       let ctx = file_context baseCtx cpp_file debug false in
       output_cpp ("void " ^ class_name^ "::__init__()");
@@ -8379,7 +8379,7 @@ let generate_script_class common_ctx script class_def =
    script#write ((string_of_int ( (List.length ordered_fields) +
                                  (List.length ordered_statics) +
                                  (match class_def.cl_constructor with Some _ -> 1 | _ -> 0 ) +
-                                 (match class_def.cl_init with Some _ -> 1 | _ -> 0 ) ) )
+                                 (match TClass.get_cl_init class_def with Some _ -> 1 | _ -> 0 ) ) )
                                  ^ "\n");
 
    let generate_field isStatic field =
@@ -8412,7 +8412,7 @@ let generate_script_class common_ctx script class_def =
    (match class_def.cl_constructor with
       | Some field  -> generate_field true field
       | _ -> () );
-   (match class_def.cl_init with
+   (match TClass.get_cl_init class_def with
       | Some expression  -> script#voidFunc true false "__init__" expression
       | _ -> () );
 

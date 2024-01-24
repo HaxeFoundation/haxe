@@ -2001,7 +2001,7 @@ module Generator = struct
 		!has_static_methods || !has_empty_static_vars
 
 	let gen_class_init ctx c =
-		match c.cl_init with
+		match TClass.get_cl_init c with
 			| None ->
 				()
 			| Some e ->

@@ -77,7 +77,7 @@ let parse_file cs com (rfile : ClassPaths.resolved_file) p =
 							let ident = Hashtbl.find Parser.special_identifier_files fkey in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
-							cc#cache_file fkey rfile ftime data pdi;
+							cc#cache_file fkey (ClassPaths.create_resolved_file ffile rfile.class_path) ftime data pdi;
 							"cached",false
 						end
 				in
@@ -316,7 +316,9 @@ let check_module sctx ctx m_path m_extra p =
 			((com.cs#get_context sign)#find_module mpath).m_extra
 		in
 		let check_dependencies () =
-			PMap.iter (fun _ (sign,mpath) ->
+			PMap.iter (fun _ mdep ->
+				let sign = mdep.md_sign in
+				let mpath = mdep.md_path in
 				let m2_extra = try
 					find_module_extra sign mpath
 				with Not_found ->
@@ -418,8 +420,8 @@ let add_modules sctx ctx m p =
 				) m.m_types;
 				TypeloadModule.ModuleLevel.add_module ctx m p;
 				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
-				PMap.iter (fun _ (sign,mpath) ->
-					let m2 = (com.cs#get_context sign)#find_module mpath in
+				PMap.iter (fun _ mdep ->
+					let m2 = (com.cs#get_context mdep.md_sign)#find_module mdep.md_path in
 					add_modules (tabs ^ "  ") m0 m2
 				) m.m_extra.m_deps
 			)

@@ -32,12 +32,8 @@ let parse_swf_header ctx h = match ExtString.String.nsplit h ":" with
 
 let delete_file f = try Sys.remove f with _ -> ()
 
-let generate ctx tctx ext actx =
+let maybe_generate_dump ctx tctx =
 	let com = tctx.Typecore.com in
-	(* check file extension. In case of wrong commandline, we don't want
-		to accidentaly delete a source file. *)
-	if Path.file_extension com.file = ext then delete_file com.file;
-	if com.platform = Flash || com.platform = Cpp || com.platform = Hl then List.iter (Codegen.fix_overrides com) com.types;
 	if Common.defined com Define.Dump then begin
 		Codegen.Dump.dump_types com;
 		Option.may Codegen.Dump.dump_types (com.get_macros())
@@ -47,7 +43,14 @@ let generate ctx tctx ext actx =
 		if not com.is_macro_context then match tctx.Typecore.g.Typecore.macros with
 			| None -> ()
 			| Some(_,ctx) -> Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
-	end;
+	end
+
+let generate ctx tctx ext actx =
+	let com = tctx.Typecore.com in
+	(* check file extension. In case of wrong commandline, we don't want
+		to accidentaly delete a source file. *)
+	if Path.file_extension com.file = ext then delete_file com.file;
+	if com.platform = Flash || com.platform = Cpp || com.platform = Hl then List.iter (Codegen.fix_overrides com) com.types;
 	begin match com.platform with
 		| Neko | Hl | Eval when actx.interp -> ()
 		| Cpp when Common.defined com Define.Cppia -> ()
