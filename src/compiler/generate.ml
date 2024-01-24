@@ -51,37 +51,45 @@ let export_hxb com cc platform zip m =
 	| _ ->
 		()
 
-let check_hxb_output ctx actx =
+let check_hxb_output ctx config =
+	let open HxbWriterConfig in
 	let com = ctx.com in
-	let try_write path =
+	let match_path_list l sl_path =
+		List.exists (fun sl -> Ast.match_path true sl_path sl) l
+	in
+	let try_write () =
+		let path = config.HxbWriterConfig.archive_path in
 		let t = Timer.timer ["generate";"hxb"] in
 		Path.mkdir_from_path path;
 		let zip = new Zip_output.zip_output path 6 in
-		let export com =
+		let export com config =
 			let cc = CommonCache.get_cache com in
 			let target = Common.platform_name_macro com in
 			List.iter (fun m ->
 				let t = Timer.timer ["generate";"hxb";s_type_path m.m_path] in
-				Std.finally t (export_hxb com cc target zip) m
+				let sl_path = fst m.m_path @ [snd m.m_path] in
+				if not (match_path_list config.exclude sl_path) || match_path_list config.include' sl_path then
+					Std.finally t (export_hxb com cc target zip) m
 			) com.modules;
 		in
 		Std.finally (fun () ->
 			zip#close;
 			t()
 		) (fun () ->
-			export com;
-			Option.may export (com.get_macros());
+			if  config.target_config.generate then
+				export com config.target_config;
+			begin match com.get_macros() with
+				| Some mcom when config.macro_config.generate ->
+					export mcom config.macro_config
+				| _ ->
+					()
+			end;
 		) ()
 	in
-	begin match actx.hxb_out with
-		| None ->
-			()
-		| Some path ->
-			try
-				try_write path
-			with Sys_error s ->
-				error ctx (Printf.sprintf "Could not write to %s: %s" path s) null_pos
-	end
+	try
+		try_write ()
+	with Sys_error s ->
+		CompilationContext.error ctx (Printf.sprintf "Could not write to %s: %s" config.archive_path s) null_pos
 
 let parse_swf_header ctx h = match ExtString.String.nsplit h ":" with
 		| [width; height; fps] ->
