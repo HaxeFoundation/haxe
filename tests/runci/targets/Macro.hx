@@ -9,7 +9,8 @@ class Macro {
 
 		changeDirectory(displayDir);
 		haxelibInstallGit("Simn", "haxeserver");
-		runCommand("haxe", ["build.hxml"]);
+		runCommand("haxe", ["build.hxml", "-D", "display.protocol=xml"]);
+		runCommand("haxe", ["build.hxml", "-D", "display.protocol=jsonrpc"]);
 
 		changeDirectory(sourcemapsDir);
 		runCommand("haxe", ["run.hxml"]);
