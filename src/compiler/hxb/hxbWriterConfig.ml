@@ -7,6 +7,7 @@ type writer_target_config = {
 	mutable exclude : string list list;
 	mutable include' : string list list;
 	mutable hxb_version : int;
+	mutable generate_docs : bool;
 }
 
 type t = {
@@ -20,6 +21,7 @@ let create_target_config () = {
 	exclude = [];
 	include'= [];
 	hxb_version = HxbData.hxb_version;
+	generate_docs = true;
 }
 
 let create () = {
@@ -47,6 +49,8 @@ module WriterConfigReader (API : DataReaderApi.DataReaderApi) = struct
 				)
 			| "hxbVersion" ->
 				config.hxb_version <- API.read_int data
+			| "generateDocumentation" ->
+				config.generate_docs <- API.read_bool data
 			| s ->
 				error (Printf.sprintf "Unknown key for target config: %s" s)
 		) fl

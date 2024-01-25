@@ -23,6 +23,11 @@ typedef WriterTargetConfig = {
 		is targeted. See https://github.com/HaxeFoundation/haxe/issues/11505
 	**/
 	var ?hxbVersion:Null<Int>;
+
+	/**
+		If false, no documentation
+	**/
+	var ?generateDocumentation:Null<Bool>;
 }
 
 typedef WriterConfig = {

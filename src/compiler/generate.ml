@@ -21,7 +21,7 @@ let check_auxiliary_output com actx =
 			Genjson.generate com.types file
 	end
 
-let export_hxb com cc platform zip m =
+let export_hxb com config cc platform zip m =
 	let open HxbData in
 	match m.m_extra.m_kind with
 		| MCode | MMacro | MFake | MExtern -> begin
@@ -42,7 +42,7 @@ let export_hxb com cc platform zip m =
 			with Not_found ->
 				let anon_identification = new tanon_identification in
 				let warn w s p = com.Common.warning w com.warning_options s p in
-				let writer = HxbWriter.create warn anon_identification com.hxb_writer_stats in
+				let writer = HxbWriter.create config warn anon_identification com.hxb_writer_stats in
 				HxbWriter.write_module writer m;
 				let out = IO.output_string () in
 				HxbWriter.export writer out;
@@ -70,7 +70,7 @@ let check_hxb_output ctx config =
 				let t = Timer.timer ["generate";"hxb";s_type_path m.m_path] in
 				let sl_path = fst m.m_path @ [snd m.m_path] in
 				if not (match_path_list config.exclude sl_path) || match_path_list config.include' sl_path then
-					Std.finally t (export_hxb com cc target zip) m
+					Std.finally t (export_hxb com config cc target zip) m
 			) com.modules;
 		in
 		Std.finally (fun () ->

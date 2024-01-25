@@ -1,6 +1,10 @@
 {
 	"archivePath": "bin/hxb/unit.$target.zip",
 	"targetConfig": {
-		"exclude": ["unit.TestMainNow"]
+		"exclude": ["unit.TestMainNow"],
+		"generateDocumentation": false
+	},
+	"macroConfig": {
+		"generateDocumentation": false
 	}
 }
