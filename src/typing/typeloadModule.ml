@@ -772,18 +772,94 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 	let timer = Timer.timer ["typing";"type_module"] in
 	Std.finally timer (type_module ctx mpath file ~is_extern tdecls) p *)
 
-let type_module_hook = ref (fun _ _ _ -> None)
+let type_module_hook = ref (fun _ _ _ -> NoModule)
 
-let load_module' ctx m p =
+class hxb_reader_api_typeload
+	(ctx : typer)
+	(load_module : typer -> path -> pos -> module_def)
+	(p : pos)
+= object(self)
+	method make_module (path : path) (file : string) =
+		let m = ModuleLevel.make_module ctx path file p in
+		m.m_extra.m_processed <- 1;
+		m
+
+	method add_module (m : module_def) =
+		ctx.com.module_lut#add m.m_path m
+
+	method resolve_type (pack : string list) (mname : string) (tname : string) =
+		let m = load_module ctx (pack,mname) p in
+		List.find (fun t -> snd (t_path t) = tname) m.m_types
+
+	method resolve_module (path : path) =
+		load_module ctx path p
+
+	method basic_types =
+		ctx.com.basic
+
+	method get_var_id (i : int) =
+		(* The v_id in .hxb has no relation to this context, make a new one. *)
+		let uid = fst alloc_var' in
+		incr uid;
+		!uid
+
+	method read_expression_eagerly (cf : tclass_field) =
+		ctx.com.is_macro_context || match cf.cf_kind with
+			| Var _ ->
+				true
+			| Method _ ->
+				delay ctx PTypeField (fun () -> ignore(follow cf.cf_type));
+				false
+end
+
+let rec load_hxb_module ctx path p =
+	let read file bytes =
+		try
+			let api = (new hxb_reader_api_typeload ctx load_module' p :> HxbReaderApi.hxb_reader_api) in
+			let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats in
+			let read = reader#read api bytes in
+			let m = read MTF in
+			delay ctx PBuildClass (fun () ->
+				ignore(read EOT);
+				delay ctx PConnectField (fun () ->
+					ignore(read EOM);
+				);
+			);
+			m
+		with e ->
+			Printf.eprintf "\x1b[30;41mError loading %s from %s\x1b[0m\n" (snd path) file;
+			let msg = Printexc.to_string e and stack = Printexc.get_backtrace () in
+			Printf.eprintf " => %s\n%s\n" msg stack;
+			raise e
+	in
+	let target = Common.platform_name_macro ctx.com in
+	let rec loop l = match l with
+		| hxb_lib :: l ->
+			begin match hxb_lib#get_bytes target path with
+				| Some bytes ->
+					read hxb_lib#get_file_path bytes
+				| None ->
+					loop l
+			end
+		| [] ->
+			raise Not_found
+	in
+	loop ctx.com.hxb_libs
+
+and load_module' ctx m p =
 	try
 		(* Check current context *)
 		ctx.com.module_lut#find m
 	with Not_found ->
 		(* Check cache *)
 		match !type_module_hook ctx m p with
-		| Some m ->
+		| GoodModule m ->
 			m
-		| None ->
+		| BinaryModule _ ->
+			die "" __LOC__ (* The server builds those *)
+		| NoModule | BadModule _ -> try
+			load_hxb_module ctx m p
+		with Not_found ->
 			let raise_not_found () = raise_error_msg (Module_not_found m) p in
 			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
 			if ctx.g.load_only_cached_modules then raise_not_found();

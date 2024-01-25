@@ -98,7 +98,6 @@ class DisplayMethods {
 		TODO:
 
 		- finish completion
-		- diagnostics
 		- codeLens
 		- workspaceSymbols ("project/symbol"?)
 	 */

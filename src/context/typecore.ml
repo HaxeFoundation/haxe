@@ -212,6 +212,12 @@ type dot_path_part = {
 	pos : pos
 }
 
+type find_module_result =
+	| GoodModule of module_def
+	| BadModule of module_skip_reason
+	| BinaryModule of HxbData.module_cache
+	| NoModule
+
 let make_build_info kind path params extern apply = {
 	build_kind = kind;
 	build_path = path;

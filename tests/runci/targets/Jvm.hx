@@ -14,10 +14,16 @@ class Jvm {
 
 		for (level in 0...3) {
 			final args = args.concat(["-D", "jvm.dynamic-level=" + level]);
-			runCommand("haxe", ["compile-jvm-only.hxml", "--times"].concat(args));
+			runCommand("haxe", ["compile-jvm-only.hxml", "--hxb", "bin/hxb/jvm.zip"].concat(args));
+			runCommand("java", ["-jar", "bin/unit.jar"]);
+
+			runCommand("haxe", ["compile-jvm-only.hxml", "--hxb-lib", "bin/hxb/jvm.zip"].concat(args));
 			runCommand("java", ["-jar", "bin/unit.jar"]);
 
 			runCommand("haxe", ["compile-jvm-only.hxml","-dce","no"].concat(args));
+			runCommand("java", ["-jar", "bin/unit.jar"]);
+
+			runCommand("haxe", ["compile-jvm-only.hxml", "--hxb-lib", "bin/hxb/jvm.zip"].concat(args));
 			runCommand("java", ["-jar", "bin/unit.jar"]);
 		}
 

@@ -1,5 +1,7 @@
 open Globals
 open CompilationContext
+open TType
+open Tanon_identification
 
 let check_auxiliary_output com actx =
 	begin match actx.xml_out with
@@ -19,6 +21,67 @@ let check_auxiliary_output com actx =
 			Genjson.generate com.types file
 	end
 
+let export_hxb com cc platform zip m =
+	let open HxbData in
+	match m.m_extra.m_kind with
+		| MCode | MMacro | MFake | MExtern -> begin
+			(* Printf.eprintf "Export module %s\n" (s_type_path m.m_path); *)
+			let l = platform :: (fst m.m_path @ [snd m.m_path]) in
+			let path = (String.concat "/" l) ^ ".hxb" in
+
+			try
+				let hxb_cache = cc#get_hxb_module m.m_path in
+				let out = IO.output_string () in
+				write_header out;
+				List.iter (fun (kind,data) ->
+					write_chunk_prefix kind (Bytes.length data) out;
+					IO.nwrite out data
+				) hxb_cache.mc_chunks;
+				let data = IO.close_out out in
+				zip#add_entry data path;
+			with Not_found ->
+				let anon_identification = new tanon_identification in
+				let warn w s p = com.Common.warning w com.warning_options s p in
+				let writer = HxbWriter.create warn anon_identification com.hxb_writer_stats in
+				HxbWriter.write_module writer m;
+				let out = IO.output_string () in
+				HxbWriter.export writer out;
+				zip#add_entry (IO.close_out out) path;
+		end
+	| _ ->
+		()
+
+let check_hxb_output ctx actx =
+	let com = ctx.com in
+	let try_write path =
+		let t = Timer.timer ["generate";"hxb"] in
+		Path.mkdir_from_path path;
+		let zip = new Zip_output.zip_output path 6 in
+		let export com =
+			let cc = CommonCache.get_cache com in
+			let target = Common.platform_name_macro com in
+			List.iter (fun m ->
+				let t = Timer.timer ["generate";"hxb";s_type_path m.m_path] in
+				Std.finally t (export_hxb com cc target zip) m
+			) com.modules;
+		in
+		Std.finally (fun () ->
+			zip#close;
+			t()
+		) (fun () ->
+			export com;
+			Option.may export (com.get_macros());
+		) ()
+	in
+	begin match actx.hxb_out with
+		| None ->
+			()
+		| Some path ->
+			try
+				try_write path
+			with Sys_error s ->
+				error ctx (Printf.sprintf "Could not write to %s: %s" path s) null_pos
+	end
 
 let parse_swf_header ctx h = match ExtString.String.nsplit h ":" with
 		| [width; height; fps] ->
