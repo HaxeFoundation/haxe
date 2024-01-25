@@ -1,4 +1,4 @@
-module type DataApi = sig
+module type DataReaderApi = sig
 	type data
 
 	val read_optional : data -> (data -> unit) -> unit

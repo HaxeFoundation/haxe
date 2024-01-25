@@ -30,7 +30,7 @@ let create () = {
 let error s =
 	Error.raise_typing_error s null_pos
 
-module WriterConfigReader (API : DataApi.DataApi) = struct
+module WriterConfigReader (API : DataReaderApi.DataReaderApi) = struct
 	let read_target_config config fl =
 		List.iter (fun (s,data) -> match s with
 			| "generate" ->
@@ -71,7 +71,7 @@ module WriterConfigReader (API : DataApi.DataApi) = struct
 		API.read_optional data read
 end
 
-module WriterConfigReaderJson = WriterConfigReader(JsonDataApi)
+module WriterConfigReaderJson = WriterConfigReader(JsonDataApi.JsonReaderApi)
 
 let process_json config target_name json =
 	WriterConfigReaderJson.read_writer_config config target_name json

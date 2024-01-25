@@ -35,7 +35,7 @@ module Interp = struct
 end
 
 
-module HxbWriterConfigReaderJson = HxbWriterConfig.WriterConfigReader(EvalDataApi)
+module HxbWriterConfigReaderJson = HxbWriterConfig.WriterConfigReader(EvalDataApi.EvalReaderApi)
 
 let macro_interp_cache = ref None
 
@@ -311,7 +311,6 @@ let make_macro_com_api com mcom p =
 		set_hxb_writer_config = (fun v ->
 			match com.hxb_writer_config with
 			| Some config ->
-				print_endline "READING CONFIG!!!";
 				HxbWriterConfigReaderJson.read_writer_config config (platform_name com.platform) v
 			| None ->
 				()
