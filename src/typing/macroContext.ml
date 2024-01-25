@@ -35,7 +35,8 @@ module Interp = struct
 end
 
 
-module HxbWriterConfigReaderJson = HxbWriterConfig.WriterConfigReader(EvalDataApi.EvalReaderApi)
+module HxbWriterConfigReaderEval = HxbWriterConfig.WriterConfigReader(EvalDataApi.EvalReaderApi)
+module HxbWriterConfigWriterEval = HxbWriterConfig.WriterConfigWriter(EvalDataApi.EvalWriterApi)
 
 let macro_interp_cache = ref None
 
@@ -308,13 +309,24 @@ let make_macro_com_api com mcom p =
 			com.warning ~depth w [] msg p
 		);
 		exc_string = Interp.exc_string;
-		set_hxb_writer_config = (fun v ->
+		get_hxb_writer_config = (fun () ->
 			match com.hxb_writer_config with
 			| Some config ->
-				HxbWriterConfigReaderJson.read_writer_config config (platform_name com.platform) v
+				HxbWriterConfigWriterEval.write_writer_config config
 			| None ->
-				()
-		)
+				VNull
+		);
+		set_hxb_writer_config = (fun v ->
+			let config = match com.hxb_writer_config with
+				| Some config ->
+					config
+				| None ->
+					let config = HxbWriterConfig.create () in
+					com.hxb_writer_config <- Some config;
+					config
+				in
+			HxbWriterConfigReaderEval.read_writer_config config (platform_name com.platform) v
+		);
 	}
 
 let make_macro_api ctx mctx p =

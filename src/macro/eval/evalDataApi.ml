@@ -1,8 +1,9 @@
 open EvalValue
 open EvalContext
-open EvalDecode
 
 module EvalReaderApi = struct
+	open EvalDecode
+
 	type data = value
 
 	let read_optional v f = match v with
@@ -30,4 +31,31 @@ module EvalReaderApi = struct
 
 	let data_to_string v =
 		(EvalPrinting.s_value 0 v).sstring
+end
+
+module EvalWriterApi = struct
+	open EvalEncode
+
+	type data = value
+
+	let write_optional vo = match vo with
+		| None -> vnull
+		| Some v -> v
+
+	let write_object fl =
+		encode_obj (List.map (fun (s,v) ->
+			EvalHash.hash s,v
+		) fl)
+
+	let write_array vl =
+		encode_array vl
+
+	let write_string s =
+		encode_string s
+
+	let write_bool b =
+		vbool b
+
+	let write_int i =
+		vint i
 end

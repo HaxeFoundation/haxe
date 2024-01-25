@@ -73,6 +73,23 @@ end
 
 module WriterConfigReaderJson = WriterConfigReader(JsonDataApi.JsonReaderApi)
 
+module WriterConfigWriter (API : DataWriterApi.DataWriterApi) = struct
+	let write_target_config config =
+		API.write_object [
+			"generate",API.write_bool config.generate;
+			"exclude",API.write_array (List.map (fun sl -> API.write_string (String.concat "." sl)) config.exclude);
+			"include",API.write_array (List.map (fun sl -> API.write_string (String.concat "." sl)) config.include');
+			"hxbVersion",API.write_int config.hxb_version;
+		]
+
+	let write_writer_config config =
+		API.write_object [
+			"archivePath",API.write_string config.archive_path;
+			"targetConfig",write_target_config config.target_config;
+			"macroConfig",write_target_config config.macro_config;
+		]
+end
+
 let process_json config target_name json =
 	WriterConfigReaderJson.read_writer_config config target_name json
 

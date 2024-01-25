@@ -578,6 +578,14 @@ class Compiler {
 	}
 	#end
 
+	static public function getHxbWriterConfiguration():Null<WriterConfig> {
+		#if macro
+		return load("get_hxb_writer_config", 0)();
+		#else
+		return null;
+		#end
+	}
+
 	static public function setHxbWriterConfiguration(config:WriterConfig) {
 		#if macro
 		load("set_hxb_writer_config", 1)(config);
