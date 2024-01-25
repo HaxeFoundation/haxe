@@ -118,6 +118,7 @@ type typer_globals = {
 	mutable return_partial_type : bool;
 	mutable build_count : int;
 	mutable t_dynamic_def : Type.t;
+	fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t;
 	(* api *)
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
@@ -466,11 +467,10 @@ let make_lazy ?(force=true) ctx t_proc f where =
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
 
-let fake_modules = Hashtbl.create 0
 let create_fake_module ctx file =
 	let key = ctx.com.file_keys#get file in
 	let file = Path.get_full_path file in
-	let mdep = (try Hashtbl.find fake_modules key with Not_found ->
+	let mdep = (try Hashtbl.find ctx.g.fake_modules key with Not_found ->
 		let mdep = {
 			m_id = alloc_mid();
 			m_path = (["$DEP"],file);
@@ -478,7 +478,7 @@ let create_fake_module ctx file =
 			m_statics = None;
 			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake ctx.com.compilation_step [];
 		} in
-		Hashtbl.add fake_modules key mdep;
+		Hashtbl.add ctx.g.fake_modules key mdep;
 		mdep
 	) in
 	ctx.com.module_lut#add mdep.m_path mdep;

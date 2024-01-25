@@ -29,6 +29,7 @@ let create com macros =
 			build_count = 0;
 			t_dynamic_def = t_dynamic;
 			functional_interface_lut = new Lookup.pmap_lookup;
+			fake_modules = Hashtbl.create 0;
 			do_macro = MacroContext.type_macro;
 			do_load_macro = MacroContext.load_macro';
 			do_load_module = TypeloadModule.load_module;

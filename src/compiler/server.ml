@@ -307,7 +307,7 @@ let check_module sctx ctx m_path m_extra p =
 					ServerMessage.unchanged_content com "" file;
 				end else begin
 					ServerMessage.not_cached com "" m_path;
-					if m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules (Path.UniqueKey.lazy_key m_extra.m_file);
+					if m_extra.m_kind = MFake then Hashtbl.remove ctx.g.fake_modules (Path.UniqueKey.lazy_key m_extra.m_file);
 					raise (Dirty (FileChanged file))
 				end
 			end
