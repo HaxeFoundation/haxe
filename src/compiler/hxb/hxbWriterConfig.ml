@@ -27,69 +27,54 @@ let create () = {
 	target_config = create_target_config ();
 	macro_config = create_target_config ()
 }
-
 let error s =
 	Error.raise_typing_error s null_pos
 
-let process_json config target_name json =
-	let read_string = function
-		| JString s -> s
-		| json -> error (Printf.sprintf "Invalid JSON where string was expected: %s" (string_of_json json))
-	in
-	let read_int = function
-		| JInt i -> i
-		| json -> error (Printf.sprintf "Invalid JSON where integer was expected: %s" (string_of_json json))
-	in
-	let read_bool = function
-		| JBool b -> b
-		| json -> error (Printf.sprintf "Invalid JSON where bool was expected: %s" (string_of_json json))
-	in
-	let read_array_or_null f json = match json with
-		| JNull ->
-			[]
-		| JArray jl ->
-			List.map f jl
-		| _ ->
-			error (Printf.sprintf "Invalid JSON where array was expected: %s" (string_of_json json))
-	in
-	let read_object_or_null f json = match json with
-		| JNull ->
-			()
-		| JObject fl ->
-			f fl
-		| _ ->
-			error (Printf.sprintf "Invalid JSON where object was expected: %s" (string_of_json json))
-	in
+module WriterConfigReader (API : DataApi.DataApi) = struct
 	let read_target_config config fl =
-		List.iter (fun (s,json) -> match s with
+		List.iter (fun (s,data) -> match s with
 			| "generate" ->
-				config.generate <- read_bool json;
+				config.generate <- API.read_bool data;
 			| "exclude" ->
-				config.exclude <- read_array_or_null (fun json -> ExtString.String.nsplit (read_string json) ".") json
+				API.read_optional data (fun data ->
+					let l = API.read_array data in
+					config.exclude <- List.map (fun data -> ExtString.String.nsplit (API.read_string data) ".") l
+				)
 			| "include" ->
-				config.include' <- read_array_or_null (fun json -> ExtString.String.nsplit (read_string json) ".") json
+				API.read_optional data (fun data ->
+					let l = API.read_array data in
+					config.include'<- List.map (fun data -> ExtString.String.nsplit (API.read_string data) ".") l
+				)
 			| "hxbVersion" ->
-				config.hxb_version <- read_int json
+				config.hxb_version <- API.read_int data
 			| s ->
 				error (Printf.sprintf "Unknown key for target config: %s" s)
-		) fl;
-	in
-	let read_writer_config fl =
-		List.iter (fun (s,json) ->
-			match s with
-			| "archivePath" ->
-				let path = read_string json in
-				let path = Str.global_replace (Str.regexp "\\$target") target_name path in
-				config.archive_path <- path;
-			| "targetConfig" ->
-				read_object_or_null (read_target_config config.target_config) json
-			| "macroConfig" ->
-				read_object_or_null (read_target_config config.macro_config) json
-			| s ->
-				error (Printf.sprintf "Unknown key for writer config: %s" s)
-		) fl;
-	in
-	read_object_or_null read_writer_config json
+		) fl
+
+	let read_writer_config config target_name data =
+		let read data =
+			let fl = API.read_object data in
+			List.iter (fun (s,data) ->
+				match s with
+				| "archivePath" ->
+					let path = API.read_string data in
+					let path = Str.global_replace (Str.regexp "\\$target") target_name path in
+					config.archive_path <- path;
+				| "targetConfig" ->
+					API.read_optional data (fun data -> read_target_config config.target_config (API.read_object data))
+				| "macroConfig" ->
+					API.read_optional data (fun data -> read_target_config config.macro_config (API.read_object data))
+				| s ->
+					error (Printf.sprintf "Unknown key for writer config: %s" s)
+			) fl
+		in
+		API.read_optional data read
+end
+
+module WriterConfigReaderJson = WriterConfigReader(JsonDataApi)
+
+let process_json config target_name json =
+	WriterConfigReaderJson.read_writer_config config target_name json
 
 let parse config target_name input =
 	let lexbuf = Sedlexing.Utf8.from_string input in
