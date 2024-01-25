@@ -333,6 +333,13 @@ class module_lut = object(self)
 	method get_type_lut = type_lut
 end
 
+class virtual abstract_hxb_lib = object(self)
+	method virtual load : unit
+	method virtual get_bytes : string -> path -> bytes option
+	method virtual close : unit
+	method virtual get_file_path : string
+end
+
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
@@ -401,6 +408,7 @@ type context = {
 	mutable neko_lib_paths : string list;
 	mutable include_files : (string * string) list;
 	mutable native_libs : native_libraries;
+	mutable hxb_libs : abstract_hxb_lib list;
 	mutable net_std : string list;
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
@@ -408,6 +416,8 @@ type context = {
 	(* misc *)
 	mutable basic : basic_types;
 	memory_marker : float array;
+	hxb_reader_stats : HxbReader.hxb_reader_stats;
+	hxb_writer_stats : HxbWriter.hxb_writer_stats;
 }
 
 let enter_stage com stage =
@@ -823,6 +833,7 @@ let create compilation_step cs version args display_mode =
 		resources = Hashtbl.create 0;
 		net_std = [];
 		native_libs = create_native_libs();
+		hxb_libs = [];
 		net_path_map = Hashtbl.create 0;
 		c_args = [];
 		neko_lib_paths = [];
@@ -866,6 +877,8 @@ let create compilation_step cs version args display_mode =
 		has_error = false;
 		report_mode = RMNone;
 		is_macro_context = false;
+		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
+		hxb_writer_stats = HxbWriter.create_hxb_writer_stats ();
 	} in
 	com
 
@@ -912,6 +925,8 @@ let clone com is_macro_context =
 		module_to_file = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
 		module_lut = new module_lut;
+		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
+		hxb_writer_stats = HxbWriter.create_hxb_writer_stats ();
 		std = null_class;
 		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;

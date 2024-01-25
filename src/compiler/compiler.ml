@@ -295,6 +295,7 @@ let do_type ctx mctx actx display_file_dot_path =
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	enter_stage com CInitMacrosStart;
 	ServerMessage.compiler_stage com;
+	Setup.init_native_libs com actx.hxb_libs;
 	let mctx = List.fold_left (fun mctx path ->
 		Some (MacroContext.call_init_macro ctx.com mctx path)
 	) mctx (List.rev actx.config_macros) in
@@ -378,6 +379,11 @@ let compile ctx actx callbacks =
 		let (tctx,display_file_dot_path) = do_type ctx mctx actx display_file_dot_path in
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
+		let is_compilation = is_compilation com in
+		com.callbacks#add_after_save (fun () ->
+			callbacks.after_save ctx;
+			if is_compilation then Generate.check_hxb_output ctx actx;
+		);
 		if is_diagnostics com then
 			filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)
 		else begin
@@ -385,7 +391,7 @@ let compile ctx actx callbacks =
 			filter ctx tctx (fun () -> ());
 		end;
 		if ctx.has_error then raise Abort;
-		if is_compilation com then Generate.check_auxiliary_output com actx;
+		if is_compilation then Generate.check_auxiliary_output com actx;
 		enter_stage com CGenerationStart;
 		ServerMessage.compiler_stage com;
 		Generate.maybe_generate_dump ctx tctx;
@@ -446,6 +452,7 @@ with
 
 let finalize ctx =
 	ctx.comm.flush ctx;
+	List.iter (fun lib -> lib#close) ctx.com.hxb_libs;
 	(* In server mode any open libs are closed by the lib_build_task. In offline mode
 		we should do it here to be safe. *)
 	if not ctx.comm.is_server then begin

@@ -170,10 +170,21 @@ let check_display_file ctx cs =
 			TypeloadParse.PdiHandler.handle_pdi ctx.com cfile.c_pdi;
 			(* We have to go through type_module_hook because one of the module's dependencies could be
 			   invalid (issue #8991). *)
-			begin match !TypeloadModule.type_module_hook ctx path null_pos with
-			| None -> raise Not_found
-			| Some m -> check_display_module ctx cfile.c_decls m
-			end
+			let m = try
+				ctx.com.module_lut#find path
+			with Not_found ->
+				begin match !TypeloadModule.type_module_hook ctx path null_pos with
+				| NoModule | BadModule _ -> raise Not_found
+				| BinaryModule mc ->
+					let api = (new TypeloadModule.hxb_reader_api_typeload ctx TypeloadModule.load_module' p :> HxbReaderApi.hxb_reader_api) in
+					let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats in
+					let m = reader#read_chunks api mc.mc_chunks in
+					m
+				| GoodModule m ->
+					m
+				end
+			in
+			check_display_module ctx cfile.c_decls m
 		with Not_found ->
 			let fkey = DisplayPosition.display_position#get_file_key in
 			(* force parsing again : if the completion point have been changed *)

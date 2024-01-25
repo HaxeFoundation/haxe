@@ -48,6 +48,7 @@ let parse_args com =
 	let actx = {
 		classes = [([],"Std")];
 		xml_out = None;
+		hxb_out = None;
 		json_out = None;
 		cmds = [];
 		config_macros = [];
@@ -58,6 +59,7 @@ let parse_args com =
 		interp = false;
 		jvm_flag = false;
 		swf_version = false;
+		hxb_libs = [];
 		native_libs = [];
 		raise_usage = (fun () -> ());
 		display_arg = None;
@@ -131,6 +133,10 @@ let parse_args com =
 		("Compilation",[],["-libcp"],Arg.String (fun path ->
 			com.class_paths#add (new ClassPath.directory_class_path (Path.add_trailing_slash path) Lib);
 		),"<path>","add a directory to find source files");
+		("Compilation",["--hxb-lib"],["-hxb-lib"],Arg.String (fun file ->
+			let lib = create_native_lib file false HxbLib in
+			actx.hxb_libs <- lib :: actx.hxb_libs
+		),"<path>","add a hxb library");
 		("Compilation",["-m";"--main"],["-main"],Arg.String (fun cl ->
 			if com.main_class <> None then raise (Arg.Bad "Multiple --main classes specified");
 			let cpath = Path.parse_type_path cl in
@@ -272,6 +278,9 @@ let parse_args com =
 		("Services",["--json"],[],Arg.String (fun file ->
 			actx.json_out <- Some file
 		),"<file>","generate JSON types description");
+		("Services",["--hxb"],[], Arg.String (fun dir ->
+			actx.hxb_out <- Some dir;
+		),"<directory>", "generate haxe binary representation in target directory");
 		("Optimization",["--no-output"],[], Arg.Unit (fun() -> actx.no_output <- true),"","compiles but does not generate any file");
 		("Debug",["--times"],[], Arg.Unit (fun() -> Timer.measure_times := true),"","measure compilation times");
 		("Optimization",["--no-inline"],[],Arg.Unit (fun () ->

@@ -48,3 +48,9 @@ let add_native_lib com lib =
 			| _ -> failwith ("unsupported file@`std` format: " ^ file)
 		in
 		Dotnet.add_net_lib com file is_std is_extern
+	| HxbLib ->
+		let hxb_lib = HxbLib.create_hxb_lib com file in
+		com.hxb_libs <- hxb_lib :: com.hxb_libs;
+		(fun () ->
+			hxb_lib#load
+		)

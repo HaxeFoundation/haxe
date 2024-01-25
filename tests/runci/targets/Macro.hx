@@ -5,7 +5,8 @@ import runci.Config.*;
 
 class Macro {
 	static public function run(args:Array<String>) {
-		runCommand("haxe", ["compile-macro.hxml"].concat(args));
+		runCommand("haxe", ["compile-macro.hxml", "--hxb", "bin/hxb/eval.zip"].concat(args));
+		runCommand("haxe", ["compile-macro.hxml", "--hxb-lib", "bin/hxb/eval.zip"].concat(args));
 
 		changeDirectory(displayDir);
 		haxelibInstallGit("Simn", "haxeserver");

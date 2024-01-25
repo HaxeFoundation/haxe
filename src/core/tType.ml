@@ -502,6 +502,7 @@ type flag_tvar =
 	| VCaught
 	| VStatic
 	| VUsedByTyper (* Set if the typer looked up this variable *)
+	| VHxb (* Flag used by hxb *)
 
 let flag_tvar_names = [
 	"VCaptured";"VFinal";"VAnalyzed";"VAssigned";"VCaught";"VStatic";"VUsedByTyper"
