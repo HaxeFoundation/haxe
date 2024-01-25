@@ -91,18 +91,18 @@ class ServerTests extends TestCase {
 		assertSkipping("BuildMacro", Tainted("server/invalidate"));
 	}
 
-	// function testBrokenSyntaxDiagnostics() {
-	// 	vfs.putContent("BrokenSyntax.hx", getTemplate("BrokenSyntax.hx"));
-	// 	vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
-	// 	var args = ["-main", "BrokenSyntax.hx", "--interp", "--no-output"];
-	// 	runHaxe(args);
-	// 	assertErrorMessage("Expected }");
-	// 	runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Empty.hx")}, res -> {
-	// 		Assert.equals(0, res.length);
-	// 	});
-	// 	runHaxe(args);
-	// 	assertErrorMessage("Expected }");
-	// }
+	function testBrokenSyntaxDiagnostics() {
+		vfs.putContent("BrokenSyntax.hx", getTemplate("BrokenSyntax.hx"));
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		var args = ["-main", "BrokenSyntax.hx", "--interp", "--no-output"];
+		runHaxe(args);
+		assertErrorMessage("Expected }");
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Empty.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
+		runHaxe(args);
+		assertErrorMessage("Expected }");
+	}
 
 	function testGlobalBuildMacro_subsequentCompilations() {
 		vfs.putContent("GlobalBuildMacro.hx", getTemplate("GlobalBuildMacro.hx"));
@@ -428,22 +428,24 @@ class ServerTests extends TestCase {
 		});
 	}
 
-	// function test10986() {
-	// 	vfs.putContent("Main.hx", getTemplate("issues/Issue10986/Main.hx"));
-	// 	vfs.putContent("haxe/ds/Vector.hx", getTemplate("issues/Issue10986/Vector.hx"));
-	// 	var args = ["-main", "Main", "--jvm", "Main.jar"];
-	// 	runHaxe(args);
-	// 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("haxe/ds/Vector.hx")});
-	// 	runHaxe(args);
-	// 	assertSuccess();
-	// }
-	// function test11179() {
-	// 	vfs.putContent("Main.hx", getTemplate("issues/Issue11179/Main.hx"));
-	// 	var args = ["-main", "Main", "--macro", 'nullSafety("Main", Strict)', "--interp"];
-	// 	runHaxe(args);
-	// 	runHaxe(args);
-	// 	assertSuccess();
-	// }
+	function test10986() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue10986/Main.hx"));
+		vfs.putContent("haxe/ds/Vector.hx", getTemplate("issues/Issue10986/Vector.hx"));
+		var args = ["-main", "Main", "--jvm", "Main.jar"];
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("haxe/ds/Vector.hx")});
+		runHaxe(args);
+		assertSuccess();
+	}
+
+	function test11179() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue11179/Main.hx"));
+		var args = ["-main", "Main", "--macro", 'nullSafety("Main", Strict)', "--interp"];
+		runHaxe(args);
+		runHaxe(args);
+		assertSuccess();
+	}
+
 	// See https://github.com/HaxeFoundation/haxe/issues/8368#issuecomment-525379060
 	#if false
 	function testXRedefinedFromX() {
@@ -529,14 +531,14 @@ class ServerTests extends TestCase {
 		Assert.isTrue(content == originalContent);
 	}
 
-	// function test9918() {
-	// 	vfs.putContent("Issue9918.hx", getTemplate("Issue9918.hx"));
-	// 	var args = ["-main", "Issue9918.hx"];
-	// 	runHaxe(args);
-	// 	assertHasPrint('Issue9918.hx:22: correct ECast count');
-	// 	runHaxe(args);
-	// 	assertHasPrint('Issue9918.hx:22: correct ECast count');
-	// 	runHaxe(args);
-	// 	assertHasPrint('Issue9918.hx:22: correct ECast count');
-	// }
+	function test9918() {
+		vfs.putContent("Issue9918.hx", getTemplate("Issue9918.hx"));
+		var args = ["-main", "Issue9918.hx"];
+		runHaxe(args);
+		assertHasPrint('Issue9918.hx:22: correct ECast count');
+		runHaxe(args);
+		assertHasPrint('Issue9918.hx:22: correct ECast count');
+		runHaxe(args);
+		assertHasPrint('Issue9918.hx:22: correct ECast count');
+	}
 }
