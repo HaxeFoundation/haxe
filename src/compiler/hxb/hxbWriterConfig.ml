@@ -82,6 +82,7 @@ module WriterConfigWriter (API : DataWriterApi.DataWriterApi) = struct
 			"exclude",API.write_array (List.map (fun sl -> API.write_string (String.concat "." sl)) config.exclude);
 			"include",API.write_array (List.map (fun sl -> API.write_string (String.concat "." sl)) config.include');
 			"hxbVersion",API.write_int config.hxb_version;
+			"generateDocumentation",API.write_bool config.generate_docs;
 		]
 
 	let write_writer_config config =
