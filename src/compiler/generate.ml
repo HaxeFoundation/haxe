@@ -59,6 +59,7 @@ let check_hxb_output ctx config =
 	in
 	let try_write () =
 		let path = config.HxbWriterConfig.archive_path in
+		let path = Str.global_replace (Str.regexp "\\$target") (platform_name ctx.com.platform) path in
 		let t = Timer.timer ["generate";"hxb"] in
 		Path.mkdir_from_path path;
 		let zip = new Zip_output.zip_output path 6 in

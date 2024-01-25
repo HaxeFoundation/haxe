@@ -328,7 +328,7 @@ let make_macro_com_api com mcom p =
 						com.hxb_writer_config <- Some config;
 						config
 				in
-				HxbWriterConfigReaderEval.read_writer_config config (platform_name com.platform) v
+				HxbWriterConfigReaderEval.read_writer_config config v
 			end
 		);
 	}

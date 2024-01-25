@@ -51,15 +51,13 @@ module WriterConfigReader (API : DataReaderApi.DataReaderApi) = struct
 				error (Printf.sprintf "Unknown key for target config: %s" s)
 		) fl
 
-	let read_writer_config config target_name data =
+	let read_writer_config config data =
 		let read data =
 			let fl = API.read_object data in
 			List.iter (fun (s,data) ->
 				match s with
 				| "archivePath" ->
-					let path = API.read_string data in
-					let path = Str.global_replace (Str.regexp "\\$target") target_name path in
-					config.archive_path <- path;
+					config.archive_path <- API.read_string data;
 				| "targetConfig" ->
 					API.read_optional data (fun data -> read_target_config config.target_config (API.read_object data))
 				| "macroConfig" ->
@@ -90,15 +88,15 @@ module WriterConfigWriter (API : DataWriterApi.DataWriterApi) = struct
 		]
 end
 
-let process_json config target_name json =
-	WriterConfigReaderJson.read_writer_config config target_name json
+let process_json config json =
+	WriterConfigReaderJson.read_writer_config config json
 
-let parse config target_name input =
+let parse config input =
 	let lexbuf = Sedlexing.Utf8.from_string input in
 	let json = read_json lexbuf in
-	process_json config target_name json
+	process_json config json
 
-let process_argument target_name file =
+let process_argument file =
 	let config = create () in
 	begin match Path.file_extension file with
 		| "json" ->
@@ -109,7 +107,7 @@ let process_argument target_name file =
 			in
 			let data = Std.input_all file in
 			close_in file;
-			parse config target_name data;
+			parse config data;
 		| _ ->
 			config.archive_path <- file;
 	end;

@@ -373,7 +373,7 @@ let compile ctx actx callbacks =
 		| None ->
 			()
 		| Some file ->
-			com.hxb_writer_config <- HxbWriterConfig.process_argument (platform_name com.platform) file
+			com.hxb_writer_config <- HxbWriterConfig.process_argument file
 	end;
 	t();
 	enter_stage com CInitialized;
