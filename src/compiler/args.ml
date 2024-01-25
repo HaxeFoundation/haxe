@@ -280,7 +280,7 @@ let parse_args com =
 		),"<file>","generate JSON types description");
 		("Services",["--hxb"],[], Arg.String (fun file ->
 			actx.hxb_out <- Some file;
-		),"<directory>", "generate haxe binary representation to target archive");
+		),"<file>", "generate haxe binary representation to target archive");
 		("Optimization",["--no-output"],[], Arg.Unit (fun() -> actx.no_output <- true),"","compiles but does not generate any file");
 		("Debug",["--times"],[], Arg.Unit (fun() -> Timer.measure_times := true),"","measure compilation times");
 		("Optimization",["--no-inline"],[],Arg.Unit (fun () ->
