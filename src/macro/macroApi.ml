@@ -70,6 +70,7 @@ type 'value compiler_api = {
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
 	exc_string : 'a . string -> 'a;
+	set_hxb_writer_config : 'value -> unit;
 }
 
 
@@ -2405,5 +2406,9 @@ let macro_api ccom get_api =
 				vbool false
 			end
 		);
+		"set_hxb_writer_config", vfun1 (fun v ->
+			(get_api()).set_hxb_writer_config v;
+			vnull
+		)
 	]
 end

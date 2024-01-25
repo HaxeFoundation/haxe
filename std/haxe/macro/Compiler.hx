@@ -24,6 +24,7 @@ package haxe.macro;
 
 import haxe.display.Display;
 import haxe.macro.Expr;
+import haxe.hxb.WriterConfig;
 
 /**
 	All these methods can be called for compiler configuration macros.
@@ -576,6 +577,12 @@ class Compiler {
 		}
 	}
 	#end
+
+	static public function setHxbWriterConfiguration(config:WriterConfig) {
+		#if macro
+		load("set_hxb_writer_config", 1)(config);
+		#end
+	}
 }
 
 enum abstract IncludePosition(String) from String to String {

@@ -34,6 +34,9 @@ module Interp = struct
 	include BuiltApi
 end
 
+
+module HxbWriterConfigReaderJson = HxbWriterConfig.WriterConfigReader(EvalDataApi)
+
 let macro_interp_cache = ref None
 
 let safe_decode com v expected t p f =
@@ -305,6 +308,14 @@ let make_macro_com_api com mcom p =
 			com.warning ~depth w [] msg p
 		);
 		exc_string = Interp.exc_string;
+		set_hxb_writer_config = (fun v ->
+			match com.hxb_writer_config with
+			| Some config ->
+				print_endline "READING CONFIG!!!";
+				HxbWriterConfigReaderJson.read_writer_config config (platform_name com.platform) v
+			| None ->
+				()
+		)
 	}
 
 let make_macro_api ctx mctx p =
