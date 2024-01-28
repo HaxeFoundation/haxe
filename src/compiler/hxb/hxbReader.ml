@@ -182,6 +182,12 @@ class hxb_reader
 			dump_backtrace();
 			error (Printf.sprintf "[HXB] [%s] Cannot resolve type %s" (s_type_path current_module.m_path) (s_type_path ((pack @ [mname]),tname)))
 
+	method get_string_pool =
+		if has_string_pool then
+			Some (string_pool)
+		else
+			None
+
 	(* Primitives *)
 
 	method read_i32 =

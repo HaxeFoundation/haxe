@@ -21,7 +21,17 @@ let check_auxiliary_output com actx =
 			Genjson.generate com.types file
 	end
 
-let export_hxb com cc platform zip m =
+let create_writer com string_pool =
+	let anon_identification = new tanon_identification in
+	let warn w s p = com.Common.warning w com.warning_options s p in
+	let writer = HxbWriter.create string_pool warn anon_identification com.hxb_writer_stats in
+	writer,(fun () ->
+		let out = IO.output_string () in
+		HxbWriter.export writer out;
+		IO.close_out out
+	)
+
+let export_hxb com cc string_pool platform zip m =
 	let open HxbData in
 	match m.m_extra.m_kind with
 		| MCode | MMacro | MFake | MExtern -> begin
@@ -40,29 +50,34 @@ let export_hxb com cc platform zip m =
 				let data = IO.close_out out in
 				zip#add_entry data path;
 			with Not_found ->
-				let anon_identification = new tanon_identification in
-				let warn w s p = com.Common.warning w com.warning_options s p in
-				let writer = HxbWriter.create None warn anon_identification com.hxb_writer_stats in
+				let writer,close = create_writer com string_pool in
 				HxbWriter.write_module writer m;
-				let out = IO.output_string () in
-				HxbWriter.export writer out;
-				zip#add_entry (IO.close_out out) path;
+				let bytes = close () in
+				zip#add_entry bytes path;
 		end
 	| _ ->
 		()
 
 let check_hxb_output ctx actx =
 	let com = ctx.com in
+	let write_string_pool zip pool =
+		let writer,close = create_writer com (Some pool) in
+		let a = StringPool.finalize writer.cp in
+		HxbWriter.HxbWriter.write_string_pool writer STR a;
+		let bytes = close () in
+		zip#add_entry bytes ("StringPool.hxb");
+	in
 	let try_write path =
 		let t = Timer.timer ["generate";"hxb"] in
 		Path.mkdir_from_path path;
 		let zip = new Zip_output.zip_output path 6 in
+		let string_pool = StringPool.create () in
 		let export com =
 			let cc = CommonCache.get_cache com in
 			let target = Common.platform_name_macro com in
 			List.iter (fun m ->
 				let t = Timer.timer ["generate";"hxb";s_type_path m.m_path] in
-				Std.finally t (export_hxb com cc target zip) m
+				Std.finally t (export_hxb com cc (Some string_pool) target zip) m
 			) com.modules;
 		in
 		Std.finally (fun () ->
@@ -71,6 +86,7 @@ let check_hxb_output ctx actx =
 		) (fun () ->
 			export com;
 			Option.may export (com.get_macros());
+			write_string_pool zip string_pool
 		) ()
 	in
 	begin match actx.hxb_out with

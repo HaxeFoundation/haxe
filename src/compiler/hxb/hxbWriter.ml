@@ -2024,6 +2024,14 @@ module HxbWriter = struct
 		| TTypeDecl t ->
 			()
 
+	let write_string_pool writer kind a =
+		start_chunk writer kind;
+		Chunk.write_uleb128 writer.chunk a.StringDynArray.length;
+		StringDynArray.iter a (fun s ->
+			let b = Bytes.unsafe_of_string s in
+			Chunk.write_bytes_length_prefixed writer.chunk b;
+		)
+
 	let write_module writer (m : module_def) =
 		writer.current_module <- m;
 
@@ -2210,22 +2218,14 @@ module HxbWriter = struct
 		start_chunk writer EOF;
 		start_chunk writer EOM;
 
-		let finalize_string_pool kind a =
-			start_chunk writer kind;
-			Chunk.write_uleb128 writer.chunk a.StringDynArray.length;
-			StringDynArray.iter a (fun s ->
-				let b = Bytes.unsafe_of_string s in
-				Chunk.write_bytes_length_prefixed writer.chunk b;
-			)
-		in
 		if writer.has_own_string_pool then begin
 			let a = StringPool.finalize writer.cp in
-			finalize_string_pool STR a
+			write_string_pool writer STR a
 		end;
 		begin
 			let a = StringPool.finalize writer.docs in
 			if a.length > 0 then
-				finalize_string_pool DOC a
+				write_string_pool writer DOC a
 		end
 
 	let get_sorted_chunks writer =
