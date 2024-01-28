@@ -177,7 +177,7 @@ let check_display_file ctx cs =
 				| NoModule | BadModule _ -> raise Not_found
 				| BinaryModule mc ->
 					let api = (new TypeloadModule.hxb_reader_api_typeload ctx TypeloadModule.load_module' p :> HxbReaderApi.hxb_reader_api) in
-					let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats in
+					let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats None in
 					let m = reader#read_chunks api mc.mc_chunks in
 					m
 				| GoodModule m ->

@@ -10,6 +10,7 @@ class hxb_library file_path = object(self)
 	val modules = Hashtbl.create 0
 	val mutable closed = false
 	val mutable loaded = false
+	val mutable string_pool : string array option = None
 
 	method load =
 		if not loaded then begin
@@ -49,6 +50,7 @@ class hxb_library file_path = object(self)
 		end
 
 	method get_file_path = file_path
+	method get_string_pool = string_pool
 end
 
 

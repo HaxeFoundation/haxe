@@ -813,10 +813,10 @@ class hxb_reader_api_typeload
 end
 
 let rec load_hxb_module ctx path p =
-	let read file bytes =
+	let read file bytes string_pool =
 		try
 			let api = (new hxb_reader_api_typeload ctx load_module' p :> HxbReaderApi.hxb_reader_api) in
-			let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats in
+			let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats string_pool in
 			let read = reader#read api bytes in
 			let m = read MTF in
 			delay ctx PBuildClass (fun () ->
@@ -837,7 +837,7 @@ let rec load_hxb_module ctx path p =
 		| hxb_lib :: l ->
 			begin match hxb_lib#get_bytes target path with
 				| Some bytes ->
-					read hxb_lib#get_file_path bytes
+					read hxb_lib#get_file_path bytes hxb_lib#get_string_pool
 				| None ->
 					loop l
 			end
