@@ -102,52 +102,6 @@ let dump_stats name stats =
 		print_endline (Printf.sprintf "    %s: %i - %i" name imin imax)
 	) chunk_sizes *)
 
-module StringHashtbl = Hashtbl.Make(struct
-	type t = string
-
-	let equal =
-		String.equal
-
-	let hash s =
-		(* What's the best here? *)
-		Hashtbl.hash s
-end)
-
-module StringPool = struct
-	type t = {
-		lut : int StringHashtbl.t;
-		items : string DynArray.t;
-		mutable closed : bool;
-	}
-
-	let create () = {
-		lut = StringHashtbl.create 16;
-		items = DynArray.create ();
-		closed = false;
-	}
-
-	let add sp s =
-		assert (not sp.closed);
-		let index = DynArray.length sp.items in
-		StringHashtbl.add sp.lut s index;
-		DynArray.add sp.items s;
-		index
-
-	let get sp s =
-		StringHashtbl.find sp.lut s
-
-	let get_or_add sp s =
-		try
-			get sp s
-		with Not_found ->
-			add sp s
-
-	let finalize sp =
-		assert (not sp.closed);
-		sp.closed <- true;
-		DynArray.to_list sp.items,DynArray.length sp.items
-end
-
 module Pool = struct
 	type ('key,'value) t = {
 		lut : ('key,int) Hashtbl.t;
@@ -1800,11 +1754,11 @@ module HxbWriter = struct
 					write_type_parameters writer ltp
 				end;
 				Chunk.write_option writer.chunk fctx.texpr_this (fun e -> write_type_instance writer e.etype);
-				let items,length = StringPool.finalize fctx.t_pool in
-				Chunk.write_uleb128 writer.chunk length;
-				List.iter (fun bytes ->
+				let a = StringPool.finalize fctx.t_pool in
+				Chunk.write_uleb128 writer.chunk a.length;
+				StringDynArray.iter a (fun bytes ->
 					Chunk.write_bytes writer.chunk (Bytes.unsafe_of_string bytes)
-				) items;
+				);
 				Chunk.write_uleb128 writer.chunk (DynArray.length fctx.vars);
 				DynArray.iter (fun (v,v_id) ->
 					v.v_id <- v_id;
@@ -2255,22 +2209,22 @@ module HxbWriter = struct
 		start_chunk writer EOF;
 		start_chunk writer EOM;
 
-		let finalize_string_pool kind items length =
+		let finalize_string_pool kind a =
 			start_chunk writer kind;
-			Chunk.write_uleb128 writer.chunk length;
-			List.iter (fun s ->
+			Chunk.write_uleb128 writer.chunk a.StringDynArray.length;
+			StringDynArray.iter a (fun s ->
 				let b = Bytes.unsafe_of_string s in
 				Chunk.write_bytes_length_prefixed writer.chunk b;
-			) items
+			)
 		in
 		begin
-			let items,length = StringPool.finalize writer.cp in
-			finalize_string_pool STR items length
+			let a = StringPool.finalize writer.cp in
+			finalize_string_pool STR a
 		end;
 		begin
-			let items,length = StringPool.finalize writer.docs in
-			if length > 0 then
-				finalize_string_pool DOC items length
+			let a = StringPool.finalize writer.docs in
+			if a.length > 0 then
+				finalize_string_pool DOC a
 		end
 
 	let get_sorted_chunks writer =
