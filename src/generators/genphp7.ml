@@ -4038,7 +4038,7 @@ class generator (ctx:php_generator_context) =
 			Returns PHP code for entry point
 		*)
 		method private get_entry_point : (string * string) option =
-			match ctx.pgc_common.main with
+			match ctx.pgc_common.main.main_expr with
 				| None -> None
 				| Some expr ->
 					let writer = new code_writer ctx ([], "") "" in

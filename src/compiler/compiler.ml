@@ -336,7 +336,7 @@ let finalize_typing ctx tctx =
 	enter_stage com CFilteringStart;
 	ServerMessage.compiler_stage com;
 	let main, types, modules = run_or_diagnose ctx (fun () -> Finalization.generate tctx) in
-	com.main <- main;
+	com.main.main_expr <- main;
 	com.types <- types;
 	com.modules <- modules;
 	t()
@@ -344,7 +344,7 @@ let finalize_typing ctx tctx =
 let filter ctx tctx before_destruction =
 	let t = Timer.timer ["filters"] in
 	DeprecationCheck.run ctx.com;
-	run_or_diagnose ctx (fun () -> Filters.run tctx ctx.com.main before_destruction);
+	run_or_diagnose ctx (fun () -> Filters.run tctx ctx.com.main.main_expr before_destruction);
 	t()
 
 let compile ctx actx callbacks =

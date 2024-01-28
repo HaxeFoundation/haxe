@@ -111,9 +111,9 @@ let parse_args com =
 		),"<name[=path]>","generate code for a custom target");
 		("Target",[],["-x"], Arg.String (fun cl ->
 			let cpath = Path.parse_type_path cl in
-			(match com.main_class with
+			(match com.main.main_class with
 				| Some c -> if cpath <> c then raise (Arg.Bad "Multiple --main classes specified")
-				| None -> com.main_class <- Some cpath);
+				| None -> com.main.main_class <- Some cpath);
 			actx.classes <- cpath :: actx.classes;
 			Common.define com Define.Interp;
 			set_platform com Eval "";
@@ -138,9 +138,9 @@ let parse_args com =
 			actx.hxb_libs <- lib :: actx.hxb_libs
 		),"<path>","add a hxb library");
 		("Compilation",["-m";"--main"],["-main"],Arg.String (fun cl ->
-			if com.main_class <> None then raise (Arg.Bad "Multiple --main classes specified");
+			if com.main.main_class <> None then raise (Arg.Bad "Multiple --main classes specified");
 			let cpath = Path.parse_type_path cl in
-			com.main_class <- Some cpath;
+			com.main.main_class <- Some cpath;
 			actx.classes <- cpath :: actx.classes
 		),"<class>","select startup class");
 		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun _ -> ()),"<name[:ver]>","use a haxelib library");

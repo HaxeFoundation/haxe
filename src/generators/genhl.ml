@@ -4187,7 +4187,7 @@ let generate com =
 
 	let ctx = create_context com false dump in
 	add_types ctx com.types;
-	let code = build_code ctx com.types com.main in
+	let code = build_code ctx com.types com.main.main_expr in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 	if dump then begin
 		(match ctx.dump_out with None -> () | Some ch -> IO.close_out ch);
