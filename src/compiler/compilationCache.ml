@@ -74,7 +74,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		| MImport ->
 			Hashtbl.add modules m.m_path m
 		| _ ->
-			let writer = HxbWriter.create warn anon_identification hxb_writer_stats in
+			let writer = HxbWriter.create None warn anon_identification hxb_writer_stats in
 			HxbWriter.write_module writer m;
 			let chunks = HxbWriter.get_chunks writer in
 			Hashtbl.replace binary_cache path {

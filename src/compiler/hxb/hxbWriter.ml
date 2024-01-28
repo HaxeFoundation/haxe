@@ -470,6 +470,7 @@ type hxb_writer = {
 	stats : hxb_writer_stats;
 	mutable current_module : module_def;
 	chunks : Chunk.t DynArray.t;
+	has_own_string_pool : bool;
 	cp : StringPool.t;
 	docs : StringPool.t;
 	mutable chunk : Chunk.t;
@@ -2217,7 +2218,7 @@ module HxbWriter = struct
 				Chunk.write_bytes_length_prefixed writer.chunk b;
 			)
 		in
-		begin
+		if writer.has_own_string_pool then begin
 			let a = StringPool.finalize writer.cp in
 			finalize_string_pool STR a
 		end;
@@ -2235,8 +2236,13 @@ module HxbWriter = struct
 		l
 end
 
-let create warn anon_id stats =
-	let cp = StringPool.create () in
+let create string_pool warn anon_id stats =
+	let cp,has_own_string_pool = match string_pool with
+		| None ->
+			StringPool.create(),true
+		| Some pool ->
+			pool,false
+	in
 	{
 		warn;
 		anon_id;
@@ -2244,6 +2250,7 @@ let create warn anon_id stats =
 		current_module = null_module;
 		chunks = DynArray.create ();
 		cp = cp;
+		has_own_string_pool;
 		docs = StringPool.create ();
 		chunk = Obj.magic ();
 		classes = Pool.create ();

@@ -42,7 +42,7 @@ let export_hxb com cc platform zip m =
 			with Not_found ->
 				let anon_identification = new tanon_identification in
 				let warn w s p = com.Common.warning w com.warning_options s p in
-				let writer = HxbWriter.create warn anon_identification com.hxb_writer_stats in
+				let writer = HxbWriter.create None warn anon_identification com.hxb_writer_stats in
 				HxbWriter.write_module writer m;
 				let out = IO.output_string () in
 				HxbWriter.export writer out;
