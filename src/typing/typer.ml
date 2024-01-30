@@ -1221,7 +1221,13 @@ and type_local_function ctx kind f with_type p =
 	let params = TypeloadFunction.type_function_params ctx f TPHLocal (match name with None -> "localfun" | Some (n,_) -> n) p in
 	if params <> [] then begin
 		if name = None then display_error ctx.com "Type parameters not supported in unnamed local functions" p;
-		if with_type <> WithType.NoValue then raise_typing_error "Type parameters are not supported for rvalue functions" p
+		begin match ctx.com.platform with
+		| Java | Cs ->
+			(* gencommon just can't *)
+			if with_type <> WithType.NoValue then raise_typing_error "Type parameters are not supported for rvalue functions" p
+		| _ ->
+			()
+		end
 	end;
 	let v,pname = (match name with
 		| None -> None,p
@@ -1323,6 +1329,13 @@ and type_local_function ctx kind f with_type p =
 	| _ ->
 		());
 	let ft = TFun (targs,rt) in
+	let ft = match with_type with
+		| WithType.NoValue ->
+			ft
+		| _ ->
+			(* We want to apply params as if we accessed the function by name (see type_ident_raise). *)
+			apply_params params (Monomorph.spawn_constrained_monos (fun t -> t) params) ft
+	in
 	let v = (match v with
 		| None -> None
 		| Some v ->
@@ -1364,7 +1377,7 @@ and type_local_function ctx kind f with_type p =
 			else []
 		in
 		let exprs =
-			if is_rec then begin
+			if is_rec || (params <> [] && with_type <> WithType.NoValue) then begin
 				if inline then display_error ctx.com "Inline function cannot be recursive" e.epos;
 				(mk (TVar (v,Some (mk (TConst TNull) ft p))) ctx.t.tvoid p) ::
 				(mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p) ::
