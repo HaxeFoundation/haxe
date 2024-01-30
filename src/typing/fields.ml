@@ -109,7 +109,7 @@ let field_access ctx mode f fh e pfield =
 	let pfull = punion e.epos pfield in
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	check_no_closure_meta ctx f fh mode pfield;
-	let bypass_accessor = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
+	let bypass_accessor () = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
 	let make_access inline = FieldAccess.create e f fh (inline && ctx.allow_inline) pfull in
 	match f.cf_kind with
 	| Method m ->
@@ -208,8 +208,6 @@ let field_access ctx mode f fh e pfield =
 		| AccCall ->
 			let m = (match mode with MSet _ -> "set_" | _ -> "get_") ^ f.cf_name in
 			let bypass_accessor =
-				bypass_accessor
-				||
 				(
 					m = ctx.curfield.cf_name
 					&&
@@ -218,7 +216,7 @@ let field_access ctx mode f fh e pfield =
 					| TLocal v -> Option.map_default (fun vthis -> v == vthis) false ctx.vthis
 					| TTypeExpr (TClassDecl c) when c == ctx.curclass -> true
 					| _ -> false
-				)
+				) || bypass_accessor ()
 			in
 			if bypass_accessor then (
 				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> warning ctx WTemp "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" pfield | _ -> ());

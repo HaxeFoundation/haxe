@@ -8478,7 +8478,7 @@ let generate_cppia ctx =
       );
    ) common_ctx.types;
 
-   (match common_ctx.main with
+   (match common_ctx.main.main_expr with
    | None -> script#writeOpLine IaNoMain;
    | Some e -> script#writeOpLine IaMain;
          script#gen_expression e
@@ -8590,7 +8590,7 @@ let generate_source ctx =
    List.iter (fun job -> job () ) !jobs;
 
 
-   (match common_ctx.main with
+   (match common_ctx.main.main_expr with
    | None -> generate_dummy_main common_ctx
    | Some e ->
       let main_field = { (mk_field "__main__" t_dynamic e.epos null_pos) with
@@ -8653,7 +8653,7 @@ let generate_source ctx =
      end;
    end;
 
-   let output_name = match  common_ctx.main_class with
+   let output_name = match  common_ctx.main.main_class with
    | Some path -> (snd path)
    | _ -> "output" in
 

@@ -143,7 +143,7 @@ let process_display_file com actx =
 			DPKNone
 		| DFPOnly when (DisplayPosition.display_position#get).pfile = file_input_marker ->
 			actx.classes <- [];
-			com.main_class <- None;
+			com.main.main_class <- None;
 			begin match com.file_contents with
 			| [_, Some input] ->
 				com.file_contents <- [];
@@ -154,7 +154,7 @@ let process_display_file com actx =
 		| dfp ->
 			if dfp = DFPOnly then begin
 				actx.classes <- [];
-				com.main_class <- None;
+				com.main.main_class <- None;
 			end;
 			let real = Path.get_real_path (DisplayPosition.display_position#get).pfile in
 			let path = match get_module_path_from_file_path com real with

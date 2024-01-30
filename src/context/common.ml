@@ -341,6 +341,11 @@ class virtual abstract_hxb_lib = object(self)
 	method virtual get_string_pool : string array option
 end
 
+type context_main = {
+	mutable main_class : path option;
+	mutable main_expr : texpr option;
+}
+
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
@@ -360,7 +365,7 @@ type context = {
 	mutable config : platform_config;
 	empty_class_path : ClassPath.class_path;
 	class_paths : ClassPaths.class_paths;
-	mutable main_class : path option;
+	main : context_main;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
 	(* communication *)
@@ -401,7 +406,6 @@ type context = {
 	mutable file : string;
 	mutable features : (string,bool) Hashtbl.t;
 	mutable modules : Type.module_def list;
-	mutable main : Type.texpr option;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
 	(* target-specific *)
@@ -820,7 +824,10 @@ let create compilation_step cs version args display_mode =
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
 		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;
-		main_class = None;
+		main = {
+			main_class = None;
+			main_expr = None;
+		};
 		package_rules = PMap.empty;
 		file = "";
 		types = [];
@@ -829,7 +836,6 @@ let create compilation_step cs version args display_mode =
 		modules = [];
 		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
-		main = None;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
 		net_std = [];
@@ -908,7 +914,10 @@ let clone com is_macro_context =
 			tbool = mk_mono();
 			tstring = mk_mono();
 		};
-		main_class = None;
+		main = {
+			main_class = None;
+			main_expr = None;
+		};
 		features = Hashtbl.create 0;
 		callbacks = new compiler_callbacks;
 		display_information = {
@@ -1232,6 +1241,6 @@ let get_entry_point com =
 			| Some c when (PMap.mem "main" c.cl_statics) -> c
 			| _ -> Option.get (ExtList.List.find_map (fun t -> match t with TClassDecl c when c.cl_path = path -> Some c | _ -> None) m.m_types)
 		in
-		let e = Option.get com.main in (* must be present at this point *)
+		let e = Option.get com.main.main_expr in (* must be present at this point *)
 		(snd path, c, e)
-	) com.main_class
+	) com.main.main_class

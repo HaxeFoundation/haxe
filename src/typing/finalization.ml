@@ -9,7 +9,7 @@ open Typecore
 (* FINALIZATION *)
 
 let get_main ctx types =
-	match ctx.com.main_class with
+	match ctx.com.main.main_class with
 	| None -> None
 	| Some path ->
 		let p = null_pos in
