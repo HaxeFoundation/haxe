@@ -272,7 +272,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		| None -> raise Not_found
 	in
 	let type_field_by_et f e t =
-		f { e with etype = t } (follow_without_type t)
+		f (mk (TCast(e,None)) t e.epos) (follow_without_type t)
 	in
 	let type_field_by_e f e =
 		f e (follow_without_type e.etype)
