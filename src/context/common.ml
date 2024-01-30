@@ -354,8 +354,7 @@ type context = {
 	mutable json_out : json_api option;
 	(* config *)
 	version : int;
-	args : string list;
-	mutable sys_args : string list;
+	mutable args : string list;
 	mutable display : DisplayTypes.DisplayMode.settings;
 	mutable debug : bool;
 	mutable verbose : bool;
@@ -810,7 +809,6 @@ let create compilation_step cs version args display_mode =
 			display_module_has_macro_defines = false;
 			module_diagnostics = [];
 		};
-		sys_args = args;
 		debug = false;
 		display = display_mode;
 		verbose = false;

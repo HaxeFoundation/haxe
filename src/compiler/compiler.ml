@@ -509,6 +509,7 @@ let create_context comm cs compilation_step params = {
 	has_next = false;
 	has_error = false;
 	comm = comm;
+	runtime_args = [];
 }
 
 module HighLevel = struct
@@ -614,7 +615,7 @@ module HighLevel = struct
 			| "--run" :: cl :: args ->
 				let acc = cl :: "-x" :: acc in
 				let ctx = create_context (List.rev acc) in
-				ctx.com.sys_args <- args;
+				ctx.runtime_args <- args;
 				[],Some ctx
 			| ("-L" | "--library" | "-lib") :: name :: args ->
 				let libs,args = find_subsequent_libs [name] args in
