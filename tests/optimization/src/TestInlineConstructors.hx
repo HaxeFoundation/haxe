@@ -38,6 +38,19 @@ class NestedInlineClass {
 	}
 }
 
+class P {
+	public var x:Float;
+
+	public inline function new(x = 0)
+		this.x = x;
+}
+
+@:forward
+abstract PA(P) to P {
+	public inline function new(x)
+		this = new P(x);
+}
+
 class TestInlineConstructors extends TestBase {
 	@:js('return [1,2,3,3];')
 	static function testArrayInlining() {
@@ -129,5 +142,11 @@ class TestInlineConstructors extends TestBase {
 			acc += v;
 		}
 		return acc;
+	}
+
+	@:js('return [5];')
+	static function testForwardAbstract() {
+		var p2 = {v: new PA(5)};
+		return [p2.v.x];
 	}
 }
