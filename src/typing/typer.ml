@@ -1219,20 +1219,32 @@ and type_map_declaration ctx e1 el with_type p =
 and type_local_function ctx kind f with_type p =
 	let name,inline = match kind with FKNamed (name,inline) -> Some name,inline | _ -> None,false in
 	let params = TypeloadFunction.type_function_params ctx f TPHLocal (match name with None -> "localfun" | Some (n,_) -> n) p in
-	if params <> [] then begin
-		if name = None then display_error ctx.com "Type parameters not supported in unnamed local functions" p;
-		begin match ctx.com.platform with
-		| Java | Cs ->
-			(* gencommon just can't *)
-			if with_type <> WithType.NoValue then raise_typing_error "Type parameters are not supported for rvalue functions" p
+	let has_good_type_param_handling = match ctx.com.platform with
+		| Java ->
+			defined ctx.com Define.Jvm
+		| Cs ->
+			false
 		| _ ->
-			()
-		end
-	end;
-	let v,pname = (match name with
-		| None -> None,p
-		| Some (v,pn) -> Some v,pn
-	) in
+			true
+	in
+	if params <> [] && not has_good_type_param_handling then
+		if with_type <> WithType.NoValue then raise_typing_error "Type parameters are not supported for rvalue functions" p;
+	let vname,pname= match name with
+		| None ->
+			if params <> [] then begin
+				if has_good_type_param_handling then
+					Some(gen_local_prefix,VGenerated),null_pos
+				else begin
+					display_error ctx.com "Type parameters not supported in unnamed local functions" p;
+					None,p
+				end
+			end else
+				None,p
+		| Some (name,pn) ->
+			let origin = TVOLocalFunction in
+			check_local_variable_name ctx name origin p;
+			Some (name,VUser origin),pn
+	in
 	let old_tp,old_in_loop = ctx.type_params,ctx.in_loop in
 	ctx.type_params <- params @ ctx.type_params;
 	if not inline then ctx.in_loop <- false;
@@ -1336,13 +1348,14 @@ and type_local_function ctx kind f with_type p =
 			(* We want to apply params as if we accessed the function by name (see type_ident_raise). *)
 			apply_params params (Monomorph.spawn_constrained_monos (fun t -> t) params) ft
 	in
-	let v = (match v with
-		| None -> None
-		| Some v ->
-			let v = (add_local_with_origin ctx TVOLocalFunction v ft pname) in
+	let v = match vname with
+		| None ->
+			None
+		| Some(vname,vkind) ->
+			let v = add_local ctx vkind vname ft pname in
 			if params <> [] then v.v_extra <- Some (var_extra params None);
 			Some v
-	) in
+	in
 	let curfun = match ctx.curfun with
 		| FunStatic -> FunStatic
 		| FunMemberAbstract
