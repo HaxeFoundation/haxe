@@ -2237,8 +2237,8 @@ module HxbWriter = struct
 			let deps = DynArray.create () in
 			PMap.iter (fun _ mdep ->
 				match mdep.md_kind with
-				| MCode | MExtern | MFake when mdep.md_sign = m.m_extra.m_sign ->
-						DynArray.add deps mdep.md_path;
+				| MCode | MExtern when mdep.md_sign = m.m_extra.m_sign ->
+					DynArray.add deps mdep.md_path;
 				| _ ->
 					()
 			) m.m_extra.m_deps;
