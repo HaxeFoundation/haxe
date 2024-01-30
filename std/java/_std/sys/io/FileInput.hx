@@ -22,8 +22,6 @@
 
 package sys.io;
 
-import java.io.FileInputStream;
-import java.io.BufferedInputStream;
 import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.io.Eof;
@@ -33,12 +31,10 @@ import java.io.IOException;
 
 class FileInput extends Input {
 	var f:java.io.RandomAccessFile;
-	var b:BufferedInputStream;
 	var _eof:Bool;
 
 	function new(f) {
 		this.f = f;
-		b = new BufferedInputStream(new FileInputStream(f.getFD()));
 		this._eof = false;
 	}
 
@@ -50,16 +46,29 @@ class FileInput extends Input {
 	}
 
 	override public function readByte():Int {
-		var i = b.read();
-		if (i == -1) {
+		try {
+			return f.readUnsignedByte();
+		} catch (e:EOFException) {
+
 			_eof = true;
 			throw new Eof();
+		} catch (e:IOException) {
+			throw haxe.io.Error.Custom(e);
 		}
-		return i;
 	}
 
 	override public function readBytes(s:Bytes, pos:Int, len:Int):Int {
-		var ret = b.read(s.getData(), pos, len);
+		var ret = 0;
+		try {
+			ret = f.read(s.getData(), pos, len);
+		} catch (e:EOFException) {
+
+			_eof = true;
+			throw new Eof();
+		} catch (e:IOException) {
+			throw haxe.io.Error.Custom(e);
+		}
+
 		if (ret == -1) {
 			_eof = true;
 			throw new Eof();
@@ -80,6 +89,7 @@ class FileInput extends Input {
 					f.seek(haxe.Int64.add(f.length(), cast p));
 			}
 		} catch (e:EOFException) {
+
 			_eof = true;
 			throw new Eof();
 		} catch (e:IOException) {
