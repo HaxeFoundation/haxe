@@ -54,6 +54,7 @@ and compilation_context = {
 	mutable has_next : bool;
 	mutable has_error : bool;
 	comm : communication;
+	mutable runtime_args : string list;
 }
 
 type compilation_callbacks = {
