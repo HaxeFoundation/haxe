@@ -272,7 +272,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		| None -> raise Not_found
 	in
 	let type_field_by_et f e t =
-		f (mk (TCast(e,None)) t e.epos) (follow_without_type t)
+		f e (follow_without_type t)
 	in
 	let type_field_by_e f e =
 		f e (follow_without_type e.etype)
@@ -293,7 +293,15 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		type_field_by_forward f Meta.ForwardStatics a
 	in
 	let type_field_by_forward_member f e a tl =
-		let f () = type_field_by_et f e (Abstract.get_underlying_type ~return_first:true a tl) in
+		let f () =
+			let t = Abstract.get_underlying_type ~return_first:true a tl in
+			let e = if Meta.has Meta.ForwardAccessOnAbstract a.a_meta then
+				e
+			else
+				mk (TCast(e,None)) t e.epos
+			in
+			type_field_by_et f e t
+		in
 		type_field_by_forward f Meta.Forward a
 	in
 	let type_field_by_typedef f e td tl =
@@ -372,7 +380,10 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					field_access f FHAnon
 				)
 			| CTypes tl ->
-				type_field_by_list (fun (t,_) -> type_field_by_et type_field_by_type e t) tl
+				type_field_by_list (fun (t,_) ->
+					let e = mk (TCast(e,None)) t e.epos in
+					type_field_by_et type_field_by_type e t
+				) tl
 			| CUnknown ->
 				if not (List.exists (fun (m,_) -> m == r) ctx.monomorphs.perfunction) && not (ctx.untyped && ctx.com.platform = Neko) then
 					ctx.monomorphs.perfunction <- (r,p) :: ctx.monomorphs.perfunction;
