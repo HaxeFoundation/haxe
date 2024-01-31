@@ -6,9 +6,10 @@ import runci.Config.*;
 class Jvm {
 	static public function getJavaDependencies() {
 		haxelibInstallGit("HaxeFoundation", "hxjava", true);
+		haxelibInstallGit("HaxeFoundation", "format", "jvm", "--always");
 		runCommand("javac", ["-version"]);
 	}
-	
+
 	static final miscJavaDir = getMiscSubDir('java');
 
 	static public function run(args:Array<String>) {
