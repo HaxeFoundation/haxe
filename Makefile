@@ -161,7 +161,6 @@ xmldoc:
 	cd extra && \
 	$(CURDIR)/$(HAXELIB_OUTPUT) newrepo && \
 	$(CURDIR)/$(HAXELIB_OUTPUT) git hxcpp  https://github.com/HaxeFoundation/hxcpp   && \
-	$(CURDIR)/$(HAXELIB_OUTPUT) git hxjava https://github.com/HaxeFoundation/hxjava  && \
 	PATH="$(CURDIR):$(PATH)" $(CURDIR)/$(HAXE_OUTPUT) doc.hxml
 
 $(INSTALLER_TMP_DIR):
