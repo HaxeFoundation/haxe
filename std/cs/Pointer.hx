@@ -129,7 +129,5 @@ import cs.StdTypes.Int64;
 	@:arrayAccess public static function setp<T>(p:Pointer<T>, at:Int64, val:T):T;
 }
 
-@:forward
-@:forward.accessOnAbstract
-abstract PointerAccess<T>(T) {}
+@:forward abstract PointerAccess<T>(T) {}
 #end

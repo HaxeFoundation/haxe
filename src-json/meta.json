@@ -396,12 +396,6 @@
 		"links": ["https://haxe.org/manual/types-abstract-forward.html"]
 	},
 	{
-		"name": "ForwardAccessOnAbstract",
-		"metadata": ":forward.accessOnAbstract",
-		"doc": "Generates @:forward field access on the abstract itself instead of the underlying type.",
-		"targets": ["TAbstract"]
-	},
-	{
 		"name": "ForwardNew",
 		"metadata": ":forward.new",
 		"doc": "Forwards constructor call to underlying type.",
