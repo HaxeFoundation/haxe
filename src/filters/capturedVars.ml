@@ -43,11 +43,11 @@ let captured_vars com e =
 	let t = com.basic in
 
 	let impl = match com.platform with
-	(* optimized version for C#/Java - use native arrays *)
+	(* optimized version for Java - use native arrays *)
 	| Jvm ->
 		let cnativearray =
 			match (List.find (fun md -> match md with
-					| TClassDecl ({ cl_path = ["cs"|"java"],"NativeArray" }) -> true
+					| TClassDecl ({ cl_path = ["java"],"NativeArray" }) -> true
 					| _ -> false
 				) com.types)
 			with TClassDecl cl -> cl | _ -> die "" __LOC__

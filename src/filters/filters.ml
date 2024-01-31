@@ -251,16 +251,6 @@ let mark_switch_break_loops e =
 	in
 	run e
 
-let check_unification ctx e t =
-	begin match e.eexpr,t with
-		| TLocal v,TType({t_path = ["cs"],("Ref" | "Out")},_) ->
-			(* TODO: this smells of hack, but we have to deal with it somehow *)
-			add_var_flag v VCaptured;
-		| _ ->
-			()
-	end;
-	e
-
 let rec fix_return_dynamic_from_void_function return_is_void e =
 	match e.eexpr with
 	| TFunction fn ->
