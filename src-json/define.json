@@ -619,7 +619,7 @@
 	{
 		"name": "RealPosition",
 		"define": "real-position",
-		"doc": "Disables Haxe source mapping when targetting C#, removes position comments in Java and Php output.",
+		"doc": "Removes position comments in Php output.",
 		"platforms": ["php"]
 	},
 	{

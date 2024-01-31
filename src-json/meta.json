@@ -995,7 +995,7 @@
 	{
 		"name": "Strict",
 		"metadata": ":strict",
-		"doc": "Used to declare a native C# attribute or a native Java metadata; is type checked.",
+		"doc": "Used to declare a native Java metadata; is type checked.",
 		"platforms": ["jvm"]
 	},
 	{
