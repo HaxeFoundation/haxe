@@ -1732,9 +1732,7 @@ let check_functional_interface ctx c =
 		add_class_flag c CFunctionalInterface;
 		ctx.g.functional_interface_lut#add c.cl_path cf
 
-let init_class ctx c p herits fields =
-	let cctx = create_class_context c p in
-	let ctx = create_typer_context_for_class ctx cctx p in
+let init_class ctx cctx c p herits fields =
 	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
 	let fields = patch_class ctx c fields in
 	let fields = build_fields (ctx,cctx) c fields in

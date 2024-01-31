@@ -396,12 +396,14 @@ module TypeLevel = struct
 		let prev_build_count = ref (ctx.g.build_count - 1) in
 		let build() =
 			c.cl_build <- (fun()-> Building [c]);
+			let cctx = TypeloadFields.create_class_context c p in
+			let ctx = TypeloadFields.create_typer_context_for_class ctx cctx p in
 			let fl = TypeloadCheck.Inheritance.set_heritance ctx c herits p in
 			let rec build() =
 				c.cl_build <- (fun()-> Building [c]);
 				try
 					List.iter (fun f -> f()) fl;
-					TypeloadFields.init_class ctx c p d.d_flags d.d_data;
+					TypeloadFields.init_class ctx cctx c p d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
 					ctx.g.build_count <- ctx.g.build_count + 1;
 					List.iter (fun tp -> ignore(follow tp.ttp_type)) c.cl_params;
