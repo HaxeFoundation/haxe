@@ -109,7 +109,7 @@ let field_access ctx mode f fh e pfield =
 	let pfull = punion e.epos pfield in
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	check_no_closure_meta ctx f fh mode pfield;
-	let bypass_accessor = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
+	let bypass_accessor () = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
 	let make_access inline = FieldAccess.create e f fh (inline && ctx.allow_inline) pfull in
 	match f.cf_kind with
 	| Method m ->
@@ -208,8 +208,6 @@ let field_access ctx mode f fh e pfield =
 		| AccCall ->
 			let m = (match mode with MSet _ -> "set_" | _ -> "get_") ^ f.cf_name in
 			let bypass_accessor =
-				bypass_accessor
-				||
 				(
 					m = ctx.curfield.cf_name
 					&&
@@ -218,7 +216,7 @@ let field_access ctx mode f fh e pfield =
 					| TLocal v -> Option.map_default (fun vthis -> v == vthis) false ctx.vthis
 					| TTypeExpr (TClassDecl c) when c == ctx.curclass -> true
 					| _ -> false
-				)
+				) || bypass_accessor ()
 			in
 			if bypass_accessor then (
 				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> warning ctx WTemp "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" pfield | _ -> ());
@@ -272,7 +270,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		| None -> raise Not_found
 	in
 	let type_field_by_et f e t =
-		f { e with etype = t } (follow_without_type t)
+		f e (follow_without_type t)
 	in
 	let type_field_by_e f e =
 		f e (follow_without_type e.etype)
@@ -293,7 +291,15 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		type_field_by_forward f Meta.ForwardStatics a
 	in
 	let type_field_by_forward_member f e a tl =
-		let f () = type_field_by_et f e (Abstract.get_underlying_type ~return_first:true a tl) in
+		let f () =
+			let t = Abstract.get_underlying_type ~return_first:true a tl in
+			let e = if Meta.has Meta.ForwardAccessOnAbstract a.a_meta then
+				e
+			else
+				mk (TCast(e,None)) t e.epos
+			in
+			type_field_by_et f e t
+		in
 		type_field_by_forward f Meta.Forward a
 	in
 	let type_field_by_typedef f e td tl =
@@ -329,29 +335,33 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				type_field_by_interfaces e c
 			)
 		| TAnon a ->
-			(try
-				let f = PMap.find i a.a_fields in
-				if has_class_field_flag f CfImpl && not (has_class_field_flag f CfEnum) then display_error ctx.com "Cannot access non-static abstract field statically" pfield;
-				match !(a.a_status) with
+			begin match !(a.a_status) with
+				| ClassStatics c ->
+					begin try
+						let cf = PMap.find i c.cl_statics in
+						if has_class_field_flag cf CfImpl && not (has_class_field_flag cf CfEnum) then display_error ctx.com "Cannot access non-static abstract field statically" pfield;
+						field_access cf (FHStatic c)
+					with Not_found ->
+						begin match c.cl_kind with
+						| KAbstractImpl a ->
+							type_field_by_forward_static (fun() ->
+								let mt = try module_type_of_type a.a_this with Exit -> raise Not_found in
+								let et = type_module_type ctx mt p in
+								type_field_by_e type_field_by_type et
+							) a
+						| _ ->
+							raise Not_found
+						end
+					end
 				| EnumStatics en ->
-					let c = try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__ in
+					let c = PMap.find i en.e_constrs in
 					let fmode = FEnum (en,c) in
 					let t = enum_field_type ctx en c p in
 					AKExpr (mk (TField (e,fmode)) t p)
-				| ClassStatics c ->
-					field_access f (FHStatic c)
 				| _ ->
-					field_access f FHAnon
-			with Not_found ->
-				match !(a.a_status) with
-				| ClassStatics { cl_kind = KAbstractImpl a } ->
-					type_field_by_forward_static (fun() ->
-						let mt = try module_type_of_type a.a_this with Exit -> raise Not_found in
-						let et = type_module_type ctx mt p in
-						type_field_by_e type_field_by_type et
-					) a
-				| _ -> raise Not_found
-			)
+					let cf = PMap.find i a.a_fields in
+					field_access cf FHAnon
+			end;
 		| TMono r ->
 			let mk_field () = {
 				(mk_field i (mk_mono()) p null_pos) with
@@ -372,7 +382,10 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					field_access f FHAnon
 				)
 			| CTypes tl ->
-				type_field_by_list (fun (t,_) -> type_field_by_et type_field_by_type e t) tl
+				type_field_by_list (fun (t,_) ->
+					let e = mk (TCast(e,None)) t e.epos in
+					type_field_by_et type_field_by_type e t
+				) tl
 			| CUnknown ->
 				if not (List.exists (fun (m,_) -> m == r) ctx.monomorphs.perfunction) && not (ctx.untyped && ctx.com.platform = Neko) then
 					ctx.monomorphs.perfunction <- (r,p) :: ctx.monomorphs.perfunction;

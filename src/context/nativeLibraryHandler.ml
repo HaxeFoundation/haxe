@@ -17,7 +17,6 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
-open Globals
 open Common
 open CompilationContext
 
@@ -39,3 +38,9 @@ let add_native_lib com lib =
 			) (Sys.readdir file))
 		else
 			add file
+	| HxbLib ->
+		let hxb_lib = HxbLib.create_hxb_lib com file in
+		com.hxb_libs <- hxb_lib :: com.hxb_libs;
+		(fun () ->
+			hxb_lib#load
+		)

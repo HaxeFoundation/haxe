@@ -2569,7 +2569,7 @@ module StdSys = struct
 	open Common
 
 	let args = vfun0 (fun () ->
-		encode_array (List.map create_unknown ((get_ctx()).curapi.MacroApi.get_com()).sys_args)
+		encode_array (List.map create_unknown ((get_ctx()).curapi.MacroApi.get_com()).args)
 	)
 
 	let _command = vfun1 (fun cmd ->
@@ -2632,7 +2632,7 @@ module StdSys = struct
 	let programPath = vfun0 (fun () ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		match com.main_class with
+		match com.main.main_class with
 		| None -> vnull
 		| Some p ->
 			match ctx.curapi.get_type (s_type_path p) with

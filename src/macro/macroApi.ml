@@ -53,7 +53,6 @@ type 'value compiler_api = {
 	define_module : string -> 'value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
 	module_dependency : string -> string -> unit;
 	current_module : unit -> module_def;
-	use_cache : unit -> bool;
 	format_string : string -> Globals.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Globals.pos -> bool;
 	add_global_metadata : string -> string -> (bool * bool * bool) -> pos -> unit;
@@ -515,7 +514,6 @@ and encode_exceptions_config ec =
 and encode_package_rule pr =
 	let tag, pl = match pr with
 		| Forbidden -> 0, []
-		| Directory (path) -> 1, [encode_string path]
 		| Remap (path) -> 2, [encode_string path]
 	in
 	encode_enum ~pos:None IPackageRule tag pl
@@ -1170,7 +1168,7 @@ and encode_tclass c =
 		"fields", encode_ref c.cl_ordered_fields (encode_and_map_array encode_cfield) (fun() -> "class fields");
 		"statics", encode_ref c.cl_ordered_statics (encode_and_map_array encode_cfield) (fun() -> "class fields");
 		"constructor", (match c.cl_constructor with None -> vnull | Some cf -> encode_cfref cf);
-		"init", (match c.cl_init with None -> vnull | Some e -> encode_texpr e);
+		"init", (match TClass.get_cl_init c with None -> vnull | Some e -> encode_texpr e);
 		"overrides", (encode_array (List.map encode_cfref (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields)))
 	]
 
@@ -1846,7 +1844,7 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"class_path", vfun0 (fun() ->
-			encode_array (List.map encode_string (ccom()).class_path);
+			encode_array (List.map encode_string (ccom()).class_paths#as_string_list);
 		);
 		"resolve_path", vfun1 (fun file ->
 			let file = decode_string file in
@@ -2022,7 +2020,7 @@ let macro_api ccom get_api =
 				let api = encode_obj [
 					"outputFile", encode_string com.file;
 					"types", encode_array (List.map (fun t -> encode_type (type_of_module_type t)) com.types);
-					"main", (match com.main with None -> vnull | Some e -> encode_texpr e);
+					"main", (match com.main.main_expr with None -> vnull | Some e -> encode_texpr e);
 					"generateValue", vfun1 (fun v ->
 						let e = decode_texpr v in
 						let str = Genjs.gen_single_expr js_ctx e false in
@@ -2069,8 +2067,7 @@ let macro_api ccom get_api =
 		);
 		"flush_disk_cache", vfun0 (fun () ->
 			let com = (get_api()).get_com() in
-			com.file_lookup_cache#clear;
-			com.readdir_cache#clear;
+			com.class_paths#clear_cache;
 			vnull
 		);
 		"get_pos_infos", vfun1 (fun p ->
@@ -2169,15 +2166,15 @@ let macro_api ccom get_api =
 		"add_class_path", vfun1 (fun cp ->
 			let com = ccom() in
 			let cp = decode_string cp in
-			let cp = Path.add_trailing_slash cp in
-			com.class_path <- cp :: com.class_path;
+			let path = Path.add_trailing_slash cp in
+			let cp = new ClassPath.directory_class_path path User in
+			com.class_paths#add cp;
 			(match com.get_macros() with
 			| Some(mcom) ->
-				mcom.class_path <- cp :: mcom.class_path;
+				mcom.class_paths#add cp#clone;
 			| None ->
 				());
-			com.file_lookup_cache#clear;
-			com.readdir_cache#clear;
+			com.class_paths#clear_cache;
 			vnull
 		);
 		"add_native_lib", vfun1 (fun file ->
@@ -2244,8 +2241,8 @@ let macro_api ccom get_api =
 				"foptimize", vbool com.foptimize;
 				"platform", encode_platform com.platform;
 				"platformConfig", encode_platform_config com.config;
-				"stdPath", encode_array (List.map encode_string com.std_path);
-				"mainClass", (match com.main_class with None -> vnull | Some path -> encode_path path);
+				"stdPath", encode_array (List.map (fun path -> encode_string path#path) com.class_paths#get_std_paths);
+				"mainClass", (match com.main.main_class with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
 			]
 		);
@@ -2254,7 +2251,7 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"get_main_expr", vfun0 (fun() ->
-			match (ccom()).main with None -> vnull | Some e -> encode_texpr e
+			match (ccom()).main.main_expr with None -> vnull | Some e -> encode_texpr e
 		);
 		"get_module_types", vfun0 (fun() ->
 			encode_array (List.map encode_module_type (ccom()).types)

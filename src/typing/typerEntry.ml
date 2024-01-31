@@ -15,7 +15,8 @@ let create com macros =
 			macros = macros;
 			type_patches = Hashtbl.create 0;
 			module_check_policies = [];
-			delayed = [];
+			delayed = Array.init all_typer_passes_length (fun _ -> { tasks = []});
+			delayed_min_index = 0;
 			debug_delayed = [];
 			doinline = com.display.dms_inline && not (Common.defined com Define.NoInline);
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
@@ -24,6 +25,9 @@ let create com macros =
 			complete = false;
 			type_hints = [];
 			load_only_cached_modules = false;
+			return_partial_type = false;
+			build_count = 0;
+			t_dynamic_def = t_dynamic;
 			functional_interface_lut = new Lookup.pmap_lookup;
 			do_macro = MacroContext.type_macro;
 			do_load_macro = MacroContext.load_macro';
@@ -90,7 +94,10 @@ let create com macros =
 		match t with
 		| TAbstractDecl a ->
 			(match snd a.a_path with
-			| "Void" -> ctx.t.tvoid <- TAbstract (a,[]);
+			| "Void" ->
+				let t = TAbstract (a,[]) in
+				Type.unify t ctx.t.tvoid;
+				ctx.t.tvoid <- t;
 			| "Float" ->
 				let t = (TAbstract (a,[])) in
 				Type.unify t ctx.t.tfloat;
@@ -104,7 +111,7 @@ let create com macros =
 				Type.unify t ctx.t.tbool;
 				ctx.t.tbool <- t
 			| "Dynamic" ->
-				t_dynamic_def := TAbstract(a,extract_param_types a.a_params);
+				ctx.g.t_dynamic_def <- TAbstract(a,extract_param_types a.a_params);
 			| "Null" ->
 				let mk_null t =
 					try

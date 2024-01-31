@@ -10,6 +10,7 @@ type server_mode =
 type native_lib_kind =
 	| JavaLib
 	| SwfLib
+	| HxbLib
 
 type native_lib_arg = {
 	lib_file : string;
@@ -20,6 +21,7 @@ type native_lib_arg = {
 type arg_context = {
 	mutable classes : Globals.path list;
 	mutable xml_out : string option;
+	mutable hxb_out : string option;
 	mutable json_out : string option;
 	mutable cmds : string list;
 	mutable config_macros : string list;
@@ -30,6 +32,7 @@ type arg_context = {
 	mutable interp : bool;
 	mutable jvm_flag : bool;
 	mutable swf_version : bool;
+	mutable hxb_libs : native_lib_arg list;
 	mutable native_libs : native_lib_arg list;
 	mutable raise_usage : unit -> unit;
 	mutable display_arg : string option;
@@ -50,11 +53,13 @@ and compilation_context = {
 	mutable has_next : bool;
 	mutable has_error : bool;
 	comm : communication;
+	mutable runtime_args : string list;
 }
 
 type compilation_callbacks = {
 	before_anything : compilation_context -> unit;
 	after_target_init : compilation_context -> unit;
+	after_save : compilation_context -> unit;
 	after_compilation : compilation_context -> unit;
 }
 

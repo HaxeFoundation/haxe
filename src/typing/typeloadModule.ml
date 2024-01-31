@@ -295,7 +295,7 @@ module ModuleLevel = struct
 				r
 			with Not_found ->
 				if Sys.file_exists path then begin
-					let _,r = match !TypeloadParse.parse_hook com path p with
+					let _,r = match !TypeloadParse.parse_hook com (ClassPaths.create_resolved_file path ctx.com.empty_class_path) p with
 						| ParseSuccess(data,_,_) -> data
 						| ParseError(_,(msg,p),_) -> Parser.error msg p
 					in
@@ -379,10 +379,9 @@ module TypeLevel = struct
 			ef_meta = c.ec_meta;
 		} in
 		DeprecationCheck.check_is ctx.com ctx.m.curmod e.e_meta f.ef_meta f.ef_name f.ef_meta f.ef_name_pos;
-		let cf = class_field_of_enum_field f in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in f.ef_name_pos then
 			DisplayEmitter.display_enum_field ctx e f p;
-		f,cf
+		f
 
 	let init_class ctx c d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
@@ -394,7 +393,7 @@ module TypeLevel = struct
 				add_class_flag c CFinal;
 			end
 		) d.d_meta;
-		let prev_build_count = ref (!build_count - 1) in
+		let prev_build_count = ref (ctx.g.build_count - 1) in
 		let build() =
 			c.cl_build <- (fun()-> Building [c]);
 			let fl = TypeloadCheck.Inheritance.set_heritance ctx c herits p in
@@ -404,7 +403,7 @@ module TypeLevel = struct
 					List.iter (fun f -> f()) fl;
 					TypeloadFields.init_class ctx c p d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
-					incr build_count;
+					ctx.g.build_count <- ctx.g.build_count + 1;
 					List.iter (fun tp -> ignore(follow tp.ttp_type)) c.cl_params;
 					Built;
 				with TypeloadCheck.Build_canceled state ->
@@ -415,8 +414,8 @@ module TypeLevel = struct
 					(match state with
 					| Built -> die "" __LOC__
 					| Building cl ->
-						if !build_count = !prev_build_count then raise_typing_error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
-						prev_build_count := !build_count;
+						if ctx.g.build_count = !prev_build_count then raise_typing_error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
+						prev_build_count := ctx.g.build_count;
 						rebuild();
 						Building (c :: cl)
 					| BuildMacro f ->
@@ -504,12 +503,10 @@ module TypeLevel = struct
 		let names = ref [] in
 		let index = ref 0 in
 		let is_flat = ref true in
-		let fields = ref PMap.empty in
 		List.iter (fun c ->
 			if PMap.mem (fst c.ec_name) e.e_constrs then raise_typing_error ("Duplicate constructor " ^ fst c.ec_name) (pos c.ec_name);
-			let f,cf = load_enum_field ctx e et is_flat index c in
+			let f = load_enum_field ctx e et is_flat index c in
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
-			fields := PMap.add cf.cf_name cf !fields;
 			incr index;
 			names := (fst c.ec_name) :: !names;
 			if Meta.has Meta.InheritDoc f.ef_meta then
@@ -517,7 +514,7 @@ module TypeLevel = struct
 		) (!constructs);
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
-		unify ctx (TType(enum_module_type e !fields,[])) e.e_type p;
+		unify ctx (TType(enum_module_type e,[])) e.e_type p;
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
 			delay ctx PConnectField (fun() -> InheritDoc.build_enum_doc ctx e);
@@ -770,25 +767,102 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 	let timer = Timer.timer ["typing";"type_module"] in
 	Std.finally timer (type_module ctx mpath file ~is_extern tdecls) p *)
 
-let type_module_hook = ref (fun _ _ _ -> None)
+let type_module_hook = ref (fun _ _ _ -> NoModule)
 
-let load_module' ctx g m p =
+class hxb_reader_api_typeload
+	(ctx : typer)
+	(load_module : typer -> path -> pos -> module_def)
+	(p : pos)
+= object(self)
+	method make_module (path : path) (file : string) =
+		let m = ModuleLevel.make_module ctx path file p in
+		m.m_extra.m_processed <- 1;
+		m
+
+	method add_module (m : module_def) =
+		ctx.com.module_lut#add m.m_path m
+
+	method resolve_type (pack : string list) (mname : string) (tname : string) =
+		let m = load_module ctx (pack,mname) p in
+		List.find (fun t -> snd (t_path t) = tname) m.m_types
+
+	method resolve_module (path : path) =
+		load_module ctx path p
+
+	method basic_types =
+		ctx.com.basic
+
+	method get_var_id (i : int) =
+		(* The v_id in .hxb has no relation to this context, make a new one. *)
+		let uid = fst alloc_var' in
+		incr uid;
+		!uid
+
+	method read_expression_eagerly (cf : tclass_field) =
+		ctx.com.is_macro_context || match cf.cf_kind with
+			| Var _ ->
+				true
+			| Method _ ->
+				delay ctx PTypeField (fun () -> ignore(follow cf.cf_type));
+				false
+end
+
+let rec load_hxb_module ctx path p =
+	let read file bytes =
+		try
+			let api = (new hxb_reader_api_typeload ctx load_module' p :> HxbReaderApi.hxb_reader_api) in
+			let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats in
+			let read = reader#read api bytes in
+			let m = read MTF in
+			delay ctx PBuildClass (fun () ->
+				ignore(read EOT);
+				delay ctx PConnectField (fun () ->
+					ignore(read EOM);
+				);
+			);
+			m
+		with e ->
+			Printf.eprintf "\x1b[30;41mError loading %s from %s\x1b[0m\n" (snd path) file;
+			let msg = Printexc.to_string e and stack = Printexc.get_backtrace () in
+			Printf.eprintf " => %s\n%s\n" msg stack;
+			raise e
+	in
+	let target = Common.platform_name_macro ctx.com in
+	let rec loop l = match l with
+		| hxb_lib :: l ->
+			begin match hxb_lib#get_bytes target path with
+				| Some bytes ->
+					read hxb_lib#get_file_path bytes
+				| None ->
+					loop l
+			end
+		| [] ->
+			raise Not_found
+	in
+	loop ctx.com.hxb_libs
+
+and load_module' ctx m p =
 	try
 		(* Check current context *)
 		ctx.com.module_lut#find m
 	with Not_found ->
 		(* Check cache *)
 		match !type_module_hook ctx m p with
-		| Some m ->
+		| GoodModule m ->
 			m
-		| None ->
+		| BinaryModule _ ->
+			die "" __LOC__ (* The server builds those *)
+		| NoModule | BadModule _ -> try
+			load_hxb_module ctx m p
+		with Not_found ->
 			let raise_not_found () = raise_error_msg (Module_not_found m) p in
 			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
 			if ctx.g.load_only_cached_modules then raise_not_found();
 			let is_extern = ref false in
 			let file, decls = try
 				(* Try parsing *)
-				TypeloadParse.parse_module ctx m p
+				let rfile,decls = TypeloadParse.parse_module ctx m p in
+				rfile.file,decls
 			with Not_found ->
 				(* Nothing to parse, try loading extern type *)
 				let rec loop = function
@@ -804,13 +878,10 @@ let load_module' ctx g m p =
 				loop ctx.com.load_extern_type
 			in
 			let is_extern = !is_extern in
-			try
-				type_module ctx m file ~is_extern decls p
-			with Forbid_package (inf,pl,pf) when p <> null_pos ->
-				raise (Forbid_package (inf,p::pl,pf))
+			type_module ctx m file ~is_extern decls p
 
 let load_module ctx m p =
-	let m2 = load_module' ctx ctx.g m p in
+	let m2 = load_module' ctx m p in
 	add_dependency ~skip_postprocess:true ctx.m.curmod m2;
 	if ctx.pass = PTypeField then flush_pass ctx PConnectField ("load_module",fst m @ [snd m]);
 	m2

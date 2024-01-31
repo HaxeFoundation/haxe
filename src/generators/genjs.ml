@@ -1623,7 +1623,7 @@ let need_to_generate_interface ctx cl_iface =
 
 let generate_type ctx = function
 	| TClassDecl c ->
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
@@ -1970,7 +1970,7 @@ let generate com =
 	end;
 	List.iter (gen_block_element ~newline_after:true ~keep_blocks:(ctx.es_version >= 6) ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
-	(match com.main with
+	(match com.main.main_expr with
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
 	if ctx.js_modern then begin

@@ -121,6 +121,7 @@ let process_display_file com actx =
 		let rec loop = function
 			| [] -> None
 			| cp :: l ->
+				let cp = cp#path in
 				let cp = (if cp = "" then "./" else cp) in
 				let c = Path.add_trailing_slash (Path.get_real_path cp) in
 				let clen = String.length c in
@@ -135,14 +136,14 @@ let process_display_file com actx =
 				end else
 					loop l
 		in
-		loop com.class_path
+		loop com.class_paths#as_list
 	in
 	match com.display.dms_display_file_policy with
 		| DFPNo ->
 			DPKNone
 		| DFPOnly when (DisplayPosition.display_position#get).pfile = file_input_marker ->
 			actx.classes <- [];
-			com.main_class <- None;
+			com.main.main_class <- None;
 			begin match com.file_contents with
 			| [_, Some input] ->
 				com.file_contents <- [];
@@ -153,7 +154,7 @@ let process_display_file com actx =
 		| dfp ->
 			if dfp = DFPOnly then begin
 				actx.classes <- [];
-				com.main_class <- None;
+				com.main.main_class <- None;
 			end;
 			let real = Path.get_real_path (DisplayPosition.display_position#get).pfile in
 			let path = match get_module_path_from_file_path com real with
@@ -223,7 +224,7 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 
 let load_display_file_standalone (ctx : Typecore.typer) file =
 	let com = ctx.com in
-	let pack,decls = TypeloadParse.parse_module_file com file null_pos in
+	let pack,decls = TypeloadParse.parse_module_file com (ClassPaths.create_resolved_file file ctx.com.empty_class_path) null_pos in
 	let path = Path.FilePath.parse file in
 	let name = match path.file_name with
 		| None -> "?DISPLAY"
@@ -236,7 +237,7 @@ let load_display_file_standalone (ctx : Typecore.typer) file =
 			let parts = ExtString.String.nsplit dir (if path.backslash then "\\" else "/") in
 			let parts = List.rev (ExtList.List.drop (List.length pack) (List.rev parts)) in
 			let dir = ExtString.String.join (if path.backslash then "\\" else "/") parts in
-			com.class_path <- dir :: com.class_path
+			com.class_paths#add (new ClassPath.directory_class_path dir User)
 	end;
 	ignore(TypeloadModule.type_module ctx (pack,name) file ~dont_check_path:true decls null_pos)
 
@@ -318,7 +319,7 @@ let process_global_display_mode com tctx =
 		let symbols =
 			let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 			List.fold_left (fun acc (file_key,cfile) ->
-				let file = cfile.c_file_path in
+				let file = cfile.c_file_path.file in
 				if (filter <> None || DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then
 					(file,DocumentSymbols.collect_module_symbols (Some (file,get_module_name_of_cfile file cfile)) (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
 				else

@@ -317,6 +317,12 @@
 		"links": ["https://haxe.org/manual/types-abstract-forward.html"]
 	},
 	{
+		"name": "ForwardAccessOnAbstract",
+		"metadata": ":forward.accessOnAbstract",
+		"doc": "Generates @:forward field access on the abstract itself instead of the underlying type.",
+		"targets": ["TAbstract"]
+	},
+	{
 		"name": "ForwardNew",
 		"metadata": ":forward.new",
 		"doc": "Forwards constructor call to underlying type.",
@@ -430,6 +436,12 @@
 		"doc": "Specifies `hdll` name and function prefix for native functions.",
 		"platforms": ["hl"],
 		"targets": ["TClass", "TClassField"]
+	},
+	{
+		"name": "HxbId",
+		"metadata": ":hxb.id",
+		"doc": "Internally used by hxb",
+		"internal": true
 	},
 	{
 		"name": "HxCompletion",
@@ -601,12 +613,6 @@
 		"name": "Macro",
 		"metadata": ":macro",
 		"doc": "(deprecated)"
-	},
-	{
-		"name": "MaybeUsed",
-		"metadata": ":maybeUsed",
-		"doc": "Internally used by DCE to mark fields that might be kept.",
-		"internal": true
 	},
 	{
 		"name": "MergeBlock",

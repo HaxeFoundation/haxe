@@ -231,6 +231,10 @@ let build_instances ctx t p =
 	in
 	loop t
 
+let clone_type_parameter gctx mg path ttp =
+	let ttp = clone_type_parameter (generic_substitute_type gctx) path ttp in
+	ttp.ttp_class.cl_module <- mg;
+	ttp
 
 let build_generic_class ctx c p tl =
 	let pack = fst c.cl_path in
@@ -308,14 +312,7 @@ let build_generic_class ctx c p tl =
 		set_type_parameter_dependencies mg tl;
 		let build_field cf_old =
 			let params = List.map (fun ttp ->
-				let c = {ttp.ttp_class with cl_module = mg} in
-				let def = Option.map (generic_substitute_type gctx) ttp.ttp_default in
-				let constraints = match ttp.ttp_constraints with
-					| None -> None
-					| Some constraints -> Some (lazy (List.map (generic_substitute_type gctx) (Lazy.force constraints)))
-				in
-				let ttp' = mk_type_param c ttp.ttp_host def constraints in
-				c.cl_kind <- KTypeParameter ttp';
+				let ttp' = clone_type_parameter gctx mg ([cf_old.cf_name],ttp.ttp_name) ttp in
 				(ttp.ttp_type,ttp')
 			) cf_old.cf_params in
 			let param_subst = List.map (fun (t,ttp) -> t,(ttp.ttp_type,None)) params in
@@ -366,7 +363,7 @@ let build_generic_class ctx c p tl =
 			cf_new.cf_type <- TLazy r;
 			cf_new
 		in
-		if c.cl_init <> None then raise_typing_error "This class can't be generic" p;
+		if TClass.get_cl_init c <> None then raise_typing_error "This class can't be generic" p;
 		List.iter (fun cf -> match cf.cf_kind with
 			| Method MethMacro when not ctx.com.is_macro_context -> ()
 			| _ -> raise_typing_error "A generic class can't have static fields" cf.cf_pos
@@ -408,6 +405,17 @@ let build_generic_class ctx c p tl =
 		TInst (cg,[])
 	end
 
+let extract_type_parameters tl =
+	let params = DynArray.create () in
+	let rec loop t = match follow t with
+		| TInst({cl_kind = KTypeParameter ttp},[]) ->
+			DynArray.add params ttp;
+		| _ ->
+			TFunctions.iter loop t
+	in
+	List.iter loop tl;
+	DynArray.to_list params
+
 let type_generic_function ctx fa fcc with_type p =
 	let c,stat = match fa.fa_host with
 		| FHInstance(c,tl) -> c,false
@@ -431,8 +439,18 @@ let type_generic_function ctx fa fcc with_type p =
 	) monos;
 	let el = fcc.fc_args in
 	let gctx = make_generic ctx cf.cf_params monos (Meta.has (Meta.Custom ":debug.generic") cf.cf_meta) p in
-	let fc_type = build_instances ctx fcc.fc_type p in
 	let name = cf.cf_name ^ "_" ^ gctx.name in
+	let params = extract_type_parameters monos in
+	let clones = List.map (fun ttp ->
+		let name_path = if (fst ttp.ttp_class.cl_path) = [cf.cf_name] then ([name],ttp.ttp_name) else ttp.ttp_class.cl_path in
+		clone_type_parameter gctx c.cl_module name_path ttp
+	) params in
+	let param_subst = List.map2 (fun ttp ttp' ->
+		(ttp.ttp_type,ttp')
+	) params clones in
+	let param_subst = List.map (fun (t,ttp) -> t,(ttp.ttp_type,None)) param_subst in
+	let gctx = {gctx with subst = param_subst @ gctx.subst} in
+	let fc_type = build_instances ctx (generic_substitute_type gctx fcc.fc_type) p in
 	let unify_existing_field tcf pcf = try
 		unify_raise tcf fc_type p
 	with Error ({ err_message = Unify _; err_depth = depth } as err) ->
@@ -483,7 +501,12 @@ let type_generic_function ctx fa fcc with_type p =
 			);
 			cf2.cf_kind <- cf.cf_kind;
 			if not (has_class_field_flag cf CfPublic) then remove_class_field_flag cf2 CfPublic;
-			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: cf.cf_meta
+			let meta = List.filter (fun (meta,_,_) -> match meta with
+				| Meta.Generic -> false
+				| _ -> true
+			) cf.cf_meta in
+			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: meta;
+			cf2.cf_params <- clones
 		in
 		let mk_cf2 name =
 			mk_field ~static:stat name fc_type cf.cf_pos cf.cf_name_pos

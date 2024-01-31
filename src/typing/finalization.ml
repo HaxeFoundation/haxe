@@ -9,7 +9,7 @@ open Typecore
 (* FINALIZATION *)
 
 let get_main ctx types =
-	match ctx.com.main_class with
+	match ctx.com.main.main_class with
 	| None -> None
 	| Some path ->
 		let p = null_pos in
@@ -179,7 +179,7 @@ let sort_types com (modules : module_lut) =
 	and walk_class p c =
 		(match c.cl_super with None -> () | Some (c,_) -> loop_class p c);
 		List.iter (fun (c,_) -> loop_class p c) c.cl_implements;
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e -> walk_expr p e);
 		PMap.iter (fun _ f ->
