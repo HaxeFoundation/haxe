@@ -1,7 +1,7 @@
 package unit.issues;
 import haxe.ds.StringMap;
 
-#if (java || cs)
+#if java
 
 class Issue3173 extends Test
 {
@@ -20,7 +20,7 @@ private class O2 extends O<StringMap<Int>>
 	{
 	}
 
-#if (java || cs)
+#if java
 	@:overload
 #end
 	override public function foo(t:StringMap<Int>):Int
@@ -31,7 +31,7 @@ private class O2 extends O<StringMap<Int>>
 
 private class O<T>
 {
-#if (java || cs)
+#if java
 	@:overload
 #end
 	public function foo(t:T):Int

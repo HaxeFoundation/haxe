@@ -25,7 +25,7 @@ class ImportAll {
 
 	static function isSysTarget() {
 		return Context.defined("neko") || Context.defined("php") || Context.defined("cpp") ||
-		       Context.defined("java") || Context.defined("python") ||
+		       Context.defined("jvm") || Context.defined("python") ||
 		       Context.defined("lua") || Context.defined("hl") || Context.defined("eval");
 	}
 
@@ -51,12 +51,8 @@ class ImportAll {
 			if(!isSysTarget()) return;
 		case "sys.thread":
 			if ( !Context.defined("target.threaded") ) return;
-		case "java":
-			if( !Context.defined("java") ) return;
 		case "jvm":
 			if( !Context.defined("jvm") ) return;
-		case "cs":
-			if( !Context.defined("cs") ) return;
 		case "python":
 			if ( !Context.defined("python") ) return;
 		case "hl":
@@ -96,7 +92,6 @@ class ImportAll {
 						case "haxe.remoting.SocketWrapper": if( !Context.defined("flash") ) continue;
 						case "haxe.remoting.SyncSocketConnection": if( !(Context.defined("neko") || Context.defined("php") || Context.defined("cpp")) ) continue;
 						case "neko.vm.Ui" | "sys.db.Sqlite" | "sys.db.Mysql" if ( Context.defined("interp") ): continue;
-						case "sys.db.Sqlite" | "sys.db.Mysql" | "cs.db.AdoNet" if ( Context.defined("cs") ): continue;
 						case "haxe.atomic.AtomicBool" if(!Context.defined("target.atomics")): continue;
 						case "haxe.atomic.AtomicInt" if(!Context.defined("target.atomics")): continue;
 						case "haxe.atomic.AtomicObject" if(!Context.defined("target.atomics") || Context.defined("js") || Context.defined("cpp")): continue;

@@ -2,12 +2,10 @@ package unit.issues;
 import haxe.ds.*;
 #if java
 import java.NativeArray;
-#elseif cs
-import cs.NativeArray;
 #end
 
 class Issue5862 extends Test {
-#if (java || cs)
+#if java
   public function test() {
     var imap = new IntMap();
     imap.set(0, "val1");

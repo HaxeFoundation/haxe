@@ -256,7 +256,7 @@ map["bar"] = map["foo"] = 9;
 map["bar"] == 9;
 map["foo"] == 9;
 
-#if !(java || cs)
+#if !java
 ['' => ''].keys().next() == '';
 ['' => ''].iterator().next() == '';
 [2 => 3].keys().next() == 2;
@@ -269,7 +269,7 @@ var map:Map<String, Int>;
 HelperMacros.typedAs((null : Map<String, Int>), map = []);
 HelperMacros.typeError(map[1] = 1) == true;
 
-#if !(java || cs)
+#if !java
 ['' => ''].keyValueIterator().next().key == '';
 ['' => ''].keyValueIterator().next().value == '';
 [2 => 3].keyValueIterator().next().key == 2;

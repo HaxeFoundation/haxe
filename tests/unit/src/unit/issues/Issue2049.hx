@@ -1,15 +1,12 @@
 package unit.issues;
-#if cs
-import cs.NativeArray;
-import cs.Lib;
-#elseif java
+#if java
 import java.NativeArray;
 import java.Lib;
 #end
 
 class Issue2049 extends unit.Test
 {
-#if (java || cs)
+#if java
 	public function test()
 	{
 		var arr = [ 1., 1., 1., 0.5 ].map( function( n: Float ): Single { return n; });
@@ -20,5 +17,4 @@ class Issue2049 extends unit.Test
 		eq(.5,scaleFactors[3]);
 	}
 #end
-
 }

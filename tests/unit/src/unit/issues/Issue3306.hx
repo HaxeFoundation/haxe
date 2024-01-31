@@ -1,11 +1,11 @@
 package unit.issues;
 
-#if (java || cs)
+#if java
 typedef Float32 = Single;
 #end
 
 class Issue3306 extends Test {
-#if (java || cs)
+#if java
 	function test() {
 		var iw:Float32 = 0.0;
 		var iw2:Float32;

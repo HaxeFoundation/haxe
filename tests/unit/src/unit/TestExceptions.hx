@@ -25,8 +25,6 @@ private class CustomNativeException extends js.lib.Error {}
 private class CustomNativeException extends flash.errors.Error {}
 #elseif java
 private class CustomNativeException extends java.lang.RuntimeException {}
-#elseif cs
-private class CustomNativeException extends cs.system.Exception {}
 #elseif python
 private class CustomNativeException extends python.Exceptions.Exception {}
 #elseif (lua || eval || neko || hl || cpp)

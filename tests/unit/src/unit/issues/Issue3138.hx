@@ -5,7 +5,7 @@ class Issue3138 extends Test
 	public function test()
 	{
 		var a = new B();
-#if (java || cs)
+#if java
 		var b = new D();
 #end
 		noAssert();
@@ -22,7 +22,7 @@ private class B extends A {
 	}
 }
 
-#if (cs || java)
+#if java
 
 private class C {
 	public function new(a) {}

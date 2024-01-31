@@ -9,7 +9,7 @@ class Issue4203 extends Test {
   }
 }
 
-#if (java || cs)
+#if java
 @:nativeGen
 #end
 private interface NativeItem<T> {

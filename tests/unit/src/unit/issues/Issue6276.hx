@@ -3,7 +3,7 @@ package unit.issues;
 using Reflect;
 
 class Issue6276 extends unit.Test {
-	#if (!java && !cs)
+	#if (!java)
 	function test(){
 		var s = "bar";
 

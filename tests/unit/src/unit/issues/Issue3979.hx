@@ -1,13 +1,11 @@
 package unit.issues;
 #if java
 import java.NativeArray;
-#elseif cs
-import cs.NativeArray;
 #end
 
 class Issue3979 extends Test
 {
-	#if (java || cs)
+	#if java
 	public function test()
 	{
 		var v = 0;

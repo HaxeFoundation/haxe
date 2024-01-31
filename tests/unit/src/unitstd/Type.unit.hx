@@ -3,7 +3,7 @@ Type.getClass("foo") == String;
 Type.getClass(new C()) == C;
 
 //Issue #1485
-#if !(java || cs)
+#if !java
 Type.getClass([]) == Array;
 #end
 Type.getClass(Float) == null;

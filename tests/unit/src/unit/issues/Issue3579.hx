@@ -31,6 +31,6 @@ private class SomeClass
 	}
 }
 
-#if (!java && !cs)
+#if (!java)
 private typedef Single = Float
 #end
