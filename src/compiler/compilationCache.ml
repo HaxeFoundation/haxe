@@ -70,19 +70,21 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		try (Hashtbl.find modules path).m_extra with Not_found -> (Hashtbl.find binary_cache path).mc_extra
 
 	method cache_module warn anon_identification hxb_writer_stats path m =
-		match m.m_extra.m_kind with
-		| MImport ->
-			Hashtbl.add modules m.m_path m
-		| _ ->
-			let writer = HxbWriter.create warn anon_identification hxb_writer_stats in
-			HxbWriter.write_module writer m;
-			let chunks = HxbWriter.get_chunks writer in
-			Hashtbl.replace binary_cache path {
-				mc_path = path;
-				mc_id = m.m_id;
-				mc_chunks = chunks;
-				mc_extra = { m.m_extra with m_cache_state = MSGood }
-			}
+		Hashtbl.replace modules path m;
+		if false then
+			match m.m_extra.m_kind with
+			| MImport ->
+				Hashtbl.add modules m.m_path m
+			| _ ->
+				let writer = HxbWriter.create warn anon_identification hxb_writer_stats in
+				HxbWriter.write_module writer m;
+				let chunks = HxbWriter.get_chunks writer in
+				Hashtbl.replace binary_cache path {
+					mc_path = path;
+					mc_id = m.m_id;
+					mc_chunks = chunks;
+					mc_extra = { m.m_extra with m_cache_state = MSGood }
+				}
 
 	method clear_cache =
 		Hashtbl.clear modules
