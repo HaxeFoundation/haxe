@@ -557,7 +557,7 @@ let create_typer_context_for_class ctx cctx p =
 	let ctx = {
 		ctx with
 		curclass = c;
-		type_params = c.cl_params;
+		type_params = (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params);
 		pass = PBuildClass;
 		tthis = (match cctx.abstract with
 			| Some a ->
@@ -636,7 +636,9 @@ let create_typer_context_for_field ctx cctx fctx cff =
 		monomorphs = {
 			perfunction = [];
 		};
+		type_params = if fctx.is_static && not fctx.is_abstract_member && not (Meta.has Meta.LibType cctx.tclass.cl_meta) (* TODO: remove this *) then [] else ctx.type_params;
 	} in
+
 	let c = cctx.tclass in
 	if (fctx.is_abstract && not (has_meta Meta.LibType c.cl_meta)) then begin
 		if fctx.is_static then
@@ -1356,7 +1358,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	let is_override = Option.is_some fctx.override in
 	if (is_override && fctx.is_static) then invalid_modifier_combination fctx ctx.com fctx "override" "static" p;
 
-	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
+	ctx.type_params <- params @ ctx.type_params;
 	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in
 	let t = TFun (args#for_type,ret) in
 	let cf = {
@@ -1631,10 +1633,6 @@ let init_field (ctx,cctx,fctx) f =
 			| _ -> ()
 			);
 		| None -> ()
-	end;
-	begin match cctx.abstract with
-		| Some a when fctx.is_abstract_member -> ctx.type_params <- a.a_params;
-		| _ -> ()
 	end;
 	let cf =
 		match f.cff_kind with

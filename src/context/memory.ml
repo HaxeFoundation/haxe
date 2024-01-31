@@ -169,6 +169,9 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 				"size",jint (mem_size cache_mem.(1));
 				"list",jarray l;
 			];
+			"binaryCache",jobject [
+				"size",jint (mem_size cache_mem.(2));
+			];
 		]
 	| MModule(sign,path) ->
 		let cc = cs#get_context sign in

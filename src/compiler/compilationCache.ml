@@ -108,7 +108,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 
 (* Pointers for memory inspection. *)
 	method get_pointers : unit array =
-		[|Obj.magic files;Obj.magic modules|]
+		[|Obj.magic files;Obj.magic modules;Obj.magic binary_cache|]
 end
 
 let create_directory path mtime = {
