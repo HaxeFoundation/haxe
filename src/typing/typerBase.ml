@@ -160,7 +160,7 @@ let get_this ctx p =
 					add_var_flag v VUsedByTyper;
 					v
 				end else
-					add_local ctx VGenerated (Printf.sprintf "%sthis" gen_local_prefix) ctx.tthis p
+					add_local ctx VGenerated (Printf.sprintf "%sthis" gen_local_prefix) ctx.c.tthis p
 				in
 				ctx.vthis <- Some v;
 				v
@@ -168,12 +168,12 @@ let get_this ctx p =
 				ctx.locals <- PMap.add v.v_name v ctx.locals;
 				v
 		in
-		mk (TLocal v) ctx.tthis p
+		mk (TLocal v) ctx.c.tthis p
 	| FunMemberAbstract ->
 		let v = (try PMap.find "this" ctx.locals with Not_found -> raise_typing_error "Cannot reference this abstract here" p) in
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
-		mk (TConst TThis) ctx.tthis p
+		mk (TConst TThis) ctx.c.tthis p
 
 let get_stored_typed_expr ctx id =
 	let e = ctx.com.stored_typed_exprs#find id in
@@ -184,7 +184,7 @@ let type_stored_expr ctx e1 =
 	get_stored_typed_expr ctx id
 
 let assign_to_this_is_allowed ctx =
-	match ctx.curclass.cl_kind with
+	match ctx.c.curclass.cl_kind with
 		| KAbstractImpl _ ->
 			(match ctx.curfield.cf_kind with
 				| Method MethInline -> true

@@ -546,7 +546,7 @@ class inline_state ctx ethis params cf f p = object(self)
 		in
 		let e = (if PMap.is_empty subst then e else inline_params false false e) in
 		let init = match vars with [] -> None | l -> Some l in
-		let md = ctx.curclass.cl_module.m_extra.m_display in
+		let md = ctx.c.curclass.cl_module.m_extra.m_display in
 		md.m_inline_calls <- (cf.cf_name_pos,{p with pmax = p.pmin + String.length cf.cf_name}) :: md.m_inline_calls;
 		let wrap e =
 			(* we can't mute the type of the expression because it is not correct to do so *)

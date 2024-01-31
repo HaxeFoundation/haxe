@@ -427,7 +427,7 @@ let make_macro_api ctx mctx p =
 			tp.tp_meta <- tp.tp_meta @ (List.map (fun (m,el,_) -> (m,el,p)) ml);
 		);
 		MacroApi.get_local_type = (fun() ->
-			match ctx.get_build_infos() with
+			match ctx.c.get_build_infos() with
 			| Some (mt,tl,_) ->
 				Some (match mt with
 					| TClassDecl c -> TInst (c,tl)
@@ -436,10 +436,10 @@ let make_macro_api ctx mctx p =
 					| TAbstractDecl a -> TAbstract(a,tl)
 				)
 			| _ ->
-				if ctx.curclass == null_class then
+				if ctx.c.curclass == null_class then
 					None
 				else
-					Some (TInst (ctx.curclass,[]))
+					Some (TInst (ctx.c.curclass,[]))
 		);
 		MacroApi.get_expected_type = (fun() ->
 			match ctx.with_type_stack with
@@ -464,7 +464,7 @@ let make_macro_api ctx mctx p =
 			ctx.locals;
 		);
 		MacroApi.get_build_fields = (fun() ->
-			match ctx.get_build_infos() with
+			match ctx.c.get_build_infos() with
 			| None -> Interp.vnull
 			| Some (_,_,fields) -> Interp.encode_array (List.map Interp.encode_field fields)
 		);
@@ -656,7 +656,7 @@ and flush_macro_context mint mctx =
 	let type_filters = [
 		FiltersCommon.remove_generic_base;
 		Exceptions.patch_constructors mctx;
-		(fun mt -> AddFieldInits.add_field_inits mctx.curclass.cl_path (RenameVars.init mctx.com) mctx.com mt);
+		(fun mt -> AddFieldInits.add_field_inits mctx.c.curclass.cl_path (RenameVars.init mctx.com) mctx.com mt);
 		minimal_restore;
 	] in
 	let ready = fun t ->
@@ -976,7 +976,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				| MBuild ->
 					"Array<Field>",(fun () ->
 						let fields = if v = Interp.vnull then
-								(match ctx.get_build_infos() with
+								(match ctx.c.get_build_infos() with
 								| None -> die "" __LOC__
 								| Some (_,_,fields) -> fields)
 							else
@@ -1008,7 +1008,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	e
 
 let call_macro mctx args margs call p =
-	mctx.curclass <- null_class;
+	mctx.c.curclass <- null_class;
 	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> raise_typing_error "Argument should be a constant" e.epos) el)
 

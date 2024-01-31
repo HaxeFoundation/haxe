@@ -112,7 +112,7 @@ let collect ctx e_ast e dk with_type p =
 	let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 	let should_access c cf stat =
 		if Meta.has Meta.NoCompletion cf.cf_meta then false
-		else if c != ctx.curclass && not (has_class_field_flag cf CfPublic) && String.length cf.cf_name > 4 then begin match String.sub cf.cf_name 0 4 with
+		else if c != ctx.c.curclass && not (has_class_field_flag cf CfPublic) && String.length cf.cf_name > 4 then begin match String.sub cf.cf_name 0 4 with
 			| "get_" | "set_" -> false
 			| _ -> can_access ctx c cf stat
 		end else
@@ -404,7 +404,7 @@ let handle_missing_field_raise ctx tthis i mode with_type pfield =
 let handle_missing_ident ctx i mode with_type p =
 	match ctx.curfun with
 	| FunStatic ->
-		let e_self = Texpr.Builder.make_static_this ctx.curclass p in
+		let e_self = Texpr.Builder.make_static_this ctx.c.curclass p in
 		begin try
 			handle_missing_field_raise ctx e_self.etype i mode with_type p
 		with Exit ->
@@ -412,7 +412,7 @@ let handle_missing_ident ctx i mode with_type p =
 		end
 	| _ ->
 		begin try
-			handle_missing_field_raise ctx ctx.tthis i mode with_type p
+			handle_missing_field_raise ctx ctx.c.tthis i mode with_type p
 		with Exit ->
 			()
 		end

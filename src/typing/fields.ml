@@ -77,7 +77,7 @@ let no_abstract_constructor c p =
 
 let check_constructor_access ctx c f p =
 	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx.com (error_msg (No_constructor (TClassDecl c))) p;
-	if not (can_access ctx c f true || extends ctx.curclass c) && not ctx.untyped then display_error ctx.com (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
+	if not (can_access ctx c f true || extends ctx.c.curclass c) && not ctx.untyped then display_error ctx.com (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
 let check_no_closure_meta ctx cf fa mode p =
 	match mode with
@@ -193,11 +193,11 @@ let field_access ctx mode f fh e pfield =
 		match (match mode with MGet | MCall _ -> v.v_read | MSet _ -> v.v_write) with
 		| AccNo when not (Meta.has Meta.PrivateAccess ctx.meta) ->
 			(match follow e.etype with
-			| TInst (c,_) when extends ctx.curclass c || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false ->
+			| TInst (c,_) when extends ctx.c.curclass c || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false ->
 				normal false
 			| TAnon a ->
 				(match !(a.a_status) with
-				| ClassStatics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal false
+				| ClassStatics c2 when ctx.c.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal false
 				| _ -> if ctx.untyped then normal false else normal_failure())
 			| _ ->
 				if ctx.untyped then normal false else normal_failure())
@@ -214,7 +214,7 @@ let field_access ctx mode f fh e pfield =
 					match e.eexpr with
 					| TConst TThis -> true
 					| TLocal v -> Option.map_default (fun vthis -> v == vthis) false ctx.vthis
-					| TTypeExpr (TClassDecl c) when c == ctx.curclass -> true
+					| TTypeExpr (TClassDecl c) when c == ctx.c.curclass -> true
 					| _ -> false
 				) || bypass_accessor ()
 			in
@@ -239,10 +239,10 @@ let field_access ctx mode f fh e pfield =
 			normal true
 		| AccCtor ->
 			let is_child_of_abstract c =
-				has_class_flag c CAbstract && extends ctx.curclass c
+				has_class_flag c CAbstract && extends ctx.c.curclass c
 			in
 			(match ctx.curfun, fh with
-				| FunConstructor, FHInstance(c,_) when c == ctx.curclass || is_child_of_abstract c -> normal false
+				| FunConstructor, FHInstance(c,_) when c == ctx.c.curclass || is_child_of_abstract c -> normal false
 				| _ -> normal_failure()
 			)
 		| AccRequire (r,msg) ->

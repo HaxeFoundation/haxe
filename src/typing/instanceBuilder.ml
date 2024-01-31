@@ -14,8 +14,8 @@ let get_macro_path ctx e args p =
 	let path = match e with
 		| (EConst(Ident i)),_ ->
 			let path = try
-				if not (PMap.mem i ctx.curclass.cl_statics) then raise Not_found;
-				ctx.curclass.cl_path
+				if not (PMap.mem i ctx.c.curclass.cl_statics) then raise Not_found;
+				ctx.c.curclass.cl_path
 			with Not_found -> try
 				(t_infos (let path,_,_ = PMap.find i (ctx.m.import_resolution#extract_field_imports) in path)).mt_path
 			with Not_found ->
@@ -55,14 +55,14 @@ let build_macro_build ctx c pl cfl p =
 		| _,[ECall(e,args),_],_ -> get_macro_path ctx e args p
 		| _ -> raise_typing_error "genericBuild requires a single expression call parameter" p
 	in
-	let old = ctx.ret,ctx.get_build_infos in
-	ctx.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));
+	let old = ctx.ret,ctx.c.get_build_infos in
+	ctx.c.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
 		| MError | MMacroInMacro -> spawn_monomorph ctx p
 		| MSuccess _ -> ctx.ret
 	) in
 	ctx.ret <- fst old;
-	ctx.get_build_infos <- snd old;
+	ctx.c.get_build_infos <- snd old;
 	t
 
 (* -------------------------------------------------------------------------- *)

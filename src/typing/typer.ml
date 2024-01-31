@@ -351,7 +351,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		begin match mode with
 		| MSet _ ->
 			add_class_field_flag ctx.curfield CfModifiesThis;
-			begin match ctx.curclass.cl_kind with
+			begin match ctx.c.curclass.cl_kind with
 			| KAbstractImpl _ ->
 				if not (assign_to_this_is_allowed ctx) then
 					raise_typing_error "Abstract 'this' value can only be modified inside an inline function" p;
@@ -360,7 +360,7 @@ let rec type_ident_raise ctx i p mode with_type =
 				AKNo(acc,p)
 			end
 		| MCall _ ->
-			begin match ctx.curclass.cl_kind with
+			begin match ctx.c.curclass.cl_kind with
 			| KAbstractImpl _ ->
 				acc
 			| _ ->
@@ -370,7 +370,7 @@ let rec type_ident_raise ctx i p mode with_type =
 			acc
 		end;
 	| "abstract" ->
-		begin match mode, ctx.curclass.cl_kind with
+		begin match mode, ctx.c.curclass.cl_kind with
 			| MSet _, KAbstractImpl ab -> raise_typing_error "Property 'abstract' is read-only" p;
 			| (MGet, KAbstractImpl ab)
 			| (MCall _, KAbstractImpl ab) ->
@@ -382,7 +382,7 @@ let rec type_ident_raise ctx i p mode with_type =
 				raise_typing_error "Property 'abstract' is reserved and only available in abstracts" p
 		end
 	| "super" ->
-		let t = (match ctx.curclass.cl_super with
+		let t = (match ctx.c.curclass.cl_super with
 			| None -> raise_typing_error "Current class does not have a superclass" p
 			| Some (c,params) -> TInst(c,params)
 		) in
@@ -448,24 +448,24 @@ let rec type_ident_raise ctx i p mode with_type =
 	with Not_found -> try
 		(* member variable lookup *)
 		if ctx.curfun = FunStatic then raise Not_found;
-		let c , t , f = class_field ctx ctx.curclass (extract_param_types ctx.curclass.cl_params) i p in
+		let c , t , f = class_field ctx ctx.c.curclass (extract_param_types ctx.c.curclass.cl_params) i p in
 		field_access ctx mode f (match c with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl)) (get_this ctx p) p
 	with Not_found -> try
 		(* static variable lookup *)
-		let f = PMap.find i ctx.curclass.cl_statics in
+		let f = PMap.find i ctx.c.curclass.cl_statics in
 		let is_impl = has_class_field_flag f CfImpl in
 		let is_enum = has_class_field_flag f CfEnum in
 		if is_impl && not (has_class_field_flag ctx.curfield CfImpl) && not is_enum then
 			raise_typing_error (Printf.sprintf "Cannot access non-static field %s from static method" f.cf_name) p;
-		let e,fa = match ctx.curclass.cl_kind with
+		let e,fa = match ctx.c.curclass.cl_kind with
 			| KAbstractImpl a when is_impl && not is_enum ->
 				let tl = extract_param_types a.a_params in
 				let e = get_this ctx p in
 				let e = {e with etype = TAbstract(a,tl)} in
-				e,FHAbstract(a,tl,ctx.curclass)
+				e,FHAbstract(a,tl,ctx.c.curclass)
 			| _ ->
-				let e = type_module_type ctx (TClassDecl ctx.curclass) p in
-				e,FHStatic ctx.curclass
+				let e = type_module_type ctx (TClassDecl ctx.c.curclass) p in
+				e,FHStatic ctx.c.curclass
 		in
 		field_access ctx mode f fa e p
 	with Not_found -> try
@@ -502,12 +502,12 @@ and type_ident ctx i p mode with_type =
 		with Not_found ->
 			if ctx.untyped then begin
 				if i = "__this__" then
-					AKExpr (mk (TConst TThis) ctx.tthis p)
+					AKExpr (mk (TConst TThis) ctx.c.tthis p)
 				else
 					let t = mk_mono() in
 					AKExpr ((mk (TIdent i)) t p)
 			end else begin
-				if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then raise_typing_error ("Cannot access " ^ i ^ " in static function") p;
+				if ctx.curfun = FunStatic && PMap.mem i ctx.c.curclass.cl_fields then raise_typing_error ("Cannot access " ^ i ^ " in static function") p;
 				if !resolved_to_type_parameter then begin
 					display_error ctx.com ("Only @:const type parameters on @:generic classes can be used as value") p;
 					AKExpr (mk (TConst TNull) t_dynamic p)
@@ -707,7 +707,7 @@ and type_vars ctx vl p =
 	let vl = List.map (fun ev ->
 		let n = fst ev.ev_name
 		and pv = snd ev.ev_name in
-		DeprecationCheck.check_is ctx.com ctx.m.curmod ctx.curclass.cl_meta ctx.curfield.cf_meta n ev.ev_meta pv;
+		DeprecationCheck.check_is ctx.com ctx.m.curmod ctx.c.curclass.cl_meta ctx.curfield.cf_meta n ev.ev_meta pv;
 		try
 			let t = Typeload.load_type_hint ctx p ev.ev_type in
 			let e = (match ev.ev_expr with
@@ -1776,7 +1776,7 @@ and type_call_builtin ctx e el mode with_type p =
 		TyperDisplay.handle_display ctx (ECall(e1,el),p) dk mode with_type
 	| (EConst (Ident "super"),sp) , el ->
 		if ctx.curfun <> FunConstructor then raise_typing_error "Cannot call super constructor outside class constructor" p;
-		let el, t = (match ctx.curclass.cl_super with
+		let el, t = (match ctx.c.curclass.cl_super with
 		| None -> raise_typing_error "Current class does not have a super" p
 		| Some (c,params) ->
 			let fa = FieldAccess.get_constructor_access c params p in

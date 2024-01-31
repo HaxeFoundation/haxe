@@ -31,7 +31,7 @@ open Common
 open Error
 
 type class_init_ctx = {
-	tclass : tclass; (* I don't trust ctx.curclass because it's mutable. *)
+	tclass : tclass; (* I don't trust ctx.c.curclass because it's mutable. *)
 	is_lib : bool;
 	is_native : bool;
 	is_core_api : bool;
@@ -466,10 +466,10 @@ let build_module_def ctx mt meta fvars fbuild =
 						raise_typing_error "Invalid macro path" p
 				in
 				if ctx.com.is_macro_context then raise_typing_error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
-				let old = ctx.get_build_infos in
-				ctx.get_build_infos <- (fun() -> Some (mt, extract_param_types (t_infos mt).mt_params, fvars()));
-				let r = try ctx.g.do_macro ctx MBuild cpath meth el p with e -> ctx.get_build_infos <- old; raise e in
-				ctx.get_build_infos <- old;
+				let old = ctx.c.get_build_infos in
+				ctx.c.get_build_infos <- (fun() -> Some (mt, extract_param_types (t_infos mt).mt_params, fvars()));
+				let r = try ctx.g.do_macro ctx MBuild cpath meth el p with e -> ctx.c.get_build_infos <- old; raise e in
+				ctx.c.get_build_infos <- old;
 				(match r with
 				| MError | MMacroInMacro -> raise_typing_error "Build failure" p
 				| MSuccess e -> fbuild e)
@@ -556,15 +556,20 @@ let create_typer_context_for_class ctx cctx p =
 	if Meta.has Meta.Macro c.cl_meta then display_error ctx.com "Macro classes are no longer allowed in haxe 3" c.cl_pos;
 	let ctx = {
 		ctx with
-		curclass = c;
+		c = {
+			curclass = c;
+			tthis = (match cctx.abstract with
+				| Some a ->
+					(match a.a_this with
+					| TMono r when r.tm_type = None -> TAbstract (a,extract_param_types c.cl_params)
+					| t -> t)
+				| None -> TInst (c,extract_param_types c.cl_params)
+			);
+			get_build_infos = (fun () -> None);
+		};
 		type_params = (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params);
 		pass = PBuildClass;
-		tthis = (match cctx.abstract with
-			| Some a ->
-				(match a.a_this with
-				| TMono r when r.tm_type = None -> TAbstract (a,extract_param_types c.cl_params)
-				| t -> t)
-			| None -> TInst (c,extract_param_types c.cl_params));
+
 	} in
 	ctx
 
@@ -627,7 +632,7 @@ let create_field_context ctx cctx cff is_display_file display_modifier =
 	fctx
 
 let create_typer_context_for_field ctx cctx fctx cff =
-	DeprecationCheck.check_is ctx.com ctx.m.curmod ctx.curclass.cl_meta cff.cff_meta (fst cff.cff_name) cff.cff_meta (snd cff.cff_name);
+	DeprecationCheck.check_is ctx.com ctx.m.curmod ctx.c.curclass.cl_meta cff.cff_meta (fst cff.cff_name) cff.cff_meta (snd cff.cff_name);
 	let ctx = {
 		ctx with
 		pass = PBuildClass; (* will be set later to PTypeExpr *)
@@ -850,7 +855,7 @@ module TypeBinding = struct
 		let r = make_lazy ~force:false ctx t (fun r ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
-				enter_field_typing_pass ctx ("bind_var_expression",fst ctx.curclass.cl_path @ [snd ctx.curclass.cl_path;ctx.curfield.cf_name]);
+				enter_field_typing_pass ctx ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.curfield.cf_name]);
 				if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing field %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
@@ -1274,7 +1279,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 		| _ ->
 			None
 	in
-	let is_extern = fctx.is_extern || has_class_flag ctx.curclass CExtern in
+	let is_extern = fctx.is_extern || has_class_flag ctx.c.curclass CExtern in
 	let type_arg i opt cto p =
 		let def () =
 			type_opt (ctx,cctx,fctx) p cto
@@ -1386,7 +1391,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	| Some p ->
 		begin match ctx.com.platform with
 		| Java ->
-			if not (has_class_flag ctx.curclass CExtern) || not (has_class_flag c CInterface) then invalid_modifier_only ctx.com fctx "default" "on extern interfaces" p;
+			if not (has_class_flag ctx.c.curclass CExtern) || not (has_class_flag c CInterface) then invalid_modifier_only ctx.com fctx "default" "on extern interfaces" p;
 			add_class_field_flag cf CfDefault;
 		| _ ->
 			invalid_modifier_only ctx.com fctx "default" "on the Java target" p

@@ -545,7 +545,7 @@ let destruction tctx detail_times main locals =
 		check_private_path com;
 		Naming.apply_native_paths;
 		add_rtti com;
-		(match com.platform with | Java | Cs -> (fun _ -> ()) | _ -> (fun mt -> AddFieldInits.add_field_inits tctx.curclass.cl_path locals com mt));
+		(match com.platform with | Java | Cs -> (fun _ -> ()) | _ -> (fun mt -> AddFieldInits.add_field_inits tctx.c.curclass.cl_path locals com mt));
 		(match com.platform with Hl -> (fun _ -> ()) | _ -> add_meta_field com);
 		check_void_field;
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ()));
@@ -560,7 +560,7 @@ let destruction tctx detail_times main locals =
 		List.iter (fun t ->
 			begin match t with
 			| TClassDecl c ->
-				tctx.curclass <- c
+				tctx.c.curclass <- c
 			| _ ->
 				()
 			end;
@@ -811,7 +811,7 @@ let run tctx main before_destruction =
 		"RenameVars",(match com.platform with
 		| Eval -> (fun e -> e)
 		| Java when defined com Jvm -> (fun e -> e)
-		| _ -> (fun e -> RenameVars.run tctx.curclass.cl_path locals e));
+		| _ -> (fun e -> RenameVars.run tctx.c.curclass.cl_path locals e));
 		"mark_switch_break_loops",mark_switch_break_loops;
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;

@@ -75,6 +75,12 @@ type typer_module = {
 	mutable import_statements : import list;
 }
 
+type typer_class = {
+	mutable curclass : tclass; (* TODO: should not be mutable *)
+	mutable tthis : t;
+	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
+}
+
 type build_kind =
 	| BuildNormal
 	| BuildGeneric of tclass
@@ -133,6 +139,8 @@ and typer = {
 	com : context;
 	t : basic_types;
 	g : typer_globals;
+	mutable m : typer_module;
+	c : typer_class;
 	mutable bypass_accessor : int;
 	mutable meta : metadata;
 	mutable with_type_stack : WithType.t list;
@@ -140,13 +148,9 @@ and typer = {
 	(* variable *)
 	mutable pass : typer_pass;
 	(* per-module *)
-	mutable m : typer_module;
 	mutable is_display_file : bool;
 	(* per-class *)
-	mutable curclass : tclass;
-	mutable tthis : t;
 	mutable type_params : type_params;
-	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
 	(* per-function *)
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;
@@ -172,6 +176,27 @@ and typer = {
 and monomorphs = {
 	mutable perfunction : (tmono * pos) list;
 }
+
+module TyperManager = struct
+	let clone_for_class ctx c =
+		let ctx = {
+			ctx with
+			c = {
+				curclass = c;
+				tthis = (match c.cl_kind with
+				| KAbstractImpl a ->
+					(match a.a_this with
+					| TMono r when r.tm_type = None -> TAbstract (a,extract_param_types c.cl_params)
+					| t -> t)
+				| _ ->
+					TInst (c,extract_param_types c.cl_params));
+				get_build_infos = (fun () -> None);
+			};
+			type_params = (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params);
+			pass = PBuildClass;
+		} in
+		ctx
+end
 
 type field_host =
 	| FHStatic of tclass
@@ -252,7 +277,7 @@ let pass_name = function
 	| PFinal -> "final"
 
 let warning ?(depth=0) ctx w msg p =
-	let options = (Warning.from_meta ctx.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
+	let options = (Warning.from_meta ctx.c.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
 	match Warning.get_mode w options with
 	| WMEnable ->
 		module_warning ctx.com ctx.m.curmod w options msg p
@@ -525,7 +550,7 @@ let clone_type_parameter map path ttp =
 let can_access ctx c cf stat =
 	if (has_class_field_flag cf CfPublic) then
 		true
-	else if c == ctx.curclass then
+	else if c == ctx.c.curclass then
 		true
 	else match ctx.m.curmod.m_statics with
 		| Some c' when c == c' ->
@@ -578,7 +603,7 @@ let can_access ctx c cf stat =
 		in
 		loop c.cl_meta || loop f.cf_meta
 	in
-	let module_path = ctx.curclass.cl_module.m_path in
+	let module_path = ctx.c.curclass.cl_module.m_path in
 	let cur_paths = ref [fst module_path @ [snd module_path], false] in
 	let rec loop c is_current_path =
 		cur_paths := (make_path c ctx.curfield, is_current_path) :: !cur_paths;
@@ -588,14 +613,14 @@ let can_access ctx c cf stat =
 		end;
 		List.iter (fun (c,_) -> loop c false) c.cl_implements;
 	in
-	loop ctx.curclass true;
+	loop ctx.c.curclass true;
 	let is_constr = cf.cf_name = "new" in
 	let rec loop c =
 		try
-			has Meta.Access ctx.curclass ctx.curfield ((make_path c cf), true)
+			has Meta.Access ctx.c.curclass ctx.curfield ((make_path c cf), true)
 			|| (
 				(* if our common ancestor declare/override the field, then we can access it *)
-				let allowed f = extends ctx.curclass c || (List.exists (has Meta.Allow c f) !cur_paths) in
+				let allowed f = extends ctx.c.curclass c || (List.exists (has Meta.Allow c f) !cur_paths) in
 				if is_constr then (
 					match c.cl_constructor with
 					| Some cf ->
@@ -705,7 +730,7 @@ let mk_infos ctx p params =
 	(EObjectDecl (
 		(("fileName",null_pos,NoQuotes) , (EConst (String(file,SDoubleQuotes)) , p)) ::
 		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p), None)),p)) ::
-		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path,SDoubleQuotes)),p)) ::
+		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.c.curclass.cl_path,SDoubleQuotes)),p)) ::
 		if ctx.curfield.cf_name = "" then
 			params
 		else
@@ -756,7 +781,7 @@ let push_this ctx e = match e.eexpr with
 
 let create_deprecation_context ctx = {
 	(DeprecationCheck.create_context ctx.com) with
-	class_meta = ctx.curclass.cl_meta;
+	class_meta = ctx.c.curclass.cl_meta;
 	field_meta = ctx.curfield.cf_meta;
 	curmod = ctx.m.curmod;
 }
@@ -803,13 +828,13 @@ let debug com (path : string list) str =
 	end
 
 let init_class_done ctx =
-	let path = fst ctx.curclass.cl_path @ [snd ctx.curclass.cl_path] in
-	debug ctx.com path ("init_class_done " ^ s_type_path ctx.curclass.cl_path);
+	let path = fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path] in
+	debug ctx.com path ("init_class_done " ^ s_type_path ctx.c.curclass.cl_path);
 	init_class_done ctx
 
 let ctx_pos ctx =
 	let inf = fst ctx.m.curmod.m_path @ [snd ctx.m.curmod.m_path]in
-	let inf = (match snd ctx.curclass.cl_path with "" -> inf | n when n = snd ctx.m.curmod.m_path -> inf | n -> inf @ [n]) in
+	let inf = (match snd ctx.c.curclass.cl_path with "" -> inf | n when n = snd ctx.m.curmod.m_path -> inf | n -> inf @ [n]) in
 	let inf = (match ctx.curfield.cf_name with "" -> inf | n -> inf @ [n]) in
 	inf
 

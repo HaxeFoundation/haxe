@@ -43,7 +43,7 @@ let is_generic_parameter ctx c =
 		has_class_field_flag ctx.curfield CfGeneric
 	with Not_found -> try
 		ignore(lookup_param name ctx.type_params);
-		(match ctx.curclass.cl_kind with | KGeneric -> true | _ -> false);
+		(match ctx.c.curclass.cl_kind with | KGeneric -> true | _ -> false);
 	with Not_found ->
 		false
 
@@ -510,7 +510,7 @@ module Inheritance = struct
 
 	let set_heritance ctx c herits p =
 		let is_lib = Meta.has Meta.LibType c.cl_meta in
-		let ctx = { ctx with curclass = c; type_params = c.cl_params; } in
+		let ctx = { ctx with c = {ctx.c with curclass = c}; type_params = c.cl_params; } in
 		let old_meta = c.cl_meta in
 		let process_meta csup =
 			List.iter (fun m ->
@@ -638,7 +638,7 @@ let check_final_vars ctx e =
 		| _ ->
 			()
 	in
-	loop ctx.curclass;
+	loop ctx.c.curclass;
 	if Hashtbl.length final_vars > 0 then begin
 		let rec find_inits e = match e.eexpr with
 			| TBinop(OpAssign,{eexpr = TField({eexpr = TConst TThis},fa)},e2) ->
@@ -649,7 +649,7 @@ let check_final_vars ctx e =
 		in
 		find_inits e;
 		if Hashtbl.length final_vars > 0 then
-			display_error ctx.com "Some final fields are uninitialized in this class" ctx.curclass.cl_name_pos;
+			display_error ctx.com "Some final fields are uninitialized in this class" ctx.c.curclass.cl_name_pos;
 		DynArray.iter (fun (c,cf) ->
 			if Hashtbl.mem final_vars cf.cf_name then
 				display_error ~depth:1 ctx.com "Uninitialized field" cf.cf_name_pos

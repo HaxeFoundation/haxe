@@ -210,12 +210,12 @@ let run ctx =
 					| Method MethDynamic -> false
 					| Method MethInline -> true
 					| Method MethNormal ->
-						PMap.mem ctx.curfield.cf_name ctx.curclass.cl_statics
+						PMap.mem ctx.curfield.cf_name ctx.c.curclass.cl_statics
 					| _ ->
 						has_class_field_flag ctx.curfield CfFinal
 					in
 				let is_recursive_call callee args =
-					is_tre_eligible && is_recursive_method_call ctx.curclass ctx.curfield callee args
+					is_tre_eligible && is_recursive_method_call ctx.c.curclass ctx.curfield callee args
 				in
 				if has_tail_recursion is_recursive_call false true fn.tf_expr then
 					(* print_endline ("TRE: " ^ ctx.curfield.cf_pos.pfile ^ ": " ^ ctx.curfield.cf_name); *)

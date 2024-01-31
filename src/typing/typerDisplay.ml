@@ -340,7 +340,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		| _ -> raise_typing_error "Call expected" p
 
 and display_expr ctx e_ast e dk mode with_type p =
-	let get_super_constructor () = match ctx.curclass.cl_super with
+	let get_super_constructor () = match ctx.c.curclass.cl_super with
 		| None -> raise_typing_error "Current class does not have a super" p
 		| Some (c,params) ->
 			let fa = get_constructor_access c params p in
@@ -419,7 +419,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 				()
 			end
 		| TConst TSuper ->
-			begin match ctx.curclass.cl_super with
+			begin match ctx.c.curclass.cl_super with
 				| None -> ()
 				| Some (c,_) -> Display.ReferencePosition.set (snd c.cl_path,c.cl_name_pos,SKClass c);
 			end
@@ -476,7 +476,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 				[]
 			end
 		| TConst TSuper ->
-			begin match ctx.curclass.cl_super with
+			begin match ctx.c.curclass.cl_super with
 				| None -> []
 				| Some (c,_) -> [c.cl_name_pos]
 			end
@@ -598,7 +598,7 @@ let handle_display ctx e_ast dk mode with_type =
 					if (Meta.has Meta.PrivateAccess ctx.meta) then true
 					else
 						begin
-							match ctx.curclass.cl_kind with
+							match ctx.c.curclass.cl_kind with
 							| KAbstractImpl { a_path = (pack, name) } -> pack = mt.pack && name = mt.name
 							| _ -> false
 						end
@@ -610,7 +610,7 @@ let handle_display ctx e_ast dk mode with_type =
 									| Some(c,_) -> loop c
 									| None -> false
 							in
-							loop ctx.curclass
+							loop ctx.c.curclass
 						end
 				| No -> false
 				| Maybe ->

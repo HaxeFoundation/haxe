@@ -54,7 +54,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 	ctx.ret <- ret;
 	ctx.opened <- [];
 	ctx.monomorphs.perfunction <- [];
-	enter_field_typing_pass ctx ("type_function",fst ctx.curclass.cl_path @ [snd ctx.curclass.cl_path;ctx.curfield.cf_name]);
+	enter_field_typing_pass ctx ("type_function",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.curfield.cf_name]);
 	args#bring_into_context;
 	let e = match e with
 		| None ->
@@ -65,7 +65,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 				*)
 				EBlock [],p
 			else
-				if fmode = FunMember && has_class_flag ctx.curclass CAbstract then
+				if fmode = FunMember && has_class_flag ctx.c.curclass CAbstract then
 					raise_typing_error "Function body or abstract modifier required" p
 				else
 					raise_typing_error "Function body required" p
@@ -112,7 +112,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 		| _ -> Type.iter loop e
 	in
 	let has_super_constr() =
-		match ctx.curclass.cl_super with
+		match ctx.c.curclass.cl_super with
 		| None ->
 			None
 		| Some (csup,tl) ->
@@ -145,7 +145,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 	end in
 	let e = match ctx.curfun, ctx.vthis with
 		| (FunMember|FunConstructor), Some v ->
-			let ev = mk (TVar (v,Some (mk (TConst TThis) ctx.tthis p))) ctx.t.tvoid p in
+			let ev = mk (TVar (v,Some (mk (TConst TThis) ctx.c.tthis p))) ctx.t.tvoid p in
 			(match e.eexpr with
 			| TBlock l ->
 				if ctx.com.config.pf_this_before_super then

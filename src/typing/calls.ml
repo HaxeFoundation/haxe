@@ -51,8 +51,8 @@ let make_call ctx e params t ?(force_inline=false) p =
 		end;
 		let config = Inline.inline_config cl f params t in
 		ignore(follow f.cf_type); (* force evaluation *)
-		(match cl, ctx.curclass.cl_kind, params with
-			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.curclass ->
+		(match cl, ctx.c.curclass.cl_kind, params with
+			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.c.curclass ->
 				if
 					f.cf_name <> "_new"
 					&& has_meta Meta.This v_meta

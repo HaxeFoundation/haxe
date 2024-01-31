@@ -427,9 +427,7 @@ module TypeLevel = struct
 			in
 			build()
 		in
-		ctx.curclass <- c;
 		c.cl_build <- make_pass ctx build;
-		ctx.curclass <- null_class;
 		delay ctx PBuildClass (fun() -> ignore(c.cl_build()));
 		if Meta.has Meta.InheritDoc c.cl_meta then
 				delay ctx PConnectField (fun() -> InheritDoc.build_class_doc ctx c);
@@ -706,13 +704,15 @@ let create_typer_context_for_module ctx m = {
 		with_type_stack = [];
 		call_argument_stack = [];
 		pass = PBuildModule;
-		get_build_infos = (fun() -> None);
 		macro_depth = 0;
-		curclass = null_class;
+		c = {
+			curclass = null_class;
+			get_build_infos = (fun() -> None);
+			tthis = t_dynamic;
+		};
 		allow_inline = true;
 		allow_transform = true;
 		curfield = null_field;
-		tthis = mk_mono();
 		ret = mk_mono();
 		locals = PMap.empty;
 		type_params = [];
