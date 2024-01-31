@@ -63,7 +63,7 @@ let get_general_module_type ctx mt p =
 let unify_type_pattern ctx mt t p =
 	let tcl = get_general_module_type ctx mt p in
 	match tcl with
-		| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx p])) t p
+		| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx.e p])) t p
 		| _ -> die "" __LOC__
 
 let rec make pctx toplevel t e =

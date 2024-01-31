@@ -987,14 +987,14 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				| MMacroType ->
 					"ComplexType",(fun () ->
 						let t = if v = Interp.vnull then
-							spawn_monomorph ctx p
+							spawn_monomorph ctx.e p
 						else try
 							let ct = Interp.decode_ctype v in
 							Typeload.load_complex_type ctx false ct;
 						with MacroApi.Invalid_expr  | EvalContext.RunTimeException _ ->
 							Interp.decode_type v
 						in
-						ctx.ret <- t;
+						ctx.e.ret <- t;
 						MSuccess (EBlock [],p)
 					)
 			in

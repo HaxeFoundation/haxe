@@ -459,7 +459,7 @@ and load_instance ctx ?(allow_display=false) ptp get_params =
 and load_complex_type' ctx allow_display (t,p) =
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display t
-	| CTPath { path = {tpackage = ["$"]; tname = "_hx_mono" }} -> spawn_monomorph ctx p
+	| CTPath { path = {tpackage = ["$"]; tname = "_hx_mono" }} -> spawn_monomorph ctx.e p
 	| CTPath ptp -> load_instance ~allow_display ctx ptp ParamNormal
 	| CTOptional _ -> raise_typing_error "Optional type not allowed here" p
 	| CTNamed _ -> raise_typing_error "Named type not allowed here" p
@@ -708,7 +708,7 @@ let t_iterator ctx p =
 	match load_qualified_type_def ctx [] "StdTypes" "Iterator" p with
 	| TTypeDecl t ->
 		add_dependency ctx.m.curmod t.t_module;
-		let pt = spawn_monomorph ctx p in
+		let pt = spawn_monomorph ctx.e p in
 		apply_typedef t [pt], pt
 	| _ ->
 		die "" __LOC__
@@ -718,7 +718,7 @@ let t_iterator ctx p =
 *)
 let load_type_hint ?(opt=false) ctx pcur t =
 	let t = match t with
-		| None -> spawn_monomorph ctx pcur
+		| None -> spawn_monomorph ctx.e pcur
 		| Some (t,p) ->	load_complex_type ctx true (t,p)
 	in
 	if opt then ctx.t.tnull t else t

@@ -134,6 +134,14 @@ type typer_globals = {
 	do_load_core_class : typer -> tclass -> tclass;
 }
 
+and typer_expr = {
+	mutable ret : t;
+	mutable curfun : current_fun;
+	mutable opened : anon_status ref list;
+	mutable monomorphs : monomorphs;
+	mutable in_function : bool;
+}
+
 and typer = {
 	(* shared *)
 	com : context;
@@ -141,6 +149,8 @@ and typer = {
 	g : typer_globals;
 	mutable m : typer_module;
 	c : typer_class;
+	e : typer_expr;
+	mutable locals : (string, tvar) PMap.t;
 	mutable bypass_accessor : int;
 	mutable meta : metadata;
 	mutable with_type_stack : WithType.t list;
@@ -156,19 +166,14 @@ and typer = {
 	mutable allow_transform : bool;
 	mutable curfield : tclass_field;
 	mutable untyped : bool;
-	mutable in_function : bool;
 	mutable in_loop : bool;
 	mutable in_display : bool;
 	mutable macro_depth : int;
-	mutable curfun : current_fun;
-	mutable ret : t;
-	mutable locals : (string, tvar) PMap.t;
-	mutable opened : anon_status ref list;
 	mutable vthis : tvar option;
 	mutable in_call_args : bool;
 	mutable in_overload_call_args : bool;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
-	mutable monomorphs : monomorphs;
+
 	(* events *)
 	memory_marker : float array;
 }
@@ -304,7 +309,7 @@ let make_static_field_access c cf t p =
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
 let make_static_call ctx c cf map args t p =
-	let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
+	let monos = List.map (fun _ -> spawn_monomorph ctx.e p) cf.cf_params in
 	let map t = map (apply_params cf.cf_params monos t) in
 	let ef = make_static_field_access c cf (map cf.cf_type) p in
 	make_call ctx ef args (map t) p

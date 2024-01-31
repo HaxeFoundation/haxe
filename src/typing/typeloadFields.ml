@@ -636,11 +636,6 @@ let create_typer_context_for_field ctx cctx fctx cff =
 	let ctx = {
 		ctx with
 		pass = PBuildClass; (* will be set later to PTypeExpr *)
-		locals = PMap.empty;
-		opened = [];
-		monomorphs = {
-			perfunction = [];
-		};
 		type_params = if fctx.is_static && not fctx.is_abstract_member && not (Meta.has Meta.LibType cctx.tclass.cl_meta) (* TODO: remove this *) then [] else ctx.type_params;
 	} in
 
@@ -701,7 +696,7 @@ let transform_field (ctx,cctx) c f fields p =
 	f
 
 let type_var_field ctx t e stat do_display p =
-	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
+	if stat then ctx.e.curfun <- FunStatic else ctx.e.curfun <- FunMember;
 	let e = if do_display then Display.preprocess_expr ctx.com e else e in
 	let e = type_expr ctx e (WithType.with_type t) in
 	let e = AbstractCast.cast_or_unify ctx t e p in

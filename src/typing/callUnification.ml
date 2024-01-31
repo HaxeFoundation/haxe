@@ -328,11 +328,11 @@ let unify_field_call ctx fa el_typed el p inline =
 			| cf :: candidates ->
 				let known_monos = List.map (fun (m,_) ->
 					m,m.tm_type,m.tm_down_constraints
-				) ctx.monomorphs.perfunction in
-				let current_monos = ctx.monomorphs.perfunction in
+				) ctx.e.monomorphs.perfunction in
+				let current_monos = ctx.e.monomorphs.perfunction in
 				begin try
 					let candidate = attempt_call cf true in
-					ctx.monomorphs.perfunction <- current_monos;
+					ctx.e.monomorphs.perfunction <- current_monos;
 					if overload_kind = OverloadProper then begin
 						let candidates,failures = loop candidates in
 						candidate :: candidates,failures
@@ -343,7 +343,7 @@ let unify_field_call ctx fa el_typed el p inline =
 						if t != m.tm_type then m.tm_type <- t;
 						if constr != m.tm_down_constraints then m.tm_down_constraints <- constr;
 					) known_monos;
-					ctx.monomorphs.perfunction <- current_monos;
+					ctx.e.monomorphs.perfunction <- current_monos;
 					check_unknown_ident err;
 					let candidates,failures = loop candidates in
 					candidates,(cf,err,extract_delayed_display()) :: failures

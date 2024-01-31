@@ -712,24 +712,26 @@ let create_typer_context_for_module ctx m = {
 			get_build_infos = (fun() -> None);
 			tthis = t_dynamic;
 		};
+		e = {
+			ret = t_dynamic;
+			curfun = FunStatic;
+			opened = [];
+			in_function = false;
+			monomorphs = {
+				perfunction = [];
+			};
+		};
+		locals = PMap.empty;
 		allow_inline = true;
 		allow_transform = true;
 		curfield = null_field;
-		ret = mk_mono();
-		locals = PMap.empty;
 		type_params = [];
-		curfun = FunStatic;
 		untyped = false;
 		in_display = false;
-		in_function = false;
 		in_loop = false;
-		opened = [];
 		in_call_args = false;
 		in_overload_call_args = false;
 		delayed_display = None;
-		monomorphs = {
-			perfunction = [];
-		};
 		vthis = None;
 		memory_marker = Typecore.memory_marker;
 	}

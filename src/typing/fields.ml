@@ -241,7 +241,7 @@ let field_access ctx mode f fh e pfield =
 			let is_child_of_abstract c =
 				has_class_flag c CAbstract && extends ctx.c.curclass c
 			in
-			(match ctx.curfun, fh with
+			(match ctx.e.curfun, fh with
 				| FunConstructor, FHInstance(c,_) when c == ctx.c.curclass || is_child_of_abstract c -> normal false
 				| _ -> normal_failure()
 			)
@@ -382,8 +382,8 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			| CTypes tl ->
 				type_field_by_list (fun (t,_) -> type_field_by_et type_field_by_type e t) tl
 			| CUnknown ->
-				if not (List.exists (fun (m,_) -> m == r) ctx.monomorphs.perfunction) && not (ctx.untyped && ctx.com.platform = Neko) then
-					ctx.monomorphs.perfunction <- (r,p) :: ctx.monomorphs.perfunction;
+				if not (List.exists (fun (m,_) -> m == r) ctx.e.monomorphs.perfunction) && not (ctx.untyped && ctx.com.platform = Neko) then
+					ctx.e.monomorphs.perfunction <- (r,p) :: ctx.e.monomorphs.perfunction;
 				let f = mk_field() in
 				Monomorph.add_down_constraint r (MField f);
 				Monomorph.add_down_constraint r MOpenStructure;
@@ -426,9 +426,9 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					check cfl
 				| cf :: cfl ->
 					(* We always want to reset monomorphs here because they will be handled again when making the actual call. *)
-					let current_monos = ctx.monomorphs.perfunction in
+					let current_monos = ctx.e.monomorphs.perfunction in
 					let check () =
-						ctx.monomorphs.perfunction <- current_monos;
+						ctx.e.monomorphs.perfunction <- current_monos;
 						check cfl
 					in
 					try
@@ -441,7 +441,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 							else begin
 								let e = unify_static_extension ctx e t0 p in
 								ImportHandling.mark_import_position ctx pc;
-								ctx.monomorphs.perfunction <- current_monos;
+								ctx.e.monomorphs.perfunction <- current_monos;
 								AKUsingField (make_static_extension_access c cf e false p)
 							end
 						| _ ->
@@ -594,7 +594,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				with Exit ->
 					display_error ctx.com (StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i)) pfield
 		end;
-		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx p) p)
+		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx.e p) p)
 
 let type_field_default_cfg = type_field TypeFieldConfig.default
 

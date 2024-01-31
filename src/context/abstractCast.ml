@@ -118,7 +118,7 @@ and cast_or_unify ctx tleft eright p =
 		eright
 
 let prepare_array_access_field ctx a pl cf p =
-	let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
+	let monos = List.map (fun _ -> spawn_monomorph ctx.e p) cf.cf_params in
 	let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
 	let check_constraints () =
 		List.iter2 (fun m ttp -> match get_constraints ttp with

@@ -354,7 +354,7 @@ let build_generic_class ctx c p tl =
 				if gctx.generic_debug then print_endline (Printf.sprintf "[GENERIC] %s" (Printer.s_tclass_field "  " cf_new));
 				t
 			in
-			let t = spawn_monomorph ctx p in
+			let t = spawn_monomorph ctx.e p in
 			let r = make_lazy ctx t (fun r ->
 				let t0 = f() in
 				unify_raise t0 t p;

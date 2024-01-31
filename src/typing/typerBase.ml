@@ -149,13 +149,13 @@ let is_lower_ident s p =
 	with Invalid_argument msg -> raise_typing_error msg p
 
 let get_this ctx p =
-	match ctx.curfun with
+	match ctx.e.curfun with
 	| FunStatic ->
 		raise_typing_error "Cannot access this from a static function" p
 	| FunMemberClassLocal | FunMemberAbstractLocal ->
 		let v = match ctx.vthis with
 			| None ->
-				let v = if ctx.curfun = FunMemberAbstractLocal then begin
+				let v = if ctx.e.curfun = FunMemberAbstractLocal then begin
 					let v = PMap.find "this" ctx.locals in
 					add_var_flag v VUsedByTyper;
 					v
@@ -211,7 +211,7 @@ let type_module_type ctx t p =
 		| TEnumDecl e ->
 			mk (TTypeExpr (TEnumDecl e)) e.e_type p
 		| TTypeDecl s ->
-			let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx p) s.t_params) in
+			let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx.e p) s.t_params) in
 			DeprecationCheck.check_typedef (create_deprecation_context ctx) s p;
 			(match follow t with
 			| TEnum (e,params) ->

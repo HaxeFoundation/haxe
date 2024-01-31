@@ -40,7 +40,7 @@ let mono_or_dynamic ctx with_type p = match with_type with
 	| WithType.NoValue ->
 		t_dynamic
 	| Value _ | WithType _ ->
-		spawn_monomorph ctx p
+		spawn_monomorph ctx.e p
 
 let get_iterator_param t =
 	match follow t with
@@ -144,7 +144,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 let rec unify_min_raise ctx (el:texpr list) : t =
 	let basic = ctx.com.basic in
 	match el with
-	| [] -> spawn_monomorph ctx null_pos
+	| [] -> spawn_monomorph ctx.e null_pos
 	| [e] -> e.etype
 	| _ ->
 		let rec chk_null e = is_null e.etype || is_explicit_null e.etype ||
@@ -172,7 +172,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 				with Unify_error _ ->
 					true, t
 		in
-		let has_error, t = loop (spawn_monomorph ctx null_pos) el in
+		let has_error, t = loop (spawn_monomorph ctx.e null_pos) el in
 		if not has_error then
 			t
 		else try
@@ -386,7 +386,7 @@ let rec type_ident_raise ctx i p mode with_type =
 			| None -> raise_typing_error "Current class does not have a superclass" p
 			| Some (c,params) -> TInst(c,params)
 		) in
-		(match ctx.curfun with
+		(match ctx.e.curfun with
 		| FunMember | FunConstructor -> ()
 		| FunMemberAbstract -> raise_typing_error "Cannot access super inside an abstract function" p
 		| FunStatic -> raise_typing_error "Cannot access super inside a static function" p;
@@ -396,9 +396,9 @@ let rec type_ident_raise ctx i p mode with_type =
 		let acc =
 			(* Hack for #10787 *)
 			if ctx.com.platform = Cs then
-				AKExpr (null (spawn_monomorph ctx p) p)
+				AKExpr (null (spawn_monomorph ctx.e p) p)
 			else begin
-				let tnull () = ctx.t.tnull (spawn_monomorph ctx p) in
+				let tnull () = ctx.t.tnull (spawn_monomorph ctx.e p) in
 				let t = match with_type with
 					| WithType.WithType(t,_) ->
 						begin match follow t with
@@ -447,7 +447,7 @@ let rec type_ident_raise ctx i p mode with_type =
 			AKExpr (mk (TLocal v) v.v_type p))
 	with Not_found -> try
 		(* member variable lookup *)
-		if ctx.curfun = FunStatic then raise Not_found;
+		if ctx.e.curfun = FunStatic then raise Not_found;
 		let c , t , f = class_field ctx ctx.c.curclass (extract_param_types ctx.c.curclass.cl_params) i p in
 		field_access ctx mode f (match c with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl)) (get_this ctx p) p
 	with Not_found -> try
@@ -507,7 +507,7 @@ and type_ident ctx i p mode with_type =
 					let t = mk_mono() in
 					AKExpr ((mk (TIdent i)) t p)
 			end else begin
-				if ctx.curfun = FunStatic && PMap.mem i ctx.c.curclass.cl_fields then raise_typing_error ("Cannot access " ^ i ^ " in static function") p;
+				if ctx.e.curfun = FunStatic && PMap.mem i ctx.c.curclass.cl_fields then raise_typing_error ("Cannot access " ^ i ^ " in static function") p;
 				if !resolved_to_type_parameter then begin
 					display_error ctx.com ("Only @:const type parameters on @:generic classes can be used as value") p;
 					AKExpr (mk (TConst TNull) t_dynamic p)
@@ -875,7 +875,7 @@ and type_object_decl ctx fl with_type p =
 		in
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
 		let x = ref Const in
-		ctx.opened <- x :: ctx.opened;
+		ctx.e.opened <- x :: ctx.e.opened;
 		mk (TObjectDecl (List.rev fields)) (mk_anon ~fields:types x) p
 	in
 	(match a with
@@ -1153,11 +1153,11 @@ and type_map_declaration ctx e1 el with_type p =
 			| TInst({cl_path=["haxe";"ds"],"IntMap"},[tv]) -> ctx.t.tint,tv,true
 			| TInst({cl_path=["haxe";"ds"],"StringMap"},[tv]) -> ctx.t.tstring,tv,true
 			| TInst({cl_path=["haxe";"ds"],("ObjectMap" | "EnumValueMap")},[tk;tv]) -> tk,tv,true
-			| _ -> spawn_monomorph ctx p,spawn_monomorph ctx p,false
+			| _ -> spawn_monomorph ctx.e p,spawn_monomorph ctx.e p,false
 		in
 		match with_type with
 		| WithType.WithType(t,_) -> get_map_params t
-		| _ -> (spawn_monomorph ctx p,spawn_monomorph ctx p,false)
+		| _ -> (spawn_monomorph ctx.e p,spawn_monomorph ctx.e p,false)
 	in
 	let keys = Hashtbl.create 0 in
 	let check_key e_key =
@@ -1330,7 +1330,7 @@ and type_local_function ctx kind f with_type p =
 			if params <> [] then v.v_extra <- Some (var_extra params None);
 			Some v
 	) in
-	let curfun = match ctx.curfun with
+	let curfun = match ctx.e.curfun with
 		| FunStatic -> FunStatic
 		| FunMemberAbstract
 		| FunMemberAbstractLocal -> FunMemberAbstractLocal
@@ -1444,7 +1444,7 @@ and type_array_decl ctx el with_type p =
 		mk (TArrayDecl el) (ctx.t.tarray t) p)
 
 and type_array_comprehension ctx e with_type p =
-	let v = gen_local ctx (spawn_monomorph ctx p) p in
+	let v = gen_local ctx (spawn_monomorph ctx.e p) p in
 	let ev = mk (TLocal v) v.v_type p in
 	let e_ref = snd (store_typed_expr ctx.com ev p) in
 	let et = ref (EConst(Ident "null"),p) in
@@ -1480,14 +1480,14 @@ and type_array_comprehension ctx e with_type p =
 	]) v.v_type p
 
 and type_return ?(implicit=false) ctx e with_type p =
-	let is_abstract_ctor = ctx.curfun = FunMemberAbstract && ctx.curfield.cf_name = "_new" in
+	let is_abstract_ctor = ctx.e.curfun = FunMemberAbstract && ctx.curfield.cf_name = "_new" in
 	match e with
 	| None when is_abstract_ctor ->
-		let e_cast = mk (TCast(get_this ctx p,None)) ctx.ret p in
+		let e_cast = mk (TCast(get_this ctx p,None)) ctx.e.ret p in
 		mk (TReturn (Some e_cast)) (mono_or_dynamic ctx with_type p) p
 	| None ->
 		let v = ctx.t.tvoid in
-		unify ctx v ctx.ret p;
+		unify ctx v ctx.e.ret p;
 		let expect_void = match with_type with
 			| WithType.WithType(t,_) -> ExtType.is_void (follow t)
 			| WithType.Value (Some ImplicitReturn) -> true
@@ -1502,16 +1502,16 @@ and type_return ?(implicit=false) ctx e with_type p =
 		end;
 		try
 			let with_expected_type =
-				if ExtType.is_void (follow ctx.ret) then WithType.no_value
-				else if implicit then WithType.of_implicit_return ctx.ret
-				else WithType.with_type ctx.ret
+				if ExtType.is_void (follow ctx.e.ret) then WithType.no_value
+				else if implicit then WithType.of_implicit_return ctx.e.ret
+				else WithType.with_type ctx.e.ret
 			in
 			let e = type_expr ctx e with_expected_type in
-			match follow ctx.ret with
+			match follow ctx.e.ret with
 			| TAbstract({a_path=[],"Void"},_) when implicit ->
 				e
 			| _ ->
-				let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
+				let e = AbstractCast.cast_or_unify ctx ctx.e.ret e p in
 				match follow e.etype with
 				| TAbstract({a_path=[],"Void"},_) ->
 					begin match (Texpr.skip e).eexpr with
@@ -1775,7 +1775,7 @@ and type_call_builtin ctx e el mode with_type p =
 	| (EDisplay((EConst (Ident "super"),_ as e1),dk),_),_ ->
 		TyperDisplay.handle_display ctx (ECall(e1,el),p) dk mode with_type
 	| (EConst (Ident "super"),sp) , el ->
-		if ctx.curfun <> FunConstructor then raise_typing_error "Cannot call super constructor outside class constructor" p;
+		if ctx.e.curfun <> FunConstructor then raise_typing_error "Cannot call super constructor outside class constructor" p;
 		let el, t = (match ctx.c.curclass.cl_super with
 		| None -> raise_typing_error "Current class does not have a super" p
 		| Some (c,params) ->
@@ -1944,7 +1944,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e = Matcher.Match.match_expr ctx e1 cases def with_type false p in
 		wrap e
 	| EReturn e ->
-		if not ctx.in_function then begin
+		if not ctx.e.in_function then begin
 			display_error ctx.com "Return outside function" p;
 			match e with
 			| None ->
@@ -1993,7 +1993,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		}
 	| ECast (e,None) ->
 		let e = type_expr ctx e WithType.value in
-		mk (TCast (e,None)) (spawn_monomorph ctx p) p
+		mk (TCast (e,None)) (spawn_monomorph ctx.e p) p
 	| ECast (e, Some t) ->
 		type_cast ctx e t p
 	| EDisplay (e,dk) ->

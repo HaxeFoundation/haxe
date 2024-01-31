@@ -53,29 +53,31 @@ let create com macros =
 		pass = PBuildModule;
 		macro_depth = 0;
 		untyped = false;
-		curfun = FunStatic;
-		in_function = false;
 		in_loop = false;
 		in_display = false;
 		allow_inline = true;
 		allow_transform = true;
-		ret = mk_mono();
-		locals = PMap.empty;
 		type_params = [];
 		c = {
 			curclass = null_class;
 			tthis = t_dynamic;
 			get_build_infos = (fun() -> None);
 		};
+		e = {
+			ret = t_dynamic;
+			curfun = FunStatic;
+			opened = [];
+			in_function = false;
+			monomorphs = {
+				perfunction = [];
+			};
+		};
+		locals = PMap.empty;
 		curfield = null_field;
-		opened = [];
 		vthis = None;
 		in_call_args = false;
 		in_overload_call_args = false;
 		delayed_display = None;
-		monomorphs = {
-			perfunction = [];
-		};
 		memory_marker = Typecore.memory_marker;
 	} in
 	ctx.g.std_types <- (try

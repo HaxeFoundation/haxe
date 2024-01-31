@@ -30,8 +30,8 @@ let make ctx t el eg eo_ast with_type postfix_match p =
 		v.v_type <- map v.v_type;
 		(v,t_old) :: acc
 	) ctx.locals [] in
-	let old_ret = ctx.ret in
-	ctx.ret <- map ctx.ret;
+	let old_ret = ctx.e.ret in
+	ctx.e.ret <- map ctx.e.ret;
 	let pctx = {
 		ctx = ctx;
 		current_locals = PMap.empty;
@@ -63,7 +63,7 @@ let make ctx t el eg eo_ast with_type postfix_match p =
 			let e = type_expr ctx e with_type in
 			Some e
 	in
-	ctx.ret <- old_ret;
+	ctx.e.ret <- old_ret;
 	List.iter (fun (v,t) -> v.v_type <- t) old_types;
 	save();
 	{

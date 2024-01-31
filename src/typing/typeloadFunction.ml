@@ -28,19 +28,19 @@ open Error
 open FunctionArguments
 
 let save_field_state ctx =
-	let old_ret = ctx.ret in
-	let old_fun = ctx.curfun in
-	let old_opened = ctx.opened in
-	let old_monos = ctx.monomorphs.perfunction in
-	let old_in_function = ctx.in_function in
+	let old_ret = ctx.e.ret in
+	let old_fun = ctx.e.curfun in
+	let old_opened = ctx.e.opened in
+	let old_monos = ctx.e.monomorphs.perfunction in
+	let old_in_function = ctx.e.in_function in
 	let locals = ctx.locals in
 	(fun () ->
 		ctx.locals <- locals;
-		ctx.ret <- old_ret;
-		ctx.curfun <- old_fun;
-		ctx.opened <- old_opened;
-		ctx.monomorphs.perfunction <- old_monos;
-		ctx.in_function <- old_in_function;
+		ctx.e.ret <- old_ret;
+		ctx.e.curfun <- old_fun;
+		ctx.e.opened <- old_opened;
+		ctx.e.monomorphs.perfunction <- old_monos;
+		ctx.e.in_function <- old_in_function;
 	)
 
 let type_function_params ctx fd host fname p =
@@ -49,13 +49,13 @@ let type_function_params ctx fd host fname p =
 	!params
 
 let type_function ctx (args : function_arguments) ret fmode e do_display p =
-	ctx.in_function <- true;
-	ctx.curfun <- fmode;
-	ctx.ret <- ret;
-	ctx.opened <- [];
-	ctx.monomorphs.perfunction <- [];
+	ctx.e.in_function <- true;
+	ctx.e.curfun <- fmode;
+	ctx.e.ret <- ret;
+	ctx.e.opened <- [];
+	ctx.e.monomorphs.perfunction <- [];
 	enter_field_typing_pass ctx ("type_function",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.curfield.cf_name]);
-	args#bring_into_context;
+	args#bring_into_context ctx;
 	let e = match e with
 		| None ->
 			if ignore_error ctx.com then
@@ -143,7 +143,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 		| None ->
 			e
 	end in
-	let e = match ctx.curfun, ctx.vthis with
+	let e = match ctx.e.curfun, ctx.vthis with
 		| (FunMember|FunConstructor), Some v ->
 			let ev = mk (TVar (v,Some (mk (TConst TThis) ctx.c.tthis p))) ctx.t.tvoid p in
 			(match e.eexpr with
@@ -170,8 +170,8 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 			| _ -> mk (TBlock [ev;e]) e.etype p)
 		| _ -> e
 	in
-	List.iter (fun r -> r := Closed) ctx.opened;
-	List.iter (fun (m,p) -> safe_mono_close ctx m p) ctx.monomorphs.perfunction;
+	List.iter (fun r -> r := Closed) ctx.e.opened;
+	List.iter (fun (m,p) -> safe_mono_close ctx m p) ctx.e.monomorphs.perfunction;
 	if is_position_debug then print_endline ("typing:\n" ^ (Texpr.dump_with_pos "" e));
 	e
 
@@ -188,7 +188,7 @@ let add_constructor ctx c force_constructor p =
 		cf.cf_kind <- cfsup.cf_kind;
 		cf.cf_params <- cfsup.cf_params;
 		cf.cf_meta <- List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
-		let t = spawn_monomorph ctx p in
+		let t = spawn_monomorph ctx.e p in
 		let r = make_lazy ctx t (fun r ->
 			let ctx = { ctx with
 				curfield = cf;

@@ -287,7 +287,7 @@ let class_field_no_interf c i =
 
 let rec return_flow ctx e =
 	let error() =
-		display_error ctx.com (Printf.sprintf "Missing return: %s" (s_type (print_context()) ctx.ret)) e.epos; raise Exit
+		display_error ctx.com (Printf.sprintf "Missing return: %s" (s_type (print_context()) ctx.e.ret)) e.epos; raise Exit
 	in
 	let return_flow = return_flow ctx in
 	match e.eexpr with

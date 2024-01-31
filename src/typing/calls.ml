@@ -474,7 +474,7 @@ let array_access ctx e1 e2 mode p =
 				let skip_abstract = fast_eq et at in
 				loop ~skip_abstract at
 			| _, _ ->
-				let pt = spawn_monomorph ctx p in
+				let pt = spawn_monomorph ctx.e p in
 				let t = ctx.t.tarray pt in
 				begin try
 					unify_raise et t p

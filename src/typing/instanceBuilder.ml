@@ -37,12 +37,12 @@ let build_macro_type ctx pl p =
 		| _ ->
 			raise_typing_error "MacroType requires a single expression call parameter" p
 	) in
-	let old = ctx.ret in
+	let old = ctx.e.ret in
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
-		| MError | MMacroInMacro -> spawn_monomorph ctx p
-		| MSuccess _ -> ctx.ret
+		| MError | MMacroInMacro -> spawn_monomorph ctx.e p
+		| MSuccess _ -> ctx.e.ret
 	) in
-	ctx.ret <- old;
+	ctx.e.ret <- old;
 	t
 
 let build_macro_build ctx c pl cfl p =
@@ -55,13 +55,13 @@ let build_macro_build ctx c pl cfl p =
 		| _,[ECall(e,args),_],_ -> get_macro_path ctx e args p
 		| _ -> raise_typing_error "genericBuild requires a single expression call parameter" p
 	in
-	let old = ctx.ret,ctx.c.get_build_infos in
+	let old = ctx.e.ret,ctx.c.get_build_infos in
 	ctx.c.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
-		| MError | MMacroInMacro -> spawn_monomorph ctx p
-		| MSuccess _ -> ctx.ret
+		| MError | MMacroInMacro -> spawn_monomorph ctx.e p
+		| MSuccess _ -> ctx.e.ret
 	) in
-	ctx.ret <- fst old;
+	ctx.e.ret <- fst old;
 	ctx.c.get_build_infos <- snd old;
 	t
 
@@ -73,7 +73,7 @@ let get_build_info ctx mtype p =
 	| TClassDecl c ->
 		if ctx.pass > PBuildClass then ignore(c.cl_build());
 		let build f s tl =
-			let t = spawn_monomorph ctx p in
+			let t = spawn_monomorph ctx.e p in
 			let r = make_lazy ctx t (fun r ->
 				let tf = f tl in
 				unify_raise tf t p;

@@ -49,7 +49,7 @@ let collect_static_extensions ctx items e p =
 	let rec dup t = Type.map dup t in
 	let handle_field c f acc =
 		let f = { f with cf_type = opt_type f.cf_type } in
-		let monos = List.map (fun _ -> spawn_monomorph ctx p) f.cf_params in
+		let monos = List.map (fun _ -> spawn_monomorph ctx.e p) f.cf_params in
 		let map = apply_params f.cf_params monos in
 		match follow (map f.cf_type) with
 		| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret)
@@ -402,7 +402,7 @@ let handle_missing_field_raise ctx tthis i mode with_type pfield =
 	display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 
 let handle_missing_ident ctx i mode with_type p =
-	match ctx.curfun with
+	match ctx.e.curfun with
 	| FunStatic ->
 		let e_self = Texpr.Builder.make_static_this ctx.c.curclass p in
 		begin try

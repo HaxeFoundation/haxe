@@ -132,7 +132,7 @@ object(self)
 		loop (abstract_this <> None) syntax with_default
 
 	(* Brings arguments into context by adding them to `ctx.locals`. *)
-	method bring_into_context =
+	method bring_into_context ctx =
 		List.iter (fun (v,_) ->
 			ctx.locals <- PMap.add v.v_name v ctx.locals
 		) self#for_expr

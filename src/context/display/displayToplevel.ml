@@ -331,7 +331,7 @@ let collect ctx tk with_type sort =
 
 		let t = Timer.timer ["display";"toplevel collect";"fields"] in
 		(* member fields *)
-		if ctx.curfun <> FunStatic then begin
+		if ctx.e.curfun <> FunStatic then begin
 			let all_fields = Type.TClass.get_all_fields ctx.c.curclass (extract_param_types ctx.c.curclass.cl_params) in
 			PMap.iter (fun _ (c,cf) ->
 				let origin = if c == ctx.c.curclass then Self (TClassDecl c) else Parent (TClassDecl c) in
@@ -346,7 +346,7 @@ let collect ctx tk with_type sort =
 			let origin = Self (TAbstractDecl a) in
 			List.iter (fun cf ->
 				if has_class_field_flag cf CfImpl then begin
-					if ctx.curfun = FunStatic then ()
+					if ctx.e.curfun = FunStatic then ()
 					else begin
 						let cf = prepare_using_field cf in
 						maybe_add_field CFSMember origin cf
@@ -433,7 +433,7 @@ let collect ctx tk with_type sort =
 		add (make_ci_literal "null" (tpair t_dynamic)) (Some "null");
 		add (make_ci_literal "true" (tpair ctx.com.basic.tbool)) (Some "true");
 		add (make_ci_literal "false" (tpair ctx.com.basic.tbool)) (Some "false");
-		begin match ctx.curfun with
+		begin match ctx.e.curfun with
 			| FunMember | FunConstructor | FunMemberClassLocal ->
 				let t = TInst(ctx.c.curclass,extract_param_types ctx.c.curclass.cl_params) in
 				add (make_ci_literal "this" (tpair t)) (Some "this");
