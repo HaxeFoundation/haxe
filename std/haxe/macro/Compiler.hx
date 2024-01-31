@@ -751,7 +751,7 @@ enum Platform {
 	Flash;
 	Php;
 	Cpp;
-	Java;
+	Jvm;
 	Python;
 	Hl;
 	Eval;
