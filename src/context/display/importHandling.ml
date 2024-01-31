@@ -152,7 +152,7 @@ let init_import ctx path mode p =
 				| Some(newname,pname) ->
 					let mt = get_type tname in
 					check_alias mt newname pname;
-					ctx.m.import_resolution#add (module_type_resolution mt (Some newname) p2)
+					ctx.m.import_resolution#add (module_type_resolution mt (Some newname) p)
 				end
 			| [tsub,p2] ->
 				let pu = punion p1 p2 in

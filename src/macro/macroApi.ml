@@ -2023,7 +2023,7 @@ let macro_api ccom get_api =
 				let api = encode_obj [
 					"outputFile", encode_string com.file;
 					"types", encode_array (List.map (fun t -> encode_type (type_of_module_type t)) com.types);
-					"main", (match com.main with None -> vnull | Some e -> encode_texpr e);
+					"main", (match com.main.main_expr with None -> vnull | Some e -> encode_texpr e);
 					"generateValue", vfun1 (fun v ->
 						let e = decode_texpr v in
 						let str = Genjs.gen_single_expr js_ctx e false in
@@ -2255,7 +2255,7 @@ let macro_api ccom get_api =
 				"platform", encode_platform com.platform;
 				"platformConfig", encode_platform_config com.config;
 				"stdPath", encode_array (List.map (fun path -> encode_string path#path) com.class_paths#get_std_paths);
-				"mainClass", (match com.main_class with None -> vnull | Some path -> encode_path path);
+				"mainClass", (match com.main.main_class with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
 			]
 		);
@@ -2264,7 +2264,7 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"get_main_expr", vfun0 (fun() ->
-			match (ccom()).main with None -> vnull | Some e -> encode_texpr e
+			match (ccom()).main.main_expr with None -> vnull | Some e -> encode_texpr e
 		);
 		"get_module_types", vfun0 (fun() ->
 			encode_array (List.map encode_module_type (ccom()).types)

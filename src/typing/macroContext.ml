@@ -728,7 +728,6 @@ let create_macro_context com =
 	let com2 = Common.clone com true in
 	com.get_macros <- (fun() -> Some com2);
 	com2.package_rules <- PMap.empty;
-	com2.main_class <- None;
 	(* Inherit most display settings, but require normal typing. *)
 	com2.display <- {com.display with dms_kind = DMNone; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
 	com2.class_paths#lock_context "macro" false;
@@ -1096,7 +1095,7 @@ let interpret ctx =
 	let mctx = get_macro_context ctx in
 	let mctx = Interp.create ctx.com (make_macro_api ctx mctx null_pos) false in
 	Interp.add_types mctx ctx.com.types (fun t -> ());
-	match ctx.com.main with
+	match ctx.com.main.main_expr with
 		| None -> ()
 		| Some e -> ignore(Interp.eval_expr mctx e)
 

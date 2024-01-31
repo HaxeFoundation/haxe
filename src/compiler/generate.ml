@@ -130,9 +130,16 @@ let generate ctx tctx ext actx =
 		| Java when not actx.jvm_flag -> Path.mkdir_from_path (com.file ^ "/.")
 		| _ -> Path.mkdir_from_path com.file
 	end;
-	if actx.interp then
-		Std.finally (Timer.timer ["interp"]) MacroContext.interpret tctx
-	else begin
+	if actx.interp then begin
+		let timer = Timer.timer ["interp"] in
+		let old = tctx.com.args in
+		tctx.com.args <- ctx.runtime_args;
+		let restore () =
+			tctx.com.args <- old;
+			timer ()
+		in
+		Std.finally restore MacroContext.interpret tctx
+	end else begin
 		let generate,name = match com.platform with
 		| Flash ->
 			let header = try

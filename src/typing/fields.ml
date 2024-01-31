@@ -109,7 +109,7 @@ let field_access ctx mode f fh e pfield =
 	let pfull = punion e.epos pfield in
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	check_no_closure_meta ctx f fh mode pfield;
-	let bypass_accessor = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
+	let bypass_accessor () = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
 	let make_access inline = FieldAccess.create e f fh (inline && ctx.allow_inline) pfull in
 	match f.cf_kind with
 	| Method m ->
@@ -208,8 +208,6 @@ let field_access ctx mode f fh e pfield =
 		| AccCall ->
 			let m = (match mode with MSet _ -> "set_" | _ -> "get_") ^ f.cf_name in
 			let bypass_accessor =
-				bypass_accessor
-				||
 				(
 					m = ctx.curfield.cf_name
 					&&
@@ -218,7 +216,7 @@ let field_access ctx mode f fh e pfield =
 					| TLocal v -> Option.map_default (fun vthis -> v == vthis) false ctx.vthis
 					| TTypeExpr (TClassDecl c) when c == ctx.curclass -> true
 					| _ -> false
-				)
+				) || bypass_accessor ()
 			in
 			if bypass_accessor then (
 				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> warning ctx WTemp "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" pfield | _ -> ());
@@ -272,7 +270,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		| None -> raise Not_found
 	in
 	let type_field_by_et f e t =
-		f { e with etype = t } (follow_without_type t)
+		f e (follow_without_type t)
 	in
 	let type_field_by_e f e =
 		f e (follow_without_type e.etype)
@@ -293,7 +291,15 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		type_field_by_forward f Meta.ForwardStatics a
 	in
 	let type_field_by_forward_member f e a tl =
-		let f () = type_field_by_et f e (Abstract.get_underlying_type ~return_first:true a tl) in
+		let f () =
+			let t = Abstract.get_underlying_type ~return_first:true a tl in
+			let e = if Meta.has Meta.ForwardAccessOnAbstract a.a_meta then
+				e
+			else
+				mk (TCast(e,None)) t e.epos
+			in
+			type_field_by_et f e t
+		in
 		type_field_by_forward f Meta.Forward a
 	in
 	let type_field_by_typedef f e td tl =
@@ -376,7 +382,10 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					field_access f FHAnon
 				)
 			| CTypes tl ->
-				type_field_by_list (fun (t,_) -> type_field_by_et type_field_by_type e t) tl
+				type_field_by_list (fun (t,_) ->
+					let e = mk (TCast(e,None)) t e.epos in
+					type_field_by_et type_field_by_type e t
+				) tl
 			| CUnknown ->
 				if not (List.exists (fun (m,_) -> m == r) ctx.monomorphs.perfunction) && not (ctx.untyped && ctx.com.platform = Neko) then
 					ctx.monomorphs.perfunction <- (r,p) :: ctx.monomorphs.perfunction;

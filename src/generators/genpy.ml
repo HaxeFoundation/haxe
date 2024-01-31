@@ -2410,7 +2410,7 @@ module Generator = struct
 		List.iter (fun f -> f()) (List.rev ctx.class_inits)
 
 	let gen_main ctx =
-		match ctx.com.main with
+		match ctx.com.main.main_expr with
 			| None ->
 				()
 			| Some e ->
