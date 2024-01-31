@@ -519,7 +519,7 @@ jobs:
           haxe dox.hxml
           mkdir resources
           cp ../../src-json/* resources
-          cpp/Dox -i ../../xmldoc -ex microsoft -ex javax -ex -theme $(haxelib libpath dox)/themes/default
+          cpp/Dox -i ../../xmldoc -ex microsoft -ex javax -theme $(haxelib libpath dox)/themes/default
         working-directory: ${{github.workspace}}/tests/docgen
 
   linux-arm64:
