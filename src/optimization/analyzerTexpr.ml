@@ -672,6 +672,7 @@ module Fusion = struct
 					if not !found && (((has_state_read ir || has_any_field_read ir)) || has_state_write ir || has_any_field_write ir) then raise Exit;
 					{e with eexpr = TCall(e1,el)}
 				| TObjectDecl fl ->
+					(* TODO can something be cleaned up here? *)
 					(* The C# generator has trouble with evaluation order in structures (#7531). *)
 					let el = handle_el (List.map snd fl) in
 					if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;

@@ -1,4 +1,4 @@
-// not supported in js/python/cs yet
+// not supported in js/python yet
 #if (cpp || php || java || neko || flash)
 var d = [120, 218, 43, 73, 45, 46, 1, 0, 4, 93, 1, 193];
 var b = haxe.io.Bytes.alloc(d.length);

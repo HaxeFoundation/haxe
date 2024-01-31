@@ -79,8 +79,6 @@ for data in all_filenames:
     for target, name in [
         ("../../bin/cpp/UtilityProcess-debug", "bin-cpp-debug"),
         ("../../bin/cpp/UtilityProcess", "bin-cpp"),
-        ("../../bin/cs/bin/UtilityProcess-Debug.exe", "bin-cs-debug"),
-        ("../../bin/cs/bin/UtilityProcess.exe", "bin-cs"),
         ("../../bin/hl/UtilityProcess.hl", "bin-hl"),
         ("../../bin/hlc/utilityProcess/UtilityProcess.exe", "bin-hlc"),
         ("../../bin/lua/UtilityProcess.lua", "bin-lua"),
