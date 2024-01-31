@@ -631,7 +631,7 @@ let create_typer_context_for_field ctx cctx fctx cff =
 		monomorphs = {
 			perfunction = [];
 		};
-		type_params = if fctx.is_static && not fctx.is_abstract_member then [] else ctx.type_params;
+		type_params = if fctx.is_static && not fctx.is_abstract_member && not (Meta.has Meta.LibType cctx.tclass.cl_meta) (* TODO: remove this *) then [] else ctx.type_params;
 	} in
 
 	let c = cctx.tclass in
