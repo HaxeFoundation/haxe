@@ -720,6 +720,7 @@ let create_typer_context_for_module ctx m = {
 			monomorphs = {
 				perfunction = [];
 			};
+			in_loop = false;
 		};
 		f = {
 			locals = PMap.empty;
@@ -731,7 +732,6 @@ let create_typer_context_for_module ctx m = {
 		allow_transform = true;
 		type_params = [];
 		in_display = false;
-		in_loop = false;
 		in_call_args = false;
 		in_overload_call_args = false;
 		delayed_display = None;

@@ -52,7 +52,6 @@ let create com macros =
 		call_argument_stack = [];
 		pass = PBuildModule;
 		macro_depth = 0;
-		in_loop = false;
 		in_display = false;
 		allow_inline = true;
 		allow_transform = true;
@@ -70,6 +69,7 @@ let create com macros =
 			monomorphs = {
 				perfunction = [];
 			};
+			in_loop = false;
 		};
 		f = {
 			locals = PMap.empty;

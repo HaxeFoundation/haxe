@@ -713,9 +713,9 @@ and type_vars ctx vl p =
 			let e = (match ev.ev_expr with
 				| None -> None
 				| Some e ->
-					let old_in_loop = ctx.in_loop in
-					if ev.ev_static then ctx.in_loop <- false;
-					let e = Std.finally (fun () -> ctx.in_loop <- old_in_loop) (type_expr ctx e) (WithType.with_type t) in
+					let old_in_loop = ctx.e.in_loop in
+					if ev.ev_static then ctx.e.in_loop <- false;
+					let e = Std.finally (fun () -> ctx.e.in_loop <- old_in_loop) (type_expr ctx e) (WithType.with_type t) in
 					let e = AbstractCast.cast_or_unify ctx t e p in
 					Some e
 			) in
@@ -1227,9 +1227,9 @@ and type_local_function ctx kind f with_type p =
 		| None -> None,p
 		| Some (v,pn) -> Some v,pn
 	) in
-	let old_tp,old_in_loop = ctx.type_params,ctx.in_loop in
+	let old_tp,old_in_loop = ctx.type_params,ctx.e.in_loop in
 	ctx.type_params <- params @ ctx.type_params;
-	if not inline then ctx.in_loop <- false;
+	if not inline then ctx.e.in_loop <- false;
 	let rt = Typeload.load_type_hint ctx p f.f_type in
 	let type_arg _ opt t p = Typeload.load_type_hint ~opt ctx p t in
 	let args = new FunctionArguments.function_arguments ctx type_arg false ctx.in_display None f.f_args in
@@ -1338,7 +1338,7 @@ and type_local_function ctx kind f with_type p =
 	in
 	let e = TypeloadFunction.type_function ctx args rt curfun f.f_expr ctx.in_display p in
 	ctx.type_params <- old_tp;
-	ctx.in_loop <- old_in_loop;
+	ctx.e.in_loop <- old_in_loop;
 	let tf = {
 		tf_args = args#for_expr;
 		tf_type = rt;
@@ -1924,18 +1924,18 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EIf (e,e1,e2) ->
 		type_if ctx e e1 e2 with_type false p
 	| EWhile (cond,e,NormalWhile) ->
-		let old_loop = ctx.in_loop in
+		let old_loop = ctx.e.in_loop in
 		let cond = type_expr ctx cond WithType.value in
 		let cond = AbstractCast.cast_or_unify ctx ctx.t.tbool cond p in
-		ctx.in_loop <- true;
+		ctx.e.in_loop <- true;
 		let e = type_expr ctx (Expr.ensure_block e) WithType.NoValue in
-		ctx.in_loop <- old_loop;
+		ctx.e.in_loop <- old_loop;
 		mk (TWhile (cond,e,NormalWhile)) ctx.t.tvoid p
 	| EWhile (cond,e,DoWhile) ->
-		let old_loop = ctx.in_loop in
-		ctx.in_loop <- true;
+		let old_loop = ctx.e.in_loop in
+		ctx.e.in_loop <- true;
 		let e = type_expr ctx (Expr.ensure_block e) WithType.NoValue in
-		ctx.in_loop <- old_loop;
+		ctx.e.in_loop <- old_loop;
 		let cond = type_expr ctx cond WithType.value in
 		let cond = AbstractCast.cast_or_unify ctx ctx.t.tbool cond cond.epos in
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
@@ -1957,10 +1957,10 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		end else
 			type_return ctx e with_type p
 	| EBreak ->
-		if not ctx.in_loop then display_error ctx.com "Break outside loop" p;
+		if not ctx.e.in_loop then display_error ctx.com "Break outside loop" p;
 		mk TBreak (mono_or_dynamic ctx with_type p) p
 	| EContinue ->
-		if not ctx.in_loop then display_error ctx.com "Continue outside loop" p;
+		if not ctx.e.in_loop then display_error ctx.com "Continue outside loop" p;
 		mk TContinue (mono_or_dynamic ctx with_type p) p
 	| ETry (e1,[]) ->
 		type_expr ctx e1 with_type

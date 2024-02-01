@@ -142,6 +142,7 @@ and typer_expr = {
 	mutable opened : anon_status ref list;
 	mutable monomorphs : monomorphs;
 	mutable in_function : bool;
+	mutable in_loop : bool;
 }
 
 and typer_field = {
@@ -173,7 +174,6 @@ and typer = {
 	(* per-function *)
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;
-	mutable in_loop : bool;
 	mutable in_display : bool;
 	mutable macro_depth : int;
 	mutable in_call_args : bool;
