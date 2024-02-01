@@ -278,9 +278,9 @@ let parse_args com =
 		("Services",["--json"],[],Arg.String (fun file ->
 			actx.json_out <- Some file
 		),"<file>","generate JSON types description");
-		("Services",["--hxb"],[], Arg.String (fun dir ->
-			actx.hxb_out <- Some dir;
-		),"<directory>", "generate haxe binary representation in target directory");
+		("Services",["--hxb"],[], Arg.String (fun file ->
+			actx.hxb_out <- Some file;
+		),"<file>", "generate haxe binary representation to target archive");
 		("Optimization",["--no-output"],[], Arg.Unit (fun() -> actx.no_output <- true),"","compiles but does not generate any file");
 		("Debug",["--times"],[], Arg.Unit (fun() -> Timer.measure_times := true),"","measure compilation times");
 		("Optimization",["--no-inline"],[],Arg.Unit (fun () ->

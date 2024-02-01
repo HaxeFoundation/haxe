@@ -369,6 +369,12 @@ let compile ctx actx callbacks =
 	callbacks.after_target_init ctx;
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
+	begin match actx.hxb_out with
+		| None ->
+			()
+		| Some file ->
+			com.hxb_writer_config <- HxbWriterConfig.process_argument file
+	end;
 	t();
 	enter_stage com CInitialized;
 	ServerMessage.compiler_stage com;
@@ -382,7 +388,11 @@ let compile ctx actx callbacks =
 		let is_compilation = is_compilation com in
 		com.callbacks#add_after_save (fun () ->
 			callbacks.after_save ctx;
-			if is_compilation then Generate.check_hxb_output ctx actx;
+			if is_compilation then match com.hxb_writer_config with
+				| Some config ->
+					Generate.check_hxb_output ctx config;
+				| None ->
+					()
 		);
 		if is_diagnostics com then
 			filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)

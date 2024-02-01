@@ -2392,6 +2392,7 @@ class tclass_to_jvm gctx c = object(self)
 		let jsig_empty = method_sig [haxe_empty_constructor_sig] None in
 		let jm_empty_ctor = jc#spawn_method "<init>" jsig_empty [MPublic;MSynthetic] in
 		let _,load,_ = jm_empty_ctor#add_local "_" haxe_empty_constructor_sig VarArgument in
+		jm_empty_ctor#finalize_arguments;
 		jm_empty_ctor#load_this;
 		if c.cl_constructor = None then begin
 			let handler = new texpr_to_jvm gctx None jc jm_empty_ctor None in
@@ -2432,6 +2433,7 @@ class tclass_to_jvm gctx c = object(self)
 					let _,load,_ = jm#add_local n (jsignature_of_type gctx t) VarArgument in
 					load();
 				) tl;
+				jm#finalize_arguments;
 				jm#call_super_ctor cmode jm#get_jsig;
 				DynArray.iter (fun e ->
 					handler#texpr RVoid e;
@@ -2548,7 +2550,15 @@ class tclass_to_jvm gctx c = object(self)
 				let ethis = mk (TConst TThis) (TInst(c,tl)) null_pos in
 				let efield = mk (TField(ethis,FInstance(c,tl,cf))) cf.cf_type null_pos in
 				let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type null_pos in
-				DynArray.add (match cf.cf_kind with Method MethDynamic -> delayed_field_inits | _ -> field_inits) eop;
+				begin match cf.cf_kind with
+					| Method MethDynamic ->
+						let enull = Texpr.Builder.make_null efield.etype null_pos in
+						let echeck = Texpr.Builder.binop OpEq efield enull gctx.com.basic.tbool null_pos in
+						let eif = mk (TIf(echeck,eop,None)) gctx.com.basic.tvoid null_pos in
+						DynArray.add delayed_field_inits eif
+					| _ ->
+						DynArray.add field_inits eop
+				end
 			| Some e ->
 				match e.eexpr with
 				| TConst ct ->

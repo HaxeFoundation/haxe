@@ -24,6 +24,7 @@ package haxe.macro;
 
 import haxe.display.Display;
 import haxe.macro.Expr;
+import haxe.hxb.WriterConfig;
 
 /**
 	All these methods can be called for compiler configuration macros.
@@ -576,6 +577,40 @@ class Compiler {
 		}
 	}
 	#end
+
+	/**
+		Gets the current hxb writer configuration, if any.
+	**/
+	static public function getHxbWriterConfiguration():Null<WriterConfig> {
+		#if macro
+		return load("get_hxb_writer_config", 0)();
+		#else
+		return null;
+		#end
+	}
+
+	/**
+		Sets the hxb writer configuration to `config`. If no hxb writer configuration
+		exists, it is created.
+
+		The intended usage is
+
+		```
+		var config = Compiler.getHxbWriterConfiguration();
+		config.archivePath = "newPath.zip";
+		// Other changes
+		Compiler.setHxbWriterConfiguration(config);
+		```
+
+		If `config` is `null`, hxb writing is disabled.
+
+		@see haxe.hxb.WriterConfig
+	**/
+	static public function setHxbWriterConfiguration(config:Null<WriterConfig>) {
+		#if macro
+		load("set_hxb_writer_config", 1)(config);
+		#end
+	}
 }
 
 enum abstract IncludePosition(String) from String to String {

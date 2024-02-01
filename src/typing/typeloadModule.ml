@@ -822,12 +822,9 @@ let rec load_hxb_module ctx path p =
 			let api = (new hxb_reader_api_typeload ctx load_module' p :> HxbReaderApi.hxb_reader_api) in
 			let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats in
 			let read = reader#read api bytes in
-			let m = read MTF in
-			delay ctx PBuildClass (fun () ->
-				ignore(read EOT);
-				delay ctx PConnectField (fun () ->
-					ignore(read EOM);
-				);
+			let m = read EOT in
+			delay ctx PConnectField (fun () ->
+				ignore(read EOM);
 			);
 			m
 		with e ->
