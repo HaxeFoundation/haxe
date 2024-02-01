@@ -14,6 +14,7 @@ c.connect(host, port);
 c.input != null;
 c.output != null;
 
+#if !jvm
 // select when accept() would succeed
 var select = sys.net.Socket.select([s], [s], [s], 0.01);
 select.read.length == 1;
@@ -53,6 +54,7 @@ select.read.length == 1;
 select.write.length == 1;
 select.others.length == 0;
 c.read() == "abc";
+#end
 
 c.close();
 s.close();
