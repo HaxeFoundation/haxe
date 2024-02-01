@@ -1,2 +1,2 @@
 --main TestWeakMap
--jvm java
+-jvm java.jar

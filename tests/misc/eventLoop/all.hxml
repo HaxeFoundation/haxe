@@ -12,6 +12,6 @@
 --next
 -php php
 --next
--jvm java
+-jvm java.jar
 --next
 -cpp cpp
