@@ -143,6 +143,7 @@ and typer_expr = {
 	mutable monomorphs : monomorphs;
 	mutable in_function : bool;
 	mutable in_loop : bool;
+	mutable bypass_accessor : int;
 }
 
 and typer_field = {
@@ -150,6 +151,7 @@ and typer_field = {
 	mutable locals : (string, tvar) PMap.t;
 	mutable vthis : tvar option;
 	mutable untyped : bool;
+	mutable meta : metadata;
 }
 
 and typer = {
@@ -161,8 +163,6 @@ and typer = {
 	c : typer_class;
 	e : typer_expr;
 	f : typer_field;
-	mutable bypass_accessor : int;
-	mutable meta : metadata;
 	mutable with_type_stack : WithType.t list;
 	mutable call_argument_stack : expr list list;
 	(* variable *)
@@ -654,7 +654,7 @@ let can_access ctx c cf stat =
 		| KTypeParameter ttp ->
 			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) (get_constraints ttp)
 		| _ -> false)
-	|| (Meta.has Meta.PrivateAccess ctx.meta)
+	|| (Meta.has Meta.PrivateAccess ctx.f.meta)
 
 let check_field_access ctx c f stat p =
 	if not ctx.f.untyped && not (can_access ctx c f stat) then

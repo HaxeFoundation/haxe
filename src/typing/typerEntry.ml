@@ -45,21 +45,17 @@ let create com macros =
 			module_using = [];
 			import_statements = [];
 		};
-		is_display_file = false;
-		bypass_accessor = 0;
-		meta = [];
-		with_type_stack = [];
-		call_argument_stack = [];
-		pass = PBuildModule;
-		macro_depth = 0;
-		in_display = false;
-		allow_inline = true;
-		allow_transform = true;
-		type_params = [];
 		c = {
 			curclass = null_class;
 			tthis = t_dynamic;
 			get_build_infos = (fun() -> None);
+		};
+		f = {
+			locals = PMap.empty;
+			curfield = null_field;
+			vthis = None;
+			untyped = false;
+			meta = [];
 		};
 		e = {
 			ret = t_dynamic;
@@ -70,13 +66,17 @@ let create com macros =
 				perfunction = [];
 			};
 			in_loop = false;
+			bypass_accessor = 0;
 		};
-		f = {
-			locals = PMap.empty;
-			curfield = null_field;
-			vthis = None;
-			untyped = false;
-		};
+		is_display_file = false;
+		with_type_stack = [];
+		call_argument_stack = [];
+		pass = PBuildModule;
+		macro_depth = 0;
+		in_display = false;
+		allow_inline = true;
+		allow_transform = true;
+		type_params = [];
 		in_call_args = false;
 		in_overload_call_args = false;
 		delayed_display = None;

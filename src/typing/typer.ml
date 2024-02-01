@@ -1593,8 +1593,8 @@ and type_if ctx e e1 e2 with_type is_ternary p =
 
 and type_meta ?(mode=MGet) ctx m e1 with_type p =
 	if ctx.is_display_file then DisplayEmitter.check_display_metadata ctx [m];
-	let old = ctx.meta in
-	ctx.meta <- m :: ctx.meta;
+	let old = ctx.f.meta in
+	ctx.f.meta <- m :: ctx.f.meta;
 	let e () = type_expr ~mode ctx e1 with_type in
 	let e = match m with
 		| (Meta.ToString,_,_) ->
@@ -1617,7 +1617,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 		| (Meta.StoredTypedExpr,_,_) ->
 			type_stored_expr ctx e1
 		| (Meta.NoPrivateAccess,_,_) ->
-			ctx.meta <- List.filter (fun(m,_,_) -> m <> Meta.PrivateAccess) ctx.meta;
+			ctx.f.meta <- List.filter (fun(m,_,_) -> m <> Meta.PrivateAccess) ctx.f.meta;
 			e()
 		| (Meta.Fixed,_,_) when ctx.com.platform=Cpp ->
 			let e = e() in
@@ -1626,10 +1626,10 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
 		| (Meta.BypassAccessor,_,p) ->
-			let old_counter = ctx.bypass_accessor in
-			ctx.bypass_accessor <- old_counter + 1;
+			let old_counter = ctx.e.bypass_accessor in
+			ctx.e.bypass_accessor <- old_counter + 1;
 			let e = e () in
-			(if ctx.bypass_accessor > old_counter then display_error ctx.com "Field access expression expected after @:bypassAccessor metadata" p);
+			(if ctx.e.bypass_accessor > old_counter then display_error ctx.com "Field access expression expected after @:bypassAccessor metadata" p);
 			e
 		| (Meta.Inline,_,pinline) ->
 			begin match fst e1 with
@@ -1670,7 +1670,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			else
 				e()
 	in
-	ctx.meta <- old;
+	ctx.f.meta <- old;
 	e
 
 and type_call_target ctx e el with_type p_inline =

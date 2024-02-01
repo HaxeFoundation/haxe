@@ -196,6 +196,7 @@ let add_constructor ctx c force_constructor p =
 					curfield = cf;
 					vthis = None;
 					untyped = false;
+					meta = [];
 				};
 				pass = PConnectField;
 			} in

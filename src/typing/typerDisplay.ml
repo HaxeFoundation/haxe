@@ -595,7 +595,7 @@ let handle_display ctx e_ast dk mode with_type =
 				begin match mt.has_constructor with
 				| Yes -> true
 				| YesButPrivate ->
-					if (Meta.has Meta.PrivateAccess ctx.meta) then true
+					if (Meta.has Meta.PrivateAccess ctx.f.meta) then true
 					else
 						begin
 							match ctx.c.curclass.cl_kind with

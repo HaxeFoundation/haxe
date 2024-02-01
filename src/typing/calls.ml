@@ -328,9 +328,9 @@ let call_to_string ctx ?(resume=false) e =
 	else
 	let gen_to_string e =
 		(* Ignore visibility of the toString field. *)
-		ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
+		ctx.f.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.f.meta;
 		let acc = type_field (TypeFieldConfig.create resume) ctx e "toString" e.epos (MCall []) (WithType.with_type ctx.t.tstring) in
-		ctx.meta <- List.tl ctx.meta;
+		ctx.f.meta <- List.tl ctx.f.meta;
 		build_call ctx acc [] (WithType.with_type ctx.t.tstring) e.epos
 	in
 	if ctx.com.config.pf_static && not (is_nullable e.etype) then

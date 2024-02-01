@@ -701,8 +701,6 @@ let create_typer_context_for_module ctx m = {
 		t = ctx.com.basic;
 		m = make_curmod ctx m;
 		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
-		bypass_accessor = 0;
-		meta = [];
 		with_type_stack = [];
 		call_argument_stack = [];
 		pass = PBuildModule;
@@ -711,6 +709,13 @@ let create_typer_context_for_module ctx m = {
 			curclass = null_class;
 			get_build_infos = (fun() -> None);
 			tthis = t_dynamic;
+		};
+		f = {
+			locals = PMap.empty;
+			curfield = null_field;
+			vthis = None;
+			untyped = false;
+			meta = [];
 		};
 		e = {
 			ret = t_dynamic;
@@ -721,12 +726,7 @@ let create_typer_context_for_module ctx m = {
 				perfunction = [];
 			};
 			in_loop = false;
-		};
-		f = {
-			locals = PMap.empty;
-			curfield = null_field;
-			vthis = None;
-			untyped = false;
+			bypass_accessor = 0;
 		};
 		allow_inline = true;
 		allow_transform = true;

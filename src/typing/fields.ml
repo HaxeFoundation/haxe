@@ -109,7 +109,7 @@ let field_access ctx mode f fh e pfield =
 	let pfull = punion e.epos pfield in
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	check_no_closure_meta ctx f fh mode pfield;
-	let bypass_accessor () = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
+	let bypass_accessor () = if ctx.e.bypass_accessor > 0 then (ctx.e.bypass_accessor <- ctx.e.bypass_accessor - 1; true) else false in
 	let make_access inline = FieldAccess.create e f fh (inline && ctx.allow_inline) pfull in
 	match f.cf_kind with
 	| Method m ->
@@ -191,7 +191,7 @@ let field_access ctx mode f fh e pfield =
 			AKNo((normal false),pfield)
 		in
 		match (match mode with MGet | MCall _ -> v.v_read | MSet _ -> v.v_write) with
-		| AccNo when not (Meta.has Meta.PrivateAccess ctx.meta) ->
+		| AccNo when not (Meta.has Meta.PrivateAccess ctx.f.meta) ->
 			(match follow e.etype with
 			| TInst (c,_) when extends ctx.c.curclass c || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false ->
 				normal false
