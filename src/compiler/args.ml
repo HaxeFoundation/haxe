@@ -88,9 +88,6 @@ let parse_args com =
 			Common.define com Define.Cppia;
 			set_platform com Cpp file;
 		),"<file>","generate Cppia bytecode into target file");
-		("Target",["--java"],["-java"],Arg.String (fun dir ->
-			set_platform com Jvm dir;
-		),"<directory>","generate Java code into target directory");
 		("Target",["--jvm"],[],Arg.String (fun dir ->
 			actx.jvm_flag <- true;
 			set_platform com Jvm dir;
