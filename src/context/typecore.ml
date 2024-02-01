@@ -125,6 +125,7 @@ type typer_globals = {
 	mutable return_partial_type : bool;
 	mutable build_count : int;
 	mutable t_dynamic_def : Type.t;
+	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	(* api *)
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
@@ -174,7 +175,6 @@ and typer = {
 	mutable type_params : type_params;
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;
-	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	(* events *)
 	memory_marker : float array;
 }

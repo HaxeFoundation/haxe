@@ -712,7 +712,6 @@ let create_typer_context_for_module ctx m = {
 		allow_inline = true;
 		allow_transform = true;
 		type_params = [];
-		delayed_display = None;
 		memory_marker = Typecore.memory_marker;
 	}
 

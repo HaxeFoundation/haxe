@@ -664,7 +664,7 @@ let handle_display ctx e_ast dk mode with_type =
 		try
 			f()
 		with DisplayException de ->
-			ctx.delayed_display <- Some de;
+			ctx.g.delayed_display <- Some de;
 			e
 	end else
 		f()

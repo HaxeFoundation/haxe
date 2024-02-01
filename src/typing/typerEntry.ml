@@ -36,6 +36,7 @@ let create com macros =
 			get_build_info = InstanceBuilder.get_build_info;
 			do_format_string = format_string;
 			do_load_core_class = Typeload.load_core_class;
+			delayed_display = None;
 		};
 		m = {
 			curmod = null_module;
@@ -57,7 +58,6 @@ let create com macros =
 		allow_inline = true;
 		allow_transform = true;
 		type_params = [];
-		delayed_display = None;
 		memory_marker = Typecore.memory_marker;
 	} in
 	ctx.g.std_types <- (try
