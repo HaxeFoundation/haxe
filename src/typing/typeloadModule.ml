@@ -701,8 +701,6 @@ let create_typer_context_for_module ctx m = {
 		t = ctx.com.basic;
 		m = make_curmod ctx m;
 		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
-		with_type_stack = [];
-		call_argument_stack = [];
 		pass = PBuildModule;
 		macro_depth = 0;
 		c = {
@@ -727,6 +725,8 @@ let create_typer_context_for_module ctx m = {
 			};
 			in_loop = false;
 			bypass_accessor = 0;
+			with_type_stack = [];
+			call_argument_stack = [];
 		};
 		allow_inline = true;
 		allow_transform = true;

@@ -67,10 +67,10 @@ let create com macros =
 			};
 			in_loop = false;
 			bypass_accessor = 0;
+			with_type_stack = [];
+			call_argument_stack = [];
 		};
 		is_display_file = false;
-		with_type_stack = [];
-		call_argument_stack = [];
 		pass = PBuildModule;
 		macro_depth = 0;
 		in_display = false;

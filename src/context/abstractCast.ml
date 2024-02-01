@@ -12,12 +12,12 @@ let rec make_static_call ctx c cf a pl args t p =
 		match args with
 			| [e] ->
 				let e,f = push_this ctx e in
-				ctx.with_type_stack <- (WithType.with_type t) :: ctx.with_type_stack;
+				ctx.e.with_type_stack <- (WithType.with_type t) :: ctx.e.with_type_stack;
 				let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [e] p with
 					| MSuccess e -> type_expr ctx e (WithType.with_type t)
 					| _ ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
-				ctx.with_type_stack <- List.tl ctx.with_type_stack;
+				ctx.e.with_type_stack <- List.tl ctx.e.with_type_stack;
 				let e = try cast_or_unify_raise ctx t e p with Error { err_message = Unify _ } -> raise Not_found in
 				f();
 				e

@@ -144,6 +144,8 @@ and typer_expr = {
 	mutable in_function : bool;
 	mutable in_loop : bool;
 	mutable bypass_accessor : int;
+	mutable with_type_stack : WithType.t list;
+	mutable call_argument_stack : expr list list;
 }
 
 and typer_field = {
@@ -163,15 +165,9 @@ and typer = {
 	c : typer_class;
 	e : typer_expr;
 	f : typer_field;
-	mutable with_type_stack : WithType.t list;
-	mutable call_argument_stack : expr list list;
-	(* variable *)
 	mutable pass : typer_pass;
-	(* per-module *)
 	mutable is_display_file : bool;
-	(* per-class *)
 	mutable type_params : type_params;
-	(* per-function *)
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;
 	mutable in_display : bool;
@@ -179,7 +175,6 @@ and typer = {
 	mutable in_call_args : bool;
 	mutable in_overload_call_args : bool;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
-
 	(* events *)
 	memory_marker : float array;
 }

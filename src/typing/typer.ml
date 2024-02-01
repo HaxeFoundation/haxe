@@ -1017,11 +1017,11 @@ and type_new ctx ptp el with_type force_inline p =
 			tl_or_monos info.build_params
 	in
 	let restore =
-		ctx.call_argument_stack <- el :: ctx.call_argument_stack;
-		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
+		ctx.e.call_argument_stack <- el :: ctx.e.call_argument_stack;
+		ctx.e.with_type_stack <- with_type :: ctx.e.with_type_stack;
 		(fun () ->
-			ctx.with_type_stack <- List.tl ctx.with_type_stack;
-			ctx.call_argument_stack <- List.tl ctx.call_argument_stack
+			ctx.e.with_type_stack <- List.tl ctx.e.with_type_stack;
+			ctx.e.call_argument_stack <- List.tl ctx.e.call_argument_stack
 		)
 	in
 	let t = try

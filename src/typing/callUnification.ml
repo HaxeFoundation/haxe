@@ -467,7 +467,7 @@ object(self)
 	method private macro_call (ethis : texpr) (cf : tclass_field) (el : expr list) =
 		if ctx.macro_depth > 300 then raise_typing_error "Stack overflow" p;
 		ctx.macro_depth <- ctx.macro_depth + 1;
-		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
+		ctx.e.with_type_stack <- with_type :: ctx.e.with_type_stack;
 		let ethis_f = ref (fun () -> ()) in
 		let macro_in_macro () =
 			(fun () ->
@@ -507,7 +507,7 @@ object(self)
 			| _ -> die "" __LOC__))
 		in
 		ctx.macro_depth <- ctx.macro_depth - 1;
-		ctx.with_type_stack <- List.tl ctx.with_type_stack;
+		ctx.e.with_type_stack <- List.tl ctx.e.with_type_stack;
 		let old = ctx.com.error_ext in
 		ctx.com.error_ext <- (fun err ->
 			let ep = err.err_pos in

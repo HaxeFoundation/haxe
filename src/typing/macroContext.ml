@@ -468,12 +468,12 @@ let make_macro_api ctx mctx p =
 					Some (TInst (ctx.c.curclass,[]))
 		);
 		MacroApi.get_expected_type = (fun() ->
-			match ctx.with_type_stack with
+			match ctx.e.with_type_stack with
 				| (WithType.WithType(t,_)) :: _ -> Some t
 				| _ -> None
 		);
 		MacroApi.get_call_arguments = (fun() ->
-			match ctx.call_argument_stack with
+			match ctx.e.call_argument_stack with
 				| [] -> None
 				| el :: _ -> Some el
 		);
