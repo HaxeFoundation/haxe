@@ -168,13 +168,13 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 			end
 	in
 	let restore =
-		let in_call_args = ctx.e.in_call_args in
-		let in_overload_call_args = ctx.e.in_overload_call_args in
-		ctx.e.in_call_args <- true;
-		ctx.e.in_overload_call_args <- in_overload;
+		let in_call_args = ctx.f.in_call_args in
+		let in_overload_call_args = ctx.f.in_overload_call_args in
+		ctx.f.in_call_args <- true;
+		ctx.f.in_overload_call_args <- in_overload;
 		(fun () ->
-			ctx.e.in_call_args <- in_call_args;
-			ctx.e.in_overload_call_args <- in_overload_call_args;
+			ctx.f.in_call_args <- in_call_args;
+			ctx.f.in_overload_call_args <- in_overload_call_args;
 		)
 	in
 	let el = try loop el args with exc -> restore(); raise exc; in

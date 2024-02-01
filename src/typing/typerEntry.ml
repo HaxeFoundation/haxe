@@ -51,29 +51,8 @@ let create com macros =
 			tthis = t_dynamic;
 			get_build_infos = (fun() -> None);
 		};
-		f = {
-			locals = PMap.empty;
-			curfield = null_field;
-			vthis = None;
-			untyped = false;
-			meta = [];
-			in_display = false;
-		};
-		e = {
-			ret = t_dynamic;
-			curfun = FunStatic;
-			opened = [];
-			in_function = false;
-			monomorphs = {
-				perfunction = [];
-			};
-			in_loop = false;
-			bypass_accessor = 0;
-			with_type_stack = [];
-			call_argument_stack = [];
-			in_call_args = false;
-			in_overload_call_args = false;
-		};
+		f = TyperManager.create_ctx_f null_field;
+		e = TyperManager.create_ctx_e ();
 		pass = PBuildModule;
 		macro_depth = 0;
 		allow_inline = true;

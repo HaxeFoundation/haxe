@@ -28,19 +28,12 @@ open Error
 open FunctionArguments
 
 let save_field_state ctx =
-	let old_ret = ctx.e.ret in
-	let old_fun = ctx.e.curfun in
-	let old_opened = ctx.e.opened in
-	let old_monos = ctx.e.monomorphs.perfunction in
-	let old_in_function = ctx.e.in_function in
+	let old_e = ctx.e in
+	ctx.e <- TyperManager.create_ctx_e ();
 	let locals = ctx.f.locals in
 	(fun () ->
 		ctx.f.locals <- locals;
-		ctx.e.ret <- old_ret;
-		ctx.e.curfun <- old_fun;
-		ctx.e.opened <- old_opened;
-		ctx.e.monomorphs.perfunction <- old_monos;
-		ctx.e.in_function <- old_in_function;
+		ctx.e <- old_e;
 	)
 
 let type_function_params ctx fd host fname p =
@@ -191,14 +184,7 @@ let add_constructor ctx c force_constructor p =
 		let t = spawn_monomorph ctx.e p in
 		let r = make_lazy ctx t (fun r ->
 			let ctx = { ctx with
-				f = {
-					locals = PMap.empty;
-					curfield = cf;
-					vthis = None;
-					untyped = false;
-					meta = [];
-					in_display = false;
-				};
+				f = TyperManager.create_ctx_f cf;
 				pass = PConnectField;
 			} in
 			ignore (follow cfsup.cf_type); (* make sure it's typed *)

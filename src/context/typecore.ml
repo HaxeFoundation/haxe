@@ -147,8 +147,6 @@ and typer_expr = {
 	mutable bypass_accessor : int;
 	mutable with_type_stack : WithType.t list;
 	mutable call_argument_stack : expr list list;
-	mutable in_call_args : bool;
-	mutable in_overload_call_args : bool;
 }
 
 and typer_field = {
@@ -158,6 +156,8 @@ and typer_field = {
 	mutable untyped : bool;
 	mutable meta : metadata;
 	mutable in_display : bool;
+	mutable in_call_args : bool;
+	mutable in_overload_call_args : bool;
 }
 
 and typer = {
@@ -167,7 +167,7 @@ and typer = {
 	g : typer_globals;
 	mutable m : typer_module;
 	c : typer_class;
-	e : typer_expr;
+	mutable e : typer_expr;
 	f : typer_field;
 	mutable pass : typer_pass;
 	mutable type_params : type_params;
@@ -202,6 +202,33 @@ module TyperManager = struct
 			pass = PBuildClass;
 		} in
 		ctx
+
+	let create_ctx_f cf =
+		{
+			locals = PMap.empty;
+			curfield = cf;
+			vthis = None;
+			untyped = false;
+			meta = [];
+			in_display = false;
+			in_overload_call_args = false;
+			in_call_args = false;
+		}
+
+	let create_ctx_e () =
+		{
+			ret = t_dynamic;
+			curfun = FunStatic;
+			opened = [];
+			in_function = false;
+			monomorphs = {
+				perfunction = [];
+			};
+			in_loop = false;
+			bypass_accessor = 0;
+			with_type_stack = [];
+			call_argument_stack = [];
+		}
 end
 
 type field_host =
@@ -320,16 +347,16 @@ let raise_with_type_error ?(depth = 0) msg p =
 
 let raise_or_display ctx l p =
 	if ctx.f.untyped then ()
-	else if ctx.e.in_call_args then raise (WithTypeError (make_error (Unify l) p))
+	else if ctx.f.in_call_args then raise (WithTypeError (make_error (Unify l) p))
 	else display_error_ext ctx.com (make_error (Unify l) p)
 
 let raise_or_display_error ctx err =
 	if ctx.f.untyped then ()
-	else if ctx.e.in_call_args then raise (WithTypeError err)
+	else if ctx.f.in_call_args then raise (WithTypeError err)
 	else display_error_ext ctx.com err
 
 let raise_or_display_message ctx msg p =
-	if ctx.e.in_call_args then raise_with_type_error msg p
+	if ctx.f.in_call_args then raise_with_type_error msg p
 	else display_error ctx.com msg p
 
 let unify ctx t1 t2 p =

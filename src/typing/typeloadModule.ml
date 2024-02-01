@@ -708,29 +708,8 @@ let create_typer_context_for_module ctx m = {
 			get_build_infos = (fun() -> None);
 			tthis = t_dynamic;
 		};
-		f = {
-			locals = PMap.empty;
-			curfield = null_field;
-			vthis = None;
-			untyped = false;
-			meta = [];
-			in_display = false;
-		};
-		e = {
-			ret = t_dynamic;
-			curfun = FunStatic;
-			opened = [];
-			in_function = false;
-			monomorphs = {
-				perfunction = [];
-			};
-			in_loop = false;
-			bypass_accessor = 0;
-			with_type_stack = [];
-			call_argument_stack = [];
-			in_call_args = false;
-			in_overload_call_args = false;
-		};
+		f = TyperManager.create_ctx_f null_field;
+		e = TyperManager.create_ctx_e ();
 		allow_inline = true;
 		allow_transform = true;
 		type_params = [];
