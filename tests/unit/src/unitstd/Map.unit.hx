@@ -256,25 +256,21 @@ map["bar"] = map["foo"] = 9;
 map["bar"] == 9;
 map["foo"] == 9;
 
-#if !java
 ['' => ''].keys().next() == '';
 ['' => ''].iterator().next() == '';
 [2 => 3].keys().next() == 2;
 [2 => 3].iterator().next() == 3;
 //[a => b].keys().next() == a;
 //[a => b].iterator().next() == b;
-#end
 
 var map:Map<String, Int>;
 HelperMacros.typedAs((null : Map<String, Int>), map = []);
 HelperMacros.typeError(map[1] = 1) == true;
 
-#if !java
 ['' => ''].keyValueIterator().next().key == '';
 ['' => ''].keyValueIterator().next().value == '';
 [2 => 3].keyValueIterator().next().key == 2;
 [2 => 3].keyValueIterator().next().value == 3;
-#end
 
 // Test unification
 

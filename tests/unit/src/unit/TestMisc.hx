@@ -382,7 +382,7 @@ class TestMisc extends Test {
 		eq(opt2().x, 5);
 		eq(opt2().y, "hello");
 
-		#if !(flash || cpp || java)
+		#if !(flash || cpp || jvm)
 		eq(opt2(null, null).x, 5);
 		#end
 		eq(opt2(0, null).y, "hello");

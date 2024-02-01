@@ -16,7 +16,7 @@ class TestSys extends TestCommandBase {
 		// new copies should not be affected
 		Assert.isNull(Sys.environment()[nonExistent]);
 
-		#if !java
+		#if !jvm
 		// env should not update when environment updates
 		final toUpdate = "TO_UPDATE";
 
@@ -58,7 +58,7 @@ class TestSys extends TestCommandBase {
 		Assert.isNull(Sys.getEnv("doesn't exist"));
 	}
 
-	#if !java
+	#if !jvm
 	function testPutEnv() {
 		Sys.putEnv("FOO", "value");
 		Assert.equals("value", Sys.getEnv("FOO"));
@@ -129,7 +129,7 @@ class TestSys extends TestCommandBase {
 		Assert.notEquals(current, haxe.io.Path.removeTrailingSlashes(current));
 	}
 
-	#if !java
+	#if !jvm
 	function testSetCwd() {
 		var cur = Sys.getCwd();
 		Sys.setCwd("../");

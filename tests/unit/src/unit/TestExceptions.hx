@@ -23,7 +23,7 @@ private class CustomNativeException extends php.Exception {}
 private class CustomNativeException extends js.lib.Error {}
 #elseif flash
 private class CustomNativeException extends flash.errors.Error {}
-#elseif java
+#elseif jvm
 private class CustomNativeException extends java.lang.RuntimeException {}
 #elseif python
 private class CustomNativeException extends python.Exceptions.Exception {}
@@ -31,7 +31,7 @@ private class CustomNativeException extends python.Exceptions.Exception {}
 private class CustomNativeException { public function new(m:String) {} }
 #end
 
-#if java
+#if jvm
 private class NativeExceptionBase extends java.lang.RuntimeException {}
 private class NativeExceptionChild extends NativeExceptionBase {}
 private class NativeExceptionOther extends java.lang.RuntimeException {}
@@ -381,7 +381,7 @@ class TestExceptions extends Test {
 		}
 	}
 
-#if java
+#if jvm
 	function testCatchChain() {
 		eq("caught NativeExceptionChild: msg", raise(() -> throw new NativeExceptionChild("msg")));
 		eq("caught NativeExceptionBase: msg", raise(() -> throw new NativeExceptionBase("msg")));

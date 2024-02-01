@@ -1,11 +1,11 @@
 package unit.issues;
-#if java
+#if jvm
 import java.NativeArray;
 #end
 
 class Issue3979 extends Test
 {
-	#if java
+	#if jvm
 	public function test()
 	{
 		var v = 0;

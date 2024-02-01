@@ -5,7 +5,7 @@ private abstract S(String) to String {
 }
 
 class Issue5507 extends unit.Test {
-	#if java
+	#if jvm
 	@:readOnly static var a(default,never):S = "hello";
 
 	function test() {

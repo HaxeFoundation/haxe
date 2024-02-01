@@ -6,7 +6,7 @@ class Issue5025 extends Test {
 	}
 
 	function shouldCompile() {
-		#if !(java || lua)
+		#if !lua
 		try {
 			switch (null) {
 				case Value(i):

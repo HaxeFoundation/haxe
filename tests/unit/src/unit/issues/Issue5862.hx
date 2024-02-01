@@ -1,11 +1,11 @@
 package unit.issues;
 import haxe.ds.*;
-#if java
+#if jvm
 import java.NativeArray;
 #end
 
 class Issue5862 extends Test {
-#if java
+#if jvm
   public function test() {
     var imap = new IntMap();
     imap.set(0, "val1");
@@ -41,7 +41,7 @@ class Issue5862 extends Test {
     for (i in 0...v.length) {
       t(v[i] != "val3");
     }
-#if java
+#if jvm
     var wmap = new WeakMap<{}, String>();
     wmap.set(imap, "val1");
     wmap.set(smap, "val2");
@@ -91,7 +91,7 @@ class Issue5862 extends Test {
     for (i in 0...v.length) {
       t(v[i] != "val2");
     }
-#if java
+#if jvm
     var wmap = new WeakMap<{}, String>();
     wmap.set(imap, "val1");
     wmap.set(smap, "val2");

@@ -1,10 +1,10 @@
 package unit.issues;
-#if java
+#if jvm
 import java.NativeArray;
 #end
 
 class Issue1925 extends Test {
-#if java
+#if jvm
 	static var d2:Array<NativeArray<Int>>;
 	function test() {
 		var d = new NativeArray<Int>(10);

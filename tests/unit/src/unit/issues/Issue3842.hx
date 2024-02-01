@@ -2,7 +2,7 @@ package unit.issues;
 
 class Issue3842 extends Test
 {
-#if java
+#if jvm
 	// public function test()
 	// {
 	// 	var c = new Child();
@@ -13,7 +13,7 @@ class Issue3842 extends Test
 #end
 }
 //
-// #if java
+// #if jvm
 // private class Base
 // {
 // 	public function new()

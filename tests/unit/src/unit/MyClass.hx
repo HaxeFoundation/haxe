@@ -153,10 +153,8 @@ class ParamConstraintsClass {
 
 	public function memberAnon < A:{ x : Int } & { y : Float }> (v:A) { return v.x + v.y; }
 
-#if !java  //this is a known bug caused by issue #915
 	@:overload(function< A, B:Array<A> > (a:A, b:B):Void { } )
 	public function memberOverload < A, B > (a:String, b:String) { }
-#end
 }
 
 class ParamConstraintsClass2<T> {

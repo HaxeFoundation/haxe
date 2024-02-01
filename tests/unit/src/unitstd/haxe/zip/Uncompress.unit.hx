@@ -1,5 +1,5 @@
 // not supported in js/python yet
-#if (cpp || php || java || neko || flash)
+#if (cpp || php || jvm || neko || flash)
 var d = [120, 218, 43, 73, 45, 46, 1, 0, 4, 93, 1, 193];
 var b = haxe.io.Bytes.alloc(d.length);
 for (i in 0...d.length) b.set(i, d[i]);

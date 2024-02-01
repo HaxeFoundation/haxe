@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue2688 extends Test {
-#if java
+#if jvm
   public function test() {
     var x = 0;
     var b = new B(function() {
@@ -13,7 +13,7 @@ class Issue2688 extends Test {
 #end
 }
 
-#if java
+#if jvm
 @:nativeGen
 private class A {
   public function new() {

@@ -69,7 +69,7 @@ function main() {
 		#if !no_pattern_matching
 		new TestMatch(),
 		#end
-		#if java
+		#if jvm
 		new TestJava(),
 		#end
 		#if lua
@@ -84,7 +84,7 @@ function main() {
 		#if php
 		new TestPhp(),
 		#end
-		#if java
+		#if jvm
 		new TestOverloads(),
 		#end
 		new TestOverloadsForEveryone(),

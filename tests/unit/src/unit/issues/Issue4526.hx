@@ -39,7 +39,7 @@ private class Struct4 {
 
 class Issue4526 extends Test {
 	function test() {
-		var fieldNull = #if (cpp || flash || java || hl) 0 #else null #end;
+		var fieldNull = #if (cpp || flash || jvm || hl) 0 #else null #end;
 
 		var s1:Struct1 = { x: 12, y: 13 };
 		eq("12 13", s1.get());

@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue6379 extends unit.Test {
-	#if (!java && !lua)
+	#if (!lua)
 	function test() {
         eq(g("x_x").length, 2);
     }

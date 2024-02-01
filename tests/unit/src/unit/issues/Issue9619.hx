@@ -1,6 +1,6 @@
 package unit.issues;
 
-#if java
+#if jvm
 
 private abstract class AbstractOverloadParent {
 	public function new():Void {}
@@ -79,7 +79,7 @@ private class ConcreteChild extends AbstractParent {
 
 class Issue9619 extends unit.Test {
 	function test() {
-		#if java
+		#if jvm
 		var cc = new ConcreteOverloadChild();
 		t(HelperMacros.typeError(new AbstractOverloadParent()));
 

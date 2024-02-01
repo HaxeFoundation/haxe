@@ -225,8 +225,8 @@ class TestReflect extends Test {
 		eq( i.intValue, 55 );
 		var i = Type.createEmptyInstance(MyClass);
 		t( (i is MyClass) );
-		eq( i.get(), #if (flash || cpp || java || hl) 0 #else null #end );
-		eq( i.intValue, #if (flash || cpp || java || hl) 0 #else null #end );
+		eq( i.get(), #if (flash || cpp || jvm || hl) 0 #else null #end );
+		eq( i.intValue, #if (flash || cpp || jvm || hl) 0 #else null #end );
 		var e : MyEnum = Type.createEnum(MyEnum,__unprotect__("A"));
 		eq( e, MyEnum.A );
 		var e : MyEnum = Type.createEnum(MyEnum,__unprotect__("C"),[55,"hello"]);

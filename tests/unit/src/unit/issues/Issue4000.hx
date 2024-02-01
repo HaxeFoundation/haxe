@@ -10,7 +10,7 @@ class Issue4000 extends Test
 		eq(c.dyn.a,1);
 		eq(c.dyn.b,10);
 		f(c.b);
-#if java
+#if jvm
 		var c = new Child(42);
 		eq(c.i,42);
 		eq(c.f,1.0);
@@ -35,7 +35,7 @@ private class Child extends NativeGen
 	public var dyn = { a:1, b:10 };
 	public var b = true;
 
-#if java
+#if jvm
 	@:overload
 #end
 	public function new()
@@ -44,7 +44,7 @@ private class Child extends NativeGen
 		this.b = false;
 	}
 
-#if java
+#if jvm
 	@:overload public function new(i:Float)
 	{
 		super();

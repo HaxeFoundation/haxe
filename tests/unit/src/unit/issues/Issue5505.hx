@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue5505 extends Test {
-  #if java
+  #if jvm
   function test() {
     eq(StringTools.urlEncode('~'), '~');
     eq(StringTools.urlDecode(StringTools.urlEncode('~')), '~');

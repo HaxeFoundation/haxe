@@ -169,7 +169,7 @@ class TestDCE extends Test {
 	}
 
 	// TODO: this should be possible in lua
-	#if (!cpp && !java && !lua)
+	#if (!cpp && !jvm && !lua)
 	public function testProperty2() {
 		var a = new RemovePropertyKeepAccessors();
 		a.test = 3;

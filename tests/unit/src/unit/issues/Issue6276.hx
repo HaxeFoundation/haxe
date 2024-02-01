@@ -3,7 +3,6 @@ package unit.issues;
 using Reflect;
 
 class Issue6276 extends unit.Test {
-	#if (!java)
 	function test(){
 		var s = "bar";
 
@@ -40,5 +39,4 @@ class Issue6276 extends unit.Test {
 		var toString = s.field("toString");
 		eq(s.toString(), Reflect.callMethod(s, toString, []));
 	}
-	#end
 }

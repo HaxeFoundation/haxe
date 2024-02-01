@@ -1,12 +1,12 @@
 package unit.issues;
-#if java
+#if jvm
 import java.NativeArray;
 import java.Lib;
 #end
 
 class Issue2049 extends unit.Test
 {
-#if java
+#if jvm
 	public function test()
 	{
 		var arr = [ 1., 1., 1., 0.5 ].map( function( n: Float ): Single { return n; });

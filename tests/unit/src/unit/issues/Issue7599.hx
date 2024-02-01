@@ -1,6 +1,6 @@
 package unit.issues;
 
-#if java
+#if jvm
 
 @:keep
 private class Overloader {
@@ -48,7 +48,7 @@ private class Overloader {
 #end
 
 class Issue7599 extends unit.Test {
-	#if java
+	#if jvm
 
 	function testGeneric() {
 		var overloader = new Overloader();
