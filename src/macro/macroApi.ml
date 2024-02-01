@@ -63,7 +63,6 @@ type 'value compiler_api = {
 	encode_expr : Ast.expr -> 'value;
 	encode_ctype : Ast.type_hint -> 'value;
 	decode_type : 'value -> t;
-	flush_context : (unit -> t) -> t;
 	info : ?depth:int -> string -> pos -> unit;
 	warning : ?depth:int -> Warning.warning -> string -> pos -> unit;
 	display_error : ?depth:int -> (string -> pos -> unit);
@@ -171,8 +170,6 @@ module type InterpApi = sig
 	val prepare_callback : value -> int -> (value list -> value)
 
 	val value_string : value -> string
-
-	val flush_core_context : (unit -> t) -> t
 
 	val handle_decoding_error : (string -> unit) -> value -> Type.t -> (string * int) list
 
@@ -1099,7 +1096,7 @@ and encode_cfield f =
 		"params", encode_type_params f.cf_params;
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
 		"expr", vfun0 (fun() ->
-			ignore (flush_core_context (fun() -> follow f.cf_type));
+			ignore (follow f.cf_type);
 			(match f.cf_expr with None -> vnull | Some e -> encode_texpr e)
 		);
 		"kind", encode_field_kind f.cf_kind;
@@ -1266,8 +1263,7 @@ and encode_lazy_type t =
 					| LAvailable t ->
 						encode_type t
 					| LWait _ ->
-						(* we are doing some typing here, let's flush our context if it's not already *)
-						encode_type (flush_core_context (fun() -> lazy_type f))
+						encode_type (lazy_type f)
 					| LProcessing _ ->
 						(* our type in on the processing stack, error instead of returning most likely an unbound mono *)
 						error_message "Accessing a type while it's being typed");
