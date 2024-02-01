@@ -541,9 +541,9 @@ and display_expr ctx e_ast e dk mode with_type p =
 		raise_fields fields (CRField(item,e.epos,iterator,keyValueIterator)) (make_subject None (DisplayPosition.display_position#with_pos p))
 
 let handle_display ctx e_ast dk mode with_type =
-	let old = ctx.in_display,ctx.in_call_args in
+	let old = ctx.in_display,ctx.e.in_call_args in
 	ctx.in_display <- true;
-	ctx.in_call_args <- false;
+	ctx.e.in_call_args <- false;
 	let tpair t =
 		let ct = CompletionType.from_type (get_import_status ctx) t in
 		(t,ct)
@@ -658,9 +658,9 @@ let handle_display ctx e_ast dk mode with_type =
 		print_endline (Printf.sprintf "cast expr:\n%s" (s_expr_ast true "" (s_type (print_context())) e));
 	end;
 	ctx.in_display <- fst old;
-	ctx.in_call_args <- snd old;
+	ctx.e.in_call_args <- snd old;
 	let f () = display_expr ctx e_ast e dk mode with_type p in
-	if ctx.in_overload_call_args then begin
+	if ctx.e.in_overload_call_args then begin
 		try
 			f()
 		with DisplayException de ->

@@ -69,6 +69,8 @@ let create com macros =
 			bypass_accessor = 0;
 			with_type_stack = [];
 			call_argument_stack = [];
+			in_call_args = false;
+			in_overload_call_args = false;
 		};
 		is_display_file = false;
 		pass = PBuildModule;
@@ -77,8 +79,6 @@ let create com macros =
 		allow_inline = true;
 		allow_transform = true;
 		type_params = [];
-		in_call_args = false;
-		in_overload_call_args = false;
 		delayed_display = None;
 		memory_marker = Typecore.memory_marker;
 	} in

@@ -168,13 +168,13 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 			end
 	in
 	let restore =
-		let in_call_args = ctx.in_call_args in
-		let in_overload_call_args = ctx.in_overload_call_args in
-		ctx.in_call_args <- true;
-		ctx.in_overload_call_args <- in_overload;
+		let in_call_args = ctx.e.in_call_args in
+		let in_overload_call_args = ctx.e.in_overload_call_args in
+		ctx.e.in_call_args <- true;
+		ctx.e.in_overload_call_args <- in_overload;
 		(fun () ->
-			ctx.in_call_args <- in_call_args;
-			ctx.in_overload_call_args <- in_overload_call_args;
+			ctx.e.in_call_args <- in_call_args;
+			ctx.e.in_overload_call_args <- in_overload_call_args;
 		)
 	in
 	let el = try loop el args with exc -> restore(); raise exc; in
@@ -241,7 +241,7 @@ let unify_field_call ctx fa el_typed el p inline =
 		else if fa.fa_field.cf_overloads <> [] then OverloadMeta
 		else OverloadNone
 	in
-	(* Delayed display handling works like this: If ctx.in_overload_call_args is set (via attempt_calls calling unify_call_args' below),
+	(* Delayed display handling works like this: If ctx.e.in_overload_call_args is set (via attempt_calls calling unify_call_args' below),
 	   the code which normally raises eager Display exceptions (in typerDisplay.ml handle_display) instead stores them in ctx.delayed_display.
 	   The overload handling here extracts them and associates the exception with the field call candidates. Afterwards, normal overload resolution
 	   can take place and only then the display callback is actually committed.

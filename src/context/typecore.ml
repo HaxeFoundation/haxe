@@ -146,6 +146,8 @@ and typer_expr = {
 	mutable bypass_accessor : int;
 	mutable with_type_stack : WithType.t list;
 	mutable call_argument_stack : expr list list;
+	mutable in_call_args : bool;
+	mutable in_overload_call_args : bool;
 }
 
 and typer_field = {
@@ -172,8 +174,6 @@ and typer = {
 	mutable allow_transform : bool;
 	mutable in_display : bool;
 	mutable macro_depth : int;
-	mutable in_call_args : bool;
-	mutable in_overload_call_args : bool;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	(* events *)
 	memory_marker : float array;
@@ -320,16 +320,16 @@ let raise_with_type_error ?(depth = 0) msg p =
 
 let raise_or_display ctx l p =
 	if ctx.f.untyped then ()
-	else if ctx.in_call_args then raise (WithTypeError (make_error (Unify l) p))
+	else if ctx.e.in_call_args then raise (WithTypeError (make_error (Unify l) p))
 	else display_error_ext ctx.com (make_error (Unify l) p)
 
 let raise_or_display_error ctx err =
 	if ctx.f.untyped then ()
-	else if ctx.in_call_args then raise (WithTypeError err)
+	else if ctx.e.in_call_args then raise (WithTypeError err)
 	else display_error_ext ctx.com err
 
 let raise_or_display_message ctx msg p =
-	if ctx.in_call_args then raise_with_type_error msg p
+	if ctx.e.in_call_args then raise_with_type_error msg p
 	else display_error ctx.com msg p
 
 let unify ctx t1 t2 p =
