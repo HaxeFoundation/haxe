@@ -255,7 +255,7 @@ let handle_abstract_casts ctx e =
 					begin try
 						let cf = PMap.find "toString" c.cl_statics in
 						let call() = make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos in
-						if not ctx.allow_transform then
+						if not ctx.g.allow_transform then
 							{ e1 with etype = ctx.t.tstring; epos = e.epos }
 						else if not (is_nullable e1.etype) then
 							call()

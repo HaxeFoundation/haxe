@@ -286,7 +286,7 @@ let rec build_call_access ctx acc el mode with_type p =
 		let eparam = sea.se_this in
 		let e = dispatch#field_call sea.se_access [eparam] el in
 		let e = match sea.se_access.fa_host with
-		| FHAbstract _ when not ctx.allow_transform ->
+		| FHAbstract _ when not ctx.g.allow_transform ->
 			(* transform XXXImpl.field(this,args) back into this.field(args) *)
 			(match e.eexpr with
 			| TCall ({ eexpr = TField(_,name) } as f, abs :: el) -> { e with eexpr = TCall(mk (TField(abs,name)) t_dynamic f.epos, el) }
@@ -323,7 +323,7 @@ let rec needs_temp_var e =
 	| _ -> true
 
 let call_to_string ctx ?(resume=false) e =
-	if not ctx.allow_transform then
+	if not ctx.g.allow_transform then
 		{ e with etype = ctx.t.tstring }
 	else
 	let gen_to_string e =
@@ -372,7 +372,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			let a = if is_pos_infos t then
 					let infos = mk_infos ctx p [] in
 					ordered_args @ [type_expr ctx infos (WithType.with_argument t n)]
-				else if ctx.com.config.pf_pad_nulls && ctx.allow_transform then
+				else if ctx.com.config.pf_pad_nulls && ctx.g.allow_transform then
 					(ordered_args @ [(mk (TConst TNull) t_dynamic p)])
 				else
 					ordered_args
@@ -448,7 +448,7 @@ let array_access ctx e1 e2 mode p =
 			| _ ->
 				has_abstract_array_access := true;
 				let f = AbstractCast.find_array_read_access ctx a pl e2 p in
-				if not ctx.allow_transform then
+				if not ctx.g.allow_transform then
 					let _,_,r,_ = f in
 					AKExpr { eexpr = TArray(e1,e2); epos = p; etype = r }
 				else begin

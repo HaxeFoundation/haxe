@@ -37,6 +37,8 @@ let create com macros =
 			do_format_string = format_string;
 			do_load_core_class = Typeload.load_core_class;
 			delayed_display = None;
+			allow_inline = true;
+			allow_transform = true;
 		};
 		m = {
 			curmod = null_module;
@@ -55,8 +57,6 @@ let create com macros =
 		f = TyperManager.create_ctx_f null_field;
 		e = TyperManager.create_ctx_e ();
 		pass = PBuildModule;
-		allow_inline = true;
-		allow_transform = true;
 		type_params = [];
 		memory_marker = Typecore.memory_marker;
 	} in

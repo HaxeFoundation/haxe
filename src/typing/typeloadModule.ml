@@ -709,8 +709,6 @@ let create_typer_context_for_module ctx m = {
 		};
 		f = TyperManager.create_ctx_f null_field;
 		e = TyperManager.create_ctx_e ();
-		allow_inline = true;
-		allow_transform = true;
 		type_params = [];
 		memory_marker = Typecore.memory_marker;
 	}
