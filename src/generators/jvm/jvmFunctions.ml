@@ -178,7 +178,7 @@ class typed_functions = object(self)
 		jm#finalize_arguments;
 		load();
 		jm#get_code#arraylength array_sig;
-		let cases = ExtList.List.init max_arity (fun i ->
+		let cases = ExtList.List.init (max_arity + 1) (fun i ->
 			[Int32.of_int i],(fun () ->
 				jm#load_this;
 				let args = ExtList.List.init i (fun index ->
