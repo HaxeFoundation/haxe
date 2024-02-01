@@ -65,15 +65,6 @@ let add_property_field com c =
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
 		c.cl_ordered_statics <- cf :: c.cl_ordered_statics
 
-let escape_res_name name allowed =
-	ExtString.String.replace_chars (fun chr ->
-		if (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr = '_' || chr = '.' then
-			Char.escaped chr
-		else if List.mem chr allowed then
-			Char.escaped chr
-		else
-			"-x" ^ (string_of_int (Char.code chr))) name
-
 (* -------------------------------------------------------------------------- *)
 (* FIX OVERRIDES *)
 
@@ -122,8 +113,13 @@ let fix_override com c f fd =
 					(* Flash generates type parameters with a single constraint as that constraint type, so we
 					   have to detect this case and change the variable (issue #2712). *)
 					begin match follow v.v_type with
-						| TInst({cl_kind = KTypeParameter [tc]} as cp,_) when com.platform = Flash ->
-							if List.exists (fun tp -> tp.ttp_name = (snd cp.cl_path)) c.cl_params then raise (Unify_error [])
+						| TInst({cl_kind = KTypeParameter ttp} as cp,_) when com.platform = Flash ->
+							begin match get_constraints ttp with
+							| [tc] ->
+								if List.exists (fun tp -> tp.ttp_name = (snd cp.cl_path)) c.cl_params then raise (Unify_error [])
+							| _ ->
+								()
+							end
 						| _ ->
 							()
 					end;
@@ -235,11 +231,16 @@ module Dump = struct
 		let buf,close = create_dumpfile [] ((dump_path com) :: (platform_name_macro com) :: fst path @ [snd path]) in
 		buf,close
 
-	let dump_types com s_expr =
+	let dump_types com pretty =
 		let s_type = s_type (Type.print_context()) in
+		let s_expr,s_type_param = if not pretty then
+			(Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t"),(Printer.s_type_param "")
+		else
+			(Type.s_expr_pretty false "\t" true),(s_type_param s_type)
+		in
 		let params tl = match tl with
 			| [] -> ""
-			| l -> Printf.sprintf "<%s>" (String.concat ", " (List.map Printer.s_type_param l))
+			| l -> Printf.sprintf "<%s>" (String.concat ", " (List.map s_type_param l))
 		in
 		List.iter (fun mt ->
 			let path = Type.t_path mt in
@@ -306,7 +307,7 @@ module Dump = struct
 				| Some f -> print_field false f);
 				List.iter (print_field false) c.cl_ordered_fields;
 				List.iter (print_field true) c.cl_ordered_statics;
-				(match c.cl_init with
+				(match TClass.get_cl_init c with
 				| None -> ()
 				| Some e ->
 					print "\n\tstatic function __init__() ";
@@ -371,10 +372,10 @@ module Dump = struct
 
 	let dump_types com =
 		match Common.defined_value_safe com Define.Dump with
-			| "pretty" -> dump_types com (Type.s_expr_pretty false "\t" true)
+			| "pretty" -> dump_types com true
 			| "record" -> dump_record com
 			| "position" -> dump_position com
-			| _ -> dump_types com (Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t")
+			| _ -> dump_types com false
 
 	let dump_dependencies ?(target_override=None) com =
 		let target_name = match target_override with
@@ -387,8 +388,8 @@ module Dump = struct
 		let dep = Hashtbl.create 0 in
 		List.iter (fun m ->
 			print "%s:\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
-			PMap.iter (fun _ (sign,mpath) ->
-				let m2 = (com.cs#get_context sign)#find_module mpath in
+			PMap.iter (fun _ mdep ->
+				let m2 = com.module_lut#find mdep.md_path in
 				let file = Path.UniqueKey.lazy_path m2.m_extra.m_file in
 				print "\t%s\n" file;
 				let l = try Hashtbl.find dep file with Not_found -> [] in
@@ -414,26 +415,11 @@ end
 *)
 let default_cast ?(vtmp="$t") com e texpr t p =
 	let api = com.basic in
-	let mk_texpr = function
-		| TClassDecl c -> mk_anon (ref (ClassStatics c))
-		| TEnumDecl e -> mk_anon (ref (EnumStatics e))
-		| TAbstractDecl a -> mk_anon (ref (AbstractStatics a))
-		| TTypeDecl _ -> die "" __LOC__
-	in
 	let vtmp = alloc_var VGenerated vtmp e.etype e.epos in
 	let var = mk (TVar (vtmp,Some e)) api.tvoid p in
 	let vexpr = mk (TLocal vtmp) e.etype p in
-	let texpr = mk (TTypeExpr texpr) (mk_texpr texpr) p in
-	let std = (try List.find (fun t -> t_path t = ([],"Std")) com.types with Not_found -> die "" __LOC__) in
-	let fis = (try
-			let c = (match std with TClassDecl c -> c | _ -> die "" __LOC__) in
-			FStatic (c, PMap.find "isOfType" c.cl_statics)
-		with Not_found ->
-			die "" __LOC__
-	) in
-	let std = mk (TTypeExpr std) (mk_texpr std) p in
-	let is = mk (TField (std,fis)) (tfun [t_dynamic;t_dynamic] api.tbool) p in
-	let is = mk (TCall (is,[vexpr;texpr])) api.tbool p in
+	let texpr = Texpr.Builder.make_typeexpr texpr p in
+	let is = Texpr.Builder.resolve_and_make_static_call com.std "isOfType" [vexpr;texpr] p in
 	let enull = Texpr.Builder.make_null vexpr.etype p in
 	let eop = Texpr.Builder.binop OpEq vexpr enull api.tbool p in
 	let echeck = Texpr.Builder.binop OpBoolOr is eop api.tbool p in
@@ -504,14 +490,9 @@ let map_source_header com f =
 
 (* Static extensions for classes *)
 module ExtClass = struct
-
-	let add_cl_init c e = match c.cl_init with
-			| None -> c.cl_init <- Some e
-			| Some e' -> c.cl_init <- Some (concat e' e)
-
 	let add_static_init c cf e p =
 		let ethis = Texpr.Builder.make_static_this c p in
 		let ef1 = mk (TField(ethis,FStatic(c,cf))) cf.cf_type p in
 		let e_assign = mk (TBinop(OpAssign,ef1,e)) e.etype p in
-		add_cl_init c e_assign
+		TClass.add_cl_init c e_assign
 end

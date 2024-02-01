@@ -67,17 +67,27 @@ let make_call ctx e params t ?(force_inline=false) p =
 		);
 		let params = List.map (Optimizer.reduce_expression ctx) params in
 		let force_inline = is_forced_inline cl f in
-		(match f.cf_expr_unoptimized,f.cf_expr with
-		| Some {eexpr = TFunction fd},_
-		| None,Some { eexpr = TFunction fd } ->
+		let inline fd =
 			Inline.type_inline ctx f fd ethis params t config p force_inline
+		in
+		begin match f.cf_expr_unoptimized with
+		| Some {eexpr = TFunction fd} ->
+			inline fd
 		| _ ->
-			(*
-				we can't inline because there is most likely a loop in the typing.
-				this can be caused by mutually recursive vars/functions, some of them
-				being inlined or not. In that case simply ignore inlining.
-			*)
-			raise Exit)
+			if has_class_field_flag f CfPostProcessed then
+				warning ctx  WInlineOptimizedField (Printf.sprintf "Inlining of cached field %s might lead to unexpected output" f.cf_name) p;
+			match f.cf_expr with
+			| Some ({ eexpr = TFunction fd } as e) ->
+				f.cf_expr_unoptimized <- Some (e);
+				inline fd
+			| _ ->
+				(*
+					we can't inline because there is most likely a loop in the typing.
+					this can be caused by mutually recursive vars/functions, some of them
+					being inlined or not. In that case simply ignore inlining.
+				*)
+				raise Exit
+		end
 	with Exit ->
 		mk (TCall (e,params)) t p
 
@@ -358,16 +368,10 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 	let rec loop args params given_args missing_args ordered_args = match args, params with
 		| [], [] -> given_args,missing_args,ordered_args
 		| [], _ -> raise_typing_error "Too many callback arguments" p
-		| (n,o,t) :: args , [] when o ->
-			let a = if is_pos_infos t then
-					let infos = mk_infos ctx p [] in
-					ordered_args @ [type_expr ctx infos (WithType.with_argument t n)]
-				else if ctx.com.config.pf_pad_nulls && ctx.allow_transform then
-					(ordered_args @ [(mk (TConst TNull) t_dynamic p)])
-				else
-					ordered_args
-			in
-			loop args [] given_args missing_args a
+		| [n,o,t] , [] when o && is_pos_infos t ->
+			let infos = mk_infos ctx p [] in
+			let ordered_args = ordered_args @ [type_expr ctx infos (WithType.with_argument t n)] in
+			given_args,missing_args,ordered_args
 		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when not ctx.com.config.pf_can_skip_non_nullable_argument && o && not (is_nullable t) ->
 			raise_typing_error "Usage of _ is not supported for optional non-nullable arguments" p
 		| (n,o,t) :: args , ([] as params)

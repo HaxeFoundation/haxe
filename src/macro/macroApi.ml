@@ -53,7 +53,6 @@ type 'value compiler_api = {
 	define_module : string -> 'value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
 	module_dependency : string -> string -> unit;
 	current_module : unit -> module_def;
-	use_cache : unit -> bool;
 	format_string : string -> Globals.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Globals.pos -> bool;
 	add_global_metadata : string -> string -> (bool * bool * bool) -> pos -> unit;
@@ -71,6 +70,8 @@ type 'value compiler_api = {
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
 	exc_string : 'a . string -> 'a;
+	get_hxb_writer_config : unit -> 'value;
+	set_hxb_writer_config : 'value -> unit;
 }
 
 
@@ -516,7 +517,6 @@ and encode_exceptions_config ec =
 and encode_package_rule pr =
 	let tag, pl = match pr with
 		| Forbidden -> 0, []
-		| Directory (path) -> 1, [encode_string path]
 		| Remap (path) -> 2, [encode_string path]
 	in
 	encode_enum IPackageRule tag pl
@@ -1143,7 +1143,7 @@ and encode_method_kind m =
 and encode_class_kind k =
 	let tag, pl = (match k with
 		| KNormal -> 0, []
-		| KTypeParameter pl -> 1, [encode_tparams pl]
+		| KTypeParameter ttp -> 1, [encode_tparams (get_constraints ttp)] (* TTPTODO *)
 		| KModuleFields m -> 2, [encode_string (s_type_path m.m_path)]
 		| KExpr e -> 3, [encode_expr e]
 		| KGeneric -> 4, []
@@ -1171,7 +1171,7 @@ and encode_tclass c =
 		"fields", encode_ref c.cl_ordered_fields (encode_and_map_array encode_cfield) (fun() -> "class fields");
 		"statics", encode_ref c.cl_ordered_statics (encode_and_map_array encode_cfield) (fun() -> "class fields");
 		"constructor", (match c.cl_constructor with None -> vnull | Some cf -> encode_cfref cf);
-		"init", (match c.cl_init with None -> vnull | Some e -> encode_texpr e);
+		"init", (match TClass.get_cl_init c with None -> vnull | Some e -> encode_texpr e);
 		"overrides", (encode_array (List.map encode_cfref (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields)))
 	]
 
@@ -1443,14 +1443,6 @@ let decode_tconst c =
 	| 6, [] -> TSuper
 	| _ -> raise Invalid_expr
 
-let decode_type_params v =
-	List.map (fun v ->
-		let name = decode_string (field v "name") in
-		let t = decode_type (field v "t") in
-		let default = opt decode_type (field v "defaultType") in
-		mk_type_param name t default
-	) (decode_array v)
-
 let decode_tvar v =
 	(Obj.obj (decode_unsafe (field v "$")) : tvar)
 
@@ -1478,31 +1470,6 @@ let decode_field_kind v =
 	| 0, [vr;vw] -> Type.Var({v_read = decode_var_access vr; v_write = decode_var_access vw})
 	| 1, [m] -> Method (decode_method_kind m)
 	| _ -> raise Invalid_expr
-
-let decode_cfield v =
-	let public = decode_bool (field v "isPublic") in
-	let extern = decode_bool (field v "isExtern") in
-	let final = decode_bool (field v "isFinal") in
-	let abstract = decode_bool (field v "isAbstract") in
-	let cf = {
-		cf_name = decode_string (field v "name");
-		cf_type = decode_type (field v "type");
-		cf_pos = decode_pos (field v "pos");
-		cf_name_pos = decode_pos (field v "namePos");
-		cf_doc = decode_doc (field v "doc");
-		cf_meta = []; (* TODO *)
-		cf_kind = decode_field_kind (field v "kind");
-		cf_params = decode_type_params (field v "params");
-		cf_expr = None;
-		cf_expr_unoptimized = None;
-		cf_overloads = decode_ref (field v "overloads");
-		cf_flags = 0;
-	} in
-	if public then add_class_field_flag cf CfPublic;
-	if extern then add_class_field_flag cf CfExtern;
-	if final then add_class_field_flag cf CfFinal;
-	if abstract then add_class_field_flag cf CfAbstract;
-	cf
 
 let decode_efield v =
 	let rec get_enum t =
@@ -1880,7 +1847,7 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"class_path", vfun0 (fun() ->
-			encode_array (List.map encode_string (ccom()).class_path);
+			encode_array (List.map encode_string (ccom()).class_paths#as_string_list);
 		);
 		"resolve_path", vfun1 (fun file ->
 			let file = decode_string file in
@@ -2056,7 +2023,7 @@ let macro_api ccom get_api =
 				let api = encode_obj [
 					"outputFile", encode_string com.file;
 					"types", encode_array (List.map (fun t -> encode_type (type_of_module_type t)) com.types);
-					"main", (match com.main with None -> vnull | Some e -> encode_texpr e);
+					"main", (match com.main.main_expr with None -> vnull | Some e -> encode_texpr e);
 					"generateValue", vfun1 (fun v ->
 						let e = decode_texpr v in
 						let str = Genjs.gen_single_expr js_ctx e false in
@@ -2103,8 +2070,7 @@ let macro_api ccom get_api =
 		);
 		"flush_disk_cache", vfun0 (fun () ->
 			let com = (get_api()).get_com() in
-			com.file_lookup_cache#clear;
-			com.readdir_cache#clear;
+			com.class_paths#clear_cache;
 			vnull
 		);
 		"get_pos_infos", vfun1 (fun p ->
@@ -2121,7 +2087,7 @@ let macro_api ccom get_api =
 			if name = "" then failwith "Empty resource name";
 			Hashtbl.replace (ccom()).resources name data;
 			let m = (get_api()).current_module() in
-			m.m_extra.m_binded_res <- PMap.add name data m.m_extra.m_binded_res;
+			DynArray.add m.m_extra.m_cache_bound_objects (Resource(name,data));
 			vnull
 		);
 		"get_resources", vfun0 (fun() ->
@@ -2203,21 +2169,29 @@ let macro_api ccom get_api =
 		"add_class_path", vfun1 (fun cp ->
 			let com = ccom() in
 			let cp = decode_string cp in
-			let cp = Path.add_trailing_slash cp in
-			com.class_path <- cp :: com.class_path;
+			let path = Path.add_trailing_slash cp in
+			let cp = new ClassPath.directory_class_path path User in
+			com.class_paths#add cp;
 			(match com.get_macros() with
 			| Some(mcom) ->
-				mcom.class_path <- cp :: mcom.class_path;
+				mcom.class_paths#add cp#clone;
 			| None ->
 				());
-			com.file_lookup_cache#clear;
-			com.readdir_cache#clear;
+			com.class_paths#clear_cache;
 			vnull
 		);
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
-			NativeLibraryHandler.add_native_lib com file false ();
+			let open CompilationContext in
+			let kind = match com.platform with
+				| Java -> JavaLib
+				| Cs -> NetLib
+				| Flash -> SwfLib
+				| _ -> failwith "Unsupported platform"
+			in
+			let lib = create_native_lib file false kind in
+			NativeLibraryHandler.add_native_lib com lib ();
 			vnull
 		);
 		"add_native_arg", vfun1 (fun arg ->
@@ -2280,8 +2254,8 @@ let macro_api ccom get_api =
 				"foptimize", vbool com.foptimize;
 				"platform", encode_platform com.platform;
 				"platformConfig", encode_platform_config com.config;
-				"stdPath", encode_array (List.map encode_string com.std_path);
-				"mainClass", (match com.main_class with None -> vnull | Some path -> encode_path path);
+				"stdPath", encode_array (List.map (fun path -> encode_string path#path) com.class_paths#get_std_paths);
+				"mainClass", (match com.main.main_class with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
 			]
 		);
@@ -2290,7 +2264,7 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"get_main_expr", vfun0 (fun() ->
-			match (ccom()).main with None -> vnull | Some e -> encode_texpr e
+			match (ccom()).main.main_expr with None -> vnull | Some e -> encode_texpr e
 		);
 		"get_module_types", vfun0 (fun() ->
 			encode_array (List.map encode_module_type (ccom()).types)
@@ -2304,10 +2278,13 @@ let macro_api ccom get_api =
 		"apply_params", vfun3 (fun tpl tl t ->
 			let tl = List.map decode_type (decode_array tl) in
 			let tpl = List.map (fun v ->
-				let name = decode_string (field v "name") in
 				let t = decode_type (field v "t") in
 				let default = None in (* we don't care here *)
-				mk_type_param  name t default
+				let c = match t with
+					| TInst(c,_) -> c
+					| _ -> die "" __LOC__
+				in
+				mk_type_param c TPHType default None
 			) (decode_array tpl) in
 			let rec map t = match t with
 				| TInst({cl_kind = KTypeParameter _},_) ->
@@ -2331,6 +2308,8 @@ let macro_api ccom get_api =
 					failwith ("unable to find file for inclusion: " ^ file)
 			in
 			(ccom()).include_files <- (file, position) :: (ccom()).include_files;
+			let m = (get_api()).current_module() in
+			DynArray.add m.m_extra.m_cache_bound_objects (IncludeFile(file,position));
 			vnull
 		);
 		(* Compilation server *)
@@ -2346,7 +2325,7 @@ let macro_api ccom get_api =
 			List.iter (fun v ->
 				let s = decode_string v in
 				let s = com.file_keys#get s in
-				cs#taint_modules s "server_invalidate_files";
+				cs#taint_modules s ServerInvalidateFiles;
 				cs#remove_files s;
 			) (decode_array a);
 			vnull
@@ -2428,5 +2407,12 @@ let macro_api ccom get_api =
 				vbool false
 			end
 		);
+		"get_hxb_writer_config", vfun0 (fun () ->
+			(get_api()).get_hxb_writer_config ()
+		);
+		"set_hxb_writer_config", vfun1 (fun v ->
+			(get_api()).set_hxb_writer_config v;
+			vnull
+		)
 	]
 end

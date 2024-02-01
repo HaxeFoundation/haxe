@@ -23,6 +23,7 @@ open Extlib_leftovers
 open Globals
 open Ast
 open Type
+open Error
 open Common
 open Hlcode
 
@@ -328,11 +329,12 @@ let make_debug ctx arr =
 		| false -> try
 			(* lookup relative path *)
 			let len = String.length p.pfile in
-			let base = List.find (fun path ->
+			let base = ctx.com.class_paths#find (fun path ->
+				let path = path#path in
 				let l = String.length path in
 				len > l && String.sub p.pfile 0 l = path
-			) ctx.com.Common.class_path in
-			let l = String.length base in
+			) in
+			let l = String.length base#path in
 			String.sub p.pfile l (len - l)
 		with Not_found ->
 			p.pfile
@@ -361,7 +363,7 @@ let make_debug ctx arr =
 let fake_tnull =
 	{null_abstract with
 		a_path = [],"Null";
-		a_params = [{ttp_name = "T"; ttp_type = t_dynamic; ttp_default = None}];
+		a_params = [mk_type_param null_class TPHType None None];
 	}
 
 let get_rec_cache ctx t none_callback not_found_callback =
@@ -435,7 +437,7 @@ let rec to_type ?tref ctx t =
 		HAbstract (name, alloc_string ctx name)
 	| TInst (c,pl) ->
 		(match c.cl_kind with
-		| KTypeParameter tl ->
+		| KTypeParameter ttp ->
 			let rec loop = function
 				| [] -> HDyn
 				| t :: tl ->
@@ -443,7 +445,7 @@ let rec to_type ?tref ctx t =
 					| TInst (c,_) as t when not (has_class_flag c CInterface) -> to_type ?tref ctx t
 					| _ -> loop tl
 			in
-			loop tl
+			loop (get_constraints ttp)
 		| _ -> class_type ~tref ctx c pl false)
 	| TAbstract ({a_path = [],"Null"},[t1]) ->
 		let t = to_type ?tref ctx t1 in
@@ -2086,6 +2088,28 @@ and eval_expr ctx e =
 			let r = alloc_tmp ctx (to_type ctx e.etype) in
             op ctx (OUnsafeCast (r, eval_expr ctx value));
 			r
+		| "$asm", [mode; value] ->
+			let mode = (match get_const mode with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant mode required" e.epos
+			) in
+			let value = (match get_const value with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant value required" e.epos
+			) in
+			op ctx (OAsm (mode, value, 0));
+			alloc_tmp ctx HVoid
+		| "$asm", [mode; value; reg] ->
+			let mode = (match get_const mode with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant mode required" e.epos
+			) in
+			let value = (match get_const value with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant value required" e.epos
+			) in
+			op ctx (OAsm (mode, value, (eval_expr ctx reg) + 1));
+			alloc_tmp ctx HVoid
 		| _ ->
 			abort ("Unknown native call " ^ s) e.epos)
 	| TEnumIndex v ->
@@ -2173,9 +2197,9 @@ and eval_expr ctx e =
 				match follow t with
 				| TFun (_,rt) ->
 					(match follow rt with
-					| TInst({ cl_kind = KTypeParameter tl },_) ->
+					| TInst({ cl_kind = KTypeParameter ttp },_) ->
 						(* don't allow if we have a constraint virtual, see hxbit.Serializer.getRef *)
-						not (List.exists (fun t -> match to_type ctx t with HVirtual _ -> true | _ -> false) tl)
+						not (List.exists (fun t -> match to_type ctx t with HVirtual _ -> true | _ -> false) (get_constraints ttp))
 					| _ -> false)
 				| _ ->
 					false
@@ -2676,13 +2700,10 @@ and eval_expr ctx e =
 		ctx.m.mbreaks <- [];
 		ctx.m.mcontinues <- [];
 		ctx.m.mloop_trys <- ctx.m.mtrys;
-		let start = jump ctx (fun p -> OJAlways p) in
 		let continue_pos = current_pos ctx in
 		let ret = jump_back ctx in
-		let j = jump_expr ctx cond false in
-		start();
 		ignore(eval_expr ctx eloop);
-		set_curpos ctx (max_pos e);
+		let j = jump_expr ctx cond false in
 		ret();
 		j();
 		List.iter (fun f -> f (current_pos ctx)) ctx.m.mbreaks;
@@ -3675,7 +3696,7 @@ let generate_static_init ctx types main =
 	(* init class statics *)
 	let init_exprs = ref [] in
 	List.iter (fun t ->
-		(match t with TClassDecl { cl_init = Some e } -> init_exprs := e :: !init_exprs | _ -> ());
+		(match t with TClassDecl { cl_init = Some {cf_expr = Some e} } -> init_exprs := e :: !init_exprs | _ -> ());
 		match t with
 		| TClassDecl c when not (has_class_flag c CExtern) ->
 			List.iter (fun f ->
@@ -4166,7 +4187,7 @@ let generate com =
 
 	let ctx = create_context com false dump in
 	add_types ctx com.types;
-	let code = build_code ctx com.types com.main in
+	let code = build_code ctx com.types com.main.main_expr in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 	if dump then begin
 		(match ctx.dump_out with None -> () | Some ch -> IO.close_out ch);

@@ -5,6 +5,7 @@ open Common
 open Typecore
 open Error
 open FieldAccess
+open FieldCallCandidate
 
 let unify_call_args ctx el args r callp inline force_inline in_overload =
 	let call_error err p = raise_error_msg (Call_error err) p in
@@ -227,7 +228,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			else
 				List.map (fun (t,cf) ->
 					cf
-				) (Overloads.get_overloads ctx.com c cf.cf_name)
+				) (get_overloads ctx.com c cf.cf_name)
 			in
 			cfl,Some c,false,TClass.get_map_function c tl,(fun t -> t)
 		| FHAbstract(a,tl,c) ->
@@ -512,9 +513,7 @@ object(self)
 			let ep = err.err_pos in
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
-				locate_macro_error := false;
 				old (if (ep = null_pos) then { err with err_pos = p } else err);
-				locate_macro_error := true;
 				(* TODO add as sub for above error *)
 				if ep <> null_pos then old (make_error ~depth:(err.err_depth+1) (Custom (compl_msg "Called from macro here")) p);
 			end else

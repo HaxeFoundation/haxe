@@ -38,9 +38,10 @@ let rec scan_module_deps cs m h =
 		()
 	else begin
 		Hashtbl.add h m.m_id m;
-		PMap.iter (fun _ (sign,mpath) ->
-			let m = (cs#get_context sign)#find_module mpath in
-			scan_module_deps cs m h) m.m_extra.m_deps
+		PMap.iter (fun _ mdep ->
+			let m = (cs#get_context mdep.md_sign)#find_module mdep.md_path in
+			scan_module_deps cs m h
+		) m.m_extra.m_deps
 	end
 
 let module_sign key md =
@@ -122,8 +123,8 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 				"nativeLibCache",jint (mem_size cache_mem.(3));
 				"additionalSizes",jarray [
 					jobject ["name",jstring "macro interpreter";"size",jint (mem_size (MacroContext.macro_interp_cache))];
-					jobject ["name",jstring "macro stdlib";"size",jint (mem_size (EvalContext.GlobalState.stdlib))];
-					jobject ["name",jstring "macro macro_lib";"size",jint (mem_size (EvalContext.GlobalState.macro_lib))];
+					(* jobject ["name",jstring "macro stdlib";"size",jint (mem_size (EvalContext.GlobalState.stdlib))];
+					jobject ["name",jstring "macro macro_lib";"size",jint (mem_size (EvalContext.GlobalState.macro_lib))]; *)
 					jobject ["name",jstring "last completion result";"size",jint (mem_size (DisplayException.last_completion_result))];
 					jobject ["name",jstring "Lexer file cache";"size",jint (mem_size (Lexer.all_files))];
 					jobject ["name",jstring "GC heap words";"size",jint (int_of_float size)];
@@ -167,6 +168,9 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 			"moduleCache",jobject [
 				"size",jint (mem_size cache_mem.(1));
 				"list",jarray l;
+			];
+			"binaryCache",jobject [
+				"size",jint (mem_size cache_mem.(2));
 			];
 		]
 	| MModule(sign,path) ->
@@ -274,9 +278,9 @@ let display_memory com =
 			());
 		if verbose then begin
 			print (Printf.sprintf "      %d total deps" (List.length deps));
-			PMap.iter (fun _ (sign,mpath) ->
-				let md = (com.cs#get_context sign)#find_module mpath in
-				print (Printf.sprintf "      dep %s%s" (s_type_path mpath) (module_sign key md));
+			PMap.iter (fun _ mdep ->
+				let md = (com.cs#get_context mdep.md_sign)#find_module mdep.md_path in
+				print (Printf.sprintf "      dep %s%s" (s_type_path mdep.md_path) (module_sign key md));
 			) m.m_extra.m_deps;
 		end;
 		flush stdout

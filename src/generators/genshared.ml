@@ -301,7 +301,7 @@ class ['a] typedef_interfaces (infos : 'a info_context) (anon_identification : '
 			try
 				let path_inner,is_extern = try Hashtbl.find interface_rewrites pfm.pfm_path with Not_found -> path_inner,false in
 				if self#implements_recursively c path_inner then raise (Unify_error [Unify_custom "already implemented"]);
-				anon_identification#unify tc pfm;
+				anon_identification#unify ~strict:false tc pfm;
 				let ci = self#make_interface_class pfm path_inner is_extern in
 				c.cl_implements <- (ci,[]) :: c.cl_implements;
 				(* print_endline (Printf.sprintf "%s IMPLEMENTS %s" (s_type_path c.cl_path) (s_type_path path_inner)); *)

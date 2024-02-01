@@ -99,7 +99,7 @@ typedef JsonModule = {
 	final types:Array<JsonTypePath>;
 	final file:String;
 	final sign:String;
-	final dirty:Null<String>;
+	final cacheState:Null<String>;
 	final dependencies:Array<ModuleId>;
 	final dependents:Array<ModuleId>;
 }
@@ -137,6 +137,9 @@ typedef HaxeContextMemoryResult = {
 		}>;
 	};
 	final syntaxCache:{
+		final size:Int;
+	};
+	final binaryCache:{
 		final size:Int;
 	};
 	final ?leaks:Array<{

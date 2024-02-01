@@ -88,7 +88,9 @@ and do_check_cast ctx uctx tleft eright p =
 					end
 				| TInst(c,tl), TFun _ when has_class_flag c CFunctionalInterface ->
 					let cf = ctx.g.functional_interface_lut#find c.cl_path in
-					unify_raise_custom uctx eright.etype (apply_params c.cl_params tl cf.cf_type) p;
+					let map = apply_params c.cl_params tl in
+					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+					unify_raise_custom uctx eright.etype (map (apply_params cf.cf_params monos cf.cf_type)) p;
 					eright
 				| _ ->
 					raise Not_found
@@ -119,10 +121,11 @@ let prepare_array_access_field ctx a pl cf p =
 	let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
 	let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
 	let check_constraints () =
-		List.iter2 (fun m tp -> match follow tp.ttp_type with
-			| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+		List.iter2 (fun m ttp -> match get_constraints ttp with
+			| [] ->
+				()
+			| constr ->
 				List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> Type.unify m (map tc) ) constr
-			| _ -> ()
 		) monos cf.cf_params;
 	in
 	let get_ta() =

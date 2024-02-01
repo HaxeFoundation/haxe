@@ -31,9 +31,7 @@ function main() {
 	cs.system.threading.Thread.CurrentThread.CurrentCulture = new cs.system.globalization.CultureInfo('tr-TR');
 	cs.Lib.applyCultureChanges();
 	#end
-	#if !macro
-	trace("Generated at: " + HelperMacros.getCompilationDate());
-	#end
+	TestMainNow.printNow();
 	trace("START");
 	#if flash
 	var tf:flash.text.TextField = untyped flash.Boot.getTrace();

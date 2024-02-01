@@ -326,7 +326,10 @@ let handle_display_exception_json ctx dex api =
 		let ctx = DisplayJson.create_json_context api.jsonrpc (match dex with DisplayFields _ -> true | _ -> false) in
 		api.send_result (DisplayException.to_json ctx dex)
 	| DisplayNoResult ->
-		api.send_result JNull
+		(match ctx.com.display.dms_kind with
+			| DMDefault -> api.send_error [jstring "No completion point"]
+			| _ -> api.send_result JNull
+		)
 	| _ ->
 		handle_display_exception_old ctx dex
 
@@ -344,7 +347,7 @@ let handle_type_path_exception ctx p c is_import pos =
 			| None ->
 				DisplayPath.TypePathHandler.complete_type_path com p
 			| Some (c,cur_package) ->
-				let ctx = Typer.create com None in
+				let ctx = TyperEntry.create com None in
 				DisplayPath.TypePathHandler.complete_type_path_inner ctx p c cur_package is_import
 		end with Error.Fatal_error err ->
 			error_ext ctx err;

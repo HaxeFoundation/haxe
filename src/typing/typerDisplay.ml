@@ -251,14 +251,14 @@ let rec handle_signature_display ctx e_ast with_type =
 		l
 	in
 	let find_constructor_types t = match follow t with
-		| TInst ({cl_kind = KTypeParameter tl} as c,_) ->
+		| TInst ({cl_kind = KTypeParameter ttp} as c,_) ->
 			let rec loop tl = match tl with
 				| [] -> raise_typing_error_ext (make_error (No_constructor (TClassDecl c)) p)
 				| t :: tl -> match follow t with
 					| TAbstract({a_path = ["haxe"],"Constructible"},[t]) -> t
 					| _ -> loop tl
 			in
-			[loop tl,None,PMap.empty]
+			[loop (get_constraints ttp),None,PMap.empty]
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
 			Display.merge_core_doc ctx (TClassDecl c);
 			let fa = get_constructor_access c tl p in
@@ -490,7 +490,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 		let pl = loop e in
 		raise_positions pl
 	| DMTypeDefinition ->
-		raise_position_of_type e.etype
+		raise_position_of_type ctx e.etype
 	| DMDefault when not (!Parser.had_resume)->
 		let display_fields e_ast e1 so =
 			let l = match so with None -> 0 | Some s -> String.length s in
@@ -628,7 +628,7 @@ let handle_display ctx e_ast dk mode with_type =
 						false
 					end
 				end
-			| ITTypeParameter {cl_kind = KTypeParameter tl} when get_constructible_constraint ctx tl null_pos <> None ->
+			| ITTypeParameter {cl_kind = KTypeParameter ttp} when get_constructible_constraint ctx (get_constraints ttp) null_pos <> None ->
 				true
 			| _ -> false
 		) r.fitems in

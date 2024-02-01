@@ -20,9 +20,11 @@
 open Globals
 open Ast
 open Common
+open Lookup
 open Type
 open Error
 open Resolution
+open FieldCallCandidate
 
 type type_patch = {
 	mutable tp_type : complex_type option;
@@ -58,6 +60,12 @@ type typer_pass =
 	| PForce				(* usually ensure that lazy have been evaluated *)
 	| PFinal				(* not used, only mark for finalize *)
 
+let all_typer_passes = [
+	PBuildModule;PBuildClass;PConnectField;PTypeField;PCheckConstraint;PForce;PFinal
+]
+
+let all_typer_passes_length = List.length all_typer_passes
+
 type typer_module = {
 	curmod : module_def;
 	import_resolution : resolution_list;
@@ -65,11 +73,6 @@ type typer_module = {
 	mutable enum_with_type : module_type option;
 	mutable module_using : (tclass * pos) list;
 	mutable import_statements : import list;
-}
-
-type delay = {
-	delay_pass : typer_pass;
-	delay_functions : (unit -> unit) list;
 }
 
 type build_kind =
@@ -91,14 +94,19 @@ type macro_result =
 	| MError
 	| MMacroInMacro
 
+type typer_pass_tasks = {
+	mutable tasks : (unit -> unit) list;
+}
+
 type typer_globals = {
-	mutable delayed : delay list;
+	mutable delayed : typer_pass_tasks Array.t;
+	mutable delayed_min_index : int;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
 	doinline : bool;
 	retain_meta : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
-	mutable std : module_def;
+	mutable std_types : module_def;
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
 	mutable global_using : (tclass * pos) list;
@@ -107,6 +115,9 @@ type typer_globals = {
 	mutable type_hints : (module_def_display * pos * t) list;
 	mutable load_only_cached_modules : bool;
 	functional_interface_lut : (path,tclass_field) lookup;
+	mutable return_partial_type : bool;
+	mutable build_count : int;
+	mutable t_dynamic_def : Type.t;
 	(* api *)
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
@@ -162,24 +173,6 @@ and monomorphs = {
 	mutable perfunction : (tmono * pos) list;
 }
 
-(* This record holds transient information about an (attempted) call on a field. It is created when resolving
-   field calls and is passed to overload filters. *)
-type 'a field_call_candidate = {
-	(* The argument expressions for this call and whether or not the argument is optional on the
-	   target function. *)
-	fc_args  : texpr list;
-	(* The applied return type. *)
-	fc_ret   : Type.t;
-	(* The applied function type. *)
-	fc_type  : Type.t;
-	(* The class field being called. *)
-	fc_field : tclass_field;
-	(* The field monomorphs that were created for this call. *)
-	fc_monos : Type.t list;
-	(* The custom data associated with this call. *)
-	fc_data  : 'a;
-}
-
 type field_host =
 	| FHStatic of tclass
 	| FHInstance of tclass * tparams
@@ -218,6 +211,12 @@ type dot_path_part = {
 	pos : pos
 }
 
+type find_module_result =
+	| GoodModule of module_def
+	| BadModule of module_skip_reason
+	| BinaryModule of HxbData.module_cache
+	| NoModule
+
 let make_build_info kind path params extern apply = {
 	build_kind = kind;
 	build_path = path;
@@ -231,8 +230,6 @@ exception Forbid_package of (string * path * pos) * pos list * string
 exception WithTypeError of error
 
 let memory_marker = [|Unix.time()|]
-
-let locate_macro_error = ref true
 
 let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?force_inline:bool _ -> die "" __LOC__)
 let type_expr_ref : (?mode:access_mode -> typer -> expr -> WithType.t -> texpr) ref = ref (fun ?(mode=MGet) _ _ _ -> die "" __LOC__)
@@ -256,7 +253,11 @@ let pass_name = function
 
 let warning ?(depth=0) ctx w msg p =
 	let options = (Warning.from_meta ctx.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
-	ctx.com.warning ~depth w options msg p
+	match Warning.get_mode w options with
+	| WMEnable ->
+		module_warning ctx.com ctx.m.curmod w options msg p
+	| WMDisable ->
+		()
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
@@ -273,12 +274,8 @@ let spawn_monomorph' ctx p =
 let spawn_monomorph ctx p =
 	TMono (spawn_monomorph' ctx p)
 
-let make_static_this c p =
-	let ta = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
-	mk (TTypeExpr (TClassDecl c)) ta p
-
 let make_static_field_access c cf t p =
-	let ethis = make_static_this c p in
+	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
 let make_static_call ctx c cf map args t p =
@@ -333,7 +330,7 @@ let add_local ctx k n t p =
 			begin try
 				let v' = PMap.find n ctx.locals in
 				(* ignore std lib *)
-				if not (List.exists (ExtLib.String.starts_with p.pfile) ctx.com.std_path) then begin
+				if not (List.exists (fun path -> ExtLib.String.starts_with p.pfile (path#path)) ctx.com.class_paths#get_std_paths) then begin
 					warning ctx WVarShadow "This variable shadows a previously declared variable" p;
 					warning ~depth:1 ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
 				end
@@ -411,36 +408,19 @@ let is_gen_local v = match v.v_kind with
 	| _ ->
 		false
 
-let make_delay pass fl = {
-	delay_pass = pass;
-	delay_functions = fl;
-}
-
 let delay ctx p f =
-	let rec loop = function
-		| [] ->
-			[make_delay p [f]]
-		| delay :: rest ->
-			if delay.delay_pass = p then
-				(make_delay p (f :: delay.delay_functions)) :: rest
-			else if delay.delay_pass < p then
-				delay :: loop rest
-			else
-				(make_delay p [f]) :: delay :: rest
-	in
-	ctx.g.delayed <- loop ctx.g.delayed
+	let p = Obj.magic p in
+	let tasks = ctx.g.delayed.(p) in
+	tasks.tasks <- f :: tasks.tasks;
+	if p < ctx.g.delayed_min_index then
+		ctx.g.delayed_min_index <- p
 
 let delay_late ctx p f =
-	let rec loop = function
-		| [] ->
-			[make_delay p [f]]
-		| delay :: rest ->
-			if delay.delay_pass <= p then
-				delay :: loop rest
-			else
-				(make_delay p [f]) :: delay :: rest
-	in
-	ctx.g.delayed <- loop ctx.g.delayed
+	let p = Obj.magic p in
+	let tasks = ctx.g.delayed.(p) in
+	tasks.tasks <- tasks.tasks @ [f];
+	if p < ctx.g.delayed_min_index then
+		ctx.g.delayed_min_index <- p
 
 let delay_if_mono ctx p t f = match follow t with
 	| TMono _ ->
@@ -449,17 +429,24 @@ let delay_if_mono ctx p t f = match follow t with
 		f()
 
 let rec flush_pass ctx p where =
-	match ctx.g.delayed with
-	| delay :: rest when delay.delay_pass <= p ->
-		(match delay.delay_functions with
-		| [] ->
-			ctx.g.delayed <- rest;
-		| f :: l ->
-			ctx.g.delayed <- (make_delay delay.delay_pass l) :: rest;
-			f());
-		flush_pass ctx p where
-	| _ ->
-		()
+	let rec loop i =
+		if i > (Obj.magic p) then
+			()
+		else begin
+			let tasks = ctx.g.delayed.(i) in
+			match tasks.tasks with
+			| f :: l ->
+				tasks.tasks <- l;
+				f();
+				flush_pass ctx p where
+			| [] ->
+				(* Done with this pass (for now), update min index to next one *)
+				let i = i + 1 in
+				ctx.g.delayed_min_index <- i;
+				loop i
+		end
+	in
+	loop ctx.g.delayed_min_index
 
 let make_pass ctx f = f
 
@@ -495,7 +482,7 @@ let create_fake_module ctx file =
 			m_path = (["$DEP"],file);
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake [];
+			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake ctx.com.compilation_step [];
 		} in
 		Hashtbl.add fake_modules key mdep;
 		mdep
@@ -521,6 +508,18 @@ let is_forced_inline c cf =
 
 let needs_inline ctx c cf =
 	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.g.doinline || is_forced_inline c cf)
+
+let clone_type_parameter map path ttp =
+	let c = ttp.ttp_class in
+	let c = {c with cl_path = path} in
+	let def = Option.map map ttp.ttp_default in
+	let constraints = match ttp.ttp_constraints with
+		| None -> None
+		| Some constraints -> Some (lazy (List.map map (Lazy.force constraints)))
+	in
+	let ttp' = mk_type_param c ttp.ttp_host def constraints in
+	c.cl_kind <- KTypeParameter ttp';
+	ttp'
 
 (** checks if we can access to a given class field using current context *)
 let can_access ctx c cf stat =
@@ -616,8 +615,8 @@ let can_access ctx c cf stat =
 	loop c
 	(* access is also allowed of we access a type parameter which is constrained to our (base) class *)
 	|| (match c.cl_kind with
-		| KTypeParameter tl ->
-			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
+		| KTypeParameter ttp ->
+			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) (get_constraints ttp)
 		| _ -> false)
 	|| (Meta.has Meta.PrivateAccess ctx.meta)
 
@@ -698,39 +697,8 @@ let safe_mono_close ctx m p =
 		Unify_error l ->
 			raise_or_display ctx l p
 
-let make_field_call_candidate args ret monos t cf data = {
-	fc_args  = args;
-	fc_type  = t;
-	fc_field = cf;
-	fc_data  = data;
-	fc_ret   = ret;
-	fc_monos = monos;
-}
-
-let s_field_call_candidate fcc =
-	let pctx = print_context() in
-	let se = s_expr_pretty false "" false (s_type pctx) in
-	let sl_args = List.map se fcc.fc_args in
-	Printer.s_record_fields "" [
-		"fc_args",String.concat ", " sl_args;
-		"fc_type",s_type pctx fcc.fc_type;
-		"fc_field",Printf.sprintf "%s: %s" fcc.fc_field.cf_name (s_type pctx fcc.fc_field.cf_type)
-	]
-
-
 let relative_path ctx file =
-	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
-	let fpath = slashes (Path.get_full_path file) in
-	let fpath_lower = String.lowercase_ascii fpath in
-	let flen = String.length fpath_lower in
-	let rec loop = function
-		| [] -> file
-		| path :: l ->
-			let spath = String.lowercase_ascii (slashes path) in
-			let slen = String.length spath in
-			if slen > 0 && slen < flen && String.sub fpath_lower 0 slen = spath then String.sub fpath slen (flen - slen) else loop l
-	in
-	loop ctx.com.Common.class_path
+	ctx.com.class_paths#relative_path file
 
 let mk_infos ctx p params =
 	let file = if ctx.com.is_macro_context then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
@@ -790,7 +758,16 @@ let create_deprecation_context ctx = {
 	(DeprecationCheck.create_context ctx.com) with
 	class_meta = ctx.curclass.cl_meta;
 	field_meta = ctx.curfield.cf_meta;
+	curmod = ctx.m.curmod;
 }
+
+let get_overloads (com : Common.context) c i =
+	try
+		com.overload_cache#find (c.cl_path,i)
+	with Not_found ->
+		let l = Overloads.collect_overloads (fun t -> t) c i in
+		com.overload_cache#add (c.cl_path,i) l;
+		l
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 

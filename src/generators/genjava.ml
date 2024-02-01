@@ -1904,17 +1904,8 @@ let generate con =
 			| [] ->
 				("","")
 			| _ ->
-				let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> match follow tp.ttp_type with | TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__) cl_params)) in
-				let params_extends = List.fold_left (fun acc {ttp_name=name;ttp_type=t} ->
-					match run_follow gen t with
-						| TInst (cl, p) ->
-							(match cl.cl_implements with
-								| [] -> acc
-								| _ -> acc) (* TODO
-								| _ -> (sprintf " where %s : %s" name (String.concat ", " (List.map (fun (cl,p) -> path_param_s (TClassDecl cl) cl.cl_path p) cl.cl_implements))) :: acc ) *)
-						| _ -> trace (t_s null_pos t); die "" __LOC__ (* FIXME it seems that a cl_params will never be anything other than cl.cl_params. I'll take the risk and fail if not, just to see if that confirms *)
-				) [] cl_params in
-				(params, String.concat " " params_extends)
+				let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> snd tp.ttp_class.cl_path) cl_params)) in
+				(params, "")
 	in
 
 	let write_parts w parts =
@@ -2210,7 +2201,7 @@ let generate con =
 			newline w
 		| _ -> ());
 
-		(match cl.cl_init with
+		(match TClass.get_cl_init cl with
 			| None -> ()
 			| Some init ->
 				write w "static";
@@ -2307,14 +2298,13 @@ let generate con =
 	let super_map (cl,tl) = (cl, List.map run_follow_gen tl) in
 	List.iter (function
 		| TClassDecl cl ->
-				let all_fields = (Option.map_default (fun cf -> [cf]) [] cl.cl_constructor) @ cl.cl_ordered_fields @ cl.cl_ordered_statics in
+				let all_fields = (Option.map_default (fun cf -> [cf]) [] cl.cl_constructor) @ cl.cl_ordered_fields @ cl.cl_ordered_statics @ (Option.map_default (fun cf -> [cf]) [] cl.cl_init)in
 				List.iter (fun cf ->
 					cf.cf_type <- run_follow_gen cf.cf_type;
 					cf.cf_expr <- Option.map type_map cf.cf_expr
 				) all_fields;
 			 cl.cl_dynamic <- Option.map run_follow_gen cl.cl_dynamic;
 			 cl.cl_array_access <- Option.map run_follow_gen cl.cl_array_access;
-			 cl.cl_init <- Option.map type_map cl.cl_init;
 			 cl.cl_super <- Option.map super_map cl.cl_super;
 			 cl.cl_implements <- List.map super_map cl.cl_implements
 		| _ -> ()
@@ -2661,7 +2651,7 @@ let generate con =
 	let res = ref [] in
 	Hashtbl.iter (fun name v ->
 		res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = null_pos } :: !res;
-		let name = Codegen.escape_res_name name ['/'] in
+		let name = StringHelper.escape_res_name name ['/'] in
 		let full_path = gen.gcon.file ^ "/src/" ^ name in
 		Path.mkdir_from_path full_path;
 

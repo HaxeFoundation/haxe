@@ -118,9 +118,9 @@ let rec classify t =
 	| TAbstract ({ a_path = [],"Int" },[]) -> KInt
 	| TAbstract ({ a_path = [],"Float" },[]) -> KFloat
 	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) a.a_to -> KNumParam t
-	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) ctl -> KNumParam t
+	| TInst ({ cl_kind = KTypeParameter ttp },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) (get_constraints ttp) -> KNumParam t
 	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KString -> true | _ -> false) a.a_to -> KStrParam t
-	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KString -> true | _ -> false) ctl -> KStrParam t
+	| TInst ({ cl_kind = KTypeParameter ttp },_) when List.exists (fun t -> match classify t with KString -> true | _ -> false) (get_constraints ttp) -> KStrParam t
 	| TMono r when r.tm_type = None -> KUnk
 	| TDynamic _ -> KDyn
 	| _ -> KOther
@@ -201,11 +201,7 @@ let make_binop ctx op e1 e2 is_assign_op p =
 				call_to_string ctx e
 			| KInt | KFloat | KString -> e
 			| KUnk | KDyn | KNumParam _ | KStrParam _ | KOther ->
-				let std = type_type ctx ([],"Std") e.epos in
-				let acc = acc_get ctx (type_field_default_cfg ctx std "string" e.epos (MCall []) WithType.value) in
-				ignore(follow acc.etype);
-				let acc = (match acc.eexpr with TField (e,FClosure (Some (c,tl),f)) -> { acc with eexpr = TField (e,FInstance (c,tl,f)) } | _ -> acc) in
-				make_call ctx acc [e] ctx.t.tstring e.epos
+				Texpr.Builder.resolve_and_make_static_call ctx.com.std "string" [e] e.epos
 			| KAbstract (a,tl) ->
 				try
 					AbstractCast.cast_or_unify_raise ctx tstring e p

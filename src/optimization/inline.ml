@@ -6,6 +6,8 @@ open Common
 open Typecore
 open Error
 
+let maybe_reapply_overload_call_ref = ref (fun _ _ -> assert false)
+
 let mk_untyped_call name p params =
 	{
 		eexpr = TCall({ eexpr = TIdent name; etype = t_dynamic; epos = p }, params);
@@ -111,7 +113,7 @@ let api_inline ctx c field params p =
 		let m = (try ctx.com.module_lut#find path with Not_found -> die "" __LOC__) in
 		add_dependency ctx.m.curmod m;
 		Option.get (ExtList.List.find_map (function
-			| TClassDecl cl when cl.cl_path = path -> Some (make_static_this cl p)
+			| TClassDecl cl when cl.cl_path = path -> Some (Texpr.Builder.make_static_this cl p)
 			| _ -> None
 		) m.m_types)
 	in
@@ -171,7 +173,7 @@ let api_inline ctx c field params p =
 			None)
 	| (["js"],"Boot"),"__downcastCheck",[o; {eexpr = TTypeExpr (TClassDecl cls) } as t] when ctx.com.platform = Js ->
 		if (has_class_flag cls CInterface) then
-			Some (Texpr.Builder.fcall (make_static_this c p) "__implements" [o;t] tbool p)
+			Some (Texpr.Builder.fcall (Texpr.Builder.make_static_this c p) "__implements" [o;t] tbool p)
 		else
 			Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
 	| (["cs" | "java"],"Lib"),("nativeArray"),[{ eexpr = TArrayDecl args } as edecl; _]
@@ -234,7 +236,7 @@ let inline_default_config cf t =
 			c.cl_params @ ct, pl @ cpl
 	in
 	let rec loop t = match follow t with
-		| TInst({cl_kind = KTypeParameter tl},_) -> List.fold_left (fun (params',tl') (params,tl) -> (params @ params',tl @ tl')) ([],[]) (List.map loop tl)
+		| TInst({cl_kind = KTypeParameter ttp},_) -> List.fold_left (fun (params',tl') (params,tl) -> (params @ params',tl @ tl')) ([],[]) (List.map loop (get_constraints ttp))
 		| TInst (c,pl) -> get_params c pl
 		| _ -> ([],[])
 	in
@@ -627,7 +629,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				else map_type
 			in
 			let e = Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e in
-			CallUnification.maybe_reapply_overload_call ctx e
+			(!maybe_reapply_overload_call_ref) ctx e
 		in
 		let e = map_expr_type map_type e in
 		let rec drop_unused_vars e =

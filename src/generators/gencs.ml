@@ -1798,7 +1798,7 @@ let generate con =
 					let code, code_pos =
 						match code.eexpr with
 						| TConst (TString s) -> s, code.epos
-						| _ -> abort "The `code` argument for cs.Syntax.code must be a string constant" code.epos
+						| _ -> Error.abort "The `code` argument for cs.Syntax.code must be a string constant" code.epos
 					in
 					begin
 						let rec reveal_expr expr =
@@ -1820,11 +1820,11 @@ let generate con =
 					let code =
 						match code.eexpr with
 						| TConst (TString s) -> s
-						| _ -> abort "The `code` argument for cs.Syntax.plainCode must be a string constant" code.epos
+						| _ -> Error.abort "The `code` argument for cs.Syntax.plainCode must be a string constant" code.epos
 					in
 					write w (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 				| _ ->
-					abort (Printf.sprintf "Unknown cs.Syntax method `%s` with %d arguments" meth (List.length args)) pos
+					Error.abort (Printf.sprintf "Unknown cs.Syntax method `%s` with %d arguments" meth (List.length args)) pos
 			and do_call w e el =
 				let params, el = extract_tparams [] el in
 				let params = List.rev params in
@@ -2009,18 +2009,17 @@ let generate con =
 			let hxgen = is_hxgen (TClassDecl cl) in
 			match cl_params with
 				| (_ :: _) when not (erase_generics && is_hxgeneric (TClassDecl cl)) ->
-					let get_param_name t = match follow t with TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__ in
 					let combination_error c1 c2 =
 						gen.gcon.error ("The " ^ (get_constraint c1) ^ " constraint cannot be combined with the " ^ (get_constraint c2) ^ " constraint.") cl.cl_pos in
 
-					let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> get_param_name tp.ttp_type) cl_params)) in
+					let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> snd tp.ttp_class.cl_path) cl_params)) in
 					let params_extends =
 						if hxgen || not (Meta.has (Meta.NativeGen) cl.cl_meta) then
 							[""]
 						else
 							List.fold_left (fun acc {ttp_name=name;ttp_type=t} ->
-								match run_follow gen t with
-									| TInst({cl_kind = KTypeParameter constraints}, _) when constraints <> [] ->
+								match t with
+									| TInst({cl_kind = KTypeParameter ttp} as c,_) when get_constraints ttp <> [] ->
 										(* base class should come before interface constraints *)
 										let base_class_constraints = ref [] in
 										let other_constraints = List.fold_left (fun acc t ->
@@ -2069,7 +2068,7 @@ let generate con =
 												(* skip anything other *)
 												| _ ->
 													acc
-										) [] constraints in
+										) [] (get_constraints ttp ) in
 
 										let s_constraints = (List.sort
 											(* C# expects some ordering for built-in constraints: *)
@@ -2085,7 +2084,7 @@ let generate con =
 										) (!base_class_constraints @ other_constraints)) in
 
 										if s_constraints <> [] then
-											(sprintf " where %s : %s" (get_param_name t) (String.concat ", " (List.map get_constraint s_constraints)) :: acc)
+											(sprintf " where %s : %s" (snd c.cl_path) (String.concat ", " (List.map get_constraint s_constraints)) :: acc)
 										else
 											acc;
 									| _ -> acc
@@ -2703,7 +2702,7 @@ let generate con =
 				end_block w
 			) main_expr;
 
-			(match cl.cl_init with
+			(match TClass.get_cl_init cl with
 				| None -> ()
 				| Some init ->
 					let needs_block,write_expr =
@@ -2958,7 +2957,7 @@ let generate con =
 		let super_map (cl,tl) = (cl, List.map run_follow_gen tl) in
 		List.iter (function
 			| TClassDecl cl ->
-					let all_fields = (Option.map_default (fun cf -> [cf]) [] cl.cl_constructor) @ cl.cl_ordered_fields @ cl.cl_ordered_statics in
+					let all_fields = (Option.map_default (fun cf -> [cf]) [] cl.cl_constructor) @ cl.cl_ordered_fields @ cl.cl_ordered_statics @ (Option.map_default (fun cf -> [cf]) [] cl.cl_init) in
 					List.iter (fun cf ->
 						cf.cf_type <- run_follow_gen cf.cf_type;
 						cf.cf_expr <- Option.map type_map cf.cf_expr;
@@ -2972,7 +2971,6 @@ let generate con =
 					) all_fields;
 				cl.cl_dynamic <- Option.map run_follow_gen cl.cl_dynamic;
 				cl.cl_array_access <- Option.map run_follow_gen cl.cl_array_access;
-				cl.cl_init <- Option.map type_map cl.cl_init;
 				cl.cl_super <- Option.map super_map cl.cl_super;
 				cl.cl_implements <- List.map super_map cl.cl_implements
 			| _ -> ()
@@ -3421,7 +3419,7 @@ let generate con =
 					gen.gcon.file ^ "/src/Resources"
 			in
 			Hashtbl.iter (fun name v ->
-				let name = Codegen.escape_res_name name ['/'] in
+				let name = StringHelper.escape_res_name name ['/'] in
 				let full_path = src ^ "/" ^ name in
 				Path.mkdir_from_path full_path;
 
@@ -3484,10 +3482,7 @@ let generate con =
 							mk_nativearray_decl gen basic.tint (List.map (fun (i,s) -> { eexpr = TConst(TInt (i)); etype = basic.tint; epos = c.cl_pos }) all) c.cl_pos;
 							mk_nativearray_decl gen basic.tstring (List.map (fun (i,s) -> { eexpr = TConst(TString (s)); etype = basic.tstring; epos = c.cl_pos }) all) c.cl_pos;
 						]); etype = basic.tvoid; epos = c.cl_pos } in
-						match c.cl_init with
-							| None -> c.cl_init <- Some expr
-							| Some e ->
-								c.cl_init <- Some { eexpr = TBlock([expr;e]); etype = basic.tvoid; epos = e.epos }
+						TClass.add_cl_init c expr
 					end
 				with | Not_found -> ())
 				| _ -> ()) gen.gtypes;

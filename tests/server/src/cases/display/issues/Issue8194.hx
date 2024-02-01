@@ -17,7 +17,7 @@ class Issue8194 extends DisplayTestCase {
 			offset: offset(1),
 			wasAutoTriggered: true
 		});
-		var result = parseCompletion();
-		Assert.equals(null, result.result);
+		var error = haxe.Json.parse(lastResult.stderr).error;
+		Assert.equals("No completion point", error.data[0]);
 	}
 }

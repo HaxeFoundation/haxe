@@ -193,7 +193,7 @@ let rec type_eq gen param a b =
 			PMap.iter (fun n f1 ->
 				try
 					let f2 = PMap.find n a2.a_fields in
-					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then Type.error [invalid_kind n f1.cf_kind f2.cf_kind];
+					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind ~strict:false f1.cf_kind f2.cf_kind)) then Type.error [invalid_kind n f1.cf_kind f2.cf_kind];
 					try
 						type_eq gen param f1.cf_type f2.cf_type
 					with
@@ -290,7 +290,7 @@ let do_unsafe_cast gen from_t to_t e	=
 			| _ -> raise Not_found
 	in
 	match gen.gfollow#run_f from_t, gen.gfollow#run_f to_t with
-	| TInst({ cl_kind = KTypeParameter tl },_), t2 when List.exists (fun t -> unifies t t2) tl ->
+	| TInst({ cl_kind = KTypeParameter ttp },_), t2 when List.exists (fun t -> unifies t t2) (get_constraints ttp) ->
 		mk_cast to_t (mk_cast t_dynamic e)
 	| from_t, to_t when gen.gspecial_needs_cast to_t from_t ->
 		mk_cast to_t e

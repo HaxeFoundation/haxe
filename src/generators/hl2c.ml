@@ -1110,6 +1110,8 @@ let generate_function ctx f =
 				Globals.die "" __LOC__
 			)) in
 			sexpr "__hl_prefetch_m%d(%s)" mode expr
+		| OAsm _ ->
+			sexpr "UNSUPPORTED ASM OPCODE";
 	) f.code;
 	flush_options (Array.length f.code);
 	unblock();

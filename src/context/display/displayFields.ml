@@ -39,9 +39,9 @@ let collect_static_extensions ctx items e p =
 	let opt_type t =
 		match t with
 		| TLazy f ->
-			return_partial_type := true;
+			ctx.g.return_partial_type <- true;
 			let t = lazy_type f in
-			return_partial_type := false;
+			ctx.g.return_partial_type <- false;
 			t
 		| _ ->
 			t
@@ -56,10 +56,11 @@ let collect_static_extensions ctx items e p =
 		| TFun((_,_,t) :: args, ret) ->
 			begin try
 				let e = TyperBase.unify_static_extension ctx {e with etype = dup e.etype} t p in
-				List.iter2 (fun m tp -> match follow tp.ttp_type with
-					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+				List.iter2 (fun m ttp -> match get_constraints ttp with
+					| [] ->
+						()
+					| constr ->
 						List.iter (fun tc -> unify_raise m (map tc) e.epos) constr
-					| _ -> ()
 				) monos f.cf_params;
 				if not (can_access ctx c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
 					acc
@@ -157,9 +158,9 @@ let collect ctx e_ast e dk with_type p =
 				List.fold_left fold_constraints items l
 			in
 			fold_constraints items (Monomorph.classify_down_constraints m)
-		| TInst ({cl_kind = KTypeParameter tl},_) ->
+		| TInst ({cl_kind = KTypeParameter ttp},_) ->
 			(* Type parameters can access the fields of their constraints *)
-			List.fold_left (fun acc t -> loop acc t) items tl
+			List.fold_left (fun acc t -> loop acc t) items (get_constraints ttp)
 		| TInst(c0,tl) ->
 			(* For classes, browse the hierarchy *)
 			let fields = TClass.get_all_fields c0 tl in
@@ -249,50 +250,51 @@ let collect ctx e_ast e dk with_type p =
 					end
 				| _ -> items
 			in
-			(* Anon own fields *)
-			PMap.foldi (fun name cf acc ->
-				if is_new_item acc name then begin
-					let allow_static_abstract_access c cf =
+			let iter_fields origin fields f_allow f_make =
+				let items = PMap.fold (fun cf acc ->
+					if is_new_item acc cf.cf_name && f_allow cf then begin
+						let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) cf.cf_type in
+						PMap.add cf.cf_name (f_make (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct)) acc
+					end else
+						acc
+				) fields items in
+				items
+			in
+			begin match !(an.a_status) with
+				| ClassStatics ({cl_kind = KAbstractImpl a} as c) ->
+					Display.merge_core_doc ctx (TClassDecl c);
+					let f_allow cf =
 						should_access c cf false &&
 						(not (has_class_field_flag cf CfImpl) || has_class_field_flag cf CfEnum)
 					in
-					let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) cf.cf_type in
-					let add origin make_field =
-						PMap.add name (make_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct)) acc
+					let f_make ccf =
+						if has_class_field_flag ccf.CompletionClassField.field CfEnum then
+							make_ci_enum_abstract_field a ccf
+						else
+							make_ci_class_field ccf
 					in
-					match !(an.a_status) with
-						| ClassStatics ({cl_kind = KAbstractImpl a} as c) ->
-							if allow_static_abstract_access c cf then
-								let make = if has_class_field_flag cf CfEnum then
-										(make_ci_enum_abstract_field a)
-									else
-										make_ci_class_field
-								in
-								add (Self (TAbstractDecl a)) make
-							else
-								acc;
-						| ClassStatics c ->
-							Display.merge_core_doc ctx (TClassDecl c);
-							if should_access c cf true then add (Self (TClassDecl c)) make_ci_class_field else acc;
-						| EnumStatics en ->
-							let ef = PMap.find name en.e_constrs in
-							PMap.add name (make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (cf.cf_type,ct)) acc
-						| AbstractStatics a ->
-							Display.merge_core_doc ctx (TAbstractDecl a);
-							let check = match a.a_impl with
-								| None -> true
-								| Some c -> allow_static_abstract_access c cf
-							in
-							if check then add (Self (TAbstractDecl a)) make_ci_class_field else acc;
-						| _ ->
-							let origin = match t with
-								| TType(td,_) -> Self (TTypeDecl td)
-								| _ -> AnonymousStructure an
-							in
-							add origin make_ci_class_field;
-				end else
-					acc
-			) an.a_fields items
+					iter_fields (Self (TClassDecl c)) c.cl_statics f_allow f_make
+				| ClassStatics c ->
+					Display.merge_core_doc ctx (TClassDecl c);
+					let f_allow cf = should_access c cf true in
+					iter_fields (Self (TClassDecl c)) c.cl_statics f_allow make_ci_class_field
+				| AbstractStatics ({a_impl = Some c} as a) ->
+					Display.merge_core_doc ctx (TAbstractDecl a);
+					let f_allow cf = should_access c cf true in
+					iter_fields (Self (TAbstractDecl a)) c.cl_statics f_allow make_ci_class_field
+				| EnumStatics en ->
+					PMap.fold (fun ef acc ->
+						let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta ef.ef_meta) ef.ef_type in
+						let cef = CompletionEnumField.make ef (Self (TEnumDecl en)) true in
+						PMap.add ef.ef_name (make_ci_enum_field cef (ef.ef_type,ct)) acc
+					) en.e_constrs items
+				| _ ->
+					let origin = match t with
+						| TType(td,_) -> Self (TTypeDecl td)
+						| _ -> AnonymousStructure an
+					in
+					iter_fields origin an.a_fields (fun _ -> true) make_ci_class_field
+			end
 		| TFun (args,ret) ->
 			(* A function has no field except the magic .bind one. *)
 			if is_new_item items "bind" then begin

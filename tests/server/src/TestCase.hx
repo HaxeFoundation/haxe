@@ -120,7 +120,12 @@ class TestCase implements ITest {
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
 			handleResult(result);
-			callback(Json.parse(result.stderr).result.result);
+			var json = Json.parse(result.stderr);
+			if (json.result != null) {
+				callback(json.result.result);
+			} else {
+				sendErrorMessage('Error: ' + json.error);
+			}
 			done();
 		}, function(msg) {
 			sendErrorMessage(msg);
@@ -211,6 +216,10 @@ class TestCase implements ITest {
 			case result:
 				return result;
 		}
+	}
+
+	function assertSilence() {
+		return Assert.isTrue(lastResult.stderr == "");
 	}
 
 	function assertSuccess(?p:haxe.PosInfos) {

@@ -26,7 +26,15 @@ end
 
 let handle_native_lib com lib =
 	com.native_libs.all_libs <- lib#get_file_path :: com.native_libs.all_libs;
-	com.load_extern_type <- com.load_extern_type @ [lib#get_file_path,lib#build];
+	let build path =
+		(* The first build has to load, afterwards we install a direct lib#build call. *)
+		lib#load;
+		com.load_extern_type <- List.map (fun (name,f) ->
+			name,if name = lib#get_file_path then lib#build else f
+		) com.load_extern_type;
+		lib#build path;
+	in
+	com.load_extern_type <- com.load_extern_type @ [lib#get_file_path,build];
 	if not (Define.raw_defined com.defines "haxe.noNativeLibsCache") then begin
 		let cs = com.cs in
 		let init () =
@@ -54,7 +62,7 @@ let handle_native_lib com lib =
 					name,if name = lib#get_file_path then build else f
 				) com.load_extern_type
 			| None ->
-				lib#load
+				()
 		)
 	end else
 		(* Offline mode, just read library as usual. *)
@@ -69,22 +77,39 @@ let get_cache com = match com.Common.cache with
 	| Some cache ->
 		cache
 
+let get_cache_sign com = match com.Common.cache with
+	| None -> Define.get_signature com.defines
+	| Some cache -> cache#get_sign
+
 let rec cache_context cs com =
 	let cc = get_cache com in
 	let sign = Define.get_signature com.defines in
+	let anon_identification = new Tanon_identification.tanon_identification in
+	let config = match com.hxb_writer_config with
+		| None ->
+			HxbWriterConfig.create_target_config ()
+		| Some config ->
+			if com.is_macro_context then config.macro_config else config.target_config
+	in
 	let cache_module m =
 		(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heueristic. *)
-		let cc = if m.m_extra.m_sign == sign then cc else cs#get_context m.m_extra.m_sign in
-		cc#cache_module m.m_path m;
+		let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
+		let warn w s p = com.warning w com.warning_options s p in
+		cc#cache_module config warn anon_identification com.hxb_writer_stats m.m_path m;
 	in
 	List.iter cache_module com.modules;
-	match com.get_macros() with
-	| None -> ()
-	| Some com -> cache_context cs com
+	begin match com.get_macros() with
+		| None -> ()
+		| Some com -> cache_context cs com
+	end;
+	if Define.raw_defined com.defines "hxb.stats" then begin
+		HxbReader.dump_stats (platform_name com.platform) com.hxb_reader_stats;
+		HxbWriter.dump_stats (platform_name com.platform) com.hxb_writer_stats
+	end
 
 let maybe_add_context_sign cs com desc =
 	let sign = Define.get_signature com.defines in
-	ignore(cs#add_info sign desc com.platform com.class_path com.defines)
+	ignore(cs#add_info sign desc com.platform com.class_paths com.defines)
 
 let lock_signature com name =
 	let cs = com.cs in

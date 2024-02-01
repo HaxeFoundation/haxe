@@ -626,11 +626,11 @@ let new_ctx con =
 		gadd_type = (fun md should_filter ->
 			if should_filter then begin
 				gen.gtypes_list <- md :: gen.gtypes_list;
-				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_statics = None; m_extra = module_extra "" "" 0. MFake [] } :: gen.gmodules;
+				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_statics = None; m_extra = module_extra "" "" 0. MFake gen.gcon.compilation_step [] } :: gen.gmodules;
 				Hashtbl.add gen.gtypes (t_path md) md;
 			end else gen.gafter_filters_ended <- (fun () ->
 				gen.gtypes_list <- md :: gen.gtypes_list;
-				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_statics = None; m_extra = module_extra "" "" 0. MFake [] } :: gen.gmodules;
+				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_statics = None; m_extra = module_extra "" "" 0. MFake gen.gcon.compilation_step [] } :: gen.gmodules;
 				Hashtbl.add gen.gtypes (t_path md) md;
 			) :: gen.gafter_filters_ended;
 		);
@@ -723,8 +723,8 @@ let run_filters_from gen t filters =
 		gen.gcurrent_classfield <- None;
 		(match c.cl_init with
 		| None -> ()
-		| Some e ->
-			c.cl_init <- Some (List.fold_left (fun e f -> f e) e filters));
+		| Some f ->
+			process_field f);
 	| TClassDecl _ | TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 		()
 
@@ -819,7 +819,7 @@ let run_filters gen =
 
 	reorder_modules gen;
 	t();
-	if !has_errors then abort "Compilation aborted with errors" null_pos
+	if !has_errors then Error.abort "Compilation aborted with errors" null_pos
 
 (* ******************************************* *)
 (* basic generation module that source code compilation implementations can use *)
@@ -1137,11 +1137,14 @@ let mk_class_field ?(static = false) name t public pos kind params =
 (* this helper just duplicates the type parameter class, which is assumed that cl is. *)
 (* This is so we can use class parameters on function parameters, without running the risk of name clash *)
 (* between both *)
-let map_param cl =
+let clone_param ttp =
+	let cl = ttp.ttp_class in
 	let ret = mk_class cl.cl_module (fst cl.cl_path, snd cl.cl_path ^ "_c") cl.cl_pos null_pos in
 	ret.cl_implements <- cl.cl_implements;
 	ret.cl_kind <- cl.cl_kind;
-	ret
+	let ttp = mk_type_param ret ttp.ttp_host ttp.ttp_default ttp.ttp_constraints in
+	ret.cl_kind <- KTypeParameter ttp;
+	ttp
 
 let get_cl_t t =
 	match follow t with | TInst (cl,_) -> cl | _ -> die "" __LOC__

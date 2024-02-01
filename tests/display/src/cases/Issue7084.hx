@@ -29,6 +29,6 @@ class Issue7084 extends DisplayTestCase {
 		}
 	**/
 	function test2() {
-		eq("Value", fields(pos(1))[0].name);
+		eq(true, isField(fields(pos(1))[0], "Value"));
 	}
 }

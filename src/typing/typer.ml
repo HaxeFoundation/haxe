@@ -707,7 +707,7 @@ and type_vars ctx vl p =
 	let vl = List.map (fun ev ->
 		let n = fst ev.ev_name
 		and pv = snd ev.ev_name in
-		DeprecationCheck.check_is ctx.com ctx.curclass.cl_meta ctx.curfield.cf_meta n ev.ev_meta pv;
+		DeprecationCheck.check_is ctx.com ctx.m.curmod ctx.curclass.cl_meta ctx.curfield.cf_meta n ev.ev_meta pv;
 		try
 			let t = Typeload.load_type_hint ctx p ev.ev_type in
 			let e = (match ev.ev_expr with
@@ -750,9 +750,9 @@ and type_vars ctx vl p =
 		mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos
 
 and format_string ctx s p =
-	Common.format_string ctx.com s p (fun enext p ->
+	FormatString.format_string ctx.com.defines s p (fun enext p ->
 		if ctx.in_display && DisplayPosition.display_position#enclosed_in p then
-			Display.ExprPreprocessing.process_expr ctx.com (enext,p)
+			Display.preprocess_expr ctx.com (enext,p)
 		else
 			enext,p
 	)
@@ -1046,9 +1046,9 @@ and type_new ctx ptp el with_type force_inline p =
 		unify_constructor_call c fa
 	in
 	try begin match Abstract.follow_with_forward_ctor t with
-	| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
+	| TInst ({cl_kind = KTypeParameter ttp} as c,params) ->
 		if not (TypeloadCheck.is_generic_parameter ctx c) then raise_typing_error "Only generic type parameters can be constructed" p;
- 		begin match get_constructible_constraint ctx tl p with
+ 		begin match get_constructible_constraint ctx (get_constraints ttp) p with
 		| None ->
 			raise_typing_error_ext (make_error (No_constructor (TClassDecl c)) p)
 		| Some(tl,tr) ->
@@ -1218,7 +1218,7 @@ and type_map_declaration ctx e1 el with_type p =
 
 and type_local_function ctx kind f with_type p =
 	let name,inline = match kind with FKNamed (name,inline) -> Some name,inline | _ -> None,false in
-	let params = TypeloadFunction.type_function_params ctx f (match name with None -> "localfun" | Some (n,_) -> n) p in
+	let params = TypeloadFunction.type_function_params ctx f TPHLocal (match name with None -> "localfun" | Some (n,_) -> n) p in
 	if params <> [] then begin
 		if name = None then display_error ctx.com "Type parameters not supported in unnamed local functions" p;
 		if with_type <> WithType.NoValue then raise_typing_error "Type parameters are not supported for rvalue functions" p
@@ -1859,7 +1859,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		else match e2.etype with
 			| TAbstract({a_path = [],"Null"},[t]) -> tmin
 			| _ -> follow_null tmin
-		in		
+		in
 		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull tmin} in
 		let e_null = Builder.make_null e1.etype e1.epos in
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
@@ -2014,161 +2014,10 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in p_t then
 				DisplayEmitter.display_module_type ctx mt p_t;
 			let e_t = type_module_type ctx mt p_t in
-			let e_Std_isOfType =
-				match Typeload.load_type_raise ctx ([],"Std") "Std" p with
-				| TClassDecl c ->
-					let cf =
-						try PMap.find "isOfType" c.cl_statics
-						with Not_found -> die "" __LOC__
-					in
-					Texpr.Builder.make_static_field c cf (mk_zero_range_pos p)
-				| _ -> die "" __LOC__
-			in
-			mk (TCall (e_Std_isOfType, [e; e_t])) ctx.com.basic.tbool p
+			Texpr.Builder.resolve_and_make_static_call ctx.com.std "isOfType" [e;e_t] p
 		| _ ->
 			display_error ctx.com "Unsupported type for `is` operator" p_t;
 			Texpr.Builder.make_bool ctx.com.basic false p
-
-(* ---------------------------------------------------------------------- *)
-(* TYPER INITIALIZATION *)
-
-let create com macros =
-	let ctx = {
-		com = com;
-		t = com.basic;
-		g = {
-			core_api = None;
-			macros = macros;
-			type_patches = Hashtbl.create 0;
-			module_check_policies = [];
-			delayed = [];
-			debug_delayed = [];
-			doinline = com.display.dms_inline && not (Common.defined com Define.NoInline);
-			retain_meta = Common.defined com Define.RetainUntypedMeta;
-			std = null_module;
-			global_using = [];
-			complete = false;
-			type_hints = [];
-			load_only_cached_modules = false;
-			functional_interface_lut = new pmap_lookup;
-			do_macro = MacroContext.type_macro;
-			do_load_macro = MacroContext.load_macro';
-			do_load_module = TypeloadModule.load_module;
-			do_load_type_def = Typeload.load_type_def;
-			get_build_info = InstanceBuilder.get_build_info;
-			do_format_string = format_string;
-			do_load_core_class = Typeload.load_core_class;
-		};
-		m = {
-			curmod = null_module;
-			import_resolution = new resolution_list ["import";"typer"];
-			own_resolution = None;
-			enum_with_type = None;
-			module_using = [];
-			import_statements = [];
-		};
-		is_display_file = false;
-		bypass_accessor = 0;
-		meta = [];
-		with_type_stack = [];
-		call_argument_stack = [];
-		pass = PBuildModule;
-		macro_depth = 0;
-		untyped = false;
-		curfun = FunStatic;
-		in_function = false;
-		in_loop = false;
-		in_display = false;
-		allow_inline = true;
-		allow_transform = true;
-		get_build_infos = (fun() -> None);
-		ret = mk_mono();
-		locals = PMap.empty;
-		type_params = [];
-		curclass = null_class;
-		curfield = null_field;
-		tthis = mk_mono();
-		opened = [];
-		vthis = None;
-		in_call_args = false;
-		in_overload_call_args = false;
-		delayed_display = None;
-		monomorphs = {
-			perfunction = [];
-		};
-		memory_marker = Typecore.memory_marker;
-	} in
-	ctx.g.std <- (try
-		TypeloadModule.load_module ctx ([],"StdTypes") null_pos
-	with
-		Error { err_message = Module_not_found ([],"StdTypes") } ->
-			try
-				let std_path = Sys.getenv "HAXE_STD_PATH" in
-				raise_typing_error ("Standard library not found. Please check your `HAXE_STD_PATH` environment variable (current value: \"" ^ std_path ^ "\")") null_pos
-			with Not_found ->
-				raise_typing_error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
-	);
-	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
-	List.iter (fun mt ->
-		ctx.m.import_resolution#add (module_type_resolution mt None null_pos))
-	(List.rev ctx.g.std.m_types);
-	List.iter (fun t ->
-		match t with
-		| TAbstractDecl a ->
-			(match snd a.a_path with
-			| "Void" -> ctx.t.tvoid <- TAbstract (a,[]);
-			| "Float" -> ctx.t.tfloat <- TAbstract (a,[]);
-			| "Int" -> ctx.t.tint <- TAbstract (a,[])
-			| "Bool" -> ctx.t.tbool <- TAbstract (a,[])
-			| "Dynamic" -> t_dynamic_def := TAbstract(a,extract_param_types a.a_params);
-			| "Null" ->
-				let mk_null t =
-					try
-						if not (is_null ~no_lazy:true t || is_explicit_null t) then TAbstract (a,[t]) else t
-					with Exit ->
-						(* don't force lazy evaluation *)
-						let r = ref (lazy_available t_dynamic) in
-						r := lazy_wait (fun() ->
-							let t = (if not (is_null t) then TAbstract (a,[t]) else t) in
-							r := lazy_available t;
-							t
-						);
-						TLazy r
-				in
-				ctx.t.tnull <- mk_null;
-			| _ -> ())
-		| TEnumDecl _ | TClassDecl _ | TTypeDecl _ ->
-			()
-	) ctx.g.std.m_types;
-	let m = TypeloadModule.load_module ctx ([],"String") null_pos in
-	List.iter (fun mt -> match mt with
-		| TClassDecl c -> ctx.t.tstring <- TInst (c,[])
-		| _ -> ()
-	) m.m_types;
-	let m = TypeloadModule.load_module ctx ([],"Array") null_pos in
-	(try
-		List.iter (fun t -> (
-			match t with
-			| TClassDecl ({cl_path = ([],"Array")} as c) ->
-				ctx.t.tarray <- (fun t -> TInst (c,[t]));
-				raise Exit
-			| _ -> ()
-		)) m.m_types;
-		die "" __LOC__
-	with Exit -> ());
-	let m = TypeloadModule.load_module ctx (["haxe"],"EnumTools") null_pos in
-	(match m.m_types with
-	| [TClassDecl c1;TClassDecl c2] -> ctx.g.global_using <- (c1,c1.cl_pos) :: (c2,c2.cl_pos) :: ctx.g.global_using
-	| [TClassDecl c1] ->
-		let m = TypeloadModule.load_module ctx (["haxe"],"EnumWithType.valueTools") null_pos in
-		(match m.m_types with
-		| [TClassDecl c2 ] -> ctx.g.global_using <- (c1,c1.cl_pos) :: (c2,c2.cl_pos) :: ctx.g.global_using
-		| _ -> die "" __LOC__);
-	| _ -> die "" __LOC__);
-	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
-	ctx.g.complete <- true;
-	ctx
-
 ;;
 unify_min_ref := unify_min;
 unify_min_for_type_source_ref := unify_min_for_type_source;
@@ -2176,5 +2025,4 @@ make_call_ref := make_call;
 type_call_target_ref := type_call_target;
 type_access_ref := type_access;
 type_block_ref := type_block;
-create_context_ref := create;
 type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> type_expr ~mode ctx e with_type);

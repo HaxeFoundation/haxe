@@ -5,7 +5,7 @@ open Type
 open Define
 
 type cached_file = {
-	c_file_path : string;
+	c_file_path : ClassPaths.resolved_file;
 	c_time : float;
 	c_package : string list;
 	c_decls : type_decl list;
@@ -23,9 +23,18 @@ type cached_native_lib = {
 	c_nl_files : (path,Ast.package) Hashtbl.t;
 }
 
-class context_cache (index : int) = object(self)
+let get_module_name_of_cfile file cfile = match cfile.c_module_name with
+	| None ->
+		let name = Path.module_name_of_file file in
+		cfile.c_module_name <- Some name;
+		name
+	| Some name ->
+		name
+
+class context_cache (index : int) (sign : Digest.t) = object(self)
 	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
+	val binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
@@ -57,17 +66,41 @@ class context_cache (index : int) = object(self)
 	method find_module_opt path =
 		Hashtbl.find_opt modules path
 
-	method cache_module path value =
-		Hashtbl.replace modules path value
+	method find_module_extra path =
+		try (Hashtbl.find modules path).m_extra with Not_found -> (Hashtbl.find binary_cache path).mc_extra
+
+	method cache_module config warn anon_identification hxb_writer_stats path m =
+		match m.m_extra.m_kind with
+		| MImport ->
+			Hashtbl.add modules m.m_path m
+		| _ ->
+			let writer = HxbWriter.create config warn anon_identification hxb_writer_stats in
+			HxbWriter.write_module writer m;
+			let chunks = HxbWriter.get_chunks writer in
+			Hashtbl.replace binary_cache path {
+				mc_path = path;
+				mc_id = m.m_id;
+				mc_chunks = chunks;
+				mc_extra = { m.m_extra with m_cache_state = MSGood }
+			}
+
+	method clear_cache =
+		Hashtbl.clear modules
 
 	(* initialization *)
 
 	method is_initialized = initialized
 	method set_initialized value = initialized <- value
 
+	method get_sign = sign
 	method get_index = index
 	method get_files = files
 	method get_modules = modules
+
+	method get_hxb = binary_cache
+	method get_hxb_module path = Hashtbl.find binary_cache path
+
+	(* TODO handle hxb cache there too *)
 	method get_removed_files = removed_files
 
 	method get_json = json
@@ -75,7 +108,7 @@ class context_cache (index : int) = object(self)
 
 (* Pointers for memory inspection. *)
 	method get_pointers : unit array =
-		[|Obj.magic files;Obj.magic modules|]
+		[|Obj.magic files;Obj.magic modules;Obj.magic binary_cache|]
 end
 
 let create_directory path mtime = {
@@ -115,18 +148,18 @@ class cache = object(self)
 		try
 			Hashtbl.find contexts sign
 		with Not_found ->
-			let cache = new context_cache (Hashtbl.length contexts) in
+			let cache = new context_cache (Hashtbl.length contexts) sign in
 			context_list <- cache :: context_list;
 			Hashtbl.add contexts sign cache;
 			cache
 
-	method add_info sign desc platform class_path defines =
+	method add_info sign desc platform (class_paths : ClassPaths.class_paths) defines =
 		let cc = self#get_context sign in
 		let jo = JObject [
 			"index",JInt cc#get_index;
 			"desc",JString desc;
 			"platform",JString (platform_name platform);
-			"classPaths",JArray (List.map (fun s -> JString s) class_path);
+			"classPaths",JArray (List.map (fun s -> JString s) class_paths#as_string_list);
 			"signature",JString (Digest.to_hex sign);
 			"defines",JArray (PMap.foldi (fun k v acc -> JObject [
 				"key",JString k;
@@ -174,7 +207,14 @@ class cache = object(self)
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
 				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_cache_state <- MSBad (Tainted reason)
-			) cc#get_modules
+			) cc#get_modules;
+			let open HxbData in
+			Hashtbl.iter (fun _ mc ->
+				if Path.UniqueKey.lazy_key mc.mc_extra.m_file = file_key then
+					mc.mc_extra.m_cache_state <- match reason, mc.mc_extra.m_cache_state with
+					| CheckDisplayFile, (MSBad _ as state) -> state
+					| _ -> MSBad (Tainted reason)
+			) cc#get_hxb
 		) contexts
 
 	(* haxelibs *)
@@ -267,11 +307,3 @@ type context_options =
 	| NormalContext
 	| MacroContext
 	| NormalAndMacroContext
-
-let get_module_name_of_cfile file cfile = match cfile.c_module_name with
-	| None ->
-		let name = Path.module_name_of_file file in
-		cfile.c_module_name <- Some name;
-		name
-	| Some name ->
-		name

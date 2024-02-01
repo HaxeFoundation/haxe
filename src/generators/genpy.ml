@@ -19,6 +19,7 @@
 open Extlib_leftovers
 open Globals
 open Ast
+open Error
 open Type
 open Common
 open Texpr.Builder
@@ -38,8 +39,7 @@ module Utils = struct
 			abort (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
 
 	let mk_static_field c cf p =
-			let ta = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
-			let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
+			let ethis = Texpr.Builder.make_static_this c p in
 			let t = monomorphs cf.cf_params cf.cf_type in
 			mk (TField (ethis,(FStatic (c,cf)))) t p
 
@@ -2001,7 +2001,7 @@ module Generator = struct
 		!has_static_methods || !has_empty_static_vars
 
 	let gen_class_init ctx c =
-		match c.cl_init with
+		match TClass.get_cl_init c with
 			| None ->
 				()
 			| Some e ->
@@ -2270,7 +2270,7 @@ module Generator = struct
 				end else
 					","
 				in
-				let k_enc = Codegen.escape_res_name k [] in
+				let k_enc = StringHelper.escape_res_name k [] in
 				print ctx "%s\"%s\": open('%%s.%%s'%%(_file,'%s'),'rb').read()" prefix (StringHelper.s_escape k) k_enc;
 
 				let f = open_out_bin (ctx.com.file ^ "." ^ k_enc) in
@@ -2410,7 +2410,7 @@ module Generator = struct
 		List.iter (fun f -> f()) (List.rev ctx.class_inits)
 
 	let gen_main ctx =
-		match ctx.com.main with
+		match ctx.com.main.main_expr with
 			| None ->
 				()
 			| Some e ->
