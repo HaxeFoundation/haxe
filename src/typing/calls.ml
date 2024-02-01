@@ -368,16 +368,10 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 	let rec loop args params given_args missing_args ordered_args = match args, params with
 		| [], [] -> given_args,missing_args,ordered_args
 		| [], _ -> raise_typing_error "Too many callback arguments" p
-		| (n,o,t) :: args , [] when o ->
-			let a = if is_pos_infos t then
-					let infos = mk_infos ctx p [] in
-					ordered_args @ [type_expr ctx infos (WithType.with_argument t n)]
-				else if ctx.com.config.pf_pad_nulls && ctx.allow_transform then
-					(ordered_args @ [(mk (TConst TNull) t_dynamic p)])
-				else
-					ordered_args
-			in
-			loop args [] given_args missing_args a
+		| [n,o,t] , [] when o && is_pos_infos t ->
+			let infos = mk_infos ctx p [] in
+			let ordered_args = ordered_args @ [type_expr ctx infos (WithType.with_argument t n)] in
+			given_args,missing_args,ordered_args
 		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when not ctx.com.config.pf_can_skip_non_nullable_argument && o && not (is_nullable t) ->
 			raise_typing_error "Usage of _ is not supported for optional non-nullable arguments" p
 		| (n,o,t) :: args , ([] as params)
