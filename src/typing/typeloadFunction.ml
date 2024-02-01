@@ -33,9 +33,9 @@ let save_field_state ctx =
 	let old_opened = ctx.e.opened in
 	let old_monos = ctx.e.monomorphs.perfunction in
 	let old_in_function = ctx.e.in_function in
-	let locals = ctx.locals in
+	let locals = ctx.f.locals in
 	(fun () ->
-		ctx.locals <- locals;
+		ctx.f.locals <- locals;
 		ctx.e.ret <- old_ret;
 		ctx.e.curfun <- old_fun;
 		ctx.e.opened <- old_opened;

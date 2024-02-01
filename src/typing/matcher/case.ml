@@ -29,13 +29,13 @@ let make ctx t el eg eo_ast with_type postfix_match p =
 		let t_old = v.v_type in
 		v.v_type <- map v.v_type;
 		(v,t_old) :: acc
-	) ctx.locals [] in
+	) ctx.f.locals [] in
 	let old_ret = ctx.e.ret in
 	ctx.e.ret <- map ctx.e.ret;
 	let pctx = {
 		ctx = ctx;
 		current_locals = PMap.empty;
-		ctx_locals = ctx.locals;
+		ctx_locals = ctx.f.locals;
 		or_locals = None;
 		in_reification = false;
 		is_postfix_match = postfix_match;

@@ -421,7 +421,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		if mode = MGet then acc else AKNo(acc,p)
 	| _ ->
 	try
-		let v = PMap.find i ctx.locals in
+		let v = PMap.find i ctx.f.locals in
 		add_var_flag v VUsedByTyper;
 		(match v.v_extra with
 		| Some ve ->

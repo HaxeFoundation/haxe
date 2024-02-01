@@ -721,7 +721,9 @@ let create_typer_context_for_module ctx m = {
 				perfunction = [];
 			};
 		};
-		locals = PMap.empty;
+		f = {
+			locals = PMap.empty;
+		};
 		allow_inline = true;
 		allow_transform = true;
 		curfield = null_field;

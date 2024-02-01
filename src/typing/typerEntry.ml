@@ -72,7 +72,9 @@ let create com macros =
 				perfunction = [];
 			};
 		};
-		locals = PMap.empty;
+		f = {
+			locals = PMap.empty;
+		};
 		curfield = null_field;
 		vthis = None;
 		in_call_args = false;

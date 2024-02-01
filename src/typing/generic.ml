@@ -26,7 +26,7 @@ let make_generic ctx ps pt debug p =
 				begin match c.cl_kind with
 					| KExpr e ->
 						let name = ident_safe (Ast.Printer.s_expr e) in
-						let e = type_expr {ctx with locals = PMap.empty} e WithType.value in
+						let e = type_expr {ctx with f = {ctx.f with locals = PMap.empty}} e WithType.value in
 						name,(t,Some e)
 					| _ ->
 						((ident_safe (s_type_path_underscore c.cl_path)) ^ (loop_tl top tl),(t,None))

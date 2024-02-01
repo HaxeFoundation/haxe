@@ -284,7 +284,7 @@ let check_param_constraints ctx t map ttp p =
 			in
 			match follow t with
 			| TInst({cl_kind = KExpr e},_) ->
-				let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
+				let e = type_expr {ctx with f = {ctx.f with locals = PMap.empty}} e (WithType.with_type ti) in
 				begin try unify_raise e.etype ti p
 				with Error { err_message = Unify _ } -> fail() end
 			| _ ->

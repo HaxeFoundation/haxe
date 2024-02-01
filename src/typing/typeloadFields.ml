@@ -635,6 +635,9 @@ let create_typer_context_for_field ctx cctx fctx cff =
 	DeprecationCheck.check_is ctx.com ctx.m.curmod ctx.c.curclass.cl_meta cff.cff_meta (fst cff.cff_name) cff.cff_meta (snd cff.cff_name);
 	let ctx = {
 		ctx with
+		f = {
+			locals = PMap.empty;
+		};
 		pass = PBuildClass; (* will be set later to PTypeExpr *)
 		type_params = if fctx.is_static && not fctx.is_abstract_member && not (Meta.has Meta.LibType cctx.tclass.cl_meta) (* TODO: remove this *) then [] else ctx.type_params;
 	} in

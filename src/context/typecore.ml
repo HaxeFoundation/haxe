@@ -142,6 +142,10 @@ and typer_expr = {
 	mutable in_function : bool;
 }
 
+and typer_field = {
+	mutable locals : (string, tvar) PMap.t;
+}
+
 and typer = {
 	(* shared *)
 	com : context;
@@ -150,7 +154,7 @@ and typer = {
 	mutable m : typer_module;
 	c : typer_class;
 	e : typer_expr;
-	mutable locals : (string, tvar) PMap.t;
+	f : typer_field;
 	mutable bypass_accessor : int;
 	mutable meta : metadata;
 	mutable with_type_stack : WithType.t list;
@@ -349,8 +353,8 @@ let unify_raise_custom uctx t1 t2 p =
 let unify_raise = unify_raise_custom default_unification_context
 
 let save_locals ctx =
-	let locals = ctx.locals in
-	(fun() -> ctx.locals <- locals)
+	let locals = ctx.f.locals in
+	(fun() -> ctx.f.locals <- locals)
 
 let add_local ctx k n t p =
 	let v = alloc_var k n t p in
@@ -358,7 +362,7 @@ let add_local ctx k n t p =
 		match k with
 		| VUser _ ->
 			begin try
-				let v' = PMap.find n ctx.locals in
+				let v' = PMap.find n ctx.f.locals in
 				(* ignore std lib *)
 				if not (List.exists (fun path -> ExtLib.String.starts_with p.pfile (path#path)) ctx.com.class_paths#get_std_paths) then begin
 					warning ctx WVarShadow "This variable shadows a previously declared variable" p;
@@ -370,7 +374,7 @@ let add_local ctx k n t p =
 		| _ ->
 			()
 	end;
-	ctx.locals <- PMap.add n v ctx.locals;
+	ctx.f.locals <- PMap.add n v ctx.f.locals;
 	v
 
 let display_identifier_error ctx ?prepend_msg msg p =

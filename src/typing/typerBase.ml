@@ -156,7 +156,7 @@ let get_this ctx p =
 		let v = match ctx.vthis with
 			| None ->
 				let v = if ctx.e.curfun = FunMemberAbstractLocal then begin
-					let v = PMap.find "this" ctx.locals in
+					let v = PMap.find "this" ctx.f.locals in
 					add_var_flag v VUsedByTyper;
 					v
 				end else
@@ -165,12 +165,12 @@ let get_this ctx p =
 				ctx.vthis <- Some v;
 				v
 			| Some v ->
-				ctx.locals <- PMap.add v.v_name v ctx.locals;
+				ctx.f.locals <- PMap.add v.v_name v ctx.f.locals;
 				v
 		in
 		mk (TLocal v) ctx.c.tthis p
 	| FunMemberAbstract ->
-		let v = (try PMap.find "this" ctx.locals with Not_found -> raise_typing_error "Cannot reference this abstract here" p) in
+		let v = (try PMap.find "this" ctx.f.locals with Not_found -> raise_typing_error "Cannot reference this abstract here" p) in
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.c.tthis p
