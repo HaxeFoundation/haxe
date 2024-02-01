@@ -637,6 +637,7 @@ let create_typer_context_for_field ctx cctx fctx cff =
 		ctx with
 		f = {
 			locals = PMap.empty;
+			curfield = null_field;
 		};
 		pass = PBuildClass; (* will be set later to PTypeExpr *)
 		type_params = if fctx.is_static && not fctx.is_abstract_member && not (Meta.has Meta.LibType cctx.tclass.cl_meta) (* TODO: remove this *) then [] else ctx.type_params;
@@ -853,7 +854,7 @@ module TypeBinding = struct
 		let r = make_lazy ~force:false ctx t (fun r ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
-				enter_field_typing_pass ctx ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.curfield.cf_name]);
+				enter_field_typing_pass ctx ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
 				if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing field %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
@@ -1034,7 +1035,7 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 		add_class_field_flag cf CfImpl;
 	end;
 	if is_abstract_enum_field then add_class_field_flag cf CfEnum;
-	ctx.curfield <- cf;
+	ctx.f.curfield <- cf;
 	TypeBinding.bind_var ctx cctx fctx cf eo;
 	cf
 
@@ -1431,7 +1432,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		()
 	end;
 	init_meta_overloads ctx (Some c) cf;
-	ctx.curfield <- cf;
+	ctx.f.curfield <- cf;
 	if fctx.do_bind then
 		TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
 	else begin
@@ -1589,7 +1590,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	cf.cf_kind <- Var { v_read = get; v_write = set };
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if List.mem_assoc AEnum f.cff_access then add_class_field_flag cf CfEnum;
-	ctx.curfield <- cf;
+	ctx.f.curfield <- cf;
 	TypeBinding.bind_var ctx cctx fctx cf eo;
 	cf
 

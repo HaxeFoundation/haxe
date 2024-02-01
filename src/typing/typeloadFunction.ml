@@ -54,7 +54,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 	ctx.e.ret <- ret;
 	ctx.e.opened <- [];
 	ctx.e.monomorphs.perfunction <- [];
-	enter_field_typing_pass ctx ("type_function",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.curfield.cf_name]);
+	enter_field_typing_pass ctx ("type_function",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
 	args#bring_into_context ctx;
 	let e = match e with
 		| None ->
@@ -71,12 +71,12 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 					raise_typing_error "Function body required" p
 		| Some e -> e
 	in
-	let is_position_debug = Meta.has (Meta.Custom ":debug.position") ctx.curfield.cf_meta in
+	let is_position_debug = Meta.has (Meta.Custom ":debug.position") ctx.f.curfield.cf_meta in
 	let e = if not do_display then begin
 		if is_position_debug then print_endline ("syntax:\n" ^ (Expr.dump_with_pos e));
 		type_expr ctx e NoValue
 	end else begin
-		let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in
+		let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.f.curfield.cf_meta in
 		if is_display_debug then print_endline ("before processing:\n" ^ (Expr.dump_with_pos e));
 		let e = if !Parser.had_resume then e else Display.preprocess_expr ctx.com e in
 		if is_display_debug then print_endline ("after processing:\n" ^ (Expr.dump_with_pos e));
@@ -191,7 +191,10 @@ let add_constructor ctx c force_constructor p =
 		let t = spawn_monomorph ctx.e p in
 		let r = make_lazy ctx t (fun r ->
 			let ctx = { ctx with
-				curfield = cf;
+				f = {
+					locals = PMap.empty;
+					curfield = cf;
+				};
 				pass = PConnectField;
 			} in
 			ignore (follow cfsup.cf_type); (* make sure it's typed *)

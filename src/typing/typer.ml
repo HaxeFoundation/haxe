@@ -350,7 +350,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		let acc = AKExpr(get_this ctx p) in
 		begin match mode with
 		| MSet _ ->
-			add_class_field_flag ctx.curfield CfModifiesThis;
+			add_class_field_flag ctx.f.curfield CfModifiesThis;
 			begin match ctx.c.curclass.cl_kind with
 			| KAbstractImpl _ ->
 				if not (assign_to_this_is_allowed ctx) then
@@ -455,7 +455,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		let f = PMap.find i ctx.c.curclass.cl_statics in
 		let is_impl = has_class_field_flag f CfImpl in
 		let is_enum = has_class_field_flag f CfEnum in
-		if is_impl && not (has_class_field_flag ctx.curfield CfImpl) && not is_enum then
+		if is_impl && not (has_class_field_flag ctx.f.curfield CfImpl) && not is_enum then
 			raise_typing_error (Printf.sprintf "Cannot access non-static field %s from static method" f.cf_name) p;
 		let e,fa = match ctx.c.curclass.cl_kind with
 			| KAbstractImpl a when is_impl && not is_enum ->
@@ -707,7 +707,7 @@ and type_vars ctx vl p =
 	let vl = List.map (fun ev ->
 		let n = fst ev.ev_name
 		and pv = snd ev.ev_name in
-		DeprecationCheck.check_is ctx.com ctx.m.curmod ctx.c.curclass.cl_meta ctx.curfield.cf_meta n ev.ev_meta pv;
+		DeprecationCheck.check_is ctx.com ctx.m.curmod ctx.c.curclass.cl_meta ctx.f.curfield.cf_meta n ev.ev_meta pv;
 		try
 			let t = Typeload.load_type_hint ctx p ev.ev_type in
 			let e = (match ev.ev_expr with
@@ -1480,7 +1480,7 @@ and type_array_comprehension ctx e with_type p =
 	]) v.v_type p
 
 and type_return ?(implicit=false) ctx e with_type p =
-	let is_abstract_ctor = ctx.e.curfun = FunMemberAbstract && ctx.curfield.cf_name = "_new" in
+	let is_abstract_ctor = ctx.e.curfun = FunMemberAbstract && ctx.f.curfield.cf_name = "_new" in
 	match e with
 	| None when is_abstract_ctor ->
 		let e_cast = mk (TCast(get_this ctx p,None)) ctx.e.ret p in
@@ -1983,7 +1983,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;
-		if not (Meta.has Meta.HasUntyped ctx.curfield.cf_meta) then ctx.curfield.cf_meta <- (Meta.HasUntyped,[],p) :: ctx.curfield.cf_meta;
+		if not (Meta.has Meta.HasUntyped ctx.f.curfield.cf_meta) then ctx.f.curfield.cf_meta <- (Meta.HasUntyped,[],p) :: ctx.f.curfield.cf_meta;
 		let e = type_expr ctx e with_type in
 		ctx.untyped <- old;
 		{

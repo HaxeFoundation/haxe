@@ -723,10 +723,10 @@ let create_typer_context_for_module ctx m = {
 		};
 		f = {
 			locals = PMap.empty;
+			curfield = null_field;
 		};
 		allow_inline = true;
 		allow_transform = true;
-		curfield = null_field;
 		type_params = [];
 		untyped = false;
 		in_display = false;

@@ -10,7 +10,7 @@ type lscontext = {
 }
 
 let promote_local_static lsctx run v eo =
-	let name = Printf.sprintf "%s_%s" lsctx.ctx.curfield.cf_name v.v_name in
+	let name = Printf.sprintf "%s_%s" lsctx.ctx.f.curfield.cf_name v.v_name in
 	let c = lsctx.ctx.c.curclass in
 	begin try
 		let cf = PMap.find name c.cl_statics in

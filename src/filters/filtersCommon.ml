@@ -67,7 +67,7 @@ let run_expression_filters ?(ignore_processed_status=false) ctx detail_times fil
 		ctx.m <- TypeloadModule.make_curmod ctx c.cl_module;
 		let rec process_field f =
 			if ignore_processed_status || not (has_class_field_flag f CfPostProcessed) then begin
-				ctx.curfield <- f;
+				ctx.f.curfield <- f;
 				(match f.cf_expr with
 				| Some e when not (is_removable_field com f) ->
 					let identifier = Printf.sprintf "%s.%s" (s_type_path c.cl_path) f.cf_name in

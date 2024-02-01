@@ -60,7 +60,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 				then
 					if assign_to_this_is_allowed ctx then
 						(* Current method needs to infer CfModifiesThis flag, since we are calling a method, which modifies `this` *)
-						add_class_field_flag ctx.curfield CfModifiesThis
+						add_class_field_flag ctx.f.curfield CfModifiesThis
 					else
 						raise_typing_error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
 			| _ -> ()

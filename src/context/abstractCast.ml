@@ -40,7 +40,7 @@ and do_check_cast ctx uctx tleft eright p =
 					raise_error_msg (Unify l) eright.epos)
 			| _ -> ()
 		end;
-		if cf == ctx.curfield || rec_stack_memq cf cast_stack then raise_typing_error "Recursive implicit cast" p;
+		if cf == ctx.f.curfield || rec_stack_memq cf cast_stack then raise_typing_error "Recursive implicit cast" p;
 		rec_stack_loop cast_stack cf f ()
 	in
 	let make (a,tl,(tcf,cf)) =

@@ -39,8 +39,8 @@ let is_generic_parameter ctx c =
 	(* first check field parameters, then class parameters *)
 	let name = snd c.cl_path in
 	try
-		ignore(lookup_param name ctx.curfield.cf_params);
-		has_class_field_flag ctx.curfield CfGeneric
+		ignore(lookup_param name ctx.f.curfield.cf_params);
+		has_class_field_flag ctx.f.curfield CfGeneric
 	with Not_found -> try
 		ignore(lookup_param name ctx.type_params);
 		(match ctx.c.curclass.cl_kind with | KGeneric -> true | _ -> false);

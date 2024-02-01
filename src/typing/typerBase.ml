@@ -186,9 +186,9 @@ let type_stored_expr ctx e1 =
 let assign_to_this_is_allowed ctx =
 	match ctx.c.curclass.cl_kind with
 		| KAbstractImpl _ ->
-			(match ctx.curfield.cf_kind with
+			(match ctx.f.curfield.cf_kind with
 				| Method MethInline -> true
-				| Method _ when ctx.curfield.cf_name = "_new" -> true
+				| Method _ when ctx.f.curfield.cf_name = "_new" -> true
 				| _ -> false
 			)
 		| _ -> false
@@ -334,7 +334,7 @@ let get_abstract_froms ctx a pl =
 	let l = List.map (apply_params a.a_params pl) a.a_from in
 	List.fold_left (fun acc (t,f) ->
 		(* We never want to use the @:from we're currently in because that's recursive (see #10604) *)
-		if f == ctx.curfield then
+		if f == ctx.f.curfield then
 			acc
 		else if (AbstractFromConfig.update_config_from_meta (AbstractFromConfig.make ()) f.cf_meta).ignored_by_inference then
 			acc

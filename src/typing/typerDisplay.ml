@@ -640,7 +640,7 @@ let handle_display ctx e_ast dk mode with_type =
 		| (EField(_,"new",_),_), TFunction { tf_expr = { eexpr = TReturn (Some ({ eexpr = TNew _ } as e1))} } -> e1
 		| _ -> e
 	in
-	let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in
+	let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.f.curfield.cf_meta in
 	if is_display_debug then begin
 		print_endline (Printf.sprintf "expected type: %s" (WithType.to_string with_type));
 		print_endline (Printf.sprintf "typed expr:\n%s" (s_expr_ast true "" (s_type (print_context())) e));

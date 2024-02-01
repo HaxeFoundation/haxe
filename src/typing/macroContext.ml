@@ -478,7 +478,7 @@ let make_macro_api ctx mctx p =
 				| el :: _ -> Some el
 		);
 		MacroApi.get_local_method = (fun() ->
-			ctx.curfield.cf_name;
+			ctx.f.curfield.cf_name;
 		);
 		MacroApi.get_local_using = (fun() ->
 			List.map fst ctx.m.module_using;

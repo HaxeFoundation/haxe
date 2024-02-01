@@ -134,6 +134,8 @@ type typer_globals = {
 	do_load_core_class : typer -> tclass -> tclass;
 }
 
+(* typer_expr holds information that is specific to a (function) expresssion, whereas typer_field
+   is shared by local TFunctions. *)
 and typer_expr = {
 	mutable ret : t;
 	mutable curfun : current_fun;
@@ -143,6 +145,7 @@ and typer_expr = {
 }
 
 and typer_field = {
+	mutable curfield : tclass_field;
 	mutable locals : (string, tvar) PMap.t;
 }
 
@@ -168,7 +171,6 @@ and typer = {
 	(* per-function *)
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;
-	mutable curfield : tclass_field;
 	mutable untyped : bool;
 	mutable in_loop : bool;
 	mutable in_display : bool;
@@ -286,7 +288,7 @@ let pass_name = function
 	| PFinal -> "final"
 
 let warning ?(depth=0) ctx w msg p =
-	let options = (Warning.from_meta ctx.c.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
+	let options = (Warning.from_meta ctx.c.curclass.cl_meta) @ (Warning.from_meta ctx.f.curfield.cf_meta) in
 	match Warning.get_mode w options with
 	| WMEnable ->
 		module_warning ctx.com ctx.m.curmod w options msg p
@@ -615,7 +617,7 @@ let can_access ctx c cf stat =
 	let module_path = ctx.c.curclass.cl_module.m_path in
 	let cur_paths = ref [fst module_path @ [snd module_path], false] in
 	let rec loop c is_current_path =
-		cur_paths := (make_path c ctx.curfield, is_current_path) :: !cur_paths;
+		cur_paths := (make_path c ctx.f.curfield, is_current_path) :: !cur_paths;
 		begin match c.cl_super with
 			| Some (csup,_) -> loop csup false
 			| None -> ()
@@ -626,7 +628,7 @@ let can_access ctx c cf stat =
 	let is_constr = cf.cf_name = "new" in
 	let rec loop c =
 		try
-			has Meta.Access ctx.c.curclass ctx.curfield ((make_path c cf), true)
+			has Meta.Access ctx.c.curclass ctx.f.curfield ((make_path c cf), true)
 			|| (
 				(* if our common ancestor declare/override the field, then we can access it *)
 				let allowed f = extends ctx.c.curclass c || (List.exists (has Meta.Allow c f) !cur_paths) in
@@ -740,10 +742,10 @@ let mk_infos ctx p params =
 		(("fileName",null_pos,NoQuotes) , (EConst (String(file,SDoubleQuotes)) , p)) ::
 		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p), None)),p)) ::
 		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.c.curclass.cl_path,SDoubleQuotes)),p)) ::
-		if ctx.curfield.cf_name = "" then
+		if ctx.f.curfield.cf_name = "" then
 			params
 		else
-			(("methodName",null_pos,NoQuotes), (EConst (String (ctx.curfield.cf_name,SDoubleQuotes)),p)) :: params
+			(("methodName",null_pos,NoQuotes), (EConst (String (ctx.f.curfield.cf_name,SDoubleQuotes)),p)) :: params
 	) ,p)
 
 let rec is_pos_infos = function
@@ -791,7 +793,7 @@ let push_this ctx e = match e.eexpr with
 let create_deprecation_context ctx = {
 	(DeprecationCheck.create_context ctx.com) with
 	class_meta = ctx.c.curclass.cl_meta;
-	field_meta = ctx.curfield.cf_meta;
+	field_meta = ctx.f.curfield.cf_meta;
 	curmod = ctx.m.curmod;
 }
 
@@ -844,7 +846,7 @@ let init_class_done ctx =
 let ctx_pos ctx =
 	let inf = fst ctx.m.curmod.m_path @ [snd ctx.m.curmod.m_path]in
 	let inf = (match snd ctx.c.curclass.cl_path with "" -> inf | n when n = snd ctx.m.curmod.m_path -> inf | n -> inf @ [n]) in
-	let inf = (match ctx.curfield.cf_name with "" -> inf | n -> inf @ [n]) in
+	let inf = (match ctx.f.curfield.cf_name with "" -> inf | n -> inf @ [n]) in
 	inf
 
 let pass_infos ctx p =

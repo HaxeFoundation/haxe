@@ -209,7 +209,7 @@ let field_access ctx mode f fh e pfield =
 			let m = (match mode with MSet _ -> "set_" | _ -> "get_") ^ f.cf_name in
 			let bypass_accessor =
 				(
-					m = ctx.curfield.cf_name
+					m = ctx.f.curfield.cf_name
 					&&
 					match e.eexpr with
 					| TConst TThis -> true
