@@ -511,6 +511,7 @@ let create_field_writer_context pos_writer = {
 }
 
 type hxb_writer = {
+	config : HxbWriterConfig.writer_target_config;
 	warn : Warning.warning -> string -> Globals.pos -> unit;
 	anon_id : Type.t Tanon_identification.tanon_identification;
 	stats : hxb_writer_stats;
@@ -601,13 +602,18 @@ module HxbWriter = struct
 		Chunk.write_string writer.chunk mname;
 		Chunk.write_string writer.chunk tname
 
-	let write_documentation writer (doc : doc_block) =
-		Chunk.write_option writer.chunk doc.doc_own (fun s ->
-			Chunk.write_uleb128 writer.chunk (StringPool.get_or_add writer.docs s)
-		);
-		Chunk.write_list writer.chunk doc.doc_inherited (fun s ->
-			Chunk.write_uleb128 writer.chunk (StringPool.get_or_add writer.docs s)
-		)
+	let maybe_write_documentation writer (doc : doc_block option) =
+		match doc with
+		| Some doc when writer.config.generate_docs ->
+			Chunk.write_u8 writer.chunk 1;
+			Chunk.write_option writer.chunk doc.doc_own (fun s ->
+				Chunk.write_uleb128 writer.chunk (StringPool.get_or_add writer.docs s)
+			);
+			Chunk.write_list writer.chunk doc.doc_inherited (fun s ->
+				Chunk.write_uleb128 writer.chunk (StringPool.get_or_add writer.docs s)
+			)
+		| _ ->
+			Chunk.write_u8 writer.chunk 0
 
 	let write_pos writer (p : pos) =
 		Chunk.write_string writer.chunk p.pfile;
@@ -753,7 +759,7 @@ module HxbWriter = struct
 
 	and write_cfield writer cff =
 		write_placed_name writer cff.cff_name;
-		Chunk.write_option writer.chunk cff.cff_doc (write_documentation writer);
+		maybe_write_documentation writer cff.cff_doc;
 		write_pos writer cff.cff_pos;
 		write_metadata writer cff.cff_meta;
 		Chunk.write_list writer.chunk cff.cff_access (write_placed_access writer);
@@ -1829,7 +1835,7 @@ module HxbWriter = struct
 		let restore = start_temporary_chunk writer 512 in
 		write_type_instance writer cf.cf_type;
 		Chunk.write_uleb128 writer.chunk cf.cf_flags;
-		Chunk.write_option writer.chunk cf.cf_doc (write_documentation writer);
+		maybe_write_documentation writer cf.cf_doc;
 		write_metadata writer cf.cf_meta;
 		write_field_kind writer cf.cf_kind;
 		let expr_chunk = match cf.cf_expr with
@@ -1876,7 +1882,7 @@ module HxbWriter = struct
 
 	let write_common_module_type writer (infos : tinfos) : unit =
 		Chunk.write_bool writer.chunk infos.mt_private;
-		Chunk.write_option writer.chunk infos.mt_doc (write_documentation writer);
+		maybe_write_documentation writer infos.mt_doc;
 		write_metadata writer infos.mt_meta;
 		write_type_parameters_data writer infos.mt_params;
 		Chunk.write_list writer.chunk infos.mt_using (fun (c,p) ->
@@ -2141,7 +2147,7 @@ module HxbWriter = struct
 					let t_bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
 					commit_field_type_parameters writer ef.ef_params;
 					Chunk.write_bytes writer.chunk t_bytes;
-					Chunk.write_option writer.chunk ef.ef_doc (write_documentation writer);
+					maybe_write_documentation writer ef.ef_doc;
 					write_metadata writer ef.ef_meta;
 					close();
 				);
@@ -2281,9 +2287,10 @@ module HxbWriter = struct
 		l
 end
 
-let create warn anon_id stats =
+let create config warn anon_id stats =
 	let cp = StringPool.create () in
 	{
+		config;
 		warn;
 		anon_id;
 		stats;
