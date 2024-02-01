@@ -27,9 +27,7 @@ function main() {
 
 	var verbose = #if (cpp || neko || php) Sys.args().indexOf("-v") >= 0 #else false #end;
 
-	#if !macro
-	trace("Generated at: " + HelperMacros.getCompilationDate());
-	#end
+	TestMainNow.printNow();
 	trace("START");
 	#if flash
 	var tf:flash.text.TextField = untyped flash.Boot.getTrace();
