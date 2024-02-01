@@ -377,7 +377,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 	let rec loop args params given_args missing_args ordered_args = match args, params with
 		| [], [] -> given_args,missing_args,ordered_args
 		| [], _ -> typing_error "Too many callback arguments" p
-		| (n,o,t) :: args , [] when o ->
+		| (n,o,t) :: args , [] when not (Define.defined ctx.com.defines Define.HaxeNext) && o ->
 			let a = if is_pos_infos t then
 					let infos = mk_infos ctx p [] in
 					ordered_args @ [type_expr ctx infos (WithType.with_argument t n)]
@@ -387,6 +387,10 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 					ordered_args
 			in
 			loop args [] given_args missing_args a
+		| [n,o,t] , [] when o && is_pos_infos t ->
+			let infos = mk_infos ctx p [] in
+			let ordered_args = ordered_args @ [type_expr ctx infos (WithType.with_argument t n)] in
+			given_args,missing_args,ordered_args
 		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when not ctx.com.config.pf_can_skip_non_nullable_argument && o && not (is_nullable t) ->
 			typing_error "Usage of _ is not supported for optional non-nullable arguments" p
 		| (n,o,t) :: args , ([] as params)
