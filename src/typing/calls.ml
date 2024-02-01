@@ -359,7 +359,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 	let vexpr v = mk (TLocal v) v.v_type p in
 	let acount = ref 0 in
 	let alloc_name n =
-		if n = "" && not ctx.is_display_file then begin
+		if n = "" && not ctx.m.is_display_file then begin
 			incr acount;
 			"a" ^ string_of_int !acount;
 		end else

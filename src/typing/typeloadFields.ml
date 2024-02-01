@@ -1349,7 +1349,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			begin match fd.f_type with
 				| None -> ()
 				| Some (CTPath ({ path = {tpackage = []; tname = "Void" } as tp}),p) ->
-					if ctx.is_display_file && DisplayPosition.display_position#enclosed_in p then
+					if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in p then
 						ignore(load_instance ~allow_display:true ctx (make_ptp tp p) ParamNormal);
 				| _ -> raise_typing_error "A class constructor can't have a return type" p;
 			end
@@ -1781,7 +1781,7 @@ let init_class ctx cctx c p herits fields =
 		let p = f.cff_pos in
 		try
 			let display_modifier = Typeload.check_field_access ctx f in
-			let fctx = create_field_context ctx cctx f ctx.is_display_file display_modifier in
+			let fctx = create_field_context ctx cctx f ctx.m.is_display_file display_modifier in
 			let ctx = create_typer_context_for_field ctx cctx fctx f in
 			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
 			let cf = init_field (ctx,cctx,fctx) f in

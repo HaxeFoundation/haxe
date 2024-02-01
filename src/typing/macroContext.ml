@@ -750,7 +750,7 @@ let create_macro_context com =
 	com2.platform <- Eval;
 	Common.init_platform com2;
 	let mctx = !create_context_ref com2 None in
-	mctx.is_display_file <- false;
+	mctx.m.is_display_file <- false;
 	CommonCache.lock_signature com2 "get_macro_context";
 	mctx
 
@@ -780,6 +780,7 @@ let load_macro_module mctx com cpath display p =
 		enum_with_type = None;
 		module_using = [];
 		import_statements = [];
+		is_display_file = (com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mloaded.m_extra.m_file));
 	};
 	mloaded,(fun () -> mctx.com.display <- old)
 
@@ -821,6 +822,7 @@ let load_macro'' com mctx display cpath f p =
 			enum_with_type = None;
 			module_using = [];
 			import_statements = [];
+			is_display_file = false;
 		};
 		t();
 		meth

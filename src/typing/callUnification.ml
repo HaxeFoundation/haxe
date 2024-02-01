@@ -144,7 +144,7 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 		| (e,p) :: el, [] ->
 			begin match List.rev !skipped with
 				| [] ->
-					if ctx.is_display_file && not (Diagnostics.error_in_diagnostics_run ctx.com p) then begin
+					if ctx.m.is_display_file && not (Diagnostics.error_in_diagnostics_run ctx.com p) then begin
 						ignore(type_expr ctx (e,p) WithType.value);
 						ignore(loop el [])
 					end;
@@ -362,7 +362,7 @@ let unify_field_call ctx fa el_typed el p inline =
 	in
 	(* There's always a chance that we never even came across the EDisplay in an argument, so let's look for it (issue #11422). *)
 	let check_display_args () =
-		if ctx.is_display_file then begin
+		if ctx.m.is_display_file then begin
 			let rec loop el = match el with
 				| [] ->
 					()

@@ -73,6 +73,7 @@ type typer_module = {
 	mutable enum_with_type : module_type option;
 	mutable module_using : (tclass * pos) list;
 	mutable import_statements : import list;
+	mutable is_display_file : bool;
 }
 
 type typer_class = {
@@ -169,7 +170,6 @@ and typer = {
 	e : typer_expr;
 	f : typer_field;
 	mutable pass : typer_pass;
-	mutable is_display_file : bool;
 	mutable type_params : type_params;
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;

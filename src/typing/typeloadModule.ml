@@ -379,12 +379,12 @@ module TypeLevel = struct
 			ef_meta = c.ec_meta;
 		} in
 		DeprecationCheck.check_is ctx.com ctx.m.curmod e.e_meta f.ef_meta f.ef_name f.ef_meta f.ef_name_pos;
-		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in f.ef_name_pos then
+		if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in f.ef_name_pos then
 			DisplayEmitter.display_enum_field ctx e f p;
 		f
 
 	let init_class ctx c d p =
-		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
+		if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
@@ -450,7 +450,7 @@ module TypeLevel = struct
 			)
 
 	let init_enum ctx e d p =
-		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
+		if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TEnumDecl e) (pos d.d_name);
 		let ctx = { ctx with type_params = e.e_params } in
 		let h = (try Some (Hashtbl.find ctx.g.type_patches e.e_path) with Not_found -> None) in
@@ -529,7 +529,7 @@ module TypeLevel = struct
 			)
 
 	let init_typedef ctx t d p =
-		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
+		if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TTypeDecl t) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx = { ctx with type_params = t.t_params } in
@@ -580,7 +580,7 @@ module TypeLevel = struct
 			)
 
 	let init_abstract ctx a d p =
-		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
+		if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TAbstractDecl a) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
 		let ctx = { ctx with type_params = a.a_params } in
@@ -693,6 +693,7 @@ let make_curmod ctx m =
 		enum_with_type = None;
 		module_using = [];
 		import_statements = [];
+		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
 	}
 
 let create_typer_context_for_module ctx m = {
@@ -700,7 +701,6 @@ let create_typer_context_for_module ctx m = {
 		g = ctx.g;
 		t = ctx.com.basic;
 		m = make_curmod ctx m;
-		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
 		pass = PBuildModule;
 		macro_depth = 0;
 		c = {

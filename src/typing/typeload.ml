@@ -610,7 +610,7 @@ and load_complex_type' ctx allow_display (t,p) =
 			} in
 			if !final then add_class_field_flag cf CfFinal;
 			init_meta_overloads ctx None cf;
-			if ctx.is_display_file then begin
+			if ctx.m.is_display_file then begin
 				DisplayEmitter.check_display_metadata ctx cf.cf_meta;
 				if DisplayPosition.display_position#enclosed_in cf.cf_name_pos then displayed_field := Some cf;
 			end;
@@ -733,7 +733,7 @@ let rec type_type_param ctx host path get_params p tp =
 	c.cl_meta <- tp.Ast.tp_meta;
 	if host = TPHEnumConstructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
 	let t = TInst (c,extract_param_types c.cl_params) in
-	if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos tp.tp_name) then
+	if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos tp.tp_name) then
 		DisplayEmitter.display_type ctx t (pos tp.tp_name);
 	let default = match tp.tp_default with
 		| None ->

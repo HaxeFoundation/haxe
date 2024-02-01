@@ -1122,12 +1122,12 @@ and type_try ctx e1 catches with_type p =
 		check_unreachable acc1 t2 (pos e_ast);
 		let locals = save_locals ctx in
 		let v = add_local_with_origin ctx TVOCatchVariable v t pv in
-		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in pv then
+		if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in pv then
 			DisplayEmitter.display_variable ctx v pv;
 		let e = type_expr ctx e_ast with_type in
 		(* If the catch position is the display position it means we get completion on the catch keyword or some
 		   punctuation. Otherwise we wouldn't reach this point. *)
-		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in pc then ignore(TyperDisplay.display_expr ctx e_ast e DKMarked MGet with_type pc);
+		if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in pc then ignore(TyperDisplay.display_expr ctx e_ast e DKMarked MGet with_type pc);
 		v.v_type <- t2;
 		locals();
 		((v,e) :: acc1),(e :: acc2)
@@ -1369,7 +1369,7 @@ and type_local_function ctx kind f with_type p =
 				(mk (TVar (v,Some (mk (TConst TNull) ft p))) ctx.t.tvoid p) ::
 				(mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p) ::
 				exprs
-			end else if inline && not ctx.is_display_file then
+			end else if inline && not ctx.m.is_display_file then
 				(mk (TBlock []) ctx.t.tvoid p) :: exprs (* do not add variable since it will be inlined *)
 			else
 				(mk (TVar (v,Some e)) ctx.t.tvoid p) :: exprs
@@ -1592,7 +1592,7 @@ and type_if ctx e e1 e2 with_type is_ternary p =
 		make_if_then_else ctx e e1 e2 with_type p
 
 and type_meta ?(mode=MGet) ctx m e1 with_type p =
-	if ctx.is_display_file then DisplayEmitter.check_display_metadata ctx [m];
+	if ctx.m.is_display_file then DisplayEmitter.check_display_metadata ctx [m];
 	let old = ctx.f.meta in
 	ctx.f.meta <- m :: ctx.f.meta;
 	let e () = type_expr ~mode ctx e1 with_type in

@@ -44,6 +44,7 @@ let create com macros =
 			enum_with_type = None;
 			module_using = [];
 			import_statements = [];
+			is_display_file = false;
 		};
 		c = {
 			curclass = null_class;
@@ -73,7 +74,6 @@ let create com macros =
 			in_call_args = false;
 			in_overload_call_args = false;
 		};
-		is_display_file = false;
 		pass = PBuildModule;
 		macro_depth = 0;
 		allow_inline = true;
