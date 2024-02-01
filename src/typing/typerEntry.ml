@@ -56,6 +56,7 @@ let create com macros =
 			vthis = None;
 			untyped = false;
 			meta = [];
+			in_display = false;
 		};
 		e = {
 			ret = t_dynamic;
@@ -75,7 +76,6 @@ let create com macros =
 		is_display_file = false;
 		pass = PBuildModule;
 		macro_depth = 0;
-		in_display = false;
 		allow_inline = true;
 		allow_transform = true;
 		type_params = [];

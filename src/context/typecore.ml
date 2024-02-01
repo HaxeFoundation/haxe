@@ -156,6 +156,7 @@ and typer_field = {
 	mutable vthis : tvar option;
 	mutable untyped : bool;
 	mutable meta : metadata;
+	mutable in_display : bool;
 }
 
 and typer = {
@@ -172,7 +173,6 @@ and typer = {
 	mutable type_params : type_params;
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;
-	mutable in_display : bool;
 	mutable macro_depth : int;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	(* events *)

@@ -194,7 +194,7 @@ let display_dollar_type ctx p make_type =
 	end
 
 let rec handle_signature_display ctx e_ast with_type =
-	ctx.in_display <- true;
+	ctx.f.in_display <- true;
 	let p = pos e_ast in
 	let handle_call tl el p0 =
 		let rec follow_with_callable (t,doc,values) = match follow t with
@@ -541,8 +541,8 @@ and display_expr ctx e_ast e dk mode with_type p =
 		raise_fields fields (CRField(item,e.epos,iterator,keyValueIterator)) (make_subject None (DisplayPosition.display_position#with_pos p))
 
 let handle_display ctx e_ast dk mode with_type =
-	let old = ctx.in_display,ctx.e.in_call_args in
-	ctx.in_display <- true;
+	let old = ctx.f.in_display,ctx.e.in_call_args in
+	ctx.f.in_display <- true;
 	ctx.e.in_call_args <- false;
 	let tpair t =
 		let ct = CompletionType.from_type (get_import_status ctx) t in
@@ -657,7 +657,7 @@ let handle_display ctx e_ast dk mode with_type =
 	if is_display_debug then begin
 		print_endline (Printf.sprintf "cast expr:\n%s" (s_expr_ast true "" (s_type (print_context())) e));
 	end;
-	ctx.in_display <- fst old;
+	ctx.f.in_display <- fst old;
 	ctx.e.in_call_args <- snd old;
 	let f () = display_expr ctx e_ast e dk mode with_type p in
 	if ctx.e.in_overload_call_args then begin

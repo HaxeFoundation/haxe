@@ -206,7 +206,7 @@ let rec acc_get ctx g =
 	| AKAccess _ -> die "" __LOC__
 	| AKResolve(sea,name) ->
 		(dispatcher sea.se_access.fa_pos)#resolve_call sea name
-	| AKUsingAccessor sea | AKUsingField sea when ctx.in_display ->
+	| AKUsingAccessor sea | AKUsingField sea when ctx.f.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
 		let id,_ = store_typed_expr ctx.com sea.se_this e_field.epos in
@@ -220,7 +220,7 @@ let rec acc_get ctx g =
 		begin match fa.fa_field.cf_kind with
 		| Method MethMacro ->
 			(* If we are in display mode, we're probably hovering a macro call subject. Just generate a normal field. *)
-			if ctx.in_display then
+			if ctx.f.in_display then
 				FieldAccess.get_field_expr fa FRead
 			else
 				raise_typing_error "Invalid macro access" fa.fa_pos

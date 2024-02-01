@@ -197,6 +197,7 @@ let add_constructor ctx c force_constructor p =
 					vthis = None;
 					untyped = false;
 					meta = [];
+					in_display = false;
 				};
 				pass = PConnectField;
 			} in

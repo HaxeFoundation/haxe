@@ -513,7 +513,7 @@ and type_ident ctx i p mode with_type =
 					AKExpr (mk (TConst TNull) t_dynamic p)
 				end else begin
 					let err = Unknown_ident i in
-					if ctx.in_display then begin
+					if ctx.f.in_display then begin
 						raise_error_msg err p
 					end;
 					if Diagnostics.error_in_diagnostics_run ctx.com p then begin
@@ -584,7 +584,7 @@ and handle_efield ctx e p0 mode with_type =
 						end
 					with Not_found ->
 						(* if there was no module name part, last guess is that we're trying to get package completion *)
-						if ctx.in_display then begin
+						if ctx.f.in_display then begin
 							let sl = List.map (fun part -> part.name) path in
 							if is_legacy_completion ctx.com then
 								raise (Parser.TypePath (sl,None,false,p))
@@ -728,7 +728,7 @@ and type_vars ctx vl p =
 			DisplayEmitter.check_display_metadata ctx v.v_meta;
 			if ev.ev_final then add_var_flag v VFinal;
 			if ev.ev_static then add_var_flag v VStatic;
-			if ctx.in_display && DisplayPosition.display_position#enclosed_in pv then
+			if ctx.f.in_display && DisplayPosition.display_position#enclosed_in pv then
 				DisplayEmitter.display_variable ctx v pv;
 			v,e
 		with
@@ -751,7 +751,7 @@ and type_vars ctx vl p =
 
 and format_string ctx s p =
 	FormatString.format_string ctx.com.defines s p (fun enext p ->
-		if ctx.in_display && DisplayPosition.display_position#enclosed_in p then
+		if ctx.f.in_display && DisplayPosition.display_position#enclosed_in p then
 			Display.preprocess_expr ctx.com (enext,p)
 		else
 			enext,p
@@ -823,7 +823,7 @@ and type_object_decl ctx fl with_type p =
 					| None ->
 						let cf = PMap.find n field_map in
 						if (has_class_field_flag cf CfFinal) then is_final := true;
-						if ctx.in_display && DisplayPosition.display_position#enclosed_in pn then DisplayEmitter.display_field ctx Unknown CFSMember cf pn;
+						if ctx.f.in_display && DisplayPosition.display_position#enclosed_in pn then DisplayEmitter.display_field ctx Unknown CFSMember cf pn;
 						cf.cf_type
 				in
 				let e = type_expr ctx e (WithType.with_structure_field t n) in
@@ -867,7 +867,7 @@ and type_object_decl ctx fl with_type p =
 			let e = type_expr ctx e (WithType.named_structure_field f) in
 			(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> raise_typing_error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 			let cf = mk_field f e.etype (punion pf e.epos) pf in
-			if ctx.in_display && DisplayPosition.display_position#enclosed_in pf then DisplayEmitter.display_field ctx Unknown CFSMember cf pf;
+			if ctx.f.in_display && DisplayPosition.display_position#enclosed_in pf then DisplayEmitter.display_field ctx Unknown CFSMember cf pf;
 			(((f,pf,qs),e) :: l, if is_valid then begin
 				if starts_with f '$' then raise_typing_error "Field names starting with a dollar are not allowed" p;
 				PMap.add f cf acc
@@ -1232,7 +1232,7 @@ and type_local_function ctx kind f with_type p =
 	if not inline then ctx.e.in_loop <- false;
 	let rt = Typeload.load_type_hint ctx p f.f_type in
 	let type_arg _ opt t p = Typeload.load_type_hint ~opt ctx p t in
-	let args = new FunctionArguments.function_arguments ctx type_arg false ctx.in_display None f.f_args in
+	let args = new FunctionArguments.function_arguments ctx type_arg false ctx.f.in_display None f.f_args in
 	let targs = args#for_type in
 	let maybe_unify_arg t1 t2 =
 		match follow t1 with
@@ -1336,7 +1336,7 @@ and type_local_function ctx kind f with_type p =
 		| FunMemberAbstractLocal -> FunMemberAbstractLocal
 		| _ -> FunMemberClassLocal
 	in
-	let e = TypeloadFunction.type_function ctx args rt curfun f.f_expr ctx.in_display p in
+	let e = TypeloadFunction.type_function ctx args rt curfun f.f_expr ctx.f.in_display p in
 	ctx.type_params <- old_tp;
 	ctx.e.in_loop <- old_in_loop;
 	let tf = {
@@ -1351,7 +1351,7 @@ and type_local_function ctx kind f with_type p =
 		Typeload.generate_args_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
 		let open LocalUsage in
 		if params <> [] || inline then v.v_extra <- Some (var_extra params (if inline then Some e else None));
-		if ctx.in_display && DisplayPosition.display_position#enclosed_in v.v_pos then
+		if ctx.f.in_display && DisplayPosition.display_position#enclosed_in v.v_pos then
 			DisplayEmitter.display_variable ctx v v.v_pos;
 		let rec loop = function
 			| LocalUsage.Block f | LocalUsage.Loop f | LocalUsage.Function f -> f loop
@@ -1801,7 +1801,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EField(_,n,_) when starts_with n '$' ->
 		raise_typing_error "Field names starting with $ are not allowed" p
 	| EConst (Ident s) ->
-		if s = "super" && with_type <> WithType.NoValue && not ctx.in_display then raise_typing_error "Cannot use super as value" p;
+		if s = "super" && with_type <> WithType.NoValue && not ctx.f.in_display then raise_typing_error "Cannot use super as value" p;
 		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p mode with_type) with_type false p in
 		acc_get ctx e
 	| EField _
@@ -2011,7 +2011,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			if tp.path.tparams <> [] then display_error ctx.com "Type parameters are not supported for the `is` operator" p_t;
 			let e = type_expr ctx e WithType.value in
 			let mt = Typeload.load_type_def ctx p_t tp.path in
-			if ctx.in_display && DisplayPosition.display_position#enclosed_in p_t then
+			if ctx.f.in_display && DisplayPosition.display_position#enclosed_in p_t then
 				DisplayEmitter.display_module_type ctx mt p_t;
 			let e_t = type_module_type ctx mt p_t in
 			Texpr.Builder.resolve_and_make_static_call ctx.com.std "isOfType" [e;e_t] p

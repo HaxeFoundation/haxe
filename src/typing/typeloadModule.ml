@@ -714,6 +714,7 @@ let create_typer_context_for_module ctx m = {
 			vthis = None;
 			untyped = false;
 			meta = [];
+			in_display = false;
 		};
 		e = {
 			ret = t_dynamic;
@@ -733,7 +734,6 @@ let create_typer_context_for_module ctx m = {
 		allow_inline = true;
 		allow_transform = true;
 		type_params = [];
-		in_display = false;
 		delayed_display = None;
 		memory_marker = Typecore.memory_marker;
 	}
