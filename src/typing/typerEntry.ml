@@ -75,8 +75,8 @@ let create com macros =
 		f = {
 			locals = PMap.empty;
 			curfield = null_field;
+			vthis = None;
 		};
-		vthis = None;
 		in_call_args = false;
 		in_overload_call_args = false;
 		delayed_display = None;

@@ -724,6 +724,7 @@ let create_typer_context_for_module ctx m = {
 		f = {
 			locals = PMap.empty;
 			curfield = null_field;
+			vthis = None;
 		};
 		allow_inline = true;
 		allow_transform = true;
@@ -734,7 +735,6 @@ let create_typer_context_for_module ctx m = {
 		in_call_args = false;
 		in_overload_call_args = false;
 		delayed_display = None;
-		vthis = None;
 		memory_marker = Typecore.memory_marker;
 	}
 

@@ -153,7 +153,7 @@ let get_this ctx p =
 	| FunStatic ->
 		raise_typing_error "Cannot access this from a static function" p
 	| FunMemberClassLocal | FunMemberAbstractLocal ->
-		let v = match ctx.vthis with
+		let v = match ctx.f.vthis with
 			| None ->
 				let v = if ctx.e.curfun = FunMemberAbstractLocal then begin
 					let v = PMap.find "this" ctx.f.locals in
@@ -162,7 +162,7 @@ let get_this ctx p =
 				end else
 					add_local ctx VGenerated (Printf.sprintf "%sthis" gen_local_prefix) ctx.c.tthis p
 				in
-				ctx.vthis <- Some v;
+				ctx.f.vthis <- Some v;
 				v
 			| Some v ->
 				ctx.f.locals <- PMap.add v.v_name v ctx.f.locals;

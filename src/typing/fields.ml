@@ -213,7 +213,7 @@ let field_access ctx mode f fh e pfield =
 					&&
 					match e.eexpr with
 					| TConst TThis -> true
-					| TLocal v -> Option.map_default (fun vthis -> v == vthis) false ctx.vthis
+					| TLocal v -> Option.map_default (fun vthis -> v == vthis) false ctx.f.vthis
 					| TTypeExpr (TClassDecl c) when c == ctx.c.curclass -> true
 					| _ -> false
 				) || bypass_accessor ()

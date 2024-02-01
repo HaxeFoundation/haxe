@@ -638,6 +638,7 @@ let create_typer_context_for_field ctx cctx fctx cff =
 		f = {
 			locals = PMap.empty;
 			curfield = null_field;
+			vthis = None;
 		};
 		pass = PBuildClass; (* will be set later to PTypeExpr *)
 		type_params = if fctx.is_static && not fctx.is_abstract_member && not (Meta.has Meta.LibType cctx.tclass.cl_meta) (* TODO: remove this *) then [] else ctx.type_params;
@@ -884,7 +885,7 @@ module TypeBinding = struct
 							| TConst TThis ->
 								display_error ctx.com "Cannot access this or other member field in variable initialization" e.epos;
 								raise Exit
-							| TLocal v when (match ctx.vthis with Some v2 -> v == v2 | None -> false) ->
+							| TLocal v when (match ctx.f.vthis with Some v2 -> v == v2 | None -> false) ->
 								display_error ctx.com "Cannot access this or other member field in variable initialization" e.epos;
 								raise Exit
 							| _ ->

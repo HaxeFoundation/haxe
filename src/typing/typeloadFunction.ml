@@ -143,7 +143,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 		| None ->
 			e
 	end in
-	let e = match ctx.e.curfun, ctx.vthis with
+	let e = match ctx.e.curfun, ctx.f.vthis with
 		| (FunMember|FunConstructor), Some v ->
 			let ev = mk (TVar (v,Some (mk (TConst TThis) ctx.c.tthis p))) ctx.t.tvoid p in
 			(match e.eexpr with
@@ -194,6 +194,7 @@ let add_constructor ctx c force_constructor p =
 				f = {
 					locals = PMap.empty;
 					curfield = cf;
+					vthis = None;
 				};
 				pass = PConnectField;
 			} in

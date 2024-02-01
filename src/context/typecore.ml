@@ -147,6 +147,7 @@ and typer_expr = {
 and typer_field = {
 	mutable curfield : tclass_field;
 	mutable locals : (string, tvar) PMap.t;
+	mutable vthis : tvar option;
 }
 
 and typer = {
@@ -175,7 +176,6 @@ and typer = {
 	mutable in_loop : bool;
 	mutable in_display : bool;
 	mutable macro_depth : int;
-	mutable vthis : tvar option;
 	mutable in_call_args : bool;
 	mutable in_overload_call_args : bool;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
