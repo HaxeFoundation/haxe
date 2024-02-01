@@ -475,7 +475,7 @@ let external_defined_value ctx k =
 	Define.raw_defined_value ctx.defines (convert_define k)
 
 let reserved_flags = [
-	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"java";"python";"hl";"hlc";
+	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"java";"jvm";"python";"hl";"hlc";
 	"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
 ]
 
