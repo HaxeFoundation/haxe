@@ -2548,7 +2548,15 @@ class tclass_to_jvm gctx c = object(self)
 				let ethis = mk (TConst TThis) (TInst(c,tl)) null_pos in
 				let efield = mk (TField(ethis,FInstance(c,tl,cf))) cf.cf_type null_pos in
 				let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type null_pos in
-				DynArray.add (match cf.cf_kind with Method MethDynamic -> delayed_field_inits | _ -> field_inits) eop;
+				begin match cf.cf_kind with
+					| Method MethDynamic ->
+						let enull = Texpr.Builder.make_null efield.etype null_pos in
+						let echeck = Texpr.Builder.binop OpEq efield enull gctx.com.basic.tbool null_pos in
+						let eif = mk (TIf(echeck,eop,None)) gctx.com.basic.tvoid null_pos in
+						DynArray.add delayed_field_inits eif
+					| _ ->
+						DynArray.add field_inits eop
+				end
 			| Some e ->
 				match e.eexpr with
 				| TConst ct ->
