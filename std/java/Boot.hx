@@ -22,9 +22,6 @@
 
 package java;
 
-import java.internal.Function;
-import java.internal.HxObject;
-import java.internal.Runtime;
 import java.Lib;
 import java.Init;
 import java.StdTypes;
@@ -42,7 +39,6 @@ import java.lang.Integer;
 import java.lang.Long;
 import java.lang.Short;
 import java.lang.Throwable;
-import java.internal.FieldLookup;
 
 @:dox(hide)
 extern class Boot {}
