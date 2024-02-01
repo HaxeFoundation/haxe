@@ -235,25 +235,37 @@ module Monomorph = struct
 	and close m = match m.tm_type with
 		| Some _ ->
 			()
-		| None -> match classify_down_constraints m with
+		| None ->
+			let recursion_ok t =
+				let rec loop t = match t with
+					| TMono m2 when m == m2 ->
+						raise Exit
+					| _ ->
+						TFunctions.iter loop t
+				in
+				try
+					loop t;
+					true
+				with Exit ->
+					false
+			in
+			(* TODO: we never do anything with monos, I think *)
+			let monos,constraints = classify_down_constraints' m in
+			match constraints with
 			| CUnknown ->
 				()
 			| CTypes [(t,_)] ->
-				do_bind m t;
-				()
+				(* TODO: silently not binding doesn't seem correct, but it's likely better than infinite recursion *)
+				if recursion_ok t then do_bind m t;
 			| CTypes _ | CMixed _ ->
 				()
 			| CStructural(fields,_) ->
 				let check_recursion cf =
-					let rec loop t = match t with
-					| TMono m2 when m == m2 ->
+					if not (recursion_ok cf.cf_type) then begin
 						let pctx = print_context() in
-						let s = Printf.sprintf "%s appears in { %s: %s }" (s_type pctx t) cf.cf_name (s_type pctx cf.cf_type) in
+						let s = Printf.sprintf "%s appears in { %s: %s }" (s_type pctx (TMono m)) cf.cf_name (s_type pctx cf.cf_type) in
 						raise (Unify_error [Unify_custom "Recursive type";Unify_custom s]);
-					| _ ->
-						TFunctions.map loop t
-					in
-					ignore(loop cf.cf_type);
+					end
 				in
 				(* We found a bunch of fields but no type, create a merged structure type and bind to that *)
 				PMap.iter (fun _ cf -> check_recursion cf) fields;
