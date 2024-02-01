@@ -54,7 +54,6 @@ let create com macros =
 		f = TyperManager.create_ctx_f null_field;
 		e = TyperManager.create_ctx_e ();
 		pass = PBuildModule;
-		macro_depth = 0;
 		allow_inline = true;
 		allow_transform = true;
 		type_params = [];

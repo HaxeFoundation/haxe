@@ -147,6 +147,7 @@ and typer_expr = {
 	mutable bypass_accessor : int;
 	mutable with_type_stack : WithType.t list;
 	mutable call_argument_stack : expr list list;
+	mutable macro_depth : int;
 }
 
 and typer_field = {
@@ -173,7 +174,6 @@ and typer = {
 	mutable type_params : type_params;
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;
-	mutable macro_depth : int;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	(* events *)
 	memory_marker : float array;
@@ -184,25 +184,6 @@ and monomorphs = {
 }
 
 module TyperManager = struct
-	let clone_for_class ctx c =
-		let ctx = {
-			ctx with
-			c = {
-				curclass = c;
-				tthis = (match c.cl_kind with
-				| KAbstractImpl a ->
-					(match a.a_this with
-					| TMono r when r.tm_type = None -> TAbstract (a,extract_param_types c.cl_params)
-					| t -> t)
-				| _ ->
-					TInst (c,extract_param_types c.cl_params));
-				get_build_infos = (fun () -> None);
-			};
-			type_params = (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params);
-			pass = PBuildClass;
-		} in
-		ctx
-
 	let create_ctx_f cf =
 		{
 			locals = PMap.empty;
@@ -228,6 +209,7 @@ module TyperManager = struct
 			bypass_accessor = 0;
 			with_type_stack = [];
 			call_argument_stack = [];
+			macro_depth = 0;
 		}
 end
 

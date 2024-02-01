@@ -449,7 +449,7 @@ and load_instance ctx ?(allow_display=false) ptp get_params =
 		let t = load_instance' ctx ptp get_params in
 		if allow_display then DisplayEmitter.check_display_type ctx t ptp;
 		t
-	with Error { err_message = Module_not_found path } when ctx.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in ptp.pos_path ->
+	with Error { err_message = Module_not_found path } when ctx.e.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in ptp.pos_path ->
 		let s = s_type_path path in
 		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint (s,ptp.pos_full) ptp.pos_path
 

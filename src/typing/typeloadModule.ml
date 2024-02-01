@@ -702,7 +702,6 @@ let create_typer_context_for_module ctx m = {
 		t = ctx.com.basic;
 		m = make_curmod ctx m;
 		pass = PBuildModule;
-		macro_depth = 0;
 		c = {
 			curclass = null_class;
 			get_build_infos = (fun() -> None);
