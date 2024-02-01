@@ -626,8 +626,8 @@ module HighLevel = struct
 				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
 				let lines = add_libs libs args server_api.cache has_display in
 				loop acc (lines @ args)
-			| ("--jvm") :: dir :: args ->
-				loop_lib "--jvm" dir "hxjava" acc args
+			| ("--jvm" | "-jvm" as arg) :: dir :: args ->
+				loop_lib arg dir "hxjava" acc args
 			| arg :: l ->
 				match List.rev (ExtString.String.nsplit arg ".") with
 				| "hxml" :: _ :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
