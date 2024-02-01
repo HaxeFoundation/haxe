@@ -52,7 +52,6 @@ let create com macros =
 		call_argument_stack = [];
 		pass = PBuildModule;
 		macro_depth = 0;
-		untyped = false;
 		in_loop = false;
 		in_display = false;
 		allow_inline = true;
@@ -76,6 +75,7 @@ let create com macros =
 			locals = PMap.empty;
 			curfield = null_field;
 			vthis = None;
+			untyped = false;
 		};
 		in_call_args = false;
 		in_overload_call_args = false;

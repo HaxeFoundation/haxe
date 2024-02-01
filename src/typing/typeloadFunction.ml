@@ -195,6 +195,7 @@ let add_constructor ctx c force_constructor p =
 					locals = PMap.empty;
 					curfield = cf;
 					vthis = None;
+					untyped = false;
 				};
 				pass = PConnectField;
 			} in

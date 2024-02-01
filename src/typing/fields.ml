@@ -77,7 +77,7 @@ let no_abstract_constructor c p =
 
 let check_constructor_access ctx c f p =
 	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx.com (error_msg (No_constructor (TClassDecl c))) p;
-	if not (can_access ctx c f true || extends ctx.c.curclass c) && not ctx.untyped then display_error ctx.com (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
+	if not (can_access ctx c f true || extends ctx.c.curclass c) && not ctx.f.untyped then display_error ctx.com (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
 let check_no_closure_meta ctx cf fa mode p =
 	match mode with
@@ -114,7 +114,7 @@ let field_access ctx mode f fh e pfield =
 	match f.cf_kind with
 	| Method m ->
 		let normal () = AKField(make_access false) in
-		if is_set && m <> MethDynamic && not ctx.untyped then raise_typing_error "Cannot rebind this method : please use 'dynamic' before method declaration" pfield;
+		if is_set && m <> MethDynamic && not ctx.f.untyped then raise_typing_error "Cannot rebind this method : please use 'dynamic' before method declaration" pfield;
 		let maybe_check_visibility c static =
 			(* For overloads we have to resolve the actual field before we can check accessibility. *)
 			begin match mode with
@@ -198,9 +198,9 @@ let field_access ctx mode f fh e pfield =
 			| TAnon a ->
 				(match !(a.a_status) with
 				| ClassStatics c2 when ctx.c.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal false
-				| _ -> if ctx.untyped then normal false else normal_failure())
+				| _ -> if ctx.f.untyped then normal false else normal_failure())
 			| _ ->
-				if ctx.untyped then normal false else normal_failure())
+				if ctx.f.untyped then normal false else normal_failure())
 		| AccNormal | AccNo ->
 			normal false
 		| AccCall when (not ctx.allow_transform) || (ctx.in_display && DisplayPosition.display_position#enclosed_in pfull) ->
@@ -234,7 +234,7 @@ let field_access ctx mode f fh e pfield =
 				AKAccessor (make_access false)
 			end
 		| AccNever ->
-			if ctx.untyped then normal false else normal_failure()
+			if ctx.f.untyped then normal false else normal_failure()
 		| AccInline ->
 			normal true
 		| AccCtor ->
@@ -382,7 +382,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			| CTypes tl ->
 				type_field_by_list (fun (t,_) -> type_field_by_et type_field_by_type e t) tl
 			| CUnknown ->
-				if not (List.exists (fun (m,_) -> m == r) ctx.e.monomorphs.perfunction) && not (ctx.untyped && ctx.com.platform = Neko) then
+				if not (List.exists (fun (m,_) -> m == r) ctx.e.monomorphs.perfunction) && not (ctx.f.untyped && ctx.com.platform = Neko) then
 					ctx.e.monomorphs.perfunction <- (r,p) :: ctx.e.monomorphs.perfunction;
 				let f = mk_field() in
 				Monomorph.add_down_constraint r (MField f);
@@ -572,7 +572,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 	with Not_found -> try
 		type_field_by_module e t
 	with Not_found when not (TypeFieldConfig.do_resume cfg) ->
-		if not ctx.untyped then begin
+		if not ctx.f.untyped then begin
 			let has_special_field a =
 				List.exists (fun (_,cf) -> cf.cf_name = i) a.a_ops
 				|| List.exists (fun (_,_,cf) -> cf.cf_name = i) a.a_unops

@@ -725,11 +725,11 @@ let create_typer_context_for_module ctx m = {
 			locals = PMap.empty;
 			curfield = null_field;
 			vthis = None;
+			untyped = false;
 		};
 		allow_inline = true;
 		allow_transform = true;
 		type_params = [];
-		untyped = false;
 		in_display = false;
 		in_loop = false;
 		in_call_args = false;

@@ -148,6 +148,7 @@ and typer_field = {
 	mutable curfield : tclass_field;
 	mutable locals : (string, tvar) PMap.t;
 	mutable vthis : tvar option;
+	mutable untyped : bool;
 }
 
 and typer = {
@@ -172,7 +173,6 @@ and typer = {
 	(* per-function *)
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;
-	mutable untyped : bool;
 	mutable in_loop : bool;
 	mutable in_display : bool;
 	mutable macro_depth : int;
@@ -324,12 +324,12 @@ let raise_with_type_error ?(depth = 0) msg p =
 	raise (WithTypeError (make_error ~depth (Custom msg) p))
 
 let raise_or_display ctx l p =
-	if ctx.untyped then ()
+	if ctx.f.untyped then ()
 	else if ctx.in_call_args then raise (WithTypeError (make_error (Unify l) p))
 	else display_error_ext ctx.com (make_error (Unify l) p)
 
 let raise_or_display_error ctx err =
-	if ctx.untyped then ()
+	if ctx.f.untyped then ()
 	else if ctx.in_call_args then raise (WithTypeError err)
 	else display_error_ext ctx.com err
 
@@ -657,7 +657,7 @@ let can_access ctx c cf stat =
 	|| (Meta.has Meta.PrivateAccess ctx.meta)
 
 let check_field_access ctx c f stat p =
-	if not ctx.untyped && not (can_access ctx c f stat) then
+	if not ctx.f.untyped && not (can_access ctx c f stat) then
 		display_error ctx.com ("Cannot access private field " ^ f.cf_name) p
 
 (** removes the first argument of the class field's function type and all its overloads *)

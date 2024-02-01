@@ -639,6 +639,7 @@ let create_typer_context_for_field ctx cctx fctx cff =
 			locals = PMap.empty;
 			curfield = null_field;
 			vthis = None;
+			untyped = false;
 		};
 		pass = PBuildClass; (* will be set later to PTypeExpr *)
 		type_params = if fctx.is_static && not fctx.is_abstract_member && not (Meta.has Meta.LibType cctx.tclass.cl_meta) (* TODO: remove this *) then [] else ctx.type_params;

@@ -166,18 +166,18 @@ let rec make pctx toplevel t e =
 		)
 	in
 	let try_typing e =
-		let old = ctx.untyped in
-		ctx.untyped <- true;
+		let old = ctx.f.untyped in
+		ctx.f.untyped <- true;
 		let restore = catch_errors () in
 		let e = try
 			type_expr ctx e (WithType.with_type t)
 		with exc ->
 			restore();
-			ctx.untyped <- old;
+			ctx.f.untyped <- old;
 			raise exc
 		in
 		restore();
-		ctx.untyped <- old;
+		ctx.f.untyped <- old;
 		let pat = check_expr e in
 		begin match pat with
 			| PatConstructor((ConTypeExpr mt,_),_) -> unify_type_pattern ctx mt t e.epos;

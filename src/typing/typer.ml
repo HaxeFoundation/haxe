@@ -263,7 +263,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 let unify_min ctx el =
 	try unify_min_raise ctx el
 	with Error ({ err_message = Unify l } as err) ->
-		if not ctx.untyped then display_error_ext ctx.com err;
+		if not ctx.f.untyped then display_error_ext ctx.com err;
 		(List.hd el).etype
 
 let unify_min_for_type_source ctx el src =
@@ -500,7 +500,7 @@ and type_ident ctx i p mode with_type =
 			end else
 				raise Not_found
 		with Not_found ->
-			if ctx.untyped then begin
+			if ctx.f.untyped then begin
 				if i = "__this__" then
 					AKExpr (mk (TConst TThis) ctx.c.tthis p)
 				else
@@ -844,7 +844,7 @@ and type_object_decl ctx fl with_type p =
 			((n,pn,qs),e)
 		) fl in
 		let t = mk_anon ~fields:!fields (ref Const) in
-		if not ctx.untyped then begin
+		if not ctx.f.untyped then begin
 			(match PMap.foldi (fun n cf acc -> if not (Meta.has Meta.Optional cf.cf_meta) && not (PMap.mem n !fields) then n :: acc else acc) field_map [] with
 				| [] -> ()
 				| [n] -> raise_or_display ctx [Unify_custom ("Object requires field " ^ n)] p
@@ -1428,7 +1428,7 @@ and type_array_decl ctx el with_type p =
 		let t = try
 			unify_min_raise ctx el
 		with Error ({ err_message = Unify _ } as err) ->
-			if !allow_array_dynamic || ctx.untyped || ignore_error ctx.com then
+			if !allow_array_dynamic || ctx.f.untyped || ignore_error ctx.com then
 				t_dynamic
 			else begin
 				display_error ctx.com "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" err.err_pos;
@@ -1981,11 +1981,11 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EFunction (kind,f) ->
 		type_local_function ctx kind f with_type p
 	| EUntyped e ->
-		let old = ctx.untyped in
-		ctx.untyped <- true;
+		let old = ctx.f.untyped in
+		ctx.f.untyped <- true;
 		if not (Meta.has Meta.HasUntyped ctx.f.curfield.cf_meta) then ctx.f.curfield.cf_meta <- (Meta.HasUntyped,[],p) :: ctx.f.curfield.cf_meta;
 		let e = type_expr ctx e with_type in
-		ctx.untyped <- old;
+		ctx.f.untyped <- old;
 		{
 			eexpr = e.eexpr;
 			etype = mk_mono();

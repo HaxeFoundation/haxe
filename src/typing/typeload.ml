@@ -280,7 +280,7 @@ let check_param_constraints ctx t map ttp p =
 			unify_raise t ti p
 		with Error ({ err_message = Unify l } as err) ->
 			let fail() =
-				if not ctx.untyped then display_error_ext ctx.com { err with err_message = (Unify (Constraint_failure (s_type_path ttp.ttp_class.cl_path) :: l)) }
+				if not ctx.f.untyped then display_error_ext ctx.com { err with err_message = (Unify (Constraint_failure (s_type_path ttp.ttp_class.cl_path) :: l)) }
 			in
 			match follow t with
 			| TInst({cl_kind = KExpr e},_) ->

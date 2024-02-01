@@ -538,7 +538,7 @@ object(self)
 			let el = el_typed @ List.map (fun e -> type_expr ctx e WithType.value) el in
 			let t = if t == t_dynamic then
 				t_dynamic
-			else if ctx.untyped then
+			else if ctx.f.untyped then
 				mk_mono()
 			else
 				raise_typing_error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
