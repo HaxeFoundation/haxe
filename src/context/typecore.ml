@@ -560,9 +560,6 @@ let rec flush_pass ctx p where =
 
 let make_pass ctx f = f
 
-let init_class_done ctx =
-	ctx.pass <- PConnectField
-
 let enter_field_typing_pass ctx info =
 	flush_pass ctx PConnectField info;
 	ctx.pass <- PTypeField
@@ -909,11 +906,6 @@ let debug com (path : string list) str =
 		| l ->
 			if List.exists (Ast.match_path false path) debug_paths then emit();
 	end
-
-let init_class_done ctx =
-	let path = fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path] in
-	debug ctx.com path ("init_class_done " ^ s_type_path ctx.c.curclass.cl_path);
-	init_class_done ctx
 
 let ctx_pos ctx =
 	let inf = fst ctx.m.curmod.m_path @ [snd ctx.m.curmod.m_path]in

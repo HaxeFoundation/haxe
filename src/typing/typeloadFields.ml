@@ -1677,7 +1677,6 @@ let check_overloads ctx c =
 let finalize_class cctx =
 	(* push delays in reverse order so they will be run in correct order *)
 	List.iter (fun (ctx,r) ->
-		init_class_done ctx;
 		(match r with
 		| None -> ()
 		| Some r -> delay ctx PTypeField (fun() -> ignore(lazy_type r)))
