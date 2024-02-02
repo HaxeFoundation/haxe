@@ -537,7 +537,7 @@ let make_macro_api ctx mctx p =
 			let mpath = Ast.parse_path m in
 			begin try
 				let m = ctx.com.module_lut#find mpath in
-				ignore(TypeloadModule.type_types_into_module ctx m types pos)
+				ignore(TypeloadModule.type_types_into_module ctx.com ctx.g m types pos)
 			with Not_found ->
 				let mnew = TypeloadModule.type_module ctx mpath (Path.UniqueKey.lazy_path ctx.m.curmod.m_extra.m_file) types pos in
 				mnew.m_extra.m_kind <- MFake;

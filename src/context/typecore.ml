@@ -170,8 +170,8 @@ and typer = {
 	g : typer_globals;
 	mutable m : typer_module;
 	c : typer_class;
-	mutable e : typer_expr;
 	f : typer_field;
+	mutable e : typer_expr;
 	mutable pass : typer_pass;
 	mutable type_params : type_params;
 	memory_marker : float array;

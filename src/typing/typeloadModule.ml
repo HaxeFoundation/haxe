@@ -44,30 +44,30 @@ let field_of_static_definition d p =
 	}
 
 module ModuleLevel = struct
-	let make_module ctx mpath file loadp =
+	let make_module com g mpath file loadp =
 		let m = {
 			m_id = alloc_mid();
 			m_path = mpath;
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (Path.get_full_path file) (Define.get_signature ctx.com.defines) (file_time file) (if ctx.com.is_macro_context then MMacro else MCode) ctx.com.compilation_step (get_policy ctx.g mpath);
+			m_extra = module_extra (Path.get_full_path file) (Define.get_signature com.defines) (file_time file) (if com.is_macro_context then MMacro else MCode) com.compilation_step (get_policy g mpath);
 		} in
 		m
 
-	let add_module ctx m p =
-		ctx.com.module_lut#add m.m_path m
+	let add_module com m p =
+		com.module_lut#add m.m_path m
 
 	(*
 		Build module structure : should be atomic - no type loading is possible
 	*)
-	let create_module_types ctx m tdecls loadp =
-		let com = ctx.com in
+	let create_module_types ctx_m m tdecls loadp =
+		let com = ctx_m.com in
 		let decls = ref [] in
 		let statics = ref [] in
 		let check_name name meta also_statics p =
-			DeprecationCheck.check_is com ctx.m.curmod meta [] name meta p;
+			DeprecationCheck.check_is com ctx_m.m.curmod meta [] name meta p;
 			let error prev_pos =
-				display_error ctx.com ("Name " ^ name ^ " is already defined in this module") p;
+				display_error com ("Name " ^ name ^ " is already defined in this module") p;
 				raise_typing_error ~depth:1 (compl_msg "Previous declaration here") prev_pos;
 			in
 			List.iter (fun (t2,(_,p2)) ->
@@ -87,7 +87,7 @@ module ModuleLevel = struct
 			let p = snd decl in
 			let check_type_name type_name meta =
 				let module_name = snd m.m_path in
-				if type_name <> module_name && not (Meta.has Meta.Native meta) then Typecore.check_uppercase_identifier_name ctx type_name "type" p;
+				if type_name <> module_name && not (Meta.has Meta.Native meta) then Typecore.check_uppercase_identifier_name ctx_m type_name "type" p;
 			in
 			let acc = (match fst decl with
 			| EImport _ | EUsing _ ->
@@ -119,8 +119,8 @@ module ModuleLevel = struct
 				) d.d_flags;
 				if not (has_class_flag c CExtern) then check_type_name name d.d_meta;
 				if has_class_flag c CAbstract then begin
-					if has_class_flag c CInterface then display_error ctx.com "An interface may not be abstract" c.cl_name_pos;
-					if has_class_flag c CFinal then display_error ctx.com "An abstract class may not be final" c.cl_name_pos;
+					if has_class_flag c CInterface then display_error com "An interface may not be abstract" c.cl_name_pos;
+					if has_class_flag c CFinal then display_error com "An abstract class may not be final" c.cl_name_pos;
 				end;
 				decls := (TClassDecl c, decl) :: !decls;
 				acc
@@ -152,7 +152,7 @@ module ModuleLevel = struct
 					t_meta = d.d_meta;
 				} in
 				(* failsafe in case the typedef is not initialized (see #3933) *)
-				delay ctx PBuildModule (fun () ->
+				delay ctx_m PBuildModule (fun () ->
 					match t.t_type with
 					| TMono r -> (match r.tm_type with None -> Monomorph.bind r com.basic.tvoid | _ -> ())
 					| _ -> ()
@@ -195,7 +195,7 @@ module ModuleLevel = struct
 					| None -> ()
 					| Some p ->
 						let options = Warning.from_meta d.d_meta in
-						module_warning ctx.com ctx.m.curmod WDeprecatedEnumAbstract options "`@:enum abstract` is deprecated in favor of `enum abstract`" p
+						module_warning com ctx_m.m.curmod WDeprecatedEnumAbstract options "`@:enum abstract` is deprecated in favor of `enum abstract`" p
 				end;
 				decls := (TAbstractDecl a, decl) :: !decls;
 				match d.d_data with
@@ -267,8 +267,7 @@ module ModuleLevel = struct
 		let decls = List.rev !decls in
 		decls, List.rev tdecls
 
-	let handle_import_hx ctx m decls p =
-		let com = ctx.com in
+	let handle_import_hx com g m decls p =
 		let path_split = match List.rev (Path.get_path_parts (Path.UniqueKey.lazy_path m.m_extra.m_file)) with
 			| [] -> []
 			| _ :: l -> l
@@ -283,7 +282,7 @@ module ModuleLevel = struct
 		let make_import_module path r =
 			com.parser_cache#add path r;
 			(* We use the file path as module name to make it unique. This may or may not be a good idea... *)
-			let m_import = make_module ctx ([],path) path p in
+			let m_import = make_module com g ([],path) path p in
 			m_import.m_extra.m_kind <- MImport;
 			m_import
 		in
@@ -295,13 +294,13 @@ module ModuleLevel = struct
 				r
 			with Not_found ->
 				if Sys.file_exists path then begin
-					let _,r = match !TypeloadParse.parse_hook com (ClassPaths.create_resolved_file path ctx.com.empty_class_path) p with
+					let _,r = match !TypeloadParse.parse_hook com (ClassPaths.create_resolved_file path com.empty_class_path) p with
 						| ParseSuccess(data,_,_) -> data
 						| ParseError(_,(msg,p),_) -> Parser.error msg p
 					in
 					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> raise_typing_error "Only import and using is allowed in import.hx files" p) r;
 					let m_import = make_import_module path r in
-					add_module ctx m_import p;
+					add_module com m_import p;
 					add_dependency m m_import;
 					r
 				end else begin
@@ -681,11 +680,11 @@ module TypeLevel = struct
 			()
 end
 
-let make_curmod ctx m =
+let make_curmod com g m =
 	let rl = new resolution_list ["import";s_type_path m.m_path] in
 	List.iter (fun mt ->
 		rl#add (module_type_resolution mt None null_pos))
-	(List.rev ctx.g.std_types.m_types);
+	(List.rev g.std_types.m_types);
 	{
 		curmod = m;
 		import_resolution = rl;
@@ -693,14 +692,14 @@ let make_curmod ctx m =
 		enum_with_type = None;
 		module_using = [];
 		import_statements = [];
-		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
+		is_display_file = (com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
 	}
 
-let create_typer_context_for_module ctx m = {
-		com = ctx.com;
-		g = ctx.g;
-		t = ctx.com.basic;
-		m = make_curmod ctx m;
+let create_typer_context_for_module com g m = {
+		com = com;
+		g = g;
+		t = com.basic;
+		m = make_curmod com g m;
 		pass = PBuildModule;
 		c = {
 			curclass = null_class;
@@ -716,37 +715,37 @@ let create_typer_context_for_module ctx m = {
 (*
 	Creates a module context for [m] and types [tdecls] using it.
 *)
-let type_types_into_module ctx m tdecls p =
-	let ctx = create_typer_context_for_module ctx m in
-	let decls,tdecls = ModuleLevel.create_module_types ctx m tdecls p in
+let type_types_into_module com g m tdecls p =
+	let ctx_m = create_typer_context_for_module com g m in
+	let decls,tdecls = ModuleLevel.create_module_types ctx_m m tdecls p in
 	let types = List.map fst decls in
 	(* During the initial module_lut#add in type_module, m has no m_types yet by design.
 	   We manually add them here. This and module_lut#add itself should be the only places
 	   in the compiler that call add_module_type. *)
-	List.iter (fun mt -> ctx.com.module_lut#add_module_type m mt) types;
+	List.iter (fun mt -> ctx_m.com.module_lut#add_module_type m mt) types;
 	m.m_types <- m.m_types @ types;
 	(* define the per-module context for the next pass *)
-	if ctx.g.std_types != null_module then begin
-		add_dependency m ctx.g.std_types;
+	if ctx_m.g.std_types != null_module then begin
+		add_dependency m ctx_m.g.std_types;
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
-		ignore(load_instance ctx (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal)
+		ignore(load_instance ctx_m (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal)
 	end;
-	ModuleLevel.init_type_params ctx decls;
+	ModuleLevel.init_type_params ctx_m decls;
 	(* setup module types *)
-	List.iter (TypeLevel.init_module_type ctx) tdecls;
+	List.iter (TypeLevel.init_module_type ctx_m) tdecls;
 	(* Make sure that we actually init the context at some point (issue #9012) *)
-	delay ctx PConnectField (fun () -> ctx.m.import_resolution#resolve_lazies);
-	ctx
+	delay ctx_m PConnectField (fun () -> ctx_m.m.import_resolution#resolve_lazies);
+	ctx_m
 
 (*
 	Creates a new module and types [tdecls] into it.
 *)
-let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
-	let m = ModuleLevel.make_module ctx mpath file p in
-	ctx.com.module_lut#add m.m_path m;
-	let tdecls = ModuleLevel.handle_import_hx ctx m tdecls p in
-	let ctx = type_types_into_module ctx m tdecls p in
-	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx m.m_path p;
+let type_module ctx_from mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
+	let m = ModuleLevel.make_module ctx_from.com ctx_from.g mpath file p in
+	ctx_from.com.module_lut#add m.m_path m;
+	let tdecls = ModuleLevel.handle_import_hx ctx_from.com ctx_from.g m tdecls p in
+	let ctx_m = type_types_into_module ctx_from.com ctx_from.g m tdecls p in
+	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx_m m.m_path p;
 	m
 
 (* let type_module ctx mpath file ?(is_extern=false) tdecls p =
@@ -761,7 +760,7 @@ class hxb_reader_api_typeload
 	(p : pos)
 = object(self)
 	method make_module (path : path) (file : string) =
-		let m = ModuleLevel.make_module ctx path file p in
+		let m = ModuleLevel.make_module ctx.com ctx.g path file p in
 		m.m_extra.m_processed <- 1;
 		m
 

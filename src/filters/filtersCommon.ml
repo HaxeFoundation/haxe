@@ -64,7 +64,7 @@ let run_expression_filters ?(ignore_processed_status=false) ctx detail_times fil
 	| TClassDecl c when is_removable_class c -> ()
 	| TClassDecl c ->
 		ctx.c.curclass <- c;
-		ctx.m <- TypeloadModule.make_curmod ctx c.cl_module;
+		ctx.m <- TypeloadModule.make_curmod ctx.com ctx.g c.cl_module;
 		let rec process_field f =
 			if ignore_processed_status || not (has_class_field_flag f CfPostProcessed) then begin
 				ctx.f.curfield <- f;
