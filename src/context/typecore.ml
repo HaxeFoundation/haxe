@@ -171,7 +171,7 @@ and typer = {
 	c : typer_class;
 	f : typer_field;
 	mutable e : typer_expr;
-	mutable pass : typer_pass;
+	pass : typer_pass;
 	mutable type_params : type_params;
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;
@@ -565,8 +565,7 @@ let rec flush_pass ctx p where =
 let make_pass ctx f = f
 
 let enter_field_typing_pass ctx info =
-	flush_pass ctx PConnectField info;
-	ctx.pass <- PTypeField
+	flush_pass ctx PConnectField info
 
 let make_lazy ?(force=true) ctx t_proc f where =
 	let r = ref (lazy_available t_dynamic) in

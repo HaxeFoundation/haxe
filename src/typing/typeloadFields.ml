@@ -809,10 +809,11 @@ module TypeBinding = struct
 						display_error ctx.com ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
 		end
 
-	let bind_var_expression ctx cctx fctx cf e =
+	let bind_var_expression ctx_f cctx fctx cf e =
 		let c = cctx.tclass in
 		let t = cf.cf_type in
 		let p = cf.cf_pos in
+		let ctx = TyperManager.clone_for_expr ctx_f in
 		if (has_class_flag c CInterface) then unexpected_expression ctx.com fctx "Initialization on field of interface" (pos e);
 		cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 		let check_cast e =
@@ -830,7 +831,6 @@ module TypeBinding = struct
 		let r = make_lazy ~force:false ctx t (fun r ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
-				let ctx = TyperManager.clone_for_expr ctx in
 				enter_field_typing_pass ctx ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
 				if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing field %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
@@ -904,10 +904,10 @@ module TypeBinding = struct
 		| Some e ->
 			bind_var_expression ctx cctx fctx cf e
 
-	let bind_method ctx cctx fctx cf t args ret e p =
+	let bind_method ctx_f cctx fctx cf t args ret e p =
 		let c = cctx.tclass in
+		let ctx = TyperManager.clone_for_expr ctx_f in
 		let bind r =
-			let ctx = TyperManager.clone_for_expr ctx in
 			incr stats.s_methods_typed;
 			if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing method %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 			let fmode = (match cctx.abstract with
