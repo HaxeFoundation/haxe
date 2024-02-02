@@ -737,7 +737,7 @@ and type_vars ctx vl p =
 				add_local ctx VGenerated n t_dynamic pv, None (* TODO: What to do with this... *)
 	) vl in
 	List.iter (fun (v,_) ->
-		delay_if_mono ctx PTypeField v.v_type (fun() ->
+		delay_if_mono ctx.g PTypeField v.v_type (fun() ->
 			if ExtType.is_void (follow v.v_type) then
 				raise_typing_error "Variables of type Void are not allowed" v.v_pos
 		)

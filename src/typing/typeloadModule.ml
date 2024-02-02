@@ -152,7 +152,7 @@ module ModuleLevel = struct
 					t_meta = d.d_meta;
 				} in
 				(* failsafe in case the typedef is not initialized (see #3933) *)
-				delay ctx_m PBuildModule (fun () ->
+				delay ctx_m.g PBuildModule (fun () ->
 					match t.t_type with
 					| TMono r -> (match r.tm_type with None -> Monomorph.bind r com.basic.tvoid | _ -> ())
 					| _ -> ()
@@ -408,7 +408,7 @@ module TypeLevel = struct
 				with TypeloadCheck.Build_canceled state ->
 					c.cl_build <- make_pass ctx_c build;
 					let rebuild() =
-						delay_late ctx_c PBuildClass (fun() -> ignore(c.cl_build()));
+						delay_late ctx_c.g PBuildClass (fun() -> ignore(c.cl_build()));
 					in
 					(match state with
 					| Built -> die "" __LOC__
@@ -427,11 +427,11 @@ module TypeLevel = struct
 			build()
 		in
 		c.cl_build <- make_pass ctx_m build;
-		delay ctx_m PBuildClass (fun() -> ignore(c.cl_build()));
+		delay ctx_m.g PBuildClass (fun() -> ignore(c.cl_build()));
 		if Meta.has Meta.InheritDoc c.cl_meta then
-			delay ctx_m PConnectField (fun() -> InheritDoc.build_class_doc ctx_m c);
+			delay ctx_m.g PConnectField (fun() -> InheritDoc.build_class_doc ctx_m c);
 		if (ctx_m.com.platform = Java || ctx_m.com.platform = Cs) && not (has_class_flag c CExtern) then
-			delay ctx_m PTypeField (fun () ->
+			delay ctx_m.g PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_m c.cl_meta in
 				if metas <> [] then c.cl_meta <- metas @ c.cl_meta;
 				let rec run_field cf =
@@ -507,16 +507,16 @@ module TypeLevel = struct
 			incr index;
 			names := (fst c.ec_name) :: !names;
 			if Meta.has Meta.InheritDoc f.ef_meta then
-				delay ctx_en PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx_en f);
+				delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx_en f);
 		) (!constructs);
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
 		unify ctx_en (TType(enum_module_type e,[])) e.e_type p;
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
-			delay ctx_en PConnectField (fun() -> InheritDoc.build_enum_doc ctx_en e);
+			delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_doc ctx_en e);
 		if (ctx_en.com.platform = Java || ctx_en.com.platform = Cs) && not e.e_extern then
-			delay ctx_en PTypeField (fun () ->
+			delay ctx_en.g PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_en e.e_meta in
 				e.e_meta <- metas @ e.e_meta;
 				PMap.iter (fun _ ef ->
@@ -556,7 +556,7 @@ module TypeLevel = struct
 					| _ ->
 						()
 				in
-				let r = make_lazy ctx_td tt (fun r ->
+				let r = make_lazy ctx_td.g tt (fun r ->
 					check_rec tt;
 					tt
 				) "typedef_rec_check" in
@@ -571,7 +571,7 @@ module TypeLevel = struct
 		| _ -> die "" __LOC__);
 		TypeloadFields.build_module_def ctx_td (TTypeDecl t) t.t_meta (fun _ -> []) (fun _ -> ());
 		if ctx_td.com.platform = Cs && t.t_meta <> [] then
-			delay ctx_td PTypeField (fun () ->
+			delay ctx_td.g PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_td t.t_meta in
 				if metas <> [] then t.t_meta <- metas @ t.t_meta;
 			)
@@ -587,7 +587,7 @@ module TypeLevel = struct
 			let t = load_complex_type ctx_a true t in
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
-					let r = make_lazy ctx_a t (fun r ->
+					let r = make_lazy ctx_a.g t (fun r ->
 						(try (if from then Type.unify t a.a_this else Type.unify a.a_this t) with Unify_error _ -> raise_typing_error "You can only declare from/to with compatible types" pos);
 						t
 					) "constraint" in
@@ -608,7 +608,7 @@ module TypeLevel = struct
 				if a.a_impl = None then raise_typing_error "Abstracts with underlying type must have an implementation" a.a_pos;
 				if Meta.has Meta.CoreType a.a_meta then raise_typing_error "@:coreType abstracts cannot have an underlying type" p;
 				let at = load_complex_type ctx_a true t in
-				delay ctx_a PForce (fun () ->
+				delay ctx_a.g PForce (fun () ->
 					let rec loop stack t =
 						match follow t with
 						| TAbstract(a,_) when not (Meta.has Meta.CoreType a.a_meta) ->
@@ -635,7 +635,7 @@ module TypeLevel = struct
 				raise_typing_error "Abstract is missing underlying type declaration" a.a_pos
 		end;
 		if Meta.has Meta.InheritDoc a.a_meta then
-			delay ctx_a PConnectField (fun() -> InheritDoc.build_abstract_doc ctx_a a)
+			delay ctx_a.g PConnectField (fun() -> InheritDoc.build_abstract_doc ctx_a a)
 
 	(*
 		In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
@@ -716,7 +716,7 @@ let type_types_into_module com g m tdecls p =
 	(* setup module types *)
 	List.iter (TypeLevel.init_module_type ctx_m) tdecls;
 	(* Make sure that we actually init the context at some point (issue #9012) *)
-	delay ctx_m PConnectField (fun () -> ctx_m.m.import_resolution#resolve_lazies);
+	delay ctx_m.g PConnectField (fun () -> ctx_m.m.import_resolution#resolve_lazies);
 	ctx_m
 
 (*
@@ -770,7 +770,7 @@ class hxb_reader_api_typeload
 			| Var _ ->
 				true
 			| Method _ ->
-				delay ctx PTypeField (fun () -> ignore(follow cf.cf_type));
+				delay ctx.g PTypeField (fun () -> ignore(follow cf.cf_type));
 				false
 end
 
@@ -781,7 +781,7 @@ let rec load_hxb_module ctx path p =
 			let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats in
 			let read = reader#read api bytes in
 			let m = read EOT in
-			delay ctx PConnectField (fun () ->
+			delay ctx.g PConnectField (fun () ->
 				ignore(read EOM);
 			);
 			m
@@ -847,7 +847,7 @@ and load_module' ctx m p =
 let load_module ctx m p =
 	let m2 = load_module' ctx m p in
 	add_dependency ~skip_postprocess:true ctx.m.curmod m2;
-	if ctx.pass = PTypeField then flush_pass ctx PConnectField ("load_module",fst m @ [snd m]);
+	if ctx.pass = PTypeField then flush_pass ctx.g PConnectField ("load_module",fst m @ [snd m]);
 	m2
 
 (* let load_module ctx m p =

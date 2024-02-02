@@ -88,7 +88,7 @@ let typing_timer ctx need_type f =
 	ctx.com.error_ext <- (fun err -> raise_error { err with err_from_macro = true });
 
 	let ctx = if need_type && ctx.pass < PTypeField then begin
-		enter_field_typing_pass ctx ("typing_timer",[] (* TODO: ? *));
+		enter_field_typing_pass ctx.g ("typing_timer",[] (* TODO: ? *));
 		TyperManager.clone_for_expr ctx
 	end else
 		ctx
@@ -600,7 +600,7 @@ let make_macro_api ctx mctx p =
 				List.iter (fun path ->
 					ImportHandling.init_using ctx path null_pos
 				) usings;
-				flush_pass ctx PConnectField ("with_imports",[] (* TODO: ? *));
+				flush_pass ctx.g PConnectField ("with_imports",[] (* TODO: ? *));
 				f()
 			in
 			let restore () =

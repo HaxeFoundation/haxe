@@ -390,7 +390,7 @@ let rec load_params ctx info params p =
 			let t = apply_params info.build_params params t in
 			maybe_build_instance ctx t ParamNormal p;
 		in
-		delay ctx PCheckConstraint (fun () ->
+		delay ctx.g PCheckConstraint (fun () ->
 			DynArray.iter (fun (t,c,p) ->
 				check_param_constraints ctx t map c p
 			) checks
@@ -471,7 +471,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		) tl in
 		let tr = Monomorph.create() in
 		let t = TMono tr in
-		let r = make_lazy ctx t (fun r ->
+		let r = make_lazy ctx.g t (fun r ->
 			let ta = make_extension_type ctx tl in
 			Monomorph.bind tr ta;
 			ta
@@ -512,7 +512,7 @@ and load_complex_type' ctx allow_display (t,p) =
 			) tl in
 			let tr = Monomorph.create() in
 			let t = TMono tr in
-			let r = make_lazy ctx t (fun r ->
+			let r = make_lazy ctx.g t (fun r ->
 				Monomorph.bind tr (match il with
 					| [i] ->
 						mk_extension i
@@ -616,7 +616,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		| None ->
 			()
 		| Some cf ->
-			delay ctx PBuildClass (fun () -> DisplayEmitter.display_field ctx (AnonymousStructure a) CFSMember cf cf.cf_name_pos);
+			delay ctx.g PBuildClass (fun () -> DisplayEmitter.display_field ctx (AnonymousStructure a) CFSMember cf cf.cf_name_pos);
 		end;
 		TAnon a
 	| CTFunction (args,r) ->
@@ -635,7 +635,7 @@ and load_complex_type ctx allow_display (t,pn) =
 		load_complex_type' ctx allow_display (t,pn)
 	with Error ({ err_message = Module_not_found(([],name)) } as err) ->
 		if Diagnostics.error_in_diagnostics_run ctx.com err.err_pos then begin
-			delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true);
+			delay ctx.g PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true);
 			t_dynamic
 		end else if ignore_error ctx.com && not (DisplayPosition.display_position#enclosed_in pn) then
 			t_dynamic
@@ -745,7 +745,7 @@ and type_type_params ctx host path p tpl =
 			| None ->
 				()
 			| Some ct ->
-				let r = make_lazy ctx ttp.ttp_type (fun r ->
+				let r = make_lazy ctx.g ttp.ttp_type (fun r ->
 					let t = load_complex_type ctx true ct in
 					begin match host with
 					| TPHType ->
@@ -785,7 +785,7 @@ and type_type_params ctx host path p tpl =
 				List.iter loop constr;
 				constr
 			) in
-			delay ctx PConnectField (fun () -> ignore (Lazy.force constraints));
+			delay ctx.g PConnectField (fun () -> ignore (Lazy.force constraints));
 			ttp.ttp_constraints <- Some constraints;
 	) param_pairs;
 	params
@@ -819,7 +819,7 @@ let load_core_class ctx c =
 		| _ -> c.cl_path
 	in
 	let t = load_type_def' ctx2 (fst c.cl_module.m_path) (snd c.cl_module.m_path) (snd tpath) null_pos in
-	flush_pass ctx2 PFinal ("core_final",(fst c.cl_path @ [snd c.cl_path]));
+	flush_pass ctx2.g PFinal ("core_final",(fst c.cl_path @ [snd c.cl_path]));
 	match t with
 	| TClassDecl ccore | TAbstractDecl {a_impl = Some ccore} ->
 		ccore

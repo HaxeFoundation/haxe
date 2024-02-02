@@ -522,50 +522,50 @@ let is_gen_local v = match v.v_kind with
 	| _ ->
 		false
 
-let delay ctx p f =
+let delay g p f =
 	let p = Obj.magic p in
-	let tasks = ctx.g.delayed.(p) in
+	let tasks = g.delayed.(p) in
 	tasks.tasks <- f :: tasks.tasks;
-	if p < ctx.g.delayed_min_index then
-		ctx.g.delayed_min_index <- p
+	if p < g.delayed_min_index then
+		g.delayed_min_index <- p
 
-let delay_late ctx p f =
+let delay_late g p f =
 	let p = Obj.magic p in
-	let tasks = ctx.g.delayed.(p) in
+	let tasks = g.delayed.(p) in
 	tasks.tasks <- tasks.tasks @ [f];
-	if p < ctx.g.delayed_min_index then
-		ctx.g.delayed_min_index <- p
+	if p < g.delayed_min_index then
+		g.delayed_min_index <- p
 
-let delay_if_mono ctx p t f = match follow t with
+let delay_if_mono g p t f = match follow t with
 	| TMono _ ->
-		delay ctx p f
+		delay g p f
 	| _ ->
 		f()
 
-let rec flush_pass ctx p where =
+let rec flush_pass g p where =
 	let rec loop i =
 		if i > (Obj.magic p) then
 			()
 		else begin
-			let tasks = ctx.g.delayed.(i) in
+			let tasks = g.delayed.(i) in
 			match tasks.tasks with
 			| f :: l ->
 				tasks.tasks <- l;
 				f();
-				flush_pass ctx p where
+				flush_pass g p where
 			| [] ->
 				(* Done with this pass (for now), update min index to next one *)
 				let i = i + 1 in
-				ctx.g.delayed_min_index <- i;
+				g.delayed_min_index <- i;
 				loop i
 		end
 	in
-	loop ctx.g.delayed_min_index
+	loop g.delayed_min_index
 
 let make_pass ctx f = f
 
-let enter_field_typing_pass ctx info =
-	flush_pass ctx PConnectField info
+let enter_field_typing_pass g info =
+	flush_pass g PConnectField info
 
 let make_lazy ?(force=true) ctx t_proc f where =
 	let r = ref (lazy_available t_dynamic) in

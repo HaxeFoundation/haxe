@@ -172,7 +172,7 @@ let get_strict_meta ctx meta params pos =
 			raise Exit
 	in
 	let t = Typeload.load_complex_type ctx false (ctype,pos) in
-	flush_pass ctx PBuildClass "get_strict_meta";
+	flush_pass ctx.g PBuildClass "get_strict_meta";
 	let texpr = type_expr ctx changed_expr NoValue in
 	let with_type_expr = (ECheckType( (EConst (Ident "null"), pos), (ctype,null_pos) ), pos) in
 	let extra = handle_fields ctx fields_to_check with_type_expr in
