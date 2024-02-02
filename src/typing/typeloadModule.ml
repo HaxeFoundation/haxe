@@ -343,7 +343,7 @@ module TypeLevel = struct
 		let params = ref [] in
 		params := type_type_params ctx_en TPHEnumConstructor ([],fst c.ec_name) (fun() -> !params) c.ec_pos c.ec_params;
 		let params = !params in
-		let ctx_ef = { ctx_en with type_params = params @ ctx_en.type_params } in
+		let ctx_ef = TyperManager.clone_for_enum_field ctx_en (params @ ctx_en.type_params) in
 		let rt = (match c.ec_type with
 			| None -> et
 			| Some (t,pt) ->

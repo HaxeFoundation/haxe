@@ -272,6 +272,11 @@ module TyperManager = struct
 		let f = create_ctx_f cf in
 		let e = create_ctx_e () in
 		create ctx.com ctx.g ctx.m ctx.c f e PBuildClass params
+
+	let clone_for_enum_field ctx params =
+		let f = create_ctx_f null_field in
+		let e = create_ctx_e () in
+		create ctx.com ctx.g ctx.m ctx.c f e PBuildClass params
 end
 
 type field_host =
