@@ -722,14 +722,17 @@ let lookup_param n l =
 	in
 	loop l
 
-let mk_type_param c host def constraints = {
-	ttp_name = snd c.cl_path;
-	ttp_type = TInst(c,[]);
-	ttp_class = c;
-	ttp_host = host;
-	ttp_constraints = constraints;
-	ttp_default = def;
-}
+let mk_type_param c host def constraints =
+	let ttp = {
+		ttp_name = snd c.cl_path;
+		ttp_type = TInst(c,[]);
+		ttp_class = c;
+		ttp_host = host;
+		ttp_constraints = constraints;
+		ttp_default = def;
+	} in
+	c.cl_kind <- KTypeParameter ttp;
+	ttp
 
 let type_of_module_type = function
 	| TClassDecl c -> TInst (c,extract_param_types c.cl_params)

@@ -44,9 +44,7 @@ let save_field_state ctx =
 	)
 
 let type_function_params ctx fd host fname p =
-	let params = ref [] in
-	params := Typeload.type_type_params ctx host ([],fname) (fun() -> !params) p fd.f_params;
-	!params
+	Typeload.type_type_params ctx host ([],fname) p fd.f_params
 
 let type_function ctx (args : function_arguments) ret fmode e do_display p =
 	ctx.in_function <- true;
