@@ -732,31 +732,10 @@ let rec type_type_param ctx host path p tp =
 	c.cl_params <- type_type_params ctx host c.cl_path p tp.tp_params;
 	c.cl_meta <- tp.Ast.tp_meta;
 	if host = TPHEnumConstructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
-	let t = TInst (c,extract_param_types c.cl_params) in
-	if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos tp.tp_name) then
-		DisplayEmitter.display_type ctx t (pos tp.tp_name);
-	let default = match tp.tp_default with
-		| None ->
-			None
-		| Some ct ->
-			let r = make_lazy ctx t (fun r ->
-				let t = load_complex_type ctx true ct in
-				begin match host with
-				| TPHType ->
-					()
-				| TPHConstructor
-				| TPHMethod
-				| TPHEnumConstructor
-				| TPHAnonField
-				| TPHLocal ->
-					display_error ctx.com "Default type parameters are only supported on types" (pos ct)
-				end;
-				t
-			) "default" in
-			Some (TLazy r)
-	in
-	let ttp = mk_type_param c host default None in
+	let ttp = mk_type_param c host None None in
 	c.cl_kind <- KTypeParameter ttp;
+	if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos tp.tp_name) then
+		DisplayEmitter.display_type ctx ttp.ttp_type (pos tp.tp_name);
 	ttp
 
 and type_type_params ctx host path p tpl =
@@ -769,6 +748,26 @@ and type_type_params ctx host path p tpl =
 	let params = List.map snd param_pairs in
 	let ctx = { ctx with type_params = params @ ctx.type_params } in
 	List.iter (fun (tp,ttp) ->
+		begin match tp.tp_default with
+			| None ->
+				()
+			| Some ct ->
+				let r = make_lazy ctx ttp.ttp_type (fun r ->
+					let t = load_complex_type ctx true ct in
+					begin match host with
+					| TPHType ->
+						()
+					| TPHConstructor
+					| TPHMethod
+					| TPHEnumConstructor
+					| TPHAnonField
+					| TPHLocal ->
+						display_error ctx.com "Default type parameters are only supported on types" (pos ct)
+					end;
+					t
+				) "default" in
+				ttp.ttp_default <- Some (TLazy r)
+		end;
 		match tp.tp_constraints with
 		| None ->
 			()
