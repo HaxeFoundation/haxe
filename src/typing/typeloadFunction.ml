@@ -172,7 +172,7 @@ let type_function ctx args ret fmode e do_display p =
 	let save = save_field_state ctx in
 	Std.finally save (type_function ctx args ret fmode e do_display) p
 
-let add_constructor ctx c force_constructor p =
+let add_constructor ctx_c c force_constructor p =
 	if c.cl_constructor <> None then () else
 	let constructor = try Some (Type.get_constructor_class c (extract_param_types c.cl_params)) with Not_found -> None in
 	match constructor with
@@ -181,9 +181,9 @@ let add_constructor ctx c force_constructor p =
 		cf.cf_kind <- cfsup.cf_kind;
 		cf.cf_params <- cfsup.cf_params;
 		cf.cf_meta <- List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
-		let t = spawn_monomorph ctx.e p in
-		let r = make_lazy ctx t (fun r ->
-			let ctx = { ctx with
+		let t = spawn_monomorph ctx_c.e p in
+		let r = make_lazy ctx_c t (fun r ->
+			let ctx = { ctx_c with
 				f = TyperManager.create_ctx_f cf;
 				pass = PConnectField;
 			} in
@@ -237,9 +237,9 @@ let add_constructor ctx c force_constructor p =
 	| _ when force_constructor ->
 		let constr = mk (TFunction {
 			tf_args = [];
-			tf_type = ctx.t.tvoid;
-			tf_expr = mk (TBlock []) ctx.t.tvoid p;
-		}) (tfun [] ctx.t.tvoid) p in
+			tf_type = ctx_c.t.tvoid;
+			tf_expr = mk (TBlock []) ctx_c.t.tvoid p;
+		}) (tfun [] ctx_c.t.tvoid) p in
 		let cf = mk_field "new" constr.etype p null_pos in
 		cf.cf_expr <- Some constr;
 		cf.cf_type <- constr.etype;

@@ -1695,7 +1695,7 @@ let check_overloads ctx c =
 	List.iter check_field c.cl_ordered_statics;
 	Option.may check_field c.cl_constructor
 
-let finalize_class ctx cctx =
+let finalize_class cctx =
 	(* push delays in reverse order so they will be run in correct order *)
 	List.iter (fun (ctx,r) ->
 		init_class_done ctx;
@@ -1728,17 +1728,18 @@ let check_functional_interface ctx c =
 		add_class_flag c CFunctionalInterface;
 		ctx.g.functional_interface_lut#add c.cl_path cf
 
-let init_class ctx cctx c p herits fields =
+let init_class ctx_c cctx c p herits fields =
+	let com = ctx_c.com in
 	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
-	let fields = patch_class ctx c fields in
-	let fields = build_fields (ctx,cctx) c fields in
-	if cctx.is_core_api && ctx.com.display.dms_check_core_api then delay ctx PForce (fun() -> init_core_api ctx c);
+	let fields = patch_class ctx_c c fields in
+	let fields = build_fields (ctx_c,cctx) c fields in
+	if cctx.is_core_api && com.display.dms_check_core_api then delay ctx_c PForce (fun() -> init_core_api ctx_c c);
 	if not cctx.is_lib then begin
-		delay ctx PForce (fun() -> check_overloads ctx c);
+		delay ctx_c PForce (fun() -> check_overloads ctx_c c);
 		begin match c.cl_super with
 		| Some(csup,tl) ->
 			if (has_class_flag csup CAbstract) && not (has_class_flag c CAbstract) then
-				delay ctx PForce (fun () -> TypeloadCheck.Inheritance.check_abstract_class ctx c csup tl);
+				delay ctx_c PForce (fun () -> TypeloadCheck.Inheritance.check_abstract_class ctx_c c csup tl);
 		| None ->
 			()
 		end
@@ -1759,7 +1760,7 @@ let init_class ctx cctx c p herits fields =
 						| EBinop ((OpEq|OpNotEq|OpGt|OpGte|OpLt|OpLte) as op,(EConst (Ident s),_),(EConst ((Int (_,_) | Float (_,_) | String _) as c),_)) -> s ^ s_binop op ^ s_constant c
 						| _ -> ""
 					in
-					if not (ParserEntry.is_true (ParserEntry.eval ctx.com.defines e)) then
+					if not (ParserEntry.is_true (ParserEntry.eval com.defines e)) then
 						Some (sc,(match List.rev l with (EConst (String(msg,_)),_) :: _ -> Some msg | _ -> None))
 					else
 						loop l
@@ -1772,10 +1773,10 @@ let init_class ctx cctx c p herits fields =
 	let has_init = ref false in
 	List.iter (fun f ->
 		let p = f.cff_pos in
+		let display_modifier = Typeload.check_field_access ctx_c f in
+		let fctx = create_field_context ctx_c cctx f ctx_c.m.is_display_file display_modifier in
+		let ctx = create_typer_context_for_field ctx_c cctx fctx f in
 		try
-			let display_modifier = Typeload.check_field_access ctx f in
-			let fctx = create_field_context ctx cctx f ctx.m.is_display_file display_modifier in
-			let ctx = create_typer_context_for_field ctx cctx fctx f in
 			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
 			let cf = init_field (ctx,cctx,fctx) f in
 			if fctx.field_kind = CfrInit then begin
@@ -1841,7 +1842,7 @@ let init_class ctx cctx c p herits fields =
 		with Error ({ err_message = Custom _; err_pos = p2 } as err) when p = p2 ->
 			display_error_ext ctx.com err
 	) fields;
-		begin match cctx.abstract with
+	begin match cctx.abstract with
 		| Some a ->
 			a.a_to_field <- List.rev a.a_to_field;
 			a.a_from_field <- List.rev a.a_from_field;
@@ -1849,11 +1850,11 @@ let init_class ctx cctx c p herits fields =
 			a.a_unops <- List.rev a.a_unops;
 			a.a_array <- List.rev a.a_array;
 		| None ->
-			if (has_class_flag c CInterface) && ctx.com.platform = Java then check_functional_interface ctx c;
+			if (has_class_flag c CInterface) && com.platform = Java then check_functional_interface ctx_c c;
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
-	delay ctx PConnectField (fun () -> match follow c.cl_type with
+	delay ctx_c PConnectField (fun () -> match follow c.cl_type with
 		| TAnon an ->
 			an.a_fields <- c.cl_statics
 		| _ ->
@@ -1871,28 +1872,28 @@ let init_class ctx cctx c p herits fields =
 	in
 	if has_struct_init then
 		if (has_class_flag c CInterface) then
-			display_error ctx.com "@:structInit is not allowed on interfaces" struct_init_pos
+			display_error com "@:structInit is not allowed on interfaces" struct_init_pos
 		else
-			ensure_struct_init_constructor ctx c fields p;
+			ensure_struct_init_constructor ctx_c c fields p;
 	begin match cctx.uninitialized_final with
 		| cf :: cfl when c.cl_constructor = None && not (has_class_flag c CAbstract) ->
-			if Diagnostics.error_in_diagnostics_run ctx.com cf.cf_name_pos then begin
+			if Diagnostics.error_in_diagnostics_run com cf.cf_name_pos then begin
 				let diag = {
 					mf_pos = c.cl_name_pos;
 					mf_on = TClassDecl c;
 					mf_fields = [];
 					mf_cause = FinalFields (cf :: cfl);
 				} in
-				let display = ctx.com.display_information in
+				let display = com.display_information in
 				display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 			end else begin
-				display_error ctx.com "This class has uninitialized final vars, which requires a constructor" p;
-				display_error ctx.com "Example of an uninitialized final var" cf.cf_name_pos;
+				display_error com "This class has uninitialized final vars, which requires a constructor" p;
+				display_error com "Example of an uninitialized final var" cf.cf_name_pos;
 			end
 		| _ ->
 			()
 	end;
 	if not has_struct_init then
 		(* add_constructor does not deal with overloads correctly *)
-		if not ctx.com.config.pf_overload then TypeloadFunction.add_constructor ctx c cctx.force_constructor p;
-	finalize_class ctx cctx
+		if not com.config.pf_overload then TypeloadFunction.add_constructor ctx_c c cctx.force_constructor p;
+	finalize_class cctx
