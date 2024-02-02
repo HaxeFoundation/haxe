@@ -324,13 +324,6 @@ type dot_path_part = {
 	case : dot_path_part_case;
 	pos : pos
 }
-
-type find_module_result =
-	| GoodModule of module_def
-	| BadModule of module_skip_reason
-	| BinaryModule of HxbData.module_cache
-	| NoModule
-
 let make_build_info kind path params extern apply = {
 	build_kind = kind;
 	build_path = path;
@@ -581,24 +574,6 @@ let make_lazy ?(force=true) ctx t_proc f where =
 	);
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
-
-let fake_modules = Hashtbl.create 0
-let create_fake_module ctx file =
-	let key = ctx.com.file_keys#get file in
-	let file = Path.get_full_path file in
-	let mdep = (try Hashtbl.find fake_modules key with Not_found ->
-		let mdep = {
-			m_id = alloc_mid();
-			m_path = (["$DEP"],file);
-			m_types = [];
-			m_statics = None;
-			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake ctx.com.compilation_step [];
-		} in
-		Hashtbl.add fake_modules key mdep;
-		mdep
-	) in
-	ctx.com.module_lut#add mdep.m_path mdep;
-	mdep
 
 let is_removable_field com f =
 	not (has_class_field_flag f CfOverride) && (

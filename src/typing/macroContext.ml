@@ -554,7 +554,7 @@ let make_macro_api ctx mctx p =
 				ctx.m.curmod.m_extra.m_deps <- old_deps;
 				m
 			) in
-			add_dependency m (create_fake_module ctx file);
+			add_dependency m (TypeloadCacheHook.create_fake_module ctx.com file);
 		);
 		MacroApi.current_module = (fun() ->
 			ctx.m.curmod

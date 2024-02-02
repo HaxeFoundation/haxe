@@ -734,8 +734,6 @@ let type_module ctx_from mpath file ?(dont_check_path=false) ?(is_extern=false) 
 	let timer = Timer.timer ["typing";"type_module"] in
 	Std.finally timer (type_module ctx mpath file ~is_extern tdecls) p *)
 
-let type_module_hook = ref (fun _ _ _ -> NoModule)
-
 class hxb_reader_api_typeload
 	(ctx : typer)
 	(load_module : typer -> path -> pos -> module_def)
@@ -811,7 +809,7 @@ and load_module' ctx m p =
 		ctx.com.module_lut#find m
 	with Not_found ->
 		(* Check cache *)
-		match !type_module_hook ctx m p with
+		match !TypeloadCacheHook.type_module_hook ctx.com m p with
 		| GoodModule m ->
 			m
 		| BinaryModule _ ->
@@ -825,7 +823,7 @@ and load_module' ctx m p =
 			let is_extern = ref false in
 			let file, decls = try
 				(* Try parsing *)
-				let rfile,decls = TypeloadParse.parse_module ctx m p in
+				let rfile,decls = TypeloadParse.parse_module ctx.com m p in
 				rfile.file,decls
 			with Not_found ->
 				(* Nothing to parse, try loading extern type *)
