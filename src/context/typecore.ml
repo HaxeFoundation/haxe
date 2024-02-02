@@ -126,8 +126,6 @@ type typer_globals = {
 	mutable build_count : int;
 	mutable t_dynamic_def : Type.t;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
-	mutable allow_inline : bool;
-	mutable allow_transform : bool;
 	(* api *)
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
@@ -165,6 +163,7 @@ and typer_field = {
 }
 
 and typer = {
+	(* shared *)
 	com : context;
 	t : basic_types;
 	g : typer_globals;
@@ -174,6 +173,9 @@ and typer = {
 	mutable e : typer_expr;
 	mutable pass : typer_pass;
 	mutable type_params : type_params;
+	mutable allow_inline : bool;
+	mutable allow_transform : bool;
+	(* events *)
 	memory_marker : float array;
 }
 
@@ -191,6 +193,8 @@ module TyperManager = struct
 		f = f;
 		e = e;
 		pass = pass;
+		allow_inline = true;
+		allow_transform = true;
 		type_params = params;
 		memory_marker = memory_marker;
 	}
@@ -613,7 +617,7 @@ let is_forced_inline c cf =
 	| _ -> false
 
 let needs_inline ctx c cf =
-	cf.cf_kind = Method MethInline && ctx.g.allow_inline && (ctx.g.doinline || is_forced_inline c cf)
+	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.g.doinline || is_forced_inline c cf)
 
 let clone_type_parameter map path ttp =
 	let c = ttp.ttp_class in

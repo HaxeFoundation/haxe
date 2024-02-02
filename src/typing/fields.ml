@@ -110,7 +110,7 @@ let field_access ctx mode f fh e pfield =
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	check_no_closure_meta ctx f fh mode pfield;
 	let bypass_accessor () = if ctx.e.bypass_accessor > 0 then (ctx.e.bypass_accessor <- ctx.e.bypass_accessor - 1; true) else false in
-	let make_access inline = FieldAccess.create e f fh (inline && ctx.g.allow_inline) pfull in
+	let make_access inline = FieldAccess.create e f fh (inline && ctx.allow_inline) pfull in
 	match f.cf_kind with
 	| Method m ->
 		let normal () = AKField(make_access false) in
@@ -126,7 +126,7 @@ let field_access ctx mode f fh e pfield =
 		in
 		let default () =
 			match m, mode with
-			| MethInline, _ when ctx.g.doinline && ctx.g.allow_inline ->
+			| MethInline, _ when ctx.g.doinline && ctx.allow_inline ->
 				AKField (make_access true)
 			| MethMacro, MGet ->
 				display_error ctx.com "Macro functions must be called immediately" pfield; normal()
@@ -203,7 +203,7 @@ let field_access ctx mode f fh e pfield =
 				if ctx.f.untyped then normal false else normal_failure())
 		| AccNormal | AccNo ->
 			normal false
-		| AccCall when (not ctx.g.allow_transform) || (ctx.f.in_display && DisplayPosition.display_position#enclosed_in pfull) ->
+		| AccCall when (not ctx.allow_transform) || (ctx.f.in_display && DisplayPosition.display_position#enclosed_in pfull) ->
 			normal false
 		| AccCall ->
 			let m = (match mode with MSet _ -> "set_" | _ -> "get_") ^ f.cf_name in

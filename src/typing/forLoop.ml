@@ -259,7 +259,7 @@ module IterationKind = struct
 		{
 			it_kind = it;
 			it_type = pt;
-			it_expr = if not ctx.g.allow_transform then e else e1;
+			it_expr = if not ctx.allow_transform then e else e1;
 		}
 
 	let to_texpr ctx v iterator e2 p =
@@ -314,7 +314,7 @@ module IterationKind = struct
 			mk (TBlock el) t_void p
 		in
 		match iterator.it_kind with
-		| _ when not ctx.g.allow_transform ->
+		| _ when not ctx.allow_transform ->
 			mk (TFor(v,e1,e2)) t_void p
 		| IteratorIntUnroll(offset,length,ascending) ->
 			check_loop_var_modification [v] e2;

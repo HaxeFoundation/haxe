@@ -608,17 +608,17 @@ let make_macro_api ctx mctx p =
 			Std.finally restore run ()
 		);
 		MacroApi.with_options = (fun opts f ->
-			let old_inline = ctx.g.allow_inline in
-			let old_transform = ctx.g.allow_transform in
+			let old_inline = ctx.allow_inline in
+			let old_transform = ctx.allow_transform in
 			(match opts.opt_inlining with
 			| None -> ()
-			| Some v -> ctx.g.allow_inline <- v);
+			| Some v -> ctx.allow_inline <- v);
 			(match opts.opt_transform with
 			| None -> ()
-			| Some v -> ctx.g.allow_transform <- v);
+			| Some v -> ctx.allow_transform <- v);
 			let restore() =
-				ctx.g.allow_inline <- old_inline;
-				ctx.g.allow_transform <- old_transform;
+				ctx.allow_inline <- old_inline;
+				ctx.allow_transform <- old_transform;
 			in
 			Std.finally restore f ()
 		);
