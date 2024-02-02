@@ -170,7 +170,7 @@ and typer = {
 	mutable m : typer_module;
 	c : typer_class;
 	f : typer_field;
-	mutable e : typer_expr;
+	e : typer_expr;
 	pass : typer_pass;
 	mutable type_params : type_params;
 	mutable allow_inline : bool;
