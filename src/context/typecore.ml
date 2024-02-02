@@ -182,6 +182,33 @@ and monomorphs = {
 }
 
 module TyperManager = struct
+	let create com g m c f e pass params = {
+		com = com;
+		g = g;
+		t = com.basic;
+		m = m;
+		c = c;
+		f = f;
+		e = e;
+		pass = pass;
+		type_params = params;
+		memory_marker = memory_marker;
+	}
+
+	let create_ctx_c c =
+		{
+			curclass = c;
+			tthis = (match c.cl_kind with
+				| KAbstractImpl a ->
+					(match a.a_this with
+					| TMono r when r.tm_type = None -> TAbstract (a,extract_param_types c.cl_params)
+					| t -> t)
+				| _ ->
+					TInst (c,extract_param_types c.cl_params)
+			);
+			get_build_infos = (fun () -> None);
+		}
+
 	let create_ctx_f cf =
 		{
 			locals = PMap.empty;
@@ -209,6 +236,42 @@ module TyperManager = struct
 			call_argument_stack = [];
 			macro_depth = 0;
 		}
+
+	let create_for_module com g m =
+		let c = create_ctx_c null_class in
+		let f = create_ctx_f null_field in
+		let e = create_ctx_e () in
+		create com g m c f e PBuildModule []
+
+	let clone_for_class ctx c =
+		let c = create_ctx_c c in
+		let f = create_ctx_f null_field in
+		let e = create_ctx_e () in
+		let params = match c.curclass.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.curclass.cl_params in
+		create ctx.com ctx.g ctx.m c f e PBuildClass params
+
+	let clone_for_enum ctx en =
+		let c = create_ctx_c null_class in
+		let f = create_ctx_f null_field in
+		let e = create_ctx_e () in
+		create ctx.com ctx.g ctx.m c f e PBuildModule en.e_params
+
+	let clone_for_typedef ctx td =
+		let c = create_ctx_c null_class in
+		let f = create_ctx_f null_field in
+		let e = create_ctx_e () in
+		create ctx.com ctx.g ctx.m c f e PBuildModule td.t_params
+
+	let clone_for_abstract ctx a =
+		let c = create_ctx_c null_class in
+		let f = create_ctx_f null_field in
+		let e = create_ctx_e () in
+		create ctx.com ctx.g ctx.m c f e PBuildModule a.a_params
+
+	let clone_for_field ctx cf params =
+		let f = create_ctx_f cf in
+		let e = create_ctx_e () in
+		create ctx.com ctx.g ctx.m ctx.c f e PBuildClass params
 end
 
 type field_host =

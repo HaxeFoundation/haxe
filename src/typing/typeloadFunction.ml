@@ -183,10 +183,7 @@ let add_constructor ctx_c c force_constructor p =
 		cf.cf_meta <- List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
 		let t = spawn_monomorph ctx_c.e p in
 		let r = make_lazy ctx_c t (fun r ->
-			let ctx = { ctx_c with
-				f = TyperManager.create_ctx_f cf;
-				pass = PConnectField;
-			} in
+			let ctx = TyperManager.clone_for_field ctx_c cf cf.cf_params in
 			ignore (follow cfsup.cf_type); (* make sure it's typed *)
 			List.iter (fun cf -> ignore (follow cf.cf_type)) cf.cf_overloads;
 			let map_arg (v,def) =

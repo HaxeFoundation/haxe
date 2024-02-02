@@ -554,24 +554,7 @@ let create_typer_context_for_class ctx cctx p =
 	let c = cctx.tclass in
 	if cctx.is_lib && not (has_class_flag c CExtern) then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
 	if Meta.has Meta.Macro c.cl_meta then display_error ctx.com "Macro classes are no longer allowed in haxe 3" c.cl_pos;
-	let ctx = {
-		ctx with
-		c = {
-			curclass = c;
-			tthis = (match cctx.abstract with
-				| Some a ->
-					(match a.a_this with
-					| TMono r when r.tm_type = None -> TAbstract (a,extract_param_types c.cl_params)
-					| t -> t)
-				| None -> TInst (c,extract_param_types c.cl_params)
-			);
-			get_build_infos = (fun () -> None);
-		};
-		type_params = (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params);
-		pass = PBuildClass;
-
-	} in
-	ctx
+	TyperManager.clone_for_class ctx c
 
 let create_field_context ctx cctx cff is_display_file display_modifier =
 	let is_static = List.mem_assoc AStatic cff.cff_access in
@@ -633,12 +616,8 @@ let create_field_context ctx cctx cff is_display_file display_modifier =
 
 let create_typer_context_for_field ctx cctx fctx cff =
 	DeprecationCheck.check_is ctx.com ctx.m.curmod ctx.c.curclass.cl_meta cff.cff_meta (fst cff.cff_name) cff.cff_meta (snd cff.cff_name);
-	let ctx = {
-		ctx with
-		f = TyperManager.create_ctx_f null_field;
-		pass = PBuildClass; (* will be set later to PTypeExpr *)
-		type_params = if fctx.is_static && not fctx.is_abstract_member && not (Meta.has Meta.LibType cctx.tclass.cl_meta) (* TODO: remove this *) then [] else ctx.type_params;
-	} in
+	let params = if fctx.is_static && not fctx.is_abstract_member && not (Meta.has Meta.LibType cctx.tclass.cl_meta) (* TODO: remove this *) then [] else ctx.type_params in
+	let ctx = TyperManager.clone_for_field ctx null_field params in
 
 	let c = cctx.tclass in
 	if (fctx.is_abstract && not (has_meta Meta.LibType c.cl_meta)) then begin

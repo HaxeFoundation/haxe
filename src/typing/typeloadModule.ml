@@ -451,7 +451,7 @@ module TypeLevel = struct
 	let init_enum ctx_m e d p =
 		if ctx_m.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx_m (TEnumDecl e) (pos d.d_name);
-		let ctx_en = { ctx_m with type_params = e.e_params } in
+		let ctx_en = TyperManager.clone_for_enum ctx_m e in
 		let h = (try Some (Hashtbl.find ctx_en.g.type_patches e.e_path) with Not_found -> None) in
 		TypeloadCheck.check_global_metadata ctx_en e.e_meta (fun m -> e.e_meta <- m :: e.e_meta) e.e_module.m_path e.e_path None;
 		(match h with
@@ -531,7 +531,7 @@ module TypeLevel = struct
 		if ctx_m.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx_m (TTypeDecl t) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx_m t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
-		let ctx_td = { ctx_m with type_params = t.t_params } in
+		let ctx_td = TyperManager.clone_for_typedef ctx_m t in
 		let tt = load_complex_type ctx_td true d.d_data in
 		let tt = (match fst d.d_data with
 		| CTExtend _ -> tt
@@ -582,7 +582,7 @@ module TypeLevel = struct
 		if ctx_m.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx_m (TAbstractDecl a) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx_m a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
-		let ctx_a = { ctx_m with type_params = a.a_params } in
+		let ctx_a = TyperManager.clone_for_abstract ctx_m a in
 		let is_type = ref false in
 		let load_type t from =
 			let _, pos = t in
@@ -696,28 +696,11 @@ let make_curmod com g m =
 		is_display_file = (com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
 	}
 
-let create_typer_context_for_module com g m = {
-		com = com;
-		g = g;
-		t = com.basic;
-		m = make_curmod com g m;
-		pass = PBuildModule;
-		c = {
-			curclass = null_class;
-			get_build_infos = (fun() -> None);
-			tthis = t_dynamic;
-		};
-		f = TyperManager.create_ctx_f null_field;
-		e = TyperManager.create_ctx_e ();
-		type_params = [];
-		memory_marker = Typecore.memory_marker;
-	}
-
 (*
 	Creates a module context for [m] and types [tdecls] using it.
 *)
 let type_types_into_module com g m tdecls p =
-	let ctx_m = create_typer_context_for_module com g m in
+	let ctx_m = TyperManager.create_for_module com g (make_curmod com g m) in
 	let decls,tdecls = ModuleLevel.create_module_types ctx_m m tdecls p in
 	let types = List.map fst decls in
 	(* During the initial module_lut#add in type_module, m has no m_types yet by design.
