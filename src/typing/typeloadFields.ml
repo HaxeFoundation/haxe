@@ -830,6 +830,7 @@ module TypeBinding = struct
 		let r = make_lazy ~force:false ctx t (fun r ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
+				let ctx = TyperManager.clone_for_expr ctx in
 				enter_field_typing_pass ctx ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
 				if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing field %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
@@ -906,6 +907,7 @@ module TypeBinding = struct
 	let bind_method ctx cctx fctx cf t args ret e p =
 		let c = cctx.tclass in
 		let bind r =
+			let ctx = TyperManager.clone_for_expr ctx in
 			incr stats.s_methods_typed;
 			if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing method %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 			let fmode = (match cctx.abstract with
@@ -944,7 +946,7 @@ module TypeBinding = struct
 						if v.v_name <> "_" && has_mono v.v_type then warning ctx WTemp "Uninferred function argument, please add a type-hint" v.v_pos;
 					) fargs; *)
 					let tf = {
-						tf_args = args#for_expr;
+						tf_args = args#for_expr ctx;
 						tf_type = ret;
 						tf_expr = e;
 					} in
@@ -1261,7 +1263,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 		in
 		if i = 0 then maybe_use_property_type cto (fun () -> match Lazy.force mk with MKSetter -> true | _ -> false) def else def()
 	in
-	let args = new FunctionArguments.function_arguments ctx type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
+	let args = new FunctionArguments.function_arguments ctx.com type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
 	args,ret
 
 let create_method (ctx,cctx,fctx) c f fd p =
@@ -1415,11 +1417,15 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		if fctx.is_display_field then begin
 			delay ctx PTypeField (fun () ->
 				(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
-				ignore(args#for_expr)
+				let ctx = TyperManager.clone_for_expr ctx in
+				ignore(args#for_expr ctx)
 			);
 			check_field_display ctx fctx c cf;
 		end else
-			delay ctx PTypeField (fun () -> args#verify_extern);
+			delay ctx PTypeField (fun () ->
+				let ctx = TyperManager.clone_for_expr ctx in
+				args#verify_extern ctx
+			);
 		if fd.f_expr <> None then begin
 			if fctx.is_abstract then unexpected_expression ctx.com fctx "Abstract methods may not have an expression" p
 			else if not (fctx.is_inline || fctx.is_macro) then warning ctx WExternWithExpr "Extern non-inline function may not have an expression" p;
