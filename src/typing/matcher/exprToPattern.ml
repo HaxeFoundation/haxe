@@ -63,7 +63,7 @@ let get_general_module_type ctx mt p =
 let unify_type_pattern ctx mt t p =
 	let tcl = get_general_module_type ctx mt p in
 	match tcl with
-		| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx p])) t p
+		| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx.e p])) t p
 		| _ -> die "" __LOC__
 
 let rec make pctx toplevel t e =
@@ -93,7 +93,7 @@ let rec make pctx toplevel t e =
 			let v = alloc_var (VUser TVOPatternVariable) name t p in
 			if final then add_var_flag v VFinal;
 			pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
-			ctx.locals <- PMap.add name v ctx.locals;
+			ctx.f.locals <- PMap.add name v ctx.f.locals;
 			v
 	in
 	let con_enum en ef p =
@@ -166,18 +166,18 @@ let rec make pctx toplevel t e =
 		)
 	in
 	let try_typing e =
-		let old = ctx.untyped in
-		ctx.untyped <- true;
+		let old = ctx.f.untyped in
+		ctx.f.untyped <- true;
 		let restore = catch_errors () in
 		let e = try
 			type_expr ctx e (WithType.with_type t)
 		with exc ->
 			restore();
-			ctx.untyped <- old;
+			ctx.f.untyped <- old;
 			raise exc
 		in
 		restore();
-		ctx.untyped <- old;
+		ctx.f.untyped <- old;
 		let pat = check_expr e in
 		begin match pat with
 			| PatConstructor((ConTypeExpr mt,_),_) -> unify_type_pattern ctx mt t e.epos;
@@ -405,7 +405,7 @@ let rec make pctx toplevel t e =
 			loop None e1
 		| EBinop(OpArrow,e1,e2) ->
 			let restore = save_locals ctx in
-			ctx.locals <- pctx.ctx_locals;
+			ctx.f.locals <- pctx.ctx_locals;
 			let v = add_local false "_" null_pos in
 			(* Tricky stuff: Extractor expressions are like normal expressions, so we don't want to deal with GADT-applied types here.
 			   Let's unapply, then reapply after we're done with the extractor (#5952). *)
@@ -422,12 +422,12 @@ let rec make pctx toplevel t e =
 		(* Special case for completion on a pattern local: We don't want to add the local to the context
 		   while displaying (#7319) *)
 		| EDisplay((EConst (Ident _),_ as e),dk) when pctx.ctx.com.display.dms_kind = DMDefault ->
-			let locals = ctx.locals in
+			let locals = ctx.f.locals in
 			let pat = loop e in
-			let locals' = ctx.locals in
-			ctx.locals <- locals;
+			let locals' = ctx.f.locals in
+			ctx.f.locals <- locals;
 			ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) MGet (WithType.with_type t));
-			ctx.locals <- locals';
+			ctx.f.locals <- locals';
 			pat
 		(* For signature completion, we don't want to recurse into the inner pattern because there's probably
 		   a EDisplay(_,DMMarked) in there. We can handle display immediately because inner patterns should not

@@ -227,7 +227,7 @@ let is_pack_visible pack =
 let collect ctx tk with_type sort =
 	let t = Timer.timer ["display";"toplevel collect"] in
 	let cctx = CollectionContext.create ctx in
-	let curpack = fst ctx.curclass.cl_path in
+	let curpack = fst ctx.c.curclass.cl_path in
 	(* Note: This checks for the explicit `ServerConfig.legacy_completion` setting instead of using
 	   `is_legacy_completion com` because the latter is always false for the old protocol, yet we have
 	   tests which assume advanced completion even in the old protocol. This means that we can only
@@ -302,7 +302,7 @@ let collect ctx tk with_type sort =
 		PMap.iter (fun _ v ->
 			if not (is_gen_local v) then
 				add (make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)) (Some v.v_name)
-		) ctx.locals;
+		) ctx.f.locals;
 		t();
 
 		let add_field scope origin cf =
@@ -331,22 +331,22 @@ let collect ctx tk with_type sort =
 
 		let t = Timer.timer ["display";"toplevel collect";"fields"] in
 		(* member fields *)
-		if ctx.curfun <> FunStatic then begin
-			let all_fields = Type.TClass.get_all_fields ctx.curclass (extract_param_types ctx.curclass.cl_params) in
+		if ctx.e.curfun <> FunStatic then begin
+			let all_fields = Type.TClass.get_all_fields ctx.c.curclass (extract_param_types ctx.c.curclass.cl_params) in
 			PMap.iter (fun _ (c,cf) ->
-				let origin = if c == ctx.curclass then Self (TClassDecl c) else Parent (TClassDecl c) in
+				let origin = if c == ctx.c.curclass then Self (TClassDecl c) else Parent (TClassDecl c) in
 				maybe_add_field CFSMember origin cf
 			) all_fields;
 			(* TODO: local using? *)
 		end;
 
 		(* statics *)
-		begin match ctx.curclass.cl_kind with
+		begin match ctx.c.curclass.cl_kind with
 		| KAbstractImpl ({a_impl = Some c} as a) ->
 			let origin = Self (TAbstractDecl a) in
 			List.iter (fun cf ->
 				if has_class_field_flag cf CfImpl then begin
-					if ctx.curfun = FunStatic then ()
+					if ctx.e.curfun = FunStatic then ()
 					else begin
 						let cf = prepare_using_field cf in
 						maybe_add_field CFSMember origin cf
@@ -355,7 +355,7 @@ let collect ctx tk with_type sort =
 					maybe_add_field CFSStatic origin cf
 			) c.cl_ordered_statics
 		| _ ->
-			List.iter (maybe_add_field CFSStatic (Self (TClassDecl ctx.curclass))) ctx.curclass.cl_ordered_statics
+			List.iter (maybe_add_field CFSStatic (Self (TClassDecl ctx.c.curclass))) ctx.c.curclass.cl_ordered_statics
 		end;
 		t();
 
@@ -363,7 +363,7 @@ let collect ctx tk with_type sort =
 		(* enum constructors *)
 		let rec enum_ctors t =
 			match t with
-			| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum && not (path_exists cctx a.a_path) && ctx.curclass != c ->
+			| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum && not (path_exists cctx a.a_path) && ctx.c.curclass != c ->
 				add_path cctx a.a_path;
 				List.iter (fun cf ->
 					let ccf = CompletionClassField.make cf CFSMember (Self (decl_of_class c)) true in
@@ -433,16 +433,16 @@ let collect ctx tk with_type sort =
 		add (make_ci_literal "null" (tpair t_dynamic)) (Some "null");
 		add (make_ci_literal "true" (tpair ctx.com.basic.tbool)) (Some "true");
 		add (make_ci_literal "false" (tpair ctx.com.basic.tbool)) (Some "false");
-		begin match ctx.curfun with
+		begin match ctx.e.curfun with
 			| FunMember | FunConstructor | FunMemberClassLocal ->
-				let t = TInst(ctx.curclass,extract_param_types ctx.curclass.cl_params) in
+				let t = TInst(ctx.c.curclass,extract_param_types ctx.c.curclass.cl_params) in
 				add (make_ci_literal "this" (tpair t)) (Some "this");
-				begin match ctx.curclass.cl_super with
+				begin match ctx.c.curclass.cl_super with
 					| Some(c,tl) -> add (make_ci_literal "super" (tpair (TInst(c,tl)))) (Some "super")
 					| None -> ()
 				end
 			| FunMemberAbstract ->
-				let t = TInst(ctx.curclass,extract_param_types ctx.curclass.cl_params) in
+				let t = TInst(ctx.c.curclass,extract_param_types ctx.c.curclass.cl_params) in
 				add (make_ci_literal "abstract" (tpair t)) (Some "abstract");
 			| _ ->
 				()

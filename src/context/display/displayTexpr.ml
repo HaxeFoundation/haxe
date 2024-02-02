@@ -140,8 +140,8 @@ let check_display_module ctx decls m =
 		| (EImport _ | EUsing _),_ -> true
 		| _ -> false
 	) decls in
-	let imports = TypeloadModule.ModuleLevel.handle_import_hx ctx m imports null_pos in
-	let ctx = TypeloadModule.type_types_into_module ctx m imports null_pos in
+	let imports = TypeloadModule.ModuleLevel.handle_import_hx ctx.com ctx.g m imports null_pos in
+	let ctx = TypeloadModule.type_types_into_module ctx.com ctx.g m imports null_pos in
 	List.iter (fun md ->
 		let infos = t_infos md in
 		if display_position#enclosed_in infos.mt_name_pos then

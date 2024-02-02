@@ -229,11 +229,6 @@ let load_type_def ctx p t =
 	let timer = Timer.timer ["typing";"load_type_def"] in
 	Std.finally timer (load_type_def ctx p) t *)
 
-let resolve_position_by_path ctx path p =
-	let mt = load_type_def ctx p path in
-	let p = (t_infos mt).mt_pos in
-	raise_positions [p]
-
 let generate_args_meta com cls_opt add_meta args =
 	let values = List.fold_left (fun acc ((name,p),_,_,_,eo) -> match eo with Some e -> ((name,p,NoQuotes),e) :: acc | _ -> acc) [] args in
 	(match values with
@@ -280,11 +275,11 @@ let check_param_constraints ctx t map ttp p =
 			unify_raise t ti p
 		with Error ({ err_message = Unify l } as err) ->
 			let fail() =
-				if not ctx.untyped then display_error_ext ctx.com { err with err_message = (Unify (Constraint_failure (s_type_path ttp.ttp_class.cl_path) :: l)) }
+				if not ctx.f.untyped then display_error_ext ctx.com { err with err_message = (Unify (Constraint_failure (s_type_path ttp.ttp_class.cl_path) :: l)) }
 			in
 			match follow t with
 			| TInst({cl_kind = KExpr e},_) ->
-				let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
+				let e = type_expr {ctx with f = {ctx.f with locals = PMap.empty}} e (WithType.with_type ti) in
 				begin try unify_raise e.etype ti p
 				with Error { err_message = Unify _ } -> fail() end
 			| _ ->
@@ -449,7 +444,7 @@ and load_instance ctx ?(allow_display=false) ptp get_params =
 		let t = load_instance' ctx ptp get_params in
 		if allow_display then DisplayEmitter.check_display_type ctx t ptp;
 		t
-	with Error { err_message = Module_not_found path } when ctx.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in ptp.pos_path ->
+	with Error { err_message = Module_not_found path } when ctx.e.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in ptp.pos_path ->
 		let s = s_type_path path in
 		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint (s,ptp.pos_full) ptp.pos_path
 
@@ -459,7 +454,7 @@ and load_instance ctx ?(allow_display=false) ptp get_params =
 and load_complex_type' ctx allow_display (t,p) =
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display t
-	| CTPath { path = {tpackage = ["$"]; tname = "_hx_mono" }} -> spawn_monomorph ctx p
+	| CTPath { path = {tpackage = ["$"]; tname = "_hx_mono" }} -> spawn_monomorph ctx.e p
 	| CTPath ptp -> load_instance ~allow_display ctx ptp ParamNormal
 	| CTOptional _ -> raise_typing_error "Optional type not allowed here" p
 	| CTNamed _ -> raise_typing_error "Named type not allowed here" p
@@ -610,7 +605,7 @@ and load_complex_type' ctx allow_display (t,p) =
 			} in
 			if !final then add_class_field_flag cf CfFinal;
 			init_meta_overloads ctx None cf;
-			if ctx.is_display_file then begin
+			if ctx.m.is_display_file then begin
 				DisplayEmitter.check_display_metadata ctx cf.cf_meta;
 				if DisplayPosition.display_position#enclosed_in cf.cf_name_pos then displayed_field := Some cf;
 			end;
@@ -708,7 +703,7 @@ let t_iterator ctx p =
 	match load_qualified_type_def ctx [] "StdTypes" "Iterator" p with
 	| TTypeDecl t ->
 		add_dependency ctx.m.curmod t.t_module;
-		let pt = spawn_monomorph ctx p in
+		let pt = spawn_monomorph ctx.e p in
 		apply_typedef t [pt], pt
 	| _ ->
 		die "" __LOC__
@@ -718,7 +713,7 @@ let t_iterator ctx p =
 *)
 let load_type_hint ?(opt=false) ctx pcur t =
 	let t = match t with
-		| None -> spawn_monomorph ctx pcur
+		| None -> spawn_monomorph ctx.e pcur
 		| Some (t,p) ->	load_complex_type ctx true (t,p)
 	in
 	if opt then ctx.t.tnull t else t
@@ -733,7 +728,7 @@ let rec type_type_param ctx host path p tp =
 	c.cl_meta <- tp.Ast.tp_meta;
 	if host = TPHEnumConstructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
 	let ttp = mk_type_param c host None None in
-	if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos tp.tp_name) then
+	if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos tp.tp_name) then
 		DisplayEmitter.display_type ctx ttp.ttp_type (pos tp.tp_name);
 	ttp
 

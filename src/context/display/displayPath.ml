@@ -165,7 +165,6 @@ let resolve_position_by_path ctx path p =
 	let p = (t_infos mt).mt_pos in
 	raise_positions [p]
 
-
 let handle_path_display ctx path p =
 	let class_field c name =
 		ignore(c.cl_build());
