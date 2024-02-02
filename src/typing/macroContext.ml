@@ -87,9 +87,12 @@ let typing_timer ctx need_type f =
 	(* if ctx.com.display.dms_kind = DMNone then ctx.com.error <- (fun e -> raise_error e); *) (* TODO: review this... *)
 	ctx.com.error_ext <- (fun err -> raise_error { err with err_from_macro = true });
 
-	if need_type && ctx.pass < PTypeField then begin
+	let ctx = if need_type && ctx.pass < PTypeField then begin
 		enter_field_typing_pass ctx ("typing_timer",[] (* TODO: ? *));
-	end;
+		TyperManager.clone_for_expr ctx
+	end else
+		ctx
+	in
 	let exit() =
 		t();
 		ctx.com.error_ext <- old;
@@ -97,7 +100,7 @@ let typing_timer ctx need_type f =
 		restore_report_mode ();
 	in
 	try
-		let r = f() in
+		let r = f ctx in
 		exit();
 		r
 	with Error err ->
@@ -349,7 +352,7 @@ let make_macro_api ctx mctx p =
 	{
 		com_api with
 		MacroApi.get_type = (fun s ->
-			typing_timer ctx false (fun() ->
+			typing_timer ctx false (fun ctx ->
 				let path = parse_path s in
 				let tp = match List.rev (fst path) with
 					| s :: sl when String.length s > 0 && (match s.[0] with 'A'..'Z' -> true | _ -> false) ->
@@ -365,10 +368,10 @@ let make_macro_api ctx mctx p =
 			)
 		);
 		MacroApi.resolve_type = (fun t p ->
-			typing_timer ctx false (fun() -> Typeload.load_complex_type ctx false (t,p))
+			typing_timer ctx false (fun ctx -> Typeload.load_complex_type ctx false (t,p))
 		);
 		MacroApi.resolve_complex_type = (fun t ->
-			typing_timer ctx false (fun() ->
+			typing_timer ctx false (fun ctx ->
 				let rec load (t,_) =
 					((match t with
 					| CTPath ptp ->
@@ -421,20 +424,20 @@ let make_macro_api ctx mctx p =
 			)
 		);
 		MacroApi.get_module = (fun s ->
-			typing_timer ctx false (fun() ->
+			typing_timer ctx false (fun ctx ->
 				let path = parse_path s in
 				let m = List.map type_of_module_type (TypeloadModule.load_module ctx path p).m_types in
 				m
 			)
 		);
 		MacroApi.type_expr = (fun e ->
-			typing_timer ctx true (fun() -> type_expr ctx e WithType.value)
+			typing_timer ctx true (fun ctx -> type_expr ctx e WithType.value)
 		);
 		MacroApi.flush_context = (fun f ->
-			typing_timer ctx true f
+			typing_timer ctx true (fun _ -> f ())
 		);
 		MacroApi.type_patch = (fun t f s v ->
-			typing_timer ctx false (fun() ->
+			typing_timer ctx false (fun ctx ->
 				let v = (match v with None -> None | Some s ->
 					match ParserEntry.parse_string Grammar.parse_complex_type ctx.com.defines s null_pos raise_typing_error false with
 					| ParseSuccess((ct,_),_,_) -> Some ct
@@ -545,7 +548,7 @@ let make_macro_api ctx mctx p =
 			end
 		);
 		MacroApi.module_dependency = (fun mpath file ->
-			let m = typing_timer ctx false (fun() ->
+			let m = typing_timer ctx false (fun ctx ->
 				let old_deps = ctx.m.curmod.m_extra.m_deps in
 				let m = TypeloadModule.load_module ctx (parse_path mpath) p in
 				ctx.m.curmod.m_extra.m_deps <- old_deps;
@@ -557,7 +560,7 @@ let make_macro_api ctx mctx p =
 			ctx.m.curmod
 		);
 		MacroApi.cast_or_unify = (fun t e p ->
-			typing_timer ctx true (fun () ->
+			typing_timer ctx true (fun ctx ->
 				try
 					ignore(AbstractCast.cast_or_unify_raise ctx t e p);
 					true
