@@ -627,9 +627,7 @@ let clone_type_parameter map path ttp =
 		| None -> None
 		| Some constraints -> Some (lazy (List.map map (Lazy.force constraints)))
 	in
-	let ttp' = mk_type_param c ttp.ttp_host def constraints in
-	c.cl_kind <- KTypeParameter ttp';
-	ttp'
+	mk_type_param c ttp.ttp_host def constraints
 
 (** checks if we can access to a given class field using current context *)
 let can_access ctx c cf stat =

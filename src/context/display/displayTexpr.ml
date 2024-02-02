@@ -87,7 +87,7 @@ let check_display_class ctx decls c =
 		List.iter check_field c.cl_ordered_statics;
 	| _ ->
 		let sc = find_class_by_position decls c.cl_name_pos in
-		ignore(Typeload.type_type_params ctx TPHType c.cl_path (fun() -> c.cl_params) null_pos sc.d_params);
+		ignore(Typeload.type_type_params ctx TPHType c.cl_path null_pos sc.d_params);
 		List.iter (function
 			| (HExtends ptp | HImplements ptp) when display_position#enclosed_in ptp.pos_full ->
 				ignore(Typeload.load_instance ~allow_display:true ctx ptp ParamNormal)
@@ -101,7 +101,7 @@ let check_display_class ctx decls c =
 
 let check_display_enum ctx decls en =
 	let se = find_enum_by_position decls en.e_name_pos in
-	ignore(Typeload.type_type_params ctx TPHType en.e_path (fun() -> en.e_params) null_pos se.d_params);
+	ignore(Typeload.type_type_params ctx TPHType en.e_path null_pos se.d_params);
 	PMap.iter (fun _ ef ->
 		if display_position#enclosed_in ef.ef_pos then begin
 			let sef = find_enum_field_by_position se ef.ef_name_pos in
@@ -111,12 +111,12 @@ let check_display_enum ctx decls en =
 
 let check_display_typedef ctx decls td =
 	let st = find_typedef_by_position decls td.t_name_pos in
-	ignore(Typeload.type_type_params ctx TPHType td.t_path (fun() -> td.t_params) null_pos st.d_params);
+	ignore(Typeload.type_type_params ctx TPHType td.t_path null_pos st.d_params);
 	ignore(Typeload.load_complex_type ctx true st.d_data)
 
 let check_display_abstract ctx decls a =
 	let sa = find_abstract_by_position decls a.a_name_pos in
-	ignore(Typeload.type_type_params ctx TPHType a.a_path (fun() -> a.a_params) null_pos sa.d_params);
+	ignore(Typeload.type_type_params ctx TPHType a.a_path null_pos sa.d_params);
 	List.iter (function
 		| (AbOver(ct,p) | AbFrom(ct,p) | AbTo(ct,p)) when display_position#enclosed_in p ->
 			ignore(Typeload.load_complex_type ctx true (ct,p))

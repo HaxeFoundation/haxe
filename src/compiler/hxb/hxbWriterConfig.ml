@@ -1,5 +1,4 @@
 open Globals
-open Json
 open Json.Reader
 
 type writer_target_config = {

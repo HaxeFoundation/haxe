@@ -899,9 +899,7 @@ class hxb_reader
 				| i -> die (Printf.sprintf "Invalid type paramter host: %i" i) __LOC__
 			in
 			let c = mk_class current_module path pos pos in
-			let ttp = mk_type_param c host None None in
-			c.cl_kind <- KTypeParameter ttp;
-			ttp
+			mk_type_param c host None None
 		)
 
 	method read_type_parameters_data (a : typed_type_param array) =

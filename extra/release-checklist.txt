@@ -24,6 +24,7 @@
 - Update https://github.com/HaxeFoundation/haxe.org/blob/staging/downloads/versions.json
 - Wait for staging to update, check everything related to release and merge to master
 - Update https://github.com/HaxeFoundation/api.haxe.org/blob/master/theme/templates/topbar.mtt
+- Update https://github.com/HaxeFoundation/code-cookbook/blob/master/assets/content/index.mtt#L62-L63
 
 # Cleanup
 

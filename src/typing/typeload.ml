@@ -721,42 +721,52 @@ let load_type_hint ?(opt=false) ctx pcur t =
 (* ---------------------------------------------------------------------- *)
 (* PASS 1 & 2 : Module and Class Structure *)
 
-let rec type_type_param ctx host path get_params p tp =
+let rec type_type_param ctx host path p tp =
 	let n = fst tp.tp_name in
 	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) (pos tp.tp_name) (pos tp.tp_name) in
-	c.cl_params <- type_type_params ctx host c.cl_path get_params p tp.tp_params;
+	c.cl_params <- type_type_params ctx host c.cl_path p tp.tp_params;
 	c.cl_meta <- tp.Ast.tp_meta;
 	if host = TPHEnumConstructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
-	let t = TInst (c,extract_param_types c.cl_params) in
+	let ttp = mk_type_param c host None None in
 	if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos tp.tp_name) then
-		DisplayEmitter.display_type ctx t (pos tp.tp_name);
-	let default = match tp.tp_default with
+		DisplayEmitter.display_type ctx ttp.ttp_type (pos tp.tp_name);
+	ttp
+
+and type_type_params ctx host path p tpl =
+	let names = ref [] in
+	let param_pairs = List.map (fun tp ->
+		if List.exists (fun name -> name = fst tp.tp_name) !names then display_error ctx.com ("Duplicate type parameter name: " ^ fst tp.tp_name) (pos tp.tp_name);
+		names := (fst tp.tp_name) :: !names;
+		tp,type_type_param ctx host path p tp
+	) tpl in
+	let params = List.map snd param_pairs in
+	let ctx = { ctx with type_params = params @ ctx.type_params } in
+	List.iter (fun (tp,ttp) ->
+		begin match tp.tp_default with
+			| None ->
+				()
+			| Some ct ->
+				let r = make_lazy ctx ttp.ttp_type (fun r ->
+					let t = load_complex_type ctx true ct in
+					begin match host with
+					| TPHType ->
+						()
+					| TPHConstructor
+					| TPHMethod
+					| TPHEnumConstructor
+					| TPHAnonField
+					| TPHLocal ->
+						display_error ctx.com "Default type parameters are only supported on types" (pos ct)
+					end;
+					t
+				) "default" in
+				ttp.ttp_default <- Some (TLazy r)
+		end;
+		match tp.tp_constraints with
 		| None ->
-			None
-		| Some ct ->
-			let r = make_lazy ctx t (fun r ->
-				let t = load_complex_type ctx true ct in
-				begin match host with
-				| TPHType ->
-					()
-				| TPHConstructor
-				| TPHMethod
-				| TPHEnumConstructor
-				| TPHAnonField
-				| TPHLocal ->
-					display_error ctx.com "Default type parameters are only supported on types" (pos ct)
-				end;
-				t
-			) "default" in
-			Some (TLazy r)
-	in
-	let ttp = match tp.tp_constraints with
-		| None ->
-			mk_type_param c host default None
+			()
 		| Some th ->
-			let current_type_params = ctx.type_params in
 			let constraints = lazy (
-				let ctx = { ctx with type_params = get_params() @ current_type_params } in
 				let rec loop th = match fst th with
 					| CTIntersection tl -> List.map (load_complex_type ctx true) tl
 					| CTParent ct -> loop ct
@@ -766,7 +776,7 @@ let rec type_type_param ctx host path get_params p tp =
 				(* check against direct recursion *)
 				let rec loop t =
 					match follow t with
-					| TInst (c2,_) when c == c2 ->
+					| TInst (c2,_) when ttp.ttp_class == c2 ->
 						raise_typing_error "Recursive constraint parameter is not allowed" p
 					| TInst ({ cl_kind = KTypeParameter ttp },_) ->
 						List.iter loop (get_constraints ttp)
@@ -777,18 +787,9 @@ let rec type_type_param ctx host path get_params p tp =
 				constr
 			) in
 			delay ctx PConnectField (fun () -> ignore (Lazy.force constraints));
-			mk_type_param c host default (Some constraints)
-	in
-	c.cl_kind <- KTypeParameter ttp;
-	ttp
-
-and type_type_params ctx host path get_params p tpl =
-	let names = ref [] in
-	List.map (fun tp ->
-		if List.exists (fun name -> name = fst tp.tp_name) !names then display_error ctx.com ("Duplicate type parameter name: " ^ fst tp.tp_name) (pos tp.tp_name);
-		names := (fst tp.tp_name) :: !names;
-		type_type_param ctx host path get_params p tp
-	) tpl
+			ttp.ttp_constraints <- Some constraints;
+	) param_pairs;
+	params
 
 let load_core_class ctx c =
 	let ctx2 = (match ctx.g.core_api with
