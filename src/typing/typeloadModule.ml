@@ -87,7 +87,7 @@ module ModuleLevel = struct
 			let p = snd decl in
 			let check_type_name type_name meta =
 				let module_name = snd m.m_path in
-				if type_name <> module_name && not (Meta.has Meta.Native meta) then Typecore.check_uppercase_identifier_name ctx_m type_name "type" p;
+				if type_name <> module_name && not (Meta.has Meta.Native meta) then Naming.check_uppercase_identifier_name ctx_m.com type_name "type" p;
 			in
 			let acc = (match fst decl with
 			| EImport _ | EUsing _ ->
@@ -727,7 +727,7 @@ let type_module ctx_from mpath file ?(dont_check_path=false) ?(is_extern=false) 
 	ctx_from.com.module_lut#add m.m_path m;
 	let tdecls = ModuleLevel.handle_import_hx ctx_from.com ctx_from.g m tdecls p in
 	let ctx_m = type_types_into_module ctx_from.com ctx_from.g m tdecls p in
-	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx_m m.m_path p;
+	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Naming.check_module_path ctx_m.com m.m_path p;
 	m
 
 (* let type_module ctx mpath file ?(is_extern=false) tdecls p =

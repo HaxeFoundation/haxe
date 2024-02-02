@@ -450,58 +450,8 @@ let add_local ctx k n t p =
 	ctx.f.locals <- PMap.add n v ctx.f.locals;
 	v
 
-let display_identifier_error ctx ?prepend_msg msg p =
-	let prepend = match prepend_msg with Some s -> s ^ " " | _ -> "" in
-	display_error ctx.com (prepend ^ msg) p
-
-let check_identifier_name ?prepend_msg ctx name kind p =
-	if starts_with name '$' then
-		display_identifier_error ctx ?prepend_msg ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed: \"" ^ name ^ "\"") p
-	else if not (Lexer.is_valid_identifier name) then
-		display_identifier_error ctx ?prepend_msg ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name.") p
-
-let check_field_name ctx name p =
-	match name with
-	| "new" -> () (* the only keyword allowed in field names *)
-	| _ -> check_identifier_name ctx name "field" p
-
-let check_uppercase_identifier_name ?prepend_msg ctx name kind p =
-	if String.length name = 0 then
-		display_identifier_error ?prepend_msg ctx ((StringHelper.capitalize kind) ^ " name must not be empty.") p
-	else if Ast.is_lower_ident name then
-		display_identifier_error ?prepend_msg ctx ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter: \"" ^ name ^ "\"") p
-	else
-		check_identifier_name ?prepend_msg ctx name kind p
-
-let check_module_path ctx (pack,name) p =
-	let full_path = StringHelper.s_escape (if pack = [] then name else (String.concat "." pack) ^ "." ^ name) in
-	check_uppercase_identifier_name ~prepend_msg:("Module \"" ^ full_path ^ "\" does not have a valid name.") ctx name "module" p;
-	try
-		List.iter (fun part -> Path.check_package_name part) pack;
-	with Failure msg ->
-		display_error_ext ctx.com (make_error
-			~sub:[make_error (Custom msg) p]
-			(Custom ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:"))
-			p
-		)
-
-let check_local_variable_name ctx name origin p =
-	match name with
-	| "this" -> () (* TODO: vars named `this` should technically be VGenerated, not VUser *)
-	| _ ->
-		let s_var_origin origin =
-			match origin with
-			| TVOLocalVariable -> "variable"
-			| TVOArgument -> "function argument"
-			| TVOForVariable -> "for variable"
-			| TVOPatternVariable -> "pattern variable"
-			| TVOCatchVariable -> "catch variable"
-			| TVOLocalFunction -> "function"
-		in
-		check_identifier_name ctx name (s_var_origin origin) p
-
 let add_local_with_origin ctx origin n t p =
-	check_local_variable_name ctx n origin p;
+	Naming.check_local_variable_name ctx.com n origin p;
 	add_local ctx (VUser origin) n t p
 
 let gen_local_prefix = "`"
@@ -593,16 +543,6 @@ let is_forced_inline c cf =
 
 let needs_inline ctx c cf =
 	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.g.doinline || is_forced_inline c cf)
-
-let clone_type_parameter map path ttp =
-	let c = ttp.ttp_class in
-	let c = {c with cl_path = path} in
-	let def = Option.map map ttp.ttp_default in
-	let constraints = match ttp.ttp_constraints with
-		| None -> None
-		| Some constraints -> Some (lazy (List.map map (Lazy.force constraints)))
-	in
-	mk_type_param c ttp.ttp_host def constraints
 
 (** checks if we can access to a given class field using current context *)
 let can_access ctx c cf stat =
@@ -738,40 +678,6 @@ let merge_core_doc ctx mt =
 			| _ -> ()
 		end
 	| _ -> ())
-
-let field_to_type_path com e =
-	let rec loop e pack name = match e with
-		| EField(e,f,_),p when Char.lowercase_ascii (String.get f 0) <> String.get f 0 -> (match name with
-			| [] | _ :: [] ->
-				loop e pack (f :: name)
-			| _ -> (* too many name paths *)
-				display_error com ("Unexpected " ^ f) p;
-				raise Exit)
-		| EField(e,f,_),_ ->
-			loop e (f :: pack) name
-		| EConst(Ident f),_ ->
-			let pack, name, sub = match name with
-				| [] ->
-					let fchar = String.get f 0 in
-					if Char.uppercase_ascii fchar = fchar then
-						pack, f, None
-					else begin
-						display_error com "A class name must start with an uppercase letter" (snd e);
-						raise Exit
-					end
-				| [name] ->
-					f :: pack, name, None
-				| [name; sub] ->
-					f :: pack, name, Some sub
-				| _ ->
-					die "" __LOC__
-			in
-			{ tpackage=pack; tname=name; tparams=[]; tsub=sub }
-		| _,pos ->
-			display_error com "Unexpected expression when building strict meta" pos;
-			raise Exit
-	in
-	loop e [] []
 
 let safe_mono_close ctx m p =
 	try

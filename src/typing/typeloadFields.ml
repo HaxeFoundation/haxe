@@ -1596,7 +1596,7 @@ let init_field (ctx,cctx,fctx) f =
 	let name = fst f.cff_name in
 	TypeloadCheck.check_global_metadata ctx f.cff_meta (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
 	let p = f.cff_pos in
-	if not (has_class_flag c CExtern) && not (Meta.has Meta.Native f.cff_meta) then Typecore.check_field_name ctx name p;
+	if not (has_class_flag c CExtern) && not (Meta.has Meta.Native f.cff_meta) then Naming.check_field_name ctx.com name p;
 	List.iter (fun acc ->
 		match (fst acc, f.cff_kind) with
 		| AFinal, FProp _ when not (has_class_flag c CExtern) && ctx.com.platform <> Java -> invalid_modifier_on_property ctx.com fctx (Ast.s_placed_access acc) (snd acc)

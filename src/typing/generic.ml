@@ -231,6 +231,16 @@ let build_instances ctx t p =
 	in
 	loop t
 
+let clone_type_parameter map path ttp =
+	let c = ttp.ttp_class in
+	let c = {c with cl_path = path} in
+	let def = Option.map map ttp.ttp_default in
+	let constraints = match ttp.ttp_constraints with
+		| None -> None
+		| Some constraints -> Some (lazy (List.map map (Lazy.force constraints)))
+	in
+	mk_type_param c ttp.ttp_host def constraints
+
 let clone_type_parameter gctx mg path ttp =
 	let ttp = clone_type_parameter (generic_substitute_type gctx) path ttp in
 	ttp.ttp_class.cl_module <- mg;
