@@ -38,8 +38,6 @@ type 'value compiler_api = {
 	resolve_complex_type : Ast.type_hint -> Ast.type_hint;
 	store_typed_expr : Type.texpr -> Ast.expr;
 	allow_package : string -> unit;
-	type_patch : string -> string -> bool -> string option -> unit;
-	meta_patch : string -> string -> string option -> bool -> pos -> unit;
 	set_js_generator : (Genjs.ctx -> unit) -> unit;
 	get_local_type : unit -> t option;
 	get_expected_type : unit -> t option;
@@ -1953,14 +1951,6 @@ let macro_api ccom get_api =
 			(get_api()).allow_package (decode_string s);
 			vnull
 		);
-		"type_patch", vfun4 (fun t f s v ->
-			(get_api()).type_patch (decode_string t) (decode_string f) (decode_bool s) (opt decode_string v);
-			vnull
-		);
-		"meta_patch", vfun4 (fun m t f s ->
-			(get_api()).meta_patch (decode_string m) (decode_string t) (opt decode_string f) (decode_bool s) (get_api_call_pos ());
-			vnull
-		);
 		"add_global_metadata_impl", vfun5 (fun s1 s2 b1 b2 b3 ->
 			(get_api()).add_global_metadata (decode_string s1) (decode_string s2) (decode_bool b1,decode_bool b2,decode_bool b3) (get_api_call_pos());
 			vnull
@@ -2298,18 +2288,17 @@ let macro_api ccom get_api =
 			in
 			encode_type (apply_params tpl tl (map (decode_type t)))
 		);
-		"include_file", vfun2 (fun file position ->
+		"include_file", vfun1 (fun file ->
 			let file = decode_string file in
-			let position = decode_string position in
 			let file = if Sys.file_exists file then
 				file
 			else try Common.find_file (ccom()) file with
 				| Not_found ->
 					failwith ("unable to find file for inclusion: " ^ file)
 			in
-			(ccom()).include_files <- (file, position) :: (ccom()).include_files;
+			(ccom()).include_files <- file :: (ccom()).include_files;
 			let m = (get_api()).current_module() in
-			DynArray.add m.m_extra.m_cache_bound_objects (IncludeFile(file,position));
+			DynArray.add m.m_extra.m_cache_bound_objects (IncludeFile(file));
 			vnull
 		);
 		(* Compilation server *)
