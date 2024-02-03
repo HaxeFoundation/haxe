@@ -151,6 +151,9 @@ class Main {
 				.filter(s -> 0 != s.indexOf('Picked up JAVA_TOOL_OPTIONS:'))
 				.join('\n');
 
+			content = hideStdPositions(content);
+			expected = hideStdPositions(expected);
+
 			if (content != expected) {
 				final a = new diff.FileData(Bytes.ofString(expected), "expected", Date.now());
 				final b = new diff.FileData(Bytes.ofString(content), "actual", Date.now());
@@ -168,6 +171,15 @@ class Main {
 		}
 
 		return true;
+	}
+
+	static function hideStdPositions(content:String):String {
+		var std = Path.removeTrailingSlashes(getStd());
+		var regex = new EReg(std + '([a-z/]+\\.hx):[0-9]+:( characters? [0-9]+(-[0-9]+)( :)?)', 'i');
+
+		return content.split("\n")
+			.map(line -> regex.replace(line, "$1:???:"))
+			.join("\n");
 	}
 
 	static macro function getStd() {
