@@ -183,8 +183,18 @@ and monomorphs = {
 	mutable perfunction : (tmono * pos) list;
 }
 
+let pass_name = function
+	| PBuildModule -> "build-module"
+	| PBuildClass -> "build-class"
+	| PConnectField -> "connect-field"
+	| PTypeField -> "type-field"
+	| PCheckConstraint -> "check-constraint"
+	| PForce -> "force"
+	| PFinal -> "final"
+
 module TyperManager = struct
 	let create ctx m c f e pass params =
+		if pass < ctx.pass then die (Printf.sprintf "Bad context clone from %s(%s) to %s(%s)" (s_type_path ctx.m.curmod.m_path) (pass_name ctx.pass) (s_type_path m.curmod.m_path) (pass_name pass)) __LOC__;
 		let new_ctx = {
 			com = ctx.com;
 			g = ctx.g;
@@ -260,19 +270,19 @@ module TyperManager = struct
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
-		create ctx ctx.m c f e PBuildModule en.e_params
+		create ctx ctx.m c f e PBuildClass en.e_params
 
 	let clone_for_typedef ctx td =
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
-		create ctx ctx.m c f e PBuildModule td.t_params
+		create ctx ctx.m c f e PBuildClass td.t_params
 
 	let clone_for_abstract ctx a =
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
-		create ctx ctx.m c f e PBuildModule a.a_params
+		create ctx ctx.m c f e PBuildClass a.a_params
 
 	let clone_for_field ctx cf params =
 		let f = create_ctx_f cf in
@@ -287,6 +297,14 @@ module TyperManager = struct
 	let clone_for_expr ctx =
 		let e = create_ctx_e () in
 		create ctx ctx.m ctx.c ctx.f e PTypeField ctx.type_params
+
+	let clone_for_type_params ctx params =
+		create ctx ctx.m ctx.c ctx.f ctx.e ctx.pass params
+
+	let clone_for_type_parameter_expression ctx =
+		let f = create_ctx_f ctx.f.curfield in
+		let e = create_ctx_e () in
+		create ctx ctx.m ctx.c f e PTypeField ctx.type_params
 end
 
 type field_host =
@@ -350,15 +368,6 @@ let cast_or_unify_raise_ref : (typer -> ?uctx:unification_context option -> Type
 let type_generic_function_ref : (typer -> field_access -> (unit -> texpr) field_call_candidate -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 
 let create_context_ref : (Common.context -> ((unit -> unit) * typer) option -> typer) ref = ref (fun _ -> assert false)
-
-let pass_name = function
-	| PBuildModule -> "build-module"
-	| PBuildClass -> "build-class"
-	| PConnectField -> "connect-field"
-	| PTypeField -> "type-field"
-	| PCheckConstraint -> "check-constraint"
-	| PForce -> "force"
-	| PFinal -> "final"
 
 let warning ?(depth=0) ctx w msg p =
 	let options = (Warning.from_meta ctx.c.curclass.cl_meta) @ (Warning.from_meta ctx.f.curfield.cf_meta) in

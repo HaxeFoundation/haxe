@@ -279,7 +279,8 @@ let check_param_constraints ctx t map ttp p =
 			in
 			match follow t with
 			| TInst({cl_kind = KExpr e},_) ->
-				let e = type_expr {ctx with f = {ctx.f with locals = PMap.empty}} e (WithType.with_type ti) in
+				let ctx = TyperManager.clone_for_type_parameter_expression ctx in
+				let e = type_expr ctx e (WithType.with_type ti) in
 				begin try unify_raise e.etype ti p
 				with Error { err_message = Unify _ } -> fail() end
 			| _ ->
@@ -739,7 +740,7 @@ and type_type_params ctx host path p tpl =
 		tp,type_type_param ctx host path p tp
 	) tpl in
 	let params = List.map snd param_pairs in
-	let ctx = { ctx with type_params = params @ ctx.type_params } in
+	let ctx = TyperManager.clone_for_type_params ctx (params @ ctx.type_params) in
 	List.iter (fun (tp,ttp) ->
 		begin match tp.tp_default with
 			| None ->
