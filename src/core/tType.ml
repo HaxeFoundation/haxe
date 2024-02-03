@@ -58,7 +58,7 @@ type type_param_host =
 
 type cache_bound_object =
 	| Resource of string * string
-	| IncludeFile of string
+	| IncludeFile of string * string
 	| Warning of WarningList.warning * string * pos
 
 type t =

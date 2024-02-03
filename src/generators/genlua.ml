@@ -2028,7 +2028,9 @@ let generate com =
 
     let include_files = List.rev com.include_files in
     List.iter (fun file ->
-        print_file file
+        match file with
+        | path, "top" -> print_file path
+        | _ -> ()
     ) include_files;
 
     let var_exports = (

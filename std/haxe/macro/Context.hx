@@ -828,6 +828,7 @@ class Context {
 		return load("with_imports", 3)(imports, usings, code);
 	}
 
+
 	/**
 		Executes `code` in a context that has some compiler options set, restore the compiler to its
 		default behavior afterwards.
@@ -841,7 +842,7 @@ class Context {
 		cause compilation server issues. Use `Context.onAfterInitMacros` to
 		run your code once typer is ready to be used.
 	**/
-	public static function withOptions<X>(options:{?allowInlining:Bool, ?allowTransform:Bool}, code:() -> X):X {
+	public static function withOptions<X>(options:{?allowInlining:Bool,?allowTransform:Bool}, code : () -> X) : X {
 		assertInitMacrosDone();
 		return load("with_options", 2)(options, code);
 	}
@@ -870,8 +871,8 @@ class Context {
 		#end
 	}
 
-	private static function includeFile(file:String) {
-		load("include_file", 1)(file);
+	private static function includeFile(file:String, position:String) {
+		load("include_file", 2)(file, position);
 	}
 
 	private static function sExpr(e:TypedExpr, pretty:Bool):String {
@@ -883,7 +884,10 @@ class Context {
 		if (initMacrosDone()) {
 			var stack = getMacroStack();
 
-			warning("This API should only be used from initialization macros.", if (stack.length > 2) stack[2] else currentPos());
+			warning(
+				"This API should only be used from initialization macros.",
+				if (stack.length > 2) stack[2] else currentPos()
+			);
 		}
 	}
 
@@ -891,9 +895,14 @@ class Context {
 	private static function assertInitMacrosDone(includeSuggestion = true):Void {
 		if (!initMacrosDone()) {
 			var stack = getMacroStack();
-			var suggestion = includeSuggestion ? "\nUse `Context.onAfterInitMacros` to register a callback to run when context is ready." : "";
+			var suggestion = includeSuggestion
+				? "\nUse `Context.onAfterInitMacros` to register a callback to run when context is ready."
+				: "";
 
-			fatalError("Cannot use this API from initialization macros." + suggestion, if (stack.length > 2) stack[2] else currentPos());
+			fatalError(
+				"Cannot use this API from initialization macros." + suggestion,
+				if (stack.length > 2) stack[2] else currentPos()
+			);
 		}
 	}
 	#end

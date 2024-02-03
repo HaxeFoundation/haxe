@@ -1784,8 +1784,12 @@ let generate com =
 	let include_files = List.rev com.include_files in
 
 	List.iter (fun file ->
-		let file_content = Std.input_file ~bin:true file in
-		print ctx "%s\n;" file_content;
+		match file with
+		| path, "top" ->
+			let file_content = Std.input_file ~bin:true (fst file) in
+			print ctx "%s\n;" file_content;
+			()
+		| _ -> ()
 	) include_files;
 
 	let defined_global_value = Common.defined_value_safe com Define.JsGlobal in
@@ -1846,6 +1850,15 @@ let generate com =
 	)
 	in
 	List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
+
+	List.iter (fun file ->
+		match file with
+		| path, "closure" ->
+			let file_content = Std.input_file ~bin:true (fst file) in
+			print ctx "%s\n;" file_content;
+			()
+		| _ -> ()
+	) include_files;
 
 	(* If ctx.js_modern, console is defined in closureArgs. *)
 	if (not ctx.js_modern) && (ctx.es_version < 5) then

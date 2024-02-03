@@ -467,8 +467,8 @@ let handle_cache_bound_objects com cbol =
 	DynArray.iter (function
 		| Resource(name,data) ->
 			Hashtbl.replace com.resources name data
-		| IncludeFile(file) ->
-			com.include_files <- (file) :: com.include_files
+		| IncludeFile(file,position) ->
+			com.include_files <- (file,position) :: com.include_files
 		| Warning(w,msg,p) ->
 			com.warning w [] msg p
 	) cbol

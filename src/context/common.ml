@@ -409,7 +409,7 @@ type context = {
 	(* target-specific *)
 	mutable flash_version : float;
 	mutable neko_lib_paths : string list;
-	mutable include_files : string list;
+	mutable include_files : (string * string) list;
 	mutable native_libs : native_libraries;
 	mutable hxb_libs : abstract_hxb_lib list;
 	mutable net_std : string list;

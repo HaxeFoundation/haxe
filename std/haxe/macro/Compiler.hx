@@ -451,9 +451,25 @@ class Compiler {
 	/**
 		Embed a JavaScript or Lua file at compile time (can be called by `--macro` or within an `__init__` method).
 	**/
-	public static #if !macro macro #end function includeFile(file:String) {
-		@:privateAccess Context.includeFile(file);
-		return macro {};
+	public static #if !macro macro #end function includeFile(file:String, position:IncludePosition = Top) {
+		return switch ((position : String).toLowerCase()) {
+			case Inline:
+				if (Context.getLocalModule() == "")
+					Context.error("Cannot use inline mode when includeFile is called by `--macro`", Context.currentPos());
+
+				var f = try sys.io.File.getContent(Context.resolvePath(file)) catch (e:Dynamic) Context.error(Std.string(e), Context.currentPos());
+				var p = Context.currentPos();
+				if (Context.defined("js")) {
+					macro @:pos(p) js.Syntax.plainCode($v{f});
+				} else {
+					macro @:pos(p) untyped __lua__($v{f});
+				}
+			case Top | Closure:
+				@:privateAccess Context.includeFile(file, position);
+				macro {};
+			case _:
+				Context.error("unknown includeFile position: " + position, Context.currentPos());
+		}
 	}
 	#end
 
@@ -490,6 +506,25 @@ class Compiler {
 		load("set_hxb_writer_config", 1)(config);
 		#end
 	}
+}
+
+enum abstract IncludePosition(String) from String to String {
+	/**
+		Prepend the file content to the output file.
+	**/
+	var Top = "top";
+
+	/**
+		Prepend the file content to the body of the top-level closure.
+
+		Since the closure is in strict-mode, there may be run-time error if the input is not strict-mode-compatible.
+	**/
+	var Closure = "closure";
+
+	/**
+		Directly inject the file content at the call site.
+	**/
+	var Inline = "inline";
 }
 
 enum abstract NullSafetyMode(String) to String {
