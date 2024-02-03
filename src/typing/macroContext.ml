@@ -51,28 +51,6 @@ let safe_decode com v expected t p f =
 		close_out ch;
 		raise_typing_error (Printf.sprintf "Expected %s but got %s (see %s.txt for details)" expected (Interp.value_string v) (String.concat "/" path)) p
 
-let get_type_patch ctx t sub =
-	let new_patch() =
-		{ tp_type = None; tp_remove = false; tp_meta = [] }
-	in
-	let path = Ast.parse_path t in
-	let h, tp = (try
-		Hashtbl.find ctx.g.type_patches path
-	with Not_found ->
-		let h = Hashtbl.create 0 in
-		let tp = new_patch() in
-		Hashtbl.add ctx.g.type_patches path (h,tp);
-		h, tp
-	) in
-	match sub with
-	| None -> tp
-	| Some k ->
-		try
-			Hashtbl.find h k
-		with Not_found ->
-			let tp = new_patch() in
-			Hashtbl.add h k tp;
-			tp
 
 let macro_timer com l =
 	Timer.timer (if Common.defined com Define.MacroTimes then ("macro" :: l) else ["macro"])
@@ -221,12 +199,6 @@ let make_macro_com_api com mcom p =
 			snd (Typecore.store_typed_expr com te p)
 		);
 		allow_package = (fun v -> Common.allow_package com v);
-		type_patch = (fun t f s v ->
-			Interp.exc_string "unsupported"
-		);
-		meta_patch = (fun m t f s p ->
-			Interp.exc_string "unsupported"
-		);
 		set_js_generator = (fun gen ->
 			com.js_gen <- Some (fun() ->
 				Path.mkdir_from_path com.file;
@@ -432,24 +404,6 @@ let make_macro_api ctx mctx p =
 		);
 		MacroApi.flush_context = (fun f ->
 			typing_timer ctx true (fun _ -> f ())
-		);
-		MacroApi.type_patch = (fun t f s v ->
-			typing_timer ctx false (fun ctx ->
-				let v = (match v with None -> None | Some s ->
-					match ParserEntry.parse_string Grammar.parse_complex_type ctx.com.defines s null_pos raise_typing_error false with
-					| ParseSuccess((ct,_),_,_) -> Some ct
-					| ParseError(_,(msg,p),_) -> Parser.error msg p (* p is null_pos, but we don't have anything else here... *)
-				) in
-				let tp = get_type_patch ctx t (Some (f,s)) in
-				match v with
-				| None -> tp.tp_remove <- true
-				| Some t -> tp.tp_type <- Some t
-			);
-		);
-		MacroApi.meta_patch = (fun m t f s p ->
-			let ml = parse_metadata m p in
-			let tp = get_type_patch ctx t (match f with None -> None | Some f -> Some (f,s)) in
-			tp.tp_meta <- tp.tp_meta @ (List.map (fun (m,el,_) -> (m,el,p)) ml);
 		);
 		MacroApi.get_local_type = (fun() ->
 			match ctx.c.get_build_infos() with
