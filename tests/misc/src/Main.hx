@@ -174,8 +174,7 @@ class Main {
 	}
 
 	static function hideStdPositions(content:String):String {
-		var std = Path.removeTrailingSlashes(getStd());
-		var regex = new EReg(std + '([a-z/]+\\.hx):[0-9]+:( characters? [0-9]+(-[0-9]+)( :)?)', 'i');
+		var regex = new EReg(getStd() + '([a-z/]+\\.hx):[0-9]+:( characters? [0-9]+(-[0-9]+)( :)?)', 'i');
 
 		return content.split("\n")
 			.map(line -> regex.replace(line, "$1:???:"))
