@@ -377,6 +377,7 @@ class Compiler {
 		#end
 	}
 
+	@:deprecated
 	public static function addMetadata(meta:String, className:String, ?field:String, ?isStatic:Bool) {
 		var pathFilter = field == null ? className : '$className.$field';
 		addGlobalMetadata(pathFilter, meta, false, field == null, field != null);
