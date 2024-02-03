@@ -87,7 +87,7 @@ class Compiler {
 		Removes a (static) field from a given class by name.
 		An error is thrown when `className` or `field` is invalid.
 	**/
-	public static function removeField(className:String, field:String, ?isStatic:Bool) {
+	@:deprecated("Will be removed in Haxe 5.0") public static function removeField(className:String, field:String, ?isStatic:Bool) {
 		if (!path.match(className))
 			throw "Invalid " + className;
 		if (!ident.match(field))
@@ -107,7 +107,7 @@ class Compiler {
 		Set the type of a (static) field at a given class by name.
 		An error is thrown when `className` or `field` is invalid.
 	**/
-	public static function setFieldType(className:String, field:String, type:String, ?isStatic:Bool) {
+	@:deprecated("Will be removed in Haxe 5.0") public static function setFieldType(className:String, field:String, type:String, ?isStatic:Bool) {
 		if (!path.match(className))
 			throw "Invalid " + className;
 		if (!ident.match((field.charAt(0) == "$") ? field.substr(1) : field))
@@ -127,7 +127,7 @@ class Compiler {
 		Add metadata to a (static) field or class by name.
 		An error is thrown when `className` or `field` is invalid.
 	**/
-	public static function addMetadata(meta:String, className:String, ?field:String, ?isStatic:Bool) {
+	@:deprecated("Will be removed in Haxe 5.0") public static function addMetadata(meta:String, className:String, ?field:String, ?isStatic:Bool) {
 		if (!path.match(className))
 			throw "Invalid " + className;
 		if (field != null && !ident.match(field))
@@ -373,7 +373,7 @@ class Compiler {
 	/**
 		Load a type patch file that can modify the field types within declared classes and enums.
 	**/
-	public static function patchTypes(file:String):Void {
+	@:deprecated("Will be removed in Haxe 5.0") public static function patchTypes(file:String):Void {
 		var file = Context.resolvePath(file);
 		var f = sys.io.File.read(file, true);
 		try {
