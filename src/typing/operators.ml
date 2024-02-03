@@ -94,7 +94,7 @@ let check_assign ctx e =
 		raise_typing_error "Cannot assign to final" e.epos
 	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
-	| TConst TThis | TTypeExpr _ when ctx.untyped ->
+	| TConst TThis | TTypeExpr _ when ctx.f.untyped ->
 		()
 	| _ ->
 		if not (Common.ignore_error ctx.com) then

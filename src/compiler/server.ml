@@ -923,8 +923,19 @@ and init_wait_socket ip port =
 				end
 		in
 		let read = fun _ -> (let s = read_loop 0 in Unix.clear_nonblock sin; Some s) in
-		let write s = ssend sin (Bytes.unsafe_of_string s) in
-		let close() = Unix.close sin in
+		let closed = ref false in
+		let close() =
+			if not !closed then begin
+				try Unix.close sin with Unix.Unix_error _ -> trace "Error while closing socket.";
+				closed := true;
+			end
+		in
+		let write s =
+			if not !closed then
+				match Unix.getsockopt_error sin with
+				| Some _ -> close()
+				| None -> ssend sin (Bytes.unsafe_of_string s);
+		in
 		false, read, write, close
 	) in
 	accept

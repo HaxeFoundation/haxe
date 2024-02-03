@@ -449,6 +449,9 @@ and build_state =
 	| Building of tclass list
 	| BuildMacro of (unit -> unit) list ref
 
+
+exception Type_exception of t
+
 type basic_types = {
 	mutable tvoid : t;
 	mutable tint : t;

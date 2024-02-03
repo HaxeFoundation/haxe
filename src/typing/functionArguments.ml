@@ -131,9 +131,9 @@ object(self)
 		in
 		loop (abstract_this <> None) syntax with_default
 
-	(* Brings arguments into context by adding them to `ctx.locals`. *)
-	method bring_into_context =
+	(* Brings arguments into context by adding them to `ctx.f.locals`. *)
+	method bring_into_context ctx =
 		List.iter (fun (v,_) ->
-			ctx.locals <- PMap.add v.v_name v ctx.locals
+			ctx.f.locals <- PMap.add v.v_name v ctx.f.locals
 		) self#for_expr
 end

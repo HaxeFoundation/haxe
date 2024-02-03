@@ -2007,7 +2007,7 @@ let generate_inits ctx =
 			j()
 		| _ -> ()
 	) ctx.com.types;
-	(match ctx.com.main with
+	(match ctx.com.main.main_expr with
 	| None -> ()
 	| Some e -> gen_expr ctx false e);
 	write ctx HRetVoid;
@@ -2888,7 +2888,7 @@ let generate com boot_name =
 		try_scope_reg = None;
 		for_call = false;
 	} in
-	let types = if ctx.swc && com.main_class = None then
+	let types = if ctx.swc && com.main.main_class = None then
 		(*
 			make sure that both Boot and RealBoot are the first two classes in the SWC
 			this way initializing RealBoot will also run externs __init__ blocks before
