@@ -45,63 +45,6 @@ let unop_index op flag = match op,flag with
 	| NegBits,Postfix -> 10
 	| Spread,Postfix -> 11
 
-type hxb_writer_stats = {
-	type_instance_kind_writes : int array;
-	texpr_writes : int array;
-	type_instance_immediate : int ref;
-	type_instance_cache_hits : int ref;
-	type_instance_cache_misses : int ref;
-	pos_writes_full : int ref;
-	pos_writes_min : int ref;
-	pos_writes_max : int ref;
-	pos_writes_minmax : int ref;
-	pos_writes_eq : int ref;
-	chunk_sizes : (string,int ref * int ref) Hashtbl.t;
-}
-
-let create_hxb_writer_stats () = {
-	type_instance_kind_writes = Array.make 255 0;
-	texpr_writes = Array.make 255 0;
-	type_instance_immediate = ref 0;
-	type_instance_cache_hits = ref 0;
-	type_instance_cache_misses = ref 0;
-	pos_writes_full = ref 0;
-	pos_writes_min = ref 0;
-	pos_writes_max = ref 0;
-	pos_writes_minmax = ref 0;
-	pos_writes_eq = ref 0;
-	chunk_sizes = Hashtbl.create 0;
-}
-
-let dump_stats name stats =
-	let sort_and_filter_array a =
-		let _,kind_writes = Array.fold_left (fun (index,acc) writes ->
-			(index + 1,if writes = 0 then acc else (index,writes) :: acc)
-		) (0,[]) a in
-		let kind_writes = List.sort (fun (_,writes1) (_,writes2) -> compare writes2 writes1) kind_writes in
-		List.map (fun (index,writes) -> Printf.sprintf "    %3i: %9i" index writes) kind_writes
-	in
-	let t_kind_writes = sort_and_filter_array stats.type_instance_kind_writes in
-	print_endline (Printf.sprintf "hxb_writer stats for %s" name);
-	print_endline "  type instance kind writes:";
-	List.iter print_endline t_kind_writes;
-	let texpr_writes = sort_and_filter_array stats.texpr_writes in
-	print_endline "  texpr writes:";
-	List.iter print_endline texpr_writes;
-
-	print_endline "  type instance writes:";
-	print_endline (Printf.sprintf "     immediate: %9i" !(stats.type_instance_immediate));
-	print_endline (Printf.sprintf "    cache hits: %9i" !(stats.type_instance_cache_hits));
-	print_endline (Printf.sprintf "    cache miss: %9i" !(stats.type_instance_cache_misses));
-	print_endline "  pos writes:";
-	print_endline (Printf.sprintf "      full: %9i\n       min: %9i\n       max: %9i\n    minmax: %9i\n     equal: %9i" !(stats.pos_writes_full) !(stats.pos_writes_min) !(stats.pos_writes_max) !(stats.pos_writes_minmax) !(stats.pos_writes_eq));
-	(* let chunk_sizes = Hashtbl.fold (fun name (imin,imax) acc -> (name,!imin,!imax) :: acc) stats.chunk_sizes [] in
-	let chunk_sizes = List.sort (fun (_,imin1,imax1) (_,imin2,imax2) -> compare imax1 imax2) chunk_sizes in
-	print_endline "chunk sizes:";
-	List.iter (fun (name,imin,imax) ->
-		print_endline (Printf.sprintf "    %s: %i - %i" name imin imax)
-	) chunk_sizes *)
-
 module StringHashtbl = Hashtbl.Make(struct
 	type t = string
 
@@ -400,17 +343,10 @@ module Chunk = struct
 	let write_bool io b =
 		write_u8 io (if b then 1 else 0)
 
-	let export : 'a . hxb_writer_stats -> t -> 'a IO.output -> unit = fun stats io chex ->
+	let export : 'a . t -> 'a IO.output -> unit = fun io chex ->
 		let bytes = get_bytes io in
 		let length = Bytes.length bytes in
 		write_chunk_prefix io.kind length chex;
-		(* begin try
-			let (imin,imax) = Hashtbl.find stats.chunk_sizes io.name in
-			if length < !imin then imin := length;
-			if length > !imax then imax := length
-		with Not_found ->
-			Hashtbl.add stats.chunk_sizes io.name (ref length,ref length);
-		end; *)
 		IO.nwrite chex bytes
 
 	let write_string chunk s =
@@ -438,22 +374,19 @@ end
 
 module PosWriter = struct
 	type t = {
-		stats : hxb_writer_stats;
 		mutable p_file : string;
 		mutable p_min : int;
 		mutable p_max : int;
 	}
 
 	let do_write_pos (chunk : Chunk.t) (p : pos) =
-		(* incr stats.pos_writes_full; *)
 		Chunk.write_string chunk p.pfile;
 		Chunk.write_leb128 chunk p.pmin;
 		Chunk.write_leb128 chunk p.pmax
 
-	let create stats chunk p =
+	let create chunk p =
 		do_write_pos chunk p;
 	{
-		stats;
 		p_file = p.pfile;
 		p_min = p.pmin;
 		p_max = p.pmax;
@@ -470,7 +403,6 @@ module PosWriter = struct
 		end else if p.pmin <> pw.p_min then begin
 			if p.pmax <> pw.p_max then begin
 				(* pmin and pmax changed *)
-				(* incr stats.pos_writes_minmax; *)
 				Chunk.write_u8 chunk (3 + offset);
 				Chunk.write_leb128 chunk p.pmin;
 				Chunk.write_leb128 chunk p.pmax;
@@ -478,19 +410,16 @@ module PosWriter = struct
 				pw.p_max <- p.pmax;
 			end else begin
 				(* pmin changed *)
-				(* incr stats.pos_writes_min; *)
 				Chunk.write_u8 chunk (1 + offset);
 				Chunk.write_leb128 chunk p.pmin;
 				pw.p_min <- p.pmin;
 			end
 		end else if p.pmax <> pw.p_max then begin
 			(* pmax changed *)
-			(* incr stats.pos_writes_max; *)
 			Chunk.write_u8 chunk (2 + offset);
 			Chunk.write_leb128 chunk p.pmax;
 			pw.p_max <- p.pmax;
 		end else begin
-			(* incr stats.pos_writes_eq; *)
 			if write_equal then
 				Chunk.write_u8 chunk offset;
 		end
@@ -514,7 +443,6 @@ type hxb_writer = {
 	config : HxbWriterConfig.writer_target_config;
 	warn : Warning.warning -> string -> Globals.pos -> unit;
 	anon_id : Type.t Tanon_identification.tanon_identification;
-	stats : hxb_writer_stats;
 	mutable current_module : module_def;
 	chunks : Chunk.t DynArray.t;
 	cp : StringPool.t;
@@ -1794,7 +1722,7 @@ module HxbWriter = struct
 
 	and start_texpr writer (p: pos) =
 		let restore = start_temporary_chunk writer 512 in
-		let fctx = create_field_writer_context (PosWriter.create writer.stats writer.chunk p) in
+		let fctx = create_field_writer_context (PosWriter.create writer.chunk p) in
 		fctx,(fun () ->
 			restore(fun new_chunk ->
 				let restore = start_temporary_chunk writer 512 in
@@ -2287,13 +2215,12 @@ module HxbWriter = struct
 		l
 end
 
-let create config warn anon_id stats =
+let create config warn anon_id =
 	let cp = StringPool.create () in
 	{
 		config;
 		warn;
 		anon_id;
-		stats;
 		current_module = null_module;
 		chunks = DynArray.create ();
 		cp = cp;
@@ -2333,5 +2260,5 @@ let export : 'a . hxb_writer -> 'a IO.output -> unit = fun writer ch ->
 	write_header ch;
 	let l = HxbWriter.get_sorted_chunks writer in
 	List.iter (fun io ->
-		Chunk.export writer.stats io ch
+		Chunk.export io ch
 	) l
