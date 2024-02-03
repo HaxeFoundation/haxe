@@ -450,13 +450,7 @@ module TypeLevel = struct
 		if ctx_m.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx_m (TEnumDecl e) (pos d.d_name);
 		let ctx_en = TyperManager.clone_for_enum ctx_m e in
-		let h = (try Some (Hashtbl.find ctx_en.g.type_patches e.e_path) with Not_found -> None) in
 		TypeloadCheck.check_global_metadata ctx_en e.e_meta (fun m -> e.e_meta <- m :: e.e_meta) e.e_module.m_path e.e_path None;
-		(match h with
-		| None -> ()
-		| Some (h,hcl) ->
-			Hashtbl.iter (fun _ _ -> raise_typing_error "Field type patch not supported for enums" e.e_pos) h;
-			e.e_meta <- e.e_meta @ hcl.tp_meta);
 		let constructs = ref d.d_data in
 		let get_constructs() =
 			List.map (fun c ->
