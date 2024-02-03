@@ -73,6 +73,13 @@ type typer_module = {
 	mutable enum_with_type : module_type option;
 	mutable module_using : (tclass * pos) list;
 	mutable import_statements : import list;
+	mutable is_display_file : bool;
+}
+
+type typer_class = {
+	mutable curclass : tclass; (* TODO: should not be mutable *)
+	mutable tthis : t;
+	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
 }
 
 type build_kind =
@@ -118,6 +125,7 @@ type typer_globals = {
 	mutable return_partial_type : bool;
 	mutable build_count : int;
 	mutable t_dynamic_def : Type.t;
+	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	(* api *)
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
@@ -128,43 +136,45 @@ type typer_globals = {
 	do_load_core_class : typer -> tclass -> tclass;
 }
 
+(* typer_expr holds information that is specific to a (function) expresssion, whereas typer_field
+   is shared by local TFunctions. *)
+and typer_expr = {
+	mutable ret : t;
+	mutable curfun : current_fun;
+	mutable opened : anon_status ref list;
+	mutable monomorphs : monomorphs;
+	mutable in_function : bool;
+	mutable in_loop : bool;
+	mutable bypass_accessor : int;
+	mutable with_type_stack : WithType.t list;
+	mutable call_argument_stack : expr list list;
+	mutable macro_depth : int;
+}
+
+and typer_field = {
+	mutable curfield : tclass_field;
+	mutable locals : (string, tvar) PMap.t;
+	mutable vthis : tvar option;
+	mutable untyped : bool;
+	mutable meta : metadata;
+	mutable in_display : bool;
+	mutable in_call_args : bool;
+	mutable in_overload_call_args : bool;
+}
+
 and typer = {
 	(* shared *)
 	com : context;
 	t : basic_types;
 	g : typer_globals;
-	mutable bypass_accessor : int;
-	mutable meta : metadata;
-	mutable with_type_stack : WithType.t list;
-	mutable call_argument_stack : expr list list;
-	(* variable *)
-	mutable pass : typer_pass;
-	(* per-module *)
 	mutable m : typer_module;
-	mutable is_display_file : bool;
-	(* per-class *)
-	mutable curclass : tclass;
-	mutable tthis : t;
+	c : typer_class;
+	f : typer_field;
+	mutable e : typer_expr;
+	mutable pass : typer_pass;
 	mutable type_params : type_params;
-	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
-	(* per-function *)
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;
-	mutable curfield : tclass_field;
-	mutable untyped : bool;
-	mutable in_function : bool;
-	mutable in_loop : bool;
-	mutable in_display : bool;
-	mutable macro_depth : int;
-	mutable curfun : current_fun;
-	mutable ret : t;
-	mutable locals : (string, tvar) PMap.t;
-	mutable opened : anon_status ref list;
-	mutable vthis : tvar option;
-	mutable in_call_args : bool;
-	mutable in_overload_call_args : bool;
-	mutable delayed_display : DisplayTypes.display_exception_kind option;
-	mutable monomorphs : monomorphs;
 	(* events *)
 	memory_marker : float array;
 }
@@ -172,6 +182,106 @@ and typer = {
 and monomorphs = {
 	mutable perfunction : (tmono * pos) list;
 }
+
+module TyperManager = struct
+	let create com g m c f e pass params = {
+		com = com;
+		g = g;
+		t = com.basic;
+		m = m;
+		c = c;
+		f = f;
+		e = e;
+		pass = pass;
+		allow_inline = true;
+		allow_transform = true;
+		type_params = params;
+		memory_marker = memory_marker;
+	}
+
+	let create_ctx_c c =
+		{
+			curclass = c;
+			tthis = (match c.cl_kind with
+				| KAbstractImpl a ->
+					(match a.a_this with
+					| TMono r when r.tm_type = None -> TAbstract (a,extract_param_types c.cl_params)
+					| t -> t)
+				| _ ->
+					TInst (c,extract_param_types c.cl_params)
+			);
+			get_build_infos = (fun () -> None);
+		}
+
+	let create_ctx_f cf =
+		{
+			locals = PMap.empty;
+			curfield = cf;
+			vthis = None;
+			untyped = false;
+			meta = [];
+			in_display = false;
+			in_overload_call_args = false;
+			in_call_args = false;
+		}
+
+	let create_ctx_e () =
+		{
+			ret = t_dynamic;
+			curfun = FunStatic;
+			opened = [];
+			in_function = false;
+			monomorphs = {
+				perfunction = [];
+			};
+			in_loop = false;
+			bypass_accessor = 0;
+			with_type_stack = [];
+			call_argument_stack = [];
+			macro_depth = 0;
+		}
+
+	let create_for_module com g m =
+		let c = create_ctx_c null_class in
+		let f = create_ctx_f null_field in
+		let e = create_ctx_e () in
+		create com g m c f e PBuildModule []
+
+	let clone_for_class ctx c =
+		let c = create_ctx_c c in
+		let f = create_ctx_f null_field in
+		let e = create_ctx_e () in
+		let params = match c.curclass.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.curclass.cl_params in
+		create ctx.com ctx.g ctx.m c f e PBuildClass params
+
+	let clone_for_enum ctx en =
+		let c = create_ctx_c null_class in
+		let f = create_ctx_f null_field in
+		let e = create_ctx_e () in
+		create ctx.com ctx.g ctx.m c f e PBuildModule en.e_params
+
+	let clone_for_typedef ctx td =
+		let c = create_ctx_c null_class in
+		let f = create_ctx_f null_field in
+		let e = create_ctx_e () in
+		create ctx.com ctx.g ctx.m c f e PBuildModule td.t_params
+
+	let clone_for_abstract ctx a =
+		let c = create_ctx_c null_class in
+		let f = create_ctx_f null_field in
+		let e = create_ctx_e () in
+		create ctx.com ctx.g ctx.m c f e PBuildModule a.a_params
+
+	let clone_for_field ctx cf params =
+		let f = create_ctx_f cf in
+		let e = create_ctx_e () in
+		create ctx.com ctx.g ctx.m ctx.c f e PBuildClass params
+
+	let clone_for_enum_field ctx params =
+		let f = create_ctx_f null_field in
+		let e = create_ctx_e () in
+		create ctx.com ctx.g ctx.m ctx.c f e PBuildClass params
+end
 
 type field_host =
 	| FHStatic of tclass
@@ -252,7 +362,7 @@ let pass_name = function
 	| PFinal -> "final"
 
 let warning ?(depth=0) ctx w msg p =
-	let options = (Warning.from_meta ctx.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
+	let options = (Warning.from_meta ctx.c.curclass.cl_meta) @ (Warning.from_meta ctx.f.curfield.cf_meta) in
 	match Warning.get_mode w options with
 	| WMEnable ->
 		module_warning ctx.com ctx.m.curmod w options msg p
@@ -279,7 +389,7 @@ let make_static_field_access c cf t p =
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
 let make_static_call ctx c cf map args t p =
-	let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
+	let monos = List.map (fun _ -> spawn_monomorph ctx.e p) cf.cf_params in
 	let map t = map (apply_params cf.cf_params monos t) in
 	let ef = make_static_field_access c cf (map cf.cf_type) p in
 	make_call ctx ef args (map t) p
@@ -288,17 +398,17 @@ let raise_with_type_error ?(depth = 0) msg p =
 	raise (WithTypeError (make_error ~depth (Custom msg) p))
 
 let raise_or_display ctx l p =
-	if ctx.untyped then ()
-	else if ctx.in_call_args then raise (WithTypeError (make_error (Unify l) p))
+	if ctx.f.untyped then ()
+	else if ctx.f.in_call_args then raise (WithTypeError (make_error (Unify l) p))
 	else display_error_ext ctx.com (make_error (Unify l) p)
 
 let raise_or_display_error ctx err =
-	if ctx.untyped then ()
-	else if ctx.in_call_args then raise (WithTypeError err)
+	if ctx.f.untyped then ()
+	else if ctx.f.in_call_args then raise (WithTypeError err)
 	else display_error_ext ctx.com err
 
 let raise_or_display_message ctx msg p =
-	if ctx.in_call_args then raise_with_type_error msg p
+	if ctx.f.in_call_args then raise_with_type_error msg p
 	else display_error ctx.com msg p
 
 let unify ctx t1 t2 p =
@@ -319,8 +429,8 @@ let unify_raise_custom uctx t1 t2 p =
 let unify_raise = unify_raise_custom default_unification_context
 
 let save_locals ctx =
-	let locals = ctx.locals in
-	(fun() -> ctx.locals <- locals)
+	let locals = ctx.f.locals in
+	(fun() -> ctx.f.locals <- locals)
 
 let add_local ctx k n t p =
 	let v = alloc_var k n t p in
@@ -328,7 +438,7 @@ let add_local ctx k n t p =
 		match k with
 		| VUser _ ->
 			begin try
-				let v' = PMap.find n ctx.locals in
+				let v' = PMap.find n ctx.f.locals in
 				(* ignore std lib *)
 				if not (List.exists (fun path -> ExtLib.String.starts_with p.pfile (path#path)) ctx.com.class_paths#get_std_paths) then begin
 					warning ctx WVarShadow "This variable shadows a previously declared variable" p;
@@ -340,7 +450,7 @@ let add_local ctx k n t p =
 		| _ ->
 			()
 	end;
-	ctx.locals <- PMap.add n v ctx.locals;
+	ctx.f.locals <- PMap.add n v ctx.f.locals;
 	v
 
 let display_identifier_error ctx ?prepend_msg msg p =
@@ -517,15 +627,13 @@ let clone_type_parameter map path ttp =
 		| None -> None
 		| Some constraints -> Some (lazy (List.map map (Lazy.force constraints)))
 	in
-	let ttp' = mk_type_param c ttp.ttp_host def constraints in
-	c.cl_kind <- KTypeParameter ttp';
-	ttp'
+	mk_type_param c ttp.ttp_host def constraints
 
 (** checks if we can access to a given class field using current context *)
 let can_access ctx c cf stat =
 	if (has_class_field_flag cf CfPublic) then
 		true
-	else if c == ctx.curclass then
+	else if c == ctx.c.curclass then
 		true
 	else match ctx.m.curmod.m_statics with
 		| Some c' when c == c' ->
@@ -578,24 +686,24 @@ let can_access ctx c cf stat =
 		in
 		loop c.cl_meta || loop f.cf_meta
 	in
-	let module_path = ctx.curclass.cl_module.m_path in
+	let module_path = ctx.c.curclass.cl_module.m_path in
 	let cur_paths = ref [fst module_path @ [snd module_path], false] in
 	let rec loop c is_current_path =
-		cur_paths := (make_path c ctx.curfield, is_current_path) :: !cur_paths;
+		cur_paths := (make_path c ctx.f.curfield, is_current_path) :: !cur_paths;
 		begin match c.cl_super with
 			| Some (csup,_) -> loop csup false
 			| None -> ()
 		end;
 		List.iter (fun (c,_) -> loop c false) c.cl_implements;
 	in
-	loop ctx.curclass true;
+	loop ctx.c.curclass true;
 	let is_constr = cf.cf_name = "new" in
 	let rec loop c =
 		try
-			has Meta.Access ctx.curclass ctx.curfield ((make_path c cf), true)
+			has Meta.Access ctx.c.curclass ctx.f.curfield ((make_path c cf), true)
 			|| (
 				(* if our common ancestor declare/override the field, then we can access it *)
-				let allowed f = extends ctx.curclass c || (List.exists (has Meta.Allow c f) !cur_paths) in
+				let allowed f = extends ctx.c.curclass c || (List.exists (has Meta.Allow c f) !cur_paths) in
 				if is_constr then (
 					match c.cl_constructor with
 					| Some cf ->
@@ -618,10 +726,10 @@ let can_access ctx c cf stat =
 		| KTypeParameter ttp ->
 			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) (get_constraints ttp)
 		| _ -> false)
-	|| (Meta.has Meta.PrivateAccess ctx.meta)
+	|| (Meta.has Meta.PrivateAccess ctx.f.meta)
 
 let check_field_access ctx c f stat p =
-	if not ctx.untyped && not (can_access ctx c f stat) then
+	if not ctx.f.untyped && not (can_access ctx c f stat) then
 		display_error ctx.com ("Cannot access private field " ^ f.cf_name) p
 
 (** removes the first argument of the class field's function type and all its overloads *)
@@ -705,11 +813,11 @@ let mk_infos ctx p params =
 	(EObjectDecl (
 		(("fileName",null_pos,NoQuotes) , (EConst (String(file,SDoubleQuotes)) , p)) ::
 		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p), None)),p)) ::
-		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path,SDoubleQuotes)),p)) ::
-		if ctx.curfield.cf_name = "" then
+		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.c.curclass.cl_path,SDoubleQuotes)),p)) ::
+		if ctx.f.curfield.cf_name = "" then
 			params
 		else
-			(("methodName",null_pos,NoQuotes), (EConst (String (ctx.curfield.cf_name,SDoubleQuotes)),p)) :: params
+			(("methodName",null_pos,NoQuotes), (EConst (String (ctx.f.curfield.cf_name,SDoubleQuotes)),p)) :: params
 	) ,p)
 
 let rec is_pos_infos = function
@@ -756,8 +864,8 @@ let push_this ctx e = match e.eexpr with
 
 let create_deprecation_context ctx = {
 	(DeprecationCheck.create_context ctx.com) with
-	class_meta = ctx.curclass.cl_meta;
-	field_meta = ctx.curfield.cf_meta;
+	class_meta = ctx.c.curclass.cl_meta;
+	field_meta = ctx.f.curfield.cf_meta;
 	curmod = ctx.m.curmod;
 }
 
@@ -803,14 +911,14 @@ let debug com (path : string list) str =
 	end
 
 let init_class_done ctx =
-	let path = fst ctx.curclass.cl_path @ [snd ctx.curclass.cl_path] in
-	debug ctx.com path ("init_class_done " ^ s_type_path ctx.curclass.cl_path);
+	let path = fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path] in
+	debug ctx.com path ("init_class_done " ^ s_type_path ctx.c.curclass.cl_path);
 	init_class_done ctx
 
 let ctx_pos ctx =
 	let inf = fst ctx.m.curmod.m_path @ [snd ctx.m.curmod.m_path]in
-	let inf = (match snd ctx.curclass.cl_path with "" -> inf | n when n = snd ctx.m.curmod.m_path -> inf | n -> inf @ [n]) in
-	let inf = (match ctx.curfield.cf_name with "" -> inf | n -> inf @ [n]) in
+	let inf = (match snd ctx.c.curclass.cl_path with "" -> inf | n when n = snd ctx.m.curmod.m_path -> inf | n -> inf @ [n]) in
+	let inf = (match ctx.f.curfield.cf_name with "" -> inf | n -> inf @ [n]) in
 	inf
 
 let pass_infos ctx p =
