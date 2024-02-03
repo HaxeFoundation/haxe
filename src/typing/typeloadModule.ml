@@ -219,12 +219,6 @@ module ModuleLevel = struct
 					let acc = make_decl acc (EClass { d_name = (fst d.d_name) ^ "_Impl_",snd d.d_name; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = []; d_meta = !meta },p) in
 					(match !decls with
 					| (TClassDecl c,_) :: _ ->
-						List.iter (fun m -> match m with
-							| ((Meta.Using | Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce | Meta.Native | Meta.HlNative | Meta.JsRequire | Meta.PythonImport | Meta.Expose | Meta.Deprecated | Meta.PhpGlobal | Meta.PublicFields),_,_) ->
-								c.cl_meta <- m :: c.cl_meta;
-							| _ ->
-								()
-						) a.a_meta;
 						a.a_impl <- Some c;
 						c.cl_kind <- KAbstractImpl a;
 						add_class_flag c CFinal;
@@ -574,6 +568,14 @@ module TypeLevel = struct
 		if ctx_m.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx_m (TAbstractDecl a) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx_m a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
+		Option.may (fun c ->
+			List.iter (fun m -> match m with
+				| ((Meta.Using | Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce | Meta.Native | Meta.HlNative | Meta.JsRequire | Meta.PythonImport | Meta.Expose | Meta.Deprecated | Meta.PhpGlobal | Meta.PublicFields),_,_) ->
+					c.cl_meta <- m :: c.cl_meta;
+				| _ ->
+					()
+			) a.a_meta;
+		) a.a_impl;
 		let ctx_a = TyperManager.clone_for_abstract ctx_m a in
 		let is_type = ref false in
 		let load_type t from =
