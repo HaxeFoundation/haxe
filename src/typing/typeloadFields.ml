@@ -282,75 +282,6 @@ let transform_abstract_field com this_t a_t a f =
 	| _ ->
 		f
 
-let patch_class ctx c fields =
-	let path = match c.cl_kind with
-		| KAbstractImpl a -> a.a_path
-		| _ -> c.cl_path
-	in
-	let h = (try Some (Hashtbl.find ctx.g.type_patches path) with Not_found -> None) in
-	match h with
-	| None -> fields
-	| Some (h,hcl) ->
-		c.cl_meta <- c.cl_meta @ hcl.tp_meta;
-		let patch_getter t fn =
-			{ fn with f_type = t }
-		in
-		let patch_setter t fn =
-			match fn.f_args with
-			| [(name,opt,meta,_,expr)] ->
-				{ fn with f_args = [(name,opt,meta,t,expr)]; f_type = t }
-			| _ -> fn
-		in
-		let rec loop acc accessor_acc = function
-			| [] -> acc, accessor_acc
-			| f :: l ->
-				(* patch arguments types *)
-				(match f.cff_kind with
-				| FFun ff ->
-					let param (((n,pn),opt,m,_,e) as p) =
-						try
-							let t2 = (try Hashtbl.find h (("$" ^ (fst f.cff_name) ^ "__" ^ n),false) with Not_found -> Hashtbl.find h (("$" ^ n),false)) in
-							(n,pn), opt, m, (match t2.tp_type with None -> None | Some t -> Some (t,null_pos)), e
-						with Not_found ->
-							p
-					in
-					f.cff_kind <- FFun { ff with f_args = List.map param ff.f_args }
-				| _ -> ());
-				(* other patches *)
-				match (try Some (Hashtbl.find h (fst f.cff_name,List.mem_assoc AStatic f.cff_access)) with Not_found -> None) with
-				| None -> loop (f :: acc) accessor_acc l
-				| Some { tp_remove = true } -> loop acc accessor_acc l
-				| Some p ->
-					f.cff_meta <- f.cff_meta @ p.tp_meta;
-					let accessor_acc =
-						match p.tp_type with
-						| None -> accessor_acc
-						| Some t ->
-							match f.cff_kind with
-							| FVar (_,e) ->
-								f.cff_kind <- FVar (Some (t,null_pos),e); accessor_acc
-							| FProp (get,set,_,eo) ->
-								let typehint = Some (t,null_pos) in
-								let accessor_acc = if fst get = "get" then ("get_" ^ fst f.cff_name, patch_getter typehint) :: accessor_acc else accessor_acc in
-								let accessor_acc = if fst set = "set" then ("set_" ^ fst f.cff_name, patch_setter typehint) :: accessor_acc else accessor_acc in
-								f.cff_kind <- FProp (get,set,typehint,eo); accessor_acc
-							| FFun fn ->
-								f.cff_kind <- FFun { fn with f_type = Some (t,null_pos) }; accessor_acc
-					in
-					loop (f :: acc) accessor_acc l
-		in
-		let fields, accessor_patches = loop [] [] fields in
-		List.iter (fun (accessor_name, patch) ->
-			try
-				let f_accessor = List.find (fun f -> fst f.cff_name = accessor_name) fields in
-				match f_accessor.cff_kind with
-				| FFun fn -> f_accessor.cff_kind <- FFun (patch fn)
-				| _ -> ()
-			with Not_found ->
-				()
-		) accessor_patches;
-		List.rev fields
-
 let lazy_display_type ctx f =
 	f ()
 
@@ -1710,7 +1641,6 @@ let check_functional_interface ctx c =
 let init_class ctx_c cctx c p herits fields =
 	let com = ctx_c.com in
 	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
-	let fields = patch_class ctx_c c fields in
 	let fields = build_fields (ctx_c,cctx) c fields in
 	if cctx.is_core_api && com.display.dms_check_core_api then delay ctx_c PForce (fun() -> init_core_api ctx_c c);
 	if not cctx.is_lib then begin
