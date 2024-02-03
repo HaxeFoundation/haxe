@@ -1847,12 +1847,6 @@ let generate com =
 	in
 	List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
 
-	List.iter (fun file ->
-		let file_content = Std.input_file ~bin:true file in
-		print ctx "%s\n;" file_content;
-		()
-	) include_files;
-
 	(* If ctx.js_modern, console is defined in closureArgs. *)
 	if (not ctx.js_modern) && (ctx.es_version < 5) then
 		add_feature ctx "js.Lib.global"; (* console polyfill will check console from $global *)
