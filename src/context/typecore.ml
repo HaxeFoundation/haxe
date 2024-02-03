@@ -125,6 +125,7 @@ type typer_globals = {
 	mutable build_count : int;
 	mutable t_dynamic_def : Type.t;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
+	root_typer : typer;
 	(* api *)
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
@@ -183,20 +184,22 @@ and monomorphs = {
 }
 
 module TyperManager = struct
-	let create com g m c f e pass params = {
-		com = com;
-		g = g;
-		t = com.basic;
-		m = m;
-		c = c;
-		f = f;
-		e = e;
-		pass = pass;
-		allow_inline = true;
-		allow_transform = true;
-		type_params = params;
-		memory_marker = memory_marker;
-	}
+	let create ctx m c f e pass params =
+		let new_ctx = {
+			com = ctx.com;
+			g = ctx.g;
+			t = ctx.com.basic;
+			m = m;
+			c = c;
+			f = f;
+			e = e;
+			pass = pass;
+			allow_inline = true;
+			allow_transform = true;
+			type_params = params;
+			memory_marker = memory_marker;
+		} in
+		new_ctx
 
 	let create_ctx_c c =
 		{
@@ -240,50 +243,50 @@ module TyperManager = struct
 			macro_depth = 0;
 		}
 
-	let create_for_module com g m =
+	let clone_for_module ctx m =
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
-		create com g m c f e PBuildModule []
+		create ctx m c f e PBuildModule []
 
 	let clone_for_class ctx c =
 		let c = create_ctx_c c in
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
 		let params = match c.curclass.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.curclass.cl_params in
-		create ctx.com ctx.g ctx.m c f e PBuildClass params
+		create ctx ctx.m c f e PBuildClass params
 
 	let clone_for_enum ctx en =
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m c f e PBuildModule en.e_params
+		create ctx ctx.m c f e PBuildModule en.e_params
 
 	let clone_for_typedef ctx td =
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m c f e PBuildModule td.t_params
+		create ctx ctx.m c f e PBuildModule td.t_params
 
 	let clone_for_abstract ctx a =
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m c f e PBuildModule a.a_params
+		create ctx ctx.m c f e PBuildModule a.a_params
 
 	let clone_for_field ctx cf params =
 		let f = create_ctx_f cf in
 		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m ctx.c f e PBuildClass params
+		create ctx ctx.m ctx.c f e PBuildClass params
 
 	let clone_for_enum_field ctx params =
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m ctx.c f e PBuildClass params
+		create ctx ctx.m ctx.c f e PBuildClass params
 
 	let clone_for_expr ctx =
 		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m ctx.c ctx.f e PTypeField ctx.type_params
+		create ctx ctx.m ctx.c ctx.f e PTypeField ctx.type_params
 end
 
 type field_host =

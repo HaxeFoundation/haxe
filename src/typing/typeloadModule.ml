@@ -692,7 +692,7 @@ let make_curmod com g m =
 	Creates a module context for [m] and types [tdecls] using it.
 *)
 let type_types_into_module com g m tdecls p =
-	let ctx_m = TyperManager.create_for_module com g (make_curmod com g m) in
+	let ctx_m = TyperManager.clone_for_module g.root_typer (make_curmod com g m) in
 	let decls,tdecls = ModuleLevel.create_module_types ctx_m m tdecls p in
 	let types = List.map fst decls in
 	(* During the initial module_lut#add in type_module, m has no m_types yet by design.
@@ -716,11 +716,11 @@ let type_types_into_module com g m tdecls p =
 (*
 	Creates a new module and types [tdecls] into it.
 *)
-let type_module ctx_from mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
-	let m = ModuleLevel.make_module ctx_from.com ctx_from.g mpath file p in
-	ctx_from.com.module_lut#add m.m_path m;
-	let tdecls = ModuleLevel.handle_import_hx ctx_from.com ctx_from.g m tdecls p in
-	let ctx_m = type_types_into_module ctx_from.com ctx_from.g m tdecls p in
+let type_module com g mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
+	let m = ModuleLevel.make_module com g mpath file p in
+	com.module_lut#add m.m_path m;
+	let tdecls = ModuleLevel.handle_import_hx com g m tdecls p in
+	let ctx_m = type_types_into_module com g m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Naming.check_module_path ctx_m.com m.m_path p;
 	m
 
@@ -729,27 +729,28 @@ let type_module ctx_from mpath file ?(dont_check_path=false) ?(is_extern=false) 
 	Std.finally timer (type_module ctx mpath file ~is_extern tdecls) p *)
 
 class hxb_reader_api_typeload
-	(ctx : typer)
-	(load_module : typer -> path -> pos -> module_def)
+	(com : context)
+	(g : typer_globals)
+	(load_module : context -> typer_globals -> path -> pos -> module_def)
 	(p : pos)
 = object(self)
 	method make_module (path : path) (file : string) =
-		let m = ModuleLevel.make_module ctx.com ctx.g path file p in
+		let m = ModuleLevel.make_module com g path file p in
 		m.m_extra.m_processed <- 1;
 		m
 
 	method add_module (m : module_def) =
-		ctx.com.module_lut#add m.m_path m
+		com.module_lut#add m.m_path m
 
 	method resolve_type (pack : string list) (mname : string) (tname : string) =
-		let m = load_module ctx (pack,mname) p in
+		let m = load_module com g (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 
 	method resolve_module (path : path) =
-		load_module ctx path p
+		load_module com g path p
 
 	method basic_types =
-		ctx.com.basic
+		com.basic
 
 	method get_var_id (i : int) =
 		(* The v_id in .hxb has no relation to this context, make a new one. *)
@@ -758,22 +759,22 @@ class hxb_reader_api_typeload
 		!uid
 
 	method read_expression_eagerly (cf : tclass_field) =
-		ctx.com.is_macro_context || match cf.cf_kind with
+		com.is_macro_context || match cf.cf_kind with
 			| Var _ ->
 				true
 			| Method _ ->
-				delay ctx.g PTypeField (fun () -> ignore(follow cf.cf_type));
+				delay g PTypeField (fun () -> ignore(follow cf.cf_type));
 				false
 end
 
-let rec load_hxb_module ctx path p =
+let rec load_hxb_module com g path p =
 	let read file bytes =
 		try
-			let api = (new hxb_reader_api_typeload ctx load_module' p :> HxbReaderApi.hxb_reader_api) in
-			let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats in
+			let api = (new hxb_reader_api_typeload com g load_module' p :> HxbReaderApi.hxb_reader_api) in
+			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats in
 			let read = reader#read api bytes in
 			let m = read EOT in
-			delay ctx.g PConnectField (fun () ->
+			delay g PConnectField (fun () ->
 				ignore(read EOM);
 			);
 			m
@@ -783,7 +784,7 @@ let rec load_hxb_module ctx path p =
 			Printf.eprintf " => %s\n%s\n" msg stack;
 			raise e
 	in
-	let target = Common.platform_name_macro ctx.com in
+	let target = Common.platform_name_macro com in
 	let rec loop l = match l with
 		| hxb_lib :: l ->
 			begin match hxb_lib#get_bytes target path with
@@ -795,35 +796,35 @@ let rec load_hxb_module ctx path p =
 		| [] ->
 			raise Not_found
 	in
-	loop ctx.com.hxb_libs
+	loop com.hxb_libs
 
-and load_module' ctx m p =
+and load_module' com g m p =
 	try
 		(* Check current context *)
-		ctx.com.module_lut#find m
+		com.module_lut#find m
 	with Not_found ->
 		(* Check cache *)
-		match !TypeloadCacheHook.type_module_hook ctx.com m p with
+		match !TypeloadCacheHook.type_module_hook com m p with
 		| GoodModule m ->
 			m
 		| BinaryModule _ ->
 			die "" __LOC__ (* The server builds those *)
 		| NoModule | BadModule _ -> try
-			load_hxb_module ctx m p
+			load_hxb_module com g m p
 		with Not_found ->
 			let raise_not_found () = raise_error_msg (Module_not_found m) p in
-			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
-			if ctx.g.load_only_cached_modules then raise_not_found();
+			if com.module_nonexistent_lut#mem m then raise_not_found();
+			if g.load_only_cached_modules then raise_not_found();
 			let is_extern = ref false in
 			let file, decls = try
 				(* Try parsing *)
-				let rfile,decls = TypeloadParse.parse_module ctx.com m p in
+				let rfile,decls = TypeloadParse.parse_module com m p in
 				rfile.file,decls
 			with Not_found ->
 				(* Nothing to parse, try loading extern type *)
 				let rec loop = function
 					| [] ->
-						ctx.com.module_nonexistent_lut#add m true;
+						com.module_nonexistent_lut#add m true;
 						raise_not_found()
 					| (file,load) :: l ->
 						match load m p with
@@ -831,13 +832,13 @@ and load_module' ctx m p =
 						| Some (_,a) -> file, a
 				in
 				is_extern := true;
-				loop ctx.com.load_extern_type
+				loop com.load_extern_type
 			in
 			let is_extern = !is_extern in
-			type_module ctx m file ~is_extern decls p
+			type_module com g m file ~is_extern decls p
 
 let load_module ctx m p =
-	let m2 = load_module' ctx m p in
+	let m2 = load_module' ctx.com ctx.g m p in
 	add_dependency ~skip_postprocess:true ctx.m.curmod m2;
 	if ctx.pass = PTypeField then flush_pass ctx.g PConnectField ("load_module",fst m @ [snd m]);
 	m2
