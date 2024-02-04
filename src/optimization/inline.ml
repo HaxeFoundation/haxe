@@ -529,7 +529,7 @@ class inline_state ctx ethis params cf f p = object(self)
 		in
 		let e = (if PMap.is_empty subst then e else inline_params false false e) in
 		let init = match vars with [] -> None | l -> Some l in
-		let md = ctx.curclass.cl_module.m_extra.m_display in
+		let md = ctx.c.curclass.cl_module.m_extra.m_display in
 		md.m_inline_calls <- (cf.cf_name_pos,{p with pmax = p.pmin + String.length cf.cf_name}) :: md.m_inline_calls;
 		let wrap e =
 			(* we can't mute the type of the expression because it is not correct to do so *)
@@ -849,7 +849,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	in
 	let tl = arg_types params f.tf_args in
 	let e = state#finalize e tl tret has_params map_type p in
-	if Meta.has (Meta.Custom ":inlineDebug") ctx.meta then begin
+	if Meta.has (Meta.Custom ":inlineDebug") ctx.f.meta then begin
 		let se t = s_expr_ast true t (s_type (print_context())) in
 		print_endline (Printf.sprintf "Inline %s:\n\tArgs: %s\n\tExpr: %s\n\tResult: %s"
 			cf.cf_name

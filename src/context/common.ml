@@ -419,7 +419,6 @@ type context = {
 	mutable basic : basic_types;
 	memory_marker : float array;
 	hxb_reader_stats : HxbReader.hxb_reader_stats;
-	hxb_writer_stats : HxbWriter.hxb_writer_stats;
 	mutable hxb_writer_config : HxbWriterConfig.t option;
 }
 
@@ -844,7 +843,6 @@ let create compilation_step cs version args display_mode =
 		report_mode = RMNone;
 		is_macro_context = false;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
-		hxb_writer_stats = HxbWriter.create_hxb_writer_stats ();
 		hxb_writer_config = None;
 	} in
 	com
@@ -896,7 +894,6 @@ let clone com is_macro_context =
 		overload_cache = new hashtbl_lookup;
 		module_lut = new module_lut;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
-		hxb_writer_stats = HxbWriter.create_hxb_writer_stats ();
 		std = null_class;
 		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;

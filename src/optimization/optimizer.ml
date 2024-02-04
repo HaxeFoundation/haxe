@@ -383,7 +383,7 @@ let reduce_expression ctx e =
 	if ctx.com.foptimize then
 		(* We go through rec_stack_default here so that the current field is on inline_stack. This prevents self-recursive
 		   inlining (#7569). *)
-		rec_stack_default inline_stack ctx.curfield (fun cf' -> cf' == ctx.curfield) (fun () -> reduce_loop ctx e) e
+		rec_stack_default inline_stack ctx.f.curfield (fun cf' -> cf' == ctx.f.curfield) (fun () -> reduce_loop ctx e) e
 	else
 		e
 
