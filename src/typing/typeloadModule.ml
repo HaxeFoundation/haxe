@@ -377,7 +377,10 @@ module TypeLevel = struct
 	let init_class ctx_m c d p =
 		if ctx_m.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx_m (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
-		TypeloadCheck.check_global_metadata ctx_m c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
+		(match c.cl_kind with
+			| KAbstractImpl _ -> ()
+			| _ -> TypeloadCheck.check_global_metadata ctx_m c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None
+		);
 		let herits = d.d_flags in
 		List.iter (fun (m,_,p) ->
 			if m = Meta.Final then begin
