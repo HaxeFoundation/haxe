@@ -178,7 +178,7 @@ let raise_toplevel ctx dk with_type (subject,psubject) =
 	DisplayToplevel.collect_and_raise ctx (match dk with DKPattern _ -> TKPattern psubject | _ -> TKExpr psubject) with_type (CRToplevel expected_type) (subject,psubject) psubject
 
 let display_dollar_type ctx p make_type =
-	let mono = spawn_monomorph ctx p in
+	let mono = spawn_monomorph ctx.e p in
 	let doc = doc_from_string "Outputs type of argument as a warning and uses argument as value" in
 	let arg = ["expression",false,mono] in
 	begin match ctx.com.display.dms_kind with
@@ -194,7 +194,7 @@ let display_dollar_type ctx p make_type =
 	end
 
 let rec handle_signature_display ctx e_ast with_type =
-	ctx.in_display <- true;
+	ctx.f.in_display <- true;
 	let p = pos e_ast in
 	let handle_call tl el p0 =
 		let rec follow_with_callable (t,doc,values) = match follow t with
@@ -340,7 +340,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		| _ -> raise_typing_error "Call expected" p
 
 and display_expr ctx e_ast e dk mode with_type p =
-	let get_super_constructor () = match ctx.curclass.cl_super with
+	let get_super_constructor () = match ctx.c.curclass.cl_super with
 		| None -> raise_typing_error "Current class does not have a super" p
 		| Some (c,params) ->
 			let fa = get_constructor_access c params p in
@@ -419,7 +419,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 				()
 			end
 		| TConst TSuper ->
-			begin match ctx.curclass.cl_super with
+			begin match ctx.c.curclass.cl_super with
 				| None -> ()
 				| Some (c,_) -> Display.ReferencePosition.set (snd c.cl_path,c.cl_name_pos,SKClass c);
 			end
@@ -476,7 +476,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 				[]
 			end
 		| TConst TSuper ->
-			begin match ctx.curclass.cl_super with
+			begin match ctx.c.curclass.cl_super with
 				| None -> []
 				| Some (c,_) -> [c.cl_name_pos]
 			end
@@ -490,7 +490,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 		let pl = loop e in
 		raise_positions pl
 	| DMTypeDefinition ->
-		raise_position_of_type e.etype
+		raise_position_of_type ctx e.etype
 	| DMDefault when not (!Parser.had_resume)->
 		let display_fields e_ast e1 so =
 			let l = match so with None -> 0 | Some s -> String.length s in
@@ -541,9 +541,9 @@ and display_expr ctx e_ast e dk mode with_type p =
 		raise_fields fields (CRField(item,e.epos,iterator,keyValueIterator)) (make_subject None (DisplayPosition.display_position#with_pos p))
 
 let handle_display ctx e_ast dk mode with_type =
-	let old = ctx.in_display,ctx.in_call_args in
-	ctx.in_display <- true;
-	ctx.in_call_args <- false;
+	let old = ctx.f.in_display,ctx.f.in_call_args in
+	ctx.f.in_display <- true;
+	ctx.f.in_call_args <- false;
 	let tpair t =
 		let ct = CompletionType.from_type (get_import_status ctx) t in
 		(t,ct)
@@ -595,10 +595,10 @@ let handle_display ctx e_ast dk mode with_type =
 				begin match mt.has_constructor with
 				| Yes -> true
 				| YesButPrivate ->
-					if (Meta.has Meta.PrivateAccess ctx.meta) then true
+					if (Meta.has Meta.PrivateAccess ctx.f.meta) then true
 					else
 						begin
-							match ctx.curclass.cl_kind with
+							match ctx.c.curclass.cl_kind with
 							| KAbstractImpl { a_path = (pack, name) } -> pack = mt.pack && name = mt.name
 							| _ -> false
 						end
@@ -610,7 +610,7 @@ let handle_display ctx e_ast dk mode with_type =
 									| Some(c,_) -> loop c
 									| None -> false
 							in
-							loop ctx.curclass
+							loop ctx.c.curclass
 						end
 				| No -> false
 				| Maybe ->
@@ -640,7 +640,7 @@ let handle_display ctx e_ast dk mode with_type =
 		| (EField(_,"new",_),_), TFunction { tf_expr = { eexpr = TReturn (Some ({ eexpr = TNew _ } as e1))} } -> e1
 		| _ -> e
 	in
-	let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in
+	let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.f.curfield.cf_meta in
 	if is_display_debug then begin
 		print_endline (Printf.sprintf "expected type: %s" (WithType.to_string with_type));
 		print_endline (Printf.sprintf "typed expr:\n%s" (s_expr_ast true "" (s_type (print_context())) e));
@@ -657,14 +657,14 @@ let handle_display ctx e_ast dk mode with_type =
 	if is_display_debug then begin
 		print_endline (Printf.sprintf "cast expr:\n%s" (s_expr_ast true "" (s_type (print_context())) e));
 	end;
-	ctx.in_display <- fst old;
-	ctx.in_call_args <- snd old;
+	ctx.f.in_display <- fst old;
+	ctx.f.in_call_args <- snd old;
 	let f () = display_expr ctx e_ast e dk mode with_type p in
-	if ctx.in_overload_call_args then begin
+	if ctx.f.in_overload_call_args then begin
 		try
 			f()
 		with DisplayException de ->
-			ctx.delayed_display <- Some de;
+			ctx.g.delayed_display <- Some de;
 			e
 	end else
 		f()

@@ -71,7 +71,7 @@ let handle_override_dynfun acc e this field =
 
 let handle_class gen cl =
 	let com = gen.gcon in
-	let init = match cl.cl_init with
+	let init = match TClass.get_cl_init cl with
 		| None -> []
 		| Some i -> [i]
 	in
@@ -109,7 +109,7 @@ let handle_class gen cl =
 	let init = List.rev init in
 	(match init with
 	| [] -> cl.cl_init <- None
-	| _ -> cl.cl_init <- Some (mk (TBlock init) com.basic.tvoid cl.cl_pos));
+	| _ -> TClass.set_cl_init cl (mk (TBlock init) com.basic.tvoid cl.cl_pos));
 
 	(* FIXME: find a way to tell OverloadingConstructor to execute this code even with empty constructors *)
 	let vars, funs = List.fold_left (fun (acc_vars,acc_funs) cf ->

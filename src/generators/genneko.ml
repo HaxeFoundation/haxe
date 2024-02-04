@@ -57,11 +57,12 @@ let pos ctx p =
 				| false -> try
 					(* lookup relative path *)
 					let len = String.length p.pfile in
-					let base = List.find (fun path ->
+					let base = ctx.com.class_paths#find (fun path ->
+						let path = path#path in
 						let l = String.length path in
 						len > l && String.sub p.pfile 0 l = path
-					) ctx.com.Common.class_path in
-					let l = String.length base in
+					) in
+					let l = String.length base#path in
 					String.sub p.pfile l (len - l)
 
 					with Not_found -> p.pfile
@@ -554,7 +555,7 @@ let gen_enum ctx e =
 let gen_type ctx t acc =
 	match t with
 	| TClassDecl c ->
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e -> ctx.inits <- (c,e) :: ctx.inits);
 		if (has_class_flag c CExtern) then
@@ -779,7 +780,7 @@ let generate com =
 		{ psource = "<header>"; pline = 1; }
 	) in
 	let el = build ctx com.types in
-	let emain = (match com.main with None -> [] | Some e -> [gen_expr ctx e]) in
+	let emain = (match com.main.main_expr with None -> [] | Some e -> [gen_expr ctx e]) in
 	let e = (EBlock ((header()) @ libs :: el @ emain), null_pos) in
 	let source = Common.defined com Define.NekoSource in
 	let use_nekoc = Common.defined com Define.UseNekoc in

@@ -20,7 +20,7 @@ class Issue6068 extends DisplayTestCase {
 		var result = try {
 			fn();
 			false;
-		} catch (e:DisplayTestContext.HaxeInvocationException) {
+		} catch (e:HaxeInvocationException) {
 			e.message.indexOf("Not a callable type") != -1;
 		}
 		assert(result);

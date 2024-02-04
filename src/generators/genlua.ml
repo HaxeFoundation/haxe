@@ -1840,7 +1840,7 @@ let generate_require ctx path meta =
 
 let generate_type ctx = function
     | TClassDecl c ->
-        (match c.cl_init with
+        (match TClass.get_cl_init c with
          | None -> ()
          | Some e ->
              ctx.inits <- e :: ctx.inits);
@@ -2200,7 +2200,7 @@ let generate com =
             gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) };
         println ctx ", _hx_handle_error)";
         println ctx "if not success then _G.error(err) end";
-    ) com.main;
+    ) com.main.main_expr;
 
     if anyExposed then
         println ctx "return _hx_exports";

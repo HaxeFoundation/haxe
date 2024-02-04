@@ -1322,17 +1322,7 @@ exception PathFound of string;;
 
 let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath with
    | true -> file
-   | false -> let flen = String.length file in
-   (* Not quite right - should probably test is file exists *)
-   try
-      List.iter (fun path ->
-         let plen = String.length path in
-         if (flen>plen && path=(String.sub file 0 plen ))
-            then raise (PathFound (String.sub file plen (flen-plen)) ) )
-         (ctx.class_path @ ctx.std_path);
-      file;
-   with PathFound tail ->
-      tail)
+   | false -> ctx.class_paths#relative_path file)
 ;;
 
 let with_debug ctx metadata run =
@@ -5013,7 +5003,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
    (* Body of main function *)
    (match obj with
    | TClassDecl class_def -> visit_class class_def;
-      (match class_def.cl_init with Some expression -> visit_params expression | _ -> ())
+      (match TClass.get_cl_init class_def with Some expression -> visit_params expression | _ -> ())
    | TEnumDecl enum_def -> visit_enum enum_def
    | TTypeDecl _ | TAbstractDecl _ -> (* These are expanded *) ());
 
@@ -5465,7 +5455,7 @@ let rec find_next_super_iteration ctx class_def =
 ;;
 
 let has_init_field class_def =
-   match class_def.cl_init with
+   match TClass.get_cl_init class_def with
    | Some _ -> true
    | _ -> false;;
 
@@ -5543,7 +5533,7 @@ let has_compare_field class_def =
 
 
 let has_boot_field class_def =
-   match class_def.cl_init with
+   match TClass.get_cl_init class_def with
    | None -> List.exists has_field_init (List.filter should_implement_field class_def.cl_ordered_statics)
    | _ -> true
 ;;
@@ -6104,7 +6094,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       end;
    end;
 
-   (match class_def.cl_init with
+   (match TClass.get_cl_init class_def with
    | Some expression ->
       let ctx = file_context baseCtx cpp_file debug false in
       output_cpp ("void " ^ class_name^ "::__init__()");
@@ -8389,7 +8379,7 @@ let generate_script_class common_ctx script class_def =
    script#write ((string_of_int ( (List.length ordered_fields) +
                                  (List.length ordered_statics) +
                                  (match class_def.cl_constructor with Some _ -> 1 | _ -> 0 ) +
-                                 (match class_def.cl_init with Some _ -> 1 | _ -> 0 ) ) )
+                                 (match TClass.get_cl_init class_def with Some _ -> 1 | _ -> 0 ) ) )
                                  ^ "\n");
 
    let generate_field isStatic field =
@@ -8422,7 +8412,7 @@ let generate_script_class common_ctx script class_def =
    (match class_def.cl_constructor with
       | Some field  -> generate_field true field
       | _ -> () );
-   (match class_def.cl_init with
+   (match TClass.get_cl_init class_def with
       | Some expression  -> script#voidFunc true false "__init__" expression
       | _ -> () );
 
@@ -8488,7 +8478,7 @@ let generate_cppia ctx =
       );
    ) common_ctx.types;
 
-   (match common_ctx.main with
+   (match common_ctx.main.main_expr with
    | None -> script#writeOpLine IaNoMain;
    | Some e -> script#writeOpLine IaMain;
          script#gen_expression e
@@ -8600,7 +8590,7 @@ let generate_source ctx =
    List.iter (fun job -> job () ) !jobs;
 
 
-   (match common_ctx.main with
+   (match common_ctx.main.main_expr with
    | None -> generate_dummy_main common_ctx
    | Some e ->
       let main_field = { (mk_field "__main__" t_dynamic e.epos null_pos) with
@@ -8663,7 +8653,7 @@ let generate_source ctx =
      end;
    end;
 
-   let output_name = match  common_ctx.main_class with
+   let output_name = match  common_ctx.main.main_class with
    | Some path -> (snd path)
    | _ -> "output" in
 
@@ -8679,7 +8669,10 @@ let generate_source ctx =
          | "true" | "sys" | "dce" | "cpp" | "debug" -> ();
          | _ -> cmd := !cmd @ [Printf.sprintf "-D%s=\"%s\"" name (escape_command value)];
       ) common_ctx.defines.values;
-      List.iter (fun path -> cmd := !cmd @ [Printf.sprintf "-I%s" (escape_command path)]) common_ctx.class_path;
+      common_ctx.class_paths#iter (fun path ->
+		let path = path#path in
+		cmd := !cmd @ [Printf.sprintf "-I%s" (escape_command path)]
+	  );
       common_ctx.print ("haxelib " ^ (String.concat " " !cmd) ^ "\n");
       if common_ctx.run_command_args "haxelib" !cmd <> 0 then failwith "Build failed";
       Sys.chdir old_dir;

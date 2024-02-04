@@ -11,7 +11,7 @@
 		"editor.formatOnPaste": true
 	},
 	"editor.codeActionsOnSave": {
-		"source.sortImports": true
+		"source.sortImports": "explicit"
 	},
 	"haxe.displayServer": {
 		"arguments": ["-v"]

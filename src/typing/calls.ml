@@ -51,8 +51,8 @@ let make_call ctx e params t ?(force_inline=false) p =
 		end;
 		let config = Inline.inline_config cl f params t in
 		ignore(follow f.cf_type); (* force evaluation *)
-		(match cl, ctx.curclass.cl_kind, params with
-			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.curclass ->
+		(match cl, ctx.c.curclass.cl_kind, params with
+			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.c.curclass ->
 				if
 					f.cf_name <> "_new"
 					&& has_meta Meta.This v_meta
@@ -60,7 +60,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 				then
 					if assign_to_this_is_allowed ctx then
 						(* Current method needs to infer CfModifiesThis flag, since we are calling a method, which modifies `this` *)
-						add_class_field_flag ctx.curfield CfModifiesThis
+						add_class_field_flag ctx.f.curfield CfModifiesThis
 					else
 						raise_typing_error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
 			| _ -> ()
@@ -206,7 +206,7 @@ let rec acc_get ctx g =
 	| AKAccess _ -> die "" __LOC__
 	| AKResolve(sea,name) ->
 		(dispatcher sea.se_access.fa_pos)#resolve_call sea name
-	| AKUsingAccessor sea | AKUsingField sea when ctx.in_display ->
+	| AKUsingAccessor sea | AKUsingField sea when ctx.f.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
 		let id,_ = store_typed_expr ctx.com sea.se_this e_field.epos in
@@ -220,7 +220,7 @@ let rec acc_get ctx g =
 		begin match fa.fa_field.cf_kind with
 		| Method MethMacro ->
 			(* If we are in display mode, we're probably hovering a macro call subject. Just generate a normal field. *)
-			if ctx.in_display then
+			if ctx.f.in_display then
 				FieldAccess.get_field_expr fa FRead
 			else
 				raise_typing_error "Invalid macro access" fa.fa_pos
@@ -328,9 +328,9 @@ let call_to_string ctx ?(resume=false) e =
 	else
 	let gen_to_string e =
 		(* Ignore visibility of the toString field. *)
-		ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
+		ctx.f.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.f.meta;
 		let acc = type_field (TypeFieldConfig.create resume) ctx e "toString" e.epos (MCall []) (WithType.with_type ctx.t.tstring) in
-		ctx.meta <- List.tl ctx.meta;
+		ctx.f.meta <- List.tl ctx.f.meta;
 		build_call ctx acc [] (WithType.with_type ctx.t.tstring) e.epos
 	in
 	if ctx.com.config.pf_static && not (is_nullable e.etype) then
@@ -359,7 +359,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 	let vexpr v = mk (TLocal v) v.v_type p in
 	let acount = ref 0 in
 	let alloc_name n =
-		if n = "" && not ctx.is_display_file then begin
+		if n = "" && not ctx.m.is_display_file then begin
 			incr acount;
 			"a" ^ string_of_int !acount;
 		end else
@@ -368,16 +368,10 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 	let rec loop args params given_args missing_args ordered_args = match args, params with
 		| [], [] -> given_args,missing_args,ordered_args
 		| [], _ -> raise_typing_error "Too many callback arguments" p
-		| (n,o,t) :: args , [] when o ->
-			let a = if is_pos_infos t then
-					let infos = mk_infos ctx p [] in
-					ordered_args @ [type_expr ctx infos (WithType.with_argument t n)]
-				else if ctx.com.config.pf_pad_nulls && ctx.allow_transform then
-					(ordered_args @ [(mk (TConst TNull) t_dynamic p)])
-				else
-					ordered_args
-			in
-			loop args [] given_args missing_args a
+		| [n,o,t] , [] when o && is_pos_infos t ->
+			let infos = mk_infos ctx p [] in
+			let ordered_args = ordered_args @ [type_expr ctx infos (WithType.with_argument t n)] in
+			given_args,missing_args,ordered_args
 		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when not ctx.com.config.pf_can_skip_non_nullable_argument && o && not (is_nullable t) ->
 			raise_typing_error "Usage of _ is not supported for optional non-nullable arguments" p
 		| (n,o,t) :: args , ([] as params)
@@ -474,12 +468,12 @@ let array_access ctx e1 e2 mode p =
 				let skip_abstract = fast_eq et at in
 				loop ~skip_abstract at
 			| _, _ ->
-				let pt = spawn_monomorph ctx p in
+				let pt = spawn_monomorph ctx.e p in
 				let t = ctx.t.tarray pt in
 				begin try
 					unify_raise et t p
 				with Error { err_message = Unify _ } ->
-					if not ctx.untyped then begin
+					if not ctx.f.untyped then begin
 						let msg = if !has_abstract_array_access then
 							"No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)
 						else

@@ -723,8 +723,8 @@ let run_filters_from gen t filters =
 		gen.gcurrent_classfield <- None;
 		(match c.cl_init with
 		| None -> ()
-		| Some e ->
-			c.cl_init <- Some (List.fold_left (fun e f -> f e) e filters));
+		| Some f ->
+			process_field f);
 	| TClassDecl _ | TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 		()
 
@@ -1142,9 +1142,7 @@ let clone_param ttp =
 	let ret = mk_class cl.cl_module (fst cl.cl_path, snd cl.cl_path ^ "_c") cl.cl_pos null_pos in
 	ret.cl_implements <- cl.cl_implements;
 	ret.cl_kind <- cl.cl_kind;
-	let ttp = mk_type_param ret ttp.ttp_host ttp.ttp_default ttp.ttp_constraints in
-	ret.cl_kind <- KTypeParameter ttp;
-	ttp
+	mk_type_param ret ttp.ttp_host ttp.ttp_default ttp.ttp_constraints
 
 let get_cl_t t =
 	match follow t with | TInst (cl,_) -> cl | _ -> die "" __LOC__

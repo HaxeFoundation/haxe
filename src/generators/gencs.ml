@@ -2702,7 +2702,7 @@ let generate con =
 				end_block w
 			) main_expr;
 
-			(match cl.cl_init with
+			(match TClass.get_cl_init cl with
 				| None -> ()
 				| Some init ->
 					let needs_block,write_expr =
@@ -2957,7 +2957,7 @@ let generate con =
 		let super_map (cl,tl) = (cl, List.map run_follow_gen tl) in
 		List.iter (function
 			| TClassDecl cl ->
-					let all_fields = (Option.map_default (fun cf -> [cf]) [] cl.cl_constructor) @ cl.cl_ordered_fields @ cl.cl_ordered_statics in
+					let all_fields = (Option.map_default (fun cf -> [cf]) [] cl.cl_constructor) @ cl.cl_ordered_fields @ cl.cl_ordered_statics @ (Option.map_default (fun cf -> [cf]) [] cl.cl_init) in
 					List.iter (fun cf ->
 						cf.cf_type <- run_follow_gen cf.cf_type;
 						cf.cf_expr <- Option.map type_map cf.cf_expr;
@@ -2971,7 +2971,6 @@ let generate con =
 					) all_fields;
 				cl.cl_dynamic <- Option.map run_follow_gen cl.cl_dynamic;
 				cl.cl_array_access <- Option.map run_follow_gen cl.cl_array_access;
-				cl.cl_init <- Option.map type_map cl.cl_init;
 				cl.cl_super <- Option.map super_map cl.cl_super;
 				cl.cl_implements <- List.map super_map cl.cl_implements
 			| _ -> ()
@@ -3483,10 +3482,7 @@ let generate con =
 							mk_nativearray_decl gen basic.tint (List.map (fun (i,s) -> { eexpr = TConst(TInt (i)); etype = basic.tint; epos = c.cl_pos }) all) c.cl_pos;
 							mk_nativearray_decl gen basic.tstring (List.map (fun (i,s) -> { eexpr = TConst(TString (s)); etype = basic.tstring; epos = c.cl_pos }) all) c.cl_pos;
 						]); etype = basic.tvoid; epos = c.cl_pos } in
-						match c.cl_init with
-							| None -> c.cl_init <- Some expr
-							| Some e ->
-								c.cl_init <- Some { eexpr = TBlock([expr;e]); etype = basic.tvoid; epos = e.epos }
+						TClass.add_cl_init c expr
 					end
 				with | Not_found -> ())
 				| _ -> ()) gen.gtypes;

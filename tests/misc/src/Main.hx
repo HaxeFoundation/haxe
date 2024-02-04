@@ -157,6 +157,9 @@ class Main {
 					// Reorder fields from expected too
 					expected = haxe.Json.stringify(haxe.Json.parse(expected));
 				} catch (_) {}
+			} else {
+				content = hideStdPositions(content);
+				expected = hideStdPositions(expected);
 			}
 
 			if (content != expected) {
@@ -176,6 +179,14 @@ class Main {
 		}
 
 		return true;
+	}
+
+	static function hideStdPositions(content:String):String {
+		var regex = new EReg(getStd() + '([a-z/]+\\.hx):[0-9]+:( characters? [0-9]+(-[0-9]+)( :)?)', 'i');
+
+		return content.split("\n")
+			.map(line -> regex.replace(line, "$1:???:"))
+			.join("\n");
 	}
 
 	static macro function getStd() {

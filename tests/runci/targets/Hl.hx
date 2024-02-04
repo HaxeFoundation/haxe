@@ -39,7 +39,6 @@ class Hl {
 			case "Mac":
 				runNetworkCommand("brew", ["update", '--preinstall']);
 				runNetworkCommand("brew", ["bundle", '--file=${hlSrc}/Brewfile']);
-				runNetworkCommand("brew", ["link", "mbedtls@2", "--force"]);
 			case "Windows":
 				//pass
 		}

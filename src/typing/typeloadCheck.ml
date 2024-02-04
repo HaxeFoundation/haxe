@@ -39,11 +39,11 @@ let is_generic_parameter ctx c =
 	(* first check field parameters, then class parameters *)
 	let name = snd c.cl_path in
 	try
-		ignore(lookup_param name ctx.curfield.cf_params);
-		has_class_field_flag ctx.curfield CfGeneric
+		ignore(lookup_param name ctx.f.curfield.cf_params);
+		has_class_field_flag ctx.f.curfield CfGeneric
 	with Not_found -> try
 		ignore(lookup_param name ctx.type_params);
-		(match ctx.curclass.cl_kind with | KGeneric -> true | _ -> false);
+		(match ctx.c.curclass.cl_kind with | KGeneric -> true | _ -> false);
 	with Not_found ->
 		false
 
@@ -287,7 +287,7 @@ let class_field_no_interf c i =
 
 let rec return_flow ctx e =
 	let error() =
-		display_error ctx.com (Printf.sprintf "Missing return: %s" (s_type (print_context()) ctx.ret)) e.epos; raise Exit
+		display_error ctx.com (Printf.sprintf "Missing return: %s" (s_type (print_context()) ctx.e.ret)) e.epos; raise Exit
 	in
 	let return_flow = return_flow ctx in
 	match e.eexpr with
@@ -332,7 +332,7 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in
 		if add then f_add m
 	) ctx.com.global_metadata;
-	if ctx.is_display_file then delay ctx PCheckConstraint (fun () -> DisplayEmitter.check_display_metadata ctx meta)
+	if ctx.m.is_display_file then delay ctx PCheckConstraint (fun () -> DisplayEmitter.check_display_metadata ctx meta)
 
 module Inheritance = struct
 	let is_basic_class_path path = match path with
@@ -394,7 +394,7 @@ module Inheritance = struct
 					in
 					if (has_class_field_flag f CfPublic) && not (has_class_field_flag f2 CfPublic) && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
 						display_error ctx.com ("Field " ^ f.cf_name ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
-					else if not (unify_kind f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
+					else if not (unify_kind ~strict:false f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
 						display_error ctx.com ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
 					else try
 						let map1 = TClass.get_map_function  intf params in
@@ -510,7 +510,6 @@ module Inheritance = struct
 
 	let set_heritance ctx c herits p =
 		let is_lib = Meta.has Meta.LibType c.cl_meta in
-		let ctx = { ctx with curclass = c; type_params = c.cl_params; } in
 		let old_meta = c.cl_meta in
 		let process_meta csup =
 			List.iter (fun m ->
@@ -638,7 +637,7 @@ let check_final_vars ctx e =
 		| _ ->
 			()
 	in
-	loop ctx.curclass;
+	loop ctx.c.curclass;
 	if Hashtbl.length final_vars > 0 then begin
 		let rec find_inits e = match e.eexpr with
 			| TBinop(OpAssign,{eexpr = TField({eexpr = TConst TThis},fa)},e2) ->
@@ -649,7 +648,7 @@ let check_final_vars ctx e =
 		in
 		find_inits e;
 		if Hashtbl.length final_vars > 0 then
-			display_error ctx.com "Some final fields are uninitialized in this class" ctx.curclass.cl_name_pos;
+			display_error ctx.com "Some final fields are uninitialized in this class" ctx.c.curclass.cl_name_pos;
 		DynArray.iter (fun (c,cf) ->
 			if Hashtbl.mem final_vars cf.cf_name then
 				display_error ~depth:1 ctx.com "Uninitialized field" cf.cf_name_pos

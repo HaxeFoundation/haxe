@@ -10,12 +10,20 @@ class Jvm {
 		deleteDirectoryRecursively("bin/jvm");
 		Java.getJavaDependencies();
 
+		runCommand("haxe", ["compile-java-native.hxml"]);
+
 		for (level in 0...3) {
 			final args = args.concat(["-D", "jvm.dynamic-level=" + level]);
-			runCommand("haxe", ["compile-jvm.hxml"].concat(args));
+			runCommand("haxe", ["compile-jvm-only.hxml", "--hxb", "bin/hxb/jvm.zip"].concat(args));
 			runCommand("java", ["-jar", "bin/unit.jar"]);
 
-			runCommand("haxe", ["compile-jvm.hxml","-dce","no"].concat(args));
+			runCommand("haxe", ["compile-jvm-only.hxml", "--hxb-lib", "bin/hxb/jvm.zip"].concat(args));
+			runCommand("java", ["-jar", "bin/unit.jar"]);
+
+			runCommand("haxe", ["compile-jvm-only.hxml","-dce","no"].concat(args));
+			runCommand("java", ["-jar", "bin/unit.jar"]);
+
+			runCommand("haxe", ["compile-jvm-only.hxml", "--hxb-lib", "bin/hxb/jvm.zip"].concat(args));
 			runCommand("java", ["-jar", "bin/unit.jar"]);
 		}
 

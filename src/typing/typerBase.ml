@@ -149,31 +149,31 @@ let is_lower_ident s p =
 	with Invalid_argument msg -> raise_typing_error msg p
 
 let get_this ctx p =
-	match ctx.curfun with
+	match ctx.e.curfun with
 	| FunStatic ->
 		raise_typing_error "Cannot access this from a static function" p
 	| FunMemberClassLocal | FunMemberAbstractLocal ->
-		let v = match ctx.vthis with
+		let v = match ctx.f.vthis with
 			| None ->
-				let v = if ctx.curfun = FunMemberAbstractLocal then begin
-					let v = PMap.find "this" ctx.locals in
+				let v = if ctx.e.curfun = FunMemberAbstractLocal then begin
+					let v = PMap.find "this" ctx.f.locals in
 					add_var_flag v VUsedByTyper;
 					v
 				end else
-					add_local ctx VGenerated (Printf.sprintf "%sthis" gen_local_prefix) ctx.tthis p
+					add_local ctx VGenerated (Printf.sprintf "%sthis" gen_local_prefix) ctx.c.tthis p
 				in
-				ctx.vthis <- Some v;
+				ctx.f.vthis <- Some v;
 				v
 			| Some v ->
-				ctx.locals <- PMap.add v.v_name v ctx.locals;
+				ctx.f.locals <- PMap.add v.v_name v ctx.f.locals;
 				v
 		in
-		mk (TLocal v) ctx.tthis p
+		mk (TLocal v) ctx.c.tthis p
 	| FunMemberAbstract ->
-		let v = (try PMap.find "this" ctx.locals with Not_found -> raise_typing_error "Cannot reference this abstract here" p) in
+		let v = (try PMap.find "this" ctx.f.locals with Not_found -> raise_typing_error "Cannot reference this abstract here" p) in
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
-		mk (TConst TThis) ctx.tthis p
+		mk (TConst TThis) ctx.c.tthis p
 
 let get_stored_typed_expr ctx id =
 	let e = ctx.com.stored_typed_exprs#find id in
@@ -184,11 +184,11 @@ let type_stored_expr ctx e1 =
 	get_stored_typed_expr ctx id
 
 let assign_to_this_is_allowed ctx =
-	match ctx.curclass.cl_kind with
+	match ctx.c.curclass.cl_kind with
 		| KAbstractImpl _ ->
-			(match ctx.curfield.cf_kind with
+			(match ctx.f.curfield.cf_kind with
 				| Method MethInline -> true
-				| Method _ when ctx.curfield.cf_name = "_new" -> true
+				| Method _ when ctx.f.curfield.cf_name = "_new" -> true
 				| _ -> false
 			)
 		| _ -> false
@@ -207,12 +207,11 @@ let type_module_type ctx t p =
 			in
 			loop mt None
 		| TClassDecl c ->
-			let t_tmp = class_module_type c in
-			mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
+			mk (TTypeExpr (TClassDecl c)) c.cl_type p
 		| TEnumDecl e ->
 			mk (TTypeExpr (TEnumDecl e)) e.e_type p
 		| TTypeDecl s ->
-			let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx p) s.t_params) in
+			let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx.e p) s.t_params) in
 			DeprecationCheck.check_typedef (create_deprecation_context ctx) s p;
 			(match follow t with
 			| TEnum (e,params) ->
@@ -335,7 +334,7 @@ let get_abstract_froms ctx a pl =
 	let l = List.map (apply_params a.a_params pl) a.a_from in
 	List.fold_left (fun acc (t,f) ->
 		(* We never want to use the @:from we're currently in because that's recursive (see #10604) *)
-		if f == ctx.curfield then
+		if f == ctx.f.curfield then
 			acc
 		else if (AbstractFromConfig.update_config_from_meta (AbstractFromConfig.make ()) f.cf_meta).ignored_by_inference then
 			acc

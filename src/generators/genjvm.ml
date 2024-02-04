@@ -50,16 +50,11 @@ let get_construction_mode c cf =
 	if Meta.has Meta.HxGen cf.cf_meta then ConstructInitPlusNew
 	else ConstructInit
 
-class virtual jvm_output = object(self)
-	method virtual add_entry : string -> string -> unit
-	method virtual close : unit
-end
-
 (* Haxe *)
 
 type generation_context = {
 	com : Common.context;
-	out : jvm_output;
+	out : Zip_output.any_output;
 	t_runtime_exception : Type.t;
 	entry_point : (tclass * texpr) option;
 	t_exception : Type.t;
@@ -110,24 +105,10 @@ let run_timed gctx detail name f =
 		sub#run_finally f (fun () -> gctx.timer <- old)
 	end
 
-class jar_output
-	(jar_path : string)
-	(compression_level : int)
-= object(self)
-	inherit jvm_output
-	val jar = Zip.open_out jar_path
-
-	method add_entry (content : string) (name : string) =
-		Zip.add_entry ~level:compression_level content jar name
-
-	method close =
-		Zip.close_out jar
-end
-
 class file_output
 	(base_path : string)
 	= object(self)
-	inherit jvm_output
+	inherit Zip_output.any_output
 
 	method add_entry (content : string) (name : string) =
 		let path = base_path ^ name in
@@ -1718,7 +1699,7 @@ class texpr_to_jvm
 					info.super_call_fields <- tl;
 					hd
 				| _ ->
-					Error.raise_typing_error "Something went wrong" e1.epos
+					Error.raise_typing_error "Could not find field information for super call, please report this" e1.epos
 			in
 			let kind = get_construction_mode c cf in
 			begin match kind with
@@ -2435,6 +2416,7 @@ class tclass_to_jvm gctx c = object(self)
 		let jsig_empty = method_sig [haxe_empty_constructor_sig] None in
 		let jm_empty_ctor = jc#spawn_method "<init>" jsig_empty [MPublic;MSynthetic] in
 		let _,load,_ = jm_empty_ctor#add_local "_" haxe_empty_constructor_sig VarArgument in
+		jm_empty_ctor#finalize_arguments;
 		jm_empty_ctor#load_this;
 		if c.cl_constructor = None then begin
 			let handler = new texpr_to_jvm gctx None jc jm_empty_ctor None in
@@ -2475,6 +2457,7 @@ class tclass_to_jvm gctx c = object(self)
 					let _,load,_ = jm#add_local n (jsignature_of_type gctx t) VarArgument in
 					load();
 				) tl;
+				jm#finalize_arguments;
 				jm#call_super_ctor cmode jm#get_jsig;
 				DynArray.iter (fun e ->
 					handler#texpr RVoid e;
@@ -2575,10 +2558,7 @@ class tclass_to_jvm gctx c = object(self)
 			let p = null_pos in
 			let efield = Texpr.Builder.make_static_field c cf p in
 			let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type p in
-			begin match c.cl_init with
-			| None -> c.cl_init <- Some eop
-			| Some e -> c.cl_init <- Some (concat e eop)
-			end
+			TClass.add_cl_init c eop
 		in
 		begin match cf.cf_expr with
 			| None ->
@@ -2594,7 +2574,15 @@ class tclass_to_jvm gctx c = object(self)
 				let ethis = mk (TConst TThis) (TInst(c,tl)) null_pos in
 				let efield = mk (TField(ethis,FInstance(c,tl,cf))) cf.cf_type null_pos in
 				let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type null_pos in
-				DynArray.add (match cf.cf_kind with Method MethDynamic -> delayed_field_inits | _ -> field_inits) eop;
+				begin match cf.cf_kind with
+					| Method MethDynamic ->
+						let enull = Texpr.Builder.make_null efield.etype null_pos in
+						let echeck = Texpr.Builder.binop OpEq efield enull gctx.com.basic.tbool null_pos in
+						let eif = mk (TIf(echeck,eop,None)) gctx.com.basic.tvoid null_pos in
+						DynArray.add delayed_field_inits eif
+					| _ ->
+						DynArray.add field_inits eop
+				end
 			| Some e ->
 				match e.eexpr with
 				| TConst ct ->
@@ -2661,7 +2649,7 @@ class tclass_to_jvm gctx c = object(self)
 			| Some cf,None -> field MConstructor cf
 			| None,_ -> ()
 		end;
-		begin match c.cl_init with
+		begin match TClass.get_cl_init c with
 			| None ->
 				()
 			| Some e ->
@@ -3058,7 +3046,7 @@ let generate jvm_flag com =
 	in
 	if compression_level < 0 || compression_level > 9 then failwith "Invalid value for -D jvm.compression-level: Must be >=0 and <= 9";
 	let create_jar path =
-		new jar_output path compression_level
+		new Zip_output.zip_output path compression_level
 	in
 	let out_dir,out = if jvm_flag then begin
 		match path.file_name with
@@ -3082,7 +3070,7 @@ let generate jvm_flag com =
 		let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
 		jar_dir,create_jar jar_path
 	end in
-	let anon_identification = new tanon_identification haxe_dynamic_object_path in
+	let anon_identification = new tanon_identification in
 	let dynamic_level = try
 		int_of_string (Define.defined_value com.defines Define.JvmDynamicLevel)
 	with _ ->

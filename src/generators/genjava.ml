@@ -2201,7 +2201,7 @@ let generate con =
 			newline w
 		| _ -> ());
 
-		(match cl.cl_init with
+		(match TClass.get_cl_init cl with
 			| None -> ()
 			| Some init ->
 				write w "static";
@@ -2298,14 +2298,13 @@ let generate con =
 	let super_map (cl,tl) = (cl, List.map run_follow_gen tl) in
 	List.iter (function
 		| TClassDecl cl ->
-				let all_fields = (Option.map_default (fun cf -> [cf]) [] cl.cl_constructor) @ cl.cl_ordered_fields @ cl.cl_ordered_statics in
+				let all_fields = (Option.map_default (fun cf -> [cf]) [] cl.cl_constructor) @ cl.cl_ordered_fields @ cl.cl_ordered_statics @ (Option.map_default (fun cf -> [cf]) [] cl.cl_init)in
 				List.iter (fun cf ->
 					cf.cf_type <- run_follow_gen cf.cf_type;
 					cf.cf_expr <- Option.map type_map cf.cf_expr
 				) all_fields;
 			 cl.cl_dynamic <- Option.map run_follow_gen cl.cl_dynamic;
 			 cl.cl_array_access <- Option.map run_follow_gen cl.cl_array_access;
-			 cl.cl_init <- Option.map type_map cl.cl_init;
 			 cl.cl_super <- Option.map super_map cl.cl_super;
 			 cl.cl_implements <- List.map super_map cl.cl_implements
 		| _ -> ()
