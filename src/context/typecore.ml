@@ -254,30 +254,24 @@ module TyperManager = struct
 		}
 
 	let clone_for_module ctx m =
-		let c = create_ctx_c null_class in
-		let f = create_ctx_f null_field in
-		create ctx m c f ctx.e PBuildModule []
+		create ctx m ctx.c ctx.f ctx.e PBuildModule []
 
 	let clone_for_class ctx c =
 		let c = create_ctx_c c in
-		let f = create_ctx_f null_field in
 		let params = match c.curclass.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.curclass.cl_params in
-		create ctx ctx.m c f ctx.e PBuildClass params
+		create ctx ctx.m c ctx.f ctx.e PBuildClass params
 
 	let clone_for_enum ctx en =
 		let c = create_ctx_c null_class in
-		let f = create_ctx_f null_field in
-		create ctx ctx.m c f ctx.e PBuildClass en.e_params
+		create ctx ctx.m c ctx.f ctx.e PBuildClass en.e_params
 
 	let clone_for_typedef ctx td =
 		let c = create_ctx_c null_class in
-		let f = create_ctx_f null_field in
-		create ctx ctx.m c f ctx.e PBuildClass td.t_params
+		create ctx ctx.m c ctx.f ctx.e PBuildClass td.t_params
 
 	let clone_for_abstract ctx a =
 		let c = create_ctx_c null_class in
-		let f = create_ctx_f null_field in
-		create ctx ctx.m c f ctx.e PBuildClass a.a_params
+		create ctx ctx.m c ctx.f ctx.e PBuildClass a.a_params
 
 	let clone_for_field ctx cf params =
 		let f = create_ctx_f cf in
