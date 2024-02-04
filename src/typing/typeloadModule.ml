@@ -229,15 +229,20 @@ module ModuleLevel = struct
 		in
 		let tdecls = List.fold_left make_decl [] tdecls in
 		let tdecls =
-			match !statics with
-			| [] ->
+			match !statics, m.m_statics with
+			| [], _ ->
 				tdecls
-			| statics ->
+			| statics, Some c ->
+				raise_typing_error_ext (make_error ~sub:[
+					make_error ~depth:1 (Custom "Previously defined here") c.cl_pos
+				] (Custom (Printf.sprintf "Cannot add module level fields for module %s" (s_type_path m.m_path))) loadp);
+			| statics, None ->
 				let first_pos = ref null_pos in
 				let fields = List.map (fun (d,p) ->
 					first_pos := p;
 					field_of_static_definition d p;
 				) statics in
+
 				let p = let p = !first_pos in { p with pmax = p.pmin } in
 				let c = EClass {
 					d_name = (snd m.m_path) ^ "_Fields_", null_pos;
@@ -250,7 +255,6 @@ module ModuleLevel = struct
 				let tdecls = make_decl tdecls (c,p) in
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
-					assert (m.m_statics = None);
 					m.m_statics <- Some c;
 					c.cl_kind <- KModuleFields m;
 					add_class_flag c CFinal;
