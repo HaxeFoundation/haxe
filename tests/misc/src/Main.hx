@@ -174,7 +174,7 @@ class Main {
 	}
 
 	static function hideStdPositions(content:String):String {
-		var regex = new EReg(getStd() + '([a-z/\\\\]+\\.hx):[0-9]+:( characters? [0-9]+(-[0-9]+)( :)?)', 'i');
+		var regex = new EReg(StringTools.replace(getStd(), '\\', '(?:\\\\|/)') + '([a-z/\\\\]+\\.hx):[0-9]+:( characters? [0-9]+(-[0-9]+)( :)?)', 'i');
 
 		return content.split("\n")
 			.map(line -> regex.replace(line, "$1:???:"))
