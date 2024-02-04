@@ -1233,7 +1233,7 @@ and type_local_function ctx_from kind f with_type p =
 		| FunMemberAbstractLocal -> FunMemberAbstractLocal
 		| _ -> FunMemberClassLocal
 	in
-	let ctx = TyperManager.clone_for_expr ctx_from in
+	let ctx = TyperManager.clone_for_expr ctx_from curfun true in
 	let old_tp = ctx.type_params in
 	ctx.type_params <- params @ ctx.type_params;
 	if not inline then ctx.e.in_loop <- false;
@@ -1337,7 +1337,7 @@ and type_local_function ctx_from kind f with_type p =
 			if params <> [] then v.v_extra <- Some (var_extra params None);
 			Some v
 	) in
-	let e = TypeloadFunction.type_function ctx args rt curfun f.f_expr ctx.f.in_display p in
+	let e = TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p in
 	ctx.type_params <- old_tp;
 	let tf = {
 		tf_args = args#for_expr ctx;

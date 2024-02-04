@@ -607,7 +607,6 @@ let transform_field (ctx,cctx) c f fields p =
 	f
 
 let type_var_field ctx t e stat do_display p =
-	if stat then ctx.e.curfun <- FunStatic else ctx.e.curfun <- FunMember;
 	let e = if do_display then Display.preprocess_expr ctx.com e else e in
 	let e = type_expr ctx e (WithType.with_type t) in
 	let e = AbstractCast.cast_or_unify ctx t e p in
@@ -744,7 +743,7 @@ module TypeBinding = struct
 		let c = cctx.tclass in
 		let t = cf.cf_type in
 		let p = cf.cf_pos in
-		let ctx = TyperManager.clone_for_expr ctx_f in
+		let ctx = TyperManager.clone_for_expr ctx_f (if fctx.is_static then FunStatic else FunMember) false in
 		if (has_class_flag c CInterface) then unexpected_expression ctx.com fctx "Initialization on field of interface" (pos e);
 		cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 		let check_cast e =
@@ -835,18 +834,12 @@ module TypeBinding = struct
 		| Some e ->
 			bind_var_expression ctx cctx fctx cf e
 
-	let bind_method ctx_f cctx fctx cf t args ret e p =
+	let bind_method ctx_f cctx fctx fmode cf t args ret e p =
 		let c = cctx.tclass in
-		let ctx = TyperManager.clone_for_expr ctx_f in
+		let ctx = TyperManager.clone_for_expr ctx_f fmode true in
 		let bind r =
 			incr stats.s_methods_typed;
 			if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing method %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
-			let fmode = (match cctx.abstract with
-				| Some _ ->
-					if fctx.is_abstract_member then FunMemberAbstract else FunStatic
-				| None ->
-					if fctx.field_kind = CfrConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
-			) in
 			begin match ctx.com.platform with
 				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
 					if e <> None then
@@ -870,7 +863,7 @@ module TypeBinding = struct
 						| _ ->
 							(fun () -> ())
 					in
-					let e = TypeloadFunction.type_function ctx args ret fmode e fctx.is_display_field p in
+					let e = TypeloadFunction.type_function ctx args ret e fctx.is_display_field p in
 					f_check();
 					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
 					(* List.iter (fun (v,_) ->
@@ -1334,27 +1327,28 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				()
 	) parent;
 	generate_args_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
-	begin match cctx.abstract with
-	| Some a ->
-		check_abstract (ctx,cctx,fctx) a c cf fd t ret p;
-	| _ ->
-		()
-	end;
+	let fmode = match cctx.abstract with
+		| Some a ->
+			check_abstract (ctx,cctx,fctx) a c cf fd t ret p;
+			if fctx.is_abstract_member then FunMemberAbstract else FunStatic
+		| _ ->
+			if fctx.field_kind = CfrConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
+	in
 	init_meta_overloads ctx (Some c) cf;
 	ctx.f.curfield <- cf;
 	if fctx.do_bind then
-		TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
+		TypeBinding.bind_method ctx cctx fctx fmode cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
 	else begin
 		if fctx.is_display_field then begin
 			delay ctx.g PTypeField (fun () ->
 				(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
-				let ctx = TyperManager.clone_for_expr ctx in
+				let ctx = TyperManager.clone_for_expr ctx fmode true in
 				ignore(args#for_expr ctx)
 			);
 			check_field_display ctx fctx c cf;
 		end else
 			delay ctx.g PTypeField (fun () ->
-				let ctx = TyperManager.clone_for_expr ctx in
+				let ctx = TyperManager.clone_for_expr ctx fmode true in
 				args#verify_extern ctx
 			);
 		if fd.f_expr <> None then begin

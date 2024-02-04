@@ -139,11 +139,11 @@ type typer_globals = {
 (* typer_expr holds information that is specific to a (function) expresssion, whereas typer_field
    is shared by local TFunctions. *)
 and typer_expr = {
+	curfun : current_fun;
+	in_function : bool;
 	mutable ret : t;
-	mutable curfun : current_fun;
 	mutable opened : anon_status ref list;
 	mutable monomorphs : monomorphs;
-	mutable in_function : bool;
 	mutable in_loop : bool;
 	mutable bypass_accessor : int;
 	mutable with_type_stack : WithType.t list;
@@ -237,12 +237,12 @@ module TyperManager = struct
 			in_call_args = false;
 		}
 
-	let create_ctx_e () =
+	let create_ctx_e curfun in_function =
 		{
+			curfun;
+			in_function;
 			ret = t_dynamic;
-			curfun = FunStatic;
 			opened = [];
-			in_function = false;
 			monomorphs = {
 				perfunction = [];
 			};
@@ -256,46 +256,39 @@ module TyperManager = struct
 	let clone_for_module ctx m =
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
-		let e = create_ctx_e () in
-		create ctx m c f e PBuildModule []
+		create ctx m c f ctx.e PBuildModule []
 
 	let clone_for_class ctx c =
 		let c = create_ctx_c c in
 		let f = create_ctx_f null_field in
-		let e = create_ctx_e () in
 		let params = match c.curclass.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.curclass.cl_params in
-		create ctx ctx.m c f e PBuildClass params
+		create ctx ctx.m c f ctx.e PBuildClass params
 
 	let clone_for_enum ctx en =
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
-		let e = create_ctx_e () in
-		create ctx ctx.m c f e PBuildClass en.e_params
+		create ctx ctx.m c f ctx.e PBuildClass en.e_params
 
 	let clone_for_typedef ctx td =
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
-		let e = create_ctx_e () in
-		create ctx ctx.m c f e PBuildClass td.t_params
+		create ctx ctx.m c f ctx.e PBuildClass td.t_params
 
 	let clone_for_abstract ctx a =
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
-		let e = create_ctx_e () in
-		create ctx ctx.m c f e PBuildClass a.a_params
+		create ctx ctx.m c f ctx.e PBuildClass a.a_params
 
 	let clone_for_field ctx cf params =
 		let f = create_ctx_f cf in
-		let e = create_ctx_e () in
-		create ctx ctx.m ctx.c f e PBuildClass params
+		create ctx ctx.m ctx.c f ctx.e PBuildClass params
 
 	let clone_for_enum_field ctx params =
 		let f = create_ctx_f null_field in
-		let e = create_ctx_e () in
-		create ctx ctx.m ctx.c f e PBuildClass params
+		create ctx ctx.m ctx.c f ctx.e PBuildClass params
 
-	let clone_for_expr ctx =
-		let e = create_ctx_e () in
+	let clone_for_expr ctx curfun in_function =
+		let e = create_ctx_e curfun in_function in
 		create ctx ctx.m ctx.c ctx.f e PTypeField ctx.type_params
 
 	let clone_for_type_params ctx params =
@@ -303,7 +296,7 @@ module TyperManager = struct
 
 	let clone_for_type_parameter_expression ctx =
 		let f = create_ctx_f ctx.f.curfield in
-		let e = create_ctx_e () in
+		let e = create_ctx_e ctx.e.curfun false in
 		create ctx ctx.m ctx.c f e PTypeField ctx.type_params
 end
 
