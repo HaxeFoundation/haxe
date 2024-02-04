@@ -96,7 +96,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 					false,a.a_path,fields,TAbstractDecl a
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					begin match get_abstract_froms ctx a pl with
-						| [t2] ->
+						| [(_,t2)] ->
 							if (List.exists (shallow_eq t) stack) then raise Exit;
 							loop (t :: stack) t2
 						| _ -> raise Exit
@@ -782,14 +782,15 @@ and type_object_decl ctx fl with_type p =
 	let dynamic_parameter = ref None in
 	let a = (match with_type with
 	| WithType.WithType(t,_) ->
-		let rec loop seen t =
+		let rec loop had_cast seen t =
 			match follow t with
-			| TAnon a -> ODKWithStructure a
+			| TAnon a ->
+				ODKWithStructure a
 			| TAbstract (a,pl) as t
 				when not (Meta.has Meta.CoreType a.a_meta)
 					&& not (List.exists (fun t' -> shallow_eq t t') seen) ->
 				let froms = get_abstract_froms ctx a pl in
-				let fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
+				let fold = fun acc (fk,t') -> match loop (fk = FromField) (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
 				begin match List.fold_left fold [] froms with
 					| [] -> ODKPlain (* If the abstract has no casts in the first place, we can assume plain typing (issue #10730) *)
 					| [t] -> t
@@ -801,12 +802,12 @@ and type_object_decl ctx fl with_type p =
 					a_status = ref Closed;
 					a_fields = PMap.empty;
 				}
-			| TInst(c,tl) when Meta.has Meta.StructInit c.cl_meta ->
+			| TInst(c,tl) when not had_cast && Meta.has Meta.StructInit c.cl_meta ->
 				ODKWithClass(c,tl)
 			| _ ->
 				ODKPlain
 		in
-		loop [] t
+		loop false [] t
 	| _ ->
 		ODKPlain
 	) in
@@ -1296,14 +1297,14 @@ and type_local_function ctx kind f with_type p =
 				maybe_unify_ret tr
 			| TAbstract(a,tl) ->
 				begin match get_abstract_froms ctx a tl with
-					| [t2] ->
+					| [(_,t2)] ->
 						if not (List.exists (shallow_eq t) stack) then loop (t :: stack) t2
 					| l ->
 						(* For cases like nested EitherType, we want a flat list of all possible candidates.
 						   This might be controversial because those could be considered transitive casts,
 						   but it's unclear if that's a bad thing for this kind of inference (issue #10982). *)
 						let rec loop stack acc l = match l with
-							| t :: l ->
+							| (_,t) :: l ->
 								begin match follow t with
 								| TAbstract(a,tl) as t when not (List.exists (shallow_eq t) stack) ->
 									loop (t :: stack) acc (l @ get_abstract_froms ctx a tl)
@@ -1398,15 +1399,10 @@ and type_array_decl ctx el with_type p =
 				with Not_found ->
 					None)
 			| TAbstract (a,pl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
-				let types =
-					List.fold_left
-						(fun acc t' -> match loop (t :: seen) t' with
-							| None -> acc
-							| Some t -> t :: acc
-						)
-						[]
-						(get_abstract_froms ctx a pl)
-				in
+				let types = List.fold_left (fun acc (_,t') -> match loop (t :: seen) t' with
+					| None -> acc
+					| Some t -> t :: acc
+				) [] (get_abstract_froms ctx a pl) in
 				(match types with
 				| [t] -> Some t
 				| _ -> None)
