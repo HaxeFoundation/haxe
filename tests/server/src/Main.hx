@@ -1,6 +1,8 @@
 import utest.ui.Report;
 import utest.Runner;
 import utils.Vfs;
+import haxeserver.HaxeServerAsync;
+import haxeserver.process.HaxeServerProcessNode;
 
 class Main {
 	static public function main() {
@@ -11,6 +13,13 @@ class Main {
 		var report = Report.create(runner);
 		report.displayHeader = AlwaysShowHeader;
 		report.displaySuccessResults = NeverShowSuccessResults;
-		runner.run();
+		var cwd = Sys.getCwd();
+		var server:HaxeServerAsync = null;
+		runner.onComplete.add(_ -> server.stop());
+		server = new HaxeServerAsync(() -> new HaxeServerProcessNode("haxe", ["-v"], {}, () -> {
+			TestCase.server = server;
+			TestCase.rootCwd = cwd;
+			runner.run();
+		}));
 	}
 }

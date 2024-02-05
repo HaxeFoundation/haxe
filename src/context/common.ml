@@ -398,6 +398,7 @@ type context = {
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
 	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
+	fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t;
 	mutable has_error : bool;
 	pass_debug_messages : string DynArray.t;
 	(* output *)
@@ -833,6 +834,7 @@ let create compilation_step cs version args display_mode =
 		modules = [];
 		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
+		fake_modules = Hashtbl.create 0;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
 		net_std = [];
@@ -932,6 +934,7 @@ let clone com is_macro_context =
 		module_to_file = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
 		module_lut = new module_lut;
+		fake_modules = Hashtbl.create 0;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		std = null_class;
 		empty_class_path = new ClassPath.directory_class_path "" User;
