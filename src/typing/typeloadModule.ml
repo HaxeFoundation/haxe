@@ -87,7 +87,7 @@ module ModuleLevel = struct
 			let p = snd decl in
 			let check_type_name type_name meta =
 				let module_name = snd m.m_path in
-				if type_name <> module_name && not (Meta.has Meta.Native meta) then Typecore.check_uppercase_identifier_name ctx_m type_name "type" p;
+				if type_name <> module_name && not (Meta.has Meta.Native meta) then Naming.check_uppercase_identifier_name ctx_m.com type_name "type" p;
 			in
 			let acc = (match fst decl with
 			| EImport _ | EUsing _ ->
@@ -152,7 +152,7 @@ module ModuleLevel = struct
 					t_meta = d.d_meta;
 				} in
 				(* failsafe in case the typedef is not initialized (see #3933) *)
-				delay ctx_m PBuildModule (fun () ->
+				delay ctx_m.g PBuildModule (fun () ->
 					match t.t_type with
 					| TMono r -> (match r.tm_type with None -> Monomorph.bind r com.basic.tvoid | _ -> ())
 					| _ -> ()
@@ -405,7 +405,7 @@ module TypeLevel = struct
 				with TypeloadCheck.Build_canceled state ->
 					c.cl_build <- make_pass ctx_c build;
 					let rebuild() =
-						delay_late ctx_c PBuildClass (fun() -> ignore(c.cl_build()));
+						delay_late ctx_c.g PBuildClass (fun() -> ignore(c.cl_build()));
 					in
 					(match state with
 					| Built -> die "" __LOC__
@@ -424,11 +424,11 @@ module TypeLevel = struct
 			build()
 		in
 		c.cl_build <- make_pass ctx_m build;
-		delay ctx_m PBuildClass (fun() -> ignore(c.cl_build()));
+		delay ctx_m.g PBuildClass (fun() -> ignore(c.cl_build()));
 		if Meta.has Meta.InheritDoc c.cl_meta then
-			delay ctx_m PConnectField (fun() -> InheritDoc.build_class_doc ctx_m c);
+			delay ctx_m.g PConnectField (fun() -> InheritDoc.build_class_doc ctx_m c);
 		if (ctx_m.com.platform = Java || ctx_m.com.platform = Cs) && not (has_class_flag c CExtern) then
-			delay ctx_m PTypeField (fun () ->
+			delay ctx_m.g PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_m c.cl_meta in
 				if metas <> [] then c.cl_meta <- metas @ c.cl_meta;
 				let rec run_field cf =
@@ -498,16 +498,16 @@ module TypeLevel = struct
 			incr index;
 			names := (fst c.ec_name) :: !names;
 			if Meta.has Meta.InheritDoc f.ef_meta then
-				delay ctx_en PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx_en f);
+				delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx_en f);
 		) (!constructs);
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
 		unify ctx_en (TType(enum_module_type e,[])) e.e_type p;
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
-			delay ctx_en PConnectField (fun() -> InheritDoc.build_enum_doc ctx_en e);
+			delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_doc ctx_en e);
 		if (ctx_en.com.platform = Java || ctx_en.com.platform = Cs) && not e.e_extern then
-			delay ctx_en PTypeField (fun () ->
+			delay ctx_en.g PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_en e.e_meta in
 				e.e_meta <- metas @ e.e_meta;
 				PMap.iter (fun _ ef ->
@@ -547,7 +547,7 @@ module TypeLevel = struct
 					| _ ->
 						()
 				in
-				let r = make_lazy ctx_td tt (fun r ->
+				let r = make_lazy ctx_td.g tt (fun r ->
 					check_rec tt;
 					tt
 				) "typedef_rec_check" in
@@ -562,7 +562,7 @@ module TypeLevel = struct
 		| _ -> die "" __LOC__);
 		TypeloadFields.build_module_def ctx_td (TTypeDecl t) t.t_meta (fun _ -> []) (fun _ -> ());
 		if ctx_td.com.platform = Cs && t.t_meta <> [] then
-			delay ctx_td PTypeField (fun () ->
+			delay ctx_td.g PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_td t.t_meta in
 				if metas <> [] then t.t_meta <- metas @ t.t_meta;
 			)
@@ -586,7 +586,7 @@ module TypeLevel = struct
 			let t = load_complex_type ctx_a true t in
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
-					let r = make_lazy ctx_a t (fun r ->
+					let r = make_lazy ctx_a.g t (fun r ->
 						(try (if from then Type.unify t a.a_this else Type.unify a.a_this t) with Unify_error _ -> raise_typing_error "You can only declare from/to with compatible types" pos);
 						t
 					) "constraint" in
@@ -607,7 +607,7 @@ module TypeLevel = struct
 				if a.a_impl = None then raise_typing_error "Abstracts with underlying type must have an implementation" a.a_pos;
 				if Meta.has Meta.CoreType a.a_meta then raise_typing_error "@:coreType abstracts cannot have an underlying type" p;
 				let at = load_complex_type ctx_a true t in
-				delay ctx_a PForce (fun () ->
+				delay ctx_a.g PForce (fun () ->
 					let rec loop stack t =
 						match follow t with
 						| TAbstract(a,_) when not (Meta.has Meta.CoreType a.a_meta) ->
@@ -634,7 +634,7 @@ module TypeLevel = struct
 				raise_typing_error "Abstract is missing underlying type declaration" a.a_pos
 		end;
 		if Meta.has Meta.InheritDoc a.a_meta then
-			delay ctx_a PConnectField (fun() -> InheritDoc.build_abstract_doc ctx_a a)
+			delay ctx_a.g PConnectField (fun() -> InheritDoc.build_abstract_doc ctx_a a)
 
 	(*
 		In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
@@ -697,7 +697,7 @@ let make_curmod com g m =
 	Creates a module context for [m] and types [tdecls] using it.
 *)
 let type_types_into_module com g m tdecls p =
-	let ctx_m = TyperManager.create_for_module com g (make_curmod com g m) in
+	let ctx_m = TyperManager.clone_for_module g.root_typer (make_curmod com g m) in
 	let decls,tdecls = ModuleLevel.create_module_types ctx_m m tdecls p in
 	let types = List.map fst decls in
 	(* During the initial module_lut#add in type_module, m has no m_types yet by design.
@@ -715,48 +715,47 @@ let type_types_into_module com g m tdecls p =
 	(* setup module types *)
 	List.iter (TypeLevel.init_module_type ctx_m) tdecls;
 	(* Make sure that we actually init the context at some point (issue #9012) *)
-	delay ctx_m PConnectField (fun () -> ctx_m.m.import_resolution#resolve_lazies);
+	delay ctx_m.g PConnectField (fun () -> ctx_m.m.import_resolution#resolve_lazies);
 	ctx_m
 
 (*
 	Creates a new module and types [tdecls] into it.
 *)
-let type_module ctx_from mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
-	let m = ModuleLevel.make_module ctx_from.com ctx_from.g mpath file p in
-	ctx_from.com.module_lut#add m.m_path m;
-	let tdecls = ModuleLevel.handle_import_hx ctx_from.com ctx_from.g m tdecls p in
-	let ctx_m = type_types_into_module ctx_from.com ctx_from.g m tdecls p in
-	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx_m m.m_path p;
+let type_module com g mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
+	let m = ModuleLevel.make_module com g mpath file p in
+	com.module_lut#add m.m_path m;
+	let tdecls = ModuleLevel.handle_import_hx com g m tdecls p in
+	let ctx_m = type_types_into_module com g m tdecls p in
+	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Naming.check_module_path ctx_m.com m.m_path p;
 	m
 
 (* let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	let timer = Timer.timer ["typing";"type_module"] in
 	Std.finally timer (type_module ctx mpath file ~is_extern tdecls) p *)
 
-let type_module_hook = ref (fun _ _ _ -> NoModule)
-
 class hxb_reader_api_typeload
-	(ctx : typer)
-	(load_module : typer -> path -> pos -> module_def)
+	(com : context)
+	(g : typer_globals)
+	(load_module : context -> typer_globals -> path -> pos -> module_def)
 	(p : pos)
 = object(self)
 	method make_module (path : path) (file : string) =
-		let m = ModuleLevel.make_module ctx.com ctx.g path file p in
+		let m = ModuleLevel.make_module com g path file p in
 		m.m_extra.m_processed <- 1;
 		m
 
 	method add_module (m : module_def) =
-		ctx.com.module_lut#add m.m_path m
+		com.module_lut#add m.m_path m
 
 	method resolve_type (pack : string list) (mname : string) (tname : string) =
-		let m = load_module ctx (pack,mname) p in
+		let m = load_module com g (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 
 	method resolve_module (path : path) =
-		load_module ctx path p
+		load_module com g path p
 
 	method basic_types =
-		ctx.com.basic
+		com.basic
 
 	method get_var_id (i : int) =
 		(* The v_id in .hxb has no relation to this context, make a new one. *)
@@ -765,22 +764,22 @@ class hxb_reader_api_typeload
 		!uid
 
 	method read_expression_eagerly (cf : tclass_field) =
-		ctx.com.is_macro_context || match cf.cf_kind with
+		com.is_macro_context || match cf.cf_kind with
 			| Var _ ->
 				true
 			| Method _ ->
-				delay ctx PTypeField (fun () -> ignore(follow cf.cf_type));
+				delay g PTypeField (fun () -> ignore(follow cf.cf_type));
 				false
 end
 
-let rec load_hxb_module ctx path p =
+let rec load_hxb_module com g path p =
 	let read file bytes =
 		try
-			let api = (new hxb_reader_api_typeload ctx load_module' p :> HxbReaderApi.hxb_reader_api) in
-			let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats in
+			let api = (new hxb_reader_api_typeload com g load_module' p :> HxbReaderApi.hxb_reader_api) in
+			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats in
 			let read = reader#read api bytes in
 			let m = read EOT in
-			delay ctx PConnectField (fun () ->
+			delay g PConnectField (fun () ->
 				ignore(read EOM);
 			);
 			m
@@ -790,7 +789,7 @@ let rec load_hxb_module ctx path p =
 			Printf.eprintf " => %s\n%s\n" msg stack;
 			raise e
 	in
-	let target = Common.platform_name_macro ctx.com in
+	let target = Common.platform_name_macro com in
 	let rec loop l = match l with
 		| hxb_lib :: l ->
 			begin match hxb_lib#get_bytes target path with
@@ -802,35 +801,35 @@ let rec load_hxb_module ctx path p =
 		| [] ->
 			raise Not_found
 	in
-	loop ctx.com.hxb_libs
+	loop com.hxb_libs
 
-and load_module' ctx m p =
+and load_module' com g m p =
 	try
 		(* Check current context *)
-		ctx.com.module_lut#find m
+		com.module_lut#find m
 	with Not_found ->
 		(* Check cache *)
-		match !type_module_hook ctx m p with
+		match !TypeloadCacheHook.type_module_hook com m p with
 		| GoodModule m ->
 			m
 		| BinaryModule _ ->
 			die "" __LOC__ (* The server builds those *)
 		| NoModule | BadModule _ -> try
-			load_hxb_module ctx m p
+			load_hxb_module com g m p
 		with Not_found ->
 			let raise_not_found () = raise_error_msg (Module_not_found m) p in
-			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
-			if ctx.g.load_only_cached_modules then raise_not_found();
+			if com.module_nonexistent_lut#mem m then raise_not_found();
+			if g.load_only_cached_modules then raise_not_found();
 			let is_extern = ref false in
 			let file, decls = try
 				(* Try parsing *)
-				let rfile,decls = TypeloadParse.parse_module ctx m p in
+				let rfile,decls = TypeloadParse.parse_module com m p in
 				rfile.file,decls
 			with Not_found ->
 				(* Nothing to parse, try loading extern type *)
 				let rec loop = function
 					| [] ->
-						ctx.com.module_nonexistent_lut#add m true;
+						com.module_nonexistent_lut#add m true;
 						raise_not_found()
 					| (file,load) :: l ->
 						match load m p with
@@ -838,15 +837,15 @@ and load_module' ctx m p =
 						| Some (_,a) -> file, a
 				in
 				is_extern := true;
-				loop ctx.com.load_extern_type
+				loop com.load_extern_type
 			in
 			let is_extern = !is_extern in
-			type_module ctx m file ~is_extern decls p
+			type_module com g m file ~is_extern decls p
 
 let load_module ctx m p =
-	let m2 = load_module' ctx m p in
+	let m2 = load_module' ctx.com ctx.g m p in
 	add_dependency ~skip_postprocess:true ctx.m.curmod m2;
-	if ctx.pass = PTypeField then flush_pass ctx PConnectField ("load_module",fst m @ [snd m]);
+	if ctx.pass = PTypeField then flush_pass ctx.g PConnectField ("load_module",fst m @ [snd m]);
 	m2
 
 (* let load_module ctx m p =

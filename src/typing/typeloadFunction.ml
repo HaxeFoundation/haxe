@@ -36,13 +36,11 @@ let save_field_state ctx =
 let type_function_params ctx fd host fname p =
 	Typeload.type_type_params ctx host ([],fname) p fd.f_params
 
-let type_function ctx (args : function_arguments) ret fmode e do_display p =
-	ctx.e.in_function <- true;
-	ctx.e.curfun <- fmode;
+let type_function ctx (args : function_arguments) ret e do_display p =
 	ctx.e.ret <- ret;
 	ctx.e.opened <- [];
 	ctx.e.monomorphs.perfunction <- [];
-	enter_field_typing_pass ctx ("type_function",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
+	enter_field_typing_pass ctx.g ("type_function",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
 	args#bring_into_context ctx;
 	let e = match e with
 		| None ->
@@ -53,7 +51,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 				*)
 				EBlock [],p
 			else
-				if fmode = FunMember && has_class_flag ctx.c.curclass CAbstract then
+				if ctx.e.curfun = FunMember && has_class_flag ctx.c.curclass CAbstract then
 					raise_typing_error "Function body or abstract modifier required" p
 				else
 					raise_typing_error "Function body required" p
@@ -110,10 +108,10 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 			with Not_found ->
 				None
 	in
-	let e = if fmode <> FunConstructor then
+	let e = if ctx.e.curfun <> FunConstructor then
 		e
 	else begin
-		delay ctx PForce (fun () -> TypeloadCheck.check_final_vars ctx e);
+		delay ctx.g PForce (fun () -> TypeloadCheck.check_final_vars ctx e);
 		match has_super_constr() with
 		| Some (was_forced,t_super) ->
 			(try
@@ -163,9 +161,9 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 	if is_position_debug then print_endline ("typing:\n" ^ (Texpr.dump_with_pos "" e));
 	e
 
-let type_function ctx args ret fmode e do_display p =
+let type_function ctx args ret e do_display p =
 	let save = save_field_state ctx in
-	Std.finally save (type_function ctx args ret fmode e do_display) p
+	Std.finally save (type_function ctx args ret e do_display) p
 
 let add_constructor ctx_c c force_constructor p =
 	if c.cl_constructor <> None then () else
@@ -177,7 +175,7 @@ let add_constructor ctx_c c force_constructor p =
 		cf.cf_params <- cfsup.cf_params;
 		cf.cf_meta <- List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
 		let t = spawn_monomorph ctx_c.e p in
-		let r = make_lazy ctx_c t (fun r ->
+		let r = make_lazy ctx_c.g t (fun r ->
 			let ctx = TyperManager.clone_for_field ctx_c cf cf.cf_params in
 			ignore (follow cfsup.cf_type); (* make sure it's typed *)
 			List.iter (fun cf -> ignore (follow cf.cf_type)) cf.cf_overloads;
