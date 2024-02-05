@@ -2006,7 +2006,7 @@ let generate com =
 	| Some smap ->
 		write_mappings ctx.com smap "file:///";
 		let basefile = Filename.basename com.file in
-		print ctx "\n//# sourceMappingURL=%s.map" (url_encode_s basefile);
+		print ctx "\n//# sourceMappingURL=%s.map" (StringHelper.url_encode_s basefile);
 	| None -> try Sys.remove (com.file ^ ".map") with _ -> ());
 	flush ctx;
 	Option.may (fun chan -> close_out chan) ctx.chan

@@ -78,7 +78,7 @@ type context = {
 	mutable file_prefix : string;
 	mutable fun_index : int;
 	mutable type_module : (ttype, code_module) PMap.t;
-	gcon : Common.context;
+	gcon : Gctx.t;
 }
 
 let sprintf = Printf.sprintf
@@ -345,7 +345,7 @@ let short_digest str =
 let open_file ctx file =
 	if ctx.curfile <> "" then close_file ctx;
 	if file <> "hlc.json" then
-		Codegen.map_source_header ctx.gcon (fun s -> define ctx (sprintf "// %s" s));
+		Gctx.map_source_header ctx.gcon (fun s -> define ctx (sprintf "// %s" s));
 	ctx.curfile <- file;
 	ctx.fun_index <- 0;
 	ctx.file_prefix <- (short_digest file) ^ "_"
@@ -1457,7 +1457,7 @@ let write_c com file (code:code) gnames =
 	let bnames = Array.map (fun b -> "bytes$" ^ short_digest (Digest.to_hex (Digest.bytes b))) code.bytes in
 
 	let ctx = {
-		version = com.Common.version;
+		version = com.Gctx.version;
 		out = Buffer.create 1024;
 		tabs = "";
 		hlcode = code;
@@ -1572,7 +1572,7 @@ let write_c com file (code:code) gnames =
 	in
 	Array.iteri (fun i str ->
 		if String.length str >= string_data_limit then begin
-			let s = Common.utf8_to_utf16 str true in
+			let s = StringHelper.utf8_to_utf16 str true in
 			sline "// %s..." (String.escaped (String.sub str 0 (string_data_limit-4)));
 			output ctx (Printf.sprintf "vbyte string$%s[] = {" (short_digest str));
 			output_bytes (output ctx) s;

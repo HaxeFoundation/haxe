@@ -162,13 +162,17 @@ let generate ctx tctx ext actx =
 			Gencs.generate,"cs"
 		| Java ->
 			if Common.defined com Jvm then
-				Genjvm.generate actx.jvm_flag,"java"
+				(fun com ->
+					Genjvm.generate actx.jvm_flag (Common.to_gctx com)
+				),"java"
 			else
 				Genjava.generate,"java"
 		| Python ->
 			Genpy.generate,"python"
 		| Hl ->
-			Genhl.generate,"hl"
+			(fun com ->
+				Genhl.generate (Common.to_gctx com)
+			),"hl"
 		| Eval ->
 			(fun _ -> MacroContext.interpret tctx),"eval"
 		| Cross
