@@ -62,7 +62,17 @@ module ModuleLevel = struct
 	*)
 	let create_module_types ctx_m m tdecls loadp =
 		let com = ctx_m.com in
-		let decls = ref [] in
+		let module_types = DynArray.create () in
+		let declarations = DynArray.create () in
+		let add_declaration decl tdecl =
+			DynArray.add declarations (decl,tdecl);
+			match tdecl with
+				| None ->
+					()
+				| Some mt ->
+					ctx_m.com.module_lut#add_module_type m mt;
+					DynArray.add module_types mt;
+		in
 		let statics = ref [] in
 		let check_name name meta also_statics p =
 			DeprecationCheck.check_is com ctx_m.m.curmod meta [] name meta p;
@@ -70,9 +80,9 @@ module ModuleLevel = struct
 				display_error com ("Name " ^ name ^ " is already defined in this module") p;
 				raise_typing_error ~depth:1 (compl_msg "Previous declaration here") prev_pos;
 			in
-			List.iter (fun (t2,(_,p2)) ->
+			DynArray.iter (fun t2 ->
 				if snd (t_path t2) = name then error (t_infos t2).mt_name_pos
-			) !decls;
+			) module_types;
 			if also_statics then
 				List.iter (fun (d,_) ->
 					if fst d.d_name = name then error (snd d.d_name)
@@ -83,155 +93,149 @@ module ModuleLevel = struct
 			if priv then (fst m.m_path @ ["_" ^ snd m.m_path], name) else (fst m.m_path, name)
 		in
 		let has_declaration = ref false in
-		let rec make_decl acc decl =
+		let check_type_name type_name meta p =
+			let module_name = snd m.m_path in
+			if type_name <> module_name && not (Meta.has Meta.Native meta) then Naming.check_uppercase_identifier_name ctx_m.com type_name "type" p;
+		in
+		let handle_class_decl d p =
+			let name = fst d.d_name in
+			has_declaration := true;
+			let priv = List.mem HPrivate d.d_flags in
+			let path = make_path name priv d.d_meta (snd d.d_name) in
+			let c = mk_class m path p (pos d.d_name) in
+			(* we shouldn't load any other type until we propertly set cl_build *)
+			c.cl_build <- (fun() -> raise_typing_error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
+			c.cl_module <- m;
+			c.cl_private <- priv;
+			c.cl_doc <- d.d_doc;
+			c.cl_meta <- d.d_meta;
+			if List.mem HAbstract d.d_flags then add_class_flag c CAbstract;
+			List.iter (function
+				| HExtern -> add_class_flag c CExtern
+				| HInterface -> add_class_flag c CInterface
+				| HFinal -> add_class_flag c CFinal
+				| _ -> ()
+			) d.d_flags;
+			if not (has_class_flag c CExtern) then check_type_name name d.d_meta p;
+			if has_class_flag c CAbstract then begin
+				if has_class_flag c CInterface then display_error com "An interface may not be abstract" c.cl_name_pos;
+				if has_class_flag c CFinal then display_error com "An abstract class may not be final" c.cl_name_pos;
+			end;
+			c
+		in
+		let make_decl decl =
 			let p = snd decl in
-			let check_type_name type_name meta =
-				let module_name = snd m.m_path in
-				if type_name <> module_name && not (Meta.has Meta.Native meta) then Naming.check_uppercase_identifier_name ctx_m.com type_name "type" p;
-			in
-			let acc = (match fst decl with
-			| EImport _ | EUsing _ ->
-				if !has_declaration then raise_typing_error "import and using may not appear after a declaration" p;
-				acc
-			| EStatic d ->
-				check_name (fst d.d_name) d.d_meta false (snd d.d_name);
-				has_declaration := true;
-				statics := (d,p) :: !statics;
-				acc;
-			| EClass d ->
-				let name = fst d.d_name in
-				has_declaration := true;
-				let priv = List.mem HPrivate d.d_flags in
-				let path = make_path name priv d.d_meta (snd d.d_name) in
-				let c = mk_class m path p (pos d.d_name) in
-				(* we shouldn't load any other type until we propertly set cl_build *)
-				c.cl_build <- (fun() -> raise_typing_error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
-				c.cl_module <- m;
-				c.cl_private <- priv;
-				c.cl_doc <- d.d_doc;
-				c.cl_meta <- d.d_meta;
-				if List.mem HAbstract d.d_flags then add_class_flag c CAbstract;
-				List.iter (function
-					| HExtern -> add_class_flag c CExtern
-					| HInterface -> add_class_flag c CInterface
-					| HFinal -> add_class_flag c CFinal
-					| _ -> ()
-				) d.d_flags;
-				if not (has_class_flag c CExtern) then check_type_name name d.d_meta;
-				if has_class_flag c CAbstract then begin
-					if has_class_flag c CInterface then display_error com "An interface may not be abstract" c.cl_name_pos;
-					if has_class_flag c CFinal then display_error com "An abstract class may not be final" c.cl_name_pos;
-				end;
-				decls := (TClassDecl c, decl) :: !decls;
-				acc
-			| EEnum d ->
-				let name = fst d.d_name in
-				has_declaration := true;
-				let priv = List.mem EPrivate d.d_flags in
-				let path = make_path name priv d.d_meta p in
-				if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then raise_typing_error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
-				let e = {
-					(mk_enum m path p (pos d.d_name)) with
-					e_doc = d.d_doc;
-					e_meta = d.d_meta;
-					e_private = priv;
-					e_extern = List.mem EExtern d.d_flags;
-				} in
-				if not e.e_extern then check_type_name name d.d_meta;
-				decls := (TEnumDecl e, decl) :: !decls;
-				acc
-			| ETypedef d ->
-				let name = fst d.d_name in
-				check_type_name name d.d_meta;
-				has_declaration := true;
-				let priv = List.mem EPrivate d.d_flags in
-				let path = make_path name priv d.d_meta p in
-				let t = {(mk_typedef m path p (pos d.d_name) (mk_mono())) with
-					t_doc = d.d_doc;
-					t_private = priv;
-					t_meta = d.d_meta;
-				} in
-				(* failsafe in case the typedef is not initialized (see #3933) *)
-				delay ctx_m.g PBuildModule (fun () ->
-					match t.t_type with
-					| TMono r -> (match r.tm_type with None -> Monomorph.bind r com.basic.tvoid | _ -> ())
-					| _ -> ()
-				);
-				decls := (TTypeDecl t, decl) :: !decls;
-				acc
-			| EAbstract d ->
-				let name = fst d.d_name in
-				check_type_name name d.d_meta;
-				let priv = List.mem AbPrivate d.d_flags in
-				let path = make_path name priv d.d_meta p in
-				let p_enum_meta = Meta.maybe_get_pos Meta.Enum d.d_meta in
-				let a = {
-					a_path = path;
-					a_private = priv;
-					a_module = m;
-					a_pos = p;
-					a_name_pos = pos d.d_name;
-					a_doc = d.d_doc;
-					a_params = [];
-					a_using = [];
-					a_restore = (fun () -> ());
-					a_meta = d.d_meta;
-					a_from = [];
-					a_to = [];
-					a_from_field = [];
-					a_to_field = [];
-					a_ops = [];
-					a_unops = [];
-					a_impl = None;
-					a_array = [];
-					a_this = mk_mono();
-					a_read = None;
-					a_write = None;
-					a_call = None;
-					a_enum = List.mem AbEnum d.d_flags || p_enum_meta <> None;
-				} in
-				begin match p_enum_meta with
-					| None when a.a_enum -> a.a_meta <- (Meta.Enum,[],null_pos) :: a.a_meta; (* HAXE5: remove *)
-					| None -> ()
-					| Some p ->
-						let options = Warning.from_meta d.d_meta in
-						module_warning com ctx_m.m.curmod WDeprecatedEnumAbstract options "`@:enum abstract` is deprecated in favor of `enum abstract`" p
-				end;
-				decls := (TAbstractDecl a, decl) :: !decls;
-				match d.d_data with
-				| [] when Meta.has Meta.CoreType a.a_meta ->
-					a.a_this <- t_dynamic;
-					acc
-				| fields ->
-					let a_t =
-						let params = List.map (fun t -> TPType (make_ptp_th (mk_type_path ([],fst t.tp_name)) null_pos)) d.d_params in
-						make_ptp_ct_null (mk_type_path ~params ([],fst d.d_name)),null_pos
-					in
-					let rec loop = function
-						| [] -> a_t
-						| AbOver t :: _ -> t
-						| _ :: l -> loop l
-					in
-					let this_t = loop d.d_flags in
-					let fields = List.map (TypeloadFields.transform_abstract_field com this_t a_t a) fields in
-					let meta = ref [] in
-					if has_meta Meta.Dce a.a_meta then meta := (Meta.Dce,[],null_pos) :: !meta;
-					let acc = make_decl acc (EClass { d_name = (fst d.d_name) ^ "_Impl_",snd d.d_name; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = []; d_meta = !meta },p) in
-					(match !decls with
-					| (TClassDecl c,_) :: _ ->
+			match fst decl with
+				| EImport _ | EUsing _ ->
+					if !has_declaration then raise_typing_error "import and using may not appear after a declaration" p;
+					add_declaration decl None
+				| EStatic d ->
+					check_name (fst d.d_name) d.d_meta false (snd d.d_name);
+					has_declaration := true;
+					statics := (d,p) :: !statics;
+				| EClass d ->
+					add_declaration decl (Some (TClassDecl (handle_class_decl d p)))
+				| EEnum d ->
+					let name = fst d.d_name in
+					has_declaration := true;
+					let priv = List.mem EPrivate d.d_flags in
+					let path = make_path name priv d.d_meta p in
+					if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then raise_typing_error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
+					let e = {
+						(mk_enum m path p (pos d.d_name)) with
+						e_doc = d.d_doc;
+						e_meta = d.d_meta;
+						e_private = priv;
+						e_extern = List.mem EExtern d.d_flags;
+					} in
+					if not e.e_extern then check_type_name name d.d_meta p;
+					add_declaration decl (Some (TEnumDecl e))
+				| ETypedef d ->
+					let name = fst d.d_name in
+					check_type_name name d.d_meta p;
+					has_declaration := true;
+					let priv = List.mem EPrivate d.d_flags in
+					let path = make_path name priv d.d_meta p in
+					let t = {(mk_typedef m path p (pos d.d_name) (mk_mono())) with
+						t_doc = d.d_doc;
+						t_private = priv;
+						t_meta = d.d_meta;
+					} in
+					(* failsafe in case the typedef is not initialized (see #3933) *)
+					delay ctx_m.g PBuildModule (fun () ->
+						match t.t_type with
+						| TMono r -> (match r.tm_type with None -> Monomorph.bind r com.basic.tvoid | _ -> ())
+						| _ -> ()
+					);
+					add_declaration decl (Some (TTypeDecl t))
+				| EAbstract d ->
+					let name = fst d.d_name in
+					check_type_name name d.d_meta p;
+					let priv = List.mem AbPrivate d.d_flags in
+					let path = make_path name priv d.d_meta p in
+					let p_enum_meta = Meta.maybe_get_pos Meta.Enum d.d_meta in
+					let a = {
+						a_path = path;
+						a_private = priv;
+						a_module = m;
+						a_pos = p;
+						a_name_pos = pos d.d_name;
+						a_doc = d.d_doc;
+						a_params = [];
+						a_using = [];
+						a_restore = (fun () -> ());
+						a_meta = d.d_meta;
+						a_from = [];
+						a_to = [];
+						a_from_field = [];
+						a_to_field = [];
+						a_ops = [];
+						a_unops = [];
+						a_impl = None;
+						a_array = [];
+						a_this = mk_mono();
+						a_read = None;
+						a_write = None;
+						a_call = None;
+						a_enum = List.mem AbEnum d.d_flags || p_enum_meta <> None;
+					} in
+					begin match p_enum_meta with
+						| None when a.a_enum -> a.a_meta <- (Meta.Enum,[],null_pos) :: a.a_meta; (* HAXE5: remove *)
+						| None -> ()
+						| Some p ->
+							let options = Warning.from_meta d.d_meta in
+							module_warning com ctx_m.m.curmod WDeprecatedEnumAbstract options "`@:enum abstract` is deprecated in favor of `enum abstract`" p
+					end;
+					add_declaration decl (Some (TAbstractDecl a));
+					begin match d.d_data with
+					| [] when Meta.has Meta.CoreType a.a_meta ->
+						a.a_this <- t_dynamic;
+					| fields ->
+						let a_t =
+							let params = List.map (fun t -> TPType (make_ptp_th (mk_type_path ([],fst t.tp_name)) null_pos)) d.d_params in
+							make_ptp_ct_null (mk_type_path ~params ([],fst d.d_name)),null_pos
+						in
+						let rec loop = function
+							| [] -> a_t
+							| AbOver t :: _ -> t
+							| _ :: l -> loop l
+						in
+						let this_t = loop d.d_flags in
+						let fields = List.map (TypeloadFields.transform_abstract_field com this_t a_t a) fields in
+						let meta = ref [] in
+						if has_meta Meta.Dce a.a_meta then meta := (Meta.Dce,[],null_pos) :: !meta;
+						let c_decl = { d_name = (fst d.d_name) ^ "_Impl_",snd d.d_name; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = []; d_meta = !meta } in
+						let c = handle_class_decl c_decl p in
 						a.a_impl <- Some c;
 						c.cl_kind <- KAbstractImpl a;
 						add_class_flag c CFinal;
-					| _ -> die "" __LOC__);
-					acc
-			) in
-			decl :: acc
+						add_declaration (EClass c_decl,p) (Some (TClassDecl c));
+					end;
 		in
-		let tdecls = List.fold_left make_decl [] tdecls in
-		let tdecls =
-			match !statics with
+		List.iter make_decl tdecls;
+		begin match !statics with
 			| [] ->
-				tdecls
+				()
 			| statics ->
 				let first_pos = ref null_pos in
 				let fields = List.map (fun (d,p) ->
@@ -239,7 +243,7 @@ module ModuleLevel = struct
 					field_of_static_definition d p;
 				) statics in
 				let p = let p = !first_pos in { p with pmax = p.pmin } in
-				let c = EClass {
+				let c_def = {
 					d_name = (snd m.m_path) ^ "_Fields_", null_pos;
 					d_flags = [HPrivate];
 					d_data = List.rev fields;
@@ -247,19 +251,18 @@ module ModuleLevel = struct
 					d_params = [];
 					d_meta = []
 				} in
-				let tdecls = make_decl tdecls (c,p) in
-				(match !decls with
-				| (TClassDecl c,_) :: _ ->
-					assert (m.m_statics = None);
-					m.m_statics <- Some c;
-					c.cl_kind <- KModuleFields m;
-					add_class_flag c CFinal;
-				| _ -> assert false);
-				tdecls
-
-		in
-		let decls = List.rev !decls in
-		decls, List.rev tdecls
+				let c = handle_class_decl c_def p in
+				assert (m.m_statics = None);
+				m.m_statics <- Some c;
+				c.cl_kind <- KModuleFields m;
+				add_class_flag c CFinal;
+				add_declaration (EClass c_def,p) (Some (TClassDecl c));
+		end;
+		(* During the initial module_lut#add in type_module, m has no m_types yet by design.
+		   We manually add them here. This and module_lut#add itself should be the only places
+		   in the compiler that call add_module_type. *)
+		m.m_types <- m.m_types @ (DynArray.to_list module_types);
+		DynArray.to_list declarations
 
 	let handle_import_hx com g m decls p =
 		let path_split = match List.rev (Path.get_path_parts (Path.UniqueKey.lazy_path m.m_extra.m_file)) with
@@ -312,7 +315,7 @@ module ModuleLevel = struct
 		 Constraints are handled lazily (no other type is loaded) because they might be recursive anyway *)
 		 List.iter (fun d ->
 			match d with
-			| (TClassDecl c, (EClass d, p)) ->
+			| (EClass d, p),Some (TClassDecl c) ->
 				c.cl_params <- type_type_params ctx_m TPHType c.cl_path p d.d_params;
 				if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
 				if Meta.has Meta.GenericBuild c.cl_meta then begin
@@ -320,12 +323,14 @@ module ModuleLevel = struct
 					c.cl_kind <- KGenericBuild d.d_data;
 				end;
 				if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
-			| (TEnumDecl e, (EEnum d, p)) ->
+			| ((EEnum d, p),Some (TEnumDecl e)) ->
 				e.e_params <- type_type_params ctx_m TPHType e.e_path p d.d_params;
-			| (TTypeDecl t, (ETypedef d, p)) ->
+			| ((ETypedef d, p),Some (TTypeDecl t)) ->
 				t.t_params <- type_type_params ctx_m TPHType t.t_path p d.d_params;
-			| (TAbstractDecl a, (EAbstract d, p)) ->
+			| ((EAbstract d, p),Some (TAbstractDecl a)) ->
 				a.a_params <- type_type_params ctx_m TPHType a.a_path p d.d_params;
+			| (((EImport _ | EUsing _),_),None) ->
+				()
 			| _ ->
 				die "" __LOC__
 		) decls
@@ -641,11 +646,8 @@ module TypeLevel = struct
 		since they have not been setup. We also build a list that will be evaluated the first time we evaluate
 		an expression into the context
 	*)
-	let init_module_type ctx_m (decl,p) =
+	let init_module_type ctx_m ((decl,p),tdecl) =
 		let com = ctx_m.com in
-		let get_type name =
-			try List.find (fun t -> snd (t_infos t).mt_path = name) ctx_m.m.curmod.m_types with Not_found -> die "" __LOC__
-		in
 		let check_path_display path p =
 			if DisplayPosition.display_position#is_in_file (com.file_keys#get p.pfile) then DisplayPath.handle_path_display ctx_m path p
 			in
@@ -662,16 +664,16 @@ module TypeLevel = struct
 			check_path_display path p;
 			ImportHandling.init_using ctx_m path p
 		| EClass d ->
-			let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> die "" __LOC__) in
+			let c = (match tdecl with Some (TClassDecl c) -> c | _ -> die "" __LOC__) in
 			init_class ctx_m c d p
 		| EEnum d ->
-			let e = (match get_type (fst d.d_name) with TEnumDecl e -> e | _ -> die "" __LOC__) in
+			let e = (match tdecl with Some (TEnumDecl e) -> e | _ -> die "" __LOC__) in
 			init_enum ctx_m e d p
 		| ETypedef d ->
-			let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> die "" __LOC__) in
+			let t = (match tdecl with Some (TTypeDecl t) -> t | _ -> die "" __LOC__) in
 			init_typedef ctx_m t d p
 		| EAbstract d ->
-			let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> die "" __LOC__) in
+			let a = (match tdecl with Some (TAbstractDecl a) -> a | _ -> die "" __LOC__) in
 			init_abstract ctx_m a d p
 		| EStatic _ ->
 			(* nothing to do here as module fields are collected into a special EClass *)
@@ -698,13 +700,7 @@ let make_curmod com g m =
 *)
 let type_types_into_module com g m tdecls p =
 	let ctx_m = TyperManager.clone_for_module g.root_typer (make_curmod com g m) in
-	let decls,tdecls = ModuleLevel.create_module_types ctx_m m tdecls p in
-	let types = List.map fst decls in
-	(* During the initial module_lut#add in type_module, m has no m_types yet by design.
-	   We manually add them here. This and module_lut#add itself should be the only places
-	   in the compiler that call add_module_type. *)
-	List.iter (fun mt -> ctx_m.com.module_lut#add_module_type m mt) types;
-	m.m_types <- m.m_types @ types;
+	let decls = ModuleLevel.create_module_types ctx_m m tdecls p in
 	(* define the per-module context for the next pass *)
 	if ctx_m.g.std_types != null_module then begin
 		add_dependency m ctx_m.g.std_types;
@@ -713,7 +709,7 @@ let type_types_into_module com g m tdecls p =
 	end;
 	ModuleLevel.init_type_params ctx_m decls;
 	(* setup module types *)
-	List.iter (TypeLevel.init_module_type ctx_m) tdecls;
+	List.iter (TypeLevel.init_module_type ctx_m) decls;
 	(* Make sure that we actually init the context at some point (issue #9012) *)
 	delay ctx_m.g PConnectField (fun () -> ctx_m.m.import_resolution#resolve_lazies);
 	ctx_m
