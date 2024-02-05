@@ -28,12 +28,9 @@ open Error
 open FunctionArguments
 
 let save_field_state ctx =
-	let old_e = ctx.e in
-	ctx.e <- TyperManager.create_ctx_e ();
 	let locals = ctx.f.locals in
 	(fun () ->
 		ctx.f.locals <- locals;
-		ctx.e <- old_e;
 	)
 
 let type_function_params ctx fd host fname p =

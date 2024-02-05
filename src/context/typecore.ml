@@ -169,8 +169,8 @@ and typer = {
 	mutable m : typer_module;
 	c : typer_class;
 	f : typer_field;
-	mutable e : typer_expr;
-	mutable pass : typer_pass;
+	e : typer_expr;
+	pass : typer_pass;
 	mutable type_params : type_params;
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;
@@ -183,7 +183,7 @@ and monomorphs = {
 }
 
 module TyperManager = struct
-	let create com g m c f e pass params = {
+	let create com g m c f e pass params allow_inline allow_transform = {
 		com = com;
 		g = g;
 		t = com.basic;
@@ -192,8 +192,8 @@ module TyperManager = struct
 		f = f;
 		e = e;
 		pass = pass;
-		allow_inline = true;
-		allow_transform = true;
+		allow_inline;
+		allow_transform;
 		type_params = params;
 		memory_marker = memory_marker;
 	}
@@ -244,42 +244,46 @@ module TyperManager = struct
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
-		create com g m c f e PBuildModule []
+		create com g m c f e PBuildModule [] true true
 
 	let clone_for_class ctx c =
 		let c = create_ctx_c c in
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
 		let params = match c.curclass.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.curclass.cl_params in
-		create ctx.com ctx.g ctx.m c f e PBuildClass params
+		create ctx.com ctx.g ctx.m c f e PBuildClass params ctx.allow_inline ctx.allow_transform
 
 	let clone_for_enum ctx en =
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m c f e PBuildModule en.e_params
+		create ctx.com ctx.g ctx.m c f e PBuildModule en.e_params ctx.allow_inline ctx.allow_transform
 
 	let clone_for_typedef ctx td =
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m c f e PBuildModule td.t_params
+		create ctx.com ctx.g ctx.m c f e PBuildModule td.t_params ctx.allow_inline ctx.allow_transform
 
 	let clone_for_abstract ctx a =
 		let c = create_ctx_c null_class in
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m c f e PBuildModule a.a_params
+		create ctx.com ctx.g ctx.m c f e PBuildModule a.a_params ctx.allow_inline ctx.allow_transform
 
 	let clone_for_field ctx cf params =
 		let f = create_ctx_f cf in
 		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m ctx.c f e PBuildClass params
+		create ctx.com ctx.g ctx.m ctx.c f e PBuildClass params ctx.allow_inline ctx.allow_transform
 
 	let clone_for_enum_field ctx params =
 		let f = create_ctx_f null_field in
 		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m ctx.c f e PBuildClass params
+		create ctx.com ctx.g ctx.m ctx.c f e PBuildClass params ctx.allow_inline ctx.allow_transform
+
+	let clone_for_expr ctx =
+		let e = create_ctx_e () in
+		create ctx.com ctx.g ctx.m ctx.c ctx.f e PTypeField ctx.type_params ctx.allow_inline ctx.allow_transform
 end
 
 type field_host =
@@ -559,12 +563,8 @@ let rec flush_pass ctx p where =
 
 let make_pass ctx f = f
 
-let init_class_done ctx =
-	ctx.pass <- PConnectField
-
 let enter_field_typing_pass ctx info =
-	flush_pass ctx PConnectField info;
-	ctx.pass <- PTypeField
+	flush_pass ctx PConnectField info
 
 let make_lazy ?(force=true) ctx t_proc f where =
 	let r = ref (lazy_available t_dynamic) in
@@ -908,11 +908,6 @@ let debug com (path : string list) str =
 		| l ->
 			if List.exists (Ast.match_path false path) debug_paths then emit();
 	end
-
-let init_class_done ctx =
-	let path = fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path] in
-	debug ctx.com path ("init_class_done " ^ s_type_path ctx.c.curclass.cl_path);
-	init_class_done ctx
 
 let ctx_pos ctx =
 	let inf = fst ctx.m.curmod.m_path @ [snd ctx.m.curmod.m_path]in
