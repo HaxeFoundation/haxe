@@ -68,6 +68,24 @@ private typedef ERegValue = hl.Abstract<"ereg">;
 			return null;
 		return {pos: p, len: len};
 	}
+	
+	public function matchedNum():Int {
+		if(last == null)
+			throw "No string matched";
+		#if (hl_ver >= version("1.12.0"))
+		return regexp_matched_num(r);
+		#else
+		var i = 0;
+		var num = 0;
+		try {
+			while (true) {
+				if (regexp_matched_pos(r, i, null) >= 0) num++;
+				i++;
+			}
+		} catch (_:String) {}
+		return num;
+		#end
+	}
 
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		var p = regexp_match(r, s.bytes, pos, len < 0 ? s.length - pos : len);
@@ -199,4 +217,10 @@ private typedef ERegValue = hl.Abstract<"ereg">;
 	@:hlNative("std", "regexp_matched_pos") static function regexp_matched_pos(r:ERegValue, n:Int, size:hl.Ref<Int>):Int {
 		return 0;
 	}
+	
+	#if (hl_ver >= version("1.12.0"))
+	@:hlNative("std", "regexp_matched_num") static function regexp_matched_num(r:ERegValue):Int {
+		return 0;
+	}
+	#end
 }

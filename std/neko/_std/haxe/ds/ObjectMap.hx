@@ -111,4 +111,8 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		h = untyped __dollar__hnew(0);
 		k = untyped __dollar__hnew(0);
 	}
+	
+	public inline function size():Int {
+		return untyped __dollar__hcount(k);
+	}
 }

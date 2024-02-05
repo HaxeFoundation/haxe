@@ -88,4 +88,12 @@ class ObjectMap<K:{}, T> implements haxe.Constraints.IMap<K, T> {
 		h = new hl.types.ObjectMap();
 		#end
 	}
+	
+	public function size():Int {
+		#if (hl_ver >= version("1.12.0"))
+		return h.size();
+		#else
+		return h.keysArray().length;
+		#end
+	}
 }
