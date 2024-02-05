@@ -4,7 +4,7 @@ open Type
 open Typecore
 open Error
 
-let type_function_arg ctx t e opt p =
+let type_function_arg com t e opt p =
 	(* TODO https://github.com/HaxeFoundation/haxe/issues/8461 *)
 	(* delay ctx PTypeField (fun() ->
 		if ExtType.is_void (follow t) then
@@ -12,9 +12,9 @@ let type_function_arg ctx t e opt p =
 	); *)
 	if opt then
 		let e = (match e with None -> Some (EConst (Ident "null"),null_pos) | _ -> e) in
-		ctx.t.tnull t, e
+		com.Common.basic.tnull t, e
 	else
-		let t = match e with Some (EConst (Ident "null"),null_pos) -> ctx.t.tnull t | _ -> t in
+		let t = match e with Some (EConst (Ident "null"),null_pos) -> com.basic.tnull t | _ -> t in
 		t, e
 
 let type_function_arg_value ctx t c do_display =
@@ -38,7 +38,7 @@ let type_function_arg_value ctx t c do_display =
 			loop e
 
 class function_arguments
-	(ctx : typer)
+	(com : Common.context)
 	(type_arg : int -> bool -> type_hint option -> pos -> Type.t)
 	(is_extern : bool)
 	(do_display : bool)
@@ -48,7 +48,7 @@ class function_arguments
 	let with_default =
 		let l = List.mapi (fun i ((name,pn),opt,_,t,eo) ->
 			let t = type_arg i opt t pn in
-			let t,eo = type_function_arg ctx t eo opt pn in
+			let t,eo = type_function_arg com t eo opt pn in
 			(name,eo,t)
 		) syntax in
 		let l = match abstract_this with
@@ -83,7 +83,7 @@ object(self)
 
 	(* Returns the `(tvar * texpr option) list` for `tf_args`. Also checks the validity of argument names and whether or not
 	   an argument should be displayed. *)
-	method for_expr = match expr_repr with
+	method for_expr ctx = match expr_repr with
 		| Some l ->
 			l
 		| None ->
@@ -99,8 +99,8 @@ object(self)
 					v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 					loop ((v,None) :: acc) false syntax typed
 				| ((_,pn),opt,m,_,_) :: syntax,(name,eo,t) :: typed ->
-					delay ctx PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
-					if not is_extern then check_local_variable_name ctx name TVOArgument pn;
+					delay ctx.g PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
+					if not is_extern then Naming.check_local_variable_name ctx.com name TVOArgument pn;
 					let eo = type_function_arg_value ctx t eo do_display in
 					let v = make_local name (VUser TVOArgument) t m pn in
 					if do_display && DisplayPosition.display_position#enclosed_in pn then
@@ -116,12 +116,12 @@ object(self)
 			l
 
 	(* Verifies the validity of any argument typed as `haxe.extern.Rest` and checks default values. *)
-	method verify_extern =
+	method verify_extern ctx =
 		let rec loop is_abstract_this syntax typed = match syntax,typed with
 			| syntax,(name,_,t) :: typed when is_abstract_this ->
 				loop false syntax typed
 			| ((_,pn),opt,m,_,_) :: syntax,(name,eo,t) :: typed ->
-				delay ctx PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
+				delay ctx.g PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
 				ignore(type_function_arg_value ctx t eo do_display);
 				loop false syntax typed
 			| [],[] ->
@@ -135,5 +135,5 @@ object(self)
 	method bring_into_context ctx =
 		List.iter (fun (v,_) ->
 			ctx.f.locals <- PMap.add v.v_name v ctx.f.locals
-		) self#for_expr
+		) (self#for_expr ctx)
 end

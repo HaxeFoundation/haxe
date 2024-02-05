@@ -240,7 +240,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos; Meta.InheritDoc,[],null_pos];
 		cf.cf_kind <- Method MethNormal;
 		c.cl_constructor <- Some cf;
-		delay ctx PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
+		delay ctx.g PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
 
 let transform_abstract_field com this_t a_t a f =
 	let stat = List.mem_assoc AStatic f.cff_access in
@@ -281,75 +281,6 @@ let transform_abstract_field com this_t a_t a f =
 		{ f with cff_kind = FFun fu }
 	| _ ->
 		f
-
-let patch_class ctx c fields =
-	let path = match c.cl_kind with
-		| KAbstractImpl a -> a.a_path
-		| _ -> c.cl_path
-	in
-	let h = (try Some (Hashtbl.find ctx.g.type_patches path) with Not_found -> None) in
-	match h with
-	| None -> fields
-	| Some (h,hcl) ->
-		c.cl_meta <- c.cl_meta @ hcl.tp_meta;
-		let patch_getter t fn =
-			{ fn with f_type = t }
-		in
-		let patch_setter t fn =
-			match fn.f_args with
-			| [(name,opt,meta,_,expr)] ->
-				{ fn with f_args = [(name,opt,meta,t,expr)]; f_type = t }
-			| _ -> fn
-		in
-		let rec loop acc accessor_acc = function
-			| [] -> acc, accessor_acc
-			| f :: l ->
-				(* patch arguments types *)
-				(match f.cff_kind with
-				| FFun ff ->
-					let param (((n,pn),opt,m,_,e) as p) =
-						try
-							let t2 = (try Hashtbl.find h (("$" ^ (fst f.cff_name) ^ "__" ^ n),false) with Not_found -> Hashtbl.find h (("$" ^ n),false)) in
-							(n,pn), opt, m, (match t2.tp_type with None -> None | Some t -> Some (t,null_pos)), e
-						with Not_found ->
-							p
-					in
-					f.cff_kind <- FFun { ff with f_args = List.map param ff.f_args }
-				| _ -> ());
-				(* other patches *)
-				match (try Some (Hashtbl.find h (fst f.cff_name,List.mem_assoc AStatic f.cff_access)) with Not_found -> None) with
-				| None -> loop (f :: acc) accessor_acc l
-				| Some { tp_remove = true } -> loop acc accessor_acc l
-				| Some p ->
-					f.cff_meta <- f.cff_meta @ p.tp_meta;
-					let accessor_acc =
-						match p.tp_type with
-						| None -> accessor_acc
-						| Some t ->
-							match f.cff_kind with
-							| FVar (_,e) ->
-								f.cff_kind <- FVar (Some (t,null_pos),e); accessor_acc
-							| FProp (get,set,_,eo) ->
-								let typehint = Some (t,null_pos) in
-								let accessor_acc = if fst get = "get" then ("get_" ^ fst f.cff_name, patch_getter typehint) :: accessor_acc else accessor_acc in
-								let accessor_acc = if fst set = "set" then ("set_" ^ fst f.cff_name, patch_setter typehint) :: accessor_acc else accessor_acc in
-								f.cff_kind <- FProp (get,set,typehint,eo); accessor_acc
-							| FFun fn ->
-								f.cff_kind <- FFun { fn with f_type = Some (t,null_pos) }; accessor_acc
-					in
-					loop (f :: acc) accessor_acc l
-		in
-		let fields, accessor_patches = loop [] [] fields in
-		List.iter (fun (accessor_name, patch) ->
-			try
-				let f_accessor = List.find (fun f -> fst f.cff_name = accessor_name) fields in
-				match f_accessor.cff_kind with
-				| FFun fn -> f_accessor.cff_kind <- FFun (patch fn)
-				| _ -> ()
-			with Not_found ->
-				()
-		) accessor_patches;
-		List.rev fields
 
 let lazy_display_type ctx f =
 	f ()
@@ -485,7 +416,7 @@ let build_module_def ctx mt meta fvars fbuild =
 							| _ -> t_infos mt
 					in
 					(* Delay for #10107, but use delay_late to make sure base classes run before their children do. *)
-					delay_late ctx PConnectField (fun () ->
+					delay_late ctx.g PConnectField (fun () ->
 						ti.mt_using <- (filter_classes types) @ ti.mt_using
 					)
 				with Exit ->
@@ -509,7 +440,7 @@ let build_module_def ctx mt meta fvars fbuild =
 			let inherit_using (c,_) =
 				ti.mt_using <- ti.mt_using @ (t_infos (TClassDecl c)).mt_using
 			in
-			delay_late ctx PConnectField (fun () ->
+			delay_late ctx.g PConnectField (fun () ->
 				Option.may inherit_using csup;
 				List.iter inherit_using interfaces;
 			);
@@ -676,7 +607,6 @@ let transform_field (ctx,cctx) c f fields p =
 	f
 
 let type_var_field ctx t e stat do_display p =
-	if stat then ctx.e.curfun <- FunStatic else ctx.e.curfun <- FunMember;
 	let e = if do_display then Display.preprocess_expr ctx.com e else e in
 	let e = type_expr ctx e (WithType.with_type t) in
 	let e = AbstractCast.cast_or_unify ctx t e p in
@@ -743,7 +673,7 @@ module TypeBinding = struct
 		in
 		let force_macro display =
 			(* force macro system loading of this class in order to get completion *)
-			delay ctx PTypeField (fun() ->
+			delay ctx.g PTypeField (fun() ->
 				try
 					ignore(ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p)
 				with
@@ -809,10 +739,11 @@ module TypeBinding = struct
 						display_error ctx.com ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
 		end
 
-	let bind_var_expression ctx cctx fctx cf e =
+	let bind_var_expression ctx_f cctx fctx cf e =
 		let c = cctx.tclass in
 		let t = cf.cf_type in
 		let p = cf.cf_pos in
+		let ctx = TyperManager.clone_for_expr ctx_f (if fctx.is_static then FunStatic else FunMember) false in
 		if (has_class_flag c CInterface) then unexpected_expression ctx.com fctx "Initialization on field of interface" (pos e);
 		cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 		let check_cast e =
@@ -827,10 +758,10 @@ module TypeBinding = struct
 					mk_cast e cf.cf_type e.epos
 			end
 		in
-		let r = make_lazy ~force:false ctx t (fun r ->
+		let r = make_lazy ~force:false ctx.g t (fun r ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
-				enter_field_typing_pass ctx ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
+				enter_field_typing_pass ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
 				if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing field %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
@@ -903,17 +834,12 @@ module TypeBinding = struct
 		| Some e ->
 			bind_var_expression ctx cctx fctx cf e
 
-	let bind_method ctx cctx fctx cf t args ret e p =
+	let bind_method ctx_f cctx fctx fmode cf t args ret e p =
 		let c = cctx.tclass in
+		let ctx = TyperManager.clone_for_expr ctx_f fmode true in
 		let bind r =
 			incr stats.s_methods_typed;
 			if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing method %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
-			let fmode = (match cctx.abstract with
-				| Some _ ->
-					if fctx.is_abstract_member then FunMemberAbstract else FunStatic
-				| None ->
-					if fctx.field_kind = CfrConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
-			) in
 			begin match ctx.com.platform with
 				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
 					if e <> None then
@@ -937,14 +863,14 @@ module TypeBinding = struct
 						| _ ->
 							(fun () -> ())
 					in
-					let e = TypeloadFunction.type_function ctx args ret fmode e fctx.is_display_field p in
+					let e = TypeloadFunction.type_function ctx args ret e fctx.is_display_field p in
 					f_check();
 					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
 					(* List.iter (fun (v,_) ->
 						if v.v_name <> "_" && has_mono v.v_type then warning ctx WTemp "Uninferred function argument, please add a type-hint" v.v_pos;
 					) fargs; *)
 					let tf = {
-						tf_args = args#for_expr;
+						tf_args = args#for_expr ctx;
 						tf_type = ret;
 						tf_expr = e;
 					} in
@@ -961,7 +887,7 @@ module TypeBinding = struct
 			if not ctx.g.return_partial_type then bind r;
 			t
 		in
-		let r = make_lazy ~force:false ctx t maybe_bind "type_fun" in
+		let r = make_lazy ~force:false ctx.g t maybe_bind "type_fun" in
 		bind_type ctx cctx fctx cf r p
 end
 
@@ -1025,7 +951,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		fctx.expr_presence_matters <- true;
 	end in
 	let handle_from () =
-		let r = make_lazy ctx t (fun r ->
+		let r = make_lazy ctx.g t (fun r ->
 			(* the return type of a from-function must be the abstract, not the underlying type *)
 			if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> raise_typing_error_ext (make_error (Unify l) p));
 			match t with
@@ -1065,7 +991,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		let is_multitype_cast = Meta.has Meta.MultiType a.a_meta && not fctx.is_abstract_member in
 		if is_multitype_cast && not (Meta.has Meta.MultiType cf.cf_meta) then
 			cf.cf_meta <- (Meta.MultiType,[],null_pos) :: cf.cf_meta;
-		let r = make_lazy ctx t (fun r ->
+		let r = make_lazy ctx.g t (fun r ->
 			let args = if is_multitype_cast then begin
 				let ctor = try
 					PMap.find "_new" c.cl_statics
@@ -1261,7 +1187,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 		in
 		if i = 0 then maybe_use_property_type cto (fun () -> match Lazy.force mk with MKSetter -> true | _ -> false) def else def()
 	in
-	let args = new FunctionArguments.function_arguments ctx type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
+	let args = new FunctionArguments.function_arguments ctx.com type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
 	args,ret
 
 let create_method (ctx,cctx,fctx) c f fd p =
@@ -1401,25 +1327,30 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				()
 	) parent;
 	generate_args_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
-	begin match cctx.abstract with
-	| Some a ->
-		check_abstract (ctx,cctx,fctx) a c cf fd t ret p;
-	| _ ->
-		()
-	end;
+	let fmode = match cctx.abstract with
+		| Some a ->
+			check_abstract (ctx,cctx,fctx) a c cf fd t ret p;
+			if fctx.is_abstract_member then FunMemberAbstract else FunStatic
+		| _ ->
+			if fctx.field_kind = CfrConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
+	in
 	init_meta_overloads ctx (Some c) cf;
 	ctx.f.curfield <- cf;
 	if fctx.do_bind then
-		TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
+		TypeBinding.bind_method ctx cctx fctx fmode cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
 	else begin
 		if fctx.is_display_field then begin
-			delay ctx PTypeField (fun () ->
+			delay ctx.g PTypeField (fun () ->
 				(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
-				ignore(args#for_expr)
+				let ctx = TyperManager.clone_for_expr ctx fmode true in
+				ignore(args#for_expr ctx)
 			);
 			check_field_display ctx fctx c cf;
 		end else
-			delay ctx PTypeField (fun () -> args#verify_extern);
+			delay ctx.g PTypeField (fun () ->
+				let ctx = TyperManager.clone_for_expr ctx fmode true in
+				args#verify_extern ctx
+			);
 		if fd.f_expr <> None then begin
 			if fctx.is_abstract then unexpected_expression ctx.com fctx "Abstract methods may not have an expression" p
 			else if not (fctx.is_inline || fctx.is_macro) then warning ctx WExternWithExpr "Extern non-inline function may not have an expression" p;
@@ -1476,7 +1407,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			(* Now that we know there is a field, we have to delay the actual unification even further. The reason is that unification could resolve
 			   TLazy, which would then cause field typing before we're done with our PConnectField pass. This could cause interface fields to not
 			   be generated in time. *)
-			delay ctx PForce (fun () ->
+			delay ctx.g PForce (fun () ->
 				try
 					(match f2.cf_kind with
 						| Method MethMacro ->
@@ -1528,7 +1459,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		with Not_found ->
 			()
 	in
-	let delay_check = delay ctx PConnectField in
+	let delay_check = delay ctx.g PConnectField in
 	let get = (match get with
 		| "null",_ -> AccNo
 		| "dynamic",_ -> AccCall
@@ -1536,7 +1467,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		| "default",_ -> AccNormal
 		| "get",pget ->
 			let get = "get_" ^ name in
-			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pget then delay ctx PConnectField (fun () -> display_accessor get pget);
+			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pget then delay ctx.g PConnectField (fun () -> display_accessor get pget);
 			if not cctx.is_lib then delay_check (fun() -> check_method get t_get true);
 			AccCall
 		| _,pget ->
@@ -1555,7 +1486,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		| "default",_ -> AccNormal
 		| "set",pset ->
 			let set = "set_" ^ name in
-			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pset then delay ctx PConnectField (fun () -> display_accessor set pset);
+			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pset then delay ctx.g PConnectField (fun () -> display_accessor set pset);
 			if not cctx.is_lib then delay_check (fun() -> check_method set t_set false);
 			AccCall
 		| _,pset ->
@@ -1590,7 +1521,7 @@ let init_field (ctx,cctx,fctx) f =
 	let name = fst f.cff_name in
 	TypeloadCheck.check_global_metadata ctx f.cff_meta (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
 	let p = f.cff_pos in
-	if not (has_class_flag c CExtern) && not (Meta.has Meta.Native f.cff_meta) then Typecore.check_field_name ctx name p;
+	if not (has_class_flag c CExtern) && not (Meta.has Meta.Native f.cff_meta) then Naming.check_field_name ctx.com name p;
 	List.iter (fun acc ->
 		match (fst acc, f.cff_kind) with
 		| AFinal, FProp _ when not (has_class_flag c CExtern) && ctx.com.platform <> Java -> invalid_modifier_on_property ctx.com fctx (Ast.s_placed_access acc) (snd acc)
@@ -1626,7 +1557,7 @@ let init_field (ctx,cctx,fctx) f =
 	in
 	(if (fctx.is_static || fctx.is_macro && ctx.com.is_macro_context) then add_class_field_flag cf CfStatic);
 	if Meta.has Meta.InheritDoc cf.cf_meta then
-		delay ctx PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf);
+		delay ctx.g PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf);
 	cf
 
 let check_overload ctx f fs is_extern_class =
@@ -1677,10 +1608,9 @@ let check_overloads ctx c =
 let finalize_class cctx =
 	(* push delays in reverse order so they will be run in correct order *)
 	List.iter (fun (ctx,r) ->
-		init_class_done ctx;
 		(match r with
 		| None -> ()
-		| Some r -> delay ctx PTypeField (fun() -> ignore(lazy_type r)))
+		| Some r -> delay ctx.g PTypeField (fun() -> ignore(lazy_type r)))
 	) cctx.delayed_expr
 
 let check_functional_interface ctx c =
@@ -1710,15 +1640,14 @@ let check_functional_interface ctx c =
 let init_class ctx_c cctx c p herits fields =
 	let com = ctx_c.com in
 	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
-	let fields = patch_class ctx_c c fields in
 	let fields = build_fields (ctx_c,cctx) c fields in
-	if cctx.is_core_api && com.display.dms_check_core_api then delay ctx_c PForce (fun() -> init_core_api ctx_c c);
+	if cctx.is_core_api && com.display.dms_check_core_api then delay ctx_c.g PForce (fun() -> init_core_api ctx_c c);
 	if not cctx.is_lib then begin
-		delay ctx_c PForce (fun() -> check_overloads ctx_c c);
+		delay ctx_c.g PForce (fun() -> check_overloads ctx_c c);
 		begin match c.cl_super with
 		| Some(csup,tl) ->
 			if (has_class_flag csup CAbstract) && not (has_class_flag c CAbstract) then
-				delay ctx_c PForce (fun () -> TypeloadCheck.Inheritance.check_abstract_class ctx_c c csup tl);
+				delay ctx_c.g PForce (fun () -> TypeloadCheck.Inheritance.check_abstract_class ctx_c c csup tl);
 		| None ->
 			()
 		end
@@ -1833,7 +1762,7 @@ let init_class ctx_c cctx c p herits fields =
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
-	delay ctx_c PConnectField (fun () -> match follow c.cl_type with
+	delay ctx_c.g PConnectField (fun () -> match follow c.cl_type with
 		| TAnon an ->
 			an.a_fields <- c.cl_statics
 		| _ ->

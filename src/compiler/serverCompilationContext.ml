@@ -45,6 +45,7 @@ let reset sctx =
 	Hashtbl.clear sctx.changed_directories;
 	sctx.was_compilation <- false;
 	Parser.reset_state();
+	Lexer.cur := Lexer.make_file "";
 	measure_times := false;
 	Hashtbl.clear DeprecationCheck.warned_positions;
 	close_times();
