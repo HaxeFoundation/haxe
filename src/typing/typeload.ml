@@ -726,7 +726,6 @@ let rec type_type_param ctx host path p tp =
 	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) (pos tp.tp_name) (pos tp.tp_name) in
 	c.cl_params <- type_type_params ctx host c.cl_path p tp.tp_params;
 	c.cl_meta <- tp.Ast.tp_meta;
-	if host = TPHEnumConstructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
 	let ttp = mk_type_param c host None None in
 	if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos tp.tp_name) then
 		DisplayEmitter.display_type ctx ttp.ttp_type (pos tp.tp_name);

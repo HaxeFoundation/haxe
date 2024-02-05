@@ -583,7 +583,6 @@ let handle_display ctx e_ast dk mode with_type =
 			raise_toplevel ctx dk with_type (s_type_path path,p)
 	| DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
-		ctx.pass <- PBuildClass;
 		let l = List.filter (fun item ->
 			let is_private_to_current_module mt =
 				(* Remove the _Module nonsense from the package *)
