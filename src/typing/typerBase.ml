@@ -330,8 +330,12 @@ let unify_static_extension ctx e t p =
 		e
 	end
 
+type from_kind =
+	| FromType
+	| FromField
+
 let get_abstract_froms ctx a pl =
-	let l = List.map (apply_params a.a_params pl) a.a_from in
+	let l = List.map (fun t -> FromType,apply_params a.a_params pl t) a.a_from in
 	List.fold_left (fun acc (t,f) ->
 		(* We never want to use the @:from we're currently in because that's recursive (see #10604) *)
 		if f == ctx.f.curfield then
@@ -342,7 +346,7 @@ let get_abstract_froms ctx a pl =
 		| TFun ([_,_,v],t) ->
 			(try
 				ignore(type_eq EqStrict t (TAbstract(a,List.map duplicate pl))); (* unify fields monomorphs *)
-				v :: acc
+				(FromField,v) :: acc
 			with Unify_error _ ->
 				acc)
 		| _ ->

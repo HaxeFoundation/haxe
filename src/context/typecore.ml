@@ -254,7 +254,10 @@ module TyperManager = struct
 		}
 
 	let clone_for_module ctx m =
-		create ctx m ctx.c ctx.f ctx.e PBuildModule []
+		let ctx = create ctx m ctx.c ctx.f ctx.e PBuildModule [] in
+		ctx.allow_transform <- true;
+		ctx.allow_inline <- true;
+		ctx
 
 	let clone_for_class ctx c =
 		let c = create_ctx_c c in

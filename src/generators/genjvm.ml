@@ -1675,7 +1675,7 @@ class texpr_to_jvm
 					info.super_call_fields <- tl;
 					hd
 				| _ ->
-					Error.raise_typing_error "Something went wrong" e1.epos
+					Error.raise_typing_error "Could not find field information for super call, please report this" e1.epos
 			in
 			let kind = get_construction_mode c cf in
 			begin match kind with
