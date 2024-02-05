@@ -154,9 +154,11 @@ module ModuleLevel = struct
 					let name = fst d.d_name in
 					check_type_name name d.d_meta p;
 					has_declaration := true;
-					let path = make_path name false d.d_meta p in
+					let priv = List.mem TDPrivate d.d_flags in
+					let path = make_path name priv d.d_meta p in
 					let t = {(mk_typedef m path p (pos d.d_name) (mk_mono())) with
 						t_doc = d.d_doc;
+						t_private = priv;
 						t_meta = d.d_meta;
 					} in
 					(* failsafe in case the typedef is not initialized (see #3933) *)

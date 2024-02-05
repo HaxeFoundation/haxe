@@ -236,7 +236,8 @@ let decl_flag_to_abstract_flag (flag,p) = match flag with
 
 let decl_flag_to_typedef_flag (flag,p) = match flag with
 	| DPrivate -> Some TDPrivate
-	| DExtern | DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_typedef flag p
+	| DExtern -> Some TDExtern
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_typedef flag p
 
 let decl_flag_to_module_field_flag (flag,p) = match flag with
 	| DPrivate -> Some (APrivate,p)

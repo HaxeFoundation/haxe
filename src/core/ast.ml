@@ -354,6 +354,7 @@ type abstract_flag =
 
 type typedef_flag =
 	| TDPrivate
+	| TDExtern
 
 type enum_constructor = {
 	ec_name : placed_name;
