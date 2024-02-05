@@ -1617,7 +1617,7 @@ let decode_type_def v =
 		in
 		EEnum (mk (if isExtern then [EExtern] else []) (List.map conv fields))
 	| 1, [] ->
-		ETypedef (mk (if isExtern then [TDExtern] else []) (CTAnonymous fields,pos))
+		ETypedef (mk [] (CTAnonymous fields,pos))
 	| 2, [ext;impl;interf;final;abstract] ->
 		let flags = if isExtern then [HExtern] else [] in
 		let is_interface = decode_opt_bool interf in
@@ -1636,7 +1636,7 @@ let decode_type_def v =
 		let flags = if is_abstract then HAbstract :: flags else flags in
 		EClass (mk flags fields)
 	| 3, [t] ->
-		ETypedef (mk (if isExtern then [TDExtern] else []) (decode_ctype t))
+		ETypedef (mk [] (decode_ctype t))
 	| 4, [tthis;tflags;tfrom;tto] ->
 		let flags = match opt decode_array tflags with
 			| None -> []
