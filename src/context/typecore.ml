@@ -125,6 +125,7 @@ type typer_globals = {
 	mutable build_count : int;
 	mutable t_dynamic_def : Type.t;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
+	root_typer : typer;
 	(* api *)
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
@@ -138,11 +139,11 @@ type typer_globals = {
 (* typer_expr holds information that is specific to a (function) expresssion, whereas typer_field
    is shared by local TFunctions. *)
 and typer_expr = {
+	curfun : current_fun;
+	in_function : bool;
 	mutable ret : t;
-	mutable curfun : current_fun;
 	mutable opened : anon_status ref list;
 	mutable monomorphs : monomorphs;
-	mutable in_function : bool;
 	mutable in_loop : bool;
 	mutable bypass_accessor : int;
 	mutable with_type_stack : WithType.t list;
@@ -169,8 +170,8 @@ and typer = {
 	mutable m : typer_module;
 	c : typer_class;
 	f : typer_field;
-	mutable e : typer_expr;
-	mutable pass : typer_pass;
+	e : typer_expr;
+	pass : typer_pass;
 	mutable type_params : type_params;
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;
@@ -182,21 +183,33 @@ and monomorphs = {
 	mutable perfunction : (tmono * pos) list;
 }
 
+let pass_name = function
+	| PBuildModule -> "build-module"
+	| PBuildClass -> "build-class"
+	| PConnectField -> "connect-field"
+	| PTypeField -> "type-field"
+	| PCheckConstraint -> "check-constraint"
+	| PForce -> "force"
+	| PFinal -> "final"
+
 module TyperManager = struct
-	let create com g m c f e pass params = {
-		com = com;
-		g = g;
-		t = com.basic;
-		m = m;
-		c = c;
-		f = f;
-		e = e;
-		pass = pass;
-		allow_inline = true;
-		allow_transform = true;
-		type_params = params;
-		memory_marker = memory_marker;
-	}
+	let create ctx m c f e pass params =
+		if pass < ctx.pass then die (Printf.sprintf "Bad context clone from %s(%s) to %s(%s)" (s_type_path ctx.m.curmod.m_path) (pass_name ctx.pass) (s_type_path m.curmod.m_path) (pass_name pass)) __LOC__;
+		let new_ctx = {
+			com = ctx.com;
+			g = ctx.g;
+			t = ctx.com.basic;
+			m = m;
+			c = c;
+			f = f;
+			e = e;
+			pass = pass;
+			allow_inline = ctx.allow_inline;
+			allow_transform = ctx.allow_transform;
+			type_params = params;
+			memory_marker = memory_marker;
+		} in
+		new_ctx
 
 	let create_ctx_c c =
 		{
@@ -224,12 +237,12 @@ module TyperManager = struct
 			in_call_args = false;
 		}
 
-	let create_ctx_e () =
+	let create_ctx_e curfun in_function =
 		{
+			curfun;
+			in_function;
 			ret = t_dynamic;
-			curfun = FunStatic;
 			opened = [];
-			in_function = false;
 			monomorphs = {
 				perfunction = [];
 			};
@@ -240,46 +253,48 @@ module TyperManager = struct
 			macro_depth = 0;
 		}
 
-	let create_for_module com g m =
-		let c = create_ctx_c null_class in
-		let f = create_ctx_f null_field in
-		let e = create_ctx_e () in
-		create com g m c f e PBuildModule []
+	let clone_for_module ctx m =
+		let ctx = create ctx m ctx.c ctx.f ctx.e PBuildModule [] in
+		ctx.allow_transform <- true;
+		ctx.allow_inline <- true;
+		ctx
 
 	let clone_for_class ctx c =
 		let c = create_ctx_c c in
-		let f = create_ctx_f null_field in
-		let e = create_ctx_e () in
 		let params = match c.curclass.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.curclass.cl_params in
-		create ctx.com ctx.g ctx.m c f e PBuildClass params
+		create ctx ctx.m c ctx.f ctx.e PBuildClass params
 
 	let clone_for_enum ctx en =
 		let c = create_ctx_c null_class in
-		let f = create_ctx_f null_field in
-		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m c f e PBuildModule en.e_params
+		create ctx ctx.m c ctx.f ctx.e PBuildClass en.e_params
 
 	let clone_for_typedef ctx td =
 		let c = create_ctx_c null_class in
-		let f = create_ctx_f null_field in
-		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m c f e PBuildModule td.t_params
+		create ctx ctx.m c ctx.f ctx.e PBuildClass td.t_params
 
 	let clone_for_abstract ctx a =
 		let c = create_ctx_c null_class in
-		let f = create_ctx_f null_field in
-		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m c f e PBuildModule a.a_params
+		create ctx ctx.m c ctx.f ctx.e PBuildClass a.a_params
 
 	let clone_for_field ctx cf params =
 		let f = create_ctx_f cf in
-		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m ctx.c f e PBuildClass params
+		create ctx ctx.m ctx.c f ctx.e PBuildClass params
 
 	let clone_for_enum_field ctx params =
 		let f = create_ctx_f null_field in
-		let e = create_ctx_e () in
-		create ctx.com ctx.g ctx.m ctx.c f e PBuildClass params
+		create ctx ctx.m ctx.c f ctx.e PBuildClass params
+
+	let clone_for_expr ctx curfun in_function =
+		let e = create_ctx_e curfun in_function in
+		create ctx ctx.m ctx.c ctx.f e PTypeField ctx.type_params
+
+	let clone_for_type_params ctx params =
+		create ctx ctx.m ctx.c ctx.f ctx.e ctx.pass params
+
+	let clone_for_type_parameter_expression ctx =
+		let f = create_ctx_f ctx.f.curfield in
+		let e = create_ctx_e ctx.e.curfun false in
+		create ctx ctx.m ctx.c f e PTypeField ctx.type_params
 end
 
 type field_host =
@@ -319,13 +334,6 @@ type dot_path_part = {
 	case : dot_path_part_case;
 	pos : pos
 }
-
-type find_module_result =
-	| GoodModule of module_def
-	| BadModule of module_skip_reason
-	| BinaryModule of HxbData.module_cache
-	| NoModule
-
 let make_build_info kind path params extern apply = {
 	build_kind = kind;
 	build_path = path;
@@ -350,15 +358,6 @@ let cast_or_unify_raise_ref : (typer -> ?uctx:unification_context option -> Type
 let type_generic_function_ref : (typer -> field_access -> (unit -> texpr) field_call_candidate -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 
 let create_context_ref : (Common.context -> ((unit -> unit) * typer) option -> typer) ref = ref (fun _ -> assert false)
-
-let pass_name = function
-	| PBuildModule -> "build-module"
-	| PBuildClass -> "build-class"
-	| PConnectField -> "connect-field"
-	| PTypeField -> "type-field"
-	| PCheckConstraint -> "check-constraint"
-	| PForce -> "force"
-	| PFinal -> "final"
 
 let warning ?(depth=0) ctx w msg p =
 	let options = (Warning.from_meta ctx.c.curclass.cl_meta) @ (Warning.from_meta ctx.f.curfield.cf_meta) in
@@ -452,58 +451,8 @@ let add_local ctx k n t p =
 	ctx.f.locals <- PMap.add n v ctx.f.locals;
 	v
 
-let display_identifier_error ctx ?prepend_msg msg p =
-	let prepend = match prepend_msg with Some s -> s ^ " " | _ -> "" in
-	display_error ctx.com (prepend ^ msg) p
-
-let check_identifier_name ?prepend_msg ctx name kind p =
-	if starts_with name '$' then
-		display_identifier_error ctx ?prepend_msg ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed: \"" ^ name ^ "\"") p
-	else if not (Lexer.is_valid_identifier name) then
-		display_identifier_error ctx ?prepend_msg ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name.") p
-
-let check_field_name ctx name p =
-	match name with
-	| "new" -> () (* the only keyword allowed in field names *)
-	| _ -> check_identifier_name ctx name "field" p
-
-let check_uppercase_identifier_name ?prepend_msg ctx name kind p =
-	if String.length name = 0 then
-		display_identifier_error ?prepend_msg ctx ((StringHelper.capitalize kind) ^ " name must not be empty.") p
-	else if Ast.is_lower_ident name then
-		display_identifier_error ?prepend_msg ctx ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter: \"" ^ name ^ "\"") p
-	else
-		check_identifier_name ?prepend_msg ctx name kind p
-
-let check_module_path ctx (pack,name) p =
-	let full_path = StringHelper.s_escape (if pack = [] then name else (String.concat "." pack) ^ "." ^ name) in
-	check_uppercase_identifier_name ~prepend_msg:("Module \"" ^ full_path ^ "\" does not have a valid name.") ctx name "module" p;
-	try
-		List.iter (fun part -> Path.check_package_name part) pack;
-	with Failure msg ->
-		display_error_ext ctx.com (make_error
-			~sub:[make_error (Custom msg) p]
-			(Custom ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:"))
-			p
-		)
-
-let check_local_variable_name ctx name origin p =
-	match name with
-	| "this" -> () (* TODO: vars named `this` should technically be VGenerated, not VUser *)
-	| _ ->
-		let s_var_origin origin =
-			match origin with
-			| TVOLocalVariable -> "variable"
-			| TVOArgument -> "function argument"
-			| TVOForVariable -> "for variable"
-			| TVOPatternVariable -> "pattern variable"
-			| TVOCatchVariable -> "catch variable"
-			| TVOLocalFunction -> "function"
-		in
-		check_identifier_name ctx name (s_var_origin origin) p
-
 let add_local_with_origin ctx origin n t p =
-	check_local_variable_name ctx n origin p;
+	Naming.check_local_variable_name ctx.com n origin p;
 	add_local ctx (VUser origin) n t p
 
 let gen_local_prefix = "`"
@@ -517,54 +466,50 @@ let is_gen_local v = match v.v_kind with
 	| _ ->
 		false
 
-let delay ctx p f =
+let delay g p f =
 	let p = Obj.magic p in
-	let tasks = ctx.g.delayed.(p) in
+	let tasks = g.delayed.(p) in
 	tasks.tasks <- f :: tasks.tasks;
-	if p < ctx.g.delayed_min_index then
-		ctx.g.delayed_min_index <- p
+	if p < g.delayed_min_index then
+		g.delayed_min_index <- p
 
-let delay_late ctx p f =
+let delay_late g p f =
 	let p = Obj.magic p in
-	let tasks = ctx.g.delayed.(p) in
+	let tasks = g.delayed.(p) in
 	tasks.tasks <- tasks.tasks @ [f];
-	if p < ctx.g.delayed_min_index then
-		ctx.g.delayed_min_index <- p
+	if p < g.delayed_min_index then
+		g.delayed_min_index <- p
 
-let delay_if_mono ctx p t f = match follow t with
+let delay_if_mono g p t f = match follow t with
 	| TMono _ ->
-		delay ctx p f
+		delay g p f
 	| _ ->
 		f()
 
-let rec flush_pass ctx p where =
+let rec flush_pass g p where =
 	let rec loop i =
 		if i > (Obj.magic p) then
 			()
 		else begin
-			let tasks = ctx.g.delayed.(i) in
+			let tasks = g.delayed.(i) in
 			match tasks.tasks with
 			| f :: l ->
 				tasks.tasks <- l;
 				f();
-				flush_pass ctx p where
+				flush_pass g p where
 			| [] ->
 				(* Done with this pass (for now), update min index to next one *)
 				let i = i + 1 in
-				ctx.g.delayed_min_index <- i;
+				g.delayed_min_index <- i;
 				loop i
 		end
 	in
-	loop ctx.g.delayed_min_index
+	loop g.delayed_min_index
 
 let make_pass ctx f = f
 
-let init_class_done ctx =
-	ctx.pass <- PConnectField
-
-let enter_field_typing_pass ctx info =
-	flush_pass ctx PConnectField info;
-	ctx.pass <- PTypeField
+let enter_field_typing_pass g info =
+	flush_pass g PConnectField info
 
 let make_lazy ?(force=true) ctx t_proc f where =
 	let r = ref (lazy_available t_dynamic) in
@@ -580,24 +525,6 @@ let make_lazy ?(force=true) ctx t_proc f where =
 	);
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
-
-let fake_modules = Hashtbl.create 0
-let create_fake_module ctx file =
-	let key = ctx.com.file_keys#get file in
-	let file = Path.get_full_path file in
-	let mdep = (try Hashtbl.find fake_modules key with Not_found ->
-		let mdep = {
-			m_id = alloc_mid();
-			m_path = (["$DEP"],file);
-			m_types = [];
-			m_statics = None;
-			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake ctx.com.compilation_step [];
-		} in
-		Hashtbl.add fake_modules key mdep;
-		mdep
-	) in
-	ctx.com.module_lut#add mdep.m_path mdep;
-	mdep
 
 let is_removable_field com f =
 	not (has_class_field_flag f CfOverride) && (
@@ -617,16 +544,6 @@ let is_forced_inline c cf =
 
 let needs_inline ctx c cf =
 	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.g.doinline || is_forced_inline c cf)
-
-let clone_type_parameter map path ttp =
-	let c = ttp.ttp_class in
-	let c = {c with cl_path = path} in
-	let def = Option.map map ttp.ttp_default in
-	let constraints = match ttp.ttp_constraints with
-		| None -> None
-		| Some constraints -> Some (lazy (List.map map (Lazy.force constraints)))
-	in
-	mk_type_param c ttp.ttp_host def constraints
 
 (** checks if we can access to a given class field using current context *)
 let can_access ctx c cf stat =
@@ -763,40 +680,6 @@ let merge_core_doc ctx mt =
 		end
 	| _ -> ())
 
-let field_to_type_path com e =
-	let rec loop e pack name = match e with
-		| EField(e,f,_),p when Char.lowercase_ascii (String.get f 0) <> String.get f 0 -> (match name with
-			| [] | _ :: [] ->
-				loop e pack (f :: name)
-			| _ -> (* too many name paths *)
-				display_error com ("Unexpected " ^ f) p;
-				raise Exit)
-		| EField(e,f,_),_ ->
-			loop e (f :: pack) name
-		| EConst(Ident f),_ ->
-			let pack, name, sub = match name with
-				| [] ->
-					let fchar = String.get f 0 in
-					if Char.uppercase_ascii fchar = fchar then
-						pack, f, None
-					else begin
-						display_error com "A class name must start with an uppercase letter" (snd e);
-						raise Exit
-					end
-				| [name] ->
-					f :: pack, name, None
-				| [name; sub] ->
-					f :: pack, name, Some sub
-				| _ ->
-					die "" __LOC__
-			in
-			{ tpackage=pack; tname=name; tparams=[]; tsub=sub }
-		| _,pos ->
-			display_error com "Unexpected expression when building strict meta" pos;
-			raise Exit
-	in
-	loop e [] []
-
 let safe_mono_close ctx m p =
 	try
 		Monomorph.close m
@@ -908,11 +791,6 @@ let debug com (path : string list) str =
 		| l ->
 			if List.exists (Ast.match_path false path) debug_paths then emit();
 	end
-
-let init_class_done ctx =
-	let path = fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path] in
-	debug ctx.com path ("init_class_done " ^ s_type_path ctx.c.curclass.cl_path);
-	init_class_done ctx
 
 let ctx_pos ctx =
 	let inf = fst ctx.m.curmod.m_path @ [snd ctx.m.curmod.m_path]in

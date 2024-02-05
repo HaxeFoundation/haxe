@@ -57,26 +57,25 @@ let macro_timer com l =
 
 let typing_timer ctx need_type f =
 	let t = Timer.timer ["typing"] in
-	let old = ctx.com.error_ext and oldp = ctx.pass and oldlocals = ctx.f.locals in
+	let old = ctx.com.error_ext in
 	let restore_report_mode = disable_report_mode ctx.com in
-	(*
-		disable resumable errors... unless we are in display mode (we want to reach point of completion)
-	*)
-	(* if ctx.com.display.dms_kind = DMNone then ctx.com.error <- (fun e -> raise_error e); *) (* TODO: review this... *)
+	let restore_field_state = TypeloadFunction.save_field_state ctx in
 	ctx.com.error_ext <- (fun err -> raise_error { err with err_from_macro = true });
 
-	if need_type && ctx.pass < PTypeField then begin
-		enter_field_typing_pass ctx ("typing_timer",[] (* TODO: ? *));
-	end;
+	let ctx = if need_type && ctx.pass < PTypeField then begin
+		enter_field_typing_pass ctx.g ("typing_timer",[]);
+		TyperManager.clone_for_expr ctx ctx.e.curfun false
+	end else
+		ctx
+	in
 	let exit() =
 		t();
 		ctx.com.error_ext <- old;
-		ctx.pass <- oldp;
-		ctx.f.locals <- oldlocals;
+		restore_field_state ();
 		restore_report_mode ();
 	in
 	try
-		let r = f() in
+		let r = f ctx in
 		exit();
 		r
 	with Error err ->
@@ -322,7 +321,7 @@ let make_macro_api ctx mctx p =
 	{
 		com_api with
 		MacroApi.get_type = (fun s ->
-			typing_timer ctx false (fun() ->
+			typing_timer ctx false (fun ctx ->
 				let path = parse_path s in
 				let tp = match List.rev (fst path) with
 					| s :: sl when String.length s > 0 && (match s.[0] with 'A'..'Z' -> true | _ -> false) ->
@@ -338,10 +337,10 @@ let make_macro_api ctx mctx p =
 			)
 		);
 		MacroApi.resolve_type = (fun t p ->
-			typing_timer ctx false (fun() -> Typeload.load_complex_type ctx false (t,p))
+			typing_timer ctx false (fun ctx -> Typeload.load_complex_type ctx false (t,p))
 		);
 		MacroApi.resolve_complex_type = (fun t ->
-			typing_timer ctx false (fun() ->
+			typing_timer ctx false (fun ctx ->
 				let rec load (t,_) =
 					((match t with
 					| CTPath ptp ->
@@ -394,17 +393,17 @@ let make_macro_api ctx mctx p =
 			)
 		);
 		MacroApi.get_module = (fun s ->
-			typing_timer ctx false (fun() ->
+			typing_timer ctx false (fun ctx ->
 				let path = parse_path s in
 				let m = List.map type_of_module_type (TypeloadModule.load_module ctx path p).m_types in
 				m
 			)
 		);
 		MacroApi.type_expr = (fun e ->
-			typing_timer ctx true (fun() -> type_expr ctx e WithType.value)
+			typing_timer ctx true (fun ctx -> type_expr ctx e WithType.value)
 		);
 		MacroApi.flush_context = (fun f ->
-			typing_timer ctx true f
+			typing_timer ctx true (fun _ -> f ())
 		);
 		MacroApi.get_local_type = (fun() ->
 			match ctx.c.get_build_infos() with
@@ -463,7 +462,7 @@ let make_macro_api ctx mctx p =
 			in
 			let add is_macro ctx =
 				let mdep = Option.map_default (fun s -> TypeloadModule.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
-				let mnew = TypeloadModule.type_module ctx ~dont_check_path:(has_native_meta) m (Path.UniqueKey.lazy_path mdep.m_extra.m_file) [tdef,pos] pos in
+				let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) m (Path.UniqueKey.lazy_path mdep.m_extra.m_file) [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
 				add_dependency mnew mdep;
 				ctx.com.module_nonexistent_lut#clear;
@@ -493,26 +492,26 @@ let make_macro_api ctx mctx p =
 				let m = ctx.com.module_lut#find mpath in
 				ignore(TypeloadModule.type_types_into_module ctx.com ctx.g m types pos)
 			with Not_found ->
-				let mnew = TypeloadModule.type_module ctx mpath (Path.UniqueKey.lazy_path ctx.m.curmod.m_extra.m_file) types pos in
+				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (Path.UniqueKey.lazy_path ctx.m.curmod.m_extra.m_file) types pos in
 				mnew.m_extra.m_kind <- MFake;
 				add_dependency mnew ctx.m.curmod;
 				ctx.com.module_nonexistent_lut#clear;
 			end
 		);
 		MacroApi.module_dependency = (fun mpath file ->
-			let m = typing_timer ctx false (fun() ->
+			let m = typing_timer ctx false (fun ctx ->
 				let old_deps = ctx.m.curmod.m_extra.m_deps in
 				let m = TypeloadModule.load_module ctx (parse_path mpath) p in
 				ctx.m.curmod.m_extra.m_deps <- old_deps;
 				m
 			) in
-			add_dependency m (create_fake_module ctx file);
+			add_dependency m (TypeloadCacheHook.create_fake_module ctx.com file);
 		);
 		MacroApi.current_module = (fun() ->
 			ctx.m.curmod
 		);
 		MacroApi.cast_or_unify = (fun t e p ->
-			typing_timer ctx true (fun () ->
+			typing_timer ctx true (fun ctx ->
 				try
 					ignore(AbstractCast.cast_or_unify_raise ctx t e p);
 					true
@@ -552,7 +551,7 @@ let make_macro_api ctx mctx p =
 				List.iter (fun path ->
 					ImportHandling.init_using ctx path null_pos
 				) usings;
-				flush_pass ctx PConnectField ("with_imports",[] (* TODO: ? *));
+				flush_pass ctx.g PConnectField ("with_imports",[] (* TODO: ? *));
 				f()
 			in
 			let restore () =

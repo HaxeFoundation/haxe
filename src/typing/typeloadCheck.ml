@@ -47,7 +47,7 @@ let is_generic_parameter ctx c =
 	with Not_found ->
 		false
 
-let valid_redefinition ctx map1 map2 f1 t1 f2 t2 = (* child, parent *)
+let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 	let valid t1 t2 =
 		Type.unify t1 t2;
 		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);
@@ -186,7 +186,7 @@ let check_override_field ctx p rctx =
 		display_error ctx.com ("Field " ^ i ^ " has different property access than in superclass") p);
 	if (has_class_field_flag rctx.cf_old CfFinal) then display_error ctx.com ("Cannot override final method " ^ i) p;
 	try
-		valid_redefinition ctx rctx.map rctx.map rctx.cf_new rctx.cf_new.cf_type rctx.cf_old rctx.t_old;
+		valid_redefinition rctx.map rctx.map rctx.cf_new rctx.cf_new.cf_type rctx.cf_old rctx.t_old;
 	with
 		Unify_error l ->
 			(* TODO construct error with sub *)
@@ -330,7 +330,7 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in
 		if add then f_add m
 	) ctx.com.global_metadata;
-	if ctx.m.is_display_file then delay ctx PCheckConstraint (fun () -> DisplayEmitter.check_display_metadata ctx meta)
+	if ctx.m.is_display_file then delay ctx.g PCheckConstraint (fun () -> DisplayEmitter.check_display_metadata ctx meta)
 
 module Inheritance = struct
 	let is_basic_class_path path = match path with
@@ -349,9 +349,9 @@ module Inheritance = struct
 			end
 		| t -> raise_typing_error (Printf.sprintf "Should extend by using a class, found %s" (s_type_kind t)) p
 
-	let rec check_interface ctx missing c intf params =
+	let rec check_interface com g missing c intf params =
 		List.iter (fun (i2,p2) ->
-			check_interface ctx missing c i2 (List.map (apply_params intf.cl_params params) p2)
+			check_interface com g missing c i2 (List.map (apply_params intf.cl_params params) p2)
 		) intf.cl_implements;
 		let p = c.cl_name_pos in
 		let check_field f =
@@ -361,7 +361,7 @@ module Inheritance = struct
 				let cf = {f with cf_overloads = []; cf_type = apply_params intf.cl_params params f.cf_type} in
 				begin try
 					let cf' = PMap.find cf.cf_name c.cl_fields in
-					ctx.com.overload_cache#remove (c.cl_path,f.cf_name);
+					com.overload_cache#remove (c.cl_path,f.cf_name);
 					cf'.cf_overloads <- cf :: cf'.cf_overloads
 				with Not_found ->
 					TClass.add_field c cf
@@ -376,13 +376,13 @@ module Inheritance = struct
 				let map2, t2, f2 = class_field_no_interf c f.cf_name in
 				let t2, f2 =
 					if f2.cf_overloads <> [] || has_class_field_flag f2 CfOverload then
-						let overloads = get_overloads ctx.com c f.cf_name in
+						let overloads = get_overloads com c f.cf_name in
 						is_overload := true;
 						List.find (fun (t1,f1) -> Overloads.same_overload_args t t1 f f1) overloads
 					else
 						t2, f2
 				in
-				delay ctx PForce (fun () ->
+				delay g PForce (fun () ->
 					ignore(follow f2.cf_type); (* force evaluation *)
 					let p = f2.cf_name_pos in
 					let mkind = function
@@ -391,19 +391,19 @@ module Inheritance = struct
 						| MethMacro -> 2
 					in
 					if (has_class_field_flag f CfPublic) && not (has_class_field_flag f2 CfPublic) && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
-						display_error ctx.com ("Field " ^ f.cf_name ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
+						display_error com ("Field " ^ f.cf_name ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
 					else if not (unify_kind ~strict:false f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
-						display_error ctx.com ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
+						display_error com ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
 					else try
 						let map1 = TClass.get_map_function  intf params in
-						valid_redefinition ctx map1 map2 f2 t2 f (apply_params intf.cl_params params f.cf_type)
+						valid_redefinition map1 map2 f2 t2 f (apply_params intf.cl_params params f.cf_type)
 					with
 						Unify_error l ->
 							if not ((has_class_flag c CExtern)) then begin
 								(* TODO construct error with sub *)
-								display_error ctx.com ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-								display_error ~depth:1 ctx.com (compl_msg "Interface field is defined here") f.cf_pos;
-								display_error ~depth:1 ctx.com (compl_msg (error_msg (Unify l))) p;
+								display_error com ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+								display_error ~depth:1 com (compl_msg "Interface field is defined here") f.cf_pos;
+								display_error ~depth:1 com (compl_msg (error_msg (Unify l))) p;
 							end
 				)
 			with Not_found ->
@@ -416,7 +416,7 @@ module Inheritance = struct
 					add_class_field_flag cf CfExtern;
 					add_class_field_flag cf CfOverride;
 				end else if not (has_class_flag c CInterface) then begin
-					if Diagnostics.error_in_diagnostics_run ctx.com c.cl_pos then
+					if Diagnostics.error_in_diagnostics_run com c.cl_pos then
 						DynArray.add missing (f,t)
 					else begin
 						let msg = if !is_overload then
@@ -426,7 +426,7 @@ module Inheritance = struct
 						else
 							("Field " ^ f.cf_name ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
 						in
-						display_error ctx.com msg p
+						display_error com msg p
 					end
 				end
 		in
@@ -442,7 +442,7 @@ module Inheritance = struct
 		| _ ->
 		List.iter (fun (intf,params) ->
 			let missing = DynArray.create () in
-			check_interface ctx missing c intf params;
+			check_interface ctx.com ctx.g missing c intf params;
 			if DynArray.length missing > 0 then begin
 				let l = DynArray.to_list missing in
 				let diag = {
@@ -541,7 +541,7 @@ module Inheritance = struct
 					   we do want to check them at SOME point. So we use this pending list which was maybe designed for this
 					   purpose. However, we STILL have to delay the check because at the time pending is handled, the class
 					   is not built yet. See issue #10847. *)
-					pending := (fun () -> delay ctx PConnectField check_interfaces_or_delay) :: !pending
+					pending := (fun () -> delay ctx.g PConnectField check_interfaces_or_delay) :: !pending
 				| _ when ctx.com.display.dms_full_typing ->
 					check_interfaces ctx c
 				| _ ->
@@ -554,7 +554,7 @@ module Inheritance = struct
 					if not (has_class_flag csup CInterface) then raise_typing_error (Printf.sprintf "Cannot extend by using a class (%s extends %s)" (s_type_path c.cl_path) (s_type_path csup.cl_path)) p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
 					if not !has_interf then begin
-						if not is_lib then delay ctx PConnectField check_interfaces_or_delay;
+						if not is_lib then delay ctx.g PConnectField check_interfaces_or_delay;
 						has_interf := true;
 					end
 				end else begin
@@ -576,7 +576,7 @@ module Inheritance = struct
 					if not (has_class_flag intf CInterface) then raise_typing_error "You can only implement an interface" p;
 					c.cl_implements <- (intf, params) :: c.cl_implements;
 					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
-						delay ctx PConnectField check_interfaces_or_delay;
+						delay ctx.g PConnectField check_interfaces_or_delay;
 						has_interf := true;
 					end;
 					(fun () ->
