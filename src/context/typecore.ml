@@ -204,8 +204,8 @@ module TyperManager = struct
 			f = f;
 			e = e;
 			pass = pass;
-			allow_inline = true;
-			allow_transform = true;
+			allow_inline = ctx.allow_inline;
+			allow_transform = ctx.allow_transform;
 			type_params = params;
 			memory_marker = memory_marker;
 		} in
