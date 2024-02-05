@@ -96,7 +96,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 					false,a.a_path,fields,TAbstractDecl a
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					begin match get_abstract_froms ctx a pl with
-						| [t2] ->
+						| [(_,t2)] ->
 							if (List.exists (shallow_eq t) stack) then raise Exit;
 							loop (t :: stack) t2
 						| _ -> raise Exit
@@ -737,7 +737,7 @@ and type_vars ctx vl p =
 				add_local ctx VGenerated n t_dynamic pv, None (* TODO: What to do with this... *)
 	) vl in
 	List.iter (fun (v,_) ->
-		delay_if_mono ctx PTypeField v.v_type (fun() ->
+		delay_if_mono ctx.g PTypeField v.v_type (fun() ->
 			if ExtType.is_void (follow v.v_type) then
 				raise_typing_error "Variables of type Void are not allowed" v.v_pos
 		)
@@ -782,14 +782,15 @@ and type_object_decl ctx fl with_type p =
 	let dynamic_parameter = ref None in
 	let a = (match with_type with
 	| WithType.WithType(t,_) ->
-		let rec loop seen t =
+		let rec loop had_cast seen t =
 			match follow t with
-			| TAnon a -> ODKWithStructure a
+			| TAnon a ->
+				ODKWithStructure a
 			| TAbstract (a,pl) as t
 				when not (Meta.has Meta.CoreType a.a_meta)
 					&& not (List.exists (fun t' -> shallow_eq t t') seen) ->
 				let froms = get_abstract_froms ctx a pl in
-				let fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
+				let fold = fun acc (fk,t') -> match loop (fk = FromField) (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
 				begin match List.fold_left fold [] froms with
 					| [] -> ODKPlain (* If the abstract has no casts in the first place, we can assume plain typing (issue #10730) *)
 					| [t] -> t
@@ -801,12 +802,12 @@ and type_object_decl ctx fl with_type p =
 					a_status = ref Closed;
 					a_fields = PMap.empty;
 				}
-			| TInst(c,tl) when Meta.has Meta.StructInit c.cl_meta ->
+			| TInst(c,tl) when not had_cast && Meta.has Meta.StructInit c.cl_meta ->
 				ODKWithClass(c,tl)
 			| _ ->
 				ODKPlain
 		in
-		loop [] t
+		loop false [] t
 	| _ ->
 		ODKPlain
 	) in
@@ -1216,23 +1217,30 @@ and type_map_declaration ctx e1 el with_type p =
 	let el = (mk (TVar (v,Some enew)) t_dynamic p) :: (List.rev el) in
 	mk (TBlock el) tmap p
 
-and type_local_function ctx kind f with_type p =
+and type_local_function ctx_from kind f with_type p =
 	let name,inline = match kind with FKNamed (name,inline) -> Some name,inline | _ -> None,false in
-	let params = TypeloadFunction.type_function_params ctx f TPHLocal (match name with None -> "localfun" | Some (n,_) -> n) p in
+	let params = TypeloadFunction.type_function_params ctx_from f TPHLocal (match name with None -> "localfun" | Some (n,_) -> n) p in
 	if params <> [] then begin
-		if name = None then display_error ctx.com "Type parameters not supported in unnamed local functions" p;
+		if name = None then display_error ctx_from.com "Type parameters not supported in unnamed local functions" p;
 		if with_type <> WithType.NoValue then raise_typing_error "Type parameters are not supported for rvalue functions" p
 	end;
 	let v,pname = (match name with
 		| None -> None,p
 		| Some (v,pn) -> Some v,pn
 	) in
-	let old_tp,old_in_loop = ctx.type_params,ctx.e.in_loop in
+	let curfun = match ctx_from.e.curfun with
+		| FunStatic -> FunStatic
+		| FunMemberAbstract
+		| FunMemberAbstractLocal -> FunMemberAbstractLocal
+		| _ -> FunMemberClassLocal
+	in
+	let ctx = TyperManager.clone_for_expr ctx_from curfun true in
+	let old_tp = ctx.type_params in
 	ctx.type_params <- params @ ctx.type_params;
 	if not inline then ctx.e.in_loop <- false;
 	let rt = Typeload.load_type_hint ctx p f.f_type in
 	let type_arg _ opt t p = Typeload.load_type_hint ~opt ctx p t in
-	let args = new FunctionArguments.function_arguments ctx type_arg false ctx.f.in_display None f.f_args in
+	let args = new FunctionArguments.function_arguments ctx.com type_arg false ctx.f.in_display None f.f_args in
 	let targs = args#for_type in
 	let maybe_unify_arg t1 t2 =
 		match follow t1 with
@@ -1296,14 +1304,14 @@ and type_local_function ctx kind f with_type p =
 				maybe_unify_ret tr
 			| TAbstract(a,tl) ->
 				begin match get_abstract_froms ctx a tl with
-					| [t2] ->
+					| [(_,t2)] ->
 						if not (List.exists (shallow_eq t) stack) then loop (t :: stack) t2
 					| l ->
 						(* For cases like nested EitherType, we want a flat list of all possible candidates.
 						   This might be controversial because those could be considered transitive casts,
 						   but it's unclear if that's a bad thing for this kind of inference (issue #10982). *)
 						let rec loop stack acc l = match l with
-							| t :: l ->
+							| (_,t) :: l ->
 								begin match follow t with
 								| TAbstract(a,tl) as t when not (List.exists (shallow_eq t) stack) ->
 									loop (t :: stack) acc (l @ get_abstract_froms ctx a tl)
@@ -1330,17 +1338,10 @@ and type_local_function ctx kind f with_type p =
 			if params <> [] then v.v_extra <- Some (var_extra params None);
 			Some v
 	) in
-	let curfun = match ctx.e.curfun with
-		| FunStatic -> FunStatic
-		| FunMemberAbstract
-		| FunMemberAbstractLocal -> FunMemberAbstractLocal
-		| _ -> FunMemberClassLocal
-	in
-	let e = TypeloadFunction.type_function ctx args rt curfun f.f_expr ctx.f.in_display p in
+	let e = TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p in
 	ctx.type_params <- old_tp;
-	ctx.e.in_loop <- old_in_loop;
 	let tf = {
-		tf_args = args#for_expr;
+		tf_args = args#for_expr ctx;
 		tf_type = rt;
 		tf_expr = e;
 	} in
@@ -1398,15 +1399,10 @@ and type_array_decl ctx el with_type p =
 				with Not_found ->
 					None)
 			| TAbstract (a,pl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
-				let types =
-					List.fold_left
-						(fun acc t' -> match loop (t :: seen) t' with
-							| None -> acc
-							| Some t -> t :: acc
-						)
-						[]
-						(get_abstract_froms ctx a pl)
-				in
+				let types = List.fold_left (fun acc (_,t') -> match loop (t :: seen) t' with
+					| None -> acc
+					| Some t -> t :: acc
+				) [] (get_abstract_froms ctx a pl) in
 				(match types with
 				| [t] -> Some t
 				| _ -> None)

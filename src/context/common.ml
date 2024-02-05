@@ -398,6 +398,7 @@ type context = {
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
 	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
+	fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t;
 	mutable has_error : bool;
 	pass_debug_messages : string DynArray.t;
 	(* output *)
@@ -420,7 +421,6 @@ type context = {
 	mutable basic : basic_types;
 	memory_marker : float array;
 	hxb_reader_stats : HxbReader.hxb_reader_stats;
-	hxb_writer_stats : HxbWriter.hxb_writer_stats;
 	mutable hxb_writer_config : HxbWriterConfig.t option;
 }
 
@@ -834,6 +834,7 @@ let create compilation_step cs version args display_mode =
 		modules = [];
 		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
+		fake_modules = Hashtbl.create 0;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
 		net_std = [];
@@ -883,7 +884,6 @@ let create compilation_step cs version args display_mode =
 		report_mode = RMNone;
 		is_macro_context = false;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
-		hxb_writer_stats = HxbWriter.create_hxb_writer_stats ();
 		hxb_writer_config = None;
 	} in
 	com
@@ -934,8 +934,8 @@ let clone com is_macro_context =
 		module_to_file = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
 		module_lut = new module_lut;
+		fake_modules = Hashtbl.create 0;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
-		hxb_writer_stats = HxbWriter.create_hxb_writer_stats ();
 		std = null_class;
 		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;

@@ -124,6 +124,40 @@ let make_meta ctx texpr extra =
 		| _ ->
 			display_error ctx.com "Unexpected expression" texpr.epos; die "" __LOC__
 
+let field_to_type_path com e =
+	let rec loop e pack name = match e with
+		| EField(e,f,_),p when Char.lowercase_ascii (String.get f 0) <> String.get f 0 -> (match name with
+			| [] | _ :: [] ->
+				loop e pack (f :: name)
+			| _ -> (* too many name paths *)
+				display_error com ("Unexpected " ^ f) p;
+				raise Exit)
+		| EField(e,f,_),_ ->
+			loop e (f :: pack) name
+		| EConst(Ident f),_ ->
+			let pack, name, sub = match name with
+				| [] ->
+					let fchar = String.get f 0 in
+					if Char.uppercase_ascii fchar = fchar then
+						pack, f, None
+					else begin
+						display_error com "A class name must start with an uppercase letter" (snd e);
+						raise Exit
+					end
+				| [name] ->
+					f :: pack, name, None
+				| [name; sub] ->
+					f :: pack, name, Some sub
+				| _ ->
+					die "" __LOC__
+			in
+			{ tpackage=pack; tname=name; tparams=[]; tsub=sub }
+		| _,pos ->
+			display_error com "Unexpected expression when building strict meta" pos;
+			raise Exit
+	in
+	loop e [] []
+
 let get_strict_meta ctx meta params pos =
 	let pf = ctx.com.platform in
 	let changed_expr, fields_to_check, ctype = match params with
@@ -172,7 +206,7 @@ let get_strict_meta ctx meta params pos =
 			raise Exit
 	in
 	let t = Typeload.load_complex_type ctx false (ctype,pos) in
-	flush_pass ctx PBuildClass "get_strict_meta";
+	flush_pass ctx.g PBuildClass "get_strict_meta";
 	let texpr = type_expr ctx changed_expr NoValue in
 	let with_type_expr = (ECheckType( (EConst (Ident "null"), pos), (ctype,null_pos) ), pos) in
 	let extra = handle_fields ctx fields_to_check with_type_expr in

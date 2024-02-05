@@ -31,7 +31,7 @@ open Gencommon
 
 let rec filter_param (stack:t list) t =
 	match t with
-	| TInst({ cl_kind = KTypeParameter _ } as c,_) when Meta.has Meta.EnumConstructorParam c.cl_meta ->
+	| TInst({ cl_kind = KTypeParameter ttp },_) when ttp.ttp_host = TPHEnumConstructor ->
 		t_dynamic
 	| TMono r ->
 		(match r.tm_type with
