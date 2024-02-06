@@ -750,6 +750,13 @@ let rec module_type_of_type = function
 		(match r.tm_type with
 		| Some t -> module_type_of_type t
 		| _ -> raise Exit)
+	| TAnon an ->
+		begin match !(an.a_status) with
+			| ClassStatics c -> TClassDecl c
+			| EnumStatics en -> TEnumDecl en
+			| AbstractStatics a -> TAbstractDecl a
+			| _ -> raise Exit
+		end
 	| _ ->
 		raise Exit
 
