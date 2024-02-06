@@ -138,12 +138,9 @@ private abstract ValueAbstract(Int) {
 
 class Issue9746 extends unit.Test {
 	function testClass() {
-		#if (cs && fast_cast && erase_generics)
-		#else
 		var ctx = new PropertyClassTestContext();
 		eq(2, ctx.get()[ctx.index++].propGet += 2);
 		ctx.check(1, 1, 0);
-		#end
 
 		var ctx = new PropertyClassTestContext();
 		eq(2, ctx.get()[ctx.index++].propSet += 2);
@@ -154,8 +151,6 @@ class Issue9746 extends unit.Test {
 		ctx.check(1, 1, 1);
 	}
 
-	#if (cs && fast_cast && erase_generics)
-	#else
 	function testClassPrefix() {
 		var ctx = new PropertyClassTestContext();
 		eq(1, ++ctx.get()[ctx.index++].propGet);
@@ -169,7 +164,6 @@ class Issue9746 extends unit.Test {
 		eq(1, ++ctx.get()[ctx.index++].propGetSet);
 		ctx.check(1, 1, 1);
 	}
-	#end
 
 	function testClassPostfix() {
 		var ctx = new PropertyClassTestContext();
@@ -213,10 +207,7 @@ class Issue9746 extends unit.Test {
 		eq(2, getA()[index++].prop += 2);
 		eq(1, index);
 		eq(0 /* value semantics */, a.prop);
-		#if (cs && fast_cast && erase_generics)
-		#else
 		eq(2, a.prop += 2);
 		eq(2, a.prop);
-		#end
 	}
 }

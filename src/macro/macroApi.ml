@@ -439,12 +439,11 @@ and encode_platform p =
 		| Flash -> 4, []
 		| Php -> 5, []
 		| Cpp -> 6, []
-		| Cs -> 7, []
-		| Java -> 8, []
-		| Python -> 9, []
-		| Hl -> 10, []
-		| Eval -> 11, []
-		| CustomTarget s -> 12, [(encode_string s)]
+		| Jvm -> 7, []
+		| Python -> 8, []
+		| Hl -> 9, []
+		| Eval -> 10, []
+		| CustomTarget s -> 11, [(encode_string s)]
 	in
 	encode_enum ~pos:None IPlatform tag pl
 
@@ -2175,22 +2174,12 @@ let macro_api ccom get_api =
 			let com = ccom() in
 			let open CompilationContext in
 			let kind = match com.platform with
-				| Java -> JavaLib
-				| Cs -> NetLib
+				| Jvm -> JavaLib
 				| Flash -> SwfLib
 				| _ -> failwith "Unsupported platform"
 			in
 			let lib = create_native_lib file false kind in
 			NativeLibraryHandler.add_native_lib com lib ();
-			vnull
-		);
-		"add_native_arg", vfun1 (fun arg ->
-			let arg = decode_string arg in
-			let com = ccom() in
-			(match com.platform with
-			| Globals.Java | Globals.Cs | Globals.Cpp ->
-				com.c_args <- arg :: com.c_args
-			| _ -> failwith "Unsupported platform");
 			vnull
 		);
 		"register_module_dependency", vfun2 (fun m file ->

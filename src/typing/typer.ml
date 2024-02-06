@@ -394,29 +394,24 @@ let rec type_ident_raise ctx i p mode with_type =
 		AKExpr (mk (TConst TSuper) t p)
 	| "null" ->
 		let acc =
-			(* Hack for #10787 *)
-			if ctx.com.platform = Cs then
-				AKExpr (null (spawn_monomorph ctx.e p) p)
-			else begin
-				let tnull () = ctx.t.tnull (spawn_monomorph ctx.e p) in
-				let t = match with_type with
-					| WithType.WithType(t,_) ->
-						begin match follow t with
-						| TMono r when not (is_nullable t) ->
-							(* If our expected type is a monomorph, bind it to Null<?>. The is_nullable check is here because
-							   the expected type could already be Null<?>, in which case we don't want to double-wrap (issue #11286). *)
-							Monomorph.do_bind r (tnull())
-						| _ ->
-							(* Otherwise there's no need to create a monomorph, we can just type the null literal
-							the way we expect it. *)
-							()
-						end;
-						t
+			let tnull () = ctx.t.tnull (spawn_monomorph ctx.e p) in
+			let t = match with_type with
+				| WithType.WithType(t,_) ->
+					begin match follow t with
+					| TMono r when not (is_nullable t) ->
+						(* If our expected type is a monomorph, bind it to Null<?>. The is_nullable check is here because
+							the expected type could already be Null<?>, in which case we don't want to double-wrap (issue #11286). *)
+						Monomorph.do_bind r (tnull())
 					| _ ->
-						tnull()
-				in
-				AKExpr (null t p)
-			end
+						(* Otherwise there's no need to create a monomorph, we can just type the null literal
+						the way we expect it. *)
+						()
+					end;
+					t
+				| _ ->
+					tnull()
+			in
+			AKExpr (null t p)
 		in
 		if mode = MGet then acc else AKNo(acc,p)
 	| _ ->

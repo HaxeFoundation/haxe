@@ -13,7 +13,7 @@ import haxe.test.TEnum;
 import java.util.EnumSet;
 import java.vm.*;
 
-#if java
+#if jvm
 @:strict(haxe.test.MyClass.MyClass_MyAnnotation({author: "John Doe", someEnum: TB}))
 @:strict(MyClass_ParameterLessAnnotation)
 class TestJava extends Test {

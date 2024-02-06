@@ -138,15 +138,9 @@ module Setup = struct
 				if Common.defined com Define.Cppia then
 					actx.classes <- (Path.parse_path "cpp.cppia.HostClasses" ) :: actx.classes;
 				"cpp"
-			| Cs ->
-				Dotnet.before_generate com;
-				add_std "cs"; "cs"
-			| Java ->
-				Java.before_generate com;
-				if defined com Define.Jvm then begin
-					add_std "jvm";
-					com.package_rules <- PMap.remove "jvm" com.package_rules;
-				end;
+			| Jvm ->
+				add_std "jvm";
+				com.package_rules <- PMap.remove "java" com.package_rules;
 				add_std "java";
 				"java"
 			| Python ->
@@ -467,7 +461,6 @@ let finalize ctx =
 		we should do it here to be safe. *)
 	if not ctx.comm.is_server then begin
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.java_libs;
-		List.iter (fun lib -> lib#close) ctx.com.native_libs.net_libs;
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
 	end
 
@@ -633,10 +626,8 @@ module HighLevel = struct
 				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
 				let lines = add_libs libs args server_api.cache has_display in
 				loop acc (lines @ args)
-			| ("--jvm" | "--java" | "-java" as arg) :: dir :: args ->
+			| ("--jvm" | "-jvm" as arg) :: dir :: args ->
 				loop_lib arg dir "hxjava" acc args
-			| ("--cs" | "-cs" as arg) :: dir :: args ->
-				loop_lib arg dir "hxcs" acc args
 			| arg :: l ->
 				match List.rev (ExtString.String.nsplit arg ".") with
 				| "hxml" :: _ :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->

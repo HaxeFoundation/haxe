@@ -33,7 +33,6 @@ open Error
 type class_init_ctx = {
 	tclass : tclass; (* I don't trust ctx.c.curclass because it's mutable. *)
 	is_lib : bool;
-	is_native : bool;
 	is_core_api : bool;
 	is_class_debug : bool;
 	extends_public : bool;
@@ -104,7 +103,6 @@ let dump_class_context cctx =
 	Printer.s_record_fields "" [
 		"tclass",Printer.s_tclass "\t" cctx.tclass;
 		"is_lib",string_of_bool cctx.is_lib;
-		"is_native",string_of_bool cctx.is_native;
 		"is_core_api",string_of_bool cctx.is_core_api;
 		"is_class_debug",string_of_bool cctx.is_class_debug;
 		"extends_public",string_of_bool cctx.extends_public;
@@ -457,8 +455,6 @@ let create_class_context c p =
 		| _ -> None
 	in
 	let is_lib = Meta.has Meta.LibType c.cl_meta in
-	(* a native type will skip one check: the static vs non-static field *)
-	let is_native = Meta.has Meta.JavaNative c.cl_meta || Meta.has Meta.CsNative c.cl_meta in
 	let rec extends_public c =
 		Meta.has Meta.PublicFields c.cl_meta ||
 		match c.cl_super with
@@ -468,7 +464,6 @@ let create_class_context c p =
 	let cctx = {
 		tclass = c;
 		is_lib = is_lib;
-		is_native = is_native;
 		is_core_api = Meta.has Meta.CoreApi c.cl_meta;
 		is_class_debug = Meta.has (Meta.Custom ":debug.typeload") c.cl_meta;
 		extends_public = extends_public c;
@@ -734,9 +729,7 @@ module TypeBinding = struct
 		if not fctx.is_static && not cctx.is_lib then begin match get_declared cf.cf_name c.cl_super with
 				| None -> ()
 				| Some (csup,_) ->
-					(* this can happen on -net-lib generated classes if a combination of explicit interfaces and variables with the same name happens *)
-					if not ((has_class_flag csup CInterface) && Meta.has Meta.CsNative c.cl_meta) then
-						display_error ctx.com ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
+					display_error ctx.com ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
 		end
 
 	let bind_var_expression ctx_f cctx fctx cf e =
@@ -841,7 +834,7 @@ module TypeBinding = struct
 			incr stats.s_methods_typed;
 			if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing method %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 			begin match ctx.com.platform with
-				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
+				| Jvm when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
 					if e <> None then
 						warning ctx WDeprecated "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
 					cf.cf_expr <- None;
@@ -1291,7 +1284,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	begin match fctx.default with
 	| Some p ->
 		begin match ctx.com.platform with
-		| Java ->
+		| Jvm ->
 			if not (has_class_flag ctx.c.curclass CExtern) || not (has_class_flag c CInterface) then invalid_modifier_only ctx.com fctx "default" "on extern interfaces" p;
 			add_class_field_flag cf CfDefault;
 		| _ ->
@@ -1524,7 +1517,7 @@ let init_field (ctx,cctx,fctx) f =
 	if not (has_class_flag c CExtern) && not (Meta.has Meta.Native f.cff_meta) then Naming.check_field_name ctx.com name p;
 	List.iter (fun acc ->
 		match (fst acc, f.cff_kind) with
-		| AFinal, FProp _ when not (has_class_flag c CExtern) && ctx.com.platform <> Java -> invalid_modifier_on_property ctx.com fctx (Ast.s_placed_access acc) (snd acc)
+		| AFinal, FProp _ when not (has_class_flag c CExtern) && ctx.com.platform <> Jvm -> invalid_modifier_on_property ctx.com fctx (Ast.s_placed_access acc) (snd acc)
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
 		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ | AAbstract, FFun _ | AOverload, FFun _ -> ()
 		| AEnum, (FVar _ | FProp _) -> ()
@@ -1572,7 +1565,7 @@ let check_overload ctx f fs is_extern_class =
 		display_error ~depth:1 ctx.com (compl_msg "The second field is declared here") f2.cf_pos;
 		false
 	with Not_found -> try
-		if ctx.com.platform <> Java || is_extern_class then raise Not_found;
+		if ctx.com.platform <> Jvm || is_extern_class then raise Not_found;
 		let get_vmtype = ambiguate_funs in
 		let f2 =
 			List.find (fun f2 ->
@@ -1723,7 +1716,7 @@ let init_class ctx_c cctx c p herits fields =
 				()
 			| CfrStatic | CfrMember ->
 				let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
-				if not cctx.is_native && not (has_class_flag c CExtern) && dup then raise_typing_error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
+				if not (has_class_flag c CExtern) && dup then raise_typing_error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
 				if fctx.override <> None then
 					add_class_field_flag cf CfOverride;
 				let is_var cf = match cf.cf_kind with
@@ -1758,7 +1751,7 @@ let init_class ctx_c cctx c p herits fields =
 			a.a_unops <- List.rev a.a_unops;
 			a.a_array <- List.rev a.a_array;
 		| None ->
-			if (has_class_flag c CInterface) && com.platform = Java then check_functional_interface ctx_c c;
+			if (has_class_flag c CInterface) && com.platform = Jvm then check_functional_interface ctx_c c;
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;

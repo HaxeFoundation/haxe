@@ -307,7 +307,6 @@ let build_generic_class ctx c p tl =
 			| Meta.Access | Allow
 			| Final
 			| Hack
-			| Internal
 			| Keep | KeepSub
 			| NoClosure | NullSafety
 			| Pure

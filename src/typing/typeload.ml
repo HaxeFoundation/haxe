@@ -315,7 +315,7 @@ let rec maybe_build_instance ctx t0 get_params p =
 
 let rec load_params ctx info params p =
 	let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
-	let is_java_rest = ctx.com.platform = Java && info.build_extern in
+	let is_java_rest = ctx.com.platform = Jvm && info.build_extern in
 	let is_rest = is_rest || is_java_rest in
 	let load_param t =
 		match t with

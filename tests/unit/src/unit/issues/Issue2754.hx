@@ -2,7 +2,7 @@ package unit.issues;
 
 class Issue2754 extends unit.Test
 {
-#if (cs || java)
+#if jvm
 	public function testClass()
 	{
 		var tc = new TestClass();

@@ -10,7 +10,7 @@ class Issue6871 extends unit.Test {
 
 	function test() {
 		inline function exception(e:Dynamic) {
-			return #if cs e.InnerException.Message #else e #end;
+			return e;
 		}
 
 		try {

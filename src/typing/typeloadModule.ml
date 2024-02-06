@@ -432,7 +432,7 @@ module TypeLevel = struct
 		delay ctx_m.g PBuildClass (fun() -> ignore(c.cl_build()));
 		if Meta.has Meta.InheritDoc c.cl_meta then
 			delay ctx_m.g PConnectField (fun() -> InheritDoc.build_class_doc ctx_m c);
-		if (ctx_m.com.platform = Java || ctx_m.com.platform = Cs) && not (has_class_flag c CExtern) then
+		if (ctx_m.com.platform = Jvm) && not (has_class_flag c CExtern) then
 			delay ctx_m.g PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_m c.cl_meta in
 				if metas <> [] then c.cl_meta <- metas @ c.cl_meta;
@@ -511,7 +511,7 @@ module TypeLevel = struct
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
 			delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_doc ctx_en e);
-		if (ctx_en.com.platform = Java || ctx_en.com.platform = Cs) && not e.e_extern then
+		if (ctx_en.com.platform = Jvm) && not e.e_extern then
 			delay ctx_en.g PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_en e.e_meta in
 				e.e_meta <- metas @ e.e_meta;
@@ -565,12 +565,7 @@ module TypeLevel = struct
 			| None -> Monomorph.bind r tt;
 			| Some t' -> die (Printf.sprintf "typedef %s is already initialized to %s, but new init to %s was attempted" (s_type_path t.t_path) (s_type_kind t') (s_type_kind tt)) __LOC__);
 		| _ -> die "" __LOC__);
-		TypeloadFields.build_module_def ctx_td (TTypeDecl t) t.t_meta (fun _ -> []) (fun _ -> ());
-		if ctx_td.com.platform = Cs && t.t_meta <> [] then
-			delay ctx_td.g PTypeField (fun () ->
-				let metas = StrictMeta.check_strict_meta ctx_td t.t_meta in
-				if metas <> [] then t.t_meta <- metas @ t.t_meta;
-			)
+		TypeloadFields.build_module_def ctx_td (TTypeDecl t) t.t_meta (fun _ -> []) (fun _ -> ())
 
 	let init_abstract ctx_m a d p =
 		if ctx_m.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then

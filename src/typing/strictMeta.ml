@@ -12,8 +12,6 @@ let get_native_repr md pos =
 		| TAbstractDecl a -> a.a_path, a.a_meta
 	in
 	let rec loop acc = function
-		| (Meta.JavaCanonical,[EConst(String(pack,_)),_; EConst(String(name,_)),_],_) :: _ ->
-			ExtString.String.nsplit pack ".", name
 		| (Meta.Native,[EConst(String(name,_)),_],_) :: meta ->
 			loop (Ast.parse_path name) meta
 		| _ :: meta ->
@@ -51,10 +49,7 @@ let rec process_meta_argument ?(toplevel=true) ctx expr = match expr.eexpr with
 		process_meta_argument ~toplevel ctx e
 	| TTypeExpr md when toplevel ->
 		let p = expr.epos in
-		if ctx.com.platform = Cs then
-			(ECall( (EConst(Ident "typeof"), p), [get_native_repr md expr.epos] ), p)
-		else
-			(efield(get_native_repr md expr.epos, "class"), p)
+		(efield(get_native_repr md expr.epos, "class"), p)
 	| TTypeExpr md ->
 		get_native_repr md expr.epos
 	| TArrayDecl el ->
@@ -104,12 +99,7 @@ let handle_fields ctx fields_to_check with_type_expr =
 		let pos = snd expr in
 		let field = (efield(with_type_expr,name), pos) in
 		let fieldexpr = (EConst(Ident name),pos) in
-		let left_side = match ctx.com.platform with
-			| Cs -> field
-			| Java -> (ECall(field,[]),pos)
-			| _ -> die "" __LOC__
-		in
-
+		let left_side = (ECall(field,[]),pos) in
 		let left = type_expr ctx left_side NoValue in
 		let right = kind_of_type_against ctx left.etype expr in
 		(EBinop(Ast.OpAssign,fieldexpr,process_meta_argument ctx right), pos)
@@ -159,48 +149,27 @@ let field_to_type_path com e =
 	loop e [] []
 
 let get_strict_meta ctx meta params pos =
-	let pf = ctx.com.platform in
 	let changed_expr, fields_to_check, ctype = match params with
 		| [ECall(ef, el),p] ->
 			let tpath = field_to_type_path ctx.com ef in
-			begin match pf with
-			| Cs ->
-				let el, fields = match List.rev el with
-					| (EObjectDecl(decl),_) :: el ->
-						List.rev el, decl
-					| _ ->
-						el, []
-				in
-				let ptp = make_ptp tpath (snd ef) in
-				(ENew(ptp, el), p), fields, CTPath ptp
-			| Java ->
-				let fields = match el with
-				| [EObjectDecl(fields),_] ->
-					fields
-				| [] ->
-					[]
-				| (_,p) :: _ ->
-					display_error ctx.com "Object declaration expected" p;
-					[]
-				in
-				ef, fields, CTPath (make_ptp tpath (snd ef))
-			| _ ->
-				Error.raise_typing_error "@:strict is not supported on this target" p
-			end
+			let fields = match el with
+			| [EObjectDecl(fields),_] ->
+				fields
+			| [] ->
+				[]
+			| (_,p) :: _ ->
+				display_error ctx.com "Object declaration expected" p;
+				[]
+			in
+			ef, fields, CTPath (make_ptp tpath (snd ef))
 		| [EConst(Ident i),p as expr] ->
 			let tpath = { tpackage=[]; tname=i; tparams=[]; tsub=None } in
 			let ptp = make_ptp tpath p in
-			if pf = Cs then
-				(ENew(ptp, []), p), [], CTPath ptp
-			else
-				expr, [], CTPath ptp
+			expr, [], CTPath ptp
 		| [ (EField(_),p as field) ] ->
 			let tpath = field_to_type_path ctx.com field in
 			let ptp = make_ptp tpath p in
-			if pf = Cs then
-				(ENew(ptp, []), p), [], CTPath ptp
-			else
-				field, [], CTPath ptp
+			field, [], CTPath ptp
 		| _ ->
 			display_error ctx.com "A @:strict metadata must contain exactly one parameter. Please check the documentation for more information" pos;
 			raise Exit
@@ -211,7 +180,7 @@ let get_strict_meta ctx meta params pos =
 	let with_type_expr = (ECheckType( (EConst (Ident "null"), pos), (ctype,null_pos) ), pos) in
 	let extra = handle_fields ctx fields_to_check with_type_expr in
 	let args = [make_meta ctx texpr extra] in
-	let args = if Common.defined ctx.com Define.Jvm then match t with
+	let args = match t with
 		| TInst(c,_) ->
 			let v = get_meta_string c.cl_meta Meta.Annotation in
 			begin match v with
@@ -224,20 +193,15 @@ let get_strict_meta ctx meta params pos =
 			end;
 		| _ ->
 			args
-	else
-		args
 	in
 	meta, args, pos
 
 let check_strict_meta ctx metas =
 	let pf = ctx.com.platform in
 	match pf with
-		| Cs | Java ->
+		| Jvm ->
 			let ret = ref [] in
 			List.iter (function
-				| Meta.AssemblyStrict,params,pos -> (try
-					ret := get_strict_meta ctx Meta.AssemblyMeta params pos :: !ret
-				with | Exit -> ())
 				| Meta.Strict,params,pos -> (try
 					ret := get_strict_meta ctx Meta.Meta params pos :: !ret
 				with | Exit -> ())
