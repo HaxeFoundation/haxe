@@ -62,16 +62,16 @@ module ModuleLevel = struct
 	*)
 	let create_module_types ctx_m m tdecls loadp =
 		let com = ctx_m.com in
+		let imports_and_usings = DynArray.create () in
 		let module_types = DynArray.create () in
 		let declarations = DynArray.create () in
-		let add_declaration decl tdecl =
-			DynArray.add declarations (decl,tdecl);
-			match tdecl with
-				| None ->
-					()
-				| Some mt ->
-					ctx_m.com.module_lut#add_module_type m mt;
-					DynArray.add module_types mt;
+		let add_declaration decl mt =
+			DynArray.add declarations (decl,mt);
+			ctx_m.com.module_lut#add_module_type m mt;
+			DynArray.add module_types mt;
+		in
+		let add_import_declaration i =
+			DynArray.add imports_and_usings i
 		in
 		let statics = ref [] in
 		let check_name name meta also_statics p =
@@ -128,13 +128,13 @@ module ModuleLevel = struct
 			match fst decl with
 				| EImport _ | EUsing _ ->
 					if !has_declaration then raise_typing_error "import and using may not appear after a declaration" p;
-					add_declaration decl None
+					add_import_declaration decl
 				| EStatic d ->
 					check_name (fst d.d_name) d.d_meta false (snd d.d_name);
 					has_declaration := true;
 					statics := (d,p) :: !statics;
 				| EClass d ->
-					add_declaration decl (Some (TClassDecl (handle_class_decl d p)))
+					add_declaration decl (TClassDecl (handle_class_decl d p))
 				| EEnum d ->
 					let name = fst d.d_name in
 					has_declaration := true;
@@ -149,7 +149,7 @@ module ModuleLevel = struct
 						e_extern = List.mem EExtern d.d_flags;
 					} in
 					if not e.e_extern then check_type_name name d.d_meta p;
-					add_declaration decl (Some (TEnumDecl e))
+					add_declaration decl (TEnumDecl e)
 				| ETypedef d ->
 					let name = fst d.d_name in
 					check_type_name name d.d_meta p;
@@ -167,7 +167,7 @@ module ModuleLevel = struct
 						| TMono r -> (match r.tm_type with None -> Monomorph.bind r com.basic.tvoid | _ -> ())
 						| _ -> ()
 					);
-					add_declaration decl (Some (TTypeDecl t))
+					add_declaration decl (TTypeDecl t)
 				| EAbstract d ->
 					let name = fst d.d_name in
 					check_type_name name d.d_meta p;
@@ -206,7 +206,7 @@ module ModuleLevel = struct
 							let options = Warning.from_meta d.d_meta in
 							module_warning com ctx_m.m.curmod WDeprecatedEnumAbstract options "`@:enum abstract` is deprecated in favor of `enum abstract`" p
 					end;
-					add_declaration decl (Some (TAbstractDecl a));
+					add_declaration decl (TAbstractDecl a);
 					begin match d.d_data with
 					| [] when Meta.has Meta.CoreType a.a_meta ->
 						a.a_this <- t_dynamic;
@@ -229,7 +229,7 @@ module ModuleLevel = struct
 						a.a_impl <- Some c;
 						c.cl_kind <- KAbstractImpl a;
 						add_class_flag c CFinal;
-						add_declaration (EClass c_decl,p) (Some (TClassDecl c));
+						add_declaration (EClass c_decl,p) (TClassDecl c);
 					end;
 		in
 		List.iter make_decl tdecls;
@@ -256,13 +256,13 @@ module ModuleLevel = struct
 				m.m_statics <- Some c;
 				c.cl_kind <- KModuleFields m;
 				add_class_flag c CFinal;
-				add_declaration (EClass c_def,p) (Some (TClassDecl c));
+				add_declaration (EClass c_def,p) (TClassDecl c);
 		end;
 		(* During the initial module_lut#add in type_module, m has no m_types yet by design.
 		   We manually add them here. This and module_lut#add itself should be the only places
 		   in the compiler that call add_module_type. *)
 		m.m_types <- m.m_types @ (DynArray.to_list module_types);
-		DynArray.to_list declarations
+		DynArray.to_list imports_and_usings,DynArray.to_list declarations
 
 	let handle_import_hx com g m decls p =
 		let path_split = match List.rev (Path.get_path_parts (Path.UniqueKey.lazy_path m.m_extra.m_file)) with
@@ -315,7 +315,7 @@ module ModuleLevel = struct
 		 Constraints are handled lazily (no other type is loaded) because they might be recursive anyway *)
 		 List.iter (fun d ->
 			match d with
-			| (EClass d, p),Some (TClassDecl c) ->
+			| ((EClass d, p),TClassDecl c) ->
 				c.cl_params <- type_type_params ctx_m TPHType c.cl_path p d.d_params;
 				if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
 				if Meta.has Meta.GenericBuild c.cl_meta then begin
@@ -323,14 +323,12 @@ module ModuleLevel = struct
 					c.cl_kind <- KGenericBuild d.d_data;
 				end;
 				if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
-			| ((EEnum d, p),Some (TEnumDecl e)) ->
+			| ((EEnum d, p),TEnumDecl e) ->
 				e.e_params <- type_type_params ctx_m TPHType e.e_path p d.d_params;
-			| ((ETypedef d, p),Some (TTypeDecl t)) ->
+			| ((ETypedef d, p),TTypeDecl t) ->
 				t.t_params <- type_type_params ctx_m TPHType t.t_path p d.d_params;
-			| ((EAbstract d, p),Some (TAbstractDecl a)) ->
+			| ((EAbstract d, p),TAbstractDecl a) ->
 				a.a_params <- type_type_params ctx_m TPHType a.a_path p d.d_params;
-			| (((EImport _ | EUsing _),_),None) ->
-				()
 			| _ ->
 				die "" __LOC__
 		) decls
@@ -393,10 +391,10 @@ module TypeLevel = struct
 			end
 		) d.d_meta;
 		let prev_build_count = ref (ctx_m.g.build_count - 1) in
+		let cctx = TypeloadFields.create_class_context c p in
+		let ctx_c = TypeloadFields.create_typer_context_for_class ctx_m cctx p in
 		let build() =
 			c.cl_build <- (fun()-> Building [c]);
-			let cctx = TypeloadFields.create_class_context c p in
-			let ctx_c = TypeloadFields.create_typer_context_for_class ctx_m cctx p in
 			let fl = TypeloadCheck.Inheritance.set_heritance ctx_c c herits p in
 			let rec build() =
 				c.cl_build <- (fun()-> Building [c]);
@@ -642,10 +640,27 @@ module TypeLevel = struct
 		an expression into the context
 	*)
 	let init_module_type ctx_m ((decl,p),tdecl) =
+		match decl with
+		| EClass d ->
+			let c = (match tdecl with TClassDecl c -> c | _ -> die "" __LOC__) in
+			init_class ctx_m c d p
+		| EEnum d ->
+			let e = (match tdecl with TEnumDecl e -> e | _ -> die "" __LOC__) in
+			init_enum ctx_m e d p
+		| ETypedef d ->
+			let t = (match tdecl with TTypeDecl t -> t | _ -> die "" __LOC__) in
+			init_typedef ctx_m t d p
+		| EAbstract d ->
+			let a = (match tdecl with TAbstractDecl a -> a | _ -> die "" __LOC__) in
+			init_abstract ctx_m a d p
+		| _ ->
+			die "" __LOC__
+
+	let init_imports_or_using ctx_m (decl,p) =
 		let com = ctx_m.com in
 		let check_path_display path p =
 			if DisplayPosition.display_position#is_in_file (com.file_keys#get p.pfile) then DisplayPath.handle_path_display ctx_m path p
-			in
+		in
 		match decl with
 		| EImport (path,mode) ->
 			begin try
@@ -658,21 +673,8 @@ module TypeLevel = struct
 		| EUsing path ->
 			check_path_display path p;
 			ImportHandling.init_using ctx_m path p
-		| EClass d ->
-			let c = (match tdecl with Some (TClassDecl c) -> c | _ -> die "" __LOC__) in
-			init_class ctx_m c d p
-		| EEnum d ->
-			let e = (match tdecl with Some (TEnumDecl e) -> e | _ -> die "" __LOC__) in
-			init_enum ctx_m e d p
-		| ETypedef d ->
-			let t = (match tdecl with Some (TTypeDecl t) -> t | _ -> die "" __LOC__) in
-			init_typedef ctx_m t d p
-		| EAbstract d ->
-			let a = (match tdecl with Some (TAbstractDecl a) -> a | _ -> die "" __LOC__) in
-			init_abstract ctx_m a d p
-		| EStatic _ ->
-			(* nothing to do here as module fields are collected into a special EClass *)
-			()
+		| _ ->
+			die "" __LOC__
 end
 
 let make_curmod com g m =
@@ -695,7 +697,7 @@ let make_curmod com g m =
 *)
 let type_types_into_module com g m tdecls p =
 	let ctx_m = TyperManager.clone_for_module g.root_typer (make_curmod com g m) in
-	let decls = ModuleLevel.create_module_types ctx_m m tdecls p in
+	let imports_and_usings,decls = ModuleLevel.create_module_types ctx_m m tdecls p in
 	(* define the per-module context for the next pass *)
 	if ctx_m.g.std_types != null_module then begin
 		add_dependency m ctx_m.g.std_types;
@@ -703,6 +705,7 @@ let type_types_into_module com g m tdecls p =
 		ignore(load_instance ctx_m (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal)
 	end;
 	ModuleLevel.init_type_params ctx_m decls;
+	List.iter (TypeLevel.init_imports_or_using ctx_m) imports_and_usings;
 	(* setup module types *)
 	List.iter (TypeLevel.init_module_type ctx_m) decls;
 	(* Make sure that we actually init the context at some point (issue #9012) *)
