@@ -1231,7 +1231,18 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 		| FunMemberAbstractLocal -> FunMemberAbstractLocal
 		| _ -> FunMemberClassLocal
 	in
-	let ctx = TyperManager.clone_for_expr ctx_from curfun true in
+	let is_coroutine = match v, with_type with
+		| None, WithType.WithType (texpected,_) ->
+			(match follow texpected with
+			| TFun(_,_,true) ->
+				true
+			| _ ->
+				false)
+		| _ ->
+			want_coroutine
+	in
+	let function_mode = if is_coroutine then FunCoroutine else FunFunction in
+	let ctx = TyperManager.clone_for_expr ctx_from curfun function_mode in
 	let old_tp = ctx.type_params in
 	ctx.type_params <- params @ ctx.type_params;
 	if not inline then ctx.e.in_loop <- false;
@@ -1327,16 +1338,6 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 		if name = None then display_error ctx.com "Unnamed lvalue functions are not supported" p
 	| _ ->
 		());
-	let is_coroutine = match v, with_type with
-		| None, WithType.WithType (texpected,_) ->
-			(match follow texpected with
-			| TFun(_,_,true) ->
-				true
-			| _ ->
-				false)
-		| _ ->
-			want_coroutine
-	in
 	let ft = TFun (targs,rt,is_coroutine) in
 
 	let v = (match v with
@@ -1975,7 +1976,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e = Matcher.Match.match_expr ctx e1 cases def with_type false p in
 		wrap e
 	| EReturn e ->
-		if not ctx.e.in_function then begin
+		if not (TyperManager.is_function_context ctx) then begin
 			display_error ctx.com "Return outside function" p;
 			match e with
 			| None ->

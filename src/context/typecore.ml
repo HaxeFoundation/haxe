@@ -105,6 +105,11 @@ type typer_pass_tasks = {
 	mutable tasks : (unit -> unit) list;
 }
 
+type function_mode =
+	| FunFunction
+	| FunCoroutine
+	| FunNotFunction
+
 type typer_globals = {
 	mutable delayed : typer_pass_tasks Array.t;
 	mutable delayed_min_index : int;
@@ -140,7 +145,7 @@ type typer_globals = {
    is shared by local TFunctions. *)
 and typer_expr = {
 	curfun : current_fun;
-	in_function : bool;
+	function_mode : function_mode;
 	mutable ret : t;
 	mutable opened : anon_status ref list;
 	mutable monomorphs : monomorphs;
@@ -149,6 +154,7 @@ and typer_expr = {
 	mutable with_type_stack : WithType.t list;
 	mutable call_argument_stack : expr list list;
 	mutable macro_depth : int;
+	mutable is_coroutine : bool;
 }
 
 and typer_field = {
@@ -160,7 +166,6 @@ and typer_field = {
 	mutable in_display : bool;
 	mutable in_call_args : bool;
 	mutable in_overload_call_args : bool;
-	mutable is_coroutine : bool;
 }
 
 and typer = {
@@ -194,6 +199,7 @@ let pass_name = function
 	| PFinal -> "final"
 
 module TyperManager = struct
+
 	let create ctx m c f e pass params =
 		if pass < ctx.pass then die (Printf.sprintf "Bad context clone from %s(%s) to %s(%s)" (s_type_path ctx.m.curmod.m_path) (pass_name ctx.pass) (s_type_path m.curmod.m_path) (pass_name pass)) __LOC__;
 		let new_ctx = {
@@ -236,13 +242,12 @@ module TyperManager = struct
 			in_display = false;
 			in_overload_call_args = false;
 			in_call_args = false;
-			is_coroutine = false;
 		}
 
-	let create_ctx_e curfun in_function =
+	let create_ctx_e curfun function_mode =
 		{
 			curfun;
-			in_function;
+			function_mode;
 			ret = t_dynamic;
 			opened = [];
 			monomorphs = {
@@ -253,6 +258,7 @@ module TyperManager = struct
 			with_type_stack = [];
 			call_argument_stack = [];
 			macro_depth = 0;
+			is_coroutine = false;
 		}
 
 	let clone_for_module ctx m =
@@ -295,8 +301,17 @@ module TyperManager = struct
 
 	let clone_for_type_parameter_expression ctx =
 		let f = create_ctx_f ctx.f.curfield in
-		let e = create_ctx_e ctx.e.curfun false in
+		let e = create_ctx_e ctx.e.curfun FunNotFunction in
 		create ctx ctx.m ctx.c f e PTypeField ctx.type_params
+
+	let is_coroutine_context ctx =
+		ctx.e.function_mode = FunCoroutine
+
+	let is_function_context ctx = match ctx.e.function_mode with
+		| FunFunction | FunCoroutine ->
+			true
+		| FunNotFunction ->
+			false
 end
 
 type field_host =

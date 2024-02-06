@@ -289,7 +289,7 @@ let unify_field_call ctx fa el_typed el p inline =
 		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
 		match follow t with
-		| TFun(args,ret,true) when not ctx.f.is_coroutine ->
+		| TFun(args,ret,true) when not (TyperManager.is_coroutine_context ctx) ->
 			raise_typing_error "Cannot directly call coroutine from a normal function, use start/create methods instead" p
 		| TFun(args,ret,coro) ->
 			let args_typed,args = unify_typed_args ctx tmap args el_typed p in
@@ -549,7 +549,7 @@ object(self)
 		in
 		let rec loop t = match follow t with
 		| TFun (args,r,coro) ->
-			if coro && not ctx.f.is_coroutine then raise_typing_error "Cannot directly call coroutine from a normal function, use start/create methods instead" p;
+			if coro && not (TyperManager.is_coroutine_context ctx) then raise_typing_error "Cannot directly call coroutine from a normal function, use start/create methods instead" p;
 			let args_typed,args_left = unify_typed_args ctx (fun t -> t) args el_typed p in
 			let el = unify_call_args ctx el args_left r p false false false in
 			let el = el_typed @ el in

@@ -736,7 +736,7 @@ module TypeBinding = struct
 		let c = cctx.tclass in
 		let t = cf.cf_type in
 		let p = cf.cf_pos in
-		let ctx = TyperManager.clone_for_expr ctx_f (if fctx.is_static then FunStatic else FunMember) false in
+		let ctx = TyperManager.clone_for_expr ctx_f (if fctx.is_static then FunStatic else FunMember) FunNotFunction in
 		if (has_class_flag c CInterface) then unexpected_expression ctx.com fctx "Initialization on field of interface" (pos e);
 		cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 		let check_cast e =
@@ -827,9 +827,9 @@ module TypeBinding = struct
 		| Some e ->
 			bind_var_expression ctx cctx fctx cf e
 
-	let bind_method ctx_f cctx fctx fmode cf t args ret e p =
+	let bind_method ctx_f cctx fctx fmode cf t args ret e function_mode p =
 		let c = cctx.tclass in
-		let ctx = TyperManager.clone_for_expr ctx_f fmode true in
+		let ctx = TyperManager.clone_for_expr ctx_f fmode function_mode in
 		let bind r =
 			incr stats.s_methods_typed;
 			if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing method %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
@@ -1260,6 +1260,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	ctx.type_params <- params @ ctx.type_params;
 	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in
 	let is_coroutine = Meta.has Meta.Coroutine f.cff_meta in
+	let function_mode = if is_coroutine then FunCoroutine else FunFunction in
 	let t = TFun (args#for_type,ret,is_coroutine) in
 	let cf = {
 		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
@@ -1331,18 +1332,18 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	init_meta_overloads ctx (Some c) cf;
 	ctx.f.curfield <- cf;
 	if fctx.do_bind then
-		TypeBinding.bind_method ctx cctx fctx fmode cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
+		TypeBinding.bind_method ctx cctx fctx fmode cf t args ret fd.f_expr function_mode (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
 	else begin
 		if fctx.is_display_field then begin
 			delay ctx.g PTypeField (fun () ->
 				(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
-				let ctx = TyperManager.clone_for_expr ctx fmode true in
+				let ctx = TyperManager.clone_for_expr ctx fmode function_mode in
 				ignore(args#for_expr ctx)
 			);
 			check_field_display ctx fctx c cf;
 		end else
 			delay ctx.g PTypeField (fun () ->
-				let ctx = TyperManager.clone_for_expr ctx fmode true in
+				let ctx = TyperManager.clone_for_expr ctx fmode function_mode in
 				args#verify_extern ctx
 			);
 		if fd.f_expr <> None then begin

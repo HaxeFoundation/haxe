@@ -64,7 +64,7 @@ let typing_timer ctx need_type f =
 
 	let ctx = if need_type && ctx.pass < PTypeField then begin
 		enter_field_typing_pass ctx.g ("typing_timer",[]);
-		TyperManager.clone_for_expr ctx ctx.e.curfun false
+		TyperManager.clone_for_expr ctx ctx.e.curfun ctx.e.function_mode
 	end else
 		ctx
 	in
