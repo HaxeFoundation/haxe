@@ -602,6 +602,20 @@ class Context {
 	}
 
 	/**
+		TODO documentation
+
+		See `haxe.macro.TypeTools.followLazy` for details.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
+	**/
+	public static function followLazy(t:Type):Type {
+		assertInitMacrosDone();
+		return load("follow_lazy", 1)(t);
+	}
+
+	/**
 		Returns the information stored in `Position` `p`.
 	**/
 	public static function getPosInfos(p:Position):{min:Int, max:Int, file:String} {

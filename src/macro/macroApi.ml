@@ -2141,6 +2141,10 @@ let macro_api ccom get_api =
 			let t = decode_type v in
 			encode_type (if decode_opt_bool once then follow_once t else follow t)
 		);
+		"follow_lazy", vfun1 (fun v ->
+			let t = decode_type v in
+			encode_type (follow_lazy t)
+		);
 		"get_build_fields", vfun0 (fun() ->
 			(get_api()).get_build_fields()
 		);

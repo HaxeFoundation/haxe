@@ -206,6 +206,12 @@ class TypeTools {
 		return Context.followWithAbstracts(t, once);
 
 	/**
+		TODO documentation
+	**/
+	static public inline function followLazy(t:Type):Type
+		return Context.followLazy(t);
+
+	/**
 		Returns true if `t1` and `t2` unify, false otherwise.
 	**/
 	static public inline function unify(t1:Type, t2:Type):Bool
