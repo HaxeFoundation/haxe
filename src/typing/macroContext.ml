@@ -64,7 +64,7 @@ let typing_timer ctx need_type f =
 
 	let ctx = if need_type && ctx.pass < PTypeField then begin
 		enter_field_typing_pass ctx.g ("typing_timer",[]);
-		TyperManager.clone_for_expr ctx ctx.e.curfun false
+		TyperManager.clone_for_expr ctx ctx.e.curfun ctx.e.function_mode
 	end else
 		ctx
 	in
@@ -917,7 +917,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index), None)),p)),p)
 		) el in
-		let elt = fst (CallUnification.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false false) in
+		let elt = CallUnification.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false false in
 		List.map2 (fun ((n,_,t),mct) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)
@@ -990,7 +990,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 
 let call_macro mctx args margs call p =
 	mctx.c.curclass <- null_class;
-	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
+	let el = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> raise_typing_error "Argument should be a constant" e.epos) el)
 
 let resolve_init_macro com e =

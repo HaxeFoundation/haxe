@@ -53,7 +53,7 @@ let create com macros =
 			get_build_infos = (fun() -> None);
 		};
 		f = TyperManager.create_ctx_f null_field;
-		e = TyperManager.create_ctx_e FunStatic false;
+		e = TyperManager.create_ctx_e FunStatic FunFunction;
 		pass = PBuildModule;
 		allow_inline = true;
 		allow_transform = true;
@@ -111,6 +111,11 @@ let create com macros =
 						TLazy r
 				in
 				ctx.t.tnull <- mk_null;
+			| "Coroutine" ->
+				let mk_coro args ret =
+					TAbstract(a,[TFun(args,ret)])
+				in
+				ctx.t.tcoro <- mk_coro
 			| _ -> ())
 		| TEnumDecl _ | TClassDecl _ | TTypeDecl _ ->
 			()

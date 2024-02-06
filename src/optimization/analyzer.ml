@@ -739,7 +739,16 @@ module Debug = struct
 	let dot_debug_node g ch nil bb =
 		let s = Printf.sprintf "(%i)" bb.bb_id in
 		let s = List.fold_left (fun s ni -> s ^ match ni with
-			| NIExpr -> if DynArray.length bb.bb_el = 0 then "" else "\n" ^  String.concat "\n" (DynArray.to_list (DynArray.map s_expr_pretty bb.bb_el))
+			| NIExpr ->
+				let sl = DynArray.to_list (DynArray.map s_expr_pretty bb.bb_el) in
+				let sl = match terminator_to_texpr_maybe bb.bb_terminator with
+					| None -> sl
+					| Some e -> sl @ [s_expr_pretty e]
+				in
+				begin match sl with
+					| [] -> ""
+					| _ -> "\n" ^  String.concat "\n" sl
+				end
 			| NIPhi -> if DynArray.length bb.bb_phi = 0 then "" else "\n" ^ String.concat "\n" (DynArray.to_list (DynArray.map (fun e -> s_expr_pretty e) bb.bb_phi))
 			| NIVars -> if bb.bb_var_writes = [] then "" else "\n" ^ String.concat ", " (List.map (fun v -> s_var v) bb.bb_var_writes)
 			| NILoopGroups -> if bb.bb_loop_groups = [] then "" else "\nLoops: " ^ (String.concat ", " (List.map string_of_int bb.bb_loop_groups))
@@ -795,6 +804,8 @@ module Debug = struct
 			edge bb_next "next";
 		| SEMerge bb_next ->
 			edge bb_next "merge"
+		| SESuspend (call, bb_next) ->
+			edge bb_next ("suspend " ^ s_expr_pretty (mk (TCall (call.efun, call.args)) t_dynamic call.pos))
 		| SESwitch ss ->
 			List.iter (fun (el,bb) -> edge bb ("case " ^ (String.concat " | " (List.map s_expr_pretty el)))) ss.ss_cases;
 			(match ss.ss_default with None -> () | Some bb -> edge bb "default");
@@ -1108,6 +1119,13 @@ module Run = struct
 			let e = reduce_control_flow com e in
 			maybe_debug();
 			cf.cf_expr <- Some e;
+
+			(* lose Coroutine<T> type here *)
+			(match follow_with_coro cf.cf_type with
+			| Coro (args, ret) ->
+				let args = args @ [("",false,tfun [ret; t_dynamic] com.basic.tvoid)] in
+				cf.cf_type <- TFun (args, com.basic.tvoid);
+			| _ -> ())
 		| _ -> ()
 
 	let run_on_field com config c cf =

@@ -20,7 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 // standard Haxe types
-
 /**
 	The standard `Void` type. Only `null` values can be of the type `Void`.
 
@@ -170,3 +169,23 @@ typedef KeyValueIterable<K, V> = {
 	@see https://haxe.org/manual/types-abstract-array-access.html
 **/
 extern interface ArrayAccess<T> {}
+
+/**
+	Coroutine function.
+**/
+@:callable
+@:coreType
+abstract Coroutine<T:haxe.Constraints.Function> {
+	/**
+		Suspend running coroutine and expose the continuation callback
+		for resuming coroutine execution.
+	**/
+	@:coroutine
+	public static extern function suspend<T>(f:(cont:(T, Null<Dynamic>) -> Void)->Void):T;
+
+	#if js // TODO: implement this all properly for all the targets
+	static function __init__():Void {
+		js.Syntax.code("{0} = {1}", Coroutine.suspend, cast function(f, cont) return (_, _) -> f(cont));
+	}
+	#end
+}

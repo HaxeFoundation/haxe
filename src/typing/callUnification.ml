@@ -179,7 +179,7 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 	in
 	let el = try loop el args with exc -> restore(); raise exc; in
 	restore();
-	el,TFun(args,r)
+	el
 
 type overload_kind =
 	| OverloadProper (* @:overload or overload *)
@@ -288,10 +288,9 @@ let unify_field_call ctx fa el_typed el p inline =
 	let attempt_call cf in_overload =
 		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
-		match follow t with
-		| TFun(args,ret) ->
+		let make args ret coro =
 			let args_typed,args = unify_typed_args ctx tmap args el_typed p in
-			let el,_ =
+			let el =
 				try
 					unify_call_args ctx el args ret p inline is_forced_inline in_overload
 				with DisplayException.DisplayException de ->
@@ -299,13 +298,22 @@ let unify_field_call ctx fa el_typed el p inline =
 			in
 			(* here *)
 			let el = el_typed @ el in
-			let tf = TFun(args_typed @ args,ret) in
+			let args = (args_typed @ args) in
+			let tf = if coro then ctx.t.tcoro args ret else TFun(args,ret) in
 			let mk_call () =
 				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
 				!make_call_ref ctx ef el ret ~force_inline:inline p
 			in
 			make_field_call_candidate el ret monos tf cf (mk_call,extract_delayed_display())
-		| t ->
+		in
+		match follow_with_coro t with
+		| Coro(args,ret) when not (TyperManager.is_coroutine_context ctx) ->
+			raise_typing_error "Cannot directly call coroutine from a normal function, use start/create methods instead" p
+		| Coro(args,ret) ->
+			make args ret true
+		| NotCoro (TFun(args,ret)) ->
+			make args ret false
+		| NotCoro t ->
 			raise_typing_error (s_type (print_context()) t ^ " cannot be called") p
 	in
 	let unknown_ident_error = ref None in
@@ -545,14 +553,19 @@ object(self)
 			in
 			mk (TCall (e,el)) t p
 		in
-		let rec loop t = match follow t with
-		| TFun (args,r) ->
+		let make args ret coro =
+			if coro && not (TyperManager.is_coroutine_context ctx) then raise_typing_error "Cannot directly call coroutine from a normal function, use start/create methods instead" p;
 			let args_typed,args_left = unify_typed_args ctx (fun t -> t) args el_typed p in
-			let el, tfunc = unify_call_args ctx el args_left r p false false false in
+			let el = unify_call_args ctx el args_left ret p false false false in
 			let el = el_typed @ el in
-			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
-			mk (TCall (e,el)) r p
-		| TAbstract(a,tl) as t ->
+			mk (TCall (e,el)) ret p
+		in
+		let rec loop t = match follow_with_coro t with
+		| Coro(args,ret) ->
+			make args ret true
+		| NotCoro(TFun(args,ret)) ->
+			make args ret false
+		| NotCoro(TAbstract(a,tl) as t) ->
 			let check_callable () =
 				if Meta.has Meta.Callable a.a_meta then
 					loop (Abstract.get_underlying_type a tl)
@@ -567,12 +580,12 @@ object(self)
 			| _ ->
 				check_callable();
 			end
-		| TMono _ ->
+		| NotCoro (TMono _)->
 			let t = mk_mono() in
 			let el = el_typed @ List.map (fun e -> type_expr ctx e WithType.value) el in
 			unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
 			mk (TCall (e,el)) t p
-		| t ->
+		| NotCoro t ->
 			default t
 		in
 		loop e.etype

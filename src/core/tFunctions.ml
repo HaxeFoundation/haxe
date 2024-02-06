@@ -622,6 +622,21 @@ let rec follow_lazy_and_mono t = match t with
 	| _ ->
 		t
 
+type maybe_coro =
+	| Coro of tsignature
+	| NotCoro of t
+
+let follow_with_coro t = match follow t with
+	| TAbstract({a_path = ([],"Coroutine")},[t]) ->
+		begin match follow t with
+			| TFun(args,ret) ->
+				Coro (args,ret)
+			| t ->
+				NotCoro t
+		end
+	| t ->
+		NotCoro t
+
 let rec ambiguate_funs t =
 	match follow t with
 	| TFun _ -> TFun ([], t_dynamic)

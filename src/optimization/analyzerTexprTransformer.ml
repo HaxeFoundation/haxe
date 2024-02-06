@@ -44,7 +44,17 @@ let rec func ctx bb tf t p =
 	in
 	let bb_root = create_node (BKFunctionBegin tf) tf.tf_expr.etype tf.tf_expr.epos in
 	let bb_exit = create_node BKFunctionEnd tf.tf_expr.etype tf.tf_expr.epos in
-	add_function g tf t p bb_root;
+	let coroutine = match follow_with_coro t with
+		| Coro _ ->
+			let v_result = alloc_var VGenerated "_hx_result" t_dynamic p in
+			let v_error = alloc_var VGenerated "_hx_error" t_dynamic p in
+			declare_var ctx.graph v_result bb_root;
+			declare_var ctx.graph v_error bb_root;
+			Some (v_result,v_error)
+		| NotCoro _ ->
+			None
+	in
+	add_function g tf t p bb_root coroutine;
 	add_cfg_edge bb bb_root CFGFunction;
 	let bb_breaks = ref [] in
 	let bb_continue = ref None in
@@ -331,8 +341,34 @@ let rec func ctx bb tf t p =
 		let el = Codegen.UnificationCallback.check_call check el e1.etype in
 		let bb,el = ordered_value_list !bb (e1 :: el) in
 		match el with
-			| e1 :: el -> bb,{e with eexpr = TCall(e1,el)}
-			| _ -> die "" __LOC__
+			| efun :: el ->
+				let is_coroutine efun =
+					match follow_with_coro efun.etype with
+					| Coro _ -> true
+					| NotCoro _ -> false
+				in
+				(match coroutine with
+					| Some (vresult,_) when is_coroutine efun ->
+						let bb_next = create_node BKNormal e1.etype e1.epos in
+						add_cfg_edge bb bb_next CFGGoto;
+						let syntax_edge = SESuspend (
+							{
+								efun = efun;
+								args = el;
+								pos = e.epos;
+							},
+							bb_next
+						) in
+						set_syntax_edge bb syntax_edge;
+						close_node bb;
+						let eresult = Texpr.Builder.make_local vresult e.epos in
+						let eresult = mk_cast eresult e.etype e.epos in
+						bb_next,eresult
+					| _ ->
+						bb,{e with eexpr = TCall (efun,el)}
+				)
+			| _ ->
+				die "" __LOC__
 	and array_assign_op bb op e ea e1 e2 e3 =
 		let bb,e1 = bind_to_temp bb e1 in
 		let bb,e2 = bind_to_temp bb e2 in
@@ -686,15 +722,6 @@ let from_tfunction ctx tf t p =
 	close_node g.g_root;
 	g.g_exit <- bb_exit
 
-let terminator_to_texpr_maybe = function
-	| TermReturn p -> Some (mk (TReturn None) t_dynamic p)
-	| TermBreak p -> Some (mk TBreak t_dynamic p)
-	| TermContinue p -> Some (mk TContinue t_dynamic p)
-	| TermReturnValue(e1,p) -> Some (mk (TReturn (Some e1)) t_dynamic p)
-	| TermThrow(e1,p) -> Some (mk (TThrow e1) t_dynamic p)
-	| TermCondBranch e1 -> Some e1 (* TODO: this shouldn't be here *)
-	| _ -> None
-
 let rec block_to_texpr_el ctx bb =
 	if bb.bb_dominator == ctx.graph.g_unreachable then
 		[]
@@ -730,6 +757,8 @@ let rec block_to_texpr_el ctx bb =
 				}) ss.ss_cases in
 				let switch = mk_switch (get_terminator()) cases (Option.map block ss.ss_default) ss.ss_exhaustive in
 				Some ss.ss_next,Some (mk (TSwitch switch) ctx.com.basic.tvoid ss.ss_pos)
+			| SESuspend _ ->
+				assert false
 		in
 		let bb_next,e_term = loop bb bb.bb_syntax_edge in
 		let el = DynArray.to_list bb.bb_el in
@@ -751,8 +780,25 @@ and block_to_texpr ctx bb =
 	e
 
 and func ctx i =
-	let bb,t,p,tf = Hashtbl.find ctx.graph.g_functions i in
-	let e = block_to_texpr ctx bb in
+	let tfi = Hashtbl.find ctx.graph.g_functions i in
+	let tf = tfi.tf_tf in
+	let bb = tfi.tf_bb in
+	let p = tfi.tf_pos in
+	let e,tf_args,tf_type =
+		match tfi.tf_coroutine with
+		| Some (vresult,verror) ->
+			let vcontinuation = alloc_var VGenerated "_hx_continuation" (tfun [tf.tf_type; t_dynamic] ctx.com.basic.tvoid) p in
+			add_var_flag vcontinuation VCaptured;
+			declare_var ctx.graph vcontinuation bb;
+			let e = AnalyzerCoro.block_to_texpr_coroutine ctx bb vcontinuation vresult verror p in
+			(* All actual arguments will be captured after the transformation. *)
+			List.iter (fun (v,_) -> add_var_flag v VCaptured) tf.tf_args;
+			let tf_args = tf.tf_args @ [(vcontinuation,None)] in
+			let sm_type = tfun [t_dynamic; t_dynamic] ctx.com.basic.tvoid in
+			e, tf_args, sm_type
+		| None ->
+			block_to_texpr ctx bb, tf.tf_args, tf.tf_type
+	in
 	let rec loop e = match e.eexpr with
 		| TLocal v ->
 			{e with eexpr = TLocal (get_var_origin ctx.graph v)}
@@ -795,7 +841,7 @@ and func ctx i =
 			Type.map_expr loop e
 	in
 	let e = loop e in
-	mk (TFunction {tf with tf_expr = e}) t p
+	mk (TFunction {tf with tf_args = tf_args; tf_type = tf_type; tf_expr = e}) tfi.tf_t p
 
 let to_texpr ctx =
 	func ctx ctx.entry.bb_id
