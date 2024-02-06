@@ -204,7 +204,7 @@ let throw_native ctx e_thrown t p =
 		else
 			e_thrown
 	in
-	mk (TThrow e_native) t p
+	e_native
 
 let set_needs_exception_stack v =
 	if not (Meta.has Meta.NeedsExceptionStack v.v_meta) then
