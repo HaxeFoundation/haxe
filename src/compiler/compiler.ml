@@ -78,8 +78,15 @@ let run_command ctx cmd =
 module Setup = struct
 	let initialize_target ctx com actx =
 		init_platform com;
+		com.class_paths#lock_context (platform_name com.platform) false;
 		let add_std dir =
-			com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
+			com.class_paths#modify_inplace (fun cp -> match cp#scope with
+				| Std ->
+					let cp' = new ClassPath.directory_class_path (cp#path ^ dir ^ "/_std/") StdTarget in
+					cp :: [cp']
+				| _ ->
+					[cp]
+			);
 		in
 		match com.platform with
 			| Cross ->
@@ -131,15 +138,9 @@ module Setup = struct
 				if Common.defined com Define.Cppia then
 					actx.classes <- (Path.parse_path "cpp.cppia.HostClasses" ) :: actx.classes;
 				"cpp"
-			| Cs ->
-				Dotnet.before_generate com;
-				add_std "cs"; "cs"
-			| Java ->
-				Java.before_generate com;
-				if defined com Define.Jvm then begin
-					add_std "jvm";
-					com.package_rules <- PMap.remove "jvm" com.package_rules;
-				end;
+			| Jvm ->
+				add_std "jvm";
+				com.package_rules <- PMap.remove "java" com.package_rules;
 				add_std "java";
 				"java"
 			| Python ->
@@ -162,9 +163,14 @@ module Setup = struct
 				add_std "eval";
 				"eval"
 
-	let create_typer_context ctx macros native_libs =
+	let init_native_libs com native_libs =
+		(* Native lib pass 1: Register *)
+		let fl = List.map (fun lib -> NativeLibraryHandler.add_native_lib com lib) (List.rev native_libs) in
+		(* Native lib pass 2: Initialize *)
+		List.iter (fun f -> f()) fl
+
+	let create_typer_context ctx macros =
 		let com = ctx.com in
-		Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
 		let buffer = Buffer.create 64 in
 		Buffer.add_string buffer "Defines: ";
 		PMap.iter (fun k v -> match v with
@@ -174,14 +180,12 @@ module Setup = struct
 		Buffer.truncate buffer (Buffer.length buffer - 1);
 		Common.log com (Buffer.contents buffer);
 		com.callbacks#run com.error_ext com.callbacks#get_before_typer_create;
-		(* Native lib pass 1: Register *)
-		let fl = List.map (fun lib -> NativeLibraryHandler.add_native_lib com lib) (List.rev native_libs) in
-		(* Native lib pass 2: Initialize *)
-		List.iter (fun f -> f()) fl;
 		TyperEntry.create com macros
 
 	let executable_path() =
 		Extc.executable_path()
+
+	open ClassPath
 
 	let get_std_class_paths () =
 		try
@@ -196,7 +200,7 @@ module Setup = struct
 					l
 			in
 			let parts = Str.split_delim (Str.regexp "[;:]") p in
-			"" :: List.map Path.add_trailing_slash (loop parts)
+			List.map (fun s -> s,Std) (loop parts)
 		with Not_found ->
 			let base_path = Path.get_real_path (try executable_path() with _ -> "./") in
 			if Sys.os_type = "Unix" then
@@ -204,16 +208,23 @@ module Setup = struct
 				let lib_path = Filename.concat prefix_path "lib" in
 				let share_path = Filename.concat prefix_path "share" in
 				[
-					"";
-					Path.add_trailing_slash (Filename.concat share_path "haxe/std");
-					Path.add_trailing_slash (Filename.concat lib_path "haxe/std");
-					Path.add_trailing_slash (Filename.concat base_path "std");
+					(Filename.concat share_path "haxe/std"),Std;
+					(Filename.concat lib_path "haxe/std"),Std;
+					(Filename.concat base_path "std"),Std;
 				]
 			else
 				[
-					"";
-					Path.add_trailing_slash (Filename.concat base_path "std");
+					(Filename.concat base_path "std"),Std;
 				]
+
+	let init_std_class_paths com =
+		List.iter (fun (s,scope) ->
+			try if Sys.is_directory s then
+				let cp = new ClassPath.directory_class_path (Path.add_trailing_slash s) scope in
+				com.class_paths#add cp
+			with Sys_error _ -> ()
+		) (List.rev (get_std_class_paths ()));
+		com.class_paths#add com.empty_class_path
 
 	let setup_common_context ctx =
 		let com = ctx.com in
@@ -254,8 +265,7 @@ module Setup = struct
 		) (filter_messages false (fun _ -> true))));
 		com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
 		com.run_command <- run_command ctx;
-		com.class_path <- get_std_class_paths ();
-		com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path
+		init_std_class_paths com
 
 end
 
@@ -272,23 +282,23 @@ let check_defines com =
 	end
 
 (** Creates the typer context and types [classes] into it. *)
-let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
+let do_type ctx mctx actx display_file_dot_path =
 	let com = ctx.com in
 	let t = Timer.timer ["typing"] in
 	let cs = com.cs in
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	enter_stage com CInitMacrosStart;
 	ServerMessage.compiler_stage com;
-
+	Setup.init_native_libs com actx.hxb_libs;
 	let mctx = List.fold_left (fun mctx path ->
 		Some (MacroContext.call_init_macro ctx.com mctx path)
 	) mctx (List.rev actx.config_macros) in
 	enter_stage com CInitMacrosDone;
 	ServerMessage.compiler_stage com;
-	MacroContext.macro_enable_cache := macro_cache_enabled;
 
 	let macros = match mctx with None -> None | Some mctx -> mctx.g.macros in
-	let tctx = Setup.create_typer_context ctx macros actx.native_libs in
+	Setup.init_native_libs com actx.native_libs;
+	let tctx = Setup.create_typer_context ctx macros in
 	let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
 	check_defines ctx.com;
 	CommonCache.lock_signature com "after_init_macros";
@@ -320,7 +330,7 @@ let finalize_typing ctx tctx =
 	enter_stage com CFilteringStart;
 	ServerMessage.compiler_stage com;
 	let main, types, modules = run_or_diagnose ctx (fun () -> Finalization.generate tctx) in
-	com.main <- main;
+	com.main.main_expr <- main;
 	com.types <- types;
 	com.modules <- modules;
 	t()
@@ -328,7 +338,7 @@ let finalize_typing ctx tctx =
 let filter ctx tctx before_destruction =
 	let t = Timer.timer ["filters"] in
 	DeprecationCheck.run ctx.com;
-	run_or_diagnose ctx (fun () -> Filters.run tctx ctx.com.main before_destruction);
+	run_or_diagnose ctx (fun () -> Filters.run tctx ctx.com.main.main_expr before_destruction);
 	t()
 
 let compile ctx actx callbacks =
@@ -336,8 +346,6 @@ let compile ctx actx callbacks =
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
 	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
-	let macro_cache_enabled = !MacroContext.macro_enable_cache in
-	MacroContext.macro_enable_cache := true;
 	let mctx = match com.platform with
 		| CustomTarget name ->
 			begin try
@@ -355,6 +363,12 @@ let compile ctx actx callbacks =
 	callbacks.after_target_init ctx;
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
+	begin match actx.hxb_out with
+		| None ->
+			()
+		| Some file ->
+			com.hxb_writer_config <- HxbWriterConfig.process_argument file
+	end;
 	t();
 	enter_stage com CInitialized;
 	ServerMessage.compiler_stage com;
@@ -362,9 +376,18 @@ let compile ctx actx callbacks =
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
 	end else begin
 		(* Actual compilation starts here *)
-		let (tctx,display_file_dot_path) = do_type ctx mctx actx display_file_dot_path macro_cache_enabled in
+		let (tctx,display_file_dot_path) = do_type ctx mctx actx display_file_dot_path in
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
+		let is_compilation = is_compilation com in
+		com.callbacks#add_after_save (fun () ->
+			callbacks.after_save ctx;
+			if is_compilation then match com.hxb_writer_config with
+				| Some config ->
+					Generate.check_hxb_output ctx config;
+				| None ->
+					()
+		);
 		if is_diagnostics com then
 			filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)
 		else begin
@@ -372,9 +395,10 @@ let compile ctx actx callbacks =
 			filter ctx tctx (fun () -> ());
 		end;
 		if ctx.has_error then raise Abort;
-		Generate.check_auxiliary_output com actx;
+		if is_compilation then Generate.check_auxiliary_output com actx;
 		enter_stage com CGenerationStart;
 		ServerMessage.compiler_stage com;
+		Generate.maybe_generate_dump ctx tctx;
 		if not actx.no_output then Generate.generate ctx tctx ext actx;
 		enter_stage com CGenerationDone;
 		ServerMessage.compiler_stage com;
@@ -432,11 +456,11 @@ with
 
 let finalize ctx =
 	ctx.comm.flush ctx;
+	List.iter (fun lib -> lib#close) ctx.com.hxb_libs;
 	(* In server mode any open libs are closed by the lib_build_task. In offline mode
 		we should do it here to be safe. *)
 	if not ctx.comm.is_server then begin
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.java_libs;
-		List.iter (fun lib -> lib#close) ctx.com.native_libs.net_libs;
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
 	end
 
@@ -488,6 +512,7 @@ let create_context comm cs compilation_step params = {
 	has_next = false;
 	has_error = false;
 	comm = comm;
+	runtime_args = [];
 }
 
 module HighLevel = struct
@@ -531,7 +556,7 @@ module HighLevel = struct
 				if l = "" then
 					acc
 				else if l.[0] <> '-' then
-					"-cp" :: l :: acc
+					"-libcp" :: l :: acc
 				else match (try ExtString.String.split l " " with _ -> l, "") with
 				| ("-L",dir) ->
 					"--neko-lib-path" :: (String.sub l 3 (String.length l - 3)) :: acc
@@ -593,7 +618,7 @@ module HighLevel = struct
 			| "--run" :: cl :: args ->
 				let acc = cl :: "-x" :: acc in
 				let ctx = create_context (List.rev acc) in
-				ctx.com.sys_args <- args;
+				ctx.runtime_args <- args;
 				[],Some ctx
 			| ("-L" | "--library" | "-lib") :: name :: args ->
 				let libs,args = find_subsequent_libs [name] args in
@@ -601,10 +626,8 @@ module HighLevel = struct
 				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
 				let lines = add_libs libs args server_api.cache has_display in
 				loop acc (lines @ args)
-			| ("--jvm" | "--java" | "-java" as arg) :: dir :: args ->
+			| ("--jvm" | "-jvm" as arg) :: dir :: args ->
 				loop_lib arg dir "hxjava" acc args
-			| ("--cs" | "-cs" as arg) :: dir :: args ->
-				loop_lib arg dir "hxcs" acc args
 			| arg :: l ->
 				match List.rev (ExtString.String.nsplit arg ".") with
 				| "hxml" :: _ :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->

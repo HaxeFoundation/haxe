@@ -58,9 +58,9 @@ let has_var_flag v (flag : flag_tvar) =
 
 (* ======= General utility ======= *)
 
-let alloc_var =
+let alloc_var' =
 	let uid = ref 0 in
-	(fun kind n t p ->
+	uid,(fun kind n t p ->
 		incr uid;
 		{
 			v_kind = kind;
@@ -73,6 +73,10 @@ let alloc_var =
 			v_flags = (match kind with VUser TVOLocalFunction -> int_of_var_flag VFinal | _ -> 0);
 		}
 	)
+
+let alloc_var =
+	let _,alloc_var = alloc_var' in
+	alloc_var
 
 let alloc_mid =
 	let mid = ref 0 in
@@ -97,43 +101,9 @@ let mk_anon ?fields status =
 	let fields = match fields with Some fields -> fields | None -> PMap.empty in
 	TAnon { a_fields = fields; a_status = status; }
 
-(* We use this for display purposes because otherwise we never see the Dynamic type that
-   is defined in StdTypes.hx. This is set each time a typer is created, but this is fine
-   because Dynamic is the same in all contexts. If this ever changes we'll have to review
-   how we handle this. *)
-let t_dynamic_def = ref t_dynamic
-
 let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r,false)
 
 let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
-
-let mk_class m path pos name_pos =
-	{
-		cl_path = path;
-		cl_module = m;
-		cl_pos = pos;
-		cl_name_pos = name_pos;
-		cl_doc = None;
-		cl_meta = [];
-		cl_private = false;
-		cl_kind = KNormal;
-		cl_flags = 0;
-		cl_params = [];
-		cl_using = [];
-		cl_super = None;
-		cl_implements = [];
-		cl_fields = PMap.empty;
-		cl_ordered_statics = [];
-		cl_ordered_fields = [];
-		cl_statics = PMap.empty;
-		cl_dynamic = None;
-		cl_array_access = None;
-		cl_constructor = None;
-		cl_init = None;
-		cl_build = (fun() -> Built);
-		cl_restore = (fun() -> ());
-		cl_descendants = [];
-	}
 
 let mk_typedef m path pos name_pos t =
 	{
@@ -149,6 +119,42 @@ let mk_typedef m path pos name_pos t =
 		t_type = t;
 		t_restore = (fun () -> ());
 	}
+
+let class_module_type c =
+	let path = ([],"Class<" ^ (s_type_path c.cl_path) ^ ">") in
+	let t = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
+	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
+
+let mk_class m path pos name_pos =
+	let c = {
+		cl_path = path;
+		cl_module = m;
+		cl_pos = pos;
+		cl_name_pos = name_pos;
+		cl_doc = None;
+		cl_meta = [];
+		cl_private = false;
+		cl_kind = KNormal;
+		cl_flags = 0;
+		cl_type = t_dynamic;
+		cl_params = [];
+		cl_using = [];
+		cl_super = None;
+		cl_implements = [];
+		cl_fields = PMap.empty;
+		cl_ordered_statics = [];
+		cl_ordered_fields = [];
+		cl_statics = PMap.empty;
+		cl_dynamic = None;
+		cl_array_access = None;
+		cl_constructor = None;
+		cl_init = None;
+		cl_build = (fun() -> Built);
+		cl_restore = (fun() -> ());
+		cl_descendants = [];
+	} in
+	c.cl_type <- TType(class_module_type c,[]);
+	c
 
 let module_extra file sign time kind added policy =
 	{
@@ -167,7 +173,6 @@ let module_extra file sign time kind added policy =
 		m_deps = PMap.empty;
 		m_kind = kind;
 		m_cache_bound_objects = DynArray.create ();
-		m_if_feature = [];
 		m_features = Hashtbl.create 0;
 		m_check_policy = policy;
 	}
@@ -206,6 +211,8 @@ let find_field c name kind =
 		PMap.find name c.cl_statics
 	| CfrMember ->
 		PMap.find name c.cl_fields
+	| CfrInit ->
+		begin match c.cl_init with Some cf -> cf | None -> raise Not_found end
 
 let null_module = {
 	m_id = alloc_mid();
@@ -283,8 +290,8 @@ let null_abstract = {
 }
 
 let add_dependency ?(skip_postprocess=false) m mdep =
-	if m != null_module && (m.m_path != mdep.m_path || m.m_extra.m_sign != mdep.m_extra.m_sign) then begin
-		m.m_extra.m_deps <- PMap.add mdep.m_id (mdep.m_extra.m_sign, mdep.m_path) m.m_extra.m_deps;
+	if m != null_module && mdep != null_module && (m.m_path != mdep.m_path || m.m_extra.m_sign != mdep.m_extra.m_sign) then begin
+		m.m_extra.m_deps <- PMap.add mdep.m_id ({md_sign = mdep.m_extra.m_sign; md_path = mdep.m_path; md_kind = mdep.m_extra.m_kind}) m.m_extra.m_deps;
 		(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
 		if not skip_postprocess then m.m_extra.m_processed <- 0
 	end
@@ -715,14 +722,17 @@ let lookup_param n l =
 	in
 	loop l
 
-let mk_type_param c host def constraints = {
-	ttp_name = snd c.cl_path;
-	ttp_type = TInst(c,[]);
-	ttp_class = c;
-	ttp_host = host;
-	ttp_constraints = constraints;
-	ttp_default = def;
-}
+let mk_type_param c host def constraints =
+	let ttp = {
+		ttp_name = snd c.cl_path;
+		ttp_type = TInst(c,[]);
+		ttp_class = c;
+		ttp_host = host;
+		ttp_constraints = constraints;
+		ttp_default = def;
+	} in
+	c.cl_kind <- KTypeParameter ttp;
+	ttp
 
 let type_of_module_type = function
 	| TClassDecl c -> TInst (c,extract_param_types c.cl_params)
@@ -940,14 +950,9 @@ let var_extra params e = {
 	v_expr = e;
 }
 
-let class_module_type c =
-	let path = ([],"Class<" ^ (s_type_path c.cl_path) ^ ">") in
-	let t = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
-	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
-
-let enum_module_type en fields =
+let enum_module_type en =
 	let path = ([], "Enum<" ^ (s_type_path en.e_path) ^ ">") in
-	let t = mk_anon ~fields (ref (EnumStatics en)) in
+	let t = mk_anon (ref (EnumStatics en)) in
 	{(mk_typedef en.e_module path en.e_pos null_pos t) with t_private = true}
 
 let abstract_module_type a tl =

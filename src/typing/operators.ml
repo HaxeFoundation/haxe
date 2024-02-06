@@ -94,7 +94,7 @@ let check_assign ctx e =
 		raise_typing_error "Cannot assign to final" e.epos
 	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
-	| TConst TThis | TTypeExpr _ when ctx.untyped ->
+	| TConst TThis | TTypeExpr _ when ctx.f.untyped ->
 		()
 	| _ ->
 		if not (Common.ignore_error ctx.com) then
@@ -201,11 +201,7 @@ let make_binop ctx op e1 e2 is_assign_op p =
 				call_to_string ctx e
 			| KInt | KFloat | KString -> e
 			| KUnk | KDyn | KNumParam _ | KStrParam _ | KOther ->
-				let std = type_type ctx ([],"Std") e.epos in
-				let acc = acc_get ctx (type_field_default_cfg ctx std "string" e.epos (MCall []) WithType.value) in
-				ignore(follow acc.etype);
-				let acc = (match acc.eexpr with TField (e,FClosure (Some (c,tl),f)) -> { acc with eexpr = TField (e,FInstance (c,tl,f)) } | _ -> acc) in
-				make_call ctx acc [e] ctx.t.tstring e.epos
+				Texpr.Builder.resolve_and_make_static_call ctx.com.std "string" [e] e.epos
 			| KAbstract (a,tl) ->
 				try
 					AbstractCast.cast_or_unify_raise ctx tstring e p

@@ -417,6 +417,30 @@ module TClass = struct
 		in
 		let apply = apply_params c.cl_params tl in
 		loop apply c
+
+
+	let get_cl_init c = match c.cl_init with
+		| Some {cf_expr = Some e} -> Some e
+		| _ -> None
+
+	let modify_cl_init c e append = match c.cl_init with
+		| Some cf ->
+			begin match cf.cf_expr with
+				| Some e' when append ->
+					cf.cf_expr <- Some (concat e' e)
+				| _ ->
+					cf.cf_expr <- Some e
+			end
+		| None ->
+			let cf = mk_field "__init__" t_dynamic null_pos null_pos in
+			cf.cf_expr <- Some e;
+			c.cl_init <- Some cf
+
+	let add_cl_init c e =
+		modify_cl_init c e true
+
+	let set_cl_init c e =
+		modify_cl_init c e false
 end
 
 let s_class_path c =

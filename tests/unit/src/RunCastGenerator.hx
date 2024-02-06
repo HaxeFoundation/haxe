@@ -83,7 +83,7 @@ class RunCastGenerator {
 		}
 		line("// This file is auto-generated from RunCastGenerator.hx - do not edit!");
 		line("package unit;");
-		line("#if java");
+		line("#if jvm");
 		line("import java.StdTypes;");
 		line("private typedef Int32 = Int;");
 		line("private typedef Float32 = Single;");

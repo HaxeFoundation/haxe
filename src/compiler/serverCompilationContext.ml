@@ -1,4 +1,3 @@
-open Globals
 open Common
 open Timer
 open CompilationCache
@@ -46,7 +45,7 @@ let reset sctx =
 	Hashtbl.clear sctx.changed_directories;
 	sctx.was_compilation <- false;
 	Parser.reset_state();
-	return_partial_type := false;
+	Lexer.cur := Lexer.make_file "";
 	measure_times := false;
 	Hashtbl.clear DeprecationCheck.warned_positions;
 	close_times();
@@ -59,7 +58,9 @@ let reset sctx =
 
 let maybe_cache_context sctx com =
 	if com.display.dms_full_typing && com.display.dms_populate_cache then begin
+		let t = Timer.timer ["server";"cache context"] in
 		CommonCache.cache_context sctx.cs com;
+		t();
 		ServerMessage.cached_modules com "" (List.length com.modules);
 	end
 

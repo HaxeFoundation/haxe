@@ -25,7 +25,7 @@ let constructor_to_texpr ctx con =
 	| ConArray i -> make_int ctx.com.basic i p
 	| ConTypeExpr mt -> TyperBase.type_module_type ctx mt p
 	| ConStatic(c,cf) -> make_static_field c cf p
-	| ConFields _ -> raise_typing_error "Something went wrong" p
+	| ConFields _ -> raise_typing_error "Unexpected matching on ConFields, please report this" p
 
 let s_subject v_lookup s e =
 	let rec loop top s e = match e.eexpr with

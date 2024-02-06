@@ -18,8 +18,7 @@ type platform =
 	| Flash
 	| Php
 	| Cpp
-	| Cs
-	| Java
+	| Jvm
 	| Python
 	| Hl
 	| Eval
@@ -68,10 +67,6 @@ let trace_call_stack ?(n:int = 5) () =
 		Option.may (fun loc -> print_endline (Printf.sprintf "  called from %s" (loc_to_string loc))) loc;
 	done
 
-let macro_platform = ref Neko
-
-let return_partial_type = ref false
-
 let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
 
 let max_custom_target_len = 16
@@ -83,8 +78,7 @@ let platforms = [
 	Flash;
 	Php;
 	Cpp;
-	Cs;
-	Java;
+	Jvm;
 	Python;
 	Hl;
 	Eval;
@@ -99,8 +93,7 @@ let platform_name = function
 	| Flash -> "flash"
 	| Php -> "php"
 	| Cpp -> "cpp"
-	| Cs -> "cs"
-	| Java -> "java"
+	| Jvm -> "jvm"
 	| Python -> "python"
 	| Hl -> "hl"
 	| Eval -> "eval"
@@ -114,8 +107,7 @@ let parse_platform = function
 	| "flash" -> Flash
 	| "php" -> Php
 	| "cpp" -> Cpp
-	| "cs" -> Cs
-	| "java" -> Java
+	| "jvm" -> Jvm
 	| "python" -> Python
 	| "hl" -> Hl
 	| "eval" -> Eval

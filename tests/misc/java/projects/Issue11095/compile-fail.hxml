@@ -6,4 +6,4 @@ NoRudy
 
 --main Main
 --java-lib no-rudy.jar
---java run.jar
+--jvm run.jar

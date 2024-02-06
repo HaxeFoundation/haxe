@@ -4,7 +4,6 @@ import haxe.Rest;
 import utest.Assert;
 
 class Issue10906 extends Test {
-	#if !erase_generics
 	function test() {
 		var a:Array<Any> = new Array<Any>();
 		a.push(1);
@@ -16,5 +15,4 @@ class Issue10906 extends Test {
 		eq(1, r[0]);
 		eq(3, r.length);
 	}
-	#end
 }

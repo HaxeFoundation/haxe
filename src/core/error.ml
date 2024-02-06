@@ -51,6 +51,8 @@ let rec recurse_error ?(depth = 0) cb err =
 exception Fatal_error of error
 exception Error of error
 
+let abort ?(depth = 0) msg p = raise (Fatal_error (make_error ~depth (Custom msg) p))
+
 let string_source t = match follow t with
 	| TInst(c,tl) -> PMap.foldi (fun s _ acc -> s :: acc) (TClass.get_all_fields c tl) []
 	| TAnon a -> PMap.fold (fun cf acc -> cf.cf_name :: acc) a.a_fields []

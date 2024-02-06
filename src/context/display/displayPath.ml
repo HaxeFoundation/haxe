@@ -26,14 +26,14 @@ module TypePathHandler = struct
 			| x :: l ->
 				(try
 					match PMap.find x com.package_rules with
-					| Directory d -> d :: l
 					| Remap s -> s :: l
 					| _ -> p
 				with
 					Not_found -> p)
 			| _ -> p
 		) in
-		List.iter (fun path ->
+		com.class_paths#iter (fun path ->
+			let path = path#path in
 			let dir = path ^ String.concat "/" p in
 			let r = (try Sys.readdir dir with _ -> [||]) in
 			Array.iter (fun f ->
@@ -47,7 +47,6 @@ module TypePathHandler = struct
 									match PMap.find f com.package_rules with
 									| Forbidden -> ()
 									| Remap f -> packages := f :: !packages
-									| Directory _ -> raise Not_found
 								with Not_found ->
 									packages := f :: !packages
 						else
@@ -61,7 +60,7 @@ module TypePathHandler = struct
 						if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
 				end;
 			) r;
-		) com.class_path;
+		);
 		let process_lib lib =
 			List.iter (fun (path,name) ->
 				if path = p then classes := name :: !classes else
@@ -75,7 +74,6 @@ module TypePathHandler = struct
 			) lib#list_modules;
 		in
 		List.iter process_lib com.native_libs.swf_libs;
-		List.iter process_lib com.native_libs.net_libs;
 		List.iter process_lib com.native_libs.java_libs;
 		unique !packages, unique !classes
 
@@ -83,7 +81,7 @@ module TypePathHandler = struct
 	let complete_type_path com p =
 		let packs, modules = read_type_path com p in
 		if packs = [] && modules = [] then
-			(abort ("No modules found in " ^ String.concat "." p) null_pos)
+			(Error.abort ("No modules found in " ^ String.concat "." p) null_pos)
 		else
 			let packs = List.map (fun n -> make_ci_package (p,n) []) packs in
 			let modules = List.map (fun n -> make_ci_module (p,n)) modules in
@@ -158,14 +156,13 @@ module TypePathHandler = struct
 			in
 			Some fields
 		with _ ->
-			abort ("Could not load module " ^ (s_type_path (p,c))) null_pos
+			Error.abort ("Could not load module " ^ (s_type_path (p,c))) null_pos
 end
 
 let resolve_position_by_path ctx path p =
 	let mt = ctx.g.do_load_type_def ctx p path in
 	let p = (t_infos mt).mt_pos in
 	raise_positions [p]
-
 
 let handle_path_display ctx path p =
 	let class_field c name =

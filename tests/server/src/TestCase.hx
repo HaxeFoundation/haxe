@@ -26,7 +26,9 @@ class TestCase implements ITest {
 		prints:Array<String>
 	};
 
-	var server:HaxeServerAsync;
+	static public var server:HaxeServerAsync;
+	static public var rootCwd:String;
+
 	var vfs:Vfs;
 	var testDir:String;
 	var lastResult:HaxeServerRequestResult;
@@ -69,15 +71,16 @@ class TestCase implements ITest {
 		}
 	}
 
+	@:timeout(3000)
 	public function setup(async:utest.Async) {
 		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
-		server = new HaxeServerAsync(() -> new HaxeServerProcessNode("haxe", ["-v", "--cwd", testDir], {}, () -> async.done()));
+		runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {}, () -> {
+			async.done();
+		});
 	}
 
-	public function teardown() {
-		server.stop();
-	}
+	public function teardown() {}
 
 	function handleResult(result) {
 		lastResult = result;
@@ -120,7 +123,12 @@ class TestCase implements ITest {
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
 			handleResult(result);
-			callback(Json.parse(result.stderr).result.result);
+			var json = Json.parse(result.stderr);
+			if (json.result != null) {
+				callback(json.result.result);
+			} else {
+				sendErrorMessage('Error: ' + json.error);
+			}
 			done();
 		}, function(msg) {
 			sendErrorMessage(msg);
@@ -211,6 +219,10 @@ class TestCase implements ITest {
 			case result:
 				return result;
 		}
+	}
+
+	function assertSilence() {
+		return Assert.isTrue(lastResult.stderr == "");
 	}
 
 	function assertSuccess(?p:haxe.PosInfos) {

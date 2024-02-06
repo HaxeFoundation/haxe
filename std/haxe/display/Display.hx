@@ -98,7 +98,6 @@ class DisplayMethods {
 		TODO:
 
 		- finish completion
-		- diagnostics
 		- codeLens
 		- workspaceSymbols ("project/symbol"?)
 	 */
@@ -297,7 +296,6 @@ enum abstract Platform(String) {
 	var Flash = "flash";
 	var Php = "php";
 	var Cpp = "cpp";
-	var Cs = "cs";
 	var Java = "java";
 	var Python = "python";
 	var Hl = "hl";

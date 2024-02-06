@@ -379,8 +379,7 @@ let setup get_api =
 	let api = get_api (fun() -> (get_ctx()).curapi.get_com()) (fun() -> (get_ctx()).curapi) in
 	List.iter (fun (n,v) ->
 		Hashtbl.replace GlobalState.macro_lib n v
-	) api;
-	Globals.macro_platform := Globals.Eval
+	) api
 
 let do_reuse ctx api =
 	ctx.curapi <- api;

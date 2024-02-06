@@ -39,7 +39,7 @@ let haxe_exception_static_call ctx method_name args p =
 		| TFun(_,t,_) -> t
 		| _ -> raise_typing_error ("haxe.Exception." ^ method_name ^ " is not a function and cannot be called") p
 	in
-	add_dependency ctx.typer.curclass.cl_module ctx.haxe_exception_class.cl_module;
+	add_dependency ctx.typer.c.curclass.cl_module ctx.haxe_exception_class.cl_module;
 	make_static_call ctx.typer ctx.haxe_exception_class method_field (fun t -> t) args return_type p
 
 (**
@@ -63,7 +63,7 @@ let haxe_exception_instance_call ctx haxe_exception method_name args p =
 *)
 let std_is ctx e t p =
 	let t = follow t in
-	let std_cls = ctx.typer.g.std in
+	let std_cls = ctx.typer.com.std in
 	let isOfType_field =
 		try PMap.find "isOfType" std_cls.cl_statics
 		with Not_found -> raise_typing_error ("Std has no field isOfType") p
@@ -73,7 +73,7 @@ let std_is ctx e t p =
 		| TFun(_,t,_) -> t
 		| _ -> raise_typing_error ("Std.isOfType is not a function and cannot be called") p
 	in
-	let type_expr = { eexpr = TTypeExpr(module_type_of_type t); etype = t; epos = p } in
+	let type_expr = TyperBase.type_module_type ctx.typer (module_type_of_type t) p in
 	make_static_call ctx.typer std_cls isOfType_field (fun t -> t) [e; type_expr] return_type p
 
 (**
@@ -179,7 +179,7 @@ let throw_native ctx e_thrown t p =
 		else
 			e_thrown
 	in
-	mk (TThrow e_native) t p
+	e_native
 
 let set_needs_exception_stack v =
 	if not (Meta.has Meta.NeedsExceptionStack v.v_meta) then
@@ -499,7 +499,7 @@ let catch_native ctx catches t p =
 let filter tctx =
 	let stub e = e in
 	match tctx.com.platform with (* TODO: implement for all targets *)
-	| Php | Js | Java | Cs | Python | Lua | Eval | Neko | Flash | Hl | Cpp ->
+	| Php | Js | Jvm | Python | Lua | Eval | Neko | Flash | Hl | Cpp ->
 		let config = tctx.com.config.pf_exceptions in
 		let tp (pack,name) =
 			let tp = match List.rev pack with
@@ -605,7 +605,7 @@ let insert_save_stacks tctx =
 				in
 				let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
 				begin
-					add_dependency tctx.curclass.cl_module native_stack_trace_cls.cl_module;
+					add_dependency tctx.c.curclass.cl_module native_stack_trace_cls.cl_module;
 					make_static_call tctx native_stack_trace_cls method_field (fun t -> t) [catch_local] return_type catch_var.v_pos
 				end
 			else

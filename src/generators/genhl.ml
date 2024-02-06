@@ -23,6 +23,7 @@ open Extlib_leftovers
 open Globals
 open Ast
 open Type
+open Error
 open Common
 open Hlcode
 
@@ -328,11 +329,12 @@ let make_debug ctx arr =
 		| false -> try
 			(* lookup relative path *)
 			let len = String.length p.pfile in
-			let base = List.find (fun path ->
+			let base = ctx.com.class_paths#find (fun path ->
+				let path = path#path in
 				let l = String.length path in
 				len > l && String.sub p.pfile 0 l = path
-			) ctx.com.Common.class_path in
-			let l = String.length base in
+			) in
+			let l = String.length base#path in
 			String.sub p.pfile l (len - l)
 		with Not_found ->
 			p.pfile
@@ -3694,7 +3696,7 @@ let generate_static_init ctx types main =
 	(* init class statics *)
 	let init_exprs = ref [] in
 	List.iter (fun t ->
-		(match t with TClassDecl { cl_init = Some e } -> init_exprs := e :: !init_exprs | _ -> ());
+		(match t with TClassDecl { cl_init = Some {cf_expr = Some e} } -> init_exprs := e :: !init_exprs | _ -> ());
 		match t with
 		| TClassDecl c when not (has_class_flag c CExtern) ->
 			List.iter (fun f ->
@@ -4185,7 +4187,7 @@ let generate com =
 
 	let ctx = create_context com false dump in
 	add_types ctx com.types;
-	let code = build_code ctx com.types com.main in
+	let code = build_code ctx com.types com.main.main_expr in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 	if dump then begin
 		(match ctx.dump_out with None -> () | Some ch -> IO.close_out ch);

@@ -20,6 +20,7 @@ open Swf
 open As3hl
 open ExtString
 open Type
+open Error
 open Common
 open Ast
 open Globals
@@ -141,7 +142,7 @@ let build_dependencies t =
 			add_field f;
 			if c.cl_path <> (["flash"],"Boot") then add_path (["flash"],"Boot") DKExpr;
 		);
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e -> add_expr e);
 		(match c.cl_super with
@@ -221,8 +222,6 @@ let detect_format data p =
 	| _ ->
 		abort "Unknown file format" p
 
-open TTFData
-
 let build_swf9 com file swc =
 	let boot_name = if swc <> None || Common.defined com Define.HaxeBoot then "haxe" else "boot_" ^ (String.sub (Digest.to_hex (Digest.string (Filename.basename file))) 0 4) in
 	let code = Genswf9.generate com boot_name in
@@ -268,59 +267,6 @@ let build_swf9 com file swc =
 		| TClassDecl c ->
 			let rec loop = function
 				| [] -> acc
-				| (Meta.Font,(EConst (String(file,_)),p) :: args,_) :: l ->
-					let file = try Common.find_file com file with Not_found -> file in
-					let ch = try open_in_bin file with _ -> abort "File not found" p in
-					let ttf = try TTFParser.parse ch with e -> abort ("Error while parsing font " ^ file ^ " : " ^ Printexc.to_string e) p in
-					close_in ch;
-					let get_string e = match fst e with
-						| EConst (String(s,_)) -> s
-						| _ -> raise Not_found
-					in
-					let ttf_config = {
-						ttfc_range_str = "";
-						ttfc_font_name = None;
-						ttfc_font_weight = TFWRegular;
-						ttfc_font_posture = TFPNormal;
-					} in
-					begin match args with
-						| (EConst (String(str,_)),_) :: _ -> ttf_config.ttfc_range_str <- str;
-						| _ -> ()
-					end;
-					begin match args with
-						| _ :: [e] ->
-							begin match fst e with
-								| EObjectDecl fl ->
-									(try ttf_config.ttfc_font_name <- Some(get_string (Expr.field_assoc "fontName" fl)) with Not_found -> ());
-									(try ttf_config.ttfc_font_weight <- (
-										match get_string (Expr.field_assoc "fontWeight" fl) with
-										| "regular" -> TFWRegular
-										| "bold" -> TFWBold
-										| _ -> abort "Invalid fontWeight value. Must be `regular` or `bold`." p
-									) with Not_found -> ());
-									(try ttf_config.ttfc_font_posture <- (
-										match get_string (Expr.field_assoc "fontStyle" fl) with
-										| "normal" -> TFPNormal
-										| "italic" -> TFPItalic
-										| _ -> abort "Invalid fontStyle value. Must be `normal` or `italic`." p
-									) with Not_found -> ());
-								| _ ->
-									()
-							end
-						| _ ->
-							()
-					end;
-					let ttf_swf = TTFSwfWriter.to_swf ttf ttf_config in
-					let ch = IO.output_string () in
-					let b = IO.output_bits ch in
-					TTFSwfWriter.write_font2 ch b ttf_swf;
-					let data = IO.close_out ch in
-					incr cid;
-					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
-					tag (TFont3 {
-						cd_id = !cid;
-						cd_data = data;
-					}) :: loop l
 				| (Meta.Bitmap,[EConst (String(file,_)),p],_) :: l ->
 					let data = load_file_data file p in
 					incr cid;

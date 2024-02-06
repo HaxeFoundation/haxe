@@ -20,6 +20,7 @@ open Extlib_leftovers
 open Globals
 open Ast
 open Type
+open Error
 open As3
 open As3hl
 open Common
@@ -1981,7 +1982,7 @@ let generate_extern_inits ctx =
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c when (has_class_flag c CExtern) ->
-			(match c.cl_init with
+			(match TClass.get_cl_init c with
 			| None -> ()
 			| Some e -> gen_expr ctx false e);
 		| _ -> ()
@@ -2006,7 +2007,7 @@ let generate_inits ctx =
 			j()
 		| _ -> ()
 	) ctx.com.types;
-	(match ctx.com.main with
+	(match ctx.com.main.main_expr with
 	| None -> ()
 	| Some e -> gen_expr ctx false e);
 	write ctx HRetVoid;
@@ -2034,7 +2035,7 @@ let generate_class_init ctx c hc =
 	if not (has_class_flag c CInterface) then write ctx HPopScope;
 	write ctx (HInitProp (type_path ctx c.cl_path));
 	if ctx.swc && c.cl_path = ctx.boot then generate_extern_inits ctx;
-	(match c.cl_init with
+	(match TClass.get_cl_init c with
 	| None -> ()
 	| Some e ->
 		gen_expr ctx false e;
@@ -2887,7 +2888,7 @@ let generate com boot_name =
 		try_scope_reg = None;
 		for_call = false;
 	} in
-	let types = if ctx.swc && com.main_class = None then
+	let types = if ctx.swc && com.main.main_class = None then
 		(*
 			make sure that both Boot and RealBoot are the first two classes in the SWC
 			this way initializing RealBoot will also run externs __init__ blocks before

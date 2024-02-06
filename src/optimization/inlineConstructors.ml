@@ -111,7 +111,7 @@ and inline_object_field =
 	inline_expression_handled
 	Defines what will happen to the expression being analized by analyze_aliases
 *)
-and inline_expression_handled = 
+and inline_expression_handled =
 	| IEHCaptured (* The expression will be assigned to a variable *)
 	| IEHIgnored (* The result of the expression will not be used *)
 	| IEHNotHandled (* Cases that are not handled (usually leads to cancelling inlining *)
@@ -728,7 +728,7 @@ let inline_constructors ctx original_e =
 		original_e
 	end else begin
 		let el,_ = final_map e in
-		let cf = ctx.curfield in
+		let cf = ctx.f.curfield in
 		if !included_untyped && not (Meta.has Meta.HasUntyped cf.cf_meta) then cf.cf_meta <- (Meta.HasUntyped,[],e.epos) :: cf.cf_meta;
 		let e = make_expr_for_rev_list el e.etype e.epos in
 		let rec get_pretty_name iv = match iv.iv_kind with
