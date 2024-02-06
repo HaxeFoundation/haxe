@@ -59,12 +59,14 @@ let add_opt com block pos (var,opt) =
 let rec change_func com cl cf =
 	List.iter (change_func com cl) cf.cf_overloads;
 
-	match cf.cf_kind, follow cf.cf_type with
+	match cf.cf_kind, follow_with_coro cf.cf_type with
 	| _ when has_class_field_flag cf CfPostProcessed ->
 		()
 	| Var _, _ | Method MethDynamic, _ ->
 		()
-	| _, TFun(args, ret) ->
+	(* COROTODO: is this really the same case? *)
+	| _, NotCoro (TFun(args, ret))
+	| _, Coro (args,ret) ->
 		let is_ctor = cf.cf_name = "new" in
 		let basic = com.basic in
 
