@@ -605,9 +605,7 @@ let type_var_field ctx t e stat do_display p =
 	let e = if do_display then Display.preprocess_expr ctx.com e else e in
 	let e = type_expr ctx e (WithType.with_type t) in
 	let e = AbstractCast.cast_or_unify ctx t e p in
-	match t with
-	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
-	| _ -> e
+	e
 
 let type_var_field ctx t e stat do_display p =
 	let save = TypeloadFunction.save_field_state ctx in
