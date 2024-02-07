@@ -755,15 +755,16 @@ and type_type_params ctx host path p tpl =
 				let r = make_lazy ctx.g ttp.ttp_type (fun r ->
 					let t = load_complex_type ctx true LoadNormal ct in
 					begin match host with
-					| TPHType ->
-						()
-					| TPHConstructor
-					| TPHMethod
-					| TPHEnumConstructor
-					| TPHAnonField
-					| TPHLocal ->
-						display_error ctx.com "Default type parameters are only supported on types" (pos ct)
+						| TPHType ->
+							()
+						| TPHConstructor
+						| TPHMethod
+						| TPHEnumConstructor
+						| TPHAnonField
+						| TPHLocal ->
+							display_error ctx.com "Default type parameters are only supported on types" (pos ct)
 					end;
+					check_param_constraints ctx t (fun t -> t) ttp (pos ct);
 					t
 				) "default" in
 				ttp.ttp_default <- Some (TLazy r)
