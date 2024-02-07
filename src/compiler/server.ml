@@ -564,7 +564,14 @@ and type_module sctx com mpath p =
 			begin match check_module sctx mpath mc.mc_extra p with
 				| None ->
 					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats in
-					let api = (new hxb_reader_api_server com cc :> HxbReaderApi.hxb_reader_api) in
+					let api = match com.hxb_reader_api with
+						| Some api ->
+							api
+						| None ->
+							let api = (new hxb_reader_api_server com cc :> HxbReaderApi.hxb_reader_api) in
+							com.hxb_reader_api <- Some api;
+							api
+					in
 					let f_next chunks until =
 						let t_hxb = Timer.timer ["server";"module cache";"hxb read"] in
 						let r = reader#read_chunks_until api chunks until in
