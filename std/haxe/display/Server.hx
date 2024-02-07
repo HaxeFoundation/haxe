@@ -139,6 +139,9 @@ typedef HaxeContextMemoryResult = {
 	final syntaxCache:{
 		final size:Int;
 	};
+	final binaryCache:{
+		final size:Int;
+	};
 	final ?leaks:Array<{
 		final path:String;
 		final leaks:Array<{

@@ -159,6 +159,12 @@ let had_resume = ref false
 let code_ref = ref (Sedlexing.Utf8.from_string "")
 let delayed_syntax_completion : (syntax_completion * DisplayTypes.completion_subject) option ref = ref None
 
+(* Per-file state *)
+
+let in_display_file = ref false
+let last_doc : (string * int) option ref = ref None
+let syntax_errors = ref []
+
 let reset_state () =
 	in_display := false;
 	was_auto_triggered := false;
@@ -167,13 +173,10 @@ let reset_state () =
 	in_macro := false;
 	had_resume := false;
 	code_ref := Sedlexing.Utf8.from_string "";
-	delayed_syntax_completion := None
-
-(* Per-file state *)
-
-let in_display_file = ref false
-let last_doc : (string * int) option ref = ref None
-let syntax_errors = ref []
+	delayed_syntax_completion := None;
+	in_display_file := false;
+	last_doc := None;
+	syntax_errors := []
 
 let syntax_error_with_pos error_msg p v =
 	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in

@@ -119,7 +119,6 @@ class TestNullCoalescing extends Test {
 			eq(arr[i], v);
 
 		final arr = [];
-		#if !cs
 		function item(n) {
 			arr.push(n);
 			return null;
@@ -128,7 +127,6 @@ class TestNullCoalescing extends Test {
 		eq(arr.length, 3);
 		for (i => v in [1, 2, 3])
 			eq(arr[i], v);
-		#end
 
 		var b:B = cast null;
 		var c:C = cast null;

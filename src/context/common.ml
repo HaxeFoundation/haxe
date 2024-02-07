@@ -354,8 +354,7 @@ type context = {
 	mutable json_out : json_api option;
 	(* config *)
 	version : int;
-	args : string list;
-	mutable sys_args : string list;
+	mutable args : string list;
 	mutable display : DisplayTypes.DisplayMode.settings;
 	mutable debug : bool;
 	mutable verbose : bool;
@@ -399,6 +398,7 @@ type context = {
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
 	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
+	fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t;
 	mutable has_error : bool;
 	pass_debug_messages : string DynArray.t;
 	(* output *)
@@ -415,13 +415,13 @@ type context = {
 	mutable hxb_libs : abstract_hxb_lib list;
 	mutable net_std : string list;
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
-	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
 	(* misc *)
 	mutable basic : basic_types;
 	memory_marker : float array;
+	mutable hxb_reader_api : HxbReaderApi.hxb_reader_api option;
 	hxb_reader_stats : HxbReader.hxb_reader_stats;
-	hxb_writer_stats : HxbWriter.hxb_writer_stats;
+	mutable hxb_writer_config : HxbWriterConfig.t option;
 }
 
 let enter_stage com stage =
@@ -476,7 +476,7 @@ let external_defined_value ctx k =
 	Define.raw_defined_value ctx.defines (convert_define k)
 
 let reserved_flags = [
-	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";"hl";"hlc";
+	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"java";"jvm";"python";"hl";"hlc";
 	"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
 ]
 
@@ -523,8 +523,7 @@ let short_platform_name = function
 	| Flash -> "swf"
 	| Php -> "php"
 	| Cpp -> "cpp"
-	| Cs -> "cs"
-	| Java -> "jav"
+	| Jvm -> "jvm"
 	| Python -> "py"
 	| Hl -> "hl"
 	| Eval -> "evl"
@@ -686,35 +685,7 @@ let get_config com =
 			};
 			pf_supports_atomics = true;
 		}
-	| Cs ->
-		{
-			default_config with
-			pf_capture_policy = CPWrapRef;
-			pf_pad_nulls = true;
-			pf_overload = true;
-			pf_supports_threads = true;
-			pf_supports_rest_args = true;
-			pf_this_before_super = false;
-			pf_exceptions = { default_config.pf_exceptions with
-				ec_native_throws = [
-					["cs";"system"],"Exception";
-					["haxe"],"Exception";
-				];
-				ec_native_catches = [
-					["cs";"system"],"Exception";
-					["haxe"],"Exception";
-				];
-				ec_wildcard_catch = (["cs";"system"],"Exception");
-				ec_base_throw = (["cs";"system"],"Exception");
-				ec_special_throw = fun e -> e.eexpr = TIdent "__rethrow__"
-			};
-			pf_scoping = {
-				vs_scope = FunctionScope;
-				vs_flags = [NoShadowing]
-			};
-			pf_supports_atomics = true;
-		}
-	| Java ->
+	| Jvm ->
 		{
 			default_config with
 			pf_capture_policy = CPWrapRef;
@@ -735,14 +706,6 @@ let get_config com =
 				ec_wildcard_catch = (["java";"lang"],"Throwable");
 				ec_base_throw = (["java";"lang"],"RuntimeException");
 			};
-			pf_scoping =
-				if defined Jvm then
-					default_config.pf_scoping
-				else
-					{
-						vs_scope = FunctionScope;
-						vs_flags = [NoShadowing; ReserveAllTopLevelSymbols; ReserveNames(["_"])];
-					};
 			pf_supports_atomics = true;
 		}
 	| Python ->
@@ -810,7 +773,6 @@ let create compilation_step cs version args display_mode =
 			display_module_has_macro_defines = false;
 			module_diagnostics = [];
 		};
-		sys_args = args;
 		debug = false;
 		display = display_mode;
 		verbose = false;
@@ -835,13 +797,13 @@ let create compilation_step cs version args display_mode =
 		modules = [];
 		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
+		fake_modules = Hashtbl.create 0;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
 		net_std = [];
 		native_libs = create_native_libs();
 		hxb_libs = [];
 		net_path_map = Hashtbl.create 0;
-		c_args = [];
 		neko_lib_paths = [];
 		include_files = [];
 		js_gen = None;
@@ -883,8 +845,9 @@ let create compilation_step cs version args display_mode =
 		has_error = false;
 		report_mode = RMNone;
 		is_macro_context = false;
+		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
-		hxb_writer_stats = HxbWriter.create_hxb_writer_stats ();
+		hxb_writer_config = None;
 	} in
 	com
 
@@ -934,8 +897,9 @@ let clone com is_macro_context =
 		module_to_file = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
 		module_lut = new module_lut;
+		fake_modules = Hashtbl.create 0;
+		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
-		hxb_writer_stats = HxbWriter.create_hxb_writer_stats ();
 		std = null_class;
 		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;
@@ -979,13 +943,21 @@ let update_platform_config com =
 
 let init_platform com =
 	let name = platform_name com.platform in
-	if (com.platform = Flash) && Path.file_extension com.file = "swc" then define com Define.Swc
-	else if (com.platform = Hl) && Path.file_extension com.file = "c" then define com Define.Hlc;
+	begin match com.platform with
+	| Flash when Path.file_extension com.file = "swc" ->
+		define com Define.Swc
+	| Jvm ->
+		raw_define com "java"
+	| Hl ->
+		if Path.file_extension com.file = "c" then define com Define.Hlc;
+	| _ ->
+		()
+	end;
 	(* Set the source header, unless the user has set one already or the platform sets a custom one *)
 	if not (defined com Define.SourceHeader) && (com.platform <> Hl) then
 		define_value com Define.SourceHeader ("Generated by Haxe " ^ s_version_full);
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
-	com.package_rules <- List.fold_left forbid com.package_rules ("jvm" :: (List.map platform_name platforms));
+	com.package_rules <- List.fold_left forbid com.package_rules ("java" :: (List.map platform_name platforms));
 	update_platform_config com;
 	if com.config.pf_static then begin
 		raw_define com "target.static";
@@ -1211,7 +1183,7 @@ let dump_path com =
 	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
 
 let adapt_defines_to_macro_context defines =
-	let to_remove = List.map Globals.platform_name Globals.platforms in
+	let to_remove = "java" :: List.map Globals.platform_name Globals.platforms in
 	let to_remove = List.fold_left (fun acc d -> Define.get_define_key d :: acc) to_remove [Define.NoTraces] in
 	let to_remove = List.fold_left (fun acc (_, d) -> ("flash" ^ d) :: acc) to_remove flash_versions in
 	let macro_defines = {

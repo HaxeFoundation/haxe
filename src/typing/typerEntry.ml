@@ -7,13 +7,12 @@ open Resolution
 open Error
 
 let create com macros =
-	let ctx = {
+	let rec ctx = {
 		com = com;
 		t = com.basic;
 		g = {
 			core_api = None;
 			macros = macros;
-			type_patches = Hashtbl.create 0;
 			module_check_policies = [];
 			delayed = Array.init all_typer_passes_length (fun _ -> { tasks = []});
 			delayed_min_index = 0;
@@ -36,6 +35,8 @@ let create com macros =
 			get_build_info = InstanceBuilder.get_build_info;
 			do_format_string = format_string;
 			do_load_core_class = Typeload.load_core_class;
+			delayed_display = None;
+			root_typer = ctx;
 		};
 		m = {
 			curmod = null_module;
@@ -44,36 +45,19 @@ let create com macros =
 			enum_with_type = None;
 			module_using = [];
 			import_statements = [];
+			is_display_file = false;
 		};
-		is_display_file = false;
-		bypass_accessor = 0;
-		meta = [];
-		with_type_stack = [];
-		call_argument_stack = [];
+		c = {
+			curclass = null_class;
+			tthis = t_dynamic;
+			get_build_infos = (fun() -> None);
+		};
+		f = TyperManager.create_ctx_f null_field;
+		e = TyperManager.create_ctx_e FunStatic false;
 		pass = PBuildModule;
-		macro_depth = 0;
-		untyped = false;
-		curfun = FunStatic;
-		in_function = false;
-		in_loop = false;
-		in_display = false;
 		allow_inline = true;
 		allow_transform = true;
-		get_build_infos = (fun() -> None);
-		ret = mk_mono();
-		locals = PMap.empty;
 		type_params = [];
-		curclass = null_class;
-		curfield = null_field;
-		tthis = mk_mono();
-		opened = [];
-		vthis = None;
-		in_call_args = false;
-		in_overload_call_args = false;
-		delayed_display = None;
-		monomorphs = {
-			perfunction = [];
-		};
 		memory_marker = Typecore.memory_marker;
 	} in
 	ctx.g.std_types <- (try

@@ -239,7 +239,7 @@ let load_display_file_standalone (ctx : Typecore.typer) file =
 			let dir = ExtString.String.join (if path.backslash then "\\" else "/") parts in
 			com.class_paths#add (new ClassPath.directory_class_path dir User)
 	end;
-	ignore(TypeloadModule.type_module ctx (pack,name) file ~dont_check_path:true decls null_pos)
+	ignore(TypeloadModule.type_module ctx.com ctx.g (pack,name) file ~dont_check_path:true decls null_pos)
 
 let load_display_content_standalone (ctx : Typecore.typer) input =
 	let com = ctx.com in
@@ -247,7 +247,7 @@ let load_display_content_standalone (ctx : Typecore.typer) input =
 	let p = {pfile = file; pmin = 0; pmax = 0} in
 	let parsed = TypeloadParse.parse_file_from_string com file p input in
 	let pack,decls = TypeloadParse.handle_parser_result com p parsed in
-	ignore(TypeloadModule.type_module ctx (pack,"?DISPLAY") file ~dont_check_path:true decls p)
+	ignore(TypeloadModule.type_module ctx.com ctx.g (pack,"?DISPLAY") file ~dont_check_path:true decls p)
 
 (* 4. Display processing before typing *)
 

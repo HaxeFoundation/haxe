@@ -69,12 +69,12 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method find_module_extra path =
 		try (Hashtbl.find modules path).m_extra with Not_found -> (Hashtbl.find binary_cache path).mc_extra
 
-	method cache_module warn anon_identification hxb_writer_stats path m =
+	method cache_module config warn anon_identification path m =
 		match m.m_extra.m_kind with
 		| MImport ->
 			Hashtbl.add modules m.m_path m
 		| _ ->
-			let writer = HxbWriter.create warn anon_identification hxb_writer_stats in
+			let writer = HxbWriter.create config warn anon_identification in
 			HxbWriter.write_module writer m;
 			let chunks = HxbWriter.get_chunks writer in
 			Hashtbl.replace binary_cache path {
@@ -108,7 +108,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 
 (* Pointers for memory inspection. *)
 	method get_pointers : unit array =
-		[|Obj.magic files;Obj.magic modules|]
+		[|Obj.magic files;Obj.magic modules;Obj.magic binary_cache|]
 end
 
 let create_directory path mtime = {
@@ -141,6 +141,14 @@ class cache = object(self)
 	val directories : (string, cached_directory list) Hashtbl.t = Hashtbl.create 0
 	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
 	val mutable tasks : (server_task PriorityQueue.t) = PriorityQueue.Empty
+
+	method clear =
+		Hashtbl.clear contexts;
+		context_list <- [];
+		Hashtbl.clear haxelib;
+		Hashtbl.clear directories;
+		Hashtbl.clear native_libs;
+		tasks <- PriorityQueue.Empty
 
 	(* contexts *)
 

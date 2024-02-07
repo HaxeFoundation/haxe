@@ -10,8 +10,8 @@ type lscontext = {
 }
 
 let promote_local_static lsctx run v eo =
-	let name = Printf.sprintf "%s_%s" lsctx.ctx.curfield.cf_name v.v_name in
-	let c = lsctx.ctx.curclass in
+	let name = Printf.sprintf "%s_%s" lsctx.ctx.f.curfield.cf_name v.v_name in
+	let c = lsctx.ctx.c.curclass in
 	begin try
 		let cf = PMap.find name c.cl_statics in
 		display_error lsctx.ctx.com (Printf.sprintf "The expanded name of this local (%s) conflicts with another static field" name) v.v_pos;
@@ -56,7 +56,7 @@ let run ctx e =
 		lut = Hashtbl.create 0;
 		added_fields = [];
 	} in
-	let c = ctx.curclass in
+	let c = ctx.c.curclass in
 	let rec run e = match e.eexpr with
 		| TBlock el ->
 			let el = ExtList.List.filter_map (fun e -> match e.eexpr with

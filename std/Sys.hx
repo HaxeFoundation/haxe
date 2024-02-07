@@ -43,8 +43,6 @@ extern class Sys {
 		This does not include the interpreter or the name of the program file.
 
 		(java)(eval) On Windows, non-ASCII Unicode arguments will not work correctly.
-
-		(cs) Non-ASCII Unicode arguments will not work correctly.
 	**/
 	static function args():Array<String>;
 

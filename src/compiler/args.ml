@@ -88,16 +88,9 @@ let parse_args com =
 			Common.define com Define.Cppia;
 			set_platform com Cpp file;
 		),"<file>","generate Cppia bytecode into target file");
-		("Target",["--cs"],["-cs"],Arg.String (fun dir ->
-			set_platform com Cs dir;
-		),"<directory>","generate C# code into target directory");
-		("Target",["--java"],["-java"],Arg.String (fun dir ->
-			set_platform com Java dir;
-		),"<directory>","generate Java code into target directory");
-		("Target",["--jvm"],[],Arg.String (fun dir ->
-			Common.define com Define.Jvm;
+		("Target",["--jvm"],["-jvm"],Arg.String (fun dir ->
 			actx.jvm_flag <- true;
-			set_platform com Java dir;
+			set_platform com Jvm dir;
 		),"<file>","generate JVM bytecode into target file");
 		("Target",["--python"],["-python"],Arg.String (fun dir ->
 			set_platform com Python dir;
@@ -232,15 +225,6 @@ let parse_args com =
 		("Target-specific",["--java-lib-extern"],[],Arg.String (fun file ->
 			add_native_lib file true JavaLib;
 		),"<file>","use an external JAR or directory of JAR files for type checking");
-		("Target-specific",["--net-lib"],["-net-lib"],Arg.String (fun file ->
-			add_native_lib file false NetLib;
-		),"<file>[@std]","add an external .NET DLL file");
-		("Target-specific",["--net-std"],["-net-std"],Arg.String (fun file ->
-			Dotnet.add_net_std com file
-		),"<file>","add a root std .NET DLL search path");
-		("Target-specific",["--c-arg"],["-c-arg"],Arg.String (fun arg ->
-			com.c_args <- arg :: com.c_args
-		),"<arg>","pass option <arg> to the native Java/C# compiler");
 		("Compilation",["-r";"--resource"],["-resource"],Arg.String (fun res ->
 			let file, name = (match ExtString.String.nsplit res "@" with
 				| [file; name] -> file, name
@@ -278,9 +262,9 @@ let parse_args com =
 		("Services",["--json"],[],Arg.String (fun file ->
 			actx.json_out <- Some file
 		),"<file>","generate JSON types description");
-		("Services",["--hxb"],[], Arg.String (fun dir ->
-			actx.hxb_out <- Some dir;
-		),"<directory>", "generate haxe binary representation in target directory");
+		("Services",["--hxb"],[], Arg.String (fun file ->
+			actx.hxb_out <- Some file;
+		),"<file>", "generate haxe binary representation to target archive");
 		("Optimization",["--no-output"],[], Arg.Unit (fun() -> actx.no_output <- true),"","compiles but does not generate any file");
 		("Debug",["--times"],[], Arg.Unit (fun() -> Timer.measure_times := true),"","measure compilation times");
 		("Optimization",["--no-inline"],[],Arg.Unit (fun () ->
@@ -381,7 +365,6 @@ let parse_args com =
 					if not (lib#has_flag NativeLibraries.FlagIsStd) then
 						List.iter (fun path -> if path <> (["java";"lang"],"String") then actx.classes <- path :: actx.classes) lib#list_modules
 				in
-				List.iter process_lib com.native_libs.net_libs;
 				List.iter process_lib com.native_libs.swf_libs;
 				List.iter process_lib com.native_libs.java_libs;
 			) :: actx.pre_compilation;
