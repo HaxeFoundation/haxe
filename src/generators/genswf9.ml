@@ -20,6 +20,7 @@ open Extlib_leftovers
 open Globals
 open Ast
 open Type
+open Error
 open As3
 open As3hl
 open Common
@@ -238,8 +239,8 @@ let rec type_id ctx t =
 		| _ -> def())
 	| TInst (c,_) ->
 		(match c.cl_kind with
-		| KTypeParameter l ->
-			(match l with
+		| KTypeParameter ttp ->
+			(match get_constraints ttp with
 			| [t] -> type_id ctx t
 			| _ -> type_path ctx ([],"Object"))
 		| _ ->
@@ -1066,7 +1067,7 @@ let rec gen_expr_content ctx retval e =
 		gen_constant ctx c e.etype e.epos
 	| TThrow e ->
 		ctx.infos.icond <- true;
-		if has_feature ctx.com "haxe.CallStack.exceptionStack" && not (Exceptions.is_haxe_exception e.etype) then begin
+		if has_feature ctx.com "haxe.CallStack.exceptionStack" && not (ExceptionFunctions.is_haxe_exception e.etype) then begin
 			getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
 			let id = type_path ctx (["flash";"errors"],"Error") in
 			write ctx (HFindPropStrict id);
@@ -1240,7 +1241,7 @@ let rec gen_expr_content ctx retval e =
 					| _ -> Type.iter call_loop e
 				in
 				let has_call = (try call_loop e; false with Exit -> true) in
-				if has_call && has_feature ctx.com "haxe.CallStack.exceptionStack" && not (Exceptions.is_haxe_exception v.v_type) then begin
+				if has_call && has_feature ctx.com "haxe.CallStack.exceptionStack" && not (ExceptionFunctions.is_haxe_exception v.v_type) then begin
 					getvar ctx (gen_local_access ctx v e.epos Read);
 					write ctx (HAsType (type_path ctx (["flash";"errors"],"Error")));
 					let j = jump ctx J3False in
@@ -1981,7 +1982,7 @@ let generate_extern_inits ctx =
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c when (has_class_flag c CExtern) ->
-			(match c.cl_init with
+			(match TClass.get_cl_init c with
 			| None -> ()
 			| Some e -> gen_expr ctx false e);
 		| _ -> ()
@@ -2006,7 +2007,7 @@ let generate_inits ctx =
 			j()
 		| _ -> ()
 	) ctx.com.types;
-	(match ctx.com.main with
+	(match ctx.com.main.main_expr with
 	| None -> ()
 	| Some e -> gen_expr ctx false e);
 	write ctx HRetVoid;
@@ -2034,7 +2035,7 @@ let generate_class_init ctx c hc =
 	if not (has_class_flag c CInterface) then write ctx HPopScope;
 	write ctx (HInitProp (type_path ctx c.cl_path));
 	if ctx.swc && c.cl_path = ctx.boot then generate_extern_inits ctx;
-	(match c.cl_init with
+	(match TClass.get_cl_init c with
 	| None -> ()
 	| Some e ->
 		gen_expr ctx false e;
@@ -2887,7 +2888,7 @@ let generate com boot_name =
 		try_scope_reg = None;
 		for_call = false;
 	} in
-	let types = if ctx.swc && com.main_class = None then
+	let types = if ctx.swc && com.main.main_class = None then
 		(*
 			make sure that both Boot and RealBoot are the first two classes in the SWC
 			this way initializing RealBoot will also run externs __init__ blocks before

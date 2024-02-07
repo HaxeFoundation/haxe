@@ -26,7 +26,7 @@ module Match = struct
 	open Typecore
 
 	let match_expr ctx e cases def with_type postfix_match p =
-		let match_debug = Meta.has (Meta.Custom ":matchDebug") ctx.curfield.cf_meta in
+		let match_debug = Meta.has (Meta.Custom ":matchDebug") ctx.f.curfield.cf_meta in
 		let check_mono e =
 			match follow e.etype with
 			| TMono m ->

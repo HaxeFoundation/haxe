@@ -145,7 +145,8 @@ let create com api is_macro =
 		Which is printing an error to stderr and exiting with code 2 *)
 	Luv.Error.set_on_unhandled_exception (fun ex ->
 		match ex with
-		| Sys_exit _ -> raise ex
+		| EvalTypes.Sys_exit _ ->
+			raise ex
 		| _ ->
 			let msg = match ex with
 				| Error.Error err ->
@@ -376,21 +377,9 @@ let init ctx = ()
 
 let setup get_api =
 	let api = get_api (fun() -> (get_ctx()).curapi.get_com()) (fun() -> (get_ctx()).curapi) in
-	List.iter (fun (n,v) -> match v with
-		| VFunction(f,b) ->
-			let f vl = try
-				f vl
-			with
-			| Sys_error msg | Failure msg | Invalid_argument msg ->
-				exc_string msg
-			| MacroApi.Invalid_expr ->
-				exc_string "Invalid expression"
-			in
-			let v = VFunction (f,b) in
-			Hashtbl.replace GlobalState.macro_lib n v
-		| _ -> die "" __LOC__
-	) api;
-	Globals.macro_platform := Globals.Eval
+	List.iter (fun (n,v) ->
+		Hashtbl.replace GlobalState.macro_lib n v
+	) api
 
 let do_reuse ctx api =
 	ctx.curapi <- api;

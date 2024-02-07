@@ -5,6 +5,7 @@ open Common
 open Typecore
 open Error
 open FieldAccess
+open FieldCallCandidate
 
 let unify_call_args ctx el args r callp inline force_inline in_overload =
 	let call_error err p = raise_error_msg (Call_error err) p in
@@ -143,7 +144,7 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 		| (e,p) :: el, [] ->
 			begin match List.rev !skipped with
 				| [] ->
-					if ctx.is_display_file && not (Diagnostics.error_in_diagnostics_run ctx.com p) then begin
+					if ctx.m.is_display_file && not (Diagnostics.error_in_diagnostics_run ctx.com p) then begin
 						ignore(type_expr ctx (e,p) WithType.value);
 						ignore(loop el [])
 					end;
@@ -167,13 +168,13 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 			end
 	in
 	let restore =
-		let in_call_args = ctx.in_call_args in
-		let in_overload_call_args = ctx.in_overload_call_args in
-		ctx.in_call_args <- true;
-		ctx.in_overload_call_args <- in_overload;
+		let in_call_args = ctx.f.in_call_args in
+		let in_overload_call_args = ctx.f.in_overload_call_args in
+		ctx.f.in_call_args <- true;
+		ctx.f.in_overload_call_args <- in_overload;
 		(fun () ->
-			ctx.in_call_args <- in_call_args;
-			ctx.in_overload_call_args <- in_overload_call_args;
+			ctx.f.in_call_args <- in_call_args;
+			ctx.f.in_overload_call_args <- in_overload_call_args;
 		)
 	in
 	let el = try loop el args with exc -> restore(); raise exc; in
@@ -227,7 +228,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			else
 				List.map (fun (t,cf) ->
 					cf
-				) (Overloads.get_overloads ctx.com c cf.cf_name)
+				) (get_overloads ctx.com c cf.cf_name)
 			in
 			cfl,Some c,false,TClass.get_map_function c tl,(fun t -> t)
 		| FHAbstract(a,tl,c) ->
@@ -240,14 +241,14 @@ let unify_field_call ctx fa el_typed el p inline =
 		else if fa.fa_field.cf_overloads <> [] then OverloadMeta
 		else OverloadNone
 	in
-	(* Delayed display handling works like this: If ctx.in_overload_call_args is set (via attempt_calls calling unify_call_args' below),
-	   the code which normally raises eager Display exceptions (in typerDisplay.ml handle_display) instead stores them in ctx.delayed_display.
+	(* Delayed display handling works like this: If ctx.e.in_overload_call_args is set (via attempt_calls calling unify_call_args' below),
+	   the code which normally raises eager Display exceptions (in typerDisplay.ml handle_display) instead stores them in ctx.g.delayed_display.
 	   The overload handling here extracts them and associates the exception with the field call candidates. Afterwards, normal overload resolution
 	   can take place and only then the display callback is actually committed.
 	*)
-	let extract_delayed_display () = match ctx.delayed_display with
+	let extract_delayed_display () = match ctx.g.delayed_display with
 		| Some f ->
-			ctx.delayed_display <- None;
+			ctx.g.delayed_display <- None;
 			Some f
 		| None ->
 			None
@@ -327,11 +328,11 @@ let unify_field_call ctx fa el_typed el p inline =
 			| cf :: candidates ->
 				let known_monos = List.map (fun (m,_) ->
 					m,m.tm_type,m.tm_down_constraints
-				) ctx.monomorphs.perfunction in
-				let current_monos = ctx.monomorphs.perfunction in
+				) ctx.e.monomorphs.perfunction in
+				let current_monos = ctx.e.monomorphs.perfunction in
 				begin try
 					let candidate = attempt_call cf true in
-					ctx.monomorphs.perfunction <- current_monos;
+					ctx.e.monomorphs.perfunction <- current_monos;
 					if overload_kind = OverloadProper then begin
 						let candidates,failures = loop candidates in
 						candidate :: candidates,failures
@@ -342,21 +343,13 @@ let unify_field_call ctx fa el_typed el p inline =
 						if t != m.tm_type then m.tm_type <- t;
 						if constr != m.tm_down_constraints then m.tm_down_constraints <- constr;
 					) known_monos;
-					ctx.monomorphs.perfunction <- current_monos;
+					ctx.e.monomorphs.perfunction <- current_monos;
 					check_unknown_ident err;
 					let candidates,failures = loop candidates in
 					candidates,(cf,err,extract_delayed_display()) :: failures
 				end
 		in
 		loop candidates
-	in
-	let fail_fun () =
-		let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic) in
-		let call () =
-			let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa fa.fa_field fa.fa_host)) tf fa.fa_pos in
-			mk (TCall(ef,[])) t_dynamic p
-		in
-		make_field_call_candidate [] t_dynamic [] tf fa.fa_field call
 	in
 	let maybe_check_access cf =
 		(* type_field doesn't check access for overloads, so let's check it here *)
@@ -367,13 +360,34 @@ let unify_field_call ctx fa el_typed el p inline =
 			()
 		end;
 	in
+	(* There's always a chance that we never even came across the EDisplay in an argument, so let's look for it (issue #11422). *)
+	let check_display_args () =
+		if ctx.m.is_display_file then begin
+			let rec loop el = match el with
+				| [] ->
+					()
+				| e :: el ->
+					if Ast.exists (function EDisplay _ -> true | _ -> false) e then
+						ignore(type_expr ctx e WithType.value)
+					else
+						loop el
+			in
+			loop el
+		end;
+	in
 	match candidates with
 	| [cf] ->
 		if overload_kind = OverloadProper then maybe_check_access cf;
 		begin try
 			commit_delayed_display (attempt_call cf false)
 		with Error _ when Common.ignore_error ctx.com ->
-			fail_fun();
+			check_display_args();
+			let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic) in
+			let call () =
+				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa fa.fa_field fa.fa_host)) tf fa.fa_pos in
+				mk (TCall(ef,[])) t_dynamic p
+			in
+			make_field_call_candidate [] t_dynamic [] tf fa.fa_field call
 		end
 	| _ ->
 		let candidates,failures = attempt_calls candidates in
@@ -385,6 +399,7 @@ let unify_field_call ctx fa el_typed el p inline =
 				) delayed_display;
 				cf,err
 			) failures in
+			check_display_args();
 			let failures = remove_duplicates (fun (_,e1) (_,e2) -> (MessageReporting.print_error e1) <> (MessageReporting.print_error e2)) failures in
 			begin match failures with
 			| [_,err] ->
@@ -408,7 +423,8 @@ let unify_field_call ctx fa el_typed el p inline =
 			end
 		in
 		if overload_kind = OverloadProper then begin match Overloads.Resolution.reduce_compatible candidates with
-			| [] -> fail()
+			| [] ->
+				fail()
 			| [fcc] ->
 				maybe_check_access fcc.fc_field;
 				commit_delayed_display fcc
@@ -449,9 +465,9 @@ object(self)
 		end
 
 	method private macro_call (ethis : texpr) (cf : tclass_field) (el : expr list) =
-		if ctx.macro_depth > 300 then raise_typing_error "Stack overflow" p;
-		ctx.macro_depth <- ctx.macro_depth + 1;
-		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
+		if ctx.e.macro_depth > 300 then raise_typing_error "Stack overflow" p;
+		ctx.e.macro_depth <- ctx.e.macro_depth + 1;
+		ctx.e.with_type_stack <- with_type :: ctx.e.with_type_stack;
 		let ethis_f = ref (fun () -> ()) in
 		let macro_in_macro () =
 			(fun () ->
@@ -461,7 +477,7 @@ object(self)
 				| WithType.NoValue ->
 					type_as t_dynamic
 				| WithType.Value _ ->
-					let m = spawn_monomorph' ctx p in
+					let m = spawn_monomorph' ctx.e p in
 					Monomorph.add_down_constraint m (MFromMacroInMacro p);
 					type_as (TMono m)
 				| WithType(t,_) ->
@@ -505,16 +521,14 @@ object(self)
 				loop c
 			| _ -> die "" __LOC__))
 		in
-		ctx.macro_depth <- ctx.macro_depth - 1;
-		ctx.with_type_stack <- List.tl ctx.with_type_stack;
+		ctx.e.macro_depth <- ctx.e.macro_depth - 1;
+		ctx.e.with_type_stack <- List.tl ctx.e.with_type_stack;
 		let old = ctx.com.error_ext in
 		ctx.com.error_ext <- (fun err ->
 			let ep = err.err_pos in
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
-				locate_macro_error := false;
 				old (if (ep = null_pos) then { err with err_pos = p } else err);
-				locate_macro_error := true;
 				(* TODO add as sub for above error *)
 				if ep <> null_pos then old (make_error ~depth:(err.err_depth+1) (Custom (compl_msg "Called from macro here")) p);
 			end else
@@ -539,7 +553,7 @@ object(self)
 			let el = el_typed @ List.map (fun e -> type_expr ctx e WithType.value) el in
 			let t = if t == t_dynamic then
 				t_dynamic
-			else if ctx.untyped then
+			else if ctx.f.untyped then
 				mk_mono()
 			else
 				raise_typing_error (s_type (print_context()) e.etype ^ " cannot be called") e.epos

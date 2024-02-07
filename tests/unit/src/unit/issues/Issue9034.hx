@@ -3,7 +3,7 @@ package unit.issues;
 import unit.Test;
 
 class Issue9034 extends Test{
-	#if java
+	#if jvm
 	function test() {
 		bar(java.nio.file.Paths.get('build.hxml'));
 		utest.Assert.pass();

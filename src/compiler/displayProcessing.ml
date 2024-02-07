@@ -22,7 +22,7 @@ let handle_display_argument_old com file_pos actx =
 		actx.did_something <- true;
 		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
 	| "diagnostics" ->
-		com.report_mode <- RMDiagnostics []
+		com.report_mode <- RMLegacyDiagnostics []
 	| _ ->
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = Helper.unquote file in
@@ -46,9 +46,9 @@ let handle_display_argument_old com file_pos actx =
 			| "module-symbols" ->
 				create (DMModuleSymbols None)
 			| "diagnostics" ->
-				com.report_mode <- RMDiagnostics [file_unique];
+				com.report_mode <- RMLegacyDiagnostics [file_unique];
 				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display}
+				{dm with dms_display_file_policy = DFPOnly; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display}
 			| "statistics" ->
 				com.report_mode <- RMStatistics;
 				let dm = create DMNone in
@@ -121,6 +121,7 @@ let process_display_file com actx =
 		let rec loop = function
 			| [] -> None
 			| cp :: l ->
+				let cp = cp#path in
 				let cp = (if cp = "" then "./" else cp) in
 				let c = Path.add_trailing_slash (Path.get_real_path cp) in
 				let clen = String.length c in
@@ -135,25 +136,25 @@ let process_display_file com actx =
 				end else
 					loop l
 		in
-		loop com.class_path
+		loop com.class_paths#as_list
 	in
 	match com.display.dms_display_file_policy with
 		| DFPNo ->
 			DPKNone
 		| DFPOnly when (DisplayPosition.display_position#get).pfile = file_input_marker ->
 			actx.classes <- [];
-			com.main_class <- None;
-			begin match !TypeloadParse.current_stdin with
-			| Some input ->
-				TypeloadParse.current_stdin := None;
+			com.main.main_class <- None;
+			begin match com.file_contents with
+			| [_, Some input] ->
+				com.file_contents <- [];
 				DPKInput input
-			| None ->
+			| _ ->
 				DPKNone
 			end
 		| dfp ->
 			if dfp = DFPOnly then begin
 				actx.classes <- [];
-				com.main_class <- None;
+				com.main.main_class <- None;
 			end;
 			let real = Path.get_real_path (DisplayPosition.display_position#get).pfile in
 			let path = match get_module_path_from_file_path com real with
@@ -200,11 +201,11 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 				begin try
 					let m = mctx.com.module_lut#find cpath in
 					mctx.com.module_lut#remove cpath;
-					mctx.com.type_to_module#remove cpath;
+					mctx.com.module_lut#get_type_lut#remove cpath;
 					List.iter (fun mt ->
 						let ti = Type.t_infos mt in
 						mctx.com.module_lut#remove ti.mt_path;
-						mctx.com.type_to_module#remove ti.mt_path;
+						mctx.com.module_lut#get_type_lut#remove ti.mt_path;
 					) m.m_types
 				with Not_found ->
 					()
@@ -223,7 +224,7 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 
 let load_display_file_standalone (ctx : Typecore.typer) file =
 	let com = ctx.com in
-	let pack,decls = TypeloadParse.parse_module_file com file null_pos in
+	let pack,decls = TypeloadParse.parse_module_file com (ClassPaths.create_resolved_file file ctx.com.empty_class_path) null_pos in
 	let path = Path.FilePath.parse file in
 	let name = match path.file_name with
 		| None -> "?DISPLAY"
@@ -236,9 +237,9 @@ let load_display_file_standalone (ctx : Typecore.typer) file =
 			let parts = ExtString.String.nsplit dir (if path.backslash then "\\" else "/") in
 			let parts = List.rev (ExtList.List.drop (List.length pack) (List.rev parts)) in
 			let dir = ExtString.String.join (if path.backslash then "\\" else "/") parts in
-			com.class_path <- dir :: com.class_path
+			com.class_paths#add (new ClassPath.directory_class_path dir User)
 	end;
-	ignore(TypeloadModule.type_module ctx (pack,name) file ~dont_check_path:true decls null_pos)
+	ignore(TypeloadModule.type_module ctx.com ctx.g (pack,name) file ~dont_check_path:true decls null_pos)
 
 let load_display_content_standalone (ctx : Typecore.typer) input =
 	let com = ctx.com in
@@ -246,7 +247,7 @@ let load_display_content_standalone (ctx : Typecore.typer) input =
 	let p = {pfile = file; pmin = 0; pmax = 0} in
 	let parsed = TypeloadParse.parse_file_from_string com file p input in
 	let pack,decls = TypeloadParse.handle_parser_result com p parsed in
-	ignore(TypeloadModule.type_module ctx (pack,"?DISPLAY") file ~dont_check_path:true decls p)
+	ignore(TypeloadModule.type_module ctx.com ctx.g (pack,"?DISPLAY") file ~dont_check_path:true decls p)
 
 (* 4. Display processing before typing *)
 
@@ -318,7 +319,7 @@ let process_global_display_mode com tctx =
 		let symbols =
 			let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 			List.fold_left (fun acc (file_key,cfile) ->
-				let file = cfile.c_file_path in
+				let file = cfile.c_file_path.file in
 				if (filter <> None || DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then
 					(file,DocumentSymbols.collect_module_symbols (Some (file,get_module_name_of_cfile file cfile)) (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
 				else
@@ -348,6 +349,8 @@ let handle_display_after_finalization ctx tctx display_file_dot_path =
 	end;
 	process_global_display_mode com tctx;
 	begin match com.report_mode with
+	| RMLegacyDiagnostics _ ->
+		DisplayOutput.emit_legacy_diagnostics com
 	| RMDiagnostics _ ->
 		DisplayOutput.emit_diagnostics com
 	| RMStatistics ->

@@ -26,7 +26,9 @@ class TestCase implements ITest {
 		prints:Array<String>
 	};
 
-	var server:HaxeServerAsync;
+	static public var server:HaxeServerAsync;
+	static public var rootCwd:String;
+
 	var vfs:Vfs;
 	var testDir:String;
 	var lastResult:HaxeServerRequestResult;
@@ -69,32 +71,37 @@ class TestCase implements ITest {
 		}
 	}
 
+	@:timeout(3000)
 	public function setup(async:utest.Async) {
 		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
-		server = new HaxeServerAsync(() -> new HaxeServerProcessNode("haxe", ["-v", "--cwd", testDir], {}, () -> async.done()));
+		runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {}, () -> {
+			async.done();
+		});
 	}
 
-	public function teardown() {
-		server.stop();
+	public function teardown() {}
+
+	function handleResult(result) {
+		lastResult = result;
+		debugLastResult = {
+			hasError: lastResult.hasError,
+			prints: lastResult.prints,
+			stderr: lastResult.stderr,
+			stdout: lastResult.stdout
+		};
+		sendLogMessage(result.stdout);
+		for (print in result.prints) {
+			var line = print.trim();
+			messages.push('Haxe print: $line');
+		}
 	}
 
 	function runHaxe(args:Array<String>, done:() -> Void) {
 		messages = [];
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
-			lastResult = result;
-			debugLastResult = {
-				hasError: lastResult.hasError,
-				prints: lastResult.prints,
-				stderr: lastResult.stderr,
-				stdout: lastResult.stdout
-			}
-			sendLogMessage(result.stdout);
-			for (print in result.prints) {
-				var line = print.trim();
-				messages.push('Haxe print: $line');
-			}
+			handleResult(result);
 			if (result.hasError) {
 				sendErrorMessage(result.stderr);
 			}
@@ -112,8 +119,16 @@ class TestCase implements ITest {
 			callback:TResponse->Void, done:() -> Void) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
+		messages = [];
+		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
-			callback(Json.parse(result.stderr).result.result);
+			handleResult(result);
+			var json = Json.parse(result.stderr);
+			if (json.result != null) {
+				callback(json.result.result);
+			} else {
+				sendErrorMessage('Error: ' + json.error);
+			}
 			done();
 		}, function(msg) {
 			sendErrorMessage(msg);
@@ -204,6 +219,10 @@ class TestCase implements ITest {
 			case result:
 				return result;
 		}
+	}
+
+	function assertSilence() {
+		return Assert.isTrue(lastResult.stderr == "");
 	}
 
 	function assertSuccess(?p:haxe.PosInfos) {

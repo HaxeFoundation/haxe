@@ -8,9 +8,12 @@ class Issue10653 extends TestCase {
 		runHaxe(args);
 		vfs.putContent("Main.hx", getTemplate("issues/Issue10653/MainAfter.hx"));
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-		runHaxe(args.concat(["--display", "Main.hx@0@diagnostics"]));
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-		runHaxe(args.concat(["--display", "Main.hx@0@diagnostics"]));
-		Assert.isTrue(lastResult.stderr.length == 2);
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
 	}
 }

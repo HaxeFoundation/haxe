@@ -20,7 +20,7 @@ install: [make "install" "INSTALL_DIR=%{prefix}%"]
 remove: [make "uninstall" "INSTALL_DIR=%{prefix}%"]
 depends: [
   ("ocaml" {>= "5.0"} & ("camlp5" {build}))
-    | ("ocaml" {>= "4.08" & < "5.0"} & ("camlp5" {build & = "8.00"}))
+    | ("ocaml" {>= "4.08" & < "5.0"} & ("camlp5" {build & = "8.00.03"}))
   "ocamlfind" {build}
   "dune" {>= "1.11"}
   "sedlex" {>= "2.0"}

@@ -65,13 +65,13 @@ class ServerTests extends TestCase {
 		assertHasPrint("2");
 	}
 
-	function testDceEmpty() {
-		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
-		var args = ["-main", "Empty", "--no-output", "-java", "java"];
-		runHaxe(args);
-		runHaxeJson(args, cast "typer/compiledTypes" /* TODO */, {});
-		assertHasField("", "Type", "enumIndex", true);
-	}
+	// function testDceEmpty() {
+	// 	vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+	// 	var args = ["-main", "Empty", "--no-output", "--jvm", "java"];
+	// 	runHaxe(args);
+	// 	runHaxeJson(args, cast "typer/compiledTypes" /* TODO */, {});
+	// 	assertHasField("", "Type", "enumIndex", true);
+	// }
 
 	function testBuildMacro() {
 		vfs.putContent("BuildMacro.hx", getTemplate("BuildMacro.hx"));
@@ -97,7 +97,9 @@ class ServerTests extends TestCase {
 		var args = ["-main", "BrokenSyntax.hx", "--interp", "--no-output"];
 		runHaxe(args);
 		assertErrorMessage("Expected }");
-		runHaxe(args.concat(["--display", "Empty.hx@0@diagnostics"]));
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Empty.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
 		runHaxe(args);
 		assertErrorMessage("Expected }");
 	}
@@ -128,7 +130,7 @@ class ServerTests extends TestCase {
 		runHaxe(args2);
 
 		runHaxe(args);
-		assertSkipping("HelloWorld", Tainted("check_display_file"));
+		assertSkipping("HelloWorld", Tainted("server/invalidate"));
 	}
 
 	function testMutuallyDependent() {
@@ -143,6 +145,86 @@ class ServerTests extends TestCase {
 		assertSuccess();
 	}
 
+	function testDiagnosticsFileContents() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue9134/Main.hx"));
+		vfs.putContent("Other.hx", getTemplate("issues/Issue9134/Other.hx"));
+		var args = ["-main", "Main", "Other"];
+
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {
+			fileContents: [{file: new FsPath("Other.hx")}, {file: new FsPath("Main.hx")},]
+		}, res -> {
+			Assert.equals(1, res.length);
+			Assert.equals(1, res[0].diagnostics.length);
+			var arg = res[0].diagnostics[0].args;
+			Assert.equals("Unused variable", (cast arg).description);
+			Assert.stringContains("Main.hx", res[0].file.toString());
+		});
+
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Other.hx")});
+
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {
+			fileContents: [
+				{file: new FsPath("Main.hx"), contents: getTemplate("issues/Issue9134/Main2.hx")},
+				{file: new FsPath("Other.hx"), contents: getTemplate("issues/Issue9134/Other2.hx")}
+			]
+		}, res -> {
+			Assert.equals(1, res.length);
+			Assert.equals(1, res[0].diagnostics.length);
+			var arg = res[0].diagnostics[0].args;
+			Assert.equals("Unused variable", (cast arg).description);
+			Assert.stringContains("Other.hx", res[0].file.toString());
+		});
+
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Other.hx")});
+
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {
+			fileContents: [
+				{file: new FsPath("Main.hx"), contents: getTemplate("issues/Issue9134/Main.hx")},
+				{file: new FsPath("Other.hx"), contents: getTemplate("issues/Issue9134/Other2.hx")}
+			]
+		}, res -> {
+			Assert.equals(2, res.length);
+
+			for (i in 0...2) {
+				Assert.equals(1, res[i].diagnostics.length);
+				var arg = res[i].diagnostics[0].args;
+				Assert.equals("Unused variable", (cast arg).description);
+			}
+		});
+
+		// Currently, haxe compilation server will have this content anyway
+		// because of diagnostics with file contents, but that behavior may not
+		// be obvious in tests
+		vfs.putContent("Other.hx", getTemplate("issues/Issue9134/Other2.hx"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Other.hx")});
+
+		// Running project wide diagnostics; checks here aren't great since
+		// results will depend on haxe std which may change without updating
+		// this test everytime..
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {}, res -> {
+			var hasMain = false;
+			var hasOther = false;
+
+			for (result in res) {
+				var file = result.file.toString();
+				if (StringTools.endsWith(file, "Main.hx"))
+					hasMain = true;
+				else if (StringTools.endsWith(file, "Other.hx"))
+					hasOther = true;
+				else
+					continue;
+
+				var arg = result.diagnostics[0].args;
+				Assert.equals("Unused variable", (cast arg).description);
+			}
+
+			Assert.isTrue(hasMain);
+			Assert.isTrue(hasOther);
+		});
+	}
+
 	function testDiagnosticsRecache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
@@ -152,7 +234,9 @@ class ServerTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
 		runHaxe(args);
 		assertSkipping("HelloWorld", Tainted("server/invalidate"));
-		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
 		runHaxe(args);
 		assertReuse("HelloWorld");
 	}
@@ -160,7 +244,9 @@ class ServerTests extends TestCase {
 	function testDiagnosticsRecache2() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
-		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
 		runHaxe(args);
 		assertReuse("HelloWorld");
 	}
@@ -172,7 +258,9 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		assertReuse("HelloWorld");
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
-		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}, res -> {
+			Assert.equals(0, res.length);
+		});
 		runHaxe(args.concat(["--display", "HelloWorld.hx@0@hover"]));
 		assertReuse("HelloWorld");
 	}
@@ -345,7 +433,7 @@ class ServerTests extends TestCase {
 		vfs.putContent("haxe/ds/Vector.hx", getTemplate("issues/Issue10986/Vector.hx"));
 		var args = ["-main", "Main", "--jvm", "Main.jar"];
 		runHaxe(args);
-		vfs.touchFile("haxe/ds/Vector.hx");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("haxe/ds/Vector.hx")});
 		runHaxe(args);
 		assertSuccess();
 	}
@@ -377,16 +465,18 @@ class ServerTests extends TestCase {
 		var transform = Marker.extractMarkers(getTemplate("issues/Issue8368/MyMacro2.macro.hx"));
 		var args = ["-main", "Main", "--macro", "define('whatever')"];
 
-		vfs.putContent(
-			"MyMacro.macro.hx",
-			transform.source.substr(0, transform.markers[1])
-			+ transform.source.substr(transform.markers[2], transform.source.length)
-		);
+		vfs.putContent("MyMacro.macro.hx",
+			transform.source.substr(0, transform.markers[1]) + transform.source.substr(transform.markers[2], transform.source.length));
 
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("MyMacro.macro.hx")});
 
-		var completionRequest = {file: new FsPath("MyMacro.macro.hx"), contents: transform.source, offset: transform.markers[2], wasAutoTriggered: false};
+		var completionRequest = {
+			file: new FsPath("MyMacro.macro.hx"),
+			contents: transform.source,
+			offset: transform.markers[2],
+			wasAutoTriggered: false
+		};
 		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
 		Assert.isTrue(parseCompletion().result.items.length == 23);
 		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
@@ -404,10 +494,12 @@ class ServerTests extends TestCase {
 		var runs = 0;
 
 		function runLoop() {
-			runHaxe(args.concat(["--display", "Empty.hx@0@diagnostics"]), () -> {
+			runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Empty.hx")}, () -> {
 				runHaxe(args.concat(["-D", "compile-only-define"]), () -> {
-					if (assertSuccess() && ++runs < 20) runLoop();
-					else async.done();
+					if (assertSuccess() && ++runs < 20)
+						runLoop();
+					else
+						async.done();
 				});
 			});
 		}

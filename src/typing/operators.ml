@@ -94,7 +94,7 @@ let check_assign ctx e =
 		raise_typing_error "Cannot assign to final" e.epos
 	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
-	| TConst TThis | TTypeExpr _ when ctx.untyped ->
+	| TConst TThis | TTypeExpr _ when ctx.f.untyped ->
 		()
 	| _ ->
 		if not (Common.ignore_error ctx.com) then
@@ -118,9 +118,9 @@ let rec classify t =
 	| TAbstract ({ a_path = [],"Int" },[]) -> KInt
 	| TAbstract ({ a_path = [],"Float" },[]) -> KFloat
 	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) a.a_to -> KNumParam t
-	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) ctl -> KNumParam t
+	| TInst ({ cl_kind = KTypeParameter ttp },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) (get_constraints ttp) -> KNumParam t
 	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KString -> true | _ -> false) a.a_to -> KStrParam t
-	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KString -> true | _ -> false) ctl -> KStrParam t
+	| TInst ({ cl_kind = KTypeParameter ttp },_) when List.exists (fun t -> match classify t with KString -> true | _ -> false) (get_constraints ttp) -> KStrParam t
 	| TMono r when r.tm_type = None -> KUnk
 	| TDynamic _ -> KDyn
 	| _ -> KOther
@@ -201,11 +201,7 @@ let make_binop ctx op e1 e2 is_assign_op p =
 				call_to_string ctx e
 			| KInt | KFloat | KString -> e
 			| KUnk | KDyn | KNumParam _ | KStrParam _ | KOther ->
-				let std = type_type ctx ([],"Std") e.epos in
-				let acc = acc_get ctx (type_field_default_cfg ctx std "string" e.epos (MCall []) WithType.value) in
-				ignore(follow acc.etype);
-				let acc = (match acc.eexpr with TField (e,FClosure (Some (c,tl),f)) -> { acc with eexpr = TField (e,FInstance (c,tl,f)) } | _ -> acc) in
-				make_call ctx acc [e] ctx.t.tstring e.epos
+				Texpr.Builder.resolve_and_make_static_call ctx.com.std "string" [e] e.epos
 			| KAbstract (a,tl) ->
 				try
 					AbstractCast.cast_or_unify_raise ctx tstring e p
@@ -390,7 +386,7 @@ let make_binop ctx op e1 e2 is_assign_op p =
 		unify ctx e2.etype b p;
 		mk_op e1 e2 b
 	| OpInterval ->
-		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (["std"],"IntIterator")) null_pos) ParamNormal in
+		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (["std"],"IntIterator")) null_pos) ParamNormal LoadNormal in
 		let e1 = AbstractCast.cast_or_unify_raise ctx tint e1 e1.epos in
 		let e2 = AbstractCast.cast_or_unify_raise ctx tint e2 e2.epos in
 		BinopSpecial (mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[e1;e2])) t p,false)
@@ -630,6 +626,10 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 			WithType.value
 	in
 	let e1 = type_expr ctx e1 wt in
+	let e1 = match wt with
+		| WithType.WithType(t,_) -> AbstractCast.cast_or_unify ctx t e1 e1.epos
+		| _ -> e1
+	in
 	let result = if abstract_overload_only then begin
 		let e2 = type_binop_rhs ctx op e1 e2 is_assign_op with_type p in
 		try_abstract_binop_overloads ctx op e1 e2 is_assign_op p

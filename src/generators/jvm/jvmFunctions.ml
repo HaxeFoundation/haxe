@@ -178,7 +178,7 @@ class typed_functions = object(self)
 		jm#finalize_arguments;
 		load();
 		jm#get_code#arraylength array_sig;
-		let cases = ExtList.List.init max_arity (fun i ->
+		let cases = ExtList.List.init (max_arity + 1) (fun i ->
 			[Int32.of_int i],(fun () ->
 				jm#load_this;
 				let args = ExtList.List.init i (fun index ->
@@ -317,6 +317,8 @@ module JavaFunctionalInterfaces = struct
 	let unify jfi args ret =
 		let params = ref [] in
 		let rec unify jsig1 jsig2 = match jsig1,jsig2 with
+			| TObject _,TObject((["java";"lang"],"Object"),[]) ->
+				true
 			| TObject(path1,params1),TObject(path2,params2) ->
 				path1 = path2 &&
 				unify_params params1 params2
@@ -362,7 +364,7 @@ module JavaFunctionalInterfaces = struct
 		| None,None ->
 			loop jfi.jargs args
 		| Some jsig1,Some jsig2 ->
-			if unify jsig1 jsig2 then loop jfi.jargs args
+			if unify jsig2 jsig1 then loop jfi.jargs args
 			else None
 		| _ ->
 			None
@@ -441,24 +443,28 @@ class typed_function
 				Hashtbl.add implemented_interfaces path true;
 			end
 		in
+		let spawn_invoke_next name msig is_bridge =
+			let flags = [MPublic] in
+			let flags = if is_bridge then MBridge :: MSynthetic :: flags else flags in
+			jc_closure#spawn_method name msig flags
+		in
 		let spawn_forward_function meth_from meth_to is_bridge =
 			let msig = method_sig meth_from.dargs meth_from.dret in
 			if not (jc_closure#has_method meth_from.name msig) then begin
-				let flags = [MPublic] in
-				let flags = if is_bridge then MBridge :: MSynthetic :: flags else flags in
-				let jm_invoke_next = jc_closure#spawn_method meth_from.name msig flags in
+				let jm_invoke_next = spawn_invoke_next meth_from.name msig is_bridge in
 				functions#make_forward_method jc_closure jm_invoke_next meth_from meth_to;
 			end
 		in
 		let check_functional_interfaces meth =
-			try
-				let l = JavaFunctionalInterfaces.find_compatible meth.dargs meth.dret functional_interface_filter in
-				List.iter (fun (jfi,params) ->
-					add_interface jfi.jpath params;
-					spawn_forward_function {meth with name=jfi.jname} meth false;
-				) l
-			with Not_found ->
-				()
+			let l = JavaFunctionalInterfaces.find_compatible meth.dargs meth.dret functional_interface_filter in
+			List.iter (fun (jfi,params) ->
+				add_interface jfi.jpath params;
+				let msig = method_sig jfi.jargs jfi.jret in
+				if not (jc_closure#has_method jfi.jname msig) then begin
+					let jm_invoke_next = spawn_invoke_next jfi.jname msig false in
+					functions#make_forward_method_jsig jc_closure jm_invoke_next meth.name jfi.jargs jfi.jret meth.dargs meth.dret
+				end
+			) l
 		in
 		let rec loop meth =
 			check_functional_interfaces meth;

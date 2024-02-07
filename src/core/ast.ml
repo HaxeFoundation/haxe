@@ -863,6 +863,19 @@ let iter_expr loop (e,p) =
 		opt f.f_expr
 	| EVars vl -> List.iter (fun v -> opt v.ev_expr) vl
 
+let exists check e =
+	let rec loop (e,p) =
+		if check e then
+			raise Exit
+		else
+			iter_expr loop (e,p)
+	in
+	try
+		loop e;
+		false
+	with Exit ->
+		true
+
 let s_object_key_name name =  function
 	| DoubleQuotes -> "\"" ^ StringHelper.s_escape name ^ "\""
 	| NoQuotes -> name

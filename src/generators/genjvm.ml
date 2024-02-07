@@ -50,16 +50,11 @@ let get_construction_mode c cf =
 	if Meta.has Meta.HxGen cf.cf_meta then ConstructInitPlusNew
 	else ConstructInit
 
-class virtual jvm_output = object(self)
-	method virtual add_entry : string -> string -> unit
-	method virtual close : unit
-end
-
 (* Haxe *)
 
 type generation_context = {
 	com : Common.context;
-	out : jvm_output;
+	out : Zip_output.any_output;
 	t_runtime_exception : Type.t;
 	entry_point : (tclass * texpr) option;
 	t_exception : Type.t;
@@ -109,24 +104,10 @@ let run_timed gctx detail name f =
 		sub#run_finally f (fun () -> gctx.timer <- old)
 	end
 
-class jar_output
-	(jar_path : string)
-	(compression_level : int)
-= object(self)
-	inherit jvm_output
-	val jar = Zip.open_out jar_path
-
-	method add_entry (content : string) (name : string) =
-		Zip.add_entry ~level:compression_level content jar name
-
-	method close =
-		Zip.close_out jar
-end
-
 class file_output
 	(base_path : string)
 	= object(self)
-	inherit jvm_output
+	inherit Zip_output.any_output
 
 	method add_entry (content : string) (name : string) =
 		let path = base_path ^ name in
@@ -202,8 +183,11 @@ let rec jsignature_of_type gctx stack t =
 		TObject((["haxe";"root"],"Array"),[TType(WNone,t)])
 	| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
 		TArray(jsignature_of_type t,None)
-	| TInst({cl_kind = KTypeParameter [t]},_) when t != t_dynamic -> jsignature_of_type t
-	| TInst({cl_kind = KTypeParameter _; cl_path = (_,name)},_) -> TTypeParameter name
+	| TInst({cl_kind = KTypeParameter ttp; cl_path = (_,name)},_) ->
+		begin match get_constraints ttp with
+			| [t] when t != t_dynamic -> jsignature_of_type t
+			| _ -> TTypeParameter name
+		end
 	| TInst({cl_path = ["_Class"],"Class_Impl_"},_) -> java_class_sig
 	| TInst({cl_path = ["_Enum"],"Enum_Impl_"},_) -> java_class_sig
 	| TInst(c,tl) -> TObject(c.cl_path,List.map jtype_argument_of_type tl)
@@ -392,7 +376,7 @@ let is_interface_var_access c cf =
 let follow = Abstract.follow_with_abstracts
 
 class haxe_exception gctx (t : Type.t) =
-	let is_haxe_exception = Exceptions.is_haxe_exception t
+	let is_haxe_exception = ExceptionFunctions.is_haxe_exception t
 	and native_type = jsignature_of_type gctx t in
 object(self)
 	val native_path = (match native_type with TObject(path,_) -> path | _ -> die "" __LOC__)
@@ -1691,7 +1675,7 @@ class texpr_to_jvm
 					info.super_call_fields <- tl;
 					hd
 				| _ ->
-					Error.raise_typing_error "Something went wrong" e1.epos
+					Error.raise_typing_error "Could not find field information for super call, please report this" e1.epos
 			in
 			let kind = get_construction_mode c cf in
 			begin match kind with
@@ -2113,7 +2097,11 @@ class texpr_to_jvm
 		| TEnumParameter(e1,ef,i) ->
 			self#texpr rvalue_any e1;
 			let path,name,jsig_arg = match follow ef.ef_type with
-				| TFun(tl,TEnum(en,_)) ->
+				| TFun(tl,tr) ->
+					let en = match follow tr with
+						| TEnum(en,_) -> en
+						| _ -> die "" __LOC__
+					in
 					let n,_,t = List.nth tl i in
 					en.e_path,n,self#vtype t
 				| _ -> die "" __LOC__
@@ -2127,7 +2115,7 @@ class texpr_to_jvm
 			self#texpr rvalue_any e1;
 			(* There could be something like `throw throw`, so we should only throw if we aren't terminated (issue #10363) *)
 			if not (jm#is_terminated) then begin
-				if not (Exceptions.is_haxe_exception e1.etype) && not (does_unify e1.etype gctx.t_runtime_exception) then begin
+				if not (ExceptionFunctions.is_haxe_exception e1.etype) && not (does_unify e1.etype gctx.t_runtime_exception) then begin
 					let exc = new haxe_exception gctx e1.etype in
 					if not (List.exists (fun exc' -> exc#is_assignable_to exc') caught_exceptions) then
 						jm#add_thrown_exception exc#get_native_path;
@@ -2404,6 +2392,7 @@ class tclass_to_jvm gctx c = object(self)
 		let jsig_empty = method_sig [haxe_empty_constructor_sig] None in
 		let jm_empty_ctor = jc#spawn_method "<init>" jsig_empty [MPublic;MSynthetic] in
 		let _,load,_ = jm_empty_ctor#add_local "_" haxe_empty_constructor_sig VarArgument in
+		jm_empty_ctor#finalize_arguments;
 		jm_empty_ctor#load_this;
 		if c.cl_constructor = None then begin
 			let handler = new texpr_to_jvm gctx None jc jm_empty_ctor None in
@@ -2444,6 +2433,7 @@ class tclass_to_jvm gctx c = object(self)
 					let _,load,_ = jm#add_local n (jsignature_of_type gctx t) VarArgument in
 					load();
 				) tl;
+				jm#finalize_arguments;
 				jm#call_super_ctor cmode jm#get_jsig;
 				DynArray.iter (fun e ->
 					handler#texpr RVoid e;
@@ -2544,10 +2534,7 @@ class tclass_to_jvm gctx c = object(self)
 			let p = null_pos in
 			let efield = Texpr.Builder.make_static_field c cf p in
 			let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type p in
-			begin match c.cl_init with
-			| None -> c.cl_init <- Some eop
-			| Some e -> c.cl_init <- Some (concat e eop)
-			end
+			TClass.add_cl_init c eop
 		in
 		begin match cf.cf_expr with
 			| None ->
@@ -2563,7 +2550,15 @@ class tclass_to_jvm gctx c = object(self)
 				let ethis = mk (TConst TThis) (TInst(c,tl)) null_pos in
 				let efield = mk (TField(ethis,FInstance(c,tl,cf))) cf.cf_type null_pos in
 				let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type null_pos in
-				DynArray.add (match cf.cf_kind with Method MethDynamic -> delayed_field_inits | _ -> field_inits) eop;
+				begin match cf.cf_kind with
+					| Method MethDynamic ->
+						let enull = Texpr.Builder.make_null efield.etype null_pos in
+						let echeck = Texpr.Builder.binop OpEq efield enull gctx.com.basic.tbool null_pos in
+						let eif = mk (TIf(echeck,eop,None)) gctx.com.basic.tvoid null_pos in
+						DynArray.add delayed_field_inits eif
+					| _ ->
+						DynArray.add field_inits eop
+				end
 			| Some e ->
 				match e.eexpr with
 				| TConst ct ->
@@ -2630,7 +2625,7 @@ class tclass_to_jvm gctx c = object(self)
 			| Some cf,None -> field MConstructor cf
 			| None,_ -> ()
 		end;
-		begin match c.cl_init with
+		begin match TClass.get_cl_init c with
 			| None ->
 				()
 			| Some e ->
@@ -2640,16 +2635,11 @@ class tclass_to_jvm gctx c = object(self)
 		end
 
 	method private generate_signature =
-		jc#set_type_parameters (List.map (fun tp ->
-			let jsigs = match follow tp.ttp_type with
-			| TInst({cl_kind = KTypeParameter tl},_) ->
-				List.map (fun t ->
-					get_boxed_type (jsignature_of_type gctx t)
-				 ) tl
-			| _ ->
-				[]
-			in
-			(tp.ttp_name,jsigs)
+		jc#set_type_parameters (List.map (fun ttp ->
+			let jsigs = List.map (fun t ->
+				get_boxed_type (jsignature_of_type gctx t)
+			) (get_constraints ttp) in
+			(ttp.ttp_name,jsigs)
 		) c.cl_params);
 		match c.cl_super with
 			| Some(c,tl) -> jc#set_super_parameters (List.map (jtype_argument_of_type gctx []) tl)
@@ -3029,7 +3019,7 @@ let generate jvm_flag com =
 	in
 	if compression_level < 0 || compression_level > 9 then failwith "Invalid value for -D jvm.compression-level: Must be >=0 and <= 9";
 	let create_jar path =
-		new jar_output path compression_level
+		new Zip_output.zip_output path compression_level
 	in
 	let out_dir,out = if jvm_flag then begin
 		match path.file_name with
@@ -3053,7 +3043,7 @@ let generate jvm_flag com =
 		let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
 		jar_dir,create_jar jar_path
 	end in
-	let anon_identification = new tanon_identification haxe_dynamic_object_path in
+	let anon_identification = new tanon_identification in
 	let dynamic_level = try
 		int_of_string (Define.defined_value com.defines Define.JvmDynamicLevel)
 	with _ ->
@@ -3100,7 +3090,7 @@ let generate jvm_flag com =
 		end
 	) com.native_libs.java_libs in
 	Hashtbl.iter (fun name v ->
-		let filename = Codegen.escape_res_name name ['/';'-'] in
+		let filename = StringHelper.escape_res_name name ['/';'-'] in
 		gctx.out#add_entry v filename;
 	) com.resources;
 	let generate_real_types () =

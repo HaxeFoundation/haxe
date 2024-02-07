@@ -6,6 +6,8 @@ open Common
 open Typecore
 open Error
 
+let maybe_reapply_overload_call_ref = ref (fun _ _ -> assert false)
+
 let mk_untyped_call name p params =
 	{
 		eexpr = TCall({ eexpr = TIdent name; etype = t_dynamic; epos = p }, params);
@@ -15,21 +17,10 @@ let mk_untyped_call name p params =
 
 let api_inline2 com c field params p =
 	match c.cl_path, field, params with
-	| ([],"Type"),"enumIndex",[{ eexpr = TField (_,FEnum (en,f)) }] -> (match com.platform with
-		| Cs when en.e_extern && not (Meta.has Meta.HxGen en.e_meta) ->
-			(* We don't want to optimize enums from external sources; as they might change unexpectedly *)
-			(* and since native C# enums don't have the concept of index - they have rather a value, *)
-			(* which can't be mapped to a native API - this kind of substitution is dangerous *)
-			None
-		| _ ->
-			Some (mk (TConst (TInt (Int32.of_int f.ef_index))) com.basic.tint p))
+	| ([],"Type"),"enumIndex",[{ eexpr = TField (_,FEnum (en,f)) }] ->
+		Some (mk (TConst (TInt (Int32.of_int f.ef_index))) com.basic.tint p)
 	| ([],"Type"),"enumIndex",[{ eexpr = TCall({ eexpr = TField (_,FEnum (en,f)) },pl) }] when List.for_all (fun e -> not (has_side_effect e)) pl ->
-		(match com.platform with
-			| Cs when en.e_extern && not (Meta.has Meta.HxGen en.e_meta) ->
-				(* see comment above *)
-				None
-			| _ ->
-				Some (mk (TConst (TInt (Int32.of_int f.ef_index))) com.basic.tint p))
+		Some (mk (TConst (TInt (Int32.of_int f.ef_index))) com.basic.tint p)
 	| ([],"Std"),"int",[{ eexpr = TConst (TInt _) } as e] ->
 		Some { e with epos = p }
 	| ([],"String"),"fromCharCode",[{ eexpr = TConst (TInt i) }] when i > 0l && i < 128l ->
@@ -97,10 +88,6 @@ let api_inline2 com c field params p =
 			None (* out range, keep platform-specific behavior *)
 		| _ ->
 			Some { eexpr = TConst (TInt (Int32.of_float (floor f))); etype = com.basic.tint; epos = p })
-	| (["cs"],"Lib"),("fixed" | "checked" | "unsafe"),[e] ->
-			Some (mk_untyped_call ("__" ^ field ^ "__") p [e])
-	| (["cs"],"Lib"),("lock"),[obj;block] ->
-			Some (mk_untyped_call ("__lock__") p [obj;mk_block block])
 	| (["java"],"Lib"),("lock"),[obj;block] ->
 			Some (mk_untyped_call ("__lock__") p [obj;mk_block block])
 	| _ ->
@@ -111,7 +98,7 @@ let api_inline ctx c field params p =
 		let m = (try ctx.com.module_lut#find path with Not_found -> die "" __LOC__) in
 		add_dependency ctx.m.curmod m;
 		Option.get (ExtList.List.find_map (function
-			| TClassDecl cl when cl.cl_path = path -> Some (make_static_this cl p)
+			| TClassDecl cl when cl.cl_path = path -> Some (Texpr.Builder.make_static_this cl p)
 			| _ -> None
 		) m.m_types)
 	in
@@ -171,14 +158,12 @@ let api_inline ctx c field params p =
 			None)
 	| (["js"],"Boot"),"__downcastCheck",[o; {eexpr = TTypeExpr (TClassDecl cls) } as t] when ctx.com.platform = Js ->
 		if (has_class_flag cls CInterface) then
-			Some (Texpr.Builder.fcall (make_static_this c p) "__implements" [o;t] tbool p)
+			Some (Texpr.Builder.fcall (Texpr.Builder.make_static_this c p) "__implements" [o;t] tbool p)
 		else
 			Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
-	| (["cs" | "java"],"Lib"),("nativeArray"),[{ eexpr = TArrayDecl args } as edecl; _]
 	| (["haxe";"ds";"_Vector"],"Vector_Impl_"),("fromArrayCopy"),[{ eexpr = TArrayDecl args } as edecl] -> (try
 			let platf = match ctx.com.platform with
-				| Cs -> "cs"
-				| Java -> "java"
+				| Jvm -> "java"
 				| _ -> raise Exit
 			in
 			let mpath = if field = "fromArrayCopy" then
@@ -234,7 +219,7 @@ let inline_default_config cf t =
 			c.cl_params @ ct, pl @ cpl
 	in
 	let rec loop t = match follow t with
-		| TInst({cl_kind = KTypeParameter tl},_) -> List.fold_left (fun (params',tl') (params,tl) -> (params @ params',tl @ tl')) ([],[]) (List.map loop tl)
+		| TInst({cl_kind = KTypeParameter ttp},_) -> List.fold_left (fun (params',tl') (params,tl) -> (params @ params',tl @ tl')) ([],[]) (List.map loop (get_constraints ttp))
 		| TInst (c,pl) -> get_params c pl
 		| _ -> ([],[])
 	in
@@ -544,7 +529,7 @@ class inline_state ctx ethis params cf f p = object(self)
 		in
 		let e = (if PMap.is_empty subst then e else inline_params false false e) in
 		let init = match vars with [] -> None | l -> Some l in
-		let md = ctx.curclass.cl_module.m_extra.m_display in
+		let md = ctx.c.curclass.cl_module.m_extra.m_display in
 		md.m_inline_calls <- (cf.cf_name_pos,{p with pmax = p.pmin + String.length cf.cf_name}) :: md.m_inline_calls;
 		let wrap e =
 			(* we can't mute the type of the expression because it is not correct to do so *)
@@ -627,7 +612,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				else map_type
 			in
 			let e = Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e in
-			CallUnification.maybe_reapply_overload_call ctx e
+			(!maybe_reapply_overload_call_ref) ctx e
 		in
 		let e = map_expr_type map_type e in
 		let rec drop_unused_vars e =
@@ -864,7 +849,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	in
 	let tl = arg_types params f.tf_args in
 	let e = state#finalize e tl tret has_params map_type p in
-	if Meta.has (Meta.Custom ":inlineDebug") ctx.meta then begin
+	if Meta.has (Meta.Custom ":inlineDebug") ctx.f.meta then begin
 		let se t = s_expr_ast true t (s_type (print_context())) in
 		print_endline (Printf.sprintf "Inline %s:\n\tArgs: %s\n\tExpr: %s\n\tResult: %s"
 			cf.cf_name

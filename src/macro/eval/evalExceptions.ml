@@ -27,7 +27,6 @@ open EvalField
 exception Break
 exception Continue
 exception Return of value
-exception Sys_exit of int
 
 let s_value_kind = function
 	| VNull -> "VNull"
@@ -138,7 +137,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 								in
 								(Error.Custom (value_string v1), v2)
 							end else
-								Error.raise_typing_error "Something went wrong" null_pos
+								Error.raise_typing_error (Printf.sprintf "Unexpected value where haxe.macro.Error was expected: %s" (s_value 0 v).sstring) null_pos
 						) (EvalArray.to_list sub)
 				| _ -> []
 			in
@@ -166,8 +165,8 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 						| [] -> Error.raise_msg s.sstring p
 						| _ -> Error.raise_error (Error.make_error ~sub:(List.map (fun (msg,p) -> Error.make_error msg p) stack) (Error.Custom s.sstring) p)
 					);
-				| _ ->
-					Error.raise_typing_error "Something went wrong" null_pos
+				| v ->
+					Error.raise_typing_error (Printf.sprintf "Invalid exception value where string was expected: %s" (s_value 0 v).sstring) null_pos
 		end else begin
 			(* Careful: We have to get the message before resetting the context because toString() might access it. *)
 			let stack = match eval_stack with

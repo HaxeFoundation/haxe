@@ -59,19 +59,99 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 			let file = jsonrpc#get_string_param "file" in
 			Path.get_full_path file
 		) file_input_marker in
-		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
-		TypeloadParse.current_stdin := jsonrpc#get_opt_param (fun () ->
+		let contents = jsonrpc#get_opt_param (fun () ->
 			let s = jsonrpc#get_string_param "contents" in
-			Common.define com Define.DisplayStdin; (* TODO: awkward *)
 			Some s
-		) None;
+		) None in
+
+		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
 		Parser.was_auto_triggered := was_auto_triggered;
-		DisplayPosition.display_position#set {
-			pfile = file;
-			pmin = pos;
-			pmax = pos;
-		}
+
+		if file <> file_input_marker then begin
+			let file_unique = com.file_keys#get file in
+
+			DisplayPosition.display_position#set {
+				pfile = file;
+				pmin = pos;
+				pmax = pos;
+			};
+
+			com.file_contents <- [file_unique, contents];
+		end else begin
+			let file_contents = jsonrpc#get_opt_param (fun () ->
+				jsonrpc#get_opt_param (fun () -> jsonrpc#get_array_param "fileContents") []
+			) [] in
+
+			let file_contents = List.map (fun fc -> match fc with
+				| JObject fl ->
+					let file = jsonrpc#get_string_field "fileContents" "file" fl in
+					let file = Path.get_full_path file in
+					let file_unique = com.file_keys#get file in
+					let contents = jsonrpc#get_opt_param (fun () ->
+						let s = jsonrpc#get_string_field "fileContents" "contents" fl in
+						Some s
+					) None in
+					(file_unique, contents)
+				| _ -> invalid_arg "fileContents"
+			) file_contents in
+
+			let files = (List.map (fun (k, _) -> k) file_contents) in
+			com.file_contents <- file_contents;
+
+			match files with
+			| [] | [_] -> DisplayPosition.display_position#set { pfile = file; pmin = pos; pmax = pos; };
+			| _ -> DisplayPosition.display_position#set_files files;
+		end
 end
+
+class hxb_reader_api_com
+	~(headers_only : bool)
+	(com : Common.context)
+	(cc : CompilationCache.context_cache)
+= object(self)
+	method make_module (path : path) (file : string) =
+		let mc = cc#get_hxb_module path in
+		{
+			m_id = mc.mc_id;
+			m_path = path;
+			m_types = [];
+			m_statics = None;
+			m_extra = mc.mc_extra
+		}
+
+	method add_module (m : module_def) =
+		com.module_lut#add m.m_path m;
+
+	method resolve_type (pack : string list) (mname : string) (tname : string) =
+		let path = (pack,mname) in
+		let m = self#find_module path in
+		List.find (fun t -> snd (t_path t) = tname) m.m_types
+
+	method resolve_module (path : path) =
+		self#find_module path
+
+	method find_module (m_path : path) =
+		try
+			com.module_lut#find m_path
+		with Not_found -> try
+			cc#find_module m_path
+		with Not_found ->
+			let mc = cc#get_hxb_module m_path in
+			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats in
+			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if headers_only then MTF else EOM))
+
+	method basic_types =
+		com.basic
+
+	method get_var_id (i : int) =
+		i
+
+	method read_expression_eagerly (cf : tclass_field) =
+		false
+end
+
+let find_module ~(headers_only : bool) com cc path =
+	(new hxb_reader_api_com ~headers_only com cc)#find_module path
 
 type handler_context = {
 	com : Common.context;
@@ -87,7 +167,7 @@ let handler =
 	let l = [
 		"initialize", (fun hctx ->
 			supports_resolve := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "supportsResolve") false;
-			DisplayException.max_completion_items := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "maxCompletionItems") 0;
+			ServerConfig.max_completion_items := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "maxCompletionItems") 0;
 			let exclude = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_array_param "exclude") [] in
 			DisplayToplevel.exclude := List.map (fun e -> match e with JString s -> s | _ -> die "" __LOC__) exclude;
 			let methods = Hashtbl.fold (fun k _ acc -> (jstring k) :: acc) h [] in
@@ -124,6 +204,16 @@ let handler =
 		"display/definition", (fun hctx ->
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMDefinition;
+		);
+		"display/diagnostics", (fun hctx ->
+			hctx.display#set_display_file false false;
+			hctx.display#enable_display DMNone;
+			hctx.com.report_mode <- RMDiagnostics (List.map (fun (f,_) -> f) hctx.com.file_contents);
+
+			(match hctx.com.file_contents with
+			| [file, None] ->
+				hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display};
+			| _ -> ());
 		);
 		"display/implementation", (fun hctx ->
 			hctx.display#set_display_file false true;
@@ -220,6 +310,15 @@ let handler =
 				) all))
 			)
 		);
+		"server/resetCache", (fun hctx ->
+			hctx.com.cs#clear;
+			supports_resolve := false;
+			DisplayException.reset();
+			ServerConfig.reset();
+			hctx.send_result (jobject [
+				"success", jbool true
+			]);
+		);
 		"server/readClassPaths", (fun hctx ->
 			hctx.com.callbacks#add_after_init_macros (fun () ->
 				let cc = hctx.display#get_cs#get_context (Define.get_signature hctx.com.defines) in
@@ -239,9 +338,10 @@ let handler =
 		"server/modules", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let cc = hctx.display#get_cs#get_context sign in
+			let open HxbData in
 			let l = Hashtbl.fold (fun _ m acc ->
-				if m.m_extra.m_kind <> MFake then jstring (s_type_path m.m_path) :: acc else acc
-			) cc#get_modules [] in
+				if m.mc_extra.m_kind <> MFake then jstring (s_type_path m.mc_path) :: acc else acc
+			) cc#get_hxb [] in
 			hctx.send_result (jarray l)
 		);
 		"server/module", (fun hctx ->
@@ -250,11 +350,11 @@ let handler =
 			let cs = hctx.display#get_cs in
 			let cc = cs#get_context sign in
 			let m = try
-				cc#find_module path
+				find_module ~headers_only:true hctx.com cc path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
-			hctx.send_result (generate_module cs cc m)
+			hctx.send_result (generate_module (cc#get_hxb) (find_module ~headers_only:true hctx.com cc) m)
 		);
 		"server/type", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
@@ -262,7 +362,7 @@ let handler =
 			let typeName = hctx.jsonrpc#get_string_param "typeName" in
 			let cc = hctx.display#get_cs#get_context sign in
 			let m = try
-				cc#find_module path
+				find_module ~headers_only:true hctx.com cc path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
@@ -314,7 +414,7 @@ let handler =
 			let key = hctx.com.file_keys#get file in
 			let cs = hctx.display#get_cs in
 			List.iter (fun cc ->
-				Hashtbl.replace cc#get_removed_files key file
+				Hashtbl.replace cc#get_removed_files key (ClassPaths.create_resolved_file file hctx.com.empty_class_path)
 			) cs#get_contexts;
 			hctx.send_result (jstring file);
 		);
@@ -325,7 +425,7 @@ let handler =
 			let files = List.sort (fun (file1,_) (file2,_) -> compare file1 file2) files in
 			let files = List.map (fun (fkey,cfile) ->
 				jobject [
-					"file",jstring cfile.c_file_path;
+					"file",jstring cfile.c_file_path.file;
 					"time",jfloat cfile.c_time;
 					"pack",jstring (String.concat "." cfile.c_package);
 					"moduleName",jopt jstring cfile.c_module_name;
@@ -337,7 +437,7 @@ let handler =
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let fkey = hctx.com.file_keys#get file in
 			let cs = hctx.display#get_cs in
-			cs#taint_modules fkey "server/invalidate";
+			cs#taint_modules fkey ServerInvalidate;
 			cs#remove_files fkey;
 			hctx.send_result jnull
 		);
