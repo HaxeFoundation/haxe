@@ -10,7 +10,7 @@ private class ParentClass {
 
 @:keep
 private class ChildClass extends ParentClass {
-	var anyVar:String;
+	var anyVar:String = null;
 }
 
 class Issue11560 extends Test {
