@@ -1740,13 +1740,19 @@ and type_call_builtin ctx e el mode with_type p =
 			| TFun signature -> type_bind ctx e signature args p
 			| _ -> raise Exit)
 	| (EConst (Ident "$type"),_) , e1 :: el ->
+		let expected = match el with
+			| [EConst (Ident "_"),_] ->
+				Some (WithType.to_string with_type)
+			| _ ->
+				None
+		in
 		let e1 = type_expr ctx e1 with_type in
 		let s = s_type (print_context()) e1.etype in
-		let s = match el with
-			| [EConst (Ident "_"),_] ->
-				Printf.sprintf "%s (expected: %s)" s (WithType.to_string with_type)
-			| _ ->
+		let s = match expected with
+			| None ->
 				s
+			| Some s_expected ->
+				Printf.sprintf "%s (expected: %s)" s s_expected
 		in
 		warning ctx WInfo s e1.epos;
 		e1
