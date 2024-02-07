@@ -1215,14 +1215,6 @@ and type_map_declaration ctx e1 el with_type p =
 and type_local_function ctx_from kind f with_type p =
 	let name,inline = match kind with FKNamed (name,inline) -> Some name,inline | _ -> None,false in
 	let params = TypeloadFunction.type_function_params ctx_from f TPHLocal (match name with None -> "localfun" | Some (n,_) -> n) p in
-	if params <> [] then begin
-		if name = None then display_error ctx_from.com "Type parameters not supported in unnamed local functions" p;
-		if with_type <> WithType.NoValue then raise_typing_error "Type parameters are not supported for rvalue functions" p
-	end;
-	let v,pname = (match name with
-		| None -> None,p
-		| Some (v,pn) -> Some v,pn
-	) in
 	let curfun = match ctx_from.e.curfun with
 		| FunStatic -> FunStatic
 		| FunMemberAbstract
@@ -1230,7 +1222,17 @@ and type_local_function ctx_from kind f with_type p =
 		| _ -> FunMemberClassLocal
 	in
 	let ctx = TyperManager.clone_for_expr ctx_from curfun true in
-	let old_tp = ctx.type_params in
+	let vname,pname= match name with
+		| None ->
+			if params <> [] then begin
+				Some(gen_local_prefix,VGenerated),null_pos
+			end else
+				None,p
+		| Some (name,pn) ->
+			let origin = TVOLocalFunction in
+			Naming.check_local_variable_name ctx.com name origin p;
+			Some (name,VUser origin),pn
+	in
 	ctx.type_params <- params @ ctx.type_params;
 	if not inline then ctx.e.in_loop <- false;
 	let rt = Typeload.load_type_hint ctx p LoadReturn f.f_type in
@@ -1326,15 +1328,22 @@ and type_local_function ctx_from kind f with_type p =
 	| _ ->
 		());
 	let ft = TFun (targs,rt) in
-	let v = (match v with
-		| None -> None
-		| Some v ->
-			let v = (add_local_with_origin ctx TVOLocalFunction v ft pname) in
+	let ft = match with_type with
+		| WithType.NoValue ->
+			ft
+		| _ ->
+			(* We want to apply params as if we accessed the function by name (see type_ident_raise). *)
+			apply_params params (Monomorph.spawn_constrained_monos (fun t -> t) params) ft
+	in
+	let v = match vname with
+		| None ->
+			None
+		| Some(vname,vkind) ->
+			let v = add_local ctx vkind vname ft pname in
 			if params <> [] then v.v_extra <- Some (var_extra params None);
 			Some v
-	) in
+	in
 	let e = TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p in
-	ctx.type_params <- old_tp;
 	let tf = {
 		tf_args = args#for_expr ctx;
 		tf_type = rt;
@@ -1360,7 +1369,7 @@ and type_local_function ctx_from kind f with_type p =
 			else []
 		in
 		let exprs =
-			if is_rec then begin
+			if is_rec || (params <> [] && with_type <> WithType.NoValue) then begin
 				if inline then display_error ctx.com "Inline function cannot be recursive" e.epos;
 				(mk (TVar (v,Some (mk (TConst TNull) ft p))) ctx.t.tvoid p) ::
 				(mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p) ::
