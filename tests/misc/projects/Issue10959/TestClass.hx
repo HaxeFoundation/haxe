@@ -1,5 +1,5 @@
 package;
 
 @:keep
-class TestClass<T, U, V = Void> {
+class TestClass<T, U, V = haxe.NoValue> {
 }
