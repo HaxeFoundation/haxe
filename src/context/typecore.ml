@@ -466,14 +466,14 @@ let is_gen_local v = match v.v_kind with
 	| _ ->
 		false
 
-let delay g p f =
+let delay g (p : typer_pass) f =
 	let p = Obj.magic p in
 	let tasks = g.delayed.(p) in
 	tasks.tasks <- f :: tasks.tasks;
 	if p < g.delayed_min_index then
 		g.delayed_min_index <- p
 
-let delay_late g p f =
+let delay_late g (p : typer_pass) f =
 	let p = Obj.magic p in
 	let tasks = g.delayed.(p) in
 	tasks.tasks <- tasks.tasks @ [f];

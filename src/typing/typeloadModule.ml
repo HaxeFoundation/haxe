@@ -804,7 +804,7 @@ and load_module' com g m p =
 		com.module_lut#find m
 	with Not_found ->
 		(* Check cache *)
-		match !TypeloadCacheHook.type_module_hook com m p with
+		match !TypeloadCacheHook.type_module_hook com (delay g PTypeField) m p with
 		| GoodModule m ->
 			m
 		| BinaryModule _ ->

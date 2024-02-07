@@ -467,7 +467,7 @@ let handle_cache_bound_objects com cbol =
 
 (* Adds module [m] and all its dependencies (recursively) from the cache to the current compilation
    context. *)
-let rec add_modules sctx com (m : module_def) (from_binary : bool) (p : pos) =
+let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : pos) =
 	let own_sign = CommonCache.get_cache_sign com in
 	let rec add_modules tabs m0 m =
 		if m.m_extra.m_added < com.compilation_step then begin
@@ -492,7 +492,7 @@ let rec add_modules sctx com (m : module_def) (from_binary : bool) (p : pos) =
 						let m2 = try
 							com.module_lut#find mpath
 						with Not_found ->
-							match type_module sctx com mpath p with
+							match type_module sctx com delay mpath p with
 							| GoodModule m ->
 								m
 							| BinaryModule mc ->
@@ -512,7 +512,7 @@ let rec add_modules sctx com (m : module_def) (from_binary : bool) (p : pos) =
 
 (* Looks up the module referred to by [mpath] in the cache. If it exists, a check is made to
    determine if it's still valid. If this function returns None, the module is re-typed. *)
-and type_module sctx com mpath p =
+and type_module sctx com delay mpath p =
 	let t = Timer.timer ["server";"module cache"] in
 	let cc = CommonCache.get_cache com in
 	let skip m_path reason =
@@ -521,7 +521,7 @@ and type_module sctx com mpath p =
 	in
 	let add_modules from_binary m =
 		let tadd = Timer.timer ["server";"module cache";"add modules"] in
-		add_modules sctx com m from_binary p;
+		add_modules sctx com delay m from_binary p;
 		tadd();
 		GoodModule m
 	in
@@ -582,7 +582,8 @@ and type_module sctx com mpath p =
 					(* We try to avoid reading expressions as much as possible, so we only do this for
 					   our current display file if we're in display mode. *)
 					let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file) in
-					if is_display_file || com.display.dms_full_typing then ignore(f_next chunks EOM);
+					if is_display_file || com.display.dms_full_typing then ignore(f_next chunks EOM)
+					else delay (fun () -> ignore(f_next chunks EOM));
 					add_modules true m;
 				| Some reason ->
 					skip mpath reason
