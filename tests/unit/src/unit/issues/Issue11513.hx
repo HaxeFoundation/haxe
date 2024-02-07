@@ -1,6 +1,5 @@
 package unit.issues;
 
-#if ((!java || jvm) && !cs)
 private enum abstract Message<TBody>(Int) {
 	final move_to:Message<{x:Int, y:Int}>;
 }
@@ -24,14 +23,11 @@ private final listener2:Listener = {
 		}
 	}
 }
-#end
 
 class Issue11513 extends Test {
 	function test() {
-		#if ((!java || jvm) && !cs)
 		listener.send(move_to, {x: 1, y: 2});
 		listener2.send(move_to, {x: 1, y: 2});
-		#end
 		noAssert();
 	}
 }
