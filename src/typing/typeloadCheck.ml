@@ -595,7 +595,7 @@ module Inheritance = struct
 		let fl = ExtList.List.filter_map (fun (is_extends,ptp) ->
 			try
 				let t = try
-					Typeload.load_instance ~allow_display:true ctx ptp ParamNormal
+					Typeload.load_instance ~allow_display:true ctx ptp ParamNormal LoadNormal
 				with DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) ->
 					(* We don't allow `implements` on interfaces. Just raise fields completion with no fields. *)
 					if not is_extends && (has_class_flag c CInterface) then raise_fields [] CRImplements r.fsubject;

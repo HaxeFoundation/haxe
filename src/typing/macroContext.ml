@@ -330,14 +330,14 @@ let make_macro_api ctx mctx p =
 						mk_type_path path
 				in
 				try
-					let m = Some (Typeload.load_instance ctx (make_ptp tp p) ParamSpawnMonos) in
+					let m = Some (Typeload.load_instance ctx (make_ptp tp p) ParamSpawnMonos LoadAny) in
 					m
 				with Error { err_message = Module_not_found _; err_pos = p2 } when p == p2 ->
 					None
 			)
 		);
 		MacroApi.resolve_type = (fun t p ->
-			typing_timer ctx false (fun ctx -> Typeload.load_complex_type ctx false (t,p))
+			typing_timer ctx false (fun ctx -> Typeload.load_complex_type ctx false LoadAny (t,p))
 		);
 		MacroApi.resolve_complex_type = (fun t ->
 			typing_timer ctx false (fun ctx ->
@@ -450,7 +450,7 @@ let make_macro_api ctx mctx p =
 		MacroApi.define_type = (fun v mdep ->
 			let cttype = mk_type_path ~sub:"TypeDefinition" (["haxe";"macro"],"Expr") in
 			let mctx = (match ctx.g.macros with None -> die "" __LOC__ | Some (_,mctx) -> mctx) in
-			let ttype = Typeload.load_instance mctx (make_ptp cttype p) ParamNormal in
+			let ttype = Typeload.load_instance mctx (make_ptp cttype p) ParamNormal LoadNormal in
 			let f () = Interp.decode_type_def v in
 			let m, tdef, pos = safe_decode ctx.com v "TypeDefinition" ttype p f in
 			let has_native_meta = match tdef with
@@ -825,7 +825,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	in
 	let mpos = mfield.cf_pos in
 	let ctexpr = mk_type_path (["haxe";"macro"],"Expr") in
-	let expr = Typeload.load_instance mctx (make_ptp ctexpr p) ParamNormal in
+	let expr = Typeload.load_instance mctx (make_ptp ctexpr p) ParamNormal LoadNormal in
 	(match mode with
 	| MDisplay ->
 		raise Exit (* We don't have to actually call the macro. *)
@@ -834,18 +834,18 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	| MBuild ->
 		let params = [TPType (make_ptp_th (mk_type_path ~sub:"Field" (["haxe";"macro"],"Expr")) null_pos)] in
 		let ctfields = mk_type_path ~params ([],"Array") in
-		let tfields = Typeload.load_instance mctx (make_ptp ctfields p) ParamNormal in
+		let tfields = Typeload.load_instance mctx (make_ptp ctfields p) ParamNormal LoadNormal in
 		unify mctx mret tfields mpos
 	| MMacroType ->
 		let cttype = mk_type_path (["haxe";"macro"],"Type") in
-		let ttype = Typeload.load_instance mctx (make_ptp cttype p) ParamNormal in
+		let ttype = Typeload.load_instance mctx (make_ptp cttype p) ParamNormal LoadNormal in
 		try
 			unify_raise mret ttype mpos;
 			(* TODO: enable this again in the future *)
 			(* warning ctx WDeprecated "Returning Type from @:genericBuild macros is deprecated, consider returning ComplexType instead" p; *)
 		with Error { err_message = Unify _ } ->
 			let cttype = mk_type_path ~sub:"ComplexType" (["haxe";"macro"],"Expr") in
-			let ttype = Typeload.load_instance mctx (make_ptp cttype p) ParamNormal in
+			let ttype = Typeload.load_instance mctx (make_ptp cttype p) ParamNormal LoadNormal in
 			unify_raise mret ttype mpos;
 	);
 	(*
@@ -971,7 +971,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 							spawn_monomorph ctx.e p
 						else try
 							let ct = Interp.decode_ctype v in
-							Typeload.load_complex_type ctx false ct;
+							Typeload.load_complex_type ctx false LoadNormal ct;
 						with MacroApi.Invalid_expr  | EvalContext.RunTimeException _ ->
 							Interp.decode_type v
 						in
