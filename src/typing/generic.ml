@@ -26,7 +26,8 @@ let make_generic ctx ps pt debug p =
 				begin match c.cl_kind with
 					| KExpr e ->
 						let name = ident_safe (Ast.Printer.s_expr e) in
-						let e = type_expr {ctx with f = {ctx.f with locals = PMap.empty}} e WithType.value in
+						let ctx = TyperManager.clone_for_type_parameter_expression ctx in
+						let e = type_expr ctx e WithType.value in
 						name,(t,Some e)
 					| _ ->
 						((ident_safe (s_type_path_underscore c.cl_path)) ^ (loop_tl top tl),(t,None))
@@ -170,7 +171,7 @@ let static_method_container gctx c cf p =
 	let pack = fst c.cl_path in
 	let name = (snd c.cl_path) ^ "_" ^ cf.cf_name ^ "_" ^ gctx.name in
 	try
-		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (pack,name)) p) ParamSpawnMonos in
+		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (pack,name)) p) ParamSpawnMonos LoadNormal in
 		match t with
 		| TInst(cg,_) -> cg
 		| _ -> raise_typing_error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
@@ -231,6 +232,16 @@ let build_instances ctx t p =
 	in
 	loop t
 
+let clone_type_parameter map path ttp =
+	let c = ttp.ttp_class in
+	let c = {c with cl_path = path} in
+	let def = Option.map map ttp.ttp_default in
+	let constraints = match ttp.ttp_constraints with
+		| None -> None
+		| Some constraints -> Some (lazy (List.map map (Lazy.force constraints)))
+	in
+	mk_type_param c ttp.ttp_host def constraints
+
 let clone_type_parameter gctx mg path ttp =
 	let ttp = clone_type_parameter (generic_substitute_type gctx) path ttp in
 	ttp.ttp_class.cl_module <- mg;
@@ -260,7 +271,7 @@ let build_generic_class ctx c p tl =
 	let gctx = make_generic ctx c.cl_params tl (Meta.has (Meta.Custom ":debug.generic") c.cl_meta) p in
 	let name = (snd c.cl_path) ^ "_" ^ gctx.name in
 	try
-		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (pack,name)) p) ParamNormal in
+		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (pack,name)) p) ParamNormal LoadNormal in
 		match t with
 		| TInst({ cl_kind = KGenericInstance (csup,_) },_) when c == csup -> t
 		| _ -> raise_typing_error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p
@@ -288,13 +299,14 @@ let build_generic_class ctx c p tl =
 			m_statics = None;
 			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake gctx.ctx.com.compilation_step m.m_extra.m_check_policy;
 		} in
+		let ctx = TyperManager.clone_for_module ctx.g.root_typer (TypeloadModule.make_curmod ctx.com ctx.g mg) in
 		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
+		let ctx = TyperManager.clone_for_class ctx c in
 		cg.cl_meta <- List.filter (fun (m,_,_) -> match m with
 			| Meta.Access | Allow
 			| Final
 			| Hack
-			| Internal
 			| Keep | KeepSub
 			| NoClosure | NullSafety
 			| Pure
@@ -337,7 +349,7 @@ let build_generic_class ctx c p tl =
 					| None ->
 						(* There can be cases like #11152 where cf_expr isn't ready yet. It should be safe to delay this to the end
 						   of the PTypeField pass. *)
-						delay_late ctx PTypeField (fun () -> match cf_old.cf_expr with
+						delay_late ctx.g PTypeField (fun () -> match cf_old.cf_expr with
 							| Some e ->
 								update_expr e
 							| None ->
@@ -355,7 +367,7 @@ let build_generic_class ctx c p tl =
 				t
 			in
 			let t = spawn_monomorph ctx.e p in
-			let r = make_lazy ctx t (fun r ->
+			let r = make_lazy ctx.g t (fun r ->
 				let t0 = f() in
 				unify_raise t0 t p;
 				link_dynamic t0 t;

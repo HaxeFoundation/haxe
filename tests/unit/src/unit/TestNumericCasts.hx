@@ -1,6 +1,6 @@
 // This file is auto-generated from RunCastGenerator.hx - do not edit!
 package unit;
-#if java
+#if jvm
 import java.StdTypes;
 private typedef Int32 = Int;
 private typedef Float32 = Single;
