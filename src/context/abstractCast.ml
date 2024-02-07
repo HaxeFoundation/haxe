@@ -87,7 +87,15 @@ and do_check_cast ctx uctx tleft eright p =
 						loop2 a.a_to
 					end
 				| TInst(c,tl), TFun _ when has_class_flag c CFunctionalInterface ->
-					let _,cf = ctx.com.functional_interface_lut#find c.cl_path in
+					let cf = try
+						snd (ctx.com.functional_interface_lut#find c.cl_path)
+					with Not_found -> match TClass.get_singular_interface_field c.cl_ordered_fields with
+						| None ->
+							raise Not_found
+						| Some cf ->
+							ctx.com.functional_interface_lut#add c.cl_path (c,cf);
+							cf
+					in
 					let map = apply_params c.cl_params tl in
 					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 					unify_raise_custom native_unification_context eright.etype (map (apply_params cf.cf_params monos cf.cf_type)) p;

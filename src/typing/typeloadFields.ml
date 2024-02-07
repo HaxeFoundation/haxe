@@ -1602,24 +1602,7 @@ let finalize_class cctx =
 	) cctx.delayed_expr
 
 let check_functional_interface ctx c =
-	let is_normal_field cf =
-		not (has_class_field_flag cf CfDefault) && match cf.cf_kind with
-			| Method MethNormal -> true
-			| _ -> false
-	in
-	let rec loop o l = match l with
-		| cf :: l ->
-			if is_normal_field cf then begin
-				if o = None then
-					loop (Some cf) l
-				else
-					None
-			end else
-				loop o l
-		| [] ->
-			o
-	in
-	match loop None c.cl_ordered_fields with
+	match TClass.get_singular_interface_field c.cl_ordered_fields with
 	| None ->
 		()
 	| Some cf ->
