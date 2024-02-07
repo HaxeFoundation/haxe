@@ -704,7 +704,7 @@ and type_vars ctx vl p =
 		and pv = snd ev.ev_name in
 		DeprecationCheck.check_is ctx.com ctx.m.curmod ctx.c.curclass.cl_meta ctx.f.curfield.cf_meta n ev.ev_meta pv;
 		try
-			let t = Typeload.load_type_hint ctx p ev.ev_type in
+			let t = Typeload.load_type_hint ctx p LoadNormal ev.ev_type in
 			let e = (match ev.ev_expr with
 				| None -> None
 				| Some e ->
@@ -1021,7 +1021,7 @@ and type_new ctx ptp el with_type force_inline p =
 		)
 	in
 	let t = try
-		Typeload.load_instance ctx ptp (ParamCustom get_params)
+		Typeload.load_instance ctx ptp (ParamCustom get_params) LoadNormal
 	with exc ->
 		restore();
 		(* If we fail for some reason, process the arguments in case we want to display them (#7650). *)
@@ -1099,7 +1099,7 @@ and type_try ctx e1 catches with_type p =
 	in
 	let catches,el = List.fold_left (fun (acc1,acc2) ((v,pv),t,e_ast,pc) ->
 		let th = Option.default (make_ptp_th { tpackage = ["haxe"]; tname = "Exception"; tsub = None; tparams = [] } null_pos) t in
-		let t = Typeload.load_complex_type ctx true th in
+		let t = Typeload.load_complex_type ctx true LoadNormal th in
 		let rec loop t = match follow t with
 			| TInst ({ cl_kind = KTypeParameter _} as c,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
 				raise_typing_error "Cannot catch non-generic type parameter" p
@@ -1233,8 +1233,8 @@ and type_local_function ctx_from kind f with_type p =
 	let old_tp = ctx.type_params in
 	ctx.type_params <- params @ ctx.type_params;
 	if not inline then ctx.e.in_loop <- false;
-	let rt = Typeload.load_type_hint ctx p f.f_type in
-	let type_arg _ opt t p = Typeload.load_type_hint ~opt ctx p t in
+	let rt = Typeload.load_type_hint ctx p LoadReturn f.f_type in
+	let type_arg _ opt t p = Typeload.load_type_hint ~opt ctx p LoadNormal t in
 	let args = new FunctionArguments.function_arguments ctx.com type_arg false ctx.f.in_display None f.f_args in
 	let targs = args#for_type in
 	let maybe_unify_arg t1 t2 =
@@ -1527,7 +1527,7 @@ and type_return ?(implicit=false) ctx e with_type p =
 
 and type_cast ctx e t p =
 	let tpos = pos t in
-	let t = Typeload.load_complex_type ctx true t in
+	let t = Typeload.load_complex_type ctx true LoadNormal t in
 	let check_param pt = match follow pt with
 		| TMono _ -> () (* This probably means that Dynamic wasn't bound (issue #4675). *)
 		| t when t == t_dynamic -> ()
@@ -1802,7 +1802,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EConst (Regexp (r,opt)) ->
 		let str = mk (TConst (TString r)) ctx.t.tstring p in
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
-		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (["std"],"EReg")) null_pos) ParamNormal in
+		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (["std"],"EReg")) null_pos) ParamNormal LoadNormal in
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[str;opt])) t p
 	| EConst (String(s,SSingleQuotes)) when s <> "" ->
 		type_expr ctx (format_string ctx s p) with_type
@@ -1990,7 +1990,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EDisplay (e,dk) ->
 		TyperDisplay.handle_edisplay ctx e dk mode with_type
 	| ECheckType (e,t) ->
-		let t = Typeload.load_complex_type ctx true t in
+		let t = Typeload.load_complex_type ctx true LoadAny t in
 		let e = type_expr ctx e (WithType.with_type t) in
 		let e = AbstractCast.cast_or_unify ctx t e p in
 		if e.etype == t then e else mk (TCast (e,None)) t p

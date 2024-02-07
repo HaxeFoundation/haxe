@@ -342,7 +342,7 @@ module TypeLevel = struct
 		let rt = (match c.ec_type with
 			| None -> et
 			| Some (t,pt) ->
-				let t = load_complex_type ctx_ef true (t,pt) in
+				let t = load_complex_type ctx_ef true LoadReturn (t,pt) in
 				(match follow t with
 				| TEnum (te,_) when te == e ->
 					()
@@ -351,7 +351,8 @@ module TypeLevel = struct
 				t
 		) in
 		let t = (match c.ec_args with
-			| [] -> rt
+			| [] ->
+				rt
 			| l ->
 				is_flat := false;
 				let pnames = ref PMap.empty in
@@ -359,7 +360,7 @@ module TypeLevel = struct
 					(match t with CTPath({path = {tpackage=[];tname="Void"}}) -> raise_typing_error "Arguments of type Void are not allowed in enum constructors" tp | _ -> ());
 					if PMap.mem s (!pnames) then raise_typing_error ("Duplicate argument `" ^ s ^ "` in enum constructor " ^ fst c.ec_name) p;
 					pnames := PMap.add s () (!pnames);
-					s, opt, load_type_hint ~opt ctx_ef p (Some (t,tp))
+					s, opt, load_type_hint ~opt ctx_ef p LoadNormal (Some (t,tp))
 				) l, rt)
 		) in
 		let f = {
@@ -524,7 +525,7 @@ module TypeLevel = struct
 			DisplayEmitter.display_module_type ctx_m (TTypeDecl t) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx_m t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx_td = TyperManager.clone_for_typedef ctx_m t in
-		let tt = load_complex_type ctx_td true d.d_data in
+		let tt = load_complex_type ctx_td true LoadNormal d.d_data in
 		let tt = (match fst d.d_data with
 		| CTExtend _ -> tt
 		| CTPath { path = {tpackage = ["haxe";"macro"]; tname = "MacroType" }} ->
@@ -581,7 +582,7 @@ module TypeLevel = struct
 		let is_type = ref false in
 		let load_type t from =
 			let _, pos = t in
-			let t = load_complex_type ctx_a true t in
+			let t = load_complex_type ctx_a true LoadNormal t in
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
 					let r = make_lazy ctx_a.g t (fun r ->
@@ -604,7 +605,7 @@ module TypeLevel = struct
 			| AbOver t ->
 				if a.a_impl = None then raise_typing_error "Abstracts with underlying type must have an implementation" a.a_pos;
 				if Meta.has Meta.CoreType a.a_meta then raise_typing_error "@:coreType abstracts cannot have an underlying type" p;
-				let at = load_complex_type ctx_a true t in
+				let at = load_complex_type ctx_a true LoadNormal t in
 				delay ctx_a.g PForce (fun () ->
 					let rec loop stack t =
 						match follow t with
@@ -702,7 +703,7 @@ let type_types_into_module com g m tdecls p =
 	if ctx_m.g.std_types != null_module then begin
 		add_dependency m ctx_m.g.std_types;
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
-		ignore(load_instance ctx_m (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal)
+		ignore(load_instance ctx_m (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal LoadNormal)
 	end;
 	ModuleLevel.init_type_params ctx_m decls;
 	List.iter (TypeLevel.init_imports_or_using ctx_m) imports_and_usings;
