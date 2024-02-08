@@ -1592,6 +1592,14 @@ class hxb_reader
 		let a = Array.init l (fun _ -> self#read_class_field_forward) in
 		anon_fields <- a
 
+	method read_ofd =
+		let l = read_uleb128 ch in
+		for i = 0 to l - 1 do
+			let index = read_uleb128 ch in
+			let cf = anon_fields.(index) in
+			self#read_class_field_and_overloads_data cf;
+		done
+
 	method read_cfr =
 		let l = read_uleb128 ch in
 		let a = Array.init l (fun i ->
@@ -1928,6 +1936,8 @@ class hxb_reader
 			self#read_tdr;
 		| AFR ->
 			self#read_afr;
+		| OFD ->
+			self#read_ofd;
 		| CLD ->
 			self#read_cld;
 		| END ->
