@@ -301,7 +301,8 @@ class hxb_reader
 			anons.(read_uleb128 ch)
 		| 1 ->
 			let an = anons.(read_uleb128 ch) in
-			self#read_anon an
+			self#read_anon an;
+			an
 		| _ ->
 			assert false
 
@@ -1600,6 +1601,13 @@ class hxb_reader
 			self#read_class_field_and_overloads_data cf;
 		done
 
+	method read_obd =
+		let l = read_uleb128 ch in
+		for i = 0 to l - 1 do
+			let index = read_uleb128 ch in
+			self#read_anon anons.(index)
+		done
+
 	method read_cfr =
 		let l = read_uleb128 ch in
 		let a = Array.init l (fun i ->
@@ -1756,9 +1764,7 @@ class hxb_reader
 			an.a_status := Extend self#read_types;
 			read_fields ()
 		| _ -> assert false
-		end;
-
-		an
+		end
 
 	method read_tdd =
 		let l = read_uleb128 ch in
@@ -1938,6 +1944,8 @@ class hxb_reader
 			self#read_ofr;
 		| OFD ->
 			self#read_ofd;
+		| OBD ->
+			self#read_obd
 		| CLD ->
 			self#read_cld;
 		| END ->

@@ -32,9 +32,10 @@ type chunk_kind =
 	| ENR (* enum references *)
 	| ABR (* abstract references *)
 	| TDR (* typedef references *)
-	(* Field references *)
+	(* Anonymous objects *)
 	| OFR (* object field references *)
 	| OFD (* object field definitions *)
+	| OBD (* object definitions *)
 	(* Own module type definitions *)
 	| CLD (* class definition *)
 	| END (* enum definition *)
@@ -74,6 +75,7 @@ let string_of_chunk_kind = function
 	| TDR -> "TDR"
 	| OFR -> "OFR"
 	| OFD -> "OFD"
+	| OBD -> "OBD"
 	| EFR -> "EFR"
 	| CFR -> "CFR"
 	| CLD -> "CLD"
@@ -100,6 +102,7 @@ let chunk_kind_of_string = function
 	| "TDR" -> TDR
 	| "OFR" -> OFR
 	| "OFD" -> OFD
+	| "OBD" -> OBD
 	| "EFR" -> EFR
 	| "CFR" -> CFR
 	| "CLD" -> CLD
