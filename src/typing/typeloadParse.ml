@@ -315,7 +315,7 @@ let parse_module com m p =
 					d_doc = None;
 					d_meta = [];
 					d_params = d.d_params;
-					d_flags = if priv then [EPrivate] else [];
+					d_flags = if priv then [TDPrivate] else [];
 					d_data = begin
 						let tp =
 							if priv then
@@ -335,7 +335,7 @@ let parse_module com m p =
 			match t with
 			| EClass d -> build HPrivate d
 			| EEnum d -> build EPrivate d
-			| ETypedef d -> build EPrivate d
+			| ETypedef d -> build TDPrivate d
 			| EAbstract d -> build AbPrivate d
 			| EStatic d -> build (AStatic,null_pos) d
 			| EImport _ | EUsing _ -> acc

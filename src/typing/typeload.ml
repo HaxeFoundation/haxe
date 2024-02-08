@@ -293,6 +293,11 @@ type load_instance_param_mode =
 	| ParamSpawnMonos
 	| ParamCustom of (build_info -> Type.t list option -> Type.t list)
 
+type load_instance_mode =
+	| LoadNormal
+	| LoadReturn
+	| LoadAny (* We don't necessarily know why we're loading, so let's just load anything *)
+
 let rec maybe_build_instance ctx t0 get_params p =
 	let rec loop t = match t with
 		| TInst({cl_kind = KGeneric} as c,tl) ->
@@ -332,7 +337,8 @@ let rec load_params ctx info params p =
 			let c = mk_class ctx.m.curmod ([],name) p (pos e) in
 			c.cl_kind <- KExpr e;
 			TInst (c,[]),pos e
-		| TPType t -> load_complex_type ctx true t,pos t
+		| TPType t ->
+			load_complex_type ctx true LoadNormal t,pos t
 	in
 	let checks = DynArray.create () in
 	let rec loop tl1 tl2 is_rest = match tl1,tl2 with
@@ -400,7 +406,7 @@ let rec load_params ctx info params p =
 	params
 
 (* build an instance from a full type *)
-and load_instance' ctx ptp get_params =
+and load_instance' ctx ptp get_params mode =
 	let t = ptp.path in
 	try
 		if t.tpackage <> [] || t.tsub <> None then raise Not_found;
@@ -412,7 +418,7 @@ and load_instance' ctx ptp get_params =
 		let info = ctx.g.get_build_info ctx mt ptp.pos_full in
 		if info.build_path = ([],"Dynamic") then match t.tparams with
 			| [] -> t_dynamic
-			| [TPType t] -> TDynamic (Some (load_complex_type ctx true t))
+			| [TPType t] -> TDynamic (Some (load_complex_type ctx true LoadNormal t))
 			| _ -> raise_typing_error "Too many parameters for Dynamic" ptp.pos_full
 		(* else if info.build_path = ([],"Coroutine") then
 			match t.tparams with
@@ -449,9 +455,9 @@ and load_instance' ctx ptp get_params =
 			maybe_build_instance ctx t get_params ptp.pos_full
 		end
 
-and load_instance ctx ?(allow_display=false) ptp get_params =
+and load_instance ctx ?(allow_display=false) ptp get_params mode =
 	try
-		let t = load_instance' ctx ptp get_params in
+		let t = load_instance' ctx ptp get_params mode in
 		if allow_display then DisplayEmitter.check_display_type ctx t ptp;
 		t
 	with Error { err_message = Module_not_found path } when ctx.e.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in ptp.pos_path ->
@@ -461,17 +467,17 @@ and load_instance ctx ?(allow_display=false) ptp get_params =
 (*
 	build an instance from a complex type
 *)
-and load_complex_type' ctx allow_display (t,p) =
+and load_complex_type' ctx allow_display mode (t,p) =
 	match t with
-	| CTParent t -> load_complex_type ctx allow_display t
+	| CTParent t -> load_complex_type ctx allow_display mode t
 	| CTPath { path = {tpackage = ["$"]; tname = "_hx_mono" }} -> spawn_monomorph ctx.e p
-	| CTPath ptp -> load_instance ~allow_display ctx ptp ParamNormal
+	| CTPath ptp -> load_instance ~allow_display ctx ptp ParamNormal mode
 	| CTOptional _ -> raise_typing_error "Optional type not allowed here" p
 	| CTNamed _ -> raise_typing_error "Named type not allowed here" p
 	| CTIntersection tl ->
 		let tl = List.map (fun (t,pn) ->
 			try
-				(load_complex_type ctx allow_display (t,pn),pn)
+				(load_complex_type ctx allow_display LoadNormal (t,pn),pn)
 			with DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) ->
 				let l = List.filter (fun item -> match item.ci_kind with
 					| ITType({kind = Struct},_) -> true
@@ -488,7 +494,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		) "constraint" in
 		TLazy r
 	| CTExtend (tl,l) ->
-		begin match load_complex_type ctx allow_display (CTAnonymous l,p) with
+		begin match load_complex_type ctx allow_display LoadNormal (CTAnonymous l,p) with
 		| TAnon a as ta ->
 			let mk_extension (t,p) =
 				match follow t with
@@ -512,7 +518,7 @@ and load_complex_type' ctx allow_display (t,p) =
 			in
 			let il = List.map (fun ptp ->
 				try
-					(load_instance ctx ~allow_display ptp ParamNormal,ptp.pos_full)
+					(load_instance ctx ~allow_display ptp ParamNormal LoadNormal,ptp.pos_full)
 				with DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) ->
 					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Struct},_) -> true
@@ -542,9 +548,9 @@ and load_complex_type' ctx allow_display (t,p) =
 			let pf = snd f.cff_name in
 			let p = f.cff_pos in
 			if PMap.mem n acc then raise_typing_error ("Duplicate field declaration : " ^ n) pf;
-			let topt = function
+			let topt mode = function
 				| None -> raise_typing_error ("Explicit type required for field " ^ n) p
-				| Some t -> load_complex_type ctx allow_display t
+				| Some t -> load_complex_type ctx allow_display mode t
 			in
 			if n = "new" then warning ctx WDeprecated "Structures with new are deprecated, use haxe.Constraints.Constructible instead" p;
 			let no_expr = function
@@ -572,19 +578,19 @@ and load_complex_type' ctx allow_display (t,p) =
 				| FVar(t,e) when !final ->
 					no_expr e;
 					let t = (match t with None -> raise_typing_error "Type required for structure property" p | Some t -> t) in
-					load_complex_type ctx allow_display t, Var { v_read = AccNormal; v_write = AccNever }
+					load_complex_type ctx allow_display LoadNormal t, Var { v_read = AccNormal; v_write = AccNever }
 				| FVar (Some (CTPath({path = {tpackage=[];tname="Void"}}),_), _)  | FProp (_,_,Some (CTPath({path = {tpackage=[];tname="Void"}}),_),_) ->
 					raise_typing_error "Fields of type Void are not allowed in structures" p
 				| FVar (t, e) ->
 					no_expr e;
-					topt t, Var { v_read = AccNormal; v_write = AccNormal }
+					topt LoadNormal t, Var { v_read = AccNormal; v_write = AccNormal }
 				| FFun fd ->
 					params := (!type_function_params_ref) ctx fd TPHAnonField (fst f.cff_name) p;
 					no_expr fd.f_expr;
 					let old = ctx.type_params in
 					ctx.type_params <- !params @ old;
-					let args = List.map (fun ((name,_),o,_,t,e) -> no_expr e; name, o, topt t) fd.f_args in
-					let t = TFun (args,topt fd.f_type), Method (if !dyn then MethDynamic else MethNormal) in
+					let args = List.map (fun ((name,_),o,_,t,e) -> no_expr e; name, o, topt LoadNormal t) fd.f_args in
+					let t = TFun (args,topt LoadReturn fd.f_type), Method (if !dyn then MethDynamic else MethNormal) in
 					ctx.type_params <- old;
 					t
 				| FProp (i1,i2,t,e) ->
@@ -603,7 +609,7 @@ and load_complex_type' ctx allow_display (t,p) =
 							raise_typing_error "Custom property access is no longer supported in Haxe 3" f.cff_pos;
 					in
 					let t = (match t with None -> raise_typing_error "Type required for structure property" p | Some t -> t) in
-					load_complex_type ctx allow_display t, Var { v_read = access i1 true; v_write = access i2 false }
+					load_complex_type ctx allow_display LoadNormal t, Var { v_read = access i1 true; v_write = access i2 false }
 			) in
 			let t = if Meta.has Meta.Optional f.cff_meta then ctx.t.tnull t else t in
 			let cf = {
@@ -632,17 +638,17 @@ and load_complex_type' ctx allow_display (t,p) =
 	| CTFunction (args,r) ->
 		match args with
 		| [CTPath { path = {tpackage = []; tparams = []; tname = "Void" }},_] ->
-			TFun ([],load_complex_type ctx allow_display r)
+			TFun ([],load_complex_type ctx allow_display  LoadReturn r)
 		| _ ->
 			TFun (List.map (fun t ->
 				let t, opt = (match fst t with CTOptional t | CTParent((CTOptional t,_)) -> t, true | _ -> t,false) in
 				let n,t = (match fst t with CTNamed (n,t) -> (fst n), t | _ -> "", t) in
-				n,opt,load_complex_type ctx allow_display t
-			) args,load_complex_type ctx allow_display r)
+				n,opt,load_complex_type ctx allow_display LoadNormal t
+			) args,load_complex_type ctx allow_display LoadReturn r)
 
-and load_complex_type ctx allow_display (t,pn) =
+and load_complex_type ctx allow_display mode (t,pn) =
 	try
-		load_complex_type' ctx allow_display (t,pn)
+		load_complex_type' ctx allow_display mode (t,pn)
 	with Error ({ err_message = Module_not_found(([],name)) } as err) ->
 		if Diagnostics.error_in_diagnostics_run ctx.com err.err_pos then begin
 			delay ctx.g PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true);
@@ -678,17 +684,17 @@ and init_meta_overloads ctx co cf =
 			end;
 			let params : type_params = (!type_function_params_ref) ctx f TPHMethod cf.cf_name p in
 			ctx.type_params <- params @ ctx.type_params;
-			let topt = function None -> raise_typing_error "Explicit type required" p | Some t -> load_complex_type ctx true t in
+			let topt mode = function None -> raise_typing_error "Explicit type required" p | Some t -> load_complex_type ctx true mode t in
 			let args =
 				List.map
 					(fun ((a,_),opt,_,t,cto) ->
-						let t = if opt then ctx.t.tnull (topt t) else topt t in
+						let t = if opt then ctx.t.tnull (topt LoadNormal t) else topt LoadNormal t in
 						let opt = opt || cto <> None in
 						a,opt,t
 					)
 					f.f_args
 			in
-			let cf = { cf with cf_type = TFun (args,topt f.f_type); cf_params = params; cf_meta = cf_meta} in
+			let cf = { cf with cf_type = TFun (args,topt LoadReturn f.f_type); cf_params = params; cf_meta = cf_meta} in
 			generate_args_meta ctx.com co (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) f.f_args;
 			overloads := cf :: !overloads;
 			ctx.type_params <- old;
@@ -721,10 +727,10 @@ let t_iterator ctx p =
 (*
 	load either a type t or Null<Unknown> if not defined
 *)
-let load_type_hint ?(opt=false) ctx pcur t =
+let load_type_hint ?(opt=false) ctx pcur mode t =
 	let t = match t with
 		| None -> spawn_monomorph ctx.e pcur
-		| Some (t,p) ->	load_complex_type ctx true (t,p)
+		| Some (t,p) ->	load_complex_type ctx true mode (t,p)
 	in
 	if opt then ctx.t.tnull t else t
 
@@ -756,17 +762,18 @@ and type_type_params ctx host path p tpl =
 				()
 			| Some ct ->
 				let r = make_lazy ctx.g ttp.ttp_type (fun r ->
-					let t = load_complex_type ctx true ct in
+					let t = load_complex_type ctx true LoadNormal ct in
 					begin match host with
-					| TPHType ->
-						()
-					| TPHConstructor
-					| TPHMethod
-					| TPHEnumConstructor
-					| TPHAnonField
-					| TPHLocal ->
-						display_error ctx.com "Default type parameters are only supported on types" (pos ct)
+						| TPHType ->
+							()
+						| TPHConstructor
+						| TPHMethod
+						| TPHEnumConstructor
+						| TPHAnonField
+						| TPHLocal ->
+							display_error ctx.com "Default type parameters are only supported on types" (pos ct)
 					end;
+					check_param_constraints ctx t (fun t -> t) ttp (pos ct);
 					t
 				) "default" in
 				ttp.ttp_default <- Some (TLazy r)
@@ -777,9 +784,9 @@ and type_type_params ctx host path p tpl =
 		| Some th ->
 			let constraints = lazy (
 				let rec loop th = match fst th with
-					| CTIntersection tl -> List.map (load_complex_type ctx true) tl
+					| CTIntersection tl -> List.map (load_complex_type ctx true LoadNormal) tl
 					| CTParent ct -> loop ct
-					| _ -> [load_complex_type ctx true th]
+					| _ -> [load_complex_type ctx true LoadNormal th]
 				in
 				let constr = loop th in
 				(* check against direct recursion *)

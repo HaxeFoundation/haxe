@@ -511,23 +511,23 @@ let filter tctx =
 			make_ptp tp null_pos
 		in
 		let wildcard_catch_type =
-			let t = Typeload.load_instance tctx (tp config.ec_wildcard_catch) ParamSpawnMonos in
+			let t = Typeload.load_instance tctx (tp config.ec_wildcard_catch) ParamSpawnMonos LoadNormal in
 			if is_dynamic t then t_dynamic
 			else t
 		and base_throw_type =
-			let t = Typeload.load_instance tctx (tp config.ec_base_throw) ParamSpawnMonos in
+			let t = Typeload.load_instance tctx (tp config.ec_base_throw) ParamSpawnMonos LoadNormal in
 			if is_dynamic t then t_dynamic
 			else t
 		and haxe_exception_type, haxe_exception_class =
-			match Typeload.load_instance tctx (tp haxe_exception_type_path) ParamSpawnMonos with
+			match Typeload.load_instance tctx (tp haxe_exception_type_path) ParamSpawnMonos LoadNormal with
 			| TInst(cls,_) as t -> t,cls
 			| _ -> raise_typing_error "haxe.Exception is expected to be a class" null_pos
 		and value_exception_type, value_exception_class =
-			match Typeload.load_instance tctx (tp value_exception_type_path) ParamSpawnMonos with
+			match Typeload.load_instance tctx (tp value_exception_type_path) ParamSpawnMonos LoadNormal with
 			| TInst(cls,_) as t -> t,cls
 			| _ -> raise_typing_error "haxe.ValueException is expected to be a class" null_pos
 		and haxe_native_stack_trace =
-			match Typeload.load_instance tctx (tp (["haxe"],"NativeStackTrace")) ParamSpawnMonos with
+			match Typeload.load_instance tctx (tp (["haxe"],"NativeStackTrace")) ParamSpawnMonos LoadNormal with
 			| TInst(cls,_) -> cls
 			| TAbstract({ a_impl = Some cls },_) -> cls
 			| _ -> raise_typing_error "haxe.NativeStackTrace is expected to be a class or an abstract" null_pos
@@ -644,7 +644,7 @@ let insert_save_stacks tctx =
 *)
 let patch_constructors tctx =
 	let tp = make_ptp (mk_type_path haxe_exception_type_path) null_pos in
-	match Typeload.load_instance tctx tp ParamSpawnMonos with
+	match Typeload.load_instance tctx tp ParamSpawnMonos LoadNormal with
 	(* Add only if `__shiftStack` method exists *)
 	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields ->
 		(fun mt ->

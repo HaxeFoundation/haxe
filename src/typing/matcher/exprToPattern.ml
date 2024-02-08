@@ -58,7 +58,7 @@ let get_general_module_type ctx mt p =
 			end
 		| _ -> raise_typing_error "Cannot use this type as a value" p
 	in
-	Typeload.load_instance ctx (make_ptp {tname=loop mt;tpackage=[];tsub=None;tparams=[]} p) ParamSpawnMonos
+	Typeload.load_instance ctx (make_ptp {tname=loop mt;tpackage=[];tsub=None;tparams=[]} p) ParamSpawnMonos LoadNormal
 
 let unify_type_pattern ctx mt t p =
 	let tcl = get_general_module_type ctx mt p in
