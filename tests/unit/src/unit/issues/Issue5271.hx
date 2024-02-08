@@ -4,8 +4,8 @@ package unit.issues;
  * Tests if String's indexOf/lastIndexOf functions behave ECMAScript compliant
  */
 class Issue5271 extends unit.Test {
+	#if !flash
 	function test() {
-		#if !flash
 		/*
 		 * test indexOf
 		 */
@@ -65,6 +65,6 @@ class Issue5271 extends unit.Test {
 		eq(-1, "dogcat".lastIndexOf("cat", 1));
 		eq(3, "catcat".lastIndexOf("cat", 3));
 		eq(3, "catcat".lastIndexOf("cat", 4));
-		#end
 	}
+	#end
 }
