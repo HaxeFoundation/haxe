@@ -64,6 +64,7 @@ type generation_context = {
 	mutable preprocessor : jsignature preprocessor;
 	default_export_config : export_config;
 	typed_functions : JvmFunctions.typed_functions;
+	known_typed_functions : (path,unit) Hashtbl.t;
 	closure_paths : (path * string * jsignature,path) Hashtbl.t;
 	enum_paths : (path,unit) Hashtbl.t;
 	detail_times : bool;
@@ -433,10 +434,16 @@ let associate_functional_interfaces gctx f t =
 		) gctx.functional_interfaces
 	end
 
+let create_typed_function gctx kind jc jm context =
+	let wf = new JvmFunctions.typed_function gctx.typed_functions kind jc jm context in
+	let jc = wf#get_class in
+	Hashtbl.add gctx.known_typed_functions jc#get_this_path ();
+	wf
+
 let create_field_closure gctx jc path_this jm name jsig t =
 	let jsig_this = object_path_sig path_this in
 	let context = ["this",jsig_this] in
-	let wf = new JvmFunctions.typed_function gctx.typed_functions (FuncMember(path_this,name)) jc jm context in
+	let wf = create_typed_function gctx (FuncMember(path_this,name)) jc jm context in
 	begin match t with
 		| None ->
 			()
@@ -597,7 +604,7 @@ class texpr_to_jvm
 			| RValue(_,Some s) -> Some s
 			| _ -> None
 		in
-		let wf = new JvmFunctions.typed_function gctx.typed_functions (FuncLocal name) jc jm context in
+		let wf = create_typed_function gctx (FuncLocal name) jc jm context in
 		associate_functional_interfaces gctx wf e.etype;
 		let jc_closure = wf#get_class in
 		ignore(wf#generate_constructor (env <> []));
@@ -687,7 +694,7 @@ class texpr_to_jvm
 		let closure_path = try
 			Hashtbl.find gctx.closure_paths (path,name,jsig)
 		with Not_found ->
-			let wf = new JvmFunctions.typed_function gctx.typed_functions (FuncStatic(path,name)) jc jm [] in
+			let wf = create_typed_function gctx (FuncStatic(path,name)) jc jm [] in
 			associate_functional_interfaces gctx wf t;
 			let jc_closure = wf#get_class in
 			ignore(wf#generate_constructor false);
@@ -1041,6 +1048,15 @@ class texpr_to_jvm
 	method get_binop_type t1 t2 = self#get_binop_type_sig (jsignature_of_type gctx t1) (jsignature_of_type gctx t2)
 
 	method do_compare op =
+		let fun_compare path1 sig2 = match sig2 with
+			| TObject(path2,_) when path1 = path2 ->
+				jm#invokevirtual path2 "equals" (method_sig [object_sig] (Some TBool));
+				CmpNormal(op,TBool)
+			| _ ->
+				jm#invokestatic haxe_jvm_path "compare" (method_sig [object_sig;object_sig] (Some TInt));
+				let op = flip_cmp_op op in
+				CmpNormal(op,TBool)
+		in
 		match code#get_stack#get_stack_items 2 with
 		| [TInt | TByte | TChar | TShort | TBool;TInt | TByte | TChar | TShort | TBool] ->
 			let op = flip_cmp_op op in
@@ -1054,6 +1070,11 @@ class texpr_to_jvm
 			jm#invokestatic haxe_jvm_path "compare" (method_sig [object_sig;object_sig] (Some TInt));
 			let op = flip_cmp_op op in
 			CmpNormal(op,TBool)
+		| [sig2;TObject(path1,_)] when Hashtbl.mem gctx.known_typed_functions path1 ->
+			fun_compare path1 sig2
+		| [TObject(path1,_);sig2] when Hashtbl.mem gctx.known_typed_functions path1 ->
+			code#swap;
+			fun_compare path1 sig2
 		| [(TObject _ | TArray _ | TMethod _) as t1;(TObject _ | TArray _ | TMethod _) as t2] ->
 			CmpSpecial ((if op = CmpEq then code#if_acmp_ne else code#if_acmp_eq) t1 t2)
 		| [TDouble;TDouble] ->
@@ -3088,6 +3109,7 @@ let generate jvm_flag com =
 		preprocessor = Obj.magic ();
 		typedef_interfaces = Obj.magic ();
 		typed_functions = new JvmFunctions.typed_functions;
+		known_typed_functions = Hashtbl.create 0;
 		closure_paths = Hashtbl.create 0;
 		enum_paths = Hashtbl.create 0;
 		default_export_config = {
@@ -3099,6 +3121,7 @@ let generate jvm_flag com =
 		dynamic_level = dynamic_level;
 		functional_interfaces = [];
 	} in
+	Hashtbl.add gctx.known_typed_functions haxe_function_path ();
 	gctx.preprocessor <- new preprocessor com.basic (jsignature_of_type gctx);
 	gctx.typedef_interfaces <- new typedef_interfaces gctx.preprocessor#get_infos anon_identification;
 	gctx.typedef_interfaces#add_interface_rewrite (["haxe";"root"],"Iterator") (["java";"util"],"Iterator") true;
