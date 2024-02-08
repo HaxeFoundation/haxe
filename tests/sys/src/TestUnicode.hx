@@ -16,24 +16,16 @@ class TestUnicode extends utest.Test {
 		#else
 			"bin-cpp";
 		#end
-#elseif cs
-		#if debug
-			"bin-cs-debug";
-		#else
-			"bin-cs";
-		#end
 #elseif hl
-		"bin-hl";
+		#if hlc
+			"bin-hlc";
+		#else
+			"bin-hl";
+		#end
 #elseif lua
 		"bin-lua";
 #elseif jvm
 		"bin-jvm";
-#elseif java
-		#if debug
-			"bin-java-debug";
-		#else
-			"bin-java";
-		#end
 #elseif neko
 		"bin-neko";
 #elseif php
@@ -148,8 +140,7 @@ class TestUnicode extends utest.Test {
 
 #if target.unicode
 	function testFilesystem() {
-#if !java // java does not have this functionality
-#if !cs // C# disabled temporarily (#8247)
+#if !jvm // java does not have this functionality
 		// setCwd + getCwd
 		Sys.setCwd("test-res");
 		function enterLeave(dir:String, ?alt:String):Void {
@@ -164,7 +155,6 @@ class TestUnicode extends utest.Test {
 			if (FileSystem.exists(nfd)) enterLeave(nfd, nfc);
 		}
 		Sys.setCwd("..");
-#end
 #end
 
 		// absolutePath
@@ -185,8 +175,7 @@ class TestUnicode extends utest.Test {
 					);
 			}, "test-res");
 
-#if !java // java does not have this functionality
-#if !cs // C# disabled temporarily (#8247)
+#if !jvm // java does not have this functionality
 		assertNormalEither(path -> {
 				if (!FileSystem.exists(path)) return false; // NFC/NFD differences
 				Sys.setCwd(path);
@@ -206,7 +195,6 @@ class TestUnicode extends utest.Test {
 				return ret;
 			}, "test-res", "setCwd + absolutePath + endsWith failed");
 #end
-#end
 
 		// exists
 		assertNormalEither(FileSystem.exists, 'test-res/a', 'expected exists == true');
@@ -214,7 +202,6 @@ class TestUnicode extends utest.Test {
 
 		// fullPath
 #if !lua // Lua disabled temporarily (#8215)
-		#if !cs // C# behaves like Windows here
 		if (Sys.systemName() != "Windows") {
 			// symlinks behave strangely on Windows
 			pathBoth(path -> {
@@ -224,7 +211,6 @@ class TestUnicode extends utest.Test {
 						);
 				}, "test-res");
 		}
-		#end
 #end
 
 		// isDirectory
@@ -232,11 +218,9 @@ class TestUnicode extends utest.Test {
 		assertNormalEither(path -> !FileSystem.isDirectory(path), 'test-res/b', 'expected isDirectory == false');
 
 		// readDirectory
-#if !cs // C# disabled temporarily (#8247)
 		sameFiles(FileSystem.readDirectory("test-res"), namesRoot);
 		sameFiles(FileSystem.readDirectory("test-res/a"), names);
 		sameFiles(FileSystem.readDirectory("test-res/b"), names);
-#end
 
 		// stat
 		assertNormalEither(path -> FileSystem.stat(path) != null, 'test-res/a', 'expected stat != null');
@@ -318,7 +302,7 @@ class TestUnicode extends utest.Test {
 				assertUEquals(runUtility(["println", '$i', mode]).stdout, str + endLine);
 				// trace
 				assertUEnds(runUtility(["trace", '$i', mode]).stdout, str + endLine);
-				#if !java
+				#if !jvm
 				// putEnv + getEnv
 				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "getEnv", "HAXE_TEST"]).stdout, str + endLine);
 				// putEnv + environment
@@ -327,14 +311,12 @@ class TestUnicode extends utest.Test {
 			});
 
 		// args
-		#if !cs // C# behaves like Windows here
-		if (#if (java || eval || cpp) Sys.systemName() != "Windows" #else true #end) {
+		if (#if (jvm || eval || cpp) Sys.systemName() != "Windows" #else true #end) {
 			// https://stackoverflow.com/questions/7660651/passing-command-line-unicode-argument-to-java-code
 			UnicodeSequences.normalBoth(str -> {
 					assertUEquals(runUtility(["args", str]).stdout, str + endLine);
 				});
 		}
-		#end
 	}
 	#end
 
@@ -354,26 +336,22 @@ class TestUnicode extends utest.Test {
 		// saveContent
 		File.saveContent("temp-unicode/data.bin", UnicodeSequences.validString);
 		assertBytesEqual(File.getBytes("temp-unicode/data.bin"), UnicodeSequences.validBytes);
-#if !cs // C# disabled temporarily (#8247)
 		pathBoth(str -> {
 				File.saveContent('temp-unicode/saveContent-$str.bin', UnicodeSequences.validString);
 				assertBytesEqual(File.getBytes('temp-unicode/saveContent-$str.bin'), UnicodeSequences.validBytes);
 			});
-#end
 
 		// write
 		var out = File.write("temp-unicode/out.bin");
 		out.writeString(UnicodeSequences.validString);
 		out.close();
 		assertBytesEqual(File.getBytes("temp-unicode/out.bin"), UnicodeSequences.validBytes);
-#if !cs // C# disabled temporarily (#8247)
 		pathBoth(str -> {
 				var out = File.write('temp-unicode/write-$str.bin');
 				out.writeString(UnicodeSequences.validString);
 				out.close();
 				assertBytesEqual(File.getBytes('temp-unicode/write-$str.bin'), UnicodeSequences.validBytes);
 			});
-#end
 
 		// update
 		var out = File.update("temp-unicode/out.bin");

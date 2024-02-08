@@ -52,10 +52,6 @@ enum abstract ModuleCheckPolicy(Int) {
 		of the current module file.
 	**/
 	var NoCheckShadowing = 3;
-	/**
-		Retype the module's contents if its file is invalidated. This is currently experimental.
-	**/
-	var Retype = 4;
 }
 
 enum abstract ContextOptions(Int) {
@@ -101,7 +97,9 @@ class CompilationServer {
 	**/
 	static public function setModuleCheckPolicy(pathFilters:Array<String>, policy:Array<ModuleCheckPolicy>, ?recursive = true,
 			?contextOptions:ContextOptions = NormalContext) {
-		@:privateAccess Compiler.load("server_add_module_check_policy", 4)(pathFilters, policy, recursive, contextOptions);
+		Context.onAfterInitMacros(() -> {
+			@:privateAccess Compiler.load("server_add_module_check_policy", 4)(pathFilters, policy, recursive, contextOptions);
+		});
 	}
 
 	/**

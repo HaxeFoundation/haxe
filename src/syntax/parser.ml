@@ -19,15 +19,20 @@
 
 open Ast
 open Globals
-open Reification
 open DisplayTypes.DisplayMode
 open DisplayPosition
+
+type preprocessor_error =
+	| InvalidEnd
+	| InvalidElse
+	| InvalidElseif
+	| UnclosedConditional
 
 type error_msg =
 	| Unexpected of token
 	| Duplicate_default
 	| Missing_semicolon
-	| Unclosed_conditional
+	| Preprocessor_error of preprocessor_error
 	| Unimplemented
 	| Missing_type
 	| Expected of string list
@@ -71,7 +76,13 @@ let error_msg = function
 	| Unexpected t -> "Unexpected "^(s_token t)
 	| Duplicate_default -> "Duplicate default"
 	| Missing_semicolon -> "Missing ;"
-	| Unclosed_conditional -> "Unclosed conditional compilation block"
+	| Preprocessor_error ppe ->
+		begin match ppe with
+			| UnclosedConditional -> "Unclosed conditional compilation block"
+			| InvalidEnd -> "Invalid #end"
+			| InvalidElse -> "Invalid #else"
+			| InvalidElseif -> "Invalid #elseif"
+		end
 	| Unimplemented -> "Not implemented for current platform"
 	| Missing_type -> "Missing type declaration"
 	| Expected sl -> "Expected " ^ (String.concat " or " sl)
@@ -148,6 +159,12 @@ let had_resume = ref false
 let code_ref = ref (Sedlexing.Utf8.from_string "")
 let delayed_syntax_completion : (syntax_completion * DisplayTypes.completion_subject) option ref = ref None
 
+(* Per-file state *)
+
+let in_display_file = ref false
+let last_doc : (string * int) option ref = ref None
+let syntax_errors = ref []
+
 let reset_state () =
 	in_display := false;
 	was_auto_triggered := false;
@@ -156,13 +173,10 @@ let reset_state () =
 	in_macro := false;
 	had_resume := false;
 	code_ref := Sedlexing.Utf8.from_string "";
-	delayed_syntax_completion := None
-
-(* Per-file state *)
-
-let in_display_file = ref false
-let last_doc : (string * int) option ref = ref None
-let syntax_errors = ref []
+	delayed_syntax_completion := None;
+	in_display_file := false;
+	last_doc := None;
+	syntax_errors := []
 
 let syntax_error_with_pos error_msg p v =
 	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in
@@ -192,7 +206,7 @@ let get_doc s =
 		| None -> None
 		| Some (d,pos) ->
 			last_doc := None;
-			if pos = p.pmin then Some d else None
+			Some d
 
 let unsupported_decl_flag decl flag pos =
 	let msg = (s_decl_flag flag) ^ " modifier is not supported for " ^ decl in
@@ -201,6 +215,7 @@ let unsupported_decl_flag decl flag pos =
 let unsupported_decl_flag_class = unsupported_decl_flag "classes"
 let unsupported_decl_flag_enum = unsupported_decl_flag "enums"
 let unsupported_decl_flag_abstract = unsupported_decl_flag "abstracts"
+let unsupported_decl_flag_typedef = unsupported_decl_flag "typedefs"
 let unsupported_decl_flag_module_field = unsupported_decl_flag "module-level fields"
 
 let decl_flag_to_class_flag (flag,p) = match flag with
@@ -219,6 +234,11 @@ let decl_flag_to_abstract_flag (flag,p) = match flag with
 	| DExtern -> Some AbExtern
 	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_abstract flag p
 
+let decl_flag_to_typedef_flag (flag,p) = match flag with
+	| DPrivate -> Some TDPrivate
+	| DExtern -> Some TDExtern
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_typedef flag p
+
 let decl_flag_to_module_field_flag (flag,p) = match flag with
 	| DPrivate -> Some (APrivate,p)
 	| DMacro -> Some (AMacro,p)
@@ -232,6 +252,10 @@ let serror() = raise (Stream.Error "")
 
 let magic_display_field_name = " - display - "
 let magic_type_path = { tpackage = []; tname = ""; tparams = []; tsub = None }
+
+let magic_type_ct p = make_ptp_ct magic_type_path p
+
+let magic_type_th p = magic_type_ct p,p
 
 let delay_syntax_completion kind so p =
 	delayed_syntax_completion := Some(kind,DisplayTypes.make_subject so p)
@@ -267,12 +291,13 @@ let precedence op =
 	| OpAdd | OpSub -> 3, left
 	| OpShl | OpShr | OpUShr -> 4, left
 	| OpOr | OpAnd | OpXor -> 5, left
-	| OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte -> 6, left
-	| OpInterval -> 7, left
-	| OpBoolAnd -> 8, left
-	| OpBoolOr -> 9, left
-	| OpArrow | OpNullCoal -> 10, right
-	| OpAssign | OpAssignOp _ -> 11, right
+	| OpNullCoal -> 6, left
+	| OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte -> 7, left
+	| OpInterval -> 8, left
+	| OpBoolAnd -> 9, left
+	| OpBoolOr -> 10, left
+	| OpArrow -> 11, right
+	| OpAssign | OpAssignOp _ -> 12, right
 
 let is_higher_than_ternary = function
 	| OpAssign | OpAssignOp _ | OpArrow -> false

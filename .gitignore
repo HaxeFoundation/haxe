@@ -136,3 +136,4 @@ tests/server/test.js.map
 lib.sexp
 src/compiler/version.ml
 tests/party
+tests/misc/projects/Issue10863/error.log

@@ -27,20 +27,7 @@ function main() {
 
 	var verbose = #if (cpp || neko || php) Sys.args().indexOf("-v") >= 0 #else false #end;
 
-	#if cs // "Turkey Test" - Issue #996
-	cs.system.threading.Thread.CurrentThread.CurrentCulture = new cs.system.globalization.CultureInfo('tr-TR');
-	cs.Lib.applyCultureChanges();
-	#end
-	#if neko
-	if (neko.Web.isModNeko)
-		neko.Web.setHeader("Content-Type", "text/plain");
-	#elseif php
-	if (php.Web.isModNeko)
-		php.Web.setHeader("Content-Type", "text/plain");
-	#end
-	#if !macro
-	trace("Generated at: " + HelperMacros.getCompilationDate());
-	#end
+	TestMainNow.printNow();
 	trace("START");
 	#if flash
 	var tf:flash.text.TextField = untyped flash.Boot.getTrace();
@@ -75,18 +62,14 @@ function main() {
 		new TestCasts(),
 		new TestSyntaxModule(),
 		new TestNull(),
+		new TestNullCoalescing(),
 		new TestNumericCasts(),
 		new TestHashMap(),
 		new TestRest(),
-		#if !no_http new TestHttp(),
-		#end
 		#if !no_pattern_matching
 		new TestMatch(),
 		#end
-		#if cs
-		new TestCSharp(),
-		#end
-		#if java
+		#if jvm
 		new TestJava(),
 		#end
 		#if lua
@@ -101,13 +84,14 @@ function main() {
 		#if php
 		new TestPhp(),
 		#end
-		#if (java || cs)
+		#if jvm
 		new TestOverloads(),
 		#end
 		new TestOverloadsForEveryone(),
 		new TestInterface(),
 		new TestNaN(),
-		#if ((dce == "full") && !interp) new TestDCE(),
+		#if ((dce == "full") && !interp)
+		new TestDCE(),
 		#end
 		new TestMapComprehension(),
 		new TestMacro(),

@@ -18,7 +18,6 @@
  *)
 open Extlib_leftovers
 open Globals
-open EvalHash
 
 type cmp =
 	| CEq
@@ -75,11 +74,11 @@ module IntHashtbl = struct
 end
 
 type vregex = {
-	r : Pcre.regexp;
+	r : Pcre2.regexp;
 	r_rex_string : vstring;
 	r_global : bool;
 	mutable r_string : string;
-	mutable r_groups : Pcre.substrings array;
+	mutable r_groups : Pcre2.substrings array;
 }
 
 type vzlib = {

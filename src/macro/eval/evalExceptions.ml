@@ -27,7 +27,6 @@ open EvalField
 exception Break
 exception Continue
 exception Return of value
-exception Sys_exit of int
 
 let s_value_kind = function
 	| VNull -> "VNull"
@@ -119,13 +118,29 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 		final();
 		Some v
 	with
-	| RunTimeException(v,stack,p') ->
+	| RunTimeException(v,eval_stack,p') ->
 		eval.caught_exception <- vnull;
 		Option.may (build_exception_stack ctx) env;
 		eval.env <- env;
 		if is v key_haxe_macro_Error then begin
 			let v1 = field v key_exception_message in
 			let v2 = field v key_pos in
+			let v3 = field v key_child_errors in
+			let stack = match v3 with
+				| VArray sub ->
+						List.map (fun v ->
+							if is v key_haxe_macro_Error then begin
+								let v1 = field v key_exception_message in
+								let v2 = match (field v key_pos) with
+									| VInstance {ikind=IPos p} -> p
+									| _ -> null_pos
+								in
+								(Error.Custom (value_string v1), v2)
+							end else
+								Error.raise_typing_error (Printf.sprintf "Unexpected value where haxe.macro.Error was expected: %s" (s_value 0 v).sstring) null_pos
+						) (EvalArray.to_list sub)
+				| _ -> []
+			in
 			reset_ctx();
 			final();
 			match v1 with
@@ -146,12 +161,15 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 							)
 						| _ -> null_pos
 					in
-					raise (Error.Error (Error.Custom s.sstring,p,0))
-				| _ ->
-					Error.typing_error "Something went wrong" null_pos
+					(match stack with
+						| [] -> Error.raise_msg s.sstring p
+						| _ -> Error.raise_error (Error.make_error ~sub:(List.map (fun (msg,p) -> Error.make_error msg p) stack) (Error.Custom s.sstring) p)
+					);
+				| v ->
+					Error.raise_typing_error (Printf.sprintf "Invalid exception value where string was expected: %s" (s_value 0 v).sstring) null_pos
 		end else begin
 			(* Careful: We have to get the message before resetting the context because toString() might access it. *)
-			let stack = match stack with
+			let stack = match eval_stack with
 				| [] -> []
 				| l when p' = null_pos -> l (* If the exception position is null_pos, we're "probably" in a built-in function. *)
 				| _ :: l -> l (* Otherwise, ignore topmost frame position. *)
@@ -159,7 +177,12 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 			let stack = get_exc_error_stack ctx stack in
 			reset_ctx();
 			final();
-			Error.call_stack_error (value_string v) stack (if p' = null_pos then p else p')
+			let p = if p' = null_pos then p else p' in
+			Error.raise_error (Error.make_error
+				~sub:(List.map (fun p -> Error.make_error (Error.Custom "Called from here") p) (List.rev stack))
+				(Error.Custom ("Uncaught exception " ^ (value_string v)))
+				p
+			)
 		end
 	| MacroApi.Abort ->
 		final();

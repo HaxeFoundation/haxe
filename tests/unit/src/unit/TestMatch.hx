@@ -1,4 +1,5 @@
 package unit;
+
 import haxe.ds.Option;
 import haxe.macro.Expr;
 import unit.HelperMacros.getErrorMessage;
@@ -11,9 +12,9 @@ enum Tree<T> {
 }
 
 enum A<T> {
-	TA<Q>(q : Q) : A<Q>;
-	TB(v : Bool) : A<Bool>;
-	TC(v : Bool) : A<String>;
+	TA<Q>(q:Q):A<Q>;
+	TB(v:Bool):A<Bool>;
+	TC(v:Bool):A<String>;
 }
 
 enum X<A> {
@@ -35,18 +36,16 @@ typedef MiniRef<T> = {
 }
 
 class TestMatch extends Test {
-
 	static function switchNormal(e:Expr):String {
-		return switch(e.expr) {
+		return switch (e.expr) {
 			case EConst(CString(s)): s;
-			case EParenthesis( { expr : EConst(CString(s)) } )
-			| EUntyped( { expr : EConst(CString(s)) } ):
+			case EParenthesis({expr: EConst(CString(s))}) | EUntyped({expr: EConst(CString(s))}):
 				s;
 			case EField(_, s):
 				s;
-			case EArray(_, { expr : EConst(CInt(i) | CFloat(i)) } ):
+			case EArray(_, {expr: EConst(CInt(i) | CFloat(i))}):
 				Std.string(i);
-			case EBinop(OpIn, _, { expr : e, pos : _ }) :
+			case EBinop(OpIn, _, {expr: e, pos: _}):
 				Std.string(e);
 			case _:
 				"not_found";
@@ -54,8 +53,8 @@ class TestMatch extends Test {
 	}
 
 	static function switchCapture(e:Expr) {
-		return switch(e) {
-			case { expr : EConst(const = (CString("foobar") | CInt("9"))) } :
+		return switch (e) {
+			case {expr: EConst(const = (CString("foobar") | CInt("9")))}:
 				const;
 			case _:
 				null;
@@ -63,12 +62,12 @@ class TestMatch extends Test {
 	}
 
 	static function switchArray(e:Expr):String {
-		return switch(e.expr) {
+		return switch (e.expr) {
 			case EArrayDecl([]):
 				"[]";
 			case EArrayDecl([a]):
 				"[" + Std.string(a.expr) + "]";
-			case EArrayDecl([a,b]):
+			case EArrayDecl([a, b]):
 				"[" + Std.string(a.expr) + "," + Std.string(b.expr) + "]";
 			case _:
 				"_";
@@ -76,43 +75,46 @@ class TestMatch extends Test {
 	}
 
 	static function switchArray2(a:Array<String>):String {
-		return switch(a) {
+		return switch (a) {
 			case ["a", "b"]: "0";
 			case ["a"]: "1";
 			case ["b"]: "2";
 			case [a]: "3:" + a;
-			case [a, b]: "4:" + a + "," +b;
+			case [a, b]: "4:" + a + "," + b;
 			case var a if (a.length == 3): "5:" + a.length;
 			case []: "6";
 			case _: "7";
 		}
 	}
 
-	static function switchStructure(a: { foo:String, bar:String } ) {
-		return switch(a) {
-			case { foo: "val1", bar:"val2" } : "0";
-			case { foo: "val1" } : "1";
-			case { bar: "val2" } : "2";
-			case { bar: a } : a;
+	static function switchStructure(a:{foo:String, bar:String}) {
+		return switch (a) {
+			case {foo: "val1", bar: "val2"}: "0";
+			case {foo: "val1"}: "1";
+			case {bar: "val2"}: "2";
+			case {bar: a}: a;
 		}
 	}
 
 	static function switchCrazy(e:Expr) {
-		return switch(e.expr) {
-			case EUntyped( { expr : EParenthesis( { expr : EArray( { expr: a = EConst(CString(_)) }, { expr : EConst(CInt(b)) } ) } ) } ):
-				Std.string(a) + ":" +b;
+		return switch (e.expr) {
+			case EUntyped({expr: EParenthesis({expr: EArray({expr: a = EConst(CString(_))}, {expr: EConst(CInt(b))})})}):
+				Std.string(a) + ":" + b;
 			case _:
 				"_";
 		}
 	}
 
 	static function switchGuard(e:Expr):String {
-		return switch(e.expr) {
+		return switch (e.expr) {
 			case EConst(CString(s)) if (StringTools.startsWith(s, "foo")):
 				"1";
 			case EConst(CString(s)) if (StringTools.startsWith(s, "bar")):
 				"2";
-			case EConst(CInt(i)) if (switch(Std.parseInt(i) * 2) { case 4: true; case _: false; }):
+			case EConst(CInt(i)) if (switch (Std.parseInt(i) * 2) {
+					case 4: true;
+					case _: false;
+				}):
 				"3";
 			case EConst(_):
 				"4";
@@ -122,16 +124,16 @@ class TestMatch extends Test {
 	}
 
 	static function switchClass<T>(cl:Class<T>) {
-		return switch(cl) {
+		return switch (cl) {
 			case String: "String";
 			case MyClass: "unit.MyClass";
-			case var a: "other: " +Type.getClassName(a);
+			case var a: "other: " + Type.getClassName(a);
 		}
 	}
 
 	function testBasic() {
 		eq("bar", switchNormal(macro "bar"));
-		eq("bar", switchNormal(macro ("bar")));
+		eq("bar", switchNormal(macro("bar")));
 		eq("bar", switchNormal(macro untyped "bar"));
 		eq("foo", switchNormal(macro null.foo));
 		eq("22", switchNormal(macro null[22]));
@@ -147,16 +149,16 @@ class TestMatch extends Test {
 		eq("[]", switchArray(macro []));
 		eq("_", switchArray(macro 2));
 		eq("[EConst(CInt(22,null))]", switchArray(macro [22]));
-		eq("[EConst(CInt(22,null)),EConst(CString(foo,DoubleQuotes))]", switchArray(macro [22,"foo"]));
+		eq("[EConst(CInt(22,null)),EConst(CString(foo,DoubleQuotes))]", switchArray(macro [22, "foo"]));
 		eq("_", switchArray(macro [22, "foo", "bar"]));
 
 		eq("0", switchArray2(["a", "b"]));
 		eq("1", switchArray2(["a"]));
 		eq("2", switchArray2(["b"]));
 		eq("3:c", switchArray2(["c"]));
-		eq("4:a,a", switchArray2(["a","a"]));
-		eq("4:b,a", switchArray2(["b","a"]));
-		eq("5:3", switchArray2(["a","a","a"]));
+		eq("4:a,a", switchArray2(["a", "a"]));
+		eq("4:b,a", switchArray2(["b", "a"]));
+		eq("5:3", switchArray2(["a", "a", "a"]));
 		eq("6", switchArray2([]));
 		eq("7", switchArray2(["a", "a", "a", "b"]));
 
@@ -200,7 +202,7 @@ class TestMatch extends Test {
 		});
 
 		var t = TA("foo");
-		eq("0", switch(t) {
+		eq("0", switch (t) {
 			case TA("foo"): "0";
 			case TA(_): "1";
 			case TC(_): "2";
@@ -208,12 +210,13 @@ class TestMatch extends Test {
 	}
 
 	function testTuple() {
-		function test(a:Int, b:Int, c:Int) return switch [a, b, c] {
-			case [x, 1, 2] | [1, 2, x] | [1, x, 2]: '0|x:$x';
-			case [3, 4, z] | [z, 3, 4] | [3, z, 4]: '1|z:$z';
-			case [1, y, z] | [2, z, y]: '2|y:$y,z:$z';
-			case [x, y, z]: '_:x:$x,y:$y,z:$z';
-		}
+		function test(a:Int, b:Int, c:Int)
+			return switch [a, b, c] {
+				case [x, 1, 2] | [1, 2, x] | [1, x, 2]: '0|x:$x';
+				case [3, 4, z] | [z, 3, 4] | [3, z, 4]: '1|z:$z';
+				case [1, y, z] | [2, z, y]: '2|y:$y,z:$z';
+				case [x, y, z]: '_:x:$x,y:$y,z:$z';
+			}
 		eq("0|x:9", test(9, 1, 2));
 		eq("0|x:9", test(1, 2, 9));
 		eq("0|x:9", test(1, 9, 2));
@@ -226,13 +229,14 @@ class TestMatch extends Test {
 	}
 
 	function testGrouping() {
-		function test(v) return switch(v) {
-			case 1, 2, 3: "0";
-			case val = (4 | 5 | 6) if (val == 5): "1";
-			case 4, 5, 6: "2";
-			case 8, 9: "3";
-			case var x: '_:$x';
-		}
+		function test(v)
+			return switch (v) {
+				case 1, 2, 3: "0";
+				case val = (4 | 5 | 6) if (val == 5): "1";
+				case 4, 5, 6: "2";
+				case 8, 9: "3";
+				case var x: '_:$x';
+			}
 		var results = ["_:0", "0", "0", "0", "2", "1", "2", "_:7", "3", "3", "_:10"];
 		for (i in 0...results.length) {
 			eq(results[i], test(i));
@@ -241,18 +245,18 @@ class TestMatch extends Test {
 
 	function testSubtyping() {
 		var c = new MyClass.InitBase();
-		var r = switch(c) {
-			case { s: "foo" } :
+		var r = switch (c) {
+			case {s: "foo"}:
 				"s = foo";
 			case _:
 				"_";
 		}
 		eq("s = foo", r);
 
-		eq("0", switchStructure( { foo:"val1", bar:"val2" } ));
-		eq("1", switchStructure( { foo:"val1", bar:"val1" } ));
-		eq("2", switchStructure( { foo:"val2", bar:"val2" } ));
-		eq("val1", switchStructure( { foo:"val2", bar:"val1" } ));
+		eq("0", switchStructure({foo: "val1", bar: "val2"}));
+		eq("1", switchStructure({foo: "val1", bar: "val1"}));
+		eq("2", switchStructure({foo: "val2", bar: "val2"}));
+		eq("val1", switchStructure({foo: "val2", bar: "val1"}));
 	}
 
 	public static function toStringX<Z>(x1:X<Z>) {
@@ -304,75 +308,74 @@ class TestMatch extends Test {
 
 	function testStaticNull() {
 		var v = A();
-		var r = switch(v) {
+		var r = switch (v) {
 			case A(x):
-				if (x == null) "null";
-				else "not null";
+				if (x == null) "null"; else "not null";
 		}
 		eq("null", r);
 	}
 
 	static function orMatch(e1, e2) {
-		return switch([e1.expr, e2.expr]) {
+		return switch ([e1.expr, e2.expr]) {
 			case [EConst(CFloat(a) | CInt(a)), EConst(CFloat(b) | CInt(b))]: a + b;
 			case _: null;
 		}
 	}
 
 	function testNonExhaustiveness() {
-		eq("Unmatched patterns: false", getErrorMessage(switch(true) {
+		eq("Unmatched patterns: false", getErrorMessage(switch (true) {
 			case true:
 		}));
-		eq("Unmatched patterns: OpNeg | OpNegBits", getErrorMessage(switch(OpIncrement) {
+		eq("Unmatched patterns: OpNeg | OpNegBits", getErrorMessage(switch (OpIncrement) {
 			case OpIncrement:
 			case OpDecrement:
 			case OpNot:
 			case OpSpread:
 		}));
-		eq("Unmatched patterns: Node(Node, _)", getErrorMessage(switch(Leaf("foo")) {
+		eq("Unmatched patterns: Node(Node, _)", getErrorMessage(switch (Leaf("foo")) {
 			case Node(Leaf("foo"), _):
 			case Leaf(_):
 		}));
-		eq("Unmatched patterns: Leaf", getErrorMessage(switch(Leaf("foo")) {
+		eq("Unmatched patterns: Leaf", getErrorMessage(switch (Leaf("foo")) {
 			case Node(_, _):
 			case Leaf(_) if (false):
 		}));
-		eq("Unmatched patterns: Leaf(_)", getErrorMessage(switch(Leaf("foo")) {
+		eq("Unmatched patterns: Leaf(_)", getErrorMessage(switch (Leaf("foo")) {
 			case Node(_, _):
 			case Leaf("foo"):
 		}));
 		eq("Unmatched patterns: false", getErrorMessage(switch [1, true, "foo"] {
 			case [_, true, _]:
 		}));
-		//var x:Null<Bool> = true;
-		//eq("Unmatched patterns: null", getErrorMessage(switch x {
-			//case true:
-			//case false:
-		//}));
-		//var t:Null<Tree<String>> = null;
-		//eq("Unmatched patterns: null", getErrorMessage(switch t {
-			//case Leaf(_):
-			//case Node(_):
-		//}));
+		// var x:Null<Bool> = true;
+		// eq("Unmatched patterns: null", getErrorMessage(switch x {
+		// case true:
+		// case false:
+		// }));
+		// var t:Null<Tree<String>> = null;
+		// eq("Unmatched patterns: null", getErrorMessage(switch t {
+		// case Leaf(_):
+		// case Node(_):
+		// }));
 	}
 
 	function testInvalidBinding() {
-		eq("Variable y must appear exactly once in each sub-pattern", getErrorMessage(switch(Leaf("foo")) {
+		eq("Variable y must appear exactly once in each sub-pattern", getErrorMessage(switch (Leaf("foo")) {
 			case Leaf(x) | Leaf(y):
 		}));
-		eq("Variable y must appear exactly once in each sub-pattern", getErrorMessage(switch(Leaf("foo")) {
+		eq("Variable y must appear exactly once in each sub-pattern", getErrorMessage(switch (Leaf("foo")) {
 			case Leaf(x) | Leaf(x) | Leaf(y):
 		}));
-		eq("Variable x must appear exactly once in each sub-pattern", getErrorMessage(switch(Leaf("foo")) {
+		eq("Variable x must appear exactly once in each sub-pattern", getErrorMessage(switch (Leaf("foo")) {
 			case Leaf(x) | Leaf(x) | Leaf(_):
 		}));
-		eq("Variable l must appear exactly once in each sub-pattern", getErrorMessage(switch(Leaf("foo")) {
-			case Node(l = Leaf(x),_) | Node(Leaf(x), _):
+		eq("Variable l must appear exactly once in each sub-pattern", getErrorMessage(switch (Leaf("foo")) {
+			case Node(l = Leaf(x), _) | Node(Leaf(x), _):
 		}));
-		eq("Variable l is bound multiple times", getErrorMessage(switch(Leaf("foo")) {
+		eq("Variable l is bound multiple times", getErrorMessage(switch (Leaf("foo")) {
 			case Node(l = Leaf(l), _):
 		}));
-		eq("String should be unit.Tree<String>", getErrorMessage(switch(Leaf("foo")) {
+		eq("String should be unit.Tree<String>", getErrorMessage(switch (Leaf("foo")) {
 			case Node(l = Leaf(_), _) | Leaf(l):
 			case _:
 		}));
@@ -380,7 +383,7 @@ class TestMatch extends Test {
 
 	function testNullPattern() {
 		var i:Null<Int> = null;
-		var r = switch(i) {
+		var r = switch (i) {
 			case 1: 1;
 			case null: 2;
 			case _: 3;
@@ -388,14 +391,14 @@ class TestMatch extends Test {
 		eq(2, r);
 
 		// this should not compile because the argument is not explicitly Null
-		//var e = EConst(null);
-		//var r = switch(e) {
-			//case EConst(null): 1;
-			//case _: 2;
-		//}
+		// var e = EConst(null);
+		// var r = switch(e) {
+		// case EConst(null): 1;
+		// case _: 2;
+		// }
 
 		var t:Null<Tree<String>> = null;
-		var r = switch(t) {
+		var r = switch (t) {
 			case Leaf(_): 1;
 			case null if (i != null): 2;
 			case null: 3;
@@ -403,10 +406,14 @@ class TestMatch extends Test {
 		}
 		eq(r, 3);
 
-		var e1 = macro if (1) 2;
-		var e2 = macro if (1) 2 else 3;
+		var e1 = macro if (1)
+			2;
+		var e2 = macro if (1)
+			2
+		else
+			3;
 		function matchIf(e) {
-			return switch(e.expr) {
+			return switch (e.expr) {
 				case EIf(_, _, null): 1;
 				case EIf(_, _, _): 2;
 				case _: 3;
@@ -416,15 +423,16 @@ class TestMatch extends Test {
 		eq(2, matchIf(e2));
 
 		var t = Leaf("foo");
-		function f(t) return switch(t) {
-			case Leaf(null): "null";
-			case Leaf(e): e;
-			case Node(_): "default";
-		}
+		function f(t)
+			return switch (t) {
+				case Leaf(null): "null";
+				case Leaf(e): e;
+				case Node(_): "default";
+			}
 		eq(f(t), "foo");
 
 		function f(a) {
-			return switch(a:{a: Int}) {
+			return switch (a : {a:Int}) {
 				case {a: 1}: 1;
 				case null: 2;
 				default: 3;
@@ -439,13 +447,13 @@ class TestMatch extends Test {
 	function testFakeEnumAbstract() {
 		#if !macro
 		var a = unit.MyAbstract.FakeEnumAbstract.NotFound;
-		var r = switch(a) {
+		var r = switch (a) {
 			case NotFound: 1;
 			case _: 2;
 		}
 		eq(r, 1);
 
-		eq("Unmatched patterns: MethodNotAllowed", getErrorMessage(switch(a) {
+		eq("Unmatched patterns: MethodNotAllowed", getErrorMessage(switch (a) {
 			case NotFound:
 		}));
 		#end
@@ -453,8 +461,8 @@ class TestMatch extends Test {
 
 	function testExtractors() {
 		function f(i) {
-			return switch(i) {
-				case 1,2,3: 1;
+			return switch (i) {
+				case 1, 2, 3: 1;
 				case _.even() => true: 2;
 				case 4: throw "unreachable";
 				case _: 3;
@@ -471,9 +479,10 @@ class TestMatch extends Test {
 		eq(2, f(6));
 		eq(2, f(8));
 
-		function ref<T>(t:T):MiniRef<T> return {
-			get: function() return t
-		}
+		function ref<T>(t:T):MiniRef<T>
+			return {
+				get: function() return t
+			}
 
 		function f(t:MiniType) {
 			return switch (t) {
@@ -491,12 +500,12 @@ class TestMatch extends Test {
 		eq("OtherString", f(MTString(ref("a"), [])));
 		eq("OtherString", f(MTString(ref(""), [])));
 		eq("Int:12", f(MTInt(ref(12), [])));
-		eq("Other", f(MTInt(ref(12), [MTInt(ref(10),[])])));
+		eq("Other", f(MTInt(ref(12), [MTInt(ref(10), [])])));
 
-		function g(i : Array<Int>) {
-			return switch(i) {
+		function g(i:Array<Int>) {
+			return switch (i) {
 				case [x]: 1;
-				case isPair(_) => Some(p) : p.a+p.b;
+				case isPair(_) => Some(p): p.a + p.b;
 				case var arr: 3;
 			}
 		}
@@ -511,7 +520,7 @@ class TestMatch extends Test {
 		};
 
 		var i = 9;
-		var r = switch(i) {
+		var r = switch (i) {
 			case 1: 1;
 			case anon.odd(_) => true: 2;
 			case 9: 3;
@@ -519,10 +528,11 @@ class TestMatch extends Test {
 		}
 		eq(2, r);
 
-		function mul(i1,i2) return i1 * i2;
+		function mul(i1, i2)
+			return i1 * i2;
 
 		function check(i) {
-			return switch(i) {
+			return switch (i) {
 				case 1: 1;
 				case mul(_, 4) => 8: 2;
 				case mul(_, 5) => 15: 3;
@@ -535,43 +545,58 @@ class TestMatch extends Test {
 		eq(3, check(3));
 		eq(4, check(4));
 
-		function isTrue<T>(pred : T -> Bool) return function (x : T) {
-			return pred(x)?Some(x):None;
-		}
+		function isTrue<T>(pred:T->Bool)
+			return function(x:T) {
+				return pred(x) ? Some(x) : None;
+			}
 
-		function isNot<T>(pred : T -> Bool) return function (x : T) {
-			return (!pred(x))?Some(x):None;
-		}
+		function isNot<T>(pred:T->Bool)
+			return function(x:T) {
+				return (!pred(x)) ? Some(x) : None;
+			}
 
 		function testArgs<T>(i:Int, s:String, t:T) {
 			return Std.string(t);
 		}
-		function h(i : Array<Int>) {
-			return switch(i) {
+		function h(i:Array<Int>) {
+			return switch (i) {
 				case [x]: 1;
-				case isPair(_) => Some({ a : a, b : b }) if (a < 0): 42;
-				case isPair(_) => Some({ a : isTrue(even)(_) => Some(a), b : b }) : a+b;
-				case isPair(_) => Some({ a : isNot(even)(_) => Some(a), b : b }) : a*b;
+				case isPair(_) => Some({a: a, b: b}) if (a < 0): 42;
+				case isPair(_) => Some({a: isTrue(even)(_) => Some(a), b: b}): a + b;
+				case isPair(_) => Some({a: isNot(even)(_) => Some(a), b: b}): a * b;
 				case testArgs(1, "foo", _) => "[99,98,97]": 99;
 				case var arr: 3;
 			}
 		}
 
+		isPairCounter = 0;
 		eq(3, h([]));
+		eq(1, isPairCounter);
 		eq(1, h([1]));
 		eq(1, h([2]));
 		eq(5, h([2, 3]));
+		eq(2, isPairCounter);
 		eq(3, h([1, 3]));
+		eq(3, isPairCounter);
 		eq(3, h([2, 3, 4]));
+		eq(4, isPairCounter);
 		eq(42, h([-1, 3]));
-		eq(99, h([99,98,97]));
+		eq(5, isPairCounter);
+		eq(99, h([99, 98, 97]));
+		eq(6, isPairCounter);
 	}
 
-	static function isPair<T>(t:Array<T>) return t.length == 2 ? Some({a:t[0], b:t[1]}) : None;
+	static var isPairCounter = 0;
+
+	static function isPair<T>(t:Array<T>) {
+		isPairCounter++;
+		return t.length == 2 ? Some({a: t[0], b: t[1]}) : None;
+	}
 
 	static function even(i:Int) {
 		return i & 1 == 0;
 	}
 
-	static function deref<T>(ref:MiniRef<T>) return ref.get();
+	static function deref<T>(ref:MiniRef<T>)
+		return ref.get();
 }

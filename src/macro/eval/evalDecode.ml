@@ -110,7 +110,7 @@ let decode_pos v = match v with
 	| VInstance {ikind=IPos p} -> p
 	| _ -> raise MacroApi.Invalid_expr (* maybe_decode_pos relies on this being raised *)
 
-let rec decode_ref v : 'a = match v with
+let decode_ref v : 'a = match v with
 	| VInstance {ikind=IRef r} -> Obj.obj r
 	| _ -> unexpected_value v "unsafe"
 

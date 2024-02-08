@@ -1,0 +1,1 @@
+MainMacro.hx:2: characters 8-17 : `final var` is not supported, use `final` instead

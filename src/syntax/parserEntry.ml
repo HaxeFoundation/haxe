@@ -143,40 +143,45 @@ class condition_handler = object(self)
 
 	method private cond_if' (e : expr) =
 		conditional_expressions <- e :: conditional_expressions;
-		conditional_stack <- e :: conditional_stack
+		conditional_stack <- (e,false) :: conditional_stack
 
 	method cond_if (e : expr) =
 		self#cond_if' e;
 		depths <- 1 :: depths
 
-	method cond_else = match conditional_stack with
-		| e :: el ->
-			conditional_stack <- (self#negate e) :: el
+	method cond_else (p : pos) =
+		match conditional_stack with
+		| (_,true) :: _ ->
+			error (Preprocessor_error InvalidElse) p
+		| (e,false) :: el ->
+			conditional_stack <- (self#negate e,true) :: el
 		| [] ->
-			die "" __LOC__
+			error (Preprocessor_error InvalidElse) p
 
-	method cond_elseif (e : expr) =
-		self#cond_else;
+	method cond_elseif (e : expr) (p : pos) =
+		self#cond_else p;
 		self#cond_if' e;
 		match depths with
-		| [] -> die "" __LOC__
+		| [] ->
+			error (Preprocessor_error InvalidElseif) p
 		| depth :: depths' ->
 			depths <- (depth + 1) :: depths'
 
-	method cond_end =
+	method cond_end (p : pos) =
 		let rec loop d el =
 			if d = 0 then el
 			else loop (d - 1) (List.tl el)
 		in
 		match depths with
-			| [] -> die "" __LOC__
+			| [] ->
+				error (Preprocessor_error InvalidEnd) p
 			| depth :: depths' ->
 				conditional_stack <- loop depth conditional_stack;
 				depths <- depths'
 
 	method get_current_condition = match conditional_stack with
-		| e :: el ->
-			List.fold_left self#conjoin e el
+		| (e,_) :: el ->
+			List.fold_left self#conjoin e (List.map fst el)
 		| [] ->
 			(EConst (Ident "true"),null_pos)
 
@@ -224,7 +229,6 @@ let parse entry ctx code file =
 			code_ref := old_code;
 		)
 	in
-	let mstack = ref [] in
 	last_doc := None;
 	in_macro := Define.defined ctx Define.Macro;
 	Lexer.skip_header code;
@@ -237,15 +241,18 @@ let parse entry ctx code file =
 	let conds = new condition_handler in
 	let dbc = new dead_block_collector conds in
 	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token code)) in
+	let preprocessor_error ppe pos tk =
+		syntax_error (Preprocessor_error ppe) ~pos:(Some pos) sraw tk
+	in
 	let rec next_token() = process_token (Lexer.token code)
 
 	and process_token tk =
 		match fst tk with
 		| Comment s ->
 			(* if encloses_resume (pos tk) then syntax_completion SCComment (pos tk); *)
-			let tk = next_token() in
 			let l = String.length s in
 			if l > 0 && s.[0] = '*' then last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
+			let tk = next_token() in
 			tk
 		| CommentLine s ->
 			if !in_display_file then begin
@@ -257,31 +264,19 @@ let parse entry ctx code file =
 			end;
 			next_token()
 		| Sharp "end" ->
-			(match !mstack with
-			| [] -> tk
-			| _ :: l ->
-				conds#cond_end;
-				mstack := l;
-				next_token())
+			conds#cond_end (snd tk);
+			next_token()
 		| Sharp "elseif" ->
-			(match !mstack with
-			| [] -> tk
-			| _ :: l ->
-				let _,(e,pe) = parse_macro_cond sraw in
-				conds#cond_elseif (e,pe);
-				dbc#open_dead_block pe;
-				mstack := l;
-				let tk = skip_tokens (pos tk) false in
-				process_token tk)
+			let _,(e,pe) = parse_macro_cond sraw in
+			conds#cond_elseif (e,pe) (snd tk);
+			dbc#open_dead_block pe;
+			let tk = skip_tokens (pos tk) false in
+			process_token tk
 		| Sharp "else" ->
-			(match !mstack with
-			| [] -> tk
-			| _ :: l ->
-				conds#cond_else;
-				dbc#open_dead_block (pos tk);
-				mstack := l;
-				let tk = skip_tokens (pos tk) false in
-				process_token tk)
+			conds#cond_else (snd tk);
+			dbc#open_dead_block (pos tk);
+			let tk = skip_tokens (pos tk) false in
+			process_token tk
 		| Sharp "if" ->
 			process_token (enter_macro true (snd tk))
 		| Sharp "error" ->
@@ -302,10 +297,9 @@ let parse entry ctx code file =
 
 	and enter_macro is_if p =
 		let tk, e = parse_macro_cond sraw in
-		(if is_if then conds#cond_if else conds#cond_elseif) e;
+		(if is_if then conds#cond_if e else conds#cond_elseif e p);
 		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
 		if is_true (eval ctx e) then begin
-			mstack := p :: !mstack;
 			tk
 		end else begin
 			dbc#open_dead_block (pos e);
@@ -315,24 +309,23 @@ let parse entry ctx code file =
 	and skip_tokens_loop p test tk =
 		match fst tk with
 		| Sharp "end" ->
-			conds#cond_end;
+			conds#cond_end (snd tk);
 			dbc#close_dead_block (pos tk);
 			Lexer.token code
 		| Sharp "elseif" when not test ->
 			dbc#close_dead_block (pos tk);
 			let _,(e,pe) = parse_macro_cond sraw in
-			conds#cond_elseif (e,pe);
+			conds#cond_elseif (e,pe) (snd tk);
 			dbc#open_dead_block pe;
 			skip_tokens p test
 		| Sharp "else" when not test ->
-			conds#cond_else;
+			conds#cond_else (snd tk);
 			dbc#close_dead_block (pos tk);
 			dbc#open_dead_block (pos tk);
 			skip_tokens p test
 		| Sharp "else" ->
-			conds#cond_else;
+			conds#cond_else (snd tk);
 			dbc#close_dead_block (pos tk);
-			mstack := snd tk :: !mstack;
 			Lexer.token code
 		| Sharp "elseif" ->
 			dbc#close_dead_block (pos tk);
@@ -348,7 +341,7 @@ let parse entry ctx code file =
 		| Sharp s ->
 			sharp_error s (pos tk)
 		| Eof ->
-			syntax_error Unclosed_conditional ~pos:(Some p) sraw tk
+			preprocessor_error UnclosedConditional p tk
 		| _ ->
 			skip_tokens p test
 
@@ -362,7 +355,14 @@ let parse entry ctx code file =
 	) in
 	try
 		let l = entry s in
-		(match !mstack with p :: _ -> syntax_error Unclosed_conditional ~pos:(Some p) sraw () | _ -> ());
+		begin match Stream.peek s with
+			| None ->
+				() (* Eof could already have been consumed *)
+			| Some (Eof,_) ->
+				() (* This is what we want *)
+			| Some (tok,p) ->
+				error (Unexpected tok) p (* This isn't *)
+		end;
 		let was_display_file = !in_display_file in
 		restore();
 		Lexer.restore old;
@@ -388,6 +388,13 @@ let parse entry ctx code file =
 let parse_string entry com s p error inlined =
 	let old = Lexer.save() in
 	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
+	let restore_file_data =
+		let f = Lexer.make_file old.lfile in
+		Lexer.copy_file old f;
+		(fun () ->
+			Lexer.copy_file f old
+		)
+	in
 	let old_display = display_position#get in
 	let old_in_display_file = !in_display_file in
 	let old_syntax_errors = !syntax_errors in
@@ -401,7 +408,10 @@ let parse_string entry com s p error inlined =
 			in_display_file := old_in_display_file;
 		end;
 		syntax_errors := old_syntax_errors;
-		Lexer.restore old
+		Lexer.restore old;
+		(* String parsing might mutate lexer_file information, e.g. from newline() calls. Here we
+		   restore the actual file data (issue #10763). *)
+		restore_file_data()
 	in
 	if inlined then
 		Lexer.init p.pfile

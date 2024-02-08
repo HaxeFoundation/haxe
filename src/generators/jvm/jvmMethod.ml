@@ -149,12 +149,14 @@ class builder jc name jsig = object(self)
 	inherit base_builder
 	val code = new JvmCode.builder jc#get_pool
 
+	val descriptor = generate_method_signature false jsig
 	val mutable max_num_locals = 0
 	val mutable debug_locals = []
 	val mutable stack_frames = []
 	val mutable exceptions = []
 	val mutable argument_locals = []
-	val mutable argument_annotations = Hashtbl.create 0
+	val mutable runtime_visible_argument_annotations = Hashtbl.create 0
+	val mutable runtime_invisible_argument_annotations = Hashtbl.create 0
 	val mutable thrown_exceptions = Hashtbl.create 0
 	val mutable regex_count = 0
 
@@ -257,9 +259,9 @@ class builder jc name jsig = object(self)
 		| _ -> die "" __LOC__
 
 	(** Emits an invokestatic instruction to invoke method [name] on [path] with signature [jsigm]. **)
-	method invokestatic (path : jpath) (name : string) (jsigm : jsignature) = match jsigm with
+	method invokestatic (path : jpath) (name : string) ?(kind=FKMethod) (jsigm : jsignature) = match jsigm with
 		| TMethod(tl,tr) ->
-			let offset = code#get_pool#add_field path name jsigm FKMethod in
+			let offset = code#get_pool#add_field path name jsigm kind in
 			code#invokestatic offset tl (match tr with None -> [] | Some tr -> [tr])
 		| _ -> die "" __LOC__
 
@@ -496,7 +498,7 @@ class builder jc name jsig = object(self)
 			| _ ->
 				die "" __LOC__
 		in
-		let rec unboxed_to_int () = match code#get_stack#top with
+		let unboxed_to_int () = match code#get_stack#top with
 			| TBool | TByte | TShort | TChar | TInt ->
 				self#replace_top TInt;
 			| TLong ->
@@ -508,7 +510,7 @@ class builder jc name jsig = object(self)
 			| _ ->
 				die "" __LOC__
 		in
-		let rec unboxed_to_long () = match code#get_stack#top with
+		let unboxed_to_long () = match code#get_stack#top with
 			| TBool | TByte | TShort | TChar | TInt ->
 				code#i2l;
 			| TLong ->
@@ -520,7 +522,7 @@ class builder jc name jsig = object(self)
 			| _ ->
 				die "" __LOC__
 		in
-		let rec unboxed_to_float () = match code#get_stack#top with
+		let unboxed_to_float () = match code#get_stack#top with
 			| TBool | TByte | TShort | TChar | TInt ->
 				code#i2f;
 			| TLong ->
@@ -532,7 +534,7 @@ class builder jc name jsig = object(self)
 			| _ ->
 				die "" __LOC__
 		in
-		let rec unboxed_to_double () = match code#get_stack#top with
+		let unboxed_to_double () = match code#get_stack#top with
 			| TBool | TByte | TShort | TChar | TInt ->
 				code#i2d;
 			| TLong ->
@@ -1010,9 +1012,15 @@ class builder jc name jsig = object(self)
 	method replace_top jsig =
 		code#get_stack#replace jsig
 
-	method add_argument_annotation (slot : int) (a : (path * annotation) list) =
-		let a = Array.of_list (List.map (fun (path,annot) -> TObject(path,[]),annot) a) in
-		Hashtbl.add argument_annotations slot a
+	method add_argument_annotation (slot : int) (path : jpath) (a : annotation) (is_runtime_visible : bool) =
+		let h = if is_runtime_visible then runtime_visible_argument_annotations else runtime_invisible_argument_annotations in
+		try
+			let d = Hashtbl.find h slot in
+			DynArray.add d (TObject(path,[]),a)
+		with Not_found ->
+			let d = DynArray.create () in
+			DynArray.add d (TObject(path,[]),a);
+			Hashtbl.add h slot d
 
 	(** This function has to be called once all arguments are declared. *)
 	method finalize_arguments =
@@ -1081,6 +1089,7 @@ class builder jc name jsig = object(self)
 	method is_terminated = code#is_terminated
 	method get_name = name
 	method get_jsig = jsig
+	method get_descriptor = descriptor
 	method set_terminated b = code#set_terminated b
 
 	method private get_jcode (config : export_config) =
@@ -1135,22 +1144,25 @@ class builder jc name jsig = object(self)
 		end;
 		if Hashtbl.length thrown_exceptions > 0 then
 			self#add_attribute (AttributeExceptions (Array.of_list (Hashtbl.fold (fun k _ c -> k :: c) thrown_exceptions [])));
-		if Hashtbl.length argument_annotations > 0 then begin
-			let l = List.length argument_locals in
-			let offset = if self#has_method_flag MStatic then 0 else 1 in
-			let a = Array.init (l - offset) (fun i ->
-				try
-					let annot = Hashtbl.find argument_annotations (i + offset) in
-					convert_annotations jc#get_pool annot
-				with Not_found ->
-					[||]
-			) in
-			DynArray.add attributes (AttributeRuntimeVisibleParameterAnnotations a)
-		end;
+		let collect_annotations h f =
+			if Hashtbl.length h > 0 then begin
+				let l = List.length argument_locals in
+				let offset = if self#has_method_flag MStatic then 0 else 1 in
+				let a = Array.init (l - offset) (fun i ->
+					try
+						let d = Hashtbl.find h (i + offset) in
+						convert_annotations jc#get_pool (DynArray.to_array d)
+					with Not_found ->
+						[||]
+				) in
+				f a
+			end;
+		in
+		collect_annotations runtime_visible_argument_annotations (fun a -> DynArray.add attributes (AttributeRuntimeVisibleParameterAnnotations a));
+		collect_annotations runtime_invisible_argument_annotations (fun a -> DynArray.add attributes (AttributeRuntimeInvisibleParameterAnnotations a));
 		let attributes = self#export_attributes jc#get_pool in
 		let offset_name = jc#get_pool#add_string name in
-		let jsig = generate_method_signature false jsig in
-		let offset_desc = jc#get_pool#add_string jsig in
+		let offset_desc = jc#get_pool#add_string descriptor in
 		{
 			field_access_flags = access_flags;
 			field_name_index = offset_name;

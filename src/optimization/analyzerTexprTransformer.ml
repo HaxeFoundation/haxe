@@ -85,7 +85,7 @@ let rec func ctx bb tf t p =
 		if is_unbound_call_that_might_have_side_effects s el then ctx.has_unbound <- true;
 	in
 	let no_void t p =
-		if ExtType.is_void (follow t) then Error.typing_error "Cannot use Void as value" p
+		if ExtType.is_void (follow t) then Error.raise_typing_error "Cannot use Void as value" p
 	in
 	let push_name s =
 		ctx.name_stack <- s :: ctx.name_stack;
@@ -102,8 +102,8 @@ let rec func ctx bb tf t p =
 			block_element bb e,e1
 		| TBlock [e1] ->
 			value bb e1
-		| TBlock _ | TIf _ | TSwitch _ | TTry _ ->
-			bind_to_temp bb false e
+		| TBlock _ | TIf(_,_,Some _) | TSwitch _ | TTry _ ->
+			bind_to_temp bb e
 		| TCall({eexpr = TIdent s},el) when is_really_unbound s ->
 			check_unbound_call s el;
 			bb,e
@@ -118,11 +118,15 @@ let rec func ctx bb tf t p =
 			let bb,e2 = value bb e2 in
 			bb,{e with eexpr = TBinop(op,e1,e2)}
 		| TBinop(op,e1,e2) ->
-			let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
-				| bb,[e1;e2] -> bb,e1,e2
-				| _ -> die "" __LOC__
-			in
-			bb,{e with eexpr = TBinop(op,e1,e2)}
+			begin match ordered_value_list bb [e1;e2] with
+				| bb,[e1;e2] ->
+					bb,{e with eexpr = TBinop(op,e1,e2)}
+				| bb,[e] ->
+					assert(bb == g.g_unreachable);
+					bb,e
+				| _ ->
+					die "" __LOC__
+				end
 		| TUnop(op,flag,e1) ->
 			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TUnop(op,flag,e1)}
@@ -139,11 +143,16 @@ let rec func ctx bb tf t p =
 			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TField(e1,fa)}
 		| TArray(e1,e2) ->
-			let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
-				| bb,[e1;e2] -> bb,e1,e2
-				| _ -> die "" __LOC__
-			in
-			bb,{e with eexpr = TArray(e1,e2)}
+			begin match ordered_value_list bb [e1;e2] with
+				| bb,[e1;e2] ->
+					bb,{e with eexpr = TArray(e1,e2)}
+
+				| bb,[e] ->
+					assert(bb == g.g_unreachable);
+					bb,e
+				| _ ->
+					die "" __LOC__
+				end
 		| TMeta(m,e1) ->
 			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TMeta(m,e1)}
@@ -178,8 +187,8 @@ let rec func ctx bb tf t p =
 		| TThrow _ | TReturn _ | TBreak | TContinue ->
 			let bb = block_element bb e in
 			bb,mk (TConst TNull) t_dynamic e.epos
-		| TVar _ | TFor _ | TWhile _ ->
-			Error.typing_error "Cannot use this expression as value" e.epos
+		| TVar _ | TFor _ | TWhile _ | TIf _ ->
+			Error.raise_typing_error "Cannot use this expression as value" e.epos
 	and value bb e =
 		let bb,e = value' bb e in
 		no_void e.etype e.epos;
@@ -205,12 +214,12 @@ let rec func ctx bb tf t p =
 			if bb == g.g_unreachable then
 				bb,acc
 			else begin
-				let bb,value = if aff || opt then bind_to_temp bb aff e else value bb e in
+				let bb,value = if aff || opt then bind_to_temp bb e else value bb e in
 				bb,(value :: acc)
 			end
 		) (bb,[]) el in
 		bb,List.rev values
-	and bind_to_temp ?(v=None) bb sequential e =
+	and bind_to_temp ?(v=None) bb e =
 		let is_probably_not_affected e e1 fa = match fa with
 			| FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf) when cf.cf_kind = Method MethNormal -> true
 			| FStatic(_,{cf_kind = Method MethDynamic}) -> false
@@ -313,7 +322,7 @@ let rec func ctx bb tf t p =
 			| _ ->
 				if ExtType.has_variable_semantics t then begin
 					let v = alloc_var VGenerated "tmp" t e.epos in
-					let bb',e = bind_to_temp ~v:(Some v) !bb false e in
+					let bb',e = bind_to_temp ~v:(Some v) !bb e in
 					bb := bb';
 					e
 				end else
@@ -325,22 +334,22 @@ let rec func ctx bb tf t p =
 			| e1 :: el -> bb,{e with eexpr = TCall(e1,el)}
 			| _ -> die "" __LOC__
 	and array_assign_op bb op e ea e1 e2 e3 =
-		let bb,e1 = bind_to_temp bb false e1 in
-		let bb,e2 = bind_to_temp bb false e2 in
+		let bb,e1 = bind_to_temp bb e1 in
+		let bb,e2 = bind_to_temp bb e2 in
 		let ea = {ea with eexpr = TArray(e1,e2)} in
-		let bb,e4 = bind_to_temp bb false ea in
-		let bb,e3 = bind_to_temp bb false e3 in
+		let bb,e4 = bind_to_temp bb ea in
+		let bb,e3 = bind_to_temp bb e3 in
 		let eop = {e with eexpr = TBinop(op,e4,e3)} in
 		add_texpr bb {e with eexpr = TBinop(OpAssign,ea,eop)};
 		bb,ea
 	and field_assign_op bb op e ef e1 fa e2 =
 		let bb,e1 = match fa with
 			| FInstance(c,_,_) | FClosure(Some(c,_),_) when is_stack_allocated c -> bb,e1
-			| _ -> bind_to_temp bb false e1
+			| _ -> bind_to_temp bb e1
 		in
 		let ef = {ef with eexpr = TField(e1,fa)} in
-		let bb,e3 = bind_to_temp bb false ef in
-		let bb,e2 = bind_to_temp bb false e2 in
+		let bb,e3 = bind_to_temp bb ef in
+		let bb,e2 = bind_to_temp bb e2 in
 		let eop = {e with eexpr = TBinop(op,e3,e2)} in
 		add_texpr bb {e with eexpr = TBinop(OpAssign,ef,eop)};
 		bb,ef
@@ -369,14 +378,14 @@ let rec func ctx bb tf t p =
 			bb
 		(* branching *)
 		| TMeta((Meta.MergeBlock,_,_),{eexpr = TBlock el}) ->
-			block_el bb el
+			block_el true bb el
 		| TBlock [] when (ExtType.is_void (follow e.etype)) ->
 			bb
 		| TBlock el ->
 			let bb_sub = create_node BKSub e.etype e.epos in
 			add_cfg_edge bb bb_sub CFGGoto;
 			close_node bb;
-			let bb_sub_next = block_el bb_sub el in
+			let bb_sub_next = block_el true bb_sub el in
 			if bb_sub_next != g.g_unreachable then begin
 				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 				set_syntax_edge bb (SESubBlock(bb_sub,bb_next));
@@ -389,7 +398,7 @@ let rec func ctx bb tf t p =
 				bb_sub_next
 			end
 		| TIf(e1,e2,None) ->
-			let bb,e1 = bind_to_temp bb false e1 in
+			let bb,e1 = bind_to_temp bb e1 in
 			if bb == g.g_unreachable then
 				bb
 			else begin
@@ -406,7 +415,7 @@ let rec func ctx bb tf t p =
 				bb_next
 			end
 		| TIf(e1,e2,Some e3) ->
-			let bb,e1 = bind_to_temp bb false e1 in
+			let bb,e1 = bind_to_temp bb e1 in
 			if bb == g.g_unreachable then
 				bb
 			else begin
@@ -431,9 +440,9 @@ let rec func ctx bb tf t p =
 					bb_next
 				end
 			end
-		| TSwitch(e1,cases,edef) ->
-			let is_exhaustive = is_exhaustive e1 edef in
-			let bb,e1 = bind_to_temp bb false e1 in
+		| TSwitch switch ->
+			let is_exhaustive = is_exhaustive switch in
+			let bb,e1 = bind_to_temp bb switch.switch_subject in
 			bb.bb_terminator <- TermCondBranch e1;
 			let reachable = ref [] in
 			let make_case e =
@@ -444,12 +453,12 @@ let rec func ctx bb tf t p =
 				close_node bb_case_next;
 				bb_case
 			in
-			let cases = List.map (fun (el,e) ->
-				let bb_case = make_case e in
-				List.iter (fun e -> add_cfg_edge bb bb_case (CFGCondBranch e)) el;
-				el,bb_case
-			) cases in
-			let def = match edef with
+			let cases = List.map (fun case ->
+				let bb_case = make_case case.case_expr in
+				List.iter (fun e -> add_cfg_edge bb bb_case (CFGCondBranch e)) case.case_patterns;
+				case.case_patterns,bb_case
+			) switch.switch_cases in
+			let def = match switch.switch_default with
 				| None ->
 					None
 				| Some e ->
@@ -457,15 +466,16 @@ let rec func ctx bb tf t p =
 					add_cfg_edge bb bb_case (CFGCondElse);
 					Some (bb_case)
 			in
+			let ss = { ss_cases = cases;ss_default = def;ss_pos = e.epos;ss_next = g.g_unreachable; ss_exhaustive = is_exhaustive} in
 			if is_exhaustive && !reachable = [] then begin
-				set_syntax_edge bb (SESwitch(cases,def,g.g_unreachable,e.epos));
+				set_syntax_edge bb (SESwitch ss);
 				close_node bb;
 				g.g_unreachable;
 			end else begin
 				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 				if not is_exhaustive then add_cfg_edge bb bb_next CFGGoto;
 				List.iter (fun bb -> add_cfg_edge bb bb_next CFGGoto) !reachable;
-				set_syntax_edge bb (SESwitch(cases,def,bb_next,e.epos));
+				set_syntax_edge bb (SESwitch {ss with ss_next = bb_next});
 				close_node bb;
 				bb_next
 			end
@@ -618,12 +628,18 @@ let rec func ctx bb tf t p =
 			let bb = block_element bb e1 in
 			block_element bb e2
 		| TArrayDecl el ->
-			block_el bb el
+			block_el false bb el
 		| TObjectDecl fl ->
-			block_el bb (List.map snd fl)
+			block_el false bb (List.map snd fl)
 		| TFor _ | TWhile(_,_,DoWhile) ->
 			die "" __LOC__
-	and block_el bb el =
+	and block_el allow_void bb el =
+		let block_element = if allow_void then
+			block_element
+		else (fun bb e ->
+			no_void e.etype e.epos;
+			block_element bb e
+		) in
 		match !b_try_stack with
 		| [] ->
 			let rec loop bb el = match el with
@@ -655,7 +671,7 @@ let rec func ctx bb tf t p =
 			| TBlock el -> el
 			| _ -> [e]
 		in
-		block_el bb el
+		block_el true bb el
 	in
 	let bb_last = block bb_root tf.tf_expr in
 	close_node bb_last;
@@ -686,7 +702,7 @@ let rec block_to_texpr_el ctx bb =
 		let block bb = block_to_texpr ctx bb in
 		let live bb = not ctx.did_optimize || not ctx.config.local_dce || has_block_flag bb BlockDce in
 		let if_live bb = if live bb then Some bb else None in
-		let rec loop bb se =
+		let loop bb se =
 			let get_terminator() = match bb.bb_terminator with
 				| TermCondBranch e1 -> e1
 				| _ -> die "" __LOC__
@@ -707,8 +723,13 @@ let rec block_to_texpr_el ctx bb =
 			| SEWhile(bb_body,bb_next,p) ->
 				let e2 = block bb_body in
 				if_live bb_next,Some (mk (TWhile(get_terminator(),e2,NormalWhile)) ctx.com.basic.tvoid p)
-			| SESwitch(bbl,bo,bb_next,p) ->
-				Some bb_next,Some (mk (TSwitch(get_terminator(),List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo)) ctx.com.basic.tvoid p)
+			| SESwitch ss ->
+				let cases = List.map (fun (el,bb) -> {
+					case_patterns = el;
+					case_expr = block bb
+				}) ss.ss_cases in
+				let switch = mk_switch (get_terminator()) cases (Option.map block ss.ss_default) ss.ss_exhaustive in
+				Some ss.ss_next,Some (mk (TSwitch switch) ctx.com.basic.tvoid ss.ss_pos)
 		in
 		let bb_next,e_term = loop bb bb.bb_syntax_edge in
 		let el = DynArray.to_list bb.bb_el in

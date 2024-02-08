@@ -19,7 +19,6 @@
 
 open Globals
 open Ast
-open Type
 open EvalValue
 open EvalContext
 open EvalEncode

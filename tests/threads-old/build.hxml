@@ -1,4 +1,0 @@
--cp src
--D analyzer-optimize
--main Main
--lib utest

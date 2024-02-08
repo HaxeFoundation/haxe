@@ -61,7 +61,7 @@ extern class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	/**
 		See `Map.keys`
 
-		(cs, java) Implementation detail: Do not `set()` any new value while
+		(java) Implementation detail: Do not `set()` any new value while
 		iterating, as it may cause a resize, which will break iteration.
 	**/
 	function keys():Iterator<K>;
@@ -69,7 +69,7 @@ extern class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	/**
 		See `Map.iterator`
 
-		(cs, java) Implementation detail: Do not `set()` any new value while
+		(java) Implementation detail: Do not `set()` any new value while
 		iterating, as it may cause a resize, which will break iteration.
 	**/
 	function iterator():Iterator<V>;

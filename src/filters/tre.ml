@@ -6,7 +6,7 @@ let rec collect_new_args_values ctx args declarations values n =
 	match args with
 	| [] -> declarations, values
 	| arg :: rest ->
-		let v = alloc_var VGenerated ("`tmp" ^ (string_of_int n)) arg.etype arg.epos in
+		let v = gen_local ctx arg.etype arg.epos in
 		let decl = { eexpr = TVar (v, Some arg); etype = ctx.t.tvoid; epos = v.v_pos }
 		and value = { arg with eexpr = TLocal v } in
 		collect_new_args_values ctx rest (decl :: declarations) (value :: values) (n + 1)
@@ -51,7 +51,7 @@ let rec redeclare_vars ctx vars declarations replace_list =
 	match vars with
 	| [] -> declarations, replace_list
 	| v :: rest ->
-		let new_v = alloc_var VGenerated ("`" ^ v.v_name) v.v_type v.v_pos in
+		let new_v = alloc_var VGenerated (gen_local_prefix ^ v.v_name) v.v_type v.v_pos in
 		let decl =
 			{
 				eexpr = TVar (new_v, Some { eexpr = TLocal v; etype = v.v_type; epos = v.v_pos; });
@@ -206,19 +206,19 @@ let run ctx =
 			match e.eexpr with
 			| TFunction fn ->
 				let is_tre_eligible =
-					match ctx.curfield.cf_kind with
+					match ctx.f.curfield.cf_kind with
 					| Method MethDynamic -> false
 					| Method MethInline -> true
 					| Method MethNormal ->
-						PMap.mem ctx.curfield.cf_name ctx.curclass.cl_statics
+						PMap.mem ctx.f.curfield.cf_name ctx.c.curclass.cl_statics
 					| _ ->
-						has_class_field_flag ctx.curfield CfFinal
+						has_class_field_flag ctx.f.curfield CfFinal
 					in
 				let is_recursive_call callee args =
-					is_tre_eligible && is_recursive_method_call ctx.curclass ctx.curfield callee args
+					is_tre_eligible && is_recursive_method_call ctx.c.curclass ctx.f.curfield callee args
 				in
 				if has_tail_recursion is_recursive_call false true fn.tf_expr then
-					(* print_endline ("TRE: " ^ ctx.curfield.cf_pos.pfile ^ ": " ^ ctx.curfield.cf_name); *)
+					(* print_endline ("TRE: " ^ ctx.f.curfield.cf_pos.pfile ^ ": " ^ ctx.f.curfield.cf_name); *)
 					let fn = transform_function ctx is_recursive_call fn in
 					{ e with eexpr = TFunction fn }
 				else
