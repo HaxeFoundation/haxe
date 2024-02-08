@@ -88,7 +88,7 @@ let type_function ctx (args : function_arguments) ret e do_display p =
 		   don't have a return expression we can link the monomorph to Void. We
 		   can _not_ use type_iseq to avoid the Void check above because that
 		   would turn Dynamic returns to Void returns. *)
-		| TMono t when not (has_return e) -> ignore(link t ret ctx.t.tvoid)
+		| TMono m when not (has_return e) -> unify ctx ctx.t.tvoid ret p
 		| _ -> (try TypeloadCheck.return_flow ctx e with Exit -> ())
 	end;
 	let rec loop e =

@@ -215,6 +215,7 @@ let unsupported_decl_flag decl flag pos =
 let unsupported_decl_flag_class = unsupported_decl_flag "classes"
 let unsupported_decl_flag_enum = unsupported_decl_flag "enums"
 let unsupported_decl_flag_abstract = unsupported_decl_flag "abstracts"
+let unsupported_decl_flag_typedef = unsupported_decl_flag "typedefs"
 let unsupported_decl_flag_module_field = unsupported_decl_flag "module-level fields"
 
 let decl_flag_to_class_flag (flag,p) = match flag with
@@ -232,6 +233,11 @@ let decl_flag_to_abstract_flag (flag,p) = match flag with
 	| DPrivate -> Some AbPrivate
 	| DExtern -> Some AbExtern
 	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_abstract flag p
+
+let decl_flag_to_typedef_flag (flag,p) = match flag with
+	| DPrivate -> Some TDPrivate
+	| DExtern -> Some TDExtern
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_typedef flag p
 
 let decl_flag_to_module_field_flag (flag,p) = match flag with
 	| DPrivate -> Some (APrivate,p)

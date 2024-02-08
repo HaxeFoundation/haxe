@@ -280,9 +280,6 @@ let transform_abstract_field com this_t a_t a f =
 	| _ ->
 		f
 
-let lazy_display_type ctx f =
-	f ()
-
 type enum_abstract_mode =
 	| EAString
 	| EAInt of int ref
@@ -605,9 +602,7 @@ let type_var_field ctx t e stat do_display p =
 	let e = if do_display then Display.preprocess_expr ctx.com e else e in
 	let e = type_expr ctx e (WithType.with_type t) in
 	let e = AbstractCast.cast_or_unify ctx t e p in
-	match t with
-	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
-	| _ -> e
+	e
 
 let type_var_field ctx t e stat do_display p =
 	let save = TypeloadFunction.save_field_state ctx in
@@ -891,7 +886,7 @@ let load_variable_type_hint ctx fctx eo p = function
 	| None ->
 		mk_mono()
 	| Some t ->
-		lazy_display_type ctx (fun () -> load_type_hint ctx p (Some t))
+		load_type_hint ctx p LoadNormal (Some t)
 
 let create_variable (ctx,cctx,fctx) c f t eo p =
 	let is_abstract_enum_field = List.mem_assoc AEnum f.cff_access in
@@ -1105,7 +1100,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		end
 	end
 
-let type_opt (ctx,cctx,fctx) p t =
+let type_opt (ctx,cctx,fctx) p mode t =
 	let c = cctx.tclass in
 	let is_truly_extern =
 		(has_class_flag c CExtern || fctx.is_extern)
@@ -1122,7 +1117,7 @@ let type_opt (ctx,cctx,fctx) p t =
 		display_error ctx.com "Type required for abstract functions" p;
 		t_dynamic
 	| _ ->
-		Typeload.load_type_hint ctx p t
+		Typeload.load_type_hint ctx p mode t
 
 let setup_args_ret ctx cctx fctx name fd p =
 	let c = cctx.tclass in
@@ -1163,7 +1158,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 		ctx.t.tvoid
 	else begin
 		let def () =
-			type_opt (ctx,cctx,fctx) p fd.f_type
+			type_opt (ctx,cctx,fctx) p LoadReturn fd.f_type
 		in
 		maybe_use_property_type fd.f_type (fun () -> match Lazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
 	end in
@@ -1176,7 +1171,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 	let is_extern = fctx.is_extern || has_class_flag ctx.c.curclass CExtern in
 	let type_arg i opt cto p =
 		let def () =
-			type_opt (ctx,cctx,fctx) p cto
+			type_opt (ctx,cctx,fctx) p LoadNormal cto
 		in
 		if i = 0 then maybe_use_property_type cto (fun () -> match Lazy.force mk with MKSetter -> true | _ -> false) def else def()
 	in
@@ -1241,7 +1236,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				| None -> ()
 				| Some (CTPath ({ path = {tpackage = []; tname = "Void" } as tp}),p) ->
 					if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in p then
-						ignore(load_instance ~allow_display:true ctx (make_ptp tp p) ParamNormal);
+						ignore(load_instance ~allow_display:true ctx (make_ptp tp p) ParamNormal LoadReturn); (* VOIDTODO *)
 				| _ -> raise_typing_error "A class constructor can't have a return type" p;
 			end
 		| false,_ ->
@@ -1358,7 +1353,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	let ret = (match t, eo with
 		| None, None -> raise_typing_error "Property requires type-hint or initialization" p;
 		| None, _ -> mk_mono()
-		| Some t, _ -> lazy_display_type ctx (fun () -> load_type_hint ctx p (Some t))
+		| Some t, _ -> load_type_hint ctx p LoadNormal (Some t)
 	) in
 	let t_get,t_set = match cctx.abstract with
 		| Some a when fctx.is_abstract_member ->
