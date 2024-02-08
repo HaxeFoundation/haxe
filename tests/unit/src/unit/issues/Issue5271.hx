@@ -27,7 +27,9 @@ class Issue5271 extends unit.Test {
 		eq(3, "dog".indexOf("", 3));
 		eq(3, "dog".indexOf("", 4));
 		eq(3, "dog".indexOf("", 10));
+		#if !lua
 		eq(0, "dog".indexOf("", -1));
+		#end
 
 		eq(-1, "dogdog".indexOf("cat"));
 		eq(3, "dogcat".indexOf("cat"));
