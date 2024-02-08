@@ -1,4 +1,4 @@
-#if (flash || java)
+#if (flash || jvm)
 var k1 = new IntWrap(1);
 var k2 = new IntWrap(2);
 var k3 = new IntWrap(3);

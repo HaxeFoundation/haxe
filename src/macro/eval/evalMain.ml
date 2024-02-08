@@ -25,8 +25,6 @@ open EvalValue
 open EvalContext
 open EvalPrototype
 open EvalExceptions
-open EvalJit
-open EvalJitContext
 open EvalPrinting
 open EvalMisc
 open EvalHash
@@ -101,7 +99,7 @@ let create com api is_macro =
 	} in
 	let eval = EvalThread.create_eval thread in
 	let evals = IntMap.singleton 0 eval in
-	let rec ctx = {
+	let ctx = {
 		ctx_id = !GlobalState.sid;
 		is_macro = is_macro;
 		debug = debug;
@@ -130,6 +128,8 @@ let create com api is_macro =
 		exception_stack = [];
 		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
 		max_print_depth = int_of_string (Common.defined_value_safe ~default:"5" com Define.EvalPrintDepth);
+		print_indentation = match Common.defined_value_safe com Define.EvalPrettyPrint
+			with | "" -> None | "1" -> Some "  " | indent -> Some indent;
 	} in
 	if debug.support_debugger && not !GlobalState.debugger_initialized then begin
 		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
@@ -145,11 +145,16 @@ let create com api is_macro =
 		Which is printing an error to stderr and exiting with code 2 *)
 	Luv.Error.set_on_unhandled_exception (fun ex ->
 		match ex with
-		| Sys_exit _ -> raise ex
+		| EvalTypes.Sys_exit _ ->
+			raise ex
 		| _ ->
-			let msg =
-				match ex with
-				| Error.Error (err,_) -> Error.error_msg err
+			let msg = match ex with
+				| Error.Error err ->
+						let messages = ref [] in
+						Error.recurse_error (fun depth err ->
+							messages := (make_compiler_message ~from_macro:err.err_from_macro (Error.error_msg err.err_message) err.err_pos depth DKCompilerMessage Error) :: !messages;
+						) err;
+						MessageReporting.format_messages com !messages
 				| _ -> Printexc.to_string ex
 			in
 			Printf.eprintf "%s\n" msg;
@@ -372,21 +377,9 @@ let init ctx = ()
 
 let setup get_api =
 	let api = get_api (fun() -> (get_ctx()).curapi.get_com()) (fun() -> (get_ctx()).curapi) in
-	List.iter (fun (n,v) -> match v with
-		| VFunction(f,b) ->
-			let f vl = try
-				f vl
-			with
-			| Sys_error msg | Failure msg | Invalid_argument msg ->
-				exc_string msg
-			| MacroApi.Invalid_expr ->
-				exc_string "Invalid expression"
-			in
-			let v = VFunction (f,b) in
-			Hashtbl.replace GlobalState.macro_lib n v
-		| _ -> die "" __LOC__
-	) api;
-	Globals.macro_platform := Globals.Eval
+	List.iter (fun (n,v) ->
+		Hashtbl.replace GlobalState.macro_lib n v
+	) api
 
 let do_reuse ctx api =
 	ctx.curapi <- api;
@@ -399,21 +392,47 @@ let set_error ctx b =
 let add_types ctx types ready =
 	if not ctx.had_error then ignore(catch_exceptions ctx (fun () -> ignore(add_types ctx types ready)) null_pos)
 
-let compiler_error msg pos =
+let make_runtime_error msg pos =
 	let vi = encode_instance key_haxe_macro_Error in
 	match vi with
 	| VInstance i ->
-		let msg = EvalString.create_unknown msg in
-		set_instance_field i key_exception_message msg;
+		let s = EvalString.create_unknown msg in
+		set_instance_field i key_exception_message s;
 		set_instance_field i key_pos (encode_pos pos);
-		set_instance_field i key_native_exception msg;
-		let ctx = get_ctx() in
-		let eval = get_eval ctx in
-		(match eval.env with
-		| Some _ ->
-			let stack = EvalStackTrace.make_stack_value (call_stack eval) in
-			set_instance_field i key_native_stack stack;
-		| None -> ());
+		set_instance_field i key_native_exception s;
+		vi
+	| _ ->
+		die "" __LOC__
+
+let compiler_error (err : Error.error) =
+	let vi = make_runtime_error (Error.error_msg err.err_message) err.err_pos in
+	match vi with
+	| VInstance i ->
+		(match err.err_sub with
+		| [] ->
+			let ctx = get_ctx() in
+			let eval = get_eval ctx in
+			(match eval.env with
+			| Some _ ->
+				let stack = EvalStackTrace.make_stack_value (call_stack eval) in
+				set_instance_field i key_native_stack stack;
+			| None -> ());
+
+		| _ ->
+			let stack = ref [] in
+			let depth = err.err_depth + 1 in
+
+			List.iter (fun err ->
+				Error.recurse_error ~depth (fun depth err ->
+					(* TODO indent child errors depending on depth *)
+					stack := make_runtime_error (Error.error_msg err.err_message) err.err_pos :: !stack;
+				) err;
+			(* TODO: not sure if we want rev or not here.. tests don't help atm *)
+			) (List.rev err.err_sub);
+
+			set_instance_field i key_child_errors (encode_array (List.rev !stack));
+		);
+
 		exc vi
 	| _ ->
 		die "" __LOC__

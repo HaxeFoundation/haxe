@@ -1,0 +1,6 @@
+[ERROR] Main.hx: 41-64
+
+ 3 |   var foo:Int = "whoops";
+   |   ^^^^^^^^^^^^^^^^^^^^^^^
+   | String should be Int
+

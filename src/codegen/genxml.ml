@@ -81,7 +81,7 @@ let rec follow_param t =
 		t
 
 let gen_meta meta =
-	let meta = List.filter (fun (m,_,_) -> match m with Meta.Used | Meta.MaybeUsed | Meta.RealPath | Meta.Pure -> false | _ -> true) meta in
+	let meta = List.filter (fun (m,_,_) -> match m with Meta.Used | Meta.RealPath | Meta.Pure | Meta.HxbId -> false | _ -> true) meta in
 	match meta with
 	| [] -> []
 	| _ ->
@@ -122,7 +122,8 @@ let rec gen_type ?(values=None) t =
 		) args in
 		node "f" (("a",names) :: values) (List.map gen_type (args @ [r]))
 	| TAnon a -> node "a" [] (pmap (fun f -> gen_field [] { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) }) a.a_fields)
-	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
+	| TDynamic None -> node "d" [] []
+	| TDynamic (Some t2) -> node "d" [] [gen_type t2]
 	| TLazy f -> gen_type (lazy_type f)
 
 and gen_type_decl n t pl =

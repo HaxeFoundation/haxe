@@ -1,0 +1,21 @@
+Uncaught exception Stack overflow
+  Main.hx:1: character 1 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:8: characters 4-9 : Called from here
+  Main.hx:10: characters 3-8 : Called from here
+  Main.hx:3: characters 3-9 : Called from here

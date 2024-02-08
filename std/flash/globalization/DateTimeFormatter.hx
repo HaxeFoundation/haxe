@@ -8,7 +8,7 @@ package flash.globalization;
 	function format(dateTime : Date) : String;
 	function formatUTC(dateTime : Date) : String;
 	function getDateStyle() : DateTimeStyle;
-	function getDateTimePattern() : DateTimeStyle;
+	function getDateTimePattern() : String;
 	function getFirstWeekday() : Int;
 	function getMonthNames(?nameStyle : DateTimeNameStyle, ?context : DateTimeNameContext) : flash.Vector<String>;
 	function getTimeStyle() : DateTimeStyle;

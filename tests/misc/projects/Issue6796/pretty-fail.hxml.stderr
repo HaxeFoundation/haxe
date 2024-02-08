@@ -1,0 +1,7 @@
+[ERROR] Main.hx:3: characters 21-25
+
+ 3 |         Sys.println(main["foo"]);
+   |                     ^^^^
+   | Array access is not allowed on () -> Unknown<0>
+   | For function argument 'v'
+

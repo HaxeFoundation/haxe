@@ -1,8 +1,6 @@
 open Globals
-open Path
 open Ast
 open Type
-open Json
 open Genjson
 
 module SymbolKind = struct
@@ -198,6 +196,7 @@ module DisplayMode = struct
 		dms_inline : bool;
 		dms_display_file_policy : display_file_policy;
 		dms_exit_during_typing : bool;
+		dms_populate_cache : bool;
 		dms_per_file : bool;
 	}
 
@@ -210,6 +209,7 @@ module DisplayMode = struct
 		dms_inline = false;
 		dms_display_file_policy = DFPOnly;
 		dms_exit_during_typing = true;
+		dms_populate_cache = false;
 		dms_per_file = false;
 	}
 
@@ -222,6 +222,7 @@ module DisplayMode = struct
 		dms_inline = true;
 		dms_display_file_policy = DFPNo;
 		dms_exit_during_typing = false;
+		dms_populate_cache = true;
 		dms_per_file = false;
 	}
 
@@ -264,7 +265,7 @@ type symbol =
 	| SKEnum of tenum
 	| SKTypedef of tdef
 	| SKAbstract of tabstract
-	| SKField of tclass_field * path option (* path - class path *)
+	| SKField of tclass_field * tclass option
 	| SKConstructor of tclass_field
 	| SKEnumField of tenum_field
 	| SKVariable of tvar
@@ -327,12 +328,19 @@ and missing_fields_diagnostics = {
 and module_diagnostics =
 	| MissingFields of missing_fields_diagnostics
 
+type replaceable_code = {
+	reason : string;
+	replacement : string;
+	display_range : pos;
+	replace_range : pos;
+}
+
 type diagnostics_context = {
-	mutable removable_code : (string * pos * pos) list;
+	mutable replaceable_code : replaceable_code list;
 	mutable import_positions : (pos,bool ref) PMap.t;
 	mutable dead_blocks : (Path.UniqueKey.t,(pos * expr) list) Hashtbl.t;
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
-	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t) list;
+	mutable diagnostics_messages : diagnostic list;
 	mutable missing_fields : (pos,(module_type * (missing_fields_diagnostics list ref))) PMap.t;
 }
 

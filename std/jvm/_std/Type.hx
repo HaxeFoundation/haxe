@@ -32,7 +32,7 @@ class Type {
 		return c.isAnnotationPresent(cast EnumValueReflectionInformation);
 	}
 
-	public static function getClass<T>(o:T):Class<T> {
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		if (o == null) {
 			return null;
 		}

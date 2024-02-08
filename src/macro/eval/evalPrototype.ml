@@ -178,7 +178,7 @@ let is_persistent cf =
 let create_static_prototype ctx mt =
 	let path = (t_infos mt).mt_path in
 	let key = path_hash path in
-	let com = ctx.curapi.MacroApi.get_com() in
+	let com = if ctx.is_macro then ctx.curapi.MacroApi.get_macro_com() else ctx.curapi.MacroApi.get_com() in
 	let meta = Texpr.build_metadata com.Common.basic mt in
 	let o = match mt with
 	| TClassDecl c ->
@@ -211,7 +211,7 @@ let create_static_prototype ctx mt =
 			|  _ ->
 				()
 		) fields;
-		begin match c.cl_init with
+		begin match TClass.get_cl_init c with
 			| None -> ()
 			| Some e -> DynArray.add delays (false,(fun _ -> ignore(eval_expr ctx (EKMethod(key,key___init__)) e)))
 		end;

@@ -23,40 +23,25 @@ open Globals
 open Ast
 open Type
 open Typecore
-open DisplayTypes.DisplayMode
-open DisplayException
 open Common
 open Error
 open FunctionArguments
 
 let save_field_state ctx =
-	let old_ret = ctx.ret in
-	let old_fun = ctx.curfun in
-	let old_opened = ctx.opened in
-	let old_monos = ctx.monomorphs.perfunction in
-	let old_in_function = ctx.in_function in
-	let locals = ctx.locals in
+	let locals = ctx.f.locals in
 	(fun () ->
-		ctx.locals <- locals;
-		ctx.ret <- old_ret;
-		ctx.curfun <- old_fun;
-		ctx.opened <- old_opened;
-		ctx.monomorphs.perfunction <- old_monos;
-		ctx.in_function <- old_in_function;
+		ctx.f.locals <- locals;
 	)
 
-let type_function_params ctx fd fname p =
-	let params = ref [] in
-	params := Typeload.type_type_params ctx TPHMethod ([],fname) (fun() -> !params) p fd.f_params;
-	!params
+let type_function_params ctx fd host fname p =
+	Typeload.type_type_params ctx host ([],fname) p fd.f_params
 
-let type_function ctx (args : function_arguments) ret fmode e do_display p =
-	ctx.in_function <- true;
-	ctx.curfun <- fmode;
-	ctx.ret <- ret;
-	ctx.opened <- [];
-	ctx.monomorphs.perfunction <- [];
-	args#bring_into_context;
+let type_function ctx (args : function_arguments) ret e do_display p =
+	ctx.e.ret <- ret;
+	ctx.e.opened <- [];
+	ctx.e.monomorphs.perfunction <- [];
+	enter_field_typing_pass ctx.g ("type_function",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
+	args#bring_into_context ctx;
 	let e = match e with
 		| None ->
 			if ignore_error ctx.com then
@@ -66,20 +51,20 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 				*)
 				EBlock [],p
 			else
-				if fmode = FunMember && has_class_flag ctx.curclass CAbstract then
-					typing_error "Function body or abstract modifier required" p
+				if ctx.e.curfun = FunMember && has_class_flag ctx.c.curclass CAbstract then
+					raise_typing_error "Function body or abstract modifier required" p
 				else
-					typing_error "Function body required" p
+					raise_typing_error "Function body required" p
 		| Some e -> e
 	in
-	let is_position_debug = Meta.has (Meta.Custom ":debug.position") ctx.curfield.cf_meta in
+	let is_position_debug = Meta.has (Meta.Custom ":debug.position") ctx.f.curfield.cf_meta in
 	let e = if not do_display then begin
 		if is_position_debug then print_endline ("syntax:\n" ^ (Expr.dump_with_pos e));
 		type_expr ctx e NoValue
 	end else begin
-		let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in
+		let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.f.curfield.cf_meta in
 		if is_display_debug then print_endline ("before processing:\n" ^ (Expr.dump_with_pos e));
-		let e = if !Parser.had_resume then e else Display.ExprPreprocessing.process_expr ctx.com e in
+		let e = if !Parser.had_resume then e else Display.preprocess_expr ctx.com e in
 		if is_display_debug then print_endline ("after processing:\n" ^ (Expr.dump_with_pos e));
 		type_expr ctx e NoValue
 	end in
@@ -103,7 +88,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 		   don't have a return expression we can link the monomorph to Void. We
 		   can _not_ use type_iseq to avoid the Void check above because that
 		   would turn Dynamic returns to Void returns. *)
-		| TMono t when not (has_return e) -> ignore(link t ret ctx.t.tvoid)
+		| TMono m when not (has_return e) -> unify ctx ctx.t.tvoid ret p
 		| _ -> (try TypeloadCheck.return_flow ctx e with Exit -> ())
 	end;
 	let rec loop e =
@@ -113,7 +98,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 		| _ -> Type.iter loop e
 	in
 	let has_super_constr() =
-		match ctx.curclass.cl_super with
+		match ctx.c.curclass.cl_super with
 		| None ->
 			None
 		| Some (csup,tl) ->
@@ -123,10 +108,10 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 			with Not_found ->
 				None
 	in
-	let e = if fmode <> FunConstructor then
+	let e = if ctx.e.curfun <> FunConstructor then
 		e
 	else begin
-		delay ctx PForce (fun () -> TypeloadCheck.check_final_vars ctx e);
+		delay ctx.g PForce (fun () -> TypeloadCheck.check_final_vars ctx e);
 		match has_super_constr() with
 		| Some (was_forced,t_super) ->
 			(try
@@ -144,9 +129,9 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 		| None ->
 			e
 	end in
-	let e = match ctx.curfun, ctx.vthis with
+	let e = match ctx.e.curfun, ctx.f.vthis with
 		| (FunMember|FunConstructor), Some v ->
-			let ev = mk (TVar (v,Some (mk (TConst TThis) ctx.tthis p))) ctx.t.tvoid p in
+			let ev = mk (TVar (v,Some (mk (TConst TThis) ctx.c.tthis p))) ctx.t.tvoid p in
 			(match e.eexpr with
 			| TBlock l ->
 				if ctx.com.config.pf_this_before_super then
@@ -171,16 +156,16 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 			| _ -> mk (TBlock [ev;e]) e.etype p)
 		| _ -> e
 	in
-	List.iter (fun r -> r := Closed) ctx.opened;
-	List.iter (fun (m,p) -> safe_mono_close ctx m p) ctx.monomorphs.perfunction;
+	List.iter (fun r -> r := Closed) ctx.e.opened;
+	List.iter (fun (m,p) -> safe_mono_close ctx m p) ctx.e.monomorphs.perfunction;
 	if is_position_debug then print_endline ("typing:\n" ^ (Texpr.dump_with_pos "" e));
 	e
 
-let type_function ctx args ret fmode e do_display p =
+let type_function ctx args ret e do_display p =
 	let save = save_field_state ctx in
-	Std.finally save (type_function ctx args ret fmode e do_display) p
+	Std.finally save (type_function ctx args ret e do_display) p
 
-let add_constructor ctx c force_constructor p =
+let add_constructor ctx_c c force_constructor p =
 	if c.cl_constructor <> None then () else
 	let constructor = try Some (Type.get_constructor_class c (extract_param_types c.cl_params)) with Not_found -> None in
 	match constructor with
@@ -189,13 +174,9 @@ let add_constructor ctx c force_constructor p =
 		cf.cf_kind <- cfsup.cf_kind;
 		cf.cf_params <- cfsup.cf_params;
 		cf.cf_meta <- List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
-		let r = exc_protect ctx (fun r ->
-			let t = mk_mono() in
-			r := lazy_processing (fun() -> t);
-			let ctx = { ctx with
-				curfield = cf;
-				pass = PTypeField;
-			} in
+		let t = spawn_monomorph ctx_c.e p in
+		let r = make_lazy ctx_c.g t (fun r ->
+			let ctx = TyperManager.clone_for_field ctx_c cf cf.cf_params in
 			ignore (follow cfsup.cf_type); (* make sure it's typed *)
 			List.iter (fun cf -> ignore (follow cf.cf_type)) cf.cf_overloads;
 			let map_arg (v,def) =
@@ -246,9 +227,9 @@ let add_constructor ctx c force_constructor p =
 	| _ when force_constructor ->
 		let constr = mk (TFunction {
 			tf_args = [];
-			tf_type = ctx.t.tvoid;
-			tf_expr = mk (TBlock []) ctx.t.tvoid p;
-		}) (tfun [] ctx.t.tvoid) p in
+			tf_type = ctx_c.t.tvoid;
+			tf_expr = mk (TBlock []) ctx_c.t.tvoid p;
+		}) (tfun [] ctx_c.t.tvoid) p in
 		let cf = mk_field "new" constr.etype p null_pos in
 		cf.cf_expr <- Some constr;
 		cf.cf_type <- constr.etype;
@@ -259,4 +240,4 @@ let add_constructor ctx c force_constructor p =
 		(* nothing to do *)
 		()
 ;;
-Typeload.type_function_params_rec := type_function_params
+Typeload.type_function_params_ref := type_function_params

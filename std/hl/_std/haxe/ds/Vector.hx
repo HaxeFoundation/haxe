@@ -26,10 +26,16 @@ private typedef VectorData<T> = Array<T>
 
 @:coreApi
 abstract Vector<T>(VectorData<T>) {
-	public inline function new(length:Int) {
+	extern overload public inline function new(length:Int) {
 		this = [];
 		if (length > 0)
 			this[length - 1] = @:nullSafety(Off) cast null;
+	}
+
+	extern overload public inline function new(length:Int, defaultValue:T):Vector<T> {
+		this = [
+			for (i in 0...length) defaultValue
+		];
 	}
 
 	@:op([]) public inline function get(index:Int):T {
@@ -45,6 +51,9 @@ abstract Vector<T>(VectorData<T>) {
 	inline function get_length():Int {
 		return this.length;
 	}
+
+	public inline function fill(value:T):Void
+		for (i in 0...length) this[i] = value;
 
 	public static inline function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void {
 		(cast dest : hl.types.ArrayBase.ArrayAccess).blit(destPos, (cast src : hl.types.ArrayBase.ArrayAccess), srcPos, len);

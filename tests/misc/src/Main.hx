@@ -69,18 +69,22 @@ class Main {
 		s = s.replace("\r\n", "\n"); // get rid of windows newlines
 
 		var cwd = Path.removeTrailingSlashes(FileSystem.fullPath(Sys.getCwd()));
+		var std = Path.removeTrailingSlashes(getStd());
 
-		var context = {cwd: cwd};
+		var context = {cwd: cwd, std: std};
 		var macros = {normPath: normPath};
 
 		return new haxe.Template(s).execute(context, macros);
 	}
 
-	static function normPath(_, p:String):String {
+	static function normPath(_, p:String, escape:String = "false"):String {
+		var escape = escape != "false";
+
 		if (Sys.systemName() == "Windows") {
 			// on windows, haxe returns lowercase paths with backslashes, drive letter uppercased
 			p = p.substr(0, 1).toUpperCase() + p.substr(1);
 			p = p.replace("/", "\\");
+			if (escape) p = p.replace("\\", "\\\\");
 		}
 		return p;
 	}
@@ -147,6 +151,17 @@ class Main {
 				.filter(s -> 0 != s.indexOf('Picked up JAVA_TOOL_OPTIONS:'))
 				.join('\n');
 
+			if (StringTools.startsWith(content, '{"jsonrpc":')) {
+				try {
+					content = haxe.Json.stringify(haxe.Json.parse(content).result.result);
+					// Reorder fields from expected too
+					expected = haxe.Json.stringify(haxe.Json.parse(expected));
+				} catch (_) {}
+			} else {
+				content = hideStdPositions(content);
+				expected = hideStdPositions(expected);
+			}
+
 			if (content != expected) {
 				final a = new diff.FileData(Bytes.ofString(expected), "expected", Date.now());
 				final b = new diff.FileData(Bytes.ofString(content), "actual", Date.now());
@@ -164,5 +179,18 @@ class Main {
 		}
 
 		return true;
+	}
+
+	static function hideStdPositions(content:String):String {
+		var regex = new EReg(StringTools.replace(getStd(), '\\', '(?:\\\\|/)') + '([a-z/\\\\]+\\.hx):[0-9]+:( characters? [0-9]+(-[0-9]+)( :)?)', 'i');
+
+		return content.split("\n")
+			.map(line -> regex.replace(line, "$1:???:"))
+			.join("\n");
+	}
+
+	static macro function getStd() {
+		var std = Compiler.getConfiguration().stdPath;
+		return macro $v{std.shift()};
 	}
 }

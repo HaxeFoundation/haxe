@@ -99,4 +99,25 @@ class TestLoose {
 			}
 		}
 	}
+
+	static function nullCoal_returnNull_shouldPass(token:{children:Array<Int>}):Null<Bool> {
+		final children = token.children ?? return null;
+		var i = children.length;
+		return null;
+	}
+
+	static function localFunc_returnNullCoal_shouldFail():Void {
+		function foo() {
+			final x = (null : Null<Bool>) ?? return null;
+			return x;
+		}
+		shouldFail(if (foo()) {});
+	}
+
+	static function nullCoal_continue_shouldPass():Void {
+		for (i in 0...1) {
+			var i:String = staticVar ?? continue;
+			var i2:String = staticVar ?? break;
+		}
+	}
 }

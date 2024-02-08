@@ -1,0 +1,16 @@
+[ERROR] Fail.hx:7: characters 8-12
+
+ 7 |   test(void);
+   |        ^^^^
+   | error: Void should be haxe.NotVoid
+   | have: (...) -> Void
+   | want: (...) -> haxe.NotVoid
+
+[ERROR] Fail.hx:8: characters 8-16
+
+ 8 |   test(fakeVoid);
+   |        ^^^^^^^^
+   | error: FakeVoid should be haxe.NotVoid
+   | have: (...) -> FakeVoid
+   | want: (...) -> haxe.NotVoid
+

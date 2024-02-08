@@ -18,7 +18,6 @@
 *)
 open Common
 open Type
-open Codegen
 open Texpr.Builder
 
 (*

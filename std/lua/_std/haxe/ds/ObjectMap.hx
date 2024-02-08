@@ -100,7 +100,7 @@ class ObjectMap<A, B> implements haxe.Constraints.IMap<A, B> {
 
 	public function toString():String {
 		var s = new StringBuf();
-		s.add("{");
+		s.add("[");
 		var it = keys();
 		for (i in it) {
 			s.add(i);
@@ -109,7 +109,7 @@ class ObjectMap<A, B> implements haxe.Constraints.IMap<A, B> {
 			if (it.hasNext())
 				s.add(", ");
 		}
-		s.add("}");
+		s.add("]");
 		return s.toString();
 	}
 

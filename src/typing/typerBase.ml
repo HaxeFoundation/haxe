@@ -42,9 +42,52 @@ type object_decl_kind =
 	| ODKPlain
 	| ODKFailed
 
+module MetaConfig = struct
+
+	let as_bool e = match fst e with
+		| EConst (Ident "true") -> true
+		| EConst (Ident "false") -> false
+		| _ -> raise (Invalid_argument "bool")
+
+	let read_arg_config meta f l =
+		List.iter (fun (meta',el,_) ->
+			if meta' = meta then
+				List.iter (fun e -> match fst e with
+					| EConst (Ident s) ->
+						f (s,((EConst (Ident "true"),null_pos)))
+					| EBinop(OpAssign,(EConst (Ident s),_),e2) ->
+						f (s, e2)
+					| _ ->
+						()
+				) el
+		) l
+end
+
+module AbstractFromConfig = struct
+	type t = {
+		mutable ignored_by_inference : bool;
+	}
+
+	let make () = {
+		ignored_by_inference = false;
+	}
+
+	let update_config_from_meta config ml =
+		MetaConfig.read_arg_config Meta.From (fun (s,e) -> match s with
+			| "ignoredByInference" ->
+				begin try
+					config.ignored_by_inference <- MetaConfig.as_bool e
+				with Invalid_argument _ ->
+					()
+				end
+			| _ ->
+				()
+		) ml;
+		config
+end
+
 let type_call_target_ref : (typer -> expr -> expr list -> WithType.t -> pos option -> access_kind) ref = ref (fun _ _ _ _ -> die "" __LOC__)
 let type_access_ref : (typer -> expr_def -> pos -> access_mode -> WithType.t -> access_kind) ref = ref (fun _ _ _ _ _ -> assert false)
-let acc_get_ref : (typer -> access_kind -> pos -> texpr) ref = ref (fun _ _ _ -> assert false)
 
 class value_reference (ctx : typer) =
 
@@ -103,85 +146,93 @@ end
 
 let is_lower_ident s p =
 	try Ast.is_lower_ident s
-	with Invalid_argument msg -> typing_error msg p
+	with Invalid_argument msg -> raise_typing_error msg p
 
 let get_this ctx p =
-	match ctx.curfun with
+	match ctx.e.curfun with
 	| FunStatic ->
-		typing_error "Cannot access this from a static function" p
+		raise_typing_error "Cannot access this from a static function" p
 	| FunMemberClassLocal | FunMemberAbstractLocal ->
-		let v = match ctx.vthis with
+		let v = match ctx.f.vthis with
 			| None ->
-				let v = if ctx.curfun = FunMemberAbstractLocal then
-					PMap.find "this" ctx.locals
-				else
-					add_local ctx VGenerated "`this" ctx.tthis p
+				let v = if ctx.e.curfun = FunMemberAbstractLocal then begin
+					let v = PMap.find "this" ctx.f.locals in
+					add_var_flag v VUsedByTyper;
+					v
+				end else
+					add_local ctx VGenerated (Printf.sprintf "%sthis" gen_local_prefix) ctx.c.tthis p
 				in
-				ctx.vthis <- Some v;
+				ctx.f.vthis <- Some v;
 				v
 			| Some v ->
-				ctx.locals <- PMap.add v.v_name v ctx.locals;
+				ctx.f.locals <- PMap.add v.v_name v ctx.f.locals;
 				v
 		in
-		mk (TLocal v) ctx.tthis p
+		mk (TLocal v) ctx.c.tthis p
 	| FunMemberAbstract ->
-		let v = (try PMap.find "this" ctx.locals with Not_found -> typing_error "Cannot reference this abstract here" p) in
+		let v = (try PMap.find "this" ctx.f.locals with Not_found -> raise_typing_error "Cannot reference this abstract here" p) in
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
-		mk (TConst TThis) ctx.tthis p
+		mk (TConst TThis) ctx.c.tthis p
+
+let get_stored_typed_expr ctx id =
+	let e = ctx.com.stored_typed_exprs#find id in
+	Texpr.duplicate_tvars (fun e -> get_this ctx e.epos) e
+
+let type_stored_expr ctx e1 =
+	let id = match e1 with (EConst (Int (s, _)),_) -> int_of_string s | _ -> die "" __LOC__ in
+	get_stored_typed_expr ctx id
 
 let assign_to_this_is_allowed ctx =
-	match ctx.curclass.cl_kind with
+	match ctx.c.curclass.cl_kind with
 		| KAbstractImpl _ ->
-			(match ctx.curfield.cf_kind with
+			(match ctx.f.curfield.cf_kind with
 				| Method MethInline -> true
-				| Method _ when ctx.curfield.cf_name = "_new" -> true
+				| Method _ when ctx.f.curfield.cf_name = "_new" -> true
 				| _ -> false
 			)
 		| _ -> false
 
-let rec type_module_type ctx t tparams p =
-	match t with
-	| TClassDecl {cl_kind = KGenericBuild _} ->
-		let _,_,f = InstanceBuilder.build_instance ctx t p in
-		let t = f (match tparams with None -> [] | Some tl -> tl) in
-		let mt = try
-			module_type_of_type t
-		with Exit ->
-			if follow t == t_dynamic then Typeload.load_type_def ctx p (mk_type_path ([],"Dynamic"))
-			else typing_error "Invalid module type" p
-		in
-		type_module_type ctx mt None p
-	| TClassDecl c ->
-		let t_tmp = class_module_type c in
-		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
-	| TEnumDecl e ->
-		let types = (match tparams with None -> Monomorph.spawn_constrained_monos (fun t -> t) e.e_params | Some l -> l) in
-		mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
-	| TTypeDecl s ->
-		let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx p) s.t_params) in
-		DeprecationCheck.check_typedef ctx.com s p;
-		(match follow t with
-		| TEnum (e,params) ->
-			type_module_type ctx (TEnumDecl e) (Some params) p
-		| TInst (c,params) ->
-			type_module_type ctx (TClassDecl c) (Some params) p
-		| TAbstract (a,params) ->
-			type_module_type ctx (TAbstractDecl a) (Some params) p
-		| _ ->
-			typing_error (s_type_path s.t_path ^ " is not a value") p)
-	| TAbstractDecl { a_impl = Some c } ->
-		type_module_type ctx (TClassDecl c) tparams p
-	| TAbstractDecl a ->
-		if not (Meta.has Meta.RuntimeValue a.a_meta) then typing_error (s_type_path a.a_path ^ " is not a value") p;
-		let t_tmp = abstract_module_type a [] in
-		mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
-
-let type_type ctx tpath p =
-	type_module_type ctx (Typeload.load_type_def ctx p (mk_type_path tpath)) None p
+let type_module_type ctx t p =
+	let rec loop t tparams =
+		match t with
+		| TClassDecl {cl_kind = KGenericBuild _} ->
+			let info = InstanceBuilder.get_build_info ctx t p in
+			let t = info.build_apply (match tparams with None -> [] | Some tl -> tl) in
+			let mt = try
+				module_type_of_type t
+			with Exit ->
+				if follow t == t_dynamic then Typeload.load_type_def ctx p (mk_type_path ([],"Dynamic"))
+				else raise_typing_error "Invalid module type" p
+			in
+			loop mt None
+		| TClassDecl c ->
+			mk (TTypeExpr (TClassDecl c)) c.cl_type p
+		| TEnumDecl e ->
+			mk (TTypeExpr (TEnumDecl e)) e.e_type p
+		| TTypeDecl s ->
+			let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx.e p) s.t_params) in
+			DeprecationCheck.check_typedef (create_deprecation_context ctx) s p;
+			(match follow t with
+			| TEnum (e,params) ->
+				loop (TEnumDecl e) (Some params)
+			| TInst (c,params) ->
+				loop (TClassDecl c) (Some params)
+			| TAbstract (a,params) ->
+				loop (TAbstractDecl a) (Some params)
+			| _ ->
+				raise_typing_error (s_type_path s.t_path ^ " is not a value") p)
+		| TAbstractDecl { a_impl = Some c } ->
+			loop (TClassDecl c) tparams
+		| TAbstractDecl a ->
+			if not (Meta.has Meta.RuntimeValue a.a_meta) then raise_typing_error (s_type_path a.a_path ^ " is not a value") p;
+			let t_tmp = abstract_module_type a [] in
+			mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
+	in
+	loop t None
 
 let mk_module_type_access ctx t p =
-	AKExpr (type_module_type ctx t None p)
+	AKExpr (type_module_type ctx t p)
 
 let s_field_access tabs fa =
 	let st = s_type (print_context()) in
@@ -196,7 +247,8 @@ let s_field_access tabs fa =
 		"fa_on",se fa.fa_on;
 		"fa_field",fa.fa_field.cf_name;
 		"fa_host",sfa fa.fa_host;
-		"fa_inline",string_of_bool fa.fa_inline
+		"fa_inline",string_of_bool fa.fa_inline;
+		"fa_pos",(Printf.sprintf "%s(%i-%i)" fa.fa_pos.pfile fa.fa_pos.pmin fa.fa_pos.pmax);
 	]
 
 let s_static_extension_access sea =
@@ -228,10 +280,17 @@ and s_safe_nav_access sn =
 		"sn_access",s_access_kind sn.sn_access
 	]
 
+let s_dot_path_part part =
+	Printer.s_record_fields "" [
+		"name",part.name;
+		"case",(match part.case with PUppercase -> "PUppercase" | PLowercase -> "PLowercase");
+		"pos",(Printf.sprintf "%s(%i-%i)" part.pos.pfile part.pos.pmin part.pos.pmax);
+	]
+
 let get_constructible_constraint ctx tl p =
 	let extract_function t = match follow t with
 		| TFun(tl,tr) -> tl,tr
-		| _ -> typing_error "Constructible type parameter should be function" p
+		| _ -> raise_typing_error "Constructible type parameter should be function" p
 	in
 	let rec loop tl = match tl with
 		| [] -> None
@@ -245,8 +304,8 @@ let get_constructible_constraint ctx tl p =
 				end;
 			| TAbstract({a_path = ["haxe"],"Constructible"},[t1]) ->
 				Some (extract_function t1)
-			| TInst({cl_kind = KTypeParameter tl1},_) ->
-				begin match loop tl1 with
+			| TInst({cl_kind = KTypeParameter ttp},_) ->
+				begin match loop (get_constraints ttp) with
 				| None -> loop tl
 				| Some _ as t -> t
 				end
@@ -271,19 +330,43 @@ let unify_static_extension ctx e t p =
 		e
 	end
 
+type from_kind =
+	| FromType
+	| FromField
+
 let get_abstract_froms ctx a pl =
-	let l = List.map (apply_params a.a_params pl) a.a_from in
+	let l = List.map (fun t -> FromType,apply_params a.a_params pl t) a.a_from in
 	List.fold_left (fun acc (t,f) ->
 		(* We never want to use the @:from we're currently in because that's recursive (see #10604) *)
-		if f == ctx.curfield then
+		if f == ctx.f.curfield then
+			acc
+		else if (AbstractFromConfig.update_config_from_meta (AbstractFromConfig.make ()) f.cf_meta).ignored_by_inference then
 			acc
 		else match follow (Type.field_type f) with
 		| TFun ([_,_,v],t) ->
 			(try
 				ignore(type_eq EqStrict t (TAbstract(a,List.map duplicate pl))); (* unify fields monomorphs *)
-				v :: acc
+				(FromField,v) :: acc
 			with Unify_error _ ->
 				acc)
 		| _ ->
 			acc
 	) l a.a_from_field
+
+let safe_nav_branch ctx sn f_then =
+	(* generate null-check branching for the safe navigation chain *)
+	let eobj = sn.sn_base in
+	let enull = Builder.make_null eobj.etype sn.sn_pos in
+	let eneq = Builder.binop OpNotEq eobj enull ctx.t.tbool sn.sn_pos in
+	let ethen = f_then () in
+	let tnull = ctx.t.tnull ethen.etype in
+	let ethen = if not (is_nullable ethen.etype) then
+		mk (TCast(ethen,None)) tnull ethen.epos
+	else
+		ethen
+	in
+	let eelse = Builder.make_null tnull sn.sn_pos in
+	let eif = mk (TIf(eneq,ethen,Some eelse)) tnull sn.sn_pos in
+	(match sn.sn_temp_var with
+	| None -> eif
+	| Some evar -> { eif with eexpr = TBlock [evar; eif] })

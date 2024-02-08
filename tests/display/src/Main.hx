@@ -11,9 +11,9 @@ class Main {
 		report.displayHeader = AlwaysShowHeader;
 		report.displaySuccessResults = NeverShowSuccessResults;
 
-		var haxeServer = @:privateAccess DisplayTestContext.haxeServer;
-		haxeServer.setDefaultRequestArguments(["-cp", "src", "-cp", "src-shared", "--no-output", "-lib", "utest"]);
-		DisplayTestContext.runHaxe([]);
+		var haxeServer = @:privateAccess BaseDisplayTestContext.haxeServer;
+		haxeServer.setDefaultRequestArguments(["-cp", "src", "-cp", "src-shared", "--no-output"]);
+		BaseDisplayTestContext.runHaxe([]);
 		runner.run();
 		haxeServer.close();
 	}

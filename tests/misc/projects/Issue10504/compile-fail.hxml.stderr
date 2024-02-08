@@ -3,4 +3,3 @@ Main.hx:6: characters 9-10 : Warning : { foo : Null<Unknown<0>>, ?b : Null<Int>,
 Main.hx:7: characters 10-11 : error: Int should be String
 Main.hx:7: characters 10-11 : ... have: { b: Int }
 Main.hx:7: characters 10-11 : ... want: { b: String }
-Main.hx:7: characters 10-11 : ... For function argument 'v'

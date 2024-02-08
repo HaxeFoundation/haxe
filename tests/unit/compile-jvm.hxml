@@ -1,5 +1,4 @@
-#java native build
--cmd "haxelib run hxjava native_java/hxjava_build.txt --out native_java/native"
+compile-java-native.hxml
 
 --next
 
