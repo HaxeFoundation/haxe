@@ -407,6 +407,7 @@ type context = {
 	mutable modules : Type.module_def list;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
+	functional_interface_lut : (path,(tclass * tclass_field)) lookup;
 	(* target-specific *)
 	mutable flash_version : float;
 	mutable neko_lib_paths : string list;
@@ -845,6 +846,7 @@ let create compilation_step cs version args display_mode =
 		has_error = false;
 		report_mode = RMNone;
 		is_macro_context = false;
+		functional_interface_lut = new Lookup.hashtbl_lookup;
 		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_config = None;
@@ -901,6 +903,7 @@ let clone com is_macro_context =
 		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		std = null_class;
+		functional_interface_lut = new Lookup.hashtbl_lookup;
 		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;
 	}
