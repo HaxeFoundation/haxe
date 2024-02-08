@@ -421,12 +421,6 @@ class Jvm {
 	static public function toString<T:java.lang.Object>(obj:T):String {
 		if (obj == null) {
 			return "null";
-		} else if (instanceof(obj, java.lang.Double.DoubleClass)) {
-			var n:java.lang.Number = cast obj;
-			if (n.doubleValue() == n.intValue()) {
-				return java.lang.Integer.IntegerClass.valueOf(n.intValue()).toString();
-			}
-			return obj.toString();
 		} else {
 			return obj.toString();
 		}

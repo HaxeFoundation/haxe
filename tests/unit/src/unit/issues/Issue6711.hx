@@ -3,6 +3,7 @@ package unit.issues;
 private class V2 {
 	public var x:Float;
 	public var y:Float;
+
 	inline public function new(x, y) {
 		this.x = x;
 		this.y = y;
@@ -11,10 +12,10 @@ private class V2 {
 
 class Issue6711 extends unit.Test {
 	function test() {
-		eq("(0,1)(0,1)(0,1)", run());
+		eq("(0.0,1.0)(0.0,1.0)(0.0,1.0)", run());
 	}
 
-	inline static function getPos() : V2 {
+	inline static function getPos():V2 {
 		return new V2(0, 1);
 	}
 
