@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package php;
 
 @:forward
@@ -36,7 +37,7 @@ abstract NativeAssocArray<T>(NativeArray) from NativeArray to NativeArray {
 		return this[key] = val;
 
 	public inline function iterator()
-		return (cast Global.array_values(this):NativeIndexedArray<T>).iterator();
+		return (cast Global.array_values(this) : NativeIndexedArray<T>).iterator();
 
 	public inline function keyValueIterator():NativeAssocArrayKeyValueIterator<T>
 		return new NativeAssocArrayKeyValueIterator(this);
@@ -59,6 +60,6 @@ private class NativeAssocArrayKeyValueIterator<T> {
 	}
 
 	public inline function next():{key:String, value:T} {
-		return {key:keys[current], value:values[current++]};
+		return {key: keys[current], value: values[current++]};
 	}
 }

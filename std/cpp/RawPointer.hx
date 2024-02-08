@@ -19,11 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp;
+
+package cpp;
 
 @:unreflective
-extern class RawPointer<T> extends RawConstPointer<T>
-{
-   @:native("hx::AddressOf")
-   public static function addressOf<T>(t:T) : RawPointer<T>;
+extern class RawPointer<T> extends RawConstPointer<T> {
+	@:native("::hx::AddressOf")
+	static function addressOf<T>(t:T):RawPointer<T>;
 }

@@ -19,19 +19,19 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python;
 
 import python.NativeIterable.NativeIterableRaw;
 
 class HaxeIterable<T> {
-
-	var x : NativeIterableRaw<T>;
+	var x:NativeIterableRaw<T>;
 
 	public inline function new(x:NativeIterableRaw<T>) {
 		this.x = x;
 	}
 
 	public inline function iterator():HaxeIterator<T> {
-        return new HaxeIterator(x.__iter__());
-    }
+		return new HaxeIterator(x.__iter__());
+	}
 }

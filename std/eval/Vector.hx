@@ -19,15 +19,16 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package eval;
 
 extern class Vector<T> implements ArrayAccess<T> {
-	public function new(size:Int) : Void;
-	public var length(default, null):Int;
-	public function blit<T>(srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void;
-	public function toArray():Array<T>;
-	static public function fromArrayCopy<T>(array:Array<T>):Vector<T>;
-	public function copy<T>():Vector<T>;
-	public function join<T>(sep:String):String;
-	public function map<S>(f:T->S):Vector<S>;
+	function new(size:Int):Void;
+	var length(default, null):Int;
+	function blit<T>(srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void;
+	function toArray():Array<T>;
+	static function fromArrayCopy<T>(array:Array<T>):Vector<T>;
+	function copy<T>():Vector<T>;
+	function join<T>(sep:String):String;
+	function map<S>(f:T->S):Vector<S>;
 }

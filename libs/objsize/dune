@@ -1,0 +1,8 @@
+(include_subdirs no)
+
+(library
+	(name objsize)
+	(foreign_stubs (language c) (names c_objsize) (flags -O1 -W -Wall -Werror -fPIC))
+	(flags :standard -warn-error -a+8)
+	(wrapped false)
+	(modules objsize))

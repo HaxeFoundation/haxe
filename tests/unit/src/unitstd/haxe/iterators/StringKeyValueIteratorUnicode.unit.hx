@@ -8,7 +8,7 @@ function traverse(s:String) {
 	return { k: ak, v: av };
 }
 
-#if target.unicode
+#if (target.unicode || neko)
 
 var r = traverse("abcde");
 r.k == [0, 1, 2, 3, 4];

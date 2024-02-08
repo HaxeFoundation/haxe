@@ -3,9 +3,7 @@ Type.getClass("foo") == String;
 Type.getClass(new C()) == C;
 
 //Issue #1485
-#if !(java || cs)
 Type.getClass([]) == Array;
-#end
 Type.getClass(Float) == null;
 Type.getClass(null) == null;
 Type.getClass(Int) == null;
@@ -108,7 +106,7 @@ for (f in fields)
 	t(requiredFields.remove(f));
 requiredFields == [];
 var fields = Type.getClassFields(C);
-var requiredFields = #if as3 ["staticVar"] #else ["staticFunc", "staticVar", "staticProp"] #end;
+var requiredFields = ["staticFunc", "staticVar", "staticProp"];
 for (f in fields)
 	t(requiredFields.remove(f));
 requiredFields == [];

@@ -19,31 +19,31 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 @:coreApi class Log {
+	@:native("__trace")
+	extern private static function nativeTrace(message:String, posInfo:Dynamic):Void;
 
-   @:native("__trace")
-   extern private static function nativeTrace(message:String, posInfo:Dynamic) : Void;
-
-	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
-		if (infos!=null && infos.customParams!=null) {
+	public static dynamic function trace(v:Dynamic, ?infos:PosInfos):Void {
+		if (infos != null && infos.customParams != null) {
 			var extra:String = "";
-			for( v in infos.customParams )
+			for (v in infos.customParams)
 				extra += "," + v;
-			nativeTrace(v + extra,infos);
-		}
-		else
-			nativeTrace(v,infos);
+			nativeTrace(v + extra, infos);
+		} else
+			nativeTrace(v, infos);
 	}
 
-	public static function formatOutput( v : Dynamic, infos : PosInfos ) : String {
+	public static function formatOutput(v:Dynamic, infos:PosInfos):String {
 		var str = Std.string(v);
-		if( infos == null )
+		if (infos == null)
 			return str;
 		var pstr = infos.fileName + ":" + infos.lineNumber;
-		if( infos != null && infos.customParams != null ) for( v in infos.customParams ) str += ", " + Std.string(v);
-		return pstr+": "+str;
+		if (infos != null && infos.customParams != null)
+			for (v in infos.customParams)
+				str += ", " + Std.string(v);
+		return pstr + ": " + str;
 	}
-
 }

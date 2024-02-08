@@ -19,13 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.io;
 
 import python.Exceptions.IOError;
 
 @:pythonImport("io", "UnsupportedOperation")
-class UnsupportedOperation extends IOError {
-
-
-
-}
+class UnsupportedOperation extends IOError {}

@@ -11,7 +11,7 @@ class Issue7947 extends DisplayTestCase {
 						trace('Some logic...');
 						trace('Some logic...');
 						true;
-					{-1-}case Right(_){-2-}:
+					{-1-}case Right(_):{-2-}
 				}
 			}
 		}
@@ -21,7 +21,9 @@ class Issue7947 extends DisplayTestCase {
 			{
 				kind: DKCompilerError,
 				severity: Error,
+				code: null,
 				range: diagnosticsRange(pos(1), pos(2)),
+				relatedInformation: [],
 				args: "Void should be Bool"
 			}
 		], diagnostics());
@@ -47,7 +49,9 @@ class Issue7947 extends DisplayTestCase {
 			{
 				kind: DKCompilerError,
 				severity: Error,
+				code: null,
 				range: diagnosticsRange(pos(1), pos(2)),
+				relatedInformation: [],
 				args: "Bool should be Void"
 			}
 		], diagnostics());

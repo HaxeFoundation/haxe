@@ -19,49 +19,49 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.net;
+
 import haxe.io.Error;
 
 @:coreApi
 class UdpSocket extends Socket {
-
-	private override function init() : Void {
+	private override function init():Void {
 		__s = Socket.socket_new(true);
 		super.init();
 	}
 
-	public function sendTo( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
+	public function sendTo(buf:haxe.io.Bytes, pos:Int, len:Int, addr:Address):Int {
 		return try {
 			socket_send_to(__s, buf.getData(), pos, len, addr);
-		} catch( e : Dynamic ) {
-			if( e == "Blocking" )
+		} catch (e:Dynamic) {
+			if (e == "Blocking")
 				throw Blocked;
 			else
 				throw Custom(e);
 		}
 	}
 
-	public function readFrom( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
+	public function readFrom(buf:haxe.io.Bytes, pos:Int, len:Int, addr:Address):Int {
 		var r;
 		try {
-			r = socket_recv_from(__s,buf.getData(),pos,len,addr);
-		} catch( e : Dynamic ) {
-			if( e == "Blocking" )
+			r = socket_recv_from(__s, buf.getData(), pos, len, addr);
+		} catch (e:Dynamic) {
+			if (e == "Blocking")
 				throw Blocked;
 			else
 				throw Custom(e);
 		}
-		if( r == 0 )
+		if (r == 0)
 			throw new haxe.io.Eof();
 		return r;
 	}
 
-	public function setBroadcast( b : Bool ) : Void{
-		socket_set_broadcast(__s,b);
+	public function setBroadcast(b:Bool):Void {
+		socket_set_broadcast(__s, b);
 	}
 
 	static var socket_recv_from = neko.Lib.loadLazy("std", "socket_recv_from", 5);
 	static var socket_send_to = neko.Lib.loadLazy("std", "socket_send_to", 5);
-	static var socket_set_broadcast = neko.Lib.loadLazy("std","socket_set_broadcast",2);
-
+	static var socket_set_broadcast = neko.Lib.loadLazy("std", "socket_set_broadcast", 2);
 }

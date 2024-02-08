@@ -20,8 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\WorkerGlobalScope.webidl. Do not edit!
-
 package js.html;
 
 import js.lib.Promise;
@@ -83,6 +81,12 @@ extern class WorkerGlobalScope extends EventTarget {
 		Allows you to write a message to stdout — i.e. in your terminal. This is the same as Firefox's `window.dump`, but for workers.
 	**/
 	function dump( ?str : String ) : Void;
+
+	/**
+		Creates a deep clone of a given value using the structured clone algorithm.
+	**/
+	function structuredClone<T>(value: T, ?options: {transfer: Array<Any>}): T;
+
 	/** @throws DOMError */
 	function btoa( btoa : String ) : String;
 	/** @throws DOMError */

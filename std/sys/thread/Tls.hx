@@ -28,9 +28,12 @@ package sys.thread;
 
 /**
 	Creates thread local storage.
- */
+
+	(hl) Warning: At the moment `Tls` does not protect the value from being
+	garbage collected. Keep the value reachable to avoid crashes.
+**/
 extern class Tls<T> {
-	public var value(get, set):T;
+	var value(get, set):T;
 
 	/**
 		Creates thread local storage. This is placeholder that can store
@@ -38,5 +41,5 @@ extern class Tls<T> {
 		Set the tls value to `null` before exiting the thread
 		or the memory will never be collected.
 	**/
-	public function new():Void;
+	function new():Void;
 }

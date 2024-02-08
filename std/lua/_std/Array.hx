@@ -19,150 +19,170 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.iterators.ArrayKeyValueIterator;
+
 @:coreApi
 class Array<T> {
+	public var length(default, null):Int;
 
-	public var length(default,null) : Int;
-
-	public function new() : Void  {
+	public function new():Void {
 		untyped _hx_tab_array(this, 0);
 	}
-	public function concat( a : Array<T> ) : Array<T> {
+
+	public function concat(a:Array<T>):Array<T> {
 		var ret = this.copy();
-		for (i in a) ret.push(i);
+		for (i in a)
+			ret.push(i);
 		return ret;
 	}
-	public function join( sep : String ) : String {
-		var tbl : lua.Table<Int,String> = lua.Table.create();
-		for (i in iterator()){
-			lua.Table.insert(tbl,Std.string(i));
+
+	public function join(sep:String):String {
+		var tbl:lua.Table<Int, String> = lua.Table.create();
+		for (i in iterator()) {
+			lua.Table.insert(tbl, Std.string(i));
 		}
-		return lua.Table.concat(tbl,sep);
+		return lua.Table.concat(tbl, sep);
 	}
 
-	public function pop() : Null<T> {
-		if (length == 0 ) return null;
-		var ret = this[length-1];
-		this[length-1] = null;
+	public function pop():Null<T> {
+		if (length == 0)
+			return null;
+		var ret = this[length - 1];
+		this[length - 1] = null;
 		length--;
 		return ret;
 	}
-	public function push(x : T) : Int {
+
+	public function push(x:T):Int {
 		this[this.length] = x;
 		return length;
 	}
-	public function reverse() : Void {
+
+	public function reverse():Void {
 		var tmp:T;
 		var i = 0;
-		while(i < Std.int(this.length/2)){
+		while (i < Std.int(this.length / 2)) {
 			tmp = this[i];
-			this[i] = this[this.length-i-1];
-			this[this.length-i-1] = tmp;
+			this[i] = this[this.length - i - 1];
+			this[this.length - i - 1] = tmp;
 			i++;
 		}
 	}
-	public function shift() : Null<T> {
-		if (this.length == 0) return null;
+
+	public function shift():Null<T> {
+		if (this.length == 0)
+			return null;
 		var ret = this[0];
-		if (this.length == 1){
+		if (this.length == 1) {
 			this[0] = null;
 		} else if (this.length > 1) {
 			this[0] = this[1];
-			lua.Table.remove(untyped this,1);
+			lua.Table.remove(untyped this, 1);
 		}
-		this.length-=1;
+		this.length -= 1;
 		return ret;
 	}
-	public function slice( pos : Int, ?end : Int ) : Array<T> {
-		if (end == null || end > length) end = length;
-		else if (end < 0) end = (length-(-end % length)) % length; // negative pos needs to be wrapped from the end, and mod according to array length
-		if (pos < 0) pos = (length -(-pos % length)) % length;  // and here
-		if (pos > end || pos > length) return [];
+
+	public function slice(pos:Int, ?end:Int):Array<T> {
+		if (end == null || end > length)
+			end = length;
+		else if (end < 0)
+			end = (length - (-end % length)) % length; // negative pos needs to be wrapped from the end, and mod according to array length
+		if (pos < 0)
+			pos = (length - (-pos % length)) % length; // and here
+		if (pos > end || pos > length)
+			return [];
 
 		var ret = [];
-		for (i in pos...end){
+		for (i in pos...end) {
 			ret.push(this[i]);
 		}
 		return ret;
 	}
 
 	// TODO: copied from neko Array.sort, move to general util library?
-	public function sort( f : T -> T -> Int ) : Void {
+	public function sort(f:T->T->Int):Void {
 		var i = 0;
 		var l = this.length;
-		while( i < l ) {
+		while (i < l) {
 			var swap = false;
 			var j = 0;
 			var max = l - i - 1;
-			while( j < max ) {
-				if( f(this[j],this[j+1]) > 0 ) {
-					var tmp = this[j+1];
-					this[j+1] = this[j];
+			while (j < max) {
+				if (f(this[j], this[j + 1]) > 0) {
+					var tmp = this[j + 1];
+					this[j + 1] = this[j];
 					this[j] = tmp;
 					swap = true;
 				}
 				j += 1;
 			}
-			if( !swap )
+			if (!swap)
 				break;
 			i += 1;
 		}
 	}
 
-	public function splice( pos : Int, len : Int ) : Array<T> {
-		if (len < 0 || pos > length) return [];
-		else if (pos < 0) pos = length -(-pos % length);
-		len = cast Math.min(len,this.length-pos);
+	public function splice(pos:Int, len:Int):Array<T> {
+		if (len < 0 || pos > length)
+			return [];
+		else if (pos < 0)
+			pos = length - (-pos % length);
+		len = cast Math.min(len, this.length - pos);
 		var ret = [];
-		for (i in pos...(pos+len)){
+		for (i in pos...(pos + len)) {
 			ret.push(this[i]);
-			this[i] = this[i+len];
+			this[i] = this[i + len];
 		}
-		for (i in (pos+len)...length){
-			this[i] = this[i+len];
+		for (i in (pos + len)...length) {
+			this[i] = this[i + len];
 		}
-		this.length-= len;
+		this.length -= len;
 		return ret;
 	}
 
-	public function toString() : String {
-		var tbl : lua.Table<Int,String> = lua.Table.create();
+	public function toString():String {
+		var tbl:lua.Table<Int, String> = lua.Table.create();
 		lua.Table.insert(tbl, '[');
 		lua.Table.insert(tbl, join(","));
 		lua.Table.insert(tbl, ']');
-		return lua.Table.concat(tbl,"");
+		return lua.Table.concat(tbl, "");
 	}
 
-	public function unshift( x : T ) : Void {
+	public function unshift(x:T):Void {
 		var len = length;
-		for (i in 0...len) this[len - i] = this[len - i - 1];
+		for (i in 0...len)
+			this[len - i] = this[len - i - 1];
 		this[0] = x;
 	}
 
-	public inline function insert( pos : Int, x : T ) : Void {
-		if (pos > length) pos = length;
+	public inline function insert(pos:Int, x:T):Void {
+		if (pos > length)
+			pos = length;
 		if (pos < 0) {
 			pos = (length + pos);
-			if (pos < 0) pos = 0;
+			if (pos < 0)
+				pos = 0;
 		}
 		var cur_len = length;
-		while (cur_len > pos){
-			this[cur_len] = this[cur_len-1];
-			cur_len -=1;
+		while (cur_len > pos) {
+			this[cur_len] = this[cur_len - 1];
+			cur_len -= 1;
 		}
 		this[pos] = x;
 	}
 
-	public function remove( x : T ) : Bool {
-		for (i in 0...length){
-			if (this[i] == x){
-				for (j in i...length-1){
-					this[j] = this[j+1];
+	public function remove(x:T):Bool {
+		for (i in 0...length) {
+			if (this[i] == x) {
+				for (j in i...length - 1) {
+					this[j] = this[j + 1];
 				}
 				// We need to decrement the length variable, and set its
 				// value to null to avoid hanging on to a reference in the
 				// underlying lua table.
-				this[length-1] = null;
+				this[length - 1] = null;
 				// Do this in two steps to avoid re-updating the __index metamethod
 				length--;
 
@@ -172,56 +192,76 @@ class Array<T> {
 		return false;
 	}
 
-	public function indexOf( x : T, ?fromIndex:Int ) : Int {
-		var end = length;
-		if (fromIndex == null) fromIndex = 0;
-		else if (fromIndex < 0 ) {
-			fromIndex = length + fromIndex;
-			if (fromIndex < 0) fromIndex = 0;
+	public function contains(x:T):Bool {
+		for (i in 0...length) {
+			if (this[i] == x)
+				return true;
 		}
-		for (i in fromIndex...end){
-			if (x == this[i]) return i;
-		}
-		return -1;
+		return false;
 	}
-	public function lastIndexOf( x : T, ?fromIndex:Int ) : Int {
-		if (fromIndex == null || fromIndex >= length ) fromIndex = length-1;
+
+	public function indexOf(x:T, ?fromIndex:Int):Int {
+		var end = length;
+		if (fromIndex == null)
+			fromIndex = 0;
 		else if (fromIndex < 0) {
 			fromIndex = length + fromIndex;
-			if (fromIndex < 0) return -1;
+			if (fromIndex < 0)
+				fromIndex = 0;
 		}
-		var i = fromIndex;
-		while(i >= 0){
-			if (this[i] == x) return i;
-			else i--;
+		for (i in fromIndex...end) {
+			if (x == this[i])
+				return i;
 		}
 		return -1;
 	}
-	public inline function copy() : Array<T> {
+
+	public function lastIndexOf(x:T, ?fromIndex:Int):Int {
+		if (fromIndex == null || fromIndex >= length)
+			fromIndex = length - 1;
+		else if (fromIndex < 0) {
+			fromIndex = length + fromIndex;
+			if (fromIndex < 0)
+				return -1;
+		}
+		var i = fromIndex;
+		while (i >= 0) {
+			if (this[i] == x)
+				return i;
+			else
+				i--;
+		}
+		return -1;
+	}
+
+	public inline function copy():Array<T> {
 		return [for (i in this) i];
 	}
-	public function map<S>(f:T->S):Array<S> {
+
+	public inline function map<S>(f:T->S):Array<S> {
 		return [for (i in this) f(i)];
 	}
-	public function filter(f:T->Bool):Array<T> {
+
+	public inline function filter(f:T->Bool):Array<T> {
 		return [for (i in this) if (f(i)) i];
 	}
-	public inline function iterator() : Iterator<T> {
-		var cur_length = 0;
-		return {
-			hasNext : function() return cur_length < length,
-			next : function() return this[cur_length++]
-		}
+
+	public inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
 	}
+
+	public inline function keyValueIterator():ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator(this);
+	}
+
 	public function resize(len:Int):Void {
 		if (length < len) {
 			this.length = len;
 		} else if (length > len) {
-			for (i in len ... length) {
+			for (i in len...length) {
 				this[i] = null;
 			}
 			this.length = len;
 		}
 	}
-
 }

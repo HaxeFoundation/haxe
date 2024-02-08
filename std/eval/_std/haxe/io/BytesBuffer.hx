@@ -19,20 +19,21 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.io;
 
 @:coreApi
 extern class BytesBuffer {
-	public var length(get, never):Int;
-	public function new():Void;
+	var length(get, never):Int;
+	function new():Void;
 	private function get_length():Int;
-	public function addByte(byte:Int):Void;
-	public function add(src:Bytes):Void;
-	public function addString(v:String,?encoding:Encoding):Void;
-	public function addInt32(v:Int):Void;
-	public function addInt64(v:haxe.Int64):Void;
-	public function addFloat(v:Float):Void;
-	public function addDouble(v:Float):Void;
-	public function addBytes(src:Bytes, pos:Int, len:Int):Void;
-	public function getBytes():Bytes;
+	function addByte(byte:Int):Void;
+	function add(src:Bytes):Void;
+	function addString(v:String, ?encoding:Encoding):Void;
+	function addInt32(v:Int):Void;
+	function addInt64(v:haxe.Int64):Void;
+	function addFloat(v:Float):Void;
+	function addDouble(v:Float):Void;
+	function addBytes(src:Bytes, pos:Int, len:Int):Void;
+	function getBytes():Bytes;
 }

@@ -44,7 +44,9 @@ let to_string ((major,minor,patch),pre) =
 	Parse SemVer string
 *)
 let parse_version s =
-	let error () = raise (Invalid_argument "Invalid version string. Should follow SemVer.") in
+	let error () =
+		raise (Invalid_argument ("Invalid version string \"" ^ s ^ "\". Should follow SemVer."))
+	in
 	let parse dotted_str =
 		List.map
 			(fun s ->

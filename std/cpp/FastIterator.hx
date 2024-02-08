@@ -19,11 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp;
 
-extern class FastIterator<T>
-{
-	public function hasNext():Bool;
-	public function next():T;
+extern class FastIterator<T> {
+	function hasNext():Bool;
+	function next():T;
 }
-

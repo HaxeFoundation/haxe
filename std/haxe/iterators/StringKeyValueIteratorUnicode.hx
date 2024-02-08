@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.iterators;
 
 /**
@@ -57,12 +58,12 @@ class StringKeyValueIteratorUnicode {
 	public inline function next() {
 		#if utf16
 		var c = StringTools.utf16CodePointAt(s, byteOffset++);
-		if(c >= StringTools.MIN_SURROGATE_CODE_POINT) {
+		if (c >= StringTools.MIN_SURROGATE_CODE_POINT) {
 			byteOffset++;
 		}
-		return { key: charOffset++, value: c };
+		return {key: charOffset++, value: c};
 		#else
-		return { key: charOffset++, value: StringTools.fastCodeAt(s, byteOffset++) };
+		return {key: charOffset++, value: StringTools.fastCodeAt(s, byteOffset++)};
 		#end
 	}
 

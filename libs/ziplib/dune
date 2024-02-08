@@ -1,0 +1,13 @@
+(include_subdirs no)
+
+(env
+	(_
+		(flags (-w -3 -w -27 -w -35 -w -50))
+	)
+)
+
+(library
+	(name ziplib)
+	(libraries extc unix)
+	(wrapped false)
+)

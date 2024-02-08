@@ -19,76 +19,81 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import lua.Boot;
 import lua.NativeStringTools;
 
 @:keepInit
 @:coreApi class Std {
-
-	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped lua.Boot.__instanceof(v,t);
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
+	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
 	}
 
-	public static inline function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
+	public static inline function isOfType(v:Dynamic, t:Dynamic):Bool {
+		return untyped lua.Boot.__instanceof(v, t);
+	}
+
+	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
 		return untyped lua.Boot.__instanceof(value, c) ? cast value : null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
 		return downcast(value, c);
 	}
 
 	@:keep
-	public static function string( s : Dynamic ) : String {
-		return untyped lua.Boot.__string_rec(s);
+	public static function string(s:Dynamic) : String {
+		return untyped _hx_tostring(s, 0);
 	}
 
-	public static function int( x : Float ) : Int {
-		if (!Math.isFinite(x) || Math.isNaN(x)) return 0;
-		else return lua.Boot.clamp(x);
+	public static function int(x:Float):Int {
+		if (!Math.isFinite(x) || Math.isNaN(x))
+			return 0;
+		else
+			return lua.Boot.clampInt32(x);
 	}
 
-	public static function parseInt( x : String ) : Null<Int> {
-		if (x == null) return null;
-		var hexMatch = NativeStringTools.match(x, "^ *[%-+]*0[xX][%da-fA-F]*");
-		if (hexMatch != null){
-			return lua.Lua.tonumber(hexMatch.substr(2), 16);
-		} else {
-			var intMatch = NativeStringTools.match(x, "^ *[%-+]?%d*");
-			if (intMatch != null){
-				return lua.Lua.tonumber(intMatch);
-			} else {
-				return null;
-			}
+	public static function parseInt(x:String):Null<Int> {
+		if (x == null)
+			return null;
+		untyped {
+			__lua__("local sign, numString = {0}", NativeStringTools.match(x, "^%s*([%-+]?)0[xX]([%da-fA-F]*)"));
+			if (numString != null)
+				return switch sign {
+					case '-': -lua.Lua.tonumber(numString, 16);
+					case _: lua.Lua.tonumber(numString, 16);
+				}
 		}
+		final intMatch = NativeStringTools.match(x, "^%s*[%-+]?%d*");
+		if (intMatch == null)
+			return null;
+		return lua.Lua.tonumber(intMatch);
 	}
 
-	public static function parseFloat( x : String ) : Float {
-		if (x == null || x == "") return Math.NaN;
-		var digitMatch = NativeStringTools.match(x,  "^ *[%.%-+]?[0-9]%d*");
-		if (digitMatch == null){
+	public static function parseFloat(x:String):Float {
+		if (x == null || x == "")
+			return Math.NaN;
+		var digitMatch = NativeStringTools.match(x, "^%s*[%.%-+]?[0-9]%d*");
+		if (digitMatch == null) {
 			return Math.NaN;
 		}
 		x = x.substr(digitMatch.length);
 
 		var decimalMatch = NativeStringTools.match(x, "^%.%d*");
-		if (decimalMatch == null) decimalMatch = "";
+		if (decimalMatch == null)
+			decimalMatch = "";
 		x = x.substr(decimalMatch.length);
 
 		var eMatch = NativeStringTools.match(x, "^[eE][+%-]?%d+");
-		if (eMatch == null) eMatch = "";
-		var result =  lua.Lua.tonumber(digitMatch + decimalMatch + eMatch);
+		if (eMatch == null)
+			eMatch = "";
+		var result = lua.Lua.tonumber(digitMatch + decimalMatch + eMatch);
 		return result != null ? result : Math.NaN;
 	}
 
-	public static function random( x : Int ) : Int {
-		return untyped x <= 0 ? 0 : Math.floor(Math.random()*x);
+	public static function random(x:Int):Int {
+		return untyped x <= 0 ? 0 : Math.floor(Math.random() * x);
 	}
-
-	static function __init__() : Void untyped {
-		__feature__("lua.Boot.isClass", String.__name__ = __feature__("Type.getClassName", "String",true));
-		__feature__("Type.resolveClass",_hxClasses["Array"] = Array);
-		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName","Array",true));
-	}
-
 }

@@ -1,4 +1,4 @@
-#if (flash || java)
+#if (flash || jvm)
 var k1 = new IntWrap(1);
 var k2 = new IntWrap(2);
 var k3 = new IntWrap(3);
@@ -84,6 +84,17 @@ a.length == 2;
 a[0] in ["9", "7"];
 a[1] in ["9", "7"];
 o.remove(k2) == false;
+
+// clear
+o.clear();
+o.get(k1) == null;
+o.exists(k1) == false;
+o.exists(k2) == false;
+o.exists(k3) == false;
+
+var a = [for (k in o.keys()) k];
+a == [];
+
 #else
 1 == 1;
 #end

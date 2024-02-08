@@ -1,0 +1,3 @@
+-main Main
+-js bin/test.js
+--display Main.js.hx@0@diagnostics

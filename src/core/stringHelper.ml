@@ -18,14 +18,23 @@ let capitalize s =
 			Bytes.set bytes 0 (Char.chr (code - 32));
 		Bytes.to_string bytes
 
-let starts_uppercase x =
-	x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')
+let starts_uppercase_identifier x =
+	if String.length x = 0 then
+		raise (Invalid_argument "Identifier name must not be empty")
+	else
+		let rec loop p =
+			match String.unsafe_get x p with
+			| 'A'..'Z' -> true
+			| '_' -> p + 1 < String.length x && loop (p + 1)
+			| _ -> false
+		in
+		loop 0
 
 let check_uppercase x =
 	if String.length x = 0 then
 		failwith "empty part"
-	else if not (starts_uppercase x) then
-		failwith "Class name must start with uppercase character"
+	else if not (starts_uppercase_identifier x) then
+		failwith "Class name must start with an uppercase letter"
 
 let s_escape ?(hex=true) s =
 	let b = Buffer.create (String.length s) in
@@ -40,3 +49,23 @@ let s_escape ?(hex=true) s =
 		| c -> Buffer.add_char b c
 	done;
 	Buffer.contents b
+
+let escape_res_name name allowed =
+	ExtString.String.replace_chars (fun chr ->
+		if (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr = '_' || chr = '.' then
+			Char.escaped chr
+		else if List.mem chr allowed then
+			Char.escaped chr
+		else
+			"-x" ^ (string_of_int (Char.code chr))) name
+
+let remove_extension file =
+	try String.sub file 0 (String.rindex file '.')
+	with Not_found -> file
+
+let extension file =
+	try
+		let dot_pos = String.rindex file '.' in
+		String.sub file dot_pos (String.length file - dot_pos)
+	with Not_found ->
+		file

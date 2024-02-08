@@ -21,54 +21,49 @@
  */
 @:noDoc
 class HxOverrides {
-
-	static function dateStr( date :Date ) : String {
+	static function dateStr(date:Date):String {
 		var m = date.getMonth() + 1;
 		var d = date.getDate();
 		var h = date.getHours();
 		var mi = date.getMinutes();
 		var s = date.getSeconds();
-		return date.getFullYear()
-			+"-"+(if( m < 10 ) "0"+m else ""+m)
-			+"-"+(if( d < 10 ) "0"+d else ""+d)
-			+" "+(if( h < 10 ) "0"+h else ""+h)
-			+":"+(if( mi < 10 ) "0"+mi else ""+mi)
-			+":"+(if( s < 10 ) "0"+s else ""+s);
+		return date.getFullYear() + "-" + (if (m < 10) "0" + m else "" + m) + "-" + (if (d < 10) "0" + d else "" + d) + " "
+			+ (if (h < 10) "0" + h else "" + h) + ":" + (if (mi < 10) "0" + mi else "" + mi) + ":" + (if (s < 10) "0" + s else "" + s);
 	}
 
-	static function strDate( s : String ) : Date {
-		switch( s.length ) {
-		case 8: // hh:mm:ss
-			var k = s.split(":");
-			var d = js.Syntax.construct(Date);
-			(cast d)[cast "setTime"](0);
-			(cast d)[cast "setUTCHours"](k[0]);
-			(cast d)[cast "setUTCMinutes"](k[1]);
-			(cast d)[cast "setUTCSeconds"](k[2]);
-			return d;
-		case 10: // YYYY-MM-DD
-			var k = s.split("-");
-			return new Date(cast k[0],(cast k[1]) - 1,cast k[2],0,0,0);
-		case 19: // YYYY-MM-DD hh:mm:ss
-			var k = s.split(" ");
-			var y = k[0].split("-");
-			var t = k[1].split(":");
-			return new Date(cast y[0],(cast y[1]) - 1,cast y[2],cast t[0],cast t[1],cast t[2]);
-		default:
-			throw "Invalid date format : " + s;
+	static function strDate(s:String):Date {
+		switch (s.length) {
+			case 8: // hh:mm:ss
+				var k = s.split(":");
+				var d = js.Syntax.construct(Date);
+				(cast d)[cast "setTime"](0);
+				(cast d)[cast "setUTCHours"](k[0]);
+				(cast d)[cast "setUTCMinutes"](k[1]);
+				(cast d)[cast "setUTCSeconds"](k[2]);
+				return d;
+			case 10: // YYYY-MM-DD
+				var k = s.split("-");
+				return new Date(cast k[0], (cast k[1]) - 1, cast k[2], 0, 0, 0);
+			case 19: // YYYY-MM-DD hh:mm:ss
+				var k = s.split(" ");
+				var y = k[0].split("-");
+				var t = k[1].split(":");
+				return new Date(cast y[0], (cast y[1]) - 1, cast y[2], cast t[0], cast t[1], cast t[2]);
+			default:
+				throw "Invalid date format : " + s;
 		}
 	}
 
 	@:pure
-	static function cca( s : String, index : Int ) : Null<Int> {
+	static function cca(s:String, index:Int):Null<Int> {
 		var x = (cast s).charCodeAt(index);
-		if( x != x ) // fast isNaN
+		if (x != x) // fast isNaN
 			return js.Lib.undefined; // isNaN will still return true
 		return x;
 	}
 
 	@:pure
-	static function substr( s : String, pos : Int, ?len : Int ) : String {
+	static function substr(s:String, pos:Int, ?len:Int):String {
 		if (len == null) {
 			len = s.length;
 		} else if (len < 0) {
@@ -90,14 +85,14 @@ class HxOverrides {
 	}
 
 	@:pure
-	static function indexOf<T>( a : Array<T>, obj : T, i : Int) {
+	static function indexOf<T>(a:Array<T>, obj:T, i:Int) {
 		var len = a.length;
 		if (i < 0) {
 			i += len;
-			if (i < 0) i = 0;
+			if (i < 0)
+				i = 0;
 		}
-		while (i < len)
-		{
+		while (i < len) {
 			if (js.Syntax.strictEq(a[i], obj))
 				return i;
 			i++;
@@ -106,14 +101,13 @@ class HxOverrides {
 	}
 
 	@:pure
-	static function lastIndexOf<T>( a : Array<T>, obj : T, i : Int) {
+	static function lastIndexOf<T>(a:Array<T>, obj:T, i:Int) {
 		var len = a.length;
 		if (i >= len)
 			i = len - 1;
 		else if (i < 0)
 			i += len;
-		while (i >= 0)
-		{
+		while (i >= 0) {
 			if (js.Syntax.strictEq(a[i], obj))
 				return i;
 			i--;
@@ -121,32 +115,50 @@ class HxOverrides {
 		return -1;
 	}
 
-	static function remove<T>( a : Array<T>, obj : T ) {
+	static function remove<T>(a:Array<T>, obj:T) {
 		var i = a.indexOf(obj);
-		if( i == -1 ) return false;
-		a.splice(i,1);
+		if (i == -1)
+			return false;
+		a.splice(i, 1);
 		return true;
 	}
 
 	@:pure
-	static function iter<T>( a : Array<T> ) : Iterator<T> untyped {
-		return {
-			cur : 0,
-			arr : a,
-			hasNext : function() {
-				return __this__.cur < __this__.arr.length;
-			},
-			next : function() {
-				return __this__.arr[__this__.cur++];
-			}
-		};
+	static function iter<T>(a:Array<T>):Iterator<T>
+		untyped {
+			return {
+				cur: 0,
+				arr: a,
+				hasNext: function() {
+					return __this__.cur < __this__.arr.length;
+				},
+				next: function() {
+					return __this__.arr[__this__.cur++];
+				}
+			};
+		}
+
+	@:ifFeature("anon_read.keyValueIterator", "dynamic_read.keyValueIterator", "closure_read.keyValueIterator")
+	static function keyValueIter<T>( a : Array<T> ) {
+		return new haxe.iterators.ArrayKeyValueIterator(a);
 	}
 
-	static function __init__() untyped {
-#if (js_es < 5)
-		__feature__('HxOverrides.indexOf', if( Array.prototype.indexOf ) __js__("HxOverrides").indexOf = function(a,o,i) return Array.prototype.indexOf.call(a, o, i));
-		__feature__('HxOverrides.lastIndexOf', if( Array.prototype.lastIndexOf ) __js__("HxOverrides").lastIndexOf = function(a,o,i) return Array.prototype.lastIndexOf.call(a, o, i));
-#end
-	}
+	@:pure
+	static function now(): Float return js.lib.Date.now();
 
+	static function __init__()
+		untyped {
+			#if (js_es < 5)
+			__feature__('HxOverrides.indexOf',
+				if (Array.prototype.indexOf) js.Syntax.code("HxOverrides").indexOf = function(a, o, i) return Array.prototype.indexOf.call(a, o, i));
+			__feature__('HxOverrides.lastIndexOf',
+				if (Array.prototype.lastIndexOf) js.Syntax.code("HxOverrides").lastIndexOf = function(a, o, i) return Array.prototype.lastIndexOf.call(a, o, i));
+			#end
+
+			__feature__('HxOverrides.now',
+				if (js.Syntax.typeof(performance) != 'undefined' && js.Syntax.typeof(performance.now) == 'function') {
+					HxOverrides.now = performance.now.bind(performance);
+				}
+			);
+		}
 }

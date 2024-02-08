@@ -20,196 +20,202 @@
  * DEALINGS IN THE SOFTWARE.
  */
 @:coreApi final class String {
-
 	static var __is_String = true;
-	private static var __split : Dynamic = neko.Lib.load("std","string_split",2);
+	private static var __split:Dynamic = neko.Lib.load("std", "string_split", 2);
 
-	static function __init__() : Void {
+	static function __init__():Void {
 		__is_String = true;
 	}
 
-	public var length(default,null) : Int;
+	public var length(default, null):Int;
 
-	public function new(string:String) : Void {
+	public function new(string:String):Void {
 		untyped {
-			if( __dollar__typeof(string) != __dollar__tstring )
+			if (__dollar__typeof(string) != __dollar__tstring)
 				string = __dollar__string(string);
 			this.__s = string;
 			this.length = __dollar__ssize(string);
 		}
 	}
 
-	public function charAt(index:Int) : String {
+	public function charAt(index:Int):String {
 		untyped {
 			try {
 				var s = __dollar__smake(1);
-				__dollar__sset(s,0,__dollar__sget(this.__s,index));
+				__dollar__sset(s, 0, __dollar__sget(this.__s, index));
 				return new String(s);
-			} catch( e : Dynamic ) {
+			} catch (e:Dynamic) {
 				return "";
 			}
 		}
 	}
 
-	public function charCodeAt(index : Int) : Null<Int> {
+	public function charCodeAt(index:Int):Null<Int> {
 		untyped {
-			return __dollar__sget(this.__s,index);
+			return __dollar__sget(this.__s, index);
 		}
 	}
 
-	public function indexOf( str : String, ?startIndex : Int ) : Int {
+	public function indexOf(str:String, ?startIndex:Int):Int {
 		untyped {
 			var l = __dollar__ssize(this.__s);
-			if( startIndex == null || startIndex < -l )
+			if (startIndex == null || startIndex < -l)
 				startIndex = 0;
-			if( startIndex > l )
+			if (str == '' && startIndex >= l) {
+				return l;
+			}
+			if (startIndex > l)
 				return -1;
-			if( __dollar__ssize(str.__s) == 0 )
+			if (__dollar__ssize(str.__s) == 0)
 				return startIndex < 0 ? l + startIndex : startIndex;
-			var p = try __dollar__sfind(this.__s,startIndex,str.__s) catch( e : Dynamic ) null;
-			if( p == null )
+			var p = try __dollar__sfind(this.__s, startIndex, str.__s) catch (e:Dynamic) null;
+			if (p == null)
 				return -1;
 			return p;
 		}
 	}
 
-	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
+	public function lastIndexOf(str:String, ?startIndex:Int):Int {
 		untyped {
 			var last = -1;
 			var l = __dollar__ssize(this.__s);
-			if( startIndex == null )
+			if (startIndex == null)
 				startIndex = l;
-			if( __dollar__ssize(str.__s) == 0 )
+			if (__dollar__ssize(str.__s) == 0)
 				return startIndex > l ? l : startIndex;
-			while( true ) {
-				var p = try __dollar__sfind(this.__s,last+1,str.__s) catch( e : Dynamic ) null;
-				if( p == null || p > startIndex )
+			while (true) {
+				var p = try __dollar__sfind(this.__s, last + 1, str.__s) catch (e:Dynamic) null;
+				if (p == null || p > startIndex)
 					return last;
 				last = p;
 			}
 		}
 	}
 
-	public function split( delimiter : String ) : Array<String> {
+	public function split(delimiter:String):Array<String> {
 		untyped {
-			var l = __split(this.__s,delimiter.__s);
+			var l = __split(this.__s, delimiter.__s);
 			var a = new Array<String>();
-			if( l == null ) {
+			if (l == null) {
 				a.push("");
 				return a;
 			}
 			do {
 				a.push(new String(l[0]));
 				l = l[1];
-			} while( l != null );
+			} while (l != null);
 			return a;
 		}
 	}
 
-	public function substr( pos : Int, ?len : Int ) : String {
-		if( len == 0 ) return "";
+	public function substr(pos:Int, ?len:Int):String {
+		if (len == 0)
+			return "";
 		var sl = length;
 
-		if( len == null ) len = sl;
+		if (len == null)
+			len = sl;
 
-		if( pos == null ) pos = 0;
-		if( pos != 0 && len < 0 ){
+		if (pos == null)
+			pos = 0;
+		if (pos != 0 && len < 0) {
 			return "";
 		}
 
-		if( pos < 0 ){
+		if (pos < 0) {
 			pos = sl + pos;
-			if( pos < 0 ) pos = 0;
-		}else if( len < 0 ){
+			if (pos < 0)
+				pos = 0;
+		} else if (len < 0) {
 			len = sl + len - pos;
 		}
 
-		if( pos + len > sl ){
+		if (pos + len > sl) {
 			len = sl - pos;
 		}
 
-		if( pos < 0 || len <= 0 ) return "";
-		return new String(untyped __dollar__ssub(this.__s,pos,len));
+		if (pos < 0 || len <= 0)
+			return "";
+		return new String(untyped __dollar__ssub(this.__s, pos, len));
 	}
 
-	public function substring( startIndex : Int, ?endIndex : Int ) : String {
-		if ( endIndex == null) {
+	public function substring(startIndex:Int, ?endIndex:Int):String {
+		if (endIndex == null) {
 			endIndex = length;
-		} else if ( endIndex < 0 ) {
+		} else if (endIndex < 0) {
 			endIndex = 0;
-		} else if ( endIndex > length ) {
+		} else if (endIndex > length) {
 			endIndex = length;
 		}
 
-		if ( startIndex < 0 ) {
+		if (startIndex < 0) {
 			startIndex = 0;
-		} else if ( startIndex > length ) {
+		} else if (startIndex > length) {
 			startIndex = length;
 		}
 
-		if ( startIndex > endIndex ) {
+		if (startIndex > endIndex) {
 			var tmp = startIndex;
 			startIndex = endIndex;
 			endIndex = tmp;
 		}
 
-		return substr( startIndex, endIndex - startIndex );
+		return substr(startIndex, endIndex - startIndex);
 	}
 
-	public function toLowerCase() : String {
+	public function toLowerCase():String {
 		untyped {
 			var s = this.__s;
 			var l = this.length;
 			var s2 = __dollar__scopy(s);
 			var i = 0;
-			while( i < l ) {
-				var c = __dollar__sget(s,i);
-				if( c >= 65 && c <= 90 )
-					__dollar__sset(s2,i,c-65+97);
+			while (i < l) {
+				var c = __dollar__sget(s, i);
+				if (c >= 65 && c <= 90)
+					__dollar__sset(s2, i, c - 65 + 97);
 				i++;
 			}
 			return new String(s2);
 		}
 	}
 
-	public function toUpperCase() : String {
+	public function toUpperCase():String {
 		untyped {
 			var s = this.__s;
 			var l = this.length;
 			var s2 = __dollar__scopy(s);
 			var i = 0;
-			while( i < l ) {
-				var c = __dollar__sget(s,i);
-				if( c >= 97 && c <= 122 )
-					__dollar__sset(s2,i,c-97+65);
+			while (i < l) {
+				var c = __dollar__sget(s, i);
+				if (c >= 97 && c <= 122)
+					__dollar__sset(s2, i, c - 97 + 65);
 				i++;
 			}
 			return new String(s2);
 		}
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		return this;
 	}
 
 	/* NEKO INTERNALS */
-
-	private function __compare(o:String) : Int {
-		return untyped __dollar__compare(this.__s,o.__s);
+	private function __compare(o:String):Int {
+		return untyped __dollar__compare(this.__s, o.__s);
 	}
 
-	private function __add(s:Dynamic) : String {
-		return new String(untyped this.__s+__dollar__string(s));
+	private function __add(s:Dynamic):String {
+		return new String(untyped this.__s + __dollar__string(s));
 	}
 
-	private function __radd(s:Dynamic) : String {
-		return new String(untyped __dollar__string(s)+this.__s);
+	private function __radd(s:Dynamic):String {
+		return new String(untyped __dollar__string(s) + this.__s);
 	}
 
-	public static function fromCharCode( code : Int ) : String untyped {
-		var s = __dollar__smake(1);
-		__dollar__sset(s,0,code);
-		return new String(s);
-	}
-
+	public static function fromCharCode(code:Int):String
+		untyped {
+			var s = __dollar__smake(1);
+			__dollar__sset(s, 0, code);
+			return new String(s);
+		}
 }

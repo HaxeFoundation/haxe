@@ -1,1 +1,2 @@
 Main.hx:6: characters 9-24 : { } should be Ab1
+Main.hx:1: characters 1-30 : Abstract underlying type cannot be recursive

@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib.intl;
 
 /**
@@ -46,7 +47,7 @@ extern class RelativeTimeFormat {
 
 	/**
 		Returns a new object with properties reflecting the locale and formatting options
-		computed during initialization of the object. 
+		computed during initialization of the object.
 	**/
 	@:pure function resolvedOptions():RelativeTimeFormatResolvedOptions;
 
@@ -72,7 +73,7 @@ typedef RelativeTimeFormatOptions = {
 		The `Auto` value allows to not always have to use numeric values in the output.
 	**/
 	var ?numeric:RelativeTimeNumeric;
-	
+
 	/**
 		The length of the internationalized message.
 		The default value is `Long`.

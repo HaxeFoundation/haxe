@@ -19,30 +19,32 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.ssl;
 
 import python.lib.ssl.SSLSocket;
 
 @:pythonImport("ssl", "SSLContext")
 extern class SSLContext {
-	public function new (protocol:String):Void;
+	function new(protocol:String):Void;
 	#if (python_version >= 3.6)
-	public function wrap_socket(s:python.lib.socket.Socket, server_side:Bool = false, do_handshake_on_connect:Bool = true, suppress_ragged_eofs:Bool = true, server_hostname:String = null, session:SSLSession = null ):python.lib.ssl.SSLSocket;
+	function wrap_socket(s:python.lib.socket.Socket, server_side:Bool = false, do_handshake_on_connect:Bool = true, suppress_ragged_eofs:Bool = true,
+		server_hostname:String = null, session:SSLSession = null):python.lib.ssl.SSLSocket;
 	#else
-	public function wrap_socket(s:python.lib.socket.Socket, server_side:Bool = false, do_handshake_on_connect:Bool = true, suppress_ragged_eofs:Bool = true, server_hostname:String = null ):python.lib.ssl.SSLSocket;
+	function wrap_socket(s:python.lib.socket.Socket, server_side:Bool = false, do_handshake_on_connect:Bool = true, suppress_ragged_eofs:Bool = true,
+		server_hostname:String = null):python.lib.ssl.SSLSocket;
 	#end
-	public var options:Int;
+	var options:Int;
 
 	@:require(python_version >= 3.4)
-	public var check_hostname:Bool;
+	var check_hostname:Bool;
 
-	public var verify_mode:Int;
-	public function load_verify_locations(cafile:String = null, capath:String = null, cadata:String = null):Void;
-	public function set_default_verify_paths():Void;
+	var verify_mode:Int;
+	function load_verify_locations(cafile:String = null, capath:String = null, cadata:String = null):Void;
+	function set_default_verify_paths():Void;
 
 	@:require(python_version >= 3.4)
-	public function load_default_certs():Void;
-	//public function load_cert_chain(certfile:String, keyfile:String = null, password:String = null):Void;
-	//public function set_servername_callback(callback:SSLSocket -> String -> SSLContext -> Void ):Void;
-
+	function load_default_certs():Void;
+	// function load_cert_chain(certfile:String, keyfile:String = null, password:String = null):Void;
+	// function set_servername_callback(callback:SSLSocket -> String -> SSLContext -> Void ):Void;
 }

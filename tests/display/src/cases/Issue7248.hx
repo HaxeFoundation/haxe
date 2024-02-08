@@ -13,7 +13,7 @@ class Issue7248 extends DisplayTestCase {
 		}
 	**/
 	function test() {
-		eq(true, hasField(fields(pos(1)), "AStatic", "Void -> Void"));
+		eq(true, hasField(fields(pos(1)), "AStatic", "() -> Void"));
 		eq(false, hasField(fields(pos(1)), "NonStatic", "this : Int -> Void"));
 	}
 }

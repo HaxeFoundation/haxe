@@ -29,8 +29,7 @@
 						"flash",
 						"php",
 						"cpp",
-						"cs",
-						"java",
+						"jvm",
 						"python",
 						"hl",
 						"eval"
@@ -69,6 +68,15 @@
 						"TTypeParameter",
 						"TAnyField"
 					]
+				}
+			},
+			"links": {
+				"type": "array",
+				"markdownDescription": "Relevant URLs.",
+				"minItems": 1,
+				"items": {
+					"type": "string",
+					"format": "uri"
 				}
 			}
 		},

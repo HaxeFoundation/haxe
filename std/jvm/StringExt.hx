@@ -1,8 +1,31 @@
+/*
+ * Copyright (C)2005-2019 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
 package jvm;
 
 import java.NativeString;
 
 @:native("haxe.jvm.StringExt")
+@:keep
 class StringExt {
 	public static function fromCharCode(code:Int):String {
 		var a = new java.NativeArray(1);
@@ -25,12 +48,13 @@ class StringExt {
 	}
 
 	public static function indexOf(me:String, str:String, startIndex:Null<Int>) {
-		return
-			if (startIndex == null) (cast me : NativeString).indexOf(str)
-			else (cast me : NativeString).indexOf(str, startIndex);
+		return if (startIndex == null) (cast me : NativeString).indexOf(str) else (cast me : NativeString).indexOf(str, startIndex);
 	}
 
 	public static function lastIndexOf(me:String, str:String, ?startIndex:Int):Int {
+		if(str == '') {
+			return startIndex == null || startIndex > me.length ? me.length : startIndex;
+		}
 		if (startIndex == null || startIndex > me.length || startIndex < 0) {
 			startIndex = me.length - 1;
 		}

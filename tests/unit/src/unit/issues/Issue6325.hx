@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue6325 extends Test {
-#if (!hl && !flash && !cpp && !as3)
+#if (!hl && !flash && !cpp)
   public function test() {
     var base = new Base();
     base.someInt = 42;

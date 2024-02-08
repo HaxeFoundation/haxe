@@ -19,34 +19,36 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib;
 
 @:native("ArrayBuffer")
 extern class ArrayBuffer {
-	static function isView( value : Dynamic ) : Bool;
-	
-	final byteLength : Int;
-	
+	static function isView(value:Dynamic):Bool;
+
+	final byteLength:Int;
+
 	/** @throws DOMError */
-	function new( length : Int ) : Void;
-	function slice( begin : Int, ?end : Int ) : ArrayBuffer;
+	function new(length:Int):Void;
+
+	function slice(begin:Int, ?end:Int):ArrayBuffer;
 }
 
 #if (js_es <= 5)
 @:ifFeature('js.lib.ArrayBuffer.slice')
 private class ArrayBufferCompat {
-
-	static function sliceImpl(begin, ?end) {	
+	static function sliceImpl(begin, ?end) {
 		var u = new js.lib.Uint8Array(js.Lib.nativeThis, begin, end == null ? null : (end - begin));
-		var resultArray = new js.lib.Uint8Array(u.byteLength);	
-		resultArray.set(u);	
+		var resultArray = new js.lib.Uint8Array(u.byteLength);
+		resultArray.set(u);
 		return resultArray.buffer;
 	}
 
-	static function __init__(): Void untyped {
-		// IE10 ArrayBuffer.slice polyfill
-		if( __js__("ArrayBuffer").prototype.slice == null ) __js__("ArrayBuffer").prototype.slice = sliceImpl;
-	}
-
+	static function __init__():Void
+		untyped {
+			// IE10 ArrayBuffer.slice polyfill
+			if (js.Syntax.code("ArrayBuffer").prototype.slice == null)
+				js.Syntax.code("ArrayBuffer").prototype.slice = sliceImpl;
+		}
 }
 #end

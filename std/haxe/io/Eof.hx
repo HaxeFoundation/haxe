@@ -19,14 +19,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.io;
 
 /**
 	This exception is raised when reading while data is no longer available in the `haxe.io.Input`.
 **/
 class Eof {
-	public function new() {
-	}
+	public function new() {}
 
 	@:ifFeature("haxe.io.Eof.*")
 	function toString() {

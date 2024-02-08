@@ -19,31 +19,28 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.thread;
+
 import java.util.concurrent.locks.ReentrantLock;
 
 @:coreApi
-@:native('haxe.java.vm.Mutex') class Mutex
-{
+@:native('haxe.java.vm.Mutex') class Mutex {
 	@:private var lock:ReentrantLock;
 
-	public function new()
-	{
+	public function new() {
 		this.lock = new ReentrantLock();
 	}
 
-	public function tryAcquire():Bool
-	{
+	public function tryAcquire():Bool {
 		return this.lock.tryLock();
 	}
 
-	public function acquire():Void
-	{
+	public function acquire():Void {
 		this.lock.lock();
 	}
 
-	public function release():Void
-	{
+	public function release():Void {
 		this.lock.unlock();
 	}
 }

@@ -1,0 +1,4 @@
+Main.hx:18: characters 3-32 : Warning : (WDeprecated) Implicit cast from Int64 to Int (32 bits) is deprecated. Use .toInt() or explicitly cast instead.
+Main.hx:21: characters 17-29 : Warning : (WDeprecated) Implicit cast from Int64 to Int (32 bits) is deprecated. Use .toInt() or explicitly cast instead.
+Main.hx:30: characters 13-18 : Warning : (WDeprecated) Implicit cast from Int64 to Int (32 bits) is deprecated. Use .toInt() or explicitly cast instead.
+Main.hx:30: characters 21-33 : Warning : (WDeprecated) Implicit cast from Int64 to Int (32 bits) is deprecated. Use .toInt() or explicitly cast instead.

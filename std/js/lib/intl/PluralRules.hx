@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib.intl;
 
 /**
@@ -38,7 +39,7 @@ extern class PluralRules {
 	@:pure function resolvedOptions():PluralRulesResolvedOptions;
 
 	/**
-		Returns a String indicating which plurar rule to use for locale-aware formatting. 
+		Returns a String indicating which plurar rule to use for locale-aware formatting.
 	**/
 	@:pure function select(number:Int):String;
 
@@ -57,6 +58,7 @@ typedef PluralRulesOptions = {
 		For information about this option, see the [Intl page](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl#Locale_negotiation).
 	 */
 	var ?localeMatcher:LocaleMatcher;
+
 	/**
 		The type to use.
 		The default is `Cardinal`.
@@ -83,7 +85,6 @@ typedef PluralRulesResolvedOptions = {
 	final type:PluralRulesType;
 
 	final minimumIntegerDigits:Int;
-
 	final minimumFractionDigits:Int;
 
 	/**
@@ -103,14 +104,15 @@ typedef PluralRulesResolvedOptions = {
 }
 
 enum abstract PluralRulesType(String) {
-    /**
-		For cardinal numbers (refering to the quantity of things). 
-     */
-    var Cardinal = "cardinal";
-    /**
+	/**
+		For cardinal numbers (refering to the quantity of things).
+	 */
+	var Cardinal = "cardinal";
+
+	/**
 		For ordinal number (refering to the ordering or ranking of things, e.g. "1st", "2nd", "3rd" in English).
-     */
-    var Ordinal = "ordinal";
+	 */
+	var Ordinal = "ordinal";
 }
 
 typedef PluralRulesSupportedLocalesOfOptions = {

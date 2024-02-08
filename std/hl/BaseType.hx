@@ -19,26 +19,29 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package hl;
 
 @:keep
 class BaseType {
-	public var __type__ : Type;
-	public var __meta__ : Dynamic;
-	public var __implementedBy__ : NativeArray<Type>;
-	public function check( v : Dynamic ) {
+	public var __type__:Type;
+	public var __meta__:Dynamic;
+	public var __implementedBy__:NativeArray<Type>;
+
+	public function check(v:Dynamic) {
 		var t = Type.getDynamic(v);
-		if( t.kind == HVirtual ) {
+		if (t.kind == HVirtual) {
 			var v2 = hl.Api.getVirtualValue(v);
-			if( v2 != null ) t = Type.getDynamic(v2);
+			if (v2 != null)
+				t = Type.getDynamic(v2);
 		}
-		if( __implementedBy__ == null ) {
-			if( t.safeCast(__type__) )
+		if (__implementedBy__ == null) {
+			if (t.safeCast(__type__))
 				return true;
 			return false;
 		}
-		for( i in __implementedBy__ )
-			if( t.safeCast(i) )
+		for (i in __implementedBy__)
+			if (t.safeCast(i))
 				return true;
 		return false;
 	}
@@ -46,22 +49,20 @@ class BaseType {
 
 @:keep
 class Class extends BaseType {
-	public var __name__ : String;
-	public var __constructor__ : Dynamic;
+	public var __name__:String;
+	public var __constructor__:Dynamic;
 }
 
 @:keep
 class Enum extends BaseType {
-	public var __ename__ : String;
-	public var __emap__ : hl.types.BytesMap;
-	public var __constructs__ : Array<String>;
-	public var __evalues__ : NativeArray<Dynamic>;
+	public var __ename__:String;
+	public var __emap__:hl.types.BytesMap;
+	public var __constructs__:Array<String>;
+	public var __evalues__:NativeArray<Dynamic>;
 }
 
 @:keep
-class CoreType extends Class {
-}
+class CoreType extends Class {}
 
 @:keep
-class CoreEnum extends Enum {
-}
+class CoreEnum extends Enum {}

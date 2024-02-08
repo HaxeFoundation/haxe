@@ -1,22 +1,18 @@
 compile-each.hxml
 --main Main
--java bin/jvm
--D jvm
+--jvm bin/jvm/sys.jar
 
 --next
 compile-each.hxml
 --main TestArguments
--java bin/jvm
--D jvm
+--jvm bin/jvm/TestArguments.jar
 
 --next
 compile-each.hxml
 --main ExitCode
--java bin/jvm
--D jvm
+--jvm bin/jvm/ExitCode.jar
 
 --next
 compile-each.hxml
 --main UtilityProcess
--java bin/jvm
--D jvm
+--jvm bin/jvm/UtilityProcess.jar

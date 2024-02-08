@@ -4,9 +4,9 @@ class Issue6121 extends unit.Test {
 
    public function add(t:Issue6121) : Issue6121 return this;
 
-   public function start(run:Void->Issue6121) : Issue6121 return null;
+   public function start(run:()->Issue6121) : Issue6121 return null;
 
-   static public function setCallback( cb:Void->Issue6121 ) : Issue6121 return null;
+   static public function setCallback( cb:()->Issue6121 ) : Issue6121 return null;
 
    function callFunction() : Int
    {

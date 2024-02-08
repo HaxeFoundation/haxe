@@ -19,19 +19,19 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.zip;
 
 import java.util.zip.Inflater;
 
-class Uncompress
-{
+class Uncompress {
 	final inflater:Inflater;
 
-	public function new( ?windowBits : Int ) {
+	public function new(?windowBits:Int) {
 		inflater = new Inflater(windowBits != null && windowBits < 0);
 	}
 
-	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
+	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {
 		inflater.setInput(src.getData(), srcPos, src.length - srcPos);
 		inflater.inflate(dst.getData(), dstPos, dst.length - dstPos);
 		return {
@@ -41,29 +41,24 @@ class Uncompress
 		};
 	}
 
-	public function setFlushMode( f : FlushMode ) {
-	}
+	public function setFlushMode(f:FlushMode) {}
 
 	public function close() {
 		inflater.end();
 	}
 
-	public static function run( src : haxe.io.Bytes, ?bufsize : Int ) : haxe.io.Bytes
-	{
+	public static function run(src:haxe.io.Bytes, ?bufsize:Int):haxe.io.Bytes {
 		var decompresser = new java.util.zip.Inflater();
 		var buf = haxe.io.Bytes.alloc(bufsize == null ? src.length : bufsize).getData();
 
 		var out = new java.io.ByteArrayOutputStream(src.length);
 		decompresser.setInput(src.getData(), 0, src.length);
 
-		while (!decompresser.finished())
-		{
+		while (!decompresser.finished()) {
 			var count = decompresser.inflate(buf);
 			out.write(buf, 0, count);
 		}
 		out.close();
 		return haxe.io.Bytes.ofData(out.toByteArray());
 	}
-
 }
-

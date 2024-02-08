@@ -10,7 +10,9 @@ class Main {
 		runner.addCase(new TestFileSystem());
 		runner.addCase(new io.TestFile());
 		runner.addCase(new io.TestFileInput());
+		#if !js
 		runner.addCase(new io.TestProcess());
+		#end
 		runner.addCase(new net.TestSocket());
 		var report = Report.create(runner);
 		report.displayHeader = AlwaysShowHeader;

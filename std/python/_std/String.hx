@@ -19,58 +19,58 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 #if !macro
 import python.internal.StringImpl;
 #end
+
 @:coreApi
 @:native("str")
 extern class String {
-	var length(default,null) : Int;
+	var length(default, null):Int;
 
-	function new(string:String) : Void;
+	function new(string:String):Void;
 
-	@:runtime public inline function toUpperCase() : String {
+	@:runtime inline function toUpperCase():String {
 		return StringImpl.toUpperCase(this);
 	}
 
-	@:runtime public inline function toLowerCase() : String {
+	@:runtime inline function toLowerCase():String {
 		return StringImpl.toLowerCase(this);
 	}
 
-	inline public function charAt(index : Int) : String
-	{
+	inline function charAt(index:Int):String {
 		return StringImpl.charAt(this, index);
 	}
 
-	inline public function charCodeAt( index : Int) : Null<Int>
-	{
+	inline function charCodeAt(index:Int):Null<Int> {
 		return StringImpl.charCodeAt(this, index);
 	}
 
-	inline function indexOf( str : String, ?startIndex : Int ) : Int {
+	inline function indexOf(str:String, ?startIndex:Int):Int {
 		return StringImpl.indexOf(this, str, startIndex);
 	}
 
-	inline function lastIndexOf( str : String, ?startIndex : Int ) : Int {
+	inline function lastIndexOf(str:String, ?startIndex:Int):Int {
 		return StringImpl.lastIndexOf(this, str, startIndex);
 	}
 
-	@:runtime inline function split( delimiter : String ) : Array<String> {
+	@:runtime inline function split(delimiter:String):Array<String> {
 		return StringImpl.split(this, delimiter);
 	}
 
-	inline public function substr( pos : Int, ?len : Int ) : String
-	{
+	inline function substr(pos:Int, ?len:Int):String {
 		return StringImpl.substr(this, pos, len);
 	}
 
-	inline function substring( startIndex : Int, ?endIndex : Int ) : String {
+	inline function substring(startIndex:Int, ?endIndex:Int):String {
 		return StringImpl.substring(this, startIndex, endIndex);
 	}
 
-	inline function toString() : String return StringImpl.toString(this);
+	inline function toString():String
+		return StringImpl.toString(this);
 
-	public static inline function fromCharCode( code : Int ) : String {
+	static inline function fromCharCode(code:Int):String {
 		return StringImpl.fromCharCode(code);
 	}
 }

@@ -19,25 +19,22 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 /**
 	A String buffer is an efficient way to build a big string by appending small
 	elements together.
 
-	Its cross-platform implementation uses String concatenation internally, but
-	StringBuf may be optimized for different targets.
-
 	Unlike String, an instance of StringBuf is not immutable in the sense that
 	it can be passed as argument to functions which modify it by appending more
-	values. However, the internal buffer cannot be modified.
+	values.
 **/
 class StringBuf {
-
 	var b:String;
 
 	/**
 		The length of `this` StringBuf in characters.
 	**/
-	public var length(get,never) : Int;
+	public var length(get, never):Int;
 
 	/**
 		Creates a new StringBuf instance.
@@ -48,7 +45,7 @@ class StringBuf {
 		b = "";
 	}
 
-	inline function get_length() : Int {
+	inline function get_length():Int {
 		return b.length;
 	}
 
@@ -61,7 +58,7 @@ class StringBuf {
 
 		If `x` is null, the String "null" is appended.
 	**/
-	public inline function add<T>( x : T ) : Void {
+	public inline function add<T>(x:T):Void {
 		b += x;
 	}
 
@@ -71,7 +68,7 @@ class StringBuf {
 		If `c` is negative or has another invalid value, the result is
 		unspecified.
 	**/
-	public inline function addChar( c : Int ) : Void {
+	public inline function addChar(c:Int):Void {
 		b += String.fromCharCode(c);
 	}
 
@@ -87,7 +84,7 @@ class StringBuf {
 		If `len` is omitted or null, the substring ranges from `pos` to the end
 		of `s`.
 	**/
-	public inline function addSub( s : String, pos : Int, ?len : Int) : Void {
+	public inline function addSub(s:String, pos:Int, ?len:Int):Void {
 		b += (len == null ? s.substr(pos) : s.substr(pos, len));
 	}
 
@@ -96,8 +93,7 @@ class StringBuf {
 
 		The buffer is not emptied by this operation.
 	**/
-	public inline function toString() : String {
+	public inline function toString():String {
 		return b;
 	}
-
 }

@@ -19,33 +19,31 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.io;
 
 import python.lib.io.IOBase;
-
 import python.lib.io.RawIOBase;
 import python.Bytearray;
 
 @:pythonImport("io", "BufferedIOBase")
 extern class BufferedIOBase extends IOBase implements IBufferedIOBase {
-
 	/* not always available */
-	public var raw:RawIOBase;
+	var raw:RawIOBase;
 
-	public function write (b:Bytearray):Int;
-	public function readinto (b:Bytearray):Int;
-	public function detach ():RawIOBase;
-	public function read(n:Int = -1):Null<Bytes>;
-	public function read1(n:Int = -1):Null<Bytes>;
+	function write(b:Bytearray):Int;
+	function readinto(b:Bytearray):Int;
+	function detach():RawIOBase;
+	function read(n:Int = -1):Null<Bytes>;
+	function read1(n:Int = -1):Null<Bytes>;
 }
 
-
 @:remove extern interface IBufferedIOBase extends IIOBase {
-	public var raw:RawIOBase;
+	var raw:RawIOBase;
 
-	public function write (b:Bytearray):Int;
-	public function readinto (b:Bytearray):Int;
-	public function detach ():RawIOBase;
-	public function read(n:Int = -1):Null<Bytes>;
-	public function read1(n:Int = -1):Null<Bytes>;
+	function write(b:Bytearray):Int;
+	function readinto(b:Bytearray):Int;
+	function detach():RawIOBase;
+	function read(n:Int = -1):Null<Bytes>;
+	function read1(n:Int = -1):Null<Bytes>;
 }

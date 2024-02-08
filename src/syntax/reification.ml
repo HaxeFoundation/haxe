@@ -30,13 +30,18 @@ let reify in_macro =
 		| _ -> (ECall (constr,vl),pmin)
 	in
 	let to_const c p =
-		let cst n v = mk_enum "Constant" n [EConst (String v),p] p in
 		match c with
-		| Int i -> cst "CInt" i
-		| String s -> cst "CString" s
-		| Float s -> cst "CFloat" s
-		| Ident s -> cst "CIdent" s
-		| Regexp (r,o) -> mk_enum "Constant" "CRegexp" [(EConst (String r),p);(EConst (String o),p)] p
+		| Int (i, suffix) ->
+			let suffix = match suffix with None -> (EConst (Ident "null"),p) | Some s -> (EConst (String (s, SDoubleQuotes)),p) in
+			mk_enum "Constant" "CInt" [(EConst (String(i,SDoubleQuotes)),p);suffix] p
+		| String(s,qs) ->
+			let qs = mk_enum "StringLiteralKind" (match qs with SDoubleQuotes -> "DoubleQuotes" | SSingleQuotes -> "SingleQuotes") [] p in
+			mk_enum "Constant" "CString" [(EConst (String(s,SDoubleQuotes)),p);qs] p
+		| Float (f, suffix) ->
+			let suffix = match suffix with None -> (EConst (Ident "null"),p) | Some s -> (EConst (String (s, SDoubleQuotes)),p) in
+			mk_enum "Constant" "CFloat" [(EConst (String(f,SDoubleQuotes)),p);suffix] p
+		| Ident s -> mk_enum "Constant" "CIdent" [EConst (String(s,SDoubleQuotes)),p] p
+		| Regexp (r,o) -> mk_enum "Constant" "CRegexp" [(EConst (String(r,SDoubleQuotes)),p);(EConst (String(o,SDoubleQuotes)),p)] p
 	in
 	let rec to_binop o p =
 		let op n = mk_enum "Binop" n [] p in
@@ -65,13 +70,14 @@ let reify in_macro =
 		| OpInterval -> op "OpInterval"
 		| OpArrow -> op "OpArrow"
 		| OpIn -> op "OpIn"
+		| OpNullCoal -> op "OpNullCoal"
 	in
 	let to_string s p =
 		let len = String.length s in
 		if len > 1 && s.[0] = '$' then
 			(EConst (Ident (String.sub s 1 (len - 1))),p)
 		else
-			(EConst (String s),p)
+			(EConst (String(s,SDoubleQuotes)),p)
 	in
 	let to_placed_name (s,p) =
 		to_string s p
@@ -99,7 +105,9 @@ let reify in_macro =
 			| TPExpr e -> "TPExpr", to_expr e p
 		) in
 		mk_enum "TypeParam" n [v] p
-	and to_tpath (t,_) p =
+	and to_tpath ptp =
+		let t = ptp.path in
+		let p = ptp.pos_full in
 		let len = String.length t.tname in
 		if t.tpackage = [] && len > 1 && t.tname.[0] = '$' then begin
 			let name = String.sub t.tname 1 (len - 1) in
@@ -111,9 +119,9 @@ let reify in_macro =
 					 type parameters. *)
 				let ea = to_array to_tparam t.tparams p in
 				let fields = [
-					("pack", (EField(ei,"pack"),p));
-					("name", (EField(ei,"name"),p));
-					("sub", (EField(ei,"sub"),p));
+					("pack", (efield(ei,"pack"),p));
+					("name", (efield(ei,"name"),p));
+					("sub", (efield(ei,"sub"),p));
 					("params", ea);
 				] in
 				to_obj fields p
@@ -128,16 +136,16 @@ let reify in_macro =
 	and to_ctype t p =
 		let ct n vl = mk_enum "ComplexType" n vl p in
 		match fst t with
-		| CTPath ({ tpackage = []; tparams = []; tsub = None; tname = n }) when n.[0] = '$' ->
+		| CTPath ({ path = {tpackage = []; tparams = []; tsub = None; tname = n }}) when n.[0] = '$' ->
 			to_string n p
-		| CTPath t -> ct "TPath" [to_tpath (t,p) p]
+		| CTPath t -> ct "TPath" [to_tpath t]
 		| CTFunction (args,ret) -> ct "TFunction" [to_array to_type_hint args p; to_type_hint ret p]
 		| CTAnonymous fields -> ct "TAnonymous" [to_array to_cfield fields p]
 		| CTParent t -> ct "TParent" [to_type_hint t p]
-		| CTExtend (tl,fields) -> ct "TExtend" [to_array to_tpath tl p; to_array to_cfield fields p]
+		| CTExtend (tl,fields) -> ct "TExtend" [to_array (fun ptp _ -> to_tpath ptp) tl p; to_array to_cfield fields p]
 		| CTOptional t -> ct "TOptional" [to_type_hint t p]
 		| CTNamed (n,t) -> ct "TNamed" [to_placed_name n; to_type_hint t p]
-		| CTIntersection tl -> ct "TIntersection" (List.map (fun t -> to_ctype t p) tl)
+		| CTIntersection tl -> ct "TIntersection" [to_array to_ctype tl p]
 	and to_type_hint (t,p) _ =
 		(* to_obj ["type",to_ctype t p;"pos",to_pos p] p *)
 		to_ctype (t,p) p
@@ -180,6 +188,9 @@ let reify in_macro =
 			| AMacro -> "AMacro"
 			| AFinal -> "AFinal"
 			| AExtern -> "AExtern"
+			| AAbstract -> "AAbstract"
+			| AOverload -> "AOverload"
+			| AEnum -> "AEnum"
 			) in
 			mk_enum "Access" n [] p
 		in
@@ -193,7 +204,7 @@ let reify in_macro =
 		in
 		let fields = [
 			Some ("name", to_placed_name f.cff_name);
-			(match f.cff_doc with None -> None | Some s -> Some ("doc", to_string s p));
+			(match f.cff_doc with None -> None | Some d -> Some ("doc", to_string (gen_doc_text d) p));
 			(match f.cff_access with [] -> None | l -> Some ("access", to_array to_access l p));
 			Some ("kind", to_kind f.cff_kind);
 			Some ("pos", to_pos f.cff_pos);
@@ -215,13 +226,18 @@ let reify in_macro =
 		| Some p ->
 			p
 		| None ->
-		let file = (EConst (String p.pfile),p) in
-		let pmin = (EConst (Int (string_of_int p.pmin)),p) in
-		let pmax = (EConst (Int (string_of_int p.pmax)),p) in
+		let file = (EConst (String(p.pfile,SDoubleQuotes)),p) in
+		let pmin = (EConst (Int ((string_of_int p.pmin), None)),p) in
+		let pmax = (EConst (Int ((string_of_int p.pmax), None)),p) in
 		if in_macro then
 			(EUntyped (ECall ((EConst (Ident "$__mk_pos__"),p),[file;pmin;pmax]),p),p)
 		else
 			to_obj [("file",file);("min",pmin);("max",pmax)] p
+	and to_enc_pos p =
+		match !cur_pos with
+		| Some p -> p
+		| None when in_macro -> to_pos p
+		| None -> (ECall ((efield ((efield ((efield ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makePosition"),p),[to_pos p]),p)
 	and to_expr_array a p = match a with
 		| [EMeta ((Meta.Dollar "a",[],_),e1),_] -> (match fst e1 with EArrayDecl el -> to_expr_array el p | _ -> e1)
 		| _ -> to_array to_expr a p
@@ -241,9 +257,13 @@ let reify in_macro =
 			expr "EArray" [loop e1;loop e2]
 		| EBinop (op,e1,e2) ->
 			expr "EBinop" [to_binop op p; loop e1; loop e2]
-		| EField (e,s) ->
-			let p = {p with pmin = p.pmax - String.length s} in
-			expr "EField" [loop e; to_string s p]
+		| EField (e,s,efk) ->
+			let p = patch_string_pos p s in
+			let efk = match efk with
+				| EFNormal -> "Normal"
+				| EFSafe -> "Safe"
+			in
+			expr "EField" [loop e; to_string s p; mk_enum "EFieldKind" efk [] p]
 		| EParenthesis e ->
 			expr "EParenthesis" [loop e]
 		| EObjectDecl fl ->
@@ -259,8 +279,8 @@ let reify in_macro =
 			expr "EArrayDecl" [to_expr_array el p]
 		| ECall (e,el) ->
 			expr "ECall" [loop e;to_expr_array el p]
-		| ENew (t,el) ->
-			expr "ENew" [to_tpath t p;to_expr_array el p]
+		| ENew (ptp,el) ->
+			expr "ENew" [to_tpath ptp;to_expr_array el p]
 		| EUnop (op,flag,e) ->
 			let op = mk_enum "Unop" (match op with
 				| Increment -> "OpIncrement"
@@ -268,33 +288,30 @@ let reify in_macro =
 				| Not -> "OpNot"
 				| Neg -> "OpNeg"
 				| NegBits -> "OpNegBits"
+				| Spread -> "OpSpread"
 			) [] p in
 			expr "EUnop" [op;to_bool (flag = Postfix) p;loop e]
 		| EVars vl ->
-			expr "EVars" [to_array (fun ((n,pn),final,th,e) p ->
+			expr "EVars" [to_array (fun v p ->
 				let fields = [
-					"name", to_string n pn;
-					"type", to_opt to_type_hint th p;
-					"expr", to_opt to_expr e p;
-					"isFinal",to_bool final p;
+					"name", to_string (fst v.ev_name) (snd v.ev_name);
+					"namePos", to_pos (snd v.ev_name);
+					"type", to_opt to_type_hint v.ev_type p;
+					"expr", to_opt to_expr v.ev_expr p;
+					"isFinal",to_bool v.ev_final p;
+					"isStatic",to_bool v.ev_static p;
+					"meta",to_meta v.ev_meta p;
 				] in
 				to_obj fields p
 			) vl p]
-		| EFunction (name,f) ->
-			let name = match name with
-				| None ->
-					to_null null_pos
-				| Some (name,pn) ->
-					if ExtString.String.starts_with name "inline_$" then begin
-						let real_name = (String.sub name 7 (String.length name - 7)) in
-						let e_name = to_string real_name pn in
-						let e_inline = to_string "inline_" p in
-						let e_add = (EBinop(OpAdd,e_inline,e_name),p) in
-						e_add
-					end else
-						to_string name pn
+		| EFunction (kind,f) ->
+			let kind, args = match kind with
+				| FKAnonymous -> "FAnonymous", []
+				| FKArrow -> "FArrow", []
+				| FKNamed ((name,pn),inline) -> "FNamed", [to_string name pn; to_bool inline pn]
 			in
-			expr "EFunction" [name; to_fun f p]
+			let kind = mk_enum "FunctionKind" kind args p in
+			expr "EFunction" [kind; to_fun f p]
 		| EBlock el ->
 			expr "EBlock" [to_expr_array el p]
 		| EFor (e1,e2) ->
@@ -310,7 +327,7 @@ let reify in_macro =
 			expr "ESwitch" [loop e1;to_array scase cases p;to_opt (fun (e,_) -> to_opt to_expr e) def p]
 		| ETry (e1,catches) ->
 			let scatch ((n,_),t,e,_) p =
-				to_obj [("name",to_string n p);("type",to_ctype t p);("expr",loop e)] p
+				to_obj [("name",to_string n p);("type",to_opt to_ctype t p);("expr",loop e)] p
 			in
 			expr "ETry" [loop e1;to_array scatch catches p]
 		| EReturn eo ->
@@ -325,10 +342,10 @@ let reify in_macro =
 			expr "EThrow" [loop e]
 		| ECast (e,ct) ->
 			expr "ECast" [loop e; to_opt to_type_hint ct p]
+		| EIs (e,ct) ->
+			expr "EIs" [loop e; to_type_hint ct p]
 		| EDisplay (e,dk) ->
 			expr "EDisplay" [loop e; to_display_kind dk p]
-		| EDisplayNew t ->
-			expr "EDisplayNew" [to_tpath t p]
 		| ETernary (e1,e2,e3) ->
 			expr "ETernary" [loop e1;loop e2;loop e3]
 		| ECheckType (e1,ct) ->
@@ -344,15 +361,18 @@ let reify in_macro =
 			(* TODO: can $v and $i be implemented better? *)
 			| Meta.Dollar "v", _ ->
 				begin match fst e1 with
-				| EParenthesis (ECheckType (e2, (CTPath{tname="String";tpackage=[]},_)),_) -> expr "EConst" [mk_enum "Constant" "CString" [e2] (pos e2)]
-				| EParenthesis (ECheckType (e2, (CTPath{tname="Int";tpackage=[]},_)),_) -> expr "EConst" [mk_enum "Constant" "CInt" [e2] (pos e2)]
-				| EParenthesis (ECheckType (e2, (CTPath{tname="Float";tpackage=[]},_)),_) -> expr "EConst" [mk_enum "Constant" "CFloat" [e2] (pos e2)]
-				| _ -> (ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_pos (pos e)]),p)
+				| EParenthesis (ECheckType (e2, (CTPath({path = {tname="String";tpackage=[]}}),_)),_) -> expr "EConst" [mk_enum "Constant" "CString" [e2] (pos e2)]
+				| EParenthesis (ECheckType (e2, (CTPath({path = {tname="Int";tpackage=[]}}),_)),_) -> expr "EConst" [mk_enum "Constant" "CInt" [e2] (pos e2)]
+				| EParenthesis (ECheckType (e2, (CTPath({path = {tname="Float";tpackage=[]}}),_)),_) -> expr "EConst" [mk_enum "Constant" "CFloat" [e2] (pos e2)]
+				| EConst (Int (s, Some "i64")) ->
+					expr "EConst" [mk_enum "Constant" "CInt" [ (EConst(String (s, SDoubleQuotes)),(pos e1)); (EConst(String ("i64", SDoubleQuotes)),(pos e1)) ] (pos e1)]
+				| _ ->
+					(ECall ((efield ((efield ((efield ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e1; to_enc_pos (pos e1)]),p)
 				end
 			| Meta.Dollar "i", _ ->
 				expr "EConst" [mk_enum "Constant" "CIdent" [e1] (pos e1)]
 			| Meta.Dollar "p", _ ->
-				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"MacroStringTools"),p),"toFieldExpr"),p),[e]),p)
+				(ECall ((efield ((efield ((efield ((EConst (Ident "haxe"),p),"macro"),p),"MacroStringTools"),p),"toFieldExpr"),p),[e1]),p)
 			| Meta.Pos, [pexpr] ->
 				let old = !cur_pos in
 				cur_pos := Some pexpr;
@@ -365,23 +385,27 @@ let reify in_macro =
 		to_obj [
 			"name", to_placed_name t.tp_name;
 			"params", (EArrayDecl (List.map (to_tparam_decl p) t.tp_params),p);
-			"constraints", (EArrayDecl (match t.tp_constraints with None -> [] | Some th -> [to_ctype th p]),p)
+			"meta", to_meta t.tp_meta p;
+			"constraints", (EArrayDecl (match t.tp_constraints with None -> [] | Some th -> [to_ctype th p]),p);
+			"defaultType", to_opt to_ctype t.tp_default p;
 		] p
 	and to_type_def (t,p) =
 		match t with
 		| EClass d ->
-			let ext = ref None and impl = ref [] and interf = ref false and final = ref false in
+			let ext = ref None and impl = ref [] and interf = ref false and final = ref false and abstract = ref false in
 			List.iter (function
 				| HExtern | HPrivate -> ()
 				| HInterface -> interf := true;
-				| HExtends t -> ext := (match !ext with
-					| None -> Some (to_tpath t p)
+				| HExtends ptp -> ext := (match !ext with
+					| None ->
+						Some (to_tpath ptp)
 					| Some _ -> begin
-						impl := (to_tpath t p) :: !impl;
+						impl := (to_tpath ptp) :: !impl;
 						!ext
 						end)
-				| HImplements i-> impl := (to_tpath i p) :: !impl
+				| HImplements ptp -> impl := (to_tpath ptp) :: !impl
 				| HFinal -> final := true
+				| HAbstract -> abstract := true
 			) d.d_flags;
 			to_obj [
 				"pack", (EArrayDecl [],p);
@@ -390,14 +414,14 @@ let reify in_macro =
 				"meta", to_meta d.d_meta p;
 				"params", (EArrayDecl (List.map (to_tparam_decl p) d.d_params),p);
 				"isExtern", to_bool (List.mem HExtern d.d_flags) p;
-				"kind", mk_enum "TypeDefKind" "TDClass" [(match !ext with None -> (EConst (Ident "null"),p) | Some t -> t);(EArrayDecl (List.rev !impl),p);to_bool !interf p;to_bool !final p] p;
+				"kind", mk_enum "TypeDefKind" "TDClass" [(match !ext with None -> (EConst (Ident "null"),p) | Some t -> t);(EArrayDecl (List.rev !impl),p);to_bool !interf p;to_bool !final p;to_bool !abstract p] p;
 				"fields", (EArrayDecl (List.map (fun f -> to_cfield f p) d.d_data),p)
 			] p
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	in
 	(fun e -> to_expr e (snd e)), to_ctype, to_type_def
 
 let reify_expr e in_macro =
 	let to_expr,_,_ = reify in_macro in
 	let e = to_expr e in
-	(ECheckType (e,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = None; tparams = [] },null_pos)),pos e)
+	(ECheckType (e,(make_ptp_ct_null (mk_type_path (["haxe";"macro"],"Expr")),null_pos)),pos e)

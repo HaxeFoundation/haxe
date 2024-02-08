@@ -1,2 +1,2 @@
 Mismatch.hx:6: characters 19-26 : (e : Unknown<0>) -> String should be Null<js.lib.PromiseHandler<Dynamic, Int>>
-Mismatch.hx:6: characters 19-26 : For optional function argument 'onRejected'
+Mismatch.hx:6: characters 19-26 : ... For optional function argument 'onRejected'

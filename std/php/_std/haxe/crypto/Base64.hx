@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.crypto;
 
 import php.Global.*;
@@ -27,49 +28,54 @@ import php.NativeArray;
 import haxe.io.Bytes;
 
 class Base64 {
+	public static var CHARS(default, null) = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	public static var BYTES(default, null) = haxe.io.Bytes.ofString(CHARS);
 
-	public static var CHARS(default,null) = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-	public static var BYTES(default,null) = haxe.io.Bytes.ofString(CHARS);
-
-	public static var URL_CHARS(default,null) = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-	public static var URL_BYTES(default,null) = haxe.io.Bytes.ofString(URL_CHARS);
+	public static var URL_CHARS(default, null) = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+	public static var URL_BYTES(default, null) = haxe.io.Bytes.ofString(URL_CHARS);
 
 	static final NORMAL_62_63:NativeArray = Syntax.arrayDecl('+', '/');
 	static final URL_62_63:NativeArray = Syntax.arrayDecl('-', '_');
 
-	public static inline function encode( bytes : Bytes, complement = true ) : String {
+	public static inline function encode(bytes:Bytes, complement = true):String {
 		var result = base64_encode(bytes.toString());
 		return (complement ? result : rtrim(result, "="));
 	}
 
-	public static inline function decode( str : String, complement = true ) : Bytes {
-		if(!complement) {
-			switch (strlen(str) % 3) {
-				case 1:
-					str += "==";
+	public static inline function decode(str:String, complement = true):Bytes {
+		if (!complement) {
+			switch (strlen(str) % 4) {
 				case 2:
+					str += "==";
+				case 3:
 					str += "=";
 				default:
 			}
 		}
-		return Bytes.ofString(base64_decode( str, true ));
+		return switch base64_decode(str, true) {
+			case false: throw new Exception("Base64.decode : invalid encoded string");
+			case s: Bytes.ofString(s);
+		}
 	}
 
-	public static inline function urlEncode( bytes : Bytes, complement = true ) : String {
+	public static inline function urlEncode(bytes:Bytes, complement = false):String {
 		var result = str_replace(NORMAL_62_63, URL_62_63, base64_encode(bytes.toString()));
 		return (complement ? result : rtrim(result, "="));
 	}
 
-	public static inline function urlDecode( str : String, complement = true ) : Bytes {
-		if(!complement) {
-			switch (strlen(str) % 3) {
-				case 1:
-					str += "==";
+	public static inline function urlDecode(str:String, complement = false):Bytes {
+		if (complement) {
+			switch (strlen(str) % 4) {
 				case 2:
+					str += "==";
+				case 3:
 					str += "=";
 				default:
 			}
 		}
-		return Bytes.ofString(base64_decode(str_replace(URL_62_63, NORMAL_62_63, str), true));
+		return switch base64_decode(str_replace(URL_62_63, NORMAL_62_63, str), true) {
+			case false: throw new Exception("Base64.urlDecode : invalid encoded string");
+			case s: Bytes.ofString(s);
+		}
 	}
 }

@@ -19,10 +19,16 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.macro;
 
 import haxe.macro.Expr;
 import haxe.macro.Type.TypedExpr;
+
+enum Message {
+	Info(msg:String, pos:Position);
+	Warning(msg:String, pos:Position);
+}
 
 /**
 	Context provides an API for macro programming.
@@ -36,29 +42,66 @@ import haxe.macro.Type.TypedExpr;
 	- `haxe.macro.TypeTools`
 **/
 class Context {
-
-#if (neko || eval || display)
+	#if (neko || eval || display)
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the current macro call.
 	**/
-	public static function error( msg : String, pos : Position ) : Dynamic {
-		return load("error",2)(msg, pos);
+	public static function error(msg:String, pos:Position, ?depth:Int = 0):Dynamic {
+		return load("error", 2)(msg, pos, depth);
 	}
 
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the compilation.
 	**/
-	public static function fatalError( msg : String, pos : Position ) : Dynamic {
-		return load("fatal_error",2)(msg, pos);
+	public static function fatalError(msg:String, pos:Position, ?depth:Int = 0):Dynamic {
+		return load("fatal_error", 2)(msg, pos, depth);
+	}
+
+	/**
+		Displays a compilation error `msg` at the given `Position` `pos`
+		without aborting the current macro call.
+	**/
+	public static function reportError(msg:String, pos:Position, ?depth:Int = 0):Void {
+		load("report_error", 2)(msg, pos, depth);
 	}
 
 	/**
 		Displays a compilation warning `msg` at the given `Position` `pos`.
 	**/
-	public static function warning( msg : String, pos : Position ) {
-		load("warning",2)(msg, pos);
+	public static function warning(msg:String, pos:Position, ?depth:Int = 0) {
+		load("warning", 2)(msg, pos, depth);
+	}
+
+	/**
+		Displays a compilation info `msg` at the given `Position` `pos`.
+	**/
+	public static function info(msg:String, pos:Position, ?depth:Int = 0) {
+		load("info", 2)(msg, pos, depth);
+	}
+
+	/**
+		Gets a list of all current compilation info/warning messages.
+	**/
+	public static function getMessages():Array<Message> {
+		return load("get_messages", 0)();
+	}
+
+	/**
+		Filters all current info/warning messages. Filtered out messages will
+		not be displayed by the compiler.
+	**/
+	public static function filterMessages(predicate:Message->Bool) {
+		load("filter_messages", 1)(predicate);
+	}
+
+	/**
+		Check if compiler is past initializations macros or not.
+		When it is, configuration phase is over and parsing/typing can start.
+	**/
+	public static function initMacrosDone():Bool {
+		return load("init_macros_done", 0)();
 	}
 
 	/**
@@ -69,9 +112,11 @@ class Context {
 
 		If a class path was declared relative, this method returns the relative
 		file path. Otherwise it returns the absolute file path.
+
+		If no type can be found, an exception of type `String` is thrown.
 	**/
-	public static function resolvePath( file : String ) : String {
-		return load("resolve_path",1)(file);
+	public static function resolvePath(file:String):String {
+		return load("resolve_path", 1)(file);
 	}
 
 	/**
@@ -81,15 +126,34 @@ class Context {
 		Modifying the returned array has no effect on the compiler. Class paths
 		can be added using `haxe.macro.Compiler.addClassPath`.
 	**/
-	public static function getClassPath() : Array<String> {
-		return load("class_path",0)();
+	public static function getClassPath():Array<String> {
+		return load("class_path", 0)();
+	}
+
+	/**
+		Check if current display position is within `pos`.
+	**/
+	public static function containsDisplayPosition(pos:Position):Bool {
+		return load("contains_display_position", 1)(pos);
+	}
+
+	public static function getDisplayMode():DisplayMode {
+		return load("get_display_mode", 0)();
 	}
 
 	/**
 		Returns the position at which the macro was called.
 	**/
-	public static function currentPos() : Position {
+	public static function currentPos():Position {
 		return load("current_pos", 0)();
+	}
+
+	/**
+		Get the call stack (excluding the call to `Context.getMacroStack()`
+		that led to current macro.
+	**/
+	public static function getMacroStack():Array<Position> {
+		return load("get_macro_stack", 0)();
 	}
 
 	/**
@@ -102,6 +166,7 @@ class Context {
 		macro is not an expression-macro.
 	**/
 	public static function getExpectedType():Null<Type> {
+		assertInitMacrosDone(false);
 		return load("get_expected_type", 0)();
 	}
 
@@ -112,6 +177,7 @@ class Context {
 		Returns `null` if the current macro is not a `@:genericBuild` macro.
 	**/
 	public static function getCallArguments():Null<Array<Expr>> {
+		assertInitMacrosDone(false);
 		return load("get_call_arguments", 0)();
 	}
 
@@ -120,19 +186,22 @@ class Context {
 
 		If no such class exists, `null` is returned.
 	**/
-	public static function getLocalClass() : Null<Type.Ref<Type.ClassType>> {
-		var l : Type = load("get_local_type", 0)();
-		if( l == null ) return null;
-		return switch( l ) {
-		case TInst(c,_): c;
-		default: null;
+	public static function getLocalClass():Null<Type.Ref<Type.ClassType>> {
+		assertInitMacrosDone(false);
+		var l:Type = load("get_local_type", 0)();
+		if (l == null)
+			return null;
+		return switch (l) {
+			case TInst(c, _): c;
+			default: null;
 		}
 	}
 
 	/**
 		Returns the current module path in/on which the macro was called.
 	**/
-	public static function getLocalModule() : String {
+	public static function getLocalModule():String {
+		assertInitMacrosDone(false);
 		return load("get_local_module", 0)();
 	}
 
@@ -141,7 +210,8 @@ class Context {
 
 		If no such type exists, `null` is returned.
 	**/
-	public static function getLocalType() : Null<Type> {
+	public static function getLocalType():Null<Type> {
+		assertInitMacrosDone(false);
 		return load("get_local_type", 0)();
 	}
 
@@ -150,7 +220,8 @@ class Context {
 
 		If no such method exists, `null` is returned.
 	**/
-	public static function getLocalMethod() : Null<String> {
+	public static function getLocalMethod():Null<String> {
+		assertInitMacrosDone(false);
 		return load("get_local_method", 0)();
 	}
 
@@ -160,7 +231,8 @@ class Context {
 
 		Modifying the returned array has no effect on the compiler.
 	**/
-	public static function getLocalUsing() : Array<Type.Ref<Type.ClassType>> {
+	public static function getLocalUsing():Array<Type.Ref<Type.ClassType>> {
+		assertInitMacrosDone(false);
 		return load("get_local_using", 0)();
 	}
 
@@ -169,7 +241,8 @@ class Context {
 
 		Modifying the returned array has no effect on the compiler.
 	**/
-	public static function getLocalImports() : Array<ImportExpr> {
+	public static function getLocalImports():Array<ImportExpr> {
+		assertInitMacrosDone(false);
 		return load("get_local_imports", 0)();
 	}
 
@@ -183,7 +256,8 @@ class Context {
 		Modifying the returned map has no effect on the compiler.
 	**/
 	@:deprecated("Use Context.getLocalTVars() instead")
-	public static function getLocalVars() : Map<String,Type> {
+	public static function getLocalVars():Map<String, Type> {
+		assertInitMacrosDone(false);
 		return load("local_vars", 1)(false);
 	}
 
@@ -191,7 +265,8 @@ class Context {
 		Similar to `getLocalVars`, but returns elements of type `TVar` instead
 		of `Type`.
 	**/
-	public static function getLocalTVars() : Map<String,Type.TVar> {
+	public static function getLocalTVars():Map<String, Type.TVar> {
+		assertInitMacrosDone(false);
 		return load("local_vars", 1)(true);
 	}
 
@@ -203,7 +278,7 @@ class Context {
 
 		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
-	public static function defined( s : String ) : Bool {
+	public static function defined(s:String):Bool {
 		return load("defined", 1)(s);
 	}
 
@@ -219,7 +294,7 @@ class Context {
 
 		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
-	public static function definedValue( key : String ) : String {
+	public static function definedValue(key:String):Null<String> {
 		return load("defined_value", 1)(key);
 	}
 
@@ -233,7 +308,7 @@ class Context {
 
 		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
-	public static function getDefines() : Map<String,String> {
+	public static function getDefines():Map<String, String> {
 		return load("get_defines", 0)();
 	}
 
@@ -244,8 +319,13 @@ class Context {
 		declared class path has priority.
 
 		If no type can be found, an exception of type `String` is thrown.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
-	public static function getType( name : String ) : Type {
+	public static function getType(name:String):Type {
+		assertInitMacrosDone();
 		return load("get_type", 1)(name);
 	}
 
@@ -256,10 +336,43 @@ class Context {
 		The resolution follows the usual class path rules where the last
 		declared class path has priority.
 
-		If no module can be found, `null` is returned.
+		If no module can be found, an exception of type `String` is thrown.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
-	public static function getModule( name : String ) : Array<Type> {
+	public static function getModule(name:String):Array<Type> {
+		assertInitMacrosDone();
 		return load("get_module", 1)(name);
+	}
+
+	/**
+		Returns the typed expression of the call to the main function.
+
+		This function will only work in the generation phase. Any calls
+		made outside a function passed to `haxe.macro.Context.onGenerate`
+		or `haxe.macro.Context.onAfterGenerate` will return `null`.
+	**/
+	public static function getMainExpr():Null<TypedExpr> {
+		return load("get_main_expr", 0)();
+	}
+
+	/**
+		Returns an array of module types to be generated in the output.
+
+		This list may change depending on the phase of compilation and
+		should not be treated as conclusive until the generation phase.
+
+		Modifying the returned array has no effect on the compilation.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
+	**/
+	public static function getAllModuleTypes():Array<haxe.macro.Type.ModuleType> {
+		assertInitMacrosDone();
+		return load("get_module_types", 0)();
 	}
 
 	/**
@@ -270,7 +383,7 @@ class Context {
 
 		The provided `Position` `pos` is used for all generated inner AST nodes.
 	**/
-	public static function parse( expr : String, pos : Position ) : Expr {
+	public static function parse(expr:String, pos:Position):Expr {
 		return load("do_parse", 3)(expr, pos, false);
 	}
 
@@ -278,7 +391,7 @@ class Context {
 		Similar to `parse`, but error positions are reported within the provided
 		String `expr`.
 	**/
-	public static function parseInlineString( expr : String, pos : Position ) : Expr {
+	public static function parseInlineString(expr:String, pos:Position):Expr {
 		return load("do_parse", 3)(expr, pos, true);
 	}
 
@@ -291,14 +404,15 @@ class Context {
 
 		The provided `Position` `pos` is used for all generated inner AST nodes.
 	**/
-	public static function makeExpr( v : Dynamic, pos : Position ) : Expr {
+	public static function makeExpr(v:Dynamic, pos:Position):Expr {
 		return load("make_expr", 2)(v, pos);
 	}
 
 	/**
 		Returns a hashed MD5 signature of value `v`.
 	**/
-	public static function signature( v : Dynamic ) : String {
+	public static function signature(v:Dynamic):String {
+		assertInitMacrosDone(false);
 		return load("signature", 1)(v);
 	}
 
@@ -318,8 +432,8 @@ class Context {
 
 		*Note*: the callback is still invoked when generation is disabled with  `--no-output`.
 	**/
-	public static function onGenerate( callback : Array<Type> -> Void, persistent:Bool = true ) {
-		load("on_generate",2)(callback, persistent);
+	public static function onGenerate(callback:Array<Type>->Void, persistent:Bool = true) {
+		load("on_generate", 2)(callback, persistent);
 	}
 
 	/**
@@ -331,8 +445,8 @@ class Context {
 
 		*Note*: the callback is still invoked when generation is disabled with  `--no-output`.
 	**/
-	public static function onAfterGenerate( callback : Void -> Void ) {
-		load("on_after_generate",1)(callback);
+	public static function onAfterGenerate(callback:Void->Void) {
+		load("on_after_generate", 1)(callback);
 	}
 
 	/**
@@ -343,8 +457,24 @@ class Context {
 		It is possible to define new types in the callback, in which case it
 		will be called again with the new types as argument.
 	**/
-	public static function onAfterTyping( callback : Array<haxe.macro.Type.ModuleType> -> Void ) {
-		load("on_after_typing",1)(callback);
+	public static function onAfterTyping(callback:Array<haxe.macro.Type.ModuleType>->Void) {
+		load("on_after_typing", 1)(callback);
+	}
+
+	/**
+		Adds a callback function `callback` which is invoked after the compiler
+		is done running initialization macros, when typing begins.
+
+		`onAfterInitMacros` should be used to delay typer-dependant code from
+		your initalization macros, to properly separate configuration phase and
+		actual typing.
+	**/
+	public static function onAfterInitMacros(callback:Void->Void):Void {
+		if (Context.initMacrosDone()) {
+			callback();
+		} else {
+			load("on_after_init_macros", 1)(callback);
+		}
 	}
 
 	/**
@@ -355,8 +485,8 @@ class Context {
 		expected type. If it returns `null`, the type is considered to still not
 		exist.
 	**/
-	public static function onTypeNotFound ( callback : String -> TypeDefinition ) {
-		load("on_type_not_found",1)(callback);
+	public static function onTypeNotFound(callback:String->TypeDefinition) {
+		load("on_type_not_found", 1)(callback);
 	}
 
 	/**
@@ -364,8 +494,13 @@ class Context {
 
 		Typing the expression may result in a compiler error which can be
 		caught using `try ... catch`.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
-	public static function typeof( e : Expr ) : Type {
+	public static function typeof(e:Expr):Type {
+		assertInitMacrosDone();
 		return load("typeof", 1)(e);
 	}
 
@@ -373,9 +508,17 @@ class Context {
 		Types expression `e` and returns the corresponding `TypedExpr`.
 
 		Typing the expression may result in a compiler error which can be
-		caught using `try ... catch`.
+		caught using `try ... catch`. Note that not all compiler errors can
+		be caught this way because the compiler might delay various checks
+		to a later stage, at which point the exception handler is no longer
+		active.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
-	public static function typeExpr( e : Expr ) : TypedExpr {
+	public static function typeExpr(e:Expr):TypedExpr {
+		assertInitMacrosDone();
 		return load("type_expr", 1)(e);
 	}
 
@@ -385,9 +528,28 @@ class Context {
 		Resolving the type may result in a compiler error which can be
 		caught using `try ... catch`.
 		Resolution is performed based on the current context in which the macro is called.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
-	public static function resolveType( t : ComplexType, p : Position ) : Type {
-		return load("resolve_type", 2)(t,p);
+	public static function resolveType(t:ComplexType, p:Position):Type {
+		assertInitMacrosDone();
+		return load("resolve_type", 2)(t, p);
+	}
+
+	/**
+		Resolve type `t` and returns the corresponding `ComplexType`.
+
+		Resolving the type may result in a compiler error which can be
+		caught using `try ... catch`.
+		Resolution is performed based on the current context in which the macro is called.
+		The difference with `resolveType` is that it only performs type resolution, it does not
+		build any type or trigger macros.
+	**/
+	public static function resolveComplexType(t:ComplexType, p:Position):ComplexType {
+		assertInitMacrosDone(false);
+		return load("resolve_complex_type", 2)(t, p);
 	}
 
 	/**
@@ -395,14 +557,19 @@ class Context {
 
 		See `haxe.macro.TypeTools.toComplexType` for details.
 	**/
-	public static function toComplexType( t : Type ) : Null<ComplexType> {
+	public static function toComplexType(t:Type):Null<ComplexType> {
 		return load("to_complex_type", 1)(t);
 	}
 
 	/**
 		Tries to unify `t1` and `t2` and returns `true` if successful.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
-	public static function unify( t1 : Type, t2 : Type) : Bool {
+	public static function unify(t1:Type, t2:Type):Bool {
+		assertInitMacrosDone();
 		return load("unify", 2)(t1, t2);
 	}
 
@@ -410,32 +577,42 @@ class Context {
 		Follows a type.
 
 		See `haxe.macro.TypeTools.follow` for details.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
-	public static function follow( t : Type, ?once : Bool ) : Type {
-		return load("follow", 2)(t,once);
+	public static function follow(t:Type, ?once:Bool):Type {
+		assertInitMacrosDone();
+		return load("follow", 2)(t, once);
 	}
 
 	/**
 		Follows a type, including abstracts' underlying implementation
 
 		See `haxe.macro.TypeTools.followWithAbstracts` for details.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
-	public static function followWithAbstracts(t : Type, once : Bool = false ) : Type {
-		return load("follow_with_abstracts", 2)(t,once);
+	public static function followWithAbstracts(t:Type, once:Bool = false):Type {
+		assertInitMacrosDone();
+		return load("follow_with_abstracts", 2)(t, once);
 	}
 
 	/**
 		Returns the information stored in `Position` `p`.
 	**/
-	public static function getPosInfos( p : Position ) : { min : Int, max : Int, file : String } {
-		return load("get_pos_infos",1)(p);
+	public static function getPosInfos(p:Position):{min:Int, max:Int, file:String} {
+		return load("get_pos_infos", 1)(p);
 	}
 
 	/**
 		Builds a `Position` from `inf`.
 	**/
-	public static function makePosition( inf : { min : Int, max : Int, file : String } ) : Position {
-		return load("make_position",3)(inf.min,inf.max,inf.file);
+	public static function makePosition(inf:{min:Int, max:Int, file:String}):Position {
+		return load("make_position", 3)(inf.min, inf.max, inf.file);
 	}
 
 	/**
@@ -444,8 +621,8 @@ class Context {
 		Modifying the returned map has no effect on the compilation, use
 		`haxe.macro.Context.addResource` to add new resources to the compilation unit.
 	**/
-	public static function getResources():Map<String,haxe.io.Bytes> {
-		return load("get_resources",0)();
+	public static function getResources():Map<String, haxe.io.Bytes> {
+		return load("get_resources", 0)();
 	}
 
 	/**
@@ -460,8 +637,8 @@ class Context {
 		that module is reused. If this resource concerns several modules, prefix its
 		name with a `$` sign, this will bind it to the macro module instead.
 	**/
-	public static function addResource( name : String, data : haxe.io.Bytes ) {
-		load("add_resource",2)(name,data);
+	public static function addResource(name:String, data:haxe.io.Bytes) {
+		load("add_resource", 2)(name, data);
 	}
 
 	/**
@@ -469,7 +646,8 @@ class Context {
 
 		This is only defined for `@:build/@:autoBuild` macros.
 	**/
-	public static function getBuildFields() : Array<Field> {
+	public static function getBuildFields():Array<Field> {
+		assertInitMacrosDone(false);
 		return load("get_build_fields", 0)();
 	}
 
@@ -479,9 +657,29 @@ class Context {
 		If `moduleDependency` is given and is not `null`, it should contain
 		a module path that will be used as a dependency for the newly defined module
 		instead of the current module.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
-	public static function defineType( t : TypeDefinition, ?moduleDependency : String ) : Void {
+	public static function defineType(t:TypeDefinition, ?moduleDependency:String):Void {
+		assertInitMacrosDone();
 		load("define_type", 2)(t, moduleDependency);
+	}
+
+	/**
+		Creates and returns a new instance of monomorph (`TMono`) type.
+
+		Returned monomorph can be used with e.g. `Context.unify` to make the compiler
+		bind the monomorph to an actual type and let macro further process the resulting type.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
+	**/
+	public static function makeMonomorph():Type {
+		assertInitMacrosDone();
+		return load("make_monomorph", 0)();
 	}
 
 	/**
@@ -491,10 +689,17 @@ class Context {
 		The individual `types` can reference each other and any identifier
 		respects the `imports` and `usings` as usual, expect that imports are
 		not allowed to have `.*` wildcards or `as s` shorthands.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
-	public static function defineModule( modulePath : String, types : Array<TypeDefinition>, ?imports: Array<ImportExpr>, ?usings : Array<TypePath> ) : Void {
-		if( imports == null ) imports = [];
-		if( usings == null ) usings = [];
+	public static function defineModule(modulePath:String, types:Array<TypeDefinition>, ?imports:Array<ImportExpr>, ?usings:Array<TypePath>):Void {
+		if (imports == null)
+			imports = [];
+		if (usings == null)
+			usings = [];
+		assertInitMacrosDone();
 		load("define_module", 4)(modulePath, types, imports, usings);
 	}
 
@@ -502,11 +707,15 @@ class Context {
 		Returns a syntax-level expression corresponding to typed expression `t`.
 
 		This process may lose some information.
-	**/
-	public static function getTypedExpr( t : Type.TypedExpr ) : Expr {
-		return load("get_typed_expr",1)(t);
-	}
 
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
+	**/
+	public static function getTypedExpr(t:Type.TypedExpr):Expr {
+		assertInitMacrosDone();
+		return load("get_typed_expr", 1)(t);
+	}
 
 	/**
 		Store typed expression `t` internally and give a syntax-level expression
@@ -519,9 +728,14 @@ class Context {
 		that is reset between compilations, so care should be taken when storing
 		the expression returned by this method in a static variable and using the
 		compilation server.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
-	public static function storeTypedExpr( t : Type.TypedExpr ) : Expr {
-		return load("store_typed_expr",1)(t);
+	public static function storeTypedExpr(t:Type.TypedExpr):Expr {
+		assertInitMacrosDone();
+		return load("store_typed_expr", 1)(t);
 	}
 
 	/**
@@ -538,9 +752,27 @@ class Context {
 		that is reset between compilations, so care should be taken when storing
 		the expression returned by this method in a static variable and using the
 		compilation server.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
-	public static function storeExpr( e : Expr ) : Expr {
-		return load("store_expr",1)(e);
+	public static function storeExpr(e:Expr):Expr {
+		assertInitMacrosDone();
+		return load("store_expr", 1)(e);
+	}
+
+	/**
+		This function works like `storeExpr`, but also returns access to the expression's
+		type through the `type` field of the return value.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
+	**/
+	public static function typeAndStoreExpr(e:Expr):{final type:Type.Ref<Type>; final expr:Expr;} {
+		assertInitMacrosDone();
+		return load("type_and_store_expr", 1)(e);
 	}
 
 	/**
@@ -551,18 +783,77 @@ class Context {
 		`externFile` has changed.
 
 		Has no effect if the compilation cache is not used.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
-	public static function registerModuleDependency( modulePath : String, externFile : String ) {
-		load("register_module_dependency", 2)(modulePath,externFile);
+	public static function registerModuleDependency(modulePath:String, externFile:String) {
+		onAfterInitMacros(() -> load("register_module_dependency", 2)(modulePath, externFile));
+	}
+
+	/**
+		Creates a timer which will be printed in the compilation report
+		if `--times` compilation argument is set.
+
+		Note that a timer may be omitted from the report if the amount of time
+		measured is too small.
+
+		This method immediately starts a timer and returns a function to stop it:
+		```
+		var stopTimer = haxe.macro.Context.timer("my heavy task");
+		runTask();
+		stopTimer();
+		```
+	**/
+	public static function timer(id:String):() -> Void {
+		return load("timer", 1)(id);
+	}
+
+	/**
+		Executes `code` in a context that has `imports` and `usings` added.
+
+		This is equivalent to temporarily having `import` and `using` statements in a file. These
+		are only active during the execution of `code` and do not affect anything afterwards. This
+		is true even if `code` throws an exception.
+
+		If any argument is `null`, the result is unspecified.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
+	**/
+	public static function withImports<X>(imports:Array<String>, usings:Array<String>, code:() -> X):X {
+		assertInitMacrosDone();
+		return load("with_imports", 3)(imports, usings, code);
+	}
+
+
+	/**
+		Executes `code` in a context that has some compiler options set, restore the compiler to its
+		default behavior afterwards.
+
+		`allowInlining`: enable or disable inlining during typing with `typeExpr`.
+
+		`allowTransform`: when disabled, the code typed with `typeExpr` will be almost exactly the same
+		as the input code. This will disable some abstract types transformations.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
+	**/
+	public static function withOptions<X>(options:{?allowInlining:Bool,?allowTransform:Bool}, code : () -> X) : X {
+		assertInitMacrosDone();
+		return load("with_options", 2)(options, code);
 	}
 
 	@:deprecated
-	public static function registerModuleReuseCall( modulePath : String, macroCall : String ) {
+	public static function registerModuleReuseCall(modulePath:String, macroCall:String) {
 		throw "This method is no longer supported. See https://github.com/HaxeFoundation/haxe/issues/5746";
 	}
 
 	@:deprecated
-	public static function onMacroContextReused( callb : Void -> Bool ) {
+	public static function onMacroContextReused(callb:Void->Bool) {
 		throw "This method is no longer supported. See https://github.com/HaxeFoundation/haxe/issues/5746";
 	}
 
@@ -570,7 +861,7 @@ class Context {
 	@:allow(haxe.macro.MacroStringTools)
 	@:allow(haxe.macro.TypedExprTools)
 	@:allow(haxe.macro.PositionTools)
-	static function load(f:String, nargs:Int) : Dynamic {
+	static function load(f:String, nargs:Int):Dynamic {
 		#if neko
 		return neko.Lib.load("macro", f, nargs);
 		#elseif eval
@@ -580,14 +871,39 @@ class Context {
 		#end
 	}
 
-	private static function includeFile( file : String, position : String ) {
+	private static function includeFile(file:String, position:String) {
 		load("include_file", 2)(file, position);
 	}
 
-	private static function sExpr( e : TypedExpr, pretty : Bool ) : String {
-		return haxe.macro.Context.load("s_expr", 2)(e, pretty);
+	private static function sExpr(e:TypedExpr, pretty:Bool):String {
+		return load("s_expr", 2)(e, pretty);
 	}
 
-#end
+	@:allow(haxe.macro.Compiler)
+	private static function assertInitMacro():Void {
+		if (initMacrosDone()) {
+			var stack = getMacroStack();
 
+			warning(
+				"This API should only be used from initialization macros.",
+				if (stack.length > 2) stack[2] else currentPos()
+			);
+		}
+	}
+
+	@:allow(haxe.macro.Compiler)
+	private static function assertInitMacrosDone(includeSuggestion = true):Void {
+		if (!initMacrosDone()) {
+			var stack = getMacroStack();
+			var suggestion = includeSuggestion
+				? "\nUse `Context.onAfterInitMacros` to register a callback to run when context is ready."
+				: "";
+
+			fatalError(
+				"Cannot use this API from initialization macros." + suggestion,
+				if (stack.length > 2) stack[2] else currentPos()
+			);
+		}
+	}
+	#end
 }

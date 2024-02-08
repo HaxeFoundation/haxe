@@ -19,12 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package python.lib;
 
+package python.lib;
 
 @:pythonImport("functools")
 extern class Functools {
-
-	public static function cmp_to_key<A>(f:A->A->Int):Dynamic;
-
+	static function cmp_to_key<A>(f:A->A->Int):Dynamic;
 }

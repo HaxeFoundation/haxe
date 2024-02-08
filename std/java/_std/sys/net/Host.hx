@@ -19,43 +19,40 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.net;
+
 import java.net.InetAddress;
 
 class Host {
-	public var host(default,null) : String;
-	public var ip(default,null) : Int;
+	public var host(default, null):String;
+	public var ip(default, null):Int;
 
 	@:allow(sys.net) private var wrapped:InetAddress;
 
-	public function new( name : String ) : Void
-	{
+	public function new(name:String):Void {
 		host = name;
 		try
 			this.wrapped = InetAddress.getByName(name)
-		catch(e:Dynamic) throw e;
+		catch (e:Dynamic)
+			throw e;
 		var rawIp = wrapped.getAddress();
-		//network byte order assumed
+		// network byte order assumed
 		this.ip = cast(rawIp[3], Int) | (cast(rawIp[2], Int) << 8) | (cast(rawIp[1], Int) << 16) | (cast(rawIp[0], Int) << 24);
 	}
 
-	public function toString() : String
-	{
+	public function toString():String {
 		return wrapped.getHostAddress();
 	}
 
-	public function reverse() : String
-	{
+	public function reverse():String {
 		return wrapped.getHostName();
 	}
 
-	public static function localhost() : String
-	{
-		try
-		{
+	public static function localhost():String {
+		try {
 			return InetAddress.getLocalHost().getHostName();
-		}
-		catch(e:Dynamic) throw e;
+		} catch (e:Dynamic)
+			throw e;
 	}
-
 }

@@ -1,0 +1,6 @@
+[ERROR] Macro2.macro.hx:5: characters 20-21
+
+ 5 |   var pos = (macro 0).pos;
+   |                    ^
+   | Variables of type Void are not allowed
+

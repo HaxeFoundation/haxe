@@ -19,36 +19,35 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package neko;
 
 class NativeArray<T> implements ArrayAccess<T> {
-
-	public static inline function alloc<T>( length : Int ) : NativeArray<T> {
+	public static inline function alloc<T>(length:Int):NativeArray<T> {
 		return untyped __dollar__amake(length);
 	}
 
-	public static inline function blit<T>( dst : NativeArray<T>, dstPos : Int, src : NativeArray<T>, srcPos : Int, length : Int ) {
-		untyped __dollar__ablit(dst,dstPos,src,srcPos,length);
+	public static inline function blit<T>(dst:NativeArray<T>, dstPos:Int, src:NativeArray<T>, srcPos:Int, length:Int) {
+		untyped __dollar__ablit(dst, dstPos, src, srcPos, length);
 	}
 
-	public static inline function ofArrayCopy<T>( a : Array<T> ) : NativeArray<T> {
+	public static inline function ofArrayCopy<T>(a:Array<T>):NativeArray<T> {
 		return untyped a.__neko();
 	}
 
-	public static inline function ofArrayRef<T>( a : Array<T> ) : NativeArray<T> {
+	public static inline function ofArrayRef<T>(a:Array<T>):NativeArray<T> {
 		return untyped a.__a;
 	}
 
-	public static inline function sub<T>( a : NativeArray<T>, pos : Int, len : Int ) : NativeArray<T> {
-		return untyped __dollar__asub(a,pos,len);
+	public static inline function sub<T>(a:NativeArray<T>, pos:Int, len:Int):NativeArray<T> {
+		return untyped __dollar__asub(a, pos, len);
 	}
 
-	public static inline function toArray<T>( a : NativeArray<T> ) : Array<T> {
-		return untyped Array.new1(a,__dollar__asize(a));
+	public static inline function toArray<T>(a:NativeArray<T>):Array<T> {
+		return untyped Array.new1(a, __dollar__asize(a));
 	}
 
-	public static inline function length( a : NativeArray<Dynamic> ) : Int {
+	public static inline function length(a:NativeArray<Dynamic>):Int {
 		return untyped __dollar__asize(a);
 	}
-
 }

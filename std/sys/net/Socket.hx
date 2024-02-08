@@ -19,38 +19,38 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.net;
 
 /**
 	A TCP socket class : allow you to both connect to a given server and exchange messages or start your own server and wait for connections.
 **/
 extern class Socket {
-
 	/**
 		The stream on which you can read available data. By default the stream is blocking until the requested data is available,
 		use `setBlocking(false)` or `setTimeout` to prevent infinite waiting.
 	**/
-	var input(default,null) : haxe.io.Input;
+	var input(default, null):haxe.io.Input;
 
 	/**
 		The stream on which you can send data. Please note that in case the output buffer you will block while writing the data, use `setBlocking(false)` or `setTimeout` to prevent that.
 	**/
-	var output(default,null) : haxe.io.Output;
+	var output(default, null):haxe.io.Output;
 
 	/**
 		A custom value that can be associated with the socket. Can be used to retrieve your custom infos after a `select`.
 	***/
-	var custom : Dynamic;
+	var custom:Dynamic;
 
 	/**
 		Creates a new unconnected socket.
 	**/
-	function new() : Void;
+	function new():Void;
 
 	/**
 		Closes the socket : make sure to properly close all your sockets or you will crash when you run out of file descriptors.
 	**/
-	function close() : Void;
+	function close():Void;
 
 	/**
 		Read the whole data available on the socket.
@@ -58,7 +58,7 @@ extern class Socket {
 		*Note*: this is **not** meant to be used together with `setBlocking(false)`,
 		as it will always throw `haxe.io.Error.Blocked`. `input` methods should be used directly instead.
 	**/
-	function read() : String;
+	function read():String;
 
 	/**
 		Write the whole data to the socket output.
@@ -67,71 +67,73 @@ extern class Socket {
 		`haxe.io.Error.Blocked` may be thrown mid-write with no indication of how many bytes have been written.
 		`output.writeBytes()` should be used instead as it returns this information.
 	**/
-	function write( content : String ) : Void;
+	function write(content:String):Void;
 
 	/**
 		Connect to the given server host/port. Throw an exception in case we couldn't successfully connect.
 	**/
-	function connect( host : Host, port : Int ) : Void;
+	function connect(host:Host, port:Int):Void;
 
 	/**
 		Allow the socket to listen for incoming questions. The parameter tells how many pending connections we can have until they get refused. Use `accept()` to accept incoming connections.
 	**/
-	function listen( connections : Int ) : Void;
+	function listen(connections:Int):Void;
 
 	/**
 		Shutdown the socket, either for reading or writing.
 	**/
-	function shutdown( read : Bool, write : Bool ) : Void;
+	function shutdown(read:Bool, write:Bool):Void;
 
 	/**
 		Bind the socket to the given host/port so it can afterwards listen for connections there.
 	**/
-	function bind( host : Host, port : Int ) : Void;
+	function bind(host:Host, port:Int):Void;
 
 	/**
 		Accept a new connected client. This will return a connected socket on which you can read/write some data.
 	**/
-	function accept() : Socket;
+	function accept():Socket;
 
 	/**
 		Return the information about the other side of a connected socket.
 	**/
-	function peer() : { host : Host, port : Int };
+	function peer():{host:Host, port:Int};
 
 	/**
 		Return the information about our side of a connected socket.
 	**/
-	function host() : { host : Host, port : Int };
+	function host():{host:Host, port:Int};
 
 	/**
 		Gives a timeout (in seconds) after which blocking socket operations (such as reading and writing) will abort and throw an exception.
 	**/
-	function setTimeout( timeout : Float ) : Void;
+	function setTimeout(timeout:Float):Void;
 
 	/**
 		Block until some data is available for read on the socket.
 	**/
-	function waitForRead() : Void;
+	function waitForRead():Void;
 
 	/**
 		Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediately by throwing a haxe.io.Error.Blocked value.
 	**/
-	function setBlocking( b : Bool ) : Void;
+	function setBlocking(b:Bool):Void;
 
 	/**
 		Allows the socket to immediately send the data when written to its output : this will cause less ping but might increase the number of packets / data size, especially when doing a lot of small writes.
 	**/
-	function setFastSend( b : Bool ) : Void;
+	function setFastSend(b:Bool):Void;
 
 	/**
-		Wait until one of the sockets groups is ready for the given operation :
-		 - `read`contains sockets on which we want to wait for available data to be read,
+		Wait until one of the sockets group is ready for the given operation:
+
+		 - `read` contains sockets on which we want to wait for available data to be read,
 		 - `write` contains sockets on which we want to wait until we are allowed to write some data to their output buffers,
 		 - `others` contains sockets on which we want to wait for exceptional conditions.
 		 - `select` will block until one of the condition is met, in which case it will return the sockets for which the condition was true.
-		In case a `timeout` (in seconds) is specified, select might wait at worse until the timeout expires.
-	**/
-	static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> };
 
+		In case a `timeout` (in seconds) is specified, select might wait at worst until the timeout expires.
+	**/
+	static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
+		?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>};
 }

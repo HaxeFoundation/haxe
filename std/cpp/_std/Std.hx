@@ -19,40 +19,45 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 @:headerClassCode("\t\tstatic inline String string(String &s) { return s; }")
 @:coreApi class Std {
-	@:keep public static function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped __global__.__instanceof(v,t);
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
+	@:keep public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
 	}
 
-	@:keep public static function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return Std.is(value, c) ? cast value : null;
+	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
+		return untyped __global__.__instanceof(v, t);
+	}
+
+	@:keep public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
+		return Std.isOfType(value, c) ? cast value : null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	@:keep public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+	@:keep public static function instance<T:{}, S:T>(value:T, c:Class<S>):S {
 		return inline downcast(value, c);
 	}
 
-	@:keep public static function string( s : Dynamic ) : String {
-		return untyped s==null ? "null" : s.toString();
+	@:keep public static function string(s:Dynamic):String {
+		return untyped s == null ? "null" : s.toString();
 	}
 
-	@:keep public static function int( x : Float ) : Int {
+	@:keep public static function int(x:Float):Int {
 		return untyped __global__.__int__(x);
 	}
 
-	@:keep public static function parseInt( x : String ) : Null<Int> {
+	@:keep public static function parseInt(x:String):Null<Int> {
 		return untyped __global__.__hxcpp_parse_int(x);
 	}
 
-	@:keep public static function parseFloat( x : String ) : Float {
+	@:keep public static function parseFloat(x:String):Float {
 		return untyped __global__.__hxcpp_parse_float(x);
 	}
 
-	@:keep public static function random( x : Int ) : Int {
-		if (x <= 0) return 0;
+	@:keep public static function random(x:Int):Int {
+		if (x <= 0)
+			return 0;
 		return untyped __global__.__hxcpp_irand(x);
 	}
 }

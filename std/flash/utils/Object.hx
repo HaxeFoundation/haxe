@@ -1,3 +1,4 @@
 package flash.utils;
 
-typedef Object = Dynamic
+@:coreType @:runtimeValue
+abstract Object from Dynamic to Dynamic {}

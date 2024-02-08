@@ -19,40 +19,39 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.net;
 
 @:coreApi
 @:keepInit
 class Host {
+	public var host(default, null):String;
 
-	public var host(default,null) : String;
+	public var ip(default, null):Int;
 
-	public var ip(default,null) : Int;
-
-	public function new( name : String ) : Void {
+	public function new(name:String):Void {
 		host = name;
 		ip = host_resolve(untyped name.__s);
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		return new String(host_to_string(ip));
 	}
 
-	public function reverse() : String {
+	public function reverse():String {
 		return new String(host_reverse(ip));
 	}
 
-	public static function localhost() : String {
+	public static function localhost():String {
 		return new String(host_local());
 	}
 
-	static function __init__() : Void {
-		neko.Lib.load("std","socket_init",0)();
+	static function __init__():Void {
+		neko.Lib.load("std", "socket_init", 0)();
 	}
 
-	private static var host_resolve = neko.Lib.load("std","host_resolve",1);
-	private static var host_reverse = neko.Lib.load("std","host_reverse",1);
-	private static var host_to_string = neko.Lib.load("std","host_to_string",1);
-	private static var host_local = neko.Lib.load("std","host_local",0);
-
+	private static var host_resolve = neko.Lib.load("std", "host_resolve", 1);
+	private static var host_reverse = neko.Lib.load("std", "host_reverse", 1);
+	private static var host_to_string = neko.Lib.load("std", "host_to_string", 1);
+	private static var host_local = neko.Lib.load("std", "host_local", 0);
 }

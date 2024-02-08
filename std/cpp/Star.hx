@@ -19,9 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp;
 
-// Allows haxe to type result correctly, and hxcpp can recognise this use the correct type
+/**
+	Allows haxe to type result correctly, and hxcpp can recognise this use the
+	correct type.
+**/
 typedef Star<T> = Null<T>;
-
-

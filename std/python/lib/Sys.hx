@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 import python.Exceptions.BaseException;
@@ -27,33 +28,31 @@ import python.lib.io.RawIOBase;
 import python.lib.io.TextIOBase;
 import python.Tuple;
 
-
 extern class TB {}
 extern class Frame {}
 
 @:pythonImport("sys")
 extern class Sys {
+	static var argv(default, never):Array<String>;
 
-	public static var argv(default, never):Array<String>;
+	static var executable(default, never):String;
 
-	public static var executable(default, never):String;
+	static function exit(x:Int):Void;
 
-	public static function exit (x:Int):Void;
+	static function getfilesystemencoding():String;
 
-	public static function getfilesystemencoding():String;
+	static var version:String;
+	static var platform:String;
 
-	public static var version:String;
-	public static var platform:String;
+	static var stdout(default, never):TextIOBase;
+	static var stdin(default, never):TextIOBase;
+	static var stderr(default, never):TextIOBase;
 
-	public static var stdout(default, never):TextIOBase;
-	public static var stdin(default, never):TextIOBase;
-	public static var stderr(default, never):TextIOBase;
+	static function getsizeof(t:Dynamic):Int;
 
-	public static function getsizeof (t:Dynamic):Int;
+	static var maxsize:Int;
 
-	public static var maxsize:Int;
+	static function exc_info<T:BaseException>():Tuple3<Class<T>, T, TB>;
 
-	public static function exc_info<T:BaseException>():Tuple3<Class<T>, T, TB>;
-
-	public static var version_info:Tuple5<Int,Int,Int,String,Int>;
+	static var version_info:Tuple5<Int, Int, Int, String, Int>;
 }

@@ -19,56 +19,62 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.zip;
 
 private typedef Inflater = hl.Abstract<"fmt_zip">;
 
 @:coreApi @:hlNative("fmt")
 class Uncompress {
+	var s:Inflater;
 
-	var s : Inflater;
-
-	public function new( ?windowBits : Int ) : Void {
+	public function new(?windowBits:Int):Void {
 		s = inflate_init(windowBits);
 	}
 
-	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
+	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {
 		var read = 0, write = 0;
-		var done = inflate_buffer(s,src.getData(),srcPos,src.length,dst.getData(),dstPos,dst.length,read,write);
-		return { done : done, read : read, write : write };
+		var done = inflate_buffer(s, src.getData(), srcPos, src.length, dst.getData(), dstPos, dst.length, read, write);
+		return {done: done, read: read, write: write};
 	}
 
-	public function setFlushMode( f : FlushMode ) : Void {
-		zip_flush_mode(s,f.getIndex());
+	public function setFlushMode(f:FlushMode):Void {
+		zip_flush_mode(s, f.getIndex());
 	}
 
-	public function close() : Void {
+	public function close():Void {
 		zip_end(s);
 	}
 
-	public static function run( src : haxe.io.Bytes, ?bufsize : Int ) : haxe.io.Bytes {
+	public static function run(src:haxe.io.Bytes, ?bufsize:Int):haxe.io.Bytes {
 		var u = new Uncompress(null);
-		if( bufsize == null ) bufsize = 1 << 16; // 64K
+		if (bufsize == null)
+			bufsize = 1 << 16; // 64K
 		var tmp = haxe.io.Bytes.alloc(bufsize);
 		var b = new haxe.io.BytesBuffer();
 		var pos = 0;
 		u.setFlushMode(FlushMode.SYNC);
-		while( true ) {
-			var r = u.execute(src,pos,tmp,0);
-			b.addBytes(tmp,0,r.write);
+		while (true) {
+			var r = u.execute(src, pos, tmp, 0);
+			b.addBytes(tmp, 0, r.write);
 			pos += r.read;
-			if( r.done )
+			if (r.done)
 				break;
 		}
 		u.close();
 		return b.getBytes();
 	}
 
-	static function inflate_init( bits : Int ) : Inflater { return null; }
-	static function inflate_buffer( i : Inflater, bytes : hl.Bytes, bytesPos : Int, bytesLen : Int, dst : hl.Bytes, dstPos : Int, dstLen : Int, read : hl.Ref<Int>, write : hl.Ref<Int>) : Bool {
+	static function inflate_init(bits:Int):Inflater {
+		return null;
+	}
+
+	static function inflate_buffer(i:Inflater, bytes:hl.Bytes, bytesPos:Int, bytesLen:Int, dst:hl.Bytes, dstPos:Int, dstLen:Int, read:hl.Ref<Int>,
+			write:hl.Ref<Int>):Bool {
 		return false;
 	}
-	static function zip_end( i : Inflater ) : Void { }
-	static function zip_flush_mode( i : Inflater, flush : Int ) : Void {}
 
+	static function zip_end(i:Inflater):Void {}
+
+	static function zip_flush_mode(i:Inflater, flush:Int):Void {}
 }

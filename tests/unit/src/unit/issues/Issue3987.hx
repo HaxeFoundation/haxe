@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue3987 extends Test {
-#if java
+#if jvm
 	public function test() {
 		var int =  java.lang.Integer.valueOf(123);
 		eq(int.intValue(), 123);

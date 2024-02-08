@@ -19,15 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.objc;
 
-extern class NSLog
-{
-   @:native("NSLog")
-   @:overload(function(format:NSString,a0:NSObject):Void { })
-   @:overload(function(format:NSString,a0:NSObject,a1:NSObject):Void { })
-   public static function log(format:NSString):Void;
-
+extern class NSLog {
+	@:native("NSLog")
+	@:overload(function(format:NSString, a0:NSObject):Void {})
+	@:overload(function(format:NSString, a0:NSObject, a1:NSObject):Void {})
+	static function log(format:NSString):Void;
 }
-
-

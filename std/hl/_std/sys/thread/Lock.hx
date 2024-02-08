@@ -22,6 +22,41 @@
 
 package sys.thread;
 
+
+#if (hl_ver >= version("1.11.0"))
+
+typedef LockHandle = hl.Abstract<"hl_lock">;
+
+@:coreApi
+@:hlNative("std")
+class Lock {
+	var handle : LockHandle;
+
+	public function new() {
+		handle = lock_create();
+	}
+
+	public function wait( ?timeout : Float ) : Bool {
+		return lock_wait(handle, timeout);
+	}
+
+	public function release( ) : Void {
+		lock_release(handle);
+	}
+
+	static function lock_wait( handle : LockHandle, ?timeout : Float ) : Bool {
+		return false;
+	}
+
+	static function lock_release( handle : LockHandle ) : Void { }
+
+	static function lock_create( ) : LockHandle {
+		return null;
+	}
+}
+
+#else
+
 @:coreApi
 class Lock {
 	var deque:sys.thread.Deque<Bool>;
@@ -48,3 +83,5 @@ class Lock {
 		deque.push(true);
 	}
 }
+
+#end

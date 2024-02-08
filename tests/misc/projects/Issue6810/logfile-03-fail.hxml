@@ -1,0 +1,4 @@
+-D message.log-file=logfile-04-fail.hxml.stderr
+-D message.log-format=classic
+-D message.reporting=pretty
+compile-fail.hxml

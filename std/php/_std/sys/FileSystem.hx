@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys;
 
 import php.*;
@@ -27,83 +28,88 @@ import haxe.io.Path;
 private enum FileKind {
 	kdir;
 	kfile;
-	kother( k : String );
+	kother(k:String);
 }
 
 @:coreApi
 class FileSystem {
-
-	public static inline function exists( path : String ) : Bool {
+	public static inline function exists(path:String):Bool {
 		Global.clearstatcache(true, path);
 		return Global.file_exists(path);
 	}
 
-	public static inline function rename( path : String, newPath : String ) : Void {
+	public static inline function rename(path:String, newPath:String):Void {
 		Global.rename(path, newPath);
 	}
 
-	public static function stat( path : String ) : FileStat {
+	public static function stat(path:String):FileStat {
 		Global.clearstatcache(true, path);
 		var info = Global.stat(path);
-		if (info == false) throw 'Unable to stat $path';
+		if (info == false)
+			throw 'Unable to stat $path';
 		var info:NativeArray = info;
 
 		return {
-			gid   : info['gid'],
-			uid   : info['uid'],
-			atime : Date.fromTime(info['atime'] * 1000),
-			mtime : Date.fromTime(info['mtime'] * 1000),
-			ctime : Date.fromTime(info['ctime'] * 1000),
-			dev   : info['dev'],
-			ino   : info['ino'],
-			nlink : info['nlink'],
-			rdev  : info['rdev'],
-			size  : info['size'],
-			mode  : info['mode']
+			gid: info['gid'],
+			uid: info['uid'],
+			atime: Date.fromTime(info['atime'] * 1000),
+			mtime: Date.fromTime(info['mtime'] * 1000),
+			ctime: Date.fromTime(info['ctime'] * 1000),
+			dev: info['dev'],
+			ino: info['ino'],
+			nlink: info['nlink'],
+			rdev: info['rdev'],
+			size: info['size'],
+			mode: info['mode']
 		};
 	}
 
-	public static inline function fullPath( relPath : String ) : String {
+	public static inline function fullPath(relPath:String):String {
 		return Syntax.shortTernary(Global.realpath(relPath), null);
 	}
 
-	public static function absolutePath ( relPath : String ) : String {
-		if (Path.isAbsolute(relPath)) return relPath;
+	public static function absolutePath(relPath:String):String {
+		if (Path.isAbsolute(relPath))
+			return relPath;
 		return Path.join([Sys.getCwd(), relPath]);
 	}
 
-	static function kind( path : String ) : FileKind {
+	static function kind(path:String):FileKind {
 		Global.clearstatcache(true, path);
 		var kind = Global.filetype(path);
-		if (kind == false) throw 'Failed to check file type $path';
+		if (kind == false)
+			throw 'Failed to check file type $path';
 
-		switch(kind) {
-			case "file": return kfile;
-			case "dir": return kdir;
-			default: return kother(kind);
+		switch (kind) {
+			case "file":
+				return kfile;
+			case "dir":
+				return kdir;
+			default:
+				return kother(kind);
 		}
 	}
 
-	public static function isDirectory( path : String ) : Bool {
+	public static function isDirectory(path:String):Bool {
 		Global.clearstatcache(true, path);
 		return Global.is_dir(path);
 	}
 
-	public static function createDirectory( path : String ) : Void {
+	public static function createDirectory(path:String):Void {
 		Global.clearstatcache(true, path);
 		if (!Global.is_dir(path))
 			Global.mkdir(path, 493, true);
 	}
 
-	public static inline function deleteFile( path : String ) : Void {
+	public static inline function deleteFile(path:String):Void {
 		Global.unlink(path);
 	}
 
-	public static inline function deleteDirectory( path : String ) : Void {
+	public static inline function deleteDirectory(path:String):Void {
 		Global.rmdir(path);
 	}
 
-	public static function readDirectory( path : String ) : Array<String> {
+	public static function readDirectory(path:String):Array<String> {
 		var list = [];
 		var dir = Global.opendir(path);
 		var file;
@@ -113,6 +119,6 @@ class FileSystem {
 			}
 		}
 		Global.closedir(dir);
-        return list;
+		return list;
 	}
 }

@@ -19,9 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package js.lib;
 
-import js.lib.Iterator;
+package js.lib;
 
 /**
 	The (native) JavaScript Map object holds key-value pairs.
@@ -31,11 +30,11 @@ import js.lib.Iterator;
 	Documentation [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
 @:native("Map")
-extern class Map<K,V> {
+extern class Map<K, V> {
 	/**
 		The number of key/value pairs in the `js.Map` object.
 	**/
-	var size(default,null):Int;
+	var size(default, null):Int;
 
 	/**
 		An Array or other iterable object whose elements are key-value pairs
@@ -60,7 +59,7 @@ extern class Map<K,V> {
 		Sets the value for the key in the Map object.
 		Returns the `js.Map` object.
 	**/
-	function set(key:K, value:V):Map<K,V>;
+	function set(key:K, value:V):Map<K, V>;
 
 	/**
 		Returns `true` if an element in the `js.Map` object existed and has been
@@ -81,33 +80,33 @@ extern class Map<K,V> {
 		If a `thisArg` parameter is provided to forEach, it will be used as the
 		`this` value for each callback.
 	**/
-	function forEach(callback:(value:V, key:K, map:Map<K,V>)->Void, ?thisArg:Any):Void;
+	function forEach(callback:(value:V, key:K, map:Map<K, V>) -> Void, ?thisArg:Any):Void;
 
 	/**
 		Returns a new `Iterator` object that contains the keys for each element
 		in the `js.Map` object in insertion order.
 	**/
-	function keys():Iterator<K>;
+	function keys():js.lib.Iterator<K>;
 
 	/**
 		Returns a new `Iterator` object that contains the values for each
 		element in the `js.Map` object in insertion order.
 	**/
-	function values():Iterator<V>;
+	function values():js.lib.Iterator<V>;
 
 	/**
-		Returns a new `Iterator` object that contains an array of `MapEntry`
+		Returns a new `Iterator` object that contains an array of `KeyValue`
 		for each element in the `js.Map` object in insertion order.
 	**/
-	function entries():Iterator<MapEntry<K,V>>;
+	function entries():js.lib.Iterator<KeyValue<K, V>>;
+
+	inline function iterator():js.lib.HaxeIterator<V> {
+		return new HaxeIterator(this.values());
+	}
+
+	inline function keyValueIterator():HaxeIterator<KeyValue<K, V>> {
+		return new HaxeIterator(this.entries());
+	}
 }
 
-/**
-	Key/value access helper for `js.Map.entries()` and `js.Set.entries()`.
-**/
-abstract MapEntry<K,V>(Array<Any>) {
-	public var key(get,never):K;
-	public var value(get,never):V;
-	inline function get_key():K return this[0];
-	inline function get_value():V return this[1];
-}
+@:deprecated typedef MapEntry<K, V> = KeyValue<K, V>;

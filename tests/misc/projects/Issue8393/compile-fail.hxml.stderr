@@ -1,0 +1,1 @@
+Main.hx:7: characters 17-29 : Cannot specialize @:generic because the generated type name is already used: Generic_Int

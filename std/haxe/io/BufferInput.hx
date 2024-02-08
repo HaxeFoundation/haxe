@@ -19,14 +19,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.io;
 
 class BufferInput extends haxe.io.Input {
-
-	public var i : haxe.io.Input;
-	public var buf : haxe.io.Bytes;
-	public var available : Int;
-	public var pos : Int;
+	public var i:haxe.io.Input;
+	public var buf:haxe.io.Bytes;
+	public var available:Int;
+	public var pos:Int;
 
 	public function new(i, buf, ?pos = 0, ?available = 0) {
 		this.i = i;
@@ -36,7 +36,7 @@ class BufferInput extends haxe.io.Input {
 	}
 
 	public function refill() {
-		if( pos > 0 ) {
+		if (pos > 0) {
 			buf.blit(0, buf, pos, available);
 			pos = 0;
 		}
@@ -44,20 +44,21 @@ class BufferInput extends haxe.io.Input {
 	}
 
 	override function readByte() {
-		if( available == 0 ) refill();
+		if (available == 0)
+			refill();
 		var c = buf.get(pos);
 		pos++;
 		available--;
 		return c;
 	}
 
-	override function readBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) {
-		if( available == 0 ) refill();
-		var size = if( len > available ) available else len;
+	override function readBytes(buf:haxe.io.Bytes, pos:Int, len:Int) {
+		if (available == 0)
+			refill();
+		var size = if (len > available) available else len;
 		buf.blit(pos, this.buf, this.pos, size);
 		this.pos += size;
 		this.available -= size;
 		return size;
 	}
-
 }

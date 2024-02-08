@@ -19,23 +19,24 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package php;
 
 @:native('Error')
 extern class Error implements Throwable {
-	function new(?message : String, ?code : Int, ?previous:Throwable) : Void;
+	function new(?message:String, ?code:Int, ?previous:Throwable):Void;
 
-	private var message : String;
-	private var code : Int;
-	private var file : String;
-	private var line : Int;
+	private var message:String;
+	private var code:Int;
+	private var file:String;
+	private var line:Int;
 
-	final function getPrevious() : Throwable;   // Returns previous Throwable
-	function getMessage() : String;       // message of the exception
-	function getCode() : Int;             // code of the exception
-	function getFile() : String;          // source filename
-	function getLine() : Int;             // source line
-	function getTrace() : NativeIndexedArray<NativeAssocArray<Dynamic>>;  // an array of the backtrace
-	function getTraceAsString() : String; // formatted string of trace
-	@:phpMagic function __toString() : String;       // formatted string for display
+	final function getPrevious():Throwable; // Returns previous Throwable
+	function getMessage():String; // message of the exception
+	function getCode():Int; // code of the exception
+	function getFile():String; // source filename
+	function getLine():Int; // source line
+	function getTrace():NativeIndexedArray<NativeAssocArray<Dynamic>>; // an array of the backtrace
+	function getTraceAsString():String; // formatted string of trace
+	@:phpMagic function __toString():String; // formatted string for display
 }

@@ -19,44 +19,43 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.zip;
 
 @:coreApi
 class Compress {
+	var s:Dynamic;
 
-	var s : Dynamic;
-
-	public function new( level : Int ) : Void {
+	public function new(level:Int):Void {
 		s = _deflate_init(level);
 	}
 
-	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
-		return _deflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
+	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {
+		return _deflate_buffer(s, src.getData(), srcPos, dst.getData(), dstPos);
 	}
 
-	public function setFlushMode( f : FlushMode ) : Void {
-		_set_flush_mode(s,untyped Std.string(f).__s);
+	public function setFlushMode(f:FlushMode):Void {
+		_set_flush_mode(s, untyped Std.string(f).__s);
 	}
 
-	public function close() : Void {
+	public function close():Void {
 		_deflate_end(s);
 	}
 
-	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes {
+	public static function run(s:haxe.io.Bytes, level:Int):haxe.io.Bytes {
 		var c = new Compress(level);
 		c.setFlushMode(FlushMode.FINISH);
-		var out = haxe.io.Bytes.alloc(_deflate_bound(c.s,s.length));
-		var r = c.execute(s,0,out,0);
+		var out = haxe.io.Bytes.alloc(_deflate_bound(c.s, s.length));
+		var r = c.execute(s, 0, out, 0);
 		c.close();
-		if( !r.done || r.read != s.length )
+		if (!r.done || r.read != s.length)
 			throw "Compression failed";
-		return out.sub(0,r.write);
+		return out.sub(0, r.write);
 	}
 
-	static var _deflate_init = neko.Lib.load("zlib","deflate_init",1);
-	static var _deflate_bound = neko.Lib.load("zlib","deflate_bound",2);
-	static var _deflate_buffer = neko.Lib.load("zlib","deflate_buffer",5);
-	static var _deflate_end = neko.Lib.load("zlib","deflate_end",1);
-	static var _set_flush_mode = neko.Lib.load("zlib","set_flush_mode",2);
-
+	static var _deflate_init = neko.Lib.load("zlib", "deflate_init", 1);
+	static var _deflate_bound = neko.Lib.load("zlib", "deflate_bound", 2);
+	static var _deflate_buffer = neko.Lib.load("zlib", "deflate_buffer", 5);
+	static var _deflate_end = neko.Lib.load("zlib", "deflate_end", 1);
+	static var _set_flush_mode = neko.Lib.load("zlib", "set_flush_mode", 2);
 }

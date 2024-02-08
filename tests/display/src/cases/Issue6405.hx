@@ -22,6 +22,6 @@ class Issue6405 extends DisplayTestCase {
 		eq("haxe.macro.Expr", type(pos(1)));
 		var fields = fields(pos(4));
 		eq(true, hasField(fields, "expr", "haxe.macro.ExprDef"));
-		eq(true, hasField(fields, "toString", "Void -> String"));
+		eq(true, hasField(fields, "toString", "() -> String"));
 	}
 }

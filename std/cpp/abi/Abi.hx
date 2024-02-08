@@ -19,7 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp.abi;
+
+package cpp.abi;
 
 // Base case, for calling conventions - means "use default"
-extern class Abi { }
+extern class Abi {}

@@ -19,7 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp.abi;
+
+package cpp.abi;
 
 @:abi("__fastcall")
-extern class FastCall extends Abi { }
+extern class FastCall extends Abi {}

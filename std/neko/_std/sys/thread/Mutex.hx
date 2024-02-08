@@ -19,11 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.thread;
 
 @:coreApi
 class Mutex {
-	var m : Dynamic;
+	var m:Dynamic;
 
 	public function new():Void {
 		m = mutex_create();
@@ -33,7 +34,7 @@ class Mutex {
 		mutex_acquire(m);
 	}
 
-	public function tryAcquire() : Bool {
+	public function tryAcquire():Bool {
 		return mutex_try(m);
 	}
 
@@ -41,8 +42,8 @@ class Mutex {
 		mutex_release(m);
 	}
 
-	static var mutex_create = neko.Lib.loadLazy("std","mutex_create",0);
-	static var mutex_release = neko.Lib.loadLazy("std","mutex_release",1);
-	static var mutex_acquire = neko.Lib.loadLazy("std","mutex_acquire",1);
-	static var mutex_try = neko.Lib.loadLazy("std","mutex_try",1);
+	static var mutex_create = neko.Lib.loadLazy("std", "mutex_create", 0);
+	static var mutex_release = neko.Lib.loadLazy("std", "mutex_release", 1);
+	static var mutex_acquire = neko.Lib.loadLazy("std", "mutex_acquire", 1);
+	static var mutex_try = neko.Lib.loadLazy("std", "mutex_try", 1);
 }

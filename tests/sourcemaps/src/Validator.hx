@@ -1,5 +1,4 @@
 #if macro
-import validation.Target;
 import validation.Lines;
 import validation.ValidationReport;
 import validation.ValidationError;
@@ -8,6 +7,7 @@ import haxe.display.Position.Location;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Compiler;
+import validation.Target;
 import haxe.io.Path;
 
 using sys.io.File;
@@ -98,7 +98,7 @@ class Validator {
 		} else if(Context.defined('php')) {
 			Php;
 		} else {
-			throw new InvalidTargetException('Current target is not supported', haxe.macro.PositionTools.here());
+			throw new InvalidTargetException('Current target is not supported', (macro 0).pos);
 		}
 	}
 
@@ -110,7 +110,7 @@ class Validator {
 				sourceFile = Compiler.getOutput();
 				mapFile = '${Compiler.getOutput()}.map';
 			case Php:
-				var phpFilePath = new Path(location.file.substr(location.file.indexOf('cases')));
+				var phpFilePath = new Path(location.file.toString().substr(location.file.toString().indexOf('cases')));
 				phpFilePath.ext = 'php';
 				sourceFile = Path.join([Compiler.getOutput(), 'lib', phpFilePath.toString()]);
 				mapFile = '$sourceFile.map';

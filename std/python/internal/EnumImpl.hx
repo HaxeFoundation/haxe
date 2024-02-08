@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.internal;
 
 @:ifFeature("has_enum", "Enum.*")
@@ -31,7 +32,7 @@ class EnumImpl {
 	public var index:Int;
 
 	@:ifFeature("has_enum", "Enum.*")
-	public var params:Array<Dynamic>;
+	public var params:Tuple<Dynamic>;
 
 	@:ifFeature("has_enum", "Enum.*")
 	public function new(tag, index, params) {
@@ -45,7 +46,7 @@ class EnumImpl {
 		return if (params == null) {
 			tag;
 		} else {
-			tag + "(" + params.join(",") + ")";
+			python.Syntax.code("{0} + '(' + (', '.join(str(v) for v in {1})) + ')'", tag, params);
 		}
 	}
 }

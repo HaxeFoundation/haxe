@@ -19,23 +19,28 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 @:coreApi
 #if (!haxeJSON && flash11)
-@:native("JSON") extern
+@:native("JSON")
+extern
 #end
 class Json {
-
-	#if (haxeJSON || !flash11) inline #end
-	public static function parse( text : String ) : Dynamic #if (!haxeJSON && flash11) ; #else {
-		return haxe.format.JsonParser.parse(text);
-	}
+	#if (haxeJSON || !flash11)
+	inline
 	#end
+	public static function parse(text:String):Dynamic
+		#if (!haxeJSON && flash11); #else {
+			return haxe.format.JsonParser.parse(text);
+		} #end
 
-	#if (haxeJSON || !flash11) inline #end
-	public static function stringify( value : Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String ) : String #if (!haxeJSON && flash11) ; #else {
-		return haxe.format.JsonPrinter.print(value, replacer, space);
-	}
+	#if (haxeJSON || !flash11)
+	inline
 	#end
+	public static function stringify(value:Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String):String
+		#if (!haxeJSON && flash11); #else {
+			return haxe.format.JsonPrinter.print(value, replacer, space);
+		} #end
 }

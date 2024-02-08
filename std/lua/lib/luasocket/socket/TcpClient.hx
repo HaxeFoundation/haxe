@@ -21,15 +21,14 @@
  */
 
 package lua.lib.luasocket.socket;
+
 import haxe.extern.EitherType;
 
 extern class TcpClient extends Socket {
-	public function getpeername() :  AddrInfo;
-	public function receive(pattern : EitherType<ReceivePattern,Int>, ?prefix : String) : Result<String>;
-	public function send(data : String, ?i : Int, ?j : Int) : Result<Int>;
-	public function shutdown(mode : ShutdownMode) : Result<Int>;
-	public function settimeout(value  : Float, ?mode : TimeoutMode) : Void;
-	public function setoption(option : TcpOption , value : EitherType<Bool, {on : Bool, timeout : Float}>) : Void;
+	function getpeername():AddrInfo;
+	function receive(pattern:EitherType<ReceivePattern, Int>, ?prefix:String):Result<String>;
+	function send(data:String, ?i:Int, ?j:Int):Result<Int>;
+	function shutdown(mode:ShutdownMode):Result<Int>;
+	function settimeout(value:Float, ?mode:TimeoutMode):Void;
+	function setoption(option:TcpOption, value:EitherType<Bool, {on:Bool, timeout:Float}>):Void;
 }
-
-

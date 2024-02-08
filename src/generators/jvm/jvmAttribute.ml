@@ -1,3 +1,22 @@
+(*
+	The Haxe Compiler
+	Copyright (C) 2005-2019  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *)
+
 open JvmGlobals
 open JvmData
 open JvmVerificationTypeInfo
@@ -66,6 +85,9 @@ type j_attribute =
 	| AttributeInnerClasses of jvm_inner_class array
 	| AttributeEnclosingMethod of jvm_constant_pool_index * jvm_constant_pool_index
 	| AttributeRuntimeVisibleAnnotations of j_annotation array
+	| AttributeRuntimeInvisibleAnnotations of j_annotation array
+	| AttributeRuntimeVisibleParameterAnnotations of j_annotation array array
+	| AttributeRuntimeInvisibleParameterAnnotations of j_annotation array array
 	| AttributeBootstrapMethods of j_bootstrap_method array
 
 let write_verification_type ch = function
@@ -147,7 +169,7 @@ let rec write_annotation ch ann =
 			| ValClass i ->
 				write_ui16 ch i
 			| ValAnnotation a ->
-				write_annotation ch ann
+				write_annotation ch a
 			| ValArray annl ->
 				write_array16 ch loop annl
 		in
@@ -216,6 +238,17 @@ let write_attribute pool jvma =
 	| AttributeRuntimeVisibleAnnotations al ->
 		write_array16 ch write_annotation al;
 		"RuntimeVisibleAnnotations"
+	| AttributeRuntimeInvisibleAnnotations al ->
+		write_array16 ch write_annotation al;
+		"RuntimeInvisibleAnnotations"
+	| AttributeRuntimeVisibleParameterAnnotations al ->
+		write_byte ch (Array.length al);
+		Array.iter (write_array16 ch write_annotation) al;
+		"RuntimeVisibleParameterAnnotations"
+	| AttributeRuntimeInvisibleParameterAnnotations al ->
+		write_byte ch (Array.length al);
+		Array.iter (write_array16 ch write_annotation) al;
+		"RuntimeInvisibleParameterAnnotations"
 	| AttributeBootstrapMethods a ->
 		write_array16 ch (fun _ bm ->
 			write_ui16 ch bm.bm_method_ref;

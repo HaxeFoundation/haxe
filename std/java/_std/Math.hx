@@ -19,21 +19,19 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 @:coreApi
-@:native("java.lang.Math") extern class Math
-{
-	static var PI(default,null) : Float;
-	static var NaN(default,null) : Float;
-	static var NEGATIVE_INFINITY(default,null) : Float;
-	static var POSITIVE_INFINITY(default,null) : Float;
+@:native("java.lang.Math") extern class Math {
+	static var PI(default, null):Float;
+	static var NaN(default, null):Float;
+	static var NEGATIVE_INFINITY(default, null):Float;
+	static var POSITIVE_INFINITY(default, null):Float;
 
 	static function abs(v:Float):Float;
-	static function min(a:Float,b:Float):Float;
-	static function max(a:Float,b:Float):Float;
+	static function min(a:Float, b:Float):Float;
+	static function max(a:Float, b:Float):Float;
 	static function sin(v:Float):Float;
 	static function cos(v:Float):Float;
-	static function atan2(y:Float,x:Float):Float;
+	static function atan2(y:Float, x:Float):Float;
 	static function tan(v:Float):Float;
 	static function exp(v:Float):Float;
 	static function log(v:Float):Float;
@@ -49,11 +47,9 @@
 	static function fceil(v:Float):Float;
 	static function asin(v:Float):Float;
 	static function acos(v:Float):Float;
-	static function pow(v:Float,exp:Float):Float;
-	static function random() : Float;
+	static function pow(v:Float, exp:Float):Float;
+	static function random():Float;
 
-	static function isFinite( f : Float ) : Bool;
-	static function isNaN( f : Float ) : Bool;
+	static function isFinite(f:Float):Bool;
+	static function isNaN(f:Float):Bool;
 }
-
-

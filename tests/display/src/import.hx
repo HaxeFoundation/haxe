@@ -1,1 +1,1 @@
-import Diagnostic;
+import haxe.display.Diagnostic;

@@ -19,52 +19,53 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp;
+
+package cpp;
 
 @:coreType @:include("cpp/Pointer.h") @:native("cpp.Pointer") @:semantics(variable)
-extern class ConstPointer<T>
-{
-   // ptr actually returns the pointer - not strictly a 'T' - for pointers to smart pointers
-   // Use value or ref to get dereferenced value
-   public var ptr:Star<T>;
+extern class ConstPointer<T> {
+	// ptr actually returns the pointer - not strictly a 'T' - for pointers to smart pointers
+	// Use value or ref to get dereferenced value
+	var ptr:Star<T>;
 
-   public var value(get,never):T;
+	var value(get, never):T;
 
-   // Typecast to non-const
-   public var raw(get,never):RawPointer<T>;
+	// Typecast to non-const
+	var raw(get, never):RawPointer<T>;
 
-   // const version
-   public var constRaw(get,never):RawConstPointer<T>;
+	// const version
+	var constRaw(get, never):RawConstPointer<T>;
 
-   public function get_value() : Reference<T>;
+	function get_value():Reference<T>;
 
-   public function get_constRaw() : RawConstPointer<T>;
-   public function get_raw() : RawPointer<T>;
+	function get_constRaw():RawConstPointer<T>;
+	function get_raw():RawPointer<T>;
 
+	function lt(inOther:ConstPointer<T>):Bool;
+	function leq(inOther:ConstPointer<T>):Bool;
+	function gt(inOther:ConstPointer<T>):Bool;
+	function geq(inOther:ConstPointer<T>):Bool;
 
-   public function lt(inOther:ConstPointer<T>):Bool;
-   public function leq(inOther:ConstPointer<T>):Bool;
-   public function gt(inOther:ConstPointer<T>):Bool;
-   public function geq(inOther:ConstPointer<T>):Bool;
+	function setRaw<O>(ptr:RawPointer<O>):Void;
 
-   public function setRaw<O>(ptr:RawPointer<O>) : Void;
+	static function fromRaw<T>(ptr:RawConstPointer<T>):ConstPointer<T>;
 
-   public static function fromRaw<T>(ptr:RawConstPointer<T>) : ConstPointer<T>;
+	@:native("::cpp::Pointer_obj::fromRaw")
+	static function fromStar<T>(star:Star<T>):ConstPointer<T>;
 
+	static function fromPointer<T>(inNativePointer:Dynamic):ConstPointer<T>;
 
-   public static function fromPointer<T>(inNativePointer:Dynamic) : ConstPointer<T>;
+	function reinterpret<Other>():Pointer<Other>;
 
-   public function reinterpret<Other>():Pointer<Other>;
+	function rawCast<Other>():RawPointer<Other>;
 
-   public function rawCast<Other>():RawPointer<Other>;
+	function at(inIndex:Int):Reference<T>;
 
-   public function at(inIndex:Int):Reference<T>;
-
-   public function inc():ConstPointer<T>;
-   public function dec():ConstPointer<T>;
-   public function postIncVal():Reference<T>;
-   public function incBy(inT:Int):ConstPointer<T>;
-   public function add(inT:Int):ConstPointer<T>;
-
+	function inc():ConstPointer<T>;
+	function dec():ConstPointer<T>;
+	function incBy(inT:Int):ConstPointer<T>;
+	function decBy(inT:Int):ConstPointer<T>;
+	function add(inT:Int):ConstPointer<T>;
+	function sub(inT:Int):ConstPointer<T>;
+	function postIncVal():Reference<T>;
 }
-

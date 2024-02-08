@@ -1,0 +1,13 @@
+(include_subdirs no)
+
+(env
+	(_
+		(flags (-w -3 -w -27 -w -32))
+	)
+)
+
+(library
+	(name extlib_leftovers)
+	(libraries extlib)
+	; (wrapped false)
+)

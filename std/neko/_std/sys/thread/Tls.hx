@@ -19,28 +19,29 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.thread;
 
 @:coreApi
 class Tls<T> {
+	var t:Dynamic;
 
-	var t : Dynamic;
-	public var value(get,set) : T;
+	public var value(get, set):T;
 
 	public function new() {
 		t = tls_create();
 	}
 
-	function get_value() : T {
+	function get_value():T {
 		return tls_get(t);
 	}
 
-	function set_value( v : T ):T {
-		tls_set(t,v);
+	function set_value(v:T):T {
+		tls_set(t, v);
 		return v;
 	}
 
-	static var tls_create = neko.Lib.load("std","tls_create",0);
-	static var tls_get = neko.Lib.load("std","tls_get",1);
-	static var tls_set = neko.Lib.load("std","tls_set",2);
+	static var tls_create = neko.Lib.load("std", "tls_create", 0);
+	static var tls_get = neko.Lib.load("std", "tls_get", 1);
+	static var tls_set = neko.Lib.load("std", "tls_set", 2);
 }

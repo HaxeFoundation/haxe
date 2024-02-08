@@ -11,7 +11,7 @@ interface IMyChild extends IMyParent {}
 
 class MyClass {
 
-	#if as3 public #end var val : Int;
+	var val : Int;
 
 	public var ref : MyClass;
 	public var intValue : Int;
@@ -46,11 +46,10 @@ class MyChild1 extends MyParent implements IMyChild {
 	override function b() return 21;
 	function c() return 19;
 }
-#if !as3
+
 class MyChild2 extends MyParent {
 	public function test1(mc1:MyChild1) return mc1.b();
 }
-#end
 
 interface I1 { }
 class Base { public var s:String; public function new() { } }
@@ -154,10 +153,8 @@ class ParamConstraintsClass {
 
 	public function memberAnon < A:{ x : Int } & { y : Float }> (v:A) { return v.x + v.y; }
 
-#if !(java || cs)  //this is a known bug caused by issue #915
 	@:overload(function< A, B:Array<A> > (a:A, b:B):Void { } )
 	public function memberOverload < A, B > (a:String, b:String) { }
-#end
 }
 
 class ParamConstraintsClass2<T> {
@@ -290,11 +287,7 @@ class InlineCastB extends InlineCastA {
 	public function new() { }
 
 	public inline function test() : InlineCastB {
-		#if as3
-		return cast (self(), InlineCastB);
-		#else
 		return cast self();
-		#end
 	}
 
 	public function quote() {

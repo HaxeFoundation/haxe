@@ -19,67 +19,58 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys;
 
 /**
-	This class allows you to get information about the files and directories.
+	This class provides information about files and directories.
+
+	If `null` is passed as a file path to any function in this class, the
+	result is unspecified, and may differ from target to target.
 
 	See `sys.io.File` for the complementary file API.
 **/
 extern class FileSystem {
-
 	/**
-		Tells if the file or directory specified by `path` exists.
-
-		If `path` is null, the result is unspecified.
+		Returns `true` if the file or directory specified by `path` exists.
 	**/
-	static function exists( path : String ) : Bool;
+	static function exists(path:String):Bool;
 
 	/**
 		Renames/moves the file or directory specified by `path` to `newPath`.
 
 		If `path` is not a valid file system entry, or if it is not accessible,
 		or if `newPath` is not accessible, an exception is thrown.
-
-		If `path` or `newPath` are null, the result is unspecified.
 	**/
-	static function rename( path : String, newPath : String ) : Void;
+	static function rename(path:String, newPath:String):Void;
 
 	/**
-		Returns `FileStat` information on the file or directory specified by
+		Returns `FileStat` information for the file or directory specified by
 		`path`.
-
-		If `path` is null, the result is unspecified.
 	**/
-	static function stat( path : String ) : FileStat;
+	static function stat(path:String):FileStat;
 
 	/**
 		Returns the full path of the file or directory specified by `relPath`,
 		which is relative to the current working directory. Symlinks will be
 		followed and the path will be normalized.
-
-		If `relPath` is null, the result is unspecified.
 	**/
-	static function fullPath( relPath : String ) : String;
+	static function fullPath(relPath:String):String;
 
 	/**
 		Returns the full path of the file or directory specified by `relPath`,
 		which is relative to the current working directory. The path doesn't
 		have to exist.
-
-		If `relPath` is null, the result is unspecified.
 	**/
-	static function absolutePath( relPath : String ) : String;
+	static function absolutePath(relPath:String):String;
 
 	/**
-		Tells if the file or directory specified by `path` is a directory.
+		Returns `true` if the file or directory specified by `path` is a directory.
 
 		If `path` is not a valid file system entry or if its destination is not
 		accessible, an exception is thrown.
-
-		If `path` is null, the result is unspecified.
 	**/
-	static function isDirectory( path : String ) : Bool;
+	static function isDirectory(path:String):Bool;
 
 	/**
 		Creates a directory specified by `path`.
@@ -87,39 +78,31 @@ extern class FileSystem {
 		This method is recursive: The parent directories don't have to exist.
 
 		If the directory cannot be created, an exception is thrown.
-
-		If `path` is null, the result is unspecified.
 	**/
-	static function createDirectory( path : String ) : Void;
+	static function createDirectory(path:String):Void;
 
 	/**
 		Deletes the file specified by `path`.
 
 		If `path` does not denote a valid file, or if that file cannot be
 		deleted, an exception is thrown.
-
-		If `path` is null, the result is unspecified.
 	**/
-	static function deleteFile( path : String ) : Void;
+	static function deleteFile(path:String):Void;
 
 	/**
-		Deletes the directory specified by `path`.
+		Deletes the directory specified by `path`. Only empty directories can
+		be deleted.
 
 		If `path` does not denote a valid directory, or if that directory cannot
 		be deleted, an exception is thrown.
-
-		If `path` is null, the result is unspecified.
 	**/
-	static function deleteDirectory( path : String ) : Void;
+	static function deleteDirectory(path:String):Void;
 
 	/**
 		Returns the names of all files and directories in the directory specified
-		by `path`.
+		by `path`. `"."` and `".."` are not included in the output.
 
 		If `path` does not denote a valid directory, an exception is thrown.
-
-		If `path` is null, the result is unspecified.
 	**/
-	static function readDirectory( path : String ) : Array<String>;
-
+	static function readDirectory(path:String):Array<String>;
 }

@@ -1,0 +1,5 @@
+Main.hx:4: characters 13-58 : Another overloaded field of similar signature was already declared : conflict
+Main.hx:4: characters 13-58 : ... The signatures are different in Haxe, but not in the target language
+Main.hx:5: characters 13-59 : ... The second field is declared here
+Main.hx:7: characters 13-54 : Another overloaded field of same signature was already declared : same
+Main.hx:8: characters 13-54 : ... The second field is declared here

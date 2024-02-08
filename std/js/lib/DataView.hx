@@ -19,38 +19,40 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib;
 
 @:native("DataView")
-extern class DataView {
-	final buffer : ArrayBuffer;
-	final byteOffset : Int;
-	final byteLength : Int;
-	
+extern class DataView implements ArrayBufferView {
+	final buffer:ArrayBuffer;
+	final byteOffset:Int;
+	final byteLength:Int;
+
 	/** @throws DOMError */
-	function new( buffer : ArrayBuffer, ?byteOffset : Int, ?byteLength : Int ) : Void;
+	function new(buffer:ArrayBuffer, ?byteOffset:Int, ?byteLength:Int):Void;
+
 	@:pure
-	function getInt8( byteOffset : Int ) : Int;
+	function getInt8(byteOffset:Int):Int;
 	@:pure
-	function getUint8( byteOffset : Int ) : Int;
+	function getUint8(byteOffset:Int):Int;
 	@:pure
-	function getInt16( byteOffset : Int, ?littleEndian : Bool ) : Int;
+	function getInt16(byteOffset:Int, ?littleEndian:Bool):Int;
 	@:pure
-	function getUint16( byteOffset : Int, ?littleEndian : Bool ) : Int;
+	function getUint16(byteOffset:Int, ?littleEndian:Bool):Int;
 	@:pure
-	function getInt32( byteOffset : Int, ?littleEndian : Bool ) : Int;
+	function getInt32(byteOffset:Int, ?littleEndian:Bool):Int;
 	@:pure
-	function getUint32( byteOffset : Int, ?littleEndian : Bool ) : Int;
+	function getUint32(byteOffset:Int, ?littleEndian:Bool):Int;
 	@:pure
-	function getFloat32( byteOffset : Int, ?littleEndian : Bool ) : Float;
+	function getFloat32(byteOffset:Int, ?littleEndian:Bool):Float;
 	@:pure
-	function getFloat64( byteOffset : Int, ?littleEndian : Bool ) : Float;
-	function setInt8( byteOffset : Int, value : Int ) : Void;
-	function setUint8( byteOffset : Int, value : Int ) : Void;
-	function setInt16( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
-	function setUint16( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
-	function setInt32( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
-	function setUint32( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
-	function setFloat32( byteOffset : Int, value : Float, ?littleEndian : Bool ) : Void;
-	function setFloat64( byteOffset : Int, value : Float, ?littleEndian : Bool ) : Void;
+	function getFloat64(byteOffset:Int, ?littleEndian:Bool):Float;
+	function setInt8(byteOffset:Int, value:Int):Void;
+	function setUint8(byteOffset:Int, value:Int):Void;
+	function setInt16(byteOffset:Int, value:Int, ?littleEndian:Bool):Void;
+	function setUint16(byteOffset:Int, value:Int, ?littleEndian:Bool):Void;
+	function setInt32(byteOffset:Int, value:Int, ?littleEndian:Bool):Void;
+	function setUint32(byteOffset:Int, value:Int, ?littleEndian:Bool):Void;
+	function setFloat32(byteOffset:Int, value:Float, ?littleEndian:Bool):Void;
+	function setFloat64(byteOffset:Int, value:Float, ?littleEndian:Bool):Void;
 }

@@ -19,8 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js;
 
 @:deprecated typedef Object = js.lib.Object;
 @:deprecated typedef ObjectPrototype = js.lib.Object.ObjectPrototype;
-@:deprecated typedef ObjectPropertyDescriptor = js.lib.Object.ObjectPropertyDescriptor;
+@:deprecated typedef ObjectPropertyDescriptor<TProp> = js.lib.Object.ObjectPropertyDescriptor<TProp>;

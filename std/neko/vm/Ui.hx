@@ -19,17 +19,17 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package neko.vm;
 
 /**
-	Core native User Interface support. This API uses native WIN32 API 
+	Core native User Interface support. This API uses native WIN32 API
 	on Windows, Carbon API on OSX, and GTK2 on Linux.
-*/
+ */
 class Ui {
-
 	/**
-		Tells if the current thread is the main loop thread or not. 
-		The main loop thread is the one in which the first "ui" 
+		Tells if the current thread is the main loop thread or not.
+		The main loop thread is the one in which the first "ui"
 		library primitive has been loaded.
 	**/
 	public static function isMainThread() {
@@ -37,7 +37,7 @@ class Ui {
 	}
 
 	/**
-		Starts the native UI event loop. This method can only be called 
+		Starts the native UI event loop. This method can only be called
 		from the main thread.
 	**/
 	public static function loop() {
@@ -45,7 +45,7 @@ class Ui {
 	}
 
 	/**
-		Stop the native UI event loop. This method can only be called 
+		Stop the native UI event loop. This method can only be called
 		from the main thread.
 	**/
 	public static function stopLoop() {
@@ -53,16 +53,16 @@ class Ui {
 	}
 
 	/**
-		Queue a method call callb to be executed by the main thread while 
-		running the UI event loop. This can be used to perform UI updates 
+		Queue a method call callb to be executed by the main thread while
+		running the UI event loop. This can be used to perform UI updates
 		in the UI thread using results processed by another thread.
 	**/
-	public static function sync( f : Void -> Void ) {
+	public static function sync(f:Void->Void) {
 		_sync(f);
 	}
 
-	public static function syncResult<T>( f : Void -> T ) : T {
-		if( isMainThread() )
+	public static function syncResult<T>(f:Void->T):T {
+		if (isMainThread())
 			return f();
 		var l = new Lock();
 		var tmp = null;
@@ -70,20 +70,19 @@ class Ui {
 		_sync(function() {
 			try {
 				tmp = f();
-			} catch( e : Dynamic ) {
-				exc = { v : e };
+			} catch (e:Dynamic) {
+				exc = {v: e};
 			}
 			l.release();
 		});
 		l.wait();
-		if( exc != null )
+		if (exc != null)
 			throw exc.v;
 		return tmp;
 	}
 
-	static var _is_main_thread = neko.Lib.load("ui","ui_is_main",0);
-	static var _loop = neko.Lib.load("ui","ui_loop",0);
-	static var _stop_loop = neko.Lib.load("ui","ui_stop_loop",0);
-	static var _sync = neko.Lib.load("ui","ui_sync",1);
-
+	static var _is_main_thread = neko.Lib.load("ui", "ui_is_main", 0);
+	static var _loop = neko.Lib.load("ui", "ui_loop", 0);
+	static var _stop_loop = neko.Lib.load("ui", "ui_stop_loop", 0);
+	static var _sync = neko.Lib.load("ui", "ui_sync", 1);
 }

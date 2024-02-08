@@ -19,38 +19,41 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.io;
 
 class FPHelper {
-
 	// note : this is not thread safe, use TLS when available
 	static var i64tmp = Int64.ofInt(0);
 	static var helper = new hl.Bytes(8);
 
-	public static function i32ToFloat( i : Int ) : Single {
-		helper.setI32(0,i);
+	public static function i32ToFloat(i:Int):Single {
+		helper.setI32(0, i);
 		return helper.getF32(0);
 	}
 
-	public static function floatToI32( f : Single ) : Int {
-		helper.setF32(0,f);
+	public static function floatToI32(f:Single):Int {
+		helper.setF32(0, f);
 		return helper.getI32(0);
 	}
 
-	public static function i64ToDouble( low : Int, high : Int ) : Float {
-		helper.setI32(0,low);
-		helper.setI32(4,high);
+	public static function i64ToDouble(low:Int, high:Int):Float {
+		helper.setI32(0, low);
+		helper.setI32(4, high);
 		return helper.getF64(0);
 	}
 
-	public static function doubleToI64( v : Float ) : Int64 {
-		helper.setF64(0,v);
+	public static function doubleToI64(v:Float):Int64 {
+		helper.setF64(0, v);
+		#if (hl_ver >= version("1.12.0") && !hl_legacy32)
+		return Int64.make(helper.getI32(4),helper.getI32(0));
+		#else
 		var i64 = i64tmp;
 		@:privateAccess {
 			i64.set_low(helper.getI32(0));
 			i64.set_high(helper.getI32(4));
 		}
 		return i64;
+		#end
 	}
-
 }

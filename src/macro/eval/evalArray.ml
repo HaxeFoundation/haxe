@@ -17,7 +17,6 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
-open Globals
 open EvalValue
 
 let create values = {
@@ -141,6 +140,10 @@ let remove a equals x =
 		true
 	end
 
+let contains a equals x =
+	let i = indexOf a equals x 0 in
+	i >= 0
+
 let reverse a =
 	a.avalues <- ExtArray.Array.rev (Array.sub a.avalues 0 a.alength)
 
@@ -197,6 +200,6 @@ let resize a l =
 		set a (l - 1) vnull;
 		()
 	end else if a.alength > l then begin
-		ignore(splice a l (a.alength - l) a.alength);
-		()
+		Array.fill a.avalues l (a.alength - l) vnull;
+		a.alength <- l;
 	end else ()

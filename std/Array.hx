@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 /**
 	An Array is a storage for values. You can access it using indexes or
 	with its API.
@@ -26,17 +27,19 @@
 	@see https://haxe.org/manual/std-Array.html
 	@see https://haxe.org/manual/lf-array-comprehension.html
 **/
-extern class Array<T> {
 
+import haxe.iterators.ArrayKeyValueIterator;
+
+extern class Array<T> {
 	/**
 		The length of `this` Array.
 	**/
-	var length(default,null) : Int;
+	var length(default, null):Int;
 
 	/**
 		Creates a new Array.
 	**/
-	function new() : Void;
+	function new():Void;
 
 	/**
 		Returns a new Array by appending the elements of `a` to the elements of
@@ -51,7 +54,7 @@ extern class Array<T> {
 
 		If `a` is `null`, the result is unspecified.
 	**/
-	function concat( a : Array<T> ) : Array<T>;
+	function concat(a:Array<T>):Array<T>;
 
 	/**
 		Returns a string representation of `this` Array, with `sep` separating
@@ -66,7 +69,7 @@ extern class Array<T> {
 
 		If `sep` is null, the result is unspecified.
 	**/
-	function join( sep : String ) : String;
+	function join(sep:String):String;
 
 	/**
 		Removes the last element of `this` Array and returns it.
@@ -78,7 +81,7 @@ extern class Array<T> {
 		If `this` is the empty Array `[]`, null is returned and the length
 		remains 0.
 	**/
-	function pop() : Null<T>;
+	function pop():Null<T>;
 
 	/**
 		Adds the element `x` at the end of `this` Array and returns the new
@@ -88,7 +91,7 @@ extern class Array<T> {
 
 		`this.length` increases by 1.
 	**/
-	function push(x : T) : Int;
+	function push(x:T):Int;
 
 	/**
 		Reverse the order of elements of `this` Array.
@@ -97,7 +100,7 @@ extern class Array<T> {
 
 		If `this.length < 2`, `this` remains unchanged.
 	**/
-	function reverse() : Void;
+	function reverse():Void;
 
 	/**
 		Removes the first element of `this` Array and returns it.
@@ -110,7 +113,7 @@ extern class Array<T> {
 		If `this` is the empty Array `[]`, `null` is returned and the length
 		remains 0.
 	**/
-	function shift() : Null<T>;
+	function shift():Null<T>;
 
 	/**
 		Creates a shallow copy of the range of `this` Array, starting at and
@@ -130,7 +133,7 @@ extern class Array<T> {
 		If `pos` exceeds `this.length` or if `end` is less than or equals
 		`pos`, the result is `[]`.
 	**/
-	function slice( pos : Int, ?end : Int ) : Array<T>;
+	function slice(pos:Int, ?end:Int):Array<T>;
 
 	/**
 		Sorts `this` Array according to the comparison function `f`, where
@@ -145,7 +148,7 @@ extern class Array<T> {
 
 		If `f` is null, the result is unspecified.
 	**/
-	function sort( f : T -> T -> Int ) : Void;
+	function sort(f:T->T->Int):Void;
 
 	/**
 		Removes `len` elements from `this` Array, starting at and including
@@ -153,7 +156,7 @@ extern class Array<T> {
 
 		This operation modifies `this` Array in place.
 
-		If `len` is < 0 or `pos` exceeds `this`.length, an empty Array [] is 
+		If `len` is < 0 or `pos` exceeds `this`.length, an empty Array [] is
 		returned and `this` Array is unchanged.
 
 		If `pos` is negative, its value is calculated from the end	of `this`
@@ -169,7 +172,7 @@ extern class Array<T> {
 		words, each element of the original `this` Array either remains in
 		`this` Array or becomes an element of the returned Array.
 	**/
-	function splice( pos : Int, len : Int ) : Array<T>;
+	function splice(pos:Int, len:Int):Array<T>;
 
 	/**
 		Returns a string representation of `this` Array.
@@ -179,7 +182,7 @@ extern class Array<T> {
 		use `Std.string()` to get a String representation that is consistent
 		across platforms.
 	**/
-	function toString() : String;
+	function toString():String;
 
 	/**
 		Adds the element `x` at the start of `this` Array.
@@ -188,7 +191,7 @@ extern class Array<T> {
 
 		`this.length` and the index of each Array element increases by 1.
 	**/
-	function unshift( x : T ) : Void;
+	function unshift(x:T):Void;
 
 	/**
 		Inserts the element `x` at the position `pos`.
@@ -207,7 +210,7 @@ extern class Array<T> {
 		and including that offset to the end of `this` Array are moved one index
 		ahead.
 	**/
-	function insert( pos : Int, x : T ) : Void;
+	function insert(pos:Int, x:T):Void;
 
 	/**
 		Removes the first occurrence of `x` in `this` Array.
@@ -221,7 +224,16 @@ extern class Array<T> {
 		If `x` is not found, `this` Array is not changed and the function
 		returns false.
 	**/
-	function remove( x : T ) : Bool;
+	function remove(x:T):Bool;
+
+
+	/**
+		Returns whether `this` Array contains `x`.
+
+		If `x` is found by checking standard equality, the function returns `true`, otherwise
+		the function returns `false`.
+	**/
+	@:pure function contains( x : T ) : Bool;
 
 	/**
 		Returns position of the first occurrence of `x` in `this` Array, searching front to back.
@@ -236,7 +248,7 @@ extern class Array<T> {
 		starting index is less than 0, the whole array will be searched, if it is greater than
 		or equal to the length of `this` Array, the function returns -1.
 	**/
-	function indexOf( x : T, ?fromIndex:Int ) : Int;
+	function indexOf(x:T, ?fromIndex:Int):Int;
 
 	/**
 		Returns position of the last occurrence of `x` in `this` Array, searching back to front.
@@ -251,7 +263,7 @@ extern class Array<T> {
 		given or computed starting index is greater than or equal to the length of `this` Array,
 		the whole array will be searched, if it is less than 0, the function returns -1.
 	**/
-	function lastIndexOf( x : T, ?fromIndex:Int ) : Int;
+	function lastIndexOf(x:T, ?fromIndex:Int):Int;
 
 	/**
 		Returns a shallow copy of `this` Array.
@@ -260,12 +272,21 @@ extern class Array<T> {
 		`a[i] == a.copy()[i]` is true for any valid `i`. However,
 		`a == a.copy()` is always false.
 	**/
-	function copy() : Array<T>;
+	function copy():Array<T>;
 
 	/**
 		Returns an iterator of the Array values.
 	**/
-	function iterator() : Iterator<T>;
+	@:runtime inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
+	}
+
+	/**
+		Returns an iterator of the Array indices and values.
+	**/
+	@:pure @:runtime public inline function keyValueIterator() : ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator(this);
+	}
 
 	/**
 		Creates a new Array by applying function `f` to all elements of `this`.
@@ -274,7 +295,15 @@ extern class Array<T> {
 
 		If `f` is null, the result is unspecified.
 	**/
-	function map<S>( f : T -> S ) : Array<S>;
+	@:runtime inline function map<S>(f:T->S):Array<S> {
+		#if (cpp && !cppia)
+		var result = cpp.NativeArray.create(length);
+		for (i in 0...length) cpp.NativeArray.unsafeSet(result, i, f(cpp.NativeArray.unsafeGet(this, i)));
+		return result;
+		#else
+		return [for (v in this) f(v)];
+		#end
+	}
 
 	/**
 		Returns an Array containing those elements of `this` for which `f`
@@ -284,7 +313,9 @@ extern class Array<T> {
 
 		If `f` is null, the result is unspecified.
 	**/
-	function filter( f : T -> Bool ) : Array<T>;
+	@:runtime inline function filter(f:T->Bool):Array<T> {
+		return [for (v in this) if (f(v)) v];
+	}
 
 	/**
 		Set the length of the Array.
@@ -298,5 +329,5 @@ extern class Array<T> {
 		- 0, 0.0 or false for Int, Float and Bool respectively on static targets
 		- null for other types on static targets
 	**/
-	function resize( len : Int ) : Void;
+	function resize(len:Int):Void;
 }

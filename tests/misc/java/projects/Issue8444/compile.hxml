@@ -1,0 +1,3 @@
+-main Main
+--jvm bin/bin.jvm
+-D no-compilation

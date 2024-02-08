@@ -19,7 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package java.io;
+
 import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.io.Eof;
@@ -27,42 +29,33 @@ import haxe.io.Input;
 import java.io.IOException;
 import java.io.EOFException;
 
-@:native('haxe.java.io.NativeInput') class NativeInput extends Input
-{
+@:native('haxe.java.io.NativeInput') class NativeInput extends Input {
 	var stream:java.io.InputStream;
-	public function new(stream)
-	{
+
+	public function new(stream) {
 		this.stream = stream;
 	}
 
-	override public function readByte():Int
-	{
+	override public function readByte():Int {
 		var ret = 0;
-		try
-		{
+		try {
 			ret = stream.read();
-		}
-		catch (e:IOException) {
+		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
-		if ( ret == -1 )
+		if (ret == -1)
 			throw new Eof();
 		return ret;
 	}
 
-	override public function readBytes(s:Bytes, pos:Int, len:Int):Int
-	{
+	override public function readBytes(s:Bytes, pos:Int, len:Int):Int {
 		var ret = 0;
-		try
-		{
+		try {
 			ret = stream.read(s.getData(), pos, len);
-		}
+		} catch (e:EOFException) {
 
-		catch (e:EOFException) {
 			throw new Eof();
-		}
-
-		catch (e:IOException) {
+		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 
@@ -71,14 +64,10 @@ import java.io.EOFException;
 		return ret;
 	}
 
-	override public function close():Void
-	{
-		try
-		{
+	override public function close():Void {
+		try {
 			stream.close();
-		}
-
-		catch (e:IOException) {
+		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}

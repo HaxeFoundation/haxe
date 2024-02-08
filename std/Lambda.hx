@@ -1,4 +1,3 @@
-import haxe.ds.List;
 /*
  * Copyright (C)2005-2019 Haxe Foundation
  *
@@ -21,6 +20,8 @@ import haxe.ds.List;
  * DEALINGS IN THE SOFTWARE.
  */
 
+import haxe.ds.List;
+
 /**
 	The `Lambda` class is a collection of methods to support functional
 	programming. It is ideally used with `using Lambda` and then acts as an
@@ -35,18 +36,15 @@ import haxe.ds.List;
 
 	@see https://haxe.org/manual/std-Lambda.html
 **/
-
 class Lambda {
-
-
 	/**
 		Creates an Array from Iterable `it`.
 
 		If `it` is an Array, this function returns a copy of it.
 	**/
-	public static function array<A>( it : Iterable<A> ) : Array<A> {
+	public static function array<A>(it:Iterable<A>):Array<A> {
 		var a = new Array<A>();
-		for(i in it)
+		for (i in it)
 			a.push(i);
 		return a;
 	}
@@ -56,9 +54,9 @@ class Lambda {
 
 		If `it` is a List, this function returns a copy of it.
 	**/
-	public static function list<A>( it : Iterable<A> ) : List<A> {
+	public static function list<A>(it:Iterable<A>):List<A> {
 		var l = new List<A>();
-		for(i in it)
+		for (i in it)
 			l.add(i);
 		return l;
 	}
@@ -68,7 +66,7 @@ class Lambda {
 		The order of elements is preserved.
 		If `f` is null, the result is unspecified.
 	**/
-	public static inline function map<A,B>( it : Iterable<A>, f : A -> B ) : Array<B> {
+	public static inline function map<A, B>(it:Iterable<A>, f:(item:A) -> B):Array<B> {
 		return [for (x in it) f(x)];
 	}
 
@@ -77,7 +75,7 @@ class Lambda {
 		The order of elements is preserved.
 		If `f` is null, the result is unspecified.
 	**/
-	public static inline function mapi<A,B>( it : Iterable<A>, f : Int -> A -> B ) : Array<B> {
+	public static inline function mapi<A, B>(it:Iterable<A>, f:(index:Int, item:A) -> B):Array<B> {
 		var i = 0;
 		return [for (x in it) f(i++, x)];
 	}
@@ -86,7 +84,7 @@ class Lambda {
 		Concatenate a list of iterables.
 		The order of elements is preserved.
 	**/
-	public static inline function flatten<A>( it : Iterable<Iterable<A>> ) : Array<A> {
+	public static inline function flatten<A>(it:Iterable<Iterable<A>>):Array<A> {
 		return [for (e in it) for (x in e) x];
 	}
 
@@ -95,7 +93,7 @@ class Lambda {
 		The order of elements is preserved.
 		If `f` is null, the result is unspecified.
 	**/
-	public static inline function flatMap<A,B>( it : Iterable<A>, f: A -> Iterable<B> ) : Array<B> {
+	public static inline function flatMap<A, B>(it:Iterable<A>, f:(item:A) -> Iterable<B>):Array<B> {
 		return Lambda.flatten(Lambda.map(it, f));
 	}
 
@@ -107,9 +105,9 @@ class Lambda {
 
 		If no such element is found, the result is false.
 	**/
-	public static function has<A>( it : Iterable<A>, elt : A ) : Bool {
-		for( x in it )
-			if( x == elt )
+	public static function has<A>(it:Iterable<A>, elt:A):Bool {
+		for (x in it)
+			if (x == elt)
 				return true;
 		return false;
 	}
@@ -124,9 +122,9 @@ class Lambda {
 
 		If `f` is null, the result is unspecified.
 	**/
-	public static function exists<A>( it : Iterable<A>, f : A -> Bool ) {
-		for( x in it )
-			if( f(x) )
+	public static function exists<A>(it:Iterable<A>, f:(item:A) -> Bool) {
+		for (x in it)
+			if (f(x))
 				return true;
 		return false;
 	}
@@ -143,9 +141,9 @@ class Lambda {
 
 		If `f` is null, the result is unspecified.
 	**/
-	public static function foreach<A>( it : Iterable<A>, f : A -> Bool ) {
-		for( x in it )
-			if( !f(x) )
+	public static function foreach<A>(it:Iterable<A>, f:(item:A) -> Bool) {
+		for (x in it)
+			if (!f(x))
 				return false;
 		return true;
 	}
@@ -155,8 +153,8 @@ class Lambda {
 
 		If `f` is null, the result is unspecified.
 	**/
-	public static function iter<A>( it : Iterable<A>, f : A -> Void ) {
-		for( x in it )
+	public static function iter<A>(it:Iterable<A>, f:(item:A) -> Void) {
+		for (x in it)
 			f(x);
 	}
 
@@ -166,7 +164,7 @@ class Lambda {
 		If `it` is empty, the result is the empty Array even if `f` is null.
 		Otherwise if `f` is null, the result is unspecified.
 	**/
-	public static function filter<A>( it : Iterable<A>, f : A -> Bool ) {
+	public static function filter<A>(it:Iterable<A>, f:(item:A) -> Bool) {
 		return [for (x in it) if (f(x)) x];
 	}
 
@@ -182,9 +180,23 @@ class Lambda {
 
 		If `it` or `f` are null, the result is unspecified.
 	**/
-	public static function fold<A,B>( it : Iterable<A>, f : A -> B -> B, first : B ) : B {
-		for( x in it )
-			first = f(x,first);
+	public static function fold<A, B>(it:Iterable<A>, f:(item:A, result:B) -> B, first:B):B {
+		for (x in it)
+			first = f(x, first);
+		return first;
+	}
+
+	/**
+		Similar to fold, but also passes the index of each element to `f`.
+
+		If `it` or `f` are null, the result is unspecified.
+	**/
+	public static function foldi<A, B>(it:Iterable<A>, f:(item:A, result:B, index:Int) -> B, first:B):B {
+		var i = 0;
+		for (x in it) {
+			first = f(x, first, i);
+			++i;
+		}
 		return first;
 	}
 
@@ -194,14 +206,14 @@ class Lambda {
 
 		This function traverses all elements.
 	**/
-	public static function count<A>( it : Iterable<A>, ?pred : A -> Bool ) {
+	public static function count<A>(it:Iterable<A>, ?pred:(item:A) -> Bool) {
 		var n = 0;
-		if( pred == null )
-			for( _ in it )
+		if (pred == null)
+			for (_ in it)
 				n++;
 		else
-			for( x in it )
-				if( pred(x) )
+			for (x in it)
+				if (pred(x))
 					n++;
 		return n;
 	}
@@ -209,7 +221,7 @@ class Lambda {
 	/**
 		Tells if Iterable `it` does not contain any element.
 	**/
-	public static function empty<T>( it : Iterable<T> ) : Bool {
+	public static function empty<T>(it:Iterable<T>):Bool {
 		return !it.iterator().hasNext();
 	}
 
@@ -220,10 +232,10 @@ class Lambda {
 
 		If `v` does not exist in `it`, the result is -1.
 	**/
-	public static function indexOf<T>( it : Iterable<T>, v : T ) : Int {
+	public static function indexOf<T>(it:Iterable<T>, v:T):Int {
 		var i = 0;
-		for( v2 in it ) {
-			if( v == v2 )
+		for (v2 in it) {
+			if (v == v2)
 				return i;
 			i++;
 		}
@@ -240,11 +252,32 @@ class Lambda {
 
 		If `f` is null, the result is unspecified.
 	**/
-	public static function find<T>( it : Iterable<T>, f : T -> Bool ) : Null<T> {
-		for( v in it ) {
-			if(f(v)) return v;
+	public static function find<T>(it:Iterable<T>, f:(item:T) -> Bool):Null<T> {
+		for (v in it) {
+			if (f(v))
+				return v;
 		}
 		return null;
+	}
+
+	/**
+		Returns the index of the first element of `it` for which `f` is true.
+
+		This function returns as soon as an element is found for which a call to
+		`f` returns true.
+
+		If no such element is found, the result is -1.
+
+		If `f` is null, the result is unspecified.
+	**/
+	public static function findIndex<T>(it:Iterable<T>, f:(item:T) -> Bool):Int {
+		var i = 0;
+		for (v in it) {
+			if (f(v))
+				return i;
+			i++;
+		}
+		return -1;
 	}
 
 	/**
@@ -253,13 +286,12 @@ class Lambda {
 
 		If `a` or `b` are null, the result is unspecified.
 	**/
-	public static function concat<T>( a : Iterable<T>, b : Iterable<T> ) : Array<T> {
+	public static function concat<T>(a:Iterable<T>, b:Iterable<T>):Array<T> {
 		var l = new Array();
-		for( x in a )
+		for (x in a)
 			l.push(x);
-		for( x in b )
+		for (x in b)
 			l.push(x);
 		return l;
 	}
-
 }

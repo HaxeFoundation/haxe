@@ -35,7 +35,12 @@ class Issue4690 {
 		TestJs.use("Child.new: Before super");
 		TestJs.use("Parent.new: Before assign");
 		c_x = 1;
-		c_y = "" + 2;
+		var c_y1 = false;
+		if(c_y1) {
+			c_y = "null";
+		} else {
+			c_y = "" + 2;
+		}
 		TestJs.use("Parent.new: After assign");
 		TestJs.use("Child.new: After super");
 		c_z = 3;

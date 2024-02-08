@@ -19,113 +19,128 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import hl.Boot;
 
 private typedef Rand = hl.Abstract<"hl_random">;
 
 @:coreApi
 class Std {
+	static var rnd:Rand;
+	static var toStringDepth:Int = 0;
 
-	static var rnd : Rand;
-	static var toStringDepth : Int = 0;
-
-	static function __init__() : Void {
+	static function __init__():Void {
 		rnd = rnd_sys();
 	}
 
-	@:hlNative("std","rnd_init_system") static function rnd_sys() : Rand { return null; }
-	@:hlNative("std","rnd_int") static function rnd_int( r : Rand ) : Int { return 0; }
-	@:hlNative("std","rnd_float") static function rnd_float( r : Rand ) : Float { return 0.; }
+	@:hlNative("std", "rnd_init_system") static function rnd_sys():Rand {
+		return null;
+	}
 
-	public static function random( x : Int ) : Int {
+	@:hlNative("std", "rnd_int") static function rnd_int(r:Rand):Int {
+		return 0;
+	}
+
+	@:hlNative("std", "rnd_float") static function rnd_float(r:Rand):Float {
+		return 0.;
+	}
+
+	public static function random(x:Int):Int {
 		return x <= 0 ? 0 : (rnd_int(rnd) & 0x3FFFFFFF) % x;
 	}
 
-	public static function is( v : Dynamic, t : Dynamic ) : Bool {
-		var t : hl.BaseType = t;
-		if( t == null ) return false;
-		switch( t.__type__.kind ) {
-		case HDyn:
-			return v != null;
-		case HF64:
-			switch( hl.Type.getDynamic(v).kind ) {
-			case HUI8, HUI16, HI32:
-				return true;
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
+	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
+	}
+
+	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
+		var t:hl.BaseType = t;
+		if (t == null)
+			return false;
+		switch (t.__type__.kind) {
+			case HDyn:
+				return v != null;
+			case HF64:
+				switch (hl.Type.getDynamic(v).kind) {
+					case HUI8, HUI16, HI32:
+						return true;
+					default:
+				}
+			case HI32:
+				switch (hl.Type.getDynamic(v).kind) {
+					case HF32, HF64:
+						var v:Float = v;
+						return Std.int(v) == v;
+					default:
+				}
 			default:
-			}
-		case HI32:
-			switch( hl.Type.getDynamic(v).kind ) {
-			case HF32, HF64:
-				var v : Float = v;
-				return Std.int(v) == v;
-			default:
-			}
-		default:
 		}
 		return t.check(v);
 	}
 
-	extern public static function downcast<T:{},S:T>( value : T, c : Class<S> ) : S;
+	extern public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S;
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
 		return downcast(value, c);
 	}
 
-	extern public static inline function int( x : Float ) : Int {
+	extern public static inline function int(x:Float):Int {
 		return untyped $int(x);
 	}
 
-	@:keep public static function string( s : Dynamic ) : String {
+	@:keep public static function string(s:Dynamic):String {
 		var len = 0;
-		var bytes = hl.Bytes.fromValue(s,new hl.Ref(len));
-		return @:privateAccess String.__alloc__(bytes,len);
+		var bytes = hl.Bytes.fromValue(s, new hl.Ref(len));
+		return @:privateAccess String.__alloc__(bytes, len);
 	}
 
-	public static function parseInt( x : String ) : Null<Int> {
-		if( x == null ) return null;
-		return @:privateAccess x.bytes.parseInt(0, x.length<<1);
+	public static function parseInt(x:String):Null<Int> {
+		if (x == null)
+			return null;
+		return @:privateAccess x.bytes.parseInt(0, x.length << 1);
 	}
 
-	public static function parseFloat( x : String ) : Float {
-		if( x == null ) return Math.NaN;
-		return @:privateAccess x.bytes.parseFloat(0, x.length<<1);
+	public static function parseFloat(x:String):Float {
+		if (x == null)
+			return Math.NaN;
+		return @:privateAccess x.bytes.parseFloat(0, x.length << 1);
 	}
 
-	@:keep static function __add__( a : Dynamic, b : Dynamic ) : Dynamic {
+	@:keep static function __add__(a:Dynamic, b:Dynamic):Dynamic {
 		var ta = hl.Type.getDynamic(a);
 		var tb = hl.Type.getDynamic(b);
-		if( ta == hl.Type.get("") )
+		if (ta == hl.Type.get(""))
 			return (a : String) + b;
-		if( tb == hl.Type.get("") )
+		if (tb == hl.Type.get(""))
 			return a + (b : String);
-		switch(ta.kind) {
-		case HUI8, HUI16, HI32:
-			var a : Int = a;
-			switch( tb.kind ) {
-			case HUI8, HUI16, HI32: return a + (b:Int);
-			case HF32, HF64: return a + (b:Float);
-			case HVoid: return a;
+		switch (ta.kind) {
+			case HUI8, HUI16, HI32:
+				var a:Int = a;
+				switch (tb.kind) {
+					case HUI8, HUI16, HI32: return a + (b : Int);
+					case HF32, HF64: return a + (b : Float);
+					case HVoid: return a;
+					default:
+				}
+			case HF32, HF64:
+				var a:Float = a;
+				switch (tb.kind) {
+					case HUI8, HUI16, HI32: return a + (b : Int);
+					case HF32, HF64: return a + (b : Float);
+					case HVoid: return a;
+					default:
+				}
+			case HVoid:
+				switch (tb.kind) {
+					case HUI8, HUI16, HI32, HF32, HF64: return b;
+					case HVoid: return 0.;
+					default:
+				}
 			default:
-			}
-		case HF32, HF64:
-			var a : Float = a;
-			switch( tb.kind ) {
-			case HUI8, HUI16, HI32: return a + (b:Int);
-			case HF32, HF64: return a + (b:Float);
-			case HVoid: return a;
-			default:
-			}
-		case HVoid:
-			switch( tb.kind ) {
-			case HUI8, HUI16, HI32, HF32, HF64: return b;
-			case HVoid: return 0.;
-			default:
-			}
-		default:
 		}
-		throw "Can't add "+a+"("+ta+") and "+b+"("+tb+")";
+		throw "Can't add " + a + "(" + ta + ") and " + b + "(" + tb + ")";
 		return null;
 	}
-
 }

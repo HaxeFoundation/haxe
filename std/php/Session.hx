@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package php;
 
 import php.Boot;
@@ -28,10 +29,10 @@ import php.SuperGlobal.*;
 /**
 	Session consists of a way to preserve certain data across
 	subsequent accesses.
-*/
+ */
 class Session {
 	public static function getCacheLimiter() {
-		switch(session_cache_limiter()) {
+		switch (session_cache_limiter()) {
 			case "public":
 				return Public;
 			case "private":
@@ -44,9 +45,10 @@ class Session {
 		return null;
 	}
 
-	public static function setCacheLimiter(l : CacheLimiter) {
-		if(started) throw "You can't set the cache limiter while the session is already in use";
-		switch(l) {
+	public static function setCacheLimiter(l:CacheLimiter) {
+		if (started)
+			throw "You can't set the cache limiter while the session is already in use";
+		switch (l) {
 			case Public:
 				session_cache_limiter("public");
 			case Private:
@@ -58,93 +60,108 @@ class Session {
 		}
 	}
 
-	public static function getCacheExpire() : Int {
+	public static function getCacheExpire():Int {
 		return session_cache_expire();
 	}
 
-	public static function setCacheExpire(minutes : Int) {
-		if(started) throw "You can't set the cache expire time while the session is already in use";
+	public static function setCacheExpire(minutes:Int) {
+		if (started)
+			throw "You can't set the cache expire time while the session is already in use";
 		session_cache_expire(minutes);
 	}
 
-	public static function setName(name : String) {
-		if(started) throw "You can't set the name while the session is already in use";
+	public static function setName(name:String) {
+		if (started)
+			throw "You can't set the name while the session is already in use";
 		session_name(name);
 	}
 
-	public static function getName() : String {
+	public static function getName():String {
 		return session_name();
 	}
 
-	public static function getId() : String {
+	public static function getId():String {
 		return session_id();
 	}
 
-	public static function setId(id : String) {
-		if(started) throw "You can't set the session id while the session is already in use";
+	public static function setId(id:String) {
+		if (started)
+			throw "You can't set the session id while the session is already in use";
 		session_id(id);
 	}
 
-	public static function getSavePath() : String {
+	public static function getSavePath():String {
 		return session_save_path();
 	}
 
-	public static function setSavePath(path : String) {
-		if(started) throw "You can't set the save path while the session is already in use";
+	public static function setSavePath(path:String) {
+		if (started)
+			throw "You can't set the save path while the session is already in use";
 		session_save_path(path);
 	}
 
-	public static function getModule() : String {
+	public static function getModule():String {
 		return session_module_name();
 	}
 
-	public static function setModule(module : String) {
-		if(started) throw "You can't set the module while the session is already in use";
+	public static function setModule(module:String) {
+		if (started)
+			throw "You can't set the module while the session is already in use";
 		session_module_name(module);
 	}
 
-	public static function regenerateId(?deleteold : Bool) : Bool {
+	public static function regenerateId(?deleteold:Bool):Bool {
 		return session_regenerate_id(deleteold);
 	}
 
-	public static function get(name : String) : Dynamic {
+	public static function get(name:String):Dynamic {
 		start();
-		if(!isset(_SESSION[name])) return null;
+		if (!isset(_SESSION[name]))
+			return null;
 		return _SESSION[name];
 	}
 
-	public static function set(name : String, value : Dynamic) {
+	public static function set(name:String, value:Dynamic) {
 		start();
 		return _SESSION[name] = value;
 	}
 
-	public static function setCookieParams(?lifetime : Int, ?path : String, ?domain : String, ?secure : Bool, ?httponly : Bool) {
-		if(started) throw "You can't set the cookie params while the session is already in use";
+	public static function setCookieParams(?lifetime:Int, ?path:String, ?domain:String, ?secure:Bool, ?httponly:Bool) {
+		if (started)
+			throw "You can't set the cookie params while the session is already in use";
 		session_set_cookie_params(lifetime, path, domain, secure, httponly);
 	}
 
-	public static function getCookieParams() : { lifetime : Int, path : String, domain : String, secure : Bool, httponly : Bool} {
+	public static function getCookieParams():{
+		lifetime:Int,
+		path:String,
+		domain:String,
+		secure:Bool,
+		httponly:Bool
+	} {
 		return Boot.createAnon(session_get_cookie_params());
 	}
 
 	// TODO: completely untested
-	public static function setSaveHandler(open : String -> String -> Bool, close : Void -> Bool, read : String -> String, write : String -> String -> Bool, destroy, gc) : Bool {
+	public static function setSaveHandler(open:String->String->Bool, close:Void->Bool, read:String->String, write:String->String->Bool, destroy, gc):Bool {
 		return session_set_save_handler(open, close, read, write, destroy, gc);
 	}
 
-	public static function exists(name : String) {
+	public static function exists(name:String) {
 		start();
 		return array_key_exists(name, _SESSION);
 	}
 
-	public static function remove(name : String) {
+	public static function remove(name:String) {
 		start();
 		unset(_SESSION[name]);
 	}
 
-	public static var started(default, null) : Bool;
+	public static var started(default, null):Bool;
+
 	public static function start() {
-		if(started) return;
+		if (started)
+			return;
 		started = true;
 		session_start();
 	}

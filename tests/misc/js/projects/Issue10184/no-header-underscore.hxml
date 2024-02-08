@@ -1,0 +1,4 @@
+--main Main
+--js main.js
+-D source_header=
+--cmd haxe --run CheckSourceHeader ""

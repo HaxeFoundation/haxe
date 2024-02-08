@@ -1,24 +1,24 @@
-Main.hx:8: characters 9-15 : Warning : Usage of this typedef is deprecated
-Main.hx:9: characters 9-19 : Warning : Usage of this typedef is deprecated
-Main.hx:10: characters 9-14 : Warning : Usage of this typedef is deprecated
-Main.hx:18: characters 13-19 : Warning : This typedef is deprecated in favor of MyClass
-Main.hx:19: characters 9-19 : Warning : Usage of this typedef is deprecated
-Main.hx:20: characters 13-22 : Warning : This typedef is deprecated in favor of MyAbstract
-Main.hx:32: characters 9-13 : Warning : Usage of this enum is deprecated
-Main.hx:36: characters 9-14 : Warning : Usage of this enum field is deprecated
-Main.hx:4: characters 9-16 : Warning : Usage of this class is deprecated
-Main.hx:5: characters 9-20 : Warning : Usage of this class is deprecated
-Main.hx:6: characters 9-15 : Warning : Usage of this enum is deprecated
-Main.hx:15: characters 9-22 : Warning : Usage of this class is deprecated
-Main.hx:16: characters 9-20 : Warning : Usage of this enum is deprecated
-Main.hx:17: characters 9-29 : Warning : Usage of this class is deprecated
-Main.hx:18: characters 9-21 : Warning : Usage of this class is deprecated
-Main.hx:20: characters 9-28 : Warning : Usage of this class is deprecated
-Main.hx:23: characters 9-24 : Warning : Usage of this field is deprecated
-Main.hx:24: characters 9-23 : Warning : Usage of this field is deprecated
-Main.hx:25: characters 9-27 : Warning : Usage of this field is deprecated
-Main.hx:26: characters 17-35 : Warning : Usage of this field is deprecated
-Main.hx:27: characters 9-25 : Warning : Usage of this field is deprecated
-Main.hx:28: characters 17-33 : Warning : Usage of this field is deprecated
-Main.hx:31: characters 11-15 : Warning : Usage of this enum is deprecated
-Main.hx:35: characters 11-16 : Warning : Usage of this enum field is deprecated
+Main.hx:8: characters 9-15 : Warning : (WDeprecated) Usage of this typedef is deprecated
+Main.hx:9: characters 9-19 : Warning : (WDeprecated) Usage of this typedef is deprecated
+Main.hx:10: characters 9-14 : Warning : (WDeprecated) Usage of this typedef is deprecated
+Main.hx:18: characters 13-19 : Warning : (WDeprecated) This typedef is deprecated in favor of MyClass
+Main.hx:19: characters 9-14 : Warning : (WDeprecated) Usage of this typedef is deprecated
+Main.hx:20: characters 13-22 : Warning : (WDeprecated) This typedef is deprecated in favor of MyAbstract
+Main.hx:32: characters 9-13 : Warning : (WDeprecated) Usage of this enum is deprecated
+Main.hx:36: characters 9-14 : Warning : (WDeprecated) Usage of this enum field is deprecated
+Main.hx:4: characters 9-16 : Warning : (WDeprecated) Usage of this class is deprecated
+Main.hx:5: characters 9-20 : Warning : (WDeprecated) Usage of this class is deprecated
+Main.hx:6: characters 9-15 : Warning : (WDeprecated) Usage of this enum is deprecated
+Main.hx:15: characters 9-22 : Warning : (WDeprecated) Usage of this class is deprecated
+Main.hx:16: characters 9-15 : Warning : (WDeprecated) Usage of this enum is deprecated
+Main.hx:17: characters 9-29 : Warning : (WDeprecated) Usage of this class is deprecated
+Main.hx:18: characters 9-21 : Warning : (WDeprecated) Usage of this class is deprecated
+Main.hx:20: characters 9-28 : Warning : (WDeprecated) Usage of this class is deprecated
+Main.hx:23: characters 9-24 : Warning : (WDeprecated) Usage of this field is deprecated
+Main.hx:24: characters 9-23 : Warning : (WDeprecated) Usage of this field is deprecated
+Main.hx:25: characters 9-27 : Warning : (WDeprecated) Usage of this field is deprecated
+Main.hx:26: characters 17-35 : Warning : (WDeprecated) Usage of this field is deprecated
+Main.hx:27: characters 9-25 : Warning : (WDeprecated) Usage of this field is deprecated
+Main.hx:28: characters 17-33 : Warning : (WDeprecated) Usage of this field is deprecated
+Main.hx:31: characters 11-15 : Warning : (WDeprecated) Usage of this enum is deprecated
+Main.hx:35: characters 11-16 : Warning : (WDeprecated) Usage of this enum field is deprecated

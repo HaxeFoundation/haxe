@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 import php.*;
@@ -27,20 +28,24 @@ private class PhpVectorData<T> {
 	public var length:Int;
 	public var data:NativeIndexedArray<T>;
 
-	public inline function new(length:Int) {
+	public inline function new(length:Int, data:NativeIndexedArray<T>) {
 		this.length = length;
-		data = new NativeIndexedArray();
+		this.data = data;
 	}
 }
 
 private typedef VectorData<T> = PhpVectorData<T>;
 
+@:coreApi
 abstract Vector<T>(VectorData<T>) {
-
 	public var length(get, never):Int;
 
-	public inline function new(length:Int) {
-		this = new VectorData(length);
+	extern overload public inline function new(length:Int) {
+		this = new VectorData(length, new NativeIndexedArray());
+	}
+
+	extern overload public inline function new(length:Int, defaultValue:T):Vector<T> {
+		this = new VectorData(length, Global.array_fill(0, length, defaultValue));
 	}
 
 	@:op([]) public inline function get(index:Int):T {
@@ -54,6 +59,9 @@ abstract Vector<T>(VectorData<T>) {
 	inline function get_length():Int {
 		return this.length;
 	}
+
+	public inline function fill(value:T):Void
+		this.data = Global.array_fill(0, length, value);
 
 	public static function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void {
 		if (src == dest) {
@@ -84,7 +92,7 @@ abstract Vector<T>(VectorData<T>) {
 	public function toArray():Array<T> {
 		var result = [];
 		@:privateAccess result.length = length;
-		for(i in 0...length) {
+		for (i in 0...length) {
 			@:privateAccess result.arr.push(get(i));
 		}
 		return result;
@@ -99,8 +107,7 @@ abstract Vector<T>(VectorData<T>) {
 	}
 
 	static public inline function fromArrayCopy<T>(array:Array<T>):Vector<T> {
-		var vectorData = new VectorData(array.length);
-		vectorData.data = @:privateAccess array.arr;
+		var vectorData = new VectorData(array.length, @:privateAccess array.arr);
 		return cast vectorData;
 	}
 
@@ -109,11 +116,11 @@ abstract Vector<T>(VectorData<T>) {
 	}
 
 	public function join<T>(sep:String):String {
-		if(this.length == 0) {
+		if (this.length == 0) {
 			return '';
 		}
 		var result = Std.string(get(0));
-		for(i in 1...this.length) {
+		for (i in 1...this.length) {
 			result = Syntax.concat(result, Syntax.concat(sep, Std.string(get(i))));
 		}
 		return result;
@@ -127,7 +134,7 @@ abstract Vector<T>(VectorData<T>) {
 		return result;
 	}
 
-	public inline function sort<T>(f:T->T->Int):Void {
+	public inline function sort(f:T->T->Int):Void {
 		Global.usort(this.data, f);
 	}
 }

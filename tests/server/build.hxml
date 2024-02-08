@@ -1,6 +1,14 @@
 -p src
+-cp ../display/src-shared
 --main Main
 -js test.js
 -lib hxnodejs
 -lib utest
 -lib haxeserver
+-D analyzer-optimize
+-D UTEST-PRINT-TESTS
+#-D UTEST_PATTERN=ServerTests
+# or set UTEST_PATTERN environment variable
+
+#Temporary. To find out what's wrong with random CI failures
+#--macro addMetadata('@:build(utils.macro.DebugFailures.patchAssert())', 'utest.Assert')

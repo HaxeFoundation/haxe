@@ -1,0 +1,2 @@
+Main.hx:8: characters 1-13 : @:structInit is not allowed on interfaces
+Main.hx:3: characters 15-26 : Foo does not have a constructor

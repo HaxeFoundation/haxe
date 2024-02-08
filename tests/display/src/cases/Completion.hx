@@ -37,6 +37,8 @@ class Completion extends DisplayTestCase {
 	**/
 	@:funcCode function testHaxeUnitPort4() {
 		eq(true, hasPath(fields(pos(1)), "Expr"));
+		BaseDisplayTestContext.runHaxe(['haxe.macro.Expr']);
+		eq(true, hasPath(fields(pos(1)), "Expr"));
 	}
 
 	/**
@@ -44,6 +46,17 @@ class Completion extends DisplayTestCase {
 	**/
 	@:funcCode function testHaxeUnitPort5() {
 		eq(true, hasPath(fields(pos(1)), "ExprDef"));
+		BaseDisplayTestContext.runHaxe(['haxe.macro.Expr']);
+		eq(true, hasPath(fields(pos(1)), "ExprDef"));
+	}
+
+	/**
+		haxe.Json.{-1-}
+	**/
+	@:funcCode function testStaticField() {
+		eq(true, hasPath(fields(pos(1)), "stringify"));
+		BaseDisplayTestContext.runHaxe(['haxe.Json']);
+		eq(true, hasPath(fields(pos(1)), "stringify"));
 	}
 
 	/**

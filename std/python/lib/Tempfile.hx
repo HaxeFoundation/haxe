@@ -19,11 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 @:pythonImport("tempfile")
 extern class Tempfile {
-
-	public static function gettempdir():String;
-
+	static function gettempdir():String;
 }

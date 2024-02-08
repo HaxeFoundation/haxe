@@ -19,29 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.net;
 
 import haxe.io.Error;
-
-extern private class NativeSocket {
-	function new():Void;
-	function accept():NativeSocket;
-	function bind(host:Int, port:Int):Void;
-	function close():Void;
-	function connect(host:Int, port:Int):Void;
-	function host():{ip:Int, port:Int};
-	function listen(connections:Int):Void;
-	function peer():{ip:Int, port:Int};
-	function receive(buf:haxe.io.Bytes, pos:Int, len:Int):Int;
-	function receiveChar():Int;
-	function send(buf:haxe.io.Bytes, pos:Int, len:Int):Int;
-	function sendChar(char:Int):Void;
-	function setFastSend(b:Bool):Void;
-	function setTimeout(timeout:Float):Void;
-	function shutdown(read:Bool, write:Bool):Void;
-
-	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>, ?timeout:Float):{ read: Array<Socket>,write: Array<Socket>,others: Array<Socket> };
-}
+import eval.vm.NativeSocket;
 
 private class SocketOutput extends haxe.io.Output {
 	var socket:NativeSocket;
@@ -53,10 +35,10 @@ private class SocketOutput extends haxe.io.Output {
 	public override function writeByte(c:Int) {
 		try {
 			socket.sendChar(c);
-		} catch( e : Dynamic ) {
-			if( e == "Blocking" )
+		} catch (e:Dynamic) {
+			if (e == "Blocking")
 				throw Blocked;
-			else if ( e == "EOF" )
+			else if (e == "EOF")
 				throw new haxe.io.Eof();
 			else
 				throw Custom(e);
@@ -66,8 +48,8 @@ private class SocketOutput extends haxe.io.Output {
 	public override function writeBytes(buf:haxe.io.Bytes, pos:Int, len:Int) {
 		return try {
 			socket.send(buf, pos, len);
-		} catch( e : Dynamic ) {
-			if( e == "Blocking" )
+		} catch (e:Dynamic) {
+			if (e == "Blocking")
 				throw Blocked;
 			else
 				throw Custom(e);
@@ -90,8 +72,8 @@ private class SocketInput extends haxe.io.Input {
 	public override function readByte() {
 		return try {
 			socket.receiveChar();
-		} catch( e : Dynamic ) {
-			if( e == "Blocking" )
+		} catch (e:Dynamic) {
+			if (e == "Blocking")
 				throw Blocked;
 			else
 				throw new haxe.io.Eof();
@@ -102,13 +84,13 @@ private class SocketInput extends haxe.io.Input {
 		var r;
 		try {
 			r = socket.receive(buf, pos, len);
-		} catch( e : Dynamic ) {
-			if( e == "Blocking" )
+		} catch (e:Dynamic) {
+			if (e == "Blocking")
 				throw Blocked;
 			else
 				throw Custom(e);
 		}
-		if( r == 0 )
+		if (r == 0)
 			throw new haxe.io.Eof();
 		return r;
 	}
@@ -121,8 +103,8 @@ private class SocketInput extends haxe.io.Input {
 
 @:coreApi
 class Socket {
-	public var input(default,null):haxe.io.Input;
-	public var output(default,null):haxe.io.Output;
+	public var input(default, null):haxe.io.Input;
+	public var output(default, null):haxe.io.Output;
 	public var custom:Dynamic;
 
 	@:ifFeature("sys.net.Socket.select") var socket:NativeSocket;
@@ -177,7 +159,7 @@ class Socket {
 		var info = socket.peer();
 		var host:Host = Type.createEmptyInstance(Host);
 		host.init(info.ip);
-		return { host: host, port: info.port };
+		return {host: host, port: info.port};
 	}
 
 	@:access(sys.net.Host.init)
@@ -185,7 +167,7 @@ class Socket {
 		var info = socket.host();
 		var host:Host = Type.createEmptyInstance(Host);
 		host.init(info.ip);
-		return { host: host, port: info.port };
+		return {host: host, port: info.port};
 	}
 
 	public function setTimeout(timeout:Float):Void {
@@ -196,13 +178,14 @@ class Socket {
 		select([this], null, null, -1);
 	}
 
-	public function setBlocking(b:Bool):Void { } // TODO: Don't know how to implement this...
+	public function setBlocking(b:Bool):Void {} // TODO: Don't know how to implement this...
 
 	public function setFastSend(b:Bool):Void {
 		socket.setFastSend(b);
 	}
 
-	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>, ?timeout:Float):{ read: Array<Socket>,write: Array<Socket>,others: Array<Socket> } {
+	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
+			?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>} {
 		return NativeSocket.select(read, write, others, timeout);
 	}
 }

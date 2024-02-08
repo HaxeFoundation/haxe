@@ -1,0 +1,3 @@
+Main1.hx:16: characters 11-14 : Warning : Fmt<eval.A, eval.B>
+Main1.hx:18: characters 11-12 : Warning : String -> eval.A
+Main1.hx:15: lines 15-19 : eval.A should be eval.B

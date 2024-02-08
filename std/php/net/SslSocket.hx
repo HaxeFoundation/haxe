@@ -19,13 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package php.net;
 
 class SslSocket extends php.net.Socket {
-
-	public function new() : Void {
+	public function new():Void {
 		super();
 		protocol = "ssl";
 	}
-
 }

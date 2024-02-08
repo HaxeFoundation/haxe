@@ -19,136 +19,134 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 @:buildXml('<include name="${HXCPP}/src/hx/libs/regexp/Build.xml"/>')
 @:coreApi class EReg {
+	var r:Dynamic;
+	var last:String;
+	var global:Bool;
 
-	var r : Dynamic;
-	var last : String;
-	var global : Bool;
-
-	public function new( r : String, opt : String ) : Void {
-			var a = opt.split("g");
-			global = a.length > 1;
-			if( global )
-				opt = a.join("");
-			this.r = _hx_regexp_new_options(r, opt);
+	public function new(r:String, opt:String):Void {
+		var a = opt.split("g");
+		global = a.length > 1;
+		if (global)
+			opt = a.join("");
+		this.r = _hx_regexp_new_options(r, opt);
 	}
 
-	public function match( s : String ) : Bool {
-			var p = _hx_regexp_match(r,s,0,s.length);
-			if( p )
-				last = s;
-			else
-				last = null;
-			return p;
+	public function match(s:String):Bool {
+		var p = _hx_regexp_match(r, s, 0, s.length);
+		if (p)
+			last = s;
+		else
+			last = null;
+		return p;
 	}
 
-	public function matched( n : Int ) : String {
-			var m = _hx_regexp_matched(r,n);
-			return m;
+	public function matched(n:Int):String {
+		var m = _hx_regexp_matched(r, n);
+		return m;
 	}
 
-	public function matchedLeft() : String {
-			var p = _hx_regexp_matched_pos(r,0);
-			return last.substr(0,p.pos);
+	public function matchedLeft():String {
+		var p = _hx_regexp_matched_pos(r, 0);
+		return last.substr(0, p.pos);
 	}
 
-	public function matchedRight() : String {
-			var p = _hx_regexp_matched_pos(r,0);
-			var sz = p.pos+p.len;
-			return last.substr(sz,last.length-sz);
+	public function matchedRight():String {
+		var p = _hx_regexp_matched_pos(r, 0);
+		var sz = p.pos + p.len;
+		return last.substr(sz, last.length - sz);
 	}
 
-	public function matchedPos() : { pos : Int, len : Int } {
-			return _hx_regexp_matched_pos(r,0);
+	public function matchedPos():{pos:Int, len:Int} {
+		return _hx_regexp_matched_pos(r, 0);
 	}
 
-	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-			var p = _hx_regexp_match(r, s, pos, len < 0 ? s.length - pos : len);
-			if (p)
-				last = s;
-			else
-				last = null;
-			return p;
+	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
+		var p = _hx_regexp_match(r, s, pos, len < 0 ? s.length - pos : len);
+		if (p)
+			last = s;
+		else
+			last = null;
+		return p;
 	}
 
-	public function split( s : String ) : Array<String> {
-			var pos = 0;
-			var len = s.length;
-			var a = new Array();
-			var first = true;
-			do {
-				if( !_hx_regexp_match(r,s,pos,len) )
+	public function split(s:String):Array<String> {
+		var pos = 0;
+		var len = s.length;
+		var a = new Array();
+		var first = true;
+		do {
+			if (!_hx_regexp_match(r, s, pos, len))
+				break;
+			var p = _hx_regexp_matched_pos(r, 0);
+			if (p.len == 0 && !first) {
+				if (p.pos == s.length)
 					break;
-				var p = _hx_regexp_matched_pos(r,0);
-				if( p.len == 0 && !first ) {
-					if( p.pos == s.length )
-						break;
-					p.pos += 1;
-				}
-				a.push(s.substr(pos,p.pos - pos));
-				var tot = p.pos + p.len - pos;
-				pos += tot;
-				len -= tot;
-				first = false;
-			} while( global );
-			a.push(s.substr(pos,len));
-			return a;
+				p.pos += 1;
+			}
+			a.push(s.substr(pos, p.pos - pos));
+			var tot = p.pos + p.len - pos;
+			pos += tot;
+			len -= tot;
+			first = false;
+		} while (global);
+		a.push(s.substr(pos, len));
+		return a;
 	}
 
-	public function replace( s : String, by : String ) : String {
-			var b = new StringBuf();
-			var pos = 0;
-			var len = s.length;
-			var a = by.split("$");
-			var first = true;
-			do {
-				if( !_hx_regexp_match(r,s,pos,len) )
+	public function replace(s:String, by:String):String {
+		var b = new StringBuf();
+		var pos = 0;
+		var len = s.length;
+		var a = by.split("$");
+		var first = true;
+		do {
+			if (!_hx_regexp_match(r, s, pos, len))
+				break;
+			var p = _hx_regexp_matched_pos(r, 0);
+			if (p.len == 0 && !first) {
+				if (p.pos == s.length)
 					break;
-				var p = _hx_regexp_matched_pos(r,0);
-				if( p.len == 0 && !first ) {
-					if( p.pos == s.length )
-						break;
-					p.pos += 1;
-				}
-				b.addSub(s,pos,p.pos-pos);
-				if( a.length > 0 )
-					b.add(a[0]);
-				var i = 1;
-				while( i < a.length ) {
-					var k = a[i];
-					var c = k.charCodeAt(0);
-					// 1...9
-					if( c >= 49 && c <= 57 ) {
-						var p = try _hx_regexp_matched_pos(r,Std.int(c)-48) catch( e : String ) null;
-						if( p == null ){
-							b.add("$");
-							b.add(k);
-						}else{
-						b.addSub(s,p.pos,p.len);
-						b.addSub(k,1,k.length - 1);
-						}
-					} else if( c == null ) {
+				p.pos += 1;
+			}
+			b.addSub(s, pos, p.pos - pos);
+			if (a.length > 0)
+				b.add(a[0]);
+			var i = 1;
+			while (i < a.length) {
+				var k = a[i];
+				var c = k.charCodeAt(0);
+				// 1...9
+				if (c >= 49 && c <= 57) {
+					var p = try _hx_regexp_matched_pos(r, Std.int(c) - 48) catch (e:String) null;
+					if (p == null) {
 						b.add("$");
-						i++;
-						var k2 = a[i];
-						if( k2 != null && k2.length > 0 )
-							b.add(k2);
-					} else
-						b.add("$"+k);
+						b.add(k);
+					} else {
+						b.addSub(s, p.pos, p.len);
+						b.addSub(k, 1, k.length - 1);
+					}
+				} else if (c == null) {
+					b.add("$");
 					i++;
-				}
-				var tot = p.pos + p.len - pos;
-				pos += tot;
-				len -= tot;
-				first = false;
-			} while( global );
-			b.addSub(s,pos,len);
-			return b.toString();
+					var k2 = a[i];
+					if (k2 != null && k2.length > 0)
+						b.add(k2);
+				} else
+					b.add("$" + k);
+				i++;
+			}
+			var tot = p.pos + p.len - pos;
+			pos += tot;
+			len -= tot;
+			first = false;
+		} while (global);
+		b.addSub(s, pos, len);
+		return b.toString();
 	}
 
-	public function map( s : String, f : EReg -> String ) : String {
+	public function map(s:String, f:EReg->String):String {
 		var offset = 0;
 		var buf = new StringBuf();
 		do {
@@ -158,14 +156,13 @@
 				buf.add(s.substr(offset));
 				break;
 			}
-			var p = _hx_regexp_matched_pos(r,0);
+			var p = _hx_regexp_matched_pos(r, 0);
 			buf.add(s.substr(offset, p.pos - offset));
 			buf.add(f(this));
 			if (p.len == 0) {
 				buf.add(s.substr(p.pos, 1));
 				offset = p.pos + 1;
-			}
-			else
+			} else
 				offset = p.pos + p.len;
 		} while (global);
 		if (!global && offset > 0 && offset < s.length)
@@ -173,22 +170,24 @@
 		return buf.toString();
 	}
 
-	public static function escape( s : String ) : String {
+	public static function escape(s:String):String {
 		return escapeRegExpRe.map(s, function(r) return "\\" + r.matched(0));
 	}
+
 	static var escapeRegExpRe = ~/[\[\]{}()*+?.\\\^$|]/g;
 
-   function toString():String return 'EReg($r)';
+	function toString():String
+		return 'EReg($r)';
 
-   @:native("_hx_regexp_new_options")
-	extern static function _hx_regexp_new_options(s:String, options:String) : Dynamic;
+	@:native("_hx_regexp_new_options")
+	extern static function _hx_regexp_new_options(s:String, options:String):Dynamic;
 
-   @:native("_hx_regexp_match")
-	extern static function _hx_regexp_match(handler: Dynamic, string:String, pos:Int, len:Int) : Bool;
+	@:native("_hx_regexp_match")
+	extern static function _hx_regexp_match(handler:Dynamic, string:String, pos:Int, len:Int):Bool;
 
-   @:native("_hx_regexp_matched")
-	extern static function _hx_regexp_matched(handle:Dynamic, pos:Int) : String;
+	@:native("_hx_regexp_matched")
+	extern static function _hx_regexp_matched(handle:Dynamic, pos:Int):String;
 
-   @:native("_hx_regexp_matched_pos")
-	extern static function _hx_regexp_matched_pos(handle:Dynamic, match:Int) : {pos:Int, len:Int};
+	@:native("_hx_regexp_matched_pos")
+	extern static function _hx_regexp_matched_pos(handle:Dynamic, match:Int):{pos:Int, len:Int};
 }

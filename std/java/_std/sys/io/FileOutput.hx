@@ -19,7 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
+
 import haxe.io.Bytes;
 import haxe.io.Eof;
 import haxe.io.Output;
@@ -28,81 +30,64 @@ import java.io.IOException;
 
 class FileOutput extends Output {
 	var f:java.io.RandomAccessFile;
-	public function new(f)
-	{
+
+	function new(f) {
 		this.f = f;
 	}
 
-	override public function close()
-	{
-		try f.close() catch(e:Dynamic) throw e;
+	override public function close() {
+		try
+			f.close()
+		catch (e:Dynamic)
+			throw e;
 	}
 
-	override public function writeByte(c:Int):Void
-	{
-		try
-		{
+	override public function writeByte(c:Int):Void {
+		try {
 			this.f.write(c);
-		}
-
-		catch (e:IOException) {
+		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}
 
-	override public function write(s:Bytes):Void
-	{
-		try
-		{
+	override public function write(s:Bytes):Void {
+		try {
 			this.f.write(s.getData());
-		}
-
-		catch (e:IOException) {
+		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}
 
-	override public function writeBytes(s:Bytes, pos:Int, len:Int):Int
-	{
-		try
-		{
+	override public function writeBytes(s:Bytes, pos:Int, len:Int):Int {
+		try {
 			this.f.write(s.getData(), pos, len);
 			return len;
-		}
-
-		catch (e:IOException) {
+		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}
 
-	public function seek( p : Int, pos : FileSeek ) : Void
-	{
-		try
-		{
-			switch(pos)
-			{
-				case SeekBegin: f.seek(cast p);
-				case SeekCur: f.seek(haxe.Int64.add(f.getFilePointer(), cast(p, haxe.Int64)));
-				case SeekEnd: f.seek(haxe.Int64.add(f.length(), cast p));
+	public function seek(p:Int, pos:FileSeek):Void {
+		try {
+			switch (pos) {
+				case SeekBegin:
+					f.seek(cast p);
+				case SeekCur:
+					f.seek(haxe.Int64.add(f.getFilePointer(), cast(p, haxe.Int64)));
+				case SeekEnd:
+					f.seek(haxe.Int64.add(f.length(), cast p));
 			}
-		}
-		catch (e:EOFException) {
+		} catch (e:EOFException) {
 			throw new Eof();
-		}
-
-		catch (e:IOException) {
+		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}
 
-	public function tell() : Int
-	{
-		try
-		{
+	public function tell():Int {
+		try {
 			return cast f.getFilePointer();
-		}
-
-		catch (e:IOException) {
+		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}

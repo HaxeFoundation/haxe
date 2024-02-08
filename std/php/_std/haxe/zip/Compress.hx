@@ -19,21 +19,21 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.zip;
 
 @:coreApi
 class Compress {
+	private var level:Int;
 
-	private var level : Int;
-
-	public function new( level : Int ) : Void {
+	public function new(level:Int):Void {
 		this.level = level;
 	}
 
-	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
-		var input = src.sub( srcPos , src.length - srcPos );
-		var data = run( input , level );
-		dst.blit( dstPos , data , 0 , data.length );
+	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {
+		var input = src.sub(srcPos, src.length - srcPos);
+		var data = run(input, level);
+		dst.blit(dstPos, data, 0, data.length);
 
 		return {
 			done: true,
@@ -42,13 +42,11 @@ class Compress {
 		};
 	}
 
-	public function setFlushMode( f : FlushMode ) : Void {
-	}
+	public function setFlushMode(f:FlushMode):Void {}
 
-	public function close() : Void {
-	}
+	public function close():Void {}
 
-	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes {
+	public static function run(s:haxe.io.Bytes, level:Int):haxe.io.Bytes {
 		var c = php.Global.gzcompress(s.toString(), level);
 		return haxe.io.Bytes.ofString(c);
 	}

@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib.webassembly;
 
 import haxe.Constraints.Function;
@@ -52,7 +53,7 @@ extern class Table {
 	function grow(number:Int):Int;
 
 	/**
-		Sets an element stored at a given index to a given value. 
+		Sets an element stored at a given index to a given value.
 	**/
 	function set(index:Int, value:Function):Void;
 }
@@ -70,7 +71,7 @@ typedef TableDescriptor = {
 	var initial:Int;
 
 	/**
-		The maximum number of elements the WebAssembly Table is allowed to grow to. 
+		The maximum number of elements the WebAssembly Table is allowed to grow to.
 	**/
 	var ?maximum:Int;
 }

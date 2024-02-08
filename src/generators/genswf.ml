@@ -18,12 +18,13 @@
 *)
 open Swf
 open As3hl
-open Genswf9
 open ExtString
 open Type
+open Error
 open Common
 open Ast
 open Globals
+open NativeLibraries
 
 let tag ?(ext=false) d = {
 	tid = 0;
@@ -83,11 +84,11 @@ let build_dependencies t =
 		| TAnon a ->
 			PMap.iter (fun _ f -> add_type_rec (t::l) f.cf_type) a.a_fields
 		| TDynamic t2 ->
-			add_type_rec (t::l) t2;
+			add_type_rec (t::l) (match t2 with None -> t_dynamic | Some t2 -> t2);
 		| TLazy f ->
 			add_type_rec l (lazy_type f)
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| None -> ()
 			| Some t -> add_type_rec l t)
 		| TType (tt,pl) ->
@@ -132,7 +133,7 @@ let build_dependencies t =
 		List.iter add_type pl;
 	in
 	(match t with
-	| TClassDecl c when not c.cl_extern ->
+	| TClassDecl c when not (has_class_flag c CExtern) ->
 		List.iter add_field c.cl_ordered_fields;
 		List.iter add_field c.cl_ordered_statics;
 		(match c.cl_constructor with
@@ -141,17 +142,15 @@ let build_dependencies t =
 			add_field f;
 			if c.cl_path <> (["flash"],"Boot") then add_path (["flash"],"Boot") DKExpr;
 		);
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e -> add_expr e);
 		(match c.cl_super with
 		| None -> add_path ([],"Object") DKInherit;
 		| Some x -> add_inherit x);
-		List.iter (fun (_,t) ->
+		List.iter (fun tp ->
 			(* add type-parameters constraints dependencies *)
-			match follow t with
-			| TInst (c,_) -> List.iter add_inherit c.cl_implements
-			| _ -> ()
+			List.iter add_inherit tp.ttp_class.cl_implements
 		) c.cl_params;
 		List.iter add_inherit c.cl_implements;
 	| TEnumDecl e when not e.e_extern ->
@@ -223,8 +222,6 @@ let detect_format data p =
 	| _ ->
 		abort "Unknown file format" p
 
-open TTFData
-
 let build_swf9 com file swc =
 	let boot_name = if swc <> None || Common.defined com Define.HaxeBoot then "haxe" else "boot_" ^ (String.sub (Digest.to_hex (Digest.string (Filename.basename file))) 0 4) in
 	let code = Genswf9.generate com boot_name in
@@ -270,47 +267,7 @@ let build_swf9 com file swc =
 		| TClassDecl c ->
 			let rec loop = function
 				| [] -> acc
-				| (Meta.Font,(EConst (String file),p) :: args,_) :: l ->
-					let file = try Common.find_file com file with Not_found -> file in
-					let ch = try open_in_bin file with _ -> abort "File not found" p in
-					let ttf = try TTFParser.parse ch with e -> abort ("Error while parsing font " ^ file ^ " : " ^ Printexc.to_string e) p in
-					close_in ch;
-					let get_string e = match fst e with
-						| EConst (String s) -> Some s
-						| _ -> raise Not_found
-					in
-					let ttf_config = {
-						ttfc_range_str = "";
-						ttfc_font_name = None;
-					} in
-					begin match args with
-						| (EConst (String str),_) :: _ -> ttf_config.ttfc_range_str <- str;
-						| _ -> ()
-					end;
-					begin match args with
-						| _ :: [e] ->
-							begin match fst e with
-								| EObjectDecl fl ->
-									begin try ttf_config.ttfc_font_name <- get_string (Expr.field_assoc "fontName" fl)
-									with Not_found -> () end
-								| _ ->
-									()
-							end
-						| _ ->
-							()
-					end;
-					let ttf_swf = TTFSwfWriter.to_swf ttf ttf_config in
-					let ch = IO.output_string () in
-					let b = IO.output_bits ch in
-					TTFSwfWriter.write_font2 ch b ttf_swf;
-					let data = IO.close_out ch in
-					incr cid;
-					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
-					tag (TFont3 {
-						cd_id = !cid;
-						cd_data = data;
-					}) :: loop l
-				| (Meta.Bitmap,[EConst (String file),p],_) :: l ->
+				| (Meta.Bitmap,[EConst (String(file,_)),p],_) :: l ->
 					let data = load_file_data file p in
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
@@ -329,7 +286,7 @@ let build_swf9 com file swc =
 								(match h.Png.png_color with
 								| Png.ClTrueColor (Png.TBits8,Png.NoAlpha) ->
 									if h.Png.png_width * h.Png.png_height * 4 > Sys.max_string_length then begin
-										com.warning "Flash will loose some color information for this file, add alpha channel to preserve it" p;
+										com.warning WGenerator [] "Flash will loose some color information for this file, add alpha channel to preserve it" p;
 										raise Exit;
 									end;
 									let data = Extc.unzip (Png.data png) in
@@ -346,7 +303,7 @@ let build_swf9 com file swc =
 						| _ -> raw()
 					) in
 					t :: loop l
-				| (Meta.Bitmap,[EConst (String dfile),p1;EConst (String afile),p2],_) :: l ->
+				| (Meta.Bitmap,[EConst (String(dfile,_)),p1;EConst (String(afile,_)),p2],_) :: l ->
 					let ddata = load_file_data dfile p1 in
 					let adata = load_file_data afile p2 in
 					(match detect_format ddata p1 with
@@ -371,12 +328,12 @@ let build_swf9 com file swc =
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
 					tag (TBitsJPEG3 { bd_id = !cid; bd_data = ddata; bd_table = None; bd_alpha = Some amask; bd_deblock = Some 0 }) :: loop l
-				| (Meta.File,[EConst (String file),p],_) :: l ->
+				| (Meta.File,[EConst (String(file,_)),p],_) :: l ->
 					let data = load_file_data file p in
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
 					tag (TBinaryData (!cid,data)) :: loop l
-				| (Meta.Sound,[EConst (String file),p],_) :: l ->
+				| (Meta.Sound,[EConst (String(file,_)),p],_) :: l ->
 					let data = load_file_data file p in
 					let make_flags fmt mono freq bits =
 						let fbits = (match freq with 5512 when fmt <> 2 -> 0 | 11025 -> 1 | 22050 -> 2 | 44100 -> 3 | _ -> failwith ("Unsupported frequency " ^ string_of_int freq)) in
@@ -557,8 +514,8 @@ let generate swf_header com =
 	(* list exports *)
 	let exports = Hashtbl.create 0 in
 	let toremove = ref [] in
-	List.iter (fun (file,lib,_) ->
-		let _, tags = lib() in
+	List.iter (fun swf_lib ->
+		let _, tags = swf_lib#get_data in
 		List.iter (fun t ->
 			match t.tdata with
 			| TExport l -> List.iter (fun e -> Hashtbl.add exports e.exp_name ()) l
@@ -566,7 +523,7 @@ let generate swf_header com =
 				List.iter (fun e ->
 					if e.f9_cid <> None then List.iter (fun t ->
 						let extern = (match t with
-							| TClassDecl c -> c.cl_extern
+							| TClassDecl c -> (has_class_flag c CExtern)
 							| TEnumDecl e -> e.e_extern
 							| TAbstractDecl a -> false
 							| TTypeDecl t -> false
@@ -584,7 +541,7 @@ let generate swf_header com =
 				) el
 			| _ -> ()
 		) tags;
-	) com.swf_libs;
+	) com.native_libs.swf_libs;
 	(* build haxe swf *)
 	let tags = build_swf9 com file swc in
 	let header, bg = (match swf_header with None -> default_header com | Some h -> convert_header com h) in
@@ -625,11 +582,11 @@ let generate swf_header com =
 	let swf = header, fattr @ meta_data @ bg :: scene :: debug @ swf_script_limits @ tags @ [tag TShowFrame] in
 	(* merge swf libraries *)
 	let priority = ref (swf_header = None) in
-	let swf = List.fold_left (fun swf (file,lib,cl) ->
-		let swf = merge com file !priority swf (SwfLoader.remove_classes toremove lib cl) in
+	let swf = List.fold_left (fun swf swf_lib ->
+		let swf = merge com file !priority swf (SwfLoader.remove_classes toremove swf_lib#get_data swf_lib#list_modules) in
 		priority := false;
 		swf
-	) swf com.swf_libs in
+	) swf com.native_libs.swf_libs in
 	let swf = match swf with
 	| header,tags when Common.defined com Define.SwfPreloaderFrame ->
 		let rec loop l =

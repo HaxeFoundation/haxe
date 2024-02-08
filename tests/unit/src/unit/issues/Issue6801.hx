@@ -4,7 +4,6 @@ import haxe.Json;
 import haxe.format.JsonPrinter;
 
 class Issue6801 extends unit.Test {
-#if !as3
 	function test() {
 		var o = new Child();
         var json = haxe.format.JsonPrinter.print(o);
@@ -17,19 +16,18 @@ class Issue6801 extends unit.Test {
         eq(expected.p, actual.p);
         eq(expected.p2, actual.p2);
 	}
-#end
 }
 
 @:keep
 private class Parent {
-    public var p:Int = 1;    
+    public var p:Int = 1;
     public function new() {}
 }
 
 @:keep
 private class Child extends Parent{
     var c:String = 'hello';
-    
+
     public var prop(get,set):Int;
     function get_prop() return 0;
     function set_prop(v) return v;

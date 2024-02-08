@@ -19,11 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.macro;
 
 /**
 	This type is meant to be used to generate custom types using a macro.
 	For instance by doing MacroType<[my.Class.myMacro(55)]>
 **/
-extern class MacroType<Const> {
-}
+extern class MacroType<Const> {}

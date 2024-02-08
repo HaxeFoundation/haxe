@@ -1,0 +1,1 @@
+Main.hx:18: characters 3-8 : Abstract 'this' value can only be modified inside an inline function. 'set_a' modifies 'this'

@@ -16,7 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open EvalValue
 
 let vstring s = VString s
@@ -34,8 +34,15 @@ let create_with_length s length = {
 	soffsets = [];
 }
 
+let empty_string = create_ascii ""
+
+let v_empty_string = VString empty_string
+
+let create_unknown_vstring s =
+	create_with_length s (try UTF8.length s with _ -> String.length s)
+
 let create_unknown s =
-	vstring (create_with_length s (try UTF8.length s with _ -> String.length s))
+	vstring (create_unknown_vstring s)
 
 let concat s1 s2 =
 	create_with_length (s1.sstring ^ s2.sstring) (s1.slength + s2.slength)
@@ -124,7 +131,7 @@ let get_offset' s c_index =
 		in
 		b_offset,r
 	| _ ->
-		assert false
+		Globals.die "" __LOC__
 
 let get_offset s c_index =
 	let b_offset,(cr_index,br_offset) = get_offset' s c_index in
@@ -184,7 +191,7 @@ let char_at s c_index =
 	char
 
 let string_of_char_code i =
-	UTF8.init 1 (fun _ ->  UChar.uchar_of_int i)
+	UTF8.init 1 (fun _ ->  UCharExt.uchar_of_int i)
 
 let from_char_code i =
 	create_with_length (string_of_char_code i) 1
@@ -239,11 +246,11 @@ let case_map this upper =
 	let buf = UTF8.Buf.create 0 in
 	let a,m = if upper then EvalBytes.Unicase._UPPER,1022 else EvalBytes.Unicase._LOWER,1021 in
 	UTF8.iter (fun uc ->
-		let c = UChar.int_of_uchar uc in
+		let c = UCharExt.int_of_uchar uc in
 		let up = c lsr 6 in
 		let uc = if up < m then begin
 			let c = a.(up).(c land ((1 lsl 6) - 1)) in
-			if c <> 0 then UChar.uchar_of_int c
+			if c <> 0 then UCharExt.uchar_of_int c
 			else uc
 		end else
 			uc

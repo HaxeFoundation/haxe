@@ -21,7 +21,8 @@
  */
 
 package lua.lib.luasocket.socket;
+
 @:multiReturn extern class SelectResult {
-	var read : Table<Int, Socket>;
-	var write : Table<Int, Socket>;
+	var read:Table<Int, Socket>;
+	var write:Table<Int, Socket>;
 }

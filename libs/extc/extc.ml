@@ -51,29 +51,6 @@ external zlib_crc32 : bytes -> int -> int32 = "zlib_crc32"
 
 external time : unit -> float = "sys_time"
 
-type library
-type sym
-type value
-
-external dlopen : string -> library = "sys_dlopen"
-external dlsym : library -> string -> sym = "sys_dlsym"
-external dlcall0 : sym -> value = "sys_dlcall0"
-external dlcall1 : sym -> value -> value = "sys_dlcall1"
-external dlcall2 : sym -> value -> value -> value = "sys_dlcall2"
-external dlcall3 : sym -> value -> value -> value -> value = "sys_dlcall3"
-external dlcall4 : sym -> value -> value -> value -> value -> value = "sys_dlcall4"
-external dlcall5 : sym -> value -> value -> value -> value -> value -> value = "sys_dlcall5_bc" "sys_dlcall5"
-external dlint : int -> value = "sys_dlint"
-external dltoint : value -> int = "sys_dltoint"
-external dlstring : string -> value = "%identity"
-external dladdr : value -> int -> value = "sys_dladdr"
-external dlptr : value -> value = "sys_dlptr"
-external dlsetptr : value -> value -> unit = "sys_dlsetptr"
-external dlalloc_string : value -> string = "sys_dlalloc_string"
-external dlmemcpy : value -> value -> int -> unit = "sys_dlmemcpy"
-external dlcallback : int -> value = "sys_dlcallback"
-external dlcaml_callback : int -> value = "sys_dlcaml_callback"
-external dlint32 : int32 -> value = "sys_dlint32"
 external getch : bool -> int = "sys_getch"
 
 external filetime : string -> float = "sys_filetime"
@@ -133,10 +110,10 @@ let input_zip ?(bufsize=65536) ch =
 	let buf = ref "" in
 	let p = ref 0 in
 	let z = zlib_inflate_init() in
-	let rec fill_buffer() =
+	let fill_buffer() =
 		let rec loop pos len =
 			if len > 0 || pos = 0 then begin
-				let r = zlib_inflate z (Bytes.unsafe_to_string tmp_in) pos len tmp_out 0 bufsize (if pos = 0 && len = 0 then Z_FINISH else Z_SYNC_FLUSH) in
+				let r = zlib_inflate z ~src:(Bytes.unsafe_to_string tmp_in) ~spos:pos ~slen:len ~dst:tmp_out ~dpos:0 ~dlen:bufsize (if pos = 0 && len = 0 then Z_FINISH else Z_SYNC_FLUSH) in
 				Buffer.add_subbytes tmp_buf tmp_out 0 r.z_wrote;
 				loop (pos + r.z_read) (len - r.z_read);
 			end
@@ -178,7 +155,7 @@ let output_zip ?(bufsize=65536) ?(level=9) ch =
 	let tmp_out = Bytes.create bufsize in
 	let p = ref 0 in
 	let rec flush finish =
-		let r = zlib_deflate z (Bytes.unsafe_to_string out) 0 !p tmp_out 0 bufsize (if finish then Z_FINISH else Z_SYNC_FLUSH) in
+		let r = zlib_deflate z ~src:(Bytes.unsafe_to_string out) ~spos:0 ~slen:!p ~dst:tmp_out ~dpos:0 ~dlen:bufsize (if finish then Z_FINISH else Z_SYNC_FLUSH) in
 		ignore(IO.really_output ch tmp_out 0 r.z_wrote);
 		let remain = !p - r.z_read in
 		Bytes.blit out r.z_read out 0 remain;

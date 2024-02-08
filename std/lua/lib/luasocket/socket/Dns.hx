@@ -21,7 +21,8 @@
  */
 
 package lua.lib.luasocket.socket;
-@:luaRequire("socket","dns")
+
+@:luaRequire("socket", "dns")
 extern class Dns {
-	public static function gethostname() : String;
+	static function gethostname():String;
 }

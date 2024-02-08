@@ -1,9 +1,11 @@
+#if macro
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.io.Path;
 
 using StringTools;
 using sys.FileSystem;
+#end
 
 class Macro {
 	static var singleCaseField = null;

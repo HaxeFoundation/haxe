@@ -19,25 +19,22 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.link;
 
-#if (hxcpp_api_level>=330)
-class StaticStd { }
+#if (hxcpp_api_level >= 330)
+class StaticStd {}
 #else
-
-@:cppFileCode( 'extern "C" int std_register_prims();')
+@:cppFileCode('extern "C" int std_register_prims();')
 @:buildXml("
 <target id='haxe'>
   <lib name='${HXCPP}/lib/${BINDIR}/libstd${LIBEXTRA}${LIBEXT}'/>
    <lib name='ws2_32.lib' if='windows'/>
 </target>
 ")
-@:keep class StaticStd
-{
-   static function __init__()
-   {
-     untyped __cpp__("std_register_prims();");
-   }
+@:keep class StaticStd {
+	static function __init__() {
+		untyped __cpp__("std_register_prims();");
+	}
 }
-
 #end

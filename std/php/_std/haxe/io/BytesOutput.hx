@@ -19,14 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.io;
 
 class BytesOutput extends Output {
+	var b:BytesBuffer;
 
-	var b : BytesBuffer;
-
-	/** The length of the stream in bytes. **/
-	public var length(get,never) : Int;
+	public var length(get, never):Int;
 
 	public function new() {
 		b = new BytesBuffer();
@@ -36,22 +35,16 @@ class BytesOutput extends Output {
 		b.addByte(c);
 	}
 
-	override function writeBytes( buf : Bytes, pos, len ) : Int {
-		b.addBytes(buf,pos,len);
+	override function writeBytes(buf:Bytes, pos, len):Int {
+		b.addBytes(buf, pos, len);
 		return len;
 	}
 
-	/**
-		Returns the `Bytes` of this output.
-
-		This function should not be called more than once on a given
-		`BytesOutput` instance.
-	**/
-	public function getBytes() : Bytes {
+	public function getBytes():Bytes {
 		return b.getBytes();
 	}
 
-	inline function get_length() : Int {
+	inline function get_length():Int {
 		return b.length;
 	}
 }

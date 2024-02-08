@@ -22,7 +22,7 @@
 
 package lua.lib.luasocket.socket;
 
-@:multiReturn extern class AddrInfo{
-	var address : String;
-	var port : String;
+@:multiReturn extern class AddrInfo {
+	var address:String;
+	var port:String;
 }
