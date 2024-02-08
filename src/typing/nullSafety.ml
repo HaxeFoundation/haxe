@@ -85,6 +85,8 @@ let rec is_nullable_type ?(dynamic_is_nullable=false) = function
 		is_nullable_type (apply_typedef t tl)
 	| (TDynamic _) as t ->
 		dynamic_is_nullable && t == t_dynamic
+	| TEnum(en,_) ->
+		Meta.has Meta.Nullable en.e_meta
 	| _ ->
 		false
 (*

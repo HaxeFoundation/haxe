@@ -739,6 +739,13 @@
 		"internal": true
 	},
 	{
+		"name": "Nullable",
+		"metadata": ":nullable",
+		"doc": "Explicitly admits `null` as valid value for an enum, which affects null-safety",
+		"targets": ["TEnum"],
+		"links": ["https://haxe.org/manual/types-nullability.html"]
+	},
+	{
 		"name": "NullSafety",
 		"metadata": ":nullSafety",
 		"doc": "Enables null safety for classes or fields. Disables null safety for classes, fields or expressions if provided with `Off` as an argument.",

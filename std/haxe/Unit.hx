@@ -25,4 +25,5 @@ package haxe;
 /**
 	A unit type which can only be `null` at run-time.
 **/
+@:nullable
 enum Unit {}
