@@ -45,7 +45,7 @@ class EReg {
 		If `r` or `opt` are null, the result is unspecified.
 	**/
 	public function new(r:String, opt:String) {
-		throw "Regular expressions are not implemented for this platform";
+		throw new haxe.exceptions.NotImplementedException("Regular expressions are not implemented for this platform");
 	}
 
 	/**

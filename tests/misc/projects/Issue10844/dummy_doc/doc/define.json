@@ -1,0 +1,6 @@
+[
+  {
+    "define": "no-bullshit",
+    "doc": "Only very important stuff should be compiled"
+  }
+]

@@ -200,6 +200,17 @@ a == [i0, i1];
 a.remove(null) == false;
 a == [i0, i1];
 
+// contains
+[].contains(1) == false;
+[1].contains(1) == true;
+[1].contains(2) == false;
+[1,2].contains(1) == true;
+[1,2].contains(2) == true;
+[1,2].contains(3) == false;
+#if !js // see https://github.com/HaxeFoundation/haxe/issues/3330
+([1,2]:Dynamic).contains(2) == true;
+#end
+
 // indexOf
 [].indexOf(10) == -1;
 [10].indexOf(10) == 0;
@@ -296,3 +307,46 @@ a[2] != 3;
 a.resize(0);
 a.length == 0;
 a == [];
+
+// keyValueIterator
+var a : Array<Int> = [1,2,3,5,8];
+[for (k=>v in a) k] == [0,1,2,3,4];
+[for (k=>v in a) v] == [1,2,3,5,8];
+[for (k=>v in a) k*v] == [0,2,6,15,32];
+
+// keyValueIterator through Structure
+var a : Array<Int> = [1,2,3,5,8];
+var it : KeyValueIterator<Int, Int> = a.keyValueIterator();
+var a2 = [for (k=>v in it) k];
+a2 == [0,1,2,3,4];
+var it : KeyValueIterator<Int, Int> = a.keyValueIterator();
+a2 = [for (k=>v in it) v];
+a2 == [1,2,3,5,8];
+var it : KeyValueIterator<Int, Int> = a.keyValueIterator();
+a2 = [for (k=>v in it) k*v];
+a2 == [0,2,6,15,32];
+
+// keyValueIterator through Structure
+var a : Array<Int> = [1,2,3,5,8];
+var it : KeyValueIterable<Int, Int> = a;
+[for (k=>v in it) k] == [0,1,2,3,4];
+[for (k=>v in it) v] == [1,2,3,5,8];
+[for (k=>v in it) k*v] == [0,2,6,15,32];
+
+#if !flash
+// Can't create this closure on Flash apparently
+// keyValueIterator closure because why not
+var a : Array<Int> = [1,2,3,5,8];
+var itf : () -> KeyValueIterator<Int, Int> = a.keyValueIterator;
+var it = itf();
+var a2 = [for (k=>v in it) k];
+a2 == [0,1,2,3,4];
+var itf : () -> KeyValueIterator<Int, Int> = a.keyValueIterator;
+var it = itf();
+a2 = [for (k=>v in it) v];
+a2 == [1,2,3,5,8];
+var itf : () -> KeyValueIterator<Int, Int> = a.keyValueIterator;
+var it = itf();
+a2 = [for (k=>v in it) k*v];
+a2 == [0,2,6,15,32];
+#end

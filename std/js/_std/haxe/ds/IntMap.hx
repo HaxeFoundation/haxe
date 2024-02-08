@@ -50,7 +50,7 @@ package haxe.ds;
 
 	public function keys():Iterator<Int> {
 		var a = [];
-		untyped __js__("for( var key in {0} ) {1}", h, if (h.hasOwnProperty(key)) a.push(key | 0));
+		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}.push(+key)", h, a);
 		return a.iterator();
 	}
 
@@ -81,7 +81,7 @@ package haxe.ds;
 
 	public function toString():String {
 		var s = new StringBuf();
-		s.add("{");
+		s.add("[");
 		var it = keys();
 		for (i in it) {
 			s.add(i);
@@ -90,7 +90,7 @@ package haxe.ds;
 			if (it.hasNext())
 				s.add(", ");
 		}
-		s.add("}");
+		s.add("]");
 		return s.toString();
 	}
 

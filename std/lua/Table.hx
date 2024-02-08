@@ -32,9 +32,9 @@ import haxe.ds.ObjectMap;
 
 @:native("_G.table")
 extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
-	@:pure public static function create<A, B>(?arr:Array<B>, ?hsh:Dynamic):Table<A, B>;
+	@:pure static function create<A, B>(?arr:Array<B>, ?hsh:Dynamic):Table<A, B>;
 
-	public inline static function fromArray<T>(arr:Array<T>):Table<Int, T> {
+	inline static function fromArray<T>(arr:Array<T>):Table<Int, T> {
 		var ret = Table.create();
 		for (idx in 0...arr.length) {
 			ret[idx + 1] = arr[idx];
@@ -42,7 +42,7 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
 		return ret;
 	}
 
-	public inline static function fromMap<A, B>(map:Map<A, B>):Table<A, B> {
+	inline static function fromMap<A, B>(map:Map<A, B>):Table<A, B> {
 		var ret = Table.create();
 		for (k in map.keys()) {
 			ret[untyped k] = map.get(k);
@@ -50,7 +50,7 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
 		return ret;
 	}
 
-	public inline static function fromDynamic<A, B>(dyn:Dynamic):Table<A, B> {
+	inline static function fromDynamic<A, B>(dyn:Dynamic):Table<A, B> {
 		var ret = Table.create();
 		for (f in Reflect.fields(dyn)) {
 			ret[untyped f] = Reflect.field(dyn, f);
@@ -58,7 +58,7 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
 		return ret;
 	}
 
-    public inline static function toMap<A,B>(tbl : Table<A,B>) : Map<A,B> {
+    inline static function toMap<A,B>(tbl : Table<A,B>) : Map<A,B> {
         var obj = new ObjectMap();
         PairTools.pairsFold(tbl, (k,v,m) ->{
             obj.set(k,v);
@@ -70,34 +70,34 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
 	/**
 		Copies the table argument and converts it to an Object.
 	**/
-	public inline static function toObject<T>(t:Table<String, T>):Dynamic<T> {
+	inline static function toObject<T>(t:Table<String, T>):Dynamic<T> {
 		return Boot.tableToObject(PairTools.copy(t));
 	}
 
 
-    public inline static function toArray<T>(tbl : Table<Int,T>, ?length:Int) : Array<T> {
+    inline static function toArray<T>(tbl : Table<Int,T>, ?length:Int) : Array<T> {
 		return Boot.defArray(PairTools.copy(tbl), length);
     }
 
 	@:overload(function<A, B>(table:Table<A, B>):Void {})
-	public static function concat<A, B>(table:Table<A, B>, ?sep:String, ?i:Int, ?j:Int):String;
+	static function concat<A, B>(table:Table<A, B>, ?sep:String, ?i:Int, ?j:Int):String;
 
     #if (lua_ver == 5.1)
-	public static function foreach<A, B>(table:Table<A, B>, f:A->B->Void):Void;
-	public static function foreachi<A, B>(table:Table<A, B>, f:A->B->Int->Void):Void;
+	static function foreach<A, B>(table:Table<A, B>, f:A->B->Void):Void;
+	static function foreachi<A, B>(table:Table<A, B>, f:A->B->Int->Void):Void;
     #end
 
-	public static function sort<A, B>(table:Table<A, B>, ?order:A->A->Bool):Void;
+	static function sort<A, B>(table:Table<A, B>, ?order:A->A->Bool):Void;
 
 	@:overload(function<B>(table:Table<Int, B>, value:B):Void {})
-	public static function insert<B>(table:Table<Int, B>, pos:Int, value:B):Void;
+	static function insert<B>(table:Table<Int, B>, pos:Int, value:B):Void;
 
 	@:overload(function<B>(table:Table<Int, B>):Void {})
-	public static function remove<B>(table:Table<Int, B>, ?pos:Int):Void;
+	static function remove<B>(table:Table<Int, B>, ?pos:Int):Void;
 
 	#if (lua_ver >= 5.2)
-	public static function pack<T>(args:haxe.extern.Rest<T>):Table<Int, T>;
-	public static function unpack<Int, V>(args:lua.Table<Int, V>, ?min:Int, ?max:Int):Dynamic;
+	static function pack<T>(args:haxe.extern.Rest<T>):Table<Int, T>;
+	static function unpack<Int, V>(args:lua.Table<Int, V>, ?min:Int, ?max:Int):Dynamic;
 	#end
 }
 

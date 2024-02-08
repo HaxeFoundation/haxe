@@ -1,7 +1,7 @@
 package unit.issues;
 import unit.Test;
 
-abstract Lazy<T>(Void->T) {
+abstract Lazy<T>(()->T) {
 	public function new(f) {
 		this = f;
 	}

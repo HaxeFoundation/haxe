@@ -5,7 +5,7 @@ class Issue3226 extends Test {
 	function testJs() {
 		var a = 1;
 		var v = 2;
-		untyped __js__("{0} = {0} + {1}", a, v);
+		a = js.Syntax.code("{0} + {1}", a, v);
 		eq(3, a);
 	}
 	#elseif (cpp && !cppia)

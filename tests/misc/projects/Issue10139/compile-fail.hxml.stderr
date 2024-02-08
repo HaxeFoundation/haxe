@@ -1,0 +1,4 @@
+Main.hx:6: characters 7-8 : Some final fields are uninitialized in this class
+Main.hx:7: characters 8-9 : Uninitialized field
+Main.hx:2: characters 8-9 : Uninitialized field
+Main.hx:3: characters 8-9 : Uninitialized field

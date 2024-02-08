@@ -30,7 +30,7 @@ class Compress {
 	var finish:Bool = false;
 
 	public function new(level:Int) {
-		throw "Not implemented for this platform"; // FIXME: Add unit tests for Compress/Uncompress and check current implementation
+		throw new haxe.exceptions.NotImplementedException("Not implemented for this platform"); // FIXME: Add unit tests for Compress/Uncompress and check current implementation
 		this.deflater = new Deflater(level);
 		this.mode = Deflater.NO_FLUSH;
 	}
@@ -58,7 +58,7 @@ class Compress {
 				this.finish = true;
 				Deflater.FULL_FLUSH;
 			case BLOCK:
-				throw "Not Implemented";
+				throw new haxe.exceptions.NotImplementedException();
 		}
 	}
 

@@ -60,12 +60,12 @@ enum Constant {
 	/**
 		Represents an integer literal.
 	**/
-	CInt(v:String);
+	CInt(v:String, ?s:String);
 
 	/**
 		Represents a float literal.
 	**/
-	CFloat(f:String);
+	CFloat(f:String, ?s:String);
 
 	/**
 		Represents a string literal.
@@ -81,8 +81,9 @@ enum Constant {
 		Represents a regular expression literal.
 
 		Example: `~/haxe/i`
-		* The first argument _haxe_ is a string with regular expression pattern.
-		* The second argument _i_ is a string with regular expression flags.
+
+		- The first argument `haxe` is a string with regular expression pattern.
+		- The second argument `i` is a string with regular expression flags.
 
 		@see https://haxe.org/manual/std-regex.html
 	**/
@@ -195,17 +196,7 @@ enum Binop {
 	OpMod;
 
 	/**
-		`+=`
-		`-=`
-		`/=`
-		`*=`
-		`<<=`
-		`>>=`
-		`>>>=`
-		`|=`
-		`&=`
-		`^=`
-		`%=`
+		`+=` `-=` `/=` `*=` `<<=` `>>=` `>>>=` `|=` `&=` `^=` `%=`
 	**/
 	OpAssignOp(op:Binop);
 
@@ -223,6 +214,11 @@ enum Binop {
 		`in`
 	**/
 	OpIn;
+
+	/**
+		`??`
+	**/
+	OpNullCoal;
 }
 
 /**
@@ -254,6 +250,16 @@ enum Unop {
 		`~`
 	**/
 	OpNegBits;
+
+	/**
+		`...`
+	**/
+	OpSpread;
+}
+
+enum EFieldKind {
+	Normal;
+	Safe;
 }
 
 /**
@@ -292,12 +298,12 @@ typedef Case = {
 	/**
 		The optional guard expressions of the case, if available.
 	**/
-	var ?guard:Null<Expr>;
+	var ?guard:Expr;
 
 	/**
 		The expression of the case, if available.
 	**/
-	var expr:Null<Expr>;
+	var ?expr:Expr;
 }
 
 /**
@@ -311,24 +317,39 @@ typedef Var = {
 	var name:String;
 
 	/**
+		The position of the variable name.
+	**/
+	var ?namePos:Position;
+
+	/**
 		The type-hint of the variable, if available.
 	**/
-	var type:Null<ComplexType>;
+	var ?type:ComplexType;
 
 	/**
 		The expression of the variable, if available.
 	**/
-	var expr:Null<Expr>;
+	var ?expr:Expr;
 
 	/**
 		Whether or not the variable can be assigned to.
 	**/
 	var ?isFinal:Bool;
+
+	/**
+		Whether or not the variable is static.
+	**/
+	var ?isStatic:Bool;
+
+	/**
+		Metadata associatied with the variable, if available.
+	**/
+	var ?meta:Metadata;
 }
 
 /**
 	Represents a catch in the AST.
-	@https://haxe.org/manual/expression-try-catch.html
+	@see https://haxe.org/manual/expression-try-catch.html
 **/
 typedef Catch = {
 	/**
@@ -339,7 +360,7 @@ typedef Catch = {
 	/**
 		The type of the catch.
 	**/
-	var type:ComplexType;
+	var ?type:ComplexType;
 
 	/**
 		The expression of the catch.
@@ -390,10 +411,12 @@ enum FunctionKind {
 		Anonymous function
 	**/
 	FAnonymous;
+
 	/**
 		Named function
 	**/
 	FNamed(name:String, ?inlined:Bool);
+
 	/**
 		Arrow function
 	**/
@@ -421,8 +444,10 @@ enum ExprDef {
 
 	/**
 		Field access on `e.field`.
+
+		If `kind` is null, it is equal to Normal.
 	**/
-	EField(e:Expr, field:String);
+	EField(e:Expr, field:String, ?kind:EFieldKind);
 
 	/**
 		Parentheses `(e)`.
@@ -452,13 +477,13 @@ enum ExprDef {
 	/**
 		An unary operator `op` on `e`:
 
-		* e++ (op = OpIncrement, postFix = true)
-		* e-- (op = OpDecrement, postFix = true)
-		* ++e (op = OpIncrement, postFix = false)
-		* --e (op = OpDecrement, postFix = false)
-		* -e (op = OpNeg, postFix = false)
-		* !e (op = OpNot, postFix = false)
-		* ~e (op = OpNegBits, postFix = false)
+		- `e++` (`op = OpIncrement, postFix = true`)
+		- `e--` (`op = OpDecrement, postFix = true`)
+		- `++e` (`op = OpIncrement, postFix = false`)
+		- `--e` (`op = OpDecrement, postFix = false`)
+		- `-e` (`op = OpNeg, postFix = false`)
+		- `!e` (`op = OpNot, postFix = false`)
+		- `~e` (`op = OpNegBits, postFix = false`)
 	**/
 	EUnop(op:Unop, postFix:Bool, e:Expr);
 
@@ -483,20 +508,22 @@ enum ExprDef {
 	EFor(it:Expr, expr:Expr);
 
 	/**
-		An `if(econd) eif` or `if(econd) eif else eelse` expression.
+		An `if (econd) eif` or `if (econd) eif else eelse` expression.
 	**/
 	EIf(econd:Expr, eif:Expr, eelse:Null<Expr>);
 
 	/**
 		Represents a `while` expression.
+
 		When `normalWhile` is `true` it is `while (...)`.
+
 		When `normalWhile` is `false` it is `do {...} while (...)`.
 	**/
 	EWhile(econd:Expr, e:Expr, normalWhile:Bool);
 
 	/**
 		Represents a `switch` expression with related cases and an optional.
-		`default` case if edef != null.
+		`default` case if `edef != null`.
 	**/
 	ESwitch(e:Expr, cases:Array<Case>, edef:Null<Expr>);
 
@@ -508,7 +535,7 @@ enum ExprDef {
 	/**
 		A `return` or `return e` expression.
 	**/
-	EReturn(?e:Null<Expr>);
+	EReturn(?e:Expr);
 
 	/**
 		A `break` expression.
@@ -536,14 +563,9 @@ enum ExprDef {
 	ECast(e:Expr, t:Null<ComplexType>);
 
 	/**
-		Internally used to provide completion.
+		Used internally to provide completion.
 	**/
 	EDisplay(e:Expr, displayKind:DisplayKind);
-
-	/**
-		Internally used to provide completion.
-	**/
-	EDisplayNew(t:TypePath);
 
 	/**
 		A `(econd) ? eif : eelse` expression.
@@ -559,6 +581,11 @@ enum ExprDef {
 		A `@m e` expression.
 	**/
 	EMeta(s:MetadataEntry, e:Expr);
+
+	/**
+		An `expr is Type` expression.
+	**/
+	EIs(e:Expr, t:ComplexType);
 }
 
 enum DisplayKind {
@@ -640,9 +667,9 @@ typedef TypePath = {
 
 	/**
 		Sub is set on module sub-type access:
-		`pack.Module.Type` has name = Module, sub = Type, if available.
+		`pack.Module.Type` has `name = "Module"`, `sub = "Type"`, if available.
 	**/
-	var ?sub:Null<String>;
+	var ?sub:String;
 }
 
 /**
@@ -653,14 +680,7 @@ typedef TypePath = {
 	in the normal case it's `TPType`.
 **/
 enum TypeParam {
-	/**
-
-	**/
 	TPType(t:ComplexType);
-
-	/**
-
-	**/
 	TPExpr(e:Expr);
 }
 
@@ -677,6 +697,11 @@ typedef TypeParamDecl = {
 		The optional constraints of the type parameter.
 	**/
 	var ?constraints:Array<ComplexType>;
+
+	/**
+		The optional default type of the type parameter.
+	**/
+	var ?defaultType:Null<ComplexType>;
 
 	/**
 		The optional parameters of the type parameter.
@@ -701,12 +726,12 @@ typedef Function = {
 	/**
 		The return type-hint of the function, if available.
 	**/
-	var ret:Null<ComplexType>;
+	var ?ret:ComplexType;
 
 	/**
 		The expression of the function body, if available.
 	**/
-	var expr:Null<Expr>;
+	var ?expr:Expr;
 
 	/**
 		An optional list of function parameter type declarations.
@@ -731,12 +756,12 @@ typedef FunctionArg = {
 	/**
 		The type-hint of the function argument, if available.
 	**/
-	var type:Null<ComplexType>;
+	var ?type:ComplexType;
 
 	/**
 		The optional value of the function argument, if available.
 	**/
-	var ?value:Null<Expr>;
+	var ?value:Expr;
 
 	/**
 		The metadata of the function argument.
@@ -782,7 +807,7 @@ typedef Field = {
 		The documentation of the field, if available. If the field has no
 		documentation, the value is `null`.
 	**/
-	var ?doc:Null<String>;
+	var ?doc:String;
 
 	/**
 		The access modifiers of the field. By default fields have private access.
@@ -849,7 +874,7 @@ enum Access {
 	AInline;
 
 	/**
-		Macros access modifier. Allows expression macro functions. These are
+		Macro access modifier. Allows expression macro functions. These are
 		normal functions which are executed as soon as they are typed.
 	**/
 	AMacro;
@@ -864,6 +889,21 @@ enum Access {
 		Extern access modifier.
 	**/
 	AExtern;
+
+	/**
+		Abstract access modifier.
+	**/
+	AAbstract;
+
+	/**
+		Overload access modifier.
+	**/
+	AOverload;
+
+	/**
+		Enum access modifier.
+	**/
+	AEnum;
 }
 
 /**
@@ -873,7 +913,7 @@ enum FieldType {
 	/**
 		Represents a variable field type.
 	**/
-	FVar(t:Null<ComplexType>, ?e:Null<Expr>);
+	FVar(t:Null<ComplexType>, ?e:Expr);
 
 	/**
 		Represents a function field type.
@@ -883,7 +923,7 @@ enum FieldType {
 	/**
 		Represents a property with getter and setter field type.
 	**/
-	FProp(get:String, set:String, ?t:Null<ComplexType>, ?e:Null<Expr>);
+	FProp(get:String, set:String, ?t:ComplexType, ?e:Expr);
 }
 
 /**
@@ -904,7 +944,7 @@ typedef TypeDefinition = {
 		The documentation of the type, if available. If the type has no
 		documentation, the value is `null`.
 	**/
-	var ?doc:Null<String>;
+	var ?doc:String;
 
 	/**
 		The position to the type definition.
@@ -954,7 +994,7 @@ enum TypeDefKind {
 	/**
 		Represents a class kind.
 	**/
-	TDClass(?superClass:TypePath, ?interfaces:Array<TypePath>, ?isInterface:Bool, ?isFinal:Bool);
+	TDClass(?superClass:TypePath, ?interfaces:Array<TypePath>, ?isInterface:Bool, ?isFinal:Bool, ?isAbstract:Bool);
 
 	/**
 		Represents an alias/typedef kind.
@@ -964,36 +1004,57 @@ enum TypeDefKind {
 	/**
 		Represents an abstract kind.
 	**/
-	TDAbstract(tthis:Null<ComplexType>, ?from:Array<ComplexType>, ?to:Array<ComplexType>);
+	TDAbstract(tthis:Null<ComplexType>, ?flags:Array<AbstractFlag>, ?from:Array<ComplexType>, ?to:Array<ComplexType>);
+
+	/**
+		Represents a module-level field.
+	**/
+	TDField(kind:FieldType, ?access:Array<Access>); // ignore TypeDefinition.fields
+
+}
+
+/**
+	Represents an abstract flag.
+**/
+enum AbstractFlag {
+	/**
+		Indicates that this abstract is an `enum abstract`
+	**/
+	AbEnum;
+
+	/**
+		Indicates that this abstract can be assigned from `ct`.
+		This flag can be added several times to add multiple "from" types.
+	**/
+	AbFrom(ct:ComplexType);
+
+	/**
+		Indicates that this abstract can be assigned to `ct`.
+		This flag can be added several times to add multiple "to" types.
+	**/
+	AbTo(ct:ComplexType);
 }
 
 /**
 	This error can be used to handle or produce compilation errors in macros.
 **/
-class Error {
-	/**
-		The error message.
-	**/
-	public var message:String;
-
+class Error extends Exception {
 	/**
 		The position of the error.
 	**/
-	public var pos:Expr.Position;
+	public var pos:Position;
+
+	/**
+		Child error messages, if any.
+	**/
+	private var childErrors:Array<Error>;
 
 	/**
 		Instantiates an error with given message and position.
 	**/
-	public function new(m, p) {
-		this.message = m;
-		this.pos = p;
-	}
-
-	/**
-		Returns the string representation of the error.
-	**/
-	function toString() {
-		return message;
+	public function new(message:String, pos:Position, ?previous:Exception) {
+		super(message, previous);
+		this.pos = pos;
 	}
 }
 

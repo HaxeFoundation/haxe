@@ -3,34 +3,48 @@ open Type
 open Common
 open Ast
 
-let curclass = ref null_class
+type deprecation_context = {
+	com        : Common.context;
+	class_meta : metadata_entry list;
+	field_meta : metadata_entry list;
+	curmod     : module_def;
+}
+
+let create_context com = {
+	com = com;
+	class_meta = [];
+	field_meta = [];
+	curmod = null_module;
+}
 
 let warned_positions = Hashtbl.create 0
 
-let warn_deprecation com s p_usage =
-	if not (Hashtbl.mem warned_positions p_usage) then begin
-		Hashtbl.replace warned_positions p_usage s;
-		match com.display.dms_kind with
-		| DMDiagnostics _ -> ()
-		| _ -> com.warning s p_usage;
+let warn_deprecation dctx s p_usage =
+	let pkey p = (p.pfile,p.pmin) in
+	if not (Hashtbl.mem warned_positions (pkey p_usage)) then begin
+		Hashtbl.add warned_positions (pkey p_usage) (s,p_usage);
+		if not (is_diagnostics dctx.com) then begin
+			let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
+			module_warning dctx.com dctx.curmod WDeprecated options s p_usage;
+		end
 	end
 
-let print_deprecation_message com meta s p_usage =
+let print_deprecation_message dctx meta s p_usage =
 	let s = match meta with
 		| _,[EConst(String(s,_)),_],_ -> s
 		| _ -> Printf.sprintf "Usage of this %s is deprecated" s
 	in
-	warn_deprecation com s p_usage
+	warn_deprecation dctx s p_usage
 
-let check_meta com meta s p_usage =
+let check_meta dctx meta s p_usage =
 	try
-		print_deprecation_message com (Meta.get Meta.Deprecated meta) s p_usage;
+		print_deprecation_message dctx (Meta.get Meta.Deprecated meta) s p_usage;
 	with Not_found ->
 		()
 
 let check_cf com cf p = check_meta com cf.cf_meta "field" p
 
-let check_class com c p = if c != !curclass then check_meta com c.cl_meta "class" p
+let check_class dctx c p = check_meta dctx c.cl_meta "class" p
 
 let check_enum com en p = check_meta com en.e_meta "enum" p
 
@@ -80,17 +94,32 @@ let run_on_expr com e =
 	in
 	expr e
 
-let run_on_field com cf = match cf.cf_expr with None -> () | Some e -> run_on_expr com e
+let run_on_field dctx cf =
+	match cf.cf_expr with
+	| Some e when not (Meta.has Meta.Deprecated cf.cf_meta) ->
+		run_on_expr {dctx with field_meta = cf.cf_meta} e
+	| _ ->
+		()
 
 let run com =
+	let dctx = create_context com in
 	List.iter (fun t -> match t with
-		| TClassDecl c ->
-			curclass := c;
-			(match c.cl_constructor with None -> () | Some cf -> run_on_field com cf);
-			(match c.cl_init with None -> () | Some e -> run_on_expr com e);
-			List.iter (run_on_field com) c.cl_ordered_statics;
-			List.iter (run_on_field com) c.cl_ordered_fields;
-			curclass := null_class;
+		| TClassDecl c when not (Meta.has Meta.Deprecated c.cl_meta) ->
+			let dctx = {dctx with class_meta = c.cl_meta; curmod = c.cl_module} in
+			(match c.cl_constructor with None -> () | Some cf -> run_on_field dctx cf);
+			(match TClass.get_cl_init c with None -> () | Some e -> run_on_expr dctx e);
+			List.iter (run_on_field dctx) c.cl_ordered_statics;
+			List.iter (run_on_field dctx) c.cl_ordered_fields;
 		| _ ->
 			()
 	) com.types
+
+let check_is com m cl_meta cf_meta name meta p =
+	let dctx = {
+		com = com;
+		class_meta = cl_meta;
+		field_meta = cf_meta;
+		curmod = m;
+	} in
+	if is_next dctx.com && name = "is" && not (Meta.has Meta.Deprecated meta) then
+		warn_deprecation dctx "Using \"is\" as an identifier is deprecated" p

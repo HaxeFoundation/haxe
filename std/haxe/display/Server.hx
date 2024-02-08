@@ -41,6 +41,7 @@ class ServerMethods {
 	static inline var ModuleMemory = new HaxeRequestMethod<ModuleParams, Response<HaxeModuleMemoryResult>>("server/memory/module");
 	static inline var Modules = new HaxeRequestMethod<ContextParams, Response<Array<String>>>("server/modules");
 	static inline var Module = new HaxeRequestMethod<ModuleParams, Response<JsonModule>>("server/module");
+	static inline var Type = new HaxeRequestMethod<TypeParams, Response<JsonModuleType<Any>>>("server/type");
 	static inline var Files = new HaxeRequestMethod<ContextParams, Response<Array<JsonServerFile>>>("server/files");
 	static inline var ModuleCreated = new HaxeRequestMethod<FileParams, Response<NoData>>("server/moduleCreated");
 }
@@ -72,6 +73,7 @@ typedef ConfigurePrintParams = {
 
 typedef ConfigureParams = {
 	final ?noModuleChecks:Bool;
+	final ?populateCacheFromDisplay:Bool;
 	final ?legacyCompletion:Bool;
 	final ?print:ConfigurePrintParams;
 }
@@ -97,7 +99,9 @@ typedef JsonModule = {
 	final types:Array<JsonTypePath>;
 	final file:String;
 	final sign:String;
+	final cacheState:Null<String>;
 	final dependencies:Array<ModuleId>;
+	final dependents:Array<ModuleId>;
 }
 
 typedef JsonServerFile = {
@@ -108,7 +112,6 @@ typedef JsonServerFile = {
 }
 
 /* Memory */
-
 typedef HaxeMemoryResult = {
 	final contexts:Array<{
 		final context:HaxeServerContext;
@@ -134,6 +137,9 @@ typedef HaxeContextMemoryResult = {
 		}>;
 	};
 	final syntaxCache:{
+		final size:Int;
+	};
+	final binaryCache:{
 		final size:Int;
 	};
 	final ?leaks:Array<{
@@ -164,4 +170,9 @@ typedef ContextParams = {
 
 typedef ModuleParams = ContextParams & {
 	final path:String;
+}
+
+typedef TypeParams = ContextParams & {
+	final modulePath:String;
+	final typeName:String;
 }

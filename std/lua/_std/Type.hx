@@ -36,7 +36,7 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T>
+	public static function getClass<T>(o:T):Null<Class<T>>
 		untyped {
 			if (o == null)
 				return null;
@@ -121,8 +121,9 @@ enum ValueType {
 	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
 		var p:Dynamic = untyped c.prototype;
 		var a:Array<String> = [];
+
 		while (p != null) {
-			for (f in lua.Boot.fieldIterator(p)) {
+			for (f in Reflect.fields(p)) {
 				if (!Lambda.has(a, f))
 					a.push(f);
 			}

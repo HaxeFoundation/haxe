@@ -63,9 +63,9 @@ let rec close now t =
 				| current :: _ ->
 					match current.pauses with
 					| pauses :: rest -> current.pauses <- (dt +. pauses) :: rest
-					| _ -> assert false
+					| _ -> Globals.die "" __LOC__
 				)
-			| _ -> assert false
+			| _ -> Globals.die "" __LOC__
 		end else
 			close now tt
 
@@ -92,6 +92,8 @@ let close = close (get_time())
 
 (* Printing *)
 
+let timer_threshold = 0.01
+
 type timer_node = {
 	name : string;
 	path : string;
@@ -115,7 +117,7 @@ let build_times_tree () =
 	} in
 	Hashtbl.iter (fun _ timer ->
 		let rec loop parent sl = match sl with
-			| [] -> assert false
+			| [] -> Globals.die "" __LOC__
 			| s :: sl ->
 				let path = (match parent.path with "" -> "" | _ -> parent.path ^ ".") ^ s in
 				let node = try
@@ -168,7 +170,7 @@ let build_times_tree () =
 		) node.children;
 		node.children <- List.sort (fun node1 node2 -> compare node2.time node1.time) node.children;
 		if node.num_calls > !max_calls then max_calls := node.num_calls;
-		if node.time > 0.0009 && l > !max_name then max_name := l;
+		if node.time >= timer_threshold && l > !max_name then max_name := l;
 	in
 	loop 0 root;
 	!max_name,!max_calls,root
@@ -180,7 +182,7 @@ let report_times print =
 	let sep = String.make (max_name + max_calls + 27) '-' in
 	print sep;
 	let print_time name node =
-		if node.time > 0.0009 then
+		if node.time >= timer_threshold then
 			print (Printf.sprintf "%-*s | %7.3f | %3.0f | %3.0f | %*i | %s" max_name name node.time (node.time *. 100. /. root.time) (node.time *. 100. /. node.parent.time) max_calls node.num_calls node.info)
 	in
 	let rec loop depth node =
@@ -191,3 +193,23 @@ let report_times print =
 	List.iter (loop 0) root.children;
 	print sep;
 	print_time "total" root
+
+class timer (id : string list) = object(self)
+	method run_finally : 'a . (unit -> 'a) -> (unit -> unit) -> 'a = fun f finally ->
+		let timer = timer id in
+		try
+			let r = f() in
+			timer();
+			finally();
+			r
+		with exc ->
+			timer();
+			finally();
+			raise exc
+
+	method run : 'a . (unit -> 'a) -> 'a = fun f ->
+		self#run_finally f (fun () -> ())
+
+	method nest (name : string) =
+		new timer (id @ [name])
+end

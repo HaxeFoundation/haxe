@@ -1,0 +1,2 @@
+ForceInline.hx:8: characters 11-27 : Forced inline constructor could not be inlined
+ForceInline.hx:9: characters 9-10 : ... Cancellation happened here

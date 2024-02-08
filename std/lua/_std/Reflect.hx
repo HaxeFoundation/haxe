@@ -26,10 +26,12 @@ import lua.Boot;
 
 @:coreApi class Reflect {
 	public inline static function hasField(o:Dynamic, field:String):Bool {
-		if (Lua.type(o) == "string" && (untyped String.prototype[field] != null || field == "length")) {
-			return true;
+		return if (inline isFunction(o)) {
+			false;
+		} else if (Lua.type(o) == "string" && (untyped String.prototype[field] != null || field == "length")) {
+			true;
 		} else
-			return untyped o.__fields__ != null ? o.__fields__[field] != null : o[field] != null;
+			untyped o.__fields__ != null ? o.__fields__[field] != null : o[field] != null;
 	}
 
 	public static function field(o:Dynamic, field:String):Dynamic
@@ -89,7 +91,7 @@ import lua.Boot;
 		if (lua.Lua.type(o) == "string") {
 			return Reflect.fields(untyped String.prototype);
 		} else {
-			return [for (f in lua.Boot.fieldIterator(o)) f];
+			return untyped _hx_field_arr(o);
 		}
 	}
 
@@ -116,7 +118,7 @@ import lua.Boot;
 		untyped {
 			if (v == null)
 				return false;
-			var t = __lua__("type(v)");
+			var t = lua.Lua.type(v);
 			return (t == "string" || (t == "table" && v.__enum__ == null))
 				|| (t == "function" && (lua.Boot.isClass(v) || lua.Boot.isEnum(v)) != null);
 		}

@@ -18,6 +18,6 @@ class Issue8789 extends DisplayTestCase {
 	function test() {
 		var r = toplevel(pos(1));
 		eq(true, hasToplevel(r, "type", "Int8"));
-		eq(true, hasField(fields(pos(2)), "pvt", "Void -> Void"));
+		eq(true, hasField(fields(pos(2)), "pvt", "() -> Void"));
 	}
 }

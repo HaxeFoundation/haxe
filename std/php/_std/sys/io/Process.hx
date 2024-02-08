@@ -151,7 +151,9 @@ class Process {
 		}
 		while (running) {
 			var arr = Syntax.arrayDecl(process);
-			Syntax.suppress(Global.stream_select(arr, arr, arr, null));
+			try {
+				Syntax.suppress(Global.stream_select(arr, arr, arr, null));
+			} catch(_) {}
 			updateStatus();
 		}
 		return _exitCode;

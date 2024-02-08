@@ -22,7 +22,7 @@
 
 package jvm.annotation;
 
-@:annotation
+@:annotation("RUNTIME")
 @:native("haxe.jvm.annotation.ClassReflectionInformation")
 @:keep
 interface ClassReflectionInformation extends java.lang.annotation.Annotation {

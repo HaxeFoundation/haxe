@@ -41,6 +41,14 @@ abstract Function(Dynamic) {}
 abstract FlatEnum(Dynamic) {}
 
 /**
+	This type unifies with anything but `Void`.
+
+	It is intended to be used as a type parameter constraint. If used as a real
+	type, the underlying type will be `Dynamic`.
+**/
+abstract NotVoid(Dynamic) { }
+
+/**
 	This type unifies with any instance of classes that have a constructor
 	which
 

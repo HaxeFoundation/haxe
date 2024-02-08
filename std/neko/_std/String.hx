@@ -66,6 +66,9 @@
 			var l = __dollar__ssize(this.__s);
 			if (startIndex == null || startIndex < -l)
 				startIndex = 0;
+			if (str == '' && startIndex >= l) {
+				return l;
+			}
 			if (startIndex > l)
 				return -1;
 			if (__dollar__ssize(str.__s) == 0)

@@ -1,4 +1,4 @@
 <list>
-<pos>$$normPath(::cwd::/Main.hx, true):5: characters 17-27</pos>
-<pos>$$normPath(::cwd::/Main.hx, true):9: characters 9-19</pos>
+<pos>$$normPath(::cwd::/Main.hx):5: characters 17-27</pos>
+<pos>$$normPath(::cwd::/Main.hx):9: characters 9-19</pos>
 </list>

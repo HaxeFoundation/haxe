@@ -25,6 +25,22 @@ open JvmSignature
 
 exception EmptyStack
 
+let terminates = function
+	| OpDreturn
+	| OpFreturn
+	| OpIreturn
+	| OpLreturn
+	| OpAreturn
+	| OpGoto _
+	| OpGoto_w _
+	| OpJsr _
+	| OpJsr_w _
+	| OpAthrow
+	| OpReturn ->
+		true
+	| _ ->
+		false
+
 class jvm_stack = object(self)
 	val mutable stack = [];
 	val mutable stack_size = 0;
@@ -72,11 +88,11 @@ class jvm_stack = object(self)
 				raise EmptyStack
 		in
 		loop [] i stack
+
+	method replace jsig =
+		ignore(self#pop);
+		self#push jsig
 end
-
-let s_vt = generate_method_signature true
-
-let s_vtl l = Printf.sprintf "[%s]" (String.concat ", " (List.map s_vt l))
 
 class builder pool = object(self)
 	val stack = new jvm_stack;
@@ -86,33 +102,11 @@ class builder pool = object(self)
 
 	(* ops *)
 	val ops = DynArray.create();
-	val stack_debug = DynArray.create()
 	val mutable fp = 0
+	val mutable terminated = false
 
-	method debug_stack =
-		let l = DynArray.to_list stack_debug in
-		let opmax = ref 0 in
-		let l = List.map (fun (op,_,after,line) ->
-			let sop = JvmDebug.s_jcode pool op in
-			if String.length sop > !opmax then opmax := String.length sop;
-			let safter = s_vtl after in
-			(line,sop,safter)
-		) l in
-		let s_ops = String.concat "\n\t\t" (List.map (fun (line,sop,safter) ->
-			Printf.sprintf "%4i %*s %s" line !opmax sop safter
-		) l) in
-		s_ops
-
-	method stack_error opcode expected actual =
-		let s_ops = self#debug_stack in
-		jerror
-			(Printf.sprintf "Stack error\n\tops      :\n\t\t%s\n\t     line: %i\n\toperation: %s\n\texpected : %s\n\tactual   : %s"
-				s_ops
-				current_line
-				(JvmDebug.s_jcode pool opcode)
-				(s_vtl expected)
-				(s_vtl actual)
-			)
+	method is_terminated = terminated
+	method set_terminated b = terminated <- b
 
 	method op opcode length expect return =
 		if last_line <> current_line then begin
@@ -121,38 +115,16 @@ class builder pool = object(self)
 		end;
 		DynArray.add ops opcode;
 		fp <- fp + length;
-		let cur = stack#get_stack in
 		List.iter (fun js ->
-			let js' = try
-				stack#pop
-			with EmptyStack ->
-				self#stack_error opcode expect cur;
-				assert false
-			in
-			(* TODO: some unification or something? *)
-			match js,js' with
-			| (TObject _ | TTypeParameter _),(TObject _ | TTypeParameter _ | TArray _) -> () (* TODO ??? *)
-			| TMethod _,TMethod _ -> ()
-			| TMethod _,TObject((["java";"lang";"invoke"],"MethodHandle"),[]) -> ()
-			| TTypeParameter _,TMethod _ -> ()
-			| TObject _,TMethod _ -> ()
-			| TMethod _,TObject _ -> ()
-			| TArray _,TArray _ -> ()
-			| TBool,TInt -> ()
-			| TInt,TBool -> ()
-			| TDouble,TInt -> ()
-			| TInt,(TChar | TShort | TByte) -> ()
-			| (TObject _ | TTypeParameter _),TUninitialized _ -> ()
-			| _ ->
-				if js <> js' then self#stack_error opcode expect cur
+			ignore(stack#pop)
 		) expect;
 		List.iter stack#push (List.rev return);
-		DynArray.add stack_debug (opcode,cur,stack#get_stack,current_line);
+		if terminates opcode then terminated <- true
 
 	method op_maybe_wide op opw i tl tr = match get_numeric_range_unsigned i with
 		| Int8Range -> self#op op 2 tl tr
 		| Int16Range -> self#op (OpWide opw) 4 tl tr
-		| Int32Range -> assert false
+		| Int32Range -> Globals.die "" __LOC__
 
 	(* variables *)
 
@@ -232,7 +204,7 @@ class builder pool = object(self)
 		| (Int8Range | Int16Range),(Int8Range | Int16Range) ->
 			self#op (OpWide (OpWIinc(index,i))) 6 [] []
 		| _ ->
-			assert false
+			Globals.die "" __LOC__
 
 	(* conversions *)
 
@@ -342,22 +314,16 @@ class builder pool = object(self)
 	(* control flow *)
 
 	method if_ cmp r = self#op (OpIf(cmp,r)) 3 [TBool] []
-	method if_ref cmp = let r = ref fp in self#if_ cmp r; r
 
 	method if_icmp cmp r = self#op (OpIf_icmp(cmp,r)) 3 [TInt;TInt] []
-	method if_icmp_ref cmp = let r = ref fp in self#if_icmp cmp r; r
 
 	method if_acmp_eq t1 t2 r = self#op (OpIf_acmpeq r) 3 [t1;t2] []
-	method if_acmp_eq_ref t1 t2 = let r = ref fp in self#if_acmp_eq t1 t2 r; r
 
 	method if_acmp_ne t1 t2 r = self#op (OpIf_acmpne r) 3 [t1;t2] []
-	method if_acmp_ne_ref t1 t2 = let r = ref fp in self#if_acmp_ne t1 t2 r; r
 
 	method if_null t r = self#op (OpIfnull r) 3 [t] []
-	method if_null_ref t = let r = ref fp in self#if_null t r; r
 
 	method if_nonnull t r = self#op (OpIfnonnull r) 3 [t] []
-	method if_nonnull_ref t = let r = ref fp in self#if_nonnull t r; r
 
 	method goto r = self#op (OpGoto r) 3 [] []
 

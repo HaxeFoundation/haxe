@@ -30,7 +30,7 @@ import python.io.IFileInput;
 class FileInput extends Input {
 	var impl:IFileInput;
 
-	public function new(impl:IFileInput) {
+	function new(impl:IFileInput) {
 		this.impl = impl;
 	}
 

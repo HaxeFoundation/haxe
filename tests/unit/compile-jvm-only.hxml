@@ -1,0 +1,5 @@
+compile-each.hxml
+--main unit.TestMain
+--java-lib native_java/native.jar
+--jvm bin/unit.jar
+-D jvm.compression-level=0

@@ -24,74 +24,77 @@ package cpp;
 
 extern class NativeArray {
 	#if cppia
-	public static inline function create<T>(length:Int):Array<T> {
+	static inline function create<T>(length:Int):Array<T> {
 		var result = new Array<T>();
 		NativeArray.setSize(result, length);
 		return result;
 	}
 	#else
 	@:native("_hx_create_array_length")
-	public static function create<T>(length:Int):Array<T>;
+	static function create<T>(length:Int):Array<T>;
 	#end
 
-	public static inline function blit<T>(ioDestArray:Array<T>, inDestElement:Int, inSourceArray:Array<T>, inSourceElement:Int, inElementCount:Int):Void {
+	static inline function blit<T>(ioDestArray:Array<T>, inDestElement:Int, inSourceArray:Array<T>, inSourceElement:Int, inElementCount:Int):Void {
 		untyped ioDestArray.blit(inDestElement, inSourceArray, inSourceElement, inElementCount);
 	};
 
-	public static inline function getBase(inArray:Array<Dynamic>):ArrayBase {
+	static inline function getBase(inArray:Array<Dynamic>):ArrayBase {
 		return untyped inArray;
 	}
 
 	@:nativeStaticExtension
-	public static function reserve<T>(inArray:Array<T>, inElements:Int):Void;
+	static function reserve<T>(inArray:Array<T>, inElements:Int):Void;
 
 	@:nativeStaticExtension
-	public static function capacity<T>(inArray:Array<T>):Int;
+	static function capacity<T>(inArray:Array<T>):Int;
 
 	@:nativeStaticExtension
-	public static function getElementSize<T>(inArray:Array<T>):Int;
+	static function getElementSize<T>(inArray:Array<T>):Int;
 
-	public static inline function address<T>(inArray:Array<T>, inIndex:Int):Pointer<T> {
+	static inline function address<T>(inArray:Array<T>, inIndex:Int):Pointer<T> {
 		return Pointer.arrayElem(inArray, inIndex);
 	}
 
 	@:nativeStaticExtension
-	public static function setData<T>(inArray:Array<T>, inData:Pointer<T>, inElementCount:Int):Void;
+	static function setData<T>(inArray:Array<T>, inData:Pointer<T>, inElementCount:Int):Void;
 
 	@:nativeStaticExtension
-	public static function setUnmanagedData<T>(inArray:Array<T>, inData:ConstPointer<T>, inElementCount:Int):Void;
+	static function setUnmanagedData<T>(inArray:Array<T>, inData:ConstPointer<T>, inElementCount:Int):Void;
 
 	@:nativeStaticExtension
-	public static function zero<T>(ioDestArray:Array<T>, ?inFirst:Int, ?inElements:Int):Void;
+	static function zero<T>(ioDestArray:Array<T>, ?inFirst:Int, ?inElements:Int):Void;
 
 	@:nativeStaticExtension
-	public static function memcmp<T>(inArrayA:Array<T>, inArrayB:Array<T>):Int;
+	static function removeAt<T>(ioDestArray:Array<T>, inIndex:Int):Void;
+
+	@:nativeStaticExtension
+	static function memcmp<T>(inArrayA:Array<T>, inArrayB:Array<T>):Int;
 
 	@:native("_hx_reslove_virtual_array")
-	public static function resolveVirtualArray(inArray:Array<Dynamic>):Dynamic;
+	static function resolveVirtualArray(inArray:Array<Dynamic>):Dynamic;
 
 	#if cppia
-	public static inline function unsafeGet<T>(inDestArray:Array<T>, inIndex:Int):T {
+	static inline function unsafeGet<T>(inDestArray:Array<T>, inIndex:Int):T {
 		return untyped inDestArray.__unsafe_get(inIndex);
 	}
 
-	public static inline function unsafeSet<T>(ioDestArray:Array<T>, inIndex:Int, inValue:T):T {
+	static inline function unsafeSet<T>(ioDestArray:Array<T>, inIndex:Int, inValue:T):T {
 		return untyped ioDestArray.__unsafe_set(inIndex, inValue);
 	}
 
-	public static inline function setSize<T>(ioArray:Array<T>, inSize:Int):Array<T> {
+	static inline function setSize<T>(ioArray:Array<T>, inSize:Int):Array<T> {
 		return untyped ioArray.__SetSizeExact(inSize);
 	}
 	#else
 	@:native("_hx_array_unsafe_get")
-	public static function unsafeGet<T>(inDestArray:Array<T>, inIndex:Int):T;
+	static function unsafeGet<T>(inDestArray:Array<T>, inIndex:Int):T;
 
 	@:native("_hx_array_unsafe_set")
-	public static inline function unsafeSet<T>(ioDestArray:Array<T>, inIndex:Int, inValue:T):T {
+	static inline function unsafeSet<T>(ioDestArray:Array<T>, inIndex:Int, inValue:T):T {
 		return untyped ioDestArray.__unsafe_set(inIndex, inValue);
 	}
 
 	@:native("_hx_array_set_size_exact")
-	public static function setSize<T>(ioArray:Array<T>, inSize:Int):Array<T>;
+	static function setSize<T>(ioArray:Array<T>, inSize:Int):Array<T>;
 	#end
 }

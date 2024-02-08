@@ -27,19 +27,12 @@ package haxe.crypto;
 **/
 class Md5 {
 	public static function encode(s:String):String {
-		#if neko
-		return untyped new String(base_encode(make_md5(s.__s), "0123456789abcdef".__s));
-		#else
 		var m = new Md5();
 		var h = m.doEncode(str2blks(s));
 		return m.hex(h);
-		#end
 	}
 
 	public static function make(b:haxe.io.Bytes):haxe.io.Bytes {
-		#if neko
-		return haxe.io.Bytes.ofData(make_md5(b.getData()));
-		#else
 		var h = new Md5().doEncode(bytes2blks(b));
 		var out = haxe.io.Bytes.alloc(16);
 		var p = 0;
@@ -50,13 +43,8 @@ class Md5 {
 			out.set(p++, h[i] >>> 24);
 		}
 		return out;
-		#end
 	}
 
-	#if neko
-	static var base_encode = neko.Lib.load("std", "base_encode", 2);
-	static var make_md5 = neko.Lib.load("std", "make_md5", 1);
-	#else
 	/*
 	 * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
 	 * Digest Algorithm, as defined in RFC 1321.
@@ -105,11 +93,11 @@ class Md5 {
 
 		// preallocate size
 		var blksSize = nblk * 16;
-		#if (neko || cs || cpp || java || hl)
+		#if (neko || cpp || java || hl)
 		blks[blksSize - 1] = 0;
 		#end
 
-		#if !(cpp || cs || hl) // C++ and C# will already initialize them with zeroes.
+		#if !(cpp || hl) // C++ will already initialize them with zeroes.
 		for (i in 0...blksSize)
 			blks[i] = 0;
 		#end
@@ -138,11 +126,11 @@ class Md5 {
 
 		// preallocate size
 		var blksSize = nblk * 16;
-		#if (neko || eval || cs || cpp || java || hl)
+		#if (neko || eval || cpp || java || hl)
 		blks[blksSize - 1] = 0;
 		#end
 
-		#if !(cpp || cs || hl) // C++ and C# will already initialize them with zeroes.
+		#if !(cpp || hl) // C++ will already initialize them with zeroes.
 		for (i in 0...blksSize)
 			blks[i] = 0;
 		#end
@@ -277,5 +265,4 @@ class Md5 {
 		}
 		return [a, b, c, d];
 	}
-	#end
 }

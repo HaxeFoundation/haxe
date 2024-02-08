@@ -1,35 +1,44 @@
 package runci.targets;
 
-import sys.FileSystem;
 import runci.System.*;
 import runci.Config.*;
 import haxe.io.*;
 using StringTools;
 
 class Lua {
+	static final miscLuaDir = getMiscSubDir('lua');
+
 	static public function getLuaDependencies(){
 		switch (systemName){
 			case "Linux":
-				Linux.requireAptPackages(["libpcre3-dev", "libssl-dev", "libreadline-dev"]);
+				Linux.requireAptPackages(["libpcre2-dev", "libssl-dev", "libreadline-dev"]);
 				runCommand("pip", ["install", "--user", "hererocks"]);
-				var pyUserBase = commandResult("python", ["-m", "site", "--user-base"]).stdout.trim();
+				final pyUserBase = commandResult("python", ["-m", "site", "--user-base"]).stdout.trim();
 				addToPATH(Path.join([pyUserBase, "bin"]));
 			case "Mac": {
 				if (commandSucceed("python3", ["-V"]))
 					infoMsg('python3 has already been installed.');
 				else
-					runCommand("brew", ["install", "python3"], true);
+					runNetworkCommand("brew", ["install", "python3"]);
 
-				runCommand("brew", ["install", "pcre"], false, true);
+				attemptCommand("brew", ["install", "pcre2"]);
 				runCommand("pip3", ["install", "hererocks"]);
+				runCommand("brew", ["install", "openssl"]);
 			}
 		}
 	}
 
-	static function installLib(lib : String, version : String, server = "https://luarocks.org/dev"){
-		var server_arg = '--server=$server';
+	static function installLib(lib : String, version : String, ?server :String){
 		if (!commandSucceed("luarocks", ["show", lib, version])) {
-			runCommand("luarocks", ["install",lib, version, server_arg]);
+            final args = ["install", lib, version];
+			if (systemName == "Mac") {
+				args.push('OPENSSL_DIR=/usr/local/opt/openssl@3');
+			}
+            if (server != null){
+                final server_arg = '--server=$server';
+                args.push(server_arg);
+            }
+			runCommand("luarocks", args);
 		} else {
 			infoMsg('Lua dependency $lib is already installed at version $version');
 		}
@@ -39,9 +48,8 @@ class Lua {
 
 		getLuaDependencies();
 
-		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-j2.0", "-j2.1" ]){
-
-			var envpath = Sys.getEnv("HOME") + '/lua_env$lv';
+		for (lv in ["-l5.1", "-l5.2", "-l5.3"].concat(systemName == 'Linux' && Linux.arch == Arm64 ? [] : ["-j2.0", "-j2.1"])) {
+			final envpath = getInstallPath() + '/lua_env/lua$lv';
 			addToPATH(envpath + '/bin');
 
 			if (systemName == "Mac" && lv.startsWith("-j")) continue;
@@ -60,9 +68,21 @@ class Lua {
 			runCommand("luarocks", ["config", "--rock-trees"]);
 
 			// Note: don't use a user config
-			// runCommand("luarocks", ["config", "--user-config"], false, true);
+			// attemptCommand("luarocks", ["config", "--user-config"]);
 
-			installLib("haxe-deps", "0.0.1-2");
+			installLib("luasec", "1.0.2-1");
+
+			installLib("lrexlib-pcre2", "2.9.1-1");
+			installLib("luv", "1.36.0-0");
+			installLib("luasocket", "3.0rc1-2");
+			installLib("luautf8", "0.1.1-1");
+
+			//Install bit32 for lua 5.1
+			if(lv == "-l5.1"){
+				installLib("bit32", "5.2.2-1");
+			}
+
+			installLib("hx-lua-simdjson", "0.0.1-1");
 
 			changeDirectory(unitDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
@@ -70,10 +90,13 @@ class Lua {
 
 			changeDirectory(sysDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
-			runCommand("lua", ["bin/lua/sys.lua"]);
+			runSysTest("lua", ["bin/lua/sys.lua"]);
 
-			changeDirectory(miscDir + "luaDeadCode/stringReflection");
+			changeDirectory(getMiscSubDir("luaDeadCode", "stringReflection"));
 			runCommand("haxe", ["compile.hxml"]);
+
+			changeDirectory(miscLuaDir);
+			runCommand("haxe", ["run.hxml"]);
 		}
 	}
 }

@@ -109,4 +109,85 @@ class Metadata extends DisplayTestCase {
 		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field.", metadataDoc(pos(2)));
 		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field.", metadataDoc(pos(3)));
 	}
+
+	/**
+		#if !macro
+		@:build(cases.Metadata.Main.build())
+		#end
+		class Main {
+			#if !macro
+			@{-1-}
+			static var dummy = 123;
+
+			static function main() {}
+			#else
+			static function build() {
+				haxe.macro.Context.getBuildFields();
+				return null;
+			}
+			#end
+		}
+	**/
+	function test9853() {
+		eq(true, hasPath(fields(pos(1)), "@:generic"));
+	}
+
+	/**
+		@{-1-}
+		class Main {
+			static function main() {}
+		}
+		@{-2-}
+		class Test {}
+
+	**/
+	function test7864() {
+		eq(true, hasPath(fields(pos(1)), "@:generic"));
+		eq(true, hasPath(fields(pos(2)), "@:generic"));
+	}
+
+	/**
+		function main() {
+			var @{-1-}
+		}
+	**/
+	function test9639_1() {
+		eq(true, hasPath(fields(pos(1)), "@:generic"));
+	}
+
+	/**
+		function main() {
+			var @{-1-} local
+		}
+	**/
+	function test9639_2() {
+		eq(true, hasPath(fields(pos(1)), "@:generic"));
+	}
+
+	/**
+		function main() {
+			var @{-1-} local : Type
+		}
+	**/
+	function test9639_3() {
+		eq(true, hasPath(fields(pos(1)), "@:generic"));
+	}
+
+	/**
+		function main() {
+			var @{-1-} local =
+		}
+	**/
+	function test9639_4() {
+		eq(true, hasPath(fields(pos(1)), "@:generic"));
+	}
+
+	/**
+		function main() {
+			var @{-1-} local = 10
+		}
+	**/
+	function test9639_5() {
+		eq(true, hasPath(fields(pos(1)), "@:generic"));
+	}
 }

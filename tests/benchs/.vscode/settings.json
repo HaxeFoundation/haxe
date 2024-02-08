@@ -13,7 +13,7 @@
 		{"label": "PHP", "args": ["build.hxml", "-php", "export/php", "-cmd", "C:\\WINDOWS\\Sysnative\\bash.exe -c 'php export/php/index.php'"]},
 		{"label": "PHP 7", "args": ["build.hxml", "-php", "export/php", "-D", "php7", "-cmd", "C:\\WINDOWS\\Sysnative\\bash.exe -c 'php7.0 export/php/index.php'"]},
 		{"label": "Java", "args": ["build.hxml", "-java", "export/java", "-cmd", "java -jar export/java/Main.jar"]},
-		{"label": "Jvm", "args": ["build.hxml", "-D", "jvm", "-java", "export/java", "-cmd", "java -jar export/java/Main.jar"]},
+		{"label": "JVM", "args": ["build.hxml", "--jvm", "export/run.jar", "-cmd", "java -jar export/run.jar"]},
 		{"label": "C#", "args": ["build.hxml", "-cs", "export/cs", "-cmd", "cmd /C export\\cs\\bin\\Main.exe"]},
 		{"label": "Interp", "args": ["build.hxml", "--interp"]},
 	],
