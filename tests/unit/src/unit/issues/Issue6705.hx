@@ -64,6 +64,139 @@ class Issue6705 extends unit.Test {
 		eq(2, array.indexOf(staticFunction));
 	}
 
+	function testButEverythingIsDynamic() {
+		function localFunction() {}
+
+		var localClosure:Dynamic = localFunction;
+		var memberClosure:Dynamic = memberFunction;
+		var staticClosure:Dynamic = staticFunction;
+
+		t((localFunction : Dynamic) == alias((localFunction : Dynamic)));
+		t((localFunction : Dynamic) == alias(localClosure));
+		#if !neko
+		t((memberFunction : Dynamic) == alias((memberFunction : Dynamic)));
+		t((memberFunction : Dynamic) == alias(memberClosure));
+		#end
+		t((staticFunction : Dynamic) == alias((staticFunction : Dynamic)));
+		t((staticFunction : Dynamic) == alias(staticClosure));
+		t(localClosure == alias(localClosure));
+		t(memberClosure == alias(memberClosure));
+		t(staticClosure == alias(staticClosure));
+		t((localFunction : Dynamic) == alias((localFunction : Dynamic)));
+
+		t(equalsT((localFunction : Dynamic), localClosure));
+		#if !neko
+		t(equalsT((memberFunction : Dynamic), (memberFunction : Dynamic)));
+		t(equalsT((memberFunction : Dynamic), memberClosure));
+		#end
+		t(equalsT((staticFunction : Dynamic), (staticFunction : Dynamic)));
+		t(equalsT((staticFunction : Dynamic), staticClosure));
+		t(equalsT(localClosure, localClosure));
+		t(equalsT(memberClosure, memberClosure));
+		t(equalsT(staticClosure, staticClosure));
+
+		t(Reflect.compareMethods((localFunction : Dynamic), alias((localFunction : Dynamic))));
+		t(Reflect.compareMethods((localFunction : Dynamic), alias(localClosure)));
+		t(Reflect.compareMethods((memberFunction : Dynamic), alias((memberFunction : Dynamic))));
+		t(Reflect.compareMethods((memberFunction : Dynamic), alias(memberClosure)));
+		t(Reflect.compareMethods((staticFunction : Dynamic), alias((staticFunction : Dynamic))));
+		t(Reflect.compareMethods((staticFunction : Dynamic), alias(staticClosure)));
+		t(Reflect.compareMethods(localClosure, alias(localClosure)));
+		t(Reflect.compareMethods(memberClosure, alias(memberClosure)));
+		t(Reflect.compareMethods(staticClosure, alias(staticClosure)));
+
+		var array = [(localFunction : Dynamic), (memberFunction : Dynamic), (staticFunction : Dynamic)];
+		eq(0, array.indexOf((localFunction : Dynamic)));
+		#if !neko
+		eq(1, array.indexOf((memberFunction : Dynamic)));
+		#end
+		eq(2, array.indexOf((staticFunction : Dynamic)));
+	}
+
+	function testButEverythingIsBackwards() {
+		function localFunction() {}
+
+		var localClosure = localFunction;
+		var memberClosure = memberFunction;
+		var staticClosure = staticFunction;
+
+		t(alias(localFunction) == localFunction);
+		t(alias(localClosure) == localFunction);
+		#if !neko
+		t(alias(memberFunction) == memberFunction);
+		t(alias(memberClosure) == memberFunction);
+		#end
+		t(alias(staticFunction) == staticFunction);
+		t(alias(staticClosure) == staticFunction);
+		t(alias(localClosure) == localClosure);
+		t(alias(memberClosure) == memberClosure);
+		t(alias(staticClosure) == staticClosure);
+		t(alias(localFunction) == localFunction);
+
+		t(equalsT(localClosure, localFunction));
+		#if !neko
+		t(equalsT(memberFunction, memberFunction));
+		t(equalsT(memberClosure, memberFunction));
+		#end
+		t(equalsT(staticFunction, staticFunction));
+		t(equalsT(staticClosure, staticFunction));
+		t(equalsT(localClosure, localClosure));
+		t(equalsT(memberClosure, memberClosure));
+		t(equalsT(staticClosure, staticClosure));
+
+		t(Reflect.compareMethods(alias(localFunction), localFunction));
+		t(Reflect.compareMethods(alias(localClosure), localFunction));
+		t(Reflect.compareMethods(alias(memberFunction), memberFunction));
+		t(Reflect.compareMethods(alias(memberClosure), memberFunction));
+		t(Reflect.compareMethods(alias(staticFunction), staticFunction));
+		t(Reflect.compareMethods(alias(staticClosure), staticFunction));
+		t(Reflect.compareMethods(alias(localClosure), localClosure));
+		t(Reflect.compareMethods(alias(memberClosure), memberClosure));
+		t(Reflect.compareMethods(alias(staticClosure), staticClosure));
+	}
+
+	function testButEverythingIsBackwardsAndDynamic() {
+		function localFunction() {}
+
+		var localClosure:Dynamic = localFunction;
+		var memberClosure:Dynamic = memberFunction;
+		var staticClosure:Dynamic = staticFunction;
+
+		t(alias((localFunction : Dynamic)) == (localFunction : Dynamic));
+		t(alias(localClosure) == (localFunction : Dynamic));
+		#if !neko
+		t(alias((memberFunction : Dynamic)) == (memberFunction : Dynamic));
+		t(alias(memberClosure) == (memberFunction : Dynamic));
+		#end
+		t(alias((staticFunction : Dynamic)) == (staticFunction : Dynamic));
+		t(alias(staticClosure) == (staticFunction : Dynamic));
+		t(alias(localClosure) == localClosure);
+		t(alias(memberClosure) == memberClosure);
+		t(alias(staticClosure) == staticClosure);
+		t(alias((localFunction : Dynamic)) == (localFunction : Dynamic));
+
+		t(equalsT(localClosure, (localFunction : Dynamic)));
+		#if !neko
+		t(equalsT((memberFunction : Dynamic), (memberFunction : Dynamic)));
+		t(equalsT(memberClosure, (memberFunction : Dynamic)));
+		#end
+		t(equalsT((staticFunction : Dynamic), (staticFunction : Dynamic)));
+		t(equalsT(staticClosure, (staticFunction : Dynamic)));
+		t(equalsT(localClosure, localClosure));
+		t(equalsT(memberClosure, memberClosure));
+		t(equalsT(staticClosure, staticClosure));
+
+		t(Reflect.compareMethods(alias((localFunction : Dynamic)), (localFunction : Dynamic)));
+		t(Reflect.compareMethods(alias(localClosure), (localFunction : Dynamic)));
+		t(Reflect.compareMethods(alias((memberFunction : Dynamic)), (memberFunction : Dynamic)));
+		t(Reflect.compareMethods(alias(memberClosure), (memberFunction : Dynamic)));
+		t(Reflect.compareMethods(alias((staticFunction : Dynamic)), (staticFunction : Dynamic)));
+		t(Reflect.compareMethods(alias(staticClosure), (staticFunction : Dynamic)));
+		t(Reflect.compareMethods(alias(localClosure), localClosure));
+		t(Reflect.compareMethods(alias(memberClosure), memberClosure));
+		t(Reflect.compareMethods(alias(staticClosure), staticClosure));
+	}
+
 	function test1() {
 		function localFunction1(i:Int) {}
 
