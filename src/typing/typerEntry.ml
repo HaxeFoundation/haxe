@@ -7,13 +7,12 @@ open Resolution
 open Error
 
 let create com macros =
-	let ctx = {
+	let rec ctx = {
 		com = com;
 		t = com.basic;
 		g = {
 			core_api = None;
 			macros = macros;
-			type_patches = Hashtbl.create 0;
 			module_check_policies = [];
 			delayed = Array.init all_typer_passes_length (fun _ -> { tasks = []});
 			delayed_min_index = 0;
@@ -37,6 +36,7 @@ let create com macros =
 			do_format_string = format_string;
 			do_load_core_class = Typeload.load_core_class;
 			delayed_display = None;
+			root_typer = ctx;
 		};
 		m = {
 			curmod = null_module;
@@ -53,7 +53,7 @@ let create com macros =
 			get_build_infos = (fun() -> None);
 		};
 		f = TyperManager.create_ctx_f null_field;
-		e = TyperManager.create_ctx_e ();
+		e = TyperManager.create_ctx_e FunStatic false;
 		pass = PBuildModule;
 		allow_inline = true;
 		allow_transform = true;

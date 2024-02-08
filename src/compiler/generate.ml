@@ -42,7 +42,7 @@ let export_hxb com config cc platform zip m =
 			with Not_found ->
 				let anon_identification = new tanon_identification in
 				let warn w s p = com.Common.warning w com.warning_options s p in
-				let writer = HxbWriter.create config warn anon_identification com.hxb_writer_stats in
+				let writer = HxbWriter.create config warn anon_identification in
 				HxbWriter.write_module writer m;
 				let out = IO.output_string () in
 				HxbWriter.export writer out;
@@ -126,8 +126,7 @@ let generate ctx tctx ext actx =
 	begin match com.platform with
 		| Neko | Hl | Eval when actx.interp -> ()
 		| Cpp when Common.defined com Define.Cppia -> ()
-		| Cpp | Cs | Php -> Path.mkdir_from_path (com.file ^ "/.")
-		| Java when not actx.jvm_flag -> Path.mkdir_from_path (com.file ^ "/.")
+		| Cpp | Php -> Path.mkdir_from_path (com.file ^ "/.")
 		| _ -> Path.mkdir_from_path com.file
 	end;
 	if actx.interp then begin
@@ -158,13 +157,8 @@ let generate ctx tctx ext actx =
 			Genphp7.generate,"php"
 		| Cpp ->
 			Gencpp.generate,"cpp"
-		| Cs ->
-			Gencs.generate,"cs"
-		| Java ->
-			if Common.defined com Jvm then
-				Genjvm.generate actx.jvm_flag,"java"
-			else
-				Genjava.generate,"java"
+		| Jvm ->
+			Genjvm.generate actx.jvm_flag,"jvm"
 		| Python ->
 			Genpy.generate,"python"
 		| Hl ->

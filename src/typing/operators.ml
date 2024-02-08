@@ -386,7 +386,7 @@ let make_binop ctx op e1 e2 is_assign_op p =
 		unify ctx e2.etype b p;
 		mk_op e1 e2 b
 	| OpInterval ->
-		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (["std"],"IntIterator")) null_pos) ParamNormal in
+		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (["std"],"IntIterator")) null_pos) ParamNormal LoadNormal in
 		let e1 = AbstractCast.cast_or_unify_raise ctx tint e1 e1.epos in
 		let e2 = AbstractCast.cast_or_unify_raise ctx tint e2 e2.epos in
 		BinopSpecial (mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[e1;e2])) t p,false)

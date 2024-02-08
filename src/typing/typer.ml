@@ -96,7 +96,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 					false,a.a_path,fields,TAbstractDecl a
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					begin match get_abstract_froms ctx a pl with
-						| [t2] ->
+						| [(_,t2)] ->
 							if (List.exists (shallow_eq t) stack) then raise Exit;
 							loop (t :: stack) t2
 						| _ -> raise Exit
@@ -394,29 +394,24 @@ let rec type_ident_raise ctx i p mode with_type =
 		AKExpr (mk (TConst TSuper) t p)
 	| "null" ->
 		let acc =
-			(* Hack for #10787 *)
-			if ctx.com.platform = Cs then
-				AKExpr (null (spawn_monomorph ctx.e p) p)
-			else begin
-				let tnull () = ctx.t.tnull (spawn_monomorph ctx.e p) in
-				let t = match with_type with
-					| WithType.WithType(t,_) ->
-						begin match follow t with
-						| TMono r when not (is_nullable t) ->
-							(* If our expected type is a monomorph, bind it to Null<?>. The is_nullable check is here because
-							   the expected type could already be Null<?>, in which case we don't want to double-wrap (issue #11286). *)
-							Monomorph.do_bind r (tnull())
-						| _ ->
-							(* Otherwise there's no need to create a monomorph, we can just type the null literal
-							the way we expect it. *)
-							()
-						end;
-						t
+			let tnull () = ctx.t.tnull (spawn_monomorph ctx.e p) in
+			let t = match with_type with
+				| WithType.WithType(t,_) ->
+					begin match follow t with
+					| TMono r when not (is_nullable t) ->
+						(* If our expected type is a monomorph, bind it to Null<?>. The is_nullable check is here because
+							the expected type could already be Null<?>, in which case we don't want to double-wrap (issue #11286). *)
+						Monomorph.do_bind r (tnull())
 					| _ ->
-						tnull()
-				in
-				AKExpr (null t p)
-			end
+						(* Otherwise there's no need to create a monomorph, we can just type the null literal
+						the way we expect it. *)
+						()
+					end;
+					t
+				| _ ->
+					tnull()
+			in
+			AKExpr (null t p)
 		in
 		if mode = MGet then acc else AKNo(acc,p)
 	| _ ->
@@ -709,7 +704,7 @@ and type_vars ctx vl p =
 		and pv = snd ev.ev_name in
 		DeprecationCheck.check_is ctx.com ctx.m.curmod ctx.c.curclass.cl_meta ctx.f.curfield.cf_meta n ev.ev_meta pv;
 		try
-			let t = Typeload.load_type_hint ctx p ev.ev_type in
+			let t = Typeload.load_type_hint ctx p LoadNormal ev.ev_type in
 			let e = (match ev.ev_expr with
 				| None -> None
 				| Some e ->
@@ -737,7 +732,7 @@ and type_vars ctx vl p =
 				add_local ctx VGenerated n t_dynamic pv, None (* TODO: What to do with this... *)
 	) vl in
 	List.iter (fun (v,_) ->
-		delay_if_mono ctx PTypeField v.v_type (fun() ->
+		delay_if_mono ctx.g PTypeField v.v_type (fun() ->
 			if ExtType.is_void (follow v.v_type) then
 				raise_typing_error "Variables of type Void are not allowed" v.v_pos
 		)
@@ -782,14 +777,15 @@ and type_object_decl ctx fl with_type p =
 	let dynamic_parameter = ref None in
 	let a = (match with_type with
 	| WithType.WithType(t,_) ->
-		let rec loop seen t =
+		let rec loop had_cast seen t =
 			match follow t with
-			| TAnon a -> ODKWithStructure a
+			| TAnon a ->
+				ODKWithStructure a
 			| TAbstract (a,pl) as t
 				when not (Meta.has Meta.CoreType a.a_meta)
 					&& not (List.exists (fun t' -> shallow_eq t t') seen) ->
 				let froms = get_abstract_froms ctx a pl in
-				let fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
+				let fold = fun acc (fk,t') -> match loop (fk = FromField) (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
 				begin match List.fold_left fold [] froms with
 					| [] -> ODKPlain (* If the abstract has no casts in the first place, we can assume plain typing (issue #10730) *)
 					| [t] -> t
@@ -801,12 +797,12 @@ and type_object_decl ctx fl with_type p =
 					a_status = ref Closed;
 					a_fields = PMap.empty;
 				}
-			| TInst(c,tl) when Meta.has Meta.StructInit c.cl_meta ->
+			| TInst(c,tl) when not had_cast && Meta.has Meta.StructInit c.cl_meta ->
 				ODKWithClass(c,tl)
 			| _ ->
 				ODKPlain
 		in
-		loop [] t
+		loop false [] t
 	| _ ->
 		ODKPlain
 	) in
@@ -1025,7 +1021,7 @@ and type_new ctx ptp el with_type force_inline p =
 		)
 	in
 	let t = try
-		Typeload.load_instance ctx ptp (ParamCustom get_params)
+		Typeload.load_instance ctx ptp (ParamCustom get_params) LoadNormal
 	with exc ->
 		restore();
 		(* If we fail for some reason, process the arguments in case we want to display them (#7650). *)
@@ -1103,7 +1099,7 @@ and type_try ctx e1 catches with_type p =
 	in
 	let catches,el = List.fold_left (fun (acc1,acc2) ((v,pv),t,e_ast,pc) ->
 		let th = Option.default (make_ptp_th { tpackage = ["haxe"]; tname = "Exception"; tsub = None; tparams = [] } null_pos) t in
-		let t = Typeload.load_complex_type ctx true th in
+		let t = Typeload.load_complex_type ctx true LoadNormal th in
 		let rec loop t = match follow t with
 			| TInst ({ cl_kind = KTypeParameter _} as c,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
 				raise_typing_error "Cannot catch non-generic type parameter" p
@@ -1216,23 +1212,32 @@ and type_map_declaration ctx e1 el with_type p =
 	let el = (mk (TVar (v,Some enew)) t_dynamic p) :: (List.rev el) in
 	mk (TBlock el) tmap p
 
-and type_local_function ctx kind f with_type p =
+and type_local_function ctx_from kind f with_type p =
 	let name,inline = match kind with FKNamed (name,inline) -> Some name,inline | _ -> None,false in
-	let params = TypeloadFunction.type_function_params ctx f TPHLocal (match name with None -> "localfun" | Some (n,_) -> n) p in
-	if params <> [] then begin
-		if name = None then display_error ctx.com "Type parameters not supported in unnamed local functions" p;
-		if with_type <> WithType.NoValue then raise_typing_error "Type parameters are not supported for rvalue functions" p
-	end;
-	let v,pname = (match name with
-		| None -> None,p
-		| Some (v,pn) -> Some v,pn
-	) in
-	let old_tp,old_in_loop = ctx.type_params,ctx.e.in_loop in
+	let params = TypeloadFunction.type_function_params ctx_from f TPHLocal (match name with None -> "localfun" | Some (n,_) -> n) p in
+	let curfun = match ctx_from.e.curfun with
+		| FunStatic -> FunStatic
+		| FunMemberAbstract
+		| FunMemberAbstractLocal -> FunMemberAbstractLocal
+		| _ -> FunMemberClassLocal
+	in
+	let ctx = TyperManager.clone_for_expr ctx_from curfun true in
+	let vname,pname= match name with
+		| None ->
+			if params <> [] then begin
+				Some(gen_local_prefix,VGenerated),null_pos
+			end else
+				None,p
+		| Some (name,pn) ->
+			let origin = TVOLocalFunction in
+			Naming.check_local_variable_name ctx.com name origin p;
+			Some (name,VUser origin),pn
+	in
 	ctx.type_params <- params @ ctx.type_params;
 	if not inline then ctx.e.in_loop <- false;
-	let rt = Typeload.load_type_hint ctx p f.f_type in
-	let type_arg _ opt t p = Typeload.load_type_hint ~opt ctx p t in
-	let args = new FunctionArguments.function_arguments ctx type_arg false ctx.f.in_display None f.f_args in
+	let rt = Typeload.load_type_hint ctx p LoadReturn f.f_type in
+	let type_arg _ opt t p = Typeload.load_type_hint ~opt ctx p LoadNormal t in
+	let args = new FunctionArguments.function_arguments ctx.com type_arg false ctx.f.in_display None f.f_args in
 	let targs = args#for_type in
 	let maybe_unify_arg t1 t2 =
 		match follow t1 with
@@ -1296,14 +1301,14 @@ and type_local_function ctx kind f with_type p =
 				maybe_unify_ret tr
 			| TAbstract(a,tl) ->
 				begin match get_abstract_froms ctx a tl with
-					| [t2] ->
+					| [(_,t2)] ->
 						if not (List.exists (shallow_eq t) stack) then loop (t :: stack) t2
 					| l ->
 						(* For cases like nested EitherType, we want a flat list of all possible candidates.
 						   This might be controversial because those could be considered transitive casts,
 						   but it's unclear if that's a bad thing for this kind of inference (issue #10982). *)
 						let rec loop stack acc l = match l with
-							| t :: l ->
+							| (_,t) :: l ->
 								begin match follow t with
 								| TAbstract(a,tl) as t when not (List.exists (shallow_eq t) stack) ->
 									loop (t :: stack) acc (l @ get_abstract_froms ctx a tl)
@@ -1323,24 +1328,24 @@ and type_local_function ctx kind f with_type p =
 	| _ ->
 		());
 	let ft = TFun (targs,rt) in
-	let v = (match v with
-		| None -> None
-		| Some v ->
-			let v = (add_local_with_origin ctx TVOLocalFunction v ft pname) in
+	let ft = match with_type with
+		| WithType.NoValue ->
+			ft
+		| _ ->
+			(* We want to apply params as if we accessed the function by name (see type_ident_raise). *)
+			apply_params params (Monomorph.spawn_constrained_monos (fun t -> t) params) ft
+	in
+	let v = match vname with
+		| None ->
+			None
+		| Some(vname,vkind) ->
+			let v = add_local ctx vkind vname ft pname in
 			if params <> [] then v.v_extra <- Some (var_extra params None);
 			Some v
-	) in
-	let curfun = match ctx.e.curfun with
-		| FunStatic -> FunStatic
-		| FunMemberAbstract
-		| FunMemberAbstractLocal -> FunMemberAbstractLocal
-		| _ -> FunMemberClassLocal
 	in
-	let e = TypeloadFunction.type_function ctx args rt curfun f.f_expr ctx.f.in_display p in
-	ctx.type_params <- old_tp;
-	ctx.e.in_loop <- old_in_loop;
+	let e = TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p in
 	let tf = {
-		tf_args = args#for_expr;
+		tf_args = args#for_expr ctx;
 		tf_type = rt;
 		tf_expr = e;
 	} in
@@ -1364,7 +1369,7 @@ and type_local_function ctx kind f with_type p =
 			else []
 		in
 		let exprs =
-			if is_rec then begin
+			if is_rec || (params <> [] && with_type <> WithType.NoValue) then begin
 				if inline then display_error ctx.com "Inline function cannot be recursive" e.epos;
 				(mk (TVar (v,Some (mk (TConst TNull) ft p))) ctx.t.tvoid p) ::
 				(mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p) ::
@@ -1398,15 +1403,10 @@ and type_array_decl ctx el with_type p =
 				with Not_found ->
 					None)
 			| TAbstract (a,pl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
-				let types =
-					List.fold_left
-						(fun acc t' -> match loop (t :: seen) t' with
-							| None -> acc
-							| Some t -> t :: acc
-						)
-						[]
-						(get_abstract_froms ctx a pl)
-				in
+				let types = List.fold_left (fun acc (_,t') -> match loop (t :: seen) t' with
+					| None -> acc
+					| Some t -> t :: acc
+				) [] (get_abstract_froms ctx a pl) in
 				(match types with
 				| [t] -> Some t
 				| _ -> None)
@@ -1536,7 +1536,7 @@ and type_return ?(implicit=false) ctx e with_type p =
 
 and type_cast ctx e t p =
 	let tpos = pos t in
-	let t = Typeload.load_complex_type ctx true t in
+	let t = Typeload.load_complex_type ctx true LoadNormal t in
 	let check_param pt = match follow pt with
 		| TMono _ -> () (* This probably means that Dynamic wasn't bound (issue #4675). *)
 		| t when t == t_dynamic -> ()
@@ -1740,13 +1740,19 @@ and type_call_builtin ctx e el mode with_type p =
 			| TFun signature -> type_bind ctx e signature args p
 			| _ -> raise Exit)
 	| (EConst (Ident "$type"),_) , e1 :: el ->
+		let expected = match el with
+			| [EConst (Ident "_"),_] ->
+				Some (WithType.to_string with_type)
+			| _ ->
+				None
+		in
 		let e1 = type_expr ctx e1 with_type in
 		let s = s_type (print_context()) e1.etype in
-		let s = match el with
-			| [EConst (Ident "_"),_] ->
-				Printf.sprintf "%s (expected: %s)" s (WithType.to_string with_type)
-			| _ ->
+		let s = match expected with
+			| None ->
 				s
+			| Some s_expected ->
+				Printf.sprintf "%s (expected: %s)" s s_expected
 		in
 		warning ctx WInfo s e1.epos;
 		e1
@@ -1811,7 +1817,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EConst (Regexp (r,opt)) ->
 		let str = mk (TConst (TString r)) ctx.t.tstring p in
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
-		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (["std"],"EReg")) null_pos) ParamNormal in
+		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (["std"],"EReg")) null_pos) ParamNormal LoadNormal in
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[str;opt])) t p
 	| EConst (String(s,SSingleQuotes)) when s <> "" ->
 		type_expr ctx (format_string ctx s p) with_type
@@ -1999,7 +2005,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EDisplay (e,dk) ->
 		TyperDisplay.handle_edisplay ctx e dk mode with_type
 	| ECheckType (e,t) ->
-		let t = Typeload.load_complex_type ctx true t in
+		let t = Typeload.load_complex_type ctx true LoadAny t in
 		let e = type_expr ctx e (WithType.with_type t) in
 		let e = AbstractCast.cast_or_unify ctx t e p in
 		if e.etype == t then e else mk (TCast (e,None)) t p

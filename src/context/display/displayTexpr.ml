@@ -63,7 +63,7 @@ let actually_check_display_field ctx c cff p =
 	let display_modifier = Typeload.check_field_access ctx cff in
 	let fctx = TypeloadFields.create_field_context ctx cctx cff true display_modifier in
 	let cf = TypeloadFields.init_field (ctx,cctx,fctx) cff in
-	flush_pass ctx PTypeField ("check_display_field",(fst c.cl_path @ [snd c.cl_path;fst cff.cff_name]));
+	flush_pass ctx.g PTypeField ("check_display_field",(fst c.cl_path @ [snd c.cl_path;fst cff.cff_name]));
 	ignore(follow cf.cf_type)
 
 let check_display_field ctx sc c cf =
@@ -90,7 +90,7 @@ let check_display_class ctx decls c =
 		ignore(Typeload.type_type_params ctx TPHType c.cl_path null_pos sc.d_params);
 		List.iter (function
 			| (HExtends ptp | HImplements ptp) when display_position#enclosed_in ptp.pos_full ->
-				ignore(Typeload.load_instance ~allow_display:true ctx ptp ParamNormal)
+				ignore(Typeload.load_instance ~allow_display:true ctx ptp ParamNormal LoadNormal)
 			| _ ->
 				()
 		) sc.d_flags;
@@ -112,14 +112,14 @@ let check_display_enum ctx decls en =
 let check_display_typedef ctx decls td =
 	let st = find_typedef_by_position decls td.t_name_pos in
 	ignore(Typeload.type_type_params ctx TPHType td.t_path null_pos st.d_params);
-	ignore(Typeload.load_complex_type ctx true st.d_data)
+	ignore(Typeload.load_complex_type ctx true LoadNormal st.d_data)
 
 let check_display_abstract ctx decls a =
 	let sa = find_abstract_by_position decls a.a_name_pos in
 	ignore(Typeload.type_type_params ctx TPHType a.a_path null_pos sa.d_params);
 	List.iter (function
 		| (AbOver(ct,p) | AbFrom(ct,p) | AbTo(ct,p)) when display_position#enclosed_in p ->
-			ignore(Typeload.load_complex_type ctx true (ct,p))
+			ignore(Typeload.load_complex_type ctx true LoadNormal (ct,p))
 		| _ ->
 			()
 	) sa.d_flags
@@ -173,10 +173,10 @@ let check_display_file ctx cs =
 			let m = try
 				ctx.com.module_lut#find path
 			with Not_found ->
-				begin match !TypeloadModule.type_module_hook ctx path null_pos with
+				begin match !TypeloadCacheHook.type_module_hook ctx.com (delay ctx.g PTypeField) path null_pos with
 				| NoModule | BadModule _ -> raise Not_found
 				| BinaryModule mc ->
-					let api = (new TypeloadModule.hxb_reader_api_typeload ctx TypeloadModule.load_module' p :> HxbReaderApi.hxb_reader_api) in
+					let api = (new TypeloadModule.hxb_reader_api_typeload ctx.com ctx.g TypeloadModule.load_module' p :> HxbReaderApi.hxb_reader_api) in
 					let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats in
 					let m = reader#read_chunks api mc.mc_chunks in
 					m
