@@ -1,0 +1,18 @@
+[ERROR] (macro) Main.hx:10: characters 3-4
+
+ 10 |   1 = 0;
+    |   ^
+    | Invalid assign
+
+[WARNING] (macro) Main.hx:11: characters 9-11
+
+ 11 |   $type(42);
+    |         ^^
+    | Int
+
+[WARNING] Main.hx:5: characters 9-11
+
+  5 |   $type(42);
+    |         ^^
+    | Int
+

@@ -49,6 +49,7 @@ class Std {
 		return x <= 0 ? 0 : (rnd_int(rnd) & 0x3FFFFFFF) % x;
 	}
 
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}

@@ -1,0 +1,3 @@
+Main.hx:4: Test0 extends Base<String>
+Main.hx:6: Test1 extends Base<Int>
+Main.hx:9: Test2 extends Base<Bool>

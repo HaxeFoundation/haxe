@@ -69,7 +69,7 @@ import haxe.SysTools;
 		return new String(v);
 	}
 
-	public static function putEnv( s : String, v : String ) : Void {
+	public static function putEnv( s : String, v : Null<String> ) : Void {
 		untyped put_env(s.__s,if( v == null ) null else v.__s);
 	}
 

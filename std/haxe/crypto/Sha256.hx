@@ -45,7 +45,7 @@ class Sha256 {
 		return out;
 	}
 
-	public function new() {}
+	function new() {}
 
 	function doEncode(m:Array<Int>, l:Int):Array<Int> {
 		var K:Array<Int> = [

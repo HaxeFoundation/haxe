@@ -1,5 +1,11 @@
 (include_subdirs no)
 
+(env
+	(_
+		(flags (-w -27))
+	)
+)
+
 (library
 	(name neko)
 	(libraries extlib)

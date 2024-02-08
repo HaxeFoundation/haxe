@@ -59,7 +59,7 @@ class Boot {
 	static function __init__() {
 		Global.mb_internal_encoding('UTF-8');
 		if (!Global.defined('HAXE_CUSTOM_ERROR_HANDLER') || !Const.HAXE_CUSTOM_ERROR_HANDLER) {
-			var previousLevel = Global.error_reporting(Const.E_ALL);
+			var previousLevel = Global.error_reporting(Const.E_ALL & ~Const.E_DEPRECATED);
 			var previousHandler = Global.set_error_handler(function(errno:Int, errstr:String, errfile:String, errline:Int) {
 				if (Global.error_reporting() & errno == 0) {
 					return false;
@@ -107,7 +107,8 @@ class Boot {
 		Check if specified property has getter
 	**/
 	public static function hasGetter(phpClassName:String, property:String):Bool {
-		ensureLoaded(phpClassName);
+		if(!ensureLoaded(phpClassName))
+			return false;
 
 		var has = false;
 		var phpClassName:haxe.extern.EitherType<Bool, String> = phpClassName;
@@ -123,7 +124,8 @@ class Boot {
 		Check if specified property has setter
 	**/
 	public static function hasSetter(phpClassName:String, property:String):Bool {
-		ensureLoaded(phpClassName);
+		if(!ensureLoaded(phpClassName))
+			return false;
 
 		var has = false;
 		var phpClassName:haxe.extern.EitherType<Bool, String> = phpClassName;
@@ -146,7 +148,7 @@ class Boot {
 		Retrieve metadata for specified class
 	**/
 	public static function getMeta(phpClassName:String):Null<Dynamic> {
-		ensureLoaded(phpClassName);
+		if(!ensureLoaded(phpClassName)) return null;
 		return Global.isset(meta[phpClassName]) ? meta[phpClassName] : null;
 	}
 
@@ -315,7 +317,7 @@ class Boot {
 
 	/**
 		Implementation for `cast(value, Class<Dynamic>)`
-		@throws HxException if `value` cannot be casted to this type
+		@throws haxe.ValueError if `value` cannot be casted to this type
 	**/
 	public static function typedCast(hxClass:HxClass, value:Dynamic):Dynamic {
 		if (value == null)
@@ -337,7 +339,7 @@ class Boot {
 				if (value.is_string()) {
 					return value;
 				}
-			case 'php\\NativeArray':
+			case 'array':
 				if (value.is_array()) {
 					return value;
 				}
@@ -589,10 +591,13 @@ class Boot {
 		Creates Haxe-compatible closure of an instance method.
 		@param obj - any object
 	**/
-	public static function getInstanceClosure(obj:{?__hx_closureCache:NativeAssocArray<HxClosure>}, methodName:String) {
+	public static function getInstanceClosure(obj:{?__hx_closureCache:NativeAssocArray<HxClosure>}, methodName:String):Null<HxClosure> {
 		var result = Syntax.coalesce(obj.__hx_closureCache[methodName], null);
 		if (result != null) {
 			return result;
+		}
+		if(!Global.method_exists(obj, methodName) && !Global.isset(Syntax.field(obj, methodName))) {
+			return null;
 		}
 		result = new HxClosure(obj, methodName);
 		if (!Global.property_exists(obj, '__hx_closureCache')) {
@@ -642,6 +647,10 @@ class Boot {
 			return ((code - 0xF0) << 18) + ((Global.ord(s[1]) - 0x80) << 12) + ((Global.ord(s[2]) - 0x80) << 6) + Global.ord(s[3]) - 0x80;
 		}
 	}
+
+	static public function divByZero(value:Float):Float {
+		return value == 0 ? Const.NAN : (value < 0 ? -Const.INF : Const.INF);
+	}
 }
 
 /**
@@ -675,7 +684,7 @@ private class HxClass {
 		} else if (Boot.hasGetter(phpClassName, property)) {
 			return Syntax.staticCall(phpClassName, 'get_$property');
 		} else if (phpClassName.method_exists(property)) {
-			return new HxClosure(phpClassName, property);
+			return Boot.getStaticClosure(phpClassName, property);
 		} else {
 			return Syntax.getStaticField(phpClassName, property);
 		}
@@ -943,7 +952,7 @@ private class HxAnon extends StdClass {
 			Syntax.foreach(fields, function(name, value) Syntax.setField(this, name, value));
 		}
 	}
-
+	
 	@:phpMagic
 	function __get(name:String) {
 		return null;
@@ -1013,19 +1022,5 @@ private class HxClosure {
 	**/
 	public function callWith(newThis:Dynamic, args:NativeArray):Dynamic {
 		return Global.call_user_func_array(getCallback(newThis), args);
-	}
-}
-
-/**
-	Special exception which is used to wrap non-throwable values
-**/
-@:keep
-@:dox(hide)
-private class HxException extends Exception {
-	var e:Dynamic;
-
-	public function new(e:Dynamic):Void {
-		this.e = e;
-		super(Boot.stringify(e));
 	}
 }

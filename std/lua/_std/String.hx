@@ -62,11 +62,14 @@ class String {
 	public inline function toLowerCase():String
 		return BaseString.lower(this);
 
-	public inline function indexOf(str:String, ?startIndex:Int):Int {
+	public function indexOf(str:String, ?startIndex:Int):Int {
 		if (startIndex == null)
 			startIndex = 1;
 		else
 			startIndex += 1;
+		if (str == "") {
+			return indexOfEmpty(this, startIndex - 1);
+		}
 		var r = BaseString.find(this, str, startIndex, true).begin;
 		if (r != null && r > 0)
 			return r - 1;
@@ -74,25 +77,33 @@ class String {
 			return -1;
 	}
 
-	public inline function lastIndexOf(str:String, ?startIndex:Int):Int {
-		var i = 0;
+	static function indexOfEmpty(s:String, startIndex:Int):Int {
+		var length = BaseString.len(s);
+		if(startIndex < 0) {
+			startIndex = length + startIndex;
+			if(startIndex < 0) startIndex = 0;
+		}
+		return startIndex > length ? length : startIndex;
+	}
+
+	public function lastIndexOf(str:String, ?startIndex:Int):Int {
 		var ret = -1;
 		if (startIndex == null)
 			startIndex = length;
 		while (true) {
 			var p = indexOf(str, ret + 1);
-			if (p == -1 || p > startIndex)
+			if (p == -1 || p > startIndex || p == ret)
 				break;
 			ret = p;
 		}
 		return ret;
 	}
 
-	public inline function split(delimiter:String):Array<String> {
-		var idx = 1;
+	public function split(delimiter:String):Array<String> {
+		var idx:Null<Int> = 1;
 		var ret = [];
 		while (idx != null) {
-			var newidx = 0;
+			var newidx:Null<Int> = 0;
 			if (delimiter.length > 0) {
 				newidx = BaseString.find(this, delimiter, idx, true).begin;
 			} else if (idx >= this.length) {
@@ -117,7 +128,7 @@ class String {
 		return this;
 	}
 
-	public inline function substring(startIndex:Int, ?endIndex:Int):String {
+	public function substring(startIndex:Int, ?endIndex:Int):String {
 		if (endIndex == null)
 			endIndex = this.length;
 		if (endIndex < 0)
@@ -140,7 +151,7 @@ class String {
 		return BaseString.byte(this, index + 1);
 	}
 
-	public inline function substr(pos:Int, ?len:Int):String {
+	public function substr(pos:Int, ?len:Int):String {
 		if (len == null || len > pos + this.length)
 			len = this.length;
 		else if (len < 0)

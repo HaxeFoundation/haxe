@@ -26,14 +26,14 @@ import python.lib.threading.Thread;
 
 @:pythonImport("threading")
 extern class Threading {
-	public static function active_count():Int;
-	public static function current_thread():Thread;
-	public static function get_ident():Int;
-	public static function enumerate():Array<Thread>;
-	public static function main_thread():Thread;
-	public static function settrace(func:Dynamic):Void;
-	public static function setprofile(func:Dynamic):Void;
-	public static function stack_size(?size:Int):Int;
-	public static function local():Dynamic;
-	public static var TIMEOUT_MAX:Float;
+	static function active_count():Int;
+	static function current_thread():Thread;
+	static function get_ident():Int;
+	static function enumerate():Array<Thread>;
+	static function main_thread():Thread;
+	static function settrace(func:Dynamic):Void;
+	static function setprofile(func:Dynamic):Void;
+	static function stack_size(?size:Int):Int;
+	static function local():Dynamic;
+	static var TIMEOUT_MAX:Float;
 }

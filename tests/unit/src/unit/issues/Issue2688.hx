@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue2688 extends Test {
-#if (java || cs)
+#if jvm
   public function test() {
     var x = 0;
     var b = new B(function() {
@@ -13,7 +13,7 @@ class Issue2688 extends Test {
 #end
 }
 
-#if (java || cs)
+#if jvm
 @:nativeGen
 private class A {
   public function new() {
@@ -24,7 +24,7 @@ private class A {
 private class B extends A {
   public var tasks:Int->Void;
 
-  public function new(task:Void->Void) {
+  public function new(task:()->Void) {
     super();
     tasks = function(i) {
       for (j in 0...i) {

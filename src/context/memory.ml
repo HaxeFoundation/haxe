@@ -1,5 +1,4 @@
 open Globals
-open CompilationServer
 open Common
 open Type
 open Genjson
@@ -34,12 +33,15 @@ let update_module_type_deps deps md =
 	) md.m_types;
 	!deps
 
-let rec scan_module_deps m h =
+let rec scan_module_deps cs m h =
 	if Hashtbl.mem h m.m_id then
 		()
 	else begin
 		Hashtbl.add h m.m_id m;
-		PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
+		PMap.iter (fun _ mdep ->
+			let m = (cs#get_context mdep.md_sign)#find_module mdep.md_path in
+			scan_module_deps cs m h
+		) m.m_extra.m_deps
 	end
 
 let module_sign key md =
@@ -62,7 +64,7 @@ let get_out out =
 
 let get_module_memory cs all_modules m =
 	let mdeps = Hashtbl.create 0 in
-	scan_module_deps m mdeps;
+	scan_module_deps cs m mdeps;
 	let deps = ref [Obj.repr null_module] in
 	let out = ref all_modules in
 	let deps = Hashtbl.fold (fun _ md deps ->
@@ -93,7 +95,7 @@ let fmt_word f =
 let size v =
 	fmt_size (mem_size v)
 
-let get_memory_json (cs : CompilationServer.t) mreq =
+let get_memory_json (cs : CompilationCache.t) mreq =
 	begin match mreq with
 	| MCache ->
 		let old_gc = Gc.get() in
@@ -121,8 +123,8 @@ let get_memory_json (cs : CompilationServer.t) mreq =
 				"nativeLibCache",jint (mem_size cache_mem.(3));
 				"additionalSizes",jarray [
 					jobject ["name",jstring "macro interpreter";"size",jint (mem_size (MacroContext.macro_interp_cache))];
-					jobject ["name",jstring "macro stdlib";"size",jint (mem_size (EvalContext.GlobalState.stdlib))];
-					jobject ["name",jstring "macro macro_lib";"size",jint (mem_size (EvalContext.GlobalState.macro_lib))];
+					(* jobject ["name",jstring "macro stdlib";"size",jint (mem_size (EvalContext.GlobalState.stdlib))];
+					jobject ["name",jstring "macro macro_lib";"size",jint (mem_size (EvalContext.GlobalState.macro_lib))]; *)
 					jobject ["name",jstring "last completion result";"size",jint (mem_size (DisplayException.last_completion_result))];
 					jobject ["name",jstring "Lexer file cache";"size",jint (mem_size (Lexer.all_files))];
 					jobject ["name",jstring "GC heap words";"size",jint (int_of_float size)];
@@ -166,6 +168,9 @@ let get_memory_json (cs : CompilationServer.t) mreq =
 			"moduleCache",jobject [
 				"size",jint (mem_size cache_mem.(1));
 				"list",jarray l;
+			];
+			"binaryCache",jobject [
+				"size",jint (mem_size cache_mem.(2));
 			];
 		]
 	| MModule(sign,path) ->
@@ -237,53 +242,51 @@ let display_memory com =
 	let mem = Gc.stat() in
 	print ("Total Allocated Memory " ^ fmt_size (mem.Gc.heap_words * (Sys.word_size asr 8)));
 	print ("Free Memory " ^ fmt_size (mem.Gc.free_words * (Sys.word_size asr 8)));
-	(match get() with
-	| None ->
-		print "No cache found";
-	| Some c ->
-		print ("Total cache size " ^ size c);
-		(* print ("  haxelib " ^ size c.c_haxelib); *)
-		(* print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)"); *)
-		(* print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)"); *)
-		let module_list = c#get_modules in
-		let all_modules = List.fold_left (fun acc m -> PMap.add m.m_id m acc) PMap.empty module_list in
-		let modules = List.fold_left (fun acc m ->
-			let (size,r) = get_module_memory c all_modules m in
-			(m,size,r) :: acc
-		) [] module_list in
-		let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
-		List.iter (fun (m,size,(reached,deps,out,leaks)) ->
-			let key = m.m_extra.m_sign in
-			if key <> !cur_key then begin
-				print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
-				cur_key := key;
-			end;
-			print (Printf.sprintf "    %s : %s" (s_type_path m.m_path) (fmt_size size));
-			(if reached then try
-				incr mcount;
-				let lcount = ref 0 in
-				let leak l =
-					incr lcount;
-					incr tcount;
-					print (Printf.sprintf "      LEAK %s" l);
-					if !lcount >= 3 && !tcount >= 100 && not verbose then begin
-						print (Printf.sprintf "      ...");
-						raise Exit;
-					end;
-				in
-				List.iter leak leaks;
-			with Exit ->
-				());
-			if verbose then begin
-				print (Printf.sprintf "      %d total deps" (List.length deps));
-				PMap.iter (fun _ md ->
-					print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (module_sign key md));
-				) m.m_extra.m_deps;
-			end;
-			flush stdout
-		) (List.sort (fun (m1,s1,_) (m2,s2,_) ->
-			let k1 = m1.m_extra.m_sign and k2 = m2.m_extra.m_sign in
-			if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
-		) modules);
-		if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
-		print "Cache dump complete")
+	let c = com.cs in
+	print ("Total cache size " ^ size c);
+	(* print ("  haxelib " ^ size c.c_haxelib); *)
+	(* print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)"); *)
+	(* print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)"); *)
+	let module_list = c#get_modules in
+	let all_modules = List.fold_left (fun acc m -> PMap.add m.m_id m acc) PMap.empty module_list in
+	let modules = List.fold_left (fun acc m ->
+		let (size,r) = get_module_memory c all_modules m in
+		(m,size,r) :: acc
+	) [] module_list in
+	let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
+	List.iter (fun (m,size,(reached,deps,out,leaks)) ->
+		let key = m.m_extra.m_sign in
+		if key <> !cur_key then begin
+			print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
+			cur_key := key;
+		end;
+		print (Printf.sprintf "    %s : %s" (s_type_path m.m_path) (fmt_size size));
+		(if reached then try
+			incr mcount;
+			let lcount = ref 0 in
+			let leak l =
+				incr lcount;
+				incr tcount;
+				print (Printf.sprintf "      LEAK %s" l);
+				if !lcount >= 3 && !tcount >= 100 && not verbose then begin
+					print (Printf.sprintf "      ...");
+					raise Exit;
+				end;
+			in
+			List.iter leak leaks;
+		with Exit ->
+			());
+		if verbose then begin
+			print (Printf.sprintf "      %d total deps" (List.length deps));
+			PMap.iter (fun _ mdep ->
+				let md = (com.cs#get_context mdep.md_sign)#find_module mdep.md_path in
+				print (Printf.sprintf "      dep %s%s" (s_type_path mdep.md_path) (module_sign key md));
+			) m.m_extra.m_deps;
+		end;
+		flush stdout
+	) (List.sort (fun (m1,s1,_) (m2,s2,_) ->
+		let k1 = m1.m_extra.m_sign and k2 = m2.m_extra.m_sign in
+		if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
+	) modules);
+	if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
+	print "Cache dump complete"

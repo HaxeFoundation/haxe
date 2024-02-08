@@ -76,7 +76,7 @@ class FileInput extends haxe.io.Input {
 				w = SEEK_END;
 		}
 		var r = fseek(__f, p, w);
-		if (r == false)
+		if (r == -1)
 			throw Custom('An error occurred');
 	}
 

@@ -124,6 +124,11 @@ import haxe.iterators.StringKeyValueIterator;
 		return Boot.unsafeOrd(char);
 	}
 
+	public static function unsafeCodeAt(s:String, index:Int):Int {
+		var char:NativeString = (index == 0 ? s : Global.mb_substr(s, index, 1));
+		return Boot.unsafeOrd(char);
+	}
+
 	public static inline function iterator(s:String):StringIterator {
 		return new StringIterator(s);
 	}

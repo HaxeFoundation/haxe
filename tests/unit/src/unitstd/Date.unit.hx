@@ -32,14 +32,14 @@ date.getUTCDay() == 3;
 // timezone issues
 var date1 = Date.fromTime(1455555555 * 1000.); // 15 Feb 2016 16:59:15 GMT
 var date2 = new Date(2016, 1, 15, 16, 59, 15);
-#if azure
-date1.getTime() == date2.getTime(); // depends on Azure timezone setting!
+#if github
+date1.getTime() == date2.getTime(); // depends on GitHub timezone setting!
 #end
 
 var referenceDate = new Date(1970, 0, 12, 2, 0, 0);
 referenceDate.toString() == "1970-01-12 02:00:00";
-#if azure
-referenceDate.getTime() == 957600000.; // depends on Azure timezone setting!
+#if github
+referenceDate.getTime() == 957600000.; // depends on GitHub timezone setting!
 #end
 
 var date = new Date(1970, 0, 12, 1, 59, 59);

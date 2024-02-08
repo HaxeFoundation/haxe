@@ -1,0 +1,1 @@
+function method<T=String>() {}

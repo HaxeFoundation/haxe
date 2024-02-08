@@ -1,0 +1,2 @@
+Main.hx:3: characters 76-78 : Object requires fields: foo, bar
+Main.hx:3: characters 76-78 : ... For function argument 'x'

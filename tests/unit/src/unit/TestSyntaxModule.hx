@@ -16,7 +16,9 @@ class TestSyntaxModule extends Test {
 		var result = Syntax.code('{0} + {1}', i1, i2);
 		eq(i1 + i2, result);
 	}
+#end
 
+#if (php || js || python)
 	function testField() {
 		var o = {field:'hello'};
 		var value = Syntax.field(o, 'field');

@@ -126,6 +126,11 @@ private class SocketOutput extends haxe.io.Output {
 		__s = new PSocket();
 	}
 
+    function __rebuildIoStreams():Void {
+		input = new SocketInput(__s);
+		output = new SocketOutput(__s);
+    }
+
 	public function close():Void {
 		__s.close();
 	}

@@ -32,7 +32,7 @@ extern class Inspect {
 	static function isfunction(object:Dynamic):Bool;
 	static function getsourcefile(object:Dynamic):String;
 
-	static public inline function isInterface(cls:Class<Dynamic>):Bool {
+	static inline function isInterface(cls:Class<Dynamic>):Bool {
 		return untyped __define_feature__("python._hx_is_interface", c._hx_is_interface);
 	}
 }

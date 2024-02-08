@@ -7,7 +7,7 @@ private extern enum abstract HttpStatus(Int) to Int {
     var NotFound;
 
     static function __init__():Void {
-        untyped __js__("var __issue4862__http_status = {Ok: 200, NotFound: 404};");
+        js.Syntax.code("var __issue4862__http_status = {Ok: 200, NotFound: 404};");
     }
 }
 #end

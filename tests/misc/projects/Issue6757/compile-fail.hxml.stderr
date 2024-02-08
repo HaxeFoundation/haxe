@@ -1,4 +1,4 @@
 Test.hx:5: characters 27-37 : error: Bool should be String
-Test.hx:5: characters 27-37 :  have: haxe.ds.Option<Bool>
-Test.hx:5: characters 27-37 :  want: haxe.ds.Option<String>
+Test.hx:5: characters 27-37 : ... have: haxe.ds.Option<Bool>
+Test.hx:5: characters 27-37 : ... want: haxe.ds.Option<String>
 Test.hx:9: characters 11-12 : Warning : haxe.ds.Option<String>

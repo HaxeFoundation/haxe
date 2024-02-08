@@ -1,0 +1,2 @@
+Main.hx:20: characters 27-28 : Normal variables cannot be accessed with 'super', use 'this' instead
+Main.hx:20: characters 36-37 : Normal variables cannot be accessed with 'super', use 'this' instead

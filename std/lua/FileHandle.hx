@@ -27,13 +27,14 @@ import haxe.extern.Rest;
 import sys.io.FileInput;
 
 extern class FileHandle extends UserData {
-	public function flush():Void;
-	public function read(arg:Rest<EitherType<String, Int>>):String;
-	public function close():Void;
+	function flush():Void;
+	function read(arg:Rest<EitherType<String, Int>>):String;
+	function lines():NativeIterator<String>;
+	function close():Void;
 
-	public function write(str:String):Void;
+	function write(str:String):Void;
 
 	@:overload(function():Int {})
 	@:overload(function(arg:String):Int {})
-	public function seek(arg:String, pos:Int):Void;
+	function seek(arg:String, pos:Int):Void;
 }

@@ -23,6 +23,7 @@
 package haxe.io;
 
 import php.Global;
+import php.Syntax;
 
 class Bytes {
 	public var length(default, null):Int;
@@ -50,9 +51,8 @@ class Bytes {
 		}
 	}
 
-	public function fill(pos:Int, len:Int, value:Int):Void {
-		for (i in pos...pos + len)
-			b.set(i, value);
+	public inline function fill(pos:Int, len:Int, value:Int):Void {
+		b.fill(pos, len, value);
 	}
 
 	public inline function sub(pos:Int, len:Int):Bytes {

@@ -24,6 +24,7 @@ StringTools.endsWith("foo", "foo") == true;
 StringTools.endsWith("foo", "fooo") == false;
 StringTools.endsWith("foo", "") == true;
 StringTools.endsWith("", "") == true;
+StringTools.endsWith("μου\n","\n") == true;
 
 // isSpace
 StringTools.isSpace("", 0) == false;
@@ -141,7 +142,7 @@ StringTools.isEof(StringTools.fastCodeAt("", 0)) == true;
 // isEOF
 #if (neko || lua || eval)
 StringTools.isEof(null) == true;
-#elseif (cs || java || python)
+#elseif (java || python)
 StringTools.isEof( -1) == true;
 #elseif js
 // how do I test this here?

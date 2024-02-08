@@ -50,6 +50,7 @@ import python.Syntax;
 	}
 
 	@:ifFeature("typed_cast")
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}
@@ -129,57 +130,74 @@ import python.Syntax;
 		}
 	}
 
+	static inline function isSpaceChar(char:String):Bool
+		return Syntax.isIn(char, " \n\r\t\x0b\x0c");
+
+	static inline function isHexPrefix(cur:String, next:String):Bool
+		return cur == '0' && (next == 'x' || next == 'X');
+
+	static inline function isDecimalDigit(char:String):Bool
+		return Syntax.isIn(char, "0123456789");
+
+	static inline function isHexadecimalDigit(char:String):Bool
+		return Syntax.isIn(char, "0123456789abcdefABCDEF");
+
 	public static function parseInt(x:String):Null<Int> {
 		if (x == null)
 			return null;
-		try {
-			return UBuiltins.int(x);
-		} catch (e:Dynamic) {
-			var base = 10;
-			var len = x.length;
-			var foundCount = 0;
-			var sign = 0;
-			var firstDigitIndex = 0;
-			var lastDigitIndex = -1;
-			var previous = 0;
 
-			for(i in 0...len) {
-				var c = StringTools.fastCodeAt(x, i);
-				switch c {
-					case _ if((c > 8 && c < 14) || c == 32):
-						if(foundCount > 0) {
-							return null;
-						}
-						continue;
-					case '-'.code if(foundCount == 0):
-						sign = -1;
-					case '+'.code if(foundCount == 0):
-						sign = 1;
-					case '0'.code if(foundCount == 0 || (foundCount == 1 && sign != 0)):
-					case 'x'.code | 'X'.code if(previous == '0'.code && ((foundCount == 1 && sign == 0) || (foundCount == 2 && sign != 0))):
-						base = 16;
-					case _ if('0'.code <= c && c <= '9'.code):
-					case _ if(base == 16 && (('a'.code <= c && c <= 'z'.code) || ('A'.code <= c && c <= 'Z'.code))):
-					case _:
-						break;
-				}
-				if((foundCount == 0 && sign == 0) || (foundCount == 1 && sign != 0)) {
-					firstDigitIndex = i;
-				}
-				foundCount++;
-				lastDigitIndex = i;
-				previous = c;
-			}
-			if(firstDigitIndex <= lastDigitIndex) {
-				var digits = x.substring(firstDigitIndex, lastDigitIndex + 1);
-				return try {
-					(sign == -1 ? -1 : 1) * UBuiltins.int(digits, base);
-				} catch(e:Dynamic) {
-					null;
-				}
-			}
-			return null;
+		final len = x.length;
+		var index = 0;
+
+		inline function hasIndex(index:Int)
+			return index < len;
+
+		// skip whitespace
+		while (hasIndex(index)) {
+			if (!isSpaceChar(Syntax.arrayAccess(x, index)))
+				break;
+			++index;
 		}
+
+		// handle sign
+		final isNegative = hasIndex(index) && {
+			final sign = Syntax.arrayAccess(x, index);
+			if (sign == '-' || sign == '+') {
+				++index;
+			}
+			sign == '-';
+		}
+
+		// handle base
+		final isHexadecimal = hasIndex(index + 1) && isHexPrefix(Syntax.arrayAccess(x, index), Syntax.arrayAccess(x, index + 1));
+		if (isHexadecimal)
+			index += 2; // skip prefix
+
+		// handle digits
+		final firstInvalidIndex = {
+			var cur = index;
+			if (isHexadecimal) {
+				while (hasIndex(cur)) {
+					if (!isHexadecimalDigit(Syntax.arrayAccess(x, cur)))
+						break;
+					++cur;
+				}
+			} else {
+				while (hasIndex(cur)) {
+					if (!isDecimalDigit(Syntax.arrayAccess(x, cur)))
+						break;
+					++cur;
+				}
+			}
+			cur;
+		}
+
+		// no valid digits
+		if (index == firstInvalidIndex)
+			return null;
+
+		final result = python.internal.UBuiltins.int(x.substring(index, firstInvalidIndex), if (isHexadecimal) 16 else 10);
+		return if (isNegative) -result else result;
 	}
 
 	static function shortenPossibleNumber(x:String):String {

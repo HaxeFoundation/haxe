@@ -97,7 +97,9 @@ class CompilationServer {
 	**/
 	static public function setModuleCheckPolicy(pathFilters:Array<String>, policy:Array<ModuleCheckPolicy>, ?recursive = true,
 			?contextOptions:ContextOptions = NormalContext) {
-		@:privateAccess Compiler.load("server_add_module_check_policy", 4)(pathFilters, policy, recursive, contextOptions);
+		Context.onAfterInitMacros(() -> {
+			@:privateAccess Compiler.load("server_add_module_check_policy", 4)(pathFilters, policy, recursive, contextOptions);
+		});
 	}
 
 	/**

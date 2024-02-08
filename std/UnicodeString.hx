@@ -26,9 +26,14 @@ import haxe.iterators.StringIteratorUnicode;
 import haxe.iterators.StringKeyValueIteratorUnicode;
 
 /**
-	This abstract provides consistent cross-target unicode support.
+	This abstract provides consistent cross-target unicode support for characters of any width.
 
-	@see https://haxe.org/manual/std-UnicodeString.html
+	Due to differing internal representations of strings across targets, only the basic
+	multilingual plane (BMP) is supported consistently by `String` class.
+
+	This abstract provides API to consistently handle all characters even beyond BMP.
+
+	@see https://haxe.org/manual/std-String-unicode.html
 **/
 @:forward
 @:access(StringTools)
@@ -437,7 +442,7 @@ abstract UnicodeString(String) from String to String {
 
 	@:op(A += B) static function assignAdd(a:UnicodeString, b:UnicodeString):UnicodeString;
 
-	@:op(A + B) @:commutative static function add(a:UnicodeString, b:String):UnicodeString;
+	@:op(A + B) @:commutative static function addString(a:UnicodeString, b:String):UnicodeString;
 
-	@:op(A += B) @:commutative static function assignAdd(a:UnicodeString, b:String):UnicodeString;
+	@:op(A += B) @:commutative static function assignAddString(a:UnicodeString, b:String):UnicodeString;
 }

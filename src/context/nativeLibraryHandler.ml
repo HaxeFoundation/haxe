@@ -17,23 +17,30 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
-open Globals
 open Common
+open CompilationContext
 
-let add_native_lib com file is_extern = match com.platform with
-	| Globals.Flash ->
+let add_native_lib com lib =
+	let file = lib.lib_file in
+	let is_extern = lib.lib_extern in
+	match lib.lib_kind with
+	| SwfLib ->
 		SwfLoader.add_swf_lib com file is_extern
-	| Globals.Java ->
-		let std = file = "lib/hxjava-std.jar" in
-		Java.add_java_lib com file std is_extern
-	| Globals.Cs ->
-		let file, is_std = match ExtString.String.nsplit file "@" with
-			| [file] ->
-				file,false
-			| [file;"std"] ->
-				file,true
-			| _ -> failwith ("unsupported file@`std` format: " ^ file)
+	| JavaLib ->
+		let add file =
+			let std = file = "lib/hxjava-std.jar" in
+			JavaModern.add_java_lib com file std is_extern
 		in
-		Dotnet.add_net_lib com file is_std is_extern
-	| pf ->
-		failwith (Printf.sprintf "Target %s does not support native libraries (trying to load %s)" (platform_name pf) file);
+		if try Sys.is_directory file with Sys_error _ -> false then
+			let dir = file in
+			(fun _ -> Array.iter (fun file ->
+				if ExtString.String.ends_with file ".jar" then add (dir ^ "/" ^ file) ()
+			) (Sys.readdir file))
+		else
+			add file
+	| HxbLib ->
+		let hxb_lib = HxbLib.create_hxb_lib com file in
+		com.hxb_libs <- hxb_lib :: com.hxb_libs;
+		(fun () ->
+			hxb_lib#load
+		)

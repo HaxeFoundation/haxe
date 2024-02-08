@@ -25,6 +25,7 @@ package haxe.display;
 import haxe.display.JsonModuleTypes;
 import haxe.display.Position;
 import haxe.display.Protocol;
+import haxe.ds.ReadOnlyArray;
 
 /**
 	Methods of the JSON-RPC-based `--display` protocol in Haxe 4.
@@ -32,6 +33,11 @@ import haxe.display.Protocol;
 **/
 @:publicFields
 class DisplayMethods {
+	/**
+		TODO documentation
+	**/
+	static inline var Diagnostics = new HaxeRequestMethod<DiagnosticsParams, DiagnosticsResult>("display/diagnostics");
+
 	/**
 		The completion request is sent from the client to Haxe to request code completion.
 		Haxe automatically determines the type of completion to use based on the passed position, see `CompletionResultKind`.
@@ -46,7 +52,7 @@ class DisplayMethods {
 	/**
 		The find references request is sent from the client to Haxe to find locations that reference the symbol at a given text document position.
 	**/
-	static inline var FindReferences = new HaxeRequestMethod<PositionParams, GotoDefinitionResult>("display/references");
+	static inline var FindReferences = new HaxeRequestMethod<FindReferencesParams, GotoDefinitionResult>("display/references");
 
 	/**
 		The goto definition request is sent from the client to Haxe to resolve the definition location(s) of a symbol at a given text document position.
@@ -78,11 +84,20 @@ class DisplayMethods {
 	**/
 	static inline var SignatureHelp = new HaxeRequestMethod<SignatureHelpParams, SignatureHelpResult>("display/signatureHelp");
 
+	/**
+		The metadata request is sent from the client to Haxe to get a list of all registered metadata and their documentation.
+	**/
+	static inline var Metadata = new HaxeRequestMethod<MetadataParams, MetadataResult>("display/metadata");
+
+	/**
+		The defines request is sent from the client to Haxe to get a list of all registered defines and their documentation.
+	**/
+	static inline var Defines = new HaxeRequestMethod<DefinesParams, DefinesResult>("display/defines");
+
 	/*
 		TODO:
 
 		- finish completion
-		- diagnostics
 		- codeLens
 		- workspaceSymbols ("project/symbol"?)
 	 */
@@ -247,6 +262,7 @@ typedef DisplayModuleType = {
 	var doc:JsonDoc;
 	var isExtern:Bool;
 	var isFinal:Bool;
+	var isAbstract:Bool;
 	var kind:DisplayModuleTypeKind;
 }
 
@@ -280,7 +296,6 @@ enum abstract Platform(String) {
 	var Flash = "flash";
 	var Php = "php";
 	var Cpp = "cpp";
-	var Cs = "cs";
 	var Java = "java";
 	var Python = "python";
 	var Hl = "hl";
@@ -294,6 +309,7 @@ typedef Metadata = {
 	var platforms:Array<Platform>;
 	var targets:Array<MetadataTarget>;
 	var internal:Bool;
+	var ?origin:String;
 	var ?links:Array<String>;
 }
 
@@ -304,6 +320,8 @@ typedef Define = {
 	var parameters:Array<String>;
 	var platforms:Array<Platform>;
 	var links:Array<String>;
+	var ?origin:String;
+	var ?deprecated:String;
 }
 
 typedef Keyword = {
@@ -342,6 +360,7 @@ enum abstract KeywordKind(String) to String {
 	var Extern = "extern";
 	var Dynamic = "dynamic";
 	var Override = "override";
+	var Overload = "overload";
 	var Class = "class";
 	var Interface = "interface";
 	var Enum = "enum";
@@ -412,6 +431,7 @@ typedef FieldCompletionSubject<T> = DisplayItemOccurrence<T> & {
 typedef ToplevelCompletion<T> = {
 	var ?expectedType:JsonType<T>;
 	var ?expectedTypeFollowed:JsonType<T>;
+	var ?compatibleTypes:Array<JsonType<Dynamic>>;
 }
 
 typedef StructExtensionCompletion = {
@@ -421,6 +441,17 @@ typedef StructExtensionCompletion = {
 typedef PatternCompletion<T> = ToplevelCompletion<T> & {
 	var isOutermostPattern:Bool;
 }
+
+typedef DiagnosticsParams = {
+	var ?file:FsPath;
+	var ?contents:String;
+	var ?fileContents:Array<{file:FsPath, ?contents:String}>;
+}
+
+typedef DiagnosticsResult = Response<ReadOnlyArray<{
+	var file:FsPath;
+	var diagnostics:ReadOnlyArray<Diagnostic<Any>>;
+}>>
 
 enum abstract CompletionModeKind<T>(Int) {
 	var Field:CompletionModeKind<FieldCompletionSubject<Dynamic>>;
@@ -464,6 +495,30 @@ typedef CompletionItemResolveResult = Response<{
 	var item:DisplayItem<Dynamic>;
 }>;
 
+/** FindReferences **/
+typedef FindReferencesParams = PositionParams & {
+	var ?kind:FindReferencesKind;
+}
+
+enum abstract FindReferencesKind(String) to String {
+	/**
+		Find only direct references to the requested symbol.
+		Does not look for references to parent or overriding methods.
+	**/
+	var Direct = "direct";
+
+	/**
+		Find references to the base field and all the overidding fields in the inheritance chain.
+	**/
+	var WithBaseAndDescendants = "withBaseAndDescendants";
+
+	/**
+		Find references to the requested field and references to all
+		descendants of the requested field.
+	**/
+	var WithDescendants = "withDescendants";
+}
+
 /** GotoDefinition **/
 typedef GotoDefinitionResult = Response<Array<Location>>;
 
@@ -479,6 +534,7 @@ typedef HoverDisplayItemOccurence<T> = DisplayItemOccurrence<T> & {
 		var ?name:{
 			var name:String;
 			var kind:HoverExpectedNameKind;
+			var ?doc:String;
 		};
 	};
 }
@@ -513,6 +569,20 @@ typedef SignatureItem = {
 }
 
 typedef SignatureHelpResult = Response<Null<SignatureItem>>;
+
+typedef MetadataParams = {
+	var compiler:Bool;
+	var user:Bool;
+}
+
+typedef MetadataResult = Response<Array<Metadata>>;
+
+typedef DefinesParams = {
+	var compiler:Bool;
+	var user:Bool;
+}
+
+typedef DefinesResult = Response<Array<Define>>;
 
 /** General types **/
 typedef PositionParams = FileParams & {

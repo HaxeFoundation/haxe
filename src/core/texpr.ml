@@ -47,10 +47,10 @@ let iter f e =
 		f e;
 		f e1;
 		(match e2 with None -> () | Some e -> f e)
-	| TSwitch (e,cases,def) ->
-		f e;
-		List.iter (fun (el,e2) -> List.iter f el; f e2) cases;
-		(match def with None -> () | Some e -> f e)
+	| TSwitch switch ->
+		f switch.switch_subject;
+		List.iter (fun case -> List.iter f case.case_patterns; f case.case_expr) switch.switch_cases;
+		(match switch.switch_default with None -> () | Some e -> f e)
 	| TTry (e,catches) ->
 		f e;
 		List.iter (fun (_,e) -> f e) catches
@@ -83,10 +83,10 @@ let check_expr predicate e =
 			predicate fu.tf_expr
 		| TIf (e,e1,e2) ->
 			predicate e || predicate e1 || (match e2 with None -> false | Some e -> predicate e)
-		| TSwitch (e,cases,def) ->
-			predicate e
-			|| List.exists (fun (el,e2) -> List.exists predicate el || predicate e2) cases
-			|| (match def with None -> false | Some e -> predicate e)
+		| TSwitch switch ->
+			predicate switch.switch_subject
+			|| List.exists (fun case -> List.exists predicate case.case_patterns || predicate case.case_expr) switch.switch_cases
+			|| (match switch.switch_default with None -> false | Some e -> predicate e)
 		| TTry (e,catches) ->
 			predicate e || List.exists (fun (_,e) -> predicate e) catches
 
@@ -142,10 +142,14 @@ let map_expr f e =
 		let ec = f ec in
 		let e1 = f e1 in
 		{ e with eexpr = TIf (ec,e1,match e2 with None -> None | Some e -> Some (f e)) }
-	| TSwitch (e1,cases,def) ->
-		let e1 = f e1 in
-		let cases = List.map (fun (el,e2) -> List.map f el, f e2) cases in
-		{ e with eexpr = TSwitch (e1, cases, match def with None -> None | Some e -> Some (f e)) }
+	| TSwitch switch ->
+		let e1 = f switch.switch_subject in
+		let cases = List.map (fun case -> {
+			case_patterns = List.map f case.case_patterns;
+			case_expr = f case.case_expr
+		}) switch.switch_cases in
+		let def = Option.map f switch.switch_default in
+		{ e with eexpr = TSwitch {switch with switch_subject = e1;switch_cases = cases;switch_default = def} }
 	| TTry (e1,catches) ->
 		let e1 = f e1 in
 		{ e with eexpr = TTry (e1, List.map (fun (v,e) -> v, f e) catches) }
@@ -185,6 +189,19 @@ let map_expr_type f ft fv e =
 		{ e with eexpr = TEnumParameter (f e1,ef,i); etype = ft e.etype }
 	| TEnumIndex e1 ->
 		{ e with eexpr = TEnumIndex (f e1); etype = ft e.etype }
+	| TField (e1,(FClosure(None,cf) as fa)) ->
+		let e1 = f e1 in
+		let fa = try
+			begin match quick_field e1.etype cf.cf_name with
+				| FInstance(c,tl,cf) ->
+					FClosure(Some(c,tl),cf)
+				| _ ->
+					raise Not_found
+			end
+		with Not_found ->
+			fa
+		in
+		{ e with eexpr = TField (e1,fa); etype = ft e.etype }
 	| TField (e1,v) ->
 		let e1 = f e1 in
 		let v = try
@@ -228,7 +245,7 @@ let map_expr_type f ft fv e =
 	| TFunction fu ->
 		let fu = {
 			tf_expr = f fu.tf_expr;
-			tf_args = List.map (fun (v,o) -> fv v, o) fu.tf_args;
+			tf_args = List.map (fun (v,o) -> fv v, (Option.map f o)) fu.tf_args;
 			tf_type = ft fu.tf_type;
 		} in
 		{ e with eexpr = TFunction fu; etype = ft e.etype }
@@ -236,10 +253,14 @@ let map_expr_type f ft fv e =
 		let ec = f ec in
 		let e1 = f e1 in
 		{ e with eexpr = TIf (ec,e1,match e2 with None -> None | Some e -> Some (f e)); etype = ft e.etype }
-	| TSwitch (e1,cases,def) ->
-		let e1 = f e1 in
-		let cases = List.map (fun (el,e2) -> List.map f el, f e2) cases in
-		{ e with eexpr = TSwitch (e1, cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+	| TSwitch switch ->
+		let e1 = f switch.switch_subject in
+		let cases = List.map (fun case -> {
+			case_patterns = List.map f case.case_patterns;
+			case_expr = f case.case_expr
+		}) switch.switch_cases in
+		let def = Option.map f switch.switch_default in
+		{ e with eexpr = TSwitch {switch with switch_subject = e1;switch_cases = cases;switch_default = def}; etype = ft e.etype }
 	| TTry (e1,catches) ->
 		let e1 = f e1 in
 		{ e with eexpr = TTry (e1, List.map (fun (v,e) -> fv v, f e) catches); etype = ft e.etype }
@@ -284,10 +305,10 @@ let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
 	| TIf(e1,ethen1,None),TIf(e2,ethen2,None) -> equal e1 e2 && equal ethen1 ethen2
 	| TIf(e1,ethen1,Some eelse1),TIf(e2,ethen2,Some eelse2) -> equal e1 e2 && equal ethen1 ethen2 && equal eelse1 eelse2
 	| TWhile(e1,eb1,flag1),TWhile(e2,eb2,flag2) -> equal e1 e2 && equal eb2 eb2 && flag1 = flag2
-	| TSwitch(e1,cases1,eo1),TSwitch(e2,cases2,eo2) ->
-		equal e1 e2 &&
-		safe_for_all2 (fun (el1,e1) (el2,e2) -> safe_for_all2 equal el1 el2 && equal e1 e2) cases1 cases2 &&
-		(match eo1,eo2 with None,None -> true | Some e1,Some e2 -> equal e1 e2 | _ -> false)
+	| TSwitch switch1,TSwitch switch2 ->
+		equal switch1.switch_subject switch2.switch_subject &&
+		safe_for_all2 (fun case1 case2 -> safe_for_all2 equal case1.case_patterns case2.case_patterns && equal case1.case_expr case2.case_expr) switch1.switch_cases switch2.switch_cases &&
+		(match switch1.switch_default,switch2.switch_default with None,None -> true | Some e1,Some e2 -> equal e1 e2 | _ -> false)
 	| TTry(e1,catches1),TTry(e2,catches2) -> equal e1 e2 && safe_for_all2 (fun (v1,e1) (v2,e2) -> v1 == v2 && equal e1 e2) catches1 catches2
 	| TReturn None,TReturn None -> true
 	| TReturn(Some e1),TReturn(Some e2) -> equal e1 e2
@@ -299,7 +320,9 @@ let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
 	| TEnumParameter(e1,ef1,i1),TEnumParameter(e2,ef2,i2) -> equal e1 e2 && ef1 == ef2 && i1 = i2
 	| _ -> false
 
-let duplicate_tvars e =
+let e_identity e = e
+
+let duplicate_tvars f_this e =
 	let vars = Hashtbl.create 0 in
 	let copy_var v =
 		let v2 = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
@@ -336,6 +359,8 @@ let duplicate_tvars e =
 				{e with eexpr = TLocal v2}
 			with _ ->
 				e)
+		| TConst TThis ->
+			f_this e
 		| _ ->
 			map_expr build_expr e
 	in
@@ -434,15 +459,15 @@ let foldmap f acc e =
 		let acc,e1 = f acc e1 in
 		let acc,eo = foldmap_opt f acc eo in
 		acc,{ e with eexpr = TIf (ec,e1,eo)}
-	| TSwitch (e1,cases,def) ->
-		let acc,e1 = f acc e1 in
-		let acc,cases = List.fold_left (fun (acc,cases) (el,e2) ->
-			let acc,el = foldmap_list f acc el in
-			let acc,e2 = f acc e2 in
-			acc,((el,e2) :: cases)
-		) (acc,[]) cases in
-		let acc,def = foldmap_opt f acc def in
-		acc,{ e with eexpr = TSwitch (e1, cases, def) }
+	| TSwitch switch ->
+		let acc,e1 = f acc switch.switch_subject in
+		let acc,cases = List.fold_left (fun (acc,cases) case ->
+			let acc,el = foldmap_list f acc case.case_patterns in
+			let acc,e2 = f acc case.case_expr in
+			acc,({case_patterns = el;case_expr = e2} :: cases)
+		) (acc,[]) switch.switch_cases in
+		let acc,def = foldmap_opt f acc switch.switch_default in
+		acc,{ e with eexpr = TSwitch {switch with switch_subject = e1;switch_cases = cases;switch_default = def} }
 	| TTry (e1,catches) ->
 		let acc,e1 = f acc e1 in
 		let acc,catches = foldmap_pairs f acc catches in
@@ -461,16 +486,15 @@ let foldmap f acc e =
 (* Collection of functions that return expressions *)
 module Builder = struct
 	let make_static_this c p =
-		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
-		mk (TTypeExpr (TClassDecl c)) ta p
+		mk (TTypeExpr (TClassDecl c)) c.cl_type p
 
 	let make_typeexpr mt pos =
 		let t =
 			match resolve_typedef mt with
-			| TClassDecl c -> TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) }
-			| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
-			| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
-			| _ -> assert false
+			| TClassDecl c -> c.cl_type
+			| TEnumDecl e -> e.e_type
+			| TAbstractDecl a -> TType(abstract_module_type a [],[])
+			| _ -> die "" __LOC__
 		in
 		mk (TTypeExpr mt) t pos
 
@@ -505,10 +529,17 @@ module Builder = struct
 		| TFloat f -> mk (TConst (TFloat f)) basic.tfloat p
 		| TBool b -> mk (TConst (TBool b)) basic.tbool p
 		| TNull -> mk (TConst TNull) (basic.tnull (mk_mono())) p
-		| _ -> error "Unsupported constant" p
+		| _ -> raise_typing_error "Unsupported constant" p
 
 	let field e name t p =
-		mk (TField (e,try quick_field e.etype name with Not_found -> assert false)) t p
+		let f =
+			try
+				quick_field e.etype name
+			with Not_found ->
+				let field = (s_type (print_context()) e.etype) ^ "." ^ name in
+				die ("Field " ^ field ^ " requested but not found") __LOC__
+		in
+		mk (TField (e,f)) t p
 
 	let fcall e name el ret p =
 		let ft = tfun (List.map (fun e -> e.etype) el) ret in
@@ -516,6 +547,11 @@ module Builder = struct
 
 	let mk_parent e =
 		mk (TParenthesis e) e.etype e.epos
+
+	let ensure_parent e =
+		match e.eexpr with
+		| TParenthesis _ -> e
+		| _ -> mk_parent e
 
 	let mk_return e =
 		mk (TReturn (Some e)) t_dynamic e.epos
@@ -525,6 +561,21 @@ module Builder = struct
 
 	let index basic e index t p =
 		mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) basic.tint p)) t p
+
+	let resolve_and_make_static_call c name args p =
+		ignore(c.cl_build());
+		let cf = try
+			PMap.find name c.cl_statics
+		with Not_found ->
+			die "" __LOC__
+		in
+		let ef = make_static_field c cf (mk_zero_range_pos p) in
+		let tret = match follow ef.etype with
+			| TFun(_,r) -> r
+			| _ -> assert false
+		in
+		mk (TCall (ef, args)) tret p
+
 end
 
 let set_default basic a c p =
@@ -554,19 +605,22 @@ let rec constructor_side_effects e =
 		with Exit ->
 			true
 
+let replace_separators s c =
+	String.concat c (ExtString.String.nsplit s "_")
+
 let type_constant basic c p =
 	match c with
-	| Int s ->
-		if String.length s > 10 && String.sub s 0 2 = "0x" then error "Invalid hexadecimal integer" p;
+	| Int (s,_) ->
+		if String.length s > 10 && String.sub s 0 2 = "0x" then raise_typing_error "Invalid hexadecimal integer" p;
 		(try mk (TConst (TInt (Int32.of_string s))) basic.tint p
 		with _ -> mk (TConst (TFloat s)) basic.tfloat p)
-	| Float f -> mk (TConst (TFloat f)) basic.tfloat p
+	| Float (f,_) -> mk (TConst (TFloat f)) basic.tfloat p
 	| String(s,qs) -> mk (TConst (TString s)) basic.tstring p (* STRINGTODO: qs? *)
 	| Ident "true" -> mk (TConst (TBool true)) basic.tbool p
 	| Ident "false" -> mk (TConst (TBool false)) basic.tbool p
 	| Ident "null" -> mk (TConst TNull) (basic.tnull (mk_mono())) p
-	| Ident t -> error ("Invalid constant :  " ^ t) p
-	| Regexp _ -> error "Invalid constant" p
+	| Ident t -> raise_typing_error ("Invalid constant :  " ^ t) p
+	| Regexp _ -> raise_typing_error "Invalid constant" p
 
 let rec type_constant_value basic (e,p) =
 	match e with
@@ -575,17 +629,20 @@ let rec type_constant_value basic (e,p) =
 	| EParenthesis e ->
 		type_constant_value basic e
 	| EObjectDecl el ->
-		mk (TObjectDecl (List.map (fun (k,e) -> k,type_constant_value basic e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
+		mk (TObjectDecl (List.map (fun (k,e) -> k,type_constant_value basic e) el)) (mk_anon (ref Closed)) p
 	| EArrayDecl el ->
 		mk (TArrayDecl (List.map (type_constant_value basic) el)) (basic.tarray t_dynamic) p
 	| _ ->
-		error "Constant value expected" p
+		raise_typing_error "Constant value expected" p
+
+let is_constant_value basic e =
+	try (ignore (type_constant_value basic e); true) with Error {err_message = Custom _} -> false
 
 let for_remap basic v e1 e2 p =
 	let v' = alloc_var v.v_kind v.v_name e1.etype e1.epos in
 	let ev' = mk (TLocal v') e1.etype e1.epos in
 	let t1 = (Abstract.follow_with_abstracts e1.etype) in
-	let ehasnext = mk (TField(ev',try quick_field t1 "hasNext" with Not_found -> error (s_type (print_context()) t1 ^ "has no field hasNext()") p)) (tfun [] basic.tbool) e1.epos in
+	let ehasnext = mk (TField(ev',try quick_field t1 "hasNext" with Not_found -> raise_typing_error (s_type (print_context()) t1 ^ "has no field hasNext()") p)) (tfun [] basic.tbool) e1.epos in
 	let ehasnext = mk (TCall(ehasnext,[])) basic.tbool ehasnext.epos in
 	let enext = mk (TField(ev',quick_field t1 "next")) (tfun [] v.v_type) e1.epos in
 	let enext = mk (TCall(enext,[])) v.v_type e1.epos in
@@ -620,7 +677,7 @@ let build_metadata api t =
 	let make_meta_field ml =
 		let h = Hashtbl.create 0 in
 		mk (TObjectDecl (List.map (fun (f,el,p) ->
-			if Hashtbl.mem h f then error ("Duplicate metadata '" ^ f ^ "'") p;
+			if Hashtbl.mem h f then raise_typing_error ("Duplicate metadata '" ^ f ^ "'") p;
 			Hashtbl.add h f ();
 			(f,null_pos,NoQuotes), mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value api) el)) (api.tarray t_dynamic) p
 		) ml)) t_dynamic p
@@ -714,14 +771,14 @@ let dump_with_pos tabs e =
 			add "TWhile";
 			loop e1;
 			loop e2;
-		| TSwitch(e1,cases,def) ->
+		| TSwitch switch ->
 			add "TSwitch";
-			loop e1;
-			List.iter (fun (el,e) ->
-				List.iter (loop' (tabs ^ "    ")) el;
-				loop' (tabs ^ "      ") e;
-			) cases;
-			Option.may (loop' (tabs ^ "      ")) def
+			loop switch.switch_subject;
+			List.iter (fun case ->
+				List.iter (loop' (tabs ^ "    ")) case.case_patterns;
+				loop' (tabs ^ "      ") case.case_expr;
+			) switch.switch_cases;
+			Option.may (loop' (tabs ^ "      ")) switch.switch_default
 		| TTry(e1,catches) ->
 			add "TTry";
 			loop e1;
@@ -742,7 +799,7 @@ let dump_with_pos tabs e =
 			add "TCast";
 			loop e1;
 		| TMeta((m,_,_),e1) ->
-			add ("TMeta " ^ fst (Meta.get_info m));
+			add ("TMeta " ^ (Meta.to_string m));
 			loop e1
 	in
 	loop' tabs e;
@@ -754,8 +811,8 @@ let collect_captured_vars e =
 	let accesses_this = ref false in
 	let declare v = Hashtbl.add known v.v_id () in
 	let rec loop e = match e.eexpr with
-		| TLocal ({v_capture = true; v_id = id} as v) when not (Hashtbl.mem known id) ->
-			Hashtbl.add known id ();
+		| TLocal v when has_var_flag v VCaptured &&  not (Hashtbl.mem known v.v_id) ->
+			Hashtbl.add known v.v_id ();
 			unknown := v :: !unknown
 		| TConst (TThis | TSuper) ->
 			accesses_this := true;
@@ -803,3 +860,105 @@ let reduce_unsafe_casts ?(require_cast=false) e t =
 	| { eexpr = TCast _ } as result -> result
 	| result when require_cast -> { e with eexpr = TCast(result,None) }
 	| result -> result
+
+(**
+	Returns a position spanning from the first expr to the last expr in `el`.
+	Returns `default_pos` if `el` is empty or values of `pfile` of the first and
+	the last positions are different.
+*)
+let punion_el default_pos el =
+	match el with
+	| [] -> default_pos
+	| [{ epos = p }] -> p
+	| { epos = first } :: { epos = last } :: el ->
+		let rec loop = function
+			| [] -> last
+			| [{ epos = last }] -> last
+			| _ :: el -> loop el
+		in
+		let last = loop el in
+		if first.pfile <> last.pfile then
+			default_pos
+		else
+			punion first last
+
+let is_exhaustive switch =
+	switch.switch_exhaustive
+
+let mk_switch subject cases default exhaustive = {
+	switch_subject = subject;
+	switch_cases = cases;
+	switch_default = default;
+	switch_exhaustive = exhaustive;
+}
+
+let rec is_true_expr e1 = match e1.eexpr with
+	| TConst(TBool true) -> true
+	| TParenthesis e1 -> is_true_expr e1
+	| _ -> false
+
+let rec is_false_expr e1 = match e1.eexpr with
+	| TConst(TBool false) -> true
+	| TParenthesis e1 -> is_false_expr e1
+	| _ -> false
+
+module DeadEnd = struct
+	exception BreakOrContinue
+
+	(*
+		Checks if execution of provided expression is guaranteed to be terminated with `return`, `throw`, `break` or `continue`.
+	*)
+	let has_dead_end e =
+		let rec loop e =
+			let in_loop e =
+				try
+					loop e
+				with BreakOrContinue ->
+					false
+			in
+			match e.eexpr with
+			| TContinue | TBreak ->
+				raise BreakOrContinue
+			| TThrow e1 ->
+				loop e1 || true
+			| TReturn (Some e1) ->
+				loop e1 || true (* recurse first, could be `return continue` *)
+			| TReturn None ->
+				true
+			| TFunction _ ->
+				false (* This isn't executed, so don't recurse *)
+			| TIf (cond, if_body, Some else_body) ->
+				loop cond || loop if_body && loop else_body
+			| TIf (cond, _, None) ->
+				loop cond
+			| TSwitch switch ->
+				let check_exhaustive () =
+					(is_exhaustive switch) && List.for_all (fun case ->
+						List.exists loop case.case_patterns ||
+						loop case.case_expr
+					) switch.switch_cases &&
+					Option.map_default (loop ) true switch.switch_default (* true because we know it's exhaustive *)
+				in
+				loop switch.switch_subject || check_exhaustive ()
+			| TFor(_, e1, _) ->
+				loop e1
+			| TBinop(OpBoolAnd, e1, e2) ->
+				loop e1 || is_true_expr e1 && loop e2
+			| TBinop(OpBoolOr, e1, e2) ->
+				loop e1 || is_false_expr e1 && loop e2
+			| TWhile(cond, body, flag) ->
+				loop cond || ((flag = DoWhile || is_true_expr cond) && in_loop body)
+			| TTry(e1,[]) ->
+				loop e1
+			| TTry(_,catches) ->
+				(* The try expression is irrelevant because we have to conservatively assume that
+				   anything could throw control flow into the catch expressions. *)
+				List.for_all (fun (_,e) -> loop e) catches
+			| _ ->
+				check_expr loop e
+		in
+		try
+			loop e
+		with BreakOrContinue ->
+			true
+end

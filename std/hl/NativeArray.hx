@@ -42,6 +42,24 @@ package hl;
 	}
 }
 
+@:generic class NativeArrayKeyValueIterator<T> {
+	var arr : NativeArray<T>;
+	var pos : Int;
+	var length : Int;
+ 	public inline function new(arr:NativeArray<T>) {
+		this.arr = arr;
+		pos = 0;
+		length = arr.length;
+	}
+ 	public inline function hasNext() {
+		return pos < length;
+	}
+ 	public inline function next() {
+		var v = arr[pos];
+		return {key:pos++, value:v};
+	}
+}
+
 @:coreType abstract NativeArray<T> {
 	public var length(get, never):Int;
 

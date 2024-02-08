@@ -75,7 +75,7 @@ class Process {
 			}
 		}
 
-		return new java.lang.ProcessBuilder(pargs);
+		return new java.lang.ProcessBuilder(...pargs);
 	}
 
 	public function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void {

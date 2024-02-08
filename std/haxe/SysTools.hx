@@ -45,12 +45,12 @@ class SysTools {
 	**/
 	public static function quoteWinArg(argument:String, escapeMetaCharacters:Bool):String {
 		// If there is no space, tab, back-slash, or double-quotes, and it is not an empty string.
-		if (!~/^[^ \t\\"]+$/.match(argument)) {
+		if (!~/^(\/)?[^ \t\/\\"]+$/.match(argument)) {
 			// Based on cpython's subprocess.list2cmdline().
 			// https://hg.python.org/cpython/file/50741316dd3a/Lib/subprocess.py#l620
 
 			var result = new StringBuf();
-			var needquote = argument.indexOf(" ") != -1 || argument.indexOf("\t") != -1 || argument == "";
+			var needquote = argument.indexOf(" ") != -1 || argument.indexOf("\t") != -1 || argument == "" || argument.indexOf("/") > 0;
 
 			if (needquote)
 				result.add('"');

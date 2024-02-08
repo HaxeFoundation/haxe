@@ -37,8 +37,11 @@ let rec proto_field_raise proto name =
 let instance_field vi name =
 	vi.ifields.(get_instance_field_index_raise vi.iproto name)
 
-let object_field_raise o name =
-	o.ofields.(get_instance_field_index_raise o.oproto name)
+let object_field_raise o name = match o.oproto with
+	| OProto proto ->
+		o.ofields.(get_instance_field_index_raise proto name)
+	| ODictionary l ->
+		IntMap.find name l
 
 let object_field o name =
 	try object_field_raise o name with Not_found -> vnull

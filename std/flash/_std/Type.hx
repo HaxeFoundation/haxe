@@ -32,7 +32,7 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T>
+	public static function getClass<T>(o:T):Null<Class<T>>
 		untyped {
 			var cname = __global__["flash.utils.getQualifiedClassName"](o);
 			if (cname == "null" || cname == "Object" || cname == "int" || cname == "Number" || cname == "Boolean")
