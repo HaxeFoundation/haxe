@@ -10,10 +10,10 @@ exception HxbFailure of string
 	EN = enum
 	AB = abstract
 	TD = typedef
-	AN = anon
+	OB = anonymous object
 	CF = class field
 	EF = enum field
-	AF = anon field
+	OF = object field
 	EX = expression
 	EO = end of (Types | Fields | Module)
 	..F = forward definition
@@ -33,7 +33,7 @@ type chunk_kind =
 	| ABR (* abstract references *)
 	| TDR (* typedef references *)
 	(* Field references *)
-	| AFR (* anon field references *)
+	| OFR (* object field references *)
 	| OFD (* object field definitions *)
 	(* Own module type definitions *)
 	| CLD (* class definition *)
@@ -72,7 +72,7 @@ let string_of_chunk_kind = function
 	| ENR -> "ENR"
 	| ABR -> "ABR"
 	| TDR -> "TDR"
-	| AFR -> "AFR"
+	| OFR -> "OFR"
 	| OFD -> "OFD"
 	| EFR -> "EFR"
 	| CFR -> "CFR"
@@ -98,7 +98,7 @@ let chunk_kind_of_string = function
 	| "ENR" -> ENR
 	| "ABR" -> ABR
 	| "TDR" -> TDR
-	| "AFR" -> AFR
+	| "OFR" -> OFR
 	| "OFD" -> OFD
 	| "EFR" -> EFR
 	| "CFR" -> CFR

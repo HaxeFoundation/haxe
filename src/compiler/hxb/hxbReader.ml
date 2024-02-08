@@ -1587,7 +1587,7 @@ class hxb_reader
 		) in
 		enum_fields <- a
 
-	method read_afr =
+	method read_ofr =
 		let l = read_uleb128 ch in
 		let a = Array.init l (fun _ -> self#read_class_field_forward) in
 		anon_fields <- a
@@ -1934,8 +1934,8 @@ class hxb_reader
 			self#read_abr;
 		| TDR ->
 			self#read_tdr;
-		| AFR ->
-			self#read_afr;
+		| OFR ->
+			self#read_ofr;
 		| OFD ->
 			self#read_ofd;
 		| CLD ->

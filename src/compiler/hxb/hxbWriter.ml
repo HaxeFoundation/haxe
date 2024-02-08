@@ -486,7 +486,7 @@ module HxbWriter = struct
 			| EOT | EOF | EOM -> 0
 			| MDF -> 16
 			| MTF | MDR | CLR | END | ABD | ENR | ABR | TDR | EFR | CFR | AFD -> 64
-			| AFR | OFD | CLD | TDD | EFD -> 128
+			| OFR | OFD | CLD | TDD | EFD -> 128
 			| STR | DOC -> 256
 			| CFD | EXD -> 512
 		in
@@ -2141,7 +2141,7 @@ module HxbWriter = struct
 
 		let items = HashedIdentityPool.finalize writer.anon_fields in
 		if DynArray.length items > 0 then begin
-			start_chunk writer AFR;
+			start_chunk writer OFR;
 			Chunk.write_uleb128 writer.chunk (DynArray.length items);
 			DynArray.iter (fun (cf,_) ->
 				write_class_field_forward writer cf
