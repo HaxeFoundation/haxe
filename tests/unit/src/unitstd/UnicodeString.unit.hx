@@ -39,14 +39,22 @@ s.indexOf("я", 2) == 2;
 s.indexOf("я", 3) == 3;
 s.indexOf("я", 4) == -1;
 s.indexOf("я", 40) == -1;
-#if !lua // TODO https://github.com/HaxeFoundation/haxe/pull/8370
 s.indexOf("я", -1) == 2;
 s.indexOf("я", -2) == 2;
 s.indexOf("я", -3) == 2;
 s.indexOf("я", -4) == 2;
 s.indexOf("я", -5) == 2;
 s.indexOf("я", -50) == 2;
-#end
+// empty string
+s.indexOf("") == 0;
+s.indexOf("", -1) == 0;
+s.indexOf("", 0) == 0;
+s.indexOf("", 1) == 1;
+s.indexOf("", 2) == 2;
+s.indexOf("", 3) == 3;
+s.indexOf("", 4) == 4;
+s.indexOf("", 5) == 5;
+s.indexOf("", 6) == 5;
 // lastIndexOf
 var s:UnicodeString = "𠜎zяяw";
 s.lastIndexOf("𠜎") == 0;

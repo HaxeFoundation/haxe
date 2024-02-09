@@ -56,8 +56,19 @@ s.indexOf("b") == 4;
 s.indexOf("a") == 5;
 s.indexOf("r") == 6;
 s.indexOf("z") == -1;
-// negative startIndex
+// empty string
+s.indexOf("") == 0;
 s.indexOf("", -1) == 0;
+s.indexOf("", 0) == 0;
+s.indexOf("", 1) == 1;
+s.indexOf("", 2) == 2;
+s.indexOf("", 3) == 3;
+s.indexOf("", 4) == 4;
+s.indexOf("", 5) == 5;
+s.indexOf("", 6) == 6;
+s.indexOf("", 7) == 7;
+s.indexOf("", 8) == 7;
+// negative startIndex
 s.indexOf("f", -1) == 0;
 s.indexOf("o", -1) == 1;
 s.indexOf("1", -1) == 3;
@@ -66,7 +77,6 @@ s.indexOf("a", -1) == 5;
 s.indexOf("r", -1) == 6;
 s.indexOf("z", -1) == -1;
 // startIndex >= length
-// s.indexOf("", 7) == -1; // Even MDN says "Searching for an empty search string produces strange results."
 s.indexOf("f", 7) == -1;
 s.indexOf("o", 7) == -1;
 s.indexOf("1", 7) == -1;
@@ -80,16 +90,11 @@ s.indexOf("z", 7) == -1;
 s.indexOf("foo") == 0;
 s.indexOf("oo") == 1;
 // s.indexOf("bart") == -1;
-// s.indexOf("r", -1) == -1;
-// s.indexOf("r", -10) == -1;
 s.indexOf("", 2) == 2;
 s.indexOf("", 200) == s.length;
 s.indexOf("o", 1) == 1;
 s.indexOf("o", 2) == 2;
 s.indexOf("o", 3) == -1;
-// s.indexOf("", -10) == 0;
-// s.indexOf("", 7) == 7; // see #8117
-// s.indexOf("", 8) == -1; // see #8117
 s.indexOf("r", 7) == -1;
 s.indexOf("r", 8) == -1;
 // lastIndexOf

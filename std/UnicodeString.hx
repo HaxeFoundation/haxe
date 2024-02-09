@@ -209,6 +209,12 @@ abstract UnicodeString(String) from String to String {
 		} else {
 			startIndex;
 		}
+		if (str.length == 0) {
+			if (startIndex > length) {
+				return length;
+			}
+			return startIndex;
+		}
 
 		var unicodeOffset = 0;
 		var nativeOffset = 0;
