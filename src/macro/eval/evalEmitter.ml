@@ -89,14 +89,25 @@ let emit_capture_declaration i exec env =
 
 let emit_const v _ = v
 
+let emit_null_check exec p env = match exec env with
+	| VNull -> throw_string "Null Access" p
+	| v -> v
+
 let emit_new_array env =
 	encode_array_instance (EvalArray.create [||])
 
-let emit_new_vector_int i env =
-	encode_vector_instance (Array.make i vnull)
+let emit_new_vector_int i p env =
+	if i < 0 then exc_string_p "Vector size must be >= 0" p;
+	let a = try
+		Array.make i vnull
+	with Invalid_argument _ ->
+		exc_string_p (Printf.sprintf "Not enough memory to allocate Vector of size %i" i) p;
+	in
+	encode_vector_instance a
 
 let emit_new_vector exec p env =
-	encode_vector_instance (Array.make (decode_int_p (exec env) p) vnull)
+	let i = decode_int_p (exec env) p in
+	emit_new_vector_int i p env
 
 let emit_special_instance f execs env =
 	let vl = List.map (apply env) execs in
@@ -180,11 +191,11 @@ let emit_int_switch_array shift exec cases exec_def p env = match exec env with
 
 let rec run_while_continue exec_cond exec_body env =
 	try
-		while is_true (exec_cond env) do exec_body env done;
+		while is_true (exec_cond env) do ignore(exec_body env) done;
 	with Continue ->
 		run_while_continue exec_cond exec_body env
 
-let rec run_while exec_cond exec_body env =
+let run_while exec_cond exec_body env =
 	while is_true (exec_cond env) do exec_body env done
 
 let emit_while_break exec_cond exec_body env =
@@ -235,7 +246,7 @@ let emit_try exec catches env =
 			with Not_found ->
 				raise_notrace exc
 		in
-		varacc (fun _ -> v) env;
+		ignore(varacc (fun _ -> v) env);
 		exec env
 	in
 	v
@@ -743,8 +754,8 @@ let process_arguments fl vl env =
 			loop fl []
 		| [],[] ->
 			()
-		| _ ->
-			exc_string "Something went wrong"
+		| l1,l2 ->
+			exc_string (Printf.sprintf "Bad number of arguments: %i vs. %i" (List.length l1) (List.length l2))
 	in
 	loop fl vl
 [@@inline]

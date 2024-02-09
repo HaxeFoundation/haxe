@@ -51,11 +51,11 @@ let is_string t = match follow t with
 	| TInst({cl_path=[],"String"},_) -> true
 	| _ -> false
 
-let is_const_int_pattern (el,_) =
+let is_const_int_pattern case =
 	List.for_all (fun e -> match e.eexpr with
 		| TConst (TInt _) -> true
 		| _ -> false
-	) el
+	) case.case_patterns
 
 open EvalJitContext
 
@@ -230,12 +230,12 @@ and jit_expr jit return e =
 		let hasret = jit_closure.has_nonfinal_return in
 		let eci = get_env_creation jit_closure false tf.tf_expr.epos.pfile (EKLocalFunction jit.num_closures) in
 		let captures = Hashtbl.fold (fun vid (i,declared) acc -> (i,vid,declared) :: acc) jit_closure.captures [] in
-		let captures = List.sort (fun (i1,_,_) (i2,_,_) -> Pervasives.compare i1 i2) captures in
+		let captures = List.sort (fun (i1,_,_) (i2,_,_) -> Stdlib.compare i1 i2) captures in
 		(* Check if the out-of-scope var is in the outer scope because otherwise we have to promote outwards. *)
 		List.iter (fun var -> ignore(get_capture_slot jit var)) jit_closure.captures_outside_scope;
 		let captures = ExtList.List.filter_map (fun (i,vid,declared) ->
 			if declared then None
-			else Some (i,fst (try Hashtbl.find jit.captures vid with Not_found -> Error.typing_error "Something went wrong" e.epos))
+			else Some (i,fst (try Hashtbl.find jit.captures vid with Not_found -> Error.raise_typing_error (Printf.sprintf "Could not find capture variable %i" vid) e.epos))
 		) captures in
 		let mapping = Array.of_list captures in
 		emit_closure ctx mapping eci hasret exec fl
@@ -248,12 +248,12 @@ and jit_expr jit return e =
 			| Some e -> jit_expr jit return e
 		in
 		emit_if exec_cond exec_then exec_else
-	| TSwitch(e1,cases,def) when is_int e1.etype && List.for_all is_const_int_pattern cases ->
-		let exec = jit_expr jit false e1 in
+	| TSwitch switch when is_int switch.switch_subject.etype && List.for_all is_const_int_pattern switch.switch_cases ->
+		let exec = jit_expr jit false switch.switch_subject in
 		let h = ref IntMap.empty in
 		let max = ref 0 in
 		let min = ref max_int in
-		List.iter (fun (el,e) ->
+		List.iter (fun {case_patterns = el;case_expr = e} ->
 			push_scope jit e.epos;
 			let exec = jit_expr jit return e in
 			List.iter (fun e -> match e.eexpr with
@@ -265,14 +265,14 @@ and jit_expr jit return e =
 				| _ -> die "" __LOC__
 			) el;
 			pop_scope jit;
-		) cases;
-		let exec_def = jit_default jit return def in
+		) switch.switch_cases;
+		let exec_def = jit_default jit return switch.switch_default in
 		let l = !max - !min + 1 in
 		if l > 0 && l < 256 then begin
 			let cases = Array.init l (fun i -> try IntMap.find (i + !min) !h with Not_found -> exec_def) in
-			emit_int_switch_array (- !min) exec cases exec_def e1.epos
+			emit_int_switch_array (- !min) exec cases exec_def switch.switch_subject.epos
 		end else
-			emit_int_switch_map exec !h exec_def e1.epos
+			emit_int_switch_map exec !h exec_def switch.switch_subject.epos
 	(* | TSwitch(e1,cases,def) when is_string e1.etype ->
 		let exec = jit_expr jit false e1 in
 		let h = ref PMap.empty in
@@ -287,17 +287,17 @@ and jit_expr jit return e =
 		) cases;
 		let exec_def = jit_default jit return def in
 		emit_string_switch_map exec !h exec_def e1.epos *)
-	| TSwitch(e1,cases,def) ->
-		let exec = jit_expr jit false e1 in
+	| TSwitch switch ->
+		let exec = jit_expr jit false switch.switch_subject in
 		let execs = DynArray.create () in
-		let patterns = List.map (fun (el,e) ->
+		let patterns = List.map (fun {case_patterns = el;case_expr = e}  ->
 			push_scope jit e.epos;
 			let el = List.map (jit_expr jit false) el in
 			DynArray.add execs (jit_expr jit return e);
 			pop_scope jit;
 			el
-		) cases in
-		let exec_def = jit_default jit return def in
+		) switch.switch_cases in
+		let exec_def = jit_default jit return switch.switch_default in
 		emit_switch exec (DynArray.to_array execs) (Array.of_list patterns) exec_def
 	| TWhile({eexpr = TParenthesis e1},e2,flag) ->
 		loop {e with eexpr = TWhile(e1,e2,flag)}
@@ -429,14 +429,18 @@ and jit_expr jit return e =
 				let i = get_proto_field_index proto name in
 				lazy (match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v e.epos)
 			in
-			let instance_call c =
+			let jit_with_null_check ef =
 				let exec = jit_expr jit false ef in
+				emit_null_check exec ef.epos
+			in
+			let instance_call c =
+				let exec = jit_with_null_check ef in
 				let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
 				let v = lazy_proto_field proto in
 				emit_proto_field_call v (exec :: execs) e.epos
 			in
 			let default () =
-				let exec = jit_expr jit false ef in
+				let exec = jit_with_null_check ef in
 				emit_method_call exec name execs e.epos
 			in
 			begin match fa with
@@ -472,7 +476,7 @@ and jit_expr jit return e =
 					end else
 						default()
 				| _ ->
-					let exec = jit_expr jit false ef in
+					let exec = jit_with_null_check ef in
 					emit_field_call exec name execs e.epos
 			end
 		| TConst TSuper ->
@@ -507,7 +511,7 @@ and jit_expr jit return e =
 	| TNew({cl_path=["eval"],"Vector"},_,[e1]) ->
 		begin match e1.eexpr with
 			| TConst (TInt i32) ->
-				emit_new_vector_int (Int32.to_int i32)
+				emit_new_vector_int (Int32.to_int i32) e1.epos
 			| _ ->
 				let exec1 = jit_expr jit false e1 in
 				emit_new_vector exec1 e1.epos
@@ -633,7 +637,7 @@ and jit_expr jit return e =
 	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 		loop e1
 	| TIdent s ->
-		Error.typing_error ("Unknown identifier: " ^ s) e.epos
+		Error.raise_typing_error ("Unknown identifier: " ^ s) e.epos
 	in
 	let f = loop e in
 	begin match ctx.debug.debug_socket with

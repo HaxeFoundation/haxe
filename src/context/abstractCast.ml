@@ -4,7 +4,6 @@ open Ast
 open Type
 open Typecore
 open Error
-open CallUnification
 
 let cast_stack = new_rec_stack()
 
@@ -13,13 +12,13 @@ let rec make_static_call ctx c cf a pl args t p =
 		match args with
 			| [e] ->
 				let e,f = push_this ctx e in
-				ctx.with_type_stack <- (WithType.with_type t) :: ctx.with_type_stack;
+				ctx.e.with_type_stack <- (WithType.with_type t) :: ctx.e.with_type_stack;
 				let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [e] p with
-					| Some e -> type_expr ctx e (WithType.with_type t)
-					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
+					| MSuccess e -> type_expr ctx e (WithType.with_type t)
+					| _ ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
-				ctx.with_type_stack <- List.tl ctx.with_type_stack;
-				let e = try cast_or_unify_raise ctx t e p with Error(Unify _,_) -> raise Not_found in
+				ctx.e.with_type_stack <- List.tl ctx.e.with_type_stack;
+				let e = try cast_or_unify_raise ctx t e p with Error { err_message = Unify _ } -> raise Not_found in
 				f();
 				e
 			| _ -> die "" __LOC__
@@ -38,10 +37,10 @@ and do_check_cast ctx uctx tleft eright p =
 				(try
 					Type.unify_custom uctx eright.etype tleft;
 				with Unify_error l ->
-					raise (Error (Unify l, eright.epos)))
+					raise_error_msg (Unify l) eright.epos)
 			| _ -> ()
 		end;
-		if cf == ctx.curfield || rec_stack_memq cf cast_stack then typing_error "Recursive implicit cast" p;
+		if cf == ctx.f.curfield || rec_stack_memq cf cast_stack then raise_typing_error "Recursive implicit cast" p;
 		rec_stack_loop cast_stack cf f ()
 	in
 	let make (a,tl,(tcf,cf)) =
@@ -87,6 +86,21 @@ and do_check_cast ctx uctx tleft eright p =
 						in
 						loop2 a.a_to
 					end
+				| TInst(c,tl), TFun _ when has_class_flag c CFunctionalInterface ->
+					let cf = try
+						snd (ctx.com.functional_interface_lut#find c.cl_path)
+					with Not_found -> match TClass.get_singular_interface_field c.cl_ordered_fields with
+						| None ->
+							raise Not_found
+						| Some cf ->
+							ctx.com.functional_interface_lut#add c.cl_path (c,cf);
+							cf
+					in
+					let map = apply_params c.cl_params tl in
+					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+					unify_raise_custom native_unification_context eright.etype (map (apply_params cf.cf_params monos cf.cf_type)) p;
+					if has_mono tright then raise_typing_error ("Cannot use this function as a functional interface because it has unknown types: " ^ (s_type (print_context()) tright)) p;
+					eright
 				| _ ->
 					raise Not_found
 			end
@@ -108,63 +122,82 @@ and cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
 and cast_or_unify ctx tleft eright p =
 	try
 		cast_or_unify_raise ctx tleft eright p
-	with Error (Unify l,p) ->
-		raise_or_display ctx l p;
+	with Error ({ err_message = Unify _ } as err) ->
+		raise_or_display_error ctx err;
 		eright
 
-let find_array_access_raise ctx a pl e1 e2o p =
-	let is_set = e2o <> None in
-	let ta = apply_params a.a_params pl a.a_this in
+let prepare_array_access_field ctx a pl cf p =
+	let monos = List.map (fun _ -> spawn_monomorph ctx.e p) cf.cf_params in
+	let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
+	let check_constraints () =
+		List.iter2 (fun m ttp -> match get_constraints ttp with
+			| [] ->
+				()
+			| constr ->
+				List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> Type.unify m (map tc) ) constr
+		) monos cf.cf_params;
+	in
+	let get_ta() =
+		let ta = apply_params a.a_params pl a.a_this in
+		if has_class_field_flag cf CfImpl then ta
+		else TAbstract(a,pl)
+	in
+	map,check_constraints,get_ta
+
+let find_array_read_access_raise ctx a pl e1 p =
 	let rec loop cfl =
 		match cfl with
 		| [] -> raise Not_found
 		| cf :: cfl ->
-			let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
-			let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
-			let check_constraints () =
-				List.iter2 (fun m tp -> match follow tp.ttp_type with
-					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-						List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> Type.unify m (map tc) ) constr
-					| _ -> ()
-				) monos cf.cf_params;
-			in
-			let get_ta() =
-				if has_class_field_flag cf CfImpl then ta
-				else TAbstract(a,pl)
-			in
+			let map,check_constraints,get_ta = prepare_array_access_field ctx a pl cf p in
 			match follow (map cf.cf_type) with
-			| TFun((_,_,tab) :: (_,_,ta1) :: (_,_,ta2) :: args,r) as tf when is_set && is_empty_or_pos_infos args ->
-				begin try
-					Type.unify tab (get_ta());
-					let e1 = cast_or_unify_raise ctx ta1 e1 p in
-					let e2o = match e2o with None -> None | Some e2 -> Some (cast_or_unify_raise ctx ta2 e2 p) in
-					check_constraints();
-					cf,tf,r,e1,e2o
-				with Unify_error _ | Error (Unify _,_) ->
-					loop cfl
-				end
-			| TFun((_,_,tab) :: (_,_,ta1) :: args,r) as tf when not is_set && is_empty_or_pos_infos args ->
+			| TFun((_,_,tab) :: (_,_,ta1) :: args,r) as tf when is_empty_or_pos_infos args ->
 				begin try
 					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
 					check_constraints();
-					cf,tf,r,e1,None
-				with Unify_error _ | Error (Unify _,_) ->
+					cf,tf,r,e1
+				with Unify_error _ | Error { err_message = Unify _ } ->
 					loop cfl
 				end
 			| _ -> loop cfl
 	in
 	loop a.a_array
 
-let find_array_access ctx a tl e1 e2o p =
-	try find_array_access_raise ctx a tl e1 e2o p
+let find_array_write_access_raise ctx a pl e1 e2  p =
+	let rec loop cfl =
+		match cfl with
+		| [] -> raise Not_found
+		| cf :: cfl ->
+			let map,check_constraints,get_ta = prepare_array_access_field ctx a pl cf p in
+			match follow (map cf.cf_type) with
+			| TFun((_,_,tab) :: (_,_,ta1) :: (_,_,ta2) :: args,r) as tf when is_empty_or_pos_infos args ->
+				begin try
+					Type.unify tab (get_ta());
+					let e1 = cast_or_unify_raise ctx ta1 e1 p in
+					let e2 = cast_or_unify_raise ctx ta2 e2 p in
+					check_constraints();
+					cf,tf,r,e1,e2
+				with Unify_error _ | Error { err_message = Unify _ } ->
+					loop cfl
+				end
+			| _ -> loop cfl
+	in
+	loop a.a_array
+
+let find_array_read_access ctx a tl e1 p =
+	try
+		find_array_read_access_raise ctx a tl e1 p
 	with Not_found ->
 		let s_type = s_type (print_context()) in
-		match e2o with
-		| None ->
-			typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (TAbstract(a,tl))) (s_type e1.etype)) p
-		| Some e2 ->
-			typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
+		raise_typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (TAbstract(a,tl))) (s_type e1.etype)) p
+
+let find_array_write_access ctx a tl e1 e2 p =
+	try
+		find_array_write_access_raise ctx a tl e1 e2 p
+	with Not_found ->
+		let s_type = s_type (print_context()) in
+		raise_typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
 let find_multitype_specialization com a pl p =
 	let uctx = default_unification_context in
@@ -180,7 +213,7 @@ let find_multitype_specialization com a pl p =
 					stack := t :: !stack;
 					match follow t with
 					| TAbstract ({ a_path = [],"Class" },_) ->
-						typing_error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable on JavaScript" (s_type (print_context()) t1)) p;
+						raise_typing_error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable on JavaScript" (s_type (print_context()) t1)) p;
 					| TEnum(en,tl) ->
 						PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
 						Type.map loop t
@@ -197,16 +230,16 @@ let find_multitype_specialization com a pl p =
 			if List.exists (fun t -> has_mono t) definitive_types then begin
 				let at = apply_params a.a_params pl a.a_this in
 				let st = s_type (print_context()) at in
-				typing_error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
+				raise_typing_error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
 			end;
 			t
 		with Not_found ->
 			let at = apply_params a.a_params pl a.a_this in
 			let st = s_type (print_context()) at in
 			if has_mono at then
-				typing_error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
+				raise_typing_error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
 			else
-				typing_error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
+				raise_typing_error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
 	in
 	cf, follow m
 
@@ -218,7 +251,7 @@ let handle_abstract_casts ctx e =
 					let's construct the underlying type. *)
 				match Abstract.get_underlying_type a pl with
 				| TInst(c,tl) as t -> {e with eexpr = TNew(c,tl,el); etype = t}
-				| _ -> typing_error ("Cannot construct " ^ (s_type (print_context()) (TAbstract(a,pl)))) e.epos
+				| _ -> raise_typing_error ("Cannot construct " ^ (s_type (print_context()) (TAbstract(a,pl)))) e.epos
 			end else begin
 				(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
 				let cf,m = find_multitype_specialization ctx.com a pl e.epos in
@@ -230,10 +263,16 @@ let handle_abstract_casts ctx e =
 				| TAbstract({a_impl = Some c} as a,tl) ->
 					begin try
 						let cf = PMap.find "toString" c.cl_statics in
+						let call() = make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos in
 						if not ctx.allow_transform then
 							{ e1 with etype = ctx.t.tstring; epos = e.epos }
-						else
-							make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos
+						else if not (is_nullable e1.etype) then
+							call()
+						else begin
+							let p = e.epos in
+							let chk_null = mk (TBinop (Ast.OpEq, e1, mk (TConst TNull) e1.etype p)) ctx.com.basic.tbool p in
+							mk (TIf (chk_null, mk (TConst (TString "null")) ctx.com.basic.tstring p, Some (call()))) ctx.com.basic.tstring p
+						end
 					with Not_found ->
 						e
 					end

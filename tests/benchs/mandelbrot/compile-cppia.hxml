@@ -1,9 +1,0 @@
---main Mandelbrot
--cpp bin/Mandelbrot.cppia
--D cppia
-
---next
---main Mandelbrot
--cpp bin/Mandelbrot-anon.cppia
--D cppia
--D anon_objects

@@ -60,7 +60,7 @@ class PositionTools {
 		#end
 	}
 
-	#if (macro || display)
+	#if macro
 	/**
 		Converts a `haxe.macro.Position` to a `haxe.display.Position.Location`.
 

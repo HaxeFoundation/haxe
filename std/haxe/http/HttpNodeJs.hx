@@ -27,6 +27,8 @@ import js.node.Buffer;
 import haxe.io.Bytes;
 
 class HttpNodeJs extends haxe.http.HttpBase {
+	public var responseHeaders:Map<String, String>;
+
 	var req:js.node.http.ClientRequest;
 
 	public function new(url:String) {
@@ -47,6 +49,7 @@ class HttpNodeJs extends haxe.http.HttpBase {
 	public override function request(?post:Bool) {
 		responseAsString = null;
 		responseBytes = null;
+		responseHeaders = null;
 		var parsedUrl = new js.node.url.URL(url);
 		var secure = (parsedUrl.protocol == "https:");
 		var host = parsedUrl.hostname;
@@ -97,6 +100,14 @@ class HttpNodeJs extends haxe.http.HttpBase {
 				var buf = (data.length == 1 ? data[0] : Buffer.concat(data));
 				responseBytes = Bytes.ofData(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
 				req = null;
+
+				// store response headers
+				responseHeaders = new haxe.ds.StringMap();
+				for (field in Reflect.fields(res.headers))
+				{
+					responseHeaders.set(field, Reflect.field(res.headers, field));
+				}
+
 				if (s != null && s >= 200 && s < 400) {
 					success(responseBytes);
 				} else {

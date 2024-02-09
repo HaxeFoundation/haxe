@@ -375,11 +375,11 @@ module ConstPropagation = DataFlow(struct
 	let top = Top
 	let bottom = Bottom
 
-	let rec equals lat1 lat2 = match lat1,lat2 with
+	let equals lat1 lat2 = match lat1,lat2 with
 		| Top,Top | Bottom,Bottom -> true
 		| Const ct1,Const ct2 -> ct1 = ct2
 		| Null t1,Null t2 -> t1 == t2
-		| EnumValue(i1,tl1),EnumValue(i2,tl2) -> i1 = i2 && safe_for_all2 equals tl1 tl2
+		| EnumValue(i1,[]),EnumValue(i2,[]) -> i1 = i2
 		| ModuleType(mt1,_),ModuleType (mt2,_) -> mt1 == mt2
 		| _ -> false
 
@@ -638,7 +638,7 @@ module LocalDce = struct
 	open Graph
 	open AnalyzerConfig
 
-	let rec has_side_effect e =
+	let has_side_effect e =
 		let rec loop e =
 			match e.eexpr with
 			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TIdent _ -> ()
@@ -659,20 +659,26 @@ module LocalDce = struct
 		with Exit ->
 			true
 
-	let rec apply ctx =
+	let apply ctx =
 		let is_used v =
-			has_var_flag v VUsed
+			has_var_flag v VAnalyzed
 		in
 		let keep v =
 			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || has_var_flag v VCaptured || Meta.has Meta.This v.v_meta
 		in
 		let rec use v =
 			if not (is_used v) then begin
-				add_var_flag v VUsed;
+				add_var_flag v VAnalyzed;
 				(try expr (get_var_value ctx.graph v) with Not_found -> ());
 				begin match Ssa.get_reaching_def ctx.graph v with
-					| None -> use (get_var_origin ctx.graph v)
-					| Some v -> use v;
+					| None ->
+						(* We don't want to fully recurse for the origin variable because we don't care about its
+						   reaching definition (issue #10972). Simply marking it as being used should be sufficient. *)
+						let v' = get_var_origin ctx.graph v in
+						if not (is_used v') then
+							add_var_flag v' VAnalyzed
+					| Some v ->
+						use v;
 				end
 			end
 		and expr e = match e.eexpr with
@@ -789,10 +795,10 @@ module Debug = struct
 			edge bb_next "next";
 		| SEMerge bb_next ->
 			edge bb_next "merge"
-		| SESwitch(bbl,bo,bb_next,_) ->
-			List.iter (fun (el,bb) -> edge bb ("case " ^ (String.concat " | " (List.map s_expr_pretty el)))) bbl;
-			(match bo with None -> () | Some bb -> edge bb "default");
-			edge bb_next "next";
+		| SESwitch ss ->
+			List.iter (fun (el,bb) -> edge bb ("case " ^ (String.concat " | " (List.map s_expr_pretty el)))) ss.ss_cases;
+			(match ss.ss_default with None -> () | Some bb -> edge bb "default");
+			edge ss.ss_next "next";
 		| SETry(bb_try,_,bbl,bb_next,_) ->
 			edge bb_try "try";
 			List.iter (fun (_,bb_catch) -> edge bb_catch "catch") bbl;
@@ -933,13 +939,18 @@ module Run = struct
 	open AnalyzerConfig
 	open Graph
 
-	let with_timer detailed s f =
-		let timer = Timer.timer (if detailed then "analyzer" :: s else ["analyzer"]) in
-		let r = f() in
-		timer();
-		r
+	let with_timer level identifier s f =
+		let name = match level with
+			| 0 -> ["analyzer"]
+			| 1 -> "analyzer" :: s
+			| 2 when identifier = "" -> "analyzer" :: s
+			| 2 -> "analyzer" :: s @ [identifier]
+			| _ -> ["analyzer"] (* whatever *)
+		in
+		let timer = Timer.timer name in
+		Std.finally timer f ()
 
-	let create_analyzer_context com config e =
+	let create_analyzer_context com config identifier e =
 		let g = Graph.create e.etype e.epos in
 		let ctx = {
 			com = com;
@@ -948,6 +959,10 @@ module Run = struct
 			(* For CPP we want to use variable names which are "probably" not used by users in order to
 			   avoid problems with the debugger, see https://github.com/HaxeFoundation/hxcpp/issues/365 *)
 			temp_var_name = (match com.platform with Cpp -> "_hx_tmp" | _ -> "tmp");
+			with_timer = (fun s f ->
+				with_timer config.detail_times identifier s f
+			);
+			identifier = identifier;
 			entry = g.g_unreachable;
 			has_unbound = false;
 			loop_counter = 0;
@@ -963,7 +978,7 @@ module Run = struct
 
 	let there actx e =
 		if actx.com.debug then add_debug_expr actx "initial" e;
-		let e = with_timer actx.config.detail_times ["->";"filter-apply"] (fun () -> TexprFilter.apply actx.com e) in
+		let e = actx.with_timer ["->";"filter-apply"] (fun () -> TexprFilter.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after filter-apply" e;
 		let tf,t,is_real_function = match e.eexpr with
 			| TFunction tf ->
@@ -975,18 +990,18 @@ module Run = struct
 				let tf = { tf_args = []; tf_type = t; tf_expr = e; } in
 				tf,tfun [] t,false
 		in
-		with_timer actx.config.detail_times ["->";"from-texpr"] (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf t e.epos);
+		actx.with_timer ["->";"from-texpr"] (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf t e.epos);
 		is_real_function
 
 	let back_again actx is_real_function =
-		let e = with_timer actx.config.detail_times ["<-";"to-texpr"] (fun () -> AnalyzerTexprTransformer.to_texpr actx) in
+		let e = actx.with_timer ["<-";"to-texpr"] (fun () -> AnalyzerTexprTransformer.to_texpr actx) in
 		if actx.com.debug then add_debug_expr actx "after to-texpr" e;
 		DynArray.iter (fun vi ->
 			vi.vi_var.v_extra <- vi.vi_extra;
 		) actx.graph.g_var_infos;
-		let e = if actx.config.fusion then with_timer actx.config.detail_times ["<-";"fusion"] (fun () -> Fusion.apply actx.com actx.config e) else e in
+		let e = if actx.config.fusion then actx.with_timer ["<-";"fusion"] (fun () -> Fusion.apply actx e) else e in
 		if actx.com.debug then add_debug_expr actx "after fusion" e;
-		let e = with_timer actx.config.detail_times ["<-";"cleanup"] (fun () -> Cleanup.apply actx.com e) in
+		let e = actx.with_timer ["<-";"cleanup"] (fun () -> Cleanup.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after cleanup" e;
 		let e = if is_real_function then
 			e
@@ -1017,10 +1032,14 @@ module Run = struct
 						let e2 = loop e2 in
 						let e3 = loop e3 in
 						{e with eexpr = TIf(e1,e2,Some e3); etype = get_t e.etype}
-					| TSwitch(e1,cases,edef) ->
-						let cases = List.map (fun (el,e) -> el,loop e) cases in
-						let edef = Option.map loop edef in
-						{e with eexpr = TSwitch(e1,cases,edef); etype = get_t e.etype}
+					| TSwitch switch ->
+						let cases = List.map (fun case -> {case with case_expr = loop case.case_expr}) switch.switch_cases in
+						let edef = Option.map loop switch.switch_default in
+						let switch = { switch with
+							switch_cases = cases;
+							switch_default = edef;
+						} in
+						{e with eexpr = TSwitch switch; etype = get_t e.etype}
 					| TTry(e1,catches) ->
 						let e1 = loop e1 in
 						let catches = List.map (fun (v,e) -> v,loop e) catches in
@@ -1040,16 +1059,16 @@ module Run = struct
 
 	let run_on_expr actx e =
 		let is_real_function = there actx e in
-		with_timer actx.config.detail_times ["->";"idom"] (fun () -> Graph.infer_immediate_dominators actx.graph);
-		with_timer actx.config.detail_times ["->";"infer_scopes"] (fun () -> Graph.infer_scopes actx.graph);
-		with_timer actx.config.detail_times ["->";"var writes"] (fun () -> Graph.infer_var_writes actx.graph);
+		actx.with_timer ["->";"idom"] (fun () -> Graph.infer_immediate_dominators actx.graph);
+		actx.with_timer ["->";"infer_scopes"] (fun () -> Graph.infer_scopes actx.graph);
+		actx.with_timer ["->";"var writes"] (fun () -> Graph.infer_var_writes actx.graph);
 		if actx.com.debug then Graph.check_integrity actx.graph;
 		if actx.config.optimize && not actx.has_unbound then begin
 			actx.did_optimize <- true;
-			with_timer actx.config.detail_times ["optimize";"ssa-apply"] (fun () -> Ssa.apply actx);
-			if actx.config.const_propagation then with_timer actx.config.detail_times ["optimize";"const-propagation"] (fun () -> ConstPropagation.apply actx);
-			if actx.config.copy_propagation then with_timer actx.config.detail_times ["optimize";"copy-propagation"] (fun () -> CopyPropagation.apply actx);
-			with_timer actx.config.detail_times ["optimize";"local-dce"] (fun () -> LocalDce.apply actx);
+			actx.with_timer ["optimize";"ssa-apply"] (fun () -> Ssa.apply actx);
+			if actx.config.const_propagation then actx.with_timer ["optimize";"const-propagation"] (fun () -> ConstPropagation.apply actx);
+			if actx.config.copy_propagation then actx.with_timer ["optimize";"copy-propagation"] (fun () -> CopyPropagation.apply actx);
+			actx.with_timer ["optimize";"local-dce"] (fun () -> LocalDce.apply actx);
 		end;
 		back_again actx is_real_function
 
@@ -1060,7 +1079,7 @@ module Run = struct
 	let run_on_field com config c cf = match cf.cf_expr with
 		| Some e when not (is_ignored cf.cf_meta) && not (Typecore.is_removable_field com cf) && not (has_class_field_flag cf CfPostProcessed) ->
 			let config = update_config_from_meta com config cf.cf_meta in
-			let actx = create_analyzer_context com config e in
+			let actx = create_analyzer_context com config (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name) e in
 			let debug() =
 				print_endline (Printf.sprintf "While analyzing %s.%s" (s_type_path c.cl_path) cf.cf_name);
 				List.iter (fun (s,e) ->
@@ -1071,21 +1090,23 @@ module Run = struct
 				Debug.dot_debug actx c cf;
 				print_endline (Printf.sprintf "dot graph written to %s" (String.concat "/" (Debug.get_dump_path actx c cf)));
 			in
+			let maybe_debug () = match config.debug_kind with
+				| DebugNone -> ()
+				| DebugDot -> Debug.dot_debug actx c cf;
+				| DebugFull -> debug()
+			in
 			let e = try
 				run_on_expr actx e
 			with
-			| Error.Error _ | Abort _ | Sys.Break as exc ->
+			| Error.Error _ | Sys.Break as exc ->
+				maybe_debug();
 				raise exc
 			| exc ->
 				debug();
 				raise exc
 			in
 			let e = reduce_control_flow com e in
-			begin match config.debug_kind with
-				| DebugNone -> ()
-				| DebugDot -> Debug.dot_debug actx c cf;
-				| DebugFull -> debug()
-			end;
+			maybe_debug();
 			cf.cf_expr <- Some e;
 		| _ -> ()
 
@@ -1105,19 +1126,19 @@ module Run = struct
 			| None -> ()
 			| Some f -> process_field false f;
 		end;
-		begin match c.cl_init with
+		begin match TClass.get_cl_init c with
 			| None ->
 				()
 			| Some e ->
 				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
 				let e = mk (TFunction tf) (tfun [] e.etype) e.epos in
-				let actx = create_analyzer_context com {config with optimize = false} e in
+				let actx = create_analyzer_context com {config with optimize = false} (Printf.sprintf "%s.__init__" (s_type_path c.cl_path)) e in
 				let e = run_on_expr actx e in
 				let e = match e.eexpr with
 					| TFunction tf -> tf.tf_expr
 					| _ -> die "" __LOC__
 				in
-				c.cl_init <- Some e
+				TClass.set_cl_init c e
 		end
 
 	let run_on_type com config t =
@@ -1130,18 +1151,18 @@ module Run = struct
 
 	let run_on_types com types =
 		let config = get_base_config com in
-		with_timer config.detail_times ["other"] (fun () ->
+		with_timer config.detail_times "" ["other"] (fun () ->
 			if config.optimize && config.purity_inference then
-				with_timer config.detail_times ["optimize";"purity-inference"] (fun () -> Purity.infer com);
+				with_timer config.detail_times "" ["optimize";"purity-inference"] (fun () -> Purity.infer com);
 			List.iter (run_on_type com config) types
 		)
 end
 ;;
-Typecore.analyzer_run_on_expr_ref := (fun com e ->
+Typecore.analyzer_run_on_expr_ref := (fun com identifier e ->
 	let config = AnalyzerConfig.get_base_config com in
 	(* We always want to optimize because const propagation might be required to obtain
 	   a constant expression for inline field initializations (see issue #4977). *)
 	let config = {config with AnalyzerConfig.optimize = true} in
-	let actx = Run.create_analyzer_context com config e in
+	let actx = Run.create_analyzer_context com config identifier e in
 	Run.run_on_expr actx e
 )

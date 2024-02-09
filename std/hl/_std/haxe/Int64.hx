@@ -74,10 +74,10 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
 	inline public static function is(val:Dynamic):Bool
-		return Std.isOfType(val, hl.I64);
+		return isInt64(val);
 
 	inline public static function isInt64(val:Dynamic):Bool
-		return Std.isOfType(val, hl.I64);
+		return hl.Type.getDynamic(val).kind == HI64;
 
 	public static inline function toInt(x:Int64):Int {
 		if (x.val < 0x80000000 || x.val > 0x7FFFFFFF)

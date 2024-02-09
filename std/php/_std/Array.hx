@@ -215,11 +215,14 @@ final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate
 	@:noCompletion @:keep
 	@:php.attribute('\\ReturnTypeWillChange')
 	function offsetGet(offset:Int):Ref<T> {
-		try {
-			return arr[offset];
-		} catch (e:Dynamic) {
-			return null;
+		if(offset < 0 || offset >= length) {
+			//This var is required in generated php code
+			//because only variables can be returned by reference.
+			final result = null;
+			Syntax.keepVar(result);
+			return result;
 		}
+		return arr[offset];
 	}
 
 	@:noCompletion @:keep

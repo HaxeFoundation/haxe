@@ -1,5 +1,6 @@
 package python.lib.threading;
 
+@:noDoc
 @:pythonImport("threading", "Semaphore")
 extern class Semaphore {
 	function new(value:Int);

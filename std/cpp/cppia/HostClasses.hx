@@ -55,11 +55,10 @@ class HostClasses {
 		"cpp.vm.WeakRef",
 		"cpp.Object",
 		"cpp.Int64",
+		"cpp.Int64Map",
 		"cpp.Finalizable",
 		"Std",
 		"StringBuf",
-		"sys.db.Mysql",
-		"sys.db.Sqlite",
 		"sys.FileSystem",
 		"sys.io.File",
 		"sys.io.FileInput",
@@ -149,6 +148,7 @@ class HostClasses {
 		"List",
 		"Map",
 		"String",
+		"haxe.atomic.AtomicInt"
 	];
 
 	static function parseClassInfo(externs:Map<String, Bool>, filename:String) {
@@ -178,10 +178,6 @@ class HostClasses {
 		externs.set("haxe._Int32.___Int32", true);
 		// Hidded in implementation classes
 		// externs.set("sys.db.RecordType",true);
-		externs.set("sys.db._Sqlite.SqliteConnection", true);
-		externs.set("sys.db._Sqlite.SqliteResultSet", true);
-		externs.set("sys.db._Mysql.MysqlConnection", true);
-		externs.set("sys.db._Mysql.MysqlResultSet", true);
 		externs.set("sys.net._Socket.SocketInput", true);
 		externs.set("sys.net._Socket.SocketOutput", true);
 		externs.set("sys.ssl._Socket.SocketInput", true);

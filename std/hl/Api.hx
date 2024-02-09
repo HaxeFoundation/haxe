@@ -26,6 +26,9 @@ extern class Api {
 	static inline function rethrow(v:Dynamic):Void {
 		untyped $rethrow(v);
 	}
+	static inline function unsafeCast<From,To>(v:From):To {
+		return untyped $unsafecast(v);
+	}
 	@:hlNative("std", "obj_get_field") static function getField(obj:Dynamic, hash:Int):Dynamic;
 	@:hlNative("std", "obj_set_field") static function setField(obj:Dynamic, hash:Int, value:Dynamic):Void;
 	@:hlNative("std", "obj_has_field") static function hasField(obj:Dynamic, hash:Int):Bool;
@@ -44,5 +47,9 @@ extern class Api {
 	#if (hl_ver >= version("1.12.0"))
 	@:hlNative("std", "is_prim_loaded") static function isPrimLoaded(f:haxe.Constraints.Function):Bool;
 	@:hlNative("?std", "mem_compact") static function compact<T>( v : T, exclude : hl.NativeArray<Dynamic>, flags : Int, outCount : hl.Ref<Int> ) : T;
+	@:hlNative("?std", "sys_check_reload") static function checkReload( ?debugFile : hl.Bytes ) : Bool;
+	#end
+	#if (hl_ver >= version("1.13.0"))
+	@:hlNative("?std", "sys_has_debugger") static function hasDebugger() : Bool;
 	#end
 }

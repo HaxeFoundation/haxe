@@ -321,22 +321,6 @@ class unificator =
 	end
 
 (**
-	Checks if execution of provided expression is guaranteed to be terminated with `return`, `throw`, `break` or `continue`.
-*)
-let rec is_dead_end e =
-	match e.eexpr with
-		| TThrow _ -> true
-		| TReturn _ -> true
-		| TBreak -> true
-		| TContinue -> true
-		| TWhile (_, body, DoWhile) -> is_dead_end body
-		| TIf (_, if_body, Some else_body) -> is_dead_end if_body && is_dead_end else_body
-		| TBlock exprs -> List.exists is_dead_end exprs
-		| TMeta (_, e) -> is_dead_end e
-		| TCast (e, _) -> is_dead_end e
-		| _ -> false
-
-(**
 	Check if `expr` is a `trace` (not a call, but identifier itself)
 *)
 let is_trace expr =
@@ -923,7 +907,7 @@ class local_safety (mode:safety_mode) =
 					self#get_current_scope#reset_to initial_safe;
 					(** execute `else_body` with known not-null variables *)
 					let handle_dead_end body safe_vars =
-						if is_dead_end body then
+						if DeadEnd.has_dead_end body then
 							List.iter self#get_current_scope#add_to_safety safe_vars
 					in
 					(match else_body with
@@ -1056,7 +1040,9 @@ class expr_checker mode immediate_execution report =
 				| TMeta (m, _) when contains_unsafe_meta [m] -> false
 				| TMeta (_, e) -> self#is_nullable_expr e
 				| TThrow _ -> false
-				| TReturn (Some e) -> self#is_nullable_expr e
+				| TReturn _ -> false
+				| TContinue -> false
+				| TBreak -> false
 				| TBinop ((OpAssign | OpAssignOp _), _, right) -> self#is_nullable_expr right
 				| TBlock exprs ->
 					local_safety#block_declared;
@@ -1148,7 +1134,7 @@ class expr_checker mode immediate_execution report =
 				| TFor _ -> self#check_for e
 				| TIf _ -> self#check_if e
 				| TWhile _ -> self#check_while e
-				| TSwitch (target, cases, default) -> self#check_switch target cases default e.epos
+				| TSwitch switch -> self#check_switch switch e.epos
 				| TTry (try_block, catches) -> self#check_try try_block catches
 				| TReturn (Some expr) -> self#check_return expr e.epos
 				| TReturn None -> ()
@@ -1309,15 +1295,18 @@ class expr_checker mode immediate_execution report =
 		(**
 			Check safety in `switch` expressions.
 		*)
-		method private check_switch target cases default p =
+		method private check_switch switch p =
+			let target = switch.switch_subject in
+			let cases = switch.switch_cases in
+			let default = switch.switch_default in
 			if self#is_nullable_expr target then
 				self#error "Cannot switch on nullable value." [target.epos; p];
 			self#check_expr target;
 			let rec traverse_cases cases =
 				match cases with
 					| [] -> ()
-					| (_, body) :: rest ->
-						self#check_expr body;
+					| case :: rest ->
+						self#check_expr case.case_expr;
 						traverse_cases rest
 			in
 			traverse_cases cases;
@@ -1421,7 +1410,7 @@ class expr_checker mode immediate_execution report =
 						| None ->
 							List.iter self#check_expr args
 						| Some cf ->
-							let rec traverse t =
+							let traverse t =
 								match follow t with
 									| TFun (types, _) -> self#check_args e_new args types
 									| _ -> fail ~msg:"Unexpected constructor type." e_new.epos __POS__
@@ -1511,7 +1500,7 @@ class class_checker cls immediate_execution report =
 			validate_safety_meta report cls_meta;
 			if is_safe_class && (not (has_class_flag cls CExtern)) && (not (has_class_flag cls CInterface)) then
 				self#check_var_fields;
-			let check_field is_static f =
+			let check_field is_static f = if not (has_class_field_flag f CfPostProcessed) then begin
 				validate_safety_meta report f.cf_meta;
 				match (safety_mode (cls_meta @ f.cf_meta)) with
 					| SMOff -> ()
@@ -1522,9 +1511,9 @@ class class_checker cls immediate_execution report =
 								(self#get_checker mode)#check_root_expr expr
 						);
 						self#check_accessors is_static f
-			in
+			end in
 			if is_safe_class then
-				Option.may ((self#get_checker (safety_mode cls_meta))#check_root_expr) cls.cl_init;
+				Option.may ((self#get_checker (safety_mode cls_meta))#check_root_expr) (TClass.get_cl_init cls);
 			Option.may (check_field false) cls.cl_constructor;
 			List.iter (check_field false) cls.cl_ordered_fields;
 			List.iter (check_field true) cls.cl_ordered_statics;
@@ -1687,7 +1676,7 @@ let run (com:Common.context) (types:module_type list) =
 	let timer = Timer.timer ["null safety"] in
 	let report = { sr_errors = [] } in
 	let immediate_execution = new immediate_execution in
-	let rec traverse module_type =
+	let traverse module_type =
 		match module_type with
 			| TEnumDecl enm -> ()
 			| TTypeDecl typedef -> ()

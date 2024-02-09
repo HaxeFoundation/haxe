@@ -35,8 +35,8 @@ class EnumValueMap<K:EnumValue, V> implements IMap<K, V> {
 	public function new() {}
 
 	public function get(k:K):Null<V> {
-		for(index => e in enums) {
-			if(equalEnums(e, k)) {
+		for (index => e in enums) {
+			if (equalEnums(e, k)) {
 				return values[index];
 			}
 		}
@@ -44,8 +44,8 @@ class EnumValueMap<K:EnumValue, V> implements IMap<K, V> {
 	}
 
 	public function set(k:K, v:V):Void {
-		for(index => e in enums) {
-			if(equalEnums(e, k)) {
+		for (index => e in enums) {
+			if (equalEnums(e, k)) {
 				values[index] = v;
 				return;
 			}
@@ -55,8 +55,8 @@ class EnumValueMap<K:EnumValue, V> implements IMap<K, V> {
 	}
 
 	public function exists(k:K):Bool {
-		for(e in enums) {
-			if(equalEnums(e, k)) {
+		for (e in enums) {
+			if (equalEnums(e, k)) {
 				return true;
 			}
 		}
@@ -64,8 +64,8 @@ class EnumValueMap<K:EnumValue, V> implements IMap<K, V> {
 	}
 
 	public function remove(k:K):Bool {
-		for(index => e in enums) {
-			if(equalEnums(e, k)) {
+		for (index => e in enums) {
+			if (equalEnums(e, k)) {
 				enums.splice(index, 1);
 				values.splice(index, 1);
 				return true;
@@ -94,7 +94,7 @@ class EnumValueMap<K:EnumValue, V> implements IMap<K, V> {
 	}
 
 	public function toString():String {
-		var pairs = [for(i => e in enums) Std.string(e) + ' => ' + Std.string(values[i])];
+		var pairs = [for (i => e in enums) Std.string(e) + ' => ' + Std.string(values[i])];
 		return '[' + pairs.join(', ') + ']';
 	}
 
@@ -104,7 +104,7 @@ class EnumValueMap<K:EnumValue, V> implements IMap<K, V> {
 	}
 
 	static function equal(v1:Dynamic, v2:Dynamic):Bool {
-		if(v1 == v2)
+		if (v1 == v2)
 			return true;
 
 		return switch [Type.typeof(v1), Type.typeof(v2)] {
@@ -118,22 +118,22 @@ class EnumValueMap<K:EnumValue, V> implements IMap<K, V> {
 	}
 
 	static function equalEnums(e1:EnumValue, e2:EnumValue) {
-		if(e1 == e2)
+		if (e1 == e2)
 			return true;
 
-		if(Type.enumIndex(e1) != Type.enumIndex(e2))
+		if (Type.enumIndex(e1) != Type.enumIndex(e2))
 			return false;
 
-		if(Type.getEnum(e1) != Type.getEnum(e2))
+		if (Type.getEnum(e1) != Type.getEnum(e2))
 			return false;
 
 		var params1 = Type.enumParameters(e1);
 		var params2 = Type.enumParameters(e2);
-		if(params1.length != params2.length)
+		if (params1.length != params2.length)
 			return false;
 
-		for(i => v1 in params1) {
-			if(!equal(v1, params2[i]))
+		for (i => v1 in params1) {
+			if (!equal(v1, params2[i]))
 				return false;
 		}
 
@@ -141,14 +141,14 @@ class EnumValueMap<K:EnumValue, V> implements IMap<K, V> {
 	}
 
 	static function equalArrays(a1:Array<Dynamic>, a2:Array<Dynamic>):Bool {
-		if(a1 == a2)
+		if (a1 == a2)
 			return true;
 
-		if(a1.length != a2.length)
+		if (a1.length != a2.length)
 			return false;
 
-		for(i => v1 in a1) {
-			if(!equal(v1, a2[i]))
+		for (i => v1 in a1) {
+			if (!equal(v1, a2[i]))
 				return false;
 		}
 		return true;

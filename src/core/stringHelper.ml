@@ -49,3 +49,23 @@ let s_escape ?(hex=true) s =
 		| c -> Buffer.add_char b c
 	done;
 	Buffer.contents b
+
+let escape_res_name name allowed =
+	ExtString.String.replace_chars (fun chr ->
+		if (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr = '_' || chr = '.' then
+			Char.escaped chr
+		else if List.mem chr allowed then
+			Char.escaped chr
+		else
+			"-x" ^ (string_of_int (Char.code chr))) name
+
+let remove_extension file =
+	try String.sub file 0 (String.rindex file '.')
+	with Not_found -> file
+
+let extension file =
+	try
+		let dot_pos = String.rindex file '.' in
+		String.sub file dot_pos (String.length file - dot_pos)
+	with Not_found ->
+		file

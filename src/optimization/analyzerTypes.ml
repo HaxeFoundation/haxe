@@ -68,12 +68,20 @@ module BasicBlock = struct
 	and syntax_edge =
 		| SEIfThen of t * t * pos                                (* `if` with "then" and "next" *)
 		| SEIfThenElse of t * t * t * Type.t * pos               (* `if` with "then", "else" and "next" *)
-		| SESwitch of (texpr list * t) list * t option * t * pos (* `switch` with cases, "default" and "next" *)
+		| SESwitch of syntax_switch                              (* `switch` with cases, "default" and "next" *)
 		| SETry of t * t * (tvar * t) list * t *  pos            (* `try` with "exc", catches and "next" *)
 		| SEWhile of t * t * pos                                 (* `while` with "body" and "next" *)
 		| SESubBlock of t * t                                    (* "sub" with "next" *)
 		| SEMerge of t                                           (* Merge to same block *)
 		| SENone                                                 (* No syntax exit *)
+
+	and syntax_switch = {
+		ss_cases : (texpr list * t) list;
+		ss_default : t option;
+		ss_next : t;
+		ss_pos : pos;
+		ss_exhaustive : bool;
+	}
 
 	and suspend_call = {
 		efun : texpr;      (* coroutine function expression *)
@@ -210,7 +218,7 @@ module BasicBlock = struct
 		bb
 
 	let in_scope bb bb' = match bb'.bb_scopes with
-		| [] -> abort (Printf.sprintf "Scope-less block (kind: %s)" (s_block_kind bb'.bb_kind)) bb'.bb_pos
+		| [] -> Error.abort (Printf.sprintf "Scope-less block (kind: %s)" (s_block_kind bb'.bb_kind)) bb'.bb_pos
 		| scope :: _ -> List.mem scope bb.bb_scopes
 
 	let terminator_map f term = match term with
@@ -533,14 +541,9 @@ module Graph = struct
 					()
 			end;
 			let infer e = match e.eexpr with
-			| TVar(v,_) ->
+			| TVar(v,eo) ->
 				declare_var g v bb;
-				(* Technically, this was correct because without an assignment this isn't really a
-				   definition. However, there can be situations where uninitialized variables have to
-				   be considered in the data flow analysis, which requires proper SSA edges or otherwise
-				   stuff like #10304 happens. *)
-				(* if eo <> None then *)
-				add_var_def g bb v;
+				if eo <> None then add_var_def g bb v;
 			| TBinop(OpAssign,{eexpr = TLocal v},_) ->
 				add_var_def g bb v
 			| _ ->
@@ -568,10 +571,10 @@ module Graph = struct
 					loop (next_scope scopes) bb_then;
 					loop (next_scope scopes) bb_else;
 					loop scopes bb_next
-				| SESwitch(cases,bbo,bb_next,_) ->
-					List.iter (fun (_,bb_case) -> loop (next_scope scopes) bb_case) cases;
-					(match bbo with None -> () | Some bb -> loop (next_scope scopes) bb);
-					loop scopes bb_next;
+				| SESwitch ss ->
+					List.iter (fun (_,bb_case) -> loop (next_scope scopes) bb_case) ss.ss_cases;
+					(match ss.ss_default with None -> () | Some bb -> loop (next_scope scopes) bb);
+					loop scopes ss.ss_next;
 				| SETry(bb_try,bb_exc,catches,bb_next,_) ->
 					let scopes' = next_scope scopes in
 					loop scopes' bb_try;
@@ -599,6 +602,8 @@ type analyzer_context = {
 	config : AnalyzerConfig.t;
 	graph : Graph.t;
 	temp_var_name : string;
+	with_timer : 'a . string list -> (unit -> 'a) -> 'a;
+	identifier : string;
 	mutable entry : BasicBlock.t;
 	mutable has_unbound : bool;
 	mutable loop_counter : int;

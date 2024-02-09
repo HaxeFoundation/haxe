@@ -1,6 +1,6 @@
 open Globals
 open Type
-open Typecore
+open FieldCallCandidate
 
 let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 	let f_transform = match get_vmtype with
@@ -13,13 +13,10 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 			| [],[] ->
 				true
 			| tp1 :: params1,tp2 :: params2 ->
-				let constraints_equal t1 t2 = match follow t1,follow t2 with
-					| TInst({cl_kind = KTypeParameter tl1},_),TInst({cl_kind = KTypeParameter tl2},_) ->
-						Ast.safe_for_all2 f_eq tl1 tl2
-					| _ ->
-						false
+				let constraints_equal ttp1 ttp2 =
+					Ast.safe_for_all2 f_eq (get_constraints ttp2) (get_constraints ttp2)
 				in
-				tp1.ttp_name = tp2.ttp_name && constraints_equal tp1.ttp_type tp2.ttp_type && loop params1 params2
+				tp1.ttp_name = tp2.ttp_name && constraints_equal tp1 tp2 && loop params1 params2
 			| [],_
 			| _,[] ->
 				false
@@ -81,14 +78,6 @@ let collect_overloads map c i =
 	in
 	loop map c;
 	List.rev !acc
-
-let get_overloads (com : Common.context) c i =
-	try
-		com.overload_cache#find (c.cl_path,i)
-	with Not_found ->
-		let l = collect_overloads (fun t -> t) c i in
-		com.overload_cache#add (c.cl_path,i) l;
-		l
 
 (** Overload resolution **)
 module Resolution =
@@ -218,12 +207,6 @@ struct
 			rm_duplicates acc ret
 		| r :: ret ->
 			rm_duplicates (r :: acc) ret
-
-	let s_options rated =
-		String.concat ",\n" (List.map (fun ((elist,t,_),rate) ->
-			"( " ^ (String.concat "," (List.map (fun(e,_) -> s_expr (s_type (print_context())) e) elist)) ^ " ) => " ^
-			"( " ^ (String.concat "," (List.map (fun (i,i2) -> string_of_int i ^ ":" ^ string_of_int i2) rate)) ^ " ) => " ^ (s_type (print_context()) t)
-		) rated)
 
 	let count_optionals t =
 		match follow t with

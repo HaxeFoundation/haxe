@@ -58,7 +58,7 @@ extern class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	/**
 		See `Map.keys`
 
-		(cs, java) Implementation detail: Do not `set()` any new value while
+		(java) Implementation detail: Do not `set()` any new value while
 		iterating, as it may cause a resize, which will break iteration.
 	**/
 	function keys():Iterator<String>;
@@ -66,7 +66,7 @@ extern class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	/**
 		See `Map.iterator`
 
-		(cs, java) Implementation detail: Do not `set()` any new value while
+		(java) Implementation detail: Do not `set()` any new value while
 		iterating, as it may cause a resize, which will break iteration.
 	**/
 	function iterator():Iterator<T>;

@@ -2,14 +2,13 @@ open Globals
 open Ast
 open TType
 open TFunctions
-open TPrinting
 
 module TExprToExpr = struct
-	let tpath p mp pl =
-		if snd mp = snd p then
-			CTPath (mk_type_path ~params:pl p)
+	let tpath path module_path params =
+		if snd module_path = snd path then
+			make_ptp_ct_null (mk_type_path ~params path)
 		else
-			CTPath (mk_type_path ~params:pl ~sub:(snd p) mp)
+			make_ptp_ct_null (mk_type_path ~params ~sub:(snd path) module_path)
 
 	let rec convert_type = function
 		| TMono r ->
@@ -20,7 +19,7 @@ module TExprToExpr = struct
 		| TEnum ({e_private = true; e_path=_,name},tl)
 		| TType ({t_private = true; t_path=_,name},tl)
 		| TAbstract ({a_private = true; a_path=_,name},tl) ->
-			CTPath (mk_type_path ~params:(List.map tparam tl) ([],name))
+			make_ptp_ct_null (mk_type_path ~params:(List.map tparam tl) ([],name))
 		| TEnum (e,pl) ->
 			tpath e.e_path e.e_module.m_path (List.map tparam pl)
 		| TInst({cl_kind = KExpr e} as c,pl) ->
@@ -35,25 +34,61 @@ module TExprToExpr = struct
 		| TAbstract (a,pl) ->
 			tpath a.a_path a.a_module.m_path (List.map tparam pl)
 		| TFun (args,ret) ->
-			CTFunction (List.map (fun (_,_,t) -> convert_type' t) args, (convert_type' ret))
+			CTFunction (List.map (fun (n,o,t) ->
+				let ct = convert_type' t in
+					let ct = if n = "" then ct else CTNamed((n,null_pos),ct),null_pos in
+					if o then CTOptional ct,null_pos else ct
+				) args, (convert_type' ret))
 		| TAnon a ->
 			begin match !(a.a_status) with
-			| Statics c -> tpath ([],"Class") ([],"Class") [TPType (tpath c.cl_path c.cl_path [],null_pos)]
+			| ClassStatics c -> tpath ([],"Class") ([],"Class") [TPType (tpath c.cl_path c.cl_path [],null_pos)]
 			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [TPType (tpath e.e_path e.e_path [],null_pos)]
 			| _ ->
 				CTAnonymous (PMap.foldi (fun _ f acc ->
+					let access = ref [] in
+					let add flag =
+						access := (flag,null_pos) :: !access;
+					in
+					if has_class_field_flag f CfPublic then add APublic else add APrivate;
+					if has_class_field_flag f CfFinal then add AFinal;
+					if has_class_field_flag f CfExtern then add AExtern;
+					let kind = match (f.cf_kind,follow f.cf_type) with
+						| (Var v,ret) ->
+							let var_access_to_string va get_or_set = match va with
+								| AccNormal | AccCtor | AccInline | AccRequire _ -> "default"
+								| AccNo -> "null"
+								| AccNever -> "never"
+								| AccCall -> get_or_set
+							in
+							let read = (var_access_to_string v.v_read "get",null_pos) in
+							let write = (var_access_to_string v.v_write "set",null_pos) in
+							FProp (read,write,mk_type_hint f.cf_type null_pos,None)
+						| Method _,TFun(args,ret) ->
+							FFun({
+								f_params = [];
+								f_args = List.map (fun (n,o,t) ->
+									((n,null_pos),o,[],Some (convert_type t,null_pos),None)
+								) args;
+								f_type = Some (convert_type ret,null_pos);
+								f_expr = None;
+							})
+						| _ ->
+							die "" __LOC__
+					in
 					{
 						cff_name = f.cf_name,null_pos;
-						cff_kind = FVar (mk_type_hint f.cf_type null_pos,None);
+						cff_kind = kind;
 						cff_pos = f.cf_pos;
 						cff_doc = f.cf_doc;
 						cff_meta = f.cf_meta;
-						cff_access = [];
+						cff_access = !access;
 					} :: acc
 				) a.a_fields [])
 			end
-		| (TDynamic t2) as t ->
-			tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [tparam t2])
+		| TDynamic None ->
+			tpath ([],"Dynamic") ([],"Dynamic") []
+		| TDynamic (Some t2) ->
+			tpath ([],"Dynamic") ([],"Dynamic") [tparam t2]
 		| TLazy f ->
 			convert_type (lazy_type f)
 
@@ -97,7 +132,7 @@ module TExprToExpr = struct
 		| TObjectDecl fl -> EObjectDecl (List.map (fun (k,e) -> k, convert_expr e) fl)
 		| TArrayDecl el -> EArrayDecl (List.map convert_expr el)
 		| TCall (e,el) -> ECall (convert_expr e,List.map convert_expr el)
-		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p,null_pos | _ -> die "" __LOC__),List.map convert_expr el)
+		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath ptp -> ptp| _ -> die "" __LOC__),List.map convert_expr el)
 		| TUnop (op,p,e) -> EUnop (op,p,convert_expr e)
 		| TFunction f ->
 			let arg (v,c) = (v.v_name,v.v_pos), false, v.v_meta, mk_type_hint v.v_type null_pos, (match c with None -> None | Some c -> Some (convert_expr c)) in
@@ -113,8 +148,8 @@ module TExprToExpr = struct
 			EFor (ein,convert_expr e)
 		| TIf (e,e1,e2) -> EIf (convert_expr e,convert_expr e1,eopt e2)
 		| TWhile (e1,e2,flag) -> EWhile (convert_expr e1, convert_expr e2, flag)
-		| TSwitch (e,cases,def) ->
-			let cases = List.map (fun (vl,e) ->
+		| TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->
+			let cases = List.map (fun {case_patterns = vl;case_expr = e} ->
 				List.map convert_expr vl,None,(match e.eexpr with TBlock [] -> None | _ -> Some (convert_expr e)),e.epos
 			) cases in
 			let def = match eopt def with None -> None | Some (EBlock [],_) -> Some (None,null_pos) | Some e -> Some (Some e,pos e) in
@@ -227,20 +262,95 @@ end
 
 let no_meta = []
 
-let class_module_type c =
-	let path = ([],"Class<" ^ (s_type_path c.cl_path) ^ ">") in
-	let t = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
-	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
+let mk_enum m path pos name_pos =
+	{
+		e_path = path;
+		e_module = m;
+		e_pos = pos;
+		e_name_pos = name_pos;
+		e_doc = None;
+		e_meta = [];
+		e_params = [];
+		e_using = [];
+		e_restore = (fun () -> ());
+		e_private = false;
+		e_extern = false;
+		e_constrs = PMap.empty;
+		e_names = [];
+		e_type = mk_mono();
+	}
 
-let enum_module_type m path p  =
-	let path = ([], "Enum<" ^ (s_type_path path) ^ ">") in
-	let t = mk_mono() in
-	{(mk_typedef m path p null_pos t) with t_private = true}
+let mk_abstract m path pos name_pos =
+	{
+		a_path = path;
+		a_private = false;
+		a_module = m;
+		a_pos = pos;
+		a_name_pos = name_pos;
+		a_doc = None;
+		a_params = [];
+		a_using = [];
+		a_restore = (fun () -> ());
+		a_meta = [];
+		a_from = [];
+		a_to = [];
+		a_from_field = [];
+		a_to_field = [];
+		a_ops = [];
+		a_unops = [];
+		a_impl = None;
+		a_array = [];
+		a_this = mk_mono();
+		a_read = None;
+		a_write = None;
+		a_enum = false;
+		a_call = None;
+	}
 
-let abstract_module_type a tl =
-	let path = ([],Printf.sprintf "Abstract<%s%s>" (s_type_path a.a_path) (s_type_params (ref []) tl)) in
-	let t = mk_anon (ref (AbstractStatics a)) in
-	{(mk_typedef a.a_module path a.a_pos null_pos t) with t_private = true}
+let mk_enum m path pos name_pos =
+	{
+		e_path = path;
+		e_module = m;
+		e_pos = pos;
+		e_name_pos = name_pos;
+		e_doc = None;
+		e_meta = [];
+		e_params = [];
+		e_using = [];
+		e_restore = (fun () -> ());
+		e_private = false;
+		e_extern = false;
+		e_constrs = PMap.empty;
+		e_names = [];
+		e_type = mk_mono();
+	}
+
+let mk_abstract m path pos name_pos =
+	{
+		a_path = path;
+		a_private = false;
+		a_module = m;
+		a_pos = pos;
+		a_name_pos = name_pos;
+		a_doc = None;
+		a_params = [];
+		a_using = [];
+		a_restore = (fun () -> ());
+		a_meta = [];
+		a_from = [];
+		a_to = [];
+		a_from_field = [];
+		a_to_field = [];
+		a_ops = [];
+		a_unops = [];
+		a_impl = None;
+		a_array = [];
+		a_this = mk_mono();
+		a_read = None;
+		a_write = None;
+		a_enum = false;
+		a_call = None;
+	}
 
 module TClass = struct
 	let get_member_fields' self_too c0 tl =
@@ -302,6 +412,50 @@ module TClass = struct
 		in
 		let apply = apply_params c.cl_params tl in
 		loop apply c
+
+
+	let get_cl_init c = match c.cl_init with
+		| Some {cf_expr = Some e} -> Some e
+		| _ -> None
+
+	let modify_cl_init c e append = match c.cl_init with
+		| Some cf ->
+			begin match cf.cf_expr with
+				| Some e' when append ->
+					cf.cf_expr <- Some (concat e' e)
+				| _ ->
+					cf.cf_expr <- Some e
+			end
+		| None ->
+			let cf = mk_field "__init__" t_dynamic null_pos null_pos in
+			cf.cf_expr <- Some e;
+			c.cl_init <- Some cf
+
+	let get_singular_interface_field fields =
+		let is_normal_field cf =
+			not (has_class_field_flag cf CfDefault) && match cf.cf_kind with
+				| Method MethNormal -> true
+				| _ -> false
+		in
+		let rec loop o l = match l with
+			| cf :: l ->
+				if is_normal_field cf then begin
+					if o = None then
+						loop (Some cf) l
+					else
+						None
+				end else
+					loop o l
+			| [] ->
+				o
+		in
+		loop None fields
+
+	let add_cl_init c e =
+		modify_cl_init c e true
+
+	let set_cl_init c e =
+		modify_cl_init c e false
 end
 
 let s_class_path c =

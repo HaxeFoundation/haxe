@@ -31,8 +31,6 @@ private typedef VectorData<T> =
 	flash.Vector<T>
 	#elseif neko
 	neko.NativeArray<T>
-	#elseif cs
-	cs.NativeArray<T>
 	#elseif java
 	java.NativeArray<T>
 	#elseif lua
@@ -41,7 +39,7 @@ private typedef VectorData<T> =
 	eval.Vector<T>
 	#else
 	Array<T>
-	#end
+	#end;
 
 /**
 	A Vector is a storage of fixed size. It can be faster than Array on some
@@ -61,21 +59,19 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `length` is less than or equal to 0, the result is unspecified.
 	**/
-	public inline function new(length:Int) {
+	extern overload public inline function new(length:Int) {
 		#if flash10
 		this = new flash.Vector<T>(length, true);
 		#elseif neko
 		this = untyped __dollar__amake(length);
 		#elseif js
 		this = js.Syntax.construct(Array, length);
-		#elseif cs
-		this = new cs.NativeArray(length);
 		#elseif java
 		this = new java.NativeArray(length);
 		#elseif cpp
 		this = NativeArray.create(length);
 		#elseif python
-		this = python.Syntax.code("[{0}]*{1}", null, length);
+		this = python.Syntax.code("([{0}]*{1})", null, length);
 		#elseif lua
 		this = untyped __lua_table__({length: length});
 		#elseif eval
@@ -83,6 +79,41 @@ abstract Vector<T>(VectorData<T>) {
 		#else
 		this = [];
 		untyped this.length = length;
+		#end
+	}
+
+	/**
+		Creates a new Vector of length `length` filled with `defaultValue` elements.
+
+		Can be faster than `new Vector(length)` for iteration on some targets for non-nullable elements.
+
+		If `length` is less than or equal to 0, the result is unspecified.
+	**/
+	extern overload public inline function new(length:Int, defaultValue:T):Vector<T> {
+		#if js
+		this = [for (_ in 0...length) defaultValue];
+		#elseif python
+		this = python.Syntax.code("([{0}]*{1})", defaultValue, length);
+		#else
+
+		#if flash10
+		this = new flash.Vector<T>(length, true);
+		#elseif neko
+		this = untyped __dollar__amake(length);
+		#elseif java
+		this = new java.NativeArray(length);
+		#elseif cpp
+		this = NativeArray.create(length);
+		#elseif lua
+		this = untyped __lua_table__({length: length});
+		#elseif eval
+		this = new eval.Vector(length);
+		#else
+		this = [];
+		untyped this.length = length;
+		#end
+		fill(defaultValue);
+
 		#end
 	}
 
@@ -130,8 +161,6 @@ abstract Vector<T>(VectorData<T>) {
 	inline function get_length():Int {
 		#if neko
 		return untyped __dollar__asize(this);
-		#elseif cs
-		return this.Length;
 		#elseif java
 		return this.length;
 		#elseif python
@@ -142,19 +171,23 @@ abstract Vector<T>(VectorData<T>) {
 	}
 
 	/**
+		Sets all `length` elements of `this` Vector to `value`.
+	**/
+	public inline function fill(value:T):Void
+		for (i in 0...length) this[i] = value;
+
+	/**
 		Copies `length` of elements from `src` Vector, beginning at `srcPos` to
 		`dest` Vector, beginning at `destPos`
 
 		The results are unspecified if `length` results in out-of-bounds access,
 		or if `src` or `dest` are null
 	**/
-	public static #if (cs || java || neko || cpp || eval) inline #end function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void {
+	public static #if (java || neko || cpp || eval) inline #end function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void {
 		#if neko
 		untyped __dollar__ablit(dest, destPos, src, srcPos, len);
 		#elseif java
 		java.lang.System.arraycopy(src, srcPos, dest, destPos, len);
-		#elseif cs
-		cs.system.Array.Copy(cast src, srcPos, cast dest, destPos, len);
 		#elseif cpp
 		dest.toData().blit(destPos, src.toData(), srcPos, len);
 		#elseif eval
@@ -248,8 +281,6 @@ abstract Vector<T>(VectorData<T>) {
 		return fromData(flash.Vector.ofArray(array));
 		#elseif java
 		return fromData(java.Lib.nativeArray(array, false));
-		#elseif cs
-		return fromData(cs.Lib.nativeArray(array, false));
 		#elseif cpp
 		return cast array.copy();
 		#elseif js
@@ -272,7 +303,7 @@ abstract Vector<T>(VectorData<T>) {
 		`a[i] == a.copy()[i]` is true for any valid `i`. However,
 		`a == a.copy()` is always false.
 	**/
-	#if cs extern #end public inline function copy<T>():Vector<T> {
+	extern public inline function copy<T>():Vector<T> {
 		#if eval
 		return fromData(this.copy());
 		#else
@@ -295,7 +326,7 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `sep` is null, the result is unspecified.
 	**/
-	#if cs extern #end public inline function join<T>(sep:String):String {
+	extern public inline function join<T>(sep:String):String {
 		#if (flash10 || cpp || eval)
 		return this.join(sep);
 		#else
@@ -318,7 +349,7 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `f` is null, the result is unspecified.
 	**/
-	#if cs extern #end public inline function map<S>(f:T->S):Vector<S> {
+	extern public inline function map<S>(f:T->S):Vector<S> {
 		#if eval
 		return fromData(this.map(f));
 		#else
@@ -346,7 +377,7 @@ abstract Vector<T>(VectorData<T>) {
 		If `f` is null, the result is unspecified.
 	**/
 	public inline function sort(f:T->T->Int):Void {
-		#if (neko || cs || java || eval)
+		#if (neko || java || eval)
 		throw "not yet supported";
 		#elseif lua
 		haxe.ds.ArraySort.sort(cast this, f);

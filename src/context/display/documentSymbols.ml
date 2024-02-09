@@ -56,7 +56,7 @@ let collect_module_symbols mname with_locals (pack,decls) =
 		| FFun f ->
 			add_field (
 				if fst cff_name = "new" then Constructor
-				else if ((parent_kind = EnumAbstract or parent_kind = Abstract) && Meta.has_one_of [Meta.Op; Meta.ArrayAccess; Meta.Resolve] cff_meta) then Operator
+				else if ((parent_kind = EnumAbstract || parent_kind = Abstract) && Meta.has_one_of [Meta.Op; Meta.ArrayAccess; Meta.Resolve] cff_meta) then Operator
 				else Method
 			);
 			if with_locals then func field_parent f

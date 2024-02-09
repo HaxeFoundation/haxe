@@ -13,7 +13,6 @@ compile.hxml
 --cmd echo Neko   && export EXISTS=1 && neko bin/neko/sys.n
 --cmd echo Python && export EXISTS=1 && python3 bin/python/sys.py
 --cmd echo Cpp    && export EXISTS=1 && bin/cpp/Main-debug
---cmd echo CS     && export EXISTS=1 && mono bin/cs/bin/Main-Debug.exe
 --cmd echo Java   && export EXISTS=1 && java -jar bin/java/Main-Debug.jar
 --cmd echo Php    && export EXISTS=1 && php bin/php/Main/index.php
 --cmd echo Hl     && export EXISTS=1 && hl bin/hl/sys.hl
@@ -26,7 +25,6 @@ compile.hxml
 # --cmd echo Neko   && set EXISTS=1 && neko bin\neko\sys.n
 # --cmd echo Python && set EXISTS=1 && python3 bin\python\sys.py
 # --cmd echo Cpp    && set EXISTS=1 && bin\cpp\Main-debug.exe
-# --cmd echo CS     && set EXISTS=1 && bin\cs\bin\Main-Debug.exe
 # --cmd echo Java   && set EXISTS=1 && java -jar bin\java\Main-Debug.jar
 # --cmd echo Php    && set EXISTS=1 && php -c ..\PHP.ini bin\php\Main\index.php
 # --cmd echo Hl     && set EXISTS=1 && hl bin/hl/sys.hl

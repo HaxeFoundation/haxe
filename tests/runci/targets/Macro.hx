@@ -5,11 +5,13 @@ import runci.Config.*;
 
 class Macro {
 	static public function run(args:Array<String>) {
-		runCommand("haxe", ["compile-macro.hxml"].concat(args));
+		runCommand("haxe", ["compile-macro.hxml", "--hxb", "bin/hxb/eval.zip"].concat(args));
+		runCommand("haxe", ["compile-macro.hxml", "--hxb-lib", "bin/hxb/eval.zip"].concat(args));
 
 		changeDirectory(displayDir);
 		haxelibInstallGit("Simn", "haxeserver");
-		runCommand("haxe", ["build.hxml"]);
+		runCommand("haxe", ["build.hxml", "-D", "display.protocol=xml"]);
+		runCommand("haxe", ["build.hxml", "-D", "display.protocol=jsonrpc"]);
 
 		changeDirectory(sourcemapsDir);
 		runCommand("haxe", ["run.hxml"]);
@@ -51,6 +53,6 @@ class Macro {
 		runCommand("haxelib", ["newrepo"]);
 		runCommand("haxelib", ["install", "tests.hxml", "--always"]);
 		runCommand("haxelib", ["dev", "tink_core", "."]);
-		runCommand("haxe", ["tests.hxml", "-w", "-WDeprecated", "--interp"]);
+		runCommand("haxe", ["tests.hxml", "-w", "-WDeprecated", "--interp", "--macro", "addMetadata('@:exclude','Futures','testDelay')"]);
 	}
 }

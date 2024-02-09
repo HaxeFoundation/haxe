@@ -1,1 +1,1 @@
-Main.hx:2: characters 2-10 : Constructors cannot be overloaded on this target
+Main.hx:2: characters 2-10 : Invalid modifier: overload on constructor

@@ -351,12 +351,13 @@ let rec expr_to_value ctx env e =
 			if flag = DoWhile then ignore(loop e2);
 			loop2();
 			vnull
-		| ENew((tp,_),el) ->
+		| ENew(ptp,el) ->
 			let rec loop2 v sl = match sl with
 				| [] -> v
 				| s :: sl ->
 					loop2 (EvalField.field v (hash s)) sl
 			in
+			let tp = ptp.path in
 			let v1 = loop2 ctx.toplevel tp.tpackage in
 			let v1 = loop2 v1 [match tp.tsub with None -> tp.tname | Some s -> s] in
 			let vl = List.map loop el in

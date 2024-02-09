@@ -5,12 +5,12 @@ import utest.Assert;
 using unit.issues.Issue10124.Util;
 
 private class Util {
-	public static inline function add<T>(arr:Array<T>,...values:T) {
+	public static inline function add<T>(arr:Array<T>, ...values:T) {
 		for (v in values)
 			arr.push(v);
 	}
 
-	public static inline function addFloat<T>(arr:Array<Any>,...values:Float) {
+	public static inline function addFloat<T>(arr:Array<Any>, ...values:Float) {
 		for (v in values)
 			arr.push(v);
 	}

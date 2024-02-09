@@ -49,8 +49,8 @@ extern class Reflect {
 	/**
 		Similar to `Object.defineProperty()`. Returns a Bool.
 	 */
-	@:overload(function(target:{}, propertyKey:Symbol, attributes:ObjectPropertyDescriptor):Bool {})
-	static function defineProperty(target:{}, propertyKey:String, attributes:ObjectPropertyDescriptor):Bool;
+	@:overload(function(target:{}, propertyKey:Symbol, attributes:ObjectPropertyDescriptor<Any>):Bool {})
+	static function defineProperty(target:{}, propertyKey:String, attributes:ObjectPropertyDescriptor<Any>):Bool;
 
 	/**
 		The `delete` operator as a function. Equivalent to calling `delete target[name]`.
@@ -71,9 +71,9 @@ extern class Reflect {
 		Returns a property descriptor of the given property if it exists on the object,
 		`undefined` otherwise.
 	 */
-	@:overload(function<T>(target:Array<T>, propertyKey:Int):Null<ObjectPropertyDescriptor> {})
-	@:overload(function(target:{}, propertyKey:Symbol):Null<ObjectPropertyDescriptor> {})
-	@:pure static function getOwnPropertyDescriptor(target:{}, propertyKey:String):Null<ObjectPropertyDescriptor>;
+	@:overload(function<T>(target:Array<T>, propertyKey:Int):Null<ObjectPropertyDescriptor<Any>> {})
+	@:overload(function(target:{}, propertyKey:Symbol):Null<ObjectPropertyDescriptor<Any>> {})
+	@:pure static function getOwnPropertyDescriptor(target:{}, propertyKey:String):Null<ObjectPropertyDescriptor<Any>>;
 
 	/**
 		Same as `Object.getPrototypeOf()`.

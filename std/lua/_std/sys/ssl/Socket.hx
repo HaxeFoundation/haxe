@@ -62,5 +62,8 @@ class Socket extends sys.net.Socket {
 		_sslSocket.settimeout(timeout);
         this.handshake();
     }
- }
- 
+
+    public override function close():Void {
+		_sslSocket.close();
+    }
+}

@@ -32,7 +32,7 @@ import haxe.macro.Expr;
 @:hlNative("macro")
 #end
 class MacroStringTools {
-	#if (macro || display)
+	#if macro
 	/**
 		Formats `String` `s` using the usual interpolation rules.
 
@@ -94,6 +94,10 @@ class MacroStringTools {
 
 	static public function toComplex(path:String):ComplexType {
 		var pack = path.split(".");
-		return TPath({pack: pack, name: pack.pop(), params: []});
+		if(pack.length >= 2 && ~/^[A-Z]/.match(pack[pack.length - 2])) {
+			return TPath({pack: pack, sub: pack.pop(), name: pack.pop(), params: []});
+		} else {
+			return TPath({pack: pack, name: pack.pop(), params: []});
+		}
 	}
 }

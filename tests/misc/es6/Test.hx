@@ -32,7 +32,7 @@ class F extends E {
 }
 
 extern class ExtNoCtor {
-	static function __init__():Void haxe.macro.Compiler.includeFile("./extern.js", "top");
+	static function __init__():Void haxe.macro.Compiler.includeFile("./extern.js");
 }
 
 class Base extends ExtNoCtor {
