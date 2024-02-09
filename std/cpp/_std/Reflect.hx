@@ -32,22 +32,22 @@ class Reflect {
 
 	public static function field(o:Dynamic, field:String):Dynamic
 		untyped {
-			return (o == null) ? null : o.__Field(field, untyped __cpp__("hx::paccNever"));
+			return (o == null) ? null : o.__Field(field, untyped __cpp__("::hx::paccNever"));
 		}
 
 	public static function setField(o:Dynamic, field:String, value:Dynamic):Void
 		untyped {
 			if (o != null)
-				o.__SetField(field, value, untyped __cpp__("hx::paccNever"));
+				o.__SetField(field, value, untyped __cpp__("::hx::paccNever"));
 		}
 
 	public static function getProperty(o:Dynamic, field:String):Dynamic {
-		return (o == null) ? null : o.__Field(field, untyped __cpp__("hx::paccAlways"));
+		return (o == null) ? null : o.__Field(field, untyped __cpp__("::hx::paccAlways"));
 	}
 
 	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
 		if (o != null)
-			o.__SetField(field, value, untyped __cpp__("hx::paccAlways"));
+			o.__SetField(field, value, untyped __cpp__("::hx::paccAlways"));
 	}
 
 	public static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic
@@ -55,7 +55,7 @@ class Reflect {
 			if (func != null && func.__GetType() == ObjectType.vtString) {
 				if (o == null)
 					throw cpp.ErrorConstants.invalidObject;
-				func = o.__Field(func, untyped __cpp__("hx::paccDynamic"));
+				func = o.__Field(func, untyped __cpp__("::hx::paccDynamic"));
 			}
 			if (func == null)
 				throw cpp.ErrorConstants.nullFunctionPointer;
@@ -115,7 +115,7 @@ class Reflect {
 		if (untyped o.__GetType() == ObjectType.vtString)
 			return o;
 		if (untyped o.__GetType() == ObjectType.vtArray)
-			return untyped o.__Field("copy", untyped __cpp__("hx::paccDynamic"))();
+			return untyped o.__Field("copy", untyped __cpp__("::hx::paccDynamic"))();
 		var o2:Dynamic = {};
 		for (f in Reflect.fields(o))
 			Reflect.setField(o2, f, Reflect.field(o, f));

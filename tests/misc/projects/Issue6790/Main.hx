@@ -20,5 +20,6 @@ class Main {
 
 		$type(p.catchError(function(x) {$type(x);}));
 		$type(p.catchError(function(x) {$type(x); return Promise.resolve(1);}));
+		$type(p.catchError(function(x) {$type(x); return Promise.resolve("heh");}));
 	}
 }

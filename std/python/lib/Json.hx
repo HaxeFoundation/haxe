@@ -47,6 +47,6 @@ typedef JsonLoadsOptions = {
 
 @:pythonImport("json")
 extern class Json {
-	public static function loads(s:String, ?options:KwArgs<JsonLoadsOptions>):Dict<String, Dynamic>;
-	public static function dumps(x:Dynamic, ?options:KwArgs<JsonDumpsOptions>):String;
+	static function loads(s:String, ?options:KwArgs<JsonLoadsOptions>):Dict<String, Dynamic>;
+	static function dumps(x:Dynamic, ?options:KwArgs<JsonDumpsOptions>):String;
 }

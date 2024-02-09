@@ -30,7 +30,7 @@ class Log {
 	/**
 		Format the output of `trace` before printing it.
 	**/
-	public static function formatOutput(v:Dynamic, infos:PosInfos):String {
+	public static function formatOutput(v:Dynamic, infos:Null<PosInfos>):String {
 		var str = Std.string(v);
 		if (infos == null)
 			return str;
@@ -69,7 +69,7 @@ class Log {
 		#elseif sys
 		Sys.println(str);
 		#else
-		throw "Not implemented"
+		throw new haxe.exceptions.NotImplementedException()
 		#end
 	}
 }

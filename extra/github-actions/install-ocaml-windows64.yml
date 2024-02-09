@@ -1,0 +1,20 @@
+- name: Setup ocaml
+  uses: ocaml/setup-ocaml@v2
+  with:
+    ocaml-compiler: 4.08.1
+    opam-repositories: |
+      opam-repository-mingw: https://github.com/ocaml-opam/opam-repository-mingw.git#sunset
+      default: https://github.com/ocaml/opam-repository.git
+    opam-local-packages: |
+      haxe.opam
+
+- name: Install dependencies
+  shell: pwsh
+  run: |
+    Set-PSDebug -Trace 1
+    curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 https://github.com/Simn/mingw64-mbedtls/releases/download/2.16.3/mingw64-$($env:MINGW_ARCH)-mbedtls-2.16.3-1.tar.xz
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'curl -L https://cpanmin.us | perl - App::cpanminus')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cpanm IPC::System::Simple module')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cpanm String::ShellQuote')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'echo "$OLDPWD"')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -C / -xvf libmbedtls.tar.xz')

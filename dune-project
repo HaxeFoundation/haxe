@@ -1,4 +1,4 @@
-(lang dune 1.11)
+(lang dune 3.0)
 (name haxe)
 
 (package

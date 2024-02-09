@@ -31,7 +31,7 @@ import java.io.IOException;
 class FileOutput extends Output {
 	var f:java.io.RandomAccessFile;
 
-	public function new(f) {
+	function new(f) {
 		this.f = f;
 	}
 

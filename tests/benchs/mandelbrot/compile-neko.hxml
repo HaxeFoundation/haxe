@@ -1,7 +1,0 @@
---main Mandelbrot
--neko bin/Mandelbrot.n
-
---next
---main Mandelbrot
--neko bin/Mandelbrot-anon.n
--D anon_objects

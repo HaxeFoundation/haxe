@@ -1,0 +1,2 @@
+Main.hx:16: characters 20-21 : Field f is declared 'override' but parent field f is 'abstract' and does not provide any implementation to override
+Main.hx:20: characters 19-20 : Field f has less visibility (public/private) than superclass one

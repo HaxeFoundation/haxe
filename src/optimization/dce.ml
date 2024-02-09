@@ -35,12 +35,12 @@ type dce = {
 	follow_expr : dce -> texpr -> unit;
 	dependent_types : (string list * string,module_type list) Hashtbl.t;
 	mutable curclass : tclass;
-	mutable added_fields : (tclass * tclass_field * bool) list;
+	mutable added_fields : (tclass * tclass_field * class_field_ref_kind) list;
 	mutable marked_fields : tclass_field list;
 	mutable marked_maybe_fields : tclass_field list;
 	mutable t_stack : t list;
 	mutable ts_stack : t list;
-	mutable features : (string,(tclass * tclass_field * bool) list) Hashtbl.t;
+	mutable features : (string, class_field_ref list ref) Hashtbl.t;
 }
 
 let push_class dce c =
@@ -49,6 +49,17 @@ let push_class dce c =
 	(fun () ->
 		dce.curclass <- old
 	)
+
+let resolve_class_field_ref ctx cfr =
+	let ctx = if cfr.cfr_is_macro && not ctx.is_macro_context then Option.get (ctx.get_macros()) else ctx in
+	let m = ctx.module_lut#find_by_type cfr.cfr_path in
+
+	Option.get (ExtList.List.find_map (fun mt -> match mt with
+		| TClassDecl c when c.cl_path = cfr.cfr_path ->
+			let cf = find_field c cfr.cfr_field cfr.cfr_kind in
+			Some (c, cf)
+		| _ -> None
+	) m.m_types)
 
 (* checking *)
 
@@ -59,7 +70,7 @@ let rec super_forces_keep c =
 	| _ -> false
 
 let overrides_extern_field cf c =
-	let is_extern c cf = c.cl_extern && cf.cf_expr = None in
+	let is_extern c cf = (has_class_flag c CExtern) && cf.cf_expr = None in
 	let rec loop c cf =
 		match c.cl_super with
 		| None -> false
@@ -83,19 +94,19 @@ let keep_metas = [Meta.Keep;Meta.Expose]
 (* check if a class is kept entirely *)
 let keep_whole_class dce c =
 	Meta.has_one_of keep_metas c.cl_meta
-	|| not (dce.full || is_std_file dce c.cl_module.m_extra.m_file || has_meta Meta.Dce c.cl_meta)
+	|| not (dce.full || is_std_file dce (Path.UniqueKey.lazy_path c.cl_module.m_extra.m_file) || has_meta Meta.Dce c.cl_meta)
 	|| super_forces_keep c
 	|| (match c with
 		| { cl_path = ([],("Math"|"Array"))} when dce.com.platform = Js -> false
-		| { cl_extern = true }
 		| { cl_path = ["flash";"_Boot"],"RealBoot" } -> true
+		| _ when (has_class_flag c CExtern) -> true
 		| { cl_path = [],"String" }
 		| { cl_path = [],"Array" } -> not (dce.com.platform = Js)
 		| _ -> false)
 
 let keep_whole_enum dce en =
 	Meta.has_one_of keep_metas en.e_meta
-	|| not (dce.full || is_std_file dce en.e_module.m_extra.m_file || has_meta Meta.Dce en.e_meta)
+	|| not (dce.full || is_std_file dce (Path.UniqueKey.lazy_path en.e_module.m_extra.m_file) || has_meta Meta.Dce en.e_meta)
 
 let mk_used_meta pos =
 	Meta.Used,[],(mk_zero_range_pos pos)
@@ -108,15 +119,17 @@ let mk_keep_meta pos =
 	`keep_field` is checked to determine the DCE entry points, i.e. all fields that have `@:keep` or kept for other reasons.
 	And then it is used at the end to check which fields can be filtered from their classes.
 *)
-let rec keep_field dce cf c is_static =
-	Meta.has_one_of (Meta.Used :: keep_metas) cf.cf_meta
+let rec keep_field dce cf c kind =
+	let is_static = kind = CfrStatic in
+	Meta.has_one_of keep_metas cf.cf_meta
+	|| has_class_field_flag cf CfUsed
 	|| cf.cf_name = "__init__"
-	|| not (is_physical_field cf)
+	|| has_class_field_flag cf CfExtern
 	|| (not is_static && overrides_extern_field cf c)
 	|| (
-		cf.cf_name = "new"
+		kind = CfrConstructor
 		&& match c.cl_super with (* parent class kept constructor *)
-			| Some ({ cl_constructor = Some ctor } as csup, _) -> keep_field dce ctor csup false
+			| Some ({ cl_constructor = Some ctor } as csup, _) -> keep_field dce ctor csup CfrConstructor
 			| _ -> false
 	)
 	|| begin
@@ -124,7 +137,7 @@ let rec keep_field dce cf c is_static =
 			try
 				let fields = if is_static then c.cl_statics else c.cl_fields in
 				let accessor = PMap.find (prefix ^ cf.cf_name) fields in
-				keep_field dce accessor c is_static
+				keep_field dce accessor c kind
 			with Not_found -> false
 		in
 		match cf.cf_kind with
@@ -138,9 +151,10 @@ let rec keep_field dce cf c is_static =
 let rec check_feature dce s =
 	try
 		let l = Hashtbl.find dce.features s in
-		List.iter (fun (c,cf,stat) ->
-			mark_field dce c cf stat
-		) l;
+		List.iter (fun cfr ->
+			let (c, cf) = resolve_class_field_ref dce.com cfr in
+			mark_field dce c cf cfr.cfr_kind
+		) !l;
 		Hashtbl.remove dce.features s;
 	with Not_found ->
 		()
@@ -151,19 +165,20 @@ and check_and_add_feature dce s =
 	Hashtbl.replace dce.curclass.cl_module.m_extra.m_features s true
 
 (* mark a field as kept *)
-and mark_field dce c cf stat =
-	let add cf =
-		if not (Meta.has Meta.Used cf.cf_meta) then begin
-			cf.cf_meta <- (mk_used_meta cf.cf_pos) :: cf.cf_meta;
-			dce.added_fields <- (c,cf,stat) :: dce.added_fields;
+and mark_field dce c cf kind =
+	let add c' cf =
+		if not (has_class_field_flag cf CfUsed) then begin
+			add_class_field_flag cf CfUsed;
+			dce.added_fields <- (c',cf,kind) :: dce.added_fields;
 			dce.marked_fields <- cf :: dce.marked_fields;
 			check_feature dce (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name);
 		end
 	in
-	if cf.cf_name = "new" then begin
+	match kind with
+	| CfrConstructor ->
 		let rec loop c =
 			begin match c.cl_constructor with
-				| Some cf -> add cf
+				| Some cf -> add c cf
 				| None -> ()
 			end;
 			match c.cl_super with
@@ -171,37 +186,42 @@ and mark_field dce c cf stat =
 			| None -> ()
 		in
 		loop c
-	end else begin
+	| CfrInit ->
+		begin match c.cl_init with
+			| Some cf -> add c cf
+			| None -> ()
+		end
+	| CfrStatic | CfrMember ->
+		let stat = kind = CfrStatic in
 		if not (PMap.mem cf.cf_name (if stat then c.cl_statics else c.cl_fields)) then begin
 			match c.cl_super with
-			| None -> add cf
-			| Some (c,_) -> mark_field dce c cf stat
+			| None -> add c cf
+			| Some (c,_) -> mark_field dce c cf kind
 		end else
-			add cf;
+			add c cf;
 		if not stat && is_physical_field cf then
 			match c.cl_constructor with
 				| None -> ()
-				| Some ctor -> mark_field dce c ctor false
-	end
+				| Some ctor -> mark_field dce c ctor CfrConstructor
 
 let rec update_marked_class_fields dce c =
 	let pop = push_class dce c in
 	(* mark all :?used fields as surely :used now *)
 	List.iter (fun cf ->
-		if Meta.has Meta.MaybeUsed cf.cf_meta then mark_field dce c cf true
+		if has_class_field_flag cf CfMaybeUsed then mark_field dce c cf CfrStatic
 	) c.cl_ordered_statics;
 	List.iter (fun cf ->
-		if Meta.has Meta.MaybeUsed cf.cf_meta then mark_field dce c cf false
+		if has_class_field_flag cf CfMaybeUsed then mark_field dce c cf CfrMember
 	) c.cl_ordered_fields;
 	(* we always have to keep super classes and implemented interfaces *)
-	(match c.cl_init with None -> () | Some init -> dce.follow_expr dce init);
+	(match TClass.get_cl_init c with None -> () | Some init -> dce.follow_expr dce init);
 	List.iter (fun (c,_) -> mark_class dce c) c.cl_implements;
 	(match c.cl_super with None -> () | Some (csup,pl) -> mark_class dce csup);
 	pop()
 
 (* mark a class as kept. If the class has fields marked as @:?keep, make sure to keep them *)
-and mark_class dce c = if not (Meta.has Meta.Used c.cl_meta) then begin
-	c.cl_meta <- (mk_used_meta c.cl_pos) :: c.cl_meta;
+and mark_class dce c = if not (has_class_flag c CUsed) then begin
+	add_class_flag c CUsed;
 	check_feature dce (Printf.sprintf "%s.*" (s_type_path c.cl_path));
 	update_marked_class_fields dce c;
 end
@@ -223,10 +243,10 @@ and mark_t dce p t =
 	if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.t_stack) then begin
 		dce.t_stack <- t :: dce.t_stack;
 		begin match follow t with
-		| TInst({cl_kind = KTypeParameter tl} as c,pl) ->
-			if not (Meta.has Meta.Used c.cl_meta) then begin
-				c.cl_meta <- (mk_used_meta c.cl_pos) :: c.cl_meta;
-				List.iter (mark_t dce p) tl;
+		| TInst({cl_kind = KTypeParameter ttp} as c,pl) ->
+			if not (has_class_flag c CUsed) then begin
+				add_class_flag c CUsed;
+				List.iter (mark_t dce p) (get_constraints ttp);
 			end;
 			List.iter (mark_t dce p) pl
 		| TInst(c,pl) ->
@@ -267,16 +287,17 @@ let mark_mt dce mt = match mt with
 		()
 
 (* find all dependent fields by checking implementing/subclassing types *)
-let rec mark_dependent_fields dce csup n stat =
+let mark_dependent_fields dce csup n kind =
 	let rec loop c =
 		(try
+			let stat = kind = CfrStatic in
 			let cf = PMap.find n (if stat then c.cl_statics else c.cl_fields) in
 			(* if it's clear that the class is kept, the field has to be kept as well. This is also true for
 				extern interfaces because we cannot remove fields from them *)
-			if Meta.has Meta.Used c.cl_meta || (csup.cl_interface && csup.cl_extern) then mark_field dce c cf stat
+			if has_class_flag c CUsed || ((has_class_flag csup CInterface) && (has_class_flag csup CExtern)) then mark_field dce c cf kind
 			(* otherwise it might be kept if the class is kept later, so mark it as :?used *)
-			else if not (Meta.has Meta.MaybeUsed cf.cf_meta) then begin
-				cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;
+			else if not (has_class_field_flag cf CfMaybeUsed) then begin
+				add_class_field_flag cf CfMaybeUsed;
 				dce.marked_maybe_fields <- cf :: dce.marked_maybe_fields;
 			end
 		with Not_found ->
@@ -295,15 +316,15 @@ let opt f e = match e with None -> () | Some e -> f e
 
 let rec to_string dce t = match t with
 	| TInst(c,tl) ->
-		field dce c "toString" false;
+		field dce c "toString" CfrMember;
 	| TType(tt,tl) ->
 		if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.ts_stack) then begin
 			dce.ts_stack <- t :: dce.ts_stack;
-			to_string dce (apply_params tt.t_params tl tt.t_type)
+			to_string dce (apply_typedef tt tl)
 		end
 	| TAbstract({a_impl = Some c} as a,tl) ->
 		if Meta.has Meta.CoreType a.a_meta then
-			field dce c "toString" false
+			field dce c "toString" CfrMember
 		else
 			to_string dce (Abstract.get_underlying_type a tl)
 	| TMono r ->
@@ -312,45 +333,36 @@ let rec to_string dce t = match t with
 		| _ -> ())
 	| TLazy f ->
 		to_string dce (lazy_type f)
-	| TDynamic t ->
-		if t == t_dynamic then
-			()
-		else
-			to_string dce t
-	| TEnum _ | TFun _ | TAnon _ | TAbstract({a_impl = None},_) ->
+	| TDynamic (Some t) ->
+		to_string dce t
+	| TEnum _ | TFun _ | TAnon _ | TAbstract({a_impl = None},_) | TDynamic None ->
 		(* if we to_string these it does not imply that we need all its sub-types *)
 		()
 
-and field dce c n stat =
-	let find_field n =
-		if n = "new" then match c.cl_constructor with
-			| None -> raise Not_found
-			| Some cf -> cf
-		else PMap.find n (if stat then c.cl_statics else c.cl_fields)
-	in
+and field dce c n kind =
 	(try
-		let cf = find_field n in
-		mark_field dce c cf stat;
+		let cf = find_field c n kind in
+		mark_field dce c cf kind;
 	with Not_found -> try
-		if c.cl_interface then begin
+		if (has_class_flag c CInterface) then begin
 			let rec loop cl = match cl with
 				| [] -> raise Not_found
 				| (c,_) :: cl ->
-					try field dce c n stat with Not_found -> loop cl
+					try field dce c n kind with Not_found -> loop cl
 			in
 			loop c.cl_implements
-		end else match c.cl_super with Some (csup,_) -> field dce csup n stat | None -> raise Not_found
+		end else match c.cl_super with Some (csup,_) -> field dce csup n kind | None -> raise Not_found
 	with Not_found -> try
 		match c.cl_kind with
-		| KTypeParameter tl ->
+		| KTypeParameter ttp ->
 			let rec loop tl = match tl with
 				| [] -> raise Not_found
 				| TInst(c,_) :: cl ->
-					(try field dce c n stat with Not_found -> loop cl)
+					(try field dce c n kind with Not_found -> loop cl)
 				| t :: tl ->
 					loop tl
 			in
-			loop tl
+			loop (get_constraints ttp)
 		| _ -> raise Not_found
 	with Not_found ->
 		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else ())
@@ -443,17 +455,20 @@ and expr_field dce e fa is_call_expr =
 			| FDynamic _ ->
 				check_and_add_feature dce "dynamic_read";
 				check_and_add_feature dce ("dynamic_read." ^ n);
+			| FClosure _ ->
+				check_and_add_feature dce "closure_read";
+				check_and_add_feature dce ("closure_read." ^ n);
 			| _ -> ());
 			begin match follow e.etype, fa with
 				| TInst(c,_), _
 				| _, FClosure (Some (c, _), _) ->
 					mark_class dce c;
-					field dce c n false;
+					field dce c n CfrMember;
 				| TAnon a, _ ->
 					(match !(a.a_status) with
-					| Statics c ->
+					| ClassStatics c ->
 						mark_class dce c;
-						field dce c n true;
+						field dce c n CfrStatic;
 					| _ -> ())
 
 
@@ -477,11 +492,11 @@ and expr_field dce e fa is_call_expr =
 	begin match fa with
 		| FStatic(c,cf) ->
 			mark_class dce c;
-			mark_field dce c cf true;
+			mark_field dce c cf CfrStatic;
 		| FInstance(c,_,cf) ->
 			(*mark_instance_field_access c cf;*)
 			mark_class dce c;
-			mark_field dce c cf false
+			mark_field dce c cf CfrMember
 		| FClosure (Some(c, _), cf) ->
 		 	mark_instance_field_access c cf;
 			do_default()
@@ -492,6 +507,15 @@ and expr_field dce e fa is_call_expr =
 	end;
 	expr dce e;
 
+and check_op dce op = match op with
+	| OpMod ->
+		check_and_add_feature dce "binop_%";
+	| OpUShr ->
+		check_and_add_feature dce "binop_>>>";
+	| OpAssignOp op ->
+		check_op dce op
+	| _ ->
+		()
 
 and expr dce e =
 	mark_t dce e.epos e.etype;
@@ -499,7 +523,7 @@ and expr dce e =
 	| TNew(c,pl,el) ->
 		mark_class dce c;
 		mark_directly_used_class dce c;
-		field dce c "new" false;
+		field dce c "new" CfrConstructor;
 		List.iter (expr dce) el;
 		List.iter (mark_t dce e.epos) pl;
 	| TVar (v,e1) ->
@@ -582,11 +606,16 @@ and expr dce e =
 		check_and_add_feature dce "unsafe_string_concat";
 		expr dce e1;
 		expr dce e2;
-	| TArray(({etype = TDynamic t} as e1),e2) when t == t_dynamic ->
+	| TArray(({etype = TDynamic None} as e1),e2) ->
 		check_and_add_feature dce "dynamic_array_read";
 		expr dce e1;
 		expr dce e2;
-	| TBinop( (OpAssign | OpAssignOp _), ({eexpr = TArray({etype = TDynamic t},_)} as e1), e2) when t == t_dynamic ->
+	| TBinop(OpAssign, ({eexpr = TArray({etype = TDynamic None},_)} as e1), e2) ->
+		check_and_add_feature dce "dynamic_array_write";
+		expr dce e1;
+		expr dce e2;
+	| TBinop(OpAssignOp op, ({eexpr = TArray({etype = TDynamic None},_)} as e1), e2) ->
+		check_op dce op;
 		check_and_add_feature dce "dynamic_array_write";
 		expr dce e1;
 		expr dce e2;
@@ -610,10 +639,12 @@ and expr dce e =
 		expr dce e1;
 		expr dce e2;
 	| TBinop(OpAssignOp op,({eexpr = TField(_,(FDynamic _ as fa) )} as e1),e2) ->
+		check_op dce op;
 		check_dynamic_write dce fa;
 		expr dce e1;
 		expr dce e2;
 	| TBinop(OpAssignOp op,({eexpr = TField(_,(FAnon cf as fa) )} as e1),e2) ->
+		check_op dce op;
 		if Meta.has Meta.Optional cf.cf_meta then
 			check_anon_optional_write dce fa
 		else
@@ -624,16 +655,20 @@ and expr dce e =
 		check_and_add_feature dce "dynamic_binop_==";
 		expr dce e1;
 		expr dce e2;
+	| TBinop(OpEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when ExtType.is_type_param (follow t1) || ExtType.is_type_param (follow t2) ->
+		check_and_add_feature dce "type_param_binop_==";
+		expr dce e1;
+		expr dce e2;
 	| TBinop(OpNotEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when is_dynamic t1 || is_dynamic t2 ->
 		check_and_add_feature dce "dynamic_binop_!=";
 		expr dce e1;
 		expr dce e2;
-	| TBinop(OpMod,e1,e2) ->
-		check_and_add_feature dce "binop_%";
+	| TBinop(OpNotEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when ExtType.is_type_param (follow t1) || ExtType.is_type_param (follow t2) ->
+		check_and_add_feature dce "type_param_binop_!=";
 		expr dce e1;
 		expr dce e2;
-	| TBinop((OpUShr | OpAssignOp OpUShr),e1,e2) ->
-		check_and_add_feature dce "binop_>>>";
+	| TBinop(op,e1,e2) ->
+		check_op dce op;
 		expr dce e1;
 		expr dce e2;
 	| TCall(({ eexpr = TField(ef, fa) } as e2), el ) ->
@@ -656,15 +691,15 @@ and expr dce e =
 let fix_accessors com =
 	List.iter (fun mt -> match mt with
 		(* filter empty abstract implementation classes (issue #1885). *)
-		| TClassDecl({cl_kind = KAbstractImpl _} as c) when c.cl_ordered_statics = [] && c.cl_ordered_fields = [] && not (Meta.has Meta.Used c.cl_meta) ->
-			c.cl_extern <- true
-		| TClassDecl({cl_kind = KAbstractImpl a} as c) when Meta.has Meta.Enum a.a_meta ->
+		| TClassDecl({cl_kind = KAbstractImpl _} as c) when c.cl_ordered_statics = [] && c.cl_ordered_fields = [] && not (has_class_flag c CUsed) ->
+			add_class_flag c CExtern;
+		| TClassDecl({cl_kind = KAbstractImpl a} as c) when a.a_enum ->
 			let is_runtime_field cf =
-				not (Meta.has Meta.Enum cf.cf_meta)
+				not (has_class_field_flag cf CfEnum)
 			in
 			(* also filter abstract implementation classes that have only @:enum fields (issue #2858) *)
 			if not (List.exists is_runtime_field c.cl_ordered_statics) then
-				c.cl_extern <- true
+				add_class_flag c CExtern
 		| (TClassDecl c) ->
 			let rec has_accessor c n stat =
 				PMap.mem n (if stat then c.cl_statics else c.cl_fields)
@@ -687,38 +722,68 @@ let fix_accessors com =
 		| _ -> ()
 	) com.types
 
+let extract_if_feature meta =
+	let rec loop = function
+		| [] ->
+			[]
+		| (Meta.IfFeature,el,_) :: _ ->
+			List.map (fun (e,p) -> match e with
+				| EConst (String(s,_)) -> s
+				| _ -> Error.raise_typing_error "String expected" p
+			) el
+		| _ :: l ->
+			loop l
+	in
+	loop meta
+
 let collect_entry_points dce com =
+	let delayed = ref [] in
+	let check_feature cf_ref meta =
+		List.iter (fun s ->
+			try
+				let l = Hashtbl.find dce.features s in
+				l := cf_ref :: !l
+			with Not_found ->
+				Hashtbl.add dce.features s (ref [cf_ref])
+		) meta;
+	in
 	List.iter (fun t ->
-		let mt = t_infos t in
-		mt.mt_meta <- Meta.remove Meta.Used mt.mt_meta;
 		match t with
 		| TClassDecl c ->
-			let keep_class = keep_whole_class dce c && (not c.cl_extern || c.cl_interface) in
-			let loop stat cf =
-				if keep_class || keep_field dce cf c stat then mark_field dce c cf stat
+			remove_class_flag c CUsed;
+			let cl_if_feature = extract_if_feature c.cl_meta in
+			let keep_class = keep_whole_class dce c && (not (has_class_flag c CExtern) || (has_class_flag c CInterface)) in
+			let is_struct = dce.com.platform = Hl && Meta.has Meta.Struct c.cl_meta in
+			let loop kind cf =
+				let cf_ref = mk_class_field_ref c cf kind com.is_macro_context in
+				let cf_if_feature = extract_if_feature cf.cf_meta in
+				check_feature cf_ref (cl_if_feature @ cf_if_feature);
+				(* Have to delay mark_field so that we see all @:ifFeature *)
+				if keep_class || is_struct || keep_field dce cf c kind then delayed := (fun () -> mark_field dce c cf kind) :: !delayed
 			in
-			List.iter (loop true) c.cl_ordered_statics;
-			List.iter (loop false) c.cl_ordered_fields;
+			List.iter (loop CfrStatic) c.cl_ordered_statics;
+			List.iter (loop CfrMember) c.cl_ordered_fields;
 			begin match c.cl_constructor with
-				| Some cf -> loop false cf
+				| Some cf -> loop CfrConstructor cf
 				| None -> ()
 			end;
 			begin match c.cl_init with
-				| Some e when keep_class || Meta.has Meta.KeepInit c.cl_meta ->
-					(* create a fake field to deal with our internal logic (issue #3286) *)
-					let cf = mk_field "__init__" e.etype e.epos null_pos in
-					cf.cf_expr <- Some e;
-					loop true cf
+				| Some cf when keep_class || Meta.has Meta.KeepInit c.cl_meta ->
+					loop CfrInit cf
 				| _ ->
 					()
 			end;
 		| TEnumDecl en when keep_whole_enum dce en ->
-			let pop = push_class dce {null_class with cl_module = en.e_module} in
-			mark_enum dce en;
-			pop()
+			en.e_meta <- Meta.remove Meta.Used en.e_meta;
+			delayed := (fun () ->
+				let pop = push_class dce {null_class with cl_module = en.e_module} in
+				mark_enum dce en;
+				pop()
+			) :: !delayed;
 		| _ ->
 			()
 	) com.types;
+	List.iter (fun f -> f()) !delayed;
 	if dce.debug then begin
 		List.iter (fun (c,cf,_) -> match cf.cf_expr with
 			| None -> ()
@@ -744,10 +809,12 @@ let mark dce =
 			) cfl;
 			(* follow expressions to new types/fields *)
 			List.iter (fun (c,cf,_) ->
-				let pop = push_class dce c in
-				opt (expr dce) cf.cf_expr;
-				List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
-				pop();
+				if not (has_class_flag c CExtern) then begin
+					let pop = push_class dce c in
+					opt (expr dce) cf.cf_expr;
+					List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
+					pop()
+				end
 			) cfl;
 			loop ()
 	in
@@ -787,7 +854,7 @@ let sweep dce com =
 			(* add :keep so subsequent filter calls do not process class fields again *)
 			c.cl_meta <- (mk_keep_meta c.cl_pos) :: c.cl_meta;
  			c.cl_ordered_statics <- List.filter (fun cf ->
-				let b = keep_field dce cf c true in
+				let b = keep_field dce cf c CfrStatic in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
 					check_property cf true;
@@ -796,7 +863,7 @@ let sweep dce com =
 				b
 			) c.cl_ordered_statics;
 			c.cl_ordered_fields <- List.filter (fun cf ->
-				let b = keep_field dce cf c false in
+				let b = keep_field dce cf c CfrMember in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
 					check_property cf false;
@@ -804,15 +871,15 @@ let sweep dce com =
 				end;
 				b
 			) c.cl_ordered_fields;
-			(match c.cl_constructor with Some cf when not (keep_field dce cf c false) -> c.cl_constructor <- None | _ -> ());
+			(match c.cl_constructor with Some cf when not (keep_field dce cf c CfrConstructor) -> c.cl_constructor <- None | _ -> ());
 			let inef cf = is_physical_field cf in
 			let has_non_extern_fields = List.exists inef c.cl_ordered_fields || List.exists inef c.cl_ordered_statics in
 			(* we keep a class if it was used or has a used field *)
-			if Meta.has Meta.Used c.cl_meta || has_non_extern_fields then loop (mt :: acc) l else begin
-				(match c.cl_init with
+			if has_class_flag c CUsed || has_non_extern_fields then loop (mt :: acc) l else begin
+				(match TClass.get_cl_init c with
 				| Some f when Meta.has Meta.KeepInit c.cl_meta ->
 					(* it means that we only need the __init__ block *)
-					c.cl_extern <- true;
+					add_class_flag c CExtern;
 					loop (mt :: acc) l
 				| _ ->
 					if dce.debug then print_endline ("[DCE] Removed class " ^ (s_type_path c.cl_path));
@@ -836,7 +903,7 @@ let run com main mode =
 		com = com;
 		full = full;
 		dependent_types = Hashtbl.create 0;
-		std_dirs = if full then [] else List.map Path.unique_full_path com.std_path;
+		std_dirs = if full then [] else List.map (fun path -> Path.get_full_path path#path) com.class_paths#get_std_paths;
 		debug = Common.defined com Define.DceDebug;
 		added_fields = [];
 		follow_expr = expr;
@@ -847,18 +914,6 @@ let run com main mode =
 		features = Hashtbl.create 0;
 		curclass = null_class;
 	} in
-	begin match main with
-		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} | Some {eexpr = TBlock ({ eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} :: _)} ->
-			cf.cf_meta <- (mk_keep_meta cf.cf_pos) :: cf.cf_meta
-		| _ ->
-			()
-	end;
-	List.iter (fun m ->
-		List.iter (fun (s,v) ->
-			if Hashtbl.mem dce.features s then Hashtbl.replace dce.features s (v :: Hashtbl.find dce.features s)
-			else Hashtbl.add dce.features s [v]
-		) m.m_extra.m_if_feature;
-	) com.modules;
 
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
 	collect_entry_points dce com;
@@ -875,15 +930,18 @@ let run com main mode =
 	(* remove "override" from fields that do not override anything anymore *)
 	List.iter (fun mt -> match mt with
 		| TClassDecl c ->
-			c.cl_overrides <- List.filter (fun s ->
-				let rec loop c =
-					match c.cl_super with
-					| Some (csup,_) when PMap.mem s.cf_name csup.cl_fields -> true
-					| Some (csup,_) -> loop csup
-					| None -> false
-				in
-				loop c
-			) c.cl_overrides;
+			List.iter (fun cf ->
+				if has_class_field_flag cf CfOverride then begin
+					let rec loop c =
+						match c.cl_super with
+						| Some (csup,_) when PMap.mem cf.cf_name csup.cl_fields -> true
+						| Some (csup,_) -> loop csup
+						| None -> false
+					in
+					let b = loop c in
+					if not b then remove_class_field_flag cf CfOverride;
+				end
+			) c.cl_ordered_fields;
 		| _ -> ()
 	) com.types;
 
@@ -891,13 +949,12 @@ let run com main mode =
 		Mark extern classes as really used if they are extended by non-extern ones.
 	*)
 	List.iter (function
-		| TClassDecl ({cl_extern = false; cl_super = Some ({cl_extern = true} as csup, _)}) ->
+		| TClassDecl ({cl_super = Some (csup, _)} as c) when not (has_class_flag c CExtern) && (has_class_flag csup CExtern) ->
 			mark_directly_used_class dce csup
-		| TClassDecl ({cl_extern = false} as c) when c.cl_implements <> [] ->
-			List.iter (fun (iface,_) -> if (iface.cl_extern) then mark_directly_used_class dce iface) c.cl_implements;
+		| TClassDecl c when not (has_class_flag c CExtern) && c.cl_implements <> [] ->
+			List.iter (fun (iface,_) -> if ((has_class_flag iface CExtern)) then mark_directly_used_class dce iface) c.cl_implements;
 		| _ -> ()
 	) com.types;
 
 	(* cleanup added fields metadata - compatibility with compilation server *)
-	List.iter (fun cf -> cf.cf_meta <- Meta.remove Meta.Used cf.cf_meta) dce.marked_fields;
-	List.iter (fun cf -> cf.cf_meta <- Meta.remove Meta.MaybeUsed cf.cf_meta) dce.marked_maybe_fields
+	List.iter (fun cf -> remove_class_field_flag cf CfUsed) dce.marked_fields

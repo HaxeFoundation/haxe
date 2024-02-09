@@ -1,0 +1,3 @@
+Main.hx:7: characters 2-24 : Ambiguous overload, candidates follow
+Main.hx:2: characters 27-37 : ... (?flags : Null<Array<String>>) -> Void
+Main.hx:3: characters 27-37 : ... (?flags : Null<String>) -> Void

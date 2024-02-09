@@ -8,7 +8,7 @@ class Issue3192 extends Test {
 		var y1:{} = x1;
 		var y2:{} = x2;
 		var y3:{} = x3;
-		// var z1:{x:Int} = x1;
+		var z1:{x:Int} = x1;
 		var z2:{x:Int} = x2;
 		var z3:{x:Int} = x3;
 		eq(1, x1.x);

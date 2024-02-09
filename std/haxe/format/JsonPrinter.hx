@@ -128,8 +128,8 @@ class JsonPrinter {
 				} else
 					classString(v);
 			case TEnum(_):
-				var i:Dynamic = Type.enumIndex(v);
-				add(i);
+				var i = Type.enumIndex(v);
+				add(Std.string(i));
 			case TBool:
 				add(#if (php || jvm || hl) (v ? 'true' : 'false') #else v #end);
 			case TNull:
@@ -165,16 +165,15 @@ class JsonPrinter {
 	function fieldsString(v:Dynamic, fields:Array<String>) {
 		addChar('{'.code);
 		var len = fields.length;
-		var last = len - 1;
-		var first = true;
+		var empty = true;
 		for (i in 0...len) {
 			var f = fields[i];
 			var value = Reflect.field(v, f);
 			if (Reflect.isFunction(value))
 				continue;
-			if (first) {
+			if (empty) {
 				nind++;
-				first = false;
+				empty = false;
 			} else
 				addChar(','.code);
 			newl();
@@ -184,11 +183,11 @@ class JsonPrinter {
 			if (pretty)
 				addChar(' '.code);
 			write(f, value);
-			if (i == last) {
-				nind--;
-				newl();
-				ipad();
-			}
+		}
+		if (!empty) {
+			nind--;
+			newl();
+			ipad();
 		}
 		addChar('}'.code);
 	}
@@ -202,13 +201,12 @@ class JsonPrinter {
 		#end
 		addChar('"'.code);
 		var i = 0;
+		var length = s.length;
 		#if hl
 		var prev = -1;
 		#end
-		while (true) {
-			var c = StringTools.fastCodeAt(s, i++);
-			if (StringTools.isEof(c))
-				break;
+		while (i < length) {
+			var c = StringTools.unsafeCodeAt(s, i++);
 			switch (c) {
 				case '"'.code:
 					add('\\"');

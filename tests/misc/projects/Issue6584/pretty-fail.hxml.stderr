@@ -1,0 +1,14 @@
+[ERROR] Main5.hx:1: lines 1-6
+
+ 1 | class Main {
+ - |   [...]
+ 6 | }
+   |
+   | This class has uninitialized final vars, which requires a constructor
+
+[ERROR] Main5.hx:2: characters 8-9
+
+ 2 |  final v:Int;
+   |        ^
+   | Example of an uninitialized final var
+

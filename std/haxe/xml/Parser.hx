@@ -126,7 +126,6 @@ class Parser {
 		var start = 0;
 		var nsubs = 0;
 		var nbrackets = 0;
-		var c = str.fastCodeAt(p);
 		var buf = new StringBuf();
 		// need extra state because next is in use
 		var escapeNext = S.BEGIN;
@@ -135,7 +134,8 @@ class Parser {
 			parent.addChild(xml);
 			nsubs++;
 		}
-		while (!StringTools.isEof(c)) {
+		while (p < str.length) {
+			var c = str.unsafeCodeAt(p);
 			switch (state) {
 				case S.IGNORE_SPACES:
 					switch (c) {
@@ -191,9 +191,8 @@ class Parser {
 								p += 8;
 								state = S.DOCTYPE;
 								start = p + 1;
-							} else if (str.fastCodeAt(p + 1) != '-'.code || str.fastCodeAt(p + 2) != '-'.code)
-								throw new XmlParserException("Expected <!--", str, p);
-							else {
+							} else if (str.fastCodeAt(p + 1) != '-'.code || str.fastCodeAt(p + 2) != '-'.code) throw new XmlParserException("Expected <!--",
+								str, p); else {
 								p += 2;
 								state = S.COMMENT;
 								start = p + 1;
@@ -384,7 +383,7 @@ class Parser {
 						state = escapeNext;
 					}
 			}
-			c = str.fastCodeAt(++p);
+			++p;
 		}
 
 		if (state == S.BEGIN) {

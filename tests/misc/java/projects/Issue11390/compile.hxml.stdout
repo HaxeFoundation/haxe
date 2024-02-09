@@ -1,0 +1,10 @@
+Robot.performTask() called!
+Result: 7
+Robot.performTask() called!
+Result: -1
+Robot.performTask() called!
+Main.hx:18: Hello, Robot!
+Main.hx:20: Cleanup...
+Robot.performTask() called!
+Main.hx:24: Manufacturing Greet...
+Output: Robot

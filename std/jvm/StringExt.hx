@@ -25,6 +25,7 @@ package jvm;
 import java.NativeString;
 
 @:native("haxe.jvm.StringExt")
+@:keep
 class StringExt {
 	public static function fromCharCode(code:Int):String {
 		var a = new java.NativeArray(1);
@@ -47,10 +48,16 @@ class StringExt {
 	}
 
 	public static function indexOf(me:String, str:String, startIndex:Null<Int>) {
+		if (str.length == 0) {
+			return java.lang.Math.max(0, java.lang.Math.min(startIndex == null ? 0 : startIndex, me.length));
+		}
 		return if (startIndex == null) (cast me : NativeString).indexOf(str) else (cast me : NativeString).indexOf(str, startIndex);
 	}
 
 	public static function lastIndexOf(me:String, str:String, ?startIndex:Int):Int {
+		if (str.length == 0) {
+			return java.lang.Math.max(0, java.lang.Math.min(startIndex == null ? me.length : startIndex, me.length));
+		}
 		if (startIndex == null || startIndex > me.length || startIndex < 0) {
 			startIndex = me.length - 1;
 		}

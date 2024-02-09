@@ -30,11 +30,8 @@ class Issue3639 extends Test {
 		MyClass.testStatic(1);
 		MyClass.eachStatic(0...5, function(x) return x);
 
-		#if !cs
-		// https://github.com/HaxeFoundation/haxe/issues/3658
 		hsf(MyClass, "testStatic_Int");
 		hsf(MyClass, "eachStatic_Int_IntIterator");
-		#end
 
 		var t = new MyClass();
 		t.testMember(1, "12");
@@ -42,10 +39,8 @@ class Issue3639 extends Test {
 		var t = new MyClass();
 		t.eachMember(0...5, function(x) return x);
 
-		#if !cs
 		hf(MyClass, "testMember_String");
 		hf(MyClass, "eachMember_IntIterator");
-		#end
 		noAssert();
 	}
 }

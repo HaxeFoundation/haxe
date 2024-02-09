@@ -169,7 +169,7 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 			node.right); else balance(node.left, node.key, node.value, removeLoop(k, node.right));
 	}
 
-	function iteratorLoop(node:TreeNode<K, V>, acc:Array<V>) {
+	static function iteratorLoop<K,V>(node:TreeNode<K, V>, acc:Array<V>) {
 		if (node != null) {
 			iteratorLoop(node.left, acc);
 			acc.push(node.value);
@@ -227,7 +227,7 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 	}
 
 	public function toString() {
-		return root == null ? '{}' : '{${root.toString()}}';
+		return root == null ? "[]" : '[${root.toString()}]';
 	}
 
 	/**
@@ -264,6 +264,6 @@ class TreeNode<K, V> {
 		return this == null ? 0 : _height;
 
 	public function toString() {
-		return (left == null ? "" : left.toString() + ", ") + '$key=$value' + (right == null ? "" : ", " + right.toString());
+		return (left == null ? "" : left.toString() + ", ") + '$key => $value' + (right == null ? "" : ", " + right.toString());
 	}
 }

@@ -16,7 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open EvalValue
 
 let vstring s = VString s
@@ -38,8 +38,11 @@ let empty_string = create_ascii ""
 
 let v_empty_string = VString empty_string
 
+let create_unknown_vstring s =
+	create_with_length s (try UTF8.length s with _ -> String.length s)
+
 let create_unknown s =
-	vstring (create_with_length s (try UTF8.length s with _ -> String.length s))
+	vstring (create_unknown_vstring s)
 
 let concat s1 s2 =
 	create_with_length (s1.sstring ^ s2.sstring) (s1.slength + s2.slength)
@@ -128,7 +131,7 @@ let get_offset' s c_index =
 		in
 		b_offset,r
 	| _ ->
-		assert false
+		Globals.die "" __LOC__
 
 let get_offset s c_index =
 	let b_offset,(cr_index,br_offset) = get_offset' s c_index in

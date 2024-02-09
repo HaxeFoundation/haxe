@@ -86,7 +86,7 @@ class Sys {
 		return makePath(v);
 	}
 
-	public static function putEnv(s:String, v:String):Void {
+	public static function putEnv(s:String, v:Null<String>):Void {
 		if (!put_env(getPath(s), if (v == null) null else getPath(v)))
 			throw "putEnv() failure";
 	}

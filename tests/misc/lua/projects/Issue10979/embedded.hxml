@@ -1,0 +1,4 @@
+--lua bin/haxe-exception.lua
+--main HaxeException
+
+--cmd lua runner.lua 'bin/haxe-exception' 'Exception thrown from Haxe'

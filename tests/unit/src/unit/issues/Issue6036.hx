@@ -28,6 +28,6 @@ class Issue6036 extends unit.Test {
 	function test() {
 		var a = new ABSTRACT();
 		HelperMacros.typedAs(a.getArray(), true);
-		HelperMacros.typedAs(a.getThisArray(), (null : Void -> Array<Int>));
+		HelperMacros.typedAs(a.getThisArray(), (null : () -> Array<Int>));
 	}
 }

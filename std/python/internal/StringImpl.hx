@@ -42,9 +42,20 @@ class StringImpl {
 	}
 
 	@:ifFeature("dynamic_read.lastIndexOf", "anon_optional_read.lastIndexOf", "python.internal.StringImpl.lastIndexOf")
-	public static inline function lastIndexOf(s:String, str:String, ?startIndex:Int):Int {
-		if (startIndex == null) {
+	public static function lastIndexOf(s:String, str:String, ?startIndex:Int):Int {
+		if (str == "") {
+			var i = startIndex == null ? s.length : startIndex;
+			return UBuiltins.max(0, UBuiltins.min(i,  s.length));
+		}
+		else if (startIndex == null) {
 			return Syntax.callField(s, "rfind", str, 0, s.length);
+		} else if(str == "") {
+			var length = s.length;
+			if(startIndex < 0) {
+				startIndex = length + startIndex;
+				if(startIndex < 0) startIndex = 0;
+			}
+			return startIndex > length ? length : startIndex;
 		} else {
 			var i = Syntax.callField(s, "rfind", str, 0, startIndex + 1);
 			var startLeft = i == -1 ? UBuiltins.max(0, startIndex + 1 - str.length) : i + 1;
@@ -68,11 +79,27 @@ class StringImpl {
 	}
 
 	@:ifFeature("dynamic_read.indexOf", "anon_optional_read.indexOf", "python.internal.StringImpl.indexOf")
-	public static inline function indexOf(s:String, str:String, ?startIndex:Int) {
-		if (startIndex == null)
+	public static function indexOf (s:String, str:String, ?startIndex:Int) {
+		if (str == "") {
+			var i = startIndex == null ? 0 : startIndex;
+			return UBuiltins.max(0, UBuiltins.min(i,  s.length));
+		}
+		else if (startIndex == null)
 			return Syntax.callField(s, "find", str);
 		else
-			return Syntax.callField(s, "find", str, startIndex);
+			return indexOfImpl(s, str, startIndex);
+	}
+
+	static function indexOfImpl(s:String, str:String, startIndex:Int) {
+		if(str == "") {
+			var length = s.length;
+			if(startIndex < 0) {
+				startIndex = length + startIndex;
+				if(startIndex < 0) startIndex = 0;
+			}
+			return startIndex > length ? length : startIndex;
+		}
+		return Syntax.callField(s, "find", str, startIndex);
 	}
 
 	@:ifFeature("dynamic_read.toString", "anon_optional_read.toString", "python.internal.StringImpl.toString")

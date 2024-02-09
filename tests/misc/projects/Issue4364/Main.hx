@@ -12,7 +12,7 @@ abstract A(C) to C {
 }
 
 @:generic
-class G<T:haxe.Constraints.Constructible<Void->Void>> {
+class G<T:haxe.Constraints.Constructible<()->Void>> {
 	public function new() {}
 	public function make():T return new T();
 }

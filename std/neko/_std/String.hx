@@ -57,10 +57,18 @@
 	}
 
 	public function indexOf(str:String, ?startIndex:Int):Int {
+		if (str.length == 0) {
+			var startIndex = startIndex == null ? 0 : startIndex;
+			var min = startIndex > length ? length : startIndex;
+			return min < 0 ? 0 : min;
+		}
 		untyped {
 			var l = __dollar__ssize(this.__s);
 			if (startIndex == null || startIndex < -l)
 				startIndex = 0;
+			if (str == '' && startIndex >= l) {
+				return l;
+			}
 			if (startIndex > l)
 				return -1;
 			if (__dollar__ssize(str.__s) == 0)
@@ -73,6 +81,11 @@
 	}
 
 	public function lastIndexOf(str:String, ?startIndex:Int):Int {
+		if (str.length == 0) {
+			var startIndex = startIndex == null ? length : startIndex;
+			var min = startIndex > length ? length : startIndex;
+			return min < 0 ? 0 : min;
+		}
 		untyped {
 			var last = -1;
 			var l = __dollar__ssize(this.__s);
@@ -209,10 +222,9 @@
 		return new String(untyped __dollar__string(s) + this.__s);
 	}
 
-	public static function fromCharCode(code:Int):String
-		untyped {
-			var s = __dollar__smake(1);
-			__dollar__sset(s, 0, code);
-			return new String(s);
-		}
+	public static function fromCharCode(code:Int):String untyped {
+		var s = __dollar__smake(1);
+		__dollar__sset(s, 0, code);
+		return new String(s);
+	}
 }

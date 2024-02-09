@@ -1,0 +1,4 @@
+Macro.hx:5: characters 60-61 : Warning : ok
+Macro.hx:8: characters 42-43 : Warning : after init 1
+Package "hax.ds" was not found in any of class paths
+Macro.hx:14: characters 42-43 : Warning : after init 2

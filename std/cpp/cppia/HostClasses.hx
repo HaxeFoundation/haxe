@@ -41,23 +41,24 @@ class HostClasses {
 		"cpp.NativeArray",
 		"cpp.NativeString",
 		"cpp.vm.Debugger",
-		"cpp.vm.Deque",
+		"sys.thread.Deque",
+		"sys.thread.Lock",
+		"sys.thread.Mutex",
+		"sys.thread.Thread",
+		"sys.thread.Tls",
+		"sys.thread.Semaphore",
+		"sys.thread.Condition",
 		"cpp.vm.ExecutionTrace",
 		"cpp.vm.Gc",
-		"cpp.vm.Lock",
-		"cpp.vm.Mutex",
 		"cpp.vm.Profiler",
-		"cpp.vm.Thread",
-		"cpp.vm.Tls",
 		"cpp.vm.Unsafe",
 		"cpp.vm.WeakRef",
 		"cpp.Object",
 		"cpp.Int64",
+		"cpp.Int64Map",
 		"cpp.Finalizable",
 		"Std",
 		"StringBuf",
-		"sys.db.Mysql",
-		"sys.db.Sqlite",
 		"sys.FileSystem",
 		"sys.io.File",
 		"sys.io.FileInput",
@@ -85,7 +86,7 @@ class HostClasses {
 		"haxe.ds.ObjectMap",
 		"haxe.ds.StringMap",
 		"haxe.ds.BalancedTree",
-		"haxe.CallStack",
+		"haxe.NativeStackTrace",
 		"haxe.Serializer",
 		"haxe.Unserializer",
 		"haxe.Resource",
@@ -117,7 +118,7 @@ class HostClasses {
 		"haxe.io.StringInput",
 		"haxe.xml.Parser",
 		"haxe.Json",
-		"haxe.CallStack",
+		"haxe.NativeStackTrace",
 		"haxe.Resource",
 		"haxe.Utf8",
 		"haxe.Int64",
@@ -147,6 +148,7 @@ class HostClasses {
 		"List",
 		"Map",
 		"String",
+		"haxe.atomic.AtomicInt"
 	];
 
 	static function parseClassInfo(externs:Map<String, Bool>, filename:String) {
@@ -176,14 +178,11 @@ class HostClasses {
 		externs.set("haxe._Int32.___Int32", true);
 		// Hidded in implementation classes
 		// externs.set("sys.db.RecordType",true);
-		externs.set("sys.db._Sqlite.SqliteConnection", true);
-		externs.set("sys.db._Sqlite.SqliteResultSet", true);
-		externs.set("sys.db._Mysql.MysqlConnection", true);
-		externs.set("sys.db._Mysql.MysqlResultSet", true);
 		externs.set("sys.net._Socket.SocketInput", true);
 		externs.set("sys.net._Socket.SocketOutput", true);
 		externs.set("sys.ssl._Socket.SocketInput", true);
 		externs.set("sys.ssl._Socket.SocketOutput", true);
+		externs.set("sys.thread._Thread.HaxeThread",true);
 		externs.set("haxe.ds.TreeNode", true);
 		externs.set("haxe.xml.XmlParserException", true);
 		for (e in classes)

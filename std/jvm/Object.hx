@@ -28,11 +28,11 @@ package jvm;
 class Object {
 	public function new() {}
 
-	public function _hx_getField(name:String) {
+	@:jvm.synthetic public function _hx_getField(name:String) {
 		return Jvm.readFieldNoObject(this, name);
 	}
 
-	public function _hx_setField(name:String, value:Dynamic) {
+	@:jvm.synthetic public function _hx_setField(name:String, value:Dynamic) {
 		return Jvm.writeFieldNoObject(this, name, value);
 	}
 }

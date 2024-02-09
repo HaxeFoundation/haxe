@@ -7,8 +7,8 @@ class Issue5306 extends DisplayTestCase {
 		class Main {
 			static function main() {
 				var ib:Array<Int>;
-				ib[0] = 0; ib[1] = 1; {-7-}ib[2]{-8-}
-				{-5-}trace{-6-}("test");
+				{-5-}ib{-6-}[0] = 0; ib[1] = 1; ib[2]
+				{-7-}trace{-8-}("test");
 			}
 		}
 	**/
@@ -21,22 +21,28 @@ class Issue5306 extends DisplayTestCase {
 			// 	args: []
 			// },
 			{
-				kind: DKCompilerError,
-				range: diagnosticsRange(pos(3), pos(4)),
-				severity: Error,
-				args: "Type not found : InvalidType"
-			},
-			{
 				kind: DKParserError,
-				range: diagnosticsRange(pos(5), pos(6)),
+				range: diagnosticsRange(pos(7), pos(8)),
 				severity: Error,
+				code: null,
+				relatedInformation: [],
 				args: "Missing ;"
 			},
 			{
 				kind: DKCompilerError,
-				range: diagnosticsRange(pos(7), pos(8)),
-				severity: Warning,
-				args: "This code has no effect"
+				range: diagnosticsRange(pos(3), pos(4)),
+				severity: Error,
+				code: null,
+				relatedInformation: [],
+				args: "Type not found : InvalidType"
+			},
+			{
+				kind: DKCompilerError,
+				range: diagnosticsRange(pos(5), pos(6)),
+				severity: Error,
+				code: null,
+				relatedInformation: [],
+				args: "Local variable ib used without being initialized"
 			}
 		];
 		arrayEq(expected, diagnostics());

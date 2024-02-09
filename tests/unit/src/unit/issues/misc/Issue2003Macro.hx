@@ -5,7 +5,7 @@ import haxe.macro.Expr;
 class Issue2003Macro {
 	public function new() {}
 
-	public function callMe( cb:Void->Void ) {
+	public function callMe( cb:()->Void ) {
 		cb();
 		return this;
 	}

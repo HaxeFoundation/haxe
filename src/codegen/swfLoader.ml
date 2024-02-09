@@ -16,6 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 *)
+open Extlib_leftovers
 open Swf
 open As3
 open As3hl
@@ -32,7 +33,7 @@ let lowercase_pack pack =
 			let name =
 				let fchar = String.get name 0 in
 				if fchar >= 'A' && fchar <= 'Z' then
-					(String.make 1 (Char.lowercase fchar)) ^ String.sub name 1 (String.length name - 1)
+					(String.make 1 (Char.lowercase_ascii fchar)) ^ String.sub name 1 (String.length name - 1)
 				else
 					name
 			in
@@ -41,18 +42,19 @@ let lowercase_pack pack =
 	loop [] pack
 
 
-let tp_dyn = { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; }
+let tp_dyn = make_ptp { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; } null_pos
 
 let ct_dyn = CTPath tp_dyn
 
-let ct_rest = CTPath {
-	tpackage = ["haxe"; "extern"];
+let ct_rest = make_ptp_ct_null {
+	tpackage = ["haxe"];
 	tname = "Rest";
 	tparams = [TPType (ct_dyn,null_pos)];
 	tsub = None;
 }
 
-let rec make_tpath = function
+let rec make_tpath x =
+	let path = match x with
 	| HMPath (pack,name) ->
 		let pdyn = ref false in
 		let pack, name = match pack, name with
@@ -70,7 +72,7 @@ let rec make_tpath = function
 			| [] , "QName" -> ["flash";"utils"], "QName"
 			| [] , "Namespace" -> ["flash";"utils"], "Namespace"
 			| [] , "RegExp" -> ["flash";"utils"], "RegExp"
-			| ["__AS3__";"vec"] , "Vector" -> ["flash"], "Vector"
+			| ["__AS3__";"vec"] , "Vector" -> pdyn := true; ["flash"], "Vector"
 			| _ -> lowercase_pack pack, name
 		in
 		{
@@ -102,20 +104,23 @@ let rec make_tpath = function
 			tsub = None;
 		}
 	| HMMultiName _ ->
-		assert false
+		die "" __LOC__
 	| HMRuntimeName _ ->
-		assert false
+		die "" __LOC__
 	| HMRuntimeNameLate ->
-		assert false
+		die "" __LOC__
 	| HMMultiNameLate _ ->
-		assert false
+		die "" __LOC__
 	| HMAttrib _ ->
-		assert false
+		die "" __LOC__
 	| HMAny ->
-		assert false
+		die "" __LOC__
 	| HMParams (t,params) ->
 		let params = List.map (fun t -> TPType (CTPath (make_tpath t),null_pos)) params in
-		{ (make_tpath t) with tparams = params }
+		let ptp = make_tpath t in
+		{ptp.path with tparams = params}
+	in
+	make_ptp path null_pos
 
 let make_topt = function
 	| None -> tp_dyn
@@ -125,7 +130,7 @@ let make_type t = CTPath (make_topt t)
 
 let make_dyn_type t =
 	match make_topt t with
-	| { tpackage = ["flash";"utils"]; tname = ("Object"|"Function") } -> make_type None
+	| {path = { tpackage = ["flash";"utils"]; tname = ("Object"|"Function") }} -> make_type None
 	| o -> CTPath o
 
 let is_valid_path com pack name =
@@ -141,7 +146,7 @@ let is_valid_path com pack name =
 	loop com.load_extern_type || (try ignore(Common.find_file com file); true with Not_found -> false)
 
 let build_class com c file =
-	let path = make_tpath c.hlc_name in
+	let path = (make_tpath c.hlc_name).path in
 	let pos = { pfile = file ^ "@" ^ s_type_path (path.tpackage,path.tname); pmin = 0; pmax = 0 } in
 	match path with
 	| { tpackage = ["flash";"utils"]; tname = ("Object"|"Function") } ->
@@ -161,7 +166,7 @@ let build_class com c file =
 	let flags = (match c.hlc_super with
 		| None | Some (HMPath ([],"Object")) -> flags
 		| Some (HMPath ([],"Function")) -> flags (* found in AIR SDK *)
-		| Some s -> HExtends (make_tpath s,null_pos) :: flags
+		| Some s -> HExtends (make_tpath s) :: flags
 	) in
 	let flags = List.map (fun i ->
 		let i = (match i with
@@ -173,11 +178,11 @@ let build_class com c file =
 				in
 				loop ns
 			| HMPath _ -> i
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		) in
-		if c.hlc_interface then HExtends (make_tpath i,null_pos) else HImplements (make_tpath i,null_pos)
+		if c.hlc_interface then HExtends (make_tpath i) else HImplements (make_tpath i)
 	) (Array.to_list c.hlc_implements) @ flags in
-	let flags = if c.hlc_sealed || Common.defined com Define.FlashStrict then flags else HImplements (tp_dyn,null_pos) :: flags in
+	let flags = if c.hlc_sealed || Common.defined com Define.FlashStrict then flags else HImplements tp_dyn :: flags in
 	(* make fields *)
 	let getters = Hashtbl.create 0 in
 	let setters = Hashtbl.create 0 in
@@ -208,7 +213,7 @@ let build_class com c file =
 		) in
 		if flags = [] then acc else
 		let flags = if stat then (AStatic,null_pos) :: flags else flags in
-		let name = (make_tpath f.hlf_name).tname in
+		let name = (make_tpath f.hlf_name).path.tname in
 		let mk_meta() =
 			List.map (fun (s,cl) -> s, List.map (fun c -> EConst c,pos) cl, pos) (!meta)
 		in
@@ -260,15 +265,18 @@ let build_class com c file =
 						| None -> None
 						| Some v ->
 							let v = (match v with
-							| HVNone | HVNull | HVNamespace _ | HVString _ ->
+							| HVNone | HVNull | HVNamespace _ ->
 								is_opt := true;
 								None
+							| HVString s ->
+								is_opt := true;
+								Some (String (s,SDoubleQuotes))
 							| HVBool b ->
 								Some (Ident (if b then "true" else "false"))
 							| HVInt i | HVUInt i ->
-								Some (Int (Int32.to_string i))
+								Some (Int (Int32.to_string i, None))
 							| HVFloat f ->
-								Some (Float (Numeric.float_repres f))
+								Some (Float (Numeric.float_repres f, None))
 							) in
 							match v with
 							| None -> None
@@ -295,7 +303,7 @@ let build_class com c file =
 				Hashtbl.add getters (name,stat) (m.hlm_type.hlmt_ret,mk_meta());
 				acc
 			| MK3Setter ->
-				Hashtbl.add setters (name,stat) ((match m.hlm_type.hlmt_args with [t] -> t | _ -> assert false),mk_meta());
+				Hashtbl.add setters (name,stat) ((match m.hlm_type.hlmt_args with [t] -> t | _ -> die "" __LOC__),mk_meta());
 				acc
 			)
 		| _ -> acc
@@ -315,7 +323,7 @@ let build_class com c file =
 	let fields = Array.fold_left (make_field true) fields c.hlc_static_fields in
 	let make_get_set name stat tget tset =
 		let get, set, t, meta = (match tget, tset with
-			| None, None -> assert false
+			| None, None -> die "" __LOC__
 			| Some (t,meta), None -> true, false, t, meta
 			| None, Some (t,meta) -> false, true, t, meta
 			| Some (t1,meta1), Some (t2,meta2) -> true, true, (if t1 <> t2 then None else t1), meta1 @ (List.filter (fun m -> not (List.mem m meta1)) meta2)
@@ -391,8 +399,8 @@ let build_class com c file =
 			| [] -> []
 			| f :: l ->
 				match f.cff_kind with
-				| FVar (Some ((CTPath { tpackage = []; tname = ("String" | "Int" | "UInt")} as real_t),_),None)
-				| FProp (("default",_),("never",_),Some ((CTPath { tpackage = []; tname = ("String" | "Int" | "UInt")}) as real_t,_),None) when List.mem_assoc AStatic f.cff_access ->
+				| FVar (Some ((CTPath {path = { tpackage = []; tname = ("String" | "Int" | "UInt")}} as real_t),_),None)
+				| FProp (("default",_),("never",_),Some ((CTPath { path = { tpackage = []; tname = ("String" | "Int" | "UInt")}}) as real_t,_),None) when List.mem_assoc AStatic f.cff_access ->
 					(match !real_type with
 					| None ->
 						real_type := Some real_t
@@ -419,8 +427,8 @@ let build_class com c file =
 			d_name = path.tname,null_pos;
 			d_doc = None;
 			d_params = [];
-			d_meta = [(Meta.Enum,[],null_pos);(Meta.Native,[(EConst (String(native_path,SDoubleQuotes)),null_pos)],null_pos)];
-			d_flags = [AbExtern; AbOver (real_type,pos); AbFrom (real_type,pos)];
+			d_meta = [(Meta.Native,[(EConst (String(native_path,SDoubleQuotes)),null_pos)],null_pos)];
+			d_flags = [AbEnum;AbExtern; AbOver (real_type,pos); AbFrom (real_type,pos)];
 			d_data = constr;
 		} in
 		(path.tpackage, [(EAbstract abstract_data,pos)])
@@ -450,10 +458,10 @@ let build_class com c file =
 let extract_data (_,tags) =
 	let t = Timer.timer ["read";"swf"] in
 	let h = Hashtbl.create 0 in
-	let rec loop_field f =
+	let loop_field f =
 		match f.hlf_kind with
 		| HFClass c ->
-			let path = make_tpath f.hlf_name in
+			let path = (make_tpath f.hlf_name).path in
 			(match path with
 			| { tpackage = []; tname = "Float" | "Bool" | "Int" | "UInt" | "Dynamic" } -> ()
 			| { tpackage = _; tname = "MethodClosure" } -> ()
@@ -541,7 +549,7 @@ let remove_debug_infos as3 =
 
 let parse_swf com file =
 	let t = Timer.timer ["read";"swf"] in
-	let is_swc = file_extension file = "swc" || file_extension file = "ane" in
+	let is_swc = Path.file_extension file = "swc" || Path.file_extension file = "ane" in
 	let ch = if is_swc then begin
 		let zip = Zip.open_in file in
 		try
@@ -565,7 +573,7 @@ let parse_swf com file =
 	IO.close_in ch;
 	List.iter (fun t ->
 		match t.tdata with
-		| TActionScript3 (id,as3) when not com.debug && not com.display.DisplayTypes.DisplayMode.dms_display ->
+		| TActionScript3 (id,as3) ->
 			t.tdata <- TActionScript3 (id,remove_debug_infos as3)
 		| _ -> ()
 	) tags;
@@ -643,10 +651,10 @@ let remove_classes toremove lib l =
 					match t.tdata with
 					| TActionScript3 (h,data) ->
 						let data = As3hlparse.parse data in
-						let rec loop f =
+						let loop f =
 							match f.hlf_kind with
 							| HFClass _ ->
-								let path = make_tpath f.hlf_name in
+								let path = (make_tpath f.hlf_name).path in
 								not (List.mem (path.tpackage,path.tname) classes)
 							| _ -> true
 						in

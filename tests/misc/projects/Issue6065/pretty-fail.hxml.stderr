@@ -1,0 +1,40 @@
+[ERROR] Main.hx:8: characters 9-18
+
+ 8 |         C.f("hi");
+   |         ^^^^^^^^^
+   | Could not find a suitable overload, reasons follow
+
+      | Overload resolution failed for () -> Void
+
+       8 |         C.f("hi");
+         |             ^^^^
+         | Too many arguments
+
+      | Overload resolution failed for (t : f.T) -> Void
+
+       8 |         C.f("hi");
+         |             ^^^^
+         | Constraint check failure for f.T
+         | String should be Int
+         | For function argument 't'
+
+[ERROR] Main.hx:9: characters 9-16
+
+ 9 |         C.f({});
+   |         ^^^^^^^
+   | Could not find a suitable overload, reasons follow
+
+      | Overload resolution failed for () -> Void
+
+       9 |         C.f({});
+         |             ^^
+         | Too many arguments
+
+      | Overload resolution failed for (t : f.T) -> Void
+
+       9 |         C.f({});
+         |             ^^
+         | Constraint check failure for f.T
+         | { } should be Int
+         | For function argument 't'
+
