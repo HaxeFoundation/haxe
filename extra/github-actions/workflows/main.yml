@@ -305,7 +305,11 @@ jobs:
           path: out/linux/arm64
 
   mac-build:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-14]
+    runs-on: ${{ matrix.os }}
     env:
       PLATFORM: mac
       OPAMYES: 1

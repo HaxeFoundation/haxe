@@ -445,7 +445,11 @@ jobs:
           path: out/linux/arm64
 
   mac-build:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-14]
+    runs-on: ${{ matrix.os }}
     env:
       PLATFORM: mac
       OPAMYES: 1
@@ -494,25 +498,51 @@ jobs:
           curl -L https://github.com/madler/zlib/releases/download/v$ZLIB_VERSION/zlib-$ZLIB_VERSION.tar.gz | tar xz
           cd zlib-$ZLIB_VERSION
           ./configure
-          make && make install
+          sudo make && sudo make install
           cd ..
           curl -L https://github.com/ARMmbed/mbedtls/archive/v$MBEDTLS_VERSION.tar.gz | tar xz
           cd mbedtls-$MBEDTLS_VERSION
-          make && make install
+          sudo make && sudo make install
           cd ..
           curl -L https://github.com/PCRE2Project/pcre2/releases/download/pcre2-$PCRE2_VERSION/pcre2-$PCRE2_VERSION.tar.gz | tar xz
           cd pcre2-$PCRE2_VERSION
           ./configure --enable-unicode --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32 --enable-unicode-properties --enable-pcre2grep-libz --enable-pcre2grep-libbz2 --enable-jit
-          make && make install
+          sudo make && sudo make install
           cd ..
 
+      # - name: Set OCaml 5.1.1
+      #   if: matrix.os == 'macos-14'
+      #   env:
+      #     OCAML_VER: '5.1.1'
+
+      # - name: Set OCaml 4.08.1
+      #   if: matrix.os == 'macos-latest'
+      #   env:
+      #     OCAML_VER: '4.08.1'
+
+
       - name: Install OCaml libraries
-        if: steps.cache-opam.outputs.cache-hit != 'true'
+        if: steps.cache-opam.outputs.cache-hit != 'true' && matrix.os == 'macos-latest'
         run: |
           set -ex
           opam init # --disable-sandboxing
           opam update
           opam switch create 4.08.1
+          eval $(opam env)
+          opam env
+          opam pin add ctypes 0.17.1 --yes
+          opam pin add haxe . --no-action
+          opam install haxe --deps-only --assume-depexts
+          opam list
+          ocamlopt -v
+
+      - name: Install OCaml libraries (arm)
+        if: steps.cache-opam.outputs.cache-hit != 'true' && matrix.os == 'macos-14'
+        run: |
+          set -ex
+          opam init # --disable-sandboxing
+          opam update
+          opam switch create 5.1.1
           eval $(opam env)
           opam env
           opam pin add ctypes 0.17.1 --yes
@@ -536,10 +566,18 @@ jobs:
           otool -L ./haxe
           otool -L ./haxelib
 
-      - name: Upload artifact
+      - name: Upload artifact (x64)
+        if: matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v3
         with:
           name: macBinaries
+          path: out
+
+      - name: Upload artifact (arm)
+        if: matrix.os == 'macos-14'
+        uses: actions/upload-artifact@v3
+        with:
+          name: macArmBinaries
           path: out
 
 
