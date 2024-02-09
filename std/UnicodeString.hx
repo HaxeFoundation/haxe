@@ -188,24 +188,7 @@ abstract UnicodeString(String) from String to String {
 	}
 
 	/**
-		Returns the position of the leftmost occurrence of `str` within `this`
-		String.
-
-		If `startIndex` is not specified or < 0, the search is performed across the
-		entire range of `str`.
-
-		If `str` is the empty String `""` then if `startIndex` is not specified, 0 is
-		returned. Otherwise, if `startIndex` is >= `this.length`, `this.length` is returned.
-		Otherwise, `startIndex` is returned.
-
-		If `startIndex` is >= `this.length`, -1 is returned.
-
-		Otherwise the search is performed within the substring of `this` String starting
-		at `startIndex`.
-
-		In either case, the returned position is relative to the beginning of `this` String.
-
-		If `str` cannot be found, -1 is returned.
+		@see String.indexOf
 	**/
 	public function indexOf(str:String, ?startIndex:Int):Int {
 		var startIndex:Int = if (startIndex == null || startIndex < 0) {

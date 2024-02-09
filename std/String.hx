@@ -74,22 +74,20 @@ extern class String {
 	function charCodeAt(index:Int):Null<Int>;
 
 	/**
-		Returns the position of the leftmost occurrence of `str` within `this`
-		String.
+		Returns the position of the leftmost occurrence of `str` within `this` String.
 
-		If `startIndex` is not specified or < 0, the search is performed across the
-		entire range of `str`.
+		If `str` is the empty String `""`, then:
+			* If `startIndex` is not specified or < 0, 0 is returned.
+			* If `startIndex >= this.length`, `this.length` is returned.
+			* Otherwise, `startIndex` is returned,
 
-		If `str` is the empty String `""` then if `startIndex` is not specified, 0 is
-		returned. Otherwise, if `startIndex` is >= `this.length`, `this.length` is returned.
-		Otherwise, `startIndex` is returned.
+		Otherwise, if `startIndex` is not specified or < 0, it is treated as 0.
 
-		If `startIndex` is >= `this.length`, -1 is returned.
+		If `startIndex >= this.length`, -1 is returned.
 
 		Otherwise the search is performed within the substring of `this` String starting
-		at `startIndex`.
-
-		In either case, the returned position is relative to the beginning of `this` String.
+		at `startIndex`. If `str` is found, the position of its first character in `this`
+		String relative to position 0 is returned.
 
 		If `str` cannot be found, -1 is returned.
 	**/
