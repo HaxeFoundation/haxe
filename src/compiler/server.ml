@@ -389,6 +389,7 @@ let check_module sctx com m_path m_extra p =
 class hxb_reader_api_server
 	(com : Common.context)
 	(cc : context_cache)
+	(delay : (unit -> unit) -> unit)
 = object(self)
 
 	method make_module (path : path) (file : string) =
@@ -426,7 +427,8 @@ class hxb_reader_api_server
 			(* We try to avoid reading expressions as much as possible, so we only do this for
 				 our current display file if we're in display mode. *)
 			let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file) in
-			if is_display_file || com.display.dms_full_typing then ignore(f_next chunks EOM);
+			if is_display_file || com.display.dms_full_typing then ignore(f_next chunks EOM)
+			else delay (fun () -> ignore(f_next chunks EOM));
 			m
 		| BadModule reason ->
 			die (Printf.sprintf "Unexpected BadModule %s" (s_type_path path)) __LOC__
@@ -568,7 +570,7 @@ and type_module sctx com delay mpath p =
 						| Some api ->
 							api
 						| None ->
-							let api = (new hxb_reader_api_server com cc :> HxbReaderApi.hxb_reader_api) in
+							let api = (new hxb_reader_api_server com cc delay :> HxbReaderApi.hxb_reader_api) in
 							com.hxb_reader_api <- Some api;
 							api
 					in

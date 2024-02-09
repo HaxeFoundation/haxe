@@ -1604,28 +1604,12 @@ let finalize_class cctx =
 	) cctx.delayed_expr
 
 let check_functional_interface ctx c =
-	let is_normal_field cf =
-		(* TODO: more? *)
-		not (has_class_field_flag cf CfDefault)
-	in
-	let rec loop o l = match l with
-		| cf :: l ->
-			if is_normal_field cf then begin
-				if o = None then
-					loop (Some cf) l
-				else
-					None
-			end else
-				loop o l
-		| [] ->
-			o
-	in
-	match loop None c.cl_ordered_fields with
+	match TClass.get_singular_interface_field c.cl_ordered_fields with
 	| None ->
 		()
 	| Some cf ->
 		add_class_flag c CFunctionalInterface;
-		ctx.g.functional_interface_lut#add c.cl_path cf
+		ctx.com.functional_interface_lut#add c.cl_path (c,cf)
 
 let init_class ctx_c cctx c p herits fields =
 	let com = ctx_c.com in
@@ -1748,7 +1732,7 @@ let init_class ctx_c cctx c p herits fields =
 			a.a_unops <- List.rev a.a_unops;
 			a.a_array <- List.rev a.a_array;
 		| None ->
-			if (has_class_flag c CInterface) && com.platform = Jvm then check_functional_interface ctx_c c;
+			if (has_class_flag c CFunctionalInterface) && com.platform = Jvm then check_functional_interface ctx_c c;
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;

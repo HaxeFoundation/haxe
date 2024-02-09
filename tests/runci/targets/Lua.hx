@@ -48,7 +48,7 @@ class Lua {
 
 		getLuaDependencies();
 
-		for (lv in ["-l5.1", "-l5.2", "-l5.3"].concat(systemName == 'Linux' && Linux.arch == Arm64 ? [] : ["-j2.0", "-j2.1"])) {
+		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-l5.4"].concat(systemName == 'Linux' && Linux.arch == Arm64 ? [] : ["-j2.0", "-j2.1"])) {
 			final envpath = getInstallPath() + '/lua_env/lua$lv';
 			addToPATH(envpath + '/bin');
 
@@ -73,23 +73,33 @@ class Lua {
 			installLib("luasec", "1.0.2-1");
 
 			installLib("lrexlib-pcre2", "2.9.1-1");
-			installLib("luv", "1.36.0-0");
 			installLib("luasocket", "3.0rc1-2");
-			installLib("luautf8", "0.1.1-1");
 
 			//Install bit32 for lua 5.1
-			if(lv == "-l5.1"){
+			if (lv == "-l5.1")
 				installLib("bit32", "5.2.2-1");
+
+			if (lv == "-l5.4") {
+				installLib("bit32", "5.3.5.1-1");
+				installLib("luv", "1.44.2-1");
+				installLib("luautf8", "0.1.5-2");
+			} else {
+				installLib("luv", "1.36.0-0");
+				installLib("luautf8", "0.1.1-1");
 			}
 
 			installLib("hx-lua-simdjson", "0.0.1-1");
 
 			changeDirectory(unitDir);
-			runCommand("haxe", ["compile-lua.hxml"].concat(args));
+			final luaDefine = if (lv.startsWith("-l")) {
+				lv.replace("-l", "lua").replace(".", "_");
+			} else lv.replace("-j", "luajit").replace(".", "_");
+			final luaVer = ["-D", luaDefine];
+			runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(luaVer));
 			runCommand("lua", ["bin/unit.lua"]);
 
 			changeDirectory(sysDir);
-			runCommand("haxe", ["compile-lua.hxml"].concat(args));
+			runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(luaVer));
 			runSysTest("lua", ["bin/lua/sys.lua"]);
 
 			changeDirectory(getMiscSubDir("luaDeadCode", "stringReflection"));

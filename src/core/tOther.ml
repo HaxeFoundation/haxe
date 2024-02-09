@@ -436,6 +436,26 @@ module TClass = struct
 			cf.cf_expr <- Some e;
 			c.cl_init <- Some cf
 
+	let get_singular_interface_field fields =
+		let is_normal_field cf =
+			not (has_class_field_flag cf CfDefault) && match cf.cf_kind with
+				| Method MethNormal -> true
+				| _ -> false
+		in
+		let rec loop o l = match l with
+			| cf :: l ->
+				if is_normal_field cf then begin
+					if o = None then
+						loop (Some cf) l
+					else
+						None
+				end else
+					loop o l
+			| [] ->
+				o
+		in
+		loop None fields
+
 	let add_cl_init c e =
 		modify_cl_init c e true
 
