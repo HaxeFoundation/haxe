@@ -773,19 +773,10 @@ private class HxString {
 		if (search.length == 0) {
 			return Global.max(0, Global.min(startIndex == null ? 0 : startIndex, str.length));
 		}
-		if (startIndex == null) {
+		if (startIndex == null || startIndex < 0) {
 			startIndex = 0;
-		} else {
-			var length = str.length;
-			if (startIndex < 0) {
-				startIndex += length;
-				if (startIndex < 0) {
-					startIndex = 0;
-				}
-			}
-			if (startIndex >= length && search != '') {
-				return -1;
-			}
+		} else if (startIndex >= str.length) {
+			return -1;
 		}
 		var index:EitherType<Int, Bool> = if (search == '') {
 			var length = str.length;
