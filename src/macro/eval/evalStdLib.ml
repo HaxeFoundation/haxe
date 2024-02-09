@@ -2250,9 +2250,10 @@ module StdString = struct
 		let str = this str in
 		let this = this vthis in
 		let i = default_int startIndex 0 in
+		let i = max 0 i in
 		try
 			if str.slength = 0 then
-				vint (max 0 (min i this.slength))
+				vint (min i this.slength)
 			else begin
 				let i =
 					if i >= this.slength then raise Not_found
@@ -2569,7 +2570,7 @@ module StdSys = struct
 	open Common
 
 	let args = vfun0 (fun () ->
-		encode_array (List.map create_unknown ((get_ctx()).curapi.MacroApi.get_com()).sys_args)
+		encode_array (List.map create_unknown ((get_ctx()).curapi.MacroApi.get_com()).args)
 	)
 
 	let _command = vfun1 (fun cmd ->

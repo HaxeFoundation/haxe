@@ -34,8 +34,8 @@ let rec get_class_field c field_name =
 		| None -> raise Not_found
 		| Some (csup, _) -> get_class_field csup field_name
 
-let find_type ctx (tp,p) =
-	try Typeload.load_instance' ctx (make_ptp tp p) ParamSpawnMonos
+let find_type ctx mode (tp,p) =
+	try Typeload.load_instance' ctx (make_ptp tp p) ParamSpawnMonos mode
 	with _ -> raise Not_found
 
 (**
@@ -160,7 +160,7 @@ and get_target_doc ctx e_target =
 			| _ ->
 				mk_type_path path
 		in
-		let t = (find_type ctx (tp,snd e_target)) in
+		let t = (find_type ctx LoadNormal (tp,snd e_target)) in
 		try
 			match follow t with
 			| TInst (c, _) ->
@@ -207,11 +207,11 @@ and get_target_doc ctx e_target =
 	in
 	let resolve_type () =
 		let tp = mk_type_path path, snd e_target in
-		resolve_type_t (find_type ctx tp)
+		resolve_type_t (find_type ctx LoadNormal tp)
 	in
 	let resolve_sub_type sub =
 		let tp = mk_type_path ~sub path, snd e_target in
-		resolve_type_t (find_type ctx tp)
+		resolve_type_t (find_type ctx LoadNormal tp)
 	in
 	try
 		match sub with

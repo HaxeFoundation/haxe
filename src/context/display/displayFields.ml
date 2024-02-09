@@ -49,7 +49,7 @@ let collect_static_extensions ctx items e p =
 	let rec dup t = Type.map dup t in
 	let handle_field c f acc =
 		let f = { f with cf_type = opt_type f.cf_type } in
-		let monos = List.map (fun _ -> spawn_monomorph ctx p) f.cf_params in
+		let monos = List.map (fun _ -> spawn_monomorph ctx.e p) f.cf_params in
 		let map = apply_params f.cf_params monos in
 		match follow (map f.cf_type) with
 		| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret)
@@ -100,19 +100,38 @@ let collect_static_extensions ctx items e p =
 	| _ ->
 		let items = loop items ctx.m.module_using in
 		let items = loop items ctx.g.global_using in
-		let items = try
-			let mt = module_type_of_type e.etype in
-			loop items (t_infos mt).mt_using
-		with Exit ->
-			items
+		let rec loop_module_using items t = match follow_without_type t with
+			| TInst(c,_) ->
+				loop items c.cl_using
+			| TEnum(en,_) ->
+				loop items en.e_using
+			| TType(td,tl) ->
+				let items = loop items td.t_using in
+				loop_module_using items (apply_typedef td tl)
+			| TAbstract(a,_) ->
+				loop items a.a_using
+			| TAnon an ->
+				begin match !(an.a_status) with
+					| ClassStatics c ->
+						loop items c.cl_using
+					| EnumStatics en ->
+						loop items en.e_using
+					| AbstractStatics a ->
+						loop items a.a_using
+					| _ ->
+						items
+				end
+			| _ ->
+				items
 		in
+		let items = loop_module_using items e.etype in
 		items
 
 let collect ctx e_ast e dk with_type p =
 	let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 	let should_access c cf stat =
 		if Meta.has Meta.NoCompletion cf.cf_meta then false
-		else if c != ctx.curclass && not (has_class_field_flag cf CfPublic) && String.length cf.cf_name > 4 then begin match String.sub cf.cf_name 0 4 with
+		else if c != ctx.c.curclass && not (has_class_field_flag cf CfPublic) && String.length cf.cf_name > 4 then begin match String.sub cf.cf_name 0 4 with
 			| "get_" | "set_" -> false
 			| _ -> can_access ctx c cf stat
 		end else
@@ -402,9 +421,9 @@ let handle_missing_field_raise ctx tthis i mode with_type pfield =
 	display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 
 let handle_missing_ident ctx i mode with_type p =
-	match ctx.curfun with
+	match ctx.e.curfun with
 	| FunStatic ->
-		let e_self = Texpr.Builder.make_static_this ctx.curclass p in
+		let e_self = Texpr.Builder.make_static_this ctx.c.curclass p in
 		begin try
 			handle_missing_field_raise ctx e_self.etype i mode with_type p
 		with Exit ->
@@ -412,7 +431,7 @@ let handle_missing_ident ctx i mode with_type p =
 		end
 	| _ ->
 		begin try
-			handle_missing_field_raise ctx ctx.tthis i mode with_type p
+			handle_missing_field_raise ctx ctx.c.tthis i mode with_type p
 		with Exit ->
 			()
 		end

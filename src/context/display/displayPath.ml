@@ -74,7 +74,6 @@ module TypePathHandler = struct
 			) lib#list_modules;
 		in
 		List.iter process_lib com.native_libs.swf_libs;
-		List.iter process_lib com.native_libs.net_libs;
 		List.iter process_lib com.native_libs.java_libs;
 		unique !packages, unique !classes
 
@@ -164,7 +163,6 @@ let resolve_position_by_path ctx path p =
 	let mt = ctx.g.do_load_type_def ctx p path in
 	let p = (t_infos mt).mt_pos in
 	raise_positions [p]
-
 
 let handle_path_display ctx path p =
 	let class_field c name =

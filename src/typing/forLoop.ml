@@ -458,9 +458,9 @@ type iteration_kind =
 	| IKKeyValue of iteration_ident * iteration_ident
 
 let type_for_loop ctx handle_display ik e1 e2 p =
-	let old_loop = ctx.in_loop in
+	let old_loop = ctx.e.in_loop in
 	let old_locals = save_locals ctx in
-	ctx.in_loop <- true;
+	ctx.e.in_loop <- true;
 	let e2 = Expr.ensure_block e2 in
 	let check_display (i,pi,dko) = match dko with
 		| None -> ()
@@ -472,7 +472,7 @@ let type_for_loop ctx handle_display ik e1 e2 p =
 		let i = add_local_with_origin ctx TVOForVariable i iterator.it_type pi in
 		let e2 = type_expr ctx e2 NoValue in
 		check_display (i,pi,dko);
-		ctx.in_loop <- old_loop;
+		ctx.e.in_loop <- old_loop;
 		old_locals();
 		begin try
 			IterationKind.to_texpr ctx i iterator e2 p
@@ -509,7 +509,7 @@ let type_for_loop ctx handle_display ik e1 e2 p =
 			mk (TVar(vtmp,Some e1)) ctx.t.tvoid e1.epos;
 			mk (TWhile(ehasnext,ebody,NormalWhile)) ctx.t.tvoid p;
 		]) ctx.t.tvoid p in
-		ctx.in_loop <- old_loop;
+		ctx.e.in_loop <- old_loop;
 		old_locals();
 		e
 
