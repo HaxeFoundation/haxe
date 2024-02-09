@@ -20,7 +20,6 @@
 open Globals
 open Ast
 open Common
-open Lookup
 open Type
 open Error
 open Resolution
@@ -125,7 +124,6 @@ type typer_globals = {
 	mutable complete : bool;
 	mutable type_hints : (module_def_display * pos * t) list;
 	mutable load_only_cached_modules : bool;
-	functional_interface_lut : (path,tclass_field) lookup;
 	mutable return_partial_type : bool;
 	mutable build_count : int;
 	mutable t_dynamic_def : Type.t;

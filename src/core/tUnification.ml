@@ -66,6 +66,17 @@ let default_unification_context = {
 	strict_field_kind       = false;
 }
 
+(* Unify like targets (e.g. Java) probably would. *)
+let native_unification_context = {
+	allow_transitive_cast = false;
+	allow_abstract_cast   = false;
+	allow_dynamic_to_cast = false;
+	equality_kind         = EqStrict;
+	equality_underlying   = false;
+	allow_arg_name_mismatch = true;
+	strict_field_kind       = false;
+}
+
 module Monomorph = struct
 	let create () = {
 		tm_type = None;

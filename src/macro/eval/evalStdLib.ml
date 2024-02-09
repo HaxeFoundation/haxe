@@ -2250,9 +2250,10 @@ module StdString = struct
 		let str = this str in
 		let this = this vthis in
 		let i = default_int startIndex 0 in
+		let i = max 0 i in
 		try
 			if str.slength = 0 then
-				vint (max 0 (min i this.slength))
+				vint (min i this.slength)
 			else begin
 				let i =
 					if i >= this.slength then raise Not_found
