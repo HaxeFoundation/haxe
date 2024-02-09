@@ -449,6 +449,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, macos-14]
+        include:
+          - os: macos-latest
+            OCAML_VERSION: 4.08.1
+            CTYPES: 0.17.1
+          - os: macos-14
+            OCAML_VERSION: 5.1.1
+            CTYPES: 0.21.1
     runs-on: ${{ matrix.os }}
     env:
       PLATFORM: mac
@@ -510,42 +517,16 @@ jobs:
           sudo make && sudo make install
           cd ..
 
-      # - name: Set OCaml 5.1.1
-      #   if: matrix.os == 'macos-14'
-      #   env:
-      #     OCAML_VER: '5.1.1'
-
-      # - name: Set OCaml 4.08.1
-      #   if: matrix.os == 'macos-latest'
-      #   env:
-      #     OCAML_VER: '4.08.1'
-
-
       - name: Install OCaml libraries
-        if: steps.cache-opam.outputs.cache-hit != 'true' && matrix.os == 'macos-latest'
+        if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           set -ex
           opam init # --disable-sandboxing
           opam update
-          opam switch create 4.08.1
+          opam switch create ${{matrix.OCAML_VERSION}}
           eval $(opam env)
           opam env
-          opam pin add ctypes 0.17.1 --yes
-          opam pin add haxe . --no-action
-          opam install haxe --deps-only --assume-depexts
-          opam list
-          ocamlopt -v
-
-      - name: Install OCaml libraries (arm)
-        if: steps.cache-opam.outputs.cache-hit != 'true' && matrix.os == 'macos-14'
-        run: |
-          set -ex
-          opam init # --disable-sandboxing
-          opam update
-          opam switch create 5.1.1
-          eval $(opam env)
-          opam env
-          opam pin add ctypes 0.17.1 --yes
+          opam pin add ctypes ${{matrix.CTYPES}} --yes
           opam pin add haxe . --no-action
           opam install haxe --deps-only --assume-depexts
           opam list

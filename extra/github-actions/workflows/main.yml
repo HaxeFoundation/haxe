@@ -309,6 +309,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, macos-14]
+        include:
+          - os: macos-latest
+            OCAML_VERSION: 4.08.1
+            CTYPES: 0.17.1
+          - os: macos-14
+            OCAML_VERSION: 5.1.1
+            CTYPES: 0.21.1
     runs-on: ${{ matrix.os }}
     env:
       PLATFORM: mac
