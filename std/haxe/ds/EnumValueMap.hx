@@ -127,6 +127,19 @@ class EnumValueMap<K:EnumValue, V> implements IMap<K, V> {
 		if (Type.getEnum(e1) != Type.getEnum(e2))
 			return false;
 
+		#if hl
+		var a1 = @:privateAccess Type._enumParameters(e1);
+		var a2 = @:privateAccess Type._enumParameters(e2);
+		var ld = a1.length - a2.length;
+		if (ld != 0)
+			return false;
+		for (i in 0...a1.length) {
+			if (!equal(a1[i], a2[i])) {
+				return false;
+			}
+		}
+		return true;
+		#else
 		var params1 = Type.enumParameters(e1);
 		var params2 = Type.enumParameters(e2);
 		if (params1.length != params2.length)
@@ -138,6 +151,7 @@ class EnumValueMap<K:EnumValue, V> implements IMap<K, V> {
 		}
 
 		return true;
+		#end
 	}
 
 	static function equalArrays(a1:Array<Dynamic>, a2:Array<Dynamic>):Bool {
