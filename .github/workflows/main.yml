@@ -650,7 +650,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, jvm, php, python, flash, neko]
+        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
         include:
           - target: hl
             BREW_PACKAGES: ninja
