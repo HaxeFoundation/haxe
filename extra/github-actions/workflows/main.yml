@@ -331,7 +331,7 @@ jobs:
         uses: actions/cache@v3.0.11
         with:
           path: ~/.opam/
-          key: ${{ runner.os }}-${{ hashFiles('./haxe.opam', './libs/') }}
+          key: ${{ matrix.os }}-${{ hashFiles('./haxe.opam', './libs/') }}
 
       @import install-neko-unix.yml
       @import build-mac.yml
@@ -385,6 +385,10 @@ jobs:
         with:
           name: macBinaries
           path: macBinaries
+      - uses: actions/download-artifact@v3
+        with:
+          name: macArmBinaries
+          path: macArmBinaries
 
       @import install-neko-unix.yml
       @import test-mac.yml
