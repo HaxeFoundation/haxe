@@ -1,3 +1,4 @@
+import haxe.Exception;
 import runci.TestTarget;
 import runci.System;
 import runci.System.*;
@@ -6,17 +7,6 @@ import runci.Deployment.*;
 
 using StringTools;
 
-/**
-	Will be run by CI services, currently TravisCI and AppVeyor.
-
-	TravisCI:
-	Setting file: ".travis.yml".
-	Build result: https://travis-ci.org/HaxeFoundation/haxe
-
-	AppVeyor:
-	Setting file: "appveyor.yml".
-	Build result: https://ci.appveyor.com/project/HaxeFoundation/haxe
-*/
 class RunCi {
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
@@ -31,20 +21,11 @@ class RunCi {
 
 		infoMsg('Going to test: $tests');
 
-		if (isCi()) {
-			changeDirectory('echoServer');
-			runCommand('haxe', ['build.hxml']);
-			changeDirectory(cwd);
-		}
+		final downloadPath = getDownloadPath();
+		if (!sys.FileSystem.exists(downloadPath))
+			sys.FileSystem.createDirectory(downloadPath);
 
 		for (test in tests) {
-			switch (ci) {
-				case TravisCI:
-					Sys.println('travis_fold:start:test-${test}');
-				case _:
-					//pass
-			}
-
 			switch (systemName) {
 				case "Windows":
 					// change codepage to UTF-8
@@ -53,24 +34,16 @@ class RunCi {
 					//pass
 			}
 
-			//run neko-based http echo server
-			var echoServer = new sys.io.Process('nekotools', ['server', '-d', 'echoServer/www/', '-p', '20200']);
-
 			infoMsg('test $test');
-			var success = true;
 			try {
 				changeDirectory(unitDir);
-				haxelibInstallGit("haxe-utest", "utest", "master");
+				haxelibInstallGit("haxe-utest", "utest", "424a7182a93057730fada54b9d27d90b3cb7065c", "--always");
 
 				var args = switch (ci) {
 					case null:
 						[];
-					case TravisCI:
-						["-D","travis"];
-					case AppVeyor:
-						["-D","appveyor"];
-					case AzurePipelines:
-						["-D","azure"];
+					case GithubActions:
+						["-D","github"];
 				}
 				args = args.concat(["-D", systemName]);
 				switch (test) {
@@ -90,44 +63,23 @@ class RunCi {
 						runci.targets.Cpp.run(args, false, true);
 					case Js:
 						runci.targets.Js.run(args);
-					case Java:
-						runci.targets.Java.run(args);
 					case Jvm:
 						runci.targets.Jvm.run(args);
-					case Cs:
-						runci.targets.Cs.run(args);
-					case Flash9:
+					case Flash:
 						runci.targets.Flash.run(args);
 					case Hl:
 						runci.targets.Hl.run(args);
 					case t:
-						throw "unknown target: " + t;
+						throw new Exception("unknown target: " + t);
 				}
-			} catch(f:Failure) {
-				success = false;
-			}
-
-			switch (ci) {
-				case TravisCI:
-					Sys.println('travis_fold:end:test-${test}');
-				case _:
-					//pass
-			}
-
-			if (success) {
-				successMsg('test ${test} succeeded');
-			} else {
+			} catch(f:CommandFailure) {
 				failMsg('test ${test} failed');
+				Sys.exit(f.exitCode);
 			}
 
-			echoServer.kill();
-			echoServer.close();
+			successMsg('test ${test} succeeded');
 		}
 
-		if (success) {
-			deploy();
-		} else {
-			Sys.exit(1);
-		}
+		deploy();
 	}
 }

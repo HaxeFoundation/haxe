@@ -22,8 +22,11 @@
 
 import jvm.Jvm;
 
+using StringTools;
+
 @:coreApi
 class Std {
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}
@@ -62,43 +65,121 @@ class Std {
 		return cast x;
 	}
 
-	static var integerFormatter = java.text.NumberFormat.getIntegerInstance(java.util.Locale.US);
-	static var doubleFormatter = {
-		var fmt = new java.text.DecimalFormat();
-		fmt.setParseBigDecimal(true);
-		fmt.setDecimalFormatSymbols(new java.text.DecimalFormatSymbols(java.util.Locale.US));
-		fmt;
-	};
+	static inline function isSpaceChar(code:Int):Bool
+		return (code > 8 && code < 14) || code == 32;
+
+	static inline function isHexPrefix(cur:Int, next:Int):Bool
+		return cur == '0'.code && (next == 'x'.code || next == 'X'.code);
+
+	static inline function isDecimalDigit(code:Int):Bool
+		return '0'.code <= code && code <= '9'.code;
+
+	static inline function isHexadecimalDigit(code:Int):Bool
+		return isDecimalDigit(code) || ('a'.code <= code && code <= 'f'.code) || ('A'.code <= code && code <= 'F'.code);
 
 	public static function parseInt(x:String):Null<Int> {
-		try {
-			x = StringTools.trim(x);
-			var signChars = switch (cast x : java.NativeString).codePointAt(0) {
-				case '-'.code | '+'.code: 1;
-				case _: 0;
-			}
-			if (x.length < 2 + signChars) {
-				return integerFormatter.parse(x).intValue();
-			}
-			switch ((cast x : java.NativeString).codePointAt(1 + signChars)) {
-				case 'x'.code | 'X'.code:
-					return java.lang.Integer.decode(x).intValue();
-				case _:
-					return integerFormatter.parse(x).intValue();
-			}
-		} catch (_:Dynamic) {
+		if (x == null)
 			return null;
+
+		final len = x.length;
+		var index = 0;
+
+		inline function hasIndex(index:Int)
+			return index < len;
+
+		// skip whitespace
+		while (hasIndex(index)) {
+			if (!isSpaceChar(x.unsafeCodeAt(index)))
+				break;
+			++index;
 		}
+
+		// handle sign
+		final isNegative = hasIndex(index) && {
+			final sign = x.unsafeCodeAt(index);
+			if (sign == '-'.code || sign == '+'.code) {
+				++index;
+			}
+			sign == '-'.code;
+		}
+
+		// handle base
+		final isHexadecimal = hasIndex(index + 1) && isHexPrefix(x.unsafeCodeAt(index), x.unsafeCodeAt(index + 1));
+		if (isHexadecimal)
+			index += 2; // skip prefix
+
+		// handle digits
+		final firstInvalidIndex = {
+			var cur = index;
+			if (isHexadecimal) {
+				while (hasIndex(cur)) {
+					if (!isHexadecimalDigit(x.unsafeCodeAt(cur)))
+						break;
+					++cur;
+				}
+			} else {
+				while (hasIndex(cur)) {
+					if (!isDecimalDigit(x.unsafeCodeAt(cur)))
+						break;
+					++cur;
+				}
+			}
+			cur;
+		}
+
+		// no valid digits
+		if (index == firstInvalidIndex)
+			return null;
+
+		final result = java.lang.Integer.parseInt(x.substring(index, firstInvalidIndex), if (isHexadecimal) 16 else 10);
+		return if (isNegative) -result else result;
 	}
 
 	public static function parseFloat(x:String):Float {
-		try {
-			x = StringTools.trim(x);
-			x = x.split("+").join(""); // TODO: stupid
-			return doubleFormatter.parse(x.toUpperCase()).doubleValue();
-		} catch (_:Dynamic) {
+		if (x == null) {
 			return Math.NaN;
 		}
+		x = StringTools.ltrim(x);
+		var xn:java.NativeString = cast x;
+		var found = false,
+			hasDot = false,
+			hasSign = false,
+			hasE = false,
+			hasESign = false,
+			hasEData = false;
+		var i = -1;
+
+		while (++i < x.length) {
+			var chr:Int = cast xn.charAt(i);
+			if (chr >= '0'.code && chr <= '9'.code) {
+				if (hasE) {
+					hasEData = true;
+				}
+				found = true;
+			} else
+				switch (chr) {
+					case 'e'.code | 'E'.code if (!hasE):
+						hasE = true;
+					case '.'.code if (!hasDot):
+						hasDot = true;
+					case '-'.code, '+'.code if (!found && !hasSign):
+						hasSign = true;
+					case '-'.code | '+'.code if (found && !hasESign && hasE && !hasEData):
+						hasESign = true;
+					case _:
+						break;
+				}
+		}
+		if (hasE && !hasEData) {
+			i--;
+			if (hasESign)
+				i--;
+		}
+
+		if (i != x.length) {
+			x = x.substr(0, i);
+		}
+		return try java.lang.Double.DoubleClass.parseDouble(x) catch (e:Dynamic) Math.NaN;
 	}
 
 	inline public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {

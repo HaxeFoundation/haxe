@@ -105,9 +105,7 @@ class Process {
 	}
 
 	public function exitCode(block:Bool = true):Null<Int> {
-		if (block == false)
-			throw "Non blocking exitCode() not supported on this platform";
-		return NativeProcess.process_exit(p);
+		return NativeProcess.process_exit(p, block);
 	}
 
 	public function close():Void {

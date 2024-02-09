@@ -24,6 +24,7 @@ package hl.types;
 
 import hl.types.ArrayBase;
 import haxe.iterators.ArrayIterator;
+import haxe.iterators.ArrayKeyValueIterator;
 
 class ArrayDynIterator extends ArrayIterator<Dynamic> {
 	var a:ArrayBase;
@@ -173,6 +174,10 @@ class ArrayDyn extends ArrayAccess {
 
 	public function iterator():ArrayIterator<Dynamic> {
 		return new ArrayDynIterator(array);
+	}
+
+	public function keyValueIterator() : ArrayKeyValueIterator<Dynamic> {
+		return new ArrayKeyValueIterator(cast array);
 	}
 
 	public function map(f:Dynamic->Dynamic):ArrayDyn {

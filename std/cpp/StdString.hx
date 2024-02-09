@@ -24,7 +24,7 @@ package cpp;
 
 using cpp.NativeString;
 
-@:native("hx::StdString")
+@:native("::hx::StdString")
 @:include("hx/StdString.h")
 @:stackOnly
 @:structAccess
@@ -34,7 +34,7 @@ extern class StdString {
 	static var npos(default, null):Int;
 
 	// function new(inData:StdStringData);
-	@:native("hx::StdString")
+	@:native("::hx::StdString")
 	static function ofString(s:String):StdString;
 
 	// function toString():String;

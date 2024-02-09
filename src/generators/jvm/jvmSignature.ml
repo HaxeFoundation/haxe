@@ -81,11 +81,12 @@ module NativeSignatures = struct
 	let java_class_sig = TObject(java_class_path,[TType(WNone,object_sig)])
 
 	let haxe_jvm_path = ["haxe";"jvm"],"Jvm"
+	let haxe_type_path = ["haxe";"root"],"Type"
 
 	let haxe_dynamic_object_path = ["haxe";"jvm"],"DynamicObject"
 	let haxe_dynamic_object_sig = TObject(haxe_dynamic_object_path,[])
 
-	let haxe_exception_path = ["haxe";"jvm"],"Exception"
+	let haxe_exception_path = ["haxe"],"Exception"
 	let haxe_exception_sig = TObject(haxe_exception_path,[])
 
 	let haxe_object_path = ["haxe";"jvm"],"Object"
@@ -96,6 +97,9 @@ module NativeSignatures = struct
 
 	let exception_path = (["java";"lang"],"Exception")
 	let exception_sig = TObject(exception_path,[])
+
+	let runtime_exception_path = (["java";"lang"],"RuntimeException")
+	let runtime_exception_sig = TObject(runtime_exception_path,[])
 
 	let retention_path = (["java";"lang";"annotation"],"Retention")
 	let retention_sig = TObject(retention_path,[])
@@ -114,6 +118,12 @@ module NativeSignatures = struct
 
 	let haxe_function_path = (["haxe";"jvm"],"Function")
 	let haxe_function_sig = TObject(haxe_function_path,[])
+
+	let haxe_compiled_pattern_path = (["haxe";"jvm"],"CompiledPattern")
+	let haxe_compiled_pattern_sig = TObject(haxe_compiled_pattern_path,[])
+
+	let haxe_ereg_path = (["haxe";"root"],"EReg")
+	let haxe_ereg_sig = TObject(haxe_ereg_path,[])
 
 	let void_path = ["java";"lang"],"Void"
 	let void_sig = TObject(void_path,[])

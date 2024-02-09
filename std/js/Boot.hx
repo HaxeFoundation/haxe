@@ -24,26 +24,6 @@ package js;
 
 import js.Syntax; // import it here so it's always available in the compiler
 
-private class HaxeError extends js.lib.Error {
-	var val:Dynamic;
-
-	@:pure
-	public function new(val:Dynamic) {
-		super();
-		this.val = val;
-		if ((cast js.lib.Error).captureStackTrace)
-			(cast js.lib.Error).captureStackTrace(this, HaxeError);
-	}
-
-	public static function wrap(val:Dynamic):js.lib.Error {
-		return if (js.Syntax.instanceof(val, js.lib.Error)) val else new HaxeError(val);
-	}
-
-	static function __init__() {
-		js.Syntax.code("try{Object.defineProperty({0}.prototype, \"message\", {get: function(){return String(this.val)}})}catch(e){}", HaxeError);
-	}
-}
-
 @:dox(hide)
 class Boot {
 	static inline function isClass(o:Dynamic):Bool {
@@ -89,11 +69,14 @@ class Boot {
 					#if !js_enums_as_arrays
 					__feature__("has_enum", if (o.__enum__) {
 						var e = $hxEnums[o.__enum__];
-						var n = e.__constructs__[o._hx_index];
-						var con = e[n];
-						if (con.__params__) {
+						var con = e.__constructs__[o._hx_index];
+						var n = con._hx_name;
+						if (o.__params__) {
 							s += "\t";
-							return n + "(" + [for (p in (con.__params__ : Array<String>)) __string_rec(o[p], s)].join(",") + ")";
+							var params:Array<Any> = o.__params__();
+							for (i in 0...params.length)
+								params[i] = __string_rec(params[i], s);
+							return n + "(" + params.join(",") + ")";
 						} else {
 							return n;
 						}
@@ -179,7 +162,7 @@ class Boot {
 		return __interfLoop(cc.__super__, cl);
 	}
 
-	@:ifFeature("typed_catch") @:pure private static function __instanceof(o:Dynamic, cl:Dynamic) {
+	@:pure private static function __instanceof(o:Dynamic, cl:Dynamic) {
 		if (cl == null)
 			return false;
 		switch (cl) {

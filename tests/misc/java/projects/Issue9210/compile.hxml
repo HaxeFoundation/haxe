@@ -1,5 +1,4 @@
---java bin
--D jvm
+--jvm bin/haxe.jar
 haxe.ds.Option
 
 --next

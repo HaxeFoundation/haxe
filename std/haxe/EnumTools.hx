@@ -37,7 +37,7 @@ extern class EnumTools {
 
 		If `e` is inside a package, the package structure is returned dot-
 		separated, with another dot separating the enum name:
-		
+
 			pack1.pack2.(...).packN.EnumName
 
 		If `e` is a sub-type of a Haxe module, that module is not part of the
@@ -110,6 +110,11 @@ extern class EnumTools {
 	static inline function getConstructors<T>(e:Enum<T>):Array<String> {
 		return Type.getEnumConstructs(e);
 	}
+
+	#if (java && jvm)
+	@:noCompletion
+	extern static function values<T>(en:Enum<T>):java.NativeArray<java.lang.Enum<T>>;
+	#end
 }
 
 /**

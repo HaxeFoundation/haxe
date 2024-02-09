@@ -125,12 +125,12 @@ import php.*;
 	}
 
 	public function split(s:String):Array<String> {
-		var parts:NativeArray = Global.preg_split(reUnicode, s, (global ? -1 : 2));
-		if (parts == null) {
+		var parts:EitherType<Bool, NativeArray> = Global.preg_split(reUnicode, s, (global ? -1 : 2));
+		if (parts == false) {
 			handlePregError();
 			parts = Global.preg_split(re, s, (global ? -1 : 2));
 		}
-		return @:privateAccess Array.wrap(parts);
+		return @:privateAccess Array.wrap(cast parts);
 	}
 
 	public function replace(s:String, by:String):String {

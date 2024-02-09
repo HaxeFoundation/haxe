@@ -33,11 +33,6 @@ extern class Utf8 {
 	static function sub(str:String, start:Int, ?end:Int):StringSub;
 
 	/**
-		Returns the character code at position `index` of `str`.
-	**/
-	static function charCodeAt(str:String, index:Int):Int;
-
-	/**
 		Looks for the first match of pattern in the string `str`.
 		If it finds a match, then `find` returns the indices of `str` where this
 		occurrence starts and ends.
@@ -96,7 +91,7 @@ extern class Utf8 {
 	**/
 	static function lower(str:String):String;
 
-	static function codes(str:String):Void->StringCodePoint;
+	static function codes(str:String):String->Int->StringCodePoint;
 }
 
 @:multiReturn extern class StringFind {

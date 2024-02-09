@@ -22,6 +22,7 @@
 
 import java.lang.System;
 import java.NativeArray;
+import haxe.iterators.ArrayKeyValueIterator;
 
 @:classCode('
 	public Array(T[] _native)
@@ -427,6 +428,10 @@ import java.NativeArray;
 
 	public inline function iterator():haxe.iterators.ArrayIterator<T> {
 		return new haxe.iterators.ArrayIterator(this);
+	}
+
+	public inline function keyValueIterator() : ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator(this);
 	}
 
 	public function resize(len:Int):Void {

@@ -60,7 +60,7 @@ class StringIteratorUnicode {
 		}
 		return c;
 		#else
-		return StringTools.fastCodeAt(s, offset++);
+		return StringTools.unsafeCodeAt(s, offset++);
 		#end
 	}
 

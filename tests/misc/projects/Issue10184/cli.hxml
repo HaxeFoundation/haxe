@@ -1,0 +1,7 @@
+# test defines set via -D
+-D f-dash
+-D f_underscore
+-D v-dash=value
+-D v_underscore=value
+
+--run Flags

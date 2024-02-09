@@ -47,7 +47,7 @@ class Closure extends ClosureDispatch {
 				args;
 		};
 		try {
-			return method.invoke(context, args);
+			return method.invoke(context, ...args);
 		} catch (e:java.lang.reflect.InvocationTargetException) {
 			throw e.getCause();
 		}

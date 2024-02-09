@@ -18,7 +18,6 @@
 *)
 open Common
 open Type
-open Codegen
 open Texpr.Builder
 
 (*
@@ -61,6 +60,8 @@ let rec change_func com cl cf =
 	List.iter (change_func com cl) cf.cf_overloads;
 
 	match cf.cf_kind, follow cf.cf_type with
+	| _ when has_class_field_flag cf CfPostProcessed ->
+		()
 	| Var _, _ | Method MethDynamic, _ ->
 		()
 	| _, TFun(args, ret) ->
@@ -127,7 +128,7 @@ let rec change_func com cl cf =
 						in
 						let args = List.map replace_args args in
 						{ tf.tf_expr with eexpr = TBlock ((if !found then { super with eexpr = TCall (e1, args) } else super) :: !block @ tl) }
-					| _ -> assert false)
+					| _ -> Globals.die "" __LOC__)
 				with Not_found ->
 					Type.concat { tf.tf_expr with eexpr = TBlock !block; etype = basic.tvoid } tf.tf_expr
 			in
@@ -146,7 +147,7 @@ let rec change_func com cl cf =
 
 		| _ -> ());
 		(if !found then cf.cf_type <- TFun(!args, ret))
-	| _, _ -> assert false
+	| _, _ -> Globals.die "" __LOC__
 
 let run com md =
 	match md with

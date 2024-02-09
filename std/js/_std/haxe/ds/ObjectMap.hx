@@ -27,13 +27,6 @@ import js.Lib;
 
 @:coreApi
 class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
-	static var count:Int;
-
-	// initialize count through __init__ magic, because these are generated
-	// before normal static initializations for which ObjectMap should be ready to use
-	// see https://github.com/HaxeFoundation/haxe/issues/6792
-	static inline function __init__():Void
-		count = 0;
 
 	static inline function assignId(obj:{}):Int {
 		return Syntax.code('({0}.__id__ = {1})', obj, Lib.getNextHaxeUID());
@@ -113,7 +106,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 
 	public function toString():String {
 		var s = new StringBuf();
-		s.add("{");
+		s.add("[");
 		var it = keys();
 		for (i in it) {
 			s.add(Std.string(i));
@@ -122,7 +115,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 			if (it.hasNext())
 				s.add(", ");
 		}
-		s.add("}");
+		s.add("]");
 		return s.toString();
 	}
 

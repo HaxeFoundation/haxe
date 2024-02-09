@@ -21,6 +21,7 @@
  */
 @:headerClassCode("\t\tstatic inline String string(String &s) { return s; }")
 @:coreApi class Std {
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
 	@:keep public static inline function is(v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}

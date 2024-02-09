@@ -50,6 +50,6 @@ class StringIterator {
 		See `Iterator.next`
 	**/
 	public inline function next() {
-		return StringTools.fastCodeAt(s, offset++);
+		return StringTools.unsafeCodeAt(s, offset++);
 	}
 }

@@ -33,11 +33,25 @@ class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements
 		var d = k1.getIndex() - k2.getIndex();
 		if (d != 0)
 			return d;
+		#if hl
+		var a1 = @:privateAccess Type._enumParameters(k1);
+		var a2 = @:privateAccess Type._enumParameters(k2);
+		var ld = a1.length - a2.length;
+		if (ld != 0)
+			return ld;
+		for (i in 0...a1.length) {
+			var d = compareArg(a1[i], a2[i]);
+			if (d != 0)
+				return d;
+		}
+		return 0;
+		#else
 		var p1 = k1.getParameters();
 		var p2 = k2.getParameters();
 		if (p1.length == 0 && p2.length == 0)
 			return 0;
 		return compareArgs(p1, p2);
+		#end
 	}
 
 	function compareArgs(a1:Array<Dynamic>, a2:Array<Dynamic>):Int {

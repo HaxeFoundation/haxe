@@ -22,34 +22,22 @@
 
 package sys.thread;
 
+import java.util.concurrent.LinkedBlockingDeque;
+
 @:coreApi
 class Lock {
-	var deque:Deque<String>;
+	final deque = new LinkedBlockingDeque<String>();
 
-	public function new() {
-		deque = new Deque();
-	}
+	public function new() {}
 
 	public function wait(?timeout:Float):Bool {
-		if (deque.pop(false) == null) {
-			if (timeout == null) {
-				deque.pop(true);
-				return true;
-			}
-			var targetTime = Sys.time() + timeout;
-			while (Sys.time() < targetTime) {
-				if (deque.pop(false) != null) {
-					return true;
-				}
-				Sys.sleep(0.0001);
-			}
-			return false;
-		} else {
-			return true;
+		return switch timeout == null ? deque.take() : deque.poll(Std.int(timeout * 1000.0), MILLISECONDS) {
+			case null: false;
+			case _: true;
 		}
 	}
 
 	public function release():Void {
-		deque.push("");
+		deque.put("");
 	}
 }

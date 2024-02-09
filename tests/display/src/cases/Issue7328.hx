@@ -7,13 +7,13 @@ class Issue7328 extends DisplayTestCase {
 		class Main {
 			public static function main() {
 				switch (null:ExprDef) {
-					case EConst(CInt({-1-}v)):
+					case EConst(CIdent({-1-}s)):
 					case _:
 				}
 			}
 		}
 	**/
 	function test() {
-		sigEq(0, [["v:String"]], signature(pos(1)));
+		sigEq(0, [["s:String"]], signature(pos(1)));
 	}
 }

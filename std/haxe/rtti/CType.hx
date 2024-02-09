@@ -22,8 +22,6 @@
 
 package haxe.rtti;
 
-import haxe.ds.List;
-
 /**
 	The (dot-)path of the runtime type.
 **/
@@ -108,12 +106,12 @@ typedef ClassField = {
 	var type:CType;
 
 	/**
-		Whether or not the field is public.
+		Whether or not the field is `public`.
 	**/
 	var isPublic:Bool;
 
 	/**
-		Whether or not the field is final.
+		Whether or not the field is `final`.
 	**/
 	var isFinal:Bool;
 
@@ -130,13 +128,13 @@ typedef ClassField = {
 	var doc:Null<String>;
 
 	/**
-		The [read access](https://haxe.org/manual/dictionary.html#define-read-access)
+		The [read access](https://haxe.org/manual/class-field-property.html#define-read-access)
 		behavior of the field.
 	**/
 	var get:Rights;
 
 	/**
-		The [write access](https://haxe.org/manual/dictionary.html#define-write-access)
+		The [write access](https://haxe.org/manual/class-field-property.html#define-write-access)
 		behavior of the field.
 	**/
 	var set:Rights;
@@ -211,7 +209,7 @@ typedef TypeInfos = {
 	var doc:Null<String>;
 
 	/**
-		Whether or not the type is [private](https://haxe.org/manual/dictionary.html#define-private-type).
+		Whether or not the type is [`private`](https://haxe.org/manual/type-system-module-sub-types.html#define-private-type).
 	**/
 	var isPrivate:Bool;
 
@@ -235,6 +233,11 @@ typedef Classdef = TypeInfos & {
 		Whether or not the class is [extern](https://haxe.org/manual/lf-externs.html).
 	**/
 	var isExtern:Bool;
+
+	/**
+		Whether or not the class is `final`.
+	**/
+	var isFinal:Bool;
 
 	/**
 		Whether or not the class is actually an [interface](https://haxe.org/manual/types-interfaces.html).
@@ -542,7 +545,7 @@ class TypeApi {
 }
 
 /**
-	The CTypeTools class contains some extra functionalities for handling
+	The `CTypeTools` class contains some extra functionalities for handling
 	`CType` instances.
 **/
 class CTypeTools {

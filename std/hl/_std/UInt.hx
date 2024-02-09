@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 @:coreApi
+@:transitive
 abstract UInt(Int) from Int to Int {
 	@:op(A + B) private static inline function add(a:UInt, b:UInt):UInt {
 		return a.toInt() + b.toInt();

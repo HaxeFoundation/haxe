@@ -1,15 +1,16 @@
+open JvmGlobals.MethodAccessFlags
 open JvmSignature
 open NativeSignatures
 
 type signature_classification =
+	| CBool
 	| CByte
 	| CChar
-	| CDouble
-	| CFloat
+	| CShort
 	| CInt
 	| CLong
-	| CShort
-	| CBool
+	| CFloat
+	| CDouble
 	| CObject
 
 type method_signature = {
@@ -93,10 +94,9 @@ class typed_functions = object(self)
 				(String.concat ", " (List.map string_of_classification cl))
 				(Option.map_default string_of_classification "CVoid" cr)
 		in
-		let suffix = Option.map_default string_of_classification "Void" cr in
 		let meth = {
 			arity = List.length cl;
-			name = Printf.sprintf "invoke%s" suffix;
+			name = "invoke";
 			has_nonobject = List.exists (function CObject -> false | _ -> true) cl;
 			sort_string = to_string (cl,cr);
 			cargs = cl;
@@ -122,15 +122,18 @@ class typed_functions = object(self)
 		end;
 		meth
 
-	method make_forward_method
+	method make_forward_method_jsig
 		(jc : JvmClass.builder)
 		(jm : JvmMethod.builder)
-		(meth_from : method_signature)
-		(meth_to : method_signature)
+		(name : string)
+		(args_from : jsignature list)
+		(ret_from : jsignature option)
+		(args_to : jsignature list)
+		(ret_to : jsignature option)
 	=
 		let args = List.mapi (fun i jsig ->
 			jm#add_local (Printf.sprintf "arg%i" i) jsig VarArgument
-		) meth_from.dargs in
+		) args_from in
 		jm#finalize_arguments;
 		jm#load_this;
 		let rec loop loads jsigs = match loads,jsigs with
@@ -144,11 +147,11 @@ class typed_functions = object(self)
 			| [],[] ->
 				()
 			| _,[] ->
-				assert false
+				Globals.die "" __LOC__
 		in
-		loop args meth_to.dargs;
-		jm#invokevirtual jc#get_this_path meth_to.name (method_sig meth_to.dargs meth_to.dret);
-		begin match meth_from.dret,meth_to.dret with
+		loop args args_to;
+		jm#invokevirtual jc#get_this_path name (method_sig args_to ret_to);
+		begin match ret_from,ret_to with
 		| None,None ->
 			()
 		| Some jsig,Some _ ->
@@ -160,6 +163,14 @@ class typed_functions = object(self)
 		end;
 		jm#return;
 
+	method make_forward_method
+		(jc : JvmClass.builder)
+		(jm : JvmMethod.builder)
+		(meth_from : method_signature)
+		(meth_to : method_signature)
+	=
+		self#make_forward_method_jsig jc jm meth_to.name meth_from.dargs meth_from.dret meth_to.dargs meth_to.dret
+
 	method generate_invoke_dynamic (jc : JvmClass.builder) =
 		let array_sig = TArray(object_sig,None) in
 		let jm = jc#spawn_method "invokeDynamic" (method_sig [array_sig] (Some object_sig)) [MPublic] in
@@ -167,7 +178,7 @@ class typed_functions = object(self)
 		jm#finalize_arguments;
 		load();
 		jm#get_code#arraylength array_sig;
-		let cases = ExtList.List.init max_arity (fun i ->
+		let cases = ExtList.List.init (max_arity + 1) (fun i ->
 			[Int32.of_int i],(fun () ->
 				jm#load_this;
 				let args = ExtList.List.init i (fun index ->
@@ -176,13 +187,12 @@ class typed_functions = object(self)
 					jm#get_code#aaload array_sig object_sig;
 					object_sig
 				) in
-				jm#invokevirtual jc#get_this_path "invokeObject" (method_sig args (Some object_sig));
+				jm#invokevirtual jc#get_this_path "invoke" (method_sig args (Some object_sig));
 				jm#return;
 			)
 		) in
 		let def = (fun () ->
-			jm#string "Invalid call";
-			jm#invokestatic (["haxe";"jvm"],"Exception") "wrap" (method_sig [object_sig] (Some exception_sig));
+			jm#construct ConstructInit (["java";"lang"],"IllegalArgumentException") (fun () -> []);
 			jm#get_code#athrow;
 			jm#set_terminated true;
 		) in
@@ -198,7 +208,7 @@ class typed_functions = object(self)
 		jm_ctor#return;
 		let rec loop args i =
 			let jsig = method_sig args (Some object_sig) in
-			let jm = jc#spawn_method "invokeObject" jsig [MPublic] in
+			let jm = jc#spawn_method "invoke" jsig [MPublic] in
 			let vars = ExtList.List.init i (fun i ->
 				jm#add_local (Printf.sprintf "arg%i" i) object_sig VarArgument
 			) in
@@ -215,14 +225,14 @@ class typed_functions = object(self)
 		let jc = new JvmClass.builder (["haxe";"jvm"],"VarArgs") haxe_function_path in
 		jc#add_access_flag 1; (* public *)
 		let jm_ctor = jc#spawn_method "<init>" (method_sig [haxe_function_sig] None) [MPublic] in
-		jm_ctor#add_argument_and_field "func" haxe_function_sig;
+		jm_ctor#add_argument_and_field "func" haxe_function_sig [FdPublic;FdFinal];
 		jm_ctor#finalize_arguments;
 		jm_ctor#load_this;
 		jm_ctor#call_super_ctor ConstructInit (method_sig [] None);
 		jm_ctor#return;
 		let rec loop args i =
 			let jsig = method_sig args (Some object_sig) in
-			let jm = jc#spawn_method "invokeObject" jsig [MPublic] in
+			let jm = jc#spawn_method "invoke" jsig [MPublic;MBridge;MSynthetic] in
 			let vars = ExtList.List.init i (fun i ->
 				jm#add_local (Printf.sprintf "arg%i" i) object_sig VarArgument
 			) in
@@ -230,7 +240,7 @@ class typed_functions = object(self)
 			jm#getfield jc#get_this_path "func" haxe_function_sig;
 			jm#new_native_array object_sig (List.map (fun (_,load,_) () -> load()) vars);
 			jm#invokestatic (["haxe";"root"],"Array") "ofNative" (method_sig [array_sig object_sig] (Some (object_path_sig (["haxe";"root"],"Array"))));
-			jm#invokevirtual haxe_function_path "invokeObject" (method_sig [object_sig] (Some object_sig));
+			jm#invokevirtual haxe_function_path "invoke" (method_sig [object_sig] (Some object_sig));
 			jm#return;
 			if i < max_arity then loop (object_sig :: args) (i + 1)
 		in
@@ -243,7 +253,7 @@ class typed_functions = object(self)
 		let jc = new JvmClass.builder haxe_function_path object_path in
 		jc#add_access_flag 1; (* public *)
 		List.iter (fun meth ->
-			let jm = jc#spawn_method meth.name (method_sig meth.dargs meth.dret) [MPublic] in
+			let jm = jc#spawn_method meth.name (method_sig meth.dargs meth.dret) [MPublic;MBridge;MSynthetic] in
 			begin match meth.next with
 			| Some meth_next ->
 				self#make_forward_method jc jm meth meth_next;
@@ -271,11 +281,11 @@ class typed_functions = object(self)
 end
 
 type typed_function_kind =
-	| FuncLocal
+	| FuncLocal of string option
 	| FuncMember of jpath * string
 	| FuncStatic of jpath * string
 
-module JavaFunctionalInterfaces = struct
+module JavaFunctionalInterface = struct
 	type t = {
 		jargs: jsignature list;
 		jret : jsignature option;
@@ -284,72 +294,26 @@ module JavaFunctionalInterfaces = struct
 		jparams : string list;
 	}
 
-	let java_functional_interfaces =
-		let juf = ["java";"util";"function"] in
-		let tp name = TTypeParameter name in
-		[
-			{
-				jargs = [];
-				jret = None;
-				jpath = ["java";"lang"],"Runnable";
-				jname = "run";
-				jparams = []
-			};
-			{
-				jargs = [tp "T"];
-				jret = None;
-				jpath = juf,"Consumer";
-				jname = "accept";
-				jparams = ["T"]
-			};
-			{
-				jargs = [tp "T";tp "U"];
-				jret = None;
-				jpath = juf,"BiConsumer";
-				jname = "accept";
-				jparams = ["T";"U"]
-			}
-		]
+	let string_of_functional_interface jfi = TPrinting.Printer.s_record_fields "" [
+		"jargs",String.concat ", " (List.map (generate_signature true) jfi.jargs);
+		"jret",Option.map_default (generate_signature true) "None" jfi.jret;
+		"jpath",Globals.s_type_path jfi.jpath;
+		"jname",jfi.jname;
+		"jparams",String.concat ", " jfi.jparams;
+	]
 
-	let unify jfi args ret =
-		let rec loop params want have = match want,have with
-			| [],[] ->
-				Some (jfi,List.map (fun s -> TType(WNone,List.assoc s params)) jfi.jparams)
-			| want1 :: want,have1 :: have ->
-				begin match want1 with
-				| TTypeParameter n ->
-					loop ((n,have1) :: params) want have
-				| _ ->
-					if have1 <> want1 then None
-					else loop params want have
-				end
-			| _ ->
-				None
-		in
-		match jfi.jret,ret with
-		| None,None ->
-			loop [] jfi.jargs args
-		| Some (TTypeParameter n),Some jsig ->
-			loop [n,jsig] jfi.jargs args
-		| Some jsig1,Some jsig2 ->
-			if jsig1 <> jsig2 then None
-			else loop [] jfi.jargs args
-		| _ ->
-			None
-
-
-	let find_compatible args ret =
-		ExtList.List.filter_map (fun jfi ->
-			if jfi.jparams = [] then begin
-				if jfi.jargs = args && jfi.jret = ret then
-					Some (jfi,[])
-				else None
-			end else
-				unify jfi args ret
-		) java_functional_interfaces
+	let create args ret path name params =
+		let jfi = {
+			jargs = args;
+			jret = ret;
+			jpath = path;
+			jname = name;
+			jparams = params;
+		} in
+		jfi
 end
 
-open JavaFunctionalInterfaces
+open JvmGlobals
 
 class typed_function
 	(functions : typed_functions)
@@ -360,14 +324,21 @@ class typed_function
 
 = object(self)
 
+	val mutable functional_interfaces = []
+
 	val jc_closure =
 		let name = match kind with
-			| FuncLocal ->
-				Printf.sprintf "Closure_%s_%i" host_method#get_name host_method#get_next_closure_id
+			| FuncLocal s ->
+				let name = patch_name host_method#get_name in
+				let name = match s with
+					| None -> name
+					| Some s -> name ^ "_" ^ s
+				in
+				Printf.sprintf "Closure_%s_%i" name (host_class#get_next_closure_id name)
 			| FuncStatic(path,name) ->
-				Printf.sprintf "%s_%s" (snd path) name
+				Printf.sprintf "%s_%s" (snd path) (patch_name name)
 			| FuncMember(path,name) ->
-				Printf.sprintf "%s_%s" (snd path) name
+				Printf.sprintf "%s_%s" (snd path) (patch_name name)
 		in
 		let jc = host_class#spawn_inner_class None haxe_function_path (Some name) in
 		jc#add_access_flag 0x10; (* final *)
@@ -379,14 +350,18 @@ class typed_function
 		let context_sigs = List.map snd context in
 		let jm_ctor = jc_closure#spawn_method "<init>" (method_sig context_sigs None) (if public then [MPublic] else []) in
 		List.iter (fun (name,jsig) ->
-			jm_ctor#add_argument_and_field name jsig;
+			jm_ctor#add_argument_and_field name jsig [FdPublic;FdFinal];
 		) context;
 		jm_ctor#load_this;
 		jm_ctor#call_super_ctor ConstructInit (method_sig [] None);
 		jm_ctor#return;
 		jm_ctor
 
-	method generate_invoke (args : (string * jsignature) list) (ret : jsignature option)=
+	method add_functional_interface (jfi : JavaFunctionalInterface.t) (params : jsignature list) =
+		let params = List.map (fun jsig -> TType(WNone,jsig)) params in
+		functional_interfaces <- (jfi,params) :: functional_interfaces
+
+	method generate_invoke (args : (string * jsignature) list) (ret : jsignature option) (functional_interface_filter : jpath list) =
 		let arg_sigs = List.map snd args in
 		let meth = functions#register_signature arg_sigs ret in
 		let jsig_invoke = method_sig arg_sigs ret in
@@ -398,25 +373,31 @@ class typed_function
 				Hashtbl.add implemented_interfaces path true;
 			end
 		in
-		let spawn_forward_function meth_from meth_to =
-			let jm_invoke_next = jc_closure#spawn_method meth_from.name (method_sig meth_from.dargs meth_from.dret) [MPublic] in
-			functions#make_forward_method jc_closure jm_invoke_next meth_from meth_to;
+		let spawn_invoke_next name msig is_bridge =
+			let flags = [MPublic] in
+			let flags = if is_bridge then MBridge :: MSynthetic :: flags else flags in
+			jc_closure#spawn_method name msig flags
 		in
-		let check_functional_interfaces meth =
-			try
-				let l = JavaFunctionalInterfaces.find_compatible meth.dargs meth.dret in
-				List.iter (fun (jfi,params) ->
-					add_interface jfi.jpath params;
-					spawn_forward_function {meth with name=jfi.jname} meth;
-				) l
-			with Not_found ->
-				()
+		let spawn_forward_function meth_from meth_to is_bridge =
+			let msig = method_sig meth_from.dargs meth_from.dret in
+			if not (jc_closure#has_method meth_from.name msig) then begin
+				let jm_invoke_next = spawn_invoke_next meth_from.name msig is_bridge in
+				functions#make_forward_method jc_closure jm_invoke_next meth_from meth_to;
+			end
 		in
+		let open JavaFunctionalInterface in
+		List.iter (fun (jfi,params) ->
+			add_interface jfi.jpath params;
+			let msig = method_sig jfi.jargs jfi.jret in
+			if not (jc_closure#has_method jfi.jname msig) then begin
+				let jm_invoke_next = spawn_invoke_next jfi.jname msig false in
+				functions#make_forward_method_jsig jc_closure jm_invoke_next meth.name jfi.jargs jfi.jret meth.dargs meth.dret
+			end
+		) functional_interfaces;
 		let rec loop meth =
-			check_functional_interfaces meth;
 			begin match meth.next with
 			| Some meth_next ->
-				spawn_forward_function meth_next meth;
+				spawn_forward_function meth_next meth true;
 				loop meth_next;
 			| None ->
 				()

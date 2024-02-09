@@ -1,0 +1,9 @@
+(include_subdirs no)
+
+(library
+	(name pcre2)
+	(foreign_stubs
+		(language c)
+		(names pcre2_stubs))
+	(wrapped false)
+)

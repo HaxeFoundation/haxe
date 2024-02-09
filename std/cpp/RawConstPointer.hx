@@ -24,6 +24,6 @@ package cpp;
 
 @:unreflective
 extern class RawConstPointer<T> implements ArrayAccess<T> {
-	@:native("hx::AddressOf")
+	@:native("::hx::AddressOf")
 	static function addressOf<T>(t:T):RawConstPointer<T>;
 }

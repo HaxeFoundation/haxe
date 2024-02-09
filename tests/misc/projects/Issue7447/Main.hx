@@ -8,5 +8,6 @@ class Main {
 abstract Abstr(Int) {
 	public inline function new() {
 		trace(() -> this);
+		this = 0;
 	}
 }

@@ -26,14 +26,14 @@ module TypePathHandler = struct
 			| x :: l ->
 				(try
 					match PMap.find x com.package_rules with
-					| Directory d -> d :: l
 					| Remap s -> s :: l
 					| _ -> p
 				with
 					Not_found -> p)
 			| _ -> p
 		) in
-		List.iter (fun path ->
+		com.class_paths#iter (fun path ->
+			let path = path#path in
 			let dir = path ^ String.concat "/" p in
 			let r = (try Sys.readdir dir with _ -> [||]) in
 			Array.iter (fun f ->
@@ -47,13 +47,12 @@ module TypePathHandler = struct
 									match PMap.find f com.package_rules with
 									| Forbidden -> ()
 									| Remap f -> packages := f :: !packages
-									| Directory _ -> raise Not_found
 								with Not_found ->
 									packages := f :: !packages
 						else
 							packages := f :: !packages
 					end;
-				end else if file_extension f = "hx" && f <> "import.hx" then begin
+				end else if Path.file_extension f = "hx" && f <> "import.hx" then begin
 					let c = Filename.chop_extension f in
 					try
 						ignore(String.index c '.')
@@ -61,7 +60,7 @@ module TypePathHandler = struct
 						if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
 				end;
 			) r;
-		) com.class_path;
+		);
 		let process_lib lib =
 			List.iter (fun (path,name) ->
 				if path = p then classes := name :: !classes else
@@ -75,7 +74,6 @@ module TypePathHandler = struct
 			) lib#list_modules;
 		in
 		List.iter process_lib com.native_libs.swf_libs;
-		List.iter process_lib com.native_libs.net_libs;
 		List.iter process_lib com.native_libs.java_libs;
 		unique !packages, unique !classes
 
@@ -83,7 +81,7 @@ module TypePathHandler = struct
 	let complete_type_path com p =
 		let packs, modules = read_type_path com p in
 		if packs = [] && modules = [] then
-			(abort ("No modules found in " ^ String.concat "." p) null_pos)
+			(Error.abort ("No modules found in " ^ String.concat "." p) null_pos)
 		else
 			let packs = List.map (fun n -> make_ci_package (p,n) []) packs in
 			let modules = List.map (fun n -> make_ci_module (p,n)) modules in
@@ -158,14 +156,13 @@ module TypePathHandler = struct
 			in
 			Some fields
 		with _ ->
-			abort ("Could not load module " ^ (s_type_path (p,c))) null_pos
+			Error.abort ("Could not load module " ^ (s_type_path (p,c))) null_pos
 end
 
 let resolve_position_by_path ctx path p =
 	let mt = ctx.g.do_load_type_def ctx p path in
 	let p = (t_infos mt).mt_pos in
 	raise_positions [p]
-
 
 let handle_path_display ctx path p =
 	let class_field c name =
@@ -183,7 +180,7 @@ let handle_path_display ctx path p =
 		| (IDKPackage sl,p),DMDefault ->
 			let sl = match List.rev sl with
 				| s :: sl -> List.rev sl
-				| [] -> assert false
+				| [] -> die "" __LOC__
 			in
 			raise (Parser.TypePath(sl,None,true,p))
 		| (IDKPackage _,_),_ ->
@@ -192,7 +189,7 @@ let handle_path_display ctx path p =
 			(* We assume that we want to go to the module file, not a specific type
 			   which might not even exist anyway. *)
 			let mt = ctx.g.do_load_module ctx (sl,s) p in
-			let p = { pfile = mt.m_extra.m_file; pmin = 0; pmax = 0} in
+			let p = { pfile = (Path.UniqueKey.lazy_path mt.m_extra.m_file); pmin = 0; pmax = 0} in
 			raise_positions [p]
 		| (IDKModule(sl,s),_),DMHover ->
 			let m = ctx.g.do_load_module ctx (sl,s) p in
@@ -214,7 +211,7 @@ let handle_path_display ctx path p =
 		| (IDKModule(sl,s),p),_ ->
 			raise (Parser.TypePath(sl,None,true,p))
 		| (IDKSubType(sl,sm,st),p),(DMDefinition | DMTypeDefinition) ->
-			resolve_position_by_path ctx { tpackage = sl; tname = sm; tparams = []; tsub = Some st} p
+			resolve_position_by_path ctx (Ast.mk_type_path ~sub:st (sl,sm)) p
 		| (IDKSubType(sl,sm,st),p),_ ->
 			raise (Parser.TypePath(sl,Some(sm,false),true,p))
 		| ((IDKSubTypeField(sl,sm,st,sf) | IDKModuleField(sl,(sm as st),sf)),p),DMDefault ->

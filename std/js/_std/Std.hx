@@ -25,6 +25,7 @@ import js.Syntax;
 
 @:keepInit
 @:coreApi class Std {
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}
@@ -33,7 +34,7 @@ import js.Syntax;
 		return @:privateAccess js.Boot.__instanceof(v, t);
 	}
 
-	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):S@:privateAccess {
+	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):S @:privateAccess {
 		return if (js.Boot.__downcastCheck(value, c)) cast value else null;
 	}
 
@@ -53,17 +54,24 @@ import js.Syntax;
 
 	@:pure
 	public static function parseInt(x:String):Null<Int> {
-		if(x != null) {
-			for(i in 0...x.length) {
-				var c = StringTools.fastCodeAt(x, i);
-				if(c <= 8 || (c >= 14 && c != ' '.code && c != '-'.code)) {
-					var nc = StringTools.fastCodeAt(x, i + 1);
-					var v = js.Lib.parseInt(x, (nc == "x".code || nc == "X".code) ? 16 : 10);
-					return Math.isNaN(v) ? null : cast v;
-				}
+		#if (js_es >= 5)
+		final v = js.Lib.parseInt(x);
+		#else
+		// before ES5, octal was supported in some implementations, so we need to explicitly use base 10 or 16
+		if (x == null)
+			return null;
+		var v:Float = Math.NaN;
+		for (i => c in StringTools.keyValueIterator(x)) {
+			if ((c <= 8 || c >= 14) && !(c == ' '.code || c == '-'.code || c == '+'.code)) {
+				final nc = js.Syntax.code("{0}[{1}]", x, i + 1);
+				v = js.Lib.parseInt(x, c == '0'.code && (nc == "x" || nc == "X") ? 16 : 10);
+				break;
 			}
 		}
-		return null;
+		#end
+		if (Math.isNaN(v))
+			return null;
+		return cast v;
 	}
 
 	public static inline function parseFloat(x:String):Float {
@@ -74,39 +82,41 @@ import js.Syntax;
 		return x <= 0 ? 0 : Math.floor(Math.random() * x);
 	}
 
-	static function __init__():Void
-		untyped {
-			__feature__("js.Boot.getClass", String.prototype.__class__ = __feature__("Type.resolveClass", $hxClasses["String"] = String, String));
-			__feature__("js.Boot.isClass", String.__name__ = __feature__("Type.getClassName", "String", true));
-			__feature__("Type.resolveClass", $hxClasses["Array"] = Array);
-			__feature__("js.Boot.isClass", Array.__name__ = __feature__("Type.getClassName", "Array", true));
-			__feature__("Date.*", {
-				__feature__("js.Boot.getClass",
-					js.Syntax.code('Date').prototype.__class__ = __feature__("Type.resolveClass", $hxClasses["Date"] = js.Syntax.code('Date'), js.Syntax.code('Date')));
-				__feature__("js.Boot.isClass", js.Syntax.code('Date').__name__ = "Date");
-			});
-			__feature__("Int.*", js.Syntax.code('var Int = { };'));
-			__feature__("Dynamic.*", js.Syntax.code('var Dynamic = { };'));
-			__feature__("Float.*", js.Syntax.code('var Float = Number'));
-			__feature__("Bool.*", js.Syntax.code('var Bool = Boolean'));
-			__feature__("Class.*", js.Syntax.code('var Class = { };'));
-			__feature__("Enum.*", js.Syntax.code('var Enum = { };'));
-			#if (js_es < 5)
-			__feature__("Array.map", if (Array.prototype.map == null) Array.prototype.map = function(f) {
-				var a = [];
-				for (i in 0...__this__.length)
-					a[i] = f(__this__[i]);
-				return a;
-			});
-			__feature__("Array.filter", if (Array.prototype.filter == null) Array.prototype.filter = function(f) {
-				var a = [];
-				for (i in 0...__this__.length) {
-					var e = __this__[i];
-					if (f(e))
-						a.push(e);
-				}
-				return a;
-			});
-			#end
-		}
+	static function __init__():Void untyped {
+		__feature__("js.Boot.getClass",
+			Object.defineProperty(String.prototype, "__class__",
+				{value: __feature__("Type.resolveClass", $hxClasses["String"] = String, String), enumerable: false, writable: true}));
+		__feature__("js.Boot.isClass", String.__name__ = "String");
+		__feature__("Type.resolveClass", $hxClasses["Array"] = Array);
+		__feature__("js.Boot.isClass", Array.__name__ = "Array");
+		__feature__("Date.*", {
+			__feature__("js.Boot.getClass",
+				js.Syntax.code('Date')
+					.prototype.__class__ = __feature__("Type.resolveClass", $hxClasses["Date"] = js.Syntax.code('Date'), js.Syntax.code('Date')));
+			__feature__("js.Boot.isClass", js.Syntax.code('Date').__name__ = "Date");
+		});
+		__feature__("Int.*", js.Syntax.code('var Int = { };'));
+		__feature__("Dynamic.*", js.Syntax.code('var Dynamic = { };'));
+		__feature__("Float.*", js.Syntax.code('var Float = Number'));
+		__feature__("Bool.*", js.Syntax.code('var Bool = Boolean'));
+		__feature__("Class.*", js.Syntax.code('var Class = { };'));
+		__feature__("Enum.*", js.Syntax.code('var Enum = { };'));
+		#if (js_es < 5)
+		__feature__("Array.map", if (Array.prototype.map == null) Array.prototype.map = function(f) {
+			var a = [];
+			for (i in 0...__this__.length)
+				a[i] = f(__this__[i]);
+			return a;
+		});
+		__feature__("Array.filter", if (Array.prototype.filter == null) Array.prototype.filter = function(f) {
+			var a = [];
+			for (i in 0...__this__.length) {
+				var e = __this__[i];
+				if (f(e))
+					a.push(e);
+			}
+			return a;
+		});
+		#end
+	}
 }

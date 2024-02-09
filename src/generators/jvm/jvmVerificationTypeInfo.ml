@@ -42,7 +42,7 @@ let of_signature pool jsig = match jsig with
 	| TTypeParameter _ -> VObject (pool#add_path (["java";"lang"],"Object"))
 	| TUninitialized (Some i) -> VUninitialized i
 	| TUninitialized None -> VUninitializedThis
-    | _ -> assert false
+    | _ -> Globals.die "" __LOC__
 
 let to_string vtt = match vtt with
 	| VTop -> "top"

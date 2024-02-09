@@ -17,7 +17,6 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
-open Globals
 open EvalValue
 
 let create values = {
@@ -201,6 +200,6 @@ let resize a l =
 		set a (l - 1) vnull;
 		()
 	end else if a.alength > l then begin
-		ignore(splice a l (a.alength - l) a.alength);
-		()
+		Array.fill a.avalues l (a.alength - l) vnull;
+		a.alength <- l;
 	end else ()

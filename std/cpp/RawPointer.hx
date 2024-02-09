@@ -24,6 +24,6 @@ package cpp;
 
 @:unreflective
 extern class RawPointer<T> extends RawConstPointer<T> {
-	@:native("hx::AddressOf")
+	@:native("::hx::AddressOf")
 	static function addressOf<T>(t:T):RawPointer<T>;
 }

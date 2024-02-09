@@ -46,8 +46,6 @@ class Meta {
 	private static function isInterface(t:Dynamic):Bool {
 		#if java
 		return java.Lib.toNativeType(t).isInterface();
-		#elseif cs
-		return cs.Lib.toNativeType(t).IsInterface;
 		#else
 		throw "Something went wrong";
 		#end
@@ -56,7 +54,7 @@ class Meta {
 	private static function getMeta(t:Dynamic):MetaObject {
 		#if php
 		return php.Boot.getMeta(t.phpClassName);
-		#elseif (java || cs)
+		#elseif java
 		var ret = Reflect.field(t, "__meta__");
 		if (ret == null && Std.isOfType(t, Class)) {
 			if (isInterface(t)) {

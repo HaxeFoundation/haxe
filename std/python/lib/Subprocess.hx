@@ -30,6 +30,14 @@ extern class StartupInfo {
 	var wShowWindow:Int;
 }
 
+extern class CompletedProcess {
+	var args:EitherType<String, Array<String>>;
+	var returncode:Int;
+	var stdout:Null<EitherType<Bytes,String>>;
+	var stderr:Null<EitherType<Bytes,String>>;
+	function check_returncode():Void;
+}
+
 @:pythonImport("subprocess")
 extern class Subprocess {
 	static function STARTUPINFO():StartupInfo;
@@ -49,4 +57,5 @@ extern class Subprocess {
 	static var STDOUT:Int;
 
 	static function call(args:EitherType<String, Array<String>>, ?kwArgs:python.KwArgs<Dynamic>):Int;
+	static function run(args:EitherType<String, Array<String>>, ?kwArgs:python.KwArgs<Dynamic>):CompletedProcess;
 }

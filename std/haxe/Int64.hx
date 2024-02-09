@@ -31,6 +31,7 @@ using haxe.Int64;
 #if flash
 @:notNull
 #end
+@:transitive
 abstract Int64(__Int64) from __Int64 to __Int64 {
 	private inline function new(x:__Int64)
 		this = x;

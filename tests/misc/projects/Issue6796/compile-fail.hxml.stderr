@@ -1,2 +1,2 @@
-Main.hx:3: characters 21-25 : Array access is not allowed on Void -> Unknown<0>
-Main.hx:3: characters 21-25 : For function argument 'v'
+Main.hx:3: characters 21-25 : Array access is not allowed on () -> Unknown<0>
+Main.hx:3: characters 21-25 : ... For function argument 'v'

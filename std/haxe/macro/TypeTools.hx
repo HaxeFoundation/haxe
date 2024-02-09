@@ -85,7 +85,7 @@ class TypeTools {
 					pos: cf.pos,
 					meta: cf.meta.get(),
 				} else {
-				throw "Invalid TAnonymous";
+					throw "Invalid TAnonymous";
 			}
 		}
 
@@ -162,7 +162,7 @@ class TypeTools {
 			}
 		}
 
-	#if (macro || display)
+	#if macro
 	/**
 		Follows all typedefs of `t` to reach the actual type.
 
@@ -174,11 +174,16 @@ class TypeTools {
 
 		If `t` is null, an internal exception is thrown.
 
-		Usage example:
+		Usage example with monomorphs:
 			var t = Context.typeof(macro null); // TMono(<mono>)
 			var ts = Context.typeof(macro "foo"); //TInst(String,[])
 			Context.unify(t, ts);
 			trace(t); // TMono(<mono>)
+			trace(t.follow()); //TInst(String,[])
+
+		Usage example with typedefs:
+			var t = Context.typeof(macro ("foo" :MyString)); // typedef MyString = String
+			trace(t); // TType(MyString,[])
 			trace(t.follow()); //TInst(String,[])
 	**/
 	static public inline function follow(t:Type, ?once:Bool):Type
@@ -307,7 +312,7 @@ class TypeTools {
 					t: f(arg.t)
 				}), f(ret));
 			case TAnonymous(an):
-				t; // TODO: Ref?
+				TAnonymous(Context.load("map_anon_ref", 2)(an, f));
 			case TDynamic(t2):
 				t == t2 ? t : TDynamic(f(t2));
 			case TLazy(ft):
@@ -362,6 +367,102 @@ class TypeTools {
 		#else
 		return null;
 		#end
+	}
+
+	/**
+		Changes the name of the variable in the typed expression.
+	**/
+	static public function setVarName(t:TVar, name:String) {
+		Context.load("set_var_name", 2)(t, name);
+	}
+
+	/**
+		Converts type `t` to `haxe.macro.Type.ModuleType`.
+	**/
+	static public function toModuleType(t:Type):ModuleType {
+		#if (neko || eval)
+		return Context.load("type_to_module_type", 1)(t);
+		#else
+		return null;
+		#end
+	}
+
+	/**
+		Creates a type from the `haxe.macro.Type.ModuleType` argument.
+	**/
+	static public function fromModuleType(mt:ModuleType):Type {
+		#if (neko || eval)
+		return Context.load("module_type_to_type", 1)(mt);
+		#else
+		return null;
+		#end
+	}
+
+	/**
+		Converts type `t` to `haxe.macro.Type.BaseType`.
+	**/
+	static public function toBaseType(t:Type):BaseType {
+		return switch toModuleType(t) {
+			case TClassDecl(_.get() => c): c;
+			case TEnumDecl(_.get() => e): e;
+			case TTypeDecl(_.get() => t): t;
+			case TAbstract(_.get() => a): a;
+		};
+	}
+
+	/**
+		Calls `f` for each missing `TypeParameter` within Type `type`.
+		The `Type` returned from `f` fills the vacant parameter in a
+		copy returned by the function.
+
+		If `type` does not use type parameters, or all of the type
+		parameters are defined, `type` is returned unchanged.
+
+		Excessive type parameters are truncated.
+
+		If `recursive` is true, all subtypes are resolved.
+
+		The parameters provided to `f` are:
+			- The `TypeParameter` being resolved.
+			- The `Type` missing a type parameter.
+			- The `Int` index of type parameter being resolved.
+
+		Missing type parameters may cause fatal compiler errors.
+		Therefore, this function should be called on user generated
+		`Type`s prior to passing to macro API functions such as
+		`Context.follow` or `Context.unify`.
+	**/
+	public static function resolveTypeParameters(type:Type, recursive:Bool, f:(TypeParameter,Type,Int)->Type):Type {
+		function fillParams(typeParams:Array<TypeParameter>, concreteTypes:Array<Type>): Array<Type>
+			return if (concreteTypes.length > typeParams.length) {
+				concreteTypes.slice(0, typeParams.length);
+			} else {
+				[
+					for (i in 0...typeParams.length)
+						if (i < concreteTypes.length)
+							concreteTypes[i];
+						else
+							f(typeParams[i], type, i)
+				];
+			}
+
+		final result = switch (type) {
+			case TInst(t, params):
+				TInst(t, fillParams(t.get().params, params));
+			case TEnum(t, params):
+				TEnum(t, fillParams(t.get().params, params));
+			case TType(t, params):
+				TType(t, fillParams(t.get().params, params));
+			case TAbstract(t, params):
+				TAbstract(t, fillParams(t.get().params, params));
+			case _:
+				type;
+		}
+
+		return if(recursive)
+			map(result, (t) -> resolveTypeParameters(t, recursive, f));
+		else
+			result;
 	}
 	#end
 
