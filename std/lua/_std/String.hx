@@ -62,13 +62,13 @@ class String {
 		return BaseString.lower(this);
 
 	public function indexOf(str:String, ?startIndex:Int):Int {
-		if (str == "") {
-			return indexOfEmpty(this, startIndex - 1);
-		}
 		if (startIndex == null || startIndex < 0)
 			startIndex = 1;
 		else
 			startIndex += 1;
+		if (str == "") {
+			return indexOfEmpty(this, startIndex - 1);
+		}
 		var r = BaseString.find(this, str, startIndex, true).begin;
 		if (r != null && r > 0)
 			return r - 1;
