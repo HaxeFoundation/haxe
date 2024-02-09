@@ -194,6 +194,10 @@ abstract UnicodeString(String) from String to String {
 		If `startIndex` is not specified or < 0, the search is performed across the
 		entire range of `str`.
 
+		If `str` is the empty String `""` then if `startIndex` is not specified, 0 is
+		returned. Otherwise, if `startIndex` is >= `this.length`, `this.length` is returned.
+		Otherwise, `startIndex` is returned.
+
 		If `startIndex` is >= `this.length`, -1 is returned.
 
 		Otherwise the search is performed within the substring of `this` String starting
