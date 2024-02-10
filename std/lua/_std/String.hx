@@ -62,7 +62,7 @@ class String {
 		return BaseString.lower(this);
 
 	public function indexOf(str:String, ?startIndex:Int):Int {
-		if (startIndex == null)
+		if (startIndex == null || startIndex < 0)
 			startIndex = 1;
 		else
 			startIndex += 1;
@@ -79,9 +79,7 @@ class String {
 	static function indexOfEmpty(s:String, startIndex:Int):Int {
 		var length = BaseString.len(s);
 		if (startIndex < 0) {
-			startIndex = length + startIndex;
-			if (startIndex < 0)
-				startIndex = 0;
+			startIndex = 0;
 		}
 		return startIndex > length ? length : startIndex;
 	}

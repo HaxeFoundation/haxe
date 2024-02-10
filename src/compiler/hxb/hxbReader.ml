@@ -1595,7 +1595,7 @@ class hxb_reader
 
 	method read_ofd =
 		let l = read_uleb128 ch in
-		for i = 0 to l - 1 do
+		for _ = 0 to l - 1 do
 			let index = read_uleb128 ch in
 			let cf = anon_fields.(index) in
 			self#read_class_field_and_overloads_data cf;
@@ -1603,7 +1603,7 @@ class hxb_reader
 
 	method read_obd =
 		let l = read_uleb128 ch in
-		for i = 0 to l - 1 do
+		for _ = 0 to l - 1 do
 			let index = read_uleb128 ch in
 			self#read_anon anons.(index)
 		done

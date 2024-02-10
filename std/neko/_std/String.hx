@@ -57,8 +57,8 @@
 	}
 
 	public function indexOf(str:String, ?startIndex:Int):Int {
+		var startIndex = startIndex == null || startIndex < 0 ? 0 : startIndex;
 		if (str.length == 0) {
-			var startIndex = startIndex == null ? 0 : startIndex;
 			var min = startIndex > length ? length : startIndex;
 			return min < 0 ? 0 : min;
 		}

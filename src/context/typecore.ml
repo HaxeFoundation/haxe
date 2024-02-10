@@ -20,7 +20,6 @@
 open Globals
 open Ast
 open Common
-open Lookup
 open Type
 open Error
 open Resolution
