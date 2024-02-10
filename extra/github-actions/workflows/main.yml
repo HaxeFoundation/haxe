@@ -362,8 +362,42 @@ jobs:
       @import install-neko-windows.yml
       @import test-windows.yml
 
-  mac-test:
+  mac-build-universal:
     needs: mac-build
+    runs-on: macos-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@main
+      - uses: actions/download-artifact@v3
+        with:
+          name: macX64Binaries
+          path: macX64Binaries
+      - uses: actions/download-artifact@v3
+        with:
+          name: macArmBinaries
+          path: macArmBinaries
+
+      - name: Make universal binary
+        run: |
+          set -ex
+          tar -xf macX64Binaries/*_bin.tar.gz -C macX64Binaries --strip-components=1
+          tar -xf macArmBinaries/*_bin.tar.gz -C macArmBinaries --strip-components=1
+          lipo -create -output haxe macX64Binaries/haxe macArmBinaries/haxe
+          # there is only x64 haxelib
+          mv macX64Binaries/haxelib .
+          make -s package_unix package_installer_mac
+          ls -l out
+          otool -L ./haxe
+          otool -L ./haxelib
+
+      - name: Upload artifact (universal)
+        uses: actions/upload-artifact@v3
+        with:
+          name: macBinaries
+          path: out
+
+  mac-test:
+    needs: mac-build-universal
     runs-on: macos-latest
     env:
       PLATFORM: mac
@@ -385,10 +419,6 @@ jobs:
         with:
           name: macBinaries
           path: macBinaries
-      - uses: actions/download-artifact@v3
-        with:
-          name: macArmBinaries
-          path: macArmBinaries
 
       @import install-neko-unix.yml
       @import test-mac.yml

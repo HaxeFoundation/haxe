@@ -59,7 +59,7 @@
   if: matrix.os == 'macos-latest'
   uses: actions/upload-artifact@v3
   with:
-    name: macBinaries
+    name: macX64Binaries
     path: out
 
 - name: Upload artifact (arm)

@@ -1,11 +1,3 @@
-- name: Make universal binary
-  run: |
-    set -ex
-    tar -xf macBinaries/*_bin.tar.gz -C macBinaries --strip-components=1
-    tar -xf macArmBinaries/*_bin.tar.gz -C macArmBinaries --strip-components=1
-    # mkdir ./macUniversalBinaries
-    lipo -create -output macBinaries/haxe macBinaries/haxe macArmBinaries/haxe
-
 - name: Setup Haxe
   run: |
     # mkdir ./macBinaries
