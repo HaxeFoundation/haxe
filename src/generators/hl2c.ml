@@ -744,7 +744,7 @@ let generate_function ctx f =
 			match rtype a, rtype b with
 			| (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HI64), (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HI64) ->
 				phys_compare()
-			| HBytes, HBytes ->
+			| HBytes, HBytes | HArray,HArray ->
 				phys_compare()
 			| HType, HType ->
 				sexpr "if( hl_same_type(%s,%s) %s 0 ) {} else goto %s" (reg a) (reg b) (s_comp op) (label d)
