@@ -31,10 +31,10 @@
     set -ex
     opam init # --disable-sandboxing
     opam update
-    opam switch create ${{matrix.OCAML_VERSION}}
+    opam switch create ${{env.OCAML_VERSION}}
     eval $(opam env)
     opam env
-    opam pin add ctypes ${{matrix.CTYPES}} --yes
+    opam pin add ctypes ${{env.CTYPES}} --yes
     opam pin add haxe . --no-action
     opam install haxe --deps-only --assume-depexts
     opam list
@@ -57,14 +57,14 @@
 
 - name: Upload artifact (x64)
   if: matrix.os == 'macos-latest'
-  uses: actions/upload-artifact@v3
+  uses: actions/upload-artifact@v4
   with:
     name: macX64Binaries
     path: out
 
 - name: Upload artifact (arm)
   if: matrix.os == 'macos-14'
-  uses: actions/upload-artifact@v3
+  uses: actions/upload-artifact@v4
   with:
     name: macArmBinaries
     path: out

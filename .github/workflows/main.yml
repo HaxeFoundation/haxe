@@ -24,7 +24,7 @@ jobs:
           rm C:\msys64\usr\bin\bash.exe
 
       - name: choco install nsis
-        uses: nick-invision/retry@v2
+        uses: nick-invision/retry@v3
         with:
           timeout_minutes: 10
           max_attempts: 10
@@ -114,7 +114,7 @@ jobs:
           [ $(ls -1 out | wc -l) -eq "3" ]
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: win${{env.ARCH}}Binaries
           path: out
@@ -136,7 +136,7 @@ jobs:
 
       - name: Cache opam
         id: cache-opam
-        uses: actions/cache@v3.0.11
+        uses: actions/cache@v4
         with:
           path: ~/.opam/
           key: ${{ runner.os }}-${{ matrix.ocaml }}-${{ hashFiles('./haxe.opam', './libs/') }}
@@ -213,13 +213,13 @@ jobs:
           EOL
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
           path: out
 
       - name: Upload xmldoc artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: matrix.ocaml == '4.08.1'
         with:
           name: xmldoc
@@ -251,7 +251,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
           path: linuxBinaries
@@ -321,13 +321,13 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: linuxBinaries
           path: linuxBinaries
 
       - name: Download xmldoc artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: xmldoc
           path: xmldoc
@@ -396,7 +396,7 @@ jobs:
       FORCE_COLOR: 1
     steps:
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -407,7 +407,7 @@ jobs:
 
       - name: Set up QEMU
         id: qemu
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
         with:
             image: tonistiigi/binfmt:latest
             platforms: all
@@ -439,7 +439,7 @@ jobs:
           EARTHLY_REMOTE_CACHE: "ghcr.io/${{env.CONTAINER_REG}}_cache:build-${{env.CONTAINER_TAG}}-arm64"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: linuxArm64Binaries
           path: out/linux/arm64
@@ -449,18 +449,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, macos-14]
-        include:
-          - os: macos-latest
-            OCAML_VERSION: 4.08.1
-            CTYPES: 0.17.1
-          - os: macos-14
-            OCAML_VERSION: 5.1.1
-            CTYPES: 0.21.1
     runs-on: ${{ matrix.os }}
     env:
       PLATFORM: mac
       OPAMYES: 1
       MACOSX_DEPLOYMENT_TARGET: 10.13
+      OCAML_VERSION: 5.1.1
+      CTYPES: 0.21.1
     steps:
       - uses: actions/checkout@main
         with:
@@ -468,7 +463,7 @@ jobs:
 
       - name: Cache opam
         id: cache-opam
-        uses: actions/cache@v3.0.11
+        uses: actions/cache@v4
         with:
           path: ~/.opam/
           key: ${{ matrix.os }}-${{ hashFiles('./haxe.opam', './libs/') }}
@@ -523,10 +518,10 @@ jobs:
           set -ex
           opam init # --disable-sandboxing
           opam update
-          opam switch create ${{matrix.OCAML_VERSION}}
+          opam switch create ${{env.OCAML_VERSION}}
           eval $(opam env)
           opam env
-          opam pin add ctypes ${{matrix.CTYPES}} --yes
+          opam pin add ctypes ${{env.CTYPES}} --yes
           opam pin add haxe . --no-action
           opam install haxe --deps-only --assume-depexts
           opam list
@@ -549,14 +544,14 @@ jobs:
 
       - name: Upload artifact (x64)
         if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macX64Binaries
           path: out
 
       - name: Upload artifact (arm)
         if: matrix.os == 'macos-14'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macArmBinaries
           path: out
@@ -580,7 +575,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: win${{env.ARCH}}Binaries
           path: win${{env.ARCH}}Binaries
@@ -597,7 +592,7 @@ jobs:
       - name: Print Neko version
         run: neko -version 2>&1
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: 18.17.1
 
@@ -664,11 +659,11 @@ jobs:
     steps:
       - name: Checkout the repository
         uses: actions/checkout@main
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: macX64Binaries
           path: macX64Binaries
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: macArmBinaries
           path: macArmBinaries
@@ -687,7 +682,7 @@ jobs:
           otool -L ./haxelib
 
       - name: Upload artifact (universal)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macBinaries
           path: out
@@ -711,7 +706,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: macBinaries
           path: macBinaries
@@ -779,7 +774,7 @@ jobs:
         uses: actions/checkout@main
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Install awscli
         run: |
@@ -848,7 +843,7 @@ jobs:
           sudo apt-get install -qqy libc6
 
       - name: Download Haxe
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: linuxBinaries
           path: linuxBinaries
@@ -864,7 +859,7 @@ jobs:
           sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
 
       - name: Download xmldoc artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: xmldoc
           path: xmldoc
