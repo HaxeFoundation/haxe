@@ -126,6 +126,12 @@ let throw_native tctx e_thrown t p =
 	in
 	e_native
 
+let throw_native tctx e_thrown t p =
+	if tctx.com.class_paths#is_core_api then
+		e_thrown
+	else
+		throw_native tctx e_thrown t p
+
 (* CATCH *)
 
 (**
@@ -486,3 +492,9 @@ let catch_native tctx catches t p =
 			catches_to_ifs ctx (handle_as_value_exception @ catches) t p
 	in
 	transform [] None catches
+
+let catch_native tctx catches t p =
+	if tctx.com.class_paths#is_core_api then
+		catches
+	else
+		catch_native tctx catches t p

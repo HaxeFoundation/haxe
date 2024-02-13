@@ -175,6 +175,8 @@ class class_paths = object(self)
 		in
 		loop l
 
+	method is_core_api = is_loading_core_api
+
 	method dump =
 		print_endline (Printf.sprintf "Class paths for %s%s:" platform_ext (if is_loading_core_api then " (coreApi)" else ""));
 		List.iter (fun cp -> cp#dump) l
