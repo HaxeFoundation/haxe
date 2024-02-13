@@ -1129,7 +1129,7 @@ and type_try ctx e1 catches with_type p =
 		((v,e) :: acc1),(e :: acc2)
 	) ([],[e1]) catches in
 	let e1,catches,t = match with_type with
-		| WithType.NoValue -> e1,catches,ctx.t.tvoid
+		| WithType.NoValue -> e1,catches,t_dynamic
 		| WithType.Value _ -> e1,catches,unify_min ctx el
 		| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
 			e1,catches,unify_min_for_type_source ctx el src
