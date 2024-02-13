@@ -335,6 +335,7 @@ jobs:
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Build xmldoc
+        if: matrix.ocaml == '4.08.1'
         run: |
           set -ex
           make -s xmldoc
@@ -615,7 +616,7 @@ jobs:
       - name: Install dependencies
         env:
           # For compatibility with macOS 10.13
-          ZLIB_VERSION: 1.3
+          ZLIB_VERSION: 1.3.1
           MBEDTLS_VERSION: 2.28.5
           PCRE2_VERSION: 10.42
         run: |
@@ -631,7 +632,7 @@ jobs:
           brew install cpanminus
           cpanm IPC::System::Simple
           cpanm String::ShellQuote
-          curl -L https://www.zlib.net/zlib-$ZLIB_VERSION.tar.gz | tar xz
+          curl -L https://github.com/madler/zlib/releases/download/v$ZLIB_VERSION/zlib-$ZLIB_VERSION.tar.gz | tar xz
           cd zlib-$ZLIB_VERSION
           ./configure
           make && make install
