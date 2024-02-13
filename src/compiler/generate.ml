@@ -93,34 +93,30 @@ let check_hxb_output ctx config =
 			zip#close;
 			t()
 		) (fun () ->
-			let string_pool = if config.use_string_pool then Some (StringPool.create ()) else None in
+			let string_pool = if config.share_string_pool then Some (StringPool.create ()) else None in
 			if config.target_config.generate then begin
 				export com config.target_config string_pool;
-
-				if config.use_string_pool && not config.share_string_pool then
-					write_string_pool config.target_config zip "StringPool.hxb" (Option.get string_pool)
 			end;
 
 			if config.macro_config.generate then begin
 				match com.get_macros() with
 					| Some mcom ->
-						let string_pool = if not config.share_string_pool then Some (StringPool.create ()) else string_pool in
+						let use_separate_pool = config.share_string_pool && from_cache in
+						let string_pool = if use_separate_pool then Some (StringPool.create ()) else string_pool in
 						export mcom config.macro_config string_pool;
-
-						if config.use_string_pool && not config.share_string_pool then
-							write_string_pool config.macro_config zip "StringPool.macro.hxb" (Option.get string_pool)
+						if use_separate_pool then write_string_pool config.macro_config zip "StringPool.macro.hxb" (Option.get string_pool)
 					| _ ->
 						()
 			end;
 
-			if config.use_string_pool && config.share_string_pool then
-				(* Technically this should be a common config, but it won't be used anyway... *)
+			if config.share_string_pool then
 				write_string_pool config.target_config zip "StringPool.hxb" (Option.get string_pool);
 		) ()
 	in
 	try
-		let from_cache = not (config.use_string_pool && config.share_string_pool && config.target_config.generate && config.macro_config.generate) in
-		try try_write from_cache with Abort -> try_write false
+		(* This Abort case shouldn't happen, unless some modules are not stored in hxb cache (which should not be the case currently) *)
+		if ctx.comm.is_server then try try_write true with Abort -> try_write false
+		else try_write false
 	with Sys_error s ->
 		CompilationContext.error ctx (Printf.sprintf "Could not write to %s: %s" config.archive_path s) null_pos
 
