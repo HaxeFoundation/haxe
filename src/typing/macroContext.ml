@@ -598,7 +598,6 @@ and flush_macro_context mint mctx =
 	let expr_filters = [
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts mctx;
 		"local_statics",LocalStatic.run mctx;
-		"Exceptions",Exceptions.filter mctx;
 		"captured_vars",CapturedVars.captured_vars mctx.com;
 	] in
 	(*

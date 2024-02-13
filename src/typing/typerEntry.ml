@@ -36,6 +36,7 @@ let create com macros =
 			do_load_core_class = Typeload.load_core_class;
 			delayed_display = None;
 			root_typer = ctx;
+			exception_ctx = None;
 		};
 		m = {
 			curmod = null_module;

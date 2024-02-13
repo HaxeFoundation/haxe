@@ -2,9 +2,67 @@ open Globals
 open Ast
 open Typecore
 open Type
-open ExceptionTypes
 open ExceptionFunctions
 open Error
+
+let create_exception_context tctx =
+	let config = tctx.com.config.pf_exceptions in
+	let tp (pack,name) =
+		let tp = match List.rev pack with
+		| module_name :: pack_rev when not (Ast.is_lower_ident module_name) ->
+			mk_type_path ~sub:name (List.rev pack_rev,module_name)
+		| _ ->
+			mk_type_path (pack,name)
+		in
+		make_ptp tp null_pos
+	in
+	let load_instance path =
+		Typeload.load_instance tctx path ParamSpawnMonos LoadNormal
+	in
+	let wildcard_catch_type =
+		load_instance (tp config.ec_wildcard_catch)
+	and base_throw_type =
+		load_instance (tp config.ec_base_throw)
+	and haxe_exception_type, haxe_exception_class =
+		match load_instance (tp haxe_exception_type_path) with
+		| TInst(cls,_) as t -> t,cls
+		| _ -> raise_typing_error "haxe.Exception is expected to be a class" null_pos
+	and value_exception_type, value_exception_class =
+		match load_instance (tp value_exception_type_path) with
+		| TInst(cls,_) as t -> t,cls
+		| _ -> raise_typing_error "haxe.ValueException is expected to be a class" null_pos
+	and haxe_native_stack_trace =
+		match load_instance (tp (["haxe"],"NativeStackTrace")) with
+		| TInst(cls,_) -> cls
+		| TAbstract({ a_impl = Some cls },_) -> cls
+		| _ -> raise_typing_error "haxe.NativeStackTrace is expected to be a class or an abstract" null_pos
+	in
+	let is_path_of_dynamic (pack,name) =
+		name = "Dynamic" && (pack = [] || pack = ["StdTypes"])
+	in
+	let ctx = {
+		typer = tctx;
+		exc_config = config;
+		wildcard_catch_type = wildcard_catch_type;
+		base_throw_type = base_throw_type;
+		throws_anything = is_path_of_dynamic config.ec_base_throw && config.ec_avoid_wrapping;
+		catches_anything = is_path_of_dynamic config.ec_wildcard_catch && config.ec_avoid_wrapping;
+		haxe_exception_class = haxe_exception_class;
+		haxe_exception_type = haxe_exception_type;
+		haxe_native_stack_trace = haxe_native_stack_trace;
+		value_exception_type = value_exception_type;
+		value_exception_class = value_exception_class;
+	} in
+	ctx
+
+let get_exception_context tctx =
+	match tctx.g.exception_ctx with
+		| Some ectx ->
+			ectx
+		| None ->
+			let ectx = create_exception_context tctx in
+			tctx.g.exception_ctx <- Some ectx;
+			ectx
 
 (**
 	Generate `haxe.Exception.method_name(args)`
@@ -28,14 +86,14 @@ let haxe_exception_static_call ctx method_name args p =
 	Check if `t` can be thrown without wrapping.
 *)
 let is_native_throw ctx t =
-	ctx.throws_anything || is_in_list t ctx.config.ec_native_throws
+	ctx.throws_anything || is_in_list t ctx.exc_config.ec_native_throws
 
 (**
 	Returns `true` if `e` has to be wrapped with `haxe.Exception.thrown(e)`
 	to be thrown.
 *)
 let requires_wrapped_throw ctx e =
-	if ctx.throws_anything || is_wrapped_exception e || ctx.config.ec_special_throw e then
+	if ctx.throws_anything || is_wrapped_exception e || ctx.exc_config.ec_special_throw e then
 		false
 	else
 		(*
@@ -53,7 +111,8 @@ let requires_wrapped_throw ctx e =
 		is_stored_haxe_exception()
 		|| (not (is_native_throw ctx e.etype) && not (is_haxe_exception e.etype))
 
-let throw_native ctx e_thrown t p =
+let throw_native tctx e_thrown t p =
+	let ctx = get_exception_context tctx in
 	let e_native =
 		if requires_wrapped_throw ctx e_thrown then
 			let thrown = haxe_exception_static_call ctx "thrown" [e_thrown] p in
@@ -90,24 +149,14 @@ let haxe_exception_instance_call ctx haxe_exception method_name args p =
 *)
 let std_is ctx e t p =
 	let t = follow t in
-	let std_cls = ctx.typer.com.std in
-	let isOfType_field =
-		try PMap.find "isOfType" std_cls.cl_statics
-		with Not_found -> raise_typing_error ("Std has no field isOfType") p
-	in
-	let return_type =
-		match follow isOfType_field.cf_type with
-		| TFun(_,t) -> t
-		| _ -> raise_typing_error ("Std.isOfType is not a function and cannot be called") p
-	in
 	let type_expr = TyperBase.type_module_type ctx.typer (module_type_of_type t) p in
-	make_static_call ctx.typer std_cls isOfType_field (fun t -> t) [e; type_expr] return_type p
+	Texpr.Builder.resolve_and_make_static_call ctx.typer.com.std "isOfType" [e;type_expr] p
 
 (**
 	Check if `t` can be caught without wrapping.
 *)
 let is_native_catch ctx t =
-	ctx.catches_anything || is_in_list t ctx.config.ec_native_catches
+	ctx.catches_anything || is_in_list t ctx.exc_config.ec_native_catches
 
 (**
 	Check if `t` can be used for a Haxe-specific wildcard catch.
@@ -161,17 +210,17 @@ class catch ctx catch_local catch_pos =
 			match hx_exception_var with
 			| Some v ->
 				let caught = haxe_exception_static_call ctx "caught" [catch_local] p in
-				mk (TVar (v, Some caught)) ctx.basic.tvoid p
+				mk (TVar (v, Some caught)) ctx.typer.t.tvoid p
 			| None ->
-				mk (TBlock[]) ctx.basic.tvoid p
+				mk (TBlock[]) ctx.typer.t.tvoid p
 
 		method declare_unwrap p =
 			match unwrapped_var with
 			| Some v ->
 				let unwrap = haxe_exception_instance_call ctx (self#get_haxe_exception p) "unwrap" [] p in
-				mk (TVar (v, Some unwrap)) ctx.basic.tvoid p
+				mk (TVar (v, Some unwrap)) ctx.typer.t.tvoid p
 			| None ->
-				mk (TBlock[]) ctx.basic.tvoid p
+				mk (TBlock[]) ctx.typer.t.tvoid p
 	end
 
 (**
@@ -197,7 +246,7 @@ let catches_to_ifs ctx catches t p =
 						let condition =
 							(* catch(e:haxe.Exception) is a wildcard catch *)
 							if fast_eq ctx.haxe_exception_type current_t then
-								mk (TConst (TBool true)) ctx.basic.tbool v.v_pos
+								mk (TConst (TBool true)) ctx.typer.t.tbool v.v_pos
 							else
 								std_is ctx (catch#get_haxe_exception v.v_pos) v.v_type v.v_pos
 						in
@@ -205,7 +254,7 @@ let catches_to_ifs ctx catches t p =
 							if var_used then
 								mk (TBlock [
 									(* var v:ExceptionType = cast haxe_exception_local; *)
-									mk (TVar (v, Some (mk_cast (catch#get_haxe_exception v.v_pos) v.v_type v.v_pos))) ctx.basic.tvoid v.v_pos;
+									mk (TVar (v, Some (mk_cast (catch#get_haxe_exception v.v_pos) v.v_type v.v_pos))) ctx.typer.t.tvoid v.v_pos;
 									body
 								]) body.etype body.epos
 							else
@@ -217,7 +266,7 @@ let catches_to_ifs ctx catches t p =
 						begin
 							set_needs_exception_stack catch_var;
 							(* this is a wildcard catch *)
-							let condition = mk (TConst (TBool true)) ctx.basic.tbool v.v_pos in
+							let condition = mk (TConst (TBool true)) ctx.typer.t.tbool v.v_pos in
 							let body =
 								mk (TBlock [
 									if var_used then
@@ -226,9 +275,9 @@ let catches_to_ifs ctx catches t p =
 											if ctx.catches_anything then catch_local
 											else catch#unwrap v.v_pos
 										in
-										mk (TVar (v, Some e)) ctx.basic.tvoid v.v_pos
+										mk (TVar (v, Some e)) ctx.typer.t.tvoid v.v_pos
 									else
-										mk (TBlock[]) ctx.basic.tvoid v.v_pos;
+										mk (TBlock[]) ctx.typer.t.tvoid v.v_pos;
 									body
 								]) body.etype body.epos
 							in
@@ -239,14 +288,14 @@ let catches_to_ifs ctx catches t p =
 						begin
 							set_needs_exception_stack catch_var;
 							(* this is a wildcard catch *)
-							let condition = mk (TConst (TBool true)) ctx.basic.tbool v.v_pos in
+							let condition = mk (TConst (TBool true)) ctx.typer.t.tbool v.v_pos in
 							let body =
 								mk (TBlock [
 									(* var v:NativeWildcardException = catch_var; *)
 									if var_used then
-										mk (TVar (v, Some catch_local)) ctx.basic.tvoid v.v_pos
+										mk (TVar (v, Some catch_local)) ctx.typer.t.tvoid v.v_pos
 									else
-										mk (TBlock[]) ctx.basic.tvoid v.v_pos;
+										mk (TBlock[]) ctx.typer.t.tvoid v.v_pos;
 									body
 								]) body.etype body.epos
 							in
@@ -263,9 +312,9 @@ let catches_to_ifs ctx catches t p =
 							mk (TBlock [
 								(* var v:ExceptionType = cast haxe_exception_local.unwrap() *)
 								if var_used then
-									mk (TVar (v, Some (mk_cast (catch#unwrap v.v_pos) v.v_type v.v_pos))) ctx.basic.tvoid v.v_pos
+									mk (TVar (v, Some (mk_cast (catch#unwrap v.v_pos) v.v_type v.v_pos))) ctx.typer.t.tvoid v.v_pos
 								else
-									mk (TBlock[]) ctx.basic.tvoid v.v_pos;
+									mk (TBlock[]) ctx.typer.t.tvoid v.v_pos;
 								body
 							]) body.etype body.epos
 						in
@@ -326,6 +375,7 @@ let catches_as_value_exception ctx non_value_exception_catches value_exception_c
 		in
 		(* catch_local.value *)
 		let catch_local_value =
+			ignore(ctx.value_exception_class.cl_build());
 			let cf =
 				try PMap.find "value" ctx.value_exception_class.cl_fields
 				with Not_found -> die "haxe.ValueException is missing field \"value\"" __LOC__
@@ -343,9 +393,9 @@ let catches_as_value_exception ctx non_value_exception_catches value_exception_c
 					mk (TBlock [
 						(* var v:ExceptionType = cast catch_local.value *)
 						if is_var_used v body then
-							mk (TVar (v, Some (mk_cast catch_local_value v.v_type v.v_pos))) ctx.basic.tvoid v.v_pos
+							mk (TVar (v, Some (mk_cast catch_local_value v.v_type v.v_pos))) ctx.typer.t.tvoid v.v_pos
 						else
-							mk (TBlock[]) ctx.basic.tvoid v.v_pos;
+							mk (TBlock[]) ctx.typer.t.tvoid v.v_pos;
 						body
 					]) body.etype body.epos
 				in
@@ -386,7 +436,8 @@ let catches_as_value_exception ctx non_value_exception_catches value_exception_c
 	}
 	```
 *)
-let catch_native ctx catches t p =
+let catch_native tctx catches t p =
+	let ctx = get_exception_context tctx in
 	let rec transform handle_as_value_exception value_exception_catch catches =
 		match catches with
 		| [] ->
@@ -435,55 +486,3 @@ let catch_native ctx catches t p =
 			catches_to_ifs ctx (handle_as_value_exception @ catches) t p
 	in
 	transform [] None catches
-
-let create_exception_context tctx =
-	let config = tctx.com.config.pf_exceptions in
-	let tp (pack,name) =
-		let tp = match List.rev pack with
-		| module_name :: pack_rev when not (Ast.is_lower_ident module_name) ->
-			mk_type_path ~sub:name (List.rev pack_rev,module_name)
-		| _ ->
-			mk_type_path (pack,name)
-		in
-		make_ptp tp null_pos
-	in
-	let wildcard_catch_type =
-		let t = Typeload.load_instance tctx (tp config.ec_wildcard_catch) ParamSpawnMonos LoadNormal in
-		if is_dynamic t then t_dynamic
-		else t
-	and base_throw_type =
-		let t = Typeload.load_instance tctx (tp config.ec_base_throw) ParamSpawnMonos LoadNormal in
-		if is_dynamic t then t_dynamic
-		else t
-	and haxe_exception_type, haxe_exception_class =
-		match Typeload.load_instance tctx (tp haxe_exception_type_path) ParamSpawnMonos LoadNormal with
-		| TInst(cls,_) as t -> t,cls
-		| _ -> raise_typing_error "haxe.Exception is expected to be a class" null_pos
-	and value_exception_type, value_exception_class =
-		match Typeload.load_instance tctx (tp value_exception_type_path) ParamSpawnMonos LoadNormal with
-		| TInst(cls,_) as t -> t,cls
-		| _ -> raise_typing_error "haxe.ValueException is expected to be a class" null_pos
-	and haxe_native_stack_trace =
-		match Typeload.load_instance tctx (tp (["haxe"],"NativeStackTrace")) ParamSpawnMonos LoadNormal with
-		| TInst(cls,_) -> cls
-		| TAbstract({ a_impl = Some cls },_) -> cls
-		| _ -> raise_typing_error "haxe.NativeStackTrace is expected to be a class or an abstract" null_pos
-	in
-	let is_path_of_dynamic (pack,name) =
-		name = "Dynamic" && (pack = [] || pack = ["StdTypes"])
-	in
-	let ctx = {
-		typer = tctx;
-		basic = tctx.t;
-		config = config;
-		wildcard_catch_type = wildcard_catch_type;
-		base_throw_type = base_throw_type;
-		throws_anything = is_path_of_dynamic config.ec_base_throw && config.ec_avoid_wrapping;
-		catches_anything = is_path_of_dynamic config.ec_wildcard_catch && config.ec_avoid_wrapping;
-		haxe_exception_class = haxe_exception_class;
-		haxe_exception_type = haxe_exception_type;
-		haxe_native_stack_trace = haxe_native_stack_trace;
-		value_exception_type = value_exception_type;
-		value_exception_class = value_exception_class;
-	} in
-	ctx

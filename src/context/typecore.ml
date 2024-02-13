@@ -124,6 +124,7 @@ type typer_globals = {
 	mutable t_dynamic_def : Type.t;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	root_typer : typer;
+	mutable exception_ctx : exception_context option;
 	(* api *)
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
@@ -132,6 +133,20 @@ type typer_globals = {
 	get_build_info : typer -> module_type -> pos -> build_info;
 	do_format_string : typer -> string -> pos -> Ast.expr;
 	do_load_core_class : typer -> tclass -> tclass;
+}
+
+and exception_context = {
+	typer : typer;
+	exc_config : exceptions_config;
+	wildcard_catch_type : Type.t;
+	base_throw_type : Type.t;
+	throws_anything : bool;
+	catches_anything : bool;
+	haxe_exception_class : tclass;
+	haxe_exception_type : Type.t;
+	haxe_native_stack_trace : tclass;
+	value_exception_type : Type.t;
+	value_exception_class : tclass;
 }
 
 (* typer_expr holds information that is specific to a (function) expresssion, whereas typer_field

@@ -706,7 +706,6 @@ let run tctx main before_destruction =
 		"Tre",if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
 		"reduce_expression",Optimizer.reduce_expression tctx;
 		"inline_constructors",InlineConstructors.inline_constructors tctx;
-		"Exceptions_filter",Exceptions.filter tctx;
 		"captured_vars",CapturedVars.captured_vars com;
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;

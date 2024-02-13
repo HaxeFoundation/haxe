@@ -4,44 +4,7 @@ open Type
 open Common
 open Typecore
 open Error
-open ExceptionTypes
 open ExceptionFunctions
-
-(**
-	Check if `e` contains any throws or try..catches.
-*)
-let rec contains_throw_or_try e =
-	match e.eexpr with
-	| TThrow _ | TTry _ -> true
-	| _ -> check_expr contains_throw_or_try e
-
-(**
-	Transform `throw` and `try..catch` expressions.
-	`rename_locals` is required to deal with the names of temp vars.
-*)
-let filter tctx =
-	let stub e = e in
-	match tctx.com.platform with (* TODO: implement for all targets *)
-	| Php | Js | Jvm | Python | Lua | Eval | Neko | Flash | Hl | Cpp ->
-		let ctx = ExceptionMapper.create_exception_context tctx in
-		let rec run e =
-			match e.eexpr with
-			| TThrow e1 ->
-				{ e with eexpr = TThrow (ExceptionMapper.throw_native ctx (run e1) e.etype e.epos) }
-			| TTry(e1,catches) ->
-				let catches =
-					let catches = List.map (fun (v,e) -> (v,run e)) catches in
-					(ExceptionMapper.catch_native ctx catches e.etype e.epos)
-				in
-				{ e with eexpr = TTry(run e1,catches) }
-			| _ ->
-				map_expr run e
-		in
-		(fun e ->
-			if contains_throw_or_try e then run e
-			else stub e
-		)
-	| Cross | CustomTarget _ -> stub
 
 (**
 	Inserts `haxe.NativeStackTrace.saveStack(e)` in non-haxe.Exception catches.

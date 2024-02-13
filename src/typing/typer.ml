@@ -1140,7 +1140,9 @@ and type_try ctx e1 catches with_type p =
 			) catches in
 			e1,catches,t
 	in
-	mk (TTry (e1,List.rev catches)) t p
+	let catches = List.rev catches in
+	let catches = ExceptionMapper.catch_native ctx catches t p in
+	mk (TTry (e1,catches)) t p
 
 and type_map_declaration ctx e1 el with_type p =
 	let (tkey,tval,has_type) =
@@ -1979,7 +1981,9 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			check_error ctx err;
 			Texpr.Builder.make_null t_dynamic p
 		in
-		mk (TThrow e) (mono_or_dynamic ctx with_type p) p
+		let t = mono_or_dynamic ctx with_type p in
+		let e = ExceptionMapper.throw_native ctx e t p in
+		mk (TThrow e) t p
 	| ENew (t,el) ->
 		type_new ctx t el with_type false p
 	| EUnop (op,flag,e) ->
