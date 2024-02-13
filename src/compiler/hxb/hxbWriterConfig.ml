@@ -11,6 +11,8 @@ type writer_target_config = {
 
 type t = {
 	mutable archive_path : string;
+	mutable use_string_pool : bool;
+	mutable share_string_pool : bool; (* Note: ignored if use_string_pool = false *)
 	target_config : writer_target_config;
 	macro_config : writer_target_config;
 }
@@ -25,6 +27,8 @@ let create_target_config () = {
 
 let create () = {
 	archive_path = "";
+	use_string_pool = true; (* Do we want this as default? *)
+	share_string_pool = false; (* Note: can't reuse hxb cache if true *)
 	target_config = create_target_config ();
 	macro_config = create_target_config ()
 }

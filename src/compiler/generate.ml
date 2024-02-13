@@ -31,7 +31,7 @@ let create_writer com config string_pool =
 		IO.close_out out
 	)
 
-let export_hxb com config string_pool cc platform zip m =
+let export_hxb from_cache com config string_pool cc platform zip m =
 	let open HxbData in
 	match m.m_extra.m_kind with
 		| MCode | MMacro | MFake | MExtern -> begin
@@ -39,8 +39,8 @@ let export_hxb com config string_pool cc platform zip m =
 			let l = platform :: (fst m.m_path @ [snd m.m_path]) in
 			let path = (String.concat "/" l) ^ ".hxb" in
 
-			try
-				let hxb_cache = cc#get_hxb_module m.m_path in
+			if from_cache then begin
+				let hxb_cache = try cc#get_hxb_module m.m_path with Not_found -> raise Abort in
 				let out = IO.output_string () in
 				write_header out;
 				List.iter (fun (kind,data) ->
@@ -49,11 +49,12 @@ let export_hxb com config string_pool cc platform zip m =
 				) hxb_cache.mc_chunks;
 				let data = IO.close_out out in
 				zip#add_entry data path;
-			with Not_found ->
+			end else begin
 				let writer,close = create_writer com config string_pool in
 				HxbWriter.write_module writer m;
 				let bytes = close () in
 				zip#add_entry bytes path;
+			end
 		end
 	| _ ->
 		()
@@ -61,51 +62,65 @@ let export_hxb com config string_pool cc platform zip m =
 let check_hxb_output ctx config =
 	let open HxbWriterConfig in
 	let com = ctx.com in
-	let write_string_pool config zip pool =
+	let write_string_pool config zip name pool =
 		let writer,close = create_writer com config (Some pool) in
 		let a = StringPool.finalize writer.cp in
 		HxbWriter.HxbWriter.write_string_pool writer STR a;
 		let bytes = close () in
-		zip#add_entry bytes ("StringPool.hxb");
+		zip#add_entry bytes name;
 	in
 	let match_path_list l sl_path =
 		List.exists (fun sl -> Ast.match_path true sl_path sl) l
 	in
-	let try_write () =
+	let try_write from_cache =
 		let path = config.HxbWriterConfig.archive_path in
 		let path = Str.global_replace (Str.regexp "\\$target") (platform_name ctx.com.platform) path in
 		let t = Timer.timer ["generate";"hxb"] in
 		Path.mkdir_from_path path;
 		let zip = new Zip_output.zip_output path 6 in
-		let string_pool = StringPool.create () in
-		let export com config =
+		let export com config string_pool =
 			let cc = CommonCache.get_cache com in
 			let target = Common.platform_name_macro com in
+
 			List.iter (fun m ->
 				let t = Timer.timer ["generate";"hxb";s_type_path m.m_path] in
 				let sl_path = fst m.m_path @ [snd m.m_path] in
 				if not (match_path_list config.exclude sl_path) || match_path_list config.include' sl_path then
-					Std.finally t (export_hxb com config (Some string_pool) cc target zip) m
+					Std.finally t (export_hxb from_cache com config string_pool cc target zip) m
 			) com.modules;
 		in
 		Std.finally (fun () ->
 			zip#close;
 			t()
 		) (fun () ->
-			if config.target_config.generate then
-				export com config.target_config;
-			begin match com.get_macros() with
-				| Some mcom when config.macro_config.generate ->
-					export mcom config.macro_config
-				| _ ->
-					()
+			let string_pool = if config.use_string_pool then Some (StringPool.create ()) else None in
+			if config.target_config.generate then begin
+				export com config.target_config string_pool;
+
+				if config.use_string_pool && not config.share_string_pool then
+					write_string_pool config.target_config zip "StringPool.hxb" (Option.get string_pool)
 			end;
-			(* Technically this should be a common config, but it won't be used anyway... *)
-			write_string_pool config.target_config zip string_pool;
+
+			if config.macro_config.generate then begin
+				match com.get_macros() with
+					| Some mcom ->
+						let string_pool = if not config.share_string_pool then Some (StringPool.create ()) else string_pool in
+						export mcom config.macro_config string_pool;
+
+						if config.use_string_pool && not config.share_string_pool then
+							write_string_pool config.macro_config zip "StringPool.macro.hxb" (Option.get string_pool)
+					| _ ->
+						()
+			end;
+
+			if config.use_string_pool && config.share_string_pool then
+				(* Technically this should be a common config, but it won't be used anyway... *)
+				write_string_pool config.target_config zip "StringPool.hxb" (Option.get string_pool);
 		) ()
 	in
 	try
-		try_write ()
+		let from_cache = not (config.use_string_pool && config.share_string_pool && config.target_config.generate && config.macro_config.generate) in
+		try try_write from_cache with Abort -> try_write false
 	with Sys_error s ->
 		CompilationContext.error ctx (Printf.sprintf "Could not write to %s: %s" config.archive_path s) null_pos
 

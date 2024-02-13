@@ -338,7 +338,7 @@ class virtual abstract_hxb_lib = object(self)
 	method virtual get_bytes : string -> path -> bytes option
 	method virtual close : unit
 	method virtual get_file_path : string
-	method virtual get_string_pool : string array option
+	method virtual get_string_pool : string -> string array option
 end
 
 type context_main = {

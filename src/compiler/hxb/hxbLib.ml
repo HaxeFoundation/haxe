@@ -11,18 +11,22 @@ class hxb_library file_path = object(self)
 	val mutable closed = false
 	val mutable loaded = false
 	val mutable string_pool : string array option = None
+	val mutable macro_string_pool : string array option = None
 
 	method load =
 		if not loaded then begin
 			loaded <- true;
 			let close = Timer.timer ["hxblib";"read"] in
 			List.iter (function
-				| ({ Zip.filename = "StringPool.hxb"} as entry) ->
+				| ({ Zip.filename = "StringPool.hxb" | "StringPool.macro.hxb" as filename} as entry) ->
 					let reader = new HxbReader.hxb_reader (["hxb";"internal"],"StringPool") (HxbReader.create_hxb_reader_stats()) None in
 					let zip = Lazy.force zip in
 					let data = Bytes.unsafe_of_string (Zip.read_entry zip entry) in
 					ignore(reader#read (new HxbReaderApi.hxb_reader_api_null) data STR);
-					string_pool <- reader#get_string_pool
+					if filename = "StringPool.hxb" then
+						string_pool <- reader#get_string_pool
+					else
+						macro_string_pool <- reader#get_string_pool
 				| ({ Zip.is_directory = false; Zip.filename = filename } as entry) when String.ends_with filename ".hxb" ->
 					let pack = String.nsplit filename "/" in
 					begin match List.rev pack with
@@ -56,7 +60,9 @@ class hxb_library file_path = object(self)
 		end
 
 	method get_file_path = file_path
-	method get_string_pool = string_pool
+	method get_string_pool target =
+		if target = "macro" && Option.is_some macro_string_pool then macro_string_pool
+		else string_pool
 end
 
 

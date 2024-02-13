@@ -795,7 +795,7 @@ let rec load_hxb_module com g path p =
 		| hxb_lib :: l ->
 			begin match hxb_lib#get_bytes target path with
 				| Some bytes ->
-					read hxb_lib#get_file_path bytes hxb_lib#get_string_pool
+					read hxb_lib#get_file_path bytes (hxb_lib#get_string_pool target)
 				| None ->
 					loop l
 			end
