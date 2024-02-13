@@ -100,7 +100,7 @@ let check_hxb_output ctx config =
 				| _ ->
 					()
 			end;
-			(* TODO: macro vs non macro *)
+			(* Technically this should be a common config, but it won't be used anyway... *)
 			write_string_pool config.target_config zip string_pool;
 		) ()
 	in
