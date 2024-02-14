@@ -1221,7 +1221,8 @@ let get_entry_point com =
 	) com.main.main_class
 
 let expand_coro_type basic args ret =
-	let tcontinuation = tfun [ret; t_dynamic] basic.tvoid in
+	let ret_type = if ExtType.is_void (follow ret) then t_dynamic else ret in
+	let tcontinuation = tfun [ret_type; t_dynamic] basic.tvoid in
 	let args = args @ [("_hx_continuation",false,tcontinuation)] in
 	let ret = tfun [t_dynamic; t_dynamic] basic.tvoid in
 	(args,ret)

@@ -64,8 +64,7 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 		let tcoroutine = tfun [t_dynamic; t_dynamic] com.basic.tvoid in
 		let tfun = match follow_with_coro call.cs_fun.etype with
 			| Coro (args, ret) ->
-				let tcontinuation = tfun [ret; t_dynamic] com.basic.tvoid in
-				let args = args @ [("",false,tcontinuation)] in
+				let args,ret = Common.expand_coro_type ctx.com.basic args ret in
 				TFun (args, tcoroutine)
 			| NotCoro _ ->
 				die "Unexpected coroutine type" __LOC__
