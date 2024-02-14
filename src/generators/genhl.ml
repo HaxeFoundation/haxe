@@ -995,6 +995,7 @@ let real_name v =
 
 let is_gen_local ctx v = match v.v_kind with
 	| VUser _ -> false
+	| VInlinedConstructorVariable -> false
 	| _ -> true
 
 let add_assign ctx v =
