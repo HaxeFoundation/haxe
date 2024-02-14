@@ -13,7 +13,10 @@ let fun_to_coro ctx e tf =
 	let tf_expr = CoroToTexpr.block_to_texpr_coroutine ctx cb_root vcontinuation v_result v_error e.epos in
 	let tf_args = tf.tf_args @ [(vcontinuation,None)] in
 	let tf_type = tfun [t_dynamic; t_dynamic] ctx.com.basic.tvoid in
-	if ctx.coro_debug then print_endline ("BEFORE:\n" ^ (s_expr_debug e));
+	if ctx.coro_debug then begin
+		print_endline ("BEFORE:\n" ^ (s_expr_debug e));
+		CoroDebug.create_dotgraph (DotGraph.get_dump_path ctx.com ([],e.epos.pfile) (Printf.sprintf "pos_%i" e.epos.pmin)) cb_root
+	end;
 	let e = {e with eexpr = TFunction {tf_args; tf_expr; tf_type}} in
 	if ctx.coro_debug then print_endline ("AFTER:\n" ^ (s_expr_debug e));
 	e
