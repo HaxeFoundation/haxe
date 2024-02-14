@@ -11,6 +11,9 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 		for resuming coroutine execution.
 	**/
 	@:coroutine
+	#if cpp
+	@:native("::hx::Coroutine::suspend")
+	#end
 	public static extern function suspend<T>(f:(cont:Continuation<T, Null<Dynamic>>)->Void):T;
 
 	#if (jvm || eval)

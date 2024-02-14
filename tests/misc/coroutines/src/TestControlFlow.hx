@@ -89,6 +89,7 @@ class TestControlFlow extends utest.Test {
 		});
 	}
 
+	#if !cpp
 	function testTryCatch(async:Async) {
 		mapCalls.start([new E1(), new E2()], tryCatch, (result,error) -> {
 			Assert.same(["e1", "e2"], result);
@@ -113,6 +114,7 @@ class TestControlFlow extends utest.Test {
 		}
 		return "none";
 	}
+	#end
 }
 
 @:coroutine

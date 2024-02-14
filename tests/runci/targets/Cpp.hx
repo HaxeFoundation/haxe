@@ -73,6 +73,10 @@ class Cpp {
 				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 		}
 
+		changeDirectory(getMiscSubDir("coroutines"));
+		runCommand("haxe", ["build-cpp.hxml"]);
+		runCpp("bin/cpp/Main-debug.exe");
+
 		changeDirectory(sysDir);
 		runCommand("haxe", ["-D", archFlag, "--each", "compile-cpp.hxml"].concat(args));
 		runSysTest(FileSystem.fullPath("bin/cpp/Main-debug"));
