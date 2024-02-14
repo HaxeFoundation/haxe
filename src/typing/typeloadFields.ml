@@ -866,7 +866,9 @@ module TypeBinding = struct
 						(match e.eexpr with
 						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
 						| _ -> TClass.set_cl_init c e);
-					cf.cf_expr <- Some (mk (TFunction tf) t p);
+					let e = mk (TFunction tf) t p in
+					let e = if TyperManager.is_coroutine_context ctx then Coro.fun_to_coro (Coro.create_coro_context ctx.com cf.cf_meta) e tf else e in
+					cf.cf_expr <- Some e;
 					cf.cf_type <- t;
 					check_field_display ctx fctx c cf;
 			end;

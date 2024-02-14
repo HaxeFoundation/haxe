@@ -3,4 +3,5 @@
 --main Main
 --debug
 --js test.js
+-D UTEST-PRINT-TESTS
 --cmd node test.js

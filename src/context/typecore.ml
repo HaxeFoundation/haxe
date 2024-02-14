@@ -152,7 +152,6 @@ and typer_expr = {
 	mutable with_type_stack : WithType.t list;
 	mutable call_argument_stack : expr list list;
 	mutable macro_depth : int;
-	mutable is_coroutine : bool;
 }
 
 and typer_field = {
@@ -255,7 +254,6 @@ module TyperManager = struct
 			with_type_stack = [];
 			call_argument_stack = [];
 			macro_depth = 0;
-			is_coroutine = false;
 		}
 
 	let clone_for_module ctx m =

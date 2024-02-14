@@ -562,6 +562,16 @@ module Builder = struct
 	let index basic e index t p =
 		mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) basic.tint p)) t p
 
+	let default_value t p = match follow_without_null t with
+		| TAbstract({a_path = ([],"Int")},[]) ->
+			mk (TConst (TInt (Int32.zero))) t p
+		| TAbstract({a_path = ([],"Float")},[]) ->
+			mk (TConst (TFloat "0.0")) t p
+		| TAbstract({a_path = ([],"Bool")},[]) ->
+			mk (TConst (TBool false)) t p
+		| _ ->
+			mk (TConst TNull) t p
+
 	let resolve_and_make_static_call c name args p =
 		ignore(c.cl_build());
 		let cf = try
@@ -652,6 +662,24 @@ let for_remap basic v e1 e2 p =
 		mk (TVar (v',Some e1)) basic.tvoid e1.epos;
 		mk (TWhile((mk (TParenthesis ehasnext) ehasnext.etype ehasnext.epos),ebody,NormalWhile)) basic.tvoid e1.epos;
 	]) basic.tvoid p
+
+let not_while_true_to_while_true basic e1 e2 flag t p =
+	let e_break = mk TBreak t_dynamic p in
+	let e_not = mk (TUnop(Not,Prefix,Builder.mk_parent e1)) e1.etype e1.epos in
+	let e_if eo = mk (TIf(e_not,e_break,eo)) basic.tvoid p in
+	let rec map_continue e = match e.eexpr with
+		| TContinue ->
+			duplicate_tvars e_identity (e_if (Some e))
+		| TWhile _ | TFor _ ->
+			e
+		| _ ->
+			map_expr map_continue e
+	in
+	let e2 = if flag = NormalWhile then e2 else map_continue e2 in
+	let e_if = e_if None in
+	let e_block = if flag = NormalWhile then concat e_if e2 else concat e2 e_if in
+	let e_true = mk (TConst (TBool true)) basic.tbool p in
+	mk (TWhile(e_true,e_block,NormalWhile)) t p
 
 (* -------------------------------------------------------------------------- *)
 (* BUILD META DATA OBJECT *)

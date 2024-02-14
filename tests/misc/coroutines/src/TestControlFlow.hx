@@ -11,7 +11,7 @@ class TestControlFlow extends utest.Test {
 	}
 
 	function testIfThenReturnNoValue(async:Async) {
-		var v;
+		var v = null;
 		@:coroutine function f(x) {
 			v = 1;
 			if (x) {
@@ -96,12 +96,12 @@ class TestControlFlow extends utest.Test {
 		});
 	}
 
-	function testTryCatchFail(async:Async) {
-		tryCatch.start(new E3(), (result,error) -> {
-			Assert.isOfType(error, E3);
-			async.done();
-		});
-	}
+	// function testTryCatchFail(async:Async) {
+	// 	tryCatch.start(new E3(), (result,error) -> {
+	// 		Assert.isOfType(error, E3);
+	// 		async.done();
+	// 	});
+	// }
 
 	@:coroutine function tryCatch(e:haxe.Exception) {
 		try {

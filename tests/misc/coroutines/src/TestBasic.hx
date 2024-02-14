@@ -16,10 +16,7 @@ class TestBasic extends utest.Test {
 
 	function testErrorDirect(async:Async) {
 		error.start((result, error) -> {
-			// TODO: Exceptions.filter is currently run before coroutine processor
-			// so we get wrapped exception here... think what we want to do with this
-			var error:haxe.Exception = error;
-			Assert.equals("nope", error.message);
+			Assert.equals("nope", error);
 			async.done();
 		});
 	}
@@ -29,10 +26,7 @@ class TestBasic extends utest.Test {
 			error();
 		}
 		propagate.start((result, error) -> {
-			// TODO: Exceptions.filter is currently run before coroutine processor
-			// so we get wrapped exception here... think what we want to do with this
-			var error:haxe.Exception = error;
-			Assert.equals("nope", error.message);
+			Assert.equals("nope", error);
 			async.done();
 		});
 	}

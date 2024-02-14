@@ -44,14 +44,15 @@ let rec func ctx bb tf t p =
 	in
 	let bb_root = create_node (BKFunctionBegin tf) tf.tf_expr.etype tf.tf_expr.epos in
 	let bb_exit = create_node BKFunctionEnd tf.tf_expr.etype tf.tf_expr.epos in
-	let coroutine = match follow_with_coro t with
-		| Coro _ ->
+	let coroutine =
+
+		(* | Coro _ ->
 			let v_result = alloc_var VGenerated "_hx_result" t_dynamic p in
 			let v_error = alloc_var VGenerated "_hx_error" t_dynamic p in
 			declare_var ctx.graph v_result bb_root;
 			declare_var ctx.graph v_error bb_root;
 			Some (v_result,v_error)
-		| NotCoro _ ->
+		| NotCoro _ -> *)
 			None
 	in
 	add_function g tf t p bb_root coroutine;
