@@ -1518,8 +1518,7 @@ class texpr_to_jvm
 			| NotCoro (TFun(tl,tr)) ->
 				tl,return_of_type gctx tr
 			| Coro(args,ret) ->
-				let args = args @ [("_hx_continuation",false,(tfun [ret; t_dynamic] gctx.com.basic.tvoid))] in
-				let ret = (tfun [t_dynamic; t_dynamic] gctx.com.basic.tvoid) in
+				let args,ret = expand_coro_type gctx.com.basic args ret in
 				args,return_of_type gctx ret
 			| _ ->
 				List.map (fun e -> ("",false,e.etype)) el,Some (object_sig)

@@ -1219,3 +1219,9 @@ let get_entry_point com =
 		let e = Option.get com.main.main_expr in (* must be present at this point *)
 		(snd path, c, e)
 	) com.main.main_class
+
+let expand_coro_type basic args ret =
+	let tcontinuation = tfun [ret; t_dynamic] basic.tvoid in
+	let args = args @ [("_hx_continuation",false,tcontinuation)] in
+	let ret = tfun [t_dynamic; t_dynamic] basic.tvoid in
+	(args,ret)

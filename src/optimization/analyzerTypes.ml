@@ -83,20 +83,14 @@ module BasicBlock = struct
 		ss_exhaustive : bool;
 	}
 
-	and suspend_call = {
-		efun : texpr;      (* coroutine function expression *)
-		args : texpr list; (* call arguments without the continuation *)
-		pos : pos;         (* call position *)
-	}
-
 	and terminator_kind =
-	| TermNone
-	| TermCondBranch of texpr
-	| TermReturn of pos
-	| TermReturnValue of texpr * pos
-	| TermBreak of pos
-	| TermContinue of pos
-	| TermThrow of texpr * pos
+		| TermNone
+		| TermCondBranch of texpr
+		| TermReturn of pos
+		| TermReturnValue of texpr * pos
+		| TermBreak of pos
+		| TermContinue of pos
+		| TermThrow of texpr * pos
 
 	and t = {
 		bb_id : int;                          (* The unique ID of the block *)

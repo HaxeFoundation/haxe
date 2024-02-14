@@ -289,7 +289,9 @@ let rec handle_signature_display ctx e_ast with_type =
 				| (EField (e,("start" | "create"),_),p) ->
 					let e = type_expr ctx e WithType.value in
 					(match follow_with_coro e.etype with
-						| Coro(args,ret) -> {e with etype = coroutine_type ctx args ret}
+						| Coro(args,ret) ->
+							let args,ret = expand_coro_type ctx.t args ret in
+							{e with etype = TFun(args,ret)}
 						| _ -> def ())
 				| _ ->	def()
 			in

@@ -699,12 +699,6 @@ let safe_mono_close ctx m p =
 		Unify_error l ->
 			raise_or_display ctx l p
 
-(* TODO: this is wrong *)
-let coroutine_type ctx args ret =
-	let args = args @ [("_hx_continuation",false,(tfun [ret; t_dynamic] ctx.com.basic.tvoid))] in
-	let ret = ctx.com.basic.tvoid in
-	TFun(args,ret)
-
 let relative_path ctx file =
 	ctx.com.class_paths#relative_path file
 
