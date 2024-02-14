@@ -1,3 +1,5 @@
+import haxe.coro.Coroutine;
+
 class TestGenerator extends utest.Test {
 	function testSimple() {
 		var iter = sequence(yield -> {

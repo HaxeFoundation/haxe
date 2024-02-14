@@ -1,5 +1,6 @@
 import js.lib.Error;
 import js.lib.Promise;
+import haxe.coro.Coroutine;
 
 @:coroutine
 private function await<T>(p:Promise<T>):T {

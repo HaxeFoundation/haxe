@@ -420,15 +420,6 @@ and load_instance' ctx ptp get_params mode =
 			| [] -> t_dynamic
 			| [TPType t] -> TDynamic (Some (load_complex_type ctx true LoadNormal t))
 			| _ -> raise_typing_error "Too many parameters for Dynamic" ptp.pos_full
-		(* else if info.build_path = ([],"Coroutine") then
-			match t.tparams with
-			| [TPType t] ->
-				begin match load_complex_type ctx true t with
-				| TFun(args,ret,_) -> TFun(args,ret,true)
-				| _ -> raise_typing_error "Argument type should be function" ptp.pos_full
-				end
-			| _ ->
-				raise_typing_error "Wrong number of arguments for Coroutine<T>" ptp.pos_full *)
 		else if info.build_params = [] then begin match t.tparams with
 			| [] ->
 				info.build_apply []

@@ -116,7 +116,7 @@ class TestControlFlow extends utest.Test {
 }
 
 @:coroutine
-private function mapCalls<TArg,TRet>(args:Array<TArg>, f:Coroutine<TArg->TRet>):Array<TRet> {
+private function mapCalls<TArg,TRet>(args:Array<TArg>, f:haxe.coro.Coroutine<TArg->TRet>):Array<TRet> {
 	return [for (arg in args) f(arg)];
 }
 

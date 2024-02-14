@@ -166,7 +166,7 @@ let rec jsignature_of_type gctx stack t =
 					end
 				| [],"EnumValue" ->
 					java_enum_sig object_sig
-				| [],"Coroutine" ->
+				| ["haxe";"coro"],"Coroutine" ->
 					begin match tl with
 					| [TFun(args,ret)] ->
 						let tcontinuation = tfun [ret; t_dynamic] gctx.com.basic.tvoid in

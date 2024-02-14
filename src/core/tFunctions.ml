@@ -627,7 +627,7 @@ type maybe_coro =
 	| NotCoro of t
 
 let follow_with_coro t = match follow t with
-	| TAbstract({a_path = ([],"Coroutine")},[t]) ->
+	| TAbstract({a_path = (["haxe";"coro"],"Coroutine")},[t]) ->
 		begin match follow t with
 			| TFun(args,ret) ->
 				Coro (args,ret)

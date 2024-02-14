@@ -110,11 +110,6 @@ let create com macros =
 						TLazy r
 				in
 				ctx.t.tnull <- mk_null;
-			| "Coroutine" ->
-				let mk_coro args ret =
-					TAbstract(a,[TFun(args,ret)])
-				in
-				ctx.t.tcoro <- mk_coro
 			| _ -> ())
 		| TEnumDecl _ | TClassDecl _ | TTypeDecl _ ->
 			()
@@ -152,6 +147,16 @@ let create com macros =
 		| [TClassDecl c2 ] -> ctx.g.global_using <- (c1,c1.cl_pos) :: (c2,c2.cl_pos) :: ctx.g.global_using
 		| _ -> die "" __LOC__);
 	| _ -> die "" __LOC__);
+	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"Coroutine") null_pos in
+	List.iter (function
+		| TAbstractDecl({a_path = (["haxe";"coro"],"Coroutine")} as a) ->
+			let mk_coro args ret =
+				TAbstract(a,[TFun(args,ret)])
+			in
+			ctx.t.tcoro <- mk_coro
+		| _ ->
+			()
+	) m.m_types;
 	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
 	ctx.g.complete <- true;
 	ctx
