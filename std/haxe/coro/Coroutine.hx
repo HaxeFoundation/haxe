@@ -15,7 +15,7 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 
 	#if (jvm || eval)
 	@:native("suspend")
-	@:ifFeature("_StdTypes.Coroutine_Impl_.suspend")
+	@:keep
 	static function nativeSuspend<T>(f, cont:Continuation<T, Null<Dynamic>>) {
 		return (_, _) -> f(cont);
 	}
