@@ -103,7 +103,7 @@ let check_local_vars_init ctx e =
 		| TVar (v,eo) ->
 			begin
 				match eo with
-				| None when v.v_kind = VInlinedConstructorVariable ->
+				| None when (match v.v_kind with VInlinedConstructorVariable _ -> true | _ -> false) ->
 					()
 				| None ->
 					declared := v.v_id :: !declared;

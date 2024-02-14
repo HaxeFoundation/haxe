@@ -963,7 +963,7 @@ class hxb_reader
 			| 5 -> VUser TVOLocalFunction
 			| 6 -> VGenerated
 			| 7 -> VInlined
-			| 8 -> VInlinedConstructorVariable
+			| 8 -> VInlinedConstructorVariable self#read_string
 			| 9 -> VExtractorVariable
 			| 10 -> VAbstractThis
 			| _ -> assert false

@@ -790,7 +790,7 @@ module Fusion = struct
 			let num_uses = state#get_reads v in
 			let num_writes = state#get_writes v in
 			let can_be_used_as_value = can_be_used_as_value com e in
-			let is_compiler_generated = match v.v_kind with VUser _ | VInlined | VInlinedConstructorVariable -> false | _ -> true in
+			let is_compiler_generated = match v.v_kind with VUser _ | VInlined | VInlinedConstructorVariable _ -> false | _ -> true in
 			let has_type_params = match v.v_extra with Some ve when ve.v_params <> [] -> true | _ -> false in
 			let rec is_impure_extern e = match e.eexpr with
 				| TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf))) when has_class_flag cl CExtern ->

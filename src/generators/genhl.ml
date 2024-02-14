@@ -991,11 +991,13 @@ let real_name v =
 	in
 	match loop v.v_meta with
 	| "_gthis" -> "this"
-	| name -> name
+	| name -> match v.v_kind with
+		| VInlinedConstructorVariable s -> s
+		| _ -> name
 
 let is_gen_local ctx v = match v.v_kind with
 	| VUser _ -> false
-	| VInlinedConstructorVariable -> false
+	| VInlinedConstructorVariable _ -> false
 	| _ -> true
 
 let add_assign ctx v =
