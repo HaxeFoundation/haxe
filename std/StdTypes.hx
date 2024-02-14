@@ -181,10 +181,9 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 		for resuming coroutine execution.
 	**/
 	@:coroutine
-	#if jvm overload #end
 	public static extern function suspend<T>(f:(cont:(T, Null<Dynamic>) -> Void)->Void):T;
 
-	#if jvm
+	#if (jvm || eval)
 	@:native("suspend")
 	@:ifFeature("_StdTypes.Coroutine_Impl_.suspend")
 	static function nativeSuspend<T>(f, cont:(T, Null<Dynamic>) -> Void) {
