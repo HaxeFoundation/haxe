@@ -1734,9 +1734,10 @@ and type_call_access ctx e el mode with_type p_inline p =
 and type_call_builtin ctx e el mode with_type p =
 	let create_coroutine e args ret p =
 		let args = args @ [("_hx_continuation",false,(tfun [ret; t_dynamic] ctx.com.basic.tvoid))] in
-		let ret = ctx.com.basic.tvoid in
-		let el = unify_call_args ctx el args ret p false false false in
-		mk (TCall (e, el)) (tfun [t_dynamic; t_dynamic] ctx.com.basic.tvoid) p
+		let ret = (tfun [t_dynamic; t_dynamic] ctx.com.basic.tvoid) in
+		let el = unify_call_args ctx el args ctx.t.tvoid p false false false in
+		let e = mk e.eexpr (TFun(args,ret)) p in
+		mk (TCall (e, el)) ret p
 	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->

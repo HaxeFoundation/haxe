@@ -2,8 +2,8 @@ function main() {
 	utest.UTest.run([
 		new TestBasic(),
 		new TestControlFlow(),
-		new TestGenerator(),
 		#if js
+		new TestGenerator(),
 		new TestJsPromise(),
 		#end
 	]);

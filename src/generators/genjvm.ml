@@ -166,6 +166,16 @@ let rec jsignature_of_type gctx stack t =
 					end
 				| [],"EnumValue" ->
 					java_enum_sig object_sig
+				| [],"Coroutine" ->
+					begin match tl with
+					| [TFun(args,ret)] ->
+						let tcontinuation = tfun [ret; t_dynamic] gctx.com.basic.tvoid in
+						let args = args @ [("",false,tcontinuation)] in
+						let ret = tfun [t_dynamic; t_dynamic] gctx.com.basic.tvoid in
+						jsignature_of_type (TFun(args,ret))
+					| _ ->
+						die "" __LOC__
+					end
 				| _ ->
 					if Meta.has Meta.CoreType a.a_meta then
 						TObject(a.a_path,List.map jtype_argument_of_type tl)
@@ -196,11 +206,12 @@ let rec jsignature_of_type gctx stack t =
 	| TEnum(en,tl) ->
 		Hashtbl.replace gctx.enum_paths en.e_path ();
 		TObject(en.e_path,List.map jtype_argument_of_type tl)
-	| TFun(tl,tr) -> method_sig (List.map (fun (_,o,t) ->
-		let jsig = jsignature_of_type t in
-		let jsig = if o then get_boxed_type jsig else jsig in
-		jsig
-	) tl) (return_of_type gctx stack tr)
+	| TFun(tl,tr) ->
+		method_sig (List.map (fun (_,o,t) ->
+			let jsig = jsignature_of_type t in
+			let jsig = if o then get_boxed_type jsig else jsig in
+			jsig
+		) tl) (return_of_type gctx stack tr)
 	| TAnon an -> object_sig
 	| TType(td,tl) ->
 		begin match gctx.typedef_interfaces#get_interface_class td.t_path with
@@ -1503,9 +1514,13 @@ class texpr_to_jvm
 	(* calls *)
 
 	method call_arguments ?(cast=true) t el =
-		let tl,tr = match follow t with
-			| TFun(tl,tr) ->
+		let tl,tr = match follow_with_coro t with
+			| NotCoro (TFun(tl,tr)) ->
 				tl,return_of_type gctx tr
+			| Coro(args,ret) ->
+				let args = args @ [("_hx_continuation",false,(tfun [ret; t_dynamic] gctx.com.basic.tvoid))] in
+				let ret = (tfun [t_dynamic; t_dynamic] gctx.com.basic.tvoid) in
+				args,return_of_type gctx ret
 			| _ ->
 				List.map (fun e -> ("",false,e.etype)) el,Some (object_sig)
 		in

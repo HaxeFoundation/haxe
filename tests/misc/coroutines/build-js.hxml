@@ -1,0 +1,3 @@
+build-base.hxml
+--js test.js
+--cmd node test.js

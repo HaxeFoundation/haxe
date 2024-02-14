@@ -362,6 +362,7 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	let shared_vars = List.rev (excstate_var :: state_var :: shared_vars) in
 
 	mk (TBlock (shared_vars @ [
-		mk (TVar (vstatemachine, Some estatemachine_def)) com.basic.tvoid p;
+		mk (TVar (vstatemachine, None)) com.basic.tvoid p;
+		binop OpAssign estatemachine estatemachine_def estatemachine.etype p;
 		mk (TReturn (Some estatemachine)) com.basic.tvoid p;
 	])) com.basic.tvoid p
