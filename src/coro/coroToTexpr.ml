@@ -3,6 +3,14 @@ open CoroTypes
 open Type
 open Texpr
 
+type coro_state = {
+	cs_id : int;
+	mutable cs_el : texpr list;
+}
+
+let is_empty cb =
+	DynArray.empty cb.cb_el
+
 let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	let open Texpr.Builder in
 	let com = ctx.com in
@@ -78,6 +86,10 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 
 	let exc_states = ref [] in
 
+	let make_state id el = {
+		cs_id = id;
+		cs_el = el;
+	} in
 	let debug_endline s =
 		if ctx.coro_debug then
 			print_endline s
@@ -96,7 +108,7 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 				| Some id ->
 					(set_state id) :: el
 			in
-			states := (state_id,mk (TBlock el) com.basic.tvoid null_pos) :: !states
+			states := (make_state state_id el) :: !states
 		in
 
 		match bb.cb_next.next_kind with
@@ -214,7 +226,7 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 							mk (TIf (etypecheck, set_state catch_state_id, Some enext)) com.basic.tvoid null_pos
 					) erethrow catches
 				in
-				(new_exc_state_id, eif)
+				make_state new_exc_state_id [eif]
 			in
 			exc_states := catch_case :: !exc_states;
 			loop bb_next next_state_id back_state_id [esetexcstate (* TODO: test propagation after try/catch *)] while_loop exc_state_id_getter;
@@ -238,30 +250,30 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 			in
 			Hashtbl.replace m state_id true
 		in
-		List.iter (fun (state_id, expr) ->
+		List.iter (fun state ->
 			let rec loop e =
 				match e.eexpr with
 				| TVar (v, eo) ->
 					Option.may loop eo;
-					use v state_id;
+					use v state.cs_id;
 				| TLocal v ->
-					use v state_id;
+					use v state.cs_id;
 				| _ ->
 					Type.iter loop e
 			in
-			loop expr
+			List.iter loop state.cs_el
 		) states;
 	end;
-	let states, decls = begin
+	let decls = begin
 		let is_used_across_states v_id =
 			let m = Hashtbl.find var_usages v_id in
 			(Hashtbl.length m) > 1
 		in
-		let rec loop cases cases_acc decls =
+		let rec loop cases decls =
 			match cases with
-			| (id,expr) :: rest ->
+			| state :: rest ->
 				let decls = ref decls in
-				let expr = begin
+				begin
 					let rec loop e =
 						match e.eexpr with
 						| TVar (v, eo) when is_used_across_states v.v_id ->
@@ -273,13 +285,13 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 						| _ ->
 							Type.map_expr loop e
 					in
-					loop expr
-				end in
-				loop rest ((id,expr) :: cases_acc) !decls
+					state.cs_el <- List.map loop state.cs_el
+				end;
+				loop rest !decls
 			| [] ->
-				List.rev cases_acc, decls
+				decls
 		in
-		loop states [] []
+		loop states []
 	end in
 
 	(* TODO:
@@ -288,9 +300,9 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	*)
 
 	let rethrow_state_id = get_rethrow_state_id () in
-	let rethrow_state = (rethrow_state_id, mk (TThrow eerror) com.basic.tvoid null_pos) in
+	let rethrow_state = make_state rethrow_state_id [mk (TThrow eerror) com.basic.tvoid null_pos] in
 	let states = states @ [rethrow_state] in
-	let states = List.sort (fun (i1,_) (i2,_) -> i1 - i2) states in
+	let states = List.sort (fun state1 state2 -> state1.cs_id - state2.cs_id) states in
 
 	let ethrow = mk (TBlock [
 		set_state rethrow_state_id;
@@ -299,7 +311,10 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	in
 
 	let switch =
-		let cases = List.map (fun (id,e) -> {case_patterns = [mk_int id];case_expr = e}) states in
+		let cases = List.map (fun state ->
+			{case_patterns = [mk_int state.cs_id];
+			case_expr = mk (TBlock state.cs_el) ctx.com.basic.tvoid (punion_el null_pos state.cs_el);
+		}) states in
 		mk_switch estate cases (Some ethrow) true
 	in
 	let eswitch = mk (TSwitch switch) com.basic.tvoid p in
