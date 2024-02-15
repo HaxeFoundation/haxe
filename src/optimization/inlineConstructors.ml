@@ -731,22 +731,35 @@ let inline_constructors ctx original_e =
 		let cf = ctx.f.curfield in
 		if !included_untyped && not (Meta.has Meta.HasUntyped cf.cf_meta) then cf.cf_meta <- (Meta.HasUntyped,[],e.epos) :: cf.cf_meta;
 		let e = make_expr_for_rev_list el e.etype e.epos in
-		let rec get_pretty_name iv = match iv.iv_kind with
+		let rec get_pretty_name iv : string list = match iv.iv_kind with
 			| IVKField(io,fname,None) ->
 				begin try
 					let is_user_variable iv = match iv.iv_var.v_kind with VUser _ | VInlined -> true | _ -> false in
 					let iv = List.find is_user_variable io.io_aliases in
-					(get_pretty_name iv) ^ "_" ^ fname;
+					fname :: (get_pretty_name iv);
 				with Not_found ->
-					(get_pretty_name (List.hd io.io_aliases)) ^ "_" ^ fname;
+					fname :: (get_pretty_name (List.hd io.io_aliases));
 				end
-			| _ -> iv.iv_var.v_name
+			| _ -> [iv.iv_var.v_name]
+		in
+		let is_user_kind iv = match iv.iv_var.v_kind with VUser _ -> true | _ -> false in
+		let rec was_user iv = match iv.iv_kind with
+			| IVKField(io,_,_) ->
+				begin try
+					let iv = List.find is_user_kind io.io_aliases in
+					(was_user iv);
+				with Not_found ->
+					(was_user (List.hd io.io_aliases)) ;
+				end
+			| _ -> is_user_kind iv
 		in
 		IntMap.iter (fun _ iv ->
 			let v = iv.iv_var in
 			if v.v_id < 0 then begin
 				v.v_id <- -v.v_id;
-				v.v_name <- get_pretty_name iv
+				let vnames = List.rev (get_pretty_name iv) in
+				v.v_name <- String.concat "_" vnames;
+				if (was_user iv) then v.v_kind <- VInlinedConstructorVariable vnames;
 			end
 		) !vars;
 		e

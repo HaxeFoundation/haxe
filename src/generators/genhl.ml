@@ -991,14 +991,17 @@ let real_name v =
 	in
 	match loop v.v_meta with
 	| "_gthis" -> "this"
-	| name -> name
+	| name -> match v.v_kind with
+		| VInlinedConstructorVariable sl -> String.concat "." sl
+		| _ -> name
 
-let is_gen_local ctx v = match v.v_kind with
+let not_debug_var ctx v = match v.v_kind with
 	| VUser _ -> false
+	| VInlinedConstructorVariable _ -> false
 	| _ -> true
 
 let add_assign ctx v =
-	if is_gen_local ctx v then () else
+	if not_debug_var ctx v then () else
 	let name = real_name v in
 	ctx.m.massign <- (alloc_string ctx name, current_pos ctx - 1) :: ctx.m.massign
 
