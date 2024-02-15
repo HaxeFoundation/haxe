@@ -85,6 +85,8 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 
 	let exc_states = ref [] in
 
+	let init_state = ref 1 in (* TODO: this seems brittle *)
+
 	let make_state id el = {
 		cs_id = id;
 		cs_el = el;
@@ -143,6 +145,11 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 		| NextThrow e1 ->
 			let ethrow = mk (TThrow e1) t_dynamic p in
 			add_state None [ethrow]
+		| NextSub (cb_sub,cb_next) when cb_next == ctx.cb_unreachable ->
+			(* If we're skipping our initial state we have to track this for the _hx_state init *)
+			if cb.cb_id = !init_state then
+				init_state := cb_sub.cb_id;
+			loop cb_sub current_el exc_state_id_getter
 		| NextSub (bb_sub,bb_next) ->
 			let next_state_id = loop bb_next [] exc_state_id_getter in
 			let sub_state_id = loop bb_sub [] exc_state_id_getter in
@@ -336,7 +343,7 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 		tf_expr = mk (TBlock [eif; eloop]) com.basic.tvoid null_pos
 	}) tstatemachine p in
 
-	let state_var = mk (TVar (vstate, Some (make_int com.basic 1 p))) com.basic.tvoid p in
+	let state_var = mk (TVar (vstate, Some (make_int com.basic !init_state p))) com.basic.tvoid p in
 	let excstate_var = mk (TVar (vexcstate, Some (make_int com.basic rethrow_state_id p))) com.basic.tvoid p in
 	let shared_vars = List.map (fun v -> mk (TVar (v,Some (Texpr.Builder.default_value v.v_type v.v_pos))) com.basic.tvoid null_pos) decls in
 	let shared_vars = List.rev (excstate_var :: state_var :: shared_vars) in

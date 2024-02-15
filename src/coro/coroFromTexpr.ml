@@ -70,8 +70,13 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 		| TBlock _ ->
 			let cb_sub = block_from_e e in
 			let cb_sub_next,e1 = loop_block cb_sub ret e in
-			let cb_next = make_block None in
-			fall_through cb_sub_next cb_next;
+			let cb_next = if cb_sub_next == ctx.cb_unreachable then
+				cb_sub_next
+			else begin
+				let cb_next = make_block None in
+				fall_through cb_sub_next cb_next;
+				cb_next
+			end in
 			terminate cb (NextSub(cb_sub,cb_next)) e.etype e.epos;
 			cb_next,e1
 		| TArray(e1,e2) ->
