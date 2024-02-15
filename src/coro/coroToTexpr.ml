@@ -306,8 +306,10 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 	in
 	let eswitch = mk (TSwitch switch) com.basic.tvoid p in
 
+	let eloop = mk (TWhile (make_bool com.basic true p, eswitch, DoWhile)) com.basic.tvoid p in
+
 	let etry = mk (TTry (
-		eswitch,
+		eloop,
 		[
 			let vcaught = alloc_var VGenerated "e" t_dynamic null_pos in
 			(vcaught, mk (TIf (
@@ -318,14 +320,11 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 					mk (TReturn None) com.basic.tvoid null_pos;
 				]) com.basic.tvoid null_pos,
 				Some (mk (TBlock [
-					mk_assign estate eexcstate;
-					mk_assign eerror (make_local vcaught null_pos);
+					mk (TCall(estatemachine,[make_local vresult p; make_local vcaught null_pos])) com.basic.tvoid p
 				]) com.basic.tvoid null_pos)
 			)) com.basic.tvoid null_pos)
 		]
 	)) com.basic.tvoid null_pos in
-
-	let eloop = mk (TWhile (make_bool com.basic true p, etry, DoWhile)) com.basic.tvoid p in
 
 	let eif = mk (TIf (
 		mk (TBinop (
@@ -340,7 +339,7 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 	let estatemachine_def = mk (TFunction {
 		tf_args = [(vresult,None); (verror,None)];
 		tf_type = com.basic.tvoid;
-		tf_expr = mk (TBlock [eif; eloop]) com.basic.tvoid null_pos
+		tf_expr = mk (TBlock [eif; etry]) com.basic.tvoid null_pos
 	}) tstatemachine p in
 
 	let state_var = mk (TVar (vstate, Some (make_int com.basic !init_state p))) com.basic.tvoid p in
