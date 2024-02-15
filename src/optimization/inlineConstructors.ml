@@ -184,7 +184,7 @@ let inline_constructors ctx original_e =
 		PMap.find s io.io_fields
 	in
 	let alloc_io_field_full (io:inline_object) (fname:string) (constexpr_option:texpr option) (t:t) (p:pos) : inline_var =
-		let v = alloc_var (VInlinedConstructorVariable "") fname t p in
+		let v = alloc_var VInlined fname t p in
 		let iv = add v (IVKField (io,fname,constexpr_option)) in
 		io.io_fields <- PMap.add fname iv io.io_fields;
 		iv
@@ -759,7 +759,7 @@ let inline_constructors ctx original_e =
 				v.v_id <- -v.v_id;
 				let vnames = List.rev (get_pretty_name iv) in
 				v.v_name <- String.concat "_" vnames;
-				v.v_kind <- if (was_user iv) then VInlinedConstructorVariable (String.concat "." vnames) else VInlined;
+				if (was_user iv) then v.v_kind <- VInlinedConstructorVariable (String.concat "." vnames);
 			end
 		) !vars;
 		e
