@@ -15,6 +15,7 @@ let create_dotgraph path cb =
 			DynArray.add edges (cb.cb_id,cb_target.cb_id,label,true);
 		in
 		let s = String.concat "\n" (DynArray.to_list (DynArray.map se cb.cb_el)) in
+		let s = if s = "" then Printf.sprintf "(%i)" cb.cb_id else Printf.sprintf "(%i)\n%s" cb.cb_id s in
 		let snext = match cb.cb_next.next_kind with
 			| NextUnknown ->
 				None

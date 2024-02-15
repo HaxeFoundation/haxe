@@ -8,7 +8,7 @@ type coro_state = {
 	mutable cs_el : texpr list;
 }
 
-let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
+let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 	let open Texpr.Builder in
 	let com = ctx.com in
 
@@ -33,8 +33,11 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	let estatemachine = make_local vstatemachine p in
 
 	let get_next_state_id =
-		let counter = ref 0 in
-		fun () -> (let id = !counter in incr counter; id)
+		fun () -> (
+			let id = ctx.next_block_id in
+			ctx.next_block_id <- ctx.next_block_id + 1;
+			id
+		)
 	in
 
 	let get_rethrow_state_id =
@@ -91,9 +94,9 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 			print_endline s
 	in
 	debug_endline "---";
-	let rec loop bb state_id back_state_id current_el while_loop exc_state_id_getter =
-		assert (bb != ctx.cb_unreachable);
-		let el = DynArray.to_list bb.cb_el in
+	let rec loop cb current_el exc_state_id_getter =
+		assert (cb != ctx.cb_unreachable);
+		let el = DynArray.to_list cb.cb_el in
 
 		let ereturn = mk (TReturn None) com.basic.tvoid p in
 
@@ -105,27 +108,19 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 				| Some id ->
 					(set_state id) :: el
 			in
-			states := (make_state state_id el) :: !states
+			states := (make_state cb.cb_id el) :: !states;
+			cb.cb_id
 		in
-
-		match bb.cb_next.next_kind with
-		| NextSuspend (call, bb_next) ->
-			let next_state_id = get_next_state_id () in
-			debug_endline (Printf.sprintf "suspend cur:%d,next:%d,back:%d" state_id next_state_id back_state_id);
-			loop bb_next next_state_id back_state_id [] while_loop exc_state_id_getter;
+		match cb.cb_next.next_kind with
+		| NextSuspend (call, cb_next) ->
+			let next_state_id = loop cb_next [] exc_state_id_getter in
 			let ecallcoroutine = mk_suspending_call call in
-			add_state (Some next_state_id) [ecallcoroutine; ereturn]
-		| NextUnknown when back_state_id = (-1) ->
+			add_state (Some next_state_id) [ecallcoroutine; ereturn];
+		| NextUnknown ->
 			let ecallcontinuation = mk_continuation_call (make_null t_dynamic p) p in
 			add_state (Some (-1)) [ecallcontinuation; ereturn]
-		| NextUnknown | NextFallThrough _ | NextGoto _ ->
-			add_state (Some back_state_id) []
-		| NextBreak _ ->
-			let _,next_state_id = Option.get while_loop in
-			add_state (Some next_state_id) []
-		| NextContinue _ ->
-			let body_state_id,_ = Option.get while_loop in
-			add_state (Some body_state_id) []
+		| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
+			add_state (Some cb_next.cb_id) []
 		| NextReturnVoid | NextReturn _ as r ->
 			let eresult = match r with
 				| NextReturn e -> e
@@ -137,82 +132,59 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 			let ethrow = mk (TThrow e1) t_dynamic p in
 			add_state None [ethrow]
 		| NextSub (bb_sub,bb_next) ->
-			let sub_state_id = get_next_state_id () in
-			let next_state_id = get_next_state_id () in
-			debug_endline (Printf.sprintf "sub cur:%d,sub:%d,next:%d,back:%d" state_id sub_state_id next_state_id back_state_id);
-			loop bb_next next_state_id back_state_id [] while_loop exc_state_id_getter;
-			loop bb_sub sub_state_id next_state_id [] while_loop exc_state_id_getter;
+			let next_state_id = loop bb_next [] exc_state_id_getter in
+			let sub_state_id = loop bb_sub [] exc_state_id_getter in
+			ignore(next_state_id);
 			add_state (Some sub_state_id) []
 
 		| NextIfThen (econd,bb_then,bb_next) ->
-			let then_state_id = get_next_state_id () in
-			let next_state_id = get_next_state_id () in
-			debug_endline (Printf.sprintf "if-then cur:%d,then:%d,next:%d,back:%d" state_id then_state_id next_state_id back_state_id);
-			loop bb_then then_state_id next_state_id [] while_loop exc_state_id_getter;
-			loop bb_next next_state_id back_state_id [] while_loop exc_state_id_getter;
+			let next_state_id = loop bb_next [] exc_state_id_getter in
+			let then_state_id = loop bb_then [] exc_state_id_getter in
 			let eif = mk (TIf (econd, set_state then_state_id, Some (set_state next_state_id))) com.basic.tint p in
 			add_state None [eif]
 
 		| NextIfThenElse (econd,bb_then,bb_else,bb_next) ->
-			let then_state_id = get_next_state_id () in
-			let else_state_id = get_next_state_id () in
-			let next_state_id = get_next_state_id () in
-			debug_endline (Printf.sprintf "if-then-else cur:%d,then:%d,else:%d,next:%d,back:%d" state_id then_state_id else_state_id next_state_id back_state_id);
-			loop bb_then then_state_id next_state_id [] while_loop exc_state_id_getter;
-			loop bb_else else_state_id next_state_id [] while_loop exc_state_id_getter;
-			loop bb_next next_state_id back_state_id [] while_loop exc_state_id_getter;
+			let _ = loop bb_next [] exc_state_id_getter in
+			let then_state_id = loop bb_then [] exc_state_id_getter in
+			let else_state_id = loop bb_else [] exc_state_id_getter in
 			let eif = mk (TIf (econd, set_state then_state_id, Some (set_state else_state_id))) com.basic.tint p in
 			add_state None [eif]
 
 		| NextSwitch(switch, bb_next) ->
 			let esubj = switch.cs_subject in
-			let next_state_id = get_next_state_id () in
-			debug_endline (Printf.sprintf "switch cur:%d,next:%d,back:%d" state_id next_state_id back_state_id);
+			let next_state_id = loop bb_next [] exc_state_id_getter in
 			let ecases = List.map (fun (patterns,bb) ->
-				(* TODO: variable capture and other fancy things O_o *)
-				let case_state_id = get_next_state_id () in
-				debug_endline (Printf.sprintf "  case %d" case_state_id);
-				loop bb case_state_id next_state_id [] while_loop exc_state_id_getter;
+				let case_state_id = loop bb [] exc_state_id_getter in
 				{case_patterns = patterns;case_expr = set_state case_state_id}
 			) switch.cs_cases in
 			let default_state_id = match switch.cs_default with
 				| Some bb ->
-					let default_state_id = get_next_state_id () in
-					loop bb default_state_id next_state_id [] while_loop exc_state_id_getter;
+					let default_state_id = loop bb [] exc_state_id_getter in
 					default_state_id
 				| None ->
 					next_state_id
 			in
-			debug_endline (Printf.sprintf "  default %d" default_state_id);
 			let eswitch = mk_switch esubj ecases (Some (set_state default_state_id)) true in
 			let eswitch = mk (TSwitch eswitch) com.basic.tvoid p in
-			loop bb_next next_state_id back_state_id [] while_loop exc_state_id_getter;
+
 			add_state None [eswitch]
 
 		| NextWhile (e_cond, bb_body, bb_next) ->
-			let body_state_id = get_next_state_id () in
-			let next_state_id = get_next_state_id () in
-			debug_endline (Printf.sprintf "while cur:%d,body:%d,next:%d,back:%d" state_id body_state_id next_state_id back_state_id);
-			let new_while_loop = Some (body_state_id,next_state_id) in
-			(* TODO: next is empty? *)
-			loop bb_body body_state_id body_state_id [] new_while_loop exc_state_id_getter;
-			loop bb_next next_state_id back_state_id [] while_loop exc_state_id_getter;
+			let body_state_id = loop bb_body [] exc_state_id_getter in
+			let _ = loop bb_next [] exc_state_id_getter in
 			add_state (Some body_state_id) []
 
 		| NextTry (bb_try,catches,bb_next) ->
-			let try_state_id = get_next_state_id () in
 			let new_exc_state_id = get_next_state_id () in
-			let next_state_id = get_next_state_id () in
-			debug_endline (Printf.sprintf "try cur:%d,try:%d,catch:%d,next:%d,back:%d" state_id try_state_id new_exc_state_id next_state_id back_state_id);
-			loop bb_try try_state_id next_state_id [set_excstate new_exc_state_id] while_loop (fun () -> new_exc_state_id); (* TODO: add test for nested try/catch *)
 			let esetexcstate = set_excstate (exc_state_id_getter ()) in
+			let _ = loop bb_next [esetexcstate (* TODO: test propagation after try/catch *)] exc_state_id_getter in
+			let try_state_id = loop bb_try [set_excstate new_exc_state_id] (fun () -> new_exc_state_id) in (* TODO: add test for nested try/catch *)
 			let catch_case =
 				let erethrow = mk (TThrow eerror) t_dynamic null_pos in
 				let eif =
 					List.fold_left (fun enext (vcatch,bb_catch) ->
-						let catch_state_id = get_next_state_id () in
 						let ecatchvar = mk (TVar (vcatch, Some eerror)) com.basic.tvoid null_pos in
-						loop bb_catch catch_state_id next_state_id [esetexcstate; ecatchvar] while_loop exc_state_id_getter;
+						let catch_state_id = loop bb_catch [esetexcstate; ecatchvar] exc_state_id_getter in
 
 						(* TODO: exceptions filter... *)
 						match follow vcatch.v_type with
@@ -226,10 +198,9 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 				make_state new_exc_state_id [eif]
 			in
 			exc_states := catch_case :: !exc_states;
-			loop bb_next next_state_id back_state_id [esetexcstate (* TODO: test propagation after try/catch *)] while_loop exc_state_id_getter;
 			add_state (Some try_state_id) []
 	in
-	loop bb (get_next_state_id ()) (-1) [] None get_rethrow_state_id;
+	ignore(loop cb [] get_rethrow_state_id);
 
 	let states = !states @ !exc_states in
 
@@ -353,7 +324,7 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 		tf_expr = mk (TBlock [eif; eloop]) com.basic.tvoid null_pos
 	}) tstatemachine p in
 
-	let state_var = mk (TVar (vstate, Some (make_int com.basic 0 p))) com.basic.tvoid p in
+	let state_var = mk (TVar (vstate, Some (make_int com.basic 1 p))) com.basic.tvoid p in
 	let excstate_var = mk (TVar (vexcstate, Some (make_int com.basic rethrow_state_id p))) com.basic.tvoid p in
 	let shared_vars = List.map (fun v -> mk (TVar (v,Some (Texpr.Builder.default_value v.v_type v.v_pos))) com.basic.tvoid null_pos) decls in
 	let shared_vars = List.rev (excstate_var :: state_var :: shared_vars) in
