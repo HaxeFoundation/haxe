@@ -3,6 +3,7 @@ open Globals
 open Type
 
 type coro_block = {
+	cb_id : int;
 	cb_el : texpr DynArray.t;
 	cb_typepos : (Type.t * pos) option;
 	mutable cb_next : coro_next;
@@ -22,6 +23,8 @@ and coro_next_kind =
 	| NextWhile of texpr * coro_block * coro_block
 	| NextTry of coro_block * (tvar * coro_block) list * coro_block
 	| NextSuspend of coro_suspend * coro_block
+	(* graph connections from here on, careful with traversal *)
+	| NextFallThrough of coro_block
 
 and coro_switch = {
 	cs_subject : texpr;
@@ -46,5 +49,6 @@ type coro_ctx = {
 	com : Common.context;
 	coro_debug : bool;
 	mutable vthis : tvar option;
-	cb_unreachable : coro_block;
+	mutable next_block_id : int;
+	mutable cb_unreachable : coro_block;
 }

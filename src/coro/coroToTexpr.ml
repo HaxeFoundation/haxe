@@ -118,7 +118,7 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 		| NextUnknown when back_state_id = (-1) ->
 			let ecallcontinuation = mk_continuation_call (make_null t_dynamic p) p in
 			add_state (Some (-1)) [ecallcontinuation; ereturn]
-		| NextUnknown ->
+		| NextUnknown | NextFallThrough _ ->
 			add_state (Some back_state_id) []
 		| NextBreak ->
 			let _,next_state_id = Option.get while_loop in

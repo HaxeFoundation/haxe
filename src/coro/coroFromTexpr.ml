@@ -25,12 +25,18 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 			cur
 		)
 	in
+	let make_block typepos =
+		make_block ctx typepos
+	in
 	let block_from_e e =
 		make_block (Some(e.etype,e.epos))
 	in
 	let add_expr cb e =
 		if cb.cb_next.next_kind = NextUnknown && e != e_no_value && cb != ctx.cb_unreachable then
 			DynArray.add cb.cb_el e
+	in
+	let fall_through cb_from cb_to =
+		terminate cb_from (NextFallThrough cb_to) t_dynamic null_pos
 	in
 	let replace_this e =
 		let v = match ctx.vthis with
@@ -61,6 +67,7 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 			let cb_sub = block_from_e e in
 			let cb_sub_next,e1 = loop_block cb_sub ret e in
 			let cb_next = make_block None in
+			fall_through cb_sub_next cb_next;
 			terminate cb (NextSub(cb_sub,cb_next)) e.etype e.epos;
 			cb_next,e1
 		| TArray(e1,e2) ->
@@ -180,25 +187,30 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 		| TIf(e1,e2,None) ->
 			let cb,e1 = loop cb RValue e1 in
 			let cb_then = block_from_e e2 in
-			let _ = loop_block cb_then RBlock e2 in
+			let cb_then_next,_ = loop_block cb_then RBlock e2 in
 			let cb_next = make_block None in
+			fall_through cb_then_next cb_next;
 			terminate cb (NextIfThen(e1,cb_then,cb_next)) e.etype e.epos;
 			cb_next,e_no_value
 		| TIf(e1,e2,Some e3) ->
 			let cb,e1 = loop cb RValue e1 in
 			let cb_then = block_from_e e2 in
-			let _ = loop_block cb_then ret e2 in
+			let cb_then_next,_ = loop_block cb_then ret e2 in
 			let cb_else = block_from_e e3 in
-			let _ = loop_block cb_else ret e3 in
+			let cb_else_next,_ = loop_block cb_else ret e3 in
 			let cb_next = make_block None in
+			fall_through cb_then_next cb_next;
+			fall_through cb_else_next cb_next;
 			terminate cb (NextIfThenElse(e1,cb_then,cb_else,cb_next)) e.etype e.epos;
 			cb_next,e_no_value
 		| TSwitch switch ->
 			let e1 = switch.switch_subject in
 			let cb,e1 = loop cb RValue e1 in
+			let cb_next = make_block None in
 			let cases = List.map (fun case ->
 				let cb_case = block_from_e case.case_expr in
-				let _ = loop_block cb_case ret case.case_expr in
+				let cb_case_next,_ = loop_block cb_case ret case.case_expr in
+				fall_through cb_case_next cb_next;
 				(case.case_patterns,cb_case)
 			) switch.switch_cases in
 			let def = match switch.switch_default with
@@ -206,7 +218,8 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 					None
 				| Some e ->
 					let cb_default = block_from_e e in
-					let _ = loop_block cb_default ret e in
+					let cb_default_next,_ = loop_block cb_default ret e in
+					fall_through cb_default_next cb_next;
 					Some cb_default
 			in
 			let switch = {
@@ -215,7 +228,6 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 				cs_default = def;
 				cs_exhaustive = switch.switch_exhaustive
 			} in
-			let cb_next = make_block None in
 			terminate cb (NextSwitch(switch,cb_next)) e.etype e.epos;
 			cb_next,e_no_value
 		| TWhile(e1,e2,flag) (* always while(true) *) ->
@@ -226,13 +238,15 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 			cb_next,e_no_value
 		| TTry(e1,catches) ->
 			let cb_try = block_from_e e1 in
-			let _ = loop_block cb_try ret e1 in
+			let cb_next = make_block None in
+			let cb_try_next,_ = loop_block cb_try ret e1 in
+			fall_through cb_try_next cb_next;
 			let catches = List.map (fun (v,e) ->
 				let cb_catch = block_from_e e in
-				let _ = loop_block cb_catch ret e in
+				let cb_catch_next,_ = loop_block cb_catch ret e in
+				fall_through cb_catch_next cb_next;
 				v,cb_catch
 			) catches in
-			let cb_next = make_block None in
 			terminate cb (NextTry(cb_try,catches,cb_next)) e.etype e.epos;
 			cb_next,e_no_value
 		| TFunction tf ->
