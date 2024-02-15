@@ -120,7 +120,19 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 			let ecallcontinuation = mk_continuation_call (make_null t_dynamic p) p in
 			add_state (Some (-1)) [ecallcontinuation; ereturn]
 		| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
-			add_state (Some cb_next.cb_id) []
+			let rec skip_loop cb =
+				if DynArray.empty cb.cb_el then begin match cb.cb_next.next_kind with
+					| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
+						skip_loop cb_next
+					| _ ->
+						cb.cb_id
+				end else
+					cb.cb_id
+			in
+			if not (DynArray.empty cb.cb_el) then
+				add_state (Some cb_next.cb_id) []
+			else
+				skip_loop cb
 		| NextReturnVoid | NextReturn _ as r ->
 			let eresult = match r with
 				| NextReturn e -> e
