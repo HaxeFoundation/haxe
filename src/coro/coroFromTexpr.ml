@@ -38,6 +38,9 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 	let fall_through cb_from cb_to =
 		terminate cb_from (NextFallThrough cb_to) t_dynamic null_pos
 	in
+	let goto cb_from cb_to =
+		terminate cb_from (NextGoto cb_to) t_dynamic null_pos
+	in
 	let replace_this e =
 		let v = match ctx.vthis with
 			| Some v ->
@@ -49,6 +52,7 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 		in
 		Builder.make_local v e.epos
 	in
+	let loop_stack = ref [] in
 	let rec loop cb ret e = match e.eexpr with
 		(* special cases *)
 		| TConst TThis ->
@@ -159,10 +163,10 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 			end
 		(* terminators *)
 		| TBreak ->
-			terminate cb NextBreak e.etype e.epos;
+			terminate cb (NextBreak (snd (List.hd !loop_stack))) e.etype e.epos;
 			cb,e_no_value
 		| TContinue ->
-			terminate cb NextContinue e.etype e.epos;
+			terminate cb (NextContinue (fst (List.hd !loop_stack))) e.etype e.epos;
 			cb,e_no_value
 		| TReturn None ->
 			terminate cb NextReturnVoid e.etype e.epos;
@@ -231,9 +235,12 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 			terminate cb (NextSwitch(switch,cb_next)) e.etype e.epos;
 			cb_next,e_no_value
 		| TWhile(e1,e2,flag) (* always while(true) *) ->
-			let cb_body = block_from_e e2 in
-			let _ = loop_block cb_body RBlock e2 in
 			let cb_next = make_block None in
+			let cb_body = block_from_e e2 in
+			loop_stack := (cb_body,cb_next) :: !loop_stack;
+			let cb_body_next,_ = loop_block cb_body RBlock e2 in
+			goto cb_body_next cb_body;
+			loop_stack := List.tl !loop_stack;
 			terminate cb (NextWhile(e1,cb_body,cb_next)) e.etype e.epos;
 			cb_next,e_no_value
 		| TTry(e1,catches) ->

@@ -12,7 +12,7 @@ let create_dotgraph path cb =
 	let rec block cb =
 		let edge_block label cb_target =
 			block cb_target;
-			DynArray.add edges (cb.cb_id,cb_target.cb_id,label);
+			DynArray.add edges (cb.cb_id,cb_target.cb_id,label,true);
 		in
 		let s = String.concat "\n" (DynArray.to_list (DynArray.map se cb.cb_el)) in
 		let snext = match cb.cb_next.next_kind with
@@ -22,9 +22,11 @@ let create_dotgraph path cb =
 				edge_block "next" cb_next;
 				edge_block "sub" cb_sub;
 				None
-			| NextBreak ->
+			| NextBreak cb_break ->
+				DynArray.add edges (cb.cb_id,cb_break.cb_id,"goto",false);
 				Some "break"
-			| NextContinue ->
+			| NextContinue cb_continue ->
+				DynArray.add edges (cb.cb_id,cb_continue.cb_id,"goto",false);
 				Some "continue"
 			| NextReturnVoid ->
 				Some "return"
@@ -63,7 +65,10 @@ let create_dotgraph path cb =
 				edge_block "next" cb_next;
 				Some (Printf.sprintf "%s(%s)" (se suspend.cs_fun) (String.concat ", " (List.map se suspend.cs_args)))
 			| NextFallThrough cb_next ->
-				DynArray.add edges (cb.cb_id,cb_next.cb_id,"fall-through");
+				DynArray.add edges (cb.cb_id,cb_next.cb_id,"fall-through",false);
+				None
+			| NextGoto cb_next ->
+				DynArray.add edges (cb.cb_id,cb_next.cb_id,"goto",false);
 				None
 		in
 		let s = match snext with
@@ -75,7 +80,8 @@ let create_dotgraph path cb =
 		Printf.fprintf ch "n%i [shape=box,label=\"%s\"];\n" cb.cb_id (StringHelper.s_escape s);
 	in
 	ignore(block cb);
-	DynArray.iter (fun (id_from,id_to,label) ->
-		Printf.fprintf ch "n%i -> n%i[label=\"%s\"];\n" id_from id_to label;
+	DynArray.iter (fun (id_from,id_to,label,tree_edge) ->
+		let style = if tree_edge then "style=\"solid\",color=\"black\""  else "style=\"dashed\", color=\"lightgray\"" in
+		Printf.fprintf ch "n%i -> n%i[%s label=\"%s\"];\n" id_from id_to style label;
 	) edges;
 	close();

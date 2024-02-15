@@ -12,8 +12,6 @@ type coro_block = {
 and coro_next_kind =
 	| NextUnknown
 	| NextSub of coro_block * coro_block
-	| NextBreak
-	| NextContinue
 	| NextReturnVoid
 	| NextReturn of texpr
 	| NextThrow of texpr
@@ -24,7 +22,10 @@ and coro_next_kind =
 	| NextTry of coro_block * (tvar * coro_block) list * coro_block
 	| NextSuspend of coro_suspend * coro_block
 	(* graph connections from here on, careful with traversal *)
+	| NextBreak of coro_block
+	| NextContinue of coro_block
 	| NextFallThrough of coro_block
+	| NextGoto of coro_block
 
 and coro_switch = {
 	cs_subject : texpr;
