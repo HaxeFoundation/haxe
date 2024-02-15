@@ -132,7 +132,7 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 					cb.cb_id
 			in
 			if not (DynArray.empty cb.cb_el) then
-				add_state (Some cb_next.cb_id) []
+				add_state (Some (skip_loop cb_next)) []
 			else
 				skip_loop cb
 		| NextReturnVoid | NextReturn _ as r ->

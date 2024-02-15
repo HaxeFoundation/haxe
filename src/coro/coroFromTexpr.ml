@@ -3,10 +3,6 @@ open Type
 open CoroTypes
 open CoroFunctions
 
-let terminate cb kind t p =
-	if cb.cb_next.next_kind = NextUnknown then
-		cb.cb_next <- {next_kind = kind; next_type = t; next_pos = p}
-
 let e_no_value = Texpr.Builder.make_null t_dynamic null_pos
 
 type coro_ret =
@@ -34,6 +30,10 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 	let add_expr cb e =
 		if cb.cb_next.next_kind = NextUnknown && e != e_no_value && cb != ctx.cb_unreachable then
 			DynArray.add cb.cb_el e
+	in
+	let terminate cb kind t p =
+		if cb.cb_next.next_kind = NextUnknown && cb != ctx.cb_unreachable then
+			cb.cb_next <- {next_kind = kind; next_type = t; next_pos = p}
 	in
 	let fall_through cb_from cb_to =
 		terminate cb_from (NextFallThrough cb_to) t_dynamic null_pos
