@@ -359,6 +359,14 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	let excstate_var = mk (TVar (vexcstate, Some (make_int com.basic rethrow_state_id p))) com.basic.tvoid p in
 	let shared_vars = List.map (fun v -> mk (TVar (v,Some (Texpr.Builder.default_value v.v_type v.v_pos))) com.basic.tvoid null_pos) decls in
 	let shared_vars = List.rev (excstate_var :: state_var :: shared_vars) in
+	let shared_vars = match ctx.vthis with
+		| None ->
+			shared_vars
+		| Some v ->
+			let e_this = mk (TConst TThis) v.v_type v.v_pos in
+			let e_var = mk (TVar(v,Some e_this)) com.basic.tvoid null_pos in
+			e_var :: shared_vars
+	in
 
 	mk (TBlock (shared_vars @ [
 		mk (TVar (vstatemachine, None)) com.basic.tvoid p;

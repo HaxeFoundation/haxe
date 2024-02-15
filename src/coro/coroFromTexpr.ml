@@ -33,7 +33,25 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 		make_block (Some(e.etype,e.epos))
 	in
 	let cb_unreachable = make_block None in
+	let replace_this e =
+		let v = match ctx.vthis with
+			| Some v ->
+				v
+			| None ->
+				let v = alloc_var VGenerated (Printf.sprintf "%sthis" Typecore.gen_local_prefix) e.etype e.epos in
+				ctx.vthis <- Some v;
+				v
+		in
+		Builder.make_local v e.epos
+	in
 	let rec loop cb ret e = match e.eexpr with
+		(* special cases *)
+		| TConst TThis ->
+			let ev = replace_this e in
+			cb,ev
+		| TField(({eexpr = TConst TThis} as e1),fa) ->
+			let e1 = replace_this e1 in
+			cb,{e with eexpr = TField(e1,fa)}
 		(* simple values *)
 		| TConst _ | TLocal _ | TTypeExpr _ | TIdent _ ->
 			cb,e
@@ -102,6 +120,9 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 		(* variables *)
 		| TVar(v,None) ->
 			add_expr cb e;
+			cb,e_no_value
+		| TVar(v,Some {eexpr = TConst TThis}) ->
+			ctx.vthis <- Some v;
 			cb,e_no_value
 		| TVar(v,Some e1) ->
 			add_expr cb {e with eexpr = TVar(v,None)};

@@ -25,4 +25,5 @@ let fun_to_coro ctx e tf =
 let create_coro_context com meta = {
 	com;
 	coro_debug = Meta.has (Meta.Custom ":coroutine.debug") meta;
+	vthis = None;
 }

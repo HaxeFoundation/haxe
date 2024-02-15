@@ -5,6 +5,7 @@ open Type
 type some_ctx = {
 	com : Common.context;
 	coro_debug : bool;
+	mutable vthis : tvar option;
 }
 
 type coro_block = {
