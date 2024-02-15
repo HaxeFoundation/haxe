@@ -9,10 +9,6 @@ let terminate cb kind t p =
 
 let e_no_value = Texpr.Builder.make_null t_dynamic null_pos
 
-let add_expr cb e =
-	if cb.cb_next.next_kind = NextUnknown && e != e_no_value then
-		DynArray.add cb.cb_el e
-
 type coro_ret =
 	| RLocal of tvar
 	| RTerminate of (coro_block -> texpr -> unit)
@@ -32,7 +28,10 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 	let block_from_e e =
 		make_block (Some(e.etype,e.epos))
 	in
-	let cb_unreachable = make_block None in
+	let add_expr cb e =
+		if cb.cb_next.next_kind = NextUnknown && e != e_no_value && cb != ctx.cb_unreachable then
+			DynArray.add cb.cb_el e
+	in
 	let replace_this e =
 		let v = match ctx.vthis with
 			| Some v ->
@@ -160,7 +159,7 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 			cb,e_no_value
 		| TReturn None ->
 			terminate cb NextReturnVoid e.etype e.epos;
-			cb_unreachable,e_no_value
+			ctx.cb_unreachable,e_no_value
 		| TReturn (Some e1) ->
 			let f_terminate cb e1 =
 				terminate cb (NextReturn e1) e.etype e.epos;
@@ -168,7 +167,7 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 			let ret = RTerminate f_terminate in
 			let cb_ret,e1 = loop_assign cb ret e1 in
 			terminate cb_ret (NextReturn e1) e.etype e.epos;
-			cb_unreachable,e_no_value
+			ctx.cb_unreachable,e_no_value
 		| TThrow e1 ->
 			let f_terminate cb e1 =
 				terminate cb (NextThrow e1) e.etype e.epos;
@@ -176,7 +175,7 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 			let ret = RTerminate f_terminate in
 			let cb_ret,e1 = loop_assign cb ret e1 in
 			terminate cb_ret (NextThrow e1) e.etype e.epos;
-			cb_unreachable,e_no_value
+			ctx.cb_unreachable,e_no_value
 		(* branching *)
 		| TIf(e1,e2,None) ->
 			let cb,e1 = loop cb RValue e1 in
@@ -265,7 +264,7 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 				cb,ev
 			| RTerminate f ->
 				f cb e;
-				cb_unreachable,e_no_value
+				ctx.cb_unreachable,e_no_value
 	and loop_block cb ret e =
 		let el = match e.eexpr with
 			| TBlock el ->

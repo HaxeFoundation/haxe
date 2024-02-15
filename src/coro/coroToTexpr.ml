@@ -8,9 +8,6 @@ type coro_state = {
 	mutable cs_el : texpr list;
 }
 
-let is_empty cb =
-	DynArray.empty cb.cb_el
-
 let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	let open Texpr.Builder in
 	let com = ctx.com in
@@ -95,6 +92,7 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	in
 	debug_endline "---";
 	let rec loop bb state_id back_state_id current_el while_loop exc_state_id_getter =
+		assert (bb != ctx.cb_unreachable);
 		let el = DynArray.to_list bb.cb_el in
 
 		let ereturn = mk (TReturn None) com.basic.tvoid p in

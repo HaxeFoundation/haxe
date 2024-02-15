@@ -26,4 +26,5 @@ let create_coro_context com meta = {
 	com;
 	coro_debug = Meta.has (Meta.Custom ":coroutine.debug") meta;
 	vthis = None;
+	cb_unreachable = make_block None;
 }

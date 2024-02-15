@@ -2,12 +2,6 @@ open Common
 open Globals
 open Type
 
-type some_ctx = {
-	com : Common.context;
-	coro_debug : bool;
-	mutable vthis : tvar option;
-}
-
 type coro_block = {
 	cb_el : texpr DynArray.t;
 	cb_typepos : (Type.t * pos) option;
@@ -46,4 +40,11 @@ and coro_next = {
 	next_kind : coro_next_kind;
 	next_type : Type.t;
 	next_pos : pos;
+}
+
+type coro_ctx = {
+	com : Common.context;
+	coro_debug : bool;
+	mutable vthis : tvar option;
+	cb_unreachable : coro_block;
 }
