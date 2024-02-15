@@ -980,21 +980,21 @@ module HxbWriter = struct
 			Chunk.write_uleb128 writer.chunk (Pool.add writer.enum_fields key (en,ef))
 
 	let write_var_kind writer vk =
-		let b,s = match vk with
-			| VUser TVOLocalVariable -> 0, ""
-			| VUser TVOArgument -> 1, ""
-			| VUser TVOForVariable -> 2, ""
-			| VUser TVOPatternVariable -> 3, ""
-			| VUser TVOCatchVariable -> 4, ""
-			| VUser TVOLocalFunction -> 5, ""
-			| VGenerated -> 6, ""
-			| VInlined -> 7, ""
-			| VInlinedConstructorVariable s -> 8, s
-			| VExtractorVariable -> 9, ""
-			| VAbstractThis -> 10, ""
+		let b,sl = match vk with
+			| VUser TVOLocalVariable -> 0, []
+			| VUser TVOArgument -> 1, []
+			| VUser TVOForVariable -> 2, []
+			| VUser TVOPatternVariable -> 3, []
+			| VUser TVOCatchVariable -> 4, []
+			| VUser TVOLocalFunction -> 5, []
+			| VGenerated -> 6, []
+			| VInlined -> 7, []
+			| VInlinedConstructorVariable sl -> 8, sl
+			| VExtractorVariable -> 9, []
+			| VAbstractThis -> 10, []
 		in begin
 			Chunk.write_u8 writer.chunk b;
-			if (b == 8) then Chunk.write_string writer.chunk s;
+			if (b == 8) then Chunk.write_list writer.chunk sl (Chunk.write_string writer.chunk);
 		end
 
 	let write_var writer fctx v =

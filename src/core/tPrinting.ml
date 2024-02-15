@@ -601,7 +601,7 @@ module Printer = struct
 			| TVOLocalFunction -> "TVOLocalFunction") ^ ")"
 		| VGenerated -> "VGenerated"
 		| VInlined -> "VInlined"
-		| VInlinedConstructorVariable s -> "VInlinedConstructorVariable" ^ "(" ^ s ^ ")"
+		| VInlinedConstructorVariable sl -> "VInlinedConstructorVariable" ^ "(" ^ (String.concat ", " sl) ^ ")"
 		| VExtractorVariable -> "VExtractorVariable"
 		| VAbstractThis -> "VAbstractThis"
 

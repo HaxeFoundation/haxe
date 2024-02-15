@@ -759,7 +759,7 @@ let inline_constructors ctx original_e =
 				v.v_id <- -v.v_id;
 				let vnames = List.rev (get_pretty_name iv) in
 				v.v_name <- String.concat "_" vnames;
-				if (was_user iv) then v.v_kind <- VInlinedConstructorVariable (String.concat "." vnames);
+				if (was_user iv) then v.v_kind <- VInlinedConstructorVariable vnames;
 			end
 		) !vars;
 		e
