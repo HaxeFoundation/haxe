@@ -506,7 +506,7 @@ let code_graph (f:fundecl) =
 					b.bnext <- [goto 0; goto d];
 				| CTry d ->
 					b.bend <- i;
-					b.bnext <- [goto ~tl:((i+1+d)::b.btrap) 0];
+					b.bnext <- [goto ~tl:((i+1+d)::b.btrap) 0; goto d];
 				| CThrow ->
 					b.bend <- i;
 					match b.btrap with
