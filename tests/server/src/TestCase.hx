@@ -17,7 +17,12 @@ using StringTools;
 using Lambda;
 
 @:autoBuild(utils.macro.BuildHub.build())
+#if haxe_next
+interface ITestCase {}
+class TestCase implements ITest implements ITestCase {
+#else
 class TestCase implements ITest {
+#end
 	static public var debugLastResult:{
 		hasError:Bool,
 		stdout:String,
