@@ -472,6 +472,16 @@ let rec to_type ?tref ctx t =
 			| ["hl"], "I64" -> HI64
 			| ["hl"], "NativeArray" -> HArray
 			| ["haxe";"macro"], "Position" -> HAbstract ("macro_pos", alloc_string ctx "macro_pos")
+			| ["haxe";"coro"], "Coroutine" ->
+				begin match pl with
+				| [TFun(args,ret)] ->
+					let tcontinuation = tfun [ret; t_dynamic] ctx.com.basic.tvoid in
+					let args = args @ [("",false,tcontinuation)] in
+					let ret = tfun [t_dynamic; t_dynamic] ctx.com.basic.tvoid in
+					to_type ctx (TFun(args,ret))
+				| _ ->
+					die "" __LOC__
+				end
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
 		else
 			get_rec_cache ctx t
