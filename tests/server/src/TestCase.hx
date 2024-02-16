@@ -1,6 +1,7 @@
 import SkipReason;
 import haxe.PosInfos;
 import haxe.Exception;
+import haxe.coro.Coroutine;
 import haxe.display.Position;
 import haxeserver.HaxeServerRequestResult;
 import haxe.display.JsonModuleTypes;
@@ -18,7 +19,9 @@ using StringTools;
 using Lambda;
 
 @:autoBuild(utils.macro.BuildHub.build())
-class TestCase implements ITest {
+interface ITestCase {}
+
+class TestCase implements ITest implements ITestCase {
 	static public var debugLastResult:{
 		hasError:Bool,
 		stdout:String,
@@ -75,7 +78,8 @@ class TestCase implements ITest {
 	public function setup(async:utest.Async) {
 		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
-		runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {}, () -> {
+		runHaxeJson.start(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {}, (_,err) -> {
+			if (err != null) throw err;
 			async.done();
 		});
 	}
@@ -97,42 +101,54 @@ class TestCase implements ITest {
 		}
 	}
 
-	function runHaxe(args:Array<String>, done:() -> Void) {
+	@:coroutine
+	function runHaxe(args:Array<String>) {
 		messages = [];
 		errorMessages = [];
-		server.rawRequest(args, null, function(result) {
-			handleResult(result);
-			if (result.hasError) {
-				sendErrorMessage(result.stderr);
-			}
-			done();
-		}, sendErrorMessage);
+
+		Coroutine.suspend(cont -> {
+			server.rawRequest(args, null, function(result) {
+				handleResult(result);
+				if (result.hasError) {
+					sendErrorMessage(result.stderr);
+				}
+				cont(null, null);
+			}, err -> {
+				sendErrorMessage(err);
+				cont(null, null);
+			});
+		});
 	}
 
-	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:() -> Void) {
+	@:coroutine
+	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
-		runHaxe(args, done);
+		runHaxe(args);
 	}
 
+	@:coroutine
 	function runHaxeJsonCb<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, Response<TResponse>>, methodArgs:TParams,
-			callback:TResponse->Void, done:() -> Void) {
+			callback:TResponse->Void) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
 		messages = [];
 		errorMessages = [];
-		server.rawRequest(args, null, function(result) {
-			handleResult(result);
-			var json = Json.parse(result.stderr);
-			if (json.result != null) {
-				callback(json.result.result);
-			} else {
-				sendErrorMessage('Error: ' + json.error);
-			}
-			done();
-		}, function(msg) {
-			sendErrorMessage(msg);
-			done();
+
+		Coroutine.suspend(cont -> {
+			server.rawRequest(args, null, function(result) {
+				handleResult(result);
+				var json = Json.parse(result.stderr);
+				if (json.result != null) {
+					callback(json.result.result);
+				} else {
+					sendErrorMessage('Error: ' + json.error);
+				}
+				cont(null, null);
+			}, function(msg) {
+				sendErrorMessage(msg);
+				cont(null, null);
+			});
 		});
 	}
 
