@@ -18,7 +18,9 @@ using StringTools;
 using Lambda;
 
 @:autoBuild(utils.macro.BuildHub.build())
-class TestCase implements ITest {
+interface ITestCase {}
+
+class TestCase implements ITest implements ITestCase {
 	static public var debugLastResult:{
 		hasError:Bool,
 		stdout:String,
