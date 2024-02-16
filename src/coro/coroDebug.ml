@@ -86,6 +86,6 @@ let create_dotgraph path cb =
 	ignore(block cb);
 	DynArray.iter (fun (id_from,id_to,label,tree_edge) ->
 		let style = if tree_edge then "style=\"solid\",color=\"black\""  else "style=\"dashed\", color=\"lightgray\"" in
-		Printf.fprintf ch "n%i -> n%i[%s label=\"%s\"];\n" id_from id_to style label;
+		Printf.fprintf ch "n%i -> n%i[%s label=\"%s\"];\n" id_from id_to style (StringHelper.s_escape label);
 	) edges;
 	close();

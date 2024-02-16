@@ -117,13 +117,22 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 			loop cb ret (Texpr.for_remap ctx.com.basic v e1 e2 e.epos)
 		| TCast(e1,o) ->
 			let cb,e1 = loop cb ret e1 in
-			cb,{e with eexpr = TCast(e1,o)}
+			if e1 == e_no_value then
+				cb,e1
+			else
+				cb,{e with eexpr = TCast(e1,o)}
 		| TParenthesis e1 ->
 			let cb,e1 = loop cb ret e1 in
-			cb,{e with eexpr = TParenthesis e1}
+			if e1 == e_no_value then
+				cb,e1
+			else
+				cb,{e with eexpr = TParenthesis e1}
 		| TMeta(meta,e1) ->
 			let cb,e1 = loop cb ret e1 in
-			cb,{e with eexpr = TMeta(meta,e1)}
+			if e1 == e_no_value then
+				cb,e1
+			else
+				cb,{e with eexpr = TMeta(meta,e1)}
 		| TUnop(op,flag,e1) ->
 			let cb,e1 = loop cb ret (* TODO: is this right? *) e1 in
 			cb,{e with eexpr = TUnop(op,flag,e1)}
@@ -145,7 +154,7 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 		| TVar(v,Some e1) ->
 			add_expr cb {e with eexpr = TVar(v,None)};
 			let cb,e1 = loop_assign cb (RLocal v) e1 in
-			cb,e_no_value
+			cb,e1
 		(* calls *)
 		| TCall(e1,el) ->
 			let cb,el = ordered_loop cb (e1 :: el) in
@@ -288,7 +297,9 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 		cb,el
 	and loop_assign cb ret e =
 		let cb,e = loop cb ret e in
-		match ret with
+		if e == e_no_value then
+			cb,e
+		else match ret with
 			| RBlock ->
 				add_expr cb e;
 				cb,e_no_value
