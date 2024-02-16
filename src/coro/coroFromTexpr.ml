@@ -117,13 +117,22 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 			loop cb ret (Texpr.for_remap ctx.com.basic v e1 e2 e.epos)
 		| TCast(e1,o) ->
 			let cb,e1 = loop cb ret e1 in
-			cb,{e with eexpr = TCast(e1,o)}
+			if e1 == e_no_value then
+				cb,e1
+			else
+				cb,{e with eexpr = TCast(e1,o)}
 		| TParenthesis e1 ->
 			let cb,e1 = loop cb ret e1 in
-			cb,{e with eexpr = TParenthesis e1}
+			if e1 == e_no_value then
+				cb,e1
+			else
+				cb,{e with eexpr = TParenthesis e1}
 		| TMeta(meta,e1) ->
 			let cb,e1 = loop cb ret e1 in
-			cb,{e with eexpr = TMeta(meta,e1)}
+			if e1 == e_no_value then
+				cb,e1
+			else
+				cb,{e with eexpr = TMeta(meta,e1)}
 		| TUnop(op,flag,e1) ->
 			let cb,e1 = loop cb ret (* TODO: is this right? *) e1 in
 			cb,{e with eexpr = TUnop(op,flag,e1)}
@@ -145,7 +154,7 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 		| TVar(v,Some e1) ->
 			add_expr cb {e with eexpr = TVar(v,None)};
 			let cb,e1 = loop_assign cb (RLocal v) e1 in
-			cb,e_no_value
+			cb,e1
 		(* calls *)
 		| TCall(e1,el) ->
 			let cb,el = ordered_loop cb (e1 :: el) in
@@ -252,17 +261,25 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 			terminate cb (NextWhile(e1,cb_body,cb_next)) e.etype e.epos;
 			cb_next,e_no_value
 		| TTry(e1,catches) ->
-			let cb_try = block_from_e e1 in
 			let cb_next = make_block None in
-			let cb_try_next,_ = loop_block cb_try ret e1 in
-			fall_through cb_try_next cb_next;
 			let catches = List.map (fun (v,e) ->
 				let cb_catch = block_from_e e in
 				let cb_catch_next,_ = loop_block cb_catch ret e in
 				fall_through cb_catch_next cb_next;
 				v,cb_catch
 			) catches in
-			terminate cb (NextTry(cb_try,catches,cb_next)) e.etype e.epos;
+			let catch = make_block None in
+			let old = ctx.current_catch in
+			ctx.current_catch <- Some catch;
+			let catch = {
+				cc_cb = catch;
+				cc_catches = catches;
+			} in
+			let cb_try = block_from_e e1 in
+			let cb_try_next,_ = loop_block cb_try ret e1 in
+			ctx.current_catch <- old;
+			fall_through cb_try_next cb_next;
+			terminate cb (NextTry(cb_try,catch,cb_next)) e.etype e.epos;
 			cb_next,e_no_value
 		| TFunction tf ->
 			cb,e
@@ -280,7 +297,9 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 		cb,el
 	and loop_assign cb ret e =
 		let cb,e = loop cb ret e in
-		match ret with
+		if e == e_no_value then
+			cb,e
+		else match ret with
 			| RBlock ->
 				add_expr cb e;
 				cb,e_no_value

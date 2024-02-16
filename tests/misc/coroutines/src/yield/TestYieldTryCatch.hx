@@ -72,8 +72,6 @@ class TestYieldTryCatch extends BaseCase {
 		dummy += '8';
 	}
 
-	#if broken
-
 	public function testTryCatch_nested() {
 		assert([10], tryCatch_nested(1));
 		Assert.equals('124569', dummy);
@@ -103,6 +101,8 @@ class TestYieldTryCatch extends BaseCase {
 		}
 		dummy += '9';
 	}
+
+	#if broken
 
 	public function testTryCatch_withoutYield_runInSingleState() {
 		assert([10], tryCatchNoYield(true));

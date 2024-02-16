@@ -55,12 +55,15 @@ let create_dotgraph path cb =
 				edge_block "next" cb_next;
 				edge_block "body" cb_body;
 				Some ("while " ^ se e)
-			| NextTry(cb_try,catches,cb_next) ->
+			| NextTry(cb_try,catch,cb_next) ->
 				edge_block "next" cb_next;
 				edge_block "try" cb_try;
+				DynArray.add edges (cb_try.cb_id,catch.cc_cb.cb_id,"catch",true);
+				Printf.fprintf ch "n%i [shape=box,label=\"(%i)\"];\n" catch.cc_cb.cb_id catch.cc_cb.cb_id;
 				List.iter (fun (v,cb_catch) ->
-					edge_block (st v.v_type) cb_catch
-				) catches;
+					block cb_catch;
+					DynArray.add edges (catch.cc_cb.cb_id,cb_catch.cb_id,(st v.v_type),true);
+				) catch.cc_catches;
 				None
 			| NextSuspend(suspend,cb_next) ->
 				edge_block "next" cb_next;
@@ -83,6 +86,6 @@ let create_dotgraph path cb =
 	ignore(block cb);
 	DynArray.iter (fun (id_from,id_to,label,tree_edge) ->
 		let style = if tree_edge then "style=\"solid\",color=\"black\""  else "style=\"dashed\", color=\"lightgray\"" in
-		Printf.fprintf ch "n%i -> n%i[%s label=\"%s\"];\n" id_from id_to style label;
+		Printf.fprintf ch "n%i -> n%i[%s label=\"%s\"];\n" id_from id_to style (StringHelper.s_escape label);
 	) edges;
 	close();

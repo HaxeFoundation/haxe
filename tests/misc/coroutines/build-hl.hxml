@@ -1,0 +1,3 @@
+build-base.hxml
+--hl test.hl
+--cmd hl test.hl
