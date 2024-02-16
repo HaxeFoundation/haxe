@@ -1,4 +1,3 @@
-open Common
 open Globals
 open Type
 

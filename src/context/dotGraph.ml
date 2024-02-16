@@ -1,5 +1,4 @@
 open Common
-open Type
 
 let get_dump_path com path name =
 	(dump_path com) :: [platform_name_macro com] @ (fst path) @ [Printf.sprintf "%s.%s" (snd path) name]

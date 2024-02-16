@@ -12,14 +12,17 @@ class CsSafeTypeBuilding extends TestCase {
 	var originalContent:String;
 
 	override public function setup(async:utest.Async) {
-		super.setup(async);
+		super.setup(async.branch());
 
-		originalContent = "";
-		vfs.putContent("Bar.hx", getTemplate("csSafeTypeBuilding/Bar.hx"));
-		vfs.putContent("Baz.hx", getTemplate("csSafeTypeBuilding/Baz.hx"));
-		vfs.putContent("Foo.hx", getTemplate("csSafeTypeBuilding/Foo.hx"));
-		vfs.putContent("Macro.macro.hx", getTemplate("csSafeTypeBuilding/Macro.macro.hx"));
-		vfs.putContent("Main.hx", getTemplate("csSafeTypeBuilding/Main.hx"));
+		async.branch(async -> {
+			originalContent = "";
+			vfs.putContent("Bar.hx", getTemplate("csSafeTypeBuilding/Bar.hx"));
+			vfs.putContent("Baz.hx", getTemplate("csSafeTypeBuilding/Baz.hx"));
+			vfs.putContent("Foo.hx", getTemplate("csSafeTypeBuilding/Foo.hx"));
+			vfs.putContent("Macro.macro.hx", getTemplate("csSafeTypeBuilding/Macro.macro.hx"));
+			vfs.putContent("Main.hx", getTemplate("csSafeTypeBuilding/Main.hx"));
+			async.done();
+		});
 	}
 
 	#if debug
