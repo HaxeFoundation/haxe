@@ -24,29 +24,9 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 	let estate = make_local vstate p in
 	let set_state id = mk_assign estate (mk_int id) in
 
-	let vexcstate = alloc_var VGenerated "_hx_exceptionState" com.basic.tint p in
-	let eexcstate = make_local vexcstate p in
-	let set_excstate id = mk_assign eexcstate (mk_int id) in
-
 	let tstatemachine = tfun [t_dynamic; t_dynamic] com.basic.tvoid in
 	let vstatemachine = alloc_var VGenerated "_hx_stateMachine" tstatemachine p in
 	let estatemachine = make_local vstatemachine p in
-
-	let get_next_state_id =
-		fun () -> (
-			let id = ctx.next_block_id in
-			ctx.next_block_id <- ctx.next_block_id + 1;
-			id
-		)
-	in
-
-	let get_rethrow_state_id =
-		let rethrow_state_id = ref (-1) in
-		fun () -> begin
-			if !rethrow_state_id = (-1) then rethrow_state_id := get_next_state_id ();
-			!rethrow_state_id;
-		end
-	in
 
 	let mk_continuation_call eresult p =
 		let econtinuation = make_local vcontinuation p in
@@ -57,6 +37,7 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 		mk (TCall (econtinuation, [make_null t_dynamic p; eerror])) com.basic.tvoid p
 	in
 
+	let cb_uncaught = CoroFunctions.make_block ctx None in
 	let mk_suspending_call call =
 		let p = call.cs_pos in
 
@@ -83,20 +64,15 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 
 	let states = ref [] in
 
-	let exc_states = ref [] in
-
 	let init_state = ref 1 in (* TODO: this seems brittle *)
 
 	let make_state id el = {
 		cs_id = id;
 		cs_el = el;
 	} in
-	let debug_endline s =
-		if ctx.coro_debug then
-			print_endline s
-	in
-	debug_endline "---";
-	let rec loop cb current_el exc_state_id_getter =
+
+	let exc_state_map = Array.init ctx.next_block_id (fun _ -> ref []) in
+	let rec loop cb current_el =
 		assert (cb != ctx.cb_unreachable);
 		let el = DynArray.to_list cb.cb_el in
 
@@ -111,11 +87,18 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 					(set_state id) :: el
 			in
 			states := (make_state cb.cb_id el) :: !states;
+			begin match cb.cb_catch with
+				| None ->
+					()
+				| Some cb' ->
+					let r = exc_state_map.(cb'.cb_id) in
+					r := cb.cb_id :: !r
+			end;
 			cb.cb_id
 		in
 		match cb.cb_next.next_kind with
 		| NextSuspend (call, cb_next) ->
-			let next_state_id = loop cb_next [] exc_state_id_getter in
+			let next_state_id = loop cb_next [] in
 			let ecallcoroutine = mk_suspending_call call in
 			add_state (Some next_state_id) [ecallcoroutine; ereturn];
 		| NextUnknown ->
@@ -149,36 +132,36 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 			(* If we're skipping our initial state we have to track this for the _hx_state init *)
 			if cb.cb_id = !init_state then
 				init_state := cb_sub.cb_id;
-			loop cb_sub current_el exc_state_id_getter
+			loop cb_sub current_el
 		| NextSub (bb_sub,bb_next) ->
-			let next_state_id = loop bb_next [] exc_state_id_getter in
-			let sub_state_id = loop bb_sub [] exc_state_id_getter in
+			let next_state_id = loop bb_next [] in
+			let sub_state_id = loop bb_sub [] in
 			ignore(next_state_id);
 			add_state (Some sub_state_id) []
 
 		| NextIfThen (econd,bb_then,bb_next) ->
-			let next_state_id = loop bb_next [] exc_state_id_getter in
-			let then_state_id = loop bb_then [] exc_state_id_getter in
+			let next_state_id = loop bb_next [] in
+			let then_state_id = loop bb_then [] in
 			let eif = mk (TIf (econd, set_state then_state_id, Some (set_state next_state_id))) com.basic.tint p in
 			add_state None [eif]
 
 		| NextIfThenElse (econd,bb_then,bb_else,bb_next) ->
-			let _ = loop bb_next [] exc_state_id_getter in
-			let then_state_id = loop bb_then [] exc_state_id_getter in
-			let else_state_id = loop bb_else [] exc_state_id_getter in
+			let _ = loop bb_next [] in
+			let then_state_id = loop bb_then [] in
+			let else_state_id = loop bb_else [] in
 			let eif = mk (TIf (econd, set_state then_state_id, Some (set_state else_state_id))) com.basic.tint p in
 			add_state None [eif]
 
 		| NextSwitch(switch, bb_next) ->
 			let esubj = switch.cs_subject in
-			let next_state_id = loop bb_next [] exc_state_id_getter in
+			let next_state_id = loop bb_next [] in
 			let ecases = List.map (fun (patterns,bb) ->
-				let case_state_id = loop bb [] exc_state_id_getter in
+				let case_state_id = loop bb [] in
 				{case_patterns = patterns;case_expr = set_state case_state_id}
 			) switch.cs_cases in
 			let default_state_id = match switch.cs_default with
 				| Some bb ->
-					let default_state_id = loop bb [] exc_state_id_getter in
+					let default_state_id = loop bb [] in
 					default_state_id
 				| None ->
 					next_state_id
@@ -189,42 +172,35 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 			add_state None [eswitch]
 
 		| NextWhile (e_cond, bb_body, bb_next) ->
-			let body_state_id = loop bb_body [] exc_state_id_getter in
-			let _ = loop bb_next [] exc_state_id_getter in
+			let body_state_id = loop bb_body [] in
+			let _ = loop bb_next [] in
 			add_state (Some body_state_id) []
 
-		| NextTry (bb_try,catches,bb_next) ->
-			let new_exc_state_id = get_next_state_id () in
-			let esetexcstate = set_excstate (exc_state_id_getter ()) in
-			let _ = loop bb_next [esetexcstate (* TODO: test propagation after try/catch *)] exc_state_id_getter in
-			let try_state_id = loop bb_try [set_excstate new_exc_state_id] (fun () -> new_exc_state_id) in (* TODO: add test for nested try/catch *)
-			let catch_case =
-				let erethrow = mk (TBlock [
-					set_state (get_rethrow_state_id ());
-					mk (TThrow eerror) t_dynamic null_pos
-				]) t_dynamic null_pos in
-				let eif =
-					List.fold_left (fun enext (vcatch,bb_catch) ->
-						let ecatchvar = mk (TVar (vcatch, Some eerror)) com.basic.tvoid null_pos in
-						let catch_state_id = loop bb_catch [esetexcstate; ecatchvar] exc_state_id_getter in
-
-						(* TODO: exceptions filter... *)
-						match follow vcatch.v_type with
-						| TDynamic _ ->
-							set_state catch_state_id (* no next *)
-						| t ->
-							let etypecheck = std_is (make_local verror null_pos) vcatch.v_type in
-							mk (TIf (etypecheck, set_state catch_state_id, Some enext)) com.basic.tvoid null_pos
-					) erethrow (List.rev catches)
-				in
-				make_state new_exc_state_id [eif]
+		| NextTry (bb_try,catch,bb_next) ->
+			let new_exc_state_id = catch.cc_cb.cb_id in
+			let _ = loop bb_next [] in
+			let try_state_id = loop bb_try [] in
+			let erethrow = mk (TBlock [
+				set_state (match catch.cc_cb.cb_catch with None -> cb_uncaught.cb_id | Some cb -> cb.cb_id);
+			]) t_dynamic null_pos in
+			let eif =
+				List.fold_left (fun enext (vcatch,bb_catch) ->
+					let ecatchvar = mk (TVar (vcatch, Some eerror)) com.basic.tvoid null_pos in
+					let catch_state_id = loop bb_catch [ecatchvar] in
+					match follow vcatch.v_type with
+					| TDynamic _ ->
+						set_state catch_state_id (* no next *)
+					| t ->
+						let etypecheck = std_is (make_local verror null_pos) vcatch.v_type in
+						mk (TIf (etypecheck, set_state catch_state_id, Some enext)) com.basic.tvoid null_pos
+				) erethrow (List.rev catch.cc_catches)
 			in
-			exc_states := catch_case :: !exc_states;
+			states := (make_state new_exc_state_id [eif]) :: !states;
 			add_state (Some try_state_id) []
 	in
-	ignore(loop cb [] get_rethrow_state_id);
+	ignore(loop cb []);
 
-	let states = !states @ !exc_states in
+	let states = !states in
 
 	(* TODO: this (and the coroutine transform in general) should probably be run before captured vars handling *)
 	(* very ugly, but seems to work: extract locals that are used across states *)
@@ -289,7 +265,7 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 		- if there's only one state (no suspensions) - don't wrap into while/switch, don't introduce state var
 	*)
 
-	let rethrow_state_id = get_rethrow_state_id () in
+	let rethrow_state_id = cb_uncaught.cb_id in
 	let rethrow_state = make_state rethrow_state_id [mk (TThrow eerror) com.basic.tvoid null_pos] in
 	let states = states @ [rethrow_state] in
 	let states = List.sort (fun state1 state2 -> state1.cs_id - state2.cs_id) states in
@@ -309,46 +285,63 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 	in
 	let eswitch = mk (TSwitch switch) com.basic.tvoid p in
 
-	let eloop = mk (TWhile (make_bool com.basic true p, eswitch, DoWhile)) com.basic.tvoid p in
-
-	let etry = mk (TTry (
-		eloop,
-		[
-			let vcaught = alloc_var VGenerated "e" t_dynamic null_pos in
-			(vcaught, mk (TIf (
-				mk (TBinop (OpEq, estate, mk_int rethrow_state_id)) com.basic.tbool null_pos,
-				mk (TBlock [
-					mk_assign eexcstate (mk_int rethrow_state_id);
-					mk_continuation_call_error (make_local vcaught null_pos) null_pos;
-					mk (TReturn None) com.basic.tvoid null_pos;
-				]) com.basic.tvoid null_pos,
-				Some (mk (TBlock [
-					mk (TCall(estatemachine,[make_local vresult p; make_local vcaught null_pos])) com.basic.tvoid p
-				]) com.basic.tvoid null_pos)
-			)) com.basic.tvoid null_pos)
-		]
-	)) com.basic.tvoid null_pos in
-
 	let eif = mk (TIf (
 		mk (TBinop (
 			OpNotEq,
 			eerror,
 			make_null verror.v_type p
 		)) com.basic.tbool p,
-		mk_assign estate eexcstate,
+		set_state cb_uncaught.cb_id,
 		None
 	)) com.basic.tvoid p in
+
+	let etry = mk (TTry (
+		eswitch,
+		[
+			let vcaught = alloc_var VGenerated "e" t_dynamic null_pos in
+			let cases = DynArray.create () in
+			Array.iteri (fun i l -> match !l with
+				| [] ->
+					()
+				| l ->
+					let patterns = List.map mk_int l in
+					let expr = mk (TBlock [
+						set_state i;
+						Builder.binop OpAssign eerror (Builder.make_local vcaught null_pos) vcaught.v_type null_pos;
+					]) ctx.com.basic.tvoid null_pos in
+					DynArray.add cases {case_patterns = patterns; case_expr = expr};
+			) exc_state_map;
+			let default = mk (TBlock [
+				set_state rethrow_state_id;
+				mk_continuation_call_error (make_local vcaught null_pos) null_pos;
+				mk (TReturn None) t_dynamic null_pos;
+			]) ctx.com.basic.tvoid null_pos in
+			if DynArray.empty cases then
+				(vcaught,default)
+			else begin
+				let switch = {
+					switch_subject = estate;
+					switch_cases = DynArray.to_list cases;
+					switch_default = Some default;
+					switch_exhaustive = true
+				} in
+				let e = mk (TSwitch switch) com.basic.tvoid null_pos in
+				(vcaught,e)
+			end
+		]
+	)) com.basic.tvoid null_pos in
+
+	let eloop = mk (TWhile (make_bool com.basic true p, etry, DoWhile)) com.basic.tvoid p in
 
 	let estatemachine_def = mk (TFunction {
 		tf_args = [(vresult,None); (verror,None)];
 		tf_type = com.basic.tvoid;
-		tf_expr = mk (TBlock [eif; etry]) com.basic.tvoid null_pos
+		tf_expr = mk (TBlock [eif;eloop]) com.basic.tvoid null_pos
 	}) tstatemachine p in
 
 	let state_var = mk (TVar (vstate, Some (make_int com.basic !init_state p))) com.basic.tvoid p in
-	let excstate_var = mk (TVar (vexcstate, Some (make_int com.basic rethrow_state_id p))) com.basic.tvoid p in
 	let shared_vars = List.map (fun v -> mk (TVar (v,Some (Texpr.Builder.default_value v.v_type v.v_pos))) com.basic.tvoid null_pos) decls in
-	let shared_vars = List.rev (excstate_var :: state_var :: shared_vars) in
+	let shared_vars = List.rev (state_var :: shared_vars) in
 	let shared_vars = match ctx.vthis with
 		| None ->
 			shared_vars

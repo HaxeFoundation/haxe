@@ -252,17 +252,25 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 			terminate cb (NextWhile(e1,cb_body,cb_next)) e.etype e.epos;
 			cb_next,e_no_value
 		| TTry(e1,catches) ->
-			let cb_try = block_from_e e1 in
 			let cb_next = make_block None in
-			let cb_try_next,_ = loop_block cb_try ret e1 in
-			fall_through cb_try_next cb_next;
 			let catches = List.map (fun (v,e) ->
 				let cb_catch = block_from_e e in
 				let cb_catch_next,_ = loop_block cb_catch ret e in
 				fall_through cb_catch_next cb_next;
 				v,cb_catch
 			) catches in
-			terminate cb (NextTry(cb_try,catches,cb_next)) e.etype e.epos;
+			let catch = make_block None in
+			let old = ctx.current_catch in
+			ctx.current_catch <- Some catch;
+			let catch = {
+				cc_cb = catch;
+				cc_catches = catches;
+			} in
+			let cb_try = block_from_e e1 in
+			let cb_try_next,_ = loop_block cb_try ret e1 in
+			ctx.current_catch <- old;
+			fall_through cb_try_next cb_next;
+			terminate cb (NextTry(cb_try,catch,cb_next)) e.etype e.epos;
 			cb_next,e_no_value
 		| TFunction tf ->
 			cb,e
