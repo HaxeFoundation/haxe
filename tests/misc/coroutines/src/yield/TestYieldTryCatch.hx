@@ -45,8 +45,6 @@ class TestYieldTryCatch extends BaseCase {
 		dummy += '6';
 	}
 
-	#if broken
-
 	public function testTryCatch_multiCatch() {
 		assert([10], tryCatch_multiCatch('Error'));
 		Assert.equals('12458', dummy);
@@ -73,6 +71,8 @@ class TestYieldTryCatch extends BaseCase {
 		}
 		dummy += '8';
 	}
+
+	#if broken
 
 	public function testTryCatch_nested() {
 		assert([10], tryCatch_nested(1));
@@ -121,6 +121,8 @@ class TestYieldTryCatch extends BaseCase {
 		@:yield return 10;
 	}
 
+	#end
+
 	public function testTryCatch_exceptionNotCaught_thrownOutOfYieldContext() {
 		try {
 			assert([], tryCatchNotCaught());
@@ -146,8 +148,6 @@ class TestYieldTryCatch extends BaseCase {
 		}
 		dummy += '6';
 	}
-
-	#end
 
 	public function testTryCatch_captureVariable() {
 		assert([10], tryCatch_captureVariable());

@@ -262,13 +262,7 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 			terminate cb (NextTry(cb_try,catches,cb_next)) e.etype e.epos;
 			cb_next,e_no_value
 		| TFunction tf ->
-			let rec f e = match e.eexpr with
-				| TConst TThis ->
-					replace_this e
-				| _ ->
-					Type.map_expr f e
-			in
-			cb,f e
+			cb,e
 	and ordered_loop cb el =
 		let close = start_ordered_value_list () in
 		let rec aux' cb acc el = match el with

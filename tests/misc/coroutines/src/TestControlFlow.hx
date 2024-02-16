@@ -96,12 +96,12 @@ class TestControlFlow extends utest.Test {
 		});
 	}
 
-	// function testTryCatchFail(async:Async) {
-	// 	tryCatch.start(new E3(), (result,error) -> {
-	// 		Assert.isOfType(error, E3);
-	// 		async.done();
-	// 	});
-	// }
+	function testTryCatchFail(async:Async) {
+		tryCatch.start(new E3(), (result,error) -> {
+			Assert.isOfType(error, E3);
+			async.done();
+		});
+	}
 
 	@:coroutine function tryCatch(e:haxe.Exception) {
 		try {
@@ -125,8 +125,8 @@ private class E1 extends haxe.Exception {
 }
 
 private class E2 extends haxe.Exception {
-	public function new() super("E1");
+	public function new() super("E2");
 }
 private class E3 extends haxe.Exception {
-	public function new() super("E1");
+	public function new() super("E3");
 }

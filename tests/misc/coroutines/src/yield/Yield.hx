@@ -9,7 +9,10 @@ function sequence<T>(f:Coroutine<Yield<T>->Void>):Iterator<T> {
 
 	var nextStep = null;
 
-	function finish(_, _) {
+	function finish(_, err) {
+		if (err != null) {
+			throw err;
+		}
 		finished = true;
 	}
 

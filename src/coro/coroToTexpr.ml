@@ -199,7 +199,10 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 			let _ = loop bb_next [esetexcstate (* TODO: test propagation after try/catch *)] exc_state_id_getter in
 			let try_state_id = loop bb_try [set_excstate new_exc_state_id] (fun () -> new_exc_state_id) in (* TODO: add test for nested try/catch *)
 			let catch_case =
-				let erethrow = mk (TThrow eerror) t_dynamic null_pos in
+				let erethrow = mk (TBlock [
+					set_state (get_rethrow_state_id ());
+					mk (TThrow eerror) t_dynamic null_pos
+				]) t_dynamic null_pos in
 				let eif =
 					List.fold_left (fun enext (vcatch,bb_catch) ->
 						let ecatchvar = mk (TVar (vcatch, Some eerror)) com.basic.tvoid null_pos in
@@ -212,7 +215,7 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 						| t ->
 							let etypecheck = std_is (make_local verror null_pos) vcatch.v_type in
 							mk (TIf (etypecheck, set_state catch_state_id, Some enext)) com.basic.tvoid null_pos
-					) erethrow catches
+					) erethrow (List.rev catches)
 				in
 				make_state new_exc_state_id [eif]
 			in
