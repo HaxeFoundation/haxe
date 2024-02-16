@@ -144,7 +144,7 @@ and tvar_kind =
 	| VUser of tvar_origin
 	| VGenerated
 	| VInlined
-	| VInlinedConstructorVariable
+	| VInlinedConstructorVariable of string list
 	| VExtractorVariable
 	| VAbstractThis
 
