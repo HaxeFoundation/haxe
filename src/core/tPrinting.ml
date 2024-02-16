@@ -68,6 +68,8 @@ let rec s_type ctx t =
 		| _ -> s_type_path c.cl_path ^ s_type_params ctx tl)
 	| TType ({ t_type = TAnon { a_status = { contents = ClassStatics { cl_kind = KAbstractImpl a }}}}, _) ->
 		"Abstract<" ^ (s_type_path a.a_path) ^ ">"
+	| TType (td,tl) when (Meta.has Meta.MessageFollow td.t_meta) ->
+		s_type ctx (apply_typedef td tl)
 	| TType (t,tl) ->
 		s_type_path t.t_path ^ s_type_params ctx tl
 	| TAbstract (a,tl) ->
