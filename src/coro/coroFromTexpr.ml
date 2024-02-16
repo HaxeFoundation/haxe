@@ -52,15 +52,18 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 		in
 		Builder.make_local v e.epos
 	in
+	let rec map_expr e = match e.eexpr with
+		| TConst TThis ->
+			replace_this e
+		| _ ->
+			Type.map_expr map_expr e
+	in
 	let loop_stack = ref [] in
 	let rec loop cb ret e = match e.eexpr with
 		(* special cases *)
 		| TConst TThis ->
 			let ev = replace_this e in
 			cb,ev
-		| TField(({eexpr = TConst TThis} as e1),fa) ->
-			let e1 = replace_this e1 in
-			cb,{e with eexpr = TField(e1,fa)}
 		(* simple values *)
 		| TConst _ | TLocal _ | TTypeExpr _ | TIdent _ ->
 			cb,e
@@ -97,7 +100,7 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 		| TField(e1,fa) ->
 			(* TODO: this is quite annoying because factoring out field access behaves very creatively on
 			   some targets. This means that (coroCall()).field doesn't work (and isn't tested). *)
-			cb,e
+			cb,map_expr e
 		| TEnumParameter(e1,ef,i) ->
 			let cb,e1 = loop cb RValue e1 in
 			cb,{e with eexpr = TEnumParameter(e1,ef,i)}
