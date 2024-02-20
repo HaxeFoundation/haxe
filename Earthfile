@@ -63,7 +63,7 @@ devcontainer:
             ocaml-nox \
             camlp5 \
             opam \
-            libpcre3-dev \
+            libpcre2-dev \
             zlib1g-dev \
             libgtk2.0-dev \
             libmbedtls-dev \
@@ -91,8 +91,11 @@ devcontainer:
     RUN git config --global codespaces-theme.hide-status 1
 
     # Install OCaml libraries
-    COPY opam .
+    COPY haxe.opam .
     RUN opam init --disable-sandboxing
+    RUN opam switch create 4.08.1
+    RUN eval $(opam env)
+    RUN opam env
     RUN opam install . --yes --deps-only --no-depexts
     RUN opam list
     RUN ocamlopt -v
@@ -218,7 +221,6 @@ xmldoc:
     RUN haxelib newrepo
     RUN haxelib git hxcpp  https://github.com/HaxeFoundation/hxcpp
     RUN haxelib git hxjava https://github.com/HaxeFoundation/hxjava
-    RUN haxelib git hxcs   https://github.com/HaxeFoundation/hxcs
     RUN haxe doc.hxml
 
     ARG COMMIT
@@ -268,11 +270,6 @@ test-environment-php:
     DO +INSTALL_PACKAGES --PACKAGES="php-cli php-mbstring php-sqlite3"
     SAVE IMAGE --cache-hint
 
-test-environment-cs:
-    FROM +test-environment
-    DO +INSTALL_PACKAGES --PACKAGES="mono-devel mono-mcs"
-    SAVE IMAGE --cache-hint
-
 test-environment-hl:
     FROM +test-environment
     DO +INSTALL_PACKAGES --PACKAGES="cmake ninja-build libturbojpeg-dev libpng-dev zlib1g-dev libvorbis-dev libsqlite3-dev"
@@ -281,7 +278,7 @@ test-environment-hl:
 test-environment-lua:
     # hererocks uses pip
     FROM +test-environment-python
-    DO +INSTALL_PACKAGES --PACKAGES="libssl-dev libreadline-dev python3-pip unzip libpcre3-dev cmake"
+    DO +INSTALL_PACKAGES --PACKAGES="libssl-dev libreadline-dev python3-pip unzip libpcre2-dev cmake"
     RUN ln -s /root/.local/bin/hererocks /bin/
     SAVE IMAGE --cache-hint
 
@@ -358,12 +355,6 @@ test-jvm:
     ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=jvm
 
-test-cs:
-    FROM +test-environment-cs
-    ARG GITHUB_ACTIONS
-    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
-    DO +RUN_CI --TEST=cs
-
 test-php:
     FROM +test-environment-php
     ARG GITHUB_ACTIONS
@@ -386,7 +377,7 @@ test-flash:
     FROM +test-environment-flash
     ARG GITHUB_ACTIONS
     ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
-    DO +RUN_CI --TEST=flash9
+    DO +RUN_CI --TEST=flash
 
 test-all:
     ARG TARGETPLATFORM
@@ -397,9 +388,8 @@ test-all:
     BUILD +test-python
     BUILD +test-java
     BUILD +test-jvm
-    BUILD +test-cs
     BUILD +test-cpp
-    # BUILD +test-lua
+    BUILD +test-lua
     BUILD +test-js
     BUILD +test-flash
 

@@ -391,7 +391,6 @@ extern class DOMElement extends Node {
 		Inserts a given element node at a given position relative to the element it is invoked upon.
 		@throws DOMError
 	**/
-	@:pure
 	function insertAdjacentElement( where : String, element : Element ) : Element;
 	
 	/**

@@ -3,14 +3,18 @@
 (library
 	(name extc)
 	(libraries extlib)
-	(c_names extc_stubs)
+	(foreign_stubs
+		(language c)
+		(names extc_stubs))
 	(modules extc)
 	(wrapped false)
 )
 
 (library
 	(name extproc)
-	(c_names process_stubs)
+	(foreign_stubs
+		(language c)
+		(names process_stubs))
 	(modules process)
 	(wrapped false)
 )

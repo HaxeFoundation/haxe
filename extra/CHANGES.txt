@@ -1,8 +1,184 @@
-2022-xx-xx 4.3.0
+2023-09-17 4.3.3
 
 	General improvements:
 
+	all : improve extra field error range (#11335)
+	all : better error messages for --connect
+	hl : improve error message when hl_version is missing (#11086)
+	hl/c : compiler now adds hlc define when targeting hl/c (#11382)
+	macro : update macro API restriction warnings when using -D haxe-next (#11377)
+
+	Bugfixes:
+
+	all : handle non existing files for positions in pretty errors (#11364)
+	all : metadata support for local static vars
+	all : catch trailing invalid syntax in string interpolation (#10287)
+	eval : fix Array.resize retaining values (#11317)
+	eval/hl : fix catching haxe.ValueException (#11321)
+	hl : make genhl respect Meta.NoExpr (#11257)
+	hl : don't add bindings for non existing methods
+	hl/c : add missing I64 mod support
+	hl/c : rework reserved keywords (#11293, #11378)
+	hl/c : fix Int64 unsigned right shift overflow (#11382)
+	java/cs: fix stack overflow from closures constraints (#11350)
+	js : DOMElement insertAdjacentElement should not be pure (#11333)
+	macro : catch trailing invalid syntax in Context.parseInlineString (#11368)
+	macro : fix TDAbstract without flags in haxe.macro.Printer
+
+2023-09-01 4.3.2
+
+	General improvements:
+
+	all : do not raise error on no-op reification outside macro
+
+	Bugfixes:
+
+	all : don't infer Null<?> if it already is Null<?> (#11286)
+	all : fix ?? inference and precedence (#11252)
+	all : bring back forced inline (#11217)
+	all : allow non constant "inline" var init with -D no-inline (#11192)
+	all : improve @:enum abstract deprecation warning handling (#11302)
+	all : fix some stack overflow with pretty errors
+	display : fix go to definition with final (#11173)
+	display : fix completion requests with @:forwardStatics (#11294)
+	eval : fix MainLoop.add not repeating (#11202)
+	hl/eval/neko : fix exception stack when wrapping native exceptions (#11249)
+	macro : map `this` when restoring typed expressions (#11212)
+	macro : safe navigation fix for ExprTools.map (#11204)
+	macro : safe navigation fix for haxe.macro.Printer (#11206)
+	macro : macro generated EVars position fixes (#11163)
+	macro : fix abstract casts for local statics (#11301)
+	macro : add flags to TDAbstract to be able to construct enum abstracts (#11230)
+	nullsafety : make break/continue expressions not-nullable (#11269)
+	nullsafety : handle return in assignment (#11114)
+
+2023-04-28 4.3.1
+
+	Breaking changes:
+
+	all : namespace message reporting defines (#11142)
+
+	General improvements:
+
+	all : support deprecation for defines
+
+	Bugfixes:
+
+	all : fix --times with compilation server (#11091)
+	all : fix default type parameters not respecting imports (#11161)
+	all : fix bytecode bindings issues (#11098)
+	macro : allow local statics in macro functions (#11096)
+	cpp : fix AtomicInt warnings on cppia (#11105)
+	cpp : fix deprecated implicit casts of cpp.Int64 (#10998)
+	cpp : add white space around template type syntax (#11107)
+	java : don't check native signatures on extern functions (#11131)
+	lua : remove non existent luautf8 charCodeAt extern (#11097)
+
+2023-04-06 4.3.0
+
+	New features:
+
+	all : support defaults for type parameters (#10518)
+	all : support @:op(a()) on abstracts (#10119)
+	all : support abstract keyword to reference the abstract (#10513)
+	all : support static var at expression-level (#10555)
+	all : support ?. safe navigation operator (#10561)
+	all : added ?? null coalescing operator (#10428)
+	all : add -w compiler option to configure warnings (#10612)
+	all : added new error reporting modes (#10863)
+	all : support custom metadata and defines (#10858)
+
+	General improvements:
+
+	all : made various optimizations in the analyzer
+	all : made various improvements to diagnostics
+	all : made various improvements to null-safety
 	all : optimize `.bind` for instance methods (#10737)
+	all : improved various parser error messages
+	all : improved compilation server performance
+	all : improved code generation for try/catch (#10519)
+	all : infer property accessor type from the property (#10569)
+	all : improved inference of local functions typed against abstracts (#10336)
+	all : improved completion on module-level fields
+	all : improved handling of native libraries on the compilation server
+	all : improved performance when generating locals (#10648)
+	all : made Std.parseInt more consistent across targets (#10664)
+	all : infer null literals as Null<?> (#7736)
+	all : made field access errors more consistent (#10896)
+	all : consistently allow trailing commas (#11009)
+	all : migrated all relevant targets to PCRE2 (#10491)
+	all : made analyzer reconstruct do-while loops (#7979)
+	all : improved restrictions on init macros (#11043)
+	all : improved positions of @:structInit fields (#9318)
+	macro : support map literals in Context.makeExpr (#10259)
+	macro : added haxe.macro.Compiler.getConfiguration() (#10871)
+	macro : added withImports and withOption to haxe.macro.Context
+	macro : added getMacroStack and onAfterInitMacros to haxe.macro.Context (#11043)
+	macro : added haxe.macro.Context.makeMonomorph (#10728)
+	eval : added dictionary mode to objects, increasing performance in some cases (#10284)
+	eval : fixed Sys.exit handling messing up the compilation server (#10642)
+	eval : added -D eval-print-depth and -D eval-pretty-print (#10952, #10963)
+	cpp : supported type parameters on extern classes (#10415)
+	cpp : haxe.Int64 improvements (#9935)
+	cpp : non-blocking process exit code reading (#10321)
+	js : improved type names for debugger (#10894)
+	lua : added SSL implementation (#10593)
+	lua : fixed String API when -D no-inline was in place (#11057)
+	lua : non-zero exit code in case of uncaught exception (#11082)
+	java : deal with default implementations when loading extern libraries (#10466)
+	jvm : improved closure naming (#10571)
+	jvm : supported --jvm dir (#10614)
+	jvm : added some missing TShort and TFloat handling (#10722)
+	jvm : added experimental support for functional interfaces (#11019)
+	php : added and fixed several extern functions
+
+	Standard Library:
+
+	all : added atomic operations to several targets (#10610)
+	all : added Vector.fill (#10687)
+	sys : added sys.thread.Condition and Semaphore (#10503)
+	sys : added Http.getResponseHeaderValues to deal with multiple values of same key (#10812)
+	sys : make Sys.environment consistent between targets (#10460)
+	sys : consistent way to unset environment variables with Sys.putEnv (#10402)
+
+	Bugfixes:
+
+	all : properly disallowed macro reification in invalid places (#10883)
+	all : fixed behavior when extending abstract classes with final fields (#10139)
+	all : addressed some issues with constructor inlining (#10304)
+	all : fixed pattern matcher bug related to null-guards (#10291)
+	all : fixed weird parser behavior on first offset in files (#10322)
+	all : fixed various issues related to the final modifier
+	all : fixed various issues related to overload handling
+	all : fixed precedence of => vs. ?: (#10455)
+	all : made error positions in structure declarations more accurate (#9584)
+	all : brought back proper check when accessing super fields (#10521)
+	all : fixed @:publicFields on abstracts (#10541)
+	all : inherited some metadata to @:generic implementation classes (#10557)
+	all : fixed various problems in EventLoop and MainLoop
+	all : fixed infinite recursion from invalid inheritance (#10245)
+	all : fixed strange interaction between static extensions and macro functions (#10587)
+	all : fixed problems with @:generic on the compilation server (#10635)
+	all : fixed Context.onTypeNotFound being called multiple times for the same thing (#10678)
+	all : fixed type parameter problem involving abstract classes and interfaces (#10748)
+	all : fixed #if (a != b) yielding true for nonexistent values (#10868)
+	all : fixed interaction between @:generic and abstract class (#10735)
+	all : fixed @:using loading types too eagerly (#10107)
+	all : fixed parser ignoring subsequent documentation comments (#10171)
+	all : fixed parser function messing up unrelated file state in some cases (#10763)
+	all : unified Map printing to always use [] (#9260)
+	cpp : fixed problem with cpp.Pointer being used in enum arguments (#10831)
+	macro : improved handling of macro this expressions (#10793)
+	eval : fixed bit shift operations > 31 (#10752)
+	eval : fixed Bytes.toString causing an internal exception (#10623)
+	jvm : fixed @:native processing (#10280)
+	jvm : fixed Type.getEnumConstructs on native enums (#10508)
+	jvm : fixed @:volatile being ignored (#10594)
+	jvm : fixed some hashing issue when pattern matching on emojis (#10720)
+	jvm : fixed stack handling on return return (#10743)
+	hl : fixed various code generation problems
+	python : fixed SslSocket for newer python versions (#8401)
+	python : fixed syntax issue related to Vector (#11060)
 
 2021-03-06 4.2.5:
 
@@ -940,7 +1116,7 @@
 	Bugfixes:
 
 	php7: fix Reflect.field() for strings (#6276)
-	php7: fix `@:enum abstract` generation  without `-dce full` (#6175)
+	php7: fix `@:enum abstract` generation without `-dce full` (#6175)
 	php7: fix using enum constructor with arguments as a call argument (#6177)
 	php7: fix `null` property access (#6281)
 	php7: fix setting values in a map stored in another map (#6257)
@@ -986,7 +1162,7 @@
 
 	all : fixed DCE issue with interface fields (#6502)
 	cpp : fixed return typing for embedded closures (#6121)
-	php7: fixed `@:enum abstract` generation  without `-dce full` (#6175)
+	php7: fixed `@:enum abstract` generation without `-dce full` (#6175)
 	php7: fixed using enum constructor with arguments as a call argument (#6177)
 	php7: fixed accessing methods on dynamic values (#6211)
 	php7: fixed `null` property access (#6281)
@@ -1702,7 +1878,7 @@
 	all : allow to access root package with std prefix (std.Type for example)
 	all : added haxe.EnumFlags
 	sys : io.File.getChar/stdin/stdout/stderr are now in Sys class
-	cpp : Reflect.getField and Reflect.setField no longer call property functions.  Use Reflect.getProperty and Refelect.setProperty instead.
+	cpp : Reflect.getField and Reflect.setField no longer call property functions. Use Reflect.getProperty and Refelect.setProperty instead.
 	cpp : Default arguments now use Null<T> for performance increase and interface compatibility
 	cpp : Added metadata options for injecting native cpp code into headers, classes and functions
 	php : added php.Lib.mail

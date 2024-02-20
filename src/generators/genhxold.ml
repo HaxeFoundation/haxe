@@ -104,8 +104,10 @@ let generate_type com t =
 			"{" ^ String.concat ", " fields ^ "}"
 		| TLazy f ->
 			stype (lazy_type f)
-		| TDynamic t2 ->
-			if t == t2 then "Dynamic" else "Dynamic<" ^ stype t2 ^ ">"
+		| TDynamic None ->
+			"Dynamic"
+		| TDynamic (Some t2) ->
+			"Dynamic<" ^ stype t2 ^ ">"
 		| TFun ([],ret) ->
 			"() -> " ^ ftype ret
 		| TFun (args,ret) ->
@@ -142,7 +144,7 @@ let generate_type com t =
 	let print_meta ml =
 		List.iter (fun (m,pl,_) ->
 			match m with
-			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed | Meta.FlatEnum | Meta.Value | Meta.DirectlyUsed | Meta.Enum -> ()
+			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.FlatEnum | Meta.Value | Meta.DirectlyUsed | Meta.Enum -> ()
 			| _ ->
 			match pl with
 			| [] -> p "@%s " (Meta.to_string m)

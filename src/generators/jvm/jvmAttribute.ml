@@ -85,7 +85,9 @@ type j_attribute =
 	| AttributeInnerClasses of jvm_inner_class array
 	| AttributeEnclosingMethod of jvm_constant_pool_index * jvm_constant_pool_index
 	| AttributeRuntimeVisibleAnnotations of j_annotation array
+	| AttributeRuntimeInvisibleAnnotations of j_annotation array
 	| AttributeRuntimeVisibleParameterAnnotations of j_annotation array array
+	| AttributeRuntimeInvisibleParameterAnnotations of j_annotation array array
 	| AttributeBootstrapMethods of j_bootstrap_method array
 
 let write_verification_type ch = function
@@ -167,7 +169,7 @@ let rec write_annotation ch ann =
 			| ValClass i ->
 				write_ui16 ch i
 			| ValAnnotation a ->
-				write_annotation ch ann
+				write_annotation ch a
 			| ValArray annl ->
 				write_array16 ch loop annl
 		in
@@ -236,10 +238,17 @@ let write_attribute pool jvma =
 	| AttributeRuntimeVisibleAnnotations al ->
 		write_array16 ch write_annotation al;
 		"RuntimeVisibleAnnotations"
+	| AttributeRuntimeInvisibleAnnotations al ->
+		write_array16 ch write_annotation al;
+		"RuntimeInvisibleAnnotations"
 	| AttributeRuntimeVisibleParameterAnnotations al ->
 		write_byte ch (Array.length al);
 		Array.iter (write_array16 ch write_annotation) al;
 		"RuntimeVisibleParameterAnnotations"
+	| AttributeRuntimeInvisibleParameterAnnotations al ->
+		write_byte ch (Array.length al);
+		Array.iter (write_array16 ch write_annotation) al;
+		"RuntimeInvisibleParameterAnnotations"
 	| AttributeBootstrapMethods a ->
 		write_array16 ch (fun _ bm ->
 			write_ui16 ch bm.bm_method_ref;

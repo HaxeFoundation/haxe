@@ -1,0 +1,8 @@
+-lib dox
+-lib hxtemplo
+-lib hxparse
+-lib hxargs
+-lib markdown
+-dce no
+-main dox.Dox
+-cpp cpp

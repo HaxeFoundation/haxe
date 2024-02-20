@@ -1,5 +1,22 @@
 package sys.thread;
 
+#if doc_gen
+@:coreApi extern class Condition {
+	function new():Void;
+
+	public function acquire():Void;
+
+	public function tryAcquire():Bool;
+
+	public function release():Void;
+
+	public function wait():Void;
+
+	public function signal():Void;
+
+	public function broadcast():Void;
+}
+#else
 abstract Condition(hl.Abstract<"hl_condition">) {
 	public function new():Void {
 		this = alloc();
@@ -30,3 +47,4 @@ abstract Condition(hl.Abstract<"hl_condition">) {
 		return null;
 	}
 }
+#end

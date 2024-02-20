@@ -1,4 +1,4 @@
-﻿package unit;
+package unit;
 
 import haxe.Exception;
 import haxe.exceptions.ArgumentException;
@@ -23,17 +23,15 @@ private class CustomNativeException extends php.Exception {}
 private class CustomNativeException extends js.lib.Error {}
 #elseif flash
 private class CustomNativeException extends flash.errors.Error {}
-#elseif java
+#elseif jvm
 private class CustomNativeException extends java.lang.RuntimeException {}
-#elseif cs
-private class CustomNativeException extends cs.system.Exception {}
 #elseif python
 private class CustomNativeException extends python.Exceptions.Exception {}
 #elseif (lua || eval || neko || hl || cpp)
 private class CustomNativeException { public function new(m:String) {} }
 #end
 
-#if java
+#if jvm
 private class NativeExceptionBase extends java.lang.RuntimeException {}
 private class NativeExceptionChild extends NativeExceptionBase {}
 private class NativeExceptionOther extends java.lang.RuntimeException {}
@@ -162,6 +160,14 @@ class TestExceptions extends Test {
 		} catch(e:String) {
 			eq('string', e);
 		}
+
+		try {
+			throw new CustomHaxeException('Terrible error');
+		} catch(e:haxe.ValueException) {
+			throw 'should not happen';
+		} catch(e) {
+			Assert.pass();
+		}
 	}
 
 	public function testCustomNativeException() {
@@ -235,13 +241,20 @@ class TestExceptions extends Test {
 	public function testExceptionStack() {
 		var data = [
 			'_without_ throws' => stacksWithoutThrowLevel1(),
-			'_with_ throws' => stacksWithThrowLevel1()
+			'_with_ throws' => stacksWithThrowLevel1(),
+			#if (eval || hl || neko)
+			'auto wrapped' => stacksAutoWrappedLevel1()
+			#end
 		];
 		for(label => stacks in data) {
 			Assert.isTrue(stacks.length > 1, '$label: wrong stacks.length');
 			var expected = null;
 			var lineShift = 0;
 			for(s in stacks) {
+				// This will avoid errors when compiling hl/c on unix
+				// See https://github.com/HaxeFoundation/haxe/pull/11382 for long term fix
+				#if hlc if (s.length == 0) continue; #end
+
 				if(expected == null) {
 					expected = stackItemData(s[0]);
 				} else {
@@ -291,6 +304,24 @@ class TestExceptions extends Test {
 		return result;
 	}
 
+	#if (eval || hl || neko)
+	function stacksAutoWrappedLevel1() {
+		return stacksAutoWrappedLevel2();
+	}
+
+	function stacksAutoWrappedLevel2():Array<CallStack> {
+		@:pure(false) function wrapNativeError(_) return [];
+
+		var result:Array<CallStack> = [];
+		// It's critical for `testExceptionStack` test to keep the following lines
+		// order with no additional code in between.
+		result.push(try throw new Exception('') catch(e:Exception) e.stack);
+		result.push(try throw "" catch(e:Exception) e.stack);
+		result.push(try wrapNativeError((null:String).length) catch(e:Exception) e.stack);
+		return result;
+	}
+	#end
+
 	function stackItemData(item:StackItem):ItemData {
 		var result:ItemData = {};
 		switch item {
@@ -317,6 +348,16 @@ class TestExceptions extends Test {
 		eq('haxe.Exception', HelperMacros.typeString(try throw new Exception('') catch(e) e));
 	}
 
+	function testCatchValueException() {
+		try {
+			throw "";
+		} catch(e:ValueException) {
+			Assert.pass();
+		} catch(e) {
+			Assert.fail();
+		}
+	}
+
 	function testNotImplemented() {
 		try {
 			futureFeature();
@@ -340,7 +381,7 @@ class TestExceptions extends Test {
 		}
 	}
 
-#if java
+#if jvm
 	function testCatchChain() {
 		eq("caught NativeExceptionChild: msg", raise(() -> throw new NativeExceptionChild("msg")));
 		eq("caught NativeExceptionBase: msg", raise(() -> throw new NativeExceptionBase("msg")));

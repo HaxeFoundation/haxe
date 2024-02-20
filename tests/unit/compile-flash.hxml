@@ -1,0 +1,9 @@
+-cmd compc -output native_swf/lib.swc -include-sources native_swf/
+
+--next
+
+compile-each.hxml
+--main unit.TestMain
+-swf bin/unit.swf
+-swf-lib native_swf/lib.swc
+-D network-sandbox

@@ -165,16 +165,15 @@ class JsonPrinter {
 	function fieldsString(v:Dynamic, fields:Array<String>) {
 		addChar('{'.code);
 		var len = fields.length;
-		var last = len - 1;
-		var first = true;
+		var empty = true;
 		for (i in 0...len) {
 			var f = fields[i];
 			var value = Reflect.field(v, f);
 			if (Reflect.isFunction(value))
 				continue;
-			if (first) {
+			if (empty) {
 				nind++;
-				first = false;
+				empty = false;
 			} else
 				addChar(','.code);
 			newl();
@@ -184,11 +183,11 @@ class JsonPrinter {
 			if (pretty)
 				addChar(' '.code);
 			write(f, value);
-			if (i == last) {
-				nind--;
-				newl();
-				ipad();
-			}
+		}
+		if (!empty) {
+			nind--;
+			newl();
+			ipad();
 		}
 		addChar('}'.code);
 	}

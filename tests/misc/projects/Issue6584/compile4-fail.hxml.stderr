@@ -1,1 +1,2 @@
-Main4.hx:2: characters 2-14 : final field y must be initialized immediately or in the constructor
+Main4.hx:1: characters 7-11 : Some final fields are uninitialized in this class
+Main4.hx:2: characters 8-9 : Uninitialized field

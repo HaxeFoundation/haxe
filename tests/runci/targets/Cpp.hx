@@ -83,12 +83,16 @@ class Cpp {
 			runCpp("export/cpp/Main");
 		}
 
-		// if (Sys.systemName() == "Mac")
-		// {
-		// 	changeDirectory(getMiscSubDir("cppObjc"));
-		// 	runCommand("haxe", ["build.hxml"]);
-		// 	runCpp("bin/TestObjc-debug");
-		// }
+		changeDirectory(getMiscSubDir("eventLoop"));
+		runCommand("haxe", ["build-cpp.hxml"]);
+		// TODO: check output like misc tests do
+		runCpp("cpp/Main");
+
+		if (Sys.systemName() == "Mac") {
+			changeDirectory(getMiscSubDir("cppObjc"));
+			runCommand("haxe", ["-D", archFlag, "build.hxml"]);
+			runCpp("bin/TestObjc-debug");
+		}
 
 		changeDirectory(miscCppDir);
 		runCommand("haxe", ["run.hxml"]);

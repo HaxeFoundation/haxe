@@ -20,10 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  *)
 open Extlib_leftovers
-open Unix
 open Globals
 open Ast
 open Type
+open Error
 open Common
 open Hlcode
 
@@ -131,6 +131,7 @@ type access =
 	| AInstanceProto of texpr * field index
 	| AInstanceField of texpr * field index
 	| AArray of reg * (ttype * ttype) * reg
+	| ACArray of reg * ttype * reg
 	| AVirtualMethod of texpr * field index
 	| ADynamic of texpr * string index
 	| AEnum of tenum * field index
@@ -310,6 +311,12 @@ let unsigned_op e1 e2 =
 	in
 	is_unsigned e1 && is_unsigned e2
 
+let rec get_const e =
+	match e.eexpr with
+	| TConst c -> c
+	| TParenthesis e | TCast (e,_) -> get_const e
+	| _ -> abort "Should be a constant" e.epos
+
 let set_curpos ctx p =
 	ctx.m.mcurpos <- p
 
@@ -322,11 +329,12 @@ let make_debug ctx arr =
 		| false -> try
 			(* lookup relative path *)
 			let len = String.length p.pfile in
-			let base = List.find (fun path ->
+			let base = ctx.com.class_paths#find (fun path ->
+				let path = path#path in
 				let l = String.length path in
 				len > l && String.sub p.pfile 0 l = path
-			) ctx.com.Common.class_path in
-			let l = String.length base in
+			) in
+			let l = String.length base#path in
 			String.sub p.pfile l (len - l)
 		with Not_found ->
 			p.pfile
@@ -355,7 +363,7 @@ let make_debug ctx arr =
 let fake_tnull =
 	{null_abstract with
 		a_path = [],"Null";
-		a_params = [{ttp_name = "T"; ttp_type = t_dynamic; ttp_default = None}];
+		a_params = [mk_type_param null_class TPHType None None];
 	}
 
 let get_rec_cache ctx t none_callback not_found_callback =
@@ -392,9 +400,9 @@ let rec to_type ?tref ctx t =
 			let pt = to_type ctx t in
 			if o && not (is_nullable pt) then HRef pt else pt
 		) args, to_type ctx ret)
-	| TAnon a when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) ->
+	| TAnon a when (match !(a.a_status) with ClassStatics _ | EnumStatics _ -> true | _ -> false) ->
 		(match !(a.a_status) with
-		| Statics c ->
+		| ClassStatics c ->
 			class_type ctx c (extract_param_types c.cl_params) true
 		| EnumStatics e ->
 			enum_class ctx e
@@ -429,7 +437,7 @@ let rec to_type ?tref ctx t =
 		HAbstract (name, alloc_string ctx name)
 	| TInst (c,pl) ->
 		(match c.cl_kind with
-		| KTypeParameter tl ->
+		| KTypeParameter ttp ->
 			let rec loop = function
 				| [] -> HDyn
 				| t :: tl ->
@@ -437,7 +445,7 @@ let rec to_type ?tref ctx t =
 					| TInst (c,_) as t when not (has_class_flag c CInterface) -> to_type ?tref ctx t
 					| _ -> loop tl
 			in
-			loop tl
+			loop (get_constraints ttp)
 		| _ -> class_type ~tref ctx c pl false)
 	| TAbstract ({a_path = [],"Null"},[t1]) ->
 		let t = to_type ?tref ctx t1 in
@@ -653,8 +661,8 @@ and class_type ?(tref=None) ctx c pl statics =
 				) in
 				Some fid
 			) in
-			match f.cf_kind, fid with
-			| Method _, Some fid -> p.pbindings <- (fid, alloc_fun_path ctx c.cl_path f.cf_name) :: p.pbindings
+			match f.cf_kind, f.cf_expr, fid with
+			| Method _, Some _, Some fid -> p.pbindings <- (fid, alloc_fun_path ctx c.cl_path f.cf_name) :: p.pbindings
 			| _ -> ()
 		) (if statics then c.cl_ordered_statics else c.cl_ordered_fields);
 		if not statics then begin
@@ -983,14 +991,17 @@ let real_name v =
 	in
 	match loop v.v_meta with
 	| "_gthis" -> "this"
-	| name -> name
+	| name -> match v.v_kind with
+		| VInlinedConstructorVariable sl -> String.concat "." sl
+		| _ -> name
 
-let is_gen_local ctx v = match v.v_kind with
+let not_debug_var ctx v = match v.v_kind with
 	| VUser _ -> false
+	| VInlinedConstructorVariable _ -> false
 	| _ -> true
 
 let add_assign ctx v =
-	if is_gen_local ctx v then () else
+	if not_debug_var ctx v then () else
 	let name = real_name v in
 	ctx.m.massign <- (alloc_string ctx name, current_pos ctx - 1) :: ctx.m.massign
 
@@ -1377,6 +1388,13 @@ and get_access ctx e =
 				free ctx a;
 				let t = to_type ctx t in
 				AArray (a,(t,t),i)
+			| TInst ({ cl_path = ["hl"],"Abstract" },[TInst({ cl_kind = KExpr (EConst (String("hl_carray",_)),_) },_)]) ->
+				let a = eval_expr ctx a in
+				hold ctx a;
+				let i = eval_to ctx i HI32 in
+				free ctx a;
+				let t = to_type ctx e.etype in
+				ACArray (a,t,i)
 			| TAbstract (a,pl) ->
 				loop (Abstract.get_underlying_type a pl)
 			| _ ->
@@ -1894,7 +1912,13 @@ and eval_expr ctx e =
 			r
 		| "$asize", [e] ->
 			let r = alloc_tmp ctx HI32 in
-			op ctx (OArraySize (r, eval_to ctx e HArray));
+			(match follow e.etype with
+			| TInst ({cl_path=["hl"],"Abstract"},[TInst({ cl_kind = KExpr (EConst (String("hl_carray",_)),_) },_)]) ->
+				let arr = eval_expr ctx e in
+				op ctx (ONullCheck arr);
+				op ctx (OArraySize (r, arr))
+			| _ ->
+				op ctx (OArraySize (r, eval_to ctx e HArray)));
 			r
 		| "$aalloc", [esize] ->
 			let et = (match follow e.etype with TAbstract ({ a_path = ["hl"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
@@ -2054,6 +2078,41 @@ and eval_expr ctx e =
 			free ctx rfile;
 			free ctx min;
 			r
+		| "$prefetch", [value; mode] ->
+			let mode = (match get_const mode with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant mode required" e.epos
+			) in
+			(match get_access ctx value with
+			| AInstanceField (f, index) -> op ctx (OPrefetch (eval_expr ctx f, index + 1, mode))
+			| _ -> op ctx (OPrefetch (eval_expr ctx value, 0, mode)));
+			alloc_tmp ctx HVoid
+        | "$unsafecast", [value] ->
+			let r = alloc_tmp ctx (to_type ctx e.etype) in
+            op ctx (OUnsafeCast (r, eval_expr ctx value));
+			r
+		| "$asm", [mode; value] ->
+			let mode = (match get_const mode with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant mode required" e.epos
+			) in
+			let value = (match get_const value with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant value required" e.epos
+			) in
+			op ctx (OAsm (mode, value, 0));
+			alloc_tmp ctx HVoid
+		| "$asm", [mode; value; reg] ->
+			let mode = (match get_const mode with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant mode required" e.epos
+			) in
+			let value = (match get_const value with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant value required" e.epos
+			) in
+			op ctx (OAsm (mode, value, (eval_expr ctx reg) + 1));
+			alloc_tmp ctx HVoid
 		| _ ->
 			abort ("Unknown native call " ^ s) e.epos)
 	| TEnumIndex v ->
@@ -2141,9 +2200,9 @@ and eval_expr ctx e =
 				match follow t with
 				| TFun (_,rt) ->
 					(match follow rt with
-					| TInst({ cl_kind = KTypeParameter tl },_) ->
+					| TInst({ cl_kind = KTypeParameter ttp },_) ->
 						(* don't allow if we have a constraint virtual, see hxbit.Serializer.getRef *)
-						not (List.exists (fun t -> match to_type ctx t with HVirtual _ -> true | _ -> false) tl)
+						not (List.exists (fun t -> match to_type ctx t with HVirtual _ -> true | _ -> false) (get_constraints ttp))
 					| _ -> false)
 				| _ ->
 					false
@@ -2208,7 +2267,7 @@ and eval_expr ctx e =
 				ignore(make_fun ctx ("","") fid f None None);
 			end;
 			op ctx (OStaticClosure (r,fid));
-		| ANone | ALocal _ | AArray _ | ACaptured _ ->
+		| ANone | ALocal _ | AArray _ | ACaptured _ | ACArray _ ->
 			abort "Invalid access" e.epos);
 		let to_t = to_type ctx e.etype in
 		(match to_t with
@@ -2441,6 +2500,14 @@ and eval_expr ctx e =
 				free ctx ra;
 				free ctx ridx;
 				v
+            | ACArray (ra, _, ridx) ->
+				hold ctx ra;
+				hold ctx ridx;
+                let v = value() in
+                op ctx (OSetArray (ra,ridx,v));
+                free ctx ridx;
+                free ctx ra;
+                v
 			| ADynamic (ethis,f) ->
 				let obj = eval_null_check ctx ethis in
 				hold ctx obj;
@@ -2636,13 +2703,10 @@ and eval_expr ctx e =
 		ctx.m.mbreaks <- [];
 		ctx.m.mcontinues <- [];
 		ctx.m.mloop_trys <- ctx.m.mtrys;
-		let start = jump ctx (fun p -> OJAlways p) in
 		let continue_pos = current_pos ctx in
 		let ret = jump_back ctx in
-		let j = jump_expr ctx cond false in
-		start();
 		ignore(eval_expr ctx eloop);
-		set_curpos ctx (max_pos e);
+		let j = jump_expr ctx cond false in
 		ret();
 		j();
 		List.iter (fun f -> f (current_pos ctx)) ctx.m.mbreaks;
@@ -2727,18 +2791,22 @@ and eval_expr ctx e =
 		(match get_access ctx e with
 		| AArray (a,at,idx) ->
 			array_read ctx a at idx e.epos
+		| ACArray (a,t,idx) ->
+			let tmp = alloc_tmp ctx t in
+			op ctx (OGetArray (tmp,a,idx));
+			tmp
 		| _ ->
 			die "" __LOC__)
 	| TMeta (_,e) ->
 		eval_expr ctx e
 	| TFor (v,it,loop) ->
 		eval_expr ctx (Texpr.for_remap ctx.com.basic v it loop e.epos)
-	| TSwitch (en,cases,def) ->
+	| TSwitch {switch_subject = en;switch_cases = cases;switch_default = def} ->
 		let rt = to_type ctx e.etype in
 		let r = alloc_tmp ctx rt in
 		(try
 			let max = ref (-1) in
-			let rec get_int e =
+			let get_int e =
 				match e.eexpr with
 				| TConst (TInt i) ->
 					let v = Int32.to_int i in
@@ -2747,12 +2815,12 @@ and eval_expr ctx e =
 				| _ ->
 					raise Exit
 			in
-			List.iter (fun (values,_) ->
+			List.iter (fun case ->
 				List.iter (fun v ->
 					let i = get_int v in
 					if i < 0 then raise Exit;
 					if i > !max then max := i;
-				) values;
+				) case.case_patterns;
 			) cases;
 			if !max > 255 || cases = [] then raise Exit;
 			let ridx = eval_to ctx en HI32 in
@@ -2766,7 +2834,7 @@ and eval_expr ctx e =
 				let re = eval_to ctx e rt in
 				if rt <> HVoid then op ctx (OMov (r,re)));
 			let jends = ref [jump ctx (fun i -> OJAlways i)] in
-			List.iter (fun (values,ecase) ->
+			List.iter (fun {case_patterns = values;case_expr = ecase} ->
 				List.iter (fun v ->
 					Array.set indexes (get_int v) (current_pos ctx - switch_pos)
 				) values;
@@ -2779,7 +2847,7 @@ and eval_expr ctx e =
 		with Exit ->
 			let jends = ref [] in
 			let rvalue = eval_expr ctx en in
-			let loop (cases,e) =
+			let loop {case_patterns = cases;case_expr = e} =
 				hold ctx rvalue;
 				let ok = List.map (fun c ->
 					let ct = common_type ctx en c true c.epos in
@@ -3046,7 +3114,7 @@ and gen_assign_op ctx acc e1 f =
 		free ctx robj;
 		op ctx (ODynSet (robj,fid,r));
 		r
-	| ANone | ALocal _ | AStaticFun _ | AInstanceFun _ | AInstanceProto _ | AVirtualMethod _ | AEnum _ ->
+	| ANone | ALocal _ | AStaticFun _ | AInstanceFun _ | AInstanceProto _ | AVirtualMethod _ | AEnum _ | ACArray _ ->
 		die "" __LOC__
 
 and build_capture_vars ctx f =
@@ -3330,7 +3398,10 @@ let generate_static ctx c f =
 					let gen_content() =
 						op ctx (OThrow (make_string ctx ("Requires compiling with -D hl-ver=" ^ ver ^ ".0 or higher") null_pos));
 					in
-					ignore(make_fun ctx ~gen_content (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) None None)
+					(match f.cf_expr with
+					| Some { eexpr = TFunction fn } -> ignore(make_fun ctx ~gen_content (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) fn None None)
+					| _ -> if not (Meta.has Meta.NoExpr f.cf_meta) then abort "Missing function body" f.cf_pos)
+
 				else
 				add_native "std" f.cf_name
 			| (Meta.HlNative,[] ,_ ) :: _ ->
@@ -3338,14 +3409,16 @@ let generate_static ctx c f =
 			| (Meta.HlNative,_ ,p) :: _ ->
 				abort "Invalid @:hlNative decl" p
 			| [] ->
-				ignore(make_fun ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) None None)
+				(match f.cf_expr with
+				| Some { eexpr = TFunction fn } -> ignore(make_fun ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) fn None None)
+				| _ -> if not (Meta.has Meta.NoExpr f.cf_meta) then abort "Missing function body" f.cf_pos)
 			| _ :: l ->
 				loop l
 		in
 		loop f.cf_meta
 
 
-let rec generate_member ctx c f =
+let generate_member ctx c f =
 	match f.cf_kind with
 	| Var _ -> ()
 	| _ when is_extern_field f -> ()
@@ -3626,7 +3699,7 @@ let generate_static_init ctx types main =
 	(* init class statics *)
 	let init_exprs = ref [] in
 	List.iter (fun t ->
-		(match t with TClassDecl { cl_init = Some e } -> init_exprs := e :: !init_exprs | _ -> ());
+		(match t with TClassDecl { cl_init = Some {cf_expr = Some e} } -> init_exprs := e :: !init_exprs | _ -> ());
 		match t with
 		| TClassDecl c when not (has_class_flag c CExtern) ->
 			List.iter (fun f ->
@@ -3688,7 +3761,7 @@ let write_code ch code debug =
 	let byte = IO.write_byte ch in
 	let write_index = write_index_gen byte in
 
-	let rec write_type t =
+	let write_type t =
 		write_index (try PMap.find t htypes with Not_found -> die (tstr t) __LOC__)
 	in
 
@@ -4059,7 +4132,7 @@ let add_types ctx types =
 						| Method MethNormal when not (List.exists (fun (m,_,_) -> m = Meta.HlNative) f.cf_meta) ->
 							(match f.cf_expr with
 							| Some { eexpr = TFunction { tf_expr = { eexpr = TBlock ([] | [{ eexpr = TReturn (Some { eexpr = TConst _ })}]) } } } | None ->
-								let name = prefix ^ String.lowercase (Str.global_replace (Str.regexp "[A-Z]+") "_\\0" f.cf_name) in
+								let name = prefix ^ String.lowercase_ascii (Str.global_replace (Str.regexp "[A-Z]+") "_\\0" f.cf_name) in
 								f.cf_meta <- (Meta.HlNative, [(EConst (String(lib,SDoubleQuotes)),p);(EConst (String(name,SDoubleQuotes)),p)], p) :: f.cf_meta;
 							| _ -> ())
 						| _ -> ()
@@ -4117,7 +4190,7 @@ let generate com =
 
 	let ctx = create_context com false dump in
 	add_types ctx com.types;
-	let code = build_code ctx com.types com.main in
+	let code = build_code ctx com.types com.main.main_expr in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 	if dump then begin
 		(match ctx.dump_out with None -> () | Some ch -> IO.close_out ch);
@@ -4149,7 +4222,7 @@ let generate com =
 	in
 
 	if Path.file_extension com.file = "c" then begin
-		let gnames = Array.create (Array.length code.globals) "" in
+		let gnames = Array.make (Array.length code.globals) "" in
 		PMap.iter (fun n i -> gnames.(i) <- n) ctx.cglobals.map;
 		if not (Common.defined com Define.SourceHeader) then begin
 			let version_major = com.version / 1000 in

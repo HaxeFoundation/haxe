@@ -20,11 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  *)
 
+open Extlib_leftovers
 open Ast
 open Type
 open Common
 open ExtList
 open Error
+open JsSourcemap
 
 type pos = Globals.pos
 
@@ -32,6 +34,7 @@ type ctx = {
     com : Common.context;
     buf : Buffer.t;
     packages : (string list,unit) Hashtbl.t;
+    smap : sourcemap option;
     mutable current : tclass;
     mutable statics : (tclass * tclass_field * texpr) list;
     mutable inits : texpr list;
@@ -77,7 +80,7 @@ let get_exposed ctx path meta = try
         (match args with
          | [ EConst (String(s,_)), _ ] -> [s]
          | [] -> [path]
-         | _ -> typing_error "Invalid @:expose parameters" pos)
+         | _ -> raise_typing_error "Invalid @:expose parameters" pos)
     with Not_found -> []
 
 let dot_path = Globals.s_type_path
@@ -143,11 +146,15 @@ let temp ctx =
 
 let spr ctx s =
     ctx.separator <- false;
+	handle_newlines ctx.smap s;
     Buffer.add_string ctx.buf s
 
 let print ctx =
     ctx.separator <- false;
-    Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
+    Printf.kprintf (fun s -> begin
+        handle_newlines ctx.smap s;
+        Buffer.add_string ctx.buf s
+    end)
 
 let newline ctx = print ctx "\n%s" ctx.tabs
 
@@ -159,7 +166,7 @@ let println ctx =
             newline ctx
         end)
 
-let unsupported p = typing_error "This expression cannot be compiled to Lua" p
+let unsupported p = raise_typing_error "This expression cannot be compiled to Lua" p
 
 let basename path =
     try
@@ -222,8 +229,15 @@ let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
 
 let is_dot_access e cf =
     match follow(e.etype), cf with
-    | TInst (c,_), FInstance(_,_,icf)  when (Meta.has Meta.LuaDotMethod c.cl_meta || Meta.has Meta.LuaDotMethod icf.cf_meta)->
-        true;
+    | TInst (c, _), FInstance(_, _, icf) -> (match icf.cf_kind with
+        | Var _ ->
+            true
+        | Method _ when Meta.has Meta.LuaDotMethod c.cl_meta ->
+            true
+        | Method _ when Meta.has Meta.LuaDotMethod icf.cf_meta ->
+            true
+        | Method _ ->
+            false)
     | _ ->
         false
 
@@ -274,11 +288,11 @@ let mk_mr_select com e ecall name =
 (* from genphp *)
 let rec is_string_type t =
     match follow t with
-    | TInst ({cl_kind = KTypeParameter constraints}, _) -> List.exists is_string_type constraints
+    | TInst ({cl_kind = KTypeParameter ttp}, _) -> List.exists is_string_type (get_constraints ttp)
     | TInst ({cl_path = ([], "String")}, _) -> true
     | TAnon a ->
         (match !(a.a_status) with
-         | Statics ({cl_path = ([], "String")}) -> true
+         | ClassStatics ({cl_path = ([], "String")}) -> true
          | _ -> false)
     | TAbstract (a,pl) -> is_string_type (Abstract.get_underlying_type a pl)
     | _ -> false
@@ -291,7 +305,7 @@ let is_dynamic t = match follow t with
     | TInst({ cl_kind = KTypeParameter _ }, _) -> true
     | TAnon anon ->
         (match !(anon.a_status) with
-         | EnumStatics _ | Statics _ -> false
+         | EnumStatics _ | ClassStatics _ -> false
          | _ -> true
         )
     | _ -> false
@@ -310,7 +324,7 @@ let rec is_int_type ctx t =
     | TInst ({cl_path = ([], "Int")}, _) -> true
     | TAnon a ->
         (match !(a.a_status) with
-         | Statics ({cl_path = ([], "Int")}) -> true
+         | ClassStatics ({cl_path = ([], "Int")}) -> true
          | _ -> false)
     | TAbstract ({a_path = ([],"Float")}, pl) -> false
     | TAbstract ({a_path = ([],"Int")}, pl) -> true
@@ -345,7 +359,7 @@ let rec is_function_type t =
 
 and gen_argument ?(reflect=false) ctx e = begin
     match e.eexpr with
-    | TField (x,((FInstance (_,_,f)| FAnon(f) | FClosure(_,f))))  when (is_function_type e.etype) ->
+    | TField (x, ((FInstance (_, _, f) | FAnon(f) | FClosure(_,f)) as i)) when ((is_function_type e.etype) && (not(is_dot_access x i))) ->
             (
             if reflect then (
               add_feature ctx "use._hx_funcToField";
@@ -377,7 +391,7 @@ and gen_call ctx e el =
     (match e.eexpr , el with
      | TConst TSuper , params ->
          (match ctx.current.cl_super with
-          | None -> typing_error "Missing api.setCurrentClass" e.epos
+          | None -> raise_typing_error "Missing api.setCurrentClass" e.epos
           | Some (c,_) ->
               print ctx "%s.super(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
               List.iter (fun p -> print ctx ","; gen_argument ctx p) params;
@@ -385,7 +399,7 @@ and gen_call ctx e el =
          );
      | TField ({ eexpr = TConst TSuper },f) , params ->
          (match ctx.current.cl_super with
-          | None -> typing_error "Missing api.setCurrentClass" e.epos
+          | None -> raise_typing_error "Missing api.setCurrentClass" e.epos
           | Some (c,_) ->
               let name = field_name f in
               print ctx "%s.prototype%s(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
@@ -438,7 +452,7 @@ and gen_call ctx e el =
                   if List.length(fields) > 0 then incr count;
               | { eexpr = TConst(TNull)} -> ()
               | _ ->
-				typing_error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
+                raise_typing_error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
              )) el;
          spr ctx "})";
      | TIdent "__lua__", [{ eexpr = TConst (TString code) }] ->
@@ -558,20 +572,27 @@ and gen_cond ctx cond =
     gen_value ctx cond;
     ctx.iife_assign <- false
 
-and gen_loop ctx label cond e =
+and gen_loop ctx cond do_while e =
     let old_in_loop = ctx.in_loop in
     ctx.in_loop <- true;
     let old_handle_continue = ctx.handle_continue in
     let will_continue = has_continue e in
     ctx.handle_continue <- has_continue e;
     ctx.break_depth <- ctx.break_depth + 1;
-    if will_continue then begin
+    if will_continue then
         println ctx "local _hx_continue_%i = false;" ctx.break_depth;
-    end;
+    if do_while then
+        println ctx "local _hx_do_first_%i = true;" ctx.break_depth;
     let b = open_block ctx in
-    print ctx "%s " label;
+    print ctx "while ";
     gen_cond ctx cond;
+    if do_while then
+        print ctx " or _hx_do_first_%i" ctx.break_depth;
     print ctx " do ";
+    if do_while then begin
+        newline ctx;
+        println ctx "_hx_do_first_%i = false;" ctx.break_depth;
+    end;
     if will_continue then print ctx "repeat ";
     gen_block_element ctx e;
     if will_continue then begin
@@ -627,7 +648,7 @@ and check_multireturn_param ctx t pos =
    match t with
          TAbstract(_,p) | TInst(_,p) ->
             if List.exists ttype_multireturn p then
-				 typing_error "MultiReturns must not be type parameters" pos
+				 raise_typing_error "MultiReturns must not be type parameters" pos
             else
                 ()
         | _ ->
@@ -648,6 +669,7 @@ and lua_arg_name(a,_) =
         | _, _, _ ->  ident a.v_name;
 
 and gen_expr ?(local=true) ctx e = begin
+    let clear_mapping = add_mapping ctx.smap e in
     match e.eexpr with
       TConst c ->
         gen_constant ctx e.epos c;
@@ -947,11 +969,9 @@ and gen_expr ?(local=true) ctx e = begin
         gen_value ctx e;
         spr ctx (Ast.s_unop op)
     | TWhile (cond,e,Ast.NormalWhile) ->
-        gen_loop ctx "while" cond e
+        gen_loop ctx cond false e;
     | TWhile (cond,e,Ast.DoWhile) ->
-        gen_block_element ctx e;
-        newline ctx;
-        gen_loop ctx "while" cond e
+        gen_loop ctx cond true e;
     | TObjectDecl [] ->
         spr ctx "_hx_e()";
         ctx.separator <- true
@@ -995,8 +1015,8 @@ and gen_expr ?(local=true) ctx e = begin
         println ctx "elseif _hx_result ~= _hx_pcall_default then";
         println ctx "  return _hx_result";
         print ctx "end";
-    | TSwitch (e,cases,def) ->
-        List.iteri (fun cnt (el,e2) ->
+    | TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->
+        List.iteri (fun cnt {case_patterns = el;case_expr = e2} ->
             if cnt == 0 then spr ctx "if "
             else (newline ctx; spr ctx "elseif ");
             List.iteri (fun ccnt e3 ->
@@ -1031,13 +1051,16 @@ and gen_expr ?(local=true) ctx e = begin
     | TCast (e1,None) ->
         gen_value ctx e1;
     | TIdent s ->
-        spr ctx s
+        spr ctx s;
+
+    clear_mapping ()
 end;
 
     (* gen_block_element handles expressions that map to "statements" in lua. *)
     (* It handles no-op situations, and ensures that expressions are formatted with newlines *)
 and gen_block_element ctx e  =
     ctx.iife_assign <- false;
+    let clear_mapping = add_mapping ctx.smap e in
     begin match e.eexpr with
         | TTypeExpr _ | TConst _ | TLocal _ | TFunction _ ->
             ()
@@ -1075,7 +1098,8 @@ and gen_block_element ctx e  =
              | Increment -> print ctx " + 1;"
              | _ -> print ctx " - 1;"
             )
-        | TSwitch (e,[],def) ->
+        | TSwitch {switch_subject = e; switch_cases = [];switch_default = def} ->
+			(* TODO: this omits the subject which is not correct in the general case *)
             (match def with
              | None -> ()
              | Some e -> gen_block_element ctx e)
@@ -1096,6 +1120,7 @@ and gen_block_element ctx e  =
             gen_expr ctx e;
             semicolon ctx;
     end;
+    clear_mapping ()
 
 and is_const_null e =
     match e.eexpr with
@@ -1134,6 +1159,7 @@ and gen_anon_value ctx e =
         gen_value ctx e
 
 and gen_value ctx e =
+    let clear_mapping = add_mapping ctx.smap e in
     let assign e =
         mk (TBinop (Ast.OpAssign,
                     mk (TLocal (match ctx.in_value with None -> Globals.die "" __LOC__ | Some v -> v)) t_dynamic e.epos,
@@ -1185,6 +1211,9 @@ and gen_value ctx e =
         gen_expr ctx e
     | TMeta (_,e1) ->
         gen_value ctx e1
+    | TCall ({eexpr = (TField (e, (FInstance _ as s)))}, el) when (is_string_expr e) ->
+        spr ctx ("String.prototype." ^ (field_name s));
+        gen_paren_arguments ctx (e :: el)
     | TCall (e,el) ->
         gen_call ctx e el
     | TReturn _
@@ -1248,12 +1277,15 @@ and gen_value ctx e =
         gen_elseif ctx eo;
         spr ctx " end";
         v()
-    | TSwitch (cond,cases,def) ->
-        let v = value() in
-        gen_expr ctx (mk (TSwitch (cond,
-                                   List.map (fun (e1,e2) -> (e1,assign e2)) cases,
-                                   match def with None -> None | Some e -> Some (assign e)
-                                  )) e.etype e.epos);
+    | TSwitch switch ->
+		let v = value() in
+		let switch = { switch with
+			switch_cases = List.map (fun case -> { case with
+				case_expr = assign case.case_expr
+			}) switch.switch_cases;
+			switch_default = Option.map assign switch.switch_default
+		} in
+		gen_expr ctx (mk (TSwitch switch) e.etype e.epos);
         v()
     | TTry (b,catchs) ->
         let v = value() in
@@ -1261,14 +1293,19 @@ and gen_value ctx e =
         gen_block_element ctx (mk (TTry (block (assign b),
                                          List.map (fun (v,e) -> v, block (assign e)) catchs
                                         )) e.etype e.epos);
-        v()
+        v();
+    clear_mapping ()
 
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
-     | Ast.OpAssign, TField(e3, FInstance _), TFunction f ->
+     | Ast.OpAssign, TField(e3, (FInstance _ as ci)), TFunction f ->
          gen_expr ctx e1;
          spr ctx " = " ;
-         print ctx "function(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f.tf_args)));
+         let fn_args = List.map ident (List.map arg_name f.tf_args) in
+         print ctx "function(%s) " (String.concat ","
+             (if is_dot_access e3 ci
+                 then fn_args
+                 else "self" :: fn_args));
          let fblock = fun_block ctx f e1.epos in
          (match fblock.eexpr with
           | TBlock el ->
@@ -1300,14 +1337,28 @@ and gen_tbinop ctx op e1 e2 =
               gen_value ctx e1;
               spr ctx " = ";
               gen_value ctx e3;
-          | TField(e3, (FInstance _| FClosure _ | FAnon _ ) ), TField(e4, (FClosure _| FStatic _ | FAnon _) )  ->
+          | TField(e3, (FClosure _ | FAnon _)), TField(e4, (FClosure _ | FStatic _ | FAnon _)) ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
               add_feature ctx "use._hx_funcToField";
               spr ctx "_hx_funcToField(";
               gen_value ctx e2;
               spr ctx ")";
-          | TField(_, FInstance _ ), TLocal t  when (is_function_type t.v_type)   ->
+          | TField(e3, (FInstance _ as lhs)), TField(e4, (FInstance _ as rhs)) when not (is_dot_access e3 lhs) && (is_dot_access e4 rhs) ->
+              gen_value ctx e1;
+              print ctx " %s " (Ast.s_binop op);
+              add_feature ctx "use._hx_funcToField";
+              spr ctx "_hx_funcToField(";
+              gen_value ctx e2;
+              spr ctx ")";
+          | TField(e3, (FInstance _ as ci)), TField(e4, (FClosure _ | FStatic _ | FAnon _)) when not (is_dot_access e3 ci) ->
+              gen_value ctx e1;
+              print ctx " %s " (Ast.s_binop op);
+              add_feature ctx "use._hx_funcToField";
+              spr ctx "_hx_funcToField(";
+              gen_value ctx e2;
+              spr ctx ")";
+          | TField(e3, (FInstance _ as ci)), TLocal t when ((is_function_type t.v_type) && (not (is_dot_access e3 ci))) ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
               add_feature ctx "use._hx_funcToField";
@@ -1444,7 +1495,7 @@ and gen_return ctx e eo =
          spr ctx "do return end"
      | Some e ->
          (match e.eexpr with
-          | TField (e2, ((FClosure (_, tcf) | FAnon tcf |FInstance (_,_,tcf)))) when (is_function_type tcf.cf_type) ->
+          | TField (e2, ((FAnon tcf | FInstance (_,_,tcf)) as t)) when ((is_function_type tcf.cf_type) && (not(is_dot_access e2 t)))->
               (* See issue #6259 *)
               add_feature ctx "use._hx_bind";
               spr ctx "do return ";
@@ -1487,20 +1538,20 @@ let check_multireturn ctx c =
     match c with
     | _ when Meta.has Meta.MultiReturn c.cl_meta ->
         if not (has_class_flag c CExtern) then
-            typing_error "MultiReturns must be externs" c.cl_pos
+            raise_typing_error "MultiReturns must be externs" c.cl_pos
         else if List.length c.cl_ordered_statics > 0 then
-            typing_error "MultiReturns must not contain static fields" c.cl_pos
+            raise_typing_error "MultiReturns must not contain static fields" c.cl_pos
         else if (List.exists (fun cf -> match cf.cf_kind with Method _ -> true | _-> false) c.cl_ordered_fields) then
-            typing_error "MultiReturns must not contain methods" c.cl_pos;
+            raise_typing_error "MultiReturns must not contain methods" c.cl_pos;
     | {cl_super = Some(csup,_)} when Meta.has Meta.MultiReturn csup.cl_meta ->
-        typing_error "Cannot extend a MultiReturn" c.cl_pos
+        raise_typing_error "Cannot extend a MultiReturn" c.cl_pos
     | _ -> ()
 
 
 let check_field_name c f =
     match f.cf_name with
-    | "prototype" | "__proto__" | "constructor" ->
-        typing_error ("The field name '" ^ f.cf_name ^ "'  is not allowed in Lua") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
+    | "prototype" | "__proto__" | "constructor" | "__mt__" ->
+        raise_typing_error ("The field name '" ^ f.cf_name ^ "'  is not allowed in Lua") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
     | _ -> ()
 
 (* convert a.b.c to ["a"]["b"]["c"] *)
@@ -1576,19 +1627,16 @@ let gen_class_field ctx c f =
 
 let generate_class___name__ ctx c =
     if has_feature ctx "lua.Boot.isClass" then begin
-        let p = s_path ctx c.cl_path in
-        print ctx "%s.__name__ = " p;
-        if has_feature ctx "Type.getClassName" then
-            println ctx "\"%s\"" (String.concat "." (List.map s_escape_lua (fst c.cl_path @ [snd c.cl_path])))
-        else
-            println ctx "true";
+        let flat_path = s_path ctx c.cl_path in
+        let dot_path = String.concat "." (List.map s_escape_lua (fst c.cl_path @ [snd c.cl_path])) in
+        println ctx "%s.__name__ = \"%s\"" flat_path dot_path;
     end
 
 let generate_class ctx c =
     ctx.current <- c;
     ctx.id_counter <- 0;
     (match c.cl_path with
-     | [],"Function" -> typing_error "This class redefines a native one" c.cl_pos
+     | [],"Function" -> raise_typing_error "This class redefines a native one" c.cl_pos
      | _ -> ());
     let p = s_path ctx c.cl_path in
     let hxClasses = has_feature ctx "Type.resolveClass" in
@@ -1612,8 +1660,10 @@ let generate_class ctx c =
                     | TBlock el ->
                         let bend = open_block ctx in
                         newline ctx;
-                        if not (has_prototype ctx c) then println ctx "local self = _hx_new()" else
-                            println ctx "local self = _hx_new(%s.prototype)" p;
+                        if not (has_prototype ctx c) then
+                            println ctx "local self = _hx_new()"
+                        else
+                            println ctx "local self = _hx_nsh(%s.__mt__)" p;
                         println ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map lua_arg_name f.tf_args)));
                         if p = "String" then println ctx "self = string";
                         spr ctx "return self";
@@ -1686,6 +1736,9 @@ let generate_class ctx c =
              if has_property_reflection && Codegen.has_properties csup then
                  println ctx "setmetatable(%s.prototype.__properties__,{__index=%s.prototype.__properties__})" p psup;
         );
+
+        (* Create a metatable specific for this class *)
+        println ctx "%s.__mt__ = _hx_mmt(%s.prototype)" p p;
     end
 
 let generate_enum ctx e =
@@ -1786,13 +1839,13 @@ let generate_require ctx path meta =
      | [(EConst(String(module_name,_)),_) ; (EConst(String(object_path,_)),_)] ->
          print ctx "%s = _G.require(\"%s\").%s" p module_name object_path
      | _ ->
-		typing_error "Unsupported @:luaRequire format" mp);
+		raise_typing_error "Unsupported @:luaRequire format" mp);
 
     newline ctx
 
 let generate_type ctx = function
     | TClassDecl c ->
-        (match c.cl_init with
+        (match TClass.get_cl_init c with
          | None -> ()
          | Some e ->
              ctx.inits <- e :: ctx.inits);
@@ -1801,7 +1854,7 @@ let generate_type ctx = function
         if p = "Std" && c.cl_ordered_statics = [] then
             ()
         else if (not (has_class_flag c CExtern)) && Meta.has Meta.LuaDotMethod c.cl_meta then
-            typing_error "LuaDotMethod is valid for externs only" c.cl_pos
+            raise_typing_error "LuaDotMethod is valid for externs only" c.cl_pos
         else if not (has_class_flag c CExtern) then
             generate_class ctx c;
         check_multireturn ctx c;
@@ -1832,10 +1885,26 @@ let generate_type_forward ctx = function
     | TTypeDecl _ | TAbstractDecl _ -> ()
 
 let alloc_ctx com =
+    let smap =
+		if com.debug || Common.defined com Define.SourceMap then
+			Some {
+				source_last_pos = { file = 0; line = 0; col = 0};
+				print_comma = false;
+				output_last_col = 0;
+				output_current_col = 0;
+				sources = DynArray.create();
+				sources_hash = Hashtbl.create 0;
+				mappings = Rbuffer.create 16;
+				current_expr = None;
+			}
+		else
+			None
+	in
     let ctx = {
         com = com;
         buf = Buffer.create 16000;
         packages = Hashtbl.create 0;
+        smap = smap;
         statics = [];
         inits = [];
         current = null_class;
@@ -1914,7 +1983,7 @@ let transform_multireturn ctx = function
                         e
                     | TReturn Some(e2) ->
                         if is_multireturn e2.etype then
-                            typing_error "You cannot return a multireturn type from a haxe function" e2.epos
+                            raise_typing_error "You cannot return a multireturn type from a haxe function" e2.epos
                         else
                             Type.map_expr loop e;
      (*
@@ -1958,6 +2027,9 @@ let generate com =
 
     (* base lua metatables for prototypes, inheritance, etc. *)
     print_file (Common.find_file com "lua/_lua/_hx_anon.lua");
+
+    (* Helpers for creating metatables from prototypes *)
+    print_file (Common.find_file com "lua/_lua/_hx_objects.lua");
 
     (* base runtime class stubs for haxe value types (Int, Float, etc) *)
     print_file (Common.find_file com "lua/_lua/_hx_classes.lua");
@@ -2114,12 +2186,14 @@ let generate com =
         print_file (Common.find_file com "lua/_lua/_hx_dyn_add.lua");
     end;
 
+    print_file (Common.find_file com "lua/_lua/_hx_handle_error.lua");
+
     println ctx "_hx_static_init();";
 
     List.iter (generate_enumMeta_fields ctx) com.types;
 
     Option.may (fun e ->
-        spr ctx "_G.xpcall(";
+        spr ctx "local success, err = _G.xpcall(";
             let luv_run =
                 (* Runs libuv loop if needed *)
                 mk_lua_code ctx.com.basic "_hx_luv.run()" [] ctx.com.basic.tvoid Globals.null_pos
@@ -2132,14 +2206,17 @@ let generate com =
                 }
             in
             gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) };
-        spr ctx ", _hx_error)";
-        newline ctx
-    ) com.main;
+        println ctx ", _hx_handle_error)";
+        println ctx "if not success then _G.error(err) end";
+    ) com.main.main_expr;
 
     if anyExposed then
         println ctx "return _hx_exports";
 
+    (match ctx.smap with
+    | Some smap -> write_mappings ctx.com smap ""
+    | None -> try Sys.remove (com.file ^ ".map") with _ -> ());
+
     let ch = open_out_bin com.file in
     output_string ch (Buffer.contents ctx.buf);
     close_out ch
-

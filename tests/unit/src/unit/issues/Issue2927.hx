@@ -1,14 +1,11 @@
 package unit.issues;
-#if java
+#if jvm
 import java.Lib;
 import java.NativeArray;
-#elseif cs
-import cs.Lib;
-import cs.NativeArray;
 #end
 
 class Issue2927 extends Test {
-#if (java || cs)
+#if jvm
 	public function test()
 	{
 		var arr = Lib.array(new NativeArray<Int>(1));

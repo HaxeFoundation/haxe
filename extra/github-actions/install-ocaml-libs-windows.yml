@@ -1,0 +1,6 @@
+- name: Install OCaml libraries
+  shell: pwsh
+  run: |
+    Set-PSDebug -Trace 1
+    opam install haxe --deps-only
+    opam list

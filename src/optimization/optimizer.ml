@@ -185,24 +185,29 @@ let sanitize_expr com e =
 		let e1 = block e1 in
 		let catches = List.map (fun (v,e) -> v, block e) catches in
 		{ e with eexpr = TTry (e1,catches) }
-	| TSwitch (e1,cases,def) ->
-		let e1 = parent e1 in
-		let cases = List.map (fun (el,e) -> el, complex e) cases in
-		let def = (match def with None -> None | Some e -> Some (complex e)) in
-		{ e with eexpr = TSwitch (e1,cases,def) }
+	| TSwitch switch ->
+		let e1 = parent switch.switch_subject in
+		let cases = List.map (fun case -> {case with case_expr = complex case.case_expr}) switch.switch_cases in
+		let def = Option.map complex switch.switch_default in
+		let switch = { switch with
+			switch_subject = e1;
+			switch_cases = cases;
+			switch_default = def;
+		} in
+		{ e with eexpr = TSwitch switch }
 	| _ ->
 		e
 
 let reduce_expr com e =
 	match e.eexpr with
-	| TSwitch (_,cases,_) ->
-		List.iter (fun (cl,_) ->
+	| TSwitch switch ->
+		List.iter (fun case ->
 			List.iter (fun e ->
 				match e.eexpr with
-				| TCall ({ eexpr = TField (_,FEnum _) },_) -> typing_error "Not-constant enum in switch cannot be matched" e.epos
+				| TCall ({ eexpr = TField (_,FEnum _) },_) -> raise_typing_error "Not-constant enum in switch cannot be matched" e.epos
 				| _ -> ()
-			) cl
-		) cases;
+			) case.case_patterns
+		) switch.switch_cases;
 		e
 	| TBlock l ->
 		(match List.rev l with
@@ -258,22 +263,22 @@ let rec extract_constant_value e = match e.eexpr with
 	| _ ->
 		None
 
-let check_constant_switch e1 cases def =
+let check_constant_switch switch =
 	let rec loop e1 cases = match cases with
-		| (el,e) :: cases ->
+		| case :: cases ->
 			(* Map everything first so that we find unknown things eagerly. *)
 			let el = List.map (fun e2 -> match extract_constant_value e2 with
 				| Some e2 -> e2
 				| None -> raise Exit
-			) el in
+			) case.case_patterns in
 			if List.exists (fun e2 ->
 				Texpr.equal e1 e2
 			) el then
-				Some e
+				Some case.case_expr
 			else
 				loop e1 cases
 		| [] ->
-			begin match def with
+			begin match switch.switch_default with
 			| None -> None
 			| Some e -> Some e
 			end
@@ -282,20 +287,20 @@ let check_constant_switch e1 cases def =
 		| TBlock [] -> true
 		| _ -> false
 	in
-	let is_empty_def () = match def with
+	let is_empty_def () = match switch.switch_default with
 		| None -> true
 		| Some e -> is_empty e
 in
-	match Texpr.skip e1 with
+	match Texpr.skip switch.switch_subject with
 		| {eexpr = TConst ct} as e1 when (match ct with TSuper | TThis -> false | _ -> true) ->
 			begin try
-				loop e1 cases
+				loop e1 switch.switch_cases
 			with Exit ->
 				None
 			end
 		| _ ->
-			if List.for_all (fun (_,e) -> is_empty e) cases && is_empty_def() then
-				Some e1
+			if List.for_all (fun case -> is_empty case.case_expr) switch.switch_cases && is_empty_def() then
+				Some switch.switch_subject
 			else
 				None
 
@@ -306,8 +311,8 @@ let reduce_control_flow com e = match e.eexpr with
 		(match flag with
 		| NormalWhile -> { e with eexpr = TBlock [] } (* erase sub *)
 		| DoWhile -> e) (* we cant remove while since sub can contain continue/break *)
-	| TSwitch (e1,cases,def) ->
-		begin match check_constant_switch e1 cases def with
+	| TSwitch switch ->
+		begin match check_constant_switch switch with
 		| Some e -> e
 		| None -> e
 		end
@@ -326,8 +331,7 @@ let reduce_control_flow com e = match e.eexpr with
 		(* TODO: figure out what's wrong with these targets *)
 		let require_cast = match com.platform with
 			| Cpp | Flash -> true
-			| Java -> defined com Define.Jvm
-			| Cs -> defined com Define.EraseGenerics || defined com Define.FastCast
+			| Jvm -> true
 			| _ -> false
 		in
 		Texpr.reduce_unsafe_casts ~require_cast e e.etype
@@ -345,20 +349,23 @@ let rec reduce_loop ctx e =
 				let cf = mk_field "" ef.etype e.epos null_pos in
 				let ethis = mk (TConst TThis) t_dynamic e.epos in
 				let rt = (match follow ef.etype with TFun (_,rt) -> rt | _ -> die "" __LOC__) in
-				let inl = (try type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false with Error (Custom _,_) -> None) in
-				(match inl with
-				| None -> reduce_expr ctx e
-				| Some e -> reduce_loop ctx e)
-			| {eexpr = TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf)))} when needs_inline ctx (has_class_flag cl CExtern) cf && not (rec_stack_memq cf inline_stack) ->
+				begin try
+					let e = type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false in
+					reduce_loop ctx e
+				with Error { err_message = Custom _ } ->
+					reduce_expr ctx e
+				end;
+			| {eexpr = TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf)))} when needs_inline ctx (Some cl) cf && not (rec_stack_memq cf inline_stack) ->
 				begin match cf.cf_expr with
 				| Some {eexpr = TFunction tf} ->
 					let config = inline_config (Some cl) cf el e.etype in
-					let rt = (match follow e1.etype with TFun (_,rt) -> rt | _ -> die "" __LOC__) in
-					let inl = (try type_inline ctx cf tf ef el rt config e.epos false with Error (Custom _,_) -> None) in
-					(match inl with
-					| None -> reduce_expr ctx e
-					| Some e ->
-						rec_stack_default inline_stack cf (fun cf' -> cf' == cf) (fun () -> reduce_loop ctx e) e)
+					let rt = (match Abstract.follow_with_abstracts e1.etype with TFun (_,rt) -> rt | _ -> die "" __LOC__) in
+					begin try
+						let e = type_inline ctx cf tf ef el rt config e.epos false in
+						rec_stack_default inline_stack cf (fun cf' -> cf' == cf) (fun () -> reduce_loop ctx e) e
+					with Error { err_message = Custom _ } ->
+						reduce_expr ctx e
+					end
 				| _ ->
 					reduce_expr ctx e
 				end
@@ -376,7 +383,7 @@ let reduce_expression ctx e =
 	if ctx.com.foptimize then
 		(* We go through rec_stack_default here so that the current field is on inline_stack. This prevents self-recursive
 		   inlining (#7569). *)
-		rec_stack_default inline_stack ctx.curfield (fun cf' -> cf' == ctx.curfield) (fun () -> reduce_loop ctx e) e
+		rec_stack_default inline_stack ctx.f.curfield (fun cf' -> cf' == ctx.f.curfield) (fun () -> reduce_loop ctx e) e
 	else
 		e
 

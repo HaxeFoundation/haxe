@@ -6,12 +6,10 @@ import js.Syntax;
 import php.Syntax;
 #elseif python
 import python.Syntax;
-#elseif cs
-import cs.Syntax;
 #end
 
 class TestSyntaxModule extends Test {
-#if (php || js || python || cs)
+#if (php || js || python)
 	function testCode() {
 		var i1 = 1;
 		var i2 = 2;
@@ -53,7 +51,7 @@ class TestSyntaxModule extends Test {
 	#end
 #end
 
-#if (js || cs)
+#if js
 	function testPlainCode() {
 		var s = Syntax.plainCode('"{0}"');
 		eq('{0}', s);

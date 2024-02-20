@@ -21,6 +21,7 @@
 --macro Macro.register('TestJs')
 --macro Macro.register('TestLocalDce')
 --macro Macro.register('TestNadako')
+--macro Macro.register('TestCompoundBlockElements')
 --macro Macro.register('TestTreGeneration')
 --macro Macro.register('TestInlineConstructors')
 --macro Macro.register('issues')

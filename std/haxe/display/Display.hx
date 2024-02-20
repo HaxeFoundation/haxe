@@ -25,6 +25,7 @@ package haxe.display;
 import haxe.display.JsonModuleTypes;
 import haxe.display.Position;
 import haxe.display.Protocol;
+import haxe.ds.ReadOnlyArray;
 
 /**
 	Methods of the JSON-RPC-based `--display` protocol in Haxe 4.
@@ -32,6 +33,11 @@ import haxe.display.Protocol;
 **/
 @:publicFields
 class DisplayMethods {
+	/**
+		TODO documentation
+	**/
+	static inline var Diagnostics = new HaxeRequestMethod<DiagnosticsParams, DiagnosticsResult>("display/diagnostics");
+
 	/**
 		The completion request is sent from the client to Haxe to request code completion.
 		Haxe automatically determines the type of completion to use based on the passed position, see `CompletionResultKind`.
@@ -78,11 +84,20 @@ class DisplayMethods {
 	**/
 	static inline var SignatureHelp = new HaxeRequestMethod<SignatureHelpParams, SignatureHelpResult>("display/signatureHelp");
 
+	/**
+		The metadata request is sent from the client to Haxe to get a list of all registered metadata and their documentation.
+	**/
+	static inline var Metadata = new HaxeRequestMethod<MetadataParams, MetadataResult>("display/metadata");
+
+	/**
+		The defines request is sent from the client to Haxe to get a list of all registered defines and their documentation.
+	**/
+	static inline var Defines = new HaxeRequestMethod<DefinesParams, DefinesResult>("display/defines");
+
 	/*
 		TODO:
 
 		- finish completion
-		- diagnostics
 		- codeLens
 		- workspaceSymbols ("project/symbol"?)
 	 */
@@ -281,7 +296,6 @@ enum abstract Platform(String) {
 	var Flash = "flash";
 	var Php = "php";
 	var Cpp = "cpp";
-	var Cs = "cs";
 	var Java = "java";
 	var Python = "python";
 	var Hl = "hl";
@@ -294,8 +308,8 @@ typedef Metadata = {
 	var parameters:Array<String>;
 	var platforms:Array<Platform>;
 	var targets:Array<MetadataTarget>;
-	var origin:String;
 	var internal:Bool;
+	var ?origin:String;
 	var ?links:Array<String>;
 }
 
@@ -306,6 +320,8 @@ typedef Define = {
 	var parameters:Array<String>;
 	var platforms:Array<Platform>;
 	var links:Array<String>;
+	var ?origin:String;
+	var ?deprecated:String;
 }
 
 typedef Keyword = {
@@ -426,6 +442,17 @@ typedef PatternCompletion<T> = ToplevelCompletion<T> & {
 	var isOutermostPattern:Bool;
 }
 
+typedef DiagnosticsParams = {
+	var ?file:FsPath;
+	var ?contents:String;
+	var ?fileContents:Array<{file:FsPath, ?contents:String}>;
+}
+
+typedef DiagnosticsResult = Response<ReadOnlyArray<{
+	var file:FsPath;
+	var diagnostics:ReadOnlyArray<Diagnostic<Any>>;
+}>>
+
 enum abstract CompletionModeKind<T>(Int) {
 	var Field:CompletionModeKind<FieldCompletionSubject<Dynamic>>;
 	var StructureField;
@@ -542,6 +569,20 @@ typedef SignatureItem = {
 }
 
 typedef SignatureHelpResult = Response<Null<SignatureItem>>;
+
+typedef MetadataParams = {
+	var compiler:Bool;
+	var user:Bool;
+}
+
+typedef MetadataResult = Response<Array<Metadata>>;
+
+typedef DefinesParams = {
+	var compiler:Bool;
+	var user:Bool;
+}
+
+typedef DefinesResult = Response<Array<Define>>;
 
 /** General types **/
 typedef PositionParams = FileParams & {

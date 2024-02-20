@@ -28,13 +28,9 @@ local function _hx_o(obj)
   return setmetatable(obj, _hx_obj_mt)
 end
 
-local function _hx_new(prototype)
-  return setmetatable({__fields__ = {}}, {__newindex=_hx_obj_newindex, __index=prototype, __tostring=_hx_tostring})
-end
-
 function _hx_field_arr(obj)
-    res = {}
-    idx = 0
+    local res = {}
+    local idx = 0
     if obj.__fields__ ~= nil then
         obj = obj.__fields__
     end

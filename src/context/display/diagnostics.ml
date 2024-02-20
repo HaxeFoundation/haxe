@@ -1,15 +1,16 @@
 open Globals
 open Ast
 open Type
-open Typecore
 open Common
-open Display
-open DisplayTypes.DisplayMode
 open DisplayTypes
-open DisplayException
 
-let add_removable_code ctx s p prange =
-	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
+let add_replaceable_code ctx reason replacement display_range replace_range =
+	ctx.replaceable_code <- {
+		reason = reason;
+		replacement = replacement;
+		display_range = display_range;
+		replace_range = replace_range;
+	} :: ctx.replaceable_code
 
 let error_in_diagnostics_run com p =
 	let b = DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get p.pfile) in
@@ -20,24 +21,25 @@ let find_unused_variables com e =
 	let vars = Hashtbl.create 0 in
 	let pmin_map = Hashtbl.create 0 in
 	let rec loop e = match e.eexpr with
-		| TVar({v_kind = VUser _} as v,eo) when v.v_name <> "_" ->
+		| TVar({v_kind = VUser origin} as v,eo) when v.v_name <> "_" && not (has_var_flag v VUsedByTyper) ->
 			Hashtbl.add pmin_map e.epos.pmin v;
-			let p = match eo with
-				| None -> e.epos
-				| Some e1 ->
-					loop e1;
-					{ e.epos with pmax = e1.epos.pmin }
+			let p,replacement = match eo with
+			| Some e1 when origin <> TVOPatternVariable ->
+				loop e1;
+				{ e.epos with pmax = e1.epos.pmin },""
+			| _ ->
+				e.epos,"_"
 			in
-			Hashtbl.replace vars v.v_id (v,p);
+			Hashtbl.replace vars v.v_id (v,p,replacement);
 		| TLocal ({v_kind = VUser _} as v) ->
 			Hashtbl.remove vars v.v_id;
 		| _ ->
 			Type.iter loop e
 	in
 	loop e;
-	Hashtbl.iter (fun _ (v,p) ->
+	Hashtbl.iter (fun _ (v,p,replacement) ->
 		let p = match (Hashtbl.find_all pmin_map p.pmin) with [_] -> p | _ -> null_pos in
-		add_removable_code com "Unused variable" v.v_pos p
+		add_replaceable_code com "Unused variable" replacement v.v_pos p
 	) vars
 
 let check_other_things com e =
@@ -93,20 +95,22 @@ let check_other_things com e =
 	in
 	loop true e
 
-let prepare_field dctx com cf = match cf.cf_expr with
+let prepare_field dctx dectx com cf = match cf.cf_expr with
 	| None -> ()
 	| Some e ->
 		find_unused_variables dctx e;
 		check_other_things com e;
-		DeprecationCheck.run_on_expr ~force:true com e
+		DeprecationCheck.run_on_expr {dectx with field_meta = cf.cf_meta} e
 
 let collect_diagnostics dctx com =
 	let open CompilationCache in
+	let dectx = DeprecationCheck.create_context com in
 	List.iter (function
 		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get c.cl_pos.pfile) ->
-			List.iter (prepare_field dctx com) c.cl_ordered_fields;
-			List.iter (prepare_field dctx com) c.cl_ordered_statics;
-			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx com cf);
+			let dectx = {dectx with class_meta = c.cl_meta} in
+			List.iter (prepare_field dctx dectx com) c.cl_ordered_fields;
+			List.iter (prepare_field dctx dectx com) c.cl_ordered_statics;
+			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx dectx com cf);
 		| _ ->
 			()
 	) com.types;
@@ -117,7 +121,7 @@ let collect_diagnostics dctx com =
 				ParserEntry.is_true (ParserEntry.eval defines e)
 			in
 			Hashtbl.iter (fun file_key cfile ->
-				if DisplayPosition.display_position#is_in_file (com.file_keys#get cfile.c_file_path) then begin
+				if DisplayPosition.display_position#is_in_file (com.file_keys#get cfile.c_file_path.file) then begin
 					let dead_blocks = cfile.c_pdi.pd_dead_blocks in
 					let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) dead_blocks in
 					try
@@ -136,14 +140,14 @@ let collect_diagnostics dctx com =
 
 let prepare com =
 	let dctx = {
-		removable_code = [];
+		replaceable_code = [];
 		import_positions = PMap.empty;
 		dead_blocks = Hashtbl.create 0;
 		diagnostics_messages = [];
 		unresolved_identifiers = [];
 		missing_fields = PMap.empty;
 	} in
-	if not (List.exists (fun (_,_,_,sev) -> sev = MessageSeverity.Error) com.shared.shared_display_information.diagnostics_messages) then
+	if not (List.exists (fun diag -> diag.diag_severity = MessageSeverity.Error) com.shared.shared_display_information.diagnostics_messages) then
 		collect_diagnostics dctx com;
 	let process_modules com =
 		List.iter (fun m ->
@@ -176,11 +180,6 @@ let prepare com =
 	dctx.diagnostics_messages <- com.shared.shared_display_information.diagnostics_messages;
 	dctx.unresolved_identifiers <- com.display_information.unresolved_identifiers;
 	dctx
-
-let secure_generated_code ctx e =
-	(* This causes problems and sucks in general... need a different solution. But I forgot which problem this solved anyway. *)
-	(* mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos *)
-	e
 
 let print com =
 	let dctx = prepare com in

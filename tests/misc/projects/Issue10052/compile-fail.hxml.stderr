@@ -1,1 +1,1 @@
-Main.hx:20: characters 3-37 : Cannot access field or identifier position for writing
+Main.hx:20: characters 10-18 : This expression cannot be accessed for writing

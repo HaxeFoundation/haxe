@@ -239,7 +239,7 @@ module StdArray = struct
 	)
 
 	let toString = vifun0 (fun vthis ->
-		vstring (s_array 0 (this vthis))
+		vstring (s_array 0 0 (this vthis))
 	)
 
 	let unshift = vifun1 (fun vthis v ->
@@ -289,7 +289,7 @@ module StdBytes = struct
 	let compare = vifun1 (fun vthis other ->
 		let this = this vthis in
 		let other = decode_bytes other in
-		vint (Pervasives.compare this other)
+		vint (Stdlib.compare this other)
 	)
 
 	let fastGet = vfun2 (fun b pos ->
@@ -759,18 +759,18 @@ module StdDeque = struct
 end
 
 module StdEReg = struct
-	open Pcre
+	open Pcre2
 
 	let create r opt =
-		let open Pcre in
+		let open Pcre2 in
 		let string_of_pcre_error = function
 			| BadPattern(s,i) -> Printf.sprintf "at %i: %s" i s
 			| Partial -> "Partial"
-			| BadPartial -> "BadPartial"
-			| BadUTF8 -> "BadUTF8"
-			| BadUTF8Offset -> "BadUTF8Offset"
+			| BadUTF -> "BadUTF"
+			| BadUTFOffset -> "BadUTFOffset"
 			| MatchLimit -> "MatchLimit"
-			| RecursionLimit -> "RecursionLimit"
+			| DepthLimit -> "DepthLimit"
+			| WorkspaceSize -> "WorkspaceSize"
 			| InternalError s -> "InternalError: " ^ s
 		in
 		let global = ref false in
@@ -782,7 +782,7 @@ module StdEReg = struct
 			| 'g' -> global := true; None
 			| c -> failwith ("Unsupported regexp option '" ^ String.make 1 c ^ "'")
 		) (ExtString.String.explode opt) in
-		let flags = `UTF8 :: `UCP :: flags in
+		let flags = `UTF :: `UCP :: flags in
 		let rex = try regexp ~flags r with Error error -> failwith (string_of_pcre_error error) in
 		let pcre = {
 			r = rex;
@@ -849,17 +849,17 @@ module StdEReg = struct
 
 	let match' = vifun1 (fun vthis s ->
 		let this = this vthis in
-		let open Pcre in
+		let open Pcre2 in
 		let s = decode_string s in
 		this.r_string <- s;
 		try
-			let a = exec_all ~iflags:0x2000 ~rex:this.r s in
+			let a = exec_all ~flags:[`NO_UTF_CHECK] ~rex:this.r s in
 			this.r_groups <- a;
 			vtrue
 		with Not_found ->
 			this.r_groups <- [||];
 			vfalse
-		| Pcre.Error _ ->
+		| Pcre2.Error _ ->
 			exc_string "PCRE Error (invalid unicode string?)"
 	)
 
@@ -913,7 +913,7 @@ module StdEReg = struct
 		begin try
 			if pos + len > String.length s then raise Not_found;
 			let str = String.sub s 0 (pos + len) in
-			let a = Pcre.exec_all ~iflags:0x2000 ~rex:this.r ~pos str in
+			let a = Pcre2.exec_all ~flags:[`NO_UTF_CHECK] ~rex:this.r ~pos str in
 			this.r_string <- s;
 			this.r_groups <- a;
 			vtrue
@@ -926,7 +926,7 @@ module StdEReg = struct
 		let this = this vthis in
 		let s = decode_string s in
 		let by = decode_string by in
-		let s = (if this.r_global then Pcre.replace else Pcre.replace_first) ~iflags:0x2000 ~rex:this.r ~templ:by s in
+		let s = (if this.r_global then Pcre2.replace else Pcre2.replace_first) ~flags:[`NO_UTF_CHECK] ~rex:this.r ~templ:by s in
 		create_unknown s
 	)
 
@@ -943,11 +943,11 @@ module StdEReg = struct
 				let sub = String.sub s first (last - first) in
 				DynArray.add acc (create_unknown sub)
 			in
-			let exec = Pcre.exec ~iflags:0x2000 ~rex:this.r in
+			let exec = Pcre2.exec ~flags:[`NO_UTF_CHECK] ~rex:this.r in
 			let step pos =
 				try
 					let substrings = exec ~pos s in
-					let (first,last) = Pcre.get_substring_ofs substrings 0 in
+					let (first,last) = Pcre2.get_substring_ofs substrings 0 in
 					add !copy_offset first;
 					copy_offset := last;
 					let next_start = if pos = last then last + 1 else last in
@@ -1401,7 +1401,7 @@ module StdHost = struct
 
 	let resolve = vfun1 (fun name ->
 		let name = decode_string name in
-		let h = catch_unix_error Unix.gethostbyname name in
+		let h = try Unix.gethostbyname name with Not_found -> exc_string (Printf.sprintf "Could not resolve host %s" name) in
 		let addr = catch_unix_error Unix.string_of_inet_addr h.h_addr_list.(0) in
 		let a, b, c, d = Scanf.sscanf addr "%d.%d.%d.%d" (fun a b c d -> a,b,c,d) in
 		vint32 (Int32.logor (Int32.shift_left (Int32.of_int a) 24) (Int32.of_int (d lor (c lsl 8) lor (b lsl 16))))
@@ -1543,7 +1543,7 @@ module StdIntMap = struct
 		let l = IntHashtbl.fold (fun key vvalue acc ->
 			(join empty_string [create_ascii (string_of_int key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join empty_string [rbropen;s;rbrclose] in
+		let s = join empty_string [rbkopen;s;rbkclose] in
 		vstring s
 	)
 
@@ -1602,7 +1602,7 @@ module StdStringMap = struct
 		let l = StringHashtbl.fold (fun _ (key,vvalue) acc ->
 			(join empty_string [key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join empty_string [rbropen;s;rbrclose] in
+		let s = join empty_string [rbkopen;s;rbkclose] in
 		vstring s
 	)
 
@@ -1660,7 +1660,7 @@ module StdObjectMap = struct
 		let l = ValueHashtbl.fold (fun key vvalue acc ->
 			(join empty_string [s_value 0 key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join empty_string [rbropen;s;rbrclose] in
+		let s = join empty_string [rbkopen;s;rbkclose] in
 		vstring s
 	)
 
@@ -1694,13 +1694,13 @@ module StdMath = struct
 	let ceil = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (ceil (num v))))
 	let cos = vfun1 (fun v -> vfloat (cos (num v)))
 	let exp = vfun1 (fun v -> vfloat (exp (num v)))
-	let fceil = vfun1 (fun v -> vfloat (Pervasives.ceil (num v)))
-	let ffloor = vfun1 (fun v -> vfloat (Pervasives.floor (num v)))
+	let fceil = vfun1 (fun v -> vfloat (Stdlib.ceil (num v)))
+	let ffloor = vfun1 (fun v -> vfloat (Stdlib.floor (num v)))
 	let floor = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (floor (num v))))
-	let fround = vfun1 (fun v -> vfloat (Pervasives.floor (num v +. 0.5)))
+	let fround = vfun1 (fun v -> vfloat (Stdlib.floor (num v +. 0.5)))
 	let isFinite = vfun1 (fun v -> vbool (match v with VFloat f -> f <> infinity && f <> neg_infinity && f = f | _ -> true))
 	let isNaN = vfun1 (fun v -> vbool (match v with VFloat f -> f <> f | VInt32 _ -> false | _ -> true))
-	let log = vfun1 (fun v -> vfloat (Pervasives.log (num v)))
+	let log = vfun1 (fun v -> vfloat (Stdlib.log (num v)))
 
 	let max = vfun2 (fun a b ->
 		let a = num a in
@@ -1716,7 +1716,7 @@ module StdMath = struct
 
 	let pow = vfun2 (fun a b -> vfloat ((num a) ** (num b)))
 	let random = vfun0 (fun () -> vfloat (Random.State.float random 1.))
-	let round = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (Pervasives.floor (num v +. 0.5))))
+	let round = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (Stdlib.floor (num v +. 0.5))))
 	let sin = vfun1 (fun v -> vfloat (sin (num v)))
 
 	let sqrt = vfun1 (fun v ->
@@ -1861,7 +1861,7 @@ module StdReflect = struct
 	)
 
 	let compareMethods = vfun2 (fun a b ->
-		let rec loop a b = a == b || match a,b with
+		let loop a b = a == b || match a,b with
 			| VFunction(f1,_),VFunction(f2,_) -> f1 == f2
 			| VFieldClosure(v1,f1),VFieldClosure(v2,f2) -> f1 == f2 && EvalMisc.compare v1 v2 = CEq
 			| _ -> false
@@ -1950,7 +1950,7 @@ module StdReflect = struct
 				end
 			| VInstance vi -> IntMap.mem name vi.iproto.pinstance_names || IntMap.mem name vi.iproto.pnames
 			| VPrototype proto -> IntMap.mem name proto.pnames
-			| _ -> unexpected_value o "object"
+			| _ -> false (* issue #10993 *)
 		in
 		vbool b
 	)
@@ -2250,9 +2250,10 @@ module StdString = struct
 		let str = this str in
 		let this = this vthis in
 		let i = default_int startIndex 0 in
+		let i = max 0 i in
 		try
 			if str.slength = 0 then
-				vint (max 0 (min i this.slength))
+				vint (min i this.slength)
 			else begin
 				let i =
 					if i >= this.slength then raise Not_found
@@ -2569,7 +2570,7 @@ module StdSys = struct
 	open Common
 
 	let args = vfun0 (fun () ->
-		encode_array (List.map create_unknown ((get_ctx()).curapi.MacroApi.get_com()).sys_args)
+		encode_array (List.map create_unknown ((get_ctx()).curapi.MacroApi.get_com()).args)
 	)
 
 	let _command = vfun1 (fun cmd ->
@@ -2590,7 +2591,7 @@ module StdSys = struct
 	)
 
 	let exit = vfun1 (fun code ->
-		raise (Sys_exit(decode_int code));
+		raise (EvalTypes.Sys_exit(decode_int code));
 	)
 
 	let getChar = vfun1 (fun echo ->
@@ -2632,7 +2633,7 @@ module StdSys = struct
 	let programPath = vfun0 (fun () ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		match com.main_class with
+		match com.main.main_class with
 		| None -> vnull
 		| Some p ->
 			match ctx.curapi.get_type (s_type_path p) with
@@ -2690,7 +2691,7 @@ module StdSys = struct
 							| "Darwin" -> "Mac"
 							| n -> n
 						) in
-						Pervasives.ignore (Process_helper.close_process_in_pid (ic, pid));
+						Stdlib.ignore (Process_helper.close_process_in_pid (ic, pid));
 						cached_sys_name := Some uname;
 						uname)
 				| "Win32" | "Cygwin" -> "Windows"
@@ -2735,10 +2736,12 @@ module StdThread = struct
 		vnull
 	)
 
-	let kill = vifun0 (fun vthis ->
-		Thread.kill (this vthis).tthread;
-		vnull
-	)
+	(* Thread.kill has been marked deprecated (because unstable or even not working at all) for a while, and removed in ocaml 5 *)
+	(* See also https://github.com/HaxeFoundation/haxe/issues/5800 *)
+	(* let kill = vifun0 (fun vthis -> *)
+	(* 	Thread.kill (this vthis).tthread; *)
+	(* 	vnull *)
+	(* ) *)
 
 	let self = vfun0 (fun () ->
 		let eval = get_eval (get_ctx()) in
@@ -2787,8 +2790,6 @@ module StdTls = struct
 end
 
 module StdType = struct
-	open Ast
-
 	let create_enum v constr params =
 		let vf = field v constr in
 		match vf,params with
@@ -3064,7 +3065,7 @@ module StdUtf8 = struct
 	let compare = vfun2 (fun a b ->
 		let a = decode_string a in
 		let b = decode_string b in
-		vint (Pervasives.compare a b)
+		vint (Stdlib.compare a b)
 	)
 
 	let decode = vfun1 (fun s ->
@@ -3348,7 +3349,7 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_Array (fun () -> encode_array_instance (EvalArray.create [||]));
 	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.make 0 vnull));
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
-	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
+	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre2.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
 	Hashtbl.add h key_String (fun () -> v_empty_string);
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create ())));
@@ -3730,7 +3731,7 @@ let init_standard_library builtins =
 		"id",StdThread.id;
 		"get_events",StdThread.get_events;
 		"set_events",StdThread.set_events;
-		"kill",StdThread.kill;
+		(* "kill",StdThread.kill; *)
 		"sendMessage",StdThread.sendMessage;
 	];
 	init_fields builtins (["sys";"thread"],"Tls") [] [

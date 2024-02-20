@@ -1,0 +1,2 @@
+--cmd haxelib dev dummy_doc_dep dummy_doc_dep
+--cmd haxelib dev dummy_doc dummy_doc

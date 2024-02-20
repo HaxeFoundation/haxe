@@ -2,9 +2,9 @@ open Globals
 open Common
 open CompilationCache
 open Type
-open Json
 
 type server_message_options = {
+	mutable print_compiler_stage : bool;
 	mutable print_added_directory : bool;
 	mutable print_found_directories : bool;
 	mutable print_changed_directories : bool;
@@ -31,6 +31,7 @@ type server_message_options = {
 }
 
 let config = {
+	print_compiler_stage = false;
 	print_added_directory = false;
 	print_found_directories = false;
 	print_changed_directories = false;
@@ -62,6 +63,9 @@ let sign_string com =
 	let	sign_id = (cs#get_context sign)#get_index in
 	Printf.sprintf "%2i,%3s: " sign_id (short_platform_name com.platform)
 
+let compiler_stage com =
+	if config.print_compiler_stage then print_endline (Printf.sprintf "compiler stage: %s" (s_compiler_stage com.stage))
+
 let added_directory com tabs dir =
 	if config.print_added_directory then print_endline (Printf.sprintf "%sadded directory %s" (sign_string com) dir)
 
@@ -71,12 +75,12 @@ let found_directories com tabs dirs =
 let changed_directories com tabs dirs =
 	if config.print_changed_directories then print_endline (Printf.sprintf "%schanged directories: [%s]" (sign_string com) (String.concat ", " (List.map (fun dir -> "\"" ^ dir.c_path ^ "\"") dirs)))
 
-let module_path_changed com tabs (m,time,file) =
+let module_path_changed com tabs (m_path,m_extra,time,file) =
 	if config.print_module_path_changed then print_endline (Printf.sprintf "%smodule path might have changed: %s\n\twas: %2.0f %s\n\tnow: %2.0f %s"
-		(sign_string com) (s_type_path m.m_path) m.m_extra.m_time (Path.UniqueKey.lazy_path m.m_extra.m_file) time file)
+		(sign_string com) (s_type_path m_path) m_extra.m_time (Path.UniqueKey.lazy_path m_extra.m_file) time file)
 
-let not_cached com tabs m =
-	if config.print_not_cached then print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com) (s_type_path m.m_path) "modified")
+let not_cached com tabs m_path =
+	if config.print_not_cached then print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com) (s_type_path m_path) "modified")
 
 let parsed com tabs (ffile,info) =
 	if config.print_parsed then print_endline (Printf.sprintf "%sparsed %s (%s)" (sign_string com) ffile info)
@@ -96,8 +100,8 @@ let retyper_fail com tabs m reason =
 		print_endline (Printf.sprintf "%s%s%s" (sign_string com) (tabs ^ "  ") reason);
 	end
 
-let skipping_dep com tabs (m,reason) =
-	if config.print_skipping_dep then print_endline (Printf.sprintf "%sskipping %s (%s)" (sign_string com) (s_type_path m.m_path) reason)
+let skipping_dep com tabs (mpath,reason) =
+	if config.print_skipping_dep then print_endline (Printf.sprintf "%sskipping %s (%s)" (sign_string com) (s_type_path mpath) reason)
 
 let unchanged_content com tabs file =
 	if config.print_unchanged_content then print_endline (Printf.sprintf "%s%s changed time not but content, reusing" (sign_string com) file)
@@ -157,6 +161,7 @@ let uncaught_error s =
 	if config.print_uncaught_error then print_endline ("Uncaught Error : " ^ s)
 
 let enable_all () =
+	config.print_compiler_stage <- true;
 	config.print_added_directory <- true;
 	config.print_found_directories <- true;
 	config.print_changed_directories <- true;
@@ -181,6 +186,7 @@ let enable_all () =
 	config.print_new_context <- true
 
 let set_by_name name value = match name with
+	| "compilerStage" -> config.print_compiler_stage <- value
 	| "addedDirectory" -> config.print_added_directory <- value
 	| "foundDirectories" -> config.print_found_directories <- value;
 	| "changedDirectories" -> config.print_changed_directories <- value;

@@ -50,8 +50,6 @@ class StringTools {
 		return untyped s.__URLEncode();
 		#elseif java
 		return postProcessUrlEncode(java.net.URLEncoder.encode(s, "UTF-8"));
-		#elseif cs
-		return untyped cs.system.Uri.EscapeDataString(s);
 		#elseif python
 		return python.lib.urllib.Parse.quote(s, "");
 		#elseif hl
@@ -121,8 +119,6 @@ class StringTools {
 			return java.net.URLDecoder.decode(s, "UTF-8")
 		catch (e:Dynamic)
 			throw e;
-		#elseif cs
-		return untyped cs.system.Uri.UnescapeDataString(s);
 		#elseif python
 		return python.lib.urllib.Parse.unquote(s);
 		#elseif hl
@@ -211,7 +207,7 @@ class StringTools {
 	public static inline function contains(s:String, value:String):Bool {
 		#if (js && js_es >= 6)
 		return (cast s).includes(value);
-		#else 
+		#else
 		return s.indexOf(value) != -1;
 		#end
 	}
@@ -223,17 +219,17 @@ class StringTools {
 
 		If `start` is the empty String `""`, the result is true.
 	**/
-	public static #if (cs || java || python || (js && js_es >= 6)) inline #end function startsWith(s:String, start:String):Bool {
+	public static #if (java || python || (js && js_es >= 6)) inline #end function startsWith(s:String, start:String):Bool {
 		#if java
 		return (cast s : java.NativeString).startsWith(start);
-		#elseif cs
-		return untyped s.StartsWith(start);
 		#elseif hl
 		return @:privateAccess (s.length >= start.length && s.bytes.compare(0, start.bytes, 0, start.length << 1) == 0);
 		#elseif python
 		return python.NativeStringTools.startswith(s, start);
 		#elseif (js && js_es >= 6)
 		return (cast s).startsWith(start);
+		#elseif lua
+		return untyped __lua__("{0}:sub(1, #{1}) == {1}", s, start);
 		#else
 		return (s.length >= start.length && s.lastIndexOf(start, 0) == 0);
 		#end
@@ -246,11 +242,9 @@ class StringTools {
 
 		If `end` is the empty String `""`, the result is true.
 	**/
-	public static #if (cs || java || python || (js && js_es >= 6)) inline #end function endsWith(s:String, end:String):Bool {
+	public static #if (java || python || (js && js_es >= 6)) inline #end function endsWith(s:String, end:String):Bool {
 		#if java
 		return (cast s : java.NativeString).endsWith(end);
-		#elseif cs
-		return untyped s.EndsWith(end);
 		#elseif hl
 		var elen = end.length;
 		var slen = s.length;
@@ -259,6 +253,8 @@ class StringTools {
 		return python.NativeStringTools.endswith(s, end);
 		#elseif (js && js_es >= 6)
 		return (cast s).endsWith(end);
+		#elseif lua
+		return end == "" || untyped __lua__("{0}:sub(-#{1}) == {1}", s, end);
 		#else
 		var elen = end.length;
 		var slen = s.length;
@@ -293,10 +289,7 @@ class StringTools {
 		If `s` is the empty String `""` or consists only of space characters, the
 		result is the empty String `""`.
 	**/
-	public #if cs inline #end static function ltrim(s:String):String {
-		#if cs
-		return untyped s.TrimStart();
-		#else
+	public inline static function ltrim(s:String):String {
 		var l = s.length;
 		var r = 0;
 		while (r < l && isSpace(s, r)) {
@@ -306,7 +299,6 @@ class StringTools {
 			return s.substr(r, l - r);
 		else
 			return s;
-		#end
 	}
 
 	/**
@@ -318,10 +310,7 @@ class StringTools {
 		If `s` is the empty String `""` or consists only of space characters, the
 		result is the empty String `""`.
 	**/
-	public #if cs inline #end static function rtrim(s:String):String {
-		#if cs
-		return untyped s.TrimEnd();
-		#else
+	public inline static function rtrim(s:String):String {
 		var l = s.length;
 		var r = 0;
 		while (r < l && isSpace(s, l - r - 1)) {
@@ -332,7 +321,6 @@ class StringTools {
 		} else {
 			return s;
 		}
-		#end
 	}
 
 	/**
@@ -340,10 +328,8 @@ class StringTools {
 
 		This is a convenience function for `ltrim(rtrim(s))`.
 	**/
-	public #if (cs || java) inline #end static function trim(s:String):String {
-		#if cs
-		return untyped s.Trim();
-		#elseif java
+	public #if java inline #end static function trim(s:String):String {
+		#if java
 		return (cast s : java.NativeString).trim();
 		#else
 		return ltrim(rtrim(s));
@@ -415,11 +401,6 @@ class StringTools {
 			return s.split(sub).join(by);
 		else
 			return (cast s : java.NativeString).replace(sub, by);
-		#elseif cs
-		if (sub.length == 0)
-			return s.split(sub).join(by);
-		else
-			return untyped s.Replace(sub, by);
 		#else
 		return s.split(sub).join(by);
 		#end
@@ -482,8 +463,6 @@ class StringTools {
 		return untyped s.cca(index);
 		#elseif java
 		return (index < s.length) ? cast(_charAt(s, index), Int) : -1;
-		#elseif cs
-		return (cast(index, UInt) < s.length) ? cast(s[index], Int) : -1;
 		#elseif js
 		return (cast s).charCodeAt(index);
 		#elseif python
@@ -521,8 +500,6 @@ class StringTools {
 		return untyped s.cca(index);
 		#elseif java
 		return cast(_charAt(s, index), Int);
-		#elseif cs
-		return cast(s[index], Int);
 		#elseif js
 		return (cast s).charCodeAt(index);
 		#elseif python
@@ -572,7 +549,7 @@ class StringTools {
 		return c != c; // fast NaN
 		#elseif (neko || lua || eval)
 		return c == null;
-		#elseif (cs || java || python)
+		#elseif (java || python)
 		return c == -1;
 		#else
 		return false;

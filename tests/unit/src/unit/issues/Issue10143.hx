@@ -1,7 +1,7 @@
 package unit.issues;
 
 //targets with pf_supports_rest_args = true
-#if (js || lua || php || cs || java || python || flash)
+#if (js || lua || php || jvm || python || flash)
 
 class Issue10143 extends Test {
 	function test1() {

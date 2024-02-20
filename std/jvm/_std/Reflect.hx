@@ -21,7 +21,6 @@
  */
 
 import jvm.Jvm;
-
 import java.lang.Number;
 import java.lang.Long.LongClass;
 import java.lang.Double.DoubleClass;
@@ -110,24 +109,24 @@ class Reflect {
 			return 1;
 		}
 		if (Jvm.instanceof(a, Number) && Jvm.instanceof(b, Number)) {
-			var a = (cast a:Number);
-			var b = (cast b:Number);
+			var a = (cast a : Number);
+			var b = (cast b : Number);
 			inline function isBig(v:Number)
 				return Jvm.instanceof(v, BigDecimal) || Jvm.instanceof(v, BigInteger);
 			inline function cmpLongTo(long:Number, another:Number) {
-				if(Jvm.instanceof(another, DoubleClass)) {
+				if (Jvm.instanceof(another, DoubleClass)) {
 					return new BigDecimal(long.longValue()).compareTo(new BigDecimal(another.doubleValue()));
-				} else if(Jvm.instanceof(another, FloatClass)) {
+				} else if (Jvm.instanceof(another, FloatClass)) {
 					return new BigDecimal(long.longValue()).compareTo(new BigDecimal(another.floatValue()));
 				} else {
 					return LongClass.compare(long.longValue(), another.longValue());
 				}
 			}
-			if(isBig(a) || isBig(b))
-				return new BigDecimal((cast a:java.lang.Object).toString()).compareTo((cast a:java.lang.Object).toString());
-			if(Jvm.instanceof(a, LongClass))
+			if (isBig(a) || isBig(b))
+				return new BigDecimal((cast a : java.lang.Object).toString()).compareTo((cast a : java.lang.Object).toString());
+			if (Jvm.instanceof(a, LongClass))
 				return cmpLongTo(a, b);
-			if(Jvm.instanceof(b, LongClass))
+			if (Jvm.instanceof(b, LongClass))
 				return -1 * cmpLongTo(b, a);
 			return DoubleClass.compare(a.doubleValue(), b.doubleValue());
 		}
@@ -136,6 +135,12 @@ class Reflect {
 				return -1;
 			}
 			return (cast a : java.NativeString).compareTo(cast b);
+		}
+		if (Jvm.instanceof(a, jvm.Function)) {
+			if (!(cast a : jvm.Function).equals(cast b)) {
+				return -1;
+			}
+			return 0;
 		}
 		return -1;
 	}

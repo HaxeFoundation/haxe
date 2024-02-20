@@ -67,10 +67,10 @@
 #define val_null Val_int(0)
 #define val_some(v) Field(v,0)
 #define val_int(v) Int_val(v)
-#define neko_error() failwith(__FUNCTION__)
+#define neko_error() caml_failwith(__FUNCTION__)
 
 static value alloc_private( int size ) {
-	return alloc((size + sizeof(value) - 1) / sizeof(value), Abstract_tag);
+	return caml_alloc((size + sizeof(value) - 1) / sizeof(value), Abstract_tag);
 }
 
 // --- buffer api
