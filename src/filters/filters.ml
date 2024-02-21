@@ -535,8 +535,8 @@ let update_cache_dependencies ~close_monomorphs com t =
 				| Some t ->
 					check_t m t
 				| _ ->
-					(* Bind any still open monomorph that's part of a signature to Dynamic now (issue #10653) *)
-					if close_monomorphs then Monomorph.do_bind r t_dynamic
+					(* Bind any still open monomorph that's part of a signature to Any now (issue #10653) *)
+					if close_monomorphs then Monomorph.do_bind r com.basic.tany;
 		end
 		| TLazy f ->
 			check_t m (lazy_type f)
