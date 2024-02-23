@@ -1,3 +1,3 @@
 package haxe.coro;
 
-typedef Continuation<Result, Error> = (result:Result, error:Error) -> Void;
+typedef Continuation<Result> = (result:Result, control:CoroutineControl) -> Void;

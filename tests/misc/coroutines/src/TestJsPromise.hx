@@ -3,7 +3,7 @@ import js.lib.Promise;
 
 @:coroutine
 private function await<T>(p:Promise<T>):T {
-	return Coroutine.suspend(cont -> p.then(r -> cont(r, null), e -> cont(null, e)));
+	return Coroutine.suspend(cont -> p.then(r -> cont(r, Normal), e -> cont(e, Error)));
 }
 
 private function promise<T>(c:Coroutine<()->T>):Promise<T> {

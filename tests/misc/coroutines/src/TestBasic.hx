@@ -11,7 +11,7 @@ class TestBasic extends utest.Test {
 			Assert.equals(42, result);
 			async.done();
 		});
-		cont(null, null);
+		cont(null, Normal);
 	}
 
 	function testErrorDirect(async:Async) {

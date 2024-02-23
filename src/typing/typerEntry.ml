@@ -157,6 +157,13 @@ let create com macros =
 		| _ ->
 			()
 	) m.m_types;
+	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"CoroutineControl") null_pos in
+	List.iter (function
+		| TAbstractDecl({a_path = (["haxe";"coro"],"CoroutineControl")} as a) ->
+			ctx.t.tcoro_control <- TAbstract(a,[])
+		| _ ->
+			()
+	) m.m_types;
 	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
 	ctx.g.complete <- true;
 	ctx

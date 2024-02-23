@@ -830,6 +830,7 @@ let create compilation_step cs version args display_mode =
 			tfloat = mk_mono();
 			tbool = mk_mono();
 			tstring = mk_mono();
+			tcoro_control = mk_mono();
 			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 			tcoro = (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
@@ -878,6 +879,7 @@ let clone com is_macro_context =
 			tfloat = mk_mono();
 			tbool = mk_mono();
 			tstring = mk_mono();
+			tcoro_control = mk_mono();
 		};
 		main = {
 			main_class = None;
@@ -1224,5 +1226,5 @@ let expand_coro_type basic args ret =
 	let ret_type = if ExtType.is_void (follow ret) then t_dynamic else ret in
 	let tcontinuation = tfun [ret_type; t_dynamic] basic.tvoid in
 	let args = args @ [("_hx_continuation",false,tcontinuation)] in
-	let ret = tfun [t_dynamic; t_dynamic] basic.tvoid in
+	let ret = tfun [t_dynamic; basic.tcoro_control] basic.tvoid in
 	(args,ret)

@@ -1,5 +1,7 @@
 package haxe.coro;
 
+import haxe.coro.Continuation;
+
 /**
 	Coroutine function.
 **/
@@ -14,12 +16,12 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 	#if cpp
 	@:native("::hx::Coroutine::suspend")
 	#end
-	public static extern function suspend<T>(f:(cont:Continuation<T, Null<Dynamic>>)->Void):T;
+	public static extern function suspend<T>(f:(cont:Continuation<T>) -> Void):T;
 
 	#if (jvm || eval)
 	@:native("suspend")
 	@:keep
-	static function nativeSuspend<T>(f, cont:Continuation<T, Null<Dynamic>>) {
+	static function nativeSuspend<T>(f, cont:Continuation<T>) {
 		return (_, _) -> f(cont);
 	}
 	#end

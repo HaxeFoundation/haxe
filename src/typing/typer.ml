@@ -1735,6 +1735,25 @@ and type_call_builtin ctx e el mode with_type p =
 	let create_coroutine e args ret p =
 		let args,ret = expand_coro_type ctx.t args ret in
 		let el = unify_call_args ctx el args ctx.t.tvoid p false false false in
+		let el = match List.rev el with
+			| e_cb :: el ->
+				let v_result = alloc_var VGenerated "_hx_result" t_dynamic p in
+				let v_control = alloc_var VGenerated "_hx_control" ctx.com.basic.tcoro_control p in
+				let e_result = Texpr.Builder.make_local v_result p in
+				let e_null = Texpr.Builder.make_null t_dynamic p in
+				let e_normal = mk (TCall(e_cb,[e_result;e_null])) ctx.com.basic.tvoid p in
+				let e_error = mk (TCall(e_cb,[e_null;e_result])) ctx.com.basic.tvoid p in
+				let e_controlswitch = CoroToTexpr.make_control_switch ctx.com (Texpr.Builder.make_local v_control p) e_normal e_error p in
+				let tf = {
+					tf_args = [(v_result,None);(v_control,None)];
+					tf_expr = e_controlswitch;
+					tf_type = ctx.com.basic.tvoid;
+				} in
+				let e = mk (TFunction tf) (tfun [t_dynamic;ctx.com.basic.tcoro_control] ctx.com.basic.tvoid) p in
+				List.rev (e :: el)
+			| [] ->
+				die "" __LOC__
+		in
 		let e = mk e.eexpr (TFun(args,ret)) p in
 		mk (TCall (e, el)) ret p
 	in
@@ -1773,7 +1792,7 @@ and type_call_builtin ctx e el mode with_type p =
 			| Coro (args, ret) ->
 				let ecoro = create_coroutine e args ret p in
 				let enull = Builder.make_null t_dynamic p in
-				mk (TCall (ecoro, [enull; enull])) ctx.com.basic.tvoid p
+				mk (TCall (ecoro, [enull; CoroToTexpr.mk_control ctx.com CoroNormal])) ctx.com.basic.tvoid p
 			| _ -> raise Exit)
 	| (EField (e,"create",_),_), args ->
 		let e = type_expr ctx e WithType.value in

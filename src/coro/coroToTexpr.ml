@@ -8,13 +8,37 @@ type coro_state = {
 	mutable cs_el : texpr list;
 }
 
-let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
+type coro_control =
+	| CoroNormal
+	| CoroError
+	| CoroSuspend
+
+let mk_int com i = Texpr.Builder.make_int com.Common.basic i null_pos
+
+let mk_control com (c : coro_control) = mk_int com (Obj.magic c)
+
+let make_control_switch com e_subject e_normal e_error p =
+	let cases = [{
+		case_patterns = [mk_control com CoroNormal];
+		case_expr = e_normal;
+	}; {
+		case_patterns = [mk_control com CoroError];
+		case_expr = e_error;
+	}] in
+	let switch = {
+		switch_subject = e_subject;
+		switch_cases = cases;
+		switch_default = None;
+		switch_exhaustive = true;
+	} in
+	mk (TSwitch switch) com.basic.tvoid p
+
+let block_to_texpr_coroutine ctx cb vcontinuation vresult vcontrol p =
 	let open Texpr.Builder in
 	let com = ctx.com in
 
-	let eerror = make_local verror null_pos in
-
-	let mk_int i = make_int com.basic i null_pos in
+	let eresult = make_local vresult vresult.v_pos in
+	let econtrol = make_local vcontrol vcontrol.v_pos in
 
 	let mk_assign estate eid =
 		mk (TBinop (OpAssign,estate,eid)) eid.etype null_pos
@@ -22,7 +46,7 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 
 	let vstate = alloc_var VGenerated "_hx_state" com.basic.tint p in
 	let estate = make_local vstate p in
-	let set_state id = mk_assign estate (mk_int id) in
+	let set_state id = mk_assign estate (mk_int com id) in
 
 	let tstatemachine = tfun [t_dynamic; t_dynamic] com.basic.tvoid in
 	let vstatemachine = alloc_var VGenerated "_hx_stateMachine" tstatemachine p in
@@ -30,11 +54,11 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 
 	let mk_continuation_call eresult p =
 		let econtinuation = make_local vcontinuation p in
-		mk (TCall (econtinuation, [eresult; make_null t_dynamic p])) com.basic.tvoid p
+		mk (TCall (econtinuation, [eresult; mk_control com CoroNormal])) com.basic.tvoid p
 	in
 	let mk_continuation_call_error eerror p =
 		let econtinuation = make_local vcontinuation p in
-		mk (TCall (econtinuation, [make_null t_dynamic p; eerror])) com.basic.tvoid p
+		mk (TCall (econtinuation, [eerror; mk_control com CoroError])) com.basic.tvoid p
 	in
 
 	let cb_uncaught = CoroFunctions.make_block ctx None in
@@ -54,7 +78,7 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 		let args = call.cs_args @ [ estatemachine ] in
 		let ecreatecoroutine = mk (TCall (efun, args)) tcoroutine call.cs_pos in
 		let enull = make_null t_dynamic p in
-		mk (TCall (ecreatecoroutine, [enull; enull])) com.basic.tvoid call.cs_pos
+		mk (TCall (ecreatecoroutine, [enull; mk_control com CoroNormal])) com.basic.tvoid call.cs_pos
 	in
 
 	let std_is e t =
@@ -185,13 +209,13 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 			]) t_dynamic null_pos in
 			let eif =
 				List.fold_left (fun enext (vcatch,bb_catch) ->
-					let ecatchvar = mk (TVar (vcatch, Some eerror)) com.basic.tvoid null_pos in
+					let ecatchvar = mk (TVar (vcatch, Some eresult)) com.basic.tvoid null_pos in
 					let catch_state_id = loop bb_catch [ecatchvar] in
 					match follow vcatch.v_type with
 					| TDynamic _ ->
 						set_state catch_state_id (* no next *)
 					| t ->
-						let etypecheck = std_is (make_local verror null_pos) vcatch.v_type in
+						let etypecheck = std_is eresult vcatch.v_type in
 						mk (TIf (etypecheck, set_state catch_state_id, Some enext)) com.basic.tvoid null_pos
 				) erethrow (List.rev catch.cc_catches)
 			in
@@ -266,7 +290,7 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 	*)
 
 	let rethrow_state_id = cb_uncaught.cb_id in
-	let rethrow_state = make_state rethrow_state_id [mk (TThrow eerror) com.basic.tvoid null_pos] in
+	let rethrow_state = make_state rethrow_state_id [mk (TThrow eresult) com.basic.tvoid null_pos] in
 	let states = states @ [rethrow_state] in
 	let states = List.sort (fun state1 state2 -> state1.cs_id - state2.cs_id) states in
 
@@ -278,22 +302,18 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 
 	let switch =
 		let cases = List.map (fun state ->
-			{case_patterns = [mk_int state.cs_id];
+			{case_patterns = [mk_int com state.cs_id];
 			case_expr = mk (TBlock state.cs_el) ctx.com.basic.tvoid (punion_el null_pos state.cs_el);
 		}) states in
 		mk_switch estate cases (Some ethrow) true
 	in
 	let eswitch = mk (TSwitch switch) com.basic.tvoid p in
 
-	let eif = mk (TIf (
-		mk (TBinop (
-			OpNotEq,
-			eerror,
-			make_null verror.v_type p
-		)) com.basic.tbool p,
-		set_state cb_uncaught.cb_id,
-		None
-	)) com.basic.tvoid p in
+	let econtrolswitch =
+		let e_normal = mk (TBlock []) ctx.com.basic.tvoid p in
+		let e_error = set_state cb_uncaught.cb_id in
+		make_control_switch com econtrol e_normal e_error p
+	in
 
 	let etry = mk (TTry (
 		eswitch,
@@ -304,10 +324,10 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 				| [] ->
 					()
 				| l ->
-					let patterns = List.map mk_int l in
+					let patterns = List.map (mk_int com) l in
 					let expr = mk (TBlock [
 						set_state i;
-						Builder.binop OpAssign eerror (Builder.make_local vcaught null_pos) vcaught.v_type null_pos;
+						Builder.binop OpAssign eresult (Builder.make_local vcaught null_pos) vcaught.v_type null_pos;
 					]) ctx.com.basic.tvoid null_pos in
 					DynArray.add cases {case_patterns = patterns; case_expr = expr};
 			) exc_state_map;
@@ -334,9 +354,9 @@ let block_to_texpr_coroutine ctx cb vcontinuation vresult verror p =
 	let eloop = mk (TWhile (make_bool com.basic true p, etry, DoWhile)) com.basic.tvoid p in
 
 	let estatemachine_def = mk (TFunction {
-		tf_args = [(vresult,None); (verror,None)];
+		tf_args = [(vresult,None); (vcontrol,None)];
 		tf_type = com.basic.tvoid;
-		tf_expr = mk (TBlock [eif;eloop]) com.basic.tvoid null_pos
+		tf_expr = mk (TBlock [econtrolswitch;eloop]) com.basic.tvoid null_pos
 	}) tstatemachine p in
 
 	let state_var = mk (TVar (vstate, Some (make_int com.basic !init_state p))) com.basic.tvoid p in

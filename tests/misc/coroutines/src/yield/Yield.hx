@@ -24,14 +24,14 @@ function sequence<T>(f:Coroutine<Yield<T>->Void>):Iterator<T> {
 	function hasNext():Bool {
 		if (nextStep == null) {
 			nextStep = f.create(yield, finish);
-			nextStep(null, null);
+			nextStep(null, Normal);
 		}
 		return !finished;
 	}
 
 	function next():T {
 		var value = nextValue;
-		nextStep(null, null);
+		nextStep(null, Normal);
 		return value;
 	}
 
