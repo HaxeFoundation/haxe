@@ -6,9 +6,10 @@ class Issue11466 extends unit.Test {
 		var x = 0;
 		try {
 			x = b;
-			throw "hi";
-		}catch(_) {
-			eq(b, x);
+			throw '';
+		} catch(_) {
+			x += 1;
 		}
+		eq(11, x);
 	}
 }
