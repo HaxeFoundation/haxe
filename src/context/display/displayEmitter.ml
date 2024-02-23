@@ -71,7 +71,7 @@ let check_display_type ctx t ptp =
 		ctx.g.type_hints <- (ctx.m.curmod.m_extra.m_display,ptp.pos_full,t) :: ctx.g.type_hints;
 	in
 	let maybe_display_type () =
-		if ctx.is_display_file && display_position#enclosed_in ptp.pos_full then
+		if ctx.m.is_display_file && display_position#enclosed_in ptp.pos_full then
 			display_type ctx t ptp.pos_path
 	in
 	add_type_hint();
@@ -169,7 +169,7 @@ let check_display_metadata ctx meta =
 		List.iter (fun e ->
 			if display_position#enclosed_in (pos e) then begin
 				let e = preprocess_expr ctx.com e in
-				delay ctx PTypeField (fun _ -> ignore(type_expr ctx e WithType.value));
+				delay ctx.g PTypeField (fun _ -> ignore(type_expr ctx e WithType.value));
 			end
 		) args
 	) meta

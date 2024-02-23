@@ -301,7 +301,8 @@ class hxb_reader
 			anons.(read_uleb128 ch)
 		| 1 ->
 			let an = anons.(read_uleb128 ch) in
-			self#read_anon an
+			self#read_anon an;
+			an
 		| _ ->
 			assert false
 
@@ -899,9 +900,7 @@ class hxb_reader
 				| i -> die (Printf.sprintf "Invalid type paramter host: %i" i) __LOC__
 			in
 			let c = mk_class current_module path pos pos in
-			let ttp = mk_type_param c host None None in
-			c.cl_kind <- KTypeParameter ttp;
-			ttp
+			mk_type_param c host None None
 		)
 
 	method read_type_parameters_data (a : typed_type_param array) =
@@ -964,7 +963,7 @@ class hxb_reader
 			| 5 -> VUser TVOLocalFunction
 			| 6 -> VGenerated
 			| 7 -> VInlined
-			| 8 -> VInlinedConstructorVariable
+			| 8 -> VInlinedConstructorVariable (self#read_list (fun () -> self#read_string))
 			| 9 -> VExtractorVariable
 			| 10 -> VAbstractThis
 			| _ -> assert false
@@ -1589,10 +1588,25 @@ class hxb_reader
 		) in
 		enum_fields <- a
 
-	method read_afr =
+	method read_ofr =
 		let l = read_uleb128 ch in
 		let a = Array.init l (fun _ -> self#read_class_field_forward) in
 		anon_fields <- a
+
+	method read_ofd =
+		let l = read_uleb128 ch in
+		for _ = 0 to l - 1 do
+			let index = read_uleb128 ch in
+			let cf = anon_fields.(index) in
+			self#read_class_field_and_overloads_data cf;
+		done
+
+	method read_obd =
+		let l = read_uleb128 ch in
+		for _ = 0 to l - 1 do
+			let index = read_uleb128 ch in
+			self#read_anon anons.(index)
+		done
 
 	method read_cfr =
 		let l = read_uleb128 ch in
@@ -1750,9 +1764,7 @@ class hxb_reader
 			an.a_status := Extend self#read_types;
 			read_fields ()
 		| _ -> assert false
-		end;
-
-		an
+		end
 
 	method read_tdd =
 		let l = read_uleb128 ch in
@@ -1928,8 +1940,12 @@ class hxb_reader
 			self#read_abr;
 		| TDR ->
 			self#read_tdr;
-		| AFR ->
-			self#read_afr;
+		| OFR ->
+			self#read_ofr;
+		| OFD ->
+			self#read_ofd;
+		| OBD ->
+			self#read_obd
 		| CLD ->
 			self#read_cld;
 		| END ->

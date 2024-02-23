@@ -113,7 +113,7 @@ let init_import ctx path mode p =
 		let check_alias mt name pname =
 			if not (name.[0] >= 'A' && name.[0] <= 'Z') then
 				raise_typing_error "Type aliases must start with an uppercase letter" pname;
-			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in pname then
+			if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in pname then
 				DisplayEmitter.display_alias ctx name (type_of_module_type mt) pname;
 		in
 		let add_static_init t name s =
@@ -296,4 +296,4 @@ let init_using ctx path p =
 		ctx.m.import_resolution#add (module_type_resolution mt None p)
 	) (List.rev types);
 	(* delay the using since we need to resolve typedefs *)
-	delay_late ctx PConnectField (fun () -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)
+	delay_late ctx.g PConnectField (fun () -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)

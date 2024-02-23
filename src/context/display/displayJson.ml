@@ -116,7 +116,9 @@ class hxb_reader_api_com
 			m_path = path;
 			m_types = [];
 			m_statics = None;
-			m_extra = mc.mc_extra
+			(* Creating a new m_extra because if we keep the same reference, display requests *)
+			(* can alter it with bad data (for example adding dependencies that are not cached) *)
+			m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps }
 		}
 
 	method add_module (m : module_def) =
@@ -167,7 +169,7 @@ let handler =
 	let l = [
 		"initialize", (fun hctx ->
 			supports_resolve := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "supportsResolve") false;
-			DisplayException.max_completion_items := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "maxCompletionItems") 0;
+			ServerConfig.max_completion_items := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "maxCompletionItems") 0;
 			let exclude = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_array_param "exclude") [] in
 			DisplayToplevel.exclude := List.map (fun e -> match e with JString s -> s | _ -> die "" __LOC__) exclude;
 			let methods = Hashtbl.fold (fun k _ acc -> (jstring k) :: acc) h [] in
@@ -309,6 +311,15 @@ let handler =
 					(jobject fields)
 				) all))
 			)
+		);
+		"server/resetCache", (fun hctx ->
+			hctx.com.cs#clear;
+			supports_resolve := false;
+			DisplayException.reset();
+			ServerConfig.reset();
+			hctx.send_result (jobject [
+				"success", jbool true
+			]);
 		);
 		"server/readClassPaths", (fun hctx ->
 			hctx.com.callbacks#add_after_init_macros (fun () ->

@@ -138,15 +138,9 @@ module Setup = struct
 				if Common.defined com Define.Cppia then
 					actx.classes <- (Path.parse_path "cpp.cppia.HostClasses" ) :: actx.classes;
 				"cpp"
-			| Cs ->
-				Dotnet.before_generate com;
-				add_std "cs"; "cs"
-			| Java ->
-				Java.before_generate com;
-				if defined com Define.Jvm then begin
-					add_std "jvm";
-					com.package_rules <- PMap.remove "jvm" com.package_rules;
-				end;
+			| Jvm ->
+				add_std "jvm";
+				com.package_rules <- PMap.remove "java" com.package_rules;
 				add_std "java";
 				"java"
 			| Python ->
@@ -369,6 +363,12 @@ let compile ctx actx callbacks =
 	callbacks.after_target_init ctx;
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
+	begin match actx.hxb_out with
+		| None ->
+			()
+		| Some file ->
+			com.hxb_writer_config <- HxbWriterConfig.process_argument file
+	end;
 	t();
 	enter_stage com CInitialized;
 	ServerMessage.compiler_stage com;
@@ -382,7 +382,11 @@ let compile ctx actx callbacks =
 		let is_compilation = is_compilation com in
 		com.callbacks#add_after_save (fun () ->
 			callbacks.after_save ctx;
-			if is_compilation then Generate.check_hxb_output ctx actx;
+			if is_compilation then match com.hxb_writer_config with
+				| Some config ->
+					Generate.check_hxb_output ctx config;
+				| None ->
+					()
 		);
 		if is_diagnostics com then
 			filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)
@@ -436,7 +440,7 @@ with
 	| Failure msg when not Helper.is_debug_run ->
 		error ctx ("Error: " ^ msg) null_pos
 	| Helper.HelpMessage msg ->
-		com.info msg null_pos
+		print_endline msg
 	| Parser.TypePath (p,c,is_import,pos) ->
 		DisplayOutput.handle_type_path_exception ctx p c is_import pos
 	| Parser.SyntaxCompletion(kind,subj) ->
@@ -457,7 +461,6 @@ let finalize ctx =
 		we should do it here to be safe. *)
 	if not ctx.comm.is_server then begin
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.java_libs;
-		List.iter (fun lib -> lib#close) ctx.com.native_libs.net_libs;
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
 	end
 
@@ -623,10 +626,8 @@ module HighLevel = struct
 				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
 				let lines = add_libs libs args server_api.cache has_display in
 				loop acc (lines @ args)
-			| ("--jvm" | "--java" | "-java" as arg) :: dir :: args ->
+			| ("--jvm" | "-jvm" as arg) :: dir :: args ->
 				loop_lib arg dir "hxjava" acc args
-			| ("--cs" | "-cs" as arg) :: dir :: args ->
-				loop_lib arg dir "hxcs" acc args
 			| arg :: l ->
 				match List.rev (ExtString.String.nsplit arg ".") with
 				| "hxml" :: _ :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->

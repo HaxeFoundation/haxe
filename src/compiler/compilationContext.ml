@@ -8,7 +8,6 @@ type server_mode =
 	| SMConnect of string
 
 type native_lib_kind =
-	| NetLib
 	| JavaLib
 	| SwfLib
 	| HxbLib

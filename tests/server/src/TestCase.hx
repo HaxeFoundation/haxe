@@ -18,7 +18,9 @@ using StringTools;
 using Lambda;
 
 @:autoBuild(utils.macro.BuildHub.build())
-class TestCase implements ITest {
+interface ITestCase {}
+
+class TestCase implements ITest implements ITestCase {
 	static public var debugLastResult:{
 		hasError:Bool,
 		stdout:String,
@@ -26,7 +28,9 @@ class TestCase implements ITest {
 		prints:Array<String>
 	};
 
-	var server:HaxeServerAsync;
+	static public var server:HaxeServerAsync;
+	static public var rootCwd:String;
+
 	var vfs:Vfs;
 	var testDir:String;
 	var lastResult:HaxeServerRequestResult;
@@ -69,15 +73,16 @@ class TestCase implements ITest {
 		}
 	}
 
+	@:timeout(3000)
 	public function setup(async:utest.Async) {
 		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
-		server = new HaxeServerAsync(() -> new HaxeServerProcessNode("haxe", ["-v", "--cwd", testDir], {}, () -> async.done()));
+		runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {}, () -> {
+			async.done();
+		});
 	}
 
-	public function teardown() {
-		server.stop();
-	}
+	public function teardown() {}
 
 	function handleResult(result) {
 		lastResult = result;
