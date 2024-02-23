@@ -482,7 +482,7 @@ let code_graph (f:fundecl) =
 			} in
 			Hashtbl.add blocks_pos pos b;
 			let rec loop i =
-				let goto ?(tl=b.btrap) d=
+				let goto ?(tl=b.btrap) d =
 					let b2 = make_block tl (i + 1 + d) in
 					b2.bprev <- b :: b2.bprev;
 					b2
