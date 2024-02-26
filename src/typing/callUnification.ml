@@ -429,12 +429,11 @@ let unify_field_call ctx fa el_typed el p inline =
 				maybe_check_access fcc.fc_field;
 				commit_delayed_display fcc
 			| fcc :: l ->
-				(* TODO construct error with sub *)
-				display_error ctx.com "Ambiguous overload, candidates follow" p;
 				let st = s_type (print_context()) in
-				List.iter (fun fcc ->
-					display_error ~depth:1 ctx.com (compl_msg (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
-				) (fcc :: l);
+				let sub = List.map (fun fcc ->
+					make_error ~depth:1 (Custom (compl_msg (st fcc.fc_type))) fcc.fc_field.cf_name_pos
+				) (fcc :: l) in
+				display_error_ext ctx.com (make_error (Custom "Ambiguous overload, candidates follow") ~sub:(List.rev sub) p);
 				commit_delayed_display fcc
 		end else begin match List.rev candidates with
 			| [] -> fail()
@@ -512,10 +511,12 @@ object(self)
 		ctx.com.error_ext <- (fun err ->
 			let ep = err.err_pos in
 			(* display additional info in the case the error is not part of our original call *)
+			(* TODO this is not tested atm, need to add a misc test to check this change *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
-				old (if (ep = null_pos) then { err with err_pos = p } else err);
-				(* TODO add as sub for above error *)
-				if ep <> null_pos then old (make_error ~depth:(err.err_depth+1) (Custom (compl_msg "Called from macro here")) p);
+				if ep = null_pos then
+					old { err with err_pos = p }
+				else
+					old { err with err_sub = (make_error ~depth:(err.err_depth+1) (Custom (compl_msg "Called from macro here")) p) :: err.err_sub }
 			end else
 				old err;
 		);
