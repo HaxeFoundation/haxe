@@ -1739,14 +1739,19 @@ and type_call_builtin ctx e el mode with_type p =
 			| e_cb :: el ->
 				let v_result = alloc_var VGenerated "_hx_result" t_dynamic p in
 				let v_control = alloc_var VGenerated "_hx_control" ctx.com.basic.tcoro_control p in
+				let v_cb = alloc_var VGenerated "_hx_continuation" e_cb.etype e_cb.epos in
+				let e_cb_local = Texpr.Builder.make_local v_cb e_cb.epos in
 				let e_result = Texpr.Builder.make_local v_result p in
 				let e_null = Texpr.Builder.make_null t_dynamic p in
-				let e_normal = mk (TCall(e_cb,[e_result;e_null])) ctx.com.basic.tvoid p in
-				let e_error = mk (TCall(e_cb,[e_null;e_result])) ctx.com.basic.tvoid p in
+				let e_normal = mk (TCall(e_cb_local,[e_result;e_null])) ctx.com.basic.tvoid p in
+				let e_error = mk (TCall(e_cb_local,[e_null;e_result])) ctx.com.basic.tvoid p in
 				let e_controlswitch = CoroToTexpr.make_control_switch ctx.com (Texpr.Builder.make_local v_control p) e_normal e_error p in
 				let tf = {
 					tf_args = [(v_result,None);(v_control,None)];
-					tf_expr = e_controlswitch;
+					tf_expr = mk (TBlock [
+						mk (TVar(v_cb,Some e_cb)) ctx.com.basic.tvoid p;
+						e_controlswitch;
+					]) ctx.com.basic.tvoid p;
 					tf_type = ctx.com.basic.tvoid;
 				} in
 				let e = mk (TFunction tf) (tfun [t_dynamic;ctx.com.basic.tcoro_control] ctx.com.basic.tvoid) p in
