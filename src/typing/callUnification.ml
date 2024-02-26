@@ -511,7 +511,6 @@ object(self)
 		ctx.com.error_ext <- (fun err ->
 			let ep = err.err_pos in
 			(* display additional info in the case the error is not part of our original call *)
-			(* TODO this is not tested atm, need to add a misc test to check this change *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
 				if ep = null_pos then
 					old { err with err_pos = p }
