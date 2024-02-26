@@ -507,7 +507,7 @@ let destruction tctx detail_times main locals =
 	com.callbacks#run com.error_ext com.callbacks#get_after_filters;
 	enter_stage com CFilteringDone
 
-let update_cache_dependencies com t =
+let update_cache_dependencies ~close_monomorphs com t =
 	let visited_anons = ref [] in
 	let rec check_t m t = match t with
 		| TInst(c,tl) ->
@@ -535,8 +535,8 @@ let update_cache_dependencies com t =
 				| Some t ->
 					check_t m t
 				| _ ->
-					(* Bind any still open monomorph that's part of a signature to Dynamic now (issue #10653) *)
-					Monomorph.do_bind r t_dynamic;
+					(* Bind any still open monomorph that's part of a signature to Any now (issue #10653) *)
+					if close_monomorphs then Monomorph.do_bind r com.basic.tany;
 		end
 		| TLazy f ->
 			check_t m (lazy_type f)
@@ -742,7 +742,7 @@ let run tctx main before_destruction =
 	enter_stage com CSaveStart;
 	with_timer detail_times "save state" None (fun () ->
 		List.iter (fun mt ->
-			update_cache_dependencies com mt;
+			update_cache_dependencies ~close_monomorphs:true com mt;
 			save_class_state com mt
 		) new_types;
 	);

@@ -127,6 +127,17 @@ let create com macros =
 		| TClassDecl ({cl_path = ([],"Std")} as c) -> ctx.com.std <- c;
 		| _ -> ()
 	) m.m_types;
+	let m = TypeloadModule.load_module ctx ([],"Any") null_pos in
+	List.iter (fun mt -> match mt with
+		| TAbstractDecl a ->
+			(match snd a.a_path with
+			| "Any" ->
+				let t = TAbstract (a,[]) in
+				Type.unify t ctx.t.tany;
+				ctx.t.tany <- t;
+			| _ -> ())
+		| _ -> ()
+	) m.m_types;
 	let m = TypeloadModule.load_module ctx ([],"Array") null_pos in
 	(try
 		List.iter (fun t -> (

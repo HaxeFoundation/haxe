@@ -2777,11 +2777,6 @@ let generate_enum_equals gctx (jc_ctor : JvmClass.builder) =
 		else
 			compare_standard jsig
 	in
-	load();
-	jm_equals#invokevirtual java_enum_path "ordinal" (method_sig [] (Some TInt));
-	jm_equals#load_this;
-	jm_equals#invokevirtual java_enum_path "ordinal" (method_sig [] (Some TInt));
-	compare TInt;
 	let compare_field n jsig =
 		load();
 		jm_equals#getfield jc_ctor#get_this_path n jsig;

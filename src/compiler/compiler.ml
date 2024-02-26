@@ -440,7 +440,7 @@ with
 	| Failure msg when not Helper.is_debug_run ->
 		error ctx ("Error: " ^ msg) null_pos
 	| Helper.HelpMessage msg ->
-		com.info msg null_pos
+		print_endline msg
 	| Parser.TypePath (p,c,is_import,pos) ->
 		DisplayOutput.handle_type_path_exception ctx p c is_import pos
 	| Parser.SyntaxCompletion(kind,subj) ->

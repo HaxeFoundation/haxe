@@ -1067,7 +1067,6 @@ module HxbWriter = struct
 		with Not_found ->
 			let restore = start_temporary_chunk writer 256 in
 			let old = writer.wrote_local_type_param in
-			writer.wrote_local_type_param <- false;
 			ignore(write_class_field_and_overloads_data writer true cf);
 			let wrote_local_type_param = writer.wrote_local_type_param in
 			writer.wrote_local_type_param <- old;

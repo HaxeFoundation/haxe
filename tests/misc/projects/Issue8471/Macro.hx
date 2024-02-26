@@ -2,6 +2,7 @@ import haxe.macro.Context;
 
 class Macro {
 	public static function init() {
+		Context.info("Info", Context.currentPos());
 		Context.warning("This warning will disappear", Context.currentPos());
 
 		Context.onAfterTyping(afterTyping);

@@ -454,6 +454,7 @@ exception Type_exception of t
 
 type basic_types = {
 	mutable tvoid : t;
+	mutable tany : t;
 	mutable tint : t;
 	mutable tfloat : t;
 	mutable tbool : t;
