@@ -494,7 +494,7 @@ let code_graph (f:fundecl) =
 				| CNo ->
 					loop (i + 1)
 				| CRet ->
-					assert(b.btrap == []);
+					assert(b.btrap = []);
 					b.bend <- i
 				| CJAlways d ->
 					b.bend <- i;
