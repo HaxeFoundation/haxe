@@ -132,9 +132,9 @@ let copy_meta meta_src meta_target sl =
 
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
-		(* TODO construct error *)
-		display_error ctx.com ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child_pos;
-		display_error ~depth:1 ctx.com (compl_msg "Base field is defined here") base_pos
+		display_error_ext ctx.com (make_error (Custom ("Field " ^ child.cf_name ^ " has different @:native value than in superclass")) ~sub:([
+			(make_error ~depth:1 (Custom (compl_msg "Base field is defined here")) base_pos)
+		]) child_pos);
 	in
 	try
 		let child_name, child_pos = Naming.get_native_name child.cf_meta in
@@ -189,10 +189,10 @@ let check_override_field ctx p rctx =
 		valid_redefinition rctx.map rctx.map rctx.cf_new rctx.cf_new.cf_type rctx.cf_old rctx.t_old;
 	with
 		Unify_error l ->
-			(* TODO construct error with sub *)
-			display_error ctx.com ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
-			display_error ~depth:1 ctx.com (compl_msg "Base field is defined here") rctx.cf_old.cf_name_pos;
-			display_error ~depth:1 ctx.com (compl_msg (error_msg (Unify l))) p
+			display_error_ext ctx.com (make_error (Custom ("Field " ^ i ^ " overrides parent class with different or incomplete type")) ~sub:([
+				(make_error ~depth:1 (Custom (compl_msg (error_msg (Unify l)))) p);
+				(make_error ~depth:1 (Custom (compl_msg "Base field is defined here")) rctx.cf_old.cf_name_pos);
+			]) p)
 
 let find_override_field ctx c_new cf_new c_old tl get_super_field is_overload p =
 	let i = cf_new.cf_name in
@@ -400,10 +400,10 @@ module Inheritance = struct
 					with
 						Unify_error l ->
 							if not ((has_class_flag c CExtern)) then begin
-								(* TODO construct error with sub *)
-								display_error com ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-								display_error ~depth:1 com (compl_msg "Interface field is defined here") f.cf_pos;
-								display_error ~depth:1 com (compl_msg (error_msg (Unify l))) p;
+								display_error_ext com (make_error (Custom ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path)) ~sub:([
+									(make_error ~depth:1 (Custom (compl_msg (error_msg (Unify l)))) p);
+									(make_error ~depth:1 (Custom (compl_msg "Interface field is defined here")) f.cf_name_pos);
+								]) p)
 							end
 				)
 			with Not_found ->
@@ -492,18 +492,17 @@ module Inheritance = struct
 		| l ->
 			let singular = match l with [_] -> true | _ -> false in
 			display_error ctx.com (Printf.sprintf "This class extends abstract class %s but doesn't implement the following method%s" (s_type_path csup.cl_path) (if singular then "" else "s")) c.cl_name_pos;
-			(* TODO sub error ? *)
-			display_error ctx.com (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path)) c.cl_name_pos;
 			let pctx = print_context() in
-			List.iter (fun (cf,_) ->
+			let sub = List.map (fun (cf,_) ->
 				let s = match follow cf.cf_type with
 					| TFun(tl,tr) ->
 						String.concat ", " (List.map (fun (n,o,t) -> Printf.sprintf "%s:%s" n (s_type pctx t)) tl)
 					| t ->
 						s_type pctx t
 				in
-				display_error ~depth:1 ctx.com (compl_msg (Printf.sprintf "%s(%s)" cf.cf_name s)) cf.cf_name_pos
-			) (List.rev !missing)
+				make_error ~depth:1 (Custom (compl_msg (Printf.sprintf "%s(%s)" cf.cf_name s))) cf.cf_name_pos
+			) (List.rev !missing) in
+			display_error_ext ctx.com (make_error (Custom (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path))) ~sub c.cl_name_pos)
 
 	let set_heritance ctx c herits p =
 		let is_lib = Meta.has Meta.LibType c.cl_meta in
