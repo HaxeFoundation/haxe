@@ -47,6 +47,7 @@ type block = {
 	mutable bneed : ISet.t;
 	mutable bneed_all : ISet.t option;
 	mutable bwrite : (int, int) PMap.t;
+	mutable btrap : int list;
 }
 
 type control =
@@ -54,6 +55,7 @@ type control =
 	| CJCond of int
 	| CJAlways of int
 	| CTry of int
+	| CCatch
 	| CSwitch of int array
 	| CRet
 	| CThrow
@@ -75,6 +77,8 @@ let control = function
 		CSwitch cases
 	| OTrap (_,d) ->
 		CTry d
+	| OEndTrap _ ->
+		CCatch
 	| _ ->
 		CNo
 
@@ -444,7 +448,7 @@ let code_graph (f:fundecl) =
 		| CJAlways d | CJCond d -> Hashtbl.replace all_blocks (i + 1 + d) true
 		| _ -> ()
 	done;
-	let rec make_block pos =
+	let rec make_block trapl pos =
 		try
 			Hashtbl.find blocks_pos pos
 		with Not_found ->
@@ -458,11 +462,12 @@ let code_graph (f:fundecl) =
 				bneed = ISet.empty;
 				bwrite = PMap.empty;
 				bneed_all = None;
+				btrap = trapl;
 			} in
 			Hashtbl.add blocks_pos pos b;
 			let rec loop i =
-				let goto d =
-					let b2 = make_block (i + 1 + d) in
+				let goto ?(tl=b.btrap) d =
+					let b2 = make_block tl (i + 1 + d) in
 					b2.bprev <- b :: b2.bprev;
 					b2
 				in
@@ -472,7 +477,8 @@ let code_graph (f:fundecl) =
 				end else match control (op i) with
 				| CNo ->
 					loop (i + 1)
-				| CRet | CThrow ->
+				| CRet ->
+					assert(b.btrap = []);
 					b.bend <- i
 				| CJAlways d ->
 					b.bend <- i;
@@ -480,9 +486,27 @@ let code_graph (f:fundecl) =
 				| CSwitch pl ->
 					b.bend <- i;
 					b.bnext <- goto 0 :: Array.to_list (Array.map goto pl)
-				| CJCond d | CTry d ->
+				| CJCond d ->
 					b.bend <- i;
 					b.bnext <- [goto 0; goto d];
+				| CTry d ->
+					b.bend <- i;
+					b.bnext <- [goto ~tl:((i+1+d)::b.btrap) 0; goto d];
+				| CThrow ->
+					b.bend <- i;
+					match b.btrap with
+						| [] -> ()
+						| [p] -> b.bnext <- [goto ~tl:[] (p-1-i)];
+						| p :: pl -> b.bnext <- [goto ~tl:pl (p-1-i)];
+					;
+				| CCatch ->
+					let p, pl = match b.btrap with
+						| [] -> assert false;
+						| [p] -> p, []
+						| p :: pl -> p, pl
+					in
+					b.bend <- i;
+					b.bnext <- [goto ~tl:pl 0; goto ~tl:pl (p-1-i)];
 				| CLabel ->
 					b.bloop <- true;
 					loop (i + 1)
@@ -490,7 +514,7 @@ let code_graph (f:fundecl) =
 			loop pos;
 			b
 	in
-	blocks_pos, make_block 0
+	blocks_pos, make_block [] 0
 
 type rctx = {
 	r_root : block;
