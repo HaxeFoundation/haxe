@@ -127,6 +127,7 @@ and s_constraint = function
 	| MType(t,_) -> Printf.sprintf "MType %s" (s_type_kind t)
 	| MOpenStructure -> "MOpenStructure"
 	| MEmptyStructure -> "MEmptyStructure"
+	| MFromMacroInMacro _ -> "MFromMacroInMacro"
 
 let s_type_param s_type ttp =
 	let s = match (get_constraints ttp) with

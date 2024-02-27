@@ -91,6 +91,7 @@ and tmono_constraint =
 	| MType of t * string option
 	| MOpenStructure
 	| MEmptyStructure
+	| MFromMacroInMacro of pos
 
 and tmono_constraint_kind =
 	| CUnknown

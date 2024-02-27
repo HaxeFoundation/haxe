@@ -144,6 +144,8 @@ module Monomorph = struct
 			| MOpenStructure
 			| MEmptyStructure ->
 				is_open := true
+			| MFromMacroInMacro _ ->
+				()
 		in
 		List.iter check m.tm_down_constraints;
 		let kind =

@@ -174,6 +174,18 @@ module IterationKind = struct
 			display_error ctx.com "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e.epos;
 			IteratorDynamic,e,t_dynamic
 		in
+		let mono_iterator m e =
+			begin match extract_macro_in_macro_constraint m with
+			| Some p ->
+				let sub = if p <> e.epos then [Error.make_error (Custom "Call was here") p] else [] in
+				display_error_ext ctx.com (Error.make_error
+					~sub
+					(Custom "Cannot iterate on expression from macro-in-macro call") e.epos);
+			| None ->
+				display_error ctx.com "Cannot iterate on unknown value" e.epos;
+			end;
+			IteratorDynamic,e,t_dynamic
+		in
 		let check_iterator () =
 			let array_access_result = ref None in
 			let last_resort () =
@@ -185,8 +197,12 @@ module IterationKind = struct
 			| Some result -> result
 			| None ->
 				match Abstract.follow_with_abstracts e1.etype with
-					| (TMono _ | TDynamic _) -> dynamic_iterator e1;
-					| _ -> (IteratorIterator,e1,pt)
+					| TMono m ->
+						mono_iterator m e
+					| TDynamic _ ->
+						dynamic_iterator e1;
+					| _ ->
+						(IteratorIterator,e1,pt)
 		in
 		let try_forward_array_iterator () =
 			match follow e.etype with
@@ -251,7 +267,9 @@ module IterationKind = struct
 			with Not_found -> check_iterator ())
 		| _,TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe";"ds"],"GenericStack" },[pt]) } as c,[]) ->
 			IteratorGenericStack c,e,pt
-		| _,(TMono _ | TDynamic _) ->
+		| _,TMono m ->
+			mono_iterator m e;
+		| _,TDynamic _ ->
 			dynamic_iterator e
 		| _ ->
 			check_iterator ()
