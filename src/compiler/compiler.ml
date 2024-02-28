@@ -430,6 +430,7 @@ with
 			ctx.has_error <- false;
 			ctx.messages <- [];
 		end else begin
+			(* TODO SUB ERROR *)
 			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
 			List.iter (error ~depth:1 ctx (Error.compl_msg "referenced here")) (List.rev pl);
 		end

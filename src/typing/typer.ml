@@ -1159,6 +1159,7 @@ and type_map_declaration ctx e1 el with_type p =
 	let check_key e_key =
 		try
 			let p = Hashtbl.find keys e_key.eexpr in
+			(* TODO SUB ERROR *)
 			display_error ctx.com "Duplicate key" e_key.epos;
 			raise_typing_error ~depth:1 (compl_msg "Previously defined here") p
 		with Not_found ->
@@ -1431,6 +1432,7 @@ and type_array_decl ctx el with_type p =
 			if !allow_array_dynamic || ctx.f.untyped || ignore_error ctx.com then
 				t_dynamic
 			else begin
+				(* TODO SUB ERROR *)
 				display_error ctx.com "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" err.err_pos;
 				raise_error err
 			end

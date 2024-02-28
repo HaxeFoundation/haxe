@@ -14,6 +14,7 @@ let promote_local_static lsctx run v eo =
 	let c = lsctx.ctx.c.curclass in
 	begin try
 		let cf = PMap.find name c.cl_statics in
+		(* TODO SUB ERROR *)
 		display_error lsctx.ctx.com (Printf.sprintf "The expanded name of this local (%s) conflicts with another static field" name) v.v_pos;
 		raise_typing_error ~depth:1 "Conflicting field was found here" cf.cf_name_pos;
 	with Not_found ->

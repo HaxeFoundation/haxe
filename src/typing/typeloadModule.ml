@@ -77,6 +77,7 @@ module ModuleLevel = struct
 		let check_name name meta also_statics p =
 			DeprecationCheck.check_is com ctx_m.m.curmod meta [] name meta p;
 			let error prev_pos =
+				(* TODO SUB ERROR *)
 				display_error com ("Name " ^ name ^ " is already defined in this module") p;
 				raise_typing_error ~depth:1 (compl_msg "Previous declaration here") prev_pos;
 			in
