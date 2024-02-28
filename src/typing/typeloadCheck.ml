@@ -501,7 +501,7 @@ module Inheritance = struct
 						s_type pctx t
 				in
 				make_error ~depth:1 (Custom (compl_msg (Printf.sprintf "%s(%s)" cf.cf_name s))) cf.cf_name_pos
-			) (List.rev !missing) in
+			) !missing in
 			display_error_ext ctx.com (make_error (Custom (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path))) ~sub c.cl_name_pos)
 
 	let set_heritance ctx c herits p =
