@@ -818,6 +818,7 @@ class local_safety (mode:safety_mode) =
 				| TWhile (condition, body, DoWhile) ->
 					let original_safe_locals = self#get_safe_locals_copy in
 					condition_callback condition;
+					self#get_current_scope#reset_to original_safe_locals;
 					let (_, not_nulls) = process_condition mode condition is_nullable_expr (fun _ -> ()) in
 					body_callback
 						(fun () ->
@@ -833,6 +834,7 @@ class local_safety (mode:safety_mode) =
 						)
 						body
 				| TWhile (condition, body, NormalWhile) ->
+					let initial_safe = self#get_safe_locals_copy in
 					condition_callback condition;
 					let (nulls, not_nulls) = process_condition mode condition is_nullable_expr (fun _ -> ()) in
 					(** execute `body` with known not-null variables *)
@@ -841,6 +843,7 @@ class local_safety (mode:safety_mode) =
 						(fun () -> List.iter self#get_current_scope#add_to_safety not_nulls)
 						body;
 					List.iter self#get_current_scope#remove_from_safety not_nulls;
+					self#get_current_scope#reset_to initial_safe;
 				| _ -> fail ~msg:"Expected TWhile" expr.epos __POS__
 		(**
 			Should be called for bodies of loops (for, while)
@@ -884,7 +887,9 @@ class local_safety (mode:safety_mode) =
 		method process_if expr is_nullable_expr (condition_callback:texpr->unit) (body_callback:texpr->unit) =
 			match expr.eexpr with
 				| TIf (condition, if_body, else_body) ->
+					let initial_safe = self#get_safe_locals_copy in
 					condition_callback condition;
+					self#get_current_scope#reset_to initial_safe;
 					let (nulls_in_if, not_nulls) =
 						process_condition mode condition is_nullable_expr (fun _ -> ())
 					in
