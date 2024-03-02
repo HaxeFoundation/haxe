@@ -5,7 +5,7 @@ typedef HasANullString = {
 	text:Null<String>
 }
 
-@:nullSafety(StrictThreaded)
+@:nullSafety
 class Main {
 	static function main() {
 		final has:HasAString = {text: null};
