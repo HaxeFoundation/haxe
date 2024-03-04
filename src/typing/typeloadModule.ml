@@ -77,9 +77,9 @@ module ModuleLevel = struct
 		let check_name name meta also_statics p =
 			DeprecationCheck.check_is com ctx_m.m.curmod meta [] name meta p;
 			let error prev_pos =
-				(* TODO SUB ERROR *)
-				display_error com ("Name " ^ name ^ " is already defined in this module") p;
-				raise_typing_error ~depth:1 (compl_msg "Previous declaration here") prev_pos;
+				raise_typing_error_ext (make_error (Custom ("Name " ^ name ^ " is already defined in this module")) ~sub:[
+					make_error ~depth:1 (Custom (compl_msg "Previous declaration here")) prev_pos
+				] p);
 			in
 			DynArray.iter (fun t2 ->
 				if snd (t_path t2) = name then error (t_infos t2).mt_name_pos

@@ -490,9 +490,6 @@ module Inheritance = struct
 			let display = ctx.com.display_information in
 			display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 		| l ->
-			let singular = match l with [_] -> true | _ -> false in
-			(* TODO SUB ERROR *)
-			display_error ctx.com (Printf.sprintf "This class extends abstract class %s but doesn't implement the following method%s" (s_type_path csup.cl_path) (if singular then "" else "s")) c.cl_name_pos;
 			let pctx = print_context() in
 			let sub = List.map (fun (cf,_) ->
 				let s = match follow cf.cf_type with
@@ -503,7 +500,9 @@ module Inheritance = struct
 				in
 				make_error ~depth:1 (Custom (compl_msg (Printf.sprintf "%s(%s)" cf.cf_name s))) cf.cf_name_pos
 			) !missing in
-			display_error_ext ctx.com (make_error (Custom (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path))) ~sub c.cl_name_pos)
+			let singular = match l with [_] -> true | _ -> false in
+			let sub = [make_error (Custom (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path))) ~sub c.cl_name_pos] in
+			display_error_ext ctx.com (make_error (Custom (Printf.sprintf "This class extends abstract class %s but doesn't implement the following method%s" (s_type_path csup.cl_path) (if singular then "" else "s"))) ~sub c.cl_name_pos)
 
 	let set_heritance ctx c herits p =
 		let is_lib = Meta.has Meta.LibType c.cl_meta in
@@ -644,11 +643,13 @@ let check_final_vars ctx e =
 				Type.iter find_inits e
 		in
 		find_inits e;
-		if Hashtbl.length final_vars > 0 then
-			display_error ctx.com "Some final fields are uninitialized in this class" ctx.c.curclass.cl_name_pos;
-		(* TODO SUB ERROR *)
-		DynArray.iter (fun (c,cf) ->
-			if Hashtbl.mem final_vars cf.cf_name then
-				display_error ~depth:1 ctx.com "Uninitialized field" cf.cf_name_pos
-		) ordered_fields
+		if Hashtbl.length final_vars > 0 then begin
+			let sub = List.filter_map (fun (c,cf) ->
+				if Hashtbl.mem final_vars cf.cf_name then
+					Some (make_error ~depth:1 (Custom "Uninitialized field") cf.cf_name_pos)
+				else
+					None
+			) (DynArray.to_list ordered_fields) in
+			display_error_ext ctx.com (make_error (Custom "Some final fields are uninitialized in this class") ~sub:(List.rev sub) ctx.c.curclass.cl_name_pos)
+		end
 	end

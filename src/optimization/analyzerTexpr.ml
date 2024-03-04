@@ -1250,9 +1250,9 @@ module Purity = struct
 				begin try
 					apply_to_class com c
 				with Purity_conflict(impure,p) ->
-					(* TODO SUB ERROR *)
-					com.error "Impure field overrides/implements field which was explicitly marked as @:pure" impure.pn_field.cf_pos;
-					Error.raise_typing_error ~depth:1 (Error.compl_msg "Pure field is here") p;
+					Error.raise_typing_error_ext (Error.make_error (Custom "Impure field overrides/implements field which was explicitly marked as @:pure") ~sub:[
+						Error.make_error ~depth:1 (Custom (Error.compl_msg "Pure field is here")) p
+					] impure.pn_field.cf_pos)
 				end
 			| _ -> ()
 		) com.types;

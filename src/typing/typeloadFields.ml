@@ -313,9 +313,9 @@ let build_enum_abstract ctx c a fields p =
 				| VUnknown ->
 					()
 				| VPublic(access,p2) | VPrivate(access,p2) ->
-					(* TODO SUB ERROR *)
-					display_error ctx.com (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
-					display_error ~depth:1 ctx.com "Conflicts with this" p2;
+					display_error_ext ctx.com (make_error (Custom (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access))) ~sub:[
+						make_error ~depth:1 (Custom (compl_msg "Conflicts with this")) p2;
+					] p1)
 			in
 			let rec loop visibility acc = match acc with
 				| (AExtern,p) :: acc ->
@@ -552,9 +552,9 @@ let create_typer_context_for_field ctx cctx fctx cff =
 		else if fctx.is_inline then
 			invalid_modifier_combination fctx ctx.com fctx "abstract" "inline" (pos cff.cff_name)
 		else if not (has_class_flag c CAbstract) then begin
-			(* TODO SUB ERROR *)
-			display_error ctx.com "This class should be declared abstract because it has at least one abstract field" c.cl_name_pos;
-			display_error ctx.com "First abstract field was here" (pos cff.cff_name);
+			display_error_ext ctx.com (make_error (Custom "This class should be declared abstract because it has at least one abstract field") ~sub:[
+				make_error ~depth:1 (Custom (compl_msg "First abstract field was here")) (pos cff.cff_name);
+			] c.cl_name_pos);
 			add_class_flag c CAbstract;
 		end;
 	end;
@@ -1401,9 +1401,9 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 				try
 					(match f2.cf_kind with
 						| Method MethMacro ->
-							(* TODO SUB ERROR *)
-							display_error ctx.com (f2.cf_name ^ ": Macro methods cannot be used as property accessor") p;
-							display_error ~depth:1 ctx.com (compl_msg (f2.cf_name ^ ": Accessor method is here")) f2.cf_pos;
+							display_error_ext ctx.com (make_error (Custom (f2.cf_name ^ ": Macro methods cannot be used as property accessor")) ~sub:[
+								make_error ~depth:1 (Custom (compl_msg (f2.cf_name ^ ": Accessor method is here"))) f2.cf_pos;
+							] p);
 						| _ -> ());
 					unify_raise t2 t f2.cf_pos;
 					if (fctx.is_abstract_member && not (has_class_field_flag f2 CfImpl)) || (has_class_field_flag f2 CfImpl && not (fctx.is_abstract_member)) then
@@ -1559,9 +1559,9 @@ let check_overload ctx f fs is_extern_class =
 				Overloads.same_overload_args f.cf_type f2.cf_type f f2
 			) fs
 		in
-		(* TODO SUB ERROR *)
-		display_error ctx.com ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
-		display_error ~depth:1 ctx.com (compl_msg "The second field is declared here") f2.cf_pos;
+		display_error_ext ctx.com (make_error (Custom ("Another overloaded field of same signature was already declared : " ^ f.cf_name)) ~sub:[
+			make_error ~depth:1 (Custom (compl_msg "The second field is declared here")) f2.cf_pos;
+		] f.cf_pos);
 		false
 	with Not_found -> try
 		if ctx.com.platform <> Jvm || is_extern_class then raise Not_found;
@@ -1574,13 +1574,11 @@ let check_overload ctx f fs is_extern_class =
 		in
 		(* Don't bother checking this on externs and assume the users know what they're doing (issue #11131) *)
 		if has_class_field_flag f CfExtern && has_class_field_flag f2 CfExtern then raise Not_found;
-		(* TODO SUB ERROR *)
-		display_error ctx.com (
+		display_error_ext ctx.com (make_error (Custom (
 			"Another overloaded field of similar signature was already declared : " ^
 			f.cf_name ^
 			"\nThe signatures are different in Haxe, but not in the target language"
-		) f.cf_pos;
-		display_error ~depth:1 ctx.com (compl_msg "The second field is declared here") f2.cf_pos;
+		)) ~sub:[make_error ~depth:1 (Custom (compl_msg "The second field is declared here")) f2.cf_pos] f.cf_pos);
 		false
 	with Not_found ->
 		true
@@ -1772,9 +1770,9 @@ let init_class ctx_c cctx c p herits fields =
 				let display = com.display_information in
 				display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 			end else begin
-				(* TODO SUB ERROR *)
-				display_error com "This class has uninitialized final vars, which requires a constructor" p;
-				display_error com "Example of an uninitialized final var" cf.cf_name_pos;
+				display_error_ext com (make_error (Custom "This class has uninitialized final vars, which requires a constructor") ~sub:[
+					make_error ~depth:1 (Custom "Example of an uninitialized final var") cf.cf_name_pos;
+				] p);
 			end
 		| _ ->
 			()

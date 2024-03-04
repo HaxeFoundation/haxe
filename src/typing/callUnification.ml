@@ -415,10 +415,8 @@ let unify_field_call ctx fa el_typed el p inline =
 							p
 						) :: acc
 					) [] failures in
-
-					(* TODO SUB ERROR *)
-					display_error_ext ctx.com (make_error ~sub (Custom "Could not find a suitable overload, reasons follow") p);
-					raise_typing_error_ext (make_error ~depth:1 (Custom "End of overload failure reasons") p)
+					let sub = (make_error ~depth:1 (Custom "End of overload failure reasons") p) :: sub in
+					raise_typing_error_ext (make_error ~sub (Custom "Could not find a suitable overload, reasons follow") p)
 				| Some err ->
 					raise_typing_error_ext err
 			end

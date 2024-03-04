@@ -1159,9 +1159,9 @@ and type_map_declaration ctx e1 el with_type p =
 	let check_key e_key =
 		try
 			let p = Hashtbl.find keys e_key.eexpr in
-			(* TODO SUB ERROR *)
-			display_error ctx.com "Duplicate key" e_key.epos;
-			raise_typing_error ~depth:1 (compl_msg "Previously defined here") p
+			raise_typing_error_ext (make_error (Custom "Duplicate key") ~sub:[
+				make_error ~depth:1 (Custom (compl_msg "Previously defined here")) p
+			] e_key.epos);
 		with Not_found ->
 			begin match e_key.eexpr with
 			| TConst _ -> Hashtbl.add keys e_key.eexpr e_key.epos;
@@ -1432,9 +1432,10 @@ and type_array_decl ctx el with_type p =
 			if !allow_array_dynamic || ctx.f.untyped || ignore_error ctx.com then
 				t_dynamic
 			else begin
-				(* TODO SUB ERROR *)
+				(* TODO SUB ERROR (not working well here, see 8283 misc test) *)
 				display_error ctx.com "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" err.err_pos;
 				raise_error err
+				(* raise_typing_error_ext (make_error (Custom "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>") ~sub:[err] err.err_pos) *)
 			end
 		in
 		mk (TArrayDecl el) (ctx.t.tarray t) p
