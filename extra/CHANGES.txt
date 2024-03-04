@@ -1,3 +1,34 @@
+2024-03-04 4.3.4
+
+	General improvements:
+
+	all : allow @:using with Class and Enum (#11553)
+	display : expose list of metadata/defines (#11399)
+
+	Bugfixes:
+
+	all : typedef vs. GADT (#11446)
+	all : don't double-throw exceptions (#11175)
+	all : fix some abstract inlining failures (#11526)
+	all : fix JsonPrinter empty parent class (#11560)
+	all : dce: clean up operator handling (#11427)
+	all : analyzer: deal with unreachable block in binops (#11402)
+	all : analyzer: don't recursively check enum values when const propagating (#11429)
+	all : analyzer: fix check for inlined purity meta
+	display : fix errors from parser missing in diagnostics (#8687)
+	display : fix display services with static extension (#11285)
+	display : fix display services with safe navigation (#11205)
+	hl : hlopt rework try-catch control flow (#11581)
+	hl/c : fix reserved keywords (#11408)
+
+	Deprecation / future version handling:
+
+	all : don't infer string on concat, when using -D haxe-next (#11318)
+	all : handle optional arguments with bind, when using -D haxe-next (#11533)
+	macro : build order vs inheritance, when using -D haxe-next (#11582)
+	macro : deprecate some API from haxe.macro.Compiler (see #11540)
+	java/jvm : warn about --java ... -D jvm vs --jvm ...
+
 2023-09-17 4.3.3
 
 	General improvements:
