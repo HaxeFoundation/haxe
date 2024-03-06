@@ -111,6 +111,9 @@ class Hl {
 		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
 		buildAndRunHlc("bin/hlc", "unit", runCommand);
 
+		changeDirectory(getMiscSubDir("coroutines"));
+		runCommand("haxe", ["build-hl.hxml"]);
+
 		changeDirectory(threadsDir);
 		buildAndRun("build.hxml", "export/threads");
 
