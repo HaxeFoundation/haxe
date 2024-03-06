@@ -16,7 +16,7 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 	#end
 	public static extern function suspend<T>(f:(cont:Continuation<T, Null<Dynamic>>)->Void):T;
 
-	#if (jvm || eval)
+	#if (jvm || eval || hl)
 	@:native("suspend")
 	@:keep
 	static function nativeSuspend<T>(f, cont:Continuation<T, Null<Dynamic>>) {

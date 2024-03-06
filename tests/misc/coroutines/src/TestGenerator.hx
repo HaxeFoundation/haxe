@@ -38,8 +38,17 @@ class TestGenerator extends utest.Test {
 	}
 }
 
+#if hl
+// hl has some problem when dealing with recursive anon, use a class to bypass
+@:structInit class Tree<T> {
+	public var leaf:T;
+	@:optional public var left:Tree<T>;
+	@:optional public var right:Tree<T>;
+}
+#else
 private typedef Tree<T> = {
 	var leaf:T;
 	var ?left:Tree<T>;
 	var ?right:Tree<T>;
 }
+#end
