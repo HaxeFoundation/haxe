@@ -1,2 +1,2 @@
--main Main4
+compile4-fail.hxml
 -D fail-fast

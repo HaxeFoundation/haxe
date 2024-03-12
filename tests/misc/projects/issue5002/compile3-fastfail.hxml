@@ -1,2 +1,2 @@
---macro Main3.init()
+compile3-fail.hxml
 -D fail-fast

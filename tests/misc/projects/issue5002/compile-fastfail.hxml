@@ -1,2 +1,2 @@
--main Main
+compile-fail.hxml
 -D fail-fast
