@@ -1,0 +1,2 @@
+--macro Macro2.init()
+-D fail-fast
