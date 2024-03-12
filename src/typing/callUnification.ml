@@ -14,7 +14,6 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 		let msg = ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'") in
 		let e = match e.err_message with
 			| Unify l -> { e with err_message = Unify (l @ [(Unify_custom msg)])}
-			| Custom parent -> { e with err_message = Custom (parent ^ "\n" ^ msg)}
 			| _ -> { e with err_sub = (make_error (Custom (compl_msg msg)) e.err_pos) :: e.err_sub }
 		in
 		raise_error { e with err_message = (Call_error (Could_not_unify e.err_message)) }

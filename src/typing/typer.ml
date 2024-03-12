@@ -1432,10 +1432,7 @@ and type_array_decl ctx el with_type p =
 			if !allow_array_dynamic || ctx.f.untyped || ignore_error ctx.com then
 				t_dynamic
 			else begin
-				(* TODO SUB ERROR (not working well here, see 8283 misc test) *)
-				display_error ctx.com "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" err.err_pos;
-				raise_error err
-				(* raise_typing_error_ext (make_error (Custom "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>") ~sub:[err] err.err_pos) *)
+				raise_typing_error_ext (make_error (Custom "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>") ~sub:[err] err.err_pos)
 			end
 		in
 		mk (TArrayDecl el) (ctx.t.tarray t) p
