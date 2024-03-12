@@ -325,11 +325,13 @@ let parse_args com =
 					List.rev acc
 			in
 			let args = loop [] args in
-			Arg.parse_argv ~current (Array.of_list ("" :: args)) all_args_spec args_callback "";
+			Arg.parse_argv ~current (Array.of_list ("Haxe" :: args)) all_args_spec args_callback "";
 		with
 		| Arg.Help _ ->
 			raise (Helper.HelpMessage (usage_string all_args usage))
 		| Arg.Bad msg ->
+			(* Strip error prefix added by ocaml's arg parser *)
+			let msg = if ExtLib.String.starts_with msg "Haxe: " then (String.sub msg 6 ((String.length msg) - 6)) else msg in
 			let first_line = List.nth (Str.split (Str.regexp "\n") msg) 0 in
 			let new_msg = (Printf.sprintf "%s" first_line) in
 			let r = Str.regexp "unknown option [`']?\\([-A-Za-z]+\\)[`']?" in

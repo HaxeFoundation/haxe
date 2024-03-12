@@ -4,6 +4,7 @@ NoRudy
 
 --next
 
+-D message.reporting=classic
 --main Main
 --java-lib no-rudy.jar
 --jvm run.jar
