@@ -40,8 +40,21 @@
 	}
 
 	public static function string(s:Dynamic):String {
-		return new String(untyped __dollar__string(s));
+		if(__hx__stringDepth > 10) {
+			return '<...>';
+		}
+		__hx__stringDepth++;
+		try {
+			var result = new String(untyped __dollar__string(s));
+			__hx__stringDepth--;
+			return result;
+		} catch(e:Dynamic) {
+			__hx__stringDepth--;
+			neko.Lib.rethrow(e);
+			return '<...>';
+		}
 	}
+	static var __hx__stringDepth = 0;
 
 	public static function int(x:Float):Int {
 		if (x < 0)
