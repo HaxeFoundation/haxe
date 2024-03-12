@@ -22,8 +22,9 @@
 
 package haxe.zip;
 
-import haxe.zip.Huffman;
 import haxe.crypto.Adler32;
+import haxe.ds.Vector;
+import haxe.zip.Huffman;
 
 private class Window {
 	public static inline var SIZE = 1 << 15;
@@ -121,7 +122,7 @@ class InflateImpl {
 	var output:haxe.io.Bytes;
 	var outpos:Int;
 	var input:haxe.io.Input;
-	var lengths:Array<Int>;
+	var lengths:Vector<Int>;
 	var window:Window;
 
 	static var FIXED_HUFFMAN = null;
@@ -140,18 +141,16 @@ class InflateImpl {
 		needed = 0;
 		output = null;
 		outpos = 0;
-		lengths = new Array();
-		for (i in 0...19)
-			lengths.push(-1);
+		lengths = new Vector(19, -1);
 		window = new Window(crc);
 	}
 
 	function buildFixedHuffman() {
 		if (FIXED_HUFFMAN != null)
 			return FIXED_HUFFMAN;
-		var a = new Array();
+		var a = new Vector(288);
 		for (n in 0...288)
-			a.push(if (n <= 143) 8 else if (n <= 255) 9 else if (n <= 279) 7 else 8);
+			a[n] = (if (n <= 143) 8 else if (n <= 255) 9 else if (n <= 279) 7 else 8);
 		FIXED_HUFFMAN = htools.make(a, 0, 288, 10);
 		return FIXED_HUFFMAN;
 	}
@@ -233,7 +232,7 @@ class InflateImpl {
 		}
 	}
 
-	function inflateLengths(a, max) {
+	function inflateLengths(a:Vector<Int>, max) {
 		var i = 0;
 		var prev = 0;
 		while (i < max) {
@@ -322,9 +321,7 @@ class InflateImpl {
 						for (i in hclen...19)
 							lengths[CODE_LENGTHS_POS[i]] = 0;
 						huffman = htools.make(lengths, 0, 19, 8);
-						var lengths = new Array();
-						for (i in 0...hlit + hdist)
-							lengths.push(0);
+						var lengths = new Vector(hlit + hdist, 0);
 						inflateLengths(lengths, hlit + hdist);
 						huffdist = htools.make(lengths, hlit, hdist, 16);
 						huffman = htools.make(lengths, 0, hlit, 16);
