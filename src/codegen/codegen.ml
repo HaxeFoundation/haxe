@@ -407,6 +407,77 @@ module Dump = struct
 			) ml;
 		) dep;
 		close()
+
+	type invalidation_stats_entry = {
+		inv_path : Globals.path;
+		inv_direct : int;
+		inv_total : int;
+		inv_children : invalidation_stats_entry list;
+	}
+
+	let dump_invalidation_stats com =
+		let max_depth = int_of_string (Define.defined_value_safe ~default:"0" com.defines DumpInvalidationStats) in
+
+		let rec loop stats l depth max_len =
+			if depth <= max_depth then begin
+				List.fold_left (fun (acc,total,max_len) path ->
+					let max_len = max max_len (String.length (s_type_path path) + depth * 2) in
+					match Hashtbl.find_opt stats path with
+					| None ->
+						let entry = { inv_path = path; inv_direct = 0; inv_total = 0; inv_children = []} in
+						(entry :: acc, total, max_len)
+					| Some l ->
+						let (children,sub,max_len) = loop stats l (depth + 1) max_len in
+						let entry = { inv_path = path; inv_direct = List.length l; inv_total = sub; inv_children = children } in
+						(entry :: acc, total + sub, max_len)
+				) ([], List.length l, max_len) l
+			end else
+				(List.map (fun p -> { inv_path = p; inv_direct = 0; inv_total = 0; inv_children = [] }) l, List.length l, max_len)
+		in
+
+		let dump_stats com =
+			let cc = CommonCache.get_cache com in
+			let target_name = platform_name_macro com in
+			let dump_stats_path = [dump_path com;target_name;"invalidation_stats"] in
+
+			let stats = cc#get_invalidation_stats in
+			let l = Hashtbl.fold (fun p _ l -> p :: l) stats [] in
+			let (entries, total, max_len) = loop stats l 0 0 in
+
+			if total > 0 then begin
+				let buf,close = create_dumpfile [] dump_stats_path in
+				let rec loop l depth =
+					let l = List.sort (fun a b -> b.inv_total - a.inv_total) l in
+
+					let pad = String.make (depth * 2) ' ' in
+					List.iter (fun e ->
+						(* TODO: this might be too much hiding.. *)
+						if e.inv_total > e.inv_direct then begin
+							let spath = pad ^ s_type_path e.inv_path in
+							let rpad = max_len + 2 - String.length spath in
+							let spath = if rpad > 0 then spath ^ String.make rpad ' ' else spath in
+							Buffer.add_string buf (Printf.sprintf "%s | %6i | %6i |\n" spath e.inv_direct e.inv_total);
+
+							(* Only display children if something interesting is in there *)
+							(* TODO: sometimes we might want to display those? *)
+							(* if e.inv_total > e.inv_direct then *)
+								loop e.inv_children (depth + 1)
+						end
+					) l
+				in
+
+				let rpad = max_len + 2 - String.length "module" in
+				let header = "module" ^ (String.make rpad ' ') ^ " | direct |  total |" in
+				Buffer.add_string buf (header ^ "\n");
+				Buffer.add_string buf (String.make (String.length header) '-' ^ "\n");
+				loop entries 0;
+				close();
+			end
+		in
+
+		dump_stats com;
+		Option.may dump_stats (com.get_macros())
+
 end
 
 (*

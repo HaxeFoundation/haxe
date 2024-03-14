@@ -35,6 +35,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
+	val invalidation_stats : (path,path list) Hashtbl.t = Hashtbl.create 0
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
@@ -96,6 +97,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method get_index = index
 	method get_files = files
 	method get_modules = modules
+	method get_invalidation_stats = invalidation_stats
 
 	method get_hxb = binary_cache
 	method get_hxb_module path = Hashtbl.find binary_cache path

@@ -318,9 +318,21 @@ let check_module sctx com m_path m_extra p =
 				with Not_found ->
 					die (Printf.sprintf "Could not find dependency %s of %s in the cache" (s_type_path mpath) (s_type_path m_path)) __LOC__;
 				in
-				match check mpath m2_extra with
+				(match check mpath m2_extra with
 				| None -> ()
-				| Some reason -> raise (Dirty (DependencyDirty(mpath,reason)))
+				| Some reason ->
+					if Define.defined com.defines DumpInvalidationStats then begin
+						let invalidation_stats = (com.cs#get_context sign)#get_invalidation_stats in
+						let value = match Hashtbl.find_opt invalidation_stats mpath with
+							| None -> [m_path]
+							| Some l ->
+								Hashtbl.remove invalidation_stats mpath;
+								m_path :: l
+						in
+						Hashtbl.add invalidation_stats mpath value;
+					end;
+
+					raise (Dirty (DependencyDirty(mpath,reason))))
 			) m_extra.m_deps;
 		in
 		let check () =

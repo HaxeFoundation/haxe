@@ -115,7 +115,9 @@ let maybe_generate_dump ctx tctx =
 		if not com.is_macro_context then match tctx.Typecore.g.Typecore.macros with
 			| None -> ()
 			| Some(_,ctx) -> Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
-	end
+	end;
+	if Common.defined ctx.com Define.DumpInvalidationStats then
+		Codegen.Dump.dump_invalidation_stats com
 
 let generate ctx tctx ext actx =
 	let com = tctx.Typecore.com in
