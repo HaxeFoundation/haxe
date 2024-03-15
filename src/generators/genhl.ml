@@ -962,7 +962,7 @@ let common_type_number ctx t1 t2 p =
 	| _ ->
 		abort ("Type are not number " ^ tstr t1 ^ " and " ^ tstr t2) p
 
-let common_type_nullnumber ctx t1 t2 p =
+let common_type_safe_nullnumber ctx t1 t2 p =
 	let t1, t2 = match t1, t2 with
 		| (HNull t1), (HNull t2) -> t1, t2
 		| (HNull t1), _ -> t1, t2
@@ -975,11 +975,11 @@ let common_type ctx e1 e2 for_eq p =
 	let t1 = to_type ctx e1.etype in
 	let t2 = to_type ctx e2.etype in
 	if t1 == t2 then t1 else
-	if is_number t1 && is_number t2 then common_type_number ctx t1 t2 p else
 	match t1, t2 with
-	| (HUI8|HUI16|HI32|HI64|HF32|HF64), (HNull t2) -> if for_eq then HNull (common_type_number ctx t1 t2 p) else common_type_number ctx t1 t2 p
-	| (HNull t1), (HUI8|HUI16|HI32|HI64|HF32|HF64) -> if for_eq then HNull (common_type_number ctx t1 t2 p) else common_type_number ctx t1 t2 p
-	| (HNull t1), (HNull t2) -> if for_eq then HNull (common_type_number ctx t1 t2 p) else common_type_number ctx t1 t2 p
+	| (HUI8|HUI16|HI32|HI64|HF32|HF64), (HUI8|HUI16|HI32|HI64|HF32|HF64) ->
+		common_type_number ctx t1 t2 p
+	| ((HUI8|HUI16|HI32|HI64|HF32|HF64) as t1), (HNull t2) | (HNull t1), ((HUI8|HUI16|HI32|HI64|HF32|HF64) as t2) | (HNull t1), (HNull t2) ->
+		if for_eq then HNull (common_type_number ctx t1 t2 p) else common_type_number ctx t1 t2 p
 	| HDyn, (HUI8|HUI16|HI32|HI64|HF32|HF64) -> HF64
 	| (HUI8|HUI16|HI32|HI64|HF32|HF64), HDyn -> HF64
 	| HDyn, _ -> HDyn
@@ -991,7 +991,7 @@ let common_type ctx e1 e2 for_eq p =
 	| HObj _, HVirtual _ | HVirtual _, HObj _ | HVirtual _ , HVirtual _ -> HDyn
 	| HFun _, HFun _ -> HDyn
 	| _ ->
-		abort ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) p
+		abort ("Can't find common type " ^ tstr t1 ^ " and " ^ tstr t2) p
 
 let captured_index ctx v =
 	if not (has_var_flag v VCaptured) then None else try Some (PMap.find v.v_id ctx.m.mcaptured.c_map) with Not_found -> None
@@ -1493,7 +1493,7 @@ and jump_expr ctx e jcond =
 		else
 			(fun i -> ())
 	| TBinop (OpEq | OpNotEq as jop, e1, e2) ->
-		let jumpeq_r1_r2 r1 r2 = jump ctx (fun i ->
+		let jumpeq r1 r2 = jump ctx (fun i ->
 			match jop with
 			| OpEq -> if jcond then OJEq (r1,r2,i) else OJNotEq (r1,r2,i)
 			| OpNotEq -> if jcond then OJNotEq (r1,r2,i) else OJEq (r1,r2,i)
@@ -1501,34 +1501,36 @@ and jump_expr ctx e jcond =
 		) in
 		let t1 = to_type ctx e1.etype in
 		let t2 = to_type ctx e2.etype in
-		if (is_nullnumber t1 && is_number t2) || (is_number t1 && is_nullnumber t2) then begin
-			let t1,t2,e1,e2 = if is_nullnumber t1 then t1,t2,e1,e2 else t2,t1,e2,e1 in
+		(match t1, t2 with
+		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64), (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64)
+		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) ->
+			let t1,t2,e1,e2 = if is_number t2 then t1,t2,e1,e2 else t2,t1,e2,e1 in
 			let r1 = eval_expr ctx e1 in
 			hold ctx r1;
-			let jnull = if (is_nullnumber t1) then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> i) in
-			let t = common_type_nullnumber ctx t1 t2 e.epos in
+			let jnull = if is_nullnumber t1 then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> ()) in
+			let t = common_type_safe_nullnumber ctx t1 t2 e.epos in
 			let a = cast_to ctx r1 t e1.epos in
 			hold ctx a;
 			let b = eval_to ctx e2 t in
 			free ctx a;
 			free ctx r1;
-			let j = jumpeq_r1_r2 a b in
+			let j = jumpeq a b in
 			if jcond then (jnull(););
 			(fun() -> if not jcond then (jnull();); j());
-		end else begin
+		| _ ->
 			let t = common_type ctx e1 e2 true e.epos in
 			let a = eval_to ctx e1 t in
 			hold ctx a;
 			let b = eval_to ctx e2 t in
 			free ctx a;
-			let j = jumpeq_r1_r2 a b in
+			let j = jumpeq a b in
 			(fun() -> j());
-		end
+		)
 	| TBinop (OpGt | OpGte | OpLt | OpLte as jop, e1, e2) ->
 		let t1 = to_type ctx e1.etype in
 		let t2 = to_type ctx e2.etype in
 		let unsigned = unsigned_op e1 e2 in
-		let jumpcmp_r1_r2 t r1 r2 = jump ctx (fun i ->
+		let jumpcmp t r1 r2 = jump ctx (fun i ->
 			let lt a b = if unsigned then OJULt (a,b,i) else if not jcond && is_float t then OJNotGte (a,b,i) else OJSLt (a,b,i) in
 			let gte a b = if unsigned then OJUGte (a,b,i) else if not jcond && is_float t then OJNotLt (a,b,i) else OJSGte (a,b,i) in
 			match jop with
@@ -1538,34 +1540,40 @@ and jump_expr ctx e jcond =
 				| OpLte -> if jcond then gte r2 r1 else lt r2 r1
 				| _ -> die "" __LOC__
 		) in
-		if (is_numberornullnumber t1 && is_numberornullnumber t2) then begin
+		(match t1, t2 with
+		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64), (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64)
+		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64), (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64)
+		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64)
+		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) ->
 			let r1 = eval_expr ctx e1 in
 			hold ctx r1;
-			let jnull1 = if is_nullnumber t1 then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> i) in
+			let jnull1 = if is_nullnumber t1 then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> ()) in
 			let r2 = eval_expr ctx e2 in
 			hold ctx r2;
-			let jnull2 = if is_nullnumber t2 then jump ctx (fun i -> OJNull (r2, i)) else (fun i -> i) in
-			let t = common_type_nullnumber ctx t1 t2 e.epos in
+			let jnull2 = if is_nullnumber t2 then jump ctx (fun i -> OJNull (r2, i)) else (fun i -> ()) in
+			let t = common_type_safe_nullnumber ctx t1 t2 e.epos in
 			let a = cast_to ctx r1 t e1.epos in
 			hold ctx a;
 			let b = cast_to ctx r2 t e2.epos in
 			free ctx a;
 			free ctx r1;
 			free ctx r2;
-			let j = jumpcmp_r1_r2 t a b in
+			let j = jumpcmp t a b in
 			if jcond then (jnull1(); jnull2(););
 			(fun() -> if not jcond then (jnull1(); jnull2();); j());
-		end else if (is_string t1 && is_string t2) || t1 == HDyn || t2 == HDyn then begin
+		| HObj { pname = "String" }, HObj { pname = "String" }
+		| HDyn, _
+		| _, HDyn ->
 			let t = common_type ctx e1 e2 false e.epos in
 			let a = eval_to ctx e1 t in
 			hold ctx a;
 			let b = eval_to ctx e2 t in
 			free ctx a;
-			let j = jumpcmp_r1_r2 t a b in
+			let j = jumpcmp t a b in
 			(fun() -> j());
-		end else
+		| _ ->
 			abort ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) e.epos
-		;
+		)
 	| TBinop (OpBoolAnd, e1, e2) ->
 		let j = jump_expr ctx e1 false in
 		let j2 = jump_expr ctx e2 jcond in

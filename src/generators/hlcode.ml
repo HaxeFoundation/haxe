@@ -281,11 +281,6 @@ let is_nullnumber = function
 	| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) -> true
 	| _ -> false
 
-let is_numberornullnumber = function
-	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 -> true
-	| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) -> true
-	| _ -> false
-
 (*
 	does the runtime value carry its type
 *)
