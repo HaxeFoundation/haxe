@@ -1499,13 +1499,31 @@ and jump_expr ctx e jcond =
 			| OpNotEq -> if jcond then OJNotEq (r1,r2,i) else OJEq (r1,r2,i)
 			| _ -> die "" __LOC__
 		) in
-		let t = common_type ctx e1 e2 true e.epos in
-		let a = eval_to ctx e1 t in
-		hold ctx a;
-		let b = eval_to ctx e2 t in
-		free ctx a;
-		let j = jumpeq_r1_r2 a b in
-		(fun() -> j());
+		let t1 = to_type ctx e1.etype in
+		let t2 = to_type ctx e2.etype in
+		if (is_nullnumber t1 && is_number t2) || (is_number t1 && is_nullnumber t2) then begin
+			let t1,t2,e1,e2 = if is_nullnumber t1 then t1,t2,e1,e2 else t2,t1,e2,e1 in
+			let r1 = eval_expr ctx e1 in
+			hold ctx r1;
+			let jnull = if (is_nullnumber t1) then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> i) in
+			let t = common_type_nullnumber ctx t1 t2 e.epos in
+			let a = cast_to ctx r1 t e1.epos in
+			hold ctx a;
+			let b = eval_to ctx e2 t in
+			free ctx a;
+			free ctx r1;
+			let j = jumpeq_r1_r2 a b in
+			if jcond then (jnull(););
+			(fun() -> if not jcond then (jnull();); j());
+		end else begin
+			let t = common_type ctx e1 e2 true e.epos in
+			let a = eval_to ctx e1 t in
+			hold ctx a;
+			let b = eval_to ctx e2 t in
+			free ctx a;
+			let j = jumpeq_r1_r2 a b in
+			(fun() -> j());
+		end
 	| TBinop (OpGt | OpGte | OpLt | OpLte as jop, e1, e2) ->
 		let t1 = to_type ctx e1.etype in
 		let t2 = to_type ctx e2.etype in
@@ -1520,13 +1538,13 @@ and jump_expr ctx e jcond =
 				| OpLte -> if jcond then gte r2 r1 else lt r2 r1
 				| _ -> die "" __LOC__
 		) in
-		if (is_numberornullnumber t1) && (is_numberornullnumber t2) then begin
+		if (is_numberornullnumber t1 && is_numberornullnumber t2) then begin
 			let r1 = eval_expr ctx e1 in
 			hold ctx r1;
-			let jnull1 = if (is_nullnumber t1) then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> i) in
+			let jnull1 = if is_nullnumber t1 then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> i) in
 			let r2 = eval_expr ctx e2 in
 			hold ctx r2;
-			let jnull2 = if (is_nullnumber t2) then jump ctx (fun i -> OJNull (r2, i)) else (fun i -> i) in
+			let jnull2 = if is_nullnumber t2 then jump ctx (fun i -> OJNull (r2, i)) else (fun i -> i) in
 			let t = common_type_nullnumber ctx t1 t2 e.epos in
 			let a = cast_to ctx r1 t e1.epos in
 			hold ctx a;
