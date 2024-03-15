@@ -116,8 +116,10 @@ let maybe_generate_dump ctx tctx =
 			| None -> ()
 			| Some(_,ctx) -> Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
 	end;
-	if Common.defined ctx.com Define.DumpInvalidationStats then
-		Codegen.Dump.dump_invalidation_stats com
+	if Common.defined ctx.com Define.DumpInvalidationStats then begin
+		Codegen.Dump.dump_invalidation_stats com;
+		Option.may Codegen.Dump.dump_invalidation_stats (com.get_macros())
+	end
 
 let generate ctx tctx ext actx =
 	let com = tctx.Typecore.com in
