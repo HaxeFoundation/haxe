@@ -45,7 +45,7 @@ type ttype =
 	| HDynObj
 	| HAbstract of string * string index
 	| HEnum of enum_proto
-	| HNull of ttype
+	| HNull of ttype (* for not nullable type only *)
 	| HMethod of ttype list * ttype
 	| HStruct of class_proto
 	| HPacked of ttype
@@ -275,6 +275,15 @@ let is_float = function
 
 let is_number = function
 	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 -> true
+	| _ -> false
+
+let is_nullnumber = function
+	| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) -> true
+	| _ -> false
+
+let is_numberornullnumber = function
+	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 -> true
+	| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) -> true
 	| _ -> false
 
 (*
