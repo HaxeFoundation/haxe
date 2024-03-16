@@ -26,7 +26,77 @@ import js.lib.Object;
 import haxe.Constraints.IMap;
 import haxe.DynamicAccess;
 
-#if (js_es >= 5)
+#if (js_es >= 6)
+import js.lib.HaxeIterator;
+
+// @:coreApi
+class StringMap<V> extends NativeMap<String,V> implements IMap<String, V> {
+	function keyIter():js.lib.Iterator<String> return super._keys();
+	function valIter():js.lib.Iterator<V> return super._values();
+
+	public inline function exists(k:String):Bool {
+		return has(k);
+	}
+
+	public inline function remove(k:String):Bool {
+		return delete(k);
+	}
+
+	public inline function keys():Iterator<String> {
+		return new HaxeIterator(keyIter());
+	}
+
+	public inline function iterator():Iterator<V> {
+		return new HaxeIterator(valIter());
+	}
+
+	public inline function keyValueIterator():KVIterator<String, V> {
+		return new KVIterator(entries());
+	}
+
+	public inline function copy():IMap<String, V> {
+		return js.Syntax.construct(StringMap, this);
+	}
+
+	public function toString():String {
+		return null;
+	}
+}
+
+@:native("Map")
+private extern class NativeMap<K,V> {
+	function new();
+	@:pure function get(key:String):Null<V>;
+	@:pure private function has(key:K):Bool;
+	function set(key:K, value:V):Void;
+	private function delete(key:K):Bool;
+	function clear():Void;
+	@:native("keys") private function _keys():js.lib.Iterator<K>;
+	@:native("values") private function _values():js.lib.Iterator<V>;
+	@:pure private function entries():js.lib.Iterator<js.lib.KeyValue<K, V>>;
+}
+
+private class KVIterator<K,V> {
+	final jsIterator: js.lib.Iterator<js.lib.KeyValue<K,V>>;
+	var lastStep: js.lib.Iterator.IteratorStep<js.lib.KeyValue<K,V>>;
+
+	public inline function new(jsIterator: js.lib.Iterator<js.lib.KeyValue<K,V>>) {
+		this.jsIterator = jsIterator;
+		lastStep = jsIterator.next();
+	}
+
+	public inline function hasNext(): Bool {
+		return !lastStep.done;
+	}
+
+	public inline function next(): {key:K, value:V} {
+		var v = lastStep.value;
+		lastStep = jsIterator.next();
+		return {key: v.key, value: v.value};
+	}
+}
+
+#elseif (js_es >= 5)
 @:coreApi class StringMap<T> implements IMap<String, T> {
 	var h:Dynamic;
 
