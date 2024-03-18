@@ -277,8 +277,10 @@ let is_number = function
 	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 -> true
 	| _ -> false
 
-let is_nullnumber = function
+let is_nullt = function
 	| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) -> true
+	| HNull HBool -> true
+	| HNull _ -> Globals.die "" __LOC__
 	| _ -> false
 
 (*
