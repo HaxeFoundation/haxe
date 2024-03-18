@@ -174,7 +174,7 @@ class UnitBuilder {
 					case EBinop(OpEq, e1, e2):
 						mkEq(e1, e2, e.pos);
 					case EBinop(OpNotEq, e1, e2):
-						macro t($e1 != $e2);
+						macro @:pos(e.pos) t($e1 != $e2);
 					case EBinop(OpGt | OpGte | OpLt | OpLte, _, _):
 						{
 							expr: (macro t($e)).expr,
