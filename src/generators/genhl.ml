@@ -962,15 +962,6 @@ let common_type_number ctx t1 t2 p =
 	| _ ->
 		abort ("Type are not number " ^ tstr t1 ^ " and " ^ tstr t2) p
 
-let common_type_safe_nullnumber ctx t1 t2 p =
-	let t1, t2 = match t1, t2 with
-		| (HNull t1), (HNull t2) -> t1, t2
-		| (HNull t1), _ -> t1, t2
-		| _, (HNull t2) -> t1, t2
-		| _, _ -> t1, t2
-	in
-	common_type_number ctx t1 t2 p
-
 let common_type ctx e1 e2 for_eq p =
 	let t1 = to_type ctx e1.etype in
 	let t2 = to_type ctx e2.etype in
@@ -978,7 +969,9 @@ let common_type ctx e1 e2 for_eq p =
 	match t1, t2 with
 	| (HUI8|HUI16|HI32|HI64|HF32|HF64), (HUI8|HUI16|HI32|HI64|HF32|HF64) ->
 		common_type_number ctx t1 t2 p
-	| ((HUI8|HUI16|HI32|HI64|HF32|HF64) as t1), (HNull t2) | (HNull t1), ((HUI8|HUI16|HI32|HI64|HF32|HF64) as t2) | (HNull t1), (HNull t2) ->
+	| (HUI8|HUI16|HI32|HI64|HF32|HF64 as t1), (HNull t2)
+	| (HNull t1), (HUI8|HUI16|HI32|HI64|HF32|HF64 as t2)
+	| (HNull t1), (HNull t2) ->
 		if for_eq then HNull (common_type_number ctx t1 t2 p) else common_type_number ctx t1 t2 p
 	| HDyn, (HUI8|HUI16|HI32|HI64|HF32|HF64) -> HF64
 	| (HUI8|HUI16|HI32|HI64|HF32|HF64), HDyn -> HF64
@@ -1502,13 +1495,13 @@ and jump_expr ctx e jcond =
 		let t1 = to_type ctx e1.etype in
 		let t2 = to_type ctx e2.etype in
 		(match t1, t2 with
-		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64), (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64)
-		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) ->
+		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
+		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2) ->
 			let t1,t2,e1,e2 = if is_number t2 then t1,t2,e1,e2 else t2,t1,e2,e1 in
 			let r1 = eval_expr ctx e1 in
 			hold ctx r1;
 			let jnull = if is_nullnumber t1 then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> ()) in
-			let t = common_type_safe_nullnumber ctx t1 t2 e.epos in
+			let t = common_type_number ctx ti1 ti2 e.epos in
 			let a = cast_to ctx r1 t e1.epos in
 			hold ctx a;
 			let b = eval_to ctx e2 t in
@@ -1541,17 +1534,17 @@ and jump_expr ctx e jcond =
 				| _ -> die "" __LOC__
 		) in
 		(match t1, t2 with
-		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64), (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64)
-		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64), (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64)
-		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64)
-		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) ->
+		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
+		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
+		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
+		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2) ->
 			let r1 = eval_expr ctx e1 in
 			hold ctx r1;
 			let jnull1 = if is_nullnumber t1 then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> ()) in
 			let r2 = eval_expr ctx e2 in
 			hold ctx r2;
 			let jnull2 = if is_nullnumber t2 then jump ctx (fun i -> OJNull (r2, i)) else (fun i -> ()) in
-			let t = common_type_safe_nullnumber ctx t1 t2 e.epos in
+			let t = common_type_number ctx ti1 ti2 e.epos in
 			let a = cast_to ctx r1 t e1.epos in
 			hold ctx a;
 			let b = cast_to ctx r2 t e2.epos in
