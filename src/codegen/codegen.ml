@@ -446,8 +446,8 @@ module Dump = struct
 		let l = Hashtbl.fold (fun p _ l -> p :: l) stats [] in
 		let (entries, total, max_len) = loop stats l 0 0 in
 
+		let buf,close = create_dumpfile [] dump_stats_path in
 		if total > 0 then begin
-			let buf,close = create_dumpfile [] dump_stats_path in
 			let rec loop l depth =
 				let l = List.sort (fun a b -> b.inv_total - a.inv_total) l in
 
@@ -466,8 +466,8 @@ module Dump = struct
 			Buffer.add_string buf (header ^ "\n");
 			Buffer.add_string buf (String.make (String.length header) '-' ^ "\n");
 			loop entries 0;
-			close();
-		end
+		end;
+		close();
 end
 
 (*
