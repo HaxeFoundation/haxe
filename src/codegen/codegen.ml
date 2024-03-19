@@ -468,6 +468,7 @@ module Dump = struct
 			loop entries 0;
 		end;
 		close();
+		Hashtbl.clear stats
 end
 
 (*
