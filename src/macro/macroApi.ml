@@ -61,7 +61,6 @@ type 'value compiler_api = {
 	encode_expr : Ast.expr -> 'value;
 	encode_ctype : Ast.type_hint -> 'value;
 	decode_type : 'value -> t;
-	flush_context : (unit -> t) -> t;
 	info : ?depth:int -> string -> pos -> unit;
 	warning : ?depth:int -> Warning.warning -> string -> pos -> unit;
 	display_error : ?depth:int -> (string -> pos -> unit);
@@ -122,7 +121,7 @@ module type InterpApi = sig
 	val encode_array : value list -> value
 	val encode_string  : string -> value
 	val encode_obj : (string * value) list -> value
-	val encode_lazy : (unit -> value) -> value
+	val encode_lazy : value Lazy.t -> value
 
 	val vfun0 : (unit -> value) -> value
 	val vfun1 : (value -> value) -> value
@@ -169,8 +168,6 @@ module type InterpApi = sig
 	val prepare_callback : value -> int -> (value list -> value)
 
 	val value_string : value -> string
-
-	val flush_core_context : (unit -> t) -> t
 
 	val handle_decoding_error : (string -> unit) -> value -> Type.t -> (string * int) list
 
@@ -412,7 +409,7 @@ and encode_display_kind dk =
 	| DKMarked -> 3, []
 	| DKPattern outermost -> 4, [vbool outermost]
 	in
-	encode_enum ~pos:None IDisplayKind tag pl
+	encode_enum IDisplayKind tag pl
 
 and encode_display_mode dm =
 	let tag, pl = match dm with
@@ -428,7 +425,7 @@ and encode_display_mode dm =
 		| DMModuleSymbols (Some s) -> 9, [(encode_string s)]
 		| DMSignature -> 10, []
 	in
-	encode_enum ~pos:None IDisplayMode tag pl
+	encode_enum IDisplayMode tag pl
 
 and encode_platform p =
 	let tag, pl = match p with
@@ -445,7 +442,7 @@ and encode_platform p =
 		| Eval -> 10, []
 		| CustomTarget s -> 11, [(encode_string s)]
 	in
-	encode_enum ~pos:None IPlatform tag pl
+	encode_enum IPlatform tag pl
 
 and encode_platform_config pc =
 	encode_obj [
@@ -473,7 +470,7 @@ and encode_capture_policy cp =
 		| CPWrapRef -> 1
 		| CPLoopVars -> 2
 	in
-	encode_enum ~pos:None ICapturePolicy tag []
+	encode_enum ICapturePolicy tag []
 
 and encode_var_scoping_config vsc =
 	encode_obj [
@@ -486,7 +483,7 @@ and encode_var_scope vs =
 		| FunctionScope -> 0
 		| BlockScope -> 1
 	in
-	encode_enum ~pos:None IVarScope tag []
+	encode_enum IVarScope tag []
 
 and encode_var_scoping_flags vsf =
 	let tag, pl = match vsf with
@@ -499,7 +496,7 @@ and encode_var_scoping_flags vsf =
 		| ReserveNames (names) -> 6, [encode_array (List.map encode_string names)]
 		| SwitchCasesNoBlocks -> 7, []
 	in
-	encode_enum ~pos:None IVarScopingFlags tag pl
+	encode_enum IVarScopingFlags tag pl
 
 and encode_exceptions_config ec =
 	encode_obj [
@@ -516,7 +513,7 @@ and encode_package_rule pr =
 		| Forbidden -> 0, []
 		| Remap (path) -> 2, [encode_string path]
 	in
-	encode_enum ~pos:None IPackageRule tag pl
+	encode_enum IPackageRule tag pl
 
 and encode_message cm =
 	let tag, pl = match cm.cm_severity with
@@ -524,7 +521,7 @@ and encode_message cm =
 		| Warning | Hint -> 1, [(encode_string cm.cm_message); (encode_pos cm.cm_pos)]
 		| Error -> Globals.die "" __LOC__
 	in
-	encode_enum ~pos:None IMessage tag pl
+	encode_enum IMessage tag pl
 
 and encode_efield_kind efk =
 	let i = match efk with
@@ -630,7 +627,7 @@ and encode_expr e =
 			"expr", encode_enum IExpr tag pl;
 		]
 	in
-	encode_lazy (fun () -> loop e)
+	encode_lazy (lazy (loop e))
 
 and encode_null_expr e =
 	match e with
@@ -755,7 +752,7 @@ let rec decode_ast_path t =
 	let p_full = field t "pos" in
 	let p_full = if p_full = vnull then Globals.null_pos else decode_pos p_full in
 	let p_path = field t "posPath" in
-	let p_path = if p_path = vnull then Globals.null_pos else decode_pos p_path in
+	let p_path = if p_path = vnull then p_full else decode_pos p_path in
 	make_ptp (mk_type_path ~params ?sub (pack,name)) ~p_path p_full
 
 and decode_tparam v =
@@ -1096,7 +1093,7 @@ and encode_cfield f =
 		"params", encode_type_params f.cf_params;
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
 		"expr", vfun0 (fun() ->
-			ignore (flush_core_context (fun() -> follow f.cf_type));
+			ignore (follow f.cf_type);
 			(match f.cf_expr with None -> vnull | Some e -> encode_texpr e)
 		);
 		"kind", encode_field_kind f.cf_kind;
@@ -1263,8 +1260,7 @@ and encode_lazy_type t =
 					| LAvailable t ->
 						encode_type t
 					| LWait _ ->
-						(* we are doing some typing here, let's flush our context if it's not already *)
-						encode_type (flush_core_context (fun() -> lazy_type f))
+						encode_type (lazy_type f)
 					| LProcessing _ ->
 						(* our type in on the processing stack, error instead of returning most likely an unbound mono *)
 						error_message "Accessing a type while it's being typed");
