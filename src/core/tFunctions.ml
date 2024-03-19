@@ -156,7 +156,7 @@ let mk_class m path pos name_pos =
 	c.cl_type <- TType(class_module_type c,[]);
 	c
 
-let module_extra file sign time kind added policy =
+let module_extra file sign time kind added =
 	{
 		m_file = Path.UniqueKey.create_lazy file;
 		m_sign = sign;
@@ -174,7 +174,6 @@ let module_extra file sign time kind added policy =
 		m_kind = kind;
 		m_cache_bound_objects = DynArray.create ();
 		m_features = Hashtbl.create 0;
-		m_check_policy = policy;
 	}
 
 let mk_class_field_ref (c : tclass) (cf : tclass_field) (kind : class_field_ref_kind) (is_macro : bool) = {
@@ -219,7 +218,7 @@ let null_module = {
 	m_path = [] , "";
 	m_types = [];
 	m_statics = None;
-	m_extra = module_extra "" (Digest.string "") 0. MFake 0 [];
+	m_extra = module_extra "" (Digest.string "") 0. MFake 0;
 }
 
 let null_class =

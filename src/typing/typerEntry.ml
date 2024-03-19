@@ -13,7 +13,6 @@ let create com macros =
 		g = {
 			core_api = None;
 			macros = macros;
-			module_check_policies = [];
 			delayed = Array.init all_typer_passes_length (fun _ -> { tasks = []});
 			delayed_min_index = 0;
 			debug_delayed = [];

@@ -56,7 +56,6 @@ type 'value compiler_api = {
 	add_global_metadata : string -> string -> (bool * bool * bool) -> pos -> unit;
 	register_define : string -> Define.user_define -> unit;
 	register_metadata : string -> Meta.user_meta -> unit;
-	add_module_check_policy : string list -> int list -> bool -> int -> unit;
 	decode_expr : 'value -> Ast.expr;
 	encode_expr : Ast.expr -> 'value;
 	encode_ctype : Ast.type_hint -> 'value;
@@ -2292,12 +2291,6 @@ let macro_api ccom get_api =
 			vnull
 		);
 		(* Compilation server *)
-		"server_add_module_check_policy", vfun4 (fun filter policy recursive context_options ->
-			let filter = List.map decode_string (decode_array filter) in
-			let policy = List.map decode_int (decode_array policy) in
-			(get_api()).add_module_check_policy filter policy (decode_bool recursive) (decode_int context_options);
-			vnull
-		);
 		"server_invalidate_files", vfun1 (fun a ->
 			let com = ccom() in
 			let cs = com.cs in

@@ -29,10 +29,6 @@ open Typeload
 open Error
 open Resolution
 
-let get_policy g mpath =
-	let sl1 = full_dot_path2 mpath mpath in
-	List.fold_left (fun acc (sl2,policy,recursive) -> if match_path recursive sl1 sl2 then policy @ acc else acc) [] g.module_check_policies
-
 let field_of_static_definition d p =
 	{
 		cff_name = d.d_name;
@@ -50,7 +46,7 @@ module ModuleLevel = struct
 			m_path = mpath;
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (Path.get_full_path file) (Define.get_signature com.defines) (file_time file) (if com.is_macro_context then MMacro else MCode) com.compilation_step (get_policy g mpath);
+			m_extra = module_extra (Path.get_full_path file) (Define.get_signature com.defines) (file_time file) (if com.is_macro_context then MMacro else MCode) com.compilation_step;
 		} in
 		m
 

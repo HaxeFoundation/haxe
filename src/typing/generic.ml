@@ -182,7 +182,7 @@ let static_method_container gctx c cf p =
 			m_path = (pack,name);
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake gctx.ctx.com.compilation_step m.m_extra.m_check_policy;
+			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake gctx.ctx.com.compilation_step;
 		} in
 		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
@@ -297,7 +297,7 @@ let build_generic_class ctx c p tl =
 			m_path = (pack,name);
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake gctx.ctx.com.compilation_step m.m_extra.m_check_policy;
+			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake gctx.ctx.com.compilation_step;
 		} in
 		let ctx = TyperManager.clone_for_module ctx.g.root_typer (TypeloadModule.make_curmod ctx.com ctx.g mg) in
 		gctx.mg <- Some mg;

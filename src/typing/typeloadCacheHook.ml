@@ -22,7 +22,7 @@ let create_fake_module com file =
 			m_path = (["$DEP"],file);
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra file (Define.get_signature com.defines) (file_time file) MFake com.compilation_step [];
+			m_extra = module_extra file (Define.get_signature com.defines) (file_time file) MFake com.compilation_step;
 		} in
 		Hashtbl.add fake_modules key mdep;
 		mdep
