@@ -104,7 +104,7 @@ let parse_swf_header ctx h = match ExtString.String.nsplit h ":" with
 
 let delete_file f = try Sys.remove f with _ -> ()
 
-let maybe_generate_dump ctx tctx =
+let maybe_generate_dump tctx =
 	let com = tctx.Typecore.com in
 	if Common.defined com Define.Dump then begin
 		Codegen.Dump.dump_types com;
@@ -115,8 +115,10 @@ let maybe_generate_dump ctx tctx =
 		if not com.is_macro_context then match tctx.Typecore.g.Typecore.macros with
 			| None -> ()
 			| Some(_,ctx) -> Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
-	end;
-	if Common.defined ctx.com Define.DumpInvalidationStats then begin
+	end
+
+let maybe_generate_stats_dump com =
+	if Common.defined com Define.DumpInvalidationStats then begin
 		Codegen.Dump.dump_invalidation_stats com;
 		Option.may Codegen.Dump.dump_invalidation_stats (com.get_macros())
 	end

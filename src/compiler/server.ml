@@ -640,7 +640,7 @@ let after_save sctx ctx =
 		maybe_cache_context sctx ctx.com
 
 let after_compilation sctx ctx =
-	()
+	Generate.maybe_generate_stats_dump ctx.com
 
 let mk_length_prefixed_communication allow_nonblock chin chout =
 	let sin = Unix.descr_of_in_channel chin in
