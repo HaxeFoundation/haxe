@@ -467,8 +467,7 @@ module Dump = struct
 			Buffer.add_string buf (String.make (String.length header) '-' ^ "\n");
 			loop entries 0;
 		end;
-		close();
-		Hashtbl.clear stats
+		close()
 end
 
 (*

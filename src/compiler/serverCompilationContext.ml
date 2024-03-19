@@ -53,6 +53,7 @@ let reset sctx =
 	stats.s_classes_built := 0;
 	stats.s_methods_typed := 0;
 	stats.s_macros_called := 0;
+	sctx.cs#clear_stats;
 	Hashtbl.clear Timer.htimers;
 	Helper.start_time := get_time()
 

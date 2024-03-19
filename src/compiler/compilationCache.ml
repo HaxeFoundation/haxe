@@ -152,6 +152,9 @@ class cache = object(self)
 		Hashtbl.clear native_libs;
 		tasks <- PriorityQueue.Empty
 
+	method clear_stats =
+		Hashtbl.iter (fun _ cc -> Hashtbl.clear cc#get_invalidation_stats) contexts
+
 	(* contexts *)
 
 	method get_context sign =
