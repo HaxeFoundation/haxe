@@ -24,7 +24,7 @@ package haxe.macro;
 
 import haxe.macro.Compiler;
 
-enum abstract FileCheckPolicy(Int) {
+enum abstract FileSystemCheckPolicy(Int) {
 	/**
 		Disables file modification checks, avoiding some filesystem operations.
 	**/
@@ -49,7 +49,7 @@ enum abstract FileCheckPolicy(Int) {
 class CompilationServer {
 	#if macro
 	/**
-		Sets the `FileCheckPolicy` of all files whose dot-path matches an
+		Sets the `FileSystemCheckPolicy` of all files whose dot-path matches an
 		element of `pathFilters`.
 
 		If `recursive` is true, a dot-path is considered matched if it starts
@@ -63,7 +63,7 @@ class CompilationServer {
 		If a call to this function is added to the compilation parameters, the
 		compilation server should be restarted to ensure it takes effect.
 	**/
-	static public function setModuleFileSystemCheckPolicy(pathFilters:Array<String>, policy:Array<FileCheckPolicy>, ?recursive = true) {
+	static public function setModuleFileSystemCheckPolicy(pathFilters:Array<String>, policy:Array<FileSystemCheckPolicy>, ?recursive = true) {
 		Context.onAfterInitMacros(() -> {
 			@:privateAccess Compiler.load("server_add_module_fs_check_policy", 4)(pathFilters, policy, recursive);
 		});
