@@ -154,7 +154,7 @@ let get_signature def =
 			*)
 			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin" | "hxb.stats"
 			| "message.reporting" | "message.log_file" | "message.log_format" | "message.no_color"
-			| "dump" | "dump_dependencies" | "dump_ignore_var_ids" -> acc
+			| "dump" | "dump_dependencies" | "dump_ignore_var_ids" | "dump_invalidation_stats" -> acc
 			| _ -> (k ^ "=" ^ v) :: acc
 		) def.values [] in
 		let str = String.concat "@" (List.sort compare defines) in
