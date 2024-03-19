@@ -122,11 +122,14 @@ class Lambda {
 
 		If `f` is null, the result is unspecified.
 	**/
-	public static function exists<A>(it:Iterable<A>, f:(item:A) -> Bool) {
+	public static inline function exists<A>(it:Iterable<A>, f:(item:A) -> Bool) {
+		var isExists = false;
 		for (x in it)
-			if (f(x))
-				return true;
-		return false;
+			if (f(x)) {
+				isExists = true;
+				break;
+			}
+		return isExists;
 	}
 
 	/**
@@ -141,11 +144,14 @@ class Lambda {
 
 		If `f` is null, the result is unspecified.
 	**/
-	public static function foreach<A>(it:Iterable<A>, f:(item:A) -> Bool) {
+	public static inline function foreach<A>(it:Iterable<A>, f:(item:A) -> Bool) {
+		var isAll = true;
 		for (x in it)
-			if (!f(x))
-				return false;
-		return true;
+			if (!f(x)) {
+				isAll = false;
+				break;
+			}
+		return isAll;
 	}
 
 	/**
@@ -153,7 +159,7 @@ class Lambda {
 
 		If `f` is null, the result is unspecified.
 	**/
-	public static function iter<A>(it:Iterable<A>, f:(item:A) -> Void) {
+	public static inline function iter<A>(it:Iterable<A>, f:(item:A) -> Void) {
 		for (x in it)
 			f(x);
 	}
@@ -164,7 +170,7 @@ class Lambda {
 		If `it` is empty, the result is the empty Array even if `f` is null.
 		Otherwise if `f` is null, the result is unspecified.
 	**/
-	public static function filter<A>(it:Iterable<A>, f:(item:A) -> Bool) {
+	public static inline function filter<A>(it:Iterable<A>, f:(item:A) -> Bool) {
 		return [for (x in it) if (f(x)) x];
 	}
 
@@ -180,7 +186,7 @@ class Lambda {
 
 		If `it` or `f` are null, the result is unspecified.
 	**/
-	public static function fold<A, B>(it:Iterable<A>, f:(item:A, result:B) -> B, first:B):B {
+	public static inline function fold<A, B>(it:Iterable<A>, f:(item:A, result:B) -> B, first:B):B {
 		for (x in it)
 			first = f(x, first);
 		return first;
@@ -191,7 +197,7 @@ class Lambda {
 
 		If `it` or `f` are null, the result is unspecified.
 	**/
-	public static function foldi<A, B>(it:Iterable<A>, f:(item:A, result:B, index:Int) -> B, first:B):B {
+	public static inline function foldi<A, B>(it:Iterable<A>, f:(item:A, result:B, index:Int) -> B, first:B):B {
 		var i = 0;
 		for (x in it) {
 			first = f(x, first, i);
@@ -206,7 +212,7 @@ class Lambda {
 
 		This function traverses all elements.
 	**/
-	public static function count<A>(it:Iterable<A>, ?pred:(item:A) -> Bool) {
+	public static inline function count<A>(it:Iterable<A>, ?pred:(item:A) -> Bool) {
 		var n = 0;
 		if (pred == null)
 			for (_ in it)
@@ -252,12 +258,15 @@ class Lambda {
 
 		If `f` is null, the result is unspecified.
 	**/
-	public static function find<T>(it:Iterable<T>, f:(item:T) -> Bool):Null<T> {
+	public static inline function find<T>(it:Iterable<T>, f:(item:T) -> Bool):Null<T> {
+		var first:Null<T> = null;
 		for (v in it) {
-			if (f(v))
-				return v;
+			if (f(@:nullSafety(Off) v)) {
+				first = v;
+				break;
+			}
 		}
-		return null;
+		return first;
 	}
 
 	/**
