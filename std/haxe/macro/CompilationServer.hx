@@ -24,12 +24,51 @@ package haxe.macro;
 
 import haxe.macro.Compiler;
 
+enum abstract FileCheckPolicy(Int) {
+	/**
+		Disables file modification checks, avoiding some filesystem operations.
+	**/
+	var NoFileSystemCheck = 0;
+
+	/**
+		Default behavior: check last modification time.
+	**/
+	var CheckFileModificationTime = 1;
+
+	/**
+		If a file is modified, also checks if its content changed. This check
+		is not free, but useful when .hx files are auto-generated.
+	**/
+	var CheckFileContentModification = 2;
+}
+
 /**
 	This class provides some methods which can be invoked from command line using
 	`--macro server.field(args)`.
 **/
 class CompilationServer {
 	#if macro
+	/**
+		Sets the `FileCheckPolicy` of all files whose dot-path matches an
+		element of `pathFilters`.
+
+		If `recursive` is true, a dot-path is considered matched if it starts
+		with the path filter. This automatically applies to path filters of
+		packages. Otherwise an exact match is required.
+
+		If an element in `pathFilters` is the empty String `""` it matches
+		everything (if `recursive = true`) or only top-level types (if
+		`recursive = false`).
+
+		If a call to this function is added to the compilation parameters, the
+		compilation server should be restarted to ensure it takes effect.
+	**/
+	static public function setModuleFileSystemCheckPolicy(pathFilters:Array<String>, policy:Array<FileCheckPolicy>, ?recursive = true) {
+		Context.onAfterInitMacros(() -> {
+			@:privateAccess Compiler.load("server_add_module_fs_check_policy", 4)(pathFilters, policy, recursive);
+		});
+	}
+
 	/**
 		Invalidates all files given in `filePaths`, removing them from the cache.
 	**/

@@ -229,18 +229,18 @@ let get_changed_directories sctx com =
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
 let check_module sctx com m_path m_extra p =
-	(* let cc = CommonCache.get_cache com in *)
-	(* let content_changed m_path file = *)
-	(* 	let fkey = com.file_keys#get file in *)
-	(* 	try *)
-	(* 		let cfile = cc#find_file fkey in *)
-	(* 		(1* We must use the module path here because the file path is absolute and would cause *)
-	(* 			positions in the parsed declarations to differ. *1) *)
-	(* 		let new_data = TypeloadParse.parse_module com m_path p in *)
-	(* 		cfile.c_decls <> snd new_data *)
-	(* 	with Not_found -> *)
-	(* 		true *)
-	(* in *)
+	let cc = CommonCache.get_cache com in
+	let content_changed m_path file =
+		let fkey = com.file_keys#get file in
+		try
+			let cfile = cc#find_file fkey in
+			(* We must use the module path here because the file path is absolute and would cause
+				positions in the parsed declarations to differ. *)
+			let new_data = TypeloadParse.parse_module com m_path p in
+			cfile.c_decls <> snd new_data
+		with Not_found ->
+			true
+	in
 	let check_module_shadowing paths m_path m_extra =
 		List.iter (fun dir ->
 			let file = (dir.c_path ^ (snd m_path)) ^ ".hx" in
@@ -290,17 +290,20 @@ let check_module sctx com m_path m_extra p =
 						check_module_shadowing (get_changed_directories sctx mcom) m_path m_extra
 				end
 		in
+		let has_policy policy = List.mem policy m_extra.m_fs_check_policy || match policy with
+			| NoFileSystemCheck when !ServerConfig.do_not_check_modules && !Parser.display_mode <> DMNone -> true
+			| _ -> false
+		in
 		let check_file () =
 			let file = Path.UniqueKey.lazy_path m_extra.m_file in
 			if file_time file <> m_extra.m_time then begin
-				(* TODO that one might be useful? *)
-				(* if has_policy CheckFileContentModification && not (content_changed m_path file) then begin *)
-				(* 	ServerMessage.unchanged_content com "" file; *)
-				(* end else begin *)
+				if has_policy CheckFileContentModification && not (content_changed m_path file) then begin
+					ServerMessage.unchanged_content com "" file;
+				end else begin
 					ServerMessage.not_cached com "" m_path;
 					if m_extra.m_kind = MFake then Hashtbl.remove com.fake_modules (Path.UniqueKey.lazy_key m_extra.m_file);
 					raise (Dirty (FileChanged file))
-				(* end *)
+				end
 			end
 		in
 		let find_module_extra sign mpath =
@@ -323,7 +326,7 @@ let check_module sctx com m_path m_extra p =
 		let check () =
 			try
 				check_module_path();
-				if Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
+				if not (has_policy NoFileSystemCheck) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
 				check_dependencies();
 				None
 			with

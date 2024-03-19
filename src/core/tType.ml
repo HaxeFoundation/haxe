@@ -25,6 +25,11 @@ and method_kind =
 	| MethDynamic
 	| MethMacro
 
+type filesystem_check_policy =
+	| NoFileSystemCheck
+	| CheckFileModificationTime
+	| CheckFileContentModification
+
 type module_tainting_reason =
 	| CheckDisplayFile
 	| ServerInvalidate
@@ -405,6 +410,7 @@ and module_def_extra = {
 	m_file : Path.UniqueKey.lazy_t;
 	m_sign : Digest.t;
 	m_display : module_def_display;
+	mutable m_fs_check_policy : filesystem_check_policy list;
 	mutable m_time : float;
 	mutable m_cache_state : module_cache_state;
 	mutable m_added : int;

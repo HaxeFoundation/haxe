@@ -257,6 +257,9 @@ let make_macro_com_api com mcom p =
 				com.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: com.global_metadata;
 			) meta;
 		);
+		add_module_fs_check_policy = (fun sl il b ->
+			Interp.exc_string "unsupported"
+		);
 		register_define = (fun s data -> Define.register_user_define com.user_defines s data);
 		register_metadata = (fun s data -> Meta.register_user_meta com.user_metas s data);
 		decode_expr = Interp.decode_expr;
@@ -522,6 +525,16 @@ let make_macro_api ctx mctx p =
 				let m = (m,el,p) in
 				ctx.com.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.com.global_metadata;
 			) meta;
+		);
+		MacroApi.add_module_fs_check_policy = (fun sl il b ->
+			let add ctx =
+				ctx.g.module_fs_check_policies <- (List.fold_left (fun acc s -> (ExtString.String.nsplit s ".",List.map Obj.magic il,b) :: acc) ctx.g.module_fs_check_policies sl);
+				ctx.com.module_lut#iter (fun _ m -> m.m_extra.m_fs_check_policy <- TypeloadModule.get_policy ctx.g m.m_path);
+			in
+			add ctx;
+			match ctx.g.macros with
+				| None -> ()
+				| Some(_,mctx) -> add mctx
 		);
 		MacroApi.with_imports = (fun imports usings f ->
 			let restore_resolution = ctx.m.import_resolution#save in

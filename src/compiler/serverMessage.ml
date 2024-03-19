@@ -15,7 +15,7 @@ type server_message_options = {
 	mutable print_reusing : bool;
 	mutable print_retyping : bool;
 	mutable print_skipping_dep : bool;
-	(* mutable print_unchanged_content : bool; *)
+	mutable print_unchanged_content : bool;
 	mutable print_cached_modules : bool;
 	mutable print_class_paths_changed : bool;
 	mutable print_arguments : bool;
@@ -42,7 +42,7 @@ let config = {
 	print_reusing = false;
 	print_retyping = false;
 	print_skipping_dep = false;
-	(* print_unchanged_content = false; *)
+	print_unchanged_content = false;
 	print_cached_modules = false;
 	print_class_paths_changed = false;
 	print_arguments = false;
@@ -103,8 +103,8 @@ let retyper_fail com tabs m reason =
 let skipping_dep com tabs (mpath,reason) =
 	if config.print_skipping_dep then print_endline (Printf.sprintf "%sskipping %s (%s)" (sign_string com) (s_type_path mpath) reason)
 
-(* let unchanged_content com tabs file = *)
-(* 	if config.print_unchanged_content then print_endline (Printf.sprintf "%s%s changed time not but content, reusing" (sign_string com) file) *)
+let unchanged_content com tabs file =
+	if config.print_unchanged_content then print_endline (Printf.sprintf "%s%s changed time not but content, reusing" (sign_string com) file)
 
 let cached_modules com tabs i =
 	if config.print_cached_modules then print_endline (Printf.sprintf "%sCached %i modules" (sign_string com) i)
@@ -172,7 +172,7 @@ let enable_all () =
 	config.print_reusing <- true;
 	config.print_retyping <- true;
 	config.print_skipping_dep <- true;
-	(* config.print_unchanged_content <- true; *)
+	config.print_unchanged_content <- true;
 	config.print_cached_modules <- true;
 	config.print_arguments <- true;
 	config.print_completion <- true;
@@ -197,7 +197,7 @@ let set_by_name name value = match name with
 	| "reusing" -> config.print_reusing <- value;
 	| "retyping" -> config.print_retyping <- value;
 	| "skippingDep" -> config.print_skipping_dep <- value;
-	(* | "unchangedContent" -> config.print_unchanged_content <- value; *)
+	| "unchangedContent" -> config.print_unchanged_content <- value;
 	| "cachedModules" -> config.print_cached_modules <- value;
 	| "arguments" -> config.print_arguments <- value;
 	| "completion" -> config.print_completion <- value;
