@@ -70,7 +70,8 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		try (Hashtbl.find modules path).m_extra with Not_found -> (Hashtbl.find binary_cache path).mc_extra
 
 	method cache_module config warn anon_identification path m =
-		match m.m_extra.m_kind with
+		Hashtbl.replace modules path m;
+		if false then match m.m_extra.m_kind with
 		| MImport ->
 			Hashtbl.add modules m.m_path m
 		| _ ->
