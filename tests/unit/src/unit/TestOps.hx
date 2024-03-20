@@ -161,6 +161,8 @@ class TestOps extends Test {
 		eq(false, 0 == minusA);
 	}
 
+	#if !flash // Will not fix for flash
+
 	function testNadakoOps() {
 		// bool
 		var nullBool:Null<Bool> = null;
@@ -253,6 +255,7 @@ class TestOps extends Test {
 		f(nullFloat <= -1.);
 	}
 
+	#end
 
 	function testDynamicOps() {
 		var a:Dynamic = 10;
