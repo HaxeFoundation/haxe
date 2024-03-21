@@ -417,8 +417,6 @@ let compile_safe ctx f =
 try
 	f ()
 with
-	| Abort ->
-		()
 	| Error.Fatal_error err ->
 		error_ext ctx err
 	| Lexer.Error (m,p) ->
@@ -453,6 +451,9 @@ with
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
 		error ctx (Printexc.to_string e) null_pos
+
+let compile_safe ctx f =
+	try compile_safe ctx f with Abort -> ()
 
 let finalize ctx =
 	ctx.comm.flush ctx;

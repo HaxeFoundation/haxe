@@ -1,0 +1,2 @@
+Macro.hx:9: characters 18-19 : "" is not a valid package name:
+Macro.hx:9: characters 18-19 : Package name must not be empty

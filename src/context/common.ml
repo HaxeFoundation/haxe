@@ -469,6 +469,7 @@ let convert_define k =
 	String.concat "_" (ExtString.String.nsplit k "-")
 
 let is_next com = defined com HaxeNext
+let fail_fast com = defined com FailFast
 
 let external_defined ctx k =
 	Define.raw_defined ctx.defines (convert_define k)

@@ -356,10 +356,15 @@ let display_messages ctx on_message = begin
 	let ectx = create_error_context absolute_positions in
 	ectx.max_lines <- get_max_line ectx.max_lines ctx.messages;
 
+	let error msg =
+		ctx.has_error <- true;
+		on_message MessageSeverity.Error msg
+	in
+
 	let get_formatter _ def default =
 		try get_formatter ctx.com def default
 		with | ConfigError s ->
-			error ctx s null_pos;
+			error s;
 			compiler_message_string
 	in
 
@@ -393,7 +398,7 @@ let display_messages ctx on_message = begin
 		end with
 			| Failure e | Sys_error e -> begin
 				let def = Define.get_define_key Define.MessageLogFile in
-				error ctx (Printf.sprintf "Error opening log file: %s. Logging to file disabled (-D %s)" e def) null_pos;
+				error (Printf.sprintf "Error opening log file: %s. Logging to file disabled (-D %s)" e def);
 				log_messages := false;
 			end
 	end;

@@ -161,6 +161,11 @@
 		"platforms": ["eval"]
 	},
 	{
+		"name": "FailFast",
+		"define": "fail-fast",
+		"doc": "Abort compilation when first error occurs."
+	},
+	{
 		"name": "FilterTimes",
 		"define": "filter-times",
 		"doc": "Record per-filter execution times upon --times."
