@@ -469,6 +469,7 @@ type hxb_writer = {
 	mutable local_type_parameters : (typed_type_param,unit) IdentityPool.t;
 	mutable field_stack : unit list;
 	mutable wrote_local_type_param : bool;
+	mutable needs_local_context : bool;
 	unbound_ttp : (typed_type_param,unit) IdentityPool.t;
 	t_instance_chunk : Chunk.t;
 }
@@ -1006,12 +1007,11 @@ module HxbWriter = struct
 		write_pos writer v.v_pos
 
 	let rec write_anon writer (an : tanon) =
-		let needs_local_context = ref false in
 		let write_fields () =
 			let restore = start_temporary_chunk writer 256 in
 			let i = ref 0 in
 			PMap.iter (fun _ cf ->
-				write_anon_field_ref writer needs_local_context cf;
+				write_anon_field_ref writer cf;
 				incr i;
 			) an.a_fields;
 			let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
@@ -1035,8 +1035,7 @@ module HxbWriter = struct
 			assert false
 		| AbstractStatics _ ->
 			assert false
-		end;
-		!needs_local_context
+		end
 
 	and write_anon_ref writer (an : tanon) =
 		let pfm = Option.get (writer.anon_id#identify_anon ~strict:true an) in
@@ -1046,9 +1045,10 @@ module HxbWriter = struct
 			Chunk.write_uleb128 writer.chunk index
 		with Not_found ->
 			let restore = start_temporary_chunk writer 256 in
-			let needs_local_context = write_anon writer an in
+			writer.needs_local_context <- false;
+			write_anon writer an;
 			let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
-			if needs_local_context then begin
+			if writer.needs_local_context then begin
 				let index = Pool.add writer.anons pfm.pfm_path None in
 				Chunk.write_u8 writer.chunk 1;
 				Chunk.write_uleb128 writer.chunk index;
@@ -1059,7 +1059,7 @@ module HxbWriter = struct
 				Chunk.write_uleb128 writer.chunk index;
 			end
 
-	and write_anon_field_ref writer needs_local_context cf =
+	and write_anon_field_ref writer cf =
 		try
 			let index = HashedIdentityPool.get writer.anon_fields cf.cf_name cf in
 			Chunk.write_u8 writer.chunk 0;
@@ -1075,7 +1075,7 @@ module HxbWriter = struct
 				(* If we access something from the method scope, we have to write the anon field immediately.
 				   This should be fine because in such cases the field cannot be referenced elsewhere. *)
 				let index = HashedIdentityPool.add writer.anon_fields cf.cf_name cf None in
-				needs_local_context := true;
+				writer.needs_local_context <- true;
 				Chunk.write_u8 writer.chunk 1;
 				Chunk.write_uleb128 writer.chunk index;
 				Chunk.write_bytes writer.chunk bytes
@@ -1565,7 +1565,7 @@ module HxbWriter = struct
 			| TField(e1,FAnon cf) ->
 				Chunk.write_u8 writer.chunk 104;
 				loop e1;
-				write_anon_field_ref writer (ref false) cf;
+				write_anon_field_ref writer cf;
 				true;
 			| TField(e1,FClosure(Some(c,tl),cf)) ->
 				Chunk.write_u8 writer.chunk 105;
@@ -1577,7 +1577,7 @@ module HxbWriter = struct
 			| TField(e1,FClosure(None,cf)) ->
 				Chunk.write_u8 writer.chunk 106;
 				loop e1;
-				write_anon_field_ref writer (ref false) cf;
+				write_anon_field_ref writer cf;
 				true;
 			| TField(e1,FEnum(en,ef)) ->
 				Chunk.write_u8 writer.chunk 107;
@@ -2312,6 +2312,7 @@ let create config warn anon_id =
 		local_type_parameters = IdentityPool.create ();
 		field_stack = [];
 		wrote_local_type_param = false;
+		needs_local_context = false;
 		unbound_ttp = IdentityPool.create ();
 		t_instance_chunk = Chunk.create EOM cp 32;
 	}
