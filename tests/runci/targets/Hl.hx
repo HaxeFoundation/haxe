@@ -132,5 +132,8 @@ class Hl {
 
 		changeDirectory(miscHlDir);
 		runCommand("haxe", ["run.hxml"]);
+
+		changeDirectory(miscDir + 'hl/libuv');
+		runCommand("haxe", ["build.hxml"].concat(args));
 	}
 }

@@ -22,49 +22,177 @@
 
 package hl.uv;
 
-@:hlNative("uv")
-class Stream extends Handle {
-	public function write(bytes:haxe.io.Bytes, ?onWrite:Bool->Void, pos = 0, len = -1) {
-		if (len < 0)
-			len = bytes.length - pos;
-		if (pos < 0 || len < 0 || pos + len > bytes.length)
-			throw haxe.io.Error.OutsideBounds;
-		if (handle == null || !stream_write(handle, (bytes : hl.Bytes).offset(pos), len, onWrite))
-			throw new haxe.io.Eof();
+import hl.uv.Request;
+
+using hl.uv.UV;
+
+@:allow(hl.uv.Stream)
+private class ConnectRequest extends Request<UvConnectTStar> {
+	@:keep var callback:(status:Int)->Void;
+}
+
+@:allow(hl.uv.Stream)
+private class WriteRequest extends Request<UvWriteTStar> {
+	@:keep var callback:(status:Int)->Void;
+	//to keep bytes alive untile write request is complete
+	var data:Bytes;
+}
+
+@:allow(hl.uv.Stream)
+private class ShutdownRequest extends Request<UvShutdownTStar> {
+	@:keep var callback:(status:Int)->Void;
+}
+
+/**
+	Stream handles provide an abstraction of a duplex communication channel.
+	This is a base type for `Tcp`, `Pipe` and `Tty`.
+
+	@see http://docs.libuv.org/en/v1.x/stream.html
+**/
+abstract class Stream<T:UvStreamTStar> extends Handle<T> {
+	@:keep var onAlloc:(buf:Buffer, size:Int)->Void;
+	@:keep var onConnection:(status:Int)->Void;
+	@:keep var onRead:(nRead:I64, buf:UvBufTArr)->Void;
+
+	static inline function createConnect():ConnectRequest {
+		return new ConnectRequest(UV.alloc_connect());
 	}
 
-	public function readStartRaw(onData:hl.Bytes->Int->Void) {
-		if (handle == null || !stream_read_start(handle, onData))
-			throw new haxe.io.Eof();
+	static inline function createWrite():WriteRequest {
+		return new WriteRequest(UV.alloc_write());
 	}
 
-	public function readStart(onData:haxe.io.Bytes->Void) {
-		readStartRaw(function(b, len) onData(if (len < 0) null else b.toBytes(len)));
+	function new(handle:T) {
+		super(handle);
+		onAlloc = (buf, size) -> buf.set(new Bytes(size), size);
 	}
 
-	public function readStop() {
-		if (handle != null)
-			stream_read_stop(handle);
+	/**
+		Shutdown the outgoing (write) side of a duplex stream.
+		It waits for pending write requests to complete.
+	**/
+	public function shutdown(callback:(e:UVError)->Void):Void {
+		handle(h -> {
+			var req = new ShutdownRequest(UV.alloc_shutdown());
+			var result = req.r.shutdown_with_cb(h);
+			if(result < 0) {
+				req.freeReq();
+				result.throwErr();
+			}
+			req.callback = status -> {
+				req.freeReq();
+				callback(status.translate_uv_error());
+			}
+		});
 	}
 
-	public function listen(n:Int, onConnect:Void->Void) {
-		if (handle == null || !stream_listen(handle, n, onConnect))
-			throw new haxe.io.Eof();
+	/**
+		Start listening for incoming connections.
+		`backlog` indicates the number of connections the kernel might queue
+	**/
+	public function listen(backlog:Int, callback:(e:UVError)->Void):Void {
+		handle(h -> {
+			h.listen_with_cb(backlog).resolve();
+			onConnection = status -> callback(status.translate_uv_error());
+		});
 	}
 
-	// --
+	/**
+		Set buffer allocation function for `readStart`.
 
-	static function stream_write(handle:HandleData, bytes:hl.Bytes, len:Int, callb:Bool->Void):Bool {
-		return false;
+		A suggested size (65536 at the moment in most cases) is provided, but it’s
+		just an indication, not related in any way to the pending data to be read.
+		The user is free to allocate the amount of memory they decide.
+
+		By default it's `(buf, size) -> buf.set(new hl.Bytes(size), size)`
+	**/
+	public function setAlloc(alloc:(buf:Buffer, size:Int)->Void) {
+		onAlloc = alloc;
 	}
 
-	static function stream_read_start(handle:HandleData, callb:hl.Bytes->Int->Void) {
-		return false;
+	/**
+		Read data from an incoming stream.
+
+		The `callback` will be called several times until there is no more
+		data to read or `readStop()` is called. If `bytesRead` is 0 it does not
+		indicate EOF. It means either there's no data to read _right now_ or IO
+		operation would have to block.
+	**/
+	public function readStart(callback:(e:UVError, data:Null<Bytes>, bytesRead:Int)->Void):Void {
+		handle(h -> {
+			h.read_start_with_cb().resolve();
+			onRead = (nRead, buf) -> {
+				var bytesRead = nRead.toInt();
+				var e = bytesRead.translate_uv_error();
+				var data = switch e {
+					case UV_NOERR:
+						buf.buf_base();
+					case _:
+						bytesRead = 0;
+						null;
+				}
+				callback(e, data, bytesRead);
+			}
+		});
 	}
 
-	static function stream_read_stop(handle:HandleData) {}
-
-	static function stream_listen(handle:HandleData, n:Int, callb:Void->Void) {
-		return false;
+	/**
+		Stop reading data from the stream.
+	**/
+	public function readStop():Void {
+		handle(h -> h.read_stop().resolve());
 	}
+
+	/**
+		Write data to stream.
+	**/
+	public function write(bytes:hl.Bytes, length:Int, callback:(e:UVError)->Void):Void {
+		handle(h -> {
+			var req = createWrite();
+			var buf = UV.alloc_buf(bytes, length);
+			var result = req.r.write_with_cb(h, buf, 1);
+			if(result < 0) {
+				buf.free_buf();
+				req.freeReq();
+				result.throwErr();
+			}
+			req.data = bytes;
+			req.callback = status -> {
+				buf.free_buf();
+				req.freeReq();
+				callback(status.translate_uv_error());
+			}
+		});
+	}
+
+	/**
+		Same as `write()`, but won’t queue a write request if it can’t be completed immediately.
+
+		Returns number of bytes writen (can be less than the supplied buffer size).
+
+		Throws EAGAIN if no data can be sent immediately
+	**/
+	public function tryWrite(bytes:hl.Bytes, length:Int):Int {
+		return handleReturn(h -> {
+			var buf = UV.alloc_buf(bytes, length);
+			var result = h.try_write(buf, 1);
+			buf.free_buf();
+			return result.resolve();
+		});
+	}
+
+	/**
+		Indicates if the stream is readable.
+	**/
+	public function isReadable():Bool {
+		return handleReturn(h -> h.is_readable() != 0);
+	}
+
+	/**
+		Indicates if the stream is writable.
+	**/
+	public function isWritable():Bool {
+		return handleReturn(h -> h.is_writable() != 0);
+	}
+
 }

@@ -1,0 +1,7 @@
+--class-path src
+--main Main
+--library utest
+--dce full
+-D analyzer-optimize
+--hl test.hl
+--cmd hl test.hl
