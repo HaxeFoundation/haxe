@@ -842,7 +842,7 @@ class TestStrict {
 		}
 	}
 
-	static function recursiveTypedef_shouldNotCrashTheCompiler(a:Recursive<Void>, b:Recursive<Void>) {
+	static function recursiveTypedef_shouldNotCrashTheCompiler(a:Recursive<haxe.NoValue>, b:Recursive<haxe.NoValue>) {
 		a = b;
 	}
 

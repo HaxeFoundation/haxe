@@ -1,10 +1,10 @@
 On Generate
 -- Too Few Params --
 Before: TestClass
-After:  TestClass<TestClass.T, TestClass.U, Void>
+After:  TestClass<TestClass.T, TestClass.U, haxe.NoValue>
 
 Before: TestClass<Void>
-After:  TestClass<Void, TestClass.U, Void>
+After:  TestClass<Void, TestClass.U, haxe.NoValue>
 
 -- Too Many Params --
 Before: TestClass<Void, Int, Float, String>
@@ -15,7 +15,7 @@ Before: TestClass<Void, Int, Float>
 After:  TestClass<Void, Int, Float>
 
 Before: TestClass<Void, Int>
-After:  TestClass<Void, Int, Void>
+After:  TestClass<Void, Int, haxe.NoValue>
 
 -- Shouldn't Have Params --
 Before: Void<Int, Float>
@@ -23,7 +23,7 @@ After:  Void
 
 -- Recursive Test --
 Before: TestClass<TestClass, TestClass<Void, Int, Float, String>>
-After:  TestClass<TestClass<TestClass.T, TestClass.U, Void>, TestClass<Void, Int, Float>, Void>
+After:  TestClass<TestClass<TestClass.T, TestClass.U, haxe.NoValue>, TestClass<Void, Int, Float>, haxe.NoValue>
 
 -- Fill With Specific Type --
 Before: TestClass

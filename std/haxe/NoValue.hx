@@ -1,0 +1,3 @@
+package haxe;
+
+enum NoValue {}

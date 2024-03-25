@@ -10,6 +10,6 @@ typedef Rec2Struct<T> = {
 
 class TypedefAbstract {
 	static function main() {
-		var r:Rec2<Void> = (null:Rec1<Void>);
+		var r:Rec2<haxe.NoValue> = (null:Rec1<haxe.NoValue>);
 	}
 }

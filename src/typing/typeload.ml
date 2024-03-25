@@ -416,34 +416,50 @@ and load_instance' ctx ptp get_params mode =
 	with Not_found ->
 		let mt = load_type_def ctx (if ptp.pos_path == null_pos then ptp.pos_full else ptp.pos_path) t in
 		let info = ctx.g.get_build_info ctx mt ptp.pos_full in
-		if info.build_path = ([],"Dynamic") then match t.tparams with
-			| [] -> t_dynamic
-			| [TPType t] -> TDynamic (Some (load_complex_type ctx true LoadNormal t))
-			| _ -> raise_typing_error "Too many parameters for Dynamic" ptp.pos_full
-		else if info.build_params = [] then begin match t.tparams with
-			| [] ->
-				info.build_apply []
-			|  tp :: _ ->
-				let pt = match tp with
-					| TPType(_,p) | TPExpr(_,p) -> p
-				in
-				display_error ctx.com ("Too many type parameters for " ^ s_type_path info.build_path) pt;
-				info.build_apply []
-		end else begin
-			(* TODO: this is currently duplicated, but it seems suspcious anyway... *)
-			let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
-			let tl = if t.tparams = [] && not is_rest then begin match get_params with
-				| ParamNormal ->
+		begin match info.build_path with
+		| ([],"Dynamic") ->
+			begin match t.tparams with
+				| [] -> t_dynamic
+				| [TPType t] -> TDynamic (Some (load_complex_type ctx true LoadNormal t))
+				| _ -> raise_typing_error "Too many parameters for Dynamic" ptp.pos_full
+			end
+		| ([],"Void") ->
+			begin match mode with
+				| LoadReturn | LoadAny ->
+					ctx.t.tvoid
+				| _ ->
+					(* VOIDTODO: I don't think we actually want this, but let's try to get green CI *)
+					if has_class_flag ctx.c.curclass CExtern then
+						ctx.t.tvoid
+					else
+						raise_typing_error "Cannot use Void here" ptp.pos_full
+			end
+		| _ ->
+			if info.build_params = [] then begin match t.tparams with
+				| [] ->
+					info.build_apply []
+				|  tp :: _ ->
+					let pt = match tp with
+						| TPType(_,p) | TPExpr(_,p) -> p
+					in
+					display_error ctx.com ("Too many type parameters for " ^ s_type_path info.build_path) pt;
+					info.build_apply []
+			end else begin
+				(* TODO: this is currently duplicated, but it seems suspcious anyway... *)
+				let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
+				let tl = if t.tparams = [] && not is_rest then begin match get_params with
+					| ParamNormal ->
+						load_params ctx info t.tparams ptp.pos_full
+					| ParamSpawnMonos ->
+						Monomorph.spawn_constrained_monos (fun t -> t) info.build_params
+					| ParamCustom f ->
+						f info None
+				end else
 					load_params ctx info t.tparams ptp.pos_full
-				| ParamSpawnMonos ->
-					Monomorph.spawn_constrained_monos (fun t -> t) info.build_params
-				| ParamCustom f ->
-					f info None
-			end else
-				load_params ctx info t.tparams ptp.pos_full
-			in
-			let t = info.build_apply tl in
-			maybe_build_instance ctx t get_params ptp.pos_full
+				in
+				let t = info.build_apply tl in
+				maybe_build_instance ctx t get_params ptp.pos_full
+			end
 		end
 
 and load_instance ctx ?(allow_display=false) ptp get_params mode =
@@ -629,7 +645,7 @@ and load_complex_type' ctx allow_display mode (t,p) =
 	| CTFunction (args,r) ->
 		match args with
 		| [CTPath { path = {tpackage = []; tparams = []; tname = "Void" }},_] ->
-			TFun ([],load_complex_type ctx allow_display  LoadReturn r)
+			TFun ([],load_complex_type ctx allow_display LoadReturn r)
 		| _ ->
 			TFun (List.map (fun t ->
 				let t, opt = (match fst t with CTOptional t | CTParent((CTOptional t,_)) -> t, true | _ -> t,false) in
