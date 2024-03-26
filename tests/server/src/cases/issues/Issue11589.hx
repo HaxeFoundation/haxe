@@ -16,4 +16,12 @@ class Issue11589 extends TestCase {
 		runHaxe(args);
 		Assert.isFalse(lastResult.hasError);
 	}
+
+	function testNestedFieldUsed(_) {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue11589/Main2.hx"));
+		var args = ["--main", "Main.hx", "--no-output"];
+		runHaxe(args);
+		runHaxe(args);
+		Assert.isFalse(lastResult.hasError);
+	}
 }
