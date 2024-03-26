@@ -1980,10 +1980,6 @@ class hxb_reader
 			^ "Attach the following information:"
 		in
 		let backtrace = Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()) in
-		let backtrace =
-			try snd (ExtString.String.split backtrace "\n")
-			with ExtString.Invalid_string -> backtrace
-		in
 		let s = Printf.sprintf "%s\nHaxe: %s\n%s" msg s_version_full backtrace in
 		failwith s
 
