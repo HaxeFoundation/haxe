@@ -1066,12 +1066,10 @@ module HxbWriter = struct
 			Chunk.write_uleb128 writer.chunk index
 		with Not_found ->
 			let restore = start_temporary_chunk writer 256 in
-			let old = writer.wrote_local_type_param in
+			writer.wrote_local_type_param <- false;
 			ignore(write_class_field_and_overloads_data writer true cf);
-			let wrote_local_type_param = writer.wrote_local_type_param in
-			writer.wrote_local_type_param <- old;
 			let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
-			if wrote_local_type_param then begin
+			if writer.needs_local_context || writer.wrote_local_type_param then begin
 				(* If we access something from the method scope, we have to write the anon field immediately.
 				   This should be fine because in such cases the field cannot be referenced elsewhere. *)
 				let index = HashedIdentityPool.add writer.anon_fields cf.cf_name cf None in
@@ -1954,7 +1952,6 @@ module HxbWriter = struct
 	let write_typedef writer (td : tdef) =
 		select_type writer td.t_path;
 		write_common_module_type writer (Obj.magic td);
-		writer.wrote_local_type_param <- td.t_params <> [];
 		write_type_instance writer td.t_type
 
 	(* Module *)
