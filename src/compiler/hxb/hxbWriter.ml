@@ -1066,6 +1066,7 @@ module HxbWriter = struct
 			Chunk.write_uleb128 writer.chunk index
 		with Not_found ->
 			let restore = start_temporary_chunk writer 256 in
+			let old = writer.wrote_local_type_param in
 			writer.wrote_local_type_param <- false;
 			ignore(write_class_field_and_overloads_data writer true cf);
 			let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
@@ -1081,7 +1082,8 @@ module HxbWriter = struct
 				let index = HashedIdentityPool.add writer.anon_fields cf.cf_name cf (Some bytes) in
 				Chunk.write_u8 writer.chunk 0;
 				Chunk.write_uleb128 writer.chunk index;
-			end
+			end;
+			writer.wrote_local_type_param <- old
 
 	(* Type instances *)
 
