@@ -1954,6 +1954,7 @@ module HxbWriter = struct
 	let write_typedef writer (td : tdef) =
 		select_type writer td.t_path;
 		write_common_module_type writer (Obj.magic td);
+		writer.wrote_local_type_param <- td.t_params <> [];
 		write_type_instance writer td.t_type
 
 	(* Module *)
