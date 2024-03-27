@@ -1973,11 +1973,26 @@ class hxb_reader
 		| EOM ->
 			incr stats.modules_fully_restored;
 
+	method private die chunk msg =
+		let msg =
+			(Printf.sprintf "Compiler failure while reading hxb chunk %s of %s: %s\n" (string_of_chunk_kind chunk) (s_type_path mpath) (msg))
+			^ "Please submit an issue at https://github.com/HaxeFoundation/haxe/issues/new\n"
+			^ "Attach the following information:"
+		in
+		let backtrace = Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()) in
+		let s = Printf.sprintf "%s\nHaxe: %s\n%s" msg s_version_full backtrace in
+		failwith s
+
 	method private read_chunk_data kind =
 		let path = String.concat "_" (ExtLib.String.nsplit (s_type_path mpath) ".") in
 		let id = ["hxb";"read";string_of_chunk_kind kind;path] in
 		let close = Timer.timer id in
-		self#read_chunk_data' kind;
+		try
+			self#read_chunk_data' kind
+		with Invalid_argument msg -> begin
+			close();
+			self#die kind msg
+		end;
 		close()
 
 	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =
