@@ -104,6 +104,11 @@ type typer_pass_tasks = {
 	mutable tasks : (unit -> unit) list;
 }
 
+type function_mode =
+	| FunFunction
+	| FunCoroutine
+	| FunNotFunction
+
 type typer_globals = {
 	mutable delayed : typer_pass_tasks Array.t;
 	mutable delayed_min_index : int;
@@ -138,7 +143,7 @@ type typer_globals = {
    is shared by local TFunctions. *)
 and typer_expr = {
 	curfun : current_fun;
-	in_function : bool;
+	function_mode : function_mode;
 	mutable ret : t;
 	mutable opened : anon_status ref list;
 	mutable monomorphs : monomorphs;
@@ -235,10 +240,10 @@ module TyperManager = struct
 			in_call_args = false;
 		}
 
-	let create_ctx_e curfun in_function =
+	let create_ctx_e curfun function_mode =
 		{
 			curfun;
-			in_function;
+			function_mode;
 			ret = t_dynamic;
 			opened = [];
 			monomorphs = {
@@ -291,8 +296,17 @@ module TyperManager = struct
 
 	let clone_for_type_parameter_expression ctx =
 		let f = create_ctx_f ctx.f.curfield in
-		let e = create_ctx_e ctx.e.curfun false in
+		let e = create_ctx_e ctx.e.curfun FunNotFunction in
 		create ctx ctx.m ctx.c f e PTypeField ctx.type_params
+
+	let is_coroutine_context ctx =
+		ctx.e.function_mode = FunCoroutine
+
+	let is_function_context ctx = match ctx.e.function_mode with
+		| FunFunction | FunCoroutine ->
+			true
+		| FunNotFunction ->
+			false
 end
 
 type field_host =

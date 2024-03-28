@@ -101,10 +101,9 @@ let rec find_field com c f =
 		f
 
 let fix_override com c f fd =
-	let f2 = (try Some (find_field com c f) with Not_found -> None) in
-	match f2,fd with
-		| Some (f2), Some(fd) ->
-			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> die "" __LOC__) in
+	let f2 = find_field com c f in
+	match follow f2.cf_type,fd with
+		| TFun(targs,tret), Some(fd) ->
 			let changed_args = ref [] in
 			let prefix = "_tmp_" in
 			let nargs = List.map2 (fun ((v,ct) as cur) (_,_,t2) ->
@@ -148,13 +147,14 @@ let fix_override com c f fd =
 			let fde = (match f.cf_expr with None -> die "" __LOC__ | Some e -> e) in
 			f.cf_expr <- Some { fde with eexpr = TFunction fd2 };
 			f.cf_type <- TFun(targs,tret);
-		| Some(f2), None when (has_class_flag c CInterface) ->
+		| _, None when (has_class_flag c CInterface) ->
 			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> die "" __LOC__) in
 			f.cf_type <- TFun(targs,tret)
 		| _ ->
 			()
 
 let fix_overrides com t =
+	let fix_override com c f fd = try fix_override com c f fd with Not_found -> () in
 	match t with
 	| TClassDecl c ->
 		(* overrides can be removed from interfaces *)

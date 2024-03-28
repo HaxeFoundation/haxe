@@ -33,6 +33,10 @@ class Jvm {
 			runCommand("java", ["-jar", "bin/unit.jar"]);
 		}
 
+		infoMsg("Test coroutines:");
+		changeDirectory(getMiscSubDir("coroutines"));
+		runCommand("haxe", ["build-jvm.hxml"]);
+
 		changeDirectory(miscJavaDir);
 		runCommand("haxe", ["run.hxml"]);
 

@@ -1,0 +1,3 @@
+build-base.hxml
+--jvm test.jar
+--cmd java -jar test.jar

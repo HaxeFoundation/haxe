@@ -732,7 +732,6 @@ let run tctx main before_destruction =
 		"add_final_return",if com.config.pf_add_final_return then add_final_return else (fun e -> e);
 		"RenameVars",(match com.platform with
 		| Eval -> (fun e -> e)
-		| Jvm -> (fun e -> e)
 		| _ -> (fun e -> RenameVars.run tctx.c.curclass.cl_path locals e));
 		"mark_switch_break_loops",mark_switch_break_loops;
 	] in

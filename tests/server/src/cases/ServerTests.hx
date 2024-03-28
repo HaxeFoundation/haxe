@@ -488,23 +488,18 @@ class ServerTests extends TestCase {
 		assertSuccess();
 	}
 
-	@:async function testStackOverflow(async:utest.Async) {
+	function testStackOverflow() {
 		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
 		var args = ["-main", "Empty.hx", "--macro", "allowPackage('sys')", "--interp", "--no-output"];
 		var runs = 0;
 
-		function runLoop() {
-			runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Empty.hx")}, () -> {
-				runHaxe(args.concat(["-D", "compile-only-define"]), () -> {
-					if (assertSuccess() && ++runs < 20)
-						runLoop();
-					else
-						async.done();
-				});
-			});
+		@:coroutine function runLoop() {
+			runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Empty.hx")});
+			runHaxe(args.concat(["-D", "compile-only-define"]));
+			if (assertSuccess() && ++runs < 20)
+				runLoop();
 		}
 
-		async.setTimeout(20000);
 		runLoop();
 	}
 

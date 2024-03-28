@@ -4895,6 +4895,9 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
             )
          | TAbstract (a,params) when is_scalar_abstract a ->
             add_extern_type (TAbstractDecl a)
+         | TAbstract (({a_path = (["haxe";"coro"],"Coroutine")} as a),[t]) ->
+            add_extern_type (TAbstractDecl a);
+            visit_type t
          | TFun (args,haxe_type) -> visit_type haxe_type;
             List.iter (fun (_,_,t) -> visit_type t; ) args;
          | _ -> ()
