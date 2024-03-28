@@ -452,18 +452,9 @@ let type_generic_function ctx fa fcc with_type p =
 	) monos;
 	let el = fcc.fc_args in
 	let gctx = make_generic ctx cf.cf_params monos (Meta.has (Meta.Custom ":debug.generic") cf.cf_meta) p in
+	let fc_type = build_instances ctx fcc.fc_type p in
 	let name = cf.cf_name ^ "_" ^ gctx.name in
 	let params = extract_type_parameters monos in
-	let clones = List.map (fun ttp ->
-		let name_path = if (fst ttp.ttp_class.cl_path) = [cf.cf_name] then ([name],ttp.ttp_name) else ttp.ttp_class.cl_path in
-		clone_type_parameter gctx c.cl_module name_path ttp
-	) params in
-	let param_subst = List.map2 (fun ttp ttp' ->
-		(ttp.ttp_type,ttp')
-	) params clones in
-	let param_subst = List.map (fun (t,ttp) -> t,(ttp.ttp_type,None)) param_subst in
-	let gctx = {gctx with subst = param_subst @ gctx.subst} in
-	let fc_type = build_instances ctx (generic_substitute_type gctx fcc.fc_type) p in
 	let unify_existing_field tcf pcf = try
 		unify_raise tcf fc_type p
 	with Error ({ err_message = Unify _; err_depth = depth } as err) ->
@@ -519,7 +510,7 @@ let type_generic_function ctx fa fcc with_type p =
 				| _ -> true
 			) cf.cf_meta in
 			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: meta;
-			cf2.cf_params <- clones
+			cf2.cf_params <- params
 		in
 		let mk_cf2 name =
 			mk_field ~static:stat name fc_type cf.cf_pos cf.cf_name_pos
