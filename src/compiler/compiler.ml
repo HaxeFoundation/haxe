@@ -398,7 +398,7 @@ let compile ctx actx callbacks =
 		if is_compilation then Generate.check_auxiliary_output com actx;
 		enter_stage com CGenerationStart;
 		ServerMessage.compiler_stage com;
-		Generate.maybe_generate_dump ctx tctx;
+		Generate.maybe_generate_dump tctx;
 		if not actx.no_output then Generate.generate ctx tctx ext actx;
 		enter_stage com CGenerationDone;
 		ServerMessage.compiler_stage com;

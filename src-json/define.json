@@ -112,6 +112,12 @@
 		"doc": "Dump the classes dependencies in a dump subdirectory."
 	},
 	{
+		"name": "DumpInvalidationStats",
+		"define": "dump-invalidation-stats",
+		"params": ["depth"],
+		"doc": "Dump some module invalidation stats in a dump subdirectory"
+	},
+	{
 		"name": "DumpIgnoreVarIds",
 		"define": "dump-ignore-var-ids",
 		"doc": "Remove variable IDs from non-pretty dumps (helps with diff)."
