@@ -66,6 +66,7 @@ function main() {
 		new TestNumericCasts(),
 		new TestHashMap(),
 		new TestRest(),
+		new TestBigInt(),
 		#if !no_pattern_matching
 		new TestMatch(),
 		#end
