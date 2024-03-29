@@ -512,7 +512,7 @@ module Inheritance = struct
 				match m with
 				| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,{ c.cl_pos with pmax = c.cl_pos.pmin }(* prevent display metadata *)) :: m :: c.cl_meta
 				| _ -> ()
-			) (List.rev csup.cl_meta);
+			) (if (is_next ctx.com) then (List.rev csup.cl_meta) else csup.cl_meta);
 			if has_class_flag csup CFinal && not (((has_class_flag csup CExtern) && Meta.has Meta.Hack c.cl_meta) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then
 				raise_typing_error ("Cannot extend a final " ^ if (has_class_flag c CInterface) then "interface" else "class") p;
 		in
