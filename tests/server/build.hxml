@@ -5,6 +5,7 @@
 -lib hxnodejs
 -lib utest
 -lib haxeserver
+-D haxe-next
 -D analyzer-optimize
 -D UTEST-PRINT-TESTS
 #-D UTEST_PATTERN=ServerTests
