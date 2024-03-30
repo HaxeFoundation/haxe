@@ -63,11 +63,7 @@ let create com macros =
 		TypeloadModule.load_module ctx ([],"StdTypes") null_pos
 	with
 		Error { err_message = Module_not_found ([],"StdTypes") } ->
-			try
-				let std_path = Sys.getenv "HAXE_STD_PATH" in
-				raise_typing_error ("Standard library not found. Please check your `HAXE_STD_PATH` environment variable (current value: \"" ^ std_path ^ "\")") null_pos
-			with Not_found ->
-				raise_typing_error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
+			Error.raise_std_not_found ()
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
 	List.iter (fun mt ->
