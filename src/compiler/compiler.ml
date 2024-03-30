@@ -190,6 +190,7 @@ module Setup = struct
 	let get_std_class_paths () =
 		try
 			let p = Sys.getenv "HAXE_STD_PATH" in
+			let p = Path.remove_trailing_slash p in
 			let rec loop = function
 				| drive :: path :: l ->
 					if String.length drive = 1 && ((drive.[0] >= 'a' && drive.[0] <= 'z') || (drive.[0] >= 'A' && drive.[0] <= 'Z')) then
