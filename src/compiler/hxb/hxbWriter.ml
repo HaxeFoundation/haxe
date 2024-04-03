@@ -475,6 +475,19 @@ type hxb_writer = {
 }
 
 module HxbWriter = struct
+	let get_backtrace () = Printexc.get_raw_backtrace ()
+	let get_callstack () = Printexc.get_callstack 200
+
+	let failwith writer msg backtrace =
+		let msg =
+			(Printf.sprintf "Compiler failure while writing hxb chunk %s of %s: %s\n" (string_of_chunk_kind writer.chunk.kind) (s_type_path writer.current_module.m_path) (msg))
+			^ "Please submit an issue at https://github.com/HaxeFoundation/haxe/issues/new\n"
+			^ "Attach the following information:"
+		in
+		let backtrace = Printexc.raw_backtrace_to_string backtrace in
+		let s = Printf.sprintf "%s\nHaxe: %s\n%s" msg s_version_full backtrace in
+		failwith s
+
 	let in_nested_scope writer = match writer.field_stack with
 		| [] -> false (* can happen for cl_init and in EXD *)
 		| [_] -> false
@@ -528,7 +541,7 @@ module HxbWriter = struct
 	let write_full_path writer (pack : string list) (mname : string) (tname : string) =
 		Chunk.write_list writer.chunk pack (Chunk.write_string writer.chunk);
 		if mname = "" || tname = "" then
-			die (Printf.sprintf "write_full_path: pack = %s, mname = %s, tname = %s" (String.concat "." pack) mname tname) __LOC__;
+			failwith writer (Printf.sprintf "write_full_path: pack = %s, mname = %s, tname = %s" (String.concat "." pack) mname tname) (get_callstack ());
 		Chunk.write_string writer.chunk mname;
 		Chunk.write_string writer.chunk tname
 

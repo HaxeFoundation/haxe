@@ -1973,13 +1973,16 @@ class hxb_reader
 		| EOM ->
 			incr stats.modules_fully_restored;
 
-	method private die chunk msg =
+	method private get_backtrace () = Printexc.get_raw_backtrace ()
+	method private get_callstack () = Printexc.get_callstack 200
+
+	method private failwith chunk msg backtrace =
 		let msg =
 			(Printf.sprintf "Compiler failure while reading hxb chunk %s of %s: %s\n" (string_of_chunk_kind chunk) (s_type_path mpath) (msg))
 			^ "Please submit an issue at https://github.com/HaxeFoundation/haxe/issues/new\n"
 			^ "Attach the following information:"
 		in
-		let backtrace = Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()) in
+		let backtrace = Printexc.raw_backtrace_to_string backtrace in
 		let s = Printf.sprintf "%s\nHaxe: %s\n%s" msg s_version_full backtrace in
 		failwith s
 
@@ -1991,7 +1994,7 @@ class hxb_reader
 			self#read_chunk_data' kind
 		with Invalid_argument msg -> begin
 			close();
-			self#die kind msg
+			self#failwith kind msg (self#get_backtrace ())
 		end;
 		close()
 
