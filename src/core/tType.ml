@@ -26,10 +26,9 @@ and method_kind =
 	| MethMacro
 
 type module_check_policy =
-	| NoCheckFileTimeModification
+	| NoFileSystemCheck
+	| CheckFileModificationTime
 	| CheckFileContentModification
-	| NoCheckDependencies
-	| NoCheckShadowing
 
 type module_tainting_reason =
 	| CheckDisplayFile
