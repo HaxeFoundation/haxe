@@ -174,7 +174,7 @@ let module_extra file sign time kind added policy =
 		m_kind = kind;
 		m_cache_bound_objects = DynArray.create ();
 		m_features = Hashtbl.create 0;
-		m_fs_check_policy = policy;
+		m_check_policy = policy;
 	}
 
 let mk_class_field_ref (c : tclass) (cf : tclass_field) (kind : class_field_ref_kind) (is_macro : bool) = {

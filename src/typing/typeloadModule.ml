@@ -31,7 +31,7 @@ open Resolution
 
 let get_policy g mpath =
 	let sl1 = full_dot_path2 mpath mpath in
-	List.fold_left (fun acc (sl2,policy,recursive) -> if match_path recursive sl1 sl2 then policy @ acc else acc) [] g.module_fs_check_policies
+	List.fold_left (fun acc (sl2,policy,recursive) -> if match_path recursive sl1 sl2 then policy @ acc else acc) [] g.module_check_policies
 
 let field_of_static_definition d p =
 	{

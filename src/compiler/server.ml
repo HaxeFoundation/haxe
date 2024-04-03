@@ -290,7 +290,7 @@ let check_module sctx com m_path m_extra p =
 						check_module_shadowing (get_changed_directories sctx mcom) m_path m_extra
 				end
 		in
-		let has_policy policy = List.mem policy m_extra.m_fs_check_policy || match policy with
+		let has_policy policy = List.mem policy m_extra.m_check_policy || match policy with
 			| NoFileSystemCheck when !ServerConfig.do_not_check_modules && !Parser.display_mode <> DMNone -> true
 			| _ -> false
 		in

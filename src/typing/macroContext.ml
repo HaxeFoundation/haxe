@@ -257,7 +257,7 @@ let make_macro_com_api com mcom p =
 				com.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: com.global_metadata;
 			) meta;
 		);
-		add_module_fs_check_policy = (fun sl il b ->
+		add_module_check_policy = (fun sl il b ->
 			Interp.exc_string "unsupported"
 		);
 		register_define = (fun s data -> Define.register_user_define com.user_defines s data);
@@ -526,10 +526,10 @@ let make_macro_api ctx mctx p =
 				ctx.com.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.com.global_metadata;
 			) meta;
 		);
-		MacroApi.add_module_fs_check_policy = (fun sl il b ->
+		MacroApi.add_module_check_policy = (fun sl il b ->
 			let add ctx =
-				ctx.g.module_fs_check_policies <- (List.fold_left (fun acc s -> (ExtString.String.nsplit s ".",List.map Obj.magic il,b) :: acc) ctx.g.module_fs_check_policies sl);
-				ctx.com.module_lut#iter (fun _ m -> m.m_extra.m_fs_check_policy <- TypeloadModule.get_policy ctx.g m.m_path);
+				ctx.g.module_check_policies <- (List.fold_left (fun acc s -> (ExtString.String.nsplit s ".",List.map Obj.magic il,b) :: acc) ctx.g.module_check_policies sl);
+				ctx.com.module_lut#iter (fun _ m -> m.m_extra.m_check_policy <- TypeloadModule.get_policy ctx.g m.m_path);
 			in
 			add ctx;
 			match ctx.g.macros with
