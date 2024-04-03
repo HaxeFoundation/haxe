@@ -63,7 +63,7 @@ class CompilationServer {
 		If a call to this function is added to the compilation parameters, the
 		compilation server should be restarted to ensure it takes effect.
 	**/
-	static public function setModuleFileSystemCheckPolicy(pathFilters:Array<String>, policy:Array<ModuleCheckPolicy>, ?recursive = true) {
+	static public function setModuleCheckPolicy(pathFilters:Array<String>, policy:Array<ModuleCheckPolicy>, ?recursive = true) {
 		Context.onAfterInitMacros(() -> {
 			@:privateAccess Compiler.load("server_add_module_check_policy", 4)(pathFilters, policy, recursive);
 		});
