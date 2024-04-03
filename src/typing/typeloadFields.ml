@@ -401,24 +401,6 @@ let build_module_def ctx mt meta fvars fbuild =
 				| MError | MMacroInMacro -> raise_typing_error "Build failure" p
 				| MSuccess e -> fbuild e)
 			) :: f_build
-		| Meta.Using,el,p -> (fun () ->
-			List.iter (fun e ->
-				try
-					let path = List.rev (string_pos_list_of_expr_path_raise e) in
-					let types,filter_classes = ImportHandling.handle_using ctx path (pos e) in
-					let ti =
-						match mt with
-							| TClassDecl { cl_kind = KAbstractImpl a } -> t_infos (TAbstractDecl a)
-							| _ -> t_infos mt
-					in
-					(* Delay for #10107, but use delay_late to make sure base classes run before their children do. *)
-					delay_late ctx.g PConnectField (fun () ->
-						ti.mt_using <- (filter_classes types) @ ti.mt_using
-					)
-				with Exit ->
-					raise_typing_error "dot path expected" (pos e)
-			) el;
-		) :: f_build
 		| _ ->
 			f_build
 	in
@@ -445,6 +427,28 @@ let build_module_def ctx mt meta fvars fbuild =
 			None
 	in
 	List.iter (fun f -> f()) (List.rev f_build);
+	let apply_using = function
+		| Meta.Using,el,p ->
+			List.iter (fun e ->
+				try
+					let path = List.rev (string_pos_list_of_expr_path_raise e) in
+					let types,filter_classes = ImportHandling.handle_using ctx path (pos e) in
+					let ti =
+						match mt with
+							| TClassDecl { cl_kind = KAbstractImpl a } -> t_infos (TAbstractDecl a)
+							| _ -> t_infos mt
+					in
+					(* Delay for #10107, but use delay_late to make sure base classes run before their children do. *)
+					delay_late ctx.g PConnectField (fun () ->
+						ti.mt_using <- (filter_classes types) @ ti.mt_using
+					)
+				with Exit ->
+					raise_typing_error "dot path expected" (pos e)
+			) el;
+		| _ ->
+			()
+	in
+	List.iter apply_using (t_infos mt).mt_meta;
 	(match f_enum with None -> () | Some f -> f())
 
 let create_class_context c p =
