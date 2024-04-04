@@ -360,6 +360,9 @@ let integer_digits = [%sedlex.regexp? (digit, Star sep_digit)]
 let hex_digit = [%sedlex.regexp? '0'..'9'|'a'..'f'|'A'..'F']
 let sep_hex_digit = [%sedlex.regexp? Opt '_', hex_digit]
 let hex_digits = [%sedlex.regexp? (hex_digit, Star sep_hex_digit)]
+let bin_digit = [%sedlex.regexp? '0'|'1']
+let sep_bin_digit = [%sedlex.regexp? Opt '_', bin_digit]
+let bin_digits = [%sedlex.regexp? (bin_digit, Star sep_bin_digit)]
 let integer = [%sedlex.regexp? ('1'..'9', Star sep_digit) | '0']
 
 let integer_suffix = [%sedlex.regexp? Opt '_', ('i'|'u'), Plus integer]
@@ -385,6 +388,8 @@ let rec token lexbuf =
 	| "\r\n" -> newline lexbuf; token lexbuf
 	| '\n' | '\r' -> newline lexbuf; token lexbuf
 	| "0x", Plus hex_digits, Opt integer_suffix ->
+		mk lexbuf (split_int_suffix (lexeme lexbuf))
+	| "0b", Plus bin_digits, Opt integer_suffix ->
 		mk lexbuf (split_int_suffix (lexeme lexbuf))
 	| integer, Opt integer_suffix ->
 		mk lexbuf (split_int_suffix (lexeme lexbuf))
