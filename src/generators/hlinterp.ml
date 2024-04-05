@@ -113,7 +113,6 @@ type context = {
 	mutable fcall : vfunction -> value list -> value;
 	mutable code : code;
 	mutable on_error : value -> (fundecl * int ref) list -> unit;
-	mutable resolve_macro_api : string -> (value list -> value) option;
 	checked : bool;
 	cached_protos : (int, vproto * ttype array * (int * (value -> value)) list) Hashtbl.t;
 	cached_strings : (int, string) Hashtbl.t;
@@ -2094,10 +2093,6 @@ let load_native ctx lib name t =
 			| _ -> Globals.die "" __LOC__)
 		| _ ->
 			unresolved())
-	| "macro" ->
-		(match ctx.resolve_macro_api name with
-		| None -> unresolved()
-		| Some f -> f)
 	| _ ->
 		unresolved()
 	) in
@@ -2130,7 +2125,6 @@ let create checked =
 		checked = checked;
 		fcall = (fun _ _ -> Globals.die "" __LOC__);
 		on_error = (fun _ _ -> Globals.die "" __LOC__);
-		resolve_macro_api = (fun _ -> None);
 	} in
 	ctx.on_error <- (fun msg stack -> failwith (vstr ctx msg HDyn ^ "\n" ^ String.concat "\n" (List.map (stack_frame ctx) stack)));
 	ctx.fcall <- call_fun ctx;
@@ -2138,9 +2132,6 @@ let create checked =
 
 let set_error_handler ctx e =
 	ctx.on_error <- e
-
-let set_macro_api ctx f =
-	ctx.resolve_macro_api <- f
 
 let add_code ctx code =
 	(* expand global table *)
