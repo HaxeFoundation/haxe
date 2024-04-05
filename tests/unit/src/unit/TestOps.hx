@@ -1,6 +1,5 @@
 package unit;
 
-@:analyzer(ignore)
 class TestOps extends Test {
 
 	public function testOps()
@@ -104,6 +103,7 @@ class TestOps extends Test {
 
 	#if target.static
 
+	@:analyzer(ignore)
 	function testNullOps() {
 		var a:Null<Int> = 10;
 		// arithmetic
@@ -164,6 +164,7 @@ class TestOps extends Test {
 
 	#if !flash // Will not fix for flash
 
+	@:analyzer(ignore)
 	function testNadakoOps() {
 		// bool
 		var nullBool:Null<Bool> = null;
@@ -258,6 +259,7 @@ class TestOps extends Test {
 
 	#end
 
+	@:analyzer(ignore)
 	function testDynamicOps() {
 		var a:Dynamic = 10;
 		// arithmetic
