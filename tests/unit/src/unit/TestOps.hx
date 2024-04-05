@@ -1,5 +1,6 @@
 package unit;
 
+@:analyzer(ignore)
 class TestOps extends Test {
 
 	public function testOps()
