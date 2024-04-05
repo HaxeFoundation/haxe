@@ -754,11 +754,7 @@ module Converter = struct
 		tp
 
 	let convert_enum (jc : jclass) (file : string) =
-		let p = {
-			pfile = file;
-			pmin = 0;
-			pmax = 0
-		} in
+		let p = file_pos file in
 		let meta = ref [] in
 		let add_meta m = meta := m :: !meta in
 		let data = ref [] in
@@ -920,11 +916,7 @@ module Converter = struct
 		cff
 
 	let convert_class ctx (jc : jclass) (file : string) =
-		let p = {
-			pfile = file;
-			pmin = 0;
-			pmax = 0
-		} in
+		let p = file_pos file in
 		let flags = ref [HExtern] in
 		let meta = ref [] in
 		let add_flag f = flags := f :: !flags in

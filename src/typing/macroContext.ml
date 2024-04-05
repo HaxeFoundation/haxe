@@ -993,7 +993,7 @@ let call_macro mctx args margs call p =
 	call (List.map (fun e -> try Interp.make_const e with Exit -> raise_typing_error "Argument should be a constant" e.epos) el)
 
 let resolve_init_macro com e =
-	let p = { pfile = "--macro " ^ e; pmin = -1; pmax = -1 } in
+	let p = fake_pos ("--macro " ^ e) in
 	let e = try
 		if String.get e (String.length e - 1) = ';' then raise_typing_error "Unexpected ;" p;
 		begin match ParserEntry.parse_expr_string com.defines e p raise_typing_error false with
