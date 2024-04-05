@@ -1491,6 +1491,11 @@ and jump_expr ctx e jcond =
 			| OpNotEq -> if jcond then OJNotEq (r1,r2,i) else OJEq (r1,r2,i)
 			| _ -> die "" __LOC__
 		) in
+		let nullisfalse = match jop with
+			| OpEq -> jcond
+			| OpNotEq -> not jcond
+			| _ -> die "" __LOC__
+		in
 		let t1 = to_type ctx e1.etype in
 		let t2 = to_type ctx e2.etype in
 		(match t1, t2 with
@@ -1510,8 +1515,8 @@ and jump_expr ctx e jcond =
 			free ctx a;
 			free ctx r1;
 			let j = jumpeq a b in
-			if jcond then (jnull(););
-			(fun() -> if not jcond then (jnull();); j());
+			if nullisfalse then (jnull(););
+			(fun() -> if not nullisfalse then (jnull();); j());
 		| _ ->
 			let t = common_type ctx e1 e2 true e.epos in
 			let a = eval_to ctx e1 t in
