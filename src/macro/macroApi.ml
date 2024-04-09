@@ -846,6 +846,7 @@ and decode_field v =
 	}
 
 and decode_ctype t =
+	if t = vnull then raise Invalid_expr;
 	let (i,args),p = decode_enum_with_pos t in
 	(match i,args with
 	| 0, [p] ->
