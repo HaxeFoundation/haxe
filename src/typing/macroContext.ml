@@ -41,15 +41,20 @@ module HxbWriterConfigWriterEval = HxbWriterConfig.WriterConfigWriter(EvalDataAp
 let macro_interp_cache = ref None
 
 let safe_decode com v expected t p f =
-	try
-		f ()
-	with MacroApi.Invalid_expr ->
+	let raise_decode_error s =
 		let path = [dump_path com;"decoding_error"] in
 		let ch = Path.create_file false ".txt" [] path  in
 		let errors = Interp.handle_decoding_error (output_string ch) v t in
 		List.iter (fun (s,i) -> Printf.fprintf ch "\nline %i: %s" i s) (List.rev errors);
 		close_out ch;
-		raise_typing_error (Printf.sprintf "Expected %s but got %s (see %s.txt for details)" expected (Interp.value_string v) (String.concat "/" path)) p
+		raise_typing_error (Printf.sprintf "%s (see %s.txt for details)" s (String.concat "/" path)) p
+	in
+
+	try f () with
+		| EvalContext.RunTimeException (VString emsg,_,_) ->
+			raise_decode_error (Printf.sprintf "Eval runtime exception: %s" emsg.sstring)
+		| MacroApi.Invalid_expr ->
+			raise_decode_error (Printf.sprintf "Expected %s but got %s" expected (Interp.value_string v))
 
 
 let macro_timer com l =
@@ -960,7 +965,9 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 								| None -> die "" __LOC__
 								| Some (_,_,fields) -> fields)
 							else
-								List.map Interp.decode_field (Interp.decode_array v)
+								let ct = make_ptp_th (mk_type_path ~sub:"Field" (["haxe";"macro"], "Expr")) null_pos in
+								let t = Typeload.load_complex_type mctx false LoadNormal ct in
+								List.map (fun f -> safe_decode ctx.com f "Field" t p (fun () -> Interp.decode_field f)) (Interp.decode_array v)
 						in
 						MSuccess (EVars [mk_evar ~t:(CTAnonymous fields,p) ("fields",null_pos)],p)
 					)
