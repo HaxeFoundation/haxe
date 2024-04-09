@@ -965,8 +965,8 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 								| None -> die "" __LOC__
 								| Some (_,_,fields) -> fields)
 							else
-								(* Hacky way to retrieve haxe.macro.Field type... *)
-								let t = match follow mret with | TInst(_, [ftype]) -> ftype | _ -> assert false in
+								let ct = make_ptp_th (mk_type_path ~sub:"Field" (["haxe";"macro"], "Expr")) null_pos in
+								let t = Typeload.load_complex_type mctx false LoadNormal ct in
 								List.map (fun f -> safe_decode ctx.com f "Field" t p (fun () -> Interp.decode_field f)) (Interp.decode_array v)
 						in
 						MSuccess (EVars [mk_evar ~t:(CTAnonymous fields,p) ("fields",null_pos)],p)
