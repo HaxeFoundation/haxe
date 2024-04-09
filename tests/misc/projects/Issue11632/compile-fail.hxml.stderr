@@ -1,1 +1,1 @@
-Main.hx:6: characters 12-19 : Eval runtime exception: Null Access (see dump/decoding_error.txt for details)
+Main.hx:5: characters 12-19 : Eval runtime exception: Null Access (see dump/decoding_error.txt for details)

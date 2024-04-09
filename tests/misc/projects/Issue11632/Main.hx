@@ -1,6 +1,5 @@
 #if macro
 import haxe.macro.Expr;
-import haxe.macro.Type;
 #end
 
 #if !macro @:build(Macro.build()) #end
