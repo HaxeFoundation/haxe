@@ -382,34 +382,51 @@ let build_module_def ctx mt meta fvars fbuild =
 		| TTypeDecl _ -> true, t_infos mt
 		| _ -> false, t_infos mt
 	in
-	let loop f_build = function
-		| Meta.Build,args,p when not is_typedef -> (fun () ->
-				let epath, el = (match args with
-					| [ECall (epath,el),p] -> epath, el
-					| _ -> raise_typing_error "Invalid build parameters" p
-				) in
-				let cpath, meth =
-					let sl = try string_list_of_expr_path_raise ~root_cb:(resolve_type_import ctx p) epath with Exit -> raise_typing_error "Build call parameter must be a class path" p in
-					match sl with
-					| meth :: name :: pack ->
-						(List.rev pack,name), meth
-					| _ ->
-						raise_typing_error "Invalid macro path" p
-				in
-				if ctx.com.is_macro_context then raise_typing_error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
-				let old = ctx.c.get_build_infos in
-				ctx.c.get_build_infos <- (fun() -> Some (mt, extract_param_types ti.mt_params, fvars()));
-				let r = try ctx.g.do_macro ctx MBuild cpath meth el p with e -> ctx.c.get_build_infos <- old; raise e in
-				ctx.c.get_build_infos <- old;
-				(match r with
-				| MError | MMacroInMacro -> raise_typing_error "Build failure" p
-				| MSuccess e -> fbuild e)
-			) :: f_build
-		| _ ->
-			f_build
+	let get_build_priority meta =
+		let rec loop meta = match meta with
+			| [] -> 0
+			| (Meta.BuildOrder,params,p) :: _ ->
+				(match params with
+					| [EConst (Ident "Early"),p] -> 1
+					| [EConst (Ident "Late"),p] -> -1
+					| [] -> raise_typing_error "Missing value for @:buildOrder" p
+					| _ -> raise_typing_error "Invalid @:buildOrder value. Expected `Early` or `Late`" p
+				)
+			| _ :: meta -> loop meta
+		in
+		loop meta
 	in
+	let build_macros = ExtLib.List.filter_map (fun m -> match m with
+		| Meta.Build,args,p when not is_typedef ->
+			let epath, el = (match args with
+				| [ECall (epath,el),p] -> epath, el
+				| _ -> raise_typing_error "Invalid build parameters" p
+			) in
+			let cpath, meth =
+				let sl = try string_list_of_expr_path_raise ~root_cb:(resolve_type_import ctx p) epath with Exit -> raise_typing_error "Build call parameter must be a class path" p in
+				match sl with
+				| meth :: name :: pack -> (List.rev pack,name), meth
+				| _ -> raise_typing_error "Invalid macro path" p
+			in
+			let (_,_,_,cf) = ctx.g.do_load_macro ctx false cpath meth p in
+			let priority = get_build_priority cf.cf_meta in
+			Some (cpath, meth, el, priority, p)
+		| _ ->
+			None
+	) meta in
+	let build_macros = List.sort (fun (_,_,_,p1,_) (_,_,_,p2,_) -> p2 - p1) build_macros in
+	let loop (cpath,meth,el,_,p) = (fun () ->
+		if ctx.com.is_macro_context then raise_typing_error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
+		let old = ctx.c.get_build_infos in
+		ctx.c.get_build_infos <- (fun() -> Some (mt, extract_param_types ti.mt_params, fvars()));
+		let r = try ctx.g.do_macro ctx MBuild cpath meth el p with e -> ctx.c.get_build_infos <- old; raise e in
+		ctx.c.get_build_infos <- old;
+		(match r with
+		| MError | MMacroInMacro -> raise_typing_error "Build failure" p
+		| MSuccess e -> fbuild e)
+	) in
 	(* let errors go through to prevent resume if build fails *)
-	let f_build = List.fold_left loop [] meta in
+	let f_build = List.map loop build_macros in
 	let f_enum = match mt with
 		| TClassDecl ({cl_kind = KAbstractImpl a} as c) when a.a_enum ->
 			Some (fun () ->
@@ -429,7 +446,7 @@ let build_module_def ctx mt meta fvars fbuild =
 		| _ ->
 			None
 	in
-	List.iter (fun f -> f()) (List.rev f_build);
+	List.iter (fun f -> f()) f_build;
 	let apply_using = function
 		| Meta.Using,el,p ->
 			List.iter (fun e ->
