@@ -198,6 +198,7 @@ module ModuleLevel = struct
 						a_read = None;
 						a_write = None;
 						a_call = None;
+						a_extern = List.mem AbExtern d.d_flags;
 						a_enum = List.mem AbEnum d.d_flags || p_enum_meta <> None;
 					} in
 					begin match p_enum_meta with
