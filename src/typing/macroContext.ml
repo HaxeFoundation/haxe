@@ -632,12 +632,22 @@ and flush_macro_context mint mctx =
 		| _ ->
 			()
 	in
+	(* Apply native paths for externs only *)
+	let maybe_apply_native_paths t =
+		let apply_native = match t with
+			| TClassDecl c -> has_class_flag c CExtern
+			| TEnumDecl e -> e.e_extern
+			| _ -> false
+		in
+		if apply_native then Naming.apply_native_paths t
+	in
 	let type_filters = [
 		FiltersCommon.remove_generic_base;
 		Exceptions.patch_constructors mctx;
 		(fun mt -> AddFieldInits.add_field_inits mctx.c.curclass.cl_path (RenameVars.init mctx.com) mctx.com mt);
 		Filters.update_cache_dependencies ~close_monomorphs:false mctx.com;
 		minimal_restore;
+		maybe_apply_native_paths
 	] in
 	let ready = fun t ->
 		FiltersCommon.apply_filters_once mctx expr_filters t;
