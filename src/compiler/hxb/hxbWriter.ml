@@ -1925,6 +1925,7 @@ module HxbWriter = struct
 		end;
 		Chunk.write_list writer.chunk a.a_from (write_type_instance writer);
 		Chunk.write_list writer.chunk a.a_to (write_type_instance writer);
+		Chunk.write_bool writer.chunk a.a_extern;
 		Chunk.write_bool writer.chunk a.a_enum
 
 	let write_abstract_fields writer (a : tabstract) =

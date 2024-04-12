@@ -1515,6 +1515,7 @@ class hxb_reader
 		end;
 		a.a_from <- self#read_list (fun () -> self#read_type_instance);
 		a.a_to <- self#read_list (fun () -> self#read_type_instance);
+		a.a_extern <- self#read_bool;
 		a.a_enum <- self#read_bool;
 
 	method read_abstract_fields (a : tabstract) =
