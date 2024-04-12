@@ -633,13 +633,9 @@ and flush_macro_context mint mctx =
 			()
 	in
 	(* Apply native paths for externs only *)
-	let maybe_apply_native_paths t =
-		let apply_native = match t with
-			| TClassDecl c -> has_class_flag c CExtern
-			| TEnumDecl e -> e.e_extern
-			| _ -> false
-		in
-		if apply_native then Naming.apply_native_paths t
+	let maybe_apply_native_paths t = match t with
+		| TEnumDecl e when e.e_extern -> Naming.apply_native_paths t
+		| _ -> ()
 	in
 	let type_filters = [
 		FiltersCommon.remove_generic_base;
