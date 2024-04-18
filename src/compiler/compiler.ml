@@ -275,7 +275,7 @@ let check_defines com =
 		PMap.iter (fun k _ ->
 			try
 				let reason = Hashtbl.find Define.deprecation_lut k in
-				let p = { pfile = "-D " ^ k; pmin = -1; pmax = -1 } in
+				let p = fake_pos ("-D " ^ k) in
 				com.warning WDeprecatedDefine [] reason p
 			with Not_found ->
 				()

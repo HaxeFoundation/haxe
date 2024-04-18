@@ -1122,7 +1122,7 @@ module HxbWriter = struct
 		end with Not_found ->
 			(try ignore(IdentityPool.get writer.unbound_ttp ttp) with Not_found -> begin
 				ignore(IdentityPool.add writer.unbound_ttp ttp ());
-				let p = { null_pos with pfile = (Path.UniqueKey.lazy_path writer.current_module.m_extra.m_file) } in
+				let p = file_pos (Path.UniqueKey.lazy_path writer.current_module.m_extra.m_file) in
 				let msg = Printf.sprintf "Unbound type parameter %s" (s_type_path ttp.ttp_class.cl_path) in
 				writer.warn WUnboundTypeParameter msg p
 			end);
