@@ -172,6 +172,9 @@ class TestOps extends Test {
 
 		t(null == nullBool);
 		t(nullBool == null);
+		f(null != nullBool);
+		f(nullBool != null);
+
 		f(false == nullBool);
 		f(nullBool == false);
 		t(false != nullBool);
