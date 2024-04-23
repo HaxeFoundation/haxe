@@ -1505,8 +1505,6 @@ and jump_expr ctx e jcond =
 		| HNull (HBool as ti1), (HBool as ti2)
 		| (HBool as ti1), HNull (HBool as ti2)
 			->
-			if ctx.w_null_compare then
-				ctx.com.warning WGenerator [] (Printf.sprintf "Comparing Null<T> with T: %s %s %s" (tstr t1) (s_binop jop) (tstr t2)) e.epos;
 			let t1,t2,e1,e2 = if is_nullt t2 then t2,t1,e2,e1 else t1,t2,e1,e2 in
 			let r1 = eval_expr ctx e1 in
 			hold ctx r1;
@@ -1549,8 +1547,8 @@ and jump_expr ctx e jcond =
 		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
 		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
 			->
-			if ctx.w_null_compare && (is_nullt t1 && (not (is_nullt t2)) || ((not (is_nullt t1)) && is_nullt t2)) then
-				ctx.com.warning WGenerator [] (Printf.sprintf "Comparing Null<T> with T: %s %s %s" (tstr t1) (s_binop jop) (tstr t2)) e.epos;
+			if ctx.w_null_compare && (is_nullt t1 || is_nullt t2) then
+				ctx.com.warning WGenerator [] (Printf.sprintf "Null compare: %s %s %s" (tstr t1) (s_binop jop) (tstr t2)) e.epos;
 			let r1 = eval_expr ctx e1 in
 			hold ctx r1;
 			let jnull1 = if is_nullt t1 then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> ()) in
