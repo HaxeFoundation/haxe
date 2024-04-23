@@ -2,7 +2,6 @@ package unit;
 
 class TestOps extends Test {
 
-	@:analyzer(ignore)
 	public function testOps()
 	{
 		eq(1 + 2 + "", "3");
