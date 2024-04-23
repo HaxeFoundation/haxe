@@ -312,7 +312,7 @@ let build_generic_class ctx c p tl =
 			| Pure
 			| Struct | StructInit
 			| Using
-			| AutoBuild ->
+			| AutoBuild | Unreflective ->
 				true
 			| _ ->
 				false
