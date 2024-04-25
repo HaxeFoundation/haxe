@@ -95,6 +95,7 @@ type context = {
 	cfunctions : fundecl DynArray.t;
 	cconstants : (constval, (global * int array)) lookup;
 	optimize : bool;
+	w_null_compare : bool;
 	overrides : (string * path, bool) Hashtbl.t;
 	defined_funs : (int,unit) Hashtbl.t;
 	is_macro : bool;
@@ -1546,6 +1547,8 @@ and jump_expr ctx e jcond =
 		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
 		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
 			->
+			if ctx.w_null_compare && (is_nullt t1 || is_nullt t2) then
+				ctx.com.warning WGenerator [] (Printf.sprintf "Null compare: %s %s %s" (tstr t1) (s_binop jop) (tstr t2)) e.epos;
 			let r1 = eval_expr ctx e1 in
 			hold ctx r1;
 			let jnull1 = if is_nullt t1 then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> ()) in
@@ -4113,6 +4116,7 @@ let create_context com is_macro dump =
 		com = com;
 		is_macro = is_macro;
 		optimize = not (Common.raw_defined com "hl_no_opt");
+		w_null_compare = Common.raw_defined com "hl_w_null_compare";
 		dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None;
 		m = method_context 0 HVoid null_capture false;
 		cints = new_lookup();
