@@ -452,7 +452,7 @@ CAMLprim value ml_mbedtls_ssl_read(value ssl, value buf, value pos, value len) {
 static int bio_write_cb(void* ctx, const unsigned char* buf, size_t len) {
 	CAMLparam0();
 	CAMLlocal3(r, s, vctx);
-	vctx = (value)ctx;
+	vctx = *(value*)ctx;
 	s = caml_alloc_string(len);
 	memcpy(String_val(s), buf, len);
 	r = caml_callback2(Field(vctx, 1), Field(vctx, 0), s);
@@ -462,7 +462,7 @@ static int bio_write_cb(void* ctx, const unsigned char* buf, size_t len) {
 static int bio_read_cb(void* ctx, unsigned char* buf, size_t len) {
 	CAMLparam0();
 	CAMLlocal3(r, s, vctx);
-	vctx = (value)ctx;
+	vctx = *(value*)ctx;
 	s = caml_alloc_string(len);
 	r = caml_callback2(Field(vctx, 2), Field(vctx, 0), s);
 	memcpy(buf, String_val(s), len);
@@ -476,7 +476,11 @@ CAMLprim value ml_mbedtls_ssl_set_bio(value ssl, value p_bio, value f_send, valu
 	Store_field(ctx, 0, p_bio);
 	Store_field(ctx, 1, f_send);
 	Store_field(ctx, 2, f_recv);
-	mbedtls_ssl_set_bio(SslContext_val(ssl), (void*)ctx, bio_write_cb, bio_read_cb, NULL);
+	// TODO: this allocation is leaked
+	value *location = malloc(sizeof(value));
+	*location = ctx;
+	caml_register_generational_global_root(location);
+	mbedtls_ssl_set_bio(SslContext_val(ssl), (void*)location, bio_write_cb, bio_read_cb, NULL);
 	CAMLreturn(Val_unit);
 }
 
