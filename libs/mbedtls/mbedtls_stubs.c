@@ -200,7 +200,7 @@ CAMLprim value hx_cert_get_alt_names(value chain) {
 	CAMLparam1(chain);
 	CAMLlocal1(obj);
 	mbedtls_x509_crt* cert = X509Crt_val(chain);
-	if (cert->ext_types & MBEDTLS_X509_EXT_SUBJECT_ALT_NAME == 0 || &cert->subject_alt_names == NULL) {
+	if ((cert->ext_types & MBEDTLS_X509_EXT_SUBJECT_ALT_NAME) == 0) {
 		obj = Atom(0);
 	} else {
 		mbedtls_asn1_sequence* cur = &cert->subject_alt_names;
