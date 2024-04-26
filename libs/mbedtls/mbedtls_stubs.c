@@ -195,7 +195,11 @@ CAMLprim value hx_cert_get_alt_names(value chain) {
 	CAMLparam1(chain);
 	CAMLlocal1(obj);
 	mbedtls_x509_crt* cert = X509Crt_val(chain);
+#if MBEDTLS_VERSION_MAJOR >= 3
+	if (!mbedtls_x509_crt_has_ext_type(cert, MBEDTLS_X509_EXT_SUBJECT_ALT_NAME)) {
+#else
 	if ((cert->ext_types & MBEDTLS_X509_EXT_SUBJECT_ALT_NAME) == 0) {
+#endif
 		obj = Atom(0);
 	} else {
 		mbedtls_asn1_sequence* cur = &cert->subject_alt_names;
@@ -361,24 +365,34 @@ CAMLprim value ml_mbedtls_pk_init(void) {
 	CAMLreturn(obj);
 }
 
-CAMLprim value ml_mbedtls_pk_parse_key(value ctx, value key, value password) {
-	CAMLparam3(ctx, key, password);
+CAMLprim value ml_mbedtls_pk_parse_key(value ctx, value key, value password, value rng) {
+	CAMLparam4(ctx, key, password, rng);
 	const unsigned char* pwd = NULL;
 	size_t pwdlen = 0;
 	if (password != Val_none) {
 		pwd = Bytes_val(Field(password, 0));
 		pwdlen = caml_string_length(Field(password, 0));
 	}
+	#if MBEDTLS_VERSION_MAJOR >= 3
+	mbedtls_ctr_drbg_context *ctr_drbg = CtrDrbg_val(rng);
+	CAMLreturn(mbedtls_pk_parse_key(PkContext_val(ctx), Bytes_val(key), caml_string_length(key) + 1, pwd, pwdlen, mbedtls_ctr_drbg_random, NULL));
+	#else
 	CAMLreturn(mbedtls_pk_parse_key(PkContext_val(ctx), Bytes_val(key), caml_string_length(key) + 1, pwd, pwdlen));
+	#endif
 }
 
-CAMLprim value ml_mbedtls_pk_parse_keyfile(value ctx, value path, value password) {
-	CAMLparam3(ctx, path, password);
+CAMLprim value ml_mbedtls_pk_parse_keyfile(value ctx, value path, value password, value rng) {
+	CAMLparam4(ctx, path, password, rng);
 	const char* pwd = NULL;
 	if (password != Val_none) {
 		pwd = String_val(Field(password, 0));
 	}
+	#if MBEDTLS_VERSION_MAJOR >= 3
+	mbedtls_ctr_drbg_context *ctr_drbg = CtrDrbg_val(rng);
+	CAMLreturn(mbedtls_pk_parse_keyfile(PkContext_val(ctx), String_val(path), pwd, mbedtls_ctr_drbg_random, ctr_drbg));
+	#else
 	CAMLreturn(mbedtls_pk_parse_keyfile(PkContext_val(ctx), String_val(path), pwd));
+	#endif
 }
 
 CAMLprim value ml_mbedtls_pk_parse_public_key(value ctx, value key) {
