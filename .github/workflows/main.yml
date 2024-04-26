@@ -582,7 +582,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, macos-14]
+        os: [macos-14, macos-13]
     runs-on: ${{ matrix.os }}
     env:
       PLATFORM: mac${{ matrix.os == 'macos-14' && '-arm64' || '' }}
@@ -677,14 +677,14 @@ jobs:
           otool -L ./haxelib
 
       - name: Upload artifact (x64)
-        if: matrix.os == 'macos-latest'
+        if: runner.arch == 'X64'
         uses: actions/upload-artifact@v4
         with:
           name: macX64Binaries
           path: out
 
       - name: Upload artifact (arm)
-        if: matrix.os == 'macos-14'
+        if: runner.arch == 'ARM64'
         uses: actions/upload-artifact@v4
         with:
           name: macArmBinaries
@@ -919,7 +919,7 @@ jobs:
 
   mac-test:
     needs: mac-build-universal
-    runs-on: macos-latest
+    runs-on: macos-13
     env:
       PLATFORM: mac
       TEST: ${{matrix.target}}
