@@ -187,8 +187,7 @@ CAMLprim value ml_mbedtls_x509_crt_parse_path(value chain, value path) {
 value caml_string_of_asn1_buf(mbedtls_asn1_buf* dat) {
 	CAMLparam0();
 	CAMLlocal1(s);
-	s = caml_alloc_string(dat->len);
-	memcpy(String_val(s), dat->p, dat->len);
+	s = caml_alloc_initialized_string(dat->len, (const char *)dat->p);
 	CAMLreturn(s);
 }
 
@@ -449,8 +448,7 @@ static int bio_write_cb(void* ctx, const unsigned char* buf, size_t len) {
 	CAMLparam0();
 	CAMLlocal3(r, s, vctx);
 	vctx = *(value*)ctx;
-	s = caml_alloc_string(len);
-	memcpy(String_val(s), buf, len);
+	s = caml_alloc_initialized_string(len, (const char*)buf);
 	r = caml_callback2(Field(vctx, 1), Field(vctx, 0), s);
 	CAMLreturn(Int_val(r));
 }
