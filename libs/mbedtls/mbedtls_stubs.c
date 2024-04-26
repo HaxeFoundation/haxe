@@ -524,36 +524,23 @@ CAMLprim value hx_cert_load_defaults(value certificate) {
 	#endif
 
 	#ifdef __APPLE__
-	CFMutableDictionaryRef search;
-	CFArrayRef result;
-	SecKeychainRef keychain;
-	SecCertificateRef item;
-	CFDataRef dat;
-	// Load keychain
-	if (SecKeychainOpen("/System/Library/Keychains/SystemRootCertificates.keychain", &keychain) == errSecSuccess) {
-		// Search for certificates
-		search = CFDictionaryCreateMutable(NULL, 0, NULL, NULL);
-		CFDictionarySetValue(search, kSecClass, kSecClassCertificate);
-		CFDictionarySetValue(search, kSecMatchLimit, kSecMatchLimitAll);
-		CFDictionarySetValue(search, kSecReturnRef, kCFBooleanTrue);
-		CFDictionarySetValue(search, kSecMatchSearchList, CFArrayCreate(NULL, (const void **)&keychain, 1, NULL));
-		if (SecItemCopyMatching(search, (CFTypeRef *)&result) == errSecSuccess) {
-			CFIndex n = CFArrayGetCount(result);
-			for (CFIndex i = 0; i < n; i++) {
-				item = (SecCertificateRef)CFArrayGetValueAtIndex(result, i);
+	CFArrayRef certs;
+	if (SecTrustCopyAnchorCertificates(&certs) == errSecSuccess) {
+		CFIndex count = CFArrayGetCount(certs);
+		for(CFIndex i = 0; i < count; i++) {
+			SecCertificateRef item = (SecCertificateRef)CFArrayGetValueAtIndex(certs, i);
 
-				// Get certificate in DER format
-				dat = SecCertificateCopyData(item);
-				if (dat) {
-					r = mbedtls_x509_crt_parse_der(chain, (unsigned char *)CFDataGetBytePtr(dat), CFDataGetLength(dat));
-					CFRelease(dat);
-					if (r != 0) {
-						CAMLreturn(Val_int(r));
-					}
+			// Get certificate in DER format
+			CFDataRef data = SecCertificateCopyData(item);
+			if(data) {
+				r = mbedtls_x509_crt_parse_der(chain, (unsigned char *)CFDataGetBytePtr(data), CFDataGetLength(data));
+				CFRelease(data);
+				if (r != 0) {
+					CAMLreturn(Val_int(r));
 				}
 			}
 		}
-		CFRelease(keychain);
+		CFRelease(certs);
 	}
 	#endif
 
