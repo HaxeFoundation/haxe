@@ -971,7 +971,7 @@ class hxb_reader
 			| 5 -> VUser TVOLocalFunction
 			| 6 -> VGenerated
 			| 7 -> VInlined
-			| 8 -> VInlinedConstructorVariable
+			| 8 -> VInlinedConstructorVariable (self#read_list (fun () -> self#read_string))
 			| 9 -> VExtractorVariable
 			| 10 -> VAbstractThis
 			| _ -> assert false
@@ -1523,6 +1523,7 @@ class hxb_reader
 		end;
 		a.a_from <- self#read_list (fun () -> self#read_type_instance);
 		a.a_to <- self#read_list (fun () -> self#read_type_instance);
+		a.a_extern <- self#read_bool;
 		a.a_enum <- self#read_bool;
 
 	method read_abstract_fields (a : tabstract) =
@@ -1983,11 +1984,29 @@ class hxb_reader
 		| EOM ->
 			incr stats.modules_fully_restored;
 
+	method private get_backtrace () = Printexc.get_raw_backtrace ()
+	method private get_callstack () = Printexc.get_callstack 200
+
+	method private failwith chunk msg backtrace =
+		let msg =
+			(Printf.sprintf "Compiler failure while reading hxb chunk %s of %s: %s\n" (string_of_chunk_kind chunk) (s_type_path mpath) (msg))
+			^ "Please submit an issue at https://github.com/HaxeFoundation/haxe/issues/new\n"
+			^ "Attach the following information:"
+		in
+		let backtrace = Printexc.raw_backtrace_to_string backtrace in
+		let s = Printf.sprintf "%s\nHaxe: %s\n%s" msg s_version_full backtrace in
+		failwith s
+
 	method private read_chunk_data kind =
 		let path = String.concat "_" (ExtLib.String.nsplit (s_type_path mpath) ".") in
 		let id = ["hxb";"read";string_of_chunk_kind kind;path] in
 		let close = Timer.timer id in
-		self#read_chunk_data' kind;
+		try
+			self#read_chunk_data' kind
+		with Invalid_argument msg -> begin
+			close();
+			self#failwith kind msg (self#get_backtrace ())
+		end;
 		close()
 
 	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =

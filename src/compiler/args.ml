@@ -154,8 +154,7 @@ let parse_args com =
 			com.debug <- true;
 		),"","add debug information to the compiled code");
 		("Miscellaneous",["--version"],["-version"],Arg.Unit (fun() ->
-			com.info s_version_full null_pos;
-			actx.did_something <- true;
+			raise (Helper.HelpMessage s_version_full);
 		),"","print version and exit");
 		("Miscellaneous", ["-h";"--help"], ["-help"], Arg.Unit (fun () ->
 			raise (Arg.Help "")
@@ -163,31 +162,27 @@ let parse_args com =
 		("Miscellaneous",["--help-defines"],[], Arg.Unit (fun() ->
 			let all,max_length = Define.get_documentation_list com.user_defines in
 			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-			List.iter (fun msg -> com.print (msg ^ "\n")) all;
-			actx.did_something <- true
+			raise (Helper.HelpMessage (ExtLib.String.join "\n" all));
 		),"","print help for all compiler specific defines");
 		("Miscellaneous",["--help-user-defines"],[], Arg.Unit (fun() ->
 			actx.did_something <- true;
 			com.callbacks#add_after_init_macros (fun() ->
 				let all,max_length = Define.get_user_documentation_list com.user_defines in
 				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-				List.iter (fun msg -> com.print (msg ^ "\n")) all;
-				raise Abort
+				raise (Helper.HelpMessage (ExtLib.String.join "\n" all));
 			)
 		),"","print help for all user defines");
 		("Miscellaneous",["--help-metas"],[], Arg.Unit (fun() ->
 			let all,max_length = Meta.get_documentation_list com.user_metas in
 			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-			List.iter (fun msg -> com.print (msg ^ "\n")) all;
-			actx.did_something <- true
+			raise (Helper.HelpMessage (ExtLib.String.join "\n" all));
 		),"","print help for all compiler metadatas");
 		("Miscellaneous",["--help-user-metas"],[], Arg.Unit (fun() ->
 			actx.did_something <- true;
 			com.callbacks#add_after_init_macros (fun() ->
 				let all,max_length = Meta.get_user_documentation_list com.user_metas in
 				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-				List.iter (fun msg -> com.print (msg ^ "\n")) all;
-				raise Abort
+				raise (Helper.HelpMessage (ExtLib.String.join "\n" all));
 			)
 		),"","print help for all user metadatas");
 	] in
@@ -298,7 +293,7 @@ let parse_args com =
 		),"<directory>","set current working directory");
 		("Compilation",["--haxelib-global"],[], Arg.Unit (fun () -> ()),"","pass --global argument to haxelib");
 		("Compilation",["-w"],[], Arg.String (fun s ->
-			let p = { pfile = "-w " ^ s; pmin = 0; pmax = 0 } in
+			let p = fake_pos ("-w " ^ s) in
 			let l = Warning.parse_options s p in
 			com.warning_options <- l :: com.warning_options
 		),"<warning list>","enable or disable specific warnings");

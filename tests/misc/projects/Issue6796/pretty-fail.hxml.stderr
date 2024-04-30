@@ -3,5 +3,6 @@
  3 |         Sys.println(main["foo"]);
    |                     ^^^^
    | Array access is not allowed on () -> Unknown<0>
-   | For function argument 'v'
+
+      | For function argument 'v'
 

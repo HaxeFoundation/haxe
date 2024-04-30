@@ -95,6 +95,7 @@ type context = {
 	cfunctions : fundecl DynArray.t;
 	cconstants : (constval, (global * int array)) lookup;
 	optimize : bool;
+	w_null_compare : bool;
 	overrides : (string * path, bool) Hashtbl.t;
 	defined_funs : (int,unit) Hashtbl.t;
 	is_macro : bool;
@@ -951,34 +952,39 @@ let write_mem ctx bytes index t r =
 	| _ ->
 		die "" __LOC__
 
+let common_type_number ctx t1 t2 p =
+	if t1 == t2 then t1 else
+	match t1, t2 with
+	| HUI8, (HUI16 | HI32 | HI64 | HF32 | HF64) -> t2
+	| HUI16, (HI32 | HI64 | HF32 | HF64) -> t2
+	| (HI32 | HI64), HF32 -> t2 (* possible loss of precision *)
+	| (HI32 | HI64 | HF32), HF64 -> t2
+	| (HUI8|HUI16|HI32|HI64|HF32|HF64), (HUI8|HUI16|HI32|HI64|HF32|HF64) -> t1
+	| _ ->
+		die "" __LOC__
+
 let common_type ctx e1 e2 for_eq p =
 	let t1 = to_type ctx e1.etype in
 	let t2 = to_type ctx e2.etype in
-	let rec loop t1 t2 =
-		if t1 == t2 then t1 else
-		match t1, t2 with
-		| HUI8, (HUI16 | HI32 | HI64 | HF32 | HF64) -> t2
-		| HUI16, (HI32 | HI64 | HF32 | HF64) -> t2
-		| (HI32 | HI64), HF32 -> t2 (* possible loss of precision *)
-		| (HI32 | HI64 | HF32), HF64 -> t2
-		| (HUI8|HUI16|HI32|HI64|HF32|HF64), (HUI8|HUI16|HI32|HI64|HF32|HF64) -> t1
-		| (HUI8|HUI16|HI32|HI64|HF32|HF64), (HNull t2) -> if for_eq then HNull (loop t1 t2) else loop t1 t2
-		| (HNull t1), (HUI8|HUI16|HI32|HI64|HF32|HF64) -> if for_eq then HNull (loop t1 t2) else loop t1 t2
-		| (HNull t1), (HNull t2) -> if for_eq then HNull (loop t1 t2) else loop t1 t2
-		| HDyn, (HUI8|HUI16|HI32|HI64|HF32|HF64) -> HF64
-		| (HUI8|HUI16|HI32|HI64|HF32|HF64), HDyn -> HF64
-		| HDyn, _ -> HDyn
-		| _, HDyn -> HDyn
-		| _ when for_eq && safe_cast t1 t2 -> t2
-		| _ when for_eq && safe_cast t2 t1 -> t1
-		| HBool, HNull HBool when for_eq -> t2
-		| HNull HBool, HBool when for_eq -> t1
-		| HObj _, HVirtual _ | HVirtual _, HObj _ | HVirtual _ , HVirtual _ -> HDyn
-		| HFun _, HFun _ -> HDyn
-		| _ ->
-			abort ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) p
-	in
-	loop t1 t2
+	if t1 == t2 then t1 else
+	match t1, t2 with
+	| (HUI8|HUI16|HI32|HI64|HF32|HF64), (HUI8|HUI16|HI32|HI64|HF32|HF64) -> common_type_number ctx t1 t2 p
+	| (HUI8|HUI16|HI32|HI64|HF32|HF64 as t1), (HNull t2)
+	| (HNull t1), (HUI8|HUI16|HI32|HI64|HF32|HF64 as t2)
+	| (HNull t1), (HNull t2)
+		-> if for_eq then HNull (common_type_number ctx t1 t2 p) else common_type_number ctx t1 t2 p
+	| HDyn, (HUI8|HUI16|HI32|HI64|HF32|HF64) -> HF64
+	| (HUI8|HUI16|HI32|HI64|HF32|HF64), HDyn -> HF64
+	| HDyn, _ -> HDyn
+	| _, HDyn -> HDyn
+	| _ when for_eq && safe_cast t1 t2 -> t2
+	| _ when for_eq && safe_cast t2 t1 -> t1
+	| HBool, HNull HBool when for_eq -> t2
+	| HNull HBool, HBool when for_eq -> t1
+	| HObj _, HVirtual _ | HVirtual _, HObj _ | HVirtual _ , HVirtual _ -> HDyn
+	| HFun _, HFun _ -> HDyn
+	| _ ->
+		abort ("Can't find common type " ^ tstr t1 ^ " and " ^ tstr t2) p
 
 let captured_index ctx v =
 	if not (has_var_flag v VCaptured) then None else try Some (PMap.find v.v_id ctx.m.mcaptured.c_map) with Not_found -> None
@@ -991,14 +997,17 @@ let real_name v =
 	in
 	match loop v.v_meta with
 	| "_gthis" -> "this"
-	| name -> name
+	| name -> match v.v_kind with
+		| VInlinedConstructorVariable sl -> String.concat "." sl
+		| _ -> name
 
-let is_gen_local ctx v = match v.v_kind with
+let not_debug_var ctx v = match v.v_kind with
 	| VUser _ -> false
+	| VInlinedConstructorVariable _ -> false
 	| _ -> true
 
 let add_assign ctx v =
-	if is_gen_local ctx v then () else
+	if not_debug_var ctx v then () else
 	let name = real_name v in
 	ctx.m.massign <- (alloc_string ctx name, current_pos ctx - 1) :: ctx.m.massign
 
@@ -1476,24 +1485,99 @@ and jump_expr ctx e jcond =
 			jump ctx (fun i -> OJAlways i)
 		else
 			(fun i -> ())
-	| TBinop (OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte as jop, e1, e2) ->
-		let t = common_type ctx e1 e2 (match jop with OpEq | OpNotEq -> true | _ -> false) e.epos in
-		let r1 = eval_to ctx e1 t in
-		hold ctx r1;
-		let r2 = eval_to ctx e2 t in
-		free ctx r1;
-		let unsigned = unsigned_op e1 e2 in
-		jump ctx (fun i ->
-			let lt a b = if unsigned then OJULt (a,b,i) else if not jcond && is_float t then OJNotGte (a,b,i) else OJSLt (a,b,i) in
-			let gte a b = if unsigned then OJUGte (a,b,i) else if not jcond && is_float t then OJNotLt (a,b,i) else OJSGte (a,b,i) in
+	| TBinop (OpEq | OpNotEq as jop, e1, e2) ->
+		let jumpeq r1 r2 = jump ctx (fun i ->
 			match jop with
 			| OpEq -> if jcond then OJEq (r1,r2,i) else OJNotEq (r1,r2,i)
 			| OpNotEq -> if jcond then OJNotEq (r1,r2,i) else OJEq (r1,r2,i)
-			| OpGt -> if jcond then lt r2 r1 else gte r2 r1
-			| OpGte -> if jcond then gte r1 r2 else lt r1 r2
-			| OpLt -> if jcond then lt r1 r2 else gte r1 r2
-			| OpLte -> if jcond then gte r2 r1 else lt r2 r1
 			| _ -> die "" __LOC__
+		) in
+		let nullisfalse = match jop with
+			| OpEq -> jcond
+			| OpNotEq -> not jcond
+			| _ -> die "" __LOC__
+		in
+		let t1 = to_type ctx e1.etype in
+		let t2 = to_type ctx e2.etype in
+		(match t1, t2 with
+		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
+		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
+		| HNull (HBool as ti1), (HBool as ti2)
+		| (HBool as ti1), HNull (HBool as ti2)
+			->
+			let t1,t2,e1,e2 = if is_nullt t2 then t2,t1,e2,e1 else t1,t2,e1,e2 in
+			let r1 = eval_expr ctx e1 in
+			hold ctx r1;
+			let jnull = if is_nullt t1 then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> ()) in
+			let t = common_type_number ctx ti1 ti2 e.epos in (* HBool has t==ti1==ti2 *)
+			let a = cast_to ctx r1 t e1.epos in
+			hold ctx a;
+			let b = eval_to ctx e2 t in
+			free ctx a;
+			free ctx r1;
+			let j = jumpeq a b in
+			if nullisfalse then (jnull(););
+			(fun() -> if not nullisfalse then (jnull();); j());
+		| _ ->
+			let t = common_type ctx e1 e2 true e.epos in
+			let a = eval_to ctx e1 t in
+			hold ctx a;
+			let b = eval_to ctx e2 t in
+			free ctx a;
+			let j = jumpeq a b in
+			(fun() -> j());
+		)
+	| TBinop (OpGt | OpGte | OpLt | OpLte as jop, e1, e2) ->
+		let t1 = to_type ctx e1.etype in
+		let t2 = to_type ctx e2.etype in
+		let unsigned = unsigned_op e1 e2 in
+		let jumpcmp t r1 r2 = jump ctx (fun i ->
+			let lt a b = if unsigned then OJULt (a,b,i) else if not jcond && is_float t then OJNotGte (a,b,i) else OJSLt (a,b,i) in
+			let gte a b = if unsigned then OJUGte (a,b,i) else if not jcond && is_float t then OJNotLt (a,b,i) else OJSGte (a,b,i) in
+			match jop with
+				| OpGt -> if jcond then lt r2 r1 else gte r2 r1
+				| OpGte -> if jcond then gte r1 r2 else lt r1 r2
+				| OpLt -> if jcond then lt r1 r2 else gte r1 r2
+				| OpLte -> if jcond then gte r2 r1 else lt r2 r1
+				| _ -> die "" __LOC__
+		) in
+		(match t1, t2 with
+		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
+		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
+		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
+		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
+			->
+			if ctx.w_null_compare && (is_nullt t1 || is_nullt t2) then
+				ctx.com.warning WGenerator [] (Printf.sprintf "Null compare: %s %s %s" (tstr t1) (s_binop jop) (tstr t2)) e.epos;
+			let r1 = eval_expr ctx e1 in
+			hold ctx r1;
+			let jnull1 = if is_nullt t1 then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> ()) in
+			let r2 = eval_expr ctx e2 in
+			hold ctx r2;
+			let jnull2 = if is_nullt t2 then jump ctx (fun i -> OJNull (r2, i)) else (fun i -> ()) in
+			let t = common_type_number ctx ti1 ti2 e.epos in
+			let a = cast_to ctx r1 t e1.epos in
+			hold ctx a;
+			let b = cast_to ctx r2 t e2.epos in
+			free ctx a;
+			free ctx r1;
+			free ctx r2;
+			let j = jumpcmp t a b in
+			if jcond then (jnull1(); jnull2(););
+			(fun() -> if not jcond then (jnull1(); jnull2();); j());
+		| HObj { pname = "String" }, HObj { pname = "String" }
+		| HDyn, _
+		| _, HDyn
+			->
+			let t = common_type ctx e1 e2 false e.epos in
+			let a = eval_to ctx e1 t in
+			hold ctx a;
+			let b = eval_to ctx e2 t in
+			free ctx a;
+			let j = jumpcmp t a b in
+			(fun() -> j());
+		| _ ->
+			abort ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) e.epos
 		)
 	| TBinop (OpBoolAnd, e1, e2) ->
 		let j = jump_expr ctx e1 false in
@@ -2338,23 +2422,9 @@ and eval_expr ctx e =
 			jexit());
 		out
 	| TBinop (bop, e1, e2) ->
-		let is_unsigned() = unsigned_op e1 e2 in
-		let boolop r f =
-			let j = jump ctx f in
-			op ctx (OBool (r,false));
-			op ctx (OJAlways 1);
-			j();
-			op ctx (OBool (r, true));
-		in
-		let binop r a b =
+		let arithbinop r a b =
 			let rec loop bop =
 				match bop with
-				| OpLte -> boolop r (fun d -> if is_unsigned() then OJUGte (b,a,d) else OJSLte (a,b,d))
-				| OpGt -> boolop r (fun d -> if is_unsigned() then OJULt (b,a,d) else OJSGt (a,b,d))
-				| OpGte -> boolop r (fun d -> if is_unsigned() then OJUGte (a,b,d) else OJSGte (a,b,d))
-				| OpLt -> boolop r (fun d -> if is_unsigned() then OJULt (a,b,d) else OJSLt (a,b,d))
-				| OpEq -> boolop r (fun d -> OJEq (a,b,d))
-				| OpNotEq -> boolop r (fun d -> OJNotEq (a,b,d))
 				| OpAdd ->
 					(match rtype ctx r with
 					| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 ->
@@ -2401,23 +2471,13 @@ and eval_expr ctx e =
 			loop bop
 		in
 		(match bop with
-		| OpLte | OpGt | OpGte | OpLt ->
+		| OpLte | OpGt | OpGte | OpLt | OpEq | OpNotEq ->
 			let r = alloc_tmp ctx HBool in
-			let t = common_type ctx e1 e2 false e.epos in
-			let a = eval_to ctx e1 t in
-			hold ctx a;
-			let b = eval_to ctx e2 t in
-			free ctx a;
-			binop r a b;
-			r
-		| OpEq | OpNotEq ->
-			let r = alloc_tmp ctx HBool in
-			let t = common_type ctx e1 e2 true e.epos in
-			let a = eval_to ctx e1 t in
-			hold ctx a;
-			let b = eval_to ctx e2 t in
-			free ctx a;
-			binop r a b;
+			let j = jump_expr ctx e false in
+			op ctx (OBool (r, true));
+			op ctx (OJAlways 1);
+			j();
+			op ctx (OBool (r, false));
 			r
 		| OpAdd | OpSub | OpMult | OpDiv | OpMod | OpShl | OpShr | OpUShr | OpAnd | OpOr | OpXor ->
 			let t = (match to_type ctx e.etype with HNull t -> t | t -> t) in
@@ -2434,7 +2494,7 @@ and eval_expr ctx e =
 			hold ctx a;
 			let b = eval e2 in
 			free ctx a;
-			binop r a b;
+			arithbinop r a b;
 			r
 		| OpAssign ->
 			let value() = eval_to ctx e2 (real_type ctx e1) in
@@ -2552,7 +2612,7 @@ and eval_expr ctx e =
 					hold ctx r;
 					let b = if bop = OpAdd && is_string (rtype ctx r) then to_string ctx (eval_expr ctx e2) e2.epos else eval_to ctx e2 (rtype ctx r) in
 					free ctx r;
-					binop r r b;
+					arithbinop r r b;
 					r))
 		| OpInterval | OpArrow | OpIn | OpNullCoal ->
 			die "" __LOC__)
@@ -4056,6 +4116,7 @@ let create_context com is_macro dump =
 		com = com;
 		is_macro = is_macro;
 		optimize = not (Common.raw_defined com "hl_no_opt");
+		w_null_compare = Common.raw_defined com "hl_w_null_compare";
 		dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None;
 		m = method_context 0 HVoid null_capture false;
 		cints = new_lookup();

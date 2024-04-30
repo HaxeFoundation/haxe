@@ -244,7 +244,7 @@ let load_display_file_standalone (ctx : Typecore.typer) file =
 let load_display_content_standalone (ctx : Typecore.typer) input =
 	let com = ctx.com in
 	let file = file_input_marker in
-	let p = {pfile = file; pmin = 0; pmax = 0} in
+	let p = file_pos file in
 	let parsed = TypeloadParse.parse_file_from_string com file p input in
 	let pack,decls = TypeloadParse.handle_parser_result com p parsed in
 	ignore(TypeloadModule.type_module ctx.com ctx.g (pack,"?DISPLAY") file ~dont_check_path:true decls p)

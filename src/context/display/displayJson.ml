@@ -116,7 +116,9 @@ class hxb_reader_api_com
 			m_path = path;
 			m_types = [];
 			m_statics = None;
-			m_extra = mc.mc_extra
+			(* Creating a new m_extra because if we keep the same reference, display requests *)
+			(* can alter it with bad data (for example adding dependencies that are not cached) *)
+			m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps }
 		}
 
 	method add_module (m : module_def) =

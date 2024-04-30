@@ -1550,7 +1550,7 @@ let check_multireturn ctx c =
 
 let check_field_name c f =
     match f.cf_name with
-    | "prototype" | "__proto__" | "constructor" ->
+    | "prototype" | "__proto__" | "constructor" | "__mt__" ->
         raise_typing_error ("The field name '" ^ f.cf_name ^ "'  is not allowed in Lua") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
     | _ -> ()
 
@@ -1660,8 +1660,10 @@ let generate_class ctx c =
                     | TBlock el ->
                         let bend = open_block ctx in
                         newline ctx;
-                        if not (has_prototype ctx c) then println ctx "local self = _hx_new()" else
-                            println ctx "local self = _hx_new(%s.prototype)" p;
+                        if not (has_prototype ctx c) then
+                            println ctx "local self = _hx_new()"
+                        else
+                            println ctx "local self = _hx_nsh(%s.__mt__)" p;
                         println ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map lua_arg_name f.tf_args)));
                         if p = "String" then println ctx "self = string";
                         spr ctx "return self";
@@ -1734,6 +1736,9 @@ let generate_class ctx c =
              if has_property_reflection && Codegen.has_properties csup then
                  println ctx "setmetatable(%s.prototype.__properties__,{__index=%s.prototype.__properties__})" p psup;
         );
+
+        (* Create a metatable specific for this class *)
+        println ctx "%s.__mt__ = _hx_mmt(%s.prototype)" p p;
     end
 
 let generate_enum ctx e =
@@ -2022,6 +2027,9 @@ let generate com =
 
     (* base lua metatables for prototypes, inheritance, etc. *)
     print_file (Common.find_file com "lua/_lua/_hx_anon.lua");
+
+    (* Helpers for creating metatables from prototypes *)
+    print_file (Common.find_file com "lua/_lua/_hx_objects.lua");
 
     (* base runtime class stubs for haxe value types (Int, Float, etc) *)
     print_file (Common.find_file com "lua/_lua/_hx_classes.lua");

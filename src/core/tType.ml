@@ -26,10 +26,9 @@ and method_kind =
 	| MethMacro
 
 type module_check_policy =
-	| NoCheckFileTimeModification
+	| NoFileSystemCheck
+	| CheckFileModificationTime
 	| CheckFileContentModification
-	| NoCheckDependencies
-	| NoCheckShadowing
 
 type module_tainting_reason =
 	| CheckDisplayFile
@@ -144,7 +143,7 @@ and tvar_kind =
 	| VUser of tvar_origin
 	| VGenerated
 	| VInlined
-	| VInlinedConstructorVariable
+	| VInlinedConstructorVariable of string list
 	| VExtractorVariable
 	| VAbstractThis
 
@@ -378,6 +377,7 @@ and tabstract = {
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
 	mutable a_call : tclass_field option;
+	mutable a_extern : bool;
 	mutable a_enum : bool;
 }
 
@@ -454,6 +454,7 @@ exception Type_exception of t
 
 type basic_types = {
 	mutable tvoid : t;
+	mutable tany : t;
 	mutable tint : t;
 	mutable tfloat : t;
 	mutable tbool : t;

@@ -29,7 +29,7 @@ import haxe.macro.Context;
 	The actual macro implemented for Std.format
 **/
 class Format {
-	#if (macro || display)
+	#if macro
 	public static function format(estr:Expr) {
 		var str = switch (estr.expr) {
 			case EConst(c): switch (c) {

@@ -1,0 +1,13 @@
+Main.hx:3: Foo
+Main.hx:4: [I2,I1,Foo1]
+Main.hx:5: [I2,I1,auto Foo1 (1),auto Foo1 (2),Foo2]
+Main.hx:6: [I2,I1,auto Foo1 (1),auto Foo1 (2),Foo3 (1),Foo3 (2)]
+Main.hx:7: [I2,I1,auto Foo1 (1),auto Foo1 (2),Foo4]
+Main.hx:9: Bar
+Main.hx:10: [I1,I2]
+Main.hx:11: [I1,I2]
+Main.hx:12: [I1,I2]
+Main.hx:14: Baz
+Main.hx:15: [I2,I1,I3]
+Main.hx:16: [I2,I1,I3]
+Main.hx:17: [I2,I1,I3]
