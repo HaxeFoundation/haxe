@@ -417,7 +417,7 @@ class hxb_reader_api_server
 		| GoodModule m ->
 			m
 		| BinaryModule mc ->
-			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats in
+			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (Some cc#get_string_pool_arr) in
 			let f_next chunks until =
 				let t_hxb = Timer.timer ["server";"module cache";"hxb read"] in
 				let r = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until in
@@ -567,7 +567,7 @@ and type_module sctx com delay mpath p =
 			   checking dependencies. This means that the actual decoding never has any reason to fail. *)
 			begin match check_module sctx mpath mc.mc_extra p with
 				| None ->
-					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats in
+					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats (Some cc#get_string_pool_arr) in
 					let api = match com.hxb_reader_api with
 						| Some api ->
 							api

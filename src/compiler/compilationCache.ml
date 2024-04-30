@@ -35,6 +35,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
+	val string_pool  = StringPool.create ()
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
@@ -74,7 +75,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		| MImport ->
 			Hashtbl.add modules m.m_path m
 		| _ ->
-			let writer = HxbWriter.create config warn anon_identification in
+			let writer = HxbWriter.create config (Some string_pool) warn anon_identification in
 			HxbWriter.write_module writer m;
 			let chunks = HxbWriter.get_chunks writer in
 			Hashtbl.replace binary_cache path {
@@ -98,6 +99,8 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method get_modules = modules
 
 	method get_hxb = binary_cache
+	method get_string_pool = string_pool
+	method get_string_pool_arr = string_pool.items.arr
 	method get_hxb_module path = Hashtbl.find binary_cache path
 
 	(* TODO handle hxb cache there too *)

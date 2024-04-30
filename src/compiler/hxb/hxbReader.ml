@@ -148,12 +148,14 @@ let dump_stats name stats =
 class hxb_reader
 	(mpath : path)
 	(stats : hxb_reader_stats)
+	(string_pool : string array option)
 = object(self)
 	val mutable api = Obj.magic ""
 	val mutable current_module = null_module
 
 	val mutable ch = BytesWithPosition.create (Bytes.create 0)
-	val mutable string_pool = Array.make 0 ""
+	val mutable has_string_pool = (string_pool <> None)
+	val mutable string_pool = (match string_pool with None -> Array.make 0 "" | Some pool -> pool)
 	val mutable doc_pool = Array.make 0 ""
 
 	val mutable classes = Array.make 0 null_class
@@ -179,6 +181,12 @@ class hxb_reader
 		with Not_found ->
 			dump_backtrace();
 			error (Printf.sprintf "[HXB] [%s] Cannot resolve type %s" (s_type_path current_module.m_path) (s_type_path ((pack @ [mname]),tname)))
+
+	method get_string_pool =
+		if has_string_pool then
+			Some (string_pool)
+		else
+			None
 
 	(* Primitives *)
 
@@ -1924,9 +1932,11 @@ class hxb_reader
 		match kind with
 		| STR ->
 			string_pool <- self#read_string_pool;
+			has_string_pool <- true;
 		| DOC ->
 			doc_pool <- self#read_string_pool;
 		| MDF ->
+			assert(has_string_pool);
 			current_module <- self#read_mdf;
 		| MTF ->
 			current_module.m_types <- self#read_mtf;
