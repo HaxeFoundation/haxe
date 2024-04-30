@@ -599,7 +599,8 @@ module HighLevel = struct
 				loop acc l
 			| "--cwd" :: dir :: l | "-C" :: dir :: l ->
 				(* we need to change it immediately since it will affect hxml loading *)
-				(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
+				(* Exceptions are ignored there to let arg parsing do the error handling in expected order *)
+				(try Unix.chdir dir with _ -> ());
 				(* Push the --cwd arg so the arg processor know we did something. *)
 				loop (dir :: "--cwd" :: acc) l
 			| "--connect" :: hp :: l ->

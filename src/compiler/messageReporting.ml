@@ -346,7 +346,7 @@ let format_messages com messages =
 	let absolute_positions = Define.defined com.defines Define.MessageAbsolutePositions in
 	let ectx = create_error_context absolute_positions in
 	ectx.max_lines <- get_max_line ectx.max_lines messages;
-	let message_formatter = get_formatter com Define.MessageReporting "classic" in
+	let message_formatter = get_formatter com Define.MessageReporting "pretty" in
 	let lines = List.rev (
 		List.fold_left (fun lines cm -> match (message_formatter ectx cm) with
 			| None -> lines
@@ -372,7 +372,7 @@ let display_messages ctx on_message = begin
 			compiler_message_string
 	in
 
-	let message_formatter = get_formatter ctx.com Define.MessageReporting "classic" in
+	let message_formatter = get_formatter ctx.com Define.MessageReporting "pretty" in
 	let log_formatter = get_formatter ctx.com Define.MessageLogFormat "indent" in
 
 	let log_messages = ref (Define.defined ctx.com.defines Define.MessageLogFile) in

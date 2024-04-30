@@ -786,7 +786,7 @@
 	{
 		"name": "MessageReporting",
 		"define": "message.reporting",
-		"doc": "Select message reporting mode for compiler output. (default: classic)",
+		"doc": "Select message reporting mode for compiler output. (default: pretty)",
 		"params": ["mode: classic | pretty | indent"]
 	},
 	{
