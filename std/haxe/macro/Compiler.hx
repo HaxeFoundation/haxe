@@ -29,9 +29,6 @@ import haxe.hxb.WriterConfig;
 /**
 	All these methods can be called for compiler configuration macros.
 **/
-#if hl
-@:hlNative("macro")
-#end
 class Compiler {
 	/**
 		A conditional compilation flag can be set on the command line using

@@ -469,6 +469,7 @@ let convert_define k =
 	String.concat "_" (ExtString.String.nsplit k "-")
 
 let is_next com = defined com HaxeNext
+let fail_fast com = defined com FailFast
 
 let external_defined ctx k =
 	Define.raw_defined ctx.defines (convert_define k)
@@ -826,6 +827,7 @@ let create compilation_step cs version args display_mode =
 		pass_debug_messages = DynArray.create();
 		basic = {
 			tvoid = mk_mono();
+			tany = mk_mono();
 			tint = mk_mono();
 			tfloat = mk_mono();
 			tbool = mk_mono();
@@ -873,6 +875,7 @@ let clone com is_macro_context =
 		cache = None;
 		basic = { t with
 			tvoid = mk_mono();
+			tany = mk_mono();
 			tint = mk_mono();
 			tfloat = mk_mono();
 			tbool = mk_mono();

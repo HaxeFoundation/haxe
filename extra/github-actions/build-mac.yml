@@ -56,14 +56,14 @@
     otool -L ./haxelib
 
 - name: Upload artifact (x64)
-  if: matrix.os == 'macos-latest'
+  if: runner.arch == 'X64'
   uses: actions/upload-artifact@v4
   with:
     name: macX64Binaries
     path: out
 
 - name: Upload artifact (arm)
-  if: matrix.os == 'macos-14'
+  if: runner.arch == 'ARM64'
   uses: actions/upload-artifact@v4
   with:
     name: macArmBinaries

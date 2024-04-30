@@ -613,4 +613,17 @@ class TestMisc extends Test {
 		var values = AbstractEnumTools.getValues(MyEnumAbstract);
 		eq(values.join(","), "1,2,3");
 	}
+
+	function testIntLiterals() {
+		eq(15, 0xF);
+		eq(255, 0xFF);
+		eq(305419896, 0x12345678);
+		eq(162254319, 0x09ABCDEF);
+
+		eq(0, 0b0);
+		eq(1, 0b1);
+		eq(2, 0b10);
+		eq(8, 0b1000);
+		eq(0xFFFFFFFF, 0b11111111111111111111111111111111);
+	}
 }

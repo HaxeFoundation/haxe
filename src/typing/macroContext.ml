@@ -41,15 +41,20 @@ module HxbWriterConfigWriterEval = HxbWriterConfig.WriterConfigWriter(EvalDataAp
 let macro_interp_cache = ref None
 
 let safe_decode com v expected t p f =
-	try
-		f ()
-	with MacroApi.Invalid_expr ->
+	let raise_decode_error s =
 		let path = [dump_path com;"decoding_error"] in
 		let ch = Path.create_file false ".txt" [] path  in
 		let errors = Interp.handle_decoding_error (output_string ch) v t in
 		List.iter (fun (s,i) -> Printf.fprintf ch "\nline %i: %s" i s) (List.rev errors);
 		close_out ch;
-		raise_typing_error (Printf.sprintf "Expected %s but got %s (see %s.txt for details)" expected (Interp.value_string v) (String.concat "/" path)) p
+		raise_typing_error (Printf.sprintf "%s (see %s.txt for details)" s (String.concat "/" path)) p
+	in
+
+	try f () with
+		| EvalContext.RunTimeException (VString emsg,_,_) ->
+			raise_decode_error (Printf.sprintf "Eval runtime exception: %s" emsg.sstring)
+		| MacroApi.Invalid_expr ->
+			raise_decode_error (Printf.sprintf "Expected %s but got %s" expected (Interp.value_string v))
 
 
 let macro_timer com l =
@@ -257,7 +262,7 @@ let make_macro_com_api com mcom p =
 				com.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: com.global_metadata;
 			) meta;
 		);
-		add_module_check_policy = (fun sl il b i ->
+		add_module_check_policy = (fun sl il b ->
 			Interp.exc_string "unsupported"
 		);
 		register_define = (fun s data -> Define.register_user_define com.user_defines s data);
@@ -526,20 +531,15 @@ let make_macro_api ctx mctx p =
 				ctx.com.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.com.global_metadata;
 			) meta;
 		);
-		MacroApi.add_module_check_policy = (fun sl il b i ->
+		MacroApi.add_module_check_policy = (fun sl il b ->
 			let add ctx =
 				ctx.g.module_check_policies <- (List.fold_left (fun acc s -> (ExtString.String.nsplit s ".",List.map Obj.magic il,b) :: acc) ctx.g.module_check_policies sl);
 				ctx.com.module_lut#iter (fun _ m -> m.m_extra.m_check_policy <- TypeloadModule.get_policy ctx.g m.m_path);
 			in
-			let add_macro ctx = match ctx.g.macros with
+			add ctx;
+			match ctx.g.macros with
 				| None -> ()
-				| Some(_,mctx) -> add mctx;
-			in
-			let open CompilationCache in
-			match Obj.magic i with
-			| NormalContext -> add ctx
-			| MacroContext -> add_macro ctx
-			| NormalAndMacroContext -> add ctx; add_macro ctx;
+				| Some(_,mctx) -> add mctx
 		);
 		MacroApi.with_imports = (fun imports usings f ->
 			let restore_resolution = ctx.m.import_resolution#save in
@@ -632,12 +632,22 @@ and flush_macro_context mint mctx =
 		| _ ->
 			()
 	in
+	(* Apply native paths for externs only *)
+	let maybe_apply_native_paths t =
+		let apply_native = match t with
+			| TClassDecl { cl_kind = KAbstractImpl a } -> a.a_extern && a.a_enum
+			| TEnumDecl e -> e.e_extern
+			| _ -> false
+		in
+		if apply_native then Naming.apply_native_paths t
+	in
 	let type_filters = [
 		FiltersCommon.remove_generic_base;
 		Exceptions.patch_constructors mctx;
 		(fun mt -> AddFieldInits.add_field_inits mctx.c.curclass.cl_path (RenameVars.init mctx.com) mctx.com mt);
 		Filters.update_cache_dependencies ~close_monomorphs:false mctx.com;
 		minimal_restore;
+		maybe_apply_native_paths
 	] in
 	let ready = fun t ->
 		FiltersCommon.apply_filters_once mctx expr_filters t;
@@ -697,7 +707,10 @@ let create_macro_context com =
 			[cp#clone]
 	) com.class_paths#as_list;
 	(* Eval _std must be in front so we don't look into hxnodejs or something. *)
-	com2.class_paths#add (Option.get !eval_std);
+	(* This can run before `TyperEntry.create`, so in order to display nice error when std is not found, this needs to be checked here too *)
+	(match !eval_std with
+	| Some std -> com2.class_paths#add std
+	| None -> Error.raise_std_not_found ());
 	let defines = adapt_defines_to_macro_context com2.defines; in
 	com2.defines.values <- defines.values;
 	com2.defines.defines_signature <- None;
@@ -962,7 +975,9 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 								| None -> die "" __LOC__
 								| Some (_,_,fields) -> fields)
 							else
-								List.map Interp.decode_field (Interp.decode_array v)
+								let ct = make_ptp_th (mk_type_path ~sub:"Field" (["haxe";"macro"], "Expr")) null_pos in
+								let t = Typeload.load_complex_type mctx false LoadNormal ct in
+								List.map (fun f -> safe_decode ctx.com f "Field" t p (fun () -> Interp.decode_field f)) (Interp.decode_array v)
 						in
 						MSuccess (EVars [mk_evar ~t:(CTAnonymous fields,p) ("fields",null_pos)],p)
 					)
@@ -995,7 +1010,7 @@ let call_macro mctx args margs call p =
 	call (List.map (fun e -> try Interp.make_const e with Exit -> raise_typing_error "Argument should be a constant" e.epos) el)
 
 let resolve_init_macro com e =
-	let p = { pfile = "--macro " ^ e; pmin = -1; pmax = -1 } in
+	let p = fake_pos ("--macro " ^ e) in
 	let e = try
 		if String.get e (String.length e - 1) = ';' then raise_typing_error "Unexpected ;" p;
 		begin match ParserEntry.parse_expr_string com.defines e p raise_typing_error false with

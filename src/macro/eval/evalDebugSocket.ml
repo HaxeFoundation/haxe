@@ -473,7 +473,7 @@ module ValueCompletion = struct
 	exception JsonException of Json.t
 
 	let get_completion ctx text column env =
-		let p = { pmin = 0; pmax = 0; pfile = "" } in
+		let p = file_pos "" in
 		let save =
 			let old = !Parser.display_mode,DisplayPosition.display_position#get in
 			(fun () ->

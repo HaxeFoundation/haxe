@@ -308,7 +308,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, macos-14]
+        os: [macos-14, macos-13]
     runs-on: ${{ matrix.os }}
     env:
       PLATFORM: mac
@@ -393,7 +393,7 @@ jobs:
 
   mac-test:
     needs: mac-build-universal
-    runs-on: macos-latest
+    runs-on: macos-13
     env:
       PLATFORM: mac
       TEST: ${{matrix.target}}

@@ -310,8 +310,3 @@ class cache = object(self)
 end
 
 type t = cache
-
-type context_options =
-	| NormalContext
-	| MacroContext
-	| NormalAndMacroContext

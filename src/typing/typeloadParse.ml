@@ -39,7 +39,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	with
 		| Sedlexing.MalFormed ->
 			t();
-			raise_typing_error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
+			raise_typing_error "Malformed file. Source files must be encoded with UTF-8." (file_pos file)
 		| e ->
 			t();
 			raise e

@@ -291,7 +291,7 @@ let check_module sctx com m_path m_extra p =
 				end
 		in
 		let has_policy policy = List.mem policy m_extra.m_check_policy || match policy with
-			| NoCheckShadowing | NoCheckFileTimeModification when !ServerConfig.do_not_check_modules && !Parser.display_mode <> DMNone -> true
+			| NoFileSystemCheck when !ServerConfig.do_not_check_modules && !Parser.display_mode <> DMNone -> true
 			| _ -> false
 		in
 		let check_file () =
@@ -325,9 +325,9 @@ let check_module sctx com m_path m_extra p =
 		in
 		let check () =
 			try
-				if not (has_policy NoCheckShadowing) then check_module_path();
-				if not (has_policy NoCheckFileTimeModification) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
-				if not (has_policy NoCheckDependencies) then check_dependencies();
+				check_module_path();
+				if not (has_policy NoFileSystemCheck) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
+				check_dependencies();
 				None
 			with
 			| Dirty reason ->
