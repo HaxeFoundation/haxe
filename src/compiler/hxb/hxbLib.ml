@@ -19,7 +19,7 @@ class hxb_library file_path = object(self)
 			let close = Timer.timer ["hxblib";"read"] in
 			List.iter (function
 				| ({ Zip.filename = "StringPool.hxb" | "StringPool.macro.hxb" as filename} as entry) ->
-					let reader = new HxbReader.hxb_reader (["hxb";"internal"],"StringPool") (HxbReader.create_hxb_reader_stats()) None in
+					let reader = new HxbReader.hxb_reader (["hxb";"internal"],"StringPool") (HxbReader.create_hxb_reader_stats()) None true (* TODO: -D hxb-times *) in
 					let zip = Lazy.force zip in
 					let data = Bytes.unsafe_of_string (Zip.read_entry zip entry) in
 					ignore(reader#read (new HxbReaderApi.hxb_reader_api_null) data STR);
