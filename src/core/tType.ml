@@ -418,6 +418,8 @@ and module_def_extra = {
 	mutable m_checked : int;
 	mutable m_processed : int;
 	mutable m_deps : (int,module_dep) PMap.t;
+	mutable m_manual_deps : (int,module_dep) PMap.t;
+	mutable m_sig_deps : (int,module_dep) PMap.t option;
 	mutable m_kind : module_kind;
 	mutable m_cache_bound_objects : cache_bound_object DynArray.t;
 	mutable m_features : (string,bool) Hashtbl.t;

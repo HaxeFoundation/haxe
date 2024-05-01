@@ -469,7 +469,7 @@ let make_macro_api ctx mctx p =
 				let mdep = Option.map_default (fun s -> TypeloadModule.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
 				let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) m (Path.UniqueKey.lazy_path mdep.m_extra.m_file) [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
-				add_dependency mnew mdep;
+				add_dependency ~manual_dependency:true mnew mdep;
 				ctx.com.module_nonexistent_lut#clear;
 			in
 			add false ctx;
@@ -499,7 +499,7 @@ let make_macro_api ctx mctx p =
 			with Not_found ->
 				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (Path.UniqueKey.lazy_path ctx.m.curmod.m_extra.m_file) types pos in
 				mnew.m_extra.m_kind <- MFake;
-				add_dependency mnew ctx.m.curmod;
+				add_dependency ~manual_dependency:true mnew ctx.m.curmod;
 				ctx.com.module_nonexistent_lut#clear;
 			end
 		);
@@ -510,7 +510,7 @@ let make_macro_api ctx mctx p =
 				ctx.m.curmod.m_extra.m_deps <- old_deps;
 				m
 			) in
-			add_dependency m (TypeloadCacheHook.create_fake_module ctx.com file);
+			add_dependency ~manual_dependency:true m (TypeloadCacheHook.create_fake_module ctx.com file);
 		);
 		MacroApi.current_module = (fun() ->
 			ctx.m.curmod
@@ -811,7 +811,7 @@ let load_macro ctx com mctx api display cpath f p =
 	let meth,mloaded = load_macro'' com mctx display cpath f p in
 	let _,_,{cl_path = cpath},_ = meth in
 	let call args =
-		add_dependency ctx.m.curmod mloaded;
+		add_dependency ~manual_dependency:true ctx.m.curmod mloaded;
 		do_call_macro ctx.com api cpath f args p
 	in
 	mctx, meth, call
