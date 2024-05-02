@@ -2259,9 +2259,13 @@ module HxbWriter = struct
 
 		(* Note: this is only a start, and is still including a lot of dependencies *)
 		(* that are not actually needed for signature only. *)
-		let sig_deps = ref (PMap.map (fun m -> m) m.m_extra.m_manual_deps) in
+		let sig_deps = ref PMap.empty in
+		PMap.iter (fun id mdep -> match mdep.md_origin with
+			| MDepFromMacro -> sig_deps := PMap.add id mdep !sig_deps;
+			| _ -> ()
+		) m.m_extra.m_deps;
 		List.iter (fun mdep ->
-			let dep = {md_sign = mdep.m_extra.m_sign; md_path = mdep.m_path; md_kind = mdep.m_extra.m_kind} in
+			let dep = {md_sign = mdep.m_extra.m_sign; md_path = mdep.m_path; md_kind = mdep.m_extra.m_kind; md_origin = MDepFromTyping} in
 			sig_deps := PMap.add mdep.m_id dep !sig_deps;
 		) writer.sig_deps;
 		m.m_extra.m_sig_deps <- Some !sig_deps;

@@ -289,7 +289,7 @@ module ModuleLevel = struct
 			let decls = try
 				let r = com.parser_cache#find path in
 				let mimport = com.module_lut#find ([],path) in
-				if mimport.m_extra.m_kind <> MFake then add_dependency m mimport;
+				if mimport.m_extra.m_kind <> MFake then add_dependency m mimport MDepFromTyping;
 				r
 			with Not_found ->
 				if Sys.file_exists path then begin
@@ -300,7 +300,7 @@ module ModuleLevel = struct
 					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> raise_typing_error "Only import and using is allowed in import.hx files" p) r;
 					let m_import = make_import_module path r in
 					add_module com m_import p;
-					add_dependency m m_import;
+					add_dependency m m_import MDepFromTyping;
 					r
 				end else begin
 					let r = [] in
@@ -709,7 +709,7 @@ let type_types_into_module com g m tdecls p =
 	let imports_and_usings,decls = ModuleLevel.create_module_types ctx_m m tdecls p in
 	(* define the per-module context for the next pass *)
 	if ctx_m.g.std_types != null_module then begin
-		add_dependency m ctx_m.g.std_types;
+		add_dependency m ctx_m.g.std_types MDepFromTyping;
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
 		ignore(load_instance ctx_m (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal LoadNormal)
 	end;
@@ -847,7 +847,7 @@ and load_module' com g m p =
 
 let load_module ctx m p =
 	let m2 = load_module' ctx.com ctx.g m p in
-	add_dependency ~skip_postprocess:true ctx.m.curmod m2;
+	add_dependency ~skip_postprocess:true ctx.m.curmod m2 MDepFromTyping;
 	if ctx.pass = PTypeField then flush_pass ctx.g PConnectField ("load_module",fst m @ [snd m]);
 	m2
 

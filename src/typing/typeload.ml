@@ -709,7 +709,7 @@ and init_meta_overloads ctx co cf =
 let t_iterator ctx p =
 	match load_qualified_type_def ctx [] "StdTypes" "Iterator" p with
 	| TTypeDecl t ->
-		add_dependency ctx.m.curmod t.t_module;
+		add_dependency ctx.m.curmod t.t_module MDepFromTyping;
 		let pt = spawn_monomorph ctx.e p in
 		apply_typedef t [pt], pt
 	| _ ->
