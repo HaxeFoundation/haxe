@@ -779,7 +779,7 @@ let rec load_hxb_module com g path p =
 	let read file bytes string_pool =
 		try
 			let api = (new hxb_reader_api_typeload com g load_module' p :> HxbReaderApi.hxb_reader_api) in
-			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats string_pool in
+			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats string_pool (Common.defined com Define.HxbTimes) in
 			let read = reader#read api bytes in
 			let m = read EOT in
 			delay g PConnectField (fun () ->

@@ -262,6 +262,11 @@
 		"params": ["version"]
 	},
 	{
+		"name": "HxbTimes",
+		"define": "hxb-times",
+		"doc": "Display hxb timing when used with `--times`."
+	},
+	{
 		"name": "HxcppApiLevel",
 		"define": "hxcpp-api-level",
 		"doc": "Provided to allow compatibility between hxcpp versions.",
