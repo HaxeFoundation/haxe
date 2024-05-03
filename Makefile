@@ -105,9 +105,11 @@ copy_haxetoolkit: /cygdrive/c/HaxeToolkit/haxe/haxe.exe
 endif
 
 # haxelib should depends on haxe, but we don't want to do that...
-haxelib:
-	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(HAXE_OUTPUT) client.hxml && nekotools boot run.n)
-	mv extra/haxelib_src/run$(EXTENSION) $(HAXELIB_OUTPUT)
+haxelib_unix:
+	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(HAXE_OUTPUT) client.hxml && nekotools boot -c run.n)
+	${CC} $(CURDIR)/extra/haxelib_src/run.c -o $(HAXELIB_OUTPUT) -lneko
+
+haxelib: haxelib_$(PLATFORM)
 
 tools: haxelib
 
