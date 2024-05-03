@@ -109,7 +109,11 @@ haxelib_unix:
 	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(HAXE_OUTPUT) client.hxml && nekotools boot -c run.n)
 	${CC} $(CURDIR)/extra/haxelib_src/run.c -o $(HAXELIB_OUTPUT) -lneko
 
+ifeq ($(SYSTEM_NAME),Windows)
 haxelib: haxelib_$(PLATFORM)
+else
+haxelib: haxelib_unix
+endif
 
 tools: haxelib
 
