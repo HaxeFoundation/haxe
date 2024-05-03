@@ -106,7 +106,9 @@ endif
 
 # haxelib should depends on haxe, but we don't want to do that...
 haxelib_unix:
-	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(HAXE_OUTPUT) client.hxml && nekotools boot -c run.n)
+	cd $(CURDIR)/extra/haxelib_src && \
+	HAXE_STD_PATH=$(CURDIR)/std $(CURDIR)/$(HAXE_OUTPUT) client.hxml && \
+	nekotools boot -c run.n
 	${CC} $(CURDIR)/extra/haxelib_src/run.c -o $(HAXELIB_OUTPUT) -lneko
 
 ifeq ($(SYSTEM_NAME),Windows)
