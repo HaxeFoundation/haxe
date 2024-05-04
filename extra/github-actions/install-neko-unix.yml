@@ -9,6 +9,7 @@
     sudo mkdir -p /usr/local/lib/neko
     sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
     sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+    sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
     sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
     echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
 
