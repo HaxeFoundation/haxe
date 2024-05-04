@@ -56,7 +56,7 @@ PACKAGE_FILES=$(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std \
 # haxelib should depends on haxe, but we don't want to do that...
 haxelib_win:
 	cd $(CURDIR)/extra/haxelib_src && \
-	HAXE_STD_PATH=$(CURDIR)/std $(CURDIR)/$(HAXE_OUTPUT) client.hxml && \
+	$(CURDIR)/$(HAXE_OUTPUT) client.hxml && \
 	nekotools boot run.n
 	mv extra/haxelib_src/run$(EXTENSION) $(HAXELIB_OUTPUT)
 
