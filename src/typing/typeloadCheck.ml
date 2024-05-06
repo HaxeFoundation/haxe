@@ -48,7 +48,10 @@ let is_generic_parameter ctx c =
 		false
 
 let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
-	let uctx = {default_unification_context with type_param_pairs = Some (ref [])} in
+	let tctx = {
+		type_param_pairs = [];
+	} in
+	let uctx = {default_unification_context with type_param_mode = TpDefinition tctx} in
 	let valid t1 t2 =
 		unify_custom uctx t1 t2;
 		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);
@@ -58,40 +61,7 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		| PurityState.ExpectPure p,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),p],null_pos) :: f1.cf_meta
 		| _ -> ()
 	end;
-	(* let t1, t2 = (match f1.cf_params, f2.cf_params with
-		| [], [] -> t1, t2
-		| l1, l2 when List.length l1 = List.length l2 ->
-			let to_check = ref [] in
-			(* TPTODO: defaults *)
-			let monos = List.map2 (fun ttp1 ttp2 ->
-				let ct1 = get_constraints ttp1 in
-				let ct2 = get_constraints ttp2 in
-				(match ct1, ct2 with
-				| [], [] -> ()
-				| _, _ when List.length ct1 = List.length ct2 ->
-					(* if same constraints, they are the same type *)
-					let check monos =
-						List.iter2 (fun t1 t2  ->
-							try
-								let t1 = apply_params l1 monos (map2 t1) in
-								let t2 = apply_params l2 monos (map1 t2) in
-								type_eq EqStrict t1 t2
-							with Unify_error l ->
-								raise (Unify_error (Unify_custom "Constraints differ" :: l))
-						) ct1 ct2
-					in
-					to_check := check :: !to_check;
-				| _ ->
-					raise (Unify_error [Unify_custom "Different number of constraints"]));
-				TInst (mk_class null_module ([],ttp1.ttp_name) null_pos null_pos,[])
-			) l1 l2 in
-			List.iter (fun f -> f monos) !to_check;
-			apply_params l1 monos t1, apply_params l2 monos t2
-		| _  ->
-			(* ignore type params, will create other errors later *)
-			t1, t2
-	) in *)
-	match f1.cf_kind,f2.cf_kind with
+	begin match f1.cf_kind,f2.cf_kind with
 	| Method m1, Method m2 when not (m1 = MethDynamic) && not (m2 = MethDynamic) ->
 		begin match follow t1, follow t2 with
 		| TFun (args1,r1) , TFun (args2,r2) -> (
@@ -123,6 +93,25 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		(* in case args differs, or if an interface var *)
 		type_eq EqStrict t1 t2;
 		if is_null t1 <> is_null t2 then raise (Unify_error [Cannot_unify (t1,t2)])
+	end;
+	let assign_ttp ttp1 ttp2 =
+		let ct1 = get_constraints ttp1 in
+		let ct2 = get_constraints ttp2 in
+		match ct1,ct2 with
+		| _,[] ->
+			()
+		| [],(t2 :: _) ->
+			raise (Unify_error ([Unify_custom (Printf.sprintf "Constraint unsatisfied for type parameter %s: %s" ttp2.ttp_name (s_type (print_context()) t2))]))
+		| ct1,ct2 ->
+			List.iter (fun t2 ->
+				let t2 = map2 t2 in
+				if not (List.exists (fun t1 -> does_unify (map1 t1) t2) ct1) then
+					raise (Unify_error ([Unify_custom (Printf.sprintf "Constraint unsatisfied for type parameter %s: %s" ttp2.ttp_name (s_type (print_context()) t2))]))
+			) ct2
+	in
+	List.iter (fun (ttp1,ttp2) ->
+		assign_ttp ttp1 ttp2
+	) tctx.type_param_pairs
 
 let copy_meta meta_src meta_target sl =
 	let meta = ref meta_target in

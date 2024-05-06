@@ -31,6 +31,14 @@ type eq_kind =
 	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
 	| EqStricter
 
+type type_param_unification_context = {
+	mutable type_param_pairs : (typed_type_param * typed_type_param) list;
+}
+
+type type_param_mode =
+	| TpDefault
+	| TpDefinition of type_param_unification_context
+
 type unification_context = {
 	allow_transitive_cast   : bool;
 	allow_abstract_cast     : bool; (* allows a non-transitive abstract cast (from,to,@:from,@:to) *)
@@ -39,7 +47,7 @@ type unification_context = {
 	equality_kind           : eq_kind;
 	equality_underlying     : bool;
 	strict_field_kind       : bool;
-	type_param_pairs        : (typed_type_param * typed_type_param) list ref option;
+	type_param_mode         : type_param_mode;
 }
 
 type unify_min_result =
@@ -65,7 +73,7 @@ let default_unification_context = {
 	equality_kind           = EqStrict;
 	equality_underlying     = false;
 	strict_field_kind       = false;
-	type_param_pairs        = None;
+	type_param_mode         = TpDefault;
 }
 
 (* Unify like targets (e.g. Java) probably would. *)
@@ -77,7 +85,7 @@ let native_unification_context = {
 	equality_underlying   = false;
 	allow_arg_name_mismatch = true;
 	strict_field_kind       = false;
-	type_param_pairs        = None;
+	type_param_mode         = TpDefault;
 }
 
 module Monomorph = struct
@@ -522,6 +530,7 @@ let rec_stack stack value fcheck frun ferror =
 let rec_stack_default stack value fcheck frun def =
 	if not (rec_stack_exists fcheck stack) then rec_stack_loop stack value frun () else def
 
+
 let rec type_eq uctx a b =
 	let param = uctx.equality_kind in
 	let can_follow_null = match param with
@@ -578,14 +587,9 @@ let rec type_eq uctx a b =
 	| TEnum (e1,tl1) , TEnum (e2,tl2) ->
 		if e1 != e2 && not (param = EqCoreType && e1.e_path = e2.e_path) then error [cannot_unify a b];
 		type_eq_params uctx a b tl1 tl2
-	| TInst ({cl_kind = KTypeParameter ttp1},tl1) , TInst ({cl_kind = KTypeParameter ttp2},tl2) when uctx.type_param_pairs <> None ->
-		let pairs = Option.get uctx.type_param_pairs in
-		begin try
-			let ttp3 = List.assq ttp1 !pairs in
-			if ttp2 != ttp3 then error [cannot_unify a b]
-		with Not_found ->
-			pairs := (ttp1,ttp2) :: !pairs
-		end
+	| TInst ({cl_kind = KTypeParameter ttp1},tl1) , TInst ({cl_kind = KTypeParameter ttp2},tl2) when param <> EqCoreType ->
+		assign_type_params uctx ttp1 ttp2;
+		type_eq_params uctx a b tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		if c1 != c2 && not (param = EqCoreType && c1.cl_path = c2.cl_path) && (match c1.cl_kind, c2.cl_kind with KExpr _, KExpr _ -> false | _ -> true) then error [cannot_unify a b];
 		type_eq_params uctx a b tl1 tl2
@@ -646,6 +650,19 @@ let rec type_eq uctx a b =
 			Unify_error l -> error (cannot_unify a b :: l))
 	| _ , _ ->
 		error [cannot_unify a b]
+
+and assign_type_params uctx ttp1 ttp2 =
+	if ttp1 != ttp2 then begin match uctx.type_param_mode with
+		| TpDefault ->
+			error []
+		| TpDefinition tctx ->
+			begin try
+				let ttp3 = List.assq ttp1 tctx.type_param_pairs in
+				if ttp2 != ttp3 then error []
+			with Not_found ->
+				tctx.type_param_pairs <- (ttp1,ttp2) :: tctx.type_param_pairs
+			end
+	end
 
 and type_eq_params uctx a b tl1 tl2 =
 	let i = ref 0 in
@@ -743,14 +760,9 @@ let rec unify (uctx : unification_context) a b =
 		unify_to {uctx with allow_transitive_cast = false} a b ab tl
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		unify_abstracts uctx a b a1 tl1 a2 tl2
-	| TInst ({cl_kind = KTypeParameter ttp1},tl1) , TInst ({cl_kind = KTypeParameter ttp2},tl2) when uctx.type_param_pairs <> None ->
-		let pairs = Option.get uctx.type_param_pairs in
-		begin try
-			let ttp3 = List.assq ttp1 !pairs in
-			if ttp2 != ttp3 then error [cannot_unify a b]
-		with Not_found ->
-			pairs := (ttp1,ttp2) :: !pairs
-		end
+	| TInst ({cl_kind = KTypeParameter ttp1},tl1) , TInst ({cl_kind = KTypeParameter ttp2},tl2) when uctx.type_param_mode != TpDefault ->
+		assign_type_params uctx ttp1 ttp2;
+		unify_type_params uctx a b tl1 tl2;
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
 			if c == c2 then begin

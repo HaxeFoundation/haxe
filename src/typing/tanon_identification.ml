@@ -69,7 +69,7 @@ object(self)
 			equality_kind = EqStricter;
 			equality_underlying = false;
 			strict_field_kind = true;
-			type_param_pairs = None;
+			type_param_mode = TpDefault;
 		} else {default_unification_context with equality_kind = EqDoNotFollowNull} in
 
 		let check () =
