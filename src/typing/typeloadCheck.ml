@@ -50,6 +50,7 @@ let is_generic_parameter ctx c =
 let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 	let tctx = {
 		type_param_pairs = [];
+		known_type_params = f1.cf_params
 	} in
 	let uctx = {default_unification_context with type_param_mode = TpDefinition tctx} in
 	let valid t1 t2 =

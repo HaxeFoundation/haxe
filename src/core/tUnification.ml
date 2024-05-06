@@ -32,6 +32,7 @@ type eq_kind =
 	| EqStricter
 
 type type_param_unification_context = {
+	known_type_params : typed_type_param list;
 	mutable type_param_pairs : (typed_type_param * typed_type_param) list;
 }
 
@@ -328,7 +329,7 @@ let rec follow_and_close t = match follow t with
 	| t ->
 		t
 
-let link e a b =
+let link uctx e a b =
 	(* tell if setting a == b will create a type-loop *)
 	let rec loop t =
 		if t == a then
@@ -336,6 +337,13 @@ let link e a b =
 		else match t with
 		| TMono t -> (match t.tm_type with None -> false | Some t -> loop t)
 		| TEnum (_,tl) -> List.exists loop tl
+		| TInst ({cl_kind = KTypeParameter ttp}, tl) ->
+			begin match uctx.type_param_mode with
+				| TpDefault ->
+					List.exists loop tl
+				| TpDefinition tctx ->
+					not (List.memq ttp tctx.known_type_params)
+			end
 		| TInst (_,tl) | TType (_,tl) | TAbstract (_,tl) -> List.exists loop tl
 		| TFun (tl,t) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
 		| TDynamic None ->
@@ -554,11 +562,11 @@ let rec type_eq uctx a b =
 	| _ , TLazy f -> type_eq uctx a (lazy_type f)
 	| TMono t , _ ->
 		(match t.tm_type with
-		| None -> if param = EqCoreType || param = EqStricter || not (link t a b) then error [cannot_unify a b]
+		| None -> if param = EqCoreType || param = EqStricter || not (link uctx t a b) then error [cannot_unify a b]
 		| Some t -> type_eq uctx t b)
 	| _ , TMono t ->
 		(match t.tm_type with
-		| None -> if param = EqCoreType || param = EqStricter || not (link t b a) then error [cannot_unify a b]
+		| None -> if param = EqCoreType || param = EqStricter || not (link uctx t b a) then error [cannot_unify a b]
 		| Some t -> type_eq uctx a t)
 	| TDynamic None, TDynamic None ->
 		()
@@ -714,11 +722,11 @@ let rec unify (uctx : unification_context) a b =
 	| _ , TLazy f -> unify uctx a (lazy_type f)
 	| TMono t , _ ->
 		(match t.tm_type with
-		| None -> if uctx.equality_kind = EqStricter || not (link t a b) then error [cannot_unify a b]
+		| None -> if uctx.equality_kind = EqStricter || not (link uctx t a b) then error [cannot_unify a b]
 		| Some t -> unify uctx t b)
 	| _ , TMono t ->
 		(match t.tm_type with
-		| None -> if uctx.equality_kind = EqStricter || not (link t b a) then error [cannot_unify a b]
+		| None -> if uctx.equality_kind = EqStricter || not (link uctx t b a) then error [cannot_unify a b]
 		| Some t -> unify uctx a t)
 	| TType (t,tl) , _ ->
 		rec_stack unify_stack (a,b)
