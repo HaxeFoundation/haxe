@@ -48,8 +48,9 @@ let is_generic_parameter ctx c =
 		false
 
 let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
+	let uctx = {default_unification_context with type_param_pairs = Some (ref [])} in
 	let valid t1 t2 =
-		Type.unify t1 t2;
+		unify_custom uctx t1 t2;
 		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);
 	in
 	begin match PurityState.get_purity_from_meta f2.cf_meta,PurityState.get_purity_from_meta f1.cf_meta with
@@ -57,7 +58,7 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		| PurityState.ExpectPure p,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),p],null_pos) :: f1.cf_meta
 		| _ -> ()
 	end;
-	let t1, t2 = (match f1.cf_params, f2.cf_params with
+	(* let t1, t2 = (match f1.cf_params, f2.cf_params with
 		| [], [] -> t1, t2
 		| l1, l2 when List.length l1 = List.length l2 ->
 			let to_check = ref [] in
@@ -89,7 +90,7 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		| _  ->
 			(* ignore type params, will create other errors later *)
 			t1, t2
-	) in
+	) in *)
 	match f1.cf_kind,f2.cf_kind with
 	| Method m1, Method m2 when not (m1 = MethDynamic) && not (m2 = MethDynamic) ->
 		begin match follow t1, follow t2 with

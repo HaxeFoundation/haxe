@@ -39,6 +39,7 @@ type unification_context = {
 	equality_kind           : eq_kind;
 	equality_underlying     : bool;
 	strict_field_kind       : bool;
+	type_param_pairs        : (typed_type_param * typed_type_param) list ref option;
 }
 
 type unify_min_result =
@@ -64,6 +65,7 @@ let default_unification_context = {
 	equality_kind           = EqStrict;
 	equality_underlying     = false;
 	strict_field_kind       = false;
+	type_param_pairs        = None;
 }
 
 (* Unify like targets (e.g. Java) probably would. *)
@@ -75,6 +77,7 @@ let native_unification_context = {
 	equality_underlying   = false;
 	allow_arg_name_mismatch = true;
 	strict_field_kind       = false;
+	type_param_pairs        = None;
 }
 
 module Monomorph = struct
@@ -575,6 +578,14 @@ let rec type_eq uctx a b =
 	| TEnum (e1,tl1) , TEnum (e2,tl2) ->
 		if e1 != e2 && not (param = EqCoreType && e1.e_path = e2.e_path) then error [cannot_unify a b];
 		type_eq_params uctx a b tl1 tl2
+	| TInst ({cl_kind = KTypeParameter ttp1},tl1) , TInst ({cl_kind = KTypeParameter ttp2},tl2) when uctx.type_param_pairs <> None ->
+		let pairs = Option.get uctx.type_param_pairs in
+		begin try
+			let ttp3 = List.assq ttp1 !pairs in
+			if ttp2 != ttp3 then error [cannot_unify a b]
+		with Not_found ->
+			pairs := (ttp1,ttp2) :: !pairs
+		end
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		if c1 != c2 && not (param = EqCoreType && c1.cl_path = c2.cl_path) && (match c1.cl_kind, c2.cl_kind with KExpr _, KExpr _ -> false | _ -> true) then error [cannot_unify a b];
 		type_eq_params uctx a b tl1 tl2
@@ -732,6 +743,14 @@ let rec unify (uctx : unification_context) a b =
 		unify_to {uctx with allow_transitive_cast = false} a b ab tl
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		unify_abstracts uctx a b a1 tl1 a2 tl2
+	| TInst ({cl_kind = KTypeParameter ttp1},tl1) , TInst ({cl_kind = KTypeParameter ttp2},tl2) when uctx.type_param_pairs <> None ->
+		let pairs = Option.get uctx.type_param_pairs in
+		begin try
+			let ttp3 = List.assq ttp1 !pairs in
+			if ttp2 != ttp3 then error [cannot_unify a b]
+		with Not_found ->
+			pairs := (ttp1,ttp2) :: !pairs
+		end
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
 			if c == c2 then begin
