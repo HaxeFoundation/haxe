@@ -110,7 +110,7 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 			) ct2
 	in
 	List.iter (fun (ttp1,ttp2) ->
-		assign_ttp ttp1 ttp2
+		assign_ttp ttp2 ttp1
 	) tctx.type_param_pairs
 
 let copy_meta meta_src meta_target sl =

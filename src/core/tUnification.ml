@@ -657,10 +657,10 @@ and assign_type_params uctx ttp1 ttp2 =
 			error []
 		| TpDefinition tctx ->
 			begin try
-				let ttp3 = List.assq ttp1 tctx.type_param_pairs in
-				if ttp2 != ttp3 then error []
+				let ttp3 = List.assq ttp2 tctx.type_param_pairs in
+				if ttp1 != ttp3 then error []
 			with Not_found ->
-				tctx.type_param_pairs <- (ttp1,ttp2) :: tctx.type_param_pairs
+				tctx.type_param_pairs <- (ttp2,ttp1) :: tctx.type_param_pairs
 			end
 	end
 
