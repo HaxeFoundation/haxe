@@ -152,6 +152,7 @@ class hxb_reader
 	(timers_enabled : bool)
 = object(self)
 	val mutable api = Obj.magic ""
+	val mutable read_all = true
 	val mutable current_module = null_module
 
 	val mutable ch = BytesWithPosition.create (Bytes.create 0)
@@ -1827,11 +1828,11 @@ class hxb_reader
 				error ("Unexpected type where typedef was expected: " ^ (s_type_path (pack,tname)))
 		))
 
-	method read_mdr =
+	method read_imports =
 		let length = read_uleb128 ch in
 		for _ = 0 to length - 1 do
 			let path = self#read_path in
-			ignore(api#resolve_module path)
+			if read_all then ignore(api#resolve_module path)
 		done
 
 	method read_mtf =
@@ -1942,8 +1943,8 @@ class hxb_reader
 		| MTF ->
 			current_module.m_types <- self#read_mtf;
 			api#add_module current_module;
-		| MDR ->
-			self#read_mdr;
+		| IMP ->
+			self#read_imports;
 		| CLR ->
 			self#read_clr;
 		| ENR ->
@@ -2011,10 +2012,11 @@ class hxb_reader
 		close()
 
 	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =
-		fst (self#read_chunks_until new_api chunks EOM)
+		fst (self#read_chunks_until new_api chunks EOM true)
 
-	method read_chunks_until (new_api : hxb_reader_api) (chunks : cached_chunks) end_chunk =
+	method read_chunks_until (new_api : hxb_reader_api) (chunks : cached_chunks) end_chunk full_read =
 		api <- new_api;
+		read_all <- full_read;
 		let rec loop = function
 			| (kind,data) :: chunks ->
 				ch <- BytesWithPosition.create data;
@@ -2027,6 +2029,7 @@ class hxb_reader
 
 	method read (new_api : hxb_reader_api) (bytes : bytes) =
 		api <- new_api;
+		read_all <- true;
 		ch <- BytesWithPosition.create bytes;
 		if (Bytes.to_string (read_bytes ch 3)) <> "hxb" then
 			raise (HxbFailure "magic");

@@ -289,7 +289,7 @@ module ModuleLevel = struct
 			let decls = try
 				let r = com.parser_cache#find path in
 				let mimport = com.module_lut#find ([],path) in
-				if mimport.m_extra.m_kind <> MFake then add_dependency m mimport MDepFromTyping;
+				if mimport.m_extra.m_kind <> MFake then add_dependency m mimport MDepFromImport;
 				r
 			with Not_found ->
 				if Sys.file_exists path then begin
@@ -300,7 +300,7 @@ module ModuleLevel = struct
 					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> raise_typing_error "Only import and using is allowed in import.hx files" p) r;
 					let m_import = make_import_module path r in
 					add_module com m_import p;
-					add_dependency m m_import MDepFromTyping;
+					add_dependency m m_import MDepFromImport;
 					r
 				end else begin
 					let r = [] in
@@ -845,9 +845,9 @@ and load_module' com g m p =
 			let is_extern = !is_extern in
 			type_module com g m file ~is_extern decls p
 
-let load_module ctx m p =
+let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 	let m2 = load_module' ctx.com ctx.g m p in
-	add_dependency ~skip_postprocess:true ctx.m.curmod m2 MDepFromTyping;
+	add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
 	if ctx.pass = PTypeField then flush_pass ctx.g PConnectField ("load_module",fst m @ [snd m]);
 	m2
 
