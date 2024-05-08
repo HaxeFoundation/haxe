@@ -1832,7 +1832,7 @@ class hxb_reader
 		let length = read_uleb128 ch in
 		for _ = 0 to length - 1 do
 			let path = self#read_path in
-			if read_all then ignore(api#resolve_module path)
+			ignore(api#resolve_module path)
 		done
 
 	method read_mtf =
@@ -1944,7 +1944,7 @@ class hxb_reader
 			current_module.m_types <- self#read_mtf;
 			api#add_module current_module;
 		| IMP ->
-			self#read_imports;
+			if read_all then self#read_imports;
 		| CLR ->
 			self#read_clr;
 		| ENR ->
