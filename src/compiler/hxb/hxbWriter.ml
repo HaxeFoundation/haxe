@@ -2266,7 +2266,7 @@ module HxbWriter = struct
 			sig_deps := PMap.add mdep.m_id dep !sig_deps;
 		) writer.sig_deps;
 		PMap.iter (fun id mdep -> match mdep.md_kind, mdep.md_origin with
-			| (MCode | MExtern), MDepFromMacro -> sig_deps := PMap.add id mdep !sig_deps;
+			| (MCode | MExtern), MDepFromMacro when mdep.md_sign = m.m_extra.m_sign -> sig_deps := PMap.add id mdep !sig_deps;
 			| _ -> ()
 		) m.m_extra.m_deps;
 		m.m_extra.m_sig_deps <- Some !sig_deps;
