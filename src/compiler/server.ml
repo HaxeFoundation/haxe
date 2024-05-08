@@ -448,10 +448,14 @@ class hxb_reader_api_server
 			GoodModule (com.module_lut#find m_path)
 		with Not_found -> try
 			let mc = cc#get_hxb_module m_path in
-			begin match mc.mc_extra.m_cache_state with
-				| MSBad reason -> BadModule reason
-				| _ -> BinaryModule mc
-			end
+			if not com.is_macro_context && not com.display.dms_full_typing && not (DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file)) then begin
+				mc.mc_extra.m_cache_state <- MSGood;
+				BinaryModule mc
+			end else
+				begin match mc.mc_extra.m_cache_state with
+					| MSBad reason -> BadModule reason
+					| _ -> BinaryModule mc
+				end
 		with Not_found ->
 			NoModule
 
@@ -550,15 +554,20 @@ and type_module sctx com delay mpath p =
 		try
 			let m = cc#find_module m_path in
 			begin match m.m_extra.m_cache_state with
-				| MSBad reason -> BadModule reason
+				| MSBad reason ->
+					BadModule reason
 				| _ -> GoodModule m
 			end;
 		with Not_found -> try
 			let mc = cc#get_hxb_module m_path in
-			begin match mc.mc_extra.m_cache_state with
-				| MSBad reason -> BadModule reason
-				| _ -> BinaryModule mc
-			end
+			if not com.is_macro_context && not com.display.dms_full_typing && not (DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file)) then begin
+				mc.mc_extra.m_cache_state <- MSGood;
+				BinaryModule mc
+			end else
+				begin match mc.mc_extra.m_cache_state with
+					| MSBad reason -> BadModule reason
+					| _ -> BinaryModule mc
+				end
 		with Not_found ->
 			NoModule
 	in
