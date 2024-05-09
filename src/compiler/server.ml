@@ -439,7 +439,7 @@ class hxb_reader_api_server
 			else delay (fun () -> ignore(f_next chunks EOF));
 			m
 		| BadModule reason ->
-			die (Printf.sprintf "Unexpected BadModule %s" (s_type_path path)) __LOC__
+			die (Printf.sprintf "Unexpected BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)) __LOC__
 		| NoModule ->
 			die (Printf.sprintf "Unexpected NoModule %s" (s_type_path path)) __LOC__
 
