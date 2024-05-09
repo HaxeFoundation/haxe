@@ -457,7 +457,7 @@ jobs:
         os: [macos-14, macos-13]
     runs-on: ${{ matrix.os }}
     env:
-      PLATFORM: mac
+      PLATFORM: mac${{ matrix.os == 'macos-14' && '-arm64' || '' }}
       OPAMYES: 1
       MACOSX_DEPLOYMENT_TARGET: 10.13
       OCAML_VERSION: 5.1.1
