@@ -152,7 +152,7 @@ class hxb_reader
 	(timers_enabled : bool)
 = object(self)
 	val mutable api = Obj.magic ""
-	val mutable read_all = true
+	val mutable minimal_restore = false
 	val mutable current_module = null_module
 
 	val mutable ch = BytesWithPosition.create (Bytes.create 0)
@@ -1944,7 +1944,7 @@ class hxb_reader
 			current_module.m_types <- self#read_mtf;
 			api#add_module current_module;
 		| IMP ->
-			if read_all then self#read_imports;
+			if not minimal_restore then self#read_imports;
 		| CLR ->
 			self#read_clr;
 		| ENR ->
@@ -2012,11 +2012,11 @@ class hxb_reader
 		close()
 
 	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =
-		fst (self#read_chunks_until new_api chunks EOM true)
+		fst (self#read_chunks_until new_api chunks EOM false)
 
-	method read_chunks_until (new_api : hxb_reader_api) (chunks : cached_chunks) end_chunk full_read =
+	method read_chunks_until (new_api : hxb_reader_api) (chunks : cached_chunks) end_chunk minimal_restore' =
 		api <- new_api;
-		read_all <- full_read;
+		minimal_restore <- minimal_restore';
 		let rec loop = function
 			| (kind,data) :: chunks ->
 				ch <- BytesWithPosition.create data;
@@ -2029,7 +2029,7 @@ class hxb_reader
 
 	method read (new_api : hxb_reader_api) (bytes : bytes) =
 		api <- new_api;
-		read_all <- true;
+		minimal_restore <- false;
 		ch <- BytesWithPosition.create bytes;
 		if (Bytes.to_string (read_bytes ch 3)) <> "hxb" then
 			raise (HxbFailure "magic");
