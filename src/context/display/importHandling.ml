@@ -81,7 +81,7 @@ let init_import ctx path mode p =
 	| (tname,p2) :: rest ->
 		let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
 		let p_type = punion p1 p2 in
-		let md = ctx.g.do_load_module ctx (List.map fst pack,tname) p_type in
+		let md = ctx.g.do_load_module ~origin:MDepFromImport ctx (List.map fst pack,tname) p_type in
 		let types = md.m_types in
 		let not_private mt = not (t_infos mt).mt_private in
 		let error_private p = raise_typing_error "Importing private declarations from a module is not allowed" p in
@@ -267,7 +267,7 @@ let handle_using ctx path p =
 	in
 	let types = (match t.tsub with
 		| None ->
-			let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
+			let md = ctx.g.do_load_module ~origin:MDepFromImport ctx (t.tpackage,t.tname) p in
 			let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
 			Option.map_default (fun c -> (TClassDecl c) :: types) types md.m_statics
 		| Some _ ->

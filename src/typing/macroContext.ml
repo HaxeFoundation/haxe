@@ -400,7 +400,7 @@ let make_macro_api ctx mctx p =
 		MacroApi.get_module = (fun s ->
 			typing_timer ctx false (fun ctx ->
 				let path = parse_path s in
-				let m = List.map type_of_module_type (TypeloadModule.load_module ctx path p).m_types in
+				let m = List.map type_of_module_type (TypeloadModule.load_module ~origin:MDepFromMacro ctx path p).m_types in
 				m
 			)
 		);
@@ -466,7 +466,7 @@ let make_macro_api ctx mctx p =
 				| _ -> false
 			in
 			let add is_macro ctx =
-				let mdep = Option.map_default (fun s -> TypeloadModule.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
+				let mdep = Option.map_default (fun s -> TypeloadModule.load_module ~origin:MDepFromMacro ctx (parse_path s) pos) ctx.m.curmod mdep in
 				let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) m (Path.UniqueKey.lazy_path mdep.m_extra.m_file) [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
 				add_dependency mnew mdep MDepFromMacro;
@@ -506,7 +506,7 @@ let make_macro_api ctx mctx p =
 		MacroApi.module_dependency = (fun mpath file ->
 			let m = typing_timer ctx false (fun ctx ->
 				let old_deps = ctx.m.curmod.m_extra.m_deps in
-				let m = TypeloadModule.load_module ctx (parse_path mpath) p in
+				let m = TypeloadModule.load_module ~origin:MDepFromMacro ctx (parse_path mpath) p in
 				ctx.m.curmod.m_extra.m_deps <- old_deps;
 				m
 			) in
@@ -582,8 +582,8 @@ let make_macro_api ctx mctx p =
 
 let init_macro_interp mctx mint =
 	let p = null_pos in
-	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Expr") p);
-	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Type") p);
+	ignore(TypeloadModule.load_module ~origin:MDepFromMacro mctx (["haxe";"macro"],"Expr") p);
+	ignore(TypeloadModule.load_module ~origin:MDepFromMacro mctx (["haxe";"macro"],"Type") p);
 	Interp.init mint;
 	macro_interp_cache := Some mint
 
@@ -739,7 +739,7 @@ let load_macro_module mctx com cpath display p =
 	(* Temporarily enter display mode while typing the macro. *)
 	let old = mctx.com.display in
 	if display then mctx.com.display <- com.display;
-	let mloaded = TypeloadModule.load_module mctx m p in
+	let mloaded = TypeloadModule.load_module ~origin:MDepFromMacro mctx m p in
 	mctx.m <- {
 		curmod = mloaded;
 		import_resolution = new resolution_list ["import";s_type_path cpath];
