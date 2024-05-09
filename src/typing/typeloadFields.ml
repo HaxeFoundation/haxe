@@ -209,9 +209,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		let params = extract_param_types c.cl_params in
 		let ethis = mk (TConst TThis) (TInst(c,params)) p in
 		let doc_buf = Buffer.create 0 in
-		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
-			| Var { v_write = AccNever } -> args,el,tl
-			| Var _ ->
+		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> if is_physical_var_field cf then
 				let has_default_expr = field_has_default_expr cf.cf_name in
 				let opt = has_default_expr || (Meta.has Meta.Optional cf.cf_meta) in
 				let t = if opt then ctx.t.tnull cf.cf_type else cf.cf_type in
@@ -245,7 +243,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 					Buffer.add_string doc_buf "\n";
 				end;
 				(v,None) :: args,e :: el,(cf.cf_name,opt,t) :: tl
-			| Method _ ->
+			else
 				args,el,tl
 		) ([],[],[]) (List.rev c.cl_ordered_fields) in
 		let el = match super_expr with Some e -> e :: el | None -> el in
