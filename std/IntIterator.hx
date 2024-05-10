@@ -62,4 +62,8 @@ class IntIterator {
 	public inline function next() {
 		return min++;
 	}
+
+	public inline function iterator():Iterator<Int> {
+		return this;
+	}
 }
