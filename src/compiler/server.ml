@@ -391,6 +391,20 @@ let check_module sctx com m_path m_extra p =
 	end;
 	state
 
+let get_hxb_module com cc path =
+	try
+		let mc = cc#get_hxb_module path in
+		if not com.is_macro_context && not com.display.dms_full_typing && not (DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file)) then begin
+			mc.mc_extra.m_cache_state <- MSGood;
+			BinaryModule mc
+		end else
+			begin match mc.mc_extra.m_cache_state with
+				| MSBad reason -> BadModule reason
+				| _ -> BinaryModule mc
+			end
+	with Not_found ->
+		NoModule
+
 class hxb_reader_api_server
 	(com : Common.context)
 	(cc : context_cache)
@@ -439,21 +453,14 @@ class hxb_reader_api_server
 			else delay (fun () -> ignore(f_next chunks EOF));
 			m
 		| BadModule reason ->
-			die (Printf.sprintf "Unexpected BadModule %s" (s_type_path path)) __LOC__
+			die (Printf.sprintf "Unexpected BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)) __LOC__
 		| NoModule ->
 			die (Printf.sprintf "Unexpected NoModule %s" (s_type_path path)) __LOC__
 
 	method find_module (m_path : path) =
 		try
 			GoodModule (com.module_lut#find m_path)
-		with Not_found -> try
-			let mc = cc#get_hxb_module m_path in
-			begin match mc.mc_extra.m_cache_state with
-				| MSBad reason -> BadModule reason
-				| _ -> BinaryModule mc
-			end
-		with Not_found ->
-			NoModule
+		with Not_found -> get_hxb_module com cc m_path
 
 	method basic_types =
 		com.basic
@@ -553,14 +560,7 @@ and type_module sctx com delay mpath p =
 				| MSBad reason -> BadModule reason
 				| _ -> GoodModule m
 			end;
-		with Not_found -> try
-			let mc = cc#get_hxb_module m_path in
-			begin match mc.mc_extra.m_cache_state with
-				| MSBad reason -> BadModule reason
-				| _ -> BinaryModule mc
-			end
-		with Not_found ->
-			NoModule
+		with Not_found -> get_hxb_module com cc m_path
 	in
 	(* Should not raise anything! *)
 	let m = match find_module_in_cache cc mpath p with
@@ -640,6 +640,7 @@ let after_save sctx ctx =
 		maybe_cache_context sctx ctx.com
 
 let after_compilation sctx ctx =
+	sctx.cs#clear_temp_cache;
 	()
 
 let mk_length_prefixed_communication allow_nonblock chin chout =

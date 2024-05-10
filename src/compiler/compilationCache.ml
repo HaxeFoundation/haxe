@@ -35,6 +35,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
+	val tmp_binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
 	val string_pool  = StringPool.create ()
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
@@ -67,8 +68,18 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method find_module_opt path =
 		Hashtbl.find_opt modules path
 
+	method get_hxb_module path =
+		try Hashtbl.find tmp_binary_cache path
+		with Not_found ->
+			let mc = Hashtbl.find binary_cache path in
+			let m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps } in
+			let mc = { mc with mc_extra = m_extra } in
+			Hashtbl.add tmp_binary_cache path mc;
+			mc
+
 	method find_module_extra path =
-		try (Hashtbl.find modules path).m_extra with Not_found -> (Hashtbl.find binary_cache path).mc_extra
+		try (Hashtbl.find modules path).m_extra
+		with Not_found -> (self#get_hxb_module path).mc_extra
 
 	method cache_module config warn anon_identification path m =
 		match m.m_extra.m_kind with
@@ -85,8 +96,12 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 				mc_extra = { m.m_extra with m_cache_state = MSGood }
 			}
 
+	method clear_temp_cache =
+		Hashtbl.clear tmp_binary_cache
+
 	method clear_cache =
-		Hashtbl.clear modules
+		Hashtbl.clear modules;
+		self#clear_temp_cache
 
 	(* initialization *)
 
@@ -101,7 +116,6 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method get_hxb = binary_cache
 	method get_string_pool = string_pool
 	method get_string_pool_arr = string_pool.items.arr
-	method get_hxb_module path = Hashtbl.find binary_cache path
 
 	(* TODO handle hxb cache there too *)
 	method get_removed_files = removed_files
@@ -154,6 +168,9 @@ class cache = object(self)
 		tasks <- PriorityQueue.Empty
 
 	(* contexts *)
+
+	method clear_temp_cache =
+		Hashtbl.iter (fun _ ctx -> ctx#clear_temp_cache) contexts
 
 	method get_context sign =
 		try
