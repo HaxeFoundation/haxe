@@ -96,12 +96,12 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 				mc_extra = { m.m_extra with m_cache_state = MSGood }
 			}
 
-	method clear_cache =
-		Hashtbl.clear modules;
+	method clear_temp_cache =
 		Hashtbl.clear tmp_binary_cache
 
-	method reset =
-		Hashtbl.clear tmp_binary_cache
+	method clear_cache =
+		Hashtbl.clear modules;
+		self#clear_temp_cache
 
 	(* initialization *)
 
@@ -169,8 +169,8 @@ class cache = object(self)
 
 	(* contexts *)
 
-	method reset =
-		Hashtbl.iter (fun _ ctx -> ctx#reset) contexts
+	method clear_temp_cache =
+		Hashtbl.iter (fun _ ctx -> ctx#clear_temp_cache) contexts
 
 	method get_context sign =
 		try

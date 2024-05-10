@@ -649,7 +649,7 @@ let after_save sctx ctx =
 		maybe_cache_context sctx ctx.com
 
 let after_compilation sctx ctx =
-	sctx.cs#reset;
+	sctx.cs#clear_temp_cache;
 	()
 
 let mk_length_prefixed_communication allow_nonblock chin chout =
