@@ -4760,7 +4760,18 @@ let gen_member_def ctx class_def is_static is_interface field =
          output "\n";
       | _ when has_class_field_flag field CfAbstract ->
          let ctx_arg_list ctx arg_list prefix =
-            String.concat "," (List.map (fun (n,o,t) -> (ctx_arg ctx n None t prefix) ) arg_list)
+            let get_default_value name =
+               try
+                  match Meta.get Meta.Value field.cf_meta with
+                  | (_,[ (EObjectDecl decls, _) ],_) ->
+                     Some ((List.find (fun ((n,_,_), _) -> n = name) decls) |> snd |> (type_constant_value ctx.ctx_common.basic));
+                  | _ ->
+                     None
+               with Not_found ->
+                  None
+            in
+
+            String.concat "," (List.map (fun (n,o,t) -> (ctx_arg ctx n (get_default_value n) t prefix) ) arg_list)
          in
          let tl,tr = match follow field.cf_type with
             | TFun(tl,tr) -> tl,tr
