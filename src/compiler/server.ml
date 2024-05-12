@@ -311,8 +311,7 @@ let check_module sctx com m_path m_extra p =
 		in
 		let check_dependencies () =
 			let full_restore =
-				com.is_macro_context
-				|| com.display.dms_full_typing
+				com.display.dms_full_typing
 				|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m_extra.m_file)
 			in
 			PMap.iter (fun _ mdep ->
@@ -394,7 +393,7 @@ let check_module sctx com m_path m_extra p =
 let get_hxb_module com cc path =
 	try
 		let mc = cc#get_hxb_module path in
-		if not com.is_macro_context && not com.display.dms_full_typing && not (DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file)) then begin
+		if not com.display.dms_full_typing && not (DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file)) then begin
 			mc.mc_extra.m_cache_state <- MSGood;
 			BinaryModule mc
 		end else
@@ -437,11 +436,14 @@ class hxb_reader_api_server
 			m
 		| BinaryModule mc ->
 			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined com Define.HxbTimes) in
-			let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file) in
-			let full_restore = com.is_macro_context || com.display.dms_full_typing || is_display_file in
+			let restore_level:HxbReader.restore_level =
+				if com.display.dms_full_typing then Full
+				else if DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file) then DisplayFile
+				else Minimal
+			in
 			let f_next chunks until =
 				let t_hxb = Timer.timer ["server";"module cache";"hxb read"] in
-				let r = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until (not full_restore) in
+				let r = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until restore_level in
 				t_hxb();
 				r
 			in
@@ -449,8 +451,7 @@ class hxb_reader_api_server
 
 			(* We try to avoid reading expressions as much as possible, so we only do this for
 				 our current display file if we're in display mode. *)
-			if full_restore then ignore(f_next chunks EOM)
-			else delay (fun () -> ignore(f_next chunks EOF));
+			if restore_level <> Minimal then ignore(f_next chunks EOM);
 			m
 		| BadModule reason ->
 			die (Printf.sprintf "Unexpected BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)) __LOC__
@@ -504,28 +505,28 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 					com.module_lut#add m.m_path m;
 				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
 				let full_restore =
-					com.is_macro_context
-					|| com.display.dms_full_typing
+					com.display.dms_full_typing
 					|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file)
 				in
 				PMap.iter (fun _ mdep ->
 					let mpath = mdep.md_path in
 					if mdep.md_sign = own_sign then begin
-						let m2 = try
-							com.module_lut#find mpath
-						with Not_found ->
-							match type_module sctx com delay mpath p with
-							| GoodModule m ->
-								m
-							| BinaryModule mc ->
-								failwith (Printf.sprintf "Unexpectedly found unresolved binary module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
-							| NoModule ->
-								failwith (Printf.sprintf "Unexpectedly could not find module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
-							| BadModule reason ->
-								failwith (Printf.sprintf "Unexpected bad module %s (%s) as a dependency of %s" (s_type_path mpath) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path))
-						in
-						add_modules (tabs ^ "  ") m0 m2
+						try begin
+							let m2 = com.module_lut#find mpath in
+							add_modules (tabs ^ "  ") m0 m2
+						end with Not_found ->
+							if full_restore then
+								match type_module sctx com delay mpath p with
+								| GoodModule m ->
+									add_modules (tabs ^ "  ") m0 m
+								| BinaryModule mc ->
+									failwith (Printf.sprintf "Unexpectedly found unresolved binary module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
+								| NoModule ->
+									failwith (Printf.sprintf "Unexpectedly could not find module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
+								| BadModule reason ->
+									failwith (Printf.sprintf "Unexpected bad module %s (%s) as a dependency of %s" (s_type_path mpath) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path))
 					end
+				(* ) (if full_restore then m.m_extra.m_deps else PMap.empty) *)
 				) (if full_restore then m.m_extra.m_deps else Option.default m.m_extra.m_deps m.m_extra.m_sig_deps)
 			)
 		end
@@ -579,8 +580,11 @@ and type_module sctx com delay mpath p =
 			begin match check_module sctx mpath mc.mc_extra p with
 				| None ->
 					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined com Define.HxbTimes) in
-					let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file) in
-					let full_restore = com.is_macro_context || com.display.dms_full_typing || is_display_file in
+					let restore_level:HxbReader.restore_level =
+						if com.display.dms_full_typing then Full
+						else if DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file) then DisplayFile
+						else Minimal
+					in
 					let api = match com.hxb_reader_api with
 						| Some api ->
 							api
@@ -591,14 +595,14 @@ and type_module sctx com delay mpath p =
 					in
 					let f_next chunks until =
 						let t_hxb = Timer.timer ["server";"module cache";"hxb read"] in
-						let r = reader#read_chunks_until api chunks until (not full_restore) in
+						let r = reader#read_chunks_until api chunks until restore_level in
 						t_hxb();
 						r
 					in
 					let m,chunks = f_next mc.mc_chunks EOT in
 					(* We try to avoid reading expressions as much as possible, so we only do this for
 					   our current display file if we're in display mode. *)
-					if full_restore then ignore(f_next chunks EOM)
+					if restore_level <> Minimal then ignore(f_next chunks EOM)
 					else delay (fun () -> ignore(f_next chunks EOF));
 					add_modules true m;
 				| Some reason ->
@@ -641,6 +645,8 @@ let after_save sctx ctx =
 
 let after_compilation sctx ctx =
 	sctx.cs#clear_temp_cache;
+	if Define.raw_defined ctx.com.defines "hxb.stats" then
+		HxbReader.dump_stats (platform_name ctx.com.platform) ctx.com.hxb_reader_stats;
 	()
 
 let mk_length_prefixed_communication allow_nonblock chin chout =

@@ -140,7 +140,7 @@ class hxb_reader_api_com
 		with Not_found ->
 			let mc = cc#get_hxb_module m_path in
 			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined com Define.HxbTimes) in
-			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if minimal_restore then MTF else EOM) minimal_restore)
+			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if minimal_restore then MTF else EOM) Minimal)
 
 	method basic_types =
 		com.basic
@@ -153,6 +153,7 @@ class hxb_reader_api_com
 end
 
 let find_module ~(minimal_restore : bool) com cc path =
+	(* TODO: check all this... *)
 	(new hxb_reader_api_com ~minimal_restore com cc)#find_module path
 
 type handler_context = {
