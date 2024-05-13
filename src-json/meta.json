@@ -92,6 +92,13 @@
 		"links": ["https://haxe.org/manual/macro-type-building.html"]
 	},
 	{
+		"name": "BuildOrder",
+		"metadata": ":buildOrder",
+		"doc": "Specify that a build macro should run Early or Late (in relation to other build macros for current type)",
+		"params": ["Build order"],
+		"targets": ["TClassField"]
+	},
+	{
 		"name": "BuildXml",
 		"metadata": ":buildXml",
 		"doc": "Specify XML data to be injected into `Build.xml`.",
