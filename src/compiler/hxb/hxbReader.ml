@@ -19,18 +19,12 @@ let create_field_reader_context p ts vars tthis = {
 }
 
 type hxb_reader_stats = {
-	modules_fully_restored : int ref;
-	modules_partially_restored : int ref;
-
 	full_restore : int ref;
 	display_file_restore : int ref;
 	minimal_restore : int ref;
 }
 
 let create_hxb_reader_stats () = {
-	modules_fully_restored = ref 0;
-	modules_partially_restored = ref 0;
-
 	full_restore = ref 0;
 	minimal_restore = ref 0;
 	display_file_restore = ref 0;
@@ -150,8 +144,6 @@ let read_leb128 ch =
 
 let dump_stats name stats =
 	print_endline (Printf.sprintf "hxb_reader stats for %s" name);
-	print_endline (Printf.sprintf "  modules partially restored: %i" (!(stats.modules_partially_restored) - !(stats.modules_fully_restored)));
-	print_endline (Printf.sprintf "  modules fully restored: %i" !(stats.modules_fully_restored));
 	print_endline (Printf.sprintf "  full restore: %i" !(stats.full_restore));
 	print_endline (Printf.sprintf "  minimal restore: %i" !(stats.minimal_restore));
 	print_endline (Printf.sprintf "  display file restore: %i" !(stats.display_file_restore));
@@ -2052,11 +2044,9 @@ class hxb_reader
 		| MDF ->
 			assert(has_string_pool);
 			current_module <- self#read_mdf;
-			incr stats.modules_partially_restored;
 		| MTF ->
 			current_module.m_types <- self#read_mtf;
 			api#add_module current_module;
-			incr stats.modules_partially_restored;
 			incr (match restore_level with
 				| Full -> stats.full_restore
 				| DisplayFile -> stats.display_file_restore
@@ -2103,7 +2093,7 @@ class hxb_reader
 		| EXD ->
 			self#read_exd;
 		| EOM ->
-			incr stats.modules_fully_restored;
+			()
 
 	method private get_backtrace () = Printexc.get_raw_backtrace ()
 	method private get_callstack () = Printexc.get_callstack 200
