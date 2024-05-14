@@ -142,7 +142,7 @@ let read_leb128 ch =
 
 let dump_stats name stats =
 	print_endline (Printf.sprintf "hxb_reader stats for %s" name);
-	print_endline (Printf.sprintf "  modules partially restored: %i" (!(stats.modules_fully_restored) - !(stats.modules_partially_restored)));
+	print_endline (Printf.sprintf "  modules partially restored: %i" (!(stats.modules_partially_restored) - !(stats.modules_fully_restored)));
 	print_endline (Printf.sprintf "  modules fully restored: %i" !(stats.modules_fully_restored));
 
 class hxb_reader
@@ -1940,6 +1940,7 @@ class hxb_reader
 		| MDF ->
 			assert(has_string_pool);
 			current_module <- self#read_mdf;
+			incr stats.modules_partially_restored;
 		| MTF ->
 			current_module.m_types <- self#read_mtf;
 			api#add_module current_module;
