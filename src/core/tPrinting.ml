@@ -461,6 +461,7 @@ module Printer = struct
 		| TPHEnumConstructor -> "TPHEnumConstructor"
 		| TPHAnonField -> "TPHAnonField"
 		| TPHLocal -> "TPHLocal"
+		| TPHUnbound -> "TPHUnbound"
 
 	let s_type_param tabs ttp =
 		s_record_fields tabs [

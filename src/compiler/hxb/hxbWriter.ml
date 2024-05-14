@@ -1096,6 +1096,8 @@ module HxbWriter = struct
 				writer.wrote_local_type_param <- true;
 				Chunk.write_u8 writer.chunk 3;
 				Chunk.write_uleb128 writer.chunk index;
+			| TPHUnbound ->
+				raise Not_found
 		end with Not_found ->
 			(try ignore(IdentityPool.get writer.unbound_ttp ttp) with Not_found -> begin
 				ignore(IdentityPool.add writer.unbound_ttp ttp ());
@@ -1103,7 +1105,9 @@ module HxbWriter = struct
 				let msg = Printf.sprintf "Unbound type parameter %s" (s_type_path ttp.ttp_class.cl_path) in
 				writer.warn WUnboundTypeParameter msg p
 			end);
-			Chunk.write_u8 writer.chunk 4; (* TDynamic None *)
+			writer.wrote_local_type_param <- true;
+			Chunk.write_u8 writer.chunk 5;
+			write_path writer ttp.ttp_class.cl_path;
 		end
 
 	(*
@@ -1661,6 +1665,7 @@ module HxbWriter = struct
 				| TPHEnumConstructor -> 3
 				| TPHAnonField -> 4
 				| TPHLocal -> 5
+				| TPHUnbound -> 6
 			in
 			Chunk.write_u8 writer.chunk i
 		in

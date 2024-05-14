@@ -744,6 +744,9 @@ class hxb_reader
 			local_type_parameters.(k).ttp_type
 		| 4 ->
 			t_dynamic
+		| 5 ->
+			let path = self#read_path in
+			(mk_type_param { null_class with cl_path = path } TPHUnbound None None).ttp_type
 		| 10 ->
 			let c = self#read_class_ref in
 			c.cl_type

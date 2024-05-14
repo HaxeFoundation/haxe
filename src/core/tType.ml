@@ -54,6 +54,7 @@ type type_param_host =
 	| TPHEnumConstructor
 	| TPHAnonField
 	| TPHLocal
+	| TPHUnbound
 
 type cache_bound_object =
 	| Resource of string * string

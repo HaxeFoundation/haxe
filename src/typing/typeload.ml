@@ -761,7 +761,8 @@ and type_type_params ctx host path p tpl =
 						| TPHMethod
 						| TPHEnumConstructor
 						| TPHAnonField
-						| TPHLocal ->
+						| TPHLocal
+						| TPHUnbound ->
 							display_error ctx.com "Default type parameters are only supported on types" (pos ct)
 					end;
 					check_param_constraints ctx t (fun t -> t) ttp (pos ct);
