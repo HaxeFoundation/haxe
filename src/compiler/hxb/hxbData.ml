@@ -24,7 +24,7 @@ exception HxbFailure of string
 type chunk_kind =
 	| STR (* string pool *)
 	| DOC (* doc pool *)
-	| MDF (* module foward *)
+	| MDF (* module forward *)
 	| MTF (* module types forward *)
 	(* Module type references *)
 	| IMP (* imports *)
