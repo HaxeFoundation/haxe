@@ -100,6 +100,7 @@ class TestCase implements ITest implements ITestCase {
 	}
 
 	function runHaxe(args:Array<String>, done:() -> Void) {
+		#if disable-hxb-cache args = ["-D", "disable-hxb-cache"].concat(args); #end
 		messages = [];
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
