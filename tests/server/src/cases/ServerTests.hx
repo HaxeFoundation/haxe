@@ -130,7 +130,10 @@ class ServerTests extends TestCase {
 		runHaxe(args2);
 
 		runHaxe(args);
-		assertSkipping("HelloWorld", Tainted("server/invalidate"));
+		// With hxb:
+		// assertSkipping("HelloWorld", Tainted("server/invalidate"));
+		// Without hxb:
+		assertSkipping("HelloWorld", Tainted("check_display_file"));
 	}
 
 	function testMutuallyDependent() {
