@@ -368,6 +368,7 @@ let rec make pctx toplevel t e =
 			let patterns,fields = List.fold_left (fun (patterns,fields) (cf,t) ->
 				try
 					if pctx.in_reification && cf.cf_name = "pos" then raise Not_found;
+					if pctx.in_reification && cf.cf_name = "namePos" then raise Not_found;
 					let e1 = Expr.field_assoc cf.cf_name fl in
 					make pctx false t e1 :: patterns,cf.cf_name :: fields
 				with Not_found ->
