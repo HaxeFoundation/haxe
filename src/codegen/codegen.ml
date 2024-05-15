@@ -398,14 +398,18 @@ module Dump = struct
 				| Some (com, macro_sign) when sign = macro_sign -> com
 				| _ -> raise Not_found
 			in
-			com.module_lut#find path
+			(com, com.module_lut#find path)
 		in
 		List.iter (fun m ->
 			print "%s:\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
 			PMap.iter (fun _ mdep ->
-				let m2 = find_module mdep.md_path mdep.md_sign in
+				let (com, m2) = find_module mdep.md_path mdep.md_sign in
 				let file = Path.UniqueKey.lazy_path m2.m_extra.m_file in
-				print "\t%s\n" file;
+				let ctx = match platform_name_macro com with
+					| p when p <> target_name -> Printf.sprintf "[%s] " p
+					| _ -> ""
+				in
+				print "\t%s%s\n" ctx file;
 				let l = try Hashtbl.find dep file with Not_found -> [] in
 				Hashtbl.replace dep file (m :: l)
 			) m.m_extra.m_deps;
