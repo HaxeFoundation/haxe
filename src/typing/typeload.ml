@@ -414,7 +414,7 @@ and load_instance' ctx ptp get_params mode =
 		if t.tparams <> [] then raise_typing_error ("Class type parameter " ^ t.tname ^ " can't have parameters") ptp.pos_full;
 		pt
 	with Not_found ->
-		let mt = load_type_def ctx (if ptp.pos_path == null_pos then ptp.pos_full else ptp.pos_path) t in
+		let mt = load_type_def ctx ptp.pos_path t in
 		let info = ctx.g.get_build_info ctx mt ptp.pos_full in
 		if info.build_path = ([],"Dynamic") then match t.tparams with
 			| [] -> t_dynamic

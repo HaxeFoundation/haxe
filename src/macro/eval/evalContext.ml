@@ -403,10 +403,6 @@ let exc_string_p str p = throw (vstring (EvalString.create_ascii str)) p
 
 let error_message = exc_string
 
-let flush_core_context f =
-	let ctx = get_ctx() in
-	ctx.curapi.MacroApi.flush_context f
-
 (* Environment handling *)
 
 let no_timer = fun () -> ()

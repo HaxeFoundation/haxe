@@ -1,7 +1,7 @@
 package unit.issues.misc;
 
-import haxe.macro.Expr;
 import haxe.macro.Context;
+import haxe.macro.Expr;
 import haxe.macro.Type;
 
 using haxe.macro.Tools;
@@ -10,7 +10,7 @@ class Issue3183Macro {
 	static var tupleMap = new Map();
 
 	macro static public function buildTuple():ComplexType {
-		switch(Context.getLocalType()) {
+		switch (Context.getLocalType()) {
 			case TInst(c, args):
 				var arity = args.length;
 				if (arity == 0) {
@@ -26,21 +26,23 @@ class Issue3183Macro {
 					tupleMap[arity] = buildTupleType(c.get(), Context.getBuildFields(), arity);
 				}
 				var ct = tupleMap[arity];
-				ct.params = [for (t in args) {
-					switch (t) {
-						case TInst(_.get().kind => KExpr(e), _):
-							TPType(Context.typeof(e).toComplexType());
-						case _:
-							TPType(t.toComplexType());
+				ct.params = [
+					for (t in args) {
+						switch (t) {
+							case TInst(_.get().kind => KExpr(e), _):
+								TPType(Context.typeof(e).toComplexType());
+							case _:
+								TPType(t.toComplexType());
+						}
 					}
-				}];
+				];
 				return TPath(ct);
 			case _:
 				return Context.error("Class expected", Context.currentPos());
 		}
 	}
 
-	static function buildTupleType(c:ClassType, fields:Array<Field>, arity:Int) {
+	static function buildTupleType(c:ClassType, fields:Array<Field>, arity:Int):TypePath {
 		var typeParams = [];
 		var tupleFields = [];
 		for (i in 0...arity) {
@@ -70,10 +72,12 @@ class Issue3183Macro {
 			access: [APublic, AInline],
 			kind: FFun({
 				ret: null,
-				expr: macro $b{tupleFields.map(function(field) {
-					var name = field.name;
-					return macro this.$name = $i{name};
-				})},
+				expr: macro $b{
+					tupleFields.map(function(field) {
+						var name = field.name;
+						return macro this.$name = $i{name};
+					})
+				},
 				params: [],
 				args: tupleFields.map(function(field) {
 					return {

@@ -123,6 +123,8 @@ let reify in_macro =
 					("name", (efield(ei,"name"),p));
 					("sub", (efield(ei,"sub"),p));
 					("params", ea);
+					("pos", to_pos p);
+					("posPath", to_pos ptp.pos_path);
 				] in
 				to_obj fields p
 		end else begin
@@ -130,8 +132,11 @@ let reify in_macro =
 				("pack", to_array to_string t.tpackage p);
 				("name", to_string t.tname p);
 				("params", to_array to_tparam t.tparams p);
+				("pos", to_pos p);
+				("posPath", to_pos ptp.pos_path);
 			] in
-			to_obj (match t.tsub with None -> fields | Some s -> fields @ ["sub",to_string s p]) p
+			let fields = match t.tsub with None -> fields | Some s -> fields @ ["sub",to_string s p] in
+			to_obj fields p
 		end
 	and to_ctype t p =
 		let ct n vl = mk_enum "ComplexType" n vl p in
