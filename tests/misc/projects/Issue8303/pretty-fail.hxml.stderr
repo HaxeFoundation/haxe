@@ -2,10 +2,8 @@
 
    | Uncaught exception Stack overflow
 
-    ->  Main.hx:1: character 1
+    ->  Main.hx
 
-     1 | class Main {
-       | ^
        | Called from here
 
      8 |    log();

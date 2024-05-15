@@ -131,9 +131,9 @@ let inline_constructors ctx original_e =
 			| IOKCtor(ioc) ->
 				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) io.io_dependent_vars;
 				if ioc.ioc_forced then begin
-					(* TODO construct error with sub *)
-					display_error ctx.com "Forced inline constructor could not be inlined" io.io_pos;
-					display_error ~depth:1 ctx.com (compl_msg "Cancellation happened here") p;
+					display_error_ext ctx.com (make_error (Custom "Forced inline constructor could not be inlined") ~sub:([
+						(make_error ~depth:1 (Custom (compl_msg "Cancellation happened here")) p)
+					]) io.io_pos);
 				end
 			| _ -> ()
 		end

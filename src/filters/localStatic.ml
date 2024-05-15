@@ -1,4 +1,3 @@
-open Common
 open Type
 open Typecore
 open Error
@@ -14,8 +13,9 @@ let promote_local_static lsctx run v eo =
 	let c = lsctx.ctx.c.curclass in
 	begin try
 		let cf = PMap.find name c.cl_statics in
-		display_error lsctx.ctx.com (Printf.sprintf "The expanded name of this local (%s) conflicts with another static field" name) v.v_pos;
-		raise_typing_error ~depth:1 "Conflicting field was found here" cf.cf_name_pos;
+		raise_typing_error_ext (make_error (Custom (Printf.sprintf "The expanded name of this local (%s) conflicts with another static field" name)) ~sub:[
+			make_error ~depth:1 (Custom "Conflicting field was found here") cf.cf_name_pos
+		] v.v_pos);
 	with Not_found ->
 		let cf = mk_field name ~static:true v.v_type v.v_pos v.v_pos in
 		cf.cf_meta <- v.v_meta;

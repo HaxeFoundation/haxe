@@ -612,6 +612,11 @@ module Printer = struct
 		| MExtern -> "MExtern"
 		| MImport -> "MImport"
 
+	let s_module_origin = function
+		| MDepFromImport -> "MDepFromImport"
+		| MDepFromTyping -> "MDepFromTyping"
+		| MDepFromMacro -> "MDepFromMacro"
+
 	let s_module_tainting_reason = function
 		| CheckDisplayFile -> "check_display_file"
 		| ServerInvalidate -> "server/invalidate"

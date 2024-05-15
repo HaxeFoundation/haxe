@@ -11,7 +11,7 @@ class lib_build_task cs file ftime lib = object(self)
 		let h = Hashtbl.create 0 in
 		List.iter (fun path ->
 			if not (Hashtbl.mem h path) then begin
-				let p = { pfile = file ^ " @ " ^ Globals.s_type_path path; pmin = 0; pmax = 0; } in
+				let p = file_pos (file ^ " @ " ^ Globals.s_type_path path) in
 				try begin match lib#build path p with
 				| Some r -> Hashtbl.add h path r
 				| None -> ()

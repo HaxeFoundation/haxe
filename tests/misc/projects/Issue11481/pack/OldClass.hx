@@ -3,10 +3,11 @@ package pack;
 @:native("NewClass")
 class OldClass {
 	macro static function f2() {
-		return null;
+		return macro null;
 	}
 
-	macro static function f1() {
-		return null;
+	public macro static function f1() {
+		trace(OldClass);
+		return macro null;
 	}
 }

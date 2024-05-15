@@ -105,7 +105,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 end
 
 class hxb_reader_api_com
-	~(headers_only : bool)
+	~(minimal_restore : bool)
 	(com : Common.context)
 	(cc : CompilationCache.context_cache)
 = object(self)
@@ -139,8 +139,8 @@ class hxb_reader_api_com
 			cc#find_module m_path
 		with Not_found ->
 			let mc = cc#get_hxb_module m_path in
-			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats in
-			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if headers_only then MTF else EOM))
+			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined com Define.HxbTimes) in
+			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if minimal_restore then MTF else EOM) minimal_restore)
 
 	method basic_types =
 		com.basic
@@ -152,8 +152,8 @@ class hxb_reader_api_com
 		false
 end
 
-let find_module ~(headers_only : bool) com cc path =
-	(new hxb_reader_api_com ~headers_only com cc)#find_module path
+let find_module ~(minimal_restore : bool) com cc path =
+	(new hxb_reader_api_com ~minimal_restore com cc)#find_module path
 
 type handler_context = {
 	com : Common.context;
@@ -352,11 +352,11 @@ let handler =
 			let cs = hctx.display#get_cs in
 			let cc = cs#get_context sign in
 			let m = try
-				find_module ~headers_only:true hctx.com cc path
+				find_module ~minimal_restore:true hctx.com cc path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
-			hctx.send_result (generate_module (cc#get_hxb) (find_module ~headers_only:true hctx.com cc) m)
+			hctx.send_result (generate_module (cc#get_hxb) (find_module ~minimal_restore:true hctx.com cc) m)
 		);
 		"server/type", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
@@ -364,7 +364,7 @@ let handler =
 			let typeName = hctx.jsonrpc#get_string_param "typeName" in
 			let cc = hctx.display#get_cs#get_context sign in
 			let m = try
-				find_module ~headers_only:true hctx.com cc path
+				find_module ~minimal_restore:true hctx.com cc path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in

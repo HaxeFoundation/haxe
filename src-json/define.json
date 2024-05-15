@@ -161,6 +161,11 @@
 		"platforms": ["eval"]
 	},
 	{
+		"name": "FailFast",
+		"define": "fail-fast",
+		"doc": "Abort compilation when first error occurs."
+	},
+	{
 		"name": "FilterTimes",
 		"define": "filter-times",
 		"doc": "Record per-filter execution times upon --times."
@@ -255,6 +260,11 @@
 		"doc": "The HashLink version to target. (default: 1.10.0)",
 		"platforms": ["hl"],
 		"params": ["version"]
+	},
+	{
+		"name": "HxbTimes",
+		"define": "hxb-times",
+		"doc": "Display hxb timing when used with `--times`."
 	},
 	{
 		"name": "HxcppApiLevel",
@@ -781,7 +791,7 @@
 	{
 		"name": "MessageReporting",
 		"define": "message.reporting",
-		"doc": "Select message reporting mode for compiler output. (default: classic)",
+		"doc": "Select message reporting mode for compiler output. (default: pretty)",
 		"params": ["mode: classic | pretty | indent"]
 	},
 	{

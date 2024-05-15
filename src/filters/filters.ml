@@ -511,16 +511,16 @@ let update_cache_dependencies ~close_monomorphs com t =
 	let visited_anons = ref [] in
 	let rec check_t m t = match t with
 		| TInst(c,tl) ->
-			add_dependency m c.cl_module;
+			add_dependency m c.cl_module MDepFromTyping;
 			List.iter (check_t m) tl;
 		| TEnum(en,tl) ->
-			add_dependency m en.e_module;
+			add_dependency m en.e_module MDepFromTyping;
 			List.iter (check_t m) tl;
 		| TType(t,tl) ->
-			add_dependency m t.t_module;
+			add_dependency m t.t_module MDepFromTyping;
 			List.iter (check_t m) tl;
 		| TAbstract(a,tl) ->
-			add_dependency m a.a_module;
+			add_dependency m a.a_module MDepFromTyping;
 			List.iter (check_t m) tl;
 		| TFun(targs,tret) ->
 			List.iter (fun (_,_,t) -> check_t m t) targs;

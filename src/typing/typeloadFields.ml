@@ -185,9 +185,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		let params = extract_param_types c.cl_params in
 		let ethis = mk (TConst TThis) (TInst(c,params)) p in
 		let doc_buf = Buffer.create 0 in
-		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
-			| Var { v_write = AccNever } -> args,el,tl
-			| Var _ ->
+		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> if is_physical_var_field cf then
 				let has_default_expr = field_has_default_expr cf.cf_name in
 				let opt = has_default_expr || (Meta.has Meta.Optional cf.cf_meta) in
 				let t = if opt then ctx.t.tnull cf.cf_type else cf.cf_type in
@@ -221,7 +219,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 					Buffer.add_string doc_buf "\n";
 				end;
 				(v,None) :: args,e :: el,(cf.cf_name,opt,t) :: tl
-			| Method _ ->
+			else
 				args,el,tl
 		) ([],[],[]) (List.rev c.cl_ordered_fields) in
 		let el = match super_expr with Some e -> e :: el | None -> el in
@@ -313,8 +311,9 @@ let build_enum_abstract ctx c a fields p =
 				| VUnknown ->
 					()
 				| VPublic(access,p2) | VPrivate(access,p2) ->
-					display_error ctx.com (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
-					display_error ~depth:1 ctx.com "Conflicts with this" p2;
+					display_error_ext ctx.com (make_error (Custom (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access))) ~sub:[
+						make_error ~depth:1 (Custom (compl_msg "Conflicts with this")) p2;
+					] p1)
 			in
 			let rec loop visibility acc = match acc with
 				| (AExtern,p) :: acc ->
@@ -376,7 +375,11 @@ let resolve_type_import ctx p i =
 		[i]
 
 let build_module_def ctx mt meta fvars fbuild =
-	let is_typedef = match mt with TTypeDecl _ -> true | _ -> false in
+	let is_typedef, ti = match mt with
+		| TClassDecl { cl_kind = KAbstractImpl a } -> false, t_infos (TAbstractDecl a)
+		| TTypeDecl _ -> true, t_infos mt
+		| _ -> false, t_infos mt
+	in
 	let loop f_build = function
 		| Meta.Build,args,p when not is_typedef -> (fun () ->
 				let epath, el = (match args with
@@ -393,31 +396,13 @@ let build_module_def ctx mt meta fvars fbuild =
 				in
 				if ctx.com.is_macro_context then raise_typing_error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
 				let old = ctx.c.get_build_infos in
-				ctx.c.get_build_infos <- (fun() -> Some (mt, extract_param_types (t_infos mt).mt_params, fvars()));
+				ctx.c.get_build_infos <- (fun() -> Some (mt, extract_param_types ti.mt_params, fvars()));
 				let r = try ctx.g.do_macro ctx MBuild cpath meth el p with e -> ctx.c.get_build_infos <- old; raise e in
 				ctx.c.get_build_infos <- old;
 				(match r with
 				| MError | MMacroInMacro -> raise_typing_error "Build failure" p
 				| MSuccess e -> fbuild e)
 			) :: f_build
-		| Meta.Using,el,p -> (fun () ->
-			List.iter (fun e ->
-				try
-					let path = List.rev (string_pos_list_of_expr_path_raise e) in
-					let types,filter_classes = ImportHandling.handle_using ctx path (pos e) in
-					let ti =
-						match mt with
-							| TClassDecl { cl_kind = KAbstractImpl a } -> t_infos (TAbstractDecl a)
-							| _ -> t_infos mt
-					in
-					(* Delay for #10107, but use delay_late to make sure base classes run before their children do. *)
-					delay_late ctx.g PConnectField (fun () ->
-						ti.mt_using <- (filter_classes types) @ ti.mt_using
-					)
-				with Exit ->
-					raise_typing_error "dot path expected" (pos e)
-			) el;
-		) :: f_build
 		| _ ->
 			f_build
 	in
@@ -431,7 +416,6 @@ let build_module_def ctx mt meta fvars fbuild =
 			)
 		| TClassDecl { cl_super = csup; cl_implements = interfaces; cl_kind = kind } ->
 			(* Go for @:using in parents and interfaces *)
-			let ti = t_infos mt in
 			let inherit_using (c,_) =
 				ti.mt_using <- ti.mt_using @ (t_infos (TClassDecl c)).mt_using
 			in
@@ -444,6 +428,23 @@ let build_module_def ctx mt meta fvars fbuild =
 			None
 	in
 	List.iter (fun f -> f()) (List.rev f_build);
+	let apply_using = function
+		| Meta.Using,el,p ->
+			List.iter (fun e ->
+				try
+					let path = List.rev (string_pos_list_of_expr_path_raise e) in
+					let types,filter_classes = ImportHandling.handle_using ctx path (pos e) in
+					(* Delay for #10107, but use delay_late to make sure base classes run before their children do. *)
+					delay_late ctx.g PConnectField (fun () ->
+						ti.mt_using <- (filter_classes types) @ ti.mt_using
+					)
+				with Exit ->
+					raise_typing_error "dot path expected" (pos e)
+			) el;
+		| _ ->
+			()
+	in
+	List.iter apply_using ti.mt_meta;
 	(match f_enum with None -> () | Some f -> f())
 
 let create_class_context c p =
@@ -551,8 +552,9 @@ let create_typer_context_for_field ctx cctx fctx cff =
 		else if fctx.is_inline then
 			invalid_modifier_combination fctx ctx.com fctx "abstract" "inline" (pos cff.cff_name)
 		else if not (has_class_flag c CAbstract) then begin
-			display_error ctx.com "This class should be declared abstract because it has at least one abstract field" c.cl_name_pos;
-			display_error ctx.com "First abstract field was here" (pos cff.cff_name);
+			display_error_ext ctx.com (make_error (Custom "This class should be declared abstract because it has at least one abstract field") ~sub:[
+				make_error ~depth:1 (Custom (compl_msg "First abstract field was here")) (pos cff.cff_name);
+			] c.cl_name_pos);
 			add_class_flag c CAbstract;
 		end;
 	end;
@@ -733,7 +735,7 @@ module TypeBinding = struct
 		let p = cf.cf_pos in
 		let ctx = TyperManager.clone_for_expr ctx_f (if fctx.is_static then FunStatic else FunMember) false in
 		if (has_class_flag c CInterface) then unexpected_expression ctx.com fctx "Initialization on field of interface" (pos e);
-		cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
+		cf.cf_meta <- ((Meta.Value,[e],cf.cf_pos) :: cf.cf_meta);
 		let check_cast e =
 			(* insert cast to keep explicit field type (issue #1901) *)
 			if type_iseq e.etype cf.cf_type then
@@ -1399,8 +1401,9 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 				try
 					(match f2.cf_kind with
 						| Method MethMacro ->
-							display_error ctx.com (f2.cf_name ^ ": Macro methods cannot be used as property accessor") p;
-							display_error ~depth:1 ctx.com (compl_msg (f2.cf_name ^ ": Accessor method is here")) f2.cf_pos;
+							display_error_ext ctx.com (make_error (Custom (f2.cf_name ^ ": Macro methods cannot be used as property accessor")) ~sub:[
+								make_error ~depth:1 (Custom (compl_msg (f2.cf_name ^ ": Accessor method is here"))) f2.cf_pos;
+							] p);
 						| _ -> ());
 					unify_raise t2 t f2.cf_pos;
 					if (fctx.is_abstract_member && not (has_class_field_flag f2 CfImpl)) || (has_class_field_flag f2 CfImpl && not (fctx.is_abstract_member)) then
@@ -1556,8 +1559,9 @@ let check_overload ctx f fs is_extern_class =
 				Overloads.same_overload_args f.cf_type f2.cf_type f f2
 			) fs
 		in
-		display_error ctx.com ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
-		display_error ~depth:1 ctx.com (compl_msg "The second field is declared here") f2.cf_pos;
+		display_error_ext ctx.com (make_error (Custom ("Another overloaded field of same signature was already declared : " ^ f.cf_name)) ~sub:[
+			make_error ~depth:1 (Custom (compl_msg "The second field is declared here")) f2.cf_pos;
+		] f.cf_pos);
 		false
 	with Not_found -> try
 		if ctx.com.platform <> Jvm || is_extern_class then raise Not_found;
@@ -1570,12 +1574,11 @@ let check_overload ctx f fs is_extern_class =
 		in
 		(* Don't bother checking this on externs and assume the users know what they're doing (issue #11131) *)
 		if has_class_field_flag f CfExtern && has_class_field_flag f2 CfExtern then raise Not_found;
-		display_error ctx.com (
+		display_error_ext ctx.com (make_error (Custom (
 			"Another overloaded field of similar signature was already declared : " ^
 			f.cf_name ^
 			"\nThe signatures are different in Haxe, but not in the target language"
-		) f.cf_pos;
-		display_error ~depth:1 ctx.com (compl_msg "The second field is declared here") f2.cf_pos;
+		)) ~sub:[make_error ~depth:1 (Custom (compl_msg "The second field is declared here")) f2.cf_pos] f.cf_pos);
 		false
 	with Not_found ->
 		true
@@ -1767,8 +1770,9 @@ let init_class ctx_c cctx c p herits fields =
 				let display = com.display_information in
 				display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 			end else begin
-				display_error com "This class has uninitialized final vars, which requires a constructor" p;
-				display_error com "Example of an uninitialized final var" cf.cf_name_pos;
+				display_error_ext com (make_error (Custom "This class has uninitialized final vars, which requires a constructor") ~sub:[
+					make_error ~depth:1 (Custom "Example of an uninitialized final var") cf.cf_name_pos;
+				] p);
 			end
 		| _ ->
 			()

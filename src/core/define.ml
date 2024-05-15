@@ -152,7 +152,7 @@ let get_signature def =
 			   Parser.parse_macro_ident as well (issue #5682).
 			   Note that we should removed flags like use_rtti_doc here.
 			*)
-			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin" | "hxb.stats"
+			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin" | "hxb.stats" | "fail_fast"
 			| "message.reporting" | "message.log_file" | "message.log_format" | "message.no_color"
 			| "dump" | "dump_dependencies" | "dump_ignore_var_ids" -> acc
 			| _ -> (k ^ "=" ^ v) :: acc

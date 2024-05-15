@@ -38,7 +38,7 @@ class Key {
 		var code = if (isPublic) {
 			key.native.parse_public_keyfile(file);
 		} else {
-			key.native.parse_keyfile(file, pass);
+			key.native.parse_keyfile(file, pass, Mbedtls.getDefaultCtrDrbg());
 		}
 		if (code != 0) {
 			throw(mbedtls.Error.strerror(code));
@@ -51,7 +51,7 @@ class Key {
 		var code = if (isPublic) {
 			key.native.parse_public_key(data);
 		} else {
-			key.native.parse_key(data);
+			key.native.parse_key(data, null, Mbedtls.getDefaultCtrDrbg());
 		}
 		if (code != 0) {
 			throw(mbedtls.Error.strerror(code));

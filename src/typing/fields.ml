@@ -221,8 +221,9 @@ let field_access ctx mode f fh e pfield =
 			if bypass_accessor then (
 				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> warning ctx WTemp "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" pfield | _ -> ());
 				if not (is_physical_field f) then begin
-					display_error ctx.com "This field cannot be accessed because it is not a real variable" pfield;
-					display_error ctx.com "Add @:isVar here to enable it" f.cf_pos;
+					display_error_ext ctx.com (make_error (Custom "This field cannot be accessed because it is not a real variable") ~sub:[
+						make_error ~depth:1 (Custom "Add @:isVar here to enable it") f.cf_pos
+					] pfield);
 				end;
 				normal false
 			)
@@ -487,7 +488,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			with Not_found ->
 				match loop ctx.g.global_using with
 				| AKUsingField { se_access = { fa_host = FHStatic c } } as acc ->
-					add_dependency ctx.m.curmod c.cl_module;
+					add_dependency ctx.m.curmod c.cl_module MDepFromTyping;
 					acc
 				| _ -> die "" __LOC__
 		) t e in

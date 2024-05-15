@@ -26,10 +26,9 @@ and method_kind =
 	| MethMacro
 
 type module_check_policy =
-	| NoCheckFileTimeModification
+	| NoFileSystemCheck
+	| CheckFileModificationTime
 	| CheckFileContentModification
-	| NoCheckDependencies
-	| NoCheckShadowing
 
 type module_tainting_reason =
 	| CheckDisplayFile
@@ -378,6 +377,7 @@ and tabstract = {
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
 	mutable a_call : tclass_field option;
+	mutable a_extern : bool;
 	mutable a_enum : bool;
 }
 
@@ -401,10 +401,16 @@ and module_def_display = {
 	mutable m_import_positions : (pos,bool ref) PMap.t;
 }
 
+and module_dep_origin =
+	| MDepFromTyping
+	| MDepFromImport
+	| MDepFromMacro
+
 and module_dep = {
 	md_sign : Digest.t;
 	md_kind : module_kind;
 	md_path : path;
+	md_origin : module_dep_origin
 }
 
 and module_def_extra = {
@@ -418,6 +424,7 @@ and module_def_extra = {
 	mutable m_checked : int;
 	mutable m_processed : int;
 	mutable m_deps : (int,module_dep) PMap.t;
+	mutable m_sig_deps : (int,module_dep) PMap.t option;
 	mutable m_kind : module_kind;
 	mutable m_cache_bound_objects : cache_bound_object DynArray.t;
 	mutable m_features : (string,bool) Hashtbl.t;

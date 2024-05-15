@@ -1,0 +1,2 @@
+Main.hx:8: characters 4-22 : Int should be String
+Main.hx:3: characters 3-8 : ... Called from macro here

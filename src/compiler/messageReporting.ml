@@ -4,54 +4,57 @@ open Common
 open CompilationContext
 
 let resolve_source file l1 p1 l2 p2 =
-	let ch = open_in_bin file in
-	let curline = ref 1 in
-	let lines = ref [] in
-	let rec loop p line =
-		let inc i line =
-			if (!curline >= l1) && (!curline <= l2) then lines := (!curline, line) :: !lines;
-			curline := !curline + 1;
-			(i, "")
+	if l1 = l2 && p1 = p2 && l1 = 1 && p1 = 1 then []
+	else begin
+		let ch = open_in_bin file in
+		let curline = ref 1 in
+		let lines = ref [] in
+		let rec loop p line =
+			let inc i line =
+				if (!curline >= l1) && (!curline <= l2) then lines := (!curline, line) :: !lines;
+				curline := !curline + 1;
+				(i, "")
+			in
+
+			let input_char_or_done ch line =
+				try input_char ch with End_of_file -> begin
+					ignore(inc 0 line);
+					raise End_of_file
+				end
+			in
+
+			let read_char line = match input_char_or_done ch line with
+				| '\n' -> inc 1 line
+				| '\r' ->
+					ignore(input_char_or_done ch line);
+					inc 2 line
+				| c -> begin
+					let line = ref (line ^ (String.make 1 c)) in
+					let rec skip n =
+						if n > 0 then begin
+							let c = input_char_or_done ch !line in
+							line := !line ^ (String.make 1 c);
+							skip (n - 1)
+						end
+					in
+
+					let code = int_of_char c in
+					if code < 0xC0 then ()
+					else if code < 0xE0 then skip 1
+					else if code < 0xF0 then skip 2
+					else skip 3;
+
+					(1, !line)
+				end
+			in
+
+			let (delta, line) = read_char line in
+			loop (p + delta) line
 		in
 
-		let input_char_or_done ch line =
-			try input_char ch with End_of_file -> begin
-				ignore(inc 0 line);
-				raise End_of_file
-			end
-		in
-
-		let read_char line = match input_char_or_done ch line with
-			| '\n' -> inc 1 line
-			| '\r' ->
-				ignore(input_char_or_done ch line);
-				inc 2 line
-			| c -> begin
-				let line = ref (line ^ (String.make 1 c)) in
-				let rec skip n =
-					if n > 0 then begin
-						let c = input_char_or_done ch !line in
-						line := !line ^ (String.make 1 c);
-						skip (n - 1)
-					end
-				in
-
-				let code = int_of_char c in
-				if code < 0xC0 then ()
-				else if code < 0xE0 then skip 1
-				else if code < 0xF0 then skip 2
-				else skip 3;
-
-				(1, !line)
-			end
-		in
-
-		let (delta, line) = read_char line in
-		loop (p + delta) line
-	in
-
-	try loop 0 ""; with End_of_file -> close_in ch;
-	List.rev !lines
+		try loop 0 ""; with End_of_file -> close_in ch;
+		List.rev !lines
+	end
 
 let resolve_file ctx f =
 	let ext = StringHelper.extension f in
@@ -100,7 +103,8 @@ let compiler_pretty_message_string com ectx cm =
 				let l1, p1, l2, p2 = Lexer.get_pos_coords cm.cm_pos in
 				let lines = resolve_source f l1 p1 l2 p2 in
 				let epos =
-					if ectx.absolute_positions then TPrinting.Printer.s_pos cm.cm_pos
+					if lines = [] then cm.cm_pos.pfile
+					else if ectx.absolute_positions then TPrinting.Printer.s_pos cm.cm_pos
 					else Lexer.get_error_pos error_printer cm.cm_pos
 				in
 				(l1, p1, l2, p2, epos, lines)
@@ -342,7 +346,7 @@ let format_messages com messages =
 	let absolute_positions = Define.defined com.defines Define.MessageAbsolutePositions in
 	let ectx = create_error_context absolute_positions in
 	ectx.max_lines <- get_max_line ectx.max_lines messages;
-	let message_formatter = get_formatter com Define.MessageReporting "classic" in
+	let message_formatter = get_formatter com Define.MessageReporting "pretty" in
 	let lines = List.rev (
 		List.fold_left (fun lines cm -> match (message_formatter ectx cm) with
 			| None -> lines
@@ -356,14 +360,19 @@ let display_messages ctx on_message = begin
 	let ectx = create_error_context absolute_positions in
 	ectx.max_lines <- get_max_line ectx.max_lines ctx.messages;
 
+	let error msg =
+		ctx.has_error <- true;
+		on_message MessageSeverity.Error msg
+	in
+
 	let get_formatter _ def default =
 		try get_formatter ctx.com def default
 		with | ConfigError s ->
-			error ctx s null_pos;
+			error s;
 			compiler_message_string
 	in
 
-	let message_formatter = get_formatter ctx.com Define.MessageReporting "classic" in
+	let message_formatter = get_formatter ctx.com Define.MessageReporting "pretty" in
 	let log_formatter = get_formatter ctx.com Define.MessageLogFormat "indent" in
 
 	let log_messages = ref (Define.defined ctx.com.defines Define.MessageLogFile) in
@@ -393,7 +402,7 @@ let display_messages ctx on_message = begin
 		end with
 			| Failure e | Sys_error e -> begin
 				let def = Define.get_define_key Define.MessageLogFile in
-				error ctx (Printf.sprintf "Error opening log file: %s. Logging to file disabled (-D %s)" e def) null_pos;
+				error (Printf.sprintf "Error opening log file: %s. Logging to file disabled (-D %s)" e def);
 				log_messages := false;
 			end
 	end;

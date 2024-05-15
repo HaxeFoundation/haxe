@@ -190,6 +190,7 @@ module Setup = struct
 	let get_std_class_paths () =
 		try
 			let p = Sys.getenv "HAXE_STD_PATH" in
+			let p = Path.remove_trailing_slash p in
 			let rec loop = function
 				| drive :: path :: l ->
 					if String.length drive = 1 && ((drive.[0] >= 'a' && drive.[0] <= 'z') || (drive.[0] >= 'A' && drive.[0] <= 'Z')) then
@@ -274,7 +275,7 @@ let check_defines com =
 		PMap.iter (fun k _ ->
 			try
 				let reason = Hashtbl.find Define.deprecation_lut k in
-				let p = { pfile = "-D " ^ k; pmin = -1; pmax = -1 } in
+				let p = fake_pos ("-D " ^ k) in
 				com.warning WDeprecatedDefine [] reason p
 			with Not_found ->
 				()
@@ -417,8 +418,6 @@ let compile_safe ctx f =
 try
 	f ()
 with
-	| Abort ->
-		()
 	| Error.Fatal_error err ->
 		error_ext ctx err
 	| Lexer.Error (m,p) ->
@@ -430,8 +429,8 @@ with
 			ctx.has_error <- false;
 			ctx.messages <- [];
 		end else begin
-			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
-			List.iter (error ~depth:1 ctx (Error.compl_msg "referenced here")) (List.rev pl);
+			let sub = List.map (fun p -> Error.make_error ~depth:1 (Error.Custom (Error.compl_msg "referenced here")) p) pl in
+			error_ext ctx (Error.make_error (Error.Custom (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m))) ~sub p)
 		end
 	| Error.Error err ->
 		error_ext ctx err
@@ -448,11 +447,14 @@ with
 		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException.DisplayException dex ->
 		DisplayOutput.handle_display_exception ctx dex
-	| Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ as exc ->
+	| Abort | Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ as exc ->
 		(* We don't want these to be caught by the catchall below *)
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
 		error ctx (Printexc.to_string e) null_pos
+
+let compile_safe ctx f =
+	try compile_safe ctx f with Abort -> ()
 
 let finalize ctx =
 	ctx.comm.flush ctx;
@@ -597,7 +599,8 @@ module HighLevel = struct
 				loop acc l
 			| "--cwd" :: dir :: l | "-C" :: dir :: l ->
 				(* we need to change it immediately since it will affect hxml loading *)
-				(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
+				(* Exceptions are ignored there to let arg parsing do the error handling in expected order *)
+				(try Unix.chdir dir with _ -> ());
 				(* Push the --cwd arg so the arg processor know we did something. *)
 				loop (dir :: "--cwd" :: acc) l
 			| "--connect" :: hp :: l ->

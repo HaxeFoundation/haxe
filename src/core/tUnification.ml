@@ -31,6 +31,15 @@ type eq_kind =
 	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
 	| EqStricter
 
+type type_param_unification_context = {
+	known_type_params : typed_type_param list;
+	mutable type_param_pairs : (typed_type_param * typed_type_param) list;
+}
+
+type type_param_mode =
+	| TpDefault
+	| TpDefinition of type_param_unification_context
+
 type unification_context = {
 	allow_transitive_cast   : bool;
 	allow_abstract_cast     : bool; (* allows a non-transitive abstract cast (from,to,@:from,@:to) *)
@@ -39,6 +48,7 @@ type unification_context = {
 	equality_kind           : eq_kind;
 	equality_underlying     : bool;
 	strict_field_kind       : bool;
+	type_param_mode         : type_param_mode;
 }
 
 type unify_min_result =
@@ -64,6 +74,7 @@ let default_unification_context = {
 	equality_kind           = EqStrict;
 	equality_underlying     = false;
 	strict_field_kind       = false;
+	type_param_mode         = TpDefault;
 }
 
 (* Unify like targets (e.g. Java) probably would. *)
@@ -75,6 +86,7 @@ let native_unification_context = {
 	equality_underlying   = false;
 	allow_arg_name_mismatch = true;
 	strict_field_kind       = false;
+	type_param_mode         = TpDefault;
 }
 
 module Monomorph = struct
@@ -317,7 +329,7 @@ let rec follow_and_close t = match follow t with
 	| t ->
 		t
 
-let link e a b =
+let link uctx e a b =
 	(* tell if setting a == b will create a type-loop *)
 	let rec loop t =
 		if t == a then
@@ -325,6 +337,13 @@ let link e a b =
 		else match t with
 		| TMono t -> (match t.tm_type with None -> false | Some t -> loop t)
 		| TEnum (_,tl) -> List.exists loop tl
+		| TInst ({cl_kind = KTypeParameter ttp}, tl) ->
+			begin match uctx.type_param_mode with
+				| TpDefault ->
+					List.exists loop tl
+				| TpDefinition tctx ->
+					not (List.memq ttp tctx.known_type_params)
+			end
 		| TInst (_,tl) | TType (_,tl) | TAbstract (_,tl) -> List.exists loop tl
 		| TFun (tl,t) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
 		| TDynamic None ->
@@ -519,6 +538,7 @@ let rec_stack stack value fcheck frun ferror =
 let rec_stack_default stack value fcheck frun def =
 	if not (rec_stack_exists fcheck stack) then rec_stack_loop stack value frun () else def
 
+
 let rec type_eq uctx a b =
 	let param = uctx.equality_kind in
 	let can_follow_null = match param with
@@ -542,11 +562,11 @@ let rec type_eq uctx a b =
 	| _ , TLazy f -> type_eq uctx a (lazy_type f)
 	| TMono t , _ ->
 		(match t.tm_type with
-		| None -> if param = EqCoreType || param = EqStricter || not (link t a b) then error [cannot_unify a b]
+		| None -> if param = EqCoreType || param = EqStricter || not (link uctx t a b) then error [cannot_unify a b]
 		| Some t -> type_eq uctx t b)
 	| _ , TMono t ->
 		(match t.tm_type with
-		| None -> if param = EqCoreType || param = EqStricter || not (link t b a) then error [cannot_unify a b]
+		| None -> if param = EqCoreType || param = EqStricter || not (link uctx t b a) then error [cannot_unify a b]
 		| Some t -> type_eq uctx a t)
 	| TDynamic None, TDynamic None ->
 		()
@@ -574,6 +594,9 @@ let rec type_eq uctx a b =
 			(fun l -> error (cannot_unify a b :: l))
 	| TEnum (e1,tl1) , TEnum (e2,tl2) ->
 		if e1 != e2 && not (param = EqCoreType && e1.e_path = e2.e_path) then error [cannot_unify a b];
+		type_eq_params uctx a b tl1 tl2
+	| TInst ({cl_kind = KTypeParameter ttp1},tl1) , TInst ({cl_kind = KTypeParameter ttp2},tl2) when param <> EqCoreType ->
+		assign_type_params uctx ttp1 ttp2;
 		type_eq_params uctx a b tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		if c1 != c2 && not (param = EqCoreType && c1.cl_path = c2.cl_path) && (match c1.cl_kind, c2.cl_kind with KExpr _, KExpr _ -> false | _ -> true) then error [cannot_unify a b];
@@ -636,6 +659,19 @@ let rec type_eq uctx a b =
 	| _ , _ ->
 		error [cannot_unify a b]
 
+and assign_type_params uctx ttp1 ttp2 =
+	if ttp1 != ttp2 then begin match uctx.type_param_mode with
+		| TpDefault ->
+			error []
+		| TpDefinition tctx ->
+			begin try
+				let ttp3 = List.assq ttp2 tctx.type_param_pairs in
+				if ttp1 != ttp3 then error []
+			with Not_found ->
+				tctx.type_param_pairs <- (ttp2,ttp1) :: tctx.type_param_pairs
+			end
+	end
+
 and type_eq_params uctx a b tl1 tl2 =
 	let i = ref 0 in
 	List.iter2 (fun t1 t2 ->
@@ -686,11 +722,11 @@ let rec unify (uctx : unification_context) a b =
 	| _ , TLazy f -> unify uctx a (lazy_type f)
 	| TMono t , _ ->
 		(match t.tm_type with
-		| None -> if uctx.equality_kind = EqStricter || not (link t a b) then error [cannot_unify a b]
+		| None -> if uctx.equality_kind = EqStricter || not (link uctx t a b) then error [cannot_unify a b]
 		| Some t -> unify uctx t b)
 	| _ , TMono t ->
 		(match t.tm_type with
-		| None -> if uctx.equality_kind = EqStricter || not (link t b a) then error [cannot_unify a b]
+		| None -> if uctx.equality_kind = EqStricter || not (link uctx t b a) then error [cannot_unify a b]
 		| Some t -> unify uctx a t)
 	| TType (t,tl) , _ ->
 		rec_stack unify_stack (a,b)
@@ -732,6 +768,9 @@ let rec unify (uctx : unification_context) a b =
 		unify_to {uctx with allow_transitive_cast = false} a b ab tl
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		unify_abstracts uctx a b a1 tl1 a2 tl2
+	| TInst ({cl_kind = KTypeParameter ttp1},tl1) , TInst ({cl_kind = KTypeParameter ttp2},tl2) when uctx.type_param_mode != TpDefault ->
+		assign_type_params uctx ttp1 ttp2;
+		unify_type_params uctx a b tl1 tl2;
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
 			if c == c2 then begin

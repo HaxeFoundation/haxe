@@ -467,7 +467,7 @@ let push_environment ctx info =
 		env_locals = locals;
 		env_captures = captures;
 		env_extra_locals = IntMap.empty;
-		env_parent = eval.env;
+		env_parent = if info.kind = EKEntrypoint then None else eval.env;
 		env_eval = eval;
 		env_stack_depth = stack_depth;
 	} in

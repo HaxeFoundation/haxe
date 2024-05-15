@@ -6,9 +6,7 @@
    |
    | This class has uninitialized final vars, which requires a constructor
 
-[ERROR] Main5.hx:2: characters 8-9
-
- 2 |  final v:Int;
-   |        ^
-   | Example of an uninitialized final var
+    2 |  final v:Int;
+      |        ^
+      | Example of an uninitialized final var
 
