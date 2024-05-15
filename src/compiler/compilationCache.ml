@@ -81,7 +81,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		try (Hashtbl.find modules path).m_extra
 		with Not_found -> (self#get_hxb_module path).mc_extra
 
-	method cache_module config warn anon_identification path m =
+	method cache_hxb_module config warn anon_identification path m =
 		match m.m_extra.m_kind with
 		| MImport ->
 			Hashtbl.add modules m.m_path m
@@ -95,6 +95,9 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 				mc_chunks = chunks;
 				mc_extra = { m.m_extra with m_cache_state = MSGood }
 			}
+
+	method cache_module_in_memory path m =
+		Hashtbl.replace modules path m
 
 	method clear_temp_cache =
 		Hashtbl.clear tmp_binary_cache
