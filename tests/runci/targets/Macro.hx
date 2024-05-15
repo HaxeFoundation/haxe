@@ -8,6 +8,10 @@ class Macro {
 		runCommand("haxe", ["compile-macro.hxml", "--hxb", "bin/hxb/eval.zip"].concat(args));
 		runCommand("haxe", ["compile-macro.hxml", "--hxb-lib", "bin/hxb/eval.zip"].concat(args));
 
+		infoMsg("Test coroutines:");
+		changeDirectory(getMiscSubDir("coroutines"));
+		runCommand("haxe", ["build-eval.hxml"]);
+
 		changeDirectory(displayDir);
 		haxelibInstallGit("Simn", "haxeserver");
 		runCommand("haxe", ["build.hxml", "-D", "display.protocol=xml"]);

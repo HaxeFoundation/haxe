@@ -28,7 +28,7 @@ class Cpp {
 			final path = getHaxelibPath("hxcpp");
 			infoMsg('hxcpp has already been installed in $path.');
 		} catch(e:Dynamic) {
-			haxelibInstallGit("HaxeFoundation", "hxcpp", true);
+			haxelibInstallGit("HaxeFoundation", "hxcpp", "coro", true);
 			final oldDir = Sys.getCwd();
 			changeDirectory(getHaxelibPath("hxcpp") + "tools/hxcpp/");
 			runCommand("haxe", ["-D", "source-header=''", "compile.hxml"]);
@@ -72,6 +72,10 @@ class Cpp {
 			if (!isLinuxArm64) // FIXME
 				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 		}
+
+		changeDirectory(getMiscSubDir("coroutines"));
+		runCommand("haxe", ["build-cpp.hxml"]);
+		runCpp("bin/cpp/Main-debug");
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["-D", archFlag, "--each", "compile-cpp.hxml"].concat(args));
