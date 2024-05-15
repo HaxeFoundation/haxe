@@ -67,6 +67,11 @@
 		"doc": "Activated when compiling with -debug."
 	},
 	{
+		"name": "DisableHxbCache",
+		"define": "disable-hxb-cache",
+		"doc": "Use in-memory cache instead of hxb powered cache."
+	},
+	{
 		"name": "DisableUnicodeStrings",
 		"define": "disable-unicode-strings",
 		"doc": "Disable Unicode support in `String` type.",

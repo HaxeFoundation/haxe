@@ -84,27 +84,39 @@ let get_cache_sign com = match com.Common.cache with
 let rec cache_context cs com =
 	let cc = get_cache com in
 	let sign = Define.get_signature com.defines in
-	let anon_identification = new Tanon_identification.tanon_identification in
-	let config = match com.hxb_writer_config with
-		| None ->
-			HxbWriterConfig.create_target_config ()
-		| Some config ->
-			if com.is_macro_context then config.macro_config else config.target_config
+
+	let cache_module =
+		if Define.defined com.defines DisableHxbCache then
+			let cache_module m =
+				(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
+				let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
+				cc#cache_module_in_memory m.m_path m;
+			in
+			cache_module
+		else
+			let anon_identification = new Tanon_identification.tanon_identification in
+			let warn w s p = com.warning w com.warning_options s p in
+			let config = match com.hxb_writer_config with
+				| None ->
+					HxbWriterConfig.create_target_config ()
+				| Some config ->
+					if com.is_macro_context then config.macro_config else config.target_config
+			in
+			let cache_module m =
+				(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
+				let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
+				cc#cache_hxb_module config warn anon_identification m.m_path m;
+			in
+			cache_module
 	in
-	let cache_module m =
-		(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heueristic. *)
-		let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
-		let warn w s p = com.warning w com.warning_options s p in
-		cc#cache_module config warn anon_identification m.m_path m;
-	in
+
 	List.iter cache_module com.modules;
 	begin match com.get_macros() with
 		| None -> ()
 		| Some com -> cache_context cs com
 	end;
-	if Define.raw_defined com.defines "hxb.stats" then begin
-		HxbReader.dump_stats (platform_name com.platform) com.hxb_reader_stats;
-	end
+	if Define.raw_defined com.defines "hxb.stats" then
+		HxbReader.dump_stats (platform_name com.platform) com.hxb_reader_stats
 
 let maybe_add_context_sign cs com desc =
 	let sign = Define.get_signature com.defines in
