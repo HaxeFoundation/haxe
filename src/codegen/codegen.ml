@@ -386,10 +386,24 @@ module Dump = struct
 		let buf,close = create_dumpfile [] dump_dependencies_path in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		let dep = Hashtbl.create 0 in
+
+		let com_sign = Define.get_signature com.defines in
+		let macro_sign =
+			if com.is_macro_context then None
+			else Option.map (fun com -> (com, Define.get_signature com.defines)) (com.get_macros())
+		in
+		let find_module path sign =
+			let com = match macro_sign with
+				| _ when sign = com_sign -> com
+				| Some (com, macro_sign) when sign = macro_sign -> com
+				| _ -> raise Not_found
+			in
+			com.module_lut#find path
+		in
 		List.iter (fun m ->
 			print "%s:\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
 			PMap.iter (fun _ mdep ->
-				let m2 = com.module_lut#find mdep.md_path in
+				let m2 = find_module mdep.md_path mdep.md_sign in
 				let file = Path.UniqueKey.lazy_path m2.m_extra.m_file in
 				print "\t%s\n" file;
 				let l = try Hashtbl.find dep file with Not_found -> [] in
