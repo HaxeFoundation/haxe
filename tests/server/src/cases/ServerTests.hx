@@ -112,16 +112,23 @@ class ServerTests extends TestCase {
 		assertSuccess();
 	}
 
-	function testDisplayModuleRecache() {
+	@:variant("InMemory", true)
+	@:variant("Hxb", false)
+	function testDisplayModuleRecache(inMemory:Bool) {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
+		if (inMemory) args = args.concat(["-D", "disable-hxb-cache"]);
+		else args = args.concat(["--undefine", "disable-hxb-cache"]);
+
 		runHaxe(args);
 		runHaxe(args);
 		assertReuse("HelloWorld");
 
 		var args2 = ["--main", "HelloWorld", "--interp", "--display", "HelloWorld.hx@64@type"];
-		runHaxe(args2);
+		if (inMemory) args2 = args2.concat(["-D", "disable-hxb-cache"]);
+		else args2 = args2.concat(["--undefine", "disable-hxb-cache"]);
 
+		runHaxe(args2);
 		runHaxe(args);
 		assertReuse("HelloWorld");
 
@@ -130,7 +137,9 @@ class ServerTests extends TestCase {
 		runHaxe(args2);
 
 		runHaxe(args);
-		assertSkipping("HelloWorld", Tainted("server/invalidate"));
+
+		if (inMemory) assertSkipping("HelloWorld", Tainted("check_display_file"));
+		else assertSkipping("HelloWorld", Tainted("server/invalidate"));
 	}
 
 	function testMutuallyDependent() {
