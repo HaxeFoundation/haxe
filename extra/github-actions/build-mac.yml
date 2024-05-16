@@ -49,7 +49,7 @@
     set -ex
     eval $(opam env)
     opam config exec -- make -s -j`sysctl -n hw.ncpu` STATICLINK=1 "LIB_PARAMS=/usr/local/lib/libz.a /usr/local/lib/libpcre2-8.a /usr/local/lib/libmbedtls.a /usr/local/lib/libmbedcrypto.a /usr/local/lib/libmbedx509.a -cclib '-framework Security -framework CoreFoundation'" haxe
-    opam config exec -- make -s haxelib
+    opam config exec -- arch -x86_64 make -s haxelib
     make -s package_unix package_installer_mac
     ls -l out
     otool -L ./haxe
