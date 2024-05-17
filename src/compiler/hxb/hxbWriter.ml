@@ -2031,7 +2031,7 @@ module HxbWriter = struct
 			Chunk.write_list writer.chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
 				Chunk.write_string writer.chunk s;
 				write_pos_pair writer ef.ef_pos ef.ef_name_pos;
-				Chunk.write_u8 writer.chunk ef.ef_index
+				Chunk.write_uleb128 writer.chunk ef.ef_index
 			);
 		| TAbstractDecl a ->
 			()

@@ -1884,7 +1884,7 @@ class hxb_reader
 				let read_field () =
 					let name = self#read_string in
 					let pos,name_pos = self#read_pos_pair in
-					let index = read_byte ch in
+					let index = read_uleb128 ch in
 
 					{ null_enum_field with
 						ef_name = name;
