@@ -1709,6 +1709,7 @@ let write_c com file (code:code) gnames =
 
 	line "";
 	line "static void dump_types( void (*fdump)( void *, int) ) {";
+	line "#ifdef HL_DUMP_TYPES";
 	block ctx;
 	sexpr "hl_type *t";
 	sexpr "int ntypes = %d" (Array.length all_types);
@@ -1728,6 +1729,9 @@ let write_c com file (code:code) gnames =
 			sexpr "t = (hl_type*)&%s.fun->closure_type; fdump(&t, sizeof(void*))" (type_name ctx t);
 		| _ -> ()
 	) all_types;
+	line "#else";
+	sexpr "hl_error(\"Requires compiling with HL_DUMP_TYPES defined\")";
+	line "#endif";
 	unblock ctx;
 	line "}";
 
