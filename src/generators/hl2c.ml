@@ -1709,8 +1709,8 @@ let write_c com file (code:code) gnames =
 
 	line "";
 	line "static void dump_types( void (*fdump)( void *, int) ) {";
-	line "#ifdef HL_DUMP_TYPES";
 	block ctx;
+	line "#ifdef HL_DUMP_TYPES";
 	sexpr "hl_type *t";
 	sexpr "int ntypes = %d" (Array.length all_types);
 	sexpr "fdump(&ntypes,4)";
