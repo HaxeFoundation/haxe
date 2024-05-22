@@ -1730,7 +1730,7 @@ let write_c com file (code:code) gnames =
 		| _ -> ()
 	) all_types;
 	line "#else";
-	sexpr "hl_error(\"Requires compiling with HL_DUMP_TYPES defined\")";
+	sexpr "fprintf(stderr, \"Please compile with HL_DUMP_TYPES defined\\n\")";
 	line "#endif";
 	unblock ctx;
 	line "}";
