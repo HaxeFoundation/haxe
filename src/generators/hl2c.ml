@@ -1710,6 +1710,7 @@ let write_c com file (code:code) gnames =
 	line "";
 	line "static void dump_types( void (*fdump)( void *, int) ) {";
 	block ctx;
+	line "#ifdef HL_DUMP_TYPES";
 	sexpr "hl_type *t";
 	sexpr "int ntypes = %d" (Array.length all_types);
 	sexpr "fdump(&ntypes,4)";
@@ -1728,6 +1729,9 @@ let write_c com file (code:code) gnames =
 			sexpr "t = (hl_type*)&%s.fun->closure_type; fdump(&t, sizeof(void*))" (type_name ctx t);
 		| _ -> ()
 	) all_types;
+	line "#else";
+	sexpr "printf(\"dump_types not available, please compile with HL_DUMP_TYPES defined\\n\")";
+	line "#endif";
 	unblock ctx;
 	line "}";
 
