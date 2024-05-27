@@ -1459,7 +1459,6 @@ class hxb_reader
 		in
 		loop CfrMember (read_uleb128 ch) c.cl_ordered_fields;
 		loop CfrStatic (read_uleb128 ch) c.cl_ordered_statics;
-		(match c.cl_kind with KModuleFields md -> md.m_statics <- Some c; | _ -> ());
 
 	method read_enum_fields (e : tenum) =
 		type_type_parameters <- Array.of_list e.e_params;
@@ -1516,6 +1515,9 @@ class hxb_reader
 		c.cl_implements <- self#read_list read_relation;
 		c.cl_dynamic <- self#read_option (fun () -> self#read_type_instance);
 		c.cl_array_access <- self#read_option (fun () -> self#read_type_instance);
+		(match c.cl_kind with
+			| KModuleFields md -> md.m_statics <- Some c;
+			| _ -> ());
 
 	method read_abstract (a : tabstract) =
 		self#read_common_module_type (Obj.magic a);
