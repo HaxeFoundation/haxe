@@ -1271,7 +1271,7 @@ module UnifyMinT = struct
 				begin match common_types with
 				| [] ->
 					begin match !first_error with
-					| None -> die "" __LOC__
+					| None -> UnifyMinError([Unify_custom "Could not determine common type, please add a type-hint"],0)
 					| Some(l,p) -> UnifyMinError(l,p)
 					end
 				| hd :: _ ->
