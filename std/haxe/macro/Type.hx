@@ -770,6 +770,11 @@ typedef TVar = {
 		The metadata of the variable.
 	**/
 	public var meta(default, never):Null<MetaAccess>;
+
+	/**
+		Whether the variable is a local static variable
+	**/
+	public var isStatic(default, never):Bool;
 }
 
 /**
