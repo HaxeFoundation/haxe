@@ -335,6 +335,7 @@ and tenum = {
 	(* do not insert any fields above *)
 	mutable e_type : t;
 	mutable e_extern : bool;
+	mutable e_excluded : bool;
 	mutable e_constrs : (string , tenum_field) PMap.t;
 	mutable e_names : string list;
 }
@@ -483,6 +484,7 @@ type flag_tclass =
 	| CAbstract
 	| CFunctionalInterface
 	| CUsed (* Marker for DCE *)
+	| CExcluded (* Marker for exclude macro, turned into CExtern during filters *)
 
 type flag_tclass_field =
 	| CfPublic

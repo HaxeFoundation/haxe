@@ -1058,7 +1058,7 @@ and encode_type_params tl =
 and encode_tenum e =
 	encode_mtype (TEnumDecl e) [
 		"isExtern", vbool e.e_extern;
-		"exclude", vfun0 (fun() -> e.e_extern <- true; vnull);
+		"exclude", vfun0 (fun() -> e.e_excluded <- true; vnull);
 		"constructs", encode_string_map encode_efield e.e_constrs;
 		"names", encode_array (List.map encode_string e.e_names);
 	]
@@ -1156,7 +1156,7 @@ and encode_tclass c =
 	encode_mtype (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", vbool (has_class_flag c CExtern);
-		"exclude", vfun0 (fun() -> add_class_flag c CExtern; c.cl_init <- None; vnull);
+		"exclude", vfun0 (fun() -> add_class_flag c CExcluded; c.cl_init <- None; vnull);
 		"isInterface", vbool (has_class_flag c CInterface);
 		"isFinal", vbool (has_class_flag c CFinal);
 		"isAbstract", vbool (has_class_flag c CAbstract);

@@ -248,6 +248,7 @@ let null_enum = {
 	e_restore = (fun () -> ());
 	e_type = t_dynamic;
 	e_extern = false;
+	e_excluded = false;
 	e_constrs = PMap.empty;
 	e_names = [];
 }
