@@ -2884,7 +2884,7 @@ let generate_enum gctx en =
 let generate_module_type ctx mt =
 	match mt with
 		| TClassDecl c when not (has_class_flag c CExtern) -> generate_class ctx c
-		| TEnumDecl en when not en.e_extern -> generate_enum ctx en
+		| TEnumDecl en when not (has_enum_flag en EnExtern) -> generate_enum ctx en
 		| _ -> ()
 
 let generate_anons gctx =

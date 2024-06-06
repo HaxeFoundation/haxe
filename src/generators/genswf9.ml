@@ -255,7 +255,7 @@ let rec type_id ctx t =
 		type_path ctx ([],"Function")
 	| TType ({ t_path = ([],"UInt") as path },_) ->
 		type_path ctx path
-	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
+	| TEnum ({ e_path = ["flash"],"XmlType" } as e,_) when has_enum_flag e EnExtern ->
 		HMPath ([],"String")
 	| TEnum (e,_) ->
 		type_path ctx e.e_path
@@ -284,7 +284,7 @@ let classify ctx t =
 		KDynamic
 	| TAbstract ({ a_path = ["flash"],"AnyType" },_) ->
 		KDynamic
-	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
+	| TEnum ({ e_path = ["flash"],"XmlType" } as e,_) when has_enum_flag e EnExtern ->
 		KType (HMPath ([],"String"))
 	| TEnum (e,_) ->
 		KType (type_id ctx t)
@@ -2800,7 +2800,7 @@ let rec generate_type ctx t =
 				hlf_metas = extract_meta c.cl_meta;
 			})
 	| TEnumDecl e ->
-		if e.e_extern then
+		if has_enum_flag e EnExtern then
 			None
 		else
 			let meta = Texpr.build_metadata ctx.com.basic t in

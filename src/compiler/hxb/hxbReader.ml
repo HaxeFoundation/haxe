@@ -1573,7 +1573,7 @@ class hxb_reader
 
 	method read_enum (e : tenum) =
 		self#read_common_module_type (Obj.magic e);
-		e.e_extern <- self#read_bool;
+		e.e_flags <- read_uleb128 ch;
 		e.e_names <- self#read_list (fun () -> self#read_string);
 
 	method read_typedef (td : tdef) =

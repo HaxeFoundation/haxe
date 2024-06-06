@@ -315,7 +315,7 @@ module Dump = struct
 					print "\n");
 				print "}";
 			| Type.TEnumDecl e ->
-				print "%s%s%senum %s%s {\n" (s_metas e.e_meta "") (if e.e_private then "private " else "") (if e.e_extern then "extern " else "") (s_type_path path) (params e.e_params);
+				print "%s%s%senum %s%s {\n" (s_metas e.e_meta "") (if e.e_private then "private " else "") (if has_enum_flag e EnExtern then "extern " else "") (s_type_path path) (params e.e_params);
 				List.iter (fun n ->
 					let f = PMap.find n e.e_constrs in
 					print "\t%s%s;\n" f.ef_name (

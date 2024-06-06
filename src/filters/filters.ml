@@ -286,6 +286,16 @@ let check_abstract_as_value e =
 
 (* PASS 2 begin *)
 
+(* Applies exclude macro (which turns types into externs) *)
+
+let apply_macro_exclude com t = match t with
+	| TClassDecl c when has_class_flag c CExcluded ->
+		add_class_flag c CExtern
+	| TEnumDecl e when has_enum_flag e EnExcluded ->
+		add_enum_flag e EnExtern
+	| _ ->
+		()
+
 (* Removes extern and macro fields, also checks for Void fields *)
 
 let remove_extern_fields com t = match t with
@@ -407,7 +417,7 @@ let check_reserved_type_paths com t =
 	in
 	match t with
 	| TClassDecl c when not (has_class_flag c CExtern) -> check c.cl_path c.cl_pos
-	| TEnumDecl e when not e.e_extern -> check e.e_path e.e_pos
+	| TEnumDecl e when not (has_enum_flag e EnExtern) -> check e.e_path e.e_pos
 	| _ -> ()
 
 (* PASS 3 end *)
@@ -453,6 +463,7 @@ let destruction tctx detail_times main locals =
 		(* PASS 2: type filters pre-DCE *)
 		List.iter (fun t ->
 			FiltersCommon.remove_generic_base t;
+			apply_macro_exclude com t;
 			remove_extern_fields com t;
 			(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
 			check_remove_metadata t;

@@ -1020,7 +1020,7 @@ class class_wrapper (cls) =
 *)
 class enum_wrapper (enm) =
 	object (self)
-		inherit type_wrapper enm.e_path enm.e_meta (not enm.e_extern)
+		inherit type_wrapper enm.e_path enm.e_meta (not (has_enum_flag enm EnExtern))
 		(**
 			Indicates if class initialization method should be executed upon class loaded
 		*)

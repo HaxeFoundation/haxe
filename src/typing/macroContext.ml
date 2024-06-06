@@ -636,7 +636,7 @@ and flush_macro_context mint mctx =
 	let maybe_apply_native_paths t =
 		let apply_native = match t with
 			| TClassDecl { cl_kind = KAbstractImpl a } -> a.a_extern && a.a_enum
-			| TEnumDecl e -> e.e_extern
+			| TEnumDecl e -> has_enum_flag e EnExtern
 			| _ -> false
 		in
 		if apply_native then Naming.apply_native_paths t

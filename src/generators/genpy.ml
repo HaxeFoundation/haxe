@@ -2229,7 +2229,7 @@ module Generator = struct
 
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
-		| TEnumDecl en when not en.e_extern -> gen_enum ctx en
+		| TEnumDecl en when not (has_enum_flag en EnExtern) -> gen_enum ctx en
 		| TAbstractDecl {a_path = [],"UInt"} -> ()
 		| TAbstractDecl {a_path = [],"Enum"} -> ()
 		| TAbstractDecl {a_path = [],"EnumValue"} when not (has_feature ctx "has_enum") -> ()
@@ -2339,7 +2339,7 @@ module Generator = struct
 		List.iter (fun mt ->
 			match mt with
 			| TClassDecl c when (has_class_flag c CExtern) -> import c.cl_path c.cl_meta
-			| TEnumDecl e when e.e_extern -> import e.e_path e.e_meta
+			| TEnumDecl e when has_enum_flag e EnExtern -> import e.e_path e.e_meta
 			| _ -> ()
 		) ctx.com.types
 

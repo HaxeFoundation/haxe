@@ -274,25 +274,7 @@ let mk_enum m path pos name_pos =
 		e_using = [];
 		e_restore = (fun () -> ());
 		e_private = false;
-		e_extern = false;
-		e_constrs = PMap.empty;
-		e_names = [];
-		e_type = mk_mono();
-	}
-
-let mk_enum m path pos name_pos =
-	{
-		e_path = path;
-		e_module = m;
-		e_pos = pos;
-		e_name_pos = name_pos;
-		e_doc = None;
-		e_meta = [];
-		e_params = [];
-		e_using = [];
-		e_restore = (fun () -> ());
-		e_private = false;
-		e_extern = false;
+		e_flags = 0;
 		e_constrs = PMap.empty;
 		e_names = [];
 		e_type = mk_mono();
