@@ -291,8 +291,8 @@ let check_abstract_as_value e =
 let apply_macro_exclude com t = match t with
 	| TClassDecl c when has_class_flag c CExcluded ->
 		add_class_flag c CExtern
-	| TEnumDecl e when e.e_excluded ->
-		e.e_extern <- true;
+	| TEnumDecl e when has_enum_flag e EnExcluded ->
+		add_enum_flag e EnExtern
 	| _ ->
 		()
 
@@ -417,7 +417,7 @@ let check_reserved_type_paths com t =
 	in
 	match t with
 	| TClassDecl c when not (has_class_flag c CExtern) -> check c.cl_path c.cl_pos
-	| TEnumDecl e when not e.e_extern -> check e.e_path e.e_pos
+	| TEnumDecl e when not (has_enum_flag e EnExtern) -> check e.e_path e.e_pos
 	| _ -> ()
 
 (* PASS 3 end *)

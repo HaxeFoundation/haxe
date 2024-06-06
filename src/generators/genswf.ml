@@ -153,7 +153,7 @@ let build_dependencies t =
 			List.iter add_inherit tp.ttp_class.cl_implements
 		) c.cl_params;
 		List.iter add_inherit c.cl_implements;
-	| TEnumDecl e when not e.e_extern ->
+	| TEnumDecl e when not (has_enum_flag e EnExtern) ->
 		PMap.iter (fun _ f -> add_type f.ef_type) e.e_constrs;
 	| _ -> ());
 	h := PMap.remove (([],"Int"),DKType) (!h);
@@ -524,7 +524,7 @@ let generate swf_header com =
 					if e.f9_cid <> None then List.iter (fun t ->
 						let extern = (match t with
 							| TClassDecl c -> (has_class_flag c CExtern)
-							| TEnumDecl e -> e.e_extern
+							| TEnumDecl e -> (has_enum_flag e EnExtern)
 							| TAbstractDecl a -> false
 							| TTypeDecl t -> false
 						) in

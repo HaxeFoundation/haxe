@@ -147,9 +147,8 @@ module ModuleLevel = struct
 						e_doc = d.d_doc;
 						e_meta = d.d_meta;
 						e_private = priv;
-						e_extern = List.mem EExtern d.d_flags;
 					} in
-					if not e.e_extern then check_type_name name d.d_meta p;
+					if List.mem EExtern d.d_flags then add_enum_flag e EnExtern else check_type_name name d.d_meta p;
 					add_declaration decl (TEnumDecl e)
 				| ETypedef d ->
 					let name = fst d.d_name in
@@ -513,12 +512,11 @@ module TypeLevel = struct
 				delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx_en f);
 		) (!constructs);
 		e.e_names <- List.rev !names;
-		e.e_extern <- e.e_extern;
 		unify ctx_en (TType(enum_module_type e,[])) e.e_type p;
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
 			delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_doc ctx_en e);
-		if (ctx_en.com.platform = Jvm) && not e.e_extern then
+		if (ctx_en.com.platform = Jvm) && not (has_enum_flag e EnExtern) then
 			delay ctx_en.g PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_en e.e_meta in
 				e.e_meta <- metas @ e.e_meta;

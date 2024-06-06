@@ -3672,7 +3672,7 @@ let generate_static_init ctx types main =
 
 				free ctx rc;
 
-			| TEnumDecl e when not e.e_extern ->
+			| TEnumDecl e when not (has_enum_flag e EnExtern) ->
 
 				let et = enum_class ctx e in
 				let t = enum_type ctx e in

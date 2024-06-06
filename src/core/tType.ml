@@ -334,8 +334,7 @@ and tenum = {
 	mutable e_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable e_type : t;
-	mutable e_extern : bool;
-	mutable e_excluded : bool;
+	mutable e_flags : int;
 	mutable e_constrs : (string , tenum_field) PMap.t;
 	mutable e_names : string list;
 }
@@ -507,6 +506,10 @@ type flag_tclass_field =
 let flag_tclass_field_names = [
 	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed"
 ]
+
+type flag_tenum =
+	| EnExtern
+	| EnExcluded (* Marker for exclude macro, turned into EnExtern during filters *)
 
 type flag_tvar =
 	| VCaptured

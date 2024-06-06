@@ -44,6 +44,18 @@ let remove_class_field_flag cf (flag : flag_tclass_field) =
 let has_class_field_flag cf (flag : flag_tclass_field) =
 	has_flag cf.cf_flags (int_of_class_field_flag flag)
 
+let int_of_enum_flag (flag : flag_tenum) =
+	Obj.magic flag
+
+let add_enum_flag e (flag : flag_tenum) =
+	e.e_flags <- set_flag e.e_flags (int_of_enum_flag flag)
+
+let remove_enum_flag e (flag : flag_tenum) =
+	e.e_flags <- unset_flag e.e_flags (int_of_enum_flag flag)
+
+let has_enum_flag e (flag : flag_tenum) =
+	has_flag e.e_flags (int_of_enum_flag flag)
+
 let int_of_var_flag (flag : flag_tvar) =
 	Obj.magic flag
 
@@ -247,8 +259,7 @@ let null_enum = {
 	e_using = [];
 	e_restore = (fun () -> ());
 	e_type = t_dynamic;
-	e_extern = false;
-	e_excluded = false;
+	e_flags = 0;
 	e_constrs = PMap.empty;
 	e_names = [];
 }

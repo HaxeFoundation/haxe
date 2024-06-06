@@ -1950,7 +1950,7 @@ module HxbWriter = struct
 	let write_enum writer (e : tenum) =
 		select_type writer e.e_path;
 		write_common_module_type writer (Obj.magic e);
-		Chunk.write_bool writer.chunk e.e_extern;
+		Chunk.write_uleb128 writer.chunk e.e_flags;
 		Chunk.write_list writer.chunk e.e_names (Chunk.write_string writer.chunk)
 
 	let write_typedef writer (td : tdef) =

@@ -717,7 +717,7 @@ let is_extern_class class_def =
 ;;
 
 let is_extern_enum enum_def =
-   (enum_def.e_extern) || (has_meta_key enum_def.e_meta Meta.Extern)
+   (has_enum_flag enum_def EnExtern) || (has_meta_key enum_def.e_meta Meta.Extern)
 ;;
 
 let is_native_class class_def =
@@ -7080,7 +7080,7 @@ let create_super_dependencies common_ctx =
          | _ ->() );
          List.iter (fun imp -> if not (has_class_flag (fst imp) CExtern) then deps := (fst imp).cl_path :: !deps) (real_non_native_interfaces class_def.cl_implements);
          Hashtbl.add result class_def.cl_path !deps;
-      | TEnumDecl enum_def when not enum_def.e_extern ->
+      | TEnumDecl enum_def when not (has_enum_flag enum_def EnExtern) ->
          Hashtbl.add result enum_def.e_path [];
       | _ -> () );
       ) common_ctx.types;
@@ -8474,14 +8474,14 @@ let generate_cppia ctx =
          else begin
             generate_script_class common_ctx script class_def
          end
-      | TEnumDecl enum_def when enum_def.e_extern -> ()
+      | TEnumDecl enum_def when has_enum_flag enum_def EnExtern -> ()
       | TEnumDecl enum_def ->
          let is_internal = is_internal_class enum_def.e_path in
          if (is_internal) then
             (if (debug>=4) then print_endline (" internal enum " ^ (join_class_path enum_def.e_path ".") ))
          else begin
             let meta = Texpr.build_metadata common_ctx.basic object_def in
-            if (enum_def.e_extern) then
+            if (has_enum_flag enum_def EnExtern) then
                (if (debug>=4) then print_endline ("external enum " ^  (join_class_path enum_def.e_path ".") ));
             generate_script_enum common_ctx script enum_def meta
          end
@@ -8568,7 +8568,7 @@ let generate_source ctx =
             if not ((has_class_flag class_def CInterface) && (is_native_gen_class class_def)) then
                exe_classes := (class_def.cl_path, deps, object_def)  ::  !exe_classes;
          end
-      | TEnumDecl enum_def when enum_def.e_extern -> ()
+      | TEnumDecl enum_def when has_enum_flag enum_def EnExtern -> ()
       | TEnumDecl enum_def ->
          let name =  class_text enum_def.e_path in
          let is_internal = is_internal_class enum_def.e_path in
@@ -8587,7 +8587,7 @@ let generate_source ctx =
             makeId name 0;
 
             let meta = Texpr.build_metadata common_ctx.basic object_def in
-            if (enum_def.e_extern) then
+            if (has_enum_flag enum_def EnExtern) then
                (if (debug>1) then print_endline ("external enum " ^ name ));
             boot_enums := enum_def.e_path :: !boot_enums;
             jobs := (fun () -> generate_enum_files ctx enum_def super_deps meta ) :: !jobs;
