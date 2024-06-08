@@ -1169,7 +1169,7 @@ let make_types_idents htypes =
 	in
 	let hashes = Hashtbl.create 0 in
 	let make_sign d =
-		let dig = Digest.to_hex (Digest.bytes (Marshal.to_bytes d [Marshal.Compat_32])) in
+		let dig = Digest.to_hex (Digest.bytes (Marshal.to_bytes d [Marshal.Closures])) in
 		let h = String.sub dig 0 7 in
 		let h = if Hashtbl.mem hashes h then dig else h in
 		Hashtbl.add hashes h ();
