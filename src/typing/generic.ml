@@ -91,7 +91,7 @@ let rec generic_substitute_type' gctx allow_expr t =
 		t
 	| _ ->
 		try
-			let t,eo = List.assq t gctx.subst in
+			let t,eo = List.assoc t gctx.subst in
 			(* Somewhat awkward: If we allow expression types, use the original KExpr one. This is so
 			   recursing into further KGeneric expands correctly. *)
 			begin match eo with
