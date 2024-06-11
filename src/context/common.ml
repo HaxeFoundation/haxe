@@ -436,7 +436,7 @@ let ignore_error com =
 	b
 
 let module_warning com m w options msg p =
-	DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
+	if com.display.dms_full_typing then DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
 	com.warning w options msg p
 
 (* Defines *)
