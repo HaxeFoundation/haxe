@@ -1,12 +1,12 @@
-[WARNING] Main.macro.hx:5: characters 39-40
+[WARNING] (macro) Main.macro.hx:5: characters 47-48
 
- 5 |  Context.warning("from macro", (macro 0).pos);
-   |                                       ^
-   | from macro
+ 5 |  Context.warning("from Main.macro.hx", (macro 0).pos);
+   |                                               ^
+   | from Main.macro.hx
 
-[WARNING] Main.js.hx:2: characters 2-7
+[WARNING] (macro) Main.js.hx:2: characters 2-7
 
  2 |  foo();
    |  ^^^^^
-   | from non macro
+   | from Main.js.hx
 

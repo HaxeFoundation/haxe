@@ -1,0 +1,12 @@
+[WARNING] Main2.hx:13: characters 8-9
+
+ 13 |  $type(a);
+    |        ^
+    | TypeForNormalContext
+
+[WARNING] (macro) Main2.hx:13: characters 8-9
+
+ 13 |  $type(a);
+    |        ^
+    | TypeForMacroContext
+

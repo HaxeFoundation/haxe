@@ -4,19 +4,19 @@
     |                         ^^^^^^^^^^^^^^
     | (WDeprecated) This typedef is deprecated in favor of String
 
-[WARNING] (unknown position)
+[WARNING] (macro) (unknown position)
 
     | 1
 
-[WARNING] (unknown position)
+[WARNING] (macro) (unknown position)
 
     | 2
 
-[WARNING] (unknown position)
+[WARNING] (macro) (unknown position)
 
     | 3
 
-[WARNING] (unknown position)
+[WARNING] (macro) (unknown position)
 
     | i123|i123
 
