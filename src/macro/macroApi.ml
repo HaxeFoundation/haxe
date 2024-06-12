@@ -64,7 +64,7 @@ type 'value compiler_api = {
 	flush_context : (unit -> t) -> t;
 	info : ?depth:int -> string -> pos -> unit;
 	warning : ?depth:int -> Warning.warning -> string -> pos -> unit;
-	display_error : ?depth:int -> (string -> pos -> unit);
+	display_error : ?message_context:compiler_message_context -> (string -> pos -> unit);
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
 	exc_string : 'a . string -> 'a;
@@ -1804,7 +1804,7 @@ let macro_api ccom get_api =
 			let msg = decode_string msg in
 			let p = decode_pos p in
 			let depth = decode_int depth in
-			(get_api()).display_error ~depth msg p;
+			(get_api()).display_error ~message_context:(message_context ~depth ()) msg p;
 			raise Abort
 		);
 		"fatal_error", vfun3 (fun msg p depth ->
@@ -1817,7 +1817,7 @@ let macro_api ccom get_api =
 			let msg = decode_string msg in
 			let p = decode_pos p in
 			let depth = decode_int depth in
-			(get_api()).display_error ~depth msg p;
+			(get_api()).display_error ~message_context:(message_context ~depth ()) msg p;
 			vnull
 		);
 		"warning", vfun3 (fun msg p depth ->

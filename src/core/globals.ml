@@ -210,22 +210,32 @@ module MessageKind = struct
 		| DKMissingFields -> 7
 end
 
-type compiler_message = {
-	cm_message : string;
-	cm_pos : pos;
+type compiler_message_context = {
 	cm_depth : int;
 	cm_from_macro : bool;
-	cm_kind : MessageKind.t;
-	cm_severity : MessageSeverity.t;
+	cm_from_cache : bool;
 }
 
-let make_compiler_message ?(from_macro = false) msg p depth kind sev = {
-	cm_message = msg;
-	cm_pos = p;
+let message_context ?(depth = 0) ?(from_macro = false) ?(from_cache=false) () = {
 	cm_depth = depth;
 	cm_from_macro = from_macro;
+	cm_from_cache = from_cache;
+}
+
+type compiler_message = {
+	cm_message : string;
+	cm_kind : MessageKind.t;
+	cm_severity : MessageSeverity.t;
+	cm_pos : pos; (* would be nice to have in cm_context but this makes a bit of a mess.. *)
+	cm_context : compiler_message_context;
+}
+
+let make_compiler_message ?(message_context:compiler_message_context = message_context ()) msg p kind sev = {
+	cm_message = msg;
 	cm_kind = kind;
 	cm_severity = sev;
+	cm_pos = p;
+	cm_context = message_context;
 }
 
 type diagnostic = {
@@ -237,13 +247,14 @@ type diagnostic = {
 	diag_depth : int;
 }
 
-let make_diagnostic ?(depth = 0) ?(code = None) message pos kind sev = {
+let make_diagnostic ?(message_context = message_context ()) ?(code = None) message pos kind sev = {
 	diag_message = message;
 	diag_pos = pos;
 	diag_code = code;
 	diag_kind = kind;
 	diag_severity = sev;
-	diag_depth = depth;
+	(* TODO: handle from_macro and from_cache *)
+	diag_depth = message_context.cm_depth;
 }
 
 let i32_31 = Int32.of_int 31

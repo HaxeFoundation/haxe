@@ -32,7 +32,7 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| _ ->
 		if is_diagnostics ctx.com then begin
 			List.iter (fun cm ->
-				add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
+				add_diagnostics_message ~message_context:cm.cm_context ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
 			) (List.rev ctx.messages);
 			(match ctx.com.report_mode with
 			| RMDiagnostics _ -> ()
@@ -478,8 +478,10 @@ let handle_cache_bound_objects com cbol =
 			Hashtbl.replace com.resources name data
 		| IncludeFile(file,position) ->
 			com.include_files <- (file,position) :: com.include_files
-		| Warning(w,msg,p) ->
-			com.warning w [] msg p
+		| Info(msg,p,ctx) ->
+			com.info ~message_context:{ ctx with cm_from_cache = true } msg p
+		| Warning(w,msg,p,ctx) ->
+			com.warning ~message_context:{ ctx with cm_from_cache = true } w [] msg p
 	) cbol
 
 (* Adds module [m] and all its dependencies (recursively) from the cache to the current compilation

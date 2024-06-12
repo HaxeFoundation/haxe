@@ -88,7 +88,7 @@ let compiler_pretty_message_string com ectx cm =
 	(* Filter some messages that don't add much when using this message renderer *)
 	| "End of overload failure reasons" -> None
 	| _ -> begin
-		ectx.last_positions <- (IntMap.add cm.cm_depth cm.cm_pos ectx.last_positions);
+		ectx.last_positions <- (IntMap.add cm.cm_context.cm_depth cm.cm_pos ectx.last_positions);
 		let is_null_pos = cm.cm_pos = null_pos || cm.cm_pos.pmin = -1 in
 		let is_unknown_file f = f = "" || f = "?" in
 
@@ -130,8 +130,8 @@ let compiler_pretty_message_string com ectx cm =
 		in
 
 		let parent_pos =
-			if cm.cm_depth = 0 then null_pos
-			else (try IntMap.find (cm.cm_depth-1) ectx.last_positions with Not_found -> null_pos)
+			if cm.cm_context.cm_depth = 0 then null_pos
+			else (try IntMap.find (cm.cm_context.cm_depth-1) ectx.last_positions with Not_found -> null_pos)
 		in
 
 		let prev_pos,prev_sev,prev_nl = match ectx.previous with
@@ -140,23 +140,23 @@ let compiler_pretty_message_string com ectx cm =
 		in
 
 		let sev_changed = prev_sev = None || Some cm.cm_severity <> prev_sev in
-		let pos_changed = (prev_pos = None || cm.cm_pos <> Option.get prev_pos || (cm.cm_depth <> prev_nl && cm.cm_depth <> prev_nl + 1)) && (parent_pos = null_pos || cm.cm_pos <> parent_pos) in
+		let pos_changed = (prev_pos = None || cm.cm_pos <> Option.get prev_pos || (cm.cm_context.cm_depth <> prev_nl && cm.cm_context.cm_depth <> prev_nl + 1)) && (parent_pos = null_pos || cm.cm_pos <> parent_pos) in
 		let file_changed = prev_pos = None || (pos_changed && match (cm.cm_pos.pfile, (Option.get prev_pos).pfile) with
 			| (f1, f2) when (is_unknown_file f1) && (is_unknown_file f2) -> false
 			| (f1, f2) -> f1 <> f2
 		) in
 
-		let display_heading = cm.cm_depth = 0 || sev_changed || file_changed in
+		let display_heading = cm.cm_context.cm_depth = 0 || sev_changed || file_changed in
 		let has_source = match lines with | [] -> false | _ -> true in
-		let display_source = has_source && (cm.cm_depth = 0 || sev_changed || pos_changed) in
-		let display_pos_marker = (not is_null_pos) && has_source && (cm.cm_depth = 0 || sev_changed || pos_changed) in
+		let display_source = has_source && (cm.cm_context.cm_depth = 0 || sev_changed || pos_changed) in
+		let display_pos_marker = (not is_null_pos) && has_source && (cm.cm_context.cm_depth = 0 || sev_changed || pos_changed) in
 
-		let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find cm.cm_depth ectx.max_lines)) with Not_found -> 0) + 2 in
+		let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find cm.cm_context.cm_depth ectx.max_lines)) with Not_found -> 0) + 2 in
 
 		let no_color = Define.defined com.defines Define.MessageNoColor in
 		let c_reset = if no_color then "" else "\x1b[0m" in
-		let c_bold = if no_color then "" else "\x1b[1m" in
-		let c_dim = if no_color then "" else "\x1b[2m" in
+		let dim str = if no_color then str else "\x1b[2m" ^ str ^ c_reset in
+		let bold str = if no_color then str else "\x1b[1m" ^ str ^ c_reset in
 
 		let (c_sev, c_sev_bg) = if no_color then ("", "") else match cm.cm_severity with
 			| MessageSeverity.Warning -> ("\x1b[33m", "\x1b[30;43m")
@@ -164,7 +164,7 @@ let compiler_pretty_message_string com ectx cm =
 			| Error -> ("\x1b[31m", "\x1b[30;41m")
 		in
 
-		let sev_label = if cm.cm_depth > 0 then " -> " else Printf.sprintf
+		let sev_label = if cm.cm_context.cm_depth > 0 then " -> " else Printf.sprintf
 			(if no_color then "[%s]" else " %s ")
 			(match cm.cm_severity with
 				| MessageSeverity.Warning -> "WARNING"
@@ -180,7 +180,7 @@ let compiler_pretty_message_string com ectx cm =
 				(* Severity heading *)
 				(c_sev_bg ^ sev_label ^ c_reset ^ " ")
 				(* Macro context indicator *)
-				(if cm.cm_from_macro then c_sev ^ "(macro) " ^ c_reset else "")
+				(if cm.cm_context.cm_from_macro then c_sev ^ "(macro) " ^ c_reset else "")
 				(* File + line pointer *)
 				epos;
 
@@ -200,22 +200,19 @@ let compiler_pretty_message_string com ectx cm =
 				(* Source code at that line *)
 				(
 					if l = 0 then
-						c_dim ^ line ^ c_reset
+						dim line
 					else if l1 = l2 then
-						(if p1 > 1 then c_dim ^ (String.sub line 0 (p1-1)) else "")
-						^ c_reset ^ c_bold ^ (String.sub line (p1-1) (p2-p1))
-						^ c_reset ^ c_dim ^ (String.sub line (p2-1) (len - p2 + 1))
-						^ c_reset
+						(if p1 > 1 then dim (String.sub line 0 (p1-1)) else c_reset)
+						^ bold (String.sub line (p1-1) (p2-p1))
+						^ dim (String.sub line (p2-1) (len - p2 + 1))
 					else begin
 						(if (l = l1) then
-							(if p1 > 1 then c_dim ^ (String.sub line 0 (p1-1)) else "")
-							^ c_reset ^ c_bold ^ (String.sub line (p1-1) (len-p1+1))
-							^ c_reset
+							(if p1 > 1 then dim (String.sub line 0 (p1-1)) else c_reset)
+							^ bold (String.sub line (p1-1) (len-p1+1))
 						else if (l = l2) then
-							(if p2 > 1 then c_bold ^ (String.sub line 0 (p2-1)) else "")
-							^ c_reset ^ c_dim ^ (String.sub line (p2-1) (len-p2+1))
-							^ c_reset
-						else c_bold ^ line ^ c_reset)
+							(if p2 > 1 then bold (String.sub line 0 (p2-1)) else c_reset)
+							^ dim (String.sub line (p2-1) (len-p2+1))
+						else bold line)
 					end
 				)
 		) !out lines;
@@ -228,15 +225,17 @@ let compiler_pretty_message_string com ectx cm =
 				(if l1 = l2 then String.make p1 ' ' ^ c_sev ^ String.make (if p1 = p2 then 1 else p2-p1) '^' ^ c_reset else "");
 
 		(* Error message *)
+		(* TODO: only if some define is used? *)
+		let cm_message = if cm.cm_context.cm_from_cache then cm.cm_message ^ " " ^ (dim "(from cache)") else cm.cm_message in
 		out := List.fold_left (fun out str -> Printf.sprintf "%s%s| %s\n"
 			out
 			(String.make gutter_len ' ')
 			(* Remove "... " prefix *)
 			(if (ExtString.String.starts_with str "... ") then String.sub str 4 ((String.length str) - 4) else str)
-		) !out (ExtString.String.nsplit cm.cm_message "\n");
+		) !out (ExtString.String.nsplit cm_message "\n");
 
-		ectx.previous <- Some ((if is_null_pos then null_pos else cm.cm_pos), cm.cm_severity, cm.cm_depth);
-		ectx.gutter <- (IntMap.add cm.cm_depth gutter_len ectx.gutter);
+		ectx.previous <- Some ((if is_null_pos then null_pos else cm.cm_pos), cm.cm_severity, cm.cm_context.cm_depth);
+		ectx.gutter <- (IntMap.add cm.cm_context.cm_depth gutter_len ectx.gutter);
 
 		(* Indent sub errors *)
 		let rec indent ?(acc=0) depth =
@@ -245,9 +244,9 @@ let compiler_pretty_message_string com ectx cm =
 		in
 
 		Some (
-			if cm.cm_depth > 0 then String.concat "\n" (List.map (fun str -> match str with
+			if cm.cm_context.cm_depth > 0 then String.concat "\n" (List.map (fun str -> match str with
 				| "" -> ""
-				| _ -> (String.make (indent cm.cm_depth) ' ') ^ str
+				| _ -> (String.make (indent cm.cm_context.cm_depth) ' ') ^ str
 			) (ExtString.String.nsplit !out "\n"))
 			else !out
 		)
@@ -297,8 +296,8 @@ let compiler_indented_message_string ectx cm =
 			in
 			let lines =
 				match (ExtString.String.nsplit str "\n") with
-				| first :: rest -> (cm.cm_depth, first) :: List.map (fun msg -> (cm.cm_depth+1, msg)) rest
-				| l -> [(cm.cm_depth, List.hd l)]
+				| first :: rest -> (cm.cm_context.cm_depth, first) :: List.map (fun msg -> (cm.cm_context.cm_depth+1, msg)) rest
+				| l -> [(cm.cm_context.cm_depth, List.hd l)]
 			in
 			let rm_prefix str = if (ExtString.String.starts_with str "... ") then String.sub str 4 ((String.length str) - 4) else str in
 			Some (String.concat "\n" (List.map (fun (depth, msg) -> (String.make (depth*2) ' ') ^ epos ^ " : " ^ (rm_prefix msg)) lines))
@@ -307,16 +306,16 @@ let compiler_indented_message_string ectx cm =
 let get_max_line max_lines messages =
 	List.fold_left (fun max_lines cm ->
 		let _,_,l2,_ = Lexer.get_pos_coords cm.cm_pos in
-		let old = try IntMap.find cm.cm_depth max_lines with Not_found -> 0 in
+		let old = try IntMap.find cm.cm_context.cm_depth max_lines with Not_found -> 0 in
 
-		if l2 > old then IntMap.add cm.cm_depth l2 max_lines
+		if l2 > old then IntMap.add cm.cm_context.cm_depth l2 max_lines
 		else max_lines
 	) max_lines messages
 
 let display_source_at com p =
 	let absolute_positions = Define.defined com.defines Define.MessageAbsolutePositions in
 	let ectx = create_error_context absolute_positions in
-	let msg = make_compiler_message "" p 0 MessageKind.DKCompilerMessage MessageSeverity.Information in
+	let msg = make_compiler_message "" p MessageKind.DKCompilerMessage MessageSeverity.Information in
 	ectx.max_lines <- get_max_line ectx.max_lines [msg];
 	match compiler_pretty_message_string com ectx msg with
 		| None -> ()

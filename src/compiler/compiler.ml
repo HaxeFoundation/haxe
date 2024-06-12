@@ -18,7 +18,7 @@ let run_or_diagnose ctx f =
 		| Error.Error err ->
 			ctx.has_error <- true;
 			Error.recurse_error (fun depth err ->
-				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos DKCompilerMessage Error
+				add_diagnostics_message ~message_context:(message_context ~depth ~from_macro:err.err_from_macro ()) com (Error.error_msg err.err_message) err.err_pos DKCompilerMessage Error
 			) err;
 			(match com.report_mode with
 			| RMLegacyDiagnostics _ -> DisplayOutput.emit_legacy_diagnostics ctx.com
@@ -236,10 +236,10 @@ module Setup = struct
 		Common.define_value com Define.Haxe s_version;
 		Common.raw_define com "true";
 		Common.define_value com Define.Dce "std";
-		com.info <- (fun ?(depth=0) ?(from_macro=false) msg p ->
-			message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Information)
+		com.info <- (fun ?(message_context=message_context ()) msg p ->
+			message ctx (make_compiler_message ~message_context msg p DKCompilerMessage Information)
 		);
-		com.warning <- (fun ?(depth=0) ?(from_macro=false) w options msg p ->
+		com.warning <- (fun ?(message_context=message_context ()) w options msg p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
 				let wobj = Warning.warning_obj w in
@@ -248,7 +248,7 @@ module Setup = struct
 				else
 					Printf.sprintf "(%s) %s" wobj.w_name msg
 				in
-				message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Warning)
+				message ctx (make_compiler_message ~message_context msg p DKCompilerMessage Warning)
 			| WMDisable ->
 				()
 		);

@@ -553,7 +553,7 @@ let uv_error_fields = [
 				| HaxeError.Error err ->
 						let messages = ref [] in
 						HaxeError.recurse_error (fun depth err ->
-							let cm = make_compiler_message ~from_macro:err.err_from_macro (HaxeError.error_msg err.err_message) err.err_pos depth DKCompilerMessage Error in
+							let cm = make_compiler_message ~message_context:(message_context ~depth:err.err_depth ~from_macro:err.err_from_macro ()) (HaxeError.error_msg err.err_message) err.err_pos DKCompilerMessage Error in
 							let ectx = MessageReporting.create_error_context false in
 							match MessageReporting.compiler_message_string ectx cm with
 								| None -> ()

@@ -279,10 +279,10 @@ let make_macro_com_api com mcom p =
 			Interp.exc_string "unsupported"
 		);
 		info = (fun ?(depth=0) msg p ->
-			com.info ~depth msg p
+			com.info ~message_context:(message_context ~depth ~from_macro:true ()) msg p
 		);
 		warning = (fun ?(depth=0) w msg p ->
-			com.warning ~depth w [] msg p
+			com.warning ~message_context:(message_context ~depth ~from_macro:true ()) w [] msg p
 		);
 		exc_string = Interp.exc_string;
 		get_hxb_writer_config = (fun () ->
@@ -575,8 +575,11 @@ let make_macro_api ctx mctx p =
 			in
 			Std.finally restore f ()
 		);
+		MacroApi.info = (fun ?(depth=0) msg p ->
+			module_info ~message_context:(message_context ~depth ~from_macro:true ()) ctx.com ctx.m.curmod msg p
+		);
 		MacroApi.warning = (fun ?(depth=0) w msg p ->
-			warning ~depth ctx w msg p
+			warning ~message_context:(message_context ~depth ~from_macro:true ()) ctx w msg p
 		);
 	}
 
@@ -675,12 +678,12 @@ let create_macro_interp api mctx =
 		on_error { err with err_from_macro = true }
 	);
 	let on_warning = com2.warning in
-	com2.warning <- (fun ?(depth=0) ?(from_macro=false) w options msg p ->
-		on_warning ~depth ~from_macro:true w options msg p
+	com2.warning <- (fun ?(message_context=message_context ()) w options msg p ->
+		on_warning ~message_context:{message_context with cm_from_macro = true} w options msg p
 	);
 	let on_info = com2.info in
-	com2.info <- (fun ?(depth=0) ?(from_macro=false) msg p ->
-		on_info ~depth ~from_macro:true msg p
+	com2.info <- (fun ?(message_context=message_context ()) msg p ->
+		on_info ~message_context:{message_context with cm_from_macro = true} msg p
 	);
 	(* mctx.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
 	init();

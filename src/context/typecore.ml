@@ -357,11 +357,11 @@ let type_generic_function_ref : (typer -> field_access -> (unit -> texpr) field_
 
 let create_context_ref : (Common.context -> ((unit -> unit) * typer) option -> typer) ref = ref (fun _ -> assert false)
 
-let warning ?(depth=0) ctx w msg p =
+let warning ?(message_context:compiler_message_context = message_context ()) ctx w msg p =
 	let options = (Warning.from_meta ctx.c.curclass.cl_meta) @ (Warning.from_meta ctx.f.curfield.cf_meta) in
 	match Warning.get_mode w options with
 	| WMEnable ->
-		module_warning ctx.com ctx.m.curmod w options msg p
+		module_warning ~message_context ctx.com ctx.m.curmod w options msg p
 	| WMDisable ->
 		()
 
@@ -438,7 +438,7 @@ let add_local ctx k n t p =
 				(* ignore std lib *)
 				if not (List.exists (fun path -> ExtLib.String.starts_with p.pfile (path#path)) ctx.com.class_paths#get_std_paths) then begin
 					warning ctx WVarShadow "This variable shadows a previously declared variable" p;
-					warning ~depth:1 ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
+					warning ~message_context:(message_context ~depth:1 ()) ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
 				end
 			with Not_found ->
 				()

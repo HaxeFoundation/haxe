@@ -79,8 +79,8 @@ type server_api = {
 let message ctx msg =
 	ctx.messages <- msg :: ctx.messages
 
-let error ctx ?(depth=0) ?(from_macro = false) msg p =
-	message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Error)
+let error ctx ?(message_context:compiler_message_context = message_context ()) msg p =
+	message ctx (make_compiler_message ~message_context msg p DKCompilerMessage Error)
 
 let after_error ctx =
 	ctx.has_error <- true;
@@ -88,12 +88,12 @@ let after_error ctx =
 
 let error_ext ctx (err : Error.error) =
 	Error.recurse_error (fun depth err ->
-		error ~depth ~from_macro:err.err_from_macro ctx (Error.error_msg err.err_message) err.err_pos
+		error ~message_context:(message_context ~depth ~from_macro:err.err_from_macro ()) ctx (Error.error_msg err.err_message) err.err_pos
 	) err;
 	after_error ctx
 
-let error ctx ?(depth=0) ?(from_macro = false) msg p =
-	error ctx ~depth ~from_macro msg p;
+let error ?(message_context = message_context ()) ctx msg p =
+	error ~message_context ctx msg p;
 	after_error ctx
 
 let create_native_lib file extern kind = {

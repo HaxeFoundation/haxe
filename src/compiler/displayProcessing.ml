@@ -92,14 +92,14 @@ let process_display_arg ctx actx =
 let process_display_configuration ctx =
 	let com = ctx.com in
 	if is_diagnostics com then begin
-		com.info <- (fun ?depth ?from_macro s p ->
-			add_diagnostics_message ?depth com s p DKCompilerMessage Information
+		com.info <- (fun ?message_context s p ->
+			add_diagnostics_message ?message_context com s p DKCompilerMessage Information
 		);
-		com.warning <- (fun ?(depth = 0) ?from_macro w options s p ->
+		com.warning <- (fun ?(message_context = message_context ()) w options s p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
 				let wobj = Warning.warning_obj w in
-				add_diagnostics_message ~depth ~code:(Some wobj.w_name) com s p DKCompilerMessage Warning
+				add_diagnostics_message ~message_context ~code:(Some wobj.w_name) com s p DKCompilerMessage Warning
 			| WMDisable ->
 				()
 		);

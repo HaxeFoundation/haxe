@@ -371,8 +371,8 @@ type context = {
 	mutable print : string -> unit;
 	mutable error : ?depth:int -> string -> pos -> unit;
 	mutable error_ext : Error.error -> unit;
-	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
-	mutable warning : ?depth:int -> ?from_macro:bool -> warning -> Warning.warning_option list list -> string -> pos -> unit;
+	mutable info : ?message_context:compiler_message_context -> string -> pos -> unit;
+	mutable warning : ?message_context:compiler_message_context -> warning -> Warning.warning_option list list -> string -> pos -> unit;
 	mutable warning_options : Warning.warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
@@ -435,9 +435,13 @@ let ignore_error com =
 	if b then com.has_error <- true;
 	b
 
-let module_warning com m w options msg p =
-	if com.display.dms_full_typing then DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
-	com.warning w options msg p
+let module_info ?(message_context:compiler_message_context = message_context ()) com m msg p =
+	if com.display.dms_full_typing then DynArray.add m.m_extra.m_cache_bound_objects (Info(msg,p,message_context));
+	com.info ~message_context msg p
+
+let module_warning ?(message_context:compiler_message_context = message_context ()) com m w options msg p =
+	if com.display.dms_full_typing then DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p,message_context));
+	com.warning ~message_context w options msg p
 
 (* Defines *)
 
@@ -818,8 +822,8 @@ let create compilation_step cs version args display_mode =
 		user_defines = Hashtbl.create 0;
 		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);
-		info = (fun ?depth ?from_macro _ _ -> die "" __LOC__);
-		warning = (fun ?depth ?from_macro _ _ _ -> die "" __LOC__);
+		info = (fun ?message_context _ _ -> die "" __LOC__);
+		warning = (fun ?message_context _ _ _ -> die "" __LOC__);
 		warning_options = [];
 		error = (fun ?depth _ _ -> die "" __LOC__);
 		error_ext = (fun _ -> die "" __LOC__);
@@ -1170,21 +1174,21 @@ let utf16_to_utf8 str =
 	loop 0;
 	Buffer.contents b
 
-let add_diagnostics_message ?(depth = 0) ?(code = None) com s p kind sev =
+let add_diagnostics_message ?(message_context = message_context ()) ?(code = None) com s p kind sev =
 	if sev = MessageSeverity.Error then com.has_error <- true;
 	let di = com.shared.shared_display_information in
-	di.diagnostics_messages <- (make_diagnostic ~depth ~code s p kind sev) :: di.diagnostics_messages
+	di.diagnostics_messages <- (make_diagnostic ~message_context ~code s p kind sev) :: di.diagnostics_messages
 
 let display_error_ext com err =
 	if is_diagnostics com then begin
 		Error.recurse_error (fun depth err ->
-			add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MessageKind.DKCompilerMessage MessageSeverity.Error;
+			add_diagnostics_message ~message_context:(message_context ~depth ~from_macro:err.err_from_macro ()) com (Error.error_msg err.err_message) err.err_pos MessageKind.DKCompilerMessage MessageSeverity.Error;
 		) err;
 	end else
 		com.error_ext err
 
-let display_error com ?(depth = 0) msg p =
-	display_error_ext com (Error.make_error ~depth (Custom msg) p)
+let display_error com ?(message_context = message_context ()) msg p =
+	display_error_ext com (Error.make_error ~depth:message_context.cm_depth ~from_macro:message_context.cm_from_macro (Custom msg) p)
 
 let dump_path com =
 	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath

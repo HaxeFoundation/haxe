@@ -59,7 +59,8 @@ type type_param_host =
 type cache_bound_object =
 	| Resource of string * string
 	| IncludeFile of string * string
-	| Warning of WarningList.warning * string * pos
+	| Info of string * pos * compiler_message_context
+	| Warning of WarningList.warning * string * pos * compiler_message_context
 
 type t =
 	| TMono of tmono
