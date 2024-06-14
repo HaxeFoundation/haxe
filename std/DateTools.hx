@@ -41,7 +41,11 @@ class DateTools {
 		"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"
 	];
 
-	private static function __format_get(d:Date, e:String):String {
+	private static inline function __format_pad(v:Int, p:Bool, c:String="0", l:Int=2):String {
+		return p ? StringTools.lpad(Std.string(v), c, l) : Std.string(v);
+	}
+
+	private static function __format_get(d:Date, e:String, p:Bool=false):String {
 		return switch (e) {
 			case "%":
 				"%";
@@ -54,9 +58,9 @@ class DateTools {
 			case "B":
 				MONTH_NAMES[d.getMonth()];
 			case "C":
-				StringTools.lpad(Std.string(Std.int(d.getFullYear() / 100)), "0", 2);
+				__format_pad(Std.int(d.getFullYear() / 100), p);
 			case "d":
-				StringTools.lpad(Std.string(d.getDate()), "0", 2);
+				__format_pad(d.getDate(), p);
 			case "D":
 				__format(d, "%m/%d/%y");
 			case "e":
@@ -64,14 +68,16 @@ class DateTools {
 			case "F":
 				__format(d, "%Y-%m-%d");
 			case "H", "k":
-				StringTools.lpad(Std.string(d.getHours()), if (e == "H") "0" else " ", 2);
+				__format_pad(d.getHours(), p, if (e == "H") "0" else " ");
+			case "j":
+				__format_pad(getDayOfYear(d), p, "0", 3);
 			case "I", "l":
 				var hour = d.getHours() % 12;
-				StringTools.lpad(Std.string(hour == 0 ? 12 : hour), if (e == "I") "0" else " ", 2);
+				__format_pad(hour == 0 ? 12 : hour, p, if (e == "I") "0" else " ");
 			case "m":
-				StringTools.lpad(Std.string(d.getMonth() + 1), "0", 2);
+				__format_pad(d.getMonth() + 1, p);
 			case "M":
-				StringTools.lpad(Std.string(d.getMinutes()), "0", 2);
+				__format_pad(d.getMinutes(), p);
 			case "n":
 				"\n";
 			case "p":
@@ -83,7 +89,7 @@ class DateTools {
 			case "s":
 				Std.string(Std.int(d.getTime() / 1000));
 			case "S":
-				StringTools.lpad(Std.string(d.getSeconds()), "0", 2);
+				__format_pad(d.getSeconds(), p);
 			case "t":
 				"\t";
 			case "T":
@@ -94,7 +100,7 @@ class DateTools {
 			case "w":
 				Std.string(d.getDay());
 			case "y":
-				StringTools.lpad(Std.string(d.getFullYear() % 100), "0", 2);
+				__format_pad(d.getFullYear() % 100, p);
 			case "Y":
 				Std.string(d.getFullYear());
 			default:
@@ -105,15 +111,23 @@ class DateTools {
 	private static function __format(d:Date, f:String):String {
 		var r = new StringBuf();
 		var p = 0;
+		var pad:Bool;
 		while (true) {
 			var np = f.indexOf("%", p);
 			if (np < 0)
 				break;
 
 			r.addSub(f, p, np - p);
-			r.add(__format_get(d, f.substr(np + 1, 1)));
-
-			p = np + 2;
+			var c = f.substr(np + 1, 1);
+			if (c == "-") {
+				c = f.substr(np + 2, 1);
+				p = np + 3;
+				pad = false;
+			} else {
+				p = np + 2;
+				pad = true;
+			}
+			r.add(__format_get(d, c, pad));
 		}
 		r.addSub(f, p, f.length - p);
 		return r.toString();
@@ -177,6 +191,14 @@ class DateTools {
 
 		var isB = ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
 		return if (isB) 29 else 28;
+	}
+
+	/**
+		Returns the number of days since the beginning of the year.
+	**/
+	public static function getDayOfYear(d:Date):Int {
+		var t = new Date(d.getFullYear(), 0, 0, 0, 0, 0).getTime();
+		return Std.int((d.getTime() - t) / DateTools.days(1));
 	}
 
 	/**
