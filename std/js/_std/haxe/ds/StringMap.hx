@@ -26,7 +26,66 @@ import js.lib.Object;
 import haxe.Constraints.IMap;
 import haxe.DynamicAccess;
 
-#if (js_es >= 5)
+#if (js_es >= 6)
+@:coreApi class StringMap<T> implements IMap<String, T> {
+	private var m:js.lib.Map<String, T>;
+
+	public inline function new(map = new js.lib.Map()):Void {
+		m = map;
+	}
+
+	public inline function set(key:String, value:T):Void {
+		m.set(key, value);
+	}
+
+	public inline function get(key:String):Null<T> {
+		return m.get(key);
+	}
+
+	public inline function exists(key:String):Bool {
+		return m.has(key);
+	}
+
+	public inline function remove(key:String):Bool {
+		return m.delete(key);
+	}
+
+	public inline function keys():Iterator<String> {
+		return new js.lib.HaxeIterator(m.keys());
+	}
+
+	public inline function iterator():Iterator<T> {
+		return m.iterator();
+	}
+
+	public inline function keyValueIterator():KeyValueIterator<String, T> {
+		return m.keyValueIterator();
+	}
+
+	public inline function copy():StringMap<T> {
+		return new StringMap(new js.lib.Map(m));
+	}
+
+	public function toString():String {
+		var s = new StringBuf();
+		s.add("{");
+		var it = keyValueIterator();
+		for (i in it) {
+			s.add(i.key);
+			s.add(" => ");
+			s.add(Std.string(i.value));
+			if (it.hasNext())
+				s.add(", ");
+		}
+		s.add("}");
+		return s.toString();
+	}
+
+	public inline function clear():Void {
+		m.clear();
+	}
+}
+#elseif (js_es == 5)
 @:coreApi class StringMap<T> implements IMap<String, T> {
 	var h:Dynamic;
 
