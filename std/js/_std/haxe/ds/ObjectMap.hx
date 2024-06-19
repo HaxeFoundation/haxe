@@ -30,8 +30,8 @@ import js.Lib;
 class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	private var m:js.lib.Map<K, V>;
 
-	public inline function new(map = new js.lib.Map()):Void {
-		m = map;
+	public inline function new():Void {
+		m = new js.lib.Map();
 	}
 
 	public inline function set(key:K, value:V):Void {
@@ -59,11 +59,20 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	}
 
 	public inline function keyValueIterator():KeyValueIterator<K, V> {
-		return m.keyValueIterator();
+		final iter = m.keyValueIterator();
+		return {
+			hasNext: iter.hasNext,
+			next: () -> {
+				var val = iter.next();
+				return {key: val.key, value: val.value}
+			}
+		}
 	}
 
 	public inline function copy():ObjectMap<K, V> {
-		return new ObjectMap(new js.lib.Map(m));
+		var copied = new ObjectMap();
+		copied.m = new js.lib.Map(m);
+		return copied;
 	}
 
 	public function toString():String {

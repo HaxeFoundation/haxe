@@ -26,8 +26,8 @@ package haxe.ds;
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	private var m:js.lib.Map<Int, T>;
 
-	public inline function new(map = new js.lib.Map()):Void {
-		m = map;
+	public inline function new():Void {
+		m = new js.lib.Map();
 	}
 
 	public inline function set(key:Int, value:T):Void {
@@ -55,11 +55,20 @@ package haxe.ds;
 	}
 
 	public inline function keyValueIterator():KeyValueIterator<Int, T> {
-		return m.keyValueIterator();
+		final iter = m.keyValueIterator();
+		return {
+			hasNext: iter.hasNext,
+			next: () -> {
+				var val = iter.next();
+				return {key: val.key, value: val.value}
+			}
+		}
 	}
 
 	public inline function copy():IntMap<T> {
-		return new IntMap(new js.lib.Map(m));
+		var copied = new IntMap();
+		copied.m = new js.lib.Map(m);
+		return copied;
 	}
 
 	public function toString():String {

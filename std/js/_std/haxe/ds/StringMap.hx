@@ -30,8 +30,8 @@ import haxe.DynamicAccess;
 @:coreApi class StringMap<T> implements IMap<String, T> {
 	private var m:js.lib.Map<String, T>;
 
-	public inline function new(map = new js.lib.Map()):Void {
-		m = map;
+	public inline function new():Void {
+		m = new js.lib.Map();
 	}
 
 	public inline function set(key:String, value:T):Void {
@@ -59,11 +59,20 @@ import haxe.DynamicAccess;
 	}
 
 	public inline function keyValueIterator():KeyValueIterator<String, T> {
-		return m.keyValueIterator();
+		final iter = m.keyValueIterator();
+		return {
+			hasNext: iter.hasNext,
+			next: () -> {
+				var val = iter.next();
+				return {key: val.key, value: val.value}
+			}
+		}
 	}
 
 	public inline function copy():StringMap<T> {
-		return new StringMap(new js.lib.Map(m));
+		var copied = new StringMap();
+		copied.m = new js.lib.Map(m);
+		return copied;
 	}
 
 	public function toString():String {
