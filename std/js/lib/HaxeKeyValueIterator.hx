@@ -38,11 +38,7 @@ class HaxeKeyValueIterator<K, V> {
 	public inline function next():{key:K, value:V} {
 		var v = lastStep.value;
 		lastStep = jsIterator.next();
-		if (v == null) {
-			return null;
-		} else {
-			return {key: v.key, value: v.value};
-		}
+		return {key: v.key, value: v.value};
 	}
 
 	public static inline function keyValueIterator<K, V>(jsIterator:js.lib.Iterator<KeyValue<K, V>>) {
