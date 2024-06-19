@@ -68,7 +68,7 @@ import haxe.DynamicAccess;
 
 	public function toString():String {
 		var s = new StringBuf();
-		s.add("{");
+		s.add("[");
 		var it = keyValueIterator();
 		for (i in it) {
 			s.add(i.key);
@@ -77,7 +77,7 @@ import haxe.DynamicAccess;
 			if (it.hasNext())
 				s.add(", ");
 		}
-		s.add("}");
+		s.add("]");
 		return s.toString();
 	}
 
