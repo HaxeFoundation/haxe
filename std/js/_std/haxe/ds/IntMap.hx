@@ -55,14 +55,7 @@ package haxe.ds;
 	}
 
 	public inline function keyValueIterator():KeyValueIterator<Int, T> {
-		final iter = m.keyValueIterator();
-		return {
-			hasNext: iter.hasNext,
-			next: () -> {
-				var val = iter.next();
-				return {key: val.key, value: val.value}
-			}
-		}
+		return m.keyValueIterator();
 	}
 
 	public inline function copy():IntMap<T> {

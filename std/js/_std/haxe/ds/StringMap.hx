@@ -59,14 +59,7 @@ import haxe.DynamicAccess;
 	}
 
 	public inline function keyValueIterator():KeyValueIterator<String, T> {
-		final iter = m.keyValueIterator();
-		return {
-			hasNext: iter.hasNext,
-			next: () -> {
-				var val = iter.next();
-				return {key: val.key, value: val.value}
-			}
-		}
+		return m.keyValueIterator();
 	}
 
 	public inline function copy():StringMap<T> {
