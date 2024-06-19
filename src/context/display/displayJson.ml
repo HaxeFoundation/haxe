@@ -214,7 +214,7 @@ let handler =
 
 			(match hctx.com.file_contents with
 			| [file, None] ->
-				hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display};
+				hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = true };
 			| _ -> ());
 		);
 		"display/implementation", (fun hctx ->
@@ -462,12 +462,6 @@ let handler =
 				let b = hctx.jsonrpc#get_bool_param "legacyCompletion" in
 				ServerConfig.legacy_completion := b;
 				l := jstring ("Legacy completion " ^ (if b then "enabled" else "disabled")) :: !l;
-				()
-			) ();
-			hctx.jsonrpc#get_opt_param (fun () ->
-				let b = hctx.jsonrpc#get_bool_param "populateCacheFromDisplay" in
-				ServerConfig.populate_cache_from_display := b;
-				l := jstring ("Compilation cache refill from display " ^ (if b then "enabled" else "disabled")) :: !l;
 				()
 			) ();
 			hctx.send_result (jarray !l)
