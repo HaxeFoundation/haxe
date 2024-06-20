@@ -56,15 +56,6 @@ let resolve_source file l1 p1 l2 p2 =
 		List.rev !lines
 	end
 
-let resolve_file ctx f =
-	let ext = StringHelper.extension f in
-	let second_ext = StringHelper.extension (StringHelper.remove_extension f) in
-	let platform_ext = "." ^ (platform_name_macro ctx) in
-	if platform_ext = second_ext then
-		(StringHelper.remove_extension (StringHelper.remove_extension f)) ^ ext
-	else
-		f
-
 let error_printer file line = Printf.sprintf "%s:%d:" file line
 
 type error_context = {
@@ -98,10 +89,8 @@ let compiler_pretty_message_string com ectx cm =
 				let epos = if is_unknown_file cm.cm_pos.pfile then "(unknown position)" else cm.cm_pos.pfile in
 				(-1, -1, -1, -1, epos, [])
 			end else try begin
-				let f = resolve_file com cm.cm_pos.pfile in
-				let f = Common.find_file com f in
 				let l1, p1, l2, p2 = Lexer.get_pos_coords cm.cm_pos in
-				let lines = resolve_source f l1 p1 l2 p2 in
+				let lines = resolve_source cm.cm_pos.pfile l1 p1 l2 p2 in
 				let epos =
 					if lines = [] then cm.cm_pos.pfile
 					else if ectx.absolute_positions then TPrinting.Printer.s_pos cm.cm_pos
