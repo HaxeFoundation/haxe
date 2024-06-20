@@ -1,0 +1,9 @@
+-lib mylib
+-cp src
+-main Main
+--interp
+-D message.reporting=pretty
+-D message.no-color
+
+-D message-reporting=pretty
+-D no-color
