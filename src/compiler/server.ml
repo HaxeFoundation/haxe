@@ -153,15 +153,6 @@ module Communication = struct
 		try loop 0 ""; with End_of_file -> close_in ch;
 		List.rev !lines
 
-	let resolve_file ctx f =
-			let ext = Common.extension f in
-			let second_ext = Common.extension (Common.remove_extension f) in
-			let platform_ext = "." ^ (platform_name_macro ctx) in
-			if platform_ext = second_ext then
-				(Common.remove_extension (Common.remove_extension f)) ^ ext
-			else
-				f
-
 	let compiler_pretty_message_string ctx ectx cm =
 		match cm.cm_message with
 		(* Filter some messages that don't add much when using this message renderer *)
@@ -177,10 +168,8 @@ module Communication = struct
 					let epos = if is_unknown_file cm.cm_pos.pfile then "(unknown position)" else cm.cm_pos.pfile in
 					(-1, -1, -1, -1, epos, [])
 				end else try begin
-					let f = resolve_file ctx.com cm.cm_pos.pfile in
-					let f = Common.find_file ctx.com f in
 					let l1, p1, l2, p2 = Lexer.get_pos_coords cm.cm_pos in
-					let lines = resolve_source f l1 p1 l2 p2 in
+					let lines = resolve_source cm.cm_pos.pfile l1 p1 l2 p2 in
 					let epos = Lexer.get_error_pos error_printer cm.cm_pos in
 					(l1, p1, l2, p2, epos, lines)
 				end with Not_found | Sys_error _ ->
