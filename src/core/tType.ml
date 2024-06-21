@@ -406,7 +406,7 @@ and module_dep_origin =
 	| MDepFromTyping
 	| MDepFromImport
 	| MDepFromMacro
-	| MDepIgnore
+	| MDepFromMacroInclude
 
 and module_dep = {
 	md_sign : Digest.t;

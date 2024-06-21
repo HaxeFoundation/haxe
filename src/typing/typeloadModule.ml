@@ -845,7 +845,7 @@ and load_module' com g m p =
 
 let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 	let m2 = load_module' ctx.com ctx.g m p in
-	if origin <> MDepIgnore then add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
+	add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
 	if ctx.pass = PTypeField then flush_pass ctx.g PConnectField ("load_module",fst m @ [snd m]);
 	m2
 

@@ -410,7 +410,7 @@ let make_macro_api ctx mctx p =
 		MacroApi.include_module = (fun s ->
 			typing_timer ctx false (fun ctx ->
 				let path = parse_path s in
-				ignore(TypeloadModule.load_module ~origin:MDepIgnore ctx path p)
+				ignore(TypeloadModule.load_module ~origin:MDepFromMacroInclude ctx path p)
 			)
 		);
 		MacroApi.type_expr = (fun e ->
