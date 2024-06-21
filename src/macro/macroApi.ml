@@ -26,6 +26,7 @@ type 'value compiler_api = {
 	init_macros_done : unit -> bool;
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
+	include_module : string -> unit;
 	after_init_macros : (unit -> unit) -> unit;
 	after_typing : (module_type list -> unit) -> unit;
 	on_generate : (Type.t list -> unit) -> bool -> unit;
@@ -1877,6 +1878,10 @@ let macro_api ccom get_api =
 		);
 		"get_module", vfun1 (fun s ->
 			encode_array (List.map encode_type ((get_api()).get_module (decode_string s)))
+		);
+		"include_module", vfun1 (fun s ->
+			(get_api()).include_module (decode_string s);
+			vnull
 		);
 		"on_after_init_macros", vfun1 (fun f ->
 			let f = prepare_callback f 1 in

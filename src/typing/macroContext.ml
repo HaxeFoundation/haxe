@@ -127,6 +127,9 @@ let make_macro_com_api com mcom p =
 		get_module = (fun s ->
 			Interp.exc_string "unsupported"
 		);
+		include_module = (fun s ->
+			Interp.exc_string "unsupported"
+		);
 		after_init_macros = (fun f ->
 			com.callbacks#add_after_init_macros (fun () ->
 				let t = macro_timer com ["afterInitMacros"] in
@@ -402,6 +405,12 @@ let make_macro_api ctx mctx p =
 				let path = parse_path s in
 				let m = List.map type_of_module_type (TypeloadModule.load_module ~origin:MDepFromMacro ctx path p).m_types in
 				m
+			)
+		);
+		MacroApi.include_module = (fun s ->
+			typing_timer ctx false (fun ctx ->
+				let path = parse_path s in
+				ignore(TypeloadModule.load_module ~origin:MDepIgnore ctx path p)
 			)
 		);
 		MacroApi.type_expr = (fun e ->

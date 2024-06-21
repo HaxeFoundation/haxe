@@ -224,7 +224,7 @@ class Compiler {
 						var cl = prefix + file.substr(0, file.length - 3);
 						if (skip(cl))
 							continue;
-						Context.getModule(cl);
+						load("include_module", 1)(cl);
 					} else if (rec && sys.FileSystem.isDirectory(path + "/" + file) && !skip(prefix + file))
 						include(prefix + file, true, ignore, classPaths);
 				}

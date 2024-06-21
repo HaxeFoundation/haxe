@@ -617,6 +617,7 @@ module Printer = struct
 		| MDepFromImport -> "MDepFromImport"
 		| MDepFromTyping -> "MDepFromTyping"
 		| MDepFromMacro -> "MDepFromMacro"
+		| MDepIgnore -> die "" __LOC__
 
 	let s_module_tainting_reason = function
 		| CheckDisplayFile -> "check_display_file"
