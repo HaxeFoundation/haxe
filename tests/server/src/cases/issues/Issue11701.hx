@@ -4,7 +4,6 @@ import haxe.display.Diagnostic;
 
 class Issue11701 extends TestCase {
 	function test(_) {
-		vfs.putContent("compile.hxml", getTemplate("issues/Issue11701/compile.hxml"));
 		vfs.putContent("Main.hx", getTemplate("issues/Issue11701/Main.hx"));
 		vfs.putContent("bar/Bar.hx", getTemplate("issues/Issue11701/Bar.hx"));
 		vfs.putContent("baz/Baz.hx", getTemplate("issues/Issue11701/Baz.hx"));
@@ -13,8 +12,7 @@ class Issue11701 extends TestCase {
 		var transform = Markers.parse(content);
 		vfs.putContent("foo/Foo.hx", transform.source);
 
-		var args = ["compile.hxml"];
-
+		var args = ["-main", "Main"];
 		runHaxe(args);
 		assertSuccess();
 
