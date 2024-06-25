@@ -230,6 +230,13 @@ class file_keys = object(self)
 			let key = Path.UniqueKey.create file in
 			Hashtbl.add cache file key;
 			key
+
+	val virtual_counter = ref 0
+
+	method generate_virtual step =
+		incr virtual_counter;
+		Printf.sprintf "file_%i_%i" step !virtual_counter
+
 end
 
 type shared_display_information = {
