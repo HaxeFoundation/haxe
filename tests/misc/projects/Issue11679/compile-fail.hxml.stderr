@@ -1,6 +1,24 @@
-[ERROR] Bar.hx:1: characters 1-2
+[ERROR] Macro.macro.hx:11: characters 4-9
 
- 1 | @:build(Macro.build())
-   | ^
-   | Unexpected &
+ 11 |    throw "Ohno";
+    |    ^^^^^
+    | Uncaught exception Ohno
+
+     ->  Bar.hx:1: characters 1-8
+
+     1 | @:build(Macro.build())
+       | ^^^^^^^
+       | Called from here
+
+     ->  Macro.macro.hx:7: characters 24-33
+
+     7 |     case TInst(cls,_): cls.get();
+       |                        ^^^^^^^^^
+       | Called from here
+
+     ->  Main.hx:5: characters 1-8
+
+     5 | @:build(Macro.build())
+       | ^^^^^^^
+       | Called from here
 
