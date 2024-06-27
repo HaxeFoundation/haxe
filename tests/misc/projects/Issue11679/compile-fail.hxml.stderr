@@ -1,0 +1,6 @@
+[30;41m ERROR [0m Bar.hx:1: characters 1-2
+
+ 1 | [0m[1m@[0m[2m:build(Macro.build())[0m
+   | [31m^[0m
+   | Unexpected &
+
