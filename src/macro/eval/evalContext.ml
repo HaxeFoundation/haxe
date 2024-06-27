@@ -44,6 +44,7 @@ type scope = {
 type env_kind =
 	| EKLocalFunction of int
 	| EKMethod of int * int
+	| EKMacro of int * int
 	| EKEntrypoint
 
 (* Compile-time information for environments. This information is static for all
@@ -332,6 +333,8 @@ let kind_name eval kind =
 	let rec loop kind env = match kind with
 		| EKMethod(i1,i2) ->
 			Printf.sprintf "%s.%s" (rev_hash i1) (rev_hash i2)
+		| EKMacro(i1,i2) ->
+			Printf.sprintf "%s:%s" (rev_hash i1) (rev_hash i2)
 		| EKLocalFunction i ->
 			begin match env with
 			| None -> Printf.sprintf "localFunction%i" i
