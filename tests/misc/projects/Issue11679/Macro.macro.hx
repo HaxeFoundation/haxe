@@ -8,7 +8,7 @@ import haxe.macro.Context;
 					case _:
 				}
 			case "Bar":
-				Context.typeExpr(Context.parseInlineString('& if (!r.can) {}', Context.currentPos()));
+				Context.parseInlineString('& if (!r.can) {}', Context.currentPos());
 		}
 		return null;
 	}
