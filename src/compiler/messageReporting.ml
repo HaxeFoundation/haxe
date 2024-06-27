@@ -12,7 +12,7 @@ let resolve_source file l1 p1 l2 p2 =
 		let rec loop p line =
 			let inc i line =
 				if (!curline >= l1) && (!curline <= l2) then lines := (!curline, line) :: !lines;
-				curline := !curline + 1;
+				incr curline;
 				(i, "")
 			in
 
@@ -173,6 +173,20 @@ let compiler_pretty_message_string com ectx cm =
 				(* File + line pointer *)
 				epos;
 
+		(* Macros can send all sorts of bad positions; avoid failing too hard *)
+		let safe_sub s pos len =
+			if len < 0 then ""
+			else
+				let pos = if pos < 0 then 0 else pos in
+				let slen = String.length s in
+				if pos >= slen then ""
+				else
+					let len = if (pos + len) > slen then slen - pos else len in
+					try String.sub s pos len with
+					(* Should not happen anymore, but still better than a crash if I missed some case... *)
+					| Invalid_argument _ -> (Printf.sprintf "[%s;%i;%i]" s pos len)
+		in
+
 		(* Error source *)
 		if display_source then out := List.fold_left (fun out (l, line) ->
 			let nb_len = String.length (string_of_int l) in
@@ -191,18 +205,18 @@ let compiler_pretty_message_string com ectx cm =
 					if l = 0 then
 						c_dim ^ line ^ c_reset
 					else if l1 = l2 then
-						(if p1 > 1 then c_dim ^ (String.sub line 0 (p1-1)) else "")
-						^ c_reset ^ c_bold ^ (String.sub line (p1-1) (p2-p1))
-						^ c_reset ^ c_dim ^ (String.sub line (p2-1) (len - p2 + 1))
+						(if p1 > 1 then c_dim ^ (safe_sub line 0 (p1-1)) else "")
+						^ c_reset ^ c_bold ^ (safe_sub line (p1-1) (p2-p1))
+						^ c_reset ^ c_dim ^ (safe_sub line (p2-1) (len - p2 + 1))
 						^ c_reset
 					else begin
 						(if (l = l1) then
-							(if p1 > 1 then c_dim ^ (String.sub line 0 (p1-1)) else "")
-							^ c_reset ^ c_bold ^ (String.sub line (p1-1) (len-p1+1))
+							c_dim ^ (safe_sub line 0 (p1-1))
+							^ c_reset ^ c_bold ^ (safe_sub line (p1-1) (len-p1+1))
 							^ c_reset
 						else if (l = l2) then
-							(if p2 > 1 then c_bold ^ (String.sub line 0 (p2-1)) else "")
-							^ c_reset ^ c_dim ^ (String.sub line (p2-1) (len-p2+1))
+							c_bold ^ (safe_sub line 0 (p2-1))
+							^ c_reset ^ c_dim ^ (safe_sub line (p2-1) (len-p2+1))
 							^ c_reset
 						else c_bold ^ line ^ c_reset)
 					end
