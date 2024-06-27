@@ -374,7 +374,6 @@ type context = {
 	main : context_main;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
-	mutable report_mode_disabled : bool;
 	(* communication *)
 	mutable print : string -> unit;
 	mutable error : ?depth:int -> string -> pos -> unit;
@@ -856,7 +855,6 @@ let create compilation_step cs version args display_mode =
 		json_out = None;
 		has_error = false;
 		report_mode = RMNone;
-		report_mode_disabled = false;
 		is_macro_context = false;
 		functional_interface_lut = new Lookup.hashtbl_lookup;
 		hxb_reader_api = None;
@@ -865,19 +863,16 @@ let create compilation_step cs version args display_mode =
 	} in
 	com
 
-let is_diagnostics com = not com.report_mode_disabled && match com.report_mode with
+let is_diagnostics com = match com.report_mode with
 	| RMLegacyDiagnostics _ | RMDiagnostics _ -> true
 	| _ -> false
 
 let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
 
 let disable_report_mode com =
-	if com.report_mode_disabled || com.report_mode = RMNone then
-		(fun () -> ())
-	else begin
-		com.report_mode_disabled <- true;
-		(fun () -> com.report_mode_disabled <- false)
-	end
+	let old = com.report_mode in
+	com.report_mode <- RMNone;
+	(fun () -> com.report_mode <- old)
 
 let log com str =
 	if com.verbose then com.print (str ^ "\n")
