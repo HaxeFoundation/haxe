@@ -87,7 +87,7 @@ let build_exception_stack ctx env =
 			List.rev acc
 		else match env'.env_parent with
 			| Some env -> loop acc env
-			| None -> List.rev acc
+			| None -> die "" __LOC__
 	in
 	let d = match eval.env with
 	| Some env -> loop [] env
