@@ -62,10 +62,7 @@ let macro_timer com l =
 
 let typing_timer ctx need_type f =
 	let t = Timer.timer ["typing"] in
-	let old = ctx.com.error_ext in
-	let restore_report_mode = disable_report_mode ctx.com in
 	let restore_field_state = TypeloadFunction.save_field_state ctx in
-	ctx.com.error_ext <- (fun err -> raise_error { err with err_from_macro = true });
 
 	let ctx = if need_type && ctx.pass < PTypeField then begin
 		enter_field_typing_pass ctx.g ("typing_timer",[]);
@@ -73,6 +70,11 @@ let typing_timer ctx need_type f =
 	end else
 		ctx
 	in
+
+	let old = ctx.com.error_ext in
+	let restore_report_mode = disable_report_mode ctx.com in
+	ctx.com.error_ext <- (fun err -> raise_error { err with err_from_macro = true });
+
 	let exit() =
 		t();
 		ctx.com.error_ext <- old;
