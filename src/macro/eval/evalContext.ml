@@ -334,7 +334,7 @@ let kind_name eval kind =
 		| EKMethod(i1,i2) ->
 			Printf.sprintf "%s.%s" (rev_hash i1) (rev_hash i2)
 		| EKMacro(i1,i2) ->
-			Printf.sprintf "%s:%s" (rev_hash i1) (rev_hash i2)
+			Printf.sprintf "Macro call: %s.%s" (rev_hash i1) (rev_hash i2)
 		| EKLocalFunction i ->
 			begin match env with
 			| None -> Printf.sprintf "localFunction%i" i
