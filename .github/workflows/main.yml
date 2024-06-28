@@ -683,7 +683,7 @@ jobs:
           tar -xf macArmBinaries/*_bin.tar.gz -C macArmBinaries --strip-components=1
           lipo -create -output haxe macX64Binaries/haxe macArmBinaries/haxe
           lipo -create -output haxelib macX64Binaries/haxelib macArmBinaries/haxelib
-          make -s package_unix package_installer_mac
+          make -s package_unix package_installer_mac PACKAGE_INSTALLER_MAC_ARCH=universal
           ls -l out
           otool -L ./haxe
           otool -L ./haxelib

@@ -181,11 +181,13 @@ xmldoc:
 $(INSTALLER_TMP_DIR):
 	mkdir -p $(INSTALLER_TMP_DIR)
 
-# Can be 'universal', 'arm64', or 'amd64'
-PACKAGE_INSTALLER_MAC_ARCH?=universal
+# Can be 'universal', 'arm64', or 'x86_64'
+ifndef PACKAGE_INSTALLER_MAC_ARCH
+PACKAGE_INSTALLER_MAC_ARCH:=$(shell uname -m)
+endif
 
 $(INSTALLER_TMP_DIR)/neko-osx.tar.gz: $(INSTALLER_TMP_DIR)
-	NEKO_ARCH_SUFFIX=$$(if [ "$(PACKAGE_INSTALLER_MAC_ARCH)" = "amd64" ]; then \
+	NEKO_ARCH_SUFFIX=$$(if [ "$(PACKAGE_INSTALLER_MAC_ARCH)" = "x86_64" ]; then \
 		echo 64; \
 	else \
 		echo "-$(PACKAGE_INSTALLER_MAC_ARCH)"; \
