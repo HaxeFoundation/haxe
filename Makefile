@@ -59,7 +59,7 @@ PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(COMMIT_SHA)
 HAXE_VERSION=$(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1 | awk '{print $$1;}')
 HAXE_VERSION_SHORT=$(shell echo "$(HAXE_VERSION)" | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+")
 
-NEKO_VERSION=2.4.0-rc
+NEKO_VERSION=2.4.0-rc.1
 NEKO_MAJOR_VERSION=$(shell echo "$(NEKO_VERSION)" | grep -oE "^[0-9]+")
 NEKO_VERSION_TAG=v$(shell echo "$(NEKO_VERSION)" | sed "s/\./-/g")
 
