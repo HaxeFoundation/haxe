@@ -686,7 +686,7 @@ let generate_libs_init = function
 			(EVars [
 				"@s",Some (call p (loadp "sys_string" 0) []);
 			],p);
-			(EIf (op ">=" (builtin p "version") (int p 240),
+			(EIf (op ">=" (call p (builtin p "version") []) (int p 240),
 				(op "=" es (op "+" es (ESwitch (call p (loadp "sys_cpu_arch" 0) [],[
 					(str p "arm64", str p "Arm64");
 					(str p "arm", str p "Arm");
