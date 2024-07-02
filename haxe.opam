@@ -1,4 +1,4 @@
-opam-version: "2.0"
+opam-version: "2.2"
 name: "haxe"
 version: "4.3.0"
 synopsis: "Multi-target universal programming language"

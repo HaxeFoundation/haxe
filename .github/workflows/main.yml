@@ -53,7 +53,7 @@ jobs:
       - name: Setup ocaml
         uses: ocaml/setup-ocaml@v2
         with:
-          ocaml-compiler: 4.08.1
+          ocaml-compiler: 5.0.0
           opam-repositories: |
             opam-repository-mingw: https://github.com/ocaml-opam/opam-repository-mingw.git#sunset
             default: https://github.com/ocaml/opam-repository.git
@@ -128,7 +128,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ocaml: ["4.08.1", "5.0.0"]
+        # ocaml: ["4.08.1", "5.0.0"]
+        ocaml: ["5.0.0"]
     steps:
       - uses: actions/checkout@main
         with:
@@ -203,7 +204,7 @@ jobs:
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Build xmldoc
-        if: matrix.ocaml == '4.08.1'
+        # if: matrix.ocaml == '4.08.1'
         run: |
           set -ex
           make -s xmldoc
@@ -217,12 +218,13 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
+          name: linuxBinaries
+          # name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
           path: out
 
       - name: Upload xmldoc artifact
         uses: actions/upload-artifact@v4
-        if: matrix.ocaml == '4.08.1'
+        # if: matrix.ocaml == '4.08.1'
         with:
           name: xmldoc
           path: extra/doc
@@ -238,7 +240,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ocaml: ["4.08.1", "5.0.0"]
+        ocaml: ["5.0.0"]
+        # ocaml: ["4.08.1", "5.0.0"]
         target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
         include:
           - target: hl
@@ -255,7 +258,8 @@ jobs:
           submodules: recursive
       - uses: actions/download-artifact@v4
         with:
-          name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
+          name: linuxBinaries
+          # name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
           path: linuxBinaries
 
       - name: Install Neko from S3
