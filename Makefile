@@ -59,7 +59,7 @@ PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(COMMIT_SHA)
 HAXE_VERSION=$(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1 | awk '{print $$1;}')
 HAXE_VERSION_SHORT=$(shell echo "$(HAXE_VERSION)" | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+")
 
-NEKO_VERSION=2.3.0
+NEKO_VERSION=2.4.0-rc.1
 NEKO_MAJOR_VERSION=$(shell echo "$(NEKO_VERSION)" | grep -oE "^[0-9]+")
 NEKO_VERSION_TAG=v$(shell echo "$(NEKO_VERSION)" | sed "s/\./-/g")
 
@@ -168,19 +168,29 @@ xmldoc:
 $(INSTALLER_TMP_DIR):
 	mkdir -p $(INSTALLER_TMP_DIR)
 
-$(INSTALLER_TMP_DIR)/neko-osx64.tar.gz: $(INSTALLER_TMP_DIR)
-	wget -nv https://github.com/HaxeFoundation/neko/releases/download/$(NEKO_VERSION_TAG)/neko-$(NEKO_VERSION)-osx64.tar.gz -O installer/neko-osx64.tar.gz
+# Can be 'universal', 'arm64', or 'x86_64'
+ifndef PACKAGE_INSTALLER_MAC_ARCH
+PACKAGE_INSTALLER_MAC_ARCH:=$(shell uname -m)
+endif
+
+$(INSTALLER_TMP_DIR)/neko-osx.tar.gz: $(INSTALLER_TMP_DIR)
+	NEKO_ARCH_SUFFIX=$$(if [ "$(PACKAGE_INSTALLER_MAC_ARCH)" = "x86_64" ]; then \
+		echo 64; \
+	else \
+		echo "-$(PACKAGE_INSTALLER_MAC_ARCH)"; \
+	fi); \
+	wget -nv https://github.com/HaxeFoundation/neko/releases/download/$(NEKO_VERSION_TAG)/neko-$(NEKO_VERSION)-osx$$NEKO_ARCH_SUFFIX.tar.gz -O installer/neko-osx.tar.gz
 
 # Installer
 
-package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
+package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx.tar.gz package_unix
 	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.tar.gz)
 	$(eval PACKFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz)
 	$(eval VERSION := $(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1))
 	bash -c "rm -rf $(INSTALLER_TMP_DIR)/{resources,pkg,tgz,haxe.tar.gz}"
 	mkdir $(INSTALLER_TMP_DIR)/resources
 	# neko - unpack to change the dir name
-	cd $(INSTALLER_TMP_DIR)/resources && tar -zxvf ../neko-osx64.tar.gz
+	cd $(INSTALLER_TMP_DIR)/resources && tar -zxvf ../neko-osx.tar.gz
 	mv $(INSTALLER_TMP_DIR)/resources/neko* $(INSTALLER_TMP_DIR)/resources/neko
 	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf neko.tar.gz neko
 	# haxe - unpack to change the dir name
