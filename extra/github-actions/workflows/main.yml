@@ -311,7 +311,7 @@ jobs:
         os: [macos-14, macos-13]
     runs-on: ${{ matrix.os }}
     env:
-      PLATFORM: mac
+      PLATFORM: mac${{ matrix.os == 'macos-14' && '-arm64' || '' }}
       OPAMYES: 1
       MACOSX_DEPLOYMENT_TARGET: 10.13
       OCAML_VERSION: 5.1.1
@@ -378,9 +378,8 @@ jobs:
           tar -xf macX64Binaries/*_bin.tar.gz -C macX64Binaries --strip-components=1
           tar -xf macArmBinaries/*_bin.tar.gz -C macArmBinaries --strip-components=1
           lipo -create -output haxe macX64Binaries/haxe macArmBinaries/haxe
-          # there is only x64 haxelib
-          mv macX64Binaries/haxelib .
-          make -s package_unix package_installer_mac
+          lipo -create -output haxelib macX64Binaries/haxelib macArmBinaries/haxelib
+          make -s package_unix package_installer_mac PACKAGE_INSTALLER_MAC_ARCH=universal
           ls -l out
           otool -L ./haxe
           otool -L ./haxelib
