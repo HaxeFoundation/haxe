@@ -174,11 +174,13 @@ jobs:
         if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           set -ex
+          opam --version
           opam init # --disable-sandboxing
-          opam update
-          opam switch create ${{ matrix.ocaml }}
-          opam pin add haxe . --no-action
-          opam install haxe --deps-only --assume-depexts
+          opam switch create ${{ matrix.ocaml }} --locked --assume-depexts
+          # opam update
+          # opam switch create ${{ matrix.ocaml }}
+          # opam pin add haxe . --no-action
+          # opam install haxe --deps-only --assume-depexts
           opam list
           ocamlopt -v
 

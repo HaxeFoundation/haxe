@@ -1,4 +1,4 @@
-opam-version: "2.1"
+opam-version: "2.0"
 name: "haxe"
 version: "4.3.0"
 synopsis: "Multi-target universal programming language"
@@ -20,7 +20,6 @@ install: [make "install" "INSTALL_DIR=%{prefix}%"]
 remove: [make "uninstall" "INSTALL_DIR=%{prefix}%"]
 depends: [
   ("ocaml" {>= "5.0"} & ("camlp5" {build}))
-    | ("ocaml" {>= "4.08" & < "5.0"} & ("camlp5" {build & = "8.00.03"}))
   "ocamlfind" {build}
   "dune" {>= "1.11" & < "3.16"}
   "sedlex" {>= "2.0"}
@@ -31,7 +30,7 @@ depends: [
   "conf-libpcre2-8"
   "conf-zlib"
   "conf-neko"
-  "luv" {= "0.5.12"}
+  "luv" {>= "0.5.12" & < "0.6"}
   "ipaddr"
   "terminal_size"
 ]
