@@ -1,7 +1,9 @@
 package cases;
 
+import haxe.display.Diagnostic;
 import haxe.display.Display;
 import haxe.display.FsPath;
+import haxe.display.Position.Range;
 import haxe.display.Server;
 import haxe.io.Path;
 import utest.Assert;
@@ -257,6 +259,48 @@ class ServerTests extends TestCase {
 		});
 		runHaxe(args.concat(["--display", "HelloWorld.hx@0@hover"]));
 		assertReuse("HelloWorld");
+	}
+
+	function testDiagnosticsMultipleOpenFiles() {
+		vfs.putContent("Main.hx", getTemplate("diagnostics/multi-files/Main.hx"));
+		vfs.putContent("File1.hx", getTemplate("diagnostics/multi-files/File1.hx"));
+		vfs.putContent("File2.hx", getTemplate("diagnostics/multi-files/File2.hx"));
+		vfs.putContent("File3.hx", getTemplate("diagnostics/multi-files/File3.hx"));
+
+		var args = ["--main", "Main", "--interp"];
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {fileContents: [
+			{file: new FsPath("Main.hx")},
+			{file: new FsPath("File1.hx")},
+			{file: new FsPath("File2.hx")},
+		]}, res -> {
+			Assert.equals(3, res.length); // Asked diagnostics for 3 files
+
+			for (fileDiagnostics in res) {
+				final path = ~/[\/|\\]/g.split(fileDiagnostics.file.toString()).pop();
+
+				switch (path) {
+					case "Main.hx":
+						Assert.equals(3, fileDiagnostics.diagnostics.length);
+						for (diag in fileDiagnostics.diagnostics) {
+							Assert.equals(diag.kind, DKUnusedImport);
+						}
+
+					case "File1.hx" | "File2.hx":
+						Assert.equals(1, fileDiagnostics.diagnostics.length);
+						var diag:Diagnostic<{description:String, range:Range}> = fileDiagnostics.diagnostics[0];
+						Assert.equals(diag.kind, DKRemovableCode);
+						Assert.equals(diag.args.description, "Unused variable");
+
+					case _: throw 'Did not expect diagnostics for $path';
+				}
+			}
+		});
+
+		// Check that File3 was reached
+		var context = null;
+		runHaxeJsonCb(args, ServerMethods.Contexts, null, res -> context = res.find(ctx -> ctx.desc == "after_init_macros"));
+		runHaxeJsonCb(args, ServerMethods.Type, {signature: context.signature, modulePath: "File3", typeName: "File3"}, res -> Assert.equals(res.pos.file, "File3.hx"));
+		assertSuccess();
 	}
 
 	function testSyntaxCache() {
