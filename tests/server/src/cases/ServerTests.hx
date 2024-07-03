@@ -290,7 +290,7 @@ class ServerTests extends TestCase {
 			Assert.equals(3, res.length); // Asked diagnostics for 3 files
 
 			for (fileDiagnostics in res) {
-				final path = fileDiagnostics.file.toString().split("/").pop();
+				final path = ~/[\/|\\]/g.split(fileDiagnostics.file.toString()).pop();
 
 				switch (path) {
 					case "Main.hx":
