@@ -34,7 +34,7 @@ import haxe.ds.ReadOnlyArray;
 @:publicFields
 class DisplayMethods {
 	/**
-		TODO documentation
+		The request is sent from the client to Haxe to get diagnostics for a specific file, a list of files or the whole project.
 	**/
 	static inline var Diagnostics = new HaxeRequestMethod<DiagnosticsParams, DiagnosticsResult>("display/diagnostics");
 
