@@ -25,6 +25,7 @@ package haxe.display;
 import haxe.display.JsonModuleTypes;
 import haxe.display.Position;
 import haxe.display.Protocol;
+import haxe.ds.ReadOnlyArray;
 
 /**
 	Methods of the JSON-RPC-based `--display` protocol in Haxe 4.
@@ -32,6 +33,12 @@ import haxe.display.Protocol;
 **/
 @:publicFields
 class DisplayMethods {
+
+	/**
+		TODO documentation
+	**/
+	static inline var Diagnostics = new HaxeRequestMethod<DiagnosticsParams, DiagnosticsResult>("display/diagnostics");
+
 	/**
 		The completion request is sent from the client to Haxe to request code completion.
 		Haxe automatically determines the type of completion to use based on the passed position, see `CompletionResultKind`.
@@ -437,6 +444,17 @@ typedef StructExtensionCompletion = {
 typedef PatternCompletion<T> = ToplevelCompletion<T> & {
 	var isOutermostPattern:Bool;
 }
+
+typedef DiagnosticsParams = {
+	var ?file:FsPath;
+	var ?contents:String;
+	var ?fileContents:Array<{file:FsPath, ?contents:String}>;
+}
+
+typedef DiagnosticsResult = Response<ReadOnlyArray<{
+	var file:FsPath;
+	var diagnostics:ReadOnlyArray<Diagnostic<Any>>;
+}>>
 
 enum abstract CompletionModeKind<T>(Int) {
 	var Field:CompletionModeKind<FieldCompletionSubject<Dynamic>>;

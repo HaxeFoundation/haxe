@@ -272,7 +272,8 @@ type compiler_stage =
 
 type report_mode =
 	| RMNone
-	| RMDiagnostics of Path.UniqueKey.t list
+	| RMLegacyDiagnostics of Path.UniqueKey.t list
+	| RMDiagnostics of (Path.UniqueKey.t * string option (* file contents *)) list
 	| RMStatistics
 
 class virtual ['key,'value] lookup = object(self)
@@ -867,7 +868,7 @@ let create compilation_step cs version args =
 	com
 
 let is_diagnostics com = match com.report_mode with
-	| RMDiagnostics _ -> true
+	| RMLegacyDiagnostics _ | RMDiagnostics _ -> true
 	| _ -> false
 
 let disable_report_mode com =
