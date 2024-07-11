@@ -2880,10 +2880,13 @@ and eval_expr ctx e =
 				) case.case_patterns;
 			) cases;
 			if !max > 255 || cases = [] then raise Exit;
-			let ridx = eval_to ctx en HI32 in
+			let rexpr = eval_expr ctx en in
+			let jnull = if is_nullt (to_type ctx en.etype) then jump ctx (fun n -> OJNull (rexpr,n)) else fun()->() in
+			let ridx = cast_to ctx rexpr HI32 en.epos in
 			let indexes = Array.make (!max + 1) 0 in
 			op ctx (OSwitch (ridx,indexes,0));
 			let switch_pos = current_pos ctx in
+			jnull();
 			(match def with
 			| None ->
 				if rt <> HVoid then set_default ctx r;
