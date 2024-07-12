@@ -3025,6 +3025,7 @@ and eval_expr ctx e =
 					op ctx (OCall2 (rb, alloc_fun_path ctx (["hl"],"BaseType") "check",r,rtrap));
 					let jnext = jump ctx (fun n -> OJFalse (rb,n)) in
 					op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx rtrap (to_type ctx v.v_type) ec.epos));
+					add_assign ctx v;
 					jnext
 				in
 				let r = eval_expr ctx ec in
