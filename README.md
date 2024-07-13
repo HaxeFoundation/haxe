@@ -7,7 +7,6 @@
 	<a href="https://saucelabs.com/u/haxe"><img src="https://saucelabs.com/buildstatus/haxe" alt="SauceLabs Test Status"></a>
 	<a href="https://gitter.im/HaxeFoundation/haxe?utm_source=badge&amp;utm_medium=badge&amp;utm_campaign=pr-badge"><img src="https://badges.gitter.im/Join%20Chat.svg" alt="Gitter"></a>
 	<a href="https://discordapp.com/invite/0uEuWH3spjck73Lo"><img src="https://img.shields.io/discord/162395145352904705.svg?logo=discord" alt="Discord"></a>
-	<a href=".github/TR/README_TR.md"><img src="https://raw.githubusercontent.com/neondev27/flag-badges/main/badges/TR.svg" alt="turkish<TR>"></a>
 </p>
 
 #
