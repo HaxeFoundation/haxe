@@ -230,12 +230,12 @@ and jit_expr jit return e =
 		let hasret = jit_closure.has_nonfinal_return in
 		let eci = get_env_creation jit_closure false tf.tf_expr.epos.pfile (EKLocalFunction jit.num_closures) in
 		let captures = Hashtbl.fold (fun vid (i,declared) acc -> (i,vid,declared) :: acc) jit_closure.captures [] in
-		let captures = List.sort (fun (i1,_,_) (i2,_,_) -> Pervasives.compare i1 i2) captures in
+		let captures = List.sort (fun (i1,_,_) (i2,_,_) -> Stdlib.compare i1 i2) captures in
 		(* Check if the out-of-scope var is in the outer scope because otherwise we have to promote outwards. *)
 		List.iter (fun var -> ignore(get_capture_slot jit var)) jit_closure.captures_outside_scope;
 		let captures = ExtList.List.filter_map (fun (i,vid,declared) ->
 			if declared then None
-			else Some (i,fst (try Hashtbl.find jit.captures vid with Not_found -> Error.raise_typing_error "Something went wrong" e.epos))
+			else Some (i,fst (try Hashtbl.find jit.captures vid with Not_found -> Error.raise_typing_error (Printf.sprintf "Could not find capture variable %i" vid) e.epos))
 		) captures in
 		let mapping = Array.of_list captures in
 		emit_closure ctx mapping eci hasret exec fl
@@ -655,7 +655,7 @@ and jit_expr jit return e =
 				wrap()
 			| TUnop((Increment | Decrement),_,e1) | TBinop((OpAssign | OpAssignOp _),e1,_) ->
 				begin match (Texpr.skip e1).eexpr with
-				| TLocal {v_kind = VGenerated | VInlined | VInlinedConstructorVariable | VExtractorVariable} ->
+				| TLocal {v_kind = VGenerated | VInlined | VInlinedConstructorVariable _ | VExtractorVariable} ->
 					f
 				| _ ->
 					wrap()

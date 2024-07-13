@@ -45,7 +45,7 @@ type ttype =
 	| HDynObj
 	| HAbstract of string * string index
 	| HEnum of enum_proto
-	| HNull of ttype
+	| HNull of ttype (* for not nullable type only *)
 	| HMethod of ttype list * ttype
 	| HStruct of class_proto
 	| HPacked of ttype
@@ -201,6 +201,8 @@ type opcode =
 	| ORefData of reg * reg
 	| ORefOffset of reg * reg * reg
 	| ONop of string
+	| OPrefetch of reg * field index * int
+    | OAsm of int * int * reg
 
 type fundecl = {
 	fpath : string * string;
@@ -273,6 +275,12 @@ let is_float = function
 
 let is_number = function
 	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 -> true
+	| _ -> false
+
+let is_nullt = function
+	| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) -> true
+	| HNull HBool -> true
+	| HNull _ -> Globals.die "" __LOC__
 	| _ -> false
 
 (*
@@ -572,6 +580,20 @@ let ostr fstr o =
 	| ORefData (r,d) -> Printf.sprintf "refdata %d, %d" r d
 	| ORefOffset (r,r2,off) -> Printf.sprintf "refoffset %d, %d, %d" r r2 off
 	| ONop s -> if s = "" then "nop" else "nop " ^ s
+	| OPrefetch (r,f,mode) -> Printf.sprintf "prefetch %d[%d] %d" r f mode
+	| OAsm (mode, value, reg) ->
+		match mode with
+		| 0 when reg = 0 ->
+			Printf.sprintf "asm %.2X" value
+		| 1 when reg = 0 ->
+			Printf.sprintf "asm scratch R%d" value
+		| 2 ->
+			Printf.sprintf "asm R%d := %d" value (reg - 1)
+		| 3 ->
+			Printf.sprintf "asm %d := R%d" (reg - 1) value
+		| _ ->
+			Printf.sprintf "asm[%d] %d%s" mode value (if reg = 0 then "" else ", " ^ string_of_int (reg-1))
+
 let fundecl_name f = if snd f.fpath = "" then "fun$" ^ (string_of_int f.findex) else (fst f.fpath) ^ "." ^ (snd f.fpath)
 
 let dump pr code =

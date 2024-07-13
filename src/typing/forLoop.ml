@@ -84,7 +84,7 @@ module IterationKind = struct
 		(mk (TArray (arr,iexpr)) pt p)
 
 	let check_iterator ?(resume=false) ?last_resort ctx s e p =
-		let t,pt = Typeload.t_iterator ctx in
+		let t,pt = Typeload.t_iterator ctx p in
 		let dynamic_iterator = ref None in
 		let e1 = try
 			let e = AbstractCast.cast_or_unify_raise ctx t e p in
@@ -267,7 +267,7 @@ module IterationKind = struct
 		let t_void = ctx.t.tvoid in
 		let t_int = ctx.t.tint in
 		let mk_field e n =
-			TField (e,try quick_field e.etype n with Not_found -> die "" __LOC__)
+			TField (e,try quick_field e.etype n with Not_found -> Error.raise_msg (Printf.sprintf "Could not find field %s on %s" n (s_type_kind e.etype)) e.epos)
 		in
 		let get_array_length arr p =
 			mk (mk_field arr "length") ctx.com.basic.tint p
@@ -326,7 +326,7 @@ module IterationKind = struct
 					| _ -> map_expr loop e
 				in
 				let e2 = loop e2 in
-				Texpr.duplicate_tvars e2
+				Texpr.duplicate_tvars e_identity e2
 			) in
 			mk (TBlock el) t_void p
 		| IteratorIntConst(a,b,ascending) ->
@@ -367,7 +367,7 @@ module IterationKind = struct
 			let el = List.map (fun e ->
 				let ev = mk (TVar(v,Some e)) t_void e.epos in
 				let e = concat ev e2 in
-				Texpr.duplicate_tvars e
+				Texpr.duplicate_tvars e_identity e
 			) el in
 			mk (TBlock el) t_void p
 		| IteratorArray | IteratorArrayAccess ->
@@ -457,32 +457,10 @@ type iteration_kind =
 	| IKNormal of iteration_ident
 	| IKKeyValue of iteration_ident * iteration_ident
 
-let type_for_loop ctx handle_display it e2 p =
-	let rec loop_ident dko e1 = match e1 with
-		| EConst(Ident i),p -> i,p,dko
-		| EDisplay(e1,dk),_ -> loop_ident (Some dk) e1
-		| _ -> raise_typing_error "Identifier expected" (pos e1)
-	in
-	let rec loop dko e1 = match fst e1 with
-		| EBinop(OpIn,e1,e2) ->
-			begin match fst e1 with
-			| EBinop(OpArrow,ei1,ei2) -> IKKeyValue(loop_ident None ei1,loop_ident None ei2),e2
-			| _ -> IKNormal (loop_ident dko e1),e2
-			end
-		| EDisplay(e1,dk) -> loop (Some dk) e1
-		| EBinop(OpArrow,ei1,(EBinop(OpIn,ei2,e2),_)) -> IKKeyValue(loop_ident None ei1,loop_ident None ei2),e2
-		| _ ->
-			begin match dko with
-			| Some dk -> ignore(handle_display ctx e1 dk MGet WithType.value);
-			| None -> ()
-			end;
-			raise_typing_error "For expression should be 'v in expr'" (snd it)
-	in
-	let ik,e1 = loop None it in
-	let e1 = type_expr ctx e1 WithType.value in
-	let old_loop = ctx.in_loop in
+let type_for_loop ctx handle_display ik e1 e2 p =
+	let old_loop = ctx.e.in_loop in
 	let old_locals = save_locals ctx in
-	ctx.in_loop <- true;
+	ctx.e.in_loop <- true;
 	let e2 = Expr.ensure_block e2 in
 	let check_display (i,pi,dko) = match dko with
 		| None -> ()
@@ -494,7 +472,7 @@ let type_for_loop ctx handle_display it e2 p =
 		let i = add_local_with_origin ctx TVOForVariable i iterator.it_type pi in
 		let e2 = type_expr ctx e2 NoValue in
 		check_display (i,pi,dko);
-		ctx.in_loop <- old_loop;
+		ctx.e.in_loop <- old_loop;
 		old_locals();
 		begin try
 			IterationKind.to_texpr ctx i iterator e2 p
@@ -531,8 +509,31 @@ let type_for_loop ctx handle_display it e2 p =
 			mk (TVar(vtmp,Some e1)) ctx.t.tvoid e1.epos;
 			mk (TWhile(ehasnext,ebody,NormalWhile)) ctx.t.tvoid p;
 		]) ctx.t.tvoid p in
-		ctx.in_loop <- old_loop;
+		ctx.e.in_loop <- old_loop;
 		old_locals();
 		e
 
-
+let type_for_loop ctx handle_display it e2 p =
+	let rec loop_ident dko e1 = match e1 with
+		| EConst(Ident i),p -> i,p,dko
+		| EDisplay(e1,dk),_ -> loop_ident (Some dk) e1
+		| _ -> raise_typing_error "Identifier expected" (pos e1)
+	in
+	let rec loop dko e1 = match fst e1 with
+		| EBinop(OpIn,e1,e2) ->
+			begin match fst e1 with
+			| EBinop(OpArrow,ei1,ei2) -> IKKeyValue(loop_ident None ei1,loop_ident None ei2),e2
+			| _ -> IKNormal (loop_ident dko e1),e2
+			end
+		| EDisplay(e1,dk) -> loop (Some dk) e1
+		| EBinop(OpArrow,ei1,(EBinop(OpIn,ei2,e2),_)) -> IKKeyValue(loop_ident None ei1,loop_ident None ei2),e2
+		| _ ->
+			begin match dko with
+			| Some dk -> ignore(handle_display ctx e1 dk MGet WithType.value);
+			| None -> ()
+			end;
+			raise_typing_error "For expression should be 'v in expr'" (snd it)
+	in
+	let ik,e1 = loop None it in
+	let e1 = type_expr ctx e1 WithType.value in
+	type_for_loop ctx handle_display ik e1 e2 p

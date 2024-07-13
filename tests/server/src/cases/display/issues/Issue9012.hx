@@ -12,6 +12,6 @@ class Issue9012 extends DisplayTestCase {
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: transform.markers[1]});
 		var result = parseHover().result;
 
-		Assert.equals(DisplayItemKind.ClassField, result.item.kind);
+		Assert.equals(result.item.kind, DisplayItemKind.ClassField);
 	}
 }

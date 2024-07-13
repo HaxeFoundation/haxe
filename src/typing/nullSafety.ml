@@ -1041,6 +1041,8 @@ class expr_checker mode immediate_execution report =
 				| TMeta (_, e) -> self#is_nullable_expr e
 				| TThrow _ -> false
 				| TReturn _ -> false
+				| TContinue -> false
+				| TBreak -> false
 				| TBinop ((OpAssign | OpAssignOp _), _, right) -> self#is_nullable_expr right
 				| TBlock exprs ->
 					local_safety#block_declared;
@@ -1511,7 +1513,7 @@ class class_checker cls immediate_execution report =
 						self#check_accessors is_static f
 			end in
 			if is_safe_class then
-				Option.may ((self#get_checker (safety_mode cls_meta))#check_root_expr) cls.cl_init;
+				Option.may ((self#get_checker (safety_mode cls_meta))#check_root_expr) (TClass.get_cl_init cls);
 			Option.may (check_field false) cls.cl_constructor;
 			List.iter (check_field false) cls.cl_ordered_fields;
 			List.iter (check_field true) cls.cl_ordered_statics;

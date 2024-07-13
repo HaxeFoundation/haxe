@@ -98,7 +98,7 @@ class Validator {
 		} else if(Context.defined('php')) {
 			Php;
 		} else {
-			throw new InvalidTargetException('Current target is not supported', haxe.macro.PositionTools.here());
+			throw new InvalidTargetException('Current target is not supported', (macro 0).pos);
 		}
 	}
 

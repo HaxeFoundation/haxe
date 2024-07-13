@@ -223,7 +223,8 @@ class Http extends haxe.http.HttpBase {
 			else
 				b.writeString("Content-Length: " + uri.length + "\r\n");
 		}
-		b.writeString("Connection: close\r\n");
+		if( !Lambda.exists(headers, function(h) return h.name == "Connection") )
+			b.writeString("Connection: close\r\n");
 		for (h in headers) {
 			b.writeString(h.name);
 			b.writeString(": ");

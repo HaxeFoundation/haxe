@@ -302,11 +302,6 @@ module GlobalState = struct
 
 	let stdlib : builtins option ref = ref None
 	let macro_lib : (string,value) Hashtbl.t = Hashtbl.create 0
-
-	let cleanup ctx =
-		(* curapi holds a reference to the typing context which we don't want to persist. Let's unset it so the
-		   context can be collected. *)
-		ctx.curapi <- Obj.magic ""
 end
 
 let get_ctx () = (!GlobalState.get_ctx_ref)()
@@ -472,7 +467,7 @@ let push_environment ctx info =
 		env_locals = locals;
 		env_captures = captures;
 		env_extra_locals = IntMap.empty;
-		env_parent = eval.env;
+		env_parent = if info.kind = EKEntrypoint then None else eval.env;
 		env_eval = eval;
 		env_stack_depth = stack_depth;
 	} in

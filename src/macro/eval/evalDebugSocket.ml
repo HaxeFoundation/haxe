@@ -473,7 +473,7 @@ module ValueCompletion = struct
 	exception JsonException of Json.t
 
 	let get_completion ctx text column env =
-		let p = { pmin = 0; pmax = 0; pfile = "" } in
+		let p = file_pos "" in
 		let save =
 			let old = !Parser.display_mode,DisplayPosition.display_position#get in
 			(fun () ->
@@ -486,7 +486,7 @@ module ValueCompletion = struct
 		DisplayPosition.display_position#set {p with pmin = offset; pmax = offset};
 		begin try
 			let e = parse_expr ctx text p in
-			let e = Display.ExprPreprocessing.find_before_pos DMDefault e in
+			let e = ExprPreprocessing.find_before_pos DMDefault e in
 			save();
 			let rec loop e = match fst e with
 			| EDisplay(e1,DKDot) ->

@@ -256,7 +256,7 @@ class ExampleJSGenerator {
 		sys.io.File.saveContent(api.outputFile, buf.toString());
 	}
 
-	#if (macro || display)
+	#if macro
 	public static function use() {
 		Compiler.setCustomJSGenerator(function(api) new ExampleJSGenerator(api).generate());
 	}

@@ -28,9 +28,6 @@ import haxe.macro.Expr;
 	This class provides some utility methods to work with strings in macro
 	context.
 **/
-#if hl
-@:hlNative("macro")
-#end
 class MacroStringTools {
 	#if macro
 	/**
@@ -94,6 +91,10 @@ class MacroStringTools {
 
 	static public function toComplex(path:String):ComplexType {
 		var pack = path.split(".");
-		return TPath({pack: pack, name: pack.pop(), params: []});
+		if(pack.length >= 2 && ~/^[A-Z]/.match(pack[pack.length - 2])) {
+			return TPath({pack: pack, sub: pack.pop(), name: pack.pop(), params: []});
+		} else {
+			return TPath({pack: pack, name: pack.pop(), params: []});
+		}
 	}
 }

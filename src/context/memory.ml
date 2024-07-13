@@ -33,12 +33,15 @@ let update_module_type_deps deps md =
 	) md.m_types;
 	!deps
 
-let rec scan_module_deps m h =
+let rec scan_module_deps cs m h =
 	if Hashtbl.mem h m.m_id then
 		()
 	else begin
 		Hashtbl.add h m.m_id m;
-		PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
+		PMap.iter (fun _ mdep ->
+			let m = (cs#get_context mdep.md_sign)#find_module mdep.md_path in
+			scan_module_deps cs m h
+		) m.m_extra.m_deps
 	end
 
 let module_sign key md =
@@ -61,7 +64,7 @@ let get_out out =
 
 let get_module_memory cs all_modules m =
 	let mdeps = Hashtbl.create 0 in
-	scan_module_deps m mdeps;
+	scan_module_deps cs m mdeps;
 	let deps = ref [Obj.repr null_module] in
 	let out = ref all_modules in
 	let deps = Hashtbl.fold (fun _ md deps ->
@@ -110,6 +113,9 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 			"context",cc#get_json;
 			"size",jint (mem_size cc);
 		]) contexts in
+		let mem_size_2 v exclude =
+			Objsize.size_with_headers (Objsize.objsize v exclude [])
+		in
 		jobject [
 			"contexts",jarray j_contexts;
 			"memory",jobject [
@@ -118,14 +124,66 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 				"haxelibCache",jint (mem_size cache_mem.(1));
 				"directoryCache",jint (mem_size cache_mem.(2));
 				"nativeLibCache",jint (mem_size cache_mem.(3));
-				"additionalSizes",jarray [
-					jobject ["name",jstring "macro interpreter";"size",jint (mem_size (MacroContext.macro_interp_cache))];
-					jobject ["name",jstring "macro stdlib";"size",jint (mem_size (EvalContext.GlobalState.stdlib))];
-					jobject ["name",jstring "macro macro_lib";"size",jint (mem_size (EvalContext.GlobalState.macro_lib))];
-					jobject ["name",jstring "last completion result";"size",jint (mem_size (DisplayException.last_completion_result))];
-					jobject ["name",jstring "Lexer file cache";"size",jint (mem_size (Lexer.all_files))];
-					jobject ["name",jstring "GC heap words";"size",jint (int_of_float size)];
-				];
+				"additionalSizes",jarray (
+					(match !MacroContext.macro_interp_cache with
+					| Some interp ->
+						jobject ["name",jstring "macro interpreter";"size",jint (mem_size MacroContext.macro_interp_cache);"child",jarray [
+							jobject ["name",jstring "builtins";"size",jint (mem_size_2 interp.builtins [Obj.repr interp])];
+							jobject ["name",jstring "debug";"size",jint (mem_size_2 interp.debug [Obj.repr interp])];
+							jobject ["name",jstring "curapi";"size",jint (mem_size_2 interp.curapi [Obj.repr interp])];
+							jobject ["name",jstring "type_cache";"size",jint (mem_size_2 interp.type_cache [Obj.repr interp])];
+							jobject ["name",jstring "overrides";"size",jint (mem_size_2 interp.overrides [Obj.repr interp])];
+							jobject ["name",jstring "array_prototype";"size",jint (mem_size_2 interp.array_prototype [Obj.repr interp])];
+							jobject ["name",jstring "string_prototype";"size",jint (mem_size_2 interp.string_prototype [Obj.repr interp])];
+							jobject ["name",jstring "vector_prototype";"size",jint (mem_size_2 interp.vector_prototype [Obj.repr interp])];
+							jobject ["name",jstring "instance_prototypes";"size",jint (mem_size_2 interp.instance_prototypes [Obj.repr interp])];
+							jobject ["name",jstring "static_prototypes";"size",jint (mem_size_2 interp.static_prototypes [Obj.repr interp])];
+							jobject ["name",jstring "constructors";"size",jint (mem_size_2 interp.constructors [Obj.repr interp])];
+							jobject ["name",jstring "file_keys";"size",jint (mem_size_2 interp.file_keys [Obj.repr interp])];
+							jobject ["name",jstring "toplevel";"size",jint (mem_size_2 interp.toplevel [Obj.repr interp])];
+							jobject ["name",jstring "eval";"size",jint (mem_size_2 interp.eval [Obj.repr interp]);"child", jarray [
+								(match interp.eval.env with
+								| Some env ->
+									jobject ["name",jstring "env";"size",jint (mem_size_2 interp.eval.env [Obj.repr interp; Obj.repr interp.eval]);"child", jarray [
+										jobject ["name",jstring "env_info";"size",jint (mem_size_2 env.env_info [Obj.repr interp; Obj.repr interp.eval; Obj.repr env])];
+										jobject ["name",jstring "env_debug";"size",jint (mem_size_2 env.env_debug [Obj.repr interp; Obj.repr interp.eval; Obj.repr env])];
+										jobject ["name",jstring "env_locals";"size",jint (mem_size_2 env.env_locals [Obj.repr interp; Obj.repr interp.eval; Obj.repr env])];
+										jobject ["name",jstring "env_captures";"size",jint (mem_size_2 env.env_captures [Obj.repr interp; Obj.repr interp.eval; Obj.repr env])];
+										jobject ["name",jstring "env_extra_locals";"size",jint (mem_size_2 env.env_extra_locals [Obj.repr interp; Obj.repr interp.eval; Obj.repr env])];
+										jobject ["name",jstring "env_parent";"size",jint (mem_size_2 env.env_parent [Obj.repr interp; Obj.repr interp.eval; Obj.repr env])];
+										jobject ["name",jstring "env_eval";"size",jint (mem_size_2 env.env_eval [Obj.repr interp; Obj.repr interp.eval; Obj.repr env])];
+									]];
+								| None ->
+									jobject ["name",jstring "env";"size",jint (mem_size_2 interp.eval.env [Obj.repr interp; Obj.repr interp.eval])];
+								);
+								jobject ["name",jstring "thread";"size",jint (mem_size_2 interp.eval.thread [Obj.repr interp; Obj.repr interp.eval]);"child", jarray [
+									jobject ["name",jstring "tthread";"size",jint (mem_size_2 interp.eval.thread.tthread [Obj.repr interp; Obj.repr interp.eval; Obj.repr interp.eval.thread])];
+									jobject ["name",jstring "tdeque";"size",jint (mem_size_2 interp.eval.thread.tdeque [Obj.repr interp; Obj.repr interp.eval; Obj.repr interp.eval.thread])];
+									jobject ["name",jstring "tevents";"size",jint (mem_size_2 interp.eval.thread.tevents [Obj.repr interp; Obj.repr interp.eval; Obj.repr interp.eval.thread])];
+									jobject ["name",jstring "tstorage";"size",jint (mem_size_2 interp.eval.thread.tstorage [Obj.repr interp; Obj.repr interp.eval; Obj.repr interp.eval.thread])];
+								]];
+								jobject ["name",jstring "debug_state";"size",jint (mem_size_2 interp.eval.debug_state [Obj.repr interp; Obj.repr interp.eval])];
+								jobject ["name",jstring "breakpoint";"size",jint (mem_size_2 interp.eval.breakpoint [Obj.repr interp; Obj.repr interp.eval])];
+								jobject ["name",jstring "caught_types";"size",jint (mem_size_2 interp.eval.caught_types [Obj.repr interp; Obj.repr interp.eval])];
+								jobject ["name",jstring "caught_exception";"size",jint (mem_size_2 interp.eval.caught_exception [Obj.repr interp; Obj.repr interp.eval])];
+								jobject ["name",jstring "last_return";"size",jint (mem_size_2 interp.eval.last_return [Obj.repr interp; Obj.repr interp.eval])];
+								jobject ["name",jstring "debug_channel";"size",jint (mem_size_2 interp.eval.debug_channel [Obj.repr interp; Obj.repr interp.eval])];
+							]];
+							jobject ["name",jstring "evals";"size",jint (mem_size_2 interp.evals [Obj.repr interp])];
+							jobject ["name",jstring "exception_stack";"size",jint (mem_size_2 interp.exception_stack [Obj.repr interp])];
+						]];
+					| None ->
+						jobject ["name",jstring "macro interpreter";"size",jint (mem_size MacroContext.macro_interp_cache)];
+					)
+					::
+					[
+						(* jobject ["name",jstring "macro stdlib";"size",jint (mem_size (EvalContext.GlobalState.stdlib))];
+						jobject ["name",jstring "macro macro_lib";"size",jint (mem_size (EvalContext.GlobalState.macro_lib))]; *)
+						jobject ["name",jstring "last completion result";"size",jint (mem_size (DisplayException.last_completion_result))];
+						jobject ["name",jstring "Lexer file cache";"size",jint (mem_size (Lexer.all_files))];
+						jobject ["name",jstring "GC heap words";"size",jint (int_of_float size)];
+					]
+				);
 			]
 		]
 	| MContext sign ->
@@ -165,6 +223,9 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 			"moduleCache",jobject [
 				"size",jint (mem_size cache_mem.(1));
 				"list",jarray l;
+			];
+			"binaryCache",jobject [
+				"size",jint (mem_size cache_mem.(2));
 			];
 		]
 	| MModule(sign,path) ->
@@ -272,8 +333,9 @@ let display_memory com =
 			());
 		if verbose then begin
 			print (Printf.sprintf "      %d total deps" (List.length deps));
-			PMap.iter (fun _ md ->
-				print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (module_sign key md));
+			PMap.iter (fun _ mdep ->
+				let md = (com.cs#get_context mdep.md_sign)#find_module mdep.md_path in
+				print (Printf.sprintf "      dep %s%s" (s_type_path mdep.md_path) (module_sign key md));
 			) m.m_extra.m_deps;
 		end;
 		flush stdout

@@ -62,7 +62,7 @@ type entry =
 
 type in_file =
   { if_filename: string;
-    if_channel: Pervasives.in_channel;
+    if_channel: Stdlib.in_channel;
     if_entries: entry list;
     if_directory: (string, entry) Hashtbl.t;
     if_comment: string }
@@ -72,7 +72,7 @@ let comment ifile = ifile.if_comment
 
 type out_file =
   { of_filename: string;
-    of_channel: Pervasives.out_channel;
+    of_channel: Stdlib.out_channel;
     mutable of_entries: entry list;
     of_comment: string }
 
@@ -217,7 +217,7 @@ let read_cd filename ic cd_entries cd_offset cd_bound =
 (* Open a ZIP file for reading *)
 
 let open_in filename =
-  let ic = Pervasives.open_in_bin filename in
+  let ic = Stdlib.open_in_bin filename in
   let (cd_entries, cd_size, cd_offset, cd_comment) = read_ecd filename ic in
   let entries =
     read_cd filename ic cd_entries cd_offset (Int32.add cd_offset cd_size) in
@@ -232,7 +232,7 @@ let open_in filename =
 (* Close a ZIP file opened for reading *)
 
 let close_in ifile =
-  Pervasives.close_in ifile.if_channel
+  Stdlib.close_in ifile.if_channel
 
 (* Return the info associated with an entry *)
 
@@ -369,7 +369,7 @@ let open_out ?(comment = "") filename =
   if String.length comment >= 0x10000 then
     raise(Error(filename, "", "comment too long"));
   { of_filename = filename;
-    of_channel = Pervasives.open_out_bin filename;
+    of_channel = Stdlib.open_out_bin filename;
     of_entries = [];
     of_comment = comment }
 
@@ -416,7 +416,7 @@ let close_out ofile =
   write4_int oc start_cd;               (* offset of central dir *)
   write2 oc (String.length ofile.of_comment); (* length of comment *)
   writestring oc ofile.of_comment;         (* comment *)
-  Pervasives.close_out oc
+  Stdlib.close_out oc
 
 (* Write a local file header and return the corresponding entry *)
 
@@ -552,9 +552,9 @@ let copy_file_to_entry infilename ofile ?(extra = "") ?(comment = "")
         with Unix.Unix_error(_,_,_) -> None in
   try
     copy_channel_to_entry ic ofile ~extra ~comment ~level ?mtime:mtime' name;
-    Pervasives.close_in ic
+    Stdlib.close_in ic
   with x ->
-    Pervasives.close_in ic; raise x
+    Stdlib.close_in ic; raise x
 
 
 (* Add an entry whose content will be produced by the caller *)

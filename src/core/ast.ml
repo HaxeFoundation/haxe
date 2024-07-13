@@ -159,14 +159,18 @@ type type_path = {
 	tsub : string option;
 }
 
-and placed_type_path = type_path * pos
+and placed_type_path = {
+	path : type_path;
+	pos_full : pos;
+	pos_path : pos;
+}
 
 and type_param_or_const =
 	| TPType of type_hint
 	| TPExpr of expr
 
 and complex_type =
-	| CTPath of type_path
+	| CTPath of placed_type_path
 	| CTFunction of type_hint list * type_hint
 	| CTAnonymous of class_field list
 	| CTParent of type_hint
@@ -327,9 +331,6 @@ and evar = {
 	ev_meta : metadata;
 }
 
-(* TODO: should we introduce CTMono instead? *)
-let ct_mono = CTPath { tpackage = ["$"]; tname = "_hx_mono"; tparams = []; tsub = None }
-
 type enum_flag =
 	| EPrivate
 	| EExtern
@@ -350,6 +351,10 @@ type abstract_flag =
 	| AbOver of type_hint
 	| AbExtern
 	| AbEnum
+
+type typedef_flag =
+	| TDPrivate
+	| TDExtern
 
 type enum_constructor = {
 	ec_name : placed_name;
@@ -380,7 +385,7 @@ type import = placed_name list * import_mode
 type type_def =
 	| EClass of (class_flag, class_field list) definition
 	| EEnum of (enum_flag, enum_constructor list) definition
-	| ETypedef of (enum_flag, type_hint) definition
+	| ETypedef of (typedef_flag, type_hint) definition
 	| EAbstract of (abstract_flag, class_field list) definition
 	| EStatic of (placed_access, class_field_kind) definition
 	| EImport of import
@@ -404,6 +409,26 @@ let mk_evar ?(final=false) ?(static=false) ?(t:type_hint option) ?eo ?(meta=[]) 
 		ev_expr = eo;
 		ev_meta = meta;
 	}
+
+let make_ptp path ?p_path p_full = {
+	path = path;
+	pos_full = p_full;
+	pos_path = Option.default p_full p_path;
+}
+
+let make_ptp_ct path ?p_path p_full =
+	CTPath (make_ptp path ?p_path p_full)
+
+let make_ptp_ct_null path =
+	CTPath (make_ptp path null_pos)
+
+let make_ptp_th path ?p_path p_full =
+	(make_ptp_ct path ?p_path p_full,p_full)
+
+let make_ptp_th_null path =
+	make_ptp_th path null_pos
+
+let ct_mono = make_ptp_ct_null { tpackage = ["$"]; tname = "_hx_mono"; tparams = []; tsub = None }
 
 let is_lower_ident i =
 	if String.length i = 0 then
@@ -692,7 +717,7 @@ let map_expr loop (e,p) =
 				FProp (get,set,t,e))
 		}
 	and type_hint (t,p) = (match t with
-		| CTPath t -> CTPath { t with tparams = List.map tparam t.tparams }
+		| CTPath ptp -> CTPath { ptp with path = { ptp.path with tparams = List.map tparam ptp.path.tparams }}
 		| CTFunction (cl,c) ->
 			let cl = List.map type_hint cl in
 			let c = type_hint c in
@@ -727,7 +752,7 @@ let map_expr loop (e,p) =
 			f_type = t;
 			f_expr = e;
 		}
-	and tpath (t,p) = { t with tparams = List.map tparam t.tparams },p
+	and tpath ptp = { ptp with path = { ptp.path with tparams = List.map tparam ptp.path.tparams }}
 	in
 	let e = (match e with
 	| EConst _ -> e
@@ -842,6 +867,19 @@ let iter_expr loop (e,p) =
 		opt f.f_expr
 	| EVars vl -> List.iter (fun v -> opt v.ev_expr) vl
 
+let exists check e =
+	let rec loop (e,p) =
+		if check e then
+			raise Exit
+		else
+			iter_expr loop (e,p)
+	in
+	try
+		loop e;
+		false
+	with Exit ->
+		true
+
 let s_object_key_name name =  function
 	| DoubleQuotes -> "\"" ^ StringHelper.s_escape name ^ "\""
 	| NoQuotes -> name
@@ -896,7 +934,7 @@ module Printer = struct
 		| EDisplay (e1,dk) -> Printf.sprintf "#DISPLAY(%s, %s)" (s_expr_inner tabs e1) (s_display_kind dk)
 	and s_expr_list tabs el sep =
 		(String.concat sep (List.map (s_expr_inner tabs) el))
-	and s_complex_type_path tabs (t,_) =
+	and s_complex_type_path tabs {path = t} =
 		Printf.sprintf "%s%s%s"
 			(s_type_path (t.tpackage,t.tname))
 			(Option.map_default (fun s -> "." ^ s) "" t.tsub)
@@ -911,7 +949,7 @@ module Printer = struct
 		| TPExpr e -> s_expr_inner tabs e
 	and s_complex_type tabs ct =
 		match ct with
-		| CTPath t -> s_complex_type_path tabs (t,null_pos)
+		| CTPath ptp -> s_complex_type_path tabs ptp
 		| CTFunction (cl,(c,_)) -> if List.length cl > 0 then String.concat " -> " (List.map (fun (t,_) -> s_complex_type tabs t) cl) else "Void" ^ " -> " ^ s_complex_type tabs c
 		| CTAnonymous fl -> "{ " ^ String.concat "; " (List.map (s_class_field tabs) fl) ^ "}";
 		| CTParent(t,_) -> "(" ^ s_complex_type tabs t ^ ")"
@@ -1008,10 +1046,10 @@ let get_value_meta meta =
 
 (* Type path related functions *)
 
-let rec string_list_of_expr_path_raise (e,p) =
+let rec string_list_of_expr_path_raise ?root_cb (e,p) =
 	match e with
-	| EConst (Ident i) -> [i]
-	| EField (e,f,_) -> f :: string_list_of_expr_path_raise e
+	| EConst (Ident i) -> (match root_cb with None -> [i] | Some f -> f i)
+	| EField (e,f,_) -> f :: string_list_of_expr_path_raise ?root_cb e
 	| _ -> raise Exit
 
 let rec string_pos_list_of_expr_path_raise (e,p) =
@@ -1116,7 +1154,7 @@ module Expr = struct
 				add "ECall";
 				loop e1;
 				List.iter loop el
-			| ENew((tp,_),el) ->
+			| ENew({path = tp},el) ->
 				add ("ENew " ^ s_type_path(tp.tpackage,tp.tname));
 				List.iter loop el
 			| EUnop(op,_,e1) ->

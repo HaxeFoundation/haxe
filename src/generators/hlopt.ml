@@ -47,6 +47,7 @@ type block = {
 	mutable bneed : ISet.t;
 	mutable bneed_all : ISet.t option;
 	mutable bwrite : (int, int) PMap.t;
+	mutable btrap : int list;
 }
 
 type control =
@@ -54,6 +55,7 @@ type control =
 	| CJCond of int
 	| CJAlways of int
 	| CTry of int
+	| CCatch
 	| CSwitch of int array
 	| CRet
 	| CThrow
@@ -75,6 +77,8 @@ let control = function
 		CSwitch cases
 	| OTrap (_,d) ->
 		CTry d
+	| OEndTrap _ ->
+		CCatch
 	| _ ->
 		CNo
 
@@ -164,6 +168,14 @@ let opcode_fx frw op =
 		write r;
 	| ONop _  ->
 		()
+	| OPrefetch (r,_,_) ->
+		read r
+    | OAsm (_,_,r) ->
+        if r > 0 then begin
+            (* assume both *)
+            read (r - 1);
+            write (r - 1);
+        end
 
 let opcode_eq a b =
 	match a, b with
@@ -432,6 +444,14 @@ let opcode_map read write op =
 		ORefOffset (write r,r2,off);
 	| ONop _ ->
 		op
+	| OPrefetch (r, fid, mode) ->
+		let r2 = read r in
+		OPrefetch (r2, fid, mode)
+	| OAsm (_, _, 0) ->
+		op
+	| OAsm (mode, value, r) ->
+		let r2 = read (r - 1) in
+		OAsm (mode, value, (write r2) + 1)
 
 (* build code graph *)
 
@@ -444,7 +464,7 @@ let code_graph (f:fundecl) =
 		| CJAlways d | CJCond d -> Hashtbl.replace all_blocks (i + 1 + d) true
 		| _ -> ()
 	done;
-	let rec make_block pos =
+	let rec make_block trapl pos =
 		try
 			Hashtbl.find blocks_pos pos
 		with Not_found ->
@@ -458,11 +478,12 @@ let code_graph (f:fundecl) =
 				bneed = ISet.empty;
 				bwrite = PMap.empty;
 				bneed_all = None;
+				btrap = trapl;
 			} in
 			Hashtbl.add blocks_pos pos b;
 			let rec loop i =
-				let goto d =
-					let b2 = make_block (i + 1 + d) in
+				let goto ?(tl=b.btrap) d =
+					let b2 = make_block tl (i + 1 + d) in
 					b2.bprev <- b :: b2.bprev;
 					b2
 				in
@@ -472,7 +493,8 @@ let code_graph (f:fundecl) =
 				end else match control (op i) with
 				| CNo ->
 					loop (i + 1)
-				| CRet | CThrow ->
+				| CRet ->
+					assert(b.btrap = []);
 					b.bend <- i
 				| CJAlways d ->
 					b.bend <- i;
@@ -480,9 +502,27 @@ let code_graph (f:fundecl) =
 				| CSwitch pl ->
 					b.bend <- i;
 					b.bnext <- goto 0 :: Array.to_list (Array.map goto pl)
-				| CJCond d | CTry d ->
+				| CJCond d ->
 					b.bend <- i;
 					b.bnext <- [goto 0; goto d];
+				| CTry d ->
+					b.bend <- i;
+					b.bnext <- [goto ~tl:((i+1+d)::b.btrap) 0; goto d];
+				| CThrow ->
+					b.bend <- i;
+					match b.btrap with
+						| [] -> ()
+						| [p] -> b.bnext <- [goto ~tl:[] (p-1-i)];
+						| p :: pl -> b.bnext <- [goto ~tl:pl (p-1-i)];
+					;
+				| CCatch ->
+					let p, pl = match b.btrap with
+						| [] -> assert false;
+						| [p] -> p, []
+						| p :: pl -> p, pl
+					in
+					b.bend <- i;
+					b.bnext <- [goto ~tl:pl 0; goto ~tl:pl (p-1-i)];
 				| CLabel ->
 					b.bloop <- true;
 					loop (i + 1)
@@ -490,7 +530,7 @@ let code_graph (f:fundecl) =
 			loop pos;
 			b
 	in
-	blocks_pos, make_block 0
+	blocks_pos, make_block [] 0
 
 type rctx = {
 	r_root : block;
@@ -875,6 +915,11 @@ let _optimize (f:fundecl) =
 			| OGetThis (r,fid) when (match f.regs.(r) with HStruct _ -> true | _ -> false) ->
 				do_write r;
 				if is_packed_field 0 fid then state.(r).rnullcheck <- true;
+			| OGetArray (r,arr,idx) ->
+				do_read arr;
+				do_read idx;
+				do_write r;
+				(match f.regs.(arr) with HAbstract _ -> state.(r).rnullcheck <- true | _ -> ());
 			| _ ->
 				opcode_fx (fun r read ->
 					if read then do_read r else do_write r
@@ -926,8 +971,8 @@ let _optimize (f:fundecl) =
 				(* loop : first pass does not recurse, second pass uses cache *)
 				if b2.bloop && b2.bstart < b.bstart then (match b2.bneed_all with None -> acc | Some s -> ISet.union acc s) else
 				ISet.union acc (live b2)
-			) ISet.empty b.bnext in
-			let need_sub = ISet.filter (fun r ->
+			) ISet.empty in
+			let need_sub bl = ISet.filter (fun r ->
 				try
 					let w = PMap.find r b.bwrite in
 					set_live r (w + 1) b.bend;
@@ -935,8 +980,8 @@ let _optimize (f:fundecl) =
 				with Not_found ->
 					set_live r b.bstart b.bend;
 					true
-			) need_sub in
-			let need = ISet.union b.bneed need_sub in
+			) (need_sub bl) in
+			let need = ISet.union b.bneed (need_sub b.bnext) in
 			b.bneed_all <- Some need;
 			if b.bloop then begin
 				(*
@@ -953,8 +998,11 @@ let _optimize (f:fundecl) =
 				in
 				List.iter (fun b2 -> if b2.bstart > b.bstart then clear b2) b.bprev;
 				List.iter (fun b -> ignore(live b)) b.bnext;
+				(* do-while loop : recompute self after recompute all next *)
+				let need = ISet.union b.bneed (need_sub b.bnext) in
+				b.bneed_all <- Some need;
 			end;
-			need
+			Option.get b.bneed_all
 	in
 	ignore(live root);
 

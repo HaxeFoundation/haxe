@@ -200,7 +200,7 @@ class Printer {
 		return (tpd.meta != null && tpd.meta.length > 0 ? tpd.meta.map(printMetadata).join(" ") + " " : "")
 			+ tpd.name
 			+ (tpd.params != null && tpd.params.length > 0 ? "<" + tpd.params.map(printTypeParamDecl).join(", ") + ">" : "")
-			+ (tpd.constraints != null && tpd.constraints.length > 0 ? ":(" + tpd.constraints.map(printComplexType).join(", ") + ")" : "")
+			+ (tpd.constraints != null && tpd.constraints.length > 0 ? ":(" + tpd.constraints.map(printComplexType).join(" & ") + ")" : "")
 			+ (tpd.defaultType != null ? "=" + printComplexType(tpd.defaultType) : "");
 
 	public function printFunctionArg(arg:FunctionArg)
@@ -385,13 +385,28 @@ class Printer {
 						case _: printComplexType(ct);
 					})
 					+ ";";
-				case TDAbstract(tthis, from, to):
-					"abstract "
+				case TDAbstract(tthis, tflags, from, to):
+					var from = from == null ? [] : from.copy();
+					var to = to == null ? [] : to.copy();
+					var isEnum = false;
+
+					if (tflags != null) {
+						for (flag in tflags) {
+							switch (flag) {
+								case AbEnum: isEnum = true;
+								case AbFrom(ct): from.push(ct);
+								case AbTo(ct): to.push(ct);
+							}
+						}
+					}
+
+					(isEnum ? "enum " : "")
+					+ "abstract "
 					+ t.name
 					+ ((t.params != null && t.params.length > 0) ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "")
 					+ (tthis == null ? "" : "(" + printComplexType(tthis) + ")")
-					+ (from == null ? "" : [for (f in from) " from " + printComplexType(f)].join(""))
-					+ (to == null ? "" : [for (t in to) " to " + printComplexType(t)].join(""))
+					+ [for (f in from) " from " + printComplexType(f)].join("")
+					+ [for (f in to) " to " + printComplexType(f)].join("")
 					+ " {\n"
 					+ [
 						for (f in t.fields) {

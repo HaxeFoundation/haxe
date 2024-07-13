@@ -57,14 +57,13 @@ let find_abstract_by_position decls p =
 	loop decls
 
 let actually_check_display_field ctx c cff p =
-	let context_init = new TypeloadFields.context_init in
-	let cctx = TypeloadFields.create_class_context c context_init p in
+	let cctx = TypeloadFields.create_class_context c p in
 	let ctx = TypeloadFields.create_typer_context_for_class ctx cctx p in
 	let cff = TypeloadFields.transform_field (ctx,cctx) c cff (ref []) (pos cff.cff_name) in
 	let display_modifier = Typeload.check_field_access ctx cff in
 	let fctx = TypeloadFields.create_field_context ctx cctx cff true display_modifier in
 	let cf = TypeloadFields.init_field (ctx,cctx,fctx) cff in
-	flush_pass ctx PTypeField "check_display_field";
+	flush_pass ctx.g PTypeField ("check_display_field",(fst c.cl_path @ [snd c.cl_path;fst cff.cff_name]));
 	ignore(follow cf.cf_type)
 
 let check_display_field ctx sc c cf =
@@ -88,10 +87,10 @@ let check_display_class ctx decls c =
 		List.iter check_field c.cl_ordered_statics;
 	| _ ->
 		let sc = find_class_by_position decls c.cl_name_pos in
-		ignore(Typeload.type_type_params ctx TPHType c.cl_path (fun() -> c.cl_params) null_pos sc.d_params);
+		ignore(Typeload.type_type_params ctx TPHType c.cl_path null_pos sc.d_params);
 		List.iter (function
-			| (HExtends(ct,p) | HImplements(ct,p)) when display_position#enclosed_in p ->
-				ignore(Typeload.load_instance ~allow_display:true ctx (ct,p) false)
+			| (HExtends ptp | HImplements ptp) when display_position#enclosed_in ptp.pos_full ->
+				ignore(Typeload.load_instance ~allow_display:true ctx ptp ParamNormal LoadNormal)
 			| _ ->
 				()
 		) sc.d_flags;
@@ -102,7 +101,7 @@ let check_display_class ctx decls c =
 
 let check_display_enum ctx decls en =
 	let se = find_enum_by_position decls en.e_name_pos in
-	ignore(Typeload.type_type_params ctx TPHType en.e_path (fun() -> en.e_params) null_pos se.d_params);
+	ignore(Typeload.type_type_params ctx TPHType en.e_path null_pos se.d_params);
 	PMap.iter (fun _ ef ->
 		if display_position#enclosed_in ef.ef_pos then begin
 			let sef = find_enum_field_by_position se ef.ef_name_pos in
@@ -112,15 +111,15 @@ let check_display_enum ctx decls en =
 
 let check_display_typedef ctx decls td =
 	let st = find_typedef_by_position decls td.t_name_pos in
-	ignore(Typeload.type_type_params ctx TPHType td.t_path (fun() -> td.t_params) null_pos st.d_params);
-	ignore(Typeload.load_complex_type ctx true st.d_data)
+	ignore(Typeload.type_type_params ctx TPHType td.t_path null_pos st.d_params);
+	ignore(Typeload.load_complex_type ctx true LoadNormal st.d_data)
 
 let check_display_abstract ctx decls a =
 	let sa = find_abstract_by_position decls a.a_name_pos in
-	ignore(Typeload.type_type_params ctx TPHType a.a_path (fun() -> a.a_params) null_pos sa.d_params);
+	ignore(Typeload.type_type_params ctx TPHType a.a_path null_pos sa.d_params);
 	List.iter (function
 		| (AbOver(ct,p) | AbFrom(ct,p) | AbTo(ct,p)) when display_position#enclosed_in p ->
-			ignore(Typeload.load_complex_type ctx true (ct,p))
+			ignore(Typeload.load_complex_type ctx true LoadNormal (ct,p))
 		| _ ->
 			()
 	) sa.d_flags
@@ -141,8 +140,8 @@ let check_display_module ctx decls m =
 		| (EImport _ | EUsing _),_ -> true
 		| _ -> false
 	) decls in
-	let imports = TypeloadModule.ModuleLevel.handle_import_hx ctx m imports null_pos in
-	let ctx = TypeloadModule.type_types_into_module ctx m imports null_pos in
+	let imports = TypeloadModule.ModuleLevel.handle_import_hx ctx.com ctx.g m imports null_pos in
+	let ctx = TypeloadModule.type_types_into_module ctx.com ctx.g m imports null_pos in
 	List.iter (fun md ->
 		let infos = t_infos md in
 		if display_position#enclosed_in infos.mt_name_pos then
@@ -171,15 +170,26 @@ let check_display_file ctx cs =
 			TypeloadParse.PdiHandler.handle_pdi ctx.com cfile.c_pdi;
 			(* We have to go through type_module_hook because one of the module's dependencies could be
 			   invalid (issue #8991). *)
-			begin match !TypeloadModule.type_module_hook ctx path null_pos with
-			| None -> raise Not_found
-			| Some m -> check_display_module ctx cfile.c_decls m
-			end
+			let m = try
+				ctx.com.module_lut#find path
+			with Not_found ->
+				begin match !TypeloadCacheHook.type_module_hook ctx.com (delay ctx.g PConnectField) path null_pos with
+				| NoModule | BadModule _ -> raise Not_found
+				| BinaryModule mc ->
+					let api = (new TypeloadModule.hxb_reader_api_typeload ctx.com ctx.g TypeloadModule.load_module' p :> HxbReaderApi.hxb_reader_api) in
+					let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined ctx.com Define.HxbTimes) in
+					let m = reader#read_chunks api mc.mc_chunks in
+					m
+				| GoodModule m ->
+					m
+				end
+			in
+			check_display_module ctx cfile.c_decls m
 		with Not_found ->
 			let fkey = DisplayPosition.display_position#get_file_key in
 			(* force parsing again : if the completion point have been changed *)
 			cs#remove_files fkey;
-			cs#taint_modules fkey "check_display_file";
+			cs#taint_modules fkey CheckDisplayFile;
 		end
 	| None ->
 		()

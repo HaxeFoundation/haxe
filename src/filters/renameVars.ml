@@ -28,17 +28,17 @@ let reserve_init ri name =
 let reserve_all_types ri com path_to_name =
 	List.iter (fun mt ->
 		let tinfos = t_infos mt in
-		let native_name = try fst (TypeloadCheck.get_native_name tinfos.mt_meta) with Not_found -> path_to_name tinfos.mt_path in
+		let native_name = try fst (Naming.get_native_name tinfos.mt_meta) with Not_found -> path_to_name tinfos.mt_path in
 		match mt with
 		| TClassDecl c when native_name = "" ->
 			List.iter (fun cf ->
-				let native_name = try fst (TypeloadCheck.get_native_name cf.cf_meta) with Not_found -> cf.cf_name in
+				let native_name = try fst (Naming.get_native_name cf.cf_meta) with Not_found -> cf.cf_name in
 				reserve_init ri native_name
 			) c.cl_ordered_statics
 		| TClassDecl { cl_kind = KModuleFields m; cl_ordered_statics = fl } ->
 			let prefix = Path.flat_path m.m_path ^ "_" in
 			List.iter (fun cf ->
-				let name = try fst (TypeloadCheck.get_native_name cf.cf_meta) with Not_found -> prefix ^ cf.cf_name in
+				let name = try fst (Naming.get_native_name cf.cf_meta) with Not_found -> prefix ^ cf.cf_name in
 				reserve_init ri name
 			) fl
 		| _ ->
@@ -223,6 +223,9 @@ let declare_var rc scope v =
 let will_be_reserved rc v =
 	rc.rc_no_shadowing || (has_var_flag v VCaptured && rc.rc_hoisting)
 
+let unbound_variable v =
+	raise (Failure (Printf.sprintf "Unbound variable: %s<%i>" v.v_name v.v_id))
+
 (**
 	Invoked for each `TLocal v` texr_expr
 *)
@@ -234,7 +237,7 @@ let rec determine_overlaps rc scope v =
 				Overlaps.add v scope.foreign_vars;
 			(match scope.parent with
 			| Some parent -> determine_overlaps rc parent v
-			| None -> raise (Failure "Failed to locate variable declaration")
+			| None -> unbound_variable v
 			)
 		| (d, _) :: _ when d == v ->
 			()
@@ -261,7 +264,7 @@ let use_var rc scope v =
 				| Some parent ->
 					loop parent
 				| None ->
-					raise (Failure "Failed to locate variable declaration")
+					unbound_variable v
 			end
 		in
 		loop scope

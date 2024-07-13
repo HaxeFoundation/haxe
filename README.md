@@ -22,8 +22,6 @@ Haxe allows you to compile for the following targets:
 
  * JavaScript
  * C++
- * C#
- * Java
  * JVM
  * Lua
  * PHP 7

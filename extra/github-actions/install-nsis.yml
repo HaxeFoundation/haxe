@@ -1,9 +1,9 @@
 - name: choco install nsis
-  uses: nick-invision/retry@v2
+  uses: nick-invision/retry@v3
   with:
     timeout_minutes: 10
     max_attempts: 10
-    command: choco install --no-progress nsis.portable --version 3.02 -y
+    command: choco install --no-progress nsis.portable --version 3.09 -y
 
 - name: choco install things
   shell: pwsh

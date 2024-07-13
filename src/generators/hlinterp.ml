@@ -113,7 +113,6 @@ type context = {
 	mutable fcall : vfunction -> value list -> value;
 	mutable code : code;
 	mutable on_error : value -> (fundecl * int ref) list -> unit;
-	mutable resolve_macro_api : string -> (value list -> value) option;
 	checked : bool;
 	cached_protos : (int, vproto * ttype array * (int * (value -> value)) list) Hashtbl.t;
 	cached_strings : (int, string) Hashtbl.t;
@@ -1111,7 +1110,7 @@ let interp ctx f args =
 			(match rtype r with
 			| HEnum e ->
 				let _, _, fl = e.efields.(f) in
-				let vl = Array.create (Array.length fl) VUndef in
+				let vl = Array.make (Array.length fl) VUndef in
 				set r (VEnum (e, f, vl))
 			| _ -> Globals.die "" __LOC__
 			)
@@ -1154,7 +1153,9 @@ let interp ctx f args =
 			(match get r2, get off with
 			| VRef (RArray (a,pos),t), VInt i -> set r (VRef (RArray (a,pos + Int32.to_int i),t))
 			| _ -> Globals.die "" __LOC__)
-		| ONop _ ->
+		| OAsm _ ->
+			throw_msg ctx "Unsupported ASM"
+		| ONop _ | OPrefetch _ ->
 			()
 		);
 		loop()
@@ -1257,7 +1258,7 @@ let load_native ctx lib name t =
 			| _ -> Globals.die "" __LOC__)
 		| "alloc_array" ->
 			(function
-			| [VType t;VInt i] -> VArray (Array.create (int i) (default t),t)
+			| [VType t;VInt i] -> VArray (Array.make (int i) (default t),t)
 			| _ -> Globals.die "" __LOC__)
 		| "alloc_obj" ->
 			(function
@@ -1347,7 +1348,7 @@ let load_native ctx lib name t =
 		| "math_asin" -> (function [VFloat f] -> VFloat (asin f) | _ -> Globals.die "" __LOC__)
 		| "math_atan" -> (function [VFloat f] -> VFloat (atan f) | _ -> Globals.die "" __LOC__)
 		| "math_atan2" -> (function [VFloat a; VFloat b] -> VFloat (atan2 a b) | _ -> Globals.die "" __LOC__)
-		| "math_log" -> (function [VFloat f] -> VFloat (Pervasives.log f) | _ -> Globals.die "" __LOC__)
+		| "math_log" -> (function [VFloat f] -> VFloat (Stdlib.log f) | _ -> Globals.die "" __LOC__)
 		| "math_exp" -> (function [VFloat f] -> VFloat (exp f) | _ -> Globals.die "" __LOC__)
 		| "math_pow" -> (function [VFloat a; VFloat b] -> VFloat (a ** b) | _ -> Globals.die "" __LOC__)
 		| "parse_int" ->
@@ -1539,7 +1540,7 @@ let load_native ctx lib name t =
 							| "Darwin" -> "Mac"
 							| n -> n
 						) in
-						Pervasives.ignore (Process_helper.close_process_in_pid (ic, pid));
+						Stdlib.ignore (Process_helper.close_process_in_pid (ic, pid));
 						cached_sys_name := Some uname;
 						uname)
 				| "Win32" | "Cygwin" -> "Windows"
@@ -2092,10 +2093,6 @@ let load_native ctx lib name t =
 			| _ -> Globals.die "" __LOC__)
 		| _ ->
 			unresolved())
-	| "macro" ->
-		(match ctx.resolve_macro_api name with
-		| None -> unresolved()
-		| Some f -> f)
 	| _ ->
 		unresolved()
 	) in
@@ -2128,7 +2125,6 @@ let create checked =
 		checked = checked;
 		fcall = (fun _ _ -> Globals.die "" __LOC__);
 		on_error = (fun _ _ -> Globals.die "" __LOC__);
-		resolve_macro_api = (fun _ -> None);
 	} in
 	ctx.on_error <- (fun msg stack -> failwith (vstr ctx msg HDyn ^ "\n" ^ String.concat "\n" (List.map (stack_frame ctx) stack)));
 	ctx.fcall <- call_fun ctx;
@@ -2137,9 +2133,6 @@ let create checked =
 let set_error_handler ctx e =
 	ctx.on_error <- e
 
-let set_macro_api ctx f =
-	ctx.resolve_macro_api <- f
-
 let add_code ctx code =
 	(* expand global table *)
 	let globals = Array.map default code.globals in
@@ -2147,7 +2140,7 @@ let add_code ctx code =
 	ctx.t_globals <- globals;
 	(* expand function table *)
 	let nfunctions = Array.length code.functions + Array.length code.natives in
-	let functions = Array.create nfunctions (FNativeFun ("",(fun _ -> Globals.die "" __LOC__),HDyn)) in
+	let functions = Array.make nfunctions (FNativeFun ("",(fun _ -> Globals.die "" __LOC__),HDyn)) in
 	Array.blit ctx.t_functions 0 functions 0 (Array.length ctx.t_functions);
 	let rec loop i =
 		if i = Array.length code.natives then () else
@@ -2191,7 +2184,7 @@ let add_code ctx code =
 (* ------------------------------- CHECK ---------------------------------------------- *)
 
 let check code macros =
-	let ftypes = Array.create (Array.length code.natives + Array.length code.functions) HVoid in
+	let ftypes = Array.make (Array.length code.natives + Array.length code.functions) HVoid in
 	let is_native_fun = Hashtbl.create 0 in
 
 	let check_fun f =
@@ -2207,7 +2200,7 @@ let check code macros =
 					Globals.pmin = low;
 					Globals.pmax = low + (dline lsr 20);
 				} in
-				Common.abort msg pos
+				Error.abort msg pos
 			end else
 				failwith (Printf.sprintf "\n%s:%d: %s" file dline msg)
 		in
@@ -2436,7 +2429,7 @@ let check code macros =
 			| ORethrow r ->
 				reg r HDyn
 			| OGetArray (v,a,i) ->
-				reg a HArray;
+				(match rtype a with HAbstract ("hl_carray",_) -> () | _ -> reg a HArray);
 				reg i HI32;
 				ignore(rtype v);
 			| OGetUI8 (r,b,p) | OGetUI16(r,b,p) ->
@@ -2456,17 +2449,13 @@ let check code macros =
 				reg p HI32;
 				(match rtype v with HI32 | HI64 | HF32 | HF64 -> () | _ -> error (reg_inf r ^ " should be numeric"));
 			| OSetArray (a,i,v) ->
-				reg a HArray;
+				(match rtype a with HAbstract ("hl_carray",_) -> () | _ -> reg a HArray);
 				reg i HI32;
 				ignore(rtype v);
-			| OUnsafeCast (a,b) ->
-				is_dyn a;
-				is_dyn b;
-			| OSafeCast (a,b) ->
+            | OUnsafeCast (a,b) | OSafeCast (a,b) ->
 				ignore(rtype a);
 				ignore(rtype b);
 			| OArraySize (r,a) ->
-				reg a HArray;
 				reg r HI32
 			| OType (r,_) ->
 				reg r HType
@@ -2547,6 +2536,10 @@ let check code macros =
 				reg off HI32;
 			| ONop _ ->
 				();
+			| OPrefetch (r,f,_) ->
+				if f = 0 then ignore(rtype r) else ignore(tfield r (f - 1) false)
+			| OAsm (_,_,r) ->
+				if r > 0 then ignore(rtype (r - 1))
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in

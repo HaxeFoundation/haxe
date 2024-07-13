@@ -289,7 +289,7 @@ module StdBytes = struct
 	let compare = vifun1 (fun vthis other ->
 		let this = this vthis in
 		let other = decode_bytes other in
-		vint (Pervasives.compare this other)
+		vint (Stdlib.compare this other)
 	)
 
 	let fastGet = vfun2 (fun b pos ->
@@ -1694,13 +1694,13 @@ module StdMath = struct
 	let ceil = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (ceil (num v))))
 	let cos = vfun1 (fun v -> vfloat (cos (num v)))
 	let exp = vfun1 (fun v -> vfloat (exp (num v)))
-	let fceil = vfun1 (fun v -> vfloat (Pervasives.ceil (num v)))
-	let ffloor = vfun1 (fun v -> vfloat (Pervasives.floor (num v)))
+	let fceil = vfun1 (fun v -> vfloat (Stdlib.ceil (num v)))
+	let ffloor = vfun1 (fun v -> vfloat (Stdlib.floor (num v)))
 	let floor = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (floor (num v))))
-	let fround = vfun1 (fun v -> vfloat (Pervasives.floor (num v +. 0.5)))
+	let fround = vfun1 (fun v -> vfloat (Stdlib.floor (num v +. 0.5)))
 	let isFinite = vfun1 (fun v -> vbool (match v with VFloat f -> f <> infinity && f <> neg_infinity && f = f | _ -> true))
 	let isNaN = vfun1 (fun v -> vbool (match v with VFloat f -> f <> f | VInt32 _ -> false | _ -> true))
-	let log = vfun1 (fun v -> vfloat (Pervasives.log (num v)))
+	let log = vfun1 (fun v -> vfloat (Stdlib.log (num v)))
 
 	let max = vfun2 (fun a b ->
 		let a = num a in
@@ -1716,7 +1716,7 @@ module StdMath = struct
 
 	let pow = vfun2 (fun a b -> vfloat ((num a) ** (num b)))
 	let random = vfun0 (fun () -> vfloat (Random.State.float random 1.))
-	let round = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (Pervasives.floor (num v +. 0.5))))
+	let round = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (Stdlib.floor (num v +. 0.5))))
 	let sin = vfun1 (fun v -> vfloat (sin (num v)))
 
 	let sqrt = vfun1 (fun v ->
@@ -2250,9 +2250,10 @@ module StdString = struct
 		let str = this str in
 		let this = this vthis in
 		let i = default_int startIndex 0 in
+		let i = max 0 i in
 		try
 			if str.slength = 0 then
-				vint (max 0 (min i this.slength))
+				vint (min i this.slength)
 			else begin
 				let i =
 					if i >= this.slength then raise Not_found
@@ -2569,7 +2570,7 @@ module StdSys = struct
 	open Common
 
 	let args = vfun0 (fun () ->
-		encode_array (List.map create_unknown ((get_ctx()).curapi.MacroApi.get_com()).sys_args)
+		encode_array (List.map create_unknown ((get_ctx()).curapi.MacroApi.get_com()).args)
 	)
 
 	let _command = vfun1 (fun cmd ->
@@ -2590,7 +2591,7 @@ module StdSys = struct
 	)
 
 	let exit = vfun1 (fun code ->
-		raise (Sys_exit(decode_int code));
+		raise (EvalTypes.Sys_exit(decode_int code));
 	)
 
 	let getChar = vfun1 (fun echo ->
@@ -2632,7 +2633,7 @@ module StdSys = struct
 	let programPath = vfun0 (fun () ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		match com.main_class with
+		match com.main.main_class with
 		| None -> vnull
 		| Some p ->
 			match ctx.curapi.get_type (s_type_path p) with
@@ -2690,7 +2691,7 @@ module StdSys = struct
 							| "Darwin" -> "Mac"
 							| n -> n
 						) in
-						Pervasives.ignore (Process_helper.close_process_in_pid (ic, pid));
+						Stdlib.ignore (Process_helper.close_process_in_pid (ic, pid));
 						cached_sys_name := Some uname;
 						uname)
 				| "Win32" | "Cygwin" -> "Windows"
@@ -2735,10 +2736,12 @@ module StdThread = struct
 		vnull
 	)
 
-	let kill = vifun0 (fun vthis ->
-		Thread.kill (this vthis).tthread;
-		vnull
-	)
+	(* Thread.kill has been marked deprecated (because unstable or even not working at all) for a while, and removed in ocaml 5 *)
+	(* See also https://github.com/HaxeFoundation/haxe/issues/5800 *)
+	(* let kill = vifun0 (fun vthis -> *)
+	(* 	Thread.kill (this vthis).tthread; *)
+	(* 	vnull *)
+	(* ) *)
 
 	let self = vfun0 (fun () ->
 		let eval = get_eval (get_ctx()) in
@@ -3062,7 +3065,7 @@ module StdUtf8 = struct
 	let compare = vfun2 (fun a b ->
 		let a = decode_string a in
 		let b = decode_string b in
-		vint (Pervasives.compare a b)
+		vint (Stdlib.compare a b)
 	)
 
 	let decode = vfun1 (fun s ->
@@ -3728,7 +3731,7 @@ let init_standard_library builtins =
 		"id",StdThread.id;
 		"get_events",StdThread.get_events;
 		"set_events",StdThread.set_events;
-		"kill",StdThread.kill;
+		(* "kill",StdThread.kill; *)
 		"sendMessage",StdThread.sendMessage;
 	];
 	init_fields builtins (["sys";"thread"],"Tls") [] [

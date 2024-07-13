@@ -9,6 +9,7 @@ class Macro2 {
 	}
 
 	static function afterTyping(_) {
+		Context.info("Info", Context.currentPos());
 		Context.warning(("1" :DeprecatedType), Context.currentPos());
 		Context.warning("2", Context.currentPos());
 		Context.warning("3", Context.currentPos());

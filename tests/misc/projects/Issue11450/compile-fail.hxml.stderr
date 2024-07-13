@@ -1,0 +1,2 @@
+Main.hx:2: lines 2-4 : Void should be { v : Unknown<0> }
+Main.hx:2: lines 2-4 : ... For function argument 'f'

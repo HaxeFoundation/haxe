@@ -19,6 +19,7 @@
 open Extlib_leftovers
 open Globals
 open Ast
+open Error
 open Type
 open Common
 open Texpr.Builder
@@ -38,8 +39,7 @@ module Utils = struct
 			abort (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
 
 	let mk_static_field c cf p =
-			let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
-			let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
+			let ethis = Texpr.Builder.make_static_this c p in
 			let t = monomorphs cf.cf_params cf.cf_type in
 			mk (TField (ethis,(FStatic (c,cf)))) t p
 
@@ -1494,7 +1494,7 @@ module Printer = struct
 					Codegen.interpolate_code pctx.pc_com code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
 				in
 				let old = pctx.pc_com.error_ext in
-				pctx.pc_com.error_ext <- (fun err -> raise (Abort err));
+				pctx.pc_com.error_ext <- (fun err -> raise (Error.Fatal_error err));
 				Std.finally (fun() -> pctx.pc_com.error_ext <- old) interpolate ();
 				Buffer.contents buf
 			| ("python_Syntax._pythonCode"), [e] ->
@@ -2001,7 +2001,7 @@ module Generator = struct
 		!has_static_methods || !has_empty_static_vars
 
 	let gen_class_init ctx c =
-		match c.cl_init with
+		match TClass.get_cl_init c with
 			| None ->
 				()
 			| Some e ->
@@ -2229,7 +2229,7 @@ module Generator = struct
 
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
-		| TEnumDecl en when not en.e_extern -> gen_enum ctx en
+		| TEnumDecl en when not (has_enum_flag en EnExtern) -> gen_enum ctx en
 		| TAbstractDecl {a_path = [],"UInt"} -> ()
 		| TAbstractDecl {a_path = [],"Enum"} -> ()
 		| TAbstractDecl {a_path = [],"EnumValue"} when not (has_feature ctx "has_enum") -> ()
@@ -2270,7 +2270,7 @@ module Generator = struct
 				end else
 					","
 				in
-				let k_enc = Codegen.escape_res_name k false in
+				let k_enc = StringHelper.escape_res_name k [] in
 				print ctx "%s\"%s\": open('%%s.%%s'%%(_file,'%s'),'rb').read()" prefix (StringHelper.s_escape k) k_enc;
 
 				let f = open_out_bin (ctx.com.file ^ "." ^ k_enc) in
@@ -2339,7 +2339,7 @@ module Generator = struct
 		List.iter (fun mt ->
 			match mt with
 			| TClassDecl c when (has_class_flag c CExtern) -> import c.cl_path c.cl_meta
-			| TEnumDecl e when e.e_extern -> import e.e_path e.e_meta
+			| TEnumDecl e when has_enum_flag e EnExtern -> import e.e_path e.e_meta
 			| _ -> ()
 		) ctx.com.types
 
@@ -2410,7 +2410,7 @@ module Generator = struct
 		List.iter (fun f -> f()) (List.rev ctx.class_inits)
 
 	let gen_main ctx =
-		match ctx.com.main with
+		match ctx.com.main.main_expr with
 			| None ->
 				()
 			| Some e ->

@@ -149,36 +149,46 @@ let is_lower_ident s p =
 	with Invalid_argument msg -> raise_typing_error msg p
 
 let get_this ctx p =
-	match ctx.curfun with
+	match ctx.e.curfun with
 	| FunStatic ->
 		raise_typing_error "Cannot access this from a static function" p
 	| FunMemberClassLocal | FunMemberAbstractLocal ->
-		let v = match ctx.vthis with
+		let v = match ctx.f.vthis with
 			| None ->
-				let v = if ctx.curfun = FunMemberAbstractLocal then
-					PMap.find "this" ctx.locals
-				else
-					add_local ctx VGenerated (Printf.sprintf "%sthis" gen_local_prefix) ctx.tthis p
+				let v = if ctx.e.curfun = FunMemberAbstractLocal then begin
+					let v = PMap.find "this" ctx.f.locals in
+					add_var_flag v VUsedByTyper;
+					v
+				end else
+					add_local ctx VGenerated (Printf.sprintf "%sthis" gen_local_prefix) ctx.c.tthis p
 				in
-				ctx.vthis <- Some v;
+				ctx.f.vthis <- Some v;
 				v
 			| Some v ->
-				ctx.locals <- PMap.add v.v_name v ctx.locals;
+				ctx.f.locals <- PMap.add v.v_name v ctx.f.locals;
 				v
 		in
-		mk (TLocal v) ctx.tthis p
+		mk (TLocal v) ctx.c.tthis p
 	| FunMemberAbstract ->
-		let v = (try PMap.find "this" ctx.locals with Not_found -> raise_typing_error "Cannot reference this abstract here" p) in
+		let v = (try PMap.find "this" ctx.f.locals with Not_found -> raise_typing_error "Cannot reference this abstract here" p) in
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
-		mk (TConst TThis) ctx.tthis p
+		mk (TConst TThis) ctx.c.tthis p
+
+let get_stored_typed_expr ctx id =
+	let e = ctx.com.stored_typed_exprs#find id in
+	Texpr.duplicate_tvars (fun e -> get_this ctx e.epos) e
+
+let type_stored_expr ctx e1 =
+	let id = match e1 with (EConst (Int (s, _)),_) -> int_of_string s | _ -> die "" __LOC__ in
+	get_stored_typed_expr ctx id
 
 let assign_to_this_is_allowed ctx =
-	match ctx.curclass.cl_kind with
+	match ctx.c.curclass.cl_kind with
 		| KAbstractImpl _ ->
-			(match ctx.curfield.cf_kind with
+			(match ctx.f.curfield.cf_kind with
 				| Method MethInline -> true
-				| Method _ when ctx.curfield.cf_name = "_new" -> true
+				| Method _ when ctx.f.curfield.cf_name = "_new" -> true
 				| _ -> false
 			)
 		| _ -> false
@@ -187,8 +197,8 @@ let type_module_type ctx t p =
 	let rec loop t tparams =
 		match t with
 		| TClassDecl {cl_kind = KGenericBuild _} ->
-			let _,_,f = InstanceBuilder.build_instance ctx t p in
-			let t = f (match tparams with None -> [] | Some tl -> tl) in
+			let info = InstanceBuilder.get_build_info ctx t p in
+			let t = info.build_apply (match tparams with None -> [] | Some tl -> tl) in
 			let mt = try
 				module_type_of_type t
 			with Exit ->
@@ -197,13 +207,11 @@ let type_module_type ctx t p =
 			in
 			loop mt None
 		| TClassDecl c ->
-			let t_tmp = class_module_type c in
-			mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
+			mk (TTypeExpr (TClassDecl c)) c.cl_type p
 		| TEnumDecl e ->
-			let types = (match tparams with None -> Monomorph.spawn_constrained_monos (fun t -> t) e.e_params | Some l -> l) in
-			mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
+			mk (TTypeExpr (TEnumDecl e)) e.e_type p
 		| TTypeDecl s ->
-			let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx p) s.t_params) in
+			let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx.e p) s.t_params) in
 			DeprecationCheck.check_typedef (create_deprecation_context ctx) s p;
 			(match follow t with
 			| TEnum (e,params) ->
@@ -222,9 +230,6 @@ let type_module_type ctx t p =
 			mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
 	in
 	loop t None
-
-let type_type ctx tpath p =
-	type_module_type ctx (Typeload.load_type_def ctx p (mk_type_path tpath)) p
 
 let mk_module_type_access ctx t p =
 	AKExpr (type_module_type ctx t p)
@@ -299,8 +304,8 @@ let get_constructible_constraint ctx tl p =
 				end;
 			| TAbstract({a_path = ["haxe"],"Constructible"},[t1]) ->
 				Some (extract_function t1)
-			| TInst({cl_kind = KTypeParameter tl1},_) ->
-				begin match loop tl1 with
+			| TInst({cl_kind = KTypeParameter ttp},_) ->
+				begin match loop (get_constraints ttp) with
 				| None -> loop tl
 				| Some _ as t -> t
 				end
@@ -325,11 +330,15 @@ let unify_static_extension ctx e t p =
 		e
 	end
 
+type from_kind =
+	| FromType
+	| FromField
+
 let get_abstract_froms ctx a pl =
-	let l = List.map (apply_params a.a_params pl) a.a_from in
+	let l = List.map (fun t -> FromType,apply_params a.a_params pl t) a.a_from in
 	List.fold_left (fun acc (t,f) ->
 		(* We never want to use the @:from we're currently in because that's recursive (see #10604) *)
-		if f == ctx.curfield then
+		if f == ctx.f.curfield then
 			acc
 		else if (AbstractFromConfig.update_config_from_meta (AbstractFromConfig.make ()) f.cf_meta).ignored_by_inference then
 			acc
@@ -337,9 +346,27 @@ let get_abstract_froms ctx a pl =
 		| TFun ([_,_,v],t) ->
 			(try
 				ignore(type_eq EqStrict t (TAbstract(a,List.map duplicate pl))); (* unify fields monomorphs *)
-				v :: acc
+				(FromField,v) :: acc
 			with Unify_error _ ->
 				acc)
 		| _ ->
 			acc
 	) l a.a_from_field
+
+let safe_nav_branch ctx sn f_then =
+	(* generate null-check branching for the safe navigation chain *)
+	let eobj = sn.sn_base in
+	let enull = Builder.make_null eobj.etype sn.sn_pos in
+	let eneq = Builder.binop OpNotEq eobj enull ctx.t.tbool sn.sn_pos in
+	let ethen = f_then () in
+	let tnull = ctx.t.tnull ethen.etype in
+	let ethen = if not (is_nullable ethen.etype) then
+		mk (TCast(ethen,None)) tnull ethen.epos
+	else
+		ethen
+	in
+	let eelse = Builder.make_null tnull sn.sn_pos in
+	let eif = mk (TIf(eneq,ethen,Some eelse)) tnull sn.sn_pos in
+	(match sn.sn_temp_var with
+	| None -> eif
+	| Some evar -> { eif with eexpr = TBlock [evar; eif] })
