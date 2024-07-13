@@ -81,9 +81,9 @@ You can get help and talk with fellow Haxers from around the world via:
  * [Haxe on Stack Overflow](https://stackoverflow.com/questions/tagged/haxe)
  * [Haxe Gitter chatroom](https://gitter.im/HaxeFoundation/haxe/)
  * [Haxe Discord server](https://discordapp.com/invite/0uEuWH3spjck73Lo)
- * [#haxe on Twitter](https://twitter.com/hashtag/haxe?src=hash)
+ * [#haxe on X](https://x.com/hashtag/haxe?src=hash)
 
-:+1: Get notified of the latest Haxe news, follow us on [Twitter](https://twitter.com/haxelang), [Facebook](https://www.facebook.com/haxe.org) and don't forget to read the [Haxe roundups](https://haxe.io/).
+:+1: Get notified of the latest Haxe news, follow us on [X](https://x.com/haxelang), [Facebook](https://www.facebook.com/haxe.org) and don't forget to read the [Haxe roundups](https://haxe.io/).
 
 ## Version compatibility
 
