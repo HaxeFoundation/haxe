@@ -491,22 +491,22 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 	let rec add_modules tabs m0 m =
 		if m.m_extra.m_added < com.compilation_step then begin
 			let add_module mpath msign =
-					if msign = own_sign then begin
-						let m2 = try
-							com.module_lut#find mpath
-						with Not_found ->
-							match type_module sctx com delay mpath p with
-							| GoodModule m ->
-								m
-							| BinaryModule mc ->
-								failwith (Printf.sprintf "Unexpectedly found unresolved binary module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
-							| NoModule ->
-								failwith (Printf.sprintf "Unexpectedly could not find module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
-							| BadModule reason ->
-								failwith (Printf.sprintf "Unexpected bad module %s (%s) as a dependency of %s" (s_type_path mpath) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path))
-						in
-						add_modules (tabs ^ "  ") m0 m2
-					end
+				if msign = own_sign then begin
+					let m2 = try
+						com.module_lut#find mpath
+					with Not_found ->
+						match type_module sctx com delay mpath p with
+						| GoodModule m ->
+							m
+						| BinaryModule mc ->
+							failwith (Printf.sprintf "Unexpectedly found unresolved binary module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
+						| NoModule ->
+							failwith (Printf.sprintf "Unexpectedly could not find module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
+						| BadModule reason ->
+							failwith (Printf.sprintf "Unexpected bad module %s (%s) as a dependency of %s" (s_type_path mpath) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path))
+					in
+					add_modules (tabs ^ "  ") m0 m2
+				end
 			in
 
 			m.m_extra.m_added <- com.compilation_step;
