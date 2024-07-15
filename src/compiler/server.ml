@@ -472,10 +472,8 @@ class hxb_reader_api_server
 		com.display.dms_full_typing
 end
 
-let handle_cache_bound_objects com cbol add_module =
+let handle_cache_bound_objects com cbol =
 	DynArray.iter (function
-		| GeneratedModule(mpath,msign) ->
-			add_module mpath msign
 		| Resource(name,data) ->
 			Hashtbl.replace com.resources name data
 		| IncludeFile(file,position) ->
@@ -490,8 +488,29 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 	let own_sign = CommonCache.get_cache_sign com in
 	let rec add_modules tabs m0 m =
 		if m.m_extra.m_added < com.compilation_step then begin
-			let add_module mpath msign =
-					if msign = own_sign then begin
+			m.m_extra.m_added <- com.compilation_step;
+			(match m0.m_extra.m_kind, m.m_extra.m_kind with
+			| MCode, MMacro | MMacro, MCode ->
+				(* this was just a dependency to check : do not add to the context *)
+				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
+			| _ ->
+				ServerMessage.reusing com tabs m;
+				List.iter (fun t ->
+					(t_infos t).mt_restore()
+				) m.m_types;
+				(* The main module gets added when reading hxb already, so let's not add it again. Note that we
+				   can't set its m_added ahead of time because we want the rest of the logic here to run. *)
+				if not from_binary || m != m then
+					com.module_lut#add m.m_path m;
+				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
+				let full_restore =
+					com.is_macro_context
+					|| com.display.dms_full_typing
+					|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file)
+				in
+				PMap.iter (fun _ mdep ->
+					let mpath = mdep.md_path in
+					if mdep.md_sign = own_sign then begin
 						let m2 = try
 							com.module_lut#find mpath
 						with Not_found ->
@@ -507,29 +526,7 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 						in
 						add_modules (tabs ^ "  ") m0 m2
 					end
-			in
-
-			m.m_extra.m_added <- com.compilation_step;
-			(match m0.m_extra.m_kind, m.m_extra.m_kind with
-			| MCode, MMacro | MMacro, MCode ->
-				(* this was just a dependency to check : do not add to the context *)
-				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects add_module;
-			| _ ->
-				ServerMessage.reusing com tabs m;
-				List.iter (fun t ->
-					(t_infos t).mt_restore()
-				) m.m_types;
-				(* The main module gets added when reading hxb already, so let's not add it again. Note that we
-				   can't set its m_added ahead of time because we want the rest of the logic here to run. *)
-				if not from_binary || m != m then
-					com.module_lut#add m.m_path m;
-				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects add_module;
-				let full_restore =
-					com.is_macro_context
-					|| com.display.dms_full_typing
-					|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file)
-				in
-				PMap.iter (fun _ mdep -> add_module mdep.md_path mdep.md_sign) (if full_restore then m.m_extra.m_deps else Option.default m.m_extra.m_deps m.m_extra.m_sig_deps)
+				) (if full_restore then m.m_extra.m_deps else Option.default m.m_extra.m_deps m.m_extra.m_sig_deps)
 			)
 		end
 	in
