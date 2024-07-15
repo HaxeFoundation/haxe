@@ -57,6 +57,7 @@ type type_param_host =
 	| TPHUnbound
 
 type cache_bound_object =
+	| GeneratedModule of (string list * string) * Digest.t
 	| Resource of string * string
 	| IncludeFile of string * string
 	| Warning of WarningList.warning * string * pos
@@ -408,8 +409,6 @@ and module_dep_origin =
 	| MDepFromMacro
 	(* Compiler.include loads module with this special origin, which tells add_dependency not to add as a proper dependency. *)
 	| MDepFromMacroInclude
-	(* Modules created via Compiler.defineType or Compiler.defineModule will be added as dependency to their "parent" module with this origin. *)
-	| MDepFromMacroDefine
 
 and module_dep = {
 	md_sign : Digest.t;

@@ -618,7 +618,6 @@ module Printer = struct
 		| MDepFromTyping -> "MDepFromTyping"
 		| MDepFromMacro -> "MDepFromMacro"
 		| MDepFromMacroInclude -> "MDepFromMacroInclude"
-		| MDepFromMacroDefine -> "MDepFromMacroDefine"
 
 	let s_module_tainting_reason = function
 		| CheckDisplayFile -> "check_display_file"
