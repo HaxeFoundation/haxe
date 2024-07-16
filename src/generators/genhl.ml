@@ -1006,8 +1006,8 @@ let not_debug_var ctx v = match v.v_kind with
 	| VInlinedConstructorVariable _ -> false
 	| _ -> true
 
-let add_assign ctx v =
-	if not_debug_var ctx v then () else
+let add_assign ?(force=false) ctx v =
+	if not force && not_debug_var ctx v then () else
 	let name = real_name v in
 	ctx.m.massign <- (alloc_string ctx name, current_pos ctx - 1) :: ctx.m.massign
 
@@ -3025,6 +3025,7 @@ and eval_expr ctx e =
 					op ctx (OCall2 (rb, alloc_fun_path ctx (["hl"],"BaseType") "check",r,rtrap));
 					let jnext = jump ctx (fun n -> OJFalse (rb,n)) in
 					op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx rtrap (to_type ctx v.v_type) ec.epos));
+					add_assign ctx v;
 					jnext
 				in
 				let r = eval_expr ctx ec in
@@ -3290,7 +3291,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	let args = List.map (fun (v,o) ->
 		let t = to_type ctx v.v_type in
 		let r = alloc_var ctx (if o = None then v else { v with v_type = if not (is_nullable t) then TAbstract(ctx.ref_abstract,[v.v_type]) else v.v_type }) true in
-		add_assign ctx v; (* record var name *)
+		add_assign ~force:true ctx v; (* record var name *)
 		rtype ctx r
 	) f.tf_args in
 
