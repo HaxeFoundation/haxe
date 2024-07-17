@@ -99,7 +99,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 			com.file_contents <- file_contents;
 
 			match files with
-			| [] | [_] -> DisplayPosition.display_position#set { pfile = file; pmin = pos; pmax = pos; };
+			| [] -> DisplayPosition.display_position#set { pfile = file; pmin = pos; pmax = pos; };
 			| _ -> DisplayPosition.display_position#set_files files;
 		end
 end
