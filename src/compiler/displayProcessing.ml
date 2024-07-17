@@ -173,8 +173,8 @@ let process_display_file com actx =
 							let path = fst path, name in
 							actx.classes <- path :: actx.classes;
 							DPKNormal path
-						| e ->
-							die "" __LOC__
+						| _ ->
+							failwith ("Invalid display file '" ^ real ^ "'")
 					in
 					dpk
 				| None ->
