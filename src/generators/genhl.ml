@@ -574,6 +574,8 @@ and class_type ?(tref=None) ctx c pl statics =
 			PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) c.cl_fields fields
 		in
 		let fields = loop c in
+		(* remove fields from cl_implements having the same name. they might have different type but we only need the one in child *)
+		let fields = List.sort_uniq (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
 		vp.vfields <- Array.of_list fields;
 		Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
 		t
