@@ -176,8 +176,6 @@ let process_display_file com actx =
 						| e ->
 							die "" __LOC__
 					in
-					Common.log com ("Display file : " ^ real);
-					Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path actx.classes)) ^ "]");
 					dpk
 				| None ->
 					if not (Sys.file_exists real) then failwith "Display file does not exist";
@@ -187,9 +185,9 @@ let process_display_file com actx =
 					DPKDirect real
 				in
 				Common.log com ("Display file : " ^ real);
-				Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path actx.classes)) ^ "]");
 				dpk
 			) DisplayPosition.display_position#get_files in
+			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path actx.classes)) ^ "]");
 			match dpk with
 				| [dfile] -> dfile
 				| _ -> DPKNone
