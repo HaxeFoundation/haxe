@@ -38,7 +38,6 @@ class Issue5306 extends DisplayTestCase {
 				kind: DKCompilerError,
 				range: diagnosticsRange(pos(5), pos(6)),
 				severity: Error,
-				code: null,
 				relatedInformation: [],
 				args: "Local variable ib used without being initialized"
 			}
