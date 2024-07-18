@@ -2,7 +2,7 @@
 
 	General improvements:
 
-	all : macOS universal binaries
+	all : macOS universal binaries (#11572, #11663)
 	display : migrated diagnostics to Json RPC (#11707)
 	macro : expose TVar VStatic flag in macros. (#11683)
 
