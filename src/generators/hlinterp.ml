@@ -2183,7 +2183,7 @@ let add_code ctx code =
 
 (* ------------------------------- CHECK ---------------------------------------------- *)
 
-let check comerror code macros =
+let check comerror code =
 	let ftypes = Array.make (Array.length code.natives + Array.length code.functions) HVoid in
 	let is_native_fun = Hashtbl.create 0 in
 

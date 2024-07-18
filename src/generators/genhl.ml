@@ -4268,7 +4268,7 @@ let generate com =
 	end;*)
 	if hl_check then begin
 		check ctx;
-		Hlinterp.check com.error code false;
+		Hlinterp.check com.error code;
 	end;
 	let t = Timer.timer ["generate";"hl";"write"] in
 
