@@ -1796,7 +1796,7 @@ let write_c com file (code:code) gnames =
 			let file_pos f =
 				match f.fe_decl with
 				| Some f when Array.length f.debug > 0 ->
-					let fid, p = f.debug.(Array.length f.debug - 1) in
+					let fid, p, _ = f.debug.(Array.length f.debug - 1) in
 					(code.strings.(fid), p)
 				| _ ->
 					("",0)

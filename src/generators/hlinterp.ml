@@ -666,7 +666,7 @@ let rec dyn_set_field ctx obj field v vt =
 
 let make_stack ctx (f,pos) =
 	let pos = !pos - 1 in
-	try let fid, line = f.debug.(pos) in ctx.code.debugfiles.(fid), line with _ -> "???", 0
+	try let fid, line, _ = f.debug.(pos) in ctx.code.debugfiles.(fid), line with _ -> "???", 0
 
 let stack_frame ctx (f,pos) =
 	let file, line = make_stack ctx (f,pos) in
@@ -2183,26 +2183,21 @@ let add_code ctx code =
 
 (* ------------------------------- CHECK ---------------------------------------------- *)
 
-let check code macros =
+let check comerror code macros =
 	let ftypes = Array.make (Array.length code.natives + Array.length code.functions) HVoid in
 	let is_native_fun = Hashtbl.create 0 in
 
 	let check_fun f =
 		let pos = ref 0 in
 		let error msg =
-			let dfile, dline = f.debug.(!pos) in
-			let file = code.debugfiles.(dfile) in
+			let _, _, dpos = f.debug.(!pos) in
 			let msg = Printf.sprintf "Check failure at fun@%d @%X - %s" f.findex (!pos) msg in
-			if macros then begin
-				let low = dline land 0xFFFFF in
-				let pos = {
-					Globals.pfile = file;
-					Globals.pmin = low;
-					Globals.pmax = low + (dline lsr 20);
-				} in
-				Error.abort msg pos
-			end else
-				failwith (Printf.sprintf "\n%s:%d: %s" file dline msg)
+			comerror msg dpos;
+			()
+		in
+		let error_fail msg =
+			error msg;
+			failwith msg
 		in
 		let targs, tret = (match f.ftype with HFun (args,ret) -> args, ret | _ -> Globals.die "" __LOC__) in
 		let rtype i = try f.regs.(i) with _ -> HObj { null_proto with pname = "OUT_OF_BOUNDS:" ^ string_of_int i } in
@@ -2256,7 +2251,7 @@ let check code macros =
 			if not (is_dynamic (rtype r)) then error (reg_inf r ^ " should be castable to dynamic")
 		in
 		let get_field r p fid =
-			try snd (resolve_field p fid) with Not_found -> error (reg_inf r ^ " does not have field " ^ string_of_int fid)
+			try snd (resolve_field p fid) with Not_found -> error_fail (reg_inf r ^ " does not have field " ^ string_of_int fid)
 		in
 		let tfield o fid proto =
 			if fid < 0 then error (reg_inf o ^ " does not have " ^ (if proto then "proto " else "") ^ "field " ^ string_of_int fid);

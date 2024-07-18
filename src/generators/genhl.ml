@@ -340,7 +340,7 @@ let make_debug ctx arr =
 		with Not_found ->
 			p.pfile
 	in
-	let pos = ref (0,0) in
+	let pos = ref (0,0,Globals.null_pos) in
 	let cur_file = ref 0 in
 	let cur_line = ref 0 in
 	let cur = ref Globals.null_pos in
@@ -353,7 +353,7 @@ let make_debug ctx arr =
 			if line <> !cur_line || file <> !cur_file then begin
 				cur_file := file;
 				cur_line := line;
-				pos := (file,line);
+				pos := (file,line,p);
 			end;
 			cur := p;
 		end;
@@ -4039,7 +4039,7 @@ let write_code ch code debug =
 				end
 			end
 		in
-		Array.iter (fun (f,p) ->
+		Array.iter (fun (f,p,_) ->
 			if f <> !curfile then begin
 				flush_repeat(p);
 				curfile := f;
@@ -4270,7 +4270,7 @@ let generate com =
 	end;*)
 	if hl_check then begin
 		check ctx;
-		Hlinterp.check code false;
+		Hlinterp.check com.error code false;
 	end;
 	let t = Timer.timer ["generate";"hl";"write"] in
 
