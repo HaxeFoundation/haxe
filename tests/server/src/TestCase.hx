@@ -96,14 +96,20 @@ class TestCase implements ITest {
 	}
 
 	function runHaxeJsonCb<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, Response<TResponse>>, methodArgs:TParams,
-			callback:TResponse->Void, done:() -> Void) {
+			callback:TResponse->Void, done:() -> Void, ?pos:PosInfos) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
 		messages = [];
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
 			handleResult(result);
-			callback(Json.parse(result.stderr).result.result);
+			var json = try Json.parse(result.stderr) catch(e) {result: null, error: e.message};
+
+			if (json.result != null) {
+				callback(json.result?.result);
+			} else {
+				Assert.fail('Error: ' + json.error, pos);
+			}
 			done();
 		}, function(msg) {
 			sendErrorMessage(msg);

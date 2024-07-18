@@ -312,7 +312,9 @@ let compile ctx actx =
 	let com = ctx.com in
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
+	let restore = disable_report_mode com in
 	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
+	restore ();
 	(* Initialize target: This allows access to the appropriate std packages and sets the -D defines. *)
 	let ext = Setup.initialize_target ctx com actx in
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)

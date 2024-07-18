@@ -23,9 +23,15 @@ class display_position_container =
 		method set p =
 			pos <- p;
 			last_pos <- p;
-			file_key <- None
+			file_key <- None;
+			file_keys <- if p.pfile = DisplayProcessingGlobals.file_input_marker then [] else [Path.UniqueKey.create p.pfile]
+
 		method set_files files =
 			file_keys <- files
+
+		method get_files =
+			file_keys
+
 		(**
 			Get current display position
 		*)

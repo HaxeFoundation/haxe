@@ -100,7 +100,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 			com.file_contents <- file_contents;
 
 			match files with
-			| [] | [_] -> DisplayPosition.display_position#set { pfile = file; pmin = pos; pmax = pos; };
+			| [] -> DisplayPosition.display_position#set { pfile = file; pmin = pos; pmax = pos; };
 			| _ -> DisplayPosition.display_position#set_files files;
 		end
 end
@@ -160,12 +160,8 @@ let handler =
 		"display/diagnostics", (fun hctx ->
 			hctx.display#set_display_file false false;
 			hctx.display#enable_display DMNone;
+			hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = true };
 			hctx.com.report_mode <- RMDiagnostics (List.map (fun (f,_) -> f) hctx.com.file_contents);
-
-			(match hctx.com.file_contents with
-			| [file, None] ->
-				hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = true };
-			| _ -> ());
 		);
 		"display/implementation", (fun hctx ->
 			hctx.display#set_display_file false true;
