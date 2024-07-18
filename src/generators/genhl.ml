@@ -98,7 +98,6 @@ type context = {
 	w_null_compare : bool;
 	overrides : (string * path, bool) Hashtbl.t;
 	defined_funs : (int,unit) Hashtbl.t;
-	is_macro : bool;
 	mutable dump_out : (unit IO.output) option;
 	mutable cached_types : (string list, ttype) PMap.t;
 	mutable m : method_context;
@@ -264,7 +263,7 @@ let global_type ctx g =
 	DynArray.get ctx.cglobals.arr g
 
 let is_overridden ctx c f =
-	ctx.is_macro || Hashtbl.mem ctx.overrides (f.cf_name,c.cl_path)
+	Hashtbl.mem ctx.overrides (f.cf_name,c.cl_path)
 
 let alloc_float ctx f =
 	lookup ctx.cfloats f (fun() -> f)
@@ -348,8 +347,8 @@ let make_debug ctx arr =
 	for i = 0 to DynArray.length arr - 1 do
 		let p = DynArray.unsafe_get arr i in
 		if p != !cur then begin
-			let file = if p.pfile == (!cur).pfile then !cur_file else lookup ctx.cdebug_files p.pfile (fun() -> if ctx.is_macro then p.pfile else get_relative_path p) in
-			let line = if ctx.is_macro then p.pmin lor ((p.pmax - p.pmin) lsl 20) else Lexer.get_error_line p in
+			let file = if p.pfile == (!cur).pfile then !cur_file else lookup ctx.cdebug_files p.pfile (fun() -> get_relative_path p) in
+			let line = Lexer.get_error_line p in
 			if line <> !cur_line || file <> !cur_file then begin
 				cur_file := file;
 				cur_line := line;
@@ -4094,7 +4093,7 @@ let write_code ch code debug =
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
 
-let create_context com is_macro dump =
+let create_context com dump =
 	let get_type name =
 		try
 			List.find (fun t -> (t_infos t).mt_path = (["hl"],name)) com.types
@@ -4115,7 +4114,6 @@ let create_context com is_macro dump =
 	in
 	let ctx = {
 		com = com;
-		is_macro = is_macro;
 		optimize = not (Common.raw_defined com "hl_no_opt");
 		w_null_compare = Common.raw_defined com "hl_w_null_compare";
 		dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None;
@@ -4177,7 +4175,7 @@ let add_types ctx types =
 				| _ ->
 					false
 			in
-			if not ctx.is_macro then List.iter (fun f -> if has_class_field_flag f CfOverride then ignore(loop c.cl_super f)) c.cl_ordered_fields;
+			List.iter (fun f -> if has_class_field_flag f CfOverride then ignore(loop c.cl_super f)) c.cl_ordered_fields;
 			List.iter (fun (m,args,p) ->
 				if m = Meta.HlNative then
 					let lib, prefix = (match args with
@@ -4247,7 +4245,7 @@ let generate com =
 		close_out ch;
 	end else
 
-	let ctx = create_context com false dump in
+	let ctx = create_context com dump in
 	add_types ctx com.types;
 	let code = build_code ctx com.types com.main.main_expr in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
