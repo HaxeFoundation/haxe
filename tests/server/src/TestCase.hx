@@ -119,7 +119,7 @@ class TestCase implements ITest implements ITestCase {
 	}
 
 	function runHaxeJsonCb<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, Response<TResponse>>, methodArgs:TParams,
-			callback:TResponse->Void, done:() -> Void) {
+			callback:TResponse->Void, done:() -> Void, ?pos:PosInfos) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
 		messages = [];
@@ -127,10 +127,11 @@ class TestCase implements ITest implements ITestCase {
 		server.rawRequest(args, null, function(result) {
 			handleResult(result);
 			var json = try Json.parse(result.stderr) catch(e) {result: null, error: e.message};
+
 			if (json.result != null) {
-				callback(json.result.result);
+				callback(json.result?.result);
 			} else {
-				sendErrorMessage('Error: ' + json.error);
+				Assert.fail('Error: ' + json.error, pos);
 			}
 			done();
 		}, function(msg) {

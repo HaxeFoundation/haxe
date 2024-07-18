@@ -251,6 +251,22 @@ class ServerTests extends TestCase {
 		assertReuse("HelloWorld");
 	}
 
+	function testDiagnosticsRecache1() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		var args = ["--main", "HelloWorld", "--interp"];
+		runHaxe(args);
+		runHaxe(args);
+		assertReuse("HelloWorld");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
+		runHaxe(args);
+		assertSkipping("HelloWorld", Tainted("server/invalidate"));
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {fileContents: [{file: new FsPath("HelloWorld.hx")}]}, res -> {
+			Assert.equals(0, res.length);
+		});
+		runHaxe(args);
+		assertReuse("HelloWorld");
+	}
+
 	function testDiagnosticsRecache2() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
@@ -284,22 +300,21 @@ class ServerTests extends TestCase {
 		var args = ["--main", "Main", "--interp"];
 		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {fileContents: [
 			{file: new FsPath("Main.hx")},
-			{file: new FsPath("File1.hx")},
-			{file: new FsPath("File2.hx")},
+			{file: new FsPath("File1.hx")}
 		]}, res -> {
-			Assert.equals(3, res.length); // Asked diagnostics for 3 files
+			Assert.equals(2, res.length); // Asked diagnostics for 2 files
 
 			for (fileDiagnostics in res) {
 				final path = ~/[\/|\\]/g.split(fileDiagnostics.file.toString()).pop();
 
 				switch (path) {
 					case "Main.hx":
-						Assert.equals(3, fileDiagnostics.diagnostics.length);
+						Assert.equals(2, fileDiagnostics.diagnostics.length);
 						for (diag in fileDiagnostics.diagnostics) {
 							Assert.equals(diag.kind, DKUnusedImport);
 						}
 
-					case "File1.hx" | "File2.hx":
+					case "File1.hx":
 						Assert.equals(1, fileDiagnostics.diagnostics.length);
 						var diag:Diagnostic<ReplaceableCodeDiagnostics> = fileDiagnostics.diagnostics[0];
 						Assert.equals(diag.kind, ReplaceableCode);
@@ -310,11 +325,37 @@ class ServerTests extends TestCase {
 			}
 		});
 
-		// Check that File3 was reached
+		// Check that File2 was reached
 		var context = null;
 		runHaxeJsonCb(args, ServerMethods.Contexts, null, res -> context = res.find(ctx -> ctx.desc == "after_init_macros"));
-		runHaxeJsonCb(args, ServerMethods.Type, {signature: context.signature, modulePath: "File3", typeName: "File3"}, res -> Assert.equals(res.pos.file, "File3.hx"));
-		assertSuccess();
+		runHaxeJsonCb(args, ServerMethods.Type, {signature: context.signature, modulePath: "File2", typeName: "File2"}, res -> Assert.equals(res.pos.file, "File2.hx"));
+
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {fileContents: [
+			{file: new FsPath("Main.hx")},
+			{file: new FsPath("File3.hx")}, // Not reached by normal compilation
+		]}, res -> {
+			Assert.equals(2, res.length); // Asked diagnostics for 2 files
+
+			for (fileDiagnostics in res) {
+				final path = ~/[\/|\\]/g.split(fileDiagnostics.file.toString()).pop();
+
+				switch (path) {
+					case "Main.hx":
+						Assert.equals(2, fileDiagnostics.diagnostics.length);
+						for (diag in fileDiagnostics.diagnostics) {
+							Assert.equals(diag.kind, DKUnusedImport);
+						}
+
+					case "File3.hx":
+						Assert.equals(1, fileDiagnostics.diagnostics.length);
+						var diag:Diagnostic<ReplaceableCodeDiagnostics> = fileDiagnostics.diagnostics[0];
+						Assert.equals(diag.kind, ReplaceableCode);
+						Assert.equals(diag.args.description, "Unused variable");
+
+					case _: throw 'Did not expect diagnostics for $path';
+				}
+			}
+		});
 	}
 
 	function testSyntaxCache() {

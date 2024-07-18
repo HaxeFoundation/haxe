@@ -156,36 +156,41 @@ let process_display_file com actx =
 				actx.classes <- [];
 				com.main.main_class <- None;
 			end;
-			let real = Path.get_real_path (DisplayPosition.display_position#get).pfile in
-			let path = match get_module_path_from_file_path com real with
-			| Some path ->
-				if com.display.dms_kind = DMPackage then DisplayException.raise_package (fst path);
-				let path = match ExtString.String.nsplit (snd path) "." with
-					| [name;"macro"] ->
-						(* If we have a .macro.hx path, don't add the file to classes because the compiler won't find it.
-						   This can happen if we're completing in such a file. *)
-						DPKMacro (fst path,name)
-					| [name] ->
-						actx.classes <- path :: actx.classes;
-						DPKNormal path
-					| [name;target] ->
-						let path = fst path, name in
-						actx.classes <- path :: actx.classes;
-						DPKNormal path
-					| e ->
-						die "" __LOC__
+			let dpk = List.map (fun file_key ->
+				let real = Path.get_real_path (Path.UniqueKey.to_string file_key) in
+				let dpk = match get_module_path_from_file_path com real with
+				| Some path ->
+					if com.display.dms_kind = DMPackage then DisplayException.raise_package (fst path);
+					let dpk = match ExtString.String.nsplit (snd path) "." with
+						| [name;"macro"] ->
+							(* If we have a .macro.hx path, don't add the file to classes because the compiler won't find it.
+								 This can happen if we're completing in such a file. *)
+							DPKMacro (fst path,name)
+						| [name] ->
+							actx.classes <- path :: actx.classes;
+							DPKNormal path
+						| [name;target] ->
+							let path = fst path, name in
+							actx.classes <- path :: actx.classes;
+							DPKNormal path
+						| _ ->
+							failwith ("Invalid display file '" ^ real ^ "'")
+					in
+					dpk
+				| None ->
+					if not (Sys.file_exists real) then failwith "Display file does not exist";
+					(match List.rev (ExtString.String.nsplit real Path.path_sep) with
+					| file :: _ when file.[0] >= 'a' && file.[0] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
+					| _ -> ());
+					DPKDirect real
 				in
-				path
-			| None ->
-				if not (Sys.file_exists real) then failwith "Display file does not exist";
-				(match List.rev (ExtString.String.nsplit real Path.path_sep) with
-				| file :: _ when file.[0] >= 'a' && file.[0] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
-				| _ -> ());
-				DPKDirect real
-			in
-			Common.log com ("Display file : " ^ real);
+				Common.log com ("Display file : " ^ real);
+				dpk
+			) DisplayPosition.display_position#get_files in
 			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path actx.classes)) ^ "]");
-			path
+			match dpk with
+				| [dfile] -> dfile
+				| _ -> DPKNone
 
 (* 3. Loaders for display file that might be called *)
 
