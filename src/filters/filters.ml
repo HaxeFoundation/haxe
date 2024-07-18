@@ -916,7 +916,8 @@ let save_class_state ctx t =
 			a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
 		)
 
-let run com tctx main =
+let run tctx main before_destruction =
+	let com = tctx.com in
 	let detail_times = Common.defined com DefineList.FilterTimes in
 	let new_types = List.filter (fun t ->
 		let cached = is_cached com t in
@@ -1025,4 +1026,5 @@ let run com tctx main =
 	let t = filter_timer detail_times ["callbacks"] in
 	com.callbacks#run com.callbacks#get_after_save; (* macros onGenerate etc. *)
 	t();
+	before_destruction();
 	destruction tctx detail_times main locals

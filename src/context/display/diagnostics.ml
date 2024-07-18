@@ -20,13 +20,14 @@ let find_unused_variables com e =
 	let vars = Hashtbl.create 0 in
 	let pmin_map = Hashtbl.create 0 in
 	let rec loop e = match e.eexpr with
-		| TVar({v_kind = VUser _} as v,eo) when v.v_name <> "_" ->
+		| TVar({v_kind = VUser origin} as v,eo) when v.v_name <> "_" && not (has_var_flag v VUsedByTyper) ->
 			Hashtbl.add pmin_map e.epos.pmin v;
 			let p = match eo with
-				| None -> e.epos
-				| Some e1 ->
-					loop e1;
-					{ e.epos with pmax = e1.epos.pmin }
+			| Some e1 when origin <> TVOPatternVariable ->
+				loop e1;
+				{ e.epos with pmax = e1.epos.pmin }
+			| _ ->
+				e.epos
 			in
 			Hashtbl.replace vars v.v_id (v,p);
 		| TLocal ({v_kind = VUser _} as v) ->
@@ -178,11 +179,6 @@ let prepare com =
 	dctx.diagnostics_messages <- com.shared.shared_display_information.diagnostics_messages;
 	dctx.unresolved_identifiers <- com.display_information.unresolved_identifiers;
 	dctx
-
-let secure_generated_code ctx e =
-	(* This causes problems and sucks in general... need a different solution. But I forgot which problem this solved anyway. *)
-	(* mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos *)
-	e
 
 let print com =
 	let dctx = prepare com in

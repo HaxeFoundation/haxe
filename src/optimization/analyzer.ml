@@ -661,14 +661,14 @@ module LocalDce = struct
 
 	let rec apply ctx =
 		let is_used v =
-			has_var_flag v VUsed
+			has_var_flag v VAnalyzed
 		in
 		let keep v =
 			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || has_var_flag v VCaptured || Meta.has Meta.This v.v_meta
 		in
 		let rec use v =
 			if not (is_used v) then begin
-				add_var_flag v VUsed;
+				add_var_flag v VAnalyzed;
 				(try expr (get_var_value ctx.graph v) with Not_found -> ());
 				begin match Ssa.get_reaching_def ctx.graph v with
 					| None ->
@@ -676,7 +676,7 @@ module LocalDce = struct
 						   reaching definition (issue #10972). Simply marking it as being used should be sufficient. *)
 						let v' = get_var_origin ctx.graph v in
 						if not (is_used v') then
-							add_var_flag v' VUsed
+							add_var_flag v' VAnalyzed
 					| Some v ->
 						use v;
 				end
