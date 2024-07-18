@@ -62,22 +62,26 @@ class TestCase implements ITest {
 		server.stop();
 	}
 
+	function handleResult(result) {
+		lastResult = result;
+		debugLastResult = {
+			hasError: lastResult.hasError,
+			prints: lastResult.prints,
+			stderr: lastResult.stderr,
+			stdout: lastResult.stdout
+		}
+		sendLogMessage(result.stdout);
+		for (print in result.prints) {
+			var line = print.trim();
+			messages.push('Haxe print: $line');
+		}
+	}
+
 	function runHaxe(args:Array<String>, done:() -> Void) {
 		messages = [];
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
-			lastResult = result;
-			debugLastResult = {
-				hasError: lastResult.hasError,
-				prints: lastResult.prints,
-				stderr: lastResult.stderr,
-				stdout: lastResult.stdout
-			}
-			sendLogMessage(result.stdout);
-			for (print in result.prints) {
-				var line = print.trim();
-				messages.push('Haxe print: $line');
-			}
+			handleResult(result);
 			if (result.hasError) {
 				sendErrorMessage(result.stderr);
 			}
@@ -92,11 +96,20 @@ class TestCase implements ITest {
 	}
 
 	function runHaxeJsonCb<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, Response<TResponse>>, methodArgs:TParams,
-			callback:TResponse->Void, done:() -> Void) {
+			callback:TResponse->Void, done:() -> Void, ?pos:PosInfos) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
+		messages = [];
+		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
-			callback(Json.parse(result.stderr).result.result);
+			handleResult(result);
+			var json = try Json.parse(result.stderr) catch(e) {result: null, error: e.message};
+
+			if (json.result != null) {
+				callback(json.result?.result);
+			} else {
+				Assert.fail('Error: ' + json.error, pos);
+			}
 			done();
 		}, function(msg) {
 			sendErrorMessage(msg);

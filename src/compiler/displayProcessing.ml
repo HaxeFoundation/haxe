@@ -22,7 +22,7 @@ let handle_display_argument_old com file_pos actx =
 		actx.did_something <- true;
 		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
 	| "diagnostics" ->
-		com.report_mode <- RMDiagnostics []
+		com.report_mode <- RMLegacyDiagnostics []
 	| _ ->
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = Helper.unquote file in
@@ -46,9 +46,9 @@ let handle_display_argument_old com file_pos actx =
 			| "module-symbols" ->
 				create (DMModuleSymbols None)
 			| "diagnostics" ->
-				com.report_mode <- RMDiagnostics [file_unique];
+				com.report_mode <- RMLegacyDiagnostics [file_unique];
 				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display}
+				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true}
 			| "statistics" ->
 				com.report_mode <- RMStatistics;
 				let dm = create DMNone in
@@ -142,11 +142,11 @@ let process_display_file com actx =
 		| DFPOnly when (DisplayPosition.display_position#get).pfile = file_input_marker ->
 			actx.classes <- [];
 			com.main_class <- None;
-			begin match !TypeloadParse.current_stdin with
-			| Some input ->
-				TypeloadParse.current_stdin := None;
+			begin match com.file_contents with
+			| [_, Some input] ->
+				com.file_contents <- [];
 				DPKInput input
-			| None ->
+			| _ ->
 				DPKNone
 			end
 		| dfp ->
@@ -154,36 +154,41 @@ let process_display_file com actx =
 				actx.classes <- [];
 				com.main_class <- None;
 			end;
-			let real = Path.get_real_path (DisplayPosition.display_position#get).pfile in
-			let path = match get_module_path_from_file_path com real with
-			| Some path ->
-				if com.display.dms_kind = DMPackage then DisplayException.raise_package (fst path);
-				let path = match ExtString.String.nsplit (snd path) "." with
-					| [name;"macro"] ->
-						(* If we have a .macro.hx path, don't add the file to classes because the compiler won't find it.
-						   This can happen if we're completing in such a file. *)
-						DPKMacro (fst path,name)
-					| [name] ->
-						actx.classes <- path :: actx.classes;
-						DPKNormal path
-					| [name;target] ->
-						let path = fst path, name in
-						actx.classes <- path :: actx.classes;
-						DPKNormal path
-					| e ->
-						die "" __LOC__
+			let dpk = List.map (fun file_key ->
+				let real = Path.get_real_path (Path.UniqueKey.to_string file_key) in
+				let dpk = match get_module_path_from_file_path com real with
+				| Some path ->
+					if com.display.dms_kind = DMPackage then DisplayException.raise_package (fst path);
+					let dpk = match ExtString.String.nsplit (snd path) "." with
+						| [name;"macro"] ->
+							(* If we have a .macro.hx path, don't add the file to classes because the compiler won't find it.
+								 This can happen if we're completing in such a file. *)
+							DPKMacro (fst path,name)
+						| [name] ->
+							actx.classes <- path :: actx.classes;
+							DPKNormal path
+						| [name;target] ->
+							let path = fst path, name in
+							actx.classes <- path :: actx.classes;
+							DPKNormal path
+						| _ ->
+							failwith ("Invalid display file '" ^ real ^ "'")
+					in
+					dpk
+				| None ->
+					if not (Sys.file_exists real) then failwith "Display file does not exist";
+					(match List.rev (ExtString.String.nsplit real Path.path_sep) with
+					| file :: _ when file.[0] >= 'a' && file.[0] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
+					| _ -> ());
+					DPKDirect real
 				in
-				path
-			| None ->
-				if not (Sys.file_exists real) then failwith "Display file does not exist";
-				(match List.rev (ExtString.String.nsplit real Path.path_sep) with
-				| file :: _ when file.[0] >= 'a' && file.[0] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
-				| _ -> ());
-				DPKDirect real
-			in
-			Common.log com ("Display file : " ^ real);
+				Common.log com ("Display file : " ^ real);
+				dpk
+			) DisplayPosition.display_position#get_files in
 			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path actx.classes)) ^ "]");
-			path
+			match dpk with
+				| [dfile] -> dfile
+				| _ -> DPKNone
 
 (* 3. Loaders for display file that might be called *)
 
@@ -348,6 +353,8 @@ let handle_display_after_finalization ctx tctx display_file_dot_path =
 	end;
 	process_global_display_mode com tctx;
 	begin match com.report_mode with
+	| RMLegacyDiagnostics _ ->
+		DisplayOutput.emit_legacy_diagnostics com
 	| RMDiagnostics _ ->
 		DisplayOutput.emit_diagnostics com
 	| RMStatistics ->

@@ -11,6 +11,7 @@ class display_position_container =
 		(** Current display position *)
 		val mutable pos = null_pos
 		val mutable file_key = None
+		val mutable file_keys = []
 		(**
 			Display position value which was set with the latest `display_position#set p` call.
 			Kept even after `display_position#reset` call.
@@ -22,7 +23,15 @@ class display_position_container =
 		method set p =
 			pos <- p;
 			last_pos <- p;
-			file_key <- None
+			file_key <- None;
+			file_keys <- if p.pfile = DisplayProcessingGlobals.file_input_marker then [] else [Path.UniqueKey.create p.pfile]
+
+		method set_files files =
+			file_keys <- files
+
+		method get_files =
+			file_keys
+
 		(**
 			Get current display position
 		*)
@@ -43,7 +52,8 @@ class display_position_container =
 		*)
 		method reset =
 			pos <- null_pos;
-			file_key <- None
+			file_key <- None;
+			file_keys <- []
 		(**
 			Check if `p` contains current display position
 		*)
@@ -53,8 +63,13 @@ class display_position_container =
 			Check if a file with `file_key` contains current display position
 		*)
 		method is_in_file file_key =
-			pos.pfile <> "?"
-			&& self#get_file_key = file_key
+			(pos.pfile <> "?" && self#get_file_key = file_key) || self#has_file file_key
+		(**
+			This is a hack; currently used by Diagnostics.collect_diagnostics when sending multiple files
+			to run diagnostics on via json rpc
+		*)
+		method has_file file_key =
+			List.mem file_key file_keys
 		(**
 			Cut `p` at the position of the latest `display_position#set pos` call.
 		*)

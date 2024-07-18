@@ -2,15 +2,18 @@ open Globals
 open Common
 open CompilationContext
 
-let run_or_diagnose ctx f arg =
+let run_or_diagnose ctx f =
 	let com = ctx.com in
 	let handle_diagnostics ?(depth = 0) msg kind =
 		ctx.has_error <- true;
 		add_diagnostics_message ~depth com msg kind Error;
-		DisplayOutput.emit_diagnostics ctx.com
+		match com.report_mode with
+		| RMLegacyDiagnostics _ -> DisplayOutput.emit_legacy_diagnostics ctx.com
+		| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
+		| _ -> die "" __LOC__
 	in
 	if is_diagnostics com then begin try
-			f arg
+			f ()
 		with
 		| Error.Error(msg,p,depth) ->
 			handle_diagnostics ~depth (Error.error_msg p msg) DKCompilerMessage
@@ -20,7 +23,7 @@ let run_or_diagnose ctx f arg =
 			handle_diagnostics (located (Lexer.error_msg msg) p) DKParserError
 		end
 	else
-		f arg
+		f ()
 
 let run_command ctx cmd =
 	let t = Timer.timer ["command";cmd] in
@@ -279,7 +282,7 @@ let do_type ctx tctx actx =
 		if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
 		Finalization.finalize tctx;
-	) ();
+	);
 	com.stage <- CTypingDone;
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		identifier we are interested in. We then type only those modules that contain the identifier. *)
@@ -293,23 +296,25 @@ let finalize_typing ctx tctx =
 	let t = Timer.timer ["finalize"] in
 	let com = ctx.com in
 	com.stage <- CFilteringStart;
-	let main, types, modules = run_or_diagnose ctx Finalization.generate tctx in
+	let main, types, modules = run_or_diagnose ctx (fun () -> Finalization.generate tctx) in
 	com.main <- main;
 	com.types <- types;
 	com.modules <- modules;
 	t()
 
-let filter ctx tctx =
+let filter ctx tctx before_destruction =
 	let t = Timer.timer ["filters"] in
 	DeprecationCheck.run ctx.com;
-	Filters.run ctx.com tctx ctx.com.main;
+	run_or_diagnose ctx (fun () -> Filters.run tctx ctx.com.main before_destruction);
 	t()
 
 let compile ctx actx =
 	let com = ctx.com in
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
+	let restore = disable_report_mode com in
 	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
+	restore ();
 	(* Initialize target: This allows access to the appropriate std packages and sets the -D defines. *)
 	let ext = Setup.initialize_target ctx com actx in
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
@@ -331,8 +336,12 @@ let compile ctx actx =
 		end;
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
-		DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
-		filter ctx tctx;
+		if is_diagnostics com then
+			filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)
+		else begin
+			DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
+			filter ctx tctx (fun () -> ());
+		end;
 		if ctx.has_error then raise Abort;
 		Generate.check_auxiliary_output com actx;
 		com.stage <- CGenerationStart;

@@ -60,18 +60,49 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 			let file = jsonrpc#get_string_param "file" in
 			Path.get_full_path file
 		) file_input_marker in
-		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
-		TypeloadParse.current_stdin := jsonrpc#get_opt_param (fun () ->
+		let contents = jsonrpc#get_opt_param (fun () ->
 			let s = jsonrpc#get_string_param "contents" in
-			Common.define com Define.DisplayStdin; (* TODO: awkward *)
 			Some s
-		) None;
+		) None in
+
+		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
 		Parser.was_auto_triggered := was_auto_triggered;
-		DisplayPosition.display_position#set {
-			pfile = file;
-			pmin = pos;
-			pmax = pos;
-		}
+
+		if file <> file_input_marker then begin
+			let file_unique = com.file_keys#get file in
+
+			DisplayPosition.display_position#set {
+				pfile = file;
+				pmin = pos;
+				pmax = pos;
+			};
+
+			com.file_contents <- [file_unique, contents];
+		end else begin
+			let file_contents = jsonrpc#get_opt_param (fun () ->
+				jsonrpc#get_opt_param (fun () -> jsonrpc#get_array_param "fileContents") []
+			) [] in
+
+			let file_contents = List.map (fun fc -> match fc with
+				| JObject fl ->
+					let file = jsonrpc#get_string_field "fileContents" "file" fl in
+					let file = Path.get_full_path file in
+					let file_unique = com.file_keys#get file in
+					let contents = jsonrpc#get_opt_param (fun () ->
+						let s = jsonrpc#get_string_field "fileContents" "contents" fl in
+						Some s
+					) None in
+					(file_unique, contents)
+				| _ -> invalid_arg "fileContents"
+			) file_contents in
+
+			let files = (List.map (fun (k, _) -> k) file_contents) in
+			com.file_contents <- file_contents;
+
+			match files with
+			| [] -> DisplayPosition.display_position#set { pfile = file; pmin = pos; pmax = pos; };
+			| _ -> DisplayPosition.display_position#set_files files;
+		end
 end
 
 type handler_context = {
@@ -125,6 +156,12 @@ let handler =
 		"display/definition", (fun hctx ->
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMDefinition;
+		);
+		"display/diagnostics", (fun hctx ->
+			hctx.display#set_display_file false false;
+			hctx.display#enable_display DMNone;
+			hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = true };
+			hctx.com.report_mode <- RMDiagnostics (List.map (fun (f,_) -> f) hctx.com.file_contents);
 		);
 		"display/implementation", (fun hctx ->
 			hctx.display#set_display_file false true;
@@ -360,12 +397,6 @@ let handler =
 				let b = hctx.jsonrpc#get_bool_param "legacyCompletion" in
 				ServerConfig.legacy_completion := b;
 				l := jstring ("Legacy completion " ^ (if b then "enabled" else "disabled")) :: !l;
-				()
-			) ();
-			hctx.jsonrpc#get_opt_param (fun () ->
-				let b = hctx.jsonrpc#get_bool_param "populateCacheFromDisplay" in
-				ServerConfig.populate_cache_from_display := b;
-				l := jstring ("Compilation cache refill from display " ^ (if b then "enabled" else "disabled")) :: !l;
 				()
 			) ();
 			hctx.send_result (jarray !l)

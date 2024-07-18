@@ -350,6 +350,7 @@ let rec type_ident_raise ctx i p mode with_type =
 	| _ ->
 	try
 		let v = PMap.find i ctx.locals in
+		add_var_flag v VUsedByTyper;
 		(match v.v_extra with
 		| Some ve ->
 			let (params,e) = (ve.v_params,ve.v_expr) in
@@ -1130,7 +1131,7 @@ and type_new ctx path el with_type force_inline p =
 		typing_error (s_type (print_context()) t ^ " cannot be constructed") p
 	end with Error(No_constructor _ as err,p,depth) when ctx.com.display.dms_kind <> DMNone ->
 		located_display_error ~depth ctx.com (error_msg p err);
-		Diagnostics.secure_generated_code ctx (mk (TConst TNull) t p)
+		mk (TConst TNull) t p
 
 and type_try ctx e1 catches with_type p =
 	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
@@ -1796,7 +1797,6 @@ and type_call_builtin ctx e el mode with_type p =
 		| _ ->
 			let e = type_expr ctx e WithType.value in
 			warning ctx WInfo (s_type (print_context()) e.etype) e.epos;
-			let e = Diagnostics.secure_generated_code ctx e in
 			e
 		end
 	| (EField(e,"match",efk_todo),p), [epat] ->
