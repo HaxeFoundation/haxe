@@ -709,7 +709,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: win${{env.ARCH}}Binaries
           path: win${{env.ARCH}}Binaries
