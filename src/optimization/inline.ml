@@ -700,6 +700,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				typing_error "Could not inline `this` outside of an instance context" po
 			)
 		| TVar (v,eo) ->
+			if has_var_flag v VStatic then typing_error "Inline functions cannot have static locals" v.v_pos;
 			{ e with eexpr = TVar ((state#declare v).i_subst,opt (map false false) eo)}
 		| TReturn eo when not state#in_local_fun ->
 			if not term then begin
