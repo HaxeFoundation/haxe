@@ -846,7 +846,7 @@ let generate_function ctx f =
 			sexpr "%s = %s >> %s" (reg r) (reg a) (reg b)
 		| OUShr (r,a,b) ->
 			(match rtype r with
-			| HI64 -> sexpr "%s = ((uint64_t)%s) >> %s" (reg r) (reg a) (reg b)
+			| HI64 -> sexpr "%s = ((uint64)%s) >> %s" (reg r) (reg a) (reg b)
 			| _ -> sexpr "%s = ((unsigned)%s) >> %s" (reg r) (reg a) (reg b)
 			);
 		| OAnd (r,a,b) ->
