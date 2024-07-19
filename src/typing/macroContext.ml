@@ -480,6 +480,7 @@ let make_macro_api ctx mctx p =
 				let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) m (ctx.com.file_keys#generate_virtual ctx.com.compilation_step) [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
 				add_dependency mnew mdep MDepFromMacro;
+				add_dependency mdep mnew MDepFromMacroDefine;
 				ctx.com.module_nonexistent_lut#clear;
 			in
 			add false ctx;
@@ -510,6 +511,7 @@ let make_macro_api ctx mctx p =
 				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.file_keys#generate_virtual ctx.com.compilation_step) types pos in
 				mnew.m_extra.m_kind <- MFake;
 				add_dependency mnew ctx.m.curmod MDepFromMacro;
+				add_dependency ctx.m.curmod mnew MDepFromMacroDefine;
 				ctx.com.module_nonexistent_lut#clear;
 			end
 		);
