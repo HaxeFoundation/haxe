@@ -570,10 +570,17 @@ and class_type ?(tref=None) ctx c pl statics =
 		let t = HVirtual vp in
 		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
 		let rec loop c =
-			let fields = List.fold_left (fun acc (i,_) -> loop i @ acc) [] c.cl_implements in
-			PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) c.cl_fields fields
+			let rec concat_uniq fields pfields =
+				match pfields with
+				| (n,_,_) as pf::pfl -> if List.exists (fun (n1,_,_) -> n1 = n) fields then concat_uniq fields pfl else concat_uniq (pf::fields) pfl
+				| [] -> fields
+			in
+			let pfields = List.fold_left (fun acc (i,_) -> loop i @ acc) [] c.cl_implements in
+			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) c.cl_fields [] in
+			concat_uniq fields pfields
 		in
 		let fields = loop c in
+		let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
 		vp.vfields <- Array.of_list fields;
 		Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
 		t
