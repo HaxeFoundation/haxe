@@ -166,7 +166,7 @@ let init_import ctx path mode p =
 							check_alias tsub name pname;
 							Some name
 					in
-					ctx.m.import_resolution#add (module_type_resolution tsub alias p2);
+					ctx.m.import_resolution#add (module_type_resolution tsub alias p);
 				with Not_found ->
 					(* this might be a static property, wait later to check *)
 					let find_main_type_static () =
