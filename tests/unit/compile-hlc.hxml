@@ -4,3 +4,4 @@ compile-each.hxml
 #-D interp
 -D hl-check
 -D hl-ver=1.13.0
+-D hlgen.makefile=ci

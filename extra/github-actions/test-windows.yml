@@ -53,6 +53,11 @@
     mkdir "$env:HAXELIB_ROOT"
     haxelib setup "$env:HAXELIB_ROOT"
 
+- name: Add msbuild to PATH (hl/c)
+  uses: microsoft/setup-msbuild@v2
+  with:
+    msbuild-architecture: x64
+
 - name: Test
   shell: pwsh
   run: haxe RunCi.hxml

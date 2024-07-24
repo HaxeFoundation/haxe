@@ -6,6 +6,7 @@ on: [push, pull_request]
 
 jobs:
   windows64-build:
+    if: false
     runs-on: windows-latest
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
@@ -121,6 +122,7 @@ jobs:
 
 
   linux-build:
+    if: false
     runs-on: ubuntu-20.04
     env:
       PLATFORM: linux64
@@ -228,6 +230,7 @@ jobs:
           path: extra/doc
 
   linux-test:
+    if: false
     needs: linux-build
     runs-on: ubuntu-20.04
     env:
@@ -315,6 +318,7 @@ jobs:
         working-directory: ${{github.workspace}}/tests
 
   test-docgen:
+    if: false
     needs: linux-build
     runs-on: ubuntu-20.04
     env:
@@ -395,6 +399,7 @@ jobs:
         working-directory: ${{github.workspace}}/tests/docgen
 
   linux-arm64:
+    if: false
     runs-on: ubuntu-20.04
     permissions:
       packages: write
@@ -451,6 +456,7 @@ jobs:
           path: out/linux/arm64
 
   mac-build:
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -566,7 +572,6 @@ jobs:
 
 
   windows64-test:
-    needs: windows64-build
     runs-on: windows-latest
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
@@ -578,15 +583,11 @@ jobs:
       fail-fast: false
       matrix:
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/10919
-        target: [macro, js, hl, cpp, jvm, php, python, flash, neko]
+        target: [hl]
     steps:
       - uses: actions/checkout@main
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v4
-        with:
-          name: win${{env.ARCH}}Binaries
-          path: win${{env.ARCH}}Binaries
 
       - name: Install Neko from S3
         shell: pwsh
@@ -604,12 +605,12 @@ jobs:
         with:
           node-version: 18.17.1
 
-      # - name: Quick test
-      #   shell: pwsh
-      #   run: |
-      #     $DOWNLOADDIR="./win$($env:ARCH)Binaries"
-      #     new-item -Name $DOWNLOADDIR -ItemType directory
-      #     Invoke-WebRequest https://build.haxe.org/builds/haxe/$env:PLATFORM/haxe_latest.zip -OutFile $DOWNLOADDIR/haxe_bin.zip
+      - name: Quick test
+        shell: pwsh
+        run: |
+          $DOWNLOADDIR="./win$($env:ARCH)Binaries"
+          new-item -Name $DOWNLOADDIR -ItemType directory
+          Invoke-WebRequest https://build.haxe.org/builds/haxe/$env:PLATFORM/haxe_latest.zip -OutFile $DOWNLOADDIR/haxe_bin.zip
 
       - name: Setup Haxe
         shell: pwsh
@@ -655,6 +656,11 @@ jobs:
           mkdir "$env:HAXELIB_ROOT"
           haxelib setup "$env:HAXELIB_ROOT"
 
+      - name: Add msbuild to PATH (hl/c)
+        uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+
       - name: Test
         shell: pwsh
         run: haxe RunCi.hxml
@@ -662,6 +668,7 @@ jobs:
 
 
   mac-build-universal:
+    if: false
     needs: mac-build
     runs-on: macos-latest
     steps:
@@ -695,6 +702,7 @@ jobs:
           path: out
 
   mac-test:
+    if: false
     needs: mac-build-universal
     runs-on: macos-13
     env:

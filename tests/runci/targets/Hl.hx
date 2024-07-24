@@ -68,6 +68,11 @@ class Hl {
 		addToLIBPATH(hlBuildBinDir);
 
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
+
+		if (systemName == "Windows") {
+			Sys.putEnv("HASHLINK_SRC", hlSrc);
+			Sys.putEnv("HASHLINK_BIN", hlBuildBinDir);
+		}
 	}
 
 	static function buildAndRunHlc(dir:String, filename:String, ?run) {
@@ -88,7 +93,15 @@ class Hl {
 				]);
 
 				run('$dir/$filename.exe', []);
-
+			case "Windows" if(isCi()):
+				runCommand("MSBuild.exe", [
+					'$dir/$filename.sln',
+					'-nologo', '-verbosity:minimal',
+					'-t:$filename',
+					'-property:Configuration=Release',
+					'-property:Platform=x64'
+				]);
+				run('$dir/x64/Release/$filename.exe', []);
 			case _: // TODO hl/c for mac/windows
 		}
 	}
@@ -99,7 +112,7 @@ class Hl {
 		runCommand("haxe", [hxml, "-hl", '$target/hl-jit.hl'].concat(args));
 		runCommand(hlBinary, ['$target/hl-jit.hl']);
 
-		runCommand("haxe", [hxml, "-hl", '$target/hlc.c'].concat(args));
+		runCommand("haxe", [hxml, "-hl", '$target/hlc.c', "-D", "hlgen.makefile=ci"].concat(args));
 		buildAndRunHlc(target, "hlc");
 	}
 
