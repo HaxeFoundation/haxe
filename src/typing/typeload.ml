@@ -709,7 +709,7 @@ and init_meta_overloads ctx co cf =
 let t_iterator ctx p =
 	match load_qualified_type_def ctx [] "StdTypes" "Iterator" p with
 	| TTypeDecl t ->
-		add_dependency ctx.m.curmod t.t_module;
+		add_dependency ctx.m.curmod t.t_module MDepFromTyping;
 		let pt = spawn_monomorph ctx.e p in
 		apply_typedef t [pt], pt
 	| _ ->
@@ -761,7 +761,8 @@ and type_type_params ctx host path p tpl =
 						| TPHMethod
 						| TPHEnumConstructor
 						| TPHAnonField
-						| TPHLocal ->
+						| TPHLocal
+						| TPHUnbound ->
 							display_error ctx.com "Default type parameters are only supported on types" (pos ct)
 					end;
 					check_param_constraints ctx t (fun t -> t) ttp (pos ct);

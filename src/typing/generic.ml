@@ -87,7 +87,7 @@ let rec generic_substitute_type' gctx allow_expr t =
 		(* maybe loop, or generate cascading generics *)
 		let info = gctx.ctx.g.get_build_info gctx.ctx (TClassDecl c2) gctx.p in
 		let t = info.build_apply (List.map (generic_substitute_type' gctx true) tl2) in
-		(match follow t,gctx.mg with TInst(c,_), Some m -> add_dependency m c.cl_module | _ -> ());
+		(match follow t,gctx.mg with TInst(c,_), Some m -> add_dependency m c.cl_module MDepFromTyping | _ -> ());
 		t
 	| _ ->
 		try
@@ -188,8 +188,8 @@ let static_method_container gctx c cf p =
 		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
 		mg.m_types <- [TClassDecl cg];
 		ctx.com.module_lut#add mg.m_path mg;
-		add_dependency mg m;
-		add_dependency ctx.m.curmod mg;
+		add_dependency mg m MDepFromTyping;
+		add_dependency ctx.m.curmod mg MDepFromTyping;
 		cg
 
 let set_type_parameter_dependencies mg tl =
@@ -220,7 +220,7 @@ let set_type_parameter_dependencies mg tl =
 			loop ret
 		end
 	and add_dep m tl =
-		add_dependency mg m;
+		add_dependency mg m MDepFromTyping;
 		List.iter loop tl
 	in
 	List.iter loop tl
@@ -312,7 +312,7 @@ let build_generic_class ctx c p tl =
 			| Pure
 			| Struct | StructInit
 			| Using
-			| AutoBuild ->
+			| AutoBuild | Unreflective ->
 				true
 			| _ ->
 				false
@@ -320,8 +320,8 @@ let build_generic_class ctx c p tl =
 		cg.cl_meta <- (Meta.NoDoc,[],null_pos) :: cg.cl_meta;
 		mg.m_types <- [TClassDecl cg];
 		ctx.com.module_lut#add mg.m_path mg;
-		add_dependency mg m;
-		add_dependency ctx.m.curmod mg;
+		add_dependency mg m MDepFromTyping;
+		add_dependency ctx.m.curmod mg MDepFromTyping;
 		set_type_parameter_dependencies mg tl;
 		let build_field cf_old =
 			let params = List.map (fun ttp ->

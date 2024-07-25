@@ -684,7 +684,7 @@ let remap_fun ctx f dump get_str old_code =
 		let jumps = ref [] in
 		let out_pos = ref 0 in
 		let out_code = Array.make (Array.length f.code - ctx.r_nop_count) (ONop "") in
-		let new_debug = Array.make (Array.length f.code - ctx.r_nop_count) (0,0) in
+		let new_debug = Array.make (Array.length f.code - ctx.r_nop_count) (0,0,Globals.null_pos) in
 		Array.iteri (fun i op ->
 			Array.unsafe_set new_pos i !out_pos;
 			match op with

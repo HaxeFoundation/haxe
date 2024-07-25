@@ -461,6 +461,7 @@ module Printer = struct
 		| TPHEnumConstructor -> "TPHEnumConstructor"
 		| TPHAnonField -> "TPHAnonField"
 		| TPHLocal -> "TPHLocal"
+		| TPHUnbound -> "TPHUnbound"
 
 	let s_type_param tabs ttp =
 		s_record_fields tabs [
@@ -549,7 +550,7 @@ module Printer = struct
 			"e_meta",s_metadata en.e_meta;
 			"e_params",s_type_params (tabs ^ "\t") en.e_params;
 			"e_type",s_type_kind en.e_type;
-			"e_extern",string_of_bool en.e_extern;
+			"e_extern",string_of_bool (has_enum_flag en EnExtern);
 			"e_constrs",s_list "\n\t" (s_tenum_field (tabs ^ "\t")) (PMap.fold (fun ef acc -> ef :: acc) en.e_constrs []);
 			"e_names",String.concat ", " en.e_names
 		]
@@ -611,6 +612,13 @@ module Printer = struct
 		| MFake -> "MFake"
 		| MExtern -> "MExtern"
 		| MImport -> "MImport"
+
+	let s_module_origin = function
+		| MDepFromImport -> "MDepFromImport"
+		| MDepFromTyping -> "MDepFromTyping"
+		| MDepFromMacro -> "MDepFromMacro"
+		| MDepFromMacroInclude -> "MDepFromMacroInclude"
+		| MDepFromMacroDefine -> "MDepFromMacroDefine"
 
 	let s_module_tainting_reason = function
 		| CheckDisplayFile -> "check_display_file"

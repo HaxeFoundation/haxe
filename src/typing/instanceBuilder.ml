@@ -99,7 +99,7 @@ let get_build_info ctx mtype p =
 		in
 		make_build_info kind c.cl_path c.cl_params (has_class_flag c CExtern) f
 	| TEnumDecl e ->
-		make_build_info BuildNormal e.e_path e.e_params e.e_extern (fun t -> TEnum (e,t))
+		make_build_info BuildNormal e.e_path e.e_params (has_enum_flag e EnExtern) (fun t -> TEnum (e,t))
 	| TTypeDecl td ->
 		begin try
 			let msg = match Meta.get Meta.Deprecated td.t_meta with

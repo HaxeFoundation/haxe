@@ -22,7 +22,7 @@ depends: [
   ("ocaml" {>= "5.0"} & ("camlp5" {build}))
     | ("ocaml" {>= "4.08" & < "5.0"} & ("camlp5" {build & = "8.00.03"}))
   "ocamlfind" {build}
-  "dune" {>= "1.11"}
+  "dune" {>= "1.11" & < "3.16"}
   "sedlex" {>= "2.0"}
   "xml-light"
   "extlib" {>= "1.7.8"}

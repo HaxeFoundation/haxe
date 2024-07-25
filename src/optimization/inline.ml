@@ -96,7 +96,7 @@ let api_inline2 com c field params p =
 let api_inline ctx c field params p =
 	let mk_typeexpr path =
 		let m = (try ctx.com.module_lut#find path with Not_found -> die "" __LOC__) in
-		add_dependency ctx.m.curmod m;
+		add_dependency ctx.m.curmod m MDepFromTyping;
 		Option.get (ExtList.List.find_map (function
 			| TClassDecl cl when cl.cl_path = path -> Some (Texpr.Builder.make_static_this cl p)
 			| _ -> None
@@ -685,6 +685,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				raise_typing_error "Could not inline `this` outside of an instance context" po
 			)
 		| TVar (v,eo) ->
+			if has_var_flag v VStatic then raise_typing_error "Inline functions cannot have static locals" v.v_pos;
 			{ e with eexpr = TVar ((state#declare v).i_subst,opt (map false false) eo)}
 		| TReturn eo when not state#in_local_fun ->
 			if not term then begin

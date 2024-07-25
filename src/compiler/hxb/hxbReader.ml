@@ -142,18 +142,22 @@ let read_leb128 ch =
 
 let dump_stats name stats =
 	print_endline (Printf.sprintf "hxb_reader stats for %s" name);
-	print_endline (Printf.sprintf "  modules partially restored: %i" (!(stats.modules_fully_restored) - !(stats.modules_partially_restored)));
+	print_endline (Printf.sprintf "  modules partially restored: %i" (!(stats.modules_partially_restored) - !(stats.modules_fully_restored)));
 	print_endline (Printf.sprintf "  modules fully restored: %i" !(stats.modules_fully_restored));
 
 class hxb_reader
 	(mpath : path)
 	(stats : hxb_reader_stats)
+	(string_pool : string array option)
+	(timers_enabled : bool)
 = object(self)
 	val mutable api = Obj.magic ""
+	val mutable minimal_restore = false
 	val mutable current_module = null_module
 
 	val mutable ch = BytesWithPosition.create (Bytes.create 0)
-	val mutable string_pool = Array.make 0 ""
+	val mutable has_string_pool = (string_pool <> None)
+	val mutable string_pool = (match string_pool with None -> Array.make 0 "" | Some pool -> pool)
 	val mutable doc_pool = Array.make 0 ""
 
 	val mutable classes = Array.make 0 null_class
@@ -179,6 +183,12 @@ class hxb_reader
 		with Not_found ->
 			dump_backtrace();
 			error (Printf.sprintf "[HXB] [%s] Cannot resolve type %s" (s_type_path current_module.m_path) (s_type_path ((pack @ [mname]),tname)))
+
+	method get_string_pool =
+		if has_string_pool then
+			Some (string_pool)
+		else
+			None
 
 	(* Primitives *)
 
@@ -734,6 +744,9 @@ class hxb_reader
 			local_type_parameters.(k).ttp_type
 		| 4 ->
 			t_dynamic
+		| 5 ->
+			let path = self#read_path in
+			(mk_type_param { null_class with cl_path = path } TPHUnbound None None).ttp_type
 		| 10 ->
 			let c = self#read_class_ref in
 			c.cl_type
@@ -1446,7 +1459,6 @@ class hxb_reader
 		in
 		loop CfrMember (read_uleb128 ch) c.cl_ordered_fields;
 		loop CfrStatic (read_uleb128 ch) c.cl_ordered_statics;
-		(match c.cl_kind with KModuleFields md -> md.m_statics <- Some c; | _ -> ());
 
 	method read_enum_fields (e : tenum) =
 		type_type_parameters <- Array.of_list e.e_params;
@@ -1503,6 +1515,9 @@ class hxb_reader
 		c.cl_implements <- self#read_list read_relation;
 		c.cl_dynamic <- self#read_option (fun () -> self#read_type_instance);
 		c.cl_array_access <- self#read_option (fun () -> self#read_type_instance);
+		(match c.cl_kind with
+			| KModuleFields md -> md.m_statics <- Some c;
+			| _ -> ());
 
 	method read_abstract (a : tabstract) =
 		self#read_common_module_type (Obj.magic a);
@@ -1515,6 +1530,7 @@ class hxb_reader
 		end;
 		a.a_from <- self#read_list (fun () -> self#read_type_instance);
 		a.a_to <- self#read_list (fun () -> self#read_type_instance);
+		a.a_extern <- self#read_bool;
 		a.a_enum <- self#read_bool;
 
 	method read_abstract_fields (a : tabstract) =
@@ -1557,7 +1573,7 @@ class hxb_reader
 
 	method read_enum (e : tenum) =
 		self#read_common_module_type (Obj.magic e);
-		e.e_extern <- self#read_bool;
+		e.e_flags <- read_uleb128 ch;
 		e.e_names <- self#read_list (fun () -> self#read_string);
 
 	method read_typedef (td : tdef) =
@@ -1817,7 +1833,7 @@ class hxb_reader
 				error ("Unexpected type where typedef was expected: " ^ (s_type_path (pack,tname)))
 		))
 
-	method read_mdr =
+	method read_imports =
 		let length = read_uleb128 ch in
 		for _ = 0 to length - 1 do
 			let path = self#read_path in
@@ -1870,7 +1886,7 @@ class hxb_reader
 				let read_field () =
 					let name = self#read_string in
 					let pos,name_pos = self#read_pos_pair in
-					let index = read_byte ch in
+					let index = read_uleb128 ch in
 
 					{ null_enum_field with
 						ef_name = name;
@@ -1923,15 +1939,18 @@ class hxb_reader
 		match kind with
 		| STR ->
 			string_pool <- self#read_string_pool;
+			has_string_pool <- true;
 		| DOC ->
 			doc_pool <- self#read_string_pool;
 		| MDF ->
+			assert(has_string_pool);
 			current_module <- self#read_mdf;
+			incr stats.modules_partially_restored;
 		| MTF ->
 			current_module.m_types <- self#read_mtf;
 			api#add_module current_module;
-		| MDR ->
-			self#read_mdr;
+		| IMP ->
+			if not minimal_restore then self#read_imports;
 		| CLR ->
 			self#read_clr;
 		| ENR ->
@@ -1989,7 +2008,7 @@ class hxb_reader
 	method private read_chunk_data kind =
 		let path = String.concat "_" (ExtLib.String.nsplit (s_type_path mpath) ".") in
 		let id = ["hxb";"read";string_of_chunk_kind kind;path] in
-		let close = Timer.timer id in
+		let close = if timers_enabled then Timer.timer id else fun() -> () in
 		try
 			self#read_chunk_data' kind
 		with Invalid_argument msg -> begin
@@ -1999,10 +2018,11 @@ class hxb_reader
 		close()
 
 	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =
-		fst (self#read_chunks_until new_api chunks EOM)
+		fst (self#read_chunks_until new_api chunks EOM false)
 
-	method read_chunks_until (new_api : hxb_reader_api) (chunks : cached_chunks) end_chunk =
+	method read_chunks_until (new_api : hxb_reader_api) (chunks : cached_chunks) end_chunk minimal_restore' =
 		api <- new_api;
+		minimal_restore <- minimal_restore';
 		let rec loop = function
 			| (kind,data) :: chunks ->
 				ch <- BytesWithPosition.create data;
@@ -2015,6 +2035,7 @@ class hxb_reader
 
 	method read (new_api : hxb_reader_api) (bytes : bytes) =
 		api <- new_api;
+		minimal_restore <- false;
 		ch <- BytesWithPosition.create bytes;
 		if (Bytes.to_string (read_bytes ch 3)) <> "hxb" then
 			raise (HxbFailure "magic");

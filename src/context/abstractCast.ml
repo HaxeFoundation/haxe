@@ -244,7 +244,7 @@ let find_multitype_specialization com a pl p =
 	cf, follow m
 
 let handle_abstract_casts ctx e =
-	let rec loop ctx e = match e.eexpr with
+	let rec loop e = match e.eexpr with
 		| TNew({cl_kind = KAbstractImpl a} as c,pl,el) ->
 			if not (Meta.has Meta.MultiType a.a_meta) then begin
 				(* This must have been a @:generic expansion with a { new } constraint (issue #4364). In this case
@@ -296,10 +296,11 @@ let handle_abstract_casts ctx e =
 					| TCast(e2,None) ->
 						{e1 with eexpr = TCast(find_field e2,None)}
 					| TField(e2,fa) ->
+						let e2 = loop e2 in
 						let a,pl,e2 = find_abstract e2 e2.etype in
 						let m = Abstract.get_underlying_type a pl in
 						let fname = field_name fa in
-						let el = List.map (loop ctx) el in
+						let el = List.map loop el in
 						begin try
 							let fa = quick_field m fname in
 							let get_fun_type t = match follow t with
@@ -353,11 +354,11 @@ let handle_abstract_casts ctx e =
 				in
 				find_field e1
 			with Not_found ->
-				Type.map_expr (loop ctx) e
+				Type.map_expr loop e
 			end
 		| _ ->
-			Type.map_expr (loop ctx) e
+			Type.map_expr loop e
 	in
-	loop ctx e
+	loop e
 ;;
 Typecore.cast_or_unify_raise_ref := cast_or_unify_raise

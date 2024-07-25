@@ -275,7 +275,7 @@ let check_defines com =
 		PMap.iter (fun k _ ->
 			try
 				let reason = Hashtbl.find Define.deprecation_lut k in
-				let p = { pfile = "-D " ^ k; pmin = -1; pmax = -1 } in
+				let p = fake_pos ("-D " ^ k) in
 				com.warning WDeprecatedDefine [] reason p
 			with Not_found ->
 				()
@@ -346,7 +346,9 @@ let compile ctx actx callbacks =
 	let com = ctx.com in
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
+	let restore = disable_report_mode com in
 	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
+	restore ();
 	let mctx = match com.platform with
 		| CustomTarget name ->
 			begin try
@@ -599,7 +601,8 @@ module HighLevel = struct
 				loop acc l
 			| "--cwd" :: dir :: l | "-C" :: dir :: l ->
 				(* we need to change it immediately since it will affect hxml loading *)
-				(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
+				(* Exceptions are ignored there to let arg parsing do the error handling in expected order *)
+				(try Unix.chdir dir with _ -> ());
 				(* Push the --cwd arg so the arg processor know we did something. *)
 				loop (dir :: "--cwd" :: acc) l
 			| "--connect" :: hp :: l ->

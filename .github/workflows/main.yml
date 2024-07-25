@@ -149,9 +149,11 @@ jobs:
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/include
           sudo mkdir -p /usr/local/lib/neko
           sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
           sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
           sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
           echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
 
@@ -264,9 +266,11 @@ jobs:
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/include
           sudo mkdir -p /usr/local/lib/neko
           sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
           sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
           sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
           echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
 
@@ -340,9 +344,11 @@ jobs:
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/include
           sudo mkdir -p /usr/local/lib/neko
           sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
           sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
           sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
           echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
 
@@ -448,10 +454,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, macos-14]
+        os: [macos-14, macos-13]
     runs-on: ${{ matrix.os }}
     env:
-      PLATFORM: mac
+      PLATFORM: mac${{ matrix.os == 'macos-14' && '-arm64' || '' }}
       OPAMYES: 1
       MACOSX_DEPLOYMENT_TARGET: 10.13
       OCAML_VERSION: 5.1.1
@@ -476,9 +482,11 @@ jobs:
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/include
           sudo mkdir -p /usr/local/lib/neko
           sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
           sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
           sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
           echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
 
@@ -543,14 +551,14 @@ jobs:
           otool -L ./haxelib
 
       - name: Upload artifact (x64)
-        if: matrix.os == 'macos-latest'
+        if: runner.arch == 'X64'
         uses: actions/upload-artifact@v4
         with:
           name: macX64Binaries
           path: out
 
       - name: Upload artifact (arm)
-        if: matrix.os == 'macos-14'
+        if: runner.arch == 'ARM64'
         uses: actions/upload-artifact@v4
         with:
           name: macArmBinaries
@@ -674,9 +682,8 @@ jobs:
           tar -xf macX64Binaries/*_bin.tar.gz -C macX64Binaries --strip-components=1
           tar -xf macArmBinaries/*_bin.tar.gz -C macArmBinaries --strip-components=1
           lipo -create -output haxe macX64Binaries/haxe macArmBinaries/haxe
-          # there is only x64 haxelib
-          mv macX64Binaries/haxelib .
-          make -s package_unix package_installer_mac
+          lipo -create -output haxelib macX64Binaries/haxelib macArmBinaries/haxelib
+          make -s package_unix package_installer_mac PACKAGE_INSTALLER_MAC_ARCH=universal
           ls -l out
           otool -L ./haxe
           otool -L ./haxelib
@@ -689,7 +696,7 @@ jobs:
 
   mac-test:
     needs: mac-build-universal
-    runs-on: macos-latest
+    runs-on: macos-13
     env:
       PLATFORM: mac
       TEST: ${{matrix.target}}
@@ -719,9 +726,11 @@ jobs:
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/include
           sudo mkdir -p /usr/local/lib/neko
           sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
           sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
           sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
           echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
 

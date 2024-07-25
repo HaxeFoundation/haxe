@@ -4,63 +4,57 @@ open Common
 open CompilationContext
 
 let resolve_source file l1 p1 l2 p2 =
-	let ch = open_in_bin file in
-	let curline = ref 1 in
-	let lines = ref [] in
-	let rec loop p line =
-		let inc i line =
-			if (!curline >= l1) && (!curline <= l2) then lines := (!curline, line) :: !lines;
-			curline := !curline + 1;
-			(i, "")
+	if l1 = l2 && p1 = p2 && l1 = 1 && p1 = 1 then []
+	else begin
+		let ch = open_in_bin file in
+		let curline = ref 1 in
+		let lines = ref [] in
+		let rec loop p line =
+			let inc i line =
+				if (!curline >= l1) && (!curline <= l2) then lines := (!curline, line) :: !lines;
+				incr curline;
+				(i, "")
+			in
+
+			let input_char_or_done ch line =
+				try input_char ch with End_of_file -> begin
+					ignore(inc 0 line);
+					raise End_of_file
+				end
+			in
+
+			let read_char line = match input_char_or_done ch line with
+				| '\n' -> inc 1 line
+				| '\r' ->
+					ignore(input_char_or_done ch line);
+					inc 2 line
+				| c -> begin
+					let line = ref (line ^ (String.make 1 c)) in
+					let rec skip n =
+						if n > 0 then begin
+							let c = input_char_or_done ch !line in
+							line := !line ^ (String.make 1 c);
+							skip (n - 1)
+						end
+					in
+
+					let code = int_of_char c in
+					if code < 0xC0 then ()
+					else if code < 0xE0 then skip 1
+					else if code < 0xF0 then skip 2
+					else skip 3;
+
+					(1, !line)
+				end
+			in
+
+			let (delta, line) = read_char line in
+			loop (p + delta) line
 		in
 
-		let input_char_or_done ch line =
-			try input_char ch with End_of_file -> begin
-				ignore(inc 0 line);
-				raise End_of_file
-			end
-		in
-
-		let read_char line = match input_char_or_done ch line with
-			| '\n' -> inc 1 line
-			| '\r' ->
-				ignore(input_char_or_done ch line);
-				inc 2 line
-			| c -> begin
-				let line = ref (line ^ (String.make 1 c)) in
-				let rec skip n =
-					if n > 0 then begin
-						let c = input_char_or_done ch !line in
-						line := !line ^ (String.make 1 c);
-						skip (n - 1)
-					end
-				in
-
-				let code = int_of_char c in
-				if code < 0xC0 then ()
-				else if code < 0xE0 then skip 1
-				else if code < 0xF0 then skip 2
-				else skip 3;
-
-				(1, !line)
-			end
-		in
-
-		let (delta, line) = read_char line in
-		loop (p + delta) line
-	in
-
-	try loop 0 ""; with End_of_file -> close_in ch;
-	List.rev !lines
-
-let resolve_file ctx f =
-	let ext = StringHelper.extension f in
-	let second_ext = StringHelper.extension (StringHelper.remove_extension f) in
-	let platform_ext = "." ^ (platform_name_macro ctx) in
-	if platform_ext = second_ext then
-		(StringHelper.remove_extension (StringHelper.remove_extension f)) ^ ext
-	else
-		f
+		try loop 0 ""; with End_of_file -> close_in ch;
+		List.rev !lines
+	end
 
 let error_printer file line = Printf.sprintf "%s:%d:" file line
 
@@ -95,12 +89,11 @@ let compiler_pretty_message_string com ectx cm =
 				let epos = if is_unknown_file cm.cm_pos.pfile then "(unknown position)" else cm.cm_pos.pfile in
 				(-1, -1, -1, -1, epos, [])
 			end else try begin
-				let f = resolve_file com cm.cm_pos.pfile in
-				let f = Common.find_file com f in
 				let l1, p1, l2, p2 = Lexer.get_pos_coords cm.cm_pos in
-				let lines = resolve_source f l1 p1 l2 p2 in
+				let lines = resolve_source cm.cm_pos.pfile l1 p1 l2 p2 in
 				let epos =
-					if ectx.absolute_positions then TPrinting.Printer.s_pos cm.cm_pos
+					if lines = [] then cm.cm_pos.pfile
+					else if ectx.absolute_positions then TPrinting.Printer.s_pos cm.cm_pos
 					else Lexer.get_error_pos error_printer cm.cm_pos
 				in
 				(l1, p1, l2, p2, epos, lines)
@@ -180,6 +173,20 @@ let compiler_pretty_message_string com ectx cm =
 				(* File + line pointer *)
 				epos;
 
+		(* Macros can send all sorts of bad positions; avoid failing too hard *)
+		let safe_sub s pos len =
+			if len < 0 then ""
+			else
+				let pos = if pos < 0 then 0 else pos in
+				let slen = String.length s in
+				if pos >= slen then ""
+				else
+					let len = if (pos + len) > slen then slen - pos else len in
+					try String.sub s pos len with
+					(* Should not happen anymore, but still better than a crash if I missed some case... *)
+					| Invalid_argument _ -> (Printf.sprintf "[%s;%i;%i]" s pos len)
+		in
+
 		(* Error source *)
 		if display_source then out := List.fold_left (fun out (l, line) ->
 			let nb_len = String.length (string_of_int l) in
@@ -198,18 +205,18 @@ let compiler_pretty_message_string com ectx cm =
 					if l = 0 then
 						c_dim ^ line ^ c_reset
 					else if l1 = l2 then
-						(if p1 > 1 then c_dim ^ (String.sub line 0 (p1-1)) else "")
-						^ c_reset ^ c_bold ^ (String.sub line (p1-1) (p2-p1))
-						^ c_reset ^ c_dim ^ (String.sub line (p2-1) (len - p2 + 1))
+						(if p1 > 1 then c_dim ^ (safe_sub line 0 (p1-1)) else "")
+						^ c_reset ^ c_bold ^ (safe_sub line (p1-1) (p2-p1))
+						^ c_reset ^ c_dim ^ (safe_sub line (p2-1) (len - p2 + 1))
 						^ c_reset
 					else begin
 						(if (l = l1) then
-							(if p1 > 1 then c_dim ^ (String.sub line 0 (p1-1)) else "")
-							^ c_reset ^ c_bold ^ (String.sub line (p1-1) (len-p1+1))
+							c_dim ^ (safe_sub line 0 (p1-1))
+							^ c_reset ^ c_bold ^ (safe_sub line (p1-1) (len-p1+1))
 							^ c_reset
 						else if (l = l2) then
-							(if p2 > 1 then c_bold ^ (String.sub line 0 (p2-1)) else "")
-							^ c_reset ^ c_dim ^ (String.sub line (p2-1) (len-p2+1))
+							c_bold ^ (safe_sub line 0 (p2-1))
+							^ c_reset ^ c_dim ^ (safe_sub line (p2-1) (len-p2+1))
 							^ c_reset
 						else c_bold ^ line ^ c_reset)
 					end
@@ -342,7 +349,7 @@ let format_messages com messages =
 	let absolute_positions = Define.defined com.defines Define.MessageAbsolutePositions in
 	let ectx = create_error_context absolute_positions in
 	ectx.max_lines <- get_max_line ectx.max_lines messages;
-	let message_formatter = get_formatter com Define.MessageReporting "classic" in
+	let message_formatter = get_formatter com Define.MessageReporting "pretty" in
 	let lines = List.rev (
 		List.fold_left (fun lines cm -> match (message_formatter ectx cm) with
 			| None -> lines
@@ -368,7 +375,7 @@ let display_messages ctx on_message = begin
 			compiler_message_string
 	in
 
-	let message_formatter = get_formatter ctx.com Define.MessageReporting "classic" in
+	let message_formatter = get_formatter ctx.com Define.MessageReporting "pretty" in
 	let log_formatter = get_formatter ctx.com Define.MessageLogFormat "indent" in
 
 	let log_messages = ref (Define.defined ctx.com.defines Define.MessageLogFile) in

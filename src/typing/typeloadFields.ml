@@ -185,9 +185,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		let params = extract_param_types c.cl_params in
 		let ethis = mk (TConst TThis) (TInst(c,params)) p in
 		let doc_buf = Buffer.create 0 in
-		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
-			| Var { v_write = AccNever } -> args,el,tl
-			| Var _ ->
+		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> if is_physical_var_field cf then
 				let has_default_expr = field_has_default_expr cf.cf_name in
 				let opt = has_default_expr || (Meta.has Meta.Optional cf.cf_meta) in
 				let t = if opt then ctx.t.tnull cf.cf_type else cf.cf_type in
@@ -221,7 +219,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 					Buffer.add_string doc_buf "\n";
 				end;
 				(v,None) :: args,e :: el,(cf.cf_name,opt,t) :: tl
-			| Method _ ->
+			else
 				args,el,tl
 		) ([],[],[]) (List.rev c.cl_ordered_fields) in
 		let el = match super_expr with Some e -> e :: el | None -> el in
@@ -402,7 +400,7 @@ let build_module_def ctx mt meta fvars fbuild =
 				let r = try ctx.g.do_macro ctx MBuild cpath meth el p with e -> ctx.c.get_build_infos <- old; raise e in
 				ctx.c.get_build_infos <- old;
 				(match r with
-				| MError | MMacroInMacro -> raise_typing_error "Build failure" p
+				| MError | MMacroInMacro -> raise_typing_error (Printf.sprintf "Build failure (%s.%s)" (s_type_path cpath) meth) p
 				| MSuccess e -> fbuild e)
 			) :: f_build
 		| _ ->
@@ -737,7 +735,7 @@ module TypeBinding = struct
 		let p = cf.cf_pos in
 		let ctx = TyperManager.clone_for_expr ctx_f (if fctx.is_static then FunStatic else FunMember) false in
 		if (has_class_flag c CInterface) then unexpected_expression ctx.com fctx "Initialization on field of interface" (pos e);
-		cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
+		cf.cf_meta <- ((Meta.Value,[e],cf.cf_pos) :: cf.cf_meta);
 		let check_cast e =
 			(* insert cast to keep explicit field type (issue #1901) *)
 			if type_iseq e.etype cf.cf_type then

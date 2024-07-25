@@ -1859,7 +1859,7 @@ let generate_type ctx = function
             generate_class ctx c;
         check_multireturn ctx c;
     | TEnumDecl e ->
-        if not e.e_extern then generate_enum ctx e
+        if not (has_enum_flag e EnExtern) then generate_enum ctx e
         else ();
     | TTypeDecl _ | TAbstractDecl _ -> ()
 
@@ -1874,7 +1874,7 @@ let generate_type_forward ctx = function
             end
         else if Meta.has Meta.LuaRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
             generate_require ctx c.cl_path c.cl_meta
-    | TEnumDecl e when e.e_extern ->
+    | TEnumDecl e when has_enum_flag e EnExtern ->
         if Meta.has Meta.LuaRequire e.e_meta && is_directly_used ctx.com e.e_meta then
             generate_require ctx e.e_path e.e_meta;
     | TEnumDecl e ->
@@ -1930,7 +1930,7 @@ let alloc_ctx com =
         match t with
         | TClassDecl c when (has_class_flag c CExtern) &&  not (Meta.has Meta.LuaRequire c.cl_meta)
             -> dot_path p
-        | TEnumDecl { e_extern = true }
+        | TEnumDecl e when has_enum_flag e EnExtern
             -> s_path ctx p
         | _ -> s_path ctx p);
     ctx

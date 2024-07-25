@@ -147,9 +147,8 @@ module ModuleLevel = struct
 						e_doc = d.d_doc;
 						e_meta = d.d_meta;
 						e_private = priv;
-						e_extern = List.mem EExtern d.d_flags;
 					} in
-					if not e.e_extern then check_type_name name d.d_meta p;
+					if List.mem EExtern d.d_flags then add_enum_flag e EnExtern else check_type_name name d.d_meta p;
 					add_declaration decl (TEnumDecl e)
 				| ETypedef d ->
 					let name = fst d.d_name in
@@ -198,6 +197,7 @@ module ModuleLevel = struct
 						a_read = None;
 						a_write = None;
 						a_call = None;
+						a_extern = List.mem AbExtern d.d_flags;
 						a_enum = List.mem AbEnum d.d_flags || p_enum_meta <> None;
 					} in
 					begin match p_enum_meta with
@@ -288,7 +288,7 @@ module ModuleLevel = struct
 			let decls = try
 				let r = com.parser_cache#find path in
 				let mimport = com.module_lut#find ([],path) in
-				if mimport.m_extra.m_kind <> MFake then add_dependency m mimport;
+				if mimport.m_extra.m_kind <> MFake then add_dependency m mimport MDepFromImport;
 				r
 			with Not_found ->
 				if Sys.file_exists path then begin
@@ -299,7 +299,7 @@ module ModuleLevel = struct
 					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> raise_typing_error "Only import and using is allowed in import.hx files" p) r;
 					let m_import = make_import_module path r in
 					add_module com m_import p;
-					add_dependency m m_import;
+					add_dependency m m_import MDepFromImport;
 					r
 				end else begin
 					let r = [] in
@@ -512,12 +512,11 @@ module TypeLevel = struct
 				delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx_en f);
 		) (!constructs);
 		e.e_names <- List.rev !names;
-		e.e_extern <- e.e_extern;
 		unify ctx_en (TType(enum_module_type e,[])) e.e_type p;
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
 			delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_doc ctx_en e);
-		if (ctx_en.com.platform = Jvm) && not e.e_extern then
+		if (ctx_en.com.platform = Jvm) && not (has_enum_flag e EnExtern) then
 			delay ctx_en.g PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_en e.e_meta in
 				e.e_meta <- metas @ e.e_meta;
@@ -708,7 +707,7 @@ let type_types_into_module com g m tdecls p =
 	let imports_and_usings,decls = ModuleLevel.create_module_types ctx_m m tdecls p in
 	(* define the per-module context for the next pass *)
 	if ctx_m.g.std_types != null_module then begin
-		add_dependency m ctx_m.g.std_types;
+		add_dependency m ctx_m.g.std_types MDepFromTyping;
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
 		ignore(load_instance ctx_m (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal LoadNormal)
 	end;
@@ -775,10 +774,10 @@ class hxb_reader_api_typeload
 end
 
 let rec load_hxb_module com g path p =
-	let read file bytes =
+	let read file bytes string_pool =
 		try
 			let api = (new hxb_reader_api_typeload com g load_module' p :> HxbReaderApi.hxb_reader_api) in
-			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats in
+			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats string_pool (Common.defined com Define.HxbTimes) in
 			let read = reader#read api bytes in
 			let m = read EOT in
 			delay g PConnectField (fun () ->
@@ -796,7 +795,7 @@ let rec load_hxb_module com g path p =
 		| hxb_lib :: l ->
 			begin match hxb_lib#get_bytes target path with
 				| Some bytes ->
-					read hxb_lib#get_file_path bytes
+					read hxb_lib#get_file_path bytes (hxb_lib#get_string_pool target)
 				| None ->
 					loop l
 			end
@@ -844,9 +843,9 @@ and load_module' com g m p =
 			let is_extern = !is_extern in
 			type_module com g m file ~is_extern decls p
 
-let load_module ctx m p =
+let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 	let m2 = load_module' ctx.com ctx.g m p in
-	add_dependency ~skip_postprocess:true ctx.m.curmod m2;
+	add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
 	if ctx.pass = PTypeField then flush_pass ctx.g PConnectField ("load_module",fst m @ [snd m]);
 	m2
 

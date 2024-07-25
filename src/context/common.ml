@@ -230,6 +230,13 @@ class file_keys = object(self)
 			let key = Path.UniqueKey.create file in
 			Hashtbl.add cache file key;
 			key
+
+	val virtual_counter = ref 0
+
+	method generate_virtual step =
+		incr virtual_counter;
+		Printf.sprintf "file_%i_%i" step !virtual_counter
+
 end
 
 type shared_display_information = {
@@ -338,6 +345,7 @@ class virtual abstract_hxb_lib = object(self)
 	method virtual get_bytes : string -> path -> bytes option
 	method virtual close : unit
 	method virtual get_file_path : string
+	method virtual get_string_pool : string -> string array option
 end
 
 type context_main = {
@@ -435,7 +443,7 @@ let ignore_error com =
 	b
 
 let module_warning com m w options msg p =
-	DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
+	if com.display.dms_full_typing then DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
 	com.warning w options msg p
 
 (* Defines *)

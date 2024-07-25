@@ -26,6 +26,7 @@ type 'value compiler_api = {
 	init_macros_done : unit -> bool;
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
+	include_module : string -> unit;
 	after_init_macros : (unit -> unit) -> unit;
 	after_typing : (module_type list -> unit) -> unit;
 	on_generate : (Type.t list -> unit) -> bool -> unit;
@@ -1057,8 +1058,8 @@ and encode_type_params tl =
 
 and encode_tenum e =
 	encode_mtype (TEnumDecl e) [
-		"isExtern", vbool e.e_extern;
-		"exclude", vfun0 (fun() -> e.e_extern <- true; vnull);
+		"isExtern", vbool (has_enum_flag e EnExtern);
+		"exclude", vfun0 (fun() -> add_enum_flag e EnExcluded; vnull);
 		"constructs", encode_string_map encode_efield e.e_constrs;
 		"names", encode_array (List.map encode_string e.e_names);
 	]
@@ -1156,7 +1157,7 @@ and encode_tclass c =
 	encode_mtype (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", vbool (has_class_flag c CExtern);
-		"exclude", vfun0 (fun() -> add_class_flag c CExtern; c.cl_init <- None; vnull);
+		"exclude", vfun0 (fun() -> add_class_flag c CExcluded; c.cl_init <- None; vnull);
 		"isInterface", vbool (has_class_flag c CInterface);
 		"isFinal", vbool (has_class_flag c CFinal);
 		"isAbstract", vbool (has_class_flag c CAbstract);
@@ -1319,6 +1320,7 @@ and encode_tvar v =
 		"capture", vbool (has_var_flag v VCaptured);
 		"extra", vopt f_extra v.v_extra;
 		"meta", encode_meta v.v_meta (fun m -> v.v_meta <- m);
+		"isStatic", vbool (has_var_flag v VStatic);
 		"$", encode_unsafe (Obj.repr v);
 	]
 
@@ -1876,6 +1878,10 @@ let macro_api ccom get_api =
 		);
 		"get_module", vfun1 (fun s ->
 			encode_array (List.map encode_type ((get_api()).get_module (decode_string s)))
+		);
+		"include_module", vfun1 (fun s ->
+			(get_api()).include_module (decode_string s);
+			vnull
 		);
 		"on_after_init_macros", vfun1 (fun f ->
 			let f = prepare_callback f 1 in

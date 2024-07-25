@@ -1642,7 +1642,7 @@ let generate_type ctx = function
 			(match c.cl_path with
 			| ([],_) -> ()
 			| _ -> generate_package_create ctx c.cl_path)
-	| TEnumDecl e when e.e_extern ->
+	| TEnumDecl e when has_enum_flag e EnExtern ->
 		if Meta.has Meta.JsRequire e.e_meta && is_directly_used ctx.com e.e_meta then
 			generate_require ctx e.e_path e.e_meta
 	| TEnumDecl e -> generate_enum ctx e
@@ -1694,7 +1694,7 @@ let alloc_ctx com es_version =
 
 	ctx.type_accessor <- (fun t ->
 		match t with
-		| TEnumDecl ({ e_extern = true } as e) when not (Meta.has Meta.JsRequire e.e_meta) ->
+		| TEnumDecl e when (has_enum_flag e EnExtern) && not (Meta.has Meta.JsRequire e.e_meta) ->
 			dot_path e.e_path
 		| TClassDecl c ->
 			let p = get_generated_class_path c in
@@ -1880,7 +1880,7 @@ let generate com =
 		else vars in
 	let vars = if (enums_as_objects && (has_feature ctx "has_enum" || has_feature ctx "Type.resolveEnum")) then "$hxEnums = $hxEnums || {}" :: vars else vars in
 	let vars,has_dollar_underscore =
-		if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types then
+		if List.exists (function TEnumDecl e when not (has_enum_flag e EnExtern) -> true | _ -> false) com.types then
 			"$_" :: vars,ref true
 		else
 			vars,ref false

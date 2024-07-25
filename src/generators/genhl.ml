@@ -95,9 +95,9 @@ type context = {
 	cfunctions : fundecl DynArray.t;
 	cconstants : (constval, (global * int array)) lookup;
 	optimize : bool;
+	w_null_compare : bool;
 	overrides : (string * path, bool) Hashtbl.t;
 	defined_funs : (int,unit) Hashtbl.t;
-	is_macro : bool;
 	mutable dump_out : (unit IO.output) option;
 	mutable cached_types : (string list, ttype) PMap.t;
 	mutable m : method_context;
@@ -263,7 +263,7 @@ let global_type ctx g =
 	DynArray.get ctx.cglobals.arr g
 
 let is_overridden ctx c f =
-	ctx.is_macro || Hashtbl.mem ctx.overrides (f.cf_name,c.cl_path)
+	Hashtbl.mem ctx.overrides (f.cf_name,c.cl_path)
 
 let alloc_float ctx f =
 	lookup ctx.cfloats f (fun() -> f)
@@ -339,7 +339,7 @@ let make_debug ctx arr =
 		with Not_found ->
 			p.pfile
 	in
-	let pos = ref (0,0) in
+	let pos = ref (0,0,Globals.null_pos) in
 	let cur_file = ref 0 in
 	let cur_line = ref 0 in
 	let cur = ref Globals.null_pos in
@@ -347,12 +347,12 @@ let make_debug ctx arr =
 	for i = 0 to DynArray.length arr - 1 do
 		let p = DynArray.unsafe_get arr i in
 		if p != !cur then begin
-			let file = if p.pfile == (!cur).pfile then !cur_file else lookup ctx.cdebug_files p.pfile (fun() -> if ctx.is_macro then p.pfile else get_relative_path p) in
-			let line = if ctx.is_macro then p.pmin lor ((p.pmax - p.pmin) lsl 20) else Lexer.get_error_line p in
+			let file = if p.pfile == (!cur).pfile then !cur_file else lookup ctx.cdebug_files p.pfile (fun() -> get_relative_path p) in
+			let line = Lexer.get_error_line p in
 			if line <> !cur_line || file <> !cur_file then begin
 				cur_file := file;
 				cur_line := line;
-				pos := (file,line);
+				pos := (file,line,p);
 			end;
 			cur := p;
 		end;
@@ -569,10 +569,17 @@ and class_type ?(tref=None) ctx c pl statics =
 		let t = HVirtual vp in
 		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
 		let rec loop c =
-			let fields = List.fold_left (fun acc (i,_) -> loop i @ acc) [] c.cl_implements in
-			PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) c.cl_fields fields
+			let rec concat_uniq fields pfields =
+				match pfields with
+				| (n,_,_) as pf::pfl -> if List.exists (fun (n1,_,_) -> n1 = n) fields then concat_uniq fields pfl else concat_uniq (pf::fields) pfl
+				| [] -> fields
+			in
+			let pfields = List.fold_left (fun acc (i,_) -> loop i @ acc) [] c.cl_implements in
+			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) c.cl_fields [] in
+			concat_uniq fields pfields
 		in
 		let fields = loop c in
+		let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
 		vp.vfields <- Array.of_list fields;
 		Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
 		t
@@ -1005,8 +1012,8 @@ let not_debug_var ctx v = match v.v_kind with
 	| VInlinedConstructorVariable _ -> false
 	| _ -> true
 
-let add_assign ctx v =
-	if not_debug_var ctx v then () else
+let add_assign ?(force=false) ctx v =
+	if not force && not_debug_var ctx v then () else
 	let name = real_name v in
 	ctx.m.massign <- (alloc_string ctx name, current_pos ctx - 1) :: ctx.m.massign
 
@@ -1546,6 +1553,8 @@ and jump_expr ctx e jcond =
 		| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
 		| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti1), HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 as ti2)
 			->
+			if ctx.w_null_compare && (is_nullt t1 || is_nullt t2) then
+				ctx.com.warning WGenerator [] (Printf.sprintf "Null compare: %s %s %s" (tstr t1) (s_binop jop) (tstr t2)) e.epos;
 			let r1 = eval_expr ctx e1 in
 			hold ctx r1;
 			let jnull1 = if is_nullt t1 then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> ()) in
@@ -3022,6 +3031,7 @@ and eval_expr ctx e =
 					op ctx (OCall2 (rb, alloc_fun_path ctx (["hl"],"BaseType") "check",r,rtrap));
 					let jnext = jump ctx (fun n -> OJFalse (rb,n)) in
 					op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx rtrap (to_type ctx v.v_type) ec.epos));
+					add_assign ctx v;
 					jnext
 				in
 				let r = eval_expr ctx ec in
@@ -3287,7 +3297,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	let args = List.map (fun (v,o) ->
 		let t = to_type ctx v.v_type in
 		let r = alloc_var ctx (if o = None then v else { v with v_type = if not (is_nullable t) then TAbstract(ctx.ref_abstract,[v.v_type]) else v.v_type }) true in
-		add_assign ctx v; (* record var name *)
+		add_assign ~force:true ctx v; (* record var name *)
 		rtype ctx r
 	) f.tf_args in
 
@@ -3669,7 +3679,7 @@ let generate_static_init ctx types main =
 
 				free ctx rc;
 
-			| TEnumDecl e when not e.e_extern ->
+			| TEnumDecl e when not (has_enum_flag e EnExtern) ->
 
 				let et = enum_class ctx e in
 				let t = enum_type ctx e in
@@ -4035,7 +4045,7 @@ let write_code ch code debug =
 				end
 			end
 		in
-		Array.iter (fun (f,p) ->
+		Array.iter (fun (f,p,_) ->
 			if f <> !curfile then begin
 				flush_repeat(p);
 				curfile := f;
@@ -4090,7 +4100,7 @@ let write_code ch code debug =
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
 
-let create_context com is_macro dump =
+let create_context com dump =
 	let get_type name =
 		try
 			List.find (fun t -> (t_infos t).mt_path = (["hl"],name)) com.types
@@ -4111,8 +4121,8 @@ let create_context com is_macro dump =
 	in
 	let ctx = {
 		com = com;
-		is_macro = is_macro;
 		optimize = not (Common.raw_defined com "hl_no_opt");
+		w_null_compare = Common.raw_defined com "hl_w_null_compare";
 		dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None;
 		m = method_context 0 HVoid null_capture false;
 		cints = new_lookup();
@@ -4172,7 +4182,7 @@ let add_types ctx types =
 				| _ ->
 					false
 			in
-			if not ctx.is_macro then List.iter (fun f -> if has_class_field_flag f CfOverride then ignore(loop c.cl_super f)) c.cl_ordered_fields;
+			List.iter (fun f -> if has_class_field_flag f CfOverride then ignore(loop c.cl_super f)) c.cl_ordered_fields;
 			List.iter (fun (m,args,p) ->
 				if m = Meta.HlNative then
 					let lib, prefix = (match args with
@@ -4242,7 +4252,7 @@ let generate com =
 		close_out ch;
 	end else
 
-	let ctx = create_context com false dump in
+	let ctx = create_context com dump in
 	add_types ctx com.types;
 	let code = build_code ctx com.types com.main.main_expr in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
@@ -4265,7 +4275,7 @@ let generate com =
 	end;*)
 	if hl_check then begin
 		check ctx;
-		Hlinterp.check code false;
+		Hlinterp.check com.error code;
 	end;
 	let t = Timer.timer ["generate";"hl";"write"] in
 
