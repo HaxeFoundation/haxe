@@ -1475,7 +1475,7 @@ and jump_expr ctx e jcond =
 		jump_expr ctx e jcond
 	| TUnop (Not,_,e) ->
 		jump_expr ctx e (not jcond)
-	| TBinop (OpEq,{ eexpr = TConst(TNull) },e) | TBinop (OpEq,e,{ eexpr = TConst(TNull) }) ->
+	| TBinop ((OpEq | OpGte | OpLte),{ eexpr = TConst(TNull) },e) | TBinop ((OpEq | OpGte | OpLte),e,{ eexpr = TConst(TNull) }) ->
 		let r = eval_expr ctx e in
 		if is_nullable(rtype ctx r) then
 			jump ctx (fun i -> if jcond then OJNull (r,i) else OJNotNull (r,i))
