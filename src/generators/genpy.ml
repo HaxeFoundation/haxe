@@ -2001,7 +2001,7 @@ module Generator = struct
 		!has_static_methods || !has_empty_static_vars
 
 	let gen_class_init ctx c =
-		match c.cl_init with
+		match TClass.get_cl_init c with
 			| None ->
 				()
 			| Some e ->
@@ -2229,7 +2229,7 @@ module Generator = struct
 
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
-		| TEnumDecl en when not en.e_extern -> gen_enum ctx en
+		| TEnumDecl en when not (has_enum_flag en EnExtern) -> gen_enum ctx en
 		| TAbstractDecl {a_path = [],"UInt"} -> ()
 		| TAbstractDecl {a_path = [],"Enum"} -> ()
 		| TAbstractDecl {a_path = [],"EnumValue"} when not (has_feature ctx "has_enum") -> ()
@@ -2339,7 +2339,7 @@ module Generator = struct
 		List.iter (fun mt ->
 			match mt with
 			| TClassDecl c when (has_class_flag c CExtern) -> import c.cl_path c.cl_meta
-			| TEnumDecl e when e.e_extern -> import e.e_path e.e_meta
+			| TEnumDecl e when has_enum_flag e EnExtern -> import e.e_path e.e_meta
 			| _ -> ()
 		) ctx.com.types
 
@@ -2410,7 +2410,7 @@ module Generator = struct
 		List.iter (fun f -> f()) (List.rev ctx.class_inits)
 
 	let gen_main ctx =
-		match ctx.com.main with
+		match ctx.com.main.main_expr with
 			| None ->
 				()
 			| Some e ->

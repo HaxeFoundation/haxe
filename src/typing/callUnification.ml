@@ -14,7 +14,6 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 		let msg = ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'") in
 		let e = match e.err_message with
 			| Unify l -> { e with err_message = Unify (l @ [(Unify_custom msg)])}
-			| Custom parent -> { e with err_message = Custom (parent ^ "\n" ^ msg)}
 			| _ -> { e with err_sub = (make_error (Custom (compl_msg msg)) e.err_pos) :: e.err_sub }
 		in
 		raise_error { e with err_message = (Call_error (Could_not_unify e.err_message)) }
@@ -144,7 +143,7 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 		| (e,p) :: el, [] ->
 			begin match List.rev !skipped with
 				| [] ->
-					if ctx.is_display_file && not (Diagnostics.error_in_diagnostics_run ctx.com p) then begin
+					if ctx.m.is_display_file && not (Diagnostics.error_in_diagnostics_run ctx.com p) then begin
 						ignore(type_expr ctx (e,p) WithType.value);
 						ignore(loop el [])
 					end;
@@ -168,13 +167,13 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 			end
 	in
 	let restore =
-		let in_call_args = ctx.in_call_args in
-		let in_overload_call_args = ctx.in_overload_call_args in
-		ctx.in_call_args <- true;
-		ctx.in_overload_call_args <- in_overload;
+		let in_call_args = ctx.f.in_call_args in
+		let in_overload_call_args = ctx.f.in_overload_call_args in
+		ctx.f.in_call_args <- true;
+		ctx.f.in_overload_call_args <- in_overload;
 		(fun () ->
-			ctx.in_call_args <- in_call_args;
-			ctx.in_overload_call_args <- in_overload_call_args;
+			ctx.f.in_call_args <- in_call_args;
+			ctx.f.in_overload_call_args <- in_overload_call_args;
 		)
 	in
 	let el = try loop el args with exc -> restore(); raise exc; in
@@ -241,14 +240,14 @@ let unify_field_call ctx fa el_typed el p inline =
 		else if fa.fa_field.cf_overloads <> [] then OverloadMeta
 		else OverloadNone
 	in
-	(* Delayed display handling works like this: If ctx.in_overload_call_args is set (via attempt_calls calling unify_call_args' below),
-	   the code which normally raises eager Display exceptions (in typerDisplay.ml handle_display) instead stores them in ctx.delayed_display.
+	(* Delayed display handling works like this: If ctx.e.in_overload_call_args is set (via attempt_calls calling unify_call_args' below),
+	   the code which normally raises eager Display exceptions (in typerDisplay.ml handle_display) instead stores them in ctx.g.delayed_display.
 	   The overload handling here extracts them and associates the exception with the field call candidates. Afterwards, normal overload resolution
 	   can take place and only then the display callback is actually committed.
 	*)
-	let extract_delayed_display () = match ctx.delayed_display with
+	let extract_delayed_display () = match ctx.g.delayed_display with
 		| Some f ->
-			ctx.delayed_display <- None;
+			ctx.g.delayed_display <- None;
 			Some f
 		| None ->
 			None
@@ -328,11 +327,11 @@ let unify_field_call ctx fa el_typed el p inline =
 			| cf :: candidates ->
 				let known_monos = List.map (fun (m,_) ->
 					m,m.tm_type,m.tm_down_constraints
-				) ctx.monomorphs.perfunction in
-				let current_monos = ctx.monomorphs.perfunction in
+				) ctx.e.monomorphs.perfunction in
+				let current_monos = ctx.e.monomorphs.perfunction in
 				begin try
 					let candidate = attempt_call cf true in
-					ctx.monomorphs.perfunction <- current_monos;
+					ctx.e.monomorphs.perfunction <- current_monos;
 					if overload_kind = OverloadProper then begin
 						let candidates,failures = loop candidates in
 						candidate :: candidates,failures
@@ -343,7 +342,7 @@ let unify_field_call ctx fa el_typed el p inline =
 						if t != m.tm_type then m.tm_type <- t;
 						if constr != m.tm_down_constraints then m.tm_down_constraints <- constr;
 					) known_monos;
-					ctx.monomorphs.perfunction <- current_monos;
+					ctx.e.monomorphs.perfunction <- current_monos;
 					check_unknown_ident err;
 					let candidates,failures = loop candidates in
 					candidates,(cf,err,extract_delayed_display()) :: failures
@@ -362,7 +361,7 @@ let unify_field_call ctx fa el_typed el p inline =
 	in
 	(* There's always a chance that we never even came across the EDisplay in an argument, so let's look for it (issue #11422). *)
 	let check_display_args () =
-		if ctx.is_display_file then begin
+		if ctx.m.is_display_file then begin
 			let rec loop el = match el with
 				| [] ->
 					()
@@ -415,9 +414,8 @@ let unify_field_call ctx fa el_typed el p inline =
 							p
 						) :: acc
 					) [] failures in
-
-					display_error_ext ctx.com (make_error ~sub (Custom "Could not find a suitable overload, reasons follow") p);
-					raise_typing_error_ext (make_error ~depth:1 (Custom "End of overload failure reasons") p)
+					let sub = (make_error ~depth:1 (Custom "End of overload failure reasons") p) :: sub in
+					raise_typing_error_ext (make_error ~sub (Custom "Could not find a suitable overload, reasons follow") p)
 				| Some err ->
 					raise_typing_error_ext err
 			end
@@ -429,12 +427,11 @@ let unify_field_call ctx fa el_typed el p inline =
 				maybe_check_access fcc.fc_field;
 				commit_delayed_display fcc
 			| fcc :: l ->
-				(* TODO construct error with sub *)
-				display_error ctx.com "Ambiguous overload, candidates follow" p;
 				let st = s_type (print_context()) in
-				List.iter (fun fcc ->
-					display_error ~depth:1 ctx.com (compl_msg (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
-				) (fcc :: l);
+				let sub = List.map (fun fcc ->
+					make_error ~depth:1 (Custom (compl_msg (st fcc.fc_type))) fcc.fc_field.cf_name_pos
+				) (fcc :: l) in
+				display_error_ext ctx.com (make_error (Custom "Ambiguous overload, candidates follow") ~sub:(List.rev sub) p);
 				commit_delayed_display fcc
 		end else begin match List.rev candidates with
 			| [] -> fail()
@@ -465,9 +462,9 @@ object(self)
 		end
 
 	method private macro_call (ethis : texpr) (cf : tclass_field) (el : expr list) =
-		if ctx.macro_depth > 300 then raise_typing_error "Stack overflow" p;
-		ctx.macro_depth <- ctx.macro_depth + 1;
-		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
+		if ctx.e.macro_depth > 300 then raise_typing_error "Stack overflow" p;
+		ctx.e.macro_depth <- ctx.e.macro_depth + 1;
+		ctx.e.with_type_stack <- with_type :: ctx.e.with_type_stack;
 		let ethis_f = ref (fun () -> ()) in
 		let macro_in_macro () =
 			(fun () ->
@@ -506,16 +503,17 @@ object(self)
 				loop c
 			| _ -> die "" __LOC__))
 		in
-		ctx.macro_depth <- ctx.macro_depth - 1;
-		ctx.with_type_stack <- List.tl ctx.with_type_stack;
+		ctx.e.macro_depth <- ctx.e.macro_depth - 1;
+		ctx.e.with_type_stack <- List.tl ctx.e.with_type_stack;
 		let old = ctx.com.error_ext in
 		ctx.com.error_ext <- (fun err ->
 			let ep = err.err_pos in
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
-				old (if (ep = null_pos) then { err with err_pos = p } else err);
-				(* TODO add as sub for above error *)
-				if ep <> null_pos then old (make_error ~depth:(err.err_depth+1) (Custom (compl_msg "Called from macro here")) p);
+				if ep = null_pos then
+					old { err with err_pos = p }
+				else
+					old { err with err_sub = (make_error ~depth:(err.err_depth+1) (Custom (compl_msg "Called from macro here")) p) :: err.err_sub }
 			end else
 				old err;
 		);
@@ -538,7 +536,7 @@ object(self)
 			let el = el_typed @ List.map (fun e -> type_expr ctx e WithType.value) el in
 			let t = if t == t_dynamic then
 				t_dynamic
-			else if ctx.untyped then
+			else if ctx.f.untyped then
 				mk_mono()
 			else
 				raise_typing_error (s_type (print_context()) e.etype ^ " cannot be called") e.epos

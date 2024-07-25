@@ -31,6 +31,15 @@ type eq_kind =
 	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
 	| EqStricter
 
+type type_param_unification_context = {
+	known_type_params : typed_type_param list;
+	mutable type_param_pairs : (typed_type_param * typed_type_param) list;
+}
+
+type type_param_mode =
+	| TpDefault
+	| TpDefinition of type_param_unification_context
+
 type unification_context = {
 	allow_transitive_cast   : bool;
 	allow_abstract_cast     : bool; (* allows a non-transitive abstract cast (from,to,@:from,@:to) *)
@@ -39,6 +48,7 @@ type unification_context = {
 	equality_kind           : eq_kind;
 	equality_underlying     : bool;
 	strict_field_kind       : bool;
+	type_param_mode         : type_param_mode;
 }
 
 type unify_min_result =
@@ -64,6 +74,19 @@ let default_unification_context = {
 	equality_kind           = EqStrict;
 	equality_underlying     = false;
 	strict_field_kind       = false;
+	type_param_mode         = TpDefault;
+}
+
+(* Unify like targets (e.g. Java) probably would. *)
+let native_unification_context = {
+	allow_transitive_cast = false;
+	allow_abstract_cast   = false;
+	allow_dynamic_to_cast = false;
+	equality_kind         = EqStrict;
+	equality_underlying   = false;
+	allow_arg_name_mismatch = true;
+	strict_field_kind       = false;
+	type_param_mode         = TpDefault;
 }
 
 module Monomorph = struct
@@ -235,25 +258,40 @@ module Monomorph = struct
 	and close m = match m.tm_type with
 		| Some _ ->
 			()
-		| None -> match classify_down_constraints m with
+		| None ->
+			let get_recursion t =
+				let rec loop t = match t with
+					| TMono m2 when m == m2 ->
+						raise (Type_exception t)
+					| _ ->
+						TFunctions.iter loop t
+				in
+				try
+					loop t;
+					None
+				with Type_exception t ->
+					Some t
+			in
+			(* TODO: we never do anything with monos, I think *)
+			let monos,constraints = classify_down_constraints' m in
+			match constraints with
 			| CUnknown ->
 				()
 			| CTypes [(t,_)] ->
-				do_bind m t;
-				()
+				(* TODO: silently not binding doesn't seem correct, but it's likely better than infinite recursion *)
+				if get_recursion t = None then do_bind m t;
 			| CTypes _ | CMixed _ ->
 				()
 			| CStructural(fields,_) ->
 				let check_recursion cf =
-					let rec loop t = match t with
-					| TMono m2 when m == m2 ->
-						let pctx = print_context() in
-						let s = Printf.sprintf "%s appears in { %s: %s }" (s_type pctx t) cf.cf_name (s_type pctx cf.cf_type) in
-						raise (Unify_error [Unify_custom "Recursive type";Unify_custom s]);
-					| _ ->
-						TFunctions.map loop t
-					in
-					ignore(loop cf.cf_type);
+					begin match get_recursion cf.cf_type with
+						| Some t ->
+							let pctx = print_context() in
+							let s = Printf.sprintf "%s appears in { %s: %s }" (s_type pctx t) cf.cf_name (s_type pctx cf.cf_type) in
+							raise (Unify_error [Unify_custom "Recursive type";Unify_custom s]);
+						| None ->
+							()
+					end
 				in
 				(* We found a bunch of fields but no type, create a merged structure type and bind to that *)
 				PMap.iter (fun _ cf -> check_recursion cf) fields;
@@ -291,7 +329,7 @@ let rec follow_and_close t = match follow t with
 	| t ->
 		t
 
-let link e a b =
+let link uctx e a b =
 	(* tell if setting a == b will create a type-loop *)
 	let rec loop t =
 		if t == a then
@@ -299,6 +337,13 @@ let link e a b =
 		else match t with
 		| TMono t -> (match t.tm_type with None -> false | Some t -> loop t)
 		| TEnum (_,tl) -> List.exists loop tl
+		| TInst ({cl_kind = KTypeParameter ttp}, tl) ->
+			begin match uctx.type_param_mode with
+				| TpDefault ->
+					List.exists loop tl
+				| TpDefinition tctx ->
+					not (List.memq ttp tctx.known_type_params)
+			end
 		| TInst (_,tl) | TType (_,tl) | TAbstract (_,tl) -> List.exists loop tl
 		| TFun (tl,t) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
 		| TDynamic None ->
@@ -493,6 +538,7 @@ let rec_stack stack value fcheck frun ferror =
 let rec_stack_default stack value fcheck frun def =
 	if not (rec_stack_exists fcheck stack) then rec_stack_loop stack value frun () else def
 
+
 let rec type_eq uctx a b =
 	let param = uctx.equality_kind in
 	let can_follow_null = match param with
@@ -516,11 +562,11 @@ let rec type_eq uctx a b =
 	| _ , TLazy f -> type_eq uctx a (lazy_type f)
 	| TMono t , _ ->
 		(match t.tm_type with
-		| None -> if param = EqCoreType || not (link t a b) then error [cannot_unify a b]
+		| None -> if param = EqCoreType || param = EqStricter || not (link uctx t a b) then error [cannot_unify a b]
 		| Some t -> type_eq uctx t b)
 	| _ , TMono t ->
 		(match t.tm_type with
-		| None -> if param = EqCoreType || not (link t b a) then error [cannot_unify a b]
+		| None -> if param = EqCoreType || param = EqStricter || not (link uctx t b a) then error [cannot_unify a b]
 		| Some t -> type_eq uctx a t)
 	| TDynamic None, TDynamic None ->
 		()
@@ -548,6 +594,9 @@ let rec type_eq uctx a b =
 			(fun l -> error (cannot_unify a b :: l))
 	| TEnum (e1,tl1) , TEnum (e2,tl2) ->
 		if e1 != e2 && not (param = EqCoreType && e1.e_path = e2.e_path) then error [cannot_unify a b];
+		type_eq_params uctx a b tl1 tl2
+	| TInst ({cl_kind = KTypeParameter ttp1},tl1) , TInst ({cl_kind = KTypeParameter ttp2},tl2) when param <> EqCoreType ->
+		assign_type_params uctx ttp1 ttp2;
 		type_eq_params uctx a b tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		if c1 != c2 && not (param = EqCoreType && c1.cl_path = c2.cl_path) && (match c1.cl_kind, c2.cl_kind with KExpr _, KExpr _ -> false | _ -> true) then error [cannot_unify a b];
@@ -610,6 +659,19 @@ let rec type_eq uctx a b =
 	| _ , _ ->
 		error [cannot_unify a b]
 
+and assign_type_params uctx ttp1 ttp2 =
+	if ttp1 != ttp2 then begin match uctx.type_param_mode with
+		| TpDefault ->
+			error []
+		| TpDefinition tctx ->
+			begin try
+				let ttp3 = List.assq ttp2 tctx.type_param_pairs in
+				if ttp1 != ttp3 then error []
+			with Not_found ->
+				tctx.type_param_pairs <- (ttp2,ttp1) :: tctx.type_param_pairs
+			end
+	end
+
 and type_eq_params uctx a b tl1 tl2 =
 	let i = ref 0 in
 	List.iter2 (fun t1 t2 ->
@@ -630,7 +692,7 @@ let type_iseq uctx a b =
 
 let type_iseq_strict a b =
 	try
-		type_eq {default_unification_context with equality_kind = EqDoNotFollowNull} a b;
+		type_eq {default_unification_context with equality_kind = EqStricter} a b;
 		true
 	with Unify_error _ ->
 		false
@@ -660,11 +722,11 @@ let rec unify (uctx : unification_context) a b =
 	| _ , TLazy f -> unify uctx a (lazy_type f)
 	| TMono t , _ ->
 		(match t.tm_type with
-		| None -> if not (link t a b) then error [cannot_unify a b]
+		| None -> if uctx.equality_kind = EqStricter || not (link uctx t a b) then error [cannot_unify a b]
 		| Some t -> unify uctx t b)
 	| _ , TMono t ->
 		(match t.tm_type with
-		| None -> if not (link t b a) then error [cannot_unify a b]
+		| None -> if uctx.equality_kind = EqStricter || not (link uctx t b a) then error [cannot_unify a b]
 		| Some t -> unify uctx a t)
 	| TType (t,tl) , _ ->
 		rec_stack unify_stack (a,b)
@@ -706,6 +768,9 @@ let rec unify (uctx : unification_context) a b =
 		unify_to {uctx with allow_transitive_cast = false} a b ab tl
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		unify_abstracts uctx a b a1 tl1 a2 tl2
+	| TInst ({cl_kind = KTypeParameter ttp1},tl1) , TInst ({cl_kind = KTypeParameter ttp2},tl2) when uctx.type_param_mode != TpDefault ->
+		assign_type_params uctx ttp1 ttp2;
+		unify_type_params uctx a b tl1 tl2;
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
 			if c == c2 then begin
@@ -885,7 +950,7 @@ let rec unify (uctx : unification_context) a b =
 			error [cannot_unify a b]
 		end
 	| _ , TDynamic None ->
-		()
+		if uctx.equality_kind = EqStricter then error [cannot_unify a b]
 	| _ , TDynamic (Some t1) ->
 		begin match a with
 		| TAnon an ->
@@ -1206,7 +1271,7 @@ module UnifyMinT = struct
 				begin match common_types with
 				| [] ->
 					begin match !first_error with
-					| None -> die "" __LOC__
+					| None -> UnifyMinError([Unify_custom "Could not determine common type, please add a type-hint"],0)
 					| Some(l,p) -> UnifyMinError(l,p)
 					end
 				| hd :: _ ->

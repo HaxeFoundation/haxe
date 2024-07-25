@@ -621,7 +621,7 @@ let generate_class ctx c =
 		"fields",jlist (generate_class_field ctx CFSMember) c.cl_ordered_fields;
 		"statics",jlist (generate_class_field ctx CFSStatic) c.cl_ordered_statics;
 		"constructor",jopt (generate_class_field ctx CFSConstructor) c.cl_constructor;
-		"init",jopt (generate_texpr ctx) c.cl_init;
+		"init",jopt (generate_texpr ctx) (TClass.get_cl_init c);
 		"overrides",jlist (classfield_ref ctx) (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields);
 		"isExtern",jbool (has_class_flag c CExtern);
 		"isFinal",jbool (has_class_flag c CFinal);
@@ -637,7 +637,7 @@ let generate_enum ctx e =
 	in
 	[
 		"constructors",generate_enum_constructors ();
-		"isExtern",jbool e.e_extern;
+		"isExtern",jbool (has_enum_flag e EnExtern)
 	]
 
 let generate_typedef ctx td =
@@ -701,7 +701,7 @@ let generate_module_type ctx mt =
 
 (* module *)
 
-let generate_module cs cc m =
+let generate_module modules find_module m =
 	jobject [
 		"id",jint m.m_id;
 		"path",generate_module_path m.m_path;
@@ -712,19 +712,19 @@ let generate_module cs cc m =
 			| MSGood -> "Good"
 			| MSBad reason -> Printer.s_module_skip_reason reason
 			| MSUnknown -> "Unknown");
-		"dependencies",jarray (PMap.fold (fun (sign,mpath) acc ->
+		"dependencies",jarray (PMap.fold (fun mdep acc ->
 			(jobject [
-				"path",jstring (s_type_path mpath);
-				"sign",jstring (Digest.to_hex ((cs#get_context sign)#find_module mpath).m_extra.m_sign);
+				"path",jstring (s_type_path mdep.md_path);
+				"sign",jstring (Digest.to_hex (find_module mdep.md_path).m_extra.m_sign);
 			]) :: acc
 		) m.m_extra.m_deps []);
-		"dependents",jarray (List.map (fun m -> (jobject [
-			"path",jstring (s_type_path m.m_path);
-			"sign",jstring (Digest.to_hex m.m_extra.m_sign);
-		])) (Hashtbl.fold (fun _ m' acc ->
-			if PMap.mem m.m_id m'.m_extra.m_deps then m' :: acc
+		"dependents",jarray (List.map (fun (path, sign) -> (jobject [
+			"path",jstring (s_type_path path);
+			"sign",jstring (Digest.to_hex sign);
+		])) (Hashtbl.fold (fun _ (m':HxbData.module_cache) acc ->
+			if PMap.mem m.m_id m'.mc_extra.m_deps then (m'.mc_path, m'.mc_extra.m_sign) :: acc
 			else acc
-		) cc#get_modules []));
+		) modules []));
 	]
 
 let create_context ?jsonrpc gm = {

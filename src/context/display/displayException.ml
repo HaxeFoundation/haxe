@@ -18,7 +18,10 @@ let raise_package sl = raise (DisplayException(DisplayPackage sl))
 (* global state *)
 let last_completion_result = ref (Array.make 0 (CompletionItem.make (ITModule ([],"")) None))
 let last_completion_pos = ref None
-let max_completion_items = ref 0
+
+let reset () =
+	last_completion_result := (Array.make 0 (CompletionItem.make (ITModule ([],"")) None));
+	last_completion_pos := None
 
 let filter_somehow ctx items kind subj =
 	let subject = match subj.s_name with
@@ -88,7 +91,7 @@ let filter_somehow ctx items kind subj =
 	in
 	let ret = DynArray.create () in
 	let rec loop acc_types = match acc_types with
-		| (item,index,_) :: acc_types when DynArray.length ret < !max_completion_items ->
+		| (item,index,_) :: acc_types when DynArray.length ret < !ServerConfig.max_completion_items ->
 			DynArray.add ret (CompletionItem.to_json ctx (Some index) item);
 			loop acc_types
 		| _ ->
@@ -113,7 +116,7 @@ let patch_completion_subject subj =
 
 let fields_to_json ctx fields kind subj =
 	last_completion_result := Array.of_list fields;
-	let needs_filtering = !max_completion_items > 0 && Array.length !last_completion_result > !max_completion_items in
+	let needs_filtering = !ServerConfig.max_completion_items > 0 && Array.length !last_completion_result > !ServerConfig.max_completion_items in
 	(* let p_before = subj.s_insert_pos in *)
 	let subj = patch_completion_subject subj in
 	let ja,num_items = if needs_filtering then
@@ -121,7 +124,7 @@ let fields_to_json ctx fields kind subj =
 	else
 		List.mapi (fun i item -> CompletionItem.to_json ctx (Some i) item) fields,Array.length !last_completion_result
  	in
-	let did_filter = num_items = !max_completion_items in
+	let did_filter = num_items = !ServerConfig.max_completion_items in
 	last_completion_pos := if did_filter then Some subj.s_start_pos else None;
 	let filter_string = (match subj.s_name with None -> "" | Some name -> name) in
 	(* print_endline (Printf.sprintf "FIELDS OUTPUT:\n\tfilter_string: %s\n\t    num items: %i\n\t        start: %s\n\t     position: %s\n\t   before cut: %s"

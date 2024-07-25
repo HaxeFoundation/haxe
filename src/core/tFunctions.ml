@@ -44,6 +44,18 @@ let remove_class_field_flag cf (flag : flag_tclass_field) =
 let has_class_field_flag cf (flag : flag_tclass_field) =
 	has_flag cf.cf_flags (int_of_class_field_flag flag)
 
+let int_of_enum_flag (flag : flag_tenum) =
+	Obj.magic flag
+
+let add_enum_flag e (flag : flag_tenum) =
+	e.e_flags <- set_flag e.e_flags (int_of_enum_flag flag)
+
+let remove_enum_flag e (flag : flag_tenum) =
+	e.e_flags <- unset_flag e.e_flags (int_of_enum_flag flag)
+
+let has_enum_flag e (flag : flag_tenum) =
+	has_flag e.e_flags (int_of_enum_flag flag)
+
 let int_of_var_flag (flag : flag_tvar) =
 	Obj.magic flag
 
@@ -171,6 +183,7 @@ let module_extra file sign time kind added policy =
 		m_time = time;
 		m_processed = 0;
 		m_deps = PMap.empty;
+		m_sig_deps = None;
 		m_kind = kind;
 		m_cache_bound_objects = DynArray.create ();
 		m_features = Hashtbl.create 0;
@@ -211,6 +224,8 @@ let find_field c name kind =
 		PMap.find name c.cl_statics
 	| CfrMember ->
 		PMap.find name c.cl_fields
+	| CfrInit ->
+		begin match c.cl_init with Some cf -> cf | None -> raise Not_found end
 
 let null_module = {
 	m_id = alloc_mid();
@@ -244,7 +259,7 @@ let null_enum = {
 	e_using = [];
 	e_restore = (fun () -> ());
 	e_type = t_dynamic;
-	e_extern = false;
+	e_flags = 0;
 	e_constrs = PMap.empty;
 	e_names = [];
 }
@@ -284,15 +299,20 @@ let null_abstract = {
 	a_read = None;
 	a_write = None;
 	a_call = None;
+	a_extern = false;
 	a_enum = false;
 }
 
-let add_dependency ?(skip_postprocess=false) m mdep =
-	if m != null_module && mdep != null_module && (m.m_path != mdep.m_path || m.m_extra.m_sign != mdep.m_extra.m_sign) then begin
-		m.m_extra.m_deps <- PMap.add mdep.m_id (mdep.m_extra.m_sign, mdep.m_path) m.m_extra.m_deps;
-		(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
-		if not skip_postprocess then m.m_extra.m_processed <- 0
-	end
+let add_dependency ?(skip_postprocess=false) m mdep = function
+	(* These module dependency origins should not add as a dependency *)
+	| MDepFromMacroInclude -> ()
+
+	| origin ->
+		if m != null_module && mdep != null_module && (m.m_path != mdep.m_path || m.m_extra.m_sign != mdep.m_extra.m_sign) then begin
+			m.m_extra.m_deps <- PMap.add mdep.m_id ({md_sign = mdep.m_extra.m_sign; md_path = mdep.m_path; md_kind = mdep.m_extra.m_kind; md_origin = origin}) m.m_extra.m_deps;
+			(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
+			if not skip_postprocess then m.m_extra.m_processed <- 0
+		end
 
 let arg_name (a,_) = a.v_name
 
@@ -720,14 +740,17 @@ let lookup_param n l =
 	in
 	loop l
 
-let mk_type_param c host def constraints = {
-	ttp_name = snd c.cl_path;
-	ttp_type = TInst(c,[]);
-	ttp_class = c;
-	ttp_host = host;
-	ttp_constraints = constraints;
-	ttp_default = def;
-}
+let mk_type_param c host def constraints =
+	let ttp = {
+		ttp_name = snd c.cl_path;
+		ttp_type = TInst(c,[]);
+		ttp_class = c;
+		ttp_host = host;
+		ttp_constraints = constraints;
+		ttp_default = def;
+	} in
+	c.cl_kind <- KTypeParameter ttp;
+	ttp
 
 let type_of_module_type = function
 	| TClassDecl c -> TInst (c,extract_param_types c.cl_params)
@@ -745,6 +768,13 @@ let rec module_type_of_type = function
 		(match r.tm_type with
 		| Some t -> module_type_of_type t
 		| _ -> raise Exit)
+	| TAnon an ->
+		begin match !(an.a_status) with
+			| ClassStatics c -> TClassDecl c
+			| EnumStatics en -> TEnumDecl en
+			| AbstractStatics a -> TAbstractDecl a
+			| _ -> raise Exit
+		end
 	| _ ->
 		raise Exit
 

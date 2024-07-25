@@ -230,6 +230,13 @@ class file_keys = object(self)
 			let key = Path.UniqueKey.create file in
 			Hashtbl.add cache file key;
 			key
+
+	val virtual_counter = ref 0
+
+	method generate_virtual step =
+		incr virtual_counter;
+		Printf.sprintf "file_%i_%i" step !virtual_counter
+
 end
 
 type shared_display_information = {
@@ -333,6 +340,19 @@ class module_lut = object(self)
 	method get_type_lut = type_lut
 end
 
+class virtual abstract_hxb_lib = object(self)
+	method virtual load : unit
+	method virtual get_bytes : string -> path -> bytes option
+	method virtual close : unit
+	method virtual get_file_path : string
+	method virtual get_string_pool : string -> string array option
+end
+
+type context_main = {
+	mutable main_class : path option;
+	mutable main_expr : texpr option;
+}
+
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
@@ -342,8 +362,7 @@ type context = {
 	mutable json_out : json_api option;
 	(* config *)
 	version : int;
-	args : string list;
-	mutable sys_args : string list;
+	mutable args : string list;
 	mutable display : DisplayTypes.DisplayMode.settings;
 	mutable debug : bool;
 	mutable verbose : bool;
@@ -352,7 +371,7 @@ type context = {
 	mutable config : platform_config;
 	empty_class_path : ClassPath.class_path;
 	class_paths : ClassPaths.class_paths;
-	mutable main_class : path option;
+	main : context_main;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
 	(* communication *)
@@ -387,27 +406,31 @@ type context = {
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
 	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
+	fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t;
 	mutable has_error : bool;
 	pass_debug_messages : string DynArray.t;
 	(* output *)
 	mutable file : string;
 	mutable features : (string,bool) Hashtbl.t;
 	mutable modules : Type.module_def list;
-	mutable main : Type.texpr option;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
+	functional_interface_lut : (path,(tclass * tclass_field)) lookup;
 	(* target-specific *)
 	mutable flash_version : float;
 	mutable neko_lib_paths : string list;
 	mutable include_files : (string * string) list;
 	mutable native_libs : native_libraries;
+	mutable hxb_libs : abstract_hxb_lib list;
 	mutable net_std : string list;
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
-	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
 	(* misc *)
 	mutable basic : basic_types;
 	memory_marker : float array;
+	mutable hxb_reader_api : HxbReaderApi.hxb_reader_api option;
+	hxb_reader_stats : HxbReader.hxb_reader_stats;
+	mutable hxb_writer_config : HxbWriterConfig.t option;
 }
 
 let enter_stage com stage =
@@ -420,7 +443,7 @@ let ignore_error com =
 	b
 
 let module_warning com m w options msg p =
-	DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
+	if com.display.dms_full_typing then DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
 	com.warning w options msg p
 
 (* Defines *)
@@ -454,6 +477,7 @@ let convert_define k =
 	String.concat "_" (ExtString.String.nsplit k "-")
 
 let is_next com = defined com HaxeNext
+let fail_fast com = defined com FailFast
 
 let external_defined ctx k =
 	Define.raw_defined ctx.defines (convert_define k)
@@ -462,7 +486,7 @@ let external_defined_value ctx k =
 	Define.raw_defined_value ctx.defines (convert_define k)
 
 let reserved_flags = [
-	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";"hl";"hlc";
+	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"java";"jvm";"python";"hl";"hlc";
 	"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
 ]
 
@@ -509,8 +533,7 @@ let short_platform_name = function
 	| Flash -> "swf"
 	| Php -> "php"
 	| Cpp -> "cpp"
-	| Cs -> "cs"
-	| Java -> "jav"
+	| Jvm -> "jvm"
 	| Python -> "py"
 	| Hl -> "hl"
 	| Eval -> "evl"
@@ -672,35 +695,7 @@ let get_config com =
 			};
 			pf_supports_atomics = true;
 		}
-	| Cs ->
-		{
-			default_config with
-			pf_capture_policy = CPWrapRef;
-			pf_pad_nulls = true;
-			pf_overload = true;
-			pf_supports_threads = true;
-			pf_supports_rest_args = true;
-			pf_this_before_super = false;
-			pf_exceptions = { default_config.pf_exceptions with
-				ec_native_throws = [
-					["cs";"system"],"Exception";
-					["haxe"],"Exception";
-				];
-				ec_native_catches = [
-					["cs";"system"],"Exception";
-					["haxe"],"Exception";
-				];
-				ec_wildcard_catch = (["cs";"system"],"Exception");
-				ec_base_throw = (["cs";"system"],"Exception");
-				ec_special_throw = fun e -> e.eexpr = TIdent "__rethrow__"
-			};
-			pf_scoping = {
-				vs_scope = FunctionScope;
-				vs_flags = [NoShadowing]
-			};
-			pf_supports_atomics = true;
-		}
-	| Java ->
+	| Jvm ->
 		{
 			default_config with
 			pf_capture_policy = CPWrapRef;
@@ -721,14 +716,6 @@ let get_config com =
 				ec_wildcard_catch = (["java";"lang"],"Throwable");
 				ec_base_throw = (["java";"lang"],"RuntimeException");
 			};
-			pf_scoping =
-				if defined Jvm then
-					default_config.pf_scoping
-				else
-					{
-						vs_scope = FunctionScope;
-						vs_flags = [NoShadowing; ReserveAllTopLevelSymbols; ReserveNames(["_"])];
-					};
 			pf_supports_atomics = true;
 		}
 	| Python ->
@@ -796,7 +783,6 @@ let create compilation_step cs version args display_mode =
 			display_module_has_macro_defines = false;
 			module_diagnostics = [];
 		};
-		sys_args = args;
 		debug = false;
 		display = display_mode;
 		verbose = false;
@@ -809,7 +795,10 @@ let create compilation_step cs version args display_mode =
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
 		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;
-		main_class = None;
+		main = {
+			main_class = None;
+			main_expr = None;
+		};
 		package_rules = PMap.empty;
 		file = "";
 		types = [];
@@ -818,13 +807,13 @@ let create compilation_step cs version args display_mode =
 		modules = [];
 		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
-		main = None;
+		fake_modules = Hashtbl.create 0;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
 		net_std = [];
 		native_libs = create_native_libs();
+		hxb_libs = [];
 		net_path_map = Hashtbl.create 0;
-		c_args = [];
 		neko_lib_paths = [];
 		include_files = [];
 		js_gen = None;
@@ -846,6 +835,7 @@ let create compilation_step cs version args display_mode =
 		pass_debug_messages = DynArray.create();
 		basic = {
 			tvoid = mk_mono();
+			tany = mk_mono();
 			tint = mk_mono();
 			tfloat = mk_mono();
 			tbool = mk_mono();
@@ -866,12 +856,18 @@ let create compilation_step cs version args display_mode =
 		has_error = false;
 		report_mode = RMNone;
 		is_macro_context = false;
+		functional_interface_lut = new Lookup.hashtbl_lookup;
+		hxb_reader_api = None;
+		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
+		hxb_writer_config = None;
 	} in
 	com
 
 let is_diagnostics com = match com.report_mode with
 	| RMLegacyDiagnostics _ | RMDiagnostics _ -> true
 	| _ -> false
+
+let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
 
 let disable_report_mode com =
 	let old = com.report_mode in
@@ -887,12 +883,16 @@ let clone com is_macro_context =
 		cache = None;
 		basic = { t with
 			tvoid = mk_mono();
+			tany = mk_mono();
 			tint = mk_mono();
 			tfloat = mk_mono();
 			tbool = mk_mono();
 			tstring = mk_mono();
 		};
-		main_class = None;
+		main = {
+			main_class = None;
+			main_expr = None;
+		};
 		features = Hashtbl.create 0;
 		callbacks = new compiler_callbacks;
 		display_information = {
@@ -910,7 +910,11 @@ let clone com is_macro_context =
 		module_to_file = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
 		module_lut = new module_lut;
+		fake_modules = Hashtbl.create 0;
+		hxb_reader_api = None;
+		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		std = null_class;
+		functional_interface_lut = new Lookup.hashtbl_lookup;
 		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;
 	}
@@ -953,13 +957,21 @@ let update_platform_config com =
 
 let init_platform com =
 	let name = platform_name com.platform in
-	if (com.platform = Flash) && Path.file_extension com.file = "swc" then define com Define.Swc
-	else if (com.platform = Hl) && Path.file_extension com.file = "c" then define com Define.Hlc;
+	begin match com.platform with
+	| Flash when Path.file_extension com.file = "swc" ->
+		define com Define.Swc
+	| Jvm ->
+		raw_define com "java"
+	| Hl ->
+		if Path.file_extension com.file = "c" then define com Define.Hlc;
+	| _ ->
+		()
+	end;
 	(* Set the source header, unless the user has set one already or the platform sets a custom one *)
 	if not (defined com Define.SourceHeader) && (com.platform <> Hl) then
 		define_value com Define.SourceHeader ("Generated by Haxe " ^ s_version_full);
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
-	com.package_rules <- List.fold_left forbid com.package_rules ("jvm" :: (List.map platform_name platforms));
+	com.package_rules <- List.fold_left forbid com.package_rules ("java" :: (List.map platform_name platforms));
 	update_platform_config com;
 	if com.config.pf_static then begin
 		raw_define com "target.static";
@@ -1185,7 +1197,7 @@ let dump_path com =
 	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
 
 let adapt_defines_to_macro_context defines =
-	let to_remove = List.map Globals.platform_name Globals.platforms in
+	let to_remove = "java" :: List.map Globals.platform_name Globals.platforms in
 	let to_remove = List.fold_left (fun acc d -> Define.get_define_key d :: acc) to_remove [Define.NoTraces] in
 	let to_remove = List.fold_left (fun acc (_, d) -> ("flash" ^ d) :: acc) to_remove flash_versions in
 	let macro_defines = {
@@ -1214,6 +1226,6 @@ let get_entry_point com =
 			| Some c when (PMap.mem "main" c.cl_statics) -> c
 			| _ -> Option.get (ExtList.List.find_map (fun t -> match t with TClassDecl c when c.cl_path = path -> Some c | _ -> None) m.m_types)
 		in
-		let e = Option.get com.main in (* must be present at this point *)
+		let e = Option.get com.main.main_expr in (* must be present at this point *)
 		(snd path, c, e)
-	) com.main_class
+	) com.main.main_class

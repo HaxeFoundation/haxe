@@ -6,12 +6,6 @@
 		"platforms": ["cpp"]
 	},
 	{
-		"name": "Abstract",
-		"metadata": ":abstract",
-		"doc": "Sets the underlying class implementation as `abstract`.",
-		"platforms": ["java", "cs"]
-	},
-	{
 		"name": "Access",
 		"metadata": ":access",
 		"doc": "Forces private access to package, type or field.",
@@ -43,7 +37,7 @@
 		"metadata": ":annotation",
 		"doc": "Marks a class as a Java annotation",
 		"params": ["Retention policy"],
-		"platforms": ["java"],
+		"platforms": ["jvm"],
 		"targets": ["TClass"]
 	},
 	{
@@ -52,20 +46,6 @@
 		"doc": "Allows array access on an abstract.",
 		"targets": ["TAbstract", "TAbstractField"],
 		"links": ["https://haxe.org/manual/types-abstract-array-access.html"]
-	},
-	{
-		"name": "AssemblyMeta",
-		"metadata": ":cs.assemblyMeta",
-		"doc": "Used to declare a native C# assembly attribute",
-		"platforms": ["cs"],
-		"targets": ["TClass"]
-	},
-	{
-		"name": "AssemblyStrict",
-		"metadata": ":cs.assemblyStrict",
-		"doc": "Used to declare a native C# assembly attribute; is type checked",
-		"platforms": ["cs"],
-		"targets": ["TClass"]
 	},
 	{
 		"name": "Ast",
@@ -104,13 +84,6 @@
 		"links": ["https://haxe.org/manual/target-flash-resources.html"]
 	},
 	{
-		"name": "BridgeProperties",
-		"metadata": ":bridgeProperties",
-		"doc": "Creates native property bridges for all Haxe properties in this class.",
-		"platforms": ["cs"],
-		"targets": ["TClass"]
-	},
-	{
 		"name": "Build",
 		"metadata": ":build",
 		"doc": "Builds a class, enum, or abstract from a macro.",
@@ -136,21 +109,6 @@
 		"metadata": ":callable",
 		"doc": "Abstract forwards call to its underlying type.",
 		"targets": ["TAbstract"]
-	},
-	{
-		"name": "Class",
-		"metadata": ":class",
-		"doc": "Used internally to annotate an enum that will be generated as a class.",
-		"platforms": ["java", "cs"],
-		"targets": ["TEnum"],
-		"internal": true
-	},
-	{
-		"name": "ClassCode",
-		"metadata": ":classCode",
-		"doc": "Used to inject platform-native code into a class.",
-		"platforms": ["java", "cs"],
-		"targets": ["TClass"]
 	},
 	{
 		"name": "Commutative",
@@ -203,21 +161,6 @@
 		"platforms": ["cpp"]
 	},
 	{
-		"name": "CsNative",
-		"metadata": ":csNative",
-		"doc": "Automatically added by `--net-lib` on classes generated from .NET DLL files.",
-		"platforms": ["cs"],
-		"targets": ["TClass", "TEnum"],
-		"internal": true
-	},
-	{
-		"name": "CsUsing",
-		"metadata": ":cs.using",
-		"doc": "Add using directives to your module",
-		"platforms": ["cs"],
-		"targets": ["TClass"]
-	},
-	{
 		"name": "Dce",
 		"metadata": ":dce",
 		"doc": "Forces dead code elimination even when `--dce full` is not specified.",
@@ -245,13 +188,6 @@
 		"internal": true
 	},
 	{
-		"name": "Delegate",
-		"metadata": ":delegate",
-		"doc": "Automatically added by `--net-lib` on delegates.",
-		"platforms": ["cs"],
-		"targets": ["TAbstract"]
-	},
-	{
 		"name": "Depend",
 		"metadata": ":depend",
 		"doc": "",
@@ -275,14 +211,6 @@
 		"internal": true
 	},
 	{
-		"name": "DynamicObject",
-		"metadata": ":dynamicObject",
-		"doc": "Used internally to identify the Dynamic Object implementation.",
-		"platforms": ["java", "cs"],
-		"targets": ["TClass"],
-		"internal": true
-	},
-	{
 		"name": "Eager",
 		"metadata": ":eager",
 		"doc": "Forces typedefs to be followed early.",
@@ -294,20 +222,6 @@
 		"doc": "Defines finite value sets to abstract definitions.",
 		"targets": ["TAbstract"],
 		"links": ["https://haxe.org/manual/types-abstract-enum.html"]
-	},
-	{
-		"name": "EnumConstructorParam",
-		"metadata": ":enumConstructorParam",
-		"doc": "Used internally to annotate GADT type parameters.",
-		"targets": ["TClass"],
-		"internal": true
-	},
-	{
-		"name": "Event",
-		"metadata": ":event",
-		"doc": "Automatically added by `--net-lib` on events. Has no effect on types compiled by Haxe.",
-		"platforms": ["cs"],
-		"targets": ["TClassField"]
 	},
 	{
 		"name": "Exhaustive",
@@ -423,10 +337,16 @@
 		"links": ["https://haxe.org/manual/types-abstract-implicit-casts.html"]
 	},
 	{
+		"name": "FunctionalInterface",
+		"metadata": ":functionalInterface",
+		"doc": "Mark an interface as a functional interface",
+		"platforms": ["jvm"]
+	},
+	{
 		"name": "FunctionCode",
 		"metadata": ":functionCode",
 		"doc": "Used to inject platform-native code into a function.",
-		"platforms": ["cpp", "java", "cs"]
+		"platforms": ["cpp"]
 	},
 	{
 		"name": "FunctionTailCode",
@@ -480,14 +400,6 @@
 		"internal": true
 	},
 	{
-		"name": "HaxeGeneric",
-		"metadata": ":haxeGeneric",
-		"doc": "Used internally to annotate non-native generic classes.",
-		"platforms": ["cs"],
-		"targets": ["TClass", "TEnum"],
-		"internal": true
-	},
-	{
 		"name": "HeaderClassCode",
 		"metadata": ":headerClassCode",
 		"doc": "Code to be injected into the generated class, in the header.",
@@ -519,6 +431,12 @@
 		"targets": ["TClass", "TClassField"]
 	},
 	{
+		"name": "HxbId",
+		"metadata": ":hxb.id",
+		"doc": "Internally used by hxb",
+		"internal": true
+	},
+	{
 		"name": "HxCompletion",
 		"metadata": ":hx.completion",
 		"doc": "Internally used for completion",
@@ -528,7 +446,6 @@
 		"name": "HxGen",
 		"metadata": ":hxGen",
 		"doc": "Annotates that an extern class was generated by Haxe.",
-		"platforms": ["java", "cs"],
 		"targets": ["TClass", "TEnum"]
 	},
 	{
@@ -598,13 +515,6 @@
 		"internal": true
 	},
 	{
-		"name": "Internal",
-		"metadata": ":internal",
-		"doc": "Generates the annotated field/class with 'internal' access.",
-		"platforms": ["java", "cs"],
-		"targets": ["TClass", "TEnum", "TClassField"]
-	},
-	{
 		"name": "IsVar",
 		"metadata": ":isVar",
 		"doc": "Forces a physical field to be generated for properties that otherwise would not require one.",
@@ -612,34 +522,17 @@
 		"links": ["https://haxe.org/manual/class-field-property-rules.html"]
 	},
 	{
-		"name": "JavaCanonical",
-		"metadata": ":javaCanonical",
-		"doc": "Used by the Java target to annotate the canonical path of the type.",
-		"platforms": ["java"],
-		"params": ["Output type package", "Output type name"],
-		"targets": ["TClass", "TEnum"]
-	},
-	{
 		"name": "JavaDefault",
 		"metadata": ":java.default",
 		"doc": "Equivalent to the default modifier of the Java language",
-		"platforms": ["java"],
-		"params": [],
+		"platforms": ["jvm"],
 		"targets": ["TClassField"]
-	},
-	{
-		"name": "JavaNative",
-		"metadata": ":javaNative",
-		"doc": "Automatically added by `--java-lib` on classes generated from JAR/class files.",
-		"platforms": ["java"],
-		"targets": ["TClass", "TEnum"],
-		"internal": true
 	},
 	{
 		"name": "JvmSynthetic",
 		"metadata": ":jvm.synthetic",
 		"doc": "Mark generated class, field or method as synthetic",
-		"platforms": ["java"],
+		"platforms": ["jvm"],
 		"targets": ["TClass", "TEnum", "TAnyField"]
 	},
 	{
@@ -687,7 +580,7 @@
 		"name": "LibType",
 		"metadata": ":libType",
 		"doc": "Used by `--net-lib` and `--java-lib` to mark a class that should not be checked (overrides, interfaces, etc) by the type loader.",
-		"platforms": ["java", "cs"],
+		"platforms": ["jvm"],
 		"targets": ["TClass"],
 		"internal": true
 	},
@@ -747,30 +640,15 @@
 		"name": "NativeJni",
 		"metadata": ":java.native",
 		"doc": "Annotates that a function has implementation in native code through JNI.",
-		"platforms": ["java"],
+		"platforms": ["jvm"],
 		"targets": ["TClassField"]
-	},
-	{
-		"name": "NativeChildren",
-		"metadata": ":nativeChildren",
-		"doc": "Annotates that all children from a type should be treated as if it were an extern definition - platform native.",
-		"platforms": ["java", "cs"],
-		"targets": ["TClass"]
 	},
 	{
 		"name": "NativeGen",
 		"metadata": ":nativeGen",
 		"doc": "Annotates that a type should be treated as if it were an extern definition - platform native.",
-		"platforms": ["java", "cs", "python"],
+		"platforms": ["python"],
 		"targets": ["TClass", "TEnum"]
-	},
-	{
-		"name": "NativeGeneric",
-		"metadata": ":nativeGeneric",
-		"doc": "Used internally to annotate native generic classes.",
-		"platforms": ["cs"],
-		"targets": ["TClass", "TEnum"],
-		"internal": true
 	},
 	{
 		"name": "NativeProperty",
@@ -977,7 +855,7 @@
 		"name": "Private",
 		"metadata": ":private",
 		"doc": "Marks a class field as being private.",
-		"platforms": ["cs"],
+		"platforms": ["jvm"],
 		"targets": ["TClassField"]
 	},
 	{
@@ -990,14 +868,7 @@
 		"name": "Protected",
 		"metadata": ":protected",
 		"doc": "Marks a class field as being protected.",
-		"platforms": ["cs", "java", "flash"],
-		"targets": ["TClassField"]
-	},
-	{
-		"name": "Property",
-		"metadata": ":property",
-		"doc": "Marks a field to be compiled as a native C# property.",
-		"platforms": ["cs"],
+		"platforms": ["jvm", "flash"],
 		"targets": ["TClassField"]
 	},
 	{
@@ -1005,13 +876,6 @@
 		"metadata": ":pure",
 		"doc": "Marks a class field, class or expression as pure (side-effect free).",
 		"targets": ["TClass", "TClassField", "TExpr"]
-	},
-	{
-		"name": "ReadOnly",
-		"metadata": ":readOnly",
-		"doc": "Generates a field with the `readonly` native keyword.",
-		"platforms": ["cs"],
-		"targets": ["TClassField"]
 	},
 	{
 		"name": "RealPath",
@@ -1089,21 +953,6 @@
 		"targets": ["TClassField"]
 	},
 	{
-		"name": "SkipCtor",
-		"metadata": ":skipCtor",
-		"doc": "Used internally to generate a constructor as if it were a native type (no `__hx_ctor`).",
-		"platforms": ["java", "cs"],
-		"internal": true
-	},
-	{
-		"name": "SkipReflection",
-		"metadata": ":skipReflection",
-		"doc": "Used internally to annotate a field that shouldn't have its reflection data generated.",
-		"platforms": ["java", "cs"],
-		"targets": ["TClassField"],
-		"internal": true
-	},
-	{
 		"name": "Sound",
 		"metadata": ":sound",
 		"doc": "Includes a given .wav or .mp3 file into the target SWF and associates it with the class (must extend `flash.media.Sound`).",
@@ -1139,14 +988,14 @@
 	{
 		"name": "Strict",
 		"metadata": ":strict",
-		"doc": "Used to declare a native C# attribute or a native Java metadata; is type checked.",
-		"platforms": ["java", "cs"]
+		"doc": "Used to declare a native Java metadata; is type checked.",
+		"platforms": ["jvm"]
 	},
 	{
 		"name": "Struct",
 		"metadata": ":struct",
 		"doc": "Marks a class definition as a struct.",
-		"platforms": ["cs", "hl"],
+		"platforms": ["hl"],
 		"targets": ["TClass"]
 	},
 	{
@@ -1163,13 +1012,6 @@
 		"targets": ["TClass"]
 	},
 	{
-		"name": "SuppressWarnings",
-		"metadata": ":suppressWarnings",
-		"doc": "Adds a `SuppressWarnings` annotation for the generated Java class.",
-		"platforms": ["java"],
-		"targets": ["TClass"]
-	},
-	{
 		"name": "TailRecursion",
 		"metadata": ":tailRecursion",
 		"doc": "Internally used for tail recursion elimination.",
@@ -1180,14 +1022,6 @@
 		"metadata": ":templatedCall",
 		"doc": "Indicates that the first parameter of static call should be treated as a template argument.",
 		"platforms": ["cpp"],
-		"targets": ["TClassField"]
-	},
-	{
-		"name": "Throws",
-		"metadata": ":throws",
-		"doc": "Adds a `throws` declaration to the generated function.",
-		"platforms": ["java"],
-		"params": ["Type as String"],
 		"targets": ["TClassField"]
 	},
 	{
@@ -1211,13 +1045,6 @@
 		"internal": true
 	},
 	{
-		"name": "Transient",
-		"metadata": ":transient",
-		"doc": "Adds the `transient` flag to the class field.",
-		"platforms": ["java"],
-		"targets": ["TClassField"]
-	},
-	{
 		"name": "Transitive",
 		"metadata": ":transitive",
 		"doc": "Allows transitive casts with an abstract.",
@@ -1233,7 +1060,7 @@
 		"name": "Volatile",
 		"metadata": ":volatile",
 		"doc": "",
-		"platforms": ["java", "cs"]
+		"platforms": ["jvm"]
 	},
 	{
 		"name": "UnifyMinDynamic",
@@ -1246,13 +1073,6 @@
 		"metadata": ":unreflective",
 		"doc": "",
 		"platforms": ["cpp"]
-	},
-	{
-		"name": "Unsafe",
-		"metadata": ":unsafe",
-		"doc": "Declares a class, or a method with the C#'s `unsafe` flag.",
-		"platforms": ["cs"],
-		"targets": ["TClass", "TClassField"]
 	},
 	{
 		"name": "Used",

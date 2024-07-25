@@ -122,6 +122,17 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 		eval.caught_exception <- vnull;
 		Option.may (build_exception_stack ctx) env;
 		eval.env <- env;
+
+		(* Careful: We have to get the message before resetting the context because toString() might access it. *)
+		let get_stack ctx =
+			let stack = match eval_stack with
+				| [] -> []
+				| l when p' = null_pos -> l (* If the exception position is null_pos, we're "probably" in a built-in function. *)
+				| _ :: l -> l (* Otherwise, ignore topmost frame position. *)
+			in
+			get_exc_error_stack ctx stack
+		in
+
 		if is v key_haxe_macro_Error then begin
 			let v1 = field v key_exception_message in
 			let v2 = field v key_pos in
@@ -137,9 +148,11 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 								in
 								(Error.Custom (value_string v1), v2)
 							end else
-								Error.raise_typing_error "Something went wrong" null_pos
+								Error.raise_typing_error (Printf.sprintf "Unexpected value where haxe.macro.Error was expected: %s" (s_value 0 v).sstring) null_pos
 						) (EvalArray.to_list sub)
-				| _ -> []
+				| _ ->
+					let stack = get_stack ctx in
+					List.map (fun p -> (Error.Custom "Called from here", p)) (List.rev stack)
 			in
 			reset_ctx();
 			final();
@@ -165,16 +178,10 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 						| [] -> Error.raise_msg s.sstring p
 						| _ -> Error.raise_error (Error.make_error ~sub:(List.map (fun (msg,p) -> Error.make_error msg p) stack) (Error.Custom s.sstring) p)
 					);
-				| _ ->
-					Error.raise_typing_error "Something went wrong" null_pos
+				| v ->
+					Error.raise_typing_error (Printf.sprintf "Invalid exception value where string was expected: %s" (s_value 0 v).sstring) null_pos
 		end else begin
-			(* Careful: We have to get the message before resetting the context because toString() might access it. *)
-			let stack = match eval_stack with
-				| [] -> []
-				| l when p' = null_pos -> l (* If the exception position is null_pos, we're "probably" in a built-in function. *)
-				| _ :: l -> l (* Otherwise, ignore topmost frame position. *)
-			in
-			let stack = get_exc_error_stack ctx stack in
+			let stack = get_stack ctx in
 			reset_ctx();
 			final();
 			let p = if p' = null_pos then p else p' in

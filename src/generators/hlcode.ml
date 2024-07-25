@@ -45,7 +45,7 @@ type ttype =
 	| HDynObj
 	| HAbstract of string * string index
 	| HEnum of enum_proto
-	| HNull of ttype
+	| HNull of ttype (* for not nullable type only *)
 	| HMethod of ttype list * ttype
 	| HStruct of class_proto
 	| HPacked of ttype
@@ -210,7 +210,7 @@ type fundecl = {
 	ftype : ttype;
 	regs : ttype array;
 	code : opcode array;
-	debug : (int * int) array;
+	debug : (int * int * Globals.pos) array;
 	assigns : (string index * int) array;
 }
 
@@ -275,6 +275,12 @@ let is_float = function
 
 let is_number = function
 	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 -> true
+	| _ -> false
+
+let is_nullt = function
+	| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) -> true
+	| HNull HBool -> true
+	| HNull _ -> Globals.die "" __LOC__
 	| _ -> false
 
 (*
@@ -611,7 +617,7 @@ let dump pr code =
 		with _ ->
 			Printf.sprintf "f@%X" fid
 	in
-	let debug_infos (fid,line) =
+	let debug_infos (fid,line,_) =
 		(try code.debugfiles.(fid) with _ -> "???") ^ ":" ^ string_of_int line
 	in
 	pr ("hl v" ^ string_of_int code.version);
@@ -645,17 +651,17 @@ let dump pr code =
 	pr (string_of_int (Array.length code.functions) ^ " functions");
 	Array.iter (fun f ->
 		pr (Printf.sprintf "	fun@%d(%Xh) %s" f.findex f.findex (tstr f.ftype));
-		let fid, _ = f.debug.(0) in
+		let fid, _, _ = f.debug.(0) in
 		let cur_fid = ref fid in
 		pr (Printf.sprintf "	; %s (%s)" (debug_infos f.debug.(0)) (fundecl_name f));
 		Array.iteri (fun i r ->
 			pr ("		r" ^ string_of_int i ^ " " ^ tstr r);
 		) f.regs;
 		Array.iteri (fun i o ->
-			let fid, line = f.debug.(i) in
+			let fid, line, _ = f.debug.(i) in
 			if fid <> !cur_fid then begin
 				cur_fid := fid;
-				pr (Printf.sprintf "	; %s" (debug_infos (fid,line)));
+				pr (Printf.sprintf "	; %s" (debug_infos f.debug.(i)));
 			end;
 			pr (Printf.sprintf "		.%-5d @%X %s" line i (ostr fstr o))
 		) f.code;

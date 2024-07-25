@@ -69,6 +69,22 @@ class Gc {
 		return v;
 	}
 
+	#if (hl_ver >= version("1.15.0"))
+	/**
+		Count live objects of class `cl`, and get at most `maxCount` elements in an array.
+	**/
+	public static function getLiveObjects(cl:Class<Dynamic>, maxCount:Int = 0) {
+		var arr = new hl.NativeArray<Dynamic>(maxCount);
+		var count = _getLiveObjects(cast(cl,hl.BaseType).__type__, arr);
+		var objs = new Array<Dynamic>();
+		for (i in 0...maxCount) {
+			if (arr[i] == null) break;
+			objs.push(arr[i]);
+		}
+		return {count: count, objs: objs};
+	}
+	#end
+
 	/**
 		Enter/leave a blocking section: when in a blocking section the thread cannot
 		allocate any memory but other threads will not wait for it for collecting memory.
@@ -89,4 +105,10 @@ class Gc {
 	}
 
 	@:hlNative("std", "gc_set_flags") static function _set_flags(v:Int) {}
+
+	#if (hl_ver >= version("1.15.0"))
+	@:hlNative("std", "gc_get_live_objects") static function _getLiveObjects(type:hl.Type, arr:hl.NativeArray<Dynamic>):Int {
+		return 0;
+	}
+	#end
 }

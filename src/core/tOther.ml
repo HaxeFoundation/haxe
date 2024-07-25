@@ -279,7 +279,7 @@ let mk_enum m path pos name_pos =
 		e_using = [];
 		e_restore = (fun () -> ());
 		e_private = false;
-		e_extern = false;
+		e_flags = 0;
 		e_constrs = PMap.empty;
 		e_names = [];
 		e_type = mk_mono();
@@ -308,51 +308,7 @@ let mk_abstract m path pos name_pos =
 		a_this = mk_mono();
 		a_read = None;
 		a_write = None;
-		a_enum = false;
-		a_call = None;
-	}
-
-let mk_enum m path pos name_pos =
-	{
-		e_path = path;
-		e_module = m;
-		e_pos = pos;
-		e_name_pos = name_pos;
-		e_doc = None;
-		e_meta = [];
-		e_params = [];
-		e_using = [];
-		e_restore = (fun () -> ());
-		e_private = false;
-		e_extern = false;
-		e_constrs = PMap.empty;
-		e_names = [];
-		e_type = mk_mono();
-	}
-
-let mk_abstract m path pos name_pos =
-	{
-		a_path = path;
-		a_private = false;
-		a_module = m;
-		a_pos = pos;
-		a_name_pos = name_pos;
-		a_doc = None;
-		a_params = [];
-		a_using = [];
-		a_restore = (fun () -> ());
-		a_meta = [];
-		a_from = [];
-		a_to = [];
-		a_from_field = [];
-		a_to_field = [];
-		a_ops = [];
-		a_unops = [];
-		a_impl = None;
-		a_array = [];
-		a_this = mk_mono();
-		a_read = None;
-		a_write = None;
+		a_extern = false;
 		a_enum = false;
 		a_call = None;
 	}
@@ -417,6 +373,50 @@ module TClass = struct
 		in
 		let apply = apply_params c.cl_params tl in
 		loop apply c
+
+
+	let get_cl_init c = match c.cl_init with
+		| Some {cf_expr = Some e} -> Some e
+		| _ -> None
+
+	let modify_cl_init c e append = match c.cl_init with
+		| Some cf ->
+			begin match cf.cf_expr with
+				| Some e' when append ->
+					cf.cf_expr <- Some (concat e' e)
+				| _ ->
+					cf.cf_expr <- Some e
+			end
+		| None ->
+			let cf = mk_field "__init__" t_dynamic null_pos null_pos in
+			cf.cf_expr <- Some e;
+			c.cl_init <- Some cf
+
+	let get_singular_interface_field fields =
+		let is_normal_field cf =
+			not (has_class_field_flag cf CfDefault) && match cf.cf_kind with
+				| Method MethNormal -> true
+				| _ -> false
+		in
+		let rec loop o l = match l with
+			| cf :: l ->
+				if is_normal_field cf then begin
+					if o = None then
+						loop (Some cf) l
+					else
+						None
+				end else
+					loop o l
+			| [] ->
+				o
+		in
+		loop None fields
+
+	let add_cl_init c e =
+		modify_cl_init c e true
+
+	let set_cl_init c e =
+		modify_cl_init c e false
 end
 
 let s_class_path c =

@@ -39,7 +39,7 @@ let haxe_exception_static_call ctx method_name args p =
 		| TFun(_,t) -> t
 		| _ -> raise_typing_error ("haxe.Exception." ^ method_name ^ " is not a function and cannot be called") p
 	in
-	add_dependency ctx.typer.curclass.cl_module ctx.haxe_exception_class.cl_module;
+	add_dependency ctx.typer.c.curclass.cl_module ctx.haxe_exception_class.cl_module MDepFromTyping;
 	make_static_call ctx.typer ctx.haxe_exception_class method_field (fun t -> t) args return_type p
 
 (**
@@ -73,7 +73,7 @@ let std_is ctx e t p =
 		| TFun(_,t) -> t
 		| _ -> raise_typing_error ("Std.isOfType is not a function and cannot be called") p
 	in
-	let type_expr = { eexpr = TTypeExpr(module_type_of_type t); etype = t; epos = p } in
+	let type_expr = TyperBase.type_module_type ctx.typer (module_type_of_type t) p in
 	make_static_call ctx.typer std_cls isOfType_field (fun t -> t) [e; type_expr] return_type p
 
 (**
@@ -179,7 +179,7 @@ let throw_native ctx e_thrown t p =
 		else
 			e_thrown
 	in
-	mk (TThrow e_native) t p
+	e_native
 
 let set_needs_exception_stack v =
 	if not (Meta.has Meta.NeedsExceptionStack v.v_meta) then
@@ -499,7 +499,7 @@ let catch_native ctx catches t p =
 let filter tctx =
 	let stub e = e in
 	match tctx.com.platform with (* TODO: implement for all targets *)
-	| Php | Js | Java | Cs | Python | Lua | Eval | Neko | Flash | Hl | Cpp ->
+	| Php | Js | Jvm | Python | Lua | Eval | Neko | Flash | Hl | Cpp ->
 		let config = tctx.com.config.pf_exceptions in
 		let tp (pack,name) =
 			let tp = match List.rev pack with
@@ -511,23 +511,23 @@ let filter tctx =
 			make_ptp tp null_pos
 		in
 		let wildcard_catch_type =
-			let t = Typeload.load_instance tctx (tp config.ec_wildcard_catch) ParamSpawnMonos in
+			let t = Typeload.load_instance tctx (tp config.ec_wildcard_catch) ParamSpawnMonos LoadNormal in
 			if is_dynamic t then t_dynamic
 			else t
 		and base_throw_type =
-			let t = Typeload.load_instance tctx (tp config.ec_base_throw) ParamSpawnMonos in
+			let t = Typeload.load_instance tctx (tp config.ec_base_throw) ParamSpawnMonos LoadNormal in
 			if is_dynamic t then t_dynamic
 			else t
 		and haxe_exception_type, haxe_exception_class =
-			match Typeload.load_instance tctx (tp haxe_exception_type_path) ParamSpawnMonos with
+			match Typeload.load_instance tctx (tp haxe_exception_type_path) ParamSpawnMonos LoadNormal with
 			| TInst(cls,_) as t -> t,cls
 			| _ -> raise_typing_error "haxe.Exception is expected to be a class" null_pos
 		and value_exception_type, value_exception_class =
-			match Typeload.load_instance tctx (tp value_exception_type_path) ParamSpawnMonos with
+			match Typeload.load_instance tctx (tp value_exception_type_path) ParamSpawnMonos LoadNormal with
 			| TInst(cls,_) as t -> t,cls
 			| _ -> raise_typing_error "haxe.ValueException is expected to be a class" null_pos
 		and haxe_native_stack_trace =
-			match Typeload.load_instance tctx (tp (["haxe"],"NativeStackTrace")) ParamSpawnMonos with
+			match Typeload.load_instance tctx (tp (["haxe"],"NativeStackTrace")) ParamSpawnMonos LoadNormal with
 			| TInst(cls,_) -> cls
 			| TAbstract({ a_impl = Some cls },_) -> cls
 			| _ -> raise_typing_error "haxe.NativeStackTrace is expected to be a class or an abstract" null_pos
@@ -605,7 +605,7 @@ let insert_save_stacks tctx =
 				in
 				let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
 				begin
-					add_dependency tctx.curclass.cl_module native_stack_trace_cls.cl_module;
+					add_dependency tctx.c.curclass.cl_module native_stack_trace_cls.cl_module MDepFromTyping;
 					make_static_call tctx native_stack_trace_cls method_field (fun t -> t) [catch_local] return_type catch_var.v_pos
 				end
 			else
@@ -644,7 +644,7 @@ let insert_save_stacks tctx =
 *)
 let patch_constructors tctx =
 	let tp = make_ptp (mk_type_path haxe_exception_type_path) null_pos in
-	match Typeload.load_instance tctx tp ParamSpawnMonos with
+	match Typeload.load_instance tctx tp ParamSpawnMonos LoadNormal with
 	(* Add only if `__shiftStack` method exists *)
 	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields ->
 		(fun mt ->

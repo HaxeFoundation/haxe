@@ -94,7 +94,7 @@ let check_assign ctx e =
 		raise_typing_error "Cannot assign to final" e.epos
 	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
-	| TConst TThis | TTypeExpr _ when ctx.untyped ->
+	| TConst TThis | TTypeExpr _ when ctx.f.untyped ->
 		()
 	| _ ->
 		if not (Common.ignore_error ctx.com) then
@@ -386,7 +386,7 @@ let make_binop ctx op e1 e2 is_assign_op p =
 		unify ctx e2.etype b p;
 		mk_op e1 e2 b
 	| OpInterval ->
-		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (["std"],"IntIterator")) null_pos) ParamNormal in
+		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (["std"],"IntIterator")) null_pos) ParamNormal LoadNormal in
 		let e1 = AbstractCast.cast_or_unify_raise ctx tint e1 e1.epos in
 		let e2 = AbstractCast.cast_or_unify_raise ctx tint e2 e2.epos in
 		BinopSpecial (mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[e1;e2])) t p,false)
@@ -866,6 +866,10 @@ let type_unop ctx op flag e with_type p =
 			| None -> vr#to_texpr e
 			| Some e' -> vr#to_texpr_el [e] e'
 		in
+		let make_op vr binop e1 e2 p =
+			let result = make_binop ctx binop e1 e2 false p in
+			BinopResult.to_texpr vr result (fun _ -> raise Not_found)
+		in
 		let rec loop access_set = match access_set with
 			| AKNo(acc,p) ->
 				begin try
@@ -887,7 +891,7 @@ let type_unop ctx op flag e with_type p =
 					let e_set = FieldAccess.get_field_expr {fa with fa_on = ef} FWrite in
 					let e_lhs = acc_get ctx access_get in
 					let e_lhs,e_out = maybe_tempvar_postfix vr e_lhs in
-					let e_op = mk (TBinop(binop,e_lhs,e_one)) e_lhs.etype p in
+					let e_op = make_op vr binop e_lhs e_one p in
 					mk (TBinop(OpAssign,e_set,e_op)) e_set.etype p,e_out
 				in
 				generate vr e_out e
@@ -896,14 +900,14 @@ let type_unop ctx op flag e with_type p =
 				let ef = vr#get_expr_part "fh" fa.fa_on in
 				let fa = {fa with fa_on = ef} in
 				let e_lhs,e_out = read_on vr ef fa in
-				let e_op = mk (TBinop(binop,e_lhs,e_one)) e_lhs.etype p in
+				let e_op = make_op vr binop e_lhs e_one p in
 				let dispatcher = new call_dispatcher ctx (MSet None) WithType.value p in
 				let e = dispatcher#accessor_call fa [e_op] [] in
 				generate vr e_out e
 			| AKUsingAccessor sea ->
 				let ef,vr = process_lhs_expr ctx "fh" sea.se_this in
 				let e_lhs,e_out = read_on vr ef sea.se_access in
-				let e_op = mk (TBinop(binop,e_lhs,e_one)) e_lhs.etype p in
+				let e_op = make_op vr binop e_lhs e_one p in
 				let dispatcher = new call_dispatcher ctx (MSet None) WithType.value p in
 				let e = dispatcher#accessor_call sea.se_access [ef;e_op] [] in
 				generate vr e_out e

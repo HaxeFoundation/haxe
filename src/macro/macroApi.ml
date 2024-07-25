@@ -26,6 +26,7 @@ type 'value compiler_api = {
 	init_macros_done : unit -> bool;
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
+	include_module : string -> unit;
 	after_init_macros : (unit -> unit) -> unit;
 	after_typing : (module_type list -> unit) -> unit;
 	on_generate : (Type.t list -> unit) -> bool -> unit;
@@ -38,8 +39,6 @@ type 'value compiler_api = {
 	resolve_complex_type : Ast.type_hint -> Ast.type_hint;
 	store_typed_expr : Type.texpr -> Ast.expr;
 	allow_package : string -> unit;
-	type_patch : string -> string -> bool -> string option -> unit;
-	meta_patch : string -> string -> string option -> bool -> pos -> unit;
 	set_js_generator : (Genjs.ctx -> unit) -> unit;
 	get_local_type : unit -> t option;
 	get_expected_type : unit -> t option;
@@ -58,7 +57,7 @@ type 'value compiler_api = {
 	add_global_metadata : string -> string -> (bool * bool * bool) -> pos -> unit;
 	register_define : string -> Define.user_define -> unit;
 	register_metadata : string -> Meta.user_meta -> unit;
-	add_module_check_policy : string list -> int list -> bool -> int -> unit;
+	add_module_check_policy : string list -> int list -> bool -> unit;
 	decode_expr : 'value -> Ast.expr;
 	encode_expr : Ast.expr -> 'value;
 	encode_ctype : Ast.type_hint -> 'value;
@@ -70,6 +69,8 @@ type 'value compiler_api = {
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
 	exc_string : 'a . string -> 'a;
+	get_hxb_writer_config : unit -> 'value;
+	set_hxb_writer_config : 'value -> unit;
 }
 
 
@@ -439,12 +440,11 @@ and encode_platform p =
 		| Flash -> 4, []
 		| Php -> 5, []
 		| Cpp -> 6, []
-		| Cs -> 7, []
-		| Java -> 8, []
-		| Python -> 9, []
-		| Hl -> 10, []
-		| Eval -> 11, []
-		| CustomTarget s -> 12, [(encode_string s)]
+		| Jvm -> 7, []
+		| Python -> 8, []
+		| Hl -> 9, []
+		| Eval -> 10, []
+		| CustomTarget s -> 11, [(encode_string s)]
 	in
 	encode_enum ~pos:None IPlatform tag pl
 
@@ -1058,8 +1058,8 @@ and encode_type_params tl =
 
 and encode_tenum e =
 	encode_mtype (TEnumDecl e) [
-		"isExtern", vbool e.e_extern;
-		"exclude", vfun0 (fun() -> e.e_extern <- true; vnull);
+		"isExtern", vbool (has_enum_flag e EnExtern);
+		"exclude", vfun0 (fun() -> add_enum_flag e EnExcluded; vnull);
 		"constructs", encode_string_map encode_efield e.e_constrs;
 		"names", encode_array (List.map encode_string e.e_names);
 	]
@@ -1157,7 +1157,7 @@ and encode_tclass c =
 	encode_mtype (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", vbool (has_class_flag c CExtern);
-		"exclude", vfun0 (fun() -> add_class_flag c CExtern; c.cl_init <- None; vnull);
+		"exclude", vfun0 (fun() -> add_class_flag c CExcluded; c.cl_init <- None; vnull);
 		"isInterface", vbool (has_class_flag c CInterface);
 		"isFinal", vbool (has_class_flag c CFinal);
 		"isAbstract", vbool (has_class_flag c CAbstract);
@@ -1169,7 +1169,7 @@ and encode_tclass c =
 		"fields", encode_ref c.cl_ordered_fields (encode_and_map_array encode_cfield) (fun() -> "class fields");
 		"statics", encode_ref c.cl_ordered_statics (encode_and_map_array encode_cfield) (fun() -> "class fields");
 		"constructor", (match c.cl_constructor with None -> vnull | Some cf -> encode_cfref cf);
-		"init", (match c.cl_init with None -> vnull | Some e -> encode_texpr e);
+		"init", (match TClass.get_cl_init c with None -> vnull | Some e -> encode_texpr e);
 		"overrides", (encode_array (List.map encode_cfref (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields)))
 	]
 
@@ -1320,6 +1320,7 @@ and encode_tvar v =
 		"capture", vbool (has_var_flag v VCaptured);
 		"extra", vopt f_extra v.v_extra;
 		"meta", encode_meta v.v_meta (fun m -> v.v_meta <- m);
+		"isStatic", vbool (has_var_flag v VStatic);
 		"$", encode_unsafe (Obj.repr v);
 	]
 
@@ -1617,7 +1618,7 @@ let decode_type_def v =
 		in
 		EEnum (mk (if isExtern then [EExtern] else []) (List.map conv fields))
 	| 1, [] ->
-		ETypedef (mk (if isExtern then [EExtern] else []) (CTAnonymous fields,pos))
+		ETypedef (mk (if isExtern then [TDExtern] else []) (CTAnonymous fields,pos))
 	| 2, [ext;impl;interf;final;abstract] ->
 		let flags = if isExtern then [HExtern] else [] in
 		let is_interface = decode_opt_bool interf in
@@ -1636,7 +1637,7 @@ let decode_type_def v =
 		let flags = if is_abstract then HAbstract :: flags else flags in
 		EClass (mk flags fields)
 	| 3, [t] ->
-		ETypedef (mk (if isExtern then [EExtern] else []) (decode_ctype t))
+		ETypedef (mk (if isExtern then [TDExtern] else []) (decode_ctype t))
 	| 4, [tthis;tflags;tfrom;tto] ->
 		let flags = match opt decode_array tflags with
 			| None -> []
@@ -1878,6 +1879,10 @@ let macro_api ccom get_api =
 		"get_module", vfun1 (fun s ->
 			encode_array (List.map encode_type ((get_api()).get_module (decode_string s)))
 		);
+		"include_module", vfun1 (fun s ->
+			(get_api()).include_module (decode_string s);
+			vnull
+		);
 		"on_after_init_macros", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
 			(get_api()).after_init_macros (fun tctx -> ignore(f []));
@@ -1951,14 +1956,6 @@ let macro_api ccom get_api =
 			(get_api()).allow_package (decode_string s);
 			vnull
 		);
-		"type_patch", vfun4 (fun t f s v ->
-			(get_api()).type_patch (decode_string t) (decode_string f) (decode_bool s) (opt decode_string v);
-			vnull
-		);
-		"meta_patch", vfun4 (fun m t f s ->
-			(get_api()).meta_patch (decode_string m) (decode_string t) (opt decode_string f) (decode_bool s) (get_api_call_pos ());
-			vnull
-		);
 		"add_global_metadata_impl", vfun5 (fun s1 s2 b1 b2 b3 ->
 			(get_api()).add_global_metadata (decode_string s1) (decode_string s2) (decode_bool b1,decode_bool b2,decode_bool b3) (get_api_call_pos());
 			vnull
@@ -2021,7 +2018,7 @@ let macro_api ccom get_api =
 				let api = encode_obj [
 					"outputFile", encode_string com.file;
 					"types", encode_array (List.map (fun t -> encode_type (type_of_module_type t)) com.types);
-					"main", (match com.main with None -> vnull | Some e -> encode_texpr e);
+					"main", (match com.main.main_expr with None -> vnull | Some e -> encode_texpr e);
 					"generateValue", vfun1 (fun v ->
 						let e = decode_texpr v in
 						let str = Genjs.gen_single_expr js_ctx e false in
@@ -2183,22 +2180,12 @@ let macro_api ccom get_api =
 			let com = ccom() in
 			let open CompilationContext in
 			let kind = match com.platform with
-				| Java -> JavaLib
-				| Cs -> NetLib
+				| Jvm -> JavaLib
 				| Flash -> SwfLib
 				| _ -> failwith "Unsupported platform"
 			in
 			let lib = create_native_lib file false kind in
 			NativeLibraryHandler.add_native_lib com lib ();
-			vnull
-		);
-		"add_native_arg", vfun1 (fun arg ->
-			let arg = decode_string arg in
-			let com = ccom() in
-			(match com.platform with
-			| Globals.Java | Globals.Cs | Globals.Cpp ->
-				com.c_args <- arg :: com.c_args
-			| _ -> failwith "Unsupported platform");
 			vnull
 		);
 		"register_module_dependency", vfun2 (fun m file ->
@@ -2253,7 +2240,7 @@ let macro_api ccom get_api =
 				"platform", encode_platform com.platform;
 				"platformConfig", encode_platform_config com.config;
 				"stdPath", encode_array (List.map (fun path -> encode_string path#path) com.class_paths#get_std_paths);
-				"mainClass", (match com.main_class with None -> vnull | Some path -> encode_path path);
+				"mainClass", (match com.main.main_class with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
 			]
 		);
@@ -2262,7 +2249,7 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"get_main_expr", vfun0 (fun() ->
-			match (ccom()).main with None -> vnull | Some e -> encode_texpr e
+			match (ccom()).main.main_expr with None -> vnull | Some e -> encode_texpr e
 		);
 		"get_module_types", vfun0 (fun() ->
 			encode_array (List.map encode_module_type (ccom()).types)
@@ -2311,10 +2298,10 @@ let macro_api ccom get_api =
 			vnull
 		);
 		(* Compilation server *)
-		"server_add_module_check_policy", vfun4 (fun filter policy recursive context_options ->
+		"server_add_module_check_policy", vfun3 (fun filter policy recursive ->
 			let filter = List.map decode_string (decode_array filter) in
 			let policy = List.map decode_int (decode_array policy) in
-			(get_api()).add_module_check_policy filter policy (decode_bool recursive) (decode_int context_options);
+			(get_api()).add_module_check_policy filter policy (decode_bool recursive);
 			vnull
 		);
 		"server_invalidate_files", vfun1 (fun a ->
@@ -2405,5 +2392,12 @@ let macro_api ccom get_api =
 				vbool false
 			end
 		);
+		"get_hxb_writer_config", vfun0 (fun () ->
+			(get_api()).get_hxb_writer_config ()
+		);
+		"set_hxb_writer_config", vfun1 (fun v ->
+			(get_api()).set_hxb_writer_config v;
+			vnull
+		)
 	]
 end

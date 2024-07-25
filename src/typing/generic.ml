@@ -26,7 +26,8 @@ let make_generic ctx ps pt debug p =
 				begin match c.cl_kind with
 					| KExpr e ->
 						let name = ident_safe (Ast.Printer.s_expr e) in
-						let e = type_expr {ctx with locals = PMap.empty} e WithType.value in
+						let ctx = TyperManager.clone_for_type_parameter_expression ctx in
+						let e = type_expr ctx e WithType.value in
 						name,(t,Some e)
 					| _ ->
 						((ident_safe (s_type_path_underscore c.cl_path)) ^ (loop_tl top tl),(t,None))
@@ -86,7 +87,7 @@ let rec generic_substitute_type' gctx allow_expr t =
 		(* maybe loop, or generate cascading generics *)
 		let info = gctx.ctx.g.get_build_info gctx.ctx (TClassDecl c2) gctx.p in
 		let t = info.build_apply (List.map (generic_substitute_type' gctx true) tl2) in
-		(match follow t,gctx.mg with TInst(c,_), Some m -> add_dependency m c.cl_module | _ -> ());
+		(match follow t,gctx.mg with TInst(c,_), Some m -> add_dependency m c.cl_module MDepFromTyping | _ -> ());
 		t
 	| _ ->
 		try
@@ -170,7 +171,7 @@ let static_method_container gctx c cf p =
 	let pack = fst c.cl_path in
 	let name = (snd c.cl_path) ^ "_" ^ cf.cf_name ^ "_" ^ gctx.name in
 	try
-		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (pack,name)) p) ParamSpawnMonos in
+		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (pack,name)) p) ParamSpawnMonos LoadNormal in
 		match t with
 		| TInst(cg,_) -> cg
 		| _ -> raise_typing_error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
@@ -187,8 +188,8 @@ let static_method_container gctx c cf p =
 		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
 		mg.m_types <- [TClassDecl cg];
 		ctx.com.module_lut#add mg.m_path mg;
-		add_dependency mg m;
-		add_dependency ctx.m.curmod mg;
+		add_dependency mg m MDepFromTyping;
+		add_dependency ctx.m.curmod mg MDepFromTyping;
 		cg
 
 let set_type_parameter_dependencies mg tl =
@@ -219,7 +220,7 @@ let set_type_parameter_dependencies mg tl =
 			loop ret
 		end
 	and add_dep m tl =
-		add_dependency mg m;
+		add_dependency mg m MDepFromTyping;
 		List.iter loop tl
 	in
 	List.iter loop tl
@@ -230,6 +231,16 @@ let build_instances ctx t p =
 		Type.map loop t
 	in
 	loop t
+
+let clone_type_parameter map path ttp =
+	let c = ttp.ttp_class in
+	let c = {c with cl_path = path} in
+	let def = Option.map map ttp.ttp_default in
+	let constraints = match ttp.ttp_constraints with
+		| None -> None
+		| Some constraints -> Some (lazy (List.map map (Lazy.force constraints)))
+	in
+	mk_type_param c ttp.ttp_host def constraints
 
 let clone_type_parameter gctx mg path ttp =
 	let ttp = clone_type_parameter (generic_substitute_type gctx) path ttp in
@@ -260,7 +271,7 @@ let build_generic_class ctx c p tl =
 	let gctx = make_generic ctx c.cl_params tl (Meta.has (Meta.Custom ":debug.generic") c.cl_meta) p in
 	let name = (snd c.cl_path) ^ "_" ^ gctx.name in
 	try
-		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (pack,name)) p) ParamNormal in
+		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (pack,name)) p) ParamNormal LoadNormal in
 		match t with
 		| TInst({ cl_kind = KGenericInstance (csup,_) },_) when c == csup -> t
 		| _ -> raise_typing_error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p
@@ -288,19 +299,20 @@ let build_generic_class ctx c p tl =
 			m_statics = None;
 			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake gctx.ctx.com.compilation_step m.m_extra.m_check_policy;
 		} in
+		let ctx = TyperManager.clone_for_module ctx.g.root_typer (TypeloadModule.make_curmod ctx.com ctx.g mg) in
 		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
+		let ctx = TyperManager.clone_for_class ctx c in
 		cg.cl_meta <- List.filter (fun (m,_,_) -> match m with
 			| Meta.Access | Allow
 			| Final
 			| Hack
-			| Internal
 			| Keep | KeepSub
 			| NoClosure | NullSafety
 			| Pure
 			| Struct | StructInit
 			| Using
-			| AutoBuild ->
+			| AutoBuild | Unreflective ->
 				true
 			| _ ->
 				false
@@ -308,8 +320,8 @@ let build_generic_class ctx c p tl =
 		cg.cl_meta <- (Meta.NoDoc,[],null_pos) :: cg.cl_meta;
 		mg.m_types <- [TClassDecl cg];
 		ctx.com.module_lut#add mg.m_path mg;
-		add_dependency mg m;
-		add_dependency ctx.m.curmod mg;
+		add_dependency mg m MDepFromTyping;
+		add_dependency ctx.m.curmod mg MDepFromTyping;
 		set_type_parameter_dependencies mg tl;
 		let build_field cf_old =
 			let params = List.map (fun ttp ->
@@ -337,15 +349,15 @@ let build_generic_class ctx c p tl =
 					| None ->
 						(* There can be cases like #11152 where cf_expr isn't ready yet. It should be safe to delay this to the end
 						   of the PTypeField pass. *)
-						delay_late ctx PTypeField (fun () -> match cf_old.cf_expr with
+						delay_late ctx.g PTypeField (fun () -> match cf_old.cf_expr with
 							| Some e ->
 								update_expr e
 							| None ->
 								begin match cf_old.cf_kind with
 									| Method _ when not (has_class_flag c CInterface) && not (has_class_flag c CExtern) && not (has_class_field_flag cf_old CfAbstract) ->
-										(* TODO use sub error *)
-										display_error ctx.com (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name) cf_new.cf_pos;
-										display_error ctx.com (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
+										display_error_ext ctx.com (make_error (Custom (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name)) ~sub:([
+											(make_error ~depth:1 (Custom (compl_msg (Printf.sprintf "While building %s" (s_type_path cg.cl_path)))) p)
+										]) cf_new.cf_pos);
 									| _ ->
 										()
 								end
@@ -354,8 +366,8 @@ let build_generic_class ctx c p tl =
 				if gctx.generic_debug then print_endline (Printf.sprintf "[GENERIC] %s" (Printer.s_tclass_field "  " cf_new));
 				t
 			in
-			let t = spawn_monomorph ctx p in
-			let r = make_lazy ctx t (fun r ->
+			let t = spawn_monomorph ctx.e p in
+			let r = make_lazy ctx.g t (fun r ->
 				let t0 = f() in
 				unify_raise t0 t p;
 				link_dynamic t0 t;
@@ -364,7 +376,7 @@ let build_generic_class ctx c p tl =
 			cf_new.cf_type <- TLazy r;
 			cf_new
 		in
-		if c.cl_init <> None then raise_typing_error "This class can't be generic" p;
+		if TClass.get_cl_init c <> None then raise_typing_error "This class can't be generic" p;
 		List.iter (fun cf -> match cf.cf_kind with
 			| Method MethMacro when not ctx.com.is_macro_context -> ()
 			| _ -> raise_typing_error "A generic class can't have static fields" cf.cf_pos
@@ -440,18 +452,9 @@ let type_generic_function ctx fa fcc with_type p =
 	) monos;
 	let el = fcc.fc_args in
 	let gctx = make_generic ctx cf.cf_params monos (Meta.has (Meta.Custom ":debug.generic") cf.cf_meta) p in
+	let fc_type = build_instances ctx fcc.fc_type p in
 	let name = cf.cf_name ^ "_" ^ gctx.name in
 	let params = extract_type_parameters monos in
-	let clones = List.map (fun ttp ->
-		let name_path = if (fst ttp.ttp_class.cl_path) = [cf.cf_name] then ([name],ttp.ttp_name) else ttp.ttp_class.cl_path in
-		clone_type_parameter gctx c.cl_module name_path ttp
-	) params in
-	let param_subst = List.map2 (fun ttp ttp' ->
-		(ttp.ttp_type,ttp')
-	) params clones in
-	let param_subst = List.map (fun (t,ttp) -> t,(ttp.ttp_type,None)) param_subst in
-	let gctx = {gctx with subst = param_subst @ gctx.subst} in
-	let fc_type = build_instances ctx (generic_substitute_type gctx fcc.fc_type) p in
 	let unify_existing_field tcf pcf = try
 		unify_raise tcf fc_type p
 	with Error ({ err_message = Unify _; err_depth = depth } as err) ->
@@ -486,9 +489,9 @@ let type_generic_function ctx fa fcc with_type p =
 			ignore(follow cf.cf_type);
 			let rec check e = match e.eexpr with
 				| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
-					(* TODO use sub error *)
-					display_error ctx.com "Only generic type parameters can be constructed" e.epos;
-					display_error ctx.com "While specializing this call" p;
+					display_error_ext ctx.com (make_error (Custom "Only generic type parameters can be constructed") ~sub:([
+						(make_error ~depth:1 (Custom (compl_msg "While specializing this call")) p)
+					]) e.epos);
 				| _ ->
 					Type.iter check e
 			in
@@ -507,7 +510,7 @@ let type_generic_function ctx fa fcc with_type p =
 				| _ -> true
 			) cf.cf_meta in
 			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: meta;
-			cf2.cf_params <- clones
+			cf2.cf_params <- params
 		in
 		let mk_cf2 name =
 			mk_field ~static:stat name fc_type cf.cf_pos cf.cf_name_pos

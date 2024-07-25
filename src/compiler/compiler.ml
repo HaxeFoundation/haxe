@@ -138,15 +138,9 @@ module Setup = struct
 				if Common.defined com Define.Cppia then
 					actx.classes <- (Path.parse_path "cpp.cppia.HostClasses" ) :: actx.classes;
 				"cpp"
-			| Cs ->
-				Dotnet.before_generate com;
-				add_std "cs"; "cs"
-			| Java ->
-				Java.before_generate com;
-				if defined com Define.Jvm then begin
-					add_std "jvm";
-					com.package_rules <- PMap.remove "jvm" com.package_rules;
-				end;
+			| Jvm ->
+				add_std "jvm";
+				com.package_rules <- PMap.remove "java" com.package_rules;
 				add_std "java";
 				"java"
 			| Python ->
@@ -196,6 +190,7 @@ module Setup = struct
 	let get_std_class_paths () =
 		try
 			let p = Sys.getenv "HAXE_STD_PATH" in
+			let p = Path.remove_trailing_slash p in
 			let rec loop = function
 				| drive :: path :: l ->
 					if String.length drive = 1 && ((drive.[0] >= 'a' && drive.[0] <= 'z') || (drive.[0] >= 'A' && drive.[0] <= 'Z')) then
@@ -280,7 +275,7 @@ let check_defines com =
 		PMap.iter (fun k _ ->
 			try
 				let reason = Hashtbl.find Define.deprecation_lut k in
-				let p = { pfile = "-D " ^ k; pmin = -1; pmax = -1 } in
+				let p = fake_pos ("-D " ^ k) in
 				com.warning WDeprecatedDefine [] reason p
 			with Not_found ->
 				()
@@ -295,6 +290,7 @@ let do_type ctx mctx actx display_file_dot_path =
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	enter_stage com CInitMacrosStart;
 	ServerMessage.compiler_stage com;
+	Setup.init_native_libs com actx.hxb_libs;
 	let mctx = List.fold_left (fun mctx path ->
 		Some (MacroContext.call_init_macro ctx.com mctx path)
 	) mctx (List.rev actx.config_macros) in
@@ -335,7 +331,7 @@ let finalize_typing ctx tctx =
 	enter_stage com CFilteringStart;
 	ServerMessage.compiler_stage com;
 	let main, types, modules = run_or_diagnose ctx (fun () -> Finalization.generate tctx) in
-	com.main <- main;
+	com.main.main_expr <- main;
 	com.types <- types;
 	com.modules <- modules;
 	t()
@@ -343,14 +339,16 @@ let finalize_typing ctx tctx =
 let filter ctx tctx before_destruction =
 	let t = Timer.timer ["filters"] in
 	DeprecationCheck.run ctx.com;
-	run_or_diagnose ctx (fun () -> Filters.run tctx ctx.com.main before_destruction);
+	run_or_diagnose ctx (fun () -> Filters.run tctx ctx.com.main.main_expr before_destruction);
 	t()
 
 let compile ctx actx callbacks =
 	let com = ctx.com in
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
+	let restore = disable_report_mode com in
 	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
+	restore ();
 	let mctx = match com.platform with
 		| CustomTarget name ->
 			begin try
@@ -368,6 +366,12 @@ let compile ctx actx callbacks =
 	callbacks.after_target_init ctx;
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
+	begin match actx.hxb_out with
+		| None ->
+			()
+		| Some file ->
+			com.hxb_writer_config <- HxbWriterConfig.process_argument file
+	end;
 	t();
 	enter_stage com CInitialized;
 	ServerMessage.compiler_stage com;
@@ -378,6 +382,15 @@ let compile ctx actx callbacks =
 		let (tctx,display_file_dot_path) = do_type ctx mctx actx display_file_dot_path in
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
+		let is_compilation = is_compilation com in
+		com.callbacks#add_after_save (fun () ->
+			callbacks.after_save ctx;
+			if is_compilation then match com.hxb_writer_config with
+				| Some config ->
+					Generate.check_hxb_output ctx config;
+				| None ->
+					()
+		);
 		if is_diagnostics com then
 			filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)
 		else begin
@@ -385,9 +398,10 @@ let compile ctx actx callbacks =
 			filter ctx tctx (fun () -> ());
 		end;
 		if ctx.has_error then raise Abort;
-		Generate.check_auxiliary_output com actx;
+		if is_compilation then Generate.check_auxiliary_output com actx;
 		enter_stage com CGenerationStart;
 		ServerMessage.compiler_stage com;
+		Generate.maybe_generate_dump ctx tctx;
 		if not actx.no_output then Generate.generate ctx tctx ext actx;
 		enter_stage com CGenerationDone;
 		ServerMessage.compiler_stage com;
@@ -406,8 +420,6 @@ let compile_safe ctx f =
 try
 	f ()
 with
-	| Abort ->
-		()
 	| Error.Fatal_error err ->
 		error_ext ctx err
 	| Lexer.Error (m,p) ->
@@ -419,8 +431,8 @@ with
 			ctx.has_error <- false;
 			ctx.messages <- [];
 		end else begin
-			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
-			List.iter (error ~depth:1 ctx (Error.compl_msg "referenced here")) (List.rev pl);
+			let sub = List.map (fun p -> Error.make_error ~depth:1 (Error.Custom (Error.compl_msg "referenced here")) p) pl in
+			error_ext ctx (Error.make_error (Error.Custom (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m))) ~sub p)
 		end
 	| Error.Error err ->
 		error_ext ctx err
@@ -429,7 +441,7 @@ with
 	| Failure msg when not Helper.is_debug_run ->
 		error ctx ("Error: " ^ msg) null_pos
 	| Helper.HelpMessage msg ->
-		com.info msg null_pos
+		print_endline msg
 	| Parser.TypePath (p,c,is_import,pos) ->
 		DisplayOutput.handle_type_path_exception ctx p c is_import pos
 	| Parser.SyntaxCompletion(kind,subj) ->
@@ -437,19 +449,22 @@ with
 		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException.DisplayException dex ->
 		DisplayOutput.handle_display_exception ctx dex
-	| Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ as exc ->
+	| Abort | Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ as exc ->
 		(* We don't want these to be caught by the catchall below *)
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
 		error ctx (Printexc.to_string e) null_pos
 
+let compile_safe ctx f =
+	try compile_safe ctx f with Abort -> ()
+
 let finalize ctx =
 	ctx.comm.flush ctx;
+	List.iter (fun lib -> lib#close) ctx.com.hxb_libs;
 	(* In server mode any open libs are closed by the lib_build_task. In offline mode
 		we should do it here to be safe. *)
 	if not ctx.comm.is_server then begin
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.java_libs;
-		List.iter (fun lib -> lib#close) ctx.com.native_libs.net_libs;
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
 	end
 
@@ -501,6 +516,7 @@ let create_context comm cs compilation_step params = {
 	has_next = false;
 	has_error = false;
 	comm = comm;
+	runtime_args = [];
 }
 
 module HighLevel = struct
@@ -585,7 +601,8 @@ module HighLevel = struct
 				loop acc l
 			| "--cwd" :: dir :: l | "-C" :: dir :: l ->
 				(* we need to change it immediately since it will affect hxml loading *)
-				(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
+				(* Exceptions are ignored there to let arg parsing do the error handling in expected order *)
+				(try Unix.chdir dir with _ -> ());
 				(* Push the --cwd arg so the arg processor know we did something. *)
 				loop (dir :: "--cwd" :: acc) l
 			| "--connect" :: hp :: l ->
@@ -606,7 +623,7 @@ module HighLevel = struct
 			| "--run" :: cl :: args ->
 				let acc = cl :: "-x" :: acc in
 				let ctx = create_context (List.rev acc) in
-				ctx.com.sys_args <- args;
+				ctx.runtime_args <- args;
 				[],Some ctx
 			| ("-L" | "--library" | "-lib") :: name :: args ->
 				let libs,args = find_subsequent_libs [name] args in
@@ -614,10 +631,8 @@ module HighLevel = struct
 				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
 				let lines = add_libs libs args server_api.cache has_display in
 				loop acc (lines @ args)
-			| ("--jvm" | "--java" | "-java" as arg) :: dir :: args ->
+			| ("--jvm" | "-jvm" as arg) :: dir :: args ->
 				loop_lib arg dir "hxjava" acc args
-			| ("--cs" | "-cs" as arg) :: dir :: args ->
-				loop_lib arg dir "hxcs" acc args
 			| arg :: l ->
 				match List.rev (ExtString.String.nsplit arg ".") with
 				| "hxml" :: _ :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->

@@ -352,6 +352,10 @@ type abstract_flag =
 	| AbExtern
 	| AbEnum
 
+type typedef_flag =
+	| TDPrivate
+	| TDExtern
+
 type enum_constructor = {
 	ec_name : placed_name;
 	ec_doc : documentation;
@@ -381,7 +385,7 @@ type import = placed_name list * import_mode
 type type_def =
 	| EClass of (class_flag, class_field list) definition
 	| EEnum of (enum_flag, enum_constructor list) definition
-	| ETypedef of (enum_flag, type_hint) definition
+	| ETypedef of (typedef_flag, type_hint) definition
 	| EAbstract of (abstract_flag, class_field list) definition
 	| EStatic of (placed_access, class_field_kind) definition
 	| EImport of import

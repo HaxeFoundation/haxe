@@ -70,7 +70,7 @@ let tpath t =
 	real_path i.mt_path i.mt_meta
 
 let rec follow_param t =
-	match t with
+	match (follow_lazy t) with
 	| TMono r ->
 		(match r.tm_type with
 		| Some t -> follow_param t
@@ -81,7 +81,7 @@ let rec follow_param t =
 		t
 
 let gen_meta meta =
-	let meta = List.filter (fun (m,_,_) -> match m with Meta.Used | Meta.RealPath | Meta.Pure -> false | _ -> true) meta in
+	let meta = List.filter (fun (m,_,_) -> match m with Meta.Used | Meta.RealPath | Meta.Pure | Meta.HxbId -> false | _ -> true) meta in
 	match meta with
 	| [] -> []
 	| _ ->

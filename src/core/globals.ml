@@ -18,8 +18,7 @@ type platform =
 	| Flash
 	| Php
 	| Cpp
-	| Cs
-	| Java
+	| Jvm
 	| Python
 	| Hl
 	| Eval
@@ -31,7 +30,9 @@ let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
 let version_pre = Some "alpha.1"
 
-let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
+let file_pos file = { pfile = file; pmin = 0; pmax = 0 }
+let fake_pos p = { pfile = p; pmin = -1; pmax = -1 }
+let null_pos = fake_pos "?"
 
 let no_color = false
 let c_reset = if no_color then "" else "\x1b[0m"
@@ -79,8 +80,7 @@ let platforms = [
 	Flash;
 	Php;
 	Cpp;
-	Cs;
-	Java;
+	Jvm;
 	Python;
 	Hl;
 	Eval;
@@ -95,8 +95,7 @@ let platform_name = function
 	| Flash -> "flash"
 	| Php -> "php"
 	| Cpp -> "cpp"
-	| Cs -> "cs"
-	| Java -> "java"
+	| Jvm -> "jvm"
 	| Python -> "python"
 	| Hl -> "hl"
 	| Eval -> "eval"
@@ -110,8 +109,7 @@ let parse_platform = function
 	| "flash" -> Flash
 	| "php" -> Php
 	| "cpp" -> Cpp
-	| "cs" -> Cs
-	| "java" -> Java
+	| "jvm" -> Jvm
 	| "python" -> Python
 	| "hl" -> Hl
 	| "eval" -> Eval

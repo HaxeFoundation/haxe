@@ -48,6 +48,7 @@ let parse_args com =
 	let actx = {
 		classes = [([],"Std")];
 		xml_out = None;
+		hxb_out = None;
 		json_out = None;
 		cmds = [];
 		config_macros = [];
@@ -58,6 +59,7 @@ let parse_args com =
 		interp = false;
 		jvm_flag = false;
 		swf_version = false;
+		hxb_libs = [];
 		native_libs = [];
 		raise_usage = (fun () -> ());
 		display_arg = None;
@@ -86,16 +88,9 @@ let parse_args com =
 			Common.define com Define.Cppia;
 			set_platform com Cpp file;
 		),"<file>","generate Cppia bytecode into target file");
-		("Target",["--cs"],["-cs"],Arg.String (fun dir ->
-			set_platform com Cs dir;
-		),"<directory>","generate C# code into target directory");
-		("Target",["--java"],["-java"],Arg.String (fun dir ->
-			set_platform com Java dir;
-		),"<directory>","generate Java code into target directory");
-		("Target",["--jvm"],[],Arg.String (fun dir ->
-			Common.define com Define.Jvm;
+		("Target",["--jvm"],["-jvm"],Arg.String (fun dir ->
 			actx.jvm_flag <- true;
-			set_platform com Java dir;
+			set_platform com Jvm dir;
 		),"<file>","generate JVM bytecode into target file");
 		("Target",["--python"],["-python"],Arg.String (fun dir ->
 			set_platform com Python dir;
@@ -109,9 +104,9 @@ let parse_args com =
 		),"<name[=path]>","generate code for a custom target");
 		("Target",[],["-x"], Arg.String (fun cl ->
 			let cpath = Path.parse_type_path cl in
-			(match com.main_class with
+			(match com.main.main_class with
 				| Some c -> if cpath <> c then raise (Arg.Bad "Multiple --main classes specified")
-				| None -> com.main_class <- Some cpath);
+				| None -> com.main.main_class <- Some cpath);
 			actx.classes <- cpath :: actx.classes;
 			Common.define com Define.Interp;
 			set_platform com Eval "";
@@ -131,10 +126,14 @@ let parse_args com =
 		("Compilation",[],["-libcp"],Arg.String (fun path ->
 			com.class_paths#add (new ClassPath.directory_class_path (Path.add_trailing_slash path) Lib);
 		),"<path>","add a directory to find source files");
+		("Compilation",["--hxb-lib"],["-hxb-lib"],Arg.String (fun file ->
+			let lib = create_native_lib file false HxbLib in
+			actx.hxb_libs <- lib :: actx.hxb_libs
+		),"<path>","add a hxb library");
 		("Compilation",["-m";"--main"],["-main"],Arg.String (fun cl ->
-			if com.main_class <> None then raise (Arg.Bad "Multiple --main classes specified");
+			if com.main.main_class <> None then raise (Arg.Bad "Multiple --main classes specified");
 			let cpath = Path.parse_type_path cl in
-			com.main_class <- Some cpath;
+			com.main.main_class <- Some cpath;
 			actx.classes <- cpath :: actx.classes
 		),"<class>","select startup class");
 		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun _ -> ()),"<name[:ver]>","use a haxelib library");
@@ -155,8 +154,7 @@ let parse_args com =
 			com.debug <- true;
 		),"","add debug information to the compiled code");
 		("Miscellaneous",["--version"],["-version"],Arg.Unit (fun() ->
-			com.info s_version_full null_pos;
-			actx.did_something <- true;
+			raise (Helper.HelpMessage s_version_full);
 		),"","print version and exit");
 		("Miscellaneous", ["-h";"--help"], ["-help"], Arg.Unit (fun () ->
 			raise (Arg.Help "")
@@ -164,31 +162,27 @@ let parse_args com =
 		("Miscellaneous",["--help-defines"],[], Arg.Unit (fun() ->
 			let all,max_length = Define.get_documentation_list com.user_defines in
 			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-			List.iter (fun msg -> com.print (msg ^ "\n")) all;
-			actx.did_something <- true
+			raise (Helper.HelpMessage (ExtLib.String.join "\n" all));
 		),"","print help for all compiler specific defines");
 		("Miscellaneous",["--help-user-defines"],[], Arg.Unit (fun() ->
 			actx.did_something <- true;
 			com.callbacks#add_after_init_macros (fun() ->
 				let all,max_length = Define.get_user_documentation_list com.user_defines in
 				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-				List.iter (fun msg -> com.print (msg ^ "\n")) all;
-				raise Abort
+				raise (Helper.HelpMessage (ExtLib.String.join "\n" all));
 			)
 		),"","print help for all user defines");
 		("Miscellaneous",["--help-metas"],[], Arg.Unit (fun() ->
 			let all,max_length = Meta.get_documentation_list com.user_metas in
 			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-			List.iter (fun msg -> com.print (msg ^ "\n")) all;
-			actx.did_something <- true
+			raise (Helper.HelpMessage (ExtLib.String.join "\n" all));
 		),"","print help for all compiler metadatas");
 		("Miscellaneous",["--help-user-metas"],[], Arg.Unit (fun() ->
 			actx.did_something <- true;
 			com.callbacks#add_after_init_macros (fun() ->
 				let all,max_length = Meta.get_user_documentation_list com.user_metas in
 				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-				List.iter (fun msg -> com.print (msg ^ "\n")) all;
-				raise Abort
+				raise (Helper.HelpMessage (ExtLib.String.join "\n" all));
 			)
 		),"","print help for all user metadatas");
 	] in
@@ -226,15 +220,6 @@ let parse_args com =
 		("Target-specific",["--java-lib-extern"],[],Arg.String (fun file ->
 			add_native_lib file true JavaLib;
 		),"<file>","use an external JAR or directory of JAR files for type checking");
-		("Target-specific",["--net-lib"],["-net-lib"],Arg.String (fun file ->
-			add_native_lib file false NetLib;
-		),"<file>[@std]","add an external .NET DLL file");
-		("Target-specific",["--net-std"],["-net-std"],Arg.String (fun file ->
-			Dotnet.add_net_std com file
-		),"<file>","add a root std .NET DLL search path");
-		("Target-specific",["--c-arg"],["-c-arg"],Arg.String (fun arg ->
-			com.c_args <- arg :: com.c_args
-		),"<arg>","pass option <arg> to the native Java/C# compiler");
 		("Compilation",["-r";"--resource"],["-resource"],Arg.String (fun res ->
 			let file, name = (match ExtString.String.nsplit res "@" with
 				| [file; name] -> file, name
@@ -272,6 +257,9 @@ let parse_args com =
 		("Services",["--json"],[],Arg.String (fun file ->
 			actx.json_out <- Some file
 		),"<file>","generate JSON types description");
+		("Services",["--hxb"],[], Arg.String (fun file ->
+			actx.hxb_out <- Some file;
+		),"<file>", "generate haxe binary representation to target archive");
 		("Optimization",["--no-output"],[], Arg.Unit (fun() -> actx.no_output <- true),"","compiles but does not generate any file");
 		("Debug",["--times"],[], Arg.Unit (fun() -> Timer.measure_times := true),"","measure compilation times");
 		("Optimization",["--no-inline"],[],Arg.Unit (fun () ->
@@ -305,7 +293,7 @@ let parse_args com =
 		),"<directory>","set current working directory");
 		("Compilation",["--haxelib-global"],[], Arg.Unit (fun () -> ()),"","pass --global argument to haxelib");
 		("Compilation",["-w"],[], Arg.String (fun s ->
-			let p = { pfile = "-w " ^ s; pmin = 0; pmax = 0 } in
+			let p = fake_pos ("-w " ^ s) in
 			let l = Warning.parse_options s p in
 			com.warning_options <- l :: com.warning_options
 		),"<warning list>","enable or disable specific warnings");
@@ -337,11 +325,13 @@ let parse_args com =
 					List.rev acc
 			in
 			let args = loop [] args in
-			Arg.parse_argv ~current (Array.of_list ("" :: args)) all_args_spec args_callback "";
+			Arg.parse_argv ~current (Array.of_list ("Haxe" :: args)) all_args_spec args_callback "";
 		with
 		| Arg.Help _ ->
 			raise (Helper.HelpMessage (usage_string all_args usage))
 		| Arg.Bad msg ->
+			(* Strip error prefix added by ocaml's arg parser *)
+			let msg = if ExtLib.String.starts_with msg "Haxe: " then (String.sub msg 6 ((String.length msg) - 6)) else msg in
 			let first_line = List.nth (Str.split (Str.regexp "\n") msg) 0 in
 			let new_msg = (Printf.sprintf "%s" first_line) in
 			let r = Str.regexp "unknown option [`']?\\([-A-Za-z]+\\)[`']?" in
@@ -372,7 +362,6 @@ let parse_args com =
 					if not (lib#has_flag NativeLibraries.FlagIsStd) then
 						List.iter (fun path -> if path <> (["java";"lang"],"String") then actx.classes <- path :: actx.classes) lib#list_modules
 				in
-				List.iter process_lib com.native_libs.net_libs;
 				List.iter process_lib com.native_libs.swf_libs;
 				List.iter process_lib com.native_libs.java_libs;
 			) :: actx.pre_compilation;

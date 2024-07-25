@@ -63,11 +63,11 @@ let run_expression_filters ?(ignore_processed_status=false) ctx detail_times fil
 	match t with
 	| TClassDecl c when is_removable_class c -> ()
 	| TClassDecl c ->
-		ctx.curclass <- c;
-		ctx.m <- TypeloadModule.make_curmod ctx c.cl_module;
+		ctx.c.curclass <- c;
+		ctx.m <- TypeloadModule.make_curmod ctx.com ctx.g c.cl_module;
 		let rec process_field f =
 			if ignore_processed_status || not (has_class_field_flag f CfPostProcessed) then begin
-				ctx.curfield <- f;
+				ctx.f.curfield <- f;
 				(match f.cf_expr with
 				| Some e when not (is_removable_field com f) ->
 					let identifier = Printf.sprintf "%s.%s" (s_type_path c.cl_path) f.cf_name in
@@ -81,11 +81,11 @@ let run_expression_filters ?(ignore_processed_status=false) ctx detail_times fil
 		(match c.cl_constructor with
 		| None -> ()
 		| Some f -> process_field f);
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e ->
 			let identifier = Printf.sprintf "%s.__init__" (s_type_path c.cl_path) in
-			c.cl_init <- Some (run (Some identifier) e));
+			TClass.set_cl_init c (run (Some identifier) e))
 	| TEnumDecl _ -> ()
 	| TTypeDecl _ -> ()
 	| TAbstractDecl _ -> ()

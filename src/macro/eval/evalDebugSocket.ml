@@ -171,7 +171,7 @@ let output_call_stack ctx eval p =
 		let line1,col1,line2,col2 = Lexer.get_pos_coords p in
 		let path = Path.get_real_path p.pfile in
 		let artificial,name = match kind with
-			| EKMethod _ | EKLocalFunction _ -> false,kind_name eval kind
+			| EKMethod _ | EKLocalFunction _ | EKMacro _ -> false,kind_name eval kind
 			| EKEntrypoint -> true,p.pfile
 		in
 		let source = if Sys.file_exists path then JString path else JNull in
@@ -473,7 +473,7 @@ module ValueCompletion = struct
 	exception JsonException of Json.t
 
 	let get_completion ctx text column env =
-		let p = { pmin = 0; pmax = 0; pfile = "" } in
+		let p = file_pos "" in
 		let save =
 			let old = !Parser.display_mode,DisplayPosition.display_position#get in
 			(fun () ->

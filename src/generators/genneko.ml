@@ -555,7 +555,7 @@ let gen_enum ctx e =
 let gen_type ctx t acc =
 	match t with
 	| TClassDecl c ->
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e -> ctx.inits <- (c,e) :: ctx.inits);
 		if (has_class_flag c CExtern) then
@@ -563,7 +563,7 @@ let gen_type ctx t acc =
 		else
 			gen_class ctx c :: acc
 	| TEnumDecl e ->
-		if e.e_extern then
+		if has_enum_flag e EnExtern then
 			acc
 		else
 			gen_enum ctx e :: acc
@@ -622,7 +622,7 @@ let gen_boot ctx =
 
 let gen_name ctx acc t =
 	match t with
-	| TEnumDecl e when e.e_extern ->
+	| TEnumDecl e when has_enum_flag e EnExtern ->
 		acc
 	| TEnumDecl e ->
 		let p = pos ctx e.e_pos in
@@ -686,7 +686,7 @@ let generate_libs_init = function
 			(EVars [
 				"@s",Some (call p (loadp "sys_string" 0) []);
 			],p);
-			(EIf (op ">=" (builtin p "version") (int p 240),
+			(EIf (op ">=" (call p (builtin p "version") []) (int p 240),
 				(op "=" es (op "+" es (ESwitch (call p (loadp "sys_cpu_arch" 0) [],[
 					(str p "arm64", str p "Arm64");
 					(str p "arm", str p "Arm");
@@ -780,7 +780,7 @@ let generate com =
 		{ psource = "<header>"; pline = 1; }
 	) in
 	let el = build ctx com.types in
-	let emain = (match com.main with None -> [] | Some e -> [gen_expr ctx e]) in
+	let emain = (match com.main.main_expr with None -> [] | Some e -> [gen_expr ctx e]) in
 	let e = (EBlock ((header()) @ libs :: el @ emain), null_pos) in
 	let source = Common.defined com Define.NekoSource in
 	let use_nekoc = Common.defined com Define.UseNekoc in

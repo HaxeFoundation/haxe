@@ -11,7 +11,7 @@ class lib_build_task cs file ftime lib = object(self)
 		let h = Hashtbl.create 0 in
 		List.iter (fun path ->
 			if not (Hashtbl.mem h path) then begin
-				let p = { pfile = file ^ " @ " ^ Globals.s_type_path path; pmin = 0; pmax = 0; } in
+				let p = file_pos (file ^ " @ " ^ Globals.s_type_path path) in
 				try begin match lib#build path p with
 				| Some r -> Hashtbl.add h path r
 				| None -> ()
@@ -77,18 +77,46 @@ let get_cache com = match com.Common.cache with
 	| Some cache ->
 		cache
 
+let get_cache_sign com = match com.Common.cache with
+	| None -> Define.get_signature com.defines
+	| Some cache -> cache#get_sign
+
 let rec cache_context cs com =
 	let cc = get_cache com in
 	let sign = Define.get_signature com.defines in
-	let cache_module m =
-		(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heueristic. *)
-		let cc = if m.m_extra.m_sign == sign then cc else cs#get_context m.m_extra.m_sign in
-		cc#cache_module m.m_path m;
+
+	let cache_module =
+		if Define.defined com.defines DisableHxbCache then
+			let cache_module m =
+				(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
+				let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
+				cc#cache_module_in_memory m.m_path m;
+			in
+			cache_module
+		else
+			let anon_identification = new Tanon_identification.tanon_identification in
+			let warn w s p = com.warning w com.warning_options s p in
+			let config = match com.hxb_writer_config with
+				| None ->
+					HxbWriterConfig.create_target_config ()
+				| Some config ->
+					if com.is_macro_context then config.macro_config else config.target_config
+			in
+			let cache_module m =
+				(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
+				let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
+				cc#cache_hxb_module config warn anon_identification m.m_path m;
+			in
+			cache_module
 	in
+
 	List.iter cache_module com.modules;
-	match com.get_macros() with
-	| None -> ()
-	| Some com -> cache_context cs com
+	begin match com.get_macros() with
+		| None -> ()
+		| Some com -> cache_context cs com
+	end;
+	if Define.raw_defined com.defines "hxb.stats" then
+		HxbReader.dump_stats (platform_name com.platform) com.hxb_reader_stats
 
 let maybe_add_context_sign cs com desc =
 	let sign = Define.get_signature com.defines in

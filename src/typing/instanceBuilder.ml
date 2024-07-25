@@ -14,8 +14,8 @@ let get_macro_path ctx e args p =
 	let path = match e with
 		| (EConst(Ident i)),_ ->
 			let path = try
-				if not (PMap.mem i ctx.curclass.cl_statics) then raise Not_found;
-				ctx.curclass.cl_path
+				if not (PMap.mem i ctx.c.curclass.cl_statics) then raise Not_found;
+				ctx.c.curclass.cl_path
 			with Not_found -> try
 				(t_infos (let path,_,_ = PMap.find i (ctx.m.import_resolution#extract_field_imports) in path)).mt_path
 			with Not_found ->
@@ -37,12 +37,12 @@ let build_macro_type ctx pl p =
 		| _ ->
 			raise_typing_error "MacroType requires a single expression call parameter" p
 	) in
-	let old = ctx.ret in
+	let old = ctx.e.ret in
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
-		| MError | MMacroInMacro -> spawn_monomorph ctx p
-		| MSuccess _ -> ctx.ret
+		| MError | MMacroInMacro -> spawn_monomorph ctx.e p
+		| MSuccess _ -> ctx.e.ret
 	) in
-	ctx.ret <- old;
+	ctx.e.ret <- old;
 	t
 
 let build_macro_build ctx c pl cfl p =
@@ -55,14 +55,14 @@ let build_macro_build ctx c pl cfl p =
 		| _,[ECall(e,args),_],_ -> get_macro_path ctx e args p
 		| _ -> raise_typing_error "genericBuild requires a single expression call parameter" p
 	in
-	let old = ctx.ret,ctx.get_build_infos in
-	ctx.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));
+	let old = ctx.e.ret,ctx.c.get_build_infos in
+	ctx.c.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
-		| MError | MMacroInMacro -> spawn_monomorph ctx p
-		| MSuccess _ -> ctx.ret
+		| MError | MMacroInMacro -> spawn_monomorph ctx.e p
+		| MSuccess _ -> ctx.e.ret
 	) in
-	ctx.ret <- fst old;
-	ctx.get_build_infos <- snd old;
+	ctx.e.ret <- fst old;
+	ctx.c.get_build_infos <- snd old;
 	t
 
 (* -------------------------------------------------------------------------- *)
@@ -73,8 +73,8 @@ let get_build_info ctx mtype p =
 	| TClassDecl c ->
 		if ctx.pass > PBuildClass then ignore(c.cl_build());
 		let build f s tl =
-			let t = spawn_monomorph ctx p in
-			let r = make_lazy ctx t (fun r ->
+			let t = spawn_monomorph ctx.e p in
+			let r = make_lazy ctx.g t (fun r ->
 				let tf = f tl in
 				unify_raise tf t p;
 				link_dynamic t tf;
@@ -99,7 +99,7 @@ let get_build_info ctx mtype p =
 		in
 		make_build_info kind c.cl_path c.cl_params (has_class_flag c CExtern) f
 	| TEnumDecl e ->
-		make_build_info BuildNormal e.e_path e.e_params e.e_extern (fun t -> TEnum (e,t))
+		make_build_info BuildNormal e.e_path e.e_params (has_enum_flag e EnExtern) (fun t -> TEnum (e,t))
 	| TTypeDecl td ->
 		begin try
 			let msg = match Meta.get Meta.Deprecated td.t_meta with

@@ -717,7 +717,7 @@ let is_extern_class class_def =
 ;;
 
 let is_extern_enum enum_def =
-   (enum_def.e_extern) || (has_meta_key enum_def.e_meta Meta.Extern)
+   (has_enum_flag enum_def EnExtern) || (has_meta_key enum_def.e_meta Meta.Extern)
 ;;
 
 let is_native_class class_def =
@@ -4760,7 +4760,18 @@ let gen_member_def ctx class_def is_static is_interface field =
          output "\n";
       | _ when has_class_field_flag field CfAbstract ->
          let ctx_arg_list ctx arg_list prefix =
-            String.concat "," (List.map (fun (n,o,t) -> (ctx_arg ctx n None t prefix) ) arg_list)
+            let get_default_value name =
+               try
+                  match Meta.get Meta.Value field.cf_meta with
+                  | (_,[ (EObjectDecl decls, _) ],_) ->
+                     Some ((List.find (fun ((n,_,_), _) -> n = name) decls) |> snd |> (type_constant_value ctx.ctx_common.basic));
+                  | _ ->
+                     None
+               with Not_found ->
+                  None
+            in
+
+            String.concat "," (List.map (fun (n,o,t) -> (ctx_arg ctx n (get_default_value n) t prefix) ) arg_list)
          in
          let tl,tr = match follow field.cf_type with
             | TFun(tl,tr) -> tl,tr
@@ -5003,7 +5014,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
    (* Body of main function *)
    (match obj with
    | TClassDecl class_def -> visit_class class_def;
-      (match class_def.cl_init with Some expression -> visit_params expression | _ -> ())
+      (match TClass.get_cl_init class_def with Some expression -> visit_params expression | _ -> ())
    | TEnumDecl enum_def -> visit_enum enum_def
    | TTypeDecl _ | TAbstractDecl _ -> (* These are expanded *) ());
 
@@ -5455,7 +5466,7 @@ let rec find_next_super_iteration ctx class_def =
 ;;
 
 let has_init_field class_def =
-   match class_def.cl_init with
+   match TClass.get_cl_init class_def with
    | Some _ -> true
    | _ -> false;;
 
@@ -5533,7 +5544,7 @@ let has_compare_field class_def =
 
 
 let has_boot_field class_def =
-   match class_def.cl_init with
+   match TClass.get_cl_init class_def with
    | None -> List.exists has_field_init (List.filter should_implement_field class_def.cl_ordered_statics)
    | _ -> true
 ;;
@@ -6094,7 +6105,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       end;
    end;
 
-   (match class_def.cl_init with
+   (match TClass.get_cl_init class_def with
    | Some expression ->
       let ctx = file_context baseCtx cpp_file debug false in
       output_cpp ("void " ^ class_name^ "::__init__()");
@@ -7069,7 +7080,7 @@ let create_super_dependencies common_ctx =
          | _ ->() );
          List.iter (fun imp -> if not (has_class_flag (fst imp) CExtern) then deps := (fst imp).cl_path :: !deps) (real_non_native_interfaces class_def.cl_implements);
          Hashtbl.add result class_def.cl_path !deps;
-      | TEnumDecl enum_def when not enum_def.e_extern ->
+      | TEnumDecl enum_def when not (has_enum_flag enum_def EnExtern) ->
          Hashtbl.add result enum_def.e_path [];
       | _ -> () );
       ) common_ctx.types;
@@ -8379,7 +8390,7 @@ let generate_script_class common_ctx script class_def =
    script#write ((string_of_int ( (List.length ordered_fields) +
                                  (List.length ordered_statics) +
                                  (match class_def.cl_constructor with Some _ -> 1 | _ -> 0 ) +
-                                 (match class_def.cl_init with Some _ -> 1 | _ -> 0 ) ) )
+                                 (match TClass.get_cl_init class_def with Some _ -> 1 | _ -> 0 ) ) )
                                  ^ "\n");
 
    let generate_field isStatic field =
@@ -8412,7 +8423,7 @@ let generate_script_class common_ctx script class_def =
    (match class_def.cl_constructor with
       | Some field  -> generate_field true field
       | _ -> () );
-   (match class_def.cl_init with
+   (match TClass.get_cl_init class_def with
       | Some expression  -> script#voidFunc true false "__init__" expression
       | _ -> () );
 
@@ -8463,14 +8474,14 @@ let generate_cppia ctx =
          else begin
             generate_script_class common_ctx script class_def
          end
-      | TEnumDecl enum_def when enum_def.e_extern -> ()
+      | TEnumDecl enum_def when has_enum_flag enum_def EnExtern -> ()
       | TEnumDecl enum_def ->
          let is_internal = is_internal_class enum_def.e_path in
          if (is_internal) then
             (if (debug>=4) then print_endline (" internal enum " ^ (join_class_path enum_def.e_path ".") ))
          else begin
             let meta = Texpr.build_metadata common_ctx.basic object_def in
-            if (enum_def.e_extern) then
+            if (has_enum_flag enum_def EnExtern) then
                (if (debug>=4) then print_endline ("external enum " ^  (join_class_path enum_def.e_path ".") ));
             generate_script_enum common_ctx script enum_def meta
          end
@@ -8478,7 +8489,7 @@ let generate_cppia ctx =
       );
    ) common_ctx.types;
 
-   (match common_ctx.main with
+   (match common_ctx.main.main_expr with
    | None -> script#writeOpLine IaNoMain;
    | Some e -> script#writeOpLine IaMain;
          script#gen_expression e
@@ -8557,7 +8568,7 @@ let generate_source ctx =
             if not ((has_class_flag class_def CInterface) && (is_native_gen_class class_def)) then
                exe_classes := (class_def.cl_path, deps, object_def)  ::  !exe_classes;
          end
-      | TEnumDecl enum_def when enum_def.e_extern -> ()
+      | TEnumDecl enum_def when has_enum_flag enum_def EnExtern -> ()
       | TEnumDecl enum_def ->
          let name =  class_text enum_def.e_path in
          let is_internal = is_internal_class enum_def.e_path in
@@ -8576,7 +8587,7 @@ let generate_source ctx =
             makeId name 0;
 
             let meta = Texpr.build_metadata common_ctx.basic object_def in
-            if (enum_def.e_extern) then
+            if (has_enum_flag enum_def EnExtern) then
                (if (debug>1) then print_endline ("external enum " ^ name ));
             boot_enums := enum_def.e_path :: !boot_enums;
             jobs := (fun () -> generate_enum_files ctx enum_def super_deps meta ) :: !jobs;
@@ -8590,7 +8601,7 @@ let generate_source ctx =
    List.iter (fun job -> job () ) !jobs;
 
 
-   (match common_ctx.main with
+   (match common_ctx.main.main_expr with
    | None -> generate_dummy_main common_ctx
    | Some e ->
       let main_field = { (mk_field "__main__" t_dynamic e.epos null_pos) with
@@ -8653,7 +8664,7 @@ let generate_source ctx =
      end;
    end;
 
-   let output_name = match  common_ctx.main_class with
+   let output_name = match  common_ctx.main.main_class with
    | Some path -> (snd path)
    | _ -> "output" in
 

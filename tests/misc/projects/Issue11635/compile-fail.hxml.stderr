@@ -1,0 +1,2 @@
+Macro.macro.hx:1: lines 1-3 : Void should be Array<haxe.macro.Field>
+Main.hx:1: characters 1-8 : Build failure (Macro.build)
