@@ -195,14 +195,14 @@ class TestOps extends Test {
 		f(nullInt != null);
 
 		f(null >  nullInt);
-		f(null >= nullInt);
+		t(null >= nullInt);
 		f(null <  nullInt);
-		f(null <= nullInt);
+		t(null <= nullInt);
 
 		f(nullInt >  null);
-		f(nullInt >= null);
+		t(nullInt >= null);
 		f(nullInt <  null);
-		f(nullInt <= null);
+		t(nullInt <= null);
 
 		f(0 == nullInt);
 		f(nullInt == 0);
@@ -289,14 +289,14 @@ class TestOps extends Test {
 		f(nullFloat != null);
 
 		f(null >  nullFloat);
-		f(null >= nullFloat);
+		t(null >= nullFloat);
 		f(null <  nullFloat);
-		f(null <= nullFloat);
+		t(null <= nullFloat);
 
 		f(nullFloat >  null);
-		f(nullFloat >= null);
+		t(nullFloat >= null);
 		f(nullFloat <  null);
-		f(nullFloat <= null);
+		t(nullFloat <= null);
 
 		f(0. == nullFloat);
 		f(nullFloat == 0.);
