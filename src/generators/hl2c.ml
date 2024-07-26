@@ -744,7 +744,7 @@ let generate_function ctx f =
 			match rtype a, rtype b with
 			| (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HI64), (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HI64) ->
 				phys_compare()
-			| HArray,HArray ->
+			| HBytes, HBytes | HArray,HArray ->
 				phys_compare()
 			| HType, HType ->
 				sexpr "if( hl_same_type(%s,%s) %s 0 ) {} else goto %s" (reg a) (reg b) (s_comp op) (label d)
@@ -846,7 +846,7 @@ let generate_function ctx f =
 			sexpr "%s = %s >> %s" (reg r) (reg a) (reg b)
 		| OUShr (r,a,b) ->
 			(match rtype r with
-			| HI64 -> sexpr "%s = ((uint64_t)%s) >> %s" (reg r) (reg a) (reg b)
+			| HI64 -> sexpr "%s = ((uint64)%s) >> %s" (reg r) (reg a) (reg b)
 			| _ -> sexpr "%s = ((unsigned)%s) >> %s" (reg r) (reg a) (reg b)
 			);
 		| OAnd (r,a,b) ->
@@ -1169,7 +1169,7 @@ let make_types_idents htypes =
 	in
 	let hashes = Hashtbl.create 0 in
 	let make_sign d =
-		let dig = Digest.to_hex (Digest.bytes (Marshal.to_bytes d [Marshal.Compat_32])) in
+		let dig = Digest.to_hex (Digest.bytes (Marshal.to_bytes d [Marshal.Closures])) in
 		let h = String.sub dig 0 7 in
 		let h = if Hashtbl.mem hashes h then dig else h in
 		Hashtbl.add hashes h ();
@@ -1710,6 +1710,7 @@ let write_c com file (code:code) gnames =
 	line "";
 	line "static void dump_types( void (*fdump)( void *, int) ) {";
 	block ctx;
+	line "#ifdef HL_DUMP_TYPES";
 	sexpr "hl_type *t";
 	sexpr "int ntypes = %d" (Array.length all_types);
 	sexpr "fdump(&ntypes,4)";
@@ -1728,6 +1729,9 @@ let write_c com file (code:code) gnames =
 			sexpr "t = (hl_type*)&%s.fun->closure_type; fdump(&t, sizeof(void*))" (type_name ctx t);
 		| _ -> ()
 	) all_types;
+	line "#else";
+	sexpr "printf(\"dump_types not available, please compile with HL_DUMP_TYPES defined\\n\")";
+	line "#endif";
 	unblock ctx;
 	line "}";
 
@@ -1792,7 +1796,7 @@ let write_c com file (code:code) gnames =
 			let file_pos f =
 				match f.fe_decl with
 				| Some f when Array.length f.debug > 0 ->
-					let fid, p = f.debug.(Array.length f.debug - 1) in
+					let fid, p, _ = f.debug.(Array.length f.debug - 1) in
 					(code.strings.(fid), p)
 				| _ ->
 					("",0)

@@ -1159,8 +1159,9 @@ and type_map_declaration ctx e1 el with_type p =
 	let check_key e_key =
 		try
 			let p = Hashtbl.find keys e_key.eexpr in
-			display_error ctx.com "Duplicate key" e_key.epos;
-			raise_typing_error ~depth:1 (compl_msg "Previously defined here") p
+			raise_typing_error_ext (make_error (Custom "Duplicate key") ~sub:[
+				make_error ~depth:1 (Custom (compl_msg "Previously defined here")) p
+			] e_key.epos);
 		with Not_found ->
 			begin match e_key.eexpr with
 			| TConst _ -> Hashtbl.add keys e_key.eexpr e_key.epos;
@@ -1431,8 +1432,7 @@ and type_array_decl ctx el with_type p =
 			if !allow_array_dynamic || ctx.f.untyped || ignore_error ctx.com then
 				t_dynamic
 			else begin
-				display_error ctx.com "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" err.err_pos;
-				raise_error err
+				raise_typing_error_ext (make_error (Custom "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>") ~sub:[err] err.err_pos)
 			end
 		in
 		mk (TArrayDecl el) (ctx.t.tarray t) p
@@ -1563,17 +1563,21 @@ and type_cast ctx e t p =
 	mk (TCast (type_expr ctx e WithType.value,Some texpr)) t p
 
 and get_if_then_else_operands ctx e1 e2 with_type = match with_type with
-	| WithType.NoValue -> e1,e2,ctx.t.tvoid
-	| WithType.Value _ -> e1,e2,unify_min ctx [e1; e2]
+	| WithType.NoValue ->
+		ctx.t.tvoid,(fun e -> e)
+	| WithType.Value _ ->
+		unify_min ctx [e1; e2],(fun e -> e)
 	| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
-		e1,e2,unify_min_for_type_source ctx [e1; e2] src
+		unify_min_for_type_source ctx [e1; e2] src,(fun e -> e)
 	| WithType.WithType(t,_) ->
-		let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
-		let e2 = AbstractCast.cast_or_unify ctx t e2 e2.epos in
-		e1,e2,t
+		t,(fun e ->
+			AbstractCast.cast_or_unify ctx t e e.epos
+		)
 
 and make_if_then_else ctx e0 e1 e2 with_type p =
-	let e1,e2,t = get_if_then_else_operands ctx e1 e2 with_type in
+	let t,cast = get_if_then_else_operands ctx e1 e2 with_type in
+	let e1 = cast e1 in
+	let e2 = cast e2 in
 	mk (TIf (e0,e1,Some e2)) t p
 
 and type_if ctx e e1 e2 with_type is_ternary p =
@@ -1854,7 +1858,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let vr = new value_reference ctx in
 		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 		let e2 = type_expr ctx (Expr.ensure_block e2) (WithType.with_type e1.etype) in
-		let e1,e2,tmin = get_if_then_else_operands ctx e1 e2 with_type in
+		let tmin,cast = get_if_then_else_operands ctx e1 e2 with_type in
+		let e2 = cast e2 in
 		let rec follow_null t =
 			match t with
 			| TAbstract({a_path = [],"Null"},[t]) -> follow_null t
@@ -1866,10 +1871,11 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			| TAbstract({a_path = [],"Null"},[t]) -> tmin
 			| _ -> follow_null tmin
 		in
-		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull tmin} in
-		let e_null = Builder.make_null e1.etype e1.epos in
+		let e1_null_t = if is_nullable e1.etype then e1.etype else ctx.t.tnull e1.etype in
+		let e1 = vr#as_var "tmp" {e1 with etype = e1_null_t} in
+		let e_null = Builder.make_null e1_null_t e1.epos in
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
-		let e_if = mk (TIf(e_cond,e1,Some e2)) iftype p in
+		let e_if = mk (TIf(e_cond,cast e1,Some e2)) iftype p in
 		vr#to_texpr e_if
 	| EBinop (OpAssignOp OpNullCoal,e1,e2) ->
 		let e_cond = EBinop(OpNotEq,e1,(EConst(Ident "null"), p)) in

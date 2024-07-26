@@ -315,7 +315,7 @@ module Dump = struct
 					print "\n");
 				print "}";
 			| Type.TEnumDecl e ->
-				print "%s%s%senum %s%s {\n" (s_metas e.e_meta "") (if e.e_private then "private " else "") (if e.e_extern then "extern " else "") (s_type_path path) (params e.e_params);
+				print "%s%s%senum %s%s {\n" (s_metas e.e_meta "") (if e.e_private then "private " else "") (if has_enum_flag e EnExtern then "extern " else "") (s_type_path path) (params e.e_params);
 				List.iter (fun n ->
 					let f = PMap.find n e.e_constrs in
 					print "\t%s%s;\n" f.ef_name (
@@ -389,9 +389,14 @@ module Dump = struct
 		List.iter (fun m ->
 			print "%s:\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
 			PMap.iter (fun _ mdep ->
-				let m2 = com.module_lut#find mdep.md_path in
+				let (ctx,m2) = match mdep.md_kind with
+					| MMacro when not com.is_macro_context ->
+						("[macro] ", (Option.get (com.get_macros())).module_lut#find mdep.md_path)
+					| _ ->
+						("", com.module_lut#find mdep.md_path)
+				in
 				let file = Path.UniqueKey.lazy_path m2.m_extra.m_file in
-				print "\t%s\n" file;
+				print "\t%s%s\n" ctx file;
 				let l = try Hashtbl.find dep file with Not_found -> [] in
 				Hashtbl.replace dep file (m :: l)
 			) m.m_extra.m_deps;

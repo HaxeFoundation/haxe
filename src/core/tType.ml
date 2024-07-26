@@ -26,10 +26,9 @@ and method_kind =
 	| MethMacro
 
 type module_check_policy =
-	| NoCheckFileTimeModification
+	| NoFileSystemCheck
+	| CheckFileModificationTime
 	| CheckFileContentModification
-	| NoCheckDependencies
-	| NoCheckShadowing
 
 type module_tainting_reason =
 	| CheckDisplayFile
@@ -55,6 +54,7 @@ type type_param_host =
 	| TPHEnumConstructor
 	| TPHAnonField
 	| TPHLocal
+	| TPHUnbound
 
 type cache_bound_object =
 	| Resource of string * string
@@ -144,7 +144,7 @@ and tvar_kind =
 	| VUser of tvar_origin
 	| VGenerated
 	| VInlined
-	| VInlinedConstructorVariable
+	| VInlinedConstructorVariable of string list
 	| VExtractorVariable
 	| VAbstractThis
 
@@ -334,7 +334,7 @@ and tenum = {
 	mutable e_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable e_type : t;
-	mutable e_extern : bool;
+	mutable e_flags : int;
 	mutable e_constrs : (string , tenum_field) PMap.t;
 	mutable e_names : string list;
 }
@@ -378,6 +378,7 @@ and tabstract = {
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
 	mutable a_call : tclass_field option;
+	mutable a_extern : bool;
 	mutable a_enum : bool;
 }
 
@@ -401,10 +402,20 @@ and module_def_display = {
 	mutable m_import_positions : (pos,bool ref) PMap.t;
 }
 
+and module_dep_origin =
+	| MDepFromTyping
+	| MDepFromImport
+	| MDepFromMacro
+	(* Compiler.include loads module with this special origin, which tells add_dependency not to add as a proper dependency. *)
+	| MDepFromMacroInclude
+	(* Modules created via Compiler.defineType or Compiler.defineModule will be added as dependency to their "parent" module with this origin. *)
+	| MDepFromMacroDefine
+
 and module_dep = {
 	md_sign : Digest.t;
 	md_kind : module_kind;
 	md_path : path;
+	md_origin : module_dep_origin
 }
 
 and module_def_extra = {
@@ -418,6 +429,7 @@ and module_def_extra = {
 	mutable m_checked : int;
 	mutable m_processed : int;
 	mutable m_deps : (int,module_dep) PMap.t;
+	mutable m_sig_deps : (int,module_dep) PMap.t option;
 	mutable m_kind : module_kind;
 	mutable m_cache_bound_objects : cache_bound_object DynArray.t;
 	mutable m_features : (string,bool) Hashtbl.t;
@@ -454,6 +466,7 @@ exception Type_exception of t
 
 type basic_types = {
 	mutable tvoid : t;
+	mutable tany : t;
 	mutable tint : t;
 	mutable tfloat : t;
 	mutable tbool : t;
@@ -474,6 +487,7 @@ type flag_tclass =
 	| CAbstract
 	| CFunctionalInterface
 	| CUsed (* Marker for DCE *)
+	| CExcluded (* Marker for exclude macro, turned into CExtern during filters *)
 
 type flag_tclass_field =
 	| CfPublic
@@ -496,6 +510,10 @@ type flag_tclass_field =
 let flag_tclass_field_names = [
 	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed"
 ]
+
+type flag_tenum =
+	| EnExtern
+	| EnExcluded (* Marker for exclude macro, turned into EnExtern during filters *)
 
 type flag_tvar =
 	| VCaptured

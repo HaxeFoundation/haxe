@@ -126,6 +126,8 @@ class Js {
 		changeDirectory(serverDir);
 		runCommand("haxe", ["build.hxml"]);
 		runCommand("node", ["test.js"]);
+		runCommand("haxe", ["build.hxml", "-D", "disable-hxb-cache"]);
+		runCommand("node", ["test.js"]);
 
 		changeDirectory(sysDir);
 		installNpmPackages(["deasync"]);

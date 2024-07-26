@@ -790,7 +790,7 @@ module Fusion = struct
 			let num_uses = state#get_reads v in
 			let num_writes = state#get_writes v in
 			let can_be_used_as_value = can_be_used_as_value com e in
-			let is_compiler_generated = match v.v_kind with VUser _ | VInlined -> false | _ -> true in
+			let is_compiler_generated = match v.v_kind with VUser _ | VInlined | VInlinedConstructorVariable _ -> false | _ -> true in
 			let has_type_params = match v.v_extra with Some ve when ve.v_params <> [] -> true | _ -> false in
 			let rec is_impure_extern e = match e.eexpr with
 				| TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf))) when has_class_flag cl CExtern ->
@@ -1250,8 +1250,9 @@ module Purity = struct
 				begin try
 					apply_to_class com c
 				with Purity_conflict(impure,p) ->
-					com.error "Impure field overrides/implements field which was explicitly marked as @:pure" impure.pn_field.cf_pos;
-					Error.raise_typing_error ~depth:1 (Error.compl_msg "Pure field is here") p;
+					Error.raise_typing_error_ext (Error.make_error (Custom "Impure field overrides/implements field which was explicitly marked as @:pure") ~sub:[
+						Error.make_error ~depth:1 (Custom (Error.compl_msg "Pure field is here")) p
+					] impure.pn_field.cf_pos)
 				end
 			| _ -> ()
 		) com.types;

@@ -203,7 +203,7 @@ module CompletionModuleType = struct
 			| TClassDecl c ->
 				(has_class_flag c CExtern),has_class_flag c CFinal,has_class_flag c CAbstract,(if (has_class_flag c CInterface) then Interface else Class),ctor c
 			| TEnumDecl en ->
-				en.e_extern,false,false,Enum,No
+				(has_enum_flag en EnExtern),false,false,Enum,No
 			| TTypeDecl td ->
 				let kind,ctor = match follow td.t_type with
 					| TAnon _ -> Struct,No

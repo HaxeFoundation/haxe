@@ -21,7 +21,6 @@ class Lua {
 				else
 					runNetworkCommand("brew", ["install", "python3"]);
 
-				attemptCommand("brew", ["install", "pcre2"]);
 				runCommand("pip3", ["install", "hererocks"]);
 				runCommand("brew", ["install", "openssl"]);
 			}

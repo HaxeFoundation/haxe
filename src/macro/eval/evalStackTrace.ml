@@ -19,6 +19,8 @@ let make_stack envs =
 		| EKMethod(st,sf) ->
 			let local_function = encode_enum_value key_haxe_StackItem 3 [|create_unknown (rev_hash st); create_unknown (rev_hash sf)|] None in
 			DynArray.add l (file_pos local_function);
+		| EKMacro(st,sf) ->
+			()
 		| EKEntrypoint ->
 			()
 	) envs;

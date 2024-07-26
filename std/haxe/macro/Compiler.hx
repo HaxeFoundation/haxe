@@ -29,9 +29,6 @@ import haxe.hxb.WriterConfig;
 /**
 	All these methods can be called for compiler configuration macros.
 **/
-#if hl
-@:hlNative("macro")
-#end
 class Compiler {
 	/**
 		A conditional compilation flag can be set on the command line using
@@ -160,6 +157,8 @@ class Compiler {
 		If you want to specify a different set of paths to search for modules, you can use the optional
 		argument `classPath`.
 
+		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
+
 		@param pack The package dot-path as String. Use `''` to include the root package.
 		@param rec If true, recursively adds all sub-packages.
 		@param ignore Array of module names to ignore for inclusion.
@@ -227,7 +226,7 @@ class Compiler {
 						var cl = prefix + file.substr(0, file.length - 3);
 						if (skip(cl))
 							continue;
-						Context.getModule(cl);
+						load("include_module", 1)(cl);
 					} else if (rec && sys.FileSystem.isDirectory(path + "/" + file) && !skip(prefix + file))
 						include(prefix + file, true, ignore, classPaths);
 				}
@@ -236,6 +235,7 @@ class Compiler {
 				Context.error('Package "$pack" was not found in any of class paths', Context.currentPos());
 		}
 
+		Context.assertInitMacro();
 		Context.onAfterInitMacros(() -> include(pack, rec, ignore, classPaths, strict));
 	}
 

@@ -103,7 +103,7 @@ let check_local_vars_init ctx e =
 		| TVar (v,eo) ->
 			begin
 				match eo with
-				| None when v.v_kind = VInlinedConstructorVariable ->
+				| None when (match v.v_kind with VInlinedConstructorVariable _ -> true | _ -> false) ->
 					()
 				| None ->
 					declared := v.v_id :: !declared;
@@ -286,6 +286,16 @@ let check_abstract_as_value e =
 
 (* PASS 2 begin *)
 
+(* Applies exclude macro (which turns types into externs) *)
+
+let apply_macro_exclude com t = match t with
+	| TClassDecl c when has_class_flag c CExcluded ->
+		add_class_flag c CExtern
+	| TEnumDecl e when has_enum_flag e EnExcluded ->
+		add_enum_flag e EnExtern
+	| _ ->
+		()
+
 (* Removes extern and macro fields, also checks for Void fields *)
 
 let remove_extern_fields com t = match t with
@@ -407,7 +417,7 @@ let check_reserved_type_paths com t =
 	in
 	match t with
 	| TClassDecl c when not (has_class_flag c CExtern) -> check c.cl_path c.cl_pos
-	| TEnumDecl e when not e.e_extern -> check e.e_path e.e_pos
+	| TEnumDecl e when not (has_enum_flag e EnExtern) -> check e.e_path e.e_pos
 	| _ -> ()
 
 (* PASS 3 end *)
@@ -453,6 +463,7 @@ let destruction tctx detail_times main locals =
 		(* PASS 2: type filters pre-DCE *)
 		List.iter (fun t ->
 			FiltersCommon.remove_generic_base t;
+			apply_macro_exclude com t;
 			remove_extern_fields com t;
 			(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
 			check_remove_metadata t;
@@ -507,20 +518,20 @@ let destruction tctx detail_times main locals =
 	com.callbacks#run com.error_ext com.callbacks#get_after_filters;
 	enter_stage com CFilteringDone
 
-let update_cache_dependencies com t =
+let update_cache_dependencies ~close_monomorphs com t =
 	let visited_anons = ref [] in
 	let rec check_t m t = match t with
 		| TInst(c,tl) ->
-			add_dependency m c.cl_module;
+			add_dependency m c.cl_module MDepFromTyping;
 			List.iter (check_t m) tl;
 		| TEnum(en,tl) ->
-			add_dependency m en.e_module;
+			add_dependency m en.e_module MDepFromTyping;
 			List.iter (check_t m) tl;
 		| TType(t,tl) ->
-			add_dependency m t.t_module;
+			add_dependency m t.t_module MDepFromTyping;
 			List.iter (check_t m) tl;
 		| TAbstract(a,tl) ->
-			add_dependency m a.a_module;
+			add_dependency m a.a_module MDepFromTyping;
 			List.iter (check_t m) tl;
 		| TFun(targs,tret) ->
 			List.iter (fun (_,_,t) -> check_t m t) targs;
@@ -535,8 +546,8 @@ let update_cache_dependencies com t =
 				| Some t ->
 					check_t m t
 				| _ ->
-					(* Bind any still open monomorph that's part of a signature to Dynamic now (issue #10653) *)
-					Monomorph.do_bind r t_dynamic;
+					(* Bind any still open monomorph that's part of a signature to Any now (issue #10653) *)
+					if close_monomorphs then Monomorph.do_bind r com.basic.tany;
 		end
 		| TLazy f ->
 			check_t m (lazy_type f)
@@ -743,7 +754,7 @@ let run tctx main before_destruction =
 	enter_stage com CSaveStart;
 	with_timer detail_times "save state" None (fun () ->
 		List.iter (fun mt ->
-			update_cache_dependencies com mt;
+			update_cache_dependencies ~close_monomorphs:true com mt;
 			save_class_state com mt
 		) new_types;
 	);

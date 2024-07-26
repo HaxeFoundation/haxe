@@ -291,7 +291,7 @@ let check_module sctx com m_path m_extra p =
 				end
 		in
 		let has_policy policy = List.mem policy m_extra.m_check_policy || match policy with
-			| NoCheckShadowing | NoCheckFileTimeModification when !ServerConfig.do_not_check_modules && !Parser.display_mode <> DMNone -> true
+			| NoFileSystemCheck when !ServerConfig.do_not_check_modules && !Parser.display_mode <> DMNone -> true
 			| _ -> false
 		in
 		let check_file () =
@@ -310,6 +310,11 @@ let check_module sctx com m_path m_extra p =
 			(com.cs#get_context sign)#find_module_extra mpath
 		in
 		let check_dependencies () =
+			let full_restore =
+				com.is_macro_context
+				|| com.display.dms_full_typing
+				|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m_extra.m_file)
+			in
 			PMap.iter (fun _ mdep ->
 				let sign = mdep.md_sign in
 				let mpath = mdep.md_path in
@@ -321,13 +326,13 @@ let check_module sctx com m_path m_extra p =
 				match check mpath m2_extra with
 				| None -> ()
 				| Some reason -> raise (Dirty (DependencyDirty(mpath,reason)))
-			) m_extra.m_deps;
+			) (if full_restore then m_extra.m_deps else Option.default m_extra.m_deps m_extra.m_sig_deps)
 		in
 		let check () =
 			try
-				if not (has_policy NoCheckShadowing) then check_module_path();
-				if not (has_policy NoCheckFileTimeModification) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
-				if not (has_policy NoCheckDependencies) then check_dependencies();
+				check_module_path();
+				if not (has_policy NoFileSystemCheck) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
+				check_dependencies();
 				None
 			with
 			| Dirty reason ->
@@ -386,6 +391,20 @@ let check_module sctx com m_path m_extra p =
 	end;
 	state
 
+let get_hxb_module com cc path =
+	try
+		let mc = cc#get_hxb_module path in
+		if not com.is_macro_context && not com.display.dms_full_typing && not (DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file)) then begin
+			mc.mc_extra.m_cache_state <- MSGood;
+			BinaryModule mc
+		end else
+			begin match mc.mc_extra.m_cache_state with
+				| MSBad reason -> BadModule reason
+				| _ -> BinaryModule mc
+			end
+	with Not_found ->
+		NoModule
+
 class hxb_reader_api_server
 	(com : Common.context)
 	(cc : context_cache)
@@ -399,7 +418,9 @@ class hxb_reader_api_server
 			m_path = path;
 			m_types = [];
 			m_statics = None;
-			m_extra = mc.mc_extra
+			(* Creating a new m_extra because if we keep the same reference, display requests *)
+			(* can alter it with bad data (for example adding dependencies that are not cached) *)
+			m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps }
 		}
 
 	method add_module (m : module_def) =
@@ -415,37 +436,31 @@ class hxb_reader_api_server
 		| GoodModule m ->
 			m
 		| BinaryModule mc ->
-			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats in
+			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined com Define.HxbTimes) in
+			let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file) in
+			let full_restore = com.is_macro_context || com.display.dms_full_typing || is_display_file in
 			let f_next chunks until =
 				let t_hxb = Timer.timer ["server";"module cache";"hxb read"] in
-				let r = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until in
+				let r = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until (not full_restore) in
 				t_hxb();
 				r
 			in
-			let m,chunks = f_next mc.mc_chunks EOF in
+			let m,chunks = f_next mc.mc_chunks EOT in
 
 			(* We try to avoid reading expressions as much as possible, so we only do this for
 				 our current display file if we're in display mode. *)
-			let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file) in
-			if is_display_file || com.display.dms_full_typing then ignore(f_next chunks EOM)
-			else delay (fun () -> ignore(f_next chunks EOM));
+			if full_restore then ignore(f_next chunks EOM)
+			else delay (fun () -> ignore(f_next chunks EOF));
 			m
 		| BadModule reason ->
-			die (Printf.sprintf "Unexpected BadModule %s" (s_type_path path)) __LOC__
+			die (Printf.sprintf "Unexpected BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)) __LOC__
 		| NoModule ->
 			die (Printf.sprintf "Unexpected NoModule %s" (s_type_path path)) __LOC__
 
 	method find_module (m_path : path) =
 		try
 			GoodModule (com.module_lut#find m_path)
-		with Not_found -> try
-			let mc = cc#get_hxb_module m_path in
-			begin match mc.mc_extra.m_cache_state with
-				| MSBad reason -> BadModule reason
-				| _ -> BinaryModule mc
-			end
-		with Not_found ->
-			NoModule
+		with Not_found -> get_hxb_module com cc m_path
 
 	method basic_types =
 		com.basic
@@ -488,6 +503,11 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 				if not from_binary || m != m then
 					com.module_lut#add m.m_path m;
 				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
+				let full_restore =
+					com.is_macro_context
+					|| com.display.dms_full_typing
+					|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file)
+				in
 				PMap.iter (fun _ mdep ->
 					let mpath = mdep.md_path in
 					if mdep.md_sign = own_sign then begin
@@ -506,7 +526,7 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 						in
 						add_modules (tabs ^ "  ") m0 m2
 					end
-				) m.m_extra.m_deps
+				) (if full_restore then m.m_extra.m_deps else Option.default m.m_extra.m_deps m.m_extra.m_sig_deps)
 			)
 		end
 	in
@@ -540,14 +560,7 @@ and type_module sctx com delay mpath p =
 				| MSBad reason -> BadModule reason
 				| _ -> GoodModule m
 			end;
-		with Not_found -> try
-			let mc = cc#get_hxb_module m_path in
-			begin match mc.mc_extra.m_cache_state with
-				| MSBad reason -> BadModule reason
-				| _ -> BinaryModule mc
-			end
-		with Not_found ->
-			NoModule
+		with Not_found -> get_hxb_module com cc m_path
 	in
 	(* Should not raise anything! *)
 	let m = match find_module_in_cache cc mpath p with
@@ -565,7 +578,9 @@ and type_module sctx com delay mpath p =
 			   checking dependencies. This means that the actual decoding never has any reason to fail. *)
 			begin match check_module sctx mpath mc.mc_extra p with
 				| None ->
-					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats in
+					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined com Define.HxbTimes) in
+					let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file) in
+					let full_restore = com.is_macro_context || com.display.dms_full_typing || is_display_file in
 					let api = match com.hxb_reader_api with
 						| Some api ->
 							api
@@ -576,16 +591,15 @@ and type_module sctx com delay mpath p =
 					in
 					let f_next chunks until =
 						let t_hxb = Timer.timer ["server";"module cache";"hxb read"] in
-						let r = reader#read_chunks_until api chunks until in
+						let r = reader#read_chunks_until api chunks until (not full_restore) in
 						t_hxb();
 						r
 					in
-					let m,chunks = f_next mc.mc_chunks EOF in
+					let m,chunks = f_next mc.mc_chunks EOT in
 					(* We try to avoid reading expressions as much as possible, so we only do this for
 					   our current display file if we're in display mode. *)
-					let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file) in
-					if is_display_file || com.display.dms_full_typing then ignore(f_next chunks EOM)
-					else delay (fun () -> ignore(f_next chunks EOM));
+					if full_restore then ignore(f_next chunks EOM)
+					else delay (fun () -> ignore(f_next chunks EOF));
 					add_modules true m;
 				| Some reason ->
 					skip mpath reason
@@ -626,6 +640,7 @@ let after_save sctx ctx =
 		maybe_cache_context sctx ctx.com
 
 let after_compilation sctx ctx =
+	sctx.cs#clear_temp_cache;
 	()
 
 let mk_length_prefixed_communication allow_nonblock chin chout =

@@ -67,6 +67,11 @@
 		"doc": "Activated when compiling with -debug."
 	},
 	{
+		"name": "DisableHxbCache",
+		"define": "disable-hxb-cache",
+		"doc": "Use in-memory cache instead of hxb powered cache."
+	},
+	{
 		"name": "DisableUnicodeStrings",
 		"define": "disable-unicode-strings",
 		"doc": "Disable Unicode support in `String` type.",
@@ -159,6 +164,11 @@
 		"define": "eval-times",
 		"doc": "Record per-method execution times in macro/interp mode. Implies eval-stack.",
 		"platforms": ["eval"]
+	},
+	{
+		"name": "FailFast",
+		"define": "fail-fast",
+		"doc": "Abort compilation when first error occurs."
 	},
 	{
 		"name": "FilterTimes",
@@ -255,6 +265,11 @@
 		"doc": "The HashLink version to target. (default: 1.10.0)",
 		"platforms": ["hl"],
 		"params": ["version"]
+	},
+	{
+		"name": "HxbTimes",
+		"define": "hxb-times",
+		"doc": "Display hxb timing when used with `--times`."
 	},
 	{
 		"name": "HxcppApiLevel",
@@ -781,7 +796,7 @@
 	{
 		"name": "MessageReporting",
 		"define": "message.reporting",
-		"doc": "Select message reporting mode for compiler output. (default: classic)",
+		"doc": "Select message reporting mode for compiler output. (default: pretty)",
 		"params": ["mode: classic | pretty | indent"]
 	},
 	{

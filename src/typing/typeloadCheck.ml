@@ -48,8 +48,13 @@ let is_generic_parameter ctx c =
 		false
 
 let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
+	let tctx = {
+		type_param_pairs = [];
+		known_type_params = f1.cf_params
+	} in
+	let uctx = {default_unification_context with type_param_mode = TpDefinition tctx} in
 	let valid t1 t2 =
-		Type.unify t1 t2;
+		unify_custom uctx t1 t2;
 		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);
 	in
 	begin match PurityState.get_purity_from_meta f2.cf_meta,PurityState.get_purity_from_meta f1.cf_meta with
@@ -57,40 +62,7 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		| PurityState.ExpectPure p,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),p],null_pos) :: f1.cf_meta
 		| _ -> ()
 	end;
-	let t1, t2 = (match f1.cf_params, f2.cf_params with
-		| [], [] -> t1, t2
-		| l1, l2 when List.length l1 = List.length l2 ->
-			let to_check = ref [] in
-			(* TPTODO: defaults *)
-			let monos = List.map2 (fun ttp1 ttp2 ->
-				let ct1 = get_constraints ttp1 in
-				let ct2 = get_constraints ttp2 in
-				(match ct1, ct2 with
-				| [], [] -> ()
-				| _, _ when List.length ct1 = List.length ct2 ->
-					(* if same constraints, they are the same type *)
-					let check monos =
-						List.iter2 (fun t1 t2  ->
-							try
-								let t1 = apply_params l1 monos (map2 t1) in
-								let t2 = apply_params l2 monos (map1 t2) in
-								type_eq EqStrict t1 t2
-							with Unify_error l ->
-								raise (Unify_error (Unify_custom "Constraints differ" :: l))
-						) ct1 ct2
-					in
-					to_check := check :: !to_check;
-				| _ ->
-					raise (Unify_error [Unify_custom "Different number of constraints"]));
-				TInst (mk_class null_module ([],ttp1.ttp_name) null_pos null_pos,[])
-			) l1 l2 in
-			List.iter (fun f -> f monos) !to_check;
-			apply_params l1 monos t1, apply_params l2 monos t2
-		| _  ->
-			(* ignore type params, will create other errors later *)
-			t1, t2
-	) in
-	match f1.cf_kind,f2.cf_kind with
+	begin match f1.cf_kind,f2.cf_kind with
 	| Method m1, Method m2 when not (m1 = MethDynamic) && not (m2 = MethDynamic) ->
 		begin match follow t1, follow t2 with
 		| TFun (args1,r1) , TFun (args2,r2) -> (
@@ -122,6 +94,25 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		(* in case args differs, or if an interface var *)
 		type_eq EqStrict t1 t2;
 		if is_null t1 <> is_null t2 then raise (Unify_error [Cannot_unify (t1,t2)])
+	end;
+	let assign_ttp ttp1 ttp2 =
+		let ct1 = get_constraints ttp1 in
+		let ct2 = get_constraints ttp2 in
+		match ct1,ct2 with
+		| _,[] ->
+			()
+		| [],(t2 :: _) ->
+			raise (Unify_error ([Unify_custom (Printf.sprintf "Constraint unsatisfied for type parameter %s: %s" ttp2.ttp_name (s_type (print_context()) t2))]))
+		| ct1,ct2 ->
+			List.iter (fun t2 ->
+				let t2 = map2 t2 in
+				if not (List.exists (fun t1 -> does_unify (map1 t1) t2) ct1) then
+					raise (Unify_error ([Unify_custom (Printf.sprintf "Constraint unsatisfied for type parameter %s: %s" ttp2.ttp_name (s_type (print_context()) t2))]))
+			) ct2
+	in
+	List.iter (fun (ttp1,ttp2) ->
+		assign_ttp ttp2 ttp1
+	) tctx.type_param_pairs
 
 let copy_meta meta_src meta_target sl =
 	let meta = ref meta_target in
@@ -132,9 +123,9 @@ let copy_meta meta_src meta_target sl =
 
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
-		(* TODO construct error *)
-		display_error ctx.com ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child_pos;
-		display_error ~depth:1 ctx.com (compl_msg "Base field is defined here") base_pos
+		display_error_ext ctx.com (make_error (Custom ("Field " ^ child.cf_name ^ " has different @:native value than in superclass")) ~sub:([
+			(make_error ~depth:1 (Custom (compl_msg "Base field is defined here")) base_pos)
+		]) child_pos);
 	in
 	try
 		let child_name, child_pos = Naming.get_native_name child.cf_meta in
@@ -189,10 +180,10 @@ let check_override_field ctx p rctx =
 		valid_redefinition rctx.map rctx.map rctx.cf_new rctx.cf_new.cf_type rctx.cf_old rctx.t_old;
 	with
 		Unify_error l ->
-			(* TODO construct error with sub *)
-			display_error ctx.com ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
-			display_error ~depth:1 ctx.com (compl_msg "Base field is defined here") rctx.cf_old.cf_name_pos;
-			display_error ~depth:1 ctx.com (compl_msg (error_msg (Unify l))) p
+			display_error_ext ctx.com (make_error (Custom ("Field " ^ i ^ " overrides parent class with different or incomplete type")) ~sub:([
+				(make_error ~depth:1 (Custom (compl_msg (error_msg (Unify l)))) p);
+				(make_error ~depth:1 (Custom (compl_msg "Base field is defined here")) rctx.cf_old.cf_name_pos);
+			]) p)
 
 let find_override_field ctx c_new cf_new c_old tl get_super_field is_overload p =
 	let i = cf_new.cf_name in
@@ -400,10 +391,10 @@ module Inheritance = struct
 					with
 						Unify_error l ->
 							if not ((has_class_flag c CExtern)) then begin
-								(* TODO construct error with sub *)
-								display_error com ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-								display_error ~depth:1 com (compl_msg "Interface field is defined here") f.cf_pos;
-								display_error ~depth:1 com (compl_msg (error_msg (Unify l))) p;
+								display_error_ext com (make_error (Custom ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path)) ~sub:([
+									(make_error ~depth:1 (Custom (compl_msg (error_msg (Unify l)))) p);
+									(make_error ~depth:1 (Custom (compl_msg "Interface field is defined here")) f.cf_name_pos);
+								]) p)
 							end
 				)
 			with Not_found ->
@@ -490,20 +481,19 @@ module Inheritance = struct
 			let display = ctx.com.display_information in
 			display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 		| l ->
-			let singular = match l with [_] -> true | _ -> false in
-			display_error ctx.com (Printf.sprintf "This class extends abstract class %s but doesn't implement the following method%s" (s_type_path csup.cl_path) (if singular then "" else "s")) c.cl_name_pos;
-			(* TODO sub error ? *)
-			display_error ctx.com (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path)) c.cl_name_pos;
 			let pctx = print_context() in
-			List.iter (fun (cf,_) ->
+			let sub = List.map (fun (cf,_) ->
 				let s = match follow cf.cf_type with
 					| TFun(tl,tr) ->
 						String.concat ", " (List.map (fun (n,o,t) -> Printf.sprintf "%s:%s" n (s_type pctx t)) tl)
 					| t ->
 						s_type pctx t
 				in
-				display_error ~depth:1 ctx.com (compl_msg (Printf.sprintf "%s(%s)" cf.cf_name s)) cf.cf_name_pos
-			) (List.rev !missing)
+				make_error ~depth:1 (Custom (compl_msg (Printf.sprintf "%s(%s)" cf.cf_name s))) cf.cf_name_pos
+			) !missing in
+			let singular = match l with [_] -> true | _ -> false in
+			let sub = [make_error (Custom (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path))) ~sub c.cl_name_pos] in
+			display_error_ext ctx.com (make_error (Custom (Printf.sprintf "This class extends abstract class %s but doesn't implement the following method%s" (s_type_path csup.cl_path) (if singular then "" else "s"))) ~sub c.cl_name_pos)
 
 	let set_heritance ctx c herits p =
 		let is_lib = Meta.has Meta.LibType c.cl_meta in
@@ -513,7 +503,7 @@ module Inheritance = struct
 				match m with
 				| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,{ c.cl_pos with pmax = c.cl_pos.pmin }(* prevent display metadata *)) :: m :: c.cl_meta
 				| _ -> ()
-			) csup.cl_meta;
+			) (List.rev csup.cl_meta);
 			if has_class_flag csup CFinal && not (((has_class_flag csup CExtern) && Meta.has Meta.Hack c.cl_meta) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then
 				raise_typing_error ("Cannot extend a final " ^ if (has_class_flag c CInterface) then "interface" else "class") p;
 		in
@@ -644,10 +634,13 @@ let check_final_vars ctx e =
 				Type.iter find_inits e
 		in
 		find_inits e;
-		if Hashtbl.length final_vars > 0 then
-			display_error ctx.com "Some final fields are uninitialized in this class" ctx.c.curclass.cl_name_pos;
-		DynArray.iter (fun (c,cf) ->
-			if Hashtbl.mem final_vars cf.cf_name then
-				display_error ~depth:1 ctx.com "Uninitialized field" cf.cf_name_pos
-		) ordered_fields
+		if Hashtbl.length final_vars > 0 then begin
+			let sub = List.filter_map (fun (c,cf) ->
+				if Hashtbl.mem final_vars cf.cf_name then
+					Some (make_error ~depth:1 (Custom "Uninitialized field") cf.cf_name_pos)
+				else
+					None
+			) (DynArray.to_list ordered_fields) in
+			display_error_ext ctx.com (make_error (Custom "Some final fields are uninitialized in this class") ~sub:(List.rev sub) ctx.c.curclass.cl_name_pos)
+		end
 	end
