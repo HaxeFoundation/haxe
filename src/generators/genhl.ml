@@ -2361,8 +2361,11 @@ and eval_expr ctx e =
 		| HFun _ -> cast_to ctx r to_t e.epos
 		| _ -> unsafe_cast_to ctx r to_t e.epos)
 	| TObjectDecl fl ->
+		let has_method vp =
+			Array.exists (fun (_,_,t) -> match t with HMethod _ -> true | _ -> false) vp.vfields
+		in
 		(match to_type ctx e.etype with
-		| HVirtual vp as t when Array.length vp.vfields = List.length fl && not (List.exists (fun ((s,_,_),e) -> s = "toString" && is_to_string e.etype) fl)  ->
+		| HVirtual vp as t when Array.length vp.vfields = List.length fl && not (List.exists (fun ((s,_,_),e) -> s = "toString" && is_to_string e.etype) fl) && not (has_method vp) ->
 			let r = alloc_tmp ctx t in
 			op ctx (ONew r);
 			hold ctx r;
