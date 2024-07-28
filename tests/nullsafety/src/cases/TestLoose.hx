@@ -120,4 +120,22 @@ class TestLoose {
 			var i2:String = staticVar ?? break;
 		}
 	}
+
+	static function nullable_ifAndTrue_shouldPass(a:Null<Int>) {
+		while (a != null) {
+			a++;
+		}
+		if (a == null) return;
+		if (a == 2 && true) return;
+		while (a == 2 && true) {}
+		a++;
+	}
+
+	static function nullable_doWhile_shouldPass(a:Null<Int>) {
+		do {
+			if (a == null) return;
+			a++;
+		} while (true);
+		a++;
+	}
 }
