@@ -81,10 +81,9 @@ let generate ctx tctx ext actx =
 		| Cs ->
 			Gencs.generate,"cs"
 		| Java ->
-			if Common.defined com Jvm then begin
-				com.warning WDeprecated com.warning_options ("--java out.jar -D jvm is deprecated; use --jvm out.jar directly") null_pos;
+			if Common.defined com Jvm then
 				Genjvm.generate actx.jvm_flag,"java"
-			end else
+			else
 				Genjava.generate,"java"
 		| Python ->
 			Genpy.generate,"python"

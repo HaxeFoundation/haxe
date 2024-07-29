@@ -129,6 +129,7 @@ module Setup = struct
 			| Java ->
 				Java.before_generate com;
 				if defined com Define.Jvm then begin
+					if not actx.jvm_flag then com.warning WDeprecated com.warning_options ("--java out.jar -D jvm is deprecated; use --jvm out.jar directly") null_pos;
 					add_std "jvm";
 					com.package_rules <- PMap.remove "jvm" com.package_rules;
 				end;
