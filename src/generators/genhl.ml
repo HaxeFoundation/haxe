@@ -2012,11 +2012,13 @@ and eval_expr ctx e =
 		| "$aalloc", [esize] ->
 			let et = (match follow e.etype with TAbstract ({ a_path = ["hl"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
 			let size = eval_to ctx esize HI32 in
-			let a = alloc_tmp ctx (HArray et) in
+			let a = alloc_tmp ctx (HArray HDyn) in
+			let b = alloc_tmp ctx (HArray et) in
 			let rt = alloc_tmp ctx HType in
 			op ctx (OType (rt,et));
-			op ctx (OCall2 (a,alloc_std ctx "alloc_array" [HType;HI32] (HArray et),rt,size));
-			a
+			op ctx (OCall2 (a,alloc_std ctx "alloc_array" [HType;HI32] (HArray HDyn),rt,size));
+			op ctx (OUnsafeCast(b,a));
+			b
 		| "$aget", [a; pos] ->
 			(*
 				read/write on arrays are unsafe : the type of NativeArray needs to be correcly set.
