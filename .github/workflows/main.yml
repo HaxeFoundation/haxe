@@ -203,7 +203,7 @@ jobs:
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Build xmldoc
-        if: matrix.ocaml == '4.08.1'
+        if: matrix.ocaml == '5.0.0'
         run: |
           set -ex
           make -s xmldoc
@@ -217,12 +217,12 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
+          name: linuxBinaries${{ (matrix.ocaml == '4.08.1' && '_ocaml4') || '' }}
           path: out
 
       - name: Upload xmldoc artifact
         uses: actions/upload-artifact@v4
-        if: matrix.ocaml == '4.08.1'
+        if: matrix.ocaml == '5.0.0'
         with:
           name: xmldoc
           path: extra/doc
@@ -255,7 +255,7 @@ jobs:
           submodules: recursive
       - uses: actions/download-artifact@v4
         with:
-          name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
+          name: linuxBinaries${{ (matrix.ocaml == '4.08.1' && '_ocaml4') || '' }}
           path: linuxBinaries
 
       - name: Install Neko from S3
