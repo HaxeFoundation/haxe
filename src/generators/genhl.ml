@@ -899,6 +899,15 @@ let op ctx o =
 let set_op ctx pos o =
 	DynArray.set ctx.m.mops pos o
 
+let alloc_array ctx size et =
+	let a = alloc_tmp ctx (HArray HDyn) in
+	let b = alloc_tmp ctx (HArray et) in
+	let rt = alloc_tmp ctx HType in
+	op ctx (OType (rt,et));
+	op ctx (OCall2 (a,alloc_std ctx "alloc_array" [HType;HI32] (HArray HDyn),rt,size));
+	op ctx (OUnsafeCast(b,a));
+	b
+
 let jump ctx f =
 	let pos = current_pos ctx in
 	op ctx (OJAlways (-1)); (* loop *)
@@ -2015,13 +2024,7 @@ and eval_expr ctx e =
 		| "$aalloc", [esize] ->
 			let et = (match follow e.etype with TAbstract ({ a_path = ["hl"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
 			let size = eval_to ctx esize HI32 in
-			let a = alloc_tmp ctx (HArray HDyn) in
-			let b = alloc_tmp ctx (HArray et) in
-			let rt = alloc_tmp ctx HType in
-			op ctx (OType (rt,et));
-			op ctx (OCall2 (a,alloc_std ctx "alloc_array" [HType;HI32] (HArray HDyn),rt,size));
-			op ctx (OUnsafeCast(b,a));
-			b
+			alloc_array ctx size et
 		| "$aget", [a; pos] ->
 			(*
 				read/write on arrays are unsafe : the type of NativeArray needs to be correcly set.
@@ -2113,12 +2116,9 @@ and eval_expr ctx e =
 		| "$resources", [] ->
 			let tdef = (try List.find (fun t -> (t_infos t).mt_path = (["haxe";"_Resource"],"ResourceContent")) ctx.com.types with Not_found -> die "" __LOC__) in
 			let t = class_type ctx (match tdef with TClassDecl c -> c | _ -> die "" __LOC__) [] false in
-			let arr = alloc_tmp ctx (HArray HBytes) in
-			let rt = alloc_tmp ctx HType in
-			op ctx (OType (rt,t));
 			let res = Hashtbl.fold (fun k v acc -> (k,v) :: acc) ctx.com.resources [] in
 			let size = reg_int ctx (List.length res) in
-			op ctx (OCall2 (arr,alloc_std ctx "alloc_array" [HType;HI32] (HArray HBytes),rt,size));
+			let arr = alloc_array ctx size HBytes in
 			let ro = alloc_tmp ctx t in
 			let rb = alloc_tmp ctx HBytes in
 			let ridx = reg_int ctx 0 in
@@ -2837,11 +2837,8 @@ and eval_expr ctx e =
 			array_bytes 3 HI64 "I64" (fun b i r -> OSetMem (b,i,r))
 		| _ ->
 			let at = if is_dynamic et then et else HDyn in
-			let a = alloc_tmp ctx (HArray at) in
-			let rt = alloc_tmp ctx HType in
-			op ctx (OType (rt,at));
 			let size = reg_int ctx (List.length el) in
-			op ctx (OCall2 (a,alloc_std ctx "alloc_array" [HType;HI32] (HArray at),rt,size));
+			let a = alloc_array ctx size at in
 			hold ctx a;
 			list_iteri (fun i e ->
 				let r = eval_to ctx e at in
@@ -3664,10 +3661,9 @@ let generate_static_init ctx types main =
 				in
 				if (has_class_flag c CInterface) then begin
 					let l = gather_implements() in
-					let ra = alloc_tmp ctx (HArray HType) in
 					let rt = alloc_tmp ctx HType in
 					op ctx (OType (rt, HType));
-					op ctx (OCall2 (ra, alloc_std ctx "alloc_array" [HType;HI32] (HArray HType), rt, reg_int ctx (List.length l)));
+					let ra = alloc_array ctx (reg_int ctx (List.length l)) HType in
 					list_iteri (fun i intf ->
 						op ctx (OType (rt, to_type ctx (TInst (intf,[]))));
 						op ctx (OSetArray (ra, reg_int ctx i, rt));
