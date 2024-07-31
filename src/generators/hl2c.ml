@@ -1181,6 +1181,8 @@ let make_types_idents htypes =
 			"t$nul_" ^ tstr t
 		| DSimple (HRef t) ->
 			"t$ref_" ^ (match make_desc t with DSimple _ -> tstr t | d -> desc_string d)
+		| DSimple (HArray t) ->
+			"t$array_" ^ (desc_string (make_desc t))
 		| DSimple t ->
 			"t$_" ^ tstr t
 		| DFun _ ->
