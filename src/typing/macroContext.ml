@@ -94,14 +94,15 @@ let typing_timer ctx need_type f =
 		| Stack stack -> (Stack (List.map located_to_error stack),null_pos)
 	in
 
-	ctx.com.located_error <- (fun ?(depth=0) msg ->
-		let (e,p) = located_to_error msg in
-		raise (Error (e,p,depth)));
-
 	if need_type && ctx.pass < PTypeField then begin
 		ctx.pass <- PTypeField;
 		flush_pass ctx PBuildClass "typing_timer";
 	end;
+
+	ctx.com.located_error <- (fun ?(depth=0) msg ->
+		let (e,p) = located_to_error msg in
+		raise (Error (e,p,depth)));
+
 	let exit() =
 		t();
 		ctx.com.located_error <- old;

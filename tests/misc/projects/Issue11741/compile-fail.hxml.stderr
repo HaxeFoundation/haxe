@@ -1,0 +1,18 @@
+[ERROR] Test2.hx:7: character 1
+
+ 7 | class Test2Ext extends Test2 {}
+   | ^
+   | Crashes HERE in eval.vm.callMacroApi
+
+[WARNING] Main.hx:2: characters 1-8
+
+ 2 | @:build(Macro.buildMain())
+   | ^^^^^^^
+   | This does not show if printStuff() calls error() or reportError()
+
+[ERROR] Main.hx:5: characters 19-21
+
+ 5 |     final x = 5 - ""; // No errors shown for this, completion/hover does not work
+   |                   ^^
+   | String should be Int
+
