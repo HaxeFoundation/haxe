@@ -4715,7 +4715,7 @@ let gen_member_def ctx class_def is_static is_interface field =
             let cast = "::hx::interface_cast< ::" ^ join_class_path_remap class_def.cl_path "::" ^ "_obj *>" in
             output ("		" ^ returnType ^ " (::hx::Object :: *_hx_" ^ remap_name ^ ")(" ^ argList ^ "); \n");
             output ("		static inline " ^ returnType ^ " " ^ remap_name ^ "( ::Dynamic _hx_" ^ commaArgList ^ ") {\n");
-            output ("         if (::hx::IsNull(::Dynamic(_hx_))) ::hx::NullReference("Object", false);");
+            output ("         if (::hx::IsNull(::Dynamic(_hx_))) ::hx::NullReference(\"Object\", false);");
             output ("			" ^ returnStr ^ "(_hx_.mPtr->*( " ^ cast ^ "(_hx_.mPtr->_hx_getInterface(" ^ (cpp_class_hash class_def) ^ ")))->_hx_" ^ remap_name ^ ")(" ^ cpp_arg_names args ^ ");\n		}\n" );
          end
       | _  ->  ( )
