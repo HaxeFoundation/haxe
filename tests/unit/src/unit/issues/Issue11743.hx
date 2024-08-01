@@ -1,6 +1,5 @@
 package unit.issues;
 
-#if cpp
 import utest.Assert;
 
 private interface IFoo {
@@ -8,10 +7,12 @@ private interface IFoo {
 }
 
 class Issue11743 extends Test {
+
+    #if cpp
     function test() {
         final o : IFoo = null;
 
         Assert.raises(() -> o.foo());
     }
+    #end
 }
-#end
