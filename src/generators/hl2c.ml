@@ -117,7 +117,7 @@ let s_comp = function
 let core_types =
 	let vp = { vfields = [||]; vindex = PMap.empty } in
 	let ep = { ename = ""; eid = 0; eglobal = None; efields = [||] } in
-	[HVoid;HUI8;HUI16;HI32;HI64;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid;HMethod ([],HVoid);HStruct null_proto]
+	[HVoid;HUI8;HUI16;HI32;HI64;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray HDyn;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid;HMethod ([],HVoid);HStruct null_proto]
 
 let tname str =
 	let n = String.concat "__" (ExtString.String.nsplit str ".") in
@@ -125,7 +125,7 @@ let tname str =
 
 let is_gc_ptr = function
 	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ | HPacked _ -> false
-	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HStruct _ -> true
+	| HBytes | HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HStruct _ -> true
 
 let is_ptr = function
 	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool -> false
@@ -144,7 +144,7 @@ let rec ctype_no_ptr = function
 	| HDyn -> "vdynamic",1
 	| HFun _ -> "vclosure",1
 	| HObj p | HStruct p -> tname p.pname,0
-	| HArray -> "varray",1
+	| HArray _ -> "varray",1
 	| HType -> "hl_type",1
 	| HRef t -> let s,i = ctype_no_ptr t in s,i + 1
 	| HVirtual _ -> "vvirtual",1
@@ -192,7 +192,7 @@ let type_id t =
 	| HDyn -> "HDYN"
 	| HFun _ -> "HFUN"
 	| HObj _ -> "HOBJ"
-	| HArray -> "HARRAY"
+	| HArray _ -> "HARRAY"
 	| HType -> "HTYPE"
 	| HRef _ -> "HREF"
 	| HVirtual _ -> "HVIRTUAL"
@@ -237,7 +237,7 @@ let define ctx s =
 
 let rec define_type ctx t =
 	match t with
-	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray | HType | HDynObj | HNull _ | HRef _ -> ()
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HDynObj | HNull _ | HRef _ -> ()
 	| HAbstract _ ->
 		define ctx "#include <hl/natives.h>";
 	| HFun (args,ret) | HMethod (args,ret) ->
@@ -744,7 +744,7 @@ let generate_function ctx f =
 			match rtype a, rtype b with
 			| (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HI64), (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HI64) ->
 				phys_compare()
-			| HBytes, HBytes | HArray,HArray ->
+			| HBytes, HBytes | HArray _,HArray _ ->
 				phys_compare()
 			| HType, HType ->
 				sexpr "if( hl_same_type(%s,%s) %s 0 ) {} else goto %s" (reg a) (reg b) (s_comp op) (label d)
@@ -1095,7 +1095,7 @@ let generate_function ctx f =
 			sexpr "hl_assert()"
 		| ORefData (r,d) ->
 			(match rtype d with
-			| HArray ->
+			| HArray _ ->
 				sexpr "%s = (%s)hl_aptr(%s,void*)" (reg r) (ctype (rtype r)) (reg d)
 			| _ ->
 				Globals.die "" __LOC__)
@@ -1138,7 +1138,7 @@ let make_types_idents htypes =
 	let types_descs = ref PMap.empty in
 	let rec make_desc t =
 		match t with
-		| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray | HType | HRef _ | HDynObj | HNull _ ->
+		| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HRef _ | HDynObj | HNull _ ->
 			DSimple t
 		| HFun (tl,t) ->
 			DFun (List.map make_desc tl, make_desc t, true)
@@ -1181,6 +1181,8 @@ let make_types_idents htypes =
 			"t$nul_" ^ tstr t
 		| DSimple (HRef t) ->
 			"t$ref_" ^ (match make_desc t with DSimple _ -> tstr t | d -> desc_string d)
+		| DSimple (HArray t) ->
+			"t$array_" ^ (desc_string (make_desc t))
 		| DSimple t ->
 			"t$_" ^ tstr t
 		| DFun _ ->
