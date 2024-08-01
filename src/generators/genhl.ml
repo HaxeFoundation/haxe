@@ -78,6 +78,7 @@ type array_impl = {
 	ai32 : tclass;
 	af32 : tclass;
 	af64 : tclass;
+	ai64 : tclass;
 }
 
 type constval =
@@ -151,7 +152,7 @@ let is_extern_field f =
 
 let is_array_class name =
 	match name with
-	| "hl.types.ArrayDyn" | "hl.types.ArrayBytes_Int" | "hl.types.ArrayBytes_Float" | "hl.types.ArrayObj" | "hl.types.ArrayBytes_hl_F32" | "hl.types.ArrayBytes_hl_UI16" -> true
+	| "hl.types.ArrayDyn" | "hl.types.ArrayBytes_Int" | "hl.types.ArrayBytes_Float" | "hl.types.ArrayObj" | "hl.types.ArrayBytes_hl_F32" | "hl.types.ArrayBytes_hl_UI16" | "hl.types.ArrayBytes_hl_I64" -> true
 	| _ -> false
 
 let is_array_type t =
@@ -287,6 +288,8 @@ let array_class ctx t =
 		ctx.array_impl.af32
 	| HF64 ->
 		ctx.array_impl.af64
+	| HI64 ->
+		ctx.array_impl.ai64
 	| HDyn ->
 		ctx.array_impl.adyn
 	| _ ->
@@ -470,7 +473,7 @@ let rec to_type ?tref ctx t =
 			| ["hl"], "UI16" -> HUI16
 			| ["hl"], "UI8" -> HUI8
 			| ["hl"], "I64" -> HI64
-			| ["hl"], "NativeArray" -> HArray
+			| ["hl"], "NativeArray" -> HArray (to_type ctx (List.hd pl))
 			| ["haxe";"macro"], "Position" -> HAbstract ("macro_pos", alloc_string ctx "macro_pos")
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
 		else
@@ -895,6 +898,15 @@ let op ctx o =
 
 let set_op ctx pos o =
 	DynArray.set ctx.m.mops pos o
+
+let alloc_array ctx size et =
+	let a = alloc_tmp ctx (HArray HDyn) in
+	let b = alloc_tmp ctx (HArray et) in
+	let rt = alloc_tmp ctx HType in
+	op ctx (OType (rt,et));
+	op ctx (OCall2 (a,alloc_std ctx "alloc_array" [HType;HI32] (HArray HDyn),rt,size));
+	op ctx (OUnsafeCast(b,a));
+	b
 
 let jump ctx f =
 	let pos = current_pos ctx in
@@ -1423,7 +1435,7 @@ and get_access ctx e =
 
 and array_read ctx ra (at,vt) ridx p =
 	match at with
-	| HUI8 | HUI16 | HI32 | HF32 | HF64 ->
+	| HUI8 | HUI16 | HI32 | HF32 | HF64 | HI64 ->
 		(* check bounds *)
 		hold ctx ridx;
 		let length = alloc_tmp ctx HI32 in
@@ -1432,7 +1444,7 @@ and array_read ctx ra (at,vt) ridx p =
 		let j = jump ctx (fun i -> OJULt (ridx,length,i)) in
 		let r = alloc_tmp ctx (match at with HUI8 | HUI16 -> HI32 | _ -> at) in
 		(match at with
-		| HUI8 | HUI16 | HI32 ->
+		| HUI8 | HUI16 | HI32 | HI64 ->
 			op ctx (OInt (r,alloc_i32 ctx 0l));
 		| HF32 | HF64 ->
 			op ctx (OFloat (r,alloc_float ctx 0.));
@@ -1462,7 +1474,7 @@ and array_read ctx ra (at,vt) ridx p =
 		let jend = jump ctx (fun i -> OJAlways i) in
 		j();
 		let tmp = alloc_tmp ctx HDyn in
-		let harr = alloc_tmp ctx HArray in
+		let harr = alloc_tmp ctx (HArray vt) in
 		op ctx (OField (harr,ra,1));
 		op ctx (OGetArray (tmp,harr,ridx));
 		op ctx (OMov (r,unsafe_cast_to ctx tmp vt p));
@@ -2004,23 +2016,21 @@ and eval_expr ctx e =
 				let arr = eval_expr ctx e in
 				op ctx (ONullCheck arr);
 				op ctx (OArraySize (r, arr))
+			| TAbstract ({ a_path = ["hl"],"NativeArray" },[t]) ->
+				op ctx (OArraySize (r, eval_to ctx e (HArray (to_type ctx t))))
 			| _ ->
-				op ctx (OArraySize (r, eval_to ctx e HArray)));
+				invalid());
 			r
 		| "$aalloc", [esize] ->
 			let et = (match follow e.etype with TAbstract ({ a_path = ["hl"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
 			let size = eval_to ctx esize HI32 in
-			let a = alloc_tmp ctx HArray in
-			let rt = alloc_tmp ctx HType in
-			op ctx (OType (rt,et));
-			op ctx (OCall2 (a,alloc_std ctx "alloc_array" [HType;HI32] HArray,rt,size));
-			a
+			alloc_array ctx size et
 		| "$aget", [a; pos] ->
 			(*
 				read/write on arrays are unsafe : the type of NativeArray needs to be correcly set.
 			*)
 			let at = (match follow a.etype with TAbstract ({ a_path = ["hl"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
-			let arr = eval_to ctx a HArray in
+			let arr = eval_to ctx a (HArray at) in
 			hold ctx arr;
 			let pos = eval_to ctx pos HI32 in
 			free ctx arr;
@@ -2029,7 +2039,7 @@ and eval_expr ctx e =
 			cast_to ctx r (to_type ctx e.etype) e.epos
 		| "$aset", [a; pos; value] ->
 			let et = (match follow a.etype with TAbstract ({ a_path = ["hl"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
-			let arr = eval_to ctx a HArray in
+			let arr = eval_to ctx a (HArray et) in
 			hold ctx arr;
 			let pos = eval_to ctx pos HI32 in
 			hold ctx pos;
@@ -2106,12 +2116,9 @@ and eval_expr ctx e =
 		| "$resources", [] ->
 			let tdef = (try List.find (fun t -> (t_infos t).mt_path = (["haxe";"_Resource"],"ResourceContent")) ctx.com.types with Not_found -> die "" __LOC__) in
 			let t = class_type ctx (match tdef with TClassDecl c -> c | _ -> die "" __LOC__) [] false in
-			let arr = alloc_tmp ctx HArray in
-			let rt = alloc_tmp ctx HType in
-			op ctx (OType (rt,t));
 			let res = Hashtbl.fold (fun k v acc -> (k,v) :: acc) ctx.com.resources [] in
 			let size = reg_int ctx (List.length res) in
-			op ctx (OCall2 (arr,alloc_std ctx "alloc_array" [HType;HI32] HArray,rt,size));
+			let arr = alloc_array ctx size HBytes in
 			let ro = alloc_tmp ctx t in
 			let rb = alloc_tmp ctx HBytes in
 			let ridx = reg_int ctx 0 in
@@ -2550,12 +2557,12 @@ and eval_expr ctx e =
 					op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (array_class ctx at).cl_path "__expand", ra, ridx));
 					j();
 					match at with
-					| HI32 | HF64 | HUI16 | HF32 ->
+					| HI32 | HF64 | HUI16 | HF32 | HI64 ->
 						let b = alloc_tmp ctx HBytes in
 						op ctx (OField (b,ra,1));
 						write_mem ctx b (shl ctx ridx (type_size_bits at)) at v
 					| _ ->
-						let arr = alloc_tmp ctx HArray in
+						let arr = alloc_tmp ctx (HArray vt) in
 						op ctx (OField (arr,ra,1));
 						op ctx (OSetArray (arr,ridx,cast_to ctx v (if is_dynamic at then at else HDyn) e.epos))
 				);
@@ -2826,13 +2833,12 @@ and eval_expr ctx e =
 			array_bytes 2 HF32 "F32" (fun b i r -> OSetMem (b,i,r))
 		| HF64 ->
 			array_bytes 3 HF64 "F64" (fun b i r -> OSetMem (b,i,r))
+		| HI64 ->
+			array_bytes 3 HI64 "I64" (fun b i r -> OSetMem (b,i,r))
 		| _ ->
 			let at = if is_dynamic et then et else HDyn in
-			let a = alloc_tmp ctx HArray in
-			let rt = alloc_tmp ctx HType in
-			op ctx (OType (rt,at));
 			let size = reg_int ctx (List.length el) in
-			op ctx (OCall2 (a,alloc_std ctx "alloc_array" [HType;HI32] HArray,rt,size));
+			let a = alloc_array ctx size at in
 			hold ctx a;
 			list_iteri (fun i e ->
 				let r = eval_to ctx e at in
@@ -3119,7 +3125,7 @@ and gen_assign_op ctx acc e1 f =
 		let r = f r in
 		op ctx (OSetEnumField (ctx.m.mcaptreg,idx,r));
 		r
-	| AArray (ra,(at,_),ridx) ->
+	| AArray (ra,(at,vt),ridx) ->
 		hold ctx ra;
 		hold ctx ridx;
 		let r = (match at with
@@ -3139,7 +3145,7 @@ and gen_assign_op ctx acc e1 f =
 			op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (array_class ctx at).cl_path "__expand", ra, ridx));
 			j();
 			match at with
-			| HUI8 | HUI16 | HI32 | HF32 | HF64 ->
+			| HUI8 | HUI16 | HI32 | HF32 | HF64 | HI64->
 				let hbytes = alloc_tmp ctx HBytes in
 				op ctx (OField (hbytes, ra, 1));
 				let ridx = shl ctx ridx (type_size_bits at) in
@@ -3153,7 +3159,7 @@ and gen_assign_op ctx acc e1 f =
 				free ctx hbytes;
 				r
 			| _ ->
-				let arr = alloc_tmp ctx HArray in
+				let arr = alloc_tmp ctx (HArray vt) in
 				op ctx (OField (arr,ra,1));
 				let r = alloc_tmp ctx at in
 				op ctx (OGetArray (r,arr,ridx));
@@ -3655,10 +3661,9 @@ let generate_static_init ctx types main =
 				in
 				if (has_class_flag c CInterface) then begin
 					let l = gather_implements() in
-					let ra = alloc_tmp ctx HArray in
 					let rt = alloc_tmp ctx HType in
 					op ctx (OType (rt, HType));
-					op ctx (OCall2 (ra, alloc_std ctx "alloc_array" [HType;HI32] HArray, rt, reg_int ctx (List.length l)));
+					let ra = alloc_array ctx (reg_int ctx (List.length l)) HType in
 					list_iteri (fun i intf ->
 						op ctx (OType (rt, to_type ctx (TInst (intf,[]))));
 						op ctx (OSetArray (ra, reg_int ctx i, rt));
@@ -3701,7 +3706,7 @@ let generate_static_init ctx types main =
 						die "" __LOC__
 				in
 
-				let avalues = alloc_tmp ctx HArray in
+				let avalues = alloc_tmp ctx (HArray t) in
 				op ctx (OField (avalues, r, index "__evalues__"));
 
 				List.iter (fun n ->
@@ -3989,7 +3994,7 @@ let write_code ch code debug =
 			Array.iter (fun (_,n,t) -> write_index n; write_type t) p.pfields;
 			Array.iter (fun f -> write_index f.fid; write_index f.fmethod; write_index (match f.fvirtual with None -> -1 | Some i -> i)) p.pproto;
 			List.iter (fun (fid,fidx) -> write_index fid; write_index fidx) p.pbindings;
-		| HArray ->
+		| HArray _ ->
 			byte 12
 		| HType ->
 			byte 13
@@ -4148,6 +4153,7 @@ let create_context com dump =
 			ai32 = get_class "ArrayBytes_Int";
 			af32 = get_class "ArrayBytes_hl_F32";
 			af64 = get_class "ArrayBytes_Float";
+			ai64 = get_class "ArrayBytes_hl_I64";
 		};
 		base_class = get_class "Class";
 		base_enum = get_class "Enum";

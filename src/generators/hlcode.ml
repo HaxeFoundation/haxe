@@ -38,7 +38,7 @@ type ttype =
 	| HDyn
 	| HFun of ttype list * ttype
 	| HObj of class_proto
-	| HArray
+	| HArray of ttype
 	| HType
 	| HRef of ttype
 	| HVirtual of virtual_proto
@@ -258,7 +258,7 @@ let list_mapi f l =
 *)
 let is_nullable t =
 	match t with
-	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ | HType | HMethod _ | HStruct _ -> true
+	| HBytes | HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ | HType | HMethod _ | HStruct _ -> true
 	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HVoid | HPacked _ -> false
 
 let is_struct = function
@@ -288,7 +288,7 @@ let is_nullt = function
 *)
 let is_dynamic t =
 	match t with
-	| HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HNull _ | HEnum _ -> true
+	| HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HNull _ | HEnum _ -> true
 	| _ -> false
 
 let rec tsame t1 t2 =
@@ -313,6 +313,17 @@ let rec tsame t1 t2 =
 	| HNull t1, HNull t2 -> tsame t1 t2
 	| HRef t1, HRef t2 -> tsame t1 t2
 	| _ -> false
+
+let compatible_element_types t1 t2 =
+	if t1 == t2 then
+		true (* equal types are always compatible *)
+	else match t1,t2 with
+	| (HI32 | HF32),(HI32 | HF32)
+	| (HI64 | HF64),(HI64 | HF64) ->
+		true (* same size numbers are also compatible *)
+	| _ ->
+		(* no other number combinations are compatible, but everything else is *)
+		not (is_number t1) && not (is_number t2)
 
 (*
 	can we use a value of t1 as t2
@@ -345,6 +356,8 @@ let rec safe_cast t1 t2 =
 		safe_cast t1 t2
 	| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
 		List.for_all2 (fun t1 t2 -> safe_cast t2 t1 || (t1 = HDyn && is_dynamic t2)) args1 args2 && safe_cast t1 t2
+	| HArray t1,HArray t2 ->
+		compatible_element_types t1 t2
 	| _ ->
 		tsame t1 t2
 
@@ -456,8 +469,8 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 		let proto = "{"  ^ String.concat "," (List.map (fun p -> (match p.fvirtual with None -> "" | Some _ -> "virtual ") ^ p.fname ^ "@" ^  string_of_int p.fmethod) (Array.to_list o.pproto)) ^ "}" in
 		let str = o.pname ^ "[" ^ (match o.psuper with None -> "" | Some p -> ">" ^ p.pname ^ " ") ^ "fields=" ^ fields ^ " proto=" ^ proto ^ "]" in
 		(match t with HObj o -> str | _ -> "@" ^ str)
-	| HArray ->
-		"array"
+	| HArray t ->
+		"array(" ^ (tstr ~stack ~detailed t) ^ ")"
 	| HType ->
 		"type"
 	| HRef t ->
