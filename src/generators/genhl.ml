@@ -2056,6 +2056,11 @@ and eval_expr ctx e =
 				op ctx (ONullCheck a);
 				op ctx (OField (r,a,1));
 				r
+			| TAbstract ({ a_path = ["hl"],"NativeArray" },[t]) when is_number (to_type ctx t) ->
+				let a = eval_expr ctx a in
+				let r = alloc_tmp ctx HBytes in
+				op ctx (OUnsafeCast(r,a));
+				r
 			| t ->
 				abort ("Invalid array type " ^ s_type (print_context()) t) a.epos)
 		| "$ref", [v] ->

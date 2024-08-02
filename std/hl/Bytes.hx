@@ -211,6 +211,10 @@ package hl;
 		return untyped $abytes(a);
 	}
 
+	extern public static inline function getNativeArray<T>(a:hl.NativeArray<T>):Bytes {
+		return untyped $abytes(a);
+	}
+
 	@:from
 	public static inline function fromBytes(bytes:haxe.io.Bytes) {
 		return @:privateAccess bytes.b;
