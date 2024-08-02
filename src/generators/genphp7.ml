@@ -35,7 +35,7 @@ let write_resource dir name data =
 	let rdir = dir ^ "/res" in
 	if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
 	if not (Sys.file_exists rdir) then Unix.mkdir rdir 0o755;
-	let name = Codegen.escape_res_name name [] in
+	let name = StringHelper.escape_res_name name [] in
 	let ch = open_out_bin (rdir ^ "/" ^ name) in
 	output_string ch data;
 	close_out ch
@@ -959,7 +959,7 @@ class class_wrapper (cls) =
 			if (has_class_flag cls CInterface) then
 				false
 			else
-				match cls.cl_init with
+				match TClass.get_cl_init cls with
 					| Some _ -> true
 					| None ->
 						List.exists
@@ -978,7 +978,7 @@ class class_wrapper (cls) =
 			Returns expression of a user-defined static __init__ method
 			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
 		*)
-		method! get_magic_init = cls.cl_init
+		method! get_magic_init = TClass.get_cl_init cls
 		(**
 			Returns hx source file name where this type was declared
 		*)
@@ -994,7 +994,7 @@ class class_wrapper (cls) =
 			if not (has_class_flag cls CExtern) then
 				None
 			else
-				match cls.cl_init with
+				match TClass.get_cl_init cls with
 					| None -> None
 					| Some body ->
 						let path =
@@ -1009,8 +1009,8 @@ class class_wrapper (cls) =
 								cl_ordered_fields  = [];
 								cl_ordered_statics  = [];
 								cl_constructor = None;
-								cl_init = Some body
 						} in
+						TClass.set_cl_init additional_cls body;
 						remove_class_flag additional_cls CExtern;
 						Some (TClassDecl additional_cls)
 	end
@@ -1020,7 +1020,7 @@ class class_wrapper (cls) =
 *)
 class enum_wrapper (enm) =
 	object (self)
-		inherit type_wrapper enm.e_path enm.e_meta (not enm.e_extern)
+		inherit type_wrapper enm.e_path enm.e_meta (not (has_enum_flag enm EnExtern))
 		(**
 			Indicates if class initialization method should be executed upon class loaded
 		*)
@@ -4038,7 +4038,7 @@ class generator (ctx:php_generator_context) =
 			Returns PHP code for entry point
 		*)
 		method private get_entry_point : (string * string) option =
-			match ctx.pgc_common.main with
+			match ctx.pgc_common.main.main_expr with
 				| None -> None
 				| Some expr ->
 					let writer = new code_writer ctx ([], "") "" in

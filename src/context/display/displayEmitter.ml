@@ -54,9 +54,9 @@ let rec display_type ctx t p =
 	try
 		display_module_type ctx (module_type_of_type t) p
 	with Exit ->
-		match follow t,follow !t_dynamic_def with
+		match follow t,follow ctx.g.t_dynamic_def with
 		| _,TDynamic _ -> () (* sanity check in case it's still t_dynamic *)
-		| TDynamic _,_ -> display_type ctx !t_dynamic_def p
+		| TDynamic _,_ -> display_type ctx ctx.g.t_dynamic_def p
 		| _ ->
 			match dm.dms_kind with
 			| DMHover ->
@@ -66,32 +66,25 @@ let rec display_type ctx t p =
 			| _ ->
 				()
 
-let check_display_type ctx t path =
+let check_display_type ctx t ptp =
 	let add_type_hint () =
-		ctx.g.type_hints <- (ctx.m.curmod.m_extra.m_display,pos path,t) :: ctx.g.type_hints;
+		ctx.g.type_hints <- (ctx.m.curmod.m_extra.m_display,ptp.pos_full,t) :: ctx.g.type_hints;
 	in
 	let maybe_display_type () =
-		if ctx.is_display_file && display_position#enclosed_in (pos path) then
-			let p =
-				match path with
-				| ({ tpackage = pack; tname = name; tsub = sub },p) ->
-					let strings = match sub with None -> name :: pack | Some s -> s :: name :: pack in
-					let length = String.length (String.concat "." strings) in
-					{ p with pmax = p.pmin + length }
-			in
-			display_type ctx t p
+		if ctx.m.is_display_file && display_position#enclosed_in ptp.pos_full then
+			display_type ctx t ptp.pos_path
 	in
 	add_type_hint();
 	maybe_display_type()
 
-let raise_position_of_type t =
+let raise_position_of_type ctx t =
 	let mt =
 		let rec follow_null t =
 			match t with
 				| TMono r -> (match r.tm_type with None -> raise_positions [null_pos] | Some t -> follow_null t)
 				| TLazy f -> follow_null (lazy_type f)
 				| TAbstract({a_path = [],"Null"},[t]) -> follow_null t
-				| TDynamic _ -> !t_dynamic_def
+				| TDynamic _ -> ctx.g.t_dynamic_def
 				| _ -> t
 		in
 		try
@@ -103,7 +96,7 @@ let raise_position_of_type t =
 
 let display_variable ctx v p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_positions [v.v_pos]
-	| DMTypeDefinition -> raise_position_of_type v.v_type
+	| DMTypeDefinition -> raise_position_of_type ctx v.v_type
 	| DMUsage _ -> ReferencePosition.set (v.v_name,v.v_pos,SKVariable v)
 	| DMHover ->
 		let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta v.v_meta) v.v_type in
@@ -112,7 +105,7 @@ let display_variable ctx v p = match ctx.com.display.dms_kind with
 
 let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_positions [cf.cf_name_pos]
-	| DMTypeDefinition -> raise_position_of_type cf.cf_type
+	| DMTypeDefinition -> raise_position_of_type ctx cf.cf_type
 	| DMUsage _ | DMImplementation ->
 		let name,kind = match cf.cf_name,origin with
 			| "new",(Self (TClassDecl c) | Parent(TClassDecl c)) ->
@@ -143,7 +136,7 @@ let maybe_display_field ctx origin scope cf p =
 
 let display_enum_field ctx en ef p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_positions [ef.ef_name_pos]
-	| DMTypeDefinition -> raise_position_of_type ef.ef_type
+	| DMTypeDefinition -> raise_position_of_type ctx ef.ef_type
 	| DMUsage _ -> ReferencePosition.set (ef.ef_name,ef.ef_name_pos,SKEnumField ef)
 	| DMHover ->
 		let ct = CompletionType.from_type (get_import_status ctx) ef.ef_type in
@@ -175,8 +168,8 @@ let check_display_metadata ctx meta =
 		if display_position#enclosed_in p then display_meta ctx.com meta p;
 		List.iter (fun e ->
 			if display_position#enclosed_in (pos e) then begin
-				let e = ExprPreprocessing.process_expr ctx.com e in
-				delay ctx PTypeField (fun _ -> ignore(type_expr ctx e WithType.value));
+				let e = preprocess_expr ctx.com e in
+				delay ctx.g PTypeField (fun _ -> ignore(type_expr ctx e WithType.value));
 			end
 		) args
 	) meta

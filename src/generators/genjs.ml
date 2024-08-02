@@ -20,25 +20,9 @@ open Extlib_leftovers
 open Globals
 open Ast
 open Type
+open Error
 open Common
-
-type sourcemap = {
-	sources : (string) DynArray.t;
-	sources_hash : (string, int) Hashtbl.t;
-	mappings : Rbuffer.t;
-
-	mutable source_last_pos : sourcemap_pos;
-	mutable print_comma : bool;
-	mutable output_last_col : int;
-	mutable output_current_col : int;
-	mutable current_expr : sourcemap_pos option;
-}
-
-and sourcemap_pos = {
-	file : int;
-	line : int;
-	col : int;
-}
+open JsSourcemap
 
 type ctx = {
 	com : Common.context;
@@ -154,13 +138,13 @@ let static_field ctx c f =
 
 let module_field m f =
 	try
-		fst (TypeloadCheck.get_native_name f.cf_meta)
+		fst (Naming.get_native_name f.cf_meta)
 	with Not_found ->
 		Path.flat_path m.m_path ^ "_" ^ f.cf_name
 
 let module_field_expose_path mpath f =
 	try
-		fst (TypeloadCheck.get_native_name f.cf_meta)
+		fst (Naming.get_native_name f.cf_meta)
 	with Not_found ->
 		(dot_path mpath) ^ "." ^ f.cf_name
 
@@ -168,98 +152,6 @@ let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
 
 let unsupported p = abort "This expression cannot be compiled to Javascript" p
-
-let encode_mapping smap pos =
-	if smap.print_comma then
-		Rbuffer.add_char smap.mappings ','
-	else
-		smap.print_comma <- true;
-
-	let base64_vlq number =
-		let encode_digit digit =
-			let chars = [|
-				'A';'B';'C';'D';'E';'F';'G';'H';'I';'J';'K';'L';'M';'N';'O';'P';
-				'Q';'R';'S';'T';'U';'V';'W';'X';'Y';'Z';'a';'b';'c';'d';'e';'f';
-				'g';'h';'i';'j';'k';'l';'m';'n';'o';'p';'q';'r';'s';'t';'u';'v';
-				'w';'x';'y';'z';'0';'1';'2';'3';'4';'5';'6';'7';'8';'9';'+';'/'
-			|] in
-			Array.unsafe_get chars digit
-		in
-		let to_vlq number =
-			if number < 0 then
-				((-number) lsl 1) + 1
-			else
-				number lsl 1
-		in
-		let rec loop vlq =
-			let shift = 5 in
-			let base = 1 lsl shift in
-			let mask = base - 1 in
-			let continuation_bit = base in
-			let digit = vlq land mask in
-			let next = vlq asr shift in
-			Rbuffer.add_char smap.mappings (encode_digit (
-				if next > 0 then digit lor continuation_bit else digit));
-			if next > 0 then loop next else ()
-		in
-		loop (to_vlq number)
-	in
-
-	base64_vlq (smap.output_current_col - smap.output_last_col);
-	base64_vlq (pos.file - smap.source_last_pos.file);
-	base64_vlq (pos.line - smap.source_last_pos.line);
-	base64_vlq (pos.col - smap.source_last_pos.col);
-
-	smap.source_last_pos <- pos;
-	smap.output_last_col <- smap.output_current_col
-
-let noop () = ()
-
-let add_mapping smap pos =
-	if pos.pmin < 0 then noop else
-
-	let file = try
-		Hashtbl.find smap.sources_hash pos.pfile
-	with Not_found ->
-		let length = DynArray.length smap.sources in
-		Hashtbl.replace smap.sources_hash pos.pfile length;
-		DynArray.add smap.sources pos.pfile;
-		length
-	in
-
-	let pos =
-		let line, col = Lexer.find_pos pos in
-		let line = line - 1 in
-		{ file = file; line = line; col = col }
-	in
-
-	if smap.source_last_pos <> pos then begin
-		let old_current_expr = smap.current_expr in
-		smap.current_expr <- Some pos;
-		encode_mapping smap pos;
-		(fun () -> smap.current_expr <- old_current_expr)
-	end else
-		noop
-
-let add_mapping ctx e =
-	Option.map_default (fun smap -> add_mapping smap e.epos) noop ctx.smap
-
-let handle_newlines ctx str =
-	Option.may (fun smap ->
-		let rec loop from =
-			try begin
-				let next = String.index_from str from '\n' + 1 in
-				Rbuffer.add_char smap.mappings ';';
-				smap.output_last_col <- 0;
-				smap.output_current_col <- 0;
-				smap.print_comma <- false;
-				Option.may (encode_mapping smap) smap.current_expr;
-				loop next
-			end with Not_found ->
-				smap.output_current_col <- smap.output_current_col + (String.length str - from);
-		in
-		loop 0
-	) ctx.smap
 
 let flush ctx =
 	let chan =
@@ -275,42 +167,15 @@ let flush ctx =
 
 let spr ctx s =
 	ctx.separator <- false;
-	handle_newlines ctx s;
+	handle_newlines ctx.smap s;
 	Rbuffer.add_string ctx.buf s
 
 let print ctx =
 	ctx.separator <- false;
 	Printf.kprintf (fun s -> begin
-		handle_newlines ctx s;
+		handle_newlines ctx.smap s;
 		Rbuffer.add_string ctx.buf s
 	end)
-
-let write_mappings ctx smap =
-	let basefile = Filename.basename ctx.com.file in
-	print ctx "\n//# sourceMappingURL=%s.map" (url_encode_s basefile);
-	let channel = open_out_bin (ctx.com.file ^ ".map") in
-	let sources = DynArray.to_list smap.sources in
-	let to_url file =
-		ExtString.String.map (fun c -> if c == '\\' then '/' else c) (Path.get_full_path file)
-	in
-	output_string channel "{\n";
-	output_string channel "\"version\":3,\n";
-	output_string channel ("\"file\":\"" ^ (String.concat "\\\\" (ExtString.String.nsplit basefile "\\")) ^ "\",\n");
-	output_string channel ("\"sourceRoot\":\"\",\n");
-	output_string channel ("\"sources\":[" ^
-		(String.concat "," (List.map (fun s -> "\"file:///" ^ to_url s ^ "\"") sources)) ^
-		"],\n");
-	if Common.defined ctx.com Define.SourceMapContent then begin
-		output_string channel ("\"sourcesContent\":[" ^
-			(String.concat "," (List.map (fun s -> try "\"" ^ StringHelper.s_escape (Std.input_file ~bin:true s) ^ "\"" with _ -> "null") sources)) ^
-			"],\n");
-	end;
-	output_string channel "\"names\":[],\n";
-	output_string channel "\"mappings\":\"";
-	Rbuffer.output_buffer channel smap.mappings;
-	output_string channel "\"\n";
-	output_string channel "}";
-	close_out channel
 
 let newline ctx =
 	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
@@ -613,7 +478,7 @@ and add_objectdecl_parens e =
 	loop e
 
 and gen_expr ctx e =
-	let clear_mapping = add_mapping ctx e in
+	let clear_mapping = add_mapping ctx.smap e in
 	(match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
@@ -978,7 +843,7 @@ and gen_block_element ?(newline_after=false) ?(keep_blocks=false) ctx e =
 		if newline_after then newline ctx
 
 and gen_value ctx e =
-	let clear_mapping = add_mapping ctx e in
+	let clear_mapping = add_mapping ctx.smap e in
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> die "" __LOC__ | Some v -> v)) t_dynamic e.epos,
@@ -1758,7 +1623,7 @@ let need_to_generate_interface ctx cl_iface =
 
 let generate_type ctx = function
 	| TClassDecl c ->
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
@@ -1777,7 +1642,7 @@ let generate_type ctx = function
 			(match c.cl_path with
 			| ([],_) -> ()
 			| _ -> generate_package_create ctx c.cl_path)
-	| TEnumDecl e when e.e_extern ->
+	| TEnumDecl e when has_enum_flag e EnExtern ->
 		if Meta.has Meta.JsRequire e.e_meta && is_directly_used ctx.com e.e_meta then
 			generate_require ctx e.e_path e.e_meta
 	| TEnumDecl e -> generate_enum ctx e
@@ -1829,7 +1694,7 @@ let alloc_ctx com es_version =
 
 	ctx.type_accessor <- (fun t ->
 		match t with
-		| TEnumDecl ({ e_extern = true } as e) when not (Meta.has Meta.JsRequire e.e_meta) ->
+		| TEnumDecl e when (has_enum_flag e EnExtern) && not (Meta.has Meta.JsRequire e.e_meta) ->
 			dot_path e.e_path
 		| TClassDecl c ->
 			let p = get_generated_class_path c in
@@ -2015,7 +1880,7 @@ let generate com =
 		else vars in
 	let vars = if (enums_as_objects && (has_feature ctx "has_enum" || has_feature ctx "Type.resolveEnum")) then "$hxEnums = $hxEnums || {}" :: vars else vars in
 	let vars,has_dollar_underscore =
-		if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types then
+		if List.exists (function TEnumDecl e when not (has_enum_flag e EnExtern) -> true | _ -> false) com.types then
 			"$_" :: vars,ref true
 		else
 			vars,ref false
@@ -2105,7 +1970,7 @@ let generate com =
 	end;
 	List.iter (gen_block_element ~newline_after:true ~keep_blocks:(ctx.es_version >= 6) ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
-	(match com.main with
+	(match com.main.main_expr with
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
 	if ctx.js_modern then begin
@@ -2138,7 +2003,10 @@ let generate com =
 	);
 
 	(match ctx.smap with
-	| Some smap -> write_mappings ctx smap
+	| Some smap ->
+		write_mappings ctx.com smap "file:///";
+		let basefile = Filename.basename com.file in
+		print ctx "\n//# sourceMappingURL=%s.map" (url_encode_s basefile);
 	| None -> try Sys.remove (com.file ^ ".map") with _ -> ());
 	flush ctx;
 	Option.may (fun chan -> close_out chan) ctx.chan

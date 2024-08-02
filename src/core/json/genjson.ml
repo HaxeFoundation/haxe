@@ -177,8 +177,8 @@ and generate_metadata_entry ctx (m,el,p) =
 
 and generate_metadata ctx ml =
 	let ml = List.filter (fun (m,_,_) ->
-		let (_,(_,flags),_) = Meta.get_info m in
-		not (List.mem UsedInternally flags)
+		let (_,data) = Meta.get_info m in
+		not data.m_internal
 	) ml in
 	jlist (generate_metadata_entry ctx) ml
 
@@ -215,9 +215,7 @@ let rec generate_type ctx t =
 			| Some t -> loop t
 			end
 		| TLazy f ->
-			(* return_partial_type := true; *)
 			let t = lazy_type f in
-			(* return_partial_type := false; *)
 			loop t
 		| TDynamic None -> "TDynamic", Some jnull
 		| TDynamic (Some t) -> "TDynamic",Some (generate_type ctx t)
@@ -236,7 +234,7 @@ and generate_anon_status ctx status =
 		| Closed -> "AClosed",None
 		| Const -> "AConst",None
 		| Extend tl -> "AExtend", Some (generate_types ctx tl)
-		| Statics c -> "AClassStatics",Some (class_ref ctx c)
+		| ClassStatics c -> "AClassStatics",Some (class_ref ctx c)
 		| EnumStatics en -> "AEnumStatics",Some (enum_ref ctx en)
 		| AbstractStatics a -> "AAbstractStatics", Some (abstract_ref ctx a)
 	in
@@ -276,15 +274,11 @@ and generate_type_path_with_params ctx mpath tpath tl meta =
 
 (* type parameter *)
 
-and generate_type_parameter ctx tp =
-	let generate_constraints () = match follow tp.ttp_type with
-		| TInst({cl_kind = KTypeParameter tl},_) -> generate_types ctx tl
-		| _ -> die "" __LOC__
-	in
+and generate_type_parameter ctx ttp =
 	jobject [
-		"name",jstring tp.ttp_name;
-		"constraints",generate_constraints ();
-		"defaultType",jopt (generate_type ctx) tp.ttp_default;
+		"name",jstring ttp.ttp_name;
+		"constraints",generate_types ctx (get_constraints ttp);
+		"defaultType",jopt (generate_type ctx) ttp.ttp_default;
 	]
 
 (* texpr *)
@@ -602,7 +596,7 @@ let generate_class ctx c =
 	let generate_class_kind ck =
 		let ctor,args = match ck with
 		| KNormal -> "KNormal",None
-		| KTypeParameter tl -> "KTypeParameter",Some (generate_types ctx tl)
+		| KTypeParameter ttp -> "KTypeParameter",Some (generate_types ctx (get_constraints ttp))
 		| KExpr e -> "KExpr",Some (generate_expr ctx e)
 		| KGeneric -> "KGeneric",None
 		| KGenericInstance(c,tl) -> "KGenericInstance",Some (generate_type_path_with_params ctx c.cl_module.m_path c.cl_path tl c.cl_meta)
@@ -627,7 +621,7 @@ let generate_class ctx c =
 		"fields",jlist (generate_class_field ctx CFSMember) c.cl_ordered_fields;
 		"statics",jlist (generate_class_field ctx CFSStatic) c.cl_ordered_statics;
 		"constructor",jopt (generate_class_field ctx CFSConstructor) c.cl_constructor;
-		"init",jopt (generate_texpr ctx) c.cl_init;
+		"init",jopt (generate_texpr ctx) (TClass.get_cl_init c);
 		"overrides",jlist (classfield_ref ctx) (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields);
 		"isExtern",jbool (has_class_flag c CExtern);
 		"isFinal",jbool (has_class_flag c CFinal);
@@ -643,7 +637,7 @@ let generate_enum ctx e =
 	in
 	[
 		"constructors",generate_enum_constructors ();
-		"isExtern",jbool e.e_extern;
+		"isExtern",jbool (has_enum_flag e EnExtern)
 	]
 
 let generate_typedef ctx td =
@@ -707,7 +701,7 @@ let generate_module_type ctx mt =
 
 (* module *)
 
-let generate_module cs cc m =
+let generate_module modules find_module m =
 	jobject [
 		"id",jint m.m_id;
 		"path",generate_module_path m.m_path;
@@ -718,19 +712,19 @@ let generate_module cs cc m =
 			| MSGood -> "Good"
 			| MSBad reason -> Printer.s_module_skip_reason reason
 			| MSUnknown -> "Unknown");
-		"dependencies",jarray (PMap.fold (fun (sign,mpath) acc ->
+		"dependencies",jarray (PMap.fold (fun mdep acc ->
 			(jobject [
-				"path",jstring (s_type_path mpath);
-				"sign",jstring (Digest.to_hex ((cs#get_context sign)#find_module mpath).m_extra.m_sign);
+				"path",jstring (s_type_path mdep.md_path);
+				"sign",jstring (Digest.to_hex (find_module mdep.md_path).m_extra.m_sign);
 			]) :: acc
 		) m.m_extra.m_deps []);
-		"dependents",jarray (List.map (fun m -> (jobject [
-			"path",jstring (s_type_path m.m_path);
-			"sign",jstring (Digest.to_hex m.m_extra.m_sign);
-		])) (Hashtbl.fold (fun _ m' acc ->
-			if PMap.mem m.m_id m'.m_extra.m_deps then m' :: acc
+		"dependents",jarray (List.map (fun (path, sign) -> (jobject [
+			"path",jstring (s_type_path path);
+			"sign",jstring (Digest.to_hex sign);
+		])) (Hashtbl.fold (fun _ (m':HxbData.module_cache) acc ->
+			if PMap.mem m.m_id m'.mc_extra.m_deps then (m'.mc_path, m'.mc_extra.m_sign) :: acc
 			else acc
-		) cc#get_modules []));
+		) modules []));
 	]
 
 let create_context ?jsonrpc gm = {

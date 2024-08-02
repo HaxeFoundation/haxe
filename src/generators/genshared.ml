@@ -128,14 +128,15 @@ object(self)
 			| None -> die "" __LOC__
 			| Some(c,_) -> c,cf
 		in
-		let rec promote_this_before_super c cf = match self#get_field_info cf.cf_meta with
-			| None -> failwith "Something went wrong"
+		let rec promote_this_before_super c cf p = match self#get_field_info cf.cf_meta with
+			| None ->
+				Error.raise_typing_error (Printf.sprintf "Could not determine field information for %s in a this-before-super case, please report this" cf.cf_name) p
 			| Some info ->
 				if not info.has_this_before_super then begin
 					make_haxe cf;
 					(* print_endline (Printf.sprintf "promoted this_before_super to %s.new : %s" (s_type_path c.cl_path) (s_type (print_context()) cf.cf_type)); *)
 					info.has_this_before_super <- true;
-					List.iter (fun (c,cf) -> promote_this_before_super c cf) info.super_call_fields
+					List.iter (fun (c,cf) -> promote_this_before_super c cf p) info.super_call_fields
 				end
 		in
 		let rec loop e =
@@ -153,7 +154,7 @@ object(self)
 					(* print_endline (Printf.sprintf "inferred this_before_super on %s.new : %s" (s_type_path c.cl_path) (s_type (print_context()) cf.cf_type)); *)
 				end;
 				let c,cf = find_super_ctor el in
-				if !this_before_super then promote_this_before_super c cf;
+				if !this_before_super then promote_this_before_super c cf e.epos;
 				DynArray.add super_call_fields (c,cf);
 			| _ ->
 				Type.iter loop e
@@ -301,7 +302,7 @@ class ['a] typedef_interfaces (infos : 'a info_context) (anon_identification : '
 			try
 				let path_inner,is_extern = try Hashtbl.find interface_rewrites pfm.pfm_path with Not_found -> path_inner,false in
 				if self#implements_recursively c path_inner then raise (Unify_error [Unify_custom "already implemented"]);
-				anon_identification#unify tc pfm;
+				anon_identification#unify ~strict:false tc pfm;
 				let ci = self#make_interface_class pfm path_inner is_extern in
 				c.cl_implements <- (ci,[]) :: c.cl_implements;
 				(* print_endline (Printf.sprintf "%s IMPLEMENTS %s" (s_type_path c.cl_path) (s_type_path path_inner)); *)

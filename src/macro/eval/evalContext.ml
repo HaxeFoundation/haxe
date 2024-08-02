@@ -44,6 +44,7 @@ type scope = {
 type env_kind =
 	| EKLocalFunction of int
 	| EKMethod of int * int
+	| EKMacro of int * int
 	| EKEntrypoint
 
 (* Compile-time information for environments. This information is static for all
@@ -302,11 +303,6 @@ module GlobalState = struct
 
 	let stdlib : builtins option ref = ref None
 	let macro_lib : (string,value) Hashtbl.t = Hashtbl.create 0
-
-	let cleanup ctx =
-		(* curapi holds a reference to the typing context which we don't want to persist. Let's unset it so the
-		   context can be collected. *)
-		ctx.curapi <- Obj.magic ""
 end
 
 let get_ctx () = (!GlobalState.get_ctx_ref)()
@@ -337,6 +333,8 @@ let kind_name eval kind =
 	let rec loop kind env = match kind with
 		| EKMethod(i1,i2) ->
 			Printf.sprintf "%s.%s" (rev_hash i1) (rev_hash i2)
+		| EKMacro(i1,i2) ->
+			Printf.sprintf "Macro call: %s.%s" (rev_hash i1) (rev_hash i2)
 		| EKLocalFunction i ->
 			begin match env with
 			| None -> Printf.sprintf "localFunction%i" i
@@ -472,7 +470,7 @@ let push_environment ctx info =
 		env_locals = locals;
 		env_captures = captures;
 		env_extra_locals = IntMap.empty;
-		env_parent = eval.env;
+		env_parent = if info.kind = EKEntrypoint then None else eval.env;
 		env_eval = eval;
 		env_stack_depth = stack_depth;
 	} in

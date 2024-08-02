@@ -28,6 +28,8 @@ let s_module_type_kind = function
 	| TAbstractDecl a -> "TAbstractDecl(" ^ (s_type_path a.a_path) ^ ")"
 	| TTypeDecl t -> "TTypeDecl(" ^ (s_type_path t.t_path) ^ ")"
 
+let show_mono_ids = true
+
 let rec s_type ctx t =
 	match t with
 	| TMono r ->
@@ -35,21 +37,27 @@ let rec s_type ctx t =
 		| None ->
 			begin try
 				let id = List.assq t (!ctx) in
-				Printf.sprintf "Unknown<%d>" id
+				if show_mono_ids then
+					Printf.sprintf "Unknown<%d>" id
+				else
+					"Unknown"
 			with Not_found ->
 				let id = List.length !ctx in
 				ctx := (t,id) :: !ctx;
-			let s_const =
-				let rec loop = function
-				| CUnknown -> ""
-				| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
-				| CStructural(fields,_) -> s_type ctx (mk_anon ~fields (ref Closed))
-				| CMixed l -> String.concat " & " (List.map loop l)
+				let s_const =
+					let rec loop = function
+					| CUnknown -> ""
+					| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
+					| CStructural(fields,_) -> s_type ctx (mk_anon ~fields (ref Closed))
+					| CMixed l -> String.concat " & " (List.map loop l)
+					in
+					let s = loop (!monomorph_classify_constraints_ref r) in
+					if s = "" then s else " : " ^ s
 				in
-				let s = loop (!monomorph_classify_constraints_ref r) in
-				if s = "" then s else " : " ^ s
-			in
-				Printf.sprintf "Unknown<%d>%s" id s_const
+				if show_mono_ids then
+					Printf.sprintf "Unknown<%d>%s" id s_const
+				else
+					Printf.sprintf "Unknown%s" s_const
 			end
 		| Some t -> s_type ctx t)
 	| TEnum (e,tl) ->
@@ -58,7 +66,7 @@ let rec s_type ctx t =
 		(match c.cl_kind with
 		| KExpr e -> Ast.Printer.s_expr e
 		| _ -> s_type_path c.cl_path ^ s_type_params ctx tl)
-	| TType ({ t_type = TAnon { a_status = { contents = Statics { cl_kind = KAbstractImpl a }}}}, _) ->
+	| TType ({ t_type = TAnon { a_status = { contents = ClassStatics { cl_kind = KAbstractImpl a }}}}, _) ->
 		"Abstract<" ^ (s_type_path a.a_path) ^ ">"
 	| TType (t,tl) ->
 		s_type_path t.t_path ^ s_type_params ctx tl
@@ -80,7 +88,7 @@ let rec s_type ctx t =
 	| TAnon a ->
 		begin
 			match !(a.a_status) with
-			| Statics c -> Printf.sprintf "{ Statics %s }" (s_type_path c.cl_path)
+			| ClassStatics c -> Printf.sprintf "{ ClassStatics %s }" (s_type_path c.cl_path)
 			| EnumStatics e -> Printf.sprintf "{ EnumStatics %s }" (s_type_path e.e_path)
 			| AbstractStatics a -> Printf.sprintf "{ AbstractStatics %s }" (s_type_path a.a_path)
 			| _ ->
@@ -119,6 +127,18 @@ and s_constraint = function
 	| MType(t,_) -> Printf.sprintf "MType %s" (s_type_kind t)
 	| MOpenStructure -> "MOpenStructure"
 	| MEmptyStructure -> "MEmptyStructure"
+
+let s_type_param s_type ttp =
+	let s = match (get_constraints ttp) with
+		| [] -> ttp.ttp_name
+		| tl1 -> Printf.sprintf "%s:%s" ttp.ttp_name (String.concat " & " (List.map s_type tl1))
+	in
+	begin match ttp.ttp_default with
+	| None ->
+		s
+	| Some t ->
+		Printf.sprintf "%s = %s" s (s_type t)
+	end
 
 let s_access is_read = function
 	| AccNormal -> "default"
@@ -372,8 +392,8 @@ let s_types ?(sep = ", ") tl =
 let s_class_kind = function
 	| KNormal ->
 		"KNormal"
-	| KTypeParameter tl ->
-		Printf.sprintf "KTypeParameter [%s]" (s_types tl)
+	| KTypeParameter ttp ->
+		Printf.sprintf "KTypeParameter [%s]" (s_types (get_constraints ttp))
 	| KExpr _ ->
 		"KExpr"
 	| KGeneric ->
@@ -393,6 +413,7 @@ let s_class_field_ref_kind = function
 	| CfrStatic -> "CfrStatic"
 	| CfrMember -> "CfrMember"
 	| CfrConstructor -> "CfrConstructor"
+	| CfrInit -> "CfrInit"
 
 module Printer = struct
 
@@ -433,27 +454,32 @@ module Printer = struct
 	let s_metadata metadata =
 		s_list " " s_metadata_entry metadata
 
-	let s_type_param tp = match follow tp.ttp_type with
-		| TInst({cl_kind = KTypeParameter tl1},tl2) ->
-			let s = match tl1 with
-				| [] -> tp.ttp_name
-				| _ -> Printf.sprintf "%s:%s" tp.ttp_name (String.concat " & " (List.map s_type tl1))
-			in
-			begin match tp.ttp_default with
-			| None ->
-				s
-			| Some t ->
-				Printf.sprintf "%s = %s" s (s_type t)
-			end
-		| _ -> die "" __LOC__
+	let s_ttp_host = function
+		| TPHType -> "TPHType"
+		| TPHConstructor -> "TPHConstructor"
+		| TPHMethod -> "TPHMethod"
+		| TPHEnumConstructor -> "TPHEnumConstructor"
+		| TPHAnonField -> "TPHAnonField"
+		| TPHLocal -> "TPHLocal"
+		| TPHUnbound -> "TPHUnbound"
 
-	let s_type_params tl =
-		s_list ", " s_type_param tl
+	let s_type_param tabs ttp =
+		s_record_fields tabs [
+			"name",ttp.ttp_name;
+			"class",s_type_path ttp.ttp_class.cl_path;
+			"host",s_ttp_host ttp.ttp_host;
+			"type",s_type_kind ttp.ttp_type;
+			"constraints",s_list ", " s_type_kind (get_constraints ttp)	;
+			"default",s_opt s_type_kind ttp.ttp_default;
+		]
+
+	let s_type_params tabs tl =
+		s_list ", " (s_type_param tabs) tl
 
 	let s_tclass_field_flags flags =
 		s_flags flags flag_tclass_field_names
 
-	let s_tclass_field tabs cf =
+	let rec s_tclass_field tabs cf =
 		s_record_fields tabs [
 			"cf_name",cf.cf_name;
 			"cf_doc",s_doc cf.cf_doc;
@@ -462,9 +488,10 @@ module Printer = struct
 			"cf_name_pos",s_pos cf.cf_name_pos;
 			"cf_meta",s_metadata cf.cf_meta;
 			"cf_kind",s_kind cf.cf_kind;
-			"cf_params",s_type_params cf.cf_params;
+			"cf_params",s_type_params (tabs ^ "\t") cf.cf_params;
 			"cf_expr",s_opt (s_expr_ast true "\t\t" s_type) cf.cf_expr;
 			"cf_flags",s_tclass_field_flags cf.cf_flags;
+			"cf_overloads",s_list "\n" (s_tclass_field (tabs ^ "\t")) cf.cf_overloads
 		]
 
 	let s_tclass tabs c =
@@ -476,12 +503,12 @@ module Printer = struct
 			"cl_private",string_of_bool c.cl_private;
 			"cl_doc",s_doc c.cl_doc;
 			"cl_meta",s_metadata c.cl_meta;
-			"cl_params",s_type_params c.cl_params;
+			"cl_params",s_type_params (tabs ^ "\t") c.cl_params;
 			"cl_kind",s_class_kind c.cl_kind;
 			"cl_super",s_opt (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_super;
 			"cl_implements",s_list ", " (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_implements;
 			"cl_array_access",s_opt s_type c.cl_array_access;
-			"cl_init",s_opt (s_expr_ast true "" s_type) c.cl_init;
+			"cl_init",s_opt (s_expr_ast true "" s_type) (TOther.TClass.get_cl_init c);
 			"cl_constructor",s_opt (s_tclass_field (tabs ^ "\t")) c.cl_constructor;
 			"cl_ordered_fields",s_list "\n\t" (s_tclass_field (tabs ^ "\t")) c.cl_ordered_fields;
 			"cl_ordered_statics",s_list "\n\t" (s_tclass_field (tabs ^ "\t")) c.cl_ordered_statics;
@@ -496,7 +523,7 @@ module Printer = struct
 			"t_private",string_of_bool t.t_private;
 			"t_doc",s_doc t.t_doc;
 			"t_meta",s_metadata t.t_meta;
-			"t_params",s_type_params t.t_params;
+			"t_params",s_type_params (tabs ^ "\t") t.t_params;
 			"t_type",s_type_kind t.t_type
 		]
 
@@ -508,7 +535,7 @@ module Printer = struct
 			"ef_name_pos",s_pos ef.ef_name_pos;
 			"ef_type",s_type_kind ef.ef_type;
 			"ef_index",string_of_int ef.ef_index;
-			"ef_params",s_type_params ef.ef_params;
+			"ef_params",s_type_params (tabs ^ "\t") ef.ef_params;
 			"ef_meta",s_metadata ef.ef_meta
 		]
 
@@ -521,9 +548,9 @@ module Printer = struct
 			"e_private",string_of_bool en.e_private;
 			"d_doc",s_doc en.e_doc;
 			"e_meta",s_metadata en.e_meta;
-			"e_params",s_type_params en.e_params;
-			"e_type",s_tdef "\t" en.e_type;
-			"e_extern",string_of_bool en.e_extern;
+			"e_params",s_type_params (tabs ^ "\t") en.e_params;
+			"e_type",s_type_kind en.e_type;
+			"e_extern",string_of_bool (has_enum_flag en EnExtern);
 			"e_constrs",s_list "\n\t" (s_tenum_field (tabs ^ "\t")) (PMap.fold (fun ef acc -> ef :: acc) en.e_constrs []);
 			"e_names",String.concat ", " en.e_names
 		]
@@ -537,7 +564,7 @@ module Printer = struct
 			"a_private",string_of_bool a.a_private;
 			"a_doc",s_doc a.a_doc;
 			"a_meta",s_metadata a.a_meta;
-			"a_params",s_type_params a.a_params;
+			"a_params",s_type_params (tabs ^ "\t") a.a_params;
 			"a_ops",s_list ", " (fun (op,cf) -> Printf.sprintf "%s: %s" (s_binop op) cf.cf_name) a.a_ops;
 			"a_unops",s_list ", " (fun (op,flag,cf) -> Printf.sprintf "%s (%s): %s" (s_unop op) (if flag = Postfix then "postfix" else "prefix") cf.cf_name) a.a_unops;
 			"a_impl",s_opt (fun c -> s_type_path c.cl_path) a.a_impl;
@@ -552,7 +579,7 @@ module Printer = struct
 		]
 
 	let s_tvar_extra ve =
-		Printf.sprintf "Some(%s, %s)" (s_type_params ve.v_params) (s_opt (s_expr_ast true "" s_type) ve.v_expr)
+		Printf.sprintf "Some(%s, %s)" (s_type_params "" ve.v_params) (s_opt (s_expr_ast true "" s_type) ve.v_expr)
 
 	let s_tvar v =
 		s_record_fields "" [
@@ -575,7 +602,7 @@ module Printer = struct
 			| TVOLocalFunction -> "TVOLocalFunction") ^ ")"
 		| VGenerated -> "VGenerated"
 		| VInlined -> "VInlined"
-		| VInlinedConstructorVariable -> "VInlinedConstructorVariable"
+		| VInlinedConstructorVariable sl -> "VInlinedConstructorVariable" ^ "(" ^ (String.concat ", " sl) ^ ")"
 		| VExtractorVariable -> "VExtractorVariable"
 		| VAbstractThis -> "VAbstractThis"
 
@@ -586,11 +613,23 @@ module Printer = struct
 		| MExtern -> "MExtern"
 		| MImport -> "MImport"
 
+	let s_module_origin = function
+		| MDepFromImport -> "MDepFromImport"
+		| MDepFromTyping -> "MDepFromTyping"
+		| MDepFromMacro -> "MDepFromMacro"
+		| MDepFromMacroInclude -> "MDepFromMacroInclude"
+		| MDepFromMacroDefine -> "MDepFromMacroDefine"
+
+	let s_module_tainting_reason = function
+		| CheckDisplayFile -> "check_display_file"
+		| ServerInvalidate -> "server/invalidate"
+		| ServerInvalidateFiles -> "server_invalidate_files"
+
 	let s_module_skip_reason reason =
 		let rec loop stack = function
 			| DependencyDirty(path,reason) ->
 				(Printf.sprintf "%s%s - %s" (if stack = [] then "DependencyDirty " else "") (s_type_path path) (if List.mem path stack then "rec" else loop (path :: stack) reason))
-			| Tainted cause -> "Tainted " ^ cause
+			| Tainted cause -> "Tainted " ^ (s_module_tainting_reason cause)
 			| FileChanged file -> "FileChanged " ^ file
 			| Shadowed file -> "Shadowed " ^ file
 			| LibraryChanged -> "LibraryChanged"
@@ -610,11 +649,10 @@ module Printer = struct
 			"m_cache_state",s_module_cache_state me.m_cache_state;
 			"m_added",string_of_int me.m_added;
 			"m_checked",string_of_int me.m_checked;
-			"m_deps",s_pmap string_of_int (fun (_,m) -> snd m) me.m_deps;
+			"m_deps",s_pmap string_of_int (fun mdep -> snd mdep.md_path) me.m_deps;
 			"m_processed",string_of_int me.m_processed;
 			"m_kind",s_module_kind me.m_kind;
 			"m_binded_res",""; (* TODO *)
-			"m_if_feature",""; (* TODO *)
 			"m_features",""; (* TODO *)
 		]
 
@@ -637,8 +675,8 @@ module Printer = struct
 		| HInterface -> "HInterface"
 		| HExtern -> "HExtern"
 		| HPrivate -> "HPrivate"
-		| HExtends tp -> "HExtends " ^ (s_type_path (fst tp))
-		| HImplements tp -> "HImplements " ^ (s_type_path (fst tp))
+		| HExtends ptp -> "HExtends " ^ (s_type_path ptp.path)
+		| HImplements ptp -> "HImplements " ^ (s_type_path ptp.path)
 		| HFinal -> "HFinal"
 		| HAbstract -> "HAbstract"
 

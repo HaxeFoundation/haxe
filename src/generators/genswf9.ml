@@ -20,6 +20,7 @@ open Extlib_leftovers
 open Globals
 open Ast
 open Type
+open Error
 open As3
 open As3hl
 open Common
@@ -238,8 +239,8 @@ let rec type_id ctx t =
 		| _ -> def())
 	| TInst (c,_) ->
 		(match c.cl_kind with
-		| KTypeParameter l ->
-			(match l with
+		| KTypeParameter ttp ->
+			(match get_constraints ttp with
 			| [t] -> type_id ctx t
 			| _ -> type_path ctx ([],"Object"))
 		| _ ->
@@ -254,7 +255,7 @@ let rec type_id ctx t =
 		type_path ctx ([],"Function")
 	| TType ({ t_path = ([],"UInt") as path },_) ->
 		type_path ctx path
-	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
+	| TEnum ({ e_path = ["flash"],"XmlType" } as e,_) when has_enum_flag e EnExtern ->
 		HMPath ([],"String")
 	| TEnum (e,_) ->
 		type_path ctx e.e_path
@@ -283,7 +284,7 @@ let classify ctx t =
 		KDynamic
 	| TAbstract ({ a_path = ["flash"],"AnyType" },_) ->
 		KDynamic
-	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
+	| TEnum ({ e_path = ["flash"],"XmlType" } as e,_) when has_enum_flag e EnExtern ->
 		KType (HMPath ([],"String"))
 	| TEnum (e,_) ->
 		KType (type_id ctx t)
@@ -293,7 +294,7 @@ let classify ctx t =
 		KType (HMPath ([],"Function"))
 	| TAnon a ->
 		(match !(a.a_status) with
-		| Statics _ -> KNone
+		| ClassStatics _ -> KNone
 		| _ -> KDynamic)
 	| TAbstract ({ a_path = ["flash";"utils"],"Object" },[]) ->
 		KType (HMPath ([],"Object"))
@@ -373,7 +374,7 @@ let property ctx fa t =
 		| _ -> ident p, None, false)
 	| TAnon a ->
 		(match !(a.a_status) with
-		| Statics { cl_path = [], "Math" } ->
+		| ClassStatics { cl_path = [], "Math" } ->
 			(match p with
 			| "POSITIVE_INFINITY" | "NEGATIVE_INFINITY" | "NaN" -> ident p, Some KFloat, false
 			| "floor" | "ceil" | "round" when ctx.for_call -> ident p, Some KInt, false
@@ -967,7 +968,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 				VVolatile (id,None)
 			else
 				VId id
-		| TAnon a, _ when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) ->
+		| TAnon a, _ when (match !(a.a_status) with ClassStatics _ | EnumStatics _ -> true | _ -> false) ->
 			if Codegen.is_volatile e.etype then
 				VVolatile (id,None)
 			else
@@ -1066,7 +1067,7 @@ let rec gen_expr_content ctx retval e =
 		gen_constant ctx c e.etype e.epos
 	| TThrow e ->
 		ctx.infos.icond <- true;
-		if has_feature ctx.com "haxe.CallStack.exceptionStack" && not (Exceptions.is_haxe_exception e.etype) then begin
+		if has_feature ctx.com "haxe.CallStack.exceptionStack" && not (ExceptionFunctions.is_haxe_exception e.etype) then begin
 			getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
 			let id = type_path ctx (["flash";"errors"],"Error") in
 			write ctx (HFindPropStrict id);
@@ -1240,7 +1241,7 @@ let rec gen_expr_content ctx retval e =
 					| _ -> Type.iter call_loop e
 				in
 				let has_call = (try call_loop e; false with Exit -> true) in
-				if has_call && has_feature ctx.com "haxe.CallStack.exceptionStack" && not (Exceptions.is_haxe_exception v.v_type) then begin
+				if has_call && has_feature ctx.com "haxe.CallStack.exceptionStack" && not (ExceptionFunctions.is_haxe_exception v.v_type) then begin
 					getvar ctx (gen_local_access ctx v e.epos Read);
 					write ctx (HAsType (type_path ctx (["flash";"errors"],"Error")));
 					let j = jump ctx J3False in
@@ -1981,7 +1982,7 @@ let generate_extern_inits ctx =
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c when (has_class_flag c CExtern) ->
-			(match c.cl_init with
+			(match TClass.get_cl_init c with
 			| None -> ()
 			| Some e -> gen_expr ctx false e);
 		| _ -> ()
@@ -2006,7 +2007,7 @@ let generate_inits ctx =
 			j()
 		| _ -> ()
 	) ctx.com.types;
-	(match ctx.com.main with
+	(match ctx.com.main.main_expr with
 	| None -> ()
 	| Some e -> gen_expr ctx false e);
 	write ctx HRetVoid;
@@ -2034,7 +2035,7 @@ let generate_class_init ctx c hc =
 	if not (has_class_flag c CInterface) then write ctx HPopScope;
 	write ctx (HInitProp (type_path ctx c.cl_path));
 	if ctx.swc && c.cl_path = ctx.boot then generate_extern_inits ctx;
-	(match c.cl_init with
+	(match TClass.get_cl_init c with
 	| None -> ()
 	| Some e ->
 		gen_expr ctx false e;
@@ -2799,7 +2800,7 @@ let rec generate_type ctx t =
 				hlf_metas = extract_meta c.cl_meta;
 			})
 	| TEnumDecl e ->
-		if e.e_extern then
+		if has_enum_flag e EnExtern then
 			None
 		else
 			let meta = Texpr.build_metadata ctx.com.basic t in
@@ -2887,7 +2888,7 @@ let generate com boot_name =
 		try_scope_reg = None;
 		for_call = false;
 	} in
-	let types = if ctx.swc && com.main_class = None then
+	let types = if ctx.swc && com.main.main_class = None then
 		(*
 			make sure that both Boot and RealBoot are the first two classes in the SWC
 			this way initializing RealBoot will also run externs __init__ blocks before

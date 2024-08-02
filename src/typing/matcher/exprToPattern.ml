@@ -58,12 +58,12 @@ let get_general_module_type ctx mt p =
 			end
 		| _ -> raise_typing_error "Cannot use this type as a value" p
 	in
-	Typeload.load_instance ctx ({tname=loop mt;tpackage=[];tsub=None;tparams=[]},p) true
+	Typeload.load_instance ctx (make_ptp {tname=loop mt;tpackage=[];tsub=None;tparams=[]} p) ParamSpawnMonos LoadNormal
 
 let unify_type_pattern ctx mt t p =
 	let tcl = get_general_module_type ctx mt p in
 	match tcl with
-		| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx p])) t p
+		| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx.e p])) t p
 		| _ -> die "" __LOC__
 
 let rec make pctx toplevel t e =
@@ -93,7 +93,7 @@ let rec make pctx toplevel t e =
 			let v = alloc_var (VUser TVOPatternVariable) name t p in
 			if final then add_var_flag v VFinal;
 			pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
-			ctx.locals <- PMap.add name v ctx.locals;
+			ctx.f.locals <- PMap.add name v ctx.f.locals;
 			v
 	in
 	let con_enum en ef p =
@@ -166,18 +166,18 @@ let rec make pctx toplevel t e =
 		)
 	in
 	let try_typing e =
-		let old = ctx.untyped in
-		ctx.untyped <- true;
+		let old = ctx.f.untyped in
+		ctx.f.untyped <- true;
 		let restore = catch_errors () in
 		let e = try
 			type_expr ctx e (WithType.with_type t)
 		with exc ->
 			restore();
-			ctx.untyped <- old;
+			ctx.f.untyped <- old;
 			raise exc
 		in
 		restore();
-		ctx.untyped <- old;
+		ctx.f.untyped <- old;
 		let pat = check_expr e in
 		begin match pat with
 			| PatConstructor((ConTypeExpr mt,_),_) -> unify_type_pattern ctx mt t e.epos;
@@ -216,7 +216,7 @@ let rec make pctx toplevel t e =
 	let rec loop e = match fst e with
 		| EParenthesis e1 | ECast(e1,None) ->
 			loop e1
-		| ECheckType(e, (CTPath({tpackage=["haxe";"macro"]; tname="Expr"}),_)) ->
+		| ECheckType(e, (CTPath({path = {tpackage=["haxe";"macro"]; tname="Expr"}}),_)) ->
 			let old = pctx.in_reification in
 			pctx.in_reification <- true;
 			let e = loop e in
@@ -252,7 +252,11 @@ let rec make pctx toplevel t e =
 		| ECall(e1,el) ->
 			let e1 = type_expr ctx e1 (WithType.with_type t) in
 			begin match e1.eexpr,follow e1.etype with
-				| TField(_, FEnum(en,ef)),TFun(_,TEnum(_,tl)) ->
+				| TField(_, FEnum(en,ef)),TFun(_,tr) ->
+					let tl = match follow tr with
+						| TEnum(_,tl) -> tl
+						| _ -> fail()
+					in
 					let map = apply_params en.e_params tl in
 					let monos = Monomorph.spawn_constrained_monos map ef.ef_params in
 					let map t = map (apply_params ef.ef_params monos t) in
@@ -311,7 +315,7 @@ let rec make pctx toplevel t e =
 					PatConstructor(con_array (List.length patterns) (pos e),patterns)
 				| TAbstract(a,tl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
 					begin match TyperBase.get_abstract_froms ctx a tl with
-						| [t2] -> pattern (t :: seen) t2
+						| [(_,t2)] -> pattern (t :: seen) t2
 						| _ -> fail()
 					end
 				| _ ->
@@ -361,9 +365,14 @@ let rec make pctx toplevel t e =
 			let is_matchable cf =
 				match cf.cf_kind with Method _ -> false | _ -> true
 			in
+			(* TODO: This needs a better check, but it's not obvious how to approach this. See #11433 *)
+			let is_probably_pos cf = match cf.cf_name with
+				| "pos" | "posPath" | "namePos" -> true
+				| _ -> false
+			in
 			let patterns,fields = List.fold_left (fun (patterns,fields) (cf,t) ->
 				try
-					if pctx.in_reification && cf.cf_name = "pos" then raise Not_found;
+					if pctx.in_reification && is_probably_pos cf then raise Not_found;
 					let e1 = Expr.field_assoc cf.cf_name fl in
 					make pctx false t e1 :: patterns,cf.cf_name :: fields
 				with Not_found ->
@@ -401,7 +410,7 @@ let rec make pctx toplevel t e =
 			loop None e1
 		| EBinop(OpArrow,e1,e2) ->
 			let restore = save_locals ctx in
-			ctx.locals <- pctx.ctx_locals;
+			ctx.f.locals <- pctx.ctx_locals;
 			let v = add_local false "_" null_pos in
 			(* Tricky stuff: Extractor expressions are like normal expressions, so we don't want to deal with GADT-applied types here.
 			   Let's unapply, then reapply after we're done with the extractor (#5952). *)
@@ -418,12 +427,12 @@ let rec make pctx toplevel t e =
 		(* Special case for completion on a pattern local: We don't want to add the local to the context
 		   while displaying (#7319) *)
 		| EDisplay((EConst (Ident _),_ as e),dk) when pctx.ctx.com.display.dms_kind = DMDefault ->
-			let locals = ctx.locals in
+			let locals = ctx.f.locals in
 			let pat = loop e in
-			let locals' = ctx.locals in
-			ctx.locals <- locals;
+			let locals' = ctx.f.locals in
+			ctx.f.locals <- locals;
 			ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) MGet (WithType.with_type t));
-			ctx.locals <- locals';
+			ctx.f.locals <- locals';
 			pat
 		(* For signature completion, we don't want to recurse into the inner pattern because there's probably
 		   a EDisplay(_,DMMarked) in there. We can handle display immediately because inner patterns should not

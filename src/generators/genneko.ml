@@ -57,11 +57,12 @@ let pos ctx p =
 				| false -> try
 					(* lookup relative path *)
 					let len = String.length p.pfile in
-					let base = List.find (fun path ->
+					let base = ctx.com.class_paths#find (fun path ->
+						let path = path#path in
 						let l = String.length path in
 						len > l && String.sub p.pfile 0 l = path
-					) ctx.com.Common.class_path in
-					let l = String.length base in
+					) in
+					let l = String.length base#path in
 					String.sub p.pfile l (len - l)
 
 					with Not_found -> p.pfile
@@ -170,7 +171,7 @@ let gen_constant ctx pe c =
 			if (h land 128 = 0) <> (h land 64 = 0) then raise Exit;
 			int p (Int32.to_int i)
 		with _ ->
-			if ctx.version < 2 then abort "This integer is too big to be compiled to a Neko 31-bit integer. Please use a Float instead" pe;
+			if ctx.version < 2 then Error.abort "This integer is too big to be compiled to a Neko 31-bit integer. Please use a Float instead" pe;
 			(EConst (Int32 i),p))
 	| TFloat f -> (EConst (Float (Texpr.replace_separators f "")),p)
 	| TString s -> call p (field p (ident p "String") "new") [gen_big_string ctx p s]
@@ -237,7 +238,7 @@ and gen_expr ctx e =
 		(match follow e.etype with
 		| TFun (args,_) ->
 			let n = List.length args in
-			if n > 5 then abort "Cannot create closure with more than 5 arguments" e.epos;
+			if n > 5 then Error.abort "Cannot create closure with more than 5 arguments" e.epos;
 			let tmp = ident p "@tmp" in
 			EBlock [
 				(EVars ["@tmp", Some (gen_expr ctx e2); "@fun", Some (field p tmp f.cf_name)] , p);
@@ -554,7 +555,7 @@ let gen_enum ctx e =
 let gen_type ctx t acc =
 	match t with
 	| TClassDecl c ->
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e -> ctx.inits <- (c,e) :: ctx.inits);
 		if (has_class_flag c CExtern) then
@@ -562,7 +563,7 @@ let gen_type ctx t acc =
 		else
 			gen_class ctx c :: acc
 	| TEnumDecl e ->
-		if e.e_extern then
+		if has_enum_flag e EnExtern then
 			acc
 		else
 			gen_enum ctx e :: acc
@@ -621,7 +622,7 @@ let gen_boot ctx =
 
 let gen_name ctx acc t =
 	match t with
-	| TEnumDecl e when e.e_extern ->
+	| TEnumDecl e when has_enum_flag e EnExtern ->
 		acc
 	| TEnumDecl e ->
 		let p = pos ctx e.e_pos in
@@ -685,7 +686,7 @@ let generate_libs_init = function
 			(EVars [
 				"@s",Some (call p (loadp "sys_string" 0) []);
 			],p);
-			(EIf (op ">=" (builtin p "version") (int p 240),
+			(EIf (op ">=" (call p (builtin p "version") []) (int p 240),
 				(op "=" es (op "+" es (ESwitch (call p (loadp "sys_cpu_arch" 0) [],[
 					(str p "arm64", str p "Arm64");
 					(str p "arm", str p "Arm");
@@ -779,7 +780,7 @@ let generate com =
 		{ psource = "<header>"; pline = 1; }
 	) in
 	let el = build ctx com.types in
-	let emain = (match com.main with None -> [] | Some e -> [gen_expr ctx e]) in
+	let emain = (match com.main.main_expr with None -> [] | Some e -> [gen_expr ctx e]) in
 	let e = (EBlock ((header()) @ libs :: el @ emain), null_pos) in
 	let source = Common.defined com Define.NekoSource in
 	let use_nekoc = Common.defined com Define.UseNekoc in
@@ -798,7 +799,7 @@ let generate com =
 				else
 					loop (p + 1)
 			in
-			abort msg (loop 0)
+			Error.abort msg (loop 0)
 	end;
 	let command cmd args = try com.run_command_args cmd args with _ -> -1 in
 	let neko_file = (try Filename.chop_extension com.file with _ -> com.file) ^ ".neko" in

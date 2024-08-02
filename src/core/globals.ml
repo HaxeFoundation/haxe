@@ -18,8 +18,7 @@ type platform =
 	| Flash
 	| Php
 	| Cpp
-	| Cs
-	| Java
+	| Jvm
 	| Python
 	| Hl
 	| Eval
@@ -31,7 +30,9 @@ let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
 let version_pre = Some "alpha.1"
 
-let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
+let file_pos file = { pfile = file; pmin = 0; pmax = 0 }
+let fake_pos p = { pfile = p; pmin = -1; pmax = -1 }
+let null_pos = fake_pos "?"
 
 let no_color = false
 let c_reset = if no_color then "" else "\x1b[0m"
@@ -68,10 +69,6 @@ let trace_call_stack ?(n:int = 5) () =
 		Option.may (fun loc -> print_endline (Printf.sprintf "  called from %s" (loc_to_string loc))) loc;
 	done
 
-let macro_platform = ref Neko
-
-let return_partial_type = ref false
-
 let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
 
 let max_custom_target_len = 16
@@ -83,8 +80,7 @@ let platforms = [
 	Flash;
 	Php;
 	Cpp;
-	Cs;
-	Java;
+	Jvm;
 	Python;
 	Hl;
 	Eval;
@@ -99,8 +95,7 @@ let platform_name = function
 	| Flash -> "flash"
 	| Php -> "php"
 	| Cpp -> "cpp"
-	| Cs -> "cs"
-	| Java -> "java"
+	| Jvm -> "jvm"
 	| Python -> "python"
 	| Hl -> "hl"
 	| Eval -> "eval"
@@ -114,8 +109,7 @@ let parse_platform = function
 	| "flash" -> Flash
 	| "php" -> Php
 	| "cpp" -> Cpp
-	| "cs" -> Cs
-	| "java" -> Java
+	| "jvm" -> Jvm
 	| "python" -> Python
 	| "hl" -> Hl
 	| "eval" -> Eval
@@ -171,8 +165,14 @@ let die ?p msg ml_loc =
 	in
 	let ver = s_version_full
 	and os_type = if Sys.unix then "unix" else "windows" in
-	Printf.eprintf "%s\nHaxe: %s; OS type: %s;\n%s\n%s" msg ver os_type ml_loc backtrace;
-	assert false
+	let s = Printf.sprintf "%s\nHaxe: %s; OS type: %s;\n%s\n%s" msg ver os_type ml_loc backtrace in
+	failwith s
+
+let dump_callstack () =
+	print_endline (Printexc.raw_backtrace_to_string (Printexc.get_callstack 200))
+
+let dump_backtrace () =
+	print_endline (Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()))
 
 module MessageSeverity = struct
 	type t =
@@ -193,7 +193,7 @@ module MessageKind = struct
 		| DKUnusedImport
 		| DKUnresolvedIdentifier
 		| DKCompilerMessage
-		| DKRemovableCode
+		| DKReplacableCode
 		| DKParserError
 		| DKDeprecationWarning
 		| DKInactiveBlock
@@ -203,7 +203,7 @@ module MessageKind = struct
 		| DKUnusedImport -> 0
 		| DKUnresolvedIdentifier -> 1
 		| DKCompilerMessage -> 2
-		| DKRemovableCode -> 3
+		| DKReplacableCode -> 3
 		| DKParserError -> 4
 		| DKDeprecationWarning -> 5
 		| DKInactiveBlock -> 6

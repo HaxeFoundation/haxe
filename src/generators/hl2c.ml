@@ -91,21 +91,20 @@ let keywords =
 	(* Values *)
 	"NULL";"true";"false";
 	(* MS specific *)
-	"__asm";"dllimport2";"__int8";"naked2";"__based1";"__except";"__int16";"__stdcall";"__cdecl";"__fastcall";"__int32";
-	"thread2";"__declspec";"__finally";"__int64";"__try";"dllexport2";"__inline";"__leave";"asm";
+	"asm";"dllimport2";"dllexport2";"naked2";"thread2";
 	(* reserved by HLC *)
 	"t";
 	(* GCC *)
 	"typeof";
 	(* C11 *)
 	"_Alignas";"_Alignof";"_Atomic";"_Bool";"_Complex";"_Generic";"_Imaginary";"_Noreturn";"_Static_assert";"_Thread_local";"_Pragma";
-	"inline";"restrict"
+	"inline";"restrict";"_restrict"
 	] in
 	let h = Hashtbl.create 0 in
 	List.iter (fun i -> Hashtbl.add h i ()) c_kwds;
 	h
 
-let ident i = if Hashtbl.mem keywords i then "_" ^ i else i
+let ident i = if (Hashtbl.mem keywords i) || (ExtString.String.starts_with i "__") then "_hx_" ^ i else i
 
 let s_comp = function
 	| CLt -> "<"
@@ -118,15 +117,15 @@ let s_comp = function
 let core_types =
 	let vp = { vfields = [||]; vindex = PMap.empty } in
 	let ep = { ename = ""; eid = 0; eglobal = None; efields = [||] } in
-	[HVoid;HUI8;HUI16;HI32;HI64;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid;HMethod ([],HVoid);HStruct null_proto]
+	[HVoid;HUI8;HUI16;HI32;HI64;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray HDyn;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid;HMethod ([],HVoid);HStruct null_proto]
 
 let tname str =
 	let n = String.concat "__" (ExtString.String.nsplit str ".") in
-	if Hashtbl.mem keywords ("_" ^ n) then "__" ^ n else n
+	ident n
 
 let is_gc_ptr = function
 	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ | HPacked _ -> false
-	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HStruct _ -> true
+	| HBytes | HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HStruct _ -> true
 
 let is_ptr = function
 	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool -> false
@@ -145,7 +144,7 @@ let rec ctype_no_ptr = function
 	| HDyn -> "vdynamic",1
 	| HFun _ -> "vclosure",1
 	| HObj p | HStruct p -> tname p.pname,0
-	| HArray -> "varray",1
+	| HArray _ -> "varray",1
 	| HType -> "hl_type",1
 	| HRef t -> let s,i = ctype_no_ptr t in s,i + 1
 	| HVirtual _ -> "vvirtual",1
@@ -193,7 +192,7 @@ let type_id t =
 	| HDyn -> "HDYN"
 	| HFun _ -> "HFUN"
 	| HObj _ -> "HOBJ"
-	| HArray -> "HARRAY"
+	| HArray _ -> "HARRAY"
 	| HType -> "HTYPE"
 	| HRef _ -> "HREF"
 	| HVirtual _ -> "HVIRTUAL"
@@ -238,7 +237,7 @@ let define ctx s =
 
 let rec define_type ctx t =
 	match t with
-	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray | HType | HDynObj | HNull _ | HRef _ -> ()
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HDynObj | HNull _ | HRef _ -> ()
 	| HAbstract _ ->
 		define ctx "#include <hl/natives.h>";
 	| HFun (args,ret) | HMethod (args,ret) ->
@@ -745,6 +744,8 @@ let generate_function ctx f =
 			match rtype a, rtype b with
 			| (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HI64), (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HI64) ->
 				phys_compare()
+			| HBytes, HBytes | HArray _,HArray _ ->
+				phys_compare()
 			| HType, HType ->
 				sexpr "if( hl_same_type(%s,%s) %s 0 ) {} else goto %s" (reg a) (reg b) (s_comp op) (label d)
 			| HNull t, HNull _ ->
@@ -844,7 +845,10 @@ let generate_function ctx f =
 		| OSShr (r,a,b) ->
 			sexpr "%s = %s >> %s" (reg r) (reg a) (reg b)
 		| OUShr (r,a,b) ->
-			sexpr "%s = ((unsigned)%s) >> %s" (reg r) (reg a) (reg b)
+			(match rtype r with
+			| HI64 -> sexpr "%s = ((uint64)%s) >> %s" (reg r) (reg a) (reg b)
+			| _ -> sexpr "%s = ((unsigned)%s) >> %s" (reg r) (reg a) (reg b)
+			);
 		| OAnd (r,a,b) ->
 			sexpr "%s = %s & %s" (reg r) (reg a) (reg b)
 		| OOr (r,a,b) ->
@@ -988,7 +992,15 @@ let generate_function ctx f =
 		| OGetMem (r,b,idx) ->
 			sexpr "%s = *(%s*)(%s + %s)" (reg r) (ctype (rtype r)) (reg b) (reg idx)
 		| OGetArray (r, arr, idx) ->
-			sexpr "%s = ((%s*)(%s + 1))[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx)
+            (match rtype arr with
+            | HAbstract _ ->
+                (match rtype r with
+                | HStruct _ | HObj _ ->
+			        sexpr "%s = ((%s)%s) + %s" (reg r) (ctype (rtype r)) (reg arr) (reg idx)
+                | _ ->
+			        sexpr "%s = ((%s*)%s)[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx))
+            | _ ->
+			    sexpr "%s = ((%s*)(%s + 1))[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx))
 		| OSetUI8 (b,idx,r) ->
 			sexpr "*(unsigned char*)(%s + %s) = (unsigned char)%s" (reg b) (reg idx) (reg r)
 		| OSetUI16 (b,idx,r) ->
@@ -996,7 +1008,11 @@ let generate_function ctx f =
 		| OSetMem (b,idx,r) ->
 			sexpr "*(%s*)(%s + %s) = %s" (ctype (rtype r)) (reg b) (reg idx) (reg r)
 		| OSetArray (arr,idx,v) ->
-			sexpr "((%s*)(%s + 1))[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v)
+            (match rtype arr with
+            | HAbstract _ ->
+			    sexpr "((%s*)%s)[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v)
+            | _ ->
+			    sexpr "((%s*)(%s + 1))[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v))
 		| OSafeCast (r,v) ->
 			let tsrc = rtype v in
 			let t = rtype r in
@@ -1079,7 +1095,7 @@ let generate_function ctx f =
 			sexpr "hl_assert()"
 		| ORefData (r,d) ->
 			(match rtype d with
-			| HArray ->
+			| HArray _ ->
 				sexpr "%s = (%s)hl_aptr(%s,void*)" (reg r) (ctype (rtype r)) (reg d)
 			| _ ->
 				Globals.die "" __LOC__)
@@ -1096,6 +1112,8 @@ let generate_function ctx f =
 				Globals.die "" __LOC__
 			)) in
 			sexpr "__hl_prefetch_m%d(%s)" mode expr
+		| OAsm _ ->
+			sexpr "UNSUPPORTED ASM OPCODE";
 	) f.code;
 	flush_options (Array.length f.code);
 	unblock();
@@ -1120,7 +1138,7 @@ let make_types_idents htypes =
 	let types_descs = ref PMap.empty in
 	let rec make_desc t =
 		match t with
-		| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray | HType | HRef _ | HDynObj | HNull _ ->
+		| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HRef _ | HDynObj | HNull _ ->
 			DSimple t
 		| HFun (tl,t) ->
 			DFun (List.map make_desc tl, make_desc t, true)
@@ -1151,7 +1169,7 @@ let make_types_idents htypes =
 	in
 	let hashes = Hashtbl.create 0 in
 	let make_sign d =
-		let dig = Digest.to_hex (Digest.bytes (Marshal.to_bytes d [Marshal.Compat_32])) in
+		let dig = Digest.to_hex (Digest.bytes (Marshal.to_bytes d [Marshal.Closures])) in
 		let h = String.sub dig 0 7 in
 		let h = if Hashtbl.mem hashes h then dig else h in
 		Hashtbl.add hashes h ();
@@ -1163,6 +1181,8 @@ let make_types_idents htypes =
 			"t$nul_" ^ tstr t
 		| DSimple (HRef t) ->
 			"t$ref_" ^ (match make_desc t with DSimple _ -> tstr t | d -> desc_string d)
+		| DSimple (HArray t) ->
+			"t$array_" ^ (desc_string (make_desc t))
 		| DSimple t ->
 			"t$_" ^ tstr t
 		| DFun _ ->
@@ -1690,6 +1710,34 @@ let write_c com file (code:code) gnames =
 	) all_types;
 
 	line "";
+	line "static void dump_types( void (*fdump)( void *, int) ) {";
+	block ctx;
+	line "#ifdef HL_DUMP_TYPES";
+	sexpr "hl_type *t";
+	sexpr "int ntypes = %d" (Array.length all_types);
+	sexpr "fdump(&ntypes,4)";
+	let fcount = ref 0 in
+	Array.iter (fun t ->
+		sexpr "t = &%s; fdump(&t, sizeof(void*))" (type_name ctx t);
+		(match t with
+		| HFun _ -> incr fcount
+		| _ -> ());
+	) all_types;
+	sexpr "int fcount = %d" (!fcount);
+	sexpr "fdump(&fcount, 4)";
+	Array.iter (fun t ->
+		match t with
+		| HFun _ ->
+			sexpr "t = (hl_type*)&%s.fun->closure_type; fdump(&t, sizeof(void*))" (type_name ctx t);
+		| _ -> ()
+	) all_types;
+	line "#else";
+	sexpr "printf(\"dump_types not available, please compile with HL_DUMP_TYPES defined\\n\")";
+	line "#endif";
+	unblock ctx;
+	line "}";
+
+	line "";
 	line "void hl_init_types( hl_module_context *ctx ) {";
 	block ctx;
 	Array.iter (fun t ->
@@ -1724,6 +1772,7 @@ let write_c com file (code:code) gnames =
 		| _ ->
 			()
 	) all_types;
+	sexpr "hl_gc_set_dump_types(dump_types)";
 	unblock ctx;
 	line "}";
 
@@ -1749,7 +1798,7 @@ let write_c com file (code:code) gnames =
 			let file_pos f =
 				match f.fe_decl with
 				| Some f when Array.length f.debug > 0 ->
-					let fid, p = f.debug.(Array.length f.debug - 1) in
+					let fid, p, _ = f.debug.(Array.length f.debug - 1) in
 					(code.strings.(fid), p)
 				| _ ->
 					("",0)

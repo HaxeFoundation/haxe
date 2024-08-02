@@ -320,6 +320,7 @@ let rec equals a b = match a,b with
 	| VVector vv1,VVector vv2 -> vv1 == vv2
 	| VFunction(vf1,_),VFunction(vf2,_) -> vf1 == vf2
 	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
+	| VFieldClosure(v1,f1),VFieldClosure(v2,f2) -> f1 == f2 && equals v1 v2
 	| VNativeString s1,VNativeString s2 -> s1 = s2
 	| VHandle h1,VHandle h2 -> same_handle h1 h2
 	| VLazy f1,_ -> equals (!f1()) b

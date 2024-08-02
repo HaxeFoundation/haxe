@@ -99,6 +99,11 @@
 		"parent": "WTyper"
 	},
 	{
+		"name": "WInlineOptimizedField",
+		"doc": "A cached field which was optimized might lead to different output when inlined",
+		"parent": "WTyper"
+	},
+	{
 		"name": "WPatternMatcher",
 		"doc": "Warnings related to the pattern matcher",
 		"parent": "WTyper"
@@ -112,6 +117,14 @@
 		"name": "WConstructorInliningCancelled",
 		"doc": "Constructor call could not be inlined because a field is uninitialized",
 		"parent": "WTyper"
+	},
+	{
+		"name": "WHxb",
+		"doc": "Hxb (either --hxb output or haxe compiler cache) related warnings"
+	},
+	{
+		"name": "WUnboundTypeParameter",
+		"doc": "Hxb (either --hxb output or haxe compiler cache) failed to link a type parameter to an actual type",
+		"parent": "WHxb"
 	}
-
 ]

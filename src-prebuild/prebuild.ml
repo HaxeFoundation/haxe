@@ -44,8 +44,7 @@ let as_platforms = function
 			| JString "flash" -> "Flash"
 			| JString "php" -> "Php"
 			| JString "cpp" -> "Cpp"
-			| JString "cs" -> "Cs"
-			| JString "java" -> "Java"
+			| JString "jvm" -> "Jvm"
 			| JString "python" -> "Python"
 			| JString "hl" -> "Hl"
 			| JString "eval" -> "Eval"
@@ -297,6 +296,18 @@ let parse_meta_usage = function
 	| \"TTypeParameter\" -> TTypeParameter
 	| \"TVariable\" -> TVariable
 	| t -> raise (failwith (\"invalid metadata target \" ^ t))
+
+let print_meta_usage = function
+	| TClass -> \"TClass\"
+	| TClassField -> \"TClassField\"
+	| TAbstract -> \"TAbstract\"
+	| TAbstractField -> \"TAbstractField\"
+	| TEnum -> \"TEnum\"
+	| TTypedef -> \"TTypedef\"
+	| TAnyField -> \"TAnyField\"
+	| TExpr -> \"TExpr\"
+	| TTypeParameter -> \"TTypeParameter\"
+	| TVariable -> \"TVariable\"
 
 type meta_parameter =
 	| HasParam of string

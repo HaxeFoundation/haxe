@@ -25,7 +25,7 @@ let constructor_to_texpr ctx con =
 	| ConArray i -> make_int ctx.com.basic i p
 	| ConTypeExpr mt -> TyperBase.type_module_type ctx mt p
 	| ConStatic(c,cf) -> make_static_field c cf p
-	| ConFields _ -> raise_typing_error "Something went wrong" p
+	| ConFields _ -> raise_typing_error "Unexpected matching on ConFields, please report this" p
 
 let s_subject v_lookup s e =
 	let rec loop top s e = match e.eexpr with
@@ -274,7 +274,7 @@ let to_texpr ctx t_switch with_type dt =
 							| Some e -> Some {case_patterns = List.map (constructor_to_texpr ctx) (List.sort Constructor.compare cons);case_expr = e}
 						end
 					) cases in
-					let is_nullable_subject = is_explicit_null e_subject.etype in
+					let is_nullable_subject = is_explicit_null_or_abstract_over_that e_subject.etype in
 					let e_subject = match kind with
 						| SKValue -> e_subject
 						| SKEnum -> mk_index_call e_subject
@@ -359,7 +359,7 @@ let to_texpr ctx t_switch with_type dt =
 						let e_else = loop dt_rec params dt2 in
 						begin match e_else with
 						| None ->
-							if toplevel then
+							if toplevel && with_type = NoValue then
 								Some (mk (TIf(e_cond,e_then,None)) t_switch e_then.epos)
 							else
 								report_not_exhaustive !v_lookup e []
@@ -372,9 +372,9 @@ let to_texpr ctx t_switch with_type dt =
 						begin match bind.Bind.b_status with
 							| BindUsed ->
 								v_lookup := IntMap.add bind.b_var.v_id bind.b_expr !v_lookup;
-								Some (mk (TVar(bind.b_var,Some bind.b_expr)) com.basic.tvoid p)
+								Some (mk (TVar(bind.b_var,Some bind.b_expr)) com.basic.tvoid bind.b_pos)
 							| BindDeferred ->
-								Some (mk (TVar(bind.b_var,None)) com.basic.tvoid p)
+								Some (mk (TVar(bind.b_var,None)) com.basic.tvoid bind.b_pos)
 							| BindUnused ->
 								None
 						end

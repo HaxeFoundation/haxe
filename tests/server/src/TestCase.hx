@@ -6,6 +6,7 @@ import haxeserver.HaxeServerRequestResult;
 import haxe.display.JsonModuleTypes;
 import haxe.display.Display;
 import haxe.display.Protocol;
+import haxe.display.Diagnostic;
 import haxe.Json;
 import haxeserver.process.HaxeServerProcessNode;
 import haxeserver.HaxeServerAsync;
@@ -17,7 +18,9 @@ using StringTools;
 using Lambda;
 
 @:autoBuild(utils.macro.BuildHub.build())
-class TestCase implements ITest {
+interface ITestCase {}
+
+class TestCase implements ITest implements ITestCase {
 	static public var debugLastResult:{
 		hasError:Bool,
 		stdout:String,
@@ -25,7 +28,9 @@ class TestCase implements ITest {
 		prints:Array<String>
 	};
 
-	var server:HaxeServerAsync;
+	static public var server:HaxeServerAsync;
+	static public var rootCwd:String;
+
 	var vfs:Vfs;
 	var testDir:String;
 	var lastResult:HaxeServerRequestResult;
@@ -37,19 +42,25 @@ class TestCase implements ITest {
 	public function new() {}
 
 	function debugMessages(?pos:PosInfos) {
-		for (m in messages) haxe.Log.trace(m, pos);
+		for (m in messages)
+			haxe.Log.trace(m, pos);
 	}
 
 	function debugErrorMessages(?pos:PosInfos) {
-		for (m in errorMessages) haxe.Log.trace(m, pos);
+		for (m in errorMessages)
+			haxe.Log.trace(m, pos);
 	}
 
 	function messagesWith(s:String, ?pos:PosInfos) {
-		for (m in messages) if (m.contains(s)) haxe.Log.trace(m, pos);
+		for (m in messages)
+			if (m.contains(s))
+				haxe.Log.trace(m, pos);
 	}
 
 	function errorMessagesWith(s:String, ?pos:PosInfos) {
-		for (m in errorMessages) if (m.contains(s)) haxe.Log.trace(m, pos);
+		for (m in errorMessages)
+			if (m.contains(s))
+				haxe.Log.trace(m, pos);
 	}
 
 	static public function printSkipReason(ddr:SkipReason) {
@@ -62,32 +73,38 @@ class TestCase implements ITest {
 		}
 	}
 
+	@:timeout(3000)
 	public function setup(async:utest.Async) {
 		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
-		server = new HaxeServerAsync(() -> new HaxeServerProcessNode("haxe", ["-v", "--cwd", testDir], {}, () -> async.done()));
+		runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {}, () -> {
+			async.done();
+		});
 	}
 
-	public function teardown() {
-		server.stop();
+	public function teardown() {}
+
+	function handleResult(result) {
+		lastResult = result;
+		debugLastResult = {
+			hasError: lastResult.hasError,
+			prints: lastResult.prints,
+			stderr: lastResult.stderr,
+			stdout: lastResult.stdout
+		};
+		sendLogMessage(result.stdout);
+		for (print in result.prints) {
+			var line = print.trim();
+			messages.push('Haxe print: $line');
+		}
 	}
 
 	function runHaxe(args:Array<String>, done:() -> Void) {
+		#if disable-hxb-cache args = ["-D", "disable-hxb-cache"].concat(args); #end
 		messages = [];
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
-			lastResult = result;
-			debugLastResult = {
-				hasError: lastResult.hasError,
-				prints: lastResult.prints,
-				stderr: lastResult.stderr,
-				stdout: lastResult.stdout
-			}
-			sendLogMessage(result.stdout);
-			for (print in result.prints) {
-				var line = print.trim();
-				messages.push('Haxe print: $line');
-			}
+			handleResult(result);
 			if (result.hasError) {
 				sendErrorMessage(result.stderr);
 			}
@@ -102,11 +119,20 @@ class TestCase implements ITest {
 	}
 
 	function runHaxeJsonCb<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, Response<TResponse>>, methodArgs:TParams,
-			callback:TResponse->Void, done:() -> Void) {
+			callback:TResponse->Void, done:() -> Void, ?pos:PosInfos) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
+		messages = [];
+		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
-			callback(Json.parse(result.stderr).result.result);
+			handleResult(result);
+			var json = try Json.parse(result.stderr) catch(e) {result: null, error: e.message};
+
+			if (json.result != null) {
+				callback(json.result?.result);
+			} else {
+				Assert.fail('Error: ' + json.error, pos);
+			}
 			done();
 		}, function(msg) {
 			sendErrorMessage(msg);
@@ -185,6 +211,11 @@ class TestCase implements ITest {
 		return haxe.Json.parse(lastResult.stderr).result;
 	}
 
+	function parseDiagnostics():Array<Diagnostic<Any>> {
+		var result = haxe.Json.parse(lastResult.stderr)[0];
+		return if (result == null) [] else result.diagnostics;
+	}
+
 	function parseGotoDefinitionLocations():Array<Location> {
 		switch parseGotoTypeDefinition().result {
 			case null:
@@ -192,6 +223,10 @@ class TestCase implements ITest {
 			case result:
 				return result;
 		}
+	}
+
+	function assertSilence() {
+		return Assert.isTrue(lastResult.stderr == "");
 	}
 
 	function assertSuccess(?p:haxe.PosInfos) {
@@ -211,7 +246,7 @@ class TestCase implements ITest {
 	}
 
 	function assertSkipping(module:String, reason:SkipReason, ?p:haxe.PosInfos) {
-		var msg = 'skipping $module (${printSkipReason(reason))})';
+		var msg = 'skipping $module (${printSkipReason(reason)})';
 		return Assert.isTrue(hasMessage(msg), null, p);
 	}
 
