@@ -232,7 +232,7 @@ abstract Vector<T>(VectorData<T>) {
 		#else
 		var a = new Array();
 		var len = length;
-		#if (neko)
+		#if (neko || hl)
 		// prealloc good size
 		if (len > 0)
 			a[len - 1] = get(0);
