@@ -841,14 +841,15 @@ let generate_function ctx f =
 		| OUMod (r,a,b) ->
 			sexpr "%s = %s == 0 ? 0 : ((unsigned)%s) %% ((unsigned)%s)" (reg r) (reg b) (reg a) (reg b)
 		| OShl (r,a,b) ->
-			sexpr "%s = %s << %s" (reg r) (reg a) (reg b)
+			let size = (match rtype r with HUI8 -> 8 | HUI16 -> 16 | HI32 -> 32 | HI64 -> 64 |_ -> Globals.die "" __LOC__ ) in
+			sexpr "%s = %s << (%s %% %d)" (reg r) (reg a) (reg b) size
 		| OSShr (r,a,b) ->
-			sexpr "%s = %s >> %s" (reg r) (reg a) (reg b)
+			let size = (match rtype r with HUI8 -> 8 | HUI16 -> 16 | HI32 -> 32 | HI64 -> 64 |_ -> Globals.die "" __LOC__ ) in
+			sexpr "%s = %s >> (%s %% %d)" (reg r) (reg a) (reg b) size
 		| OUShr (r,a,b) ->
-			(match rtype r with
-			| HI64 -> sexpr "%s = ((uint64)%s) >> %s" (reg r) (reg a) (reg b)
-			| _ -> sexpr "%s = ((unsigned)%s) >> %s" (reg r) (reg a) (reg b)
-			);
+			let size = (match rtype r with HUI8 -> 8 | HUI16 -> 16 | HI32 -> 32 | HI64 -> 64 |_ -> Globals.die "" __LOC__ ) in
+			let prefix = (match rtype r with HI64 -> "uint64" | _ -> "unsigned") in
+			sexpr "%s = ((%s)%s) >> (%s %% %d)" (reg r) prefix (reg a) (reg b) size
 		| OAnd (r,a,b) ->
 			sexpr "%s = %s & %s" (reg r) (reg a) (reg b)
 		| OOr (r,a,b) ->
