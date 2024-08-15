@@ -26,11 +26,11 @@ import python.Tuple.Tuple2;
 
 @:pythonImport("inspect")
 extern class Inspect {
-	static function getmembers(object:Dynamic, ?predicate:Dynamic->Bool):Array<Tuple2<String, Dynamic>>;
-	static function ismethod(object:Dynamic):Bool;
-	static function isclass(object:Dynamic):Bool;
-	static function isfunction(object:Dynamic):Bool;
-	static function getsourcefile(object:Dynamic):String;
+	@:pure(true) static function getmembers(object:Dynamic, ?predicate:Dynamic->Bool):Array<Tuple2<String, Dynamic>>;
+	@:pure(true) static function ismethod(object:Dynamic):Bool;
+	@:pure(true) static function isclass(object:Dynamic):Bool;
+	@:pure(true) static function isfunction(object:Dynamic):Bool;
+	@:pure(true) static function getsourcefile(object:Dynamic):String;
 
 	static inline function isInterface(cls:Class<Dynamic>):Bool {
 		return untyped __define_feature__("python._hx_is_interface", c._hx_is_interface);
