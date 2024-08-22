@@ -67,10 +67,7 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 		Throws an exception  if `x` cannot be represented in 32 bits.
 	**/
 	public static inline function toInt(x:Int128):Int {
-		if (x.high != x.low >> 31)
-			throw "Overflow";
-
-		return haxe.Int64.toInt(x.low);
+		return Int64.toInt(x.low);
 	}
 
 	/**
@@ -78,10 +75,7 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 		Throws an exception  if `x` cannot be represented in 64 bits.
 	**/
 	public static inline function toInt64(x:Int128):Int64 {
-		if (x > Int64.make(0x7FFFFFFF, 0x7FFFFFFF))
-			throw "Overflow";
-
-		return x.low;
+		return x.low | (x.high << 63);
 	}
 
 	@:deprecated('haxe.Int128.is() is deprecated. Use haxe.Int128.isInt128() instead')
