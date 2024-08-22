@@ -31,9 +31,14 @@ import StringTools;
 **/
 class Int64Helper {
 	/**
-        The maximum positive `Int64` value.
+        The maximum `Int64` value.
      */
     public static var maxValue:Int64 = Int64.make(0x7FFFFFFF, -1);
+
+	/**
+        The minimum `Int64` value.
+     */
+    public static var minValue:Int64 = -maxValue;
 
 	/**
 		Create `Int64` from given string.
