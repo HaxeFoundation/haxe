@@ -43,7 +43,7 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 		return Int128.make(high, low);
 
 	/**
-		Construct an Int128 from two 32-bit words `high` and `low`.
+		Construct an Int128 from two 64-bit words `high` and `low`.
 	**/
 	public static inline function make(high:Int64, low:Int64):Int128
 		return new Int128(new __Int128(high, low));
@@ -56,7 +56,7 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 		#if lua return make((x : Int32) >> 31, (x : Int32)); #else return make(x >> 31, x); #end
 
 	/**
-		Returns an Int128 with the value of the Int `x`.
+		Returns an Int128 with the value of the Int64 `x`.
 		`x` is sign-extended to fill 64 bits.
 	**/
 	@:from public static inline function ofInt64(x:Int64):Int128
