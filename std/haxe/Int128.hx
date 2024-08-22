@@ -75,11 +75,14 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 		Throws an exception  if `x` cannot be represented in 64 bits.
 	**/
 	public static inline function toInt64(x:Int128):Int64 {
-		// This is a completely different overflow check because we're using Int128's.
-		if (x.low == x.high << 63 && x.low.high < x.high)
+		var res:Int64 = x.low;
+
+		// This is a completely different and overflow check because we're using Int128's.
+		// It can only be triggered if you input an Int128 as the function parameter.
+		if ((!isNeg(x) && Int128.isNeg(res)) || (x.high != x.low >> 63))
 			throw "Overflow";
 
-		return x.low;
+		return res.copy();
 	}
 
 	@:deprecated('haxe.Int128.is() is deprecated. Use haxe.Int128.isInt128() instead')
@@ -140,9 +143,9 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 		var neg = false;
 		if (i.isNeg()) {
 			neg = true;
-			// i = -i; cannot negate here as --170141183420855150465331762880109871103 = -170141183420855150465331762880109871103
+			// i = -i; cannot negate here as --170141183460469231731687303715884105728 = -170141183460469231731687303715884105728
 		}
-		var ten:Int128 = 10;
+		var ten:Int128 = Int128.ofInt(10);
 		while (i != 0) {
 			var r = i.divMod(ten);
 			if (r.modulus.isNeg()) {
@@ -173,8 +176,11 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 	public static function divMod(dividend:Int128, divisor:Int128):{quotient:Int128, modulus:Int128} {
 		// Handle special cases of 0 and 1
 		if (divisor.high == 0) {
-			if (divisor.low == 0) throw "divide by zero";
-			if (divisor.low == 1) return {quotient: dividend.copy(), modulus: 0};
+			if (divisor.low == 0) {
+				throw "divide by zero";
+			} else if (divisor.low == 1) {
+				return {quotient: dividend.copy(), modulus: 0};
+			}
 		}
 
 		var divSign = dividend.isNeg() != divisor.isNeg();
@@ -267,10 +273,10 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 		return make(high, low);
 	}
 
-	@:op(A + B) @:commutative private static inline function addInt(a:Int128, b:Int):Int128
+	@:op(A + B) private static inline function addInt(a:Int128, b:Int):Int128
 		return add(a, b);
 
-	@:op(A + B) @:commutative private static inline function addInt64(a:Int128, b:Int64):Int128
+	@:op(A + B) private static inline function addInt64(a:Int128, b:Int64):Int128
 		return add(a, b);
 
 	/**
@@ -301,9 +307,8 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 	**/
 	@:op(A * B)
 	public static #if !lua inline #end function mul(a:Int128, b:Int128):Int128 {
-		var mask = 0xFFFFFFFF;
-		var al = a.low & mask, ah = a.low >>> 32;
-		var bl = b.low & mask, bh = b.low >>> 32;
+		var al = a.low, ah = a.low >>> 32;
+		var bl = b.low, bh = b.low >>> 32;
 		var p00 = al * bl;
 		var p10 = ah * bl;
 		var p01 = al * bh;
@@ -343,7 +348,7 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 	@:op(A / B) private static inline function intDiv(a:Int, b:Int128):Int128
 		return div(a, b).toInt();
 
-	@:op(A / B) private static inline function intDiv64(a:Int64, b:Int128):Int128
+	@:op(A / B) private static inline function int64Div(a:Int64, b:Int128):Int128
 		return div(a, b).toInt();
 
 	/**
@@ -356,12 +361,6 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 		return mod(a, b).toInt();
 
 	@:op(A % B) private static inline function modInt64(a:Int128, b:Int64):Int128
-		return mod(a, b).toInt();
-
-	@:op(A % B) private static inline function intMod(a:Int, b:Int128):Int128
-		return mod(a, b).toInt();
-
-	@:op(A % B) private static inline function intMod(a:Int64, b:Int128):Int128
 		return mod(a, b).toInt();
 
 	/**
