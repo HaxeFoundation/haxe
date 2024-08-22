@@ -33,7 +33,7 @@ class Int64Helper {
 	/**
         The maximum positive `Int64` value.
      */
-    public static var maxValue:Int64 = Int64.make(0x7FFFFFFF, 0x7FFFFFFF);
+    public static var maxValue:Int64 = Int64.make(0x7FFFFFFF, -1);
 
 	/**
 		Create `Int64` from given string.
@@ -61,12 +61,12 @@ class Int64Helper {
 			if (digitInt != 0) {
 				var digit:Int64 = Int64.ofInt(digitInt);
 				if (sIsNegative) {
-					current -= multiplier * digit;
+					current = Int64.sub(current, Int64.mul(multiplier, digit));
 					if (!Int64.isNeg(current)) {
 						throw "NumberFormatError: Underflow";
 					}
 				} else {
-					current += multiplier * digit;
+					current = Int64.add(current, Int64.mul(multiplier, digit));
 					if (Int64.isNeg(current)) {
 						throw "NumberFormatError: Overflow";
 					}
@@ -108,13 +108,13 @@ class Int64Helper {
 			var curr = rest % 2;
 			rest = rest / 2;
 			if (curr >= 1) {
-				result += Int64.ofInt(1) << i;
+				result = Int64.add(result, Int64.shl(Int64.ofInt(1), i));
 			}
 			i++;
 		}
 
 		if (neg) {
-			result = -result;
+			result = Int64.neg(result);
 		}
 		return result;
 	}
