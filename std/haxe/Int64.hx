@@ -144,8 +144,8 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		while (i != 0) {
 			var r = i.divMod(ten);
 			if (r.modulus.isNeg()) {
-				str = Int64.neg(r.modulus).low + str;
-				i = Int64.neg(r.quotient);
+				str = -(r.modulus).low + str;
+				i = -r.quotient;
 			} else {
 				str = r.modulus.low + str;
 				i = r.quotient;
@@ -228,30 +228,34 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	@:op(++A) private inline function preIncrement():Int64 {
 		this = copy();
+		++this.low;
+		if (this.low == 0)
+			++this.high;
+		return cast this;
+	}
+
+	@:op(A++) private inline function postIncrement():Int64 {
+		this = copy();
 		this.low++;
 		if (this.low == 0)
 			this.high++;
 		return cast this;
 	}
 
-	@:op(A++) private inline function postIncrement():Int64 {
-		var ret = this;
-		preIncrement();
-		return ret;
+	@:op(--A) private inline function preDecrement():Int64 {
+		this = copy();
+		if (this.low == 0)
+			--this.high;
+		--this.low;
+		return cast this;
 	}
 
-	@:op(--A) private inline function preDecrement():Int64 {
+	@:op(A--) private inline function postDecrement():Int64 {
 		this = copy();
 		if (this.low == 0)
 			this.high--;
 		this.low--;
 		return cast this;
-	}
-
-	@:op(A--) private inline function postDecrement():Int64 {
-		var ret = this;
-		preDecrement();
-		return ret;
 	}
 
 	/**
