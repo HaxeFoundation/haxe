@@ -31,6 +31,11 @@ import StringTools;
 **/
 class Int64Helper {
 	/**
+        The maximum positive `Int64` value.
+     */
+    public static var maxValue:Int64 = Int64.make(0x7FFFFFFF, 0x7FFFFFFF);
+
+	/**
 		Create `Int64` from given string.
 	**/
 	public static function parseString(sParam:String):Int64 {
