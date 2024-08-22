@@ -75,7 +75,11 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 		Throws an exception  if `x` cannot be represented in 64 bits.
 	**/
 	public static inline function toInt64(x:Int128):Int64 {
-		return x.low | (x.high << 63);
+		// This is a completely different overflow check because we're using Int128's.
+		if (x.low == x.high << 63 && x.low.high < x.high)
+			throw "Overflow";
+
+		return x.low;
 	}
 
 	@:deprecated('haxe.Int128.is() is deprecated. Use haxe.Int128.isInt128() instead')
@@ -266,6 +270,9 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 	@:op(A + B) @:commutative private static inline function addInt(a:Int128, b:Int):Int128
 		return add(a, b);
 
+	@:op(A + B) @:commutative private static inline function addInt64(a:Int128, b:Int64):Int128
+		return add(a, b);
+
 	/**
 		Returns `a` minus `b`.
 	**/
@@ -280,7 +287,13 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 	@:op(A - B) private static inline function subInt(a:Int128, b:Int):Int128
 		return sub(a, b);
 
+	@:op(A - B) private static inline function subInt64(a:Int128, b:Int64):Int128
+		return sub(a, b);
+
 	@:op(A - B) private static inline function intSub(a:Int, b:Int128):Int128
+		return sub(a, b);
+
+	@:op(A - B) private static inline function int64Sub(a:Int64, b:Int128):Int128
 		return sub(a, b);
 
 	/**
@@ -312,6 +325,9 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 	@:op(A * B) @:commutative private static inline function mulInt(a:Int128, b:Int):Int128
 		return mul(a, b);
 
+	@:op(A * B) @:commutative private static inline function mulInt64(a:Int128, b:Int64):Int128
+		return mul(a, b);
+
 	/**
 		Returns the quotient of `a` divided by `b`.
 	**/
@@ -321,7 +337,13 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 	@:op(A / B) private static inline function divInt(a:Int128, b:Int):Int128
 		return div(a, b);
 
+	@:op(A / B) private static inline function divInt64(a:Int128, b:Int64):Int128
+		return div(a, b);
+
 	@:op(A / B) private static inline function intDiv(a:Int, b:Int128):Int128
+		return div(a, b).toInt();
+
+	@:op(A / B) private static inline function intDiv64(a:Int64, b:Int128):Int128
 		return div(a, b).toInt();
 
 	/**
@@ -333,7 +355,13 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 	@:op(A % B) private static inline function modInt(a:Int128, b:Int):Int128
 		return mod(a, b).toInt();
 
+	@:op(A % B) private static inline function modInt64(a:Int128, b:Int64):Int128
+		return mod(a, b).toInt();
+
 	@:op(A % B) private static inline function intMod(a:Int, b:Int128):Int128
+		return mod(a, b).toInt();
+
+	@:op(A % B) private static inline function intMod(a:Int64, b:Int128):Int128
 		return mod(a, b).toInt();
 
 	/**
@@ -345,6 +373,9 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 	@:op(A == B) @:commutative private static inline function eqInt(a:Int128, b:Int):Bool
 		return eq(a, b);
 
+	@:op(A == B) @:commutative private static inline function eqInt64(a:Int128, b:Int64):Bool
+		return eq(a, b);
+
 	/**
 		Returns `true` if `a` is not equal to `b`.
 	**/
@@ -352,6 +383,9 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 		return a.high != b.high || a.low != b.low;
 
 	@:op(A != B) @:commutative private static inline function neqInt(a:Int128, b:Int):Bool
+		return neq(a, b);
+
+	@:op(A != B) @:commutative private static inline function neqInt64(a:Int128, b:Int64):Bool
 		return neq(a, b);
 
 	@:op(A < B) private static inline function lt(a:Int128, b:Int128):Bool
