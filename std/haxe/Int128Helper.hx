@@ -29,9 +29,14 @@ using haxe.Int128;
 **/
 class Int128Helper {
 	/**
-		The maximum positive `Int128` value.
+		The maximum `Int128` value.
 	 */
 	public static var maxValue:Int128 = Int128.make(Int64Helper.maxValue, -1);
+
+	/**
+		The minimum `Int128` value.
+	 */
+	public static var minValue:Int128 = -maxValue;
 
 	/**
 		Create `Int128` from given string.
