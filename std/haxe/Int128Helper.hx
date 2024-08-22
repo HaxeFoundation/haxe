@@ -28,10 +28,10 @@ using haxe.Int128;
 	Helper for parsing to `Int128` instances.
 **/
 class Int128Helper {
-    /**
-        The maximum positive `Int128` value.
-     */
-    public static var maxValue:Int128 = Int128.make(Int64Helper.maxValue, Int64Helper.maxValue);
+	/**
+		The maximum positive `Int128` value.
+	 */
+	public static var maxValue:Int128 = Int128.make(Int64Helper.maxValue, -1);
 
 	/**
 		Create `Int128` from given string.
@@ -59,12 +59,12 @@ class Int128Helper {
 			if (digitInt != 0) {
 				var digit:Int128 = Int128.ofInt64(digitInt);
 				if (sIsNegative) {
-					current -= multiplier * digit;
+					current -= multiplier * digitInt;
 					if (!Int128.isNeg(current)) {
 						throw "NumberFormatError: Underflow";
 					}
 				} else {
-					current += multiplier * digit;
+					current += multiplier * digitInt;
 					if (Int128.isNeg(current)) {
 						throw "NumberFormatError: Overflow";
 					}
@@ -85,7 +85,7 @@ class Int128Helper {
 		}
 
 		// Here's a funny story for someguywholovescoding
-    // I thought Int64's noFractions calculation (which is float flooring with modulous) was faster than Math.ffloor but then I tested it.
+		// I thought Int64's noFractions calculation (which is float flooring with modulous) was faster than Math.ffloor but then I tested it.
 		var noFractions = Math.ffloor(f);
 
 		// 2^53-1 and -2^53+1: these are parseable without loss of precision.
@@ -116,6 +116,7 @@ class Int128Helper {
 		if (neg) {
 			result = -result;
 		}
+
 		return result;
 	}
 }
