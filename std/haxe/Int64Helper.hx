@@ -38,7 +38,7 @@ class Int64Helper {
 	/**
         The minimum `Int64` value.
      */
-    public static var minValue:Int64 = -maxValue;
+    public static var minValue:Int64 = -maxValue - 1;
 
 	/**
 		Create `Int64` from given string.
@@ -57,7 +57,7 @@ class Int64Helper {
 		var len = s.length;
 
 		for (i in 0...len) {
-			var digitInt = s.charCodeAt(len - 1 - i) - '0'.code;
+			var digitInt = s.charCodeAt((len - 1) - i) - '0'.code;
 
 			if (digitInt < 0 || digitInt > 9) {
 				throw "NumberFormatError";
