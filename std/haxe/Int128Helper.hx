@@ -39,12 +39,24 @@ class Int128Helper {
 	public static var minValue:Int128 = -maxValue;
 
 	/**
+		The maximum `Int64` value with the type `Int128`.
+		This is handy for type comparison.
+	 */
+	public static var maxValue64:Int128 = Int128.ofInt64(Int64Helper.maxValue);
+
+	/**
+		The minimum `Int64` value with the type `Int128`.
+		This is handy for type comparison.
+	 */
+	public static var minValue64:Int128 = -maxValue;
+
+	/**
 		Create `Int128` from given string.
 	**/
 	public static function parseString(sParam:String):Int128 {
-		var base = Int128.ofInt64(10);
-		var current = Int128.ofInt64(0);
-		var multiplier = Int128.ofInt64(1);
+		var base = Int128.ofInt(10);
+		var current = Int128.ofInt(0);
+		var multiplier = Int128.ofInt(1);
 		var sIsNegative = false;
 
 		var s = StringTools.trim(sParam);
@@ -55,28 +67,29 @@ class Int128Helper {
 		var len = s.length;
 
 		for (i in 0...len) {
-			var digitInt = s.charCodeAt(len - 1 - i) - '0'.code;
+			var digitInt = s.charCodeAt((len - 1) - i) - '0'.code;
 
 			if (digitInt < 0 || digitInt > 9) {
 				throw "NumberFormatError";
 			}
 
 			if (digitInt != 0) {
-				var digit:Int128 = Int128.ofInt64(digitInt);
+				var digit:Int128 = Int128.ofInt(digitInt);
 				if (sIsNegative) {
-					current -= multiplier * digitInt;
+					current = Int128.sub(current, Int128.mul(multiplier, digit));
 					if (!Int128.isNeg(current)) {
 						throw "NumberFormatError: Underflow";
 					}
 				} else {
-					current += multiplier * digitInt;
+					current = Int128.add(current, Int128.mul(multiplier, digit));
 					if (Int128.isNeg(current)) {
 						throw "NumberFormatError: Overflow";
 					}
 				}
 			}
 
-			multiplier *= base;
+			multiplier = Int128.mul(multiplier, base);
+			trace(multiplier);
 		}
 		return current;
 	}
