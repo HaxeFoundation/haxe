@@ -343,7 +343,7 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 	@:op(A / B) private static inline function intDiv(a:Int, b:Int128):Int128
 		return div(a, b).toInt();
 
-	@:op(A / B) private static inline function intDiv64(a:Int64, b:Int128):Int128
+	@:op(A / B) private static inline function int64Div(a:Int64, b:Int128):Int128
 		return div(a, b).toInt();
 
 	/**
