@@ -307,23 +307,19 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 	**/
 	@:op(A * B)
 	public static #if !lua inline #end function mul(a:Int128, b:Int128):Int128 {
-		var al = a.low, ah = a.low >>> 32;
-		var bl = b.low, bh = b.low >>> 32;
-		var p00 = al * bl;
-		var p10 = ah * bl;
-		var p01 = al * bh;
-		var p11 = ah * bh;
-		var low = p00;
-		var high = p11 + (p01 >>> 32) + (p10 >>> 32);
-		p01 <<= 16;
-		low += p01;
-		if (Int64.ucompare(low, p01) < 0)
-			high++;
-		p10 <<= 16;
-		low += p10;
-		if (Int64.ucompare(low, p10) < 0)
-			high++;
-		high += a.low * b.high + a.high * b.low;
+		var lowLow = Int64.mul(a.low, b.low);
+		var lowHigh = Int64.mul(a.low, b.high);
+		var highLow = Int64.mul(a.high, b.low);
+		var highHigh = Int64.mul(a.high, b.high);
+
+		var low = lowLow;
+		var high = highHigh;
+		high += (highLow >> 63) + (lowHigh >> 63);
+		low = low & Int64Helper.maxValue;
+
+		Sys.println("Low: " + low);
+		Sys.println("High: " + high);
+
 		return make(high, low);
 	}
 
