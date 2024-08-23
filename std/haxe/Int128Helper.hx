@@ -22,41 +22,31 @@
 
 package haxe;
 
-using haxe.Int128;
+using haxe.Int64;
+
+import StringTools;
 
 /**
-	Helper for parsing to `Int128` instances.
+	Helper for parsing to `Int64` instances.
 **/
-class Int128Helper {
+class Int64Helper {
 	/**
-		The maximum `Int128` value.
-	 */
-	public static var maxValue:Int128 = Int128.make(Int64Helper.maxValue, -1);
+        The maximum `Int64` value.
+     */
+    public static var maxValue:Int64 = Int64.make(0x7FFFFFFF, -1);
 
 	/**
-		The minimum `Int128` value.
-	 */
-	public static var minValue:Int128 = -maxValue;
+        The minimum `Int64` value.
+     */
+    public static var minValue:Int64 = -maxValue - 1;
 
 	/**
-		The maximum `Int64` value with the type `Int128`.
-		This is handy for type comparison.
-	 */
-	public static var maxValue64:Int128 = Int128.ofInt64(Int64Helper.maxValue);
-
-	/**
-		The minimum `Int64` value with the type `Int128`.
-		This is handy for type comparison.
-	 */
-	public static var minValue64:Int128 = -maxValue;
-
-	/**
-		Create `Int128` from given string.
+		Create `Int64` from given string.
 	**/
-	public static function parseString(sParam:String):Int128 {
-		var base = Int128.ofInt(10);
-		var current = Int128.ofInt(0);
-		var multiplier = Int128.ofInt(1);
+	public static function parseString(sParam:String):Int64 {
+		var base = Int64.ofInt(10);
+		var current = Int64.ofInt(0);
+		var multiplier = Int64.ofInt(1);
 		var sIsNegative = false;
 
 		var s = StringTools.trim(sParam);
@@ -67,44 +57,41 @@ class Int128Helper {
 		var len = s.length;
 
 		for (i in 0...len) {
-			var digitInt = s.charCodeAt((len - 1) - i) - '0'.code;
+			var digitInt = s.charCodeAt(len - 1 - i) - '0'.code;
 
 			if (digitInt < 0 || digitInt > 9) {
 				throw "NumberFormatError";
 			}
 
 			if (digitInt != 0) {
-				var digit:Int128 = Int128.ofInt(digitInt);
+				var digit:Int64 = Int64.ofInt(digitInt);
 				if (sIsNegative) {
-					current = Int128.sub(current, Int128.mul(multiplier, digit));
-					if (!Int128.isNeg(current)) {
+					current = Int64.sub(current, Int64.mul(multiplier, digit));
+					if (!Int64.isNeg(current)) {
 						throw "NumberFormatError: Underflow";
 					}
 				} else {
-					current = Int128.add(current, Int128.mul(multiplier, digit));
-					if (Int128.isNeg(current)) {
+					current = Int64.add(current, Int64.mul(multiplier, digit));
+					if (Int64.isNeg(current)) {
 						throw "NumberFormatError: Overflow";
 					}
 				}
 			}
 
-			multiplier = Int128.mul(multiplier, base);
-			trace(multiplier);
+			multiplier = Int64.mul(multiplier, base);
 		}
 		return current;
 	}
 
 	/**
-		Create `Int128` from given float.
+		Create `Int64` from given float.
 	**/
-	public static function fromFloat(f:Float):Int128 {
+	public static function fromFloat(f:Float):Int64 {
 		if (Math.isNaN(f) || !Math.isFinite(f)) {
 			throw "Number is NaN or Infinite";
 		}
 
-		// Here's a funny story for someguywholovescoding
-		// I thought Int64's noFractions calculation (which is float flooring with modulous) was faster than Math.ffloor but then I tested it.
-		var noFractions = Math.ffloor(f);
+		var noFractions = f - (f % 1);
 
 		// 2^53-1 and -2^53+1: these are parseable without loss of precision.
 		// In theory 2^53 and -2^53 are parseable too, but then there's no way to
@@ -117,7 +104,7 @@ class Int128Helper {
 			throw "Conversion underflow";
 		}
 
-		var result = Int128.ofInt(0);
+		var result = Int64.ofInt(0);
 		var neg = noFractions < 0;
 		var rest = neg ? -noFractions : noFractions;
 
@@ -126,15 +113,14 @@ class Int128Helper {
 			var curr = rest % 2;
 			rest = rest / 2;
 			if (curr >= 1) {
-				result += Int128.ofInt(1) << i;
+				result = Int64.add(result, Int64.shl(Int64.ofInt(1), i));
 			}
 			i++;
 		}
 
 		if (neg) {
-			result = -result;
+			result = Int64.neg(result);
 		}
-
 		return result;
 	}
 }
