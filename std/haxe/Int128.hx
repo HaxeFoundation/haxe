@@ -23,6 +23,7 @@
 package haxe;
 
 using haxe.Int128;
+import haxe.Int128Helper;
 
 /**
 	A cross-platform signed 128-bit integer.
@@ -50,14 +51,14 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 
 	/**
 		Returns an Int128 with the value of the Int `x`.
-		`x` is sign-extended to fill 64 bits.
+		`x` is sign-extended to fill 128 bits.
 	**/
 	@:from public static inline function ofInt(x:Int):Int128
 		#if lua return make((x : Int32) >> 31, (x : Int32)); #else return make(x >> 31, x); #end
 
 	/**
 		Returns an Int128 with the value of the Int64 `x`.
-		`x` is sign-extended to fill 64 bits.
+		`x` is sign-extended to fill 128 bits.
 	**/
 	@:from public static inline function ofInt64(x:Int64):Int128
 		#if lua return make((x : Int64) >> 63, (x : Int64)); #else return make(x >> 63, x); #end
@@ -176,10 +177,11 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 	public static function divMod(dividend:Int128, divisor:Int128):{quotient:Int128, modulus:Int128} {
 		// Handle special cases of 0 and 1
 		if (divisor.high == 0) {
-			if (divisor.low == 0) {
-				throw "divide by zero";
-			} else if (divisor.low == 1) {
-				return {quotient: dividend.copy(), modulus: 0};
+			switch (Int64.toInt(divisor.low)) {
+				case 0:
+					throw "divide by zero";
+				case 1:
+					return {quotient: dividend.copy(), modulus: 0};
 			}
 		}
 
