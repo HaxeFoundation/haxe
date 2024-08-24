@@ -295,21 +295,21 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	@:op(A * B)
 	public static #if !lua inline #end function mul(a:Int64, b:Int64):Int64 {
 		var mask = 0xFFFF;
-		var al = a.low & mask, ah = a.low >>> 16;
-		var bl = b.low & mask, bh = b.low >>> 16;
-		var p00 = al * bl;
-		var p10 = ah * bl;
-		var p01 = al * bh;
-		var p11 = ah * bh;
-		var low = p00;
-		var high = p11 + (p01 >>> 16) + (p10 >>> 16);
-		p01 <<= 16;
-		low += p01;
-		if (Int32.ucompare(low, p01) < 0)
+		var aLow = a.low & mask, aHigh = a.low >>> 16;
+		var bLow = b.low & mask, bHigh = b.low >>> 16;
+		var part00 = aLow * bLow;
+		var part10 = aHigh * bLow;
+		var part01 = aLow * bHigh;
+		var part11 = aHigh * bHigh;
+		var low = part00;
+		var high = part11 + (part01 >>> 16) + (part10 >>> 16);
+		part01 <<= 16;
+		low += part01;
+		if (Int32.ucompare(low, part01) < 0)
 			high++;
-		p10 <<= 16;
-		low += p10;
-		if (Int32.ucompare(low, p10) < 0)
+		part10 <<= 16;
+		low += part10;
+		if (Int32.ucompare(low, part10) < 0)
 			high++;
 		high += a.low * b.high + a.high * b.low;
 		return make(high, low);
