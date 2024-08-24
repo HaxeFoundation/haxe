@@ -28,7 +28,7 @@ import haxe.Int128Helper;
 /**
 	A cross-platform signed 128-bit integer.
 	Int128 instances can be created from two 64-bit words using `Int128.make()`.
-	NOTE: This class is a beta. There may be bugs in some versions of operator functions
+	NOTE: This class is a beta.
 **/
 #if flash
 @:notNull
@@ -102,7 +102,7 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 		Returns `true` if `x` is less than zero.
 	**/
 	public static inline function isNeg(x:Int128):Bool
-		return x.high < 0;
+		return x.high < 0 && x.high.high < 0;
 
 	/**
 		Returns `true` if `x` is exactly zero.
