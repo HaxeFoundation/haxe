@@ -135,5 +135,5 @@ class Int64Helper {
 		The minimum `Int32` value with the type `Int64`.
 		This is handy for type comparison.
 	 */
-	public static var minValue32:Int64 = -maxValue;
+	public static var minValue32:Int64 = -maxValue - 1;
 }
