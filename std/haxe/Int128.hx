@@ -28,6 +28,7 @@ import haxe.Int128Helper;
 /**
 	A cross-platform signed 128-bit integer.
 	Int128 instances can be created from two 64-bit words using `Int128.make()`.
+	NOTE: This class is a beta. There may be bugs in some versions of operator functions
 **/
 #if flash
 @:notNull
