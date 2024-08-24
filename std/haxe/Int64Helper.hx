@@ -31,16 +31,6 @@ import StringTools;
 **/
 class Int64Helper {
 	/**
-        The maximum `Int64` value.
-     */
-    public static var maxValue:Int64 = Int64.make(0x7FFFFFFF, -1);
-
-	/**
-        The minimum `Int64` value.
-     */
-    public static var minValue:Int64 = -maxValue - 1;
-
-	/**
 		Create `Int64` from given string.
 	**/
 	public static function parseString(sParam:String):Int64 {
@@ -123,4 +113,26 @@ class Int64Helper {
 		}
 		return result;
 	}
+
+	/**
+		The maximum `Int64` value.
+	 */
+	public static var maxValue:Int64 = Int64.make(0x7FFFFFFF, -1);
+
+	/**
+		The minimum `Int64` value.
+	 */
+	public static var minValue:Int64 = -maxValue - 1;
+
+	/**
+		The maximum `Int32` value with the type `Int64`.
+		This is handy for type comparison.
+	 */
+	public static var maxValue32:Int64 = Int64.ofInt(0x7FFFFFFF);
+
+	/**
+		The minimum `Int32` value with the type `Int64`.
+		This is handy for type comparison.
+	 */
+	public static var minValue32:Int64 = -maxValue;
 }
