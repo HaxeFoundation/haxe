@@ -24,6 +24,7 @@ package haxe;
 
 using haxe.Int128;
 import haxe.Int128;
+import haxe.Int64Helper;
 
 /**
 	Helper for parsing to `Int128` instances.
