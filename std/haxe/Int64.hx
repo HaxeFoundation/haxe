@@ -23,6 +23,7 @@
 package haxe;
 
 using haxe.Int64;
+import haxe.Int64Helper;
 
 /**
 	A cross-platform signed 64-bit integer.
