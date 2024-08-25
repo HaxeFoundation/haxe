@@ -672,7 +672,7 @@ let decode_const c =
 	| 0, [s;suffix] ->
 		let decoded_suffix = opt decode_string suffix in
 		(match decoded_suffix with
-		| None | Some "i32" | Some "i64" | Some "u32" ->
+		| None | Some "i32" | Some "i64" | Some "i128" | Some "u32" ->
 			Int (decode_string s, decoded_suffix)
 		| Some other ->
 			raise Invalid_expr)
