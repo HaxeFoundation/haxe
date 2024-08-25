@@ -1847,9 +1847,9 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		| "i128" ->
 			if String.length s > 34 && String.sub s 0 2 = "0x" then raise_typing_error "Invalid hexadecimal integer" p;
 
-			let i128  = Int64.of_string s in
-			let high = Int64.to_int32 (Int128.shift_right i128 64) in
-			let low  = Int64.to_int32 i128 in
+			let i128  = Int128.of_string s in
+			let high = Int128.to_int64 (Int128.shift_right i128 64) in
+			let low  = Int128.to_int64 i128 in
 
 			let ident = EConst (Ident "haxe"), p in
 			let field = efield ((efield (ident, "Int128"), p), "make"), p in
