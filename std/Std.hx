@@ -117,62 +117,6 @@ extern class Std {
 	static function parseInt(x:String):Null<Int>;
 
 	/**
-         *
-                Converts a `String` to an `Int64`.
-                This is a runtime function that helps with writing.
-
-		Leading whitespaces are ignored.
-
-		`x` may optionally start with a + or - to denote a postive or negative value respectively.
-
-		If the optional sign is followed 0x or 0X, hexadecimal notation is recognized where the following
-		digits may contain 0-9 and A-F. Both the prefix and digits are case insensitive.
-
-		Otherwise `x` is read as decimal number with 0-9 being allowed characters. Octal and binary
-		notations are not supported.
-
-		Parsing continues until an invalid character is detected, in which case the result up to
-		that point is returned. Scientific notation is not supported. That is `Std.parseInt('10e2')` produces `10`.
-
-		If `x` is `null`, the result is `null`.
-		If `x` cannot be parsed as integer or is empty, the result is `null`.
-
-		If `x` starts with a hexadecimal prefix which is not followed by at least one valid hexadecimal
-		digit, the result is unspecified.
-        **/
-	@:runtime public static inline function parseInt64(x:String):haxe.Int64 {
-		return haxe.Int64.parseString(x);
-	}
-
-	/**
-         *
-                Converts a `String` to an `Int128`.
-                This is a runtime function that helps with writing.
-
-		Leading whitespaces are ignored.
-
-		`x` may optionally start with a + or - to denote a postive or negative value respectively.
-
-		If the optional sign is followed 0x or 0X, hexadecimal notation is recognized where the following
-		digits may contain 0-9 and A-F. Both the prefix and digits are case insensitive.
-
-		Otherwise `x` is read as decimal number with 0-9 being allowed characters. Octal and binary
-		notations are not supported.
-
-		Parsing continues until an invalid character is detected, in which case the result up to
-		that point is returned. Scientific notation is not supported. That is `Std.parseInt('10e2')` produces `10`.
-
-		If `x` is `null`, the result is `null`.
-		If `x` cannot be parsed as integer or is empty, the result is `null`.
-
-		If `x` starts with a hexadecimal prefix which is not followed by at least one valid hexadecimal
-		digit, the result is unspecified.
-        **/
-	@:runtime public static inline function parseInt128(x:String):haxe.Int128 {
-		return haxe.Int128.parseString(x);
-	}
-
-	/**
 		Converts a `String` to a `Float`.
 
 		The parsing rules for `parseInt` apply here as well, with the exception of invalid input
