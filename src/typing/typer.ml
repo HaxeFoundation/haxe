@@ -1853,8 +1853,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 				I, SomeGuyWhoLikesCoding, am NOT familiar with the ocaml syntax.
        			*)
 
-			let high = Int64.of_string (String.sub s 2  10), p in
-			let low  = Int64.of_string (String.sub s 11 18), p in
+			let high = Int64.of_string (String.sub s 2  10) in
+			let low  = Int64.of_string (String.sub s 11 18) in
 
 			let ident = EConst (Ident "haxe"), p in
 			let field = efield ((efield (ident, "Int128"), p), "make"), p in
