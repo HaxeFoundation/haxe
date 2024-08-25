@@ -366,6 +366,8 @@ let reify in_macro =
 				| EParenthesis (ECheckType (e2, (CTPath({path = {tname="Float";tpackage=[]}}),_)),_) -> expr "EConst" [mk_enum "Constant" "CFloat" [e2] (pos e2)]
 				| EConst (Int (s, Some "i64")) ->
 					expr "EConst" [mk_enum "Constant" "CInt" [ (EConst(String (s, SDoubleQuotes)),(pos e1)); (EConst(String ("i64", SDoubleQuotes)),(pos e1)) ] (pos e1)]
+				| EConst (Int (s, Some "i128")) ->
+					expr "EConst" [mk_enum "Constant" "CInt" [ (EConst(String (s, SDoubleQuotes)),(pos e1)); (EConst(String ("i128", SDoubleQuotes)),(pos e1)) ] (pos e1)]
 				| _ ->
 					(ECall ((efield ((efield ((efield ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e1; to_enc_pos (pos e1)]),p)
 				end
