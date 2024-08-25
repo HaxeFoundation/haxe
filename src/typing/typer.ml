@@ -1844,6 +1844,20 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			let arg_low  = EConst (Int (Int32.to_string low, None)), p in
 			let call     = ECall (field, [ arg_high; arg_low ]), p in
 			type_expr ctx call with_type
+		| "i128" ->
+			if String.length s > 34 && String.sub s 0 2 = "0x" then raise_typing_error "Invalid hexadecimal integer" p;
+
+			let i128  = Int64.of_string s in
+			let high = Int64.to_int32 (Int128.shift_right i128 64) in
+			let low  = Int64.to_int32 i128 in
+
+			let ident = EConst (Ident "haxe"), p in
+			let field = efield ((efield (ident, "Int128"), p), "make"), p in
+
+			let arg_high = EConst (Int (Int64.to_string high, None)), p in
+			let arg_low  = EConst (Int (Int64.to_string low, None)), p in
+			let call     = ECall (field, [ arg_high; arg_low ]), p in
+			type_expr ctx call with_type
 		| "u32" ->
 			let check = ECheckType ((EConst (Int (s, None)), p), (make_ptp_th (mk_type_path ([],"UInt")) p)), p in
 			type_expr ctx check with_type
