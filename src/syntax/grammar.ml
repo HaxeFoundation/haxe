@@ -1488,7 +1488,13 @@ and expr (ctx : parser_ctx) s = match%parser s with
 				syntax_error ctx (Expected [")";",";":"]) s (expr_next ctx (EParenthesis e, punion p1 (pos e)) s))
 		)
 	| [ (BkOpen,p1); [%let e = parse_array_decl ctx p1] ] -> expr_next ctx e s
-	| [ (Kwd Function,p1); [%let e = parse_function ctx p1 false]; ] -> e
+	| [ (Kwd Function,p1); [%let e = parse_function ctx p1 false]; [%s s]; ] ->
+		begin match Stream.peek s with
+		| Some (POpen,_) ->
+			e
+		| _ ->
+			expr_next ctx e s
+		end
 	| [ (Unop op,p1); [%let e = expr ctx] ] -> make_unop op e p1
 	| [ (Spread,p1); [%let e = expr ctx] ] -> make_unop Spread e (punion p1 (pos e))
 	| [ (Binop OpSub,p1); [%let e = expr ctx] ] ->
