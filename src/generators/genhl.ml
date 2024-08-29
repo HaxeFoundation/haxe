@@ -2034,7 +2034,7 @@ and eval_expr ctx e =
 			hold ctx arr;
 			let pos = eval_to ctx pos HI32 in
 			free ctx arr;
-			let r = alloc_tmp ctx at in
+			let r = if is_array_type at then alloc_tmp ctx HDyn else alloc_tmp ctx at in
 			op ctx (OGetArray (r, arr, pos));
 			cast_to ctx r (to_type ctx e.etype) e.epos
 		| "$aset", [a; pos; value] ->

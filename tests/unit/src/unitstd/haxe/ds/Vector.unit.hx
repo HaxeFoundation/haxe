@@ -27,7 +27,7 @@ vec.get(2) == vNullBool;
 // fromArray
 var arr = ["1", "2", "3"];
 var vec:haxe.ds.Vector<String> = haxe.ds.Vector.fromArrayCopy(arr);
-#if (!flash && !neko && !jvm && !lua && !eval && !php)
+#if (!flash && !neko && !jvm && !lua && !eval && !php && !hl)
 arr != vec.toData();
 #end
 vec.length == 3;
@@ -192,7 +192,7 @@ vec2[1] == "value: 13";
 
 // sort
 
-#if !(neko || jvm || eval)
+#if !(neko || jvm || eval || hl)
 var vec = new haxe.ds.Vector(4);
 vec[0] = 99;
 vec[1] = 101;

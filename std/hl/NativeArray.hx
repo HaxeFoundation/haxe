@@ -99,4 +99,17 @@ package hl;
 	public inline function blit(pos:Int, src:NativeArray<T>, srcPos:Int, srcLen:Int):Void {
 		real_blit(cast this, pos, cast src, srcPos, srcLen);
 	}
+
+	#if (hl_ver >= version("1.15.0"))
+	@:hlNative("std", "array_bytes") static function get_bytes(a:NativeArray<Any>):Bytes {
+		return null;
+	}
+
+	/**
+		Get the bytes reference from an native array (no copy occurs)
+	**/
+	public inline function getBytes():Bytes {
+		return get_bytes(cast this);
+	}
+	#end
 }
