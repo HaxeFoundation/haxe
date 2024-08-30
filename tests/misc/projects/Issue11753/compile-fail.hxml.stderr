@@ -1,0 +1,32 @@
+[WARNING] Main.hx:12: characters 9-12
+
+ 12 |   $type(foo);
+    |         ^^^
+    | Unknown<0> : { doWithBar : () -> Unknown<1> }
+
+[WARNING] Main.hx:13: characters 9-22
+
+ 13 |   $type(foo.doWithBar);
+    |         ^^^^^^^^^^^^^
+    | () -> Unknown<0>
+
+[WARNING] Main.hx:16: characters 9-12
+
+ 16 |   $type(foo);
+    |         ^^^
+    | Null<{ doWithBar : () -> Unknown<0> }>
+
+[WARNING] Main.hx:17: characters 9-22
+
+ 17 |   $type(foo.doWithBar);
+    |         ^^^^^^^^^^^^^
+    | () -> Unknown<0>
+
+[ERROR] Main.hx:6: characters 35-38
+
+  6 |   doThings = (foo -> doThingsImpl(foo));
+    |                                   ^^^
+    | error: (?bar : Null<Bar>) -> Void should be () -> Unknown<0>
+    | have: { doWithBar: (?...) -> ... }
+    | want: { doWithBar: () -> ... }
+

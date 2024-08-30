@@ -1,0 +1,3 @@
+-main Main
+--hl bin/main.hl
+-D message.no-color
