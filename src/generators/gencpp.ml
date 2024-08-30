@@ -4379,7 +4379,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       let argsCount = list_num closure.close_args in
       let signature = cpp_closure_signature ctx closure in
       output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ size ^ "(");
-      out ("::hx::Closure_obj< ");
+      out ("::hx::Callable_obj< ");
       out signature;
       out (">,_hx_Closure_" ^ (string_of_int closure.close_id) );
       Hashtbl.iter (fun name var ->
@@ -4613,7 +4613,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
       let func_signature     = ctx_callable_signature ctx function_def in
       let obj_ptr_class_name = "::hx::ObjectPtr<" ^ class_name ^ ">" in
       let write_closure_header callable_name captures_obj prefix =
-         output ("struct " ^ callable_name ^ " : public ::hx::Closure_obj<" ^ func_signature ^ ">\n");
+         output ("struct " ^ callable_name ^ " : public ::hx::Callable_obj<" ^ func_signature ^ ">\n");
          output "{\n";
 
          if captures_obj then begin
