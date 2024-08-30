@@ -18,7 +18,8 @@ class TestResource extends Test {
 		#if (neko || php || eval)
 		// allow binary strings
 		eq(haxe.Resource.getBytes("re/s?!%[]))(\"'1.bin").sub(0, 9).toHex(), "48656c6c6f2c204927");
-		#else
+		// updated luautf8.len returns nil for data with invalid sequences
+		#elseif !lua5_4
 		// cut until first \0
 		eq(haxe.Resource.getString("re/s?!%[]))(\"'1.bin").substr(0, 2), "He");
 		#end

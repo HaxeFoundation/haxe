@@ -2,7 +2,7 @@ package unit.issues;
 
 class Issue3171 extends Test
 {
-#if (java || cs)
+#if jvm
 	public function test()
 	{
 		var oint = new O2();
@@ -22,7 +22,7 @@ class Issue3171 extends Test
 	}
 #end
 }
-#if (java || cs)
+#if jvm
 class O<T>
 {
 	public var lastVal = 0;

@@ -28,51 +28,18 @@ enum abstract ModuleCheckPolicy(Int) {
 	/**
 		Disables file modification checks, avoiding some filesystem operations.
 	**/
-	var NoCheckFileTimeModification = 0;
+	var NoFileSystemCheck = 0;
+
+	/**
+		Default behavior: check last modification time.
+	**/
+	var CheckFileModificationTime = 1;
 
 	/**
 		If a file is modified, also checks if its content changed. This check
 		is not free, but useful when .hx files are auto-generated.
 	**/
-	var CheckFileContentModification = 1;
-
-	/**
-		Disables dependency checks of the module.
-
-		This should only be used for modules that don't depend on any module that
-		might change. It is effectively a promise to the compiler that the module
-		is unaffected by changes made to other modules. If that promise is broken,
-		the compiler is sad and things probably stop working.
-	**/
-	var NoCheckDependencies = 2;
-
-	/**
-		Disables file shadowing checks. Shadowing can occur when a new file
-		is added to a class-path that has higher priority than the class-path
-		of the current module file.
-	**/
-	var NoCheckShadowing = 3;
-	/**
-		Retype the module's contents if its file is invalidated. This is currently experimental.
-	**/
-	var Retype = 4;
-}
-
-enum abstract ContextOptions(Int) {
-	/**
-		Affects only the normal context.
-	**/
-	var NormalContext = 0;
-
-	/**
-		Affects only the macro context.
-	**/
-	var MacroContext = 1;
-
-	/**
-		Affects the normal and macro contexts.
-	**/
-	var NormalAndMacroContext = 2;
+	var CheckFileContentModification = 2;
 }
 
 /**
@@ -80,7 +47,7 @@ enum abstract ContextOptions(Int) {
 	`--macro server.field(args)`.
 **/
 class CompilationServer {
-	#if (macro || display)
+	#if macro
 	/**
 		Sets the `ModuleCheckPolicy` of all files whose dot-path matches an
 		element of `pathFilters`.
@@ -93,16 +60,12 @@ class CompilationServer {
 		everything (if `recursive = true`) or only top-level types (if
 		`recursive = false`).
 
-		The argument `contextOptions` determines which context (normal, macro
-		or both) this affects.
-
 		If a call to this function is added to the compilation parameters, the
 		compilation server should be restarted to ensure it takes effect.
 	**/
-	static public function setModuleCheckPolicy(pathFilters:Array<String>, policy:Array<ModuleCheckPolicy>, ?recursive = true,
-			?contextOptions:ContextOptions = NormalContext) {
+	static public function setModuleCheckPolicy(pathFilters:Array<String>, policy:Array<ModuleCheckPolicy>, ?recursive = true) {
 		Context.onAfterInitMacros(() -> {
-			@:privateAccess Compiler.load("server_add_module_check_policy", 4)(pathFilters, policy, recursive, contextOptions);
+			@:privateAccess Compiler.load("server_add_module_check_policy", 4)(pathFilters, policy, recursive);
 		});
 	}
 

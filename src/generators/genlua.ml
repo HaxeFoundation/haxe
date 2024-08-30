@@ -20,11 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  *)
 
+open Extlib_leftovers
 open Ast
 open Type
 open Common
 open ExtList
 open Error
+open JsSourcemap
 
 type pos = Globals.pos
 
@@ -32,6 +34,7 @@ type ctx = {
     com : Common.context;
     buf : Buffer.t;
     packages : (string list,unit) Hashtbl.t;
+    smap : sourcemap option;
     mutable current : tclass;
     mutable statics : (tclass * tclass_field * texpr) list;
     mutable inits : texpr list;
@@ -143,11 +146,15 @@ let temp ctx =
 
 let spr ctx s =
     ctx.separator <- false;
+	handle_newlines ctx.smap s;
     Buffer.add_string ctx.buf s
 
 let print ctx =
     ctx.separator <- false;
-    Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
+    Printf.kprintf (fun s -> begin
+        handle_newlines ctx.smap s;
+        Buffer.add_string ctx.buf s
+    end)
 
 let newline ctx = print ctx "\n%s" ctx.tabs
 
@@ -582,9 +589,10 @@ and gen_loop ctx cond do_while e =
     if do_while then
         print ctx " or _hx_do_first_%i" ctx.break_depth;
     print ctx " do ";
-    if do_while then
+    if do_while then begin
         newline ctx;
         println ctx "_hx_do_first_%i = false;" ctx.break_depth;
+    end;
     if will_continue then print ctx "repeat ";
     gen_block_element ctx e;
     if will_continue then begin
@@ -661,6 +669,7 @@ and lua_arg_name(a,_) =
         | _, _, _ ->  ident a.v_name;
 
 and gen_expr ?(local=true) ctx e = begin
+    let clear_mapping = add_mapping ctx.smap e in
     match e.eexpr with
       TConst c ->
         gen_constant ctx e.epos c;
@@ -1042,13 +1051,16 @@ and gen_expr ?(local=true) ctx e = begin
     | TCast (e1,None) ->
         gen_value ctx e1;
     | TIdent s ->
-        spr ctx s
+        spr ctx s;
+
+    clear_mapping ()
 end;
 
     (* gen_block_element handles expressions that map to "statements" in lua. *)
     (* It handles no-op situations, and ensures that expressions are formatted with newlines *)
 and gen_block_element ctx e  =
     ctx.iife_assign <- false;
+    let clear_mapping = add_mapping ctx.smap e in
     begin match e.eexpr with
         | TTypeExpr _ | TConst _ | TLocal _ | TFunction _ ->
             ()
@@ -1108,6 +1120,7 @@ and gen_block_element ctx e  =
             gen_expr ctx e;
             semicolon ctx;
     end;
+    clear_mapping ()
 
 and is_const_null e =
     match e.eexpr with
@@ -1146,6 +1159,7 @@ and gen_anon_value ctx e =
         gen_value ctx e
 
 and gen_value ctx e =
+    let clear_mapping = add_mapping ctx.smap e in
     let assign e =
         mk (TBinop (Ast.OpAssign,
                     mk (TLocal (match ctx.in_value with None -> Globals.die "" __LOC__ | Some v -> v)) t_dynamic e.epos,
@@ -1279,7 +1293,8 @@ and gen_value ctx e =
         gen_block_element ctx (mk (TTry (block (assign b),
                                          List.map (fun (v,e) -> v, block (assign e)) catchs
                                         )) e.etype e.epos);
-        v()
+        v();
+    clear_mapping ()
 
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
@@ -1535,7 +1550,7 @@ let check_multireturn ctx c =
 
 let check_field_name c f =
     match f.cf_name with
-    | "prototype" | "__proto__" | "constructor" ->
+    | "prototype" | "__proto__" | "constructor" | "__mt__" ->
         raise_typing_error ("The field name '" ^ f.cf_name ^ "'  is not allowed in Lua") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
     | _ -> ()
 
@@ -1645,8 +1660,10 @@ let generate_class ctx c =
                     | TBlock el ->
                         let bend = open_block ctx in
                         newline ctx;
-                        if not (has_prototype ctx c) then println ctx "local self = _hx_new()" else
-                            println ctx "local self = _hx_new(%s.prototype)" p;
+                        if not (has_prototype ctx c) then
+                            println ctx "local self = _hx_new()"
+                        else
+                            println ctx "local self = _hx_nsh(%s.__mt__)" p;
                         println ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map lua_arg_name f.tf_args)));
                         if p = "String" then println ctx "self = string";
                         spr ctx "return self";
@@ -1719,6 +1736,9 @@ let generate_class ctx c =
              if has_property_reflection && Codegen.has_properties csup then
                  println ctx "setmetatable(%s.prototype.__properties__,{__index=%s.prototype.__properties__})" p psup;
         );
+
+        (* Create a metatable specific for this class *)
+        println ctx "%s.__mt__ = _hx_mmt(%s.prototype)" p p;
     end
 
 let generate_enum ctx e =
@@ -1825,7 +1845,7 @@ let generate_require ctx path meta =
 
 let generate_type ctx = function
     | TClassDecl c ->
-        (match c.cl_init with
+        (match TClass.get_cl_init c with
          | None -> ()
          | Some e ->
              ctx.inits <- e :: ctx.inits);
@@ -1839,7 +1859,7 @@ let generate_type ctx = function
             generate_class ctx c;
         check_multireturn ctx c;
     | TEnumDecl e ->
-        if not e.e_extern then generate_enum ctx e
+        if not (has_enum_flag e EnExtern) then generate_enum ctx e
         else ();
     | TTypeDecl _ | TAbstractDecl _ -> ()
 
@@ -1854,7 +1874,7 @@ let generate_type_forward ctx = function
             end
         else if Meta.has Meta.LuaRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
             generate_require ctx c.cl_path c.cl_meta
-    | TEnumDecl e when e.e_extern ->
+    | TEnumDecl e when has_enum_flag e EnExtern ->
         if Meta.has Meta.LuaRequire e.e_meta && is_directly_used ctx.com e.e_meta then
             generate_require ctx e.e_path e.e_meta;
     | TEnumDecl e ->
@@ -1865,10 +1885,26 @@ let generate_type_forward ctx = function
     | TTypeDecl _ | TAbstractDecl _ -> ()
 
 let alloc_ctx com =
+    let smap =
+		if com.debug || Common.defined com Define.SourceMap then
+			Some {
+				source_last_pos = { file = 0; line = 0; col = 0};
+				print_comma = false;
+				output_last_col = 0;
+				output_current_col = 0;
+				sources = DynArray.create();
+				sources_hash = Hashtbl.create 0;
+				mappings = Rbuffer.create 16;
+				current_expr = None;
+			}
+		else
+			None
+	in
     let ctx = {
         com = com;
         buf = Buffer.create 16000;
         packages = Hashtbl.create 0;
+        smap = smap;
         statics = [];
         inits = [];
         current = null_class;
@@ -1894,7 +1930,7 @@ let alloc_ctx com =
         match t with
         | TClassDecl c when (has_class_flag c CExtern) &&  not (Meta.has Meta.LuaRequire c.cl_meta)
             -> dot_path p
-        | TEnumDecl { e_extern = true }
+        | TEnumDecl e when has_enum_flag e EnExtern
             -> s_path ctx p
         | _ -> s_path ctx p);
     ctx
@@ -1991,6 +2027,9 @@ let generate com =
 
     (* base lua metatables for prototypes, inheritance, etc. *)
     print_file (Common.find_file com "lua/_lua/_hx_anon.lua");
+
+    (* Helpers for creating metatables from prototypes *)
+    print_file (Common.find_file com "lua/_lua/_hx_objects.lua");
 
     (* base runtime class stubs for haxe value types (Int, Float, etc) *)
     print_file (Common.find_file com "lua/_lua/_hx_classes.lua");
@@ -2169,10 +2208,14 @@ let generate com =
             gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) };
         println ctx ", _hx_handle_error)";
         println ctx "if not success then _G.error(err) end";
-    ) com.main;
+    ) com.main.main_expr;
 
     if anyExposed then
         println ctx "return _hx_exports";
+
+    (match ctx.smap with
+    | Some smap -> write_mappings ctx.com smap ""
+    | None -> try Sys.remove (com.file ^ ".map") with _ -> ());
 
     let ch = open_out_bin com.file in
     output_string ch (Buffer.contents ctx.buf);

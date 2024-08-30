@@ -9,7 +9,7 @@ class Issue6291 extends Test
   }
 }
 
-#if (cs || java)
+#if jvm
 @:nativeGen @:keep
 #end
 private class BadCode {

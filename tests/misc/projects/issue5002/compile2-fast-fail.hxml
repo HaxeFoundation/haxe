@@ -1,0 +1,2 @@
+compile2-fail.hxml
+-D fail-fast

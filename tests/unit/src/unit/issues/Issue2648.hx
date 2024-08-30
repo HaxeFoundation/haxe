@@ -1,7 +1,7 @@
 package unit.issues;
 import unit.Test;
 
-#if java
+#if jvm
 private class TestParam<T> {
 	@:overload static public function forName(s:Int) { }
 	@:overload static public function forName(s:String) { }
@@ -9,7 +9,7 @@ private class TestParam<T> {
 #end
 
 class Issue2648 extends Test {
-	#if java
+	#if jvm
 	function test() {
 		TestParam.forName(1);
 		TestParam.forName("s");

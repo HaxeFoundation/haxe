@@ -1,0 +1,14 @@
+{
+	access: null
+	doc: null
+	kind: FVar(TPath({
+		name: Null
+		pack: []
+		params: [TPType(null <- expected enum value)]
+		sub: null
+	}), null)
+	meta: null
+	name: foo
+	pos: #pos
+}
+line 7: expected enum value

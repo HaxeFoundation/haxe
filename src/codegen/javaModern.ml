@@ -754,11 +754,7 @@ module Converter = struct
 		tp
 
 	let convert_enum (jc : jclass) (file : string) =
-		let p = {
-			pfile = file;
-			pmin = 0;
-			pmax = 0
-		} in
+		let p = file_pos file in
 		let meta = ref [] in
 		let add_meta m = meta := m :: !meta in
 		let data = ref [] in
@@ -920,11 +916,7 @@ module Converter = struct
 		cff
 
 	let convert_class ctx (jc : jclass) (file : string) =
-		let p = {
-			pfile = file;
-			pmin = 0;
-			pmax = 0
-		} in
+		let p = file_pos file in
 		let flags = ref [HExtern] in
 		let meta = ref [] in
 		let add_flag f = flags := f :: !flags in
@@ -993,6 +985,16 @@ module Converter = struct
 			in
 			add_meta (Meta.Annotation,args,p)
 		end;
+		List.iter (fun attr -> match attr with
+			| AttrVisibleAnnotations ann ->
+				List.iter (function
+					| { ann_type = TObject( (["java";"lang"], "FunctionalInterface"), [] ) } ->
+						add_meta (Meta.FunctionalInterface,[],p);
+					| _ -> ()
+				) ann
+			| _ ->
+				()
+		) jc.jc_attributes;
 		let d = {
 			d_name = (class_name,p);
 			d_doc = None;
@@ -1093,3 +1095,19 @@ class java_library_modern com name file_path = object(self)
 
 	method get_data = ()
 end
+
+let add_java_lib com name std extern =
+	let file = if Sys.file_exists name then
+		name
+	else try Common.find_file com name with
+		| Not_found -> try Common.find_file com (name ^ ".jar") with
+		| Not_found ->
+			failwith ("Java lib " ^ name ^ " not found")
+	in
+	let java_lib =
+		(new java_library_modern com name file :> (java_lib_type,unit) native_library)
+	in
+	if std then java_lib#add_flag FlagIsStd;
+	if extern then java_lib#add_flag FlagIsExtern;
+	com.native_libs.java_libs <- (java_lib :> (java_lib_type,unit) native_library) :: com.native_libs.java_libs;
+	CommonCache.handle_native_lib com java_lib

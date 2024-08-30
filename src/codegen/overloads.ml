@@ -1,6 +1,6 @@
 open Globals
 open Type
-open Typecore
+open FieldCallCandidate
 
 let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 	let f_transform = match get_vmtype with
@@ -13,7 +13,7 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 			| [],[] ->
 				true
 			| tp1 :: params1,tp2 :: params2 ->
-				let constraints_equal ttp1 ttp2 = 
+				let constraints_equal ttp1 ttp2 =
 					Ast.safe_for_all2 f_eq (get_constraints ttp2) (get_constraints ttp2)
 				in
 				tp1.ttp_name = tp2.ttp_name && constraints_equal tp1 tp2 && loop params1 params2
@@ -78,14 +78,6 @@ let collect_overloads map c i =
 	in
 	loop map c;
 	List.rev !acc
-
-let get_overloads (com : Common.context) c i =
-	try
-		com.overload_cache#find (c.cl_path,i)
-	with Not_found ->
-		let l = collect_overloads (fun t -> t) c i in
-		com.overload_cache#add (c.cl_path,i) l;
-		l
 
 (** Overload resolution **)
 module Resolution =

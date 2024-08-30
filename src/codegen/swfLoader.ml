@@ -147,7 +147,7 @@ let is_valid_path com pack name =
 
 let build_class com c file =
 	let path = (make_tpath c.hlc_name).path in
-	let pos = { pfile = file ^ "@" ^ s_type_path (path.tpackage,path.tname); pmin = 0; pmax = 0 } in
+	let pos = file_pos (file ^ "@" ^ s_type_path (path.tpackage,path.tname)) in
 	match path with
 	| { tpackage = ["flash";"utils"]; tname = ("Object"|"Function") } ->
 		let inf = {

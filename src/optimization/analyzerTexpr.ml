@@ -129,7 +129,7 @@ let can_be_used_as_value com e =
 	in
 	try
 		begin match com.platform,e.eexpr with
-			| (Cs | Cpp | Java | Flash | Lua),TConst TNull -> raise Exit
+			| (Cpp | Jvm | Flash | Lua),TConst TNull -> raise Exit
 			| _ -> ()
 		end;
 		loop e;
@@ -515,9 +515,7 @@ module Fusion = struct
 		in
 		let e1 = skip e1 in
 		let e2 = skip e2 in
-		is_assign_op op && target_handles_assign_ops com e3 && Texpr.equal e1 e2 && not (has_side_effect e1) && match com.platform with
-			| Cs when is_null e1.etype || is_null e2.etype -> false (* C# hates OpAssignOp on Null<T> *)
-			| _ -> true
+		is_assign_op op && target_handles_assign_ops com e3 && Texpr.equal e1 e2 && not (has_side_effect e1)
 
 	let handle_assigned_local actx v1 e1 el =
 		let config = actx.AnalyzerTypes.config in
@@ -674,8 +672,9 @@ module Fusion = struct
 					if not !found && (((has_state_read ir || has_any_field_read ir)) || has_state_write ir || has_any_field_write ir) then raise Exit;
 					{e with eexpr = TCall(e1,el)}
 				| TObjectDecl fl ->
+					(* TODO can something be cleaned up here? *)
 					(* The C# generator has trouble with evaluation order in structures (#7531). *)
-					let el = (match com.platform with Cs -> handle_el' | _ -> handle_el) (List.map snd fl) in
+					let el = handle_el (List.map snd fl) in
 					if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;
 					{e with eexpr = TObjectDecl (List.map2 (fun (s,_) e -> s,e) fl el)}
 				| TArrayDecl el ->
@@ -791,7 +790,7 @@ module Fusion = struct
 			let num_uses = state#get_reads v in
 			let num_writes = state#get_writes v in
 			let can_be_used_as_value = can_be_used_as_value com e in
-			let is_compiler_generated = match v.v_kind with VUser _ | VInlined -> false | _ -> true in
+			let is_compiler_generated = match v.v_kind with VUser _ | VInlined | VInlinedConstructorVariable _ -> false | _ -> true in
 			let has_type_params = match v.v_extra with Some ve when ve.v_params <> [] -> true | _ -> false in
 			let rec is_impure_extern e = match e.eexpr with
 				| TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf))) when has_class_flag cl CExtern ->
@@ -1015,7 +1014,7 @@ module Cleanup = struct
 			| _,TConst (TBool false) -> optimize_binop {e with eexpr = TBinop(OpBoolAnd,e1,e2)} OpBoolAnd e1 e2
 			| _,TBlock [] -> {e with eexpr = TIf(e1,e2,None)}
 			| _ -> match (Texpr.skip e2).eexpr with
-				| TBlock [] when com.platform <> Cs ->
+				| TBlock [] ->
 					let e1' = mk (TUnop(Not,Prefix,e1)) e1.etype e1.epos in
 					let e1' = optimize_unop e1' Not Prefix e1 in
 					{e with eexpr = TIf(e1',e3,None)}
@@ -1069,12 +1068,11 @@ module Cleanup = struct
 							| TLocal v when IntMap.mem v.v_id !locals -> true
 							| _ -> check_expr references_local e
 						in
-						let can_do = match com.platform with Hl -> false | _ -> true in
 						let rec loop2 el = match el with
-							| [{eexpr = TBreak}] when is_true_expr e1 && can_do && not has_continue ->
+							| [{eexpr = TBreak}] when is_true_expr e1 && not has_continue ->
 								do_while := Some (Texpr.Builder.make_bool com.basic true e1.epos);
 								[]
-							| [{eexpr = TIf(econd,{eexpr = TBlock[{eexpr = TBreak}]},None)}] when is_true_expr e1 && not (references_local econd) && can_do && not has_continue ->
+							| [{eexpr = TIf(econd,{eexpr = TBlock[{eexpr = TBreak}]},None)}] when is_true_expr e1 && not (references_local econd) && not has_continue ->
 								do_while := Some econd;
 								[]
 							| {eexpr = TBreak | TContinue | TReturn _ | TThrow _} as e :: el ->
@@ -1252,8 +1250,9 @@ module Purity = struct
 				begin try
 					apply_to_class com c
 				with Purity_conflict(impure,p) ->
-					com.error "Impure field overrides/implements field which was explicitly marked as @:pure" impure.pn_field.cf_pos;
-					Error.raise_typing_error ~depth:1 (Error.compl_msg "Pure field is here") p;
+					Error.raise_typing_error_ext (Error.make_error (Custom "Impure field overrides/implements field which was explicitly marked as @:pure") ~sub:[
+						Error.make_error ~depth:1 (Custom (Error.compl_msg "Pure field is here")) p
+					] impure.pn_field.cf_pos)
 				end
 			| _ -> ()
 		) com.types;

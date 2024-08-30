@@ -36,8 +36,7 @@ class String {
 
 	public var length(default, null):Int;
 
-	public inline function new(string:String)
-		untyped {}
+	public inline function new(string:String) untyped {}
 
 	@:keep
 	static function __index(s:Dynamic, k:Dynamic):Dynamic {
@@ -63,7 +62,7 @@ class String {
 		return BaseString.lower(this);
 
 	public function indexOf(str:String, ?startIndex:Int):Int {
-		if (startIndex == null)
+		if (startIndex == null || startIndex < 0)
 			startIndex = 1;
 		else
 			startIndex += 1;
@@ -79,9 +78,8 @@ class String {
 
 	static function indexOfEmpty(s:String, startIndex:Int):Int {
 		var length = BaseString.len(s);
-		if(startIndex < 0) {
-			startIndex = length + startIndex;
-			if(startIndex < 0) startIndex = 0;
+		if (startIndex < 0) {
+			startIndex = 0;
 		}
 		return startIndex > length ? length : startIndex;
 	}
@@ -90,13 +88,22 @@ class String {
 		var ret = -1;
 		if (startIndex == null)
 			startIndex = length;
-		while (true) {
-			var p = indexOf(str, ret + 1);
-			if (p == -1 || p > startIndex || p == ret)
-				break;
-			ret = p;
+		if (str == "") {
+			if (this == "") {
+				return 0;
+			} else {
+				var max = cast Math.max(startIndex, 0);
+				return cast Math.min(length, max);
+			}
+		} else {
+			while (true) {
+				var p = indexOf(str, ret + 1);
+				if (p == -1 || p > startIndex || p == ret)
+					break;
+				ret = p;
+			}
+			return ret;
 		}
-		return ret;
 	}
 
 	public function split(delimiter:String):Array<String> {

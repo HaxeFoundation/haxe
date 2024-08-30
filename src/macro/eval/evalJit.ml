@@ -235,7 +235,7 @@ and jit_expr jit return e =
 		List.iter (fun var -> ignore(get_capture_slot jit var)) jit_closure.captures_outside_scope;
 		let captures = ExtList.List.filter_map (fun (i,vid,declared) ->
 			if declared then None
-			else Some (i,fst (try Hashtbl.find jit.captures vid with Not_found -> Error.raise_typing_error "Something went wrong" e.epos))
+			else Some (i,fst (try Hashtbl.find jit.captures vid with Not_found -> Error.raise_typing_error (Printf.sprintf "Could not find capture variable %i" vid) e.epos))
 		) captures in
 		let mapping = Array.of_list captures in
 		emit_closure ctx mapping eci hasret exec fl
@@ -655,7 +655,7 @@ and jit_expr jit return e =
 				wrap()
 			| TUnop((Increment | Decrement),_,e1) | TBinop((OpAssign | OpAssignOp _),e1,_) ->
 				begin match (Texpr.skip e1).eexpr with
-				| TLocal {v_kind = VGenerated | VInlined | VInlinedConstructorVariable | VExtractorVariable} ->
+				| TLocal {v_kind = VGenerated | VInlined | VInlinedConstructorVariable _ | VExtractorVariable} ->
 					f
 				| _ ->
 					wrap()

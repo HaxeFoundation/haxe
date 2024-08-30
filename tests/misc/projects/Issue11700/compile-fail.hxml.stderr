@@ -1,0 +1,6 @@
+[ERROR] src/Main.hx:1: characters 1-6
+
+ 1 | trace("");
+   | ^^^^^
+   | Unexpected trace
+

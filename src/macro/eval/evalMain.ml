@@ -145,7 +145,8 @@ let create com api is_macro =
 		Which is printing an error to stderr and exiting with code 2 *)
 	Luv.Error.set_on_unhandled_exception (fun ex ->
 		match ex with
-		| Sys_exit _ -> raise ex
+		| EvalTypes.Sys_exit _ ->
+			raise ex
 		| _ ->
 			let msg = match ex with
 				| Error.Error err ->
@@ -178,7 +179,7 @@ let call_path ctx path f vl api =
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in
-			let info = create_env_info true p.pfile (ctx.file_keys#get p.pfile) EKEntrypoint (Hashtbl.create 0) 0 0 in
+			let info = create_env_info true p.pfile (ctx.file_keys#get p.pfile) (EKMacro (path_hash path, hash f)) (Hashtbl.create 0) 0 0 in
 			let env = push_environment ctx info in
 			env.env_leave_pmin <- p.pmin;
 			env.env_leave_pmax <- p.pmax;
@@ -378,8 +379,7 @@ let setup get_api =
 	let api = get_api (fun() -> (get_ctx()).curapi.get_com()) (fun() -> (get_ctx()).curapi) in
 	List.iter (fun (n,v) ->
 		Hashtbl.replace GlobalState.macro_lib n v
-	) api;
-	Globals.macro_platform := Globals.Eval
+	) api
 
 let do_reuse ctx api =
 	ctx.curapi <- api;

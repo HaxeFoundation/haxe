@@ -6,7 +6,7 @@ class Issue9358 extends TestCase {
 		vfs.putContent("StateHandler.hx", getTemplate("issues/Issue9358/StateHandler.hx"));
 		var args = ["-cp", "src", "-m", "Main", "-hl", "hl.hl"];
 		runHaxe(args);
-		vfs.touchFile("Main.hx");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
 		assertSuccess();
 	}

@@ -1,0 +1,12 @@
+Main3.hx:11: characters 9-15 : Duplicate access modifier public
+Main3.hx:11: characters 2-8 : ... Previously defined here
+Main3.hx:12: characters 9-16 : Conflicting access modifier private
+Main3.hx:12: characters 2-8 : ... Conflicts with this
+Main3.hx:3: characters 20-23 : Field foo overrides parent class with different or incomplete type
+Main3.hx:7: characters 11-14 : ... Base field is defined here
+Main3.hx:3: characters 20-23 : ... error: Void should be String
+Main3.hx:3: characters 20-23 : ... have: (...) -> Void
+Main3.hx:3: characters 20-23 : ... want: (...) -> String
+Main3.hx:19: lines 19-22 : Cannot redefine field bar with different type
+Main3.hx:20: characters 2-14 : ... First type was Int
+Main3.hx:16: characters 2-17 : ... Second type was String

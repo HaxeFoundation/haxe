@@ -44,8 +44,10 @@
 		return untyped __define_feature__('String.fromCharCode', js.Syntax.code("String.fromCodePoint({0})", code));
 	}
 
+	#if (js_es <= 5)
 	static function __init__():Void {
 		untyped __feature__('String.fromCharCode',
 			js.Syntax.code("if( String.fromCodePoint == null ) String.fromCodePoint = function(c) { return c < 0x10000 ? String.fromCharCode(c) : String.fromCharCode((c>>10)+0xD7C0)+String.fromCharCode((c&0x3FF)+0xDC00); }"));
 	}
+	#end
 }
