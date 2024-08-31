@@ -3,6 +3,8 @@ MAKEFILENAME=Makefile.win
 include Makefile
 HAXE_OUTPUT=haxe.exe
 HAXELIB_OUTPUT=haxelib.exe
+HAXE_STD_PATH=$(shell cygpath -m "$(CURDIR)/std")
+HAXELIB_SRC_PATH=$(shell cygpath -m "$(CURDIR)/extra/haxelib_src")
 PREBUILD_OUTPUT=prebuild.exe
 EXTENSION=.exe
 PACKAGE_SRC_EXTENSION=.zip
