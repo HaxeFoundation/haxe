@@ -235,34 +235,30 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 
 	@:op(++A) private inline function preIncrement():Int128 {
 		this = copy();
-		++this.low;
-		if (this.low == 0)
-			++this.high;
-		return cast this;
-	}
-
-	@:op(A++) private inline function postIncrement():Int128 {
-		this = copy();
 		this.low++;
 		if (this.low == 0)
 			this.high++;
 		return cast this;
 	}
 
-	@:op(--A) private inline function preDecrement():Int128 {
-		this = copy();
-		if (this.low == 0)
-			--this.high;
-		--this.low;
-		return cast this;
+	@:op(A++) private inline function postIncrement():Int128 {
+		var ret = this;
+		preIncrement();
+		return ret;
 	}
 
-	@:op(A--) private inline function postDecrement():Int128 {
+	@:op(--A) private inline function preDecrement():Int128 {
 		this = copy();
 		if (this.low == 0)
 			this.high--;
 		this.low--;
 		return cast this;
+	}
+
+	@:op(A--) private inline function postDecrement():Int128 {
+		var ret = this;
+		preDecrement();
+		return ret;
 	}
 
 	/**
