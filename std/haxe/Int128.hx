@@ -310,7 +310,7 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 	**/
 	@:op(A * B)
 	public static #if !lua inline #end function mul(a:Int128, b:Int128):Int128 {
-		var mask = Int64.fromFloat(4294967295);
+		var mask = Int64Helper.maxValue32U;
 		var aLow = a.low & mask, aHigh = a.low >>> 32;
 		var bLow = b.low & mask, bHigh = b.low >>> 32;
 		var part00 = aLow * bLow;
