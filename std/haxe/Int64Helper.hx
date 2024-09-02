@@ -142,10 +142,4 @@ class Int64Helper {
 		This is handy for type comparison.
 	 */
 	public static var maxValue32U:Int64 = Int64.make(0, -1);
-
-	/**
-		The minimum unsigned `Int32` value with the type `Int64`.
-		This is handy for type comparison.
-	 */
-	public static var minValue32U:Int64 = -maxValue32U - 1;
 }
