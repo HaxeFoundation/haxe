@@ -31,7 +31,7 @@ import haxe.iterators.HashMapKeyValueIterator;
 
 	@see https://haxe.org/manual/std-Map.html
 **/
-abstract HashMap<K:{function hashCode():Int;}, V>(HashMapData<K, V>) {
+abstract HashMap<K:{function hashCode():Int;}, V>(HashMapData<K, V>) to Iterable<V> to KeyValueIterable<K, V> {
 	/**
 		Creates a new HashMap.
 	**/
@@ -90,14 +90,14 @@ abstract HashMap<K:{function hashCode():Int;}, V>(HashMapData<K, V>) {
 		See `Map.iterator`
 	**/
 	public inline function iterator() {
-		return this.values.iterator();
+		return this.iterator();
 	}
 
 	/**
 		See `Map.keyValueIterator`
 	**/
 	public inline function keyValueIterator():HashMapKeyValueIterator<K, V> {
-		return new HashMapKeyValueIterator(cast this);
+		return this.keyValueIterator();
 	}
 
 	/**
@@ -116,5 +116,13 @@ private class HashMapData<K:{function hashCode():Int;}, V> {
 	public inline function new() {
 		keys = new IntMap();
 		values = new IntMap();
+	}
+
+	public inline function iterator() {
+		return values.iterator();
+	}
+
+	public inline function keyValueIterator():HashMapKeyValueIterator<K, V> {
+		return new HashMapKeyValueIterator(cast this);
 	}
 }
