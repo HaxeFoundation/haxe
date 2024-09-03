@@ -290,10 +290,10 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Returns the product of `a` and `b`.
 	**/
 	@:op(A * B)
-	private static var multMask:Int64 = 0xFFFF; // Don't create a new int64 every time we multiply a number.
 	public static #if !lua inline #end function mul(a:Int64, b:Int64):Int64 {
-		var aLow = a.low & multMask, aHigh = a.low >>> 16;
-		var bLow = b.low & multMask, bHigh = b.low >>> 16;
+		var mask = 0xFFFF;
+		var aLow = a.low & mask, aHigh = a.low >>> 16;
+		var bLow = b.low & mask, bHigh = b.low >>> 16;
 		var part00 = aLow * bLow;
 		var part10 = aHigh * bLow;
 		var part01 = aLow * bHigh;
