@@ -305,21 +305,22 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 		Returns the product of `a` and `b`.
 	**/
 	@:op(A * B)
+	private static var halfBitAmt32:Int64 = 32; // Don't create a new Int64 every time we input 32.
 	public static #if !lua inline #end function mul(a:Int128, b:Int128):Int128 {
 		var mask = Int64Helper.maxValue32U;
-		var aLow = a.low & mask, aHigh = a.low >>> 32;
-		var bLow = b.low & mask, bHigh = b.low >>> 32;
+		var aLow = a.low & mask, aHigh = a.low >>> halfBitAmt32;
+		var bLow = b.low & mask, bHigh = b.low >>> halfBitAmt32;
 		var part00 = aLow * bLow;
 		var part10 = aHigh * bLow;
 		var part01 = aLow * bHigh;
 		var part11 = aHigh * bHigh;
 		var low = part00;
-		var high = part11 + (part01 >>> 32) + (part10 >>> 32);
-		part01 <<= 32;
+		var high = part11 + (part01 >>> halfBitAmt32) + (part10 >>> halfBitAmt32);
+		part01 <<= halfBitAmt32;
 		low += part01;
 		if (Int64.ucompare(low, part01) < 0)
 			high++;
-		part10 <<= 32;
+		part10 <<= halfBitAmt32;
 		low += part10;
 		if (Int64.ucompare(low, part10) < 0)
 			high++;
