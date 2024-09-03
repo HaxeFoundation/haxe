@@ -310,11 +310,15 @@ let mk_keyword lexbuf kwd =
 let invalid_char lexbuf =
 	error (Invalid_character (Uchar.to_int (lexeme_char lexbuf 0))) (lexeme_start lexbuf)
 
+let alpha = [%sedlex.regexp?
+	Star ('_' | 'a'..'z' | 'A'..'Z' | '0'..'9')
+]
+
 let ident = [%sedlex.regexp?
 	(
 		Star '_',
 		'a'..'z',
-		Star ('_' | 'a'..'z' | 'A'..'Z' | '0'..'9')
+		alpha
 	)
 	|
 	Plus '_'
@@ -322,18 +326,18 @@ let ident = [%sedlex.regexp?
 	(
 		Plus '_',
 		'0'..'9',
-		Star ('_' | 'a'..'z' | 'A'..'Z' | '0'..'9')
+		alpha
 	)
 ]
 
 let sharp_ident = [%sedlex.regexp?
 	(
 		('a'..'z' | 'A'..'Z' | '_'),
-		Star ('a'..'z' | 'A'..'Z' | '0'..'9' | '_'),
+		alpha,
 		Star (
 			'.',
 			('a'..'z' | 'A'..'Z' | '_'),
-			Star ('a'..'z' | 'A'..'Z' | '0'..'9' | '_')
+			alpha
 		)
 	)
 ]
@@ -490,6 +494,15 @@ let rec token lexbuf =
 		let v = lexeme lexbuf in
 		let v = String.sub v 1 (String.length v - 1) in
 		mk lexbuf (Dollar v)
+	| alpha, "{-", integer_digits, "-}", alpha ->
+		let s = lexeme lexbuf in
+		let s = Str.global_replace (Str.regexp "\\{-[0-9]+-\\}") "" s in
+		s_token lexbuf s
+	| ident -> s_token lexbuf (lexeme lexbuf)
+	| idtype -> s_token lexbuf (lexeme lexbuf)
+	| _ -> invalid_char lexbuf
+
+and s_token lexbuf = function
 	(* type decl *)
 	| "package" -> mk_keyword lexbuf Package
 	| "import" -> mk_keyword lexbuf Import
@@ -541,9 +554,16 @@ let rec token lexbuf =
 	| "new" -> mk_keyword lexbuf New
 	| "in" -> mk_keyword lexbuf In
 	| "cast" -> mk_keyword lexbuf Cast
-	| ident -> mk_ident lexbuf
-	| idtype -> mk lexbuf (Const (Ident (lexeme lexbuf)))
-	| _ -> invalid_char lexbuf
+	| tk ->
+			let pmin = lexeme_start lexbuf in
+			let pmax = lexeme_end lexbuf in
+			let sub = Sedlexing.Utf8.from_string tk in
+			(match%sedlex sub with
+				| eof -> raise Exit
+				| ident -> mk_tok (Const (Ident (lexeme sub))) (pmin + (lexeme_start sub)) pmax
+				| idtype -> mk_tok (Const (Ident (lexeme sub))) (pmin + (lexeme_start sub)) pmax
+				| _ -> invalid_char sub
+			);
 
 and comment lexbuf =
 	match%sedlex lexbuf with
