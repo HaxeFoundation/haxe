@@ -123,7 +123,7 @@ class Int64Helper {
 	/**
 		The minimum `Int64` value.
 	 */
-	public static var minValue:Int64 = Int64.not(maxValue);
+	public static var minValue:Int64 = Int64.complement(maxValue);
 
 	/**
 		The maximum `Int32` value with the type `Int64`.
@@ -135,7 +135,7 @@ class Int64Helper {
 		The minimum `Int32` value with the type `Int64`.
 		This is handy for type comparison.
 	 */
-	public static var minValue32:Int64 = Int64.not(maxValue32);
+	public static var minValue32:Int64 = Int64.complement(maxValue32);
 
 	/**
 		The maximum unsigned `Int32` value with the type `Int64`.
