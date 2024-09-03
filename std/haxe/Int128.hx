@@ -305,7 +305,7 @@ abstract Int128(__Int128) from __Int128 to __Int128 {
 		Returns the product of `a` and `b`.
 	**/
 	@:op(A * B)
-	private static var halfBitAmt32:Int64 = 32; // Don't create a new Int64 every time we input 32.
+	private static var halfBitAmt32:Int64 = 32; // Don't create a new Int64 every time we input 32. This is a very minor optimization that improves performance.
 	public static #if !lua inline #end function mul(a:Int128, b:Int128):Int128 {
 		var mask = Int64Helper.maxValue32U;
 		var aLow = a.low & mask, aHigh = a.low >>> halfBitAmt32;
