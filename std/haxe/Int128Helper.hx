@@ -122,7 +122,7 @@ class Int128Helper {
 	/**
 		The minimum `Int128` value.
 	 */
-	public static var minValue:Int128 = Int128.not(maxValue);
+	public static var minValue:Int128 = Int128.complement(maxValue);
 
 	/**
 		The maximum `Int64` value with the type `Int128`.
@@ -134,7 +134,7 @@ class Int128Helper {
 		The minimum `Int64` value with the type `Int128`.
 		This is handy for type comparison.
 	 */
-	public static var minValue64:Int128 = Int128.not(maxValue64);
+	public static var minValue64:Int128 = Int128.complement(maxValue64);
 
 	/**
 		The maximum `Int32` value with the type `Int128`.
@@ -146,7 +146,7 @@ class Int128Helper {
 		The minimum `Int32` value with the type `Int128`.
 		This is handy for type comparison.
 	 */
-	public static var minValue32:Int128 = Int128.not(maxValue32);
+	public static var minValue32:Int128 = Int128.complement(maxValue32);
 
 	/**
 		The maximum unsigned `Int32` value with the type `Int128`.
