@@ -644,9 +644,7 @@ and load_complex_type ctx allow_display mode (t,pn) =
 		if Diagnostics.error_in_diagnostics_run ctx.com err.err_pos then begin
 			delay ctx.g PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true);
 			t_dynamic
-		end else if ignore_error ctx.com && not (DisplayPosition.display_position#enclosed_in pn) then
-			t_dynamic
-		else
+		end else
 			raise (Error err)
 
 and init_meta_overloads ctx co cf =
