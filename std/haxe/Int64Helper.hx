@@ -23,7 +23,6 @@
 package haxe;
 
 using haxe.Int64;
-import haxe.Int64;
 
 import StringTools;
 
