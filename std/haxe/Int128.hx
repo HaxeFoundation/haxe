@@ -23,7 +23,6 @@
 package haxe;
 
 using haxe.Int128;
-import haxe.Int128Helper;
 
 /**
 	A cross-platform signed 128-bit integer.
