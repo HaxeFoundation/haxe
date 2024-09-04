@@ -105,13 +105,13 @@ copy_haxetoolkit: /cygdrive/c/HaxeToolkit/haxe/haxe.exe
 endif
 
 HAXE_STD_PATH=$(CURDIR)/std
-HAXELIB_SRC_PATH=$(CURDIR)/extra/haxelib_src
+HAXELIB_SRC_PATH=extra/haxelib_src
 
 $(HAXELIB_SRC_PATH)/haxelib_hxb.zip:
-	HAXE_STD_PATH=$(HAXE_STD_PATH) $(CURDIR)/$(HAXE_OUTPUT) --cwd $(HAXELIB_SRC_PATH) \
+	HAXE_STD_PATH=$(HAXE_STD_PATH) ./$(HAXE_OUTPUT) --cwd $(HAXELIB_SRC_PATH) \
 		each.hxml --interp haxelib.client.Main --hxb haxelib_hxb.zip
 
-HAXELIB_INTERP=HAXE_STD_PATH=$(HAXE_STD_PATH) $(CURDIR)/$(HAXE_OUTPUT) \
+HAXELIB_INTERP=HAXE_STD_PATH=./std ./$(HAXE_OUTPUT) \
 	--hxb-lib $(HAXELIB_SRC_PATH)/haxelib_hxb.zip --run haxelib.client.Main
 
 haxelib_hxcpp: $(HAXELIB_SRC_PATH)/haxelib_hxb.zip
@@ -119,12 +119,12 @@ haxelib_hxcpp: $(HAXELIB_SRC_PATH)/haxelib_hxb.zip
 	$(HAXELIB_INTERP) path hxcpp > /dev/null || \
 		($(HAXELIB_INTERP) git hxcpp https://github.com/HaxeFoundation/hxcpp.git && \
 		hxcpp_path=`$(HAXELIB_INTERP) libpath hxcpp | tr -d '\r'` && \
-		$(CURDIR)/$(HAXE_OUTPUT) --cwd $$hxcpp_path/tools/hxcpp compile.hxml)
+		./$(HAXE_OUTPUT) --cwd $$hxcpp_path/tools/hxcpp compile.hxml)
 
 # haxelib should depends on haxe, but we don't want to do that...
 # since haxelib isn't available in PATH yet, we have to pass -D no-compilation and build manually
 haxelib: $(HAXELIB_SRC_PATH)/haxelib_hxb.zip haxelib_hxcpp
-	HAXE_STD_PATH=$(HAXE_STD_PATH) $(CURDIR)/$(HAXE_OUTPUT) --cwd $(HAXELIB_SRC_PATH) \
+	HAXE_STD_PATH=$(HAXE_STD_PATH) ./$(HAXE_OUTPUT) --cwd $(HAXELIB_SRC_PATH) \
 		client_cpp.hxml -D destination=../../../../$(HAXELIB_OUTPUT) -D no-compilation
 	$(HAXELIB_INTERP) --cwd $(HAXELIB_SRC_PATH)/bin/cpp run hxcpp Build.xml haxe
 
