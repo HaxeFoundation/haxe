@@ -1335,7 +1335,7 @@ let with_debug ctx metadata run =
 
 let hx_stack_push ctx output clazz func_name pos gc_stack =
    if ctx.ctx_debug_level > 0 then begin
-      let stripped_file = strip_file ctx.ctx_common pos.pfile in
+      let stripped_file = strip_file ctx.ctx_common (Path.get_real_path pos.pfile) in
       let esc_file = (StringHelper.s_escape stripped_file) in
       ctx.ctx_file_info := PMap.add stripped_file pos.pfile !(ctx.ctx_file_info);
       let full_name = clazz ^ "." ^ func_name ^ (
