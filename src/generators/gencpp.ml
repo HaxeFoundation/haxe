@@ -1321,7 +1321,7 @@ exception PathFound of string;;
 
 
 let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath with
-   | true -> file
+   | true -> Path.get_full_path file
    | false -> ctx.class_paths#relative_path file)
 ;;
 
