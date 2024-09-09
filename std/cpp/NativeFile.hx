@@ -58,7 +58,7 @@ extern class NativeFile {
 	extern static function file_contents_string(name:String):String;
 
 	@:native("_hx_std_file_contents_bytes")
-	extern static function file_contents_bytes(name:String):haxe.io.BytesData;
+	extern static function file_contents_bytes(name:String, pos:Int, len:Int):haxe.io.BytesData;
 
 	@:native("_hx_std_file_stdin")
 	extern static function file_stdin():Dynamic;
