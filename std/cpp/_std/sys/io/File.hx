@@ -30,8 +30,8 @@ class File {
 		return NativeFile.file_contents_string(path);
 	}
 
-	public static function getBytes(path:String):haxe.io.Bytes {
-		var data = NativeFile.file_contents_bytes(path);
+	public static function getBytes(path:String, pos:Int = 0, len:Int = 0):haxe.io.Bytes {
+		var data = NativeFile.file_contents_bytes(path, pos, len);
 		return haxe.io.Bytes.ofData(data);
 	}
 
