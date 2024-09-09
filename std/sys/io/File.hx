@@ -59,7 +59,7 @@ extern class File {
 
 		If `path` is null, the result is unspecified.
 	**/
-	static function getBytes(path:String, pos:Int = 0, len:Int = 0):haxe.io.Bytes;
+	static function getBytes(path:String):haxe.io.Bytes;
 
 	/**
 		Stores `bytes` in the file specified by `path` in binary mode.
