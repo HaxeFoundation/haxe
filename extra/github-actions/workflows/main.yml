@@ -315,7 +315,6 @@ jobs:
       OPAMYES: 1
       MACOSX_DEPLOYMENT_TARGET: 10.13
       OCAML_VERSION: 5.1.1
-      CTYPES: 0.21.1
     steps:
       - uses: actions/checkout@main
         with:
