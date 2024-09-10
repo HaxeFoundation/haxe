@@ -415,8 +415,8 @@ type hxb_writer = {
 	docs : StringPool.t;
 	mutable chunk : Chunk.t;
 
-	mutable in_expr : bool;
-	mutable sig_deps : module_def list;
+	mutable minimal : bool;
+	mutable deps : module_def list;
 
 	classes : (path,tclass) Pool.t;
 	enums : (path,tenum) Pool.t;
@@ -870,8 +870,8 @@ module HxbWriter = struct
 	(* References *)
 
 	let maybe_add_sig_dep writer m =
-		if not writer.in_expr && m.m_path <> writer.current_module.m_path && not (List.exists (fun m' -> m'.m_path = m.m_path) writer.sig_deps) then
-			writer.sig_deps <- m :: writer.sig_deps
+		if writer.minimal && m.m_path <> writer.current_module.m_path && not (List.exists (fun m' -> m'.m_path = m.m_path) writer.deps) then
+			writer.deps <- m :: writer.deps
 
 	let write_class_ref writer (c : tclass) =
 		let i = Pool.get_or_add writer.classes c.cl_path c in
@@ -1795,27 +1795,24 @@ module HxbWriter = struct
 		write_metadata writer cf.cf_meta;
 		write_field_kind writer cf.cf_kind;
 		let expr_chunk = match cf.cf_expr with
+			| _ when writer.minimal ->
+				Chunk.write_u8 writer.chunk 0;
+				None
 			| None ->
 				Chunk.write_u8 writer.chunk 0;
 				None
 			| Some e when not write_expr_immediately ->
 				Chunk.write_u8 writer.chunk 2;
 				let fctx,close = start_texpr writer e.epos in
-				let old = writer.in_expr in
-				writer.in_expr <- true;
 				write_texpr writer fctx e;
 				Chunk.write_option writer.chunk cf.cf_expr_unoptimized (write_texpr writer fctx);
-				writer.in_expr <- old;
 				let expr_chunk = close() in
 				Some expr_chunk
 			| Some e ->
 				Chunk.write_u8 writer.chunk 1;
 				let fctx,close = start_texpr writer e.epos in
-				let old = writer.in_expr in
-				writer.in_expr <- true;
 				write_texpr writer fctx e;
 				Chunk.write_option writer.chunk cf.cf_expr_unoptimized (write_texpr writer fctx);
-				writer.in_expr <- old;
 				let expr_pre_chunk,expr_chunk = close() in
 				Chunk.export_data expr_pre_chunk writer.chunk;
 				Chunk.export_data expr_chunk writer.chunk;
@@ -2263,19 +2260,6 @@ module HxbWriter = struct
 			end;
 		end;
 
-		(* Note: this is only a start, and is still including a lot of dependencies *)
-		(* that are not actually needed for signature only. *)
-		let sig_deps = ref PMap.empty in
-		List.iter (fun mdep ->
-			let dep = {md_sign = mdep.m_extra.m_sign; md_path = mdep.m_path; md_kind = mdep.m_extra.m_kind; md_origin = MDepFromTyping} in
-			sig_deps := PMap.add mdep.m_id dep !sig_deps;
-		) writer.sig_deps;
-		PMap.iter (fun id mdep -> match mdep.md_kind, mdep.md_origin with
-			| (MCode | MExtern), MDepFromMacro when mdep.md_sign = m.m_extra.m_sign -> sig_deps := PMap.add id mdep !sig_deps;
-			| _ -> ()
-		) m.m_extra.m_deps;
-		m.m_extra.m_sig_deps <- Some !sig_deps;
-
 		start_chunk writer EOT;
 		start_chunk writer EOF;
 		start_chunk writer EOM;
@@ -2298,6 +2282,16 @@ module HxbWriter = struct
 		l
 end
 
+let get_dependencies writer =
+	let deps = ref PMap.empty in
+
+	List.iter (fun mdep ->
+		let dep = {md_sign = mdep.m_extra.m_sign; md_path = mdep.m_path; md_kind = mdep.m_extra.m_kind; md_origin = MDepFromTyping} in
+		deps := PMap.add mdep.m_id dep !deps;
+	) writer.deps;
+
+	!deps
+
 let create config string_pool warn anon_id =
 	let cp,has_own_string_pool = match string_pool with
 		| None ->
@@ -2313,8 +2307,8 @@ let create config string_pool warn anon_id =
 		chunks = DynArray.create ();
 		cp = cp;
 		has_own_string_pool;
-		sig_deps = [];
-		in_expr = false;
+		deps = [];
+		minimal = false;
 		docs = StringPool.create ();
 		chunk = Obj.magic ();
 		classes = Pool.create ();

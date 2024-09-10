@@ -445,7 +445,7 @@ class hxb_reader_api_server
 				t_hxb();
 				r
 			in
-			let m,chunks = f_next mc.mc_chunks EOT in
+			let m,chunks = f_next (if full_restore then mc.mc_chunks else mc.mc_min_chunks) EOT in
 
 			(* We try to avoid reading expressions as much as possible, so we only do this for
 				 our current display file if we're in display mode. *)
@@ -595,7 +595,7 @@ and type_module sctx com delay mpath p =
 						t_hxb();
 						r
 					in
-					let m,chunks = f_next mc.mc_chunks EOT in
+					let m,chunks = f_next (if full_restore then mc.mc_chunks else mc.mc_min_chunks) EOT in
 					(* We try to avoid reading expressions as much as possible, so we only do this for
 					   our current display file if we're in display mode. *)
 					if full_restore then ignore(f_next chunks EOM)

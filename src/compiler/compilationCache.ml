@@ -88,12 +88,22 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		| _ ->
 			let writer = HxbWriter.create config (Some string_pool) warn anon_identification in
 			HxbWriter.write_module writer m;
-			let chunks = HxbWriter.get_chunks writer in
+
+			(* TODO: avoid running the whole writer again... *)
+			let anon_identification = new Tanon_identification.tanon_identification in
+			let min_writer = HxbWriter.create config None warn anon_identification in
+			min_writer.minimal <- true;
+			HxbWriter.write_module min_writer m;
+
 			Hashtbl.replace binary_cache path {
 				mc_path = path;
 				mc_id = m.m_id;
-				mc_chunks = chunks;
-				mc_extra = { m.m_extra with m_cache_state = MSGood }
+				mc_chunks = HxbWriter.get_chunks writer;
+				mc_min_chunks = HxbWriter.get_chunks min_writer;
+				mc_extra = { m.m_extra with
+					m_cache_state = MSGood;
+					m_sig_deps = Some (HxbWriter.get_dependencies min_writer)
+				}
 			}
 
 	method cache_module_in_memory path m =
