@@ -31,7 +31,7 @@ class File {
 	}
 
 	public static function getBytes(path:String):haxe.io.Bytes {
-		var data = NativeFile.file_contents_bytes(path, pos, len);
+		var data = NativeFile.file_contents_bytes(path);
 		return haxe.io.Bytes.ofData(data);
 	}
 
