@@ -31,7 +31,7 @@ typedef FileHandle = hl.Abstract<"hl_fdesc">;
 @:access(Sys)
 @:coreApi class File {
 	public static function getContent(path:String):String {
-		var bytes = file_contents(Sys.getPath(path), null);
+		var bytes = file_contents(Sys.getPath(path), null, null);
 		if (bytes == null)
 			throw new Sys.SysError("Can't read " + path);
 		return @:privateAccess String.fromUTF8(bytes);
@@ -39,7 +39,15 @@ typedef FileHandle = hl.Abstract<"hl_fdesc">;
 
 	public static function getBytes(path:String):haxe.io.Bytes {
 		var size = 0;
-		var bytes = file_contents(Sys.getPath(path), size);
+		var bytes = file_contents(Sys.getPath(path), null, size);
+		if (bytes == null)
+			throw new Sys.SysError("Can't read " + path);
+		return @:privateAccess new haxe.io.Bytes(bytes, size);
+	}
+
+	public static function getBytesPartial(path:String, pos:Int, len:Int):haxe.io.Bytes {
+		var size = len;
+		var bytes = file_contents(Sys.getPath(path), pos, size);
 		if (bytes == null)
 			throw new Sys.SysError("Can't read " + path);
 		return @:privateAccess new haxe.io.Bytes(bytes, size);
@@ -100,7 +108,7 @@ typedef FileHandle = hl.Abstract<"hl_fdesc">;
 		return null;
 	}
 
-	@:hlNative("std", "file_contents") static function file_contents(path:hl.Bytes, size:hl.Ref<Int>):hl.Bytes {
+	@:hlNative("std", "file_contents") static function file_contents(path:hl.Bytes, pos:hl.Ref<Int>, size:hl.Ref<Int>):hl.Bytes {
 		return null;
 	}
 }
