@@ -207,9 +207,8 @@ class Bytes {
 		return new haxe.io.BytesData(b, length);
 	}
 
-	public static function alloc(length:Int):Bytes {
+	public inline static function alloc(length:Int):Bytes {
 		var b = new hl.Bytes(length);
-		b.fill(0, length, 0);
 		return new Bytes(b, length);
 	}
 
@@ -226,7 +225,7 @@ class Bytes {
 		}
 	}
 
-	public static function ofData(b:BytesData):Bytes {
+	public inline static function ofData(b:BytesData):Bytes {
 		return new Bytes(b.bytes, b.length);
 	}
 
