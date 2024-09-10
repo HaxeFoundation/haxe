@@ -40,13 +40,15 @@ extern class Resource {
 
 	/**
 		Evaluates to the amount of free memory, in bytes.
+		Returns `null` when unknown.
 	**/
-	static function freeMemory():UInt64;
+	static function freeMemory():Null<UInt64>;
 
 	/**
 		Evaluates to the total amount of memory, in bytes.
+		Returns `null` when unknown.
 	**/
-	static function totalMemory():UInt64;
+	static function totalMemory():Null<UInt64>;
 
 	/**
 		Gets the amount of memory available to the process (in bytes) based on

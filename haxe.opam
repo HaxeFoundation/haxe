@@ -31,7 +31,7 @@ depends: [
   "conf-libpcre2-8"
   "conf-zlib"
   "conf-neko"
-  "luv" {= "0.5.12"}
+  "luv" {>= "0.5.13"}
   "ipaddr"
   "terminal_size"
 ]

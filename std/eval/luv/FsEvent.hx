@@ -26,7 +26,7 @@ enum abstract FsEventFlag(Int) {
 	/**
 		Starts the handle and watches the given path for changes.
 	**/
-	public function start(path:NativeString, ?flags:Array<FsEventFlag>, callback:(result:Result<{file:NativeString,events:Array<FsEventType>}>)->Void):Void;
+	public function start(path:NativeString, ?flags:Array<FsEventFlag>, callback:(result:Result<{file:Null<NativeString>,events:Array<FsEventType>}>)->Void):Void;
 
 	/**
 		Stops the handle.

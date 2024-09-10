@@ -1942,7 +1942,7 @@ let fs_event_fields = [
 					) events
 				in
 				encode_obj [
-					key_file,vnative_string file;
+					key_file,encode_nullable vnative_string file;
 					key_events,encode_array vevents;
 				]
 			) v4
@@ -2175,7 +2175,7 @@ let env_fields = [
 let time_fields = [
 	"getTimeOfDay", vfun0 (fun() ->
 		encode_result (fun (t:Time.t) ->
-			encode_obj [key_sec,VInt64 t.tv_sec; key_usec,vint32 t.tv_usec]
+			encode_obj [key_sec,VInt64 t.sec; key_usec,vint32 t.usec]
 		) (Time.gettimeofday())
 	);
 	"hrTime", vfun0 (fun() ->
@@ -2292,10 +2292,10 @@ let resource_fields = [
 		encode_array_a [|vfloat m1; vfloat m5; vfloat m15|];
 	);
 	"freeMemory", vfun0 (fun() ->
-		VUInt64 (Resource.free_memory())
+		encode_nullable (fun u -> VUInt64 u) (Resource.free_memory())
 	);
 	"totalMemory", vfun0 (fun() ->
-		VUInt64 (Resource.total_memory())
+		encode_nullable (fun u -> VUInt64 u) (Resource.total_memory())
 	);
 	"constrainedMemory", vfun0 (fun() ->
 		encode_nullable (fun u -> VUInt64 u) (Resource.constrained_memory())
