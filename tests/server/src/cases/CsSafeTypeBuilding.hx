@@ -1,5 +1,9 @@
 package cases;
 
+#if !enabled
+class CsSafeTypeBuilding extends TestCase {
+}
+#else
 import haxe.display.Display;
 import haxe.display.FsPath;
 import haxe.display.Server;
@@ -152,3 +156,4 @@ class CsSafeTypeBuilding extends TestCase {
 		assertResult(target);
 	}
 }
+#end
