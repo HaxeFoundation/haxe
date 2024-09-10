@@ -203,12 +203,13 @@ class Bytes {
 		return s.toString();
 	}
 
-	public inline function getData():BytesData {
+	public function getData():BytesData {
 		return new haxe.io.BytesData(b, length);
 	}
 
-	public inline static function alloc(length:Int):Bytes {
+	public static function alloc(length:Int):Bytes {
 		var b = new hl.Bytes(length);
+		b.fill(0, length, 0);
 		return new Bytes(b, length);
 	}
 
