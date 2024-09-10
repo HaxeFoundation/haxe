@@ -45,14 +45,6 @@ typedef FileHandle = hl.Abstract<"hl_fdesc">;
 		return @:privateAccess new haxe.io.Bytes(bytes, size);
 	}
 
-	public static function getBytesPartial(path:String, pos:Int, len:Int):haxe.io.Bytes {
-		var size = len;
-		var bytes = file_contents(Sys.getPath(path), pos, size);
-		if (bytes == null)
-			throw new Sys.SysError("Can't read " + path);
-		return @:privateAccess new haxe.io.Bytes(bytes, size);
-	}
-
 	public static function saveContent(path:String, content:String):Void {
 		var f = write(path);
 		f.writeString(content);
