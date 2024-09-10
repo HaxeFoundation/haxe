@@ -60,17 +60,6 @@ extern class File {
 	static function getBytes(path:String):haxe.io.Bytes;
 
 	/**
-		Retrieves the binary content of the file specified by `path`, starting with `pos` and ending with `len`.
-
-		If the file does not exist or can not be read, an exception is thrown.
-
-		`sys.FileSystem.exists` can be used to check for existence.
-
-		If `path` is null, the result is unspecified.
-	**/
-	static function getBytesPartial(path:String, pos:Int, len:Int):haxe.io.Bytes;
-
-	/**
 		Stores `bytes` in the file specified by `path` in binary mode.
 
 		If the file cannot be written to, an exception is thrown.
