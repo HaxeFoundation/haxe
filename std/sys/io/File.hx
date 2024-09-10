@@ -51,8 +51,6 @@ extern class File {
 	/**
 		Retrieves the binary content of the file specified by `path`.
 
-		The stream starts at `pos` and ends at `len`. (If `len` exceeds the size of the file, the stream should stop.)
-
 		If the file does not exist or can not be read, an exception is thrown.
 
 		`sys.FileSystem.exists` can be used to check for existence.
@@ -60,6 +58,17 @@ extern class File {
 		If `path` is null, the result is unspecified.
 	**/
 	static function getBytes(path:String):haxe.io.Bytes;
+
+	/**
+		Retrieves the binary content of the file specified by `path`, starting with `pos` and ending with `len`.
+
+		If the file does not exist or can not be read, an exception is thrown.
+
+		`sys.FileSystem.exists` can be used to check for existence.
+
+		If `path` is null, the result is unspecified.
+	**/
+	static function getBytesPartial(path:String, pos:Int, len:Int):haxe.io.Bytes;
 
 	/**
 		Stores `bytes` in the file specified by `path` in binary mode.
@@ -71,7 +80,7 @@ extern class File {
 	static function saveBytes(path:String, bytes:haxe.io.Bytes):Void;
 
 	/**
-		Returns a `FileInput` handle to the file specified by `path`.
+		Returns an `FileInput` handle to the file specified by `path`.
 
 		If `binary` is true, the file is opened in binary mode. Otherwise it is
 		opened in non-binary mode.
@@ -88,7 +97,7 @@ extern class File {
 	static function read(path:String, binary:Bool = true):FileInput;
 
 	/**
-		Returns a `FileOutput` handle to the file specified by `path`.
+		Returns an `FileOutput` handle to the file specified by `path`.
 
 		If `binary` is true, the file is opened in binary mode. Otherwise it is
 		opened in non-binary mode.
