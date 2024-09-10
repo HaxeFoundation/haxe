@@ -30,8 +30,6 @@ class File {
 
 	extern static public function getBytes(path:String):haxe.io.Bytes;
 
-	extern static public function getBytesPartial(path:String, pos:Int, len:Int):haxe.io.Bytes;
-
 	extern static public function saveBytes(path:String, bytes:haxe.io.Bytes):Void;
 
 	extern static public function read(path:String, binary:Bool = true):FileInput;
