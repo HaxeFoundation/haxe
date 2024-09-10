@@ -35,11 +35,6 @@ class File {
 		return haxe.io.Bytes.ofData(data);
 	}
 
-	public static function getBytesPartial(path:String, pos:Int, len:Int):haxe.io.Bytes {
-		var data = NativeFile.file_contents_bytes_partial(path, pos, len);
-		return haxe.io.Bytes.ofData(data);
-	}
-
 	public static function saveContent(path:String, content:String):Void {
 		var f = write(path);
 		f.writeString(content);
