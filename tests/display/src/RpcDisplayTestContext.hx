@@ -112,7 +112,7 @@ class RpcDisplayTestContext extends BaseDisplayTestContext {
 
 	function callDisplay<TParams, TResponse>(method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams):TResponse {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
-		var args = ['--display', Json.stringify(methodArgs)];
+		var args = ['--display', Json.stringify(methodArgs), '-D', 'disable-hxb-cache'];
 
 		var result = BaseDisplayTestContext.runHaxe(args, source.content);
 		if (result.hasError || result.stderr == "") {
