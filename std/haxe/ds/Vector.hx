@@ -27,13 +27,18 @@ using cpp.NativeArray;
 #end
 
 private typedef VectorData<T> =
-	#if flash10 flash.Vector<T>
-	#elseif neko neko.NativeArray<T>
-	#elseif java java.NativeArray<T>
-	#elseif lua lua.Table<Int, T>
-	#elseif eval eval.Vector<T>
-	#elseif hl hl.NativeArray<T>
-	#else Array<T>
+	#if flash10
+	flash.Vector<T>
+	#elseif neko
+	neko.NativeArray<T>
+	#elseif java
+	java.NativeArray<T>
+	#elseif lua
+	lua.Table<Int, T>
+	#elseif eval
+	eval.Vector<T>
+	#else
+	Array<T>
 	#end;
 
 /**
@@ -71,8 +76,6 @@ abstract Vector<T>(VectorData<T>) {
 		this = untyped __lua_table__({length: length});
 		#elseif eval
 		this = new eval.Vector(length);
-		#elseif hl
-		this = new hl.NativeArray<T>(length);
 		#else
 		this = [];
 		untyped this.length = length;
@@ -92,6 +95,7 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif python
 		this = python.Syntax.code("([{0}]*{1})", defaultValue, length);
 		#else
+
 		#if flash10
 		this = new flash.Vector<T>(length, true);
 		#elseif neko
@@ -104,13 +108,12 @@ abstract Vector<T>(VectorData<T>) {
 		this = untyped __lua_table__({length: length});
 		#elseif eval
 		this = new eval.Vector(length);
-		#elseif hl
-		this = new hl.NativeArray<T>(length);
 		#else
 		this = [];
 		untyped this.length = length;
 		#end
 		fill(defaultValue);
+
 		#end
 	}
 
@@ -171,8 +174,7 @@ abstract Vector<T>(VectorData<T>) {
 		Sets all `length` elements of `this` Vector to `value`.
 	**/
 	public inline function fill(value:T):Void
-		for (i in 0...length)
-			this[i] = value;
+		for (i in 0...length) this[i] = value;
 
 	/**
 		Copies `length` of elements from `src` Vector, beginning at `srcPos` to
@@ -181,12 +183,12 @@ abstract Vector<T>(VectorData<T>) {
 		The results are unspecified if `length` results in out-of-bounds access,
 		or if `src` or `dest` are null
 	**/
-	public static #if (java || neko || cpp || eval || hl) inline #end function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void {
+	public static #if (java || neko || cpp || eval) inline #end function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void {
 		#if neko
 		untyped __dollar__ablit(dest, destPos, src, srcPos, len);
 		#elseif java
 		java.lang.System.arraycopy(src, srcPos, dest, destPos, len);
-		#elseif (cpp || hl)
+		#elseif cpp
 		dest.toData().blit(destPos, src.toData(), srcPos, len);
 		#elseif eval
 		src.toData().blit(srcPos, dest.toData(), destPos, len);
@@ -220,7 +222,7 @@ abstract Vector<T>(VectorData<T>) {
 	/**
 		Creates a new Array, copy the content from the Vector to it, and returns it.
 	**/
-	public #if (flash || cpp || js || java || eval || hl) inline #end function toArray():Array<T> {
+	public #if (flash || cpp || js || java || eval) inline #end function toArray():Array<T> {
 		#if cpp
 		return this.copy();
 		#elseif python
@@ -232,7 +234,7 @@ abstract Vector<T>(VectorData<T>) {
 		#else
 		var a = new Array();
 		var len = length;
-		#if (neko || hl)
+		#if (neko)
 		// prealloc good size
 		if (len > 0)
 			a[len - 1] = get(0);
@@ -375,7 +377,7 @@ abstract Vector<T>(VectorData<T>) {
 		If `f` is null, the result is unspecified.
 	**/
 	public inline function sort(f:T->T->Int):Void {
-		#if (neko || java || eval || hl)
+		#if (neko || java || eval)
 		throw "not yet supported";
 		#elseif lua
 		haxe.ds.ArraySort.sort(cast this, f);
