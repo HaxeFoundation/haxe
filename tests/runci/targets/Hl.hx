@@ -77,24 +77,26 @@ class Hl {
 	static function buildAndRunHlc(dir:String, filename:String, ?run) {
 		if (run == null) run = runCommand;
 
-		switch (systemName) {
-			case "Linux" if (isCi()):
-				runCommand("gcc", [
-					"-o", '$dir/$filename.exe',
-					'$dir/$filename.c',
-					'-I$dir',
-					'-I$hlInstallDir/include',
-					'$hlInstallLibDir/fmt.hdll',
-					'$hlInstallLibDir/ssl.hdll',
-					'$hlInstallLibDir/sqlite.hdll',
-					"-lm",
-					'-L$hlInstallLibDir', "-lhl"
-				]);
+		if (!isCi())
+			return;
 
-				run('$dir/$filename.exe', []);
+		final compiler = if (systemName == "Mac") "clang" else "gcc";
+		final extraCompilerFlags = if (systemName == "Windows") ["-ldbghelp", "-municode"] else [];
 
-			case _: // TODO hl/c for mac/windows
-		}
+		runCommand(compiler, [
+			"-o", '$dir/$filename.exe',
+			'$dir/$filename.c',
+			'-I$dir',
+			'-I$hlInstallDir/include',
+			'-L$hlInstallLibDir',
+			'$hlInstallLibDir/fmt.hdll',
+			'$hlInstallLibDir/ssl.hdll',
+			'$hlInstallLibDir/sqlite.hdll',
+			"-lm",
+			"-lhl"
+		].concat(extraCompilerFlags));
+
+		run('$dir/$filename.exe', []);
 	}
 
 	static function buildAndRun(hxml:String, target:String, ?args:Array<String>) {
