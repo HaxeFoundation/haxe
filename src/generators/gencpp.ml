@@ -109,13 +109,19 @@ let guarded_include file =
 
 
 
-class source_writer common_ctx write_header_func write_func close_func =
+class source_writer common_ctx write_header_func write_func close_func (current_line : unit->int) (header_size : unit->int) =
    object(this)
    val indent_str = "\t"
    val mutable indent = ""
    val mutable indents = []
    val mutable just_finished_block = false
    val mutable headerLines  = Hashtbl.create 0
+   method get_current_line =
+      let line = current_line in
+      line
+   method get_header_size =
+      let size = header_size in
+      size
    method close = close_func(); ()
    method write x = write_func x; just_finished_block <- false
    method write_h x = write_header_func x; ()
@@ -154,10 +160,32 @@ let read_whole_file chan =
 (* The cached_source_writer will not write to the file if it has not changed,
    thus allowing the makefile dependencies to work correctly *)
 let cached_source_writer common_ctx filename =
+   let src_line = ref 1 in
+   let head_line = ref 0 in
    let header = Buffer.create 0 in
-   let add_header str = Buffer.add_string header str in
+   let add_header str =
+      let rec loop from =
+			try
+				let next = String.index_from str from '\n' + 1 in
+				head_line := !head_line + 1;
+				loop next
+			with Not_found ->
+				()
+		in
+		loop 0;
+      Buffer.add_string header str in
    let buffer = Buffer.create 0 in
-   let add_buf str = Buffer.add_string buffer str in
+   let add_buf str =
+      let rec loop from =
+			try
+				let next = String.index_from str from '\n' + 1 in
+				src_line := !src_line + 1;
+				loop next
+			with Not_found ->
+				()
+		in
+		loop 0;
+      Buffer.add_string buffer str in
    let close = fun() ->
       Buffer.add_buffer header buffer;
       let contents = Buffer.contents header in
@@ -176,7 +204,9 @@ let cached_source_writer common_ctx filename =
          close_out out_file;
       end;
    in
-   new source_writer common_ctx (add_header) (add_buf) (close)
+   let current_src_line () = !src_line in
+   let current_head_line () = !head_line in
+   new source_writer common_ctx (add_header) (add_buf) (close) (current_src_line) (current_head_line)
 ;;
 
 let make_class_directories = Path.mkdir_recursive;;
@@ -184,21 +214,24 @@ let make_class_directories = Path.mkdir_recursive;;
 let make_base_directory dir =
    make_class_directories "" ( ( Str.split_delim (Str.regexp "[\\/]+") dir ) );;
 
+let make_full_dir common_ctx base_dir sub_dir include_prefix class_path =
+   if (sub_dir="include") && (include_prefix<>"") then begin
+      match fst class_path with
+      | [] -> base_dir ^ "/include/" ^ (get_include_prefix common_ctx false)
+      | path -> base_dir ^ "/include/" ^ include_prefix ^ ( String.concat "/" path )
+   end else begin
+      base_dir ^ "/" ^ sub_dir ^ "/" ^ ( String.concat "/" (fst class_path) )
+   end
+;;
+
 let new_source_file common_ctx base_dir sub_dir extension class_path =
    let include_prefix = get_include_prefix common_ctx true in
-   let full_dir =
-      if (sub_dir="include") && (include_prefix<>"") then begin
-         let dir = match fst class_path with
-            | [] -> base_dir ^ "/include/" ^ (get_include_prefix common_ctx false)
-            | path -> base_dir ^ "/include/" ^ include_prefix ^ ( String.concat "/" path )
-         in
-         make_class_directories base_dir (["include";include_prefix]@(fst class_path));
-         dir
-      end else begin
-         make_class_directories base_dir ( sub_dir :: (fst class_path));
-         base_dir ^ "/" ^ sub_dir ^ "/" ^ ( String.concat "/" (fst class_path) )
-      end
-   in
+   let full_dir = make_full_dir common_ctx base_dir sub_dir include_prefix class_path in
+   if (sub_dir="include") && (include_prefix<>"") then begin
+      make_class_directories base_dir (["include";include_prefix]@(fst class_path));
+   end else begin
+      make_class_directories base_dir ( sub_dir :: (fst class_path));
+   end;
    let file = cached_source_writer common_ctx (full_dir ^ "/" ^ ((snd class_path) ^ extension)) in
    Codegen.map_source_header common_ctx (fun s -> file#write_h (Printf.sprintf "// %s\n" s));
    file
@@ -222,8 +255,188 @@ let new_header_file common_ctx base_dir =
    new_source_file common_ctx base_dir "include" ".h";;
 
 
+(* todo - is this how it's done? *)
+let hash_keys hash =
+   let key_list = ref [] in
+   Hashtbl.iter (fun key value -> key_list :=  key :: !key_list ) hash;
+   !key_list;;
+
+let pmap_keys pmap =
+   let key_list = ref [] in
+   PMap.iter (fun key _ -> key_list :=  key :: !key_list ) pmap;
+   !key_list;;
+
+let pmap_values pmap =
+   let value_list = ref [] in
+   PMap.iter (fun _ value -> value_list :=  value :: !value_list ) pmap;
+   !value_list;;
+
 
 (* CPP code generation context *)
+
+
+module DebugDatabase = struct
+
+   type hx_position = {
+      line : int;
+      col : int;
+   }
+
+   type name_mapping = {
+      haxe_type : string;
+      haxe_var : string;
+      cpp_var : string;
+   }
+
+   type hx_expr_range = {
+      e_start : hx_position;
+      e_end : hx_position;
+   }
+
+   type hx_expr_mapping = {
+      haxe : hx_expr_range;
+      cpp_line : int;
+   }
+
+   type hx_closure = {
+      name : string;
+      arguments : name_mapping list;
+      expr_map : hx_expr_mapping list;
+   }
+
+   type hx_function = {
+      haxe_name : string;
+      cpp_name : string;
+      arguments : name_mapping list;
+      variables : name_mapping list;
+      closures : hx_closure list;
+      expr_map : hx_expr_mapping list;
+   }
+
+   type generated_file = {
+      cpp_file : string;
+      haxe_file : string;
+      haxe_type : string;
+      functions : hx_function list;
+      header_offset : int;
+   }
+
+   type hx_type = {
+      pack : string list;
+      modu : string;
+      name : string;
+      cpp : string;
+   }
+
+   type hx_class = {
+      info : hx_type;
+      fields : name_mapping list;
+   }
+
+   type hx_enum = {
+      info : hx_type;
+      constructors : (string, name_mapping) PMap.t;
+   }
+
+   type db = {
+      files : generated_file list;
+      classes : hx_class list;
+      enums : hx_enum list;
+   }
+
+   let create () = { files = []; classes = []; enums = [] }
+
+   let create_file cpp_file haxe_file haxe_type = {
+      cpp_file = cpp_file;
+      haxe_file = haxe_file;
+      haxe_type = haxe_type;
+      header_offset = 0;
+      functions = [];
+   }
+
+   let create_function haxe_name cpp_name = {
+      haxe_name = haxe_name;
+      cpp_name  = cpp_name;
+      arguments = [];
+      variables = [];
+      closures  = [];
+      expr_map  = [];
+   }
+
+   let create_closure name arguments = {
+      name      = name;
+      arguments = arguments;
+      expr_map  = [];
+   }
+
+   let create_name_mapping haxe_name cpp_name haxe_type = {
+      haxe_var = haxe_name;
+      cpp_var = cpp_name;
+      haxe_type = haxe_type;
+   }
+
+   let create_mapping cpp_line hx_pos =
+      let (line_start, col_start, line_end, col_end) = hx_pos in
+      { cpp_line = cpp_line; haxe = { e_start = { line = line_start; col = col_start; }; e_end = { line = line_end; col = col_end } } }
+
+   let create_class info fields =
+      { info = info; fields = fields }
+
+   let create_enum info constructors =
+      { info = info; constructors = constructors }
+
+   let create_type_from_class cl cpp_name =
+      { pack = fst cl.cl_module.m_path; modu = snd cl.cl_module.m_path; name = snd cl.cl_path; cpp = cpp_name }
+
+   let create_type_from_enum e cpp_name =
+      { pack = fst e.e_module.m_path; modu = snd e.e_module.m_path; name = snd e.e_path; cpp = cpp_name }
+
+   let print_name_mapping map =
+      Printf.sprintf "{ \"haxe\" : \"%s\", \"cpp\" : \"%s\", \"type\" : \"%s\" }" map.haxe_var map.cpp_var map.haxe_type
+
+   let print_exprmap offset map =
+      Printf.sprintf "{ \"haxe\" : { \"start\" : { \"line\" : %i, \"col\" : %i }, \"end\" : { \"line\" : %i, \"col\" : %i } }, \"cpp\" : %i }" map.haxe.e_start.line map.haxe.e_start.col map.haxe.e_end.line map.haxe.e_end.col (map.cpp_line + offset)
+
+   let print_closure offset (closure : hx_closure) =
+      let printed_exprs = String.concat ", " (List.map (print_exprmap offset) closure.expr_map) in
+      Printf.sprintf "{ \"name\" : \"%s\", \"arguments\" : [ %s ], \"exprs\" : [ %s ] }" closure.name (String.concat ", " (List.map print_name_mapping closure.arguments)) printed_exprs
+
+   let print_function offset func =
+      let printed_args     = String.concat ", " (List.map print_name_mapping func.arguments) in
+      let printed_vars     = String.concat ", " (List.map print_name_mapping func.variables) in
+      let printed_closures = String.concat ", " (List.map (print_closure offset) func.closures) in
+      let printed_exprs    = String.concat ", " (List.map (print_exprmap offset) func.expr_map) in
+      Printf.sprintf "{ \"name\" : \"%s\", \"cpp\" : \"%s\", \"arguments\" : [ %s ], \"variables\" : [ %s ], \"closures\" : [ %s ], \"exprs\" : [ %s ] }" func.haxe_name func.cpp_name printed_args printed_vars printed_closures printed_exprs
+
+   let print_generated_file f =
+      let printed_funcs = String.concat ", " (List.map (print_function f.header_offset) f.functions) in
+      Printf.sprintf "{ \"haxe\" : \"%s\", \"cpp\" : \"%s\", \"type\" : \"%s\", \"functions\" : [ %s ] }" (Path.normalize_path f.haxe_file) (Path.normalize_path f.cpp_file) f.haxe_type printed_funcs
+
+   let print_type t =
+      let printed_package = String.concat ", " (List.map (fun m -> "\"" ^ m ^ "\"") t.pack) in
+      "{ \"pack\" : [ " ^ printed_package ^ " ], \"module\" : \"" ^ t.modu ^ "\", \"name\" : \"" ^ t.name ^ "\", \"cpp\" : \"" ^ t.cpp ^ "\" }"
+
+   let print_class c =
+      let fields         = List.map print_name_mapping c.fields in
+      let printed_type   = print_type c.info in
+      let printed_fields = String.concat ", " fields in
+      "{ \"type\" : " ^ printed_type ^ ", \"fields\" : [ " ^ printed_fields ^ " ] }"
+
+   let print_enum e =
+      let constructors   = pmap_values e.constructors in
+      let printed_type   = print_type e.info in
+      let printed_fields = String.concat ", " (List.map print_name_mapping constructors) in
+      "{ \"type\" : " ^ printed_type ^ ", \"constructors\" : [ " ^ printed_fields ^ " ] }"
+
+   let print db =
+      let printed_files   = String.concat ", " (List.map print_generated_file db.files) in
+      let printed_classes = String.concat ", " (List.map print_class db.classes) in
+      let printed_enums   = String.concat ", " (List.map print_enum db.enums) in
+      "{ \"files\" : [ " ^ printed_files ^ " ], \"classes\" : [ " ^ printed_classes ^ " ], \"enums\" : [ " ^ printed_enums ^ " ] }"
+
+end
+
+
 (*
   ctx_debug_level
     0 = no debug
@@ -237,6 +450,11 @@ let new_header_file common_ctx base_dir =
 type context =
 {
    ctx_common : Common.context;
+
+   debug_database : DebugDatabase.db ref;
+   current_file : DebugDatabase.generated_file ref;
+   current_func : DebugDatabase.hx_function ref;
+   closure_stack : DebugDatabase.hx_closure Stack.t ref;
 
    mutable ctx_debug_level : int;
    (* cached as required *)
@@ -258,11 +476,15 @@ type context =
 }
 
 let new_context common_ctx debug file_info member_types =
-let null_file = new source_writer common_ctx ignore ignore (fun () -> () ) in
+let null_file = new source_writer common_ctx ignore ignore (fun () -> () ) (fun () -> 1) (fun () -> 0) in
 let has_def def = Common.defined_value_safe common_ctx def <>""  in
 let result =
 {
    ctx_common = common_ctx;
+   debug_database = ref (DebugDatabase.create());
+   current_file = ref (DebugDatabase.create_file "" "" "");
+   current_func = ref (DebugDatabase.create_function "" "");
+   closure_stack = ref (Stack.create());
    ctx_writer = null_file;
    ctx_file_id = ref (-1);
    ctx_type_ids = Hashtbl.create 0;
@@ -306,22 +528,6 @@ let is_cpp_class = function
    | _ -> false;;
 
 let is_block exp = match exp.eexpr with | TBlock _ -> true | _ -> false ;;
-
-(* todo - is this how it's done? *)
-let hash_keys hash =
-   let key_list = ref [] in
-   Hashtbl.iter (fun key value -> key_list :=  key :: !key_list ) hash;
-   !key_list;;
-
-let pmap_keys pmap =
-   let key_list = ref [] in
-   PMap.iter (fun key _ -> key_list :=  key :: !key_list ) pmap;
-   !key_list;;
-
-let pmap_values pmap =
-   let value_list = ref [] in
-   PMap.iter (fun _ value -> value_list :=  value :: !value_list ) pmap;
-   !value_list;;
 
 
 
@@ -3483,7 +3689,6 @@ let can_quick_alloc klass =
    (not (is_native_class klass)) && (not (implements_native_interface klass))
 ;;
 
-
 let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_type injection tree =
    let writer = ctx.ctx_writer in
    let out = ctx.ctx_output in
@@ -3495,14 +3700,26 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
    let output_i value = out spacer; writer#write_i value in
 
    let output_p expr value =
-       if (ctx.ctx_debug_level>0) then begin
-          let line = Lexer.get_error_line expr.cpppos in
-          let lineName = Printf.sprintf "%4d" line in
-          let macro = if (line != !lastLine) then "HXLINE" else "HXDLIN" in
-          out (macro ^ "(" ^ lineName ^ ")\t" );
-          lastLine := line;
-       end;
-       writer#write_i value
+      if (ctx.ctx_debug_level>0) then begin
+         let line = Lexer.get_error_line expr.cpppos in
+         let lineName = Printf.sprintf "%4d" line in
+         let macro = if (line != !lastLine) then "HXLINE" else "HXDLIN" in
+         (
+            let pos      = Lexer.get_pos_coords expr.cpppos in
+            let map      = DebugDatabase.create_mapping (writer#get_current_line()) pos in
+            let func     = !(ctx.current_func) in
+            let closures = !(ctx.closure_stack) in
+            match Stack.is_empty closures with
+            | false ->
+               let closure = Stack.pop closures in
+               Stack.push { closure with expr_map = (map :: closure.expr_map) } closures
+            | true ->
+               ctx.current_func := { func with expr_map = (map :: func.expr_map) };
+         );
+         out (macro ^ "(" ^ lineName ^ ")\t" );
+         lastLine := line;
+      end;
+      writer#write_i value
    in
 
    let forInjection = match injection with Some inject -> inject.inj_setvar<>"" | _ -> false in
@@ -3551,6 +3768,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
 
       | CppVarDecl(var,init) ->
          let name =  cpp_var_name_of var in
+         (
+            let mapping = DebugDatabase.create_name_mapping var.v_name name (Printer.s_type var.v_type) in
+            let current = !(ctx.current_func) in
+            ctx.current_func := { current with variables = mapping :: current.variables };
+         );
          if cpp_no_debug_synbol ctx var then
             out ( (cpp_var_type_of ctx var) ^ " " ^ name )
          else begin
@@ -4298,6 +4520,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       let func_type = tcpp_to_string closure.close_type in
       output_i (func_type ^ " _hx_run(" ^ (cpp_arg_list ctx closure.close_args "__o_") ^ ")");
 
+      let args     = List.map (fun (a, o) -> DebugDatabase.create_name_mapping a.v_name (cpp_arg_string ctx a o "__o_") (Printer.s_type a.v_type)) closure.close_args in
+      let closures = !(ctx.closure_stack) in
+      Stack.push (DebugDatabase.create_closure ("_hx_Closure_" ^ (string_of_int closure.close_id)) args) closures;
+
       let prologue = function gc_stack ->
           cpp_gen_default_values ctx closure.close_args "__o_";
           hx_stack_push ctx output_i class_name func_name closure.close_expr.cpppos gc_stack;
@@ -4317,6 +4543,15 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       let return = match closure.close_type with TCppVoid -> "(void)" | _ -> "return" in
 
       output_i ("HX_END_LOCAL_FUNC" ^ argsCount ^ "(" ^ return ^ ")\n\n");
+
+      let current  = !(ctx.current_func) in
+      let closures = !(ctx.closure_stack) in
+      match Stack.is_empty closures with
+      | false ->
+         let closure = Stack.pop closures in
+         ctx.current_func := { current with closures = (closure :: current.closures) };
+      | true ->
+         ();
    in
 
 
@@ -4341,7 +4576,13 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code t
       if ctx.ctx_debug_level >= 2 then begin
          if (not is_static)
             then output_i ("HX_STACK_THIS(" ^ (if ctx.ctx_real_this_ptr then "this" else "__this") ^")\n");
-         List.iter (fun (v,_) -> if not (cpp_no_debug_synbol ctx v) then
+         List.iter (fun (v,_) ->
+            (
+               let current_func = !(ctx.current_func) in
+               let new_arg      = DebugDatabase.create_name_mapping v.v_name (cpp_var_name_of v) (Printer.s_type v.v_type) in
+               ctx.current_func := { current_func with arguments = new_arg :: current_func.arguments };
+            );
+            if not (cpp_no_debug_synbol ctx v) then
               output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ v.v_name ^"\")\n") ) function_def.tf_args;
 
          let line = Lexer.get_error_line function_def.tf_expr.epos in
@@ -4534,12 +4775,18 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          let code = (get_code field.cf_meta Meta.FunctionCode) in
          let tail_code = (get_code field.cf_meta Meta.FunctionTailCode) in
 
+         ctx.current_func := (DebugDatabase.create_function field.cf_name remap_name);
+
          if nativeImpl<>"" && is_static then begin
             output " {\n";
             output ("\t" ^ ret ^ "::" ^ nativeImpl ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n");
             output "}\n\n";
          end else
             gen_cpp_function_body ctx class_def is_static field.cf_name function_def code tail_code no_debug;
+         
+         let current_file = !(ctx.current_file) in
+         let current_func = !(ctx.current_func) in
+         ctx.current_file := { current_file with functions = current_func :: current_file.functions };
 
          output "\n\n";
          let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
@@ -4604,6 +4851,11 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
       end else begin
          ctx.ctx_real_this_ptr <- false;
          let func_name = "__default_" ^ (remap_name) in
+         let args        = List.map (fun (a, o) -> DebugDatabase.create_name_mapping a.v_name (cpp_arg_string ctx a o "__o_") (Printer.s_type a.v_type)) function_def.tf_args in
+         let dbg_closure = DebugDatabase.create_closure func_name args in
+         let current     = DebugDatabase.create_function field.cf_name remap_name in
+         ctx.current_func := { current with closures = dbg_closure :: current.closures };
+
          output ("HX_BEGIN_DEFAULT_FUNC(" ^ func_name ^ "," ^ class_name ^ ")\n");
          output return_type_str;
          output (" _hx_run(" ^ (ctx_arg_list ctx function_def.tf_args "__o_") ^ ")");
@@ -4611,6 +4863,10 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
 
          output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
          output ("HX_END_DEFAULT_FUNC\n\n");
+
+         let current_file = !(ctx.current_file) in
+         let current_func = !(ctx.current_func) in
+         ctx.current_file := { current_file with functions = current_func :: current_file.functions };
 
          if (is_static) then
             output ( "::Dynamic " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
@@ -5891,8 +6147,15 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             | Some ( { cf_expr = Some ( { eexpr = TFunction(function_def) } ) } as definition ) ->
                with_debug ctx definition.cf_meta (fun no_debug ->
                   ctx.ctx_real_this_ptr <- false;
+
+                  ctx.current_func := (DebugDatabase.create_function "new" "__alloc");
+
                   gen_cpp_function_body ctx class_def false "new" function_def "" "" no_debug;
                   out "\n";
+
+                  let current_file = !(ctx.current_file) in
+                  let current_func = !(ctx.current_func) in
+                  ctx.current_file := { current_file with functions = current_func :: current_file.functions };
                )
             | _ -> ()
          end else
@@ -5987,13 +6250,32 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    output_cpp ( get_class_code class_def Meta.CppNamespaceCode );
 
+   let cpp_file_name   = (make_full_dir ctx.ctx_common ctx.ctx_common.file "src" ".cpp" class_path) ^ "/" ^ (snd class_path) ^ ".cpp" in
+   let abs_cpp_file    = match Filename.is_relative cpp_file_name with
+      | true -> Filename.concat (Sys.getcwd()) cpp_file_name
+      | false -> cpp_file_name in
+   let haxe_file_name  = class_def.cl_pos.pfile in
+   let abs_haxe_file   = match Filename.is_relative haxe_file_name with
+      | true -> Filename.concat (Sys.getcwd()) haxe_file_name
+      | false -> haxe_file_name in
+
+   Printf.printf "%s (%i)\n" abs_cpp_file (cpp_file#get_header_size());
+
+   ctx.current_file := (DebugDatabase.create_file abs_cpp_file abs_haxe_file dot_name);
+
    if (not (has_class_flag class_def CInterface)) && not nativeGen then begin
       output_cpp ("void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")");
       (match class_def.cl_constructor with
          | Some ( { cf_expr = Some ( { eexpr = TFunction(function_def) } ) } as definition ) ->
             with_debug ctx definition.cf_meta (fun no_debug ->
+               ctx.current_func := (DebugDatabase.create_function "new" "__construct");
+
                gen_cpp_function_body ctx class_def false "new" function_def "" "" no_debug;
                output_cpp "\n";
+
+               let current_file = !(ctx.current_file) in
+               let current_func = !(ctx.current_func) in
+               ctx.current_file := { current_file with functions = current_func :: current_file.functions };
             )
          | _ ->  output_cpp " { }\n\n"
       );
@@ -6692,6 +6974,13 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp ("}\n\n");
    end;
 
+   let current_db   = !(ctx.debug_database) in
+   let current_file = !(ctx.current_file) in
+   let header_size  = cpp_file#get_header_size() in
+   let new_files    = { current_file with header_offset = header_size } :: current_db.files in
+   ctx.debug_database := { current_db with files = new_files };
+   Printf.printf "%s %i\n" current_file.haxe_type header_size;
+
 
    cpp_file#close;
  in
@@ -6806,8 +7095,27 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       if has_class_flag class_def CAbstract then
          output_h "\n"
       else if inlineContructor then begin
+         let hpp_file_name   = (make_full_dir ctx.ctx_common ctx.ctx_common.file "include" ".h" class_path) ^ "/" ^ (snd class_path) ^ ".h" in
+         let abs_hpp_file    = match Filename.is_relative hpp_file_name with
+            | true -> Filename.concat (Sys.getcwd()) hpp_file_name
+            | false -> hpp_file_name in
+         let haxe_file_name  = class_def.cl_pos.pfile in
+         let abs_haxe_file   = match Filename.is_relative haxe_file_name with
+            | true -> Filename.concat (Sys.getcwd()) haxe_file_name
+            | false -> haxe_file_name in
+      
+         Printf.printf "%s (%i)\n" abs_hpp_file (cpp_file#get_header_size());
+      
+         ctx.current_file := (DebugDatabase.create_file abs_hpp_file abs_haxe_file dot_name);
+         
          output_h "\n";
-         outputConstructor ctx (fun str -> output_h ("\t\t" ^ str) ) true
+         outputConstructor ctx (fun str -> output_h ("\t\t" ^ str) ) true;
+
+         let current_db   = !(ctx.debug_database) in
+         let current_file = !(ctx.current_file) in
+         let header_size  = cpp_file#get_header_size() in
+         let new_files    = { current_file with header_offset = header_size } :: current_db.files in
+         ctx.debug_database := { current_db with files = new_files }
       end else begin
          output_h ("\t\tstatic " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
          if can_quick_alloc then
@@ -8510,6 +8818,7 @@ let generate_cppia ctx =
    script#close
 ;;
 
+open DebugDatabase
 
 (*
  The common_ctx contains the haxe AST in the "types" field and the resources
@@ -8606,6 +8915,27 @@ let generate_source ctx =
 
    List.iter (fun job -> job () ) !jobs;
 
+   let hx_classes =
+      common_ctx.types
+         |> ExtList.List.filter_map (fun object_def -> match object_def with TClassDecl d when (is_extern_class d) = false -> Some d | _ -> None)
+         |> List.map (fun class_def ->
+            let cpp_name  = (join_class_path_remap class_def.cl_path "::") ^ "_obj" in
+            let variables = pmap_values class_def.cl_fields |> ExtList.List.filter_map (fun f -> match is_physical_var_field f with true -> Some f | false -> None) in
+            let fields    = List.map (fun f -> DebugDatabase.create_name_mapping f.cf_name (type_string f.cf_type) (Printer.s_type f.cf_type)) variables in
+            let hx_type   = DebugDatabase.create_type_from_class class_def cpp_name in
+            DebugDatabase.create_class hx_type fields)
+   in
+   let hx_enums =
+      common_ctx.types
+         |> ExtList.List.filter_map (fun object_def -> match object_def with TEnumDecl d -> Some d | _ -> None)
+         |> List.map (fun enum_def ->
+            let cpp_name  = (join_class_path_remap enum_def.e_path "::") ^ "_obj" in
+            let fields    = PMap.map (fun f -> DebugDatabase.create_name_mapping f.ef_name (type_string f.ef_type) (Printer.s_type f.ef_type)) enum_def.e_constrs in
+            let hx_type   = DebugDatabase.create_type_from_enum enum_def cpp_name in
+            DebugDatabase.create_enum hx_type fields)
+   in
+   let current_db = !(ctx.debug_database) in
+   ctx.debug_database := { current_db with classes = hx_classes; enums = hx_enums };
 
    (match common_ctx.main.main_expr with
    | None -> generate_dummy_main common_ctx
@@ -8623,6 +8953,14 @@ let generate_source ctx =
    generate_files common_ctx ctx.ctx_file_info;
 
    write_resources common_ctx;
+
+   (
+      let channel = open_out "sourcemap.json" in
+
+      Printf.fprintf channel "%s" (DebugDatabase.print !(ctx.debug_database));
+
+      close_out channel;
+   );
 
    (* Output class info if requested *)
    if (scriptable || (Common.defined common_ctx Define.DllExport) ) then begin
