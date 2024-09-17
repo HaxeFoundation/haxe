@@ -478,8 +478,8 @@ let handle_cache_bound_objects com cbol =
 			Hashtbl.replace com.resources name data
 		| IncludeFile(file,position) ->
 			com.include_files <- (file,position) :: com.include_files
-		| Warning(w,msg,p) ->
-			com.warning w [] msg p
+		| Warning(w,options,msg,p) ->
+			com.warning w options msg p
 	) cbol
 
 (* Adds module [m] and all its dependencies (recursively) from the cache to the current compilation
