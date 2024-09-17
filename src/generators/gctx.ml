@@ -8,7 +8,7 @@ type context_main = {
 	mutable main_expr : texpr option;
 }
 
-type warning_function = ?depth:int -> ?from_macro:bool -> warning -> Warning.warning_option list list -> string -> pos -> unit
+type warning_function = ?depth:int -> ?from_macro:bool -> warning -> warning_option list list -> string -> pos -> unit
 type error_function = ?depth:int -> string -> pos -> unit
 
 type t = {
