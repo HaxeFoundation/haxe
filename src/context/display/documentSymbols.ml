@@ -2,7 +2,7 @@ open Ast
 open Globals
 open DisplayTypes.SymbolKind
 
-let collect_module_symbols mname with_locals (pack,decls) =
+let collect_module_symbols mname with_locals (pack,meta,decls) =
 	let l = DynArray.create() in
 	let add name kind location parent deprecated =
 		let si = DisplayTypes.SymbolInformation.make name kind location (if parent = "" then None else Some parent) deprecated in

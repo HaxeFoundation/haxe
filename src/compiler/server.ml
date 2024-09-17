@@ -58,7 +58,7 @@ let parse_file cs com (rfile : ClassPaths.resolved_file) p =
 			try
 				let cfile = cc#find_file fkey in
 				if cfile.c_time <> ftime then raise Not_found;
-				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),false,cfile.c_pdi)
+				Parser.ParseSuccess((cfile.c_package,cfile.c_meta,cfile.c_decls),false,cfile.c_pdi)
 			with Not_found ->
 				let parse_result = TypeloadParse.parse_file com rfile p in
 				let info,is_unusual = match parse_result with
@@ -236,8 +236,8 @@ let check_module sctx com m_path m_extra p =
 			let cfile = cc#find_file fkey in
 			(* We must use the module path here because the file path is absolute and would cause
 				positions in the parsed declarations to differ. *)
-			let new_data = TypeloadParse.parse_module com m_path p in
-			cfile.c_decls <> snd new_data
+			let (_,_,decls) = TypeloadParse.parse_module com m_path p in
+			cfile.c_decls <> decls
 		with Not_found ->
 			true
 	in

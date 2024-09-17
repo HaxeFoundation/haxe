@@ -477,7 +477,7 @@ let make_macro_api ctx mctx p =
 			in
 			let add is_macro ctx =
 				let mdep = Option.map_default (fun s -> TypeloadModule.load_module ~origin:MDepFromMacro ctx (parse_path s) pos) ctx.m.curmod mdep in
-				let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) m (ctx.com.file_keys#generate_virtual ctx.com.compilation_step) [tdef,pos] pos in
+				let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) m (ctx.com.file_keys#generate_virtual ctx.com.compilation_step) [] [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
 				add_dependency mnew mdep MDepFromMacro;
 				add_dependency mdep mnew MDepFromMacroDefine;
@@ -491,6 +491,7 @@ let make_macro_api ctx mctx p =
 			| _ ->
 				()
 		);
+		(* TODO: allow user to define module metadata *)
 		MacroApi.define_module = (fun m types imports usings ->
 			let types = List.map (fun v ->
 				let _, tdef, pos = (try Interp.decode_type_def v with MacroApi.Invalid_expr -> Interp.exc_string "Invalid type definition") in
@@ -508,7 +509,7 @@ let make_macro_api ctx mctx p =
 				let m = ctx.com.module_lut#find mpath in
 				ignore(TypeloadModule.type_types_into_module ctx.com ctx.g m types pos)
 			with Not_found ->
-				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.file_keys#generate_virtual ctx.com.compilation_step) types pos in
+				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.file_keys#generate_virtual ctx.com.compilation_step) [] types pos in
 				mnew.m_extra.m_kind <- MFake;
 				add_dependency mnew ctx.m.curmod MDepFromMacro;
 				add_dependency ctx.m.curmod mnew MDepFromMacroDefine;

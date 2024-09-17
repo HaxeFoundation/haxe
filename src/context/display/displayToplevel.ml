@@ -128,7 +128,7 @@ let read_class_paths com timer =
 	explore_class_paths com timer (com.class_paths#filter (fun cp -> cp#path <> "")) true (fun _ -> ()) (fun file path ->
 		(* Don't parse the display file as that would maybe overwrite the content from stdin with the file contents. *)
 		if not (DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then begin
-			let rfile,_,pack,_ = Display.parse_module' com path Globals.null_pos in
+			let rfile,_,pack,meta,_ = Display.parse_module' com path Globals.null_pos in
 			if pack <> fst path then begin
 				let file_key = com.file_keys#get file in
 				(CommonCache.get_cache com)#remove_file_for_real file_key

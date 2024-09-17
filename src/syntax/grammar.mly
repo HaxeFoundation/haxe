@@ -121,15 +121,17 @@ let check_redundant_var p1 = parser
 
 let parsing_macro_cond = ref false
 
-let rec parse_file s =
+let rec parse_file metadata s =
 	last_doc := None;
 	match s with parser
+	| [< '(Sharp " "),_; meta = parse_meta; >] ->
+		parse_file (meta @ metadata) s
 	| [< '(Kwd Package,_); pack = parse_package; s >] ->
 		begin match s with parser
 		| [< '(Const(Ident _),p) when pack = [] >] -> error (Custom "Package name must start with a lowercase character") p
-		| [< psem = semicolon; l = parse_type_decls TCAfterImport psem.pmax pack [] >] -> pack , l
+		| [< psem = semicolon; l = parse_type_decls TCAfterImport psem.pmax pack [] >] -> pack , metadata, l
 		end
-	| [< l = parse_type_decls TCBeforePackage (-1) [] [] >] -> [] , l
+	| [< l = parse_type_decls TCBeforePackage (-1) [] [] >] -> [] , metadata, l
 
 and parse_type_decls mode pmax pack acc s =
 	check_type_decl_completion mode pmax s;

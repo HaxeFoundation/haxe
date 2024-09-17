@@ -292,7 +292,7 @@ module ModuleLevel = struct
 				r
 			with Not_found ->
 				if Sys.file_exists path then begin
-					let _,r = match !TypeloadParse.parse_hook com (ClassPaths.create_resolved_file path com.empty_class_path) p with
+					let _,meta,r = match !TypeloadParse.parse_hook com (ClassPaths.create_resolved_file path com.empty_class_path) p with
 						| ParseSuccess(data,_,_) -> data
 						| ParseError(_,(msg,p),_) -> Parser.error msg p
 					in
@@ -722,8 +722,9 @@ let type_types_into_module com g m tdecls p =
 (*
 	Creates a new module and types [tdecls] into it.
 *)
-let type_module com g mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
+let type_module com g mpath file ?(dont_check_path=false) ?(is_extern=false) meta tdecls p =
 	let m = ModuleLevel.make_module com g mpath file p in
+	m.m_extra.m_meta <- meta;
 	com.module_lut#add m.m_path m;
 	let tdecls = ModuleLevel.handle_import_hx com g m tdecls p in
 	let ctx_m = type_types_into_module com g m tdecls p in
@@ -822,10 +823,10 @@ and load_module' com g m p =
 			if com.module_nonexistent_lut#mem m then raise_not_found();
 			if g.load_only_cached_modules then raise_not_found();
 			let is_extern = ref false in
-			let file, decls = try
+			let file, meta, decls = try
 				(* Try parsing *)
-				let rfile,decls = TypeloadParse.parse_module com m p in
-				rfile.file,decls
+				let rfile,meta,decls = TypeloadParse.parse_module com m p in
+				rfile.file,meta,decls
 			with Not_found ->
 				(* Nothing to parse, try loading extern type *)
 				let rec loop = function
@@ -835,13 +836,13 @@ and load_module' com g m p =
 					| (file,load) :: l ->
 						match load m p with
 						| None -> loop l
-						| Some (_,a) -> file, a
+						| Some (_,a) -> file, [], a
 				in
 				is_extern := true;
 				loop com.load_extern_type
 			in
 			let is_extern = !is_extern in
-			type_module com g m file ~is_extern decls p
+			type_module com g m file ~is_extern meta decls p
 
 let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 	let m2 = load_module' ctx.com ctx.g m p in

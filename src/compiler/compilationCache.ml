@@ -9,6 +9,7 @@ type cached_file = {
 	c_time : float;
 	c_package : string list;
 	c_decls : type_decl list;
+	c_meta : metadata;
 	mutable c_module_name : string option;
 	mutable c_pdi : Parser.parser_display_information;
 }
@@ -47,7 +48,8 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		Hashtbl.find files key
 
 	method cache_file key path time data pdi =
-		Hashtbl.replace files key { c_file_path = path; c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None; c_pdi = pdi }
+		let (pack,meta,decls) = data in
+		Hashtbl.replace files key { c_file_path = path; c_time = time; c_package = pack; c_meta = meta; c_decls = decls; c_module_name = None; c_pdi = pdi }
 
 	method remove_file key =
 		try

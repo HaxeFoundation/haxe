@@ -35,7 +35,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	Lexer.init file;
 	incr stats.s_files_parsed;
 	let parse_result = try
-		ParserEntry.parse Grammar.parse_file com.defines lexbuf file
+		ParserEntry.parse (fun s -> Grammar.parse_file [] s) com.defines lexbuf file
 	with
 		| Sedlexing.MalFormed ->
 			t();
@@ -124,8 +124,9 @@ let resolve_module_file com m remap p =
 			| (EStatic d,_) :: _ -> d.d_meta
 			| [] -> []
 		in
+		(* TODO: use meta directly? *)
 		let meta = match parse_result with
-			| ParseSuccess((_,decls),_,_) -> loop decls
+			| ParseSuccess((_,meta,decls),_,_) -> meta @ (loop decls)
 			| ParseError _ -> []
 		in
 		if not (Meta.has Meta.NoPackageRestrict meta) then begin
@@ -293,11 +294,11 @@ let parse_module_file com file p =
 let parse_module' com m p =
 	let remap = ref (fst m) in
 	let rfile = resolve_module_file com m remap p in
-	let pack,decls = parse_module_file com rfile p in
-	rfile,remap,pack,decls
+	let pack,meta,decls = parse_module_file com rfile p in
+	rfile,remap,pack,meta,decls
 
 let parse_module com m p =
-	let rfile,remap,pack,decls = parse_module' com m p in
+	let rfile,remap,pack,meta,decls = parse_module' com m p in
 	if pack <> !remap then begin
 		let spack m = if m = [] then "`package;`" else "`package " ^ (String.concat "." m) ^ ";`" in
 		if p == null_pos then
@@ -305,7 +306,7 @@ let parse_module com m p =
 		else
 			display_error com (spack pack ^ " in " ^ rfile.file ^ " should be " ^ spack (fst m)) {p with pmax = p.pmin}
 	end;
-	rfile, if !remap <> fst m then
+	rfile, meta, if !remap <> fst m then
 		(* build typedefs to redirect to real package *)
 		List.rev (List.fold_left (fun acc (t,p) ->
 			let build f d =

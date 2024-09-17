@@ -458,6 +458,7 @@ let rec token lexbuf =
 	| "??" -> mk lexbuf (Binop OpNullCoal)
 	| "?" -> mk lexbuf Question
 	| "@" -> mk lexbuf At
+	| "# " -> mk lexbuf (Sharp " ")
 
 	| "/*" ->
 		reset();

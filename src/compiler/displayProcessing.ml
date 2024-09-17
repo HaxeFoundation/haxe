@@ -229,7 +229,7 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 
 let load_display_file_standalone (ctx : Typecore.typer) file =
 	let com = ctx.com in
-	let pack,decls = TypeloadParse.parse_module_file com (ClassPaths.create_resolved_file file ctx.com.empty_class_path) null_pos in
+	let pack,meta,decls = TypeloadParse.parse_module_file com (ClassPaths.create_resolved_file file ctx.com.empty_class_path) null_pos in
 	let path = Path.FilePath.parse file in
 	let name = match path.file_name with
 		| None -> "?DISPLAY"
@@ -244,15 +244,15 @@ let load_display_file_standalone (ctx : Typecore.typer) file =
 			let dir = ExtString.String.join (if path.backslash then "\\" else "/") parts in
 			com.class_paths#add (new ClassPath.directory_class_path dir User)
 	end;
-	ignore(TypeloadModule.type_module ctx.com ctx.g (pack,name) file ~dont_check_path:true decls null_pos)
+	ignore(TypeloadModule.type_module ctx.com ctx.g (pack,name) file ~dont_check_path:true meta decls null_pos)
 
 let load_display_content_standalone (ctx : Typecore.typer) input =
 	let com = ctx.com in
 	let file = file_input_marker in
 	let p = file_pos file in
 	let parsed = TypeloadParse.parse_file_from_string com file p input in
-	let pack,decls = TypeloadParse.handle_parser_result com p parsed in
-	ignore(TypeloadModule.type_module ctx.com ctx.g (pack,"?DISPLAY") file ~dont_check_path:true decls p)
+	let pack,meta,decls = TypeloadParse.handle_parser_result com p parsed in
+	ignore(TypeloadModule.type_module ctx.com ctx.g (pack,"?DISPLAY") file ~dont_check_path:true meta decls p)
 
 (* 4. Display processing before typing *)
 
@@ -326,7 +326,7 @@ let process_global_display_mode com tctx =
 			List.fold_left (fun acc (file_key,cfile) ->
 				let file = cfile.c_file_path.file in
 				if (filter <> None || DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then
-					(file,DocumentSymbols.collect_module_symbols (Some (file,get_module_name_of_cfile file cfile)) (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
+					(file,DocumentSymbols.collect_module_symbols (Some (file,get_module_name_of_cfile file cfile)) (filter = None) (cfile.c_package,cfile.c_meta,cfile.c_decls)) :: acc
 				else
 					acc
 			) [] l

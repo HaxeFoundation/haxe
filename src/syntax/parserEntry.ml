@@ -290,6 +290,8 @@ let parse entry ctx code file =
 			) in
 			!(Lexer.cur).Lexer.lline <- line - 1;
 			next_token();
+		| Sharp " " ->
+			tk
 		| Sharp s ->
 			sharp_error s (pos tk)
 		| _ ->
