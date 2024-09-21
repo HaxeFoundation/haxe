@@ -722,7 +722,7 @@ let create_macro_context com =
 	(* This can run before `TyperEntry.create`, so in order to display nice error when std is not found, this needs to be checked here too *)
 	(match !eval_std with
 	| Some std -> com2.class_paths#add std
-	| None -> Error.raise_std_not_found ());
+	| None -> Error.raise_std_not_found com.std_path);
 	let defines = adapt_defines_to_macro_context com2.defines; in
 	com2.defines.values <- defines.values;
 	com2.defines.defines_signature <- None;
