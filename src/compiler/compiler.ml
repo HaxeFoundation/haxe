@@ -133,7 +133,7 @@ module Setup = struct
 				add_std "php";
 				"php"
 			| Cpp ->
-				Common.define_value com Define.HxcppApiLevel "430";
+				Common.define_value com Define.HxcppApiLevel "500";
 				add_std "cpp";
 				if Common.defined com Define.Cppia then
 					actx.classes <- (Path.parse_path "cpp.cppia.HostClasses" ) :: actx.classes;

@@ -1286,10 +1286,6 @@ and is_dynamic_in_cppia ctx expr =
    | _ -> is_dynamic_in_cpp ctx expr
 ;;
 
-let cast_if_required ctx expr to_type =
-   if (is_dynamic_in_cpp ctx expr) then
-      ctx.ctx_output (".Cast< " ^ to_type ^ " >()" )
-;;
 
 
 let is_matching_interface_type t0 t1 =
@@ -1378,6 +1374,7 @@ type tcpp =
    | TCppFastIterator of tcpp
    | TCppPointer of string * tcpp
    | TCppRawPointer of string * tcpp
+   | TCppCallable of tcpp list * tcpp
    | TCppFunction of tcpp list * tcpp * string
    | TCppObjCBlock of tcpp list * tcpp
    | TCppRest of tcpp
@@ -1389,11 +1386,10 @@ type tcpp =
    | TCppAutoCast
    | TCppDynamicArray
    | TCppObjectArray of tcpp
-   | TCppWrapped of tcpp
    | TCppScalarArray of tcpp
    | TCppObjC of tclass
    | TCppNativePointer of tclass
-   | TCppVariant
+   | TCppVariant of tcpp option
    | TCppCode of tcpp
    | TCppInst of tclass * tcpp list
    | TCppInterface of tclass
@@ -1415,7 +1411,6 @@ and tcpp_closure = {
    close_expr : tcppexpr;
    close_id : int;
    close_undeclared : (string,tvar) Hashtbl.t;
-   close_this : tcppthis option;
 }
 
 
@@ -1443,7 +1438,7 @@ and tcppvarloc =
    | VarInternal of tcppexpr * string * string
 
 and tcppinst =
-   | InstPtr
+   | InstPtr of tcpp
    | InstObjC
    | InstStruct
 
@@ -1489,7 +1484,7 @@ and tcpp_expr_expr =
    | CppThis of tcppthis
    | CppSuper of tcppthis
    | CppCode of string * tcppexpr list
-   | CppClosure of tcpp_closure
+   | CppCallable of tcpp_closure
    | CppVar of tcppvarloc
    | CppExtern of string * bool
    | CppDynamicField of tcppexpr * string
@@ -1547,7 +1542,7 @@ let rec s_tcpp = function
    | CppThis _ -> "CppThis"
    | CppSuper _ -> "CppSuper"
    | CppCode _ -> "CppCode"
-   | CppClosure _ -> "CppClosure"
+   | CppCallable _ -> "CppCallable"
    | CppVar VarLocal(_) -> "CppVarLocal"
    | CppVar VarClosure(_) -> "CppVarClosure"
    | CppVar VarThis(_) -> "CppVarThis"
@@ -1565,7 +1560,7 @@ let rec s_tcpp = function
 
    | CppCall (FuncThis _,_)  -> "CppCallThis"
    | CppCall (FuncInstance (obj,inst,field),_) ->
-       (match inst with InstObjC -> "CppCallObjCInstance(" | InstPtr-> "CppCallInstance(" | _ -> "CppCallStruct(") ^
+       (match inst with InstObjC -> "CppCallObjCInstance(" | InstPtr _ -> "CppCallInstance(" | _ -> "CppCallStruct(") ^
           tcpp_to_string obj.cpptype ^ "," ^ field.cf_name ^ ")"
    | CppCall (FuncInterface  _,_) -> "CppCallInterface"
    | CppCall (FuncStatic  (_,objC,_),_) -> if objC then "CppCallStaticObjC" else "CppCallStatic"
@@ -1631,8 +1626,11 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppRest _ -> "vaarg_list"
    | TCppVarArg -> "vararg"
    | TCppAutoCast -> "::cpp::AutoCast"
-   | TCppVariant -> "::cpp::Variant"
+   | TCppVariant Some t -> "::cpp::Variant ( " ^ (tcpp_to_string t) ^ " ) "
+   | TCppVariant None -> "::cpp::Variant"
    | TCppEnum(enum) -> " ::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
+   | TCppCallable (farg, fret) ->
+      "::hx::Callable< " ^ tcpp_to_string fret ^ "(" ^ ((List.map tcpp_to_string farg) |> (String.concat ",")) ^ ")>"
    | TCppScalar(scalar) -> scalar
    | TCppString -> "::String"
    | TCppFastIterator it -> "::cpp::FastIterator" ^ suffix ^ "< " ^ (tcpp_to_string it) ^ " >";
@@ -1645,7 +1643,6 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
         (tcpp_objc_block_struct argTypes retType) ^ "::t"
    | TCppDynamicArray -> "::cpp::VirtualArray" ^ suffix
    | TCppObjectArray _ -> "::Array" ^ suffix ^ "< ::Dynamic>"
-   | TCppWrapped _ -> " ::Dynamic"
    | TCppScalarArray(value) -> "::Array" ^ suffix ^ "< " ^ (tcpp_to_string value) ^ " >"
    | TCppObjC klass ->
       let path = join_class_path_remap klass.cl_path "::" in
@@ -1774,7 +1771,7 @@ let rec cpp_is_native_array_access t =
 ;;
 
 let cpp_is_dynamic_type = function
-   | TCppDynamic | TCppObject | TCppVariant | TCppWrapped _ | TCppGlobal | TCppNull
+   | TCppDynamic | TCppObject | TCppVariant _ | TCppGlobal | TCppNull
    | TCppInterface _
       -> true
    | _ -> false
@@ -1784,7 +1781,7 @@ let cpp_is_dynamic_type = function
 let rec cpp_type_of stack ctx haxe_type =
    if List.exists (fast_eq haxe_type) stack then
       TCppDynamic
-   else begin
+   else
       let stack = haxe_type :: stack in
       (match haxe_type with
       | TMono r -> (match r.tm_type with None -> TCppDynamic | Some t -> cpp_type_of stack ctx t)
@@ -1813,16 +1810,52 @@ let rec cpp_type_of stack ctx haxe_type =
                   TCppDynamic)
 
       | TType (type_def,params) ->
-         cpp_type_from_path stack ctx type_def.t_path params (fun () ->
-            cpp_type_of stack ctx (apply_typedef type_def params) )
+         let rec find s t =
+            if List.exists (fast_eq t) s then begin
+               true
+            end else
+               let s = t :: s in
+               match t with
+               | TMono r ->
+                  (match r.tm_type with
+                  | None -> false
+                  | Some t -> find s t)
+               | TEnum (_,tl) | TInst (_,tl) ->
+                  List.exists (find s) tl
+               | TAbstract (abs,tl) ->
+                  if not (Meta.has Meta.CoreType abs.a_meta) && (find s (Abstract.get_underlying_type ~return_first:true abs tl)) then
+                     true
+                  else
+                     List.exists (find s) tl
+               | TType (tdef,tl) ->
+                  find s (apply_typedef tdef tl)
+               | TFun (tl,r) ->
+                  if (find s r) then
+                     true
+                  else begin
+                     List.exists (fun (_,_,targ) -> (find s targ)) tl
+                  end
+               | TLazy f ->
+                  find s (lazy_type f)
+               | TDynamic (Some t2) ->
+                  find s t2
+               | _ -> false
+            in
+         if find [] haxe_type then
+            cpp_type_from_path stack ctx type_def.t_path params (fun () -> TCppDynamic)
+         else
+            cpp_type_from_path stack ctx type_def.t_path params (fun () -> cpp_type_of stack ctx (apply_typedef type_def params))
 
-      | TFun _ -> TCppObject
+      | TFun (args, return) ->
+         let fargs = List.map (fun (_, o, t) -> cpp_tfun_arg_type_of stack ctx o t) args  in
+         let fret  = cpp_type_of stack ctx return in
+        
+         TCppCallable (fargs, fret)
       | TAnon _ -> TCppObject
       | TDynamic _ -> TCppDynamic
       | TLazy func -> cpp_type_of stack ctx (lazy_type func)
       )
-   end
-   and  cpp_type_from_path stack ctx path params default =
+   and cpp_type_from_path stack ctx path params default =
       match path,params with
       | ([],"Void"),_ -> TCppVoid
       | ([],"void"),_ -> TCppVoid (* for old code with @:void *)
@@ -1895,7 +1928,6 @@ let rec cpp_type_of stack ctx haxe_type =
             | TCppVoid (* ? *)
             | TCppDynamic ->
               TCppDynamicArray
-
             | TCppObject
             | TCppObjectPtr
             | TCppReference _
@@ -1909,6 +1941,7 @@ let rec cpp_type_of stack ctx haxe_type =
             | TCppDynamicArray
             | TCppObjectArray _
             | TCppScalarArray _
+            | TCppCallable _
                -> TCppObjectArray(arrayOf)
             | _ ->
               TCppScalarArray(arrayOf)
@@ -1930,10 +1963,10 @@ let rec cpp_type_of stack ctx haxe_type =
      | TAbstract ({ a_path = ([],"Null") },[t]) -> cpp_type_of stack ctx t
      | x ->  cpp_type_of stack ctx x
    (* Optional types are Dynamic if they norally could not be null *)
-   and cpp_fun_arg_type_of stack ctx tvar opt =
+   and cpp_fun_arg_type_of stack ctx t opt =
       match opt with
-      | Some _ -> cpp_type_of_null stack ctx tvar.t_type
-      | _ -> cpp_type_of stack ctx tvar.t_type
+      | Some _ -> cpp_type_of_null stack ctx t
+      | _ -> cpp_type_of stack ctx t
 
    and cpp_tfun_arg_type_of stack ctx opt t =
       if opt then cpp_type_of_null stack ctx t else cpp_type_of stack ctx t
@@ -2029,7 +2062,6 @@ let rec cpp_object_name = function
    | TCppFunction(argTypes,retType,abi) ->
         let args = (String.concat "," (List.map tcpp_to_string argTypes)) in
         "::cpp::Function< " ^ abi ^ " " ^ (tcpp_to_string retType) ^ "(" ^ args ^ ") >"
-   | TCppWrapped _ -> "Dynamic"
    | TCppNativePointer klass -> (cpp_class_path_of klass) ^ " *"
    | TCppGlobal -> "";
    | TCppNull -> "Dynamic";
@@ -2063,7 +2095,6 @@ let cpp_variant_type_of t = match t with
    | TCppDynamicArray
    | TCppObjectArray _
    | TCppScalarArray _
-   | TCppWrapped _
    | TCppObjC _
    | TCppObjCBlock _
    | TCppRest _
@@ -2074,6 +2105,7 @@ let cpp_variant_type_of t = match t with
    | TCppClass
    | TCppGlobal
    | TCppNull
+   | TCppCallable _
    | TCppEnum _ -> TCppDynamic
    | TCppString -> TCppString
    | TCppFunction _
@@ -2090,7 +2122,7 @@ let cpp_variant_type_of t = match t with
    | TCppScalar "double"
    | TCppScalar "float" -> TCppScalar("Float")
    | TCppScalar _  -> TCppScalar("int")
-   | TCppVariant -> TCppVariant
+   | TCppVariant o -> TCppVariant o
 ;;
 
 let cpp_cast_variant_type_of t = match t with
@@ -2152,8 +2184,6 @@ let ctx_arg_type_name ctx name default_val arg_type prefix =
    | Some constant  -> (type_str,prefix ^ remap_name)
    | _ -> (type_str,remap_name);;
 
-
-
 (* Generate prototype text, including allowing default values to be null *)
 let ctx_arg ctx name default_val arg_type prefix =
    let pair = ctx_arg_type_name ctx name default_val arg_type prefix in
@@ -2190,6 +2220,24 @@ let rec ctx_tfun_arg_list ctx include_names arg_list =
    | [(name,o,arg_type)] -> (oType o arg_type) ^ (if include_names then " " ^ (keyword_remap name) else "")
    | (name,o,arg_type) :: remaining  ->
       (oType o arg_type) ^ (if include_names then " " ^ (keyword_remap name) else "") ^  "," ^ (ctx_tfun_arg_list ctx include_names remaining)
+
+let ctx_callable_signature ctx function_def =
+   let return = cpp_type_of ctx function_def.tf_type |> tcpp_to_string in
+   let args   = String.concat "," (List.map (fun (v,o) -> tcpp_to_string (cpp_fun_arg_type_of ctx v.v_type o) ) function_def.tf_args) in
+   return ^ " ( " ^ args ^ " )"
+;;
+
+let ctx_callable_args ctx arg_list prefix =
+   let make_arg (v, o) =
+      let name     = keyword_remap v.v_name in
+      let return   = tcpp_to_string (cpp_fun_arg_type_of ctx v.v_type o) in
+      let prefixed = match o with
+      | Some {eexpr = TConst TNull} -> name
+      | Some _ -> prefix ^ name
+      | None -> name in
+      return ^ " " ^ prefixed in
+   String.concat "," (List.map make_arg arg_list)
+;;
 
 let cpp_var_type_of ctx var =
    tcpp_to_string (cpp_type_of ctx var.v_type)
@@ -2379,9 +2427,9 @@ let is_object_element ctx member_type =
    | TCppFunction _
    | TCppDynamicArray
    | TCppObjectArray _
-   | TCppWrapped _
    | TCppScalarArray _
    | TCppClass
+   | TCppCallable _
        -> true
    | _ -> false
 ;;
@@ -2555,9 +2603,9 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   CppNullAccess, TCppDynamic
                else if retypedObj.cpptype=TCppDynamic && not (has_class_flag clazz CInterface) then begin
                   if is_internal_member member.cf_name then
-                    CppFunction( FuncInstance(retypedObj,InstPtr,member), funcReturn ), exprType
+                    CppFunction( FuncInstance(retypedObj,InstPtr(clazzType),member), funcReturn ), exprType
                   else
-                     CppDynamicField(retypedObj, member.cf_name), TCppVariant
+                     CppDynamicField(retypedObj, member.cf_name), TCppVariant (Some (cpp_type_of member.cf_type))
                end else if cpp_is_struct_access retypedObj.cpptype then begin
 
                   match retypedObj.cppexpr with
@@ -2590,7 +2638,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
 
                      | TCppInterface _,_
                      | TCppDynamic,_ ->
-                        CppDynamicField(retypedObj, member.cf_name), TCppVariant
+                        CppDynamicField(retypedObj, member.cf_name), TCppVariant (Some (cpp_type_of member.cf_type))
                      | TCppObjC _,_ ->
                         CppVar(VarInstance(retypedObj,member,tcpp_to_string clazzType, ".") ), exprType
 
@@ -2609,14 +2657,19 @@ let retype_expression ctx request_type function_args function_type expression_tr
                      | _ -> false in
                  (* Special array return values *)
                  let funcReturn =
-                    if isArrayObj then match member.cf_name with
-                       | "map" -> TCppDynamicArray
-                       | "splice"
-                       | "slice"
-                       | "concat"
-                       | "copy"
-                       |  "filter" -> retypedObj.cpptype
-                       | _ -> funcReturn
+                     if isArrayObj then match member.cf_name with
+                     | "map" ->
+                        (match expr.etype with
+                        | TFun (_, ret) ->
+                           cpp_type_of ret
+                        | _ ->
+                           die "map expr type should be TFun" __LOC__)
+                     | "splice"
+                     | "slice"
+                     | "concat"
+                     | "copy"
+                     | "filter" -> retypedObj.cpptype
+                     | _ -> funcReturn
                     else match retypedObj.cpptype, funcReturn with
                        | TCppPointer(_,t), TCppDynamic
                        | TCppRawPointer(_,t), TCppDynamic (* the 'type parameter' will show up as Dynamic *)
@@ -2629,7 +2682,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                  | CppSuper this ->
                     CppFunction( FuncSuper(this, retypedObj.cpptype,member), funcReturn ), exprType
                  | _ ->
-                    CppFunction( FuncInstance(retypedObj,(if is_objc then InstObjC else InstPtr),member), funcReturn ), exprType
+                    CppFunction( FuncInstance(retypedObj,(if is_objc then InstObjC else InstPtr(clazzType)),member), funcReturn ), exprType
                  )
                end
 
@@ -2661,7 +2714,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   else
                      CppFunction( FuncInternal(obj,fieldName,"->"), cppType), cppType
                end else
-                  CppDynamicField(obj, field.cf_name), TCppVariant
+                  CppDynamicField(obj, field.cf_name), TCppVariant (Some (cpp_type_of field.cf_type))
 
             | FDynamic fieldName ->
                let obj = retype TCppDynamic obj in
@@ -2688,7 +2741,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   | _ ->
                      CppVar( VarInternal(obj,"->",fieldName)), cpp_type_of expr.etype
                end else
-                  CppDynamicField(obj, fieldName), TCppVariant
+                  CppDynamicField(obj, fieldName), TCppVariant None
 
             | FEnum (enum, enum_field) ->
                   CppEnumField(enum, enum_field), TCppEnum(enum)
@@ -2715,6 +2768,10 @@ let retype_expression ctx request_type function_args function_type expression_tr
             |  TCppObjCBlock(argTypes,retType) ->
                let retypedArgs = retype_function_args args argTypes in
                CppCall( FuncExpression(retypedFunc) ,retypedArgs), retType
+            | TCppVariant Some TCppCallable (fargs, fret) ->
+               let retypedArgs = List.map (retype TCppUnchanged ) args in
+
+               CppCall (FuncExpression (retype (TCppCallable (fargs, fret)) func), retypedArgs), fret
 
             | _ ->
                let cppType = cpp_type_of expr.etype in
@@ -2730,13 +2787,13 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   (* Not actually a TCall...*)
                   retypedFunc.cppexpr, retypedFunc.cpptype
 
-               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when not forCppia && return_type=TCppVoid && is_array_splice_call obj member ->
+               | CppFunction( FuncInstance(obj, InstPtr tcpp, member), _ ) when not forCppia && return_type=TCppVoid && is_array_splice_call obj member ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
-                  CppCall( FuncInstance(obj, InstPtr, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
+                  CppCall( FuncInstance(obj, InstPtr tcpp, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
 
-               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when is_array_concat_call obj member ->
+               | CppFunction( FuncInstance(obj, InstPtr tcpp, member), _ ) when is_array_concat_call obj member ->
                   let retypedArgs = List.map (retype obj.cpptype) args in
-                  CppCall( FuncInstance(obj, InstPtr, member), retypedArgs), return_type
+                  CppCall( FuncInstance(obj, InstPtr tcpp, member), retypedArgs), return_type
 
                | CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "::hx::AddressOf" ->
                     let arg = retype TCppUnchanged (List.hd args) in
@@ -2770,7 +2827,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   | _ -> abort "First parameter of template function must be a Class" retypedFunc.cpppos
                   )
 
-               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when is_map_get_call obj member ->
+               | CppFunction( FuncInstance(obj, InstPtr tcpp, member), _ ) when is_map_get_call obj member ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
                   let fname, cppType = match return_type with
                   | TCppVoid | TCppScalar("bool")  -> (if forCppia then "getBool" else "get_bool"), return_type
@@ -2780,7 +2837,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   | TCppString  -> (if forCppia then "getString" else "get_string"), return_type
                   | _ -> "get", TCppDynamic
                   in
-                  let func = FuncInstance(obj, InstPtr, {member with cf_name=fname}) in
+                  let func = FuncInstance(obj, InstPtr tcpp, {member with cf_name=fname}) in
                   (*
                   if  cpp_can_static_cast cppType return_type then begin
                      let call = mk_cppexpr (CppCall(func,retypedArgs)) cppType in
@@ -2790,7 +2847,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                      CppCall( func, retypedArgs), cppType
 
 
-               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when forCppia && is_map_set_call obj member ->
+               | CppFunction( FuncInstance(obj, InstPtr tcpp, member), _ ) when forCppia && is_map_set_call obj member ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
                   let fname = match retypedArgs with
                   | [_;{cpptype=TCppScalar("bool")}]  -> "setBool"
@@ -2800,11 +2857,11 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   | [_;{cpptype=TCppString}]  -> "setString"
                   | _ -> "set"
                   in
-                  let func = FuncInstance(obj, InstPtr, {member with cf_name=fname}) in
+                  let func = FuncInstance(obj, InstPtr tcpp, {member with cf_name=fname}) in
                   CppCall( func, retypedArgs), cppType
 
 
-               | CppFunction( FuncInstance(obj,InstPtr,member) as func, returnType ) when cpp_can_static_cast returnType cppType ->
+               | CppFunction( FuncInstance(obj,InstPtr _,member) as func, returnType ) when cpp_can_static_cast returnType cppType ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
                   let call = mk_cppexpr (CppCall(func,retypedArgs)) returnType in
                   CppCastStatic(call, cppType), cppType
@@ -2913,7 +2970,6 @@ let retype_expression ctx request_type function_args function_type expression_tr
                            close_undeclared= !undeclared;
                            close_type= ret;
                            close_args= func.tf_args;
-                           close_this= !uses_this;
                          } in
             incr closureId;
             declarations := old_declarations;
@@ -2927,7 +2983,9 @@ let retype_expression ctx request_type function_args function_type expression_tr
             uses_this := if !uses_this != None then Some old_this_real else old_uses_this;
             gc_stack := old_gc_stack;
             rev_closures := result:: !rev_closures;
-            CppClosure(result), TCppDynamic
+            let fargs = List.map (fun (v,o) -> cpp_fun_arg_type_of ctx v.v_type o) func.tf_args in
+            let fret  = cpp_type_of func.tf_type in
+            CppCallable(result), (TCppCallable (fargs, fret))
 
          | TArray (e1,e2) ->
             let arrayExpr, elemType = match cpp_is_native_array_access (cpp_type_of e1.etype) with
@@ -3030,8 +3088,8 @@ let retype_expression ctx request_type function_args function_type expression_tr
             in
             (match op,e1.cpptype,e2.cpptype  with
             (* Variant + Variant = Variant *)
-            | OpAdd, _, TCppVariant | OpAdd, TCppVariant, _
-                -> reference, TCppVariant
+            | OpAdd, _, TCppVariant o | OpAdd, TCppVariant o, _
+                -> reference, TCppVariant o
             | _,_,_ -> reference, cpp_type_of expr.etype
             )
 
@@ -3183,6 +3241,12 @@ let retype_expression ctx request_type function_args function_type expression_tr
             if baseStr=returnStr then
                baseCpp.cppexpr, baseCpp.cpptype (* nothing to do *)
             else (match return_type with
+               | TCppFunction _ ->
+                  (match baseCpp.cppexpr with
+                  | CppCast (inner, TCppCallable _) -> 
+                     inner.cppexpr, inner.cpptype
+                  | _ ->
+                     baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *))
                | TCppObjC(k) -> CppCastObjC(baseCpp,k), return_type
                | TCppPointer(_,_)
                | TCppRawPointer(_,_)
@@ -3218,6 +3282,9 @@ let retype_expression ctx request_type function_args function_type expression_tr
             )
       in
       let cppExpr = mk_cppexpr retypedExpr retypedType in
+      let isVariant t = match t with
+         | TCppVariant _ -> true
+         | _ -> false in
 
       (* Autocast rules... *)
       if return_type=TCppVoid then
@@ -3230,7 +3297,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | TCppDynamic ->  mk_cppexpr (CppCastNative(cppExpr)) TCppVoidStar
          | _ -> let toDynamic = mk_cppexpr (CppCast(cppExpr, TCppDynamic)) TCppDynamic in
                 mk_cppexpr (CppCastNative(toDynamic)) TCppVoidStar
-      end else if (cppExpr.cpptype=TCppVariant || cppExpr.cpptype=TCppDynamic || cppExpr.cpptype==TCppObject) then begin
+      end else if (isVariant cppExpr.cpptype || cppExpr.cpptype=TCppDynamic || cppExpr.cpptype==TCppObject) then begin
          match return_type with
          | TCppUnchanged -> cppExpr
          | TCppInst(t, _) when (has_meta_key t.cl_meta Meta.StructAccess) ->
@@ -3244,6 +3311,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | TCppDynamicArray
          | TCppObjectPtr
          | TCppVarArg
+         | TCppCallable _
          | TCppInst _
              -> mk_cppexpr (CppCast(cppExpr,return_type)) return_type
 
@@ -3259,10 +3327,10 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | TCppString
              -> mk_cppexpr (CppCastScalar(cppExpr,"::String")) return_type
 
-         | TCppInterface _ when cppExpr.cpptype=TCppVariant
+         | TCppInterface _ when isVariant cppExpr.cpptype
               -> mk_cppexpr (CppCastVariant(cppExpr)) return_type
 
-         | TCppDynamic when cppExpr.cpptype=TCppVariant
+         | TCppDynamic when isVariant cppExpr.cpptype
               -> mk_cppexpr (CppCastVariant(cppExpr)) return_type
 
          | TCppStar(t,const) ->
@@ -3373,14 +3441,6 @@ let mk_injection prologue set_var tail =
 ;;
 
 
-let cpp_arg_type_name ctx tvar default_val prefix =
-   let remap_name = (cpp_var_name_of tvar) in
-   let type_str = (cpp_var_type_of ctx tvar) in
-   match default_val with
-   | Some {eexpr = TConst TNull}  -> (tcpp_to_string (cpp_type_of_null ctx tvar.v_type)),remap_name
-   | Some constant -> (tcpp_to_string (cpp_type_of_null ctx tvar.v_type)),prefix ^ remap_name
-   | _ -> type_str,remap_name
-;;
 
 
 
@@ -3403,11 +3463,11 @@ match value.eexpr with
 
 let cpp_gen_default_values ctx args prefix =
    List.iter ( fun (tvar,o) ->
-      let vtype = cpp_type_of ctx tvar.v_type in
-      let not_null = (type_has_meta_key tvar.v_type Meta.NotNull) || (is_cpp_scalar vtype) in
       match o with
       | Some {eexpr = TConst TNull} -> ()
       | Some const ->
+         let vtype = cpp_type_of ctx tvar.v_type in
+         let not_null = (type_has_meta_key tvar.v_type Meta.NotNull) || (is_cpp_scalar vtype) in
          let name = cpp_var_name_of tvar in
          let spacer = if (ctx.ctx_debug_level>0) then "            \t" else "" in
          let pname = prefix ^ name in
@@ -3452,7 +3512,7 @@ let cpp_is_const_scalar_array arrayType expressions =
 
 (* Generate prototype text, including allowing default values to be null *)
 let cpp_arg_string ctx tvar default_val prefix =
-   let t,n = cpp_arg_type_name ctx tvar default_val prefix in
+   let t,n = ctx_arg_type_name ctx tvar.v_name default_val tvar.v_type prefix in
    t ^ " " ^ n
 ;;
 
@@ -3466,7 +3526,11 @@ let gen_type ctx haxe_type =
 ;;
 
 
-
+let cpp_closure_signature ctx closure =
+   let func_type = tcpp_to_string closure.close_type in
+   let func_args = ctx_callable_args ctx closure.close_args "" in
+   func_type ^ "(" ^ func_args ^ ")"
+;;
 
 
 let rec implements_native_interface class_def =
@@ -3571,12 +3635,32 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          out "->_hx_getIndex()"
 
       | CppNullAccess -> out ("::hx::Throw(" ^ strq "Null access" ^ ")")
-      | CppFunction(func,_) ->
+      | CppFunction(func,tcpp) ->
          (match func with
          | FuncThis(field,_) ->
               out ("this->" ^ (cpp_member_name_of field) ^ "_dyn()");
-         | FuncInstance(expr,inst,field) ->
-              gen expr; out ((if expr.cpptype=TCppString || inst=InstStruct then "." else "->") ^ (cpp_member_name_of field) ^ "_dyn()");
+         | FuncInstance(f_expr,inst,field) ->
+            (* array map is a special case as it is implemented as a templated function *)
+            (* so we need to figure out the target array type of the map function to generate the template params *)
+            let template_extra =
+               if (field.cf_name="map") then
+                  match inst with
+                  | InstPtr (TCppObjectArray _)
+                  | InstPtr (TCppScalarArray _)
+                  | InstPtr TCppDynamicArray ->
+                     (match tcpp with
+                     | TCppObjectArray el
+                     | TCppScalarArray el ->
+                        "< " ^ (tcpp_to_string el) ^ " >"
+                     | TCppDynamicArray ->
+                        tcpp_to_string TCppDynamic
+                     | _ ->
+                        die "map return type should be an array" __LOC__)
+                  | _ ->
+                     ""
+               else
+                  "" in
+            gen f_expr; out ((if f_expr.cpptype=TCppString || inst=InstStruct then "." else "->") ^ (cpp_member_name_of field) ^ "_dyn" ^ template_extra ^ "()");
          | FuncInterface(expr,_,field) ->
               gen expr;
               out ("->__Field(" ^ strq field.cf_name ^ ", ::hx::paccDynamic)")
@@ -3866,14 +3950,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          gen_val_loc loc false;
 
 
-      | CppClosure closure ->
-          out (" ::Dynamic(new _hx_Closure_" ^ (string_of_int(closure.close_id)) ^ "(");
+      | CppCallable closure ->
+          out (" ::hx::Callable<" ^ (cpp_closure_signature ctx closure )^ ">(new _hx_Closure_" ^ (string_of_int(closure.close_id)) ^ "(");
           let separator = ref "" in
-          (match closure.close_this with
-          | Some this ->
-             out (if this=ThisReal then "this" else "__this");
-             separator := ",";
-          | _ -> () );
 
           Hashtbl.iter (fun name value ->
              out !separator; separator := ",";
@@ -3989,7 +4068,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          | TCppDynamicArray
          | TCppClass
          | TCppEnum _
-         | TCppInst _ -> out (".StaticCast< " ^ (tcpp_to_string valueType ) ^ " >()")
+         | TCppInst _
+         | TCppCallable _
+            -> out (".StaticCast< " ^ (tcpp_to_string valueType ) ^ " >()")
          | _ ->()
          )
 
@@ -4213,7 +4294,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       | CppExternRef(name,isGlobal) -> if isGlobal then out " ::"; out name
       | CppDynamicRef(expr,name) ->
          let objPtr = match expr.cpptype with
-         |  TCppVariant -> "getObject()"
+         |  TCppVariant _ -> "getObject()"
          | _ -> ".mPtr"
          in
          out "::hx::FieldRef(("; gen expr ; out (")" ^ objPtr ^ "," ^ strq name ^ ")")
@@ -4287,25 +4368,25 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       if argc >= 20 || (List.length closure.close_args) >= 20 then
          writer#add_big_closures;
       let argsCount = list_num closure.close_args in
+      let signature = cpp_closure_signature ctx closure in
       output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ size ^ "(");
-      out (if closure.close_this != None then "::hx::LocalThisFunc," else "::hx::LocalFunc,");
-      out ("_hx_Closure_" ^ (string_of_int closure.close_id) );
+      out ("::hx::Callable_obj< ");
+      out signature;
+      out (">,_hx_Closure_" ^ (string_of_int closure.close_id) );
       Hashtbl.iter (fun name var ->
          out ("," ^ (cpp_macro_var_type_of ctx var) ^ "," ^ (keyword_remap name));
       ) closure.close_undeclared;
-      out (") HXARGC(" ^ argsCount ^")\n");
+      out (")\n");
 
-      let func_type = tcpp_to_string closure.close_type in
-      output_i (func_type ^ " _hx_run(" ^ (cpp_arg_list ctx closure.close_args "__o_") ^ ")");
+      output_i ((tcpp_to_string closure.close_type) ^ " HX_LOCAL_RUN(" ^ (ctx_callable_args ctx closure.close_args "__o_") ^ ") override");
 
       let prologue = function gc_stack ->
           cpp_gen_default_values ctx closure.close_args "__o_";
           hx_stack_push ctx output_i class_name func_name closure.close_expr.cpppos gc_stack;
           if (ctx.ctx_debug_level>=2) then begin
-             if (closure.close_this != None) then
-                output_i ("HX_STACK_THIS(__this.mPtr)\n");
-             List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ (cpp_debug_name_of v) ^"\")\n") )
-                (List.filter (cpp_debug_var_visible ctx) closure.close_args);
+             List.iter
+               (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ (cpp_debug_name_of v) ^"\")\n") )
+               (List.filter (cpp_debug_var_visible ctx) closure.close_args);
 
              let line = Lexer.get_error_line closure.close_expr.cpppos in
              let lineName = Printf.sprintf "%4d" line in
@@ -4313,6 +4394,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
           end
       in
       gen_with_injection (mk_injection prologue "" "") closure.close_expr true;
+
+      output_i "int __Compare(const ::hx::Object* inRhs) const override {\n";
+      output_i ("\treturn dynamic_cast<const _hx_Closure_" ^ (string_of_int closure.close_id) ^ "*>(inRhs) ? 0 : -1;\n");
+      output_i "}\n";
 
       let return = match closure.close_type with TCppVoid -> "(void)" | _ -> "return" in
 
@@ -4512,21 +4597,53 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
    (* Function field *)
    | Some { eexpr = TFunction function_def } ->
       let return_type_str = (ctx_type_string ctx function_def.tf_type) in
-      let nargs = string_of_int (List.length function_def.tf_args) in
       let return_type = (cpp_type_of ctx function_def.tf_type ) in
       let is_void = return_type = TCppVoid in
       let ret = if is_void  then "(void)" else "return " in
 
-      let needsWrapper t = match t with
-         | TCppStar _ -> true
-         | TCppInst(t, _) -> has_meta_key t.cl_meta Meta.StructAccess
-         | _ -> false
-      in
       let orig_debug = ctx.ctx_debug_level in
       let no_debug = has_meta_key field.cf_meta Meta.NoDebug in
 
+      let func_signature     = ctx_callable_signature ctx function_def in
+      let obj_ptr_class_name = "::hx::ObjectPtr<" ^ class_name ^ ">" in
+      let write_closure_header callable_name captures_obj prefix =
+         output ("struct " ^ callable_name ^ " : public ::hx::Callable_obj<" ^ func_signature ^ ">\n");
+         output "{\n";
+
+         if captures_obj then begin
+            output ("\t" ^ obj_ptr_class_name ^ " __this;\n");
+            output ("\t" ^ callable_name ^ "(" ^ obj_ptr_class_name ^ "obj = null()) : __this(obj) {}\n");
+         end else begin
+            output ("\t" ^ callable_name ^ "() {}\n");
+         end;
+
+         output "\tint __Compare(const ::hx::Object* inRhs) const override {\n";
+         output ("\t\tauto casted = dynamic_cast<const " ^ callable_name ^ "*>(inRhs);\n");
+         output "\t\tif (!casted) return -1;\n";
+         if captures_obj then
+            output "\t\tif (__this != casted->__this) return 1;\n";
+         output "\t\treturn 0;";
+         output "\t}\n";
+
+         output ("\t" ^ return_type_str ^ " HX_LOCAL_RUN(" ^ (ctx_callable_args ctx function_def.tf_args prefix) ^ ") override\n");
+         output "\t{\n";
+      in
+      let write_closure_trailer captures_obj =
+         output "\t}\n";
+         if captures_obj then begin
+            output "\tvoid __Mark(hx::MarkContext* __inCtx) override { HX_MARK_MEMBER(__this); }\n";
+            output "#ifdef HXCPP_VISIT_ALLOCS\n";
+            output "\tvoid __Visit(hx::VisitContext* __inCtx) override { HX_VISIT_MEMBER(__this); }\n";
+            output "#endif\n";
+         end;
+
+         (* TODO : Generate, compare, etc, etc *)
+
+         output "};\n\n";   
+      in
+
+      (* The actual function definition *)
       if (not (is_dynamic_haxe_method field)) then begin
-         (* The actual function definition *)
          let nativeImpl = get_meta_string field.cf_meta Meta.Native in
          let remap_name = native_field_name_remap is_static field in
          output (if is_void then "void" else return_type_str );
@@ -4549,74 +4666,32 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          let doDynamic =  (nonVirtual || not (is_override field ) ) && (reflective class_def field ) in
          (* generate dynamic version too ... *)
          if ( doDynamic ) then begin
-            let tcpp_args = List.map (fun (v,_) -> cpp_type_of ctx v.v_type  ) function_def.tf_args in
-            let wrap = (needsWrapper return_type) || (List.exists needsWrapper tcpp_args) in
-            if wrap then begin
-               let wrapName = "_hx_wrap" ^ class_name ^ "_" ^ remap_name in
-               output ("static ::Dynamic " ^ wrapName ^ "( "  );
-               let sep = ref " " in
-               if not is_static then begin
-                  output "::hx::Object *obj";
-                  sep := ",";
-               end;
-               ExtList.List.iteri (fun i _ -> output (!sep ^ "const Dynamic &a" ^ (string_of_int i)) ; sep:=",")  tcpp_args;
-               output ( ") {\n\t");
-               if not is_void then begin
-                  match return_type with
-                    | TCppStar _ ->
-                       output "return (cpp::Pointer<const void *>) "
-                    | TCppInst(t, _) when has_meta_key t.cl_meta Meta.StructAccess ->
-                       output ("return (cpp::Struct< " ^ (tcpp_to_string return_type) ^ " >) ");
-                    | _ -> output "return ";
-               end;
+            let callable_name = ("__" ^ class_name ^ remap_name) in
+            write_closure_header callable_name (not is_static) "";
 
-               if is_static then
-                  output (class_name ^ "::" ^ remap_name ^ "(")
-               else
-                  output ("reinterpret_cast< " ^ class_name ^ " *>(obj)->" ^ remap_name ^ "(");
+            output (if is_void then "\t\t" else "\t\treturn ");
+            if is_static then
+               output (class_name ^ "::" ^ remap_name ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "") ^ ");\n")
+            else
+               output ("__this->" ^ remap_name ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "") ^ ");\n");
 
-               sep := "";
-               ExtList.List.iteri (fun i arg ->
-                     output !sep; sep := ",";
-                     (match arg with
-                       | TCppStar (t,const) ->
-                          output ("(cpp::" ^ (if const then "Const" else "") ^"Pointer<" ^ (tcpp_to_string t)^" >) ")
-                       | TCppInst(t, _) when has_meta_key t.cl_meta Meta.StructAccess ->
-                          output ("(cpp::Struct< " ^ (tcpp_to_string arg) ^ " >) ");
-                       | _ -> () );
-                     output ("a" ^ (string_of_int i));
-                  )  tcpp_args;
+            write_closure_trailer (not is_static);
 
-               output ");\n";
-
-               if is_void then output "\treturn null();\n";
-               output "}\n";
-               let nName = string_of_int (List.length tcpp_args) in
-               output ("::Dynamic " ^ class_name ^ "::" ^ remap_name ^ "_dyn() {\n\treturn ");
-               if is_static then
-                  output ("::hx::CreateStaticFunction" ^ nName ^ "(\"" ^ remap_name ^ "\"," ^ wrapName ^ ");")
-               else
-                  output ("::hx::CreateMemberFunction" ^ nName ^ "(\"" ^ remap_name ^ "\",this," ^ wrapName ^ ");");
-               output "}\n";
-            end else begin
-               if (is_static) then output "STATIC_";
-               output ("HX_DEFINE_DYNAMIC_FUNC" ^ nargs ^ "(" ^ class_name ^ "," ^ remap_name ^ "," ^ ret ^ ")\n\n");
-            end
+            output ("::hx::Callable<" ^ func_signature ^ "> " ^ class_name ^ "::" ^ remap_name ^ "_dyn()\n");
+            output "{\n";
+            output ("\treturn new " ^ callable_name ^ "(" ^ (if is_static then "" else "this") ^ ");\n");
+            output "}\n\n";
          end;
-
       end else begin
+         write_closure_header ("__default_" ^ class_name ^ remap_name) true "__o_";
+
          ctx.ctx_real_this_ptr <- false;
-         let func_name = "__default_" ^ (remap_name) in
-         output ("HX_BEGIN_DEFAULT_FUNC(" ^ func_name ^ "," ^ class_name ^ ")\n");
-         output return_type_str;
-         output (" _hx_run(" ^ (ctx_arg_list ctx function_def.tf_args "__o_") ^ ")");
-         gen_cpp_function_body ctx class_def is_static func_name function_def "" "" no_debug;
+         gen_cpp_function_body ctx class_def is_static ("__default_" ^ class_name ^ remap_name) function_def "" "" no_debug;
+         
+         write_closure_trailer true;
 
-         output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
-         output ("HX_END_DEFAULT_FUNC\n\n");
-
-         if (is_static) then
-            output ( "::Dynamic " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
+         if is_static then
+            output ("::hx::Callable<" ^ func_signature ^ "> " ^ class_name ^ "::" ^ remap_name ^ ";\n\n")
       end;
       ctx.ctx_debug_level <- orig_debug
 
@@ -4656,7 +4731,9 @@ let gen_field_init ctx class_def field =
    (* Function field *)
    | Some { eexpr = TFunction function_def } ->
       if (is_dynamic_haxe_method field) then begin
-         let func_name = "__default_" ^ (remap_name) in
+         let nativeGen = has_meta_key class_def.cl_meta Meta.NativeGen in
+         let class_name = (snd class_def.cl_path) ^ (if nativeGen then "" else "_obj") in
+         let func_name = "__default_" ^ class_name ^ remap_name in
          output ( "\t" ^ remap_name ^ " = new " ^ func_name ^ ";\n\n" );
       end
 
@@ -4739,14 +4816,17 @@ let gen_member_def ctx class_def is_static is_interface field =
       | Some { eexpr = TFunction function_def } ->
          if ( is_dynamic_haxe_method field ) then begin
             if ( doDynamic ) then begin
-               output ("::Dynamic " ^ remap_name ^ ";\n");
+               let func_signature = "::hx::Callable< " ^ (ctx_callable_signature ctx function_def) ^ " > " in
+               output (func_signature ^ remap_name ^ ";\n");
                if (not is_static) && (is_gc_element ctx TCppDynamic) then
                   output ("\t\tinline ::Dynamic _hx_set_" ^ remap_name ^ "(::hx::StackContext *_hx_ctx,::Dynamic _hx_v) { HX_OBJ_WB(this,_hx_v.mPtr) return " ^ remap_name ^ "=_hx_v; }\n");
                output (if is_static then "\t\tstatic " else "\t\t");
-               output ("inline ::Dynamic &" ^ remap_name ^ "_dyn() " ^ "{return " ^ remap_name^ "; }\n")
+               output ("inline " ^ func_signature ^ "&" ^ remap_name ^ "_dyn() " ^ "{return " ^ remap_name^ "; }\n")
             end
          end else begin
-            let return_type = (ctx_type_string ctx function_def.tf_type) in
+            let return_type = match ctx_type_string ctx function_def.tf_type with
+            | "Void" -> "void"
+            | t -> t in
             if ( not is_static && not nonVirtual ) then begin
                let scriptable = Common.defined ctx.ctx_common Define.Scriptable in
                if (not (is_internal_member field.cf_name) && not scriptable ) then begin
@@ -4755,7 +4835,7 @@ let gen_member_def ctx class_def is_static is_interface field =
                end else
                   output "virtual ";
             end;
-            output (if return_type="Void" then "void" else return_type );
+            output return_type;
 
             let remap_name = native_field_name_remap is_static field in
             output (" " ^ remap_name ^ "(" );
@@ -4763,7 +4843,7 @@ let gen_member_def ctx class_def is_static is_interface field =
             output ");\n";
             if ( doDynamic ) then begin
                output (if is_static then "\t\tstatic " else "\t\t");
-               output ("::Dynamic " ^ remap_name ^ "_dyn();\n" )
+               output ("::hx::Callable< " ^ (ctx_callable_signature ctx function_def) ^  "> " ^ remap_name ^ "_dyn();\n" );
             end;
          end;
          output "\n";
@@ -4814,9 +4894,10 @@ let gen_member_def ctx class_def is_static is_interface field =
          (* Add a "dyn" function for variable to unify variable/function access *)
          (match follow field.cf_type with
          | _ when nativeGen  -> ()
-         | TFun (_,_) ->
+         | TFun (tArgs,tRet) ->
+            let type_string = "::hx::Callable<" ^ (tcpp_to_string (cpp_type_of ctx tRet)) ^ "(" ^ (ctx_tfun_arg_list ctx false tArgs) ^ ")> " in
             output (if is_static then "\t\tstatic " else "\t\t");
-            output ("Dynamic " ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
+            output (type_string ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
          | _ ->  (match field.cf_kind with
             | Var { v_read = AccCall } when (not is_static) && (is_dynamic_accessor ("get_" ^ field.cf_name) "get" field class_def) ->
                output ("\t\tDynamic get_" ^ field.cf_name ^ ";\n" )
@@ -6135,7 +6216,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    if (List.length dynamic_functions > 0) then begin
       output_cpp ("void " ^ class_name ^ "::__alloc_dynamic_functions(::hx::Ctx *_hx_ctx," ^ class_name ^ " *_hx_obj) {\n");
       List.iter (fun name ->
-             output_cpp ("\tif (!_hx_obj->" ^ name ^".mPtr) _hx_obj->" ^ name ^ " = new __default_" ^ name ^ "(_hx_obj);\n")
+            output_cpp ("\tif (!_hx_obj->" ^ name ^".mPtr) _hx_obj->" ^ name ^ " = new __default_" ^ class_name ^ name ^ "(_hx_obj);\n")
          ) dynamic_functions;
       (match class_def.cl_super with
       | Some super ->
@@ -6164,7 +6245,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    if ( (not (has_class_flag class_def CInterface)) && (not nativeGen) ) then begin
       output_cpp (class_name ^ "::" ^ class_name ^  "()\n{\n");
       List.iter (fun name ->
-             output_cpp ("\t" ^ name ^ " = new __default_" ^ name ^ "(this);\n")
+             output_cpp ("\t" ^ name ^ " = new __default_" ^ class_name ^ name ^ "(this);\n")
          ) dynamic_functions;
       output_cpp "}\n\n";
 
@@ -7170,7 +7251,7 @@ let rec script_type_string haxe_type =
 let rec script_cpptype_string cppType = match cppType with
    | TCppDynamic
    | TCppUnchanged
-   | TCppWrapped _
+   | TCppCallable _
    | TCppObject -> "Dynamic"
    | TCppObjectPtr -> ".*.hx.Object*"
    | TCppReference t -> ".ref." ^ (script_cpptype_string t)
@@ -7181,7 +7262,7 @@ let rec script_cpptype_string cppType = match cppType with
    | TCppRest _ -> "vaarg_list"
    | TCppVarArg -> "vararg"
    | TCppAutoCast -> ".cpp.AutoCast"
-   | TCppVariant -> ".cpp.Variant"
+   | TCppVariant _ -> ".cpp.Variant"
    | TCppEnum(enum) -> (join_class_path enum.e_path ".")
    | TCppScalar(scalar) -> scalar
    | TCppString -> "String"
@@ -8196,7 +8277,7 @@ class script_writer ctx filename asciiOut =
             this#write ( (this#op IaEnumI) ^ (this#typeTextString "Dynamic") ^ (string_of_int index) ^ "\n");
             gen_expression obj;
 
-         | CppClosure closure ->
+         | CppCallable closure ->
             this#write ( (this#op IaFun) ^ (this#astType closure.close_type) ^ (string_of_int (List.length closure.close_args)) ^ "\n" );
             let close = this#gen_func_args closure.close_args in
             gen_expression closure.close_expr;
