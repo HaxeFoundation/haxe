@@ -7,7 +7,8 @@ The Haxe compiler is licensed under the GNU GPL v2+ license (SPDX: GPL-2.0-or-la
 
 The compiler is built around the Haxe source code base.
 
-If a file does not have a license header or falls under the following one-off exception, it should be assumed to be licensed under the GNU GPL v2+ license with the standard copyright notice:  
+If a file does not have a license header or does not fall under one of the exceptions listed below, 
+it should be assumed to be licensed under the GNU GPL v2+ license with the standard copyright notice:  
 Copyright (C) 2005-2024 Haxe Foundation.
 
 - The Haxe Standard Library is licensed under the MIT License, which is reproduced below.  
