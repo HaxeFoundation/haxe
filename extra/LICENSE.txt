@@ -15,7 +15,7 @@ Copyright (C) 2005-2024 Haxe Foundation.
 
 - Haxe contains third-party source code, some of which is located in the `libs/` directory.  
   Each third-party module includes its own license.  
-  For integration with Haxe, these modules may contain Haxe-related files such as a "duno" file
+  For integration with Haxe, these modules may contain Haxe-related files such as a "dune" file
   or other files for integration with Haxe or OCaml.
   These files are licensed under the Haxe Compiler license (GNU GPL v2+).
 
