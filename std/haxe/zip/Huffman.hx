@@ -22,10 +22,12 @@
 
 package haxe.zip;
 
+import haxe.ds.Vector;
+
 enum Huffman {
 	Found(i:Int);
 	NeedBit(left:Huffman, right:Huffman);
-	NeedBits(n:Int, table:Array<Huffman>);
+	NeedBits(n:Int, table:Vector<Huffman>);
 }
 
 class HuffTools {
@@ -52,14 +54,12 @@ class HuffTools {
 				default: throw "assert";
 			}
 		var size = 1 << d;
-		var table = new Array();
-		for (i in 0...size)
-			table.push(Found(-1));
+		var table = new Vector(size, Found(-1));
 		treeWalk(table, 0, 0, d, t);
 		return NeedBits(d, table);
 	}
 
-	function treeWalk(table, p, cd, d, t) {
+	function treeWalk(table:Vector<Huffman>, p, cd, d, t) {
 		switch (t) {
 			case NeedBit(a, b):
 				if (d > 0) {
@@ -83,18 +83,14 @@ class HuffTools {
 		return NeedBit(treeMake(bits, maxbits, v, len), treeMake(bits, maxbits, v | 1, len));
 	}
 
-	public function make(lengths, pos, nlengths, maxbits) {
+	public function make(lengths:Vector<Int>, pos, nlengths, maxbits) {
 		if (nlengths == 1) {
 			return NeedBit(Found(0), Found(0));
 		}
-		var counts = new Array();
-		var tmp = new Array();
 		if (maxbits > 32)
 			throw "Invalid huffman";
-		for (i in 0...maxbits) {
-			counts.push(0);
-			tmp.push(0);
-		}
+		var counts = new Vector(maxbits, 0);
+		var tmp = new Vector(maxbits, 0);
 		for (i in 0...nlengths) {
 			var p = lengths[i + pos];
 			if (p >= maxbits)
