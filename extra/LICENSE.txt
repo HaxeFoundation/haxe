@@ -3,7 +3,10 @@ Haxe Licenses
 
 For details about Haxe Licenses, please read http://haxe.org/foundation/open-source.html
 
-The Haxe Standard Library MIT License :
+The Haxe Standard Library: std/*
+The Haxe compiler: * (all other files not part of std directory)
+
+The Haxe Standard Library MIT License:
 --------------------------
 
 Copyright (C)2005-2016 Haxe Foundation
@@ -26,7 +29,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
-The Haxe compiler GPL License :
+The Haxe compiler GPL License:
 -------------------------------
 
 		    GNU GENERAL PUBLIC LICENSE
