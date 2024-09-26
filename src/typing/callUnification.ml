@@ -468,8 +468,23 @@ object(self)
 		let ethis_f = ref (fun () -> ()) in
 		let macro_in_macro () =
 			(fun () ->
-				let e = (EThrow((EConst(String("macro-in-macro",SDoubleQuotes))),p),p) in
-				type_expr ~mode ctx e with_type
+				let e_msg = Texpr.type_constant ctx.com.basic (String("macro-in-macro",SDoubleQuotes)) p in
+				let type_as t = mk (TThrow e_msg) t p in
+				match with_type with
+				| WithType.NoValue ->
+					type_as t_dynamic
+				| WithType.Value _ ->
+					let m = spawn_monomorph' ctx.e p in
+					Monomorph.add_down_constraint m (MFromMacroInMacro p);
+					type_as (TMono m)
+				| WithType(t,_) ->
+					begin match follow t with
+						| TMono m ->
+							Monomorph.add_down_constraint m (MFromMacroInMacro p);
+						| _ ->
+							()
+					end;
+					type_as t
 			)
 		in
 		let f = (match ethis.eexpr with

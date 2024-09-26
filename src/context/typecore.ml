@@ -380,6 +380,17 @@ let spawn_monomorph' ctx p =
 let spawn_monomorph ctx p =
 	TMono (spawn_monomorph' ctx p)
 
+let extract_macro_in_macro_constraint m =
+	let rec loop l = match l with
+		| MFromMacroInMacro p :: _ ->
+			Some p
+		| _ :: l ->
+			loop l
+		| [] ->
+			None
+	in
+	loop m.tm_down_constraints
+
 let make_static_field_access c cf t p =
 	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
