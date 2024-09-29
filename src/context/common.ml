@@ -963,7 +963,15 @@ let init_platform com =
 	| Jvm ->
 		raw_define com "java"
 	| Hl ->
-		if Path.file_extension com.file = "c" then define com Define.Hlc;
+		if Path.file_extension com.file = "c" then begin 
+			define com Define.Hlc;
+			(* Hashlink isn't built for arm64, no point in running it. *)
+			let ic, pid = Process_helper.open_process_args_in_pid "uname" [| "uname"; "-m" |] in
+			let arch = input_line ic in
+			if arch <> "arm64" || arch <> "aarch64" then
+				define com Define.NoCompilation;
+			Stdlib.ignore (Process_helper.close_process_in_pid (ic, pid));
+		end;
 	| _ ->
 		()
 	end;
