@@ -617,3 +617,36 @@ and gen_tfun_interface_arg_list args =
    
 and cant_be_null haxe_type =
    is_numeric haxe_type || (type_has_meta_key Meta.NotNull haxe_type )
+
+let is_cpp_scalar cpp_type =
+   match cpp_type with
+   | TCppScalar(_) -> true
+   | _ -> false
+
+let is_cpp_array_implementer cppType =
+   match cppType with
+   | TCppInst ({ cl_array_access = Some _ }, _)
+   | TCppInterface ({ cl_array_access = Some _ }) ->
+      true
+   | _ -> false
+
+let rec cpp_is_struct_access t =
+   match t with
+   | TCppFunction _ -> true
+   | TCppStruct _-> false
+   | TCppInst (class_def, _) -> Meta.has Meta.StructAccess class_def.cl_meta
+   | TCppReference (r) -> cpp_is_struct_access r
+   | _ -> false
+
+let rec cpp_is_native_array_access t =
+   match t with
+   | TCppStruct s -> cpp_is_native_array_access s
+   | TCppReference s -> cpp_is_native_array_access s
+   | TCppInst ({ cl_array_access = Some _ } as klass, _) when is_extern_class klass && Meta.has Meta.NativeArrayAccess klass.cl_meta -> true
+   | _ -> false
+
+let cpp_is_dynamic_type = function
+   | TCppDynamic | TCppObject | TCppVariant | TCppWrapped _ | TCppGlobal | TCppNull
+   | TCppInterface _
+      -> true
+   | _ -> false

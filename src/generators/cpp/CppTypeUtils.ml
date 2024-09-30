@@ -7,7 +7,6 @@ open Type
 open Error
 open Common
 open Globals
-open CppExprUtils
 
 let follow = Abstract.follow_with_abstracts
 
@@ -65,7 +64,8 @@ let is_internal_class = function
    | [ "cpp" ], "Float32"
    | [ "cpp" ], "Float64" ->
       true
-   | _ -> false
+   | _ ->
+      false
 
 let is_native_class class_def =
    (is_extern_class class_def || is_native_gen_class class_def) && not (is_internal_class class_def.cl_path)
@@ -186,4 +186,26 @@ let is_array_or_dyn_array haxe_type =
 let is_array_implementer haxe_type =
    match follow haxe_type with
    | TInst ({ cl_array_access = Some _ }, _) -> true
+   | _ -> false
+
+let rec has_rtti_interface c interface =
+   List.exists (function (t,pl) ->
+      (snd t.cl_path) = interface && (match fst t.cl_path with | ["cpp";"rtti"] -> true | _ -> false )
+   ) c.cl_implements ||
+      (match c.cl_super with None -> false | Some (c,_) -> has_rtti_interface c interface)
+
+let has_field_integer_lookup class_def =
+   has_rtti_interface class_def "FieldIntegerLookup"
+
+let has_field_integer_numeric_lookup class_def =
+   has_rtti_interface class_def "FieldNumericIntegerLookup"
+
+let should_implement_field x = is_physical_field x
+
+let is_scalar_abstract abstract_def =
+   Meta.has Meta.Scalar abstract_def.a_meta && Meta.has Meta.CoreType abstract_def.a_meta
+
+let is_real_function field =
+   match field.cf_kind with
+   | Method MethNormal | Method MethInline-> true
    | _ -> false
