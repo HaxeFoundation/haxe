@@ -870,7 +870,7 @@ module HxbWriter = struct
 	(* References *)
 
 	let maybe_add_sig_dep writer m =
-		if writer.minimal && m.m_path <> writer.current_module.m_path && not (List.exists (fun m' -> m'.m_path = m.m_path) writer.deps) then
+		if m.m_path <> writer.current_module.m_path && not (List.exists (fun m' -> m'.m_path = m.m_path) writer.deps) then
 			writer.deps <- m :: writer.deps
 
 	let write_class_ref writer (c : tclass) =

@@ -104,7 +104,8 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 				mc_min_chunks = HxbWriter.get_chunks min_writer;
 				mc_extra = { m.m_extra with
 					m_cache_state = MSGood;
-					m_sig_deps = Some (HxbWriter.get_dependencies min_writer)
+					m_sig_deps = Some (HxbWriter.get_dependencies min_writer);
+					m_all_deps = PMap.fold (fun mdep acc -> (mdep.md_path, mdep.md_sign) :: acc) (HxbWriter.get_dependencies writer) [];
 				}
 			}
 

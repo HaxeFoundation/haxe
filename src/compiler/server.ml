@@ -440,7 +440,8 @@ class hxb_reader_api_server
 			let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file) in
 			let full_restore = com.is_macro_context || com.display.dms_full_typing || is_display_file in
 			let f_next chunks until =
-				let t_hxb = Timer.timer ["server";"module cache";"hxb read";"until " ^ (string_of_chunk_kind until)] in
+				let macro = if com.is_macro_context then " (macro)" else "" in
+				let t_hxb = Timer.timer ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] in
 				let r = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until (not full_restore) in
 				t_hxb();
 				r
@@ -450,7 +451,8 @@ class hxb_reader_api_server
 			(* We try to avoid reading expressions as much as possible, so we only do this for
 				 our current display file if we're in display mode. *)
 			if full_restore then ignore(f_next chunks EOM)
-			else delay (fun () -> ignore(f_next chunks EOF));
+			else if DisplayPosition.display_position#is_display_dependency m.m_path m.m_extra.m_sign then
+				delay (fun () -> ignore(f_next chunks EOF));
 			m
 		| BadModule reason ->
 			die (Printf.sprintf "Unexpected BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)) __LOC__
@@ -569,17 +571,23 @@ and type_module sctx com delay mpath p =
 			   in the cache. The true cache state will be known after check_module. *)
 			begin match check_module sctx mpath m.m_extra p with
 				| None ->
+					(* TODO: does this help at all? *)
+					(* let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file) in *)
+					(* if is_display_file then DisplayPosition.display_position#set_display_module m.m_path m.m_extra; *)
+
 					add_modules false m;
 				| Some reason ->
 					skip m.m_path reason
 			end
 		| BinaryModule mc ->
+			let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file) in
+			if is_display_file then DisplayPosition.display_position#set_display_module mc.mc_path mc.mc_extra;
+
 			(* Similarly, we only know that a binary module wasn't explicitly tainted. Decode it only after
 			   checking dependencies. This means that the actual decoding never has any reason to fail. *)
 			begin match check_module sctx mpath mc.mc_extra p with
 				| None ->
 					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined com Define.HxbTimes) in
-					let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file) in
 					let full_restore = com.is_macro_context || com.display.dms_full_typing || is_display_file in
 					let api = match com.hxb_reader_api with
 						| Some api ->
@@ -590,16 +598,20 @@ and type_module sctx com delay mpath p =
 							api
 					in
 					let f_next chunks until =
-						let t_hxb = Timer.timer ["server";"module cache";"hxb read";"until " ^ (string_of_chunk_kind until)] in
+						let macro = if com.is_macro_context then " (macro)" else "" in
+						let t_hxb = Timer.timer ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] in
 						let r = reader#read_chunks_until api chunks until (not full_restore) in
 						t_hxb();
 						r
 					in
+
 					let m,chunks = f_next (if full_restore then mc.mc_chunks else mc.mc_min_chunks) EOT in
+
 					(* We try to avoid reading expressions as much as possible, so we only do this for
 					   our current display file if we're in display mode. *)
 					if full_restore then ignore(f_next chunks EOM)
-					else delay (fun () -> ignore(f_next chunks EOF));
+					else if DisplayPosition.display_position#is_display_dependency m.m_path m.m_extra.m_sign then
+						delay (fun () -> ignore(f_next chunks EOF));
 					add_modules true m;
 				| Some reason ->
 					skip mpath reason

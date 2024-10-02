@@ -10,6 +10,7 @@ class display_position_container =
 	object (self)
 		(** Current display position *)
 		val mutable pos = null_pos
+		val mutable display_module : (path * TType.module_def_extra) option = None
 		val mutable file_key = None
 		val mutable file_keys = []
 		(**
@@ -25,6 +26,14 @@ class display_position_container =
 			last_pos <- p;
 			file_key <- None;
 			file_keys <- if p.pfile = DisplayProcessingGlobals.file_input_marker then [] else [Path.UniqueKey.create p.pfile]
+
+		method set_display_module path mc_extra =
+			display_module <- Some (path, mc_extra)
+
+		method is_display_dependency path sign = match display_module with
+			(* That one is tricky.. usually when it's not set it's because it's being retyped *)
+			| None -> true
+			| Some m' -> List.mem (path,sign) (snd m').m_all_deps
 
 		method set_files files =
 			file_keys <- files
@@ -52,6 +61,7 @@ class display_position_container =
 		*)
 		method reset =
 			pos <- null_pos;
+			display_module <- None;
 			file_key <- None;
 			file_keys <- []
 		(**
