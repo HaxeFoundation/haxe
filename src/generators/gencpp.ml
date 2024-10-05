@@ -27,6 +27,7 @@ open CppTypeUtils
 open CppAst
 open CppAstTools
 open CppSourceWriter
+open CppContext
 
 (*
    Generators do not care about non-core-type abstracts, so let us follow them
@@ -38,73 +39,6 @@ let replace_float_separators s = Texpr.replace_separators s ""
 
 let make_base_directory dir =
    Path.mkdir_recursive "" ( ( Str.split_delim (Str.regexp "[\\/]+") dir ) );;
-
-(* CPP code generation context *)
-(*
-  ctx_debug_level
-    0 = no debug
-    1 = function + line debug via macros, which can be activated at cpp compile-time
-    2 = include macros for HXCPP_DEBUGGER
-    3 = annotate source with additional info about AST and types
-    4 = console output at haxe compile-time
-
-   normal = 1
-*)
-type context =
-{
-   ctx_common : Common.context;
-
-   mutable ctx_debug_level : int;
-   (* cached as required *)
-   mutable ctx_file_info : (string,string) PMap.t ref;
-
-   ctx_type_ids : (string,Int32.t) Hashtbl.t;
-
-   (* Per file *)
-   ctx_output : string -> unit;
-   ctx_writer : source_writer;
-   ctx_file_id : int ref;
-   ctx_is_header : bool;
-
-   ctx_interface_slot : (string,int) Hashtbl.t ref;
-   ctx_interface_slot_count : int ref;
-   (* This is for returning from the child nodes of TSwitch && TTry *)
-   mutable ctx_real_this_ptr : bool;
-   mutable ctx_class_member_types : (string,string) Hashtbl.t;
-}
-
-let new_context common_ctx debug file_info member_types =
-let null_file = new source_writer common_ctx ignore ignore (fun () -> () ) in
-let has_def def = Common.defined_value_safe common_ctx def <>""  in
-let result =
-{
-   ctx_common = common_ctx;
-   ctx_writer = null_file;
-   ctx_file_id = ref (-1);
-   ctx_type_ids = Hashtbl.create 0;
-   ctx_is_header = false;
-   ctx_output = (null_file#write);
-   ctx_interface_slot = ref (Hashtbl.create 0);
-   ctx_interface_slot_count = ref 2;
-   ctx_debug_level = if has_def Define.AnnotateSource then 3 else
-                     if has_def Define.HxcppDebugger then 2 else
-                        debug;
-   ctx_real_this_ptr = true;
-   ctx_class_member_types =  member_types;
-   ctx_file_info = file_info;
-} in
-result
-
-
-let file_context ctx writer debug header =
-   { ctx with
-      ctx_writer = writer;
-      ctx_output = (writer#write);
-      ctx_is_header = header;
-      ctx_file_id = ref (-1);
-   }
-;;
-
 
 (* The internal header files are also defined in the hx/Object.h file, so you do
    #include them separately.  However, Math classes has its
@@ -561,7 +495,7 @@ let rec is_dynamic_in_cpp ctx expr =
       result
    end
 
-and is_dynamic_member_lookup_in_cpp ctx field_object field =
+and is_dynamic_member_lookup_in_cpp (ctx:context) field_object field =
    let member = field_name field in
    if (is_internal_member member) then false else
    if (is_native_pointer field_object) then false else
