@@ -518,12 +518,12 @@ and type_string_suff suffix haxe_type remap =
    | TAbstract ({ a_path = (["cpp"],"UInt8") },[]) -> "unsigned char"
    | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> "Dynamic"
    | TAbstract ({ a_path = ([],"Null") }, [t]) ->
-		(match follow t with
-		| TAbstract ({ a_path = [],"Int" },_)
-		| TAbstract ({ a_path = [],"Float" },_)
-		| TAbstract ({ a_path = [],"Bool" },_) -> "Dynamic" ^ suffix
-		| t when type_has_meta_key Meta.NotNull t -> "Dynamic" ^ suffix
-		| _ -> type_string_suff suffix t remap)
+    (match follow t with
+    | TAbstract ({ a_path = [],"Int" },_)
+    | TAbstract ({ a_path = [],"Float" },_)
+    | TAbstract ({ a_path = [],"Bool" },_) -> "Dynamic" ^ suffix
+    | t when type_has_meta_key Meta.NotNull t -> "Dynamic" ^ suffix
+    | _ -> type_string_suff suffix t remap)
    | TEnum (enum,_) ->  (cpp_enum_path_of enum) ^ suffix
    | TInst (klass,params) ->  (class_string klass suffix params remap)
    | TType (type_def,params) ->
@@ -728,3 +728,13 @@ let enum_getter_type t =
   | TCppScalar "bool"  -> "Bool"
   | TCppScalar x  -> x
   | _  -> "Object"
+
+let cpp_var_name_of var =
+  match get_meta_string var.v_meta Meta.Native with
+  | Some n -> n
+  | None -> keyword_remap var.v_name
+
+let cpp_var_debug_name_of v =
+  match get_meta_string v.v_meta Meta.RealPath with
+  | Some n -> n
+  | None -> v.v_name

@@ -70,5 +70,31 @@ let file_context ctx writer debug header =
     ctx_file_id = ref (-1);
   }
 
+(* todo - is this how it's done? *)
+let hash_keys hash =
+  let key_list = ref [] in
+  Hashtbl.iter (fun key value -> key_list :=  key :: !key_list ) hash;
+  !key_list
+
+let pmap_keys pmap =
+  let key_list = ref [] in
+  PMap.iter (fun key _ -> key_list :=  key :: !key_list ) pmap;
+  !key_list
+
+let pmap_values pmap =
+  let value_list = ref [] in
+  PMap.iter (fun _ value -> value_list :=  value :: !value_list ) pmap;
+  !value_list
+
+(* The Hashtbl structure seems a little odd - but here is a helper function *)
+let hash_iterate hash visitor =
+  let result = ref [] in
+  Hashtbl.iter (fun key value -> result :=  (visitor key value) :: !result ) hash;
+  !result
+
 let is_gc_element ctx member_type =
   Common.defined ctx.ctx_common Define.HxcppGcGenerational && (is_object_element member_type)
+
+let strip_file ctx file = match Common.defined ctx Common.Define.AbsolutePath with
+  | true -> Path.get_full_path file
+  | false -> ctx.class_paths#relative_path file
