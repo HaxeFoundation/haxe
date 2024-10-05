@@ -112,14 +112,7 @@ let find_type_in_current_module_context ctx pack name =
 			ImportHandling.mark_import_position ctx pi;
 			t
 	end else begin
-		(* All this is very weird *)
-		try
-			List.find (fun mt -> t_path mt = (pack,name)) ctx.m.curmod.m_types
-		with Not_found ->
-			(* see also https://github.com/HaxeFoundation/haxe/issues/9150 *)
-			let t,pi = ctx.m.import_resolution#find_type_import_weirdly pack name in
-			ImportHandling.mark_import_position ctx pi;
-		t
+		List.find (fun mt -> t_path mt = (pack,name)) ctx.m.curmod.m_types
 	end
 
 let find_in_wildcard_imports ctx mname p f =
