@@ -4,6 +4,7 @@ open Type
 open Error
 open Common
 open Globals
+open CppHash
 open CppAstTools
 open CppTypeUtils
 
@@ -27,8 +28,6 @@ let verbatim_include file =
   match String.sub file 0 1 with
   | "@" -> "@import " ^ String.sub file 1 (String.length file - 1) ^ ";\n"
   | _ -> "#include \"" ^ file ^ "\"\n"
-
-let hash64 s = String.sub (Digest.to_hex (Digest.string s)) 0 16
 
 let guarded_include file =
   let guard_name = "INCLUDED_" ^ hash64 file in

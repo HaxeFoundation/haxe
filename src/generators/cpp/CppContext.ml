@@ -71,10 +71,6 @@ let file_context ctx writer debug header =
   }
 
 (* todo - is this how it's done? *)
-let hash_keys hash =
-  let key_list = ref [] in
-  Hashtbl.iter (fun key value -> key_list :=  key :: !key_list ) hash;
-  !key_list
 
 let pmap_keys pmap =
   let key_list = ref [] in
@@ -91,6 +87,11 @@ let hash_iterate hash visitor =
   let result = ref [] in
   Hashtbl.iter (fun key value -> result :=  (visitor key value) :: !result ) hash;
   !result
+
+let hash_keys hash =
+  let key_list = ref [] in
+  Hashtbl.iter (fun key value -> key_list :=  key :: !key_list ) hash;
+  !key_list
 
 let is_gc_element ctx member_type =
   Common.defined ctx.ctx_common Define.HxcppGcGenerational && (is_object_element member_type)
