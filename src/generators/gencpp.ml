@@ -651,54 +651,47 @@ let cpp_class_name klass =
    if (is_native_class klass) || path="::String" then path else path ^ "_obj"
 ;;
 
-let ctx_type_string haxe_type =
+let type_to_string haxe_type =
       tcpp_to_string (cpp_type_of haxe_type)
-;;
 
-
-let ctx_cant_be_null haxe_type =
+let type_cant_be_null haxe_type =
    match cpp_type_of haxe_type with
    | TCppScalar _ -> true
    | _  -> false
 
-let ctx_arg_type_name name default_val arg_type prefix =
+let type_arg_to_string name default_val arg_type prefix =
    let remap_name = keyword_remap name in
-   let type_str = (ctx_type_string arg_type) in
+   let type_str = (type_to_string arg_type) in
    match default_val with
    | Some {eexpr = TConst TNull}  -> (type_str,remap_name)
-   | Some constant when (ctx_cant_be_null arg_type) -> ("::hx::Null< " ^ type_str ^ " > ",prefix ^ remap_name)
+   | Some constant when (type_cant_be_null arg_type) -> ("::hx::Null< " ^ type_str ^ " > ",prefix ^ remap_name)
    | Some constant  -> (type_str,prefix ^ remap_name)
-   | _ -> (type_str,remap_name);;
-
-
+   | _ -> (type_str,remap_name)
 
 (* Generate prototype text, including allowing default values to be null *)
-let ctx_arg name default_val arg_type prefix =
-   let pair = ctx_arg_type_name name default_val arg_type prefix in
-   (fst pair) ^ " " ^ (snd pair);;
-
+let print_arg name default_val arg_type prefix =
+   let (n, t) = type_arg_to_string name default_val arg_type prefix in
+   n ^ " " ^ t
 
 (* Generate prototype text, including allowing default values to be null *)
-let ctx_arg_name name default_val arg_type prefix =
-   let pair = ctx_arg_type_name name default_val arg_type prefix in
-   (snd pair);;
+let print_arg_name name default_val arg_type prefix =
+   let (n, _) = type_arg_to_string name default_val arg_type prefix in
+   n
 
+let print_arg_list ctx arg_list prefix =
+   String.concat "," (List.map (fun (v,o) -> (print_arg v.v_name o v.v_type prefix) ) arg_list)
 
-let ctx_arg_list ctx arg_list prefix =
-   String.concat "," (List.map (fun (v,o) -> (ctx_arg v.v_name o v.v_type prefix) ) arg_list)
+let print_arg_list_name ctx arg_list prefix =
+   String.concat "," (List.map (fun (v,o) -> (print_arg_name v.v_name o v.v_type prefix) ) arg_list)
 
-let ctx_arg_list_name ctx arg_list prefix =
-   String.concat "," (List.map (fun (v,o) -> (ctx_arg_name v.v_name o v.v_type prefix) ) arg_list)
-
-let cpp_arg_names args =
+let print_arg_names args =
    String.concat "," (List.map (fun (name,_,_) -> keyword_remap name) args)
-;;
 
-let rec ctx_tfun_arg_list include_names arg_list =
+let rec print_tfun_arg_list include_names arg_list =
    let oType o arg_type =
-      let type_str = (ctx_type_string arg_type) in
+      let type_str = (type_to_string arg_type) in
       (* type_str may have already converted Null<X> to Dynamic because of NotNull tag ... *)
-      if o && (ctx_cant_be_null arg_type) && type_str<>"Dynamic" then
+      if o && (type_cant_be_null arg_type) && type_str<>"Dynamic" then
          "::hx::Null< " ^ type_str ^ " > "
       else
          type_str
@@ -707,7 +700,7 @@ let rec ctx_tfun_arg_list include_names arg_list =
    | [] -> ""
    | [(name,o,arg_type)] -> (oType o arg_type) ^ (if include_names then " " ^ (keyword_remap name) else "")
    | (name,o,arg_type) :: remaining  ->
-      (oType o arg_type) ^ (if include_names then " " ^ (keyword_remap name) else "") ^  "," ^ (ctx_tfun_arg_list include_names remaining)
+      (oType o arg_type) ^ (if include_names then " " ^ (keyword_remap name) else "") ^  "," ^ (print_tfun_arg_list include_names remaining)
 
 let cpp_var_type_of var =
    tcpp_to_string (cpp_type_of var.v_type)
@@ -727,7 +720,7 @@ let cpp_macro_var_type_of var =
 
 let ctx_function_signature include_names tfun abi =
    match follow tfun with
-   | TFun(args,ret) -> (ctx_type_string ret) ^ " " ^ abi ^ "(" ^ (ctx_tfun_arg_list include_names args) ^ ")"
+   | TFun(args,ret) -> (type_to_string ret) ^ " " ^ abi ^ "(" ^ (print_tfun_arg_list include_names args) ^ ")"
    | _ -> "void *"
 
 
@@ -820,7 +813,7 @@ let mk_injection prologue set_var tail =
 ;;
 
 
-let cpp_arg_type_name tvar default_val prefix =
+let tvar_arg_to_string tvar default_val prefix =
    let remap_name = (cpp_var_name_of tvar) in
    let type_str = (cpp_var_type_of tvar) in
    match default_val with
@@ -899,7 +892,7 @@ let cpp_is_const_scalar_array arrayType expressions =
 
 (* Generate prototype text, including allowing default values to be null *)
 let cpp_arg_string tvar default_val prefix =
-   let t,n = cpp_arg_type_name tvar default_val prefix in
+   let t,n = tvar_arg_to_string tvar default_val prefix in
    t ^ " " ^ n
 ;;
 
@@ -909,7 +902,7 @@ let cpp_arg_list args prefix =
 
 
 let gen_type ctx haxe_type =
-   ctx.ctx_output (ctx_type_string haxe_type)
+   ctx.ctx_output (type_to_string haxe_type)
 ;;
 
 
@@ -1958,7 +1951,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
    end else (match  field.cf_expr with
    (* Function field *)
    | Some { eexpr = TFunction function_def } ->
-      let return_type_str = (ctx_type_string function_def.tf_type) in
+      let return_type_str = (type_to_string function_def.tf_type) in
       let nargs = string_of_int (List.length function_def.tf_args) in
       let return_type = (cpp_type_of function_def.tf_type ) in
       let is_void = return_type = TCppVoid in
@@ -1978,7 +1971,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          let remap_name = native_field_name_remap is_static field in
          output (if is_void then "void" else return_type_str );
          output (" " ^ class_name ^ "::" ^ remap_name ^ "(" );
-         output (ctx_arg_list ctx function_def.tf_args "__o_");
+         output (print_arg_list ctx function_def.tf_args "__o_");
          output ")";
          ctx.ctx_real_this_ptr <- true;
          let code = (get_code field.cf_meta Meta.FunctionCode) in
@@ -1986,7 +1979,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
 
          if nativeImpl<>"" && is_static then begin
             output " {\n";
-            output ("\t" ^ ret ^ "::" ^ nativeImpl ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n");
+            output ("\t" ^ ret ^ "::" ^ nativeImpl ^ "(" ^ (print_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n");
             output "}\n\n";
          end else
             gen_cpp_function_body ctx class_def is_static field.cf_name function_def code tail_code no_debug;
@@ -2056,7 +2049,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          let func_name = "__default_" ^ (remap_name) in
          output ("HX_BEGIN_DEFAULT_FUNC(" ^ func_name ^ "," ^ class_name ^ ")\n");
          output return_type_str;
-         output (" _hx_run(" ^ (ctx_arg_list ctx function_def.tf_args "__o_") ^ ")");
+         output (" _hx_run(" ^ (print_arg_list ctx function_def.tf_args "__o_") ^ ")");
          gen_cpp_function_body ctx class_def is_static func_name function_def "" "" no_debug;
 
          output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
@@ -2145,9 +2138,9 @@ let gen_member_def ctx class_def is_static is_interface field =
       match follow field.cf_type, field.cf_kind with
       | _, Method MethDynamic  -> ()
       | TFun (args,return_type), Method _  ->
-         let gen_args = ctx_tfun_arg_list true in
+         let gen_args = print_tfun_arg_list true in
          if is_static || nativeGen then begin
-            output ( (if (not is_static) then "		virtual " else "		" ) ^ (ctx_type_string return_type) );
+            output ( (if (not is_static) then "		virtual " else "		" ) ^ (type_to_string return_type) );
             output (" " ^ remap_name ^ "( " );
             output (gen_args args);
             output (if (not is_static) then ")=0;\n" else ");\n");
@@ -2159,7 +2152,7 @@ let gen_member_def ctx class_def is_static is_interface field =
             end
          end else begin
             let argList = gen_args args in
-            let returnType = ctx_type_string return_type in
+            let returnType = type_to_string return_type in
             let returnStr = if returnType = "void" then "" else "return " in
             let commaArgList = if argList="" then argList else "," ^ argList in
             let cast = "::hx::interface_cast< ::" ^ join_class_path_remap class_def.cl_path "::" ^ "_obj *>" in
@@ -2171,7 +2164,7 @@ let gen_member_def ctx class_def is_static is_interface field =
             output ("				GCCheckPointer(_hx_.mPtr);\n");
             output ("			#endif\n");
             output ("			#endif\n");
-            output ("			" ^ returnStr ^ "(_hx_.mPtr->*( " ^ cast ^ "(_hx_.mPtr->_hx_getInterface(" ^ (cpp_class_hash class_def) ^ ")))->_hx_" ^ remap_name ^ ")(" ^ cpp_arg_names args ^ ");\n		}\n" );
+            output ("			" ^ returnStr ^ "(_hx_.mPtr->*( " ^ cast ^ "(_hx_.mPtr->_hx_getInterface(" ^ (cpp_class_hash class_def) ^ ")))->_hx_" ^ remap_name ^ ")(" ^ print_arg_names args ^ ");\n		}\n" );
          end
       | _  ->  ( )
    end else begin
@@ -2193,7 +2186,7 @@ let gen_member_def ctx class_def is_static is_interface field =
                output ("inline ::Dynamic &" ^ remap_name ^ "_dyn() " ^ "{return " ^ remap_name^ "; }\n")
             end
          end else begin
-            let return_type = (ctx_type_string function_def.tf_type) in
+            let return_type = (type_to_string function_def.tf_type) in
             if ( not is_static && not nonVirtual ) then begin
                let scriptable = Common.defined ctx.ctx_common Define.Scriptable in
                if (not (is_internal_member field.cf_name) && not scriptable ) then begin
@@ -2206,7 +2199,7 @@ let gen_member_def ctx class_def is_static is_interface field =
 
             let remap_name = native_field_name_remap is_static field in
             output (" " ^ remap_name ^ "(" );
-            output (ctx_arg_list ctx function_def.tf_args "" );
+            output (print_arg_list ctx function_def.tf_args "" );
             output ");\n";
             if ( doDynamic ) then begin
                output (if is_static then "\t\tstatic " else "\t\t");
@@ -2227,13 +2220,13 @@ let gen_member_def ctx class_def is_static is_interface field =
                   None
             in
 
-            String.concat "," (List.map (fun (n,o,t) -> (ctx_arg n (get_default_value n) t prefix) ) arg_list)
+            String.concat "," (List.map (fun (n,o,t) -> (print_arg n (get_default_value n) t prefix) ) arg_list)
          in
          let tl,tr = match follow field.cf_type with
             | TFun(tl,tr) -> tl,tr
             | _ -> die "" __LOC__
          in
-         let return_type = (ctx_type_string tr) in
+         let return_type = (type_to_string tr) in
          let remap_name = native_field_name_remap is_static field in
          output "virtual ";
          output (if return_type="Void" then "void" else return_type );
@@ -2414,7 +2407,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
                   (try let construct_type = Hashtbl.find constructor_deps klass.cl_path in
                      visit_type construct_type.cf_type
                   with Not_found -> () )
-               | _ -> print_endline ("TSuper : Odd etype ?" ^ ( (ctx_type_string expression.etype)) )
+               | _ -> print_endline ("TSuper : Odd etype ?" ^ ( (type_to_string expression.etype)) )
                )
             | _ -> ()
          );
@@ -2715,7 +2708,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
       match constructor.ef_type with
       | TFun (args,_) ->
          output_cpp (remap_class_name ^ " " ^ class_name ^ "::" ^ name ^ "(" ^
-            (ctx_tfun_arg_list true args) ^")\n");
+            (print_tfun_arg_list true args) ^")\n");
 
          output_cpp ("{\n\treturn ::hx::CreateEnum< " ^ class_name ^ " >(" ^ (strq name) ^ "," ^
             (string_of_int constructor.ef_index) ^ "," ^ (string_of_int (List.length args)) ^  ")" );
@@ -2869,7 +2862,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
       output_h ( "\t\tstatic " ^  remap_class_name ^ " " ^ name );
       match constructor.ef_type with
       | TFun (args,_) ->
-         output_h ( "(" ^ (ctx_tfun_arg_list true args) ^");\n");
+         output_h ( "(" ^ (print_tfun_arg_list true args) ^");\n");
          output_h ( "\t\tstatic ::Dynamic " ^ name ^ "_dyn();\n");
       | _ ->
          output_h ";\n";
@@ -2897,7 +2890,7 @@ let list_iteri func in_list =
 let has_new_gc_references class_def =
    (
       let is_gc_reference field =
-      (should_implement_field field) && (is_data_member field) && not (ctx_cant_be_null field.cf_type)
+      (should_implement_field field) && (is_data_member field) && not (type_cant_be_null field.cf_type)
       in
       List.exists is_gc_reference class_def.cl_ordered_fields
    )
@@ -3004,8 +2997,8 @@ let has_boot_field class_def =
 ;;
 
 let cpp_tfun_signature ctx include_names args return_type =
-  let argList = ctx_tfun_arg_list include_names args in
-  let returnType = ctx_type_string return_type in
+  let argList = print_tfun_arg_list include_names args in
+  let returnType = type_to_string return_type in
   ("( " ^ returnType ^ " (::hx::Object::*)(" ^ argList ^ "))")
 ;;
 
@@ -3096,11 +3089,11 @@ let constructor_arg_var_list class_def ctx =
    | Some definition ->
             (match definition.cf_expr with
                | Some { eexpr = TFunction function_def } ->
-                  List.map (fun (v,o) -> (v.v_name, ctx_arg_type_name v.v_name o v.v_type "__o_"))
+                  List.map (fun (v,o) -> (v.v_name, type_arg_to_string v.v_name o v.v_type "__o_"))
                         function_def.tf_args;
                | _ ->
                   (match follow definition.cf_type with
-                     | TFun (args,_) -> List.map (fun (a,_,t) -> (a, (ctx_type_string t, a)) )  args
+                     | TFun (args,_) -> List.map (fun (a,_,t) -> (a, (type_to_string t, a)) )  args
                      | _ -> [])
             )
    | _ -> []
@@ -3166,7 +3159,7 @@ let generate_protocol_delegate ctx class_def output =
    let dump_delegate field =
       match field.cf_type with
       |  TFun(args,ret) ->
-         let retStr = ctx_type_string ret in
+         let retStr = type_to_string ret in
          let nativeName = get_meta_string field.cf_meta Meta.ObjcProtocol in
          let fieldName,argNames = if nativeName<>"" then begin
             let parts = ExtString.String.nsplit nativeName ":" in
@@ -3180,9 +3173,9 @@ let generate_protocol_delegate ctx class_def output =
          (try
             List.iter2 (fun (name,_,argType) signature_name ->
                 if !first then
-                  output (" :(" ^ (ctx_type_string argType) ^ ")" ^ name )
+                  output (" :(" ^ (type_to_string argType) ^ ")" ^ name )
                 else
-                  output (" " ^ signature_name ^ ":(" ^ (ctx_type_string argType) ^ ")" ^ name );
+                  output (" " ^ signature_name ^ ":(" ^ (type_to_string argType) ^ ")" ^ name );
                 first := false;
                 ) args argNames;
          with Invalid_argument _ -> begin
@@ -3511,11 +3504,11 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                             let glue =  Printf.sprintf "%s_%08lx" field.cf_name (gen_hash32 0 cast) in
                             if not (Hashtbl.mem alreadyGlued castKey) then begin
                                Hashtbl.replace alreadyGlued castKey ();
-                               let argList = ctx_tfun_arg_list true args in
-                               let returnType = ctx_type_string return_type in
+                               let argList = print_tfun_arg_list true args in
+                               let returnType = type_to_string return_type in
                                let returnStr = if returnType="void" then "" else "return " in
                                let cppCode = returnType ^ " " ^ class_name ^ "::" ^ glue ^ "(" ^ argList ^ ") {\n" ^
-                                  "\t\t\t" ^ returnStr ^ realName ^ "(" ^ cpp_arg_names args ^ ");\n}\n" in
+                                  "\t\t\t" ^ returnStr ^ realName ^ "(" ^ print_arg_names args ^ ");\n}\n" in
                                let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in
                                header_glue := headerCode :: !header_glue;
                                cpp_glue := cppCode :: !cpp_glue;
@@ -3731,7 +3724,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
            | TCppInst(t, _) as inst when (Meta.has Meta.StructAccess t.cl_meta)
               -> "cpp::Struct< " ^ (tcpp_to_string inst) ^ " > "
            | TCppStar(t,_) -> "cpp::Pointer< " ^ ( tcpp_to_string t ) ^ " >"
-           | _ -> ctx_type_string f.cf_type
+           | _ -> type_to_string f.cf_type
       in
 
       (* Dynamic "Set" Field function *)
@@ -3918,9 +3911,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    if (scriptable && not nativeGen) then begin
       let delegate = "this->" in
       let dump_script_field idx (field,f_args,return_t) =
-         let args = ctx_tfun_arg_list true f_args in
+         let args = print_tfun_arg_list true f_args in
          let names = List.map (fun (n,_,_) -> keyword_remap n) f_args in
-         let return_type = ctx_type_string return_t in
+         let return_type = type_to_string return_t in
          let ret = if (return_type="Void" || return_type="void") then " " else "return " in
          let name = keyword_remap field.cf_name in
          let vtable =  "__scriptVTable[" ^ (string_of_int (idx+1) ) ^ "] " in
@@ -4300,11 +4293,11 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             match follow field.cf_type, field.cf_kind with
             | _, Method MethDynamic  -> ()
             | TFun (args,return_type), _  ->
-                let retVal = ctx_type_string return_type in
+                let retVal = type_to_string return_type in
                 let ret = if retVal="void" then "" else "return " in
                 let name = keyword_remap field.cf_name in
                 let argNames = List.map (fun (name,_,_) -> keyword_remap name ) args in
-                output_h ( "\t\t" ^ retVal ^" " ^ name ^ "( " ^ ctx_tfun_arg_list true args ^ ") {\n");
+                output_h ( "\t\t" ^ retVal ^" " ^ name ^ "( " ^ print_tfun_arg_list true args ^ ") {\n");
                 output_h ( "\t\t\t" ^ ret ^ "super::" ^ name ^ "( " ^ (String.concat "," argNames) ^ ");\n\t\t}\n");
             | _ -> ()
             ) neededInterfaceFunctions;
