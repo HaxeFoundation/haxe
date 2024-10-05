@@ -4,6 +4,7 @@ open Type
 open Error
 open Common
 open Globals
+open CppAstTools
 
 (* CPP code generation context *)
 (*
@@ -68,3 +69,6 @@ let file_context ctx writer debug header =
     ctx_is_header = header;
     ctx_file_id = ref (-1);
   }
+
+let is_gc_element ctx member_type =
+  Common.defined ctx.ctx_common Define.HxcppGcGenerational && (is_object_element member_type)

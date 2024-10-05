@@ -209,3 +209,15 @@ let is_real_function field =
    match field.cf_kind with
    | Method MethNormal | Method MethInline-> true
    | _ -> false
+
+let get_nth_type field index =
+   match follow field.ef_type with
+   | TFun (args,_) ->
+      let rec nth l index = match l with
+      | [] -> raise Not_found
+      | (_,_,t)::rest ->
+            if index = 0 then t
+            else nth rest (index-1)
+      in
+      nth args index
+   | _ -> raise Not_found

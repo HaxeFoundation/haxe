@@ -650,3 +650,81 @@ let cpp_is_dynamic_type = function
    | TCppInterface _
       -> true
    | _ -> false
+
+let is_object_element member_type =
+  match member_type with
+   | TCppInst (x, _)
+   | TCppInterface x
+       -> not (is_extern_class x)
+   | TCppDynamic
+   | TCppObject
+   | TCppObjectPtr
+   | TCppEnum _
+   | TCppString
+   | TCppFunction _
+   | TCppDynamicArray
+   | TCppObjectArray _
+   | TCppWrapped _
+   | TCppScalarArray _
+   | TCppClass
+       -> true
+   | _ -> false
+
+let cpp_variant_type_of t = match t with
+  | TCppDynamic
+  | TCppUnchanged
+  | TCppObject
+  | TCppObjectPtr
+  | TCppReference _
+  | TCppStruct _
+  | TCppStar _
+  | TCppVoid
+  | TCppFastIterator _
+  | TCppDynamicArray
+  | TCppObjectArray _
+  | TCppScalarArray _
+  | TCppWrapped _
+  | TCppObjC _
+  | TCppObjCBlock _
+  | TCppRest _
+  | TCppInst _
+  | TCppInterface _
+  | TCppProtocol _
+  | TCppCode _
+  | TCppClass
+  | TCppGlobal
+  | TCppNull
+  | TCppEnum _ -> TCppDynamic
+  | TCppString -> TCppString
+  | TCppFunction _
+  | TCppNativePointer _
+  | TCppPointer _
+  | TCppRawPointer _
+  | TCppAutoCast
+  | TCppVarArg
+  | TCppVoidStar -> TCppVoidStar
+  | TCppScalar "Int"
+  | TCppScalar "bool"
+  | TCppScalar "Float"  -> t
+  | TCppScalar "::cpp::Int64" -> TCppScalar("Int64")
+  | TCppScalar "double"
+  | TCppScalar "float" -> TCppScalar("Float")
+  | TCppScalar _  -> TCppScalar("int")
+  | TCppVariant -> TCppVariant
+
+let cpp_cast_variant_type_of t = match t with
+  | TCppObjectArray _
+  | TCppScalarArray _
+  | TCppDynamicArray
+  | TCppClass
+  | TCppEnum _
+  | TCppInst _ -> t
+  | _ -> cpp_variant_type_of t
+
+let enum_getter_type t =
+  match cpp_variant_type_of t with
+  | TCppString -> "String"
+  | TCppScalar "int"  -> "Int"
+  | TCppScalar "bool"  -> "Bool"
+  | TCppScalar x  -> x
+  | _  -> "Object"
