@@ -384,36 +384,6 @@ and cpp_type_of_null = CppRetyper.cpp_type_of_null
 and cpp_instance_type = CppRetyper.cpp_instance_type
 ;;
 
-
-
-(*
-let rec cpp_object_name = function
-   | TCppString -> "::String"
-   | TCppDynamicArray -> "::cpp::VirtualArray_obj"
-   | TCppObjectArray _ -> "::Array_obj< ::Dynamic>"
-   | TCppScalarArray(value) -> "::Array_obj< " ^ (tcpp_to_string value) ^ " >"
-   | TCppObjC klass ->  (cpp_class_path_of klass) ^ "_obj"
-   | TCppInst klass -> (cpp_class_path_of klass) ^ "_obj"
-   | TCppClass -> "::hx::Class_obj";
-   | TCppDynamic -> "Dynamic"
-   | TCppVoid -> "void"
-   | TCppVoidStar -> "void *"
-   | TCppEnum(enum) -> "::hx::EnumBase"
-   | TCppScalar(scalar) -> scalar
-   | TCppFastIterator it -> "::cpp::FastIterator< " ^ (tcpp_to_string it) ^ " >";
-   | TCppPointer(ptrType,valueType) -> "::cpp::" ^ ptrType ^ "< " ^ (tcpp_to_string valueType) ^ " >"
-   | TCppRawPointer(constName,valueType) -> constName ^ (tcpp_to_string valueType) ^ "*"
-   | TCppFunction(argTypes,retType,abi) ->
-        let args = (String.concat "," (List.map tcpp_to_string argTypes)) in
-        "::cpp::Function< " ^ abi ^ " " ^ (tcpp_to_string retType) ^ "(" ^ args ^ ") >"
-   | TCppWrapped _ -> "Dynamic"
-   | TCppNativePointer klass -> (cpp_class_path_of klass) ^ " *"
-   | TCppGlobal -> "";
-   | TCppNull -> "Dynamic";
-   | TCppCode -> "/* code */"
-;;
-*)
-
 let cpp_class_name klass =
    (*
    let rename = get_meta_string klass.cl_meta Meta.Native in
@@ -481,7 +451,6 @@ let cpp_var_type_of var =
    tcpp_to_string (cpp_type_of var.v_type)
 ;;
 
-
 let cpp_macro_var_type_of var =
    let t = tcpp_to_string (cpp_type_of var.v_type) in
    if String.contains t ',' then
@@ -490,10 +459,7 @@ let cpp_macro_var_type_of var =
      t
 ;;
 
-
-
-
-let ctx_function_signature include_names tfun abi =
+let function_signature include_names tfun abi =
    match follow tfun with
    | TFun(args,ret) -> (type_to_string ret) ^ " " ^ abi ^ "(" ^ (print_tfun_arg_list include_names args) ^ ")"
    | _ -> "void *"
@@ -941,7 +907,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       | CppDereference(e) ->
          out ("(*("); gen e; out "))";
       | CppFunctionAddress(klass, member) ->
-         let signature = ctx_function_signature false member.cf_type "" in
+         let signature = function_signature false member.cf_type "" in
          let name = cpp_member_name_of member in
          (*let void_cast = has_meta_key field.cf_meta Meta.Void in*)
          out ("::cpp::Function< " ^ signature ^">(::hx::AnyCast(");
