@@ -9,7 +9,7 @@ open FieldCallCandidate
 
 type generic_context = {
 	ctx : typer;
-	subst : (t * (t * texpr option)) list;
+	subst : (tclass * (t * texpr option)) list;
 	name : string;
 	p : pos;
 	mutable mg : module_def option;
@@ -64,7 +64,7 @@ let make_generic ctx ps pt debug p =
 	let rec loop acc_name acc_subst ttpl tl = match ttpl,tl with
 		| ttp :: ttpl,t :: tl ->
 			let name,t = try process t with Exit -> raise_typing_error ("Could not determine type for parameter " ^ ttp.ttp_name) p in
-			loop (name :: acc_name) ((ttp.ttp_type,t) :: acc_subst) ttpl tl
+			loop (name :: acc_name) ((ttp.ttp_class,t) :: acc_subst) ttpl tl
 		| [],[] ->
 			let name = String.concat "_" (List.rev acc_name) in
 			name,acc_subst
@@ -89,9 +89,9 @@ let rec generic_substitute_type' gctx allow_expr t =
 		let t = info.build_apply (List.map (generic_substitute_type' gctx true) tl2) in
 		(match follow t,gctx.mg with TInst(c,_), Some m -> add_dependency m c.cl_module MDepFromTyping | _ -> ());
 		t
-	| _ ->
-		try
-			let t,eo = List.assq t gctx.subst in
+	| TInst ({ cl_kind = KTypeParameter _ } as c, tl2) ->
+		(try
+			let t,eo = List.assq c gctx.subst in
 			(* Somewhat awkward: If we allow expression types, use the original KExpr one. This is so
 			   recursing into further KGeneric expands correctly. *)
 			begin match eo with
@@ -101,7 +101,9 @@ let rec generic_substitute_type' gctx allow_expr t =
 				generic_substitute_type' gctx false t
 			end
 		with Not_found ->
-			Type.map (generic_substitute_type' gctx allow_expr) t
+			Type.map (generic_substitute_type' gctx allow_expr) t)
+	| _ ->
+		Type.map (generic_substitute_type' gctx allow_expr) t
 
 let generic_substitute_type gctx t =
 	generic_substitute_type' gctx false t
@@ -136,11 +138,8 @@ let generic_substitute_expr gctx e =
 			end;
 		| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter _;} as c)) when Meta.has Meta.Const c.cl_meta ->
 			let rec loop subst = match subst with
-				| (t1,(_,eo)) :: subst ->
-					begin match follow t1 with
-						| TInst(c2,_) when c == c2 -> eo
-						| _ -> loop subst
-					end
+				| (c2,(_,eo)) :: subst ->
+					if c == c2 then eo else loop subst
 				| [] -> raise Not_found
 			in
 			begin try
@@ -279,11 +278,8 @@ let build_generic_class ctx c p tl =
 		let m = c.cl_module in
 		if gctx.generic_debug then begin
 			print_endline (Printf.sprintf "[GENERIC] Building @:generic class %s as %s with:" (s_type_path c.cl_path) name);
-			List.iter (fun (t1,(t2,eo)) ->
-				let name = match follow t1 with
-					| TInst(c,_) -> snd c.cl_path
-					| _ -> die "" __LOC__
-				in
+			List.iter (fun (c,(t2,eo)) ->
+				let name = snd c.cl_path in
 				let expr = match eo with
 					| None -> ""
 					| Some e -> Printf.sprintf " (expr: %s)" (s_expr_debug e)
@@ -326,7 +322,7 @@ let build_generic_class ctx c p tl =
 		let build_field cf_old =
 			let params = List.map (fun ttp ->
 				let ttp' = clone_type_parameter gctx mg ([cf_old.cf_name],ttp.ttp_name) ttp in
-				(ttp.ttp_type,ttp')
+				(ttp.ttp_class,ttp')
 			) cf_old.cf_params in
 			let param_subst = List.map (fun (t,ttp) -> t,(ttp.ttp_type,None)) params in
 			let gctx = {gctx with subst = param_subst @ gctx.subst} in
