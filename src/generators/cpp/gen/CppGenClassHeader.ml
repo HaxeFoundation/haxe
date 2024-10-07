@@ -70,12 +70,12 @@ let gen_member_def ctx class_def is_static is_interface field =
     | _ -> ()
   else
     let nonVirtual = Meta.has Meta.NonVirtual field.cf_meta in
-    let doDynamic = (nonVirtual || not (is_override field)) && reflective class_def field in
+    let doDynamic =
+      (nonVirtual || not (is_override field)) && reflective class_def field
+    in
     let decl = get_meta_string field.cf_meta Meta.Decl in
     let has_decl = match decl with Some _ -> true | None -> false in
-    if has_decl then begin
-      output ("      typedef " ^ (decl |> Option.get) ^ ";\n");
-    end;
+    if has_decl then output ("      typedef " ^ (decl |> Option.get) ^ ";\n");
     output (if is_static then "\t\tstatic " else "\t\t");
     match field.cf_expr with
     | Some { eexpr = TFunction function_def } ->
@@ -201,15 +201,20 @@ let generate baseCtx class_def =
   let class_path = class_def.cl_path in
   let nativeGen = Meta.has Meta.NativeGen class_def.cl_meta in
   let smart_class_name = snd class_path in
-  let scriptable = Common.defined common_ctx Define.Scriptable && not class_def.cl_private in
+  let scriptable =
+    Common.defined common_ctx Define.Scriptable && not class_def.cl_private
+  in
   let class_name = gen_class_name class_def in
   let ptr_name = gen_ptr_name class_name in
   let can_quick_alloc = can_quick_alloc class_def in
   let gcName = gen_gc_name class_def.cl_path in
-  let isContainer = if (has_gc_references class_def) then "true" else "false" in
-  let cargs = (constructor_arg_var_list class_def) in
+  let isContainer = if has_gc_references class_def then "true" else "false" in
+  let cargs = constructor_arg_var_list class_def in
   let constructor_type_var_list = List.map snd cargs in
-  let constructor_type_args = String.concat "," (List.map (fun (t,a) -> t ^ " " ^ a) constructor_type_var_list) in
+  let constructor_type_args =
+    String.concat ","
+      (List.map (fun (t, a) -> t ^ " " ^ a) constructor_type_var_list)
+  in
 
   (*let cpp_file = new_cpp_file common_ctx.file class_path in*)
   let debug =
@@ -273,11 +278,14 @@ let generate baseCtx class_def =
 
   (* Only need to forward-declare classes that are mentioned in the header file
      (ie, not the implementation) *)
-  let super_deps  = create_super_dependencies common_ctx in
+  let super_deps = create_super_dependencies common_ctx in
   let header_referenced, header_flags =
-    CppReferences.find_referenced_types_flags ctx (TClassDecl class_def) "*" super_deps (Hashtbl.create 0) true false scriptable
+    CppReferences.find_referenced_types_flags ctx (TClassDecl class_def) "*"
+      super_deps (Hashtbl.create 0) true false scriptable
   in
-  List.iter2 (fun r f -> gen_forward_decl h_file r f) header_referenced header_flags;
+  List.iter2
+    (fun r f -> gen_forward_decl h_file r f)
+    header_referenced header_flags;
   output_h "\n";
 
   output_h (get_class_code class_def Meta.HeaderCode);
@@ -321,8 +329,11 @@ let generate baseCtx class_def =
       output_h ("\t\ttypedef " ^ super ^ " super;\n");
       output_h ("\t\ttypedef " ^ class_name ^ " OBJ_;\n")));
 
-  let classId     = try Hashtbl.find baseCtx.ctx_type_ids (class_text class_def.cl_path) with Not_found -> Int32.zero in
-  let classIdTxt  = Printf.sprintf "0x%08lx" classId in
+  let classId =
+    try Hashtbl.find baseCtx.ctx_type_ids (class_text class_def.cl_path)
+    with Not_found -> Int32.zero
+  in
+  let classIdTxt = Printf.sprintf "0x%08lx" classId in
 
   if (not (has_class_flag class_def CInterface)) && not nativeGen then (
     output_h ("\t\t" ^ class_name ^ "();\n");
@@ -339,9 +350,14 @@ let generate baseCtx class_def =
       ("\t\t\t{ return ::hx::Object::operator new(inSize+extra," ^ isContainer
      ^ "," ^ gcName ^ "); }\n");
     if has_class_flag class_def CAbstract then output_h "\n"
-    else if can_inline_constructor baseCtx class_def super_deps (create_constructor_dependencies common_ctx) then (
+    else if
+      can_inline_constructor baseCtx class_def super_deps
+        (create_constructor_dependencies common_ctx)
+    then (
       output_h "\n";
-      CppGen.generate_constructor ctx (fun str -> output_h ("\t\t" ^ str)) class_def true)
+      CppGen.generate_constructor ctx
+        (fun str -> output_h ("\t\t" ^ str))
+        class_def true)
     else (
       output_h
         ("\t\tstatic " ^ ptr_name ^ " __new(" ^ constructor_type_args ^ ");\n");
@@ -389,21 +405,29 @@ let generate baseCtx class_def =
        ^ " *>(this)->__compare(Dynamic((::hx::Object *)inRHS)); }\n");
 
     output_h "\t\tstatic void __register();\n";
-    let native_gen     = Meta.has Meta.NativeGen class_def.cl_meta in
-    let needs_gc_funcs = (not native_gen) && (has_new_gc_references class_def) in
+    let native_gen = Meta.has Meta.NativeGen class_def.cl_meta in
+    let needs_gc_funcs = (not native_gen) && has_new_gc_references class_def in
     if needs_gc_funcs then (
       output_h "\t\tvoid __Mark(HX_MARK_PARAMS);\n";
       output_h "\t\tvoid __Visit(HX_VISIT_PARAMS);\n");
 
-    let (haxe_implementations, native_implementations) = CppGen.implementations class_def in
-    let implements_haxe   = Hashtbl.length haxe_implementations > 0 in
+    let haxe_implementations, native_implementations =
+      CppGen.implementations class_def
+    in
+    let implements_haxe = Hashtbl.length haxe_implementations > 0 in
     let implements_native = Hashtbl.length native_implementations > 0 in
 
     if implements_native then (
-      let implemented_instance_fields = List.filter should_implement_field class_def.cl_ordered_fields in
-      let neededInterfaceFunctions    = match implements_native with
-      | true -> CppGen.needed_interface_functions implemented_instance_fields native_implementations
-      | false -> [] in
+      let implemented_instance_fields =
+        List.filter should_implement_field class_def.cl_ordered_fields
+      in
+      let neededInterfaceFunctions =
+        match implements_native with
+        | true ->
+            CppGen.needed_interface_functions implemented_instance_fields
+              native_implementations
+        | false -> []
+      in
 
       output_h "\n\t\tHX_NATIVE_IMPLEMENTATION\n";
       List.iter
@@ -429,7 +453,7 @@ let generate baseCtx class_def =
       output_h "\n");
 
     output_h "\t\tbool _hx_isInstanceOf(int inClassId);\n";
-    if implements_haxe then begin
+    if implements_haxe then (
       output_h "\t\tvoid *_hx_getInterface(int inHash);\n";
       (* generate header glue *)
       let alreadyGlued = Hashtbl.create 0 in
@@ -437,35 +461,47 @@ let generate baseCtx class_def =
         (fun interface_name src ->
           let rec check_interface interface =
             let check_field field =
-              match follow field.cf_type, field.cf_kind with
+              match (follow field.cf_type, field.cf_kind) with
               | _, Method MethDynamic -> ()
               | TFun (args, return_type), Method _ ->
-                let cast = cpp_tfun_signature false args return_type in
-                let class_implementation = find_class_implementation class_def field.cf_name interface in
-                let realName= cpp_member_name_of field in
-                let castKey = realName ^ "::" ^ cast in
-                let castKey = if interface_name="_hx_haxe_IMap" && realName="set" then castKey ^ "*" else castKey in
-                let implementationKey = realName ^ "::" ^ class_implementation in
-                if castKey <> implementationKey then begin
-                  let glue =  Printf.sprintf "%s_%08lx" field.cf_name (gen_hash32 0 cast) in
-                  if not (Hashtbl.mem alreadyGlued castKey) then begin
-                    Hashtbl.replace alreadyGlued castKey ();
-                    let argList = print_tfun_arg_list true args in
-                    let returnType = type_to_string return_type in
-                    let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in
-                    output_h headerCode;
-                    output_h "\n";
-                  end
-                end
-              | _ -> () in
+                  let cast = cpp_tfun_signature false args return_type in
+                  let class_implementation =
+                    find_class_implementation class_def field.cf_name interface
+                  in
+                  let realName = cpp_member_name_of field in
+                  let castKey = realName ^ "::" ^ cast in
+                  let castKey =
+                    if interface_name = "_hx_haxe_IMap" && realName = "set" then
+                      castKey ^ "*"
+                    else castKey
+                  in
+                  let implementationKey =
+                    realName ^ "::" ^ class_implementation
+                  in
+                  if castKey <> implementationKey then
+                    let glue =
+                      Printf.sprintf "%s_%08lx" field.cf_name
+                        (gen_hash32 0 cast)
+                    in
+                    if not (Hashtbl.mem alreadyGlued castKey) then (
+                      Hashtbl.replace alreadyGlued castKey ();
+                      let argList = print_tfun_arg_list true args in
+                      let returnType = type_to_string return_type in
+                      let headerCode =
+                        "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList
+                        ^ ");\n"
+                      in
+                      output_h headerCode;
+                      output_h "\n")
+              | _ -> ()
+            in
             (match interface.cl_super with
             | Some (super, _) -> check_interface super
             | _ -> ());
-            List.iter check_field interface.cl_ordered_fields;
+            List.iter check_field interface.cl_ordered_fields
           in
           check_interface src)
-        haxe_implementations;
-    end;
+        haxe_implementations);
 
     if has_init_field class_def then output_h "\t\tstatic void __init__();\n\n";
     output_h
@@ -486,7 +522,9 @@ let generate baseCtx class_def =
     (gen_member_def ctx class_def true (has_class_flag class_def CInterface))
     (List.filter should_implement_field class_def.cl_ordered_statics);
 
-  let not_toString = fun (field,args,_) -> field.cf_name<>"toString" || (has_class_flag class_def CInterface) in
+  let not_toString (field, args, _) =
+    field.cf_name <> "toString" || has_class_flag class_def CInterface
+  in
   let functions = List.filter not_toString (all_virtual_functions class_def) in
   if has_class_flag class_def CInterface then
     List.iter
@@ -497,12 +535,13 @@ let generate baseCtx class_def =
       (gen_member_def ctx class_def false false)
       (List.filter should_implement_field class_def.cl_ordered_fields);
 
-  if has_class_flag class_def CInterface then begin
-    match get_meta_string class_def.cl_meta Meta.ObjcProtocol with
-    | Some protocol ->
-      output_h ("\t\tstatic id<" ^ protocol ^ "> _hx_toProtocol(Dynamic inImplementation);\n")
-    | None -> ();
-  end;
+  (if has_class_flag class_def CInterface then
+     match get_meta_string class_def.cl_meta Meta.ObjcProtocol with
+     | Some protocol ->
+         output_h
+           ("\t\tstatic id<" ^ protocol
+          ^ "> _hx_toProtocol(Dynamic inImplementation);\n")
+     | None -> ());
 
   output_h (get_class_code class_def Meta.HeaderClassCode);
   output_h "};\n\n";
@@ -511,4 +550,4 @@ let generate baseCtx class_def =
 
   end_header_file output_h def_string;
 
-  h_file#close;
+  h_file#close
