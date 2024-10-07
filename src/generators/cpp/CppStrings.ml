@@ -1,4 +1,5 @@
 open Extlib_leftovers
+open Globals
 
 let gen_hash32 seed str =
   let h = ref (Int32.of_int seed) in
@@ -99,3 +100,32 @@ let escape_command s =
 let const_char_star s =
   let escaped = StringHelper.s_escape ~hex:false s in
   "\"" ^ special_to_hex escaped ^ "\""
+
+let make_path_absolute path pos =
+   try
+      if (String.sub path 0 2) = "./" then begin
+         let base = if (Filename.is_relative pos.pfile) then
+            Filename.concat (Sys.getcwd()) pos.pfile
+         else
+            pos.pfile
+         in
+         Path.normalize_path (Filename.concat (Filename.dirname base) (String.sub path 2 ((String.length path) -2)))
+      end else
+         path
+   with Invalid_argument _ -> path
+
+let path_of_string path =
+  ["@verbatim"], path
+
+let get_all_meta_string_path meta_list key =
+  let extract_path pos expr =
+    match expr with
+    | Ast.EConst (Ast.String (name, _)), _ -> make_path_absolute name pos
+    | _ -> ""
+  in
+  let extract_meta meta =
+    match meta with
+    | k, exprs, pos when k = key -> Some (extract_path pos (List.hd exprs))
+    | _ -> None
+  in
+  ExtList.List.filter_map extract_meta meta_list

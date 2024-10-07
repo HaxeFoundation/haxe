@@ -221,3 +221,131 @@ let get_nth_type field index =
       in
       nth args index
    | _ -> raise Not_found
+
+let is_dynamic_haxe_method f =
+   match f.cf_expr, f.cf_kind with
+   | Some { eexpr = TFunction _ }, (Var _ | Method MethDynamic) -> true
+   | _ -> false
+
+let has_dynamic_member_functions class_def =
+   List.fold_left (fun result field ->
+      match field.cf_expr with
+      | Some { eexpr = TFunction function_def } when is_dynamic_haxe_method field -> true
+      | _ -> result ) false class_def.cl_ordered_fields
+
+let has_field_init field =
+   match field.cf_expr with
+   (* Function field *)
+   | Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
+   (* Data field *)
+   | Some _ -> true
+   | _ -> false
+
+let is_data_member field =
+   match field.cf_kind with
+   | Var _ | Method MethDynamic -> true
+   | _ -> false
+
+let is_override field =
+   has_class_field_flag field CfOverride
+
+let rec unreflective_type t =
+   match follow t with
+   | TInst (klass,_) ->  Meta.has Meta.Unreflective klass.cl_meta
+   | TFun (args,ret) ->
+      List.fold_left (fun result (_,_,t) -> result || (unreflective_type t)) (unreflective_type ret) args;
+   | _ -> false
+
+let reflective class_def field = not (
+   (Meta.has Meta.NativeGen class_def.cl_meta) ||
+   (Meta.has Meta.Unreflective class_def.cl_meta) ||
+   (Meta.has Meta.Unreflective field.cf_meta) ||
+   unreflective_type field.cf_type)
+
+let has_init_field class_def =
+   match TClass.get_cl_init class_def with
+   | Some _ -> true
+   | _ -> false
+
+let is_abstract_impl class_def = match class_def.cl_kind with
+   | KAbstractImpl _ -> true
+   | _ -> false
+
+let variable_field field =
+   match field.cf_expr with
+   | Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
+   | None when has_class_field_flag field CfAbstract -> false
+   | _ -> true
+
+let is_readable class_def field =
+   match field.cf_kind with
+   | Var { v_read = AccNever } when not (is_physical_field field) -> false
+   | Var { v_read = AccInline } -> false
+   | Var _ when is_abstract_impl class_def -> false
+   | _ -> true
+
+let is_writable class_def field =
+   match field.cf_kind with
+   | Var { v_write = AccNever } when not (is_physical_field field) -> false
+   | Var { v_read = AccInline } -> false
+   | Var _ when is_abstract_impl class_def -> false
+   | _ -> true
+
+let statics_except_meta class_def = (List.filter (fun static -> static.cf_name <> "__meta__" && static.cf_name <> "__rtti") class_def.cl_ordered_statics);;
+
+let has_set_member_field class_def =
+   let reflect_fields = List.filter (reflective class_def) (class_def.cl_ordered_fields) in
+   let reflect_writable = List.filter (is_writable class_def) reflect_fields in
+   List.exists variable_field reflect_writable
+
+let has_set_static_field class_def =
+   let reflect_fields = List.filter (reflective class_def) (statics_except_meta class_def) in
+   let reflect_writable = List.filter (is_writable class_def) reflect_fields in
+   List.exists variable_field reflect_writable
+
+let has_get_fields class_def =
+   let is_data_field field = (match follow field.cf_type with | TFun _ -> false | _ -> true) in
+   List.exists is_data_field class_def.cl_ordered_fields
+
+let has_get_member_field class_def =
+   let reflect_fields = List.filter (reflective class_def) (class_def.cl_ordered_fields) in
+   List.exists (is_readable class_def) reflect_fields
+
+let has_get_static_field class_def =
+   let reflect_fields = List.filter (reflective class_def) (statics_except_meta class_def) in
+   List.exists (is_readable class_def) reflect_fields
+
+let has_compare_field class_def =
+   List.exists (fun f -> f.cf_name="__compare") class_def.cl_ordered_fields
+
+let has_boot_field class_def =
+   match TClass.get_cl_init class_def with
+   | None -> List.exists has_field_init (List.filter should_implement_field class_def.cl_ordered_statics)
+   | _ -> true
+
+(*
+   Functions are added in reverse order (oldest on right), then list is reversed because this is easier in ocaml
+   The order is important because cppia looks up functions by index
+*)
+let current_virtual_functions_rev clazz base_functions =
+   List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
+      | _, Method MethDynamic -> result
+      | TFun (args,return_type), Method _  ->
+          if (is_override elem ) then
+            if List.exists (fun (e,a,r) -> e.cf_name=elem.cf_name ) result then
+               result
+            else
+               (elem,args,return_type) :: result
+          else
+             (elem,args,return_type) :: result
+      | _,_ -> result
+    ) base_functions clazz.cl_ordered_fields
+
+let all_virtual_functions clazz =
+  let rec all_virtual_functions_rec clazz =
+   current_virtual_functions_rev clazz (match clazz.cl_super with
+       | Some def -> all_virtual_functions_rec (fst def)
+       | _ -> []
+     )
+   in
+   List.rev (all_virtual_functions_rec clazz)

@@ -4,7 +4,7 @@ open Type
 open Error
 open Common
 open Globals
-open CppHash
+open CppStrings
 open CppAstTools
 open CppTypeUtils
 
@@ -175,3 +175,14 @@ let new_cpp_file common_ctx base_dir =
 
 let new_header_file common_ctx base_dir =
   new_source_file common_ctx base_dir "include" ".h"
+
+let new_placed_cpp_file common_ctx class_path =
+  let base_dir = common_ctx.file in
+
+  if (Common.defined common_ctx Define.Vcproj ) then begin
+    Path.mkdir_recursive base_dir ("src"::[]);
+    cached_source_writer common_ctx
+      ( base_dir ^ "/src/" ^ ( String.concat "-" (fst class_path) ) ^ "-" ^
+      (snd class_path) ^ (source_file_extension common_ctx) )
+  end else
+    new_cpp_file common_ctx common_ctx.file class_path

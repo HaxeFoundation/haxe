@@ -13,6 +13,36 @@ open CppContext
 
 let cpp_type_of = CppRetyper.cpp_type_of
 
+let script_type t optional = if optional then begin
+  match type_string t with
+  | "::String" -> "String"
+  | _ -> "Object"
+  end else match type_string t with
+  | "bool" -> "Int"
+  | "int" | "::cpp::Int32" -> "Int"
+  | "Float" -> "Float"
+  | "::String" -> "String"
+  | "Null" -> "Void"
+  | "Void" -> "Void"
+  | "float" | "::cpp::Float32" | "::cpp::Float64" -> "Float"
+  | "::cpp::Int64" | "::cpp::UInt64" -> "Object"
+  | _ -> "Object"
+
+let script_signature t optional = match script_type t optional with
+  | "Bool" -> "b"
+  | "Int" -> "i"
+  | "Float" -> "f"
+  | "String" -> "s"
+  | "Void" -> "v"
+  | "void" -> "v"
+  | _ -> "o"
+
+let script_size_type t optional = match script_type t optional with
+  | "Object" -> "void *"
+  | "Int" -> "int"
+  | "Bool" -> "bool"
+  | x -> x
+
 let rec script_type_string haxe_type =
   match haxe_type with
   | TAbstract ({ a_path = [], "Null" }, [ t ]) -> (
