@@ -349,3 +349,10 @@ let all_virtual_functions clazz =
      )
    in
    List.rev (all_virtual_functions_rec clazz)
+
+let class_name class_def =
+  let (_, class_path) = class_def.cl_path in
+  let nativeGen       = Meta.has Meta.NativeGen class_def.cl_meta in
+  class_path ^ if nativeGen then "" else "_obj"
+
+let class_pointer class_def = "::hx::ObjectPtr< " ^ class_name class_def ^ " >"

@@ -728,13 +728,3 @@ let enum_getter_type t =
   | TCppScalar "bool"  -> "Bool"
   | TCppScalar x  -> x
   | _  -> "Object"
-
-let cpp_var_name_of var =
-  match get_meta_string var.v_meta Meta.Native with
-  | Some n -> n
-  | None -> keyword_remap var.v_name
-
-let cpp_var_debug_name_of v =
-  match get_meta_string v.v_meta Meta.RealPath with
-  | Some n -> n
-  | None -> v.v_name

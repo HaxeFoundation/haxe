@@ -1310,7 +1310,7 @@ class script_writer ctx filename asciiOut =
               this#writeList (this#op IaBlock) (List.length exprs);
               List.iter gen_expression exprs
           | CppVarDecl (var, init) -> (
-              let name = cpp_var_name_of var in
+              let name = CppGen.cpp_var_name_of var in
               this#write
                 (this#op IaTVars ^ string_of_int 1
                 ^ this#commentOf (name ^ ":" ^ script_type_string var.v_type)

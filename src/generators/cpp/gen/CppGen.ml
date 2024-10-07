@@ -35,6 +35,16 @@ let type_arg_to_string name default_val arg_type prefix =
   | Some constant -> (type_str, prefix ^ remap_name)
   | _ -> (type_str, remap_name)
 
+let cpp_var_name_of var =
+  match get_meta_string var.v_meta Meta.Native with
+  | Some n -> n
+  | None -> keyword_remap var.v_name
+
+let cpp_var_debug_name_of v =
+  match get_meta_string v.v_meta Meta.RealPath with
+  | Some n -> n
+  | None -> v.v_name
+
 (* Generate prototype text, including allowing default values to be null *)
 let print_arg name default_val arg_type prefix =
   let n, t = type_arg_to_string name default_val arg_type prefix in
@@ -45,11 +55,11 @@ let print_arg_name name default_val arg_type prefix =
   let n, _ = type_arg_to_string name default_val arg_type prefix in
   n
 
-let print_arg_list ctx arg_list prefix =
+let print_arg_list arg_list prefix =
   String.concat ","
     (List.map (fun (v, o) -> print_arg v.v_name o v.v_type prefix) arg_list)
 
-let print_arg_list_name ctx arg_list prefix =
+let print_arg_list_name arg_list prefix =
   String.concat ","
     (List.map
        (fun (v, o) -> print_arg_name v.v_name o v.v_type prefix)
@@ -180,8 +190,7 @@ let can_quick_alloc klass =
   (not (is_native_class klass)) && not (implements_native_interface klass)
 
 let only_stack_access haxe_type =
-  let tcpp = cpp_type_of haxe_type in
-  match tcpp with
+  match cpp_type_of haxe_type with
   | TCppInst (klass, _) -> Meta.has Meta.StackOnly klass.cl_meta
   | _ -> false
 
@@ -526,13 +535,6 @@ let find_class_implementation class_def name interface =
     | TFun (args, return_type), Method _ ->
         cpp_tfun_signature false args return_type
     | _, _ -> "")
-
-let gen_class_name class_def =
-  let class_path = class_def.cl_path in
-  let nativeGen = Meta.has Meta.NativeGen class_def.cl_meta in
-  snd class_path ^ if nativeGen then "" else "_obj"
-
-let gen_ptr_name class_name = "::hx::ObjectPtr< " ^ class_name ^ " >"
 
 let gen_gc_name class_path =
   let class_name_text = join_class_path class_path "." in
@@ -1919,8 +1921,8 @@ let constructor_arg_var_list class_def =
   | _ -> []
 
 let generate_constructor ctx out class_def isHeader =
-  let class_name = gen_class_name class_def in
-  let ptr_name = gen_ptr_name class_name in
+  let class_name = class_name class_def in
+  let ptr_name = class_pointer class_def in
   let can_quick_alloc = can_quick_alloc class_def in
   let gcName = gen_gc_name class_def.cl_path in
   let isContainer = if has_gc_references class_def then "true" else "false" in
@@ -1989,7 +1991,7 @@ let generate_native_constructor ctx out class_def isHeader =
     String.concat ","
       (List.map (fun (t, a) -> t ^ " " ^ a) constructor_type_var_list)
   in
-  let class_name = gen_class_name class_def in
+  let class_name = class_name class_def in
 
   match class_def.cl_constructor with
   | Some ({ cf_expr = Some { eexpr = TFunction function_def } } as definition)

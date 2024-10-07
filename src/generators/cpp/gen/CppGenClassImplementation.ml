@@ -42,7 +42,7 @@ let gen_field ctx class_def class_name is_static field =
         let remap_name = native_field_name_remap is_static field in
         output (if is_void then "void" else return_type_str);
         output (" " ^ class_name ^ "::" ^ remap_name ^ "(");
-        output (print_arg_list ctx function_def.tf_args "__o_");
+        output (print_arg_list function_def.tf_args "__o_");
         output ")";
         ctx.ctx_real_this_ptr <- true;
         let code = get_code field.cf_meta Meta.FunctionCode in
@@ -53,7 +53,7 @@ let gen_field ctx class_def class_name is_static field =
             output " {\n";
             output
               ("\t" ^ ret ^ "::" ^ nativeImpl ^ "("
-              ^ print_arg_list_name ctx function_def.tf_args "__o_"
+              ^ print_arg_list_name function_def.tf_args "__o_"
               ^ ");\n");
             output "}\n\n"
         | _ ->
@@ -151,7 +151,7 @@ let gen_field ctx class_def class_name is_static field =
         output ("HX_BEGIN_DEFAULT_FUNC(" ^ func_name ^ "," ^ class_name ^ ")\n");
         output return_type_str;
         output
-          (" _hx_run(" ^ print_arg_list ctx function_def.tf_args "__o_" ^ ")");
+          (" _hx_run(" ^ print_arg_list function_def.tf_args "__o_" ^ ")");
         gen_cpp_function_body ctx class_def is_static func_name function_def ""
           "" no_debug;
 
@@ -339,7 +339,7 @@ let generate baseCtx class_def =
   output_cpp (get_class_code class_def Meta.CppNamespaceCode);
 
   let nativeGen = Meta.has Meta.NativeGen class_def.cl_meta in
-  let class_name = gen_class_name class_def in
+  let class_name = class_name class_def in
   let cargs = constructor_arg_var_list class_def in
   let constructor_type_var_list = List.map snd cargs in
   let constructor_var_list = List.map snd constructor_type_var_list in
@@ -365,7 +365,7 @@ let generate baseCtx class_def =
 
     (* Destructor goes in the cpp file so we can "see" the full definition of the member vars *)
     if not (has_class_flag class_def CAbstract) then (
-      let ptr_name = gen_ptr_name class_name in
+      let ptr_name = class_pointer class_def in
       let array_arg_list inList =
         (* Convert an array to a comma separated list of values *)
         let i = ref (0 - 1) in

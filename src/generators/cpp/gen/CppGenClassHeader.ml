@@ -109,7 +109,7 @@ let gen_member_def ctx class_def is_static is_interface field =
 
            let remap_name = native_field_name_remap is_static field in
            output (" " ^ remap_name ^ "(");
-           output (print_arg_list ctx function_def.tf_args "");
+           output (print_arg_list function_def.tf_args "");
            output ");\n";
            if doDynamic then (
              output (if is_static then "\t\tstatic " else "\t\t");
@@ -204,8 +204,8 @@ let generate baseCtx class_def =
   let scriptable =
     Common.defined common_ctx Define.Scriptable && not class_def.cl_private
   in
-  let class_name = gen_class_name class_def in
-  let ptr_name = gen_ptr_name class_name in
+  let class_name = class_name class_def in
+  let ptr_name = class_pointer class_def in
   let can_quick_alloc = can_quick_alloc class_def in
   let gcName = gen_gc_name class_def.cl_path in
   let isContainer = if has_gc_references class_def then "true" else "false" in
