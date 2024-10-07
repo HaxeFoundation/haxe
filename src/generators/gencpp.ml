@@ -29,14 +29,6 @@ open CppAstTools
 open CppSourceWriter
 open CppContext
 
-(*
-   Generators do not care about non-core-type abstracts, so let us follow them
-   away by default.
-*)
-let follow = Abstract.follow_with_abstracts
-
-let replace_float_separators s = Texpr.replace_separators s ""
-
 let make_base_directory dir =
    Path.mkdir_recursive "" ( ( Str.split_delim (Str.regexp "[\\/]+") dir ) )
 
@@ -56,91 +48,6 @@ let get_meta_string_path meta key =
       | _ :: l -> loop l
       in
    loop meta
-
-let get_field_access_meta field_access key =
-   match field_access with
-   | FInstance(_,_,class_field)
-   | FStatic(_,class_field) -> get_meta_string class_field.cf_meta key
-   | _ -> ""
-
-let is_interface obj = is_interface_type obj.etype
-
-(* See if there is a haxe break statement that will be swollowed by c++ break *)
-exception BreakFound
-
-(* Decide is we should look the field up by name *)
-let dynamic_internal = function | "__Is" -> true | _ -> false
-
-exception PathFound of string
-
-(* { *)
-
-let cpp_type_of = CppRetyper.cpp_type_of
-let cpp_type_of_null = CppRetyper.cpp_type_of_null
-let cpp_instance_type = CppRetyper.cpp_instance_type
-
-let type_to_string haxe_type =
-      tcpp_to_string (cpp_type_of haxe_type)
-
-(*
-let is_dynamic_haxe_method f =
-   match follow f.cf_type with
-   | TFun _ when f.cf_expr = None -> true
-   | _ ->
-      (match f.cf_expr with
-      | Some { eexpr = TFunction fd } when f.cf_set = MethodAccess true -> true
-      | Some { eexpr = TFunction fd } when f.cf_set = NormalAccess -> true
-      | _ -> false);;
-*)
-
-(*
-let current_virtual_functions clazz parents override_types =
-  List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
-    | _, Method MethDynamic -> result
-    | TFun (args,return_type), Method _ ->
-        if override_types then
-           (elem,args,return_type) :: (List.filter (fun (e,a,r) -> e.cf_name<>elem.cf_name) result)
-        else if (is_override clazz elem.cf_name ) then
-           result
-        else
-           (elem,args,return_type) :: result
-    | _,_ -> result ) parents (List.rev clazz.cl_ordered_fields)
-;;
-
-let all_virtual_functions clazz override_types =
-   let rec all_virtual_functions clazz =
-      current_virtual_functions clazz (match clazz.cl_super with
-         | Some def -> all_virtual_functions (fst def)
-         | _ -> [] ) false
-   in
-   all_virtual_functions clazz
-;;
-*)
-
-
-(* let generate_enum_deps ctx enum_def super_deps =
-   find_referenced_types ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false true false
-
-let access_str a = match a with
-   | AccNormal -> "AccNormal"
-   | AccNo -> "AccNo"
-   | AccNever -> "AccNever"
-   | AccCall -> "AccCall"
-   | AccInline -> "AccInline"
-   | AccRequire(_,_) -> "AccRequire"
-   | AccCtor -> "AccCtor";;
-
-(*
-  Generate class header and cpp files
-
-*)
-
-let generate_class_deps ctx class_def super_deps constructor_deps scriptable =
-   find_referenced_types ctx (TClassDecl class_def) super_deps constructor_deps false true scriptable
-;; *)
-
-
-
 
 let write_resources common_ctx =
 
