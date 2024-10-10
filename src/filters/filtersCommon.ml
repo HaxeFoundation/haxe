@@ -53,11 +53,11 @@ let is_overridden cls field =
 	in
 	List.exists (fun d -> loop_inheritance d) cls.cl_descendants
 
-let run_expression_filters ?(ignore_processed_status=false) ctx detail_times filters t =
+let run_expression_filters ?(ignore_processed_status=false) ctx detail_times debug filters t =
 	let com = ctx.com in
 	let run identifier e =
 		List.fold_left (fun e (filter_name,f) ->
-			FilterContext.with_timer detail_times filter_name identifier (fun () -> f e)
+			FilterContext.with_timer detail_times debug (* TODO spammy *) filter_name identifier (fun () -> f e)
 		) e filters
 	in
 	match t with
@@ -96,4 +96,5 @@ let is_cached com t =
 
 let apply_filters_once ctx filters t =
 	let detail_times = (try int_of_string (Common.defined_value_safe ctx.com ~default:"0" Define.FilterTimes) with _ -> 0) in
-	if not (is_cached ctx.com t) then run_expression_filters ctx detail_times filters t
+	let debug = Define.defined ctx.com.defines Define.FilterDebug in
+	if not (is_cached ctx.com t) then run_expression_filters ctx detail_times debug filters t

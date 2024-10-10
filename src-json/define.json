@@ -189,6 +189,12 @@
 		"platforms": ["cpp"]
 	},
 	{
+		"name": "FilterDebug",
+		"define": "filter-debug",
+		"doc": "Prints post-processing debug information.",
+		"links": ["https://haxe.org/manual/cr-dce.html"]
+	},
+	{
 		"name": "FlashStrict",
 		"define": "flash-strict",
 		"doc": "More strict typing for flash target.",
