@@ -104,24 +104,29 @@ copy_haxetoolkit: /cygdrive/c/HaxeToolkit/haxe/haxe.exe
 	cp $< $@
 endif
 
-ifeq ($(SYSTEM_NAME),Mac)
-# This assumes that haxelib and neko will both be installed into INSTALL_DIR,
-# which is the case when installing using the mac installer package
-HAXELIB_LFLAGS= -Wl,-rpath,$(INSTALL_DIR)/lib
-endif
+HAXE_STD_PATH=$(CURDIR)/std
+HAXELIB_SRC_PATH=extra/haxelib_src
 
-haxelib_unix:
-	cd $(CURDIR)/extra/haxelib_src && \
-	HAXE_STD_PATH=$(CURDIR)/std $(CURDIR)/$(HAXE_OUTPUT) client.hxml && \
-	nekotools boot -c run.n
-	$(CC) $(CURDIR)/extra/haxelib_src/run.c -o $(HAXELIB_OUTPUT) -lneko $(HAXELIB_LFLAGS)
+$(HAXELIB_SRC_PATH)/haxelib_hxb.zip:
+	HAXE_STD_PATH=$(HAXE_STD_PATH) ./$(HAXE_OUTPUT) --cwd $(HAXELIB_SRC_PATH) \
+		each.hxml --interp haxelib.client.Main --hxb haxelib_hxb.zip
+
+HAXELIB_INTERP=HAXE_STD_PATH=./std ./$(HAXE_OUTPUT) \
+	--hxb-lib $(HAXELIB_SRC_PATH)/haxelib_hxb.zip --run haxelib.client.Main
+
+haxelib_hxcpp: $(HAXELIB_SRC_PATH)/haxelib_hxb.zip
+	$(HAXELIB_INTERP) config > /dev/null || $(HAXELIB_INTERP) newrepo
+	$(HAXELIB_INTERP) path hxcpp > /dev/null || \
+		($(HAXELIB_INTERP) git hxcpp https://github.com/HaxeFoundation/hxcpp.git && \
+		hxcpp_path=`$(HAXELIB_INTERP) libpath hxcpp | tr -d '\r'` && \
+		./$(HAXE_OUTPUT) --cwd $$hxcpp_path/tools/hxcpp compile.hxml)
 
 # haxelib should depends on haxe, but we don't want to do that...
-ifeq ($(SYSTEM_NAME),Windows)
-haxelib: haxelib_$(PLATFORM)
-else
-haxelib: haxelib_unix
-endif
+# since haxelib isn't available in PATH yet, we have to pass -D no-compilation and build manually
+haxelib: $(HAXELIB_SRC_PATH)/haxelib_hxb.zip haxelib_hxcpp
+	HAXE_STD_PATH=$(HAXE_STD_PATH) ./$(HAXE_OUTPUT) --cwd $(HAXELIB_SRC_PATH) \
+		client_cpp.hxml -D destination=../../../../$(HAXELIB_OUTPUT) -D no-compilation
+	$(HAXELIB_INTERP) --cwd $(HAXELIB_SRC_PATH)/bin/cpp run hxcpp Build.xml haxe
 
 tools: haxelib
 
@@ -249,7 +254,7 @@ clean_haxe:
 	rm -f -r _build $(HAXE_OUTPUT) $(PREBUILD_OUTPUT)
 
 clean_tools:
-	rm -f $(HAXE_OUTPUT) $(PREBUILD_OUTPUT) $(HAXELIB_OUTPUT)
+	rm -rf $(HAXE_OUTPUT) $(PREBUILD_OUTPUT) $(HAXELIB_OUTPUT) $(HAXELIB_SRC_PATH)/haxelib_hxb.zip $(HAXELIB_SRC_PATH)/bin/cpp
 
 clean_package:
 	rm -rf $(PACKAGE_OUT_DIR)
