@@ -41,7 +41,7 @@ class Host {
 
 		this.addresses = [];
 		if (ipStr == name) {
-			this.addresses.push(Ipv4Address.UNSPECIFIED);
+			this.addresses.push(Ipv4Address.ANY);
 		} else {
 			final p = ipStr.split('.');
 			final ipv4 = intval(sprintf('%02X%02X%02X%02X', p[3], p[2], p[1], p[0]), 16);
@@ -55,6 +55,7 @@ class Host {
 			switch (addr) {
 				case V4(ip):
 					return cast ip;
+				case _:
 			}
 		}
 		throw new UnsupportedFamilyException("This host does not support IPv4");

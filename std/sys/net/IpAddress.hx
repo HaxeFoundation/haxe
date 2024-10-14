@@ -23,8 +23,7 @@
 package sys.net;
 
 import sys.net.Ipv4Address;
-
-// import sys.net.Ipv6Address;
+import sys.net.Ipv6Address;
 
 /**
 	Represents an Internet Protocol (IP) address.
@@ -32,13 +31,15 @@ import sys.net.Ipv4Address;
 @:using(sys.net.IpAddress.IpAddressTools)
 enum IpAddress {
 	V4(addr:Ipv4Address);
-	// V6(addr:Ipv6Address);
+	V6(addr:Ipv6Address);
 }
 
 final class IpAddressTools {
 	public function toString(ip:IpAddress):String {
 		return switch (ip) {
 			case V4(addr):
+				addr.toString();
+			case V6(addr):
 				addr.toString();
 		}
 	}

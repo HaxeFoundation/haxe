@@ -46,6 +46,7 @@ class Host {
 			switch (addr) {
 				case V4(ip):
 					return cast ip;
+				case _:
 			}
 		}
 		throw new UnsupportedFamilyException("This host does not support IPv4");
