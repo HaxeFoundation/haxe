@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2019 Haxe Foundation
+ * Copyright (C)2005-2024 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,55 +22,18 @@
 
 package sys.net;
 
-import sys.net.IpAddress;
+import haxe.Exception;
+import haxe.PosInfos;
+import haxe.exceptions.NotImplementedException;
 
 /**
-	A given IP host name.
+	This exception is thrown when an operation does not support requested address family.
 **/
-extern class Host {
+class UnsupportedFamilyException extends NotImplementedException {
 	/**
-		The provided host string.
+		Creates a new instance of `UnsupportedFamilyException`.
 	**/
-	var host(default, null):String;
-
-	#if !nodejs
-	/**
-		IP addresses corresponding to the host.
-	**/
-	var addresses(default, null):Array<IpAddress>;
-
-	/**
-		The IPv4 address corresponding to the host, if any exists.
-	**/
-	@:noDoc
-	@:noCompletion
-	var ip(get, never):Int;
-	#else
-
-	/**
-		The actual IP corresponding to the host.
-	**/
-	var ip(default, null):Int;
-	#end
-
-	/**
-		Creates a new Host : the name can be an IP in the form "127.0.0.1" or an host name such as "google.com", in which case
-		the corresponding IP address is resolved using DNS. An exception occur if the host name could not be found.
-	**/
-	function new(name:String):Void;
-
-	/**
-		Returns the IP representation of the host
-	**/
-	function toString():String;
-
-	/**
-		Perform a reverse-DNS query to resolve a host name from an IP.
-	**/
-	function reverse():String;
-
-	/**
-		Returns the local computer host name
-	**/
-	static function localhost():String;
+	public function new(message:String, ?previous:Exception, ?pos:PosInfos) {
+		super(message, previous, pos);
+	}
 }

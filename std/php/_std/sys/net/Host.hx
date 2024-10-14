@@ -28,32 +28,44 @@ import php.SuperGlobal.*;
 @:coreApi
 class Host {
 	public var host(default, null):String;
-
-	private var _ip:String;
-
-	public var ip(default, null):Int;
+	public var ip(get, never):Int;
+	public var addresses(default, null):Array<IpAddress>;
 
 	public function new(name:String):Void {
 		host = name;
-		if (~/^(\d{1,3}\.){3}\d{1,3}$/.match(name)) {
-			_ip = name;
+		final ipStr = if (~/^(\d{1,3}\.){3}\d{1,3}$/.match(name)) {
+			name;
 		} else {
-			_ip = gethostbyname(name);
-			if (_ip == name) {
-				ip = 0;
-				return;
+			gethostbyname(name);
+		};
+
+		this.addresses = [];
+		if (ipStr == name) {
+			this.addresses.push(Ipv4Address.UNSPECIFIED);
+		} else {
+			final p = ipStr.split('.');
+			final ipv4 = intval(sprintf('%02X%02X%02X%02X', p[3], p[2], p[1], p[0]), 16);
+			this.addresses.push(V4(cast ipv4));
+		}
+	}
+
+	@:noDoc @:noCompletion
+	private function get_ip():Int {
+		for (addr in this.addresses) {
+			switch (addr) {
+				case V4(ip):
+					return cast ip;
 			}
 		}
-		var p = _ip.split('.');
-		ip = intval(sprintf('%02X%02X%02X%02X', p[3], p[2], p[1], p[0]), 16);
+		throw new UnsupportedFamilyException("This host does not support IPv4");
 	}
 
 	public function toString():String {
-		return _ip;
+		return (cast this.ip : Ipv4Address).toString();
 	}
 
 	public function reverse():String {
-		return gethostbyaddr(_ip);
+		return gethostbyaddr(this.toString());
 	}
 
 	public static function localhost():String {

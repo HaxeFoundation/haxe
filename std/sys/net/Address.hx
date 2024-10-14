@@ -37,7 +37,7 @@ class Address {
 
 	public function getHost() {
 		var h = new Host("127.0.0.1");
-		untyped h.ip = host;
+		@:privateAccess h.addresses = [V4(cast this.host)];
 		return h;
 	}
 

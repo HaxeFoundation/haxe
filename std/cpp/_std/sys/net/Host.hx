@@ -28,17 +28,33 @@ import cpp.NativeSocket;
 class Host {
 	public var host(default, null):String;
 
-	public var ip(default, null):Int;
+	public var ip(get, never):Int;
 
 	private var ipv6(default, null):haxe.io.BytesData;
 
+	public var addresses(default, null):Array<IpAddress>;
+
 	public function new(name:String):Void {
 		host = name;
+		this.addresses = [];
 		try {
-			ip = NativeSocket.host_resolve(name);
+			final ip = NativeSocket.host_resolve(name);
+			this.addresses.push(V4(cast ip));
 		} catch (e:Dynamic) {
-			ipv6 = NativeSocket.host_resolve_ipv6(name);
+			final ipv6 = NativeSocket.host_resolve_ipv6(name);
+			throw new UnsupportedFamilyException("ipv6 support currently disabled");
 		}
+	}
+
+	@:noDoc @:noCompletion
+	private function get_ip():Int {
+		for (addr in this.addresses) {
+			switch (addr) {
+				case V4(ip):
+					return cast ip;
+			}
+		}
+		throw new UnsupportedFamilyException("This host does not support IPv4");
 	}
 
 	public function toString():String {

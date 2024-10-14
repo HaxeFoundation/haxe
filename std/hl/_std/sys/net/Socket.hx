@@ -188,7 +188,7 @@ class Socket {
 		if (!socket_peer(__s, ip, port))
 			return null;
 		var h:Host = untyped $new(Host);
-		@:privateAccess h.ip = ip;
+		@:privateAccess h.addresses = [V4(cast ip)];
 		return {host: h, port: port};
 	}
 
@@ -197,7 +197,7 @@ class Socket {
 		if (!socket_host(__s, ip, port))
 			return null;
 		var h:Host = untyped $new(Host);
-		@:privateAccess h.ip = ip;
+		@:privateAccess h.addresses = [V4(cast ip)];
 		return {host: h, port: port};
 	}
 

@@ -22,10 +22,10 @@
 
 package sys.net;
 
-import haxe.io.Error;
 import cpp.NativeSocket;
 import cpp.NativeString;
 import cpp.Pointer;
+import haxe.io.Error;
 
 private class SocketInput extends haxe.io.Input {
 	var __s:Dynamic;
@@ -168,18 +168,22 @@ class Socket {
 
 	public function connect(host:Host, port:Int):Void {
 		try {
-			if (host.ip == 0 && host.host != "0.0.0.0") {
-				// hack, hack, hack
-				var ipv6:haxe.io.BytesData = Reflect.field(host, "ipv6");
-				if (ipv6 != null) {
-					close();
-					__s = NativeSocket.socket_new_ip(false, true);
-					init();
-					NativeSocket.socket_connect_ipv6(__s, ipv6, port);
-				} else
-					throw "Unresolved host";
-			} else
-				NativeSocket.socket_connect(__s, host.ip, port);
+			final addresses = host.addresses;
+			if (addresses.length == 0) {
+				throw "Unresolved host";
+			}
+
+			final addr = addresses[0]; // TODO: family preferences?
+			switch (addr) {
+				case V4(ip):
+					NativeSocket.socket_connect(this.__s, cast ip, port);
+				case _:
+					this.close();
+					this.__s = NativeSocket.socket_new_ip(false, true);
+					this.init();
+					// NativeSocket.socket_connect_ipv6(this.__s, ipv6, port);
+					throw new UnsupportedFamilyException("Only IPv4 is supported for now");
+			}
 		} catch (s:String) {
 			if (s == "Invalid socket handle")
 				throw "Failed to connect on " + host.toString() + ":" + port;
@@ -228,7 +232,7 @@ class Socket {
 			return null;
 		}
 		var h = new Host("127.0.0.1");
-		untyped h.ip = a[0];
+		@:privateAccess h.addresses = [V4(cast a[0])];
 		return {host: h, port: a[1]};
 	}
 
@@ -238,7 +242,7 @@ class Socket {
 			return null;
 		}
 		var h = new Host("127.0.0.1");
-		untyped h.ip = a[0];
+		@:privateAccess h.addresses = [V4(cast a[0])];
 		return {host: h, port: a[1]};
 	}
 
@@ -266,8 +270,11 @@ class Socket {
 		var neko_array = NativeSocket.socket_select(read, write, others, timeout);
 		if (neko_array == null)
 			throw "Select error";
-		return @:fixed {
-			read:neko_array[0], write:neko_array[1], others:neko_array[2]
-		};
+		return @:fixed
+			{
+				read: neko_array[0],
+				write: neko_array[1],
+				others: neko_array[2]
+			};
 	}
 }

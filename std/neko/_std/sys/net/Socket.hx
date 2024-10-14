@@ -194,7 +194,7 @@ class Socket {
 			return null;
 		}
 		var h = new Host("127.0.0.1");
-		untyped h.ip = a[0];
+		@:privateAccess h.addresses = [V4(cast a[0])];
 		return {host: h, port: a[1]};
 	}
 
@@ -204,7 +204,7 @@ class Socket {
 			return null;
 		}
 		var h = new Host("127.0.0.1");
-		untyped h.ip = a[0];
+		@:privateAccess h.addresses = [V4(cast a[0])];
 		return {host: h, port: a[1]};
 	}
 

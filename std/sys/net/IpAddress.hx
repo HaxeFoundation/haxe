@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2019 Haxe Foundation
+ * Copyright (C)2005-2024 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,55 +22,24 @@
 
 package sys.net;
 
-import sys.net.IpAddress;
+import sys.net.Ipv4Address;
+
+// import sys.net.Ipv6Address;
 
 /**
-	A given IP host name.
+	Represents an Internet Protocol (IP) address.
 **/
-extern class Host {
-	/**
-		The provided host string.
-	**/
-	var host(default, null):String;
+@:using(sys.net.IpAddress.IpAddressTools)
+enum IpAddress {
+	V4(addr:Ipv4Address);
+	// V6(addr:Ipv6Address);
+}
 
-	#if !nodejs
-	/**
-		IP addresses corresponding to the host.
-	**/
-	var addresses(default, null):Array<IpAddress>;
-
-	/**
-		The IPv4 address corresponding to the host, if any exists.
-	**/
-	@:noDoc
-	@:noCompletion
-	var ip(get, never):Int;
-	#else
-
-	/**
-		The actual IP corresponding to the host.
-	**/
-	var ip(default, null):Int;
-	#end
-
-	/**
-		Creates a new Host : the name can be an IP in the form "127.0.0.1" or an host name such as "google.com", in which case
-		the corresponding IP address is resolved using DNS. An exception occur if the host name could not be found.
-	**/
-	function new(name:String):Void;
-
-	/**
-		Returns the IP representation of the host
-	**/
-	function toString():String;
-
-	/**
-		Perform a reverse-DNS query to resolve a host name from an IP.
-	**/
-	function reverse():String;
-
-	/**
-		Returns the local computer host name
-	**/
-	static function localhost():String;
+final class IpAddressTools {
+	public function toString(ip:IpAddress):String {
+		return switch (ip) {
+			case V4(addr):
+				addr.toString();
+		}
+	}
 }

@@ -27,11 +27,24 @@ package sys.net;
 class Host {
 	public var host(default, null):String;
 
-	public var ip(default, null):Int;
+	public var ip(get, never):Int;
+	public var addresses(default, null):Array<IpAddress>;
 
 	public function new(name:String):Void {
 		host = name;
-		ip = host_resolve(untyped name.__s);
+		final ipv4 = host_resolve(untyped name.__s);
+		this.addresses = [V4(cast ipv4)];
+	}
+
+	@:noDoc @:noCompletion
+	private function get_ip():Int {
+		for (addr in this.addresses) {
+			switch (addr) {
+				case V4(ip):
+					return cast ip;
+			}
+		}
+		throw new UnsupportedFamilyException("This host does not support IPv4");
 	}
 
 	public function toString():String {

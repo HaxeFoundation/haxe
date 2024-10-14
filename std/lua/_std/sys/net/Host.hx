@@ -24,48 +24,63 @@ package sys.net;
 
 import haxe.io.Bytes;
 import haxe.io.BytesInput;
-
 import lua.NativeStringTools.find;
-
-import lua.lib.luv.net.Dns;
 import lua.lib.luv.Os;
+import lua.lib.luv.net.Dns;
 
 @:coreapi
 class Host {
 	public var host(default, null):String;
 
-	public var ip(default, null):Int;
-
-	var _ip:String;
+	public var ip(get, never):Int;
+	public var addresses(default, null):Array<IpAddress>;
 
 	public function new(name:String):Void {
 		host = name;
-		if (find(name, "(%d+)%.(%d+)%.(%d+)%.(%d+)").begin != null) {
-			_ip = name;
-		} else {
-			var res = lua.lib.luv.net.Dns.getaddrinfo(name);
-			if (res.result == null)
-				throw "Unrecognized node name";
-			_ip = res.result[1].addr;
-			if (_ip == "::1")
-				_ip = "127.0.0.0";
+		this.addresses = [];
+
+		final ipv4 = Ipv4Address.tryParse(name);
+		if (ipv4 != null) {
+			this.addresses.push(ipv4);
+			return;
 		}
-		var num = 0;
-		for (a in _ip.split(".")) {
-			num = num * 256 + lua.Lua.tonumber(a);
+
+		final infos = lua.lib.luv.net.Dns.getaddrinfo(name, null, null).result;
+		if (infos == null) {
+			throw "Unrecognized node name";
 		}
-		ip = num;
+
+		lua.PairTools.ipairsEach(infos, (_, addrinfo) -> {
+			switch (addrinfo.family) {
+				case "inet":
+					final ipv4 = Ipv4Address.tryParse(addrinfo.addr);
+					this.addresses.push(ipv4);
+				case _:
+					// Resolving non-IPv4 addresses is not supported yet
+			}
+		});
+	}
+
+	@:noDoc @:noCompletion
+	private function get_ip():Int {
+		for (addr in this.addresses) {
+			switch (addr) {
+				case V4(ip):
+					return cast ip;
+			}
+		}
+		throw new UnsupportedFamilyException("This host does not support IPv4");
 	}
 
 	public function toString():String {
-		return _ip;
+		return (cast this.ip : Ipv4Address).toString();
 	}
 
 	public function reverse():String {
-		return Dns.getnameinfo({ip: _ip}).result;
+		return Dns.getnameinfo({ip: this.toString()}).result;
 	}
 
 	static public function localhost():String {
-        return Os.gethostname();
+		return Os.gethostname();
 	}
 }

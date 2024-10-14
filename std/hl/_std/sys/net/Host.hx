@@ -22,17 +22,33 @@
 
 package sys.net;
 
+import sys.net.IpAddress;
+
 @:coreApi
 class Host {
 	public var host(default, null):String;
 
-	public var ip(default, null):Int;
+	public var ip(get, never):Int;
+	public var addresses(default, null):Array<IpAddress>;
 
 	public function new(name:String):Void {
 		host = name;
-		ip = host_resolve(@:privateAccess name.bytes.utf16ToUtf8(0, null));
-		if (ip == -1)
+		final ipv4 = host_resolve(@:privateAccess name.bytes.utf16ToUtf8(0, null));
+		if (ipv4 == -1) {
 			throw new Sys.SysError("Unresolved host " + name);
+		}
+		this.addresses = [V4(cast ipv4)];
+	}
+
+	@:noDoc @:noCompletion
+	private function get_ip():Int {
+		for (addr in this.addresses) {
+			switch (addr) {
+				case V4(ip):
+					return cast ip;
+			}
+		}
+		throw new UnsupportedFamilyException("This host does not support IPv4");
 	}
 
 	public function toString():String {

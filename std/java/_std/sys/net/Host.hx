@@ -26,19 +26,38 @@ import java.net.InetAddress;
 
 class Host {
 	public var host(default, null):String;
-	public var ip(default, null):Int;
+	public var ip(get, never):Int;
+	public var addresses(default, null):Array<IpAddress>;
 
 	@:allow(sys.net) private var wrapped:InetAddress;
 
 	public function new(name:String):Void {
 		host = name;
-		try
-			this.wrapped = InetAddress.getByName(name)
-		catch (e:Dynamic)
+		try {
+			this.wrapped = InetAddress.getByName(name);
+		} catch (e:Dynamic) {
 			throw e;
-		var rawIp = wrapped.getAddress();
-		// network byte order assumed
-		this.ip = cast(rawIp[3], Int) | (cast(rawIp[2], Int) << 8) | (cast(rawIp[1], Int) << 16) | (cast(rawIp[0], Int) << 24);
+		}
+
+		this.addresses = [];
+		if (Std.isOfType(this.wrapped, java.net.Inet4Address)) {
+			final rawIp = this.wrapped.getAddress();
+			final ipv4 = new Ipv4Address(cast(rawIp[3], Int), cast(rawIp[2], Int), cast(rawIp[1], Int), cast(rawIp[0], Int));
+			this.addresses.push(ipv4);
+		} else {
+			throw new UnsupportedFamilyException("Resolving IPv6 addresses it not supported yet");
+		}
+	}
+
+	@:noDoc @:noCompletion
+	private function get_ip():Int {
+		for (addr in this.addresses) {
+			switch (addr) {
+				case V4(ip):
+					return cast ip;
+			}
+		}
+		throw new UnsupportedFamilyException("This host does not support IPv4");
 	}
 
 	public function toString():String {
