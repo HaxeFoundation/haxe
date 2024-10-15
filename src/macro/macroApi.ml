@@ -2266,8 +2266,10 @@ let macro_api ccom get_api =
 				let t = decode_type (field v "t") in
 				let default = None in (* we don't care here *)
 				let c = match t with
-					| TInst(c,_) -> c
-					| _ -> die "" __LOC__
+					| TInst(({cl_kind = KTypeParameter _} as c),_) ->
+						c
+					| _ ->
+						(get_api()).exc_string (Printf.sprintf "Unexpected type where type parameter was expected: %s" (s_type_kind t))
 				in
 				mk_type_param c TPHType default None
 			) (decode_array tpl) in
@@ -2281,7 +2283,18 @@ let macro_api ccom get_api =
 					end
 				| _ -> Type.map map t
 			in
-			encode_type (apply_params tpl tl (map (decode_type t)))
+			let t = (map (decode_type t)) in
+			let t = try
+				apply_params tpl tl t
+			with ApplyParamsMismatch ->
+				let msg = Printf.sprintf "Could not apply type parameters to %s:\n\tparams: %s\n\ttypes: %s"
+					(s_type_kind t)
+					(String.concat ", " (List.map (s_type_param s_type_kind) tpl))
+					(String.concat ", " (List.map s_type_kind tl))
+				in
+				(get_api()).exc_string msg
+			in
+			encode_type t
 		);
 		"include_file", vfun2 (fun file position ->
 			let file = decode_string file in
