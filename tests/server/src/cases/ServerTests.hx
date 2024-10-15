@@ -539,6 +539,30 @@ class ServerTests extends TestCase {
 		assertSuccess();
 	}
 
+	function testHxbUnbound1() {
+		vfs.putContent("Main.hx", getTemplate("hxb/UnboundLocalFunGeneric.hx"));
+		var args = ["-main", "Main"];
+		runHaxe(args);
+		assertSuccess();
+		Assert.equals("", lastResult.stderr);
+	}
+
+	function testHxbUnbound2() {
+		vfs.putContent("Main.hx", getTemplate("hxb/UnboundAbstractUnderlyingAnonField.hx"));
+		var args = ["-main", "Main"];
+		runHaxe(args);
+		assertSuccess();
+		Assert.equals("", lastResult.stderr);
+
+		runHaxe(args);
+		assertSuccess();
+		Assert.equals("", lastResult.stderr);
+
+		runHaxe(args);
+		assertSuccess();
+		Assert.equals("", lastResult.stderr);
+	}
+
 	// See https://github.com/HaxeFoundation/haxe/issues/8368#issuecomment-525379060
 	#if false
 	function testXRedefinedFromX() {
