@@ -184,7 +184,14 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 			let stack = get_stack ctx in
 			reset_ctx();
 			final();
-			let p = if p' = null_pos then p else p' in
+			let p,stack = match stack with
+				| p :: pl when p' = null_pos ->
+					(* If the exception position is null_pos we're probably in a built-in function. Let's use the topmost stack
+					   as error position. *)
+					p,pl
+				| _ ->
+					(if p' = null_pos then p else p'),stack
+			in
 			Error.raise_error (Error.make_error
 				~sub:(List.map (fun p -> Error.make_error (Error.Custom "Called from here") p) (List.rev stack))
 				(Error.Custom ("Uncaught exception " ^ (value_string v)))

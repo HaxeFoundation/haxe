@@ -1,2 +1,1 @@
-Uncaught exception Invalid string
-Main.hx:5: characters 3-18 : Called from here
+Main.hx:5: characters 3-18 : Uncaught exception Invalid string

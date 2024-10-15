@@ -1,10 +1,6 @@
-[ERROR] (unknown position)
+[ERROR] Main.hx
 
    | Uncaught exception Stack overflow
-
-    ->  Main.hx
-
-       | Called from here
 
      8 |    log();
        |    ^^^^^

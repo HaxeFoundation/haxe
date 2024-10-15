@@ -613,9 +613,12 @@ module StdContext = struct
 		else raise (EvalDebugMisc.BreakHere)
 	)
 
-	let callMacroApi = vfun1 (fun f ->
+	let callMacroApi = vfun1 (fun f  ->
 		let f = decode_string f in
-		Hashtbl.find GlobalState.macro_lib f
+		try
+			Hashtbl.find GlobalState.macro_lib f
+		with Not_found ->
+			exc_string ("Could not find macro function \"" ^ f ^ "\"")
 	)
 
 	let plugins = ref PMap.empty

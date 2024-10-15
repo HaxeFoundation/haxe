@@ -1,3 +1,2 @@
-(unknown) : Uncaught exception Could not read file define.jsno
-$$normPath(::std::)/haxe/macro/Compiler.hx:401: characters 11-39 : Called from here
+$$normPath(::std::)/haxe/macro/Compiler.hx:401: characters 11-39 : Uncaught exception Could not read file define.jsno
 (unknown) : Called from here
