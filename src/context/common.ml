@@ -379,8 +379,8 @@ type context = {
 	mutable error : ?depth:int -> string -> pos -> unit;
 	mutable error_ext : Error.error -> unit;
 	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
-	mutable warning : ?depth:int -> ?from_macro:bool -> warning -> Warning.warning_option list list -> string -> pos -> unit;
-	mutable warning_options : Warning.warning_option list list;
+	mutable warning : ?depth:int -> ?from_macro:bool -> warning -> warning_option list list -> string -> pos -> unit;
+	mutable warning_options : warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
 	mutable run_command : string -> int;
@@ -443,7 +443,7 @@ let ignore_error com =
 	b
 
 let module_warning com m w options msg p =
-	if com.display.dms_full_typing then DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
+	if com.display.dms_full_typing then DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,options,msg,p));
 	com.warning w options msg p
 
 (* Defines *)
