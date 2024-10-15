@@ -10,13 +10,15 @@ using StringTools;
 class Hl {
 	static final hlSrc = Path.join([getDownloadPath(), "hashlink"]);
 
-	static final hlBuild = Path.join([getInstallPath(), "hashlink_build"]);
+	static final hlBuild = Path.join([getDownloadPath(), "hashlink_build"]);
 
-	static final hlBuildBinDir = Path.join([getInstallPath(), "hashlink_build", "bin"]);
+	static final hlInstallDir = Path.join([getInstallPath(), "hashlink"]);
+	static final hlInstallBinDir = if (systemName == "Windows") hlInstallDir else Path.join([hlInstallDir, "bin"]);
+	static final hlInstallLibDir = if (systemName == "Windows") hlInstallDir else Path.join([hlInstallDir, "lib"]);
 
 	static final hlBinary =
 		if (isCi() || !commandSucceed("hl", ["--version"])){
-			Path.join([hlBuildBinDir, "hl"]) + ((systemName == "Windows") ? ".exe" : "");
+			Path.join([hlInstallBinDir, "hl"]) + ((systemName == "Windows") ? ".exe" : "");
 		} else {
 			commandResult(if(systemName == "Windows") "where" else "which", ["hl"]).stdout.trim();
 		};
@@ -56,16 +58,18 @@ class Hl {
 			"-DWITH_UI=OFF",
 			"-DWITH_UV=OFF",
 			"-DWITH_VIDEO=OFF",
+			"-DCMAKE_INSTALL_PREFIX=" + hlInstallDir,
 			"-B" + hlBuild,
 			"-H" + hlSrc
 		]));
 		runCommand("cmake", [
 			"--build", hlBuild
 		]);
+		runCommand("cmake", ["--build", hlBuild, "--target", "install"]);
 
+		addToPATH(hlInstallBinDir);
+		addToLIBPATH(hlInstallLibDir);
 		runCommand(hlBinary, ["--version"]);
-		addToPATH(hlBuildBinDir);
-		addToLIBPATH(hlBuildBinDir);
 
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
 
@@ -78,31 +82,36 @@ class Hl {
 	static function buildAndRunHlc(dir:String, filename:String, ?run) {
 		if (run == null) run = runCommand;
 
-		switch (systemName) {
-			case "Linux" if (isCi()):
-				runCommand("gcc", [
-					"-o", '$dir/$filename.exe',
-					'$dir/$filename.c',
-					'-I$dir',
-					'-I$hlSrc/src',
-					'$hlBuildBinDir/fmt.hdll',
-					'$hlBuildBinDir/ssl.hdll',
-					'$hlBuildBinDir/sqlite.hdll',
-					"-lm",
-					'-L$hlBuildBinDir', "-lhl"
-				]);
+		if (!isCi())
+			return;
 
-				run('$dir/$filename.exe', []);
-			case "Windows" if(isCi()):
-				runCommand("MSBuild.exe", [
-					'$dir/$filename.sln',
-					'-nologo', '-verbosity:minimal',
-					'-t:$filename',
-					'-property:Configuration=Release',
-					'-property:Platform=x64'
-				]);
-				run('$dir/x64/Release/$filename.exe', []);
-			case _: // TODO hl/c for mac/windows
+		final compiler = if (systemName == "Mac") "clang" else "gcc";
+		final extraCompilerFlags = if (systemName == "Windows") ["-ldbghelp", "-municode"] else [];
+		runCommand(compiler, [
+			"-o", '$dir/$filename.exe',
+			'$dir/$filename.c',
+			'-I$dir',
+			'-I$hlInstallDir/include',
+			'-L$hlInstallLibDir',
+			'$hlInstallLibDir/fmt.hdll',
+			'$hlInstallLibDir/ssl.hdll',
+			'$hlInstallLibDir/sqlite.hdll',
+			"-lm",
+			"-lhl"
+		].concat(extraCompilerFlags));
+
+		run('$dir/$filename.exe', []);
+
+		// Run with MSBuild
+		if (systemName == "Windows") {
+			runCommand("MSBuild.exe", [
+				'$dir/$filename.sln',
+				'-nologo', '-verbosity:minimal',
+				'-t:$filename',
+				'-property:Configuration=Release',
+				'-property:Platform=x64'
+			]);
+			run('$dir/x64/Release/$filename.exe', []);
 		}
 	}
 

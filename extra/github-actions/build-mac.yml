@@ -34,7 +34,6 @@
     opam switch create ${{env.OCAML_VERSION}}
     eval $(opam env)
     opam env
-    opam pin add ctypes ${{env.CTYPES}} --yes
     opam pin add haxe . --no-action
     opam install haxe --deps-only --assume-depexts
     opam list

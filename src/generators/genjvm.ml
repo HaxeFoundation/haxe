@@ -1103,13 +1103,21 @@ class texpr_to_jvm
 	method binop_compare op e1 e2 =
 		let sig1 = jsignature_of_type gctx e1.etype in
 		let sig2 = jsignature_of_type gctx e2.etype in
+		let is_eq_op = match op with
+			| CmpEq
+			| CmpGe
+			| CmpLe ->
+				true
+			| _ ->
+				false
+		in
 		match (Texpr.skip e1),(Texpr.skip e2) with
 		| {eexpr = TConst TNull},_ when not (is_unboxed sig2) ->
 			self#texpr rvalue_any e2;
-			CmpSpecial ((if op = CmpEq then jm#get_code#if_nonnull else jm#get_code#if_null) sig2)
+			CmpSpecial ((if is_eq_op then jm#get_code#if_nonnull else jm#get_code#if_null) sig2)
 		| _,{eexpr = TConst TNull} when not (is_unboxed sig1) ->
 			self#texpr rvalue_any e1;
-			CmpSpecial ((if op = CmpEq then jm#get_code#if_nonnull else jm#get_code#if_null) sig1)
+			CmpSpecial ((if is_eq_op then jm#get_code#if_nonnull else jm#get_code#if_null) sig1)
 		| {eexpr = TConst (TInt i32);etype = t2},e1 when Int32.to_int i32 = 0 && sig2 = TInt ->
 			let op = match op with
 				| CmpGt -> CmpGe

@@ -171,16 +171,39 @@ class TestOps extends Test {
 
 		t(null == nullBool);
 		t(nullBool == null);
+		f(null != nullBool);
+		f(nullBool != null);
+
 		f(false == nullBool);
 		f(nullBool == false);
 		t(false != nullBool);
 		t(nullBool != false);
+
+		var nullBoolfalse:Null<Bool> = false;
+
+		f(nullBoolfalse == nullBool);
+		f(nullBool == nullBoolfalse);
+		t(nullBoolfalse != nullBool);
+		t(nullBool != nullBoolfalse);
 
 		// int
 		var nullInt:Null<Int> = null;
 
 		t(null == nullInt);
 		t(nullInt == null);
+		f(null != nullInt);
+		f(nullInt != null);
+
+		f(null >  nullInt);
+		t(null >= nullInt);
+		f(null <  nullInt);
+		t(null <= nullInt);
+
+		f(nullInt >  null);
+		t(nullInt >= null);
+		f(nullInt <  null);
+		t(nullInt <= null);
+
 		f(0 == nullInt);
 		f(nullInt == 0);
 		t(0 != nullInt);
@@ -216,11 +239,65 @@ class TestOps extends Test {
 		f(nullInt < -1);
 		f(nullInt <= -1);
 
-		// // float
+		var nullIntZero:Null<Int> = 0;
+
+		f(nullIntZero == nullInt);
+		f(nullInt == nullIntZero);
+		t(nullIntZero != nullInt);
+		t(nullInt != nullIntZero);
+
+		f(nullIntZero > nullInt);
+		f(nullIntZero >= nullInt);
+		f(nullIntZero < nullInt);
+		f(nullIntZero <= nullInt);
+
+		f(nullInt > nullIntZero);
+		f(nullInt >= nullIntZero);
+		f(nullInt < nullIntZero);
+		f(nullInt <= nullIntZero);
+
+		var nullIntOne:Null<Int> = 1;
+
+		f(nullIntOne > nullInt);
+		f(nullIntOne >= nullInt);
+		f(nullIntOne < nullInt);
+		f(nullIntOne <= nullInt);
+
+		f(nullInt > nullIntOne);
+		f(nullInt >= nullIntOne);
+		f(nullInt < nullIntOne);
+		f(nullInt <= nullIntOne);
+
+		var nullIntMinusOne:Null<Int> = -1;
+
+		f(nullIntMinusOne > nullInt);
+		f(nullIntMinusOne >= nullInt);
+		f(nullIntMinusOne < nullInt);
+		f(nullIntMinusOne <= nullInt);
+
+		f(nullInt > nullIntMinusOne);
+		f(nullInt >= nullIntMinusOne);
+		f(nullInt < nullIntMinusOne);
+		f(nullInt <= nullIntMinusOne);
+
+		// float
 		var nullFloat:Null<Float> = null;
 
 		t(null == nullFloat);
 		t(nullFloat == null);
+		f(null != nullFloat);
+		f(nullFloat != null);
+
+		f(null >  nullFloat);
+		t(null >= nullFloat);
+		f(null <  nullFloat);
+		t(null <= nullFloat);
+
+		f(nullFloat >  null);
+		t(nullFloat >= null);
+		f(nullFloat <  null);
+		t(nullFloat <= null);
+
 		f(0. == nullFloat);
 		f(nullFloat == 0.);
 		t(0. != nullFloat);
@@ -255,6 +332,46 @@ class TestOps extends Test {
 		f(nullFloat >= -1.);
 		f(nullFloat < -1.);
 		f(nullFloat <= -1.);
+
+		var nullFloatZero:Null<Float> = 0.;
+
+		f(nullFloatZero == nullFloat);
+		f(nullFloat == nullFloatZero);
+		t(nullFloatZero != nullFloat);
+		t(nullFloat != nullFloatZero);
+
+		f(nullFloatZero > nullFloat);
+		f(nullFloatZero >= nullFloat);
+		f(nullFloatZero < nullFloat);
+		f(nullFloatZero <= nullFloat);
+
+		f(nullFloat > nullFloatZero);
+		f(nullFloat >= nullFloatZero);
+		f(nullFloat < nullFloatZero);
+		f(nullFloat <= nullFloatZero);
+
+		var nullFloatOne:Null<Float> = 1.;
+		f(nullFloatOne > nullFloat);
+		f(nullFloatOne >= nullFloat);
+		f(nullFloatOne < nullFloat);
+		f(nullFloatOne <= nullFloat);
+
+		f(nullFloat > nullFloatOne);
+		f(nullFloat >= nullFloatOne);
+		f(nullFloat < nullFloatOne);
+		f(nullFloat <= nullFloatOne);
+
+		var nullFloatMinusOne:Null<Float> = -1.;
+
+		f(nullFloatMinusOne > nullFloat);
+		f(nullFloatMinusOne >= nullFloat);
+		f(nullFloatMinusOne < nullFloat);
+		f(nullFloatMinusOne <= nullFloat);
+
+		f(nullFloat > nullFloatMinusOne);
+		f(nullFloat >= nullFloatMinusOne);
+		f(nullFloat < nullFloatMinusOne);
+		f(nullFloat <= nullFloatMinusOne);
 	}
 
 	#end
