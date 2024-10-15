@@ -217,8 +217,10 @@ class Boot {
 	@:ifFeature("typed_cast") private static function __cast(o:Dynamic, t:Dynamic) {
 		if (o == null || __instanceof(o, t))
 			return o;
-		else
-			throw "Cannot cast " + Std.string(o) + " to " + Std.string(t);
+		else {
+			var str = try Std.string(o) catch( e : Dynamic ) (cast o : String);
+			throw "Cannot cast " + str + " to " + Std.string(t);
+		}
 	}
 
 	static var __toStr:js.lib.Function;
