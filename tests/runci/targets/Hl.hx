@@ -75,7 +75,7 @@ class Hl {
 
 		if (systemName == "Windows") {
 			Sys.putEnv("HASHLINK_SRC", hlSrc);
-			Sys.putEnv("HASHLINK_BIN", hlBuildBinDir);
+			Sys.putEnv("HASHLINK_BIN", hlInstallBinDir);
 		}
 	}
 
