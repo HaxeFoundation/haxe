@@ -809,6 +809,7 @@ and type_object_decl ctx fl with_type p =
 	let type_fields field_map =
 		let fields = ref PMap.empty in
 		let extra_fields = ref [] in
+		let all_fields_equal = ref true in
 		let fl = List.map (fun ((n,pn,qs),e) ->
 			let is_valid = Lexer.is_valid_identifier n in
 			if PMap.mem n !fields then raise_typing_error ("Duplicate field in object declaration : " ^ n) pn;
@@ -824,8 +825,20 @@ and type_object_decl ctx fl with_type p =
 				in
 				let e = type_expr ctx e (WithType.with_structure_field t n) in
 				let e = AbstractCast.cast_or_unify ctx t e e.epos in
-				let e = if is_null t && not (is_null e.etype) then mk (TCast(e,None)) (ctx.t.tnull e.etype) e.epos else e in
-				(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
+				let cast_to t =
+					all_fields_equal := false;
+					mk (TCast(e,None)) t e.epos
+				in
+				let e = if is_null t && not (is_null e.etype) then
+					cast_to (ctx.t.tnull e.etype)
+				else if not (is_null t) && is_null e.etype then begin
+					(* We don't need a cast but null-safety would like to have a word later. *)
+					all_fields_equal := false;
+					e
+				end else
+					e
+				in
+				(try type_eq EqStrict e.etype t; e with Unify_error _ -> cast_to t)
 			with Not_found ->
 				if is_valid then
 					extra_fields := (n,pn) :: !extra_fields;
@@ -839,21 +852,35 @@ and type_object_decl ctx fl with_type p =
 			end;
 			((n,pn,qs),e)
 		) fl in
-		let t = mk_anon ~fields:!fields (ref Const) in
+		let anon = lazy (mk_anon ~fields:!fields (ref Const)) in
 		if not ctx.f.untyped then begin
 			(match PMap.foldi (fun n cf acc -> if not (Meta.has Meta.Optional cf.cf_meta) && not (PMap.mem n !fields) then n :: acc else acc) field_map [] with
 				| [] -> ()
-				| [n] -> raise_or_display ctx [Unify_custom ("Object requires field " ^ n)] p
-				| depth -> raise_or_display ctx [Unify_custom ("Object requires fields: " ^ (String.concat ", " depth))] p);
+				| [n] ->
+					all_fields_equal := false;
+					raise_or_display ctx [Unify_custom ("Object requires field " ^ n)] p
+				| depth ->
+					all_fields_equal := false;
+					raise_or_display ctx [Unify_custom ("Object requires fields: " ^ (String.concat ", " depth))] p);
 			(match !extra_fields with
 			| [] -> ()
 			| _ ->
 				List.iter (fun (n,pn) ->
-					let err = has_extra_field t n in
+					let err = has_extra_field (Lazy.force anon) n in
 					raise_or_display ctx [err] pn
 				) !extra_fields
 			);
 		end;
+		let t = if Lazy.is_val anon || not !all_fields_equal then
+			Lazy.force anon
+		else match with_type with
+			| WithType(t,_) when ExtType.is_anon (follow t) ->
+				(* If the expected type is nullable, we know that our expression is not nullable, so let's
+				   follow away Null<T>. *)
+				follow_without_type t
+			| _ ->
+				Lazy.force anon
+		in
 		t, fl
 	in
 	let type_plain_fields () =

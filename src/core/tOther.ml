@@ -225,6 +225,11 @@ module ExtType = struct
 		| TInst({ cl_kind = KTypeParameter _ }, _) -> true
 		| _ -> false
 
+	let is_anon t =
+		match t with
+		| TAnon _ -> true
+		| _ -> false
+
 	type semantics =
 		| VariableSemantics
 		| ReferenceSemantics
