@@ -309,7 +309,10 @@ let do_type ctx mctx actx display_file_dot_path =
 		com.callbacks#run com.error_ext com.callbacks#get_after_init_macros;
 		run_or_diagnose ctx (fun () ->
 			if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
-			List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
+			List.iter (fun cpath ->
+				ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos);
+				Typecore.flush_pass tctx.g (PBuildClass:Typecore.typer_pass) "actx.classes"
+			) (List.rev actx.classes);
 			Finalization.finalize tctx;
 		);
 	end with TypeloadParse.DisplayInMacroBlock ->

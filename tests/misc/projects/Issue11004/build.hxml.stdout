@@ -1,1 +1,1 @@
-Bar.hx:27: @:storedTypedExpr 3 computed this_ident as: foo.bar
+Bar.hx:27: @:storedTypedExpr 1 computed this_ident as: foo.bar
