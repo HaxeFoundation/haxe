@@ -10,6 +10,8 @@ class Main {
 		runner.addCase(new TestFileSystem());
 		runner.addCase(new io.TestFile());
 		runner.addCase(new io.TestFileInput());
+		runner.addCase(new net.TestIpv4Address());
+		runner.addCase(new net.TestIpv6Address());
 		#if !js
 		runner.addCase(new io.TestProcess());
 		#end

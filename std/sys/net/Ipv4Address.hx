@@ -22,6 +22,7 @@
 
 package sys.net;
 
+import haxe.Int32;
 import haxe.ds.Vector;
 import sys.net.IpAddress;
 
@@ -30,7 +31,7 @@ import sys.net.IpAddress;
 	This value is immutable.
 **/
 @:notNull
-abstract Ipv4Address(Int) {
+abstract Ipv4Address(Int32) {
 	public static final BROADCAST:Ipv4Address = new Ipv4Address(255, 255, 255, 255);
 	public static final LOCALHOST:Ipv4Address = new Ipv4Address(127, 0, 0, 1);
 	public static final ANY:Ipv4Address = new Ipv4Address(0, 0, 0, 0);
@@ -39,7 +40,7 @@ abstract Ipv4Address(Int) {
 		Constructs a new IPv4 address from four octets.
 	**/
 	public inline function new(a:Int, b:Int, c:Int, d:Int) {
-		var value:Int = 0;
+		var value:Int32 = 0;
 		value |= (a & 255);
 		value |= (b & 255) << 8;
 		value |= (c & 255) << 16;
@@ -52,7 +53,7 @@ abstract Ipv4Address(Int) {
 	**/
 	@:op(A == B)
 	public static inline function equals(lhs:Ipv4Address, rhs:Ipv4Address):Bool {
-		return (cast lhs : Int) == (cast rhs : Int);
+		return (cast lhs : Int32) == (cast rhs : Int32);
 	}
 
 	/**
@@ -137,8 +138,8 @@ abstract Ipv4Address(Int) {
 	/**
 		Tries to parse a string as an IPv4 address.
 
-		@param str The string to parse.
-		@return The parsed IPv4 address, or `null` if the string could not be parsed.
+		@param str The string to parse. It must be in the dotted decimal notation.
+		@return The parsed IPv4 address or `null` if the string could not be parsed.
 	**/
 	public static function tryParse(str:String):Null<Ipv4Address> {
 		final parts = StringTools.trim(str).split(".");

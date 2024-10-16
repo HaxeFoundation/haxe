@@ -226,7 +226,7 @@ abstract Ipv6Address(BytesData) {
 		while ((parts.length - 1 - j) > i) {
 			final part = parts[(parts.length - 1 - j)];
 			if (part == "") {
-				if (i + j + 2 == parts.length) {
+				if ((i == 0 && j == 0) || (i + j + 2 == parts.length)) {
 					break;
 				} else {
 					return null;
