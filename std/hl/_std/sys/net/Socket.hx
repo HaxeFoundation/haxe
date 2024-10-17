@@ -187,18 +187,18 @@ class Socket {
 		var ip = 0, port = 0;
 		if (!socket_peer(__s, ip, port))
 			return null;
-		var h:Host = untyped $new(Host);
-		@:privateAccess h.addresses = [V4(cast ip)];
-		return {host: h, port: port};
+		final host:Host = untyped $new(Host);
+		@:privateAccess host.addresses = [Ipv4Address.fromNetworkOrderInt(ip)];
+		return {host: host, port: port};
 	}
 
 	public function host():{host:Host, port:Int} {
 		var ip = 0, port = 0;
 		if (!socket_host(__s, ip, port))
 			return null;
-		var h:Host = untyped $new(Host);
-		@:privateAccess h.addresses = [V4(cast ip)];
-		return {host: h, port: port};
+		final host:Host = untyped $new(Host);
+		@:privateAccess host.addresses = [Ipv4Address.fromNetworkOrderInt(ip)];
+		return {host: host, port: port};
 	}
 
 	public function setTimeout(timeout:Float):Void {

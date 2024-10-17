@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2019 Haxe Foundation
+ * Copyright (C)2005-2024 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,26 +22,43 @@
 
 package sys.net;
 
-class Host {
-	public var host(default, null):String;
-	public var ip(default, null):Int;
+import lua.PairTools;
+import lua.lib.luv.Os in LuvOs;
+import lua.lib.luv.net.Dns in LuvDns;
 
-	var name:String;
+@:coreApi
+final class Dns {
+	public static function resolveSync(name:String):Array<IpAddress> {
+		final infos = LuvDns.getaddrinfo(name, null, null).result;
+		if (infos == null) {
+			return [];
+		}
 
-	public function new(name:String):Void {
-		host = name;
-		this.name = name;
+		final addresses:Array<IpAddress> = [];
+		PairTools.ipairsEach(infos, (_, addrinfo) -> {
+			switch (addrinfo.family) {
+				case "inet":
+					final ipv4 = Ipv4Address.tryParse(addrinfo.addr);
+					if (ipv4 != null) {
+						addresses.push(ipv4);
+					}
+				case "inet6":
+					final ipv6 = Ipv6Address.tryParse(addrinfo.addr);
+					if (ipv6 != null) {
+						addresses.push(ipv6);
+					}
+				case _:
+			}
+		});
+		return addresses;
 	}
 
-	public function toString():String {
-		return name;
+	public static function reverseSync(address:IpAddress):Array<String> {
+		final reversed = LuvDns.getnameinfo({ip: address.toString()}).result;
+		return reversed != null ? [reversed] : [];
 	}
 
-	public function reverse():String {
-		return "";
-	}
-
-	public static function localhost():String {
-		return "";
+	public static function getLocalHostname():String {
+		return LuvOs.gethostname();
 	}
 }

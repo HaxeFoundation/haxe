@@ -22,15 +22,15 @@
 
 package sys.net;
 
-import haxe.io.Error;
 import haxe.io.Bytes;
 import haxe.io.BytesData;
+import haxe.io.Error;
 import python.Exceptions;
 import python.Tuple;
-import python.lib.socket.Socket in PSocket;
+import python.lib.Select;
 import python.lib.Socket in PSocketModule;
 import python.lib.socket.Address in PAddress;
-import python.lib.Select;
+import python.lib.socket.Socket in PSocket;
 import python.lib.ssl.Errors;
 
 private class SocketInput extends haxe.io.Input {
@@ -58,7 +58,7 @@ private class SocketInput extends haxe.io.Input {
 		try {
 			try {
 				r = __s.recv(len, 0);
-			} catch(e:SSLWantReadError) {
+			} catch (e:SSLWantReadError) {
 				return 0;
 			}
 			for (i in pos...(pos + r.length)) {
@@ -101,7 +101,7 @@ private class SocketOutput extends haxe.io.Output {
 			var r = 0;
 			try {
 				r = __s.send(payload, 0);
-			} catch(e:SSLWantWriteError) {
+			} catch (e:SSLWantWriteError) {
 				return 0;
 			}
 			return r;
@@ -136,10 +136,10 @@ private class SocketOutput extends haxe.io.Output {
 		__s = new PSocket();
 	}
 
-    function __rebuildIoStreams():Void {
+	function __rebuildIoStreams():Void {
 		input = new SocketInput(__s);
 		output = new SocketOutput(__s);
-    }
+	}
 
 	public function close():Void {
 		__s.close();
@@ -154,20 +154,21 @@ private class SocketOutput extends haxe.io.Output {
 	}
 
 	public function connect(host:Host, port:Int):Void {
-		var host_str = host.toString();
-		__s.connect(Tuple2.make(host_str, port));
+		final address = @:privateAccess host.getAddressesSorted(PreferIPv4)[0];
+		__s.connect(Tuple2.make(address.toString(), port));
 	}
 
 	public function listen(connections:Int):Void {
 		__s.listen(connections);
 	}
 
-	public function shutdown(read:Bool, write:Bool):Void
+	public function shutdown(read:Bool, write:Bool):Void {
 		__s.shutdown((read && write) ? PSocketModule.SHUT_RDWR : read ? PSocketModule.SHUT_RD : PSocketModule.SHUT_WR);
+	}
 
 	public function bind(host:Host, port:Int):Void {
-		var host_str = host.toString();
-		__s.bind(Tuple2.make(host_str, port));
+		final address = @:privateAccess host.getAddressesSorted(PreferIPv4)[0];
+		__s.bind(Tuple2.make(address.toString(), port));
 	}
 
 	public function accept():Socket {

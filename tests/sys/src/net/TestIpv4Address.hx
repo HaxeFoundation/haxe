@@ -49,4 +49,12 @@ class TestIpv4Address extends Test {
 		Assert.isNull(Ipv4Address.tryParse("c56701a3"));
 		Assert.isNull(Ipv4Address.tryParse("0xc56701a3"));
 	}
+
+	public function testAddressesAreConvertedToNetworkOrder() {
+		Assert.equals(0x0100007f, Ipv4Address.LOCALHOST.asNetworkOrderInt());
+	}
+
+	public function testAddressesAreConvertedFromNetworkOrder() {
+		Assert.equals("127.0.0.1", Ipv4Address.fromNetworkOrderInt(0x0100007f).toString());
+	}
 }

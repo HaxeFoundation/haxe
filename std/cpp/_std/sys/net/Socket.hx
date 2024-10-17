@@ -175,14 +175,15 @@ class Socket {
 
 			final addr = addresses[0]; // TODO: family preferences?
 			switch (addr) {
-				case V4(ip):
-					NativeSocket.socket_connect(this.__s, cast ip, port);
-				case _:
+				case V4(ipv4):
+					final ip = @:privateAccess ipv4.asNetworkOrderInt();
+					NativeSocket.socket_connect(this.__s, ip, port);
+				case V6(ipv6):
 					this.close();
 					this.__s = NativeSocket.socket_new_ip(false, true);
 					this.init();
-					// NativeSocket.socket_connect_ipv6(this.__s, ipv6, port);
-					throw new UnsupportedFamilyException("Only IPv4 is supported for now");
+					final ip = @:privateAccess ipv6.asNetworkOrderBytes();
+					NativeSocket.socket_connect_ipv6(this.__s, ip, port);
 			}
 		} catch (s:String) {
 			if (s == "Invalid socket handle")

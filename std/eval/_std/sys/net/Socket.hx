@@ -22,8 +22,8 @@
 
 package sys.net;
 
-import haxe.io.Error;
 import eval.vm.NativeSocket;
+import haxe.io.Error;
 
 private class SocketOutput extends haxe.io.Output {
 	var socket:NativeSocket;
@@ -132,7 +132,8 @@ class Socket {
 	}
 
 	public function connect(host:Host, port:Int):Void {
-		socket.connect(host.ip, port);
+		final address = @:privateAccess host.getAddressesSorted(PreferIPv4)[0];
+		socket.connect(address.toString(), port);
 	}
 
 	public function listen(connections:Int):Void {
@@ -144,7 +145,8 @@ class Socket {
 	}
 
 	public function bind(host:Host, port:Int):Void {
-		socket.bind(host.ip, port);
+		final address = @:privateAccess host.getAddressesSorted(PreferIPv4)[0];
+		socket.bind(address.toString(), port);
 	}
 
 	public function accept():Socket {
@@ -156,17 +158,19 @@ class Socket {
 
 	@:access(sys.net.Host.init)
 	public function peer():{host:Host, port:Int} {
-		var info = socket.peer();
-		var host:Host = Type.createEmptyInstance(Host);
-		host.init(info.ip);
+		final info = socket.peer();
+		final ipv4 = Ipv4Address.fromNetworkOrderInt(info.ip);
+		final host = new Host(ipv4.toString());
+		final port = info.port;
 		return {host: host, port: info.port};
 	}
 
 	@:access(sys.net.Host.init)
 	public function host():{host:Host, port:Int} {
-		var info = socket.host();
-		var host:Host = Type.createEmptyInstance(Host);
-		host.init(info.ip);
+		final info = socket.host();
+		final ipv4 = Ipv4Address.fromNetworkOrderInt(info.ip);
+		final host = new Host(ipv4.toString());
+		final port = info.port;
 		return {host: host, port: info.port};
 	}
 

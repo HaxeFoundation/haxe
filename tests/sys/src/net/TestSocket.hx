@@ -1,6 +1,7 @@
 package net;
 
-import sys.net.*;
+import sys.net.Host;
+import sys.net.Socket;
 import utest.Assert;
 
 class TestSocket extends utest.Test {
@@ -12,8 +13,9 @@ class TestSocket extends utest.Test {
 	}
 
 	public function teardown() {
-		for(socket in registeredSockets) {
-			if(socket == null) continue;
+		for (socket in registeredSockets) {
+			if (socket == null)
+				continue;
 			socket.close();
 		}
 		registeredSockets = [];

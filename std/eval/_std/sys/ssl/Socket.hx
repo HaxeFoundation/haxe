@@ -1,9 +1,10 @@
 package sys.ssl;
 
-import haxe.io.Bytes;
 import eval.vm.NativeSocket;
+import haxe.io.Bytes;
 import mbedtls.Config;
 import mbedtls.Ssl;
+import sys.net.UnsupportedFamilyException;
 
 private class SocketInput extends haxe.io.Input {
 	@:allow(sys.ssl.Socket) private var socket:Socket;
@@ -119,7 +120,10 @@ class Socket extends sys.net.Socket {
 			hostname = host.host;
 		if (hostname != null)
 			ssl.set_hostname(hostname);
-		socket.connect(host.ip, port);
+
+		final address = host.addresses[0];
+		socket.connect(address.toString(), port);
+
 		if (isBlocking)
 			handshake();
 	}
@@ -160,8 +164,8 @@ class Socket extends sys.net.Socket {
 
 	public override function bind(host:sys.net.Host, port:Int):Void {
 		conf = buildConfig(true);
-
-		socket.bind(host.ip, port);
+		final address = host.addresses[0];
+		socket.bind(address.toString(), port);
 	}
 
 	public override function accept():Socket {

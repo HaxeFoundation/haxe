@@ -27,9 +27,9 @@ import sys.net.Socket;
 extern class NativeSocket {
 	function new():Void;
 	function accept():NativeSocket;
-	function bind(host:Int, port:Int):Void;
+	function bind(ipStr:String, port:Int):Void;
 	function close():Void;
-	function connect(host:Int, port:Int):Void;
+	function connect(ipStr:String, port:Int):Void;
 	function host():{ip:Int, port:Int};
 	function listen(connections:Int):Void;
 	function peer():{ip:Int, port:Int};

@@ -22,7 +22,10 @@
 
 package sys.net;
 
+import haxe.Int32;
+import haxe.exceptions.NotImplementedException;
 import haxe.io.Error;
+import neko.NativeArray;
 
 @:callable
 @:coreType
@@ -117,6 +120,7 @@ private class SocketInput extends haxe.io.Input {
 }
 
 @:coreApi
+@:keepInit
 class Socket {
 	private var __s:SocketHandle;
 
@@ -124,13 +128,34 @@ class Socket {
 	public var output(default, null):haxe.io.Output;
 	public var custom:Dynamic;
 
+	private static function __init__():Void {
+		Socket.socket_new = cast neko.Lib.load("std", "socket_new", 1);
+		Socket.socket_close = cast neko.Lib.load("std", "socket_close", 1);
+		Socket.socket_write = cast neko.Lib.load("std", "socket_write", 2);
+		Socket.socket_read = cast neko.Lib.load("std", "socket_read", 1);
+		Socket.socket_connect = cast neko.Lib.load("std", "socket_connect", 3);
+		Socket.socket_listen = cast neko.Lib.load("std", "socket_listen", 2);
+		Socket.socket_select = cast neko.Lib.load("std", "socket_select", 4);
+		Socket.socket_bind = cast neko.Lib.load("std", "socket_bind", 3);
+		Socket.socket_accept = cast neko.Lib.load("std", "socket_accept", 1);
+		Socket.socket_peer = cast neko.Lib.load("std", "socket_peer", 1);
+		Socket.socket_host = cast neko.Lib.load("std", "socket_host", 1);
+		Socket.socket_set_timeout = cast neko.Lib.load("std", "socket_set_timeout", 2);
+		Socket.socket_shutdown = cast neko.Lib.load("std", "socket_shutdown", 3);
+		Socket.socket_set_blocking = cast neko.Lib.load("std", "socket_set_blocking", 2);
+		Socket.socket_set_fast_send = cast neko.Lib.loadLazy("std", "socket_set_fast_send", 2);
+		Socket.int32_new = cast neko.Lib.load("std", "int32_new", 1);
+		neko.Lib.load("std", "socket_init", 0)();
+	}
+
 	public function new():Void {
 		init();
 	}
 
 	private function init():Void {
-		if (__s == null)
-			__s = socket_new(false);
+		if (this.__s == null) {
+			this.__s = socket_new(false);
+		}
 		input = new SocketInput(__s);
 		output = new SocketOutput(__s);
 	}
@@ -154,16 +179,24 @@ class Socket {
 	}
 
 	public function connect(host:Host, port:Int):Void {
-		try {
-			socket_connect(__s, host.ip, port);
-		} catch (s:String) {
-			if (s == "std@socket_connect")
-				throw "Failed to connect on " + host.toString() + ":" + port;
-			else if (s == "Blocking") {
-				// Do nothing, this is not a real error, it simply indicates
-				// that a non-blocking connect is in progress
-			} else
-				neko.Lib.rethrow(s);
+		final address = @:privateAccess host.getAddressesSorted(PreferIPv4)[0];
+		switch (address) {
+			case V4(addr):
+				final ipv4 = addr.asNetworkOrderInt();
+				try {
+					socket_connect(__s, int32_new(ipv4), port);
+				} catch (s:String) {
+					if (s == "std@socket_connect")
+						throw 'Failed to connect on $addr:$port';
+					else if (s == "Blocking") {
+						// Do nothing, this is not a real error, it simply indicates
+						// that a non-blocking connect is in progress
+					} else {
+						neko.Lib.rethrow(s);
+					}
+				}
+			case V6(_):
+				throw new UnsupportedFamilyException("Neko does not support connecting to IPv6 addresses");
 		}
 	}
 
@@ -176,7 +209,14 @@ class Socket {
 	}
 
 	public function bind(host:Host, port:Int):Void {
-		socket_bind(__s, host.ip, port);
+		final address = @:privateAccess host.getAddressesSorted(PreferIPv4)[0];
+		switch (address) {
+			case V4(addr):
+				final ipv4:Int32 = addr.asNetworkOrderInt();
+				socket_bind(this.__s, int32_new(ipv4), port);
+			case V6(_):
+				throw new UnsupportedFamilyException("Neko does not support binding to IPv6 interfaces");
+		}
 	}
 
 	public function accept():Socket {
@@ -193,9 +233,10 @@ class Socket {
 		if (a == null) {
 			return null;
 		}
-		var h = new Host("127.0.0.1");
-		@:privateAccess h.addresses = [V4(cast a[0])];
-		return {host: h, port: a[1]};
+		final ipv4 = Ipv4Address.fromNetworkOrderInt(cast a[0]);
+		final host = new Host(ipv4.toString());
+		final port:Int = cast a[1];
+		return {host: host, port: port};
 	}
 
 	public function host():{host:Host, port:Int} {
@@ -203,9 +244,10 @@ class Socket {
 		if (a == null) {
 			return null;
 		}
-		var h = new Host("127.0.0.1");
-		@:privateAccess h.addresses = [V4(cast a[0])];
-		return {host: h, port: a[1]};
+		final ipv4 = Ipv4Address.fromNetworkOrderInt(cast a[0]);
+		final host = new Host(ipv4.toString());
+		final port:Int = cast a[1];
+		return {host: host, port: port};
 	}
 
 	public function setTimeout(timeout:Float):Void {
@@ -227,25 +269,27 @@ class Socket {
 	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
 			?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>} {
 		var c = untyped __dollar__hnew(1);
-		var f = function(a:Array<Socket>) {
-			if (a == null)
+		final f:(Array<Socket>) -> NativeArray<SocketHandle> = (a) -> {
+			if (a == null) {
 				return null;
-			untyped {
-				var r = __dollar__amake(a.length);
-				var i = 0;
-				while (i < a.length) {
-					r[i] = a[i].__s;
-					__dollar__hadd(c, a[i].__s, a[i]);
-					i += 1;
-				}
-				return r;
 			}
+
+			final length = a.length;
+			final r:NativeArray<SocketHandle> = NativeArray.alloc(length);
+			var i = 0;
+			while (i < length) untyped {
+				r[i] = a[i].__s;
+				__dollar__hadd(c, a[i].__s, a[i]);
+				i += 1;
+			}
+			return r;
 		}
 		var neko_array = socket_select(f(read), f(write), f(others), timeout);
 
-		var g = function(a):Array<Socket> {
-			if (a == null)
+		final g = function(a):Array<Socket> {
+			if (a == null) {
 				return null;
+			}
 
 			var r = new Array();
 			var i = 0;
@@ -266,19 +310,68 @@ class Socket {
 		};
 	}
 
-	private static var socket_new = neko.Lib.load("std", "socket_new", 1);
-	private static var socket_close = neko.Lib.load("std", "socket_close", 1);
-	private static var socket_write = neko.Lib.load("std", "socket_write", 2);
-	private static var socket_read = neko.Lib.load("std", "socket_read", 1);
-	private static var socket_connect = neko.Lib.load("std", "socket_connect", 3);
-	private static var socket_listen = neko.Lib.load("std", "socket_listen", 2);
-	private static var socket_select = neko.Lib.load("std", "socket_select", 4);
-	private static var socket_bind = neko.Lib.load("std", "socket_bind", 3);
-	private static var socket_accept = neko.Lib.load("std", "socket_accept", 1);
-	private static var socket_peer = neko.Lib.load("std", "socket_peer", 1);
-	private static var socket_host = neko.Lib.load("std", "socket_host", 1);
-	private static var socket_set_timeout = neko.Lib.load("std", "socket_set_timeout", 2);
-	private static var socket_shutdown = neko.Lib.load("std", "socket_shutdown", 3);
-	private static var socket_set_blocking = neko.Lib.load("std", "socket_set_blocking", 2);
-	private static var socket_set_fast_send = neko.Lib.loadLazy("std", "socket_set_fast_send", 2);
+	private static dynamic function socket_new(datagram:Bool):SocketHandle {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function socket_close(handle:SocketHandle):Void {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function socket_write(handle:SocketHandle, stringData:Any):Void {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function socket_read(handle:SocketHandle):Dynamic {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function socket_connect(handle:SocketHandle, ipv4:Int32, port:Int):Void {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function socket_listen(handle:SocketHandle, connections:Int):Void {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function socket_select(readHandlesArray:NativeArray<SocketHandle>, writeHandlesArray:NativeArray<SocketHandle>,
+			otherHandlesArray:NativeArray<SocketHandle>, timeout:Float):NativeArray<Dynamic> {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function socket_bind(handle:SocketHandle, ipv4:Int32, port:Int):Void {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function socket_accept(serverHandle:SocketHandle):SocketHandle {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function socket_peer(handle:SocketHandle):Dynamic {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function socket_host(handle:SocketHandle):Dynamic {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function socket_set_timeout(handle:SocketHandle, timeout:Float):Void {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function socket_shutdown(handle:SocketHandle, read:Bool, write:Bool):Void {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function socket_set_blocking(handle:SocketHandle, blocking:Bool):Void {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function socket_set_fast_send(handle:SocketHandle, fastSend:Bool):Void {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
+
+	private static dynamic function int32_new(v:Int32):Int32 {
+		throw new NotImplementedException("Neko function was not loaded");
+	}
 }

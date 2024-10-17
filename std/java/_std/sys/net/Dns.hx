@@ -22,40 +22,41 @@
 
 package sys.net;
 
-/**
-	Represents an Internet Protocol (IP) address.
-**/
-@:using(sys.net.IpAddress.IpAddressTools)
-enum IpAddress {
-	V4(addr:Ipv4Address);
-	V6(addr:Ipv6Address);
-}
+import haxe.Exception;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
+import java.net.InetAddress;
 
-private final class IpAddressTools {
-	public static function toString(ip:IpAddress):String {
-		return switch (ip) {
-			case V4(addr):
-				addr.toString();
-			case V6(addr):
-				addr.toString();
+using Lambda;
+
+@:coreApi
+final class Dns {
+	public static function resolveSync(name:String):Array<IpAddress> {
+		@:nullSafety(Off) var nativeAddrs:Array<InetAddress> = null;
+
+		try {
+			nativeAddrs = @:privateAccess Array.ofNative(InetAddress.getAllByName(name));
+		} catch (_) {
+			return [];
 		}
+
+		final addresses:Array<IpAddress> = [];
+		for (nativeAddr in nativeAddrs) {
+			final ipAddr = IpAddress.tryParse(nativeAddr.getHostAddress());
+			if (ipAddr != null) {
+				addresses.push(ipAddr);
+			}
+		}
+
+		return addresses;
 	}
 
-	/**
-		Tries to parse the given string as an IPv4 or an IPv6 address.
-		@param str The string to parse.
-	**/
-	public static function tryParse(_:Enum<IpAddress>, str:String):Null<IpAddress> {
-		final ipv4 = Ipv4Address.tryParse(str);
-		if (ipv4 != null) {
-			return V4(ipv4);
-		}
+	public static function reverseSync(address:IpAddress):Array<String> {
+		final nativeAddr = InetAddress.getByName(address.toString());
+		return [nativeAddr.getHostName()];
+	}
 
-		final ipv6 = Ipv6Address.tryParse(str);
-		if (ipv6 != null) {
-			return V6(ipv6);
-		}
-
-		return null;
+	public static function getLocalHostname():String {
+		return InetAddress.getLocalHost().getHostName();
 	}
 }

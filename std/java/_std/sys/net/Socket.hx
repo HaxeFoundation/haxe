@@ -22,6 +22,7 @@
 
 package sys.net;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 @:coreApi
@@ -67,7 +68,9 @@ class Socket {
 
 	public function connect(host:Host, port:Int):Void {
 		try {
-			sock.connect(new InetSocketAddress(host.wrapped, port));
+			final address = host.addresses[0];
+			final nativeAddr = InetAddress.getByName(address.toString());
+			this.sock.connect(new InetSocketAddress(nativeAddr, port));
 			this.output = new java.io.NativeOutput(sock.getOutputStream());
 			this.input = new java.io.NativeInput(sock.getInputStream());
 		} catch (e:Dynamic)
@@ -94,11 +97,12 @@ class Socket {
 	}
 
 	public function bind(host:Host, port:Int):Void {
-		if (boundAddr != null) {
-			if (server.isBound())
-				throw "Already bound";
+		if (this.server.isBound() && this.boundAddr != null) {
+			throw "Already bound";
 		}
-		this.boundAddr = new java.net.InetSocketAddress(host.wrapped, port);
+
+		final address = host.addresses[0];
+		this.boundAddr = new java.net.InetSocketAddress(address.toString(), port);
 	}
 
 	public function accept():Socket {
@@ -113,25 +117,17 @@ class Socket {
 	}
 
 	public function peer():{host:Host, port:Int} {
-		var rem = sock.getInetAddress();
-		if (rem == null)
-			return null;
-
-		var host = new Host(null);
-		host.wrapped = rem;
-		return {host: host, port: sock.getPort()};
+		final nativePeerAddr = sock.getInetAddress() ?? return null;
+		final host = new Host(nativePeerAddr.getHostAddress());
+		final port = this.sock.getPort();
+		return {host: host, port: port};
 	}
 
 	public function host():{host:Host, port:Int} {
-		var local = sock.getLocalAddress();
-		var host = new Host(null);
-		host.wrapped = local;
-
-		if (boundAddr != null) {
-			return {host: host, port: server.getLocalPort()};
-		}
-
-		return {host: host, port: sock.getLocalPort()};
+		final nativeAddr = sock.getLocalAddress();
+		final host = new Host(nativeAddr.getHostAddress());
+		final port = this.boundAddr != null ? this.server.getLocalPort() : this.sock.getLocalPort();
+		return {host: host, port: port};
 	}
 
 	public function setTimeout(timeout:Float):Void {

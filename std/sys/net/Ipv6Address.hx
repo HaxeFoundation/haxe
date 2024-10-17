@@ -32,24 +32,15 @@ import haxe.io.BytesData;
 	This value is immutable.
 **/
 @:notNull
-abstract Ipv6Address(BytesData) {
+abstract Ipv6Address(Ipv6AddressImpl) {
 	public static final LOCALHOST:Ipv6Address = new Ipv6Address(0, 0, 0, 0, 0, 0, 0, 1);
 	public static final ANY:Ipv6Address = new Ipv6Address(0, 0, 0, 0, 0, 0, 0, 0);
 
 	/**
 		Constructs a new IPv6 address from eight 16-bit groups.
 	**/
-	public function new(a:Int, b:Int, c:Int, d:Int, e:Int, f:Int, g:Int, h:Int) {
-		final bytes = Bytes.alloc(16);
-		bytes.setUInt16(14, a);
-		bytes.setUInt16(12, b);
-		bytes.setUInt16(10, c);
-		bytes.setUInt16(8, d);
-		bytes.setUInt16(6, e);
-		bytes.setUInt16(4, f);
-		bytes.setUInt16(0, g);
-		bytes.setUInt16(2, h);
-		this = bytes.getData();
+	public inline function new(a:Int, b:Int, c:Int, d:Int, e:Int, f:Int, g:Int, h:Int) {
+		this = Ipv6AddressImpl.fromGroups(a, b, c, d, e, f, g, h);
 	}
 
 	/**
@@ -57,7 +48,7 @@ abstract Ipv6Address(BytesData) {
 	**/
 	@:op(A == B)
 	public static inline function equals(lhs:Ipv6Address, rhs:Ipv6Address):Bool {
-		return Bytes.ofData(cast lhs).compare(Bytes.ofData(cast rhs)) == 0;
+		return Ipv6AddressImpl.equals(cast lhs, cast rhs);
 	}
 
 	/**
@@ -66,23 +57,6 @@ abstract Ipv6Address(BytesData) {
 	@:op(A != B)
 	public static inline function notEquals(lhs:Ipv6Address, rhs:Ipv6Address):Bool {
 		return !equals(lhs, rhs);
-	}
-
-	/**
-		Returns eight groups that make up this address.
-	**/
-	public function groups():Vector<Int> {
-		final bytes = Bytes.ofData(this);
-		final v = new Vector<Int>(8);
-		v[0] = bytes.getUInt16(14);
-		v[1] = bytes.getUInt16(12);
-		v[2] = bytes.getUInt16(10);
-		v[3] = bytes.getUInt16(8);
-		v[4] = bytes.getUInt16(6);
-		v[5] = bytes.getUInt16(4);
-		v[6] = bytes.getUInt16(0);
-		v[7] = bytes.getUInt16(2);
-		return v;
 	}
 
 	/**
@@ -96,7 +70,73 @@ abstract Ipv6Address(BytesData) {
 		Returns true if this IPv6 address is an IPv4-mapped address.
 	**/
 	public inline function isIpv4Mapped():Bool {
-		final groups = abstract.groups();
+		return this.isIpv4Mapped();
+	}
+
+	/**
+		Returns a text, lowercase hexadecimal representation of this IPv6 address.
+	**/
+	public inline function toString():String {
+		return this.toString();
+	}
+
+	@:to
+	private inline function asIpAddress():IpAddress {
+		return IpAddress.V6(abstract);
+	}
+
+	/**
+		Returns this IPv6 address represented as big-endian bytes.
+	**/
+	private inline function asNetworkOrderBytes():BytesData {
+		return @:privateAccess this.repr;
+	}
+
+	/**
+		Creates a new IPv6 address object from big-endian bytes.
+	**/
+	private static inline function fromNetworkOrderBytes(b:BytesData):Ipv6Address {
+		return cast new Ipv6AddressImpl(b);
+	}
+
+	/**
+		Tries to parse a string as an IPv6 address.
+
+		@param str The string to parse.
+		@return The parsed IPv6 address, or `null` if the string could not be parsed.
+	**/
+	public static inline function tryParse(str:String):Null<Ipv6Address> {
+		return cast Ipv6AddressImpl.tryParse(str);
+	}
+}
+
+@:noDoc
+private final class Ipv6AddressImpl {
+	/**
+		Inner representation of the IPv6 address.
+	**/
+	private final repr:BytesData;
+
+	public function new(repr:BytesData) {
+		this.repr = repr;
+	}
+
+	private function groups():Vector<Int> {
+		final bytes = Bytes.ofData(this.repr);
+		final v = new Vector<Int>(8);
+		v[0] = bytes.getUInt16(14);
+		v[1] = bytes.getUInt16(12);
+		v[2] = bytes.getUInt16(10);
+		v[3] = bytes.getUInt16(8);
+		v[4] = bytes.getUInt16(6);
+		v[5] = bytes.getUInt16(4);
+		v[6] = bytes.getUInt16(0);
+		v[7] = bytes.getUInt16(2);
+		return v;
+	}
+
+	public function isIpv4Mapped():Bool {
+		final groups = this.groups();
 		if (groups[0] != 0)
 			return false;
 		if (groups[1] != 0)
@@ -110,13 +150,8 @@ abstract Ipv6Address(BytesData) {
 		return groups[5] == 0xffff;
 	}
 
-	@:to
-	private function asIpAddress():IpAddress {
-		return IpAddress.V6(abstract);
-	}
-
 	public function toString():String {
-		final groups = abstract.groups();
+		final groups = this.groups();
 
 		// Detect longest run of zeros
 		var firstZeroAt:Null<Int> = null;
@@ -169,7 +204,24 @@ abstract Ipv6Address(BytesData) {
 		return sb.toString().toLowerCase();
 	}
 
-	private static function fromGroups(groups:Vector<Int>):Ipv6Address {
+	public static function equals(lhs:Ipv6AddressImpl, rhs:Ipv6AddressImpl):Bool {
+		return Bytes.ofData(lhs.repr).compare(Bytes.ofData(rhs.repr)) == 0;
+	}
+
+	public static function fromGroups(a:Int, b:Int, c:Int, d:Int, e:Int, f:Int, g:Int, h:Int):Ipv6AddressImpl {
+		final bytes = Bytes.alloc(16);
+		bytes.setUInt16(14, a);
+		bytes.setUInt16(12, b);
+		bytes.setUInt16(10, c);
+		bytes.setUInt16(8, d);
+		bytes.setUInt16(6, e);
+		bytes.setUInt16(4, f);
+		bytes.setUInt16(0, g);
+		bytes.setUInt16(2, h);
+		return new Ipv6AddressImpl(bytes.getData());
+	}
+
+	public static function fromGroupsVector(groups:Vector<Int>):Ipv6AddressImpl {
 		if (groups.length != 8) {
 			throw new ArgumentException("Groups do not represent an IPv6 address");
 		}
@@ -183,16 +235,10 @@ abstract Ipv6Address(BytesData) {
 		final g = groups[6];
 		final h = groups[7];
 
-		return new Ipv6Address(a, b, c, d, e, f, g, h);
+		return Ipv6AddressImpl.fromGroups(a, b, c, d, e, f, g, h);
 	}
 
-	/**
-		Tries to parse a string as an IPv6 address.
-
-		@param str The string to parse.
-		@return The parsed IPv6 address, or `null` if the string could not be parsed.
-	**/
-	public static function tryParse(str:String):Null<Ipv6Address> {
+	public static function tryParse(str:String):Null<Ipv6AddressImpl> {
 		static final patternHex = ~/^[0-9a-f]{1,4}$/;
 
 		final parts = StringTools.trim(str).toLowerCase().split(":");
@@ -241,6 +287,6 @@ abstract Ipv6Address(BytesData) {
 			j++;
 		}
 
-		return fromGroups(groups);
+		return Ipv6AddressImpl.fromGroupsVector(groups);
 	}
 }

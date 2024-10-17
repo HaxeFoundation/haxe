@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2019 Haxe Foundation
+ * Copyright (C)2005-2024 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,54 +22,43 @@
 
 package sys.net;
 
-import php.Global.*;
-import php.SuperGlobal.*;
+import php.Global.gethostbyaddr;
+import php.Global.gethostbynamel;
+import php.NativeIndexedArray;
+import php.SuperGlobal._SERVER;
+
+using Lambda;
 
 @:coreApi
-class Host {
-	public var host(default, null):String;
-	public var ip(get, never):Int;
-	public var addresses(default, null):Array<IpAddress>;
-
-	public function new(name:String):Void {
-		host = name;
-		final ipStr = if (~/^(\d{1,3}\.){3}\d{1,3}$/.match(name)) {
-			name;
-		} else {
-			gethostbyname(name);
-		};
-
-		this.addresses = [];
-		if (ipStr == name) {
-			this.addresses.push(Ipv4Address.ANY);
-		} else {
-			final p = ipStr.split('.');
-			final ipv4 = intval(sprintf('%02X%02X%02X%02X', p[3], p[2], p[1], p[0]), 16);
-			this.addresses.push(V4(cast ipv4));
+final class Dns {
+	public static function resolveSync(name:String):Array<IpAddress> {
+		final addressesStr = gethostbynamel(name);
+		if (addressesStr == false) {
+			return [];
 		}
-	}
 
-	@:noDoc @:noCompletion
-	private function get_ip():Int {
-		for (addr in this.addresses) {
-			switch (addr) {
-				case V4(ip):
-					return cast ip;
-				case _:
+		final addresses:Array<IpAddress> = [];
+		for (addrStr in (cast addressesStr : NativeIndexedArray<String>)) {
+			final ipAddr = IpAddress.tryParse(addrStr);
+			if (ipAddr != null) {
+				addresses.push(ipAddr);
 			}
 		}
-		throw new UnsupportedFamilyException("This host does not support IPv4");
+
+		return addresses;
 	}
 
-	public function toString():String {
-		return (cast this.ip : Ipv4Address).toString();
+	public static function reverseSync(address:IpAddress):Array<String> {
+		final addressStr = address.toString();
+		final reversed = gethostbyaddr(addressStr);
+		return if (reversed != false && reversed != addressStr) {
+			[reversed];
+		} else {
+			[];
+		};
 	}
 
-	public function reverse():String {
-		return gethostbyaddr(this.toString());
-	}
-
-	public static function localhost():String {
+	public static function getLocalHostname():String {
 		return php.Syntax.coalesce(_SERVER['HTTP_HOST'], "localhost");
 	}
 }

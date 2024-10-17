@@ -18,6 +18,7 @@
  *)
 open Extlib_leftovers
 open Globals
+open EvalArray
 open EvalValue
 open EvalEncode
 open EvalDecode
@@ -761,6 +762,30 @@ module StdDeque = struct
 	)
 end
 
+module StdDns = struct
+
+	let localhost = vfun0 (fun () ->
+		let hostname = catch_unix_error Unix.gethostname() in
+		create_unknown hostname
+	)
+
+	let reverse_sync = vfun1 (fun ip_str ->
+		let ip_str = decode_string ip_str in
+		let addr = catch_unix_error Unix.inet_addr_of_string ip_str in
+		try
+			let host_entry = catch_unix_error Unix.gethostbyaddr addr in
+			create_unknown host_entry.h_name
+		with Not_found -> exc_string (Printf.sprintf "Could not reverse lookup host %s" ip_str)
+	)
+
+	let resolve_sync = vfun1 (fun hostname ->
+		let hostname = decode_string hostname in
+		let host_entry = try Unix.gethostbyname hostname with Not_found -> exc_string (Printf.sprintf "Could not resolve host %s" hostname) in
+		let addresses_str = Array.map (fun addr -> create_unknown (catch_unix_error Unix.string_of_inet_addr addr)) host_entry.h_addr_list in
+		VArray (create addresses_str)
+	)
+end
+
 module StdEReg = struct
 	open Pcre2
 
@@ -1380,35 +1405,6 @@ module StdGc = struct
 	)
 
 	let stat = vfun0 (fun () -> encode_stats (Gc.stat()))
-end
-
-module StdHost = struct
-	let int32_addr h =
-		let base = Int32.to_int (Int32.logand h 0xFFFFFFl) in
-		let str = Printf.sprintf "%ld.%d.%d.%d" (Int32.shift_right_logical h 24) (base lsr 16) ((base lsr 8) land 0xFF) (base land 0xFF) in
-		catch_unix_error Unix.inet_addr_of_string str
-
-	let localhost = vfun0 (fun () ->
-		create_unknown (catch_unix_error Unix.gethostname())
-	)
-
-	let hostReverse = vfun1 (fun ip ->
-		let ip = decode_i32 ip in
-		try create_unknown (catch_unix_error Unix.gethostbyaddr (int32_addr ip)).h_name with Not_found -> exc_string "Could not reverse host"
-	)
-
-	let hostToString = vfun1 (fun ip ->
-		let ip = decode_i32 ip in
-		create_unknown (catch_unix_error Unix.string_of_inet_addr (int32_addr ip))
-	)
-
-	let resolve = vfun1 (fun name ->
-		let name = decode_string name in
-		let h = try Unix.gethostbyname name with Not_found -> exc_string (Printf.sprintf "Could not resolve host %s" name) in
-		let addr = catch_unix_error Unix.string_of_inet_addr h.h_addr_list.(0) in
-		let a, b, c, d = Scanf.sscanf addr "%d.%d.%d.%d" (fun a b c d -> a,b,c,d) in
-		vint32 (Int32.logor (Int32.shift_left (Int32.of_int a) 24) (Int32.of_int (d lor (c lsl 8) lor (b lsl 16))))
-	)
 end
 
 module StdLock = struct
@@ -2039,11 +2035,12 @@ module StdSocket = struct
 		encode_instance key_eval_vm_NativeSocket ~kind:(ISocket socket)
 	)
 
-	let bind = vifun2 (fun vthis host port ->
-		let this = this vthis in
-		let host = decode_i32 host in
+	let bind = vifun2 (fun vthis ip_str port ->
+		let fd = this vthis in
+		let ip_str = decode_string ip_str in
+		let ip = catch_unix_error Unix.inet_addr_of_string ip_str in
 		let port = decode_int port in
-		catch_unix_error Unix.bind this (ADDR_INET (StdHost.int32_addr host,port));
+		catch_unix_error Unix.bind fd (ADDR_INET (ip, port));
 		vnull
 	)
 
@@ -2052,11 +2049,12 @@ module StdSocket = struct
 		vnull
 	)
 
-	let connect = vifun2 (fun vthis host port ->
-		let this = this vthis in
-		let host = decode_i32 host in
+	let connect = vifun2 (fun vthis ip_str port ->
+		let fd = this vthis in
+		let ip_str = decode_string ip_str in
+		let ip = catch_unix_error Unix.inet_addr_of_string ip_str in
 		let port = decode_int port in
-		catch_unix_error (Unix.connect this) (ADDR_INET (StdHost.int32_addr host,port));
+		catch_unix_error (Unix.connect fd) (ADDR_INET (ip, port));
 		vnull
 	)
 
@@ -3556,11 +3554,10 @@ let init_standard_library builtins =
 		"set",StdGc.set;
 		"stat",StdGc.stat;
 	] [];
-	init_fields builtins (["sys";"net"],"Host") [
-		"localhost",StdHost.localhost;
-		"hostReverse",StdHost.hostReverse;
-		"hostToString",StdHost.hostToString;
-		"resolve",StdHost.resolve;
+	init_fields builtins (["sys";"net"],"Dns") [
+		"getLocalHostnameImpl", StdDns.localhost;
+		"reverseSyncIpv4Impl", StdDns.reverse_sync;
+		"resolveSyncIpv4Impl", StdDns.resolve_sync;
 	] [];
 	init_fields builtins (["sys";"thread"],"Lock") [] [
 		"release",StdLock.release;

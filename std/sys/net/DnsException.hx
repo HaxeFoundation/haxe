@@ -22,40 +22,17 @@
 
 package sys.net;
 
+import haxe.Exception;
+import haxe.PosInfos;
+
 /**
-	Represents an Internet Protocol (IP) address.
+	This exception is thrown when domain name resolution unexpectedly fails.
 **/
-@:using(sys.net.IpAddress.IpAddressTools)
-enum IpAddress {
-	V4(addr:Ipv4Address);
-	V6(addr:Ipv6Address);
-}
-
-private final class IpAddressTools {
-	public static function toString(ip:IpAddress):String {
-		return switch (ip) {
-			case V4(addr):
-				addr.toString();
-			case V6(addr):
-				addr.toString();
-		}
-	}
-
+class DnsException extends Exception {
 	/**
-		Tries to parse the given string as an IPv4 or an IPv6 address.
-		@param str The string to parse.
+		Creates a new instance of `DnsException`.
 	**/
-	public static function tryParse(_:Enum<IpAddress>, str:String):Null<IpAddress> {
-		final ipv4 = Ipv4Address.tryParse(str);
-		if (ipv4 != null) {
-			return V4(ipv4);
-		}
-
-		final ipv6 = Ipv6Address.tryParse(str);
-		if (ipv6 != null) {
-			return V6(ipv6);
-		}
-
-		return null;
+	public function new(message:String, ?previous:Exception) {
+		super(message, previous);
 	}
 }

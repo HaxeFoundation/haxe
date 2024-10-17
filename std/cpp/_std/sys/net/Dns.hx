@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2019 Haxe Foundation
+ * Copyright (C)2005-2024 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,48 +22,46 @@
 
 package sys.net;
 
-import sys.net.IpAddress;
-import sys.net.UnsupportedFamilyException;
+import cpp.NativeSocket;
 
-class Host {
-	public var host(default, null):String;
-	public var ip(get, never):Int;
-	public var addresses(default, null):Array<IpAddress>;
-
-	public function new(name:String) {
-		host = name;
-		init(resolve(name));
+@:coreApi
+final class Dns {
+	private static function __init__():Void {
+		NativeSocket.socket_init();
 	}
 
-	@:noDoc @:noCompletion
-	private function get_ip():Int {
-		for (addr in this.addresses) {
-			switch (addr) {
-				case V4(ip):
-					return cast ip;
-				case _:
-			}
+	public static function resolveSync(name:String):Array<IpAddress> {
+		final addresses:Array<IpAddress> = [];
+		try {
+			final ipv4 = NativeSocket.host_resolve(name);
+			addresses.push(Ipv4Address.fromNetworkOrderInt(ipv4));
+		} catch (_) {
+			// Host not found, ignore
 		}
-		throw new UnsupportedFamilyException("This host does not support IPv4");
+		try {
+			final ipv6 = NativeSocket.host_resolve_ipv6(name);
+			addresses.push(@:privateAccess Ipv6Address.fromNetworkOrderBytes(ipv6));
+		} catch (_) {
+			// Host not found, ignore
+		}
+		return addresses;
 	}
 
-	public function toString() {
-		return hostToString(ip);
+	public static function reverseSync(address:IpAddress):Array<String> {
+		final name = switch (address) {
+			case V4(ipv4):
+				NativeSocket.host_reverse(@:privateAccess ipv4.asNetworkOrderInt());
+			case V6(ipv6):
+				NativeSocket.host_reverse_ipv6(@:privateAccess ipv6.asNetworkOrderBytes());
+		}
+		return if (name != null && name != "") {
+			[name];
+		} else {
+			[];
+		};
 	}
 
-	public function reverse() {
-		return hostReverse(ip);
+	public static function getLocalHostname():String {
+		return NativeSocket.host_local();
 	}
-
-	function init(ip:Int) {
-		this.addresses = [V4(cast ip)];
-	}
-
-	extern static public function localhost():String;
-
-	extern static function hostReverse(ip:Int):String;
-
-	extern static function hostToString(ip:Int):String;
-
-	extern static function resolve(name:String):Int;
 }

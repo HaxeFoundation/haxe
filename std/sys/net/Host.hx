@@ -22,55 +22,138 @@
 
 package sys.net;
 
+import haxe.Exception;
 import sys.net.IpAddress;
 
 /**
-	A given IP host name.
+	Stores address information about a given internet host.
 **/
-extern class Host {
+class Host {
 	/**
-		The provided host string.
+		The original provided hostname.
 	**/
-	var host(default, null):String;
-
-	#if !nodejs
-	/**
-		IP addresses corresponding to the host.
-	**/
-	var addresses(default, null):Array<IpAddress>;
+	public var host(default, null):String;
 
 	/**
-		The IPv4 address corresponding to the host, if any exists.
+		Known IP addresses corresponding to this host. Not in any particular order.
 	**/
-	@:noDoc
+	public var addresses(default, null):Array<IpAddress>;
+
+	/**
+		If any IPv4 address is associated with this host,
+		returns an arbitrary one as a big-endian integer.
+		Throws otherwise.
+	**/
 	@:noCompletion
-	var ip(get, never):Int;
-	#else
+	@:deprecated("Use the `addresses` field instead for better typing and IPv6 support")
+	public var ip(get, never):Int;
+
+	private function get_ip():Int {
+		for (addr in this.addresses) {
+			switch (addr) {
+				case V4(ip):
+					return @:privateAccess ip.asNetworkOrderInt();
+				case _:
+			}
+		}
+
+		throw new UnsupportedFamilyException("This host does not have any associated IPv4 address");
+	}
 
 	/**
-		The actual IP corresponding to the host.
+		Creates a new `Host`.
+
+		The name can be an IPv4 address (e.g. "127.0.0.1"),
+		or an IPv6 address (e.g. "::1"), in which case it will be parsed as such.
+		It can also be a hostname (e.g. "google.com"),
+		in which case the corresponding IP addresses are resolved using DNS.
+
+		If the hostname could not be found, throws an exception.
 	**/
-	var ip(default, null):Int;
-	#end
+	public function new(name:String) {
+		this.host = name;
+
+		final ipAddr = IpAddress.tryParse(name);
+		if (ipAddr != null) {
+			this.addresses = [ipAddr];
+			return;
+		}
+
+		final addresses = Dns.resolveSync(name);
+		if (addresses.length == 0) {
+			throw new DnsException("Could not resolve hostname " + name);
+		}
+
+		this.addresses = addresses;
+	}
+
+	private function getAddressesSorted(preference:FamilyPreference):Array<IpAddress> {
+		final copy = this.addresses.copy();
+		copy.sort((a, b) -> switch [preference, a, b] {
+			case [PreferIPv4, V4(_), V6(_)]: -1;
+			case [PreferIPv4, V6(_), V4(_)]: 1;
+			case [PreferIPv6, V6(_), V4(_)]: -1;
+			case [PreferIPv6, V4(_), V6(_)]: 1;
+			case _: 0;
+		});
+		return copy;
+	}
 
 	/**
-		Creates a new Host : the name can be an IP in the form "127.0.0.1" or an host name such as "google.com", in which case
-		the corresponding IP address is resolved using DNS. An exception occur if the host name could not be found.
+		Represents this host and all its IP addresses as a string.
 	**/
-	function new(name:String):Void;
+	public function toString():String {
+		final sb = new StringBuf();
+		sb.addChar('"'.code);
+		sb.add(this.host);
+		sb.add("\" (");
 
-	/**
-		Returns the IP representation of the host
-	**/
-	function toString():String;
+		final addresses = this.addresses;
+		if (addresses.length == 0) {
+			sb.add("no known addresses");
+		} else {
+			for (i => addr in addresses) {
+				sb.add(addr.toString());
+				if (i + 1 < addresses.length) {
+					sb.add(", ");
+				}
+			}
+		}
+
+		sb.addChar(")".code);
+		return sb.toString();
+	}
 
 	/**
 		Perform a reverse-DNS query to resolve a host name from an IP.
 	**/
-	function reverse():String;
+	@:deprecated("Use `sys.net.Dns.reverseSync` instead")
+	public function reverse():String {
+		final addresses = this.addresses;
+		if (addresses.length == 0) {
+			throw new Exception("There are no IP addresses associated with this host");
+		}
+
+		final address = addresses[0];
+		final reversed = Dns.reverseSync(address);
+		if (reversed.length == 0) {
+			throw new DnsException('Reverse lookup failed for IP address $address');
+		}
+
+		return reversed[0];
+	}
 
 	/**
-		Returns the local computer host name
+		Returns the local computer hostname.
 	**/
-	static function localhost():String;
+	@:deprecated("Use `sys.net.Dns.getLocalHostname` instead")
+	public static function localhost():String {
+		return Dns.getLocalHostname();
+	}
+}
+
+@:noDoc @:noCompletion
+private enum abstract FamilyPreference(Int) {
+	public var PreferIPv4 = 0;
+	public var PreferIPv6 = 1;
 }

@@ -22,40 +22,37 @@
 
 package sys.net;
 
-/**
-	Represents an Internet Protocol (IP) address.
-**/
-@:using(sys.net.IpAddress.IpAddressTools)
-enum IpAddress {
-	V4(addr:Ipv4Address);
-	V6(addr:Ipv6Address);
-}
+import haxe.Exception;
 
-private final class IpAddressTools {
-	public static function toString(ip:IpAddress):String {
-		return switch (ip) {
-			case V4(addr):
-				addr.toString();
-			case V6(addr):
-				addr.toString();
+@:coreApi
+final class Dns {
+	public static function resolveSync(name:String):Array<IpAddress> {
+		try {
+			final addresses:Array<IpAddress> = [];
+			for (addressStr in resolveSyncIpv4Impl(name)) {
+				final ipAddr = IpAddress.tryParse(addressStr);
+				if (ipAddr != null) {
+					addresses.push(ipAddr);
+				}
+			}
+			return addresses;
+		} catch (e:Exception) {
+			trace(e.details());
+			return [];
 		}
 	}
 
-	/**
-		Tries to parse the given string as an IPv4 or an IPv6 address.
-		@param str The string to parse.
-	**/
-	public static function tryParse(_:Enum<IpAddress>, str:String):Null<IpAddress> {
-		final ipv4 = Ipv4Address.tryParse(str);
-		if (ipv4 != null) {
-			return V4(ipv4);
-		}
-
-		final ipv6 = Ipv6Address.tryParse(str);
-		if (ipv6 != null) {
-			return V6(ipv6);
-		}
-
-		return null;
+	public static function reverseSync(address:IpAddress):Array<String> {
+		return [reverseSyncIpv4Impl(address.toString())];
 	}
+
+	public static function getLocalHostname():String {
+		return getLocalHostnameImpl();
+	}
+
+	private static extern function resolveSyncIpv4Impl(name:String):Array<String>;
+
+	private static extern function reverseSyncIpv4Impl(ipStr:String):String;
+
+	private static extern function getLocalHostnameImpl():String;
 }

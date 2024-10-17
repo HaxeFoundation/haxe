@@ -22,6 +22,8 @@
 
 package sys.ssl;
 
+import sys.net.UnsupportedFamilyException;
+
 private typedef SocketHandle = Dynamic;
 private typedef CTX = Dynamic;
 private typedef SSL = Dynamic;
@@ -152,24 +154,34 @@ class Socket extends sys.net.Socket {
 	}
 
 	public override function connect(host:sys.net.Host, port:Int):Void {
-		try {
-			ctx = buildSSLContext(false);
-			ssl = ssl_new(ctx);
-			ssl_set_socket(ssl, __s);
-			handshakeDone = false;
-			if (hostname == null)
-				hostname = host.host;
-			if (hostname != null)
-				ssl_set_hostname(ssl, untyped hostname.__s);
-			socket_connect(__s, host.ip, port);
-			handshake();
-		} catch (s:String) {
-			if (s == "std@socket_connect")
-				throw "Failed to connect on " + host.host + ":" + port;
-			else
-				neko.Lib.rethrow(s);
-		} catch (e:Dynamic) {
-			neko.Lib.rethrow(e);
+		final address = @:privateAccess host.getAddressesSorted(PreferIPv4)[0];
+		switch (address) {
+			case V4(addr):
+				try {
+					ctx = buildSSLContext(false);
+					ssl = ssl_new(ctx);
+					ssl_set_socket(ssl, __s);
+					handshakeDone = false;
+
+					this.hostname ??= host.host;
+					if (this.hostname != null) {
+						ssl_set_hostname(ssl, untyped this.hostname.__s);
+					}
+
+					final ipv4 = @:privateAccess addr.asNetworkOrderInt();
+					socket_connect(this.__s, ipv4, port);
+					handshake();
+				} catch (s:String) {
+					if (s == "std@socket_connect") {
+						throw 'Failed to connect on $addr:$port';
+					} else {
+						neko.Lib.rethrow(s);
+					}
+				} catch (e:Dynamic) {
+					neko.Lib.rethrow(e);
+				}
+			case V6(_):
+				throw new UnsupportedFamilyException("Neko does not support connecting to IPv6 addresses");
 		}
 	}
 
@@ -236,8 +248,14 @@ class Socket extends sys.net.Socket {
 
 	public override function bind(host:sys.net.Host, port:Int):Void {
 		ctx = buildSSLContext(true);
-
-		socket_bind(__s, host.ip, port);
+		final address = @:privateAccess host.getAddressesSorted(PreferIPv4)[0];
+		switch (address) {
+			case V4(addr):
+				final ipv4 = @:privateAccess addr.asNetworkOrderInt();
+				socket_bind(this.__s, ipv4, port);
+			case V6(_):
+				throw new UnsupportedFamilyException("Neko does not support binding to IPv6 interfaces");
+		}
 	}
 
 	public override function accept():Socket {
@@ -271,14 +289,18 @@ class Socket extends sys.net.Socket {
 				var servername = new String(cast servername);
 				for (c in altSNIContexts) {
 					if (c.match(servername))
-						return @:privateAccess {
-							key:c.key.__k, cert:c.cert.__x
-						};
+						return @:privateAccess
+							{
+								key: c.key.__k,
+								cert: c.cert.__x
+							};
 				}
 				if (ownKey != null && ownCert != null)
-					return @:privateAccess {
-						key:ownKey.__k, cert:ownCert.__x
-					};
+					return @:privateAccess
+						{
+							key: ownKey.__k,
+							cert: ownCert.__x
+						};
 				return null;
 			}
 			conf_set_servername_callback(ctx, sniCallback);

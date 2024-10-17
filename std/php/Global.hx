@@ -1509,6 +1509,11 @@ extern class Global {
 	**/
 	static function gethostbyname(hostname:String):String;
 
+	/** 
+		@see https://php.net/manual/en/function.gethostbynamel.php
+	**/
+	static function gethostbynamel(hostname:String):EitherType<NativeIndexedArray<String>, Bool>;
+
 	/**
 		@see http://php.net/manual/en/function.gethostbyaddr.php
 	**/

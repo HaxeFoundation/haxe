@@ -31,7 +31,7 @@ import sys.net.IpAddress;
 	This value is immutable.
 **/
 @:notNull
-abstract Ipv4Address(Int32) {
+abstract Ipv4Address(Ipv4AddressImpl) {
 	public static final BROADCAST:Ipv4Address = new Ipv4Address(255, 255, 255, 255);
 	public static final LOCALHOST:Ipv4Address = new Ipv4Address(127, 0, 0, 1);
 	public static final ANY:Ipv4Address = new Ipv4Address(0, 0, 0, 0);
@@ -40,12 +40,7 @@ abstract Ipv4Address(Int32) {
 		Constructs a new IPv4 address from four octets.
 	**/
 	public inline function new(a:Int, b:Int, c:Int, d:Int) {
-		var value:Int32 = 0;
-		value |= (a & 255);
-		value |= (b & 255) << 8;
-		value |= (c & 255) << 16;
-		value |= (d & 255) << 24;
-		this = value;
+		this = Ipv4AddressImpl.fromOctets(a, b, c, d);
 	}
 
 	/**
@@ -53,7 +48,7 @@ abstract Ipv4Address(Int32) {
 	**/
 	@:op(A == B)
 	public static inline function equals(lhs:Ipv4Address, rhs:Ipv4Address):Bool {
-		return (cast lhs : Int32) == (cast rhs : Int32);
+		return Ipv4AddressImpl.equals(cast lhs, cast rhs);
 	}
 
 	/**
@@ -65,39 +60,24 @@ abstract Ipv4Address(Int32) {
 	}
 
 	/**
-		Returns four octets that make up this address.
-	**/
-	public function octets():Vector<Int> {
-		final v = new Vector<Int>(4);
-		v[0] = this & 255;
-		v[1] = (this >> 8) & 255;
-		v[2] = (this >> 16) & 255;
-		v[3] = (this >> 24) & 255;
-		return v;
-	}
-
-	/**
 		Returns true if this is a loopback address.
 	**/
 	public inline function isLoopback():Bool {
-		final octets = abstract.octets();
-		return octets[0] == 127;
+		return this.isLoopback();
 	}
 
 	/**
 		Returns true if this is a link-local address.
 	**/
 	public inline function isLinkLocal():Bool {
-		final octets = abstract.octets();
-		return octets[0] == 169 && octets[1] == 254;
+		return this.isLinkLocal();
 	}
 
 	/**
 		Returns true if this is a multicast address.
 	**/
 	public inline function isMulticast():Bool {
-		final octets = abstract.octets();
-		return octets[0] >= 224 && octets[0] <= 239;
+		return this.isMulticast();
 	}
 
 	/**
@@ -120,10 +100,75 @@ abstract Ipv4Address(Int32) {
 	}
 
 	/**
-		Gets a text representation of this IPv4 address.
+		Returns this IPv4 address represented as a big-endian integer.
 	**/
+	public inline function asNetworkOrderInt():Int32 {
+		return @:privateAccess this.repr;
+	}
+
+	/**
+		Creates a new IPv4 address object from a big-endian integer.
+	**/
+	public static inline function fromNetworkOrderInt(i:Int32):Ipv4Address {
+		return cast new Ipv4AddressImpl(i);
+	}
+
+	/**
+		Gets a text, dotted-decimal representation of this IPv4 address.
+	**/
+	public inline function toString():String {
+		return this.toString();
+	}
+
+	/**
+		Tries to parse a string as an IPv4 address.
+
+		@param str The string to parse. It must be in the dotted decimal notation.
+		@return The parsed IPv4 address or `null` if the string could not be parsed.
+	**/
+	public static inline function tryParse(str:String):Null<Ipv4Address> {
+		return cast Ipv4AddressImpl.tryParse(str);
+	}
+}
+
+@:noDoc
+private final class Ipv4AddressImpl {
+	/**
+		Inner representation of the IPv4 address.
+	**/
+	private final repr:Int32;
+
+	public function new(repr:Int32) {
+		this.repr = repr;
+	}
+
+	private function octets():Vector<Int> {
+		final repr = this.repr;
+		final v = new Vector<Int>(4);
+		v[0] = repr & 255;
+		v[1] = (repr >> 8) & 255;
+		v[2] = (repr >> 16) & 255;
+		v[3] = (repr >> 24) & 255;
+		return v;
+	}
+
+	public inline function isLoopback():Bool {
+		final octets = this.octets();
+		return octets[0] == 127;
+	}
+
+	public inline function isLinkLocal():Bool {
+		final octets = this.octets();
+		return octets[0] == 169 && octets[1] == 254;
+	}
+
+	public inline function isMulticast():Bool {
+		final octets = this.octets();
+		return octets[0] >= 224 && octets[0] <= 239;
+	}
+
 	public function toString():String {
-		final octets = abstract.octets();
+		final octets = this.octets();
 		final sb = new StringBuf();
 		sb.add(octets[0]);
 		sb.addChar(".".code);
@@ -135,13 +180,20 @@ abstract Ipv4Address(Int32) {
 		return sb.toString();
 	}
 
-	/**
-		Tries to parse a string as an IPv4 address.
+	public static inline function equals(lhs:Ipv4AddressImpl, rhs:Ipv4AddressImpl):Bool {
+		return lhs.repr == rhs.repr;
+	}
 
-		@param str The string to parse. It must be in the dotted decimal notation.
-		@return The parsed IPv4 address or `null` if the string could not be parsed.
-	**/
-	public static function tryParse(str:String):Null<Ipv4Address> {
+	public static function fromOctets(a:Int, b:Int, c:Int, d:Int):Ipv4AddressImpl {
+		var value:Int32 = 0;
+		value |= (a & 255);
+		value |= (b & 255) << 8;
+		value |= (c & 255) << 16;
+		value |= (d & 255) << 24;
+		return new Ipv4AddressImpl(value);
+	}
+
+	public static function tryParse(str:String):Null<Ipv4AddressImpl> {
 		final parts = StringTools.trim(str).split(".");
 		if (parts.length != 4) {
 			return null;
@@ -160,6 +212,6 @@ abstract Ipv4Address(Int32) {
 			octets.push(octet);
 		}
 
-		return new Ipv4Address(octets[0], octets[1], octets[2], octets[3]);
+		return Ipv4AddressImpl.fromOctets(octets[0], octets[1], octets[2], octets[3]);
 	}
 }
