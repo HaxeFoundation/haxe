@@ -612,7 +612,7 @@ typedef MetaAccess = {
  */
 enum FieldKind {
 	/**
-		A variable of property, depending on the `read` and `write` values.
+		A variable or property, depending on the `read` and `write` values.
 	**/
 	FVar(read:VarAccess, write:VarAccess);
 
