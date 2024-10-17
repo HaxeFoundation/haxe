@@ -72,6 +72,11 @@ class Hl {
 		runCommand(hlBinary, ["--version"]);
 
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
+
+		if (systemName == "Windows") {
+			Sys.putEnv("HASHLINK_SRC", hlSrc);
+			Sys.putEnv("HASHLINK_BIN", hlInstallBinDir);
+		}
 	}
 
 	static function buildAndRunHlc(dir:String, filename:String, ?run) {
@@ -82,7 +87,6 @@ class Hl {
 
 		final compiler = if (systemName == "Mac") "clang" else "gcc";
 		final extraCompilerFlags = if (systemName == "Windows") ["-ldbghelp", "-municode"] else [];
-
 		runCommand(compiler, [
 			"-o", '$dir/$filename.exe',
 			'$dir/$filename.c',
@@ -97,6 +101,18 @@ class Hl {
 		].concat(extraCompilerFlags));
 
 		run('$dir/$filename.exe', []);
+
+		// Run with MSBuild
+		if (systemName == "Windows") {
+			runCommand("MSBuild.exe", [
+				'$dir/$filename.sln',
+				'-nologo', '-verbosity:minimal',
+				'-t:$filename',
+				'-property:Configuration=Release',
+				'-property:Platform=x64'
+			]);
+			run('$dir/x64/Release/$filename.exe', []);
+		}
 	}
 
 	static function buildAndRun(hxml:String, target:String, ?args:Array<String>) {
@@ -105,7 +121,7 @@ class Hl {
 		runCommand("haxe", [hxml, "-hl", '$target/hl-jit.hl'].concat(args));
 		runCommand(hlBinary, ['$target/hl-jit.hl']);
 
-		runCommand("haxe", [hxml, "-hl", '$target/hlc.c'].concat(args));
+		runCommand("haxe", [hxml, "-hl", '$target/hlc.c', "-D", "hlgen.makefile=ci"].concat(args));
 		buildAndRunHlc(target, "hlc");
 	}
 

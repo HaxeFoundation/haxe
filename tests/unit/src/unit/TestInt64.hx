@@ -489,7 +489,7 @@ class TestInt64 extends Test {
 	}
 
 	function int64eq(v:Int64, v2:Int64, ?pos) {
-		t(v == v2);
+		t(v == v2, pos);
 	}
 
 	public function testParseString() {
