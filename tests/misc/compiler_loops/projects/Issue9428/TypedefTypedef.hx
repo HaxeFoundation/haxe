@@ -8,6 +8,6 @@ typedef Rec2<T> = {
 
 class TypedefTypedef {
 	static function main() {
-		var r:Rec1<Void> = (null:Rec2<Void>);
+		var r:Rec1<haxe.NoValue> = (null:Rec2<haxe.NoValue>);
 	}
 }
