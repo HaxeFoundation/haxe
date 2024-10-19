@@ -154,7 +154,7 @@ module Setup = struct
 					let hl_ver = try
 						Std.input_file (Common.find_file com "hl/hl_version")
 					with Not_found ->
-						failwith "The file hl_version could not be found. Please make sure HAXE_STD_PATH is set to the standard library corresponding to the used compiler version."
+						failwith "The file hl_version could not be found. Please make sure `HAXE_STD_PATH` environment variable or `--std-path` argument is set to the standard library corresponding to the used compiler version."
 					in
 					Define.define_value com.defines Define.HlVer hl_ver
 				end;
@@ -187,9 +187,9 @@ module Setup = struct
 
 	open ClassPath
 
-	let get_std_class_paths () =
+	let get_std_class_paths std_path =
 		try
-			let p = Sys.getenv "HAXE_STD_PATH" in
+			let p = if std_path = "" then Sys.getenv "HAXE_STD_PATH" else std_path in
 			let p = Path.remove_trailing_slash p in
 			let rec loop = function
 				| drive :: path :: l ->
@@ -224,7 +224,7 @@ module Setup = struct
 				let cp = new ClassPath.directory_class_path (Path.add_trailing_slash s) scope in
 				com.class_paths#add cp
 			with Sys_error _ -> ()
-		) (List.rev (get_std_class_paths ()));
+		) (List.rev (get_std_class_paths com.std_path));
 		com.class_paths#add com.empty_class_path
 
 	let setup_common_context ctx =

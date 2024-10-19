@@ -369,6 +369,7 @@ type context = {
 	mutable foptimize : bool;
 	mutable platform : platform;
 	mutable config : platform_config;
+	mutable std_path : string;
 	empty_class_path : ClassPath.class_path;
 	class_paths : ClassPaths.class_paths;
 	main : context_main;
@@ -793,6 +794,7 @@ let create compilation_step cs version args display_mode =
 		print = (fun s -> print_string s; flush stdout);
 		run_command = Sys.command;
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
+		std_path = "";
 		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;
 		main = {

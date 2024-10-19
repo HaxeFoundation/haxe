@@ -63,7 +63,7 @@ let create com macros =
 		TypeloadModule.load_module ctx ([],"StdTypes") null_pos
 	with
 		Error { err_message = Module_not_found ([],"StdTypes") } ->
-			Error.raise_std_not_found ()
+			Error.raise_std_not_found com.std_path
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
 	List.iter (fun mt ->

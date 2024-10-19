@@ -328,12 +328,12 @@ let raise_msg ?(depth = 0) msg p = raise_error_msg ~depth (Custom msg) p
 let raise_typing_error ?(depth = 0) msg p = raise_msg ~depth msg p
 let raise_typing_error_ext err = raise_error err
 
-let raise_std_not_found () =
+let raise_std_not_found std_path =
 	try
-		let std_path = Sys.getenv "HAXE_STD_PATH" in
-		raise_typing_error ("Standard library not found. Please check your `HAXE_STD_PATH` environment variable (current value: \"" ^ std_path ^ "\")") null_pos
+		let std_path = if std_path = "" then Sys.getenv "HAXE_STD_PATH" else std_path in
+		raise_typing_error ("Standard library not found. Please check your `HAXE_STD_PATH` environment variable or `--std-path` argument (current value: \"" ^ std_path ^ "\")") null_pos
 	with Not_found ->
-		raise_typing_error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
+		raise_typing_error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable or pass a `--std-path` argument" null_pos
 
 let error_require r p =
 	if r = "" then

@@ -126,6 +126,9 @@ let parse_args com =
 		("Compilation",[],["-libcp"],Arg.String (fun path ->
 			com.class_paths#add (new ClassPath.directory_class_path (Path.add_trailing_slash path) Lib);
 		),"<path>","add a directory to find source files");
+		("Compilation",["--std-path"],["-std-path"],Arg.String (fun path ->
+			com.std_path <- path;
+		),"<path>","set the path of the standard library");
 		("Compilation",["--hxb-lib"],["-hxb-lib"],Arg.String (fun file ->
 			let lib = create_native_lib file false HxbLib in
 			actx.hxb_libs <- lib :: actx.hxb_libs
