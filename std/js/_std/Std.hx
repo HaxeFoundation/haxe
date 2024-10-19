@@ -43,10 +43,22 @@ import js.Syntax;
 		return downcast(value, c);
 	}
 
-	@:pure
 	public static function string(s:Dynamic):String {
-		return @:privateAccess js.Boot.__string_rec(s, "");
+		if(__hx__stringDepth > 10) {
+			return '<...>';
+		}
+		__hx__stringDepth++;
+		try {
+			var result = @:privateAccess js.Boot.__string_rec(s,"");
+			__hx__stringDepth--;
+			return result;
+		} catch(_:Dynamic) {
+			__hx__stringDepth--;
+			js.Lib.rethrow();
+			return "<...>";
+		}
 	}
+	static var __hx__stringDepth = 0;
 
 	public static inline function int(x:Float):Int {
 		return (cast x) | 0;
