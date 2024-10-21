@@ -22,4 +22,47 @@
 
 package hl.uv;
 
-typedef HandleData = hl.Abstract<"uv_handle">;
+import hl.uv.Handle;
+
+using hl.uv.UV;
+
+/**
+	Check handles will run the given callback once per loop iteration,
+	right after polling for i/o.
+
+	@see http://docs.libuv.org/en/v1.x/check.html
+**/
+class Check extends Handle<UvCheckTStar> {
+	@:keep var callback:()->Void;
+
+	/**
+		Allocate and initialize the handle.
+	**/
+	static public function init(loop:Loop):Check {
+		loop.checkLoop();
+		var check = new Check(UV.alloc_check());
+		var result = loop.check_init(check.h);
+		if(result < 0) {
+			check.freeHandle();
+			result.throwErr();
+		}
+		return check;
+	}
+
+	/**
+		Start the handle with the given callback.
+	**/
+	public function start(callback:()->Void):Void {
+		handle(h -> {
+			h.check_start_with_cb().resolve();
+			this.callback = callback;
+		});
+	}
+
+	/**
+		Stop the handle, the callback will no longer be called.
+	**/
+	public function stop():Void {
+		handle(h -> h.check_stop().resolve());
+	}
+}

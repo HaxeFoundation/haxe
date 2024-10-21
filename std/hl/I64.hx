@@ -22,7 +22,7 @@
 
 package hl;
 
-@:coreType @:notNull @:runtimeValue abstract I64 from Int {
+@:coreType @:notNull @:runtimeValue abstract I64 {
 
 	/**
 		Destructively cast to Int
@@ -30,6 +30,10 @@ package hl;
 	public inline function toInt():Int {
 		return cast this;
 	}
+
+	@:hlNative("std", "num_i64_of_int")
+	public static function ofInt(i:Int):I64
+		return cast 0;
 
 	@:to
 	@:deprecated("Implicit cast from I64 to Int (32 bits) is deprecated. Use .toInt() or explicitly cast instead.")
