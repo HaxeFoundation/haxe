@@ -1320,7 +1320,6 @@ and encode_tvar v =
 		"capture", vbool (has_var_flag v VCaptured);
 		"extra", vopt f_extra v.v_extra;
 		"meta", encode_meta v.v_meta (fun m -> v.v_meta <- m);
-		"isStatic", vbool (has_var_flag v VStatic);
 		"$", encode_unsafe (Obj.repr v);
 	]
 
