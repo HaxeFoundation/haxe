@@ -605,15 +605,7 @@ and handle_efield ctx e p0 mode with_type =
 			   create safe navigation chain from the object expression *)
 			let acc_obj = type_access ctx eobj pobj MGet WithType.value in
 			let eobj = acc_get ctx acc_obj in
-			let eobj, tempvar = match (Texpr.skip eobj).eexpr with
-				| TLocal _ | TTypeExpr _ | TConst _ ->
-					eobj, None
-				| _ ->
-					let v = alloc_var VGenerated "tmp" eobj.etype eobj.epos in
-					let temp_var = mk (TVar(v, Some eobj)) ctx.t.tvoid v.v_pos in
-					let eobj = mk (TLocal v) v.v_type v.v_pos in
-					eobj, Some temp_var
-			in
+			let eobj, tempvar = get_safe_nav_base ctx eobj in
 			let access = field_chain ctx ((mk_dot_path_part s p) :: dot_path_acc) (AKExpr eobj) mode with_type in
 			AKSafeNav {
 				sn_pos = p;
@@ -1738,10 +1730,10 @@ and type_call_builtin ctx e el mode with_type p =
 	| (EField ((EConst (Ident "super"),_),_,_),_), _ ->
 		(* no builtins can be applied to super as it can't be a value *)
 		raise Exit
-	| (EField (e,"bind",efk_todo),p), args ->
+	| (EField (e,"bind",efk),p), args ->
 		let e = type_expr ctx e WithType.value in
 		(match follow e.etype with
-			| TFun signature -> type_bind ctx e signature args p
+			| TFun signature -> type_bind ctx e signature args (efk = EFSafe) p
 			| _ -> raise Exit)
 	| (EConst (Ident "$type"),_) , e1 :: el ->
 		let expected = match el with
