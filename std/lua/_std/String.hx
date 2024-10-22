@@ -155,7 +155,7 @@ class String {
 	}
 
 	public inline function charCodeAt(index:Int):Null<Int> {
-		return BaseString.byte(this, index + 1);
+		return (BaseString.byte(this, index + 1) : Null<Int>);
 	}
 
 	public function substr(pos:Int, ?len:Int):String {
