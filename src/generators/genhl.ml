@@ -96,6 +96,7 @@ type context = {
 	cfunctions : fundecl DynArray.t;
 	cconstants : (constval, (global * int array)) lookup;
 	optimize : bool;
+	opt_cache : bool;
 	w_null_compare : bool;
 	overrides : (string * path, bool) Hashtbl.t;
 	defined_funs : (int,unit) Hashtbl.t;
@@ -3434,7 +3435,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	Hashtbl.add ctx.defined_funs fidx ();
 	let f = if ctx.optimize && (gen_content = None || name <> ("","")) then begin
 		let t = Timer.timer ["generate";"hl";"opt"] in
-		let f = Hlopt.optimize ctx.dump_out (DynArray.get ctx.cstrings.arr) hlf f in
+		let f = Hlopt.optimize ctx.dump_out ctx.opt_cache (DynArray.get ctx.cstrings.arr) hlf f in
 		t();
 		f
 	end else
@@ -4127,6 +4128,7 @@ let create_context com dump =
 	let ctx = {
 		com = com;
 		optimize = not (Common.raw_defined com "hl_no_opt");
+		opt_cache = not (Common.raw_defined com "hl_no_opt_cache");
 		w_null_compare = Common.raw_defined com "hl_w_null_compare";
 		dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None;
 		m = method_context 0 HVoid null_capture false;
