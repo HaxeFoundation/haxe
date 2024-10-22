@@ -629,7 +629,8 @@ and type_access ctx e p mode with_type =
 	match e with
 	| EConst (Ident s) ->
 		type_ident ctx s p mode with_type
-	| EField (e1,"new",efk_todo) ->
+	| EField (e1,"new",efk) ->
+		if efk = EFSafe then raise_typing_error "?.new is not supported" p;
 		let e1 = type_expr ctx e1 WithType.value in
 		begin match e1.eexpr with
 			| TTypeExpr (TClassDecl c) ->
@@ -1752,7 +1753,8 @@ and type_call_builtin ctx e el mode with_type p =
 		in
 		warning ctx WInfo s e1.epos;
 		e1
-	| (EField(e,"match",efk_todo),p), [epat] ->
+	| (EField(e,"match",efk),p), [epat] ->
+		if efk = EFSafe then raise_typing_error "?.match is not supported" p;
 		let et = type_expr ctx e WithType.value in
 		let rec has_enum_match t = match follow t with
 			| TEnum _ -> true
