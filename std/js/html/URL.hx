@@ -113,12 +113,14 @@ extern class URL {
 	var hash : String;
 	
 	/** @throws DOMError */
-	function new( url : String, ?base : String ) : Void;
+	function new( url : String, ?base : EitherType<String, URL> );
+
 	/**
 		Returns a JSON representation of this URL.
 	**/
 	function toJSON() : String;
 
+	/**
 		Returns a string representation of this URL.
 	**/
 	function toString() : String;
