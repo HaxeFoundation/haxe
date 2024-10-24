@@ -1095,8 +1095,8 @@ let optimize dump usecache get_str (f:fundecl) (hxf:Type.tfunc) =
 			let op2 = Array.unsafe_get f.code i in
 			if not (same_op op1 op2) then raise Not_found;
 		) c.c_old_code;
+		let code = if c.c_last_used = !used_mark then Array.copy c.c_code else c.c_code in
 		c.c_last_used <- !used_mark;
-		let code = c.c_code in
 		Array.iter (fun i ->
 			let op = (match Array.unsafe_get code i, Array.unsafe_get f.code i with
 			| OInt (r,_), OInt (_,idx) -> OInt (r,idx)
