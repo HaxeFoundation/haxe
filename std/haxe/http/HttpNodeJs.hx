@@ -124,6 +124,10 @@ class HttpNodeJs extends haxe.http.HttpBase {
 				req.write(Buffer.from(postBytes.getData()));
 			}
 
+			req.on('error', function(e) {
+				onError("Http Request Error: " + e);
+			});
+
 		req.end();
 	}
 }
