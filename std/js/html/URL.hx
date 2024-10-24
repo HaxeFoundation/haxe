@@ -24,6 +24,8 @@
 
 package js.html;
 
+import haxe.extern.EitherType;
+
 /**
 	The URL interface represents an object providing static methods used for creating object URLs.
 
@@ -36,9 +38,20 @@ extern class URL {
 	/** @throws DOMError */
 	@:overload( function( blob : Blob ) : String {} )
 	static function createObjectURL( source : MediaSource ) : String;
+
 	/** @throws DOMError */
 	static function revokeObjectURL( url : String ) : Void;
-	
+
+	/**
+		Returns a boolean indicating whether or not an absolute URL, or a relative URL combined with a base URL, are parsable and valid.
+	**/
+	static function canParse( url : String, ?base : EitherType<String, URL> ) : Bool;
+
+	/**
+		Returns a newly created `URL` object representing the URL defined by the parameters.
+	**/
+	static function parse( url : String, ?base : EitherType<String, URL> ): Null<URL>;
+
 	/**
 		Is a `DOMString` containing the whole URL.
 	**/
@@ -100,6 +113,15 @@ extern class URL {
 	var hash : String;
 	
 	/** @throws DOMError */
-	function new( url : String, ?base : String ) : Void;
+	function new( url : String, ?base : EitherType<String, URL> );
+
+	/**
+		Returns a JSON representation of this URL.
+	**/
 	function toJSON() : String;
+
+	/**
+		Returns a string representation of this URL.
+	**/
+	function toString() : String;
 }
