@@ -1049,7 +1049,29 @@ let _optimize (f:fundecl) =
 		r_reg_moved = reg_moved;
 	}
 
+let same_op op1 op2 =
+	match op1, op2 with
+	| OInt (r1,_), OInt (r2, _) -> r1 = r2
+	| OFloat (r1,_), OFloat (r2,_) -> r1 = r2
+	| OBytes (r1,_), OBytes (r2,_) -> r1 = r2
+	| OString (r1,_), OString (r2,_) -> r1 = r2
+	| OCall0 (r1,_), OCall0 (r2,_) -> r1 = r2
+	| OCall1 (r1,_,a1), OCall1 (r2,_,a2) -> r1 = r2 && a1 = a2
+	| OCall2 (r1,_,a1,b1), OCall2 (r2,_,a2,b2) -> r1 = r2 && a1 = a2 && b1 = b2
+	| OCall3 (r1,_,a1,b1,c1), OCall3 (r2,_,a2,b2,c2) -> r1 = r2 && a1 = a2 && b1 = b2 && c1 = c2
+	| OCall4 (r1,_,a1,b1,c1,d1), OCall4 (r2,_,a2,b2,c2,d2) -> r1 = r2 && a1 = a2 && b1 = b2 && c1 = c2 && d1 = d2
+	| OCallN (r1,_,rl1), OCallN (r2,_,rl2) -> r1 = r2 && rl1 = rl2
+	| OStaticClosure (r1,_), OStaticClosure (r2,_) -> r1 = r2
+	| OInstanceClosure (r1,_,v1), OInstanceClosure (r2,_,v2) -> r1 = r2 && v1 = v2
+	| OGetGlobal (r1,_), OGetGlobal (r2,_) -> r1 = r2
+	| OSetGlobal (_,r1), OSetGlobal (_,r2) -> r1 = r2
+	| ODynGet (r1,o1,_), ODynGet (r2,o2,_) -> r1 = r2 && o1 = o2
+	| ODynSet (o1,_,v1), ODynSet (o2,_,v2) -> o1 = o2 && v1 = v2
+	| OType (r1,_), OType (r2,_) -> r1 = r2
+	| _ -> op1 = op2
+
 type cache_elt = {
+	c_old_code : opcode array;
 	c_code : opcode array;
 	c_rctx : rctx;
 	c_remap_indexes : int array;
@@ -1059,12 +1081,18 @@ type cache_elt = {
 let opt_cache = ref PMap.empty
 let used_mark = ref 0
 
-let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
-	let old_code = match dump with None -> f.code | Some _ -> Array.copy f.code in
+let optimize dump usecache get_str (f:fundecl) (hxf:Type.tfunc) =
+	let sign = if f.fpath <> ("","") then fundecl_name f else (Printf.sprintf "%s:%d" hxf.tf_expr.epos.pfile hxf.tf_expr.epos.pmin) in
 	try
-		let c = PMap.find hxf (!opt_cache) in
+		if not usecache then raise Not_found;
+		let c = PMap.find sign (!opt_cache) in
+		if Array.length f.code <> Array.length c.c_code then raise Not_found;
+		if Array.length f.regs <> Array.length c.c_rctx.r_reg_map then raise Not_found;
+		Array.iteri (fun i op1 ->
+			let op2 = Array.unsafe_get f.code i in
+			if not (same_op op1 op2) then raise Not_found;
+		) c.c_old_code;
 		c.c_last_used <- !used_mark;
-		if Array.length f.code <> Array.length c.c_code then Globals.die "" __LOC__;
 		let code = c.c_code in
 		Array.iter (fun i ->
 			let op = (match Array.unsafe_get code i, Array.unsafe_get f.code i with
@@ -1088,8 +1116,9 @@ let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
 			| _ -> Globals.die "" __LOC__) in
 			Array.unsafe_set code i op
 		) c.c_remap_indexes;
-		remap_fun c.c_rctx { f with code = code } dump get_str old_code
+		remap_fun c.c_rctx { f with code = code } dump get_str f.code
 	with Not_found ->
+		let old_code = match dump, usecache with None, true | Some _, _ -> Array.copy f.code | _ -> f.code in
 		let rctx = _optimize f in
 		let old_ops = f.code in
 		let fopt = remap_fun rctx f dump get_str old_code in
@@ -1109,12 +1138,13 @@ let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
 				DynArray.add idxs i
 			| _ -> ()
 		) old_ops;
-		(*opt_cache := PMap.add hxf {
+		if usecache then opt_cache := PMap.add sign {
+			c_old_code = old_code;
 			c_code = old_ops;
 			c_rctx = rctx;
 			c_last_used = !used_mark;
 			c_remap_indexes = DynArray.to_array idxs;
-		} (!opt_cache);*)
+		} (!opt_cache);
 		fopt
 
 let clean_cache() =
