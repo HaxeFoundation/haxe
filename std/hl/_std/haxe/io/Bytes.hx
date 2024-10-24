@@ -203,7 +203,7 @@ class Bytes {
 		return s.toString();
 	}
 
-	public inline function getData():BytesData {
+	public function getData():BytesData {
 		return new haxe.io.BytesData(b, length);
 	}
 
@@ -226,7 +226,7 @@ class Bytes {
 		}
 	}
 
-	public static function ofData(b:BytesData):Bytes {
+	public inline static function ofData(b:BytesData):Bytes {
 		return new Bytes(b.bytes, b.length);
 	}
 
