@@ -1184,6 +1184,7 @@ let optimize dump usecache get_str (f:fundecl) (hxf:Type.tfunc) =
 		if not usecache then raise Not_found;
 		let c = PMap.find sign (!opt_cache) in
 		if Array.length f.code <> Array.length c.c_code then raise Not_found;
+		if Array.length f.regs <> Array.length c.c_rctx.r_reg_map then raise Not_found;
 		Array.iteri (fun i op1 ->
 			let op2 = Array.unsafe_get f.code i in
 			if not (same_op op1 op2) then raise Not_found;
