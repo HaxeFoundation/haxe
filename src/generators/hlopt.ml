@@ -1183,12 +1183,12 @@ let optimize dump usecache get_str (f:fundecl) (hxf:Type.tfunc) =
 	try
 		if not usecache then raise Not_found;
 		let c = PMap.find sign (!opt_cache) in
-		c.c_last_used <- !used_mark;
 		if Array.length f.code <> Array.length c.c_code then raise Not_found;
 		Array.iteri (fun i op1 ->
 			let op2 = Array.unsafe_get f.code i in
 			if not (same_op op1 op2) then raise Not_found;
 		) c.c_old_code;
+		c.c_last_used <- !used_mark;
 		let code = c.c_code in
 		Array.iter (fun i ->
 			let op = (match Array.unsafe_get code i, Array.unsafe_get f.code i with
