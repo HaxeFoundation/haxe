@@ -412,6 +412,8 @@ let is_cheap_enough ctx e2 i =
 	let rec loop e = match fst e with
 		| EContinue | EBreak ->
 			raise Exit
+		| EVars vl when (List.exists (fun ev -> ev.ev_static) vl) ->
+			raise Exit
 		| _ ->
 			incr num_expr;
 			Ast.map_expr loop e

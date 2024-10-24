@@ -328,6 +328,7 @@ let duplicate_tvars f_this e =
 		let v2 = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
 		v2.v_meta <- v.v_meta;
 		v2.v_extra <- v.v_extra;
+		v2.v_flags <- v.v_flags;
 		Hashtbl.add vars v.v_id v2;
 		v2;
 	in
