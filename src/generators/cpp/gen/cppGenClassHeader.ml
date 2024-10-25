@@ -108,6 +108,9 @@ let gen_dynamic_function ctx class_def is_static field function_def =
   Printf.sprintf "%sinline ::Dynamic& %s_dyn() { return %s; }\n" prefix remap_name remap_name |> output
 
 let gen_abstract_function ctx class_def field tl tr =
+
+  (* Default values for abstract classes are stored in @:Value metadata *)
+  (* So we need to inspect that to see which, if any, arguments of an abstract function have default values *)
   let ctx_arg_list ctx arg_list prefix =
     let get_default_value name =
       try
