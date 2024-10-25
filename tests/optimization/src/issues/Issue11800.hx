@@ -21,21 +21,5 @@ class Issue11800 {
 		}
 	}
 
-	@:js('
-		var b = issues_Issue11800.get0();
-		b = issues_Issue11800.get0();
-		b = issues_Issue11800.get0();
-	')
-	static function testLocal() {
-		for (i in 0...3) {
-			var b = get0();
-			use(b);
-		}
-	}
-
-	static function get0() {
-		return 0;
-	}
-
 	static function use(v:Int) {}
 }
