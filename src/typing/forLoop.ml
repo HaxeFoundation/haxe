@@ -57,7 +57,6 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 
 type unroll_parameters = {
 	expression_weight : int;
-	has_local_function : bool;
 }
 
 module IterationKind = struct
@@ -447,13 +446,9 @@ end
 
 let get_unroll_params ctx e2 =
 	let num_expr = ref 0 in
-	let has_local_function = ref false in
 	let rec loop e = match fst e with
 		| EContinue | EBreak ->
 			raise Exit
-		| EFunction _ ->
-			has_local_function := true;
-			Ast.map_expr loop e
 		| _ ->
 			incr num_expr;
 			Ast.map_expr loop e
@@ -463,20 +458,15 @@ let get_unroll_params ctx e2 =
 		ignore(loop e2);
 		Some {
 			expression_weight = !num_expr;
-			has_local_function = !has_local_function;
 		}
 	with Exit ->
 		None
 
 let get_unroll_params_t ctx e2 =
 	let num_expr = ref 0 in
-	let has_local_function = ref false in
 	let rec loop e = match e.eexpr with
 		| TContinue | TBreak ->
 			raise Exit
-		| TFunction _ ->
-			has_local_function := true;
-			Type.map_expr loop e
 		| _ ->
 			incr num_expr;
 			Type.map_expr loop e
@@ -486,7 +476,6 @@ let get_unroll_params_t ctx e2 =
 		ignore(loop e2);
 		Some {
 			expression_weight = !num_expr;
-			has_local_function = !has_local_function;
 		}
 	with Exit ->
 		None
