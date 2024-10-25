@@ -324,19 +324,27 @@ module IterationKind = struct
 					List.rev acc
 				else begin
 					let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
-					let static_locals = ref [] in
+					let local_vars = ref [] in
 					let rec loop e = match e.eexpr with
 					| TLocal v' when v == v' ->
 						{ei with epos = e.epos}
-					| TVar(v,eo) when has_var_flag v VStatic ->
+					| TVar(v,eo) ->
+						let is_static = has_var_flag v VStatic in
 						if acc = [] then
-							static_locals := e :: !static_locals;
-						mk (TConst TNull) t_dynamic null_pos
+							local_vars := {e with eexpr = TVar(v,if is_static then eo else None)} :: !local_vars;
+						begin match eo with
+						| Some e when not is_static ->
+							let e = loop e in
+							let ev = mk (TLocal v) v.v_type e.epos in
+							Texpr.Builder.binop OpAssign ev e v.v_type e.epos
+						| _ ->
+							mk (TConst TNull) t_dynamic null_pos
+						end
 					| _ ->
 						map_expr loop e
 				in
 				let e2 = loop e2 in
-				let acc = acc @ !static_locals in
+				let acc = acc @ !local_vars in
 				let e2 = Texpr.duplicate_tvars e_identity e2 in
 				unroll (e2 :: acc) (i + 1)
 			end in
