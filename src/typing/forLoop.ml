@@ -319,15 +319,28 @@ module IterationKind = struct
 		| IteratorIntUnroll(offset,length,ascending) ->
 			check_loop_var_modification [v] e2;
 			if not ascending then raise_typing_error "Cannot iterate backwards" p;
-			let el = ExtList.List.init length (fun i ->
-				let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
-				let rec loop e = match e.eexpr with
-					| TLocal v' when v == v' -> {ei with epos = e.epos}
-					| _ -> map_expr loop e
+			let rec unroll acc i =
+				if i = length then
+					List.rev acc
+				else begin
+					let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
+					let static_locals = ref [] in
+					let rec loop e = match e.eexpr with
+					| TLocal v' when v == v' ->
+						{ei with epos = e.epos}
+					| TVar(v,eo) when has_var_flag v VStatic ->
+						if acc = [] then
+							static_locals := e :: !static_locals;
+						mk (TConst TNull) t_dynamic null_pos
+					| _ ->
+						map_expr loop e
 				in
 				let e2 = loop e2 in
-				Texpr.duplicate_tvars e_identity e2
-			) in
+				let acc = acc @ !static_locals in
+				let e2 = Texpr.duplicate_tvars e_identity e2 in
+				unroll (e2 :: acc) (i + 1)
+			end in
+			let el = unroll [] 0 in
 			mk (TBlock el) t_void p
 		| IteratorIntConst(a,b,ascending) ->
 			check_loop_var_modification [v] e2;
@@ -411,8 +424,6 @@ let is_cheap_enough ctx e2 i =
 	let num_expr = ref 0 in
 	let rec loop e = match fst e with
 		| EContinue | EBreak ->
-			raise Exit
-		| EVars vl when (List.exists (fun ev -> ev.ev_static) vl) ->
 			raise Exit
 		| _ ->
 			incr num_expr;
