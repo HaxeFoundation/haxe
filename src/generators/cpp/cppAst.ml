@@ -170,16 +170,17 @@ and tcpp_class = {
   cl_flags : int;
   cl_debug_level : int;
 
-  (* cl_static_variables : tclass_field list;
-  cl_static_properties : tclass_field list;
-  cl_static_functions : tclass_field list;
-  cb_static_dynamic_functions : tclass_field list;
+  cl_haxe_parents : (string, tclass) Hashtbl.t;
+  cl_native_parents : (string, tclass) Hashtbl.t;
+
+  cl_static_variables : tclass_field list;
+  cl_static_functions : (tclass_field * tfunc) list;
+  cl_static_dynamic_functions : (tclass_field * tfunc) list;
 
   cl_variables : tclass_field list;
-  cl_properties : tclass_field list;
-  cl_functions : tclass_field list;
-  cb_dynamic_functions : tclass_field list;
-  cl_abstracts : tclass_field list; *)
+  cl_functions : (tclass_field * tfunc) list;
+  cl_dynamic_functions : (tclass_field * tfunc) list;
+  cl_abstract_functions : (tclass_field * (string * bool * t) list * t) list;
 }
 
 and tcpp_interface = {

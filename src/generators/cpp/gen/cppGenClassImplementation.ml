@@ -265,10 +265,6 @@ let generate base_ctx tcpp_class =
       |> List.map (fun (t, a) -> Printf.sprintf "%s %s" t a)
       |> String.concat "," in
 
-  let haxe_implementations, native_implementations =
-    implementations class_def
-  in
-
   if (not nativeGen) then (
     output_cpp
       ("void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")");
@@ -333,8 +329,8 @@ let generate base_ctx tcpp_class =
     dump_classes "\t" implemented_classes;
     output_cpp "}\n\n";
 
-    let implements_haxe_keys = hash_keys haxe_implementations in
-    let implements_haxe = Hashtbl.length haxe_implementations > 0 in
+    let implements_haxe_keys = hash_keys tcpp_class.cl_haxe_parents in
+    let implements_haxe = Hashtbl.length tcpp_class.cl_haxe_parents > 0 in
 
     if implements_haxe then (
       let alreadyGlued = Hashtbl.create 0 in
@@ -344,7 +340,7 @@ let generate base_ctx tcpp_class =
       List.iter
         (fun interface_name ->
           try
-            let interface = Hashtbl.find haxe_implementations interface_name in
+            let interface = Hashtbl.find tcpp_class.cl_haxe_parents interface_name in
             output_cpp
               ("static " ^ cpp_class_name interface ^ " " ^ cname ^ "_"
              ^ interface_name ^ "= {\n");
@@ -416,7 +412,7 @@ let generate base_ctx tcpp_class =
       List.iter
         (fun interface_name ->
           try
-            let interface = Hashtbl.find haxe_implementations interface_name in
+            let interface = Hashtbl.find tcpp_class.cl_haxe_parents interface_name in
             output_cpp
               ("\t\tcase (int)" ^ cpp_class_hash interface ^ ": return &"
              ^ cname ^ "_" ^ interface_name ^ ";\n")
@@ -1154,7 +1150,7 @@ let generate base_ctx tcpp_class =
           ("\tHX_REGISTER_VTABLE_OFFSET( " ^ class_name ^ ","
           ^ join_class_path_remap intf_def.cl_path "::"
           ^ ");\n"))
-      native_implementations;
+          tcpp_class.cl_native_parents;
     output_cpp "}\n\n")
   else if not nativeGen then (
     output_cpp ("::hx::Class " ^ class_name ^ "::__mClass;\n\n");

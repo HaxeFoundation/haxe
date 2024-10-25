@@ -12,49 +12,6 @@ open CppSourceWriter
 open CppContext
 open CppGen
 
-let filter_functions field =
-  if should_implement_field field then
-    match (field.cf_kind, field.cf_expr) with
-    | Method (MethNormal | MethInline), Some { eexpr = TFunction func } ->
-      Some (field, func)
-    | _ ->
-      None
-  else
-    None
-
-let filter_dynamic_functions field =
-  if should_implement_field field then
-    match (field.cf_kind, field.cf_expr) with
-    | Method MethDynamic, Some { eexpr = TFunction func } ->
-      Some (field, func)
-    | _ ->
-      None
-  else
-    None
-
-let filter_abstract_functions field =
-  if should_implement_field field then
-    match (field.cf_kind, field.cf_type) with
-    | Method MethNormal, TFun (tl, tr) when has_class_field_flag field CfAbstract ->
-      Some (field, tl, tr)
-    | _ ->
-      None
-  else
-    None
-
-let filter_variables field =
-  if should_implement_field field then
-    match (field.cf_kind, field.cf_expr) with
-    | Var _, _ ->
-      Some field
-    (* Below should cause abstracts which have functions with no implementation to be generated as a field *)
-    | Method (MethNormal | MethInline), None when not (has_class_field_flag field CfAbstract) ->
-      Some field
-    | _ ->
-      None
-  else
-    None
-
 let gen_member_variable ctx class_def is_static field =
   let tcpp     = cpp_type_of field.cf_type in
   let tcpp_str = tcpp_to_string tcpp in
@@ -273,34 +230,25 @@ let generate_native_header base_ctx tcpp_class =
 
   if has_boot_field class_def then output_h "\t\tstatic void __boot();\n";
 
-  class_def.cl_ordered_statics
-  |> List.filter_map filter_functions
+  tcpp_class.cl_static_functions
   |> List.iter (fun (field, func) -> gen_member_function ctx class_def true field func);
 
-  class_def.cl_ordered_statics
-  |> List.filter_map filter_dynamic_functions
+  tcpp_class.cl_static_dynamic_functions
   |> List.iter (fun (field, func) -> gen_dynamic_function ctx class_def true field func);
 
-  class_def.cl_ordered_statics
-  |> List.filter_map filter_variables
+  tcpp_class.cl_static_variables
   |> List.iter (fun field -> gen_member_variable ctx class_def true field);
 
-  (*  *)
-
-  class_def.cl_ordered_fields
-  |> List.filter_map filter_functions
+  tcpp_class.cl_functions
   |> List.iter (fun (field, func) -> gen_member_function ctx class_def false field func);
 
-  class_def.cl_ordered_fields
-  |> List.filter_map filter_dynamic_functions
+  tcpp_class.cl_dynamic_functions
   |> List.iter (fun (field, func) -> gen_dynamic_function ctx class_def false field func);
 
-  class_def.cl_ordered_fields
-  |> List.filter_map filter_variables
+  tcpp_class.cl_variables
   |> List.iter (fun field -> gen_member_variable ctx class_def false field);
 
-  class_def.cl_ordered_fields
-  |> List.filter_map filter_abstract_functions
+  tcpp_class.cl_abstract_functions
   |> List.iter (fun (field, tl, tr) -> gen_abstract_function ctx class_def field tl tr);
 
   output_h (get_class_code class_def Meta.HeaderClassCode);
@@ -425,11 +373,8 @@ let generate_managed_header base_ctx tcpp_class =
     output_h "\t\tvoid __Mark(HX_MARK_PARAMS);\n";
     output_h "\t\tvoid __Visit(HX_VISIT_PARAMS);\n");
 
-  let haxe_implementations, native_implementations =
-    CppGen.implementations class_def
-  in
-  let implements_haxe = Hashtbl.length haxe_implementations > 0 in
-  let implements_native = Hashtbl.length native_implementations > 0 in
+  let implements_haxe = Hashtbl.length tcpp_class.cl_haxe_parents > 0 in
+  let implements_native = Hashtbl.length tcpp_class.cl_native_parents > 0 in
 
   if implements_native then (
     let implemented_instance_fields =
@@ -439,7 +384,7 @@ let generate_managed_header base_ctx tcpp_class =
       match implements_native with
       | true ->
           CppGen.needed_interface_functions implemented_instance_fields
-            native_implementations
+          tcpp_class.cl_native_parents
       | false -> []
     in
 
@@ -515,7 +460,7 @@ let generate_managed_header base_ctx tcpp_class =
           List.iter check_field interface.cl_ordered_fields
         in
         check_interface src)
-      haxe_implementations);
+        tcpp_class.cl_haxe_parents);
 
   if has_init_field class_def then output_h "\t\tstatic void __init__();\n\n";
   output_h
@@ -524,34 +469,25 @@ let generate_managed_header base_ctx tcpp_class =
 
   if has_boot_field class_def then output_h "\t\tstatic void __boot();\n";
 
-  class_def.cl_ordered_statics
-  |> List.filter_map filter_functions
+  tcpp_class.cl_static_functions
   |> List.iter (fun (field, func) -> gen_member_function ctx class_def true field func);
 
-  class_def.cl_ordered_statics
-  |> List.filter_map filter_dynamic_functions
+  tcpp_class.cl_static_dynamic_functions
   |> List.iter (fun (field, func) -> gen_dynamic_function ctx class_def true field func);
 
-  class_def.cl_ordered_statics
-  |> List.filter_map filter_variables
+  tcpp_class.cl_static_variables
   |> List.iter (fun field -> gen_member_variable ctx class_def true field);
 
-  (*  *)
-
-  class_def.cl_ordered_fields
-  |> List.filter_map filter_functions
+  tcpp_class.cl_functions
   |> List.iter (fun (field, func) -> gen_member_function ctx class_def false field func);
 
-  class_def.cl_ordered_fields
-  |> List.filter_map filter_dynamic_functions
+  tcpp_class.cl_dynamic_functions
   |> List.iter (fun (field, func) -> gen_dynamic_function ctx class_def false field func);
 
-  class_def.cl_ordered_fields
-  |> List.filter_map filter_variables
+  tcpp_class.cl_variables
   |> List.iter (fun field -> gen_member_variable ctx class_def false field);
 
-  class_def.cl_ordered_fields
-  |> List.filter_map filter_abstract_functions
+  tcpp_class.cl_abstract_functions
   |> List.iter (fun (field, tl, tr) -> gen_abstract_function ctx class_def field tl tr);
 
   output_h (get_class_code class_def Meta.HeaderClassCode);

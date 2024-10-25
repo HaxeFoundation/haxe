@@ -1432,21 +1432,3 @@ let expression ctx request_type function_args function_type expression_tree forI
       | _ -> cppExpr
   in
   retype request_type expression_tree
-
-(* let remap_to_class class_def =
-  let get_all_paths cls =
-    match CppStrings.get_all_meta_string_path cls.cl_meta Meta.Include with
-    | [] -> [ class_def.cl_path ]
-    | files -> List.map CppStrings.path_of_string files in
-
-  let parent_includes =
-    match class_def.cl_super with
-    | Some (klass, _) -> get_all_paths klass
-    | _ -> [] in
-  
-  let implements_includes =
-    class_def.cl_implements
-      |> CppGen.real_interfaces
-      |> List.map (fun (interface, _) -> get_all_paths interface)
-      |> List.flatten in
-  () *)

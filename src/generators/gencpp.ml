@@ -241,6 +241,141 @@ let is_assign_op op =
    | OpAssign
    | OpAssignOp _ -> true
    | _ -> false
+
+let remap_to_class ctx self_id parent_ids class_def =
+   let filter_functions field =
+      if should_implement_field field then
+         match (field.cf_kind, field.cf_expr) with
+         | Method (MethNormal | MethInline), Some { eexpr = TFunction func } ->
+         Some (field, func)
+         | _ ->
+         None
+      else
+         None
+   in
+   
+   let filter_dynamic_functions field =
+      if should_implement_field field then
+         match (field.cf_kind, field.cf_expr) with
+         | Method MethDynamic, Some { eexpr = TFunction func } ->
+         Some (field, func)
+         | _ ->
+         None
+      else
+         None
+   in
+   
+   let filter_abstract_functions field =
+      if should_implement_field field then
+         match (field.cf_kind, field.cf_type) with
+         | Method MethNormal, TFun (tl, tr) when has_class_field_flag field CfAbstract ->
+         Some (field, tl, tr)
+         | _ ->
+         None
+      else
+         None
+   in
+   
+   let filter_variables field =
+      if should_implement_field field then
+         match (field.cf_kind, field.cf_expr) with
+         | Var _, _ ->
+         Some field
+         (* Below should cause abstracts which have functions with no implementation to be generated as a field *)
+         | Method (MethNormal | MethInline), None when not (has_class_field_flag field CfAbstract) ->
+         Some field
+         | _ ->
+         None
+      else
+         None
+   in
+   
+   let flags =
+      if Common.defined ctx.ctx_common Define.Scriptable && not class_def.cl_private then
+         set_flag 0 (int_of_tcpp_class_flag Scriptable)
+      else
+         0
+      in
+   let flags =
+      if CppGen.can_quick_alloc class_def then
+         set_flag flags (int_of_tcpp_class_flag QuickAlloc)
+      else
+         flags
+      in
+   let flags =
+      if CppGen.has_gc_references class_def then
+         set_flag flags (int_of_tcpp_class_flag Container)
+      else
+         flags
+      in
+   
+   let static_functions =
+      class_def.cl_ordered_statics
+      |> List.filter_map filter_functions in
+   
+   let static_dynamic_functions =
+      class_def.cl_ordered_statics
+      |> List.filter_map filter_dynamic_functions in
+   
+   let static_variables =
+      class_def.cl_ordered_statics
+      |> List.filter_map filter_variables in
+   
+   let functions = 
+      class_def.cl_ordered_fields
+      |> List.filter_map filter_functions in
+   
+   let dynamic_functions =
+      class_def.cl_ordered_fields
+      |> List.filter_map filter_dynamic_functions in
+   
+   let variables =
+      class_def.cl_ordered_fields
+      |> List.filter_map filter_variables in
+   
+   let abstract_functions =
+      class_def.cl_ordered_fields
+      |> List.filter_map filter_abstract_functions in
+
+   let haxe_implementations, native_implementations =
+      CppGen.implementations class_def
+   in
+   
+   {
+      cl_class = class_def;
+      cl_id = self_id;
+      cl_name = class_name class_def;
+      cl_flags = flags;
+      cl_parent_ids = parent_ids;
+      cl_debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Common.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level;
+      cl_static_variables = static_variables;
+      cl_static_functions = static_functions;
+      cl_static_dynamic_functions = static_dynamic_functions;
+      cl_variables = variables;
+      cl_functions = functions;
+      cl_dynamic_functions = dynamic_functions;
+      cl_abstract_functions = abstract_functions;
+      cl_haxe_parents = haxe_implementations;
+      cl_native_parents = native_implementations;
+   }
+   
+   (* let get_all_paths cls =
+      match CppStrings.get_all_meta_string_path cls.cl_meta Meta.Include with
+      | [] -> [ class_def.cl_path ]
+      | files -> List.map CppStrings.path_of_string files in
+   
+   let parent_includes =
+      match class_def.cl_super with
+      | Some (klass, _) -> get_all_paths klass
+      | _ -> [] in
+   
+   let implements_includes =
+      class_def.cl_implements
+         |> CppGen.real_interfaces
+         |> List.map (fun (interface, _) -> get_all_paths interface)
+         |> List.flatten in
+   () *)
+
 (*
  The common_ctx contains the haxe AST in the "types" field and the resources
 *)
@@ -364,33 +499,7 @@ let generate_source ctx =
                } in
                if native_gen then (NativeInterface iface) else (ManagedInterface iface)
             | false ->
-               let flags =
-                  if Common.defined common_ctx Define.Scriptable && not class_def.cl_private then
-                     set_flag 0 (int_of_tcpp_class_flag Scriptable)
-                  else
-                     0
-                  in
-               let flags =
-                  if CppGen.can_quick_alloc class_def then
-                     set_flag flags (int_of_tcpp_class_flag QuickAlloc)
-                  else
-                     flags
-                  in
-               let flags =
-                  if CppGen.has_gc_references class_def then
-                     set_flag flags (int_of_tcpp_class_flag Container)
-                  else
-                     flags
-                  in
-
-               let cls = {
-                  cl_class = class_def;
-                  cl_id = self_id;
-                  cl_name = class_name class_def;
-                  cl_flags = flags;
-                  cl_parent_ids = parent_ids;
-                  cl_debug_level = debug_level;
-               } in
+               let cls = remap_to_class ctx self_id parent_ids class_def in
                if native_gen then (NativeClass cls) else (ManagedClass cls) in
 
          let acc_decls           = decl :: acc.decls in
