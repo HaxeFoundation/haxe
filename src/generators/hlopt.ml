@@ -1049,7 +1049,7 @@ let _optimize (f:fundecl) =
 		r_reg_moved = reg_moved;
 	}
 
-let same_op op1 op2 =
+let same_op_except_index op1 op2 =
 	match op1, op2 with
 	| OInt (r1,_), OInt (r2, _) -> r1 = r2
 	| OFloat (r1,_), OFloat (r2,_) -> r1 = r2
@@ -1093,7 +1093,7 @@ let optimize dump usecache get_str (f:fundecl) (hxf:Type.tfunc) =
 		if nargs f <> c.c_old_fnargs then raise Not_found;
 		Array.iteri (fun i op1 ->
 			let op2 = Array.unsafe_get f.code i in
-			if not (same_op op1 op2) then raise Not_found;
+			if not (same_op_except_index op1 op2) then raise Not_found;
 		) c.c_old_code;
 		let code = if c.c_last_used = !used_mark then Array.copy c.c_code else c.c_code in
 		c.c_last_used <- !used_mark;
