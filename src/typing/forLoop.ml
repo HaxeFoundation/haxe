@@ -55,10 +55,14 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 		mk (TWhile (ehasnext,eblock,NormalWhile)) ctx.t.tvoid p
 	]) ctx.t.tvoid p
 
+type unroll_parameters = {
+	has_local_function : bool;
+}
+
 module IterationKind = struct
 	type t_kind =
 		| IteratorIntConst of texpr * texpr * bool (* ascending? *)
-		| IteratorIntUnroll of int * int * bool
+		| IteratorIntUnroll of int * int * bool * unroll_parameters
 		| IteratorInt of texpr * texpr
 		| IteratorArrayDecl of texpr list
 		| IteratorArray
@@ -211,8 +215,12 @@ module IterationKind = struct
 				| TConst (TInt a),TConst (TInt b) ->
 					let diff = Int32.to_int (Int32.sub a b) in
 					let unroll = unroll (abs diff) in
-					if unroll then IteratorIntUnroll(Int32.to_int a,abs(diff),diff <= 0)
-					else IteratorIntConst(efrom,eto,diff <= 0)
+					begin match unroll with
+					| Some unroll ->
+						IteratorIntUnroll(Int32.to_int a,abs(diff),diff <= 0,unroll)
+					| None ->
+						IteratorIntConst(efrom,eto,diff <= 0)
+					end
 				| _ ->
 					let eto = match follow eto.etype with
 						| TAbstract ({ a_path = ([],"Int") }, []) -> eto
@@ -222,8 +230,10 @@ module IterationKind = struct
 			in
 			it,e,ctx.t.tint
 		| TArrayDecl el,TInst({ cl_path = [],"Array" },[pt]) ->
-			let it = if unroll (List.length el) then IteratorArrayDecl el
-			else IteratorArray in
+			let it = match unroll (List.length el) with
+				| Some _ -> IteratorArrayDecl el
+				| None -> IteratorArray
+			in
 			(it,e,pt)
 		| _,TInst({ cl_path = [],"Array" },[pt])
 		| _,TInst({ cl_path = ["flash"],"Vector" },[pt]) ->
@@ -316,7 +326,7 @@ module IterationKind = struct
 		match iterator.it_kind with
 		| _ when not ctx.allow_transform ->
 			mk (TFor(v,e1,e2)) t_void p
-		| IteratorIntUnroll(offset,length,ascending) ->
+		| IteratorIntUnroll(offset,length,ascending,unroll_params) ->
 			check_loop_var_modification [v] e2;
 			if not ascending then raise_typing_error "Cannot iterate backwards" p;
 			let rec unroll acc i =
@@ -328,7 +338,7 @@ module IterationKind = struct
 					let rec loop e = match e.eexpr with
 					| TLocal v' when v == v' ->
 						{ei with epos = e.epos}
-					| TVar(v,eo) ->
+					| TVar(v,eo) when has_var_flag v VStatic || not unroll_params.has_local_function ->
 						let is_static = has_var_flag v VStatic in
 						if acc = [] then
 							local_vars := {e with eexpr = TVar(v,if is_static then eo else None)} :: !local_vars;
@@ -430,9 +440,13 @@ end
 
 let is_cheap_enough ctx e2 i =
 	let num_expr = ref 0 in
+	let has_local_function = ref false in
 	let rec loop e = match fst e with
 		| EContinue | EBreak ->
 			raise Exit
+		| EFunction _ ->
+			has_local_function := true;
+			Ast.map_expr loop e
 		| _ ->
 			incr num_expr;
 			Ast.map_expr loop e
@@ -446,15 +460,22 @@ let is_cheap_enough ctx e2 i =
 		with Not_found ->
 			250
 		in
-		cost <= max_cost
+		if cost <= max_cost then
+			Some {has_local_function = !has_local_function}
+		else
+			None
 	with Exit ->
-		false
+		None
 
 let is_cheap_enough_t ctx e2 i =
 	let num_expr = ref 0 in
+	let has_local_function = ref false in
 	let rec loop e = match e.eexpr with
 		| TContinue | TBreak ->
 			raise Exit
+		| TFunction _ ->
+			has_local_function := true;
+			Type.map_expr loop e
 		| _ ->
 			incr num_expr;
 			Type.map_expr loop e
@@ -468,9 +489,12 @@ let is_cheap_enough_t ctx e2 i =
 		with Not_found ->
 			250
 		in
-		cost <= max_cost
+		if cost <= max_cost then
+			Some {has_local_function = !has_local_function}
+		else
+			None
 	with Exit ->
-		false
+		None
 
 type iteration_ident = string * pos * display_kind option
 
