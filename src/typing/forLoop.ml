@@ -56,6 +56,7 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 	]) ctx.t.tvoid p
 
 type unroll_parameters = {
+	expression_weight : int;
 	has_local_function : bool;
 }
 
@@ -173,7 +174,22 @@ module IterationKind = struct
 			)
 	 	| _ -> raise Not_found
 
-	let of_texpr ?(resume=false) ctx e unroll p =
+	let map_unroll_params ctx unroll_params i = match unroll_params with
+		| None ->
+			None
+		| Some unroll_params ->
+			let cost = i * unroll_params.expression_weight in
+			let max_cost = try
+				int_of_string (Common.defined_value ctx.com Define.LoopUnrollMaxCost)
+			with Not_found ->
+				250
+			in
+			if cost <= max_cost then
+				Some unroll_params
+			else
+				None
+
+	let of_texpr ?(resume=false) ctx e unroll_params p =
 		let dynamic_iterator e =
 			display_error ctx.com "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e.epos;
 			IteratorDynamic,e,t_dynamic
@@ -214,10 +230,9 @@ module IterationKind = struct
 			let it = match efrom.eexpr,eto.eexpr with
 				| TConst (TInt a),TConst (TInt b) ->
 					let diff = Int32.to_int (Int32.sub a b) in
-					let unroll = unroll (abs diff) in
-					begin match unroll with
-					| Some unroll ->
-						IteratorIntUnroll(Int32.to_int a,abs(diff),diff <= 0,unroll)
+					begin match map_unroll_params ctx unroll_params (abs diff) with
+					| Some unroll_params ->
+						IteratorIntUnroll(Int32.to_int a,abs(diff),diff <= 0,unroll_params)
 					| None ->
 						IteratorIntConst(efrom,eto,diff <= 0)
 					end
@@ -230,7 +245,7 @@ module IterationKind = struct
 			in
 			it,e,ctx.t.tint
 		| TArrayDecl el,TInst({ cl_path = [],"Array" },[pt]) ->
-			let it = match unroll (List.length el) with
+			let it = match map_unroll_params ctx unroll_params (List.length el) with
 				| Some _ -> IteratorArrayDecl el
 				| None -> IteratorArray
 			in
@@ -338,18 +353,10 @@ module IterationKind = struct
 					let rec loop e = match e.eexpr with
 					| TLocal v' when v == v' ->
 						{ei with epos = e.epos}
-					| TVar(v,eo) when has_var_flag v VStatic || not unroll_params.has_local_function ->
-						let is_static = has_var_flag v VStatic in
+					| TVar(v,eo) when has_var_flag v VStatic ->
 						if acc = [] then
-							local_vars := {e with eexpr = TVar(v,if is_static then eo else None)} :: !local_vars;
-						begin match eo with
-						| Some e when not is_static ->
-							let e = loop e in
-							let ev = mk (TLocal v) v.v_type e.epos in
-							Texpr.Builder.binop OpAssign ev e v.v_type e.epos
-						| _ ->
-							mk (TConst TNull) t_dynamic null_pos
-						end
+							local_vars := {e with eexpr = TVar(v,eo)} :: !local_vars;
+						mk (TConst TNull) t_dynamic null_pos
 					| _ ->
 						map_expr loop e
 				in
@@ -438,7 +445,7 @@ module IterationKind = struct
 			mk (TFor(v,e1,e2)) t_void p
 end
 
-let is_cheap_enough ctx e2 i =
+let get_unroll_params ctx e2 =
 	let num_expr = ref 0 in
 	let has_local_function = ref false in
 	let rec loop e = match fst e with
@@ -454,20 +461,14 @@ let is_cheap_enough ctx e2 i =
 	try
 		if ctx.com.display.dms_kind <> DMNone then raise Exit;
 		ignore(loop e2);
-		let cost = i * !num_expr in
-		let max_cost = try
-			int_of_string (Common.defined_value ctx.com Define.LoopUnrollMaxCost)
-		with Not_found ->
-			250
-		in
-		if cost <= max_cost then
-			Some {has_local_function = !has_local_function}
-		else
-			None
+		Some {
+			expression_weight = !num_expr;
+			has_local_function = !has_local_function;
+		}
 	with Exit ->
 		None
 
-let is_cheap_enough_t ctx e2 i =
+let get_unroll_params_t ctx e2 =
 	let num_expr = ref 0 in
 	let has_local_function = ref false in
 	let rec loop e = match e.eexpr with
@@ -483,16 +484,10 @@ let is_cheap_enough_t ctx e2 i =
 	try
 		if ctx.com.display.dms_kind <> DMNone then raise Exit;
 		ignore(loop e2);
-		let cost = i * !num_expr in
-		let max_cost = try
-			int_of_string (Common.defined_value ctx.com Define.LoopUnrollMaxCost)
-		with Not_found ->
-			250
-		in
-		if cost <= max_cost then
-			Some {has_local_function = !has_local_function}
-		else
-			None
+		Some {
+			expression_weight = !num_expr;
+			has_local_function = !has_local_function;
+		}
 	with Exit ->
 		None
 
@@ -513,7 +508,7 @@ let type_for_loop ctx handle_display ik e1 e2 p =
 	in
 	match ik with
 	| IKNormal(i,pi,dko) ->
-		let iterator = IterationKind.of_texpr ctx e1 (is_cheap_enough ctx e2) p in
+		let iterator = IterationKind.of_texpr ctx e1 (get_unroll_params ctx e2) p in
 		let i = add_local_with_origin ctx TVOForVariable i iterator.it_type pi in
 		let e2 = type_expr ctx e2 NoValue in
 		check_display (i,pi,dko);
