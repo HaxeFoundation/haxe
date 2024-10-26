@@ -373,8 +373,8 @@ let generate_managed_header base_ctx tcpp_class =
     output_h "\t\tvoid __Mark(HX_MARK_PARAMS);\n";
     output_h "\t\tvoid __Visit(HX_VISIT_PARAMS);\n");
 
-  let implements_haxe = PathMap.cardinal tcpp_class.cl_haxe_parents > 0 in
-  let implements_native = PathMap.cardinal tcpp_class.cl_native_parents > 0 in
+  let implements_haxe = List.length tcpp_class.cl_haxe_parents > 0 in
+  let implements_native = List.length tcpp_class.cl_native_parents > 0 in
 
   if implements_native then (
     let implemented_instance_fields =
@@ -416,8 +416,8 @@ let generate_managed_header base_ctx tcpp_class =
     output_h "\t\tvoid *_hx_getInterface(int inHash);\n";
     (* generate header glue *)
     let alreadyGlued = Hashtbl.create 0 in
-    PathMap.iter
-      (fun _ src ->
+    List.iter
+      (fun src ->
         let rec check_interface interface =
           let check_field field =
             match (follow field.cf_type, field.cf_kind) with

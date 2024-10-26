@@ -508,10 +508,13 @@ let implementations class_def =
     | Some super -> folder acc super
     | None -> acc
   in
+  let values (haxe, native) =
+    haxe |> PathMap.to_list |> List.map (fun (_, v) -> v), native |> PathMap.to_list |> List.map (fun (_, v) -> v) in
 
   class_def.cl_implements
   |> real_interfaces
   |> List.fold_left folder (PathMap.empty, PathMap.empty)
+  |> values
 
 let needed_interface_functions implemented_instance_fields native_implementations =
   let have =
@@ -521,8 +524,8 @@ let needed_interface_functions implemented_instance_fields native_implementation
     |> Hashtbl.of_seq
   in
   let want = ref [] in
-  PathMap.iter
-    (fun _ intf_def ->
+  List.iter
+    (fun intf_def ->
       List.iter
         (fun field ->
           if not (Hashtbl.mem have field.cf_name) then (

@@ -414,14 +414,14 @@ let generate_managed_class base_ctx tcpp_class =
   dump_classes "\t" implemented_classes;
   output_cpp "}\n\n";
 
-  let implements_haxe = PathMap.cardinal tcpp_class.cl_haxe_parents > 0 in
+  let implements_haxe = List.length tcpp_class.cl_haxe_parents > 0 in
 
   if implements_haxe then (
     let alreadyGlued = Hashtbl.create 0 in
     let cname = "_hx_" ^ join_class_path class_def.cl_path "_" in
     let implname = cpp_class_name class_def in
     let cpp_glue = ref [] in
-    let iter _ interface =
+    let iter interface =
       let interface_name = cpp_interface_impl_name interface in
       output_cpp
         ("static " ^ cpp_class_name interface ^ " " ^ cname ^ "_"
@@ -484,7 +484,7 @@ let generate_managed_class base_ctx tcpp_class =
       in
       gen_interface_funcs interface;
       output_cpp "};\n\n" in
-    PathMap.iter
+    List.iter
       iter
       tcpp_class.cl_haxe_parents;
 
@@ -493,9 +493,9 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp ("void *" ^ class_name ^ "::_hx_getInterface(int inHash) {\n");
     output_cpp "\tswitch(inHash) {\n";
 
-    let iter _ interface =
+    let iter interface =
       output_cpp ("\t\tcase (int)" ^ cpp_class_hash interface ^ ": return &" ^ cname ^ "_" ^ cpp_interface_impl_name interface ^ ";\n") in
-    PathMap.iter
+    List.iter
       iter
       tcpp_class.cl_haxe_parents;
 
@@ -1215,8 +1215,8 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp
       ("  HX_SCRIPTABLE_REGISTER_CLASS(\"" ^ class_name_text ^ "\","
       ^ class_name ^ ");\n");
-  PathMap.iter
-    (fun _ intf_def ->
+  List.iter
+    (fun intf_def ->
       output_cpp
         ("\tHX_REGISTER_VTABLE_OFFSET( " ^ class_name ^ ","
         ^ join_class_path_remap intf_def.cl_path "::"

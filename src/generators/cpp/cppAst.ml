@@ -172,8 +172,8 @@ and tcpp_class = {
   cl_flags : int;
   cl_debug_level : int;
 
-  cl_haxe_parents : tclass PathMap.t;
-  cl_native_parents : tclass PathMap.t;
+  cl_haxe_parents : tclass list;
+  cl_native_parents : tclass list;
 
   cl_static_variables : tclass_field list;
   cl_static_functions : (tclass_field * tfunc) list;
