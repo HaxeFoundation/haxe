@@ -541,10 +541,10 @@ let generate_source ctx =
       match tcpp_type with
       | ManagedClass tcpp_class ->
          CppGenClassHeader.generate_managed_header ctx tcpp_class;
-         CppGenClassImplementation.generate ctx tcpp_class;
+         CppGenClassImplementation.generate_managed_class ctx tcpp_class;
       | NativeClass tcpp_class ->
          CppGenClassHeader.generate_native_header ctx tcpp_class;
-         CppGenClassImplementation.generate ctx tcpp_class;
+         CppGenClassImplementation.generate_native_class ctx tcpp_class;
       | ManagedInterface interface_def ->
          CppGenInterfaceHeader.generate_managed_interface ctx interface_def;
          CppGenInterfaceImplementation.generate_managed_interface ctx interface_def;
