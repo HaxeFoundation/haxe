@@ -734,3 +734,6 @@ let int_of_tcpp_class_flag (flag:tcpp_class_flags) =
 
 let has_tcpp_class_flag c flag =
    has_flag c.cl_flags (int_of_tcpp_class_flag flag)
+
+let cpp_interface_impl_name interface =
+   "_hx_" ^ join_class_path interface.cl_path "_"

@@ -60,7 +60,7 @@ let generate base_ctx tcpp_enum =
 
   cpp_file#write_h "#include <hxcpp.h>\n\n";
 
-  let referenced,flags = CppReferences.find_referenced_types_flags ctx (TEnumDecl tcpp_enum.e_enum) None ctx.ctx_super_deps CppContext.PathMap.empty false false false in
+  let referenced,flags = CppReferences.find_referenced_types_flags ctx (TEnumDecl tcpp_enum.e_enum) None ctx.ctx_super_deps PathMap.empty false false false in
   List.iter (add_include cpp_file) referenced;
 
   begin_namespace output_cpp class_path;

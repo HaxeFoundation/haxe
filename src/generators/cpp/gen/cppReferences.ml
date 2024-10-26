@@ -29,7 +29,7 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
   let rec add_type_flag isNative in_path =
     if not (PMap.mem in_path !types) then (
       types := PMap.add in_path isNative !types;
-      try List.iter (add_type_flag isNative) (CppContext.PathMap.find in_path super_deps)
+      try List.iter (add_type_flag isNative) (PathMap.find in_path super_deps)
       with Not_found -> ())
   and add_type in_path = add_type_flag false in_path in
   let add_extern_type decl =
@@ -120,7 +120,7 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
       | TNew (klass, params, _) -> (
           visit_type (TInst (klass, params));
           try
-            let construct_type = CppContext.PathMap.find klass.cl_path constructor_deps in
+            let construct_type = PathMap.find klass.cl_path constructor_deps in
             visit_type construct_type.cf_type
           with Not_found -> ())
       (* Must visit type too, Type.iter will visit the expressions ... *)
@@ -140,7 +140,7 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
           | TInst (klass, params) -> (
               try
                 let construct_type =
-                  CppContext.PathMap.find klass.cl_path constructor_deps
+                  PathMap.find klass.cl_path constructor_deps
                 in
                 visit_type construct_type.cf_type
               with Not_found -> ())

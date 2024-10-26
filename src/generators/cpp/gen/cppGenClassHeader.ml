@@ -163,7 +163,7 @@ let gen_class_header ctx tcpp_class h_file scriptable parents =
   let class_path = tcpp_class.cl_class.cl_path in
   let header_referenced, header_flags =
     CppReferences.find_referenced_types_flags ctx (TClassDecl tcpp_class.cl_class) None
-    ctx.ctx_super_deps CppContext.PathMap.empty true false scriptable
+    ctx.ctx_super_deps PathMap.empty true false scriptable
   in
   List.iter2
     (fun r f -> gen_forward_decl h_file r f)
@@ -373,8 +373,8 @@ let generate_managed_header base_ctx tcpp_class =
     output_h "\t\tvoid __Mark(HX_MARK_PARAMS);\n";
     output_h "\t\tvoid __Visit(HX_VISIT_PARAMS);\n");
 
-  let implements_haxe = Hashtbl.length tcpp_class.cl_haxe_parents > 0 in
-  let implements_native = Hashtbl.length tcpp_class.cl_native_parents > 0 in
+  let implements_haxe = PathMap.cardinal tcpp_class.cl_haxe_parents > 0 in
+  let implements_native = PathMap.cardinal tcpp_class.cl_native_parents > 0 in
 
   if implements_native then (
     let implemented_instance_fields =
@@ -383,9 +383,9 @@ let generate_managed_header base_ctx tcpp_class =
     let neededInterfaceFunctions =
       match implements_native with
       | true ->
-          CppGen.needed_interface_functions implemented_instance_fields
-          tcpp_class.cl_native_parents
-      | false -> []
+        CppGen.needed_interface_functions implemented_instance_fields tcpp_class.cl_native_parents
+      | false ->
+        []
     in
 
     output_h "\n\t\tHX_NATIVE_IMPLEMENTATION\n";
@@ -416,8 +416,8 @@ let generate_managed_header base_ctx tcpp_class =
     output_h "\t\tvoid *_hx_getInterface(int inHash);\n";
     (* generate header glue *)
     let alreadyGlued = Hashtbl.create 0 in
-    Hashtbl.iter
-      (fun interface_name src ->
+    PathMap.iter
+      (fun _ src ->
         let rec check_interface interface =
           let check_field field =
             match (follow field.cf_type, field.cf_kind) with
@@ -429,10 +429,11 @@ let generate_managed_header base_ctx tcpp_class =
                 in
                 let realName = cpp_member_name_of field in
                 let castKey = realName ^ "::" ^ cast in
-                let castKey =
-                  if interface_name = "_hx_haxe_IMap" && realName = "set" then
-                    castKey ^ "*"
-                  else castKey
+                let castKey = match interface.cl_path with
+                | ([ "haxe" ], "IMap") when realName = "set" ->
+                  castKey ^ "*"
+                | _ ->
+                  castKey
                 in
                 let implementationKey =
                   realName ^ "::" ^ class_implementation

@@ -498,41 +498,30 @@ let gen_gc_name class_path =
 
 (* All interfaces (and sub-interfaces) implemented *)
 let implementations class_def =
-  let implemented_hash = Hashtbl.create 0 in
-  let native_implemented = Hashtbl.create 0 in
+  let rec folder (haxe, native) (interface, _) =
+    let acc = if is_native_class interface then
+      List.fold_left folder (haxe, PathMap.add interface.cl_path interface native) interface.cl_implements
+    else
+      List.fold_left folder (PathMap.add interface.cl_path interface haxe, native) interface.cl_implements in
 
-  let cpp_interface_impl_name interface =
-    "_hx_" ^ join_class_path interface.cl_path "_"
-  in
-  let iterator impl =
-    let rec descend_interface interface =
-      let intf_def = fst interface in
-      let interface_name = cpp_interface_impl_name intf_def in
-      let hash =
-        if is_native_gen_class intf_def then native_implemented
-        else implemented_hash
-      in
-      if not (Hashtbl.mem hash interface_name) then (
-        Hashtbl.replace hash interface_name intf_def;
-        List.iter descend_interface intf_def.cl_implements);
-      match intf_def.cl_super with
-      | Some (interface, params) -> descend_interface (interface, params)
-      | _ -> ()
-    in
-    descend_interface impl
+    match interface.cl_super with
+    | Some super -> folder acc super
+    | None -> acc
   in
 
-  List.iter iterator (real_interfaces class_def.cl_implements);
-  (implemented_hash, native_implemented)
+  class_def.cl_implements
+  |> real_interfaces
+  |> List.fold_left folder (PathMap.empty, PathMap.empty)
 
-let needed_interface_functions implemented_instance_fields
-    native_implementations =
+let needed_interface_functions implemented_instance_fields native_implementations =
   let have =
-    List.map (fun field -> (field.cf_name, ())) implemented_instance_fields
-    |> List.to_seq |> Hashtbl.of_seq
+    implemented_instance_fields
+    |> List.map (fun field -> (field.cf_name, ()))
+    |> List.to_seq
+    |> Hashtbl.of_seq
   in
   let want = ref [] in
-  Hashtbl.iter
+  PathMap.iter
     (fun _ intf_def ->
       List.iter
         (fun field ->
@@ -1654,11 +1643,11 @@ let generate_main ctx super_deps class_def =
     | _ -> die "" __LOC__
   in
   CppReferences.find_referenced_types ctx (TClassDecl class_def) super_deps
-    CppContext.PathMap.empty false false false
+    PathMap.empty false false false
   |> ignore;
   let depend_referenced =
     CppReferences.find_referenced_types ctx (TClassDecl class_def) super_deps
-    CppContext.PathMap.empty false true false
+    PathMap.empty false true false
   in
   let generate_startup filename is_main =
     (*make_class_directories base_dir ( "src" :: []);*)

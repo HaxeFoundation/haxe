@@ -5,6 +5,8 @@ open Error
 open Common
 open Globals
 
+module PathMap = Map.Make(struct type t = path let compare i1 i2 = String.compare (s_type_path i2) (s_type_path i1) end)
+
 type tcpp =
   | TCppDynamic
   | TCppUnchanged
@@ -170,8 +172,8 @@ and tcpp_class = {
   cl_flags : int;
   cl_debug_level : int;
 
-  cl_haxe_parents : (string, tclass) Hashtbl.t;
-  cl_native_parents : (string, tclass) Hashtbl.t;
+  cl_haxe_parents : tclass PathMap.t;
+  cl_native_parents : tclass PathMap.t;
 
   cl_static_variables : tclass_field list;
   cl_static_functions : (tclass_field * tfunc) list;

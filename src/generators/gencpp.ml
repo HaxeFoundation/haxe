@@ -216,13 +216,13 @@ let create_super_dependencies common_ctx =
                (fun acc (cls, _) -> if has_class_flag cls CExtern then acc else cls.cl_path :: acc)
                initial in
 
-         CppContext.PathMap.add class_def.cl_path deps acc
+         PathMap.add class_def.cl_path deps acc
      | TEnumDecl enum_def when not (has_enum_flag enum_def EnExtern) ->
-         CppContext.PathMap.add enum_def.e_path [] acc
+         PathMap.add enum_def.e_path [] acc
      | _ ->
          acc
    in
-   List.fold_left folder CppContext.PathMap.empty common_ctx.types
+   List.fold_left folder PathMap.empty common_ctx.types
 
 let create_constructor_dependencies common_ctx =
    List.fold_left
@@ -230,10 +230,10 @@ let create_constructor_dependencies common_ctx =
          match object_def with
          | TClassDecl class_def when not (has_class_flag class_def CExtern) ->
             (match class_def.cl_constructor with
-            | Some func -> CppContext.PathMap.add class_def.cl_path func acc
+            | Some func -> PathMap.add class_def.cl_path func acc
             | None -> acc)
          | _ -> acc)
-      CppContext.PathMap.empty
+      PathMap.empty
       common_ctx.types
 
 let is_assign_op op =
@@ -381,15 +381,15 @@ let remap_to_class ctx self_id parent_ids class_def =
 *)
 
 module ObjectIds = struct
-   type t = (int32 CppContext.PathMap.t * unit Int32Map.t)
+   type t = (int32 PathMap.t * unit Int32Map.t)
 
-   let empty = (CppContext.PathMap.empty, Int32Map.empty)
+   let empty = (PathMap.empty, Int32Map.empty)
 
    let add path id ((ids, cache):t) =
-      (CppContext.PathMap.add path id ids, Int32Map.add id () cache)
+      (PathMap.add path id ids, Int32Map.add id () cache)
 
    let find_opt path ((ids, _):t) =
-      CppContext.PathMap.find_opt path ids
+      PathMap.find_opt path ids
 
    let collision id ((_, cache):t) =
       Int32Map.mem id cache
@@ -522,7 +522,7 @@ let generate_source ctx =
 
       | TEnumDecl enum_def ->
          let self_id, all_ids = get_id enum_def.e_path acc.ids in
-         let deps             = CppReferences.find_referenced_types ctx (TEnumDecl enum_def) ctx.ctx_super_deps CppContext.PathMap.empty false true false in
+         let deps             = CppReferences.find_referenced_types ctx (TEnumDecl enum_def) ctx.ctx_super_deps PathMap.empty false true false in
          let strq             = strq ctx.ctx_common in
          let sort_constructors f1 f2 =
             f1.ef_index - f2.ef_index in

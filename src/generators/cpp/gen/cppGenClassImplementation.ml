@@ -414,95 +414,90 @@ let generate_managed_class base_ctx tcpp_class =
   dump_classes "\t" implemented_classes;
   output_cpp "}\n\n";
 
-  let implements_haxe_keys = hash_keys tcpp_class.cl_haxe_parents in
-  let implements_haxe = Hashtbl.length tcpp_class.cl_haxe_parents > 0 in
+  let implements_haxe = PathMap.cardinal tcpp_class.cl_haxe_parents > 0 in
 
   if implements_haxe then (
     let alreadyGlued = Hashtbl.create 0 in
     let cname = "_hx_" ^ join_class_path class_def.cl_path "_" in
     let implname = cpp_class_name class_def in
     let cpp_glue = ref [] in
-    List.iter
-      (fun interface_name ->
-        try
-          let interface = Hashtbl.find tcpp_class.cl_haxe_parents interface_name in
-          output_cpp
-            ("static " ^ cpp_class_name interface ^ " " ^ cname ^ "_"
-            ^ interface_name ^ "= {\n");
-          let rec gen_interface_funcs interface =
-            let gen_field field =
-              match (follow field.cf_type, field.cf_kind) with
-              | _, Method MethDynamic -> ()
-              | TFun (args, return_type), Method _ ->
-                  let cast = cpp_tfun_signature false args return_type in
-                  let class_implementation =
-                    find_class_implementation class_def field.cf_name
-                      interface
+    let iter _ interface =
+      let interface_name = cpp_interface_impl_name interface in
+      output_cpp
+        ("static " ^ cpp_class_name interface ^ " " ^ cname ^ "_"
+        ^ interface_name ^ "= {\n");
+      let rec gen_interface_funcs interface =
+        let gen_field field =
+          match (follow field.cf_type, field.cf_kind) with
+          | _, Method MethDynamic -> ()
+          | TFun (args, return_type), Method _ ->
+              let cast = cpp_tfun_signature false args return_type in
+              let class_implementation =
+                find_class_implementation class_def field.cf_name
+                  interface
+              in
+              let realName = cpp_member_name_of field in
+              let castKey = realName ^ "::" ^ cast in
+              (* C++ can't work out which function it needs to take the addrss of
+                  when the implementation is overloaded - currently the map-set functions.
+                  Change the castKey to force a glue function in this case (could double-cast the pointer, but it is ugly)
+              *)
+              let castKey =
+                if interface_name = "_hx_haxe_IMap" && realName = "set"
+                then castKey ^ "*"
+                else castKey
+              in
+              let implementationKey =
+                realName ^ "::" ^ class_implementation
+              in
+              if castKey <> implementationKey then (
+                let glue =
+                  Printf.sprintf "%s_%08lx" field.cf_name
+                    (gen_hash32 0 cast)
+                in
+                if not (Hashtbl.mem alreadyGlued castKey) then (
+                  Hashtbl.replace alreadyGlued castKey ();
+                  let argList = print_tfun_arg_list true args in
+                  let returnType = type_to_string return_type in
+                  let returnStr =
+                    if returnType = "void" then "" else "return "
                   in
-                  let realName = cpp_member_name_of field in
-                  let castKey = realName ^ "::" ^ cast in
-                  (* C++ can't work out which function it needs to take the addrss of
-                      when the implementation is overloaded - currently the map-set functions.
-                      Change the castKey to force a glue function in this case (could double-cast the pointer, but it is ugly)
-                  *)
-                  let castKey =
-                    if interface_name = "_hx_haxe_IMap" && realName = "set"
-                    then castKey ^ "*"
-                    else castKey
+                  let cppCode =
+                    returnType ^ " " ^ class_name ^ "::" ^ glue ^ "("
+                    ^ argList ^ ") {\n" ^ "\t\t\t" ^ returnStr ^ realName
+                    ^ "(" ^ print_arg_names args ^ ");\n}\n"
                   in
-                  let implementationKey =
-                    realName ^ "::" ^ class_implementation
-                  in
-                  if castKey <> implementationKey then (
-                    let glue =
-                      Printf.sprintf "%s_%08lx" field.cf_name
-                        (gen_hash32 0 cast)
-                    in
-                    if not (Hashtbl.mem alreadyGlued castKey) then (
-                      Hashtbl.replace alreadyGlued castKey ();
-                      let argList = print_tfun_arg_list true args in
-                      let returnType = type_to_string return_type in
-                      let returnStr =
-                        if returnType = "void" then "" else "return "
-                      in
-                      let cppCode =
-                        returnType ^ " " ^ class_name ^ "::" ^ glue ^ "("
-                        ^ argList ^ ") {\n" ^ "\t\t\t" ^ returnStr ^ realName
-                        ^ "(" ^ print_arg_names args ^ ");\n}\n"
-                      in
-                      (* let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in *)
-                      (* header_glue := headerCode :: !header_glue; *)
-                      cpp_glue := cppCode :: !cpp_glue);
-                    output_cpp
-                      ("\t" ^ cast ^ "&" ^ implname ^ "::" ^ glue ^ ",\n"))
-                  else
-                    output_cpp
-                      ("\t" ^ cast ^ "&" ^ implname ^ "::" ^ realName ^ ",\n")
-              | _ -> ()
-            in
-            (match interface.cl_super with
-            | Some super -> gen_interface_funcs (fst super)
-            | _ -> ());
-            List.iter gen_field interface.cl_ordered_fields
-          in
-          gen_interface_funcs interface;
-          output_cpp "};\n\n"
-        with Not_found -> ())
-      implements_haxe_keys;
+                  (* let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in *)
+                  (* header_glue := headerCode :: !header_glue; *)
+                  cpp_glue := cppCode :: !cpp_glue);
+                output_cpp
+                  ("\t" ^ cast ^ "&" ^ implname ^ "::" ^ glue ^ ",\n"))
+              else
+                output_cpp
+                  ("\t" ^ cast ^ "&" ^ implname ^ "::" ^ realName ^ ",\n")
+          | _ -> ()
+        in
+        (match interface.cl_super with
+        | Some super -> gen_interface_funcs (fst super)
+        | _ -> ());
+        List.iter gen_field interface.cl_ordered_fields
+      in
+      gen_interface_funcs interface;
+      output_cpp "};\n\n" in
+    PathMap.iter
+      iter
+      tcpp_class.cl_haxe_parents;
 
     output_cpp (String.concat "\n" !cpp_glue);
 
     output_cpp ("void *" ^ class_name ^ "::_hx_getInterface(int inHash) {\n");
     output_cpp "\tswitch(inHash) {\n";
-    List.iter
-      (fun interface_name ->
-        try
-          let interface = Hashtbl.find tcpp_class.cl_haxe_parents interface_name in
-          output_cpp
-            ("\t\tcase (int)" ^ cpp_class_hash interface ^ ": return &"
-            ^ cname ^ "_" ^ interface_name ^ ";\n")
-        with Not_found -> ())
-      implements_haxe_keys;
+
+    let iter _ interface =
+      output_cpp ("\t\tcase (int)" ^ cpp_class_hash interface ^ ": return &" ^ cname ^ "_" ^ cpp_interface_impl_name interface ^ ";\n") in
+    PathMap.iter
+      iter
+      tcpp_class.cl_haxe_parents;
 
     output_cpp "\t}\n";
 
@@ -1220,7 +1215,7 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp
       ("  HX_SCRIPTABLE_REGISTER_CLASS(\"" ^ class_name_text ^ "\","
       ^ class_name ^ ");\n");
-  Hashtbl.iter
+  PathMap.iter
     (fun _ intf_def ->
       output_cpp
         ("\tHX_REGISTER_VTABLE_OFFSET( " ^ class_name ^ ","
