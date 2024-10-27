@@ -1979,13 +1979,3 @@ let generate_native_constructor ctx out class_def isHeader =
             gen_cpp_function_body ctx class_def false "new" function_def
               head_code tail_code no_debug)
   | _ -> ()
-
-let dynamic_functions class_def =
-  List.fold_left
-    (fun result field ->
-      match field.cf_expr with
-      | Some { eexpr = TFunction function_def }
-        when is_dynamic_haxe_method field ->
-          keyword_remap field.cf_name :: result
-      | _ -> result)
-    [] class_def.cl_ordered_fields

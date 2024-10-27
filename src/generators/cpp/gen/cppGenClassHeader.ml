@@ -335,10 +335,9 @@ let generate_managed_header base_ctx tcpp_class =
     output_h "\t\tstatic void * _hx_vtable;\n";
     output_h "\t\tstatic Dynamic __CreateEmpty();\n";
     output_h "\t\tstatic Dynamic __Create(::hx::DynamicArray inArgs);\n");
-  if List.length (CppGen.dynamic_functions class_def) > 0 then
+  if List.length (tcpp_class.cl_dynamic_functions) > 0 then
     output_h
-      ("\t\tstatic void __alloc_dynamic_functions(::hx::Ctx *_hx_alloc,"
-      ^ class_name ^ " *_hx_obj);\n");
+      ("\t\tstatic void __alloc_dynamic_functions(::hx::Ctx *_hx_alloc," ^ class_name ^ " *_hx_obj);\n");
   if scriptable then
     output_h "\t\tstatic ::hx::ScriptFunction __script_construct;\n";
   output_h ("\t\t//~" ^ class_name ^ "();\n\n");

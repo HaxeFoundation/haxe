@@ -12,7 +12,7 @@ open CppSourceWriter
 open CppContext
 open CppGen
 
-let gen_function ctx class_def class_name is_static field function_def =
+let gen_function ctx class_def class_name is_static (field, function_def) =
   let output          = ctx.ctx_output in
   let nargs           = string_of_int (List.length function_def.tf_args) in
   let return_type_str = type_to_string function_def.tf_type in
@@ -129,7 +129,7 @@ let gen_function ctx class_def class_name is_static field function_def =
         let prefix = if is_static then "STATIC_" else "" in
         Printf.sprintf "%sHX_DEFINE_DYNAMIC_FUNC%s(%s, %s, %s)\n\n" prefix nargs class_name remap_name ret |> output
 
-let gen_dynamic_function ctx class_def class_name is_static field function_def =
+let gen_dynamic_function ctx class_def class_name is_static is_for_static_var (field, function_def) =
   let output = ctx.ctx_output in
   let remap_name = keyword_remap field.cf_name in
   let func_name = "__default_" ^ remap_name in
@@ -149,45 +149,22 @@ let gen_dynamic_function ctx class_def class_name is_static field function_def =
   output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
   output "HX_END_DEFAULT_FUNC\n\n";
 
-  if is_static then
+  if is_static && not is_for_static_var then
     output ("::Dynamic " ^ class_name ^ "::" ^ remap_name ^ ";\n\n")
 
-let gen_field ctx class_def class_name is_static field =
-  ctx.ctx_real_this_ptr <- not is_static;
-
+let gen_static_variable ctx class_def class_name field =
   let output = ctx.ctx_output in
   let remap_name = keyword_remap field.cf_name in
-  let decl = get_meta_string field.cf_meta Meta.Decl in
-  let has_decl = match decl with Some _ -> true | None -> false in
-  match field.cf_expr with
-  (* Function field *)
-  | Some { eexpr = TFunction function_def } ->
-    if not (is_dynamic_haxe_method field) then
-      gen_function ctx class_def class_name is_static field function_def
-    else
-      gen_dynamic_function ctx class_def class_name is_static field function_def;
-  (* Data field *)
-  | _ when has_decl ->
-      if is_static then (
-        output (class_name ^ "::" ^ remap_name ^ "_decl ");
-        output (" " ^ class_name ^ "::" ^ remap_name ^ ";\n\n"))
-  | _ ->
-      if is_static && is_physical_field field then (
-        gen_type ctx field.cf_type;
-        output (" " ^ class_name ^ "::" ^ remap_name ^ ";\n\n"))
-      else if has_class_field_flag field CfAbstract then
-        let tl, tr =
-          match follow field.cf_type with
-          | TFun (tl, tr) -> (tl, tr)
-          | _ -> die "" __LOC__
-        in
-        let nargs = string_of_int (List.length tl) in
-        let return_type = cpp_type_of tr in
-        let is_void = return_type = TCppVoid in
-        let ret = if is_void then "(void)" else "return " in
-        output
-          ("HX_DEFINE_DYNAMIC_FUNC" ^ nargs ^ "(" ^ class_name ^ ","
-         ^ remap_name ^ "," ^ ret ^ ")\n\n")
+  gen_type ctx field.cf_type;
+  output (" " ^ class_name ^ "::" ^ remap_name ^ ";\n\n")
+
+let gen_abstract_function ctx class_def class_name (field, tl, tr) =
+  let output = ctx.ctx_output in
+  let remap_name = keyword_remap field.cf_name in
+  let return_type = cpp_type_of tr in
+  let is_void = return_type = TCppVoid in
+  let ret = if is_void then "(void)" else "return " in
+  Printf.sprintf "HX_DEFINE_DYNAMIC_FUNC%i(%s, %s, %s)\n\n" (List.length tl) class_name remap_name ret |> output
 
 let gen_field_init ctx class_def field =
   let dot_name = join_class_path class_def.cl_path "." in
@@ -259,43 +236,46 @@ let generate_native_class base_ctx tcpp_class =
       output_cpp "\n\n"
   | _ -> ());
 
-  let statics_except_meta = statics_except_meta class_def in
+  List.iter (gen_function ctx class_def class_name false) tcpp_class.cl_functions;
+  List.iter (gen_dynamic_function ctx class_def class_name false false) tcpp_class.cl_dynamic_functions;
+  List.iter (gen_abstract_function ctx class_def class_name) tcpp_class.cl_abstract_functions;
 
-  List.iter
-    (gen_field ctx class_def class_name false)
-    class_def.cl_ordered_fields;
-  List.iter (gen_field ctx class_def class_name true) statics_except_meta;
+  List.iter (gen_function ctx class_def class_name true) tcpp_class.cl_static_functions;
+  List.iter (gen_dynamic_function ctx class_def class_name true false) tcpp_class.cl_static_dynamic_functions;
+  List.iter (gen_static_variable ctx class_def class_name) tcpp_class.cl_static_variables;
+
+  (* Generate a dynamic function for static variables with a default function *)
+  tcpp_class.cl_static_variables
+    |> List.filter_map (fun field -> match field.cf_expr with
+      | Some { eexpr = TFunction function_def } -> Some (field, function_def)
+      | _ -> None)
+    |> List.iter (gen_dynamic_function ctx class_def class_name true true);
+
   output_cpp "\n";
 
-  let dynamic_functions = dynamic_functions class_def in
-  if List.length dynamic_functions > 0 then (
-    output_cpp
-      ("void " ^ class_name ^ "::__alloc_dynamic_functions(::hx::Ctx *_hx_ctx,"
-     ^ class_name ^ " *_hx_obj) {\n");
+  (match tcpp_class.cl_dynamic_functions with
+  | [] -> ()
+  | functions -> (
+    Printf.sprintf "void %s::__alloc_dynamic_functions(::hx::Ctx* _hx_ctx, %s* _hx_obj) {\n" class_name class_name |> output_cpp;
     List.iter
-      (fun name ->
-        output_cpp
-          ("\tif (!_hx_obj->" ^ name ^ ".mPtr) _hx_obj->" ^ name
-         ^ " = new __default_" ^ name ^ "(_hx_obj);\n"))
-      dynamic_functions;
+      (fun (field, _) ->
+        let name = keyword_remap field.cf_name in
+        Printf.sprintf "\tif (!_hx_obj->%s.mPtr) { _hx_obj->%s = new __default_%s(_hx_obj); }\n" name name name |> output_cpp)
+      functions;
     (match class_def.cl_super with
-    | Some super ->
+    | Some (super, _) ->
         let rec find_super class_def =
           if has_dynamic_member_functions class_def then
-            let super_name =
-              join_class_path_remap class_def.cl_path "::" ^ "_obj"
-            in
-            output_cpp
-              ("\t" ^ super_name
-             ^ "::__alloc_dynamic_functions(_hx_ctx,_hx_obj);\n")
+            let super_name = join_class_path_remap class_def.cl_path "::" ^ "_obj" in
+            output_cpp ("\t" ^ super_name ^ "::__alloc_dynamic_functions(_hx_ctx,_hx_obj);\n")
           else
             match class_def.cl_super with
-            | Some super -> find_super (fst super)
+            | Some (super, _) -> find_super super
             | _ -> ()
         in
-        find_super (fst super)
+        find_super super
     | _ -> ());
-    output_cpp "}\n");
+    output_cpp "}\n"));
   
   generate_native_constructor ctx output_cpp class_def false;
 
@@ -525,41 +505,46 @@ let generate_managed_class base_ctx tcpp_class =
     List.filter should_implement_field statics_except_meta
   in
 
-  List.iter
-    (gen_field ctx class_def class_name false)
-    class_def.cl_ordered_fields;
-  List.iter (gen_field ctx class_def class_name true) statics_except_meta;
+  List.iter (gen_function ctx class_def class_name false) tcpp_class.cl_functions;
+  List.iter (gen_dynamic_function ctx class_def class_name false false) tcpp_class.cl_dynamic_functions;
+  List.iter (gen_abstract_function ctx class_def class_name) tcpp_class.cl_abstract_functions;
+
+  List.iter (gen_function ctx class_def class_name true) tcpp_class.cl_static_functions;
+  List.iter (gen_dynamic_function ctx class_def class_name true false) tcpp_class.cl_static_dynamic_functions;
+  List.iter (gen_static_variable ctx class_def class_name) tcpp_class.cl_static_variables;
+
+  (* Generate a dynamic function for static variables with a default function *)
+  tcpp_class.cl_static_variables
+    |> List.filter_map (fun field -> match field.cf_expr with
+      | Some { eexpr = TFunction function_def } -> Some (field, function_def)
+      | _ -> None)
+    |> List.iter (gen_dynamic_function ctx class_def class_name true true);
+
   output_cpp "\n";
 
-  let dynamic_functions = dynamic_functions class_def in
-  if List.length dynamic_functions > 0 then (
-    output_cpp
-      ("void " ^ class_name ^ "::__alloc_dynamic_functions(::hx::Ctx *_hx_ctx,"
-     ^ class_name ^ " *_hx_obj) {\n");
+  (match tcpp_class.cl_dynamic_functions with
+  | [] -> ()
+  | functions -> (
+    Printf.sprintf "void %s::__alloc_dynamic_functions(::hx::Ctx* _hx_ctx, %s* _hx_obj) {\n" class_name class_name |> output_cpp;
     List.iter
-      (fun name ->
-        output_cpp
-          ("\tif (!_hx_obj->" ^ name ^ ".mPtr) _hx_obj->" ^ name
-         ^ " = new __default_" ^ name ^ "(_hx_obj);\n"))
-      dynamic_functions;
+      (fun (field, _) ->
+        let name = keyword_remap field.cf_name in
+        Printf.sprintf "\tif (!_hx_obj->%s.mPtr) { _hx_obj->%s = new __default_%s(_hx_obj); }\n" name name name |> output_cpp)
+      functions;
     (match class_def.cl_super with
-    | Some super ->
+    | Some (super, _) ->
         let rec find_super class_def =
           if has_dynamic_member_functions class_def then
-            let super_name =
-              join_class_path_remap class_def.cl_path "::" ^ "_obj"
-            in
-            output_cpp
-              ("\t" ^ super_name
-             ^ "::__alloc_dynamic_functions(_hx_ctx,_hx_obj);\n")
+            let super_name = join_class_path_remap class_def.cl_path "::" ^ "_obj" in
+            output_cpp ("\t" ^ super_name ^ "::__alloc_dynamic_functions(_hx_ctx,_hx_obj);\n")
           else
             match class_def.cl_super with
-            | Some super -> find_super (fst super)
+            | Some (super, _) -> find_super super
             | _ -> ()
         in
-        find_super (fst super)
+        find_super super
     | _ -> ());
-    output_cpp "}\n");
+    output_cpp "}\n"));
 
   let inline_constructor =
     can_inline_constructor base_ctx class_def
@@ -577,9 +562,10 @@ let generate_managed_class base_ctx tcpp_class =
   (* Initialise non-static variables *)
   output_cpp (class_name ^ "::" ^ class_name ^ "()\n{\n");
   List.iter
-    (fun name ->
+    (fun (field, _) ->
+      let name = keyword_remap field.cf_name in
       output_cpp ("\t" ^ name ^ " = new __default_" ^ name ^ "(this);\n"))
-    dynamic_functions;
+    tcpp_class.cl_dynamic_functions;
   output_cpp "}\n\n";
 
   let dump_field_iterator macro field =
