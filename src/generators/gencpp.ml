@@ -247,20 +247,23 @@ let remap_to_class ctx self_id parent_ids class_def =
       if should_implement_field field then
          match (field.cf_kind, field.cf_expr) with
          | Method (MethNormal | MethInline), Some { eexpr = TFunction func } ->
-         Some (field, func)
+            Some (field, func)
          | _ ->
-         None
+            None
       else
          None
    in
    
-   let filter_dynamic_functions field =
+   let filter_dynamic_functions func_for_static_field field =
       if should_implement_field field then
          match (field.cf_kind, field.cf_expr) with
          | Method MethDynamic, Some { eexpr = TFunction func } ->
-         Some (field, func)
+            Some (field, func)
+         (* static variables with a default function value get a dynamic function generated as the implementation *)
+         | Var _, Some { eexpr = TFunction func } when func_for_static_field ->
+            Some (field, func)
          | _ ->
-         None
+            None
       else
          None
    in
@@ -269,9 +272,9 @@ let remap_to_class ctx self_id parent_ids class_def =
       if should_implement_field field then
          match (field.cf_kind, field.cf_type) with
          | Method MethNormal, TFun (tl, tr) when has_class_field_flag field CfAbstract ->
-         Some (field, tl, tr)
+            Some (field, tl, tr)
          | _ ->
-         None
+            None
       else
          None
    in
@@ -284,7 +287,11 @@ let remap_to_class ctx self_id parent_ids class_def =
                Some field
             else
                None
+         (* Dynamic methods are implemented as a physical field holding a closure *)
+         | Method MethDynamic, Some { eexpr = TFunction func } -> 
+            Some { field with cf_expr = None; cf_kind = Var ({ v_read = AccNormal; v_write = AccNormal }) }
          (* Below should cause abstracts which have functions with no implementation to be generated as a field *)
+         (* See Int32.hx as an example *)
          | Method (MethNormal | MethInline), None when not (has_class_field_flag field CfAbstract) ->
             Some field
          | _ ->
@@ -318,7 +325,7 @@ let remap_to_class ctx self_id parent_ids class_def =
    
    let static_dynamic_functions =
       class_def.cl_ordered_statics
-      |> List.filter_map filter_dynamic_functions in
+      |> List.filter_map (filter_dynamic_functions true) in
    
    let static_variables =
       class_def.cl_ordered_statics
@@ -331,7 +338,7 @@ let remap_to_class ctx self_id parent_ids class_def =
    
    let dynamic_functions =
       class_def.cl_ordered_fields
-      |> List.filter_map filter_dynamic_functions in
+      |> List.filter_map (filter_dynamic_functions false) in
    
    let variables =
       class_def.cl_ordered_fields

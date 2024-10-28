@@ -57,8 +57,6 @@ let gen_dynamic_function ctx class_def is_static field function_def =
   let is_not_static = not is_static in
   let prefix        = if is_static then "\t\tstatic " else "\t\t" in
 
-  Printf.sprintf "%s::Dynamic %s;\n" prefix remap_name |> output;
-
   if is_not_static && is_gc_element ctx TCppDynamic then
     Printf.sprintf "\t\tinline ::Dynamic _hx_set_%s(::hx::StackContext* _hx_ctx, ::Dynamic _hx_v) { HX_OBJ_WB(this, _hx_v.mPtr) return %s = _hx_v; }\n" remap_name remap_name |> output;
 

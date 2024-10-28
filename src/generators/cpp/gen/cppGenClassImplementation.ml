@@ -147,10 +147,7 @@ let gen_dynamic_function ctx class_def class_name is_static is_for_static_var (f
   gen_cpp_function_body ctx class_def is_static func_name function_def "" "" no_debug;
 
   output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
-  output "HX_END_DEFAULT_FUNC\n\n";
-
-  if is_static && not is_for_static_var then
-    output ("::Dynamic " ^ class_name ^ "::" ^ remap_name ^ ";\n\n")
+  output "HX_END_DEFAULT_FUNC\n\n"
 
 let gen_static_variable ctx class_def class_name field =
   let output = ctx.ctx_output in
@@ -243,13 +240,6 @@ let generate_native_class base_ctx tcpp_class =
   List.iter (gen_function ctx class_def class_name true) tcpp_class.tcl_static_functions;
   List.iter (gen_dynamic_function ctx class_def class_name true false) tcpp_class.tcl_static_dynamic_functions;
   List.iter (gen_static_variable ctx class_def class_name) tcpp_class.tcl_static_variables;
-
-  (* Generate a dynamic function for static variables with a default function *)
-  tcpp_class.tcl_static_variables
-    |> List.filter_map (fun field -> match field.cf_expr with
-      | Some { eexpr = TFunction function_def } -> Some (field, function_def)
-      | _ -> None)
-    |> List.iter (gen_dynamic_function ctx class_def class_name true true);
 
   output_cpp "\n";
 
@@ -512,13 +502,6 @@ let generate_managed_class base_ctx tcpp_class =
   List.iter (gen_function ctx class_def class_name true) tcpp_class.tcl_static_functions;
   List.iter (gen_dynamic_function ctx class_def class_name true false) tcpp_class.tcl_static_dynamic_functions;
   List.iter (gen_static_variable ctx class_def class_name) tcpp_class.tcl_static_variables;
-
-  (* Generate a dynamic function for static variables with a default function *)
-  tcpp_class.tcl_static_variables
-    |> List.filter_map (fun field -> match field.cf_expr with
-      | Some { eexpr = TFunction function_def } -> Some (field, function_def)
-      | _ -> None)
-    |> List.iter (gen_dynamic_function ctx class_def class_name true true);
 
   output_cpp "\n";
 
