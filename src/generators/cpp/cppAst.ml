@@ -184,8 +184,8 @@ and tcpp_class = {
   tcl_dynamic_functions : (tclass_field * tfunc) list;
   tcl_abstract_functions : (tclass_field * (string * bool * t) list * t) list;
 
-  tcl_meta_field : tclass_field option;
-  tcl_rtti_field : tclass_field option;
+  tcl_meta : tclass_field option;
+  tcl_rtti : tclass_field option;
 }
 
 and tcpp_interface = {

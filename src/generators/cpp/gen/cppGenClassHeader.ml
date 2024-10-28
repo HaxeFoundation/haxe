@@ -366,7 +366,7 @@ let generate_managed_header base_ctx tcpp_class =
       ^ " *>(this)->__compare(Dynamic((::hx::Object *)inRHS)); }\n");
 
   output_h "\t\tstatic void __register();\n";
-  if has_new_gc_references class_def then (
+  if has_tcpp_class_flag tcpp_class Container then (
     output_h "\t\tvoid __Mark(HX_MARK_PARAMS);\n";
     output_h "\t\tvoid __Visit(HX_VISIT_PARAMS);\n");
 

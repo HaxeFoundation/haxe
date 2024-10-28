@@ -573,11 +573,7 @@ let generate_managed_class base_ctx tcpp_class =
       | _ -> ())
   in
 
-  let implemented_instance_fields =
-    List.filter should_implement_field class_def.cl_ordered_fields
-  in
-
-  if has_new_gc_references class_def then (
+  if has_tcpp_class_flag tcpp_class Container then (
     let super_needs_iteration = find_next_super_iteration class_def in
     let smart_class_name = snd class_path in
     (* MARK function - explicitly mark all child pointers *)
@@ -585,10 +581,10 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp ("\tHX_MARK_BEGIN_CLASS(" ^ smart_class_name ^ ");\n");
     List.iter
       (dump_field_iterator "HX_MARK_MEMBER_NAME")
-      implemented_instance_fields;
+      tcpp_class.tcl_variables;
     (match super_needs_iteration with
-    | "" -> ()
-    | super -> output_cpp ("\t" ^ super ^ "::__Mark(HX_MARK_ARG);\n"));
+    | None -> ()
+    | Some super -> output_cpp ("\t" ^ super ^ "::__Mark(HX_MARK_ARG);\n"));
     output_cpp "\tHX_MARK_END_CLASS();\n";
     output_cpp "}\n\n";
 
@@ -596,10 +592,10 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp ("void " ^ class_name ^ "::__Visit(HX_VISIT_PARAMS)\n{\n");
     List.iter
       (dump_field_iterator "HX_VISIT_MEMBER_NAME")
-      implemented_instance_fields;
+      tcpp_class.tcl_variables;
     (match super_needs_iteration with
-    | "" -> ()
-    | super -> output_cpp ("\t" ^ super ^ "::__Visit(HX_VISIT_ARG);\n"));
+    | None -> ()
+    | Some super -> output_cpp ("\t" ^ super ^ "::__Visit(HX_VISIT_ARG);\n"));
     output_cpp "}\n\n");
 
   let dump_quick_field_test fields =
@@ -845,14 +841,11 @@ let generate_managed_class base_ctx tcpp_class =
 
   output_cpp "#ifdef HXCPP_SCRIPTABLE\n";
 
-  let stored_fields =
-    List.filter is_data_member implemented_instance_fields
-  in
-  if List.length stored_fields > 0 then (
+  if List.length tcpp_class.tcl_variables > 0 then (
     output_cpp
       ("static ::hx::StorageInfo " ^ class_name
       ^ "_sMemberStorageInfo[] = {\n");
-    List.iter dump_member_storage stored_fields;
+    List.iter dump_member_storage tcpp_class.tcl_variables;
     output_cpp "\t{ ::hx::fsUnknown, 0, null()}\n};\n")
   else
     output_cpp

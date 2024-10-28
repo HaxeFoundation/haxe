@@ -299,26 +299,7 @@ let remap_to_class ctx self_id parent_ids class_def =
       else
          None
    in
-   
-   let flags =
-      if Common.defined ctx.ctx_common Define.Scriptable && not class_def.cl_private then
-         set_flag 0 (int_of_tcpp_class_flag Scriptable)
-      else
-         0
-      in
-   let flags =
-      if CppGen.can_quick_alloc class_def then
-         set_flag flags (int_of_tcpp_class_flag QuickAlloc)
-      else
-         flags
-      in
-   let flags =
-      if CppGen.has_gc_references class_def then
-         set_flag flags (int_of_tcpp_class_flag Container)
-      else
-         flags
-      in
-   
+     
    let static_functions =
       class_def.cl_ordered_statics
       |> List.filter_map filter_functions in
@@ -352,6 +333,25 @@ let remap_to_class ctx self_id parent_ids class_def =
       CppGen.implementations class_def
    in
 
+   let flags =
+      if Common.defined ctx.ctx_common Define.Scriptable && not class_def.cl_private then
+         set_flag 0 (int_of_tcpp_class_flag Scriptable)
+      else
+         0
+      in
+   let flags =
+      if CppGen.can_quick_alloc class_def then
+         set_flag flags (int_of_tcpp_class_flag QuickAlloc)
+      else
+         flags
+      in
+   let flags =
+      if List.exists (fun f -> cant_be_null f.cf_type) variables then
+         set_flag flags (int_of_tcpp_class_flag Container)
+      else
+         flags
+      in
+
    let meta_field = List.find_opt (fun field -> field.cf_name = "__meta__") class_def.cl_ordered_statics in
    let rtti_field = List.find_opt (fun field -> field.cf_name = "__rtti") class_def.cl_ordered_statics in
    
@@ -371,8 +371,8 @@ let remap_to_class ctx self_id parent_ids class_def =
       tcl_abstract_functions = abstract_functions;
       tcl_haxe_parents = haxe_implementations;
       tcl_native_parents = native_implementations;
-      tcl_meta_field = meta_field;
-      tcl_rtti_field = rtti_field;
+      tcl_meta = meta_field;
+      tcl_rtti = rtti_field;
    }
    
    (* let get_all_paths cls =

@@ -103,9 +103,9 @@ let rec has_gc_references class_def =
 let rec find_next_super_iteration class_def =
   match class_def.cl_super with
   | Some (klass, params) when has_new_gc_references klass ->
-      tcpp_to_string_suffix "_obj" (cpp_instance_type klass params)
+      Some (tcpp_to_string_suffix "_obj" (cpp_instance_type klass params))
   | Some (klass, _) -> find_next_super_iteration klass
-  | _ -> ""
+  | _ -> None
 
 let cpp_member_name_of member =
   match get_meta_string member.cf_meta Meta.Native with
