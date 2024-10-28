@@ -280,12 +280,15 @@ let remap_to_class ctx self_id parent_ids class_def =
       if should_implement_field field then
          match (field.cf_kind, field.cf_expr) with
          | Var _, _ ->
-         Some field
+            if is_physical_var_field field then
+               Some field
+            else
+               None
          (* Below should cause abstracts which have functions with no implementation to be generated as a field *)
          | Method (MethNormal | MethInline), None when not (has_class_field_flag field CfAbstract) ->
-         Some field
+            Some field
          | _ ->
-         None
+            None
       else
          None
    in
@@ -319,6 +322,7 @@ let remap_to_class ctx self_id parent_ids class_def =
    
    let static_variables =
       class_def.cl_ordered_statics
+      |> List.filter (fun field -> field.cf_name <> "__meta__" && field.cf_name <> "__rtti")
       |> List.filter_map filter_variables in
    
    let functions = 
@@ -340,23 +344,28 @@ let remap_to_class ctx self_id parent_ids class_def =
    let haxe_implementations, native_implementations =
       CppGen.implementations class_def
    in
+
+   let meta_field = List.find_opt (fun field -> field.cf_name = "__meta__") class_def.cl_ordered_statics in
+   let rtti_field = List.find_opt (fun field -> field.cf_name = "__rtti") class_def.cl_ordered_statics in
    
    {
-      cl_class = class_def;
-      cl_id = self_id;
-      cl_name = class_name class_def;
-      cl_flags = flags;
-      cl_parent_ids = parent_ids;
-      cl_debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Common.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level;
-      cl_static_variables = static_variables;
-      cl_static_functions = static_functions;
-      cl_static_dynamic_functions = static_dynamic_functions;
-      cl_variables = variables;
-      cl_functions = functions;
-      cl_dynamic_functions = dynamic_functions;
-      cl_abstract_functions = abstract_functions;
-      cl_haxe_parents = haxe_implementations;
-      cl_native_parents = native_implementations;
+      tcl_class = class_def;
+      tcl_id = self_id;
+      tcl_name = class_name class_def;
+      tcl_flags = flags;
+      tcl_parent_ids = parent_ids;
+      tcl_debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Common.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level;
+      tcl_static_variables = static_variables;
+      tcl_static_functions = static_functions;
+      tcl_static_dynamic_functions = static_dynamic_functions;
+      tcl_variables = variables;
+      tcl_functions = functions;
+      tcl_dynamic_functions = dynamic_functions;
+      tcl_abstract_functions = abstract_functions;
+      tcl_haxe_parents = haxe_implementations;
+      tcl_native_parents = native_implementations;
+      tcl_meta_field = meta_field;
+      tcl_rtti_field = rtti_field;
    }
    
    (* let get_all_paths cls =

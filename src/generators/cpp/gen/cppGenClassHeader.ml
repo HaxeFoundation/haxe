@@ -126,13 +126,13 @@ let gen_member_function ctx class_def is_static field function_def =
     Printf.sprintf "%s::Dynamic %s_dyn();\n" prefix remap_name |> output
 
 let gen_class_header ctx tcpp_class h_file scriptable parents =
-  let class_path = tcpp_class.cl_class.cl_path in
+  let class_path = tcpp_class.tcl_class.cl_path in
   let def_string = join_class_path class_path "_" in
 
   begin_header_file h_file#write_h def_string false;
 
   (* Include the real header file for the super class *)
-  (match tcpp_class.cl_class.cl_super with
+  (match tcpp_class.tcl_class.cl_super with
   | Some super ->
       let klass = fst super in
       let include_files = get_all_meta_string_path klass.cl_meta Meta.Include in
@@ -155,14 +155,14 @@ let gen_class_header ctx tcpp_class h_file scriptable parents =
           (fun inc -> h_file#add_include (path_of_string inc))
           include_files
       else h_file#add_include interface.cl_path)
-    (real_interfaces tcpp_class.cl_class.cl_implements);
+    (real_interfaces tcpp_class.tcl_class.cl_implements);
 
   (* Only need to forward-declare classes that are mentioned in the header file
      (ie, not the implementation) *)
   let output_h   = h_file#write in
-  let class_path = tcpp_class.cl_class.cl_path in
+  let class_path = tcpp_class.tcl_class.cl_path in
   let header_referenced, header_flags =
-    CppReferences.find_referenced_types_flags ctx (TClassDecl tcpp_class.cl_class) None
+    CppReferences.find_referenced_types_flags ctx (TClassDecl tcpp_class.tcl_class) None
     ctx.ctx_super_deps PathMap.empty true false scriptable
   in
   List.iter2
@@ -170,16 +170,16 @@ let gen_class_header ctx tcpp_class h_file scriptable parents =
     header_referenced header_flags;
   output_h "\n";
 
-  output_h (get_class_code tcpp_class.cl_class Meta.HeaderCode);
+  output_h (get_class_code tcpp_class.tcl_class Meta.HeaderCode);
   let includes =
-    get_all_meta_string_path tcpp_class.cl_class.cl_meta Meta.HeaderInclude
+    get_all_meta_string_path tcpp_class.tcl_class.cl_meta Meta.HeaderInclude
   in
   let printer inc = output_h ("#include \"" ^ inc ^ "\"\n") in
   List.iter printer includes;
 
   begin_namespace output_h class_path;
   output_h "\n\n";
-  output_h (get_class_code tcpp_class.cl_class Meta.HeaderNamespaceCode);
+  output_h (get_class_code tcpp_class.tcl_class Meta.HeaderNamespaceCode);
 
   let extern_class = Common.defined ctx.ctx_common Define.DllExport in
   let attribs =
@@ -193,7 +193,7 @@ let gen_class_header ctx tcpp_class h_file scriptable parents =
       acc
     in
   let all_parents =
-    tcpp_class.cl_class.cl_implements
+    tcpp_class.tcl_class.cl_implements
     |> List.fold_left folder parents
     |> List.rev in
   let parent_string =
@@ -201,16 +201,16 @@ let gen_class_header ctx tcpp_class h_file scriptable parents =
     | [] -> ""
     | xs ->  " : " ^ String.concat ", " xs in
 
-  Printf.sprintf "class %s %s%s\n{\n\tpublic:\n" attribs tcpp_class.cl_name parent_string |> output_h
+  Printf.sprintf "class %s %s%s\n{\n\tpublic:\n" attribs tcpp_class.tcl_name parent_string |> output_h
 
 let generate_native_header base_ctx tcpp_class =
   let common_ctx = base_ctx.ctx_common in
-  let class_def  = tcpp_class.cl_class in
+  let class_def  = tcpp_class.tcl_class in
   let class_path = class_def.cl_path in
   let scriptable = has_tcpp_class_flag tcpp_class Scriptable in
 
   let h_file = new_header_file common_ctx common_ctx.file class_path in
-  let ctx = file_context base_ctx h_file tcpp_class.cl_debug_level true in
+  let ctx = file_context base_ctx h_file tcpp_class.tcl_debug_level true in
 
   let parent, super =
     match class_def.cl_super with
@@ -230,25 +230,25 @@ let generate_native_header base_ctx tcpp_class =
 
   if has_boot_field class_def then output_h "\t\tstatic void __boot();\n";
 
-  tcpp_class.cl_static_functions
+  tcpp_class.tcl_static_functions
   |> List.iter (fun (field, func) -> gen_member_function ctx class_def true field func);
 
-  tcpp_class.cl_static_dynamic_functions
+  tcpp_class.tcl_static_dynamic_functions
   |> List.iter (fun (field, func) -> gen_dynamic_function ctx class_def true field func);
 
-  tcpp_class.cl_static_variables
+  tcpp_class.tcl_static_variables
   |> List.iter (fun field -> gen_member_variable ctx class_def true field);
 
-  tcpp_class.cl_functions
+  tcpp_class.tcl_functions
   |> List.iter (fun (field, func) -> gen_member_function ctx class_def false field func);
 
-  tcpp_class.cl_dynamic_functions
+  tcpp_class.tcl_dynamic_functions
   |> List.iter (fun (field, func) -> gen_dynamic_function ctx class_def false field func);
 
-  tcpp_class.cl_variables
+  tcpp_class.tcl_variables
   |> List.iter (fun field -> gen_member_variable ctx class_def false field);
 
-  tcpp_class.cl_abstract_functions
+  tcpp_class.tcl_abstract_functions
   |> List.iter (fun (field, tl, tr) -> gen_abstract_function ctx class_def field tl tr);
 
   output_h (get_class_code class_def Meta.HeaderClassCode);
@@ -262,24 +262,24 @@ let generate_native_header base_ctx tcpp_class =
 
 let generate_managed_header base_ctx tcpp_class =
   let common_ctx = base_ctx.ctx_common in
-  let class_def = tcpp_class.cl_class in
+  let class_def = tcpp_class.tcl_class in
   let class_path = class_def.cl_path in
   let smart_class_name = snd class_path in
   let scriptable = has_tcpp_class_flag tcpp_class Scriptable in
-  let class_name = tcpp_class.cl_name in
+  let class_name = tcpp_class.tcl_name in
   let ptr_name = class_pointer class_def in
   let can_quick_alloc = has_tcpp_class_flag tcpp_class QuickAlloc in
   let gcName = gen_gc_name class_def.cl_path in
   let isContainer = if has_tcpp_class_flag tcpp_class Container then "true" else "false" in
 
   let constructor_type_args =
-    tcpp_class.cl_class
+    tcpp_class.tcl_class
       |> constructor_arg_var_list
       |> List.map (fun (t, a) -> Printf.sprintf "%s %s" t a)
       |> String.concat "," in
 
   let h_file = new_header_file common_ctx common_ctx.file class_path in
-  let ctx = file_context base_ctx h_file tcpp_class.cl_debug_level true in
+  let ctx = file_context base_ctx h_file tcpp_class.tcl_debug_level true in
   let strq = strq ctx.ctx_common in
 
   let parent, super =
@@ -299,7 +299,7 @@ let generate_managed_header base_ctx tcpp_class =
   Printf.sprintf "\t\ttypedef %s super;\n" super |> output_h;
   Printf.sprintf "\t\ttypedef %s OBJ_;\n" class_name |> output_h;
 
-  let classIdTxt = Printf.sprintf "0x%08lx" tcpp_class.cl_id in
+  let classIdTxt = Printf.sprintf "0x%08lx" tcpp_class.tcl_id in
 
   output_h ("\t\t" ^ class_name ^ "();\n");
   output_h "\n\tpublic:\n";
@@ -335,7 +335,7 @@ let generate_managed_header base_ctx tcpp_class =
     output_h "\t\tstatic void * _hx_vtable;\n";
     output_h "\t\tstatic Dynamic __CreateEmpty();\n";
     output_h "\t\tstatic Dynamic __Create(::hx::DynamicArray inArgs);\n");
-  if List.length (tcpp_class.cl_dynamic_functions) > 0 then
+  if List.length (tcpp_class.tcl_dynamic_functions) > 0 then
     output_h
       ("\t\tstatic void __alloc_dynamic_functions(::hx::Ctx *_hx_alloc," ^ class_name ^ " *_hx_obj);\n");
   if scriptable then
@@ -372,8 +372,8 @@ let generate_managed_header base_ctx tcpp_class =
     output_h "\t\tvoid __Mark(HX_MARK_PARAMS);\n";
     output_h "\t\tvoid __Visit(HX_VISIT_PARAMS);\n");
 
-  let implements_haxe = List.length tcpp_class.cl_haxe_parents > 0 in
-  let implements_native = List.length tcpp_class.cl_native_parents > 0 in
+  let implements_haxe = List.length tcpp_class.tcl_haxe_parents > 0 in
+  let implements_native = List.length tcpp_class.tcl_native_parents > 0 in
 
   if implements_native then (
     let implemented_instance_fields =
@@ -382,7 +382,7 @@ let generate_managed_header base_ctx tcpp_class =
     let neededInterfaceFunctions =
       match implements_native with
       | true ->
-        CppGen.needed_interface_functions implemented_instance_fields tcpp_class.cl_native_parents
+        CppGen.needed_interface_functions implemented_instance_fields tcpp_class.tcl_native_parents
       | false ->
         []
     in
@@ -460,7 +460,7 @@ let generate_managed_header base_ctx tcpp_class =
           List.iter check_field interface.cl_ordered_fields
         in
         check_interface src)
-        tcpp_class.cl_haxe_parents);
+        tcpp_class.tcl_haxe_parents);
 
   if has_init_field class_def then output_h "\t\tstatic void __init__();\n\n";
   output_h
@@ -469,25 +469,25 @@ let generate_managed_header base_ctx tcpp_class =
 
   if has_boot_field class_def then output_h "\t\tstatic void __boot();\n";
 
-  tcpp_class.cl_static_functions
+  tcpp_class.tcl_static_functions
   |> List.iter (fun (field, func) -> gen_member_function ctx class_def true field func);
 
-  tcpp_class.cl_static_dynamic_functions
+  tcpp_class.tcl_static_dynamic_functions
   |> List.iter (fun (field, func) -> gen_dynamic_function ctx class_def true field func);
 
-  tcpp_class.cl_static_variables
+  tcpp_class.tcl_static_variables
   |> List.iter (fun field -> gen_member_variable ctx class_def true field);
 
-  tcpp_class.cl_functions
+  tcpp_class.tcl_functions
   |> List.iter (fun (field, func) -> gen_member_function ctx class_def false field func);
 
-  tcpp_class.cl_dynamic_functions
+  tcpp_class.tcl_dynamic_functions
   |> List.iter (fun (field, func) -> gen_dynamic_function ctx class_def false field func);
 
-  tcpp_class.cl_variables
+  tcpp_class.tcl_variables
   |> List.iter (fun field -> gen_member_variable ctx class_def false field);
 
-  tcpp_class.cl_abstract_functions
+  tcpp_class.tcl_abstract_functions
   |> List.iter (fun (field, tl, tr) -> gen_abstract_function ctx class_def field tl tr);
 
   output_h (get_class_code class_def Meta.HeaderClassCode);

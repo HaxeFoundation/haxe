@@ -190,9 +190,9 @@ let gen_field_init ctx class_def field =
   | _ -> ()
 
 let generate_native_class base_ctx tcpp_class =
-  let class_def = tcpp_class.cl_class in
+  let class_def = tcpp_class.tcl_class in
   let class_path = class_def.cl_path in
-  let debug = tcpp_class.cl_debug_level in
+  let debug = tcpp_class.tcl_debug_level in
   let cpp_file = new_placed_cpp_file base_ctx.ctx_common class_path in
   let cpp_ctx = file_context base_ctx cpp_file debug false in
   let ctx = cpp_ctx in
@@ -225,7 +225,7 @@ let generate_native_class base_ctx tcpp_class =
 
   output_cpp (get_class_code class_def Meta.CppNamespaceCode);
 
-  let class_name = tcpp_class.cl_name in
+  let class_name = tcpp_class.tcl_name in
 
   (match TClass.get_cl_init class_def with
   | Some expression ->
@@ -236,16 +236,16 @@ let generate_native_class base_ctx tcpp_class =
       output_cpp "\n\n"
   | _ -> ());
 
-  List.iter (gen_function ctx class_def class_name false) tcpp_class.cl_functions;
-  List.iter (gen_dynamic_function ctx class_def class_name false false) tcpp_class.cl_dynamic_functions;
-  List.iter (gen_abstract_function ctx class_def class_name) tcpp_class.cl_abstract_functions;
+  List.iter (gen_function ctx class_def class_name false) tcpp_class.tcl_functions;
+  List.iter (gen_dynamic_function ctx class_def class_name false false) tcpp_class.tcl_dynamic_functions;
+  List.iter (gen_abstract_function ctx class_def class_name) tcpp_class.tcl_abstract_functions;
 
-  List.iter (gen_function ctx class_def class_name true) tcpp_class.cl_static_functions;
-  List.iter (gen_dynamic_function ctx class_def class_name true false) tcpp_class.cl_static_dynamic_functions;
-  List.iter (gen_static_variable ctx class_def class_name) tcpp_class.cl_static_variables;
+  List.iter (gen_function ctx class_def class_name true) tcpp_class.tcl_static_functions;
+  List.iter (gen_dynamic_function ctx class_def class_name true false) tcpp_class.tcl_static_dynamic_functions;
+  List.iter (gen_static_variable ctx class_def class_name) tcpp_class.tcl_static_variables;
 
   (* Generate a dynamic function for static variables with a default function *)
-  tcpp_class.cl_static_variables
+  tcpp_class.tcl_static_variables
     |> List.filter_map (fun field -> match field.cf_expr with
       | Some { eexpr = TFunction function_def } -> Some (field, function_def)
       | _ -> None)
@@ -253,7 +253,7 @@ let generate_native_class base_ctx tcpp_class =
 
   output_cpp "\n";
 
-  (match tcpp_class.cl_dynamic_functions with
+  (match tcpp_class.tcl_dynamic_functions with
   | [] -> ()
   | functions -> (
     Printf.sprintf "void %s::__alloc_dynamic_functions(::hx::Ctx* _hx_ctx, %s* _hx_obj) {\n" class_name class_name |> output_cpp;
@@ -294,9 +294,9 @@ let generate_native_class base_ctx tcpp_class =
 
 let generate_managed_class base_ctx tcpp_class =
   let common_ctx = base_ctx.ctx_common in
-  let class_def = tcpp_class.cl_class in
+  let class_def = tcpp_class.tcl_class in
   let class_path = class_def.cl_path in
-  let debug = tcpp_class.cl_debug_level in
+  let debug = tcpp_class.tcl_debug_level in
   let cpp_file = new_placed_cpp_file base_ctx.ctx_common class_path in
   let cpp_ctx = file_context base_ctx cpp_file debug false in
   let ctx = cpp_ctx in
@@ -336,7 +336,7 @@ let generate_managed_class base_ctx tcpp_class =
 
   output_cpp (get_class_code class_def Meta.CppNamespaceCode);
 
-  let class_name = tcpp_class.cl_name in
+  let class_name = tcpp_class.tcl_name in
   let cargs = constructor_arg_var_list class_def in
   let constructor_var_list = List.map snd cargs in
   let constructor_type_args =
@@ -372,7 +372,7 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp "\treturn _hx_result;\n}\n\n");
 
   output_cpp ("bool " ^ class_name ^ "::_hx_isInstanceOf(int inClassId) {\n");
-  let implemented_classes = List.sort compare ((Int32.of_int 1) :: tcpp_class.cl_id :: tcpp_class.cl_parent_ids) in
+  let implemented_classes = List.sort compare ((Int32.of_int 1) :: tcpp_class.tcl_id :: tcpp_class.tcl_parent_ids) in
   let txt cId = Printf.sprintf "0x%08lx" cId in
   let rec dump_classes indent classes =
     match classes with
@@ -394,7 +394,7 @@ let generate_managed_class base_ctx tcpp_class =
   dump_classes "\t" implemented_classes;
   output_cpp "}\n\n";
 
-  let implements_haxe = List.length tcpp_class.cl_haxe_parents > 0 in
+  let implements_haxe = List.length tcpp_class.tcl_haxe_parents > 0 in
 
   if implements_haxe then (
     let alreadyGlued = Hashtbl.create 0 in
@@ -466,7 +466,7 @@ let generate_managed_class base_ctx tcpp_class =
       output_cpp "};\n\n" in
     List.iter
       iter
-      tcpp_class.cl_haxe_parents;
+      tcpp_class.tcl_haxe_parents;
 
     output_cpp (String.concat "\n" !cpp_glue);
 
@@ -477,7 +477,7 @@ let generate_managed_class base_ctx tcpp_class =
       output_cpp ("\t\tcase (int)" ^ cpp_class_hash interface ^ ": return &" ^ cname ^ "_" ^ cpp_interface_impl_name interface ^ ";\n") in
     List.iter
       iter
-      tcpp_class.cl_haxe_parents;
+      tcpp_class.tcl_haxe_parents;
 
     output_cpp "\t}\n";
 
@@ -505,16 +505,16 @@ let generate_managed_class base_ctx tcpp_class =
     List.filter should_implement_field statics_except_meta
   in
 
-  List.iter (gen_function ctx class_def class_name false) tcpp_class.cl_functions;
-  List.iter (gen_dynamic_function ctx class_def class_name false false) tcpp_class.cl_dynamic_functions;
-  List.iter (gen_abstract_function ctx class_def class_name) tcpp_class.cl_abstract_functions;
+  List.iter (gen_function ctx class_def class_name false) tcpp_class.tcl_functions;
+  List.iter (gen_dynamic_function ctx class_def class_name false false) tcpp_class.tcl_dynamic_functions;
+  List.iter (gen_abstract_function ctx class_def class_name) tcpp_class.tcl_abstract_functions;
 
-  List.iter (gen_function ctx class_def class_name true) tcpp_class.cl_static_functions;
-  List.iter (gen_dynamic_function ctx class_def class_name true false) tcpp_class.cl_static_dynamic_functions;
-  List.iter (gen_static_variable ctx class_def class_name) tcpp_class.cl_static_variables;
+  List.iter (gen_function ctx class_def class_name true) tcpp_class.tcl_static_functions;
+  List.iter (gen_dynamic_function ctx class_def class_name true false) tcpp_class.tcl_static_dynamic_functions;
+  List.iter (gen_static_variable ctx class_def class_name) tcpp_class.tcl_static_variables;
 
   (* Generate a dynamic function for static variables with a default function *)
-  tcpp_class.cl_static_variables
+  tcpp_class.tcl_static_variables
     |> List.filter_map (fun field -> match field.cf_expr with
       | Some { eexpr = TFunction function_def } -> Some (field, function_def)
       | _ -> None)
@@ -522,7 +522,7 @@ let generate_managed_class base_ctx tcpp_class =
 
   output_cpp "\n";
 
-  (match tcpp_class.cl_dynamic_functions with
+  (match tcpp_class.tcl_dynamic_functions with
   | [] -> ()
   | functions -> (
     Printf.sprintf "void %s::__alloc_dynamic_functions(::hx::Ctx* _hx_ctx, %s* _hx_obj) {\n" class_name class_name |> output_cpp;
@@ -565,7 +565,7 @@ let generate_managed_class base_ctx tcpp_class =
     (fun (field, _) ->
       let name = keyword_remap field.cf_name in
       output_cpp ("\t" ^ name ^ " = new __default_" ^ name ^ "(this);\n"))
-    tcpp_class.cl_dynamic_functions;
+    tcpp_class.tcl_dynamic_functions;
   output_cpp "}\n\n";
 
   let dump_field_iterator macro field =
@@ -1207,7 +1207,7 @@ let generate_managed_class base_ctx tcpp_class =
         ("\tHX_REGISTER_VTABLE_OFFSET( " ^ class_name ^ ","
         ^ join_class_path_remap intf_def.cl_path "::"
         ^ ");\n"))
-        tcpp_class.cl_native_parents;
+        tcpp_class.tcl_native_parents;
   output_cpp "}\n\n";
 
   if has_boot_field class_def then (

@@ -1865,12 +1865,12 @@ let constructor_arg_var_list class_def =
   | _ -> []
 
 let generate_constructor ctx out tcpp_class isHeader =
-  let class_name = tcpp_class.cl_name in
-  let ptr_name = class_pointer tcpp_class.cl_class in
+  let class_name = tcpp_class.tcl_name in
+  let ptr_name = class_pointer tcpp_class.tcl_class in
   let can_quick_alloc = has_tcpp_class_flag tcpp_class QuickAlloc in
-  let gcName = gen_gc_name tcpp_class.cl_class.cl_path in
+  let gcName = gen_gc_name tcpp_class.tcl_class.cl_path in
   let isContainer = if has_tcpp_class_flag tcpp_class Container then "true" else "false" in
-  let cargs = constructor_arg_var_list tcpp_class.cl_class in
+  let cargs = constructor_arg_var_list tcpp_class.tcl_class in
   let constructor_type_args =
     String.concat ","
       (List.map (fun (t, a) -> t ^ " " ^ a) cargs)
@@ -1909,16 +1909,16 @@ let generate_constructor ctx out tcpp_class isHeader =
         | Some super -> dump_dynamic (fst super)
         | _ -> ()
     in
-    dump_dynamic tcpp_class.cl_class;
+    dump_dynamic tcpp_class.tcl_class;
 
     if isHeader then
-      match tcpp_class.cl_class.cl_constructor with
+      match tcpp_class.tcl_class.cl_constructor with
       | Some
           ({ cf_expr = Some { eexpr = TFunction function_def } } as definition)
         ->
           with_debug ctx definition.cf_meta (fun no_debug ->
               ctx.ctx_real_this_ptr <- false;
-              gen_cpp_function_body ctx tcpp_class.cl_class false "new" function_def "" ""
+              gen_cpp_function_body ctx tcpp_class.tcl_class false "new" function_def "" ""
                 no_debug;
               out "\n")
       | _ -> ()

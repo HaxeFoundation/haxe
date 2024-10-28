@@ -165,24 +165,27 @@ and tcpp_class_flags =
   | Scriptable
 
 and tcpp_class = {
-  cl_class : tclass;
-  cl_name : string;
-  cl_id : int32;
-  cl_parent_ids : int32 list;
-  cl_flags : int;
-  cl_debug_level : int;
+  tcl_class : tclass;
+  tcl_name : string;
+  tcl_id : int32;
+  tcl_parent_ids : int32 list;
+  tcl_flags : int;
+  tcl_debug_level : int;
 
-  cl_haxe_parents : tclass list;
-  cl_native_parents : tclass list;
+  tcl_haxe_parents : tclass list;
+  tcl_native_parents : tclass list;
 
-  cl_static_variables : tclass_field list;
-  cl_static_functions : (tclass_field * tfunc) list;
-  cl_static_dynamic_functions : (tclass_field * tfunc) list;
+  tcl_static_variables : tclass_field list;
+  tcl_static_functions : (tclass_field * tfunc) list;
+  tcl_static_dynamic_functions : (tclass_field * tfunc) list;
 
-  cl_variables : tclass_field list;
-  cl_functions : (tclass_field * tfunc) list;
-  cl_dynamic_functions : (tclass_field * tfunc) list;
-  cl_abstract_functions : (tclass_field * (string * bool * t) list * t) list;
+  tcl_variables : tclass_field list;
+  tcl_functions : (tclass_field * tfunc) list;
+  tcl_dynamic_functions : (tclass_field * tfunc) list;
+  tcl_abstract_functions : (tclass_field * (string * bool * t) list * t) list;
+
+  tcl_meta_field : tclass_field option;
+  tcl_rtti_field : tclass_field option;
 }
 
 and tcpp_interface = {
