@@ -210,6 +210,35 @@ let gen_init_function ctx output_cpp tcpp_class =
   | None ->
     ()
 
+let gen_dynamic_function_allocator ctx output_cpp tcpp_class =
+  match tcpp_class.tcl_dynamic_functions with
+  | [] -> ()
+  | functions ->
+    let mapper (field, _) =
+      let name = keyword_remap field.cf_name in
+      Printf.sprintf "\tif (!_hx_obj->%s.mPtr) { _hx_obj->%s = new __default_%s(_hx_obj); }" name name name in   
+    let rec folder acc class_def =
+      if has_dynamic_member_functions class_def then
+        let super_name = join_class_path_remap class_def.cl_path "::" ^ "_obj" in
+
+        Printf.sprintf "\t%s::__alloc_dynamic_functions(_hx_ctx, _hx_obj);" super_name :: acc
+      else
+        match class_def.cl_super with
+        | Some (super, _) -> folder acc super
+        | _ -> acc
+      in
+
+    let initial = functions |> List.map mapper in
+    let allocs  = match tcpp_class.tcl_class.cl_super with
+    | Some (super, _) ->
+      folder initial super
+    | _ ->
+      initial in
+
+    let str = allocs |> List.rev |> String.concat "\n" in
+
+    Printf.sprintf "void %s::__alloc_dynamic_functions(::hx::Ctx* _hx_ctx, %s* _hx_obj) {\n%s\n}\n" tcpp_class.tcl_name tcpp_class.tcl_name str |> output_cpp
+
 let print_reflective_fields ctx_common class_def variables functions abstract_functions =
   let strq = strq ctx_common in
 
@@ -289,29 +318,7 @@ let generate_native_class base_ctx tcpp_class =
 
   output_cpp "\n";
 
-  (match tcpp_class.tcl_dynamic_functions with
-  | [] -> ()
-  | functions -> (
-    Printf.sprintf "void %s::__alloc_dynamic_functions(::hx::Ctx* _hx_ctx, %s* _hx_obj) {\n" class_name class_name |> output_cpp;
-    List.iter
-      (fun (field, _) ->
-        let name = keyword_remap field.cf_name in
-        Printf.sprintf "\tif (!_hx_obj->%s.mPtr) { _hx_obj->%s = new __default_%s(_hx_obj); }\n" name name name |> output_cpp)
-      functions;
-    (match class_def.cl_super with
-    | Some (super, _) ->
-        let rec find_super class_def =
-          if has_dynamic_member_functions class_def then
-            let super_name = join_class_path_remap class_def.cl_path "::" ^ "_obj" in
-            output_cpp ("\t" ^ super_name ^ "::__alloc_dynamic_functions(_hx_ctx,_hx_obj);\n")
-          else
-            match class_def.cl_super with
-            | Some (super, _) -> find_super super
-            | _ -> ()
-        in
-        find_super super
-    | _ -> ());
-    output_cpp "}\n"));
+  gen_dynamic_function_allocator ctx output_cpp tcpp_class;
   
   generate_native_constructor ctx output_cpp class_def false;
   gen_boot_field ctx output_cpp tcpp_class;
@@ -422,9 +429,7 @@ let generate_managed_class base_ctx tcpp_class =
   dump_classes "\t" implemented_classes;
   output_cpp "}\n\n";
 
-  let implements_haxe = List.length tcpp_class.tcl_haxe_parents > 0 in
-
-  if implements_haxe then (
+  if List.length tcpp_class.tcl_haxe_parents > 0 then (
     let alreadyGlued = Hashtbl.create 0 in
     let cname = "_hx_" ^ join_class_path class_def.cl_path "_" in
     let implname = cpp_class_name class_def in
@@ -532,29 +537,7 @@ let generate_managed_class base_ctx tcpp_class =
 
   output_cpp "\n";
 
-  (match tcpp_class.tcl_dynamic_functions with
-  | [] -> ()
-  | functions -> (
-    Printf.sprintf "void %s::__alloc_dynamic_functions(::hx::Ctx* _hx_ctx, %s* _hx_obj) {\n" class_name class_name |> output_cpp;
-    List.iter
-      (fun (field, _) ->
-        let name = keyword_remap field.cf_name in
-        Printf.sprintf "\tif (!_hx_obj->%s.mPtr) { _hx_obj->%s = new __default_%s(_hx_obj); }\n" name name name |> output_cpp)
-      functions;
-    (match class_def.cl_super with
-    | Some (super, _) ->
-        let rec find_super class_def =
-          if has_dynamic_member_functions class_def then
-            let super_name = join_class_path_remap class_def.cl_path "::" ^ "_obj" in
-            output_cpp ("\t" ^ super_name ^ "::__alloc_dynamic_functions(_hx_ctx,_hx_obj);\n")
-          else
-            match class_def.cl_super with
-            | Some (super, _) -> find_super super
-            | _ -> ()
-        in
-        find_super super
-    | _ -> ());
-    output_cpp "}\n"));
+  gen_dynamic_function_allocator ctx output_cpp tcpp_class;
 
   let inline_constructor =
     can_inline_constructor base_ctx class_def
