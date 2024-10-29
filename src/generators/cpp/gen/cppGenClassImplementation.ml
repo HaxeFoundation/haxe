@@ -841,35 +841,27 @@ let generate_managed_class base_ctx tcpp_class =
         memberFields
   in
 
-  let hasMarkFunc = List.exists is_data_member implemented_fields in
+  if List.length tcpp_class.tcl_static_variables > 0 then (
+    let dump_field_iterator macro field =
+      Printf.sprintf "\t%s(%s::%s, \"%s\");" macro class_name (keyword_remap field.cf_name) field.cf_name
+    in
 
-  if hasMarkFunc then (
     (* Mark static variables as used *)
-    output_cpp
-      ("static void " ^ class_name ^ "_sMarkStatics(HX_MARK_PARAMS) {\n");
-    List.iter
-      (fun field ->
-        if is_data_member field then
-          output_cpp
-            ("\tHX_MARK_MEMBER_NAME(" ^ class_name ^ "::"
-            ^ keyword_remap field.cf_name
-            ^ ",\"" ^ field.cf_name ^ "\");\n"))
-      implemented_fields;
-    output_cpp "};\n\n";
+    let marks =
+      tcpp_class.tcl_static_variables
+      |> List.map (dump_field_iterator "HX_MARK_MEMBER_NAME")
+      |> String.concat "\n" in
+
+    Printf.sprintf "static void %s_sMarkStatics(HX_MARK_PARAMS) { \n%s\n };\n\n" class_name marks |> output_cpp;
 
     (* Visit static variables *)
+    let visits =
+      tcpp_class.tcl_static_variables
+      |> List.map (dump_field_iterator "HX_VISIT_MEMBER_NAME")
+      |> String.concat "\n" in
+
     output_cpp "#ifdef HXCPP_VISIT_ALLOCS\n";
-    output_cpp
-      ("static void " ^ class_name ^ "_sVisitStatics(HX_VISIT_PARAMS) {\n");
-    List.iter
-      (fun field ->
-        if is_data_member field then
-          output_cpp
-            ("\tHX_VISIT_MEMBER_NAME(" ^ class_name ^ "::"
-            ^ keyword_remap field.cf_name
-            ^ ",\"" ^ field.cf_name ^ "\");\n"))
-      implemented_fields;
-    output_cpp "};\n\n";
+    Printf.sprintf "static void %s_sVisitStatics(HX_VISIT_PARAMS) { \n%s\n };\n\n" class_name visits |> output_cpp;
     output_cpp "#endif\n\n");
 
   let generate_script_function isStatic field scriptName callName =
@@ -1112,7 +1104,7 @@ let generate_managed_class base_ctx tcpp_class =
     ^
     if has_set_static_field class_def then class_name ^ "::__SetStatic;\n"
     else "::hx::Class_obj::SetNoStaticField;\n");
-  if hasMarkFunc then
+  if List.length tcpp_class.tcl_static_variables > 0 then
     output_cpp ("\t__mClass->mMarkFunc = " ^ class_name ^ "_sMarkStatics;\n");
   output_cpp
     ("\t__mClass->mStatics = ::hx::Class_obj::dupFunctions(" ^ sStaticFields
@@ -1121,7 +1113,7 @@ let generate_managed_class base_ctx tcpp_class =
     ("\t__mClass->mMembers = ::hx::Class_obj::dupFunctions(" ^ sMemberFields
     ^ ");\n");
   output_cpp ("\t__mClass->mCanCast = ::hx::TCanCast< " ^ class_name ^ " >;\n");
-  if hasMarkFunc then
+  if List.length tcpp_class.tcl_static_variables > 0 then
     output_cpp
       ("#ifdef HXCPP_VISIT_ALLOCS\n\t__mClass->mVisitFunc = " ^ class_name
       ^ "_sVisitStatics;\n#endif\n");
