@@ -163,6 +163,46 @@ let gen_abstract_function ctx class_def class_name (field, tl, tr) =
   let ret = if is_void then "(void)" else "return " in
   Printf.sprintf "HX_DEFINE_DYNAMIC_FUNC%i(%s, %s, %s)\n\n" (List.length tl) class_name remap_name ret |> output
 
+let gen_field_init ctx class_def field =
+  let dot_name   = join_class_path class_def.cl_path "." in
+  let output     = ctx.ctx_output in
+  let remap_name = keyword_remap field.cf_name in
+
+  match field.cf_expr with
+  (* Function field *)
+  | Some { eexpr = TFunction function_def } ->
+    if is_dynamic_haxe_method field then
+      let func_name = "__default_" ^ remap_name in
+      output ("\t" ^ remap_name ^ " = new " ^ func_name ^ ";\n\n")
+  (* Data field *)
+  | Some expr ->
+      gen_cpp_init ctx dot_name "boot" (remap_name ^ " = ") expr
+  | _ -> ()
+
+let gen_boot_field ctx output_cpp tcpp_class =
+  let class_name = tcpp_class.tcl_name in
+
+  if has_boot_field tcpp_class.tcl_class then (
+    output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
+
+    let dot_name = join_class_path tcpp_class.tcl_class.cl_path "." in
+
+    (match tcpp_class.tcl_meta with
+    | Some expr -> gen_cpp_init ctx dot_name "boot" "__mClass->__meta__ = " expr
+    | None -> ());
+
+    (match tcpp_class.tcl_rtti with
+    | Some expr -> gen_cpp_init ctx dot_name "boot" "__mClass->__rtti__ = " expr
+    | None -> ());
+
+    List.iter (gen_field_init ctx tcpp_class.tcl_class) tcpp_class.tcl_static_variables;
+
+    tcpp_class.tcl_static_dynamic_functions
+    |> List.map fst
+    |> List.iter (gen_field_init ctx tcpp_class.tcl_class);
+
+    output_cpp "}\n\n")
+
 let print_reflective_fields ctx_common class_def variables functions abstract_functions =
   let strq = strq ctx_common in
 
@@ -191,22 +231,6 @@ let print_reflective_fields ctx_common class_def variables functions abstract_fu
     None
   | concat ->
     Some (concat @ [ "\t::String(null())" ] |> String.concat ",\n")
-
-let gen_field_init ctx class_def field =
-  let dot_name   = join_class_path class_def.cl_path "." in
-  let output     = ctx.ctx_output in
-  let remap_name = keyword_remap field.cf_name in
-
-  match field.cf_expr with
-  (* Function field *)
-  | Some { eexpr = TFunction function_def } ->
-    if is_dynamic_haxe_method field then
-      let func_name = "__default_" ^ remap_name in
-      output ("\t" ^ remap_name ^ " = new " ^ func_name ^ ";\n\n")
-  (* Data field *)
-  | Some expr ->
-      gen_cpp_init ctx dot_name "boot" (remap_name ^ " = ") expr
-  | _ -> ()
 
 let generate_native_class base_ctx tcpp_class =
   let class_def = tcpp_class.tcl_class in
@@ -290,15 +314,7 @@ let generate_native_class base_ctx tcpp_class =
     output_cpp "}\n"));
   
   generate_native_constructor ctx output_cpp class_def false;
-
-  if has_boot_field class_def then (
-    output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
-
-    List.iter
-      (gen_field_init ctx class_def)
-      (List.filter should_implement_field class_def.cl_ordered_statics);
-
-    output_cpp "}\n\n");
+  gen_boot_field ctx output_cpp tcpp_class;
 
   end_namespace output_cpp class_path;
 
@@ -550,7 +566,7 @@ let generate_managed_class base_ctx tcpp_class =
   let inline_constructor =
     can_inline_constructor base_ctx class_def
   in
-  if (not inline_constructor)&& not (has_class_flag class_def CAbstract) then
+  if (not inline_constructor) && not (has_class_flag class_def CAbstract) then
     generate_constructor ctx output_cpp tcpp_class false;
 
   let reflect_member_fields =
@@ -1142,27 +1158,8 @@ let generate_managed_class base_ctx tcpp_class =
         tcpp_class.tcl_native_parents;
   output_cpp "}\n\n";
 
-  if has_boot_field class_def then (
-    output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
-
-    let dot_name = join_class_path class_def.cl_path "." in
-
-    (match tcpp_class.tcl_meta with
-    | Some expr -> gen_cpp_init ctx dot_name "boot" "__mClass->__meta__ = " expr
-    | None -> ());
-
-    (match tcpp_class.tcl_rtti with
-    | Some expr -> gen_cpp_init ctx dot_name "boot" "__mClass->__rtti__ = " expr
-    | None -> ());
-
-    List.iter (gen_field_init ctx class_def) tcpp_class.tcl_static_variables;
-
-    tcpp_class.tcl_static_dynamic_functions
-    |> List.map fst
-    |> List.iter (gen_field_init ctx class_def);
-
-    output_cpp "}\n\n");
-
+  gen_boot_field ctx output_cpp tcpp_class;
+  
   end_namespace output_cpp class_path;
 
   cpp_file#close
