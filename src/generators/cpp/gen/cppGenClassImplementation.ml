@@ -163,6 +163,35 @@ let gen_abstract_function ctx class_def class_name (field, tl, tr) =
   let ret = if is_void then "(void)" else "return " in
   Printf.sprintf "HX_DEFINE_DYNAMIC_FUNC%i(%s, %s, %s)\n\n" (List.length tl) class_name remap_name ret |> output
 
+let print_reflective_fields ctx_common class_def variables functions abstract_functions =
+  let strq = strq ctx_common in
+
+  let filter_vars field =
+    if reflective class_def field then
+      Some (Printf.sprintf "\t%s" (strq field.cf_name))
+    else
+      None in
+  let filter_funcs (field, _) =
+    if reflective class_def field then
+      Some (Printf.sprintf "\t%s" (strq field.cf_name))
+    else
+      None in
+  let filter_abst (field, _, _) =
+    if reflective class_def field then
+      Some (Printf.sprintf "\t%s" (strq field.cf_name))
+    else
+      None in
+
+  let reflective_variables = variables |> List.filter_map filter_vars in
+  let reflective_functions = functions |> List.filter_map filter_funcs in
+  let reflective_abstracts = abstract_functions |> List.filter_map filter_abst in
+
+  match reflective_variables @ reflective_functions @ reflective_abstracts with
+  | [] ->
+    None
+  | concat ->
+    Some (concat @ [ "\t::String(null())" ] |> String.concat ",\n")
+
 let gen_field_init ctx class_def field =
   let dot_name   = join_class_path class_def.cl_path "." in
   let output     = ctx.ctx_output in
@@ -482,11 +511,7 @@ let generate_managed_class base_ctx tcpp_class =
       output_cpp "\n\n"
   | _ -> ());
 
-  let dump_field_name field = output_cpp ("\t" ^ strq field.cf_name ^ ",\n") in
   let statics_except_meta = statics_except_meta class_def in
-  let implemented_fields =
-    List.filter should_implement_field statics_except_meta
-  in
 
   List.iter (gen_function ctx class_def class_name false) tcpp_class.tcl_functions;
   List.iter (gen_dynamic_function ctx class_def class_name false false) tcpp_class.tcl_dynamic_functions;
@@ -799,10 +824,10 @@ let generate_managed_class base_ctx tcpp_class =
   in
   let dump_member_storage field =
     Printf.sprintf
-      "\t{ %s, (int)offsetof(%s, %s), %s }" (storage field) class_name (keyword_remap field.cf_name) (strq field.cf_name) |> output_cpp
+      "\t{ %s, (int)offsetof(%s, %s), %s },\n" (storage field) class_name (keyword_remap field.cf_name) (strq field.cf_name) |> output_cpp
   in
   let dump_static_storage field =
-    Printf.sprintf "\t{ %s, (void*) &%s::%s, %s }" (storage field) class_name (keyword_remap field.cf_name) (strq field.cf_name) |> output_cpp
+    Printf.sprintf "\t{ %s, (void*) &%s::%s, %s },\n" (storage field) class_name (keyword_remap field.cf_name) (strq field.cf_name) |> output_cpp
   in
 
   output_cpp "#ifdef HXCPP_SCRIPTABLE\n";
@@ -823,23 +848,11 @@ let generate_managed_class base_ctx tcpp_class =
 
   output_cpp "#endif\n\n";
 
-  (* cl_interface *)
-  let implemented_instance_fields =
-    List.filter should_implement_field class_def.cl_ordered_fields
-  in
-  let reflective_members =
-    List.filter (reflective class_def) implemented_instance_fields
-  in
-  let sMemberFields =
-    match reflective_members with
-    | [] -> "0 /* sMemberFields */"
-    | _ ->
-        let memberFields = class_name ^ "_sMemberFields" in
-        output_cpp ("static ::String " ^ memberFields ^ "[] = {\n");
-        List.iter dump_field_name reflective_members;
-        output_cpp "\t::String(null()) };\n\n";
-        memberFields
-  in
+  (match print_reflective_fields ctx.ctx_common class_def tcpp_class.tcl_variables tcpp_class.tcl_functions tcpp_class.tcl_abstract_functions with
+  | Some str ->
+    Printf.sprintf "static ::String %s_sMemberFields[] = {\n%s\n};\n\n" class_name str |> output_cpp
+  | None ->
+    Printf.sprintf "static ::String* %s_sMemberFields = 0;\n\n" class_name |> output_cpp);
 
   if List.length tcpp_class.tcl_static_variables > 0 then (
     let dump_field_iterator macro field =
@@ -1072,17 +1085,11 @@ let generate_managed_class base_ctx tcpp_class =
             ("::hx::ScriptFunction " ^ class_name
           ^ "::__script_construct(0,0);\n"));
 
-  let reflective_statics =
-    List.filter (reflective class_def) implemented_fields
-  in
-  let sStaticFields =
-    if List.length reflective_statics > 0 then (
-      output_cpp ("static ::String " ^ class_name ^ "_sStaticFields[] = {\n");
-      List.iter dump_field_name reflective_statics;
-      output_cpp "\t::String(null())\n};\n\n";
-      class_name ^ "_sStaticFields")
-    else "0 /* sStaticFields */"
-  in
+  (match print_reflective_fields ctx.ctx_common class_def tcpp_class.tcl_static_variables tcpp_class.tcl_static_functions [] with
+  | Some str ->
+    Printf.sprintf "static ::String %s_sStaticFields[] = {\n%s\n};\n\n" class_name str |> output_cpp
+  | None ->
+    Printf.sprintf "static ::String* %s_sStaticFields = 0;\n\n" class_name |> output_cpp);
 
   output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
   if not (has_class_flag class_def CAbstract) then (
@@ -1106,12 +1113,10 @@ let generate_managed_class base_ctx tcpp_class =
     else "::hx::Class_obj::SetNoStaticField;\n");
   if List.length tcpp_class.tcl_static_variables > 0 then
     output_cpp ("\t__mClass->mMarkFunc = " ^ class_name ^ "_sMarkStatics;\n");
-  output_cpp
-    ("\t__mClass->mStatics = ::hx::Class_obj::dupFunctions(" ^ sStaticFields
-    ^ ");\n");
-  output_cpp
-    ("\t__mClass->mMembers = ::hx::Class_obj::dupFunctions(" ^ sMemberFields
-    ^ ");\n");
+  Printf.sprintf
+    "\t__mClass->mStatics = ::hx::Class_obj::dupFunctions(%s_sStaticFields);\n" class_name |> output_cpp;
+  Printf.sprintf
+    "\t__mClass->mMembers = ::hx::Class_obj::dupFunctions(%s_sMemberFields);\n" class_name |> output_cpp;
   output_cpp ("\t__mClass->mCanCast = ::hx::TCanCast< " ^ class_name ^ " >;\n");
   if List.length tcpp_class.tcl_static_variables > 0 then
     output_cpp
