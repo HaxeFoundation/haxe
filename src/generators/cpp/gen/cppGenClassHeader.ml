@@ -29,36 +29,12 @@ let gen_member_variable ctx class_def is_static field =
     let get_ptr = match tcpp with TCppString -> ".raw_ref()" | _ -> ".mPtr" in
     Printf.sprintf
       "\t\tinline %s _hx_set_%s(::hx::StackContext* _hx_ctx, %s _hx_v) { HX_OBJ_WB(this, _hx_v%s) return %s = _hx_v; }\n"
-      tcpp_str remap_name tcpp_str get_ptr remap_name |> output;
-
-    (* Add a "dyn" function for variable to unify variable/function access *)
-    if (not (Meta.has Meta.NativeGen class_def.cl_meta)) then
-      match follow field.cf_type with
-      | TFun (_, _) ->
-        output (if is_static then "\t\tstatic " else "\t\t");
-        output
-          ("Dynamic " ^ remap_name ^ "_dyn() { return " ^ remap_name
-          ^ ";}\n")
-      | _ -> (
-        (match field.cf_kind with
-        | Var { v_read = AccCall } when (not is_static) && is_dynamic_accessor ("get_" ^ field.cf_name) "get" field class_def ->
-          output ("\t\tDynamic get_" ^ field.cf_name ^ ";\n")
-        | _ ->
-          ());
-        match field.cf_kind with
-        | Var { v_write = AccCall } when (not is_static) && is_dynamic_accessor ("set_" ^ field.cf_name) "set" field class_def ->
-          output ("\t\tDynamic set_" ^ field.cf_name ^ ";\n")
-        | _ ->
-          ()))
+      tcpp_str remap_name tcpp_str get_ptr remap_name |> output;)
 
 let gen_dynamic_function ctx class_def is_static field function_def =
   let output        = ctx.ctx_output in
   let remap_name    = keyword_remap field.cf_name in
-  let is_not_static = not is_static in
   let prefix        = if is_static then "\t\tstatic " else "\t\t" in
-
-  if is_not_static && is_gc_element ctx TCppDynamic then
-    Printf.sprintf "\t\tinline ::Dynamic _hx_set_%s(::hx::StackContext* _hx_ctx, ::Dynamic _hx_v) { HX_OBJ_WB(this, _hx_v.mPtr) return %s = _hx_v; }\n" remap_name remap_name |> output;
 
   Printf.sprintf "%sinline ::Dynamic& %s_dyn() { return %s; }\n" prefix remap_name remap_name |> output
 

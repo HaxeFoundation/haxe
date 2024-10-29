@@ -346,14 +346,14 @@ let remap_to_class ctx self_id parent_ids class_def =
          flags
       in
    let flags =
-      if List.exists (fun f -> cant_be_null f.cf_type) variables then
+      if List.exists (fun f -> not (cant_be_null f.cf_type)) variables then
          set_flag flags (int_of_tcpp_class_flag Container)
       else
          flags
       in
 
-   let meta_field = List.find_opt (fun field -> field.cf_name = "__meta__") class_def.cl_ordered_statics in
-   let rtti_field = List.find_opt (fun field -> field.cf_name = "__rtti") class_def.cl_ordered_statics in
+   let meta_field = List.find_opt (fun field -> field.cf_name = "__meta__") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in
+   let rtti_field = List.find_opt (fun field -> field.cf_name = "__rtti") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in
    
    {
       tcl_class = class_def;

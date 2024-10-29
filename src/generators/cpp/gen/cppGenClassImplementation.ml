@@ -164,26 +164,19 @@ let gen_abstract_function ctx class_def class_name (field, tl, tr) =
   Printf.sprintf "HX_DEFINE_DYNAMIC_FUNC%i(%s, %s, %s)\n\n" (List.length tl) class_name remap_name ret |> output
 
 let gen_field_init ctx class_def field =
-  let dot_name = join_class_path class_def.cl_path "." in
-  let output = ctx.ctx_output in
+  let dot_name   = join_class_path class_def.cl_path "." in
+  let output     = ctx.ctx_output in
   let remap_name = keyword_remap field.cf_name in
 
   match field.cf_expr with
   (* Function field *)
   | Some { eexpr = TFunction function_def } ->
-      if is_dynamic_haxe_method field then
-        let func_name = "__default_" ^ remap_name in
-        output ("\t" ^ remap_name ^ " = new " ^ func_name ^ ";\n\n")
+    if is_dynamic_haxe_method field then
+      let func_name = "__default_" ^ remap_name in
+      output ("\t" ^ remap_name ^ " = new " ^ func_name ^ ";\n\n")
   (* Data field *)
   | Some expr ->
-      let var_name =
-        match remap_name with
-        | "__meta__" -> "__mClass->__meta__"
-        | "__rtti" -> "__mClass->__rtti__"
-        | _ -> remap_name
-      in
-
-      gen_cpp_init ctx dot_name "boot" (var_name ^ " = ") expr
+      gen_cpp_init ctx dot_name "boot" (remap_name ^ " = ") expr
   | _ -> ()
 
 let generate_native_class base_ctx tcpp_class =
@@ -551,37 +544,17 @@ let generate_managed_class base_ctx tcpp_class =
     tcpp_class.tcl_dynamic_functions;
   output_cpp "}\n\n";
 
-  let dump_field_iterator macro field =
-    if is_data_member field then (
-      let remap_name = keyword_remap field.cf_name in
-      output_cpp
-        ("\t" ^ macro ^ "(" ^ remap_name ^ ",\"" ^ field.cf_name ^ "\");\n");
-
-      (match field.cf_kind with
-      | Var { v_read = AccCall }
-        when is_dynamic_accessor ("get_" ^ field.cf_name) "get" field
-                class_def ->
-          let name = "get_" ^ field.cf_name in
-          output_cpp ("\t" ^ macro ^ "(" ^ name ^ "," ^ "\"" ^ name ^ "\");\n")
-      | _ -> ());
-      match field.cf_kind with
-      | Var { v_write = AccCall }
-        when is_dynamic_accessor ("set_" ^ field.cf_name) "set" field
-                class_def ->
-          let name = "set_" ^ field.cf_name in
-          output_cpp ("\t" ^ macro ^ "(" ^ name ^ "," ^ "\"" ^ name ^ "\");\n")
-      | _ -> ())
-  in
-
   if has_tcpp_class_flag tcpp_class Container then (
     let super_needs_iteration = find_next_super_iteration class_def in
     let smart_class_name = snd class_path in
+    let dump_field_iterator macro field =
+      Printf.sprintf "\t%s(%s, \"%s\");\n" macro (keyword_remap field.cf_name) field.cf_name |> output_cpp
+    in
+    
     (* MARK function - explicitly mark all child pointers *)
     output_cpp ("void " ^ class_name ^ "::__Mark(HX_MARK_PARAMS)\n{\n");
     output_cpp ("\tHX_MARK_BEGIN_CLASS(" ^ smart_class_name ^ ");\n");
-    List.iter
-      (dump_field_iterator "HX_MARK_MEMBER_NAME")
-      tcpp_class.tcl_variables;
+    List.iter (dump_field_iterator "HX_MARK_MEMBER_NAME") tcpp_class.tcl_variables;
     (match super_needs_iteration with
     | None -> ()
     | Some super -> output_cpp ("\t" ^ super ^ "::__Mark(HX_MARK_ARG);\n"));
@@ -590,9 +563,7 @@ let generate_managed_class base_ctx tcpp_class =
 
     (* Visit function - explicitly visit all child pointers *)
     output_cpp ("void " ^ class_name ^ "::__Visit(HX_VISIT_PARAMS)\n{\n");
-    List.iter
-      (dump_field_iterator "HX_VISIT_MEMBER_NAME")
-      tcpp_class.tcl_variables;
+    List.iter (dump_field_iterator "HX_VISIT_MEMBER_NAME") tcpp_class.tcl_variables;
     (match super_needs_iteration with
     | None -> ()
     | Some super -> output_cpp ("\t" ^ super ^ "::__Visit(HX_VISIT_ARG);\n"));
@@ -827,40 +798,28 @@ let generate_managed_class base_ctx tcpp_class =
     | u -> "::hx::fsUnknown" ^ " /* " ^ tcpp_to_string u ^ " */ "
   in
   let dump_member_storage field =
-    output_cpp
-      ("\t{" ^ storage field ^ ",(int)offsetof(" ^ class_name ^ ","
-      ^ keyword_remap field.cf_name
-      ^ ")," ^ strq field.cf_name ^ "},\n")
+    Printf.sprintf
+      "\t{ %s, (int)offsetof(%s, %s), %s }" (storage field) class_name (keyword_remap field.cf_name) (strq field.cf_name) |> output_cpp
   in
   let dump_static_storage field =
-    output_cpp
-      ("\t{" ^ storage field ^ ",(void *) &" ^ class_name ^ "::"
-      ^ keyword_remap field.cf_name
-      ^ "," ^ strq field.cf_name ^ "},\n")
+    Printf.sprintf "\t{ %s, (void*) &%s::%s, %s }" (storage field) class_name (keyword_remap field.cf_name) (strq field.cf_name) |> output_cpp
   in
 
   output_cpp "#ifdef HXCPP_SCRIPTABLE\n";
 
   if List.length tcpp_class.tcl_variables > 0 then (
-    output_cpp
-      ("static ::hx::StorageInfo " ^ class_name
-      ^ "_sMemberStorageInfo[] = {\n");
+    Printf.sprintf "static ::hx::StorageInfo %s_sMemberStorageInfo[] = {\n" class_name |> output_cpp;
     List.iter dump_member_storage tcpp_class.tcl_variables;
     output_cpp "\t{ ::hx::fsUnknown, 0, null()}\n};\n")
   else
-    output_cpp
-      ("static ::hx::StorageInfo *" ^ class_name
-      ^ "_sMemberStorageInfo = 0;\n");
+    Printf.sprintf "static ::hx::StorageInfo* %s_sMemberStorageInfo = 0;\n" class_name |> output_cpp;
 
-  let stored_statics = List.filter is_data_member implemented_fields in
-  if List.length stored_statics > 0 then (
-    output_cpp
-      ("static ::hx::StaticInfo " ^ class_name ^ "_sStaticStorageInfo[] = {\n");
-    List.iter dump_static_storage stored_statics;
+  if List.length tcpp_class.tcl_static_variables > 0 then (
+    Printf.sprintf "static ::hx::StaticInfo %s_sStaticStorageInfo[] = {\n" class_name |> output_cpp;
+    List.iter dump_static_storage tcpp_class.tcl_static_variables;
     output_cpp "\t{ ::hx::fsUnknown, 0, null()}\n};\n")
   else
-    output_cpp
-      ("static ::hx::StaticInfo *" ^ class_name ^ "_sStaticStorageInfo = 0;\n");
+    Printf.sprintf "static ::hx::StaticInfo* %s_sStaticStorageInfo = 0;\n" class_name |> output_cpp;
 
   output_cpp "#endif\n\n";
 
@@ -1189,9 +1148,21 @@ let generate_managed_class base_ctx tcpp_class =
   if has_boot_field class_def then (
     output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
 
-    List.iter
-      (gen_field_init ctx class_def)
-      (List.filter should_implement_field class_def.cl_ordered_statics);
+    let dot_name = join_class_path class_def.cl_path "." in
+
+    (match tcpp_class.tcl_meta with
+    | Some expr -> gen_cpp_init ctx dot_name "boot" "__mClass->__meta__ = " expr
+    | None -> ());
+
+    (match tcpp_class.tcl_rtti with
+    | Some expr -> gen_cpp_init ctx dot_name "boot" "__mClass->__rtti__ = " expr
+    | None -> ());
+
+    List.iter (gen_field_init ctx class_def) tcpp_class.tcl_static_variables;
+
+    tcpp_class.tcl_static_dynamic_functions
+    |> List.map fst
+    |> List.iter (gen_field_init ctx class_def);
 
     output_cpp "}\n\n");
 
