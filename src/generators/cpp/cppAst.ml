@@ -186,6 +186,7 @@ and tcpp_class = {
 
   tcl_meta : texpr option;
   tcl_rtti : texpr option;
+  tcl_init : texpr option;
 }
 
 and tcpp_interface = {

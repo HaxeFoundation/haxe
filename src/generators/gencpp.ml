@@ -373,6 +373,7 @@ let remap_to_class ctx self_id parent_ids class_def =
       tcl_native_parents = native_implementations;
       tcl_meta = meta_field;
       tcl_rtti = rtti_field;
+      tcl_init = TClass.get_cl_init class_def;
    }
    
    (* let get_all_paths cls =

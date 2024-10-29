@@ -180,10 +180,8 @@ let gen_field_init ctx class_def field =
   | _ -> ()
 
 let gen_boot_field ctx output_cpp tcpp_class =
-  let class_name = tcpp_class.tcl_name in
-
   if has_boot_field tcpp_class.tcl_class then (
-    output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
+    output_cpp ("void " ^ tcpp_class.tcl_name ^ "::__boot()\n{\n");
 
     let dot_name = join_class_path tcpp_class.tcl_class.cl_path "." in
 
@@ -202,6 +200,15 @@ let gen_boot_field ctx output_cpp tcpp_class =
     |> List.iter (gen_field_init ctx tcpp_class.tcl_class);
 
     output_cpp "}\n\n")
+
+let gen_init_function ctx output_cpp tcpp_class =
+  match tcpp_class.tcl_init with
+  | Some expression ->
+    output_cpp ("void " ^ tcpp_class.tcl_name ^ "::__init__()");
+    gen_cpp_init ctx (cpp_class_name tcpp_class.tcl_class) "__init__" "" (mk_block expression);
+    output_cpp "\n\n"
+  | None ->
+    ()
 
 let print_reflective_fields ctx_common class_def variables functions abstract_functions =
   let strq = strq ctx_common in
@@ -270,14 +277,7 @@ let generate_native_class base_ctx tcpp_class =
 
   let class_name = tcpp_class.tcl_name in
 
-  (match TClass.get_cl_init class_def with
-  | Some expression ->
-      let ctx = file_context base_ctx cpp_file debug false in
-      output_cpp ("void " ^ class_name ^ "::__init__()");
-      gen_cpp_init ctx (cpp_class_name class_def) "__init__" ""
-        (mk_block expression);
-      output_cpp "\n\n"
-  | _ -> ());
+  gen_init_function ctx output_cpp tcpp_class;
 
   List.iter (gen_function ctx class_def class_name false) tcpp_class.tcl_functions;
   List.iter (gen_dynamic_function ctx class_def class_name false false) tcpp_class.tcl_dynamic_functions;
@@ -518,14 +518,7 @@ let generate_managed_class base_ctx tcpp_class =
     else output_cpp "\treturn super::_hx_getInterface(inHash);\n";
     output_cpp "}\n\n");
 
-  (match TClass.get_cl_init class_def with
-  | Some expression ->
-      let ctx = file_context base_ctx cpp_file debug false in
-      output_cpp ("void " ^ class_name ^ "::__init__()");
-      gen_cpp_init ctx (cpp_class_name class_def) "__init__" ""
-        (mk_block expression);
-      output_cpp "\n\n"
-  | _ -> ());
+  gen_init_function ctx output_cpp tcpp_class;
 
   let statics_except_meta = statics_except_meta class_def in
 
@@ -1159,7 +1152,7 @@ let generate_managed_class base_ctx tcpp_class =
   output_cpp "}\n\n";
 
   gen_boot_field ctx output_cpp tcpp_class;
-  
+
   end_namespace output_cpp class_path;
 
   cpp_file#close
