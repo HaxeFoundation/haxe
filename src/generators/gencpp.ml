@@ -299,6 +299,13 @@ let remap_to_class ctx self_id parent_ids class_def =
       else
          None
    in
+
+   let filter_properties field =
+      match field.cf_kind with
+      | Var _ when not (is_physical_var_field field) ->
+         Some field
+      | _ ->
+         None in
      
    let static_functions =
       class_def.cl_ordered_statics
@@ -324,6 +331,10 @@ let remap_to_class ctx self_id parent_ids class_def =
    let variables =
       class_def.cl_ordered_fields
       |> List.filter_map filter_variables in
+
+   let properties =
+      class_def.cl_ordered_fields
+      |> List.filter_map filter_properties in
    
    let abstract_functions =
       class_def.cl_ordered_fields
@@ -366,6 +377,7 @@ let remap_to_class ctx self_id parent_ids class_def =
       tcl_static_functions = static_functions;
       tcl_static_dynamic_functions = static_dynamic_functions;
       tcl_variables = variables;
+      tcl_properties = properties;
       tcl_functions = functions;
       tcl_dynamic_functions = dynamic_functions;
       tcl_abstract_functions = abstract_functions;
