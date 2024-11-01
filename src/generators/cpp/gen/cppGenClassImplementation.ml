@@ -642,36 +642,36 @@ let generate_managed_class base_ctx tcpp_class =
     Printf.sprintf "::hx::Val %s::__Field(const ::String &inName,::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
 
     let print_variable field acc =
-      if (reflective class_def field) then
-      let variable = keyword_remap field.cf_name |> get_wrapper field in
+      if (reflective class_def field) && not (is_abstract_impl class_def) then
+        let variable = keyword_remap field.cf_name |> get_wrapper field in
 
-      match field.cf_kind with
-      | Var { v_read = AccCall } ->
-        let prop_check = checkPropCall field in
-          let getter     = Printf.sprintf "get_%s()" (keyword_remap field.cf_name) in
+        match field.cf_kind with
+        | Var { v_read = AccCall } ->
+          let prop_check = checkPropCall field in
+          let getter     = keyword_remap field.cf_name |> Printf.sprintf "get_%s()" |> get_wrapper field in
 
           (field.cf_name, String.length field.cf_name, Printf.sprintf "return ::hx::Val( %s ? %s : %s );" prop_check getter variable) :: acc
-      | _ ->
+        | _ ->
           (field.cf_name, String.length field.cf_name, Printf.sprintf "return ::hx::Val( %s );" variable) :: acc
       else
         acc
     in
     let print_function (field, _) acc =
       if (reflective class_def field) then
-        (field.cf_name, String.length field.cf_name, Printf.sprintf "return ::hx::Val( %s_dyn() );" (keyword_remap field.cf_name)) :: acc
+        (field.cf_name, String.length field.cf_name, Printf.sprintf "return ::hx::Val( %s_dyn() );" (keyword_remap field.cf_name |> get_wrapper field)) :: acc
       else
         acc
     in
     let print_abstract (field, _, _) acc =
       if (reflective class_def field) then
-        (field.cf_name, String.length field.cf_name, Printf.sprintf "return ::hx::Val( %s_dyn() );" (keyword_remap field.cf_name)) :: acc
+        (field.cf_name, String.length field.cf_name, Printf.sprintf "return ::hx::Val( %s_dyn() );" (keyword_remap field.cf_name |> get_wrapper field)) :: acc
       else
         acc
     in
     let print_property field acc =
-      if (reflective class_def field) then
-      let prop_check = checkPropCall field in
-        let getter     = Printf.sprintf "get_%s()" (keyword_remap field.cf_name) in
+      if (reflective class_def field) && not (is_abstract_impl class_def) then
+        let prop_check = checkPropCall field in
+        let getter     = keyword_remap field.cf_name |> Printf.sprintf "get_%s()" |> get_wrapper field in
         (field.cf_name, String.length field.cf_name, Printf.sprintf "if (%s) { return ::hx::Val( %s ); }" prop_check getter) :: acc
       else
         acc
@@ -683,45 +683,51 @@ let generate_managed_class base_ctx tcpp_class =
       |> List.fold_right print_function tcpp_class.tcl_functions
       |> List.fold_right print_abstract tcpp_class.tcl_abstract_functions in
 
-    dump_quick_field_test all_fields;
-    output_cpp "\treturn super::__Field(inName,inCallProp);\n}\n\n");
+    if List.length all_fields > 0 then (
+      dump_quick_field_test all_fields;
+      output_cpp "\treturn super::__Field(inName,inCallProp);\n}\n\n");
+    );
 
   if has_get_static_field class_def then (
-    output_cpp
-      ("bool " ^ class_name
-      ^ "::__GetStatic(const ::String &inName, Dynamic &outValue, \
-        ::hx::PropertyAccess inCallProp)\n\
-        {\n");
-    let get_field_dat =
-      List.map (fun f ->
-          ( f.cf_name,
-            String.length f.cf_name,
-            match f.cf_kind with
-            | Var { v_read = AccCall } when not (is_physical_field f) ->
-                "if (" ^ checkPropCall f ^ ") { outValue = "
-                ^ toDynamic f (keyword_remap ("get_" ^ f.cf_name) ^ "()")
-                ^ "; return true; }"
-            | Var { v_read = AccCall } ->
-                "outValue = "
-                ^ toDynamic f
-                    (checkPropCall f ^ " ? "
-                    ^ keyword_remap ("get_" ^ f.cf_name)
-                    ^ "() : " ^ keyword_remap f.cf_name
-                    ^ if variable_field f then "" else "_dyn()")
-                ^ "; return true;"
-            | _ when variable_field f ->
-                "outValue = "
-                ^ toDynamic f (keyword_remap f.cf_name)
-                ^ "; return true;"
-            | _ ->
-                "outValue = "
-                ^ native_field_name_remap true f
-                ^ "_dyn(); return true;" ))
+
+    output_cpp ("bool " ^ class_name ^ "::__GetStatic(const ::String &inName, Dynamic &outValue, ::hx::PropertyAccess inCallProp)\n{\n");
+
+    let print_variable field acc =
+      if (reflective class_def field) && not (is_abstract_impl class_def) then
+        let variable = keyword_remap field.cf_name |> get_wrapper field in
+
+        match field.cf_kind with
+        | Var { v_read = AccCall } ->
+          let prop_check = checkPropCall field in
+          let getter     = keyword_remap field.cf_name |> Printf.sprintf "get_%s()" |> get_wrapper field in
+
+          (field.cf_name, String.length field.cf_name, Printf.sprintf "outValue = %s ? %s : %s; return true;" prop_check getter variable) :: acc
+        | _ ->
+          (field.cf_name, String.length field.cf_name, Printf.sprintf "outValue = %s; return true;" variable) :: acc
+      else
+        acc
     in
-    let reflect_static_readable =
-      List.filter (is_readable class_def) reflect_static_fields
+    let print_property field acc =
+      if (reflective class_def field) && not (is_abstract_impl class_def) then
+        let prop_check = checkPropCall field in
+        let getter     = keyword_remap field.cf_name |> Printf.sprintf "get_%s()" |> get_wrapper field in
+        (field.cf_name, String.length field.cf_name, Printf.sprintf "if (%s) { outValue = %s; return true; }" prop_check getter) :: acc
+      else
+        acc
     in
-    dump_quick_field_test (get_field_dat reflect_static_readable);
+    let print_function (field, _) acc =
+      if (reflective class_def field) then
+        (field.cf_name, String.length field.cf_name, Printf.sprintf "outValue = %s_dyn(); return true;" (native_field_name_remap true field)) :: acc
+      else
+        acc
+    in
+
+    let all_fields = []
+      |> List.fold_right print_variable tcpp_class.tcl_static_variables
+      |> List.fold_right print_property tcpp_class.tcl_static_properties
+      |> List.fold_right print_function tcpp_class.tcl_static_functions in
+
+    dump_quick_field_test all_fields;
     output_cpp "\treturn false;\n}\n\n");
 
   let castable f =

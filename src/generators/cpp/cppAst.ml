@@ -176,6 +176,7 @@ and tcpp_class = {
   tcl_native_parents : tclass list;
 
   tcl_static_variables : tclass_field list;
+  tcl_static_properties : tclass_field list;
   tcl_static_functions : (tclass_field * tfunc) list;
   tcl_static_dynamic_functions : (tclass_field * tfunc) list;
 

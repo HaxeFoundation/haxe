@@ -319,6 +319,11 @@ let remap_to_class ctx self_id parent_ids class_def =
       class_def.cl_ordered_statics
       |> List.filter (fun field -> field.cf_name <> "__meta__" && field.cf_name <> "__rtti")
       |> List.filter_map filter_variables in
+
+   let static_properties =
+      class_def.cl_ordered_statics
+      |> List.filter (fun field -> field.cf_name <> "__meta__" && field.cf_name <> "__rtti")
+      |> List.filter_map filter_properties in
    
    let functions = 
       class_def.cl_ordered_fields
@@ -374,6 +379,7 @@ let remap_to_class ctx self_id parent_ids class_def =
       tcl_parent_ids = parent_ids;
       tcl_debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Common.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level;
       tcl_static_variables = static_variables;
+      tcl_static_properties = static_properties;
       tcl_static_functions = static_functions;
       tcl_static_dynamic_functions = static_dynamic_functions;
       tcl_variables = variables;
