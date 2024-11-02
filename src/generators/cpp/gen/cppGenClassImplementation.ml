@@ -625,7 +625,6 @@ let generate_managed_class base_ctx tcpp_class =
     Printf.sprintf "%s( %s )" t wrapper
   in
   let toVal f value = toCommon "::hx::Val" f value in
-  let toDynamic f value = toCommon "" f value in
 
   let get_wrapper field value =
     match cpp_type_of field.cf_type with
@@ -763,40 +762,48 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp "\treturn super::__SetField(inName,inValue,inCallProp);\n}\n\n");
 
   if has_set_static_field class_def then (
-    output_cpp
-      ("bool " ^ class_name
-      ^ "::__SetStatic(const ::String &inName,Dynamic \
-        &ioValue,::hx::PropertyAccess inCallProp)\n\
-        {\n");
+    Printf.sprintf "bool %s::__SetStatic(const ::String& inName, ::Dynamic& ioValue, ::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
 
-    let set_field_dat =
-      List.map (fun f ->
-          let default_action =
-            keyword_remap f.cf_name ^ "=ioValue.Cast< " ^ castable f
-            ^ " >(); return true;"
-          in
-          ( f.cf_name,
-            String.length f.cf_name,
-            match f.cf_kind with
-            | Var { v_write = AccCall } ->
-                let inVal = "(ioValue.Cast< " ^ castable f ^ " >())" in
-                let setter = keyword_remap ("set_" ^ f.cf_name) in
-                "if (" ^ checkPropCall f ^ ")  ioValue = "
-                ^ toDynamic f (setter ^ inVal)
-                ^ ";"
-                ^
-                if not (is_physical_field f) then ""
-                else " else " ^ default_action
-            | _ -> default_action ))
+    let fold_variable field acc =
+      if (reflective class_def field) && not (is_abstract_impl class_def) then
+        let ident  = keyword_remap field.cf_name in
+        let casted = castable field in
+
+        match field.cf_kind with
+        | Var { v_write = AccCall } ->
+          let prop_call = checkPropCall field in
+          let setter    = ident |> Printf.sprintf "set_%s" |> get_wrapper field in
+          let call      = Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()); } else { %s = ioValue.Cast< %s >(); } return true;" prop_call setter casted ident casted in
+
+          (field.cf_name, String.length field.cf_name, call) :: acc
+        | Var { v_write = AccNormal | AccNo } ->
+          (field.cf_name, String.length field.cf_name, Printf.sprintf "%s = ioValue.Cast< %s >(); return true;" ident casted) :: acc
+        | _ ->
+          acc
+      else
+        acc
     in
 
-    let reflect_static_writable =
-      List.filter (is_writable class_def) reflect_static_fields
+    let fold_property field acc =
+      if (reflective class_def field) && not (is_abstract_impl class_def) then
+        match field.cf_kind with
+        | Var { v_write = AccCall } ->
+          let prop_call = checkPropCall field in
+          let setter    = keyword_remap field.cf_name |> Printf.sprintf "set_%s" |> get_wrapper field in
+          let casted    = castable field in
+
+          (field.cf_name, String.length field.cf_name, Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()); }" prop_call setter casted) :: acc
+        | _ ->
+          acc
+      else
+        acc
     in
-    let reflect_write_static_variables =
-      List.filter variable_field reflect_static_writable
-    in
-    dump_quick_field_test (set_field_dat reflect_write_static_variables);
+
+    let all_fields = []
+      |> List.fold_right fold_variable tcpp_class.tcl_static_variables
+      |> List.fold_right fold_property tcpp_class.tcl_static_properties in
+
+    dump_quick_field_test all_fields;
     output_cpp "\treturn false;\n}\n\n");
 
   (* For getting a list of data members (eg, for serialization) *)
