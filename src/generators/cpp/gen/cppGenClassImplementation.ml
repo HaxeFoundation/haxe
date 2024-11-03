@@ -987,53 +987,36 @@ let generate_managed_class base_ctx tcpp_class =
     list_iteri dump_script_field functions;
     output_cpp "};\n\n";
 
-    let sigs = Hashtbl.create 0 in
-
     if List.length tcpp_class.tcl_functions > 0 || List.length tcpp_class.tcl_static_functions > 0 then (
-      List.iter
-        (fun (f, _) ->
-          let s =
-            generate_script_function false f ("__s_" ^ f.cf_name)
-              (keyword_remap f.cf_name)
-          in
-          Hashtbl.add sigs f.cf_name s)
-        tcpp_class.tcl_functions;
 
-      let dump_script_static f =
-        let s =
-          generate_script_function true f ("__s_" ^ f.cf_name)
-            (keyword_remap f.cf_name)
-        in
-        Hashtbl.add sigs f.cf_name s
+      let dump_script is_static (f, _) acc =
+        let signature = generate_script_function is_static f ("__s_" ^ f.cf_name) (keyword_remap f.cf_name) in
+        let superCall = if is_static then "0" else "__s_" ^ f.cf_name ^ "<true>" in
+        let named =
+          Printf.sprintf
+            "\t::hx::ScriptNamedFunction(\"%s\", __s_%s, \"%s\", %s HXCPP_CPPIA_SUPER_ARG(%s))"
+            f.cf_name
+            f.cf_name
+            signature
+            (if is_static then "true" else "false")
+            superCall in
+
+        named :: acc
       in
-      List.iter dump_script_static class_def.cl_ordered_statics;
+      
+      let sigs =
+        [ "\t::hx::ScriptNamedFunction(0,0,0 HXCPP_CPPIA_SUPER_ARG(0) )" ]
+        |> List.fold_right (dump_script false) tcpp_class.tcl_functions
+        |> List.fold_right (dump_script true) tcpp_class.tcl_static_functions
+        |> String.concat ",\n"
+      in
 
       output_cpp "#ifndef HXCPP_CPPIA_SUPER_ARG\n";
       output_cpp "#define HXCPP_CPPIA_SUPER_ARG(x)\n";
       output_cpp "#endif\n";
-      output_cpp
-        "static ::hx::ScriptNamedFunction __scriptableFunctions[] = {\n";
-      let dump_func f isStaticFlag =
-        let s = try Hashtbl.find sigs f.cf_name with Not_found -> "v" in
-        output_cpp
-          ("  ::hx::ScriptNamedFunction(\"" ^ f.cf_name ^ "\",__s_" ^ f.cf_name
-         ^ ",\"" ^ s ^ "\", " ^ isStaticFlag ^ " ");
-        let superCall =
-          if isStaticFlag = "true" then
-            "0"
-          else
-            "__s_" ^ f.cf_name ^ "<true>"
-        in
-        output_cpp ("HXCPP_CPPIA_SUPER_ARG(" ^ superCall ^ ")");
-        output_cpp " ),\n"
-      in
-      List.iter (fun (f, _) -> dump_func f "false") tcpp_class.tcl_functions;
-      List.iter (fun (f, _) -> dump_func f "true") tcpp_class.tcl_static_functions;
-      output_cpp
-        "  ::hx::ScriptNamedFunction(0,0,0 HXCPP_CPPIA_SUPER_ARG(0) ) };\n")
+      Printf.sprintf "static ::hx::ScriptNamedFunction __scriptableFunctions[] = {\n%s\n};\n\n" sigs |> output_cpp)
     else
-      output_cpp
-        "static ::hx::ScriptNamedFunction *__scriptableFunctions = 0;\n";);
+      output_cpp "static ::hx::ScriptNamedFunction *__scriptableFunctions = 0;\n");
 
   let class_name_text = join_class_path class_path "." in
 
