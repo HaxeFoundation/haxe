@@ -924,8 +924,7 @@ let generate_managed_class base_ctx tcpp_class =
       output_cpp ("\tif (" ^ vtable ^ ") {\n");
       output_cpp "\t\t::hx::CppiaCtx *__ctx = ::hx::CppiaCtx::getCurrent();\n";
       output_cpp "\t\t::hx::AutoStack __as(__ctx);\n";
-      output_cpp
-        ("\t\t__ctx->pushObject( this );\n");
+      output_cpp ("\t\t__ctx->pushObject( this );\n");
       List.iter
         (fun (name, opt, t) ->
           output_cpp
@@ -949,42 +948,26 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp ("class " ^ sctipt_name ^ " : public " ^ class_name ^ " {\n");
     output_cpp ("   typedef " ^ sctipt_name ^ " __ME;\n");
     output_cpp ("   typedef " ^ class_name ^ " super;\n");
-    let field_arg_count field =
-      match (follow field.cf_type, field.cf_kind) with
-      | _, Method MethDynamic -> -1
-      | TFun (args, return_type), Method _ -> List.length args
-      | _, _ -> -1
-    in
     let has_funky_toString =
       List.exists
-        (fun f -> f.cf_name = "toString")
-        class_def.cl_ordered_statics
-      || List.exists
-            (fun f -> f.cf_name = "toString" && field_arg_count f <> 0)
-            class_def.cl_ordered_fields
+        (fun (f, _) -> f.cf_name = "toString")
+        tcpp_class.tcl_static_functions ||
+      List.exists
+        (fun (f, tfunc) -> f.cf_name = "toString" && List.length tfunc.tf_args <> 0)
+        tcpp_class.tcl_functions
     in
     let super_string =
       if has_funky_toString then class_name ^ "::super" else class_name
     in
-    output_cpp ("   typedef " ^ super_string ^ " __superString;\n");
-    output_cpp
-      ("   HX_DEFINE_SCRIPTABLE(HX_ARR_LIST"
-      ^ string_of_int (List.length constructor_var_list)
-      ^ ")\n");
+
+    Printf.sprintf "\ttypedef %s__superString;\n" super_string |> output_cpp;
+    Printf.sprintf "\tHX_DEFINE_SCRIPTABLE(HX_ARR_LIST%i)\n" (List.length constructor_var_list) |> output_cpp;
     output_cpp "\tHX_DEFINE_SCRIPTABLE_DYNAMIC;\n";
 
-    let list_iteri func in_list =
-      let idx = ref 0 in
-      List.iter
-        (fun elem ->
-          func !idx elem;
-          idx := !idx + 1)
-        in_list
-    in
-
-    let not_toString (field, args, _) = field.cf_name <> "toString" in
-    let functions = List.filter not_toString (all_virtual_functions class_def) in
-    list_iteri dump_script_field functions;
+    class_def
+    |> all_virtual_functions
+    |> List.filter (fun (field, _, _) -> field.cf_name <> "toString")
+    |> ExtList.List.iteri dump_script_field;
     output_cpp "};\n\n";
 
     if List.length tcpp_class.tcl_functions > 0 || List.length tcpp_class.tcl_static_functions > 0 then (
@@ -1003,7 +986,7 @@ let generate_managed_class base_ctx tcpp_class =
 
         named :: acc
       in
-      
+
       let sigs =
         [ "\t::hx::ScriptNamedFunction(0,0,0 HXCPP_CPPIA_SUPER_ARG(0) )" ]
         |> List.fold_right (dump_script false) tcpp_class.tcl_functions
