@@ -163,6 +163,10 @@ and tcpp_class_flags =
   | QuickAlloc
   | Container
   | Scriptable
+  | MemberGet
+  | MemberSet
+  | StaticGet
+  | StaticSet
 
 and tcpp_class = {
   tcl_class : tclass;

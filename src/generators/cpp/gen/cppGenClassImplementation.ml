@@ -545,9 +545,6 @@ let generate_managed_class base_ctx tcpp_class =
   if (not inline_constructor) && not (has_class_flag class_def CAbstract) then
     generate_constructor ctx output_cpp tcpp_class false;
 
-  let reflect_member_fields =
-    List.filter (reflective class_def) class_def.cl_ordered_fields
-  in
   let reflect_static_fields =
     List.filter (reflective class_def) statics_except_meta
   in
@@ -615,17 +612,6 @@ let generate_managed_class base_ctx tcpp_class =
     else "inCallProp == ::hx::paccAlways"
   in
 
-  let toCommon t f value =
-    let wrapper = match cpp_type_of f.cf_type with
-    | TCppInst (t, _) as inst when Meta.has Meta.StructAccess t.cl_meta ->
-        "cpp::Struct< " ^ tcpp_to_string inst ^ " >( " ^ value ^ " )"
-    | TCppStar (t, _) -> "cpp::Pointer<void *>( " ^ value ^ " )"
-    | _ -> value in
-
-    Printf.sprintf "%s( %s )" t wrapper
-  in
-  let toVal f value = toCommon "::hx::Val" f value in
-
   let get_wrapper field value =
     match cpp_type_of field.cf_type with
     | TCppInst (t, _) as inst when Meta.has Meta.StructAccess t.cl_meta ->
@@ -651,6 +637,7 @@ let generate_managed_class base_ctx tcpp_class =
     else
       acc
   in
+
   let print_function printer (field, _) acc =
     if (reflective class_def field) then
       let ident = keyword_remap field.cf_name |> get_wrapper field in
@@ -659,6 +646,7 @@ let generate_managed_class base_ctx tcpp_class =
     else
       acc
   in
+
   let print_abstract printer (field, _, _) acc =
     if (reflective class_def field) then
       let ident = keyword_remap field.cf_name |> get_wrapper field in
@@ -667,6 +655,7 @@ let generate_managed_class base_ctx tcpp_class =
     else
       acc
   in
+
   let print_property printer field acc =
     if (reflective class_def field) && not (is_abstract_impl class_def) then
       let prop_check = checkPropCall field in
@@ -674,6 +663,14 @@ let generate_managed_class base_ctx tcpp_class =
       (field.cf_name, String.length field.cf_name, printer prop_check getter) :: acc
     else
       acc
+  in
+  
+  let castable f =
+    match cpp_type_of f.cf_type with
+    | TCppInst (t, _) as inst when Meta.has Meta.StructAccess t.cl_meta ->
+        "cpp::Struct< " ^ tcpp_to_string inst ^ " > "
+    | TCppStar (t, _) -> "cpp::Pointer< " ^ tcpp_to_string t ^ " >"
+    | _ -> type_to_string f.cf_type
   in
 
   if has_get_member_field class_def then (
@@ -712,53 +709,56 @@ let generate_managed_class base_ctx tcpp_class =
     dump_quick_field_test all_fields;
     output_cpp "\treturn false;\n}\n\n");
 
-  let castable f =
-    match cpp_type_of f.cf_type with
-    | TCppInst (t, _) as inst when Meta.has Meta.StructAccess t.cl_meta ->
-        "cpp::Struct< " ^ tcpp_to_string inst ^ " > "
-    | TCppStar (t, _) -> "cpp::Pointer< " ^ tcpp_to_string t ^ " >"
-    | _ -> type_to_string f.cf_type
-  in
-
-  (* Dynamic "Set" Field function *)
   if has_set_member_field class_def then (
-    output_cpp
-      ("::hx::Val " ^ class_name
-      ^ "::__SetField(const ::String &inName,const ::hx::Val \
-        &inValue,::hx::PropertyAccess inCallProp)\n\
-        {\n");
+    Printf.sprintf "::hx::Val %s::__SetField(const ::String& inName, const ::hx::Val& inValue, ::hx::PropertyAccess inPropCall)\n{\n" class_name |> output_cpp;
 
-    let set_field_dat =
-      List.map (fun f ->
-          let default_action =
-            if is_gc_element ctx (cpp_type_of f.cf_type) then
-              "_hx_set_" ^ keyword_remap f.cf_name
-              ^ "(HX_CTX_GET,inValue.Cast< " ^ castable f ^ " >());"
-              ^ " return inValue;"
-            else
-              keyword_remap f.cf_name ^ "=inValue.Cast< " ^ castable f
-              ^ " >();" ^ " return inValue;"
-          in
-          ( f.cf_name,
-            String.length f.cf_name,
-            match f.cf_kind with
-            | Var { v_write = AccCall } ->
-                let inVal = "(inValue.Cast< " ^ castable f ^ " >())" in
-                let setter = keyword_remap ("set_" ^ f.cf_name) in
-                "if (" ^ checkPropCall f ^ ") return "
-                ^ toVal f (setter ^ inVal)
-                ^ ";"
-                ^ if not (is_physical_field f) then "" else default_action
-            | _ -> default_action ))
+    let fold_variable field acc =
+      if (reflective class_def field) && not (is_abstract_impl class_def) then
+        let ident   = keyword_remap field.cf_name in
+        let casted  = castable field in
+        let default = if is_gc_element ctx (cpp_type_of field.cf_type) then
+          Printf.sprintf "_hx_set_%s(HX_CTX_GET, inValue.Cast< %s >()); return inValue;" ident casted
+        else
+          Printf.sprintf "%s = inValue.Cast< %s >(); return inValue;" ident casted in
+
+        match field.cf_kind with
+        | Var { v_write = AccCall } ->
+          let prop_call = checkPropCall field in
+          let setter    = ident |> Printf.sprintf "set_%s" |> get_wrapper field in
+          let call      = Printf.sprintf "if (%s) { return ::hx::Val( %s(inValue.Cast< %s >()) ); } else { %s }" prop_call setter casted default in
+
+          (field.cf_name, String.length field.cf_name, call) :: acc
+        | Var { v_write = AccNormal | AccNo | AccNever } ->
+          (field.cf_name, String.length field.cf_name, default) :: acc
+        | _ ->
+          acc
+      else
+        acc
     in
 
-    let reflect_member_writable =
-      List.filter (is_writable class_def) reflect_member_fields
+    let fold_property field acc =
+      if (reflective class_def field) && not (is_abstract_impl class_def) then
+        let ident   = keyword_remap field.cf_name in
+        let casted  = castable field in
+
+        match field.cf_kind with
+        | Var { v_write = AccCall } ->
+          let prop_call = checkPropCall field in
+          let setter    = ident |> Printf.sprintf "set_%s" |> get_wrapper field in
+          let call      = Printf.sprintf "if (%s) { return ::hx::Val( %s(inValue.Cast< %s >()) ); }" prop_call setter casted in
+
+          (field.cf_name, String.length field.cf_name, call) :: acc
+        | _ ->
+          acc
+      else
+        acc
     in
-    let reflect_write_member_variables =
-      List.filter variable_field reflect_member_writable
-    in
-    dump_quick_field_test (set_field_dat reflect_write_member_variables);
+
+    let all_fields = []
+    |> List.fold_right fold_variable tcpp_class.tcl_variables
+    |> List.fold_right fold_property tcpp_class.tcl_properties in
+
+    dump_quick_field_test all_fields;
     output_cpp "\treturn super::__SetField(inName,inValue,inCallProp);\n}\n\n");
 
   if has_set_static_field class_def then (

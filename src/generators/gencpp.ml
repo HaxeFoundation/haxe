@@ -280,13 +280,10 @@ let remap_to_class ctx self_id parent_ids class_def =
    in
    
    let filter_variables field =
-      if should_implement_field field then
+      if is_physical_field field then
          match (field.cf_kind, field.cf_expr) with
          | Var _, _ ->
-            if is_physical_var_field field then
-               Some field
-            else
-               None
+            Some field
          (* Dynamic methods are implemented as a physical field holding a closure *)
          | Method MethDynamic, Some { eexpr = TFunction func } -> 
             Some { field with cf_expr = None; cf_kind = Var ({ v_read = AccNormal; v_write = AccNormal }) }
