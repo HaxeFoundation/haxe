@@ -776,20 +776,15 @@ let generate_managed_class base_ctx tcpp_class =
 
   (* For getting a list of data members (eg, for serialization) *)
   if has_get_fields class_def then (
-    let append_field field =
-      output_cpp ("\toutFields->push(" ^ strq field.cf_name ^ ");\n")
-    in
-    let is_data_field field =
-      match follow field.cf_type with TFun _ -> false | _ -> true
-    in
 
-    output_cpp
-      ("void " ^ class_name
-      ^ "::__GetFields(Array< ::String> &outFields)\n{\n");
-    List.iter append_field
-      (List.filter is_data_field class_def.cl_ordered_fields);
-    output_cpp "\tsuper::__GetFields(outFields);\n";
-    output_cpp "};\n\n");
+    let append field acc = (strq field.cf_name |> Printf.sprintf "\toutFields->push(%s);") :: acc in
+    let fields =
+      [ "\tsuper::__GetFields(outFields);" ]
+      |> List.fold_right append tcpp_class.tcl_variables
+      |> List.fold_right append tcpp_class.tcl_properties
+      |> String.concat "\n" in
+
+    Printf.sprintf "void %s::__GetFields(::Array< ::String >& outFields)\n{\n%s\n}\n\n" class_name fields |> output_cpp);
 
   let storage field =
     match cpp_type_of field.cf_type with
@@ -960,7 +955,7 @@ let generate_managed_class base_ctx tcpp_class =
       if has_funky_toString then class_name ^ "::super" else class_name
     in
 
-    Printf.sprintf "\ttypedef %s__superString;\n" super_string |> output_cpp;
+    Printf.sprintf "\ttypedef %s __superString;\n" super_string |> output_cpp;
     Printf.sprintf "\tHX_DEFINE_SCRIPTABLE(HX_ARR_LIST%i)\n" (List.length constructor_var_list) |> output_cpp;
     output_cpp "\tHX_DEFINE_SCRIPTABLE_DYNAMIC;\n";
 
