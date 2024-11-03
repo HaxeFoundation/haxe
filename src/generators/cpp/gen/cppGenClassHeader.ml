@@ -38,41 +38,6 @@ let gen_dynamic_function ctx class_def is_static field function_def =
 
   Printf.sprintf "%sinline ::Dynamic& %s_dyn() { return %s; }\n" prefix remap_name remap_name |> output
 
-let gen_abstract_function ctx class_def field tl tr =
-
-  (* Default values for abstract classes are stored in @:Value metadata *)
-  (* So we need to inspect that to see which, if any, arguments of an abstract function have default values *)
-  let ctx_arg_list ctx arg_list prefix =
-    let get_default_value name =
-      try
-        match Meta.get Meta.Value field.cf_meta with
-        | _, [ (EObjectDecl decls, _) ], _ ->
-          Some
-            (decls
-              |> List.find (fun ((n, _, _), _) -> n = name)
-              |> snd
-              |> type_constant_value ctx.ctx_common.basic)
-        | _ -> None
-      with Not_found -> None
-    in
-
-    arg_list
-      |> List.map (fun (n, o, t) -> print_arg n (get_default_value n) t prefix)
-      |> String.concat ","
-  in
-  let output      = ctx.ctx_output in
-  let return_type = type_to_string tr in
-  let remap_name  = native_field_name_remap false field in
-
-  Printf.sprintf
-    "\t\tvirtual %s %s(%s) %s\n"
-    (if return_type = "Void" then "void" else return_type)
-    remap_name
-    (ctx_arg_list ctx tl "")
-    (if return_type = "void" then "{}" else "{ return 0; }") |> output;
-
-  if reflective class_def field then Printf.sprintf "\t\t::Dynamic %s_dyn();\n" remap_name |> output
-
 let gen_member_function ctx class_def is_static field function_def =
   let output         = ctx.ctx_output in
   let is_non_virtual = Meta.has Meta.NonVirtual field.cf_meta in
@@ -221,9 +186,6 @@ let generate_native_header base_ctx tcpp_class =
 
   tcpp_class.tcl_variables
   |> List.iter (fun field -> gen_member_variable ctx class_def false field);
-
-  tcpp_class.tcl_abstract_functions
-  |> List.iter (fun (field, tl, tr) -> gen_abstract_function ctx class_def field tl tr);
 
   output_h (get_class_code class_def Meta.HeaderClassCode);
   output_h "};\n\n";
@@ -460,9 +422,6 @@ let generate_managed_header base_ctx tcpp_class =
 
   tcpp_class.tcl_variables
   |> List.iter (fun field -> gen_member_variable ctx class_def false field);
-
-  tcpp_class.tcl_abstract_functions
-  |> List.iter (fun (field, tl, tr) -> gen_abstract_function ctx class_def field tl tr);
 
   output_h (get_class_code class_def Meta.HeaderClassCode);
   output_h "};\n\n";

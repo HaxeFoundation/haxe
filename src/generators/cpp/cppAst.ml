@@ -188,7 +188,6 @@ and tcpp_class = {
   tcl_properties : tclass_field list;
   tcl_functions : (tclass_field * tfunc) list;
   tcl_dynamic_functions : (tclass_field * tfunc) list;
-  tcl_abstract_functions : (tclass_field * (string * bool * t) list * t) list;
 
   tcl_meta : texpr option;
   tcl_rtti : texpr option;

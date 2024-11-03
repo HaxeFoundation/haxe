@@ -244,10 +244,45 @@ let is_assign_op op =
 
 let remap_to_class ctx self_id parent_ids class_def =
    let filter_functions field =
+      let abstract_to_function () =
+         match field.cf_type with
+         | TFun (args, ret) ->
+            let get_default_value name =
+               try
+                 match Meta.get Meta.Value field.cf_meta with
+                 | _, [ (EObjectDecl decls, _) ], _ ->
+                   Some
+                     (decls
+                       |> List.find (fun ((n, _, _), _) -> n = name)
+                       |> snd
+                       |> type_constant_value ctx.ctx_common.basic)
+                 | _ -> None
+               with Not_found -> None
+            in
+            let map_arg (name, _, t) =
+               ( (alloc_var VGenerated name t null_pos), (get_default_value name) ) in
+            let expr = 
+               match follow ret with
+               | TAbstract ({ a_path = ([], "Void") }, _) ->
+                  { eexpr = TReturn None; etype = ret; epos = null_pos }
+               | _ ->
+                  let zero_val = Some { eexpr = TConst (TInt Int32.zero); etype = ret; epos = null_pos } in
+                  { eexpr = TReturn zero_val; etype = ret; epos = null_pos } in
+            
+            {
+               tf_args = args |> List.map map_arg;
+               tf_type = ret;
+               tf_expr = expr;
+            }
+         | _ ->
+            die "expected abstract field type to be TFun" __LOC__ in
+
       if should_implement_field field then
          match (field.cf_kind, field.cf_expr) with
          | Method (MethNormal | MethInline), Some { eexpr = TFunction func } ->
             Some (field, func)
+         | Method MethNormal, _ when has_class_field_flag field CfAbstract ->
+            Some (field, abstract_to_function ())
          | _ ->
             None
       else
@@ -262,17 +297,6 @@ let remap_to_class ctx self_id parent_ids class_def =
          (* static variables with a default function value get a dynamic function generated as the implementation *)
          | Var _, Some { eexpr = TFunction func } when func_for_static_field ->
             Some (field, func)
-         | _ ->
-            None
-      else
-         None
-   in
-   
-   let filter_abstract_functions field =
-      if should_implement_field field then
-         match (field.cf_kind, field.cf_type) with
-         | Method MethNormal, TFun (tl, tr) when has_class_field_flag field CfAbstract ->
-            Some (field, tl, tr)
          | _ ->
             None
       else
@@ -337,10 +361,6 @@ let remap_to_class ctx self_id parent_ids class_def =
    let properties =
       class_def.cl_ordered_fields
       |> List.filter_map filter_properties in
-   
-   let abstract_functions =
-      class_def.cl_ordered_fields
-      |> List.filter_map filter_abstract_functions in
 
    let haxe_implementations, native_implementations =
       CppGen.implementations class_def
@@ -383,7 +403,6 @@ let remap_to_class ctx self_id parent_ids class_def =
       tcl_properties = properties;
       tcl_functions = functions;
       tcl_dynamic_functions = dynamic_functions;
-      tcl_abstract_functions = abstract_functions;
       tcl_haxe_parents = haxe_implementations;
       tcl_native_parents = native_implementations;
       tcl_meta = meta_field;

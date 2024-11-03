@@ -155,14 +155,6 @@ let gen_static_variable ctx class_def class_name field =
   gen_type ctx field.cf_type;
   output (" " ^ class_name ^ "::" ^ remap_name ^ ";\n\n")
 
-let gen_abstract_function ctx class_def class_name (field, tl, tr) =
-  let output = ctx.ctx_output in
-  let remap_name = keyword_remap field.cf_name in
-  let return_type = cpp_type_of tr in
-  let is_void = return_type = TCppVoid in
-  let ret = if is_void then "(void)" else "return " in
-  Printf.sprintf "HX_DEFINE_DYNAMIC_FUNC%i(%s, %s, %s)\n\n" (List.length tl) class_name remap_name ret |> output
-
 let gen_field_init ctx class_def field =
   let dot_name   = join_class_path class_def.cl_path "." in
   let output     = ctx.ctx_output in
@@ -239,7 +231,7 @@ let gen_dynamic_function_allocator ctx output_cpp tcpp_class =
 
     Printf.sprintf "void %s::__alloc_dynamic_functions(::hx::Ctx* _hx_ctx, %s* _hx_obj) {\n%s\n}\n" tcpp_class.tcl_name tcpp_class.tcl_name str |> output_cpp
 
-let print_reflective_fields ctx_common class_def variables functions abstract_functions =
+let print_reflective_fields ctx_common class_def variables functions =
   let strq = strq ctx_common in
 
   let filter_vars field =
@@ -252,17 +244,11 @@ let print_reflective_fields ctx_common class_def variables functions abstract_fu
       Some (Printf.sprintf "\t%s" (strq field.cf_name))
     else
       None in
-  let filter_abst (field, _, _) =
-    if reflective class_def field then
-      Some (Printf.sprintf "\t%s" (strq field.cf_name))
-    else
-      None in
 
   let reflective_variables = variables |> List.filter_map filter_vars in
   let reflective_functions = functions |> List.filter_map filter_funcs in
-  let reflective_abstracts = abstract_functions |> List.filter_map filter_abst in
 
-  match reflective_variables @ reflective_functions @ reflective_abstracts with
+  match reflective_variables @ reflective_functions with
   | [] ->
     None
   | concat ->
@@ -310,7 +296,6 @@ let generate_native_class base_ctx tcpp_class =
 
   List.iter (gen_function ctx class_def class_name false) tcpp_class.tcl_functions;
   List.iter (gen_dynamic_function ctx class_def class_name false false) tcpp_class.tcl_dynamic_functions;
-  List.iter (gen_abstract_function ctx class_def class_name) tcpp_class.tcl_abstract_functions;
 
   List.iter (gen_function ctx class_def class_name true) tcpp_class.tcl_static_functions;
   List.iter (gen_dynamic_function ctx class_def class_name true false) tcpp_class.tcl_static_dynamic_functions;
@@ -529,7 +514,6 @@ let generate_managed_class base_ctx tcpp_class =
 
   List.iter (gen_function ctx class_def class_name false) tcpp_class.tcl_functions;
   List.iter (gen_dynamic_function ctx class_def class_name false false) tcpp_class.tcl_dynamic_functions;
-  List.iter (gen_abstract_function ctx class_def class_name) tcpp_class.tcl_abstract_functions;
 
   List.iter (gen_function ctx class_def class_name true) tcpp_class.tcl_static_functions;
   List.iter (gen_dynamic_function ctx class_def class_name true false) tcpp_class.tcl_static_dynamic_functions;
@@ -647,15 +631,6 @@ let generate_managed_class base_ctx tcpp_class =
       acc
   in
 
-  let print_abstract printer (field, _, _) acc =
-    if (reflective class_def field) then
-      let ident = keyword_remap field.cf_name |> get_wrapper field in
-
-      (field.cf_name, String.length field.cf_name, printer ident) :: acc
-    else
-      acc
-  in
-
   let print_property printer field acc =
     if (reflective class_def field) && not (is_abstract_impl class_def) then
       let prop_check = checkPropCall field in
@@ -685,8 +660,7 @@ let generate_managed_class base_ctx tcpp_class =
     let all_fields = []
       |> List.fold_right (print_variable var_printer get_printer) tcpp_class.tcl_variables
       |> List.fold_right (print_property prop_printer) tcpp_class.tcl_properties
-      |> List.fold_right (print_function fun_printer) tcpp_class.tcl_functions
-      |> List.fold_right (print_abstract fun_printer) tcpp_class.tcl_abstract_functions in
+      |> List.fold_right (print_function fun_printer) tcpp_class.tcl_functions in
 
     if List.length all_fields > 0 then (
       dump_quick_field_test all_fields;
@@ -710,7 +684,7 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp "\treturn false;\n}\n\n");
 
   if has_set_member_field class_def then (
-    Printf.sprintf "::hx::Val %s::__SetField(const ::String& inName, const ::hx::Val& inValue, ::hx::PropertyAccess inPropCall)\n{\n" class_name |> output_cpp;
+    Printf.sprintf "::hx::Val %s::__SetField(const ::String& inName, const ::hx::Val& inValue, ::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
 
     let fold_variable field acc =
       if (reflective class_def field) && not (is_abstract_impl class_def) then
@@ -859,7 +833,7 @@ let generate_managed_class base_ctx tcpp_class =
 
   output_cpp "#endif\n\n";
 
-  (match print_reflective_fields ctx.ctx_common class_def tcpp_class.tcl_variables tcpp_class.tcl_functions tcpp_class.tcl_abstract_functions with
+  (match print_reflective_fields ctx.ctx_common class_def tcpp_class.tcl_variables tcpp_class.tcl_functions with
   | Some str ->
     Printf.sprintf "static ::String %s_sMemberFields[] = {\n%s\n};\n\n" class_name str |> output_cpp
   | None ->
@@ -1096,7 +1070,7 @@ let generate_managed_class base_ctx tcpp_class =
             ("::hx::ScriptFunction " ^ class_name
           ^ "::__script_construct(0,0);\n"));
 
-  (match print_reflective_fields ctx.ctx_common class_def tcpp_class.tcl_static_variables tcpp_class.tcl_static_functions [] with
+  (match print_reflective_fields ctx.ctx_common class_def tcpp_class.tcl_static_variables tcpp_class.tcl_static_functions with
   | Some str ->
     Printf.sprintf "static ::String %s_sStaticFields[] = {\n%s\n};\n\n" class_name str |> output_cpp
   | None ->
