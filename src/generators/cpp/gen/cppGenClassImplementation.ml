@@ -510,8 +510,6 @@ let generate_managed_class base_ctx tcpp_class =
 
   gen_init_function ctx output_cpp tcpp_class;
 
-  let statics_except_meta = statics_except_meta class_def in
-
   List.iter (gen_function ctx class_def class_name false) tcpp_class.tcl_functions;
   List.iter (gen_dynamic_function ctx class_def class_name false false) tcpp_class.tcl_dynamic_functions;
 
@@ -528,10 +526,6 @@ let generate_managed_class base_ctx tcpp_class =
   in
   if (not inline_constructor) && not (has_class_flag class_def CAbstract) then
     generate_constructor ctx output_cpp tcpp_class false;
-
-  let reflect_static_fields =
-    List.filter (reflective class_def) statics_except_meta
-  in
 
   (* Initialise non-static variables *)
   output_cpp (class_name ^ "::" ^ class_name ^ "()\n{\n");
@@ -950,7 +944,6 @@ let generate_managed_class base_ctx tcpp_class =
       output_cpp "}\n";
     in
 
-    let new_sctipt_functions = List.rev (current_virtual_functions_rev class_def []) in
     let sctipt_name = class_name ^ "__scriptable" in
 
     output_cpp ("class " ^ sctipt_name ^ " : public " ^ class_name ^ " {\n");
@@ -996,22 +989,15 @@ let generate_managed_class base_ctx tcpp_class =
 
     let sigs = Hashtbl.create 0 in
 
-    let static_functions =
-      List.filter (fun f -> not (is_data_member f)) reflect_static_fields
-    in
-    let all_script_functions =
-      List.map (fun (f, _, _) -> f) new_sctipt_functions @ static_functions
-    in
-
-    if List.length all_script_functions > 0 then (
+    if List.length tcpp_class.tcl_functions > 0 || List.length tcpp_class.tcl_static_functions > 0 then (
       List.iter
-        (fun (f, _, _) ->
+        (fun (f, _) ->
           let s =
             generate_script_function false f ("__s_" ^ f.cf_name)
               (keyword_remap f.cf_name)
           in
           Hashtbl.add sigs f.cf_name s)
-        new_sctipt_functions;
+        tcpp_class.tcl_functions;
 
       let dump_script_static f =
         let s =
@@ -1041,8 +1027,8 @@ let generate_managed_class base_ctx tcpp_class =
         output_cpp ("HXCPP_CPPIA_SUPER_ARG(" ^ superCall ^ ")");
         output_cpp " ),\n"
       in
-      List.iter (fun (f, _, _) -> dump_func f "false") new_sctipt_functions;
-      List.iter (fun f -> dump_func f "true") static_functions;
+      List.iter (fun (f, _) -> dump_func f "false") tcpp_class.tcl_functions;
+      List.iter (fun (f, _) -> dump_func f "true") tcpp_class.tcl_static_functions;
       output_cpp
         "  ::hx::ScriptNamedFunction(0,0,0 HXCPP_CPPIA_SUPER_ARG(0) ) };\n")
     else
