@@ -194,11 +194,18 @@ and tcpp_class = {
   tcl_init : texpr option;
 }
 
+and tcpp_interface_function = {
+  iff_field : tclass_field;
+  iff_name : string;
+  iff_args : (string * bool * t) list;
+  iff_return : t;
+}
+
 and tcpp_interface = {
   if_class : tclass;
   if_name : string;
   if_debug_level : int;
-  if_virtual_functions : (tclass_field * (string * bool * t) list * t) list
+  if_functions : tcpp_interface_function list
 }
 
 and tcpp_enum_field = {

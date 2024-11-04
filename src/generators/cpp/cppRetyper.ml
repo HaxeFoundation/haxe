@@ -1616,3 +1616,22 @@ let rec tcpp_class_from_tclass ctx self_id parent_ids class_def =
     tcl_rtti = rtti_field;
     tcl_init = TClass.get_cl_init class_def;
   }
+
+and tcpp_interface_from_tclass ctx class_def =
+
+  let retype_function (field, args, ret) =
+    {
+      iff_field = field;
+      iff_name = keyword_remap field.cf_name;
+      iff_args = args;
+      iff_return = ret;
+    } in
+
+  let debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Common.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level in
+  let functions = class_def |> all_virtual_functions |> List.map retype_function in
+  {
+    if_class = class_def;
+    if_name = class_name class_def;
+    if_debug_level = debug_level;
+    if_functions = functions;
+  }

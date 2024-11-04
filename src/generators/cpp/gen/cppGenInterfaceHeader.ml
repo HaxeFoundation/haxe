@@ -16,53 +16,40 @@ let attribs common_ctx = match Common.defined common_ctx Define.DllExport with
   | true -> "HXCPP_EXTERN_CLASS_ATTRIBUTES"
   | false -> "HXCPP_CLASS_ATTRIBUTES"
 
-let gen_member_def ctx class_def field =
-  match (follow field.cf_type, field.cf_kind) with
-  | _, Method MethDynamic -> ()
-  | TFun (args, return_type), Method _ ->
-    let output     = ctx.ctx_output in
-    let remap_name = keyword_remap field.cf_name in
-    let nativeGen  = Meta.has Meta.NativeGen class_def.cl_meta in
-    let gen_args   = print_tfun_arg_list true in
+let gen_native_function ctx interface func =
+  let output   = ctx.ctx_output in
+  let gen_args = print_tfun_arg_list true in
+  let strq     = strq ctx.ctx_common in
 
-    if nativeGen then (
-      output ("\t\tvirtual " ^ type_to_string return_type);
-      output (" " ^ remap_name ^ "( ");
-      output (gen_args args);
-      output ")=0;\n";
-      if reflective class_def field then
-        if Common.defined ctx.ctx_common Define.DynamicInterfaceClosures then
-          output
-            ("\t\tinline ::Dynamic " ^ remap_name
-            ^ "_dyn() { return __Field( "
-            ^ strq ctx.ctx_common field.cf_name
-            ^ ", ::hx::paccDynamic); }\n")
-        else
-          output ("\t\tvirtual ::Dynamic " ^ remap_name ^ "_dyn()=0;\n"))
+  Printf.sprintf "\t\tvirtual %s %s(%s)=0;\n" (type_to_string func.iff_return) func.iff_name (gen_args func.iff_args) |> output;
+  if reflective interface.if_class func.iff_field then
+    if Common.defined ctx.ctx_common Define.DynamicInterfaceClosures then
+      Printf.sprintf
+        "\t\tinline ::Dynamic %s_dyn() { return __Field( %s, ::hx::paccDynamic ); }\n"
+        func.iff_name
+        (strq func.iff_field.cf_name) |> output
     else
-      let argList      = gen_args args in
-      let returnType   = type_to_string return_type in
-      let returnStr    = if returnType = "void" then "" else "return " in
-      let commaArgList = if argList = "" then argList else "," ^ argList in
-      let cast =
-        "::hx::interface_cast< ::"
-        ^ join_class_path_remap class_def.cl_path "::"
-        ^ "_obj *>"
-      in
-      output ("\t\t" ^ returnType ^ " (::hx::Object :: *_hx_" ^ remap_name ^ ")(" ^ argList ^ "); \n");
-      output ("\t\tstatic inline " ^ returnType ^ " " ^ remap_name ^ "( ::Dynamic _hx_" ^ commaArgList ^ ") {\n");
-      output "\t\t\t#ifdef HXCPP_CHECK_POINTER\n";
-      output "\t\t\tif (::hx::IsNull(_hx_)) ::hx::NullReference(\"Object\", false);\n";
-      output "\t\t\t#ifdef HXCPP_GC_CHECK_POINTER\n";
-      output "\t\t\t\tGCCheckPointer(_hx_.mPtr);\n";
-      output "\t\t\t#endif\n";
-      output "\t\t\t#endif\n";
-      output
-        ("\t\t\t" ^ returnStr ^ "(_hx_.mPtr->*( " ^ cast
-        ^ "(_hx_.mPtr->_hx_getInterface(" ^ cpp_class_hash class_def
-        ^ ")))->_hx_" ^ remap_name ^ ")(" ^ print_arg_names args
-        ^ ");\n\t\t}\n")
-  | _ -> ()
+      Printf.sprintf "\t\tvirtual ::Dynamic %s_dyn()=0;\n" func.iff_name |> output
+
+let gen_function ctx interface func =
+  let output       = ctx.ctx_output in
+  let argList      = print_tfun_arg_list true func.iff_args in
+  let returnType   = type_to_string func.iff_return in
+  let returnStr    = if returnType = "void" then "" else "return " in
+  let commaArgList = if argList = "" then argList else "," ^ argList in
+  let cast = Printf.sprintf "::hx::interface_cast< ::%s_obj *>" (join_class_path_remap interface.if_class.cl_path "::") in
+
+  Printf.sprintf "\t\t%s (::hx::Object :: *_hx_%s)(%s);\n" returnType func.iff_name argList |> output;
+  Printf.sprintf "\t\tstatic inline %s %s( ::Dynamic _hx_%s ){\n" returnType func.iff_name commaArgList |> output;
+  output "\t\t\t#ifdef HXCPP_CHECK_POINTER\n";
+  output "\t\t\tif (::hx::IsNull(_hx_)) ::hx::NullReference(\"Object\", false);\n";
+  output "\t\t\t#ifdef HXCPP_GC_CHECK_POINTER\n";
+  output "\t\t\t\tGCCheckPointer(_hx_.mPtr);\n";
+  output "\t\t\t#endif\n";
+  output "\t\t\t#endif\n";
+  Printf.sprintf
+    "\t\t\t%s( _hx_.mPtr->*( %s(_hx_.mPtr->_hx_getInterface(%s)))->_hx_%s )(%s);\n\t\t}\n"
+    returnStr cast (cpp_class_hash interface.if_class) func.iff_name (print_arg_names func.iff_args) |> output
 
 let gen_includes h_file interface_def =
   let add_class_includes cls =
@@ -100,11 +87,10 @@ let gen_header_includes interface_def output_h =
   let printer inc = output_h ("#include \"" ^ inc ^ "\"\n") in
   List.iter printer includes
 
-let gen_body tcpp_interface ctx output_h =
+let gen_body tcpp_interface ctx output_h iter =
   if has_boot_field tcpp_interface.if_class then output_h "\t\tstatic void __boot();\n";
 
-  tcpp_interface.if_virtual_functions
-    |> List.iter (fun (field, _, _) -> gen_member_def ctx tcpp_interface.if_class field);
+  List.iter iter tcpp_interface.if_functions;
 
   match get_meta_string tcpp_interface.if_class.cl_meta Meta.ObjcProtocol with
   | Some protocol ->
@@ -154,7 +140,7 @@ let generate_native_interface base_ctx tcpp_interface =
 
   CppGen.generate_native_constructor ctx output_h tcpp_interface.if_class true;
 
-  gen_body tcpp_interface ctx output_h;
+  gen_body tcpp_interface ctx output_h (gen_native_function ctx tcpp_interface);
   
   output_h "};\n\n";
 
@@ -195,7 +181,7 @@ let generate_managed_interface base_ctx tcpp_interface =
   output_h ("\t\ttypedef " ^ super ^ " super;\n");
   output_h "\t\tHX_DO_INTERFACE_RTTI;\n\n";
 
-  gen_body tcpp_interface ctx output_h;
+  gen_body tcpp_interface ctx output_h (gen_function ctx tcpp_interface);
   
   output_h "};\n\n";
 

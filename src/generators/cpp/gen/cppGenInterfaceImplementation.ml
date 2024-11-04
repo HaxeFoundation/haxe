@@ -162,13 +162,12 @@ let generate_managed_interface base_ctx tcpp_interface =
   in
 
   if scriptable then (
-    let dump_script_field idx (field, f_args, return_t) =
-      let args = print_tfun_arg_list true f_args in
-      let return_type = type_to_string return_t in
+    let dump_script_field idx func =
+      let args = print_tfun_arg_list true func.iff_args in
+      let return_type = type_to_string func.iff_return in
       let ret = if return_type = "Void" || return_type = "void" then " " else "return " in
-      let name = keyword_remap field.cf_name in
 
-      output_cpp ("\t" ^ return_type ^ " " ^ name ^ "( " ^ args ^ " ) {\n");
+      output_cpp ("\t" ^ return_type ^ " " ^ func.iff_name ^ "( " ^ args ^ " ) {\n");
       output_cpp "\t\t::hx::CppiaCtx *__ctx = ::hx::CppiaCtx::getCurrent();\n";
       output_cpp "\t\t::hx::AutoStack __as(__ctx);\n";
       output_cpp "\t\t__ctx->pushObject(this);\n";
@@ -177,18 +176,18 @@ let generate_managed_interface base_ctx tcpp_interface =
           output_cpp
             ("\t\t__ctx->push" ^ CppCppia.script_type t opt ^ "("
             ^ keyword_remap name ^ ");\n"))
-        f_args;
-      let interfaceSlot = string_of_int (-cpp_get_interface_slot ctx name) in
+        func.iff_args;
+      let interfaceSlot = string_of_int (-cpp_get_interface_slot ctx func.iff_name) in
       output_cpp
         ("\t\t" ^ ret ^ "__ctx->run"
-        ^ CppCppia.script_type return_t false
+        ^ CppCppia.script_type func.iff_return false
         ^ "(__GetScriptVTable()[" ^ interfaceSlot ^ "]);\n");
       output_cpp "\t}\n";
     in
 
-    let sctipt_name = tcpp_interface.if_name ^ "__scriptable" in
+    let script_name = tcpp_interface.if_name ^ "__scriptable" in
 
-    output_cpp ("class " ^ sctipt_name ^ " : public ::hx::Object {\n");
+    output_cpp ("class " ^ script_name ^ " : public ::hx::Object {\n");
     output_cpp "public:\n";
 
     let list_iteri func in_list =
@@ -200,82 +199,65 @@ let generate_managed_interface base_ctx tcpp_interface =
         in_list
     in
 
-    list_iteri dump_script_field tcpp_interface.if_virtual_functions;
+    list_iteri dump_script_field tcpp_interface.if_functions;
     output_cpp "};\n\n";
 
-    let generate_script_function field scriptName callName =
-      match follow field.cf_type with
-      | TFun (args, return_type) when not (is_data_member field) ->
-        output_cpp ("\nstatic void CPPIA_CALL " ^ scriptName ^ "(::hx::CppiaCtx *ctx) {\n");
-        let ret =
-          match cpp_type_of return_type with
-          | TCppScalar "bool" -> "b"
-          | _ -> CppCppia.script_signature return_type false in
-        if ret <> "v" then
-          output_cpp ("ctx->return" ^ CppCppia.script_type return_type false ^ "(");
+    let generate_script_function func =
+      let scriptName = ("__s_" ^ func.iff_field.cf_name) in
 
-        let signature =
-          output_cpp (tcpp_interface.if_name ^ "::" ^ callName ^ "(ctx->getThis()" ^ if List.length args > 0 then "," else "");
+      output_cpp ("\nstatic void CPPIA_CALL " ^ scriptName ^ "(::hx::CppiaCtx *ctx) {\n");
+      let ret =
+        match cpp_type_of func.iff_return with
+        | TCppScalar "bool" -> "b"
+        | _ -> CppCppia.script_signature func.iff_return false in
+      if ret <> "v" then
+        output_cpp ("ctx->return" ^ CppCppia.script_type func.iff_return false ^ "(");
 
-          let signature, _, _ =
-            List.fold_left
-              (fun (signature, sep, size) (_, opt, t) ->
-                output_cpp
-                  (sep ^ "ctx->get" ^ CppCppia.script_type t opt ^ "(" ^ size
-                  ^ ")");
-                ( signature ^ CppCppia.script_signature t opt,
-                  ",",
-                  size ^ "+sizeof(" ^ CppCppia.script_size_type t opt ^ ")" ))
-              (ret, "", "sizeof(void*)") args in
-          output_cpp ")";
-          signature
-        in
+      let signature =
+        output_cpp (tcpp_interface.if_name ^ "::" ^ func.iff_name ^ "(ctx->getThis()" ^ if List.length func.iff_args > 0 then "," else "");
 
-        if ret <> "v" then output_cpp ")";
-        output_cpp ";\n}\n";
+        let signature, _, _ =
+          List.fold_left
+            (fun (signature, sep, size) (_, opt, t) ->
+              output_cpp (sep ^ "ctx->get" ^ CppCppia.script_type t opt ^ "(" ^ size ^ ")");
+              ( signature ^ CppCppia.script_signature t opt, ",", size ^ "+sizeof(" ^ CppCppia.script_size_type t opt ^ ")" ))
+            (ret, "", "sizeof(void*)") func.iff_args in
+        output_cpp ")";
         signature
-      | _ -> ""
+      in
+
+      if ret <> "v" then output_cpp ")";
+      output_cpp ";\n}\n";
+      (signature, func)
     in
 
-    let sigs = Hashtbl.create 0 in
-    match tcpp_interface.if_virtual_functions with
+    match tcpp_interface.if_functions with
     | [] ->
       output_cpp "static ::hx::ScriptNamedFunction *__scriptableFunctions = 0;\n"
     | _ ->
-      List.iter
-        (fun (f, _, _) ->
-          let s = generate_script_function f ("__s_" ^ f.cf_name) (keyword_remap f.cf_name) in
-          Hashtbl.add sigs f.cf_name s)
-        tcpp_interface.if_virtual_functions;
+      let sig_and_funcs = List.map generate_script_function tcpp_interface.if_functions in
 
       output_cpp "#ifndef HXCPP_CPPIA_SUPER_ARG\n";
       output_cpp "#define HXCPP_CPPIA_SUPER_ARG(x)\n";
       output_cpp "#endif\n";
       output_cpp "static ::hx::ScriptNamedFunction __scriptableFunctions[] = {\n";
-      let dump_func f isStaticFlag =
-        let s = try Hashtbl.find sigs f.cf_name with Not_found -> "v" in
-        output_cpp
-          ("  ::hx::ScriptNamedFunction(\"" ^ f.cf_name ^ "\",__s_" ^ f.cf_name
-         ^ ",\"" ^ s ^ "\", " ^ isStaticFlag ^ " ");
-        let superCall =
-          if isStaticFlag = "true" || has_class_flag tcpp_interface.if_class CInterface then
-            "0"
-          else "__s_" ^ f.cf_name ^ "<true>"
-        in
-        output_cpp ("HXCPP_CPPIA_SUPER_ARG(" ^ superCall ^ ")");
-        output_cpp " ),\n"
+      let dump_func (s, func) =
+        Printf.sprintf
+          "\t::hx::ScriptNamedFunction(\"%s\", __s_%s, \"%s\", false HXCPP_CPPIA_SUPER_ARG(0)),\n"
+          func.iff_field.cf_name
+          func.iff_field.cf_name
+          s |> output_cpp;
       in
-      List.iter (fun (f, _, _) -> dump_func f "false") tcpp_interface.if_virtual_functions;
-      output_cpp "  ::hx::ScriptNamedFunction(0,0,0 HXCPP_CPPIA_SUPER_ARG(0) ) };\n";
+      List.iter dump_func sig_and_funcs;
+      output_cpp "\t::hx::ScriptNamedFunction(0,0,0 HXCPP_CPPIA_SUPER_ARG(0) ) };\n";
 
-    output_cpp ("\n\n" ^ tcpp_interface.if_name ^ " " ^ tcpp_interface.if_name ^ "_scriptable = {\n");
-    List.iter
-      (fun (f, args, return_type) ->
-        let cast = cpp_tfun_signature true args return_type in
-        output_cpp
-          ("\t" ^ cast ^ "&" ^ sctipt_name ^ "::" ^ keyword_remap f.cf_name ^ ",\n"))
-      tcpp_interface.if_virtual_functions;
-    output_cpp "};\n");
+    let mapper f = Printf.sprintf "\t%s&%s::%s" (cpp_tfun_signature true f.iff_args f.iff_return) script_name f.iff_name in
+    let strings =
+      tcpp_interface.if_functions
+      |> List.map mapper
+      |> String.concat ",\n" in
+
+    Printf.sprintf "\n\n%s %s_scriptable = {\n%s\n};\n" tcpp_interface.if_name tcpp_interface.if_name strings |> output_cpp);
 
   let class_name_text = join_class_path class_path "." in
 

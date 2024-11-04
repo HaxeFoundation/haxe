@@ -353,16 +353,10 @@ let generate_source ctx =
       | TClassDecl class_def ->
          let self_id, parent_ids, all_ids = get_class_ids class_def acc.ids in
          let native_gen  = Meta.has Meta.NativeGen class_def.cl_meta in
-         let debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Common.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level in
          let decl =
             match has_class_flag class_def CInterface with
             | true ->
-               let iface = {
-                  if_class = class_def;
-                  if_name = class_name class_def;
-                  if_debug_level = debug_level;
-                  if_virtual_functions = all_virtual_functions class_def;
-               } in
+               let iface = CppRetyper.tcpp_interface_from_tclass ctx class_def in
                if native_gen then (NativeInterface iface) else (ManagedInterface iface)
             | false ->
                let cls = CppRetyper.tcpp_class_from_tclass ctx self_id parent_ids class_def in
