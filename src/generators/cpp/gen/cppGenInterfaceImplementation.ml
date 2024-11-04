@@ -174,16 +174,7 @@ let generate_managed_interface base_ctx tcpp_interface =
     output_cpp ("class " ^ script_name ^ " : public ::hx::Object {\n");
     output_cpp "public:\n";
 
-    let list_iteri func in_list =
-      let idx = ref 0 in
-      List.iter
-        (fun elem ->
-          func !idx elem;
-          idx := !idx + 1)
-        in_list
-    in
-
-    list_iteri dump_script_field tcpp_interface.if_functions;
+    ExtList.List.iteri dump_script_field tcpp_interface.if_functions;
     output_cpp "};\n\n";
 
     let generate_script_function func =

@@ -153,13 +153,12 @@ let generate_managed_interface base_ctx tcpp_interface =
   let common_ctx = base_ctx.ctx_common in
   let class_path = tcpp_interface.if_class.cl_path in
 
-  let parent, super =
+  let super =
     match tcpp_interface.if_class.cl_super with
     | Some (klass, params) ->
-      let name = tcpp_to_string_suffix "_obj" (cpp_instance_type klass params) in
-      ( name, name )
+      tcpp_to_string_suffix "_obj" (cpp_instance_type klass params)
     | None ->
-      ("", "::hx::Object")
+      "::hx::Object"
   in
   let h_file     = new_header_file common_ctx common_ctx.file class_path in
   let ctx        = file_context base_ctx h_file tcpp_interface.if_debug_level true in
