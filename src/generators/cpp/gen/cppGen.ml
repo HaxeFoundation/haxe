@@ -176,19 +176,6 @@ let cpp_class_name klass =
   let path = globalNamespace ^ join_class_path_remap klass.cl_path "::" in
   if is_native_class klass || path = "::String" then path else path ^ "_obj"
 
-let rec implements_native_interface class_def =
-  List.exists
-    (fun (intf_def, _) ->
-      is_native_gen_class intf_def || implements_native_interface intf_def)
-    class_def.cl_implements
-  ||
-  match class_def.cl_super with
-  | Some (i, _) -> implements_native_interface i
-  | _ -> false
-
-let can_quick_alloc klass =
-  (not (is_native_class klass)) && not (implements_native_interface klass)
-
 let only_stack_access haxe_type =
   match cpp_type_of haxe_type with
   | TCppInst (klass, _) -> Meta.has Meta.StackOnly klass.cl_meta
@@ -383,12 +370,6 @@ let hx_stack_push ctx output clazz func_name pos gc_stack =
 (* Add include to source code *)
 let add_include writer class_path = writer#add_include class_path
 
-let real_interfaces =
-  List.filter (function t, pl ->
-      (match (t, pl) with
-      | { cl_path = [ "cpp"; "rtti" ], _ }, [] -> false
-      | _ -> true))
-
 let native_field_name_remap is_static field =
   let remap_name = keyword_remap field.cf_name in
   if not is_static then remap_name
@@ -495,26 +476,6 @@ let find_class_implementation class_def name interface =
 let gen_gc_name class_path =
   let class_name_text = join_class_path class_path "." in
   const_char_star class_name_text
-
-(* All interfaces (and sub-interfaces) implemented *)
-let implementations class_def =
-  let rec folder (haxe, native) (interface, _) =
-    let acc = if is_native_class interface then
-      List.fold_left folder (haxe, PathMap.add interface.cl_path interface native) interface.cl_implements
-    else
-      List.fold_left folder (PathMap.add interface.cl_path interface haxe, native) interface.cl_implements in
-
-    match interface.cl_super with
-    | Some super -> folder acc super
-    | None -> acc
-  in
-  let values (haxe, native) =
-    haxe |> PathMap.to_list |> List.map (fun (_, v) -> v), native |> PathMap.to_list |> List.map (fun (_, v) -> v) in
-
-  class_def.cl_implements
-  |> real_interfaces
-  |> List.fold_left folder (PathMap.empty, PathMap.empty)
-  |> values
 
 let needed_interface_functions implemented_instance_fields native_implementations =
   let have =

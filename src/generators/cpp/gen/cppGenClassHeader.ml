@@ -308,8 +308,8 @@ let generate_managed_header base_ctx tcpp_class =
     output_h "\t\tvoid __Mark(HX_MARK_PARAMS);\n";
     output_h "\t\tvoid __Visit(HX_VISIT_PARAMS);\n");
 
-  let implements_haxe = List.length tcpp_class.tcl_haxe_parents > 0 in
-  let implements_native = List.length tcpp_class.tcl_native_parents > 0 in
+  let implements_haxe = List.length tcpp_class.tcl_haxe_interfaces > 0 in
+  let implements_native = List.length tcpp_class.tcl_native_interfaces > 0 in
 
   if implements_native then (
     let implemented_instance_fields =
@@ -318,7 +318,7 @@ let generate_managed_header base_ctx tcpp_class =
     let neededInterfaceFunctions =
       match implements_native with
       | true ->
-        CppGen.needed_interface_functions implemented_instance_fields tcpp_class.tcl_native_parents
+        CppGen.needed_interface_functions implemented_instance_fields tcpp_class.tcl_native_interfaces
       | false ->
         []
     in
@@ -396,7 +396,7 @@ let generate_managed_header base_ctx tcpp_class =
           List.iter check_field interface.cl_ordered_fields
         in
         check_interface src)
-        tcpp_class.tcl_haxe_parents);
+        tcpp_class.tcl_haxe_interfaces);
 
   if has_init_field class_def then output_h "\t\tstatic void __init__();\n\n";
   output_h

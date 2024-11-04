@@ -176,8 +176,8 @@ and tcpp_class = {
   tcl_flags : int;
   tcl_debug_level : int;
 
-  tcl_haxe_parents : tclass list;
-  tcl_native_parents : tclass list;
+  tcl_haxe_interfaces : tclass list;
+  tcl_native_interfaces : tclass list;
 
   tcl_static_variables : tclass_field list;
   tcl_static_properties : tclass_field list;

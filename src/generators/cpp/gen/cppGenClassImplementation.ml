@@ -414,7 +414,7 @@ let generate_managed_class base_ctx tcpp_class =
   dump_classes "\t" implemented_classes;
   output_cpp "}\n\n";
 
-  if List.length tcpp_class.tcl_haxe_parents > 0 then (
+  if List.length tcpp_class.tcl_haxe_interfaces > 0 then (
     let alreadyGlued = Hashtbl.create 0 in
     let cname = "_hx_" ^ join_class_path class_def.cl_path "_" in
     let implname = cpp_class_name class_def in
@@ -484,7 +484,7 @@ let generate_managed_class base_ctx tcpp_class =
       output_cpp "};\n\n" in
     List.iter
       iter
-      tcpp_class.tcl_haxe_parents;
+      tcpp_class.tcl_haxe_interfaces;
 
     output_cpp (String.concat "\n" !cpp_glue);
 
@@ -495,7 +495,7 @@ let generate_managed_class base_ctx tcpp_class =
       output_cpp ("\t\tcase (int)" ^ cpp_class_hash interface ^ ": return &" ^ cname ^ "_" ^ cpp_interface_impl_name interface ^ ";\n") in
     List.iter
       iter
-      tcpp_class.tcl_haxe_parents;
+      tcpp_class.tcl_haxe_interfaces;
 
     output_cpp "\t}\n";
 
@@ -1071,7 +1071,7 @@ let generate_managed_class base_ctx tcpp_class =
         ("\tHX_REGISTER_VTABLE_OFFSET( " ^ class_name ^ ","
         ^ join_class_path_remap intf_def.cl_path "::"
         ^ ");\n"))
-        tcpp_class.tcl_native_parents;
+        tcpp_class.tcl_native_interfaces;
   output_cpp "}\n\n";
 
   gen_boot_field ctx output_cpp tcpp_class;

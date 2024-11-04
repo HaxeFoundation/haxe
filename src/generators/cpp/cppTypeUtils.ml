@@ -70,6 +70,26 @@ let is_internal_class = function
 let is_native_class class_def =
    (is_extern_class class_def || is_native_gen_class class_def) && not (is_internal_class class_def.cl_path)
 
+let rec implements_native_interface class_def =
+  List.exists
+    (fun (intf_def, _) ->
+      is_native_gen_class intf_def || implements_native_interface intf_def)
+    class_def.cl_implements
+  ||
+  match class_def.cl_super with
+  | Some (i, _) -> implements_native_interface i
+  | _ -> false
+
+let can_quick_alloc klass =
+  (not (is_native_class klass)) && not (implements_native_interface klass)
+
+let real_interfaces classes =
+   List.filter (function t, pl ->
+      (match (t, pl) with
+      | { cl_path = [ "cpp"; "rtti" ], _ }, [] -> false
+      | _ -> true))
+   classes
+
 let is_interface_type t =
    match follow t with
    | TInst (klass,params) -> (has_class_flag klass CInterface)
