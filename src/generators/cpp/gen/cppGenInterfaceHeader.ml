@@ -49,7 +49,7 @@ let gen_function ctx interface func =
   output "\t\t\t#endif\n";
   Printf.sprintf
     "\t\t\t%s( _hx_.mPtr->*( %s(_hx_.mPtr->_hx_getInterface(%s)))->_hx_%s )(%s);\n\t\t}\n"
-    returnStr cast (cpp_class_hash interface.if_class) func.iff_name (print_arg_names func.iff_args) |> output
+    returnStr cast interface.if_hash func.iff_name (print_arg_names func.iff_args) |> output
 
 let gen_includes h_file interface_def =
   let add_class_includes cls =

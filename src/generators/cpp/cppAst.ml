@@ -204,8 +204,9 @@ and tcpp_interface_function = {
 and tcpp_interface = {
   if_class : tclass;
   if_name : string;
+  if_hash : string;
   if_debug_level : int;
-  if_functions : tcpp_interface_function list
+  if_functions : tcpp_interface_function list;
 }
 
 and tcpp_enum_field = {

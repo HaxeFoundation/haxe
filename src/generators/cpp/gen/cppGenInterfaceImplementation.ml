@@ -269,7 +269,7 @@ let generate_managed_interface base_ctx tcpp_interface =
   output_cpp ("\t__mClass->mName = " ^ strq class_name_text ^ ";\n");
   output_cpp "\t__mClass->mSuper = &super::__SGetClass();\n";
   output_cpp ("\t__mClass->mMembers = ::hx::Class_obj::dupFunctions(" ^ sMemberFields ^ ");\n");
-  output_cpp ("\t__mClass->mCanCast = ::hx::TIsInterface< (int)" ^ cpp_class_hash tcpp_interface.if_class ^ " >;\n");
+  output_cpp ("\t__mClass->mCanCast = ::hx::TIsInterface< (int)" ^ tcpp_interface.if_hash ^ " >;\n");
   output_cpp "\t::hx::_hx_RegisterClass(__mClass->mName, __mClass);\n";
   if scriptable then
     output_cpp ("  HX_SCRIPTABLE_REGISTER_INTERFACE(\"" ^ class_name_text ^ "\"," ^ tcpp_interface.if_name ^ ");\n");

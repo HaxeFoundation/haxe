@@ -1632,6 +1632,7 @@ and tcpp_interface_from_tclass ctx class_def =
   {
     if_class = class_def;
     if_name = class_name class_def;
+    if_hash = CppStrings.gen_hash 0 (join_class_path class_def.cl_path "::");
     if_debug_level = debug_level;
     if_functions = functions;
   }
