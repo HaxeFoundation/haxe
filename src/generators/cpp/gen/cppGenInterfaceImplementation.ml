@@ -12,22 +12,6 @@ open CppSourceWriter
 open CppContext
 open CppGen
 
-let gen_field_init ctx class_def field =
-  let dot_name = join_class_path class_def.cl_path "." in
-  let remap_name = keyword_remap field.cf_name in
-
-  match field.cf_expr with
-  | Some expr ->
-    let var_name =
-      match remap_name with
-      | "__meta__" -> "__mClass->__meta__"
-      | "__rtti" -> "__mClass->__rtti__"
-      | _ -> remap_name
-    in
-
-    gen_cpp_init ctx dot_name "boot" (var_name ^ " = ") expr
-  | _ -> ()
-
 let cpp_get_interface_slot ctx name =
   try Hashtbl.find !(ctx.ctx_interface_slot) name
   with Not_found ->
@@ -278,9 +262,15 @@ let generate_managed_interface base_ctx tcpp_interface =
   if has_boot_field tcpp_interface.if_class then (
     output_cpp ("void " ^ tcpp_interface.if_name ^ "::__boot()\n{\n");
 
-    List.iter
-      (gen_field_init ctx tcpp_interface.if_class)
-      (List.filter should_implement_field tcpp_interface.if_class.cl_ordered_statics);
+    let dot_name = join_class_path tcpp_interface.if_class.cl_path "." in
+
+    (match tcpp_interface.if_meta with
+    | Some expr -> gen_cpp_init ctx dot_name "boot" "__mClass->__meta__ = " expr
+    | None -> ());
+
+    (match tcpp_interface.if_rtti with
+    | Some expr -> gen_cpp_init ctx dot_name "boot" "__mClass->__rtti__ = " expr
+    | None -> ());
 
     output_cpp "}\n\n");
 

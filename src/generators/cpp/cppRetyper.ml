@@ -1628,11 +1628,16 @@ and tcpp_interface_from_tclass ctx class_def =
     } in
 
   let debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Common.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level in
-  let functions = class_def |> all_virtual_functions |> List.map retype_function in
+  let functions   = class_def |> all_virtual_functions |> List.map retype_function in
+  let meta_field  = List.find_opt (fun field -> field.cf_name = "__meta__") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in
+  let rtti_field  = List.find_opt (fun field -> field.cf_name = "__rtti") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in
+
   {
     if_class = class_def;
     if_name = class_name class_def;
     if_hash = CppStrings.gen_hash 0 (join_class_path class_def.cl_path "::");
     if_debug_level = debug_level;
     if_functions = functions;
+    if_meta = meta_field;
+    if_rtti = rtti_field;
   }
