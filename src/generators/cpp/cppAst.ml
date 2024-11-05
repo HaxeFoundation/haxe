@@ -214,15 +214,15 @@ and tcpp_interface = {
 }
 
 and tcpp_enum_field = {
-  ef_field : tenum_field;
-  ef_remapped_name : string;
-  ef_hashed_name : string;
+  tef_field : tenum_field;
+  tef_name : string;
+  tef_hash : string;
 }
 
 and tcpp_enum = {
-  e_enum : tenum;
-  e_id : int32;
-  e_constructors : tcpp_enum_field list;
+  te_enum : tenum;
+  te_id : int32;
+  te_constructors : tcpp_enum_field list;
 }
 
 and tcpp_decl =

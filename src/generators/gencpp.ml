@@ -386,8 +386,8 @@ let generate_source ctx =
          let strq             = strq ctx.ctx_common in
          let sort_constructors f1 f2 =
             f1.ef_index - f2.ef_index in
-         let constructors     = enum_def.e_constrs |> pmap_values |> List.sort sort_constructors |> List.map (fun f -> { ef_field = f; ef_remapped_name = keyword_remap f.ef_name; ef_hashed_name = strq f.ef_name}) in
-         let acc_decls        = (Enum { e_enum = enum_def; e_id = self_id; e_constructors = constructors }) :: acc.decls in
+         let constructors     = enum_def.e_constrs |> pmap_values |> List.sort sort_constructors |> List.map (fun f -> { tef_field = f; tef_name = keyword_remap f.ef_name; tef_hash = strq f.ef_name}) in
+         let acc_decls        = (Enum { te_enum = enum_def; te_id = self_id; te_constructors = constructors }) :: acc.decls in
          let acc_boot_enums   = enum_def.e_path :: acc.boot_enums in
          let acc_exe_classes  = (enum_def.e_path, deps, cur) :: acc.exe_classes in
          
