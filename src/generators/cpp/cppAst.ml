@@ -207,6 +207,8 @@ and tcpp_interface = {
   if_hash : string;
   if_debug_level : int;
   if_functions : tcpp_interface_function list;
+  if_variables : tclass_field list;
+  if_implements : tcpp_interface list;
   if_meta : texpr option;
   if_rtti : texpr option;
 }

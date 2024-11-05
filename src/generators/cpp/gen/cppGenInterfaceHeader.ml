@@ -90,7 +90,7 @@ let gen_header_includes interface_def output_h =
 let gen_body tcpp_interface ctx output_h iter =
   if has_boot_field tcpp_interface.if_class then output_h "\t\tstatic void __boot();\n";
 
-  List.iter iter tcpp_interface.if_functions;
+  all_interface_functions tcpp_interface |> List.iter iter;
 
   match get_meta_string tcpp_interface.if_class.cl_meta Meta.ObjcProtocol with
   | Some protocol ->

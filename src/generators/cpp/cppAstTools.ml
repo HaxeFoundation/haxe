@@ -737,3 +737,26 @@ let has_tcpp_class_flag c flag =
 
 let cpp_interface_impl_name interface =
    "_hx_" ^ join_class_path interface.cl_path "_"
+
+let all_interface_functions tcpp_interface =
+   let add_interface_functions existing interface =
+      let folder acc cur =
+         if List.exists (fun f -> f.iff_name = cur.iff_name) acc then
+            acc
+         else
+            cur :: acc
+         in
+      List.fold_left folder existing interface.if_functions
+   in
+
+   let rec visit_interface existing interface =
+      let initial =
+         match interface.if_implements with
+         | [] -> existing
+         | some -> List.fold_left visit_interface existing some
+      in
+
+      add_interface_functions initial interface
+   in
+
+   visit_interface [] tcpp_interface |> List.rev

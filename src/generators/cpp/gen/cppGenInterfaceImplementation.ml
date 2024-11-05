@@ -20,9 +20,7 @@ let cpp_get_interface_slot ctx name =
     ctx.ctx_interface_slot_count := !(ctx.ctx_interface_slot_count) + 1;
     result
 
-let generate_protocol_delegate ctx class_def output =
-  let protocol = get_meta_string class_def.cl_meta Meta.ObjcProtocol |> Option.default "" in
-  let full_class_name = ("::" ^ join_class_path_remap class_def.cl_path "::") ^ "_obj" in
+let generate_protocol_delegate ctx protocol full_class_name functions output =
   let name = "_hx_" ^ protocol ^ "_delegate" in
   output ("@interface " ^ name ^ " : NSObject<" ^ protocol ^ "> {\n");
   output "\t::hx::Object *haxeObj;\n";
@@ -43,52 +41,49 @@ let generate_protocol_delegate ctx class_def output =
   output "   #endif\n";
   output "}\n\n";
 
-  let dump_delegate field =
-    match field.cf_type with
-    | TFun (args, ret) ->
-      let retStr = type_to_string ret in
-      let fieldName, argNames =
-        match get_meta_string field.cf_meta Meta.ObjcProtocol with
-        | Some nativeName ->
-          let parts = ExtString.String.nsplit nativeName ":" in
-          (List.hd parts, parts)
-        | None -> (field.cf_name, List.map (fun (n, _, _) -> n) args)
-      in
-      output ("- (" ^ retStr ^ ") " ^ fieldName);
+  let dump_delegate func =
+    let retStr = type_to_string func.iff_return in
+    let fieldName, argNames =
+      match get_meta_string func.iff_field.cf_meta Meta.ObjcProtocol with
+      | Some nativeName ->
+        let parts = ExtString.String.nsplit nativeName ":" in
+        (List.hd parts, parts)
+      | None -> (func.iff_field.cf_name, List.map (fun (n, _, _) -> n) func.iff_args)
+    in
+    output ("- (" ^ retStr ^ ") " ^ fieldName);
 
-      let first = ref true in
-      (try
-          List.iter2
-            (fun (name, _, argType) signature_name ->
-              if !first then
-                output (" :(" ^ type_to_string argType ^ ")" ^ name)
-              else
-                output
-                  (" " ^ signature_name ^ ":(" ^ type_to_string argType ^ ")"
-                ^ name);
-              first := false)
-            args argNames
-        with Invalid_argument _ ->
-          abort
-            (let argString =
-              String.concat "," (List.map (fun (name, _, _) -> name) args)
-            in
-            "Invalid arg count in delegate in " ^ field.cf_name ^ " '"
-            ^ field.cf_name ^ "," ^ argString ^ "' != '"
-            ^ String.concat "," argNames ^ "'")
-            field.cf_pos);
-      output " {\n";
-      output "\t::hx::NativeAttach _hx_attach;\n";
-      output
-        ((if retStr = "void" then "\t" else "\treturn ")
-        ^ full_class_name ^ "::"
-        ^ keyword_remap field.cf_name
-        ^ "(haxeObj");
-      List.iter (fun (name, _, _) -> output ("," ^ name)) args;
-      output ");\n}\n\n"
-    | _ -> ()
+    let first = ref true in
+    (try
+        List.iter2
+          (fun (name, _, argType) signature_name ->
+            if !first then
+              output (" :(" ^ type_to_string argType ^ ")" ^ name)
+            else
+              output
+                (" " ^ signature_name ^ ":(" ^ type_to_string argType ^ ")"
+              ^ name);
+            first := false)
+          func.iff_args argNames
+      with Invalid_argument _ ->
+        abort
+          (let argString =
+            String.concat "," (List.map (fun (name, _, _) -> name) func.iff_args)
+          in
+          "Invalid arg count in delegate in " ^ func.iff_field.cf_name ^ " '"
+          ^ func.iff_field.cf_name ^ "," ^ argString ^ "' != '"
+          ^ String.concat "," argNames ^ "'")
+          func.iff_field.cf_pos);
+    output " {\n";
+    output "\t::hx::NativeAttach _hx_attach;\n";
+    output
+      ((if retStr = "void" then "\t" else "\treturn ")
+      ^ full_class_name ^ "::"
+      ^ func.iff_name
+      ^ "(haxeObj");
+    List.iter (fun (name, _, _) -> output ("," ^ name)) func.iff_args;
+    output ");\n}\n\n"
   in
-  List.iter dump_delegate class_def.cl_ordered_fields;
+  List.iter dump_delegate functions;
 
   output "@end\n\n"
 
@@ -131,19 +126,28 @@ let generate_managed_interface base_ctx tcpp_interface =
   output_cpp "\n";
 
   (* cl_interface *)
-  let implemented_instance_fields = List.filter should_implement_field tcpp_interface.if_class.cl_ordered_fields in
-  let reflective_members = List.filter (reflective tcpp_interface.if_class) implemented_instance_fields in
-  let sMemberFields =
-    match reflective_members with
-    | [] -> "0 /* sMemberFields */"
-    | _ ->
-      let memberFields = tcpp_interface.if_name ^ "_sMemberFields" in
-      let dump_field_name field = output_cpp ("\t" ^ strq field.cf_name ^ ",\n") in
-      output_cpp ("static ::String " ^ memberFields ^ "[] = {\n");
-      List.iter dump_field_name reflective_members;
-      output_cpp "\t::String(null()) };\n\n";
-      memberFields
+  let var_folder cur acc = if (reflective tcpp_interface.if_class cur) then strq cur.cf_name :: acc else acc in
+  let fun_folder cur acc = if (reflective tcpp_interface.if_class cur.iff_field) then strq cur.iff_field.cf_name :: acc else acc in
+  let members =
+    [ "\t::String(null())" ]
+    |> List.fold_right var_folder tcpp_interface.if_variables
+    |> List.fold_right fun_folder tcpp_interface.if_functions
+    |> List.map (fun n -> Printf.sprintf "\t%s" n)
   in
+
+  let sMemberFields =
+    if List.length members > 1 then
+      let memberFields = tcpp_interface.if_name ^ "_sMemberFields" in
+      let concat       = String.concat ",\n" members in
+
+      Printf.sprintf "static ::String %s[] = {\n%s\n};\n\n" memberFields concat |> output_cpp;
+
+      memberFields
+    else
+      "0 /* sMemberFields */"
+  in
+
+  let all_functions = all_interface_functions tcpp_interface in
 
   if scriptable then (
     let dump_script_field idx func =
@@ -174,7 +178,7 @@ let generate_managed_interface base_ctx tcpp_interface =
     output_cpp ("class " ^ script_name ^ " : public ::hx::Object {\n");
     output_cpp "public:\n";
 
-    ExtList.List.iteri dump_script_field tcpp_interface.if_functions;
+    ExtList.List.iteri dump_script_field all_functions;
     output_cpp "};\n\n";
 
     let generate_script_function func =
@@ -206,11 +210,11 @@ let generate_managed_interface base_ctx tcpp_interface =
       (signature, func)
     in
 
-    match tcpp_interface.if_functions with
+    match all_functions with
     | [] ->
       output_cpp "static ::hx::ScriptNamedFunction *__scriptableFunctions = 0;\n"
     | _ ->
-      let sig_and_funcs = List.map generate_script_function tcpp_interface.if_functions in
+      let sig_and_funcs = List.map generate_script_function all_functions in
 
       output_cpp "#ifndef HXCPP_CPPIA_SUPER_ARG\n";
       output_cpp "#define HXCPP_CPPIA_SUPER_ARG(x)\n";
@@ -228,7 +232,7 @@ let generate_managed_interface base_ctx tcpp_interface =
 
     let mapper f = Printf.sprintf "\t%s&%s::%s" (cpp_tfun_signature true f.iff_args f.iff_return) script_name f.iff_name in
     let strings =
-      tcpp_interface.if_functions
+      all_functions
       |> List.map mapper
       |> String.concat ",\n" in
 
@@ -270,7 +274,7 @@ let generate_managed_interface base_ctx tcpp_interface =
   if Meta.has Meta.ObjcProtocol tcpp_interface.if_class.cl_meta then (
     let full_class_name = ("::" ^ join_class_path_remap class_path "::") ^ "_obj" in
     let protocol = get_meta_string tcpp_interface.if_class.cl_meta Meta.ObjcProtocol |> Option.default "" in
-    generate_protocol_delegate ctx tcpp_interface.if_class output_cpp;
+    generate_protocol_delegate ctx full_class_name protocol all_functions output_cpp;
     output_cpp ("id<" ^ protocol ^ "> " ^ full_class_name ^ "::_hx_toProtocol(Dynamic inImplementation) {\n");
     output_cpp ("\treturn [ [_hx_" ^ protocol ^ "_delegate alloc] initWithImplementation:inImplementation.mPtr];\n");
     output_cpp "}\n\n");

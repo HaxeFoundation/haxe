@@ -1435,50 +1435,50 @@ let expression ctx request_type function_args function_type expression_tree forI
 
 let rec tcpp_class_from_tclass ctx self_id parent_ids class_def =
   let filter_functions field =
-  let abstract_to_function () =
-    match field.cf_type with
-    | TFun (args, ret) ->
-      let get_default_value name =
-        try
-          match Meta.get Meta.Value field.cf_meta with
-          | _, [ (EObjectDecl decls, _) ], _ ->
-            Some
-              (decls
-                |> List.find (fun ((n, _, _), _) -> n = name)
-                |> snd
-                |> type_constant_value ctx.ctx_common.basic)
-          | _ -> None
-        with Not_found -> None
-      in
-      let map_arg (name, _, t) =
-        ( (alloc_var VGenerated name t null_pos), (get_default_value name) ) in
-      let expr = 
-        match follow ret with
-        | TAbstract ({ a_path = ([], "Void") }, _) ->
-          { eexpr = TReturn None; etype = ret; epos = null_pos }
-        | _ ->
-          let zero_val = Some { eexpr = TConst (TInt Int32.zero); etype = ret; epos = null_pos } in
-          { eexpr = TReturn zero_val; etype = ret; epos = null_pos } in
-      
-      {
-        tf_args = args |> List.map map_arg;
-        tf_type = ret;
-        tf_expr = expr;
-      }
-    | _ ->
-      die "expected abstract field type to be TFun" __LOC__ in
+    let abstract_to_function () =
+      match field.cf_type with
+      | TFun (args, ret) ->
+        let get_default_value name =
+          try
+            match Meta.get Meta.Value field.cf_meta with
+            | _, [ (EObjectDecl decls, _) ], _ ->
+              Some
+                (decls
+                  |> List.find (fun ((n, _, _), _) -> n = name)
+                  |> snd
+                  |> type_constant_value ctx.ctx_common.basic)
+            | _ -> None
+          with Not_found -> None
+        in
+        let map_arg (name, _, t) =
+          ( (alloc_var VGenerated name t null_pos), (get_default_value name) ) in
+        let expr = 
+          match follow ret with
+          | TAbstract ({ a_path = ([], "Void") }, _) ->
+            { eexpr = TReturn None; etype = ret; epos = null_pos }
+          | _ ->
+            let zero_val = Some { eexpr = TConst (TInt Int32.zero); etype = ret; epos = null_pos } in
+            { eexpr = TReturn zero_val; etype = ret; epos = null_pos } in
+        
+        {
+          tf_args = args |> List.map map_arg;
+          tf_type = ret;
+          tf_expr = expr;
+        }
+      | _ ->
+        die "expected abstract field type to be TFun" __LOC__ in
 
-  if should_implement_field field then
-    match (field.cf_kind, field.cf_expr) with
-    | Method (MethNormal | MethInline), Some { eexpr = TFunction func } ->
-      Some (field, func)
-    | Method MethNormal, _ when has_class_field_flag field CfAbstract ->
-      Some (field, abstract_to_function ())
-    | _ ->
+    if should_implement_field field then
+      match (field.cf_kind, field.cf_expr) with
+      | Method (MethNormal | MethInline), Some { eexpr = TFunction func } ->
+        Some (field, func)
+      | Method MethNormal, _ when has_class_field_flag field CfAbstract ->
+        Some (field, abstract_to_function ())
+      | _ ->
+        None
+    else
       None
-  else
-    None
-  in
+    in
 
   let filter_dynamic_functions func_for_static_field field =
     if should_implement_field field then
@@ -1619,25 +1619,40 @@ let rec tcpp_class_from_tclass ctx self_id parent_ids class_def =
 
 and tcpp_interface_from_tclass ctx class_def =
 
-  let retype_function (field, args, ret) =
-    {
-      iff_field = field;
-      iff_name = keyword_remap field.cf_name;
-      iff_args = args;
-      iff_return = ret;
-    } in
+  let function_filter field =
+    match (field.cf_type, field.cf_kind) with
+    | TFun (args, ret), Method _ ->
+      Some {
+        iff_field  = field;
+        iff_name   = keyword_remap field.cf_name;
+        iff_args   = args;
+        iff_return = ret;
+      }
+    | _ ->
+      None
+  in
+  let variable_filter field =
+    match field.cf_kind with
+    | Var _ when is_physical_var_field field -> true
+    | _ -> false
+  in
 
   let debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Common.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level in
-  let functions   = class_def |> all_virtual_functions |> List.map retype_function in
   let meta_field  = List.find_opt (fun field -> field.cf_name = "__meta__") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in
   let rtti_field  = List.find_opt (fun field -> field.cf_name = "__rtti") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in
+  let implements  =
+    class_def.cl_implements
+    |> List.map (fun (t, _) -> tcpp_interface_from_tclass ctx t)
+    |> List.append (Option.map_default (fun (cls, _) -> [ tcpp_interface_from_tclass ctx cls ]) [] class_def.cl_super) in
 
   {
     if_class = class_def;
     if_name = class_name class_def;
     if_hash = CppStrings.gen_hash 0 (join_class_path class_def.cl_path "::");
     if_debug_level = debug_level;
-    if_functions = functions;
+    if_functions = List.filter_map function_filter class_def.cl_ordered_fields;
+    if_variables = List.filter variable_filter class_def.cl_ordered_fields;
     if_meta = meta_field;
     if_rtti = rtti_field;
+    if_implements = implements;
   }
