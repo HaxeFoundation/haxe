@@ -12,14 +12,6 @@ open CppSourceWriter
 open CppContext
 open CppGen
 
-(* let cpp_get_interface_slot ctx name =
-  try Hashtbl.find !(ctx.ctx_interface_slot) name
-  with Not_found ->
-    let result = !(ctx.ctx_interface_slot_count) in
-    Hashtbl.replace !(ctx.ctx_interface_slot) name result;
-    ctx.ctx_interface_slot_count := !(ctx.ctx_interface_slot_count) + 1;
-    result *)
-
 let generate_protocol_delegate ctx protocol full_class_name functions output =
   let name = "_hx_" ^ protocol ^ "_delegate" in
   output ("@interface " ^ name ^ " : NSObject<" ^ protocol ^ "> {\n");
@@ -160,8 +152,7 @@ let generate_managed_interface base_ctx tcpp_interface =
       List.iter
         (fun (name, opt, t) ->
           output_cpp
-            ("\t\t__ctx->push" ^ CppCppia.script_type t opt ^ "("
-            ^ keyword_remap name ^ ");\n"))
+            ("\t\t__ctx->push" ^ CppCppia.script_type t opt ^ "(" ^ name ^ ");\n"))
         func.iff_args;
       let interfaceSlot = string_of_int (func.iff_script_slot |> Option.map (fun v -> -v) |>  Option.default 0) in
       output_cpp

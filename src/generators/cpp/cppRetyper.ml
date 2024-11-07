@@ -1630,10 +1630,10 @@ and tcpp_interface_from_tclass ctx slots class_def =
         slots
       in
       let retyped = {
-        iff_field  = field;
-        iff_name   = keyword_remap field.cf_name;
-        iff_args   = args;
-        iff_return = ret;
+        iff_field       = field;
+        iff_name        = keyword_remap field.cf_name;
+        iff_args        = args |> List.map (fun (name, opt, t) -> (keyword_remap name, opt, t));
+        iff_return      = ret;
         iff_script_slot = CppAst.InterfaceSlots.find_opt field.cf_name slots
       } in
         (slots, retyped :: fields)
