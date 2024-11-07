@@ -246,21 +246,6 @@ let is_assign_op op =
  The common_ctx contains the haxe AST in the "types" field and the resources
 *)
 
-module ObjectIds = struct
-   type t = (int32 PathMap.t * unit Int32Map.t)
-
-   let empty = (PathMap.empty, Int32Map.empty)
-
-   let add path id ((ids, cache):t) =
-      (PathMap.add path id ids, Int32Map.add id () cache)
-
-   let find_opt path ((ids, _):t) =
-      PathMap.find_opt path ids
-
-   let collision id ((_, cache):t) =
-      Int32Map.mem id cache
-end
-
 type gensrc_ctx = {
    extern_src : string list;
    build_xml : string;
@@ -270,8 +255,8 @@ type gensrc_ctx = {
    boot_enums : path list;
    exe_classes : (path * path list * module_type) list;
    decls : tcpp_decl list;
-
-   ids : ObjectIds.t;
+   ids : CppAst.ObjectIds.t;
+   slots : CppAst.InterfaceSlots.t;
 }
 
 let rec get_id path ids =
@@ -328,6 +313,7 @@ let generate_source ctx =
       exe_classes = [];
       decls = [];
       ids = ObjectIds.empty;
+      slots = InterfaceSlots.empty;
    } in
 
    let folder acc cur =
@@ -353,14 +339,14 @@ let generate_source ctx =
       | TClassDecl class_def ->
          let self_id, parent_ids, all_ids = get_class_ids class_def acc.ids in
          let native_gen  = Meta.has Meta.NativeGen class_def.cl_meta in
-         let decl =
+         let decl, slots =
             match has_class_flag class_def CInterface with
             | true ->
-               let iface = CppRetyper.tcpp_interface_from_tclass ctx class_def in
-               if native_gen then (NativeInterface iface) else (ManagedInterface iface)
+               let (slots, iface) = CppRetyper.tcpp_interface_from_tclass ctx acc.slots class_def in
+               if native_gen then (NativeInterface iface, slots) else (ManagedInterface iface, slots)
             | false ->
                let cls = CppRetyper.tcpp_class_from_tclass ctx self_id parent_ids class_def in
-               if native_gen then (NativeClass cls) else (ManagedClass cls) in
+               if native_gen then (NativeClass cls, acc.slots) else (ManagedClass cls, acc.slots) in
 
          let acc_decls           = decl :: acc.decls in
          let acc_build_xml       = acc.build_xml ^ (CppGen.get_class_code class_def Meta.BuildXml) in
@@ -375,7 +361,7 @@ let generate_source ctx =
 
                (class_def.cl_path, deps, cur) :: acc.exe_classes in
 
-         { acc with build_xml = acc_build_xml; decls = acc_decls; init_classes = acc_init_classes; boot_classes = acc_boot_classes; nonboot_classes = acc_nonboot_classes; exe_classes = acc_exe_classes; ids = all_ids }
+         { acc with build_xml = acc_build_xml; decls = acc_decls; init_classes = acc_init_classes; boot_classes = acc_boot_classes; nonboot_classes = acc_nonboot_classes; exe_classes = acc_exe_classes; ids = all_ids; slots = slots }
 
       | TEnumDecl enum_def when is_extern_enum enum_def || is_internal_class enum_def.e_path ->
          acc
@@ -424,7 +410,7 @@ let generate_source ctx =
       CppGen.generate_main ctx ctx.ctx_super_deps class_def
    );
 
-   CppGen.generate_boot ctx srcctx.boot_enums srcctx.boot_classes srcctx.nonboot_classes srcctx.init_classes;
+   CppGen.generate_boot ctx srcctx.boot_enums srcctx.boot_classes srcctx.nonboot_classes srcctx.init_classes srcctx.slots;
 
    CppGen.generate_files common_ctx ctx.ctx_file_info;
 

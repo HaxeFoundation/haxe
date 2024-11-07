@@ -7,6 +7,43 @@ open Globals
 
 module PathMap = Map.Make(struct type t = path let compare i1 i2 = String.compare (s_type_path i2) (s_type_path i1) end)
 
+module ObjectIds = struct
+  type t = {
+    ids : int32 PathMap.t;
+    cache : unit Int32Map.t;
+  }
+
+  let empty = { ids = PathMap.empty; cache = Int32Map.empty }
+
+  let add path id store =
+    { ids = PathMap.add path id store.ids; cache = Int32Map.add id () store.cache }
+
+  let find_opt path store =
+    PathMap.find_opt path store.ids
+
+  let collision id store =
+    Int32Map.mem id store.cache
+end
+
+module InterfaceSlots = struct
+  type t = {
+    hash : int StringMap.t;
+    next : int;
+  }
+
+  let empty = { hash = StringMap.empty; next = 2 }
+
+  let add name slots =
+    match StringMap.find_opt name slots.hash with
+    | Some slot ->
+      slots
+    | None ->
+      { hash = StringMap.add name slots.next slots.hash; next = slots.next + 1 }
+
+  let find_opt name slots =
+    StringMap.find_opt name slots.hash
+end
+
 type tcpp =
   | TCppDynamic
   | TCppUnchanged
@@ -199,6 +236,7 @@ and tcpp_interface_function = {
   iff_name : string;
   iff_args : (string * bool * t) list;
   iff_return : t;
+  iff_script_slot : int option;
 }
 
 and tcpp_interface = {
@@ -208,9 +246,10 @@ and tcpp_interface = {
   if_debug_level : int;
   if_functions : tcpp_interface_function list;
   if_variables : tclass_field list;
-  if_implements : tcpp_interface list;
+  if_extends : tcpp_interface option;
   if_meta : texpr option;
   if_rtti : texpr option;
+  if_scriptable : bool;
 }
 
 and tcpp_enum_field = {

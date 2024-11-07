@@ -27,8 +27,6 @@ type context = {
   ctx_writer : CppSourceWriter.source_writer;
   ctx_file_id : int ref;
   ctx_is_header : bool;
-  ctx_interface_slot : (string, int) Hashtbl.t ref;
-  ctx_interface_slot_count : int ref;
   ctx_super_deps : path list CppAst.PathMap.t;
   ctx_constructor_deps : tclass_field CppAst.PathMap.t;
   ctx_class_member_types : string StringMap.t;
@@ -48,8 +46,6 @@ let new_context common_ctx debug file_info member_types super_deps constructor_d
       ctx_file_id = ref (-1);
       ctx_is_header = false;
       ctx_output = null_file#write;
-      ctx_interface_slot = ref (Hashtbl.create 0);
-      ctx_interface_slot_count = ref 2;
       ctx_debug_level =
         (if has_def Define.AnnotateSource then 3
          else if has_def Define.HxcppDebugger then 2

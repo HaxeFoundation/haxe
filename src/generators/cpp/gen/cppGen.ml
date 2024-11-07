@@ -1649,7 +1649,7 @@ let generate_dummy_main common_ctx =
   generate_startup "__main__" true;
   generate_startup "__lib__" false
 
-let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes =
+let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes (slots:CppAst.InterfaceSlots.t) =
   let common_ctx = ctx.ctx_common in
   (* Write boot class too ... *)
   let base_dir = common_ctx.file in
@@ -1664,9 +1664,10 @@ let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes =
   let newScriptable = Common.defined common_ctx Define.Scriptable in
   if newScriptable then (
     output_boot "#include <hx/Scriptable.h>\n";
-    let funcs =
-      hash_iterate !(ctx.ctx_interface_slot) (fun name id -> (name, id))
-    in
+
+    
+
+    let funcs = StringMap.bindings slots.hash in
     let sorted = List.sort (fun (_, id1) (_, id2) -> id1 - id2) funcs in
     output_boot
       "static const char *scriptableInterfaceFuncs[] = {\n\t0,\n\t0,\n";
@@ -1683,7 +1684,7 @@ let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes =
   if newScriptable then
     output_boot
       ("::hx::ScriptableRegisterNameSlots(scriptableInterfaceFuncs,"
-      ^ string_of_int !(ctx.ctx_interface_slot_count)
+      ^ string_of_int slots.next
       ^ ");\n");
 
   List.iter

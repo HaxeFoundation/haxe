@@ -751,9 +751,11 @@ let all_interface_functions tcpp_interface =
 
    let rec visit_interface existing interface =
       let initial =
-         match interface.if_implements with
-         | [] -> existing
-         | some -> List.fold_left visit_interface existing some
+         match interface.if_extends with
+         | None ->
+            existing
+         | Some super ->
+            visit_interface existing super
       in
 
       add_interface_functions initial interface

@@ -69,11 +69,10 @@ let gen_includes h_file interface_def =
     |> real_interfaces
     |> List.iter (fun (cls, _) -> add_class_includes cls)
 
-let gen_forward_decls h_file interface_def ctx common_ctx =
+let gen_forward_decls h_file tcpp_interface ctx common_ctx =
   (* Only need to forward-declare classes that are mentioned in the header file (ie, not the implementation) *)
-  let scriptable = Common.defined common_ctx Define.Scriptable && not interface_def.cl_private in
   let header_referenced, header_flags =
-    CppReferences.find_referenced_types_flags ctx (TClassDecl interface_def) None ctx.ctx_super_deps PathMap.empty true false scriptable
+    CppReferences.find_referenced_types_flags ctx (TClassDecl tcpp_interface.if_class) None ctx.ctx_super_deps PathMap.empty true false tcpp_interface.if_scriptable
   in
 
   List.iter2
@@ -121,7 +120,7 @@ let generate_native_interface base_ctx tcpp_interface =
   begin_header_file h_file#write_h def_string true;
 
   gen_includes h_file tcpp_interface.if_class;
-  gen_forward_decls h_file tcpp_interface.if_class ctx common_ctx;
+  gen_forward_decls h_file tcpp_interface ctx common_ctx;
   gen_header_includes tcpp_interface.if_class output_h;
 
   begin_namespace output_h class_path;
@@ -168,7 +167,7 @@ let generate_managed_interface base_ctx tcpp_interface =
   begin_header_file h_file#write_h def_string false;
 
   gen_includes h_file tcpp_interface.if_class;
-  gen_forward_decls h_file tcpp_interface.if_class ctx common_ctx;
+  gen_forward_decls h_file tcpp_interface ctx common_ctx;
   gen_header_includes tcpp_interface.if_class output_h;
 
   begin_namespace output_h class_path;

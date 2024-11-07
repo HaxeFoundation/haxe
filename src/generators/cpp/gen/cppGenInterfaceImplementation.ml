@@ -12,13 +12,13 @@ open CppSourceWriter
 open CppContext
 open CppGen
 
-let cpp_get_interface_slot ctx name =
+(* let cpp_get_interface_slot ctx name =
   try Hashtbl.find !(ctx.ctx_interface_slot) name
   with Not_found ->
     let result = !(ctx.ctx_interface_slot_count) in
     Hashtbl.replace !(ctx.ctx_interface_slot) name result;
     ctx.ctx_interface_slot_count := !(ctx.ctx_interface_slot_count) + 1;
-    result
+    result *)
 
 let generate_protocol_delegate ctx protocol full_class_name functions output =
   let name = "_hx_" ^ protocol ^ "_delegate" in
@@ -88,14 +88,12 @@ let generate_protocol_delegate ctx protocol full_class_name functions output =
   output "@end\n\n"
 
 let generate_managed_interface base_ctx tcpp_interface =
-  let common_ctx = base_ctx.ctx_common in
   let class_path = tcpp_interface.if_class.cl_path in
   let cpp_file = new_placed_cpp_file base_ctx.ctx_common class_path in
   let cpp_ctx = file_context base_ctx cpp_file tcpp_interface.if_debug_level false in
   let ctx = cpp_ctx in
   let output_cpp = cpp_file#write in
   let strq = strq ctx.ctx_common in
-  let scriptable = Common.defined common_ctx Define.Scriptable && not tcpp_interface.if_class.cl_private in
 
   if tcpp_interface.if_debug_level > 1 then
     print_endline
@@ -105,11 +103,11 @@ let generate_managed_interface base_ctx tcpp_interface =
 
   let all_referenced =
     CppReferences.find_referenced_types ctx (TClassDecl tcpp_interface.if_class) ctx.ctx_super_deps
-    ctx.ctx_constructor_deps false false scriptable
+    ctx.ctx_constructor_deps false false tcpp_interface.if_scriptable
   in
   List.iter (add_include cpp_file) all_referenced;
 
-  if scriptable then cpp_file#write_h "#include <hx/Scriptable.h>\n";
+  if tcpp_interface.if_scriptable then cpp_file#write_h "#include <hx/Scriptable.h>\n";
 
   cpp_file#write_h "\n";
 
@@ -149,7 +147,7 @@ let generate_managed_interface base_ctx tcpp_interface =
 
   let all_functions = all_interface_functions tcpp_interface in
 
-  if scriptable then (
+  if tcpp_interface.if_scriptable then (
     let dump_script_field idx func =
       let args = print_tfun_arg_list true func.iff_args in
       let return_type = type_to_string func.iff_return in
@@ -165,7 +163,7 @@ let generate_managed_interface base_ctx tcpp_interface =
             ("\t\t__ctx->push" ^ CppCppia.script_type t opt ^ "("
             ^ keyword_remap name ^ ");\n"))
         func.iff_args;
-      let interfaceSlot = string_of_int (-cpp_get_interface_slot ctx func.iff_name) in
+      let interfaceSlot = string_of_int (func.iff_script_slot |> Option.map (fun v -> -v) |>  Option.default 0) in
       output_cpp
         ("\t\t" ^ ret ^ "__ctx->run"
         ^ CppCppia.script_type func.iff_return false
@@ -210,7 +208,7 @@ let generate_managed_interface base_ctx tcpp_interface =
       (signature, func)
     in
 
-    match all_functions with
+    (match all_functions with
     | [] ->
       output_cpp "static ::hx::ScriptNamedFunction *__scriptableFunctions = 0;\n"
     | _ ->
@@ -228,7 +226,7 @@ let generate_managed_interface base_ctx tcpp_interface =
           s |> output_cpp;
       in
       List.iter dump_func sig_and_funcs;
-      output_cpp "\t::hx::ScriptNamedFunction(0,0,0 HXCPP_CPPIA_SUPER_ARG(0) ) };\n";
+      output_cpp "\t::hx::ScriptNamedFunction(0,0,0 HXCPP_CPPIA_SUPER_ARG(0) ) };\n");
 
     let mapper f = Printf.sprintf "\t%s&%s::%s" (cpp_tfun_signature true f.iff_args f.iff_return) script_name f.iff_name in
     let strings =
@@ -250,7 +248,7 @@ let generate_managed_interface base_ctx tcpp_interface =
   output_cpp ("\t__mClass->mMembers = ::hx::Class_obj::dupFunctions(" ^ sMemberFields ^ ");\n");
   output_cpp ("\t__mClass->mCanCast = ::hx::TIsInterface< (int)" ^ tcpp_interface.if_hash ^ " >;\n");
   output_cpp "\t::hx::_hx_RegisterClass(__mClass->mName, __mClass);\n";
-  if scriptable then
+  if tcpp_interface.if_scriptable then
     output_cpp ("  HX_SCRIPTABLE_REGISTER_INTERFACE(\"" ^ class_name_text ^ "\"," ^ tcpp_interface.if_name ^ ");\n");
   output_cpp "}\n\n";
 

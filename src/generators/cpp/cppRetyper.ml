@@ -1617,19 +1617,28 @@ let rec tcpp_class_from_tclass ctx self_id parent_ids class_def =
     tcl_init = TClass.get_cl_init class_def;
   }
 
-and tcpp_interface_from_tclass ctx class_def =
+and tcpp_interface_from_tclass ctx slots class_def =
 
-  let function_filter field =
+  let scriptable = Common.defined ctx.ctx_common Define.Scriptable && not class_def.cl_private in
+
+  let function_filter (slots, fields) field =
     match (field.cf_type, field.cf_kind) with
     | TFun (args, ret), Method _ ->
-      Some {
+      let slots = if scriptable then
+        CppAst.InterfaceSlots.add field.cf_name slots
+      else
+        slots
+      in
+      let retyped = {
         iff_field  = field;
         iff_name   = keyword_remap field.cf_name;
         iff_args   = args;
         iff_return = ret;
-      }
+        iff_script_slot = CppAst.InterfaceSlots.find_opt field.cf_name slots
+      } in
+        (slots, retyped :: fields)
     | _ ->
-      None
+      (slots, fields)
   in
   let variable_filter field =
     match field.cf_kind with
@@ -1640,19 +1649,28 @@ and tcpp_interface_from_tclass ctx class_def =
   let debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Common.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level in
   let meta_field  = List.find_opt (fun field -> field.cf_name = "__meta__") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in
   let rtti_field  = List.find_opt (fun field -> field.cf_name = "__rtti") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in
-  let implements  =
-    class_def.cl_implements
-    |> List.map (fun (t, _) -> tcpp_interface_from_tclass ctx t)
-    |> List.append (Option.map_default (fun (cls, _) -> [ tcpp_interface_from_tclass ctx cls ]) [] class_def.cl_super) in
+  let slots, extends =
+    match class_def.cl_super with
+    | Some (s, _) ->
+      let extra, iface = tcpp_interface_from_tclass ctx slots s in
+      (extra, Some iface)
+    | None ->
+      (slots, None)
+  in
 
-  {
+  let slots, functions = List.fold_left function_filter (slots, []) class_def.cl_ordered_fields in
+
+  let iface = {
     if_class = class_def;
     if_name = class_name class_def;
     if_hash = CppStrings.gen_hash 0 (join_class_path class_def.cl_path "::");
     if_debug_level = debug_level;
-    if_functions = List.filter_map function_filter class_def.cl_ordered_fields;
+    if_functions = functions |> List.rev;
     if_variables = List.filter variable_filter class_def.cl_ordered_fields;
     if_meta = meta_field;
     if_rtti = rtti_field;
-    if_implements = implements;
-  }
+    if_extends = extends;
+    if_scriptable = scriptable;
+  } in
+
+  (slots, iface)
