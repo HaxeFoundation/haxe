@@ -480,21 +480,21 @@ let gen_gc_name class_path =
 let needed_interface_functions implemented_instance_fields native_implementations =
   let have =
     implemented_instance_fields
-    |> List.map (fun field -> (field.cf_name, ()))
-    |> List.to_seq
-    |> Hashtbl.of_seq
+    |> List.map (fun (field, _) -> (field.cf_name, ()))
+    |> StringMap.of_list
   in
-  let want = ref [] in
-  List.iter
-    (fun intf_def ->
-      List.iter
-        (fun field ->
-          if not (Hashtbl.mem have field.cf_name) then (
-            Hashtbl.replace have field.cf_name ();
-            want := field :: !want))
-        intf_def.cl_ordered_fields)
-    native_implementations;
-  !want
+  let func_folder (have, acc) func =
+    if StringMap.mem func.iff_field.cf_name have then
+      (have, acc)
+    else
+      (StringMap.add func.iff_field.cf_name () have, func :: acc)
+  in
+  let iface_folder acc iface =
+    List.fold_left func_folder acc iface.if_functions
+  in
+  native_implementations
+  |> List.fold_left iface_folder (have, [])
+  |> snd
 
 let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     function_type injection tree =

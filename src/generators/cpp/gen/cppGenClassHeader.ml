@@ -308,92 +308,59 @@ let generate_managed_header base_ctx tcpp_class =
     output_h "\t\tvoid __Mark(HX_MARK_PARAMS);\n";
     output_h "\t\tvoid __Visit(HX_VISIT_PARAMS);\n");
 
-  let implements_haxe = List.length tcpp_class.tcl_haxe_interfaces > 0 in
-  let implements_native = List.length tcpp_class.tcl_native_interfaces > 0 in
-
-  if implements_native then (
-    let implemented_instance_fields =
-      List.filter should_implement_field class_def.cl_ordered_fields
-    in
-    let neededInterfaceFunctions =
-      match implements_native with
-      | true ->
-        CppGen.needed_interface_functions implemented_instance_fields tcpp_class.tcl_native_interfaces
-      | false ->
-        []
-    in
-
+  if List.length tcpp_class.tcl_native_interfaces > 0 then (
     output_h "\n\t\tHX_NATIVE_IMPLEMENTATION\n";
-    List.iter
-      (fun field ->
-        match (follow field.cf_type, field.cf_kind) with
-        | _, Method MethDynamic -> ()
-        | TFun (args, return_type), _ ->
-            let retVal = type_to_string return_type in
-            let ret = if retVal = "void" then "" else "return " in
-            let name = keyword_remap field.cf_name in
-            let argNames =
-              List.map (fun (name, _, _) -> keyword_remap name) args
-            in
-            output_h
-              ("\t\t" ^ retVal ^ " " ^ name ^ "( "
-              ^ print_tfun_arg_list true args
-              ^ ") {\n");
-            output_h
-              ("\t\t\t" ^ ret ^ "super::" ^ name ^ "( "
-              ^ String.concat "," argNames ^ ");\n\t\t}\n")
-        | _ -> ())
-      neededInterfaceFunctions;
+
+    tcpp_class.tcl_native_interfaces
+    |> CppGen.needed_interface_functions tcpp_class.tcl_functions
+    |> List.iter (fun func ->
+      let retVal   = type_to_string func.iff_return in
+      let ret      = if retVal = "void" then "" else "return " in
+      let argNames = List.map (fun (name, _, _) -> name) func.iff_args in
+      output_h
+        ("\t\t" ^ retVal ^ " " ^ func.iff_name ^ "( " ^ print_tfun_arg_list true func.iff_args ^ ") {\n");
+      output_h
+        ("\t\t\t" ^ ret ^ "super::" ^ func.iff_name ^ "( " ^ String.concat "," argNames ^ ");\n\t\t}\n"));
+
     output_h "\n");
 
   output_h "\t\tbool _hx_isInstanceOf(int inClassId);\n";
-  if implements_haxe then (
+  if List.length tcpp_class.tcl_haxe_interfaces > 0 then (
     output_h "\t\tvoid *_hx_getInterface(int inHash);\n";
     (* generate header glue *)
     let alreadyGlued = Hashtbl.create 0 in
     List.iter
       (fun src ->
-        let rec check_interface interface =
-          let check_field field =
-            match (follow field.cf_type, field.cf_kind) with
-            | _, Method MethDynamic -> ()
-            | TFun (args, return_type), Method _ ->
-                let cast = cpp_tfun_signature false args return_type in
-                let class_implementation =
-                  find_class_implementation class_def field.cf_name interface
-                in
-                let realName = cpp_member_name_of field in
-                let castKey = realName ^ "::" ^ cast in
-                let castKey = match interface.cl_path with
-                | ([ "haxe" ], "IMap") when realName = "set" ->
-                  castKey ^ "*"
-                | _ ->
-                  castKey
-                in
-                let implementationKey =
-                  realName ^ "::" ^ class_implementation
-                in
-                if castKey <> implementationKey then
-                  let glue =
-                    Printf.sprintf "%s_%08lx" field.cf_name
-                      (gen_hash32 0 cast)
-                  in
-                  if not (Hashtbl.mem alreadyGlued castKey) then (
-                    Hashtbl.replace alreadyGlued castKey ();
-                    let argList = print_tfun_arg_list true args in
-                    let returnType = type_to_string return_type in
-                    let headerCode =
-                      "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList
-                      ^ ");\n"
-                    in
-                    output_h headerCode;
-                    output_h "\n")
-            | _ -> ()
+        let rec check_interface (interface:tcpp_interface) =
+          let check_field func =
+            let cast = cpp_tfun_signature false func.iff_args func.iff_return in
+            let class_implementation = find_class_implementation class_def func.iff_field.cf_name interface.if_class
+            in
+            let realName = cpp_member_name_of func.iff_field in
+            let castKey = realName ^ "::" ^ cast in
+            let castKey = match interface.if_class.cl_path with
+            | ([ "haxe" ], "IMap") when realName = "set" ->
+              castKey ^ "*"
+            | _ ->
+              castKey
+            in
+            let implementationKey =
+              realName ^ "::" ^ class_implementation
+            in
+            if castKey <> implementationKey then
+              let glue = Printf.sprintf "%s_%08lx" func.iff_field.cf_name (gen_hash32 0 cast) in
+              if not (Hashtbl.mem alreadyGlued castKey) then (
+                Hashtbl.replace alreadyGlued castKey ();
+                let argList = print_tfun_arg_list true func.iff_args in
+                let returnType = type_to_string func.iff_return in
+                let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in
+                output_h headerCode;
+                output_h "\n")
           in
-          (match interface.cl_super with
-          | Some (super, _) -> check_interface super
+          (match interface.if_extends with
+          | Some super -> check_interface super
           | _ -> ());
-          List.iter check_field interface.cl_ordered_fields
+          List.iter check_field interface.if_functions
         in
         check_interface src)
         tcpp_class.tcl_haxe_interfaces);

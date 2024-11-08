@@ -259,44 +259,6 @@ type gensrc_ctx = {
    slots : CppAst.InterfaceSlots.t;
 }
 
-let rec get_id path ids =
-   let class_name = class_text path in
-   let needs_new_id id =
-      (* IDs less than 100 are reserved for hxcpp internal classes *)
-      (* If the map already contains this ID we also need a new one *)
-      id < Int32.of_int 100 || ObjectIds.collision id ids
-   in
-
-   let rec make_id seed =
-      let id = gen_hash32 seed class_name in
-      if needs_new_id id then
-         make_id (seed + 100)
-      else
-         id
-   in
-
-   match ObjectIds.find_opt path ids with
-   | Some existing ->
-      (existing, ids)
-   | None ->
-      let new_id = make_id 0 in
-      (new_id, ObjectIds.add path new_id ids)
-
-let get_class_ids class_def ids =
-   let self_id, all_ids = get_id class_def.cl_path ids in
-
-   let folder (parents, all_ids) class_def =
-      let new_id, all_ids = get_id class_def.cl_path all_ids in
-      (new_id :: parents, all_ids)     
-   in
-   let rec parents acc class_def =
-      match class_def.cl_super with
-      | Some (super, _) -> parents (super :: acc) super
-      | None -> acc in
-   let parent_ids, all_ids = parents [] class_def |> List.fold_left folder ([], all_ids) in
-
-   (self_id, parent_ids, all_ids)
-
 let generate_source ctx =
    let common_ctx = ctx.ctx_common in
    make_base_directory common_ctx.file;
@@ -337,16 +299,15 @@ let generate_source ctx =
          acc
 
       | TClassDecl class_def ->
-         let self_id, parent_ids, all_ids = get_class_ids class_def acc.ids in
-         let native_gen  = Meta.has Meta.NativeGen class_def.cl_meta in
-         let decl, slots =
+         let native_gen       = Meta.has Meta.NativeGen class_def.cl_meta in
+         let decl, slots, ids =
             match has_class_flag class_def CInterface with
             | true ->
                let (slots, iface) = CppRetyper.tcpp_interface_from_tclass ctx acc.slots class_def in
-               if native_gen then (NativeInterface iface, slots) else (ManagedInterface iface, slots)
+               if native_gen then (NativeInterface iface, slots, acc.ids) else (ManagedInterface iface, acc.slots, acc.ids)
             | false ->
-               let cls = CppRetyper.tcpp_class_from_tclass ctx self_id parent_ids class_def in
-               if native_gen then (NativeClass cls, acc.slots) else (ManagedClass cls, acc.slots) in
+               let (slots, ids, cls) = CppRetyper.tcpp_class_from_tclass ctx acc.ids acc.slots class_def in
+               if native_gen then (NativeClass cls, slots, ids) else (ManagedClass cls, slots, ids) in
 
          let acc_decls           = decl :: acc.decls in
          let acc_build_xml       = acc.build_xml ^ (CppGen.get_class_code class_def Meta.BuildXml) in
@@ -361,23 +322,28 @@ let generate_source ctx =
 
                (class_def.cl_path, deps, cur) :: acc.exe_classes in
 
-         { acc with build_xml = acc_build_xml; decls = acc_decls; init_classes = acc_init_classes; boot_classes = acc_boot_classes; nonboot_classes = acc_nonboot_classes; exe_classes = acc_exe_classes; ids = all_ids; slots = slots }
+         { acc with
+            build_xml = acc_build_xml;
+            decls = acc_decls;
+            init_classes = acc_init_classes;
+            boot_classes = acc_boot_classes;
+            nonboot_classes = acc_nonboot_classes;
+            exe_classes = acc_exe_classes;
+            ids = ids;
+            slots = slots
+         }
 
       | TEnumDecl enum_def when is_extern_enum enum_def || is_internal_class enum_def.e_path ->
          acc
 
       | TEnumDecl enum_def ->
-         let self_id, all_ids = get_id enum_def.e_path acc.ids in
          let deps             = CppReferences.find_referenced_types ctx (TEnumDecl enum_def) ctx.ctx_super_deps PathMap.empty false true false in
-         let strq             = strq ctx.ctx_common in
-         let sort_constructors f1 f2 =
-            f1.ef_index - f2.ef_index in
-         let constructors     = enum_def.e_constrs |> pmap_values |> List.sort sort_constructors |> List.map (fun f -> { tef_field = f; tef_name = keyword_remap f.ef_name; tef_hash = strq f.ef_name}) in
-         let acc_decls        = (Enum { te_enum = enum_def; te_id = self_id; te_constructors = constructors }) :: acc.decls in
+         let ids, enum        = CppRetyper.tcpp_enum_from_tenum ctx acc.ids enum_def in
+         let acc_decls        = (Enum enum) :: acc.decls in
          let acc_boot_enums   = enum_def.e_path :: acc.boot_enums in
          let acc_exe_classes  = (enum_def.e_path, deps, cur) :: acc.exe_classes in
          
-         { acc with decls = acc_decls; boot_enums = acc_boot_enums; exe_classes = acc_exe_classes; ids = all_ids }
+         { acc with decls = acc_decls; boot_enums = acc_boot_enums; exe_classes = acc_exe_classes; ids = ids }
       | _ ->
          acc
    in

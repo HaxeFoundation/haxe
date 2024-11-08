@@ -420,65 +420,57 @@ let generate_managed_class base_ctx tcpp_class =
     let implname = cpp_class_name class_def in
     let cpp_glue = ref [] in
     let iter interface =
-      let interface_name = cpp_interface_impl_name interface in
+      let interface_name = cpp_interface_impl_name interface.if_class in
       output_cpp
-        ("static " ^ cpp_class_name interface ^ " " ^ cname ^ "_"
+        ("static " ^ cpp_class_name interface.if_class ^ " " ^ cname ^ "_"
         ^ interface_name ^ "= {\n");
-      let rec gen_interface_funcs interface =
-        let gen_field field =
-          match (follow field.cf_type, field.cf_kind) with
-          | _, Method MethDynamic -> ()
-          | TFun (args, return_type), Method _ ->
-              let cast = cpp_tfun_signature false args return_type in
-              let class_implementation =
-                find_class_implementation class_def field.cf_name
-                  interface
+      let rec gen_interface_funcs (interface:tcpp_interface) =
+        let gen_field func =
+          let cast = cpp_tfun_signature false func.iff_args func.iff_return in
+          let class_implementation = find_class_implementation class_def func.iff_field.cf_name interface.if_class in
+          let realName = cpp_member_name_of func.iff_field in
+          let castKey = realName ^ "::" ^ cast in
+          (* C++ can't work out which function it needs to take the addrss of
+              when the implementation is overloaded - currently the map-set functions.
+              Change the castKey to force a glue function in this case (could double-cast the pointer, but it is ugly)
+          *)
+          let castKey =
+            if interface_name = "_hx_haxe_IMap" && realName = "set"
+            then castKey ^ "*"
+            else castKey
+          in
+          let implementationKey =
+            realName ^ "::" ^ class_implementation
+          in
+          if castKey <> implementationKey then (
+            let glue =
+              Printf.sprintf "%s_%08lx" func.iff_field.cf_name (gen_hash32 0 cast)
+            in
+            if not (Hashtbl.mem alreadyGlued castKey) then (
+              Hashtbl.replace alreadyGlued castKey ();
+              let argList = print_tfun_arg_list true func.iff_args in
+              let returnType = type_to_string func.iff_return in
+              let returnStr =
+                if returnType = "void" then "" else "return "
               in
-              let realName = cpp_member_name_of field in
-              let castKey = realName ^ "::" ^ cast in
-              (* C++ can't work out which function it needs to take the addrss of
-                  when the implementation is overloaded - currently the map-set functions.
-                  Change the castKey to force a glue function in this case (could double-cast the pointer, but it is ugly)
-              *)
-              let castKey =
-                if interface_name = "_hx_haxe_IMap" && realName = "set"
-                then castKey ^ "*"
-                else castKey
+              let cppCode =
+                returnType ^ " " ^ class_name ^ "::" ^ glue ^ "("
+                ^ argList ^ ") {\n" ^ "\t\t\t" ^ returnStr ^ realName
+                ^ "(" ^ print_arg_names func.iff_args ^ ");\n}\n"
               in
-              let implementationKey =
-                realName ^ "::" ^ class_implementation
-              in
-              if castKey <> implementationKey then (
-                let glue =
-                  Printf.sprintf "%s_%08lx" field.cf_name
-                    (gen_hash32 0 cast)
-                in
-                if not (Hashtbl.mem alreadyGlued castKey) then (
-                  Hashtbl.replace alreadyGlued castKey ();
-                  let argList = print_tfun_arg_list true args in
-                  let returnType = type_to_string return_type in
-                  let returnStr =
-                    if returnType = "void" then "" else "return "
-                  in
-                  let cppCode =
-                    returnType ^ " " ^ class_name ^ "::" ^ glue ^ "("
-                    ^ argList ^ ") {\n" ^ "\t\t\t" ^ returnStr ^ realName
-                    ^ "(" ^ print_arg_names args ^ ");\n}\n"
-                  in
-                  (* let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in *)
-                  (* header_glue := headerCode :: !header_glue; *)
-                  cpp_glue := cppCode :: !cpp_glue);
-                output_cpp
-                  ("\t" ^ cast ^ "&" ^ implname ^ "::" ^ glue ^ ",\n"))
-              else
-                output_cpp
-                  ("\t" ^ cast ^ "&" ^ implname ^ "::" ^ realName ^ ",\n")
-          | _ -> ()
+              (* let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in *)
+              (* header_glue := headerCode :: !header_glue; *)
+              cpp_glue := cppCode :: !cpp_glue);
+            output_cpp
+              ("\t" ^ cast ^ "&" ^ implname ^ "::" ^ glue ^ ",\n"))
+          else
+            output_cpp
+              ("\t" ^ cast ^ "&" ^ implname ^ "::" ^ realName ^ ",\n")
         in
-        (match interface.cl_super with
-        | Some super -> gen_interface_funcs (fst super)
+        (match interface.if_extends with
+        | Some super -> gen_interface_funcs super
         | _ -> ());
-        List.iter gen_field interface.cl_ordered_fields
+        List.iter gen_field interface.if_functions
       in
       gen_interface_funcs interface;
       output_cpp "};\n\n" in
@@ -492,7 +484,7 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp "\tswitch(inHash) {\n";
 
     let iter interface =
-      output_cpp ("\t\tcase (int)" ^ cpp_class_hash interface ^ ": return &" ^ cname ^ "_" ^ cpp_interface_impl_name interface ^ ";\n") in
+      output_cpp ("\t\tcase (int)" ^ interface.if_hash ^ ": return &" ^ cname ^ "_" ^ cpp_interface_impl_name interface.if_class ^ ";\n") in
     List.iter
       iter
       tcpp_class.tcl_haxe_interfaces;
@@ -1069,7 +1061,7 @@ let generate_managed_class base_ctx tcpp_class =
     (fun intf_def ->
       output_cpp
         ("\tHX_REGISTER_VTABLE_OFFSET( " ^ class_name ^ ","
-        ^ join_class_path_remap intf_def.cl_path "::"
+        ^ join_class_path_remap intf_def.if_class.cl_path "::"
         ^ ");\n"))
         tcpp_class.tcl_native_interfaces;
   output_cpp "}\n\n";

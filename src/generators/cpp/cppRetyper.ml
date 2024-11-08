@@ -1433,7 +1433,45 @@ let expression ctx request_type function_args function_type expression_tree forI
   in
   retype request_type expression_tree
 
-let rec tcpp_class_from_tclass ctx self_id parent_ids class_def =
+let rec get_id path ids =
+  let class_name = class_text path in
+  let needs_new_id id =
+      (* IDs less than 100 are reserved for hxcpp internal classes *)
+      (* If the map already contains this ID we also need a new one *)
+      id < Int32.of_int 100 || ObjectIds.collision id ids
+  in
+
+  let rec make_id seed =
+      let id = CppStrings.gen_hash32 seed class_name in
+      if needs_new_id id then
+        make_id (seed + 100)
+      else
+        id
+  in
+
+  match ObjectIds.find_opt path ids with
+  | Some existing ->
+      (existing, ids)
+  | None ->
+      let new_id = make_id 0 in
+      (new_id, ObjectIds.add path new_id ids)
+
+let get_class_ids class_def ids =
+  let self_id, all_ids = get_id class_def.cl_path ids in
+
+  let folder (parents, all_ids) class_def =
+      let new_id, all_ids = get_id class_def.cl_path all_ids in
+      (new_id :: parents, all_ids)     
+  in
+  let rec parents acc class_def =
+      match class_def.cl_super with
+      | Some (super, _) -> parents (super :: acc) super
+      | None -> acc in
+  let parent_ids, all_ids = parents [] class_def |> List.fold_left folder ([], all_ids) in
+
+  (self_id, parent_ids, all_ids)
+  
+let rec tcpp_class_from_tclass ctx ids slots class_def =
   let filter_functions field =
     let abstract_to_function () =
       match field.cf_type with
@@ -1518,7 +1556,9 @@ let rec tcpp_class_from_tclass ctx self_id parent_ids class_def =
       Some field
     | _ ->
       None in
-    
+
+  let self_id, parent_ids, ids = get_class_ids class_def ids in
+  
   let static_functions =
     class_def.cl_ordered_statics
     |> List.filter_map filter_functions in
@@ -1554,23 +1594,24 @@ let rec tcpp_class_from_tclass ctx self_id parent_ids class_def =
     |> List.filter_map filter_properties in
 
   (* All interfaces (and sub-interfaces) implemented *)
-  let rec folder (haxe, native) (interface, _) =
+  let rec folder (slots, haxe, native) (interface, _) =
+    let slots, retyped = tcpp_interface_from_tclass ctx slots interface in
     let acc = if is_native_class interface then
-      List.fold_left folder (haxe, PathMap.add interface.cl_path interface native) interface.cl_implements
+      List.fold_left folder (slots, haxe, PathMap.add interface.cl_path retyped native) interface.cl_implements
     else
-      List.fold_left folder (PathMap.add interface.cl_path interface haxe, native) interface.cl_implements in
+      List.fold_left folder (slots, PathMap.add interface.cl_path retyped haxe, native) interface.cl_implements in
 
     match interface.cl_super with
     | Some super -> folder acc super
     | None -> acc
   in
-  let values (haxe, native) =
-    haxe |> PathMap.to_list |> List.map (fun (_, v) -> v), native |> PathMap.to_list |> List.map (fun (_, v) -> v) in
+  let values (slots, haxe, native) =
+    slots, haxe |> PathMap.to_list |> List.map (fun (_, v) -> v), native |> PathMap.to_list |> List.map (fun (_, v) -> v) in
 
-  let haxe_implementations, native_implementations =
+  let slots, haxe_implementations, native_implementations =
     class_def.cl_implements
     |> real_interfaces
-    |> List.fold_left folder (PathMap.empty, PathMap.empty)
+    |> List.fold_left folder (slots, PathMap.empty, PathMap.empty)
     |> values in
 
   let flags =
@@ -1595,7 +1636,7 @@ let rec tcpp_class_from_tclass ctx self_id parent_ids class_def =
   let meta_field = List.find_opt (fun field -> field.cf_name = "__meta__") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in
   let rtti_field = List.find_opt (fun field -> field.cf_name = "__rtti") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in
 
-  {
+  let cls = {
     tcl_class = class_def;
     tcl_id = self_id;
     tcl_name = class_name class_def;
@@ -1615,7 +1656,9 @@ let rec tcpp_class_from_tclass ctx self_id parent_ids class_def =
     tcl_meta = meta_field;
     tcl_rtti = rtti_field;
     tcl_init = TClass.get_cl_init class_def;
-  }
+  } in
+
+  (slots, ids, cls)
 
 and tcpp_interface_from_tclass ctx slots class_def =
 
@@ -1674,3 +1717,19 @@ and tcpp_interface_from_tclass ctx slots class_def =
   } in
 
   (slots, iface)
+
+and tcpp_enum_from_tenum ctx ids enum_def =
+  let sort_constructors f1 f2 =
+    f1.ef_index - f2.ef_index in
+
+  let self_id, ids = get_id enum_def.e_path ids in
+  let strq         = CppStrings.strq ctx.ctx_common in
+  let constructors =
+    enum_def.e_constrs
+    |> pmap_values
+    |> List.sort sort_constructors
+    |> List.map (fun f -> { tef_field = f; tef_name = keyword_remap f.ef_name; tef_hash = strq f.ef_name})
+  in
+  let enum = { te_enum = enum_def; te_id = self_id; te_constructors = constructors } in
+
+  (ids, enum)
