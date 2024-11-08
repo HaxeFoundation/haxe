@@ -451,27 +451,21 @@ let cpp_tfun_signature include_names args return_type =
 
 exception FieldFound of tclass_field
 
-let find_class_implementation class_def name interface =
+let find_class_implementation func tcpp_class =
   let rec find def =
-    List.iter
-      (fun f -> if f.cf_name = name then raise (FieldFound f))
-      def.cl_ordered_fields;
-    match def.cl_super with Some (def, _) -> find def | _ -> ()
+    match List.find_opt (fun (f, _) -> f.cf_name = func.iff_field.cf_name) def.tcl_functions with
+    | Some f -> Some (fst f)
+    | None ->
+      match def.tcl_super with
+      | Some s -> find s
+      | None -> None
   in
-  try
-    find class_def;
-    abort
-      ("Could not find implementation of " ^ name ^ " in "
-      ^ join_class_path class_def.cl_path "."
-      ^ " required by "
-      ^ join_class_path interface.cl_path ".")
-      class_def.cl_pos
-  with FieldFound field -> (
-    match (follow field.cf_type, field.cf_kind) with
-    | _, Method MethDynamic -> ""
-    | TFun (args, return_type), Method _ ->
-        cpp_tfun_signature false args return_type
-    | _, _ -> "")
+
+  match find tcpp_class with
+  | Some { cf_type = TFun (args, ret) } -> 
+    cpp_tfun_signature false args ret
+  | _ ->
+    ""
 
 let gen_gc_name class_path =
   let class_name_text = join_class_path class_path "." in

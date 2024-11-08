@@ -334,7 +334,7 @@ let generate_managed_header base_ctx tcpp_class =
         let rec check_interface (interface:tcpp_interface) =
           let check_field func =
             let cast = cpp_tfun_signature false func.iff_args func.iff_return in
-            let class_implementation = find_class_implementation class_def func.iff_field.cf_name interface.if_class
+            let class_implementation = find_class_implementation func tcpp_class
             in
             let realName = cpp_member_name_of func.iff_field in
             let castKey = realName ^ "::" ^ cast in
