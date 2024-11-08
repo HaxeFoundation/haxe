@@ -392,7 +392,16 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp "\treturn _hx_result;\n}\n\n");
 
   output_cpp ("bool " ^ class_name ^ "::_hx_isInstanceOf(int inClassId) {\n");
-  let implemented_classes = List.sort compare ((Int32.of_int 1) :: tcpp_class.tcl_id :: tcpp_class.tcl_parent_ids) in
+  let rec parent_id_folder acc cur =
+    match cur.tcl_super with
+    | Some s -> parent_id_folder (cur.tcl_id :: acc) s
+    | None -> cur.tcl_id :: acc
+  in
+  let implemented_classes =
+    tcpp_class
+    |> parent_id_folder [ Int32.of_int 1 ]
+    |> List.sort compare
+  in
   let txt cId = Printf.sprintf "0x%08lx" cId in
   let rec dump_classes indent classes =
     match classes with

@@ -1436,40 +1436,25 @@ let expression ctx request_type function_args function_type expression_tree forI
 let rec get_id path ids =
   let class_name = class_text path in
   let needs_new_id id =
-      (* IDs less than 100 are reserved for hxcpp internal classes *)
-      (* If the map already contains this ID we also need a new one *)
-      id < Int32.of_int 100 || ObjectIds.collision id ids
+    (* IDs less than 100 are reserved for hxcpp internal classes *)
+    (* If the map already contains this ID we also need a new one *)
+    id < Int32.of_int 100 || ObjectIds.collision id ids
   in
 
   let rec make_id seed =
-      let id = CppStrings.gen_hash32 seed class_name in
-      if needs_new_id id then
-        make_id (seed + 100)
-      else
-        id
+    let id = CppStrings.gen_hash32 seed class_name in
+    if needs_new_id id then
+      make_id (seed + 100)
+    else
+      id
   in
 
   match ObjectIds.find_opt path ids with
   | Some existing ->
-      (existing, ids)
+    (existing, ids)
   | None ->
-      let new_id = make_id 0 in
-      (new_id, ObjectIds.add path new_id ids)
-
-let get_class_ids class_def ids =
-  let self_id, all_ids = get_id class_def.cl_path ids in
-
-  let folder (parents, all_ids) class_def =
-      let new_id, all_ids = get_id class_def.cl_path all_ids in
-      (new_id :: parents, all_ids)     
-  in
-  let rec parents acc class_def =
-      match class_def.cl_super with
-      | Some (super, _) -> parents (super :: acc) super
-      | None -> acc in
-  let parent_ids, all_ids = parents [] class_def |> List.fold_left folder ([], all_ids) in
-
-  (self_id, parent_ids, all_ids)
+    let new_id = make_id 0 in
+    (new_id, ObjectIds.add path new_id ids)
   
 let rec tcpp_class_from_tclass ctx ids slots class_def =
   let filter_functions field =
@@ -1557,7 +1542,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
     | _ ->
       None in
 
-  let self_id, parent_ids, ids = get_class_ids class_def ids in
+  let id, ids = get_id class_def.cl_path ids in
   
   let static_functions =
     class_def.cl_ordered_statics
@@ -1608,6 +1593,14 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
   let values (slots, haxe, native) =
     slots, haxe |> PathMap.to_list |> List.map (fun (_, v) -> v), native |> PathMap.to_list |> List.map (fun (_, v) -> v) in
 
+  let (slots, ids, parent) =
+    match class_def.cl_super with
+    | Some (cls, _) ->
+      let slots, ids, parent = tcpp_class_from_tclass ctx ids slots cls in
+      (slots, ids, Some parent)
+    | None ->
+      (slots, ids, None)
+    in
   let slots, haxe_implementations, native_implementations =
     class_def.cl_implements
     |> real_interfaces
@@ -1638,10 +1631,10 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
 
   let cls = {
     tcl_class = class_def;
-    tcl_id = self_id;
+    tcl_id = id;
     tcl_name = class_name class_def;
     tcl_flags = flags;
-    tcl_parent_ids = parent_ids;
+    tcl_super = parent;
     tcl_debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Common.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level;
     tcl_static_variables = static_variables;
     tcl_static_properties = static_properties;

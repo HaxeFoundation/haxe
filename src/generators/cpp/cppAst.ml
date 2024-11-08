@@ -209,9 +209,9 @@ and tcpp_class = {
   tcl_class : tclass;
   tcl_name : string;
   tcl_id : int32;
-  tcl_parent_ids : int32 list;
   tcl_flags : int;
   tcl_debug_level : int;
+  tcl_super : tcpp_class option;
 
   tcl_haxe_interfaces : tcpp_interface list;
   tcl_native_interfaces : tcpp_interface list;
