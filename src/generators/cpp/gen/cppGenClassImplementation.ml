@@ -172,7 +172,7 @@ let gen_field_init ctx class_def field =
   | _ -> ()
 
 let gen_boot_field ctx output_cpp tcpp_class =
-  if has_boot_field tcpp_class.tcl_class then (
+  if has_tcpp_class_flag tcpp_class Boot then (
     output_cpp ("void " ^ tcpp_class.tcl_name ^ "::__boot()\n{\n");
 
     let dot_name = join_class_path tcpp_class.tcl_class.cl_path "." in
@@ -653,7 +653,7 @@ let generate_managed_class base_ctx tcpp_class =
     | _ -> type_to_string f.cf_type
   in
 
-  if has_get_member_field class_def then (
+  if has_tcpp_class_flag tcpp_class MemberGet then (
     (* Dynamic "Get" Field function - string version *)
     Printf.sprintf "::hx::Val %s::__Field(const ::String &inName,::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
 
@@ -672,7 +672,7 @@ let generate_managed_class base_ctx tcpp_class =
       output_cpp "\treturn super::__Field(inName,inCallProp);\n}\n\n");
     );
 
-  if has_get_static_field class_def then (
+  if has_tcpp_class_flag tcpp_class StaticGet then (
     Printf.sprintf "bool %s::__GetStatic(const ::String &inName, Dynamic &outValue, ::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
 
     let var_printer ident = Printf.sprintf "outValue = %s; return true;" ident in
@@ -688,7 +688,7 @@ let generate_managed_class base_ctx tcpp_class =
     dump_quick_field_test all_fields;
     output_cpp "\treturn false;\n}\n\n");
 
-  if has_set_member_field class_def then (
+  if has_tcpp_class_flag tcpp_class MemberSet then (
     Printf.sprintf "::hx::Val %s::__SetField(const ::String& inName, const ::hx::Val& inValue, ::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
 
     let fold_variable field acc =
@@ -740,7 +740,7 @@ let generate_managed_class base_ctx tcpp_class =
     dump_quick_field_test all_fields;
     output_cpp "\treturn super::__SetField(inName,inValue,inCallProp);\n}\n\n");
 
-  if has_set_static_field class_def then (
+  if has_tcpp_class_flag tcpp_class StaticSet then (
     Printf.sprintf "bool %s::__SetStatic(const ::String& inName, ::Dynamic& ioValue, ::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
 
     let fold_variable field acc =
@@ -786,7 +786,7 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp "\treturn false;\n}\n\n");
 
   (* For getting a list of data members (eg, for serialization) *)
-  if has_get_fields class_def then (
+  if has_tcpp_class_flag tcpp_class GetFields then (
 
     let append field acc = (strq field.cf_name |> Printf.sprintf "\toutFields->push(%s);") :: acc in
     let fields =
@@ -1047,12 +1047,12 @@ let generate_managed_class base_ctx tcpp_class =
   output_cpp
     ("\t__mClass->mGetStaticField = &"
     ^
-    if has_get_static_field class_def then class_name ^ "::__GetStatic;\n"
+    if has_tcpp_class_flag tcpp_class StaticGet then class_name ^ "::__GetStatic;\n"
     else "::hx::Class_obj::GetNoStaticField;\n");
   output_cpp
     ("\t__mClass->mSetStaticField = &"
     ^
-    if has_set_static_field class_def then class_name ^ "::__SetStatic;\n"
+    if has_tcpp_class_flag tcpp_class StaticSet then class_name ^ "::__SetStatic;\n"
     else "::hx::Class_obj::SetNoStaticField;\n");
   if List.length tcpp_class.tcl_static_variables > 0 then
     output_cpp ("\t__mClass->mMarkFunc = " ^ class_name ^ "_sMarkStatics;\n");

@@ -1607,24 +1607,18 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
     |> List.fold_left folder (slots, PathMap.empty, PathMap.empty)
     |> values in
 
-  let flags =
-    if Common.defined ctx.ctx_common Define.Scriptable && not class_def.cl_private then
-        set_flag 0 (int_of_tcpp_class_flag Scriptable)
-    else
-        0
-    in
-  let flags =
-    if can_quick_alloc class_def then
-        set_flag flags (int_of_tcpp_class_flag QuickAlloc)
-    else
-        flags
-    in
-  let flags =
-    if List.exists (fun f -> not (cant_be_null f.cf_type)) variables then
-        set_flag flags (int_of_tcpp_class_flag Container)
-    else
-        flags
-    in
+  let flags = 0
+    |> (fun f -> if Common.defined ctx.ctx_common Define.Scriptable && not class_def.cl_private then set_tcpp_class_flag f Scriptable else f)
+    |> (fun f -> if can_quick_alloc class_def then set_tcpp_class_flag f QuickAlloc else f)
+    |> (fun f -> if List.exists (fun f -> not (cant_be_null f.cf_type)) variables then set_tcpp_class_flag f Container else f)
+    |> (fun f -> if has_get_member_field class_def then set_tcpp_class_flag f MemberGet else f)
+    |> (fun f -> if has_set_member_field class_def then set_tcpp_class_flag f MemberSet else f)
+    |> (fun f -> if has_get_static_field class_def then set_tcpp_class_flag f StaticGet else f)
+    |> (fun f -> if has_set_static_field class_def then set_tcpp_class_flag f StaticSet else f)
+    |> (fun f -> if has_get_fields class_def then set_tcpp_class_flag f GetFields else f)
+    |> (fun f -> if has_compare_field class_def then set_tcpp_class_flag f Compare else f)
+    |> (fun f -> if has_boot_field class_def then set_tcpp_class_flag f Boot else f)
+  in
 
   let meta_field = List.find_opt (fun field -> field.cf_name = "__meta__") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in
   let rtti_field = List.find_opt (fun field -> field.cf_name = "__rtti") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in

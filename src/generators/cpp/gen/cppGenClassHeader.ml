@@ -167,7 +167,7 @@ let generate_native_header base_ctx tcpp_class =
       
   CppGen.generate_native_constructor ctx output_h class_def true;
 
-  if has_boot_field class_def then output_h "\t\tstatic void __boot();\n";
+  if has_tcpp_class_flag tcpp_class Boot then output_h "\t\tstatic void __boot();\n";
 
   tcpp_class.tcl_static_functions
   |> List.iter (fun (field, func) -> gen_member_function ctx class_def true field func);
@@ -278,26 +278,22 @@ let generate_managed_header base_ctx tcpp_class =
     output_h "\t\tstatic ::hx::ScriptFunction __script_construct;\n";
   output_h ("\t\t//~" ^ class_name ^ "();\n\n");
   output_h "\t\tHX_DO_RTTI_ALL;\n";
-  if has_get_member_field class_def then
+  if has_tcpp_class_flag tcpp_class MemberGet then
     output_h
-      "\t\t::hx::Val __Field(const ::String &inString, ::hx::PropertyAccess \
-        inCallProp);\n";
-  if has_get_static_field class_def then
+      "\t\t::hx::Val __Field(const ::String &inString, ::hx::PropertyAccess inCallProp);\n";
+  if has_tcpp_class_flag tcpp_class StaticGet then
     output_h
-      "\t\tstatic bool __GetStatic(const ::String &inString, Dynamic \
-        &outValue, ::hx::PropertyAccess inCallProp);\n";
-  if has_set_member_field class_def then
+      "\t\tstatic bool __GetStatic(const ::String &inString, Dynamic &outValue, ::hx::PropertyAccess inCallProp);\n";
+  if has_tcpp_class_flag tcpp_class MemberSet then
     output_h
-      "\t\t::hx::Val __SetField(const ::String &inString,const ::hx::Val \
-        &inValue, ::hx::PropertyAccess inCallProp);\n";
-  if has_set_static_field class_def then
+      "\t\t::hx::Val __SetField(const ::String &inString,const ::hx::Val &inValue, ::hx::PropertyAccess inCallProp);\n";
+  if has_tcpp_class_flag tcpp_class StaticSet then
     output_h
-      "\t\tstatic bool __SetStatic(const ::String &inString, Dynamic \
-        &ioValue, ::hx::PropertyAccess inCallProp);\n";
-  if has_get_fields class_def then
-    output_h "\t\tvoid __GetFields(Array< ::String> &outFields);\n";
-
-  if has_compare_field class_def then
+      "\t\tstatic bool __SetStatic(const ::String &inString, Dynamic &ioValue, ::hx::PropertyAccess inCallProp);\n";
+  if has_tcpp_class_flag tcpp_class GetFields then
+    output_h
+      "\t\tvoid __GetFields(Array< ::String> &outFields);\n";
+  if has_tcpp_class_flag tcpp_class Compare then
     output_h
       ("\t\tint __Compare(const ::hx::Object *inRHS) const { "
       ^ "return const_cast<" ^ class_name
@@ -365,12 +361,11 @@ let generate_managed_header base_ctx tcpp_class =
         check_interface src)
         tcpp_class.tcl_haxe_interfaces);
 
-  if has_init_field class_def then output_h "\t\tstatic void __init__();\n\n";
+  if Option.is_some tcpp_class.tcl_init then output_h "\t\tstatic void __init__();\n\n";
   output_h
-    ("\t\t::String __ToString() const { return " ^ strq smart_class_name
-    ^ "; }\n\n");
+    ("\t\t::String __ToString() const { return " ^ strq smart_class_name ^ "; }\n\n");
 
-  if has_boot_field class_def then output_h "\t\tstatic void __boot();\n";
+  if has_tcpp_class_flag tcpp_class Boot then output_h "\t\tstatic void __boot();\n";
 
   tcpp_class.tcl_static_functions
   |> List.iter (fun (field, func) -> gen_member_function ctx class_def true field func);

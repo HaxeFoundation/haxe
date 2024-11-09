@@ -204,6 +204,9 @@ and tcpp_class_flags =
   | MemberSet
   | StaticGet
   | StaticSet
+  | GetFields
+  | Compare
+  | Boot
 
 and tcpp_class = {
   tcl_class : tclass;

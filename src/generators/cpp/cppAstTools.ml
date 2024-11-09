@@ -734,6 +734,9 @@ let enum_getter_type t =
 let int_of_tcpp_class_flag (flag:tcpp_class_flags) =
    Obj.magic flag
 
+let set_tcpp_class_flag flags c =
+   set_flag flags (int_of_tcpp_class_flag c)
+
 let has_tcpp_class_flag c flag =
    has_flag c.tcl_flags (int_of_tcpp_class_flag flag)
 
