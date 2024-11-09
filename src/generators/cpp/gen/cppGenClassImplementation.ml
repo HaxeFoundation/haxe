@@ -424,64 +424,77 @@ let generate_managed_class base_ctx tcpp_class =
   output_cpp "}\n\n";
 
   if List.length tcpp_class.tcl_haxe_interfaces > 0 then (
-    let alreadyGlued = Hashtbl.create 0 in
-    let cname = "_hx_" ^ join_class_path class_def.cl_path "_" in
-    let implname = cpp_class_name class_def in
-    let cpp_glue = ref [] in
-    let iter interface =
-      let interface_name = cpp_interface_impl_name interface.if_class in
-      output_cpp
-        ("static " ^ cpp_class_name interface.if_class ^ " " ^ cname ^ "_"
-        ^ interface_name ^ "= {\n");
-      let rec gen_interface_funcs (interface:tcpp_interface) =
-        let gen_field func =
-          let cast = cpp_tfun_signature false func.iff_args func.iff_return in
-          let realName = cpp_member_name_of func.iff_field in
+    let cname     = "_hx_" ^ join_class_path class_def.cl_path "_" in
+    let impl_name = cpp_class_name class_def in
+
+    let fold_interface (glued, acc) interface =
+    
+      let rec gen_interface_funcs interface =
+
+        let fold_field (glued, acc) func =
+          let cast      = cpp_tfun_signature false func.iff_args func.iff_return in
+          let real_name = cpp_member_name_of func.iff_field in
           
           (* C++ can't work out which function it needs to take the addrss of
               when the implementation is overloaded - currently the map-set functions.
               Change the castKey to force a glue function in this case (could double-cast the pointer, but it is ugly)
           *)
-          let suffix = if interface_name = "_hx_haxe_IMap" && realName = "set" then "*" else "" in
-          let castKey = Printf.sprintf "%s::%s%s" realName cast suffix in
-          let implementationKey = Printf.sprintf "%s::%s" realName (find_class_implementation func tcpp_class) in
-          if castKey <> implementationKey then (
-            let glue =
-              Printf.sprintf "%s_%08lx" func.iff_field.cf_name (gen_hash32 0 cast)
-            in
-            if not (Hashtbl.mem alreadyGlued castKey) then (
-              Hashtbl.replace alreadyGlued castKey ();
-              let argList = print_tfun_arg_list true func.iff_args in
-              let returnType = type_to_string func.iff_return in
-              let returnStr =
-                if returnType = "void" then "" else "return "
-              in
-              let cppCode =
-                returnType ^ " " ^ class_name ^ "::" ^ glue ^ "("
-                ^ argList ^ ") {\n" ^ "\t\t\t" ^ returnStr ^ realName
-                ^ "(" ^ print_arg_names func.iff_args ^ ");\n}\n"
-              in
-              (* let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in *)
-              (* header_glue := headerCode :: !header_glue; *)
-              cpp_glue := cppCode :: !cpp_glue);
-            output_cpp
-              ("\t" ^ cast ^ "&" ^ implname ^ "::" ^ glue ^ ",\n"))
-          else
-            output_cpp
-              ("\t" ^ cast ^ "&" ^ implname ^ "::" ^ realName ^ ",\n")
-        in
-        (match interface.if_extends with
-        | Some super -> gen_interface_funcs super
-        | _ -> ());
-        List.iter gen_field interface.if_functions
-      in
-      gen_interface_funcs interface;
-      output_cpp "};\n\n" in
-    List.iter
-      iter
-      tcpp_class.tcl_haxe_interfaces;
+          let suffix =
+            match interface.if_class.cl_path with
+            | (["haxe"], "IMap") when real_name = "set" -> "*"
+            | _ -> "" in
+          let cast_key = Printf.sprintf "%s::%s%s" real_name cast suffix in
+          let implementation_key = Printf.sprintf "%s::%s" real_name (find_class_implementation func tcpp_class) in
 
-    output_cpp (String.concat "\n" !cpp_glue);
+          if cast_key = implementation_key then
+            (glued, Printf.sprintf "\t%s&%s::%s" cast impl_name real_name :: acc)
+          else
+            let glue  = Printf.sprintf "%s_%08lx" func.iff_field.cf_name (gen_hash32 0 cast) in
+            let glued =
+              if StringMap.mem cast_key glued then
+                glued
+              else
+                let arg_list    = print_tfun_arg_list true func.iff_args in
+                let return_type = type_to_string func.iff_return in
+                let return_str  = if return_type = "void" then "" else "return " in
+                let cpp_code    =
+                  Printf.sprintf
+                    "%s %s::%s(%s) { %s%s(%s); }\n"
+                    return_type
+                    class_name
+                    glue
+                    arg_list
+                    return_str
+                    real_name
+                    (print_arg_names func.iff_args) in
+                StringMap.add cast_key cpp_code glued
+            in
+            (glued, Printf.sprintf "\t%s&%s::%s" cast impl_name glue :: acc)
+        in
+
+        let initial =
+          match interface.if_extends with
+          | Some super -> gen_interface_funcs super
+          | _ -> (glued, [])
+        in
+        List.fold_left fold_field initial interface.if_functions
+      in
+
+      let interface_name = cpp_interface_impl_name interface.if_class in
+      let glued, funcs   = gen_interface_funcs interface in
+      let combined = funcs |> List.rev |> String.concat ",\n" in
+      let call     = Printf.sprintf "static %s %s_%s = {\n%s\n};\n" (cpp_class_name interface.if_class) cname interface_name combined in
+      (glued, call :: acc)
+    in
+    
+    let glued, calls =
+      List.fold_left
+        fold_interface
+        (StringMap.empty, [])
+        tcpp_class.tcl_haxe_interfaces in
+
+    calls |> String.concat "\n" |> output_cpp;
+    glued |> StringMap.to_list |> List.map snd |> String.concat "\n" |> output_cpp;
 
     output_cpp ("void *" ^ class_name ^ "::_hx_getInterface(int inHash) {\n");
     output_cpp "\tswitch(inHash) {\n";
