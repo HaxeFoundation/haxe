@@ -68,23 +68,18 @@ let print_arg_list_name arg_list prefix =
 let print_arg_names args =
   String.concat "," (List.map (fun (name, _, _) -> keyword_remap name) args)
 
-let rec print_tfun_arg_list include_names arg_list =
+let print_tfun_arg_list include_names arg_list =
   let oType o arg_type =
     let type_str = type_to_string arg_type in
     (* type_str may have already converted Null<X> to Dynamic because of NotNull tag ... *)
     if o && type_cant_be_null arg_type && type_str <> "Dynamic" then
       "::hx::Null< " ^ type_str ^ " > "
-    else type_str
+    else
+      type_str
   in
-  match arg_list with
-  | [] -> ""
-  | [ (name, o, arg_type) ] ->
-      oType o arg_type ^ if include_names then " " ^ keyword_remap name else ""
-  | (name, o, arg_type) :: remaining ->
-      oType o arg_type
-      ^ (if include_names then " " ^ keyword_remap name else "")
-      ^ ","
-      ^ print_tfun_arg_list include_names remaining
+  arg_list
+  |> List.map (fun (name, o, arg_type) -> (oType o arg_type) ^ (if include_names then " " ^ keyword_remap name else ""))
+  |> String.concat ","
 
 let has_new_gc_references class_def =
   let is_gc_reference field =

@@ -254,6 +254,9 @@ let print_reflective_fields ctx_common class_def variables functions =
   | concat ->
     Some (concat @ [ "\t::String(null())" ] |> String.concat ",\n")
 
+let cpp_interface_impl_name cls =
+  "_hx_" ^ join_class_path cls.cl_path "_"
+
 let generate_native_class base_ctx tcpp_class =
   let class_def = tcpp_class.tcl_class in
   let class_path = class_def.cl_path in
@@ -424,7 +427,7 @@ let generate_managed_class base_ctx tcpp_class =
   output_cpp "}\n\n";
 
   if List.length tcpp_class.tcl_haxe_interfaces > 0 then (
-    let cname     = "_hx_" ^ join_class_path class_def.cl_path "_" in
+    let cname     = cpp_interface_impl_name class_def in
     let impl_name = cpp_class_name class_def in
 
     let fold_interface (glued, acc) interface =

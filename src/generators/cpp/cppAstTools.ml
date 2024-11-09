@@ -591,6 +591,19 @@ and array_element_type haxe_type =
    | _ -> "::Dynamic"
 
 and cpp_function_signature tfun abi =
+   let gen_interface_arg_type_name name opt typ =
+      let type_str = (type_string typ) in
+      (* type_str may have already converted Null<X> to Dynamic because of NotNull tag ... *)
+      (if (opt && (cant_be_null typ) && type_str<>"Dynamic" ) then
+         "::hx::Null< " ^ type_str ^ " > "
+      else
+         type_str ) ^ " " ^ (keyword_remap name)
+   in
+   
+   let gen_tfun_interface_arg_list args =
+      String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ) args)
+   in
+
    match follow tfun with
    | TFun(args,ret) -> (type_string ret) ^ " " ^ abi ^ "(" ^ (gen_tfun_interface_arg_list args) ^ ")"
    | _ -> "void *"
@@ -603,17 +616,6 @@ and cpp_function_signature_params params = match params with
    | _ ->
       print_endline ("Params:" ^ (String.concat "," (List.map type_string params) ));
       die "" __LOC__;
-
-and gen_interface_arg_type_name name opt typ =
-   let type_str = (type_string typ) in
-   (* type_str may have already converted Null<X> to Dynamic because of NotNull tag ... *)
-   (if (opt && (cant_be_null typ) && type_str<>"Dynamic" ) then
-      "::hx::Null< " ^ type_str ^ " > "
-   else
-      type_str ) ^ " " ^ (keyword_remap name)
-
-and gen_tfun_interface_arg_list args =
-   String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ) args)
    
 and cant_be_null haxe_type =
    is_numeric haxe_type || (type_has_meta_key Meta.NotNull haxe_type )
@@ -734,9 +736,6 @@ let int_of_tcpp_class_flag (flag:tcpp_class_flags) =
 
 let has_tcpp_class_flag c flag =
    has_flag c.tcl_flags (int_of_tcpp_class_flag flag)
-
-let cpp_interface_impl_name interface =
-   "_hx_" ^ join_class_path interface.cl_path "_"
 
 let all_interface_functions tcpp_interface =
    let add_interface_functions existing interface =
