@@ -135,20 +135,17 @@ let gen_static_variable ctx class_def class_name (var:tcpp_class_variable) =
   let output = ctx.ctx_output in
   Printf.sprintf "%s %s::%s;\n\n" (type_to_string var.tcv_type) class_name var.tcv_name |> output
 
-let gen_field_init ctx class_def field =
-  let dot_name   = join_class_path class_def.cl_path "." in
-  let output     = ctx.ctx_output in
-  let remap_name = keyword_remap field.cf_name in
-
-  match field.cf_expr with
-  (* Function field *)
+let gen_dynamic_function_init ctx class_def func =
+  match func.tcf_field.cf_expr with
   | Some { eexpr = TFunction function_def } ->
-    if is_dynamic_haxe_method field then
-      let func_name = "__default_" ^ remap_name in
-      output ("\t" ^ remap_name ^ " = new " ^ func_name ^ ";\n\n")
-  (* Data field *)
+    Printf.sprintf "\t%s = new %s;\n\n" func.tcf_name ("__default_" ^ func.tcf_name) |> ctx.ctx_output
+  | _ ->
+    ()
+
+let gen_var_init ctx class_def var =
+  match var.tcv_field.cf_expr with
   | Some expr ->
-      gen_cpp_init ctx dot_name "boot" (remap_name ^ " = ") expr
+    gen_cpp_init ctx (join_class_path class_def.cl_path ".") "boot" (var.tcv_name ^ " = ") expr
   | _ -> ()
 
 let gen_boot_field ctx output_cpp tcpp_class =
@@ -165,8 +162,8 @@ let gen_boot_field ctx output_cpp tcpp_class =
     | Some expr -> gen_cpp_init ctx dot_name "boot" "__mClass->__rtti__ = " expr
     | None -> ());
 
-    List.iter (fun f -> gen_field_init ctx tcpp_class.tcl_class f.tcv_field) tcpp_class.tcl_static_variables;
-    List.iter (fun f -> gen_field_init ctx tcpp_class.tcl_class f.tcf_field) tcpp_class.tcl_static_dynamic_functions;
+    List.iter (gen_var_init ctx tcpp_class.tcl_class) tcpp_class.tcl_static_variables;
+    List.iter (gen_dynamic_function_init ctx tcpp_class.tcl_class) tcpp_class.tcl_static_dynamic_functions;
 
     output_cpp "}\n\n")
 
