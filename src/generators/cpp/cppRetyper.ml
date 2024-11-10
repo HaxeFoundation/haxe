@@ -1477,6 +1477,17 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
     tcf_is_scriptable = scriptable;
   } in
 
+  let create_variable field = {
+    tcv_field = field;
+    tcv_name = native_field_name_remap field;
+    tcv_type = field.cf_type;
+    tcv_default = None;
+
+    tcv_is_stackonly = has_meta Meta.StackOnly field.cf_meta;
+    tcv_is_reflective = reflective class_def field;
+    tcv_is_gc_element = cpp_type_of field.cf_type |> is_gc_element ctx;
+  } in
+
   let filter_functions is_static field =
     if should_implement_field field then
       match (field.cf_kind, field.cf_expr) with
@@ -1547,14 +1558,14 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
     if is_physical_field field then
       match (field.cf_kind, field.cf_expr) with
       | Var _, _ ->
-        Some field
+        Some (create_variable field)
       (* Dynamic methods are implemented as a physical field holding a closure *)
       | Method MethDynamic, Some { eexpr = TFunction func } -> 
-        Some { field with cf_expr = None; cf_kind = Var ({ v_read = AccNormal; v_write = AccNormal }) }
+        Some (create_variable { field with cf_expr = None; cf_kind = Var ({ v_read = AccNormal; v_write = AccNormal }) })
       (* Below should cause abstracts which have functions with no implementation to be generated as a field *)
       (* See Int32.hx as an example *)
       | Method (MethNormal | MethInline), None when not (has_class_field_flag field CfAbstract) ->
-        Some field
+        Some (create_variable field)
       | _ ->
         None
     else
@@ -1564,7 +1575,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
   let filter_properties field =
     match field.cf_kind with
     | Var _ when not (is_physical_var_field field) ->
-      Some field
+      Some (create_variable field)
     | _ ->
       None in
 
@@ -1636,7 +1647,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
   let flags = 0
     |> (fun f -> if scriptable && not class_def.cl_private then set_tcpp_class_flag f Scriptable else f)
     |> (fun f -> if can_quick_alloc class_def then set_tcpp_class_flag f QuickAlloc else f)
-    |> (fun f -> if List.exists (fun f -> not (cant_be_null f.cf_type)) variables then set_tcpp_class_flag f Container else f)
+    |> (fun f -> if List.exists (fun v -> not (cant_be_null v.tcv_type)) variables then set_tcpp_class_flag f Container else f)
     |> (fun f -> if has_get_member_field class_def then set_tcpp_class_flag f MemberGet else f)
     |> (fun f -> if has_set_member_field class_def then set_tcpp_class_flag f MemberSet else f)
     |> (fun f -> if has_get_static_field class_def then set_tcpp_class_flag f StaticGet else f)

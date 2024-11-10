@@ -12,24 +12,23 @@ open CppSourceWriter
 open CppContext
 open CppGen
 
-let gen_member_variable ctx class_def is_static field =
-  let tcpp     = cpp_type_of field.cf_type in
+let gen_member_variable ctx class_def is_static (var:tcpp_class_variable) =
+  let tcpp     = cpp_type_of var.tcv_type in
   let tcpp_str = tcpp_to_string tcpp in
 
-  if not is_static && only_stack_access field.cf_type then
-    abort (Printf.sprintf "%s is marked as stack only and therefor cannot be used as the type for a non static variable" tcpp_str) field.cf_pos;
+  if not is_static && var.tcv_is_stackonly then
+    abort (Printf.sprintf "%s is marked as stack only and therefor cannot be used as the type for a non static variable" tcpp_str) var.tcv_field.cf_pos;
 
-  let output     = ctx.ctx_output in
-  let remap_name = keyword_remap field.cf_name in
-  let suffix      = if is_static then "\t\tstatic " else "\t\t" in
+  let output = ctx.ctx_output in
+  let suffix = if is_static then "\t\tstatic " else "\t\t" in
 
-  Printf.sprintf "%s%s %s;\n" suffix tcpp_str remap_name |> output;
+  Printf.sprintf "%s%s %s;\n" suffix tcpp_str var.tcv_name |> output;
 
-  if not is_static && is_gc_element ctx tcpp then (
+  if not is_static && var.tcv_is_gc_element then (
     let get_ptr = match tcpp with TCppString -> ".raw_ref()" | _ -> ".mPtr" in
     Printf.sprintf
       "\t\tinline %s _hx_set_%s(::hx::StackContext* _hx_ctx, %s _hx_v) { HX_OBJ_WB(this, _hx_v%s) return %s = _hx_v; }\n"
-      tcpp_str remap_name tcpp_str get_ptr remap_name |> output;)
+      tcpp_str var.tcv_name tcpp_str get_ptr var.tcv_name |> output;)
 
 let gen_dynamic_function ctx class_def is_static func =
   let output = ctx.ctx_output in

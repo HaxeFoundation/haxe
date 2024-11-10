@@ -12,7 +12,7 @@ open CppSourceWriter
 open CppContext
 open CppGen
 
-let gen_function ctx class_def class_name is_static (func:tcpp_class_function) =
+let gen_function ctx class_def class_name is_static func =
   let output          = ctx.ctx_output in
   let return_type_str = type_to_string func.tcf_func.tf_type in
   let return_type     = cpp_type_of func.tcf_func.tf_type in
@@ -131,11 +131,9 @@ let gen_dynamic_function ctx class_def class_name is_static is_for_static_var (f
   output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
   output "HX_END_DEFAULT_FUNC\n\n"
 
-let gen_static_variable ctx class_def class_name field =
+let gen_static_variable ctx class_def class_name (var:tcpp_class_variable) =
   let output = ctx.ctx_output in
-  let remap_name = keyword_remap field.cf_name in
-  gen_type ctx field.cf_type;
-  output (" " ^ class_name ^ "::" ^ remap_name ^ ";\n\n")
+  Printf.sprintf "%s %s::%s;\n\n" (type_to_string var.tcv_type) class_name var.tcv_name |> output
 
 let gen_field_init ctx class_def field =
   let dot_name   = join_class_path class_def.cl_path "." in
@@ -167,10 +165,8 @@ let gen_boot_field ctx output_cpp tcpp_class =
     | Some expr -> gen_cpp_init ctx dot_name "boot" "__mClass->__rtti__ = " expr
     | None -> ());
 
-    List.iter (gen_field_init ctx tcpp_class.tcl_class) tcpp_class.tcl_static_variables;
-
-    tcpp_class.tcl_static_dynamic_functions
-    |> List.iter (fun f -> gen_field_init ctx tcpp_class.tcl_class f.tcf_field);
+    List.iter (fun f -> gen_field_init ctx tcpp_class.tcl_class f.tcv_field) tcpp_class.tcl_static_variables;
+    List.iter (fun f -> gen_field_init ctx tcpp_class.tcl_class f.tcf_field) tcpp_class.tcl_static_dynamic_functions;
 
     output_cpp "}\n\n")
 
@@ -214,9 +210,9 @@ let gen_dynamic_function_allocator ctx output_cpp tcpp_class =
 let print_reflective_fields ctx_common class_def variables functions =
   let strq = strq ctx_common in
 
-  let filter_vars field =
-    if reflective class_def field then
-      Some (Printf.sprintf "\t%s" (strq field.cf_name))
+  let filter_vars var =
+    if var.tcv_is_reflective then
+      Some (Printf.sprintf "\t%s" (strq var.tcv_field.cf_name))
     else
       None in
   let filter_funcs func =
@@ -528,8 +524,8 @@ let generate_managed_class base_ctx tcpp_class =
   if has_tcpp_class_flag tcpp_class Container then (
     let super_needs_iteration = find_next_super_iteration class_def in
     let smart_class_name = snd class_path in
-    let dump_field_iterator macro field =
-      Printf.sprintf "\t%s(%s, \"%s\");\n" macro (keyword_remap field.cf_name) field.cf_name |> output_cpp
+    let dump_field_iterator macro var =
+      Printf.sprintf "\t%s(%s, \"%s\");\n" macro var.tcv_name var.tcv_field.cf_name |> output_cpp
     in
     
     (* MARK function - explicitly mark all child pointers *)
@@ -589,18 +585,18 @@ let generate_managed_class base_ctx tcpp_class =
       value
     in
 
-  let print_variable var_printer get_printer field acc =
-    if (reflective class_def field) && not (is_abstract_impl class_def) then
-      let variable = keyword_remap field.cf_name |> get_wrapper field in
+  let print_variable var_printer get_printer (var:tcpp_class_variable) acc =
+    if var.tcv_is_reflective && not (is_abstract_impl class_def) then
+      let variable = get_wrapper var.tcv_field var.tcv_name in
 
-      match field.cf_kind with
+      match var.tcv_field.cf_kind with
       | Var { v_read = AccCall } ->
-        let prop_check = checkPropCall field in
-        let getter     = keyword_remap field.cf_name |> Printf.sprintf "get_%s()" |> get_wrapper field in
+        let prop_check = checkPropCall var.tcv_field in
+        let getter     = Printf.sprintf "get_%s()" var.tcv_name |> get_wrapper var.tcv_field in
 
-        (field.cf_name, String.length field.cf_name, get_printer prop_check getter variable) :: acc
+        (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, get_printer prop_check getter variable) :: acc
       | _ ->
-        (field.cf_name, String.length field.cf_name, var_printer variable) :: acc
+        (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, var_printer variable) :: acc
     else
       acc
   in
@@ -615,11 +611,11 @@ let generate_managed_class base_ctx tcpp_class =
       acc
   in
 
-  let print_property printer field acc =
-    if (reflective class_def field) && not (is_abstract_impl class_def) then
-      let prop_check = checkPropCall field in
-      let getter     = keyword_remap field.cf_name |> Printf.sprintf "get_%s()" |> get_wrapper field in
-      (field.cf_name, String.length field.cf_name, printer prop_check getter) :: acc
+  let print_property printer (var:tcpp_class_variable) acc =
+    if var.tcv_is_reflective && not (is_abstract_impl class_def) then
+      let prop_check = checkPropCall var.tcv_field in
+      let getter     = Printf.sprintf "get_%s()" var.tcv_name |> get_wrapper var.tcv_field in
+      (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, printer prop_check getter) :: acc
     else
       acc
   in
@@ -670,42 +666,40 @@ let generate_managed_class base_ctx tcpp_class =
   if has_tcpp_class_flag tcpp_class MemberSet then (
     Printf.sprintf "::hx::Val %s::__SetField(const ::String& inName, const ::hx::Val& inValue, ::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
 
-    let fold_variable field acc =
-      if (reflective class_def field) && not (is_abstract_impl class_def) then
-        let ident   = keyword_remap field.cf_name in
-        let casted  = castable field in
-        let default = if is_gc_element ctx (cpp_type_of field.cf_type) then
-          Printf.sprintf "_hx_set_%s(HX_CTX_GET, inValue.Cast< %s >()); return inValue;" ident casted
+    let fold_variable (var:tcpp_class_variable) acc =
+      if var.tcv_is_reflective && not (is_abstract_impl class_def) then
+        let casted  = castable var.tcv_field in
+        let default = if var.tcv_is_gc_element then
+          Printf.sprintf "_hx_set_%s(HX_CTX_GET, inValue.Cast< %s >()); return inValue;" var.tcv_name casted
         else
-          Printf.sprintf "%s = inValue.Cast< %s >(); return inValue;" ident casted in
+          Printf.sprintf "%s = inValue.Cast< %s >(); return inValue;" var.tcv_name casted in
 
-        match field.cf_kind with
+        match var.tcv_field.cf_kind with
         | Var { v_write = AccCall } ->
-          let prop_call = checkPropCall field in
-          let setter    = ident |> Printf.sprintf "set_%s" |> get_wrapper field in
+          let prop_call = checkPropCall var.tcv_field in
+          let setter    = Printf.sprintf "set_%s" var.tcv_name |> get_wrapper var.tcv_field in
           let call      = Printf.sprintf "if (%s) { return ::hx::Val( %s(inValue.Cast< %s >()) ); } else { %s }" prop_call setter casted default in
 
-          (field.cf_name, String.length field.cf_name, call) :: acc
+          (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, call) :: acc
         | Var { v_write = AccNormal | AccNo | AccNever } ->
-          (field.cf_name, String.length field.cf_name, default) :: acc
+          (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, default) :: acc
         | _ ->
           acc
       else
         acc
     in
 
-    let fold_property field acc =
-      if (reflective class_def field) && not (is_abstract_impl class_def) then
-        let ident   = keyword_remap field.cf_name in
-        let casted  = castable field in
+    let fold_property (var:tcpp_class_variable) acc =
+      if var.tcv_is_reflective && not (is_abstract_impl class_def) then
+        let casted  = castable var.tcv_field in
 
-        match field.cf_kind with
+        match var.tcv_field.cf_kind with
         | Var { v_write = AccCall } ->
-          let prop_call = checkPropCall field in
-          let setter    = ident |> Printf.sprintf "set_%s" |> get_wrapper field in
+          let prop_call = checkPropCall var.tcv_field in
+          let setter    = Printf.sprintf "set_%s" var.tcv_name |> get_wrapper var.tcv_field in
           let call      = Printf.sprintf "if (%s) { return ::hx::Val( %s(inValue.Cast< %s >()) ); }" prop_call setter casted in
 
-          (field.cf_name, String.length field.cf_name, call) :: acc
+          (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, call) :: acc
         | _ ->
           acc
       else
@@ -722,35 +716,34 @@ let generate_managed_class base_ctx tcpp_class =
   if has_tcpp_class_flag tcpp_class StaticSet then (
     Printf.sprintf "bool %s::__SetStatic(const ::String& inName, ::Dynamic& ioValue, ::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
 
-    let fold_variable field acc =
-      if (reflective class_def field) && not (is_abstract_impl class_def) then
-        let ident  = keyword_remap field.cf_name in
-        let casted = castable field in
+    let fold_variable (var:tcpp_class_variable) acc =
+      if var.tcv_is_reflective && not (is_abstract_impl class_def) then
+        let casted = castable var.tcv_field in
 
-        match field.cf_kind with
+        match var.tcv_field.cf_kind with
         | Var { v_write = AccCall } ->
-          let prop_call = checkPropCall field in
-          let setter    = ident |> Printf.sprintf "set_%s" |> get_wrapper field in
-          let call      = Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()); } else { %s = ioValue.Cast< %s >(); } return true;" prop_call setter casted ident casted in
+          let prop_call = checkPropCall var.tcv_field in
+          let setter    = Printf.sprintf "set_%s" var.tcv_name |> get_wrapper var.tcv_field in
+          let call      = Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()); } else { %s = ioValue.Cast< %s >(); } return true;" prop_call setter casted var.tcv_name casted in
 
-          (field.cf_name, String.length field.cf_name, call) :: acc
+          (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, call) :: acc
         | Var { v_write = AccNormal | AccNo } ->
-          (field.cf_name, String.length field.cf_name, Printf.sprintf "%s = ioValue.Cast< %s >(); return true;" ident casted) :: acc
+          (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, Printf.sprintf "%s = ioValue.Cast< %s >(); return true;" var.tcv_name casted) :: acc
         | _ ->
           acc
       else
         acc
     in
 
-    let fold_property field acc =
-      if (reflective class_def field) && not (is_abstract_impl class_def) then
-        match field.cf_kind with
+    let fold_property (var:tcpp_class_variable) acc =
+      if var.tcv_is_reflective && not (is_abstract_impl class_def) then
+        match var.tcv_field.cf_kind with
         | Var { v_write = AccCall } ->
-          let prop_call = checkPropCall field in
-          let setter    = keyword_remap field.cf_name |> Printf.sprintf "set_%s" |> get_wrapper field in
-          let casted    = castable field in
+          let prop_call = checkPropCall var.tcv_field in
+          let setter    = Printf.sprintf "set_%s" var.tcv_name |> get_wrapper var.tcv_field in
+          let casted    = castable var.tcv_field in
 
-          (field.cf_name, String.length field.cf_name, Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()); }" prop_call setter casted) :: acc
+          (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()); }" prop_call setter casted) :: acc
         | _ ->
           acc
       else
@@ -767,7 +760,7 @@ let generate_managed_class base_ctx tcpp_class =
   (* For getting a list of data members (eg, for serialization) *)
   if has_tcpp_class_flag tcpp_class GetFields then (
 
-    let append field acc = (strq field.cf_name |> Printf.sprintf "\toutFields->push(%s);") :: acc in
+    let append var acc = (strq var.tcv_field.cf_name |> Printf.sprintf "\toutFields->push(%s);") :: acc in
     let fields =
       [ "\tsuper::__GetFields(outFields);" ]
       |> List.fold_right append tcpp_class.tcl_variables
@@ -786,12 +779,12 @@ let generate_managed_class base_ctx tcpp_class =
         "::hx::fsObject" ^ " /* " ^ tcpp_to_string o ^ " */ "
     | u -> "::hx::fsUnknown" ^ " /* " ^ tcpp_to_string u ^ " */ "
   in
-  let dump_member_storage field =
+  let dump_member_storage (var:tcpp_class_variable) =
     Printf.sprintf
-      "\t{ %s, (int)offsetof(%s, %s), %s },\n" (storage field) class_name (keyword_remap field.cf_name) (strq field.cf_name) |> output_cpp
+      "\t{ %s, (int)offsetof(%s, %s), %s },\n" (storage var.tcv_field) class_name var.tcv_name (strq var.tcv_field.cf_name) |> output_cpp
   in
-  let dump_static_storage field =
-    Printf.sprintf "\t{ %s, (void*) &%s::%s, %s },\n" (storage field) class_name (keyword_remap field.cf_name) (strq field.cf_name) |> output_cpp
+  let dump_static_storage (var:tcpp_class_variable) =
+    Printf.sprintf "\t{ %s, (void*) &%s::%s, %s },\n" (storage var.tcv_field) class_name var.tcv_name (strq var.tcv_field.cf_name) |> output_cpp
   in
 
   output_cpp "#ifdef HXCPP_SCRIPTABLE\n";
@@ -819,8 +812,8 @@ let generate_managed_class base_ctx tcpp_class =
     Printf.sprintf "static ::String* %s_sMemberFields = 0;\n\n" class_name |> output_cpp);
 
   if List.length tcpp_class.tcl_static_variables > 0 then (
-    let dump_field_iterator macro field =
-      Printf.sprintf "\t%s(%s::%s, \"%s\");" macro class_name (keyword_remap field.cf_name) field.cf_name
+    let dump_field_iterator macro var =
+      Printf.sprintf "\t%s(%s::%s, \"%s\");" macro class_name var.tcv_name var.tcv_field.cf_name
     in
 
     (* Mark static variables as used *)

@@ -220,6 +220,17 @@ and tcpp_class_function = {
   tcf_is_overriding : bool;
 }
 
+and tcpp_class_variable = {
+  tcv_field : tclass_field;
+  tcv_name : string;
+  tcv_type : t;
+  tcv_default : texpr option;
+
+  tcv_is_stackonly : bool;
+  tcv_is_gc_element : bool;
+  tcv_is_reflective : bool;
+}
+
 and tcpp_class = {
   tcl_class : tclass;
   tcl_name : string;
@@ -231,13 +242,13 @@ and tcpp_class = {
   tcl_haxe_interfaces : tcpp_interface list;
   tcl_native_interfaces : tcpp_interface list;
 
-  tcl_static_variables : tclass_field list;
-  tcl_static_properties : tclass_field list;
+  tcl_static_variables : tcpp_class_variable list;
+  tcl_static_properties : tcpp_class_variable list;
   tcl_static_functions : tcpp_class_function list;
   tcl_static_dynamic_functions : tcpp_class_function list;
 
-  tcl_variables : tclass_field list;
-  tcl_properties : tclass_field list;
+  tcl_variables : tcpp_class_variable list;
+  tcl_properties : tcpp_class_variable list;
   tcl_functions : tcpp_class_function list;
   tcl_dynamic_functions : tcpp_class_function list;
 
