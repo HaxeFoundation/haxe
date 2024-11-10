@@ -365,17 +365,6 @@ let hx_stack_push ctx output clazz func_name pos gc_stack =
 (* Add include to source code *)
 let add_include writer class_path = writer#add_include class_path
 
-let native_field_name_remap is_static field =
-  let remap_name = keyword_remap field.cf_name in
-  if not is_static then remap_name
-  else
-    match get_meta_string field.cf_meta Meta.Native with
-    | Some nativeImpl ->
-        let r = Str.regexp "^[a-zA-Z_0-9]+$" in
-        if Str.string_match r remap_name 0 then "_hx_" ^ remap_name
-        else "_hx_f" ^ gen_hash 0 remap_name
-    | None -> remap_name
-
 let rec is_dynamic_accessor name acc field class_def =
   acc ^ "_" ^ field.cf_name = name
   && (not (List.exists (fun f -> f.cf_name = name) class_def.cl_ordered_fields))
@@ -448,8 +437,8 @@ exception FieldFound of tclass_field
 
 let find_class_implementation func tcpp_class =
   let rec find def =
-    match List.find_opt (fun (f, _) -> f.cf_name = func.iff_field.cf_name) def.tcl_functions with
-    | Some f -> Some (fst f)
+    match List.find_opt (fun f -> f.tcf_name = func.iff_name) def.tcl_functions with
+    | Some f -> Some f.tcf_field
     | None ->
       match def.tcl_super with
       | Some s -> find s
@@ -469,14 +458,14 @@ let gen_gc_name class_path =
 let needed_interface_functions implemented_instance_fields native_implementations =
   let have =
     implemented_instance_fields
-    |> List.map (fun (field, _) -> (field.cf_name, ()))
+    |> List.map (fun (func) -> (func.tcf_name, ()))
     |> StringMap.of_list
   in
   let func_folder (have, acc) func =
-    if StringMap.mem func.iff_field.cf_name have then
+    if StringMap.mem func.iff_name have then
       (have, acc)
     else
-      (StringMap.add func.iff_field.cf_name () have, func :: acc)
+      (StringMap.add func.iff_name () have, func :: acc)
   in
   let iface_folder acc iface =
     List.fold_left func_folder acc iface.if_functions

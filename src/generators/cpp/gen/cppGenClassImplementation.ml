@@ -12,12 +12,11 @@ open CppSourceWriter
 open CppContext
 open CppGen
 
-let gen_function ctx class_def class_name is_static (field, function_def) =
+let gen_function ctx class_def class_name is_static (func:tcpp_class_function) =
   let output          = ctx.ctx_output in
-  let nargs           = string_of_int (List.length function_def.tf_args) in
-  let return_type_str = type_to_string function_def.tf_type in
-  let return_type     = cpp_type_of function_def.tf_type in
-  let no_debug        = Meta.has Meta.NoDebug field.cf_meta in
+  let return_type_str = type_to_string func.tcf_func.tf_type in
+  let return_type     = cpp_type_of func.tcf_func.tf_type in
+  let no_debug        = Meta.has Meta.NoDebug func.tcf_field.cf_meta in
   let is_void         = return_type = TCppVoid in
   let ret             = if is_void then "(void)" else "return " in
   let needsWrapper t =
@@ -28,43 +27,34 @@ let gen_function ctx class_def class_name is_static (field, function_def) =
   in
 
   (* The actual function definition *)
-  let remap_name = native_field_name_remap is_static field in
   output (if is_void then "void" else return_type_str);
-  output (" " ^ class_name ^ "::" ^ remap_name ^ "(");
-  output (print_arg_list function_def.tf_args "__o_");
+  output (" " ^ class_name ^ "::" ^ func.tcf_name ^ "(");
+  output (print_arg_list func.tcf_func.tf_args "__o_");
   output ")";
   ctx.ctx_real_this_ptr <- true;
-  let code = get_code field.cf_meta Meta.FunctionCode in
-  let tail_code = get_code field.cf_meta Meta.FunctionTailCode in
+  let code = get_code func.tcf_field.cf_meta Meta.FunctionCode in
+  let tail_code = get_code func.tcf_field.cf_meta Meta.FunctionTailCode in
 
-  match get_meta_string field.cf_meta Meta.Native with
+  match get_meta_string func.tcf_field.cf_meta Meta.Native with
   | Some nativeImpl when is_static ->
     output " {\n";
     output
       ("\t" ^ ret ^ "::" ^ nativeImpl ^ "("
-      ^ print_arg_list_name function_def.tf_args "__o_"
+      ^ print_arg_list_name func.tcf_func.tf_args "__o_"
       ^ ");\n");
     output "}\n\n"
   | _ ->
-    gen_cpp_function_body ctx class_def is_static field.cf_name
-      function_def code tail_code no_debug;
+    gen_cpp_function_body ctx class_def is_static func.tcf_field.cf_name func.tcf_func code tail_code no_debug;
 
     output "\n\n";
-    let nonVirtual = Meta.has Meta.NonVirtual field.cf_meta in
-    let doDynamic =
-      (nonVirtual || not (is_override field))
-      && reflective class_def field
-    in
+    
     (* generate dynamic version too ... *)
-    if doDynamic then
-      let tcpp_args =
-        List.map
-          (fun (v, _) -> cpp_type_of v.v_type)
-          function_def.tf_args
-      in
-      let wrap = needsWrapper return_type || List.exists needsWrapper tcpp_args in
+    if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
+      let tcpp_args = List.map (fun (v, _) -> cpp_type_of v.v_type) func.tcf_func.tf_args in
+      let wrap      = needsWrapper return_type || List.exists needsWrapper tcpp_args in
+
       if wrap then (
-        let wrapName = "_hx_wrap" ^ class_name ^ "_" ^ remap_name in
+        let wrapName = "_hx_wrap" ^ class_name ^ "_" ^ func.tcf_name in
         output ("static ::Dynamic " ^ wrapName ^ "( ");
 
         let initial = if is_static then [] else [ "::hx::Object *obj" ] in
@@ -80,17 +70,13 @@ let gen_function ctx class_def class_name is_static (field, function_def) =
             | TCppStar _ -> output "return (cpp::Pointer<const void *>) "
             | TCppInst (t, _) when Meta.has Meta.StructAccess t.cl_meta
               ->
-                output
-                  ("return (cpp::Struct< " ^ tcpp_to_string return_type
-                ^ " >) ")
+                output ("return (cpp::Struct< " ^ tcpp_to_string return_type ^ " >) ")
             | _ -> output "return ");
 
         if is_static then
-          output (class_name ^ "::" ^ remap_name ^ "(")
+          output (class_name ^ "::" ^ func.tcf_name ^ "(")
         else
-          output
-            ("reinterpret_cast< " ^ class_name ^ " *>(obj)->"
-            ^ remap_name ^ "(");
+          output ("reinterpret_cast< " ^ class_name ^ " *>(obj)->" ^ func.tcf_name ^ "(");
 
         let cast_prefix arg =
           match arg with
@@ -114,37 +100,33 @@ let gen_function ctx class_def class_name is_static (field, function_def) =
         output "}\n";
         let nName = string_of_int (List.length tcpp_args) in
         output
-          ("::Dynamic " ^ class_name ^ "::" ^ remap_name
-          ^ "_dyn() {\n\treturn ");
+          ("::Dynamic " ^ class_name ^ "::" ^ func.tcf_name ^ "_dyn() {\n\treturn ");
         if is_static then
           output
-            ("::hx::CreateStaticFunction" ^ nName ^ "(\"" ^ remap_name
-            ^ "\"," ^ wrapName ^ ");")
+            ("::hx::CreateStaticFunction" ^ nName ^ "(\"" ^ func.tcf_name ^ "\"," ^ wrapName ^ ");")
         else
           output
-            ("::hx::CreateMemberFunction" ^ nName ^ "(\"" ^ remap_name
-            ^ "\",this," ^ wrapName ^ ");");
+            ("::hx::CreateMemberFunction" ^ nName ^ "(\"" ^ func.tcf_name ^ "\",this," ^ wrapName ^ ");");
         output "}\n")
       else
         let prefix = if is_static then "STATIC_" else "" in
-        Printf.sprintf "%sHX_DEFINE_DYNAMIC_FUNC%s(%s, %s, %s)\n\n" prefix nargs class_name remap_name ret |> output
+        Printf.sprintf "%sHX_DEFINE_DYNAMIC_FUNC%i(%s, %s, %s)\n\n" prefix (List.length func.tcf_func.tf_args) class_name func.tcf_name ret |> output
 
-let gen_dynamic_function ctx class_def class_name is_static is_for_static_var (field, function_def) =
+let gen_dynamic_function ctx class_def class_name is_static is_for_static_var (func:tcpp_class_function) =
   let output = ctx.ctx_output in
-  let remap_name = keyword_remap field.cf_name in
-  let func_name = "__default_" ^ remap_name in
-  let nargs = string_of_int (List.length function_def.tf_args) in
-  let return_type_str = type_to_string function_def.tf_type in
-  let return_type = cpp_type_of function_def.tf_type in
-  let no_debug = Meta.has Meta.NoDebug field.cf_meta in
+  let func_name = "__default_" ^ func.tcf_name in
+  let nargs = string_of_int (List.length func.tcf_func.tf_args) in
+  let return_type_str = type_to_string func.tcf_func.tf_type in
+  let return_type = cpp_type_of func.tcf_func.tf_type in
+  let no_debug = Meta.has Meta.NoDebug func.tcf_field.cf_meta in
   let is_void = return_type = TCppVoid in
   let ret = if is_void then "(void)" else "return " in
 
   ctx.ctx_real_this_ptr <- false;
   Printf.sprintf "HX_BEGIN_DEFAULT_FUNC(%s, %s)\n" func_name class_name |> output; 
-  Printf.sprintf "%s _hx_run(%s)" return_type_str (print_arg_list function_def.tf_args "__o_") |> output;
+  Printf.sprintf "%s _hx_run(%s)" return_type_str (print_arg_list func.tcf_func.tf_args "__o_") |> output;
 
-  gen_cpp_function_body ctx class_def is_static func_name function_def "" "" no_debug;
+  gen_cpp_function_body ctx class_def is_static func_name func.tcf_func "" "" no_debug;
 
   output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
   output "HX_END_DEFAULT_FUNC\n\n"
@@ -188,8 +170,7 @@ let gen_boot_field ctx output_cpp tcpp_class =
     List.iter (gen_field_init ctx tcpp_class.tcl_class) tcpp_class.tcl_static_variables;
 
     tcpp_class.tcl_static_dynamic_functions
-    |> List.map fst
-    |> List.iter (gen_field_init ctx tcpp_class.tcl_class);
+    |> List.iter (fun f -> gen_field_init ctx tcpp_class.tcl_class f.tcf_field);
 
     output_cpp "}\n\n")
 
@@ -206,9 +187,8 @@ let gen_dynamic_function_allocator ctx output_cpp tcpp_class =
   match tcpp_class.tcl_dynamic_functions with
   | [] -> ()
   | functions ->
-    let mapper (field, _) =
-      let name = keyword_remap field.cf_name in
-      Printf.sprintf "\tif (!_hx_obj->%s.mPtr) { _hx_obj->%s = new __default_%s(_hx_obj); }" name name name in   
+    let mapper func =
+      Printf.sprintf "\tif (!_hx_obj->%s.mPtr) { _hx_obj->%s = new __default_%s(_hx_obj); }" func.tcf_name func.tcf_name func.tcf_name in
     let rec folder acc class_def =
       if has_dynamic_member_functions class_def then
         let super_name = join_class_path_remap class_def.cl_path "::" ^ "_obj" in
@@ -239,9 +219,9 @@ let print_reflective_fields ctx_common class_def variables functions =
       Some (Printf.sprintf "\t%s" (strq field.cf_name))
     else
       None in
-  let filter_funcs (field, _) =
-    if reflective class_def field then
-      Some (Printf.sprintf "\t%s" (strq field.cf_name))
+  let filter_funcs func =
+    if func.tcf_is_reflective then
+      Some (Printf.sprintf "\t%s" (strq func.tcf_field.cf_name))
     else
       None in
 
@@ -541,9 +521,7 @@ let generate_managed_class base_ctx tcpp_class =
   (* Initialise non-static variables *)
   output_cpp (class_name ^ "::" ^ class_name ^ "()\n{\n");
   List.iter
-    (fun (field, _) ->
-      let name = keyword_remap field.cf_name in
-      output_cpp ("\t" ^ name ^ " = new __default_" ^ name ^ "(this);\n"))
+    (fun func -> output_cpp ("\t" ^ func.tcf_name ^ " = new __default_" ^ func.tcf_name ^ "(this);\n"))
     tcpp_class.tcl_dynamic_functions;
   output_cpp "}\n\n";
 
@@ -627,11 +605,12 @@ let generate_managed_class base_ctx tcpp_class =
       acc
   in
 
-  let print_function printer (field, _) acc =
-    if (reflective class_def field) then
-      let ident = keyword_remap field.cf_name |> get_wrapper field in
+  let print_function printer func acc =
+    if func.tcf_is_reflective then
+      let ident  = get_wrapper func.tcf_field func.tcf_name |> printer in
+      let length = String.length func.tcf_field.cf_name in
 
-      (field.cf_name, String.length field.cf_name, printer ident) :: acc
+      (func.tcf_field.cf_name, length, ident) :: acc
     else
       acc
   in
@@ -956,10 +935,10 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp ("   typedef " ^ class_name ^ " super;\n");
     let has_funky_toString =
       List.exists
-        (fun (f, _) -> f.cf_name = "toString")
+        (fun func -> func.tcf_name = "toString")
         tcpp_class.tcl_static_functions ||
       List.exists
-        (fun (f, tfunc) -> f.cf_name = "toString" && List.length tfunc.tf_args <> 0)
+        (fun func -> func.tcf_name = "toString" && List.length func.tcf_func.tf_args <> 0)
         tcpp_class.tcl_functions
     in
     let super_string =
@@ -978,14 +957,14 @@ let generate_managed_class base_ctx tcpp_class =
 
     if List.length tcpp_class.tcl_functions > 0 || List.length tcpp_class.tcl_static_functions > 0 then (
 
-      let dump_script is_static (f, _) acc =
-        let signature = generate_script_function is_static f ("__s_" ^ f.cf_name) (keyword_remap f.cf_name) in
-        let superCall = if is_static then "0" else "__s_" ^ f.cf_name ^ "<true>" in
+      let dump_script is_static f acc =
+        let signature = generate_script_function is_static f.tcf_field ("__s_" ^ f.tcf_field.cf_name) f.tcf_name in
+        let superCall = if is_static then "0" else "__s_" ^ f.tcf_field.cf_name ^ "<true>" in
         let named =
           Printf.sprintf
             "\t::hx::ScriptNamedFunction(\"%s\", __s_%s, \"%s\", %s HXCPP_CPPIA_SUPER_ARG(%s))"
-            f.cf_name
-            f.cf_name
+            f.tcf_field.cf_name
+            f.tcf_field.cf_name
             signature
             (if is_static then "true" else "false")
             superCall in

@@ -1456,47 +1456,73 @@ let rec get_id path ids =
     let new_id = make_id 0 in
     (new_id, ObjectIds.add path new_id ids)
   
-let rec tcpp_class_from_tclass ctx ids slots class_def =
-  let filter_functions field =
-    let abstract_to_function () =
-      match field.cf_type with
-      | TFun (args, ret) ->
-        let get_default_value name =
-          try
-            match Meta.get Meta.Value field.cf_meta with
-            | _, [ (EObjectDecl decls, _) ], _ ->
-              Some
-                (decls
-                  |> List.find (fun ((n, _, _), _) -> n = name)
-                  |> snd
-                  |> type_constant_value ctx.ctx_common.basic)
-            | _ -> None
-          with Not_found -> None
-        in
-        let map_arg (name, _, t) =
-          ( (alloc_var VGenerated name t null_pos), (get_default_value name) ) in
-        let expr = 
-          match follow ret with
-          | TAbstract ({ a_path = ([], "Void") }, _) ->
-            { eexpr = TReturn None; etype = ret; epos = null_pos }
-          | _ ->
-            let zero_val = Some { eexpr = TConst (TInt Int32.zero); etype = ret; epos = null_pos } in
-            { eexpr = TReturn zero_val; etype = ret; epos = null_pos } in
-        
-        {
-          tf_args = args |> List.map map_arg;
-          tf_type = ret;
-          tf_expr = expr;
-        }
-      | _ ->
-        die "expected abstract field type to be TFun" __LOC__ in
+let native_field_name_remap field =
+  match get_meta_string field.cf_meta Meta.Native with
+  | Some nativeImpl ->
+    keyword_remap nativeImpl
+  | None ->
+    keyword_remap field.cf_name
 
+let rec tcpp_class_from_tclass ctx ids slots class_def =
+  let scriptable = Common.defined ctx.ctx_common Define.Scriptable in
+
+  let create_function field func = {
+    tcf_field = field;
+    tcf_name = native_field_name_remap field;
+    tcf_func = func;
+    tcf_is_virtual = not (has_meta Meta.NonVirtual field.cf_meta);
+    tcf_is_reflective = reflective class_def field;
+    tcf_is_external = not (is_internal_member field.cf_name);
+    tcf_is_overriding = is_override field;
+    tcf_is_scriptable = scriptable;
+  } in
+
+  let filter_functions is_static field =
     if should_implement_field field then
       match (field.cf_kind, field.cf_expr) with
       | Method (MethNormal | MethInline), Some { eexpr = TFunction func } ->
-        Some (field, func)
+        Some (create_function field func)
       | Method MethNormal, _ when has_class_field_flag field CfAbstract ->
-        Some (field, abstract_to_function ())
+        (* We need to fetch the default values for abstract functions from the @:Value meta *)
+        let abstract_tfunc =
+          match field.cf_type with
+          | TFun (args, ret) ->
+            let get_default_value name =
+              try
+                match Meta.get Meta.Value field.cf_meta with
+                | _, [ (EObjectDecl decls, _) ], _ ->
+                  Some
+                    (decls
+                      |> List.find (fun ((n, _, _), _) -> n = name)
+                      |> snd
+                      |> type_constant_value ctx.ctx_common.basic)
+                | _ -> None
+              with Not_found -> None
+            in
+
+            (* Generate a no op tfunc for our abstract *)
+            (* This allows it to go through the rest of the generator with no special cases *)
+            (* We can't implement abstract functions as pure virtual due to cppia needing to construct the class *)
+            let map_arg (name, _, t) =
+              ( (alloc_var VGenerated name t null_pos), (get_default_value name) ) in
+            let expr = 
+              match follow ret with
+              | TAbstract ({ a_path = ([], "Void") }, _) ->
+                { eexpr = TReturn None; etype = ret; epos = null_pos }
+              | _ ->
+                let zero_val = Some { eexpr = TConst (TInt Int32.zero); etype = ret; epos = null_pos } in
+                { eexpr = TReturn zero_val; etype = ret; epos = null_pos } in
+            
+            {
+              tf_args = args |> List.map map_arg;
+              tf_type = ret;
+              tf_expr = expr;
+            }
+          | _ ->
+            die "expected abstract field type to be TFun" __LOC__
+        in
+
+        Some (create_function field abstract_tfunc)
       | _ ->
         None
     else
@@ -1507,10 +1533,10 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
     if should_implement_field field then
       match (field.cf_kind, field.cf_expr) with
       | Method MethDynamic, Some { eexpr = TFunction func } ->
-        Some (field, func)
+        Some (create_function field func)
       (* static variables with a default function value get a dynamic function generated as the implementation *)
       | Var _, Some { eexpr = TFunction func } when func_for_static_field ->
-        Some (field, func)
+        Some (create_function field func)
       | _ ->
         None
     else
@@ -1546,7 +1572,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
   
   let static_functions =
     class_def.cl_ordered_statics
-    |> List.filter_map filter_functions in
+    |> List.filter_map (filter_functions true) in
 
   let static_dynamic_functions =
     class_def.cl_ordered_statics
@@ -1564,7 +1590,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
 
   let functions = 
     class_def.cl_ordered_fields
-    |> List.filter_map filter_functions in
+    |> List.filter_map (filter_functions true) in
 
   let dynamic_functions =
     class_def.cl_ordered_fields
@@ -1608,7 +1634,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
     |> values in
 
   let flags = 0
-    |> (fun f -> if Common.defined ctx.ctx_common Define.Scriptable && not class_def.cl_private then set_tcpp_class_flag f Scriptable else f)
+    |> (fun f -> if scriptable && not class_def.cl_private then set_tcpp_class_flag f Scriptable else f)
     |> (fun f -> if can_quick_alloc class_def then set_tcpp_class_flag f QuickAlloc else f)
     |> (fun f -> if List.exists (fun f -> not (cant_be_null f.cf_type)) variables then set_tcpp_class_flag f Container else f)
     |> (fun f -> if has_get_member_field class_def then set_tcpp_class_flag f MemberGet else f)
@@ -1661,7 +1687,7 @@ and tcpp_interface_from_tclass ctx slots class_def =
       in
       let retyped = {
         iff_field       = field;
-        iff_name        = keyword_remap field.cf_name;
+        iff_name        = native_field_name_remap field;
         iff_args        = args |> List.map (fun (name, opt, t) -> (keyword_remap name, opt, t));
         iff_return      = ret;
         iff_script_slot = CppAst.InterfaceSlots.find_opt field.cf_name slots

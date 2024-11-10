@@ -31,38 +31,32 @@ let gen_member_variable ctx class_def is_static field =
       "\t\tinline %s _hx_set_%s(::hx::StackContext* _hx_ctx, %s _hx_v) { HX_OBJ_WB(this, _hx_v%s) return %s = _hx_v; }\n"
       tcpp_str remap_name tcpp_str get_ptr remap_name |> output;)
 
-let gen_dynamic_function ctx class_def is_static field function_def =
-  let output        = ctx.ctx_output in
-  let remap_name    = keyword_remap field.cf_name in
-  let prefix        = if is_static then "\t\tstatic " else "\t\t" in
+let gen_dynamic_function ctx class_def is_static func =
+  let output = ctx.ctx_output in
+  let prefix = if is_static then "\t\tstatic " else "\t\t" in
 
-  Printf.sprintf "%sinline ::Dynamic& %s_dyn() { return %s; }\n" prefix remap_name remap_name |> output
+  Printf.sprintf "%sinline ::Dynamic& %s_dyn() { return %s; }\n" prefix func.tcf_name func.tcf_name |> output
 
-let gen_member_function ctx class_def is_static field function_def =
-  let output         = ctx.ctx_output in
-  let is_non_virtual = Meta.has Meta.NonVirtual field.cf_meta in
-  let is_virtual     = not is_non_virtual in
-  let is_non_static  = not is_static in
-
-  if is_virtual && is_non_static then (
-    let is_not_scriptable  = not (Common.defined ctx.ctx_common Define.Scriptable) in
-    let is_external_member = not (is_internal_member field.cf_name) in
-    if is_not_scriptable && is_external_member then
-      let key = Printf.sprintf "%s.%s" (join_class_path class_def.cl_path ".") field.cf_name in
+let gen_member_function ctx class_def is_static func =
+  let output = ctx.ctx_output in
+  
+  if func.tcf_is_virtual && not is_static then (
+    if not func.tcf_is_scriptable && not func.tcf_is_external then
+      let key = Printf.sprintf "%s.%s" (join_class_path class_def.cl_path ".") func.tcf_field.cf_name in
       match StringMap.find_opt key ctx.ctx_class_member_types with
       | Some v -> output v
       | None -> ()
     else
       output "virtual ");
 
-  let return_type     = type_to_string function_def.tf_type in
+  let return_type     = type_to_string func.tcf_func.tf_type in
   let return_type_str = if return_type = "Void" then "void" else return_type in
-  let remap_name      = native_field_name_remap is_static field in
-  let prefix          = (if is_static then "\t\tstatic " else "\t\t") in
-  Printf.sprintf "%s%s %s(%s);\n" prefix return_type_str remap_name (print_arg_list function_def.tf_args "") |> output;
+  let prefix          = (if is_static then "static" else "") in
+  (* let remap_name      = native_field_name_remap is_static field in *)
+  Printf.sprintf "\t\t%s %s %s(%s);\n" prefix return_type_str func.tcf_name (print_arg_list func.tcf_func.tf_args "") |> output;
 
-  if (is_non_virtual || not (is_override field)) && reflective class_def field then
-    Printf.sprintf "%s::Dynamic %s_dyn();\n" prefix remap_name |> output
+  if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
+    Printf.sprintf "%s::Dynamic %s_dyn();\n" prefix func.tcf_name |> output
 
 let gen_class_header ctx tcpp_class h_file scriptable parents =
   let class_path = tcpp_class.tcl_class.cl_path in
@@ -170,22 +164,22 @@ let generate_native_header base_ctx tcpp_class =
   if has_tcpp_class_flag tcpp_class Boot then output_h "\t\tstatic void __boot();\n";
 
   tcpp_class.tcl_static_functions
-  |> List.iter (fun (field, func) -> gen_member_function ctx class_def true field func);
+  |> List.iter (gen_member_function ctx class_def true);
 
   tcpp_class.tcl_static_dynamic_functions
-  |> List.iter (fun (field, func) -> gen_dynamic_function ctx class_def true field func);
+  |> List.iter (gen_dynamic_function ctx class_def true);
 
   tcpp_class.tcl_static_variables
-  |> List.iter (fun field -> gen_member_variable ctx class_def true field);
+  |> List.iter (gen_member_variable ctx class_def true);
 
   tcpp_class.tcl_functions
-  |> List.iter (fun (field, func) -> gen_member_function ctx class_def false field func);
+  |> List.iter (gen_member_function ctx class_def false);
 
   tcpp_class.tcl_dynamic_functions
-  |> List.iter (fun (field, func) -> gen_dynamic_function ctx class_def false field func);
+  |> List.iter (gen_dynamic_function ctx class_def false);
 
   tcpp_class.tcl_variables
-  |> List.iter (fun field -> gen_member_variable ctx class_def false field);
+  |> List.iter (gen_member_variable ctx class_def false);
 
   output_h (get_class_code class_def Meta.HeaderClassCode);
   output_h "};\n\n";
@@ -368,19 +362,19 @@ let generate_managed_header base_ctx tcpp_class =
   if has_tcpp_class_flag tcpp_class Boot then output_h "\t\tstatic void __boot();\n";
 
   tcpp_class.tcl_static_functions
-  |> List.iter (fun (field, func) -> gen_member_function ctx class_def true field func);
+  |> List.iter (gen_member_function ctx class_def true);
 
   tcpp_class.tcl_static_dynamic_functions
-  |> List.iter (fun (field, func) -> gen_dynamic_function ctx class_def true field func);
+  |> List.iter (gen_dynamic_function ctx class_def true);
 
   tcpp_class.tcl_static_variables
-  |> List.iter (fun field -> gen_member_variable ctx class_def true field);
+  |> List.iter (gen_member_variable ctx class_def true);
 
   tcpp_class.tcl_functions
-  |> List.iter (fun (field, func) -> gen_member_function ctx class_def false field func);
+  |> List.iter (gen_member_function ctx class_def false);
 
   tcpp_class.tcl_dynamic_functions
-  |> List.iter (fun (field, func) -> gen_dynamic_function ctx class_def false field func);
+  |> List.iter (gen_dynamic_function ctx class_def false);
 
   tcpp_class.tcl_variables
   |> List.iter (fun field -> gen_member_variable ctx class_def false field);

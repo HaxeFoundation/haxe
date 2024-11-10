@@ -208,6 +208,18 @@ and tcpp_class_flags =
   | Compare
   | Boot
 
+and tcpp_class_function = {
+  tcf_field : tclass_field;
+  tcf_name : string;
+  tcf_func : tfunc;
+
+  tcf_is_virtual : bool;
+  tcf_is_reflective : bool;
+  tcf_is_external : bool;
+  tcf_is_scriptable : bool;
+  tcf_is_overriding : bool;
+}
+
 and tcpp_class = {
   tcl_class : tclass;
   tcl_name : string;
@@ -221,13 +233,13 @@ and tcpp_class = {
 
   tcl_static_variables : tclass_field list;
   tcl_static_properties : tclass_field list;
-  tcl_static_functions : (tclass_field * tfunc) list;
-  tcl_static_dynamic_functions : (tclass_field * tfunc) list;
+  tcl_static_functions : tcpp_class_function list;
+  tcl_static_dynamic_functions : tcpp_class_function list;
 
   tcl_variables : tclass_field list;
   tcl_properties : tclass_field list;
-  tcl_functions : (tclass_field * tfunc) list;
-  tcl_dynamic_functions : (tclass_field * tfunc) list;
+  tcl_functions : tcpp_class_function list;
+  tcl_dynamic_functions : tcpp_class_function list;
 
   tcl_meta : texpr option;
   tcl_rtti : texpr option;
