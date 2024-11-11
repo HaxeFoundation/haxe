@@ -86,10 +86,6 @@ let generate_managed_interface base_ctx tcpp_interface =
   let output_cpp = cpp_file#write in
   let strq = strq ctx.ctx_common in
 
-  if tcpp_interface.if_debug_level > 1 then
-    print_endline
-      ("Found interface definition:" ^ join_class_path tcpp_interface.if_class.cl_path "::");
-
   cpp_file#write_h "#include <hxcpp.h>\n\n";
 
   let all_referenced =

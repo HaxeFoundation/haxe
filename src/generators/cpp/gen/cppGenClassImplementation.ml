@@ -43,7 +43,10 @@ let gen_function ctx class_def class_name is_static func =
       ^ ");\n");
     output "}\n\n"
   | _ ->
-    gen_cpp_function_body ctx class_def is_static func.tcf_field.cf_name func.tcf_func code tail_code no_debug;
+    with_debug
+      ctx
+      func.tcf_field.cf_meta
+      (gen_cpp_function_body ctx class_def is_static func.tcf_field.cf_name func.tcf_func code tail_code);
 
     output "\n\n";
     
@@ -236,10 +239,6 @@ let generate_native_class base_ctx tcpp_class =
   let output_cpp = cpp_file#write in
   let scriptable = has_tcpp_class_flag tcpp_class Scriptable in
 
-  if debug > 1 then
-    print_endline
-      ("Found class definition:" ^ join_class_path class_def.cl_path "::");
-
   cpp_file#write_h "#include <hxcpp.h>\n\n";
 
   let all_referenced =
@@ -302,9 +301,6 @@ let generate_managed_class base_ctx tcpp_class =
         tcpp_to_string_suffix "_obj" (cpp_instance_type klass params)
     | _ -> ""
   in
-  if debug > 1 then
-    print_endline
-      ("Found class definition:" ^ join_class_path class_def.cl_path "::");
 
   cpp_file#write_h "#include <hxcpp.h>\n\n";
 
