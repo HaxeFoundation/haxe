@@ -445,10 +445,12 @@ let gen_gc_name class_path =
   const_char_star class_name_text
 
 let needed_interface_functions implemented_instance_fields native_implementations =
+  let of_list bs = List.fold_left (fun m (k, v) -> StringMap.add k v m) StringMap.empty bs in
+
   let have =
     implemented_instance_fields
     |> List.map (fun (func) -> (func.tcf_name, ()))
-    |> StringMap.of_list
+    |> of_list
   in
   let func_folder (have, acc) func =
     if StringMap.mem func.iff_name have then
