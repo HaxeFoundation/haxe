@@ -469,7 +469,7 @@ let generate_managed_class base_ctx tcpp_class =
         tcpp_class.tcl_haxe_interfaces in
 
     calls |> String.concat "\n" |> output_cpp;
-    glued |> StringMap.to_list |> List.map snd |> String.concat "\n" |> output_cpp;
+    glued |> StringMap.bindings |> List.map snd |> String.concat "\n" |> output_cpp;
 
     output_cpp ("void *" ^ class_name ^ "::_hx_getInterface(int inHash) {\n");
     output_cpp "\tswitch(inHash) {\n";
