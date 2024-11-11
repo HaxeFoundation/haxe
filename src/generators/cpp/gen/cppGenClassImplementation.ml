@@ -58,8 +58,7 @@ let gen_function ctx class_def class_name is_static func =
 
         let initial = if is_static then [] else [ "::hx::Object *obj" ] in
 
-        initial
-        |> List.append (List.init (List.length tcpp_args) (fun idx -> Printf.sprintf "const ::Dynamic &a%i" idx))
+        initial @ (List.init (List.length tcpp_args) (fun idx -> Printf.sprintf "const ::Dynamic &a%i" idx))
         |> String.concat ","
         |> output;
 
@@ -77,19 +76,17 @@ let gen_function ctx class_def class_name is_static func =
         else
           output ("reinterpret_cast< " ^ class_name ^ " *>(obj)->" ^ func.tcf_name ^ "(");
 
-        let cast_prefix arg =
+        let cast_prefix idx arg =
           match arg with
           | TCppStar (t, const) ->
-              Printf.sprintf "(::cpp::%sPointer< %s >)" (if const then "Const" else "") (tcpp_to_string arg)
+              Printf.sprintf "(::cpp::%sPointer< %s >) a%i" (if const then "Const" else "") (tcpp_to_string t) idx
           | TCppInst (t, _) when Meta.has Meta.StructAccess t.cl_meta ->
-            Printf.sprintf "(::cpp::Struct< %s >)" (tcpp_to_string arg)
+            Printf.sprintf "(::cpp::Struct< %s >) a%i" (tcpp_to_string arg) idx
           | _ ->
-            "" in
+            Printf.sprintf "a%i" idx in
+            
         tcpp_args
-        |> List.map cast_prefix
-        |> List.map2
-          (fun prefix arg -> prefix ^ arg)
-          (List.init (List.length tcpp_args) (fun idx -> Printf.sprintf "a%i" idx))
+        |> ExtList.List.mapi cast_prefix
         |> String.concat ", "
         |> output;
 
@@ -574,9 +571,9 @@ let generate_managed_class base_ctx tcpp_class =
   let get_wrapper field value =
     match cpp_type_of field.cf_type with
     | TCppInst (t, _) as inst when Meta.has Meta.StructAccess t.cl_meta ->
-      Printf.sprintf "::cpp::Struct< %s >( %s )" (tcpp_to_string inst) value
+      Printf.sprintf "(::cpp::Struct< %s >) %s" (tcpp_to_string inst) value
     | TCppStar _ ->
-      Printf.sprintf "::cpp::Pointer<void*>( %s )" value
+      Printf.sprintf "(::cpp::Pointer<void*>) %s" value
     | _ ->
       value
     in
