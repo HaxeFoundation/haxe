@@ -70,17 +70,15 @@ let is_internal_class = function
 let is_native_class class_def =
    (is_extern_class class_def || is_native_gen_class class_def) && not (is_internal_class class_def.cl_path)
 
-let rec implements_native_interface class_def =
-  List.exists
-    (fun (intf_def, _) ->
-      is_native_gen_class intf_def || implements_native_interface intf_def)
-    class_def.cl_implements
-  ||
-  match class_def.cl_super with
-  | Some (i, _) -> implements_native_interface i
-  | _ -> false
-
 let can_quick_alloc klass =
+   let rec implements_native_interface class_def =
+      List.exists
+        (fun (intf_def, _) -> is_native_gen_class intf_def || implements_native_interface intf_def) class_def.cl_implements ||
+      match class_def.cl_super with
+      | Some (i, _) -> implements_native_interface i
+      | _ -> false
+   in
+
   (not (is_native_class klass)) && not (implements_native_interface klass)
 
 let real_interfaces classes =
@@ -155,11 +153,6 @@ let is_numeric t =
    | _
       -> false
    
-let is_cpp_function_instance t =
-   match follow t with
-   | TInst ({ cl_path = (["cpp"], "Function") }, _) -> true
-   | _ -> false
-
 let is_objc_class klass =
    has_class_flag klass CExtern && Meta.has Meta.Objc klass.cl_meta
 
@@ -202,23 +195,6 @@ let is_array_or_dyn_array haxe_type =
    | TInst ({ cl_path = ([], "Array") }, _)
    | TType ({ t_path = ([], "Array")}, _) -> true
    | _ -> false
-
-let is_array_implementer haxe_type =
-   match follow haxe_type with
-   | TInst ({ cl_array_access = Some _ }, _) -> true
-   | _ -> false
-
-let rec has_rtti_interface c interface =
-   List.exists (function (t,pl) ->
-      (snd t.cl_path) = interface && (match fst t.cl_path with | ["cpp";"rtti"] -> true | _ -> false )
-   ) c.cl_implements ||
-      (match c.cl_super with None -> false | Some (c,_) -> has_rtti_interface c interface)
-
-let has_field_integer_lookup class_def =
-   has_rtti_interface class_def "FieldIntegerLookup"
-
-let has_field_integer_numeric_lookup class_def =
-   has_rtti_interface class_def "FieldNumericIntegerLookup"
 
 let should_implement_field x = is_physical_field x
 

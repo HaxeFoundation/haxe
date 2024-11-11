@@ -4,7 +4,6 @@ open Type
 open Error
 open Common
 open Globals
-open CppExprUtils
 open CppTypeUtils
 open CppAst
 open CppAstTools

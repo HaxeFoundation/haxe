@@ -4,7 +4,6 @@ open Error
 open Common
 open Globals
 open CppStrings
-open CppExprUtils
 open CppTypeUtils
 open CppAst
 open CppAstTools
@@ -365,14 +364,6 @@ let hx_stack_push ctx output clazz func_name pos gc_stack =
 (* Add include to source code *)
 let add_include writer class_path = writer#add_include class_path
 
-let rec is_dynamic_accessor name acc field class_def =
-  acc ^ "_" ^ field.cf_name = name
-  && (not (List.exists (fun f -> f.cf_name = name) class_def.cl_ordered_fields))
-  &&
-  match class_def.cl_super with
-  | None -> true
-  | Some (parent, _) -> is_dynamic_accessor name acc field parent
-
 let can_inline_constructor base_ctx class_def =
   match class_def.cl_constructor with
   | Some { cf_expr = Some super_func } ->
@@ -432,8 +423,6 @@ let cpp_tfun_signature include_names args return_type =
   let argList = print_tfun_arg_list include_names args in
   let returnType = type_to_string return_type in
   "( " ^ returnType ^ " (::hx::Object::*)(" ^ argList ^ "))"
-
-exception FieldFound of tclass_field
 
 let find_class_implementation func tcpp_class =
   let rec find def =

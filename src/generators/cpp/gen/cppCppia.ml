@@ -4,7 +4,6 @@ open Type
 open Error
 open Common
 open Globals
-open CppExprUtils
 open CppTypeUtils
 open CppAst
 open CppAstTools
@@ -355,6 +354,19 @@ let rec is_null expr =
   | _ -> false
 
 let is_virtual_array expr = type_string expr.etype = "cpp::VirtualArray"
+
+let rec remove_parens expression =
+  match expression.eexpr with
+  | TParenthesis e -> remove_parens e
+  | TMeta(_,e) -> remove_parens e
+  | _ -> expression
+
+let rec remove_parens_cast expression =
+  match expression.eexpr with
+  | TParenthesis e -> remove_parens_cast e
+  | TMeta(_,e) -> remove_parens_cast e
+  | TCast ( e,None) -> remove_parens_cast e
+  | _ -> expression
 
 let is_this expression =
   match (remove_parens expression).eexpr with

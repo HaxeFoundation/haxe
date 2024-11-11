@@ -22,7 +22,6 @@ open Error
 open Common
 open Globals
 open CppStrings
-open CppExprUtils
 open CppTypeUtils
 open CppAst
 open CppAstTools
