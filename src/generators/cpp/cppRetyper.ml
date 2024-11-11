@@ -1627,7 +1627,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
     | None -> acc
   in
   let values (slots, haxe, native) =
-    slots, haxe |> PathMap.to_list |> List.map (fun (_, v) -> v), native |> PathMap.to_list |> List.map (fun (_, v) -> v) in
+    slots, haxe |> PathMap.bindings |> List.map (fun (_, v) -> v), native |> PathMap.bindings |> List.map (fun (_, v) -> v) in
 
   let (slots, ids, parent) =
     match class_def.cl_super with
