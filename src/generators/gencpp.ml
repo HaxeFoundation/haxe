@@ -289,7 +289,7 @@ let generate_source ctx =
          let acc_build_xml  = acc.build_xml ^ (CppGen.get_class_code class_def Meta.BuildXml) in
          let acc_extern_src =
             match Ast.get_meta_string class_def.cl_meta Meta.SourceFile with
-            | Some source -> source :: acc.extern_src
+            | Some source -> make_path_absolute source class_def.cl_pos :: acc.extern_src
             | None -> acc.extern_src in
 
          { acc with build_xml = acc_build_xml; extern_src = acc_extern_src }
