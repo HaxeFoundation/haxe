@@ -49,7 +49,7 @@ let gen_member_function ctx class_def is_static func =
 
   let return_type     = type_to_string func.tcf_func.tf_type in
   let return_type_str = if return_type = "Void" then "void" else return_type in
-  let prefix          = (if is_static then "static" else "") in
+  let prefix          = (if is_static then "static " else "") in
   (* let remap_name      = native_field_name_remap is_static field in *)
   Printf.sprintf "\t\t%s %s %s(%s);\n" prefix return_type_str func.tcf_name (print_arg_list func.tcf_func.tf_args "") |> output;
 
