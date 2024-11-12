@@ -15,7 +15,6 @@ let gen_function ctx class_def class_name is_static func =
   let output          = ctx.ctx_output in
   let return_type_str = type_to_string func.tcf_func.tf_type in
   let return_type     = cpp_type_of func.tcf_func.tf_type in
-  let no_debug        = Meta.has Meta.NoDebug func.tcf_field.cf_meta in
   let is_void         = return_type = TCppVoid in
   let ret             = if is_void then "(void)" else "return " in
   let needsWrapper t =
