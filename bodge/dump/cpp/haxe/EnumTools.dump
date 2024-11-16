@@ -1,0 +1,237 @@
+{
+	cl_path = haxe.EnumTools;
+	cl_module = haxe.EnumTools;
+	cl_pos = /usr/local/share/haxe/std/haxe/EnumTools.hx: 1440-4101;
+	cl_name_pos = /usr/local/share/haxe/std/haxe/EnumTools.hx: 1446-1455;
+	cl_private = false;
+	cl_doc = 
+	This class provides advanced methods on enums. It is ideally used with
+	`using EnumTools` and then acts as an
+	  [extension](https://haxe.org/manual/lf-static-extension.html) to the
+	  `enum` types.
+
+	If the first argument to any of the methods is `null`, the result is
+	unspecified.
+;
+	cl_meta = [];
+	cl_params = [];
+	cl_kind = KNormal;
+	cl_super = None;
+	cl_implements = [];
+	cl_array_access = None;
+	cl_init = None;
+	cl_constructor = None;
+	cl_ordered_fields = [];
+	cl_ordered_statics = [{
+		cf_name = getName;
+		cf_doc = 
+		Returns the name of enum `e`, including its path.
+
+		If `e` is inside a package, the package structure is returned dot-
+		separated, with another dot separating the enum name:
+
+			pack1.pack2.(...).packN.EnumName
+
+		If `e` is a sub-type of a Haxe module, that module is not part of the
+		package structure.
+
+		If `e` has no package, the enum name is returned.
+
+		If `e` is `null`, the result is unspecified.
+
+		The enum name does not include any type parameters.
+	;
+		cf_type = TFun([e:TAbstract(Enum, [TInst(getName.T, [])])], TInst(String, []));
+		cf_pos = /usr/local/share/haxe/std/haxe/EnumTools.hx: 1934-2020;
+		cf_name_pos = /usr/local/share/haxe/std/haxe/EnumTools.hx: 1957-1964;
+		cf_meta = [];
+		cf_kind = inline method;
+		cf_params = [{
+			name = T;
+			class = getName.T;
+			host = TPHMethod;
+			type = TInst(getName.T, []);
+			constraints = [];
+			default = None;
+		}];
+		cf_expr = [Function:(e : Enum<getName.T>) -> String]
+			[Arg e<42>(VUsedByTyper):Enum<getName.T>]
+			[Block:Dynamic]
+				[Return:Dynamic]
+					[Call:String]
+						[Field:(e : Enum<Dynamic>) -> String]
+							[TypeExpr Type:Class<Type>]
+							[FStatic:(e : Enum<Dynamic>) -> String]
+								Type
+								getEnumName:(e : Enum<Dynamic>) -> String
+						[Local e(42):Enum<getName.T>:Enum<getName.T>];
+		cf_flags = CfPostProcessed CfStatic CfPublic;
+		cf_overloads = [];
+	}
+	{
+		cf_name = createByName;
+		cf_doc = 
+		Creates an instance of enum `e` by calling its constructor `constr` with
+		arguments `params`.
+
+		If `e` or `constr` is `null`, or if enum `e` has no constructor named
+		`constr`, or if the number of elements in `params` does not match the
+		expected number of constructor arguments, or if any argument has an
+		invalid type, the result is unspecified.
+	;
+		cf_type = TFun([e:TAbstract(Enum, [TInst(createByName.T, [])]), constr:TInst(String, []), ?params:TAbstract(Null, [TInst(Array, [TDynamic])])], TInst(createByName.T, []));
+		cf_pos = /usr/local/share/haxe/std/haxe/EnumTools.hx: 2388-2528;
+		cf_name_pos = /usr/local/share/haxe/std/haxe/EnumTools.hx: 2411-2423;
+		cf_meta = [];
+		cf_kind = inline method;
+		cf_params = [{
+			name = T;
+			class = createByName.T;
+			host = TPHMethod;
+			type = TInst(createByName.T, []);
+			constraints = [];
+			default = None;
+		}];
+		cf_expr = [Function:(e : Enum<createByName.T>, constr : String, ?params : Null<Array<Dynamic>>) -> createByName.T]
+			[Arg e<118>(VUsedByTyper):Enum<createByName.T>]
+			[Arg constr<119>(VUsedByTyper):String]
+			[Arg params<120>(VUsedByTyper):Null<Array<Dynamic>>] [Const:Null<Array<Dynamic>>] null
+			[Block:Dynamic]
+				[Return:Dynamic]
+					[Call:createByName.T]
+						[Field:(e : Enum<createByName.T>, constr : String, ?params : Null<Array<Dynamic>>) -> createByName.T]
+							[TypeExpr Type:Class<Type>]
+							[FStatic:(e : Enum<createByName.T>, constr : String, ?params : Null<Array<Dynamic>>) -> createByName.T]
+								Type
+								createEnum:(e : Enum<createEnum.T>, constr : String, ?params : Null<Array<Dynamic>>) -> createEnum.T
+						[Local e(118):Enum<createByName.T>:Enum<createByName.T>]
+						[Local constr(119):String:String]
+						[Local params(120):Null<Array<Dynamic>>:Null<Array<Dynamic>>];
+		cf_flags = CfPostProcessed CfStatic CfPublic;
+		cf_overloads = [];
+	}
+	{
+		cf_name = createByIndex;
+		cf_doc = 
+		Creates an instance of enum `e` by calling its constructor number
+		`index` with arguments `params`.
+
+		The constructor indices are preserved from Haxe syntax, so the first
+		declared is index 0, the next index 1 etc.
+
+		If `e` or `index` is `null`, or if enum `e` has no constructor
+		corresponding to index `index`, or if the number of elements in `params`
+		does not match the expected number of constructor arguments, or if any
+		argument has an invalid type, the result is unspecified.
+	;
+		cf_type = TFun([e:TAbstract(Enum, [TInst(createByIndex.T, [])]), index:TAbstract(Int, []), ?params:TAbstract(Null, [TInst(Array, [TDynamic])])], TInst(createByIndex.T, []));
+		cf_pos = /usr/local/share/haxe/std/haxe/EnumTools.hx: 3034-3175;
+		cf_name_pos = /usr/local/share/haxe/std/haxe/EnumTools.hx: 3057-3070;
+		cf_meta = [];
+		cf_kind = inline method;
+		cf_params = [{
+			name = T;
+			class = createByIndex.T;
+			host = TPHMethod;
+			type = TInst(createByIndex.T, []);
+			constraints = [];
+			default = None;
+		}];
+		cf_expr = [Function:(e : Enum<createByIndex.T>, index : Int, ?params : Null<Array<Dynamic>>) -> createByIndex.T]
+			[Arg e<121>(VUsedByTyper):Enum<createByIndex.T>]
+			[Arg index<122>(VUsedByTyper):Int]
+			[Arg params<123>(VUsedByTyper):Null<Array<Dynamic>>] [Const:Null<Array<Dynamic>>] null
+			[Block:Dynamic]
+				[Return:Dynamic]
+					[Call:createByIndex.T]
+						[Field:(e : Enum<createByIndex.T>, index : Int, ?params : Null<Array<Dynamic>>) -> createByIndex.T]
+							[TypeExpr Type:Class<Type>]
+							[FStatic:(e : Enum<createByIndex.T>, index : Int, ?params : Null<Array<Dynamic>>) -> createByIndex.T]
+								Type
+								createEnumIndex:(e : Enum<createEnumIndex.T>, index : Int, ?params : Null<Array<Dynamic>>) -> createEnumIndex.T
+						[Local e(121):Enum<createByIndex.T>:Enum<createByIndex.T>]
+						[Local index(122):Int:Int]
+						[Local params(123):Null<Array<Dynamic>>:Null<Array<Dynamic>>];
+		cf_flags = CfPostProcessed CfStatic CfPublic;
+		cf_overloads = [];
+	}
+	{
+		cf_name = createAll;
+		cf_doc = 
+		Returns a list of all constructors of enum `e` that require no
+		arguments.
+
+		This may return the empty Array `[]` if all constructors of `e` require
+		arguments.
+
+		Otherwise an instance of `e` constructed through each of its non-
+		argument constructors is returned, in the order of the constructor
+		declaration.
+
+		If `e` is `null`, the result is unspecified.
+	;
+		cf_type = TFun([e:TAbstract(Enum, [TInst(createAll.T, [])])], TInst(Array, [TInst(createAll.T, [])]));
+		cf_pos = /usr/local/share/haxe/std/haxe/EnumTools.hx: 3555-3642;
+		cf_name_pos = /usr/local/share/haxe/std/haxe/EnumTools.hx: 3578-3587;
+		cf_meta = [];
+		cf_kind = inline method;
+		cf_params = [{
+			name = T;
+			class = createAll.T;
+			host = TPHMethod;
+			type = TInst(createAll.T, []);
+			constraints = [];
+			default = None;
+		}];
+		cf_expr = [Function:(e : Enum<createAll.T>) -> Array<createAll.T>]
+			[Arg e<124>(VUsedByTyper):Enum<createAll.T>]
+			[Block:Dynamic]
+				[Return:Dynamic]
+					[Call:Array<createAll.T>]
+						[Field:(e : Enum<createAll.T>) -> Array<createAll.T>]
+							[TypeExpr Type:Class<Type>]
+							[FStatic:(e : Enum<createAll.T>) -> Array<createAll.T>]
+								Type
+								allEnums:(e : Enum<allEnums.T>) -> Array<allEnums.T>
+						[Local e(124):Enum<createAll.T>:Enum<createAll.T>];
+		cf_flags = CfPostProcessed CfStatic CfPublic;
+		cf_overloads = [];
+	}
+	{
+		cf_name = getConstructors;
+		cf_doc = 
+		Returns a list of the names of all constructors of enum `e`.
+
+		The order of the constructor names in the returned Array is preserved
+		from the original syntax.
+
+		If `c` is `null`, the result is unspecified.
+	;
+		cf_type = TFun([e:TAbstract(Enum, [TInst(getConstructors.T, [])])], TInst(Array, [TInst(String, [])]));
+		cf_pos = /usr/local/share/haxe/std/haxe/EnumTools.hx: 3867-3974;
+		cf_name_pos = /usr/local/share/haxe/std/haxe/EnumTools.hx: 3890-3905;
+		cf_meta = [];
+		cf_kind = inline method;
+		cf_params = [{
+			name = T;
+			class = getConstructors.T;
+			host = TPHMethod;
+			type = TInst(getConstructors.T, []);
+			constraints = [];
+			default = None;
+		}];
+		cf_expr = [Function:(e : Enum<getConstructors.T>) -> Array<String>]
+			[Arg e<125>(VUsedByTyper):Enum<getConstructors.T>]
+			[Block:Dynamic]
+				[Return:Dynamic]
+					[Call:Array<String>]
+						[Field:(e : Enum<Dynamic>) -> Array<String>]
+							[TypeExpr Type:Class<Type>]
+							[FStatic:(e : Enum<Dynamic>) -> Array<String>]
+								Type
+								getEnumConstructs:(e : Enum<Dynamic>) -> Array<String>
+						[Local e(125):Enum<getConstructors.T>:Enum<getConstructors.T>];
+		cf_flags = CfPostProcessed CfStatic CfPublic;
+		cf_overloads = [];
+	}];
+}

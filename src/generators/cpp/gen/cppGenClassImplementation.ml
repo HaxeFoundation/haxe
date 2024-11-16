@@ -509,12 +509,26 @@ let generate_managed_class base_ctx tcpp_class =
     tcpp_class.tcl_dynamic_functions;
   output_cpp "}\n\n";
 
+  Printf.printf "%s (container : %b)\n" tcpp_class.tcl_name (has_tcpp_class_flag tcpp_class Container);
+
   if has_tcpp_class_flag tcpp_class Container then (
-    let super_needs_iteration = find_next_super_iteration class_def in
+    let rec find_next_super_iteration cls =
+      match cls.tcl_super with
+      | Some super when has_tcpp_class_flag super Container ->
+        Some (tcpp_to_string_suffix "_obj" (cpp_instance_type super.tcl_class []))
+      | Some super ->
+        find_next_super_iteration super
+      | None ->
+        None
+    in
+
+    let super_needs_iteration = find_next_super_iteration tcpp_class in
     let smart_class_name = snd class_path in
     let dump_field_iterator macro var =
       Printf.sprintf "\t%s(%s, \"%s\");\n" macro var.tcv_name var.tcv_field.cf_name |> output_cpp
     in
+
+    Printf.printf "\tncontainer parent : %s\n" (super_needs_iteration |> Option.default "none");
     
     (* MARK function - explicitly mark all child pointers *)
     output_cpp ("void " ^ class_name ^ "::__Mark(HX_MARK_PARAMS)\n{\n");
@@ -799,10 +813,14 @@ let generate_managed_class base_ctx tcpp_class =
   | None ->
     Printf.sprintf "static ::String* %s_sMemberFields = 0;\n\n" class_name |> output_cpp);
 
+  Printf.printf "\tgc statics (%i)\n" (List.length tcpp_class.tcl_static_variables);
+
   if List.length tcpp_class.tcl_static_variables > 0 then (
     let dump_field_iterator macro var =
       Printf.sprintf "\t%s(%s::%s, \"%s\");" macro class_name var.tcv_name var.tcv_field.cf_name
     in
+
+    List.iter (fun v -> Printf.printf "\t- %s\n" v.tcv_name) tcpp_class.tcl_static_variables;
 
     (* Mark static variables as used *)
     let marks =

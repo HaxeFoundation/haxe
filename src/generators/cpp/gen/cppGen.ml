@@ -80,27 +80,6 @@ let print_tfun_arg_list include_names arg_list =
   |> List.map (fun (name, o, arg_type) -> (oType o arg_type) ^ (if include_names then " " ^ keyword_remap name else ""))
   |> String.concat ","
 
-let has_new_gc_references class_def =
-  let is_gc_reference field =
-    should_implement_field field
-    && is_data_member field
-    && not (type_cant_be_null field.cf_type)
-  in
-  List.exists is_gc_reference class_def.cl_ordered_fields
-
-let rec has_gc_references class_def =
-  (match class_def.cl_super with
-  | Some def when has_gc_references (fst def) -> true
-  | _ -> false)
-  || has_new_gc_references class_def
-
-let rec find_next_super_iteration class_def =
-  match class_def.cl_super with
-  | Some (klass, params) when has_new_gc_references klass ->
-      Some (tcpp_to_string_suffix "_obj" (cpp_instance_type klass params))
-  | Some (klass, _) -> find_next_super_iteration klass
-  | _ -> None
-
 let cpp_member_name_of member =
   match get_meta_string member.cf_meta Meta.Native with
   | Some n -> n
