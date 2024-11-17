@@ -612,7 +612,7 @@ let generate_managed_class base_ctx tcpp_class =
   let print_property printer (var:tcpp_class_variable) acc =
     if var.tcv_is_reflective && not (is_abstract_impl class_def) then
       let prop_check = checkPropCall var.tcv_field in
-      let getter     = Printf.sprintf "get_%s()" var.tcv_name |> get_wrapper var.tcv_field in
+      let getter     = Printf.sprintf "get_%s()" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
       (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, printer prop_check getter) :: acc
     else
       acc
@@ -675,7 +675,7 @@ let generate_managed_class base_ctx tcpp_class =
         match var.tcv_field.cf_kind with
         | Var { v_write = AccCall } ->
           let prop_call = checkPropCall var.tcv_field in
-          let setter    = Printf.sprintf "set_%s" var.tcv_name |> get_wrapper var.tcv_field in
+          let setter    = Printf.sprintf "set_%s" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
           let call      = Printf.sprintf "if (%s) { return ::hx::Val( %s(inValue.Cast< %s >()) ); } else { %s }" prop_call setter casted default in
 
           (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, call) :: acc
@@ -694,7 +694,7 @@ let generate_managed_class base_ctx tcpp_class =
         match var.tcv_field.cf_kind with
         | Var { v_write = AccCall } ->
           let prop_call = checkPropCall var.tcv_field in
-          let setter    = Printf.sprintf "set_%s" var.tcv_name |> get_wrapper var.tcv_field in
+          let setter    = Printf.sprintf "set_%s" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
           let call      = Printf.sprintf "if (%s) { return ::hx::Val( %s(inValue.Cast< %s >()) ); }" prop_call setter casted in
 
           (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, call) :: acc
@@ -721,7 +721,7 @@ let generate_managed_class base_ctx tcpp_class =
         match var.tcv_field.cf_kind with
         | Var { v_write = AccCall } ->
           let prop_call = checkPropCall var.tcv_field in
-          let setter    = Printf.sprintf "set_%s" var.tcv_name |> get_wrapper var.tcv_field in
+          let setter    = Printf.sprintf "set_%s" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
           let call      = Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()); } else { %s = ioValue.Cast< %s >(); } return true;" prop_call setter casted var.tcv_name casted in
 
           (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, call) :: acc
@@ -738,7 +738,7 @@ let generate_managed_class base_ctx tcpp_class =
         match var.tcv_field.cf_kind with
         | Var { v_write = AccCall } ->
           let prop_call = checkPropCall var.tcv_field in
-          let setter    = Printf.sprintf "set_%s" var.tcv_name |> get_wrapper var.tcv_field in
+          let setter    = Printf.sprintf "set_%s" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
           let casted    = castable var.tcv_field in
 
           (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()); }" prop_call setter casted) :: acc
