@@ -233,6 +233,7 @@ and tcpp_class_variable = {
 
 and tcpp_class = {
   tcl_class : tclass;
+  tcl_params : tparams;
   tcl_name : string;
   tcl_id : int32;
   tcl_flags : int;

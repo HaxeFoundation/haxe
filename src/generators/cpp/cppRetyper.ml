@@ -1474,7 +1474,7 @@ let has_new_gc_references class_def =
   in
   List.exists is_gc_reference class_def.cl_ordered_fields
 
-let rec tcpp_class_from_tclass ctx ids slots class_def =
+let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
   let scriptable = Common.defined ctx.ctx_common Define.Scriptable in
 
   let create_function field func = {
@@ -1643,8 +1643,8 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
 
   let (slots, ids, parent) =
     match class_def.cl_super with
-    | Some (cls, _) ->
-      let slots, ids, parent = tcpp_class_from_tclass ctx ids slots cls in
+    | Some (cls, params) ->
+      let slots, ids, parent = tcpp_class_from_tclass ctx ids slots cls params in
       (slots, ids, Some parent)
     | None ->
       (slots, ids, None)
@@ -1673,6 +1673,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def =
 
   let cls = {
     tcl_class = class_def;
+    tcl_params = class_params;
     tcl_id = id;
     tcl_name = class_name class_def;
     tcl_flags = flags;

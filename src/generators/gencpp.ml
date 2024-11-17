@@ -305,7 +305,7 @@ let generate_source ctx =
                let (slots, iface) = CppRetyper.tcpp_interface_from_tclass ctx acc.slots class_def in
                if native_gen then (NativeInterface iface, slots, acc.ids) else (ManagedInterface iface, acc.slots, acc.ids)
             | false ->
-               let (slots, ids, cls) = CppRetyper.tcpp_class_from_tclass ctx acc.ids acc.slots class_def in
+               let (slots, ids, cls) = CppRetyper.tcpp_class_from_tclass ctx acc.ids acc.slots class_def [] in
                if native_gen then (NativeClass cls, slots, ids) else (ManagedClass cls, slots, ids) in
 
          let acc_decls           = decl :: acc.decls in

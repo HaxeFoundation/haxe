@@ -198,7 +198,6 @@ let generate_managed_header base_ctx tcpp_class =
   let ptr_name = class_pointer class_def in
   let can_quick_alloc = has_tcpp_class_flag tcpp_class QuickAlloc in
   let gcName = gen_gc_name class_def.cl_path in
-  let isContainer = if has_tcpp_class_flag tcpp_class Container then "true" else "false" in
 
   let constructor_type_args =
     tcpp_class.tcl_class
@@ -211,11 +210,9 @@ let generate_managed_header base_ctx tcpp_class =
   let strq = strq ctx.ctx_common in
 
   let parent, super =
-    match class_def.cl_super with
-    | Some (klass, params) ->
-        let name =
-          tcpp_to_string_suffix "_obj" (cpp_instance_type klass params)
-        in
+    match tcpp_class.tcl_super with
+    | Some super ->
+        let name = tcpp_to_string_suffix "_obj" (cpp_instance_type super.tcl_class super.tcl_params) in
         ( name, name )
     | None -> ("::hx::Object", "::hx::Object")
   in
@@ -233,15 +230,11 @@ let generate_managed_header base_ctx tcpp_class =
   output_h "\n\tpublic:\n";
   output_h ("\t\tenum { _hx_ClassId = " ^ classIdTxt ^ " };\n\n");
   output_h ("\t\tvoid __construct(" ^ constructor_type_args ^ ");\n");
-  output_h
-    ("\t\tinline void *operator new(size_t inSize, bool inContainer="
-    ^ isContainer ^ ",const char *inName=" ^ gcName ^ ")\n");
+  Printf.sprintf "\t\tinline void *operator new(size_t inSize, bool inContainer=%b, const char* inName=%s)\n" (has_tcpp_class_flag tcpp_class Container) gcName |> output_h;
   output_h
     "\t\t\t{ return ::hx::Object::operator new(inSize,inContainer,inName); }\n";
   output_h "\t\tinline void *operator new(size_t inSize, int extra)\n";
-  output_h
-    ("\t\t\t{ return ::hx::Object::operator new(inSize+extra," ^ isContainer
-    ^ "," ^ gcName ^ "); }\n");
+  Printf.sprintf "\t\t\t{ return ::hx::Object::operator new(inSize + extra, %b, %s); }\n" (has_tcpp_class_flag tcpp_class Container) gcName |> output_h;
   if has_class_flag class_def CAbstract then output_h "\n"
   else if
     can_inline_constructor base_ctx class_def
