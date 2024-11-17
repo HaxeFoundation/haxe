@@ -590,7 +590,7 @@ let generate_managed_class base_ctx tcpp_class =
       match var.tcv_field.cf_kind with
       | Var { v_read = AccCall } ->
         let prop_check = checkPropCall var.tcv_field in
-        let getter     = Printf.sprintf "get_%s()" var.tcv_name |> get_wrapper var.tcv_field in
+        let getter     = Printf.sprintf "get_%s()" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
 
         (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, get_printer prop_check getter variable) :: acc
       | _ ->
