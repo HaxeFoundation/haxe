@@ -310,6 +310,9 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			acc
 		) c.cl_implements
 	in
+	let no_no_lookup cf =
+		if has_class_field_flag cf CfNoLookup then display_error ctx.com "This field cannot be accessed explicitly" pfield
+	in
 	let rec type_field_by_type e t =
 		let field_access = field_access e in
 		match t with
@@ -334,6 +337,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					begin try
 						let cf = PMap.find i c.cl_statics in
 						if has_class_field_flag cf CfImpl && not (has_class_field_flag cf CfEnum) then display_error ctx.com "Cannot access non-static abstract field statically" pfield;
+						no_no_lookup cf;
 						field_access cf (FHStatic c)
 					with Not_found ->
 						begin match c.cl_kind with
@@ -401,6 +405,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				let c = find_some a.a_impl in
 				let f = PMap.find i c.cl_statics in
 				if not (has_class_field_flag f CfImpl) then raise Not_found;
+				no_no_lookup f;
 				field_access f (FHAbstract (a,tl,c))
 			with Not_found ->
 				type_field_by_forward_member type_field_by_type e a tl

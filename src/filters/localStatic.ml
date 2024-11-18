@@ -18,7 +18,8 @@ let promote_local_static lsctx run v eo =
 		] v.v_pos);
 	with Not_found ->
 		let cf = mk_field name ~static:true v.v_type v.v_pos v.v_pos in
-		cf.cf_meta <- v.v_meta;
+		cf.cf_meta <- (Meta.NoCompletion,[],Globals.null_pos) :: v.v_meta;
+		add_class_field_flag cf CfNoLookup;
 		begin match eo with
 		| None ->
 			()
