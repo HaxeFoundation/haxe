@@ -16,6 +16,36 @@ open CppContext
    or for building the dependencies in the Build.xml file
 *)
 let find_referenced_types_flags ctx obj filter super_deps constructor_deps header_only for_depends include_super_args =
+  let all_virtual_functions clazz =
+    let current_virtual_functions_rev clazz base_functions =
+       let folder result elem =
+          match follow elem.cf_type, elem.cf_kind  with
+          | _, Method MethDynamic -> result
+          | TFun (args,return_type), Method _  ->
+              if (is_override elem ) then
+                if List.exists (fun (e,a,r) -> e.cf_name=elem.cf_name ) result then
+                   result
+                else
+                   (elem,args,return_type) :: result
+              else
+                 (elem,args,return_type) :: result
+          | _,_ -> result
+       in
+    
+       List.fold_left folder base_functions clazz.cl_ordered_fields
+    in
+ 
+    let rec all_virtual_functions_rec clazz =
+       let initial =
+          match clazz.cl_super with
+          | Some (def, _) -> all_virtual_functions_rec def
+          | _ -> [] in
+       current_virtual_functions_rev clazz initial
+    in
+ 
+    all_virtual_functions_rec clazz
+  in
+
   let types = ref PMap.empty in
   (if for_depends then
      let include_files =

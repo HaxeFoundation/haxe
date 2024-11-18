@@ -319,40 +319,6 @@ let has_boot_field class_def =
    | None -> List.exists has_field_init (List.filter should_implement_field class_def.cl_ordered_statics)
    | _ -> true
 
-
-(*
-   Functions are added in reverse order (oldest on right), then list is reversed because this is easier in ocaml
-   The order is important because cppia looks up functions by index
-*)
-let all_virtual_functions clazz =
-   let current_virtual_functions_rev clazz base_functions =
-      let folder result elem =
-         match follow elem.cf_type, elem.cf_kind  with
-         | _, Method MethDynamic -> result
-         | TFun (args,return_type), Method _  ->
-             if (is_override elem ) then
-               if List.exists (fun (e,a,r) -> e.cf_name=elem.cf_name ) result then
-                  result
-               else
-                  (elem,args,return_type) :: result
-             else
-                (elem,args,return_type) :: result
-         | _,_ -> result
-      in
-   
-      List.fold_left folder base_functions clazz.cl_ordered_fields
-   in
-
-   let rec all_virtual_functions_rec clazz =
-      let initial =
-         match clazz.cl_super with
-         | Some (def, _) -> all_virtual_functions_rec def
-         | _ -> [] in
-      current_virtual_functions_rev clazz initial
-   in
-
-   all_virtual_functions_rec clazz |> List.rev
-
 let class_name class_def =
   let (_, class_path) = class_def.cl_path in
   let nativeGen       = Meta.has Meta.NativeGen class_def.cl_meta in

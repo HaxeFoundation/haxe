@@ -203,27 +203,27 @@ let gen_dynamic_function_allocator ctx output_cpp tcpp_class =
     Printf.sprintf "void %s::__alloc_dynamic_functions(::hx::Ctx* _hx_ctx, %s* _hx_obj) {\n%s\n}\n" tcpp_class.tcl_name tcpp_class.tcl_name str |> output_cpp
 
 let print_reflective_fields ctx_common class_def variables functions =
-  let strq = strq ctx_common in
-
-  let filter_vars var =
+  let filter_vars var acc =
     if var.tcv_is_reflective then
-      Some (Printf.sprintf "\t%s" (strq var.tcv_field.cf_name))
+      Printf.sprintf "\t%s" (strq ctx_common var.tcv_field.cf_name) :: acc
     else
-      None in
-  let filter_funcs func =
+      acc in
+  let filter_funcs func acc =
     if func.tcf_is_reflective then
-      Some (Printf.sprintf "\t%s" (strq func.tcf_field.cf_name))
+      Printf.sprintf "\t%s" (strq ctx_common func.tcf_field.cf_name) :: acc
     else
-      None in
+      acc in
 
-  let reflective_variables = variables |> List.filter_map filter_vars in
-  let reflective_functions = functions |> List.filter_map filter_funcs in
+  let calls =
+    [ "\t::String(null())" ]
+    |> List.fold_right filter_vars variables
+    |> List.fold_right filter_funcs functions
+  in
 
-  match reflective_variables @ reflective_functions with
-  | [] ->
+  if List.length calls > 1 then
+    Some (String.concat ",\n" calls)
+  else
     None
-  | concat ->
-    Some (concat @ [ "\t::String(null())" ] |> String.concat ",\n")
 
 let cpp_interface_impl_name cls =
   "_hx_" ^ join_class_path cls.cl_path "_"
@@ -839,7 +839,7 @@ let generate_managed_class base_ctx tcpp_class =
         if isTemplated then output_cpp "\ntemplate<bool _HX_SUPER=false>";
         output_cpp
           ("\nstatic void CPPIA_CALL " ^ scriptName
-         ^ "(::hx::CppiaCtx *ctx) {\n");
+          ^ "(::hx::CppiaCtx *ctx) {\n");
         let ret =
           match cpp_type_of return_type with
           | TCppScalar "bool" -> "b"
@@ -861,7 +861,7 @@ let generate_managed_class base_ctx tcpp_class =
               (fun (signature, sep, size) (_, opt, t) ->
                 output_cpp
                   (sep ^ "ctx->get" ^ CppCppia.script_type t opt ^ "(" ^ size
-                 ^ ")");
+                  ^ ")");
                 ( signature ^ CppCppia.script_signature t opt,
                   ",",
                   size ^ "+sizeof(" ^ CppCppia.script_size_type t opt ^ ")" ))
@@ -886,44 +886,42 @@ let generate_managed_class base_ctx tcpp_class =
   in
 
   if scriptable then (
-    let dump_script_field idx (field, f_args, return_t) =
-      let args = print_tfun_arg_list true f_args in
-      let names = List.map (fun (n, _, _) -> keyword_remap n) f_args in
-      let return_type = type_to_string return_t in
-      let ret =
-        if return_type = "Void" || return_type = "void" then " " else "return "
-      in
-      let name = keyword_remap field.cf_name in
-      let vtable = "__scriptVTable[" ^ string_of_int (idx + 1) ^ "] " in
+    let dump_script_func idx func =
+      match func.tcf_field.cf_type with
+      | TFun (f_args, _) ->
+        let args = print_tfun_arg_list true f_args in
+        let return_type = type_to_string func.tcf_func.tf_type in
+        let ret = if return_type = "Void" || return_type = "void" then " " else "return " in
+        let vtable = Printf.sprintf "__scriptVTable[%i]" (idx + 1) in
 
-      output_cpp ("\t" ^ return_type ^ " " ^ name ^ "( " ^ args ^ " ) {\n");
-      output_cpp ("\tif (" ^ vtable ^ ") {\n");
-      output_cpp "\t\t::hx::CppiaCtx *__ctx = ::hx::CppiaCtx::getCurrent();\n";
-      output_cpp "\t\t::hx::AutoStack __as(__ctx);\n";
-      output_cpp ("\t\t__ctx->pushObject( this );\n");
-      List.iter
-        (fun (name, opt, t) ->
-          output_cpp
-            ("\t\t__ctx->push" ^ CppCppia.script_type t opt ^ "("
-            ^ keyword_remap name ^ ");\n"))
+        Printf.sprintf "\t%s %s(%s) {\n" return_type func.tcf_name args |> output_cpp;
+        Printf.sprintf ("\tif (%s) {\n") vtable |> output_cpp;
+        output_cpp "\t\t::hx::CppiaCtx *__ctx = ::hx::CppiaCtx::getCurrent();\n";
+        output_cpp "\t\t::hx::AutoStack __as(__ctx);\n";
+        output_cpp ("\t\t__ctx->pushObject( this );\n");
+
+        List.iter
+          (fun (name, opt, t) ->
+            Printf.sprintf "\t\t__ctx->push%s(%s);\n" (CppCppia.script_type t opt) (keyword_remap name) |> output_cpp)
         f_args;
-      output_cpp
-        ("\t\t" ^ ret ^ "__ctx->run"
-        ^ CppCppia.script_type return_t false
-        ^ "(" ^ vtable ^ ");\n");
-      output_cpp ("\t}  else " ^ ret);
 
-      output_cpp
-        (class_name ^ "::" ^ name ^ "(" ^ String.concat "," names ^ ");");
-      if return_type <> "void" then output_cpp "return null();";
-      output_cpp "}\n";
+        output_cpp
+          ("\t\t" ^ ret ^ "__ctx->run" ^ CppCppia.script_type func.tcf_func.tf_type false ^ "(" ^ vtable ^ ");\n");
+        output_cpp ("\t}  else " ^ ret);
+
+        let names = List.map (fun (n, _, _) -> keyword_remap n) f_args in
+
+        output_cpp
+          (class_name ^ "::" ^ func.tcf_name ^ "(" ^ String.concat "," names ^ ");");
+
+        if return_type <> "void" then output_cpp "return null();";
+
+        output_cpp "}\n";
+      | _ ->
+        abort "expected function type to be tfun" func.tcf_field.cf_pos
     in
 
-    let sctipt_name = class_name ^ "__scriptable" in
-
-    output_cpp ("class " ^ sctipt_name ^ " : public " ^ class_name ^ " {\n");
-    output_cpp ("   typedef " ^ sctipt_name ^ " __ME;\n");
-    output_cpp ("   typedef " ^ class_name ^ " super;\n");
+    let script_name = class_name ^ "__scriptable" in
     let has_funky_toString =
       List.exists
         (fun func -> func.tcf_name = "toString")
@@ -936,14 +934,46 @@ let generate_managed_class base_ctx tcpp_class =
       if has_funky_toString then class_name ^ "::super" else class_name
     in
 
+    Printf.sprintf "class %s : public %s {\n" script_name class_name |> output_cpp;
+    Printf.sprintf "\ttypedef %s __ME;\n" script_name |> output_cpp;
+    Printf.sprintf "\ttypedef %s super;\n" class_name |> output_cpp;
     Printf.sprintf "\ttypedef %s __superString;\n" super_string |> output_cpp;
     Printf.sprintf "\tHX_DEFINE_SCRIPTABLE(HX_ARR_LIST%i)\n" (List.length constructor_var_list) |> output_cpp;
     output_cpp "\tHX_DEFINE_SCRIPTABLE_DYNAMIC;\n";
 
-    class_def
-    |> all_virtual_functions
-    |> List.filter (fun (field, _, _) -> field.cf_name <> "toString")
-    |> ExtList.List.iteri dump_script_field;
+    (*
+      Functions are added in reverse order (oldest on right), then list is reversed because this is easier in ocaml
+      The order is important because cppia looks up functions by index
+    *)
+    let flatten_tcpp_class_functions =
+      let current_virtual_functions_rev cls base_functions =
+        let folder result elem =
+          if elem.tcf_is_overriding then
+            if List.exists (fun f -> f.tcf_name = elem.tcf_name) result then
+              result
+            else
+              elem :: result
+          else
+            elem :: result
+        in
+
+        List.fold_left folder base_functions cls.tcl_functions
+      in
+
+      let rec flatten_tcpp_class_functions_rec cls =
+        let initial =
+          match cls.tcl_super with
+          | Some super -> flatten_tcpp_class_functions_rec super
+          | _ -> [] in
+        current_virtual_functions_rev cls initial
+      in
+    
+      flatten_tcpp_class_functions_rec tcpp_class |> List.rev
+    in
+
+    flatten_tcpp_class_functions
+    |> List.filter (fun f -> f.tcf_name <> "toString")
+    |> ExtList.List.iteri dump_script_func;
     output_cpp "};\n\n";
 
     if List.length tcpp_class.tcl_functions > 0 || List.length tcpp_class.tcl_static_functions > 0 then (
