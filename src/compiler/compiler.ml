@@ -241,7 +241,7 @@ module Setup = struct
 			message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Information)
 		);
 		com.warning <- (fun ?(depth=0) ?(from_macro=false) w options msg p ->
-			match Warning.get_mode w (com.warning_options @ options) with
+			match Warning.get_mode w (options @ com.warning_options) with
 			| WMEnable ->
 				let wobj = Warning.warning_obj w in
 				let msg = if wobj.w_generic then
