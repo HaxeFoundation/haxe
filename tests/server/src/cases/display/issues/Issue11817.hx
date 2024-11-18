@@ -7,6 +7,7 @@ class Issue11817 extends DisplayTestCase {
 		runHaxe(["--main", "Main"]);
 		var mainHx = Marker.extractMarkers(getTemplate("issues/Issue11817/MainAfter.hx"));
 		vfs.putContent("Main.hx", mainHx.source);
+		runHaxeJson([], ServerMethods.Invalidate, {file: file});
 		runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: mainHx.markers[1],
