@@ -177,7 +177,7 @@ let write_build_options common_ctx filename defines =
    writer#close
 
 let create_member_types common_ctx =
-   List.fold_left (fun acc object_def ->
+   let folder acc object_def =
       match object_def with
       | TClassDecl class_def when not (has_class_flag class_def CInterface) ->
          let rec add_override acc to_super =
@@ -189,7 +189,9 @@ let create_member_types common_ctx =
             | _ -> acc
          in
          (match class_def.cl_super with Some (super, _) -> add_override acc super | _ -> acc)
-      | _ -> acc) StringMap.empty common_ctx.types
+      | _ -> acc
+   in
+   List.fold_left folder StringMap.empty common_ctx.types
 
 (* Builds inheritance tree, so header files can include parents defs.  *)
 let create_super_dependencies common_ctx =
