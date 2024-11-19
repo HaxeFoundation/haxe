@@ -1643,13 +1643,24 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     |> List.fold_left folder (slots, PathMap.empty, PathMap.empty)
     |> values in
 
-  let type_cant_be_null haxe_type =
-    match cpp_type_of haxe_type with TCppScalar _ -> true | _ -> false in
+  let is_gc_container =
+    let type_cant_be_null t =
+      match cpp_type_of t with TCppScalar _ -> true | _ -> false in
+
+    let rec gc_container variables super =
+      match List.exists (fun v -> not (type_cant_be_null v.tcv_type)) variables, super with
+      | true, _ -> true
+      | false, Some super -> gc_container super.tcl_variables super.tcl_super
+      | false, None -> false
+    in
+
+    gc_container variables parent
+  in
 
   let flags = 0
     |> (fun f -> if scriptable && not class_def.cl_private then set_tcpp_class_flag f Scriptable else f)
     |> (fun f -> if can_quick_alloc class_def then set_tcpp_class_flag f QuickAlloc else f)
-    |> (fun f -> if List.exists (fun v -> not (type_cant_be_null v.tcv_type)) variables then set_tcpp_class_flag f Container else f)
+    |> (fun f -> if is_gc_container then set_tcpp_class_flag f Container else f)
     |> (fun f -> if has_get_member_field class_def then set_tcpp_class_flag f MemberGet else f)
     |> (fun f -> if has_set_member_field class_def then set_tcpp_class_flag f MemberSet else f)
     |> (fun f -> if has_get_static_field class_def then set_tcpp_class_flag f StaticGet else f)
