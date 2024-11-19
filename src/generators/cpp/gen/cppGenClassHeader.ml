@@ -241,11 +241,11 @@ let generate_managed_header base_ctx tcpp_class =
   output_h "\n\tpublic:\n";
   output_h ("\t\tenum { _hx_ClassId = " ^ classIdTxt ^ " };\n\n");
   output_h ("\t\tvoid __construct(" ^ constructor_type_args ^ ");\n");
-  Printf.sprintf "\t\tinline void *operator new(size_t inSize, bool inContainer=%b, const char* inName=%s)\n" (has_tcpp_class_flag tcpp_class Container) gcName |> output_h;
+  Printf.sprintf "\t\tinline void *operator new(size_t inSize, bool inContainer=%b, const char* inName=%s)\n" (Option.is_some tcpp_class.tcl_container) gcName |> output_h;
   output_h
     "\t\t\t{ return ::hx::Object::operator new(inSize,inContainer,inName); }\n";
   output_h "\t\tinline void *operator new(size_t inSize, int extra)\n";
-  Printf.sprintf "\t\t\t{ return ::hx::Object::operator new(inSize + extra, %b, %s); }\n" (has_tcpp_class_flag tcpp_class Container) gcName |> output_h;
+  Printf.sprintf "\t\t\t{ return ::hx::Object::operator new(inSize + extra, %b, %s); }\n" (Option.is_some tcpp_class.tcl_container) gcName |> output_h;
   if has_class_flag class_def CAbstract then output_h "\n"
   else if
     can_inline_constructor base_ctx class_def
@@ -296,7 +296,7 @@ let generate_managed_header base_ctx tcpp_class =
       ^ " *>(this)->__compare(Dynamic((::hx::Object *)inRHS)); }\n");
 
   output_h "\t\tstatic void __register();\n";
-  if has_tcpp_class_flag tcpp_class Container then (
+  if tcpp_class.tcl_container = Some Current then (
     output_h "\t\tvoid __Mark(HX_MARK_PARAMS);\n";
     output_h "\t\tvoid __Visit(HX_VISIT_PARAMS);\n");
 

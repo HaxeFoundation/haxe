@@ -1643,24 +1643,23 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     |> List.fold_left folder (slots, PathMap.empty, PathMap.empty)
     |> values in
 
-  let is_gc_container =
+  let gc_container_type =
     let type_cant_be_null t =
       match cpp_type_of t with TCppScalar _ -> true | _ -> false in
 
-    let rec gc_container variables super =
+    let rec gc_container variables super v =
       match List.exists (fun v -> not (type_cant_be_null v.tcv_type)) variables, super with
-      | true, _ -> true
-      | false, Some super -> gc_container super.tcl_variables super.tcl_super
-      | false, None -> false
+      | true, _ -> Some v
+      | false, Some super -> gc_container super.tcl_variables super.tcl_super Parent
+      | false, None -> None
     in
 
-    gc_container variables parent
+    gc_container variables parent Current
   in
 
   let flags = 0
     |> (fun f -> if scriptable && not class_def.cl_private then set_tcpp_class_flag f Scriptable else f)
     |> (fun f -> if can_quick_alloc class_def then set_tcpp_class_flag f QuickAlloc else f)
-    |> (fun f -> if is_gc_container then set_tcpp_class_flag f Container else f)
     |> (fun f -> if has_get_member_field class_def then set_tcpp_class_flag f MemberGet else f)
     |> (fun f -> if has_set_member_field class_def then set_tcpp_class_flag f MemberSet else f)
     |> (fun f -> if has_get_static_field class_def then set_tcpp_class_flag f StaticGet else f)
@@ -1680,6 +1679,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     tcl_name = class_name class_def;
     tcl_flags = flags;
     tcl_super = parent;
+    tcl_container = gc_container_type;
     tcl_debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Common.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level;
     tcl_static_variables = static_variables;
     tcl_static_properties = static_properties;

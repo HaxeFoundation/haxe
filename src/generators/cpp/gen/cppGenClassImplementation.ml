@@ -509,10 +509,10 @@ let generate_managed_class base_ctx tcpp_class =
     tcpp_class.tcl_dynamic_functions;
   output_cpp "}\n\n";
 
-  if has_tcpp_class_flag tcpp_class Container then (
+  if tcpp_class.tcl_container = Some Current then (
     let rec find_next_super_iteration cls =
       match cls.tcl_super with
-      | Some super when has_tcpp_class_flag super Container ->
+      | Some ({ tcl_container = Some Current } as super) ->
         Some (tcpp_to_string_suffix "_obj" (cpp_instance_type super.tcl_class super.tcl_params))
       | Some super ->
         find_next_super_iteration super

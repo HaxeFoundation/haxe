@@ -196,9 +196,12 @@ and tcpp_expr_expr =
   | CppCastProtocol of tcppexpr * tclass
   | CppCastNative of tcppexpr
 
+and tcpp_class_container =
+  | Current (* If the current class holds GC variables *)
+  | Parent (* If one of the current classes parents holds GC variables *)
+
 and tcpp_class_flags =
   | QuickAlloc
-  | Container
   | Scriptable
   | MemberGet
   | MemberSet
@@ -239,6 +242,7 @@ and tcpp_class = {
   tcl_flags : int;
   tcl_debug_level : int;
   tcl_super : tcpp_class option;
+  tcl_container : tcpp_class_container option;
 
   tcl_haxe_interfaces : tcpp_interface list;
   tcl_native_interfaces : tcpp_interface list;

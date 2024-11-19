@@ -1779,7 +1779,6 @@ let generate_constructor ctx out tcpp_class isHeader =
   let ptr_name = class_pointer tcpp_class.tcl_class in
   let can_quick_alloc = has_tcpp_class_flag tcpp_class QuickAlloc in
   let gcName = gen_gc_name tcpp_class.tcl_class.cl_path in
-  let isContainer = if has_tcpp_class_flag tcpp_class Container then "true" else "false" in
   let cargs = constructor_arg_var_list tcpp_class.tcl_class in
   let constructor_type_args =
     String.concat ","
@@ -1803,10 +1802,9 @@ let generate_constructor ctx out tcpp_class isHeader =
       (staticHead ^ ptr_name ^ " " ^ classScope ^ "__alloc(::hx::Ctx *_hx_ctx"
       ^ (if constructor_type_args = "" then "" else "," ^ constructor_type_args)
       ^ ") {\n");
-    out
-      ("\t" ^ class_name ^ " *__this = (" ^ class_name
-     ^ "*)(::hx::Ctx::alloc(_hx_ctx, sizeof(" ^ class_name ^ "), " ^ isContainer
-     ^ ", " ^ gcName ^ "));\n");
+    Printf.sprintf
+    "\t%s* __this = (%s*)(::hx::Ctx::alloc(_hx_ctx, sizeof(%s), %b, %s));\n"
+    class_name class_name class_name (Option.is_some tcpp_class.tcl_container) gcName |> out;
     out ("\t*(void **)__this = " ^ class_name ^ "::_hx_vtable;\n");
     let rec dump_dynamic class_def =
       if has_dynamic_member_functions class_def then
