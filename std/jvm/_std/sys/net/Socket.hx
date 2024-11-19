@@ -68,8 +68,8 @@ class Socket {
 	public function connect(host:Host, port:Int):Void {
 		try {
 			sock.connect(new InetSocketAddress(host.wrapped, port));
-			this.output = new java.io.NativeOutput(sock.getOutputStream());
-			this.input = new java.io.NativeInput(sock.getInputStream());
+			this.output = new jvm.io.NativeOutput(sock.getOutputStream());
+			this.input = new jvm.io.NativeInput(sock.getInputStream());
 		} catch (e:Dynamic)
 			throw e;
 	}
@@ -106,8 +106,8 @@ class Socket {
 
 		var s = new Socket();
 		s.sock = ret;
-		s.output = new java.io.NativeOutput(ret.getOutputStream());
-		s.input = new java.io.NativeInput(ret.getInputStream());
+		s.output = new jvm.io.NativeOutput(ret.getOutputStream());
+		s.input = new jvm.io.NativeInput(ret.getInputStream());
 
 		return s;
 	}

@@ -26,9 +26,9 @@ import haxe.SysTools;
 import haxe.io.Bytes;
 import haxe.io.BytesInput;
 import haxe.io.Eof;
-import java.io.IOException;
-import java.io.EOFException;
 import java.NativeArray;
+import java.io.EOFException;
+import java.io.IOException;
 
 @:coreApi
 class Process {
@@ -84,7 +84,7 @@ class Process {
 		var p = proc = createProcessBuilder(cmd, args).start();
 		stderr = new ProcessInput(p.getErrorStream());
 		stdout = new ProcessInput(p.getInputStream());
-		stdin = new java.io.NativeOutput(p.getOutputStream());
+		stdin = new jvm.io.NativeOutput(p.getOutputStream());
 	}
 
 	public function getPid():Int {
@@ -121,7 +121,7 @@ class Process {
 	}
 }
 
-private class ProcessInput extends java.io.NativeInput {
+private class ProcessInput extends jvm.io.NativeInput {
 	private var chained:BytesInput;
 
 	public function bufferContents():Void {
@@ -153,7 +153,6 @@ private class ProcessInput extends java.io.NativeInput {
 		try {
 			ret = stream.read(s.getData(), pos, len);
 		} catch (e:EOFException) {
-
 			throw new Eof();
 		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);

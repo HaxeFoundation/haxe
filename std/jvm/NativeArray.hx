@@ -20,6 +20,47 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package java.types;
+package jvm;
 
-typedef Int8 = java.StdTypes.Int8;
+import haxe.extern.Rest;
+
+/**
+	Represents a java fixed-size Array (`T[]`)
+**/
+@:nativeGen extern class NativeArray<T> implements ArrayAccess<T> {
+	/**
+		Creates a new array with the specified elements.
+
+		Usage:
+		```haxe
+		var elements = NativeArray.make(1,2,3,4,5,6);
+		```
+	**/
+	static function make<T>(elements:Rest<T>):NativeArray<T>;
+
+	static inline function ofArray<T>(arr:Array<T>) {
+		var ret = new NativeArray(arr.length);
+		for (i in 0...arr.length) {
+			ret[i] = arr[i];
+		}
+		return ret;
+	}
+
+	inline function toArray<T>() {
+		var a = [];
+		for (i in 0...length) {
+			a[i] = this[i];
+		}
+		return a;
+	}
+
+	/**
+		The length of the array
+	**/
+	var length(default, null):Int;
+
+	/**
+		Allocates a new array with size `len`
+	**/
+	function new(len:Int):Void;
+}

@@ -594,7 +594,7 @@ class StringTools {
 	}
 
 	#if java
-	private static inline function _charAt(str:String, idx:Int):java.StdTypes.Char16
+	private static inline function _charAt(str:String, idx:Int):jvm.Char16
 		return (cast str : java.NativeString).charAt(idx);
 	#end
 

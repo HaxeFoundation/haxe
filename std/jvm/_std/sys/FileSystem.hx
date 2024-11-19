@@ -23,7 +23,6 @@
 package sys;
 
 import java.io.File;
-import java.Lib;
 
 @:coreApi
 class FileSystem {
@@ -59,9 +58,7 @@ class FileSystem {
 				size: cast(attributes.get("size"), Int),
 				uid: attributes.get("uid"),
 			};
-		}
-
-		catch (e) {
+		} catch (e) {
 			return {
 				gid: 0, // java doesn't let you get this info
 				uid: 0, // same
@@ -119,6 +116,6 @@ class FileSystem {
 		var f = new File(path);
 		if (!f.exists())
 			throw "Path " + path + " doesn't exist";
-		return Lib.array(f.list());
+		return @:privateAccess Array.ofNative(f.list());
 	}
 }

@@ -26,6 +26,7 @@ import java.nio.file.Paths;
 import sys.io.Process;
 
 using haxe.Int64;
+using jvm.NativeTools;
 
 @:coreApi class Sys {
 	private static var _args:java.NativeArray<String>;
@@ -43,7 +44,7 @@ using haxe.Int64;
 	public static function args():Array<String> {
 		if (_args == null)
 			return [];
-		return java.Lib.array(_args);
+		return @:privateAccess Array.ofNative(_args);
 	}
 
 	public static function getEnv(s:String):String {
@@ -142,7 +143,7 @@ using haxe.Int64;
 	}
 
 	public static function programPath():String {
-		final uri:URI = java.Lib.toNativeType(Sys).getProtectionDomain().getCodeSource().getLocation().toURI();
+		final uri:URI = Sys.native().getProtectionDomain().getCodeSource().getLocation().toURI();
 		return Std.string(Paths.get(uri));
 	}
 
@@ -153,14 +154,14 @@ using haxe.Int64;
 
 	public static function stdin():haxe.io.Input {
 		var _in:java.io.InputStream = Reflect.field(System, "in");
-		return new java.io.NativeInput(_in);
+		return new jvm.io.NativeInput(_in);
 	}
 
 	public static function stdout():haxe.io.Output {
-		return new java.io.NativeOutput(System.out);
+		return new jvm.io.NativeOutput(System.out);
 	}
 
 	public static function stderr():haxe.io.Output {
-		return new java.io.NativeOutput(System.err);
+		return new jvm.io.NativeOutput(System.err);
 	}
 }

@@ -22,11 +22,11 @@
 
 package haxe;
 
-using haxe.Int64;
-
 import haxe.Int64Helper;
 
-private typedef __Int64 = java.StdTypes.Int64;
+using haxe.Int64;
+
+private typedef __Int64 = jvm.Int64;
 
 @:coreApi
 @:transitive
@@ -129,14 +129,16 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return ++this;
 
 	@:op(A++) private inline function postIncrement():Int64
-		return this++;
+		return this
 
+	++;
 	@:op(--A) private inline function preDecrement():Int64
 		return --this;
 
 	@:op(A--) private inline function postDecrement():Int64
-		return this--;
+		return this
 
+	--;
 	@:op(A + B) public static inline function add(a:Int64, b:Int64):Int64
 		return a.val + b.val;
 

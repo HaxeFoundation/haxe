@@ -20,17 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import java.lang.System;
-import java.NativeArray;
 import haxe.iterators.ArrayKeyValueIterator;
+import java.NativeArray;
+import java.lang.System;
 
-@:classCode('
-	public Array(T[] _native)
-	{
-		this.__a = _native;
-		this.length = _native.length;
-	}
-')
 @:coreApi final class Array<T> implements ArrayAccess<T> {
 	public var length(default, null):Int;
 
@@ -39,9 +32,6 @@ import haxe.iterators.ArrayKeyValueIterator;
 	@:skipReflection static var __hx_toString_depth = 0;
 	@:skipReflection static inline final __hx_defaultCapacity = 4;
 
-	@:functionCode('
-			return new Array<X>(_native);
-	')
 	private static function ofNative<X>(native:NativeArray<X>):Array<X> {
 		var a = new Array();
 		a.length = native.length;
@@ -49,9 +39,6 @@ import haxe.iterators.ArrayKeyValueIterator;
 		return a;
 	}
 
-	@:functionCode('
-			return new Array<Y>((Y[]) ((java.lang.Object)new java.lang.Object[size]));
-	')
 	private static function alloc<Y>(size:Int):Array<Y> {
 		var a = new Array();
 		a.length = size;
@@ -59,13 +46,11 @@ import haxe.iterators.ArrayKeyValueIterator;
 		return a;
 	}
 
-	#if jvm
 	function getNative():NativeArray<T> {
 		var a = new NativeArray(length);
 		System.arraycopy(__a, 0, a, 0, length);
 		return a;
 	}
-	#end
 
 	public function new():Void {
 		this.length = 0;
@@ -386,7 +371,7 @@ import haxe.iterators.ArrayKeyValueIterator;
 		}
 		return false;
 	}
-		
+
 	public function indexOf(x:T, ?fromIndex:Int):Int {
 		var len = length, a = __a, i:Int = (fromIndex == null) ? 0 : fromIndex;
 		if (i < 0) {
@@ -403,9 +388,7 @@ import haxe.iterators.ArrayKeyValueIterator;
 	}
 
 	public function lastIndexOf(x:T, ?fromIndex:Int):Int {
-		var len = length,
-			a = __a,
-			i:Int = (fromIndex == null) ? len - 1 : fromIndex;
+		var len = length, a = __a, i:Int = (fromIndex == null) ? len - 1 : fromIndex;
 		if (i >= len)
 			i = len - 1;
 		else if (i < 0)
@@ -430,7 +413,7 @@ import haxe.iterators.ArrayKeyValueIterator;
 		return new haxe.iterators.ArrayIterator(this);
 	}
 
-	public inline function keyValueIterator() : ArrayKeyValueIterator<T> {
+	public inline function keyValueIterator():ArrayKeyValueIterator<T> {
 		return new ArrayKeyValueIterator(this);
 	}
 
@@ -473,8 +456,7 @@ import haxe.iterators.ArrayKeyValueIterator;
 		return __a[idx];
 	}
 
-	private function __set(idx:Int, v:T):#if jvm Void #else T #end
-	{
+	private function __set(idx:Int, v:T):Void {
 		var __a = __a;
 		if (idx >= __a.length) {
 			var newl = idx + 1;
@@ -489,7 +471,7 @@ import haxe.iterators.ArrayKeyValueIterator;
 		if (idx >= length)
 			this.length = idx + 1;
 
-		#if !jvm return #end __a[idx] = v;
+		__a[idx] = v;
 	}
 
 	private inline function __unsafe_get(idx:Int):T {

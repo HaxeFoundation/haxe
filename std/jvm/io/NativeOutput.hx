@@ -20,32 +20,45 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package haxe;
+package jvm.io;
 
-@:coreApi class Resource {
-	@:keep static var content:Array<String>;
+import haxe.Int64;
+import haxe.io.Bytes;
+import haxe.io.Eof;
+import haxe.io.Output;
+import java.io.EOFException;
+import java.io.IOException;
 
-	public static inline function listNames():Array<String> {
-		return content.copy();
+@:native('haxe.java.io.NativeOutput') class NativeOutput extends Output {
+	var stream:java.io.OutputStream;
+
+	public function new(stream) {
+		this.stream = stream;
 	}
 
-	@:access(haxe.io.Path.escape)
-	public static function getString(name:String):String {
-		name = haxe.io.Path.escape(name, true);
-		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
-		if (stream == null)
-			return null;
-		var stream = new java.io.NativeInput(stream);
-		return stream.readAll().toString();
+	override public function writeByte(c:Int):Void {
+		try {
+			stream.write(c);
+		} catch (e:EOFException) {
+			throw new Eof();
+		} catch (e:IOException) {
+			throw haxe.io.Error.Custom(e);
+		}
 	}
 
-	@:access(haxe.io.Path.escape)
-	public static function getBytes(name:String):haxe.io.Bytes {
-		name = haxe.io.Path.escape(name, true);
-		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
-		if (stream == null)
-			return null;
-		var stream = new java.io.NativeInput(stream);
-		return stream.readAll();
+	override public function close():Void {
+		try {
+			stream.close();
+		} catch (e:IOException) {
+			throw haxe.io.Error.Custom(e);
+		}
+	}
+
+	override public function flush():Void {
+		try {
+			stream.flush();
+		} catch (e:IOException) {
+			throw haxe.io.Error.Custom(e);
+		}
 	}
 }

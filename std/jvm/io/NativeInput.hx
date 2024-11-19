@@ -20,6 +20,54 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package java.types;
+package jvm.io;
 
-typedef Char16 = java.StdTypes.Char16;
+import haxe.Int64;
+import haxe.io.Bytes;
+import haxe.io.Eof;
+import haxe.io.Input;
+import java.io.EOFException;
+import java.io.IOException;
+
+@:native('haxe.java.io.NativeInput') class NativeInput extends Input {
+	var stream:java.io.InputStream;
+
+	public function new(stream) {
+		this.stream = stream;
+	}
+
+	override public function readByte():Int {
+		var ret = 0;
+		try {
+			ret = stream.read();
+		} catch (e:IOException) {
+			throw haxe.io.Error.Custom(e);
+		}
+		if (ret == -1)
+			throw new Eof();
+		return ret;
+	}
+
+	override public function readBytes(s:Bytes, pos:Int, len:Int):Int {
+		var ret = 0;
+		try {
+			ret = stream.read(s.getData(), pos, len);
+		} catch (e:EOFException) {
+			throw new Eof();
+		} catch (e:IOException) {
+			throw haxe.io.Error.Custom(e);
+		}
+
+		if (ret == -1)
+			throw new Eof();
+		return ret;
+	}
+
+	override public function close():Void {
+		try {
+			stream.close();
+		} catch (e:IOException) {
+			throw haxe.io.Error.Custom(e);
+		}
+	}
+}
