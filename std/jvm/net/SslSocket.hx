@@ -20,30 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package sys.thread;
+package jvm.net;
 
-@:coreApi
-@:native('haxe.java.vm.Deque')
-@:nativeGen class Deque<T> {
-	var lbd:java.util.concurrent.LinkedBlockingDeque<T>;
-
-	public function new() {
-		lbd = new java.util.concurrent.LinkedBlockingDeque<T>();
-	}
-
-	public function add(i:T):Void {
-		lbd.add(i);
-	}
-
-	public function push(i:T):Void {
-		lbd.push(i);
-	}
-
-	public inline function pop(block:Bool):Null<T> {
-		return if (block) {
-			lbd.take();
-		} else {
-			lbd.poll();
-		}
+@:native('haxe.java.net.SslSocket') class SslSocket extends sys.net.Socket {
+	override private function create():Void {
+		try {
+			this.sock = java.javax.net.ssl.SSLSocketFactory.getDefault().createSocket();
+			this.server = java.javax.net.ssl.SSLServerSocketFactory.getDefault().createServerSocket();
+		} catch (e:Dynamic)
+			throw e;
 	}
 }
