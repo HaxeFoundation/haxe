@@ -239,7 +239,7 @@ jobs:
       fail-fast: false
       matrix:
         ocaml: ["4.08.1", "5.0.0"]
-        target: [jvm]
+        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
         include:
           - target: hl
             APT_PACKAGES: cmake ninja-build libturbojpeg-dev
@@ -576,7 +576,7 @@ jobs:
       fail-fast: false
       matrix:
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/10919
-        target: [jvm]
+        target: [macro, js, hl, cpp, jvm, php, python, flash, neko]
     steps:
       - uses: actions/checkout@main
         with:
@@ -703,7 +703,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [jvm]
+        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
         include:
           - target: hl
             BREW_PACKAGES: ninja
