@@ -296,8 +296,8 @@ let handle_abstract_casts ctx e =
 					| TCast(e2,None) ->
 						{e1 with eexpr = TCast(find_field e2,None)}
 					| TField(e2,fa) ->
-						let e2 = loop e2 in
 						let a,pl,e2 = find_abstract e2 e2.etype in
+						let e2 = loop e2 in
 						let m = Abstract.get_underlying_type a pl in
 						let fname = field_name fa in
 						let el = List.map loop el in

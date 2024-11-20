@@ -266,7 +266,13 @@ class Compiler {
 				switch (t) {
 					case TInst(c, _):
 						name = c.toString();
-						b = c.get();
+						var c = c.get();
+						switch (c.kind) {
+							case KModuleFields(module):
+								name = module;
+							case _:
+						}
+						b = c;
 					case TEnum(e, _):
 						name = e.toString();
 						b = e.get();
@@ -397,7 +403,7 @@ class Compiler {
 	}
 
 	/**
-		Register a custom medatada for documentation and completion purposes
+		Register a custom metadata for documentation and completion purposes
 	**/
 	public static function registerCustomMetadata(meta:MetadataDescription, ?source:String):Void {
 		#if (neko || eval)

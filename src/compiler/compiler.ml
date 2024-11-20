@@ -241,7 +241,7 @@ module Setup = struct
 			message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Information)
 		);
 		com.warning <- (fun ?(depth=0) ?(from_macro=false) w options msg p ->
-			match Warning.get_mode w (com.warning_options @ options) with
+			match Warning.get_mode w (options @ com.warning_options) with
 			| WMEnable ->
 				let wobj = Warning.warning_obj w in
 				let msg = if wobj.w_generic then
@@ -578,6 +578,7 @@ module HighLevel = struct
 		let args = !each_args @ args in
 		let added_libs = Hashtbl.create 0 in
 		let server_mode = ref SMNone in
+		let hxml_stack = ref [] in
 		let create_context args =
 			let ctx = create (server_api.on_context_create()) args in
 			ctx
@@ -637,6 +638,11 @@ module HighLevel = struct
 			| arg :: l ->
 				match List.rev (ExtString.String.nsplit arg ".") with
 				| "hxml" :: _ :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
+					let full_path = Extc.get_full_path arg in
+					if List.mem full_path !hxml_stack then
+						raise (Arg.Bad (Printf.sprintf "Duplicate hxml inclusion: %s" full_path))
+					else
+						hxml_stack := full_path :: !hxml_stack;
 					let acc, l = (try acc, Helper.parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
 					loop acc l
 				| _ ->

@@ -441,7 +441,7 @@ module ForRemap = struct
 		| TFor(v,e1,e2) ->
 			let e1 = loop e1 in
 			let e2 = loop e2 in
-			let iterator = ForLoop.IterationKind.of_texpr ctx e1 (ForLoop.is_cheap_enough_t ctx e2) e.epos in
+			let iterator = ForLoop.IterationKind.of_texpr ctx e1 (ForLoop.get_unroll_params_t ctx e2) e.epos in
 			let restore = save_locals ctx in
 			let e = ForLoop.IterationKind.to_texpr ctx v iterator e2 e.epos in
 			restore();

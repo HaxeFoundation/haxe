@@ -102,7 +102,7 @@ extern class String {
 		is performed within `this` String. In either case, the returned position
 		is relative to the beginning of `this` String.
 
-		If `startIndex` is negative, the result is unspecifed.
+		If `startIndex` is negative, the result is unspecified.
 
 		If `str` cannot be found, -1 is returned.
 	**/

@@ -578,7 +578,7 @@ let remap_fun ctx f dump get_str old_code =
 				if p < 0 || (match op p with ONop _ -> false | _ -> true) then [(i,p)] else
 				let reg, last_w = try Hashtbl.find ctx.r_reg_moved p with Not_found -> (-1,-1) in
 				if reg < 0 then [] (* ? *) else
-				if reg < nargs then [(i,-reg-1)] else
+				if reg < nargs then [(i,-reg-2)] else
 				let b = resolve_block p in
 				if last_w >= b.bstart && last_w < b.bend && last_w < p then loop last_w else
 				let wp = try PMap.find reg b.bwrite with Not_found -> -1 in
