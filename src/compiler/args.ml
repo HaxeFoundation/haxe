@@ -360,7 +360,7 @@ let parse_args com =
 			actx.pre_compilation <- (fun() ->
 				let process_lib lib =
 					if not (lib#has_flag NativeLibraries.FlagIsStd) then
-						List.iter (fun path -> if path <> (["java";"lang"],"String") then actx.classes <- path :: actx.classes) lib#list_modules
+						List.iter (fun path -> actx.classes <- path :: actx.classes) lib#list_modules
 				in
 				List.iter process_lib com.native_libs.swf_libs;
 				List.iter process_lib com.native_libs.java_libs;

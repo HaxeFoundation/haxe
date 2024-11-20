@@ -682,7 +682,7 @@ module SignatureConverter = struct
 		| TBool -> mk_type_path ([], "Bool") [] p
 		| TObject ( (["haxe";"root"], name), args ) -> mk_type_path ([], name) (List.map (convert_arg ctx p) args) p
 		| TObject ( (["java";"lang"], "Object"), [] ) -> mk_type_path ([], "Dynamic") [] p
-		| TObject ( (["java";"lang"], "String"), [] ) -> mk_type_path ([], "String") [] p
+		| TObject ( (["java";"lang"], "String"), [] ) -> mk_type_path (["std"], "String") [] p
 		| TObject ( (["java";"lang"], "Enum"), [_] ) -> mk_type_path ([], "EnumValue") [] p
 		| TObject ( path, [] ) ->
 			mk_type_path path [] p
@@ -1076,20 +1076,16 @@ class java_library_modern com name file_path = object(self)
 
 	method build path (p : pos) : Ast.package option =
 		let build path =
-			if path = (["java";"lang"],"String") then
+			try
+				let entries = Hashtbl.find_all modules path in
+				if entries = [] then raise Not_found;
+				let zip = Lazy.force zip in
+				let jcs = List.map (self#read zip) entries in
+				Std.finally (Timer.timer ["jar";"convert"]) (fun () ->
+					Some (Converter.convert_module (fst path) jcs)
+				) ();
+			with Not_found ->
 				None
-			else begin
-				try
-					let entries = Hashtbl.find_all modules path in
-					if entries = [] then raise Not_found;
-					let zip = Lazy.force zip in
-					let jcs = List.map (self#read zip) entries in
-					Std.finally (Timer.timer ["jar";"convert"]) (fun () ->
-						Some (Converter.convert_module (fst path) jcs)
-					) ();
-				with Not_found ->
-					None
-			end
 		in
 		build path
 
