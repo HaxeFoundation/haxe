@@ -22,7 +22,7 @@
 
 package jvm;
 
-import java.NativeString;
+import java.lang.String as NativeString;
 
 @:native("haxe.jvm.StringExt")
 @:keep

@@ -221,7 +221,7 @@ class StringTools {
 	**/
 	public static #if (java || python || (js && js_es >= 6)) inline #end function startsWith(s:String, start:String):Bool {
 		#if java
-		return (cast s : java.NativeString).startsWith(start);
+		return (cast s : java.lang.String).startsWith(start);
 		#elseif hl
 		return @:privateAccess (s.length >= start.length && s.bytes.compare(0, start.bytes, 0, start.length << 1) == 0);
 		#elseif python
@@ -244,7 +244,7 @@ class StringTools {
 	**/
 	public static #if (java || python || (js && js_es >= 6)) inline #end function endsWith(s:String, end:String):Bool {
 		#if java
-		return (cast s : java.NativeString).endsWith(end);
+		return (cast s : java.lang.String).endsWith(end);
 		#elseif hl
 		var elen = end.length;
 		var slen = s.length;
@@ -330,7 +330,7 @@ class StringTools {
 	**/
 	public #if java inline #end static function trim(s:String):String {
 		#if java
-		return (cast s : java.NativeString).trim();
+		return (cast s : java.lang.String).trim();
 		#else
 		return ltrim(rtrim(s));
 		#end
@@ -400,7 +400,7 @@ class StringTools {
 		if (sub.length == 0)
 			return s.split(sub).join(by);
 		else
-			return (cast s : java.NativeString).replace(sub, by);
+			return (cast s : java.lang.String).replace(sub, by);
 		#else
 		return s.split(sub).join(by);
 		#end
@@ -595,7 +595,7 @@ class StringTools {
 
 	#if java
 	private static inline function _charAt(str:String, idx:Int):jvm.Char16
-		return (cast str : java.NativeString).charAt(idx);
+		return (cast str : java.lang.String).charAt(idx);
 	#end
 
 	#if neko

@@ -101,9 +101,8 @@ class Std {
 				++index;
 			}
 			sign == '-'.code;
-		}
+		} // handle base
 
-		// handle base
 		final isHexadecimal = hasIndex(index + 1) && isHexPrefix(x.unsafeCodeAt(index), x.unsafeCodeAt(index + 1));
 		if (isHexadecimal)
 			index += 2; // skip prefix
@@ -140,13 +139,8 @@ class Std {
 			return Math.NaN;
 		}
 		x = StringTools.ltrim(x);
-		var xn:java.NativeString = cast x;
-		var found = false,
-			hasDot = false,
-			hasSign = false,
-			hasE = false,
-			hasESign = false,
-			hasEData = false;
+		var xn:java.lang.String = cast x;
+		var found = false, hasDot = false, hasSign = false, hasE = false, hasESign = false, hasEData = false;
 		var i = -1;
 
 		while (++i < x.length) {

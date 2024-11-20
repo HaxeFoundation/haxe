@@ -87,7 +87,7 @@ class Type {
 
 	public static function getEnumName(e:Enum<Dynamic>):String {
 		return switch e.native().getName() {
-			case s if(s.indexOf("haxe.root.") == 0): s.substr(10);
+			case s if (s.indexOf("haxe.root.") == 0): s.substr(10);
 			case s: s;
 		}
 	}
@@ -100,7 +100,7 @@ class Type {
 			java.lang.Class.forName(name).haxe();
 		} catch (e:java.lang.ClassNotFoundException) {
 			return switch (name) {
-				case "haxe.root.String": java.NativeString;
+				case "haxe.root.String": java.lang.String;
 				case "haxe.root.Math": java.lang.Math;
 				case _: null;
 			}
@@ -170,8 +170,7 @@ class Type {
 	public static function createEmptyInstance<T>(cl:Class<T>):T {
 		var annotation = (cl.native().getAnnotation((cast ClassReflectionInformation : java.lang.Class<ClassReflectionInformation>)));
 		if (annotation != null) {
-			return cl.native().getConstructor(emptyClass)
-				.newInstance(emptyArg);
+			return cl.native().getConstructor(emptyClass).newInstance(emptyArg);
 		} else {
 			return cl.native().newInstance();
 		}

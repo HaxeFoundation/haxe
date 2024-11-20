@@ -20,13 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import jvm.Jvm;
-import java.lang.Number;
-import java.lang.Long.LongClass;
 import java.lang.Double.DoubleClass;
 import java.lang.Float.FloatClass;
+import java.lang.Long.LongClass;
+import java.lang.Number;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import jvm.Jvm;
 
 using jvm.NativeTools.NativeClassTools;
 
@@ -130,11 +130,11 @@ class Reflect {
 				return -1 * cmpLongTo(b, a);
 			return DoubleClass.compare(a.doubleValue(), b.doubleValue());
 		}
-		if (Jvm.instanceof(a, java.NativeString)) {
-			if (!Jvm.instanceof(b, java.NativeString)) {
+		if (Jvm.instanceof(a, java.lang.String)) {
+			if (!Jvm.instanceof(b, java.lang.String)) {
 				return -1;
 			}
-			return (cast a : java.NativeString).compareTo(cast b);
+			return (cast a : java.lang.String).compareTo((cast b : java.lang.String));
 		}
 		if (Jvm.instanceof(a, jvm.Function)) {
 			if (!(cast a : jvm.Function).equals(cast b)) {
