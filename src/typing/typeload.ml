@@ -165,16 +165,17 @@ let find_in_modules_starting_from_current_package ctx mname p f =
 let find_in_unqualified_modules ctx name p f =
 	try
 		find_in_wildcard_imports ctx name p f
-	with Not_found -> try
-		find_in_modules_starting_from_current_package ctx name p f
 	with Not_found ->
-		raise_error_msg (Module_not_found ([],name)) p
+		find_in_modules_starting_from_current_package ctx name p f
 
 let load_unqualified_type_def ctx mname tname p =
 	let find_type m =
 		find_type_in_module_raise ctx m tname p
 	in
-	find_in_unqualified_modules ctx mname p find_type
+	try
+		find_in_unqualified_modules ctx mname p find_type
+	with Not_found ->
+		raise_error_msg (Module_not_found ([],mname)) p
 
 let load_module ctx path p =
 	try
