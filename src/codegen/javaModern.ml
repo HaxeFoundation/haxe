@@ -658,6 +658,13 @@ module SignatureConverter = struct
 		tsub = None;
 	}
 
+	let ct_string = make_ptp_ct_null {
+		tpackage = [];
+		tname = "String";
+		tparams = [];
+		tsub = None;
+	}
+
 	let rec convert_arg ctx p arg =
 		match arg with
 		| TAny | TType (WSuper, _) -> TPType (mk_type_path ([], "Dynamic") [] p,p)
