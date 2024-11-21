@@ -82,7 +82,7 @@ extern class Sys {
 	static function sleep(seconds:Float):Void;
 
 	/**
-		Changes the current time locale, which will affect `DateTools.format` date formating.
+		Changes the current time locale, which will affect `DateTools.format` date formatting.
 		Returns `true` if the locale was successfully changed.
 	**/
 	static function setTimeLocale(loc:String):Bool;

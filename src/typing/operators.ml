@@ -333,12 +333,17 @@ let make_binop ctx op e1 e2 is_assign_op p =
 		with Error { err_message = Unify _ } ->
 			e1,AbstractCast.cast_or_unify ctx e1.etype e2 p
 		in
-		if not ctx.com.config.pf_supports_function_equality then begin match e1.eexpr, e2.eexpr with
+		begin match e1.eexpr, e2.eexpr with
 		| TConst TNull , _ | _ , TConst TNull -> ()
 		| _ ->
 			match follow e1.etype, follow e2.etype with
-			| TFun _ , _ | _, TFun _ -> warning ctx WClosureCompare "Comparison of function values is unspecified on this target, use Reflect.compareMethods instead" p
-			| _ -> ()
+			| TFun _ , _ | _, TFun _ when not ctx.com.config.pf_supports_function_equality ->
+				warning ctx WClosureCompare "Comparison of function values is unspecified on this target, use Reflect.compareMethods instead" p
+			| TEnum(en,_), _ | _, TEnum(en,_) ->
+				if not (Meta.has Meta.FlatEnum en.e_meta) then
+					warning ctx WUnsafeEnumEquality "Equality operations on this enum might lead to unexpected results because some constructors have arguments" p
+			| _ ->
+				()
 		end;
 		mk_op e1 e2 ctx.t.tbool
 	| OpGt

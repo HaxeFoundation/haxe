@@ -605,15 +605,7 @@ and handle_efield ctx e p0 mode with_type =
 			   create safe navigation chain from the object expression *)
 			let acc_obj = type_access ctx eobj pobj MGet WithType.value in
 			let eobj = acc_get ctx acc_obj in
-			let eobj, tempvar = match (Texpr.skip eobj).eexpr with
-				| TLocal _ | TTypeExpr _ | TConst _ ->
-					eobj, None
-				| _ ->
-					let v = alloc_var VGenerated "tmp" eobj.etype eobj.epos in
-					let temp_var = mk (TVar(v, Some eobj)) ctx.t.tvoid v.v_pos in
-					let eobj = mk (TLocal v) v.v_type v.v_pos in
-					eobj, Some temp_var
-			in
+			let eobj, tempvar = get_safe_nav_base ctx eobj in
 			let access = field_chain ctx ((mk_dot_path_part s p) :: dot_path_acc) (AKExpr eobj) mode with_type in
 			AKSafeNav {
 				sn_pos = p;
@@ -637,7 +629,8 @@ and type_access ctx e p mode with_type =
 	match e with
 	| EConst (Ident s) ->
 		type_ident ctx s p mode with_type
-	| EField (e1,"new",efk_todo) ->
+	| EField (e1,"new",efk) ->
+		if efk = EFSafe then raise_typing_error "?.new is not supported" p;
 		let e1 = type_expr ctx e1 WithType.value in
 		begin match e1.eexpr with
 			| TTypeExpr (TClassDecl c) ->
@@ -710,7 +703,7 @@ and type_vars ctx vl p =
 				| Some e ->
 					let old_in_loop = ctx.e.in_loop in
 					if ev.ev_static then ctx.e.in_loop <- false;
-					let e = Std.finally (fun () -> ctx.e.in_loop <- old_in_loop) (type_expr ctx e) (WithType.with_type t) in
+					let e = Std.finally (fun () -> ctx.e.in_loop <- old_in_loop) (type_expr ctx e) (WithType.with_local_variable t n) in
 					let e = AbstractCast.cast_or_unify ctx t e p in
 					Some e
 			) in
@@ -1738,10 +1731,10 @@ and type_call_builtin ctx e el mode with_type p =
 	| (EField ((EConst (Ident "super"),_),_,_),_), _ ->
 		(* no builtins can be applied to super as it can't be a value *)
 		raise Exit
-	| (EField (e,"bind",efk_todo),p), args ->
+	| (EField (e,"bind",efk),p), args ->
 		let e = type_expr ctx e WithType.value in
 		(match follow e.etype with
-			| TFun signature -> type_bind ctx e signature args p
+			| TFun signature -> type_bind ctx e signature args (efk = EFSafe) p
 			| _ -> raise Exit)
 	| (EConst (Ident "$type"),_) , e1 :: el ->
 		let expected = match el with
@@ -1760,7 +1753,8 @@ and type_call_builtin ctx e el mode with_type p =
 		in
 		warning ctx WInfo s e1.epos;
 		e1
-	| (EField(e,"match",efk_todo),p), [epat] ->
+	| (EField(e,"match",efk),p), [epat] ->
+		if efk = EFSafe then raise_typing_error "?.match is not supported" p;
 		let et = type_expr ctx e WithType.value in
 		let rec has_enum_match t = match follow t with
 			| TEnum _ -> true
@@ -1872,7 +1866,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			| _ -> follow_null tmin
 		in
 		let e1_null_t = if is_nullable e1.etype then e1.etype else ctx.t.tnull e1.etype in
-		let e1 = vr#as_var "tmp" {e1 with etype = e1_null_t} in
+		let e1 = vr#as_var (Option.default "tmp" (WithType.get_expected_name with_type)) {e1 with etype = e1_null_t} in
 		let e_null = Builder.make_null e1_null_t e1.epos in
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
 		let e_if = mk (TIf(e_cond,cast e1,Some e2)) iftype p in

@@ -5,6 +5,22 @@ import unit.Test;
 import hl.NativeArray;
 #end
 
+private class Group<T> {
+	public var grid : haxe.ds.Vector<Array<T>>;
+	public function new(size:Int) {
+		grid = new haxe.ds.Vector(size);
+		for (i in 0...size)
+			grid[i] = [];
+	}
+}
+
+private class Foo {
+	public var x : Int;
+	public function new(x:Int) {
+		this.x = x;
+	}
+}
+
 class Issue11734 extends Test {
 	#if hl
 	function test() {
@@ -16,4 +32,18 @@ class Issue11734 extends Test {
 		feq(1.0, a[0]);
 	}
 	#end
+
+	function testArrayInVector() {
+		var g = new Group<Foo>(5);
+		for (i in 0...5)
+			g.grid[i].push(new Foo(10+i));
+		eq(10, g.grid[0][0].x);
+		eq(14, g.grid[4][0].x);
+
+		var g = new Group<Float>(5);
+		for (i in 0...5)
+			g.grid[i].push(10.0+i);
+		feq(10.0, g.grid[0][0]);
+		feq(14.0, g.grid[4][0]);
+	}
 }

@@ -32,7 +32,7 @@ private typedef VectorData<T> =
 	#elseif neko
 	neko.NativeArray<T>
 	#elseif java
-	java.NativeArray<T>
+	jvm.NativeArray<T>
 	#elseif lua
 	lua.Table<Int, T>
 	#elseif eval
@@ -280,7 +280,7 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif flash10
 		return fromData(flash.Vector.ofArray(array));
 		#elseif java
-		return fromData(java.Lib.nativeArray(array, false));
+		return fromData(jvm.NativeArray.ofArray(array));
 		#elseif cpp
 		return cast array.copy();
 		#elseif js

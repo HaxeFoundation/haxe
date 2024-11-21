@@ -7,6 +7,7 @@ type parsed_warning = {
 	w_doc : string;
 	w_parent : string option;
 	w_generic : bool;
+	w_enabled : bool;
 }
 
 type parsed_meta = {
@@ -143,6 +144,7 @@ let parse_warning json =
 		w_doc = get_field "doc" as_string fields;
 		w_parent = get_optional_field2 "parent" as_string fields;
 		w_generic = get_optional_field "generic" as_bool false fields;
+		w_enabled = get_optional_field "enabled" as_bool true fields;
 	}
 
 let parse_file_array path map =
@@ -255,6 +257,15 @@ let gen_warning_obj warnings =
 	) warnings in
 	String.concat "\n" warning_str
 
+let gen_disabled_warnings warnings =
+	let warning_str = ExtList.List.filter_map (fun w ->
+		if w.w_enabled then
+			None
+		else
+			Some w.w_name
+	) warnings in
+	String.concat ";" warning_str
+
 let autogen_header = "(* This file is auto-generated using prebuild from files in src-json *)
 (* Do not edit manually! *)
 "
@@ -355,6 +366,10 @@ match Array.to_list (Sys.argv) with
 		print_endline "";
 		print_endline "let warning_obj = function";
 		print_endline (gen_warning_obj warnings);
+		print_endline ";;";
+		print_endline "let disabled_warnings = [";
+		print_endline (gen_disabled_warnings warnings);
+		print_endline "];;";
 		print_endline "";
 		print_endline "let from_string = function";
 		print_endline (gen_warning_parse warnings);

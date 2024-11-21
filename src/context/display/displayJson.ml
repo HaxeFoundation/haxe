@@ -49,10 +49,10 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 
 	method get_cs = cs
 
-	method enable_display mode =
+	method enable_display ?(skip_define=false) mode =
 		com.display <- create mode;
 		Parser.display_mode := mode;
-		Common.define_value com Define.Display "1"
+		if not skip_define then Common.define_value com Define.Display "1"
 
 	method set_display_file was_auto_triggered requires_offset =
 		let file = jsonrpc#get_opt_param (fun () ->
@@ -209,7 +209,7 @@ let handler =
 		);
 		"display/diagnostics", (fun hctx ->
 			hctx.display#set_display_file false false;
-			hctx.display#enable_display DMNone;
+			hctx.display#enable_display ~skip_define:true DMNone;
 			hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = true };
 			hctx.com.report_mode <- RMDiagnostics (List.map (fun (f,_) -> f) hctx.com.file_contents);
 		);

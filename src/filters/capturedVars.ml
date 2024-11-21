@@ -47,7 +47,7 @@ let captured_vars com e =
 	| Jvm ->
 		let cnativearray =
 			match (List.find (fun md -> match md with
-					| TClassDecl ({ cl_path = ["java"],"NativeArray" }) -> true
+					| TClassDecl ({ cl_path = ["jvm"],"NativeArray" }) -> true
 					| _ -> false
 				) com.types)
 			with TClassDecl cl -> cl | _ -> die "" __LOC__

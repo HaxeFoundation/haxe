@@ -505,10 +505,11 @@ type flag_tclass_field =
 	| CfPostProcessed (* Marker to indicate the field has been post-processed *)
 	| CfUsed (* Marker for DCE *)
 	| CfMaybeUsed (* Marker for DCE *)
+	| CfNoLookup (* Field cannot be accessed by-name. *)
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup"
 ]
 
 type flag_tenum =

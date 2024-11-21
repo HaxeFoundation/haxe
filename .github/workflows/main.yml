@@ -461,7 +461,6 @@ jobs:
       OPAMYES: 1
       MACOSX_DEPLOYMENT_TARGET: 10.13
       OCAML_VERSION: 5.1.1
-      CTYPES: 0.21.1
     steps:
       - uses: actions/checkout@main
         with:
@@ -472,7 +471,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.opam/
-          key: ${{ matrix.os }}-${{ hashFiles('./haxe.opam', './libs/') }}
+          key: ${{ matrix.os }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
       - name: Install Neko from S3
         run: |
@@ -529,7 +528,6 @@ jobs:
           opam switch create ${{env.OCAML_VERSION}}
           eval $(opam env)
           opam env
-          opam pin add ctypes ${{env.CTYPES}} --yes
           opam pin add haxe . --no-action
           opam install haxe --deps-only --assume-depexts
           opam list

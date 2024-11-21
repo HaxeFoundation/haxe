@@ -432,6 +432,7 @@ let dynamify_monos t =
 	loop t
 
 exception ApplyParamsRecursion
+exception ApplyParamsMismatch
 
 (* substitute parameters with other types *)
 let apply_params ?stack cparams params t =
@@ -442,7 +443,7 @@ let apply_params ?stack cparams params t =
 		match l1, l2 with
 		| [] , [] -> []
 		| ttp :: l1 , t2 :: l2 -> (ttp.ttp_class,t2) :: loop l1 l2
-		| _ -> die "" __LOC__
+		| _ -> raise ApplyParamsMismatch
 	in
 	let subst = loop cparams params in
 	let rec loop t =

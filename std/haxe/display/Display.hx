@@ -164,7 +164,7 @@ enum abstract ClassFieldOriginKind<T>(Int) {
 
 	/**
 		The field is declared on a parent type, such as:
-		- a super class field that is not overriden
+		- a super class field that is not overridden
 		- a forwarded abstract field
 	**/
 	var Parent:ClassFieldOriginKind<JsonModuleType<T>>;
@@ -508,7 +508,7 @@ enum abstract FindReferencesKind(String) to String {
 	var Direct = "direct";
 
 	/**
-		Find references to the base field and all the overidding fields in the inheritance chain.
+		Find references to the base field and all the overriding fields in the inheritance chain.
 	**/
 	var WithBaseAndDescendants = "withBaseAndDescendants";
 

@@ -355,7 +355,7 @@ let call_to_string ctx ?(resume=false) e =
 			mk (TIf (check_null, string_null, Some (gen_to_string e))) ctx.t.tstring e.epos
 	end
 
-let type_bind ctx (e : texpr) (args,ret) params p =
+let type_bind ctx (e : texpr) (args,ret) params safe p =
 	let vexpr v = mk (TLocal v) v.v_type p in
 	let acount = ref 0 in
 	let alloc_name n =
@@ -409,10 +409,23 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			let e_var = alloc_var VGenerated gen_local_prefix e.etype e.epos in
 			(mk (TLocal e_var) e.etype e.epos), (mk (TVar(e_var,Some e)) ctx.t.tvoid e.epos) :: var_decls
 	in
-	let call = make_call ctx e ordered_args ret p in
+	let e_body = if safe then begin
+		let eobj, tempvar = get_safe_nav_base ctx e in
+		let sn = {
+			sn_pos = p;
+			sn_base = eobj;
+			sn_temp_var = tempvar;
+			sn_access = AKExpr e; (* This is weird, but it's not used by safe_nav_branch. *)
+		} in
+		safe_nav_branch ctx sn (fun () ->
+			make_call ctx eobj ordered_args ret p
+		)
+	end else
+		make_call ctx e ordered_args ret p
+	in
 	let body =
-		if ExtType.is_void (follow ret) then call
-		else mk (TReturn(Some call)) ret p
+		if ExtType.is_void (follow ret) then e_body
+		else mk (TReturn(Some e_body)) ret p
 	in
 	let arg_default optional t =
 		if optional then Some (Texpr.Builder.make_null t null_pos)

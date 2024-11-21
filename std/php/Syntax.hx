@@ -293,7 +293,7 @@ extern class Syntax {
 
 	/**
 		```haxe
-		Syntax.assocDecl({field1:'first', field2:2}});
+		Syntax.assocDecl({field1:'first', field2:2});
 		```
 		Generates native associative array declaration:
 		```haxe

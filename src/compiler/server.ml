@@ -440,7 +440,7 @@ class hxb_reader_api_server
 			let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file) in
 			let full_restore = com.is_macro_context || com.display.dms_full_typing || is_display_file in
 			let f_next chunks until =
-				let t_hxb = Timer.timer ["server";"module cache";"hxb read"] in
+				let t_hxb = Timer.timer ["server";"module cache";"hxb read";"until " ^ (string_of_chunk_kind until)] in
 				let r = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until (not full_restore) in
 				t_hxb();
 				r
@@ -590,7 +590,7 @@ and type_module sctx com delay mpath p =
 							api
 					in
 					let f_next chunks until =
-						let t_hxb = Timer.timer ["server";"module cache";"hxb read"] in
+						let t_hxb = Timer.timer ["server";"module cache";"hxb read";"until " ^ (string_of_chunk_kind until)] in
 						let r = reader#read_chunks_until api chunks until (not full_restore) in
 						t_hxb();
 						r

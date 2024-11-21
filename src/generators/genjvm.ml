@@ -126,13 +126,13 @@ open NativeSignatures
 
 let jsignature_of_path path = match path with
 	| [],"Bool" -> TBool
-	| ["java"],"Int8" -> TByte
-	| ["java"],"Int16" -> TShort
+	| ["jvm"],"Int8" -> TByte
+	| ["jvm"],"Int16" -> TShort
 	| [],"Int" -> TInt
 	| ["haxe"],"Int32" -> TInt
 	| ["haxe"],"Int64" -> TLong
-	| ["java"],"Int64" -> TLong
-	| ["java"],"Char16" -> TChar
+	| ["jvm"],"Int64" -> TLong
+	| ["jvm"],"Char16" -> TChar
 	| [],"Single" -> TFloat
 	| [],"Float" -> TDouble
 	| [],"Dynamic" -> object_sig
@@ -183,7 +183,7 @@ let rec jsignature_of_type gctx stack t =
 	| TInst({cl_path = (["haxe";"root"],"Array")},[t]) ->
 		let t = get_boxed_type (jsignature_of_type t) in
 		TObject((["haxe";"root"],"Array"),[TType(WNone,t)])
-	| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
+	| TInst({cl_path = (["jvm"],"NativeArray")},[t]) ->
 		TArray(jsignature_of_type t,None)
 	| TInst({cl_kind = KTypeParameter ttp; cl_path = (_,name)},_) ->
 		begin match get_constraints ttp with
@@ -745,7 +745,7 @@ class texpr_to_jvm
 		| FInstance({cl_path = (["java";"lang"],"String")},_,{cf_name = "length"}) ->
 			self#texpr rvalue_any e1;
 			jm#invokevirtual string_path "length" (method_sig [] (Some TInt))
-		| FInstance({cl_path = (["java"],"NativeArray")},_,{cf_name = "length"}) ->
+		| FInstance({cl_path = (["jvm"],"NativeArray")},_,{cf_name = "length"}) ->
 			self#texpr rvalue_any e1;
 			let vtobj = self#vtype e1.etype in
 			code#arraylength vtobj;
@@ -858,7 +858,7 @@ class texpr_to_jvm
 					apply (fun () -> code#dup_x2;);
 					jm#expect_reference_type;
 					jm#invokevirtual c.cl_path "__set" (method_sig [TInt;object_sig] None);
-				| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
+				| TInst({cl_path = (["jvm"],"NativeArray")},[t]) ->
 					let vte = self#vtype t in
 					let vta = self#vtype e1.etype in
 					self#texpr rvalue_any e1;
@@ -1635,9 +1635,9 @@ class texpr_to_jvm
 			| _ ->
 				die "" __LOC__
 			end
-		| TIdent "__array__" | TField(_,FStatic({cl_path = (["java"],"NativeArray")},{cf_name = "make"})) ->
+		| TIdent "__array__" | TField(_,FStatic({cl_path = (["jvm"],"NativeArray")},{cf_name = "make"})) ->
 			begin match follow tr with
-			| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
+			| TInst({cl_path = (["jvm"],"NativeArray")},[t]) ->
 				let jsig = self#vtype t in
 				self#new_native_array jsig el;
 				Some (array_sig jsig)
@@ -2047,7 +2047,7 @@ class texpr_to_jvm
 			else self#read (fun () -> self#cast_expect ret e.etype) e1 fa;
 		| TCall(e1,el) ->
 			self#call ret e.etype e1 el
-		| TNew({cl_path = (["java"],"NativeArray")},[t],[e1]) ->
+		| TNew({cl_path = (["jvm"],"NativeArray")},[t],[e1]) ->
 			self#texpr (if need_val ret then rvalue_any else RVoid) e1;
 			(* Technically this could throw... but whatever *)
 			if need_val ret then ignore(NativeArray.create jm#get_code jc#get_pool (jsignature_of_type gctx t))
@@ -2103,7 +2103,7 @@ class texpr_to_jvm
 				jm#cast TInt;
 				jm#invokevirtual c.cl_path "__get" (method_sig [TInt] (Some object_sig));
 				self#cast e.etype
-			| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
+			| TInst({cl_path = (["jvm"],"NativeArray")},[t]) ->
 				self#texpr rvalue_any e1;
 				let vt = self#vtype e1.etype in
 				let vte = self#vtype t in
@@ -2648,7 +2648,7 @@ class tclass_to_jvm gctx c = object(self)
 			load();
 			jm#putstatic (["haxe";"root"],"Sys") "_args" (TArray(string_sig,None))
 		end;
-		jm#invokestatic (["haxe"; "java"], "Init") "init" (method_sig [] None);
+		jm#invokestatic (["haxe"; "jvm"], "Jvm") "init" (method_sig [] None);
 		self#generate_expr gctx None jc jm e SCNone MStatic;
 		if not jm#is_terminated then jm#return
 
