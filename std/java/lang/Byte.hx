@@ -22,8 +22,6 @@
 
 package java.lang;
 
-private typedef String = std.String; // TODO: #11830
-
 @:native("") // make sure the generator won't see this
 @:transitive
 @:forwardStatics
