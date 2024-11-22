@@ -139,8 +139,10 @@ extern class Sys {
 	static function time():Float;
 
 	/**
-		Gives the most precise timestamp value available (in seconds),
-		but only accounts for the actual time spent running on the CPU for the current thread/process.
+    		Returns CPU time consumed by the current process or thread, measured in seconds.
+		This value only includes the actual time the CPU has actively spent executing 
+		instructions for the process/thread and excludes idle or sleep time. The precision 
+		and behavior may vary depending on the platform and underlying implementation.
 	**/
 	static function cpuTime():Float;
 

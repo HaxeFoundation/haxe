@@ -103,7 +103,7 @@ class Http extends haxe.http.HttpBase {
 				#if php
 				sock = new php.net.SslSocket();
 				#elseif java
-				sock = new java.net.SslSocket();
+				sock = new jvm.net.SslSocket();
 				#elseif python
 				sock = new python.net.SslSocket();
 				#elseif (!no_ssl && (hxssl || hl || cpp || (neko && !(macro || interp) || eval) || (lua && !lua_vanilla)))

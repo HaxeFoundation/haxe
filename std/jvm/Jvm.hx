@@ -27,11 +27,10 @@ import haxe.Constraints;
 import haxe.ds.Option;
 import haxe.ds.Vector;
 import haxe.extern.Rest;
-import java.Init;
-import java.NativeArray;
 import java.lang.NullPointerException;
 import jvm.DynamicObject;
 import jvm.EmptyConstructor;
+import jvm.NativeArray;
 import jvm.Object;
 import jvm.annotation.ClassReflectionInformation;
 import jvm.annotation.EnumReflectionInformation;
@@ -40,6 +39,20 @@ import jvm.annotation.EnumValueReflectionInformation;
 @:keep
 @:native('haxe.jvm.Jvm')
 class Jvm {
+	public static function init():Void {
+		#if std_encoding_utf8
+		try {
+			java.lang.System.setOut(new java.io.PrintStream(java.lang.System.out, true, "utf-8"));
+			java.lang.System.setErr(new java.io.PrintStream(java.lang.System.err, true, "utf-8"));
+		} catch (e:java.io.UnsupportedEncodingException) {}
+		#end
+	}
+
+	static public function getNativeType<T>(obj:T):java.lang.Class<T> {
+		var obj:java.lang.Object = (cast obj : java.lang.Object);
+		return cast obj.getClass();
+	}
+
 	extern static public function instanceof<S, T>(obj:S, type:T):Bool;
 
 	extern static public function referenceEquals<T>(v1:T, v2:T):Bool;
@@ -137,7 +150,7 @@ class Jvm {
 				}
 				continue;
 			};
-			var argType = (argValue : java.lang.Object).getClass();
+			var argType = getNativeType(argValue);
 			var arg = getWrapperClass(paramType);
 			if (arg.isAssignableFrom(argType)) {
 				callArgs[i] = args[i];
@@ -290,7 +303,7 @@ class Jvm {
 	}
 
 	static public function readFieldClosure(obj:Dynamic, name:String, parameterTypes:NativeArray<java.lang.Class<Dynamic>>):Dynamic {
-		var cl = (obj : java.lang.Object).getClass();
+		var cl = getNativeType(obj);
 		var method = cl.getMethod(name, ...parameterTypes);
 		if (method.isBridge()) {
 			/* This is probably not what we want... go through all methods and see if we find one that
@@ -323,7 +336,7 @@ class Jvm {
 	}
 
 	static public function readFieldNoObject(obj:Dynamic, name:String):Dynamic {
-		var cl = (obj : java.lang.Object).getClass();
+		var cl = getNativeType(obj);
 		try {
 			var field = cl.getField(name);
 			field.setAccessible(true);
@@ -388,7 +401,7 @@ class Jvm {
 
 	static public function writeFieldNoObject<T>(obj:Dynamic, name:String, value:T) {
 		try {
-			var cl = (obj : java.lang.Object).getClass();
+			var cl = getNativeType(obj);
 			var field = cl.getField(name);
 			field.setAccessible(true);
 			try {
@@ -613,5 +626,9 @@ class Jvm {
 			return ~toInt(a);
 		}
 		throw "Invalid operation";
+	}
+
+	extern public static inline function lock<T>(obj:Dynamic, block:T):Void {
+		untyped __lock__(obj, block);
 	}
 }

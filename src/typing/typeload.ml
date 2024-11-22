@@ -137,7 +137,7 @@ let find_in_wildcard_imports ctx mname p f =
 					with Error { err_message = Module_not_found mpath } when mpath = path ->
 						raise Not_found
 				in
-				let r = f m ~resume:true in
+				let r = f m in
 				ImportHandling.mark_import_position ctx ppack;
 				r
 			with Not_found ->
@@ -146,48 +146,36 @@ let find_in_wildcard_imports ctx mname p f =
 	in
 	loop (ctx.m.import_resolution#extract_wildcard_packages)
 
-(* TODO: move these generic find functions into a separate module *)
-let find_in_modules_starting_from_current_package ~resume ctx mname p f =
+let find_in_modules_starting_from_current_package ctx mname p f =
 	let rec loop l =
 		let path = (List.rev l,mname) in
+		try
+			ctx.g.do_load_module ctx path p
+		with Error { err_message = Module_not_found mpath } when mpath = path ->
 		match l with
-		| [] ->
-			let m =
-				try
-					ctx.g.do_load_module ctx path p
-				with Error { err_message = Module_not_found mpath } when resume && mpath = path ->
-					raise Not_found
-			in
-			f m ~resume:resume
-		| _ :: sl ->
-			try
-				let m =
-					try
-						ctx.g.do_load_module ctx path p
-					with Error { err_message = Module_not_found mpath } when mpath = path ->
-						raise Not_found
-					in
-				f m ~resume:true;
-			with Not_found ->
+			| [] ->
+				raise Not_found
+			| _ :: sl ->
 				loop sl
 	in
 	let pack = fst ctx.m.curmod.m_path in
-	loop (List.rev pack)
+	let m = loop (List.rev pack) in
+	f m
 
-let find_in_unqualified_modules ctx name p f ~resume =
+let find_in_unqualified_modules ctx name p f =
 	try
 		find_in_wildcard_imports ctx name p f
 	with Not_found ->
-		find_in_modules_starting_from_current_package ctx name p f ~resume:resume
+		find_in_modules_starting_from_current_package ctx name p f
 
 let load_unqualified_type_def ctx mname tname p =
-	let find_type m ~resume =
-		if resume then
-			find_type_in_module m tname
-		else
-			find_type_in_module_raise ctx m tname p
+	let find_type m =
+		find_type_in_module_raise ctx m tname p
 	in
-	find_in_unqualified_modules ctx mname p find_type ~resume:false
+	try
+		find_in_unqualified_modules ctx mname p find_type
+	with Not_found ->
+		raise_error_msg (Module_not_found ([],mname)) p
 
 let load_module ctx path p =
 	try

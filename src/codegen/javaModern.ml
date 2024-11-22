@@ -672,13 +672,13 @@ module SignatureConverter = struct
 
 	and convert_signature ctx p jsig =
 		match jsig with
-		| TByte -> mk_type_path (["java"; "types"], "Int8") [] p
-		| TChar -> mk_type_path (["java"; "types"], "Char16") [] p
+		| TByte -> mk_type_path (["jvm"], "Int8") [] p
+		| TChar -> mk_type_path (["jvm"], "Char16") [] p
 		| TDouble -> mk_type_path ([], "Float") [] p
 		| TFloat -> mk_type_path ([], "Single") [] p
 		| TInt -> mk_type_path ([], "Int") [] p
 		| TLong -> mk_type_path (["haxe"], "Int64") [] p
-		| TShort -> mk_type_path (["java"; "types"], "Int16") [] p
+		| TShort -> mk_type_path (["jvm"], "Int16") [] p
 		| TBool -> mk_type_path ([], "Bool") [] p
 		| TObject ( (["haxe";"root"], name), args ) -> mk_type_path ([], name) (List.map (convert_arg ctx p) args) p
 		| TObject ( (["java";"lang"], "Object"), [] ) -> mk_type_path ([], "Dynamic") [] p
@@ -693,7 +693,7 @@ module SignatureConverter = struct
 			| _ -> die "" __LOC__ in
 			mk_type_path (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param) p
 		| TObjectInner (pack, inners) -> die "" __LOC__
-		| TArray (jsig, _) -> mk_type_path (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,p) ] p
+		| TArray (jsig, _) -> mk_type_path (["jvm"], "NativeArray") [ TPType (convert_signature ctx p jsig,p) ] p
 		| TMethod _ -> failwith "TMethod cannot be converted directly into Complex Type"
 		| TTypeParameter s ->
 			try

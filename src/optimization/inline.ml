@@ -163,7 +163,7 @@ let api_inline ctx c field params p =
 			Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
 	| (["haxe";"ds";"_Vector"],"Vector_Impl_"),("fromArrayCopy"),[{ eexpr = TArrayDecl args } as edecl] -> (try
 			let platf = match ctx.com.platform with
-				| Jvm -> "java"
+				| Jvm -> "jvm"
 				| _ -> raise Exit
 			in
 			let mpath = if field = "fromArrayCopy" then
