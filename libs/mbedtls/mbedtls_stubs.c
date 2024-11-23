@@ -309,7 +309,7 @@ static int verify_callback(void* param, mbedtls_x509_crt *crt, int depth, uint32
 		return MBEDTLS_ERR_X509_FATAL_ERROR;
 	}
 	PCCERT_CONTEXT primary_context = {0};
-	if(!CertAddEncodedCertificateToStore(store, X509_ASN_ENCODING, crt->raw.p, crt->raw.len, CERT_STORE_ADD_ALWAYS, &primary_context)) {
+	if(!CertAddEncodedCertificateToStore(store, X509_ASN_ENCODING, crt->raw.p, crt->raw.len, CERT_STORE_ADD_REPLACE_EXISTING, &primary_context)) {
 		CertCloseStore(store, 0);
 		return MBEDTLS_ERR_X509_FATAL_ERROR;
 	}
