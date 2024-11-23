@@ -1,7 +1,6 @@
 open Ast
 open Type
 open Error
-open Common
 open Globals
 open CppStrings
 open CppTypeUtils
@@ -123,7 +122,7 @@ let gen_class_header ctx tcpp_class h_file scriptable parents =
   output_h "\n\n";
   output_h (get_class_code tcpp_class.tcl_class Meta.HeaderNamespaceCode);
 
-  let extern_class = Common.defined ctx.ctx_common Define.DllExport in
+  let extern_class = Gctx.defined ctx.ctx_common Define.DllExport in
   let attribs =
     "HXCPP_" ^ (if extern_class then "EXTERN_" else "") ^ "CLASS_ATTRIBUTES"
   in

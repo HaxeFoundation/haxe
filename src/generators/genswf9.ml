@@ -19,11 +19,11 @@
 open Extlib_leftovers
 open Globals
 open Ast
+open Gctx
 open Type
 open Error
 open As3
 open As3hl
-open Common
 open FlashProps
 
 type read = Read
@@ -81,7 +81,7 @@ type try_infos = {
 
 type context = {
 	(* globals *)
-	com : Common.context;
+	com : Gctx.t;
 	debugger : bool;
 	swc : bool;
 	boot : path;
@@ -351,7 +351,7 @@ let property ctx fa t =
 	| TInst ({ cl_path = [],"Array" },_) ->
 		(match p with
 		| "length" -> ident p, Some KInt, false (* UInt in the spec *)
-		| "map" | "filter" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
+		| "map" | "filter" when Gctx.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
 		| "copy" | "insert" | "contains" | "remove" | "iterator" | "keyValueIterator"
 		| "toString" | "map" | "filter" | "resize" -> ident p , None, true
 		| _ -> as3 p, None, false);
@@ -364,13 +364,13 @@ let property ctx fa t =
 	| TInst ({ cl_path = [],"String" },_) ->
 		(match p with
 		| "length" (* Int in AS3/Haxe *) -> ident p, None, false
-		| "charCodeAt" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
+		| "charCodeAt" when Gctx.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
 		| "charCodeAt" (* use Haxe version *) -> ident p, None, true
 		| "cca" -> as3 "charCodeAt", None, false
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = [],"Date" },_) ->
 		(match p with
-		| "toString" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
+		| "toString" when Gctx.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
 		| _ -> ident p, None, false)
 	| TAnon a ->
 		(match !(a.a_status) with
@@ -2833,7 +2833,7 @@ let generate_resource ctx name =
 let generate com boot_name =
 	let ctx = {
 		com = com;
-		need_ctor_skip = Common.has_feature com "Type.createEmptyInstance";
+		need_ctor_skip = Gctx.has_feature com "Type.createEmptyInstance";
 		handle_spread_args = (fun basic args t_result args_to_expr ->
 			match List.rev args with
 			| { eexpr = TUnop (Spread,Prefix,rest) } :: args_rev ->
@@ -2869,12 +2869,12 @@ let generate com boot_name =
 			| _ ->
 				None
 		);
-		debug = com.Common.debug;
+		debug = com.Gctx.debug;
 		cur_class = null_class;
 		boot = ([],boot_name);
-		debugger = Common.defined com Define.Fdb;
-		swc = Common.defined com Define.Swc;
-		swf_protected = Common.defined com Define.SwfProtected;
+		debugger = Gctx.defined com Define.Fdb;
+		swc = Gctx.defined com Define.Swc;
+		swf_protected = Gctx.defined com Define.SwfProtected;
 		code = DynArray.create();
 		locals = PMap.empty;
 		infos = default_infos();

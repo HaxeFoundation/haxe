@@ -1,8 +1,8 @@
 open Extlib_leftovers
 open Ast
+open Gctx
 open Type
 open Error
-open Common
 open Globals
 open CppStrings
 open CppAstTools
@@ -16,7 +16,7 @@ open CppTypeUtils
 
 let get_include_prefix common_ctx with_slash =
   try
-    Common.defined_value common_ctx Define.IncludePrefix ^ if with_slash then "/" else ""
+    Gctx.defined_value common_ctx Define.IncludePrefix ^ if with_slash then "/" else ""
   with Not_found -> ""
 
 let should_prefix_include = function
@@ -35,10 +35,10 @@ let guarded_include file =
 
 let source_file_extension common_ctx =
   (* no need to -D file_extension if -D objc is defined *)
-  if Common.defined common_ctx Define.Objc then ".mm"
+  if Gctx.defined common_ctx Define.Objc then ".mm"
   else
     try
-      "." ^ Common.defined_value common_ctx Define.FileExtension
+      "." ^ Gctx.defined_value common_ctx Define.FileExtension
     with Not_found -> ".cpp"
 
 class source_writer common_ctx write_header_func write_func close_func =
@@ -166,7 +166,7 @@ let new_source_file common_ctx base_dir sub_dir extension class_path =
   let file =
     cached_source_writer common_ctx (full_dir ^ "/" ^ snd class_path ^ extension)
   in
-  Codegen.map_source_header common_ctx (fun s ->
+  Gctx.map_source_header common_ctx.defines (fun s ->
       file#write_h (Printf.sprintf "// %s\n" s));
   file
 
@@ -179,7 +179,7 @@ let new_header_file common_ctx base_dir =
 let new_placed_cpp_file common_ctx class_path =
   let base_dir = common_ctx.file in
 
-  if (Common.defined common_ctx Define.Vcproj ) then begin
+  if (Gctx.defined common_ctx Define.Vcproj ) then begin
     Path.mkdir_recursive base_dir ("src"::[]);
     cached_source_writer common_ctx
       ( base_dir ^ "/src/" ^ ( String.concat "-" (fst class_path) ) ^ "-" ^

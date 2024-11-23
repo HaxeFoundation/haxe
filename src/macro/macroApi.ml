@@ -2013,7 +2013,7 @@ let macro_api ccom get_api =
 		"set_custom_js_generator", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
 			(get_api()).set_js_generator (fun js_ctx ->
-				let com = ccom() in
+				let com = Common.to_gctx (ccom()) in
 				Genjs.setup_kwds com;
 				let api = encode_obj [
 					"outputFile", encode_string com.file;
@@ -2028,10 +2028,10 @@ let macro_api ccom get_api =
 						vbool (Hashtbl.mem Genjs.kwds (decode_string v))
 					);
 					"hasFeature", vfun1 (fun v ->
-						vbool (Common.has_feature com (decode_string v))
+						vbool (Gctx.has_feature com (decode_string v))
 					);
 					"addFeature", vfun1 (fun v ->
-						Common.add_feature com (decode_string v);
+						Gctx.add_feature com (decode_string v);
 						vnull
 					);
 					"quoteString", vfun1 (fun v ->

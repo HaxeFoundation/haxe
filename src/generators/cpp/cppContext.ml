@@ -1,8 +1,8 @@
 open Extlib_leftovers
 open Ast
+open Gctx
 open Type
 open Error
-open Common
 open Globals
 open CppAstTools
 
@@ -18,7 +18,7 @@ open CppAstTools
    normal = 1
 *)
 type context = {
-  ctx_common : Common.context;
+  ctx_common : Gctx.t;
   mutable ctx_debug_level : int;
   (* cached as required *)
   mutable ctx_file_info : (string, string) PMap.t ref;
@@ -38,7 +38,7 @@ let new_context common_ctx debug file_info member_types super_deps constructor_d
   let null_file =
     new CppSourceWriter.source_writer common_ctx ignore ignore (fun () -> ())
   in
-  let has_def def = Common.defined_value_safe common_ctx def <> "" in
+  let has_def def = Gctx.defined_value_safe common_ctx def <> "" in
   let result =
     {
       ctx_common = common_ctx;
@@ -92,8 +92,8 @@ let hash_keys hash =
   !key_list
 
 let is_gc_element ctx member_type =
-  Common.defined ctx.ctx_common Define.HxcppGcGenerational && (is_object_element member_type)
+  Gctx.defined ctx.ctx_common Define.HxcppGcGenerational && (is_object_element member_type)
 
-let strip_file ctx file = match Common.defined ctx Common.Define.AbsolutePath with
+let strip_file ctx file = match Gctx.defined ctx Define.AbsolutePath with
   | true -> Path.get_full_path file
   | false -> ctx.class_paths#relative_path file

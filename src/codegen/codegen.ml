@@ -418,13 +418,12 @@ end
 	Build a default safe-cast expression :
 	{ var $t = <e>; if( Std.is($t,<t>) ) $t else throw "Class cast error"; }
 *)
-let default_cast ?(vtmp="$t") com e texpr t p =
-	let api = com.basic in
+let default_cast ?(vtmp="$t") api std e texpr t p =
 	let vtmp = alloc_var VGenerated vtmp e.etype e.epos in
 	let var = mk (TVar (vtmp,Some e)) api.tvoid p in
 	let vexpr = mk (TLocal vtmp) e.etype p in
 	let texpr = Texpr.Builder.make_typeexpr texpr p in
-	let is = Texpr.Builder.resolve_and_make_static_call com.std "isOfType" [vexpr;texpr] p in
+	let is = Texpr.Builder.resolve_and_make_static_call std "isOfType" [vexpr;texpr] p in
 	let enull = Texpr.Builder.make_null vexpr.etype p in
 	let eop = Texpr.Builder.binop OpEq vexpr enull api.tbool p in
 	let echeck = Texpr.Builder.binop OpBoolOr is eop api.tbool p in
@@ -453,12 +452,12 @@ module UnificationCallback = struct
 			List.map (fun e -> f e t_dynamic) el
 end;;
 
-let interpolate_code com code tl f_string f_expr p =
+let interpolate_code error code tl f_string f_expr p =
 	let exprs = Array.of_list tl in
 	let i = ref 0 in
 	let err msg =
 		let pos = { p with pmin = p.pmin + !i } in
-		com.error msg pos
+		error msg pos
 	in
 	let regex = Str.regexp "[{}]" in
 	let rec loop m = match m with
@@ -486,12 +485,6 @@ let interpolate_code com code tl f_string f_expr p =
 			loop tl
 	in
 	loop (Str.full_split regex code)
-
-let map_source_header com f =
-	match Common.defined_value_safe com Define.SourceHeader with
-	| "" -> ()
-	| s -> f s
-
 
 (* Static extensions for classes *)
 module ExtClass = struct

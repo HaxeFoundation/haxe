@@ -1,7 +1,7 @@
 open Ast
+open Gctx
 open Type
 open Error
-open Common
 open Globals
 open CppStrings
 open CppTypeUtils
@@ -1265,7 +1265,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
           out spacer;
           writer#end_block)
     | CppCode (value, exprs) ->
-        Codegen.interpolate_code ctx.ctx_common (format_code value) exprs out
+        Codegen.interpolate_code ctx.ctx_common.error (format_code value) exprs out
           (fun e -> gen e)
           expr.cpppos
     | CppTCast (expr, cppType) -> (
@@ -1609,7 +1609,7 @@ let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes (slot
     (fun class_path -> boot_file#add_include class_path)
     (boot_enums @ boot_classes @ nonboot_classes);
 
-  let newScriptable = Common.defined common_ctx Define.Scriptable in
+  let newScriptable = Gctx.defined common_ctx Define.Scriptable in
   if newScriptable then (
     output_boot "#include <hx/Scriptable.h>\n";
 
@@ -1694,7 +1694,7 @@ let generate_files common_ctx file_info =
       output_files
         (const_char_star
            (Path.get_full_path
-              (try Common.find_file common_ctx file with Not_found -> file))
+              (try Gctx.find_file common_ctx file with Not_found -> file))
         ^ ",\n"))
     (List.sort String.compare (pmap_keys !file_info));
   output_files "#endif\n";

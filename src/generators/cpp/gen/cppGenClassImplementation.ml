@@ -1,7 +1,6 @@
 open Ast
 open Type
 open Error
-open Common
 open Globals
 open CppStrings
 open CppTypeUtils
@@ -568,7 +567,7 @@ let generate_managed_class base_ctx tcpp_class =
     if
       Meta.has Meta.NativeProperty class_def.cl_meta
       || Meta.has Meta.NativeProperty field.cf_meta
-      || Common.defined common_ctx Define.ForceNativeProperty
+      || Gctx.defined common_ctx Define.ForceNativeProperty
     then "inCallProp != ::hx::paccNever"
     else "inCallProp == ::hx::paccAlways"
   in

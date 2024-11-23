@@ -2444,7 +2444,7 @@ end
 module StdStringTools = struct
 	let url_encode s =
 		let b = Buffer.create 0 in
-		Common.url_encode s (Buffer.add_char b);
+		StringHelper.url_encode s (Buffer.add_char b);
 		Buffer.contents b
 
 	let fastCodeAt = StdString.charCodeAt

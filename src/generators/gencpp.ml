@@ -17,9 +17,9 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 open Ast
+open Gctx
 open Type
 open Error
-open Common
 open Globals
 open CppStrings
 open CppTypeUtils
@@ -126,7 +126,7 @@ let write_build_data common_ctx filename classes main_deps boot_deps build_extra
    in
 
    output_string buildfile "<xml>\n";
-   let api_string = (Common.defined_value common_ctx Define.HxcppApiLevel) in
+   let api_string = (Gctx.defined_value common_ctx Define.HxcppApiLevel) in
    output_string buildfile ("<set name=\"HXCPP_API_LEVEL\" value=\"" ^ api_string ^ "\" />\n");
    output_string buildfile "<files id=\"haxe\">\n";
    output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
@@ -159,7 +159,7 @@ let write_build_data common_ctx filename classes main_deps boot_deps build_extra
    output_string buildfile ("<set name=\"HAXE_OUTPUT\" value=\"" ^ exe_name ^ "\" />\n");
    output_string buildfile "<include name=\"${HXCPP}/build-tool/BuildCommon.xml\"/>\n";
    output_string buildfile build_extra;
-   if (Common.defined common_ctx Define.HxcppSmartStings) then
+   if (Gctx.defined common_ctx Define.HxcppSmartStings) then
       output_string buildfile ("<error value=\"Hxcpp is out of date - please update\" unlessApi=\"" ^ api_string ^ "\" />\n");
    output_string buildfile "</xml>\n";
    close_out buildfile
@@ -264,7 +264,7 @@ let generate_source ctx =
    let common_ctx = ctx.ctx_common in
    make_base_directory common_ctx.file;
    let main_deps = ref [] in
-   let scriptable = (Common.defined common_ctx Define.Scriptable) in
+   let scriptable = (Gctx.defined common_ctx Define.Scriptable) in
 
    let initial = {
       extern_src = [];
@@ -280,7 +280,7 @@ let generate_source ctx =
    } in
 
    let folder acc cur =
-      (if not (Common.defined common_ctx Define.Objc) then
+      (if not (Gctx.defined common_ctx Define.Objc) then
          match cur with
          | TClassDecl class_def when Meta.has Meta.Objc class_def.cl_meta ->
             abort "In order to compile '@:objc' classes, please define '-D objc'" class_def.cl_pos
@@ -384,10 +384,10 @@ let generate_source ctx =
    write_resources common_ctx;
 
    (* Output class info if requested *)
-   if (scriptable || (Common.defined common_ctx Define.DllExport) ) then begin
+   if (scriptable || (Gctx.defined common_ctx Define.DllExport) ) then begin
       let filename =
          try
-            let value = Common.defined_value common_ctx Define.DllExport in
+            let value = Gctx.defined_value common_ctx Define.DllExport in
             if value="1" then raise Not_found;
             value
          with Not_found -> "export_classes.info"
@@ -421,7 +421,7 @@ let generate_source ctx =
 
          (* Output file info too *)
          List.iter ( fun file ->
-               let full_path = Path.get_full_path (try Common.find_file common_ctx file with Not_found -> file) in
+               let full_path = Path.get_full_path (try Gctx.find_file common_ctx file with Not_found -> file) in
                if file <> "?" then
                   out ("file " ^ (escape file) ^ " " ^ (escape full_path) ^"\n") )
             ( List.sort String.compare ( pmap_keys !(ctx.ctx_file_info) ) );
@@ -435,7 +435,7 @@ let generate_source ctx =
 
    write_build_data common_ctx (common_ctx.file ^ "/Build.xml") srcctx.exe_classes !main_deps (srcctx.boot_enums@ srcctx.boot_classes) srcctx.build_xml srcctx.extern_src output_name;
    write_build_options common_ctx (common_ctx.file ^ "/Options.txt") common_ctx.defines.Define.values;
-   if ( not (Common.defined common_ctx Define.NoCompilation) ) then begin
+   if ( not (Gctx.defined common_ctx Define.NoCompilation) ) then begin
       let t = Timer.timer ["generate";"cpp";"native compilation"] in
       let old_dir = Sys.getcwd() in
       Sys.chdir common_ctx.file;
@@ -456,10 +456,10 @@ let generate_source ctx =
    end
 
 let generate common_ctx =
-   let debug_level = if (Common.defined common_ctx Define.NoDebug) then 0 else 1 in
+   let debug_level = if (Gctx.defined common_ctx Define.NoDebug) then 0 else 1 in
    let super_deps = create_super_dependencies common_ctx in
    let constructor_deps = create_constructor_dependencies common_ctx in
-   if (Common.defined common_ctx Define.Cppia) then begin
+   if (Gctx.defined common_ctx Define.Cppia) then begin
       let ctx = new_context common_ctx debug_level (ref PMap.empty) StringMap.empty super_deps constructor_deps in
       CppCppia.generate_cppia ctx
    end else begin   

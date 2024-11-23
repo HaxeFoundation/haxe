@@ -21,11 +21,11 @@ open Ast
 open Globals
 open Type
 open Nast
-open Common
+open Gctx
 
 type context = {
 	version : int;
-	com : Common.context;
+	com : Gctx.t;
 	packages : (string list, unit) Hashtbl.t;
 	globals : (string list * string, string) Hashtbl.t;
 	mutable curglobal : int;
@@ -50,7 +50,7 @@ let pos ctx p =
 			try
 				Hashtbl.find files p.pfile
 			with Not_found ->
-				let path = (match Common.defined ctx.com Common.Define.AbsolutePath with
+				let path = (match Gctx.defined ctx.com Define.AbsolutePath with
 				| true -> if (Filename.is_relative p.pfile)
 					then Filename.concat (Sys.getcwd()) p.pfile
 					else p.pfile
@@ -371,7 +371,7 @@ and gen_expr ctx e =
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
-		gen_expr ctx (Codegen.default_cast ~vtmp:"@tmp" ctx.com e1 t e.etype e.epos)
+		gen_expr ctx (Codegen.default_cast ~vtmp:"@tmp" ctx.com.basic ctx.com.std e1 t e.etype e.epos)
 	| TIdent s ->
 		ident p s
 	| TSwitch {switch_subject = e;switch_cases = cases;switch_default = eo} ->
@@ -771,19 +771,19 @@ let build ctx types =
 	let vars = List.concat (List.map (gen_static_vars ctx) types) in
 	packs @ methods @ boot :: names @ inits @ vars
 
-let generate com =
+let generate neko_lib_paths com =
 	Hashtbl.clear files;
-	let ctx = new_context com (if Common.defined com Define.NekoV1 then 1 else 2) false in
+	let ctx = new_context com (if Gctx.defined com Define.NekoV1 then 1 else 2) false in
 	let libs = (EBlock
-		(if Common.defined com Define.NekoNoHaxelibPaths then []
-		else generate_libs_init com.neko_lib_paths),
+		(if Gctx.defined com Define.NekoNoHaxelibPaths then []
+		else generate_libs_init neko_lib_paths),
 		{ psource = "<header>"; pline = 1; }
 	) in
 	let el = build ctx com.types in
 	let emain = (match com.main.main_expr with None -> [] | Some e -> [gen_expr ctx e]) in
 	let e = (EBlock ((header()) @ libs :: el @ emain), null_pos) in
-	let source = Common.defined com Define.NekoSource in
-	let use_nekoc = Common.defined com Define.UseNekoc in
+	let source = Gctx.defined com Define.NekoSource in
+	let use_nekoc = Gctx.defined com Define.UseNekoc in
 	if not use_nekoc then begin
 		try
 			Path.mkdir_from_path com.file;
@@ -791,7 +791,7 @@ let generate com =
 			Nbytecode.write ch (Ncompile.compile ctx.version e);
 			IO.close_out ch;
 		with Ncompile.Error (msg,pos) ->
-			let pfile = Common.find_file com pos.psource in
+			let pfile = Gctx.find_file com pos.psource in
 			let rec loop p =
 				let pp = { pfile = pfile; pmin = p; pmax = p; } in
 				if Lexer.get_error_line pp >= pos.pline then

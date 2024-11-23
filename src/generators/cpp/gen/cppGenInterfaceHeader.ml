@@ -11,7 +11,7 @@ open CppSourceWriter
 open CppContext
 open CppGen
 
-let attribs common_ctx = match Common.defined common_ctx Define.DllExport with
+let attribs common_ctx = match Gctx.defined common_ctx Define.DllExport with
   | true -> "HXCPP_EXTERN_CLASS_ATTRIBUTES"
   | false -> "HXCPP_CLASS_ATTRIBUTES"
 
@@ -22,7 +22,7 @@ let gen_native_function ctx interface func =
 
   Printf.sprintf "\t\tvirtual %s %s(%s)=0;\n" (type_to_string func.iff_return) func.iff_name (gen_args func.iff_args) |> output;
   if reflective interface.if_class func.iff_field then
-    if Common.defined ctx.ctx_common Define.DynamicInterfaceClosures then
+    if Gctx.defined ctx.ctx_common Define.DynamicInterfaceClosures then
       Printf.sprintf
         "\t\tinline ::Dynamic %s_dyn() { return __Field( %s, ::hx::paccDynamic ); }\n"
         func.iff_name

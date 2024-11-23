@@ -211,7 +211,7 @@ let make_macro_com_api com mcom p =
 		set_js_generator = (fun gen ->
 			com.js_gen <- Some (fun() ->
 				Path.mkdir_from_path com.file;
-				let js_ctx = Genjs.alloc_ctx com (get_es_version com) in
+				let js_ctx = Genjs.alloc_ctx (Common.to_gctx com) (Gctx.get_es_version com.defines) in
 				let t = macro_timer com ["jsGenerator"] in
 				gen js_ctx;
 				t()

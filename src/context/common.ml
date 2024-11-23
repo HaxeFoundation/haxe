@@ -348,11 +348,6 @@ class virtual abstract_hxb_lib = object(self)
 	method virtual get_string_pool : string -> string array option
 end
 
-type context_main = {
-	mutable main_class : path option;
-	mutable main_expr : texpr option;
-}
-
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
@@ -371,15 +366,15 @@ type context = {
 	mutable config : platform_config;
 	empty_class_path : ClassPath.class_path;
 	class_paths : ClassPaths.class_paths;
-	main : context_main;
+	main : Gctx.context_main;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
 	(* communication *)
 	mutable print : string -> unit;
-	mutable error : ?depth:int -> string -> pos -> unit;
+	mutable error : Gctx.error_function;
 	mutable error_ext : Error.error -> unit;
 	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
-	mutable warning : ?depth:int -> ?from_macro:bool -> warning -> Warning.warning_option list list -> string -> pos -> unit;
+	mutable warning : Gctx.warning_function;
 	mutable warning_options : Warning.warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
@@ -431,6 +426,32 @@ type context = {
 	mutable hxb_reader_api : HxbReaderApi.hxb_reader_api option;
 	hxb_reader_stats : HxbReader.hxb_reader_stats;
 	mutable hxb_writer_config : HxbWriterConfig.t option;
+}
+
+let to_gctx com = {
+	Gctx.platform = com.platform;
+	defines = com.defines;
+	basic = com.basic;
+	class_paths = com.class_paths;
+	run_command = com.run_command;
+	run_command_args = com.run_command_args;
+	warning = com.warning;
+	error = com.error;
+	print = com.print;
+	debug = com.debug;
+	file = com.file;
+	version = com.version;
+	features = com.features;
+	modules = com.modules;
+	main = com.main;
+	types = com.types;
+	resources = com.resources;
+	native_libs = (match com.platform with
+		| Jvm -> (com.native_libs.java_libs :> NativeLibraries.native_library_base list)
+		| Flash -> (com.native_libs.swf_libs  :> NativeLibraries.native_library_base list)
+		| _ -> []);
+	include_files = com.include_files;
+	std = com.std;
 }
 
 let enter_stage com stage =
@@ -522,9 +543,6 @@ let defines_for_external ctx =
 			| split -> PMap.add (String.concat "-" split) v added_underscore;
 	) ctx.defines.values PMap.empty
 
-let get_es_version com =
-	try int_of_string (defined_value com Define.JsEs) with _ -> 0
-
 let short_platform_name = function
 	| Cross -> "x"
 	| Js -> "js"
@@ -587,7 +605,7 @@ let get_config com =
 		(* impossible to reach. see update_platform_config *)
 		raise Exit
 	| Js ->
-		let es6 = get_es_version com >= 6 in
+		let es6 = Gctx.get_es_version com.defines >= 6 in
 		{
 			default_config with
 			pf_static = false;
@@ -927,27 +945,6 @@ let flash_versions = List.map (fun v ->
 	v, string_of_int maj ^ (if min = 0 then "" else "_" ^ string_of_int min)
 ) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8;11.9;12.0;13.0;14.0;15.0;16.0;17.0;18.0;19.0;20.0;21.0;22.0;23.0;24.0;25.0;26.0;27.0;28.0;29.0;31.0;32.0]
 
-let flash_version_tag = function
-	| 6. -> 6
-	| 7. -> 7
-	| 8. -> 8
-	| 9. -> 9
-	| 10. | 10.1 -> 10
-	| 10.2 -> 11
-	| 10.3 -> 12
-	| 11. -> 13
-	| 11.1 -> 14
-	| 11.2 -> 15
-	| 11.3 -> 16
-	| 11.4 -> 17
-	| 11.5 -> 18
-	| 11.6 -> 19
-	| 11.7 -> 20
-	| 11.8 -> 21
-	| 11.9 -> 22
-	| v when v >= 12.0 && float_of_int (int_of_float v) = v -> int_of_float v + 11
-	| v -> failwith ("Invalid SWF version " ^ string_of_float v)
-
 let update_platform_config com =
 	match com.platform with
 	| CustomTarget _ ->
@@ -1092,90 +1089,6 @@ let hash f =
 		h := !h * 223 + int_of_char (String.unsafe_get f i);
 	done;
 	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
-
-let url_encode s add_char =
-	let hex = "0123456789ABCDEF" in
-	for i = 0 to String.length s - 1 do
-		let c = String.unsafe_get s i in
-		match c with
-		| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '-' | '.' ->
-			add_char c
-		| _ ->
-			add_char '%';
-			add_char (String.unsafe_get hex (int_of_char c lsr 4));
-			add_char (String.unsafe_get hex (int_of_char c land 0xF));
-	done
-
-let url_encode_s s =
-	let b = Buffer.create 0 in
-	url_encode s (Buffer.add_char b);
-	Buffer.contents b
-
-(* UTF8 *)
-
-let to_utf8 str p =
-	let u8 = try
-		UTF8.validate str;
-		str;
-	with
-		UTF8.Malformed_code ->
-			(* ISO to utf8 *)
-			let b = UTF8.Buf.create 0 in
-			String.iter (fun c -> UTF8.Buf.add_char b (UCharExt.of_char c)) str;
-			UTF8.Buf.contents b
-	in
-	let ccount = ref 0 in
-	UTF8.iter (fun c ->
-		let c = UCharExt.code c in
-		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then Error.abort "Invalid unicode char" p;
-		incr ccount;
-		if c > 0x10000 then incr ccount;
-	) u8;
-	u8, !ccount
-
-let utf16_add buf c =
-	let add c =
-		Buffer.add_char buf (char_of_int (c land 0xFF));
-		Buffer.add_char buf (char_of_int (c lsr 8));
-	in
-	if c >= 0 && c < 0x10000 then begin
-		if c >= 0xD800 && c <= 0xDFFF then failwith ("Invalid unicode char " ^ string_of_int c);
-		add c;
-	end else if c < 0x110000 then begin
-		let c = c - 0x10000 in
-		add ((c asr 10) + 0xD800);
-		add ((c land 1023) + 0xDC00);
-	end else
-		failwith ("Invalid unicode char " ^ string_of_int c)
-
-let utf8_to_utf16 str zt =
-	let b = Buffer.create (String.length str * 2) in
-	(try UTF8.iter (fun c -> utf16_add b (UCharExt.code c)) str with Invalid_argument _ | UCharExt.Out_of_range -> ()); (* if malformed *)
-	if zt then utf16_add b 0;
-	Buffer.contents b
-
-let utf16_to_utf8 str =
-	let b = Buffer.create 0 in
-	let add c = Buffer.add_char b (char_of_int (c land 0xFF)) in
-	let get i = int_of_char (String.unsafe_get str i) in
-	let rec loop i =
-		if i >= String.length str then ()
-		else begin
-			let c = get i in
-			if c < 0x80 then begin
-				add c;
-				loop (i + 2);
-			end else if c < 0x800 then begin
-				let c = c lor ((get (i + 1)) lsl 8) in
-				add c;
-				add (c lsr 8);
-				loop (i + 2);
-			end else
-				die "" __LOC__;
-		end
-	in
-	loop 0;
-	Buffer.contents b
 
 let add_diagnostics_message ?(depth = 0) ?(code = None) com s p kind sev =
 	if sev = MessageSeverity.Error then com.has_error <- true;

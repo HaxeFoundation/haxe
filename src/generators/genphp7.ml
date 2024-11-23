@@ -3,8 +3,8 @@
 *)
 
 open Ast
+open Gctx
 open Type
-open Common
 open Meta
 open Globals
 open Sourcemaps
@@ -72,7 +72,7 @@ type used_type = {
 }
 
 type php_generator_context = {
-	pgc_common : Common.context;
+	pgc_common : Gctx.t;
 	(** Do not add comments with Haxe positions before each line of generated php code *)
 	pgc_skip_line_directives : bool;
 	(** The value of `-D php-prefix=value` split by dots *)
@@ -2011,8 +2011,6 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			@see http://old.haxe.org/doc/advanced/magic#php-magic
 		*)
 		method write_expr_magic name args =
-			let msg = "untyped " ^ name ^ " is deprecated. Use php.Syntax instead." in
-			DeprecationCheck.warn_deprecation (DeprecationCheck.create_context ctx.pgc_common) msg self#pos;
 			let error = ("Invalid arguments for " ^ name ^ " magic call") in
 			match args with
 				| [] -> fail ~msg:error self#pos __LOC__
@@ -2021,7 +2019,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						| "__php__" ->
 							(match expr.eexpr with
 								| TConst (TString php) ->
-									Codegen.interpolate_code ctx.pgc_common php args self#write self#write_expr self#pos
+									Codegen.interpolate_code ctx.pgc_common.error php args self#write self#write_expr self#pos
 								| _ -> fail self#pos __LOC__
 							)
 						| "__call__" ->
@@ -2445,7 +2443,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						)
 						args
 					in
-					Codegen.interpolate_code ctx.pgc_common php args self#write self#write_expr self#pos
+					Codegen.interpolate_code ctx.pgc_common.error php args self#write self#write_expr self#pos
 				| _ -> ctx.pgc_common.error "First argument of php.Syntax.code() must be a constant string." self#pos
 		(**
 			Writes error suppression operator (for `php.Syntax.suppress()`)
@@ -3045,7 +3043,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			writer#indent 0;
 			writer#write_line "<?php";
 			writer#write_line "/**";
-			Codegen.map_source_header ctx.pgc_common (fun s -> writer#write_line (" * " ^ s));
+			Gctx.map_source_header ctx.pgc_common.defines (fun s -> writer#write_line (" * " ^ s));
 			if ctx.pgc_common.debug then writer#write_line (" * Haxe source file: " ^ self#get_source_file);
 			writer#write_line " */";
 			writer#write "\n";
@@ -3944,7 +3942,7 @@ class generator (ctx:php_generator_context) =
 			and name = builder#get_name in
 			let filename = (create_dir_recursive (build_dir :: namespace)) ^ "/" ^ name ^ ".php" in
 			let channel = open_out filename in
-			if Common.defined ctx.pgc_common Define.SourceMap then
+			if Gctx.defined ctx.pgc_common Define.SourceMap then
 				builder#set_sourcemap_generator (new sourcemap_builder filename);
 			output_string channel builder#get_contents;
 			close_out channel;
@@ -3993,7 +3991,7 @@ class generator (ctx:php_generator_context) =
 			match self#get_entry_point with
 				| None -> ()
 				| Some (uses, entry_point) ->
-					let filename = Common.defined_value_safe ~default:"index.php" ctx.pgc_common Define.PhpFront in
+					let filename = Gctx.defined_value_safe ~default:"index.php" ctx.pgc_common Define.PhpFront in
 					let front_dirs = split_file_path (Filename.dirname filename) in
 					if front_dirs <> [] then
 						ignore(create_dir_recursive (root_dir :: front_dirs));
@@ -4032,7 +4030,7 @@ class generator (ctx:php_generator_context) =
 			Returns path from `index.php` to directory which will contain all generated classes
 		*)
 		method private get_lib_path : string list =
-			let path = Common.defined_value_safe ~default:"lib" ctx.pgc_common Define.PhpLib in
+			let path = Gctx.defined_value_safe ~default:"lib" ctx.pgc_common Define.PhpLib in
 			split_file_path path
 		(**
 			Returns PHP code for entry point
@@ -4069,12 +4067,12 @@ let get_boot com : tclass =
 (**
 	Entry point to Genphp7
 *)
-let generate (com:context) =
+let generate (com:Gctx.t) =
 	let ctx =
 		{
 			pgc_common = com;
-			pgc_skip_line_directives = Common.defined com Define.RealPosition;
-			pgc_prefix = Str.split (Str.regexp "\\.") (Common.defined_value_safe com Define.PhpPrefix);
+			pgc_skip_line_directives = Gctx.defined com Define.RealPosition;
+			pgc_prefix = Str.split (Str.regexp "\\.") (Gctx.defined_value_safe com Define.PhpPrefix);
 			pgc_boot = get_boot com;
 			pgc_namespaces_types_cache = Hashtbl.create 512;
 			pgc_anons = Hashtbl.create 0;

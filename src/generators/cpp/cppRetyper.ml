@@ -2,7 +2,6 @@ open Extlib_leftovers
 open Ast
 open Type
 open Error
-open Common
 open Globals
 open CppTypeUtils
 open CppAst
@@ -194,7 +193,7 @@ let expression ctx request_type function_args function_type expression_tree forI
   let file_id = ctx.ctx_file_id in
   let function_return_type = ref (cpp_type_of function_type) in
   let loop_stack = ref [] in
-  let forCppia = Common.defined ctx.ctx_common Define.Cppia in
+  let forCppia = Gctx.defined ctx.ctx_common Define.Cppia in
   let alloc_file_id () =
     incr file_id;
     !file_id
@@ -1463,7 +1462,7 @@ let native_field_name_remap field =
     keyword_remap field.cf_name
 
 let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
-  let scriptable = Common.defined ctx.ctx_common Define.Scriptable in
+  let scriptable = Gctx.defined ctx.ctx_common Define.Scriptable in
 
   let create_function field func = {
     tcf_field = field;
@@ -1680,7 +1679,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     tcl_flags = flags;
     tcl_super = parent;
     tcl_container = gc_container_type;
-    tcl_debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Common.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level;
+    tcl_debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Gctx.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level;
     tcl_static_variables = static_variables;
     tcl_static_properties = static_properties;
     tcl_static_functions = static_functions;
@@ -1700,7 +1699,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
 
 and tcpp_interface_from_tclass ctx slots class_def =
 
-  let scriptable = Common.defined ctx.ctx_common Define.Scriptable && not class_def.cl_private in
+  let scriptable = Gctx.defined ctx.ctx_common Define.Scriptable && not class_def.cl_private in
 
   let function_filter (slots, fields) field =
     match (field.cf_type, field.cf_kind) with
@@ -1727,7 +1726,7 @@ and tcpp_interface_from_tclass ctx slots class_def =
     | _ -> false
   in
 
-  let debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Common.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level in
+  let debug_level = if Meta.has Meta.NoDebug class_def.cl_meta || Gctx.defined ctx.ctx_common Define.NoDebug then 0 else ctx.ctx_debug_level in
   let meta_field  = List.find_opt (fun field -> field.cf_name = "__meta__") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in
   let rtti_field  = List.find_opt (fun field -> field.cf_name = "__rtti") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in
   let slots, extends =

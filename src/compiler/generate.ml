@@ -174,11 +174,11 @@ let generate ctx tctx ext actx =
 			with Not_found ->
 				None
 			in
-			Genswf.generate header,"swf"
+			Genswf.generate header com.Common.native_libs.swf_libs com.Common.flash_version,"swf"
 		| Neko ->
-			Genneko.generate,"neko"
+			Genneko.generate com.neko_lib_paths,"neko"
 		| Js ->
-			Genjs.generate,"js"
+			Genjs.generate com.js_gen,"js"
 		| Lua ->
 			Genlua.generate,"lua"
 		| Php ->
@@ -201,7 +201,7 @@ let generate ctx tctx ext actx =
 		else begin
 			Common.log com ("Generating " ^ name ^ ": " ^ com.file);
 			let t = Timer.timer ["generate";name] in
-			generate com;
+			generate (Common.to_gctx com);
 			t()
 		end
 	end

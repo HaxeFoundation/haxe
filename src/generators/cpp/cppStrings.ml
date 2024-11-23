@@ -68,7 +68,7 @@ let strq ctx s =
     else "(" ^ split s "" ^ ")"
   in
 
-  if Common.defined ctx Define.HxcppSmartStings && has_utf8_chars s then (
+  if Gctx.defined ctx Define.HxcppSmartStings && has_utf8_chars s then (
     let b = Buffer.create 0 in
 
     let add ichar =

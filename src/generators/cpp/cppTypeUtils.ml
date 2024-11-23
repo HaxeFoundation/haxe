@@ -5,7 +5,6 @@ open Extlib_leftovers
 open Ast
 open Type
 open Error
-open Common
 open Globals
 
 let follow = Abstract.follow_with_abstracts
@@ -15,18 +14,18 @@ let is_native_gen_class class_def =
    match class_def.cl_kind with
    | KAbstractImpl abstract_def -> Meta.has Meta.NativeGen abstract_def.a_meta
    | _ -> false
- 
+
 let is_native_gen_module = function
    | TClassDecl class_def -> is_native_gen_class class_def
    | _ -> false
- 
+
 let is_extern_class class_def =
    has_class_flag class_def CExtern ||
    Meta.has Meta.Extern class_def.cl_meta ||
    match class_def.cl_kind with
    | KAbstractImpl abstract_def -> Meta.has Meta.Extern abstract_def.a_meta
    | _ -> false
- 
+
 let is_extern_enum enum_def =
    has_enum_flag enum_def EnExtern || Meta.has Meta.Extern enum_def.e_meta
 

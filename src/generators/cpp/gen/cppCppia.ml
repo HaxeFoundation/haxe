@@ -2,7 +2,6 @@ open Extlib_leftovers
 open Ast
 open Type
 open Error
-open Common
 open Globals
 open CppTypeUtils
 open CppAst
@@ -511,7 +510,7 @@ class script_writer ctx filename asciiOut =
     val debug = asciiOut
 
     val doComment =
-      asciiOut && Common.defined ctx.ctx_common Define.AnnotateSource
+      asciiOut && Gctx.defined ctx.ctx_common Define.AnnotateSource
 
     val indent_str = if asciiOut then "\t" else ""
     val mutable indent = ""
@@ -523,7 +522,7 @@ class script_writer ctx filename asciiOut =
     val identTable = Hashtbl.create 0
     val fileTable = Hashtbl.create 0
     val identBuffer = Buffer.create 0
-    val cppiaAst = not (Common.defined ctx.ctx_common Define.NoCppiaAst)
+    val cppiaAst = not (Gctx.defined ctx.ctx_common Define.NoCppiaAst)
 
     method stringId name =
       try Hashtbl.find identTable name
@@ -1812,7 +1811,7 @@ let generate_script_class common_ctx script class_def =
               if
                 Meta.has Meta.NativeProperty class_def.cl_meta
                 || Meta.has Meta.NativeProperty field.cf_meta
-                || Common.defined common_ctx Define.ForceNativeProperty
+                || Gctx.defined common_ctx Define.ForceNativeProperty
               then IaAccessCallNative
               else IaAccessCall
           | AccInline -> IaAccessNormal

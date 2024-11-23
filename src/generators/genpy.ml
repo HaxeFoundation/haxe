@@ -21,7 +21,7 @@ open Globals
 open Ast
 open Error
 open Type
-open Common
+open Gctx
 open Texpr.Builder
 
 module Utils = struct
@@ -955,7 +955,8 @@ module Transformer = struct
 			let r = { a_expr with eexpr = TArrayDecl exprs } in
 			lift_expr ae.a_next_id ~blocks:blocks r
 		| (is_value, TCast(e1,Some mt)) ->
-			let e = Codegen.default_cast ~vtmp:(ae.a_next_id()) (match !como with Some com -> com | None -> die "" __LOC__) e1 mt ae.a_expr.etype ae.a_expr.epos in
+			let com = (match !como with Some com -> com | None -> die "" __LOC__) in
+			let e = Codegen.default_cast ~vtmp:(ae.a_next_id()) com.basic com.std e1 mt ae.a_expr.etype ae.a_expr.epos in
 			transform_expr ae.a_next_id ~is_value:is_value e
 		| (is_value, TCast(e,None)) ->
 			let e = trans is_value [] e in
@@ -999,12 +1000,12 @@ module Printer = struct
 		pc_indent : string;
 		pc_next_anon_func : unit -> string;
 		pc_debug : bool;
-		pc_com : Common.context;
+		pc_com : Gctx.t;
 	}
 
-	let has_feature pctx = Common.has_feature pctx.pc_com
+	let has_feature pctx = Gctx.has_feature pctx.pc_com
 
-	let add_feature pctx = Common.add_feature pctx.pc_com
+	let add_feature pctx = Gctx.add_feature pctx.pc_com
 
 	let create_context =
 		let n = ref (-1) in
@@ -1491,11 +1492,9 @@ module Printer = struct
 			| ("python_Syntax.code"),({ eexpr = TConst (TString code) } as ecode) :: tl ->
 				let buf = Buffer.create 0 in
 				let interpolate () =
-					Codegen.interpolate_code pctx.pc_com code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
+					Codegen.interpolate_code pctx.pc_com.error code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
 				in
-				let old = pctx.pc_com.error_ext in
-				pctx.pc_com.error_ext <- (fun err -> raise (Error.Fatal_error err));
-				Std.finally (fun() -> pctx.pc_com.error_ext <- old) interpolate ();
+				interpolate ();
 				Buffer.contents buf
 			| ("python_Syntax._pythonCode"), [e] ->
 				print_expr pctx e
@@ -1673,7 +1672,7 @@ end
 
 module Generator = struct
 	type context = {
-		com : Common.context;
+		com : Gctx.t;
 		buf : Buffer.t;
 		packages : (string,int) Hashtbl.t;
 		mutable static_inits : (unit -> unit) list;
@@ -1683,8 +1682,8 @@ module Generator = struct
 		print_time : float;
 	}
 
-	let has_feature ctx = Common.has_feature ctx.com
-	let add_feature ctx = Common.add_feature ctx.com
+	let has_feature ctx = Gctx.has_feature ctx.com
+	let add_feature ctx = Gctx.add_feature ctx.com
 
 	type class_field_infos = {
 		cfd_fields : string list;
@@ -2427,7 +2426,7 @@ module Generator = struct
 	let run com =
 		Transformer.init com;
 		let ctx = mk_context com in
-		Codegen.map_source_header com (fun s -> print ctx "# %s\n# coding: utf-8\n" s);
+		Gctx.map_source_header com.defines (fun s -> print ctx "# %s\n# coding: utf-8\n" s);
 		if has_feature ctx "closure_Array" || has_feature ctx "closure_String" then
 			spr ctx "from functools import partial as _hx_partial\n";
 		spr ctx "import sys\n";
