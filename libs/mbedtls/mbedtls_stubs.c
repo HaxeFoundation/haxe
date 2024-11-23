@@ -307,7 +307,7 @@ static int verify_callback(void* param, mbedtls_x509_crt *crt, int depth, uint32
 	if(depth == 0) {
 		HCERTSTORE store = CertOpenStore(CERT_STORE_PROV_MEMORY, 0, 0, CERT_STORE_DEFER_CLOSE_UNTIL_LAST_FREE_FLAG, NULL);
 		if(store == NULL) {
-			// handle error
+			return MBEDTLS_ERR_X509_FATAL_ERROR;
 		}
 		PCCERT_CONTEXT primary_context = {0};
 		if(!CertAddEncodedCertificateToStore(store, X509_ASN_ENCODING, crt->raw.p, crt->raw.len, CERT_STORE_ADD_ALWAYS, &primary_context)) {
