@@ -332,7 +332,9 @@ static int verify_callback(void* param, mbedtls_x509_crt *crt, int depth, uint32
 		if(!CertVerifyCertificateChainPolicy(CERT_CHAIN_POLICY_SSL, chain_context, &policy_parameters, &policy_status)) {
 			return MBEDTLS_ERR_X509_FATAL_ERROR;
 		}
-		if(policy_status.dwError != 0) {
+		if(policy_status.dwError == 0) {
+			*flags = 0;
+		} else {
 			// TODO: properly map errors
 			*flags |= MBEDTLS_X509_BADCERT_OTHER;
 		}
