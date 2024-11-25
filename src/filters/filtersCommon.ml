@@ -55,9 +55,9 @@ let is_overridden cls field =
 
 let run_expression_filters ?(ignore_processed_status=false) ctx detail_times filters t =
 	let com = ctx.com in
-	let run identifier e =
+	let run (ctx : typer) identifier e =
 		List.fold_left (fun e (filter_name,f) ->
-			FilterContext.with_timer detail_times filter_name identifier (fun () -> f e)
+			FilterContext.with_timer detail_times filter_name identifier (fun () -> f ctx e)
 		) e filters
 	in
 	match t with
@@ -65,16 +65,16 @@ let run_expression_filters ?(ignore_processed_status=false) ctx detail_times fil
 	| TClassDecl c ->
 		let ctx = TyperManager.clone_for_module ctx (TypeloadModule.make_curmod ctx.com ctx.g c.cl_module) in
 		ctx.c.curclass <- c;
-		let rec process_field f =
-			if ignore_processed_status || not (has_class_field_flag f CfPostProcessed) then begin
-				ctx.f.curfield <- f;
-				(match f.cf_expr with
-				| Some e when not (is_removable_field com f) ->
-					let identifier = Printf.sprintf "%s.%s" (s_type_path c.cl_path) f.cf_name in
-					f.cf_expr <- Some (rec_stack_loop AbstractCast.cast_stack f (run (Some identifier)) e);
+		let rec process_field cf =
+			if ignore_processed_status || not (has_class_field_flag cf CfPostProcessed) then begin
+				let ctx = TyperManager.clone_for_field ctx cf cf.cf_params in
+				(match cf.cf_expr with
+				| Some e when not (is_removable_field com cf) ->
+					let identifier = Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name in
+					cf.cf_expr <- Some (rec_stack_loop AbstractCast.cast_stack cf (run ctx (Some identifier)) e);
 				| _ -> ());
 			end;
-			List.iter process_field f.cf_overloads
+			List.iter process_field cf.cf_overloads
 		in
 		List.iter process_field c.cl_ordered_fields;
 		List.iter process_field c.cl_ordered_statics;
@@ -85,7 +85,7 @@ let run_expression_filters ?(ignore_processed_status=false) ctx detail_times fil
 		| None -> ()
 		| Some e ->
 			let identifier = Printf.sprintf "%s.__init__" (s_type_path c.cl_path) in
-			TClass.set_cl_init c (run (Some identifier) e))
+			TClass.set_cl_init c (run ctx (Some identifier) e))
 	| TEnumDecl _ -> ()
 	| TTypeDecl _ -> ()
 	| TAbstractDecl _ -> ()

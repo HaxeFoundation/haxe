@@ -150,7 +150,7 @@ and typer_expr = {
 }
 
 and typer_field = {
-	mutable curfield : tclass_field;
+	curfield : tclass_field;
 	mutable locals : (string, tvar) PMap.t;
 	mutable vthis : tvar option;
 	mutable untyped : bool;
