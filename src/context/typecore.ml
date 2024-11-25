@@ -76,7 +76,7 @@ type typer_module = {
 }
 
 type typer_class = {
-	mutable curclass : tclass; (* TODO: should not be mutable *)
+	curclass : tclass;
 	mutable tthis : t;
 	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
 }

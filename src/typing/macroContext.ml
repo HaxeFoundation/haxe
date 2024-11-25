@@ -1017,7 +1017,6 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	e
 
 let call_macro mctx args margs call p =
-	mctx.c.curclass <- null_class;
 	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> raise_typing_error "Argument should be a constant" e.epos) el)
 

@@ -495,26 +495,26 @@ let destruction tctx detail_times main locals =
 		)
 		com.types;
 	let type_filters = [
-		Exceptions.patch_constructors tctx; (* TODO: I don't believe this should load_instance anything at this point... *)
-		check_private_path com;
-		Naming.apply_native_paths;
-		add_rtti com;
-		(match com.platform with | Jvm -> (fun _ -> ()) | _ -> (fun mt -> AddFieldInits.add_field_inits tctx.c.curclass.cl_path locals com mt));
-		(match com.platform with Hl -> (fun _ -> ()) | _ -> add_meta_field com);
-		check_void_field;
-		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ()));
-		commit_features com;
-		(if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths com else (fun _ -> ()));
+		Exceptions.patch_constructors; (* TODO: I don't believe this should load_instance anything at this point... *)
+		(fun _ -> check_private_path com);
+		(fun _ -> Naming.apply_native_paths);
+		(fun _ -> add_rtti com);
+		(match com.platform with | Jvm -> (fun _ _ -> ()) | _ -> (fun tctx mt -> AddFieldInits.add_field_inits tctx.c.curclass.cl_path locals com mt));
+		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> (fun _ -> add_meta_field com));
+		(fun _ -> check_void_field);
+		(fun _ -> (match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ())));
+		(fun _ -> commit_features com);
+		(fun _ -> (if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths com else (fun _ -> ())));
 	] in
 	with_timer detail_times "type 3" None (fun () ->
 		List.iter (fun t ->
-			begin match t with
-			| TClassDecl c ->
-				tctx.c.curclass <- c
-			| _ ->
-				()
-			end;
-			List.iter (fun f -> f t) type_filters
+			let tctx = match t with
+				| TClassDecl c ->
+					TyperManager.clone_for_class tctx c
+				| _ ->
+					tctx
+			in
+			List.iter (fun f -> f tctx t) type_filters
 		) com.types;
 	);
 	com.callbacks#run com.error_ext com.callbacks#get_after_filters;
