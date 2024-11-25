@@ -335,7 +335,8 @@ static int verify_callback(void* param, mbedtls_x509_crt *crt, int depth, uint32
 	if(policy_status.dwError == 0) {
 		*flags = 0;
 	} else {
-		// TODO: properly map errors
+		// if we ever want to read the verification result,
+		// we need to properly map dwError to flags
 		*flags |= MBEDTLS_X509_BADCERT_OTHER;
 	}
 	CertFreeCertificateChain(chain_context);
