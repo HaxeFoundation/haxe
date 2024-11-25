@@ -752,7 +752,7 @@ let load_macro_module mctx com cpath display p =
 	let old = mctx.com.display in
 	if display then mctx.com.display <- com.display;
 	let mloaded = TypeloadModule.load_module ~origin:MDepFromMacro mctx m p in
-	mctx.m <- {
+	(* mctx.m <- {
 		curmod = mloaded;
 		import_resolution = new resolution_list ["import";s_type_path cpath];
 		own_resolution = None;
@@ -760,7 +760,7 @@ let load_macro_module mctx com cpath display p =
 		module_using = [];
 		import_statements = [];
 		is_display_file = (com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mloaded.m_extra.m_file));
-	};
+	}; *)
 	mloaded,(fun () -> mctx.com.display <- old)
 
 let load_macro'' com mctx display cpath f p =
@@ -794,7 +794,7 @@ let load_macro'' com mctx display cpath f p =
 		restore();
 		if not com.is_macro_context then flush_macro_context mint mctx;
 		mctx.com.cached_macros#add (cpath,f) meth;
-		mctx.m <- {
+		(* mctx.m <- {
 			curmod = null_module;
 			import_resolution = new resolution_list ["import";s_type_path cpath];
 			own_resolution = None;
@@ -802,7 +802,7 @@ let load_macro'' com mctx display cpath f p =
 			module_using = [];
 			import_statements = [];
 			is_display_file = false;
-		};
+		}; *)
 		t();
 		meth
 
