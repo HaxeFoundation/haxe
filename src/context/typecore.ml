@@ -165,7 +165,7 @@ and typer = {
 	com : context;
 	t : basic_types;
 	g : typer_globals;
-	mutable m : typer_module;
+	m : typer_module;
 	c : typer_class;
 	f : typer_field;
 	e : typer_expr;
