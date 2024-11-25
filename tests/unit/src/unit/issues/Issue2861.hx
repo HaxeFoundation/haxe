@@ -2,7 +2,7 @@ package unit.issues;
 
 class Issue2861 extends Test
 {
-#if (flash || neko || cpp || java || php || hl)
+#if (flash || neko || cpp || jvm || php || hl)
 	public function test()
 	{
 		var b = haxe.io.Bytes.alloc(2048);

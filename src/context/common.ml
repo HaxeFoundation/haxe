@@ -230,6 +230,13 @@ class file_keys = object(self)
 			let key = Path.UniqueKey.create file in
 			Hashtbl.add cache file key;
 			key
+
+	val virtual_counter = ref 0
+
+	method generate_virtual step =
+		incr virtual_counter;
+		Printf.sprintf "file_%i_%i" step !virtual_counter
+
 end
 
 type shared_display_information = {
@@ -338,12 +345,8 @@ class virtual abstract_hxb_lib = object(self)
 	method virtual get_bytes : string -> path -> bytes option
 	method virtual close : unit
 	method virtual get_file_path : string
+	method virtual get_string_pool : string -> string array option
 end
-
-type context_main = {
-	mutable main_class : path option;
-	mutable main_expr : texpr option;
-}
 
 type context = {
 	compilation_step : int;
@@ -363,15 +366,15 @@ type context = {
 	mutable config : platform_config;
 	empty_class_path : ClassPath.class_path;
 	class_paths : ClassPaths.class_paths;
-	main : context_main;
+	main : Gctx.context_main;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
 	(* communication *)
 	mutable print : string -> unit;
-	mutable error : ?depth:int -> string -> pos -> unit;
+	mutable error : Gctx.error_function;
 	mutable error_ext : Error.error -> unit;
 	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
-	mutable warning : ?depth:int -> ?from_macro:bool -> warning -> Warning.warning_option list list -> string -> pos -> unit;
+	mutable warning : Gctx.warning_function;
 	mutable warning_options : Warning.warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
@@ -407,6 +410,7 @@ type context = {
 	mutable modules : Type.module_def list;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
+	functional_interface_lut : (path,(tclass * tclass_field)) lookup;
 	(* target-specific *)
 	mutable flash_version : float;
 	mutable neko_lib_paths : string list;
@@ -415,13 +419,39 @@ type context = {
 	mutable hxb_libs : abstract_hxb_lib list;
 	mutable net_std : string list;
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
-	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
 	(* misc *)
 	mutable basic : basic_types;
 	memory_marker : float array;
+	mutable hxb_reader_api : HxbReaderApi.hxb_reader_api option;
 	hxb_reader_stats : HxbReader.hxb_reader_stats;
 	mutable hxb_writer_config : HxbWriterConfig.t option;
+}
+
+let to_gctx com = {
+	Gctx.platform = com.platform;
+	defines = com.defines;
+	basic = com.basic;
+	class_paths = com.class_paths;
+	run_command = com.run_command;
+	run_command_args = com.run_command_args;
+	warning = com.warning;
+	error = com.error;
+	print = com.print;
+	debug = com.debug;
+	file = com.file;
+	version = com.version;
+	features = com.features;
+	modules = com.modules;
+	main = com.main;
+	types = com.types;
+	resources = com.resources;
+	native_libs = (match com.platform with
+		| Jvm -> (com.native_libs.java_libs :> NativeLibraries.native_library_base list)
+		| Flash -> (com.native_libs.swf_libs  :> NativeLibraries.native_library_base list)
+		| _ -> []);
+	include_files = com.include_files;
+	std = com.std;
 }
 
 let enter_stage com stage =
@@ -434,7 +464,7 @@ let ignore_error com =
 	b
 
 let module_warning com m w options msg p =
-	DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
+	if com.display.dms_full_typing then DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
 	com.warning w options msg p
 
 (* Defines *)
@@ -468,6 +498,7 @@ let convert_define k =
 	String.concat "_" (ExtString.String.nsplit k "-")
 
 let is_next com = defined com HaxeNext
+let fail_fast com = defined com FailFast
 
 let external_defined ctx k =
 	Define.raw_defined ctx.defines (convert_define k)
@@ -476,7 +507,7 @@ let external_defined_value ctx k =
 	Define.raw_defined_value ctx.defines (convert_define k)
 
 let reserved_flags = [
-	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";"hl";"hlc";
+	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"java";"jvm";"python";"hl";"hlc";
 	"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
 ]
 
@@ -512,9 +543,6 @@ let defines_for_external ctx =
 			| split -> PMap.add (String.concat "-" split) v added_underscore;
 	) ctx.defines.values PMap.empty
 
-let get_es_version com =
-	try int_of_string (defined_value com Define.JsEs) with _ -> 0
-
 let short_platform_name = function
 	| Cross -> "x"
 	| Js -> "js"
@@ -523,8 +551,7 @@ let short_platform_name = function
 	| Flash -> "swf"
 	| Php -> "php"
 	| Cpp -> "cpp"
-	| Cs -> "cs"
-	| Java -> "jav"
+	| Jvm -> "jvm"
 	| Python -> "py"
 	| Hl -> "hl"
 	| Eval -> "evl"
@@ -578,7 +605,7 @@ let get_config com =
 		(* impossible to reach. see update_platform_config *)
 		raise Exit
 	| Js ->
-		let es6 = get_es_version com >= 6 in
+		let es6 = Gctx.get_es_version com.defines >= 6 in
 		{
 			default_config with
 			pf_static = false;
@@ -686,35 +713,7 @@ let get_config com =
 			};
 			pf_supports_atomics = true;
 		}
-	| Cs ->
-		{
-			default_config with
-			pf_capture_policy = CPWrapRef;
-			pf_pad_nulls = true;
-			pf_overload = true;
-			pf_supports_threads = true;
-			pf_supports_rest_args = true;
-			pf_this_before_super = false;
-			pf_exceptions = { default_config.pf_exceptions with
-				ec_native_throws = [
-					["cs";"system"],"Exception";
-					["haxe"],"Exception";
-				];
-				ec_native_catches = [
-					["cs";"system"],"Exception";
-					["haxe"],"Exception";
-				];
-				ec_wildcard_catch = (["cs";"system"],"Exception");
-				ec_base_throw = (["cs";"system"],"Exception");
-				ec_special_throw = fun e -> e.eexpr = TIdent "__rethrow__"
-			};
-			pf_scoping = {
-				vs_scope = FunctionScope;
-				vs_flags = [NoShadowing]
-			};
-			pf_supports_atomics = true;
-		}
-	| Java ->
+	| Jvm ->
 		{
 			default_config with
 			pf_capture_policy = CPWrapRef;
@@ -735,14 +734,6 @@ let get_config com =
 				ec_wildcard_catch = (["java";"lang"],"Throwable");
 				ec_base_throw = (["java";"lang"],"RuntimeException");
 			};
-			pf_scoping =
-				if defined Jvm then
-					default_config.pf_scoping
-				else
-					{
-						vs_scope = FunctionScope;
-						vs_flags = [NoShadowing; ReserveAllTopLevelSymbols; ReserveNames(["_"])];
-					};
 			pf_supports_atomics = true;
 		}
 	| Python ->
@@ -841,7 +832,6 @@ let create compilation_step cs version args display_mode =
 		native_libs = create_native_libs();
 		hxb_libs = [];
 		net_path_map = Hashtbl.create 0;
-		c_args = [];
 		neko_lib_paths = [];
 		include_files = [];
 		js_gen = None;
@@ -855,7 +845,7 @@ let create compilation_step cs version args display_mode =
 		get_macros = (fun() -> None);
 		info = (fun ?depth ?from_macro _ _ -> die "" __LOC__);
 		warning = (fun ?depth ?from_macro _ _ _ -> die "" __LOC__);
-		warning_options = [];
+		warning_options = [List.map (fun w -> {wo_warning = w;wo_mode = WMDisable}) WarningList.disabled_warnings];
 		error = (fun ?depth _ _ -> die "" __LOC__);
 		error_ext = (fun _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
@@ -863,6 +853,7 @@ let create compilation_step cs version args display_mode =
 		pass_debug_messages = DynArray.create();
 		basic = {
 			tvoid = mk_mono();
+			tany = mk_mono();
 			tint = mk_mono();
 			tfloat = mk_mono();
 			tbool = mk_mono();
@@ -883,6 +874,8 @@ let create compilation_step cs version args display_mode =
 		has_error = false;
 		report_mode = RMNone;
 		is_macro_context = false;
+		functional_interface_lut = new Lookup.hashtbl_lookup;
+		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_config = None;
 	} in
@@ -908,6 +901,7 @@ let clone com is_macro_context =
 		cache = None;
 		basic = { t with
 			tvoid = mk_mono();
+			tany = mk_mono();
 			tint = mk_mono();
 			tfloat = mk_mono();
 			tbool = mk_mono();
@@ -935,8 +929,10 @@ let clone com is_macro_context =
 		overload_cache = new hashtbl_lookup;
 		module_lut = new module_lut;
 		fake_modules = Hashtbl.create 0;
+		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		std = null_class;
+		functional_interface_lut = new Lookup.hashtbl_lookup;
 		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;
 	}
@@ -949,27 +945,6 @@ let flash_versions = List.map (fun v ->
 	v, string_of_int maj ^ (if min = 0 then "" else "_" ^ string_of_int min)
 ) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8;11.9;12.0;13.0;14.0;15.0;16.0;17.0;18.0;19.0;20.0;21.0;22.0;23.0;24.0;25.0;26.0;27.0;28.0;29.0;31.0;32.0]
 
-let flash_version_tag = function
-	| 6. -> 6
-	| 7. -> 7
-	| 8. -> 8
-	| 9. -> 9
-	| 10. | 10.1 -> 10
-	| 10.2 -> 11
-	| 10.3 -> 12
-	| 11. -> 13
-	| 11.1 -> 14
-	| 11.2 -> 15
-	| 11.3 -> 16
-	| 11.4 -> 17
-	| 11.5 -> 18
-	| 11.6 -> 19
-	| 11.7 -> 20
-	| 11.8 -> 21
-	| 11.9 -> 22
-	| v when v >= 12.0 && float_of_int (int_of_float v) = v -> int_of_float v + 11
-	| v -> failwith ("Invalid SWF version " ^ string_of_float v)
-
 let update_platform_config com =
 	match com.platform with
 	| CustomTarget _ ->
@@ -979,13 +954,21 @@ let update_platform_config com =
 
 let init_platform com =
 	let name = platform_name com.platform in
-	if (com.platform = Flash) && Path.file_extension com.file = "swc" then define com Define.Swc
-	else if (com.platform = Hl) && Path.file_extension com.file = "c" then define com Define.Hlc;
+	begin match com.platform with
+	| Flash when Path.file_extension com.file = "swc" ->
+		define com Define.Swc
+	| Jvm ->
+		raw_define com "java"
+	| Hl ->
+		if Path.file_extension com.file = "c" then define com Define.Hlc;
+	| _ ->
+		()
+	end;
 	(* Set the source header, unless the user has set one already or the platform sets a custom one *)
 	if not (defined com Define.SourceHeader) && (com.platform <> Hl) then
 		define_value com Define.SourceHeader ("Generated by Haxe " ^ s_version_full);
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
-	com.package_rules <- List.fold_left forbid com.package_rules ("jvm" :: (List.map platform_name platforms));
+	com.package_rules <- List.fold_left forbid com.package_rules ("java" :: (List.map platform_name platforms));
 	update_platform_config com;
 	if com.config.pf_static then begin
 		raw_define com "target.static";
@@ -1107,90 +1090,6 @@ let hash f =
 	done;
 	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
 
-let url_encode s add_char =
-	let hex = "0123456789ABCDEF" in
-	for i = 0 to String.length s - 1 do
-		let c = String.unsafe_get s i in
-		match c with
-		| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '-' | '.' ->
-			add_char c
-		| _ ->
-			add_char '%';
-			add_char (String.unsafe_get hex (int_of_char c lsr 4));
-			add_char (String.unsafe_get hex (int_of_char c land 0xF));
-	done
-
-let url_encode_s s =
-	let b = Buffer.create 0 in
-	url_encode s (Buffer.add_char b);
-	Buffer.contents b
-
-(* UTF8 *)
-
-let to_utf8 str p =
-	let u8 = try
-		UTF8.validate str;
-		str;
-	with
-		UTF8.Malformed_code ->
-			(* ISO to utf8 *)
-			let b = UTF8.Buf.create 0 in
-			String.iter (fun c -> UTF8.Buf.add_char b (UCharExt.of_char c)) str;
-			UTF8.Buf.contents b
-	in
-	let ccount = ref 0 in
-	UTF8.iter (fun c ->
-		let c = UCharExt.code c in
-		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then Error.abort "Invalid unicode char" p;
-		incr ccount;
-		if c > 0x10000 then incr ccount;
-	) u8;
-	u8, !ccount
-
-let utf16_add buf c =
-	let add c =
-		Buffer.add_char buf (char_of_int (c land 0xFF));
-		Buffer.add_char buf (char_of_int (c lsr 8));
-	in
-	if c >= 0 && c < 0x10000 then begin
-		if c >= 0xD800 && c <= 0xDFFF then failwith ("Invalid unicode char " ^ string_of_int c);
-		add c;
-	end else if c < 0x110000 then begin
-		let c = c - 0x10000 in
-		add ((c asr 10) + 0xD800);
-		add ((c land 1023) + 0xDC00);
-	end else
-		failwith ("Invalid unicode char " ^ string_of_int c)
-
-let utf8_to_utf16 str zt =
-	let b = Buffer.create (String.length str * 2) in
-	(try UTF8.iter (fun c -> utf16_add b (UCharExt.code c)) str with Invalid_argument _ | UCharExt.Out_of_range -> ()); (* if malformed *)
-	if zt then utf16_add b 0;
-	Buffer.contents b
-
-let utf16_to_utf8 str =
-	let b = Buffer.create 0 in
-	let add c = Buffer.add_char b (char_of_int (c land 0xFF)) in
-	let get i = int_of_char (String.unsafe_get str i) in
-	let rec loop i =
-		if i >= String.length str then ()
-		else begin
-			let c = get i in
-			if c < 0x80 then begin
-				add c;
-				loop (i + 2);
-			end else if c < 0x800 then begin
-				let c = c lor ((get (i + 1)) lsl 8) in
-				add c;
-				add (c lsr 8);
-				loop (i + 2);
-			end else
-				die "" __LOC__;
-		end
-	in
-	loop 0;
-	Buffer.contents b
-
 let add_diagnostics_message ?(depth = 0) ?(code = None) com s p kind sev =
 	if sev = MessageSeverity.Error then com.has_error <- true;
 	let di = com.shared.shared_display_information in
@@ -1211,7 +1110,7 @@ let dump_path com =
 	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
 
 let adapt_defines_to_macro_context defines =
-	let to_remove = List.map Globals.platform_name Globals.platforms in
+	let to_remove = "java" :: List.map Globals.platform_name Globals.platforms in
 	let to_remove = List.fold_left (fun acc d -> Define.get_define_key d :: acc) to_remove [Define.NoTraces] in
 	let to_remove = List.fold_left (fun acc (_, d) -> ("flash" ^ d) :: acc) to_remove flash_versions in
 	let macro_defines = {

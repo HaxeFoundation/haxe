@@ -266,7 +266,7 @@ let collect ctx tk with_type sort =
 				let tname,is_private,meta = match d with
 					| EClass d -> fst d.d_name,List.mem HPrivate d.d_flags,d.d_meta
 					| EEnum d -> fst d.d_name,List.mem EPrivate d.d_flags,d.d_meta
-					| ETypedef d -> fst d.d_name,List.mem EPrivate d.d_flags,d.d_meta
+					| ETypedef d -> fst d.d_name,List.mem TDPrivate d.d_flags,d.d_meta
 					| EAbstract d -> fst d.d_name,List.mem AbPrivate d.d_flags,d.d_meta
 					| EStatic d -> fst d.d_name,List.exists (fun (a,_) -> a = APrivate) d.d_flags,d.d_meta
 					| EImport _ | EUsing _ -> raise Exit

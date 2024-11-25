@@ -1,5 +1,4 @@
-Uncaught exception Stack overflow
-Main.hx:1: character 1 : Called from here
+Main.hx:1: character 1 : Uncaught exception Stack overflow
 Main.hx:8: characters 4-9 : Called from here
 Main.hx:8: characters 4-9 : Called from here
 Main.hx:8: characters 4-9 : Called from here

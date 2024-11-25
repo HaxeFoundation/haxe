@@ -53,6 +53,13 @@ PACKAGE_FILES=$(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std \
 	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libmbedtls.dll | sed -e 's/^\s*//')" \
 	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libmbedx509.dll | sed -e 's/^\s*//')"
 
+# haxelib should depends on haxe, but we don't want to do that...
+haxelib_win:
+	cd $(CURDIR)/extra/haxelib_src && \
+	HAXE_STD_PATH=$$(cygpath -m $(CURDIR)/std) $(CURDIR)/$(HAXE_OUTPUT) client.hxml && \
+	nekotools boot run.n
+	mv extra/haxelib_src/run$(EXTENSION) $(HAXELIB_OUTPUT)
+
 echo_package_files:
 	echo $(PACKAGE_FILES)
 

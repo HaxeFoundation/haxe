@@ -613,9 +613,12 @@ module StdContext = struct
 		else raise (EvalDebugMisc.BreakHere)
 	)
 
-	let callMacroApi = vfun1 (fun f ->
+	let callMacroApi = vfun1 (fun f  ->
 		let f = decode_string f in
-		Hashtbl.find GlobalState.macro_lib f
+		try
+			Hashtbl.find GlobalState.macro_lib f
+		with Not_found ->
+			exc_string ("Could not find macro function \"" ^ f ^ "\"")
 	)
 
 	let plugins = ref PMap.empty
@@ -2250,9 +2253,10 @@ module StdString = struct
 		let str = this str in
 		let this = this vthis in
 		let i = default_int startIndex 0 in
+		let i = max 0 i in
 		try
 			if str.slength = 0 then
-				vint (max 0 (min i this.slength))
+				vint (min i this.slength)
 			else begin
 				let i =
 					if i >= this.slength then raise Not_found
@@ -2440,7 +2444,7 @@ end
 module StdStringTools = struct
 	let url_encode s =
 		let b = Buffer.create 0 in
-		Common.url_encode s (Buffer.add_char b);
+		StringHelper.url_encode s (Buffer.add_char b);
 		Buffer.contents b
 
 	let fastCodeAt = StdString.charCodeAt

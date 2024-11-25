@@ -24,7 +24,7 @@ To run tests only for a single project use the following command: `haxe -D MISC_
 
 ### Running target specific projects locally
 
-Tests specific to some targets (python, cs) reside in their own separate folder (respectively `tests/misc/python` and `tests/misc/cs`).
+Tests specific to some targets (python, hl) reside in their own separate folder (respectively `tests/misc/python` and `tests/misc/hl`).
 
 Chdir to `tests/misc/{target}` and run `haxe run.hxml` to run these tests.
 

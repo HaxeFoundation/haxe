@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue10571 extends Test {
-	#if java
+	#if jvm
 	function test() {
 		eq("test()", foo());
 		eq("test(I)", foo(1));

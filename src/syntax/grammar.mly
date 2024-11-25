@@ -300,7 +300,7 @@ and parse_type_decl mode s =
 				d_doc = doc_from_string_opt doc;
 				d_meta = meta;
 				d_params = tl;
-				d_flags = ExtList.List.filter_map decl_flag_to_enum_flag c;
+				d_flags = ExtList.List.filter_map decl_flag_to_typedef_flag c;
 				d_data = t;
 			}, punion p1 (pos t))
 		| [< '(Kwd Abstract,p1) >] ->

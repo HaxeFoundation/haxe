@@ -18,7 +18,7 @@ private class MyNotString {
 	}
 }
 
-#if java
+#if jvm
 @:native("unit.DetectiveHaxeExtern")
 extern private class DetectiveHaxeExtern {
 	overload static function itWasYou(i1:Int, i2:Int):String;
@@ -64,7 +64,7 @@ class TestConstrainedMonomorphs extends Test {
 		eq("fooFOO", infer(new MyNotString("foo")));
 	}
 
-	#if java
+	#if jvm
 	function testDetectiveHaxe() {
 		var a = null;
 		eq("nullfoo", DetectiveHaxeExtern.itWasYou(a, "foo"));

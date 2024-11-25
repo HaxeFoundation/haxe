@@ -29,9 +29,6 @@ import haxe.hxb.WriterConfig;
 /**
 	All these methods can be called for compiler configuration macros.
 **/
-#if hl
-@:hlNative("macro")
-#end
 class Compiler {
 	/**
 		A conditional compilation flag can be set on the command line using
@@ -151,15 +148,6 @@ class Compiler {
 	}
 
 	/**
-		Adds an argument to be passed to the native compiler (e.g. `-javac-arg` for Java).
-	**/
-	public static function addNativeArg(argument:String) {
-		#if (neko || eval)
-		load("add_native_arg", 1)(argument);
-		#end
-	}
-
-	/**
 		Includes all modules in package `pack` in the compilation.
 
 		In order to include single modules, their paths can be listed directly
@@ -168,6 +156,8 @@ class Compiler {
 		By default `Compiler.include` will search for modules in the directories defined with `-cp`.
 		If you want to specify a different set of paths to search for modules, you can use the optional
 		argument `classPath`.
+
+		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
 
 		@param pack The package dot-path as String. Use `''` to include the root package.
 		@param rec If true, recursively adds all sub-packages.
@@ -236,7 +226,7 @@ class Compiler {
 						var cl = prefix + file.substr(0, file.length - 3);
 						if (skip(cl))
 							continue;
-						Context.getModule(cl);
+						load("include_module", 1)(cl);
 					} else if (rec && sys.FileSystem.isDirectory(path + "/" + file) && !skip(prefix + file))
 						include(prefix + file, true, ignore, classPaths);
 				}
@@ -245,6 +235,7 @@ class Compiler {
 				Context.error('Package "$pack" was not found in any of class paths', Context.currentPos());
 		}
 
+		Context.assertInitMacro();
 		Context.onAfterInitMacros(() -> include(pack, rec, ignore, classPaths, strict));
 	}
 
@@ -275,7 +266,13 @@ class Compiler {
 				switch (t) {
 					case TInst(c, _):
 						name = c.toString();
-						b = c.get();
+						var c = c.get();
+						switch (c.kind) {
+							case KModuleFields(module):
+								name = module;
+							case _:
+						}
+						b = c;
 					case TEnum(e, _):
 						name = e.toString();
 						b = e.get();
@@ -406,7 +403,7 @@ class Compiler {
 	}
 
 	/**
-		Register a custom medatada for documentation and completion purposes
+		Register a custom metadata for documentation and completion purposes
 	**/
 	public static function registerCustomMetadata(meta:MetadataDescription, ?source:String):Void {
 		#if (neko || eval)
@@ -691,8 +688,7 @@ enum Platform {
 	Flash;
 	Php;
 	Cpp;
-	Cs;
-	Java;
+	Jvm;
 	Python;
 	Hl;
 	Eval;

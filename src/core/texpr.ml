@@ -328,6 +328,7 @@ let duplicate_tvars f_this e =
 		let v2 = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
 		v2.v_meta <- v.v_meta;
 		v2.v_extra <- v.v_extra;
+		v2.v_flags <- v.v_flags;
 		Hashtbl.add vars v.v_id v2;
 		v2;
 	in
@@ -612,6 +613,7 @@ let type_constant basic c p =
 	match c with
 	| Int (s,_) ->
 		if String.length s > 10 && String.sub s 0 2 = "0x" then raise_typing_error "Invalid hexadecimal integer" p;
+		if String.length s > 34 && String.sub s 0 2 = "0b" then raise_typing_error "Invalid binary integer" p;
 		(try mk (TConst (TInt (Int32.of_string s))) basic.tint p
 		with _ -> mk (TConst (TFloat s)) basic.tfloat p)
 	| Float (f,_) -> mk (TConst (TFloat f)) basic.tfloat p

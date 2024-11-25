@@ -100,12 +100,31 @@ let collect_static_extensions ctx items e p =
 	| _ ->
 		let items = loop items ctx.m.module_using in
 		let items = loop items ctx.g.global_using in
-		let items = try
-			let mt = module_type_of_type e.etype in
-			loop items (t_infos mt).mt_using
-		with Exit ->
-			items
+		let rec loop_module_using items t = match follow_without_type t with
+			| TInst(c,_) ->
+				loop items c.cl_using
+			| TEnum(en,_) ->
+				loop items en.e_using
+			| TType(td,tl) ->
+				let items = loop items td.t_using in
+				loop_module_using items (apply_typedef td tl)
+			| TAbstract(a,_) ->
+				loop items a.a_using
+			| TAnon an ->
+				begin match !(an.a_status) with
+					| ClassStatics c ->
+						loop items c.cl_using
+					| EnumStatics en ->
+						loop items en.e_using
+					| AbstractStatics a ->
+						loop items a.a_using
+					| _ ->
+						items
+				end
+			| _ ->
+				items
 		in
+		let items = loop_module_using items e.etype in
 		items
 
 let collect ctx e_ast e dk with_type p =

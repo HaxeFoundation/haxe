@@ -27,7 +27,7 @@ package php;
 **/
 @:native('ErrorException')
 extern class ErrorException implements Throwable {
-	function new(?message:String, ?code:Int, ?severety:Int, ?filename:String, ?lineno:Int, ?previous:Throwable):Void;
+	function new(?message:String, ?code:Int, ?severity:Int, ?filename:String, ?lineno:Int, ?previous:Throwable):Void;
 
 	final function getSeverity():Int;
 	final function getPrevious():Throwable; // Returns previous Throwable

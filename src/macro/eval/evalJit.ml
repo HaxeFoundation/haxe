@@ -655,7 +655,7 @@ and jit_expr jit return e =
 				wrap()
 			| TUnop((Increment | Decrement),_,e1) | TBinop((OpAssign | OpAssignOp _),e1,_) ->
 				begin match (Texpr.skip e1).eexpr with
-				| TLocal {v_kind = VGenerated | VInlined | VInlinedConstructorVariable | VExtractorVariable} ->
+				| TLocal {v_kind = VGenerated | VInlined | VInlinedConstructorVariable _ | VExtractorVariable} ->
 					f
 				| _ ->
 					wrap()

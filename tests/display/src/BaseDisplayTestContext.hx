@@ -39,7 +39,7 @@ class BaseDisplayTestContext {
 	}
 
 	static public function runHaxe(args:Array<String>, ?stdin:String) {
-		return haxeServer.rawRequest(args, stdin == null ? null : Bytes.ofString(stdin));
+		return haxeServer.rawRequest(["-D", "message.reporting=classic"].concat(args), stdin == null ? null : Bytes.ofString(stdin));
 	}
 
 	static function normalizePath(p:String):String {

@@ -121,7 +121,7 @@ class Debugger {
 		Sets the handler callback to be made when asynchronous events occur,
 		specifically, when threads are created, terminated, started, or
 		stopped. The calling thread becomes the "debugger" thread, which means
-		that it will be discluded from any breakpoints and will not be reported
+		that it will be excluded from any breakpoints and will not be reported
 		on by any thread reporting requests.
 
 		Be aware that this callback is made asynchronously and possibly by

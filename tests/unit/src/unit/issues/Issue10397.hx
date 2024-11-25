@@ -8,7 +8,7 @@ private class NotMain {
 	static public function gather() {
 		final main = new NotMain();
 
-		final cls = java.Lib.getNativeType(main);
+		final cls = jvm.Jvm.getNativeType(main);
 
 		final classAnnotations = [];
 		final methods = new Map();

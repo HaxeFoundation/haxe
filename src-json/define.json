@@ -39,22 +39,9 @@
 		"doc": "Defined in the core API context."
 	},
 	{
-		"name": "CoreApiSerialize",
-		"define": "core-api-serialize",
-		"doc": "Mark some generated core API classes with the `Serializable` attribute on C#.",
-		"platforms": ["cs"]
-	},
-	{
 		"name": "Cppia",
 		"define": "cppia",
 		"doc": "Generate cpp instruction assembly."
-	},
-	{
-		"name": "CsVer",
-		"define": "cs-ver",
-		"doc": "The C# version to target.",
-		"platforms": ["cs"],
-		"params": ["version"]
 	},
 	{
 		"name": "NoCppiaAst",
@@ -80,6 +67,11 @@
 		"doc": "Activated when compiling with -debug."
 	},
 	{
+		"name": "DisableHxbCache",
+		"define": "disable-hxb-cache",
+		"doc": "Use in-memory cache instead of hxb powered cache."
+	},
+	{
 		"name": "DisableUnicodeStrings",
 		"define": "disable-unicode-strings",
 		"doc": "Disable Unicode support in `String` type.",
@@ -101,12 +93,6 @@
 		"define": "dll-export",
 		"doc": "GenCPP experimental linking.",
 		"platforms": ["cpp"]
-	},
-	{
-		"name": "DllImport",
-		"define": "dll-import",
-		"doc": "Handle Haxe-generated .NET DLL imports.",
-		"platforms": ["cs"]
 	},
 	{
 		"name": "DocGen",
@@ -140,12 +126,6 @@
 		"define": "dynamic-interface-closures",
 		"doc": "Use slow path for interface closures to save space.",
 		"platforms": ["cpp"]
-	},
-	{
-		"name": "EraseGenerics",
-		"define": "erase-generics",
-		"doc": "Erase generic classes on C#.",
-		"platforms": ["cs"]
 	},
 	{
 		"name": "EvalCallStackDepth",
@@ -186,15 +166,14 @@
 		"platforms": ["eval"]
 	},
 	{
+		"name": "FailFast",
+		"define": "fail-fast",
+		"doc": "Abort compilation when first error occurs."
+	},
+	{
 		"name": "FilterTimes",
 		"define": "filter-times",
 		"doc": "Record per-filter execution times upon --times."
-	},
-	{
-		"name": "FastCast",
-		"define": "fast-cast",
-		"doc": "Enables an experimental casts cleanup on C# and Java.",
-		"platforms": ["cs", "java"]
 	},
 	{
 		"name": "Fdb",
@@ -224,23 +203,10 @@
 		"deprecated": "The flash target will be removed for Haxe 5"
 	},
 	{
-		"devcomment": "force-lib-check is only here as a debug facility - compiler checking allows errors to be found more easily",
-		"name": "ForceLibCheck",
-		"define": "force-lib-check",
-		"doc": "Force the compiler to check `--net-lib` and `--java-lib` added classes (internal).",
-		"platforms": ["cs", "java"]
-	},
-	{
 		"name": "ForceNativeProperty",
 		"define": "force-native-property",
 		"doc": "Tag all properties with `:nativeProperty` metadata for 3.1 compatibility.",
 		"platforms": ["cpp"]
-	},
-	{
-		"name": "GencommonDebug",
-		"define": "gencommon-debug",
-		"doc": "GenCommon internal.",
-		"platforms": ["cs", "java"]
 	},
 	{
 		"name": "Haxe3Compat",
@@ -299,6 +265,11 @@
 		"doc": "The HashLink version to target. (default: 1.10.0)",
 		"platforms": ["hl"],
 		"params": ["version"]
+	},
+	{
+		"name": "HxbTimes",
+		"define": "hxb-times",
+		"doc": "Display hxb timing when used with `--times`."
 	},
 	{
 		"name": "HxcppApiLevel",
@@ -445,20 +416,6 @@
 		"doc": "The code is compiled to be run with `--interp`."
 	},
 	{
-		"name": "JarLegacyLoader",
-		"define": "jar-legacy-loader",
-		"doc": "Use the legacy loader to load .jar files on the JVM target.",
-		"platforms": ["java"],
-		"deprecated": "The legacy JAR loader will be removed in Haxe 5"
-	},
-	{
-		"name": "JavaVer",
-		"define": "java-ver",
-		"doc": "Sets the Java version to be targeted.",
-		"platforms": ["java"],
-		"params": ["version: 5-7"]
-	},
-	{
 		"name": "JsClassic",
 		"define": "js-classic",
 		"doc": "Don't use a function wrapper and strict mode in JS output.",
@@ -503,28 +460,16 @@
 		"platforms": ["php", "js"]
 	},
 	{
-		"name": "Jvm",
-		"define": "jvm",
-		"doc": "Generate jvm directly.",
-		"platforms": ["java"]
-	},
-	{
 		"name": "JvmCompressionLevel",
 		"define": "jvm.compression-level",
 		"doc": "Set the compression level of the generated file between 0 (no compression) and 9 (highest compression). Default: 6",
-		"platforms": ["java"]
+		"platforms": ["jvm"]
 	},
 	{
 		"name": "JvmDynamicLevel",
 		"define": "jvm.dynamic-level",
 		"doc": "Controls the amount of dynamic support code being generated. 0 = none, 1 = field read/write optimization (default), 2 = compile-time method closures",
-		"platforms": ["java"]
-	},
-	{
-		"name": "KeepOldOutput",
-		"define": "keep-old-output",
-		"doc": "Keep old source files in the output directory.",
-		"platforms": ["cs", "java"]
+		"platforms": ["jvm"]
 	},
 	{
 		"name": "LoopUnrollMaxCost",
@@ -564,27 +509,6 @@
 		"doc": "Display per-macro timing when used with `--times`."
 	},
 	{
-		"name": "NetVer",
-		"define": "net-ver",
-		"doc": "Sets the .NET version to be targeted.",
-		"platforms": ["cs"],
-		"params": ["version: 20-50"]
-	},
-	{
-		"name": "NetcoreVer",
-		"define": "netcore-ver",
-		"doc": "Sets the .NET core version to be targeted",
-		"platforms": ["cs"],
-		"params": ["version: x.x.x"]
-	},
-	{
-		"name": "NetTarget",
-		"define": "net-target",
-		"doc": "Sets the .NET target. `netcore` (.NET core), `xbox`, `micro` (Micro Framework), `compact` (Compact Framework) are some valid values. (default: `net`)",
-		"platforms": ["cs"],
-		"params": ["name"]
-	},
-	{
 		"name": "NekoSource",
 		"define": "neko-source",
 		"doc": "Output neko source instead of bytecode.",
@@ -615,7 +539,7 @@
 		"name": "NoCompilation",
 		"define": "no-compilation",
 		"doc": "Disable final compilation.",
-		"platforms": ["cs", "java", "cpp", "hl"]
+		"platforms": ["cpp", "hl"]
 	},
 	{
 		"name": "NoDebug",
@@ -650,12 +574,6 @@
 		"define": "keep-inline-positions",
 		"doc": "Don't substitute positions of inlined expressions with the position of the place of inlining.",
 		"links": ["https://haxe.org/manual/class-field-inline.html"]
-	},
-	{
-		"name": "NoRoot",
-		"define": "no-root",
-		"doc": "Generate top-level types into the `haxe.root` namespace.",
-		"platforms": ["cs"]
 	},
 	{
 		"name": "NoMacroCache",
@@ -716,14 +634,8 @@
 	{
 		"name": "RealPosition",
 		"define": "real-position",
-		"doc": "Disables Haxe source mapping when targetting C#, removes position comments in Java and Php output.",
-		"platforms": ["cs", "java", "php"]
-	},
-	{
-		"name": "ReplaceFiles",
-		"define": "replace-files",
-		"doc": "GenCommon internal.",
-		"platforms": ["cs", "java"]
+		"doc": "Removes position comments in Php output.",
+		"platforms": ["php"]
 	},
 	{
 		"name": "RetainUntypedMeta",
@@ -763,7 +675,7 @@
 		"name": "StdEncodingUtf8",
 		"define": "std-encoding-utf8",
 		"doc": "Force utf8 encoding for stdin, stdout and stderr",
-		"platforms": ["java", "cs", "python"]
+		"platforms": ["python"]
 	},
 	{
 		"name": "Swc",
@@ -854,12 +766,6 @@
 		"reserved": true
 	},
 	{
-		"name": "Unsafe",
-		"define": "unsafe",
-		"doc": "Allow unsafe code when targeting C#.",
-		"platforms": ["cs"]
-	},
-	{
 		"name": "UseNekoc",
 		"define": "use-nekoc",
 		"doc": "Use `nekoc` compiler instead of the internal one.",
@@ -890,7 +796,7 @@
 	{
 		"name": "MessageReporting",
 		"define": "message.reporting",
-		"doc": "Select message reporting mode for compiler output. (default: classic)",
+		"doc": "Select message reporting mode for compiler output. (default: pretty)",
 		"params": ["mode: classic | pretty | indent"]
 	},
 	{

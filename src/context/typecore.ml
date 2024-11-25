@@ -20,7 +20,6 @@
 open Globals
 open Ast
 open Common
-open Lookup
 open Type
 open Error
 open Resolution
@@ -120,7 +119,6 @@ type typer_globals = {
 	mutable complete : bool;
 	mutable type_hints : (module_def_display * pos * t) list;
 	mutable load_only_cached_modules : bool;
-	functional_interface_lut : (path,tclass_field) lookup;
 	mutable return_partial_type : bool;
 	mutable build_count : int;
 	mutable t_dynamic_def : Type.t;
@@ -129,7 +127,7 @@ type typer_globals = {
 	(* api *)
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
-	do_load_module : typer -> path -> pos -> module_def;
+	do_load_module : ?origin:module_dep_origin -> typer -> path -> pos -> module_def;
 	do_load_type_def : typer -> pos -> type_path -> module_type;
 	get_build_info : typer -> module_type -> pos -> build_info;
 	do_format_string : typer -> string -> pos -> Ast.expr;
@@ -360,7 +358,7 @@ let type_generic_function_ref : (typer -> field_access -> (unit -> texpr) field_
 let create_context_ref : (Common.context -> ((unit -> unit) * typer) option -> typer) ref = ref (fun _ -> assert false)
 
 let warning ?(depth=0) ctx w msg p =
-	let options = (Warning.from_meta ctx.c.curclass.cl_meta) @ (Warning.from_meta ctx.f.curfield.cf_meta) in
+	let options = (Warning.from_meta ctx.f.curfield.cf_meta) @ (Warning.from_meta ctx.c.curclass.cl_meta) in
 	match Warning.get_mode w options with
 	| WMEnable ->
 		module_warning ctx.com ctx.m.curmod w options msg p
@@ -466,14 +464,14 @@ let is_gen_local v = match v.v_kind with
 	| _ ->
 		false
 
-let delay g p f =
+let delay g (p : typer_pass) f =
 	let p = Obj.magic p in
 	let tasks = g.delayed.(p) in
 	tasks.tasks <- f :: tasks.tasks;
 	if p < g.delayed_min_index then
 		g.delayed_min_index <- p
 
-let delay_late g p f =
+let delay_late g (p : typer_pass) f =
 	let p = Obj.magic p in
 	let tasks = g.delayed.(p) in
 	tasks.tasks <- tasks.tasks @ [f];

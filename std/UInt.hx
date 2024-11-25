@@ -19,9 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#if ((flash || flash9doc || cs || hl) && !doc_gen)
+#if ((flash || flash9doc || hl) && !doc_gen)
 /**
-	The unsigned `Int` type is only defined for Flash and C#. It's currently
+	The unsigned `Int` type is only defined for Flash. It's currently
 	handled the same as a normal Int.
 
 	@see https://haxe.org/manual/types-basic-types.html
@@ -125,7 +125,7 @@ abstract UInt to Int from Int {
 #else
 
 /**
-	The unsigned `Int` type is only defined for Flash and C#.
+	The unsigned `Int` type is only defined for Flash.
 	Simulate it for other platforms.
 
 	@see https://haxe.org/manual/types-basic-types.html

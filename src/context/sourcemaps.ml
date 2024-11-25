@@ -1,6 +1,6 @@
 open Extlib_leftovers
 open Globals
-open Common
+open Gctx
 
 (**
 	Characters used for base64 VLQ encoding
@@ -127,7 +127,7 @@ class sourcemap_writer (generated_file:string) =
 		output_string channel ("\"sources\":[" ^
 			(String.concat "," (List.map (fun s -> "\"" ^ to_url s ^ "\"") sources)) ^
 			"],\n");
-		if Common.defined com Define.SourceMapContent then begin
+		if Gctx.defined com Define.SourceMapContent then begin
 			output_string channel ("\"sourcesContent\":[" ^
 				(String.concat "," (List.map (fun s -> try "\"" ^ StringHelper.s_escape (Std.input_file ~bin:true s) ^ "\"" with _ -> "null") sources)) ^
 				"],\n");

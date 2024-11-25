@@ -58,7 +58,7 @@ let get_general_module_type ctx mt p =
 			end
 		| _ -> raise_typing_error "Cannot use this type as a value" p
 	in
-	Typeload.load_instance ctx (make_ptp {tname=loop mt;tpackage=[];tsub=None;tparams=[]} p) ParamSpawnMonos
+	Typeload.load_instance ctx (make_ptp {tname=loop mt;tpackage=[];tsub=None;tparams=[]} p) ParamSpawnMonos LoadNormal
 
 let unify_type_pattern ctx mt t p =
 	let tcl = get_general_module_type ctx mt p in
@@ -365,15 +365,14 @@ let rec make pctx toplevel t e =
 			let is_matchable cf =
 				match cf.cf_kind with Method _ -> false | _ -> true
 			in
-			(* TODO: This needs a better check, but it's not obvious how to approach this. *)
+			(* TODO: This needs a better check, but it's not obvious how to approach this. See #11433 *)
 			let is_probably_pos cf = match cf.cf_name with
-				| "pos" | "posPath" -> true
+				| "pos" | "posPath" | "namePos" -> true
 				| _ -> false
 			in
 			let patterns,fields = List.fold_left (fun (patterns,fields) (cf,t) ->
 				try
-					if pctx.in_reification && is_probably_pos cf then
-						raise Not_found;					
+					if pctx.in_reification && is_probably_pos cf then raise Not_found;
 					let e1 = Expr.field_assoc cf.cf_name fl in
 					make pctx false t e1 :: patterns,cf.cf_name :: fields
 				with Not_found ->

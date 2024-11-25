@@ -637,7 +637,7 @@ let generate_enum ctx e =
 	in
 	[
 		"constructors",generate_enum_constructors ();
-		"isExtern",jbool e.e_extern;
+		"isExtern",jbool (has_enum_flag e EnExtern)
 	]
 
 let generate_typedef ctx td =

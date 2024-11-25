@@ -310,7 +310,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			in
 			handle_call tl el e1.epos
 		| ENew(ptp,el) ->
-			let t = Abstract.follow_with_forward_ctor (Typeload.load_instance ctx ptp ParamSpawnMonos) in
+			let t = Abstract.follow_with_forward_ctor (Typeload.load_instance ctx ptp ParamSpawnMonos LoadNormal) in
 			handle_call (find_constructor_types t) el ptp.pos_full
 		| EArray(e1,e2) ->
 			let e1 = type_expr ctx e1 WithType.value in
@@ -518,7 +518,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
 		let item = completion_item_of_expr ctx e in
 		let iterator = try
-			let it = (ForLoop.IterationKind.of_texpr ~resume:true ctx e (fun _ -> false) e.epos) in
+			let it = (ForLoop.IterationKind.of_texpr ~resume:true ctx e None e.epos) in
 			match follow it.it_type with
 				| TDynamic _ ->  None
 				| t -> Some t

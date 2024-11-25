@@ -33,9 +33,6 @@ using Lambda;
 	best used through 'using haxe.macro.TypeTools' syntax and then provides
 	additional methods on haxe.macro.Type instances.
 **/
-#if hl
-@:hlNative("macro")
-#end
 class TypeTools {
 	static function nullable(complexType:ComplexType):ComplexType
 		return macro:Null<$complexType>;

@@ -7,7 +7,7 @@ typedef WriterTargetConfig = {
 	var ?generate:Null<Bool>;
 
 	/**
-		Dot paths of modules or packages to be exluded from the archive.
+		Dot paths of modules or packages to be excluded from the archive.
 	**/
 	var ?exclude:Null<Array<String>>;
 

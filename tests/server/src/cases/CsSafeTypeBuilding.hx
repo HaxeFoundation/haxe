@@ -91,11 +91,15 @@ class CsSafeTypeBuilding extends TestCase {
 		}
 	}
 
-	@:variant("JsDefineModule", true, "js")
-	@:variant("JsDefineType", false, "js")
-	@:variant("InterpDefineModule", true, "interp")
-	@:variant("InterpDefineType", false, "interp")
-	function test(defineModule:Bool, target:String) {
+	@:variant("Js_DefineModule_GetType", true, true, "js")
+	@:variant("Js_DefineType_GetType", false, true, "js")
+	@:variant("Js_DefineModule_ResolveType", true, false, "js")
+	@:variant("Js_DefineType_ResolveType", false, false, "js")
+	@:variant("Interp_DefineModule_GetType", true, true, "interp")
+	@:variant("Interp_DefineType_GetType", false, true, "interp")
+	@:variant("Interp_DefineModule_ResolveType", true, false, "interp")
+	@:variant("Interp_DefineType_ResolveType", false, false, "interp")
+	function test(defineModule:Bool, getType:Bool, target:String) {
 		var targetArgs = switch target {
 			case "js": ["-js", "out.js", "-lib", "hxnodejs", "-cmd", "node out.js"];
 			case "interp": ["--interp"];
@@ -104,6 +108,7 @@ class CsSafeTypeBuilding extends TestCase {
 
 		var args = ["-main", "Main", "Baz"];
 		if (defineModule) args = args.concat(["-D", "config.defineModule"]);
+		if (getType) args = args.concat(["-D", "config.getType"]);
 		args = args.concat(targetArgs);
 
 		runHaxe(args);

@@ -37,9 +37,7 @@ class Input {
 	**/
 	public var bigEndian(default, set):Bool;
 
-	#if cs
-	private var helper:BytesData;
-	#elseif java
+	#if java
 	private var helper:java.nio.ByteBuffer;
 	#end
 

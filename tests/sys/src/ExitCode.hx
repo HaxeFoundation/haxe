@@ -23,20 +23,8 @@ class ExitCode {
 		#else
 			"bin/cpp/ExitCode";
 		#end
-	#elseif cs
-		#if debug
-			"bin/cs/bin/ExitCode-Debug.exe";
-		#else
-			"bin/cs/bin/ExitCode.exe";
-		#end
 	#elseif jvm
 		"bin/jvm/ExitCode.jar";
-	#elseif java
-		#if debug
-			"bin/java/ExitCode-Debug.jar";
-		#else
-			"bin/java/ExitCode.jar";
-		#end
 	#elseif python
 		"bin/python/ExitCode.py";
 	#elseif php

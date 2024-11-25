@@ -342,7 +342,7 @@ typedef Var = {
 	var ?isStatic:Bool;
 
 	/**
-		Metadata associatied with the variable, if available.
+		Metadata associated with the variable, if available.
 	**/
 	var ?meta:Metadata;
 }

@@ -2,7 +2,7 @@ open Globals
 open Common
 open ExtString
 
-class hxb_library file_path = object(self)
+class hxb_library file_path hxb_times = object(self)
 	inherit abstract_hxb_lib
 	val zip = lazy (Zip.open_in file_path)
 
@@ -10,12 +10,23 @@ class hxb_library file_path = object(self)
 	val modules = Hashtbl.create 0
 	val mutable closed = false
 	val mutable loaded = false
+	val mutable string_pool : string array option = None
+	val mutable macro_string_pool : string array option = None
 
 	method load =
 		if not loaded then begin
 			loaded <- true;
 			let close = Timer.timer ["hxblib";"read"] in
 			List.iter (function
+				| ({ Zip.filename = "StringPool.hxb" | "StringPool.macro.hxb" as filename} as entry) ->
+					let reader = new HxbReader.hxb_reader (["hxb";"internal"],"StringPool") (HxbReader.create_hxb_reader_stats()) None hxb_times in
+					let zip = Lazy.force zip in
+					let data = Bytes.unsafe_of_string (Zip.read_entry zip entry) in
+					ignore(reader#read (new HxbReaderApi.hxb_reader_api_null) data STR);
+					if filename = "StringPool.hxb" then
+						string_pool <- reader#get_string_pool
+					else
+						macro_string_pool <- reader#get_string_pool
 				| ({ Zip.is_directory = false; Zip.filename = filename } as entry) when String.ends_with filename ".hxb" ->
 					let pack = String.nsplit filename "/" in
 					begin match List.rev pack with
@@ -49,6 +60,9 @@ class hxb_library file_path = object(self)
 		end
 
 	method get_file_path = file_path
+	method get_string_pool target =
+		if target = "macro" && Option.is_some macro_string_pool then macro_string_pool
+		else string_pool
 end
 
 
@@ -60,4 +74,4 @@ let create_hxb_lib com file_path =
 	with Not_found ->
 		failwith ("hxb lib " ^ file_path ^ " not found")
 	in
-	new hxb_library file
+	new hxb_library file (Common.defined com Define.HxbTimes)

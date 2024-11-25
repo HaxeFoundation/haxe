@@ -33,7 +33,7 @@ private class Point implements IX implements IY {
 		return x;
 	}
 
-	public function getY() : #if java /* see https://github.com/HaxeFoundation/haxe/issues/6486 */ Float #else Int #end {
+	public function getY() : Int {
 		return y;
 	}
 

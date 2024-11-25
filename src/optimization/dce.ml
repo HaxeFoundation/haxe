@@ -87,7 +87,7 @@ let overrides_extern_field cf c =
 	loop c cf
 
 let is_std_file dce file =
-	List.exists (ExtString.String.starts_with file) dce.std_dirs
+	List.exists (fun dir -> ExtString.String.starts_with file dir) dce.std_dirs
 
 let keep_metas = [Meta.Keep;Meta.Expose]
 
@@ -885,7 +885,7 @@ let sweep dce com =
 					if dce.debug then print_endline ("[DCE] Removed class " ^ (s_type_path c.cl_path));
 					loop acc l)
 			end
- 		| (TEnumDecl en) as mt :: l when Meta.has Meta.Used en.e_meta || en.e_extern || keep_whole_enum dce en ->
+ 		| (TEnumDecl en) as mt :: l when Meta.has Meta.Used en.e_meta || (has_enum_flag en EnExtern) || keep_whole_enum dce en ->
 			loop (mt :: acc) l
 		| TEnumDecl e :: l ->
 			if dce.debug then print_endline ("[DCE] Removed enum " ^ (s_type_path e.e_path));

@@ -370,3 +370,13 @@ let safe_nav_branch ctx sn f_then =
 	(match sn.sn_temp_var with
 	| None -> eif
 	| Some evar -> { eif with eexpr = TBlock [evar; eif] })
+
+let get_safe_nav_base ctx eobj =
+	match (Texpr.skip eobj).eexpr with
+	| TLocal _ | TTypeExpr _ | TConst _ ->
+		eobj, None
+	| _ ->
+		let v = alloc_var VGenerated "tmp" eobj.etype eobj.epos in
+		let temp_var = mk (TVar(v, Some eobj)) ctx.t.tvoid v.v_pos in
+		let eobj = mk (TLocal v) v.v_type v.v_pos in
+		eobj, Some temp_var

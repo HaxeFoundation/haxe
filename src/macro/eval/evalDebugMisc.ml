@@ -146,6 +146,7 @@ let resolve_ident ctx env s =
 					| Some env -> loop env
 				end
 			| EKMethod _ -> env
+			| EKMacro _ -> env
 			| EKEntrypoint ->
 				(* This can happen due to threads. Have to check what we can do here... *)
 				raise Not_found

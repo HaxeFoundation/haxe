@@ -63,7 +63,7 @@ enum ReceiveHandle {
 		calls its callback, there may be file descriptors in the pipe, in addition
 		to the ordinary data provided to the callback.
 
-		To check, call this function `eval.luv.Pipe.recieveHandle` in a loop until
+		To check, call this function `eval.luv.Pipe.receiveHandle` in a loop until
 		it returns `NONE`. Each time it returns `TCP(associate)` or `PIPE(associate)`,
 		create an appropriate handle using either `eval.luv.TCP.init` or `eval.uv.Pipe.init`,
 		and call `associate` to receive the file descriptor and associate it with handle.

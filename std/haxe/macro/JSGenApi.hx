@@ -61,6 +61,6 @@ typedef JSGenApi = {
 	/** create the metadata expression for the given type **/
 	function buildMetaData(t:BaseType):Null<TypedExpr>;
 
-	/** select the current classe **/
+	/** select the current class **/
 	function setCurrentClass(c:ClassType):Void;
 }

@@ -1,3 +1,4 @@
+@:functionalInterface
 interface MathOperation {
 	function perform(a:Int, b:Int):Int;
 }
