@@ -1496,7 +1496,7 @@ let reject_final_static_method ctx cctx fctx f =
 let init_field (ctx,cctx,fctx) f cf =
 	let c = cctx.tclass in
 	let name = fst f.cff_name in
-	TypeloadCheck.check_global_metadata ctx f.cff_meta (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
+	TypeloadCheck.check_global_metadata ctx f.cff_meta (fun m -> cf.cf_meta <- m :: cf.cf_meta) c.cl_module.m_path c.cl_path (Some name);
 	let p = f.cff_pos in
 	if not (has_class_flag c CExtern) && not (Meta.has Meta.Native f.cff_meta) then Naming.check_field_name ctx.com name p;
 	List.iter (fun acc ->
