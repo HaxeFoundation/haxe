@@ -304,7 +304,7 @@ static struct custom_operations ssl_config_ops = {
 
 #ifdef _WIN32
 static int verify_callback(void* param, mbedtls_x509_crt *crt, int depth, uint32_t *flags) {
-	if (*flags & MBEDTLS_X509_BADCERT_CN_MISMATCH) {
+	if (*flags == 0 || *flags & MBEDTLS_X509_BADCERT_CN_MISMATCH) {
 		return 0;
 	}
 
