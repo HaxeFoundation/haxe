@@ -205,15 +205,6 @@ let make_macro_com_api com mcom p =
 			snd (Typecore.store_typed_expr com te p)
 		);
 		allow_package = (fun v -> Common.allow_package com v);
-		set_js_generator = (fun gen ->
-			com.js_gen <- Some (fun() ->
-				Path.mkdir_from_path com.file;
-				let js_ctx = Genjs.alloc_ctx (Common.to_gctx com) (Gctx.get_es_version com.defines) in
-				let t = macro_timer com ["jsGenerator"] in
-				gen js_ctx;
-				t()
-			);
-		);
 		get_local_type = (fun() ->
 			Interp.exc_string "unsupported"
 		);

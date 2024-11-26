@@ -39,7 +39,6 @@ type 'value compiler_api = {
 	resolve_complex_type : Ast.type_hint -> Ast.type_hint;
 	store_typed_expr : Type.texpr -> Ast.expr;
 	allow_package : string -> unit;
-	set_js_generator : (Genjs.ctx -> unit) -> unit;
 	get_local_type : unit -> t option;
 	get_expected_type : unit -> t option;
 	get_call_arguments : unit -> Ast.expr list option;
@@ -2008,8 +2007,7 @@ let macro_api ccom get_api =
 		);
 		"set_custom_js_generator", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
-			(get_api()).set_js_generator (fun js_ctx ->
-				let com = Common.to_gctx (ccom()) in
+			let gen com js_ctx =
 				Genjs.setup_kwds com;
 				let api = encode_obj [
 					"outputFile", encode_string com.file;
@@ -2056,6 +2054,12 @@ let macro_api ccom get_api =
 					);
 				] in
 				ignore(f [api]);
+			in
+			let com = ccom() in
+			com.js_gen <- Some (fun() ->
+				Path.mkdir_from_path com.file;
+				let js_ctx = Genjs.alloc_ctx (Common.to_gctx com) (Gctx.get_es_version com.defines) in
+				gen (Common.to_gctx com) js_ctx;
 			);
 			vnull
 		);
