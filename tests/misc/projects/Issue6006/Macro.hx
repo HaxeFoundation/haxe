@@ -4,7 +4,7 @@ import haxe.macro.Expr;
 class Macro {
     static function build() {
         var pos = Context.currentPos();
-        Context.defineModule("A", [{
+        Context.defineModule(Context.getLocalModule(), [{
             pos: pos,
             pack: [],
             name: "A",

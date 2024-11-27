@@ -492,14 +492,6 @@ let make_macro_api ctx mctx p =
 				()
 		);
 		MacroApi.define_module = (fun m types imports usings ->
-			let mpath = Ast.parse_path m in
-			if ctx.com.module_lut#mem mpath then begin
-				let m = ctx.com.module_lut#find mpath in
-				let pos = { pfile = (Path.UniqueKey.lazy_path m.m_extra.m_file); pmin = 0; pmax = 0 } in
-				raise_typing_error_ext (make_error ~sub:[
-					make_error ~depth:1 (Custom "Previously defined here") pos
-				] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
-			end;
 			let types = List.map (fun v ->
 				let _, tdef, pos = (try Interp.decode_type_def v with MacroApi.Invalid_expr -> Interp.exc_string "Invalid type definition") in
 				tdef, pos
@@ -511,11 +503,23 @@ let make_macro_api ctx mctx p =
 				EUsing (List.map (fun s -> s,null_pos) sl),pos
 			) usings in
 			let types = imports @ usings @ types in
-			let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.file_keys#generate_virtual ctx.com.compilation_step) types pos in
-			mnew.m_extra.m_kind <- MFake;
-			add_dependency mnew ctx.m.curmod MDepFromMacro;
-			add_dependency ctx.m.curmod mnew MDepFromMacroDefine;
-			ctx.com.module_nonexistent_lut#clear;
+			let mpath = Ast.parse_path m in
+			begin try
+				let m = ctx.com.module_lut#find mpath in
+				if m != ctx.m.curmod then begin
+					let pos = { pfile = (Path.UniqueKey.lazy_path m.m_extra.m_file); pmin = 0; pmax = 0 } in
+					raise_typing_error_ext (make_error ~sub:[
+						make_error ~depth:1 (Custom "Previously defined here") pos
+					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
+				end else
+					ignore(TypeloadModule.type_types_into_module ctx.com ctx.g m types pos)
+			with Not_found ->
+				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.file_keys#generate_virtual ctx.com.compilation_step) types pos in
+				mnew.m_extra.m_kind <- MFake;
+				add_dependency mnew ctx.m.curmod MDepFromMacro;
+				add_dependency ctx.m.curmod mnew MDepFromMacroDefine;
+				ctx.com.module_nonexistent_lut#clear;
+			end
 		);
 		MacroApi.module_dependency = (fun mpath file ->
 			let m = typing_timer ctx false (fun ctx ->
