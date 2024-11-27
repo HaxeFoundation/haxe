@@ -703,6 +703,7 @@ let create_macro_interp api mctx =
 
 let create_macro_context com =
 	let com2 = Common.clone com true in
+	enter_stage com2 CInitMacrosDone;
 	com.get_macros <- (fun() -> Some com2);
 	com2.package_rules <- PMap.empty;
 	(* Inherit most display settings, but require normal typing. *)
