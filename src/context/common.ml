@@ -899,6 +899,7 @@ let clone com is_macro_context =
 	let t = com.basic in
 	{ com with
 		cache = None;
+		stage = CCreated;
 		basic = { t with
 			tvoid = mk_mono();
 			tany = mk_mono();

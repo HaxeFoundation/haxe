@@ -329,9 +329,10 @@ let do_type ctx mctx actx display_file_dot_path =
 let finalize_typing ctx tctx =
 	let t = Timer.timer ["finalize"] in
 	let com = ctx.com in
+	let main_module = Finalization.maybe_load_main tctx in
 	enter_stage com CFilteringStart;
 	ServerMessage.compiler_stage com;
-	let main, types, modules = run_or_diagnose ctx (fun () -> Finalization.generate tctx) in
+	let main, types, modules = run_or_diagnose ctx (fun () -> Finalization.generate tctx main_module) in
 	com.main.main_expr <- main;
 	com.types <- types;
 	com.modules <- modules;

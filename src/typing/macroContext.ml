@@ -601,8 +601,9 @@ let init_macro_interp mctx mint =
 and flush_macro_context mint mctx =
 	let t = macro_timer mctx.com ["flush"] in
 	let mctx = (match mctx.g.macros with None -> die "" __LOC__ | Some (_,mctx) -> mctx) in
+	let main_module = Finalization.maybe_load_main mctx in
 	Finalization.finalize mctx;
-	let _, types, modules = Finalization.generate mctx in
+	let _, types, modules = Finalization.generate mctx main_module in
 	mctx.com.types <- types;
 	mctx.com.Common.modules <- modules;
 	let ectx = Exceptions.create_exception_context mctx in

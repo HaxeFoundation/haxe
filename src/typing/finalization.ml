@@ -8,24 +8,31 @@ open Typecore
 (* ---------------------------------------------------------------------- *)
 (* FINALIZATION *)
 
-let get_main ctx types =
-	match ctx.com.main.main_class with
-	| None -> None
+let maybe_load_main tctx = match tctx.com.main.main_class with
 	| Some path ->
+		Some (Typeload.load_module tctx path null_pos)
+	| None ->
+		None
+
+
+let get_main ctx main_module types =
+	match main_module with
+	| None -> None
+	| Some main_module ->
 		let p = null_pos in
+		let path = main_module.m_path in
 		let pack,name = path in
-		let m = Typeload.load_module ctx (pack,name) p in
 		let c,f =
 			let p = ref p in
 			try
-				match m.m_statics with
+				match main_module.m_statics with
 				| None ->
 					raise Not_found
 				| Some c ->
 					p := c.cl_name_pos;
 					c, PMap.find "main" c.cl_statics
 			with Not_found -> try
-				let t = Typeload.find_type_in_module_raise ctx m name null_pos in
+				let t = Typeload.find_type_in_module_raise ctx main_module name null_pos in
 				match t with
 				| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 					raise_typing_error ("Invalid -main : " ^ s_type_path path ^ " is not a class") null_pos
@@ -196,6 +203,6 @@ let sort_types com (modules : module_lut) =
 	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
 	List.rev !types, sorted_modules
 
-let generate ctx =
+let generate ctx main_class =
 	let types,modules = sort_types ctx.com ctx.com.module_lut in
-	get_main ctx types,types,modules
+	get_main ctx main_class types,types,modules
