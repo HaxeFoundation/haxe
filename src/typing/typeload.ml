@@ -789,6 +789,7 @@ let load_core_class ctx c =
 	let ctx2 = (match ctx.g.core_api with
 		| None ->
 			let com2 = Common.clone ctx.com ctx.com.is_macro_context in
+			enter_stage com2 CInitMacrosDone;
 			com2.defines.Define.values <- PMap.empty;
 			Common.define com2 Define.CoreApi;
 			Common.define com2 Define.Sys;
