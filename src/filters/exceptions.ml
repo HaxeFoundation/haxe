@@ -579,17 +579,12 @@ let filter ectx =
 (**
 	Inserts `haxe.NativeStackTrace.saveStack(e)` in non-haxe.Exception catches.
 *)
-let insert_save_stacks tctx =
+let insert_save_stacks ectx =
+	let tctx = ectx.typer in
 	if not (has_feature tctx.com "haxe.NativeStackTrace.exceptionStack") then
 		(fun e -> e)
 	else
-		let native_stack_trace_cls =
-			let tp = mk_type_path (["haxe"],"NativeStackTrace") in
-			match Typeload.load_type_def tctx null_pos tp with
-			| TClassDecl cls -> cls
-			| TAbstractDecl { a_impl = Some cls } -> cls
-			| _ -> raise_typing_error "haxe.NativeStackTrace is expected to be a class or an abstract" null_pos
-		in
+		let native_stack_trace_cls = ectx.haxe_native_stack_trace in
 		let rec contains_insertion_points e =
 			match e.eexpr with
 			| TTry (e, catches) ->
@@ -647,12 +642,19 @@ let insert_save_stacks tctx =
 			else e
 		)
 
+let insert_save_stacks tctx ectx =
+	match ectx with
+	| Some ctx ->
+		insert_save_stacks {ctx with typer = tctx}
+	| None ->
+		(fun e -> e)
+
 (**
 	Adds `this.__shiftStack()` calls to constructors of classes which extend `haxe.Exception`
 *)
-let patch_constructors tctx =
-	let tp = make_ptp (mk_type_path haxe_exception_type_path) null_pos in
-	match Typeload.load_instance tctx tp ParamSpawnMonos LoadNormal with
+let patch_constructors ectx =
+	let tctx = ectx.typer in
+	match ectx.haxe_exception_type with
 	(* Add only if `__shiftStack` method exists *)
 	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields ->
 		(fun mt ->
@@ -702,3 +704,10 @@ let patch_constructors tctx =
 			| _ -> ()
 		)
 	| _ -> (fun _ -> ())
+
+let patch_constructors tctx ectx =
+	match ectx with
+	| Some ctx ->
+		patch_constructors {ctx with typer = tctx}
+	| None ->
+		(fun _ -> ())

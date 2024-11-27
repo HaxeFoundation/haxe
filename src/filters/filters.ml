@@ -459,7 +459,7 @@ end
 
 open FilterContext
 
-let destruction tctx detail_times main locals =
+let destruction tctx ectx detail_times main locals =
 	let com = tctx.com in
 	with_timer detail_times "type 2" None (fun () ->
 		(* PASS 2: type filters pre-DCE *)
@@ -491,11 +491,11 @@ let destruction tctx detail_times main locals =
 			tctx
 			detail_times
 			(* This has to run after DCE, or otherwise its condition always holds. *)
-			["insert_save_stacks",Exceptions.insert_save_stacks]
+			["insert_save_stacks",(fun tctx -> Exceptions.insert_save_stacks tctx ectx)]
 		)
 		com.types;
 	let type_filters = [
-		Exceptions.patch_constructors; (* TODO: I don't believe this should load_instance anything at this point... *)
+		(fun tctx -> Exceptions.patch_constructors tctx ectx); (* TODO: I don't believe this should load_instance anything at this point... *)
 		(fun _ -> check_private_path com);
 		(fun _ -> Naming.apply_native_paths);
 		(fun _ -> add_rtti com);
@@ -765,4 +765,4 @@ let run tctx ectx main before_destruction =
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);
 	before_destruction();
-	destruction tctx detail_times main locals
+	destruction tctx ectx detail_times main locals

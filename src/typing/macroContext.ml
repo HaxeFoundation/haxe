@@ -655,7 +655,7 @@ and flush_macro_context mint mctx =
 	in
 	let type_filters = [
 		FiltersCommon.remove_generic_base;
-		Exceptions.patch_constructors mctx;
+		Exceptions.patch_constructors mctx ectx;
 		(fun mt -> AddFieldInits.add_field_inits mctx.c.curclass.cl_path (RenameVars.init mctx.com) mctx.com mt);
 		Filters.update_cache_dependencies ~close_monomorphs:false mctx.com;
 		minimal_restore;
