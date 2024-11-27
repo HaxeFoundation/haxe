@@ -666,7 +666,7 @@ let might_need_cf_unoptimized c cf =
 	| _ ->
 		has_class_field_flag cf CfGeneric
 
-let run tctx main before_destruction =
+let run tctx ectx main before_destruction =
 	let com = tctx.com in
 	let detail_times = (try int_of_string (Common.defined_value_safe com ~default:"0" Define.FilterTimes) with _ -> 0) in
 	let new_types = List.filter (fun t ->
@@ -719,7 +719,7 @@ let run tctx main before_destruction =
 		"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
 		"reduce_expression",Optimizer.reduce_expression;
 		"inline_constructors",InlineConstructors.inline_constructors;
-		"Exceptions_filter",Exceptions.filter;
+		"Exceptions_filter",(fun _ -> Exceptions.filter ectx);
 		"captured_vars",(fun _ -> CapturedVars.captured_vars com);
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;

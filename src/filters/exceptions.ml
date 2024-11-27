@@ -492,12 +492,7 @@ let catch_native ctx catches t p =
 	in
 	transform [] None catches
 
-(**
-	Transform `throw` and `try..catch` expressions.
-	`rename_locals` is required to deal with the names of temp vars.
-*)
-let filter tctx =
-	let stub e = e in
+let create_exception_context tctx =
 	match tctx.com.platform with (* TODO: implement for all targets *)
 	| Php | Js | Jvm | Python | Lua | Eval | Neko | Flash | Hl | Cpp ->
 		let config = tctx.com.config.pf_exceptions in
@@ -549,6 +544,18 @@ let filter tctx =
 			value_exception_type = value_exception_type;
 			value_exception_class = value_exception_class;
 		} in
+		Some ctx
+	| Cross | CustomTarget _ ->
+		None
+
+(**
+	Transform `throw` and `try..catch` expressions.
+	`rename_locals` is required to deal with the names of temp vars.
+*)
+let filter ectx =
+	let stub e = e in
+	match ectx with
+	| Some ctx ->
 		let rec run e =
 			match e.eexpr with
 			| TThrow e1 ->
@@ -566,7 +573,8 @@ let filter tctx =
 			if contains_throw_or_try e then run e
 			else stub e
 		)
-	| Cross | CustomTarget _ -> stub
+	| None ->
+		stub
 
 (**
 	Inserts `haxe.NativeStackTrace.saveStack(e)` in non-haxe.Exception catches.
