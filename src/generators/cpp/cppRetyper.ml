@@ -187,12 +187,12 @@ type retyper_ctx = {
   injection : bool;
   declarations : unit StringMap.t;
   undeclared : tvar StringMap.t;
+  uses_this : tcppthis option;
+  this_real : tcppthis;
 }
 
 let expression ctx request_type function_args function_type expression_tree forInjection =
-  let uses_this = ref None in
   let gc_stack = ref false in
-  let this_real = ref (if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic) in
   let file_id = ctx.ctx_file_id in
   let function_return_type = ref (cpp_type_of function_type) in
   let loop_stack = ref [] in
@@ -218,6 +218,8 @@ let expression ctx request_type function_args function_type expression_tree forI
     injection = forInjection;
     undeclared = StringMap.empty;
     declarations = function_args |> List.map (fun a -> a.v_name, ()) |> StringMap.of_list |> StringMap.add "__trace" ();
+    uses_this = None;
+    this_real = if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic;
   } in
 
   (* Helper functions *)
@@ -401,16 +403,16 @@ let expression ctx request_type function_args function_type expression_tree forI
           let retyped_ctx, retypedObj = retype retyped_ctx TCppDynamic enumObj in
           (retyped_ctx, CppEnumIndex retypedObj, TCppScalar "int")
       | TConst TThis ->
-          uses_this := Some !this_real;
+          let retyped_ctx = { retyped_ctx with uses_this = Some retyped_ctx.this_real } in
           ( retyped_ctx,
-            CppThis !this_real,
-            if !this_real = ThisDynamic then TCppDynamic
+            CppThis retyped_ctx.this_real,
+            if retyped_ctx.this_real = ThisDynamic then TCppDynamic
             else cpp_type_of expr.etype )
       | TConst TSuper ->
-          uses_this := Some !this_real;
+        let retyped_ctx = { retyped_ctx with uses_this = Some retyped_ctx.this_real } in
           ( retyped_ctx,
-            CppSuper !this_real,
-            if !this_real = ThisDynamic then TCppDynamic
+            CppSuper retyped_ctx.this_real,
+            if retyped_ctx.this_real = ThisDynamic then TCppDynamic
             else cpp_type_of expr.etype )
       | TConst TNull when is_objc_type expr.etype -> (retyped_ctx, CppNil, TCppNull)
       | TConst x -> cpp_const_type retyped_ctx x
@@ -893,20 +895,18 @@ let expression ctx request_type function_args function_type expression_tree forI
             | _ -> false);
         (retyped_ctx, CppCall (FuncNew created_type, retypedArgs), created_type)
       | TFunction func ->
-        let old_this_real = !this_real in
-        this_real := ThisFake;
         (* TODO - this_dynamic ? *)
-        let old_uses_this = !uses_this in
         let old_gc_stack = !gc_stack in
         let old_return_type = !function_return_type in
         let ret = cpp_type_of func.tf_type in
         function_return_type := ret;
-        uses_this := None;
 
         let new_ctx = {
           retyped_ctx with
             declarations = func.tf_args |> List.map (fun (a, _) -> a.v_name, ()) |> StringMap.of_list;
             undeclared   = StringMap.empty;
+            this_real    = ThisFake;
+            uses_this    = None;
         } in
         let new_ctx, cppExpr = retype new_ctx TCppVoid (mk_block func.tf_expr) in
 
@@ -917,7 +917,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             close_undeclared = new_ctx.undeclared;
             close_type = ret;
             close_args = func.tf_args;
-            close_this = !uses_this;
+            close_this = new_ctx.uses_this;
           }
         in
         let folder acc (name, tvar) =
@@ -933,12 +933,15 @@ let expression ctx request_type function_args function_type expression_tree forI
             (StringMap.bindings new_ctx.undeclared)
           in
 
-        let retyped_ctx = { retyped_ctx with closure_id = retyped_ctx.closure_id + 1; closures = result :: retyped_ctx.closures; undeclared = new_undeclared } in
+        let retyped_ctx = {
+          retyped_ctx with
+            closure_id = retyped_ctx.closure_id + 1;
+            closures   = result :: retyped_ctx.closures;
+            undeclared = new_undeclared;
+            uses_this  = if new_ctx.uses_this != None then Some retyped_ctx.this_real else retyped_ctx.uses_this;
+        } in
 
         function_return_type := old_return_type;
-        this_real := old_this_real;
-        uses_this :=
-          if !uses_this != None then Some old_this_real else old_uses_this;
         gc_stack := old_gc_stack;
         (retyped_ctx, CppClosure result, TCppDynamic)
       | TArray (e1, e2) ->
