@@ -235,15 +235,15 @@ let expression ctx request_type function_args function_type expression_tree forI
     new_ctx, resolver
   in
 
-  let cpp_const_type retyped_ctx cval =
+  let cpp_const_type retyper_ctx cval =
     match cval with
-    | TInt i -> (retyped_ctx, CppInt i, TCppScalar "int")
-    | TBool b -> (retyped_ctx, CppBool b, TCppScalar "bool")
-    | TFloat f -> (retyped_ctx, CppFloat (Texpr.replace_separators f ""), TCppScalar "Float")
-    | TString s -> (retyped_ctx, CppString s, TCppString)
+    | TInt i -> (retyper_ctx, CppInt i, TCppScalar "int")
+    | TBool b -> (retyper_ctx, CppBool b, TCppScalar "bool")
+    | TFloat f -> (retyper_ctx, CppFloat (Texpr.replace_separators f ""), TCppScalar "Float")
+    | TString s -> (retyper_ctx, CppString s, TCppString)
     | _ ->
         (* TNull, TThis & TSuper should already be handled *)
-        (retyped_ctx, CppNull, TCppNull)
+        (retyper_ctx, CppNull, TCppNull)
   in
 
   let cpp_return_type haxe_type =
@@ -386,118 +386,118 @@ let expression ctx request_type function_args function_type expression_tree forI
   in
 
   (* Core Retyping *)
-  let rec retype retyped_ctx return_type expr =
+  let rec retype retyper_ctx return_type expr =
     let cpp_type_of t = cpp_type_of t in
     let mk_cppexpr newExpr newType =
       { cppexpr = newExpr; cpptype = newType; cpppos = expr.epos }
     in
-    let retype_function_args retyped_ctx args arg_types =
+    let retype_function_args retyper_ctx args arg_types =
       let folder (acc_ctx, acc_exprs) arg t =
         let new_ctx, new_expr = retype acc_ctx t arg in
         new_ctx, new_expr :: acc_exprs
       in
 
       arg_types
-        |> ExtList.List.fold_left2 folder (retyped_ctx, []) args
+        |> ExtList.List.fold_left2 folder (retyper_ctx, []) args
         |> fun (ctx, acc) -> (ctx, List.rev acc)
     in
 
-    let retyped_ctx, retypedExpr, retypedType =
+    let retyper_ctx, retypedExpr, retypedType =
       match expr.eexpr with
       | TEnumParameter (enumObj, enumField, enumIndex) ->
-          let retyped_ctx, retypedObj = retype retyped_ctx TCppDynamic enumObj in
-          ( retyped_ctx,
+          let retyper_ctx, retypedObj = retype retyper_ctx TCppDynamic enumObj in
+          ( retyper_ctx,
             CppEnumParameter (retypedObj, enumField, enumIndex),
             cpp_cast_variant_type_of
               (cpp_type_of (get_nth_type enumField enumIndex)) )
       | TEnumIndex enumObj ->
-          let retyped_ctx, retypedObj = retype retyped_ctx TCppDynamic enumObj in
-          (retyped_ctx, CppEnumIndex retypedObj, TCppScalar "int")
+          let retyper_ctx, retypedObj = retype retyper_ctx TCppDynamic enumObj in
+          (retyper_ctx, CppEnumIndex retypedObj, TCppScalar "int")
       | TConst TThis ->
-          let retyped_ctx = { retyped_ctx with uses_this = Some retyped_ctx.this_real } in
-          ( retyped_ctx,
-            CppThis retyped_ctx.this_real,
-            if retyped_ctx.this_real = ThisDynamic then TCppDynamic
+          let retyper_ctx = { retyper_ctx with uses_this = Some retyper_ctx.this_real } in
+          ( retyper_ctx,
+            CppThis retyper_ctx.this_real,
+            if retyper_ctx.this_real = ThisDynamic then TCppDynamic
             else cpp_type_of expr.etype )
       | TConst TSuper ->
-        let retyped_ctx = { retyped_ctx with uses_this = Some retyped_ctx.this_real } in
-          ( retyped_ctx,
-            CppSuper retyped_ctx.this_real,
-            if retyped_ctx.this_real = ThisDynamic then TCppDynamic
+        let retyper_ctx = { retyper_ctx with uses_this = Some retyper_ctx.this_real } in
+          ( retyper_ctx,
+            CppSuper retyper_ctx.this_real,
+            if retyper_ctx.this_real = ThisDynamic then TCppDynamic
             else cpp_type_of expr.etype )
-      | TConst TNull when is_objc_type expr.etype -> (retyped_ctx, CppNil, TCppNull)
-      | TConst x -> cpp_const_type retyped_ctx x
+      | TConst TNull when is_objc_type expr.etype -> (retyper_ctx, CppNil, TCppNull)
+      | TConst x -> cpp_const_type retyper_ctx x
       | TIdent "__global__" ->
           (* functions/vars will appear to be members of the virtual global object *)
-          (retyped_ctx, CppClassOf (([], ""), false), TCppGlobal)
+          (retyper_ctx, CppClassOf (([], ""), false), TCppGlobal)
       | TLocal tvar ->
           let name = tvar.v_name in
-          if StringMap.mem name retyped_ctx.declarations then
-            (retyped_ctx, CppVar (VarLocal tvar), cpp_type_of tvar.v_type)
+          if StringMap.mem name retyper_ctx.declarations then
+            (retyper_ctx, CppVar (VarLocal tvar), cpp_type_of tvar.v_type)
           else (
-            let new_ctx = { retyped_ctx with undeclared = StringMap.add name tvar retyped_ctx.undeclared } in
+            let new_ctx = { retyper_ctx with undeclared = StringMap.add name tvar retyper_ctx.undeclared } in
             if has_var_flag tvar VCaptured then
               (new_ctx, CppVar (VarClosure tvar), cpp_type_of tvar.v_type)
             else
               (new_ctx, CppExtern (name, false), cpp_type_of tvar.v_type))
-      | TIdent name -> (retyped_ctx, CppExtern (name, false), return_type)
+      | TIdent name -> (retyper_ctx, CppExtern (name, false), return_type)
       | TBreak -> (
           if forCppia then
-            (retyped_ctx, CppBreak, TCppVoid)
+            (retyper_ctx, CppBreak, TCppVoid)
           else
-            match retyped_ctx.loop_stack with
+            match retyper_ctx.loop_stack with
             | [] ->
-              (retyped_ctx, CppBreak, TCppVoid)
+              (retyper_ctx, CppBreak, TCppVoid)
             | (label_id, used) :: tl ->
-              ({ retyped_ctx with loop_stack = (label_id, true) :: tl }, CppGoto label_id, TCppVoid))
-      | TContinue -> (retyped_ctx, CppContinue, TCppVoid)
+              ({ retyper_ctx with loop_stack = (label_id, true) :: tl }, CppGoto label_id, TCppVoid))
+      | TContinue -> (retyper_ctx, CppContinue, TCppVoid)
       | TThrow e1 ->
-        let retyped_ctx, retyped_expr = retype retyped_ctx TCppDynamic e1 in
-        (retyped_ctx, CppThrow retyped_expr, TCppVoid)
+        let retyper_ctx, retyped_expr = retype retyper_ctx TCppDynamic e1 in
+        (retyper_ctx, CppThrow retyped_expr, TCppVoid)
       | TMeta ((Meta.Fixed, _, _), e) -> (
-          let retyped_ctx, cppType = retype retyped_ctx return_type e in
+          let retyper_ctx, cppType = retype retyper_ctx return_type e in
           match cppType.cppexpr with
           | CppObjectDecl (def, false) ->
-            (retyped_ctx, CppObjectDecl (def, true), cppType.cpptype)
+            (retyper_ctx, CppObjectDecl (def, true), cppType.cpptype)
           | _ ->
-            (retyped_ctx, cppType.cppexpr, cppType.cpptype))
+            (retyper_ctx, cppType.cppexpr, cppType.cpptype))
       | TMeta (_, e) | TParenthesis e ->
-          let retyped_ctx, cppType = retype retyped_ctx return_type e in
-          (retyped_ctx, cppType.cppexpr, cppType.cpptype)
+          let retyper_ctx, cppType = retype retyper_ctx return_type e in
+          (retyper_ctx, cppType.cppexpr, cppType.cpptype)
       | TField (obj, field) -> (
           match field with
           | FInstance (clazz, params, member)
           | FClosure (Some (clazz, params), member) -> (
             let funcReturn = cpp_member_return_type member in
             let clazzType = cpp_instance_type clazz params in
-            let retyped_ctx, retypedObj = retype retyped_ctx clazzType obj in
+            let retyper_ctx, retypedObj = retype retyper_ctx clazzType obj in
             let exprType = cpp_type_of member.cf_type in
             let is_objc = is_cpp_objc_type retypedObj.cpptype in
 
             if retypedObj.cpptype = TCppNull then
-              (retyped_ctx, CppNullAccess, TCppDynamic)
+              (retyper_ctx, CppNullAccess, TCppDynamic)
             else if retypedObj.cpptype = TCppDynamic && not (has_class_flag clazz CInterface) then
               if is_internal_member member.cf_name then
-                ( retyped_ctx,
+                ( retyper_ctx,
                   CppFunction (FuncInstance (retypedObj, InstPtr, member), funcReturn),
                   exprType )
               else
-                (retyped_ctx, CppDynamicField (retypedObj, member.cf_name), TCppVariant)
+                (retyper_ctx, CppDynamicField (retypedObj, member.cf_name), TCppVariant)
             else if cpp_is_struct_access retypedObj.cpptype then
               match retypedObj.cppexpr with
               | CppThis ThisReal ->
-                (retyped_ctx, CppVar (VarThis (member, retypedObj.cpptype)), exprType)
+                (retyper_ctx, CppVar (VarThis (member, retypedObj.cpptype)), exprType)
               | CppSuper this ->
-                ( retyped_ctx,
+                ( retyper_ctx,
                   CppFunction ( FuncSuper (this, retypedObj.cpptype, member), funcReturn ),
                   exprType )
               | _ ->
                 if is_var_field member then
-                  ( retyped_ctx,
+                  ( retyper_ctx,
                     CppVar (VarInstance (retypedObj, member, tcpp_to_string clazzType, ".")),
                     exprType )
                 else
-                  ( retyped_ctx,
+                  ( retyper_ctx,
                     CppFunction ( FuncInstance (retypedObj, InstStruct, member), funcReturn ),
                     exprType )
             else if is_var_field member then
@@ -513,20 +513,20 @@ let expression ctx request_type function_args function_type expression_tree forI
 
               match retypedObj.cppexpr with
               | CppThis ThisReal ->
-                (retyped_ctx, CppVar (VarThis (member, retypedObj.cpptype)), exprType)
+                (retyper_ctx, CppVar (VarThis (member, retypedObj.cpptype)), exprType)
               | _ -> (
                 match (retypedObj.cpptype, member.cf_name) with
                 (* Special variable remapping ... *)
                 | TCppDynamicArray, "length" when not forCppia ->
-                  ( retyped_ctx,
+                  ( retyper_ctx,
                     CppCall (FuncInternal (retypedObj, "get_length", "->"), []),
                     exprType )
                 | TCppInterface _, _ | TCppDynamic, _ ->
-                  ( retyped_ctx,
+                  ( retyper_ctx,
                     CppDynamicField (retypedObj, member.cf_name),
                     TCppVariant )
                 | TCppObjC _, _ ->
-                  ( retyped_ctx,
+                  ( retyper_ctx,
                     CppVar (VarInstance ( retypedObj, member, tcpp_to_string clazzType, "." )),
                     exprType )
                 | _ ->
@@ -536,11 +536,11 @@ let expression ctx request_type function_args function_type expression_tree forI
                     else
                       "->"
                   in
-                  ( retyped_ctx,
+                  ( retyper_ctx,
                     CppVar (VarInstance ( retypedObj, member, tcpp_to_string clazzType, operator )),
                     exprType ))
             else if has_class_flag clazz CInterface && not is_objc (* Use instance call for objc interfaces *) then
-              ( retyped_ctx,
+              ( retyper_ctx,
                 CppFunction (FuncInterface (retypedObj, clazz, member), funcReturn),
                 exprType )
             else
@@ -570,15 +570,15 @@ let expression ctx request_type function_args function_type expression_tree forI
               in
               match retypedObj.cppexpr with
               | CppThis ThisReal ->
-                ( retyped_ctx,
+                ( retyper_ctx,
                   CppFunction (FuncThis (member, retypedObj.cpptype), funcReturn),
                   exprType )
               | CppSuper this ->
-                ( retyped_ctx,
+                ( retyper_ctx,
                   CppFunction ( FuncSuper (this, retypedObj.cpptype, member), funcReturn ),
                   exprType )
               | _ ->
-                ( retyped_ctx,
+                ( retyper_ctx,
                   CppFunction
                     ( FuncInstance
                       ( retypedObj,
@@ -589,102 +589,102 @@ let expression ctx request_type function_args function_type expression_tree forI
           | FStatic (_, ({ cf_name = "nativeFromStaticFunction" } as member)) ->
             let funcReturn = cpp_member_return_type member in
             let exprType   = cpp_type_of member.cf_type in
-            (retyped_ctx, CppFunction (FuncFromStaticFunction, funcReturn), exprType)
+            (retyper_ctx, CppFunction (FuncFromStaticFunction, funcReturn), exprType)
           | FStatic (clazz, member) ->
             let funcReturn = cpp_member_return_type member in
             let exprType   = cpp_type_of member.cf_type in
             let objC       = is_objc_class clazz in
             if is_var_field member then
-              (retyped_ctx, CppVar (VarStatic (clazz, objC, member)), exprType)
+              (retyper_ctx, CppVar (VarStatic (clazz, objC, member)), exprType)
             else
-              ( retyped_ctx,
+              ( retyper_ctx,
                 CppFunction (FuncStatic (clazz, objC, member), funcReturn),
                 exprType )
           | FClosure (None, field) | FAnon field ->
-            let retyped_ctx, obj = retype retyped_ctx TCppDynamic obj in
+            let retyper_ctx, obj = retype retyper_ctx TCppDynamic obj in
             let fieldName = field.cf_name in
             if obj.cpptype = TCppGlobal then
-              (retyped_ctx, CppExtern (fieldName, true), cpp_type_of expr.etype)
-            else if obj.cpptype = TCppNull then (retyped_ctx, CppNullAccess, TCppDynamic)
+              (retyper_ctx, CppExtern (fieldName, true), cpp_type_of expr.etype)
+            else if obj.cpptype = TCppNull then (retyper_ctx, CppNullAccess, TCppDynamic)
             else if is_internal_member fieldName then
               let cppType = cpp_return_type expr.etype in
               if obj.cpptype = TCppString then
-                ( retyped_ctx,
+                ( retyper_ctx,
                   CppFunction (FuncInternal (obj, fieldName, "."), cppType),
                   cppType )
               else
-                ( retyped_ctx,
+                ( retyper_ctx,
                   CppFunction (FuncInternal (obj, fieldName, "->"), cppType),
                   cppType )
-            else (retyped_ctx, CppDynamicField (obj, field.cf_name), TCppVariant)
+            else (retyper_ctx, CppDynamicField (obj, field.cf_name), TCppVariant)
           | FDynamic fieldName ->
-              let retyped_ctx, obj = retype retyped_ctx TCppDynamic obj in
-              if obj.cpptype = TCppNull then (retyped_ctx, CppNullAccess, TCppDynamic)
+              let retyper_ctx, obj = retype retyper_ctx TCppDynamic obj in
+              if obj.cpptype = TCppNull then (retyper_ctx, CppNullAccess, TCppDynamic)
               else if fieldName = "cca" && obj.cpptype = TCppString then
-                ( retyped_ctx,
+                ( retyper_ctx,
                   CppFunction (FuncInternal (obj, "cca", "."), TCppScalar "int"),
                   TCppDynamic )
               else if fieldName = "__s" && obj.cpptype = TCppString then
-                ( retyped_ctx,
+                ( retyper_ctx,
                   CppVar (VarInternal (obj, ".", "utf8_str()")),
                   TCppRawPointer ("const ", TCppScalar "char") )
               else if fieldName = "__Index" then
-                (retyped_ctx, CppEnumIndex obj, TCppScalar "int")
+                (retyper_ctx, CppEnumIndex obj, TCppScalar "int")
               else if is_internal_member fieldName || cpp_is_real_array obj then
                 let cppType = cpp_return_type expr.etype in
                 if obj.cpptype = TCppString then
-                  ( retyped_ctx,
+                  ( retyper_ctx,
                     CppFunction (FuncInternal (obj, fieldName, "."), cppType),
                     cppType )
                 else
-                  ( retyped_ctx,
+                  ( retyper_ctx,
                     CppFunction (FuncInternal (obj, fieldName, "->"), cppType),
                     cppType )
               else if obj.cpptype = TCppGlobal then
-                (retyped_ctx, CppExtern (fieldName, true), cpp_type_of expr.etype)
+                (retyper_ctx, CppExtern (fieldName, true), cpp_type_of expr.etype)
               else if obj.cpptype = TCppClass then
                 match obj.cppexpr with
                 | CppClassOf (path, _) ->
-                  ( retyped_ctx,
+                  ( retyper_ctx,
                     CppExtern ( join_class_path_remap path "::" ^ "_obj::" ^ fieldName, true ),
                     cpp_type_of expr.etype )
                 | _ ->
-                  ( retyped_ctx,
+                  ( retyper_ctx,
                     CppVar (VarInternal (obj, "->", fieldName)),
                     cpp_type_of expr.etype )
-              else (retyped_ctx, CppDynamicField (obj, fieldName), TCppVariant)
+              else (retyper_ctx, CppDynamicField (obj, fieldName), TCppVariant)
           | FEnum (enum, enum_field) ->
-            (retyped_ctx, CppEnumField (enum, enum_field), TCppEnum enum))
+            (retyper_ctx, CppEnumField (enum, enum_field), TCppEnum enum))
       | TCall ({ eexpr = TIdent "__cpp__" }, arg_list) ->
-        let retyped_ctx, cppExpr =
+        let retyper_ctx, cppExpr =
           match arg_list with
-          | [ { eexpr = TConst (TString code) } ] -> retyped_ctx, CppCode (code, [])
+          | [ { eexpr = TConst (TString code) } ] -> retyper_ctx, CppCode (code, [])
           | { eexpr = TConst (TString code) } :: remaining ->
             let folder (cur_ctx, args) arg =
               let new_ctx, new_arg = retype cur_ctx (TCppCode (cpp_type_of arg.etype)) arg in
               new_ctx, new_arg :: args
             in
-            let retyped_ctx, retypedArgs = List.fold_left folder (retyped_ctx, []) remaining in
-            retyped_ctx, CppCode (code, List.rev retypedArgs)
+            let retyper_ctx, retypedArgs = List.fold_left folder (retyper_ctx, []) remaining in
+            retyper_ctx, CppCode (code, List.rev retypedArgs)
           | _ -> abort "__cpp__'s first argument must be a string" expr.epos
         in
-        (retyped_ctx, cppExpr, TCppCode (cpp_type_of expr.etype))
+        (retyper_ctx, cppExpr, TCppCode (cpp_type_of expr.etype))
       | TCall (func, args) -> (
-          let retyped_ctx, retypedFunc = retype retyped_ctx TCppUnchanged func in
+          let retyper_ctx, retypedFunc = retype retyper_ctx TCppUnchanged func in
           match retypedFunc.cpptype with
-          | TCppNull -> (retyped_ctx, CppNullAccess, TCppDynamic)
+          | TCppNull -> (retyper_ctx, CppNullAccess, TCppDynamic)
           | TCppFunction (argTypes, retType, _) ->
-            let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args argTypes in
-            (retyped_ctx, CppCall (FuncExpression retypedFunc, retypedArgs), retType)
+            let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args argTypes in
+            (retyper_ctx, CppCall (FuncExpression retypedFunc, retypedArgs), retType)
           | TCppObjCBlock (argTypes, retType) ->
-            let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args argTypes in
-            (retyped_ctx, CppCall (FuncExpression retypedFunc, retypedArgs), retType)
+            let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args argTypes in
+            (retyper_ctx, CppCall (FuncExpression retypedFunc, retypedArgs), retType)
           | _ -> (
             let cppType = cpp_type_of expr.etype in
             match retypedFunc.cppexpr with
             | CppFunction (FuncFromStaticFunction, returnType) -> (
               let arg_types = List.map (fun _ -> TCppDynamic) args in
-              let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
+              let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
               match retypedArgs with
               | [
                 {
@@ -693,7 +693,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                       (FuncStatic (clazz, false, member), funcReturn);
                 };
               ] ->
-                  (retyped_ctx, CppFunctionAddress (clazz, member), funcReturn)
+                  (retyper_ctx, CppFunctionAddress (clazz, member), funcReturn)
               | _ ->
                   abort
                     "cpp.Function.fromStaticFunction must be called on \
@@ -701,53 +701,53 @@ let expression ctx request_type function_args function_type expression_tree forI
                     expr.epos)
             | CppEnumIndex _ ->
                 (* Not actually a TCall...*)
-                (retyped_ctx, retypedFunc.cppexpr, retypedFunc.cpptype)
+                (retyper_ctx, retypedFunc.cppexpr, retypedFunc.cpptype)
             | CppFunction (FuncInstance (obj, InstPtr, member), _)
               when (not forCppia) && return_type = TCppVoid && is_array_splice_call obj member ->
                 let arg_types = List.map (fun _ -> TCppDynamic) args in
-                let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
-                ( retyped_ctx,
+                let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
+                ( retyper_ctx,
                   CppCall ( FuncInstance (obj, InstPtr, { member with cf_name = "removeRange" }), retypedArgs ),
                   TCppVoid )
             | CppFunction (FuncInstance (obj, InstPtr, member), _)
               when is_array_concat_call obj member ->
                 let arg_types = List.map (fun _ -> obj.cpptype) args in
-                let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
-                ( retyped_ctx,
+                let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
+                ( retyper_ctx,
                   CppCall (FuncInstance (obj, InstPtr, member), retypedArgs),
                   return_type )
             | CppFunction (FuncStatic (obj, false, member), _)
               when member.cf_name = "::hx::AddressOf" ->
-                let retyped_ctx, arg = retype retyped_ctx TCppUnchanged (List.hd args) in
+                let retyper_ctx, arg = retype retyper_ctx TCppUnchanged (List.hd args) in
                 let rawType = match arg.cpptype with TCppReference x -> x | x -> x in
-                (retyped_ctx, CppAddressOf arg, TCppRawPointer ("", rawType))
+                (retyper_ctx, CppAddressOf arg, TCppRawPointer ("", rawType))
             | CppFunction (FuncStatic (obj, false, member), _)
               when member.cf_name = "::hx::StarOf" ->
-                let retyped_ctx, arg = retype retyped_ctx TCppUnchanged (List.hd args) in
+                let retyper_ctx, arg = retype retyper_ctx TCppUnchanged (List.hd args) in
                 let rawType = match arg.cpptype with TCppReference x -> x | x -> x in
-                (retyped_ctx, CppAddressOf arg, TCppStar (rawType, false))
+                (retyper_ctx, CppAddressOf arg, TCppStar (rawType, false))
             | CppFunction (FuncStatic (obj, false, member), _)
               when member.cf_name = "::hx::Dereference" ->
-                let retyped_ctx, arg = retype retyped_ctx TCppUnchanged (List.hd args) in
+                let retyper_ctx, arg = retype retyper_ctx TCppUnchanged (List.hd args) in
                 let rawType = match arg.cpptype with TCppStar (x, _) -> x | x -> x in
-                (retyped_ctx, CppDereference arg, TCppReference rawType)
+                (retyper_ctx, CppDereference arg, TCppReference rawType)
             | CppFunction (FuncStatic (obj, false, member), _)
               when member.cf_name = "_hx_create_array_length" -> (
                 let arg_types = List.map (fun _ -> TCppDynamic) args in
-                let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
+                let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 (* gc_stack - not needed yet *)
                 match return_type with
                 | TCppObjectArray _ | TCppScalarArray _ ->
-                  (retyped_ctx, CppCall (FuncNew return_type, retypedArgs), return_type)
+                  (retyper_ctx, CppCall (FuncNew return_type, retypedArgs), return_type)
                 | _ ->
-                  ( retyped_ctx, CppCall (FuncNew TCppDynamicArray, retypedArgs), return_type ))
+                  ( retyper_ctx, CppCall (FuncNew TCppDynamicArray, retypedArgs), return_type ))
             | CppFunction (FuncStatic (obj, false, member), returnType)
               when cpp_is_templated_call ctx member -> (
                 let arg_types = List.map (fun _ -> TCppDynamic) args in
-                let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
+                let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 match retypedArgs with
                 | { cppexpr = CppClassOf (path, native) } :: rest ->
-                  ( retyped_ctx, CppCall (FuncTemplate (obj, member, path, native), rest), returnType )
+                  ( retyper_ctx, CppCall (FuncTemplate (obj, member, path, native), rest), returnType )
                 | _ ->
                   abort
                     "First parameter of template function must be a Class"
@@ -755,7 +755,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             | CppFunction (FuncInstance (obj, InstPtr, member), _)
               when is_map_get_call obj member ->
                 let arg_types = List.map (fun _ -> TCppDynamic) args in
-                let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
+                let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 let fname, cppType =
                   match return_type with
                   | TCppVoid | TCppScalar "bool" ->
@@ -783,11 +783,11 @@ let expression ctx request_type function_args function_type expression_tree forI
                     CppCastStatic(call, cppType), cppType
                   end else
                   *)
-                (retyped_ctx, CppCall (func, retypedArgs), cppType)
+                (retyper_ctx, CppCall (func, retypedArgs), cppType)
             | CppFunction (FuncInstance (obj, InstPtr, member), _)
               when forCppia && is_map_set_call obj member ->
                 let arg_types = List.map (fun _ -> TCppDynamic) args in
-                let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
+                let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 let fname =
                   match retypedArgs with
                   | [ _; { cpptype = TCppScalar "bool" } ] -> "setBool"
@@ -799,16 +799,16 @@ let expression ctx request_type function_args function_type expression_tree forI
                   | _ -> "set"
                 in
                 let func = FuncInstance (obj, InstPtr, { member with cf_name = fname }) in
-                (retyped_ctx, CppCall (func, retypedArgs), cppType)
+                (retyper_ctx, CppCall (func, retypedArgs), cppType)
             | CppFunction
                 ((FuncInstance (obj, InstPtr, member) as func), returnType)
               when cpp_can_static_cast returnType cppType ->
                 let arg_types = List.map (fun _ -> TCppDynamic) args in
-                let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
+                let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 let call =
                   mk_cppexpr (CppCall (func, retypedArgs)) returnType
                 in
-                (retyped_ctx, CppCastStatic (call, cppType), cppType)
+                (retyper_ctx, CppCastStatic (call, cppType), cppType)
             (*
               let error_printer file line = Printf.sprintf "%s:%d:" file line in
               let epos = Lexer.get_error_pos error_printer expr.epos in
@@ -829,8 +829,8 @@ let expression ctx request_type function_args function_type expression_tree forI
                     (fun (_, opt, t) -> cpp_tfun_arg_type_of opt t)
                     real_types
                 in
-                let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
-                (retyped_ctx, CppCall (func, retypedArgs), return_type)
+                let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
+                (retyper_ctx, CppCall (func, retypedArgs), return_type)
             | CppFunction ( (FuncInstance (_, _, { cf_type = TFun (arg_types, _) }) as func), returnType )
             | CppFunction ( (FuncStatic (_, _, { cf_type = TFun (arg_types, _) }) as func), returnType )
             | CppFunction ( (FuncThis ({ cf_type = TFun (arg_types, _) }, _) as func), returnType ) ->
@@ -840,50 +840,50 @@ let expression ctx request_type function_args function_type expression_tree forI
                     arg_types
                 in
                 (* retype args specifically (not just CppDynamic) *)
-                let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
-                (retyped_ctx, CppCall (func, retypedArgs), returnType)
+                let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
+                (retyper_ctx, CppCall (func, retypedArgs), returnType)
             | CppFunction (func, returnType) ->
               let arg_types = List.map (fun _ -> TCppDynamic) args in
-              let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
-              (retyped_ctx, CppCall (func, retypedArgs), returnType)
+              let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
+              (retyper_ctx, CppCall (func, retypedArgs), returnType)
             | CppEnumField (enum, field) ->
               (* TODO - proper re-typing *)
               let arg_types = List.map (fun _ -> TCppDynamic) args in
-              let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
-              ( retyped_ctx, CppCall (FuncEnumConstruct (enum, field), retypedArgs), cppType )
+              let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
+              ( retyper_ctx, CppCall (FuncEnumConstruct (enum, field), retypedArgs), cppType )
             | CppSuper _ ->
               (* TODO - proper re-typing *)
               let arg_types = List.map (fun _ -> TCppDynamic) args in
-              let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
-              ( retyped_ctx, CppCall (FuncSuperConstruct retypedFunc.cpptype, retypedArgs), TCppVoid )
+              let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
+              ( retyper_ctx, CppCall (FuncSuperConstruct retypedFunc.cpptype, retypedArgs), TCppVoid )
             | CppDynamicField (expr, name) -> (
               let arg_types = List.map (fun _ -> TCppDynamic) args in
-              let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
+              let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 (* Special function calls *)
                 match (expr.cpptype, name) with
                 | TCppGlobal, _ ->
-                  (retyped_ctx, CppCall (FuncExtern (name, true), retypedArgs), cppType)
+                  (retyper_ctx, CppCall (FuncExtern (name, true), retypedArgs), cppType)
                 | TCppString, _ ->
-                  ( retyped_ctx,
+                  ( retyper_ctx,
                     CppCall (FuncInternal (expr, name, "."), retypedArgs),
                     cppType )
                 | _, "__Tag" ->
-                  ( retyped_ctx,
+                  ( retyper_ctx,
                     CppCall (FuncInternal (expr, "_hx_getTag", "->"), retypedArgs),
                     cppType )
                 | _, name when is_internal_member name ->
-                  ( retyped_ctx, CppCall (FuncInternal (expr, name, "->"), retypedArgs), cppType )
+                  ( retyper_ctx, CppCall (FuncInternal (expr, name, "->"), retypedArgs), cppType )
                 | _ ->
                   (* not special *)
-                  ( retyped_ctx, CppCall (FuncExpression retypedFunc, retypedArgs), TCppDynamic ))
+                  ( retyper_ctx, CppCall (FuncExpression retypedFunc, retypedArgs), TCppDynamic ))
             | CppExtern (name, isGlobal) ->
               let arg_types = List.map (fun _ -> TCppUnchanged) args in
-              let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
-              (retyped_ctx, CppCall (FuncExtern (name, isGlobal), retypedArgs), cppType)
+              let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
+              (retyper_ctx, CppCall (FuncExtern (name, isGlobal), retypedArgs), cppType)
             | _ ->
               let arg_types = List.map (fun _ -> TCppDynamic) args in
-              let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
-              ( retyped_ctx,
+              let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
+              ( retyper_ctx,
                 CppCall (FuncExpression retypedFunc, retypedArgs),
                 TCppDynamic )))
       | TNew (class_def, params, args) ->
@@ -896,18 +896,18 @@ let expression ctx request_type function_args function_type expression_tree forI
           | Some (_, constructor, _) -> constructor.cf_type
         in
         let arg_types, _ = cpp_function_type_of_args_ret constructor_type in
-        let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
+        let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
         let created_type = cpp_type_of expr.etype in
         let gc_stack =
-          retyped_ctx.gc_stack || match created_type with
+          retyper_ctx.gc_stack || match created_type with
           | TCppInst (t, _) -> not (is_native_class t)
           | _ -> false in
-        ({ retyped_ctx with gc_stack = gc_stack }, CppCall (FuncNew created_type, retypedArgs), created_type)
+        ({ retyper_ctx with gc_stack = gc_stack }, CppCall (FuncNew created_type, retypedArgs), created_type)
       | TFunction func ->
         (* TODO - this_dynamic ? *)
 
         let new_ctx = {
-          retyped_ctx with
+          retyper_ctx with
             declarations = func.tf_args |> List.map (fun (a, _) -> a.v_name, ()) |> StringMap.of_list;
             undeclared   = StringMap.empty;
             this_real    = ThisFake;
@@ -919,7 +919,7 @@ let expression ctx request_type function_args function_type expression_tree forI
         let result =
           {
             close_expr = cppExpr;
-            close_id = retyped_ctx.closure_id;
+            close_id = retyper_ctx.closure_id;
             close_undeclared = new_ctx.undeclared;
             close_type = new_ctx.function_return_type;
             close_args = func.tf_args;
@@ -927,7 +927,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           }
         in
         let folder acc (name, tvar) =
-          if not (StringMap.mem name retyped_ctx.declarations) then
+          if not (StringMap.mem name retyper_ctx.declarations) then
             StringMap.add name tvar acc
           else
             acc
@@ -935,65 +935,65 @@ let expression ctx request_type function_args function_type expression_tree forI
         let new_undeclared =
           List.fold_left
             folder
-            retyped_ctx.undeclared
+            retyper_ctx.undeclared
             (StringMap.bindings new_ctx.undeclared)
           in
 
-        let retyped_ctx = {
-          retyped_ctx with
-            closure_id = retyped_ctx.closure_id + 1;
-            closures   = result :: retyped_ctx.closures;
+        let retyper_ctx = {
+          retyper_ctx with
+            closure_id = retyper_ctx.closure_id + 1;
+            closures   = result :: retyper_ctx.closures;
             undeclared = new_undeclared;
-            uses_this  = if new_ctx.uses_this != None then Some retyped_ctx.this_real else retyped_ctx.uses_this;
+            uses_this  = if new_ctx.uses_this != None then Some retyper_ctx.this_real else retyper_ctx.uses_this;
         } in
 
-        (retyped_ctx, CppClosure result, TCppDynamic)
+        (retyper_ctx, CppClosure result, TCppDynamic)
       | TArray (e1, e2) ->
-          let retyped_ctx, arrayExpr, elemType =
+          let retyper_ctx, arrayExpr, elemType =
             match cpp_is_native_array_access (cpp_type_of e1.etype) with
             | true ->
-                let retyped_ctx, retypedObj = retype retyped_ctx TCppUnchanged e1 in
-                let retyped_ctx, retypedIdx = retype retyped_ctx (TCppScalar "int") e2 in
-                ( retyped_ctx,
+                let retyper_ctx, retypedObj = retype retyper_ctx TCppUnchanged e1 in
+                let retyper_ctx, retypedIdx = retype retyper_ctx (TCppScalar "int") e2 in
+                ( retyper_ctx,
                   CppArray (ArrayRawPointer (retypedObj, retypedIdx)),
                   cpp_type_of expr.etype )
             | false -> (
-                let retyped_ctx, retypedObj = retype retyped_ctx TCppDynamic e1 in
-                let retyped_ctx, retypedIdx = retype retyped_ctx (TCppScalar "int") e2 in
+                let retyper_ctx, retypedObj = retype retyper_ctx TCppDynamic e1 in
+                let retyper_ctx, retypedIdx = retype retyper_ctx (TCppScalar "int") e2 in
                 match retypedObj.cpptype with
                 | TCppScalarArray scalar ->
-                    ( retyped_ctx,
+                    ( retyper_ctx,
                       CppArray (ArrayTyped (retypedObj, retypedIdx, scalar)),
                       scalar )
                 | TCppPointer (_, elem) ->
-                    (retyped_ctx, CppArray (ArrayPointer (retypedObj, retypedIdx)), elem)
+                    (retyper_ctx, CppArray (ArrayPointer (retypedObj, retypedIdx)), elem)
                 | TCppRawPointer (_, elem) ->
-                    (retyped_ctx, CppArray (ArrayRawPointer (retypedObj, retypedIdx)), elem)
+                    (retyper_ctx, CppArray (ArrayRawPointer (retypedObj, retypedIdx)), elem)
                 | TCppObjectArray TCppDynamic ->
-                    ( retyped_ctx,
+                    ( retyper_ctx,
                       CppArray (ArrayObject (retypedObj, retypedIdx, TCppDynamic)),
                       TCppDynamic )
                 | TCppObjectArray elem ->
-                    (retyped_ctx, CppArray (ArrayObject (retypedObj, retypedIdx, elem)), elem)
+                    (retyper_ctx, CppArray (ArrayObject (retypedObj, retypedIdx, elem)), elem)
                 | TCppInst (({ cl_array_access = Some _ } as klass), _) ->
-                    ( retyped_ctx, CppArray (ArrayImplements (klass, retypedObj, retypedIdx)),
+                    ( retyper_ctx, CppArray (ArrayImplements (klass, retypedObj, retypedIdx)),
                       cpp_type_of expr.etype )
                 | TCppDynamicArray ->
-                    ( retyped_ctx,
+                    ( retyper_ctx,
                       CppArray (ArrayVirtual (retypedObj, retypedIdx)),
                       TCppDynamic )
                 | _ ->
-                    ( retyped_ctx,
+                    ( retyper_ctx,
                       CppArray (ArrayDynamic (retypedObj, retypedIdx)),
                       TCppDynamic ))
           in
           let returnType = cpp_type_of expr.etype in
           if cpp_can_static_cast elemType returnType then
-            ( retyped_ctx,
+            ( retyper_ctx,
               CppCastStatic (mk_cppexpr arrayExpr returnType, returnType),
               returnType )
           else
-            (retyped_ctx, arrayExpr, elemType)
+            (retyper_ctx, arrayExpr, elemType)
       | TTypeExpr module_type ->
           (* If we try and use the coreType / runtimeValue cpp.Int64 abstract with Class<T> then we get a class decl of the abstract *)
           (* as that abstract has functions in its declaration *)
@@ -1004,22 +1004,22 @@ let expression ctx request_type function_args function_type expression_tree forI
                 ([ "cpp" ], "Int64")
             | _ -> t_path module_type
           in
-          (retyped_ctx, CppClassOf (path, is_native_gen_module module_type), TCppClass)
+          (retyper_ctx, CppClassOf (path, is_native_gen_module module_type), TCppClass)
       | TBinop (op, left, right) -> (
-          let retyped_ctx, binOpType =
+          let retyper_ctx, binOpType =
             match op with
-            | OpDiv -> retyped_ctx, TCppScalar "Float"
-            | OpBoolAnd | OpBoolOr -> retyped_ctx, TCppScalar "bool"
-            | OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr -> retyped_ctx, TCppScalar "int"
+            | OpDiv -> retyper_ctx, TCppScalar "Float"
+            | OpBoolAnd | OpBoolOr -> retyper_ctx, TCppScalar "bool"
+            | OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr -> retyper_ctx, TCppScalar "int"
             | OpAssign ->
-              let retyped_ctx, retyped_expr = (retype retyped_ctx TCppUnchanged left) in
-              (retyped_ctx, retyped_expr.cpptype)
+              let retyper_ctx, retyped_expr = (retype retyper_ctx TCppUnchanged left) in
+              (retyper_ctx, retyped_expr.cpptype)
             | OpMult | OpSub ->
-              retyped_ctx, cpp_type_of expr.etype
-            | _ -> retyped_ctx, TCppUnchanged
+              retyper_ctx, cpp_type_of expr.etype
+            | _ -> retyper_ctx, TCppUnchanged
           in
-          let retyped_ctx, e1 = retype retyped_ctx binOpType left in
-          let retyped_ctx, e2 = retype retyped_ctx binOpType right in
+          let retyper_ctx, e1 = retype retyper_ctx binOpType left in
+          let retyper_ctx, e2 = retype retyper_ctx binOpType right in
 
           let complex =
             is_complex_compare e1.cpptype || is_complex_compare e2.cpptype
@@ -1032,47 +1032,47 @@ let expression ctx request_type function_args function_type expression_tree forI
           in
           let e1_null = e1.cpptype = TCppNull in
           let e2_null = e2.cpptype = TCppNull in
-          let retyped_ctx, reference =
+          let retyper_ctx, reference =
             match op with
             | OpAssign ->
                 let lvalue, gc = to_lvalue e1 in
-                let new_ctx = if gc then { retyped_ctx with gc_stack = true } else retyped_ctx in
+                let new_ctx = if gc then { retyper_ctx with gc_stack = true } else retyper_ctx in
                 new_ctx, CppSet (lvalue, e2)
             | OpAssignOp op ->
                 let lvalue, gc = to_lvalue e1 in
-                let new_ctx = if gc then { retyped_ctx with gc_stack = true } else retyped_ctx in
+                let new_ctx = if gc then { retyper_ctx with gc_stack = true } else retyper_ctx in
                 new_ctx, CppModify (op, lvalue, e2)
-            | OpEq when e1_null && e2_null -> retyped_ctx, CppBool true
-            | OpGte when e1_null && e2_null -> retyped_ctx, CppBool true
-            | OpLte when e1_null && e2_null -> retyped_ctx, CppBool true
-            | OpNotEq when e1_null && e2_null -> retyped_ctx, CppBool false
-            | _ when e1_null && e2_null -> retyped_ctx, CppBool false
-            | OpEq when e1_null -> retyped_ctx, CppNullCompare ("IsNull", e2)
-            | OpGte when e1_null -> retyped_ctx, CppNullCompare ("IsNull", e2)
-            | OpLte when e1_null -> retyped_ctx, CppNullCompare ("IsNull", e2)
-            | OpNotEq when e1_null -> retyped_ctx, CppNullCompare ("IsNotNull", e2)
-            | OpEq when e2_null -> retyped_ctx, CppNullCompare ("IsNull", e1)
-            | OpGte when e2_null -> retyped_ctx, CppNullCompare ("IsNull", e1)
-            | OpLte when e2_null -> retyped_ctx, CppNullCompare ("IsNull", e1)
-            | OpNotEq when e2_null -> retyped_ctx, CppNullCompare ("IsNotNull", e1)
-            | OpEq when instance -> retyped_ctx, CppCompare ("IsInstanceEq", e1, e2, op)
-            | OpNotEq when instance -> retyped_ctx, CppCompare ("IsInstanceNotEq", e1, e2, op)
-            | OpEq when pointer -> retyped_ctx, CppCompare ("IsPointerEq", e1, e2, op)
-            | OpNotEq when pointer -> retyped_ctx, CppCompare ("IsPointerNotEq", e1, e2, op)
-            | OpEq when complex -> retyped_ctx, CppCompare ("IsEq", e1, e2, op)
-            | OpNotEq when complex -> retyped_ctx, CppCompare ("IsNotEq", e1, e2, op)
-            | OpGte when complex -> retyped_ctx, CppCompare ("IsGreaterEq", e1, e2, op)
-            | OpLte when complex -> retyped_ctx, CppCompare ("IsLessEq", e1, e2, op)
-            | OpGt when complex -> retyped_ctx, CppCompare ("IsGreater", e1, e2, op)
-            | OpLt when complex -> retyped_ctx, CppCompare ("IsLess", e1, e2, op)
-            | _ -> retyped_ctx, CppBinop (op, e1, e2)
+            | OpEq when e1_null && e2_null -> retyper_ctx, CppBool true
+            | OpGte when e1_null && e2_null -> retyper_ctx, CppBool true
+            | OpLte when e1_null && e2_null -> retyper_ctx, CppBool true
+            | OpNotEq when e1_null && e2_null -> retyper_ctx, CppBool false
+            | _ when e1_null && e2_null -> retyper_ctx, CppBool false
+            | OpEq when e1_null -> retyper_ctx, CppNullCompare ("IsNull", e2)
+            | OpGte when e1_null -> retyper_ctx, CppNullCompare ("IsNull", e2)
+            | OpLte when e1_null -> retyper_ctx, CppNullCompare ("IsNull", e2)
+            | OpNotEq when e1_null -> retyper_ctx, CppNullCompare ("IsNotNull", e2)
+            | OpEq when e2_null -> retyper_ctx, CppNullCompare ("IsNull", e1)
+            | OpGte when e2_null -> retyper_ctx, CppNullCompare ("IsNull", e1)
+            | OpLte when e2_null -> retyper_ctx, CppNullCompare ("IsNull", e1)
+            | OpNotEq when e2_null -> retyper_ctx, CppNullCompare ("IsNotNull", e1)
+            | OpEq when instance -> retyper_ctx, CppCompare ("IsInstanceEq", e1, e2, op)
+            | OpNotEq when instance -> retyper_ctx, CppCompare ("IsInstanceNotEq", e1, e2, op)
+            | OpEq when pointer -> retyper_ctx, CppCompare ("IsPointerEq", e1, e2, op)
+            | OpNotEq when pointer -> retyper_ctx, CppCompare ("IsPointerNotEq", e1, e2, op)
+            | OpEq when complex -> retyper_ctx, CppCompare ("IsEq", e1, e2, op)
+            | OpNotEq when complex -> retyper_ctx, CppCompare ("IsNotEq", e1, e2, op)
+            | OpGte when complex -> retyper_ctx, CppCompare ("IsGreaterEq", e1, e2, op)
+            | OpLte when complex -> retyper_ctx, CppCompare ("IsLessEq", e1, e2, op)
+            | OpGt when complex -> retyper_ctx, CppCompare ("IsGreater", e1, e2, op)
+            | OpLt when complex -> retyper_ctx, CppCompare ("IsLess", e1, e2, op)
+            | _ -> retyper_ctx, CppBinop (op, e1, e2)
           in
           match (op, e1.cpptype, e2.cpptype) with
           (* Variant + Variant = Variant *)
           | OpAdd, _, TCppVariant | OpAdd, TCppVariant, _ ->
-            (retyped_ctx, reference, TCppVariant)
+            (retyper_ctx, reference, TCppVariant)
           | _, _, _ ->
-            (retyped_ctx, reference, cpp_type_of expr.etype))
+            (retyper_ctx, reference, cpp_type_of expr.etype))
       | TUnop (op, pre, e1) ->
           let targetType =
             match op with
@@ -1081,39 +1081,39 @@ let expression ctx request_type function_args function_type expression_tree forI
             | _ -> cpp_type_of e1.etype
           in
 
-          let retyped_ctx, e1 = retype retyped_ctx targetType e1 in
-          let retyped_ctx, reference =
+          let retyper_ctx, e1 = retype retyper_ctx targetType e1 in
+          let retyper_ctx, reference =
             match op with
             | Increment ->
                 let lvalue, gc = to_lvalue e1 in
-                let new_ctx = if gc then { retyped_ctx with gc_stack = true } else retyped_ctx in
+                let new_ctx = if gc then { retyper_ctx with gc_stack = true } else retyper_ctx in
                 new_ctx, CppCrement (CppIncrement, pre, lvalue)
             | Decrement ->
                 let lvalue, gc = to_lvalue e1 in
-                let new_ctx = if gc then { retyped_ctx with gc_stack = true } else retyped_ctx in
+                let new_ctx = if gc then { retyper_ctx with gc_stack = true } else retyper_ctx in
                 new_ctx, CppCrement (CppDecrement, pre, lvalue)
-            | Neg -> retyped_ctx, CppUnop (CppNeg, e1)
-            | Not -> retyped_ctx, CppUnop (CppNot, e1)
-            | NegBits -> retyped_ctx, CppUnop (CppNegBits, e1)
+            | Neg -> retyper_ctx, CppUnop (CppNeg, e1)
+            | Not -> retyper_ctx, CppUnop (CppNot, e1)
+            | NegBits -> retyper_ctx, CppUnop (CppNegBits, e1)
             | Spread -> die ~p:expr.epos "Unexpected spread operator" __LOC__
           in
-          (retyped_ctx, reference, cpp_type_of expr.etype)
+          (retyper_ctx, reference, cpp_type_of expr.etype)
       | TFor (v, init, block) ->
-          let retyped_ctx = { retyped_ctx with declarations = StringMap.add v.v_name () retyped_ctx.declarations } in
-          let retyped_ctx, init = retype retyped_ctx (cpp_type_of v.v_type) init in
-          let retyped_ctx, block = retype retyped_ctx TCppVoid (mk_block block) in
-          let retyped_ctx = { retyped_ctx with declarations = StringMap.remove v.v_name retyped_ctx.declarations } in
-          (retyped_ctx, CppFor (v, init, block), TCppVoid)
+          let retyper_ctx = { retyper_ctx with declarations = StringMap.add v.v_name () retyper_ctx.declarations } in
+          let retyper_ctx, init = retype retyper_ctx (cpp_type_of v.v_type) init in
+          let retyper_ctx, block = retype retyper_ctx TCppVoid (mk_block block) in
+          let retyper_ctx = { retyper_ctx with declarations = StringMap.remove v.v_name retyper_ctx.declarations } in
+          (retyper_ctx, CppFor (v, init, block), TCppVoid)
       | TWhile (e1, e2, flag) ->
-          let retyped_ctx, condition = retype retyped_ctx (TCppScalar "bool") e1 in
-          let retyped_ctx, close = begin_loop retyped_ctx in
-          let retyped_ctx, block = retype retyped_ctx TCppVoid (mk_block e2) in
-          let retyped_ctx, id = close retyped_ctx in
-          (retyped_ctx, CppWhile (condition, block, flag, id), TCppVoid)
+          let retyper_ctx, condition = retype retyper_ctx (TCppScalar "bool") e1 in
+          let retyper_ctx, close = begin_loop retyper_ctx in
+          let retyper_ctx, block = retype retyper_ctx TCppVoid (mk_block e2) in
+          let retyper_ctx, id = close retyper_ctx in
+          (retyper_ctx, CppWhile (condition, block, flag, id), TCppVoid)
       | TArrayDecl el ->
           let el_types = List.map (fun _ -> TCppDynamic) el in
-          let retyped_ctx, retypedEls = retype_function_args retyped_ctx el el_types in
-          (retyped_ctx, CppArrayDecl retypedEls, cpp_type_of expr.etype)
+          let retyper_ctx, retypedEls = retype_function_args retyper_ctx el el_types in
+          (retyper_ctx, CppArrayDecl retypedEls, cpp_type_of expr.etype)
       | TBlock expr_list ->
           if return_type <> TCppVoid && not forCppia then
             print_endline
@@ -1121,12 +1121,12 @@ let expression ctx request_type function_args function_type expression_tree forI
               ^ string_of_int (Lexer.get_error_line expr.epos));
 
           let remaining = ref (List.length expr_list) in
-          let new_ctx = { retyped_ctx with closures = []; injection = false } in
+          let new_ctx = { retyper_ctx with closures = []; injection = false } in
           let new_ctx, cppExprs =
             List.fold_left
               (fun (cur_ctx, exprs) expr ->
                 let targetType =
-                  if retyped_ctx.injection && !remaining = 1 then cpp_type_of expr.etype
+                  if retyper_ctx.injection && !remaining = 1 then cpp_type_of expr.etype
                   else TCppVoid
                 in
                 decr remaining;
@@ -1139,7 +1139,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           (* Add back any undeclared variables *)
           (* Needed for tracking variables captured by variables *)
           let folder acc (name, tvar) =
-            if not (StringMap.mem name retyped_ctx.declarations) then
+            if not (StringMap.mem name retyper_ctx.declarations) then
               StringMap.add name tvar acc
             else
               acc
@@ -1147,15 +1147,15 @@ let expression ctx request_type function_args function_type expression_tree forI
           let new_undeclared =
             List.fold_left
               folder
-              retyped_ctx.undeclared
+              retyper_ctx.undeclared
               (StringMap.bindings new_ctx.undeclared)
             in
 
           (
             { new_ctx with
-              declarations = retyped_ctx.declarations;
+              declarations = retyper_ctx.declarations;
               undeclared   = new_undeclared;
-              closures     = retyped_ctx.closures },
+              closures     = retyper_ctx.closures },
             CppBlock (List.rev cppExprs, List.rev new_ctx.closures, new_ctx.gc_stack),
             TCppVoid
           )
@@ -1166,40 +1166,40 @@ let expression ctx request_type function_args function_type expression_tree forI
             (("className", _, _), { eexpr = TConst (TString class_name) });
             (("methodName", _, _), { eexpr = TConst (TString meth) });
           ] ->
-          (retyped_ctx, CppPosition (file, line, class_name, meth), TCppDynamic)
+          (retyper_ctx, CppPosition (file, line, class_name, meth), TCppDynamic)
       | TObjectDecl el -> (
           let el_exprs = List.map (fun ((_, _, _), e) -> e) el in
           let el_names = List.map (fun ((v, _, _), _) -> v) el in
 
-          let retyped_ctx, retyped_els =
-            List.map (fun _ -> TCppDynamic) el |> retype_function_args retyped_ctx el_exprs
+          let retyper_ctx, retyped_els =
+            List.map (fun _ -> TCppDynamic) el |> retype_function_args retyper_ctx el_exprs
           in
           let joined = List.combine el_names retyped_els in
 
           match return_type with
-          | TCppVoid -> (retyped_ctx, CppObjectDecl (joined, false), TCppVoid)
-          | _ -> (retyped_ctx, CppObjectDecl (joined, false), TCppDynamic))
+          | TCppVoid -> (retyper_ctx, CppObjectDecl (joined, false), TCppVoid)
+          | _ -> (retyper_ctx, CppObjectDecl (joined, false), TCppDynamic))
       | TVar (v, eo) ->
           let varType = cpp_type_of v.v_type in
-          let retyped_ctx, init =
+          let retyper_ctx, init =
             match eo with
-            | None -> retyped_ctx, None
-            | Some e -> retype retyped_ctx varType e |> (fun (new_ctx, expr) -> new_ctx, Some expr)
+            | None -> retyper_ctx, None
+            | Some e -> retype retyper_ctx varType e |> (fun (new_ctx, expr) -> new_ctx, Some expr)
           in
-          let retyped_ctx = { retyped_ctx with declarations = StringMap.add v.v_name () retyped_ctx.declarations } in
-          (retyped_ctx, CppVarDecl (v, init), varType)
+          let retyper_ctx = { retyper_ctx with declarations = StringMap.add v.v_name () retyper_ctx.declarations } in
+          (retyper_ctx, CppVarDecl (v, init), varType)
       | TIf (ec, e1, e2) ->
-          let retyped_ctx, ec = retype retyped_ctx (TCppScalar "bool") ec in
+          let retyper_ctx, ec = retype retyper_ctx (TCppScalar "bool") ec in
           let blockify =
             if return_type != TCppVoid then fun e -> e else mk_block
           in
-          let retyped_ctx, e1 = retype retyped_ctx return_type (blockify e1) in
-          let retyped_ctx, e2 =
+          let retyper_ctx, e1 = retype retyper_ctx return_type (blockify e1) in
+          let retyper_ctx, e2 =
             match e2 with
-            | None -> retyped_ctx, None
-            | Some e -> retype retyped_ctx return_type (blockify e) |> (fun (new_ctx, expr) -> new_ctx, Some expr)
+            | None -> retyper_ctx, None
+            | Some e -> retype retyper_ctx return_type (blockify e) |> (fun (new_ctx, expr) -> new_ctx, Some expr)
           in
-          ( retyped_ctx,
+          ( retyper_ctx,
             CppIf (ec, e1, e2),
             if return_type = TCppVoid then TCppVoid else cpp_type_of expr.etype
           )
@@ -1214,14 +1214,14 @@ let expression ctx request_type function_args function_type expression_tree forI
             abort "Value from a switch not handled" expr.epos;
 
           let conditionType = cpp_type_of condition.etype in
-          let retyped_ctx, condition = retype retyped_ctx conditionType condition in
-          let retyped_ctx, cppDef =
+          let retyper_ctx, condition = retype retyper_ctx conditionType condition in
+          let retyper_ctx, cppDef =
             match def with
-            | None -> retyped_ctx, None
-            | Some e -> retype retyped_ctx TCppVoid (mk_block e) |> (fun (new_ctx, expr) -> new_ctx, Some expr)
+            | None -> retyper_ctx, None
+            | Some e -> retype retyper_ctx TCppVoid (mk_block e) |> (fun (new_ctx, expr) -> new_ctx, Some expr)
           in
           if forCppia then
-            let retyped_ctx, cases =
+            let retyper_ctx, cases =
               List.fold_left
                 (fun (cur_ctx, acc) { case_patterns = el; case_expr = e2 } ->
                   let new_ctx, cppBlock = retype cur_ctx TCppVoid (mk_block e2) in
@@ -1232,28 +1232,28 @@ let expression ctx request_type function_args function_type expression_tree forI
                       el
                   in
                   new_ctx, (List.rev blocks, cppBlock) :: acc)
-                (retyped_ctx, [])
+                (retyper_ctx, [])
                 cases
             in
-            (retyped_ctx, CppSwitch (condition, conditionType, List.rev cases, cppDef, -1), TCppVoid)
+            (retyper_ctx, CppSwitch (condition, conditionType, List.rev cases, cppDef, -1), TCppVoid)
           else
             try
               (match conditionType with
               | TCppScalar "int" | TCppScalar "bool" -> ()
               | _ -> raise Not_found);
-              let retyped_ctx, cases =
+              let retyper_ctx, cases =
                 List.fold_left
                   (fun (cur_ctx, acc) { case_patterns = el; case_expr = e2 } ->
                     let new_ctx, expr = retype cur_ctx TCppVoid (mk_block e2) in
                     new_ctx, (List.map const_int_of el, expr) :: acc)
-                  (retyped_ctx, [])
+                  (retyper_ctx, [])
                   cases
               in
-              (retyped_ctx, CppIntSwitch (condition, List.rev cases, cppDef), TCppVoid)
+              (retyper_ctx, CppIntSwitch (condition, List.rev cases, cppDef), TCppVoid)
             with Not_found ->
-              let retyped_ctx, label = alloc_file_id retyped_ctx in
+              let retyper_ctx, label = alloc_file_id retyper_ctx in
               (* do something better maybe ... *)
-              let retyped_ctx, cases =
+              let retyper_ctx, cases =
                 List.fold_left
                   (fun (cur_ctx, acc) { case_patterns = el; case_expr = e2 } ->
                     let new_ctx, cppBlock = retype cur_ctx TCppVoid (mk_block e2) in
@@ -1271,63 +1271,63 @@ let expression ctx request_type function_args function_type expression_tree forI
                         (new_ctx, [])
                         el in
                     new_ctx, (List.rev blocks, cppBlock) :: acc)
-                  (retyped_ctx, [])
+                  (retyper_ctx, [])
                   cases
               in
-              ( retyped_ctx,
+              ( retyper_ctx,
                 CppSwitch (condition, conditionType, List.rev cases, cppDef, label),
                 TCppVoid ))
       | TTry (try_block, catches) ->
           (* TTry internal return - wrap whole thing in block ? *)
           if return_type <> TCppVoid then
             abort "Value from a try-block not handled" expr.epos;
-          let retyped_ctx, cppBlock = retype retyped_ctx TCppVoid try_block in
-          let retyped_ctx, cppCatches =
+          let retyper_ctx, cppBlock = retype retyper_ctx TCppVoid try_block in
+          let retyper_ctx, cppCatches =
             List.fold_left
-              (fun (retyped_ctx, acc) (tvar, catch_block) ->
-                let retyped_ctx = { retyped_ctx with declarations = StringMap.add tvar.v_name () retyped_ctx.declarations } in
-                let retyped_ctx, cppCatchBlock = retype retyped_ctx TCppVoid catch_block in
-                let retyped_ctx = { retyped_ctx with declarations = StringMap.remove tvar.v_name retyped_ctx.declarations } in
-                retyped_ctx, (tvar, cppCatchBlock) :: acc)
-              (retyped_ctx, [])
+              (fun (retyper_ctx, acc) (tvar, catch_block) ->
+                let retyper_ctx = { retyper_ctx with declarations = StringMap.add tvar.v_name () retyper_ctx.declarations } in
+                let retyper_ctx, cppCatchBlock = retype retyper_ctx TCppVoid catch_block in
+                let retyper_ctx = { retyper_ctx with declarations = StringMap.remove tvar.v_name retyper_ctx.declarations } in
+                retyper_ctx, (tvar, cppCatchBlock) :: acc)
+              (retyper_ctx, [])
               catches
           in
-          (retyped_ctx, CppTry (cppBlock, List.rev cppCatches), TCppVoid)
+          (retyper_ctx, CppTry (cppBlock, List.rev cppCatches), TCppVoid)
       | TReturn eo ->
-          let retyped_ctx, expr = match eo with
-          | None -> retyped_ctx, None
-          | Some e -> retype retyped_ctx retyped_ctx.function_return_type e |> (fun (new_ctx, expr) -> new_ctx, Some expr) in
-          ( retyped_ctx,
+          let retyper_ctx, expr = match eo with
+          | None -> retyper_ctx, None
+          | Some e -> retype retyper_ctx retyper_ctx.function_return_type e |> (fun (new_ctx, expr) -> new_ctx, Some expr) in
+          ( retyper_ctx,
             CppReturn expr,
             TCppVoid )
       | TCast (base, None) -> (
           (* Use auto-cast rules *)
           let return_type = cpp_type_of expr.etype in
-          let retyped_ctx, baseCpp = retype retyped_ctx return_type base in
+          let retyper_ctx, baseCpp = retype retyper_ctx return_type base in
           let baseStr = tcpp_to_string baseCpp.cpptype in
           let returnStr = tcpp_to_string return_type in
           if baseStr = returnStr then
-            (retyped_ctx, baseCpp.cppexpr, baseCpp.cpptype (* nothing to do *))
+            (retyper_ctx, baseCpp.cppexpr, baseCpp.cpptype (* nothing to do *))
           else
             match return_type with
-            | TCppObjC k -> (retyped_ctx, CppCastObjC (baseCpp, k), return_type)
+            | TCppObjC k -> (retyper_ctx, CppCastObjC (baseCpp, k), return_type)
             | TCppPointer (_, _)
             | TCppRawPointer (_, _)
             | TCppStar _ | TCppInst _ ->
-                (retyped_ctx, CppCast (baseCpp, return_type), return_type)
-            | TCppString -> (retyped_ctx, CppCastScalar (baseCpp, "::String"), return_type)
+                (retyper_ctx, CppCast (baseCpp, return_type), return_type)
+            | TCppString -> (retyper_ctx, CppCastScalar (baseCpp, "::String"), return_type)
             | TCppCode t when baseStr <> tcpp_to_string t ->
-                (retyped_ctx, CppCast (baseCpp, t), t)
-            | TCppNativePointer klass -> (retyped_ctx, CppCastNative baseCpp, return_type)
+                (retyper_ctx, CppCast (baseCpp, t), t)
+            | TCppNativePointer klass -> (retyper_ctx, CppCastNative baseCpp, return_type)
             | TCppObjCBlock (args, ret) ->
-                (retyped_ctx, CppCastObjCBlock (baseCpp, args, ret), return_type)
-            | TCppProtocol p -> (retyped_ctx, CppCastProtocol (baseCpp, p), return_type)
+                (retyper_ctx, CppCastObjCBlock (baseCpp, args, ret), return_type)
+            | TCppProtocol p -> (retyper_ctx, CppCastProtocol (baseCpp, p), return_type)
             | TCppDynamic when baseCpp.cpptype = TCppClass ->
-                (retyped_ctx, CppCast (baseCpp, TCppDynamic), TCppDynamic)
-            | _ -> (retyped_ctx, baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *))
+                (retyper_ctx, CppCast (baseCpp, TCppDynamic), TCppDynamic)
+            | _ -> (retyper_ctx, baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *))
           )
       | TCast (base, Some t) -> (
-          let retyped_ctx, baseCpp = retype retyped_ctx (cpp_type_of base.etype) base in
+          let retyper_ctx, baseCpp = retype retyper_ctx (cpp_type_of base.etype) base in
           let baseStr = tcpp_to_string baseCpp.cpptype in
           let default_return_type =
             if return_type = TCppUnchanged then cpp_type_of expr.etype
@@ -1339,75 +1339,75 @@ let expression ctx request_type function_args function_type expression_tree forI
           let returnStr = tcpp_to_string return_type in
 
           if baseStr = returnStr then
-            (retyped_ctx, baseCpp.cppexpr, baseCpp.cpptype (* nothing to do *))
+            (retyper_ctx, baseCpp.cppexpr, baseCpp.cpptype (* nothing to do *))
           else
             match return_type with
             | TCppNativePointer klass ->
-              ( retyped_ctx, CppCastNative baseCpp, return_type)
+              ( retyper_ctx, CppCastNative baseCpp, return_type)
             | TCppVoid ->
-              (retyped_ctx, CppTCast (baseCpp, cpp_type_of expr.etype), return_type)
+              (retyper_ctx, CppTCast (baseCpp, cpp_type_of expr.etype), return_type)
             | TCppDynamic ->
-              (retyped_ctx, baseCpp.cppexpr, baseCpp.cpptype)
+              (retyper_ctx, baseCpp.cppexpr, baseCpp.cpptype)
             | _ ->
-              (retyped_ctx, CppTCast (baseCpp, return_type), return_type))
+              (retyper_ctx, CppTCast (baseCpp, return_type), return_type))
     in
     let cppExpr = mk_cppexpr retypedExpr retypedType in
 
     (* Autocast rules... *)
     if return_type = TCppVoid then
-      retyped_ctx, mk_cppexpr retypedExpr TCppVoid
+      retyper_ctx, mk_cppexpr retypedExpr TCppVoid
     else if return_type = TCppVarArg then
       match cpp_variant_type_of cppExpr.cpptype with
-      | TCppVoidStar | TCppScalar _ -> retyped_ctx, cppExpr
+      | TCppVoidStar | TCppScalar _ -> retyper_ctx, cppExpr
       | TCppString ->
-        retyped_ctx, mk_cppexpr
+        retyper_ctx, mk_cppexpr
             (CppVar (VarInternal (cppExpr, ".", "raw_ptr()")))
             (TCppPointer ("ConstPointer", TCppScalar "char"))
-      | TCppDynamic -> retyped_ctx, mk_cppexpr (CppCastNative cppExpr) TCppVoidStar
+      | TCppDynamic -> retyper_ctx, mk_cppexpr (CppCastNative cppExpr) TCppVoidStar
       | _ ->
           let toDynamic =
             mk_cppexpr (CppCast (cppExpr, TCppDynamic)) TCppDynamic
           in
-          retyped_ctx, mk_cppexpr (CppCastNative toDynamic) TCppVoidStar
+          retyper_ctx, mk_cppexpr (CppCastNative toDynamic) TCppVoidStar
     else if
       cppExpr.cpptype = TCppVariant
       || cppExpr.cpptype = TCppDynamic
       || cppExpr.cpptype == TCppObject
     then
       match return_type with
-      | TCppUnchanged -> retyped_ctx, cppExpr
+      | TCppUnchanged -> retyper_ctx, cppExpr
       | TCppInst (t, _) when Meta.has Meta.StructAccess t.cl_meta ->
           let structType = TCppStruct (TCppInst (t, [])) in
           let structCast =
             mk_cppexpr (CppCast (cppExpr, structType)) structType
           in
-          retyped_ctx, mk_cppexpr (CppCast (structCast, TCppInst (t, []))) (TCppInst (t, []))
+          retyper_ctx, mk_cppexpr (CppCast (structCast, TCppInst (t, []))) (TCppInst (t, []))
       | TCppObjectArray _ | TCppScalarArray _ | TCppNativePointer _
       | TCppDynamicArray | TCppObjectPtr | TCppVarArg | TCppInst _ ->
-        retyped_ctx, mk_cppexpr (CppCast (cppExpr, return_type)) return_type
-      | TCppObjC k -> retyped_ctx, mk_cppexpr (CppCastObjC (cppExpr, k)) return_type
+        retyper_ctx, mk_cppexpr (CppCast (cppExpr, return_type)) return_type
+      | TCppObjC k -> retyper_ctx, mk_cppexpr (CppCastObjC (cppExpr, k)) return_type
       | TCppObjCBlock (ret, args) ->
-        retyped_ctx, mk_cppexpr (CppCastObjCBlock (cppExpr, ret, args)) return_type
+        retyper_ctx, mk_cppexpr (CppCastObjCBlock (cppExpr, ret, args)) return_type
       | TCppScalar scalar ->
-        retyped_ctx, mk_cppexpr (CppCastScalar (cppExpr, scalar)) return_type
+        retyper_ctx, mk_cppexpr (CppCastScalar (cppExpr, scalar)) return_type
       | TCppString ->
-        retyped_ctx, mk_cppexpr (CppCastScalar (cppExpr, "::String")) return_type
+        retyper_ctx, mk_cppexpr (CppCastScalar (cppExpr, "::String")) return_type
       | TCppInterface _ when cppExpr.cpptype = TCppVariant ->
-        retyped_ctx, mk_cppexpr (CppCastVariant cppExpr) return_type
+        retyper_ctx, mk_cppexpr (CppCastVariant cppExpr) return_type
       | TCppDynamic when cppExpr.cpptype = TCppVariant ->
-        retyped_ctx, mk_cppexpr (CppCastVariant cppExpr) return_type
+        retyper_ctx, mk_cppexpr (CppCastVariant cppExpr) return_type
       | TCppStar (t, const) ->
           let ptrType =
             TCppPointer ((if const then "ConstPointer" else "Pointer"), t)
           in
           let ptrCast = mk_cppexpr (CppCast (cppExpr, ptrType)) ptrType in
-          retyped_ctx, mk_cppexpr
+          retyper_ctx, mk_cppexpr
             (CppCast (ptrCast, TCppStar (t, const)))
             (TCppStar (t, const))
-      | _ -> retyped_ctx, cppExpr
+      | _ -> retyper_ctx, cppExpr
     else
       match (cppExpr.cpptype, return_type) with
-      | _, TCppUnchanged -> retyped_ctx, cppExpr
+      | _, TCppUnchanged -> retyper_ctx, cppExpr
       (*
         Using the 'typedef hack', where we use typedef X<T> = T, allows the
         haxe compiler to use these types interchangeably. We then work
@@ -1438,56 +1438,56 @@ let expression ctx request_type function_args function_type expression_tree forI
       *)
       | TCppAutoCast, _ | TCppObjC _, TCppDynamic | TCppObjCBlock _, TCppDynamic
         ->
-          retyped_ctx, mk_cppexpr (CppCast (cppExpr, return_type)) return_type
+          retyper_ctx, mk_cppexpr (CppCast (cppExpr, return_type)) return_type
       (* Infer type from right-hand-side for pointer or reference to Dynamic *)
-      | TCppReference TCppDynamic, TCppReference _ -> retyped_ctx, cppExpr
-      | TCppReference TCppDynamic, t -> retyped_ctx, mk_cppexpr retypedExpr (TCppReference t)
-      | TCppStar (TCppDynamic, _), TCppStar (_, _) -> retyped_ctx, cppExpr
+      | TCppReference TCppDynamic, TCppReference _ -> retyper_ctx, cppExpr
+      | TCppReference TCppDynamic, t -> retyper_ctx, mk_cppexpr retypedExpr (TCppReference t)
+      | TCppStar (TCppDynamic, _), TCppStar (_, _) -> retyper_ctx, cppExpr
       | TCppStar (TCppDynamic, const), t ->
-        retyped_ctx, mk_cppexpr retypedExpr (TCppStar (t, const))
+        retyper_ctx, mk_cppexpr retypedExpr (TCppStar (t, const))
       | TCppStar (t, const), TCppDynamic ->
           let ptrType =
             TCppPointer ((if const then "ConstPointer" else "Pointer"), t)
           in
           let ptrCast = mk_cppexpr (CppCast (cppExpr, ptrType)) ptrType in
-          retyped_ctx, mk_cppexpr (CppCast (ptrCast, TCppDynamic)) TCppDynamic
+          retyper_ctx, mk_cppexpr (CppCast (ptrCast, TCppDynamic)) TCppDynamic
       | TCppStar (t, const), TCppReference _
       | TCppStar (t, const), TCppInst _
       | TCppStar (t, const), TCppStruct _ ->
-        retyped_ctx, mk_cppexpr (CppDereference cppExpr) return_type
+        retyper_ctx, mk_cppexpr (CppDereference cppExpr) return_type
       | TCppInst (t, _), TCppStar _
         when is_native_class t
              &&
              match cppExpr.cppexpr with
              | CppCall (FuncNew _, _) -> true
              | _ -> false ->
-              retyped_ctx, mk_cppexpr (CppNewNative cppExpr) return_type
+              retyper_ctx, mk_cppexpr (CppNewNative cppExpr) return_type
       | TCppInst _, TCppStar (p, const) | TCppStruct _, TCppStar (p, const) ->
-        retyped_ctx, mk_cppexpr (CppAddressOf cppExpr) return_type
-      | TCppObjectPtr, TCppObjectPtr -> retyped_ctx, cppExpr
+        retyper_ctx, mk_cppexpr (CppAddressOf cppExpr) return_type
+      | TCppObjectPtr, TCppObjectPtr -> retyper_ctx, cppExpr
       | TCppObjectPtr, _ ->
-        retyped_ctx, mk_cppexpr (CppCast (cppExpr, TCppDynamic)) TCppDynamic
-      | TCppProtocol _, TCppProtocol _ -> retyped_ctx, cppExpr
+        retyper_ctx, mk_cppexpr (CppCast (cppExpr, TCppDynamic)) TCppDynamic
+      | TCppProtocol _, TCppProtocol _ -> retyper_ctx, cppExpr
       | t, TCppProtocol protocol ->
-        retyped_ctx, mk_cppexpr (CppCastProtocol (cppExpr, protocol)) return_type
+        retyper_ctx, mk_cppexpr (CppCastProtocol (cppExpr, protocol)) return_type
       | TCppInst (t, _), TCppDynamic when Meta.has Meta.StructAccess t.cl_meta
         ->
           let structType = TCppStruct (TCppInst (t, [])) in
           let structCast =
             mk_cppexpr (CppCast (cppExpr, structType)) structType
           in
-          retyped_ctx, mk_cppexpr (CppCast (structCast, TCppDynamic)) TCppDynamic
+          retyper_ctx, mk_cppexpr (CppCast (structCast, TCppDynamic)) TCppDynamic
       | _, TCppObjectPtr ->
-        retyped_ctx, mk_cppexpr (CppCast (cppExpr, TCppObjectPtr)) TCppObjectPtr
+        retyper_ctx, mk_cppexpr (CppCast (cppExpr, TCppObjectPtr)) TCppObjectPtr
       | TCppDynamicArray, TCppScalarArray _
       | TCppDynamicArray, TCppObjectArray _
       | TCppScalarArray _, TCppDynamicArray
       | TCppObjectArray _, TCppDynamicArray
         when forCppia ->
-          retyped_ctx, mk_cppexpr (CppCast (cppExpr, return_type)) return_type
+          retyper_ctx, mk_cppexpr (CppCast (cppExpr, return_type)) return_type
       | TCppScalar from, TCppScalar too when from <> too ->
-        retyped_ctx, mk_cppexpr (CppCastScalar (cppExpr, too)) return_type
-      | _ -> retyped_ctx, cppExpr
+        retyper_ctx, mk_cppexpr (CppCastScalar (cppExpr, too)) return_type
+      | _ -> retyper_ctx, cppExpr
   in
   retype initial_ctx request_type expression_tree |> snd
 
