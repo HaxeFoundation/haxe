@@ -190,11 +190,11 @@ type retyper_ctx = {
   uses_this : tcppthis option;
   this_real : tcppthis;
   gc_stack : bool;
+  function_return_type: tcpp;
 }
 
 let expression ctx request_type function_args function_type expression_tree forInjection =
   let file_id = ctx.ctx_file_id in
-  let function_return_type = ref (cpp_type_of function_type) in
   let loop_stack = ref [] in
   let forCppia = Gctx.defined ctx.ctx_common Define.Cppia in
   let alloc_file_id () =
@@ -221,6 +221,7 @@ let expression ctx request_type function_args function_type expression_tree forI
     uses_this = None;
     this_real = if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic;
     gc_stack = false;
+    function_return_type = cpp_type_of function_type;
   } in
 
   (* Helper functions *)
@@ -895,9 +896,6 @@ let expression ctx request_type function_args function_type expression_tree forI
         ({ retyped_ctx with gc_stack = gc_stack }, CppCall (FuncNew created_type, retypedArgs), created_type)
       | TFunction func ->
         (* TODO - this_dynamic ? *)
-        let old_return_type = !function_return_type in
-        let ret = cpp_type_of func.tf_type in
-        function_return_type := ret;
 
         let new_ctx = {
           retyped_ctx with
@@ -905,6 +903,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             undeclared   = StringMap.empty;
             this_real    = ThisFake;
             uses_this    = None;
+            function_return_type = cpp_type_of func.tf_type;
         } in
         let new_ctx, cppExpr = retype new_ctx TCppVoid (mk_block func.tf_expr) in
 
@@ -913,7 +912,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             close_expr = cppExpr;
             close_id = retyped_ctx.closure_id;
             close_undeclared = new_ctx.undeclared;
-            close_type = ret;
+            close_type = new_ctx.function_return_type;
             close_args = func.tf_args;
             close_this = new_ctx.uses_this;
           }
@@ -939,7 +938,6 @@ let expression ctx request_type function_args function_type expression_tree forI
             uses_this  = if new_ctx.uses_this != None then Some retyped_ctx.this_real else retyped_ctx.uses_this;
         } in
 
-        function_return_type := old_return_type;
         (retyped_ctx, CppClosure result, TCppDynamic)
       | TArray (e1, e2) ->
           let retyped_ctx, arrayExpr, elemType =
@@ -1289,7 +1287,7 @@ let expression ctx request_type function_args function_type expression_tree forI
       | TReturn eo ->
           let retyped_ctx, expr = match eo with
           | None -> retyped_ctx, None
-          | Some e -> retype retyped_ctx !function_return_type e |> (fun (new_ctx, expr) -> new_ctx, Some expr) in
+          | Some e -> retype retyped_ctx retyped_ctx.function_return_type e |> (fun (new_ctx, expr) -> new_ctx, Some expr) in
           ( retyped_ctx,
             CppReturn expr,
             TCppVoid )
