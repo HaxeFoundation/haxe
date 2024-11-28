@@ -190,41 +190,50 @@ type retyper_ctx = {
   uses_this : tcppthis option;
   this_real : tcppthis;
   gc_stack : bool;
-  function_return_type: tcpp;
+  function_return_type : tcpp;
+  goto_id : int;
+  loop_stack : (int * bool) list;
 }
 
 let expression ctx request_type function_args function_type expression_tree forInjection =
-  let file_id = ctx.ctx_file_id in
-  let loop_stack = ref [] in
   let forCppia = Gctx.defined ctx.ctx_common Define.Cppia in
-  let alloc_file_id () =
-    incr file_id;
-    !file_id
-  in
-  let begin_loop () =
-    loop_stack := (alloc_file_id (), ref false) :: !loop_stack;
-    fun () ->
-      match !loop_stack with
-      | (label_id, used) :: tl ->
-          loop_stack := tl;
-          if !used then label_id else -1
-      | [] -> abort "Invalid inernal loop handling" expression_tree.epos
-  in
-
-  (* '__trace' is at the top-level *)
   let initial_ctx = {
     closures = [];
     closure_id = 0;
     injection = forInjection;
     undeclared = StringMap.empty;
-    declarations = function_args |> List.map (fun a -> a.v_name, ()) |> StringMap.of_list |> StringMap.add "__trace" ();
+    declarations = function_args |> List.map (fun a -> a.v_name, ()) |> StringMap.of_list |> StringMap.add "__trace" (); (* '__trace' is at the top-level *)
     uses_this = None;
     this_real = if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic;
     gc_stack = false;
     function_return_type = cpp_type_of function_type;
+    goto_id = 0;
+    loop_stack = [];
   } in
 
   (* Helper functions *)
+
+  let alloc_file_id retyper_ctx =
+    ({ retyper_ctx with goto_id = retyper_ctx.goto_id + 1 }, retyper_ctx.goto_id + 1)
+  in
+
+  let begin_loop retyper_ctx =
+    let new_ctx = {
+      retyper_ctx with
+        goto_id    = retyper_ctx.goto_id + 1;
+        loop_stack = (retyper_ctx.goto_id + 1, false) :: retyper_ctx.loop_stack
+    } in
+    let resolver =
+      fun retyper_ctx ->
+        match retyper_ctx.loop_stack with
+        | (label_id, used) :: tl ->
+          { retyper_ctx with loop_stack = tl }, if used then label_id else -1
+        | [] ->
+          abort "Invalid inernal loop handling" expression_tree.epos
+    in
+
+    new_ctx, resolver
+  in
 
   let cpp_const_type retyped_ctx cval =
     match cval with
@@ -436,11 +445,11 @@ let expression ctx request_type function_args function_type expression_tree forI
           if forCppia then
             (retyped_ctx, CppBreak, TCppVoid)
           else
-            match !loop_stack with
-            | [] -> (retyped_ctx, CppBreak, TCppVoid)
-            | (label_id, used) :: _ ->
-                used := true;
-                (retyped_ctx, CppGoto label_id, TCppVoid))
+            match retyped_ctx.loop_stack with
+            | [] ->
+              (retyped_ctx, CppBreak, TCppVoid)
+            | (label_id, used) :: tl ->
+              ({ retyped_ctx with loop_stack = (label_id, true) :: tl }, CppGoto label_id, TCppVoid))
       | TContinue -> (retyped_ctx, CppContinue, TCppVoid)
       | TThrow e1 ->
         let retyped_ctx, retyped_expr = retype retyped_ctx TCppDynamic e1 in
@@ -1097,9 +1106,10 @@ let expression ctx request_type function_args function_type expression_tree forI
           (retyped_ctx, CppFor (v, init, block), TCppVoid)
       | TWhile (e1, e2, flag) ->
           let retyped_ctx, condition = retype retyped_ctx (TCppScalar "bool") e1 in
-          let close = begin_loop () in
+          let retyped_ctx, close = begin_loop retyped_ctx in
           let retyped_ctx, block = retype retyped_ctx TCppVoid (mk_block e2) in
-          (retyped_ctx, CppWhile (condition, block, flag, close ()), TCppVoid)
+          let retyped_ctx, id = close retyped_ctx in
+          (retyped_ctx, CppWhile (condition, block, flag, id), TCppVoid)
       | TArrayDecl el ->
           let el_types = List.map (fun _ -> TCppDynamic) el in
           let retyped_ctx, retypedEls = retype_function_args retyped_ctx el el_types in
@@ -1142,11 +1152,10 @@ let expression ctx request_type function_args function_type expression_tree forI
             in
 
           (
-            { retyped_ctx with
-              injection    = false;
+            { new_ctx with
               declarations = retyped_ctx.declarations;
               undeclared   = new_undeclared;
-              gc_stack     = new_ctx.gc_stack },
+              closures     = retyped_ctx.closures },
             CppBlock (List.rev cppExprs, List.rev new_ctx.closures, new_ctx.gc_stack),
             TCppVoid
           )
@@ -1242,7 +1251,7 @@ let expression ctx request_type function_args function_type expression_tree forI
               in
               (retyped_ctx, CppIntSwitch (condition, List.rev cases, cppDef), TCppVoid)
             with Not_found ->
-              let label = alloc_file_id () in
+              let retyped_ctx, label = alloc_file_id retyped_ctx in
               (* do something better maybe ... *)
               let retyped_ctx, cases =
                 List.fold_left
