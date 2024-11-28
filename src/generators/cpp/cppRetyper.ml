@@ -189,10 +189,10 @@ type retyper_ctx = {
   undeclared : tvar StringMap.t;
   uses_this : tcppthis option;
   this_real : tcppthis;
+  gc_stack : bool;
 }
 
 let expression ctx request_type function_args function_type expression_tree forInjection =
-  let gc_stack = ref false in
   let file_id = ctx.ctx_file_id in
   let function_return_type = ref (cpp_type_of function_type) in
   let loop_stack = ref [] in
@@ -220,6 +220,7 @@ let expression ctx request_type function_args function_type expression_tree forI
     declarations = function_args |> List.map (fun a -> a.v_name, ()) |> StringMap.of_list |> StringMap.add "__trace" ();
     uses_this = None;
     this_real = if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic;
+    gc_stack = false;
   } in
 
   (* Helper functions *)
@@ -887,16 +888,13 @@ let expression ctx request_type function_args function_type expression_tree forI
         let arg_types, _ = cpp_function_type_of_args_ret constructor_type in
         let retyped_ctx, retypedArgs = retype_function_args retyped_ctx args arg_types in
         let created_type = cpp_type_of expr.etype in
-        (gc_stack :=
-            !gc_stack
-            ||
-            match created_type with
-            | TCppInst (t, _) -> not (is_native_class t)
-            | _ -> false);
-        (retyped_ctx, CppCall (FuncNew created_type, retypedArgs), created_type)
+        let gc_stack =
+          retyped_ctx.gc_stack || match created_type with
+          | TCppInst (t, _) -> not (is_native_class t)
+          | _ -> false in
+        ({ retyped_ctx with gc_stack = gc_stack }, CppCall (FuncNew created_type, retypedArgs), created_type)
       | TFunction func ->
         (* TODO - this_dynamic ? *)
-        let old_gc_stack = !gc_stack in
         let old_return_type = !function_return_type in
         let ret = cpp_type_of func.tf_type in
         function_return_type := ret;
@@ -942,7 +940,6 @@ let expression ctx request_type function_args function_type expression_tree forI
         } in
 
         function_return_type := old_return_type;
-        gc_stack := old_gc_stack;
         (retyped_ctx, CppClosure result, TCppDynamic)
       | TArray (e1, e2) ->
           let retyped_ctx, arrayExpr, elemType =
@@ -1028,40 +1025,40 @@ let expression ctx request_type function_args function_type expression_tree forI
           in
           let e1_null = e1.cpptype = TCppNull in
           let e2_null = e2.cpptype = TCppNull in
-          let reference =
+          let retyped_ctx, reference =
             match op with
             | OpAssign ->
                 let lvalue, gc = to_lvalue e1 in
-                if gc then gc_stack := true;
-                CppSet (lvalue, e2)
+                let new_ctx = if gc then { retyped_ctx with gc_stack = true } else retyped_ctx in
+                new_ctx, CppSet (lvalue, e2)
             | OpAssignOp op ->
                 let lvalue, gc = to_lvalue e1 in
-                if gc then gc_stack := true;
-                CppModify (op, lvalue, e2)
-            | OpEq when e1_null && e2_null -> CppBool true
-            | OpGte when e1_null && e2_null -> CppBool true
-            | OpLte when e1_null && e2_null -> CppBool true
-            | OpNotEq when e1_null && e2_null -> CppBool false
-            | _ when e1_null && e2_null -> CppBool false
-            | OpEq when e1_null -> CppNullCompare ("IsNull", e2)
-            | OpGte when e1_null -> CppNullCompare ("IsNull", e2)
-            | OpLte when e1_null -> CppNullCompare ("IsNull", e2)
-            | OpNotEq when e1_null -> CppNullCompare ("IsNotNull", e2)
-            | OpEq when e2_null -> CppNullCompare ("IsNull", e1)
-            | OpGte when e2_null -> CppNullCompare ("IsNull", e1)
-            | OpLte when e2_null -> CppNullCompare ("IsNull", e1)
-            | OpNotEq when e2_null -> CppNullCompare ("IsNotNull", e1)
-            | OpEq when instance -> CppCompare ("IsInstanceEq", e1, e2, op)
-            | OpNotEq when instance -> CppCompare ("IsInstanceNotEq", e1, e2, op)
-            | OpEq when pointer -> CppCompare ("IsPointerEq", e1, e2, op)
-            | OpNotEq when pointer -> CppCompare ("IsPointerNotEq", e1, e2, op)
-            | OpEq when complex -> CppCompare ("IsEq", e1, e2, op)
-            | OpNotEq when complex -> CppCompare ("IsNotEq", e1, e2, op)
-            | OpGte when complex -> CppCompare ("IsGreaterEq", e1, e2, op)
-            | OpLte when complex -> CppCompare ("IsLessEq", e1, e2, op)
-            | OpGt when complex -> CppCompare ("IsGreater", e1, e2, op)
-            | OpLt when complex -> CppCompare ("IsLess", e1, e2, op)
-            | _ -> CppBinop (op, e1, e2)
+                let new_ctx = if gc then { retyped_ctx with gc_stack = true } else retyped_ctx in
+                new_ctx, CppModify (op, lvalue, e2)
+            | OpEq when e1_null && e2_null -> retyped_ctx, CppBool true
+            | OpGte when e1_null && e2_null -> retyped_ctx, CppBool true
+            | OpLte when e1_null && e2_null -> retyped_ctx, CppBool true
+            | OpNotEq when e1_null && e2_null -> retyped_ctx, CppBool false
+            | _ when e1_null && e2_null -> retyped_ctx, CppBool false
+            | OpEq when e1_null -> retyped_ctx, CppNullCompare ("IsNull", e2)
+            | OpGte when e1_null -> retyped_ctx, CppNullCompare ("IsNull", e2)
+            | OpLte when e1_null -> retyped_ctx, CppNullCompare ("IsNull", e2)
+            | OpNotEq when e1_null -> retyped_ctx, CppNullCompare ("IsNotNull", e2)
+            | OpEq when e2_null -> retyped_ctx, CppNullCompare ("IsNull", e1)
+            | OpGte when e2_null -> retyped_ctx, CppNullCompare ("IsNull", e1)
+            | OpLte when e2_null -> retyped_ctx, CppNullCompare ("IsNull", e1)
+            | OpNotEq when e2_null -> retyped_ctx, CppNullCompare ("IsNotNull", e1)
+            | OpEq when instance -> retyped_ctx, CppCompare ("IsInstanceEq", e1, e2, op)
+            | OpNotEq when instance -> retyped_ctx, CppCompare ("IsInstanceNotEq", e1, e2, op)
+            | OpEq when pointer -> retyped_ctx, CppCompare ("IsPointerEq", e1, e2, op)
+            | OpNotEq when pointer -> retyped_ctx, CppCompare ("IsPointerNotEq", e1, e2, op)
+            | OpEq when complex -> retyped_ctx, CppCompare ("IsEq", e1, e2, op)
+            | OpNotEq when complex -> retyped_ctx, CppCompare ("IsNotEq", e1, e2, op)
+            | OpGte when complex -> retyped_ctx, CppCompare ("IsGreaterEq", e1, e2, op)
+            | OpLte when complex -> retyped_ctx, CppCompare ("IsLessEq", e1, e2, op)
+            | OpGt when complex -> retyped_ctx, CppCompare ("IsGreater", e1, e2, op)
+            | OpLt when complex -> retyped_ctx, CppCompare ("IsLess", e1, e2, op)
+            | _ -> retyped_ctx, CppBinop (op, e1, e2)
           in
           match (op, e1.cpptype, e2.cpptype) with
           (* Variant + Variant = Variant *)
@@ -1078,19 +1075,19 @@ let expression ctx request_type function_args function_type expression_tree forI
           in
 
           let retyped_ctx, e1 = retype retyped_ctx targetType e1 in
-          let reference =
+          let retyped_ctx, reference =
             match op with
             | Increment ->
                 let lvalue, gc = to_lvalue e1 in
-                if gc then gc_stack := true;
-                CppCrement (CppIncrement, pre, lvalue)
+                let new_ctx = if gc then { retyped_ctx with gc_stack = true } else retyped_ctx in
+                new_ctx, CppCrement (CppIncrement, pre, lvalue)
             | Decrement ->
                 let lvalue, gc = to_lvalue e1 in
-                if gc then gc_stack := true;
-                CppCrement (CppDecrement, pre, lvalue)
-            | Neg -> CppUnop (CppNeg, e1)
-            | Not -> CppUnop (CppNot, e1)
-            | NegBits -> CppUnop (CppNegBits, e1)
+                let new_ctx = if gc then { retyped_ctx with gc_stack = true } else retyped_ctx in
+                new_ctx, CppCrement (CppDecrement, pre, lvalue)
+            | Neg -> retyped_ctx, CppUnop (CppNeg, e1)
+            | Not -> retyped_ctx, CppUnop (CppNot, e1)
+            | NegBits -> retyped_ctx, CppUnop (CppNegBits, e1)
             | Spread -> die ~p:expr.epos "Unexpected spread operator" __LOC__
           in
           (retyped_ctx, reference, cpp_type_of expr.etype)
@@ -1146,7 +1143,15 @@ let expression ctx request_type function_args function_type expression_tree forI
               (StringMap.bindings new_ctx.undeclared)
             in
 
-          ({ retyped_ctx with injection = false; declarations = retyped_ctx.declarations; undeclared = new_undeclared }, CppBlock (List.rev cppExprs, List.rev new_ctx.closures, !gc_stack), TCppVoid)
+          (
+            { retyped_ctx with
+              injection    = false;
+              declarations = retyped_ctx.declarations;
+              undeclared   = new_undeclared;
+              gc_stack     = new_ctx.gc_stack },
+            CppBlock (List.rev cppExprs, List.rev new_ctx.closures, new_ctx.gc_stack),
+            TCppVoid
+          )
       | TObjectDecl
           [
             (("fileName", _, _), { eexpr = TConst (TString file) });
