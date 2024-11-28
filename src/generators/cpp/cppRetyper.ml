@@ -181,9 +181,12 @@ let cpp_function_type_of_string = cpp_function_type_of_string []
 let cpp_function_type_of_args_ret = cpp_function_type_of_args_ret []
 let cpp_instance_type = cpp_instance_type []
 
+type retyper_ctx = {
+  closure_id : int;
+  closures : tcpp_closure list;
+}
+
 let expression ctx request_type function_args function_type expression_tree forInjection =
-  let rev_closures = ref [] in
-  let closureId = ref 0 in
   let declarations = ref (Hashtbl.create 0) in
   let undeclared = ref (Hashtbl.create 0) in
   let uses_this = ref None in
@@ -365,7 +368,7 @@ let expression ctx request_type function_args function_type expression_tree forI
   in
 
   (* Core Retyping *)
-  let rec retype (retyped_ctx:unit) return_type expr =
+  let rec retype retyped_ctx return_type expr =
     let cpp_type_of t = cpp_type_of t in
     let mk_cppexpr newExpr newType =
       { cppexpr = newExpr; cpptype = newType; cpppos = expr.epos }
@@ -907,14 +910,14 @@ let expression ctx request_type function_args function_type expression_tree forI
         let result =
           {
             close_expr = cppExpr;
-            close_id = !closureId;
+            close_id = retyped_ctx.closure_id;
             close_undeclared = !undeclared;
             close_type = ret;
             close_args = func.tf_args;
             close_this = !uses_this;
           }
         in
-        incr closureId;
+        let new_ctx = { retyped_ctx with closure_id = retyped_ctx.closure_id + 1; closures = result :: retyped_ctx.closures } in
         declarations := old_declarations;
         undeclared := old_undeclared;
         Hashtbl.iter
@@ -927,8 +930,7 @@ let expression ctx request_type function_args function_type expression_tree forI
         uses_this :=
           if !uses_this != None then Some old_this_real else old_uses_this;
         gc_stack := old_gc_stack;
-        rev_closures := result :: !rev_closures;
-        (retyped_ctx, CppClosure result, TCppDynamic)
+        (new_ctx, CppClosure result, TCppDynamic)
       | TArray (e1, e2) ->
           let retyped_ctx, arrayExpr, elemType =
             match cpp_is_native_array_access (cpp_type_of e1.etype) with
@@ -1104,11 +1106,9 @@ let expression ctx request_type function_args function_type expression_tree forI
               ^ string_of_int (Lexer.get_error_line expr.epos));
 
           let old_declarations = Hashtbl.copy !declarations in
-          let old_closures = !rev_closures in
-          rev_closures := [];
-          let local_closures = ref [] in
           let remaining = ref (List.length expr_list) in
-          let retyped_ctx, cppExprs =
+          let new_ctx = { retyped_ctx with closures = [] } in
+          let new_ctx, cppExprs =
             List.fold_left
               (fun (cur_ctx, exprs) expr ->
                 let targetType =
@@ -1117,16 +1117,13 @@ let expression ctx request_type function_args function_type expression_tree forI
                 in
                 decr remaining;
                 let new_ctx, result = retype cur_ctx targetType expr in
-                local_closures := !rev_closures @ !local_closures;
-                rev_closures := [];
                 new_ctx, result :: exprs)
-              (retyped_ctx, [])
+              (new_ctx, [])
               expr_list
           in
           declarations := old_declarations;
-          rev_closures := old_closures;
 
-          (retyped_ctx, CppBlock (List.rev cppExprs, List.rev !local_closures, !gc_stack), TCppVoid)
+          ({ retyped_ctx with closure_id = new_ctx.closure_id }, CppBlock (List.rev cppExprs, List.rev new_ctx.closures, !gc_stack), TCppVoid)
       | TObjectDecl
           [
             (("fileName", _, _), { eexpr = TConst (TString file) });
@@ -1458,7 +1455,7 @@ let expression ctx request_type function_args function_type expression_tree forI
         retyped_ctx, mk_cppexpr (CppCastScalar (cppExpr, too)) return_type
       | _ -> retyped_ctx, cppExpr
   in
-  retype () request_type expression_tree |> snd
+  retype { closure_id = 0; closures = [] } request_type expression_tree |> snd
 
 let rec get_id path ids =
   let class_name = class_text path in
