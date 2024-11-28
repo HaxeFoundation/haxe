@@ -184,6 +184,7 @@ let cpp_instance_type = cpp_instance_type []
 type retyper_ctx = {
   closure_id : int;
   closures : tcpp_closure list;
+  injection : bool;
 }
 
 let expression ctx request_type function_args function_type expression_tree forInjection =
@@ -191,7 +192,6 @@ let expression ctx request_type function_args function_type expression_tree forI
   let undeclared = ref (Hashtbl.create 0) in
   let uses_this = ref None in
   let gc_stack = ref false in
-  let injection = ref forInjection in
   let this_real = ref (if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic) in
   let file_id = ctx.ctx_file_id in
   let function_return_type = ref (cpp_type_of function_type) in
@@ -1098,8 +1098,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           let retyped_ctx, retypedEls = retype_function_args retyped_ctx el el_types in
           (retyped_ctx, CppArrayDecl retypedEls, cpp_type_of expr.etype)
       | TBlock expr_list ->
-          let inject = !injection in
-          injection := false;
+          let inject = retyped_ctx.injection in
           if return_type <> TCppVoid && not forCppia then
             print_endline
               ("Value from a block not handled " ^ expr.epos.pfile ^ " "
@@ -1107,7 +1106,7 @@ let expression ctx request_type function_args function_type expression_tree forI
 
           let old_declarations = Hashtbl.copy !declarations in
           let remaining = ref (List.length expr_list) in
-          let new_ctx = { retyped_ctx with closures = [] } in
+          let new_ctx = { retyped_ctx with closures = []; injection = false } in
           let new_ctx, cppExprs =
             List.fold_left
               (fun (cur_ctx, exprs) expr ->
@@ -1123,7 +1122,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           in
           declarations := old_declarations;
 
-          ({ retyped_ctx with closure_id = new_ctx.closure_id }, CppBlock (List.rev cppExprs, List.rev new_ctx.closures, !gc_stack), TCppVoid)
+          ({ retyped_ctx with closure_id = new_ctx.closure_id; injection = false }, CppBlock (List.rev cppExprs, List.rev new_ctx.closures, !gc_stack), TCppVoid)
       | TObjectDecl
           [
             (("fileName", _, _), { eexpr = TConst (TString file) });
@@ -1455,7 +1454,7 @@ let expression ctx request_type function_args function_type expression_tree forI
         retyped_ctx, mk_cppexpr (CppCastScalar (cppExpr, too)) return_type
       | _ -> retyped_ctx, cppExpr
   in
-  retype { closure_id = 0; closures = [] } request_type expression_tree |> snd
+  retype { closure_id = 0; closures = []; injection = forInjection } request_type expression_tree |> snd
 
 let rec get_id path ids =
   let class_name = class_text path in
