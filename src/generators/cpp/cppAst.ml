@@ -86,7 +86,7 @@ and tcpp_closure = {
   close_args : (tvar * texpr option) list;
   close_expr : tcppexpr;
   close_id : int;
-  close_undeclared : (string, tvar) Hashtbl.t;
+  close_undeclared : tvar StringMap.t;
   close_this : tcppthis option;
 }
 

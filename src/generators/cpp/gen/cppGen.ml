@@ -945,7 +945,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
             separator := ","
         | _ -> ());
 
-        Hashtbl.iter
+        StringMap.iter
           (fun name value ->
             out !separator;
             separator := ",";
@@ -1462,7 +1462,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     | OpNullCoal -> "??"
     | OpAssign | OpAssignOp _ -> abort "Unprocessed OpAssign" pos
   and gen_closure closure =
-    let argc = Hashtbl.length closure.close_undeclared in
+    let argc = StringMap.bindings closure.close_undeclared |> List.length in
     let size = string_of_int argc in
     if argc >= 62 then
       (* Limited by c++ macro size of 128 args *)
@@ -1475,7 +1475,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
       (if closure.close_this != None then "::hx::LocalThisFunc,"
        else "::hx::LocalFunc,");
     out ("_hx_Closure_" ^ string_of_int closure.close_id);
-    Hashtbl.iter
+    StringMap.iter
       (fun name var ->
         out ("," ^ cpp_macro_var_type_of var ^ "," ^ keyword_remap name))
       closure.close_undeclared;

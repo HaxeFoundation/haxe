@@ -185,11 +185,11 @@ type retyper_ctx = {
   closure_id : int;
   closures : tcpp_closure list;
   injection : bool;
+  declarations : unit StringMap.t;
+  undeclared : tvar StringMap.t;
 }
 
 let expression ctx request_type function_args function_type expression_tree forInjection =
-  let declarations = ref (Hashtbl.create 0) in
-  let undeclared = ref (Hashtbl.create 0) in
   let uses_this = ref None in
   let gc_stack = ref false in
   let this_real = ref (if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic) in
@@ -212,8 +212,13 @@ let expression ctx request_type function_args function_type expression_tree forI
   in
 
   (* '__trace' is at the top-level *)
-  Hashtbl.add !declarations "__trace" ();
-  List.iter (fun arg -> Hashtbl.add !declarations arg.v_name ()) function_args;
+  let initial_ctx = {
+    closures = [];
+    closure_id = 0;
+    injection = forInjection;
+    undeclared = StringMap.empty;
+    declarations = function_args |> List.map (fun a -> a.v_name, ()) |> StringMap.of_list |> StringMap.add "__trace" ();
+  } in
 
   (* Helper functions *)
 
@@ -414,16 +419,14 @@ let expression ctx request_type function_args function_type expression_tree forI
           (retyped_ctx, CppClassOf (([], ""), false), TCppGlobal)
       | TLocal tvar ->
           let name = tvar.v_name in
-          if Hashtbl.mem !declarations name then
-            (*print_endline ("Using existing tvar " ^ tvar.v_name);*)
+          if StringMap.mem name retyped_ctx.declarations then
             (retyped_ctx, CppVar (VarLocal tvar), cpp_type_of tvar.v_type)
           else (
-            (*print_endline ("Missing tvar " ^ tvar.v_name);*)
-            Hashtbl.replace !undeclared name tvar;
+            let new_ctx = { retyped_ctx with undeclared = StringMap.add name tvar retyped_ctx.undeclared } in
             if has_var_flag tvar VCaptured then
-              (retyped_ctx, CppVar (VarClosure tvar), cpp_type_of tvar.v_type)
+              (new_ctx, CppVar (VarClosure tvar), cpp_type_of tvar.v_type)
             else
-              (retyped_ctx, CppExtern (name, false), cpp_type_of tvar.v_type))
+              (new_ctx, CppExtern (name, false), cpp_type_of tvar.v_type))
       | TIdent name -> (retyped_ctx, CppExtern (name, false), return_type)
       | TBreak -> (
           if forCppia then
@@ -893,44 +896,51 @@ let expression ctx request_type function_args function_type expression_tree forI
         let old_this_real = !this_real in
         this_real := ThisFake;
         (* TODO - this_dynamic ? *)
-        let old_undeclared = Hashtbl.copy !undeclared in
-        let old_declarations = Hashtbl.copy !declarations in
         let old_uses_this = !uses_this in
         let old_gc_stack = !gc_stack in
         let old_return_type = !function_return_type in
         let ret = cpp_type_of func.tf_type in
         function_return_type := ret;
         uses_this := None;
-        undeclared := Hashtbl.create 0;
-        declarations := Hashtbl.create 0;
-        List.iter
-          (fun (tvar, _) -> Hashtbl.add !declarations tvar.v_name ())
-          func.tf_args;
-        let retyped_ctx, cppExpr = retype retyped_ctx TCppVoid (mk_block func.tf_expr) in
+
+        let new_ctx = {
+          retyped_ctx with
+            declarations = func.tf_args |> List.map (fun (a, _) -> a.v_name, ()) |> StringMap.of_list;
+            undeclared   = StringMap.empty;
+        } in
+        let new_ctx, cppExpr = retype new_ctx TCppVoid (mk_block func.tf_expr) in
+
         let result =
           {
             close_expr = cppExpr;
             close_id = retyped_ctx.closure_id;
-            close_undeclared = !undeclared;
+            close_undeclared = new_ctx.undeclared;
             close_type = ret;
             close_args = func.tf_args;
             close_this = !uses_this;
           }
         in
-        let new_ctx = { retyped_ctx with closure_id = retyped_ctx.closure_id + 1; closures = result :: retyped_ctx.closures } in
-        declarations := old_declarations;
-        undeclared := old_undeclared;
-        Hashtbl.iter
-          (fun name tvar ->
-            if not (Hashtbl.mem !declarations name) then
-              Hashtbl.replace !undeclared name tvar)
-          result.close_undeclared;
+        let folder acc (name, tvar) =
+          if not (StringMap.mem name retyped_ctx.declarations) then
+            StringMap.add name tvar acc
+          else
+            acc
+          in
+        let new_undeclared =
+          List.fold_left
+            folder
+            retyped_ctx.undeclared
+            (StringMap.bindings new_ctx.undeclared)
+          in
+
+        let retyped_ctx = { retyped_ctx with closure_id = retyped_ctx.closure_id + 1; closures = result :: retyped_ctx.closures; undeclared = new_undeclared } in
+
         function_return_type := old_return_type;
         this_real := old_this_real;
         uses_this :=
           if !uses_this != None then Some old_this_real else old_uses_this;
         gc_stack := old_gc_stack;
-        (new_ctx, CppClosure result, TCppDynamic)
+        (retyped_ctx, CppClosure result, TCppDynamic)
       | TArray (e1, e2) ->
           let retyped_ctx, arrayExpr, elemType =
             match cpp_is_native_array_access (cpp_type_of e1.etype) with
@@ -1082,11 +1092,10 @@ let expression ctx request_type function_args function_type expression_tree forI
           in
           (retyped_ctx, reference, cpp_type_of expr.etype)
       | TFor (v, init, block) ->
-          let old_declarations = Hashtbl.copy !declarations in
-          Hashtbl.add !declarations v.v_name ();
+          let retyped_ctx = { retyped_ctx with declarations = StringMap.add v.v_name () retyped_ctx.declarations } in
           let retyped_ctx, init = retype retyped_ctx (cpp_type_of v.v_type) init in
           let retyped_ctx, block = retype retyped_ctx TCppVoid (mk_block block) in
-          declarations := old_declarations;
+          let retyped_ctx = { retyped_ctx with declarations = StringMap.remove v.v_name retyped_ctx.declarations } in
           (retyped_ctx, CppFor (v, init, block), TCppVoid)
       | TWhile (e1, e2, flag) ->
           let retyped_ctx, condition = retype retyped_ctx (TCppScalar "bool") e1 in
@@ -1098,20 +1107,18 @@ let expression ctx request_type function_args function_type expression_tree forI
           let retyped_ctx, retypedEls = retype_function_args retyped_ctx el el_types in
           (retyped_ctx, CppArrayDecl retypedEls, cpp_type_of expr.etype)
       | TBlock expr_list ->
-          let inject = retyped_ctx.injection in
           if return_type <> TCppVoid && not forCppia then
             print_endline
               ("Value from a block not handled " ^ expr.epos.pfile ^ " "
               ^ string_of_int (Lexer.get_error_line expr.epos));
 
-          let old_declarations = Hashtbl.copy !declarations in
           let remaining = ref (List.length expr_list) in
           let new_ctx = { retyped_ctx with closures = []; injection = false } in
           let new_ctx, cppExprs =
             List.fold_left
               (fun (cur_ctx, exprs) expr ->
                 let targetType =
-                  if inject && !remaining = 1 then cpp_type_of expr.etype
+                  if retyped_ctx.injection && !remaining = 1 then cpp_type_of expr.etype
                   else TCppVoid
                 in
                 decr remaining;
@@ -1120,9 +1127,23 @@ let expression ctx request_type function_args function_type expression_tree forI
               (new_ctx, [])
               expr_list
           in
-          declarations := old_declarations;
 
-          ({ retyped_ctx with closure_id = new_ctx.closure_id; injection = false }, CppBlock (List.rev cppExprs, List.rev new_ctx.closures, !gc_stack), TCppVoid)
+          (* Add back any undeclared variables *)
+          (* Needed for tracking variables captured by variables *)
+          let folder acc (name, tvar) =
+            if not (StringMap.mem name retyped_ctx.declarations) then
+              StringMap.add name tvar acc
+            else
+              acc
+            in
+          let new_undeclared =
+            List.fold_left
+              folder
+              retyped_ctx.undeclared
+              (StringMap.bindings new_ctx.undeclared)
+            in
+
+          ({ retyped_ctx with injection = false; declarations = retyped_ctx.declarations; undeclared = new_undeclared }, CppBlock (List.rev cppExprs, List.rev new_ctx.closures, !gc_stack), TCppVoid)
       | TObjectDecl
           [
             (("fileName", _, _), { eexpr = TConst (TString file) });
@@ -1150,7 +1171,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             | None -> retyped_ctx, None
             | Some e -> retype retyped_ctx varType e |> (fun (new_ctx, expr) -> new_ctx, Some expr)
           in
-          Hashtbl.add !declarations v.v_name ();
+          let retyped_ctx = { retyped_ctx with declarations = StringMap.add v.v_name () retyped_ctx.declarations } in
           (retyped_ctx, CppVarDecl (v, init), varType)
       | TIf (ec, e1, e2) ->
           let retyped_ctx, ec = retype retyped_ctx (TCppScalar "bool") ec in
@@ -1249,10 +1270,9 @@ let expression ctx request_type function_args function_type expression_tree forI
           let retyped_ctx, cppCatches =
             List.fold_left
               (fun (retyped_ctx, acc) (tvar, catch_block) ->
-                let old_declarations = Hashtbl.copy !declarations in
-                Hashtbl.add !declarations tvar.v_name ();
+                let retyped_ctx = { retyped_ctx with declarations = StringMap.add tvar.v_name () retyped_ctx.declarations } in
                 let retyped_ctx, cppCatchBlock = retype retyped_ctx TCppVoid catch_block in
-                declarations := old_declarations;
+                let retyped_ctx = { retyped_ctx with declarations = StringMap.remove tvar.v_name retyped_ctx.declarations } in
                 retyped_ctx, (tvar, cppCatchBlock) :: acc)
               (retyped_ctx, [])
               catches
@@ -1454,7 +1474,7 @@ let expression ctx request_type function_args function_type expression_tree forI
         retyped_ctx, mk_cppexpr (CppCastScalar (cppExpr, too)) return_type
       | _ -> retyped_ctx, cppExpr
   in
-  retype { closure_id = 0; closures = []; injection = forInjection } request_type expression_tree |> snd
+  retype initial_ctx request_type expression_tree |> snd
 
 let rec get_id path ids =
   let class_name = class_text path in
