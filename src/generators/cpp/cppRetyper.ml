@@ -201,7 +201,7 @@ let expression ctx request_type function_args function_type expression_tree forI
     closure_id = 0;
     injection = forInjection;
     undeclared = StringMap.empty;
-    declarations = function_args |> List.map (fun a -> a.v_name, ()) |> StringMap.of_list |> StringMap.add "__trace" (); (* '__trace' is at the top-level *)
+    declarations = function_args |> List.map (fun a -> a.v_name, ()) |> string_map_of_list |> StringMap.add "__trace" (); (* '__trace' is at the top-level *)
     uses_this = None;
     this_real = if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic;
     gc_stack = false;
@@ -907,7 +907,7 @@ let expression ctx request_type function_args function_type expression_tree forI
 
         let new_ctx = {
           retyper_ctx with
-            declarations = func.tf_args |> List.map (fun (a, _) -> a.v_name, ()) |> StringMap.of_list;
+            declarations = func.tf_args |> List.map (fun (a, _) -> a.v_name, ()) |> string_map_of_list;
             undeclared   = StringMap.empty;
             this_real    = ThisFake;
             uses_this    = None;
