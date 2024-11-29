@@ -329,18 +329,19 @@ let do_type ctx mctx actx display_file_dot_path =
 let finalize_typing ctx tctx =
 	let t = Timer.timer ["finalize"] in
 	let com = ctx.com in
+	let main_module = Finalization.maybe_load_main tctx in
 	enter_stage com CFilteringStart;
 	ServerMessage.compiler_stage com;
-	let main, types, modules = run_or_diagnose ctx (fun () -> Finalization.generate tctx) in
+	let main, types, modules = run_or_diagnose ctx (fun () -> Finalization.generate tctx main_module) in
 	com.main.main_expr <- main;
 	com.types <- types;
 	com.modules <- modules;
 	t()
 
-let filter ctx tctx before_destruction =
+let filter ctx tctx ectx before_destruction =
 	let t = Timer.timer ["filters"] in
 	DeprecationCheck.run ctx.com;
-	run_or_diagnose ctx (fun () -> Filters.run tctx ctx.com.main.main_expr before_destruction);
+	run_or_diagnose ctx (fun () -> Filters.run tctx ectx ctx.com.main.main_expr before_destruction);
 	t()
 
 let compile ctx actx callbacks =
@@ -382,6 +383,7 @@ let compile ctx actx callbacks =
 		(* Actual compilation starts here *)
 		let (tctx,display_file_dot_path) = do_type ctx mctx actx display_file_dot_path in
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
+		let ectx = Exceptions.create_exception_context tctx in
 		finalize_typing ctx tctx;
 		let is_compilation = is_compilation com in
 		com.callbacks#add_after_save (fun () ->
@@ -393,10 +395,10 @@ let compile ctx actx callbacks =
 					()
 		);
 		if is_diagnostics com then
-			filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)
+			filter ctx tctx ectx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)
 		else begin
 			DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
-			filter ctx tctx (fun () -> ());
+			filter ctx tctx ectx (fun () -> ());
 		end;
 		if ctx.has_error then raise Abort;
 		if is_compilation then Generate.check_auxiliary_output com actx;

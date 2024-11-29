@@ -390,7 +390,7 @@ let rec to_type ?tref ctx t =
 	| TType (td,tl) ->
 		let t =
 			get_rec_cache ctx t
-				(fun() -> abort "Unsupported recursive type" td.t_pos)
+				(fun() -> HDyn)
 				(fun tref -> to_type ~tref ctx (apply_typedef td tl))
 		in
 		(match td.t_path with

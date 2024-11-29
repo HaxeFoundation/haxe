@@ -22,7 +22,6 @@ open DisplayTypes.DisplayMode
 open Common
 open Type
 open Typecore
-open Resolution
 open Error
 open Globals
 
@@ -200,23 +199,11 @@ let make_macro_com_api com mcom p =
 		type_expr = (fun e ->
 			Interp.exc_string "unsupported"
 		);
-		flush_context = (fun f ->
-			Interp.exc_string "unsupported"
-		);
 		store_typed_expr = (fun te ->
 			let p = te.epos in
 			snd (Typecore.store_typed_expr com te p)
 		);
 		allow_package = (fun v -> Common.allow_package com v);
-		set_js_generator = (fun gen ->
-			com.js_gen <- Some (fun() ->
-				Path.mkdir_from_path com.file;
-				let js_ctx = Genjs.alloc_ctx (Common.to_gctx com) (Gctx.get_es_version com.defines) in
-				let t = macro_timer com ["jsGenerator"] in
-				gen js_ctx;
-				t()
-			);
-		);
 		get_local_type = (fun() ->
 			Interp.exc_string "unsupported"
 		);
@@ -417,9 +404,6 @@ let make_macro_api ctx mctx p =
 		MacroApi.type_expr = (fun e ->
 			typing_timer ctx true (fun ctx -> type_expr ctx e WithType.value)
 		);
-		MacroApi.flush_context = (fun f ->
-			typing_timer ctx true (fun _ -> f ())
-		);
 		MacroApi.get_local_type = (fun() ->
 			match ctx.c.get_build_infos() with
 			| Some (mt,tl,_) ->
@@ -506,7 +490,13 @@ let make_macro_api ctx mctx p =
 			let mpath = Ast.parse_path m in
 			begin try
 				let m = ctx.com.module_lut#find mpath in
-				ignore(TypeloadModule.type_types_into_module ctx.com ctx.g m types pos)
+				if m != ctx.m.curmod then begin
+					let pos = { pfile = (Path.UniqueKey.lazy_path m.m_extra.m_file); pmin = 0; pmax = 0 } in
+					raise_typing_error_ext (make_error ~sub:[
+						make_error ~depth:1 (Custom "Previously defined here") pos
+					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
+				end else
+					ignore(TypeloadModule.type_types_into_module ctx.com ctx.g m types pos)
 			with Not_found ->
 				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.file_keys#generate_virtual ctx.com.compilation_step) types pos in
 				mnew.m_extra.m_kind <- MFake;
@@ -602,16 +592,18 @@ let init_macro_interp mctx mint =
 and flush_macro_context mint mctx =
 	let t = macro_timer mctx.com ["flush"] in
 	let mctx = (match mctx.g.macros with None -> die "" __LOC__ | Some (_,mctx) -> mctx) in
+	let main_module = Finalization.maybe_load_main mctx in
 	Finalization.finalize mctx;
-	let _, types, modules = Finalization.generate mctx in
+	let _, types, modules = Finalization.generate mctx main_module in
 	mctx.com.types <- types;
 	mctx.com.Common.modules <- modules;
+	let ectx = Exceptions.create_exception_context mctx in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
 	let expr_filters = [
-		"handle_abstract_casts",AbstractCast.handle_abstract_casts mctx;
-		"local_statics",LocalStatic.run mctx;
-		"Exceptions",Exceptions.filter mctx;
-		"captured_vars",CapturedVars.captured_vars mctx.com;
+		"handle_abstract_casts",AbstractCast.handle_abstract_casts;
+		"local_statics",LocalStatic.run;
+		"Exceptions",(fun _ -> Exceptions.filter ectx);
+		"captured_vars",(fun _ -> CapturedVars.captured_vars mctx.com);
 	] in
 	(*
 		some filters here might cause side effects that would break compilation server.
@@ -655,7 +647,7 @@ and flush_macro_context mint mctx =
 	in
 	let type_filters = [
 		FiltersCommon.remove_generic_base;
-		Exceptions.patch_constructors mctx;
+		Exceptions.patch_constructors mctx ectx;
 		(fun mt -> AddFieldInits.add_field_inits mctx.c.curclass.cl_path (RenameVars.init mctx.com) mctx.com mt);
 		Filters.update_cache_dependencies ~close_monomorphs:false mctx.com;
 		minimal_restore;
@@ -702,6 +694,7 @@ let create_macro_interp api mctx =
 
 let create_macro_context com =
 	let com2 = Common.clone com true in
+	enter_stage com2 CInitMacrosDone;
 	com.get_macros <- (fun() -> Some com2);
 	com2.package_rules <- PMap.empty;
 	(* Inherit most display settings, but require normal typing. *)
@@ -752,7 +745,7 @@ let load_macro_module mctx com cpath display p =
 	let old = mctx.com.display in
 	if display then mctx.com.display <- com.display;
 	let mloaded = TypeloadModule.load_module ~origin:MDepFromMacro mctx m p in
-	mctx.m <- {
+	(* mctx.m <- {
 		curmod = mloaded;
 		import_resolution = new resolution_list ["import";s_type_path cpath];
 		own_resolution = None;
@@ -760,7 +753,7 @@ let load_macro_module mctx com cpath display p =
 		module_using = [];
 		import_statements = [];
 		is_display_file = (com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mloaded.m_extra.m_file));
-	};
+	}; *)
 	mloaded,(fun () -> mctx.com.display <- old)
 
 let load_macro'' com mctx display cpath f p =
@@ -794,7 +787,7 @@ let load_macro'' com mctx display cpath f p =
 		restore();
 		if not com.is_macro_context then flush_macro_context mint mctx;
 		mctx.com.cached_macros#add (cpath,f) meth;
-		mctx.m <- {
+		(* mctx.m <- {
 			curmod = null_module;
 			import_resolution = new resolution_list ["import";s_type_path cpath];
 			own_resolution = None;
@@ -802,7 +795,7 @@ let load_macro'' com mctx display cpath f p =
 			module_using = [];
 			import_statements = [];
 			is_display_file = false;
-		};
+		}; *)
 		t();
 		meth
 
@@ -1017,7 +1010,6 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	e
 
 let call_macro mctx args margs call p =
-	mctx.c.curclass <- null_class;
 	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> raise_typing_error "Argument should be a constant" e.epos) el)
 

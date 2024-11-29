@@ -1,7 +1,4 @@
-open Extlib_leftovers
-open Ast
 open Type
-open Error
 open Globals
 
 module PathMap = Map.Make(struct type t = path let compare i1 i2 = String.compare (s_type_path i2) (s_type_path i1) end)

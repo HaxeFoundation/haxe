@@ -251,27 +251,29 @@ let mark_switch_break_loops e =
 	in
 	run e
 
-let rec fix_return_dynamic_from_void_function return_is_void e =
-	match e.eexpr with
-	| TFunction fn ->
-		let is_void = ExtType.is_void (follow fn.tf_type) in
-		let body = fix_return_dynamic_from_void_function is_void fn.tf_expr in
-		{ e with eexpr = TFunction { fn with tf_expr = body } }
-	| TReturn (Some return_expr) when return_is_void && t_dynamic == follow return_expr.etype ->
-		let return_pos = { e.epos with pmax = return_expr.epos.pmin - 1 } in
-		let exprs = [
-			fix_return_dynamic_from_void_function return_is_void return_expr;
-			{ e with eexpr = TReturn None; epos = return_pos };
-		] in
-		{ e with
-			eexpr = TMeta (
-				(Meta.MergeBlock, [], null_pos),
-				mk (TBlock exprs) e.etype e.epos
-			);
-		}
-	| _ -> Type.map_expr (fix_return_dynamic_from_void_function return_is_void) e
+let fix_return_dynamic_from_void_function _ e =
+	let rec loop return_is_void e = match e.eexpr with
+		| TFunction fn ->
+			let is_void = ExtType.is_void (follow fn.tf_type) in
+			let body = loop is_void fn.tf_expr in
+			{ e with eexpr = TFunction { fn with tf_expr = body } }
+		| TReturn (Some return_expr) when return_is_void && t_dynamic == follow return_expr.etype ->
+			let return_pos = { e.epos with pmax = return_expr.epos.pmin - 1 } in
+			let exprs = [
+				loop return_is_void return_expr;
+				{ e with eexpr = TReturn None; epos = return_pos };
+			] in
+			{ e with
+				eexpr = TMeta (
+					(Meta.MergeBlock, [], null_pos),
+					mk (TBlock exprs) e.etype e.epos
+				);
+			}
+		| _ -> Type.map_expr (loop return_is_void) e
+	in
+	loop true e
 
-let check_abstract_as_value e =
+let check_abstract_as_value _ e =
 	let rec loop e =
 		match e.eexpr with
 		| TField ({ eexpr = TTypeExpr _ }, _) -> ()
@@ -457,7 +459,7 @@ end
 
 open FilterContext
 
-let destruction tctx detail_times main locals =
+let destruction tctx ectx detail_times main locals =
 	let com = tctx.com in
 	with_timer detail_times "type 2" None (fun () ->
 		(* PASS 2: type filters pre-DCE *)
@@ -489,30 +491,30 @@ let destruction tctx detail_times main locals =
 			tctx
 			detail_times
 			(* This has to run after DCE, or otherwise its condition always holds. *)
-			["insert_save_stacks",Exceptions.insert_save_stacks tctx]
+			["insert_save_stacks",(fun tctx -> Exceptions.insert_save_stacks tctx ectx)]
 		)
 		com.types;
 	let type_filters = [
-		Exceptions.patch_constructors tctx; (* TODO: I don't believe this should load_instance anything at this point... *)
-		check_private_path com;
-		Naming.apply_native_paths;
-		add_rtti com;
-		(match com.platform with | Jvm -> (fun _ -> ()) | _ -> (fun mt -> AddFieldInits.add_field_inits tctx.c.curclass.cl_path locals com mt));
-		(match com.platform with Hl -> (fun _ -> ()) | _ -> add_meta_field com);
-		check_void_field;
-		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ()));
-		commit_features com;
-		(if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths com else (fun _ -> ()));
+		(fun tctx -> Exceptions.patch_constructors tctx ectx); (* TODO: I don't believe this should load_instance anything at this point... *)
+		(fun _ -> check_private_path com);
+		(fun _ -> Naming.apply_native_paths);
+		(fun _ -> add_rtti com);
+		(match com.platform with | Jvm -> (fun _ _ -> ()) | _ -> (fun tctx mt -> AddFieldInits.add_field_inits tctx.c.curclass.cl_path locals com mt));
+		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> (fun _ -> add_meta_field com));
+		(fun _ -> check_void_field);
+		(fun _ -> (match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ())));
+		(fun _ -> commit_features com);
+		(fun _ -> (if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths com else (fun _ -> ())));
 	] in
 	with_timer detail_times "type 3" None (fun () ->
 		List.iter (fun t ->
-			begin match t with
-			| TClassDecl c ->
-				tctx.c.curclass <- c
-			| _ ->
-				()
-			end;
-			List.iter (fun f -> f t) type_filters
+			let tctx = match t with
+				| TClassDecl c ->
+					TyperManager.clone_for_class tctx c
+				| _ ->
+					tctx
+			in
+			List.iter (fun f -> f tctx t) type_filters
 		) com.types;
 	);
 	com.callbacks#run com.error_ext com.callbacks#get_after_filters;
@@ -664,7 +666,7 @@ let might_need_cf_unoptimized c cf =
 	| _ ->
 		has_class_field_flag cf CfGeneric
 
-let run tctx main before_destruction =
+let run tctx ectx main before_destruction =
 	let com = tctx.com in
 	let detail_times = (try int_of_string (Common.defined_value_safe com ~default:"0" Define.FilterTimes) with _ -> 0) in
 	let new_types = List.filter (fun t ->
@@ -705,20 +707,20 @@ let run tctx main before_destruction =
 	NullSafety.run com new_types;
 	(* PASS 1: general expression filters *)
 	let filters = [
-		"ForRemap",ForRemap.apply tctx;
-		"handle_abstract_casts",AbstractCast.handle_abstract_casts tctx;
+		"ForRemap",ForRemap.apply;
+		"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;
 	let filters = [
-		"local_statics",LocalStatic.run tctx;
-		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function true;
-		"check_local_vars_init",check_local_vars_init tctx;
+		"local_statics",LocalStatic.run;
+		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function;
+		"check_local_vars_init",check_local_vars_init;
 		"check_abstract_as_value",check_abstract_as_value;
-		"Tre",if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
-		"reduce_expression",Optimizer.reduce_expression tctx;
-		"inline_constructors",InlineConstructors.inline_constructors tctx;
-		"Exceptions_filter",Exceptions.filter tctx;
-		"captured_vars",CapturedVars.captured_vars com;
+		"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
+		"reduce_expression",Optimizer.reduce_expression;
+		"inline_constructors",InlineConstructors.inline_constructors;
+		"Exceptions_filter",(fun _ -> Exceptions.filter ectx);
+		"captured_vars",(fun _ -> CapturedVars.captured_vars com);
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;
 	(* PASS 1.5: pre-analyzer type filters *)
@@ -739,13 +741,13 @@ let run tctx main before_destruction =
 	enter_stage com CAnalyzerDone;
 	let locals = RenameVars.init com in
 	let filters = [
-		"sanitize",Optimizer.sanitize com;
-		"add_final_return",if com.config.pf_add_final_return then add_final_return else (fun e -> e);
+		"sanitize",(fun _ e -> Optimizer.sanitize com e);
+		"add_final_return",(fun _ -> if com.config.pf_add_final_return then add_final_return else (fun e -> e));
 		"RenameVars",(match com.platform with
-		| Eval -> (fun e -> e)
-		| Jvm -> (fun e -> e)
-		| _ -> (fun e -> RenameVars.run tctx.c.curclass.cl_path locals e));
-		"mark_switch_break_loops",mark_switch_break_loops;
+		| Eval -> (fun _ e -> e)
+		| Jvm -> (fun _ e -> e)
+		| _ -> (fun tctx e -> RenameVars.run tctx.c.curclass.cl_path locals e));
+		"mark_switch_break_loops",(fun _ -> mark_switch_break_loops);
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;
 	with_timer detail_times "callbacks" None (fun () ->
@@ -763,4 +765,4 @@ let run tctx main before_destruction =
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);
 	before_destruction();
-	destruction tctx detail_times main locals
+	destruction tctx ectx detail_times main locals

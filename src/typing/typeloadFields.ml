@@ -538,10 +538,10 @@ let create_field_context ctx cctx cff is_display_file display_modifier =
 	if fctx.is_display_field then cctx.has_display_field <- true;
 	fctx
 
-let create_typer_context_for_field ctx cctx fctx cff =
+let create_typer_context_for_field ctx cctx fctx cff cf =
 	DeprecationCheck.check_is ctx.com ctx.m.curmod ctx.c.curclass.cl_meta cff.cff_meta (fst cff.cff_name) cff.cff_meta (snd cff.cff_name);
 	let params = if fctx.is_static && not fctx.is_abstract_member && not (Meta.has Meta.LibType cctx.tclass.cl_meta) (* TODO: remove this *) then [] else ctx.type_params in
-	let ctx = TyperManager.clone_for_field ctx null_field params in
+	let ctx = TyperManager.clone_for_field ctx cf params in
 
 	let c = cctx.tclass in
 	if (fctx.is_abstract && not (has_meta Meta.LibType c.cl_meta)) then begin
@@ -560,7 +560,7 @@ let create_typer_context_for_field ctx cctx fctx cff =
 	end;
 	ctx
 
-let is_public (ctx,cctx) access parent =
+let is_public cctx access parent =
 	let c = cctx.tclass in
 	if List.mem_assoc APrivate access then
 		false
@@ -890,7 +890,7 @@ let load_variable_type_hint ctx fctx eo p = function
 	| Some t ->
 		load_type_hint ctx p LoadNormal (Some t)
 
-let create_variable (ctx,cctx,fctx) c f t eo p =
+let create_variable (ctx,cctx,fctx) c f cf t eo p =
 	let is_abstract_enum_field = List.mem_assoc AEnum f.cff_access in
 	if fctx.is_abstract_member && not is_abstract_enum_field then raise_typing_error "Cannot declare member variable in abstract" p;
 	if fctx.is_inline && not fctx.is_static then invalid_modifier ctx.com fctx "inline" "non-static variable" p;
@@ -910,12 +910,8 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 	else
 		{ v_read = AccNormal ; v_write = AccNormal }
 	in
-	let cf = {
-		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access None) t f.cff_pos (pos f.cff_name)) with
-		cf_doc = f.cff_doc;
-		cf_meta = f.cff_meta;
-		cf_kind = Var kind;
-	} in
+	cf.cf_type <- t;
+	cf.cf_kind <- Var kind;
 	if fctx.is_final then begin
 		if missing_initialization && not fctx.is_static then
 			cctx.uninitialized_final <- cf :: cctx.uninitialized_final;
@@ -927,7 +923,6 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 		add_class_field_flag cf CfImpl;
 	end;
 	if is_abstract_enum_field then add_class_field_flag cf CfEnum;
-	ctx.f.curfield <- cf;
 	TypeBinding.bind_var ctx cctx fctx cf eo;
 	cf
 
@@ -1180,7 +1175,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 	let args = new FunctionArguments.function_arguments ctx.com type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
 	args,ret
 
-let create_method (ctx,cctx,fctx) c f fd p =
+let create_method (ctx,cctx,fctx) c f cf fd p =
 	let name = fst f.cff_name in
 	let params = TypeloadFunction.type_function_params ctx fd TPHMethod name p in
 	if fctx.is_generic then begin
@@ -1257,13 +1252,10 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	ctx.type_params <- params @ ctx.type_params;
 	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in
 	let t = TFun (args#for_type,ret) in
-	let cf = {
-		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
-		cf_doc = f.cff_doc;
-		cf_meta = f.cff_meta;
-		cf_kind = Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
-		cf_params = params;
-	} in
+	cf.cf_type <- t;
+	cf.cf_kind <- Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
+	cf.cf_params <- params;
+	if is_public cctx f.cff_access parent then add_class_field_flag cf CfPublic;
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if fctx.is_abstract then begin
@@ -1325,7 +1317,6 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			if fctx.field_kind = CfrConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
 	in
 	init_meta_overloads ctx (Some c) cf;
-	ctx.f.curfield <- cf;
 	if fctx.do_bind then
 		TypeBinding.bind_method ctx cctx fctx fmode cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
 	else begin
@@ -1348,13 +1339,14 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	end;
 	cf
 
-let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
+let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 	let name = fst f.cff_name in
 	let ret = (match t, eo with
 		| None, None -> raise_typing_error "Property requires type-hint or initialization" p;
 		| None, _ -> mk_mono()
 		| Some t, _ -> load_type_hint ctx p LoadNormal (Some t)
 	) in
+	cf.cf_type <- ret;
 	let t_get,t_set = match cctx.abstract with
 		| Some a when fctx.is_abstract_member ->
 			if Meta.has Meta.IsVar f.cff_meta then raise_typing_error "Abstract properties cannot be real variables" f.cff_pos;
@@ -1369,11 +1361,6 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		end else
 			get_overloads ctx.com c m
 	in
-	let cf = {
-		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access None) ret f.cff_pos (pos f.cff_name)) with
-		cf_doc = f.cff_doc;
-		cf_meta = f.cff_meta;
-	} in
 	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
 	let check_method m t is_getter =
 		try
@@ -1488,7 +1475,6 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	cf.cf_kind <- Var { v_read = get; v_write = set };
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if List.mem_assoc AEnum f.cff_access then add_class_field_flag cf CfEnum;
-	ctx.f.curfield <- cf;
 	TypeBinding.bind_var ctx cctx fctx cf eo;
 	cf
 
@@ -1507,10 +1493,10 @@ let reject_final_static_method ctx cctx fctx f =
 		in
 		invalid_modifier_combination fctx ctx.com fctx "final" "static" p
 
-let init_field (ctx,cctx,fctx) f =
+let init_field (ctx,cctx,fctx) f cf =
 	let c = cctx.tclass in
 	let name = fst f.cff_name in
-	TypeloadCheck.check_global_metadata ctx f.cff_meta (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
+	TypeloadCheck.check_global_metadata ctx f.cff_meta (fun m -> cf.cf_meta <- m :: cf.cf_meta) c.cl_module.m_path c.cl_path (Some name);
 	let p = f.cff_pos in
 	if not (has_class_flag c CExtern) && not (Meta.has Meta.Native f.cff_meta) then Naming.check_field_name ctx.com name p;
 	List.iter (fun acc ->
@@ -1539,17 +1525,16 @@ let init_field (ctx,cctx,fctx) f =
 	let cf =
 		match f.cff_kind with
 		| FVar (t,e) ->
-			create_variable (ctx,cctx,fctx) c f t e p
+			create_variable (ctx,cctx,fctx) c f cf t e p
 		| FFun fd ->
 			reject_final_static_method ctx cctx fctx f;
-			create_method (ctx,cctx,fctx) c f fd p
+			create_method (ctx,cctx,fctx) c f cf fd p
 		| FProp (get,set,t,eo) ->
-			create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
+			create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p
 	in
 	(if (fctx.is_static || fctx.is_macro && ctx.com.is_macro_context) then add_class_field_flag cf CfStatic);
 	if Meta.has Meta.InheritDoc cf.cf_meta then
-		delay ctx.g PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf);
-	cf
+		delay ctx.g PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
 
 let check_overload ctx f fs is_extern_class =
 	try
@@ -1612,6 +1597,13 @@ let check_functional_interface ctx c =
 		add_class_flag c CFunctionalInterface;
 		ctx.com.functional_interface_lut#add c.cl_path (c,cf)
 
+let create_class_field cctx f  =
+	let cf = {(mk_field (fst f.cff_name) ~public:(is_public cctx f.cff_access None) t_dynamic f.cff_pos (pos f.cff_name)) with
+		cf_doc = f.cff_doc;
+		cf_meta = f.cff_meta
+	} in
+	cf
+
 let init_class ctx_c cctx c p herits fields =
 	let com = ctx_c.com in
 	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
@@ -1658,10 +1650,11 @@ let init_class ctx_c cctx c p herits fields =
 		let p = f.cff_pos in
 		let display_modifier = Typeload.check_field_access ctx_c f in
 		let fctx = create_field_context ctx_c cctx f ctx_c.m.is_display_file display_modifier in
-		let ctx = create_typer_context_for_field ctx_c cctx fctx f in
+		let cf = create_class_field cctx f in
+		let ctx = create_typer_context_for_field ctx_c cctx fctx f cf in
 		try
 			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
-			let cf = init_field (ctx,cctx,fctx) f in
+			init_field (ctx,cctx,fctx) f cf;
 			if fctx.field_kind = CfrInit then begin
 				if !has_init then
 					display_error ctx.com ("Duplicate class field declaration : " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name) cf.cf_name_pos

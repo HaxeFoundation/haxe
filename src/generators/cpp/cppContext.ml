@@ -1,9 +1,6 @@
-open Extlib_leftovers
-open Ast
 open Gctx
-open Type
-open Error
 open Globals
+open Type
 open CppAstTools
 
 (* CPP code generation context *)

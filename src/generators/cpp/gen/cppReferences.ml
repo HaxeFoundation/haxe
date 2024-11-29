@@ -1,12 +1,8 @@
-open Ast
 open Type
-open Error
-open Globals
+open CppAst
 open CppStrings
 open CppTypeUtils
-open CppAst
 open CppAstTools
-open CppSourceWriter
 open CppContext
 
 (*

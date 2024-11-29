@@ -1,11 +1,7 @@
 (* Various helper functions to run checks on haxe classes and various other ast types *)
 (* functions in here operate on standard haxe ast types, not gencpp ast types *)
 
-open Extlib_leftovers
-open Ast
 open Type
-open Error
-open Globals
 
 let follow = Abstract.follow_with_abstracts
 

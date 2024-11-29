@@ -1,9 +1,4 @@
-open Extlib_leftovers
-open Ast
 open Gctx
-open Type
-open Error
-open Globals
 open CppStrings
 open CppAstTools
 open CppTypeUtils

@@ -348,7 +348,7 @@ let handle_display_after_finalization ctx tctx display_file_dot_path =
 		| None -> ()
 		| Some mctx ->
 			(* We don't need a full macro flush here because we're not going to run any macros. *)
-			let _, types, modules = Finalization.generate mctx in
+			let _, types, modules = Finalization.generate mctx (Finalization.maybe_load_main mctx) in
 			mctx.Typecore.com.types <- types;
 			mctx.Typecore.com.Common.modules <- modules
 	end;

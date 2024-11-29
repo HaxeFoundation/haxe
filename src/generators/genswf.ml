@@ -24,7 +24,6 @@ open Error
 open Gctx
 open Ast
 open Globals
-open NativeLibraries
 
 let tag ?(ext=false) d = {
 	tid = 0;

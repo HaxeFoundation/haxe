@@ -7,8 +7,6 @@
   run: |
     set -ex
     brew update
-    brew uninstall --force pkg-config
-    brew install pkgconf --overwrite
     brew bundle --file=tests/Brewfile --no-upgrade
     cpanm IPC::System::Simple
     cpanm String::ShellQuote

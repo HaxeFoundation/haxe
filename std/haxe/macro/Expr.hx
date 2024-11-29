@@ -670,6 +670,16 @@ typedef TypePath = {
 		`pack.Module.Type` has `name = "Module"`, `sub = "Type"`, if available.
 	**/
 	var ?sub:String;
+
+	/**
+		The full position of the type path, including type parameters.
+	**/
+	var ?pos:Position;
+
+	/**
+		The position of the dot-path itself, without type parameters.
+	**/
+	var ?posPath:Position;
 }
 
 /**

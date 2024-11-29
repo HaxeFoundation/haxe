@@ -17,13 +17,13 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 open Ast
+open CppAst
 open Gctx
 open Type
 open Error
 open Globals
 open CppStrings
 open CppTypeUtils
-open CppAst
 open CppAstTools
 open CppSourceWriter
 open CppContext

@@ -88,7 +88,8 @@ module IterationKind = struct
 		(mk (TArray (arr,iexpr)) pt p)
 
 	let check_iterator ?(resume=false) ?last_resort ctx s e p =
-		let t,pt = Typeload.t_iterator ctx p in
+		let pt = spawn_monomorph ctx.e p in
+		let t = ctx.t.titerator pt in
 		let dynamic_iterator = ref None in
 		let e1 = try
 			let e = AbstractCast.cast_or_unify_raise ctx t e p in

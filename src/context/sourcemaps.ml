@@ -1,6 +1,5 @@
 open Extlib_leftovers
 open Globals
-open Gctx
 
 (**
 	Characters used for base64 VLQ encoding

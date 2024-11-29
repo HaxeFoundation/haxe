@@ -5,6 +5,8 @@
 		name: Null
 		pack: []
 		params: [TPType(null <- expected enum value)]
+		pos: null
+		posPath: null
 		sub: null
 	}), null)
 	meta: null

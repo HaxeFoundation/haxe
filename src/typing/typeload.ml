@@ -112,14 +112,7 @@ let find_type_in_current_module_context ctx pack name =
 			ImportHandling.mark_import_position ctx pi;
 			t
 	end else begin
-		(* All this is very weird *)
-		try
-			List.find (fun mt -> t_path mt = (pack,name)) ctx.m.curmod.m_types
-		with Not_found ->
-			(* see also https://github.com/HaxeFoundation/haxe/issues/9150 *)
-			let t,pi = ctx.m.import_resolution#find_type_import_weirdly pack name in
-			ImportHandling.mark_import_position ctx pi;
-		t
+		List.find (fun mt -> t_path mt = (pack,name)) ctx.m.curmod.m_types
 	end
 
 let find_in_wildcard_imports ctx mname p f =
@@ -402,7 +395,7 @@ and load_instance' ctx ptp get_params mode =
 		if t.tparams <> [] then raise_typing_error ("Class type parameter " ^ t.tname ^ " can't have parameters") ptp.pos_full;
 		pt
 	with Not_found ->
-		let mt = load_type_def ctx (if ptp.pos_path == null_pos then ptp.pos_full else ptp.pos_path) t in
+		let mt = load_type_def ctx ptp.pos_path t in
 		let info = ctx.g.get_build_info ctx mt ptp.pos_full in
 		if info.build_path = ([],"Dynamic") then match t.tparams with
 			| [] -> t_dynamic
@@ -789,6 +782,7 @@ let load_core_class ctx c =
 	let ctx2 = (match ctx.g.core_api with
 		| None ->
 			let com2 = Common.clone ctx.com ctx.com.is_macro_context in
+			enter_stage com2 CInitMacrosDone;
 			com2.defines.Define.values <- PMap.empty;
 			Common.define com2 Define.CoreApi;
 			Common.define com2 Define.Sys;
