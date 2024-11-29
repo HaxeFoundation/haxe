@@ -1461,6 +1461,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     | OpIn -> " in "
     | OpNullCoal -> "??"
     | OpAssign | OpAssignOp _ -> abort "Unprocessed OpAssign" pos
+
   and gen_closure closure =
     let argc = StringMap.bindings closure.close_undeclared |> List.length in
     let size = string_of_int argc in

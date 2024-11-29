@@ -1120,19 +1120,18 @@ let expression ctx request_type function_args function_type expression_tree forI
               ("Value from a block not handled " ^ expr.epos.pfile ^ " "
               ^ string_of_int (Lexer.get_error_line expr.epos));
 
-          let remaining = ref (List.length expr_list) in
           let new_ctx = { retyper_ctx with closures = []; injection = false } in
-          let new_ctx, cppExprs =
+          let new_ctx, cppExprs, _ =
             List.fold_left
-              (fun (cur_ctx, exprs) expr ->
+              (fun (cur_ctx, exprs, remaining) expr ->
                 let targetType =
-                  if retyper_ctx.injection && !remaining = 1 then cpp_type_of expr.etype
-                  else TCppVoid
-                in
-                decr remaining;
+                  if retyper_ctx.injection && remaining = 1 then
+                    cpp_type_of expr.etype
+                  else
+                    TCppVoid in
                 let new_ctx, result = retype cur_ctx targetType expr in
-                new_ctx, result :: exprs)
-              (new_ctx, [])
+                new_ctx, result :: exprs, remaining - 1)
+              (new_ctx, [], List.length expr_list)
               expr_list
           in
 
