@@ -101,6 +101,10 @@
 			throw "Invalid unicode char " + c;
 	}
 
+	public function clear():Void {
+		pos = 0;
+	}
+	
 	public function toString():String {
 		if (pos + 2 > size)
 			__expand(0);

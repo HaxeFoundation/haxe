@@ -284,6 +284,10 @@ module VStringBuffer = struct
 		Buffer.add_substring this.bbuffer s.sstring b_pos b_len;
 		this.blength <- this.blength + c_len
 
+	let clear this =
+		Buffer.clear this.bbuffer;
+		this.blength <- 0
+
 	let contents this =
 		create_with_length (Buffer.contents this.bbuffer) this.blength
 end

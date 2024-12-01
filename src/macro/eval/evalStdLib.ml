@@ -2429,6 +2429,12 @@ module StdStringBuf = struct
 		vnull
 	)
 
+	let clear = vifun0 (fun vthis ->
+		let this = this vthis in
+		VStringBuffer.clear this;
+		vnull
+	)
+
 	let get_length = vifun0 (fun vthis ->
 		let this = this vthis in
 		vint this.blength
@@ -3692,6 +3698,7 @@ let init_standard_library builtins =
 		"add",StdStringBuf.add;
 		"addChar",StdStringBuf.addChar;
 		"addSub",StdStringBuf.addSub;
+		"clear",StdStringBuf.clear;
 		"get_length",StdStringBuf.get_length;
 		"toString",StdStringBuf.toString;
 	];
