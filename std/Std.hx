@@ -97,7 +97,7 @@ extern class Std {
 
 		Leading whitespaces are ignored.
 
-		`x` may optionally start with a + or - to denote a postive or negative value respectively.
+		`x` may optionally start with a + or - to denote a positive or negative value respectively.
 
 		If the optional sign is followed 0x or 0X, hexadecimal notation is recognized where the following
 		digits may contain 0-9 and A-F. Both the prefix and digits are case insensitive.

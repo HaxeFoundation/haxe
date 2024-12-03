@@ -206,19 +206,19 @@ let run ctx =
 			match e.eexpr with
 			| TFunction fn ->
 				let is_tre_eligible =
-					match ctx.curfield.cf_kind with
+					match ctx.f.curfield.cf_kind with
 					| Method MethDynamic -> false
 					| Method MethInline -> true
 					| Method MethNormal ->
-						PMap.mem ctx.curfield.cf_name ctx.curclass.cl_statics
+						PMap.mem ctx.f.curfield.cf_name ctx.c.curclass.cl_statics
 					| _ ->
-						has_class_field_flag ctx.curfield CfFinal
+						has_class_field_flag ctx.f.curfield CfFinal
 					in
 				let is_recursive_call callee args =
-					is_tre_eligible && is_recursive_method_call ctx.curclass ctx.curfield callee args
+					is_tre_eligible && is_recursive_method_call ctx.c.curclass ctx.f.curfield callee args
 				in
 				if has_tail_recursion is_recursive_call false true fn.tf_expr then
-					(* print_endline ("TRE: " ^ ctx.curfield.cf_pos.pfile ^ ": " ^ ctx.curfield.cf_name); *)
+					(* print_endline ("TRE: " ^ ctx.f.curfield.cf_pos.pfile ^ ": " ^ ctx.f.curfield.cf_name); *)
 					let fn = transform_function ctx is_recursive_call fn in
 					{ e with eexpr = TFunction fn }
 				else

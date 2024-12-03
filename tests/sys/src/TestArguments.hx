@@ -72,27 +72,19 @@ class TestArguments extends utest.Test {
 	#elseif neko
 		"bin/neko/TestArguments.n";
 	#elseif hl
-		"bin/hl/TestArguments.hl";
+		#if hlc
+			"bin/hlc/testArguments/TestArguments.exe";
+		#else
+			"bin/hl/TestArguments.hl";
+		#end
 	#elseif cpp
 		#if debug
 			"bin/cpp/TestArguments-debug";
 		#else
 			"bin/cpp/TestArguments";
 		#end
-	#elseif cs
-		#if debug
-			"bin/cs/bin/TestArguments-Debug.exe";
-		#else
-			"bin/cs/bin/TestArguments.exe";
-		#end
 	#elseif jvm
 		"bin/jvm/TestArguments.jar";
-	#elseif java
-		#if debug
-			"bin/java/TestArguments-Debug.jar";
-		#else
-			"bin/java/TestArguments.jar";
-		#end
 	#elseif python
 		"bin/python/TestArguments.py";
 	#elseif php

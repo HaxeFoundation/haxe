@@ -224,8 +224,6 @@ let reduce_expr com e =
 			) l with
 			| [] -> ec
 			| l -> { e with eexpr = TBlock (List.rev (ec :: l)) })
-	| TMeta ((Meta.CompilerGenerated,_,_),ec) ->
-		{ ec with epos = e.epos }
 	| TParenthesis ec ->
 		{ ec with epos = e.epos }
 	| TTry (e,[]) ->
@@ -333,8 +331,7 @@ let reduce_control_flow com e = match e.eexpr with
 		(* TODO: figure out what's wrong with these targets *)
 		let require_cast = match com.platform with
 			| Cpp | Flash -> true
-			| Java -> defined com Define.Jvm
-			| Cs -> defined com Define.EraseGenerics || defined com Define.FastCast
+			| Jvm -> true
 			| _ -> false
 		in
 		Texpr.reduce_unsafe_casts ~require_cast e e.etype
@@ -386,7 +383,7 @@ let reduce_expression ctx e =
 	if ctx.com.foptimize then
 		(* We go through rec_stack_default here so that the current field is on inline_stack. This prevents self-recursive
 		   inlining (#7569). *)
-		rec_stack_default inline_stack ctx.curfield (fun cf' -> cf' == ctx.curfield) (fun () -> reduce_loop ctx e) e
+		rec_stack_default inline_stack ctx.f.curfield (fun cf' -> cf' == ctx.f.curfield) (fun () -> reduce_loop ctx e) e
 	else
 		e
 

@@ -2,7 +2,7 @@ open Globals
 open Type
 
 type resolution_kind =
-	| RTypeImport of string* module_type
+	| RTypeImport of string * module_type
 	| RClassFieldImport of string * tclass * tclass_field
 	| RAbstractFieldImport of string * tabstract * tclass * tclass_field
 	| REnumConstructorImport of string * tenum * tenum_field
@@ -107,8 +107,7 @@ class resolution_list (id : string list) = object(self)
 			l <- loop [] l;
 		end
 
-	method resolve (i : string) : resolution =
-		self#resolve_lazies;
+	method resolve' (i : string) : resolution =
 		let rec loop l = match l with
 			| [] ->
 				raise Not_found
@@ -147,6 +146,10 @@ class resolution_list (id : string list) = object(self)
 				end
 		in
 		loop l
+
+	method resolve (i : string) : resolution =
+		self#resolve_lazies;
+		self#resolve' i
 
 	method expand_enum_constructors (mt : module_type) = match mt with
 		| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
@@ -199,17 +202,6 @@ class resolution_list (id : string list) = object(self)
 	method find_type_import alias =
 		self#cache_type_imports;
 		StringMap.find alias type_import_cache
-
-	method find_type_import_weirdly pack name =
-		let rec find l = match l with
-			| [] ->
-				raise Not_found
-			| {r_kind = RTypeImport(alias,mt); r_pos = p} :: l ->
-				if  t_path mt = (pack,name) then (mt,p) else find l
-			| _ :: l ->
-				find l
-		in
-		find l
 
 	method extract_type_imports =
 		ExtList.List.filter_map (fun res -> match res.r_kind with

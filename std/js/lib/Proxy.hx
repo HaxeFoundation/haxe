@@ -65,12 +65,12 @@ typedef ProxyHandler<T:{}> = {
 	/**
 		A trap for `Object.getOwnPropertyDescriptor`.
 	**/
-	var ?getOwnPropertyDescriptor:(target:T, prop:EitherType<String, Symbol>) -> Null<ObjectPropertyDescriptor>;
+	var ?getOwnPropertyDescriptor:(target:T, prop:EitherType<String, Symbol>) -> Null<ObjectPropertyDescriptor<Any>>;
 
 	/**
 		A trap for `Object.defineProperty`.
 	**/
-	var ?defineProperty:(target:T, property:EitherType<String, Symbol>, descriptor:ObjectPropertyDescriptor) -> Bool;
+	var ?defineProperty:(target:T, property:EitherType<String, Symbol>, descriptor:ObjectPropertyDescriptor<Any>) -> Bool;
 
 	/**
 		A trap for the `in` operator.

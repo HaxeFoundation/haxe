@@ -19,6 +19,11 @@ class BuildHub {
 		return TestBuilder.build(fields);
 	}
 
+	macro static public function getStd() {
+		var std = haxe.macro.Compiler.getConfiguration().stdPath;
+		return macro $v{std.shift()};
+	}
+
 	static function isDisplayTest(cls:ClassType):Bool {
 		if(cls.pack.length == 0 && cls.name == "DisplayTestCase") {
 			return true;

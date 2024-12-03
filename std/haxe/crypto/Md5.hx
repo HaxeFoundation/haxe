@@ -93,11 +93,11 @@ class Md5 {
 
 		// preallocate size
 		var blksSize = nblk * 16;
-		#if (neko || cs || cpp || java || hl)
+		#if (neko || cpp || java || hl)
 		blks[blksSize - 1] = 0;
 		#end
 
-		#if !(cpp || cs || hl) // C++ and C# will already initialize them with zeroes.
+		#if !(cpp || hl) // C++ will already initialize them with zeroes.
 		for (i in 0...blksSize)
 			blks[i] = 0;
 		#end
@@ -126,11 +126,11 @@ class Md5 {
 
 		// preallocate size
 		var blksSize = nblk * 16;
-		#if (neko || eval || cs || cpp || java || hl)
+		#if (neko || eval || cpp || java || hl)
 		blks[blksSize - 1] = 0;
 		#end
 
-		#if !(cpp || cs || hl) // C++ and C# will already initialize them with zeroes.
+		#if !(cpp || hl) // C++ will already initialize them with zeroes.
 		for (i in 0...blksSize)
 			blks[i] = 0;
 		#end

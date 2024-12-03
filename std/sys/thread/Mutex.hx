@@ -28,7 +28,7 @@ package sys.thread;
 
 /**
 	Creates a mutex, which can be used to acquire a temporary lock
-	to access some ressource. The main difference with a lock is
+	to access some resource. The main difference with a lock is
 	that a mutex must always be released by the owner thread.
 **/
 extern class Mutex {

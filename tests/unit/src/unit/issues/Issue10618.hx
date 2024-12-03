@@ -1,6 +1,6 @@
 package unit.issues;
 
-#if java
+#if jvm
 @:keep
 private class NotMain implements java.util.Iterator<String> {
 	static function main() {}

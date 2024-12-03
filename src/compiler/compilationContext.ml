@@ -7,9 +7,21 @@ type server_mode =
 	| SMListen of string
 	| SMConnect of string
 
+type native_lib_kind =
+	| JavaLib
+	| SwfLib
+	| HxbLib
+
+type native_lib_arg = {
+	lib_file : string;
+	lib_kind : native_lib_kind;
+	lib_extern : bool;
+}
+
 type arg_context = {
 	mutable classes : Globals.path list;
 	mutable xml_out : string option;
+	mutable hxb_out : string option;
 	mutable json_out : string option;
 	mutable cmds : string list;
 	mutable config_macros : string list;
@@ -20,7 +32,8 @@ type arg_context = {
 	mutable interp : bool;
 	mutable jvm_flag : bool;
 	mutable swf_version : bool;
-	mutable native_libs : (string * bool) list;
+	mutable hxb_libs : native_lib_arg list;
+	mutable native_libs : native_lib_arg list;
 	mutable raise_usage : unit -> unit;
 	mutable display_arg : string option;
 	mutable deprecations : string list;
@@ -40,11 +53,13 @@ and compilation_context = {
 	mutable has_next : bool;
 	mutable has_error : bool;
 	comm : communication;
+	mutable runtime_args : string list;
 }
 
 type compilation_callbacks = {
 	before_anything : compilation_context -> unit;
 	after_target_init : compilation_context -> unit;
+	after_save : compilation_context -> unit;
 	after_compilation : compilation_context -> unit;
 }
 
@@ -65,11 +80,24 @@ let message ctx msg =
 	ctx.messages <- msg :: ctx.messages
 
 let error ctx ?(depth=0) ?(from_macro = false) msg p =
-	message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Error);
-	ctx.has_error <- true
+	message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Error)
+
+let after_error ctx =
+	ctx.has_error <- true;
+	if Common.fail_fast ctx.com then raise Abort
 
 let error_ext ctx (err : Error.error) =
 	Error.recurse_error (fun depth err ->
 		error ~depth ~from_macro:err.err_from_macro ctx (Error.error_msg err.err_message) err.err_pos
-	) err
+	) err;
+	after_error ctx
 
+let error ctx ?(depth=0) ?(from_macro = false) msg p =
+	error ctx ~depth ~from_macro msg p;
+	after_error ctx
+
+let create_native_lib file extern kind = {
+	lib_file = file;
+	lib_extern = extern;
+	lib_kind = kind;
+}

@@ -754,8 +754,8 @@ let process_arguments fl vl env =
 			loop fl []
 		| [],[] ->
 			()
-		| _ ->
-			exc_string "Something went wrong"
+		| l1,l2 ->
+			exc_string (Printf.sprintf "Bad number of arguments: %i vs. %i" (List.length l1) (List.length l2))
 	in
 	loop fl vl
 [@@inline]

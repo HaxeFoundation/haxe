@@ -3,7 +3,7 @@ import unit.Test;
 
 class Issue3084 extends Test
 {
-#if java
+#if jvm
 	function test()
 	{
 		for (i in 0...40)

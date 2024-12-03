@@ -16,8 +16,8 @@ class Issue9133 extends DisplayTestCase {
 	**/
 	function test1() {
 		var fields = toplevel(pos(1));
-		var i1 = fields.findIndex(item -> item.kind == "local" && item.name == "i");
-		var i2 = fields.findIndex(item -> item.kind == "local" && item.name == "s");
+		var i1 = fields.findIndex(item -> isToplevel(item, "i", null, "local"));
+		var i2 = fields.findIndex(item -> isToplevel(item, "s", null, "local"));
 		Assert.isTrue(i1 < i2);
 		Assert.isTrue(i1 != -1);
 	}
@@ -37,8 +37,8 @@ class Issue9133 extends DisplayTestCase {
 		// causes a `Duplicate key` error. See https://github.com/HaxeFoundation/haxe/issues/9144
 		// for more context.
 		var fields = toplevel(pos(1));
-		var i1 = fields.findIndex(item -> item.kind == "local" && item.name == "i");
-		var i2 = fields.findIndex(item -> item.kind == "local" && item.name == "s");
+		var i1 = fields.findIndex(item -> isToplevel(item, "i", null, "local"));
+		var i2 = fields.findIndex(item -> isToplevel(item, "s", null, "local"));
 		Assert.isTrue(i1 < i2);
 		Assert.isTrue(i1 != -1);
 	}
@@ -51,7 +51,7 @@ class Issue9133 extends DisplayTestCase {
 	**/
 	function test3() {
 		var fields = toplevel(pos(1));
-		var i1 = fields.findIndex(item -> item.kind == "local" && item.name == "i");
+		var i1 = fields.findIndex(item -> isToplevel(item, "i", null, "local"));
 		Assert.isTrue(i1 != -1);
 	}
 }

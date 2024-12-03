@@ -4,8 +4,7 @@
 --next compile-neko.hxml
 --next compile-python.hxml
 --next compile-cpp.hxml
---next compile-cs.hxml
---next compile-java.hxml
+--next compile-jvm.hxml
 --next compile-php.hxml
 --next compile-hl.hxml
 --next compile-js.hxml

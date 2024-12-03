@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue10508 extends Test {
-	#if java
+	#if jvm
 	function test() {
 		t(java.math.RoundingMode.getConstructors().length > 0);
 		t(java.math.RoundingMode.createAll().length > 0);

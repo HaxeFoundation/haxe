@@ -94,6 +94,8 @@ let encode_uv_error (e:Error.t) =
 	| `EILSEQ -> 77
 	| `EOVERFLOW -> 78
 	| `ESOCKTNOSUPPORT -> 79
+	| `ENODATA -> 80
+	| `EUNATCH -> 81
 	)
 
 let decode_uv_error v : Error.t =
@@ -178,6 +180,8 @@ let decode_uv_error v : Error.t =
 	| 77 -> `EILSEQ
 	| 78 -> `EOVERFLOW
 	| 79 -> `ESOCKTNOSUPPORT
+	| 80 -> `ENODATA
+	| 81 -> `EUNATCH
 	| _ -> unexpected_value v "eval.luv.UVError"
 
 let luv_exception e =
@@ -554,7 +558,8 @@ let uv_error_fields = [
 						let messages = ref [] in
 						HaxeError.recurse_error (fun depth err ->
 							let cm = make_compiler_message ~from_macro:err.err_from_macro (HaxeError.error_msg err.err_message) err.err_pos depth DKCompilerMessage Error in
-							match MessageReporting.compiler_message_string cm with
+							let ectx = MessageReporting.create_error_context false in
+							match MessageReporting.compiler_message_string ectx cm with
 								| None -> ()
 								| Some str -> messages := str :: !messages
 						) err;
@@ -1941,7 +1946,7 @@ let fs_event_fields = [
 					) events
 				in
 				encode_obj [
-					key_file,vnative_string file;
+					key_file,encode_nullable vnative_string file;
 					key_events,encode_array vevents;
 				]
 			) v4
@@ -2174,7 +2179,7 @@ let env_fields = [
 let time_fields = [
 	"getTimeOfDay", vfun0 (fun() ->
 		encode_result (fun (t:Time.t) ->
-			encode_obj [key_sec,VInt64 t.tv_sec; key_usec,vint32 t.tv_usec]
+			encode_obj [key_sec,VInt64 t.sec; key_usec,vint32 t.usec]
 		) (Time.gettimeofday())
 	);
 	"hrTime", vfun0 (fun() ->
@@ -2291,10 +2296,10 @@ let resource_fields = [
 		encode_array_a [|vfloat m1; vfloat m5; vfloat m15|];
 	);
 	"freeMemory", vfun0 (fun() ->
-		VUInt64 (Resource.free_memory())
+		encode_nullable (fun u -> VUInt64 u) (Resource.free_memory())
 	);
 	"totalMemory", vfun0 (fun() ->
-		VUInt64 (Resource.total_memory())
+		encode_nullable (fun u -> VUInt64 u) (Resource.total_memory())
 	);
 	"constrainedMemory", vfun0 (fun() ->
 		encode_nullable (fun u -> VUInt64 u) (Resource.constrained_memory())

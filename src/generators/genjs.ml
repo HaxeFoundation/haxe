@@ -20,28 +20,12 @@ open Extlib_leftovers
 open Globals
 open Ast
 open Type
-open Common
-
-type sourcemap = {
-	sources : (string) DynArray.t;
-	sources_hash : (string, int) Hashtbl.t;
-	mappings : Rbuffer.t;
-
-	mutable source_last_pos : sourcemap_pos;
-	mutable print_comma : bool;
-	mutable output_last_col : int;
-	mutable output_current_col : int;
-	mutable current_expr : sourcemap_pos option;
-}
-
-and sourcemap_pos = {
-	file : int;
-	line : int;
-	col : int;
-}
+open Error
+open Gctx
+open JsSourcemap
 
 type ctx = {
-	com : Common.context;
+	com : Gctx.t;
 	buf : Rbuffer.t;
 	mutable chan : out_channel option;
 	packages : (string list,unit) Hashtbl.t;
@@ -62,7 +46,6 @@ type ctx = {
 	mutable separator : bool;
 	mutable found_expose : bool;
 	mutable catch_vars : texpr list;
-	mutable deprecation_context : DeprecationCheck.deprecation_context;
 }
 
 type object_store = {
@@ -106,7 +89,7 @@ let es5kwds = [
 
 let setup_kwds com =
 	Hashtbl.reset kwds;
-	let es_version = get_es_version com in
+	let es_version = Gctx.get_es_version com.defines in
 	let lst = if es_version >= 5 then es5kwds else es3kwds in
 	List.iter (fun s -> Hashtbl.add kwds s ()) lst
 
@@ -154,112 +137,20 @@ let static_field ctx c f =
 
 let module_field m f =
 	try
-		fst (TypeloadCheck.get_native_name f.cf_meta)
+		fst (Naming.get_native_name f.cf_meta)
 	with Not_found ->
 		Path.flat_path m.m_path ^ "_" ^ f.cf_name
 
 let module_field_expose_path mpath f =
 	try
-		fst (TypeloadCheck.get_native_name f.cf_meta)
+		fst (Naming.get_native_name f.cf_meta)
 	with Not_found ->
 		(dot_path mpath) ^ "." ^ f.cf_name
 
-let has_feature ctx = Common.has_feature ctx.com
-let add_feature ctx = Common.add_feature ctx.com
+let has_feature ctx = Gctx.has_feature ctx.com
+let add_feature ctx = Gctx.add_feature ctx.com
 
 let unsupported p = abort "This expression cannot be compiled to Javascript" p
-
-let encode_mapping smap pos =
-	if smap.print_comma then
-		Rbuffer.add_char smap.mappings ','
-	else
-		smap.print_comma <- true;
-
-	let base64_vlq number =
-		let encode_digit digit =
-			let chars = [|
-				'A';'B';'C';'D';'E';'F';'G';'H';'I';'J';'K';'L';'M';'N';'O';'P';
-				'Q';'R';'S';'T';'U';'V';'W';'X';'Y';'Z';'a';'b';'c';'d';'e';'f';
-				'g';'h';'i';'j';'k';'l';'m';'n';'o';'p';'q';'r';'s';'t';'u';'v';
-				'w';'x';'y';'z';'0';'1';'2';'3';'4';'5';'6';'7';'8';'9';'+';'/'
-			|] in
-			Array.unsafe_get chars digit
-		in
-		let to_vlq number =
-			if number < 0 then
-				((-number) lsl 1) + 1
-			else
-				number lsl 1
-		in
-		let rec loop vlq =
-			let shift = 5 in
-			let base = 1 lsl shift in
-			let mask = base - 1 in
-			let continuation_bit = base in
-			let digit = vlq land mask in
-			let next = vlq asr shift in
-			Rbuffer.add_char smap.mappings (encode_digit (
-				if next > 0 then digit lor continuation_bit else digit));
-			if next > 0 then loop next else ()
-		in
-		loop (to_vlq number)
-	in
-
-	base64_vlq (smap.output_current_col - smap.output_last_col);
-	base64_vlq (pos.file - smap.source_last_pos.file);
-	base64_vlq (pos.line - smap.source_last_pos.line);
-	base64_vlq (pos.col - smap.source_last_pos.col);
-
-	smap.source_last_pos <- pos;
-	smap.output_last_col <- smap.output_current_col
-
-let noop () = ()
-
-let add_mapping smap pos =
-	if pos.pmin < 0 then noop else
-
-	let file = try
-		Hashtbl.find smap.sources_hash pos.pfile
-	with Not_found ->
-		let length = DynArray.length smap.sources in
-		Hashtbl.replace smap.sources_hash pos.pfile length;
-		DynArray.add smap.sources pos.pfile;
-		length
-	in
-
-	let pos =
-		let line, col = Lexer.find_pos pos in
-		let line = line - 1 in
-		{ file = file; line = line; col = col }
-	in
-
-	if smap.source_last_pos <> pos then begin
-		let old_current_expr = smap.current_expr in
-		smap.current_expr <- Some pos;
-		encode_mapping smap pos;
-		(fun () -> smap.current_expr <- old_current_expr)
-	end else
-		noop
-
-let add_mapping ctx e =
-	Option.map_default (fun smap -> add_mapping smap e.epos) noop ctx.smap
-
-let handle_newlines ctx str =
-	Option.may (fun smap ->
-		let rec loop from =
-			try begin
-				let next = String.index_from str from '\n' + 1 in
-				Rbuffer.add_char smap.mappings ';';
-				smap.output_last_col <- 0;
-				smap.output_current_col <- 0;
-				smap.print_comma <- false;
-				Option.may (encode_mapping smap) smap.current_expr;
-				loop next
-			end with Not_found ->
-				smap.output_current_col <- smap.output_current_col + (String.length str - from);
-		in
-		loop 0
-	) ctx.smap
 
 let flush ctx =
 	let chan =
@@ -275,42 +166,15 @@ let flush ctx =
 
 let spr ctx s =
 	ctx.separator <- false;
-	handle_newlines ctx s;
+	handle_newlines ctx.smap s;
 	Rbuffer.add_string ctx.buf s
 
 let print ctx =
 	ctx.separator <- false;
 	Printf.kprintf (fun s -> begin
-		handle_newlines ctx s;
+		handle_newlines ctx.smap s;
 		Rbuffer.add_string ctx.buf s
 	end)
-
-let write_mappings ctx smap =
-	let basefile = Filename.basename ctx.com.file in
-	print ctx "\n//# sourceMappingURL=%s.map" (url_encode_s basefile);
-	let channel = open_out_bin (ctx.com.file ^ ".map") in
-	let sources = DynArray.to_list smap.sources in
-	let to_url file =
-		ExtString.String.map (fun c -> if c == '\\' then '/' else c) (Path.get_full_path file)
-	in
-	output_string channel "{\n";
-	output_string channel "\"version\":3,\n";
-	output_string channel ("\"file\":\"" ^ (String.concat "\\\\" (ExtString.String.nsplit basefile "\\")) ^ "\",\n");
-	output_string channel ("\"sourceRoot\":\"\",\n");
-	output_string channel ("\"sources\":[" ^
-		(String.concat "," (List.map (fun s -> "\"file:///" ^ to_url s ^ "\"") sources)) ^
-		"],\n");
-	if Common.defined ctx.com Define.SourceMapContent then begin
-		output_string channel ("\"sourcesContent\":[" ^
-			(String.concat "," (List.map (fun s -> try "\"" ^ StringHelper.s_escape (Std.input_file ~bin:true s) ^ "\"" with _ -> "null") sources)) ^
-			"],\n");
-	end;
-	output_string channel "\"names\":[],\n";
-	output_string channel "\"mappings\":\"";
-	Rbuffer.output_buffer channel smap.mappings;
-	output_string channel "\"\n";
-	output_string channel "}";
-	close_out channel
 
 let newline ctx =
 	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
@@ -502,24 +366,6 @@ let rec gen_call ctx e el in_value =
 			| _ ->
 				abort "js.Lib.getOriginalException can only be called inside a catch block" e.epos
 		)
-	| TIdent "__new__", args ->
-		print_deprecation_message ctx.deprecation_context "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
-		gen_syntax ctx "construct" args e.epos
-	| TIdent "__js__", args ->
-		print_deprecation_message ctx.deprecation_context "__js__ is deprecated, use js.Syntax.code instead" e.epos;
-		gen_syntax ctx "code" args e.epos
-	| TIdent "__instanceof__",  args ->
-		print_deprecation_message ctx.deprecation_context "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
-		gen_syntax ctx "instanceof" args e.epos
-	| TIdent "__typeof__",  args ->
-		print_deprecation_message ctx.deprecation_context "__typeof__ is deprecated, use js.Syntax.typeof instead" e.epos;
-		gen_syntax ctx "typeof" args e.epos
-	| TIdent "__strict_eq__" , args ->
-		print_deprecation_message ctx.deprecation_context "__strict_eq__ is deprecated, use js.Syntax.strictEq instead" e.epos;
-		gen_syntax ctx "strictEq" args e.epos
-	| TIdent "__strict_neq__" , args ->
-		print_deprecation_message ctx.deprecation_context "__strict_neq__ is deprecated, use js.Syntax.strictNeq instead" e.epos;
-		gen_syntax ctx "strictNeq" args e.epos
 	| TIdent "__define_feature__", [_;e] ->
 		gen_expr ctx e
 	| TIdent "__feature__", { eexpr = TConst (TString f) } :: eif :: eelse ->
@@ -613,7 +459,7 @@ and add_objectdecl_parens e =
 	loop e
 
 and gen_expr ctx e =
-	let clear_mapping = add_mapping ctx e in
+	let clear_mapping = add_mapping ctx.smap e in
 	(match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
@@ -685,13 +531,13 @@ and gen_expr ctx e =
 			print ctx ",$bind($_,$_%s))" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name)))
 	| TEnumIndex x ->
 		gen_value ctx x;
-		if not (Common.defined ctx.com Define.JsEnumsAsArrays) then
+		if not (Gctx.defined ctx.com Define.JsEnumsAsArrays) then
 		print ctx "._hx_index"
 		else
 		print ctx "[1]"
 	| TEnumParameter (x,f,i) ->
 		gen_value ctx x;
-		if not (Common.defined ctx.com Define.JsEnumsAsArrays) then
+		if not (Gctx.defined ctx.com Define.JsEnumsAsArrays) then
 			let fname = (match f.ef_type with TFun((args,_)) -> let fname,_,_ = List.nth args i in  fname | _ -> die "" __LOC__ ) in
 			print ctx ".%s" (ident fname)
 		else
@@ -978,7 +824,7 @@ and gen_block_element ?(newline_after=false) ?(keep_blocks=false) ctx e =
 		if newline_after then newline ctx
 
 and gen_value ctx e =
-	let clear_mapping = add_mapping ctx e in
+	let clear_mapping = add_mapping ctx.smap e in
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> die "" __LOC__ | Some v -> v)) t_dynamic e.epos,
@@ -1166,7 +1012,7 @@ and gen_syntax ctx meth args pos =
 					)
 					args
 				in
-				Codegen.interpolate_code ctx.com code args (spr ctx) (gen_value ctx) code_pos
+				Codegen.interpolate_code ctx.com.error code args (spr ctx) (gen_value ctx) code_pos
 		end
 	| "plainCode", [code] ->
 		let code =
@@ -1282,7 +1128,6 @@ let can_gen_class_field ctx = function
 		is_physical_field f
 
 let gen_class_field ctx c f =
-	ctx.deprecation_context <- {ctx.deprecation_context with field_meta = f.cf_meta};
 	check_field_name c f;
 	match f.cf_expr with
 	| None ->
@@ -1608,7 +1453,6 @@ let generate_class_es6 ctx c =
 
 let generate_class ctx c =
 	ctx.current <- c;
-	ctx.deprecation_context <- {ctx.deprecation_context with class_meta = c.cl_meta};
 	ctx.id_counter <- 0;
 	(match c.cl_path with
 	| [],"Function" -> abort "This class redefine a native one" c.cl_pos
@@ -1631,7 +1475,7 @@ let generate_enum ctx e =
 	else
 		generate_package_create ctx e.e_path;
 	print ctx "%s = " p;
-	let as_objects = not (Common.defined ctx.com Define.JsEnumsAsArrays) in
+	let as_objects = not (Gctx.defined ctx.com Define.JsEnumsAsArrays) in
 	(if as_objects then
 		print ctx "$hxEnums[\"%s\"] = " dotp
 	else if has_feature ctx "Type.resolveEnum" then
@@ -1758,7 +1602,7 @@ let need_to_generate_interface ctx cl_iface =
 
 let generate_type ctx = function
 	| TClassDecl c ->
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
@@ -1777,7 +1621,7 @@ let generate_type ctx = function
 			(match c.cl_path with
 			| ([],_) -> ()
 			| _ -> generate_package_create ctx c.cl_path)
-	| TEnumDecl e when e.e_extern ->
+	| TEnumDecl e when has_enum_flag e EnExtern ->
 		if Meta.has Meta.JsRequire e.e_meta && is_directly_used ctx.com e.e_meta then
 			generate_require ctx e.e_path e.e_meta
 	| TEnumDecl e -> generate_enum ctx e
@@ -1788,7 +1632,7 @@ let set_current_class ctx c =
 
 let alloc_ctx com es_version =
 	let smap =
-		if com.debug || Common.defined com Define.JsSourceMap || Common.defined com Define.SourceMap then
+		if com.debug || Gctx.defined com Define.JsSourceMap || Gctx.defined com Define.SourceMap then
 			Some {
 				source_last_pos = { file = 0; line = 0; col = 0};
 				print_comma = false;
@@ -1808,10 +1652,10 @@ let alloc_ctx com es_version =
 		chan = None;
 		packages = Hashtbl.create 0;
 		smap = smap;
-		js_modern = not (Common.defined com Define.JsClassic);
-		js_flatten = not (Common.defined com Define.JsUnflatten);
-		has_resolveClass = Common.has_feature com "Type.resolveClass";
-		has_interface_check = Common.has_feature com "js.Boot.__interfLoop";
+		js_modern = not (Gctx.defined com Define.JsClassic);
+		js_flatten = not (Gctx.defined com Define.JsUnflatten);
+		has_resolveClass = Gctx.has_feature com "Type.resolveClass";
+		has_interface_check = Gctx.has_feature com "js.Boot.__interfLoop";
 		es_version = es_version;
 		statics = [];
 		inits = [];
@@ -1824,12 +1668,11 @@ let alloc_ctx com es_version =
 		separator = false;
 		found_expose = false;
 		catch_vars = [];
-		deprecation_context = DeprecationCheck.create_context com;
 	} in
 
 	ctx.type_accessor <- (fun t ->
 		match t with
-		| TEnumDecl ({ e_extern = true } as e) when not (Meta.has Meta.JsRequire e.e_meta) ->
+		| TEnumDecl e when (has_enum_flag e EnExtern) && not (Meta.has Meta.JsRequire e.e_meta) ->
 			dot_path e.e_path
 		| TClassDecl c ->
 			let p = get_generated_class_path c in
@@ -1849,22 +1692,22 @@ let gen_single_expr ctx e expr =
 	ctx.id_counter <- 0;
 	str
 
-let generate com =
-	(match com.js_gen with
+let generate js_gen com =
+	(match js_gen with
 	| Some g -> g()
 	| None ->
 
-	let es_version = get_es_version com in
+	let es_version = Gctx.get_es_version com.defines in
 
 	if es_version >= 6 then
 		ES6Ctors.rewrite_ctors com;
 
 	let ctx = alloc_ctx com es_version in
-	Codegen.map_source_header com (fun s -> print ctx "// %s\n" s);
+	Gctx.map_source_header com.defines (fun s -> print ctx "// %s\n" s);
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
 
-	let nodejs = Common.raw_defined com "nodejs" in
+	let nodejs = Gctx.raw_defined com "nodejs" in
 
 	setup_kwds com;
 
@@ -1927,7 +1770,7 @@ let generate com =
 		| _ -> ()
 	) include_files;
 
-	let defined_global_value = Common.defined_value_safe com Define.JsGlobal in
+	let defined_global_value = Gctx.defined_value_safe com Define.JsGlobal in
 
 	let defined_global = defined_global_value <> "" in
 
@@ -1948,7 +1791,7 @@ let generate com =
 	) in
 
 	let closureArgs = [var_global] in
-	let closureArgs = if (anyExposed && not (Common.defined com Define.ShallowExpose)) then
+	let closureArgs = if (anyExposed && not (Gctx.defined com Define.ShallowExpose)) then
 		var_exports :: closureArgs
 	else
 		closureArgs
@@ -1964,7 +1807,7 @@ let generate com =
 		(* Add node globals to pseudo-keywords, so they are not shadowed by local vars *)
 		List.iter (fun s -> Hashtbl.replace kwds2 s ()) [ "global"; "process"; "__filename"; "__dirname"; "module" ];
 
-	if (anyExposed && ((Common.defined com Define.ShallowExpose) || not ctx.js_modern)) then (
+	if (anyExposed && ((Gctx.defined com Define.ShallowExpose) || not ctx.js_modern)) then (
 		print ctx "var %s = %s" (fst var_exports) (snd var_exports);
 		ctx.separator <- true;
 		newline ctx
@@ -2005,7 +1848,7 @@ let generate com =
 	if (not ctx.js_modern) && (ctx.es_version < 5) then
 		spr ctx "var console = $global.console || {log:function(){}};\n";
 
-	let enums_as_objects = not (Common.defined com Define.JsEnumsAsArrays) in
+	let enums_as_objects = not (Gctx.defined com Define.JsEnumsAsArrays) in
 
 	(* TODO: fix $estr *)
 	let vars = [] in
@@ -2015,7 +1858,7 @@ let generate com =
 		else vars in
 	let vars = if (enums_as_objects && (has_feature ctx "has_enum" || has_feature ctx "Type.resolveEnum")) then "$hxEnums = $hxEnums || {}" :: vars else vars in
 	let vars,has_dollar_underscore =
-		if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types then
+		if List.exists (function TEnumDecl e when not (has_enum_flag e EnExtern) -> true | _ -> false) com.types then
 			"$_" :: vars,ref true
 		else
 			vars,ref false
@@ -2105,7 +1948,7 @@ let generate com =
 	end;
 	List.iter (gen_block_element ~newline_after:true ~keep_blocks:(ctx.es_version >= 6) ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
-	(match com.main with
+	(match com.main.main_expr with
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
 	if ctx.js_modern then begin
@@ -2124,7 +1967,7 @@ let generate com =
 		newline ctx;
 	end;
 
-	if (anyExposed && (Common.defined com Define.ShallowExpose)) then (
+	if (anyExposed && (Gctx.defined com Define.ShallowExpose)) then (
 		List.iter (fun f ->
 			print ctx "var %s = $hx_exports%s" f.os_name (path_to_brackets f.os_name);
 			ctx.separator <- true;
@@ -2138,7 +1981,10 @@ let generate com =
 	);
 
 	(match ctx.smap with
-	| Some smap -> write_mappings ctx smap
+	| Some smap ->
+		write_mappings ctx.com smap "file:///";
+		let basefile = Filename.basename com.file in
+		print ctx "\n//# sourceMappingURL=%s.map" (StringHelper.url_encode_s basefile);
 	| None -> try Sys.remove (com.file ^ ".map") with _ -> ());
 	flush ctx;
 	Option.may (fun chan -> close_out chan) ctx.chan

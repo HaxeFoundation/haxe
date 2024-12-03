@@ -19,6 +19,12 @@ class InlineClass {
 	}
 }
 
+class ExternInlineClass {
+	public var a = 1;
+	public extern inline function new() {
+	}
+}
+
 class InlineIterator {
 	public var i = 0;
 	public inline function new() {};
@@ -36,6 +42,19 @@ class NestedInlineClass {
 		b = [1,2,3];
 		c = {a:4};
 	}
+}
+
+class P {
+	public var x:Float;
+
+	public inline function new(x = 0)
+		this.x = x;
+}
+
+@:forward
+abstract PA(P) to P {
+	public inline function new(x)
+		this = new P(x);
 }
 
 class TestInlineConstructors extends TestBase {
@@ -129,5 +148,22 @@ class TestInlineConstructors extends TestBase {
 			acc += v;
 		}
 		return acc;
+	}
+
+	static var condition = false;
+	@:js('while(TestInlineConstructors.condition) {}try {} catch( _g ) {}return 1;')
+	static function testIgnoredValuesNotCancelling() {
+		new ExternInlineClass();
+		var a = new ExternInlineClass();
+		if ( condition ) a else a;
+		while ( condition ) a;
+		try { a; } catch(_) { a; };
+		return a.a;
+	}
+
+	@:js('return [5];')
+	static function testForwardAbstract() {
+		var p2 = {v: new PA(5)};
+		return [p2.v.x];
 	}
 }

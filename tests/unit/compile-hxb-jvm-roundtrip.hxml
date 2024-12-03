@@ -1,0 +1,7 @@
+compile-jvm-only.hxml
+--hxb hxb-config/jvm.json
+
+--next
+
+compile-jvm-only.hxml
+--hxb-lib bin/hxb/unit.java.zip

@@ -1,2 +1,2 @@
 -main Main
--java bin
+--jvm bin/jvm.jar

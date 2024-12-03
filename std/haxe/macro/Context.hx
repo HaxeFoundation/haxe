@@ -112,6 +112,8 @@ class Context {
 
 		If a class path was declared relative, this method returns the relative
 		file path. Otherwise it returns the absolute file path.
+
+		If no type can be found, an exception of type `String` is thrown.
 	**/
 	public static function resolvePath(file:String):String {
 		return load("resolve_path", 1)(file);
@@ -292,7 +294,7 @@ class Context {
 
 		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
-	public static function definedValue(key:String):String {
+	public static function definedValue(key:String):Null<String> {
 		return load("defined_value", 1)(key);
 	}
 
@@ -464,7 +466,7 @@ class Context {
 		is done running initialization macros, when typing begins.
 
 		`onAfterInitMacros` should be used to delay typer-dependant code from
-		your initalization macros, to properly separate configuration phase and
+		your initialization macros, to properly separate configuration phase and
 		actual typing.
 	**/
 	public static function onAfterInitMacros(callback:Void->Void):Void {

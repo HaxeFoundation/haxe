@@ -1,0 +1,5 @@
+MainFoo.hx:6: characters 18-21 : Field foo has different type than in Foo
+MainFoo.hx:2: characters 11-14 : ... Interface field is defined here
+MainFoo.hx:6: characters 18-21 : ... error: Null<Unknown<0>> should be foo.T
+MainFoo.hx:6: characters 18-21 : ... have: (...) -> Null<...>
+MainFoo.hx:6: characters 18-21 : ... want: (...) -> foo.T

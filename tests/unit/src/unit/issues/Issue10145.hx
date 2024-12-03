@@ -1,7 +1,5 @@
 package unit.issues;
 
-// whatever
-#if !erase_generics
 private interface I<T> {
 	function get():T;
 }
@@ -30,14 +28,11 @@ private abstract A<T>(I<T>) {
 		return this.get();
 	}
 }
-#end
 
 class Issue10145 extends unit.Test {
-	#if !erase_generics
 	function test() {
 		var x = new A(10);
 		var y:Int = x;
 		eq(10, y);
 	}
-	#end
 }

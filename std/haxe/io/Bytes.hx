@@ -70,8 +70,6 @@ class Bytes {
 		untyped b[pos] = v;
 		#elseif java
 		b[pos] = cast v;
-		#elseif cs
-		b[pos] = cast v;
 		#elseif python
 		python.Syntax.arraySet(b, pos, v & 0xFF);
 		#else
@@ -103,8 +101,6 @@ class Bytes {
 			b.writeBytes(src.b, srcpos, len);
 		#elseif java
 		java.lang.System.arraycopy(src.b, srcpos, b, pos, len);
-		#elseif cs
-		cs.system.Array.Copy(src.b, srcpos, b, pos, len);
 		#elseif python
 		python.Syntax.code("self.b[{0}:{0}+{1}] = src.b[srcpos:srcpos+{1}]", pos, len);
 		#elseif cpp
@@ -168,17 +164,13 @@ class Bytes {
 		var newarr = new java.NativeArray(len);
 		java.lang.System.arraycopy(b, pos, newarr, 0, len);
 		return new Bytes(len, newarr);
-		#elseif cs
-		var newarr = new cs.NativeArray(len);
-		cs.system.Array.Copy(b, pos, newarr, 0, len);
-		return new Bytes(len, newarr);
 		#elseif python
 		return new Bytes(len, python.Syntax.arrayAccess(b, pos, pos + len));
 		#else
 		return new Bytes(len, b.slice(pos, pos + len));
 		#end
 	}
-	
+
 	/**
 		Returns `0` if the bytes of `this` instance and the bytes of `other` are
 		identical.
@@ -220,7 +212,6 @@ class Bytes {
 		b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		return length - other.length;
-		// #elseif cs
 		// TODO: memcmp if unsafe flag is on
 		#elseif cpp
 		return b.memcmp(other.b);
@@ -428,13 +419,6 @@ class Bytes {
 		var result:String = "";
 		untyped __global__.__hxcpp_string_of_bytes(b, result, pos, len);
 		return result;
-		#elseif cs
-		switch (encoding) {
-			case UTF8 | null:
-				return cs.system.text.Encoding.UTF8.GetString(b, pos, len);
-			case RawNative:
-				return cs.system.text.Encoding.Unicode.GetString(b, pos, len);
-		}
 		#elseif java
 		try {
 			switch (encoding) {
@@ -505,8 +489,6 @@ class Bytes {
 		#elseif flash
 		b.position = 0;
 		return b.toString();
-		#elseif cs
-		return cs.system.text.Encoding.UTF8.GetString(b, 0, length);
 		#elseif java
 		try {
 			return new String(b, 0, length, "UTF-8");
@@ -558,8 +540,6 @@ class Bytes {
 		if (length > 0)
 			cpp.NativeArray.setSize(a, length);
 		return new Bytes(length, a);
-		#elseif cs
-		return new Bytes(length, new cs.NativeArray(length));
 		#elseif java
 		return new Bytes(length, new java.NativeArray(length));
 		#elseif python
@@ -591,14 +571,6 @@ class Bytes {
 		var a = new BytesData();
 		untyped __global__.__hxcpp_bytes_of_string(a, s);
 		return new Bytes(a.length, a);
-		#elseif cs
-		var b = switch (encoding) {
-			case UTF8 | null:
-				cs.system.text.Encoding.UTF8.GetBytes(s);
-			case RawNative:
-				cs.system.text.Encoding.Unicode.GetBytes(s);
-		};
-		return new Bytes(b.Length, b);
 		#elseif java
 		try {
 			var b:BytesData = switch (encoding) {
@@ -658,8 +630,6 @@ class Bytes {
 		return new Bytes(b.length, b);
 		#elseif neko
 		return new Bytes(untyped __dollar__ssize(b), b);
-		#elseif cs
-		return new Bytes(b.Length, b);
 		#else
 		return new Bytes(b.length, b);
 		#end

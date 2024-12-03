@@ -2,7 +2,7 @@ package unit.issues;
 
 class Issue3400 extends Test
 {
-#if java
+#if jvm
 	public function test()
 	{
 		var a:AbstractList<haxe.Int64> = AbstractList.empty();
@@ -11,7 +11,7 @@ class Issue3400 extends Test
 #end
 }
 
-#if java
+#if jvm
 private abstract AbstractList<T>(java.util.ArrayList<T>)
 {
 	function new(a:T)

@@ -29,9 +29,7 @@ typedef BytesData = flash.utils.ByteArray;
 #elseif cpp
 typedef BytesData = Array<cpp.UInt8>;
 #elseif java
-typedef BytesData = java.NativeArray<java.StdTypes.Int8>;
-#elseif cs
-typedef BytesData = cs.NativeArray<cs.StdTypes.UInt8>;
+typedef BytesData = jvm.NativeArray<jvm.Int8>;
 #elseif python
 typedef BytesData = python.Bytearray;
 #elseif js

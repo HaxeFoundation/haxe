@@ -20,7 +20,7 @@ package sys.thread;
 		Try to lock the semaphore.
 		If the value of the semaphore is zero, `false` is returned, else the value is increased.
 
-		If `timeout` is specified, this function will block until the thread is able to acquire the semaphore, or the timout expires.
+		If `timeout` is specified, this function will block until the thread is able to acquire the semaphore, or the timeout expires.
 		`timeout` is in seconds.
 	**/
 	public function tryAcquire(?timeout:Float):Bool;

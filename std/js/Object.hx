@@ -24,4 +24,4 @@ package js;
 
 @:deprecated typedef Object = js.lib.Object;
 @:deprecated typedef ObjectPrototype = js.lib.Object.ObjectPrototype;
-@:deprecated typedef ObjectPropertyDescriptor = js.lib.Object.ObjectPropertyDescriptor;
+@:deprecated typedef ObjectPropertyDescriptor<TProp> = js.lib.Object.ObjectPropertyDescriptor<TProp>;

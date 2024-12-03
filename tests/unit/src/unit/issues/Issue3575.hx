@@ -10,13 +10,13 @@ class Issue3575 extends Test {
 
 #if !cpp @:nativeGen #end private class Base
 {
-#if (cs || java) @:overload #end
+#if jvm @:overload #end
 	public function getName()
 	{
 		return "Base!";
 	}
 
-#if (cs || java)
+#if jvm
 	@:overload public function getName(s:String)
 	{
 		return 'Base!:$s';
@@ -35,7 +35,7 @@ class Child extends DirectDescendant
 	{
 	}
 
-#if (cs || java) @:overload #end
+#if jvm @:overload #end
 	override public function getName()
 	{
 		return "Something Else";

@@ -30,7 +30,7 @@ class Log {
 	/**
 		Format the output of `trace` before printing it.
 	**/
-	public static function formatOutput(v:Dynamic, infos:PosInfos):String {
+	public static function formatOutput(v:Dynamic, infos:Null<PosInfos>):String {
 		var str = Std.string(v);
 		if (infos == null)
 			return str;

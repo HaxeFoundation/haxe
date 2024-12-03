@@ -146,6 +146,7 @@ INSTALL_NEKO:
     ARG PREFIX=/usr/local
     RUN bash -c "ln -s \"$NEKOPATH\"/{neko,nekoc,nekoml,nekotools} \"$PREFIX/bin/\""
     RUN bash -c "ln -s \"$NEKOPATH\"/libneko.* \"$PREFIX/lib/\""
+    RUN bash -c "ln -s \"$NEKOPATH\"/*.h \"$PREFIX/include/\""
     RUN mkdir -p "$PREFIX/lib/neko/"
     RUN bash -c "ln -s \"$NEKOPATH\"/*.ndll \"$PREFIX/lib/neko/\""
     RUN ldconfig
@@ -221,7 +222,6 @@ xmldoc:
     RUN haxelib newrepo
     RUN haxelib git hxcpp  https://github.com/HaxeFoundation/hxcpp
     RUN haxelib git hxjava https://github.com/HaxeFoundation/hxjava
-    RUN haxelib git hxcs   https://github.com/HaxeFoundation/hxcs
     RUN haxe doc.hxml
 
     ARG COMMIT
@@ -269,11 +269,6 @@ test-environment-python:
 test-environment-php:
     FROM +test-environment
     DO +INSTALL_PACKAGES --PACKAGES="php-cli php-mbstring php-sqlite3"
-    SAVE IMAGE --cache-hint
-
-test-environment-cs:
-    FROM +test-environment
-    DO +INSTALL_PACKAGES --PACKAGES="mono-devel mono-mcs"
     SAVE IMAGE --cache-hint
 
 test-environment-hl:
@@ -361,12 +356,6 @@ test-jvm:
     ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=jvm
 
-test-cs:
-    FROM +test-environment-cs
-    ARG GITHUB_ACTIONS
-    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
-    DO +RUN_CI --TEST=cs
-
 test-php:
     FROM +test-environment-php
     ARG GITHUB_ACTIONS
@@ -400,7 +389,6 @@ test-all:
     BUILD +test-python
     BUILD +test-java
     BUILD +test-jvm
-    BUILD +test-cs
     BUILD +test-cpp
     BUILD +test-lua
     BUILD +test-js

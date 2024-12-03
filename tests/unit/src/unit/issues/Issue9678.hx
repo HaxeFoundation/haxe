@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue9678 extends unit.Test {
-	#if !cpp
+	#if (!cpp && !hlc)
 	function test() {
 		var called = 0;
 		function returnVoid() {

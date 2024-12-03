@@ -13,23 +13,14 @@ class TestCommandBase extends utest.Test {
 		var bin = FileSystem.absolutePath(TestArguments.bin);
 		var args = TestArguments.expectedArgs;
 
-		#if !cs
 		var exitCode = run("haxe", ["compile-each.hxml", "--run", "TestArguments"].concat(args));
 		Assert.equals(0, exitCode);
-		#end
 
 		var exitCode =
 			#if (macro || interp)
 				run("haxe", ["compile-each.hxml", "--run", "TestArguments"].concat(args));
 			#elseif cpp
 				run(bin, args);
-			#elseif cs
-				switch (Sys.systemName()) {
-					case "Windows":
-						run(bin, args);
-					case _:
-						run("mono", [bin].concat(args));
-				}
 			#elseif java
 				run(Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", bin].concat(args));
 			#elseif python
@@ -37,7 +28,11 @@ class TestCommandBase extends utest.Test {
 			#elseif neko
 				run("neko", [bin].concat(args));
 			#elseif hl
+				#if hlc
+				run(bin, args);
+				#else
 				run("hl", [bin].concat(args));
+				#end
 			#elseif php
 				run(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [bin].concat(args));
 			#elseif lua
@@ -116,13 +111,6 @@ class TestCommandBase extends utest.Test {
 					run("haxe", ["compile-each.hxml", "--run", "ExitCode"].concat(args));
 				#elseif cpp
 					run(bin, args);
-				#elseif cs
-					switch (Sys.systemName()) {
-						case "Windows":
-							run(bin, args);
-						case _:
-							run("mono", [bin].concat(args));
-					}
 				#elseif java
 					run(Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", bin].concat(args));
 				#elseif python
@@ -130,7 +118,11 @@ class TestCommandBase extends utest.Test {
 				#elseif neko
 					run("neko", [bin].concat(args));
 				#elseif hl
+					#if hlc
+					run(bin, args);
+					#else
 					run("hl", [bin].concat(args));
+					#end
 				#elseif php
 					run(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [bin].concat(args));
 				#elseif lua

@@ -211,7 +211,7 @@ let create_static_prototype ctx mt =
 			|  _ ->
 				()
 		) fields;
-		begin match c.cl_init with
+		begin match TClass.get_cl_init c with
 			| None -> ()
 			| Some e -> DynArray.add delays (false,(fun _ -> ignore(eval_expr ctx (EKMethod(key,key___init__)) e)))
 		end;

@@ -1,10 +1,5 @@
-[ERROR] (unknown position)
+[ERROR] Main.hx:5: characters 3-18
 
+ 5 |   data.toString().substr(0);
+   |   ^^^^^^^^^^^^^^^
    | Uncaught exception Invalid string
-
-    ->  Main.hx:5: characters 3-18
-
-    5 |   data.toString().substr(0);
-      |   ^^^^^^^^^^^^^^^
-      | Called from here
-

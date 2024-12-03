@@ -1,22 +1,23 @@
 package unit.issues;
 
 class Issue8502 extends Test {
-#if cpp
-  public function test() {
+	#if cpp
+	public function test() {
 		var t:scripthost.Issue8502 = Type.createInstance(Type.resolveClass('unit.issues.Issue8502_2'), []);
-    eq(t.doTest1(25), 'cppia 25');
-    eq(t.doTest2(25), 'cppia 25');
-    eq(t.doTest3(25), 'cppia 25');
-    eq(t.doTest4(25), 'cppia 25');
-    eq(t.doTest5(25), 'cppia 25');
-    eq(t.doTest3u(25), 'cppia 25');
-    eq(t.doTest4u(25), 'cppia 25');
-    eq(t.doTest5u(25), 'cppia 25');
-  }
-#end
+		eq(t.doTest1(25), 'cppia 25');
+		eq(t.doTest2(25), 'cppia 25');
+		eq(t.doTest3(25), 'cppia 25');
+		eq(t.doTest4(25), 'cppia 25');
+		eq(t.doTest5(25), 'cppia 25');
+		eq(t.doTest3u(25), 'cppia 25');
+		eq(t.doTest4u(25), 'cppia 25');
+		eq(t.doTest5u(25), 'cppia 25');
+	}
+	#end
 }
 
 #if cpp
+@:keep
 class Issue8502_2 extends scripthost.Issue8502 {
 	override public function doTest1(f:cpp.Float32):String {
 		return 'cppia ' + super.doTest1(f);
@@ -50,5 +51,4 @@ class Issue8502_2 extends scripthost.Issue8502 {
 		return 'cppia ' + super.doTest5u(f);
 	}
 }
-
 #end

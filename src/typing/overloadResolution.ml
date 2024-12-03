@@ -1,7 +1,7 @@
-open Typecore
 open TType
 open TUnification
 open TFunctions
+open FieldCallCandidate
 
 let unify_cf map_type c cf el =
 	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in

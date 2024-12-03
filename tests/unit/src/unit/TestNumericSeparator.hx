@@ -10,6 +10,10 @@ class TestNumericSeparator extends Test {
 		eq(0x12_0, 0x120);
 		eq(0x1_2_0, 0x120);
 
+		// bin int
+		eq(0b11_0, 0b110);
+		eq(0b1_1_0, 0b110);
+
 		// normal float
 		feq(12.3_4, 12.34);
 		feq(1_2.34, 12.34);
@@ -36,6 +40,10 @@ class TestNumericSeparator extends Test {
 		eq(0x12_0i32, 0x120i32);
 		eq(0x1_2_0i32, 0x120i32);
 
+		// bin int
+		eq(0b11_0i32, 0b110i32);
+		eq(0b1_1_0i32, 0b110i32);
+
 		// normal float
 		feq(12.3_4f64, 12.34f64);
 		feq(1_2.34f64, 12.34f64);
@@ -58,6 +66,10 @@ class TestNumericSeparator extends Test {
 		// hex int
 		eq(0x12_0_i32, 0x120i32);
 		eq(0x1_2_0_i32, 0x120i32);
+
+		// bin int
+		eq(0b11_0_i32, 0b110i32);
+		eq(0b1_1_0_i32, 0b110i32);
 
 		// normal float
 		feq(12.3_4_f64, 12.34f64);

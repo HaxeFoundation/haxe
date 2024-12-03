@@ -22,6 +22,6 @@ class Issue8381 extends DisplayTestCase {
 			offset: offset(1)
 		});
 		var result = parseHover();
-		Assert.equals(DisplayItemKind.ClassField, result.result.item.kind);
+		Assert.equals(result.result.item.kind, DisplayItemKind.ClassField);
 	}
 }

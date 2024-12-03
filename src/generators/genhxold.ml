@@ -144,7 +144,7 @@ let generate_type com t =
 	let print_meta ml =
 		List.iter (fun (m,pl,_) ->
 			match m with
-			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed | Meta.FlatEnum | Meta.Value | Meta.DirectlyUsed | Meta.Enum -> ()
+			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.FlatEnum | Meta.Value | Meta.DirectlyUsed | Meta.Enum -> ()
 			| _ ->
 			match pl with
 			| [] -> p "@%s " (Meta.to_string m)

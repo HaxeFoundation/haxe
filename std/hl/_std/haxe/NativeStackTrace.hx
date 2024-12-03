@@ -29,6 +29,9 @@ class NativeStackTrace {
 		var count = callStackRaw(null);
 		var arr = new NativeArray(count);
 		callStackRaw(arr);
+		// This will avoid errors when compiling hl/c on unix
+		// See https://github.com/HaxeFoundation/haxe/pull/11382 for long term fix
+		if (arr.length == 0) return arr;
 		return arr.sub(1, arr.length - 1);
 	}
 
