@@ -384,12 +384,6 @@ let make_static_field_access c cf t p =
 	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
-let make_static_call ctx c cf map args t p =
-	let monos = List.map (fun _ -> spawn_monomorph ctx.e p) cf.cf_params in
-	let map t = map (apply_params cf.cf_params monos t) in
-	let ef = make_static_field_access c cf (map cf.cf_type) p in
-	make_call ctx ef args (map t) p
-
 let raise_with_type_error ?(depth = 0) msg p =
 	raise (WithTypeError (make_error ~depth (Custom msg) p))
 

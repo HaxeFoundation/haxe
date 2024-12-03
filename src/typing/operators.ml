@@ -434,11 +434,11 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 			let vr = new value_reference ctx in
 			let e2' = vr#as_var "lhs" e2 in
 			let e1' = vr#as_var "rhs" e1 in
-			let e = make_static_call ctx c cf map [e1';e2'] tret p in
+			let e = CallUnification.make_static_call_better ctx c cf tl [e1';e2'] tret p in
 			let e = vr#to_texpr e in
 			BinopResult.create_special e needs_assign
 		end else
-			BinopResult.create_special (make_static_call ctx c cf map [e1;e2] tret p) needs_assign
+			BinopResult.create_special (make_static_call_better ctx c cf tl [e1;e2] tret p) needs_assign
 	in
 	(* special case for == and !=: if the second type is a monomorph, assume that we want to unify
 		it with the first type to preserve comparison semantics. *)
