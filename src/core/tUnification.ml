@@ -114,7 +114,7 @@ module Monomorph = struct
 		| MMono (m2,s) -> m2.tm_up_constraints <- (TMono m,s) :: m.tm_up_constraints
 		| _ -> ()
 
-	let constraint_of_type m name t = match follow t with
+	let constraint_of_type name t = match follow t with
 		| TMono m2 ->
 			[MMono(m2,name)]
 		| TAnon an when not (PMap.is_empty an.a_fields) ->
@@ -122,13 +122,12 @@ module Monomorph = struct
 				(MField cf) :: l
 			) an.a_fields []
 		| TAnon _ ->
-			add_modifier m MOpenStructure;
-			[]
+			[MEmptyStructure]
 		| _ ->
 			[MType(t,name)]
 
 	let constrain_to_type m name t =
-		List.iter (add_down_constraint m) (constraint_of_type m name t)
+		List.iter (add_down_constraint m) (constraint_of_type name t)
 
 	(* Note: This function is called by printing and others and should thus not modify state. *)
 
@@ -152,12 +151,14 @@ module Monomorph = struct
 						List.iter check m2.tm_down_constraints
 					end
 				| Some t ->
-					List.iter (fun constr -> check constr) (constraint_of_type m2 name t)
+					List.iter (fun constr -> check constr) (constraint_of_type name t)
 				end;
 			| MField cf ->
 				fields := PMap.add cf.cf_name cf !fields;
 			| MType(t2,name) ->
 				DynArray.add types (t2,name)
+			| MEmptyStructure ->
+				is_open := true
 		in
 		List.iter check m.tm_down_constraints;
 		List.iter (function

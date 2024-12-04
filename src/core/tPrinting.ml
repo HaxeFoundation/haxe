@@ -131,6 +131,7 @@ and s_constraint = function
 	| MMono(m,_) -> Printf.sprintf "MMono %s" (s_type_kind (TMono m))
 	| MField cf -> Printf.sprintf "MField %s" cf.cf_name
 	| MType(t,_) -> Printf.sprintf "MType %s" (s_type_kind t)
+	| MEmptyStructure -> "MEmptyStructure"
 
 let s_type_param s_type ttp =
 	let s = match (get_constraints ttp) with
