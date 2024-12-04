@@ -90,7 +90,6 @@ and tmono_constraint =
 	| MMono of tmono * string option
 	| MField of tclass_field
 	| MType of t * string option
-	| MEmptyStructure
 
 and tmono_constraint_kind =
 	| CUnknown
