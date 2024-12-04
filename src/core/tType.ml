@@ -83,6 +83,7 @@ and tmono = {
 	*)
 	mutable tm_down_constraints : tmono_constraint list;
 	mutable tm_up_constraints : (t * string option) list;
+	mutable tm_modifiers : tmono_modifier list;
 }
 
 and tmono_constraint =
@@ -97,6 +98,9 @@ and tmono_constraint_kind =
 	| CStructural of (string,tclass_field) PMap.t * bool
 	| CMixed of tmono_constraint_kind list
 	| CTypes of (t * string option) list
+
+and tmono_modifier =
+	| MNullable of (t -> t)
 
 and tlazy =
 	| LAvailable of t

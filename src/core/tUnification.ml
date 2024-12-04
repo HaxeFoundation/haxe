@@ -93,8 +93,12 @@ module Monomorph = struct
 	let create () = {
 		tm_type = None;
 		tm_down_constraints = [];
-		tm_up_constraints = []
+		tm_up_constraints = [];
+		tm_modifiers = [];
 	}
+
+	let add_modifier m modi =
+		m.tm_modifiers <- modi :: m.tm_modifiers
 
 	(* constraining *)
 
@@ -225,6 +229,9 @@ module Monomorph = struct
 
 	let do_bind m t =
 		(* assert(m.tm_type = None); *) (* TODO: should be here, but matcher.ml does some weird bind handling at the moment. *)
+		let t = List.fold_left (fun t modi -> match modi with
+			| MNullable f -> f t
+		) t m.tm_modifiers in
 		m.tm_type <- Some t;
 		m.tm_down_constraints <- [];
 		m.tm_up_constraints <- []

@@ -72,7 +72,7 @@ let is_string_type t =
 *)
 let rec is_nullable_type ?(dynamic_is_nullable=false) = function
 	| TMono r ->
-		(match r.tm_type with None -> false | Some t -> is_nullable_type t)
+		(match r.tm_type with None -> List.exists (function MNullable _ -> true) r.tm_modifiers | Some t -> is_nullable_type t)
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		true
 	| TAbstract ({ a_path = ([],"Any") },[]) ->

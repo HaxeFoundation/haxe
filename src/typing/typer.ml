@@ -399,9 +399,7 @@ let rec type_ident_raise ctx i p mode with_type =
 				| WithType.WithType(t,_) ->
 					begin match follow t with
 					| TMono r when not (is_nullable t) ->
-						(* If our expected type is a monomorph, bind it to Null<?>. The is_nullable check is here because
-							the expected type could already be Null<?>, in which case we don't want to double-wrap (issue #11286). *)
-						Monomorph.do_bind r (tnull())
+						Monomorph.add_modifier r (MNullable ctx.t.tnull)
 					| _ ->
 						(* Otherwise there's no need to create a monomorph, we can just type the null literal
 						the way we expect it. *)
