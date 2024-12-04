@@ -157,11 +157,16 @@ module Monomorph = struct
 				fields := PMap.add cf.cf_name cf !fields;
 			| MType(t2,name) ->
 				DynArray.add types (t2,name)
-			| MOpenStructure
 			| MEmptyStructure ->
 				is_open := true
 		in
 		List.iter check m.tm_down_constraints;
+		List.iter (function
+			| MNullable _ ->
+				()
+			| MOpenStructure ->
+				is_open := true
+		) m.tm_modifiers;
 		let kind =
 			let k1 =
 				if DynArray.length types > 0 then
@@ -231,6 +236,7 @@ module Monomorph = struct
 		(* assert(m.tm_type = None); *) (* TODO: should be here, but matcher.ml does some weird bind handling at the moment. *)
 		let t = List.fold_left (fun t modi -> match modi with
 			| MNullable f -> f t
+			| MOpenStructure -> t
 		) t m.tm_modifiers in
 		m.tm_type <- Some t;
 		m.tm_down_constraints <- [];
@@ -238,7 +244,7 @@ module Monomorph = struct
 
 	let rec bind m t =
 		begin match t with
-		| TAnon _ when List.mem MOpenStructure m.tm_down_constraints ->
+		| TAnon _ when List.mem MOpenStructure m.tm_modifiers ->
 			(* If we assign an open structure monomorph to another structure, the semantics want us to merge the
 			   fields. This is kinda weird, but that's how it has always worked. *)
 			constrain_to_type m None t;

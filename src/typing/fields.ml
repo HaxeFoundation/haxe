@@ -386,7 +386,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					ctx.e.monomorphs.perfunction <- (r,p) :: ctx.e.monomorphs.perfunction;
 				let f = mk_field() in
 				Monomorph.add_down_constraint r (MField f);
-				Monomorph.add_down_constraint r MOpenStructure;
+				Monomorph.add_modifier r MOpenStructure;
 				field_access f FHAnon
 			| CMixed l ->
 				let rec loop_constraints l =
