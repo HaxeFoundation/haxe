@@ -232,9 +232,9 @@ class file_keys = object(self)
 
 	val virtual_counter = ref 0
 
-	method generate_virtual step =
+	method generate_virtual mpath step =
 		incr virtual_counter;
-		Printf.sprintf "file_%i_%i" step !virtual_counter
+		Printf.sprintf "%s/file_%i_%i" (s_type_path mpath) step !virtual_counter
 
 end
 
