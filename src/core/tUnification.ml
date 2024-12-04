@@ -131,21 +131,18 @@ module Monomorph = struct
 
 	(* Note: This function is called by printing and others and should thus not modify state. *)
 
-	let rec classify_down_constraints' m =
+	let rec classify_down_constraints m =
 		let types = DynArray.create () in
 		let fields = ref PMap.empty in
 		let is_open = ref false in
-		let monos = ref [] in
 		let rec check constr = match constr with
 			| MMono(m2,name) ->
 				begin match m2.tm_type with
 				| None ->
-					let more_monos,kind = classify_down_constraints' m2 in
-					monos := !monos @ more_monos;
+					let kind = classify_down_constraints m2 in
 					begin match kind with
 					| CUnknown ->
-						(* Collect unconstrained monomorphs because we have to bind them. *)
-						monos := m2 :: !monos;
+						()
 					| _ ->
 						(* Recursively inherit constraints. *)
 						List.iter check m2.tm_down_constraints
@@ -182,9 +179,7 @@ module Monomorph = struct
 			else
 				k1
 		in
-		!monos,kind
-
-	let classify_down_constraints m = snd (classify_down_constraints' m)
+		kind
 
 	let rec check_down_constraints constr t =
 		match constr with
@@ -285,8 +280,7 @@ module Monomorph = struct
 				with Type_exception t ->
 					Some t
 			in
-			(* TODO: we never do anything with monos, I think *)
-			let monos,constraints = classify_down_constraints' m in
+			let constraints = classify_down_constraints m in
 			match constraints with
 			| CUnknown ->
 				()
