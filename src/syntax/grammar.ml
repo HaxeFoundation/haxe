@@ -140,7 +140,7 @@ and parse_type_decls mode pmax pack acc s =
 		begin match%parser s with
 		| [ [%let cff = parse_type_decl mode] ] -> Success cff
 		| [ (Eof,p) ] -> End p
-		| [ ] -> Error ""
+		| [ ] -> Error "Parse error."
 		end
 	with
 	| TypePath ([],Some (name,false),b,p) ->
@@ -530,7 +530,7 @@ and parse_class_field_resume acc tdecl s =
 		begin match%parser s with
 		| [ [%let cff = parse_class_field tdecl] ] -> Success cff
 		| [ (BrClose,p) ] -> End p
-		| [ ] -> Error ""
+		| [ ] -> Error "Parse error."
 		end
 	with Stream.Error msg ->
 		Error msg
