@@ -58,7 +58,7 @@ type tcpp =
   | TCppRest of tcpp
   | TCppReference of tcpp
   | TCppStruct of tcpp
-  | TCppValueType of tclass
+  | TCppValueType of tclass * tcpp list
   | TCppStar of tcpp * bool
   | TCppVoidStar
   | TCppVarArg

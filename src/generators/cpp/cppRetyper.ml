@@ -20,8 +20,6 @@ let rec cpp_type_of stack haxe_type =
     | TInst ({ cl_path = [], "Array"; cl_kind = KTypeParameter _ }, _) ->
         TCppObject
     | TInst ({ cl_kind = KTypeParameter _ }, _) -> TCppDynamic
-    | TInst (klass, params) when is_extern_value_class klass -> 
-      TCppValueType klass
     | TInst (klass, params) ->
       cpp_instance_type stack klass params
     | TAbstract (abs, pl) when not (Meta.has Meta.CoreType abs.a_meta) ->
@@ -166,9 +164,9 @@ and cpp_instance_type stack klass params =
       else if has_class_flag klass CInterface then
         TCppInterface klass
       else if has_class_flag klass CExtern && not (is_internal_class klass.cl_path) then
-        if has_meta Meta.CppValueType klass.cl_meta then
+        if is_extern_value_class klass then
           let tcpp_params = List.map (cpp_type_of stack) params in
-          TCppReference (TCppInst (klass, tcpp_params))
+          TCppValueType (klass, tcpp_params)
         else
           let tcpp_params = List.map (cpp_type_of stack) params in
           TCppInst (klass, tcpp_params)

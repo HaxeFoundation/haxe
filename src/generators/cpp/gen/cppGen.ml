@@ -27,11 +27,11 @@ let type_cant_be_null haxe_type =
 
 let type_arg_to_string name default_val arg_type prefix =
   let remap_name, type_str =
-    match follow arg_type with
-    | TInst (cls, _) when is_extern_value_class cls ->
-      Printf.sprintf "_hxcpp_stack_%s" name, get_extern_value_type_struct cls
+    match cpp_type_of arg_type with
+    | TCppValueType (cls, params) ->
+      Printf.sprintf "_hxcpp_stack_%s" name, get_extern_value_type_struct cls params
     | other ->
-      keyword_remap name, type_to_string other
+      keyword_remap name, tcpp_to_string other
     in
   match default_val with
   | Some { eexpr = TConst TNull } -> (type_str, remap_name)
@@ -213,11 +213,11 @@ let cpp_gen_default_values ctx args prefix =
 let cpp_gen_value_struct_references ctx args =
   List.iter
     (fun (var, _) ->
-      match follow var.v_type with
-      | TInst (cls, _) when is_extern_value_class cls ->
+      match cpp_type_of var.v_type with
+      | TCppValueType (cls, params) ->
         let name            = cpp_var_name_of var in
         let stack_name      = "_hxcpp_stack_" ^ name in
-        let reference_ident = get_extern_value_type_reference cls in
+        let reference_ident = get_extern_value_type_reference cls params in
         let spacer          = if ctx.ctx_debug_level > 0 then "            \t" else "" in
         
         Printf.sprintf "%s%s %s = %s(%s);\n" spacer reference_ident name reference_ident stack_name |> ctx.ctx_output
@@ -542,13 +542,13 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     | CppContinue -> out "continue"
     | CppGoto label -> out ("goto " ^ label_name label)
     | CppVarDecl (var, init) -> (
-      match follow var.v_type with
+      match cpp_type_of var.v_type with
       (* Marshalling, place a struct on the stack and have the user typed variable be a reference to it. *)
-      | TInst (cls, _) when is_extern_value_class cls ->
+      | TCppValueType (cls, params) ->
         let name            = cpp_var_name_of var in
         let stack_name      = "_hxcpp_stack_" ^ name in
-        let struct_ident    = get_extern_value_type_struct cls in
-        let reference_ident = get_extern_value_type_reference cls in
+        let struct_ident    = get_extern_value_type_struct cls params in
+        let reference_ident = get_extern_value_type_reference cls params in
 
         Printf.sprintf "%s %s" struct_ident stack_name |> out;
 
@@ -777,8 +777,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
                   "::Array_obj< " ^ tcpp_to_string value ^ " >::__new"
               | TCppObjC klass -> cpp_class_path_of klass [] ^ "_obj::__new"
               | TCppNativePointer klass -> "new " ^ cpp_class_path_of klass []
-              | TCppValueType cls when is_extern_value_class cls ->
-                get_extern_value_type_struct cls
+              | TCppValueType (cls, params) when is_extern_value_class cls ->
+                get_extern_value_type_struct cls params
               | TCppInst (klass, p) when is_native_class klass ->
                   cpp_class_path_of klass p
               | TCppInst (klass, p) -> cpp_class_path_of klass p ^ "_obj::__new"

@@ -9,15 +9,20 @@ open CppAstTools
 open CppSourceWriter
 open CppContext
 open CppGen
-
-let type_to_string = CppMarshalling.type_to_string
+open CppMarshalling
 
 let gen_function ctx class_def class_name is_static func =
-  let output          = ctx.ctx_output in
-  let return_type_str = type_to_string func.tcf_func.tf_type in
-  let return_type     = cpp_type_of func.tcf_func.tf_type in
-  let is_void         = return_type = TCppVoid in
-  let ret             = if is_void then "(void)" else "return " in
+  let output      = ctx.ctx_output in
+  let return_type = cpp_type_of func.tcf_func.tf_type in
+
+  let ret, is_void, return_type_str =
+    match return_type with
+    | TCppValueType (cls, params) ->
+      "return ", false, get_extern_value_type_struct cls params
+    | TCppVoid ->
+      "(void)", true, "void"
+    | other ->
+      "return ", false, tcpp_to_string other in
   let needsWrapper t =
     match t with
     | TCppStar _ -> true
@@ -26,7 +31,7 @@ let gen_function ctx class_def class_name is_static func =
   in
 
   (* The actual function definition *)
-  output (if is_void then "void" else return_type_str);
+  output return_type_str;
   output (" " ^ class_name ^ "::" ^ func.tcf_name ^ "(");
   output (print_arg_list func.tcf_func.tf_args "__o_");
   output ")";

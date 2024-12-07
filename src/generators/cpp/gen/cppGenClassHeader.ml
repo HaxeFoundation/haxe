@@ -11,13 +11,11 @@ open CppContext
 open CppGen
 open CppMarshalling
 
-let type_to_string = CppMarshalling.type_to_string
-
-let gen_member_variable ctx class_def is_static var =
+let gen_member_variable ctx is_static var =
   let tcpp     = cpp_type_of var.tcv_type in
-  let tcpp_str = match follow var.tcv_type with
-  | TInst (cls, _) when is_extern_value_class cls ->
-    get_extern_value_type_struct cls
+  let tcpp_str = match tcpp with
+  | TCppValueType (cls, params) ->
+    get_extern_value_type_struct cls params
   | other ->
     tcpp_to_string tcpp
   in
@@ -65,8 +63,15 @@ let gen_member_function ctx class_def is_static func =
     |> String.concat " "
   in
 
-  let return_type     = type_to_string func.tcf_func.tf_type in
-  let return_type_str = if return_type = "Void" then "void" else return_type in
+  let return_type_str =
+    match cpp_type_of func.tcf_func.tf_type with
+    | TCppValueType (cls, params) ->
+      get_extern_value_type_struct cls params
+    | TCppVoid ->
+      "void"
+    | other ->
+      tcpp_to_string other in
+
   Printf.sprintf "\t\t%s %s %s(%s);\n" attributes return_type_str func.tcf_name (print_arg_list func.tcf_func.tf_args "") |> output;
 
   if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
@@ -180,7 +185,7 @@ let generate_native_header base_ctx tcpp_class =
   if has_tcpp_class_flag tcpp_class Boot then output_h "\t\tstatic void __boot();\n";
 
   tcpp_class.tcl_static_variables
-  |> List.iter (gen_member_variable ctx class_def true);
+  |> List.iter (gen_member_variable ctx true);
 
   tcpp_class.tcl_static_functions
   |> List.iter (gen_member_function ctx class_def true);
@@ -189,7 +194,7 @@ let generate_native_header base_ctx tcpp_class =
   |> List.iter (gen_dynamic_function ctx class_def true);
 
   tcpp_class.tcl_variables
-  |> List.iter (gen_member_variable ctx class_def false);
+  |> List.iter (gen_member_variable ctx false);
 
   tcpp_class.tcl_functions
   |> List.iter (gen_member_function ctx class_def false);
@@ -377,7 +382,7 @@ let generate_managed_header base_ctx tcpp_class =
   |> List.iter (gen_dynamic_function ctx class_def true);
 
   tcpp_class.tcl_static_variables
-  |> List.iter (gen_member_variable ctx class_def true);
+  |> List.iter (gen_member_variable ctx true);
 
   tcpp_class.tcl_functions
   |> List.iter (gen_member_function ctx class_def false);
@@ -386,7 +391,7 @@ let generate_managed_header base_ctx tcpp_class =
   |> List.iter (gen_dynamic_function ctx class_def false);
 
   tcpp_class.tcl_variables
-  |> List.iter (fun field -> gen_member_variable ctx class_def false field);
+  |> List.iter (fun field -> gen_member_variable ctx false field);
 
   output_h (get_class_code class_def Meta.HeaderClassCode);
   output_h "};\n\n";

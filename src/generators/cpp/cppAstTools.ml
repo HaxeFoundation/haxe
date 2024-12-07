@@ -276,31 +276,6 @@ let is_extern_value_tvar tvar =
    | _ ->
       false
 
-let get_extern_value_type cls =
-   match Meta.get Meta.CppValueType cls.cl_meta with
-   | _, [ (EObjectDecl decls, _) ], _ ->
-      (match List.find_opt (fun ((n, _, _), _) -> n = "type") decls with
-      | Some (_, (EConst (String (s, _)), _) ) ->
-         s
-      | _ ->
-         snd cls.cl_path)
-   | _ ->
-      snd cls.cl_path
-
-let extern_value_type_supports cls flag =
-   match Meta.get Meta.CppValueType cls.cl_meta with
-   | _, [ (EObjectDecl decls, _) ], _ ->
-      (match List.find_opt (fun ((n, _, _), _) -> n = "flags") decls with
-      | Some (_, (EArrayDecl decls, _) ) ->
-         let ident = match flag with
-         | ImplicitConstruction -> Ident "ImplicitConstruction"
-         | StackOnly -> Ident "StackOnly" in
-         List.exists (fun (expr, _) -> match expr with | EConst i when i = ident -> true | _ -> false) decls
-      | _ ->
-         false)
-   | _ ->
-      false
-
 let rec s_tcpp = function
   | CppInt _ -> "CppInt"
   | CppFloat _ -> "CppFloat"
@@ -445,8 +420,39 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppGlobal -> "::Dynamic"
   | TCppNull -> " ::Dynamic"
   | TCppCode _ -> "Code"
-  | TCppValueType cls ->
-      get_extern_value_type cls |> Printf.sprintf "::cpp::Reference< %s >"
+  | TCppValueType (cls, params) ->
+    cpp_class_path_of cls params |> Printf.sprintf "::cpp::Reference< %s >"
+
+and get_extern_value_type cls params =
+  let typeParams =
+    match params with
+    | [] -> ""
+    | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >"
+    in
+
+  match Meta.get Meta.CppValueType cls.cl_meta with
+  | _, [ (EObjectDecl decls, _) ], _ ->
+    (match List.find_opt (fun ((n, _, _), _) -> n = "type") decls with
+    | Some (_, (EConst (String (s, _)), _) ) ->
+      s ^ typeParams
+    | _ ->
+      snd cls.cl_path ^ typeParams)
+  | _ ->
+    snd cls.cl_path ^ typeParams
+
+and extern_value_type_supports cls flag =
+  match Meta.get Meta.CppValueType cls.cl_meta with
+  | _, [ (EObjectDecl decls, _) ], _ ->
+    (match List.find_opt (fun ((n, _, _), _) -> n = "flags") decls with
+    | Some (_, (EArrayDecl decls, _) ) ->
+      let ident = match flag with
+      | ImplicitConstruction -> Ident "ImplicitConstruction"
+      | StackOnly -> Ident "StackOnly" in
+      List.exists (fun (expr, _) -> match expr with | EConst i when i = ident -> true | _ -> false) decls
+    | _ ->
+      false)
+  | _ ->
+    false
 
 and tcpp_objc_block_struct argTypes retType =
   let args = String.concat "," (List.map tcpp_to_string argTypes) in
@@ -461,15 +467,18 @@ and tcpp_objc_block_struct argTypes retType =
 and tcpp_to_string tcpp = tcpp_to_string_suffix "" tcpp
 
 and cpp_class_path_of klass params =
-  match get_meta_string klass.cl_meta Meta.Native with
-  | Some s ->
-      let typeParams =
-        match params with
-        | [] -> ""
-        | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >"
-      in
-      " " ^ join_class_path_remap klass.cl_path "::" ^ typeParams
-  | None -> " ::" ^ join_class_path_remap klass.cl_path "::"
+   if is_extern_value_class klass then
+      get_extern_value_type klass params
+   else
+      match get_meta_string klass.cl_meta Meta.Native with
+      | Some s ->
+         let typeParams =
+            match params with
+            | [] -> ""
+            | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >"
+            in
+         " " ^ join_class_path_remap klass.cl_path "::" ^ typeParams
+      | None -> " ::" ^ join_class_path_remap klass.cl_path "::"
 
 (*  Get a string to represent a type.
    The "suffix" will be nothing or "_obj", depending if we want the name of the
