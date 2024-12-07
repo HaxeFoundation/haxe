@@ -30,7 +30,7 @@ let rec plist f = function%parser
 	| [ f as v; [%let l = plist f] ] -> v :: l
 	| [ ] -> []
 
-let psep_nonempty sep f s = match%parser s with
+let psep_nonempty sep f = function%parser
 	| [ f as v; [%s s] ] ->
 		let rec loop = function%parser
 			| [ (sep2,_); f as v; loop as l ] when sep2 = sep -> v :: l
