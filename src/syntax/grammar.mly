@@ -969,12 +969,15 @@ and parse_class_field tdecl s =
 		| [< '(Kwd Final,p1) >] ->
 			check_redundant_var p1 s;
 			begin match s with parser
-			| [< opt,name = questionable_dollar_ident; '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
-				let meta = check_optional opt name in
-				name,punion p1 p2,FProp(i1,i2,t,e),(al @ [AFinal,p1]),meta
-			| [< opt,name = questionable_dollar_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
-				let meta = check_optional opt name in
-				name,punion p1 p2,FVar(t,e),(al @ [AFinal,p1]),meta
+			| [< opt,name = questionable_dollar_ident; s >] ->
+				begin match s with parser
+				| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
+					let meta = check_optional opt name in
+					name,punion p1 p2,FProp(i1,i2,t,e),(al @ [AFinal,p1]),meta
+				| [< t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
+					let meta = check_optional opt name in
+					name,punion p1 p2,FVar(t,e),(al @ [AFinal,p1]),meta
+				end
 			| [< al2 = plist parse_cf_rights; f = parse_function_field doc meta (al @ ((AFinal,p1) :: al2)) >] ->
 				f
 			| [< >] ->
