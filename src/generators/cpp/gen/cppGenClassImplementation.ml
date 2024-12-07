@@ -10,6 +10,8 @@ open CppSourceWriter
 open CppContext
 open CppGen
 
+let type_to_string = CppMarshalling.type_to_string
+
 let gen_function ctx class_def class_name is_static func =
   let output          = ctx.ctx_output in
   let return_type_str = type_to_string func.tcf_func.tf_type in

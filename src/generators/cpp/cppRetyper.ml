@@ -20,7 +20,10 @@ let rec cpp_type_of stack haxe_type =
     | TInst ({ cl_path = [], "Array"; cl_kind = KTypeParameter _ }, _) ->
         TCppObject
     | TInst ({ cl_kind = KTypeParameter _ }, _) -> TCppDynamic
-    | TInst (klass, params) -> cpp_instance_type stack klass params
+    | TInst (klass, params) when is_extern_value_class klass -> 
+      TCppValueType klass
+    | TInst (klass, params) ->
+      cpp_instance_type stack klass params
     | TAbstract (abs, pl) when not (Meta.has Meta.CoreType abs.a_meta) ->
         cpp_type_from_path stack abs.a_path pl (fun () ->
             cpp_type_of stack
@@ -104,8 +107,8 @@ and cpp_type_from_path stack path params default =
       | TCppVoid (* ? *) | TCppDynamic -> TCppDynamicArray
       | TCppObject | TCppObjectPtr | TCppReference _ | TCppStruct _ | TCppStar _
       | TCppEnum _ | TCppInst _ | TCppInterface _ | TCppProtocol _ | TCppClass
-      | TCppDynamicArray | TCppObjectArray _ | TCppScalarArray _ ->
-          TCppObjectArray arrayOf
+      | TCppDynamicArray | TCppObjectArray _ | TCppScalarArray _ | TCppValueType _ ->
+        TCppObjectArray arrayOf
       | _ -> TCppScalarArray arrayOf)
   | ([], "Null"), [ p ] -> cpp_type_of_null stack p
   | _ -> default ()
@@ -160,12 +163,15 @@ and cpp_instance_type stack klass params =
       if is_objc_class klass then TCppObjC klass
       else if has_class_flag klass CInterface && is_native_gen_class klass then
         TCppNativePointer klass
-      else if has_class_flag klass CInterface then TCppInterface klass
-      else if
-        has_class_flag klass CExtern && not (is_internal_class klass.cl_path)
-      then
-        let tcpp_params = List.map (cpp_type_of stack) params in
-        TCppInst (klass, tcpp_params)
+      else if has_class_flag klass CInterface then
+        TCppInterface klass
+      else if has_class_flag klass CExtern && not (is_internal_class klass.cl_path) then
+        if has_meta Meta.CppValueType klass.cl_meta then
+          let tcpp_params = List.map (cpp_type_of stack) params in
+          TCppReference (TCppInst (klass, tcpp_params))
+        else
+          let tcpp_params = List.map (cpp_type_of stack) params in
+          TCppInst (klass, tcpp_params)
       else
         let tcpp_params = List.map (cpp_type_of stack) params in
         TCppInst (klass, tcpp_params))
@@ -334,7 +340,7 @@ let expression ctx request_type function_args function_type expression_tree forI
 
   let cpp_can_static_cast funcType inferredType =
     match funcType with
-    | TCppReference _ | TCppStar _ | TCppStruct _ -> false
+    | TCppReference _ | TCppStar _ | TCppStruct _ | TCppValueType _ -> false
     | _ -> (
         match inferredType with
         | TCppInst (cls, _) when is_extern_class cls -> false
@@ -432,7 +438,8 @@ let expression ctx request_type function_args function_type expression_tree forI
       | TLocal tvar ->
           let name = tvar.v_name in
           if StringMap.mem name retyper_ctx.declarations then
-            (retyper_ctx, CppVar (VarLocal tvar), cpp_type_of tvar.v_type)
+            let tvar_type = if is_extern_value_tvar tvar then ValueType else Normal in
+            (retyper_ctx, CppVar (VarLocal (tvar, tvar_type)), cpp_type_of tvar.v_type)
           else (
             let new_ctx = { retyper_ctx with undeclared = StringMap.add name tvar retyper_ctx.undeclared } in
             if has_var_flag tvar VCaptured then

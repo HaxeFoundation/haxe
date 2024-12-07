@@ -266,6 +266,41 @@ let join_class_path_remap path separator =
   | "Class" -> "hx::Class"
   | x -> x
 
+let is_extern_value_class cls =
+   has_class_flag cls CExtern && has_meta Meta.CppValueType cls.cl_meta
+
+let is_extern_value_tvar tvar =
+   match follow tvar.v_type with
+   | TInst (cls, _) ->
+      is_extern_value_class cls
+   | _ ->
+      false
+
+let get_extern_value_type cls =
+   match Meta.get Meta.CppValueType cls.cl_meta with
+   | _, [ (EObjectDecl decls, _) ], _ ->
+      (match List.find_opt (fun ((n, _, _), _) -> n = "type") decls with
+      | Some (_, (EConst (String (s, _)), _) ) ->
+         s
+      | _ ->
+         snd cls.cl_path)
+   | _ ->
+      snd cls.cl_path
+
+let extern_value_type_supports cls flag =
+   match Meta.get Meta.CppValueType cls.cl_meta with
+   | _, [ (EObjectDecl decls, _) ], _ ->
+      (match List.find_opt (fun ((n, _, _), _) -> n = "flags") decls with
+      | Some (_, (EArrayDecl decls, _) ) ->
+         let ident = match flag with
+         | ImplicitConstruction -> Ident "ImplicitConstruction"
+         | StackOnly -> Ident "StackOnly" in
+         List.exists (fun (expr, _) -> match expr with | EConst i when i = ident -> true | _ -> false) decls
+      | _ ->
+         false)
+   | _ ->
+      false
+
 let rec s_tcpp = function
   | CppInt _ -> "CppInt"
   | CppFloat _ -> "CppFloat"
@@ -410,6 +445,8 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppGlobal -> "::Dynamic"
   | TCppNull -> " ::Dynamic"
   | TCppCode _ -> "Code"
+  | TCppValueType cls ->
+      get_extern_value_type cls |> Printf.sprintf "::cpp::Reference< %s >"
 
 and tcpp_objc_block_struct argTypes retType =
   let args = String.concat "," (List.map tcpp_to_string argTypes) in
@@ -678,6 +715,7 @@ let cpp_variant_type_of t = match t with
   | TCppObjectPtr
   | TCppReference _
   | TCppStruct _
+  | TCppValueType _
   | TCppStar _
   | TCppVoid
   | TCppFastIterator _

@@ -9,13 +9,21 @@ open CppAstTools
 open CppSourceWriter
 open CppContext
 open CppGen
+open CppMarshalling
 
-let gen_member_variable ctx class_def is_static (var:tcpp_class_variable) =
+let type_to_string = CppMarshalling.type_to_string
+
+let gen_member_variable ctx class_def is_static var =
   let tcpp     = cpp_type_of var.tcv_type in
-  let tcpp_str = tcpp_to_string tcpp in
+  let tcpp_str = match follow var.tcv_type with
+  | TInst (cls, _) when is_extern_value_class cls ->
+    get_extern_value_type_struct cls
+  | other ->
+    tcpp_to_string tcpp
+  in
 
   if not is_static && var.tcv_is_stackonly then
-    abort (Printf.sprintf "%s is marked as stack only and therefor cannot be used as the type for a non static variable" tcpp_str) var.tcv_field.cf_pos;
+    abort (Printf.sprintf "%s is marked as stack only and therefor cannot be used as the type for a non static variable" (Printer.s_type var.tcv_type)) var.tcv_field.cf_pos;
 
   let output = ctx.ctx_output in
   let suffix = if is_static then "\t\tstatic " else "\t\t" in

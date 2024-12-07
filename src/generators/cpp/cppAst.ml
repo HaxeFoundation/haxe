@@ -58,6 +58,7 @@ type tcpp =
   | TCppRest of tcpp
   | TCppReference of tcpp
   | TCppStruct of tcpp
+  | TCppValueType of tclass
   | TCppStar of tcpp * bool
   | TCppVoidStar
   | TCppVarArg
@@ -91,8 +92,16 @@ and tcppcrementop = CppIncrement | CppDecrement
 and tcppunop = CppNeg | CppNegBits | CppNot
 and tcppthis = ThisReal | ThisFake | ThisDynamic
 
+and tvar_type =
+  | Normal
+  | ValueType
+
+and value_type_flag =
+  | ImplicitConstruction
+  | StackOnly
+
 and tcppvarloc =
-  | VarLocal of tvar
+  | VarLocal of tvar * tvar_type
   | VarClosure of tvar
   | VarThis of tclass_field * tcpp
   | VarInstance of tcppexpr * tclass_field * string * string
