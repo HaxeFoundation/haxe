@@ -1316,7 +1316,9 @@ let expression ctx request_type function_args function_type expression_tree forI
             | TCppObjC k -> (retyper_ctx, CppCastObjC (baseCpp, k), return_type)
             | TCppPointer (_, _)
             | TCppRawPointer (_, _)
-            | TCppStar _ | TCppInst _ ->
+            | TCppStar _
+            | TCppValueType _
+            | TCppInst _ ->
                 (retyper_ctx, CppCast (baseCpp, return_type), return_type)
             | TCppString -> (retyper_ctx, CppCastScalar (baseCpp, "::String"), return_type)
             | TCppCode t when baseStr <> tcpp_to_string t ->
