@@ -102,7 +102,7 @@ and value_type_flag =
 
 and tcppvarloc =
   | VarLocal of tvar * tvar_type
-  | VarClosure of tvar
+  | VarClosure of tvar * tvar_type
   | VarThis of tclass_field * tcpp
   | VarInstance of tcppexpr * tclass_field * string * string
   | VarInterface of tcppexpr * tclass_field

@@ -545,41 +545,77 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
       match cpp_type_of var.v_type with
       (* Marshalling, place a struct on the stack and have the user typed variable be a reference to it. *)
       | TCppValueType (cls, params) ->
-        let name            = cpp_var_name_of var in
-        let stack_name      = "_hxcpp_stack_" ^ name in
-        let struct_ident    = get_extern_value_type_struct cls params in
-        let reference_ident = get_extern_value_type_reference cls params in
-
-        Printf.sprintf "%s %s" struct_ident stack_name |> out;
-
-        (match init with
-        (* Construct the type on the stack, ::cpp::Struct will forward the passed arguments to the constructor of the underlying type *)
-        | Some { cppexpr = CppCall (FuncNew _, args); cpptype = TCppValueType _ } ->
-          out "(";
-          let rec print_arg args =
-            match args with
-            | [] ->
-              ()
-            | s::r ->
-              gen s;
-              if List.length r > 0 then out ", ";
-              print_arg r
-          in
-          print_arg args;
-          out ");\n";
-        (* Any expression other than a constructor is a copying operation *)
-        | Some other ->
-          out " = ";
-          gen other;
-          out ";\n"
-        | None when extern_value_type_supports cls ImplicitConstruction ->
-          out ";\n"
-        | None ->
-          abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.v_pos);
-
+        let name   = cpp_var_name_of var in
         let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "" in
 
-        Printf.sprintf "%s\t%s %s = %s(%s)" spacer reference_ident name reference_ident stack_name |> out;
+        if has_var_flag var VCaptured then (
+          let boxed_ident, boxed_ident_obj = get_extern_value_type_boxed cls params in
+
+          Printf.sprintf "%s%s %s" spacer boxed_ident name |> out;
+
+          (match init with
+          (* Construct the type on the stack, ::cpp::Struct will forward the passed arguments to the constructor of the underlying type *)
+          | Some { cppexpr = CppCall (FuncNew _, args); cpptype = TCppValueType _ } ->
+            out " = new ";
+            out boxed_ident_obj;
+            out "(";
+            let rec print_arg args =
+              match args with
+              | [] ->
+                ()
+              | s::r ->
+                gen s;
+                if List.length r > 0 then out ", ";
+                print_arg r
+            in
+            print_arg args;
+            out ")";
+          (* Any expression other than a constructor is a copying operation *)
+          | Some other ->
+            out " = new ";
+            out boxed_ident;
+            out "(";
+            gen other;
+            out ")"
+          | None when extern_value_type_supports cls ImplicitConstruction ->
+            out " = new ";
+            out boxed_ident;
+            out "()";
+          | None ->
+            abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.v_pos))
+        else (
+          let stack_name      = "_hxcpp_stack_" ^ name in
+          let struct_ident    = get_extern_value_type_struct cls params in
+          let reference_ident = get_extern_value_type_reference cls params in
+  
+          Printf.sprintf "%s %s" struct_ident stack_name |> out;
+
+          (match init with
+          (* Construct the type on the stack, ::cpp::Struct will forward the passed arguments to the constructor of the underlying type *)
+          | Some { cppexpr = CppCall (FuncNew _, args); cpptype = TCppValueType _ } ->
+            out "(";
+            let rec print_arg args =
+              match args with
+              | [] ->
+                ()
+              | s::r ->
+                gen s;
+                if List.length r > 0 then out ", ";
+                print_arg r
+            in
+            print_arg args;
+            out ");\n";
+          (* Any expression other than a constructor is a copying operation *)
+          | Some other ->
+            out " = ";
+            gen other;
+            out ";\n"
+          | None when extern_value_type_supports cls ImplicitConstruction ->
+            out ";\n"
+          | None ->
+            abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.v_pos);
+
+          Printf.sprintf "%s\t%s %s = %s(%s)" spacer reference_ident name reference_ident stack_name |> out);
       | _ ->
         let name = cpp_var_name_of var in
         (if cpp_no_debug_synbol ctx var then
@@ -888,7 +924,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
             ")")
         in
         (match lvalue with
-        | CppVarRef (VarClosure var)
+        | CppVarRef (VarClosure (var, _))
           when is_gc_element ctx (cpp_type_of var.v_type) ->
             out ("this->_hx_set_" ^ cpp_var_name_of var ^ "(HX_CTX, ");
             gen rvalue;
@@ -1462,7 +1498,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
         out (")" ^ objPtr ^ "," ^ strq name ^ ")")
   and gen_val_loc loc lvalue =
     match loc with
-    | VarClosure var -> out (cpp_var_name_of var)
+    | VarClosure (var, _) -> out (cpp_var_name_of var)
     | VarLocal (local, _) -> out (cpp_var_name_of local)
     | VarStatic (clazz, objc, member) -> (
         match get_meta_string member.cf_meta Meta.Native with
@@ -1541,7 +1577,13 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     out ("_hx_Closure_" ^ string_of_int closure.close_id);
     StringMap.iter
       (fun name var ->
-        out ("," ^ cpp_macro_var_type_of var ^ "," ^ keyword_remap name))
+        let str =
+          match cpp_type_of var.v_type with
+          | TCppValueType (cls, params) ->
+            get_extern_value_type_boxed cls params |> fst
+          | other ->
+            cpp_macro_var_type_of var in
+        out ("," ^ str ^ "," ^ keyword_remap name))
       closure.close_undeclared;
     out (") HXARGC(" ^ argsCount ^ ")\n");
 

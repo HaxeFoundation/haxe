@@ -1719,7 +1719,7 @@ class script_writer ctx filename asciiOut =
         this#end_expr
       and gen_var_loc loc =
         match loc with
-        | VarClosure var | VarLocal (var, _) ->
+        | VarClosure (var, _) | VarLocal (var, _) ->
             this#write
               (this#op IaVar ^ string_of_int var.v_id
              ^ this#commentOf var.v_name)

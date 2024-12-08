@@ -267,8 +267,7 @@ let expression ctx request_type function_args function_type expression_tree forI
 
   let rec to_lvalue value =
     match value.cppexpr with
-    | CppVar (VarClosure var as varloc)
-      when is_gc_element ctx (cpp_type_of var.v_type) ->
+    | CppVar (VarClosure (var, _) as varloc) when is_gc_element ctx (cpp_type_of var.v_type) ->
         (CppVarRef varloc, true)
     | CppVar (VarThis (member, _) as varloc)
       when is_gc_element ctx (cpp_type_of member.cf_type) ->
@@ -435,13 +434,14 @@ let expression ctx request_type function_args function_type expression_tree forI
           (retyper_ctx, CppClassOf (([], ""), false), TCppGlobal)
       | TLocal tvar ->
           let name = tvar.v_name in
+          let tvar_type = if is_extern_value_tvar tvar then ValueType else Normal in
+
           if StringMap.mem name retyper_ctx.declarations then
-            let tvar_type = if is_extern_value_tvar tvar then ValueType else Normal in
             (retyper_ctx, CppVar (VarLocal (tvar, tvar_type)), cpp_type_of tvar.v_type)
           else (
             let new_ctx = { retyper_ctx with undeclared = StringMap.add name tvar retyper_ctx.undeclared } in
             if has_var_flag tvar VCaptured then
-              (new_ctx, CppVar (VarClosure tvar), cpp_type_of tvar.v_type)
+              (new_ctx, CppVar (VarClosure (tvar, tvar_type)), cpp_type_of tvar.v_type)
             else
               (new_ctx, CppExtern (name, false), cpp_type_of tvar.v_type))
       | TIdent name -> (retyper_ctx, CppExtern (name, false), return_type)
