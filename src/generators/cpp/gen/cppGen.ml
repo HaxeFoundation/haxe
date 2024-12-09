@@ -549,9 +549,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
         let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "" in
 
         if has_var_flag var VCaptured then (
+          let obj_name                     = "_hxcpp_stack_" ^ name in
+          let reference_ident              = get_extern_value_type_reference cls params in
           let boxed_ident, boxed_ident_obj = get_extern_value_type_boxed cls params in
 
-          Printf.sprintf "%s%s %s" spacer boxed_ident name |> out;
+          Printf.sprintf "%s %s" boxed_ident obj_name |> out;
 
           (match init with
           (* Construct the type on the stack, ::cpp::Struct will forward the passed arguments to the constructor of the underlying type *)
@@ -569,20 +571,22 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
                 print_arg r
             in
             print_arg args;
-            out ")";
+            out ");\n";
           (* Any expression other than a constructor is a copying operation *)
           | Some other ->
             out " = new ";
             out boxed_ident;
             out "(";
             gen other;
-            out ")"
+            out ");\n";
           | None when extern_value_type_supports cls ImplicitConstruction ->
             out " = new ";
             out boxed_ident;
-            out "()";
+            out "();\n";
           | None ->
-            abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.v_pos))
+            abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.v_pos);
+            
+          Printf.sprintf "%s\t%s %s = %s(%s)" spacer reference_ident name reference_ident obj_name |> out;)
         else (
           let stack_name      = "_hxcpp_stack_" ^ name in
           let struct_ident    = get_extern_value_type_struct cls params in
@@ -1045,7 +1049,14 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
         | _ -> ());
 
         StringMap.iter
-          (fun name value ->
+          (fun name var ->
+            let name =
+              match cpp_type_of var.v_type with
+              | TCppValueType (cls, params) ->
+                Printf.sprintf "_hxcpp_stack_%s" name
+              | other ->
+                name in
+
             out !separator;
             separator := ",";
             out (keyword_remap name))
@@ -1577,12 +1588,12 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     out ("_hx_Closure_" ^ string_of_int closure.close_id);
     StringMap.iter
       (fun name var ->
-        let str =
+        let name, str =
           match cpp_type_of var.v_type with
           | TCppValueType (cls, params) ->
-            get_extern_value_type_boxed cls params |> fst
+            Printf.sprintf "_hxcpp_stack_%s" name, get_extern_value_type_boxed cls params |> fst
           | other ->
-            cpp_macro_var_type_of var in
+            name, cpp_macro_var_type_of var in
         out ("," ^ str ^ "," ^ keyword_remap name))
       closure.close_undeclared;
     out (") HXARGC(" ^ argsCount ^ ")\n");
@@ -1594,6 +1605,21 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     let prologue = function
       | gc_stack ->
           cpp_gen_default_values ctx closure.close_args "__o_";
+          
+          StringMap.iter
+            (fun name var ->
+              match cpp_type_of var.v_type with
+              | TCppValueType (cls, params) ->
+                let name            = cpp_var_name_of var in
+                let stack_name      = "_hxcpp_stack_" ^ name in
+                let reference_ident = get_extern_value_type_reference cls params in
+                let spacer          = if ctx.ctx_debug_level > 0 then "            \t" else "" in
+                
+                Printf.sprintf "%s%s %s = %s(%s);\n" spacer reference_ident name reference_ident stack_name |> ctx.ctx_output;
+              | other ->
+                ())
+            closure.close_undeclared;
+
           hx_stack_push ctx output_i class_name func_name
             closure.close_expr.cpppos gc_stack;
           if ctx.ctx_debug_level >= 2 then (
