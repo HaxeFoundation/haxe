@@ -1,83 +1,105 @@
 ﻿package unit;
 
+import haxe.Serializer;
+import haxe.Unserializer;
 import haxe.ds.List;
 
-class TestSerialize extends Test {
+private enum Issue11864Enum {
+	B;
+	C(e1:Issue11864Enum, e2:Issue11864Enum);
+}
 
-	function id<T>( v : T ) : T {
-		return haxe.Unserializer.run(haxe.Serializer.run(v));
+class TestSerialize extends Test {
+	function id<T>(v:T):T {
+		return Unserializer.run(Serializer.run(v));
 	}
 
 	function test() {
 		// basic types
-		var values : Array<Dynamic> = [null, true, false, 0, 1, 1506, -0xABCDEF, 12.3, -1e10, "hello", "éé", "\r\n", "\n", "   ", ""];
-		for( v in values )
-			eq( id(v), v );
+		var values:Array<Dynamic> = [
+			null,
+			true,
+			false,
+			0,
+			1,
+			1506,
+			-0xABCDEF,
+			12.3,
+			-1e10,
+			"hello",
+			"éé",
+			"\r\n",
+			"\n",
+			"   ",
+			""
+		];
+		for (v in values)
+			eq(id(v), v);
 
-		t( Math.isNaN(id(Math.NaN)) );
-		t( id(Math.POSITIVE_INFINITY) > 0 );
-		f( id(Math.NEGATIVE_INFINITY) > 0 );
-		f( Math.isFinite(id(Math.POSITIVE_INFINITY)) );
-		f( Math.isFinite(id(Math.NEGATIVE_INFINITY)) );
+		t(Math.isNaN(id(Math.NaN)));
+		t(id(Math.POSITIVE_INFINITY) > 0);
+		f(id(Math.NEGATIVE_INFINITY) > 0);
+		f(Math.isFinite(id(Math.POSITIVE_INFINITY)));
+		f(Math.isFinite(id(Math.NEGATIVE_INFINITY)));
 
 		// array/list
 		doTestCollection([]);
-		doTestCollection([1,2,4,5]);
-		doTestCollection([1,2,null,null,null,null,null,4,5]);
+		doTestCollection([1, 2, 4, 5]);
+		doTestCollection([1, 2, null, null, null, null, null, 4, 5]);
 
 		// date
 		var d = Date.now();
 		var d2 = id(d);
-		t( (d2 is Date) );
-		eq( d2.toString(), d.toString() );
+		t((d2 is Date));
+		eq(d2.toString(), d.toString());
 
 		// object
-		var o = { x : "a", y : -1.56, z : "hello" };
+		var o = {x: "a", y: -1.56, z: "hello"};
 		var o2 = id(o);
-		eq(o.x,o2.x);
-		eq(o.y,o2.y);
-		eq(o.z,o2.z);
+		eq(o.x, o2.x);
+		eq(o.y, o2.y);
+		eq(o.z, o2.z);
 
 		// class instance
 		var c = new MyClass(999);
 		c.intValue = 33;
 		c.stringValue = "Hello";
 		var c2 = id(c);
-		t( (c2 is MyClass) );
-		f( c == c2 );
-		eq( c2.intValue, c.intValue );
-		eq( c2.stringValue, c.stringValue );
-		eq( c2.get(), 999 );
+		t((c2 is MyClass));
+		f(c == c2);
+		eq(c2.intValue, c.intValue);
+		eq(c2.stringValue, c.stringValue);
+		eq(c2.get(), 999);
 		// Class value
-		eq( id(MyClass), MyClass );
+		eq(id(MyClass), MyClass);
 
 		// enums
-		haxe.Serializer.USE_ENUM_INDEX = false;
+		Serializer.USE_ENUM_INDEX = false;
 		doTestEnums();
-		haxe.Serializer.USE_ENUM_INDEX = true;
+		Serializer.USE_ENUM_INDEX = true;
 		doTestEnums();
 		// Enum value
-		eq( id(MyEnum), MyEnum );
+		eq(id(MyEnum), MyEnum);
 
 		// StringMap
 		var h = new haxe.ds.StringMap();
-		h.set("keya",2);
-		h.set("kéyb",-465);
+		h.set("keya", 2);
+		h.set("kéyb", -465);
 		var h2 = id(h);
-		t( (h2 is haxe.ds.StringMap) );
-		eq( h2.get("keya"), 2 );
-		eq( h2.get("kéyb"), -465 );
-		eq( Lambda.count(h2), 2 );
+		t((h2 is haxe.ds.StringMap));
+		eq(h2.get("keya"), 2);
+		eq(h2.get("kéyb"), -465);
+		eq(Lambda.count(h2), 2);
 
 		// IntMap
 		var h = new haxe.ds.IntMap();
-		h.set(55,2);
-		h.set(-101,-465);
+		h.set(55, 2);
+		h.set(-101, -465);
 		var h2 = id(h);
-		t( (h2 is haxe.ds.IntMap) );
-		eq( h2.get(55), 2 );
-		eq( h2.get(-101), -465 );
-		eq( Lambda.count(h2), 2 );
+		t((h2 is haxe.ds.IntMap));
+		eq(h2.get(55), 2);
+		eq(h2.get(-101), -465);
+		eq(Lambda.count(h2), 2);
 
 		// ObjectMap
 		var h = new haxe.ds.ObjectMap();
@@ -113,85 +135,94 @@ class TestSerialize extends Test {
 		doTestBytes(haxe.io.Bytes.ofString("ABCD"));
 		doTestBytes(haxe.io.Bytes.ofString("héllé"));
 		var b = haxe.io.Bytes.alloc(100);
-		for( i in 0...b.length )
-			b.set(i,i%10);
+		for (i in 0...b.length)
+			b.set(i, i % 10);
 		doTestBytes(b);
 		doTestBytesCrossPlatform();
 
 		// recursivity
 		c.ref = c;
-		haxe.Serializer.USE_CACHE = true;
+		Serializer.USE_CACHE = true;
 		var c2 = id(c);
-		haxe.Serializer.USE_CACHE = false;
-		eq( c2.ref, c2 );
+		Serializer.USE_CACHE = false;
+		eq(c2.ref, c2);
 
 		// errors
 		#if !cpp
-		exc(function() haxe.Unserializer.run(null));
+		exc(function() Unserializer.run(null));
 		#end
 
-		exc(function() haxe.Unserializer.run(""));
+		exc(function() Unserializer.run(""));
+	}
 
+	function testEnumRef() {
+		var old = Serializer.USE_CACHE;
+		Serializer.USE_CACHE = true;
+		var e = C(B, B);
+		var e2 = id(e);
+		t(Type.enumEq(e, e2));
+		Serializer.USE_CACHE = old;
 	}
 
 	function doTestEnums() {
-		eq( id(MyEnum.A), MyEnum.A );
-		eq( id(MyEnum.B), MyEnum.B );
-		var c = MyEnum.C(0,"hello");
-		t( Type.enumEq( id(c), c ) );
-		t( Type.enumEq( id(MyEnum.D(MyEnum.D(c))), MyEnum.D(MyEnum.D(c)) ) );
-		t( (id(c) is MyEnum) );
-		t(switch( id(c) ) {
-			case C(_,_): true;
+		eq(id(MyEnum.A), MyEnum.A);
+		eq(id(MyEnum.B), MyEnum.B);
+		var c = MyEnum.C(0, "hello");
+		t(Type.enumEq(id(c), c));
+		t(Type.enumEq(id(MyEnum.D(MyEnum.D(c))), MyEnum.D(MyEnum.D(c))));
+		t((id(c) is MyEnum));
+		t(switch (id(c)) {
+			case C(_, _): true;
 			default: false;
 		});
 
-		eq( id(SimpleEnum.SE_A), SimpleEnum.SE_A );
-		eq( id(SimpleEnum.SE_B), SimpleEnum.SE_B );
-		eq( id(SimpleEnum.SE_C), SimpleEnum.SE_C );
-		eq( id(SimpleEnum.SE_D), SimpleEnum.SE_D );
-		t( id(SimpleEnum.SE_A) == SimpleEnum.SE_A );
+		eq(id(SimpleEnum.SE_A), SimpleEnum.SE_A);
+		eq(id(SimpleEnum.SE_B), SimpleEnum.SE_B);
+		eq(id(SimpleEnum.SE_C), SimpleEnum.SE_C);
+		eq(id(SimpleEnum.SE_D), SimpleEnum.SE_D);
+		t(id(SimpleEnum.SE_A) == SimpleEnum.SE_A);
 	}
 
-	function doTestCollection( a : Array<Dynamic> ) {
+	function doTestCollection(a:Array<Dynamic>) {
 		var a2 = id(a);
-		eq( a2.length, a.length );
-		for( i in 0...a.length )
-			eq( a2[i], a[i] );
+		eq(a2.length, a.length);
+		for (i in 0...a.length)
+			eq(a2[i], a[i]);
 		var l = Lambda.list(a);
 		var l2 = id(l);
-		t( (l2 is List) );
-		eq( l2.length, l.length );
+		t((l2 is List));
+		eq(l2.length, l.length);
 		var it = l.iterator();
-		for( x in l2 )
-			eq( x, it.next() );
-		f( it.hasNext() );
+		for (x in l2)
+			eq(x, it.next());
+		f(it.hasNext());
 	}
 
-	function doTestBytes( b : haxe.io.Bytes ) {
+	function doTestBytes(b:haxe.io.Bytes) {
 		var b2 = id(b);
-		t( (b2 is haxe.io.Bytes) );
-		eq( b2.length, b.length );
-		for( i in 0...b.length )
-			eq( b2.get(i), b.get(i) );
+		t((b2 is haxe.io.Bytes));
+		eq(b2.length, b.length);
+		for (i in 0...b.length)
+			eq(b2.get(i), b.get(i));
 	}
 
 	function doTestBytesCrossPlatform() {
 		var sample = 's340:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0%P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn%AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq%wsbKztLW2t7i5uru8vb6:wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t:g4eLj5OXm5%jp6uvs7e7v8PHy8:T19vf4%fr7:P3%';
 
-		//serialization
+		// serialization
 		var b = haxe.io.Bytes.alloc(255);
-		for(i in 0...255) b.set(i, i);
-		eq(sample, haxe.Serializer.run(b));
+		for (i in 0...255)
+			b.set(i, i);
+		eq(sample, Serializer.run(b));
 
-		//de-serialization
-		var b:haxe.io.Bytes = haxe.Unserializer.run(sample);
+		// de-serialization
+		var b:haxe.io.Bytes = Unserializer.run(sample);
 		eq(255, b.length);
-		for(i in 0...b.length) {
+		for (i in 0...b.length) {
 			var byte = b.get(i);
 			eq(i, byte);
-			if(i != byte) break;
+			if (i != byte)
+				break;
 		}
 	}
-
 }
