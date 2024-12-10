@@ -439,7 +439,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	**/
 	@:op(A >>> B) public static inline function ushr(a:Int64, b:Int):Int64 {
 		b &= 63;
-		return if (b == 0) a.copy() else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b)); else make(0, a.high >>> (b - 32));
+		return if (b == 0) a.copy() else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b)); else make(0, a.high >>> (b - 32) #if js | 0 #end);
 	}
 
 	public var high(get, never):Int32;
