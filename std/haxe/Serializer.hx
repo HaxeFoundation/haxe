@@ -159,11 +159,6 @@ class Serializer {
 			return;
 		}
 		shash.set(s, scount++);
-		#if old_serialize
-		// no more support for -D old_serialize due to 'j' reuse
-		#if error
-		#end
-		#end
 		buf.add("y");
 		s = StringTools.urlEncode(s);
 		buf.add(s.length);
