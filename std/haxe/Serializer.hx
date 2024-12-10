@@ -218,11 +218,11 @@ class Serializer {
 
 	/**
 		Serializes `v`.
-	
+
 		All haxe-defined values and objects with the exception of functions can
 		be serialized. Serialization of external/native objects is not
 		guaranteed to work.
-	
+
 		The values of `this.useCache` and `this.useEnumIndex` may affect
 		serialization output.
 	**/
@@ -379,8 +379,6 @@ class Serializer {
 				}
 				#end
 			case TClass(c):
-				if (useCache)
-					cache.pop();
 				if (
 					#if flash
 					try
@@ -396,15 +394,11 @@ class Serializer {
 					#end) {
 					buf.add("C");
 					serializeString(Type.getClassName(c));
-					if (useCache)
-						cache.push(v);
 					v.hxSerialize(this);
 					buf.add("g");
 				} else {
 					buf.add("c");
 					serializeString(Type.getClassName(c));
-					if (useCache)
-						cache.push(v);
 					#if flash
 					serializeClassFields(v, c);
 					#else
@@ -433,11 +427,9 @@ class Serializer {
 					serializeFields(v);
 				}
 			case TEnum(e):
-				if (useCache) {
-					if (serializeRef(v))
-						return;
-					cache.pop();
-				}
+				if (useCache && serializeRef(v))
+					return;
+
 				buf.add(useEnumIndex ? "j" : "w");
 				serializeString(Type.getEnumName(e));
 				#if neko
@@ -539,8 +531,6 @@ class Serializer {
 				for (i in 2...l)
 					serialize(v[i]);
 				#end
-				if (useCache)
-					cache.push(v);
 			case TFunction:
 				throw "Cannot serialize function";
 			default:
@@ -576,7 +566,7 @@ class Serializer {
 
 	/**
 		Serializes `v` and returns the String representation.
-	
+
 		This is a convenience function for creating a new instance of
 		Serializer, serialize `v` into it and obtain the result through a call
 		to `toString()`.
