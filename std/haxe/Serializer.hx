@@ -251,10 +251,8 @@ class Serializer {
 			case TClass(Array):
 				var ucount = 0;
 				buf.add("a");
-				#if (flash || python || hl)
 				var v:Array<Dynamic> = v;
-				#end
-				var l = #if (neko || flash || php || java || python || hl || lua || eval) v.length #elseif cpp v.__length() #else __getField(v, "length") #end;
+				var l = v.length;
 				for (i in 0...l) {
 					if (v[i] == null)
 						ucount++;
