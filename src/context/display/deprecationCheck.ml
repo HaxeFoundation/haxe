@@ -107,7 +107,7 @@ let run com =
 		| TClassDecl c when not (Meta.has Meta.Deprecated c.cl_meta) ->
 			let dctx = {dctx with class_meta = c.cl_meta; curmod = c.cl_module} in
 			(match c.cl_constructor with None -> () | Some cf -> run_on_field dctx cf);
-			(match c.cl_init with None -> () | Some e -> run_on_expr dctx e);
+			(match TClass.get_cl_init c with None -> () | Some e -> run_on_expr dctx e);
 			List.iter (run_on_field dctx) c.cl_ordered_statics;
 			List.iter (run_on_field dctx) c.cl_ordered_fields;
 		| _ ->

@@ -117,6 +117,20 @@
 		"name": "WConstructorInliningCancelled",
 		"doc": "Constructor call could not be inlined because a field is uninitialized",
 		"parent": "WTyper"
+	},
+	{
+		"name": "WUnsafeEnumEquality",
+		"doc": "Equality operations on enums with parameters might not work as expected",
+		"parent": "WTyper",
+		"enabled": false
+	},
+	{
+		"name": "WHxb",
+		"doc": "Hxb (either --hxb output or haxe compiler cache) related warnings"
+	},
+	{
+		"name": "WUnboundTypeParameter",
+		"doc": "Hxb (either --hxb output or haxe compiler cache) failed to link a type parameter to an actual type",
+		"parent": "WHxb"
 	}
-
 ]

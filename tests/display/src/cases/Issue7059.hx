@@ -11,6 +11,6 @@ class Issue7059 extends DisplayTestCase {
 		}
 	**/
 	function test() {
-		eq(true, toplevel(pos(1)).exists(el -> el.name == "trace"));
+		eq(true, hasToplevel(toplevel(pos(1)), "literal", "trace"));
 	}
 }

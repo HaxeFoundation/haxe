@@ -26,7 +26,7 @@ module Match = struct
 	open Typecore
 
 	let match_expr ctx e cases def with_type postfix_match p =
-		let match_debug = Meta.has (Meta.Custom ":matchDebug") ctx.curfield.cf_meta in
+		let match_debug = Meta.has (Meta.Custom ":matchDebug") ctx.f.curfield.cf_meta in
 		let rec loop e = match fst e with
 			| EArrayDecl el when (match el with [(EFor _ | EWhile _),_] -> false | _ -> true) ->
 				let el = List.map (fun e -> type_expr ctx e WithType.value) el in

@@ -1,0 +1,19 @@
+name: Check pull request target branch
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+jobs:
+  check-branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branches
+        run: |
+          if [ ${{ github.base_ref }} != "development" ]; then
+            echo "Merge requests should target `development`."
+            exit 1
+          fi
+

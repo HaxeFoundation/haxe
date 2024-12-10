@@ -167,7 +167,7 @@ let explore_uncached_modules tctx cs symbols =
 	let modules = cc#get_modules in
 	let t = Timer.timer ["display";"references";"candidates"] in
 	let acc = Hashtbl.fold (fun file_key cfile acc ->
-		let module_name = get_module_name_of_cfile cfile.c_file_path cfile in
+		let module_name = get_module_name_of_cfile cfile.c_file_path.file cfile in
 		if Hashtbl.mem modules (cfile.c_package,module_name) then
 			acc
 		else try
@@ -177,7 +177,7 @@ let explore_uncached_modules tctx cs symbols =
 			begin try
 				let m = tctx.g.do_load_module tctx (cfile.c_package,module_name) null_pos in
 				(* We have to flush immediately so we catch exceptions from weird modules *)
-				Typecore.flush_pass tctx Typecore.PFinal ("final",cfile.c_package @ [module_name]);
+				Typecore.flush_pass tctx.g Typecore.PFinal ("final",cfile.c_package @ [module_name]);
 				m :: acc
 			with _ ->
 				acc

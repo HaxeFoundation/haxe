@@ -1,2 +1,2 @@
-Main.hx:4: characters 8-9 : Warning : Int (expected: Value)
+Main.hx:4: characters 8-9 : Warning : Int (expected: Value(None))
 Main.hx:4: characters 22-23 : Warning : Int (expected: WithType(Int, None))

@@ -28,9 +28,6 @@ import haxe.macro.Expr;
 	This class provides some utility methods to work with strings in macro
 	context.
 **/
-#if hl
-@:hlNative("macro")
-#end
 class MacroStringTools {
 	#if macro
 	/**

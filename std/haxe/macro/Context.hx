@@ -466,7 +466,7 @@ class Context {
 		is done running initialization macros, when typing begins.
 
 		`onAfterInitMacros` should be used to delay typer-dependant code from
-		your initalization macros, to properly separate configuration phase and
+		your initialization macros, to properly separate configuration phase and
 		actual typing.
 	**/
 	public static function onAfterInitMacros(callback:Void->Void):Void {

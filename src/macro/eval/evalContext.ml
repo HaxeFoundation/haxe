@@ -44,6 +44,7 @@ type scope = {
 type env_kind =
 	| EKLocalFunction of int
 	| EKMethod of int * int
+	| EKMacro of int * int
 	| EKEntrypoint
 
 (* Compile-time information for environments. This information is static for all
@@ -332,6 +333,8 @@ let kind_name eval kind =
 	let rec loop kind env = match kind with
 		| EKMethod(i1,i2) ->
 			Printf.sprintf "%s.%s" (rev_hash i1) (rev_hash i2)
+		| EKMacro(i1,i2) ->
+			Printf.sprintf "Macro call: %s.%s" (rev_hash i1) (rev_hash i2)
 		| EKLocalFunction i ->
 			begin match env with
 			| None -> Printf.sprintf "localFunction%i" i
@@ -403,10 +406,6 @@ let exc_string_p str p = throw (vstring (EvalString.create_ascii str)) p
 
 let error_message = exc_string
 
-let flush_core_context f =
-	let ctx = get_ctx() in
-	ctx.curapi.MacroApi.flush_context f
-
 (* Environment handling *)
 
 let no_timer = fun () -> ()
@@ -467,7 +466,7 @@ let push_environment ctx info =
 		env_locals = locals;
 		env_captures = captures;
 		env_extra_locals = IntMap.empty;
-		env_parent = eval.env;
+		env_parent = if info.kind = EKEntrypoint then None else eval.env;
 		env_eval = eval;
 		env_stack_depth = stack_depth;
 	} in

@@ -7,25 +7,26 @@ open Resolution
 open Error
 
 let create com macros =
-	let ctx = {
+	let rec ctx = {
 		com = com;
 		t = com.basic;
 		g = {
 			core_api = None;
 			macros = macros;
-			type_patches = Hashtbl.create 0;
 			module_check_policies = [];
-			delayed = [];
+			delayed = Array.init all_typer_passes_length (fun _ -> { tasks = []});
+			delayed_min_index = 0;
 			debug_delayed = [];
 			doinline = com.display.dms_inline && not (Common.defined com Define.NoInline);
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
 			std_types = null_module;
-			std = null_class;
 			global_using = [];
 			complete = false;
 			type_hints = [];
 			load_only_cached_modules = false;
-			functional_interface_lut = new Lookup.pmap_lookup;
+			return_partial_type = false;
+			build_count = 0;
+			t_dynamic_def = t_dynamic;
 			do_macro = MacroContext.type_macro;
 			do_load_macro = MacroContext.load_macro';
 			do_load_module = TypeloadModule.load_module;
@@ -33,6 +34,8 @@ let create com macros =
 			get_build_info = InstanceBuilder.get_build_info;
 			do_format_string = format_string;
 			do_load_core_class = Typeload.load_core_class;
+			delayed_display = None;
+			root_typer = ctx;
 		};
 		m = {
 			curmod = null_module;
@@ -41,47 +44,26 @@ let create com macros =
 			enum_with_type = None;
 			module_using = [];
 			import_statements = [];
+			is_display_file = false;
 		};
-		is_display_file = false;
-		bypass_accessor = 0;
-		meta = [];
-		with_type_stack = [];
-		call_argument_stack = [];
+		c = {
+			curclass = null_class;
+			tthis = t_dynamic;
+			get_build_infos = (fun() -> None);
+		};
+		f = TyperManager.create_ctx_f null_field;
+		e = TyperManager.create_ctx_e FunStatic false;
 		pass = PBuildModule;
-		macro_depth = 0;
-		untyped = false;
-		curfun = FunStatic;
-		in_function = false;
-		in_loop = false;
-		in_display = false;
 		allow_inline = true;
 		allow_transform = true;
-		get_build_infos = (fun() -> None);
-		ret = mk_mono();
-		locals = PMap.empty;
 		type_params = [];
-		curclass = null_class;
-		curfield = null_field;
-		tthis = mk_mono();
-		opened = [];
-		vthis = None;
-		in_call_args = false;
-		in_overload_call_args = false;
-		delayed_display = None;
-		monomorphs = {
-			perfunction = [];
-		};
 		memory_marker = Typecore.memory_marker;
 	} in
 	ctx.g.std_types <- (try
 		TypeloadModule.load_module ctx ([],"StdTypes") null_pos
 	with
 		Error { err_message = Module_not_found ([],"StdTypes") } ->
-			try
-				let std_path = Sys.getenv "HAXE_STD_PATH" in
-				raise_typing_error ("Standard library not found. Please check your `HAXE_STD_PATH` environment variable (current value: \"" ^ std_path ^ "\")") null_pos
-			with Not_found ->
-				raise_typing_error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
+			Error.raise_std_not_found ()
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
 	List.iter (fun mt ->
@@ -91,7 +73,10 @@ let create com macros =
 		match t with
 		| TAbstractDecl a ->
 			(match snd a.a_path with
-			| "Void" -> ctx.t.tvoid <- TAbstract (a,[]);
+			| "Void" ->
+				let t = TAbstract (a,[]) in
+				Type.unify t ctx.t.tvoid;
+				ctx.t.tvoid <- t;
 			| "Float" ->
 				let t = (TAbstract (a,[])) in
 				Type.unify t ctx.t.tfloat;
@@ -105,7 +90,7 @@ let create com macros =
 				Type.unify t ctx.t.tbool;
 				ctx.t.tbool <- t
 			| "Dynamic" ->
-				t_dynamic_def := TAbstract(a,extract_param_types a.a_params);
+				ctx.g.t_dynamic_def <- TAbstract(a,extract_param_types a.a_params);
 			| "Null" ->
 				let mk_null t =
 					try
@@ -122,7 +107,14 @@ let create com macros =
 				in
 				ctx.t.tnull <- mk_null;
 			| _ -> ())
-		| TEnumDecl _ | TClassDecl _ | TTypeDecl _ ->
+		| TTypeDecl td ->
+			begin match snd td.t_path with
+			| "Iterator" ->
+				ctx.t.titerator <- (fun t -> TType(td,[t]))
+			| _ ->
+				()
+			end
+		| TEnumDecl _ | TClassDecl _ ->
 			()
 	) ctx.g.std_types.m_types;
 	let m = TypeloadModule.load_module ctx ([],"String") null_pos in
@@ -135,7 +127,18 @@ let create com macros =
 	) m.m_types;
 	let m = TypeloadModule.load_module ctx ([],"Std") null_pos in
 	List.iter (fun mt -> match mt with
-		| TClassDecl ({cl_path = ([],"Std")} as c) -> ctx.g.std <- c;
+		| TClassDecl ({cl_path = ([],"Std")} as c) -> ctx.com.std <- c;
+		| _ -> ()
+	) m.m_types;
+	let m = TypeloadModule.load_module ctx ([],"Any") null_pos in
+	List.iter (fun mt -> match mt with
+		| TAbstractDecl a ->
+			(match snd a.a_path with
+			| "Any" ->
+				let t = TAbstract (a,[]) in
+				Type.unify t ctx.t.tany;
+				ctx.t.tany <- t;
+			| _ -> ())
 		| _ -> ()
 	) m.m_types;
 	let m = TypeloadModule.load_module ctx ([],"Array") null_pos in

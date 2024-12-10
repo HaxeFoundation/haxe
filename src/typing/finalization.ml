@@ -8,24 +8,31 @@ open Typecore
 (* ---------------------------------------------------------------------- *)
 (* FINALIZATION *)
 
-let get_main ctx types =
-	match ctx.com.main_class with
-	| None -> None
+let maybe_load_main tctx = match tctx.com.main.main_class with
 	| Some path ->
+		Some (Typeload.load_module tctx path null_pos)
+	| None ->
+		None
+
+
+let get_main ctx main_module types =
+	match main_module with
+	| None -> None
+	| Some main_module ->
 		let p = null_pos in
+		let path = main_module.m_path in
 		let pack,name = path in
-		let m = Typeload.load_module ctx (pack,name) p in
 		let c,f =
 			let p = ref p in
 			try
-				match m.m_statics with
+				match main_module.m_statics with
 				| None ->
 					raise Not_found
 				| Some c ->
 					p := c.cl_name_pos;
 					c, PMap.find "main" c.cl_statics
 			with Not_found -> try
-				let t = Typeload.find_type_in_module_raise ctx m name null_pos in
+				let t = Typeload.find_type_in_module_raise ctx main_module name null_pos in
 				match t with
 				| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 					raise_typing_error ("Invalid -main : " ^ s_type_path path ^ " is not a class") null_pos
@@ -79,7 +86,7 @@ let get_main ctx types =
 		Some main
 
 let finalize ctx =
-	flush_pass ctx PFinal ("final",[]);
+	flush_pass ctx.g PFinal ("final",[]);
 	match ctx.com.callbacks#get_after_typing with
 		| [] ->
 			()
@@ -91,7 +98,7 @@ let finalize ctx =
 					()
 				| new_types ->
 					List.iter (fun f -> f new_types) fl;
-					flush_pass ctx PFinal ("final",[]);
+					flush_pass ctx.g PFinal ("final",[]);
 					loop all_types
 			in
 			loop []
@@ -179,7 +186,7 @@ let sort_types com (modules : module_lut) =
 	and walk_class p c =
 		(match c.cl_super with None -> () | Some (c,_) -> loop_class p c);
 		List.iter (fun (c,_) -> loop_class p c) c.cl_implements;
-		(match c.cl_init with
+		(match TClass.get_cl_init c with
 		| None -> ()
 		| Some e -> walk_expr p e);
 		PMap.iter (fun _ f ->
@@ -196,6 +203,6 @@ let sort_types com (modules : module_lut) =
 	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
 	List.rev !types, sorted_modules
 
-let generate ctx =
+let generate ctx main_class =
 	let types,modules = sort_types ctx.com ctx.com.module_lut in
-	get_main ctx types,types,modules
+	get_main ctx main_class types,types,modules

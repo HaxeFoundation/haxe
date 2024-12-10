@@ -18,8 +18,7 @@ class Issue7136 extends DisplayTestCase {
 	function test() {
 		var fields = fields(pos(1));
 		eq(2, fields.length);
-		eq("x", fields[0].name);
-		eq("y", fields[1].name);
-		eq("String", fields[1].type);
+		eq(true, isToplevel(fields[0], "x"));
+		eq(true, isToplevel(fields[1], "y", "String"));
 	}
 }

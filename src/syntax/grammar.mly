@@ -43,8 +43,11 @@ let psep sep f = parser
 	| [< >] -> []
 
 let rec psep_trailing sep f = parser
-	| [< v = f; '(sep2,_) when sep2 = sep; l = psep_trailing sep f >] -> v :: l
-	| [< v = f >] -> [v]
+	| [< v = f; s >] ->
+		begin match s with parser
+		| [< '(sep2,_) when sep2 = sep; l = psep_trailing sep f >] -> v :: l
+		| [< >] -> [v]
+		end
 	| [< >] -> []
 
 let pignore f =
@@ -300,7 +303,7 @@ and parse_type_decl mode s =
 				d_doc = doc_from_string_opt doc;
 				d_meta = meta;
 				d_params = tl;
-				d_flags = ExtList.List.filter_map decl_flag_to_enum_flag c;
+				d_flags = ExtList.List.filter_map decl_flag_to_typedef_flag c;
 				d_data = t;
 			}, punion p1 (pos t))
 		| [< '(Kwd Abstract,p1) >] ->
@@ -966,12 +969,15 @@ and parse_class_field tdecl s =
 		| [< '(Kwd Final,p1) >] ->
 			check_redundant_var p1 s;
 			begin match s with parser
-			| [< opt,name = questionable_dollar_ident; '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
-				let meta = check_optional opt name in
-				name,punion p1 p2,FProp(i1,i2,t,e),(al @ [AFinal,p1]),meta
-			| [< opt,name = questionable_dollar_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
-				let meta = check_optional opt name in
-				name,punion p1 p2,FVar(t,e),(al @ [AFinal,p1]),meta
+			| [< opt,name = questionable_dollar_ident; s >] ->
+				begin match s with parser
+				| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
+					let meta = check_optional opt name in
+					name,punion p1 p2,FProp(i1,i2,t,e),(al @ [AFinal,p1]),meta
+				| [< t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
+					let meta = check_optional opt name in
+					name,punion p1 p2,FVar(t,e),(al @ [AFinal,p1]),meta
+				end
 			| [< al2 = plist parse_cf_rights; f = parse_function_field doc meta (al @ ((AFinal,p1) :: al2)) >] ->
 				f
 			| [< >] ->
@@ -1240,9 +1246,13 @@ and parse_array_decl p1 s =
 and parse_var_decl_head final s =
 	let meta = parse_meta s in
 	match s with parser
-	| [< name, p = dollar_ident; '(POpen,p1); _ = property_ident; '(Comma,_); _ = property_ident; '(PClose,p2); t = popt parse_type_hint >] ->
-		syntax_error (Custom "Cannot define property accessors for local vars") ~pos:(Some (punion p1 p2)) s (meta,name,final,t,p)
-	| [< name, p = dollar_ident; t = popt parse_type_hint >] -> (meta,name,final,t,p)
+	| [< name, p = dollar_ident; >] ->
+		begin match s with parser
+		| [< t = popt parse_type_hint >] ->
+			(meta,name,final,t,p)
+		| [< '(POpen,p1); _ = property_ident; '(Comma,_); _ = property_ident; '(PClose,p2); t = popt parse_type_hint >] ->
+			syntax_error (Custom "Cannot define property accessors for local vars") ~pos:(Some (punion p1 p2)) s (meta,name,final,t,p)
+		end
 	| [< >] ->
 		(* This nonsense is here for the var @ case in issue #9639 *)
 		let rec loop meta = match meta with
@@ -1714,28 +1724,31 @@ and parse_call_params f p1 s =
 			| [< '(PClose,p2) >] ->
 				let e = check_signature_mark e p1 p2 in
 				f (List.rev (e :: acc)) p2
-			| [< '(Comma,p2); '(PClose,p3) >] ->
-				if (is_signature_display()) then begin
-					let prev_arg_pos = punion p1 p2 in
-					let comma_paren_pos = punion p2 p3 in
-					(* first check wether the display position is within the previous argument *)
-					if encloses_position_gt display_position#get prev_arg_pos then begin
-						(* wrap the argument that was just parsed *)
-						let e = mk_display_expr e DKMarked in
-						f (List.rev (e :: acc)) p3
-					(* then check wether the display position is between the comma and the closing parenthesis *)
-					end else if encloses_position_gt display_position#get comma_paren_pos then begin
-						(* add a dummy final argument *)
-						let e2 = mk_display_expr (mk_null_expr comma_paren_pos) DKMarked in
-						f (List.rev (e2 :: e :: acc)) p3
-					end else f (List.rev (e :: acc)) p3
-				end else begin
-				(* if not in signature display mode don't check anything *)
-					f (List.rev (e :: acc)) p3
-				end
 			| [< '(Comma,p2) >] ->
-				let e = check_signature_mark e p1 p2 in
-				parse_next_param (e :: acc) p2
+				begin match s with parser
+					| [< '(PClose, p3) >] ->
+						if (is_signature_display()) then begin
+							let prev_arg_pos = punion p1 p2 in
+							let comma_paren_pos = punion p2 p3 in
+							(* first check wether the display position is within the previous argument *)
+							if encloses_position_gt display_position#get prev_arg_pos then begin
+								(* wrap the argument that was just parsed *)
+								let e = mk_display_expr e DKMarked in
+								f (List.rev (e :: acc)) p3
+							(* then check wether the display position is between the comma and the closing parenthesis *)
+							end else if encloses_position_gt display_position#get comma_paren_pos then begin
+								(* add a dummy final argument *)
+								let e2 = mk_display_expr (mk_null_expr comma_paren_pos) DKMarked in
+								f (List.rev (e2 :: e :: acc)) p3
+							end else f (List.rev (e :: acc)) p3
+						end else begin
+						(* if not in signature display mode don't check anything *)
+							f (List.rev (e :: acc)) p3
+						end
+					| [< >] ->
+						let e = check_signature_mark e p1 p2 in
+						parse_next_param (e :: acc) p2
+				end
 			| [< >] ->
 				let p2 = next_pos s in
 				syntax_error (Expected [",";")"]) s ();

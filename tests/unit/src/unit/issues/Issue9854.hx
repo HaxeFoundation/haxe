@@ -1,8 +1,7 @@
 package unit.issues;
 
 class Issue9854 extends Test {
-#if (cs || java)
-
+#if jvm
 	overload
 	static function infer<T>(s:String):T {
 		return null;

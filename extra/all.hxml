@@ -29,17 +29,8 @@
 -D HXCPP_MULTI_THREADED
 
 --next
--java all_java
--xml java.xml
-
---next
 --jvm all_jvm
 -xml jvm.xml
-
---next
--cs all_cs
--D unsafe
--xml cs.xml
 
 --next
 -python all_python

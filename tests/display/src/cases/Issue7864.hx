@@ -12,7 +12,7 @@ class Issue7864 extends DisplayTestCase {
 		class Test {}
 	**/
 	function test() {
-		eq(true, hasField(fields(pos(1)), "@:enum", "", "metadata"));
-		eq(true, hasField(fields(pos(2)), "@:enum", "", "metadata"));
+		eq(true, hasField(fields(pos(1)), "@:enum", null, "metadata"));
+		eq(true, hasField(fields(pos(2)), "@:enum", null, "metadata"));
 	}
 }

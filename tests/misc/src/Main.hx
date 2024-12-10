@@ -47,7 +47,7 @@ class Main {
 					var expectFailure = file.endsWith("-fail.hxml");
 					var expectStdout = if (FileSystem.exists('$file.stdout')) prepareExpectedOutput(File.getContent('$file.stdout')) else null;
 					var expectStderr = if (FileSystem.exists('$file.stderr')) prepareExpectedOutput(File.getContent('$file.stderr')) else null;
-					var result = runCommand("haxe", [file], expectFailure, expectStdout, expectStderr);
+					var result = runCommand("haxe", ["-D", "message.reporting=classic", file], expectFailure, expectStdout, expectStderr);
 					++count;
 					if (!result.success) {
 						failures++;
@@ -157,6 +157,9 @@ class Main {
 					// Reorder fields from expected too
 					expected = haxe.Json.stringify(haxe.Json.parse(expected));
 				} catch (_) {}
+			} else {
+				content = hideStdPositions(content);
+				expected = hideStdPositions(expected);
 			}
 
 			if (content != expected) {
@@ -176,6 +179,14 @@ class Main {
 		}
 
 		return true;
+	}
+
+	static function hideStdPositions(content:String):String {
+		var regex = new EReg(StringTools.replace(getStd(), '\\', '(?:\\\\|/)') + '([a-z/\\\\]+\\.hx):[0-9]+:( characters? [0-9]+(-[0-9]+)( :)?)', 'i');
+
+		return content.split("\n")
+			.map(line -> regex.replace(line, "$1:???:"))
+			.join("\n");
 	}
 
 	static macro function getStd() {

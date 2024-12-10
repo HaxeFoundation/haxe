@@ -46,7 +46,7 @@ typedef MissingFieldDiagnostics = {
 	var entries:Array<MissingFieldDiagnostic>;
 }
 
-typedef ReplacableCode = {
+typedef ReplaceableCodeDiagnostics = {
 	var description:String;
 	var range:Range;
 	var ?newCode:String;
@@ -56,7 +56,7 @@ enum abstract DiagnosticKind<T>(Int) from Int to Int {
 	final DKUnusedImport:DiagnosticKind<Void>;
 	final DKUnresolvedIdentifier:DiagnosticKind<Array<{kind:UnresolvedIdentifierSuggestion, name:String}>>;
 	final DKCompilerError:DiagnosticKind<String>;
-	final ReplacableCode:DiagnosticKind<ReplacableCode>;
+	final ReplaceableCode:DiagnosticKind<ReplaceableCodeDiagnostics>;
 	final DKParserError:DiagnosticKind<String>;
 	final DeprecationWarning:DiagnosticKind<String>;
 	final InactiveBlock:DiagnosticKind<Void>;

@@ -26,6 +26,7 @@ type 'value compiler_api = {
 	init_macros_done : unit -> bool;
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
+	include_module : string -> unit;
 	after_init_macros : (unit -> unit) -> unit;
 	after_typing : (module_type list -> unit) -> unit;
 	on_generate : (Type.t list -> unit) -> bool -> unit;
@@ -38,9 +39,6 @@ type 'value compiler_api = {
 	resolve_complex_type : Ast.type_hint -> Ast.type_hint;
 	store_typed_expr : Type.texpr -> Ast.expr;
 	allow_package : string -> unit;
-	type_patch : string -> string -> bool -> string option -> unit;
-	meta_patch : string -> string -> string option -> bool -> pos -> unit;
-	set_js_generator : (Genjs.ctx -> unit) -> unit;
 	get_local_type : unit -> t option;
 	get_expected_type : unit -> t option;
 	get_call_arguments : unit -> Ast.expr list option;
@@ -53,24 +51,24 @@ type 'value compiler_api = {
 	define_module : string -> 'value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
 	module_dependency : string -> string -> unit;
 	current_module : unit -> module_def;
-	use_cache : unit -> bool;
 	format_string : string -> Globals.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Globals.pos -> bool;
 	add_global_metadata : string -> string -> (bool * bool * bool) -> pos -> unit;
 	register_define : string -> Define.user_define -> unit;
 	register_metadata : string -> Meta.user_meta -> unit;
-	add_module_check_policy : string list -> int list -> bool -> int -> unit;
+	add_module_check_policy : string list -> int list -> bool -> unit;
 	decode_expr : 'value -> Ast.expr;
 	encode_expr : Ast.expr -> 'value;
 	encode_ctype : Ast.type_hint -> 'value;
 	decode_type : 'value -> t;
-	flush_context : (unit -> t) -> t;
 	info : ?depth:int -> string -> pos -> unit;
 	warning : ?depth:int -> Warning.warning -> string -> pos -> unit;
 	display_error : ?depth:int -> (string -> pos -> unit);
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
 	exc_string : 'a . string -> 'a;
+	get_hxb_writer_config : unit -> 'value;
+	set_hxb_writer_config : 'value -> unit;
 }
 
 
@@ -123,7 +121,7 @@ module type InterpApi = sig
 	val encode_array : value list -> value
 	val encode_string  : string -> value
 	val encode_obj : (string * value) list -> value
-	val encode_lazy : (unit -> value) -> value
+	val encode_lazy : value Lazy.t -> value
 
 	val vfun0 : (unit -> value) -> value
 	val vfun1 : (value -> value) -> value
@@ -170,8 +168,6 @@ module type InterpApi = sig
 	val prepare_callback : value -> int -> (value list -> value)
 
 	val value_string : value -> string
-
-	val flush_core_context : (unit -> t) -> t
 
 	val handle_decoding_error : (string -> unit) -> value -> Type.t -> (string * int) list
 
@@ -413,7 +409,7 @@ and encode_display_kind dk =
 	| DKMarked -> 3, []
 	| DKPattern outermost -> 4, [vbool outermost]
 	in
-	encode_enum ~pos:None IDisplayKind tag pl
+	encode_enum IDisplayKind tag pl
 
 and encode_display_mode dm =
 	let tag, pl = match dm with
@@ -429,7 +425,7 @@ and encode_display_mode dm =
 		| DMModuleSymbols (Some s) -> 9, [(encode_string s)]
 		| DMSignature -> 10, []
 	in
-	encode_enum ~pos:None IDisplayMode tag pl
+	encode_enum IDisplayMode tag pl
 
 and encode_platform p =
 	let tag, pl = match p with
@@ -440,14 +436,13 @@ and encode_platform p =
 		| Flash -> 4, []
 		| Php -> 5, []
 		| Cpp -> 6, []
-		| Cs -> 7, []
-		| Java -> 8, []
-		| Python -> 9, []
-		| Hl -> 10, []
-		| Eval -> 11, []
-		| CustomTarget s -> 12, [(encode_string s)]
+		| Jvm -> 7, []
+		| Python -> 8, []
+		| Hl -> 9, []
+		| Eval -> 10, []
+		| CustomTarget s -> 11, [(encode_string s)]
 	in
-	encode_enum ~pos:None IPlatform tag pl
+	encode_enum IPlatform tag pl
 
 and encode_platform_config pc =
 	encode_obj [
@@ -475,7 +470,7 @@ and encode_capture_policy cp =
 		| CPWrapRef -> 1
 		| CPLoopVars -> 2
 	in
-	encode_enum ~pos:None ICapturePolicy tag []
+	encode_enum ICapturePolicy tag []
 
 and encode_var_scoping_config vsc =
 	encode_obj [
@@ -488,7 +483,7 @@ and encode_var_scope vs =
 		| FunctionScope -> 0
 		| BlockScope -> 1
 	in
-	encode_enum ~pos:None IVarScope tag []
+	encode_enum IVarScope tag []
 
 and encode_var_scoping_flags vsf =
 	let tag, pl = match vsf with
@@ -501,7 +496,7 @@ and encode_var_scoping_flags vsf =
 		| ReserveNames (names) -> 6, [encode_array (List.map encode_string names)]
 		| SwitchCasesNoBlocks -> 7, []
 	in
-	encode_enum ~pos:None IVarScopingFlags tag pl
+	encode_enum IVarScopingFlags tag pl
 
 and encode_exceptions_config ec =
 	encode_obj [
@@ -516,10 +511,9 @@ and encode_exceptions_config ec =
 and encode_package_rule pr =
 	let tag, pl = match pr with
 		| Forbidden -> 0, []
-		| Directory (path) -> 1, [encode_string path]
 		| Remap (path) -> 2, [encode_string path]
 	in
-	encode_enum ~pos:None IPackageRule tag pl
+	encode_enum IPackageRule tag pl
 
 and encode_message cm =
 	let tag, pl = match cm.cm_severity with
@@ -527,7 +521,7 @@ and encode_message cm =
 		| Warning | Hint -> 1, [(encode_string cm.cm_message); (encode_pos cm.cm_pos)]
 		| Error -> Globals.die "" __LOC__
 	in
-	encode_enum ~pos:None IMessage tag pl
+	encode_enum IMessage tag pl
 
 and encode_efield_kind efk =
 	let i = match efk with
@@ -633,7 +627,7 @@ and encode_expr e =
 			"expr", encode_enum IExpr tag pl;
 		]
 	in
-	encode_lazy (fun () -> loop e)
+	encode_lazy (lazy (loop e))
 
 and encode_null_expr e =
 	match e with
@@ -758,7 +752,7 @@ let rec decode_ast_path t =
 	let p_full = field t "pos" in
 	let p_full = if p_full = vnull then Globals.null_pos else decode_pos p_full in
 	let p_path = field t "posPath" in
-	let p_path = if p_path = vnull then Globals.null_pos else decode_pos p_path in
+	let p_path = if p_path = vnull then p_full else decode_pos p_path in
 	make_ptp (mk_type_path ~params ?sub (pack,name)) ~p_path p_full
 
 and decode_tparam v =
@@ -1060,8 +1054,8 @@ and encode_type_params tl =
 
 and encode_tenum e =
 	encode_mtype (TEnumDecl e) [
-		"isExtern", vbool e.e_extern;
-		"exclude", vfun0 (fun() -> e.e_extern <- true; vnull);
+		"isExtern", vbool (has_enum_flag e EnExtern);
+		"exclude", vfun0 (fun() -> add_enum_flag e EnExcluded; vnull);
 		"constructs", encode_string_map encode_efield e.e_constrs;
 		"names", encode_array (List.map encode_string e.e_names);
 	]
@@ -1099,7 +1093,7 @@ and encode_cfield f =
 		"params", encode_type_params f.cf_params;
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
 		"expr", vfun0 (fun() ->
-			ignore (flush_core_context (fun() -> follow f.cf_type));
+			ignore (follow f.cf_type);
 			(match f.cf_expr with None -> vnull | Some e -> encode_texpr e)
 		);
 		"kind", encode_field_kind f.cf_kind;
@@ -1159,7 +1153,7 @@ and encode_tclass c =
 	encode_mtype (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", vbool (has_class_flag c CExtern);
-		"exclude", vfun0 (fun() -> add_class_flag c CExtern; c.cl_init <- None; vnull);
+		"exclude", vfun0 (fun() -> add_class_flag c CExcluded; c.cl_init <- None; vnull);
 		"isInterface", vbool (has_class_flag c CInterface);
 		"isFinal", vbool (has_class_flag c CFinal);
 		"isAbstract", vbool (has_class_flag c CAbstract);
@@ -1171,7 +1165,7 @@ and encode_tclass c =
 		"fields", encode_ref c.cl_ordered_fields (encode_and_map_array encode_cfield) (fun() -> "class fields");
 		"statics", encode_ref c.cl_ordered_statics (encode_and_map_array encode_cfield) (fun() -> "class fields");
 		"constructor", (match c.cl_constructor with None -> vnull | Some cf -> encode_cfref cf);
-		"init", (match c.cl_init with None -> vnull | Some e -> encode_texpr e);
+		"init", (match TClass.get_cl_init c with None -> vnull | Some e -> encode_texpr e);
 		"overrides", (encode_array (List.map encode_cfref (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields)))
 	]
 
@@ -1266,8 +1260,7 @@ and encode_lazy_type t =
 					| LAvailable t ->
 						encode_type t
 					| LWait _ ->
-						(* we are doing some typing here, let's flush our context if it's not already *)
-						encode_type (flush_core_context (fun() -> lazy_type f))
+						encode_type (lazy_type f)
 					| LProcessing _ ->
 						(* our type in on the processing stack, error instead of returning most likely an unbound mono *)
 						error_message "Accessing a type while it's being typed");
@@ -1322,6 +1315,7 @@ and encode_tvar v =
 		"capture", vbool (has_var_flag v VCaptured);
 		"extra", vopt f_extra v.v_extra;
 		"meta", encode_meta v.v_meta (fun m -> v.v_meta <- m);
+		"isStatic", vbool (has_var_flag v VStatic);
 		"$", encode_unsafe (Obj.repr v);
 	]
 
@@ -1619,7 +1613,7 @@ let decode_type_def v =
 		in
 		EEnum (mk (if isExtern then [EExtern] else []) (List.map conv fields))
 	| 1, [] ->
-		ETypedef (mk (if isExtern then [EExtern] else []) (CTAnonymous fields,pos))
+		ETypedef (mk (if isExtern then [TDExtern] else []) (CTAnonymous fields,pos))
 	| 2, [ext;impl;interf;final;abstract] ->
 		let flags = if isExtern then [HExtern] else [] in
 		let is_interface = decode_opt_bool interf in
@@ -1638,7 +1632,7 @@ let decode_type_def v =
 		let flags = if is_abstract then HAbstract :: flags else flags in
 		EClass (mk flags fields)
 	| 3, [t] ->
-		ETypedef (mk (if isExtern then [EExtern] else []) (decode_ctype t))
+		ETypedef (mk (if isExtern then [TDExtern] else []) (decode_ctype t))
 	| 4, [tthis;tflags;tfrom;tto] ->
 		let flags = match opt decode_array tflags with
 			| None -> []
@@ -1847,7 +1841,7 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"class_path", vfun0 (fun() ->
-			encode_array (List.map encode_string (ccom()).class_path);
+			encode_array (List.map encode_string (ccom()).class_paths#as_string_list);
 		);
 		"resolve_path", vfun1 (fun file ->
 			let file = decode_string file in
@@ -1879,6 +1873,10 @@ let macro_api ccom get_api =
 		);
 		"get_module", vfun1 (fun s ->
 			encode_array (List.map encode_type ((get_api()).get_module (decode_string s)))
+		);
+		"include_module", vfun1 (fun s ->
+			(get_api()).include_module (decode_string s);
+			vnull
 		);
 		"on_after_init_macros", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
@@ -1953,14 +1951,6 @@ let macro_api ccom get_api =
 			(get_api()).allow_package (decode_string s);
 			vnull
 		);
-		"type_patch", vfun4 (fun t f s v ->
-			(get_api()).type_patch (decode_string t) (decode_string f) (decode_bool s) (opt decode_string v);
-			vnull
-		);
-		"meta_patch", vfun4 (fun m t f s ->
-			(get_api()).meta_patch (decode_string m) (decode_string t) (opt decode_string f) (decode_bool s) (get_api_call_pos ());
-			vnull
-		);
 		"add_global_metadata_impl", vfun5 (fun s1 s2 b1 b2 b3 ->
 			(get_api()).add_global_metadata (decode_string s1) (decode_string s2) (decode_bool b1,decode_bool b2,decode_bool b3) (get_api_call_pos());
 			vnull
@@ -2017,13 +2007,12 @@ let macro_api ccom get_api =
 		);
 		"set_custom_js_generator", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
-			(get_api()).set_js_generator (fun js_ctx ->
-				let com = ccom() in
+			let gen com js_ctx =
 				Genjs.setup_kwds com;
 				let api = encode_obj [
 					"outputFile", encode_string com.file;
 					"types", encode_array (List.map (fun t -> encode_type (type_of_module_type t)) com.types);
-					"main", (match com.main with None -> vnull | Some e -> encode_texpr e);
+					"main", (match com.main.main_expr with None -> vnull | Some e -> encode_texpr e);
 					"generateValue", vfun1 (fun v ->
 						let e = decode_texpr v in
 						let str = Genjs.gen_single_expr js_ctx e false in
@@ -2033,10 +2022,10 @@ let macro_api ccom get_api =
 						vbool (Hashtbl.mem Genjs.kwds (decode_string v))
 					);
 					"hasFeature", vfun1 (fun v ->
-						vbool (Common.has_feature com (decode_string v))
+						vbool (Gctx.has_feature com (decode_string v))
 					);
 					"addFeature", vfun1 (fun v ->
-						Common.add_feature com (decode_string v);
+						Gctx.add_feature com (decode_string v);
 						vnull
 					);
 					"quoteString", vfun1 (fun v ->
@@ -2065,13 +2054,18 @@ let macro_api ccom get_api =
 					);
 				] in
 				ignore(f [api]);
+			in
+			let com = ccom() in
+			com.js_gen <- Some (fun() ->
+				Path.mkdir_from_path com.file;
+				let js_ctx = Genjs.alloc_ctx (Common.to_gctx com) (Gctx.get_es_version com.defines) in
+				gen (Common.to_gctx com) js_ctx;
 			);
 			vnull
 		);
 		"flush_disk_cache", vfun0 (fun () ->
 			let com = (get_api()).get_com() in
-			com.file_lookup_cache#clear;
-			com.readdir_cache#clear;
+			com.class_paths#clear_cache;
 			vnull
 		);
 		"get_pos_infos", vfun1 (fun p ->
@@ -2170,15 +2164,15 @@ let macro_api ccom get_api =
 		"add_class_path", vfun1 (fun cp ->
 			let com = ccom() in
 			let cp = decode_string cp in
-			let cp = Path.add_trailing_slash cp in
-			com.class_path <- cp :: com.class_path;
+			let path = Path.add_trailing_slash cp in
+			let cp = new ClassPath.directory_class_path path User in
+			com.class_paths#add cp;
 			(match com.get_macros() with
 			| Some(mcom) ->
-				mcom.class_path <- cp :: mcom.class_path;
+				mcom.class_paths#add cp#clone;
 			| None ->
 				());
-			com.file_lookup_cache#clear;
-			com.readdir_cache#clear;
+			com.class_paths#clear_cache;
 			vnull
 		);
 		"add_native_lib", vfun1 (fun file ->
@@ -2186,22 +2180,12 @@ let macro_api ccom get_api =
 			let com = ccom() in
 			let open CompilationContext in
 			let kind = match com.platform with
-				| Java -> JavaLib
-				| Cs -> NetLib
+				| Jvm -> JavaLib
 				| Flash -> SwfLib
 				| _ -> failwith "Unsupported platform"
 			in
 			let lib = create_native_lib file false kind in
 			NativeLibraryHandler.add_native_lib com lib ();
-			vnull
-		);
-		"add_native_arg", vfun1 (fun arg ->
-			let arg = decode_string arg in
-			let com = ccom() in
-			(match com.platform with
-			| Globals.Java | Globals.Cs | Globals.Cpp ->
-				com.c_args <- arg :: com.c_args
-			| _ -> failwith "Unsupported platform");
 			vnull
 		);
 		"register_module_dependency", vfun2 (fun m file ->
@@ -2255,8 +2239,8 @@ let macro_api ccom get_api =
 				"foptimize", vbool com.foptimize;
 				"platform", encode_platform com.platform;
 				"platformConfig", encode_platform_config com.config;
-				"stdPath", encode_array (List.map encode_string com.std_path);
-				"mainClass", (match com.main_class with None -> vnull | Some path -> encode_path path);
+				"stdPath", encode_array (List.map (fun path -> encode_string path#path) com.class_paths#get_std_paths);
+				"mainClass", (match com.main.main_class with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
 			]
 		);
@@ -2265,7 +2249,7 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"get_main_expr", vfun0 (fun() ->
-			match (ccom()).main with None -> vnull | Some e -> encode_texpr e
+			match (ccom()).main.main_expr with None -> vnull | Some e -> encode_texpr e
 		);
 		"get_module_types", vfun0 (fun() ->
 			encode_array (List.map encode_module_type (ccom()).types)
@@ -2282,8 +2266,10 @@ let macro_api ccom get_api =
 				let t = decode_type (field v "t") in
 				let default = None in (* we don't care here *)
 				let c = match t with
-					| TInst(c,_) -> c
-					| _ -> die "" __LOC__
+					| TInst(({cl_kind = KTypeParameter _} as c),_) ->
+						c
+					| _ ->
+						(get_api()).exc_string (Printf.sprintf "Unexpected type where type parameter was expected: %s" (s_type_kind t))
 				in
 				mk_type_param c TPHType default None
 			) (decode_array tpl) in
@@ -2297,7 +2283,18 @@ let macro_api ccom get_api =
 					end
 				| _ -> Type.map map t
 			in
-			encode_type (apply_params tpl tl (map (decode_type t)))
+			let t = (map (decode_type t)) in
+			let t = try
+				apply_params tpl tl t
+			with ApplyParamsMismatch ->
+				let msg = Printf.sprintf "Could not apply type parameters to %s:\n\tparams: %s\n\ttypes: %s"
+					(s_type_kind t)
+					(String.concat ", " (List.map (s_type_param s_type_kind) tpl))
+					(String.concat ", " (List.map s_type_kind tl))
+				in
+				(get_api()).exc_string msg
+			in
+			encode_type t
 		);
 		"include_file", vfun2 (fun file position ->
 			let file = decode_string file in
@@ -2314,10 +2311,10 @@ let macro_api ccom get_api =
 			vnull
 		);
 		(* Compilation server *)
-		"server_add_module_check_policy", vfun4 (fun filter policy recursive context_options ->
+		"server_add_module_check_policy", vfun3 (fun filter policy recursive ->
 			let filter = List.map decode_string (decode_array filter) in
 			let policy = List.map decode_int (decode_array policy) in
-			(get_api()).add_module_check_policy filter policy (decode_bool recursive) (decode_int context_options);
+			(get_api()).add_module_check_policy filter policy (decode_bool recursive);
 			vnull
 		);
 		"server_invalidate_files", vfun1 (fun a ->
@@ -2408,5 +2405,12 @@ let macro_api ccom get_api =
 				vbool false
 			end
 		);
+		"get_hxb_writer_config", vfun0 (fun () ->
+			(get_api()).get_hxb_writer_config ()
+		);
+		"set_hxb_writer_config", vfun1 (fun v ->
+			(get_api()).set_hxb_writer_config v;
+			vnull
+		)
 	]
 end

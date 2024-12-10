@@ -121,7 +121,7 @@ let collect_diagnostics dctx com =
 				ParserEntry.is_true (ParserEntry.eval defines e)
 			in
 			Hashtbl.iter (fun file_key cfile ->
-				if DisplayPosition.display_position#is_in_file (com.file_keys#get cfile.c_file_path) then begin
+				if DisplayPosition.display_position#is_in_file (com.file_keys#get cfile.c_file_path.file) then begin
 					let dead_blocks = cfile.c_pdi.pd_dead_blocks in
 					let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) dead_blocks in
 					try

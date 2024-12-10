@@ -1,0 +1,29 @@
+[WARNING] Main2.hx:17: characters 8-11
+
+ 17 |  $type(foo); // Unknown<0>
+    |        ^^^
+    | Unknown<0>
+
+[WARNING] Main2.hx:19: characters 8-11
+
+ 19 |  $type(foo); // Unknown<0> : { doWithBar : () -> Unknown<1> }
+    |        ^^^
+    | Unknown<0> : { doWithBar : () -> Unknown<1> }
+
+[WARNING] Main2.hx:20: characters 8-21
+
+ 20 |  $type(foo.doWithBar); // () -> Unknown<0>
+    |        ^^^^^^^^^^^^^
+    | () -> Unknown<0>
+
+[WARNING] Main2.hx:23: characters 8-11
+
+ 23 |  $type(foo); // Null<{ doWithBar : () -> Unknown<0> }>
+    |        ^^^
+    | Null<Unknown<0> : { doWithBar : () -> Unknown<1> }>
+
+[WARNING] Main2.hx:24: characters 8-21
+
+ 24 |  $type(foo.doWithBar); // () -> Unknown<0>
+    |        ^^^^^^^^^^^^^
+    | () -> Unknown<0>

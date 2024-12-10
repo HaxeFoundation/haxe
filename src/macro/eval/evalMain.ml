@@ -179,7 +179,7 @@ let call_path ctx path f vl api =
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in
-			let info = create_env_info true p.pfile (ctx.file_keys#get p.pfile) EKEntrypoint (Hashtbl.create 0) 0 0 in
+			let info = create_env_info true p.pfile (ctx.file_keys#get p.pfile) (EKMacro (path_hash path, hash f)) (Hashtbl.create 0) 0 0 in
 			let env = push_environment ctx info in
 			env.env_leave_pmin <- p.pmin;
 			env.env_leave_pmax <- p.pmax;
@@ -361,7 +361,7 @@ let value_signature v =
 		| VHandle _ ->
 			custom_name 'H'
 		| VLazy f ->
-			loop (!f())
+			loop (Lazy.force f)
 	and loop_fields fields =
 		List.iter (fun (name,v) ->
 			adds (rev_hash name);
@@ -379,8 +379,7 @@ let setup get_api =
 	let api = get_api (fun() -> (get_ctx()).curapi.get_com()) (fun() -> (get_ctx()).curapi) in
 	List.iter (fun (n,v) ->
 		Hashtbl.replace GlobalState.macro_lib n v
-	) api;
-	Globals.macro_platform := Globals.Eval
+	) api
 
 let do_reuse ctx api =
 	ctx.curapi <- api;

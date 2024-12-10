@@ -81,7 +81,7 @@ let init_import ctx path mode p =
 	| (tname,p2) :: rest ->
 		let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
 		let p_type = punion p1 p2 in
-		let md = ctx.g.do_load_module ctx (List.map fst pack,tname) p_type in
+		let md = ctx.g.do_load_module ~origin:MDepFromImport ctx (List.map fst pack,tname) p_type in
 		let types = md.m_types in
 		let not_private mt = not (t_infos mt).mt_private in
 		let error_private p = raise_typing_error "Importing private declarations from a module is not allowed" p in
@@ -113,7 +113,7 @@ let init_import ctx path mode p =
 		let check_alias mt name pname =
 			if not (name.[0] >= 'A' && name.[0] <= 'Z') then
 				raise_typing_error "Type aliases must start with an uppercase letter" pname;
-			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in pname then
+			if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in pname then
 				DisplayEmitter.display_alias ctx name (type_of_module_type mt) pname;
 		in
 		let add_static_init t name s =
@@ -152,7 +152,7 @@ let init_import ctx path mode p =
 				| Some(newname,pname) ->
 					let mt = get_type tname in
 					check_alias mt newname pname;
-					ctx.m.import_resolution#add (module_type_resolution mt (Some newname) p2)
+					ctx.m.import_resolution#add (module_type_resolution mt (Some newname) p)
 				end
 			| [tsub,p2] ->
 				let pu = punion p1 p2 in
@@ -166,7 +166,7 @@ let init_import ctx path mode p =
 							check_alias tsub name pname;
 							Some name
 					in
-					ctx.m.import_resolution#add (module_type_resolution tsub alias p2);
+					ctx.m.import_resolution#add (module_type_resolution tsub alias p);
 				with Not_found ->
 					(* this might be a static property, wait later to check *)
 					let find_main_type_static () =
@@ -267,7 +267,7 @@ let handle_using ctx path p =
 	in
 	let types = (match t.tsub with
 		| None ->
-			let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
+			let md = ctx.g.do_load_module ~origin:MDepFromImport ctx (t.tpackage,t.tname) p in
 			let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
 			Option.map_default (fun c -> (TClassDecl c) :: types) types md.m_statics
 		| Some _ ->
@@ -296,4 +296,4 @@ let init_using ctx path p =
 		ctx.m.import_resolution#add (module_type_resolution mt None p)
 	) (List.rev types);
 	(* delay the using since we need to resolve typedefs *)
-	delay_late ctx PConnectField (fun () -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)
+	delay_late ctx.g PConnectField (fun () -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)

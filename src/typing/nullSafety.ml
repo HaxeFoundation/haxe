@@ -72,7 +72,7 @@ let is_string_type t =
 *)
 let rec is_nullable_type ?(dynamic_is_nullable=false) = function
 	| TMono r ->
-		(match r.tm_type with None -> false | Some t -> is_nullable_type t)
+		(match r.tm_type with None -> is_nullable_mono r | Some t -> is_nullable_type t)
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		true
 	| TAbstract ({ a_path = ([],"Any") },[]) ->
@@ -1513,7 +1513,7 @@ class class_checker cls immediate_execution report =
 						self#check_accessors is_static f
 			end in
 			if is_safe_class then
-				Option.may ((self#get_checker (safety_mode cls_meta))#check_root_expr) cls.cl_init;
+				Option.may ((self#get_checker (safety_mode cls_meta))#check_root_expr) (TClass.get_cl_init cls);
 			Option.may (check_field false) cls.cl_constructor;
 			List.iter (check_field false) cls.cl_ordered_fields;
 			List.iter (check_field true) cls.cl_ordered_statics;
@@ -1687,7 +1687,7 @@ let run (com:Common.context) (types:module_type list) =
 	timer();
 	match com.callbacks#get_null_safety_report with
 		| [] ->
-			List.iter (fun err -> com.error err.sm_msg err.sm_pos) (List.rev report.sr_errors)
+			List.iter (fun err -> Common.display_error com err.sm_msg err.sm_pos) (List.rev report.sr_errors)
 		| callbacks ->
 			let errors =
 				List.map (fun err -> (err.sm_msg, err.sm_pos)) report.sr_errors

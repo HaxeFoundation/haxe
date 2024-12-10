@@ -23,7 +23,7 @@ type native_lib_flags =
 	| FlagIsStd
 	| FlagIsExtern
 
-class virtual ['a,'data] native_library (name : string) (file_path : string) = object(self)
+class virtual native_library_base (name : string) (file_path : string) = object(self)
 	val mutable flags : native_lib_flags list = []
 
 	method add_flag flag = flags <- flag :: flags
@@ -31,6 +31,10 @@ class virtual ['a,'data] native_library (name : string) (file_path : string) = o
 
 	method get_name = name
 	method get_file_path = file_path
+end
+
+class virtual ['a,'data] native_library (name : string) (file_path : string) = object(self)
+	inherit native_library_base name file_path
 
 	method virtual build : path -> pos -> Ast.package option
 	method virtual close : unit
@@ -40,20 +44,17 @@ class virtual ['a,'data] native_library (name : string) (file_path : string) = o
 	method virtual get_data : 'data
 end
 
-type java_lib_type = (JData.jclass * string * string) option
-type net_lib_type = IlData.ilclass option
+type java_lib_type = (JClass.jclass * string * string) option
 type swf_lib_type = As3hl.hl_class option
 
 type native_libraries = {
 	mutable java_libs : (java_lib_type,unit) native_library list;
-	mutable net_libs : (net_lib_type,unit) native_library list;
 	mutable swf_libs : (swf_lib_type,Swf.swf) native_library list;
 	mutable all_libs : string list;
 }
 
 let create_native_libs () = {
 	java_libs = [];
-	net_libs = [];
 	swf_libs = [];
 	all_libs = [];
 }

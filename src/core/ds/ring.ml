@@ -39,6 +39,21 @@ let fold r acc f =
 	in
 	loop 0 acc
 
+let find r f =
+	let len = Array.length r.values in
+	let rec loop i =
+		if i = len then
+			raise Not_found
+		else begin
+			let v = r.values.(i) in
+			if f v then
+				v
+			else
+				loop (i + 1)
+		end
+	in
+	loop 0
+
 let is_filled r =
 	r.num_filled >= Array.length r.values
 

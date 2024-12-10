@@ -270,7 +270,7 @@ and compile_switch mctx subjects cases =
 	let (subject_null,subject_switch,subject_default),reset_subject =
 		let subjects = match null with
 			| [] ->
-				if is_explicit_null subject.etype then
+				if is_explicit_null_or_abstract_over_that subject.etype then
 					switch_subject,subject,subject
 				else begin match switch_cases with
 				| [] ->
@@ -291,7 +291,7 @@ and compile_switch mctx subjects cases =
 	in
 	let dt = match null with
 		| [] ->
-			if is_explicit_null subject.etype then null_guard switch_default else dt
+			if is_explicit_null_or_abstract_over_that subject.etype then null_guard switch_default else dt
 		| cases ->
 			let dt_null = compile mctx subjects (cases @ default) in
 			null_guard dt_null

@@ -35,12 +35,21 @@ let rec s_type ctx t =
 	| TMono r ->
 		(match r.tm_type with
 		| None ->
-			begin try
-				let id = List.assq t (!ctx) in
-				if show_mono_ids then
+			let print_name id extra =
+				let s = if show_mono_ids then
 					Printf.sprintf "Unknown<%d>" id
 				else
 					"Unknown"
+				in
+				let s = s ^ extra in
+				List.fold_left (fun s modi -> match modi with
+					| MNullable _ -> Printf.sprintf "Null<%s>" s
+					| MOpenStructure -> s
+				) s r.tm_modifiers
+			in
+			begin try
+				let id = List.assq t (!ctx) in
+				print_name id ""
 			with Not_found ->
 				let id = List.length !ctx in
 				ctx := (t,id) :: !ctx;
@@ -54,10 +63,7 @@ let rec s_type ctx t =
 					let s = loop (!monomorph_classify_constraints_ref r) in
 					if s = "" then s else " : " ^ s
 				in
-				if show_mono_ids then
-					Printf.sprintf "Unknown<%d>%s" id s_const
-				else
-					Printf.sprintf "Unknown%s" s_const
+				print_name id s_const
 			end
 		| Some t -> s_type ctx t)
 	| TEnum (e,tl) ->
@@ -125,7 +131,6 @@ and s_constraint = function
 	| MMono(m,_) -> Printf.sprintf "MMono %s" (s_type_kind (TMono m))
 	| MField cf -> Printf.sprintf "MField %s" cf.cf_name
 	| MType(t,_) -> Printf.sprintf "MType %s" (s_type_kind t)
-	| MOpenStructure -> "MOpenStructure"
 	| MEmptyStructure -> "MEmptyStructure"
 
 let s_type_param s_type ttp =
@@ -413,6 +418,7 @@ let s_class_field_ref_kind = function
 	| CfrStatic -> "CfrStatic"
 	| CfrMember -> "CfrMember"
 	| CfrConstructor -> "CfrConstructor"
+	| CfrInit -> "CfrInit"
 
 module Printer = struct
 
@@ -460,6 +466,7 @@ module Printer = struct
 		| TPHEnumConstructor -> "TPHEnumConstructor"
 		| TPHAnonField -> "TPHAnonField"
 		| TPHLocal -> "TPHLocal"
+		| TPHUnbound -> "TPHUnbound"
 
 	let s_type_param tabs ttp =
 		s_record_fields tabs [
@@ -506,7 +513,7 @@ module Printer = struct
 			"cl_super",s_opt (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_super;
 			"cl_implements",s_list ", " (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_implements;
 			"cl_array_access",s_opt s_type c.cl_array_access;
-			"cl_init",s_opt (s_expr_ast true "" s_type) c.cl_init;
+			"cl_init",s_opt (s_expr_ast true "" s_type) (TOther.TClass.get_cl_init c);
 			"cl_constructor",s_opt (s_tclass_field (tabs ^ "\t")) c.cl_constructor;
 			"cl_ordered_fields",s_list "\n\t" (s_tclass_field (tabs ^ "\t")) c.cl_ordered_fields;
 			"cl_ordered_statics",s_list "\n\t" (s_tclass_field (tabs ^ "\t")) c.cl_ordered_statics;
@@ -548,7 +555,7 @@ module Printer = struct
 			"e_meta",s_metadata en.e_meta;
 			"e_params",s_type_params (tabs ^ "\t") en.e_params;
 			"e_type",s_type_kind en.e_type;
-			"e_extern",string_of_bool en.e_extern;
+			"e_extern",string_of_bool (has_enum_flag en EnExtern);
 			"e_constrs",s_list "\n\t" (s_tenum_field (tabs ^ "\t")) (PMap.fold (fun ef acc -> ef :: acc) en.e_constrs []);
 			"e_names",String.concat ", " en.e_names
 		]
@@ -600,7 +607,7 @@ module Printer = struct
 			| TVOLocalFunction -> "TVOLocalFunction") ^ ")"
 		| VGenerated -> "VGenerated"
 		| VInlined -> "VInlined"
-		| VInlinedConstructorVariable -> "VInlinedConstructorVariable"
+		| VInlinedConstructorVariable sl -> "VInlinedConstructorVariable" ^ "(" ^ (String.concat ", " sl) ^ ")"
 		| VExtractorVariable -> "VExtractorVariable"
 		| VAbstractThis -> "VAbstractThis"
 
@@ -610,6 +617,13 @@ module Printer = struct
 		| MFake -> "MFake"
 		| MExtern -> "MExtern"
 		| MImport -> "MImport"
+
+	let s_module_origin = function
+		| MDepFromImport -> "MDepFromImport"
+		| MDepFromTyping -> "MDepFromTyping"
+		| MDepFromMacro -> "MDepFromMacro"
+		| MDepFromMacroInclude -> "MDepFromMacroInclude"
+		| MDepFromMacroDefine -> "MDepFromMacroDefine"
 
 	let s_module_tainting_reason = function
 		| CheckDisplayFile -> "check_display_file"
@@ -640,11 +654,10 @@ module Printer = struct
 			"m_cache_state",s_module_cache_state me.m_cache_state;
 			"m_added",string_of_int me.m_added;
 			"m_checked",string_of_int me.m_checked;
-			"m_deps",s_pmap string_of_int (fun (_,m) -> snd m) me.m_deps;
+			"m_deps",s_pmap string_of_int (fun mdep -> snd mdep.md_path) me.m_deps;
 			"m_processed",string_of_int me.m_processed;
 			"m_kind",s_module_kind me.m_kind;
 			"m_binded_res",""; (* TODO *)
-			"m_if_feature",""; (* TODO *)
 			"m_features",""; (* TODO *)
 		]
 

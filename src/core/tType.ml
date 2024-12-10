@@ -26,11 +26,9 @@ and method_kind =
 	| MethMacro
 
 type module_check_policy =
-	| NoCheckFileTimeModification
+	| NoFileSystemCheck
+	| CheckFileModificationTime
 	| CheckFileContentModification
-	| NoCheckDependencies
-	| NoCheckShadowing
-	| Retype
 
 type module_tainting_reason =
 	| CheckDisplayFile
@@ -56,6 +54,7 @@ type type_param_host =
 	| TPHEnumConstructor
 	| TPHAnonField
 	| TPHLocal
+	| TPHUnbound
 
 type cache_bound_object =
 	| Resource of string * string
@@ -84,13 +83,13 @@ and tmono = {
 	*)
 	mutable tm_down_constraints : tmono_constraint list;
 	mutable tm_up_constraints : (t * string option) list;
+	mutable tm_modifiers : tmono_modifier list;
 }
 
 and tmono_constraint =
 	| MMono of tmono * string option
 	| MField of tclass_field
 	| MType of t * string option
-	| MOpenStructure
 	| MEmptyStructure
 
 and tmono_constraint_kind =
@@ -98,6 +97,10 @@ and tmono_constraint_kind =
 	| CStructural of (string,tclass_field) PMap.t * bool
 	| CMixed of tmono_constraint_kind list
 	| CTypes of (t * string option) list
+
+and tmono_modifier =
+	| MNullable of (t -> t)
+	| MOpenStructure
 
 and tlazy =
 	| LAvailable of t
@@ -145,7 +148,7 @@ and tvar_kind =
 	| VUser of tvar_origin
 	| VGenerated
 	| VInlined
-	| VInlinedConstructorVariable
+	| VInlinedConstructorVariable of string list
 	| VExtractorVariable
 	| VAbstractThis
 
@@ -289,6 +292,7 @@ and tclass = {
 	mutable cl_using : (tclass * pos) list;
 	mutable cl_restore : unit -> unit;
 	(* do not insert any fields above *)
+	mutable cl_type : t;
 	mutable cl_kind : tclass_kind;
 	mutable cl_flags : int;
 	mutable cl_super : (tclass * tparams) option;
@@ -300,7 +304,7 @@ and tclass = {
 	mutable cl_dynamic : t option;
 	mutable cl_array_access : t option;
 	mutable cl_constructor : tclass_field option;
-	mutable cl_init : texpr option;
+	mutable cl_init : tclass_field option;
 
 	mutable cl_build : unit -> build_state;
 	(*
@@ -334,7 +338,7 @@ and tenum = {
 	mutable e_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable e_type : t;
-	mutable e_extern : bool;
+	mutable e_flags : int;
 	mutable e_constrs : (string , tenum_field) PMap.t;
 	mutable e_names : string list;
 }
@@ -378,6 +382,7 @@ and tabstract = {
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
 	mutable a_call : tclass_field option;
+	mutable a_extern : bool;
 	mutable a_enum : bool;
 }
 
@@ -401,6 +406,22 @@ and module_def_display = {
 	mutable m_import_positions : (pos,bool ref) PMap.t;
 }
 
+and module_dep_origin =
+	| MDepFromTyping
+	| MDepFromImport
+	| MDepFromMacro
+	(* Compiler.include loads module with this special origin, which tells add_dependency not to add as a proper dependency. *)
+	| MDepFromMacroInclude
+	(* Modules created via Compiler.defineType or Compiler.defineModule will be added as dependency to their "parent" module with this origin. *)
+	| MDepFromMacroDefine
+
+and module_dep = {
+	md_sign : Digest.t;
+	md_kind : module_kind;
+	md_path : path;
+	md_origin : module_dep_origin
+}
+
 and module_def_extra = {
 	m_file : Path.UniqueKey.lazy_t;
 	m_sign : Digest.t;
@@ -411,10 +432,10 @@ and module_def_extra = {
 	mutable m_added : int;
 	mutable m_checked : int;
 	mutable m_processed : int;
-	mutable m_deps : (int,(Digest.t (* sign *) * path)) PMap.t;
+	mutable m_deps : (int,module_dep) PMap.t;
+	mutable m_sig_deps : (int,module_dep) PMap.t option;
 	mutable m_kind : module_kind;
 	mutable m_cache_bound_objects : cache_bound_object DynArray.t;
-	mutable m_if_feature : (string * class_field_ref) list;
 	mutable m_features : (string,bool) Hashtbl.t;
 }
 
@@ -422,6 +443,7 @@ and class_field_ref_kind =
 	| CfrStatic
 	| CfrMember
 	| CfrConstructor
+	| CfrInit
 
 and class_field_ref = {
 	cfr_sign : string;
@@ -443,14 +465,19 @@ and build_state =
 	| Building of tclass list
 	| BuildMacro of (unit -> unit) list ref
 
+
+exception Type_exception of t
+
 type basic_types = {
 	mutable tvoid : t;
+	mutable tany : t;
 	mutable tint : t;
 	mutable tfloat : t;
 	mutable tbool : t;
 	mutable tnull : t -> t;
 	mutable tstring : t;
 	mutable tarray : t -> t;
+	mutable titerator : t -> t
 }
 
 type class_field_scope =
@@ -464,6 +491,8 @@ type flag_tclass =
 	| CInterface
 	| CAbstract
 	| CFunctionalInterface
+	| CUsed (* Marker for DCE *)
+	| CExcluded (* Marker for exclude macro, turned into CExtern during filters *)
 
 type flag_tclass_field =
 	| CfPublic
@@ -479,11 +508,18 @@ type flag_tclass_field =
 	| CfGeneric
 	| CfDefault (* Interface field with default implementation (only valid on Java) *)
 	| CfPostProcessed (* Marker to indicate the field has been post-processed *)
+	| CfUsed (* Marker for DCE *)
+	| CfMaybeUsed (* Marker for DCE *)
+	| CfNoLookup (* Field cannot be accessed by-name. *)
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup"
 ]
+
+type flag_tenum =
+	| EnExtern
+	| EnExcluded (* Marker for exclude macro, turned into EnExtern during filters *)
 
 type flag_tvar =
 	| VCaptured
@@ -493,6 +529,7 @@ type flag_tvar =
 	| VCaught
 	| VStatic
 	| VUsedByTyper (* Set if the typer looked up this variable *)
+	| VHxb (* Flag used by hxb *)
 
 let flag_tvar_names = [
 	"VCaptured";"VFinal";"VAnalyzed";"VAssigned";"VCaught";"VStatic";"VUsedByTyper"

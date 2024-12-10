@@ -17,13 +17,10 @@ class Issue3637 extends Test {
 			a.push(map[key]);
 		}
 		eq(4, a.length);
-		// TODO: some separate issue
-		#if !cs
 		t(Lambda.has(a, "a"));
 		t(Lambda.has(a, "b"));
 		t(Lambda.has(a, 1));
 		t(a.remove(1));
 		t(Lambda.has(a, 1));
-		#end
 	}
 }

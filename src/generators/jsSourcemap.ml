@@ -19,7 +19,6 @@
 open Extlib_leftovers
 open Globals
 open Type
-open Common
 
 type sourcemap = {
 	sources : (string) DynArray.t;
@@ -131,7 +130,7 @@ let handle_newlines smap str =
 		loop 0
 	) smap
 
-let write_mappings (com : Common.context) smap source_path_prefix =
+let write_mappings (com : Gctx.t) smap source_path_prefix =
 	let basefile = Filename.basename com.file in
 	let channel = open_out_bin (com.file ^ ".map") in
 	let sources = DynArray.to_list smap.sources in
@@ -145,7 +144,7 @@ let write_mappings (com : Common.context) smap source_path_prefix =
 	output_string channel ("\"sources\":[" ^
 		(String.concat "," (List.map (fun s -> "\"" ^ source_path_prefix ^ to_url s ^ "\"") sources)) ^
 		"],\n");
-	if Common.defined com Define.SourceMapContent then begin
+	if Gctx.defined com Define.SourceMapContent then begin
 		output_string channel ("\"sourcesContent\":[" ^
 			(String.concat "," (List.map (fun s -> try "\"" ^ StringHelper.s_escape (Std.input_file ~bin:true s) ^ "\"" with _ -> "null") sources)) ^
 			"],\n");

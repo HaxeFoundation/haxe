@@ -30,6 +30,14 @@ class Methods {
 		The initialize request is sent from the client to Haxe to determine the capabilities.
 	**/
 	static inline var Initialize = new HaxeRequestMethod<InitializeParams, InitializeResult>("initialize");
+
+	static inline var ResetCache = new HaxeRequestMethod<ResetCacheParams, ResetCacheResult>("server/resetCache");
+}
+
+typedef ResetCacheParams = {}
+
+typedef ResetCacheResult = {
+	final success:Bool;
 }
 
 /* Initialize */

@@ -17,7 +17,7 @@
 (library
 	(name haxe)
 	(libraries
-		extc extproc extlib_leftovers ilib javalib mbedtls neko objsize pcre2 camlp-streams swflib ttflib ziplib
+		extc extproc extlib_leftovers mbedtls neko objsize pcre2 camlp-streams swflib ziplib
 		json
 		unix ipaddr str bigarray threads dynlink
 		xml-light extlib sha terminal_size

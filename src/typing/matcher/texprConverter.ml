@@ -25,7 +25,7 @@ let constructor_to_texpr ctx con =
 	| ConArray i -> make_int ctx.com.basic i p
 	| ConTypeExpr mt -> TyperBase.type_module_type ctx mt p
 	| ConStatic(c,cf) -> make_static_field c cf p
-	| ConFields _ -> raise_typing_error "Something went wrong" p
+	| ConFields _ -> raise_typing_error "Unexpected matching on ConFields, please report this" p
 
 let s_subject v_lookup s e =
 	let rec loop top s e = match e.eexpr with
@@ -274,7 +274,7 @@ let to_texpr ctx t_switch with_type dt =
 							| Some e -> Some {case_patterns = List.map (constructor_to_texpr ctx) (List.sort Constructor.compare cons);case_expr = e}
 						end
 					) cases in
-					let is_nullable_subject = is_explicit_null e_subject.etype in
+					let is_nullable_subject = is_explicit_null_or_abstract_over_that e_subject.etype in
 					let e_subject = match kind with
 						| SKValue -> e_subject
 						| SKEnum -> mk_index_call e_subject
@@ -349,9 +349,15 @@ let to_texpr ctx t_switch with_type dt =
 					let e_then = loop dt_rec params dt1 in
 					begin match e_then with
 					| None ->
-						if toplevel then
-							loop dt_rec params dt2
-						else if ignore_error ctx.com then
+						if toplevel then begin match loop dt_rec params dt2 with
+							| None ->
+								None
+							| Some e_else ->
+								(* In some cases like extractors, the original e expression might be significant for the
+								   output, so let's make sure it appears there (issue #11738). *)
+								let e = mk (TBlock [e;e_else]) e_else.etype e_else.epos in
+								Some e
+						end else if ignore_error ctx.com then
 							Some (mk (TConst TNull) (mk_mono()) dt2.dt_pos)
 						else
 							report_not_exhaustive !v_lookup e [(ConConst TNull,dt.dt_pos),dt.dt_pos]

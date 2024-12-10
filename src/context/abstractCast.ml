@@ -12,18 +12,18 @@ let rec make_static_call ctx c cf a pl args t p =
 		match args with
 			| [e] ->
 				let e,f = push_this ctx e in
-				ctx.with_type_stack <- (WithType.with_type t) :: ctx.with_type_stack;
+				ctx.e.with_type_stack <- (WithType.with_type t) :: ctx.e.with_type_stack;
 				let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [e] p with
 					| MSuccess e -> type_expr ctx e (WithType.with_type t)
 					| _ ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
-				ctx.with_type_stack <- List.tl ctx.with_type_stack;
+				ctx.e.with_type_stack <- List.tl ctx.e.with_type_stack;
 				let e = try cast_or_unify_raise ctx t e p with Error { err_message = Unify _ } -> raise Not_found in
 				f();
 				e
 			| _ -> die "" __LOC__
 	end else
-		Typecore.make_static_call ctx c cf (apply_params a.a_params pl) args t p
+		CallUnification.make_static_call_better ctx c cf pl args t p
 
 and do_check_cast ctx uctx tleft eright p =
 	let recurse cf f =
@@ -40,7 +40,7 @@ and do_check_cast ctx uctx tleft eright p =
 					raise_error_msg (Unify l) eright.epos)
 			| _ -> ()
 		end;
-		if cf == ctx.curfield || rec_stack_memq cf cast_stack then raise_typing_error "Recursive implicit cast" p;
+		if cf == ctx.f.curfield || rec_stack_memq cf cast_stack then raise_typing_error "Recursive implicit cast" p;
 		rec_stack_loop cast_stack cf f ()
 	in
 	let make (a,tl,(tcf,cf)) =
@@ -87,10 +87,19 @@ and do_check_cast ctx uctx tleft eright p =
 						loop2 a.a_to
 					end
 				| TInst(c,tl), TFun _ when has_class_flag c CFunctionalInterface ->
-					let cf = ctx.g.functional_interface_lut#find c.cl_path in
+					let cf = try
+						snd (ctx.com.functional_interface_lut#find c.cl_path)
+					with Not_found -> match TClass.get_singular_interface_field c.cl_ordered_fields with
+						| None ->
+							raise Not_found
+						| Some cf ->
+							ctx.com.functional_interface_lut#add c.cl_path (c,cf);
+							cf
+					in
 					let map = apply_params c.cl_params tl in
 					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
-					unify_raise_custom uctx eright.etype (map (apply_params cf.cf_params monos cf.cf_type)) p;
+					unify_raise_custom native_unification_context eright.etype (map (apply_params cf.cf_params monos cf.cf_type)) p;
+					if has_mono tright then raise_typing_error ("Cannot use this function as a functional interface because it has unknown types: " ^ (s_type (print_context()) tright)) p;
 					eright
 				| _ ->
 					raise Not_found
@@ -118,7 +127,7 @@ and cast_or_unify ctx tleft eright p =
 		eright
 
 let prepare_array_access_field ctx a pl cf p =
-	let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
+	let monos = List.map (fun _ -> spawn_monomorph ctx.e p) cf.cf_params in
 	let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
 	let check_constraints () =
 		List.iter2 (fun m ttp -> match get_constraints ttp with
@@ -190,7 +199,7 @@ let find_array_write_access ctx a tl e1 e2 p =
 		let s_type = s_type (print_context()) in
 		raise_typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
-let find_multitype_specialization com a pl p =
+let find_multitype_specialization' com a pl p =
 	let uctx = default_unification_context in
 	let m = mk_mono() in
 	let tl,definitive_types = Abstract.find_multitype_params a pl in
@@ -232,10 +241,14 @@ let find_multitype_specialization com a pl p =
 			else
 				raise_typing_error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
 	in
-	cf, follow m
+	cf,follow m,tl
+
+let find_multitype_specialization com a pl p =
+	let cf,m,_ = find_multitype_specialization' com a pl p in
+	(cf,m)
 
 let handle_abstract_casts ctx e =
-	let rec loop ctx e = match e.eexpr with
+	let rec loop e = match e.eexpr with
 		| TNew({cl_kind = KAbstractImpl a} as c,pl,el) ->
 			if not (Meta.has Meta.MultiType a.a_meta) then begin
 				(* This must have been a @:generic expansion with a { new } constraint (issue #4364). In this case
@@ -245,7 +258,7 @@ let handle_abstract_casts ctx e =
 				| _ -> raise_typing_error ("Cannot construct " ^ (s_type (print_context()) (TAbstract(a,pl)))) e.epos
 			end else begin
 				(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
-				let cf,m = find_multitype_specialization ctx.com a pl e.epos in
+				let cf,m,pl = find_multitype_specialization' ctx.com a pl e.epos in
 				let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
 				{e with etype = m}
 			end
@@ -288,9 +301,10 @@ let handle_abstract_casts ctx e =
 						{e1 with eexpr = TCast(find_field e2,None)}
 					| TField(e2,fa) ->
 						let a,pl,e2 = find_abstract e2 e2.etype in
+						let e2 = loop e2 in
 						let m = Abstract.get_underlying_type a pl in
 						let fname = field_name fa in
-						let el = List.map (loop ctx) el in
+						let el = List.map loop el in
 						begin try
 							let fa = quick_field m fname in
 							let get_fun_type t = match follow t with
@@ -344,11 +358,11 @@ let handle_abstract_casts ctx e =
 				in
 				find_field e1
 			with Not_found ->
-				Type.map_expr (loop ctx) e
+				Type.map_expr loop e
 			end
 		| _ ->
-			Type.map_expr (loop ctx) e
+			Type.map_expr loop e
 	in
-	loop ctx e
+	loop e
 ;;
 Typecore.cast_or_unify_raise_ref := cast_or_unify_raise

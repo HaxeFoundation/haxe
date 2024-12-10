@@ -613,9 +613,12 @@ module StdContext = struct
 		else raise (EvalDebugMisc.BreakHere)
 	)
 
-	let callMacroApi = vfun1 (fun f ->
+	let callMacroApi = vfun1 (fun f  ->
 		let f = decode_string f in
-		Hashtbl.find GlobalState.macro_lib f
+		try
+			Hashtbl.find GlobalState.macro_lib f
+		with Not_found ->
+			exc_string ("Could not find macro function \"" ^ f ^ "\"")
 	)
 
 	let plugins = ref PMap.empty
@@ -2250,9 +2253,10 @@ module StdString = struct
 		let str = this str in
 		let this = this vthis in
 		let i = default_int startIndex 0 in
+		let i = max 0 i in
 		try
 			if str.slength = 0 then
-				vint (max 0 (min i this.slength))
+				vint (min i this.slength)
 			else begin
 				let i =
 					if i >= this.slength then raise Not_found
@@ -2440,7 +2444,7 @@ end
 module StdStringTools = struct
 	let url_encode s =
 		let b = Buffer.create 0 in
-		Common.url_encode s (Buffer.add_char b);
+		StringHelper.url_encode s (Buffer.add_char b);
 		Buffer.contents b
 
 	let fastCodeAt = StdString.charCodeAt
@@ -2569,7 +2573,7 @@ module StdSys = struct
 	open Common
 
 	let args = vfun0 (fun () ->
-		encode_array (List.map create_unknown ((get_ctx()).curapi.MacroApi.get_com()).sys_args)
+		encode_array (List.map create_unknown ((get_ctx()).curapi.MacroApi.get_com()).args)
 	)
 
 	let _command = vfun1 (fun cmd ->
@@ -2632,7 +2636,7 @@ module StdSys = struct
 	let programPath = vfun0 (fun () ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		match com.main_class with
+		match com.main.main_class with
 		| None -> vnull
 		| Some p ->
 			match ctx.curapi.get_type (s_type_path p) with
@@ -3007,7 +3011,7 @@ module StdType = struct
 			| VEnumValue ve ->
 				7,[|get_static_prototype_as_value ctx ve.epath null_pos|]
 			| VLazy f ->
-				loop (!f())
+				loop (Lazy.force f)
 			| VInt64 _ | VUInt64 _ | VNativeString _ | VHandle _ -> 8,[||]
 		in
 		let i,vl = loop v in

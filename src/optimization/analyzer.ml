@@ -664,7 +664,7 @@ module LocalDce = struct
 			has_var_flag v VAnalyzed
 		in
 		let keep v =
-			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || has_var_flag v VCaptured || Meta.has Meta.This v.v_meta
+			is_used v || ((match v.v_kind with VUser _ | VInlined | VInlinedConstructorVariable _ -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || has_var_flag v VCaptured || Meta.has Meta.This v.v_meta
 		in
 		let rec use v =
 			if not (is_used v) then begin
@@ -1126,7 +1126,7 @@ module Run = struct
 			| None -> ()
 			| Some f -> process_field false f;
 		end;
-		begin match c.cl_init with
+		begin match TClass.get_cl_init c with
 			| None ->
 				()
 			| Some e ->
@@ -1138,7 +1138,7 @@ module Run = struct
 					| TFunction tf -> tf.tf_expr
 					| _ -> die "" __LOC__
 				in
-				c.cl_init <- Some e
+				TClass.set_cl_init c e
 		end
 
 	let run_on_type com config t =

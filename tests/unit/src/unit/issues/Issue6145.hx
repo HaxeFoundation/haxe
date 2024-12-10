@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue6145 extends unit.Test {
-	#if (!cs && !php)
+	#if (!php)
 	function test() {
 		var r = ~/(a)/;
 		r.match("a");

@@ -111,7 +111,10 @@ class TestBuilder {
 			case EBlock(el):
 				var posInfos = Context.getPosInfos(f.expr.pos);
 				var pos = Context.makePosition({min: posInfos.max, max: posInfos.max, file: posInfos.file});
-				el.push(macro @:pos(pos) $i{asyncName}.done());
+				el.push(macro @:pos(pos) {
+					if ($i{asyncName}.timedOut) Assert.fail("timeout");
+					else $i{asyncName}.done();
+				});
 				f.expr = macro {
 					$i{asyncName}.setTimeout(20000);
 					${transformHaxeCalls(asyncName, el)};

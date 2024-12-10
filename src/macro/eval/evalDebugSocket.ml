@@ -83,7 +83,7 @@ let var_to_json name value vio env =
 		| VInstance vi -> (rev_hash vi.iproto.ppath) ^ " {...}"
 		| VPrototype proto -> (s_proto_kind proto).sstring
 		| VFunction _ | VFieldClosure _ -> "<fun>"
-		| VLazy f -> level2_value_repr (!f())
+		| VLazy f -> level2_value_repr (Lazy.force f)
 		| VNativeString s -> string_repr s
 		| VHandle _ -> "<handle>"
 	in
@@ -148,7 +148,7 @@ let var_to_json name value vio env =
 			let fields = proto_fields proto in
 			jv "Anonymous" (s_proto_kind proto).sstring (List.length fields)
 		| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" 0
-		| VLazy f -> value_string (!f())
+		| VLazy f -> value_string (Lazy.force f)
 		| VNativeString s ->
 			jv "NativeString" (string_repr s) 0
 		| VHandle _ -> jv "Handle" "<handle>" 0
@@ -171,7 +171,7 @@ let output_call_stack ctx eval p =
 		let line1,col1,line2,col2 = Lexer.get_pos_coords p in
 		let path = Path.get_real_path p.pfile in
 		let artificial,name = match kind with
-			| EKMethod _ | EKLocalFunction _ -> false,kind_name eval kind
+			| EKMethod _ | EKLocalFunction _ | EKMacro _ -> false,kind_name eval kind
 			| EKEntrypoint -> true,p.pfile
 		in
 		let source = if Sys.file_exists path then JString path else JNull in
@@ -331,7 +331,7 @@ let output_inner_vars v env =
 				let n = rev_hash n in
 				n, v
 			) fields
-		| VLazy f -> loop (!f())
+		| VLazy f -> loop (Lazy.force f)
 	in
 	let children = loop v in
 	let vars = List.map (fun (n,v) -> var_to_json n v None env) children in
@@ -458,7 +458,7 @@ module ValueCompletion = struct
 				let fields = prototype_static_fields proto in
 				IntMap.fold (fun _ v acc -> v :: acc) fields []
 			| VLazy f ->
-				loop (!f())
+				loop (Lazy.force f)
 			| VEnumValue ve ->
 				begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
 					| PEnum names ->
@@ -473,7 +473,7 @@ module ValueCompletion = struct
 	exception JsonException of Json.t
 
 	let get_completion ctx text column env =
-		let p = { pmin = 0; pmax = 0; pfile = "" } in
+		let p = file_pos "" in
 		let save =
 			let old = !Parser.display_mode,DisplayPosition.display_position#get in
 			(fun () ->
