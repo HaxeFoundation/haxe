@@ -48,7 +48,7 @@ jobs:
       - name: Setup ocaml
         uses: ocaml/setup-ocaml@v3
         with:
-          ocaml-compiler: 4.08.1
+          ocaml-compiler: 4
           opam-local-packages: |
             haxe.opam
 
