@@ -1,152 +1,124 @@
 package haxe;
 
-class Copy {
-	var cacheMap:Array<Dynamic>;
-	var cache:Array<Dynamic>;
+import haxe.ds.StringMap;
+import haxe.ds.IntMap;
+import haxe.ds.ObjectMap;
+import haxe.io.Bytes;
 
-	public function new() {
-		cacheMap = [];
-		cache = [];
+class Copy {
+	// TODO: check __id__ stuff on JS/neko
+	var cacheMap:ObjectMap<{}, {}>;
+	var cacheMapLength:Int;
+
+	function new() {
+		cacheMap = new ObjectMap();
+		cacheMapLength = 0;
 	}
 
-	public function copyValue(v:Dynamic):Dynamic {
-		switch (Type.typeof(v)) {
-			case TNull, TInt, TFloat, TBool:
-				return v;
+	function copyValue<T, O:{}
+		& T>(v:T):T {
+		return switch (Type.typeof(v)) {
+			case TNull, TInt, TFloat, TBool, TClass(String | Date):
+				v;
 			case TClass(c):
-				if (#if neko untyped c.__is_String #else c == String #end)
-					return v;
-				var index = getRefIndex(v);
-				if (index >= 0)
-					return cacheMap[index];
-				switch (#if (neko || python) Type.getClassName(c) #else c #end) {
-					case #if (neko || python) "Array" #else cast Array #end:
-						var nv:Array<Dynamic> = [];
-						cacheMap.push(nv);
-						#if (flash || python || hl)
-						var v:Array<Dynamic> = v;
-						#end
-						var l = v.length;
-						for (i in 0...l) {
-							var e:Dynamic = v[i];
-							if (e == null)
-								nv.push(null);
-							else
-								nv.push(copyValue(e));
+				var v:O = cast v;
+				var vCopy = getRef(v);
+				if (vCopy != null) {
+					return vCopy;
+				}
+				switch (c) {
+					case Array:
+						var a = [];
+						cacheMap.set(v, a);
+						var v:Array<Dynamic> = cast v;
+						for (x in v) {
+							if (x == null) {
+								a.push(null);
+							} else {
+								a.push(copyValue(x));
+							}
 						}
-						return nv;
-					case #if (neko || python) "haxe.ds.List" #else cast List #end:
-						var nv = new List<Dynamic>();
-						cacheMap.push(nv);
-						var v:List<Dynamic> = v;
-						for (e in v)
-							nv.add(copyValue(e));
-						return nv;
-					case #if (neko || python) "Date" #else cast Date #end:
-						return v;
-					case #if (neko || python) "haxe.ds.StringMap" #else cast haxe.ds.StringMap #end:
-						var nv = new haxe.ds.StringMap<Dynamic>();
-						cacheMap.push(nv);
-						var v:haxe.ds.StringMap<Dynamic> = v;
-						for (k => e in v)
-							nv.set(k, copyValue(e));
-						return nv;
-					case #if (neko || python) "haxe.ds.IntMap" #else cast haxe.ds.IntMap #end:
-						var nv = new haxe.ds.IntMap<Dynamic>();
-						cacheMap.push(nv);
-						var v:haxe.ds.IntMap<Dynamic> = v;
-						for (k => e in v)
-							nv.set(k, copyValue(e));
-						return nv;
-					case #if (neko || python) "haxe.ds.ObjectMap" #else cast haxe.ds.ObjectMap #end:
-						var nv = new haxe.ds.ObjectMap<Dynamic, Dynamic>();
-						cacheMap.push(nv);
-						var v:haxe.ds.ObjectMap<Dynamic, Dynamic> = v;
-						for (k => e in v) {
-							#if (js || neko)
-							var id = Reflect.field(k, "__id__");
-							Reflect.deleteField(k, "__id__");
-							nv.set(k, copyValue(e));
-							Reflect.setField(k, "__id__", id);
-							#else
-							nv.set(k, copyValue(e));
-							#end
+						cast a;
+					case haxe.ds.StringMap:
+						var map = new StringMap();
+						cacheMap.set(v, map);
+						var v:StringMap<Dynamic> = cast v;
+						for (k => v in v) {
+							map.set(k, copyValue(v));
 						}
-						return nv;
-					case #if (neko || python) "haxe.io.Bytes" #else cast haxe.io.Bytes #end:
-						var v:haxe.io.Bytes = v;
+						cast map;
+					case haxe.ds.IntMap:
+						var map = new IntMap();
+						cacheMap.set(v, map);
+						var v:IntMap<Dynamic> = cast v;
+						for (k => v in v) {
+							map.set(k, copyValue(v));
+						}
+						cast map;
+					case haxe.ds.ObjectMap:
+						var map = new ObjectMap();
+						cacheMap.set(v, map);
+						var v:ObjectMap<{}, Dynamic> = cast v;
+						for (k => v in v) {
+							// TODO: check the __id__ situation
+							map.set(copyValue(k), copyValue(v));
+						}
+						cast map;
+					case haxe.io.Bytes:
+						var v:Bytes = cast v;
 						var nv = v.sub(0, v.length);
-						cacheMap.push(nv);
-						return nv;
-					default:
-						var nv = Type.createEmptyInstance(c);
-						cacheMap.push(nv);
-						copyFields(v, nv);
-						return nv;
+						cacheMap.set(v, nv);
+						cast nv;
+					case _:
+						vCopy = Type.createEmptyInstance(c);
+						cacheMap.set(v, vCopy);
+						copyFields(v, vCopy);
+						vCopy;
 				}
 			case TObject:
-				if (v is Class || v is Enum)
+				if (v is Class || v is Enum) {
 					return v;
-				var index = getRefIndex(v);
-				if (index >= 0)
-					return cacheMap[index];
-				var nv = {};
-				cacheMap.push(nv);
-				copyFields(v, nv);
-				return nv;
-			case TEnum(e):
-				var index = getRefIndex(v);
-				if (index >= 0)
-					return cacheMap[index];
-				var v:EnumValue = v;
-				var args = v.getParameters();
+				}
+				var v:O = cast v;
+				var vCopy = getRef(v);
+				if (vCopy != null) {
+					return vCopy;
+				}
+				var o:O = cast {};
+				cacheMap.set(v, o);
+				copyFields(v, o);
+				o;
+			case TEnum(en):
+				var v:O = cast v;
+				var vEnumValue:EnumValue = cast v;
+				var vCopy = getRef(v);
+				if (vCopy != null) {
+					return vCopy;
+				}
+				var args = vEnumValue.getParameters();
 				if (args.length == 0) {
-					cacheMap.push(v);
+					cacheMap.set(v, v);
 					return v;
 				}
-				var nv:Dynamic = Type.createEnumIndex(e, v.getIndex(), args);
-				var needCopy = false;
-				cacheMap.push(nv);
-				for (i => e in args) {
-					var e = copyValue(e);
-					#if neko
-					nv.args[i] = e;
-					#elseif php
-					nv.params[i] = e;
-					#elseif (js && !js_enums_as_arrays)
-					nv.__params__[i] = e;
-					#elseif js
-					nv[i + 2] = e;
-					#else
-					needCopy = true;
-					args[i] = e;
-					#end
+				var newArgs = [];
+				for (arg in args) {
+					// TODO: check wtf was happening here in the original implementation
+					newArgs.push(copyValue(arg));
 				}
-				// only for platforms that don't know how to modify enum after create
-				// as a result, this might break some circular depencies
-				if (needCopy)
-					nv = Type.createEnumIndex(e, v.getIndex(), args);
-				return nv;
-			default:
-				return v; // assume not mutable
+				var nv:O = cast Type.createEnumIndex(en, vEnumValue.getIndex(), newArgs);
+				cacheMap.set(v, nv);
+				nv;
+			case TUnknown | TFunction:
+				v;
 		}
 	}
 
-	function getRefIndex(v:Dynamic) {
-		#if js
-		var vt = js.Syntax.typeof(v);
-		#end
-		for (i in 0...cache.length) {
-			#if js
-			var ci = cache[i];
-			if (js.Syntax.typeof(ci) == vt && ci == v)
-			#else
-			if (cache[i] == v)
-			#end
-			return i;
+	function getRef<T:{}>(v:T):T {
+		var vCopy = cacheMap.get(v);
+		if (vCopy != null) {
+			return cast vCopy;
 		}
-		cache.push(v);
-		return -1;
+		return null;
 	}
 
 	function copyFields(v:Dynamic, nv:Dynamic) {
