@@ -46,12 +46,9 @@ jobs:
         run: neko -version 2>&1
 
       - name: Setup ocaml
-        uses: ocaml/setup-ocaml@v2
+        uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: 4.08.1
-          opam-repositories: |
-            opam-repository-mingw: https://github.com/ocaml-opam/opam-repository-mingw.git#sunset
-            default: https://github.com/ocaml/opam-repository.git
           opam-local-packages: |
             haxe.opam
 
