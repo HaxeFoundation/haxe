@@ -7,7 +7,8 @@ import haxe.ds.List;
 import haxe.io.Bytes;
 
 // Python struggles with arrays as ObjectMap keys
-#if python
+// Neko and js add __id__ which isn't great
+#if (python || js || neko)
 private class ObjectCache<K:{}> {
 	var from:Array<K>;
 	var to:Array<K>;
@@ -51,7 +52,6 @@ private class ObjectCache<K:{}> {
 #end
 
 class Copy {
-	// TODO: check __id__ stuff on JS/neko
 	var cache:ObjectCache<{}>;
 
 	function new() {
@@ -111,7 +111,6 @@ class Copy {
 						cache.set(v, map);
 						var v:ObjectMap<{}, Dynamic> = cast v;
 						for (k => v in v) {
-							// TODO: check the __id__ situation
 							map.set(copyValue(k), copyValue(v));
 						}
 						cast map;
