@@ -24,7 +24,7 @@ jobs:
 
       @import install-nsis.yml
       @import install-neko-windows.yml
-      @import install-ocaml-windows64.yml
+      @import install-ocaml-windows.yml
       @import install-ocaml-libs-windows.yml
       @import build-windows.yml
 
