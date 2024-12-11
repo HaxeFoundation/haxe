@@ -36,5 +36,5 @@ depends: [
   "terminal_size"
 ]
 pin-depends: [
-  ["ppx_parser.dev" "git+https://github.com/tobil4sk/ppx_parser#relax-ocaml-constraint"]
+  ["ppx_parser.dev" "git+https://github.com/NielsMommen/ppx_parser"]
 ]
