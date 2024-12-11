@@ -15,4 +15,4 @@
   run: |
     curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 `
       https://github.com/Simn/mingw64-mbedtls/releases/download/${{ env.MBEDTLS_VERSION }}/mingw64-${{ env.MINGW_ARCH }}-mbedtls-${{ env.MBEDTLS_VERSION }}-1.tar.xz
-    tar.exe -C ${{ env.CYG_ROOT }} -xvf libmbedtls.tar.xz
+    ${{ env.CYG_ROOT }}\bin\tar.exe -C ${{ env.CYG_ROOT }} -xvf libmbedtls.tar.xz
