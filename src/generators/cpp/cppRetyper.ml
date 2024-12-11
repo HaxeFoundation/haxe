@@ -470,6 +470,8 @@ let expression ctx request_type function_args function_type expression_tree forI
           (retyper_ctx, cppType.cppexpr, cppType.cpptype)
       | TField (obj, field) -> (
           match field with
+          | FClosure (Some (cls, _), _) when is_extern_value_class cls ->
+            abort "CPP0002: Value types cannot have function closures created for them" expr.epos
           | FInstance (clazz, params, member)
           | FClosure (Some (clazz, params), member) -> (
             let funcReturn = cpp_member_return_type member in
