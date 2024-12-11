@@ -7,8 +7,7 @@ import haxe.ds.List;
 import haxe.io.Bytes;
 
 // Python struggles with arrays as ObjectMap keys
-// Flash struggles in general
-#if (python || flash)
+#if python
 private class ObjectCache<K:{}> {
 	var from:Array<K>;
 	var to:Array<K>;
@@ -124,7 +123,11 @@ class Copy {
 					case _:
 						vCopy = Type.createEmptyInstance(c);
 						cache.set(v, vCopy);
+						#if flash
+						copyClassFields(v, vCopy, c);
+						#else
 						copyFields(v, vCopy);
+						#end
 						vCopy;
 				}
 			case TObject:
@@ -175,6 +178,20 @@ class Copy {
 			Reflect.setField(nv, f, e);
 		}
 	}
+
+	#if flash
+	function copyClassFields(v:Dynamic, nv:Dynamic, c:Dynamic) {
+		var xml:flash.xml.XML = untyped __global__["flash.utils.describeType"](c);
+		var vars = xml.factory[0].child("variable");
+		for (i in 0...vars.length()) {
+			var f = vars[i].attribute("name").toString();
+			if (!v.hasOwnProperty(f))
+				continue;
+			var e = copyValue(Reflect.field(v, f));
+			Reflect.setField(nv, f, e);
+		}
+	}
+	#end
 
 	public static function copy<T>(v:T):T {
 		var s = new Copy();
