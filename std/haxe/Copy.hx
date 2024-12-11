@@ -3,6 +3,7 @@ package haxe;
 import haxe.ds.StringMap;
 import haxe.ds.IntMap;
 import haxe.ds.ObjectMap;
+import haxe.ds.List;
 import haxe.io.Bytes;
 
 class Copy {
@@ -39,6 +40,14 @@ class Copy {
 							}
 						}
 						cast a;
+					case haxe.ds.List:
+						var l = new List();
+						cacheMap.set(v, l);
+						var v:List<Dynamic> = cast v;
+						for (x in v) {
+							l.add(copyValue(x));
+						}
+						cast l;
 					case haxe.ds.StringMap:
 						var map = new StringMap();
 						cacheMap.set(v, map);
