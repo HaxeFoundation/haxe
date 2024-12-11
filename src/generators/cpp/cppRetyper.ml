@@ -604,7 +604,8 @@ let expression ctx request_type function_args function_type expression_tree forI
               ( retyper_ctx,
                 CppFunction (FuncStatic (clazz, objC, member), funcReturn),
                 exprType )
-          | FClosure (None, field) | FAnon field ->
+          | FClosure (None, field)
+          | FAnon field ->
             let retyper_ctx, obj = retype retyper_ctx TCppDynamic obj in
             let fieldName = field.cf_name in
             if obj.cpptype = TCppGlobal then
@@ -620,7 +621,8 @@ let expression ctx request_type function_args function_type expression_tree forI
                 ( retyper_ctx,
                   CppFunction (FuncInternal (obj, fieldName, "->"), cppType),
                   cppType )
-            else (retyper_ctx, CppDynamicField (obj, field.cf_name), TCppVariant)
+            else
+              (retyper_ctx, CppDynamicField (obj, field.cf_name), TCppVariant)
           | FDynamic fieldName ->
               let retyper_ctx, obj = retype retyper_ctx TCppDynamic obj in
               if obj.cpptype = TCppNull then (retyper_ctx, CppNullAccess, TCppDynamic)
@@ -1409,6 +1411,8 @@ let expression ctx request_type function_args function_type expression_tree forI
           retyper_ctx, mk_cppexpr
             (CppCast (ptrCast, TCppStar (t, const)))
             (TCppStar (t, const))
+      | TCppValueType (cls, params) ->
+        retyper_ctx, mk_cppexpr (CppCast (cppExpr, return_type)) return_type
       | _ -> retyper_ctx, cppExpr
     else
       match (cppExpr.cpptype, return_type) with
