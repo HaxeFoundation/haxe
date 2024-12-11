@@ -1,7 +1,3 @@
-- name: Expose mingw dll files
-  shell: pwsh
-  run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
-
 # required to be able to retrieve the revision
 - name: Mark directory as safe
   shell: pwsh
