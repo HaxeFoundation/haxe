@@ -128,9 +128,9 @@ let check_native_name_override ctx child base =
 		]) child_pos);
 	in
 	try
-		let child_name, child_pos = Naming.get_native_name child.cf_meta in
+		let child_name, child_pos = Native.get_native_name child.cf_meta in
 		try
-			let base_name, base_pos = Naming.get_native_name base.cf_meta in
+			let base_name, base_pos = Native.get_native_name base.cf_meta in
 			if base_name <> child_name then
 				error base_pos child_pos
 		with Not_found ->

@@ -159,11 +159,6 @@ class Serializer {
 			return;
 		}
 		shash.set(s, scount++);
-		#if old_serialize
-		// no more support for -D old_serialize due to 'j' reuse
-		#if error
-		#end
-		#end
 		buf.add("y");
 		s = StringTools.urlEncode(s);
 		buf.add(s.length);
@@ -217,15 +212,15 @@ class Serializer {
 	}
 
 	/**
-	Serializes `v`.
-
-	All haxe-defined values and objects with the exception of functions can
-	be serialized. Serialization of external/native objects is not
-	guaranteed to work.
-
-	The values of `this.useCache` and `this.useEnumIndex` may affect
-	serialization output.
-**/
+		Serializes `v`.
+	
+		All haxe-defined values and objects with the exception of functions can
+		be serialized. Serialization of external/native objects is not
+		guaranteed to work.
+	
+		The values of `this.useCache` and `this.useEnumIndex` may affect
+		serialization output.
+	**/
 	public function serialize(v:Dynamic) {
 		switch (Type.typeof(v)) {
 			case TNull:
@@ -250,38 +245,18 @@ class Serializer {
 				}
 			case TBool:
 				buf.add(if (v) "t" else "f");
-			case TClass(c):
-				if (#if neko untyped c.__is_String #else c == String #end) {
-					serializeString(v);
-					return;
-				}
-				if (useCache && serializeRef(v))
-					return;
-				switch (#if (neko || python) Type.getClassName(c) #else c #end) {
-					case #if (neko || python) "Array" #else cast Array #end:
-						var ucount = 0;
-						buf.add("a");
-						#if (flash || python || hl)
-						var v:Array<Dynamic> = v;
-						#end
-						var l = #if (neko || flash || php || java || python || hl || lua || eval) v.length #elseif cpp v.__length() #else __getField(v,
-							"length") #end;
-						for (i in 0...l) {
-							if (v[i] == null)
-								ucount++;
-							else {
-								if (ucount > 0) {
-									if (ucount == 1)
-										buf.add("n");
-									else {
-										buf.add("u");
-										buf.add(ucount);
-									}
-									ucount = 0;
-								}
-								serialize(v[i]);
-							}
-						}
+			case TClass(String):
+				serializeString(v);
+			case TClass(_) if (useCache && serializeRef(v)):
+			case TClass(Array):
+				var ucount = 0;
+				buf.add("a");
+				var v:Array<Dynamic> = v;
+				var l = v.length;
+				for (i in 0...l) {
+					if (v[i] == null)
+						ucount++;
+					else {
 						if (ucount > 0) {
 							if (ucount == 1)
 								buf.add("n");
@@ -289,125 +264,139 @@ class Serializer {
 								buf.add("u");
 								buf.add(ucount);
 							}
+							ucount = 0;
 						}
-						buf.add("h");
-					case #if (neko || python) "haxe.ds.List" #else cast List #end:
-						buf.add("l");
-						var v:List<Dynamic> = v;
-						for (i in v)
-							serialize(i);
-						buf.add("h");
-					case #if (neko || python) "Date" #else cast Date #end:
-						var d:Date = v;
-						buf.add("v");
-						buf.add(d.getTime());
-					case #if (neko || python) "haxe.ds.StringMap" #else cast haxe.ds.StringMap #end:
-						buf.add("b");
-						var v:haxe.ds.StringMap<Dynamic> = v;
-						for (k in v.keys()) {
-							serializeString(k);
-							serialize(v.get(k));
-						}
-						buf.add("h");
-					case #if (neko || python) "haxe.ds.IntMap" #else cast haxe.ds.IntMap #end:
-						buf.add("q");
-						var v:haxe.ds.IntMap<Dynamic> = v;
-						for (k in v.keys()) {
-							buf.add(":");
-							buf.add(k);
-							serialize(v.get(k));
-						}
-						buf.add("h");
-					case #if (neko || python) "haxe.ds.ObjectMap" #else cast haxe.ds.ObjectMap #end:
-						buf.add("M");
-						var v:haxe.ds.ObjectMap<Dynamic, Dynamic> = v;
-						for (k in v.keys()) {
-							#if (js || neko)
-							var id = Reflect.field(k, "__id__");
-							Reflect.deleteField(k, "__id__");
-							serialize(k);
-							Reflect.setField(k, "__id__", id);
-							#else
-							serialize(k);
-							#end
-							serialize(v.get(k));
-						}
-						buf.add("h");
-					case #if (neko || python) "haxe.io.Bytes" #else cast haxe.io.Bytes #end:
-						var v:haxe.io.Bytes = v;
-						#if neko
-						var chars = new String(base_encode(v.getData(), untyped BASE64.__s));
-						buf.add("s");
-						buf.add(chars.length);
-						buf.add(":");
-						buf.add(chars);
-						#elseif php
-						var chars = new String(php.Global.base64_encode(v.getData()));
-						chars = php.Global.strtr(chars, '+/', '%:');
-						buf.add("s");
-						buf.add(chars.length);
-						buf.add(":");
-						buf.add(chars);
-						#else
-						buf.add("s");
-						buf.add(Math.ceil((v.length * 8) / 6));
-						buf.add(":");
+						serialize(v[i]);
+					}
+				}
+				if (ucount > 0) {
+					if (ucount == 1)
+						buf.add("n");
+					else {
+						buf.add("u");
+						buf.add(ucount);
+					}
+				}
+				buf.add("h");
+			case TClass(haxe.ds.List):
+				buf.add("l");
+				var v:List<Dynamic> = v;
+				for (i in v)
+					serialize(i);
+				buf.add("h");
+			case TClass(haxe.ds.StringMap):
+				buf.add("b");
+				var v:haxe.ds.StringMap<Dynamic> = v;
+				for (k in v.keys()) {
+					serializeString(k);
+					serialize(v.get(k));
+				}
+				buf.add("h");
+			case TClass(haxe.ds.IntMap):
+				buf.add("q");
+				var v:haxe.ds.IntMap<Dynamic> = v;
+				for (k in v.keys()) {
+					buf.add(":");
+					buf.add(k);
+					serialize(v.get(k));
+				}
+				buf.add("h");
+			case TClass(haxe.ds.ObjectMap):
+				buf.add("M");
+				var v:haxe.ds.ObjectMap<Dynamic, Dynamic> = v;
+				for (k in v.keys()) {
+					#if (js || neko)
+					var id = Reflect.field(k, "__id__");
+					Reflect.deleteField(k, "__id__");
+					serialize(k);
+					Reflect.setField(k, "__id__", id);
+					#else
+					serialize(k);
+					#end
+					serialize(v.get(k));
+				}
+				buf.add("h");
+			case TClass(Date):
+				var d:Date = v;
+				buf.add("v");
+				buf.add(d.getTime());
+			case TClass(haxe.io.Bytes):
+				var v:haxe.io.Bytes = v;
+				#if neko
+				var chars = new String(base_encode(v.getData(), untyped BASE64.__s));
+				buf.add("s");
+				buf.add(chars.length);
+				buf.add(":");
+				buf.add(chars);
+				#elseif php
+				var chars = new String(php.Global.base64_encode(v.getData()));
+				chars = php.Global.strtr(chars, '+/', '%:');
+				buf.add("s");
+				buf.add(chars.length);
+				buf.add(":");
+				buf.add(chars);
+				#else
+				buf.add("s");
+				buf.add(Math.ceil((v.length * 8) / 6));
+				buf.add(":");
 
-						var i = 0;
-						var max = v.length - 2;
-						var b64 = BASE64_CODES;
-						if (b64 == null) {
-							b64 = new haxe.ds.Vector(BASE64.length);
-							for (i in 0...BASE64.length)
-								b64[i] = BASE64.charCodeAt(i);
-							BASE64_CODES = b64;
-						}
-						while (i < max) {
-							var b1 = v.get(i++);
-							var b2 = v.get(i++);
-							var b3 = v.get(i++);
+				var i = 0;
+				var max = v.length - 2;
+				var b64 = BASE64_CODES;
+				if (b64 == null) {
+					b64 = new haxe.ds.Vector(BASE64.length);
+					for (i in 0...BASE64.length)
+						b64[i] = BASE64.charCodeAt(i);
+					BASE64_CODES = b64;
+				}
+				while (i < max) {
+					var b1 = v.get(i++);
+					var b2 = v.get(i++);
+					var b3 = v.get(i++);
 
-							buf.addChar(b64[b1 >> 2]);
-							buf.addChar(b64[((b1 << 4) | (b2 >> 4)) & 63]);
-							buf.addChar(b64[((b2 << 2) | (b3 >> 6)) & 63]);
-							buf.addChar(b64[b3 & 63]);
-						}
-						if (i == max) {
-							var b1 = v.get(i++);
-							var b2 = v.get(i++);
-							buf.addChar(b64[b1 >> 2]);
-							buf.addChar(b64[((b1 << 4) | (b2 >> 4)) & 63]);
-							buf.addChar(b64[(b2 << 2) & 63]);
-						} else if (i == max + 1) {
-							var b1 = v.get(i++);
-							buf.addChar(b64[b1 >> 2]);
-							buf.addChar(b64[(b1 << 4) & 63]);
-						}
-						#end
-					default:
-						if (useCache) cache.pop();
-						if (#if flash try
-							v.hxSerialize != null
-						catch (e:Dynamic)
-							false #elseif (java || python) Reflect.hasField(v,
-								"hxSerialize") #elseif php php.Global.method_exists(v, 'hxSerialize') #else v.hxSerialize != null #end) {
-							buf.add("C");
-							serializeString(Type.getClassName(c));
-							if (useCache)
-								cache.push(v);
-							v.hxSerialize(this);
-							buf.add("g");
-						} else {
-							buf.add("c");
-							serializeString(Type.getClassName(c));
-							if (useCache)
-								cache.push(v);
-							#if flash
-							serializeClassFields(v, c);
-							#else
-							serializeFields(v);
-							#end
-						}
+					buf.addChar(b64[b1 >> 2]);
+					buf.addChar(b64[((b1 << 4) | (b2 >> 4)) & 63]);
+					buf.addChar(b64[((b2 << 2) | (b3 >> 6)) & 63]);
+					buf.addChar(b64[b3 & 63]);
+				}
+				if (i == max) {
+					var b1 = v.get(i++);
+					var b2 = v.get(i++);
+					buf.addChar(b64[b1 >> 2]);
+					buf.addChar(b64[((b1 << 4) | (b2 >> 4)) & 63]);
+					buf.addChar(b64[(b2 << 2) & 63]);
+				} else if (i == max + 1) {
+					var b1 = v.get(i++);
+					buf.addChar(b64[b1 >> 2]);
+					buf.addChar(b64[(b1 << 4) & 63]);
+				}
+				#end
+			case TClass(c):
+				if (
+					#if flash
+					try
+						v.hxSerialize != null
+					catch (e:Dynamic)
+						false
+					#elseif (java || python)
+					Reflect.hasField(v, "hxSerialize")
+					#elseif php
+					php.Global.method_exists(v, 'hxSerialize')
+					#else
+					v.hxSerialize != null
+					#end) {
+					buf.add("C");
+					serializeString(Type.getClassName(c));
+					v.hxSerialize(this);
+					buf.add("g");
+				} else {
+					buf.add("c");
+					serializeString(Type.getClassName(c));
+					#if flash
+					serializeClassFields(v, c);
+					#else
+					serializeFields(v);
+					#end
 				}
 			case TObject:
 				if (Std.isOfType(v, Class)) {
@@ -573,12 +562,12 @@ class Serializer {
 	}
 
 	/**
-	Serializes `v` and returns the String representation.
-
-	This is a convenience function for creating a new instance of
-	Serializer, serialize `v` into it and obtain the result through a call
-	to `toString()`.
-**/
+		Serializes `v` and returns the String representation.
+	
+		This is a convenience function for creating a new instance of
+		Serializer, serialize `v` into it and obtain the result through a call
+		to `toString()`.
+	**/
 	public static function run(v:Dynamic) {
 		var s = new Serializer();
 		s.serialize(v);

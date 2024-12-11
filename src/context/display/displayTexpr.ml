@@ -73,7 +73,7 @@ let check_display_field ctx sc c cf =
 
 let check_display_class ctx decls c =
 	let check_field sc cf =
-		if display_position#enclosed_in cf.cf_pos then
+		if not (has_class_field_flag cf CfNoLookup) && display_position#enclosed_in cf.cf_pos then
 			check_display_field ctx sc c cf;
 		DisplayEmitter.check_display_metadata ctx cf.cf_meta
 	in

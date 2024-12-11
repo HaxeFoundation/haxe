@@ -189,7 +189,7 @@ let syntax_error error_msg ?(pos=None) s v =
 	syntax_error_with_pos error_msg p v
 
 let handle_stream_error msg s =
-	let err,pos = if msg = "" then begin
+	let err,pos = if msg = "Parse error." then begin
 		let tk,pos = next_token s in
 		(Unexpected tk),Some pos
 	end else
@@ -248,7 +248,7 @@ let decl_flag_to_module_field_flag (flag,p) = match flag with
 	| DExtern -> Some (AExtern,p)
 	| DFinal | DPublic | DStatic -> unsupported_decl_flag_module_field flag p
 
-let serror() = raise (Stream.Error "")
+let serror() = raise (Stream.Error "Parse error.")
 
 let magic_display_field_name = " - display - "
 let magic_type_path = { tpackage = []; tname = ""; tparams = []; tsub = None }

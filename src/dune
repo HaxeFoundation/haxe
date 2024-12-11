@@ -26,6 +26,7 @@
 	(modules (:standard \ haxe))
 	(preprocess (per_module
 		((pps sedlex.ppx) json lexer)
+		((pps ppx_parser) grammar)
 	))
 	(wrapped false)
 )

@@ -643,7 +643,7 @@ and flush_macro_context mint mctx =
 			| TEnumDecl e -> has_enum_flag e EnExtern
 			| _ -> false
 		in
-		if apply_native then Naming.apply_native_paths t
+		if apply_native then Native.apply_native_paths t
 	in
 	let type_filters = [
 		FiltersCommon.remove_generic_base;
