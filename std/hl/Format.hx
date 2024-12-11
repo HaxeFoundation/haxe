@@ -22,6 +22,7 @@
 
 package hl;
 
+@:deprecated("hl.Format.PixelFormat is deprecated, use format.hl.Native.PixelFormat instead")
 enum abstract PixelFormat(Int) {
 	var RGB = 0;
 	var BGR = 1;
@@ -44,6 +45,7 @@ class Format {
 	/**
 		Decode JPG data into the target buffer.
 	**/
+	@:deprecated("hl.Format.decodeJPG is deprecated, use format.hl.Native.decodeJPG instead")
 	@:hlNative("fmt", "jpg_decode")
 	public static function decodeJPG(src:hl.Bytes, srcLen:Int, dst:hl.Bytes, width:Int, height:Int, stride:Int, format:PixelFormat, flags:Int):Bool {
 		return false;
@@ -52,6 +54,7 @@ class Format {
 	/**
 		Decode PNG data into the target buffer.
 	**/
+	@:deprecated("hl.Format.decodePNG is deprecated, use format.hl.Native.decodePNG instead")
 	@:hlNative("fmt", "png_decode")
 	public static function decodePNG(src:hl.Bytes, srcLen:Int, dst:hl.Bytes, width:Int, height:Int, stride:Int, format:PixelFormat, flags:Int):Bool {
 		return false;
@@ -61,6 +64,7 @@ class Format {
 		Decode any image data into ARGB pixels
 	**/
 	#if (hl_ver >= version("1.10.0"))
+	@:deprecated("hl.Format.decodeDXT is deprecated, use format.hl.Native.decodeDXT instead")
 	@:hlNative("fmt", "dxt_decode")
 	public static function decodeDXT(src:hl.Bytes, dst:hl.Bytes, width:Int, height:Int, dxtFormat:Int):Bool {
 		return false;
@@ -71,6 +75,7 @@ class Format {
 		Upscale/downscale an image.
 		Currently supported flag bits: 1 = bilinear filtering
 	**/
+	@:deprecated("hl.Format.scaleImage is deprecated, use format.hl.Native.scaleImage instead")
 	@:hlNative("fmt", "img_scale")
 	public static function scaleImage(out:hl.Bytes, outPos:Int, outStride:Int, outWidth:Int, outHeight:Int, _in:hl.Bytes, inPos:Int, inStride:Int,
 		inWidth:Int, inHeight:Int, flags:Int) {}
@@ -84,6 +89,7 @@ class Format {
 	public static function digest(out:hl.Bytes, src:hl.Bytes, srcLen:Int, algorithm:Int) {}
 }
 
+@:deprecated("hl.Format.Mikktspace is deprecated, use hxd.MeshTools.Mikktspace instead")
 class Mikktspace {
 	public var buffer:hl.BytesAccess<Single>;
 	public var stride:Int;
@@ -96,8 +102,10 @@ class Mikktspace {
 	public var indexes:hl.BytesAccess<Int>;
 	public var indices:Int;
 
+	@:deprecated("hl.Format.Mikktspace is deprecated, use hxd.MeshTools.Mikktspace instead")
 	public function new() {}
 
+	@:deprecated("hl.Format.Mikktspace is deprecated, use hxd.MeshTools.Mikktspace instead")
 	public function compute(threshold = 180.) {
 		if (!_compute(this, threshold))
 			throw "assert";
