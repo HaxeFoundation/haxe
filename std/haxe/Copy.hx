@@ -6,14 +6,57 @@ import haxe.ds.ObjectMap;
 import haxe.ds.List;
 import haxe.io.Bytes;
 
+// Python struggles with arrays as ObjectMap keys
+// Flash struggles in general
+#if (python || flash)
+private class ObjectCache<K:{}> {
+	var from:Array<K>;
+	var to:Array<K>;
+
+	public function new() {
+		from = [];
+		to = [];
+	}
+
+	public function get(k:K) {
+		for (i => v in from) {
+			if (v == k) {
+				return to[i];
+			}
+		}
+		return null;
+	}
+
+	public function set(k:K, v:K) {
+		var index = from.length;
+		from[index] = k;
+		to[index] = v;
+	}
+}
+#else
+private class ObjectCache<K:{}> {
+	var cache:ObjectMap<K, K>;
+
+	public function new() {
+		cache = new ObjectMap();
+	}
+
+	public inline function get(k:K) {
+		return cache.get(k);
+	}
+
+	public inline function set(k:K, v:K) {
+		cache.set(k, v);
+	}
+}
+#end
+
 class Copy {
 	// TODO: check __id__ stuff on JS/neko
-	var cacheMap:ObjectMap<{}, {}>;
-	var cacheMapLength:Int;
+	var cache:ObjectCache<{}>;
 
 	function new() {
-		cacheMap = new ObjectMap();
-		cacheMapLength = 0;
+		cache = new ObjectCache();
 	}
 
 	function copyValue<T, O:{}
@@ -30,7 +73,7 @@ class Copy {
 				switch (c) {
 					case Array:
 						var a = [];
-						cacheMap.set(v, a);
+						cache.set(v, a);
 						var v:Array<Dynamic> = cast v;
 						for (x in v) {
 							if (x == null) {
@@ -42,7 +85,7 @@ class Copy {
 						cast a;
 					case haxe.ds.List:
 						var l = new List();
-						cacheMap.set(v, l);
+						cache.set(v, l);
 						var v:List<Dynamic> = cast v;
 						for (x in v) {
 							l.add(copyValue(x));
@@ -50,7 +93,7 @@ class Copy {
 						cast l;
 					case haxe.ds.StringMap:
 						var map = new StringMap();
-						cacheMap.set(v, map);
+						cache.set(v, map);
 						var v:StringMap<Dynamic> = cast v;
 						for (k => v in v) {
 							map.set(k, copyValue(v));
@@ -58,7 +101,7 @@ class Copy {
 						cast map;
 					case haxe.ds.IntMap:
 						var map = new IntMap();
-						cacheMap.set(v, map);
+						cache.set(v, map);
 						var v:IntMap<Dynamic> = cast v;
 						for (k => v in v) {
 							map.set(k, copyValue(v));
@@ -66,7 +109,7 @@ class Copy {
 						cast map;
 					case haxe.ds.ObjectMap:
 						var map = new ObjectMap();
-						cacheMap.set(v, map);
+						cache.set(v, map);
 						var v:ObjectMap<{}, Dynamic> = cast v;
 						for (k => v in v) {
 							// TODO: check the __id__ situation
@@ -76,11 +119,11 @@ class Copy {
 					case haxe.io.Bytes:
 						var v:Bytes = cast v;
 						var nv = v.sub(0, v.length);
-						cacheMap.set(v, nv);
+						cache.set(v, nv);
 						cast nv;
 					case _:
 						vCopy = Type.createEmptyInstance(c);
-						cacheMap.set(v, vCopy);
+						cache.set(v, vCopy);
 						copyFields(v, vCopy);
 						vCopy;
 				}
@@ -94,7 +137,7 @@ class Copy {
 					return vCopy;
 				}
 				var o:O = cast {};
-				cacheMap.set(v, o);
+				cache.set(v, o);
 				copyFields(v, o);
 				o;
 			case TEnum(en):
@@ -106,7 +149,7 @@ class Copy {
 				}
 				var args = vEnumValue.getParameters();
 				if (args.length == 0) {
-					cacheMap.set(v, v);
+					cache.set(v, v);
 					return v;
 				}
 				var newArgs = [];
@@ -115,19 +158,15 @@ class Copy {
 					newArgs.push(copyValue(arg));
 				}
 				var nv:O = cast Type.createEnumIndex(en, vEnumValue.getIndex(), newArgs);
-				cacheMap.set(v, nv);
+				cache.set(v, nv);
 				nv;
 			case TUnknown | TFunction:
 				v;
 		}
 	}
 
-	function getRef<T:{}>(v:T):T {
-		var vCopy = cacheMap.get(v);
-		if (vCopy != null) {
-			return cast vCopy;
-		}
-		return null;
+	inline function getRef<T:{}>(v:T):T {
+		return cast cache.get(v);
 	}
 
 	function copyFields(v:Dynamic, nv:Dynamic) {
