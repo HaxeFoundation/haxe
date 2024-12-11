@@ -53,9 +53,15 @@ private class ObjectCache<K:{}> {
 
 class Copy {
 	var cache:ObjectCache<{}>;
+	var workList:Array<() -> Void>;
 
 	function new() {
 		cache = new ObjectCache();
+		workList = [];
+	}
+
+	function defer(f:() -> Void) {
+		workList.push(f);
 	}
 
 	function copyValue<T, O:{}
@@ -74,45 +80,55 @@ class Copy {
 						var a = [];
 						cache.set(v, a);
 						var v:Array<Dynamic> = cast v;
-						for (x in v) {
-							if (x == null) {
-								a.push(null);
-							} else {
-								a.push(copyValue(x));
+						defer(() -> {
+							for (x in v) {
+								if (x == null) {
+									a.push(null);
+								} else {
+									a.push(copyValue(x));
+								}
 							}
-						}
+						});
 						cast a;
 					case haxe.ds.List:
 						var l = new List();
 						cache.set(v, l);
 						var v:List<Dynamic> = cast v;
-						for (x in v) {
-							l.add(copyValue(x));
-						}
+						defer(() -> {
+							for (x in v) {
+								l.add(copyValue(x));
+							}
+						});
 						cast l;
 					case haxe.ds.StringMap:
 						var map = new StringMap();
 						cache.set(v, map);
 						var v:StringMap<Dynamic> = cast v;
-						for (k => v in v) {
-							map.set(k, copyValue(v));
-						}
+						defer(() -> {
+							for (k => v in v) {
+								map.set(k, copyValue(v));
+							}
+						});
 						cast map;
 					case haxe.ds.IntMap:
 						var map = new IntMap();
 						cache.set(v, map);
 						var v:IntMap<Dynamic> = cast v;
-						for (k => v in v) {
-							map.set(k, copyValue(v));
-						}
+						defer(() -> {
+							for (k => v in v) {
+								map.set(k, copyValue(v));
+							}
+						});
 						cast map;
 					case haxe.ds.ObjectMap:
 						var map = new ObjectMap();
 						cache.set(v, map);
 						var v:ObjectMap<{}, Dynamic> = cast v;
-						for (k => v in v) {
-							map.set(copyValue(k), copyValue(v));
-						}
+						defer(() -> {
+							for (k => v in v) {
+								map.set(copyValue(k), copyValue(v));
+							}
+						});
 						cast map;
 					case haxe.io.Bytes:
 						var v:Bytes = cast v;
@@ -123,9 +139,9 @@ class Copy {
 						vCopy = Type.createEmptyInstance(c);
 						cache.set(v, vCopy);
 						#if flash
-						copyClassFields(v, vCopy, c);
+						defer(copyClassFields.bind(v, vCopy, c));
 						#else
-						copyFields(v, vCopy);
+						defer(copyFields.bind(v, vCopy));
 						#end
 						vCopy;
 				}
@@ -140,7 +156,7 @@ class Copy {
 				}
 				var o:O = cast {};
 				cache.set(v, o);
-				copyFields(v, o);
+				defer(copyFields.bind(v, o));
 				o;
 			case TEnum(en):
 				var v:O = cast v;
@@ -156,7 +172,6 @@ class Copy {
 				}
 				var newArgs = [];
 				for (arg in args) {
-					// TODO: check wtf was happening here in the original implementation
 					newArgs.push(copyValue(arg));
 				}
 				var nv:O = cast Type.createEnumIndex(en, vEnumValue.getIndex(), newArgs);
@@ -178,6 +193,12 @@ class Copy {
 		}
 	}
 
+	function finalize() {
+		while (workList.length > 0) {
+			workList.pop()();
+		}
+	}
+
 	#if flash
 	function copyClassFields(v:Dynamic, nv:Dynamic, c:Dynamic) {
 		var xml:flash.xml.XML = untyped __global__["flash.utils.describeType"](c);
@@ -193,7 +214,9 @@ class Copy {
 	#end
 
 	public static function copy<T>(v:T):T {
-		var s = new Copy();
-		return s.copyValue(v);
+		var copy = new Copy();
+		var v = copy.copyValue(v);
+		copy.finalize();
+		return v;
 	}
 }
