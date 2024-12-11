@@ -213,6 +213,23 @@ class Copy {
 	}
 	#end
 
+	/**
+		Creates a deep copy of `v`.
+
+		The following values remain unchanged:
+
+		* null
+		* numeric values
+		* boolean values
+		* strings
+		* functions
+		* type and enum references (e.g. `haxe.Copy`, `haxe.ds.Option`)
+		* instances of Date
+		* enum values without arguments
+
+		Any other value `v` is recursively copied, ensuring
+		that `v != copy(v)` holds.
+	**/
 	public static function copy<T>(v:T):T {
 		var copy = new Copy();
 		var v = copy.copyValue(v);
