@@ -24,11 +24,11 @@
 extern class String implements java.lang.CharSequence {
 	var length(default, null):Int;
 
-	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int, charsetName:String):Void {})
-	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int):Void {})
-	@:overload(function(b:jvm.NativeArray<jvm.Char16>):Void {})
-	@:overload(function(b:jvm.NativeArray<Int>, offset:Int, count:Int):Void {})
-	function new(string:String):Void;
+	overload function new(string:String):Void;
+	overload function new(b:haxe.io.BytesData, offset:Int, length:Int, charsetName:String):Void;
+	overload function new(b:haxe.io.BytesData, offset:Int, length:Int):Void;
+	overload function new(b:jvm.NativeArray<jvm.Char16>):Void;
+	overload function new(b:jvm.NativeArray<Int>, offset:Int, count:Int):Void;
 
 	function toUpperCase():String;
 	function toLowerCase():String;
@@ -67,8 +67,8 @@ extern class String implements java.lang.CharSequence {
 
 	private function codePointAt(idx:Int):Int;
 
-	@:overload(function():haxe.io.BytesData {})
-	private function getBytes(encoding:String):haxe.io.BytesData;
+	private overload function getBytes():haxe.io.BytesData;
+	private overload function getBytes(encoding:String):haxe.io.BytesData;
 
 	@:runtime static inline function fromCharCode(code:Int):String {
 		return jvm.StringExt.fromCharCode(code);

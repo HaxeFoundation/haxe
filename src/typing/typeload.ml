@@ -634,24 +634,23 @@ and init_meta_overloads ctx co cf =
 		| ((Meta.Overload | Meta.Value),_,_) -> false
 		| _ -> true
 	in
+	let warning_options = match co with
+		| Some c ->
+			Warning.from_meta c.cl_meta
+		| None ->
+			[]
+	in
 	let cf_meta = List.filter filter_meta cf.cf_meta in
 	cf.cf_meta <- List.filter (fun m ->
 		match m with
 		| (Meta.Overload,[(EFunction (kind,f),p)],_)  ->
+			module_warning ctx.com ctx.m.curmod WMetaOverload (Warning.from_meta cf.cf_meta @ warning_options) "`@:overload(function())` syntax is deprecated in favor of individual `@:overload function` declarations" p;
 			(match kind with FKNamed _ -> raise_typing_error "Function name must not be part of @:overload" p | _ -> ());
 			(match f.f_expr with Some (EBlock [], _) -> () | _ -> raise_typing_error "Overload must only declare an empty method body {}" p);
 			(match cf.cf_kind with
 				| Method MethInline -> raise_typing_error "Cannot @:overload inline function" p
 				| _ -> ());
 			let old = ctx.type_params in
-			begin match cf.cf_params with
-				| [] ->
-					()
-				| l ->
-					ctx.type_params <- List.filter (fun ttp ->
-						ttp.ttp_host <> TPHMethod
-					) ctx.type_params
-			end;
 			let params : type_params = (!type_function_params_ref) ctx f TPHMethod cf.cf_name p in
 			ctx.type_params <- params @ ctx.type_params;
 			let topt mode = function None -> raise_typing_error "Explicit type required" p | Some t -> load_complex_type ctx true mode t in

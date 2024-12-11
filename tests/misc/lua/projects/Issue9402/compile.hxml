@@ -1,3 +1,4 @@
 -main Main
 -lua bin/test.lua
+-w -WMetaOverload
 --cmd lua bin/test.lua

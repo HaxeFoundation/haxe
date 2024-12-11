@@ -125,6 +125,11 @@
 		"enabled": false
 	},
 	{
+		"name": "WMetaOverload",
+		"doc": "Deprecation of `@:overload(function ())` syntax",
+		"parent": "WDeprecated"
+	},
+	{
 		"name": "WHxb",
 		"doc": "Hxb (either --hxb output or haxe compiler cache) related warnings"
 	},
