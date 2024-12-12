@@ -557,7 +557,7 @@ module TypeLevel = struct
 					| _ ->
 						()
 				in
-				let r = make_lazy ctx_td.g tt (fun r ->
+				let r = make_lazy ctx_td.g tt (fun () ->
 					check_rec tt;
 					tt
 				) "typedef_rec_check" in
@@ -591,7 +591,7 @@ module TypeLevel = struct
 			let t = load_complex_type ctx_a true LoadNormal t in
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
-					let r = make_lazy ctx_a.g t (fun r ->
+					let r = make_lazy ctx_a.g t (fun () ->
 						(try (if from then Type.unify t a.a_this else Type.unify a.a_this t) with Unify_error _ -> raise_typing_error "You can only declare from/to with compatible types" pos);
 						t
 					) "constraint" in

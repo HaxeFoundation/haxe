@@ -459,7 +459,7 @@ and load_complex_type' ctx allow_display mode (t,p) =
 		) tl in
 		let tr = Monomorph.create() in
 		let t = TMono tr in
-		let r = make_lazy ctx.g t (fun r ->
+		let r = make_lazy ctx.g t (fun () ->
 			let ta = make_extension_type ctx tl in
 			Monomorph.bind tr ta;
 			ta
@@ -500,7 +500,7 @@ and load_complex_type' ctx allow_display mode (t,p) =
 			) tl in
 			let tr = Monomorph.create() in
 			let t = TMono tr in
-			let r = make_lazy ctx.g t (fun r ->
+			let r = make_lazy ctx.g t (fun () ->
 				Monomorph.bind tr (match il with
 					| [i] ->
 						mk_extension i
@@ -731,7 +731,7 @@ and type_type_params ctx host path tpl =
 			| None ->
 				()
 			| Some ct ->
-				let r = make_lazy ctx.g ttp.ttp_type (fun r ->
+				let r = make_lazy ctx.g ttp.ttp_type (fun () ->
 					let t = load_complex_type ctx true LoadNormal ct in
 					begin match host with
 						| TPHType ->

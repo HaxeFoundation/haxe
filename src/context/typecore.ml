@@ -508,7 +508,7 @@ let make_lazy ?(force=true) ctx t_proc f where =
 	r := lazy_wait (fun() ->
 		try
 			r := lazy_processing t_proc;
-			let t = f r in
+			let t = f () in
 			r := lazy_available t;
 			t
 		with
@@ -898,7 +898,7 @@ let make_lazy ?(force=true) ctx t f (where:string) =
 	r := lazy_wait (make_pass ~inf:(make_where ctx where) ctx (fun() ->
 		try
 			r := lazy_processing t;
-			let t = f r in
+			let t = f () in
 			r := lazy_available t;
 			t
 		with

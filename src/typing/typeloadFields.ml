@@ -748,7 +748,7 @@ module TypeBinding = struct
 					mk_cast e cf.cf_type e.epos
 			end
 		in
-		let r = make_lazy ~force:false ctx.g t (fun r ->
+		let r = make_lazy ~force:false ctx.g t (fun () ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				enter_field_typing_pass ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
@@ -827,7 +827,7 @@ module TypeBinding = struct
 	let bind_method ctx_f cctx fctx fmode cf t args ret e p =
 		let c = cctx.tclass in
 		let ctx = TyperManager.clone_for_expr ctx_f fmode true in
-		let bind r =
+		let bind () =
 			incr stats.s_methods_typed;
 			if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing method %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 			begin match ctx.com.platform with
@@ -873,8 +873,8 @@ module TypeBinding = struct
 					check_field_display ctx fctx c cf;
 			end;
 		in
-		let maybe_bind r =
-			if not ctx.g.return_partial_type then bind r;
+		let maybe_bind () =
+			if not ctx.g.return_partial_type then bind ();
 			t
 		in
 		let r = make_lazy ~force:false ctx.g t maybe_bind "type_fun" in
@@ -936,7 +936,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		fctx.expr_presence_matters <- true;
 	end in
 	let handle_from () =
-		let r = make_lazy ctx.g t (fun r ->
+		let r = make_lazy ctx.g t (fun () ->
 			(* the return type of a from-function must be the abstract, not the underlying type *)
 			if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> raise_typing_error_ext (make_error (Unify l) p));
 			match t with
@@ -976,7 +976,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		let is_multitype_cast = Meta.has Meta.MultiType a.a_meta && not fctx.is_abstract_member in
 		if is_multitype_cast && not (Meta.has Meta.MultiType cf.cf_meta) then
 			cf.cf_meta <- (Meta.MultiType,[],null_pos) :: cf.cf_meta;
-		let r = make_lazy ctx.g t (fun r ->
+		let r = make_lazy ctx.g t (fun () ->
 			let args = if is_multitype_cast then begin
 				let ctor = try
 					PMap.find "_new" c.cl_statics

@@ -363,7 +363,7 @@ let build_generic_class ctx c p tl =
 				t
 			in
 			let t = spawn_monomorph ctx.e p in
-			let r = make_lazy ctx.g t (fun r ->
+			let r = make_lazy ctx.g t (fun () ->
 				let t0 = f() in
 				unify_raise t0 t p;
 				link_dynamic t0 t;
