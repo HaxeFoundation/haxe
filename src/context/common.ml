@@ -1143,3 +1143,17 @@ let get_entry_point com =
 		let e = Option.get com.main.main_expr in (* must be present at this point *)
 		(snd path, c, e)
 	) com.main.main_class
+
+let make_unforced_lazy t_proc f where =
+	let r = ref (lazy_available t_dynamic) in
+	r := lazy_wait (fun() ->
+		try
+			r := lazy_processing t_proc;
+			let t = f () in
+			r := lazy_available t;
+			t
+		with
+			| Error.Error e ->
+				raise (Error.Fatal_error e)
+	);
+	r

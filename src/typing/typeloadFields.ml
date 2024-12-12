@@ -748,7 +748,7 @@ module TypeBinding = struct
 					mk_cast e cf.cf_type e.epos
 			end
 		in
-		let r = make_lazy ~force:false ctx.g t (fun () ->
+		let r = make_unforced_lazy t (fun () ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				enter_field_typing_pass ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
@@ -877,7 +877,7 @@ module TypeBinding = struct
 			if not ctx.g.return_partial_type then bind ();
 			t
 		in
-		let r = make_lazy ~force:false ctx.g t maybe_bind "type_fun" in
+		let r = make_unforced_lazy t maybe_bind "type_fun" in
 		bind_type ctx cctx fctx cf r p
 end
 
