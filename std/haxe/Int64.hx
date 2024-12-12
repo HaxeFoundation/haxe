@@ -458,7 +458,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	private inline function set_low(x)
 		return this.low = x;
 		
-    #if php
+	#if php
 	static var extraBits:Int = php.Const.PHP_INT_SIZE * 8 - 32;
 	#end
 
@@ -477,7 +477,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		#elseif lua
 		return lua.Boot.clampInt32(x);
 		#else
-		return (x);
+		return x;
 		#end
 	}
 }
