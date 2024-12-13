@@ -291,7 +291,7 @@ class TestBigInt extends Test {
 	}
 
 	private function checkCompareSingle(expected:Int, a:BigInt, b:BigInt):Void {
-		eq(expe	cted, BigIntArithmetic.compare(a, b));
+		eq(expected, BigIntArithmetic.compare(a, b));
 		if (expected == 0) {
 			eq(expected, BigIntArithmetic.compare(b, a));
 		} else {
