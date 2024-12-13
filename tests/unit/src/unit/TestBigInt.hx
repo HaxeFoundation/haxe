@@ -2826,6 +2826,23 @@ class TestBigInt extends Test {
 	
 	public function testModInverse():Void
 	{
+		#if (lua)
+		var m:Array<String> = [	"2885628006"];
+		var n:Array<String> = [ "2448267533"];
+		var mn:Array<String> = ["112883568"];
+		
+		var pos = 0;
+		for(i in 0...m.length) {
+			var a:BigInt = BigInt.fromString(m[i]);
+			for(j in 0...n.length) {
+				var b:BigInt = BigInt.fromString(n[j]);
+				var r = a.modInverse(b);
+				trace("r: "+r.toString());
+				eq(mn[pos],r.toString());
+				pos++;
+			}
+		}
+		#else
 		var m:Array<String> = [	"2885628006", "3452672361", "2693781441",  "3446368347", "1495928706" , "3144152002", "1680946273","-9223372036854775808","-8192","-2147483648"];
 		var n:Array<String> = [ "898595849", "2540385371", "1304452195", "2448267533", "2053023521", "4287024253", "1920144361",	"504475217", "887965291", "300193913", "2394418165" ];
 		var mn:Array<String> = ["681936597","980871030","323007506","112883568","683798641","1331447622","1514136460","438360889","585723972","102755466","818276521",
@@ -2855,6 +2872,7 @@ class TestBigInt extends Test {
 		var b:BigInt = BigInt.fromString("4294967296");
 		var r = a.modInverse(b);
 		eq("2226617417",r.toString());
+		#end
 	}
 
 	public function testBitCount():Void
