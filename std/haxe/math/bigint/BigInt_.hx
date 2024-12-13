@@ -717,14 +717,27 @@ class BigInt_ {
 		if (!equals2Int(v, 1)) {
 			return BigInt.ZERO;
 		}
+		
+		#if (lua)
+			trace("x: "+toString1(x,10));
+			trace("d1: "+toString1(d,10));
+		#end
 
 		while (BigIntArithmetic.compareInt(d, 0) < 0) {
 			d = add2(d, x);
 		}
+		
+		#if (lua)
+			trace("d2: "+toString1(d,10));
+		#end
 
 		while (BigIntArithmetic.compare(d, x) >= 0) {
 			d = sub2(d, x);
 		}
+		
+		#if (lua)
+			trace("d3: "+toString1(d,10));
+		#end
 
 		return d;
 	}
