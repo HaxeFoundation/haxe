@@ -2837,7 +2837,7 @@ class TestBigInt extends Test {
 			for(j in 0...n.length) {
 				var b:BigInt = BigInt.fromString(n[j]);
 				var r = a.modInverse(b);
-				trace("r: "+r.toString());
+				trace("r: "+r.toBytes().toHex());
 				eq(mn[pos],r.toString());
 				pos++;
 			}
