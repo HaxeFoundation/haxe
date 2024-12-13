@@ -721,6 +721,7 @@ class BigInt_ {
 		#if (lua)
 			trace("x: "+toString1(x,10));
 			trace("d1: "+toString1(d,10));
+			trace("Compare: "+BigIntArithmetic.compareInt(d, 0));
 		#end
 
 		while (BigIntArithmetic.compareInt(d, 0) < 0) {
