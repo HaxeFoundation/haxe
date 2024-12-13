@@ -291,7 +291,7 @@ class TestBigInt extends Test {
 	}
 
 	private function checkCompareSingle(expected:Int, a:BigInt, b:BigInt):Void {
-		eq(expected, BigIntArithmetic.compare(a, b));
+		eq(expe	cted, BigIntArithmetic.compare(a, b));
 		if (expected == 0) {
 			eq(expected, BigIntArithmetic.compare(b, a));
 		} else {
@@ -2779,18 +2779,25 @@ class TestBigInt extends Test {
 	public function testBigIntRandomPrime():Void
 	{
 		var randomPrimeNumber = BigInt.randomPrime(5,5);
+		#if (php || python) trace("randomPrimeNumber(5): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(11,5);
+		#if (php || python) trace("randomPrimeNumber(11): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(16,5);
+		#if (php || python) trace("randomPrimeNumber(16): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(32,5);
+		#if (php || python) trace("randomPrimeNumber(32): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(55,5);
+		#if (php || python) trace("randomPrimeNumber(55): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(128,5);
+		#if (php || python) trace("randomPrimeNumber(128): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(156,5);
+		#if (php || python) trace("randomPrimeNumber(156): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 	}
 
