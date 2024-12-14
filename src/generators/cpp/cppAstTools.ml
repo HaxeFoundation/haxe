@@ -421,7 +421,7 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppNull -> " ::Dynamic"
   | TCppCode _ -> "Code"
   | TCppValueType (cls, params) ->
-    cpp_class_path_of cls params |> Printf.sprintf "::cpp::Reference< %s >"
+    cpp_class_path_of cls params |> Printf.sprintf "::cpp::marshal::Reference< %s >"
 
 and get_extern_value_type cls params =
   let typeParams =
