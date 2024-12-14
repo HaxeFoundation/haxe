@@ -658,8 +658,14 @@ class BigInt_ {
 				|| BigIntArithmetic.compare(num, minusMontyRadix) == 0
 				|| BigIntArithmetic.compare(num, this) >= 0);
 			var y = modPowMonty(num, m, this, false);
+			#if lua
+			trace("modPowMonty");
+			#end
 			if (BigIntArithmetic.compare(y, montyRadix) != 0) {
 				var j:Int = 1;
+				#if lua
+				trace("BigIntArithmetic.compare");
+				#end
 				while (BigIntArithmetic.compare(y, minusMontyRadix) != 0) {
 					if (j == lsb)
 						return false;
@@ -670,6 +676,9 @@ class BigInt_ {
 				}
 			}
 			rounds -= 2;
+			#if lua
+			trace("rounds: "+rounds);
+			#end
 		} while (rounds >= 0);
 		#if lua
 		trace("END millerRabin");
