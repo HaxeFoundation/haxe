@@ -2636,9 +2636,21 @@ class TestBigInt extends Test {
 		trace("testPrimeNumber");
 		#end
 		for(i in 0...s_primeNumbers.length) {
+			#if lua
+			trace("primeNumber: "+s_primeNumbers[i]);
+			#end
 			var b:BigInt = s_primeNumbers[i];
+			#if lua
+			trace("b: "+b);
+			#end
 			var bm:MutableBigInt = s_primeNumbers[i];
+			#if lua
+			trace("check b ");
+			#end
 			t(b.isProbablePrime(10));
+			#if lua
+			trace("check bm");
+			#end
 			t(bm.isProbablePrime(10));
 		}
 		#if lua
