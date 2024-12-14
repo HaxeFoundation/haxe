@@ -641,9 +641,7 @@ class BigInt_ {
 		var montyRadix:BigInt_ = divMod(arithmeticShiftLeft2(BigInt.ONE, 32 * this.m_count), this).remainder;
 		var minusMontyRadix:BigInt_ = sub2(this, montyRadix);
 		var num:BigInt_;
-		#if lua
-		trace("Debug - ignore all");
-		#else
+		
 		do {
 			do {
 				num = random(this.bitLength());
@@ -665,7 +663,7 @@ class BigInt_ {
 			}
 			rounds -= 2;
 		} while (rounds >= 0);
-		#end
+		
 		return true;
 	}
 
@@ -804,7 +802,7 @@ class BigInt_ {
 		return montResult;
 	}
 
-	private function squareMonty(a:Vector<Int32>, x:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32, smallMontyModulus:Bool):Void {
+	private function squareMonty(a2:Vector<Int32>, x:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32, smallMontyModulus:Bool):Void {
 		var n:Int, aMax:Int, j:Int, i:Int;
 		var xVal:Int, a0:Int;
 		var x0:Int64, carry:Int64, t:Int64, prod1:Int64, prod2:Int64, xi:Int64, u:Int64;
@@ -820,53 +818,53 @@ class BigInt_ {
 			prod1 = Int64.mul(x0, Int64.make(0, x[j]));
 			prod2 = Int64.mul(u, Int64.make(0, m[j]));
 			carry = Int64.add(carry, Int64.add(Int64.make(0, Int64.shl(prod1, 1).low), Int64.make(0, prod2.low)));
-			a[j - 1] = carry.low;
+			a2[j - 1] = carry.low;
 			carry = Int64.add(Int64.add(Int64.ushr(carry, 32), Int64.ushr(prod2, 32)), Int64.ushr(prod1, 31));
 			j++;
 		}
-		a[mLen] = Int64.ushr(carry, 32).low;
-		a[mLen - 1] = carry.low;
+		a2[mLen] = Int64.ushr(carry, 32).low;
+		a2[mLen - 1] = carry.low;
 		i = 1;
 		while (i < mLen) {
-			a0 = a[0];
+			a0 = a2[0];
 			u = Int64.make(0, Int64.mul(a0, mDash).low);
 			carry = Int64.add(Int64.mul(u, Int64.make(0, m[0])), Int64.make(0, a0));
 			carry = Int64.ushr(carry, 32);
 			j = 1;
 			while (j < i) {
-				carry = Int64.add(carry, Int64.add(Int64.mul(u, Int64.make(0, m[j])), Int64.make(0, a[j])));
-				a[j - 1] = carry.low;
+				carry = Int64.add(carry, Int64.add(Int64.mul(u, Int64.make(0, m[j])), Int64.make(0, a2[j])));
+				a2[j - 1] = carry.low;
 				carry = Int64.ushr(carry, 32);
 				j++;
 			}
 			xi = Int64.make(0, x[i]);
 			prod1 = Int64.mul(xi, xi);
 			prod2 = Int64.mul(u, Int64.make(0, m[i]));
-			carry += Int64.add(Int64.add(Int64.make(0, prod1.low), Int64.make(0, prod2.low)), Int64.make(0, a[i]));
-			a[i - 1] = carry.low;
+			carry += Int64.add(Int64.add(Int64.make(0, prod1.low), Int64.make(0, prod2.low)), Int64.make(0, a2[i]));
+			a2[i - 1] = carry.low;
 			carry = Int64.add(Int64.add(Int64.ushr(carry, 32), Int64.ushr(prod1, 32)), Int64.ushr(prod2, 32));
 			j = i + 1;
 			while (j < n) {
 				prod1 = Int64.mul(xi, Int64.make(0, x[j]));
 				prod2 = Int64.mul(u, Int64.make(0, m[j]));
-				carry = Int64.add(carry, Int64.add(Int64.add(Int64.make(0, Int64.shl(prod1, 1).low), Int64.make(0, prod2.low)), Int64.make(0, a[j])));
-				a[j - 1] = carry.low;
+				carry = Int64.add(carry, Int64.add(Int64.add(Int64.make(0, Int64.shl(prod1, 1).low), Int64.make(0, prod2.low)), Int64.make(0, a2[j])));
+				a2[j - 1] = carry.low;
 				carry = Int64.add(Int64.add(Int64.ushr(carry, 32), Int64.ushr(prod1, 31)), Int64.ushr(prod2, 32));
 				j++;
 			}
-			carry = Int64.add(carry, Int64.make(0, a[n]));
-			a[n] = Int64.ushr(carry, 32).low;
-			a[n - 1] = carry.low;
+			carry = Int64.add(carry, Int64.make(0, a2[n]));
+			a2[n] = Int64.ushr(carry, 32).low;
+			a2[n - 1] = carry.low;
 			i++;
 		}
 
-		if (!smallMontyModulus && compareMonty(a, m) >= 0) {
-			subtractMonty(a,m);
+		if (!smallMontyModulus && compareMonty(a2, m) >= 0) {
+			subtractMonty(a2,m);
 		}
-		Vector.blit(a, 0, x, 0, n);
+		Vector.blit(a2, 0, x, 0, n);
 	}
 
-	private function multiplyMonty(a:Vector<Int32>, x:Vector<Int32>, y:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32, smallMontyModulus:Bool):Void {
+	private function multiplyMonty(a3:Vector<Int32>, x:Vector<Int32>, y:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32, smallMontyModulus:Bool):Void {
 		var n:Int, aMax:Int, j:Int, i:Int;
 		var a0:Int64, y0:Int64;
 		var carry:Int64, t:Int64, prod1:Int64, prod2:Int64, xi:Int64, u:Int64;
@@ -874,12 +872,12 @@ class BigInt_ {
 		y0 = Int64.make(0, y[0]);
 		i = 0;
 		while (i <= n) {
-			a[i] = 0;
+			a3[i] = 0;
 			i++;
 		}
 		i = 0;
 		while (i < n) {
-			a0 = Int64.make(0, a[0]);
+			a0 = Int64.make(0, a3[0]);
 			xi = Int64.make(0, x[i]);
 			prod1 = Int64.mul(xi, y0);
 			carry = Int64.add(Int64.make(0, prod1.low), a0);
@@ -891,21 +889,21 @@ class BigInt_ {
 			while (j <= (n - 1)) {
 				prod1 = Int64.mul(xi, Int64.make(0, y[j]));
 				prod2 = Int64.mul(u, Int64.make(0, m[j]));
-				carry = Int64.add(Int64.add(Int64.make(0, prod1.low), Int64.make(0, prod2.low)), Int64.add(Int64.make(0, a[j]), carry));
-				a[j - 1] = carry.low;
+				carry = Int64.add(Int64.add(Int64.make(0, prod1.low), Int64.make(0, prod2.low)), Int64.add(Int64.make(0, a3[j]), carry));
+				a3[j - 1] = carry.low;
 				carry = Int64.add(Int64.add(Int64.ushr(carry, 32), Int64.ushr(prod1, 32)), Int64.ushr(prod2, 32));
 				j++;
 			}
-			carry = Int64.add(carry, Int64.make(0, a[n]));
-			a[n] = Int64.ushr(carry, 32).low;
-			a[n - 1] = carry.low;
+			carry = Int64.add(carry, Int64.make(0, a3[n]));
+			a3[n] = Int64.ushr(carry, 32).low;
+			a3[n - 1] = carry.low;
 			i++;
 		}
 
-		if (!smallMontyModulus && compareMonty(a, m) >= 0) {
-			subtractMonty(a,m);
+		if (!smallMontyModulus && compareMonty(a3, m) >= 0) {
+			subtractMonty(a3,m);
 		}
-		Vector.blit(a, 0, x, 0, n);
+		Vector.blit(a3, 0, x, 0, n);
 	}
 
 	private function montgomeryReduce(x:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32):Void {
@@ -1206,7 +1204,7 @@ class BigInt_ {
 	}
 
 	private var m_count:Int = 0;
-	private var m_data:Vector<Int> = null;
+	private var m_data:Vector<Int>;
 
 	private static inline var s_firstCachedValue:Int = -16;
 	private static inline var s_lastCachedValue:Int = 16;
@@ -1217,9 +1215,9 @@ class BigInt_ {
 	//-----------------------------------------------------------------------
 
 	@:noCompletion
-	private static inline function negate1(a:BigInt_):BigInt_ {
+	private static inline function negate1(a1:BigInt_):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.negate(r, a);
+		BigIntArithmetic.negate(r, a1);
 		return r;
 	}
 
@@ -1304,16 +1302,16 @@ class BigInt_ {
 	}
 
 	@:noCompletion
-	private static inline function arithmeticShiftLeft2(a:BigInt_, b:Int):BigInt_ {
+	private static inline function arithmeticShiftLeft2(a4:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.arithmeticShiftLeft(r, a, b);
+		BigIntArithmetic.arithmeticShiftLeft(r, a4, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function arithmeticShiftRight2(a:BigInt_, b:Int):BigInt_ {
+	private static inline function arithmeticShiftRight2(a5:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.arithmeticShiftRight(r, a, b);
+		BigIntArithmetic.arithmeticShiftRight(r, a5, b);
 		return r;
 	}
 
