@@ -14,7 +14,23 @@ import haxe.math.bigint.BigInt;
 import haxe.math.bigint.BigIntHelper;
 
 class TestBigInt extends Test {
-
+	
+	#if lua
+	public inline  function sign(neg:Bool= true):Int {
+		return (neg) ? -1 : 0;
+	}
+	
+	public function testShiftLeft():Void {
+		trace("===> testShiftLeft()");
+		trace("sign: "+bigIntShiftLeft());
+	}
+	
+	public function bigIntShiftLeft():Int {
+		trace("sign: "+(sign() << 1));
+		return (sign() << 1) + 1;
+	}
+	#end
+	
 	public function testBigInt():Void {
 		MutableBigInt_.s_testAllocation = false;
 		bigIntAllChecks();
