@@ -731,6 +731,9 @@ class BigInt_ {
 	}
 
 	private function modPowMonty(b:BigInt_, _e:BigInt_, _m:BigInt_, convert:Bool):BigInt_ {
+		#if lua
+		trace("_modPowMonty_");
+		#end
 		var n:Int,
 			powR:Int,
 			extraBits:Int,
@@ -796,6 +799,7 @@ class BigInt_ {
 		windowPos = 1;
 		window = windowList[windowPos];
 		windowPos++;
+		trace("window: "+window);
 		while (window != -1) {
 			mult = window & 0xFF;
 			bits = lastZeroes + BitLengthTable[mult];
@@ -809,14 +813,17 @@ class BigInt_ {
 			window = windowList[windowPos];
 			windowPos++;
 		}
+		trace("_squareMonty_");
 		for (i in 0...lastZeroes) {
 			squareMonty(yAccum, yVal, m.m_data, m.m_count, mDash, smallMontyModulus);
 		}
+		trace("montgomeryReduce "+convert);
 		if (convert) {
 			montgomeryReduce(yVal, m.m_data, m.m_count, mDash);
 		} else if (smallMontyModulus && compareMonty(yVal, m.m_data) >= 0) {
 			subtractMonty(yVal,m.m_data);
 		}
+		trace("Result modPowMonty");
 		var montResult:BigInt_ = BigInt_.fromUnsignedInts(yVal);
 		return montResult;
 	}
