@@ -38,11 +38,7 @@ class BigIntArithmetic {
 	**/
 	public static function compareInt(a:BigInt_, b:Int):Int {
 		if (a.m_count > 1) {
-			#if lua
-				return lua.Boot.clampInt32(a.sign() << 1)+1;
-			#else
-				return (a.sign() << 1) + 1;
-			#end
+			return (a.sign() << 1) + 1;
 		}
 		var x:Int = a.m_data.get(0);
 		var lt:Int = (x - b) ^ ((x ^ b) & ((x - b) ^ x)); // "Hacker's Delight" p. 23
@@ -733,7 +729,11 @@ class BigIntArithmetic {
 		var y:Int;
 		while (inputSize > 0) {
 			y = input[inputSize - 1];
+			#if lua
+			x = lua.Boot.clampInt32((x << shift) | (y >>> r));
+			#else
 			x = (x << shift) | (y >>> r);
+			#end
 			output.set(inputSize + outputOffset, x);
 			x = y;
 			--inputSize;
