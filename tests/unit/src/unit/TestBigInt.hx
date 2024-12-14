@@ -152,6 +152,9 @@ class TestBigInt extends Test {
 	}
 
 	public function bigIntCompare():Void {
+		#if (lua)
+		trace("bigIntCompare");
+		#end
 		// equality, single-word
 		checkCompareInt(0, 0, 0);
 		checkCompareInt(0, 1, 1);
@@ -213,6 +216,9 @@ class TestBigInt extends Test {
 		checkCompare(1, BigInt.fromHex("f2345678 9abcdef0"), BigInt.fromHex("fffffffe 12345678 9abcdef0"));
 
 		checkCompare(1, BigInt.fromHex("00000001 ffffffff"), BigInt.fromHex("00000001 00000000"));
+		#if (lua)
+		trace("======END bigIntCompare=======");
+		#end
 	}
 
 	private function checkCompareInt(expected:Int, a:Int, b:Int):Void {
@@ -291,6 +297,9 @@ class TestBigInt extends Test {
 	}
 
 	private function checkCompareSingle(expected:Int, a:BigInt, b:BigInt):Void {
+		#if (lua)
+			trace("expected: "+expected+ ","+BigIntArithmetic.compare(a, b));
+		#end
 		eq(expected, BigIntArithmetic.compare(a, b));
 		if (expected == 0) {
 			eq(expected, BigIntArithmetic.compare(b, a));
