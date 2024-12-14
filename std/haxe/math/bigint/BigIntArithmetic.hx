@@ -41,6 +41,9 @@ class BigIntArithmetic {
 			trace("a.m_count: "+a.m_count);
 		#end
 		if (a.m_count > 1) {
+			#if (lua)
+				trace("a.sign: "+a.sign(true)+" "+(a.sign() << 1));
+			#end
 			return (a.sign() << 1) + 1;
 		}
 		var x:Int = a.m_data.get(0);
