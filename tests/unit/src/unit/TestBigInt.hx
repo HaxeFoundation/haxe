@@ -14,16 +14,7 @@ import haxe.math.bigint.BigInt;
 import haxe.math.bigint.BigIntHelper;
 
 class TestBigInt extends Test {
-	
-	#if lua
-	public function testShiftLeft():Void {
-		trace("===> testShiftLeft()");
-		var a:BigInt = "-2335383965";
-		trace("sign: "+a.sign()+" , "+(a.sign() << 1));
-	}
-	
-	#end
-	
+
 	public function testBigInt():Void {
 		MutableBigInt_.s_testAllocation = false;
 		bigIntAllChecks();
@@ -161,9 +152,6 @@ class TestBigInt extends Test {
 	}
 
 	public function bigIntCompare():Void {
-		#if (lua)
-		trace("bigIntCompare");
-		#end
 		// equality, single-word
 		checkCompareInt(0, 0, 0);
 		checkCompareInt(0, 1, 1);
@@ -225,9 +213,6 @@ class TestBigInt extends Test {
 		checkCompare(1, BigInt.fromHex("f2345678 9abcdef0"), BigInt.fromHex("fffffffe 12345678 9abcdef0"));
 
 		checkCompare(1, BigInt.fromHex("00000001 ffffffff"), BigInt.fromHex("00000001 00000000"));
-		#if (lua)
-		trace("======END bigIntCompare=======");
-		#end
 	}
 
 	private function checkCompareInt(expected:Int, a:Int, b:Int):Void {
@@ -306,9 +291,6 @@ class TestBigInt extends Test {
 	}
 
 	private function checkCompareSingle(expected:Int, a:BigInt, b:BigInt):Void {
-		#if (lua)
-			trace("expected: "+expected+ ","+BigIntArithmetic.compare(a, b));
-		#end
 		eq(expected, BigIntArithmetic.compare(a, b));
 		if (expected == 0) {
 			eq(expected, BigIntArithmetic.compare(b, a));
@@ -2769,18 +2751,39 @@ class TestBigInt extends Test {
 	{
 		var a:BigInt;
 		a = "8329132432461";
+		#if lua
+		trace("a: "+a);
+		#end
 		eq("8329132432469",a.nextProbablePrime().toString());
 		a = 269234;
+		#if lua
+		trace("a: "+a);
+		#end
 		eq("269237",a.nextProbablePrime().toString());
 		a = 409993;
+		#if lua
+		trace("a: "+a);
+		#end
 		eq("409999",a.nextProbablePrime().toString());
 		a = 950091;
+		#if lua
+		trace("a: "+a);
+		#end
 		eq("950099",a.nextProbablePrime().toString());
 		a = 141682;
+		#if lua
+		trace("a: "+a);
+		#end
 		eq("141689",a.nextProbablePrime().toString());
 		a = 40870716;
+		#if lua
+		trace("a: "+a);
+		#end
 		eq("40870721",a.nextProbablePrime().toString());
 		a = 32747015;
+		#if lua
+		trace("a: "+a);
+		#end
 		eq("32747023",a.nextProbablePrime().toString());
 	}
 	
@@ -2796,26 +2799,29 @@ class TestBigInt extends Test {
 	
 	public function testBigIntRandomPrime():Void
 	{
+		#if lua
+		trace("testBigIntRandomPrime");
+		#end
 		var randomPrimeNumber = BigInt.randomPrime(5,5);
-		#if (php || python) trace("randomPrimeNumber(5): " + randomPrimeNumber); #end
+		#if (php || python || lua) trace("randomPrimeNumber(5): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(11,5);
-		#if (php || python) trace("randomPrimeNumber(11): " + randomPrimeNumber); #end
+		#if (php || python || lua) trace("randomPrimeNumber(11): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(16,5);
-		#if (php || python) trace("randomPrimeNumber(16): " + randomPrimeNumber); #end
+		#if (php || python || lua) trace("randomPrimeNumber(16): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(32,5);
-		#if (php || python) trace("randomPrimeNumber(32): " + randomPrimeNumber); #end
+		#if (php || python || lua) trace("randomPrimeNumber(32): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(55,5);
-		#if (php || python) trace("randomPrimeNumber(55): " + randomPrimeNumber); #end
+		#if (php || python || lua) trace("randomPrimeNumber(55): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(128,5);
-		#if (php || python) trace("randomPrimeNumber(128): " + randomPrimeNumber); #end
+		#if (php || python || lua) trace("randomPrimeNumber(128): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(156,5);
-		#if (php || python) trace("randomPrimeNumber(156): " + randomPrimeNumber); #end
+		#if (php || python || lua) trace("randomPrimeNumber(156): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 	}
 
@@ -2844,23 +2850,6 @@ class TestBigInt extends Test {
 	
 	public function testModInverse():Void
 	{
-		#if (lua)
-		var m:Array<String> = [	"2885628006"];
-		var n:Array<String> = [ "2448267533"];
-		var mn:Array<String> = ["112883568"];
-		
-		var pos = 0;
-		for(i in 0...m.length) {
-			var a:BigInt = BigInt.fromString(m[i]);
-			for(j in 0...n.length) {
-				var b:BigInt = BigInt.fromString(n[j]);
-				var r = a.modInverse(b);
-				trace("r: "+r.toBytes().toHex());
-				eq(mn[pos],r.toString());
-				pos++;
-			}
-		}
-		#else
 		var m:Array<String> = [	"2885628006", "3452672361", "2693781441",  "3446368347", "1495928706" , "3144152002", "1680946273","-9223372036854775808","-8192","-2147483648"];
 		var n:Array<String> = [ "898595849", "2540385371", "1304452195", "2448267533", "2053023521", "4287024253", "1920144361",	"504475217", "887965291", "300193913", "2394418165" ];
 		var mn:Array<String> = ["681936597","980871030","323007506","112883568","683798641","1331447622","1514136460","438360889","585723972","102755466","818276521",
@@ -2890,7 +2879,6 @@ class TestBigInt extends Test {
 		var b:BigInt = BigInt.fromString("4294967296");
 		var r = a.modInverse(b);
 		eq("2226617417",r.toString());
-		#end
 	}
 
 	public function testBitCount():Void
