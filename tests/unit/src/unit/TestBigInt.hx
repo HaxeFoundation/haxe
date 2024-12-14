@@ -2763,44 +2763,20 @@ class TestBigInt extends Test {
 	
 	public function testNextProbablePrime():Void
 	{
-		#if lua
-		trace("testNextProbablePrime");
-		#end
 		var a:BigInt;
 		a = "8329132432461";
-		#if lua
-		trace("a: "+(a==null));
-		#end
 		eq("8329132432469",a.nextProbablePrime().toString());
 		a = 269234;
-		#if lua
-		trace("a: "+a);
-		#end
 		eq("269237",a.nextProbablePrime().toString());
 		a = 409993;
-		#if lua
-		trace("a: "+a);
-		#end
 		eq("409999",a.nextProbablePrime().toString());
 		a = 950091;
-		#if lua
-		trace("a: "+a);
-		#end
 		eq("950099",a.nextProbablePrime().toString());
 		a = 141682;
-		#if lua
-		trace("a: "+a);
-		#end
 		eq("141689",a.nextProbablePrime().toString());
 		a = 40870716;
-		#if lua
-		trace("a: "+a);
-		#end
 		eq("40870721",a.nextProbablePrime().toString());
 		a = 32747015;
-		#if lua
-		trace("a: "+a);
-		#end
 		eq("32747023",a.nextProbablePrime().toString());
 	}
 	

@@ -570,17 +570,11 @@ class BigInt_ {
 	}
 
 	public static function random(bits:Int32):BigInt_ {
-		#if lua
-		trace("random: "+bits);
-		#end
 		if (bits <= 0)
 			return BigInt.ZERO;
 		var r = new MutableBigInt_();
 		r.setFromBigEndianBytesSigned(randomBytes(bits));
 		r.compact();
-		#if lua
-		trace("_r_: "+r);
-		#end
 		return r;
 	}
 
@@ -627,9 +621,6 @@ class BigInt_ {
 	}
 
 	private function millerRabin(rounds:Int):Bool {
-		#if lua
-		trace("millerRabin");
-		#end
 		var numLists:Int = ((this.bitLength() - 1) < s_primeNumbers.length) ? (this.bitLength() - 1) : s_primeNumbers.length;
 		for (i in 0...numLists) {
 			var t:Int32 = divMod(this, BigInt_.fromInt(s_primeProduct[i])).remainder.m_data.get(0);
@@ -642,9 +633,6 @@ class BigInt_ {
 				}
 			}
 		}
-		#if lua
-		trace("step 1");
-		#end
 		var m = subInt2(this, 1);
 		var lsb = m.getLowestSetBit();
 		if (lsb <= 0)
@@ -653,32 +641,16 @@ class BigInt_ {
 		var montyRadix:BigInt_ = divMod(arithmeticShiftLeft2(BigInt.ONE, 32 * this.m_count), this).remainder;
 		var minusMontyRadix:BigInt_ = sub2(this, montyRadix);
 		var num:BigInt_;
-		#if lua
-		trace("step 2 : "+rounds);
-		#end
 		do {
 			do {
 				num = random(this.bitLength());
-				#if lua
-				trace("random num: "+num);
-				#end
 			} while (BigIntArithmetic.compare(num, BigInt.ZERO) == 0
 				|| BigIntArithmetic.compare(num, montyRadix) == 0
 				|| BigIntArithmetic.compare(num, minusMontyRadix) == 0
 				|| BigIntArithmetic.compare(num, this) >= 0);
-			#if lua
-			trace("start check for modPowMonty");
-			trace("num: "+num+" ,m: "+m+" ,this: "+this);
-			#end
 			var y = modPowMonty(num, m, this, false);
-			#if lua
-			trace("modPowMonty");
-			#end
 			if (BigIntArithmetic.compare(y, montyRadix) != 0) {
 				var j:Int = 1;
-				#if lua
-				trace("BigIntArithmetic.compare");
-				#end
 				while (BigIntArithmetic.compare(y, minusMontyRadix) != 0) {
 					if (j == lsb)
 						return false;
@@ -689,13 +661,7 @@ class BigInt_ {
 				}
 			}
 			rounds -= 2;
-			#if lua
-			trace("rounds: "+rounds);
-			#end
 		} while (rounds >= 0);
-		#if lua
-		trace("END millerRabin");
-		#end
 		return true;
 	}
 
@@ -744,9 +710,6 @@ class BigInt_ {
 	}
 
 	private function modPowMonty(b:BigInt_, _e:BigInt_, _m:BigInt_, convert:Bool):BigInt_ {
-		#if lua
-		trace("_modPowMonty_");
-		#end
 		var n:Int,
 			powR:Int,
 			extraBits:Int,
@@ -812,7 +775,6 @@ class BigInt_ {
 		windowPos = 1;
 		window = windowList[windowPos];
 		windowPos++;
-		trace("window: "+window);
 		while (window != -1) {
 			mult = window & 0xFF;
 			bits = lastZeroes + BitLengthTable[mult];
@@ -826,17 +788,14 @@ class BigInt_ {
 			window = windowList[windowPos];
 			windowPos++;
 		}
-		trace("_squareMonty_");
 		for (i in 0...lastZeroes) {
 			squareMonty(yAccum, yVal, m.m_data, m.m_count, mDash, smallMontyModulus);
 		}
-		trace("montgomeryReduce "+convert);
 		if (convert) {
 			montgomeryReduce(yVal, m.m_data, m.m_count, mDash);
 		} else if (smallMontyModulus && compareMonty(yVal, m.m_data) >= 0) {
 			subtractMonty(yVal,m.m_data);
 		}
-		trace("Result modPowMonty");
 		var montResult:BigInt_ = BigInt_.fromUnsignedInts(yVal);
 		return montResult;
 	}
