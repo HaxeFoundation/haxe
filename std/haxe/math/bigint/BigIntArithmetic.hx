@@ -54,6 +54,8 @@ class BigIntArithmetic {
 		returns 0 (`a == b`).
 	**/
 	public static function compare(a6:BigInt_, b:BigInt_):Int {
+		trace("______________Compare:  "+b);
+		trace("______________Compare:  "+a6);
 		if (a6 != b) {
 			var c:Int = (a6.sign() & 2) + (b.sign() & 1);
 			switch (c) {
