@@ -16,19 +16,12 @@ import haxe.math.bigint.BigIntHelper;
 class TestBigInt extends Test {
 	
 	#if lua
-	public inline  function sign(neg:Bool= true):Int {
-		return (neg) ? -1 : 0;
-	}
-	
 	public function testShiftLeft():Void {
 		trace("===> testShiftLeft()");
-		trace("sign: "+bigIntShiftLeft());
+		var a:BigInt = "-2335383965";
+		trace("sign: "+a.sign()+" , "+(a.sign() << 1));
 	}
 	
-	public function bigIntShiftLeft():Int {
-		trace("sign: "+(sign() << 1));
-		return (sign() << 1) + 1;
-	}
 	#end
 	
 	public function testBigInt():Void {
