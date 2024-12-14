@@ -729,11 +729,7 @@ class BigIntArithmetic {
 		var y:Int;
 		while (inputSize > 0) {
 			y = input[inputSize - 1];
-			#if lua
-			x = lua.Boot.clampInt32((x << shift) | (y >>> r));
-			#else
 			x = (x << shift) | (y >>> r);
-			#end
 			output.set(inputSize + outputOffset, x);
 			x = y;
 			--inputSize;
