@@ -93,14 +93,7 @@ class BigInt_ {
 	/**
 		Retrieve the sign value of this big integer; 0 if positive, -1 if negative.
 	**/
-	public inline function sign(?debug:Bool=false):Int {
-		#if (lua)
-			if (debug) {
-				trace("sign1: "+m_data.get(m_count - 1));
-				trace("sign2: "+(m_data.get(m_count - 1) >> 31));
-				trace("sign3: "+((m_data.get(m_count - 1) >> 31 != 0) ? -1 : 0));
-			}
-		#end
+	public inline function sign():Int {
 		return (m_data.get(m_count - 1) >> 31 != 0) ? -1 : 0;
 	}
 

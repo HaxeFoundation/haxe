@@ -41,10 +41,12 @@ class BigIntArithmetic {
 			trace("a.m_count: "+a.m_count);
 		#end
 		if (a.m_count > 1) {
-			#if (lua)
-				trace("a.sign: "+a.sign(true)+" "+(a.sign() << 1));
+			#if lua
+				trace("a.sign: "+a.sign()+" "+lua.Boot.clampInt32(a.sign() << 1));
+				return lua.Boot.clampInt32(a.sign() << 1)+1;
+			#else
+				return (a.sign() << 1) + 1;
 			#end
-			return (a.sign() << 1) + 1;
 		}
 		var x:Int = a.m_data.get(0);
 		var lt:Int = (x - b) ^ ((x ^ b) & ((x - b) ^ x)); // "Hacker's Delight" p. 23
