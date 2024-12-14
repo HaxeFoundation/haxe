@@ -1222,82 +1222,82 @@ class BigInt_ {
 	}
 
 	@:noCompletion
-	private static inline function equals2Int(a:BigInt_, b:Int):Bool {
-		return a.equalsInt(b);
+	private static inline function equals2Int(a15:BigInt_, b:Int):Bool {
+		return a15.equalsInt(b);
 	}
 
 	@:noCompletion
-	private static inline function equals2(a:BigInt_, b:BigInt_):Bool {
-		return a.equals(b);
+	private static inline function equals2(a16:BigInt_, b:BigInt_):Bool {
+		return a16.equals(b);
 	}
 
 	@:noCompletion
-	private static inline function addInt2(a:BigInt_, b:Int):BigInt_ {
+	private static inline function addInt2(a17:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.addInt(r, a, b);
+		BigIntArithmetic.addInt(r, a17, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function add2(a:BigInt_, b:BigInt_):BigInt_ {
+	private static inline function add2(a18:BigInt_, b:BigInt_):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.add(r, a, b);
+		BigIntArithmetic.add(r, a18, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function subInt2(a:BigInt_, b:Int):BigInt_ {
+	private static inline function subInt2(a19:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.subtractInt(r, a, b);
+		BigIntArithmetic.subtractInt(r, a19, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function sub2(a:BigInt_, b:BigInt_):BigInt_ {
+	private static inline function sub2(a20:BigInt_, b:BigInt_):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.subtract(r, a, b);
+		BigIntArithmetic.subtract(r, a20, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function multiplyInt2(a:BigInt_, b:Int):BigInt_ {
+	private static inline function multiplyInt2(a21:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.multiplyInt(r, a, b);
+		BigIntArithmetic.multiplyInt(r, a21, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function multiply2(a:BigInt_, b:BigInt_):BigInt_ {
+	private static inline function multiply2(a22:BigInt_, b:BigInt_):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.multiply(r, a, b);
+		BigIntArithmetic.multiply(r, a22, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function divideInt2(a:BigInt_, b:Int):BigInt_ {
+	private static inline function divideInt2(a23:BigInt_, b:Int):BigInt_ {
 		var q = new MutableBigInt_();
-		BigIntArithmetic.divideInt(a, b, q);
+		BigIntArithmetic.divideInt(a23, b, q);
 		return q;
 	}
 
 	@:noCompletion
-	private static inline function divide2(a:BigInt_, b:BigInt_):BigInt_ {
+	private static inline function divide2(a24:BigInt_, b:BigInt_):BigInt_ {
 		var q = new MutableBigInt_();
-		BigIntArithmetic.divide(a, b, q, null);
+		BigIntArithmetic.divide(a24, b, q, null);
 		return q;
 	}
 
 	@:noCompletion
-	private static inline function modulusInt2(a:BigInt_, b:Int):Int {
+	private static inline function modulusInt2(a25:BigInt_, b:Int):Int {
 		var q = new MutableBigInt_();
-		return BigIntArithmetic.divideInt(a, b, q);
+		return BigIntArithmetic.divideInt(a25, b, q);
 	}
 
 	@:noCompletion
-	private static inline function modulus2(a:BigInt_, b:BigInt_):BigInt_ {
+	private static inline function modulus2(a26:BigInt_, b:BigInt_):BigInt_ {
 		var q = new MutableBigInt_();
 		var r = new MutableBigInt_();
-		BigIntArithmetic.divide(a, b, q, r);
+		BigIntArithmetic.divide(a26, b, q, r);
 		return r;
 	}
 
@@ -1316,55 +1316,55 @@ class BigInt_ {
 	}
 
 	@:noCompletion
-	private static inline function sign1(a:BigInt_):Int {
-		return a.sign();
+	private static inline function sign1(a27:BigInt_):Int {
+		return a27.sign();
 	}
 
 	@:noCompletion
-	private static inline function isZero1(a:BigInt_):Bool {
-		return a.isZero();
+	private static inline function isZero1(a28:BigInt_):Bool {
+		return a28.isZero();
 	}
 
 	@:noCompletion
-	private static inline function isNegative1(a:BigInt_):Bool {
-		return a.isNegative();
+	private static inline function isNegative1(a29:BigInt_):Bool {
+		return a29.isNegative();
 	}
 
 	@:noCompletion
-	private static inline function isPositive1(a:BigInt_):Bool {
-		return a.isPositive();
+	private static inline function isPositive1(a30:BigInt_):Bool {
+		return a30.isPositive();
 	}
 
 	@:noCompletion
-	private static inline function isOdd1(a:BigInt_):Bool {
-		return a.isOdd();
+	private static inline function isOdd1(a31:BigInt_):Bool {
+		return a31.isOdd();
 	}
 
 	@:noCompletion
-	private static inline function isEven1(a:BigInt_):Bool {
-		return a.isEven();
+	private static inline function isEven1(a32:BigInt_):Bool {
+		return a32.isEven();
 	}
 
 	@:noCompletion
-	private static inline function toString1(a:BigInt_, radix:Int):String {
-		if ((radix == 10 ) || ( radix <2 || radix >36 )) return a.toString();
-		if (radix == 16 ) return a.toHex();
-		return a.toBase(radix);
+	private static inline function toString1(a33:BigInt_, radix:Int):String {
+		if ((radix == 10 ) || ( radix <2 || radix >36 )) return a33.toString();
+		if (radix == 16 ) return a33.toHex();
+		return a33.toBase(radix);
 	}
 
 	@:noCompletion
-	private static inline function toHex1(a:BigInt_):String {
-		return a.toHex();
+	private static inline function toHex1(a34:BigInt_):String {
+		return a34.toHex();
 	}
 
 	@:noCompletion
-	private static inline function toBytes1(a:BigInt_):Bytes {
-		return a.toBytes();
+	private static inline function toBytes1(a35:BigInt_):Bytes {
+		return a35.toBytes();
 	}
 
 	@:noCompletion
-	private static inline function toInts1(a:BigInt_, v:Vector<Int>):Int {
-		return a.toInts(v);
+	private static inline function toInts1(a36:BigInt_, v:Vector<Int>):Int {
+		return a36.toInts(v);
 	}
 
 	static final BitLengthTable:Array<Int> = [

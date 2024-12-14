@@ -430,55 +430,55 @@ class MutableBigInt_ extends BigInt_ {
 	}
 
 	@:noCompletion
-	private static inline function multiplyAssignInt2(a:MutableBigInt_, b:Int):Void {
+	private static inline function multiplyAssignInt2(a7:MutableBigInt_, b:Int):Void {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.multiplyInt(r, a, b);
-		a.copy(r);
+		BigIntArithmetic.multiplyInt(r, a7, b);
+		a7.copy(r);
 	}
 
 	@:noCompletion
-	private static inline function multiplyAssign2(a:MutableBigInt_, b:BigInt_):Void {
+	private static inline function multiplyAssign2(a8:MutableBigInt_, b:BigInt_):Void {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.multiply(r, a, b);
-		a.copy(r);
+		BigIntArithmetic.multiply(r, a8, b);
+		a8.copy(r);
 	}
 
 	@:noCompletion
-	private static inline function divideAssignInt2(a:MutableBigInt_, b:Int):Void {
+	private static inline function divideAssignInt2(a9:MutableBigInt_, b:Int):Void {
 		var q = new MutableBigInt_();
-		BigIntArithmetic.divideInt(a, b, q);
-		a.copy(q);
+		BigIntArithmetic.divideInt(a9, b, q);
+		a9.copy(q);
 	}
 
 	@:noCompletion
-	private static inline function divideAssign2(a:MutableBigInt_, b:BigInt_):Void {
+	private static inline function divideAssign2(a10:MutableBigInt_, b:BigInt_):Void {
 		var q = new MutableBigInt_();
-		BigIntArithmetic.divide(a, b, q, null);
-		a.copy(q);
+		BigIntArithmetic.divide(a10, b, q, null);
+		a10.copy(q);
 	}
 
 	@:noCompletion
-	private static inline function modulusAssignInt2(a:MutableBigInt_, b:Int):Void {
+	private static inline function modulusAssignInt2(a11:MutableBigInt_, b:Int):Void {
 		var q = new MutableBigInt_();
-		var r = BigIntArithmetic.divideInt(a, b, q);
-		a.setFromInt(r);
+		var r = BigIntArithmetic.divideInt(a11, b, q);
+		a11.setFromInt(r);
 	}
 
 	@:noCompletion
-	private static inline function modulusAssign2(a:MutableBigInt_, b:BigInt_):Void {
+	private static inline function modulusAssign2(a12:MutableBigInt_, b:BigInt_):Void {
 		var q = new MutableBigInt_();
 		var r = new MutableBigInt_();
-		BigIntArithmetic.divide(a, b, q, r);
-		a.copy(r);
+		BigIntArithmetic.divide(a12, b, q, r);
+		a12.copy(r);
 	}
 
 	@:noCompletion
-	private static inline function arithmeticShiftLeftAssign2(a:MutableBigInt_, b:Int):Void {
-		BigIntArithmetic.arithmeticShiftLeft(a, a, b);
+	private static inline function arithmeticShiftLeftAssign2(a13:MutableBigInt_, b:Int):Void {
+		BigIntArithmetic.arithmeticShiftLeft(a13, a13, b);
 	}
 
 	@:noCompletion
-	private static inline function arithmeticShiftRightAssign2(a:MutableBigInt_, b:Int):Void {
-		BigIntArithmetic.arithmeticShiftRight(a, a, b);
+	private static inline function arithmeticShiftRightAssign2(a14:MutableBigInt_, b:Int):Void {
+		BigIntArithmetic.arithmeticShiftRight(a14, a14, b);
 	}
 }

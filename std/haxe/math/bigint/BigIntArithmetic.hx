@@ -36,11 +36,11 @@ class BigIntArithmetic {
 		returns 1 if `a > b`; otherwise
 		returns 0 (`a == b`).
 	**/
-	public static function compareInt(a:BigInt_, b:Int):Int {
-		if (a.m_count > 1) {
-			return (a.sign() << 1) + 1;
+	public static function compareInt(a5:BigInt_, b:Int):Int {
+		if (a5.m_count > 1) {
+			return (a5.sign() << 1) + 1;
 		}
-		var x:Int = a.m_data.get(0);
+		var x:Int = a5.m_data.get(0);
 		var lt:Int = (x - b) ^ ((x ^ b) & ((x - b) ^ x)); // "Hacker's Delight" p. 23
 		var gt:Int = (b - x) ^ ((x ^ b) & ((b - x) ^ b));
 		return (lt >> 31) | (gt >>> 31);
@@ -53,15 +53,15 @@ class BigIntArithmetic {
 		returns 1 if `a > b`; otherwise
 		returns 0 (`a == b`).
 	**/
-	public static function compare(a:BigInt_, b:BigInt_):Int {
-		if (a != b) {
-			var c:Int = (a.sign() & 2) + (b.sign() & 1);
+	public static function compare(a6:BigInt_, b:BigInt_):Int {
+		if (a6 != b) {
+			var c:Int = (a6.sign() & 2) + (b.sign() & 1);
 			switch (c) {
 				case 0: // a and b are positive
-					if (a.m_count > b.m_count) {
+					if (a6.m_count > b.m_count) {
 						return 1;
 					}
-					if (a.m_count < b.m_count) {
+					if (a6.m_count < b.m_count) {
 						return -1;
 					}
 				case 1: // a is positive, b is negative
@@ -69,14 +69,14 @@ class BigIntArithmetic {
 				case 2: // a is negative, b is positive
 					return -1;
 				case 3: // a and b are negative
-					if (a.m_count > b.m_count) {
+					if (a6.m_count > b.m_count) {
 						return -1;
 					}
-					if (a.m_count < b.m_count) {
+					if (a6.m_count < b.m_count) {
 						return 1;
 					}
 			}
-			return MultiwordArithmetic.compareUnsigned(a.m_data, b.m_data, a.m_count);
+			return MultiwordArithmetic.compareUnsigned(a6.m_data, b.m_data, a6.m_count);
 		}
 		return 0;
 	}
