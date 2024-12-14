@@ -1206,7 +1206,7 @@ class BigInt_ {
 	}
 
 	private var m_count:Int = 0;
-	private var m_data:Vector<Int>;
+	private var m_data:Vector<Int> = null;
 
 	private static inline var s_firstCachedValue:Int = -16;
 	private static inline var s_lastCachedValue:Int = 16;
