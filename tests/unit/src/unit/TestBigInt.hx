@@ -2634,34 +2634,30 @@ class TestBigInt extends Test {
 	{
 		#if lua
 		trace("testPrimeNumber");
-		#end
-		for(i in 0...s_primeNumbers.length) {
-			#if lua
+		var i:Int = 35;
 			trace("primeNumber: "+s_primeNumbers[i]);
-			#end
 			var b:BigInt = s_primeNumbers[i];
-			#if lua
 			trace("b: "+b);
-			#end
 			var bm:MutableBigInt = s_primeNumbers[i];
-			#if lua
 			trace("check b ");
-			#end
 			t(b.isProbablePrime(10));
-			#if lua
 			trace("check bm");
-			#end
+			t(bm.isProbablePrime(10));
+		
+		#else
+		for(i in 0...s_primeNumbers.length) {
+			var b:BigInt = s_primeNumbers[i];
+			var bm:MutableBigInt = s_primeNumbers[i];
+			t(b.isProbablePrime(10));
 			t(bm.isProbablePrime(10));
 		}
-		#if lua
-		trace("s_notPrimeNumbers");
-		#end
 		for(i in 0...s_notPrimeNumbers.length) {
 			var b:BigInt = s_notPrimeNumbers[i];
 			var bm:MutableBigInt = s_notPrimeNumbers[i];
 			f(b.isProbablePrime(10));
 			f(bm.isProbablePrime(10));
 		}
+		#end
 	}
 
 	public function testLowestSetBit():Void

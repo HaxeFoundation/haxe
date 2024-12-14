@@ -621,6 +621,9 @@ class BigInt_ {
 	}
 
 	private function millerRabin(rounds:Int):Bool {
+		#if lua
+		trace("millerRabin");
+		#end
 		var numLists:Int = ((this.bitLength() - 1) < s_primeNumbers.length) ? (this.bitLength() - 1) : s_primeNumbers.length;
 		for (i in 0...numLists) {
 			var t:Int32 = divMod(this, BigInt_.fromInt(s_primeProduct[i])).remainder.m_data.get(0);
@@ -633,7 +636,9 @@ class BigInt_ {
 				}
 			}
 		}
-		
+		#if lua
+		trace("step 1");
+		#end
 		var m = subInt2(this, 1);
 		var lsb = m.getLowestSetBit();
 		if (lsb <= 0)
@@ -642,6 +647,9 @@ class BigInt_ {
 		var montyRadix:BigInt_ = divMod(arithmeticShiftLeft2(BigInt.ONE, 32 * this.m_count), this).remainder;
 		var minusMontyRadix:BigInt_ = sub2(this, montyRadix);
 		var num:BigInt_;
+		#if lua
+		trace("step 2");
+		#end
 		do {
 			do {
 				num = random(this.bitLength());
@@ -663,6 +671,9 @@ class BigInt_ {
 			}
 			rounds -= 2;
 		} while (rounds >= 0);
+		#if lua
+		trace("END millerRabin");
+		#end
 		return true;
 	}
 
