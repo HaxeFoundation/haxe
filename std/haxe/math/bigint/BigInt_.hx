@@ -648,15 +648,20 @@ class BigInt_ {
 		var minusMontyRadix:BigInt_ = sub2(this, montyRadix);
 		var num:BigInt_;
 		#if lua
-		trace("step 2");
+		trace("step 2 : "+rounds);
 		#end
 		do {
 			do {
 				num = random(this.bitLength());
+				trace("random num: "+num);
 			} while (BigIntArithmetic.compare(num, BigInt.ZERO) == 0
 				|| BigIntArithmetic.compare(num, montyRadix) == 0
 				|| BigIntArithmetic.compare(num, minusMontyRadix) == 0
 				|| BigIntArithmetic.compare(num, this) >= 0);
+			#if lua
+			trace("start check for modPowMonty");
+			trace("num: "+num+" ,m: "+m+" ,this: "+this);
+			#end
 			var y = modPowMonty(num, m, this, false);
 			#if lua
 			trace("modPowMonty");
