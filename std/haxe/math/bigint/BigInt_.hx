@@ -93,7 +93,7 @@ class BigInt_ {
 	/**
 		Retrieve the sign value of this big integer; 0 if positive, -1 if negative.
 	**/
-	public #if (!lua) inline #end function sign():Int {
+	public inline function sign():Int {
 		return (m_data.get(m_count - 1) >> 31 != 0) ? -1 : 0;
 	}
 
@@ -443,10 +443,6 @@ class BigInt_ {
 
 	/* hac 14.61, pp. 608 */
 	public function modInverse(modulus:BigInt_):BigInt_ {
-		#if (lua)
-		trace("moduluse: "+toString1(modulus,10));
-		trace("this: "+toString1(this,10));
-		#end
 		if (modulus.sign() == -1 || modulus.isZero())
 			throw new BigIntException(BigIntError.NEGATIVE_MODULUS);
 		if (equals2Int(modulus, 1))
@@ -469,9 +465,6 @@ class BigInt_ {
 
 		if (!isModulusEven) {
 			// fast odd calculation
-			#if (lua)
-			trace("odd calculation");
-			#end
 			return modInverseOdd(x, y);
 		}
 

@@ -2632,12 +2632,18 @@ class TestBigInt extends Test {
 
 	public function testPrimeNumber():Void
 	{
+		#if lua
+		trace("testPrimeNumber");
+		#end
 		for(i in 0...s_primeNumbers.length) {
 			var b:BigInt = s_primeNumbers[i];
 			var bm:MutableBigInt = s_primeNumbers[i];
 			t(b.isProbablePrime(10));
 			t(bm.isProbablePrime(10));
 		}
+		#if lua
+		trace("s_notPrimeNumbers");
+		#end
 		for(i in 0...s_notPrimeNumbers.length) {
 			var b:BigInt = s_notPrimeNumbers[i];
 			var bm:MutableBigInt = s_notPrimeNumbers[i];
@@ -2749,10 +2755,13 @@ class TestBigInt extends Test {
 	
 	public function testNextProbablePrime():Void
 	{
+		#if lua
+		trace("testNextProbablePrime");
+		#end
 		var a:BigInt;
 		a = "8329132432461";
 		#if lua
-		trace("a: "+a);
+		trace("a: "+(a==null));
 		#end
 		eq("8329132432469",a.nextProbablePrime().toString());
 		a = 269234;
@@ -2802,7 +2811,7 @@ class TestBigInt extends Test {
 		#if lua
 		trace("testBigIntRandomPrime");
 		#end
-		var randomPrimeNumber = BigInt.randomPrime(5,5);
+		var randomPrimeNumber:BigInt = BigInt.randomPrime(5,5);
 		#if (php || python || lua) trace("randomPrimeNumber(5): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(11,5);
