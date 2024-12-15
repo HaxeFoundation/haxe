@@ -570,6 +570,9 @@ class BigInt_ {
 	}
 
 	public static function random(bits:Int32):BigInt_ {
+		#if lua
+		trace("call random("+bits+")");
+		#end
 		if (bits <= 0)
 			return BigInt.ZERO;
 		var r = new MutableBigInt_();
@@ -645,6 +648,9 @@ class BigInt_ {
 		do {
 			do {
 				num = random(this.bitLength());
+				#if lua
+				trace("num: "+num);
+				#end
 			} while (BigIntArithmetic.compare(num, BigInt.ZERO) == 0
 				|| BigIntArithmetic.compare(num, montyRadix) == 0
 				|| BigIntArithmetic.compare(num, minusMontyRadix) == 0
