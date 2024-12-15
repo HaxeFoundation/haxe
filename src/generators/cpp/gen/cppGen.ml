@@ -821,8 +821,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
                   "::Array_obj< " ^ tcpp_to_string value ^ " >::__new"
               | TCppObjC klass -> cpp_class_path_of klass [] ^ "_obj::__new"
               | TCppNativePointer klass -> "new " ^ cpp_class_path_of klass []
-              | TCppValueType (cls, params) when is_extern_value_class cls ->
-                get_extern_value_type_struct cls params
+              | TCppValueType (cls, params) ->
+                get_extern_value_type_boxed cls params |> snd |> Printf.sprintf "new %s"
               | TCppInst (klass, p) when is_native_class klass ->
                   cpp_class_path_of klass p
               | TCppInst (klass, p) -> cpp_class_path_of klass p ^ "_obj::__new"
@@ -923,7 +923,28 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     (* Without this the reference will be set to potentially a reference rvalue, which would break value semantics *)
     | CppSet (CppVarRef (VarLocal (var, ValueType)), rhs) -> (
       cpp_var_name_of var |> Printf.sprintf "_hx_vt_%s = " |> out;
-      gen rhs)
+
+      (* Treat re-assigning a non captured value type here as a special case *)
+      (* By default FuncNew with a value type will generate a boxed version due to the many places boxing can occur *)
+      (* There is only one place we need to deal with re-assigning non captured vars, so do it now *)
+      (match rhs.cppexpr with
+      | CppCall ((FuncNew (TCppValueType (cls, params))), args) when not (has_var_flag var VCaptured) ->
+        get_extern_value_type_struct cls params |> out;
+
+        out "(";
+        let rec print_arg args =
+          match args with
+          | [] ->
+            ()
+          | s::r ->
+            gen s;
+            if List.length r > 0 then out ", ";
+            print_arg r
+        in
+        print_arg args;
+        out ");\n";
+      | _ ->
+        gen rhs))
     | CppSet (lvalue, rvalue) ->
         let close =
           if expr.cpptype = TCppVoid then ""
