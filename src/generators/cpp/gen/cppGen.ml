@@ -1617,9 +1617,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
                 let name            = cpp_var_name_of var in
                 let stack_name      = "_hx_vt_" ^ name in
                 let reference_ident = get_extern_value_type_reference cls params in
-                let spacer          = if ctx.ctx_debug_level > 0 then "            \t" else "" in
                 
-                Printf.sprintf "%s%s %s = %s(%s);\n" spacer reference_ident name reference_ident stack_name |> ctx.ctx_output;
+                Printf.sprintf "%s %s = %s(%s);\n" reference_ident name reference_ident stack_name |> output_i;
               | other ->
                 ())
             closure.close_undeclared;
