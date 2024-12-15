@@ -597,18 +597,22 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
           (match init with
           (* Construct the type on the stack, ::cpp::Struct will forward the passed arguments to the constructor of the underlying type *)
           | Some { cppexpr = CppCall (FuncNew _, args); cpptype = TCppValueType _ } ->
-            out "(";
-            let rec print_arg args =
-              match args with
-              | [] ->
-                ()
-              | s::r ->
-                gen s;
-                if List.length r > 0 then out ", ";
-                print_arg r
-            in
-            print_arg args;
-            out ");\n";
+            (match args with
+            | [] ->
+              out ";\n"
+            | some ->
+              out "(";
+              let rec print_arg args =
+                match args with
+                | [] ->
+                  ()
+                | s::r ->
+                  gen s;
+                  if List.length r > 0 then out ", ";
+                  print_arg r
+              in
+              print_arg some;
+              out ");\n")
           (* Any expression other than a constructor is a copying operation *)
           | Some other ->
             out " = ";
