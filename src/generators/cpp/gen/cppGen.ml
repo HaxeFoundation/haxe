@@ -29,7 +29,7 @@ let type_arg_to_string name default_val arg_type prefix =
   let remap_name, type_str =
     match cpp_type_of arg_type with
     | TCppValueType (cls, params) ->
-      Printf.sprintf "_hxcpp_stack_%s" name, get_extern_value_type_struct cls params
+      Printf.sprintf "_hx_vt_%s" name, get_extern_value_type_struct cls params
     | other ->
       keyword_remap name, tcpp_to_string other
     in
@@ -216,7 +216,7 @@ let cpp_gen_value_struct_references ctx args =
       match cpp_type_of var.v_type with
       | TCppValueType (cls, params) ->
         let name            = cpp_var_name_of var in
-        let stack_name      = "_hxcpp_stack_" ^ name in
+        let stack_name      = "_hx_vt_" ^ name in
         let reference_ident = get_extern_value_type_reference cls params in
         let spacer          = if ctx.ctx_debug_level > 0 then "            \t" else "" in
         
@@ -549,7 +549,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
         let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "" in
 
         if has_var_flag var VCaptured then (
-          let obj_name                     = "_hxcpp_stack_" ^ name in
+          let obj_name                     = "_hx_vt_" ^ name in
           let reference_ident              = get_extern_value_type_reference cls params in
           let boxed_ident, boxed_ident_obj = get_extern_value_type_boxed cls params in
 
@@ -588,7 +588,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
             
           Printf.sprintf "%s\t%s %s = %s(%s)" spacer reference_ident name reference_ident obj_name |> out;)
         else (
-          let stack_name      = "_hxcpp_stack_" ^ name in
+          let stack_name      = "_hx_vt_" ^ name in
           let struct_ident    = get_extern_value_type_struct cls params in
           let reference_ident = get_extern_value_type_reference cls params in
   
@@ -918,7 +918,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     (* If we're assigning to a value type local then we want to assign to the struct placed on the stack *)
     (* Without this the reference will be set to potentially a reference rvalue, which would break value semantics *)
     | CppSet (CppVarRef (VarLocal (var, ValueType)), rhs) -> (
-      cpp_var_name_of var |> Printf.sprintf "_hxcpp_stack_%s = " |> out;
+      cpp_var_name_of var |> Printf.sprintf "_hx_vt_%s = " |> out;
       gen rhs)
     | CppSet (lvalue, rvalue) ->
         let close =
@@ -1053,7 +1053,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
             let name =
               match cpp_type_of var.v_type with
               | TCppValueType (cls, params) ->
-                Printf.sprintf "_hxcpp_stack_%s" name
+                Printf.sprintf "_hx_vt_%s" name
               | other ->
                 name in
 
@@ -1591,7 +1591,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
         let name, str =
           match cpp_type_of var.v_type with
           | TCppValueType (cls, params) ->
-            Printf.sprintf "_hxcpp_stack_%s" name, get_extern_value_type_boxed cls params |> fst
+            Printf.sprintf "_hx_vt_%s" name, get_extern_value_type_boxed cls params |> fst
           | other ->
             name, cpp_macro_var_type_of var in
         out ("," ^ str ^ "," ^ keyword_remap name))
@@ -1611,7 +1611,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
               match cpp_type_of var.v_type with
               | TCppValueType (cls, params) ->
                 let name            = cpp_var_name_of var in
-                let stack_name      = "_hxcpp_stack_" ^ name in
+                let stack_name      = "_hx_vt_" ^ name in
                 let reference_ident = get_extern_value_type_reference cls params in
                 let spacer          = if ctx.ctx_debug_level > 0 then "            \t" else "" in
                 
