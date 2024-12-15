@@ -424,21 +424,38 @@ and tcpp_to_string_suffix suffix tcpp =
     cpp_class_path_of cls params |> Printf.sprintf "::cpp::marshal::Reference< %s >"
 
 and get_extern_value_type cls params =
+  let get_meta_field field =
+    match Meta.get Meta.CppValueType cls.cl_meta with
+    | _, [ (EObjectDecl decls, _) ], _ ->  
+      List.find_opt (fun ((n, _, _), _) -> n = field) decls
+    | _ ->
+      None
+    in
+
   let typeParams =
     match params with
     | [] -> ""
     | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >"
     in
-
-  match Meta.get Meta.CppValueType cls.cl_meta with
-  | _, [ (EObjectDecl decls, _) ], _ ->
-    (match List.find_opt (fun ((n, _, _), _) -> n = "type") decls with
-    | Some (_, (EConst (String (s, _)), _) ) ->
-      s ^ typeParams
+  let namespace =
+    match get_meta_field "namespace" with
+    | Some (_,( EArrayDecl (els), _)) ->
+      els
+      |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
+      |> String.concat "::"
     | _ ->
-      snd cls.cl_path ^ typeParams)
+      cls.cl_path
+      |> fst
+      |> String.concat "::"
+  in
+  let t = match get_meta_field "type" with
+  | Some (_, (EConst (String (s, _)), _) ) ->
+    s ^ typeParams
   | _ ->
     snd cls.cl_path ^ typeParams
+  in
+  
+  Printf.sprintf "::%s::%s" namespace t
 
 and extern_value_type_supports cls flag =
   match Meta.get Meta.CppValueType cls.cl_meta with
