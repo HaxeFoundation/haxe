@@ -24,7 +24,7 @@ class Issue11863 extends Test {
 		var e = C(r);
 		r.f = e;
 		t(checkIdentity(e));
-		var e2 = haxe.Copy.copy(e);
+		var e2 = haxe.runtime.Copy.copy(e);
 		t(checkIdentity(e2));
 	}
 }

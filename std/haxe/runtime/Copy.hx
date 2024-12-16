@@ -1,4 +1,4 @@
-package haxe;
+package haxe.runtime;
 
 import haxe.ds.StringMap;
 import haxe.ds.IntMap;
@@ -223,7 +223,7 @@ class Copy {
 		* boolean values
 		* strings
 		* functions
-		* type and enum references (e.g. `haxe.Copy`, `haxe.ds.Option`)
+		* type and enum references (e.g. `haxe.runtime.Copy`, `haxe.ds.Option`)
 		* instances of Date
 		* enum values without arguments
 
