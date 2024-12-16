@@ -644,11 +644,17 @@ class BigInt_ {
 		var montyRadix:BigInt_ = divMod(arithmeticShiftLeft2(BigInt.ONE, 32 * this.m_count), this).remainder;
 		var minusMontyRadix:BigInt_ = sub2(this, montyRadix);
 		var num:BigInt_;
-		
+		#if lua
+			trace("1) bitLength: "+this.bitLength());
+			trace("1.1) rounds: "+rounds);
+		#end
+		#if lua
+			num = random(this.bitLength());
+		#end
 		do {
 			do {
 				#if lua
-				trace("bitLength: "+this.bitLength());
+				trace("2) bitLength: "+this.bitLength());
 				#end
 				num = random(this.bitLength());
 				#if lua
@@ -671,6 +677,9 @@ class BigInt_ {
 				}
 			}
 			rounds -= 2;
+			#if lua
+				trace("--rounds--: "+rounds);
+			#end
 		} while (rounds >= 0);
 		
 		return true;

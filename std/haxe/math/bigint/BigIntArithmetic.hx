@@ -55,8 +55,8 @@ class BigIntArithmetic {
 	**/
 	public static function compare(a6:BigInt_, b:BigInt_):Int {
 		#if lua
-		trace("______________Compare(b):  "+b);
-		trace("______________Compare(a):  "+a6);
+		trace("______________Compare(b-):  "+b);
+		trace("______________Compare(a+):  "+a6);
 		if (a6 == null)
 			haxe.CallStack.toString(haxe.CallStack.exceptionStack());
 		#end
