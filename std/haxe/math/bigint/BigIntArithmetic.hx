@@ -54,8 +54,12 @@ class BigIntArithmetic {
 		returns 0 (`a == b`).
 	**/
 	public static function compare(a6:BigInt_, b:BigInt_):Int {
+		#if lua
 		trace("______________Compare(b):  "+b);
 		trace("______________Compare(a):  "+a6);
+		if (a6 == null)
+			haxe.CallStack.toString(haxe.CallStack.exceptionStack());
+		#end
 		if (a6 != b) {
 			var c:Int = (a6.sign() & 2) + (b.sign() & 1);
 			switch (c) {

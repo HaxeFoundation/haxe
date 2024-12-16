@@ -647,6 +647,9 @@ class BigInt_ {
 		
 		do {
 			do {
+				#if lua
+				trace("bitLength: "+this.bitLength());
+				#end
 				num = random(this.bitLength());
 				#if lua
 				trace("num: "+num);
