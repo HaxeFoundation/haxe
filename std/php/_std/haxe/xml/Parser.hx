@@ -363,8 +363,7 @@ class Parser {
 			}
 			if (p != start)
 				buf = buf.addSub(str, start, p - start);
-			var str = buf.toString();
-			if (str.length > 0 || nsubs == 0) {
+			if (str != "" || nsubs == 0) {
 				addChild(Xml.createPCData(buf));
 			}
 			return p;
