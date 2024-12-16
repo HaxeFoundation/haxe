@@ -2632,19 +2632,6 @@ class TestBigInt extends Test {
 
 	public function testPrimeNumber():Void
 	{
-		#if lua
-		trace("testPrimeNumber");
-		var i:Int = 35;
-			trace("primeNumber: "+s_primeNumbers[i]);
-			var b:BigInt = s_primeNumbers[i];
-			trace("b: "+b);
-			var bm:MutableBigInt = s_primeNumbers[i];
-			trace("check b ");
-			t(b.isProbablePrime(10));
-			trace("check bm");
-			t(bm.isProbablePrime(10));
-		
-		#else
 		for(i in 0...s_primeNumbers.length) {
 			var b:BigInt = s_primeNumbers[i];
 			var bm:MutableBigInt = s_primeNumbers[i];
@@ -2657,7 +2644,6 @@ class TestBigInt extends Test {
 			f(b.isProbablePrime(10));
 			f(bm.isProbablePrime(10));
 		}
-		#end
 	}
 
 	public function testLowestSetBit():Void
@@ -2792,29 +2778,19 @@ class TestBigInt extends Test {
 	
 	public function testBigIntRandomPrime():Void
 	{
-		#if lua
-		trace("testBigIntRandomPrime");
-		#end
 		var randomPrimeNumber:BigInt = BigInt.randomPrime(5,5);
-		#if (php || python || lua) trace("randomPrimeNumber(5): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(11,5);
-		#if (php || python || lua) trace("randomPrimeNumber(11): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(16,5);
-		#if (php || python || lua) trace("randomPrimeNumber(16): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(32,5);
-		#if (php || python || lua) trace("randomPrimeNumber(32): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(55,5);
-		#if (php || python || lua) trace("randomPrimeNumber(55): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(128,5);
-		#if (php || python || lua) trace("randomPrimeNumber(128): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(156,5);
-		#if (php || python || lua) trace("randomPrimeNumber(156): " + randomPrimeNumber); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 	}
 

@@ -533,13 +533,6 @@ class BigInt_ {
 		if (bits == 2)
 			return ((Math.random() < 0.5) ? BigInt.TWO : BigInt.fromInt(3));
 		var r = new MutableBigInt_();
-		#if lua
-			var bytes = randomBytes(bits);
-			var excessBits = 8 * bytes.length - bits;
-			bytes.set(0, bytes.get(0) | (1 << (7 - excessBits)));
-			bytes.set(bytes.length - 1, bytes.get(bytes.length - 1) | 1);
-			r.setFromBigEndianBytesSigned(bytes);
-		#end
 		do {
 			var bytes = randomBytes(bits);
 			var excessBits = 8 * bytes.length - bits;
@@ -648,9 +641,6 @@ class BigInt_ {
 		var montyRadix:BigInt_ = divMod(arithmeticShiftLeft2(BigInt.ONE, 32 * this.m_count), this).remainder;
 		var minusMontyRadix:BigInt_ = sub2(this, montyRadix);
 		var num:BigInt_;
-		#if lua
-			num = random(this.bitLength());
-		#end
 		do {
 			do {
 				num = random(this.bitLength());
