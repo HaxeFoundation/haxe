@@ -533,6 +533,13 @@ class BigInt_ {
 		if (bits == 2)
 			return ((Math.random() < 0.5) ? BigInt.TWO : BigInt.fromInt(3));
 		var r = new MutableBigInt_();
+		#if lua
+			var bytes = randomBytes(bits);
+			var excessBits = 8 * bytes.length - bits;
+			bytes.set(0, bytes.get(0) | (1 << (7 - excessBits)));
+			bytes.set(bytes.length - 1, bytes.get(bytes.length - 1) | 1);
+			r.setFromBigEndianBytesSigned(bytes);
+		#end
 		do {
 			var bytes = randomBytes(bits);
 			var excessBits = 8 * bytes.length - bits;
@@ -570,9 +577,6 @@ class BigInt_ {
 	}
 
 	public static function random(bits:Int32):BigInt_ {
-		#if lua
-		trace("call random("+bits+")");
-		#end
 		if (bits <= 0)
 			return BigInt.ZERO;
 		var r = new MutableBigInt_();
@@ -645,21 +649,11 @@ class BigInt_ {
 		var minusMontyRadix:BigInt_ = sub2(this, montyRadix);
 		var num:BigInt_;
 		#if lua
-			trace("1) bitLength: "+this.bitLength());
-			trace("1.1) rounds: "+rounds);
-		#end
-		#if lua
 			num = random(this.bitLength());
 		#end
 		do {
 			do {
-				#if lua
-				trace("2) bitLength: "+this.bitLength());
-				#end
 				num = random(this.bitLength());
-				#if lua
-				trace("num: "+num);
-				#end
 			} while (BigIntArithmetic.compare(num, BigInt.ZERO) == 0
 				|| BigIntArithmetic.compare(num, montyRadix) == 0
 				|| BigIntArithmetic.compare(num, minusMontyRadix) == 0
@@ -677,11 +671,7 @@ class BigInt_ {
 				}
 			}
 			rounds -= 2;
-			#if lua
-				trace("--rounds--: "+rounds);
-			#end
 		} while (rounds >= 0);
-		
 		return true;
 	}
 
@@ -820,7 +810,7 @@ class BigInt_ {
 		return montResult;
 	}
 
-	private function squareMonty(a2:Vector<Int32>, x:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32, smallMontyModulus:Bool):Void {
+	private function squareMonty(a:Vector<Int32>, x:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32, smallMontyModulus:Bool):Void {
 		var n:Int, aMax:Int, j:Int, i:Int;
 		var xVal:Int, a0:Int;
 		var x0:Int64, carry:Int64, t:Int64, prod1:Int64, prod2:Int64, xi:Int64, u:Int64;
@@ -836,53 +826,53 @@ class BigInt_ {
 			prod1 = Int64.mul(x0, Int64.make(0, x[j]));
 			prod2 = Int64.mul(u, Int64.make(0, m[j]));
 			carry = Int64.add(carry, Int64.add(Int64.make(0, Int64.shl(prod1, 1).low), Int64.make(0, prod2.low)));
-			a2[j - 1] = carry.low;
+			a[j - 1] = carry.low;
 			carry = Int64.add(Int64.add(Int64.ushr(carry, 32), Int64.ushr(prod2, 32)), Int64.ushr(prod1, 31));
 			j++;
 		}
-		a2[mLen] = Int64.ushr(carry, 32).low;
-		a2[mLen - 1] = carry.low;
+		a[mLen] = Int64.ushr(carry, 32).low;
+		a[mLen - 1] = carry.low;
 		i = 1;
 		while (i < mLen) {
-			a0 = a2[0];
+			a0 = a[0];
 			u = Int64.make(0, Int64.mul(a0, mDash).low);
 			carry = Int64.add(Int64.mul(u, Int64.make(0, m[0])), Int64.make(0, a0));
 			carry = Int64.ushr(carry, 32);
 			j = 1;
 			while (j < i) {
-				carry = Int64.add(carry, Int64.add(Int64.mul(u, Int64.make(0, m[j])), Int64.make(0, a2[j])));
-				a2[j - 1] = carry.low;
+				carry = Int64.add(carry, Int64.add(Int64.mul(u, Int64.make(0, m[j])), Int64.make(0, a[j])));
+				a[j - 1] = carry.low;
 				carry = Int64.ushr(carry, 32);
 				j++;
 			}
 			xi = Int64.make(0, x[i]);
 			prod1 = Int64.mul(xi, xi);
 			prod2 = Int64.mul(u, Int64.make(0, m[i]));
-			carry += Int64.add(Int64.add(Int64.make(0, prod1.low), Int64.make(0, prod2.low)), Int64.make(0, a2[i]));
-			a2[i - 1] = carry.low;
+			carry += Int64.add(Int64.add(Int64.make(0, prod1.low), Int64.make(0, prod2.low)), Int64.make(0, a[i]));
+			a[i - 1] = carry.low;
 			carry = Int64.add(Int64.add(Int64.ushr(carry, 32), Int64.ushr(prod1, 32)), Int64.ushr(prod2, 32));
 			j = i + 1;
 			while (j < n) {
 				prod1 = Int64.mul(xi, Int64.make(0, x[j]));
 				prod2 = Int64.mul(u, Int64.make(0, m[j]));
-				carry = Int64.add(carry, Int64.add(Int64.add(Int64.make(0, Int64.shl(prod1, 1).low), Int64.make(0, prod2.low)), Int64.make(0, a2[j])));
-				a2[j - 1] = carry.low;
+				carry = Int64.add(carry, Int64.add(Int64.add(Int64.make(0, Int64.shl(prod1, 1).low), Int64.make(0, prod2.low)), Int64.make(0, a[j])));
+				a[j - 1] = carry.low;
 				carry = Int64.add(Int64.add(Int64.ushr(carry, 32), Int64.ushr(prod1, 31)), Int64.ushr(prod2, 32));
 				j++;
 			}
-			carry = Int64.add(carry, Int64.make(0, a2[n]));
-			a2[n] = Int64.ushr(carry, 32).low;
-			a2[n - 1] = carry.low;
+			carry = Int64.add(carry, Int64.make(0, a[n]));
+			a[n] = Int64.ushr(carry, 32).low;
+			a[n - 1] = carry.low;
 			i++;
 		}
 
-		if (!smallMontyModulus && compareMonty(a2, m) >= 0) {
-			subtractMonty(a2,m);
+		if (!smallMontyModulus && compareMonty(a, m) >= 0) {
+			subtractMonty(a,m);
 		}
-		Vector.blit(a2, 0, x, 0, n);
+		Vector.blit(a, 0, x, 0, n);
 	}
 
-	private function multiplyMonty(a3:Vector<Int32>, x:Vector<Int32>, y:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32, smallMontyModulus:Bool):Void {
+	private function multiplyMonty(a:Vector<Int32>, x:Vector<Int32>, y:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32, smallMontyModulus:Bool):Void {
 		var n:Int, aMax:Int, j:Int, i:Int;
 		var a0:Int64, y0:Int64;
 		var carry:Int64, t:Int64, prod1:Int64, prod2:Int64, xi:Int64, u:Int64;
@@ -890,12 +880,12 @@ class BigInt_ {
 		y0 = Int64.make(0, y[0]);
 		i = 0;
 		while (i <= n) {
-			a3[i] = 0;
+			a[i] = 0;
 			i++;
 		}
 		i = 0;
 		while (i < n) {
-			a0 = Int64.make(0, a3[0]);
+			a0 = Int64.make(0, a[0]);
 			xi = Int64.make(0, x[i]);
 			prod1 = Int64.mul(xi, y0);
 			carry = Int64.add(Int64.make(0, prod1.low), a0);
@@ -907,21 +897,21 @@ class BigInt_ {
 			while (j <= (n - 1)) {
 				prod1 = Int64.mul(xi, Int64.make(0, y[j]));
 				prod2 = Int64.mul(u, Int64.make(0, m[j]));
-				carry = Int64.add(Int64.add(Int64.make(0, prod1.low), Int64.make(0, prod2.low)), Int64.add(Int64.make(0, a3[j]), carry));
-				a3[j - 1] = carry.low;
+				carry = Int64.add(Int64.add(Int64.make(0, prod1.low), Int64.make(0, prod2.low)), Int64.add(Int64.make(0, a[j]), carry));
+				a[j - 1] = carry.low;
 				carry = Int64.add(Int64.add(Int64.ushr(carry, 32), Int64.ushr(prod1, 32)), Int64.ushr(prod2, 32));
 				j++;
 			}
-			carry = Int64.add(carry, Int64.make(0, a3[n]));
-			a3[n] = Int64.ushr(carry, 32).low;
-			a3[n - 1] = carry.low;
+			carry = Int64.add(carry, Int64.make(0, a[n]));
+			a[n] = Int64.ushr(carry, 32).low;
+			a[n - 1] = carry.low;
 			i++;
 		}
 
-		if (!smallMontyModulus && compareMonty(a3, m) >= 0) {
-			subtractMonty(a3,m);
+		if (!smallMontyModulus && compareMonty(a, m) >= 0) {
+			subtractMonty(a,m);
 		}
-		Vector.blit(a3, 0, x, 0, n);
+		Vector.blit(a, 0, x, 0, n);
 	}
 
 	private function montgomeryReduce(x:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32):Void {
@@ -1233,156 +1223,156 @@ class BigInt_ {
 	//-----------------------------------------------------------------------
 
 	@:noCompletion
-	private static inline function negate1(a1:BigInt_):BigInt_ {
+	private static inline function negate1(a:BigInt_):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.negate(r, a1);
+		BigIntArithmetic.negate(r, a);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function equals2Int(a15:BigInt_, b:Int):Bool {
-		return a15.equalsInt(b);
+	private static inline function equals2Int(a:BigInt_, b:Int):Bool {
+		return a.equalsInt(b);
 	}
 
 	@:noCompletion
-	private static inline function equals2(a16:BigInt_, b:BigInt_):Bool {
-		return a16.equals(b);
+	private static inline function equals2(a:BigInt_, b:BigInt_):Bool {
+		return a.equals(b);
 	}
 
 	@:noCompletion
-	private static inline function addInt2(a17:BigInt_, b:Int):BigInt_ {
+	private static inline function addInt2(a:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.addInt(r, a17, b);
+		BigIntArithmetic.addInt(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function add2(a18:BigInt_, b:BigInt_):BigInt_ {
+	private static inline function add2(a:BigInt_, b:BigInt_):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.add(r, a18, b);
+		BigIntArithmetic.add(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function subInt2(a19:BigInt_, b:Int):BigInt_ {
+	private static inline function subInt2(a:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.subtractInt(r, a19, b);
+		BigIntArithmetic.subtractInt(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function sub2(a20:BigInt_, b:BigInt_):BigInt_ {
+	private static inline function sub2(a:BigInt_, b:BigInt_):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.subtract(r, a20, b);
+		BigIntArithmetic.subtract(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function multiplyInt2(a21:BigInt_, b:Int):BigInt_ {
+	private static inline function multiplyInt2(a:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.multiplyInt(r, a21, b);
+		BigIntArithmetic.multiplyInt(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function multiply2(a22:BigInt_, b:BigInt_):BigInt_ {
+	private static inline function multiply2(a:BigInt_, b:BigInt_):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.multiply(r, a22, b);
+		BigIntArithmetic.multiply(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function divideInt2(a23:BigInt_, b:Int):BigInt_ {
+	private static inline function divideInt2(a:BigInt_, b:Int):BigInt_ {
 		var q = new MutableBigInt_();
-		BigIntArithmetic.divideInt(a23, b, q);
+		BigIntArithmetic.divideInt(a, b, q);
 		return q;
 	}
 
 	@:noCompletion
-	private static inline function divide2(a24:BigInt_, b:BigInt_):BigInt_ {
+	private static inline function divide2(a:BigInt_, b:BigInt_):BigInt_ {
 		var q = new MutableBigInt_();
-		BigIntArithmetic.divide(a24, b, q, null);
+		BigIntArithmetic.divide(a, b, q, null);
 		return q;
 	}
 
 	@:noCompletion
-	private static inline function modulusInt2(a25:BigInt_, b:Int):Int {
+	private static inline function modulusInt2(a:BigInt_, b:Int):Int {
 		var q = new MutableBigInt_();
-		return BigIntArithmetic.divideInt(a25, b, q);
+		return BigIntArithmetic.divideInt(a, b, q);
 	}
 
 	@:noCompletion
-	private static inline function modulus2(a26:BigInt_, b:BigInt_):BigInt_ {
+	private static inline function modulus2(a:BigInt_, b:BigInt_):BigInt_ {
 		var q = new MutableBigInt_();
 		var r = new MutableBigInt_();
-		BigIntArithmetic.divide(a26, b, q, r);
+		BigIntArithmetic.divide(a, b, q, r);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function arithmeticShiftLeft2(a4:BigInt_, b:Int):BigInt_ {
+	private static inline function arithmeticShiftLeft2(a:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.arithmeticShiftLeft(r, a4, b);
+		BigIntArithmetic.arithmeticShiftLeft(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function arithmeticShiftRight2(a5:BigInt_, b:Int):BigInt_ {
+	private static inline function arithmeticShiftRight2(a:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
-		BigIntArithmetic.arithmeticShiftRight(r, a5, b);
+		BigIntArithmetic.arithmeticShiftRight(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function sign1(a27:BigInt_):Int {
-		return a27.sign();
+	private static inline function sign1(a:BigInt_):Int {
+		return a.sign();
 	}
 
 	@:noCompletion
-	private static inline function isZero1(a28:BigInt_):Bool {
-		return a28.isZero();
+	private static inline function isZero1(a:BigInt_):Bool {
+		return a.isZero();
 	}
 
 	@:noCompletion
-	private static inline function isNegative1(a29:BigInt_):Bool {
-		return a29.isNegative();
+	private static inline function isNegative1(a:BigInt_):Bool {
+		return a.isNegative();
 	}
 
 	@:noCompletion
-	private static inline function isPositive1(a30:BigInt_):Bool {
-		return a30.isPositive();
+	private static inline function isPositive1(a:BigInt_):Bool {
+		return a.isPositive();
 	}
 
 	@:noCompletion
-	private static inline function isOdd1(a31:BigInt_):Bool {
-		return a31.isOdd();
+	private static inline function isOdd1(a:BigInt_):Bool {
+		return a.isOdd();
 	}
 
 	@:noCompletion
-	private static inline function isEven1(a32:BigInt_):Bool {
-		return a32.isEven();
+	private static inline function isEven1(a:BigInt_):Bool {
+		return a.isEven();
 	}
 
 	@:noCompletion
-	private static inline function toString1(a33:BigInt_, radix:Int):String {
-		if ((radix == 10 ) || ( radix <2 || radix >36 )) return a33.toString();
-		if (radix == 16 ) return a33.toHex();
-		return a33.toBase(radix);
+	private static inline function toString1(a:BigInt_, radix:Int):String {
+		if ((radix == 10 ) || ( radix <2 || radix >36 )) return a.toString();
+		if (radix == 16 ) return a.toHex();
+		return a.toBase(radix);
 	}
 
 	@:noCompletion
-	private static inline function toHex1(a34:BigInt_):String {
-		return a34.toHex();
+	private static inline function toHex1(a:BigInt_):String {
+		return a.toHex();
 	}
 
 	@:noCompletion
-	private static inline function toBytes1(a35:BigInt_):Bytes {
-		return a35.toBytes();
+	private static inline function toBytes1(a:BigInt_):Bytes {
+		return a.toBytes();
 	}
 
 	@:noCompletion
-	private static inline function toInts1(a36:BigInt_, v:Vector<Int>):Int {
-		return a36.toInts(v);
+	private static inline function toInts1(a:BigInt_, v:Vector<Int>):Int {
+		return a.toInts(v);
 	}
 
 	static final BitLengthTable:Array<Int> = [
