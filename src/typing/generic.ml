@@ -505,7 +505,8 @@ let type_generic_function ctx fa fcc with_type p =
 				| Meta.Generic -> false
 				| _ -> true
 			) cf.cf_meta in
-			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: meta;
+			let p_zero = mk_zero_range_pos p in
+			cf2.cf_meta <- (Meta.NoCompletion,[],p_zero) :: (Meta.NoUsing,[],p_zero) :: (Meta.GenericInstance,[],p_zero) :: meta;
 			cf2.cf_params <- params
 		in
 		let mk_cf2 name =

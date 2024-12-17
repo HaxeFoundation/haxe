@@ -1995,7 +1995,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EUntyped e ->
 		let old = ctx.f.untyped in
 		ctx.f.untyped <- true;
-		if not (Meta.has Meta.HasUntyped ctx.f.curfield.cf_meta) then ctx.f.curfield.cf_meta <- (Meta.HasUntyped,[],p) :: ctx.f.curfield.cf_meta;
+		if not (Meta.has Meta.HasUntyped ctx.f.curfield.cf_meta) then ctx.f.curfield.cf_meta <- (Meta.HasUntyped,[],mk_zero_range_pos p) :: ctx.f.curfield.cf_meta;
 		let e = type_expr ctx e with_type in
 		ctx.f.untyped <- old;
 		{

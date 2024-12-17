@@ -364,7 +364,7 @@ let add_meta_field com t = match t with
 				ncls.cl_ordered_statics <- cf :: ncls.cl_ordered_statics;
 				ncls.cl_statics <- PMap.add cf.cf_name cf ncls.cl_statics;
 				com.types <- com.types @ [ TClassDecl ncls ];
-				c.cl_meta <- (Meta.Custom ":hasMetadata",[],e.epos) :: c.cl_meta
+				c.cl_meta <- (Meta.Custom ":hasMetadata",[],mk_zero_range_pos e.epos) :: c.cl_meta
 			end else begin
 				c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
 				c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics
