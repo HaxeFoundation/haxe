@@ -1246,8 +1246,10 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 		if fctx.is_inline then invalid_modifier_combination fctx ctx.com fctx "dynamic" "inline" p;
 		if fctx.is_abstract_member then invalid_modifier ctx.com fctx "dynamic" "method of abstract" p;
 	end;
-	let is_override = Option.is_some fctx.override in
-	if (is_override && fctx.is_static) then invalid_modifier_combination fctx ctx.com fctx "override" "static" p;
+	if Option.is_some fctx.override then begin
+		if fctx.is_static then invalid_modifier_combination fctx ctx.com fctx "override" "static" p;
+		add_class_field_flag cf CfOverride;
+	end;
 
 	ctx.type_params <- params @ ctx.type_params;
 	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in
