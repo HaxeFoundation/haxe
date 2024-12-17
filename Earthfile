@@ -61,15 +61,12 @@ devcontainer:
         && add-apt-repository ppa:haxe/ocaml \
         && apt-get install -qqy --no-install-recommends \
             ocaml-nox \
-            camlp5 \
             opam \
             libpcre2-dev \
             zlib1g-dev \
             libgtk2.0-dev \
             libmbedtls-dev \
             ninja-build \
-            libstring-shellquote-perl \
-            libipc-system-simple-perl \
         #
         # Clean up
         && apt-get autoremove -y \

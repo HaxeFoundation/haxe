@@ -1,5 +1,7 @@
 import haxe.display.Display;
 import haxe.display.Position.Range;
+import haxe.display.Protocol;
+import haxe.Json;
 import utest.Assert;
 import Types;
 
@@ -10,6 +12,13 @@ class RpcDisplayTestCase implements utest.ITest {
 	var ctx:RpcDisplayTestContext;
 
 	public function new() {}
+
+	@:timeout(3000)
+	public function setup() {
+		var methodArgs = {method: Methods.ResetCache, id: 1, params: {}};
+		var args = ['--display', Json.stringify(methodArgs)];
+		BaseDisplayTestContext.runHaxe(args);
+	}
 
 	// api
 	inline function pos(name)

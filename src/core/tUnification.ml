@@ -100,6 +100,12 @@ module Monomorph = struct
 	let add_modifier m modi =
 		m.tm_modifiers <- modi :: m.tm_modifiers
 
+	let has_modifier m f =
+		List.exists f m.tm_modifiers
+
+	let is_dynamic m =
+		has_modifier m (function MDynamic -> true | _ -> false)
+
 	(* constraining *)
 
 	let add_up_constraint m ((t,name) as constr) =
@@ -159,7 +165,7 @@ module Monomorph = struct
 		in
 		List.iter check m.tm_down_constraints;
 		List.iter (function
-			| MNullable _ ->
+			| MNullable _ | MDynamic ->
 				()
 			| MOpenStructure ->
 				is_open := true
@@ -231,7 +237,7 @@ module Monomorph = struct
 		(* assert(m.tm_type = None); *) (* TODO: should be here, but matcher.ml does some weird bind handling at the moment. *)
 		let t = List.fold_left (fun t modi -> match modi with
 			| MNullable f -> f t
-			| MOpenStructure -> t
+			| MOpenStructure | MDynamic -> t
 		) t m.tm_modifiers in
 		m.tm_type <- Some t;
 		m.tm_down_constraints <- [];
@@ -286,7 +292,8 @@ module Monomorph = struct
 			let constraints = classify_down_constraints m in
 			match constraints with
 			| CUnknown ->
-				()
+				if is_dynamic m then
+					do_bind m t_dynamic
 			| CTypes [(t,_)] ->
 				(* TODO: silently not binding doesn't seem correct, but it's likely better than infinite recursion *)
 				if get_recursion t = None then do_bind m t;
@@ -372,9 +379,11 @@ let link uctx e a b =
 	(* tell is already a ~= b *)
 	if loop b then
 		(follow b) == a
-	else if b == t_dynamic then
+	else if b == t_dynamic then begin
+		if not (Monomorph.is_dynamic e) then
+			Monomorph.add_modifier e MDynamic;
 		true
-	else begin
+	end else begin
 		Monomorph.bind e b;
 		true
 	end

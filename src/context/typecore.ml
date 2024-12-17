@@ -374,7 +374,7 @@ let unify_min_for_type_source ctx el src = (!unify_min_for_type_source_ref) ctx 
 
 let spawn_monomorph' ctx p =
 	let mono = Monomorph.create () in
-	ctx.monomorphs.perfunction <- (mono,p) :: ctx.monomorphs.perfunction;
+	ctx.e.monomorphs.perfunction <- (mono,p) :: ctx.e.monomorphs.perfunction;
 	mono
 
 let spawn_monomorph ctx p =
@@ -503,19 +503,9 @@ let make_pass ctx f = f
 let enter_field_typing_pass g info =
 	flush_pass g PConnectField info
 
-let make_lazy ?(force=true) ctx t_proc f where =
-	let r = ref (lazy_available t_dynamic) in
-	r := lazy_wait (fun() ->
-		try
-			r := lazy_processing t_proc;
-			let t = f r in
-			r := lazy_available t;
-			t
-		with
-			| Error e ->
-				raise (Fatal_error e)
-	);
-	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
+let make_lazy ctx t_proc f where =
+	let r = make_unforced_lazy t_proc f where in
+	delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
 
 let is_removable_field com f =
@@ -893,19 +883,19 @@ let make_where ctx where =
 	let inf = ctx_pos ctx in
 	where ^ " (" ^ String.concat "." inf ^ ")",inf
 
-let make_lazy ?(force=true) ctx t f (where:string) =
+let make_lazy ctx t f (where:string) =
 	let r = ref (lazy_available t_dynamic) in
 	r := lazy_wait (make_pass ~inf:(make_where ctx where) ctx (fun() ->
 		try
 			r := lazy_processing t;
-			let t = f r in
+			let t = f () in
 			r := lazy_available t;
 			t
 		with
 			| Error e ->
 				raise (Fatal_error e)
 	));
-	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
+	delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
 
 *)

@@ -33,8 +33,8 @@ let save_field_state ctx =
 		ctx.f.locals <- locals;
 	)
 
-let type_function_params ctx fd host fname p =
-	Typeload.type_type_params ctx host ([],fname) p fd.f_params
+let type_function_params ctx fd host fname =
+	Typeload.type_type_params ctx host ([],fname) fd.f_params
 
 let type_function ctx (args : function_arguments) ret e do_display p =
 	ctx.e.ret <- ret;
@@ -174,8 +174,8 @@ let add_constructor ctx_c c force_constructor p =
 		cf.cf_kind <- cfsup.cf_kind;
 		cf.cf_params <- cfsup.cf_params;
 		cf.cf_meta <- List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
-		let t = spawn_monomorph ctx_c.e p in
-		let r = make_lazy ctx_c.g t (fun r ->
+		let t = spawn_monomorph ctx_c p in
+		let r = make_lazy ctx_c.g t (fun () ->
 			let ctx = TyperManager.clone_for_field ctx_c cf cf.cf_params in
 			ignore (follow cfsup.cf_type); (* make sure it's typed *)
 			List.iter (fun cf -> ignore (follow cf.cf_type)) cf.cf_overloads;

@@ -595,7 +595,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				with Exit ->
 					display_error ctx.com (StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i)) pfield
 		end;
-		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx.e p) p)
+		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx p) p)
 
 let type_field_default_cfg = type_field TypeFieldConfig.default
 

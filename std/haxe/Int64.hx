@@ -439,7 +439,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	**/
 	@:op(A >>> B) public static inline function ushr(a:Int64, b:Int):Int64 {
 		b &= 63;
-		return if (b == 0) a.copy() else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b)); else make(0, a.high >>> (b - 32));
+		return if (b == 0) a.copy() else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b)); else make(0, clamp(a.high >>> (b - 32)));
 	}
 
 	public var high(get, never):Int32;
@@ -457,6 +457,29 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	private inline function set_low(x)
 		return this.low = x;
+		
+	#if php
+	static var extraBits:Int = php.Const.PHP_INT_SIZE * 8 - 32;
+	#end
+
+	#if !lua
+	inline
+	#end
+	static function clamp(x:Int):Int {
+		// force to-int conversion on platforms that require it
+		#if js
+		return x | 0;
+		#elseif php
+		// we might be on 64-bit php, so sign extend from 32-bit
+		return (x << extraBits) >> extraBits;
+		#elseif python
+		return (python.Syntax.code("{0} % {1}", (x + python.Syntax.opPow(2, 31)), python.Syntax.opPow(2, 32)) : Int) - python.Syntax.opPow(2, 31);
+		#elseif lua
+		return lua.Boot.clampInt32(x);
+		#else
+		return x;
+		#end
+	}
 }
 
 /**

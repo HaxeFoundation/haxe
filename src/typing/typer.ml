@@ -40,7 +40,7 @@ let mono_or_dynamic ctx with_type p = match with_type with
 	| WithType.NoValue ->
 		t_dynamic
 	| Value _ | WithType _ ->
-		spawn_monomorph ctx.e p
+		spawn_monomorph ctx p
 
 let get_iterator_param t =
 	match follow t with
@@ -144,7 +144,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 let rec unify_min_raise ctx (el:texpr list) : t =
 	let basic = ctx.com.basic in
 	match el with
-	| [] -> spawn_monomorph ctx.e null_pos
+	| [] -> spawn_monomorph ctx null_pos
 	| [e] -> e.etype
 	| _ ->
 		let rec chk_null e = is_null e.etype || is_explicit_null e.etype ||
@@ -172,7 +172,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 				with Unify_error _ ->
 					true, t
 		in
-		let has_error, t = loop (spawn_monomorph ctx.e null_pos) el in
+		let has_error, t = loop (spawn_monomorph ctx null_pos) el in
 		if not has_error then
 			t
 		else try
@@ -394,7 +394,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		AKExpr (mk (TConst TSuper) t p)
 	| "null" ->
 		let acc =
-			let tnull () = ctx.t.tnull (spawn_monomorph ctx.e p) in
+			let tnull () = ctx.t.tnull (spawn_monomorph ctx p) in
 			let t = match with_type with
 				| WithType.WithType(t,_) ->
 					begin match follow t with
@@ -1140,11 +1140,11 @@ and type_map_declaration ctx e1 el with_type p =
 			| TInst({cl_path=["haxe";"ds"],"IntMap"},[tv]) -> ctx.t.tint,tv,true
 			| TInst({cl_path=["haxe";"ds"],"StringMap"},[tv]) -> ctx.t.tstring,tv,true
 			| TInst({cl_path=["haxe";"ds"],("ObjectMap" | "EnumValueMap")},[tk;tv]) -> tk,tv,true
-			| _ -> spawn_monomorph ctx.e p,spawn_monomorph ctx.e p,false
+			| _ -> spawn_monomorph ctx p,spawn_monomorph ctx p,false
 		in
 		match with_type with
 		| WithType.WithType(t,_) -> get_map_params t
-		| _ -> (spawn_monomorph ctx.e p,spawn_monomorph ctx.e p,false)
+		| _ -> (spawn_monomorph ctx p,spawn_monomorph ctx p,false)
 	in
 	let keys = Hashtbl.create 0 in
 	let check_key e_key =
@@ -1206,7 +1206,7 @@ and type_map_declaration ctx e1 el with_type p =
 
 and type_local_function ctx_from kind f with_type p =
 	let name,inline = match kind with FKNamed (name,inline) -> Some name,inline | _ -> None,false in
-	let params = TypeloadFunction.type_function_params ctx_from f TPHLocal (match name with None -> "localfun" | Some (n,_) -> n) p in
+	let params = TypeloadFunction.type_function_params ctx_from f TPHLocal (match name with None -> "localfun" | Some (n,_) -> n) in
 	let curfun = match ctx_from.e.curfun with
 		| FunStatic -> FunStatic
 		| FunMemberAbstract
@@ -1435,7 +1435,7 @@ and type_array_decl ctx el with_type p =
 		mk (TArrayDecl el) (ctx.t.tarray t) p)
 
 and type_array_comprehension ctx e with_type p =
-	let v = gen_local ctx (spawn_monomorph ctx.e p) p in
+	let v = gen_local ctx (spawn_monomorph ctx p) p in
 	let ev = mk (TLocal v) v.v_type p in
 	let e_ref = snd (store_typed_expr ctx.com ev p) in
 	let et = ref (EConst(Ident "null"),p) in
@@ -1997,7 +1997,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		}
 	| ECast (e,None) ->
 		let e = type_expr ctx e WithType.value in
-		mk (TCast (e,None)) (spawn_monomorph ctx.e p) p
+		mk (TCast (e,None)) (spawn_monomorph ctx p) p
 	| ECast (e, Some t) ->
 		type_cast ctx e t p
 	| EDisplay (e,dk) ->

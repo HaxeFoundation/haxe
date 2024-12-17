@@ -440,6 +440,7 @@ type hxb_writer = {
 	mutable wrote_local_type_param : bool;
 	mutable needs_local_context : bool;
 	unbound_ttp : (typed_type_param,unit) IdentityPool.t;
+	unclosed_mono : (tmono,unit) IdentityPool.t;
 	t_instance_chunk : Chunk.t;
 }
 
@@ -1197,7 +1198,19 @@ module HxbWriter = struct
 			| TInst ({cl_path = ([],"String")},[]) ->
 				Chunk.write_u8 writer.chunk 104;
 			| TMono r ->
-				Monomorph.close r;
+				(try Monomorph.close r with TUnification.Unify_error e ->
+					try ignore(IdentityPool.get writer.unclosed_mono r) with Not_found -> begin
+						ignore(IdentityPool.add writer.unclosed_mono r ());
+
+						let p = file_pos (Path.UniqueKey.lazy_path writer.current_module.m_extra.m_file) in
+						let msg = Printf.sprintf
+							"Error while handling unclosed monomorph:\n%s\n\n%s"
+								(Error.error_msg (Unify e))
+								"Unclosed monomorph should not reach hxb writer, please submit an issue at https://github.com/HaxeFoundation/haxe/issues/new"
+						in
+						writer.warn WUnclosedMonomorph msg p
+					end;
+				);
 				begin match r.tm_type with
 				| None ->
 					Chunk.write_u8 writer.chunk 0;
@@ -2338,6 +2351,7 @@ let create config string_pool warn anon_id =
 		wrote_local_type_param = false;
 		needs_local_context = false;
 		unbound_ttp = IdentityPool.create ();
+		unclosed_mono = IdentityPool.create ();
 		t_instance_chunk = Chunk.create EOM cp 32;
 	}
 
