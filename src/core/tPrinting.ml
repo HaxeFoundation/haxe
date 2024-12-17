@@ -30,7 +30,16 @@ let s_module_type_kind = function
 
 let show_mono_ids = true
 
-let rec s_type ctx t =
+let rec s_mono_constraint_kind s_type constr =
+	let rec loop = function
+		| CUnknown -> ""
+		| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type t) tl)
+		| CStructural(fields,_) -> s_type (mk_anon ~fields (ref Closed))
+		| CMixed l -> String.concat " & " (List.map loop l)
+	in
+	loop constr
+
+and s_type ctx t =
 	match t with
 	| TMono r ->
 		(match r.tm_type with
@@ -44,7 +53,7 @@ let rec s_type ctx t =
 				let s = s ^ extra in
 				List.fold_left (fun s modi -> match modi with
 					| MNullable _ -> Printf.sprintf "Null<%s>" s
-					| MOpenStructure -> s
+					| MOpenStructure | MDynamic -> s
 				) s r.tm_modifiers
 			in
 			begin try
@@ -54,13 +63,7 @@ let rec s_type ctx t =
 				let id = List.length !ctx in
 				ctx := (t,id) :: !ctx;
 				let s_const =
-					let rec loop = function
-					| CUnknown -> ""
-					| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
-					| CStructural(fields,_) -> s_type ctx (mk_anon ~fields (ref Closed))
-					| CMixed l -> String.concat " & " (List.map loop l)
-					in
-					let s = loop (!monomorph_classify_constraints_ref r) in
+					let s = s_mono_constraint_kind (s_type ctx) (!monomorph_classify_constraints_ref r) in
 					if s = "" then s else " : " ^ s
 				in
 				print_name id s_const

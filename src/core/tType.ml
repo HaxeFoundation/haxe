@@ -101,6 +101,7 @@ and tmono_constraint_kind =
 and tmono_modifier =
 	| MNullable of (t -> t)
 	| MOpenStructure
+	| MDynamic (* There was a unificaiton against Dynamic, which didn't bind the mono *)
 
 and tlazy =
 	| LAvailable of t

@@ -188,7 +188,7 @@ module BetterErrors = struct
 				let name = Printf.sprintf "Unknown<%d>" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n) in
 				List.fold_left (fun s modi -> match modi with
 					| MNullable _ -> Printf.sprintf "Null<%s>" s
-					| MOpenStructure -> s
+					| MOpenStructure | MDynamic -> s
 				) name r.tm_modifiers
 			| Some t ->
 				s_type ctx t)
