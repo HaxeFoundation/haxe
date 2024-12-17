@@ -2356,6 +2356,10 @@ let macro_api ccom get_api =
 			] in
 			location
 		);
+		"position_to_zero_range", vfun1 (fun p ->
+			let p = decode_pos p in
+			encode_pos (mk_zero_range_pos p)
+		);
 		"on_null_safety_report", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
 			(ccom()).callbacks#add_null_safety_report (fun (errors:(string*pos) list) ->
