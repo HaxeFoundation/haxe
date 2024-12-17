@@ -2779,18 +2779,25 @@ class TestBigInt extends Test {
 	public function testBigIntRandomPrime():Void
 	{
 		var randomPrimeNumber:BigInt = BigInt.randomPrime(5,5);
+		#if (php || python) trace("randomPrimeNumber(5): " + randomPrimeNumber.toString()); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(11,5);
+		#if (php || python) trace("randomPrimeNumber(11): " + randomPrimeNumber.toString()); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(16,5);
+		#if (php || python) trace("randomPrimeNumber(16): " + randomPrimeNumber.toString()); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(32,5);
+		#if (php || python) trace("randomPrimeNumber(32): " + randomPrimeNumber.toString()); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(55,5);
+		#if (php || python) trace("randomPrimeNumber(55): " + randomPrimeNumber.toString()); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(128,5);
+		#if (php || python) trace("randomPrimeNumber(128): " + randomPrimeNumber.toString()); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(156,5);
+		#if (php || python) trace("randomPrimeNumber(156): " + randomPrimeNumber.toString()); #end
 		t(randomPrimeNumber.isProbablePrime(5));
 	}
 
