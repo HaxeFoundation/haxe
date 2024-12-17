@@ -220,7 +220,7 @@ let mark_switch_break_loops e =
 				let ret = Type.map_expr run e in
 			num := old_num;
 			ret
-		| TWhile _ | TFor _ ->
+		| TWhile _ ->
 			let last_switch = !in_switch in
 			let last_found = !did_found in
 			let last_num = !cur_num in
@@ -436,26 +436,6 @@ let iter_expressions fl mt =
 		(match c.cl_constructor with None -> () | Some cf -> field cf)
 	| _ ->
 		()
-
-module ForRemap = struct
-	let apply ctx e =
-		let rec loop e = match e.eexpr with
-		| TFor(v,e1,e2) ->
-			let e1 = loop e1 in
-			let e2 = loop e2 in
-			let iterator = ForLoop.IterationKind.of_texpr ctx e1 (ForLoop.get_unroll_params_t ctx e2) e.epos in
-			let restore = save_locals ctx in
-			let e = ForLoop.IterationKind.to_texpr ctx v iterator e2 e.epos in
-			restore();
-			begin match e.eexpr with
-			| TFor _ -> for_remap ctx.com.basic v e1 e2 e.epos
-			| _ -> e
-			end
-		| _ ->
-			Type.map_expr loop e
-		in
-		loop e
-end
 
 open FilterContext
 
@@ -707,7 +687,6 @@ let run tctx ectx main before_destruction =
 	NullSafety.run com new_types;
 	(* PASS 1: general expression filters *)
 	let filters = [
-		"ForRemap",ForRemap.apply;
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;

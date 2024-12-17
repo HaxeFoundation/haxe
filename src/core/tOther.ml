@@ -143,9 +143,6 @@ module TExprToExpr = struct
 			and eo = eopt eo in
 			EVars ([mk_evar ~final ?t ?eo ~meta:v.v_meta (v.v_name,v.v_pos)])
 		| TBlock el -> EBlock (List.map convert_expr el)
-		| TFor (v,it,e) ->
-			let ein = (EBinop (OpIn,(EConst (Ident v.v_name),it.epos),convert_expr it),it.epos) in
-			EFor (ein,convert_expr e)
 		| TIf (e,e1,e2) -> EIf (convert_expr e,convert_expr e1,eopt e2)
 		| TWhile (e1,e2,flag) -> EWhile (convert_expr e1, convert_expr e2, flag)
 		| TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->

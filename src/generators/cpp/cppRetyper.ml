@@ -1081,13 +1081,6 @@ let expression ctx request_type function_args function_type expression_tree forI
             | Spread -> die ~p:expr.epos "Unexpected spread operator" __LOC__
           in
           (reference, cpp_type_of expr.etype)
-      | TFor (v, init, block) ->
-          let old_declarations = Hashtbl.copy !declarations in
-          Hashtbl.add !declarations v.v_name ();
-          let init = retype (cpp_type_of v.v_type) init in
-          let block = retype TCppVoid (mk_block block) in
-          declarations := old_declarations;
-          (CppFor (v, init, block), TCppVoid)
       | TWhile (e1, e2, flag) ->
           let condition = retype (TCppScalar "bool") e1 in
           let close = begin_loop () in

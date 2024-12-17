@@ -17,7 +17,6 @@ let iter f e =
 		()
 	| TArray (e1,e2)
 	| TBinop (_,e1,e2)
-	| TFor (_,e1,e2)
 	| TWhile (e1,e2,_) ->
 		f e1;
 		f e2;
@@ -66,7 +65,7 @@ let check_expr predicate e =
 	match e.eexpr with
 		| TConst _ | TLocal _ | TBreak | TContinue | TTypeExpr _ | TIdent _ ->
 			false
-		| TArray (e1,e2) | TBinop (_,e1,e2) | TFor (_,e1,e2) | TWhile (e1,e2,_) ->
+		| TArray (e1,e2) | TBinop (_,e1,e2) | TWhile (e1,e2,_) ->
 			predicate e1 || predicate e2;
 		| TThrow e | TField (e,_) | TEnumParameter (e,_,_) | TEnumIndex e | TParenthesis e
 		| TCast (e,_) | TUnop (_,_,e) | TMeta(_,e) ->
@@ -105,9 +104,6 @@ let map_expr f e =
 	| TBinop (op,e1,e2) ->
 		let e1 = f e1 in
 		{ e with eexpr = TBinop (op,e1,f e2) }
-	| TFor (v,e1,e2) ->
-		let e1 = f e1 in
-		{ e with eexpr = TFor (v,e1,f e2) }
 	| TWhile (e1,e2,flag) ->
 		let e1 = f e1 in
 		{ e with eexpr = TWhile (e1,f e2,flag) }
@@ -176,10 +172,6 @@ let map_expr_type f ft fv e =
 	| TBinop (op,e1,e2) ->
 		let e1 = f e1 in
 		{ e with eexpr = TBinop (op,e1,f e2); etype = ft e.etype }
-	| TFor (v,e1,e2) ->
-		let v = fv v in
-		let e1 = f e1 in
-		{ e with eexpr = TFor (v,e1,f e2); etype = ft e.etype }
 	| TWhile (e1,e2,flag) ->
 		let e1 = f e1 in
 		{ e with eexpr = TWhile (e1,f e2,flag); etype = ft e.etype }
@@ -301,7 +293,6 @@ let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
 	| TFunction tf1,TFunction tf2 -> tf1 == tf2
 	| TVar(v1,None),TVar(v2,None) -> v1 == v2
 	| TVar(v1,Some e1),TVar(v2,Some e2) -> v1 == v2 && equal e1 e2
-	| TFor(v1,ec1,eb1),TFor(v2,ec2,eb2) -> v1 == v2 && equal ec1 ec2 && equal eb1 eb2
 	| TIf(e1,ethen1,None),TIf(e2,ethen2,None) -> equal e1 e2 && equal ethen1 ethen2
 	| TIf(e1,ethen1,Some eelse1),TIf(e2,ethen2,Some eelse2) -> equal e1 e2 && equal ethen1 ethen2 && equal eelse1 eelse2
 	| TWhile(e1,eb1,flag1),TWhile(e2,eb2,flag2) -> equal e1 e2 && equal eb2 eb2 && flag1 = flag2
@@ -337,9 +328,6 @@ let duplicate_tvars f_this e =
 		| TVar (v,eo) ->
 			let v2 = copy_var v in
 			{e with eexpr = TVar(v2, Option.map build_expr eo)}
-		| TFor (v,e1,e2) ->
-			let v2 = copy_var v in
-			{e with eexpr = TFor(v2, build_expr e1, build_expr e2)}
 		| TTry (e1,cl) ->
 			let cl = List.map (fun (v,e) ->
 				let v2 = copy_var v in
@@ -407,10 +395,6 @@ let foldmap f acc e =
 		let acc,e1 = f acc e1 in
 		let acc,e2 = f acc e2 in
 		acc,{ e with eexpr = TBinop (op,e1,e2) }
-	| TFor (v,e1,e2) ->
-		let acc,e1 = f acc e1 in
-		let acc,e2 = f acc e2 in
-		acc,{ e with eexpr = TFor (v,e1,e2) }
 	| TWhile (e1,e2,flag) ->
 		let acc,e1 = f acc e1 in
 		let acc,e2 = f acc e2 in
@@ -594,7 +578,7 @@ let rec constructor_side_effects e =
 		true
 	| TField (_,FEnum _) ->
 		false
-	| TUnop _ | TArray _ | TField _ | TEnumParameter _ | TEnumIndex _ | TCall _ | TNew _ | TFor _ | TWhile _ | TSwitch _ | TReturn _ | TThrow _ ->
+	| TUnop _ | TArray _ | TField _ | TEnumParameter _ | TEnumIndex _ | TCall _ | TNew _ | TWhile _ | TSwitch _ | TReturn _ | TThrow _ ->
 		true
 	| TBinop _ | TTry _ | TIf _ | TBlock _ | TVar _
 	| TFunction _ | TArrayDecl _ | TObjectDecl _
@@ -760,10 +744,6 @@ let dump_with_pos tabs e =
 		| TBlock el ->
 			add "TBlock";
 			List.iter loop el
-		| TFor(v,e1,e2) ->
-			add ("TFor " ^ v.v_name);
-			loop e1;
-			loop e2;
 		| TIf(e1,e2,eo) ->
 			add "TIf";
 			loop e1;
@@ -821,10 +801,6 @@ let collect_captured_vars e =
 		| TVar(v,eo) ->
 			Option.may loop eo;
 			declare v
-		| TFor(v,e1,e2) ->
-			declare v;
-			loop e1;
-			loop e2;
 		| TFunction tf ->
 			List.iter (fun (v,_) -> declare v) tf.tf_args;
 			loop tf.tf_expr
@@ -942,8 +918,6 @@ module DeadEnd = struct
 					Option.map_default (loop ) true switch.switch_default (* true because we know it's exhaustive *)
 				in
 				loop switch.switch_subject || check_exhaustive ()
-			| TFor(_, e1, _) ->
-				loop e1
 			| TBinop(OpBoolAnd, e1, e2) ->
 				loop e1 || is_true_expr e1 && loop e2
 			| TBinop(OpBoolOr, e1, e2) ->

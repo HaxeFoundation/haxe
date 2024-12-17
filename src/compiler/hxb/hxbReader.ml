@@ -1233,11 +1233,6 @@ class hxb_reader
 						let e1 = loop () in
 						let e2 = loop () in
 						TWhile(e1,e2,DoWhile),(Some api#basic_types.tvoid)
-					| 86 ->
-						let v  = declare_local () in
-						let e1 = loop () in
-						let e2 = loop () in
-						TFor(v,e1,e2),(Some api#basic_types.tvoid)
 
 					(* control flow 90-99 *)
 					| 90 ->

@@ -2868,8 +2868,6 @@ and eval_expr ctx e =
 			die "" __LOC__)
 	| TMeta (_,e) ->
 		eval_expr ctx e
-	| TFor (v,it,loop) ->
-		eval_expr ctx (Texpr.for_remap ctx.com.basic v it loop e.epos)
 	| TSwitch {switch_subject = en;switch_cases = cases;switch_default = def} ->
 		let rt = to_type ctx e.etype in
 		let r = alloc_tmp ctx rt in

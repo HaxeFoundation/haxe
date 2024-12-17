@@ -339,8 +339,6 @@ module IterationKind = struct
 			mk (TBlock el) t_void p
 		in
 		match iterator.it_kind with
-		| _ when not ctx.allow_transform ->
-			mk (TFor(v,e1,e2)) t_void p
 		| IteratorIntUnroll(offset,length,ascending,unroll_params) ->
 			check_loop_var_modification [v] e2;
 			if not ascending then raise_typing_error "Cannot iterate backwards" p;
@@ -413,8 +411,11 @@ module IterationKind = struct
 		| IteratorCustom(f_next,f_length) ->
 			gen_int_iter e1 pt f_next f_length
 		| IteratorIterator ->
-			begin try optimize_for_loop_iterator ctx v e1 e2 p
-			with Exit -> mk (TFor(v,e1,e2)) t_void p end
+			begin try
+				optimize_for_loop_iterator ctx v e1 e2 p
+			with Exit ->
+				Texpr.for_remap ctx.t v e1 e2 p
+			end
 		| IteratorGenericStack c ->
 			let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> die "" __LOC__) in
 			let cell = gen_local ctx tcell p in
@@ -442,7 +443,7 @@ module IterationKind = struct
 				ewhile;
 			]) t_void p
 		| IteratorDynamic ->
-			mk (TFor(v,e1,e2)) t_void p
+			mk (TBlock []) t_void p
 end
 
 let get_unroll_params ctx e2 =
@@ -504,11 +505,7 @@ let type_for_loop ctx handle_display ik e1 e2 p =
 		check_display (i,pi,dko);
 		ctx.e.in_loop <- old_loop;
 		old_locals();
-		begin try
-			IterationKind.to_texpr ctx i iterator e2 p
-		with Exit ->
-			mk (TFor (i,iterator.it_expr,e2)) ctx.t.tvoid p
-		end
+		IterationKind.to_texpr ctx i iterator e2 p
 	| IKKeyValue((ikey,pkey,dkokey),(ivalue,pvalue,dkovalue)) ->
 		(match follow e1.etype with
 		| TDynamic _ | TMono _ ->

@@ -306,7 +306,7 @@ let rec return_flow ctx e =
 		(* a special case for "inifite" while loops that have no break *)
 		let rec loop e = match e.eexpr with
 			(* ignore nested loops to not accidentally get one of its breaks *)
-			| TWhile _ | TFor _ -> ()
+			| TWhile _ -> ()
 			| TBreak -> error()
 			| _ -> Type.iter loop e
 		in

@@ -199,7 +199,6 @@ and texpr_expr =
 	| TFunction of tfunc
 	| TVar of tvar * texpr option
 	| TBlock of texpr list
-	| TFor of tvar * texpr * texpr
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
 	| TSwitch of tswitch

@@ -204,7 +204,6 @@ let dynarray_mapi f d =
 	- Postfix increment/decrement operations are rewritten to a TBlock with OpAssign and OpAdd/OpSub
 	- `do {} while(true)` is rewritten to `while(true) {}`
 	- TWhile expressions are rewritten to `while (true)` with appropriate conditional TBreak
-	- TFor is rewritten to TWhile
 *)
 module TexprFilter = struct
 	let apply com e =
@@ -242,7 +241,7 @@ module TexprFilter = struct
 			let rec map_continue e = match e.eexpr with
 				| TContinue ->
 					Texpr.duplicate_tvars e_identity (e_if (Some e))
-				| TWhile _ | TFor _ ->
+				| TWhile _ ->
 					e
 				| _ ->
 					Type.map_expr map_continue e
@@ -252,9 +251,6 @@ module TexprFilter = struct
 			let e_block = if flag = NormalWhile then Type.concat e_if e2 else Type.concat e2 e_if in
 			let e_true = mk (TConst (TBool true)) com.basic.tbool p in
 			let e = mk (TWhile(Texpr.Builder.mk_parent e_true,e_block,NormalWhile)) e.etype p in
-			loop e
-		| TFor(v,e1,e2) ->
-			let e = Texpr.for_remap com.basic v e1 e2 e.epos in
 			loop e
 		| _ ->
 			Type.map_expr loop e
@@ -903,7 +899,7 @@ module Fusion = struct
 							if !found then raise Exit;
 							found := true;
 							{e with eexpr = TUnop(op,Postfix,e)}
-						| TIf _ | TSwitch _ | TTry _ | TWhile _ | TFor _ ->
+						| TIf _ | TSwitch _ | TTry _ | TWhile _ ->
 							raise Exit
 						| _ ->
 							Type.map_expr replace e

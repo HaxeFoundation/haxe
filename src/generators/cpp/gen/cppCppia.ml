@@ -1230,12 +1230,6 @@ class script_writer ctx filename asciiOut =
             (this#op IaWhile ^ (if flag = NormalWhile then "1" else "0") ^ "\n");
           this#gen_expression e1;
           this#gen_expression e2
-      | TFor (tvar, init, loop) ->
-          this#writeOp IaFor;
-          this#writeVar tvar;
-          this#write "\n";
-          this#gen_expression init;
-          this#gen_expression loop
       | TEnumParameter (expr, ef, i) ->
           let enum =
             match follow ef.ef_type with

@@ -553,7 +553,7 @@ and gen_call ctx e el =
 and has_continue e =
     let rec loop e = match e.eexpr with
         | TContinue -> raise Exit
-        | TWhile(e1,_,_) | TFor(_,e1,_) -> loop e1 (* in theory there could be a continue there. Note that we don't want to recurse into the loop body because we do not care about inner continue expressions *)
+        | TWhile(e1,_,_) -> loop e1 (* in theory there could be a continue there. Note that we don't want to recurse into the loop body because we do not care about inner continue expressions *)
         | _ -> Type.iter loop e
     in
     try
@@ -982,8 +982,6 @@ and gen_expr ?(local=true) ctx e = begin
         concat ctx "," (fun ((f,_,_),e) -> print ctx "%s=" (anon_field f); gen_anon_value ctx e) fields;
         spr ctx "})";
         ctx.separator <- true
-    | TFor (v,it,e2) ->
-        unsupported e.epos;
     | TTry (e,catchs) ->
         (* TODO: add temp variables *)
         let old_in_loop_try = ctx.in_loop_try in
@@ -1229,7 +1227,6 @@ and gen_value ctx e =
     | TCast (e1, _) ->
         gen_value ctx e1
     | TVar _
-    | TFor _
     | TWhile _
     | TThrow _ ->
         (* value is discarded anyway *)

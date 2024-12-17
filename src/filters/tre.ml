@@ -111,7 +111,7 @@ let rec transform_function ctx is_recursive_call fn =
 	let rec transform_expr cancel_tre function_end e =
 		match e.eexpr with
 		(* cancel tre inside of loops bodies *)
-		| TWhile _ | TFor _ ->
+		| TWhile _ ->
 			map_expr (transform_expr true false) e
 		(* cancel tre inside of try blocks *)
 		| TTry (e_try, catches) ->
@@ -167,7 +167,7 @@ let rec transform_function ctx is_recursive_call fn =
 let rec has_tail_recursion is_recursive_call cancel_tre function_end e =
 	match e.eexpr with
 	(* cancel tre inside of loops bodies *)
-	| TFor _ | TWhile _ ->
+	| TWhile _ ->
 		check_expr (has_tail_recursion is_recursive_call true false) e
 	(* cancel tre inside of try blocks *)
 	| TTry (e, catches) ->

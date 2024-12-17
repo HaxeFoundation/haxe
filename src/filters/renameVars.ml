@@ -337,19 +337,6 @@ let rec collect_vars ?(in_block=false) rc scope e =
 			if flag = DoWhile then
 				collect_vars scope condition;
 		)
-	(*
-		This only happens for `cross` target, because for real targets all loops are converted to `while` at this point
-		Idk if this works correctly.
-	*)
-	| TFor (v, iterator, body) ->
-		collect_loop scope (fun() ->
-			if rc.rc_hoisting then
-				declare_var rc scope v;
-			collect_vars scope iterator;
-			if not rc.rc_hoisting then
-				declare_var rc scope v;
-			collect_vars scope body
-		)
 	| _ ->
 		iter (collect_vars scope) e
 
