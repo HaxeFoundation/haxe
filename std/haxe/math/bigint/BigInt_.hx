@@ -219,13 +219,7 @@ class BigInt_ {
 			rounds = 2;
 		}
 		rounds = (tolerance < rounds) ? tolerance : rounds;
-		#if python
-		var result:Bool = b.millerRabin(rounds);
-		if ( !result) trace("Failed: "+b.toString());
-		return result;
-		#else
 		return b.millerRabin(rounds);
-		#end
 	}
 
 	/**
