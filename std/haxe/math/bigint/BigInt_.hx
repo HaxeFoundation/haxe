@@ -937,7 +937,7 @@ class BigInt_ {
 			yIndex--;
 		}
 		var xn : Int, yn : Int, i:Int = 0;
-		var c : Int = 0, z : Int = 0;
+		var c : Int32 = 0, z : Int = 0;
 		while(i<=yIndex)
 		{
 			xn = x.get(i);
