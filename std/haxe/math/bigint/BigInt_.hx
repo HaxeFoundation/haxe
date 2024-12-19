@@ -640,6 +640,32 @@ class BigInt_ {
 		}
 	}
 
+	#if neko
+	private function millerRabin(rounds:UInt):Bool {
+		var minusOne:BigInt_ = subInt2(this, 1);
+		var m = subInt2(this, 1);
+		var lsb = m.getLowestSetBit();
+		if (lsb <= 0)
+			return false;
+		m = arithmeticShiftRight2(m, lsb);
+		var num:BigInt_;
+		for (i in 0...rounds) {
+			num = randomInRange(BigInt.TWO, minusOne);
+			var z:BigInt_ = num.modPow(m, this);
+			if (BigIntArithmetic.compare(z, BigInt.ONE) != 0 && BigIntArithmetic.compare(z, minusOne) != 0) {
+				var j:Int = 1;
+				while (j <= lsb && BigIntArithmetic.compare(z, minusOne) != 0) {
+					if (BigIntArithmetic.compare(z, BigInt.ONE) == 0 || j == lsb) {
+						return false;
+					}
+					z = z.modPow(BigInt.TWO, this);
+					j++;
+				}
+			}
+		}
+		return true;
+	}
+	#else
 	private function millerRabin(rounds:Int):Bool {
 		var numLists:Int = ((this.bitLength() - 1) < s_primeNumbers.length) ? (this.bitLength() - 1) : s_primeNumbers.length;
 		for (i in 0...numLists) {
@@ -684,6 +710,7 @@ class BigInt_ {
 		} while (rounds >= 0);
 		return true;
 	}
+	#end
 
 	/* hac 14.64, pp. 610 */
 	private function modInverseOdd(y:BigInt_, x:BigInt_):BigInt_ {
@@ -728,7 +755,8 @@ class BigInt_ {
 
 		return d;
 	}
-
+	
+	#if !neko
 	private function modPowMonty(b:BigInt_, _e:BigInt_, _m:BigInt_, convert:Bool):BigInt_ {
 		var n:Int,
 			powR:Int,
@@ -996,7 +1024,7 @@ class BigInt_ {
 		}
 		return 0;
 	}
-
+	
 	private function getMQuote():Int32 {
 		var d:Int = -m_data[0];
 		var mQuote:Int32 = modInverse32(d);
@@ -1164,7 +1192,7 @@ class BigInt_ {
 		}
 		return x;
 	}
-
+	
 	private function divideWords(w:Int):BigInt_ {
 		var n:Int = m_count;
 		if (w >= n)
@@ -1182,6 +1210,8 @@ class BigInt_ {
 		bi.setFromVector(m_data, 0, w);
 		return bi;
 	}
+	
+	#end
 
 	private static function newFromInt(value:Int):BigInt_ {
 		var bi = new MutableBigInt_();
