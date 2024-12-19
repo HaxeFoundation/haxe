@@ -397,6 +397,25 @@ class BigInt_ {
 		return r;
 	}
 
+	#if neko
+	public function modPow(exponent:BigInt_, modulus:BigInt_):BigInt_ {
+		if (BigIntArithmetic.compareInt(exponent, 0) < 0)
+			throw new BigIntException(BigIntError.NEGATIVE_EXPONENT);
+		if (this.isZero())
+			return (BigIntArithmetic.compareInt(exponent, 0) == 0 ? BigInt.fromInt(1) : this);
+		var r = BigInt_.newFromInt(1);
+		var p:BigInt_ = this;
+		while (true) {
+			if (BigIntArithmetic.bitwiseAndInt(exponent, 1) == 1)
+				r = modulus2(multiply2(p, r), modulus);
+			exponent = BigInt_.arithmeticShiftRight2(exponent, 1);
+			if (BigIntArithmetic.compareInt(exponent, 0) == 0)
+				break;
+			p = modulus2(multiply2(p, p), modulus);
+		}
+		return r;
+	}
+	#else
 	public function modPow(exponent:BigInt_, modulus:BigInt_):BigInt_ {
 		if (BigIntArithmetic.compareInt(modulus, 0) < 0)
 			throw BigIntError.NEGATIVE_MODULUS;
@@ -422,6 +441,7 @@ class BigInt_ {
 		}
 		return result;
 	}
+	#end
 
 	public function pow(exponent:UInt):BigInt_ {
 		if (exponent < 0)
