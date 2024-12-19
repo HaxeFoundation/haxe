@@ -116,7 +116,7 @@ import haxe.DynamicAccess;
 	}
 
 	public inline function keys():Iterator<String> {
-		return new StringMapKeyIterator(h);
+		return new haxe.iterators.ArrayIterator(Object.keys(h));
 	}
 
 	public inline function iterator():Iterator<T> {
@@ -154,28 +154,6 @@ import haxe.DynamicAccess;
 		js.Syntax.code("\t{0} += key + ' => ' + {1}({2}[key]);", s, Std.string, h);
 		js.Syntax.code("}");
 		return s + "]";
-	}
-}
-
-private class StringMapKeyIterator {
-	final h:Dynamic;
-	final keys:Array<String>;
-	final length:Int;
-	var current:Int;
-
-	public inline function new(h:Dynamic) {
-		this.h = h;
-		keys = Object.keys(h);
-		length = keys.length;
-		current = 0;
-	}
-
-	public inline function hasNext():Bool {
-		return current < length;
-	}
-
-	public inline function next():String {
-		return keys[current++];
 	}
 }
 
