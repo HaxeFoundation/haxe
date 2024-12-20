@@ -446,4 +446,5 @@ abstract BigInt(BigInt_) {
 
 	@:noCompletion @:noDoc private inline function new(a:BigInt_) {
 		this = a;
+	}
 }
