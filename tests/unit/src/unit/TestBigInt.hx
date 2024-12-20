@@ -2747,9 +2747,9 @@ class TestBigInt extends Test {
 		eq("692421",a.max(b).toString());
 	}
 	
+	#if (!lua && !cppia)
 	public function testNextProbablePrime():Void
 	{
-		#if (!lua && !cppia)
 		var a:BigInt;
 		a = "8329132432461";
 		eq("8329132432469",a.nextProbablePrime().toString());
@@ -2765,8 +2765,8 @@ class TestBigInt extends Test {
 		eq("40870721",a.nextProbablePrime().toString());
 		a = 32747015;
 		eq("32747023",a.nextProbablePrime().toString());
-		#end
 	}
+	#end
 	
 	public function testBigIntRandom():Void
 	{
@@ -2778,9 +2778,9 @@ class TestBigInt extends Test {
 		}
 	}
 	
+	#if (!lua && !cppia)
 	public function testBigIntRandomPrime():Void
 	{
-		#if (!lua && !cppia)
 		var randomPrimeNumber:BigInt = BigInt.randomPrime(5,5);
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(11,5);
@@ -2795,8 +2795,8 @@ class TestBigInt extends Test {
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(156,5);
 		t(randomPrimeNumber.isProbablePrime(5));
-		#end
 	}
+	#end
 
 	public function testBigIntRandomInRange():Void
 	{

@@ -1034,9 +1034,9 @@ class BigInt_ {
 	private function modInverse32(d:Int):Int32 {
 		var x:Int32;
 		x = d + (((d + 1) & 4) << 1);
-		x = x * (2 - (d * x));
-		x = x * (2 - (d * x));
-		x = x * (2 - (d * x));
+		x = (2 - (d * x)) * x;
+		x = (2 - (d * x)) * x;
+		x = (2 - (d * x)) * x;
 		return x;
 	}
 
