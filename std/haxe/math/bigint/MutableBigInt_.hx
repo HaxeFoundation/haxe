@@ -34,6 +34,12 @@ import haxe.io.Bytes;
 @:allow(unit)
 @:allow(haxe.math.bigint)
 class MutableBigInt_ extends BigInt_ {
+
+	private var m_owned:Bool = false;
+
+	private static var s_testAllocation:Bool = false;
+	private static var s_debugAllocationPadding:Int = 0;
+	
 	//-----------------------------------------------------------------------
 	// Public interface
 	//-----------------------------------------------------------------------
@@ -372,11 +378,6 @@ class MutableBigInt_ extends BigInt_ {
 		r.m_count = other.m_count;
 		return r;
 	}
-
-	private var m_owned:Bool = false;
-
-	private static var s_testAllocation:Bool = false;
-	private static var s_debugAllocationPadding:Int = 0;
 
 	//-----------------------------------------------------------------------
 	// Static helpers
