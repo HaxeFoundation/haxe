@@ -14,7 +14,7 @@ open CppMarshalling
 let gen_member_variable ctx is_static var =
   let tcpp     = cpp_type_of var.tcv_type in
   let tcpp_str = match tcpp with
-  | TCppValueType (cls, params) ->
+  | TCppValueType (cls, params, _) ->
     get_extern_value_type_struct cls params
   | other ->
     tcpp_to_string tcpp
@@ -65,7 +65,7 @@ let gen_member_function ctx class_def is_static func =
 
   let return_type_str =
     match cpp_type_of func.tcf_func.tf_type with
-    | TCppValueType (cls, params) ->
+    | TCppValueType (cls, params, _) ->
       get_extern_value_type_struct cls params
     | TCppVoid ->
       "void"

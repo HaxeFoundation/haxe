@@ -420,7 +420,7 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppGlobal -> "::Dynamic"
   | TCppNull -> " ::Dynamic"
   | TCppCode _ -> "Code"
-  | TCppValueType (cls, params) ->
+  | TCppValueType (cls, params, _) ->
     cpp_class_path_of cls params |> Printf.sprintf "::cpp::marshal::Reference< %s >"
 
 and get_extern_value_type cls params =

@@ -112,9 +112,13 @@ and cpp_type_from_path stack path params default =
   | _ -> default ()
 
 and cpp_type_of_null stack p =
-  let baseType = cpp_type_of stack p in
-  if type_has_meta_key Meta.NotNull p || is_cpp_scalar baseType then TCppObject
-  else baseType
+  match cpp_type_of stack p with
+  | TCppValueType (cls, params, _) ->
+    TCppValueType (cls, params, true)
+  | other when is_cpp_scalar other || type_has_meta_key Meta.NotNull p ->
+    TCppObject
+  | other ->
+    other
 
 and cpp_type_of_pointer stack p =
   match p with
@@ -166,7 +170,7 @@ and cpp_instance_type stack klass params =
       else if has_class_flag klass CExtern && not (is_internal_class klass.cl_path) then
         if is_extern_value_class klass then
           let tcpp_params = List.map (cpp_type_of stack) params in
-          TCppValueType (klass, tcpp_params)
+          TCppValueType (klass, tcpp_params, false)
         else
           let tcpp_params = List.map (cpp_type_of stack) params in
           TCppInst (klass, tcpp_params)
@@ -1413,7 +1417,9 @@ let expression ctx request_type function_args function_type expression_tree forI
           retyper_ctx, mk_cppexpr
             (CppCast (ptrCast, TCppStar (t, const)))
             (TCppStar (t, const))
-      | TCppValueType (cls, params) ->
+      (* When going from a dynamic or variant add an explicit cast so the ::cpp::marshal::Reference constructor
+       * takes care of checking the dynamic type *)
+      | TCppValueType (cls, params, _) ->
         retyper_ctx, mk_cppexpr (CppCast (cppExpr, return_type)) return_type
       | _ -> retyper_ctx, cppExpr
     else

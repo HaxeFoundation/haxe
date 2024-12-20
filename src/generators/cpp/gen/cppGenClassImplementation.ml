@@ -17,7 +17,7 @@ let gen_function ctx class_def class_name is_static func =
 
   let ret, is_void, return_type_str =
     match return_type with
-    | TCppValueType (cls, params) ->
+    | TCppValueType (cls, params, _) ->
       "return ", false, get_extern_value_type_struct cls params
     | TCppVoid ->
       "(void)", true, "void"

@@ -28,7 +28,7 @@ let type_cant_be_null haxe_type =
 let type_arg_to_string name default_val arg_type prefix =
   let remap_name, type_str =
     match cpp_type_of arg_type with
-    | TCppValueType (cls, params) ->
+    | TCppValueType (cls, params, _) ->
       Printf.sprintf "_hx_vt_%s" name, get_extern_value_type_struct cls params
     | other ->
       keyword_remap name, tcpp_to_string other
@@ -214,7 +214,7 @@ let cpp_gen_value_struct_references ctx args =
   List.iter
     (fun (var, _) ->
       match cpp_type_of var.v_type with
-      | TCppValueType (cls, params) ->
+      | TCppValueType (cls, params, _) ->
         let name            = cpp_var_name_of var in
         let stack_name      = "_hx_vt_" ^ name in
         let reference_ident = get_extern_value_type_reference cls params in
@@ -544,11 +544,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     | CppVarDecl (var, init) -> (
       match cpp_type_of var.v_type with
       (* Marshalling, place a struct on the stack and have the user typed variable be a reference to it. *)
-      | TCppValueType (cls, params) ->
+      | TCppValueType (cls, params, nullable) ->
         let name   = cpp_var_name_of var in
         let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "" in
 
-        if has_var_flag var VCaptured then (
+        if has_var_flag var VCaptured || nullable then (
           let obj_name                     = "_hx_vt_" ^ name in
           let reference_ident              = get_extern_value_type_reference cls params in
           let boxed_ident, boxed_ident_obj = get_extern_value_type_boxed cls params in
@@ -572,16 +572,18 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
             in
             print_arg args;
             out ");\n";
+          | Some { cppexpr = CppNull } when not nullable ->
+            abort "CPP0003: Local variable of a non nullable value type cannot be assigned to null" var.v_pos
           (* Any expression other than a constructor is a copying operation *)
           | Some other ->
-            out " = new ";
+            out " = ";
             out boxed_ident;
             out "(";
             gen other;
             out ");\n";
           | None when extern_value_type_supports cls ImplicitConstruction ->
             out " = new ";
-            out boxed_ident;
+            out boxed_ident_obj;
             out "();\n";
           | None ->
             abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.v_pos);
@@ -613,6 +615,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
               in
               print_arg some;
               out ");\n")
+          | Some { cppexpr = CppNull } when not nullable ->
+            abort "CPP0003: Local variable of a non nullable value type cannot be assigned to null" var.v_pos
           (* Any expression other than a constructor is a copying operation *)
           | Some other ->
             out " = ";
@@ -821,7 +825,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
                   "::Array_obj< " ^ tcpp_to_string value ^ " >::__new"
               | TCppObjC klass -> cpp_class_path_of klass [] ^ "_obj::__new"
               | TCppNativePointer klass -> "new " ^ cpp_class_path_of klass []
-              | TCppValueType (cls, params) ->
+              | TCppValueType (cls, params, _) ->
                 get_extern_value_type_boxed cls params |> snd |> Printf.sprintf "new %s"
               | TCppInst (klass, p) when is_native_class klass ->
                   cpp_class_path_of klass p
@@ -928,7 +932,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
       (* By default FuncNew with a value type will generate a boxed version due to the many places boxing can occur *)
       (* There is only one place we need to deal with re-assigning non captured vars, so do it now *)
       (match rhs.cppexpr with
-      | CppCall ((FuncNew (TCppValueType (cls, params))), args) when not (has_var_flag var VCaptured) ->
+      | CppCall ((FuncNew (TCppValueType (cls, params, _))), args) when not (has_var_flag var VCaptured) ->
         get_extern_value_type_struct cls params |> out;
 
         out "(";
@@ -1077,7 +1081,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
           (fun name var ->
             let name =
               match cpp_type_of var.v_type with
-              | TCppValueType (cls, params) ->
+              | TCppValueType (cls, params, _) ->
                 Printf.sprintf "_hx_vt_%s" name
               | other ->
                 name in
@@ -1615,7 +1619,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
       (fun name var ->
         let name, str =
           match cpp_type_of var.v_type with
-          | TCppValueType (cls, params) ->
+          | TCppValueType (cls, params, _) ->
             Printf.sprintf "_hx_vt_%s" name, get_extern_value_type_boxed cls params |> fst
           | other ->
             name, cpp_macro_var_type_of var in
@@ -1634,7 +1638,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
           StringMap.iter
             (fun name var ->
               match cpp_type_of var.v_type with
-              | TCppValueType (cls, params) ->
+              | TCppValueType (cls, params, _) ->
                 let name            = cpp_var_name_of var in
                 let stack_name      = "_hx_vt_" ^ name in
                 let reference_ident = get_extern_value_type_reference cls params in
