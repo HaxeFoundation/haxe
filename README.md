@@ -24,6 +24,7 @@ Haxe allows you to compile for the following targets:
  * JVM
  * Lua
  * PHP 7
+ * C#
  * Python 3
  * [HashLink](https://hashlink.haxe.org/)
  * [NekoVM](https://nekovm.org/)
