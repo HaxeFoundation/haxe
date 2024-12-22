@@ -49,9 +49,6 @@ class MutableBigInt_ extends BigInt_ {
 	**/
 	public function setFromInt(value:Int):Void {
 		ensureCapacity(1, false);
-		#if cppia
-		if ( m_data == null) return;
-		#end
 		m_data.set(0, value);
 		m_count = 1;
 	}
@@ -139,9 +136,6 @@ class MutableBigInt_ extends BigInt_ {
 		}
 		var neg = value.get(length - 1) >>> 31;
 		ensureCapacity(length + neg, false);
-		#if cppia
-		if ( m_data == null) return;
-		#end
 		m_data.set(length + neg - 1, 0);
 		MultiwordArithmetic.copy(m_data, value, length);
 		m_count = length + neg;
