@@ -567,11 +567,13 @@ class BigInt_ {
 			bytes.set(0, bytes.get(0) | (1 << (7 - excessBits)));
 			bytes.set(bytes.length - 1, bytes.get(bytes.length - 1) | 1);
 			r.setFromBigEndianBytesSigned(bytes);
+			#if !cppia
 			if (bits > 10) {
 				while (!equals2Int(r.gcd(BigInt.SMALL_PRIMES_PRODUCT), 1)) {
 					BigIntArithmetic.addInt(r, r, 2);
 				}
 			}
+			#end
 		} while (!r.isProbablePrime(tolerance));
 		if (r.sign() < 0)
 			BigIntArithmetic.negate(r, r);
