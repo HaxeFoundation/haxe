@@ -48,6 +48,9 @@ class MutableBigInt_ extends BigInt_ {
 		Set the value of this big int with an integer of value `value`.
 	**/
 	public function setFromInt(value:Int):Void {
+		#if cppia
+		if ( m_data == null) return;
+		#end
 		ensureCapacity(1, false);
 		m_data.set(0, value);
 		m_count = 1;
@@ -76,6 +79,9 @@ class MutableBigInt_ extends BigInt_ {
 		if ((value == null) || (value.length < 1)) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
+		#if cppia
+		if ( m_data == null) return;
+		#end
 		var negate = value.charCodeAt(0) == 0x2d;
 		var index = negate ? 1 : 0;
 		if (value.length <= index) {
