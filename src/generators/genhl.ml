@@ -4196,7 +4196,7 @@ let create_context com =
 			ai32 = get_class "ArrayBytes_Int";
 			af32 = get_class "ArrayBytes_hl_F32";
 			af64 = get_class "ArrayBytes_Float";
-			ai64 = get_class "ArrayBytes_hl_I64";
+			ai64 = get_class (if Gctx.raw_defined com "hl_legacy32" then "ArrayBytes_Int" else "ArrayBytes_hl_I64");
 		};
 		base_class = get_class "Class";
 		base_enum = get_class "Enum";
