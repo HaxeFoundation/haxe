@@ -742,7 +742,7 @@ class script_writer ctx filename asciiOut =
                 ^ this#typeText function_def.tf_type
                 ^ string_of_int (List.length args)
                 ^ "\n");
-              let close = this#gen_func_args function_def.tf_args in
+              let close = this#gen_func_args (List.map (fun (v, e) -> CppRetyper.retype_tvar v, e) function_def.tf_args) in
               this#gen_expression_tree cppExpr;
               this#end_expr;
               close ())
@@ -863,7 +863,7 @@ class script_writer ctx filename asciiOut =
       List.iter
         (fun (arg, init) ->
           this#write (indent ^ indent_str);
-          this#writeVar arg;
+          this#writeVar arg.tcppv_var;
           match init with
           | Some { eexpr = TConst TNull } -> this#write "0\n"
           | Some const ->
@@ -893,8 +893,8 @@ class script_writer ctx filename asciiOut =
               this#begin_expr;
               this#writePos const;
               this#write
-                (this#op IaVar ^ string_of_int arg.v_id
-               ^ this#commentOf arg.v_name);
+                (this#op IaVar ^ string_of_int arg.tcppv_var.v_id
+               ^ this#commentOf arg.tcppv_var.v_name);
               this#end_expr
             in
 
@@ -929,7 +929,7 @@ class script_writer ctx filename asciiOut =
             ^ this#typeText function_def.tf_type
             ^ string_of_int (List.length function_def.tf_args)
             ^ "\n");
-          let close = this#gen_func_args function_def.tf_args in
+          let close = this#gen_func_args (List.map (fun (v, e) -> CppRetyper.retype_tvar v, e) function_def.tf_args) in
           let pop = this#pushReturn function_def.tf_type in
           this#gen_expression function_def.tf_expr;
           pop ();
@@ -1611,9 +1611,9 @@ class script_writer ctx filename asciiOut =
               this#writeList (this#op IaTry) (List.length catches);
               gen_expression block;
               List.iter
-                (fun (tvar, catch_expr) ->
+                (fun (var, catch_expr) ->
                   this#write ("\t\t\t" ^ indent);
-                  this#writeVar tvar;
+                  this#writeVar var.tcppv_var;
                   this#write "\n";
                   gen_expression catch_expr)
                 catches

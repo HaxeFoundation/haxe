@@ -79,12 +79,19 @@ type tcpp =
 
 and tcppexpr = { cppexpr : tcpp_expr_expr; cpptype : tcpp; cpppos : pos }
 
+and tcppvar = {
+  tcppv_type : tcpp;
+  tcppv_var : tvar;
+  tcppv_name : string;
+  tcppv_debug_name : string;
+}
+
 and tcpp_closure = {
   close_type : tcpp;
-  close_args : (tvar * texpr option) list;
+  close_args : (tcppvar * texpr option) list;
   close_expr : tcppexpr;
   close_id : int;
-  close_undeclared : tvar StringMap.t;
+  close_undeclared : tcppvar StringMap.t;
   close_this : tcppthis option;
 }
 
@@ -141,12 +148,6 @@ and tcpplvalue =
   | CppDynamicRef of tcppexpr * string
   | CppExternRef of string * bool
 
-and tcppvar = {
-  tcppv_type : tcpp;
-  tcppv_var : tvar;
-  tcppv_name : string;
-}
-
 and tcpp_expr_expr =
   | CppInt of int32
   | CppFloat of string
@@ -183,13 +184,13 @@ and tcpp_expr_expr =
   | CppUnop of tcppunop * tcppexpr
   | CppVarDecl of tcppvar * tcppexpr option
   | CppBlock of tcppexpr list * tcpp_closure list * bool
-  | CppFor of tvar * tcppexpr * tcppexpr
+  | CppFor of tcppvar * tcppexpr * tcppexpr
   | CppIf of tcppexpr * tcppexpr * tcppexpr option
   | CppWhile of tcppexpr * tcppexpr * Ast.while_flag * int
   | CppIntSwitch of tcppexpr * (Int32.t list * tcppexpr) list * tcppexpr option
   | CppSwitch of
       tcppexpr * tcpp * (tcppexpr list * tcppexpr) list * tcppexpr option * int
-  | CppTry of tcppexpr * (tvar * tcppexpr) list
+  | CppTry of tcppexpr * (tcppvar * tcppexpr) list
   | CppBreak
   | CppContinue
   | CppClassOf of path * bool

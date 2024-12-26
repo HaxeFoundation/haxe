@@ -193,13 +193,20 @@ type retyper_ctx = {
   closures : tcpp_closure list;
   injection : bool;
   declarations : unit StringMap.t;
-  undeclared : tvar StringMap.t;
+  undeclared : tcppvar StringMap.t;
   uses_this : tcppthis option;
   this_real : tcppthis;
   gc_stack : bool;
   function_return_type : tcpp;
   goto_id : int;
   loop_stack : (int * bool) list;
+}
+
+let retype_tvar tvar = {
+  tcppv_var        = tvar;
+  tcppv_type       = cpp_type_of tvar.v_type;
+  tcppv_name       = cpp_var_name_of tvar;
+  tcppv_debug_name = keyword_remap tvar.v_name
 }
 
 let expression ctx request_type function_args function_type expression_tree forInjection =
@@ -438,12 +445,12 @@ let expression ctx request_type function_args function_type expression_tree forI
           (retyper_ctx, CppClassOf (([], ""), false), TCppGlobal)
       | TLocal tvar ->
           let name    = tvar.v_name in
-          let new_var = { tcppv_type = cpp_type_of tvar.v_type; tcppv_var = tvar; tcppv_name = cpp_var_name_of tvar } in
+          let new_var = retype_tvar tvar in
 
           if StringMap.mem name retyper_ctx.declarations then
             (retyper_ctx, CppVar (VarLocal new_var), cpp_type_of tvar.v_type)
           else (
-            let new_ctx = { retyper_ctx with undeclared = StringMap.add name tvar retyper_ctx.undeclared } in
+            let new_ctx = { retyper_ctx with undeclared = StringMap.add name new_var retyper_ctx.undeclared } in
             if has_var_flag tvar VCaptured then
               (new_ctx, CppVar (VarClosure new_var), cpp_type_of tvar.v_type)
             else
@@ -934,7 +941,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             close_id = retyper_ctx.closure_id;
             close_undeclared = new_ctx.undeclared;
             close_type = new_ctx.function_return_type;
-            close_args = func.tf_args;
+            close_args = func.tf_args |> List.map (fun (t, e) -> retype_tvar t, e);
             close_this = new_ctx.uses_this;
           }
         in
@@ -1115,7 +1122,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           let retyper_ctx, init = retype retyper_ctx (cpp_type_of v.v_type) init in
           let retyper_ctx, block = retype retyper_ctx TCppVoid (mk_block block) in
           let retyper_ctx = { retyper_ctx with declarations = StringMap.remove v.v_name retyper_ctx.declarations } in
-          (retyper_ctx, CppFor (v, init, block), TCppVoid)
+          (retyper_ctx, CppFor (retype_tvar v, init, block), TCppVoid)
       | TWhile (e1, e2, flag) ->
           let retyper_ctx, condition = retype retyper_ctx (TCppScalar "bool") e1 in
           let retyper_ctx, close = begin_loop retyper_ctx in
@@ -1192,7 +1199,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           | _ -> (retyper_ctx, CppObjectDecl (joined, false), TCppDynamic))
       | TVar (v, eo) ->
           let var_type = cpp_type_of v.v_type in
-          let new_var  = { tcppv_type = var_type; tcppv_var = v; tcppv_name = cpp_var_name_of v } in
+          let new_var  = retype_tvar v in
           let retyper_ctx, init =
             match eo with
             | None -> retyper_ctx, None
@@ -1300,7 +1307,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                 let retyper_ctx = { retyper_ctx with declarations = StringMap.add tvar.v_name () retyper_ctx.declarations } in
                 let retyper_ctx, cppCatchBlock = retype retyper_ctx TCppVoid catch_block in
                 let retyper_ctx = { retyper_ctx with declarations = StringMap.remove tvar.v_name retyper_ctx.declarations } in
-                retyper_ctx, (tvar, cppCatchBlock) :: acc)
+                retyper_ctx, (retype_tvar tvar, cppCatchBlock) :: acc)
               (retyper_ctx, [])
               catches
           in
