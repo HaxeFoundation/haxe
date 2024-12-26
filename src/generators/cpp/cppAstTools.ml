@@ -249,6 +249,16 @@ let keyword_remap name =
       "_hx_" ^ name
     | x -> x
 
+let cpp_var_name_of var =
+   match get_meta_string var.v_meta Meta.Native with
+   | Some n -> n
+   | None -> keyword_remap var.v_name
+
+let cpp_var_debug_name_of v =
+   match get_meta_string v.v_meta Meta.RealPath with
+   | Some n -> n
+   | None -> v.v_name
+
 let remap_class_path class_path =
   let path_remap with_keywords name =
     let len = String.length name in

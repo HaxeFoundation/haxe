@@ -1319,19 +1319,18 @@ class script_writer ctx filename asciiOut =
               this#writeList (this#op IaBlock) (List.length exprs);
               List.iter gen_expression exprs
           | CppVarDecl (var, init) -> (
-              let name = CppGen.cpp_var_name_of var in
               this#write
                 (this#op IaTVars ^ string_of_int 1
-                ^ this#commentOf (name ^ ":" ^ script_type_string var.v_type)
+                ^ this#commentOf (var.tcppv_name ^ ":" ^ script_type_string var.tcppv_var.v_type)
                 ^ "\n");
               this#write ("\t\t" ^ indent);
               match init with
               | None ->
                   this#writeOp IaVarDecl;
-                  this#writeVar var
+                  this#writeVar var.tcppv_var
               | Some init ->
                   this#writeOp IaVarDeclI;
-                  this#writeVar var;
+                  this#writeVar var.tcppv_var;
                   this#write (" " ^ this#astType init.cpptype);
                   this#write "\n";
                   gen_expression init)
@@ -1719,10 +1718,10 @@ class script_writer ctx filename asciiOut =
         this#end_expr
       and gen_var_loc loc =
         match loc with
-        | VarClosure (var, _) | VarLocal (var, _) ->
+        | VarClosure var | VarLocal var ->
             this#write
-              (this#op IaVar ^ string_of_int var.v_id
-             ^ this#commentOf var.v_name)
+              (this#op IaVar ^ string_of_int var.tcppv_var.v_id
+             ^ this#commentOf var.tcppv_var.v_name)
         | VarStatic (class_def, _, field) ->
             this#write
               (this#op IaFStatic ^ this#cppInstText class_def ^ " "

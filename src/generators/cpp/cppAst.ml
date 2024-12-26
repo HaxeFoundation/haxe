@@ -101,8 +101,8 @@ and value_type_flag =
   | StackOnly
 
 and tcppvarloc =
-  | VarLocal of tvar * tvar_type
-  | VarClosure of tvar * tvar_type
+  | VarLocal of tcppvar
+  | VarClosure of tcppvar
   | VarThis of tclass_field * tcpp
   | VarInstance of tcppexpr * tclass_field * string * string
   | VarInterface of tcppexpr * tclass_field
@@ -141,6 +141,12 @@ and tcpplvalue =
   | CppDynamicRef of tcppexpr * string
   | CppExternRef of string * bool
 
+and tcppvar = {
+  tcppv_type : tcpp;
+  tcppv_var : tvar;
+  tcppv_name : string;
+}
+
 and tcpp_expr_expr =
   | CppInt of int32
   | CppFloat of string
@@ -175,7 +181,7 @@ and tcpp_expr_expr =
   | CppPosition of string * int32 * string * string
   | CppArrayDecl of tcppexpr list
   | CppUnop of tcppunop * tcppexpr
-  | CppVarDecl of tvar * tcppexpr option
+  | CppVarDecl of tcppvar * tcppexpr option
   | CppBlock of tcppexpr list * tcpp_closure list * bool
   | CppFor of tvar * tcppexpr * tcppexpr
   | CppIf of tcppexpr * tcppexpr * tcppexpr option

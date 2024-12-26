@@ -271,7 +271,7 @@ let expression ctx request_type function_args function_type expression_tree forI
 
   let rec to_lvalue value =
     match value.cppexpr with
-    | CppVar (VarClosure (var, _) as varloc) when is_gc_element ctx (cpp_type_of var.v_type) ->
+    | CppVar (VarClosure var as varloc) when is_gc_element ctx var.tcppv_type ->
         (CppVarRef varloc, true)
     | CppVar (VarThis (member, _) as varloc)
       when is_gc_element ctx (cpp_type_of member.cf_type) ->
@@ -437,15 +437,15 @@ let expression ctx request_type function_args function_type expression_tree forI
           (* functions/vars will appear to be members of the virtual global object *)
           (retyper_ctx, CppClassOf (([], ""), false), TCppGlobal)
       | TLocal tvar ->
-          let name = tvar.v_name in
-          let tvar_type = if is_extern_value_tvar tvar then ValueType else Normal in
+          let name    = tvar.v_name in
+          let new_var = { tcppv_type = cpp_type_of tvar.v_type; tcppv_var = tvar; tcppv_name = cpp_var_name_of tvar } in
 
           if StringMap.mem name retyper_ctx.declarations then
-            (retyper_ctx, CppVar (VarLocal (tvar, tvar_type)), cpp_type_of tvar.v_type)
+            (retyper_ctx, CppVar (VarLocal new_var), cpp_type_of tvar.v_type)
           else (
             let new_ctx = { retyper_ctx with undeclared = StringMap.add name tvar retyper_ctx.undeclared } in
             if has_var_flag tvar VCaptured then
-              (new_ctx, CppVar (VarClosure (tvar, tvar_type)), cpp_type_of tvar.v_type)
+              (new_ctx, CppVar (VarClosure new_var), cpp_type_of tvar.v_type)
             else
               (new_ctx, CppExtern (name, false), cpp_type_of tvar.v_type))
       | TIdent name -> (retyper_ctx, CppExtern (name, false), return_type)
@@ -1191,14 +1191,15 @@ let expression ctx request_type function_args function_type expression_tree forI
           | TCppVoid -> (retyper_ctx, CppObjectDecl (joined, false), TCppVoid)
           | _ -> (retyper_ctx, CppObjectDecl (joined, false), TCppDynamic))
       | TVar (v, eo) ->
-          let varType = cpp_type_of v.v_type in
+          let var_type = cpp_type_of v.v_type in
+          let new_var  = { tcppv_type = var_type; tcppv_var = v; tcppv_name = cpp_var_name_of v } in
           let retyper_ctx, init =
             match eo with
             | None -> retyper_ctx, None
-            | Some e -> retype retyper_ctx varType e |> (fun (new_ctx, expr) -> new_ctx, Some expr)
+            | Some e -> retype retyper_ctx var_type e |> (fun (new_ctx, expr) -> new_ctx, Some expr)
           in
           let retyper_ctx = { retyper_ctx with declarations = StringMap.add v.v_name () retyper_ctx.declarations } in
-          (retyper_ctx, CppVarDecl (v, init), varType)
+          (retyper_ctx, CppVarDecl (new_var, init), var_type)
       | TIf (ec, e1, e2) ->
           let retyper_ctx, ec = retype retyper_ctx (TCppScalar "bool") ec in
           let blockify =

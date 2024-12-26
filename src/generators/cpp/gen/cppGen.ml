@@ -40,16 +40,6 @@ let type_arg_to_string name default_val arg_type prefix =
   | Some constant -> (type_str, prefix ^ remap_name)
   | _ -> (type_str, remap_name)
 
-let cpp_var_name_of var =
-  match get_meta_string var.v_meta Meta.Native with
-  | Some n -> n
-  | None -> keyword_remap var.v_name
-
-let cpp_var_debug_name_of v =
-  match get_meta_string v.v_meta Meta.RealPath with
-  | Some n -> n
-  | None -> v.v_name
-
 (* Generate prototype text, including allowing default values to be null *)
 let print_arg name default_val arg_type prefix =
   let n, t = type_arg_to_string name default_val arg_type prefix in
@@ -541,25 +531,65 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     | CppBreak -> out "break"
     | CppContinue -> out "continue"
     | CppGoto label -> out ("goto " ^ label_name label)
-    | CppVarDecl (var, init) -> (
-      match cpp_type_of var.v_type with
+    | CppVarDecl ({ tcppv_type = TCppValueType (cls, params, nullable) } as var, init) ->
+      let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "" in
+
       (* Marshalling, place a struct on the stack and have the user typed variable be a reference to it. *)
-      | TCppValueType (cls, params, nullable) ->
-        let name   = cpp_var_name_of var in
-        let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "" in
+      if has_var_flag var.tcppv_var VCaptured || nullable then (
+        let obj_name                     = "_hx_vt_" ^ var.tcppv_name in
+        let reference_ident              = get_extern_value_type_reference cls params in
+        let boxed_ident, boxed_ident_obj = get_extern_value_type_boxed cls params in
 
-        if has_var_flag var VCaptured || nullable then (
-          let obj_name                     = "_hx_vt_" ^ name in
-          let reference_ident              = get_extern_value_type_reference cls params in
-          let boxed_ident, boxed_ident_obj = get_extern_value_type_boxed cls params in
+        Printf.sprintf "%s %s" boxed_ident obj_name |> out;
 
-          Printf.sprintf "%s %s" boxed_ident obj_name |> out;
+        (match init with
+        (* Construct the type on the stack, ::cpp::Struct will forward the passed arguments to the constructor of the underlying type *)
+        | Some { cppexpr = CppCall (FuncNew _, args); cpptype = TCppValueType _ } ->
+          out " = new ";
+          out boxed_ident_obj;
+          out "(";
+          let rec print_arg args =
+            match args with
+            | [] ->
+              ()
+            | s::r ->
+              gen s;
+              if List.length r > 0 then out ", ";
+              print_arg r
+          in
+          print_arg args;
+          out ");\n";
+        | Some { cppexpr = CppNull } when not nullable ->
+          abort "CPP0003: Local variable of a non nullable value type cannot be assigned to null" var.tcppv_var.v_pos
+        (* Any expression other than a constructor is a copying operation *)
+        | Some other ->
+          out " = ";
+          out boxed_ident;
+          out "(";
+          gen other;
+          out ");\n";
+        | None when extern_value_type_supports cls ImplicitConstruction ->
+          out " = new ";
+          out boxed_ident_obj;
+          out "();\n";
+        | None ->
+          abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.tcppv_var.v_pos);
+          
+        Printf.sprintf "%s\t%s %s = %s(%s)" spacer reference_ident var.tcppv_name reference_ident obj_name |> out;)
+      else (
+        let stack_name      = "_hx_vt_" ^ var.tcppv_name in
+        let struct_ident    = get_extern_value_type_struct cls params in
+        let reference_ident = get_extern_value_type_reference cls params in
 
-          (match init with
-          (* Construct the type on the stack, ::cpp::Struct will forward the passed arguments to the constructor of the underlying type *)
-          | Some { cppexpr = CppCall (FuncNew _, args); cpptype = TCppValueType _ } ->
-            out " = new ";
-            out boxed_ident_obj;
+        Printf.sprintf "%s %s" struct_ident stack_name |> out;
+
+        (match init with
+        (* Construct the type on the stack, ::cpp::Struct will forward the passed arguments to the constructor of the underlying type *)
+        | Some { cppexpr = CppCall (FuncNew _, args); cpptype = TCppValueType _ } ->
+          (match args with
+          | [] ->
+            out ";\n"
+          | some ->
             out "(";
             let rec print_arg args =
               match args with
@@ -570,83 +600,38 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
                 if List.length r > 0 then out ", ";
                 print_arg r
             in
-            print_arg args;
-            out ");\n";
-          | Some { cppexpr = CppNull } when not nullable ->
-            abort "CPP0003: Local variable of a non nullable value type cannot be assigned to null" var.v_pos
-          (* Any expression other than a constructor is a copying operation *)
-          | Some other ->
-            out " = ";
-            out boxed_ident;
-            out "(";
-            gen other;
-            out ");\n";
-          | None when extern_value_type_supports cls ImplicitConstruction ->
-            out " = new ";
-            out boxed_ident_obj;
-            out "();\n";
-          | None ->
-            abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.v_pos);
-            
-          Printf.sprintf "%s\t%s %s = %s(%s)" spacer reference_ident name reference_ident obj_name |> out;)
-        else (
-          let stack_name      = "_hx_vt_" ^ name in
-          let struct_ident    = get_extern_value_type_struct cls params in
-          let reference_ident = get_extern_value_type_reference cls params in
-  
-          Printf.sprintf "%s %s" struct_ident stack_name |> out;
+            print_arg some;
+            out ");\n")
+        | Some { cppexpr = CppNull } when not nullable ->
+          abort "CPP0003: Local variable of a non nullable value type cannot be assigned to null" var.tcppv_var.v_pos
+        (* Any expression other than a constructor is a copying operation *)
+        | Some other ->
+          out " = ";
+          gen other;
+          out ";\n"
+        | None when extern_value_type_supports cls ImplicitConstruction ->
+          out ";\n"
+        | None ->
+          abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.tcppv_var.v_pos);
 
-          (match init with
-          (* Construct the type on the stack, ::cpp::Struct will forward the passed arguments to the constructor of the underlying type *)
-          | Some { cppexpr = CppCall (FuncNew _, args); cpptype = TCppValueType _ } ->
-            (match args with
-            | [] ->
-              out ";\n"
-            | some ->
-              out "(";
-              let rec print_arg args =
-                match args with
-                | [] ->
-                  ()
-                | s::r ->
-                  gen s;
-                  if List.length r > 0 then out ", ";
-                  print_arg r
-              in
-              print_arg some;
-              out ");\n")
-          | Some { cppexpr = CppNull } when not nullable ->
-            abort "CPP0003: Local variable of a non nullable value type cannot be assigned to null" var.v_pos
-          (* Any expression other than a constructor is a copying operation *)
-          | Some other ->
-            out " = ";
-            gen other;
-            out ";\n"
-          | None when extern_value_type_supports cls ImplicitConstruction ->
-            out ";\n"
-          | None ->
-            abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.v_pos);
-
-          Printf.sprintf "%s\t%s %s = %s(%s)" spacer reference_ident name reference_ident stack_name |> out);
-      | _ ->
-        let name = cpp_var_name_of var in
-        (if cpp_no_debug_synbol ctx var then
-           out (cpp_var_type_of var ^ " " ^ name)
-         else
-           let dbgName = cpp_var_debug_name_of var in
-           let macro = if init = None then "HX_VAR" else "HX_VARI" in
-           let varType = cpp_macro_var_type_of var in
-           if name <> dbgName then
-             out
-               (macro ^ "_NAME( " ^ varType ^ "," ^ name ^ ",\"" ^ dbgName
-              ^ "\")")
-           else out (macro ^ "( " ^ varType ^ "," ^ name ^ ")"));
-        (match init with
-        | Some init ->
-            out " = ";
-            gen init
-        | _ -> ());
-        )
+        Printf.sprintf "%s\t%s %s = %s(%s)" spacer reference_ident var.tcppv_name reference_ident stack_name |> out)
+    | CppVarDecl (var, init) ->
+      (if cpp_no_debug_synbol ctx var.tcppv_var then
+        out (cpp_var_type_of var.tcppv_var ^ " " ^ var.tcppv_name)
+      else
+        let dbgName = cpp_var_debug_name_of var.tcppv_var in
+        let macro   = if init = None then "HX_VAR" else "HX_VARI" in
+        let varType = cpp_macro_var_type_of var.tcppv_var in
+        if var.tcppv_name <> dbgName then
+          out
+            (macro ^ "_NAME( " ^ varType ^ "," ^ var.tcppv_name ^ ",\"" ^ dbgName
+          ^ "\")")
+        else out (macro ^ "( " ^ varType ^ "," ^ var.tcppv_name ^ ")"));
+      (match init with
+      | Some init ->
+          out " = ";
+          gen init
+      | _ -> ())
     | CppEnumIndex obj ->
         gen obj;
         if cpp_is_dynamic_type obj.cpptype then
@@ -925,14 +910,14 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
             out ")")
     (* If we're assigning to a value type local then we want to assign to the struct placed on the stack *)
     (* Without this the reference will be set to potentially a reference rvalue, which would break value semantics *)
-    | CppSet (CppVarRef (VarLocal (var, ValueType)), rhs) -> (
-      cpp_var_name_of var |> Printf.sprintf "_hx_vt_%s = " |> out;
+    | CppSet (CppVarRef (VarLocal ({ tcppv_type = TCppValueType _ } as var)), rhs) -> (
+      var.tcppv_name |> Printf.sprintf "_hx_vt_%s = " |> out;
 
       (* Treat re-assigning a non captured value type here as a special case *)
       (* By default FuncNew with a value type will generate a boxed version due to the many places boxing can occur *)
       (* There is only one place we need to deal with re-assigning non captured vars, so do it now *)
       (match rhs.cppexpr with
-      | CppCall ((FuncNew (TCppValueType (cls, params, _))), args) when not (has_var_flag var VCaptured) ->
+      | CppCall ((FuncNew (TCppValueType (cls, params, _))), args) when not (has_var_flag var.tcppv_var VCaptured) ->
         get_extern_value_type_struct cls params |> out;
 
         out "(";
@@ -957,9 +942,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
             ")")
         in
         (match lvalue with
-        | CppVarRef (VarClosure (var, _))
-          when is_gc_element ctx (cpp_type_of var.v_type) ->
-            out ("this->_hx_set_" ^ cpp_var_name_of var ^ "(HX_CTX, ");
+        | CppVarRef (VarClosure var)
+          when is_gc_element ctx var.tcppv_type ->
+            out ("this->_hx_set_" ^ var.tcppv_name ^ "(HX_CTX, ");
             gen rvalue;
             out ")"
         | CppVarRef (VarThis (member, _))
@@ -1538,8 +1523,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
         out (")" ^ objPtr ^ "," ^ strq name ^ ")")
   and gen_val_loc loc lvalue =
     match loc with
-    | VarClosure (var, _) -> out (cpp_var_name_of var)
-    | VarLocal (local, _) -> out (cpp_var_name_of local)
+    | VarClosure var
+    | VarLocal var -> out var.tcppv_name
     | VarStatic (clazz, objc, member) -> (
         match get_meta_string member.cf_meta Meta.Native with
         | Some n -> out n
