@@ -33,7 +33,7 @@ let gen_function ctx class_def class_name is_static func =
   (* The actual function definition *)
   output return_type_str;
   output (" " ^ class_name ^ "::" ^ func.tcf_name ^ "(");
-  output (print_arg_list func.tcf_func.tf_args "__o_");
+  output (print_arg_list func.tcf_args "__o_");
   output ")";
   ctx.ctx_real_this_ptr <- true;
   let code = get_code func.tcf_field.cf_meta Meta.FunctionCode in
@@ -44,7 +44,7 @@ let gen_function ctx class_def class_name is_static func =
     output " {\n";
     output
       ("\t" ^ ret ^ "::" ^ nativeImpl ^ "("
-      ^ print_arg_list_name func.tcf_func.tf_args "__o_"
+      ^ print_arg_list_name func.tcf_args "__o_"
       ^ ");\n");
     output "}\n\n"
   | _ ->
@@ -127,8 +127,8 @@ let gen_dynamic_function ctx class_def class_name is_static is_for_static_var (f
   let ret = if is_void then "(void)" else "return " in
 
   ctx.ctx_real_this_ptr <- false;
-  Printf.sprintf "HX_BEGIN_DEFAULT_FUNC(%s, %s)\n" func_name class_name |> output; 
-  Printf.sprintf "%s _hx_run(%s)" return_type_str (print_arg_list func.tcf_func.tf_args "__o_") |> output;
+  Printf.sprintf "HX_BEGIN_DEFAULT_FUNC(%s, %s)\n" func_name class_name |> output;
+  Printf.sprintf "%s _hx_run(%s)" return_type_str (print_arg_list func.tcf_args "__o_") |> output;
 
   gen_cpp_function_body ctx class_def is_static func_name func.tcf_func "" "" no_debug;
 

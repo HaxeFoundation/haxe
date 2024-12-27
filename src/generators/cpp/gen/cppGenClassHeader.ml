@@ -72,7 +72,7 @@ let gen_member_function ctx class_def is_static func =
     | other ->
       tcpp_to_string other in
 
-  Printf.sprintf "\t\t%s %s %s(%s);\n" attributes return_type_str func.tcf_name (print_arg_list func.tcf_func.tf_args "") |> output;
+  Printf.sprintf "\t\t%s %s %s(%s);\n" attributes return_type_str func.tcf_name (print_arg_list func.tcf_args "") |> output;
 
   if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
     Printf.sprintf "\t\t%s::Dynamic %s_dyn();\n" (if is_static then "static " else "") func.tcf_name |> output;

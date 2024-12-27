@@ -27,17 +27,17 @@ let type_cant_be_null haxe_type =
 
 let type_arg_to_string v default_val prefix =
   let remap_name, type_str =
-    match cpp_type_of v.v_type with
-    | TCppValueType (cls, params, _) when has_var_flag v VCaptured ->
-      Printf.sprintf "_hx_vt_%s" v.v_name, fst (get_extern_value_type_boxed cls params)
+    match v.tcppv_type with
+    | TCppValueType (cls, params, _) when has_var_flag v.tcppv_var VCaptured ->
+      Printf.sprintf "_hx_vt_%s" v.tcppv_name, fst (get_extern_value_type_boxed cls params)
     | TCppValueType (cls, params, _) ->
-      Printf.sprintf "_hx_vt_%s" v.v_name, get_extern_value_type_struct cls params
+      Printf.sprintf "_hx_vt_%s" v.tcppv_name, get_extern_value_type_struct cls params
     | other ->
-      keyword_remap v.v_name, tcpp_to_string other
+      keyword_remap v.tcppv_name, tcpp_to_string other
     in
   match default_val with
   | Some { eexpr = TConst TNull } -> (type_str, remap_name)
-  | Some constant when type_cant_be_null v.v_type ->
+  | Some constant when match v.tcppv_type with TCppScalar _ -> true | _ -> false ->
       ("::hx::Null< " ^ type_str ^ " > ", prefix ^ remap_name)
   | Some constant -> (type_str, prefix ^ remap_name)
   | _ -> (type_str, remap_name)
@@ -1590,38 +1590,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
       closure.close_undeclared;
     out (") HXARGC(" ^ argsCount ^ ")\n");
 
-    let tvar_arg_to_string var default_val prefix =
-      let name, type_str =
-        match var.tcppv_type with
-        | TCppValueType (cls, params, _) when has_var_flag var.tcppv_var VCaptured ->
-          Printf.sprintf "_hx_vt_%s" var.tcppv_name, fst (get_extern_value_type_boxed cls params)
-        | TCppValueType (cls, params, _) ->
-          Printf.sprintf "_hx_vt_%s" var.tcppv_name, get_extern_value_type_struct cls params
-        | other ->
-          var.tcppv_name, tcpp_to_string other
-        in
-      match default_val with
-      | Some { eexpr = TConst TNull } ->
-        (tcpp_to_string (cpp_type_of_null var.tcppv_var.v_type), name)
-      | Some constant ->
-        (tcpp_to_string (cpp_type_of_null var.tcppv_var.v_type), prefix ^ name)
-      | _ ->
-        (type_str, name)
-    in
-    
-    (* Generate prototype text, including allowing default values to be null *)
-    let cpp_arg_string tvar default_val prefix =
-      let t, n = tvar_arg_to_string tvar default_val prefix in
-      t ^ " " ^ n
-    in
-    
-    let cpp_arg_list args prefix =
-      String.concat "," (List.map (fun (v, o) -> cpp_arg_string v o prefix) args)
-    in
-
-    let func_type = tcpp_to_string closure.close_type in
-    output_i
-      (func_type ^ " _hx_run(" ^ cpp_arg_list closure.close_args "__o_" ^ ")");
+    Printf.sprintf
+      "%s _hx_run( %s )"
+      (tcpp_to_string closure.close_type)
+      (print_arg_list closure.close_args "__o_") |> output_i;
 
     let prologue = function
       | gc_stack ->
@@ -1918,9 +1890,9 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code
 let constructor_arg_var_list class_def =
   match class_def.cl_constructor with
   | Some { cf_expr = Some { eexpr = TFunction function_def } } ->
-    List.map
-      (fun (v, o) -> type_arg_to_string v o "__o_")
-      function_def.tf_args
+    function_def.tf_args
+    |> List.map (fun (v, i) -> CppRetyper.retype_tvar v, i)
+    |> List.map (fun (v, o) -> type_arg_to_string v o "__o_")
   | Some definition ->
     (match follow definition.cf_type with
     | TFun (args, _) -> List.map (fun (a, _, t) -> type_to_string t, a) args

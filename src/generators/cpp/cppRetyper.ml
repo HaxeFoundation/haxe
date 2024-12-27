@@ -1413,6 +1413,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
   let create_function field func = {
     tcf_field = field;
     tcf_name = native_field_name_remap field;
+    tcf_args = List.map (fun (v, i) -> retype_tvar v, i) func.tf_args;
     tcf_func = func;
     tcf_is_virtual = not (has_meta Meta.NonVirtual field.cf_meta);
     tcf_is_reflective = reflective class_def field;

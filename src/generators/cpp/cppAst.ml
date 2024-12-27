@@ -227,6 +227,7 @@ and tcpp_class_function = {
   tcf_field : tclass_field;
   tcf_name : string;
   tcf_func : tfunc;
+  tcf_args : (tcppvar * texpr option) list;
 
   tcf_is_virtual : bool;
   tcf_is_reflective : bool;
