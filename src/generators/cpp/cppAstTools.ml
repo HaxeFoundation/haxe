@@ -714,6 +714,7 @@ let rec cpp_is_struct_access t =
 
 let rec cpp_is_native_array_access t =
    match t with
+   | TCppValueType _ -> true
    | TCppStruct s -> cpp_is_native_array_access s
    | TCppReference s -> cpp_is_native_array_access s
    | TCppInst ({ cl_array_access = Some _ } as klass, _) when is_extern_class klass && Meta.has Meta.NativeArrayAccess klass.cl_meta -> true

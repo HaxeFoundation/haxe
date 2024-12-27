@@ -25,39 +25,41 @@ let type_to_string haxe_type = tcpp_to_string (cpp_type_of haxe_type)
 let type_cant_be_null haxe_type =
   match cpp_type_of haxe_type with TCppScalar _ -> true | _ -> false
 
-let type_arg_to_string name default_val arg_type prefix =
+let type_arg_to_string v default_val prefix =
   let remap_name, type_str =
-    match cpp_type_of arg_type with
+    match cpp_type_of v.v_type with
+    | TCppValueType (cls, params, _) when has_var_flag v VCaptured ->
+      Printf.sprintf "_hx_vt_%s" v.v_name, fst (get_extern_value_type_boxed cls params)
     | TCppValueType (cls, params, _) ->
-      Printf.sprintf "_hx_vt_%s" name, get_extern_value_type_struct cls params
+      Printf.sprintf "_hx_vt_%s" v.v_name, get_extern_value_type_struct cls params
     | other ->
-      keyword_remap name, tcpp_to_string other
+      keyword_remap v.v_name, tcpp_to_string other
     in
   match default_val with
   | Some { eexpr = TConst TNull } -> (type_str, remap_name)
-  | Some constant when type_cant_be_null arg_type ->
+  | Some constant when type_cant_be_null v.v_type ->
       ("::hx::Null< " ^ type_str ^ " > ", prefix ^ remap_name)
   | Some constant -> (type_str, prefix ^ remap_name)
   | _ -> (type_str, remap_name)
 
 (* Generate prototype text, including allowing default values to be null *)
-let print_arg name default_val arg_type prefix =
-  let n, t = type_arg_to_string name default_val arg_type prefix in
+let print_arg v default_val prefix =
+  let n, t = type_arg_to_string v default_val prefix in
   n ^ " " ^ t
 
 (* Generate prototype text, including allowing default values to be null *)
-let print_arg_name name default_val arg_type prefix =
-  let n, _ = type_arg_to_string name default_val arg_type prefix in
+let print_arg_name v default_val prefix =
+  let n, _ = type_arg_to_string v default_val prefix in
   n
 
 let print_arg_list arg_list prefix =
   String.concat ","
-    (List.map (fun (v, o) -> print_arg v.v_name o v.v_type prefix) arg_list)
+    (List.map (fun (v, o) -> print_arg v o prefix) arg_list)
 
 let print_arg_list_name arg_list prefix =
   String.concat ","
     (List.map
-       (fun (v, o) -> print_arg_name v.v_name o v.v_type prefix)
+       (fun (v, o) -> print_arg_name v o prefix)
        arg_list)
 
 let print_arg_names args =
@@ -551,7 +553,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
         | None ->
           abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.tcppv_var.v_pos);
           
-        Printf.sprintf "%s\t%s %s = %s(%s)" spacer reference_ident var.tcppv_name reference_ident obj_name |> out;)
+        Printf.sprintf "%s\t%s %s = %s(%s)" spacer reference_ident var.tcppv_name reference_ident obj_name |> out)
       else (
         let stack_name      = "_hx_vt_" ^ var.tcppv_name in
         let struct_ident    = get_extern_value_type_struct cls params in
@@ -1591,6 +1593,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     let tvar_arg_to_string var default_val prefix =
       let name, type_str =
         match var.tcppv_type with
+        | TCppValueType (cls, params, _) when has_var_flag var.tcppv_var VCaptured ->
+          Printf.sprintf "_hx_vt_%s" var.tcppv_name, fst (get_extern_value_type_boxed cls params)
         | TCppValueType (cls, params, _) ->
           Printf.sprintf "_hx_vt_%s" var.tcppv_name, get_extern_value_type_struct cls params
         | other ->
@@ -1598,10 +1602,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
         in
       match default_val with
       | Some { eexpr = TConst TNull } ->
-          (tcpp_to_string (cpp_type_of_null var.tcppv_var.v_type), name)
+        (tcpp_to_string (cpp_type_of_null var.tcppv_var.v_type), name)
       | Some constant ->
-          (tcpp_to_string (cpp_type_of_null var.tcppv_var.v_type), prefix ^ name)
-      | _ -> (type_str, name)
+        (tcpp_to_string (cpp_type_of_null var.tcppv_var.v_type), prefix ^ name)
+      | _ ->
+        (type_str, name)
     in
     
     (* Generate prototype text, including allowing default values to be null *)
@@ -1914,7 +1919,7 @@ let constructor_arg_var_list class_def =
   match class_def.cl_constructor with
   | Some { cf_expr = Some { eexpr = TFunction function_def } } ->
     List.map
-      (fun (v, o) -> type_arg_to_string v.v_name o v.v_type "__o_")
+      (fun (v, o) -> type_arg_to_string v o "__o_")
       function_def.tf_args
   | Some definition ->
     (match follow definition.cf_type with
