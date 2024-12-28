@@ -15,7 +15,7 @@ let gen_member_variable ctx is_static var =
   let tcpp     = cpp_type_of var.tcv_type in
   let tcpp_str = match tcpp with
   | TCppValueType (cls, params, _) ->
-    get_extern_value_type_struct cls params
+    get_extern_value_type_boxed cls params |> fst
   | other ->
     tcpp_to_string tcpp
   in
@@ -170,7 +170,7 @@ let generate_native_header base_ctx tcpp_class =
     match class_def.cl_super with
     | Some (klass, params) ->
         let name =
-          tcpp_to_string_suffix "_obj" (cpp_instance_type klass params)
+          tcpp_to_string_suffix "_obj" (cpp_instance_type klass params CppRetyper.with_stack_value_type)
         in
         ( name, name )
     | None -> ("", "")
@@ -235,7 +235,7 @@ let generate_managed_header base_ctx tcpp_class =
   let parent, super =
     match tcpp_class.tcl_super with
     | Some super ->
-        let name = tcpp_to_string_suffix "_obj" (cpp_instance_type super.tcl_class super.tcl_params) in
+        let name = tcpp_to_string_suffix "_obj" (cpp_instance_type super.tcl_class super.tcl_params CppRetyper.with_stack_value_type) in
         ( name, name )
     | None -> ("::hx::Object", "::hx::Object")
   in

@@ -7,7 +7,7 @@ open CppAst
 open CppAstTools
 open CppContext
 
-let cpp_type_of = CppRetyper.cpp_type_of
+let cpp_type_of = CppRetyper.cpp_type_of CppRetyper.with_reference_value_type
 
 let script_type t optional = if optional then begin
   match type_string t with

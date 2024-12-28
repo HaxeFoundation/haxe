@@ -17,7 +17,7 @@ type tinject = {
   inj_tail : string;
 }
 
-let cpp_type_of = CppRetyper.cpp_type_of
+let cpp_type_of = CppRetyper.cpp_type_of CppRetyper.with_stack_value_type
 let cpp_type_of_null = CppRetyper.cpp_type_of_null
 let cpp_instance_type = CppRetyper.cpp_instance_type
 let type_to_string haxe_type = tcpp_to_string (cpp_type_of haxe_type)
@@ -509,11 +509,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     | CppBreak -> out "break"
     | CppContinue -> out "continue"
     | CppGoto label -> out ("goto " ^ label_name label)
-    | CppVarDecl ({ tcppv_type = TCppValueType (cls, params, nullable) } as var, init) ->
+    | CppVarDecl ({ tcppv_type = TCppValueType (cls, params, state) } as var, init) ->
       let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "" in
 
       (* Marshalling, place a struct on the stack and have the user typed variable be a reference to it. *)
-      if has_var_flag var.tcppv_var VCaptured || nullable then (
+      if has_var_flag var.tcppv_var VCaptured || state = Promoted then (
         let obj_name                     = "_hx_vt_" ^ var.tcppv_name in
         let reference_ident              = get_extern_value_type_reference cls params in
         let boxed_ident, boxed_ident_obj = get_extern_value_type_boxed cls params in
@@ -537,7 +537,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
           in
           print_arg args;
           out ");\n";
-        | Some { cppexpr = CppNull } when not nullable ->
+        | Some { cppexpr = CppNull } when state <> Promoted ->
           abort "CPP0003: Local variable of a non nullable value type cannot be assigned to null" var.tcppv_var.v_pos
         (* Any expression other than a constructor is a copying operation *)
         | Some other ->
@@ -580,7 +580,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
             in
             print_arg some;
             out ");\n")
-        | Some { cppexpr = CppNull } when not nullable ->
+        | Some { cppexpr = CppNull } when state <> Promoted ->
           abort "CPP0003: Local variable of a non nullable value type cannot be assigned to null" var.tcppv_var.v_pos
         (* Any expression other than a constructor is a copying operation *)
         | Some other ->

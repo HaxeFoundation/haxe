@@ -72,7 +72,7 @@ let autocast_filter for_cppia return_type cppexpr =
       mk_cppexpr (CppCast (ptr_cast, ptr)) ptr
     (* When going from a dynamic or variant add an explicit cast so the ::cpp::marshal::Reference constructor
      * takes care of checking the dynamic type *)
-    | TCppValueType (cls, params, _) ->
+    | TCppValueType _ ->
       mk_cppexpr (CppCast (cppexpr, return_type)) return_type
     | _ ->
       cppexpr

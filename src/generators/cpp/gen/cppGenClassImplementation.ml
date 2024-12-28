@@ -303,7 +303,7 @@ let generate_managed_class base_ctx tcpp_class =
   let class_super_name =
     match class_def.cl_super with
     | Some (klass, params) ->
-        tcpp_to_string_suffix "_obj" (cpp_instance_type klass params)
+        tcpp_to_string_suffix "_obj" (cpp_instance_type klass params CppRetyper.with_stack_value_type)
     | _ -> ""
   in
 
@@ -519,7 +519,7 @@ let generate_managed_class base_ctx tcpp_class =
     let rec find_next_super_iteration cls =
       match cls.tcl_super with
       | Some ({ tcl_container = Some Current } as super) ->
-        Some (tcpp_to_string_suffix "_obj" (cpp_instance_type super.tcl_class super.tcl_params))
+        Some (tcpp_to_string_suffix "_obj" (cpp_instance_type super.tcl_class super.tcl_params CppRetyper.with_stack_value_type))
       | Some super ->
         find_next_super_iteration super
       | None ->

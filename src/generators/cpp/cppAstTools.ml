@@ -430,8 +430,12 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppGlobal -> "::Dynamic"
   | TCppNull -> " ::Dynamic"
   | TCppCode _ -> "Code"
-  | TCppValueType (cls, params, _) ->
-    cpp_class_path_of cls params |> Printf.sprintf "::cpp::marshal::Reference< %s >"
+  | TCppValueType (cls, params, Reference) ->
+    get_extern_value_type cls params |> Printf.sprintf "::cpp::marshal::Reference< %s >"
+  | TCppValueType (cls, params, Stack) ->
+    get_extern_value_type cls params |> Printf.sprintf "::cpp::marshal::ValueType< %s >"
+  | TCppValueType (cls, params, Promoted) ->
+    get_extern_value_type cls params |> Printf.sprintf "::cpp::marshal::Boxed< %s >"
 
 and get_extern_value_type cls params =
   let get_meta_field field =
@@ -728,6 +732,8 @@ let cpp_is_dynamic_type = function
 
 let is_object_element member_type =
   match member_type with
+   | TCppValueType (_, _, Promoted) ->
+      true
    | TCppInst (x, _)
    | TCppInterface x
        -> not (is_extern_class x)
