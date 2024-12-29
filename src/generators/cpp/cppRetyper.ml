@@ -457,13 +457,13 @@ let expression ctx request_type function_args function_type expression_tree forI
           let new_var = retype_tvar tvar in
 
           if StringMap.mem name retyper_ctx.declarations then
-            (retyper_ctx, CppVar (VarLocal new_var), cpp_type_of tvar.v_type)
+            (retyper_ctx, CppVar (VarLocal new_var), new_var.tcppv_type)
           else (
             let new_ctx = { retyper_ctx with undeclared = StringMap.add name new_var retyper_ctx.undeclared } in
             if has_var_flag tvar VCaptured then
-              (new_ctx, CppVar (VarClosure new_var), cpp_type_of tvar.v_type)
+              (new_ctx, CppVar (VarClosure new_var), new_var.tcppv_type)
             else
-              (new_ctx, CppExtern (name, false), cpp_type_of tvar.v_type))
+              (new_ctx, CppExtern (name, false), new_var.tcppv_type))
       | TIdent name -> (retyper_ctx, CppExtern (name, false), return_type)
       | TBreak -> (
           if forCppia then
@@ -1001,6 +1001,13 @@ let expression ctx request_type function_args function_type expression_tree forI
                     ( retyper_ctx,
                       CppArray (ArrayObject (retypedObj, retypedIdx, TCppDynamic)),
                       TCppDynamic )
+                (* | TCppObjectArray TCppValueType (cls, params, _) as elem ->
+                  let inner = mk_cppexpr (CppArray (ArrayObject (retypedObj, retypedIdx, TCppDynamic))) elem in
+                  let reference = TCppValueType (cls, params, Reference) in
+
+                  ( retyper_ctx,
+                      CppCast (inner, reference),
+                      reference ) *)
                 | TCppObjectArray elem ->
                     (retyper_ctx, CppArray (ArrayObject (retypedObj, retypedIdx, elem)), elem)
                 | TCppInst (({ cl_array_access = Some _ } as klass), _) ->
@@ -1127,11 +1134,12 @@ let expression ctx request_type function_args function_type expression_tree forI
           in
           (retyper_ctx, reference, cpp_type_of expr.etype)
       | TFor (v, init, block) ->
+          let new_var = retype_tvar v in
           let retyper_ctx = { retyper_ctx with declarations = StringMap.add v.v_name () retyper_ctx.declarations } in
-          let retyper_ctx, init = retype retyper_ctx (cpp_type_of v.v_type) init in
+          let retyper_ctx, init = retype retyper_ctx new_var.tcppv_type init in
           let retyper_ctx, block = retype retyper_ctx TCppVoid (mk_block block) in
           let retyper_ctx = { retyper_ctx with declarations = StringMap.remove v.v_name retyper_ctx.declarations } in
-          (retyper_ctx, CppFor (retype_tvar v, init, block), TCppVoid)
+          (retyper_ctx, CppFor (new_var, init, block), TCppVoid)
       | TWhile (e1, e2, flag) ->
           let retyper_ctx, condition = retype retyper_ctx (TCppScalar "bool") e1 in
           let retyper_ctx, close = begin_loop retyper_ctx in
@@ -1207,15 +1215,14 @@ let expression ctx request_type function_args function_type expression_tree forI
           | TCppVoid -> (retyper_ctx, CppObjectDecl (joined, false), TCppVoid)
           | _ -> (retyper_ctx, CppObjectDecl (joined, false), TCppDynamic))
       | TVar (v, eo) ->
-          let var_type = cpp_type_of v.v_type in
           let new_var  = retype_tvar v in
           let retyper_ctx, init =
             match eo with
             | None -> retyper_ctx, None
-            | Some e -> retype retyper_ctx var_type e |> (fun (new_ctx, expr) -> new_ctx, Some expr)
+            | Some e -> retype retyper_ctx new_var.tcppv_type e |> (fun (new_ctx, expr) -> new_ctx, Some expr)
           in
           let retyper_ctx = { retyper_ctx with declarations = StringMap.add v.v_name () retyper_ctx.declarations } in
-          (retyper_ctx, CppVarDecl (new_var, init), var_type)
+          (retyper_ctx, CppVarDecl (new_var, init), new_var.tcppv_type)
       | TIf (ec, e1, e2) ->
           let retyper_ctx, ec = retype retyper_ctx (TCppScalar "bool") ec in
           let blockify =
@@ -1382,7 +1389,7 @@ let expression ctx request_type function_args function_type expression_tree forI
               (retyper_ctx, CppTCast (baseCpp, return_type), return_type))
     in
     
-    retyper_ctx, (mk_cppexpr retypedExpr retypedType) |> CppFilterAutoCast.autocast_filter forCppia return_type |> CppFilterValueType.filter_assign_local_type
+    retyper_ctx, (mk_cppexpr retypedExpr retypedType) |> CppFilterAutoCast.autocast_filter forCppia return_type
   in
   retype initial_ctx request_type expression_tree |> snd
 

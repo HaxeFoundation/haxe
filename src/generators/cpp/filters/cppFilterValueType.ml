@@ -17,11 +17,3 @@ let filter_class_field_access tcppexpr =
     mk_cppexpr (CppCast (tcppexpr, vt)) vt
   | _, _ ->
     tcppexpr
-
-let filter_assign_local_type tcppexpr =
-  match tcppexpr.cppexpr with
-  | CppVarDecl ({ tcppv_type = TCppValueType (cls, params, Reference) } as var, init) ->
-    let new_type = if has_var_flag var.tcppv_var VCaptured then Promoted else Stack in
-    { tcppexpr with cppexpr = CppVarDecl ({ var with tcppv_type = TCppValueType (cls, params, new_type) }, init) }
-  | _ ->
-    tcppexpr

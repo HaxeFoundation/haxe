@@ -25,16 +25,17 @@ let type_to_string haxe_type = tcpp_to_string (cpp_type_of haxe_type)
 let type_cant_be_null haxe_type =
   match cpp_type_of haxe_type with TCppScalar _ -> true | _ -> false
 
+let print_var_name v =
+  match v.tcppv_type with
+  | TCppValueType _ ->
+    Printf.sprintf "_hx_vt_%s" v.tcppv_name
+  | _ ->
+    v.tcppv_name
+
 let type_arg_to_string v default_val prefix =
-  let remap_name, type_str =
-    match v.tcppv_type with
-    | TCppValueType (cls, params, _) when has_var_flag v.tcppv_var VCaptured ->
-      Printf.sprintf "_hx_vt_%s" v.tcppv_name, fst (get_extern_value_type_boxed cls params)
-    | TCppValueType (cls, params, _) ->
-      Printf.sprintf "_hx_vt_%s" v.tcppv_name, get_extern_value_type_struct cls params
-    | other ->
-      keyword_remap v.tcppv_name, tcpp_to_string other
-    in
+  let remap_name = print_var_name v in
+  let type_str   = tcpp_to_string v.tcppv_type in
+
   match default_val with
   | Some { eexpr = TConst TNull } -> (type_str, remap_name)
   | Some constant when match v.tcppv_type with TCppScalar _ -> true | _ -> false ->
@@ -49,8 +50,7 @@ let print_arg v default_val prefix =
 
 (* Generate prototype text, including allowing default values to be null *)
 let print_arg_name v default_val prefix =
-  let n, _ = type_arg_to_string v default_val prefix in
-  n
+  type_arg_to_string v default_val prefix |> fst
 
 let print_arg_list arg_list prefix =
   String.concat ","
@@ -184,7 +184,7 @@ let cpp_gen_value_struct_references ctx args =
     (fun (var, _) ->
       match var.tcppv_type with
       | TCppValueType (cls, params, _) ->
-        let stack_name      = "_hx_vt_" ^ var.tcppv_name in
+        let stack_name      = print_var_name var in
         let reference_ident = get_extern_value_type_reference cls params in
         let spacer          = if ctx.ctx_debug_level > 0 then "            \t" else "" in
         
@@ -513,8 +513,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
       let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "" in
 
       (* Marshalling, place a struct on the stack and have the user typed variable be a reference to it. *)
-      if has_var_flag var.tcppv_var VCaptured || state = Promoted then (
-        let obj_name                     = "_hx_vt_" ^ var.tcppv_name in
+      if state = Promoted then (
+        let obj_name                     = print_var_name var in
         let reference_ident              = get_extern_value_type_reference cls params in
         let boxed_ident, boxed_ident_obj = get_extern_value_type_boxed cls params in
 
@@ -555,7 +555,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
           
         Printf.sprintf "%s\t%s %s = %s(%s)" spacer reference_ident var.tcppv_name reference_ident obj_name |> out)
       else (
-        let stack_name      = "_hx_vt_" ^ var.tcppv_name in
+        let stack_name      = print_var_name var in
         let struct_ident    = get_extern_value_type_struct cls params in
         let reference_ident = get_extern_value_type_reference cls params in
 
@@ -788,17 +788,19 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
                   "::Array_obj< " ^ tcpp_to_string value ^ " >::__new"
               | TCppObjC klass -> cpp_class_path_of klass [] ^ "_obj::__new"
               | TCppNativePointer klass -> "new " ^ cpp_class_path_of klass []
-              | TCppValueType (cls, params, _) ->
+              | TCppValueType (cls, params, Promoted) ->
                 get_extern_value_type_boxed cls params |> snd |> Printf.sprintf "new %s"
+              | TCppValueType (cls, params, Stack) ->
+                get_extern_value_type_struct cls params
               | TCppInst (klass, p) when is_native_class klass ->
                   cpp_class_path_of klass p
               | TCppInst (klass, p) -> cpp_class_path_of klass p ^ "_obj::__new"
               | TCppClass -> "::hx::Class_obj::__new"
               | TCppFunction _ -> tcpp_to_string newType
               | _ ->
-                  abort
-                    ("Unknown 'new' target " ^ tcpp_to_string newType)
-                    expr.cpppos
+                abort
+                  ("Unknown 'new' target " ^ tcpp_to_string newType)
+                  expr.cpppos
             in
             out objName
         | FuncInternal (func, name, join) ->
@@ -889,7 +891,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     (* If we're assigning to a value type local then we want to assign to the struct placed on the stack *)
     (* Without this the reference will be set to potentially a reference rvalue, which would break value semantics *)
     | CppSet (CppVarRef (VarLocal ({ tcppv_type = TCppValueType _ } as var)), rhs) -> (
-      var.tcppv_name |> Printf.sprintf "_hx_vt_%s = " |> out;
+      print_var_name var |> Printf.sprintf "%s = " |> out;
 
       (* Treat re-assigning a non captured value type here as a special case *)
       (* By default FuncNew with a value type will generate a boxed version due to the many places boxing can occur *)
@@ -1041,17 +1043,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
         | _ -> ());
 
         StringMap.iter
-          (fun name var ->
-            let name =
-              match var.tcppv_type with
-              | TCppValueType (cls, params, _) ->
-                Printf.sprintf "_hx_vt_%s" name
-              | other ->
-                name in
-
+          (fun _ var ->
+            let name = print_var_name var in
             out !separator;
             separator := ",";
-            out (keyword_remap name))
+            out name)
           closure.close_undeclared;
         out "))"
     | CppObjectDecl (values, isStruct) ->
@@ -1579,13 +1575,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
        else "::hx::LocalFunc,");
     out ("_hx_Closure_" ^ string_of_int closure.close_id);
     StringMap.iter
-      (fun name var ->
-        let name, str =
-          match var.tcppv_type with
-          | TCppValueType (cls, params, _) ->
-            Printf.sprintf "_hx_vt_%s" name, get_extern_value_type_boxed cls params |> fst
-          | other ->
-            name, cpp_macro_var_type_of var in
+      (fun _ var ->
+        let name = print_var_name var in
+        let str  = cpp_macro_var_type_of var in 
         out ("," ^ str ^ "," ^ keyword_remap name))
       closure.close_undeclared;
     out (") HXARGC(" ^ argsCount ^ ")\n");
@@ -1605,7 +1597,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
             (fun name var ->
               match var.tcppv_type with
               | TCppValueType (cls, params, _) ->
-                let stack_name      = "_hx_vt_" ^ var.tcppv_name in
+                let stack_name      = print_var_name var in
                 let reference_ident = get_extern_value_type_reference cls params in
                 
                 Printf.sprintf "%s %s = %s(%s);\n" reference_ident name reference_ident stack_name |> output_i;
