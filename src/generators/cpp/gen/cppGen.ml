@@ -25,15 +25,8 @@ let type_to_string haxe_type = tcpp_to_string (cpp_type_of haxe_type)
 let type_cant_be_null haxe_type =
   match cpp_type_of haxe_type with TCppScalar _ -> true | _ -> false
 
-let print_var_name v =
-  match v.tcppv_type with
-  | TCppValueType _ ->
-    Printf.sprintf "_hx_vt_%s" v.tcppv_name
-  | _ ->
-    v.tcppv_name
-
 let type_arg_to_string v default_val prefix =
-  let remap_name = print_var_name v in
+  let remap_name = v.tcppv_name in
   let type_str   = tcpp_to_string v.tcppv_type in
 
   match default_val with
@@ -176,19 +169,6 @@ let cpp_gen_default_values ctx args prefix =
                ^ " = "
                ^ default_value_string ctx.ctx_common const
                ^ ";\n")
-      | _ -> ())
-    args
-
-let cpp_gen_value_struct_references ctx args =
-  List.iter
-    (fun (var, _) ->
-      match var.tcppv_type with
-      | TCppValueType (cls, params, _) ->
-        let stack_name      = print_var_name var in
-        let reference_ident = get_extern_value_type_reference cls params in
-        let spacer          = if ctx.ctx_debug_level > 0 then "            \t" else "" in
-        
-        Printf.sprintf "%s%s %s = %s(%s);\n" spacer reference_ident var.tcppv_name reference_ident stack_name |> ctx.ctx_output
       | _ -> ())
     args
 
@@ -510,12 +490,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     | CppContinue -> out "continue"
     | CppGoto label -> out ("goto " ^ label_name label)
     | CppVarDecl ({ tcppv_type = TCppValueType (cls, params, state) } as var, init) ->
-      let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "" in
 
       (* Marshalling, place a struct on the stack and have the user typed variable be a reference to it. *)
       if state = Promoted then (
-        let obj_name                     = print_var_name var in
-        let reference_ident              = get_extern_value_type_reference cls params in
+        let obj_name                     = var.tcppv_name in
         let boxed_ident, boxed_ident_obj = get_extern_value_type_boxed cls params in
 
         Printf.sprintf "%s %s" boxed_ident obj_name |> out;
@@ -551,13 +529,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
           out boxed_ident_obj;
           out "();\n";
         | None ->
-          abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.tcppv_var.v_pos);
-          
-        Printf.sprintf "%s\t%s %s = %s(%s)" spacer reference_ident var.tcppv_name reference_ident obj_name |> out)
+          abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.tcppv_var.v_pos))
       else (
-        let stack_name      = print_var_name var in
+        let stack_name      = var.tcppv_name in
         let struct_ident    = get_extern_value_type_struct cls params in
-        let reference_ident = get_extern_value_type_reference cls params in
 
         Printf.sprintf "%s %s" struct_ident stack_name |> out;
 
@@ -590,9 +565,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
         | None when extern_value_type_supports cls ImplicitConstruction ->
           out ";\n"
         | None ->
-          abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.tcppv_var.v_pos);
-
-        Printf.sprintf "%s\t%s %s = %s(%s)" spacer reference_ident var.tcppv_name reference_ident stack_name |> out)
+          abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.tcppv_var.v_pos))
     | CppVarDecl (var, init) ->
       (if cpp_no_debug_synbol ctx var then
         out (tcpp_to_string var.tcppv_type ^ " " ^ var.tcppv_name)
@@ -789,7 +762,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
               | TCppObjC klass -> cpp_class_path_of klass [] ^ "_obj::__new"
               | TCppNativePointer klass -> "new " ^ cpp_class_path_of klass []
               | TCppValueType (cls, params, Promoted) ->
-                get_extern_value_type_boxed cls params |> snd |> Printf.sprintf "new %s"
+                closeCall := ")";
+                let ptr, obj = get_extern_value_type_boxed cls params in
+                Printf.sprintf "%s( new %s " ptr obj
               | TCppValueType (cls, params, Stack) ->
                 get_extern_value_type_struct cls params
               | TCppInst (klass, p) when is_native_class klass ->
@@ -891,7 +866,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     (* If we're assigning to a value type local then we want to assign to the struct placed on the stack *)
     (* Without this the reference will be set to potentially a reference rvalue, which would break value semantics *)
     | CppSet (CppVarRef (VarLocal ({ tcppv_type = TCppValueType _ } as var)), rhs) -> (
-      print_var_name var |> Printf.sprintf "%s = " |> out;
+      var.tcppv_name |> Printf.sprintf "%s = " |> out;
 
       (* Treat re-assigning a non captured value type here as a special case *)
       (* By default FuncNew with a value type will generate a boxed version due to the many places boxing can occur *)
@@ -1044,7 +1019,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
 
         StringMap.iter
           (fun _ var ->
-            let name = print_var_name var in
+            let name = var.tcppv_name in
             out !separator;
             separator := ",";
             out name)
@@ -1576,7 +1551,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     out ("_hx_Closure_" ^ string_of_int closure.close_id);
     StringMap.iter
       (fun _ var ->
-        let name = print_var_name var in
+        let name = var.tcppv_name in
         let str  = cpp_macro_var_type_of var in 
         out ("," ^ str ^ "," ^ keyword_remap name))
       closure.close_undeclared;
@@ -1590,20 +1565,6 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     let prologue = function
       | gc_stack ->
           cpp_gen_default_values ctx closure.close_args "__o_";
-          cpp_gen_value_struct_references ctx closure.close_args;
-          
-          (* Add a reference variable for each captured value type variable so its accessible to user code *)
-          StringMap.iter
-            (fun name var ->
-              match var.tcppv_type with
-              | TCppValueType (cls, params, _) ->
-                let stack_name      = print_var_name var in
-                let reference_ident = get_extern_value_type_reference cls params in
-                
-                Printf.sprintf "%s %s = %s(%s);\n" reference_ident name reference_ident stack_name |> output_i;
-              | other ->
-                ())
-            closure.close_undeclared;
 
           hx_stack_push ctx output_i class_name func_name
             closure.close_expr.cpppos gc_stack;
@@ -1851,7 +1812,6 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code
         let output_i s = output (spacer ^ s) in
         let retyped_args = function_def.tf_args |> List.map (fun (v, init) -> CppRetyper.retype_tvar v, init) in
         cpp_gen_default_values ctx retyped_args  "__o_";
-        cpp_gen_value_struct_references ctx retyped_args;
         hx_stack_push ctx output_i dot_name func_name function_def.tf_expr.epos
           gc_stack;
         if ctx.ctx_debug_level >= 2 then (

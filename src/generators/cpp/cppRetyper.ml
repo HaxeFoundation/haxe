@@ -456,12 +456,26 @@ let expression ctx request_type function_args function_type expression_tree forI
           let name    = tvar.v_name in
           let new_var = retype_tvar tvar in
 
+          (* We need to manually add the reference wrapper for value types right here, we can't let the auto cast filter do it for us *)
+          (* This could and would be better be handled in the auto cast filter but we then get into a right muddle with type parameters becoming dynamic *)
+          (* So easiest thing is to handle it immediately since no tvar will be a reference *)
+          let expr_wrapper, t_wrapper =
+            match new_var.tcppv_type with
+            | TCppValueType (cls, params, (Stack | Promoted)) ->
+              let reference = TCppValueType(cls, params, Reference) in
+              (fun tcppexpr -> CppCast (mk_cppexpr tcppexpr new_var.tcppv_type, reference)),
+              reference
+            | _ ->
+              (fun tcppexpr -> tcppexpr),
+              new_var.tcppv_type
+            in
+
           if StringMap.mem name retyper_ctx.declarations then
-            (retyper_ctx, CppVar (VarLocal new_var), new_var.tcppv_type)
+            (retyper_ctx, CppVar (VarLocal new_var) |> expr_wrapper, t_wrapper)
           else (
             let new_ctx = { retyper_ctx with undeclared = StringMap.add name new_var retyper_ctx.undeclared } in
             if has_var_flag tvar VCaptured then
-              (new_ctx, CppVar (VarClosure new_var), new_var.tcppv_type)
+              (new_ctx, CppVar (VarClosure new_var) |> expr_wrapper, t_wrapper)
             else
               (new_ctx, CppExtern (name, false), new_var.tcppv_type))
       | TIdent name -> (retyper_ctx, CppExtern (name, false), return_type)
@@ -854,7 +868,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                 let real_types = List.map2 map_args arg_types args in
                 let arg_types =
                   List.map
-                    (fun (_, opt, t) -> cpp_tfun_arg_type_of opt with_stack_value_type t)
+                    (fun (_, opt, t) -> cpp_tfun_arg_type_of opt with_reference_value_type t)
                     real_types
                 in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
@@ -864,7 +878,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             | CppFunction ( (FuncThis ({ cf_type = TFun (arg_types, _) }, _) as func), returnType ) ->
                 let arg_types =
                   List.map
-                    (fun (_, opt, t) -> cpp_tfun_arg_type_of opt with_stack_value_type t)
+                    (fun (_, opt, t) -> cpp_tfun_arg_type_of opt with_reference_value_type t)
                     arg_types
                 in
                 (* retype args specifically (not just CppDynamic) *)

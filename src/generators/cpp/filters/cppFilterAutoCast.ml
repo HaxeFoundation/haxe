@@ -72,7 +72,7 @@ let autocast_filter for_cppia return_type cppexpr =
       mk_cppexpr (CppCast (ptr_cast, ptr)) ptr
     (* When going from a dynamic or variant add an explicit cast so the ::cpp::marshal::Reference constructor
      * takes care of checking the dynamic type *)
-    | TCppValueType _ ->
+    | TCppValueType (_, _, _) ->
       mk_cppexpr (CppCast (cppexpr, return_type)) return_type
     | _ ->
       cppexpr
@@ -158,8 +158,15 @@ let autocast_filter for_cppia return_type cppexpr =
     | TCppScalar from, TCppScalar too when from <> too ->
       mk_cppexpr (CppCastScalar (cppexpr, too)) return_type
 
-    (* Ensure we wrap any access to the stack or promoted type in a reference object *)
+    (* Ensure we wrap any access to the stack or promoted type in a reference object. *)
+    (* TIdents are wrapped at retyping but array access and others won't be, so this will wrap them. *)
     | TCppValueType (cls, params, (Stack | Promoted)), (TCppValueType (_, _, Reference) as reference) ->
+      mk_cppexpr (CppCast (cppexpr, reference)) reference
+    | TCppValueType (_, _, Stack), TCppValueType (cls, params, Promoted) ->
+      let reference = TCppValueType(cls, params, Reference) in
+      mk_cppexpr (CppCast (cppexpr, reference)) reference
+    | TCppValueType (_, _, Promoted), TCppValueType (cls, params, Stack) ->
+      let reference = TCppValueType(cls, params, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference
 
     (* If we are constructing a value type of reference state, inspect the surrounding context and choose a more appropriate construction *)
