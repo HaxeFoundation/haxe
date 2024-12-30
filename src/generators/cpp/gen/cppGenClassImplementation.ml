@@ -23,7 +23,8 @@ let gen_function ctx class_def class_name is_static func =
       "return ", false, tcpp_to_string other in
   let needsWrapper t =
     match t with
-    | TCppStar _ -> true
+    | TCppStar _
+    | TCppValueType (_, _, (Stack | Promoted)) -> true
     | TCppInst (t, _) -> Meta.has Meta.StructAccess t.cl_meta
     | _ -> false
   in
@@ -71,11 +72,14 @@ let gen_function ctx class_def class_name is_static func =
         output ") {\n\t";
         (if not is_void then
             match return_type with
-            | TCppStar _ -> output "return (cpp::Pointer<const void *>) "
-            | TCppInst (t, _) when Meta.has Meta.StructAccess t.cl_meta
-              ->
-                output ("return (cpp::Struct< " ^ tcpp_to_string return_type ^ " >) ")
-            | _ -> output "return ");
+            | TCppStar _ ->
+              output "return (cpp::Pointer<const void *>) "
+            | TCppInst (t, _) when Meta.has Meta.StructAccess t.cl_meta ->
+              output ("return (cpp::Struct< " ^ tcpp_to_string return_type ^ " >) ")
+            | TCppValueType (cls, params, _) ->
+              CppMarshalling.get_extern_value_type_reference cls params |> Printf.sprintf "return (%s) " |> output
+            | _ ->
+              output "return ");
 
         if is_static then
           output (class_name ^ "::" ^ func.tcf_name ^ "(")
@@ -85,9 +89,11 @@ let gen_function ctx class_def class_name is_static func =
         let cast_prefix idx arg =
           match arg with
           | TCppStar (t, const) ->
-              Printf.sprintf "(::cpp::%sPointer< %s >) a%i" (if const then "Const" else "") (tcpp_to_string t) idx
+            Printf.sprintf "(::cpp::%sPointer< %s >) a%i" (if const then "Const" else "") (tcpp_to_string t) idx
           | TCppInst (t, _) when Meta.has Meta.StructAccess t.cl_meta ->
             Printf.sprintf "(::cpp::Struct< %s >) a%i" (tcpp_to_string arg) idx
+          | TCppValueType (cls, params, _) ->
+            Printf.sprintf "(%s) a%i" (CppMarshalling.get_extern_value_type_reference cls params) idx
           | _ ->
             Printf.sprintf "a%i" idx in
             
