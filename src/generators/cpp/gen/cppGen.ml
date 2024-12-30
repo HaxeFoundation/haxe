@@ -121,11 +121,6 @@ let cpp_class_name klass =
   let path = globalNamespace ^ join_class_path_remap klass.cl_path "::" in
   if is_native_class klass || path = "::String" then path else path ^ "_obj"
 
-let only_stack_access haxe_type =
-  match cpp_type_of haxe_type with
-  | TCppInst (klass, _) -> Meta.has Meta.StackOnly klass.cl_meta
-  | _ -> false
-
 let cpp_is_static_extension member =
   Meta.has Meta.NativeStaticExtension member.cf_meta
 
@@ -408,8 +403,7 @@ let needed_interface_functions implemented_instance_fields native_implementation
   |> List.fold_left iface_folder (have, [])
   |> snd
 
-let gen_cpp_ast_expression_tree ctx class_name func_name function_args
-    function_type injection tree =
+let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_type injection tree =
   let writer = ctx.ctx_writer in
   let out = ctx.ctx_output in
   let lastLine = ref (-1) in
@@ -1603,8 +1597,7 @@ let gen_cpp_init ctx dot_name func_name var_name expr =
         hx_stack_push ctx output_i dot_name func_name expr.epos gc_stack
   in
   let injection = mk_injection prologue var_name "" in
-  gen_cpp_ast_expression_tree ctx dot_name func_name [] t_dynamic injection
-    (mk_block expr)
+  gen_cpp_ast_expression_tree ctx dot_name func_name [] t_dynamic injection (mk_block expr)
 
 let generate_main_header output_main =
   output_main "#include <hxcpp.h>\n\n";

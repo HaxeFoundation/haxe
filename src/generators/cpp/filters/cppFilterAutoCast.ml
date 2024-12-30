@@ -170,18 +170,18 @@ let autocast_filter for_cppia return_type cppexpr =
       mk_cppexpr (CppCast (cppexpr, reference)) reference
 
     (* If we are constructing a value type of reference state, inspect the surrounding context and choose a more appropriate construction *)
-    | TCppValueType (cls, params, Reference), (TCppObject | TCppDynamic | TCppVariant | TCppValueType (_, _, Promoted)) ->
-      (match cppexpr.cppexpr with
-      | CppCall ((FuncNew _), args) ->
-        let promoted = TCppValueType (cls, params, Promoted) in
-        { cppexpr with cpptype = promoted; cppexpr = CppCall ((FuncNew promoted), args) }
-      | _ ->
-        cppexpr)
     | TCppValueType (cls, params, Reference), TCppValueType (_, _, Stack) ->
       (match cppexpr.cppexpr with
       | CppCall ((FuncNew _), args) ->
         let stack = TCppValueType (cls, params, Stack) in
         { cppexpr with cpptype = stack; cppexpr = CppCall ((FuncNew stack), args) }
+      | _ ->
+        cppexpr)
+    | TCppValueType (cls, params, Reference), _ ->
+      (match cppexpr.cppexpr with
+      | CppCall ((FuncNew _), args) ->
+        let promoted = TCppValueType (cls, params, Promoted) in
+        { cppexpr with cpptype = promoted; cppexpr = CppCall ((FuncNew promoted), args) }
       | _ ->
         cppexpr)
     | _ -> cppexpr

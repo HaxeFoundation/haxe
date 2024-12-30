@@ -12,13 +12,8 @@ open CppGen
 open CppMarshalling
 
 let gen_member_variable ctx is_static var =
-  let tcpp     = cpp_type_of var.tcv_type in
-  let tcpp_str = match tcpp with
-  | TCppValueType (cls, params, _) ->
-    get_extern_value_type_boxed cls params |> fst
-  | other ->
-    tcpp_to_string tcpp
-  in
+  let tcpp     = CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type var.tcv_type in
+  let tcpp_str = tcpp_to_string tcpp in
 
   if not is_static && var.tcv_is_stackonly then
     abort (Printf.sprintf "%s is marked as stack only and therefor cannot be used as the type for a non static variable" (Printer.s_type var.tcv_type)) var.tcv_field.cf_pos;

@@ -17,8 +17,6 @@ let gen_function ctx class_def class_name is_static func =
 
   let ret, is_void, return_type_str =
     match return_type with
-    | TCppValueType (cls, params, _) ->
-      "return ", false, get_extern_value_type_struct cls params
     | TCppVoid ->
       "(void)", true, "void"
     | other ->
@@ -57,7 +55,7 @@ let gen_function ctx class_def class_name is_static func =
     
     (* generate dynamic version too ... *)
     if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
-      let tcpp_args = List.map (fun (v, _) -> cpp_type_of v.v_type) func.tcf_func.tf_args in
+      let tcpp_args = List.map (fun (v, _) -> CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type v.v_type) func.tcf_func.tf_args in
       let wrap      = needsWrapper return_type || List.exists needsWrapper tcpp_args in
 
       if wrap then (
@@ -116,28 +114,28 @@ let gen_function ctx class_def class_name is_static func =
         let prefix = if is_static then "STATIC_" else "" in
         Printf.sprintf "%sHX_DEFINE_DYNAMIC_FUNC%i(%s, %s, %s)\n\n" prefix (List.length func.tcf_func.tf_args) class_name func.tcf_name ret |> output
 
-let gen_dynamic_function ctx class_def class_name is_static is_for_static_var (func:tcpp_class_function) =
+let gen_dynamic_function ctx class_def class_name is_static is_for_static_var func =
   let output = ctx.ctx_output in
   let func_name = "__default_" ^ func.tcf_name in
   let nargs = string_of_int (List.length func.tcf_func.tf_args) in
-  let return_type_str = type_to_string func.tcf_func.tf_type in
-  let return_type = cpp_type_of func.tcf_func.tf_type in
+  let return_type = CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type func.tcf_func.tf_type in
   let no_debug = Meta.has Meta.NoDebug func.tcf_field.cf_meta in
   let is_void = return_type = TCppVoid in
   let ret = if is_void then "(void)" else "return " in
 
   ctx.ctx_real_this_ptr <- false;
   Printf.sprintf "HX_BEGIN_DEFAULT_FUNC(%s, %s)\n" func_name class_name |> output;
-  Printf.sprintf "%s _hx_run(%s)" return_type_str (print_arg_list func.tcf_args "__o_") |> output;
+  Printf.sprintf "%s _hx_run(%s)" (tcpp_to_string return_type) (print_arg_list func.tcf_args "__o_") |> output;
 
   gen_cpp_function_body ctx class_def is_static func_name func.tcf_func "" "" no_debug;
 
   output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
   output "HX_END_DEFAULT_FUNC\n\n"
 
-let gen_static_variable ctx class_def class_name (var:tcpp_class_variable) =
-  let output = ctx.ctx_output in
-  Printf.sprintf "%s %s::%s;\n\n" (type_to_string var.tcv_type) class_name var.tcv_name |> output
+let gen_static_variable ctx class_def class_name var =
+  let output   = ctx.ctx_output in
+  let tcpp_str = var.tcv_type |> CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type |> tcpp_to_string in
+  Printf.sprintf "%s %s::%s;\n\n" tcpp_str class_name var.tcv_name |> output
 
 let gen_dynamic_function_init ctx class_def func =
   match func.tcf_field.cf_expr with
@@ -580,7 +578,7 @@ let generate_managed_class base_ctx tcpp_class =
   in
 
   let get_wrapper field value =
-    match cpp_type_of field.cf_type with
+    match CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type field.cf_type with
     | TCppInst (t, _) as inst when Meta.has Meta.StructAccess t.cl_meta ->
       Printf.sprintf "(::cpp::Struct< %s >) %s" (tcpp_to_string inst) value
     | TCppStar _ ->
@@ -625,11 +623,13 @@ let generate_managed_class base_ctx tcpp_class =
   in
   
   let castable f =
-    match cpp_type_of f.cf_type with
+    match CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type f.cf_type with
     | TCppInst (t, _) as inst when Meta.has Meta.StructAccess t.cl_meta ->
-        "cpp::Struct< " ^ tcpp_to_string inst ^ " > "
-    | TCppStar (t, _) -> "cpp::Pointer< " ^ tcpp_to_string t ^ " >"
-    | _ -> type_to_string f.cf_type
+      "cpp::Struct< " ^ tcpp_to_string inst ^ " > "
+    | TCppStar (t, _) ->
+      "cpp::Pointer< " ^ tcpp_to_string t ^ " >"
+    | other ->
+      tcpp_to_string other
   in
 
   if has_tcpp_class_flag tcpp_class MemberGet then (

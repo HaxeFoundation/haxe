@@ -409,6 +409,7 @@ let expression ctx request_type function_args function_type expression_tree forI
 
   (* Core Retyping *)
   let rec retype retyper_ctx return_type expr =
+    let cpp_type_of_with handler t = cpp_type_of handler t in
     let cpp_type_of t = cpp_type_of with_reference_value_type t in
     let mk_cppexpr newExpr newType =
       { cppexpr = newExpr; cpptype = newType; cpppos = expr.epos }
@@ -511,7 +512,8 @@ let expression ctx request_type function_args function_type expression_tree forI
             let funcReturn = cpp_member_return_type member in
             let clazzType = cpp_instance_type clazz params with_reference_value_type in
             let retyper_ctx, retypedObj = retype retyper_ctx clazzType obj in
-            let exprType = cpp_type_of member.cf_type in
+            (* Value type fields are always promoted, so retype with the promotion type instead of reference *)
+            let exprType = cpp_type_of_with with_promoted_value_type member.cf_type in
             let is_objc = is_cpp_objc_type retypedObj.cpptype in
 
             if retypedObj.cpptype = TCppNull then
@@ -632,7 +634,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             (retyper_ctx, CppFunction (FuncFromStaticFunction, funcReturn), exprType)
           | FStatic (clazz, member) ->
             let funcReturn = cpp_member_return_type member in
-            let exprType   = cpp_type_of member.cf_type in
+            let exprType   = cpp_type_of_with with_promoted_value_type member.cf_type in
             let objC       = is_objc_class clazz in
             if is_var_field member then
               (retyper_ctx, CppVar (VarStatic (clazz, objC, member)), exprType)
