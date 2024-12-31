@@ -50,7 +50,7 @@ let gen_function ctx class_def class_name is_static func =
     with_debug
       ctx
       func.tcf_field.cf_meta
-      (gen_cpp_function_body ctx class_def is_static func.tcf_field.cf_name func.tcf_func code tail_code);
+      (gen_cpp_function_body ctx class_def is_static func.tcf_field.cf_name func code tail_code);
 
     output "\n\n";
     
@@ -133,7 +133,7 @@ let gen_dynamic_function ctx class_def class_name is_static is_for_static_var fu
   Printf.sprintf "HX_BEGIN_DEFAULT_FUNC(%s, %s)\n" func_name class_name |> output;
   Printf.sprintf "%s _hx_run(%s)" (tcpp_to_string return_type) (print_arg_list func.tcf_args "__o_") |> output;
 
-  gen_cpp_function_body ctx class_def is_static func_name func.tcf_func "" "" no_debug;
+  gen_cpp_function_body ctx class_def is_static func_name func "" "" no_debug;
 
   output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
   output "HX_END_DEFAULT_FUNC\n\n"
@@ -150,14 +150,18 @@ let gen_dynamic_function_init ctx class_def func =
   | _ ->
     ()
 
-let gen_var_init ctx class_def var =
-  match var.tcv_field.cf_expr with
-  | Some expr ->
-    gen_cpp_init ctx (join_class_path class_def.cl_path ".") "boot" (var.tcv_name ^ " = ") expr
-  | _ -> ()
-
 let gen_boot_field ctx output_cpp tcpp_class =
   if has_tcpp_class_flag tcpp_class Boot then (
+    let gen_var_init ctx class_def var =
+      match var.tcv_field.cf_expr with
+      | Some expr ->
+        let dst = Builder.make_static_field class_def var.tcv_field var.tcv_field.cf_pos in
+        let op  = Builder.binop OpAssign dst expr expr.etype expr.epos in
+        
+        gen_cpp_init ctx (join_class_path class_def.cl_path ".") "boot" "" op
+      | _ -> ()
+    in
+
     output_cpp ("void " ^ tcpp_class.tcl_name ^ "::__boot()\n{\n");
 
     let dot_name = join_class_path tcpp_class.tcl_class.cl_path "." in
@@ -285,7 +289,7 @@ let generate_native_class base_ctx tcpp_class =
 
   gen_dynamic_function_allocator ctx output_cpp tcpp_class;
   
-  generate_native_constructor ctx output_cpp class_def false;
+  generate_native_constructor ctx output_cpp tcpp_class false;
   gen_boot_field ctx output_cpp tcpp_class;
 
   end_namespace output_cpp class_path;
@@ -334,7 +338,7 @@ let generate_managed_class base_ctx tcpp_class =
   output_cpp (get_class_code class_def Meta.CppNamespaceCode);
 
   let class_name = tcpp_class.tcl_name in
-  let cargs = constructor_arg_var_list class_def in
+  let cargs = constructor_arg_var_list tcpp_class in
   let constructor_var_list = List.map snd cargs in
   let constructor_type_args =
     cargs
@@ -343,13 +347,14 @@ let generate_managed_class base_ctx tcpp_class =
 
   output_cpp
     ("void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")");
-  (match class_def.cl_constructor with
-  | Some ({ cf_expr = Some { eexpr = TFunction function_def } } as definition)
-    ->
-      with_debug ctx definition.cf_meta (fun no_debug ->
-          gen_cpp_function_body ctx class_def false "new" function_def "" ""
-            no_debug;
-          output_cpp "\n")
+  (match tcpp_class.tcl_constructor with
+  | Some constructor ->
+    let cb no_debug =
+      gen_cpp_function_body ctx class_def false "new" constructor "" ""
+      no_debug;
+      output_cpp "\n"
+    in
+    with_debug ctx constructor.tcf_field.cf_meta cb
   | _ -> output_cpp " { }\n\n");
 
   (* Destructor goes in the cpp file so we can "see" the full definition of the member vars *)

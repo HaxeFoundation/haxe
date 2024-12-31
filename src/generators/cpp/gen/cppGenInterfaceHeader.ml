@@ -142,8 +142,6 @@ let generate_native_interface base_ctx tcpp_interface =
   output_h ("\t\ttypedef " ^ super ^ " super;\n");
   output_h ("\t\ttypedef " ^ tcpp_interface.if_name ^ " OBJ_;\n");
 
-  CppGen.generate_native_constructor ctx output_h tcpp_interface.if_class true;
-
   gen_body tcpp_interface ctx output_h (gen_native_function ctx tcpp_interface);
   
   output_h "};\n\n";

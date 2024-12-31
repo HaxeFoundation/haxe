@@ -233,6 +233,7 @@ and tcpp_class_function = {
   tcf_name : string;
   tcf_func : tfunc;
   tcf_args : (tcppvar * texpr option) list;
+  tcf_return : tcpp;
 
   tcf_is_virtual : bool;
   tcf_is_reflective : bool;
@@ -261,6 +262,7 @@ and tcpp_class = {
   tcl_debug_level : int;
   tcl_super : tcpp_class option;
   tcl_container : tcpp_class_container option;
+  tcl_constructor : tcpp_class_function option;
 
   tcl_haxe_interfaces : tcpp_interface list;
   tcl_native_interfaces : tcpp_interface list;

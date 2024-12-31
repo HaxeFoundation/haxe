@@ -175,7 +175,7 @@ let generate_native_header base_ctx tcpp_class =
 
   gen_class_header ctx tcpp_class h_file scriptable (if super = "" then [] else [ (Printf.sprintf "public %s" parent) ]);
       
-  CppGen.generate_native_constructor ctx output_h class_def true;
+  CppGen.generate_native_constructor ctx output_h tcpp_class true;
 
   if has_tcpp_class_flag tcpp_class Boot then output_h "\t\tstatic void __boot();\n";
 
@@ -218,7 +218,7 @@ let generate_managed_header base_ctx tcpp_class =
   let gcName = gen_gc_name class_def.cl_path in
 
   let constructor_type_args =
-    tcpp_class.tcl_class
+    tcpp_class
       |> constructor_arg_var_list
       |> List.map (fun (t, a) -> Printf.sprintf "%s %s" t a)
       |> String.concat "," in

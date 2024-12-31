@@ -483,83 +483,6 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
     | CppBreak -> out "break"
     | CppContinue -> out "continue"
     | CppGoto label -> out ("goto " ^ label_name label)
-    | CppVarDecl ({ tcppv_type = TCppValueType (cls, params, state) } as var, init) ->
-
-      (* Marshalling, place a struct on the stack and have the user typed variable be a reference to it. *)
-      if state = Promoted then (
-        let obj_name                     = var.tcppv_name in
-        let boxed_ident, boxed_ident_obj = get_extern_value_type_boxed cls params in
-
-        Printf.sprintf "%s %s" boxed_ident obj_name |> out;
-
-        (match init with
-        (* Construct the type on the stack, ::cpp::Struct will forward the passed arguments to the constructor of the underlying type *)
-        | Some { cppexpr = CppCall (FuncNew _, args); cpptype = TCppValueType _ } ->
-          out " = new ";
-          out boxed_ident_obj;
-          out "(";
-          let rec print_arg args =
-            match args with
-            | [] ->
-              ()
-            | s::r ->
-              gen s;
-              if List.length r > 0 then out ", ";
-              print_arg r
-          in
-          print_arg args;
-          out ");\n";
-        | Some { cppexpr = CppNull } when state <> Promoted ->
-          abort "CPP0003: Local variable of a non nullable value type cannot be assigned to null" var.tcppv_var.v_pos
-        (* Any expression other than a constructor is a copying operation *)
-        | Some other ->
-          out " = ";
-          out boxed_ident;
-          out "(";
-          gen other;
-          out ");\n";
-        | None when extern_value_type_supports cls ImplicitConstruction ->
-          out " = new ";
-          out boxed_ident_obj;
-          out "();\n";
-        | None ->
-          abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.tcppv_var.v_pos))
-      else (
-        let stack_name      = var.tcppv_name in
-        let struct_ident    = get_extern_value_type_struct cls params in
-
-        Printf.sprintf "%s %s" struct_ident stack_name |> out;
-
-        (match init with
-        (* Construct the type on the stack, ::cpp::Struct will forward the passed arguments to the constructor of the underlying type *)
-        | Some { cppexpr = CppCall (FuncNew _, args); cpptype = TCppValueType _ } ->
-          (match args with
-          | [] ->
-            out ";\n"
-          | some ->
-            out "(";
-            let rec print_arg args =
-              match args with
-              | [] ->
-                ()
-              | s::r ->
-                gen s;
-                if List.length r > 0 then out ", ";
-                print_arg r
-            in
-            print_arg some;
-            out ");\n")
-        | Some { cppexpr = CppNull } when state <> Promoted ->
-          abort "CPP0003: Local variable of a non nullable value type cannot be assigned to null" var.tcppv_var.v_pos
-        (* Any expression other than a constructor is a copying operation *)
-        | Some other ->
-          out " = ";
-          gen other;
-          out ";\n"
-        | None when extern_value_type_supports cls ImplicitConstruction ->
-          out ";\n"
-        | None ->
-          abort "CPP0001: Variable declaration of this value type extern cannot be left uninitialised as it does not support implicit construction" var.tcppv_var.v_pos))
     | CppVarDecl (var, init) ->
       (if cpp_no_debug_synbol ctx var then
         out (tcpp_to_string var.tcppv_type ^ " " ^ var.tcppv_name)
@@ -857,32 +780,6 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
             out "->__get(";
             gen index;
             out ")")
-    (* If we're assigning to a value type local then we want to assign to the struct placed on the stack *)
-    (* Without this the reference will be set to potentially a reference rvalue, which would break value semantics *)
-    | CppSet (CppVarRef (VarLocal ({ tcppv_type = TCppValueType _ } as var)), rhs) -> (
-      var.tcppv_name |> Printf.sprintf "%s = " |> out;
-
-      (* Treat re-assigning a non captured value type here as a special case *)
-      (* By default FuncNew with a value type will generate a boxed version due to the many places boxing can occur *)
-      (* There is only one place we need to deal with re-assigning non captured vars, so do it now *)
-      (match rhs.cppexpr with
-      | CppCall ((FuncNew (TCppValueType (cls, params, _))), args) when not (has_var_flag var.tcppv_var VCaptured) ->
-        get_extern_value_type_struct cls params |> out;
-
-        out "(";
-        let rec print_arg args =
-          match args with
-          | [] ->
-            ()
-          | s::r ->
-            gen s;
-            if List.length r > 0 then out ", ";
-            print_arg r
-        in
-        print_arg args;
-        out ");\n";
-      | _ ->
-        gen rhs))
     | CppSet (lvalue, rvalue) ->
         let close =
           if expr.cpptype = TCppVoid then ""
@@ -1597,7 +1494,7 @@ let gen_cpp_init ctx dot_name func_name var_name expr =
         hx_stack_push ctx output_i dot_name func_name expr.epos gc_stack
   in
   let injection = mk_injection prologue var_name "" in
-  gen_cpp_ast_expression_tree ctx dot_name func_name [] t_dynamic injection (mk_block expr)
+  gen_cpp_ast_expression_tree ctx dot_name func_name [] TCppDynamic injection (mk_block expr)
 
 let generate_main_header output_main =
   output_main "#include <hxcpp.h>\n\n";
@@ -1794,8 +1691,7 @@ let generate_files common_ctx file_info =
 
   files_file#close
 
-let gen_cpp_function_body ctx clazz is_static func_name function_def head_code
-    tail_code no_debug =
+let gen_cpp_function_body ctx clazz is_static func_name function_def head_code tail_code no_debug =
   let output = ctx.ctx_output in
   let dot_name = join_class_path clazz.cl_path "." in
   if no_debug then ctx.ctx_debug_level <- 0;
@@ -1803,9 +1699,8 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code
     | gc_stack ->
         let spacer = if no_debug then "\t" else "            \t" in
         let output_i s = output (spacer ^ s) in
-        let retyped_args = function_def.tf_args |> List.map (fun (v, init) -> CppRetyper.retype_tvar v, init) in
-        cpp_gen_default_values ctx retyped_args  "__o_";
-        hx_stack_push ctx output_i dot_name func_name function_def.tf_expr.epos
+        cpp_gen_default_values ctx function_def.tcf_args "__o_";
+        hx_stack_push ctx output_i dot_name func_name function_def.tcf_func.tf_expr.epos
           gc_stack;
         if ctx.ctx_debug_level >= 2 then (
           if not is_static then
@@ -1818,30 +1713,25 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code
               if not (cpp_no_debug_synbol ctx v) then
                 output_i
                   ("HX_STACK_ARG(" ^ v.tcppv_name ^ ",\"" ^ v.tcppv_debug_name ^ "\")\n"))
-                 retyped_args;
+                  function_def.tcf_args;
 
-          let line = Lexer.get_error_line function_def.tf_expr.epos in
+          let line = Lexer.get_error_line function_def.tcf_func.tf_expr.epos in
           let lineName = Printf.sprintf "%4d" line in
           output ("HXLINE(" ^ lineName ^ ")\n"));
         if head_code <> "" then output_i (head_code ^ "\n")
   in
-  let args = List.map fst function_def.tf_args in
 
   let injection = mk_injection prologue "" tail_code in
-  gen_cpp_ast_expression_tree ctx dot_name func_name args function_def.tf_type
-    injection
-    (mk_block function_def.tf_expr)
+  gen_cpp_ast_expression_tree ctx dot_name func_name function_def.tcf_args function_def.tcf_return injection (mk_block function_def.tcf_func.tf_expr)
 
-let constructor_arg_var_list class_def =
-  match class_def.cl_constructor with
-  | Some { cf_expr = Some { eexpr = TFunction function_def } } ->
-    function_def.tf_args
-    |> List.map (fun (v, i) -> CppRetyper.retype_tvar v, i)
-    |> List.map (fun (v, o) -> type_arg_to_string v o "__o_")
-  | Some definition ->
+let constructor_arg_var_list tcpp_class =
+  match tcpp_class.tcl_constructor with
+  | Some constructor ->
+    List.map (fun (v, o) -> type_arg_to_string v o "__o_") constructor.tcf_args
+  (* | Some definition ->
     (match follow definition.cf_type with
     | TFun (args, _) -> List.map (fun (a, _, t) -> type_to_string t, a) args
-    | _ -> [])
+    | _ -> []) *)
   | _ -> []
 
 let generate_constructor ctx out tcpp_class isHeader =
@@ -1849,7 +1739,7 @@ let generate_constructor ctx out tcpp_class isHeader =
   let ptr_name = class_pointer tcpp_class.tcl_class in
   let can_quick_alloc = has_tcpp_class_flag tcpp_class QuickAlloc in
   let gcName = gen_gc_name tcpp_class.tcl_class.cl_path in
-  let cargs = constructor_arg_var_list tcpp_class.tcl_class in
+  let cargs = constructor_arg_var_list tcpp_class in
   let constructor_type_args =
     String.concat ","
       (List.map (fun (t, a) -> t ^ " " ^ a) cargs)
@@ -1890,70 +1780,65 @@ let generate_constructor ctx out tcpp_class isHeader =
     dump_dynamic tcpp_class.tcl_class;
 
     if isHeader then
-      match tcpp_class.tcl_class.cl_constructor with
-      | Some
-          ({ cf_expr = Some { eexpr = TFunction function_def } } as definition)
-        ->
-          with_debug ctx definition.cf_meta (fun no_debug ->
-              ctx.ctx_real_this_ptr <- false;
-              gen_cpp_function_body ctx tcpp_class.tcl_class false "new" function_def "" ""
-                no_debug;
-              out "\n")
+      match tcpp_class.tcl_constructor with
+      | Some constructor ->
+        let cb no_debug = 
+          ctx.ctx_real_this_ptr <- false;
+          gen_cpp_function_body ctx tcpp_class.tcl_class false "new" constructor "" "" no_debug;
+          out "\n";
+        in
+        with_debug ctx constructor.tcf_field.cf_meta cb
       | _ -> ()
     else out ("\t__this->__construct(" ^ constructor_args ^ ");\n");
 
     out "\treturn __this;\n";
     out "}\n\n")
 
-let generate_native_constructor ctx out class_def isHeader =
+let generate_native_constructor ctx out tcpp_class isHeader =
   let constructor_type_args =
-    class_def
+    tcpp_class
       |> constructor_arg_var_list
       |> List.map (fun (t, a) -> Printf.sprintf "%s %s" t a)
       |> String.concat "," in
 
-  let class_name = class_name class_def in
+  match tcpp_class.tcl_constructor with
+  | Some constructor ->
+    if isHeader then
+      out ("\t\t" ^ tcpp_class.tcl_name ^ "(" ^ constructor_type_args ^ ");\n\n")
+    else
+      let cb no_debug =
+        ctx.ctx_real_this_ptr <- true;
+        out (tcpp_class.tcl_name ^ "::" ^ tcpp_class.tcl_name ^ "(" ^ constructor_type_args ^ ")");
 
-  match class_def.cl_constructor with
-  | Some ({ cf_expr = Some { eexpr = TFunction function_def } } as definition)
-    ->
-      if isHeader then
-        out ("\t\t" ^ class_name ^ "(" ^ constructor_type_args ^ ");\n\n")
-      else
-        with_debug ctx definition.cf_meta (fun no_debug ->
-            ctx.ctx_real_this_ptr <- true;
-            out
-              (class_name ^ "::" ^ class_name ^ "(" ^ constructor_type_args
-             ^ ")");
+        (match tcpp_class.tcl_super with
+        | Some klass -> (
+            let rec find_super_args = function
+              | TCall ({ eexpr = TConst TSuper }, args) :: _ -> Some args
+              | (TParenthesis e | TMeta (_, e) | TCast (e, None)) :: rest ->
+                  find_super_args (e.eexpr :: rest)
+              | TBlock e :: rest ->
+                  find_super_args (List.map (fun e -> e.eexpr) e @ rest)
+              | _ :: rest -> find_super_args rest
+              | _ -> None
+            in
+            match find_super_args [ constructor.tcf_func.tf_expr.eexpr ] with
+            | Some args ->
+                out ("\n:" ^ (cpp_class_path_of klass.tcl_class []) ^ "(");
+                let sep = ref "" in
+                List.iter
+                  (fun arg ->
+                    out !sep;
+                    sep := ",";
+                    gen_cpp_ast_expression_tree ctx "" "" [] TCppDynamic None
+                      arg)
+                  args;
+                out ")\n"
+            | _ -> ())
+        | _ -> ());
 
-            (match class_def.cl_super with
-            | Some (klass, _) -> (
-                let rec find_super_args = function
-                  | TCall ({ eexpr = TConst TSuper }, args) :: _ -> Some args
-                  | (TParenthesis e | TMeta (_, e) | TCast (e, None)) :: rest ->
-                      find_super_args (e.eexpr :: rest)
-                  | TBlock e :: rest ->
-                      find_super_args (List.map (fun e -> e.eexpr) e @ rest)
-                  | _ :: rest -> find_super_args rest
-                  | _ -> None
-                in
-                match find_super_args [ function_def.tf_expr.eexpr ] with
-                | Some args ->
-                    out ("\n:" ^ cpp_class_path_of klass [] ^ "(");
-                    let sep = ref "" in
-                    List.iter
-                      (fun arg ->
-                        out !sep;
-                        sep := ",";
-                        gen_cpp_ast_expression_tree ctx "" "" [] t_dynamic None
-                          arg)
-                      args;
-                    out ")\n"
-                | _ -> ())
-            | _ -> ());
-
-            let head_code = get_code definition.cf_meta Meta.FunctionCode in
-            let tail_code = get_code definition.cf_meta Meta.FunctionTailCode in
-            gen_cpp_function_body ctx class_def false "new" function_def
-              head_code tail_code no_debug)
+        let head_code = get_code constructor.tcf_field.cf_meta Meta.FunctionCode in
+        let tail_code = get_code constructor.tcf_field.cf_meta Meta.FunctionTailCode in
+        gen_cpp_function_body ctx tcpp_class.tcl_class false "new" constructor head_code tail_code no_debug
+      in
+      with_debug ctx constructor.tcf_field.cf_meta cb
   | _ -> ()

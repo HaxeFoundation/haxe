@@ -730,9 +730,9 @@ class script_writer ctx filename asciiOut =
         match fieldExpression with
         | Some ({ eexpr = TFunction function_def } as e) ->
             if cppiaAst then (
-              let args = List.map fst function_def.tf_args in
+              let args = List.map (fun (v, e) -> (CppRetyper.retype_tvar v), e) function_def.tf_args in
               let cppExpr =
-                CppRetyper.expression ctx TCppVoid args function_def.tf_type
+                CppRetyper.expression ctx TCppVoid args (cpp_type_of function_def.tf_type)
                   function_def.tf_expr false
               in
               this#begin_expr;
@@ -742,7 +742,7 @@ class script_writer ctx filename asciiOut =
                 ^ this#typeText function_def.tf_type
                 ^ string_of_int (List.length args)
                 ^ "\n");
-              let close = this#gen_func_args (List.map (fun (v, e) -> CppRetyper.retype_tvar v, e) function_def.tf_args) in
+              let close = this#gen_func_args args in
               this#gen_expression_tree cppExpr;
               this#end_expr;
               close ())
@@ -766,7 +766,7 @@ class script_writer ctx filename asciiOut =
           if cppiaAst then
             let varType = cpp_type_of expression.etype in
             let cppExpr =
-              CppRetyper.expression ctx varType [] t_dynamic expression false
+              CppRetyper.expression ctx varType [] TCppDynamic expression false
             in
             this#gen_expression_tree cppExpr
           else this#gen_expression expression

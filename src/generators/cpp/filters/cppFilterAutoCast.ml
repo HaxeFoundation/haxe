@@ -8,6 +8,12 @@ open CppAstTools
 open CppContext
 
 let autocast_filter for_cppia return_type cppexpr =
+  let is_construction =
+    match cppexpr.cppexpr with
+    | CppCall ((FuncNew _), _) -> true
+    | _ -> false
+  in
+
   let object_expression =
     match cppexpr.cpptype with
     | TCppVariant
@@ -160,16 +166,19 @@ let autocast_filter for_cppia return_type cppexpr =
 
     (* Ensure we wrap any access to the stack or promoted type in a reference object. *)
     (* TIdents are wrapped at retyping but array access and others won't be, so this will wrap them. *)
-    | TCppValueType (cls, params, (Stack | Promoted)), (TCppValueType (_, _, Reference) as reference) ->
-      mk_cppexpr (CppCast (cppexpr, reference)) reference
     | TCppValueType (_, _, Stack), TCppValueType (cls, params, Promoted) ->
       let reference = TCppValueType(cls, params, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference
     | TCppValueType (_, _, Promoted), TCppValueType (cls, params, Stack) ->
       let reference = TCppValueType(cls, params, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference
+    | TCppValueType (cls, params, (Stack | Promoted)), (TCppValueType (_, _, Reference) | TCppDynamic | TCppVariant) ->
+      let reference = TCppValueType(cls, params, Reference) in
+      mk_cppexpr (CppCast (cppexpr, reference)) reference
 
     (* If we are constructing a value type of reference state, inspect the surrounding context and choose a more appropriate construction *)
+    | TCppValueType (_, _, Reference), TCppValueType (_, _, Reference) when is_construction ->
+      abort "CPP0000 : Internal Compiler Error : Unable to determine how the value type should be constructed" cppexpr.cpppos
     | TCppValueType (cls, params, Reference), TCppValueType (_, _, Stack) ->
       (match cppexpr.cppexpr with
       | CppCall ((FuncNew _), args) ->
@@ -177,7 +186,7 @@ let autocast_filter for_cppia return_type cppexpr =
         { cppexpr with cpptype = stack; cppexpr = CppCall ((FuncNew stack), args) }
       | _ ->
         cppexpr)
-    | TCppValueType (cls, params, Reference), _ ->
+    | TCppValueType (cls, params, Reference), _ when is_construction ->
       (match cppexpr.cppexpr with
       | CppCall ((FuncNew _), args) ->
         let promoted = TCppValueType (cls, params, Promoted) in

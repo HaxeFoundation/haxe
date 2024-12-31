@@ -225,11 +225,11 @@ let expression ctx request_type function_args function_type expression_tree forI
     closure_id = 0;
     injection = forInjection;
     undeclared = StringMap.empty;
-    declarations = function_args |> List.map (fun a -> a.v_name, ()) |> string_map_of_list |> StringMap.add "__trace" (); (* '__trace' is at the top-level *)
+    declarations = function_args |> List.map (fun (v, _) -> v.tcppv_name, ()) |> string_map_of_list |> StringMap.add "__trace" (); (* '__trace' is at the top-level *)
     uses_this = None;
     this_real = if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic;
     gc_stack = false;
-    function_return_type = cpp_type_of with_stack_value_type function_type;
+    function_return_type = function_type;
     goto_id = 0;
     loop_stack = [];
   } in
@@ -454,31 +454,16 @@ let expression ctx request_type function_args function_type expression_tree forI
           (* functions/vars will appear to be members of the virtual global object *)
           (retyper_ctx, CppClassOf (([], ""), false), TCppGlobal)
       | TLocal tvar ->
-          let name    = tvar.v_name in
           let new_var = retype_tvar tvar in
 
-          (* We need to manually add the reference wrapper for value types right here, we can't let the auto cast filter do it for us *)
-          (* This could and would be better be handled in the auto cast filter but we then get into a right muddle with type parameters becoming dynamic *)
-          (* So easiest thing is to handle it immediately since no tvar will be a reference *)
-          let expr_wrapper, t_wrapper =
-            match new_var.tcppv_type with
-            | TCppValueType (cls, params, (Stack | Promoted)) ->
-              let reference = TCppValueType(cls, params, Reference) in
-              (fun tcppexpr -> CppCast (mk_cppexpr tcppexpr new_var.tcppv_type, reference)),
-              reference
-            | _ ->
-              (fun tcppexpr -> tcppexpr),
-              new_var.tcppv_type
-            in
-
-          if StringMap.mem name retyper_ctx.declarations then
-            (retyper_ctx, CppVar (VarLocal new_var) |> expr_wrapper, t_wrapper)
+          if StringMap.mem new_var.tcppv_name retyper_ctx.declarations then
+            (retyper_ctx, CppVar (VarLocal new_var), new_var.tcppv_type)
           else (
-            let new_ctx = { retyper_ctx with undeclared = StringMap.add name new_var retyper_ctx.undeclared } in
+            let new_ctx = { retyper_ctx with undeclared = StringMap.add new_var.tcppv_name new_var retyper_ctx.undeclared } in
             if has_var_flag tvar VCaptured then
-              (new_ctx, CppVar (VarClosure new_var) |> expr_wrapper, t_wrapper)
+              (new_ctx, CppVar (VarClosure new_var), new_var.tcppv_type)
             else
-              (new_ctx, CppExtern (name, false), new_var.tcppv_type))
+              (new_ctx, CppExtern (new_var.tcppv_var.v_name, false), new_var.tcppv_type))
       | TIdent name -> (retyper_ctx, CppExtern (name, false), return_type)
       | TBreak -> (
           if forCppia then
@@ -633,14 +618,13 @@ let expression ctx request_type function_args function_type expression_tree forI
             let exprType   = cpp_type_of member.cf_type in
             (retyper_ctx, CppFunction (FuncFromStaticFunction, funcReturn), exprType)
           | FStatic (clazz, member) ->
-            let funcReturn = cpp_member_return_type member in
             let exprType   = cpp_type_of_with with_promoted_value_type member.cf_type in
             let objC       = is_objc_class clazz in
             if is_var_field member then
               (retyper_ctx, CppVar (VarStatic (clazz, objC, member)), exprType)
             else
               ( retyper_ctx,
-                CppFunction (FuncStatic (clazz, objC, member), funcReturn),
+                CppFunction (FuncStatic (clazz, objC, member), cpp_member_return_type member),
                 exprType )
           | FClosure (None, field)
           | FAnon field ->
@@ -952,11 +936,11 @@ let expression ctx request_type function_args function_type expression_tree forI
 
         let new_ctx = {
           retyper_ctx with
-            declarations = func.tf_args |> List.map (fun (a, _) -> a.v_name, ()) |> string_map_of_list;
+            declarations = func.tf_args |> List.map (fun (t, _) -> (retype_tvar t).tcppv_name, ()) |> string_map_of_list;
             undeclared   = StringMap.empty;
             this_real    = ThisFake;
             uses_this    = None;
-            function_return_type = cpp_type_of func.tf_type;
+            function_return_type = cpp_type_of_with with_promoted_value_type func.tf_type;
         } in
         let new_ctx, cppExpr = retype new_ctx TCppVoid (mk_block func.tf_expr) in
 
@@ -1189,9 +1173,9 @@ let expression ctx request_type function_args function_type expression_tree forI
 
           (* Add back any undeclared variables *)
           (* Needed for tracking variables captured by variables *)
-          let folder acc (name, tvar) =
+          let folder acc (name, var) =
             if not (StringMap.mem name retyper_ctx.declarations) then
-              StringMap.add name tvar acc
+              StringMap.add name var acc
             else
               acc
             in
@@ -1237,7 +1221,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             | None -> retyper_ctx, None
             | Some e -> retype retyper_ctx new_var.tcppv_type e |> (fun (new_ctx, expr) -> new_ctx, Some expr)
           in
-          let retyper_ctx = { retyper_ctx with declarations = StringMap.add v.v_name () retyper_ctx.declarations } in
+          let retyper_ctx = { retyper_ctx with declarations = StringMap.add new_var.tcppv_name () retyper_ctx.declarations } in
           (retyper_ctx, CppVarDecl (new_var, init), new_var.tcppv_type)
       | TIf (ec, e1, e2) ->
           let retyper_ctx, ec = retype retyper_ctx (TCppScalar "bool") ec in
@@ -1442,7 +1426,7 @@ let native_field_name_remap field =
 let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
   let scriptable = Gctx.defined ctx.ctx_common Define.Scriptable in
 
-  let create_function field func = {
+  let create_function field handler func = {
     tcf_field = field;
     tcf_name = native_field_name_remap field;
     tcf_args = List.map (fun (v, i) -> retype_tvar v, i) func.tf_args;
@@ -1452,6 +1436,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     tcf_is_external = not (is_internal_member field.cf_name);
     tcf_is_overriding = is_override field;
     tcf_is_scriptable = scriptable;
+    tcf_return = cpp_type_of handler func.tf_type
   } in
 
   let create_variable field = {
@@ -1469,7 +1454,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     if should_implement_field field then
       match (field.cf_kind, field.cf_expr) with
       | Method (MethNormal | MethInline), Some { eexpr = TFunction func } ->
-        Some (create_function field func)
+        Some (create_function field with_stack_value_type func)
       | Method MethNormal, _ when has_class_field_flag field CfAbstract ->
         (* We need to fetch the default values for abstract functions from the @:Value meta *)
         let abstract_tfunc =
@@ -1510,7 +1495,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
             die "expected abstract field type to be TFun" __LOC__
         in
 
-        Some (create_function field abstract_tfunc)
+        Some (create_function field with_stack_value_type abstract_tfunc)
       | _ ->
         None
     else
@@ -1521,10 +1506,10 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     if should_implement_field field then
       match (field.cf_kind, field.cf_expr) with
       | Method MethDynamic, Some { eexpr = TFunction func } ->
-        Some (create_function field func)
+        Some (create_function field with_promoted_value_type func)
       (* static variables with a default function value get a dynamic function generated as the implementation *)
       | Var _, Some { eexpr = TFunction func } when func_for_static_field ->
-        Some (create_function field func)
+        Some (create_function field with_promoted_value_type func)
       | _ ->
         None
     else
@@ -1591,6 +1576,14 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
   let properties =
     class_def.cl_ordered_fields
     |> List.filter_map filter_properties in
+
+  let constructor =
+    match class_def.cl_constructor with
+    | Some ({ cf_expr = Some { eexpr = TFunction definition } } as field) ->
+      Some (create_function field with_stack_value_type definition)
+    | _ ->
+      None
+  in
 
   (* All interfaces (and sub-interfaces) implemented *)
   let rec folder (slots, haxe, native) (interface, _) =
@@ -1669,6 +1662,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     tcl_dynamic_functions = dynamic_functions;
     tcl_haxe_interfaces = haxe_implementations;
     tcl_native_interfaces = native_implementations;
+    tcl_constructor = constructor;
     tcl_meta = meta_field;
     tcl_rtti = rtti_field;
     tcl_init = TClass.get_cl_init class_def;
