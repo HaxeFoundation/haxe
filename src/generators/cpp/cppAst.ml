@@ -303,9 +303,16 @@ and tcpp_interface = {
   if_scriptable : bool;
 }
 
+and tcpp_tfun_arg = {
+  tfa_name : string;
+  tfa_type : tcpp;
+  tfa_optional : bool;
+}
+
 and tcpp_enum_field = {
   tef_field : tenum_field;
   tef_name : string;
+  tef_args : tcpp_tfun_arg list option;
   tef_hash : string;
 }
 

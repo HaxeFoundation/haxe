@@ -210,12 +210,26 @@ type retyper_ctx = {
 }
 
 let retype_tvar tvar =
-  let handler = if has_var_flag tvar VCaptured then with_promoted_value_type else with_stack_value_type in  
+  let handler =
+    match tvar.v_kind with
+    | VUser (TVOLocalVariable | TVOArgument | TVOForVariable | TVOCatchVariable) ->
+      if has_var_flag tvar VCaptured then with_promoted_value_type else with_stack_value_type
+    | _ ->
+      with_reference_value_type
+  in
+      
   {
     tcppv_var        = tvar;
     tcppv_type       = cpp_type_of handler tvar.v_type;
     tcppv_name       = cpp_var_name_of tvar;
     tcppv_debug_name = keyword_remap tvar.v_name
+  }
+
+let retype_arg handler (name, opt, t) =
+  {
+    tfa_name     = keyword_remap name;
+    tfa_optional = opt;
+    tfa_type     = cpp_type_of handler t
   }
 
 let expression ctx request_type function_args function_type expression_tree forInjection =
@@ -1733,12 +1747,19 @@ and tcpp_enum_from_tenum ctx ids enum_def =
     f1.ef_index - f2.ef_index in
 
   let self_id, ids = get_id enum_def.e_path ids in
-  let strq         = CppStrings.strq ctx.ctx_common in
+  let strq = CppStrings.strq ctx.ctx_common in
+  let retype_args t =
+    match t with
+    TFun (args, _) ->
+      Some (List.map (retype_arg with_promoted_value_type) args)
+    | _ ->
+      None
+  in
   let constructors =
     enum_def.e_constrs
     |> pmap_values
     |> List.sort sort_constructors
-    |> List.map (fun f -> { tef_field = f; tef_name = keyword_remap f.ef_name; tef_hash = strq f.ef_name})
+    |> List.map (fun f -> { tef_field = f; tef_name = keyword_remap f.ef_name; tef_hash = strq f.ef_name; tef_args = retype_args f.ef_type })
   in
   let enum = { te_enum = enum_def; te_id = self_id; te_constructors = constructors } in
 

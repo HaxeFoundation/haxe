@@ -22,8 +22,8 @@ let cpp_type_of_null = CppRetyper.cpp_type_of_null
 let cpp_instance_type = CppRetyper.cpp_instance_type
 let type_to_string haxe_type = tcpp_to_string (cpp_type_of haxe_type)
 
-let type_cant_be_null haxe_type =
-  match cpp_type_of haxe_type with TCppScalar _ -> true | _ -> false
+let type_cant_be_null tcpp =
+  match tcpp with TCppScalar _ -> true | _ -> false
 
 let type_arg_to_string v default_val prefix =
   let remap_name = v.tcppv_name in
@@ -58,9 +58,9 @@ let print_arg_list_name arg_list prefix =
 let print_arg_names args =
   String.concat "," (List.map (fun (name, _, _) -> keyword_remap name) args)
 
-let print_tfun_arg_list include_names arg_list =
+let print_retyped_tfun_arg_list include_names arg_list =
   let oType o arg_type =
-    let type_str = type_to_string arg_type in
+    let type_str = tcpp_to_string arg_type in
     (* type_str may have already converted Null<X> to Dynamic because of NotNull tag ... *)
     if o && type_cant_be_null arg_type && type_str <> "Dynamic" then
       "::hx::Null< " ^ type_str ^ " > "
@@ -68,8 +68,13 @@ let print_tfun_arg_list include_names arg_list =
       type_str
   in
   arg_list
-  |> List.map (fun (name, o, arg_type) -> (oType o arg_type) ^ (if include_names then " " ^ keyword_remap name else ""))
+  |> List.map (fun arg -> (oType arg.tfa_optional arg.tfa_type) ^ (if include_names then " " ^ arg.tfa_name else ""))
   |> String.concat ","
+
+let print_tfun_arg_list include_names arg_list =
+  arg_list
+  |> List.map (CppRetyper.retype_arg CppRetyper.with_stack_value_type)
+  |> print_retyped_tfun_arg_list include_names
 
 let cpp_member_name_of member =
   match get_meta_string member.cf_meta Meta.Native with
