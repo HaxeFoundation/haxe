@@ -210,11 +210,17 @@ type retyper_ctx = {
 }
 
 let retype_tvar tvar =
-  let handler =
+  let copying_var =
     match tvar.v_kind with
-    | VUser (TVOLocalVariable | TVOArgument | TVOForVariable | TVOCatchVariable) ->
+    | VUser (TVOLocalVariable | TVOArgument | TVOForVariable | TVOCatchVariable)
+    | VInlined
+    | VInlinedConstructorVariable _ -> true
+    | _ -> false
+  in
+  let handler =
+    if copying_var then
       if has_var_flag tvar VCaptured then with_promoted_value_type else with_stack_value_type
-    | _ ->
+    else
       with_reference_value_type
   in
       
@@ -455,7 +461,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           ( retyper_ctx,
             CppThis retyper_ctx.this_real,
             if retyper_ctx.this_real = ThisDynamic then TCppDynamic
-            else cpp_type_of expr.etype )
+            else cpp_type_of_with with_stack_value_type expr.etype )
       | TConst TSuper ->
         let retyper_ctx = { retyper_ctx with uses_this = Some retyper_ctx.this_real } in
           ( retyper_ctx,
@@ -1351,7 +1357,9 @@ let expression ctx request_type function_args function_type expression_tree forI
             TCppVoid )
       | TCast (base, None) -> (
           (* Use auto-cast rules *)
-          let return_type = cpp_type_of expr.etype in
+          (* I'm not sure about using the promoted value handler here *)
+          (* value type handler causes some tests to fail and reference handler isn't appropriate due to abstracts *)
+          let return_type = cpp_type_of_with with_promoted_value_type expr.etype in
           let retyper_ctx, baseCpp = retype retyper_ctx return_type base in
           let baseStr = tcpp_to_string baseCpp.cpptype in
           let returnStr = tcpp_to_string return_type in

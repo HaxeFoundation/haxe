@@ -178,8 +178,8 @@ let autocast_filter for_cppia return_type cppexpr =
 
     (* If we are constructing a value type of reference state, inspect the surrounding context and choose a more appropriate construction *)
     | TCppValueType (_, _, Reference), TCppValueType (_, _, Reference) when is_construction ->
-      abort "CPP0000 : Internal Compiler Error : Unable to determine how the value type should be constructed" cppexpr.cpppos
-    | TCppValueType (cls, params, Reference), TCppValueType (_, _, Stack) ->
+      abort "CPP0000 : Internal Error : Unable to determine how the value type should be constructed" cppexpr.cpppos
+    | TCppValueType (cls, params, Reference), TCppValueType (_, _, Stack) when is_construction ->
       (match cppexpr.cppexpr with
       | CppCall ((FuncNew _), args) ->
         let stack = TCppValueType (cls, params, Stack) in
