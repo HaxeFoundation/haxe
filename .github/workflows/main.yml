@@ -46,7 +46,7 @@ jobs:
         run: neko -version 2>&1
 
       - name: Setup ocaml
-        uses: ocaml/setup-ocaml@v3
+        uses: ocaml/setup-ocaml@v3.1.5
         with:
           ocaml-compiler: 4
           opam-local-packages: |
