@@ -166,9 +166,17 @@ let autocast_filter for_cppia return_type cppexpr =
 
     (* Ensure we wrap any access to the stack or promoted type in a reference object. *)
     (* TIdents are wrapped at retyping but array access and others won't be, so this will wrap them. *)
+    | TCppValueType (cls, params, Stack), (TCppPointer _)
+    | TCppValueType (cls, params, Stack), (TCppRawPointer _)
+    | TCppValueType (cls, params, Stack), (TCppStar _)
+    | TCppValueType (cls, params, Stack), (TCppReference _)
     | TCppValueType (_, _, Stack), TCppValueType (cls, params, Promoted) ->
       let reference = TCppValueType(cls, params, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference
+    | TCppValueType (cls, params, Promoted), (TCppPointer _)
+    | TCppValueType (cls, params, Promoted), (TCppRawPointer _)
+    | TCppValueType (cls, params, Promoted), (TCppStar _)
+    | TCppValueType (cls, params, Promoted), (TCppReference _)
     | TCppValueType (_, _, Promoted), TCppValueType (cls, params, Stack) ->
       let reference = TCppValueType(cls, params, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference

@@ -377,8 +377,11 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppUnchanged -> " ::Dynamic/*Unchanged*/"
   | TCppObject -> " ::Dynamic"
   | TCppObjectPtr -> " ::hx::Object *"
-  | TCppReference t -> tcpp_to_string t ^ " &"
   | TCppStruct t -> "cpp::Struct< " ^ tcpp_to_string t ^ " >"
+  | TCppReference (TCppValueType (cls, params, _)) -> Printf.sprintf "%s&" (get_extern_value_type cls params)
+  | TCppReference t -> tcpp_to_string t ^ " &"
+  | TCppStar (TCppValueType (cls, params, _), const) ->
+    Printf.sprintf "%s%s*" (if const then "const " else "") (get_extern_value_type cls params)
   | TCppStar (t, const) ->
       (if const then "const " else "") ^ tcpp_to_string t ^ " *"
   | TCppVoid -> "void"
@@ -392,8 +395,12 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppString -> "::String"
   | TCppFastIterator it ->
       "::cpp::FastIterator" ^ suffix ^ "< " ^ tcpp_to_string it ^ " >"
+  | TCppPointer (ptrType, TCppValueType (cls, params, _)) ->
+    Printf.sprintf "::cpp::%s< %s >" ptrType (get_extern_value_type cls params)
   | TCppPointer (ptrType, valueType) ->
       "::cpp::" ^ ptrType ^ "< " ^ tcpp_to_string valueType ^ " >"
+  | TCppRawPointer (constName, TCppValueType (cls, params, _)) ->
+    Printf.sprintf "%s%s*" constName (get_extern_value_type cls params)
   | TCppRawPointer (constName, valueType) ->
       constName ^ tcpp_to_string valueType ^ "*"
   | TCppFunction (argTypes, retType, abi) ->
@@ -713,6 +720,7 @@ let rec cpp_is_struct_access t =
    | TCppFunction _ -> true
    | TCppStruct _-> false
    | TCppInst (class_def, _) -> Meta.has Meta.StructAccess class_def.cl_meta
+   | TCppReference (TCppValueType _) -> true
    | TCppReference (r) -> cpp_is_struct_access r
    | _ -> false
 
