@@ -106,7 +106,7 @@ and cpp_type_from_path stack path params value_type_handler default =
   | ([ "cpp" ], "ConstStar"), [ param ] ->
       TCppStar (cpp_type_of_pointer stack value_type_handler param, true)
   | ([], "Array"), [ p ] -> (
-      let arrayOf = cpp_type_of stack value_type_handler p in
+      let arrayOf = cpp_type_of stack with_promoted_value_type p in
       match arrayOf with
       | TCppVoid (* ? *) | TCppDynamic -> TCppDynamicArray
       | TCppObject | TCppObjectPtr | TCppReference _ | TCppStruct _ | TCppStar _
