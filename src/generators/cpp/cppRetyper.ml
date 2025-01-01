@@ -118,7 +118,7 @@ and cpp_type_from_path stack path params value_type_handler default =
   | _ -> default ()
 
 and cpp_type_of_null stack value_type_handler p =
-  match cpp_type_of stack value_type_handler p with
+  match cpp_type_of stack with_promoted_value_type p with
   | other when is_cpp_scalar other || type_has_meta_key Meta.NotNull p ->
     TCppObject
   | other ->
