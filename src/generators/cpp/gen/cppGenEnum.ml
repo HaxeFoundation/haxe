@@ -111,7 +111,7 @@ let generate base_ctx tcpp_enum =
 
   output_cpp ("::hx::Class " ^ class_name ^ "::__mClass;\n\n");
 
-  output_cpp ("Dynamic __Create_" ^ class_name ^ "() { return new " ^ class_name ^ "; }\n\n");
+  output_cpp ("::Dynamic __Create_" ^ class_name ^ "() { return new " ^ class_name ^ "; }\n\n");
 
   output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
   let text_name = strq (join_class_path class_path ".") in
@@ -170,7 +170,7 @@ let generate base_ctx tcpp_enum =
   output_h ("\t\tHX_DO_ENUM_RTTI;\n");
   output_h ("\t\tstatic void __boot();\n");
   output_h ("\t\tstatic void __register();\n");
-  output_h ("\t\tstatic bool __GetStatic(const ::String &inName, Dynamic &outValue, ::hx::PropertyAccess inCallProp);\n");
+  output_h ("\t\tstatic bool __GetStatic(const ::String &inName, ::Dynamic &outValue, ::hx::PropertyAccess inCallProp);\n");
   output_h ("\t\t::String GetEnumName( ) const { return " ^ (strq (join_class_path class_path "."))  ^ "; }\n" );
   output_h ("\t\t::String __ToString() const { return " ^ (strq (just_class_name ^ ".") )^ " + _hx_tag; }\n");
   output_h ("\t\tbool _hx_isInstanceOf(int inClassId);\n\n");

@@ -645,7 +645,7 @@ let generate_managed_class base_ctx tcpp_class =
     );
 
   if has_tcpp_class_flag tcpp_class StaticGet then (
-    Printf.sprintf "bool %s::__GetStatic(const ::String &inName, Dynamic &outValue, ::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
+    Printf.sprintf "bool %s::__GetStatic(const ::String &inName, ::Dynamic &outValue, ::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
 
     let var_printer ident = Printf.sprintf "outValue = %s; return true;" ident in
     let get_printer check getter ident = Printf.sprintf "outValue = %s ? %s : %s; return true;" check getter ident in
