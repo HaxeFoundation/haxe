@@ -8,8 +8,6 @@
     set -ex
     brew update
     brew bundle --file=tests/Brewfile --no-upgrade
-    cpanm IPC::System::Simple
-    cpanm String::ShellQuote
     curl -L https://github.com/madler/zlib/releases/download/v$ZLIB_VERSION/zlib-$ZLIB_VERSION.tar.gz | tar xz
     cd zlib-$ZLIB_VERSION
     ./configure

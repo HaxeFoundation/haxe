@@ -11,7 +11,7 @@ maintainer: ["Haxe Foundation <contact@haxe.org>" "Andy Li <andy@onthewings.net>
 authors: "Haxe Foundation <contact@haxe.org>"
 homepage: "https://haxe.org/"
 bug-reports: "https://github.com/HaxeFoundation/haxe/issues"
-license: ["GPL2+" "MIT"]
+license: ["GPL-2.0-or-later" "MIT"]
 dev-repo: "git+https://github.com/HaxeFoundation/haxe.git"
 build: [
   [make]
@@ -19,8 +19,7 @@ build: [
 install: [make "install" "INSTALL_DIR=%{prefix}%"]
 remove: [make "uninstall" "INSTALL_DIR=%{prefix}%"]
 depends: [
-  ("ocaml" {>= "5.0"} & ("camlp5" {build}))
-    | ("ocaml" {>= "4.08" & < "5.0"} & ("camlp5" {build & = "8.00.03"}))
+  "ocaml"
   "ocamlfind" {build}
   "dune" {>= "1.11" & < "3.16"}
   "sedlex" {>= "2.0"}
@@ -28,6 +27,7 @@ depends: [
   "extlib" {>= "1.7.8"}
   "sha"
   "camlp-streams"
+  "ppx_parser" {>= "0.2.0"}
   "conf-libpcre2-8"
   "conf-zlib"
   "conf-neko"

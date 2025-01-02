@@ -395,8 +395,10 @@ class Parser {
 			if (parent.nodeType == Element) {
 				throw new XmlParserException("Unclosed node <" + parent.nodeName + ">", str, p);
 			}
-			if (p != start || nsubs == 0) {
+			if( p != start )
 				buf.addSub(str, start, p - start);
+			var str = buf.toString();
+			if (str.length > 0 || nsubs == 0) {
 				addChild(Xml.createPCData(buf.toString()));
 			}
 			return p;

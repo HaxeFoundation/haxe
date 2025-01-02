@@ -327,11 +327,11 @@ let unify_field_call ctx fa el_typed el p inline =
 			| cf :: candidates ->
 				let known_monos = List.map (fun (m,_) ->
 					m,m.tm_type,m.tm_down_constraints
-				) ctx.e.monomorphs.perfunction in
-				let current_monos = ctx.e.monomorphs.perfunction in
+				) ctx.e.monomorphs in
+				let current_monos = ctx.e.monomorphs in
 				begin try
 					let candidate = attempt_call cf true in
-					ctx.e.monomorphs.perfunction <- current_monos;
+					ctx.e.monomorphs <- current_monos;
 					if overload_kind = OverloadProper then begin
 						let candidates,failures = loop candidates in
 						candidate :: candidates,failures
@@ -342,7 +342,7 @@ let unify_field_call ctx fa el_typed el p inline =
 						if t != m.tm_type then m.tm_type <- t;
 						if constr != m.tm_down_constraints then m.tm_down_constraints <- constr;
 					) known_monos;
-					ctx.e.monomorphs.perfunction <- current_monos;
+					ctx.e.monomorphs <- current_monos;
 					check_unknown_ident err;
 					let candidates,failures = loop candidates in
 					candidates,(cf,err,extract_delayed_display()) :: failures
@@ -655,3 +655,15 @@ let maybe_reapply_overload_call ctx e =
 			end
 		| _ ->
 			e
+
+let make_static_call_better ctx c cf tl el t p =
+	let fh = match c.cl_kind with
+		| KAbstractImpl a when has_class_field_flag cf CfImpl ->
+			FHAbstract(a,tl,c)
+		| _ ->
+			FHStatic c
+	in
+	let e1 = Builder.make_static_this c p in
+	let fa = FieldAccess.create e1 cf fh false p in
+	let fcc = unify_field_call ctx fa el [] p false in
+	fcc.fc_data()

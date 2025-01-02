@@ -23,7 +23,7 @@ let rec make_static_call ctx c cf a pl args t p =
 				e
 			| _ -> die "" __LOC__
 	end else
-		Typecore.make_static_call ctx c cf (apply_params a.a_params pl) args t p
+		CallUnification.make_static_call_better ctx c cf pl args t p
 
 and do_check_cast ctx uctx tleft eright p =
 	let recurse cf f =
@@ -127,7 +127,7 @@ and cast_or_unify ctx tleft eright p =
 		eright
 
 let prepare_array_access_field ctx a pl cf p =
-	let monos = List.map (fun _ -> spawn_monomorph ctx.e p) cf.cf_params in
+	let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
 	let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
 	let check_constraints () =
 		List.iter2 (fun m ttp -> match get_constraints ttp with
@@ -199,7 +199,7 @@ let find_array_write_access ctx a tl e1 e2 p =
 		let s_type = s_type (print_context()) in
 		raise_typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
-let find_multitype_specialization com a pl p =
+let find_multitype_specialization' com a pl p =
 	let uctx = default_unification_context in
 	let m = mk_mono() in
 	let tl,definitive_types = Abstract.find_multitype_params a pl in
@@ -241,7 +241,11 @@ let find_multitype_specialization com a pl p =
 			else
 				raise_typing_error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
 	in
-	cf, follow m
+	cf,follow m,tl
+
+let find_multitype_specialization com a pl p =
+	let cf,m,_ = find_multitype_specialization' com a pl p in
+	(cf,m)
 
 let handle_abstract_casts ctx e =
 	let rec loop e = match e.eexpr with
@@ -254,7 +258,7 @@ let handle_abstract_casts ctx e =
 				| _ -> raise_typing_error ("Cannot construct " ^ (s_type (print_context()) (TAbstract(a,pl)))) e.epos
 			end else begin
 				(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
-				let cf,m = find_multitype_specialization ctx.com a pl e.epos in
+				let cf,m,pl = find_multitype_specialization' ctx.com a pl e.epos in
 				let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
 				{e with etype = m}
 			end

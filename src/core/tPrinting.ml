@@ -28,38 +28,58 @@ let s_module_type_kind = function
 	| TAbstractDecl a -> "TAbstractDecl(" ^ (s_type_path a.a_path) ^ ")"
 	| TTypeDecl t -> "TTypeDecl(" ^ (s_type_path t.t_path) ^ ")"
 
-let show_mono_ids = true
+
+module MonomorphPrinting = struct
+	let show_mono_ids = true
+
+	let s_mono_constraint_kind s_type constr =
+		let rec loop = function
+			| CUnknown -> ""
+			| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type t) tl)
+			| CStructural(fields,_) -> s_type (mk_anon ~fields (ref Closed))
+			| CMixed l -> String.concat " & " (List.map loop l)
+		in
+		loop constr
+
+	let print_mono_name m id extra =
+		let s = if show_mono_ids then
+			Printf.sprintf "Unknown<%d>" id
+		else
+			"Unknown"
+		in
+		let s = s ^ extra in
+		List.fold_left (fun s modi -> match modi with
+			| MNullable _ -> Printf.sprintf "Null<%s>" s
+			| MOpenStructure | MDynamic -> s
+		) s m.tm_modifiers
+
+	let s_mono s_type ctx explicit m =
+		match m.tm_type with
+		| Some t when not explicit ->
+			s_type ctx t
+		| _ ->
+			begin try
+				let id = List.assq m (!ctx) in
+				print_mono_name m id ""
+			with Not_found ->
+				let id = List.length !ctx in
+				ctx := (m,id) :: !ctx;
+				match m.tm_type with
+				| Some t when explicit ->
+					print_mono_name m id (" := " ^ (s_type ctx) t)
+				| _ ->
+					let s_const =
+						let s = s_mono_constraint_kind (s_type ctx) (!monomorph_classify_constraints_ref m) in
+						if s = "" then s else " : " ^ s
+					in
+					print_mono_name m id s_const
+			end
+end
 
 let rec s_type ctx t =
 	match t with
 	| TMono r ->
-		(match r.tm_type with
-		| None ->
-			begin try
-				let id = List.assq t (!ctx) in
-				if show_mono_ids then
-					Printf.sprintf "Unknown<%d>" id
-				else
-					"Unknown"
-			with Not_found ->
-				let id = List.length !ctx in
-				ctx := (t,id) :: !ctx;
-				let s_const =
-					let rec loop = function
-					| CUnknown -> ""
-					| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
-					| CStructural(fields,_) -> s_type ctx (mk_anon ~fields (ref Closed))
-					| CMixed l -> String.concat " & " (List.map loop l)
-					in
-					let s = loop (!monomorph_classify_constraints_ref r) in
-					if s = "" then s else " : " ^ s
-				in
-				if show_mono_ids then
-					Printf.sprintf "Unknown<%d>%s" id s_const
-				else
-					Printf.sprintf "Unknown%s" s_const
-			end
-		| Some t -> s_type ctx t)
+		MonomorphPrinting.s_mono s_type ctx false r
 	| TEnum (e,tl) ->
 		s_type_path e.e_path ^ s_type_params ctx tl
 	| TInst (c,tl) ->
@@ -125,7 +145,6 @@ and s_constraint = function
 	| MMono(m,_) -> Printf.sprintf "MMono %s" (s_type_kind (TMono m))
 	| MField cf -> Printf.sprintf "MField %s" cf.cf_name
 	| MType(t,_) -> Printf.sprintf "MType %s" (s_type_kind t)
-	| MOpenStructure -> "MOpenStructure"
 	| MEmptyStructure -> "MEmptyStructure"
 
 let s_type_param s_type ttp =

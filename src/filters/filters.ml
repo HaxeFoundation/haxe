@@ -25,7 +25,7 @@ open Error
 open Globals
 open FiltersCommon
 
-let get_native_name = Naming.get_native_name
+let get_native_name = Native.get_native_name
 
 (* PASS 1 begin *)
 
@@ -497,7 +497,7 @@ let destruction tctx ectx detail_times main locals =
 	let type_filters = [
 		(fun tctx -> Exceptions.patch_constructors tctx ectx); (* TODO: I don't believe this should load_instance anything at this point... *)
 		(fun _ -> check_private_path com);
-		(fun _ -> Naming.apply_native_paths);
+		(fun _ -> Native.apply_native_paths);
 		(fun _ -> add_rtti com);
 		(match com.platform with | Jvm -> (fun _ _ -> ()) | _ -> (fun tctx mt -> AddFieldInits.add_field_inits tctx.c.curclass.cl_path locals com mt));
 		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> (fun _ -> add_meta_field com));

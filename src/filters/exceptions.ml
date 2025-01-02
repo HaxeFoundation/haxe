@@ -40,7 +40,7 @@ let haxe_exception_static_call ctx method_name args p =
 		| _ -> raise_typing_error ("haxe.Exception." ^ method_name ^ " is not a function and cannot be called") p
 	in
 	add_dependency ctx.typer.c.curclass.cl_module ctx.haxe_exception_class.cl_module MDepFromTyping;
-	make_static_call ctx.typer ctx.haxe_exception_class method_field (fun t -> t) args return_type p
+	CallUnification.make_static_call_better ctx.typer ctx.haxe_exception_class method_field [] args return_type p
 
 (**
 	Generate `haxe_exception.method_name(args)`
@@ -74,7 +74,7 @@ let std_is ctx e t p =
 		| _ -> raise_typing_error ("Std.isOfType is not a function and cannot be called") p
 	in
 	let type_expr = TyperBase.type_module_type ctx.typer (module_type_of_type t) p in
-	make_static_call ctx.typer std_cls isOfType_field (fun t -> t) [e; type_expr] return_type p
+	CallUnification.make_static_call_better ctx.typer std_cls isOfType_field [] [e; type_expr] return_type p
 
 (**
 	Check if type path of `t` exists in `lst`
@@ -609,7 +609,7 @@ let insert_save_stacks ectx =
 				let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
 				begin
 					add_dependency tctx.c.curclass.cl_module native_stack_trace_cls.cl_module MDepFromTyping;
-					make_static_call tctx native_stack_trace_cls method_field (fun t -> t) [catch_local] return_type catch_var.v_pos
+					CallUnification.make_static_call_better tctx native_stack_trace_cls method_field [] [catch_local] return_type catch_var.v_pos
 				end
 			else
 				mk (TBlock[]) tctx.t.tvoid catch_var.v_pos

@@ -150,6 +150,9 @@ class hxb_reader_api_com
 
 	method read_expression_eagerly (cf : tclass_field) =
 		false
+
+	method make_lazy_type t f =
+		TLazy (make_unforced_lazy t f "com-api")
 end
 
 let find_module ~(minimal_restore : bool) com cc path =

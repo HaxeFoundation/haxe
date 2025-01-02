@@ -37,13 +37,7 @@
 #	include <unistd.h>
 #	include <errno.h>
 #	include <string.h>
-#	ifndef __APPLE__
-#		if defined(__FreeBSD__) || defined(__DragonFly__)
-#			include <sys/wait.h>
-#		else
-#			include <wait.h>
-#		endif
-#	endif
+#	include <sys/wait.h>
 #endif
 
 #ifdef _WIN32

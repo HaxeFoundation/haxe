@@ -643,7 +643,7 @@ and flush_macro_context mint mctx =
 			| TEnumDecl e -> has_enum_flag e EnExtern
 			| _ -> false
 		in
-		if apply_native then Naming.apply_native_paths t
+		if apply_native then Native.apply_native_paths t
 	in
 	let type_filters = [
 		FiltersCommon.remove_generic_base;
@@ -989,7 +989,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				| MMacroType ->
 					"ComplexType",(fun () ->
 						let t = if v = Interp.vnull then
-							spawn_monomorph ctx.e p
+							spawn_monomorph ctx p
 						else try
 							let ct = Interp.decode_ctype v in
 							Typeload.load_complex_type ctx false LoadNormal ct;

@@ -160,15 +160,15 @@ class hxb_reader
 	val mutable string_pool = (match string_pool with None -> Array.make 0 "" | Some pool -> pool)
 	val mutable doc_pool = Array.make 0 ""
 
-	val mutable classes = Array.make 0 null_class
-	val mutable abstracts = Array.make 0 null_abstract
-	val mutable enums = Array.make 0 null_enum
-	val mutable typedefs = Array.make 0 null_typedef
+	val mutable classes = Array.make 0 (Lazy.from_val null_class)
+	val mutable abstracts = Array.make 0 (Lazy.from_val null_abstract)
+	val mutable enums = Array.make 0 (Lazy.from_val null_enum)
+	val mutable typedefs = Array.make 0 (Lazy.from_val null_typedef)
 	val mutable anons = Array.make 0 null_tanon
 	val mutable anon_fields = Array.make 0 null_field
 	val mutable tmonos = Array.make 0 (mk_mono())
-	val mutable class_fields = Array.make 0 null_field
-	val mutable enum_fields = Array.make 0 null_enum_field
+	val mutable class_fields = Array.make 0 (Lazy.from_val null_field)
+	val mutable enum_fields = Array.make 0 (Lazy.from_val null_enum_field)
 
 	val mutable type_type_parameters = Array.make 0 (mk_type_param null_class TPHType None None)
 	val mutable field_type_parameters = Array.make 0 (mk_type_param null_class TPHMethod None None)
@@ -189,6 +189,9 @@ class hxb_reader
 			Some (string_pool)
 		else
 			None
+
+	method make_lazy_type_dynamic f : Type.t =
+		api#make_lazy_type t_dynamic f
 
 	(* Primitives *)
 
@@ -300,10 +303,12 @@ class hxb_reader
 		typedefs.(read_uleb128 ch)
 
 	method read_field_ref =
-		class_fields.(read_uleb128 ch)
+		let cf = class_fields.(read_uleb128 ch) in
+		Lazy.force cf
 
 	method read_enum_field_ref =
-		enum_fields.(read_uleb128 ch)
+		let ef = enum_fields.(read_uleb128 ch) in
+		Lazy.force ef
 
 	method read_anon_ref =
 		match read_byte ch with
@@ -749,13 +754,18 @@ class hxb_reader
 			(mk_type_param { null_class with cl_path = path } TPHUnbound None None).ttp_type
 		| 10 ->
 			let c = self#read_class_ref in
+			let c = Lazy.force c in
 			c.cl_type
 		| 11 ->
 			let en = self#read_enum_ref in
-			en.e_type
+			self#make_lazy_type_dynamic (fun () ->
+				(Lazy.force en).e_type
+			)
 		| 12 ->
 			let a = self#read_abstract_ref in
-			TType(abstract_module_type a [],[])
+			self#make_lazy_type_dynamic (fun () ->
+				TType(abstract_module_type (Lazy.force a) [],[])
+			)
 		| 13 ->
 			let e = self#read_expr in
 			let c = {null_class with cl_kind = KExpr e; cl_module = current_module } in
@@ -814,68 +824,96 @@ class hxb_reader
 			TFun(args,ret)
 		| 40 ->
 			let c = self#read_class_ref in
+			let c = Lazy.force c in
 			TInst(c,[])
 		| 41 ->
 			let c = self#read_class_ref in
 			let t1 = self#read_type_instance in
+			let c = Lazy.force c in
 			TInst(c,[t1])
 		| 42 ->
 			let c = self#read_class_ref in
 			let t1 = self#read_type_instance in
 			let t2 = self#read_type_instance in
+			let c = Lazy.force c in
 			TInst(c,[t1;t2])
 		| 49 ->
 			let c = self#read_class_ref in
 			let tl = self#read_types in
+			let c = Lazy.force c in
 			TInst(c,tl)
 		| 50 ->
 			let en = self#read_enum_ref in
-			TEnum(en,[])
+			self#make_lazy_type_dynamic (fun () ->
+				TEnum(Lazy.force en,[])
+			)
 		| 51 ->
 			let en = self#read_enum_ref in
 			let t1 = self#read_type_instance in
-			TEnum(en,[t1])
+			self#make_lazy_type_dynamic (fun () ->
+				TEnum(Lazy.force en,[t1])
+			)
 		| 52 ->
 			let en = self#read_enum_ref in
 			let t1 = self#read_type_instance in
 			let t2 = self#read_type_instance in
-			TEnum(en,[t1;t2])
+			self#make_lazy_type_dynamic (fun () ->
+				TEnum(Lazy.force en,[t1;t2])
+			)
 		| 59 ->
 			let e = self#read_enum_ref in
 			let tl = self#read_types in
-			TEnum(e,tl)
+			self#make_lazy_type_dynamic (fun () ->
+				TEnum(Lazy.force e,tl)
+			)
 		| 60 ->
 			let td = self#read_typedef_ref in
-			TType(td,[])
+			self#make_lazy_type_dynamic (fun () ->
+				TType(Lazy.force td,[])
+			);
 		| 61 ->
 			let td = self#read_typedef_ref in
 			let t1 = self#read_type_instance in
-			TType(td,[t1])
+			self#make_lazy_type_dynamic (fun () ->
+				TType(Lazy.force td,[t1])
+			)
 		| 62 ->
 			let td = self#read_typedef_ref in
 			let t1 = self#read_type_instance in
 			let t2 = self#read_type_instance in
-			TType(td,[t1;t2])
+			self#make_lazy_type_dynamic (fun () ->
+				TType(Lazy.force td,[t1;t2])
+			)
 		| 69 ->
 			let t = self#read_typedef_ref in
 			let tl = self#read_types in
-			TType(t,tl)
+			self#make_lazy_type_dynamic (fun () ->
+				TType(Lazy.force t,tl)
+			)
 		| 70 ->
 			let a = self#read_abstract_ref in
-			TAbstract(a,[])
+			self#make_lazy_type_dynamic (fun () ->
+				TAbstract(Lazy.force a,[])
+			)
 		| 71 ->
 			let a = self#read_abstract_ref in
 			let t1 = self#read_type_instance in
-			TAbstract(a,[t1])
+			self#make_lazy_type_dynamic (fun () ->
+				TAbstract(Lazy.force a,[t1])
+			)
 		| 72 ->
 			let a = self#read_abstract_ref in
 			let t1 = self#read_type_instance in
 			let t2 = self#read_type_instance in
-			TAbstract(a,[t1;t2])
+			self#make_lazy_type_dynamic (fun () ->
+				TAbstract(Lazy.force a,[t1;t2])
+			)
 		| 79 ->
 			let a = self#read_abstract_ref in
 			let tl = self#read_types in
-			TAbstract(a,tl)
+			self#make_lazy_type_dynamic (fun () ->
+				TAbstract(Lazy.force a,tl)
+			)
 		| 80 ->
 			empty_anon
 		| 81 ->
@@ -1218,12 +1256,14 @@ class hxb_reader
 					| 102 ->
 						let e1 = loop () in
 						let c = self#read_class_ref in
+						let c = Lazy.force c in
 						let tl = self#read_types in
 						let cf = self#read_field_ref in
 						TField(e1,FInstance(c,tl,cf)),None
 					| 103 ->
 						let e1 = loop () in
 						let c = self#read_class_ref in
+						let c = Lazy.force c in
 						let cf = self#read_field_ref in
 						TField(e1,FStatic(c,cf)),None
 					| 104 ->
@@ -1233,6 +1273,7 @@ class hxb_reader
 					| 105 ->
 						let e1 = loop () in
 						let c = self#read_class_ref in
+						let c = Lazy.force c in
 						let tl = self#read_types in
 						let cf = self#read_field_ref in
 						TField(e1,FClosure(Some(c,tl),cf)),None
@@ -1244,6 +1285,7 @@ class hxb_reader
 						let e1 = loop () in
 						let en = self#read_enum_ref in
 						let ef = self#read_enum_field_ref in
+						let en = Lazy.force en in
 						TField(e1,FEnum(en,ef)),None
 					| 108 ->
 						let e1 = loop () in
@@ -1253,12 +1295,14 @@ class hxb_reader
 					| 110 ->
 						let p = read_relpos () in
 						let c = self#read_class_ref in
+						let c = Lazy.force c in
 						let cf = self#read_field_ref in
 						let e1 = Texpr.Builder.make_static_this c p in
 						TField(e1,FStatic(c,cf)),None
 					| 111 ->
 						let p = read_relpos () in
 						let c = self#read_class_ref in
+						let c = Lazy.force c in
 						let tl = self#read_types in
 						let cf = self#read_field_ref in
 						let ethis = mk (TConst TThis) (Option.get fctx.tthis) p in
@@ -1267,14 +1311,16 @@ class hxb_reader
 					(* module types 120-139 *)
 					| 120 ->
 						let c = self#read_class_ref in
+						let c = Lazy.force c in
 						TTypeExpr (TClassDecl c),(Some c.cl_type)
 					| 121 ->
 						let en = self#read_enum_ref in
+						let en = Lazy.force en in
 						TTypeExpr (TEnumDecl en),(Some en.e_type)
 					| 122 ->
-						TTypeExpr (TAbstractDecl self#read_abstract_ref),None
+						TTypeExpr (TAbstractDecl (Lazy.force self#read_abstract_ref)),None
 					| 123 ->
-						TTypeExpr (TTypeDecl self#read_typedef_ref),None
+						TTypeExpr (TTypeDecl (Lazy.force self#read_typedef_ref)),None
 					| 124 ->
 						TCast(loop (),None),None
 					| 125 ->
@@ -1284,6 +1330,7 @@ class hxb_reader
 						TCast(e1,Some mt),None
 					| 126 ->
 						let c = self#read_class_ref in
+						let c = Lazy.force c in
 						let tl = self#read_types in
 						let el = loop_el() in
 						TNew(c,tl,el),None
@@ -1483,6 +1530,7 @@ class hxb_reader
 		infos.mt_params <- Array.to_list type_type_parameters;
 		infos.mt_using <- self#read_list (fun () ->
 			let c = self#read_class_ref in
+			let c = Lazy.force c in
 			let p = self#read_pos in
 			(c,p)
 		)
@@ -1494,11 +1542,12 @@ class hxb_reader
 		| 3 -> KGeneric
 		| 4 ->
 			let c = self#read_class_ref in
+			let c = Lazy.force c in
 			let tl = self#read_types in
 			KGenericInstance(c,tl)
 		| 5 -> KMacroType
 		| 6 -> KGenericBuild (self#read_list (fun () -> self#read_cfield))
-		| 7 -> KAbstractImpl self#read_abstract_ref
+		| 7 -> KAbstractImpl (Lazy.force self#read_abstract_ref)
 		| 8 -> KModuleFields current_module
 		| i ->
 			error (Printf.sprintf "Invalid class kind id: %i" i)
@@ -1508,6 +1557,7 @@ class hxb_reader
 		c.cl_kind <- self#read_class_kind;
 		let read_relation () =
 			let c = self#read_class_ref in
+			let c = Lazy.force c in
 			let tl = self#read_types in
 			(c,tl)
 		in
@@ -1521,7 +1571,7 @@ class hxb_reader
 
 	method read_abstract (a : tabstract) =
 		self#read_common_module_type (Obj.magic a);
-		a.a_impl <- self#read_option (fun () -> self#read_class_ref);
+		a.a_impl <- self#read_option (fun () -> Lazy.force self#read_class_ref);
 		begin match read_byte ch with
 			| 0 ->
 				a.a_this <- TAbstract(a,extract_param_types a.a_params)
@@ -1600,7 +1650,10 @@ class hxb_reader
 		let a = Array.init l (fun i ->
 			let en = self#read_enum_ref in
 			let name = self#read_string in
-			PMap.find name en.e_constrs
+			Lazy.from_fun (fun () ->
+				let en = Lazy.force en in
+				PMap.find name en.e_constrs
+			)
 		) in
 		enum_fields <- a
 
@@ -1635,44 +1688,56 @@ class hxb_reader
 				| 3 -> CfrInit
 				| _ -> die "" __LOC__
 			in
-			let cf =  match kind with
-				| CfrStatic ->
-					let name = self#read_string in
-					begin try
-						PMap.find name c.cl_statics
-					with Not_found ->
-						raise (HxbFailure (Printf.sprintf "Could not read static field %s on %s while hxbing %s" name (s_type_path c.cl_path) (s_type_path current_module.m_path)))
-					end;
+			let name = match kind with
+				| CfrStatic
 				| CfrMember ->
-					let name = self#read_string in
-					begin try
-						PMap.find name c.cl_fields
-					with Not_found ->
-						raise (HxbFailure (Printf.sprintf "Could not read instance field %s on %s while hxbing %s" name (s_type_path c.cl_path) (s_type_path current_module.m_path)))
-					end
-				| CfrConstructor ->
-					Option.get c.cl_constructor
+					Some self#read_string
+				| CfrConstructor
 				| CfrInit ->
-					Option.get c.cl_init
-			in
-			let pick_overload cf depth =
-				let rec loop depth cfl = match cfl with
-					| cf :: cfl ->
-						if depth = 0 then
-							cf
-						else
-							loop (depth - 1) cfl
-					| [] ->
-						raise (HxbFailure (Printf.sprintf "Bad overload depth for %s on %s: %i" cf.cf_name (s_type_path c.cl_path) depth))
-				in
-				let cfl = cf :: cf.cf_overloads in
-				loop depth cfl
+					None
 			in
 			let depth = read_uleb128 ch in
-			if depth = 0 then
-				cf
-			else
-				pick_overload cf depth;
+
+			Lazy.from_fun (fun () ->
+				let c = Lazy.force c in
+				let cf = match kind with
+					| CfrStatic ->
+						let name = Option.get name in
+						begin try
+							PMap.find name c.cl_statics
+						with Not_found ->
+							raise (HxbFailure (Printf.sprintf "Could not read static field %s on %s while hxbing %s" name (s_type_path c.cl_path) (s_type_path current_module.m_path)))
+						end;
+					| CfrMember ->
+						let name = Option.get name in
+						begin try
+							PMap.find name c.cl_fields
+						with Not_found ->
+							raise (HxbFailure (Printf.sprintf "Could not read instance field %s on %s while hxbing %s" name (s_type_path c.cl_path) (s_type_path current_module.m_path)))
+						end
+					| CfrConstructor ->
+						Option.get c.cl_constructor
+					| CfrInit ->
+						Option.get c.cl_init
+				in
+				let pick_overload cf depth =
+					let rec loop depth cfl = match cfl with
+						| cf :: cfl ->
+							if depth = 0 then
+								cf
+							else
+								loop (depth - 1) cfl
+						| [] ->
+							raise (HxbFailure (Printf.sprintf "Bad overload depth for %s on %s: %i" cf.cf_name (s_type_path c.cl_path) depth))
+					in
+					let cfl = cf :: cf.cf_overloads in
+					loop depth cfl
+				in
+				if depth = 0 then
+					cf
+				else
+					pick_overload cf depth;
+			)
 		) in
 		class_fields <- a
 
@@ -1680,12 +1745,14 @@ class hxb_reader
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let c = classes.(i) in
+			let c = Lazy.force c in
 			self#read_class_fields c;
 		done
 
 	method read_exd =
 		ignore(self#read_list (fun () ->
 			let c = self#read_class_ref in
+			let c = Lazy.force c in
 			self#read_list (fun () ->
 				let cf = self#read_field_ref in
 				let length = read_uleb128 ch in
@@ -1708,14 +1775,12 @@ class hxb_reader
 					read_expressions ()
 				else begin
 					let t = cf.cf_type in
-					let r = ref (lazy_available t) in
-					r := lazy_wait (fun() ->
+					let tl = api#make_lazy_type cf.cf_type (fun () ->
 						cf.cf_type <- t;
-						r := lazy_available t;
-						read_expressions ();
+						read_expressions();
 						t
-					);
-					cf.cf_type <- TLazy r
+					) in
+					cf.cf_type <- tl
 				end
 			)
 		))
@@ -1723,7 +1788,7 @@ class hxb_reader
 	method read_afd =
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
-			let a = abstracts.(i) in
+			let a = Lazy.force abstracts.(i) in
 			self#read_abstract_fields a;
 		done
 
@@ -1731,27 +1796,28 @@ class hxb_reader
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
 			let c = classes.(i) in
+			let c = Lazy.force c in
 			self#read_class c;
 		done
 
 	method read_abd =
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
-			let a = abstracts.(i) in
+			let a = Lazy.force abstracts.(i) in
 			self#read_abstract a;
 		done
 
 	method read_end =
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
-			let en = enums.(i) in
+			let en = Lazy.force enums.(i) in
 			self#read_enum en;
 		done
 
 	method read_efd =
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
-			let e = enums.(i) in
+			let e = Lazy.force enums.(i) in
 			self#read_enum_fields e;
 			Type.unify (TType(enum_module_type e,[])) e.e_type
 		done
@@ -1785,52 +1851,60 @@ class hxb_reader
 	method read_tdd =
 		let l = read_uleb128 ch in
 		for i = 0 to l - 1 do
-			let t = typedefs.(i) in
+			let t = Lazy.force typedefs.(i) in
 			self#read_typedef t;
 		done
 
 	method read_clr =
 		let l = read_uleb128 ch in
 		classes <- (Array.init l (fun i ->
-				let (pack,mname,tname) = self#read_full_path in
+			let (pack,mname,tname) = self#read_full_path in
+			Lazy.from_fun (fun () ->
 				match self#resolve_type pack mname tname with
 				| TClassDecl c ->
 					c
 				| _ ->
 					error ("Unexpected type where class was expected: " ^ (s_type_path (pack,tname)))
+			)
 		))
 
 	method read_abr =
 		let l = read_uleb128 ch in
 		abstracts <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
-			match self#resolve_type pack mname tname with
-			| TAbstractDecl a ->
-				a
-			| _ ->
-				error ("Unexpected type where abstract was expected: " ^ (s_type_path (pack,tname)))
+			Lazy.from_fun (fun () ->
+				match self#resolve_type pack mname tname with
+				| TAbstractDecl a ->
+					a
+				| _ ->
+					error ("Unexpected type where abstract was expected: " ^ (s_type_path (pack,tname)))
+			)
 		))
 
 	method read_enr =
 		let l = read_uleb128 ch in
 		enums <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
-			match self#resolve_type pack mname tname with
-			| TEnumDecl en ->
-				en
-			| _ ->
-				error ("Unexpected type where enum was expected: " ^ (s_type_path (pack,tname)))
+			Lazy.from_fun (fun () ->
+				match self#resolve_type pack mname tname with
+				| TEnumDecl en ->
+					en
+				| _ ->
+					error ("Unexpected type where enum was expected: " ^ (s_type_path (pack,tname)))
+			)
 		))
 
 	method read_tdr =
 		let l = read_uleb128 ch in
 		typedefs <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
-			match self#resolve_type pack mname tname with
-			| TTypeDecl tpd ->
-				tpd
-			| _ ->
-				error ("Unexpected type where typedef was expected: " ^ (s_type_path (pack,tname)))
+			Lazy.from_fun (fun () ->
+				match self#resolve_type pack mname tname with
+				| TTypeDecl tpd ->
+					tpd
+				| _ ->
+					error ("Unexpected type where typedef was expected: " ^ (s_type_path (pack,tname)))
+			)
 		))
 
 	method read_imports =
@@ -1908,12 +1982,12 @@ class hxb_reader
 			| 2 ->
 				let td = mk_typedef current_module path pos name_pos (mk_mono()) in
 				td.t_params <- Array.to_list params;
-				typedefs <- Array.append typedefs (Array.make 1 td);
+				typedefs <- Array.append typedefs (Array.make 1 (Lazy.from_val td));
 				TTypeDecl td
 			| 3 ->
 				let a = mk_abstract current_module path pos name_pos in
 				a.a_params <- Array.to_list params;
-				abstracts <- Array.append abstracts (Array.make 1 a);
+				abstracts <- Array.append abstracts (Array.make 1 (Lazy.from_val a));
 				TAbstractDecl a
 			| _ ->
 				error ("Invalid type kind: " ^ (string_of_int kind));

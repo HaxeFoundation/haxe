@@ -175,9 +175,8 @@ class Parser {
 								p += 8;
 								state = S.DOCTYPE;
 								start = p + 1;
-							} else if (str.fastCodeAt(p + 1) != '-'.code || str.fastCodeAt(p + 2) != '-'.code)
-								throw new XmlParserException("Expected <!--", str, p);
-							else {
+							} else if (str.fastCodeAt(p + 1) != '-'.code || str.fastCodeAt(p + 2) != '-'.code) throw new XmlParserException("Expected <!--",
+								str, p); else {
 								p += 2;
 								state = S.COMMENT;
 								start = p + 1;
@@ -362,8 +361,9 @@ class Parser {
 			if (parent.nodeType == Element) {
 				throw new XmlParserException("Unclosed node <" + parent.nodeName + ">", str, p);
 			}
-			if (p != start || nsubs == 0) {
+			if (p != start)
 				buf = buf.addSub(str, start, p - start);
+			if (buf != "" || nsubs == 0) {
 				addChild(Xml.createPCData(buf));
 			}
 			return p;

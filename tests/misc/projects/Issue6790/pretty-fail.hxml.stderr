@@ -2,6 +2,6 @@
 
  6 |   p.then(x -> 10, e -> "");
    |                   ^^^^^^^
-   | (e : Unknown<0>) -> String should be Null<js.lib.PromiseHandler<Dynamic, Int>>
+   | (e : Dynamic) -> String should be Null<js.lib.PromiseHandler<Dynamic, Int>>
    | For optional function argument 'onRejected'
 
