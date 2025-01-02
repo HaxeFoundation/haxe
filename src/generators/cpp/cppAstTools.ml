@@ -469,6 +469,12 @@ and get_extern_value_type cls params =
       |> fst
       |> String.concat "::"
   in
+  let namespace =
+    if String.length namespace > 0 then
+      "::" ^ namespace
+    else
+      namespace
+  in
   let t = match get_meta_field "type" with
   | Some (_, (EConst (String (s, _)), _) ) ->
     s ^ typeParams
@@ -476,7 +482,7 @@ and get_extern_value_type cls params =
     snd cls.cl_path ^ typeParams
   in
   
-  Printf.sprintf "::%s::%s" namespace t
+  Printf.sprintf "%s::%s" namespace t
 
 and extern_value_type_supports cls flag =
   match Meta.get Meta.CppValueType cls.cl_meta with
