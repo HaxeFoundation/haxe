@@ -151,7 +151,7 @@ and cpp_function_type_of_string stack function_type abi_string value_type_handle
   let args, ret = cpp_function_type_of_args_ret stack value_type_handler function_type in
   TCppFunction (args, ret, abi_string)
 
-and cpp_function_type_of_args_ret stack (value_type_handler:unit->value_type_state) function_type =
+and cpp_function_type_of_args_ret stack value_type_handler function_type =
   match follow function_type with
   | TFun (args, ret) ->
       (* Optional types are Dynamic if they norally could not be null *)

@@ -185,8 +185,19 @@ let autocast_filter for_cppia return_type cppexpr =
       mk_cppexpr (CppCast (cppexpr, reference)) reference
 
     (* If we are constructing a value type of reference state, inspect the surrounding context and choose a more appropriate construction *)
-    | TCppValueType (_, _, Reference), TCppValueType (_, _, Reference) when is_construction ->
-      abort "CPP0000 : Internal Error : Unable to determine how the value type should be constructed" cppexpr.cpppos
+
+    (* When constructing to a reference we lack enough info to make a more precise choice *)
+    (* So just allocate on the heap and wrap in a reference *)
+    (* This comes up with function calls e.g. foo(new MyValueType()) *)
+    (* TFun does not give us enough info to make a more precise allocation *)
+    | TCppValueType (cls, params, Reference), TCppValueType (_, _, Reference) when is_construction ->
+      (match cppexpr.cppexpr with
+      | CppCall ((FuncNew _), args) ->
+        let promoted  = TCppValueType(cls, params, Promoted) in
+        let reference = TCppValueType(cls, params, Reference) in
+        mk_cppexpr (CppCast ({ cppexpr with cpptype = promoted; cppexpr = CppCall ((FuncNew promoted), args) }, reference)) reference
+      | _ ->
+        cppexpr)
     | TCppValueType (cls, params, Reference), TCppValueType (_, _, Stack) when is_construction ->
       (match cppexpr.cppexpr with
       | CppCall ((FuncNew _), args) ->
