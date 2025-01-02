@@ -517,9 +517,10 @@ let expression ctx request_type function_args function_type expression_tree forI
             let funcReturn = cpp_member_return_type member in
             let clazzType = cpp_instance_type clazz params with_reference_value_type in
             let retyper_ctx, retypedObj = retype retyper_ctx clazzType obj in
-            (* Value type fields are always promoted, so retype with the promotion type instead of reference *)
-            let exprType = cpp_type_of_with with_promoted_value_type member.cf_type in
-            let is_objc = is_cpp_objc_type retypedObj.cpptype in
+            (* Value types in haxe classes are always promoted, with value type externs treat them as references so the auto casting deals with conversion *)
+            let handler  = if is_extern_value_class clazz then with_reference_value_type else with_promoted_value_type in
+            let exprType = cpp_type_of_with handler member.cf_type in
+            let is_objc  = is_cpp_objc_type retypedObj.cpptype in
 
             if retypedObj.cpptype = TCppNull then
               (retyper_ctx, CppNullAccess, TCppDynamic)
