@@ -39,7 +39,7 @@ let build_macro_type ctx pl p =
 	) in
 	let old = ctx.e.ret in
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
-		| MError | MMacroInMacro -> spawn_monomorph ctx.e p
+		| MError | MMacroInMacro -> spawn_monomorph ctx p
 		| MSuccess _ -> ctx.e.ret
 	) in
 	ctx.e.ret <- old;
@@ -58,7 +58,7 @@ let build_macro_build ctx c pl cfl p =
 	let old = ctx.e.ret,ctx.c.get_build_infos in
 	ctx.c.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
-		| MError | MMacroInMacro -> spawn_monomorph ctx.e p
+		| MError | MMacroInMacro -> spawn_monomorph ctx p
 		| MSuccess _ -> ctx.e.ret
 	) in
 	ctx.e.ret <- fst old;
@@ -73,8 +73,8 @@ let get_build_info ctx mtype p =
 	| TClassDecl c ->
 		if ctx.pass > PBuildClass then ignore(c.cl_build());
 		let build f s tl =
-			let t = spawn_monomorph ctx.e p in
-			let r = make_lazy ctx.g t (fun r ->
+			let t = spawn_monomorph ctx p in
+			let r = make_lazy ctx.g t (fun () ->
 				let tf = f tl in
 				unify_raise tf t p;
 				link_dynamic t tf;

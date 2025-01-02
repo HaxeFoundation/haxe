@@ -98,7 +98,7 @@ let gen_body tcpp_interface ctx output_h iter =
 
   match get_meta_string tcpp_interface.if_class.cl_meta Meta.ObjcProtocol with
   | Some protocol ->
-    output_h ("\t\tstatic id<" ^ protocol ^ "> _hx_toProtocol(Dynamic inImplementation);\n")
+    output_h ("\t\tstatic id<" ^ protocol ^ "> _hx_toProtocol(::Dynamic inImplementation);\n")
   | None ->
     ();
 

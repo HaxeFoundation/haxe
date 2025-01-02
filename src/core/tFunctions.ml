@@ -646,9 +646,12 @@ let rec ambiguate_funs t =
 	| TFun _ -> TFun ([], t_dynamic)
 	| _ -> map ambiguate_funs t
 
+let is_nullable_mono m =
+	List.exists (function MNullable _ -> true | _ -> false) m.tm_modifiers
+
 let rec is_nullable ?(no_lazy=false) = function
 	| TMono r ->
-		(match r.tm_type with None -> false | Some t -> is_nullable ~no_lazy t)
+		(match r.tm_type with None -> is_nullable_mono r | Some t -> is_nullable ~no_lazy t)
 	| TAbstract ({ a_path = ([],"Null") },[_]) ->
 		true
 	| TLazy f ->
@@ -679,7 +682,7 @@ let rec is_nullable ?(no_lazy=false) = function
 
 let rec is_null ?(no_lazy=false) = function
 	| TMono r ->
-		(match r.tm_type with None -> false | Some t -> is_null ~no_lazy t)
+		(match r.tm_type with None -> is_nullable_mono r | Some t -> is_null ~no_lazy t)
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		not (is_nullable ~no_lazy (follow t))
 	| TLazy f ->
@@ -696,7 +699,7 @@ let rec is_null ?(no_lazy=false) = function
 (* Determines if we have a Null<T>. Unlike is_null, this returns true even if the wrapped type is nullable itself. *)
 let rec is_explicit_null = function
 	| TMono r ->
-		(match r.tm_type with None -> false | Some t -> is_explicit_null t)
+		(match r.tm_type with None -> is_nullable_mono r | Some t -> is_explicit_null t)
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		true
 	| TLazy f ->

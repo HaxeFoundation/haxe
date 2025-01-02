@@ -259,7 +259,7 @@ let generate_managed_interface base_ctx tcpp_interface =
     let full_class_name = ("::" ^ join_class_path_remap class_path "::") ^ "_obj" in
     let protocol = get_meta_string tcpp_interface.if_class.cl_meta Meta.ObjcProtocol |> Option.default "" in
     generate_protocol_delegate ctx full_class_name protocol all_functions output_cpp;
-    output_cpp ("id<" ^ protocol ^ "> " ^ full_class_name ^ "::_hx_toProtocol(Dynamic inImplementation) {\n");
+    output_cpp ("id<" ^ protocol ^ "> " ^ full_class_name ^ "::_hx_toProtocol(::Dynamic inImplementation) {\n");
     output_cpp ("\treturn [ [_hx_" ^ protocol ^ "_delegate alloc] initWithImplementation:inImplementation.mPtr];\n");
     output_cpp "}\n\n");
 

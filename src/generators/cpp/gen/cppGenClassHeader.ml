@@ -272,8 +272,8 @@ let generate_managed_header base_ctx tcpp_class =
         ^ ");\n"));
   if not (has_class_flag class_def CAbstract) then (
     output_h "\t\tstatic void * _hx_vtable;\n";
-    output_h "\t\tstatic Dynamic __CreateEmpty();\n";
-    output_h "\t\tstatic Dynamic __Create(::hx::DynamicArray inArgs);\n");
+    output_h "\t\tstatic ::Dynamic __CreateEmpty();\n";
+    output_h "\t\tstatic ::Dynamic __Create(::hx::DynamicArray inArgs);\n");
   if List.length (tcpp_class.tcl_dynamic_functions) > 0 then
     output_h
       ("\t\tstatic void __alloc_dynamic_functions(::hx::Ctx *_hx_alloc," ^ class_name ^ " *_hx_obj);\n");
@@ -286,21 +286,21 @@ let generate_managed_header base_ctx tcpp_class =
       "\t\t::hx::Val __Field(const ::String &inString, ::hx::PropertyAccess inCallProp);\n";
   if has_tcpp_class_flag tcpp_class StaticGet then
     output_h
-      "\t\tstatic bool __GetStatic(const ::String &inString, Dynamic &outValue, ::hx::PropertyAccess inCallProp);\n";
+      "\t\tstatic bool __GetStatic(const ::String &inString, ::Dynamic &outValue, ::hx::PropertyAccess inCallProp);\n";
   if has_tcpp_class_flag tcpp_class MemberSet then
     output_h
       "\t\t::hx::Val __SetField(const ::String &inString,const ::hx::Val &inValue, ::hx::PropertyAccess inCallProp);\n";
   if has_tcpp_class_flag tcpp_class StaticSet then
     output_h
-      "\t\tstatic bool __SetStatic(const ::String &inString, Dynamic &ioValue, ::hx::PropertyAccess inCallProp);\n";
+      "\t\tstatic bool __SetStatic(const ::String &inString, ::Dynamic &ioValue, ::hx::PropertyAccess inCallProp);\n";
   if has_tcpp_class_flag tcpp_class GetFields then
     output_h
-      "\t\tvoid __GetFields(Array< ::String> &outFields);\n";
+      "\t\tvoid __GetFields(::Array< ::String> &outFields);\n";
   if has_tcpp_class_flag tcpp_class Compare then
     output_h
       ("\t\tint __Compare(const ::hx::Object *inRHS) const { "
       ^ "return const_cast<" ^ class_name
-      ^ " *>(this)->__compare(Dynamic((::hx::Object *)inRHS)); }\n");
+      ^ " *>(this)->__compare(::Dynamic((::hx::Object *)inRHS)); }\n");
 
   output_h "\t\tstatic void __register();\n";
   if tcpp_class.tcl_container = Some Current then (

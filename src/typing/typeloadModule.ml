@@ -317,7 +317,7 @@ module ModuleLevel = struct
 		 List.iter (fun d ->
 			match d with
 			| ((EClass d, p),TClassDecl c) ->
-				c.cl_params <- type_type_params ctx_m TPHType c.cl_path p d.d_params;
+				c.cl_params <- type_type_params ctx_m TPHType c.cl_path d.d_params;
 				if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
 				if Meta.has Meta.FunctionalInterface c.cl_meta then begin
 					if not (has_class_flag c CInterface) then
@@ -331,11 +331,11 @@ module ModuleLevel = struct
 				end;
 				if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 			| ((EEnum d, p),TEnumDecl e) ->
-				e.e_params <- type_type_params ctx_m TPHType e.e_path p d.d_params;
+				e.e_params <- type_type_params ctx_m TPHType e.e_path d.d_params;
 			| ((ETypedef d, p),TTypeDecl t) ->
-				t.t_params <- type_type_params ctx_m TPHType t.t_path p d.d_params;
+				t.t_params <- type_type_params ctx_m TPHType t.t_path d.d_params;
 			| ((EAbstract d, p),TAbstractDecl a) ->
-				a.a_params <- type_type_params ctx_m TPHType a.a_path p d.d_params;
+				a.a_params <- type_type_params ctx_m TPHType a.a_path d.d_params;
 			| _ ->
 				die "" __LOC__
 		) decls
@@ -344,7 +344,7 @@ end
 module TypeLevel = struct
 	let load_enum_field ctx_en e et is_flat index c =
 		let p = c.ec_pos in
-		let params = type_type_params ctx_en TPHEnumConstructor ([],fst c.ec_name) c.ec_pos c.ec_params in
+		let params = type_type_params ctx_en TPHEnumConstructor ([],fst c.ec_name) c.ec_params in
 		let ctx_ef = TyperManager.clone_for_enum_field ctx_en (params @ ctx_en.type_params) in
 		let rt = (match c.ec_type with
 			| None -> et
@@ -557,7 +557,7 @@ module TypeLevel = struct
 					| _ ->
 						()
 				in
-				let r = make_lazy ctx_td.g tt (fun r ->
+				let r = make_lazy ctx_td.g tt (fun () ->
 					check_rec tt;
 					tt
 				) "typedef_rec_check" in
@@ -591,7 +591,7 @@ module TypeLevel = struct
 			let t = load_complex_type ctx_a true LoadNormal t in
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
-					let r = make_lazy ctx_a.g t (fun r ->
+					let r = make_lazy ctx_a.g t (fun () ->
 						(try (if from then Type.unify t a.a_this else Type.unify a.a_this t) with Unify_error _ -> raise_typing_error "You can only declare from/to with compatible types" pos);
 						t
 					) "constraint" in
@@ -771,6 +771,9 @@ class hxb_reader_api_typeload
 			| Method _ ->
 				delay g PTypeField (fun () -> ignore(follow cf.cf_type));
 				false
+
+	method make_lazy_type t f =
+		TLazy (make_lazy g t f "typeload-api")
 end
 
 let rec load_hxb_module com g path p =

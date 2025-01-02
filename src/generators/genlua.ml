@@ -585,9 +585,9 @@ and gen_loop ctx cond do_while e =
         println ctx "local _hx_do_first_%i = true;" ctx.break_depth;
     let b = open_block ctx in
     print ctx "while ";
-    gen_cond ctx cond;
     if do_while then
-        print ctx " or _hx_do_first_%i" ctx.break_depth;
+        print ctx "_hx_do_first_%i or " ctx.break_depth;
+    gen_cond ctx cond;
     print ctx " do ";
     if do_while then begin
         newline ctx;

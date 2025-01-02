@@ -135,14 +135,14 @@ let delete_file f = try Sys.remove f with _ -> ()
 let maybe_generate_dump ctx tctx =
 	let com = tctx.Typecore.com in
 	if Common.defined com Define.Dump then begin
-		Codegen.Dump.dump_types com;
-		Option.may Codegen.Dump.dump_types (com.get_macros())
+		Dump.dump_types com;
+		Option.may Dump.dump_types (com.get_macros())
 	end;
 	if Common.defined com Define.DumpDependencies then begin
-		Codegen.Dump.dump_dependencies com;
+		Dump.dump_dependencies com;
 		if not com.is_macro_context then match tctx.Typecore.g.Typecore.macros with
 			| None -> ()
-			| Some(_,ctx) -> Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
+			| Some(_,ctx) -> Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
 	end
 
 let generate ctx tctx ext actx =
@@ -150,7 +150,7 @@ let generate ctx tctx ext actx =
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
 	if Path.file_extension com.file = ext then delete_file com.file;
-	if com.platform = Flash || com.platform = Cpp || com.platform = Hl then List.iter (Codegen.fix_overrides com) com.types;
+	if com.platform = Flash || com.platform = Cpp || com.platform = Hl then List.iter (FixOverrides.fix_overrides com) com.types;
 	begin match com.platform with
 		| Neko | Hl | Eval when actx.interp -> ()
 		| Cpp when Common.defined com Define.Cppia -> ()

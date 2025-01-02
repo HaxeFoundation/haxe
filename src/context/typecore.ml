@@ -141,7 +141,7 @@ and typer_expr = {
 	in_function : bool;
 	mutable ret : t;
 	mutable opened : anon_status ref list;
-	mutable monomorphs : monomorphs;
+	mutable monomorphs : (tmono * pos) list;
 	mutable in_loop : bool;
 	mutable bypass_accessor : int;
 	mutable with_type_stack : WithType.t list;
@@ -175,10 +175,6 @@ and typer = {
 	mutable allow_transform : bool;
 	(* events *)
 	memory_marker : float array;
-}
-
-and monomorphs = {
-	mutable perfunction : (tmono * pos) list;
 }
 
 let pass_name = function
@@ -241,9 +237,7 @@ module TyperManager = struct
 			in_function;
 			ret = t_dynamic;
 			opened = [];
-			monomorphs = {
-				perfunction = [];
-			};
+			monomorphs = [];
 			in_loop = false;
 			bypass_accessor = 0;
 			with_type_stack = [];
@@ -284,6 +278,18 @@ module TyperManager = struct
 
 	let clone_for_expr ctx curfun in_function =
 		let e = create_ctx_e curfun in_function in
+		begin match curfun with
+		| FunMember | FunMemberAbstract | FunStatic | FunConstructor ->
+			(* Monomorphs from field arguments and return types are created before
+			   ctx.e is cloned, so they have to be absorbed here. A better fix might
+			   be to clone ctx.e earlier, but that comes with its own challenges. *)
+			e.monomorphs <- ctx.e.monomorphs;
+			ctx.e.monomorphs <- []
+		| FunMemberAbstractLocal | FunMemberClassLocal ->
+			(* We don't need to do this for local functions because the cloning happens
+			   earlier there. *)
+			()
+		end;
 		create ctx ctx.m ctx.c ctx.f e PTypeField ctx.type_params
 
 	let clone_for_type_params ctx params =
@@ -374,7 +380,7 @@ let unify_min_for_type_source ctx el src = (!unify_min_for_type_source_ref) ctx 
 
 let spawn_monomorph' ctx p =
 	let mono = Monomorph.create () in
-	ctx.monomorphs.perfunction <- (mono,p) :: ctx.monomorphs.perfunction;
+	ctx.e.monomorphs <- (mono,p) :: ctx.e.monomorphs;
 	mono
 
 let spawn_monomorph ctx p =
@@ -383,12 +389,6 @@ let spawn_monomorph ctx p =
 let make_static_field_access c cf t p =
 	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
-
-let make_static_call ctx c cf map args t p =
-	let monos = List.map (fun _ -> spawn_monomorph ctx.e p) cf.cf_params in
-	let map t = map (apply_params cf.cf_params monos t) in
-	let ef = make_static_field_access c cf (map cf.cf_type) p in
-	make_call ctx ef args (map t) p
 
 let raise_with_type_error ?(depth = 0) msg p =
 	raise (WithTypeError (make_error ~depth (Custom msg) p))
@@ -509,19 +509,9 @@ let make_pass ctx f = f
 let enter_field_typing_pass g info =
 	flush_pass g PConnectField info
 
-let make_lazy ?(force=true) ctx t_proc f where =
-	let r = ref (lazy_available t_dynamic) in
-	r := lazy_wait (fun() ->
-		try
-			r := lazy_processing t_proc;
-			let t = f r in
-			r := lazy_available t;
-			t
-		with
-			| Error e ->
-				raise (Fatal_error e)
-	);
-	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
+let make_lazy ctx t_proc f where =
+	let r = make_unforced_lazy t_proc f where in
+	delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
 
 let is_removable_field com f =
@@ -899,19 +889,19 @@ let make_where ctx where =
 	let inf = ctx_pos ctx in
 	where ^ " (" ^ String.concat "." inf ^ ")",inf
 
-let make_lazy ?(force=true) ctx t f (where:string) =
+let make_lazy ctx t f (where:string) =
 	let r = ref (lazy_available t_dynamic) in
 	r := lazy_wait (make_pass ~inf:(make_where ctx where) ctx (fun() ->
 		try
 			r := lazy_processing t;
-			let t = f r in
+			let t = f () in
 			r := lazy_available t;
 			t
 		with
 			| Error e ->
 				raise (Fatal_error e)
 	));
-	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
+	delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
 
 *)

@@ -137,13 +137,13 @@ let static_field ctx c f =
 
 let module_field m f =
 	try
-		fst (Naming.get_native_name f.cf_meta)
+		fst (Native.get_native_name f.cf_meta)
 	with Not_found ->
 		Path.flat_path m.m_path ^ "_" ^ f.cf_name
 
 let module_field_expose_path mpath f =
 	try
-		fst (Naming.get_native_name f.cf_meta)
+		fst (Native.get_native_name f.cf_meta)
 	with Not_found ->
 		(dot_path mpath) ^ "." ^ f.cf_name
 
@@ -275,8 +275,6 @@ let gen_constant ctx p = function
 	| TNull -> spr ctx "null"
 	| TThis -> spr ctx (this ctx)
 	| TSuper -> assert (ctx.es_version >= 6); spr ctx "super"
-
-let print_deprecation_message = DeprecationCheck.warn_deprecation
 
 let is_code_injection_function e =
 	match e.eexpr with

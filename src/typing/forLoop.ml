@@ -88,7 +88,7 @@ module IterationKind = struct
 		(mk (TArray (arr,iexpr)) pt p)
 
 	let check_iterator ?(resume=false) ?last_resort ctx s e p =
-		let pt = spawn_monomorph ctx.e p in
+		let pt = spawn_monomorph ctx p in
 		let t = ctx.t.titerator pt in
 		let dynamic_iterator = ref None in
 		let e1 = try
@@ -144,7 +144,7 @@ module IterationKind = struct
 		| TAbstract({a_impl = Some c} as a,tl) ->
 			let cf_length = PMap.find "get_length" c.cl_statics in
 			let get_length e p =
-				make_static_call ctx c cf_length (apply_params a.a_params tl) [e] ctx.com.basic.tint p
+				CallUnification.make_static_call_better ctx c cf_length tl [e] ctx.com.basic.tint p
 			in
 			(match follow cf_length.cf_type with
 				| TFun(_,tr) ->
@@ -160,7 +160,7 @@ module IterationKind = struct
 				let todo = mk (TConst TNull) ctx.t.tint p in
 				let cf,_,r,_ = AbstractCast.find_array_read_access_raise ctx a tl todo p in
 				let get_next e_base e_index t p =
-					make_static_call ctx c cf (apply_params a.a_params tl) [e_base;e_index] r p
+					CallUnification.make_static_call_better ctx c cf tl [e_base;e_index] r p
 				in
 				IteratorCustom(get_next,get_length),e,r
 			with Not_found ->

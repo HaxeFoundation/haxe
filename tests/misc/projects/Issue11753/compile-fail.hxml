@@ -1,0 +1,4 @@
+-main Main
+--hl bin/main.hl
+-D message.reporting=pretty
+-D message.no-color

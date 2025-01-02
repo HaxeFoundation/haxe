@@ -310,11 +310,6 @@ let check_module sctx com m_path m_extra p =
 			(com.cs#get_context sign)#find_module_extra mpath
 		in
 		let check_dependencies () =
-			let full_restore =
-				com.is_macro_context
-				|| com.display.dms_full_typing
-				|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m_extra.m_file)
-			in
 			PMap.iter (fun _ mdep ->
 				let sign = mdep.md_sign in
 				let mpath = mdep.md_path in
@@ -326,13 +321,17 @@ let check_module sctx com m_path m_extra p =
 				match check mpath m2_extra with
 				| None -> ()
 				| Some reason -> raise (Dirty (DependencyDirty(mpath,reason)))
-			) (if full_restore then m_extra.m_deps else Option.default m_extra.m_deps m_extra.m_sig_deps)
+			) m_extra.m_deps
 		in
 		let check () =
 			try
 				check_module_path();
 				if not (has_policy NoFileSystemCheck) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
-				check_dependencies();
+				if (
+					com.is_macro_context
+					|| com.display.dms_full_typing
+					|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m_extra.m_file)
+				) then check_dependencies();
 				None
 			with
 			| Dirty reason ->
@@ -470,6 +469,12 @@ class hxb_reader_api_server
 
 	method read_expression_eagerly (cf : tclass_field) =
 		com.display.dms_full_typing
+
+	method make_lazy_type t f =
+		let r = make_unforced_lazy t f "server-api" in
+		 (* TODO: This should probably use the PForce pass, not PConnectField *)
+		delay (fun () -> ignore(lazy_type r));
+		TLazy r
 end
 
 let handle_cache_bound_objects com cbol =
