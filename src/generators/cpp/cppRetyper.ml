@@ -1427,7 +1427,11 @@ let expression ctx request_type function_args function_type expression_tree forI
               (retyper_ctx, CppTCast (baseCpp, return_type), return_type))
     in
     
-    retyper_ctx, (mk_cppexpr retypedExpr retypedType) |> CppFilterAutoCast.autocast_filter forCppia return_type
+    retyper_ctx,
+    (mk_cppexpr retypedExpr retypedType)
+      |> CppFilterAutoCast.autocast_filter forCppia return_type
+      |> CppFilterValueType.filter_determine_construction return_type
+      |> CppFilterValueType.filter_value_enum_casting return_type
   in
   retype initial_ctx request_type expression_tree |> snd
 

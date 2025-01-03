@@ -8,12 +8,6 @@ open CppAstTools
 open CppContext
 
 let autocast_filter for_cppia return_type cppexpr =
-  let is_construction =
-    match cppexpr.cppexpr with
-    | CppCall ((FuncNew _), _) -> true
-    | _ -> false
-  in
-
   let object_expression =
     match cppexpr.cpptype with
     | TCppVariant
@@ -183,35 +177,6 @@ let autocast_filter for_cppia return_type cppexpr =
     | TCppValueType (value_type, (Stack | Promoted)), (TCppValueType (_, Reference) | TCppDynamic | TCppVariant) ->
       let reference = TCppValueType(value_type, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference
-
-    (* If we are constructing a value type of reference state, inspect the surrounding context and choose a more appropriate construction *)
-
-    (* When constructing to a reference we lack enough info to make a more precise choice *)
-    (* So just allocate on the heap and wrap in a reference *)
-    (* This comes up with function calls e.g. foo(new MyValueType()) *)
-    (* TFun does not give us enough info to make a more precise allocation *)
-    | TCppValueType (value_type, Reference), TCppValueType (_, Reference) when is_construction ->
-      (match cppexpr.cppexpr with
-      | CppCall ((FuncNew _), args) ->
-        let promoted  = TCppValueType(value_type, Promoted) in
-        let reference = TCppValueType(value_type, Reference) in
-        mk_cppexpr (CppCast ({ cppexpr with cpptype = promoted; cppexpr = CppCall ((FuncNew promoted), args) }, reference)) reference
-      | _ ->
-        cppexpr)
-    | TCppValueType (value_type, Reference), TCppValueType (_, Stack) when is_construction ->
-      (match cppexpr.cppexpr with
-      | CppCall ((FuncNew _), args) ->
-        let stack = TCppValueType (value_type, Stack) in
-        { cppexpr with cpptype = stack; cppexpr = CppCall ((FuncNew stack), args) }
-      | _ ->
-        cppexpr)
-    | TCppValueType (value_type, Reference), _ when is_construction ->
-      (match cppexpr.cppexpr with
-      | CppCall ((FuncNew _), args) ->
-        let promoted = TCppValueType (value_type, Promoted) in
-        { cppexpr with cpptype = promoted; cppexpr = CppCall ((FuncNew promoted), args) }
-      | _ ->
-        cppexpr)
     | _ -> cppexpr
   in
 
