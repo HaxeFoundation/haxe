@@ -78,7 +78,7 @@ let autocast_filter for_cppia return_type cppexpr =
       mk_cppexpr (CppCast (ptr_cast, ptr)) ptr
     (* When going from a dynamic or variant add an explicit cast so the ::cpp::marshal::Reference constructor
      * takes care of checking the dynamic type *)
-    | TCppValueType (_, _, _) ->
+    | TCppValueType (_, _) ->
       mk_cppexpr (CppCast (cppexpr, return_type)) return_type
     | _ ->
       cppexpr
@@ -166,22 +166,22 @@ let autocast_filter for_cppia return_type cppexpr =
 
     (* Ensure we wrap any access to the stack or promoted type in a reference object. *)
     (* TIdents are wrapped at retyping but array access and others won't be, so this will wrap them. *)
-    | TCppValueType (cls, params, Stack), (TCppPointer _)
-    | TCppValueType (cls, params, Stack), (TCppRawPointer _)
-    | TCppValueType (cls, params, Stack), (TCppStar _)
-    | TCppValueType (cls, params, Stack), (TCppReference _)
-    | TCppValueType (_, _, Stack), TCppValueType (cls, params, Promoted) ->
-      let reference = TCppValueType(cls, params, Reference) in
+    | TCppValueType (value_type, Stack), (TCppPointer _)
+    | TCppValueType (value_type, Stack), (TCppRawPointer _)
+    | TCppValueType (value_type, Stack), (TCppStar _)
+    | TCppValueType (value_type, Stack), (TCppReference _)
+    | TCppValueType (_, Stack), TCppValueType (value_type, (Promoted)) ->
+      let reference = TCppValueType(value_type, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference
-    | TCppValueType (cls, params, Promoted), (TCppPointer _)
-    | TCppValueType (cls, params, Promoted), (TCppRawPointer _)
-    | TCppValueType (cls, params, Promoted), (TCppStar _)
-    | TCppValueType (cls, params, Promoted), (TCppReference _)
-    | TCppValueType (_, _, Promoted), TCppValueType (cls, params, Stack) ->
-      let reference = TCppValueType(cls, params, Reference) in
+    | TCppValueType (value_type, Promoted), (TCppPointer _)
+    | TCppValueType (value_type, Promoted), (TCppRawPointer _)
+    | TCppValueType (value_type, Promoted), (TCppStar _)
+    | TCppValueType (value_type, Promoted), (TCppReference _)
+    | TCppValueType (_, Promoted), TCppValueType (value_type, (Stack)) ->
+      let reference = TCppValueType(value_type, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference
-    | TCppValueType (cls, params, (Stack | Promoted)), (TCppValueType (_, _, Reference) | TCppDynamic | TCppVariant) ->
-      let reference = TCppValueType(cls, params, Reference) in
+    | TCppValueType (value_type, (Stack | Promoted)), (TCppValueType (_, Reference) | TCppDynamic | TCppVariant) ->
+      let reference = TCppValueType(value_type, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference
 
     (* If we are constructing a value type of reference state, inspect the surrounding context and choose a more appropriate construction *)
@@ -190,25 +190,25 @@ let autocast_filter for_cppia return_type cppexpr =
     (* So just allocate on the heap and wrap in a reference *)
     (* This comes up with function calls e.g. foo(new MyValueType()) *)
     (* TFun does not give us enough info to make a more precise allocation *)
-    | TCppValueType (cls, params, Reference), TCppValueType (_, _, Reference) when is_construction ->
+    | TCppValueType (value_type, Reference), TCppValueType (_, Reference) when is_construction ->
       (match cppexpr.cppexpr with
       | CppCall ((FuncNew _), args) ->
-        let promoted  = TCppValueType(cls, params, Promoted) in
-        let reference = TCppValueType(cls, params, Reference) in
+        let promoted  = TCppValueType(value_type, Promoted) in
+        let reference = TCppValueType(value_type, Reference) in
         mk_cppexpr (CppCast ({ cppexpr with cpptype = promoted; cppexpr = CppCall ((FuncNew promoted), args) }, reference)) reference
       | _ ->
         cppexpr)
-    | TCppValueType (cls, params, Reference), TCppValueType (_, _, Stack) when is_construction ->
+    | TCppValueType (value_type, Reference), TCppValueType (_, Stack) when is_construction ->
       (match cppexpr.cppexpr with
       | CppCall ((FuncNew _), args) ->
-        let stack = TCppValueType (cls, params, Stack) in
+        let stack = TCppValueType (value_type, Stack) in
         { cppexpr with cpptype = stack; cppexpr = CppCall ((FuncNew stack), args) }
       | _ ->
         cppexpr)
-    | TCppValueType (cls, params, Reference), _ when is_construction ->
+    | TCppValueType (value_type, Reference), _ when is_construction ->
       (match cppexpr.cppexpr with
       | CppCall ((FuncNew _), args) ->
-        let promoted = TCppValueType (cls, params, Promoted) in
+        let promoted = TCppValueType (value_type, Promoted) in
         { cppexpr with cpptype = promoted; cppexpr = CppCall ((FuncNew promoted), args) }
       | _ ->
         cppexpr)

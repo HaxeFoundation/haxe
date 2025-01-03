@@ -683,12 +683,12 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
                   "::Array_obj< " ^ tcpp_to_string value ^ " >::__new"
               | TCppObjC klass -> cpp_class_path_of klass [] ^ "_obj::__new"
               | TCppNativePointer klass -> "new " ^ cpp_class_path_of klass []
-              | TCppValueType (cls, params, Promoted) ->
+              | TCppValueType (value_type, Promoted) ->
                 closeCall := ")";
-                let ptr, obj = get_extern_value_type_boxed cls params in
+                let ptr, obj = get_extern_value_type_boxed value_type in
                 Printf.sprintf "%s( new %s " ptr obj
-              | TCppValueType (cls, params, Stack) ->
-                get_extern_value_type_struct cls params
+              | TCppValueType (value_type, Stack) ->
+                get_extern_value_type_struct value_type
               | TCppInst (klass, p) when is_native_class klass ->
                   cpp_class_path_of klass p
               | TCppInst (klass, p) -> cpp_class_path_of klass p ^ "_obj::__new"

@@ -276,15 +276,18 @@ let join_class_path_remap path separator =
   | "Class" -> "hx::Class"
   | x -> x
 
+let is_extern_value_enum a =
+  a.a_enum && a.a_extern && has_meta Meta.CppValueType a.a_meta
+
 let is_extern_value_class cls =
-   has_class_flag cls CExtern && has_meta Meta.CppValueType cls.cl_meta
+  has_class_flag cls CExtern && has_meta Meta.CppValueType cls.cl_meta
 
 let is_extern_value_tvar tvar =
-   match follow tvar.v_type with
-   | TInst (cls, _) ->
-      is_extern_value_class cls
-   | _ ->
-      false
+  match follow tvar.v_type with
+  | TInst (cls, _) ->
+    is_extern_value_class cls
+  | _ ->
+    false
 
 let rec s_tcpp = function
   | CppInt _ -> "CppInt"
@@ -378,10 +381,10 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppObject -> " ::Dynamic"
   | TCppObjectPtr -> " ::hx::Object *"
   | TCppStruct t -> "cpp::Struct< " ^ tcpp_to_string t ^ " >"
-  | TCppReference (TCppValueType (cls, params, _)) -> Printf.sprintf "%s&" (get_extern_value_type cls params)
+  | TCppReference (TCppValueType (value_type, _)) -> Printf.sprintf "%s&" (get_extern_value_type value_type)
   | TCppReference t -> tcpp_to_string t ^ " &"
-  | TCppStar (TCppValueType (cls, params, _), const) ->
-    Printf.sprintf "%s%s*" (if const then "const " else "") (get_extern_value_type cls params)
+  | TCppStar (TCppValueType (value_type, _), const) ->
+    Printf.sprintf "%s%s*" (if const then "const " else "") (get_extern_value_type value_type)
   | TCppStar (t, const) ->
       (if const then "const " else "") ^ tcpp_to_string t ^ " *"
   | TCppVoid -> "void"
@@ -395,12 +398,12 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppString -> "::String"
   | TCppFastIterator it ->
       "::cpp::FastIterator" ^ suffix ^ "< " ^ tcpp_to_string it ^ " >"
-  | TCppPointer (ptrType, TCppValueType (cls, params, _)) ->
-    Printf.sprintf "::cpp::%s< %s >" ptrType (get_extern_value_type cls params)
+  | TCppPointer (ptrType, TCppValueType (value_type, _)) ->
+    Printf.sprintf "::cpp::%s< %s >" ptrType (get_extern_value_type value_type)
   | TCppPointer (ptrType, valueType) ->
       "::cpp::" ^ ptrType ^ "< " ^ tcpp_to_string valueType ^ " >"
-  | TCppRawPointer (constName, TCppValueType (cls, params, _)) ->
-    Printf.sprintf "%s%s*" constName (get_extern_value_type cls params)
+  | TCppRawPointer (constName, TCppValueType (value_type, _)) ->
+    Printf.sprintf "%s%s*" constName (get_extern_value_type value_type)
   | TCppRawPointer (constName, valueType) ->
       constName ^ tcpp_to_string valueType ^ "*"
   | TCppFunction (argTypes, retType, abi) ->
@@ -437,14 +440,55 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppGlobal -> "::Dynamic"
   | TCppNull -> " ::Dynamic"
   | TCppCode _ -> "Code"
-  | TCppValueType (cls, params, Reference) ->
-    get_extern_value_type cls params |> Printf.sprintf "::cpp::marshal::Reference< %s >"
-  | TCppValueType (cls, params, Stack) ->
-    get_extern_value_type cls params |> Printf.sprintf "::cpp::marshal::ValueType< %s >"
-  | TCppValueType (cls, params, Promoted) ->
-    get_extern_value_type cls params |> Printf.sprintf "::cpp::marshal::Boxed< %s >"
+  | TCppValueType (value_type, Reference) ->
+    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::Reference< %s >"
+  | TCppValueType (value_type, Stack) ->
+    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::ValueType< %s >"
+  | TCppValueType (value_type, Promoted) ->
+    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s >"
 
-and get_extern_value_type cls params =
+and get_extern_value_type value_type =
+  match value_type with
+  | Class (cls, params) ->
+    get_extern_class_value_type cls params
+  | Enum (e, _) ->
+    get_extern_enum_value_type e
+
+and get_extern_enum_value_type abs =
+  let get_meta_field field =
+    match Meta.get Meta.CppValueType abs.a_meta with
+    | _, [ (EObjectDecl decls, _) ], _ ->  
+      List.find_opt (fun ((n, _, _), _) -> n = field) decls
+    | _ ->
+      None
+    in
+  let namespace =
+    match get_meta_field "namespace" with
+    | Some (_,( EArrayDecl (els), _)) ->
+      els
+      |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
+      |> String.concat "::"
+    | _ ->
+      abs.a_path
+      |> fst
+      |> String.concat "::"
+    in
+  let namespace =
+    if String.length namespace > 0 then
+      "::" ^ namespace
+    else
+      namespace
+  in
+  let t = match get_meta_field "type" with
+  | Some (_, (EConst (String (s, _)), _) ) ->
+    s
+  | _ ->
+    snd abs.a_path
+  in
+  
+  Printf.sprintf "%s::%s" namespace t
+
+and get_extern_class_value_type cls params =
   let get_meta_field field =
     match Meta.get Meta.CppValueType cls.cl_meta with
     | _, [ (EObjectDecl decls, _) ], _ ->  
@@ -484,20 +528,6 @@ and get_extern_value_type cls params =
   
   Printf.sprintf "%s::%s" namespace t
 
-and extern_value_type_supports cls flag =
-  match Meta.get Meta.CppValueType cls.cl_meta with
-  | _, [ (EObjectDecl decls, _) ], _ ->
-    (match List.find_opt (fun ((n, _, _), _) -> n = "flags") decls with
-    | Some (_, (EArrayDecl decls, _) ) ->
-      let ident = match flag with
-      | ImplicitConstruction -> Ident "ImplicitConstruction"
-      | StackOnly -> Ident "StackOnly" in
-      List.exists (fun (expr, _) -> match expr with | EConst i when i = ident -> true | _ -> false) decls
-    | _ ->
-      false)
-  | _ ->
-    false
-
 and tcpp_objc_block_struct argTypes retType =
   let args = String.concat "," (List.map tcpp_to_string argTypes) in
   let ret = tcpp_to_string retType in
@@ -512,7 +542,7 @@ and tcpp_to_string tcpp = tcpp_to_string_suffix "" tcpp
 
 and cpp_class_path_of klass params =
    if is_extern_value_class klass then
-      get_extern_value_type klass params
+    get_extern_class_value_type klass params
    else
       match get_meta_string klass.cl_meta Meta.Native with
       | Some s ->
@@ -746,7 +776,7 @@ let cpp_is_dynamic_type = function
 
 let is_object_element member_type =
   match member_type with
-   | TCppValueType (_, _, Promoted) ->
+   | TCppValueType (_, Promoted) ->
       true
    | TCppInst (x, _)
    | TCppInterface x

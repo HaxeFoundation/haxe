@@ -29,6 +29,8 @@ let rec cpp_type_of stack value_type_handler haxe_type =
     | TInst ({ cl_kind = KTypeParameter _ }, _) -> TCppDynamic
     | TInst (klass, params) ->
       cpp_instance_type stack klass params value_type_handler
+    | TAbstract (abs, pl) when is_extern_value_enum abs ->
+      TCppValueType (Enum (abs, (cpp_type_of stack value_type_handler (Abstract.get_underlying_type ~return_first:true abs pl))), value_type_handler())
     | TAbstract (abs, pl) when not (Meta.has Meta.CoreType abs.a_meta) ->
       cpp_type_from_path stack abs.a_path pl value_type_handler (fun () ->
         cpp_type_of stack value_type_handler (Abstract.get_underlying_type ~return_first:true abs pl))
@@ -174,7 +176,7 @@ and cpp_instance_type stack klass params (value_type_handler:unit->value_type_st
     else if has_class_flag klass CExtern && not (is_internal_class klass.cl_path) then
       if is_extern_value_class klass then
         let tcpp_params = List.map (cpp_type_of stack with_stack_value_type) params in
-        TCppValueType (klass, tcpp_params, value_type_handler ())
+        TCppValueType (Class (klass, tcpp_params), value_type_handler ())
       else
         let tcpp_params = List.map (cpp_type_of stack value_type_handler) params in
         TCppInst (klass, tcpp_params)
@@ -638,6 +640,11 @@ let expression ctx request_type function_args function_type expression_tree forI
             let funcReturn = cpp_member_return_type member in
             let exprType   = cpp_type_of member.cf_type in
             (retyper_ctx, CppFunction (FuncFromStaticFunction, funcReturn), exprType)
+          | FStatic (({ cl_kind = KAbstractImpl abs }), member) when is_extern_value_enum abs ->
+            let exprType   = cpp_type_of_with with_promoted_value_type member.cf_type in
+            let enum_name  = Printf.sprintf "%s::%s" (get_extern_enum_value_type abs) (member.cf_name) in
+
+            (retyper_ctx, CppCall ((FuncNew exprType), [ mk_cppexpr (CppExtern (enum_name, false)) exprType ]), exprType)
           | FStatic (clazz, member) ->
             let exprType   = cpp_type_of_with with_promoted_value_type member.cf_type in
             let objC       = is_objc_class clazz in
@@ -1074,9 +1081,17 @@ let expression ctx request_type function_args function_type expression_tree forI
               retyper_ctx, cpp_type_of expr.etype
             | _ -> retyper_ctx, TCppUnchanged
           in
-          let retyper_ctx, e1 = retype retyper_ctx binOpType left in
-          let retyper_ctx, e2 = retype retyper_ctx binOpType right in
-
+          (* If we have an unchanged type then use the type of the left and right expression as the overall type *)
+          (* This is needed to ensure we get references to value types from the auto cast filter *)
+          let l_type, r_type =
+            match binOpType with
+            | TCppUnchanged ->
+              cpp_type_of left.etype, cpp_type_of right.etype
+            | other ->
+              other, other
+            in
+          let retyper_ctx, e1 = retype retyper_ctx l_type left in
+          let retyper_ctx, e2 = retype retyper_ctx r_type right in
           let complex =
             is_complex_compare e1.cpptype || is_complex_compare e2.cpptype
           in

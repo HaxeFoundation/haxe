@@ -45,7 +45,11 @@ type value_type_state =
   | Promoted
   | Reference
 
-type tcpp =
+and value_type = 
+  | Class of tclass * tcpp list
+  | Enum of tabstract * tcpp
+
+and tcpp =
   | TCppDynamic
   | TCppUnchanged
   | TCppObject
@@ -63,7 +67,7 @@ type tcpp =
   | TCppRest of tcpp
   | TCppReference of tcpp
   | TCppStruct of tcpp
-  | TCppValueType of tclass * tcpp list * value_type_state
+  | TCppValueType of value_type * value_type_state
   | TCppStar of tcpp * bool
   | TCppVoidStar
   | TCppVarArg
@@ -103,14 +107,6 @@ and tcpp_closure = {
 and tcppcrementop = CppIncrement | CppDecrement
 and tcppunop = CppNeg | CppNegBits | CppNot
 and tcppthis = ThisReal | ThisFake | ThisDynamic
-
-and tvar_type =
-  | Normal
-  | ValueType
-
-and value_type_flag =
-  | ImplicitConstruction
-  | StackOnly
 
 and tcppvarloc =
   | VarLocal of tcppvar

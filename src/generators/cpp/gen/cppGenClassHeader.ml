@@ -60,8 +60,8 @@ let gen_member_function ctx class_def is_static func =
 
   let return_type_str =
     match cpp_type_of func.tcf_func.tf_type with
-    | TCppValueType (cls, params, _) ->
-      get_extern_value_type_struct cls params
+    | TCppValueType (value_type, _) ->
+      get_extern_value_type_struct value_type
     | TCppVoid ->
       "void"
     | other ->
