@@ -83,7 +83,12 @@ class JsonPrinter {
 			v = replacer(k, v);
 		switch (Type.typeof(v)) {
 			case TUnknown:
-				add('"???"');
+				#if hl
+				if(haxe.Int64.isInt64(v))
+					add(haxe.Int64.toStr(v));
+				else
+				#end
+					add('"???"');
 			case TObject:
 				objString(v);
 			case TInt:
@@ -125,7 +130,9 @@ class JsonPrinter {
 				} else if (c == Date) {
 					var v:Date = v;
 					quote(v.toString());
-				} else
+				} else if(haxe.Int64.isInt64(v))
+					add(haxe.Int64.toStr(v));
+				  else
 					classString(v);
 			case TEnum(_):
 				var i = Type.enumIndex(v);
