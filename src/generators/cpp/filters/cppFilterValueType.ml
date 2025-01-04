@@ -15,13 +15,13 @@ let filter_determine_construction return_type cppexpr =
 
   match cppexpr.cpptype, return_type, cppexpr.cppexpr with
   (* When constructing to a reference we lack enough info to make a more precise choice *)
-  (* So just allocate on the heap and wrap in a reference *)
+  (* So just allocate on the stack and wrap in a reference *)
   (* This comes up with function calls e.g. foo(new MyValueType()) *)
   (* TFun does not give us enough info to make a more precise allocation *)
   | TCppValueType (value_type, Reference), TCppValueType (_, Reference), CppCall ((FuncNew _), args) ->
-    let promoted  = TCppValueType(value_type, Promoted) in
+    let stack     = TCppValueType(value_type, Stack) in
     let reference = TCppValueType(value_type, Reference) in
-    mk_cppexpr (CppCast ({ cppexpr with cpptype = promoted; cppexpr = CppCall ((FuncNew promoted), args) }, reference)) reference
+    mk_cppexpr (CppCast ({ cppexpr with cpptype = stack; cppexpr = CppCall ((FuncNew stack), args) }, reference)) reference
   | TCppValueType (value_type, Reference), TCppValueType (_, Stack), CppCall ((FuncNew _), args) ->
     let stack = TCppValueType (value_type, Stack) in
     { cppexpr with cpptype = stack; cppexpr = CppCall ((FuncNew stack), args) }
