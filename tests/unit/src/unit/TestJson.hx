@@ -91,7 +91,7 @@ class TestJson extends Test {
 		eq(haxe.format.JsonPrinter.print(Math.NaN), "null");
 		eq(haxe.format.JsonPrinter.print(function() {}), "\"<fun>\"");
 		eq(haxe.format.JsonPrinter.print({a: function() {}, b: 1}), "{\"b\":1}");
-		eq(haxe.format.JsonPrinter.print({a: function() {}, int64: haxe.Int64.parseString("123213213213213")}), "{\"int64\":123213213213213}");
+		eq(haxe.format.JsonPrinter.print({int64: haxe.Int64.parseString("123213213213213")}), "{\"int64\":123213213213213}");
 	}
 
 	function test3690() {
