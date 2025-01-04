@@ -519,8 +519,8 @@ let expression ctx request_type function_args function_type expression_tree forI
             let funcReturn = cpp_member_return_type member in
             let clazzType = cpp_instance_type clazz params with_reference_value_type in
             let retyper_ctx, retypedObj = retype retyper_ctx clazzType obj in
-            (* Value types in haxe classes are always promoted, with value type externs treat them as references so the auto casting deals with conversion *)
-            let handler  = if is_extern_value_class clazz then with_reference_value_type else with_promoted_value_type in
+            (* Value types in haxe classes are always promoted, with value type externs treat them as stack types so the auto casting deals with conversion *)
+            let handler  = if is_extern_value_class clazz then with_stack_value_type else with_promoted_value_type in
             let exprType = cpp_type_of_with handler member.cf_type in
             let is_objc  = is_cpp_objc_type retypedObj.cpptype in
 
@@ -1428,10 +1428,11 @@ let expression ctx request_type function_args function_type expression_tree forI
     in
     
     retyper_ctx,
-    (mk_cppexpr retypedExpr retypedType)
+    mk_cppexpr retypedExpr retypedType
       |> CppFilterAutoCast.autocast_filter forCppia return_type
       |> CppFilterValueType.filter_determine_construction return_type
       |> CppFilterValueType.filter_value_enum_casting return_type
+      |> CppFilterValueType.filter_value_type_assignment return_type
   in
   retype initial_ctx request_type expression_tree |> snd
 
