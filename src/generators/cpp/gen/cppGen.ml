@@ -687,7 +687,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
                 closeCall := ")";
                 let ptr, obj = get_extern_value_type_boxed value_type in
                 Printf.sprintf "%s( new %s " ptr obj
-              | TCppValueType (value_type, Stack) ->
+              | TCppValueType (value_type, (Stack | Reference)) ->
                 get_extern_value_type_struct value_type
               | TCppInst (klass, p) when is_native_class klass ->
                   cpp_class_path_of klass p
