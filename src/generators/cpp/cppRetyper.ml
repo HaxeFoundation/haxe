@@ -1372,10 +1372,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             CppReturn expr,
             TCppVoid )
       | TCast (base, None) -> (
-          (* Use auto-cast rules *)
-          (* I'm not sure about using the promoted value handler here *)
-          (* value type handler causes some tests to fail and reference handler isn't appropriate due to abstracts *)
-          let return_type = cpp_type_of_with with_promoted_value_type expr.etype in
+          let return_type = cpp_type_of_with with_reference_value_type expr.etype in
           let retyper_ctx, baseCpp = retype retyper_ctx return_type base in
           let baseStr = tcpp_to_string baseCpp.cpptype in
           let returnStr = tcpp_to_string return_type in
@@ -1383,11 +1380,12 @@ let expression ctx request_type function_args function_type expression_tree forI
             (retyper_ctx, baseCpp.cppexpr, baseCpp.cpptype (* nothing to do *))
           else
             match return_type with
+            | TCppValueType _ ->
+              (retyper_ctx, baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *))
             | TCppObjC k -> (retyper_ctx, CppCastObjC (baseCpp, k), return_type)
             | TCppPointer (_, _)
             | TCppRawPointer (_, _)
             | TCppStar _
-            | TCppValueType _
             | TCppInst _ ->
                 (retyper_ctx, CppCast (baseCpp, return_type), return_type)
             | TCppString -> (retyper_ctx, CppCastScalar (baseCpp, "::String"), return_type)

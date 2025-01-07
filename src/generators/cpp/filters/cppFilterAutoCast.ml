@@ -158,6 +158,12 @@ let autocast_filter for_cppia return_type cppexpr =
     | TCppScalar from, TCppScalar too when from <> too ->
       mk_cppexpr (CppCastScalar (cppexpr, too)) return_type
 
+    (* If we are going between two value type classes which mismatch add a cast so the reference type reinterprets the pointer *)
+    (* This happens in inheritance related situations *)
+    | TCppValueType (Class (fst_cls, fst_params), _), TCppValueType (Class (snd_cls, snd_params) as dst, _) when not (fast_eq (TInst (fst_cls, [])) (TInst (snd_cls, []))) ->
+      let reference = TCppValueType(dst, Reference) in
+      mk_cppexpr (CppCast (cppexpr, reference)) reference
+
     (* Ensure we wrap any access to the stack or promoted type in a reference object. *)
     (* TIdents are wrapped at retyping but array access and others won't be, so this will wrap them. *)
     | TCppValueType (value_type, Stack), (TCppPointer _)
