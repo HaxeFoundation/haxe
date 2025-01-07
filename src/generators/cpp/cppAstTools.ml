@@ -464,21 +464,14 @@ and get_extern_enum_value_type abs =
     in
   let namespace =
     match get_meta_field "namespace" with
+    | Some (_,( EArrayDecl ([]), _)) -> ""
     | Some (_,( EArrayDecl (els), _)) ->
-      els
+      "::" ^ 
+      (els
       |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
-      |> String.concat "::"
-    | _ ->
-      abs.a_path
-      |> fst
-      |> String.concat "::"
+      |> String.concat "::")
+    | _ -> ""
     in
-  let namespace =
-    if String.length namespace > 0 then
-      "::" ^ namespace
-    else
-      namespace
-  in
   let t = match get_meta_field "type" with
   | Some (_, (EConst (String (s, _)), _) ) ->
     s
@@ -504,20 +497,14 @@ and get_extern_class_value_type cls params =
     in
   let namespace =
     match get_meta_field "namespace" with
+    | Some (_,( EArrayDecl ([]), _)) -> ""
     | Some (_,( EArrayDecl (els), _)) ->
-      els
+      "::" ^ 
+      (els
       |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
-      |> String.concat "::"
+      |> String.concat "::")
     | _ ->
-      cls.cl_path
-      |> fst
-      |> String.concat "::"
-  in
-  let namespace =
-    if String.length namespace > 0 then
-      "::" ^ namespace
-    else
-      namespace
+      ""
   in
   let t = match get_meta_field "type" with
   | Some (_, (EConst (String (s, _)), _) ) ->
