@@ -720,10 +720,18 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
     | CppNewNative e ->
         out "new ";
         gen e
+    | CppAddressOf ({ cpptype = TCppValueType (_, Reference) } as e) ->
+        out "(";
+        gen e;
+        out ".ptr)"
     | CppAddressOf e ->
         out "&(";
         gen e;
         out ")"
+    | CppDereference ({ cpptype = TCppValueType (_, Reference) } as e) ->
+        out "(*(";
+        gen e;
+        out ").ptr)"
     | CppDereference e ->
         out "(*(";
         gen e;

@@ -779,7 +779,14 @@ let expression ctx request_type function_args function_type expression_tree forI
                 (retyper_ctx, CppAddressOf arg, TCppRawPointer ("", rawType))
             | CppFunction (FuncStatic (obj, false, member), _)
               when member.cf_name = "::hx::StarOf" ->
-                let retyper_ctx, arg = retype retyper_ctx TCppUnchanged (List.hd args) in
+                let head = List.hd args in
+                let target_type = match cpp_type_of head.etype with
+                | TCppValueType (value_type, _) ->
+                  TCppValueType (value_type, Reference)
+                | _ ->
+                  TCppUnchanged
+                in
+                let retyper_ctx, arg = retype retyper_ctx target_type head in
                 let rawType = match arg.cpptype with TCppReference x -> x | x -> x in
                 (retyper_ctx, CppAddressOf arg, TCppStar (rawType, false))
             | CppFunction (FuncStatic (obj, false, member), _)
