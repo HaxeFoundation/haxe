@@ -401,7 +401,7 @@ let parse_string entry com s p error inlined =
 	syntax_errors := [];
 	let restore() =
 		(match old_file with
-		| None -> ()
+		| None -> Hashtbl.remove Lexer.all_files p.pfile
 		| Some f -> Hashtbl.replace Lexer.all_files p.pfile f);
 		if not inlined then begin
 			display_position#set old_display;
