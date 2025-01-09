@@ -49,3 +49,14 @@ c == 0xfffffffe;
 -min == min;              // two's complement overflow,
 -2147483643 == 5 + -min;  // order of ops and negate
 2147483643 == -(5 + min); // static analyzer issue
+
+0 == min % 0;
+0 == Std.int(min / 0);
+0 == min % -1;
+0 == min % 1;
+min == Std.int(min / -1);
+min == min * -1;
+0 == max % -1;
+0 == max % 1;
+-max == Std.int(max / -1);
+-max == max * -1;
