@@ -78,7 +78,7 @@ type array_impl = {
 	ai32 : tclass;
 	af32 : tclass;
 	af64 : tclass;
-	ai64 : tclass;
+	ai64 : tclass option;
 }
 
 type constval =
@@ -290,7 +290,10 @@ let array_class ctx t =
 	| HF64 ->
 		ctx.array_impl.af64
 	| HI64 ->
-		ctx.array_impl.ai64
+		begin match ctx.array_impl.ai64 with
+		| None -> die "" __LOC__
+		| Some c -> c
+		end
 	| HDyn ->
 		ctx.array_impl.adyn
 	| _ ->
@@ -4196,7 +4199,7 @@ let create_context com =
 			ai32 = get_class "ArrayBytes_Int";
 			af32 = get_class "ArrayBytes_hl_F32";
 			af64 = get_class "ArrayBytes_Float";
-			ai64 = get_class (if Gctx.raw_defined com "hl_legacy32" then "ArrayBytes_Int" else "ArrayBytes_hl_I64");
+			ai64 = if Gctx.raw_defined com "hl_legacy32" then None else Some (get_class "ArrayBytes_hl_I64");
 		};
 		base_class = get_class "Class";
 		base_enum = get_class "Enum";
