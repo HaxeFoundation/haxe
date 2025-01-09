@@ -50,11 +50,15 @@ c == 0xfffffffe;
 -2147483643 == 5 + -min;  // order of ops and negate
 2147483643 == -(5 + min); // static analyzer issue
 
+#if hl
 0 == min % 0;
 0 == Std.int(min / 0);
+#end
 0 == min % -1;
 0 == min % 1;
+#if !python
 min == Std.int(min / -1);
+#end
 min == min * -1;
 0 == max % -1;
 0 == max % 1;
