@@ -72,3 +72,26 @@ let filter_value_type_assignment return_type cppexpr =
     { cppexpr with cppexpr = CppSet(l, cast) }
   | _ ->
     cppexpr
+
+let filter_add_boxed_pointer_construction return_type cppexpr =
+  let mk_cppexpr new_expr new_type =
+    { cppexpr = new_expr; cpptype = new_type; cpppos = cppexpr.cpppos }
+  in
+
+  let is_pointer_type tcpp =
+    match tcpp with
+    | TCppMarshalType ((Pointer _), Promoted) ->
+      true
+    | _ ->
+      false
+    in
+
+  match cppexpr.cppexpr with
+  | CppVarDecl (var, Some expr) when is_pointer_type var.tcppv_type ->
+    let construct = mk_cppexpr (CppCall ((FuncNew var.tcppv_type), [ expr ])) var.tcppv_type in
+    { cppexpr with cppexpr = CppVarDecl(var, Some construct) }
+  | CppVarDecl (var, None) when is_pointer_type var.tcppv_type ->
+    let construct = mk_cppexpr (CppCall ((FuncNew var.tcppv_type), [])) var.tcppv_type in
+    { cppexpr with cppexpr = CppVarDecl(var, Some construct) }
+  | _ ->
+    cppexpr
