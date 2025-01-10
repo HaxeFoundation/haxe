@@ -33,6 +33,7 @@ type 'value compiler_api = {
 	after_generate : (unit -> unit) -> unit;
 	on_type_not_found : (string -> 'value) -> unit;
 	parse_string : string -> Globals.pos -> bool -> Ast.expr;
+	load_lexer_lines : string -> string -> unit;
 	parse : 'a . ((Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
@@ -1907,6 +1908,12 @@ let macro_api ccom get_api =
 			let s = decode_string s in
 			if s = "" then (get_api()).exc_string "Invalid expression";
 			encode_expr ((get_api()).parse_string s (decode_pos p) (decode_bool b))
+		);
+		"load_lexer_lines", vfun2 (fun f c ->
+			let f = decode_string f in
+			let content = decode_string c in
+			(get_api()).load_lexer_lines f content;
+			vnull
 		);
 		"make_expr", vfun2 (fun v p ->
 			encode_expr (value_to_expr v (decode_pos p))
