@@ -30,7 +30,7 @@ let rec cpp_type_of stack value_type_handler haxe_type =
     | TInst (klass, params) ->
       cpp_instance_type stack klass params value_type_handler
     | TAbstract (abs, pl) when is_extern_value_enum abs ->
-      TCppValueType (Enum (abs, (cpp_type_of stack value_type_handler (Abstract.get_underlying_type ~return_first:true abs pl))), value_type_handler())
+      TCppMarshalType (ValueEnum (abs, (cpp_type_of stack value_type_handler (Abstract.get_underlying_type ~return_first:true abs pl))), value_type_handler())
     | TAbstract (abs, pl) when not (Meta.has Meta.CoreType abs.a_meta) ->
       cpp_type_from_path stack abs.a_path pl value_type_handler (fun () ->
         cpp_type_of stack value_type_handler (Abstract.get_underlying_type ~return_first:true abs pl))
@@ -113,7 +113,7 @@ and cpp_type_from_path stack path params value_type_handler default =
       | TCppVoid (* ? *) | TCppDynamic -> TCppDynamicArray
       | TCppObject | TCppObjectPtr | TCppReference _ | TCppStruct _ | TCppStar _
       | TCppEnum _ | TCppInst _ | TCppInterface _ | TCppProtocol _ | TCppClass
-      | TCppDynamicArray | TCppObjectArray _ | TCppScalarArray _ | TCppValueType _ ->
+      | TCppDynamicArray | TCppObjectArray _ | TCppScalarArray _ | TCppMarshalType _ ->
         TCppObjectArray arrayOf
       | _ -> TCppScalarArray arrayOf)
   | ([], "Null"), [ p ] -> cpp_type_of_null stack value_type_handler p
@@ -126,7 +126,7 @@ and cpp_type_of_null stack value_type_handler p =
   | other ->
     other
 
-and cpp_type_of_pointer stack (value_type_handler:unit->value_type_state) p =
+and cpp_type_of_pointer stack value_type_handler p =
   match p with
   | TAbstract ({ a_path = [], "Null" }, [ t ]) -> cpp_type_of stack value_type_handler t
   | x -> cpp_type_of stack value_type_handler x
@@ -166,7 +166,7 @@ and cpp_function_type_of_args_ret stack value_type_handler function_type =
       (* ? *)
       ([ TCppVoid ], TCppVoid)
 
-and cpp_instance_type stack klass params (value_type_handler:unit->value_type_state) =
+and cpp_instance_type stack klass params value_type_handler =
   let fallback_handler () =
     if is_objc_class klass then TCppObjC klass
     else if has_class_flag klass CInterface && is_native_gen_class klass then
@@ -176,7 +176,10 @@ and cpp_instance_type stack klass params (value_type_handler:unit->value_type_st
     else if has_class_flag klass CExtern && not (is_internal_class klass.cl_path) then
       if is_extern_value_class klass then
         let tcpp_params = List.map (cpp_type_of stack with_stack_value_type) params in
-        TCppValueType (Class (klass, tcpp_params), value_type_handler ())
+        TCppMarshalType (ValueClass (klass, tcpp_params), value_type_handler ())
+      else if is_extern_pointer klass then
+        let tcpp_params = List.map (cpp_type_of stack with_stack_value_type) params in
+        TCppMarshalType (Pointer (klass, tcpp_params), value_type_handler ())
       else
         let tcpp_params = List.map (cpp_type_of stack value_type_handler) params in
         TCppInst (klass, tcpp_params)
@@ -379,7 +382,7 @@ let expression ctx request_type function_args function_type expression_tree forI
 
   let cpp_can_static_cast funcType inferredType =
     match funcType with
-    | TCppReference _ | TCppStar _ | TCppStruct _ | TCppValueType _ -> false
+    | TCppReference _ | TCppStar _ | TCppStruct _ | TCppMarshalType _ -> false
     | _ -> (
         match inferredType with
         | TCppInst (cls, _) when is_extern_class cls -> false
@@ -781,8 +784,8 @@ let expression ctx request_type function_args function_type expression_tree forI
               when member.cf_name = "::hx::StarOf" ->
                 let head = List.hd args in
                 let target_type = match cpp_type_of head.etype with
-                | TCppValueType (value_type, _) ->
-                  TCppValueType (value_type, Reference)
+                | TCppMarshalType (value_type, _) ->
+                  TCppMarshalType (value_type, Reference)
                 | _ ->
                   TCppUnchanged
                 in
@@ -1036,9 +1039,9 @@ let expression ctx request_type function_args function_type expression_tree forI
                     ( retyper_ctx,
                       CppArray (ArrayObject (retypedObj, retypedIdx, TCppDynamic)),
                       TCppDynamic )
-                (* | TCppObjectArray TCppValueType (cls, params, _) as elem ->
+                (* | TCppObjectArray TCppMarshalType (cls, params, _) as elem ->
                   let inner = mk_cppexpr (CppArray (ArrayObject (retypedObj, retypedIdx, TCppDynamic))) elem in
-                  let reference = TCppValueType (cls, params, Reference) in
+                  let reference = TCppMarshalType (cls, params, Reference) in
 
                   ( retyper_ctx,
                       CppCast (inner, reference),
@@ -1387,7 +1390,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             (retyper_ctx, baseCpp.cppexpr, baseCpp.cpptype (* nothing to do *))
           else
             match return_type with
-            | TCppValueType _ ->
+            | TCppMarshalType _ ->
               (retyper_ctx, baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *))
             | TCppObjC k -> (retyper_ctx, CppCastObjC (baseCpp, k), return_type)
             | TCppPointer (_, _)

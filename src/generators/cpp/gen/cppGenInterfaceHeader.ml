@@ -35,7 +35,7 @@ let gen_function ctx interface func =
   let output       = ctx.ctx_output in
   let argList      = print_tfun_arg_list true func.iff_args in
   let returnType   = match cpp_type_of func.iff_return with
-  | TCppValueType (value_type, _) ->
+  | TCppMarshalType (value_type, _) ->
     get_extern_value_type_struct value_type
   | other ->
     tcpp_to_string other

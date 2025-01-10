@@ -18,15 +18,15 @@ let filter_determine_construction return_type cppexpr =
   (* So just allocate on the stack and wrap in a reference *)
   (* This comes up with function calls e.g. foo(new MyValueType()) *)
   (* TFun does not give us enough info to make a more precise allocation *)
-  | TCppValueType (value_type, Reference), TCppValueType (_, Reference), CppCall ((FuncNew _), args) ->
-    let stack     = TCppValueType(value_type, Stack) in
-    let reference = TCppValueType(value_type, Reference) in
+  | TCppMarshalType (value_type, Reference), TCppMarshalType (_, Reference), CppCall ((FuncNew _), args) ->
+    let stack     = TCppMarshalType(value_type, Stack) in
+    let reference = TCppMarshalType(value_type, Reference) in
     mk_cppexpr (CppCast ({ cppexpr with cpptype = stack; cppexpr = CppCall ((FuncNew stack), args) }, reference)) reference
-  | TCppValueType (value_type, Reference), TCppValueType (_, Stack), CppCall ((FuncNew _), args) ->
-    let stack = TCppValueType (value_type, Stack) in
+  | TCppMarshalType (value_type, Reference), TCppMarshalType (_, Stack), CppCall ((FuncNew _), args) ->
+    let stack = TCppMarshalType (value_type, Stack) in
     { cppexpr with cpptype = stack; cppexpr = CppCall ((FuncNew stack), args) }
-  | TCppValueType (value_type, Reference), _, CppCall ((FuncNew _), args) ->
-    let promoted = TCppValueType (value_type, Promoted) in
+  | TCppMarshalType (value_type, Reference), _, CppCall ((FuncNew _), args) ->
+    let promoted = TCppMarshalType (value_type, Promoted) in
     { cppexpr with cpptype = promoted; cppexpr = CppCall ((FuncNew promoted), args) }
   | _ ->
     cppexpr
@@ -39,20 +39,20 @@ let rec filter_value_enum_casting return_type cppexpr =
 
   match cppexpr.cpptype, return_type with
   (* Casting from from a scalar to a value type enum *)
-  | TCppScalar s, (TCppValueType ((Enum (abs, _)), (Stack | Promoted))) ->
+  | TCppScalar s, (TCppMarshalType ((ValueEnum (abs, _)), (Stack | Promoted))) ->
     let casted = mk_cppexpr (CppCastScalar (cppexpr, get_extern_enum_value_type abs)) return_type in
     mk_cppexpr (CppCall ((FuncNew return_type), [ casted ])) return_type
 
-  | TCppScalar s, (TCppValueType ((Enum _ as e), Reference)) ->
-    let promoted = filter_value_enum_casting (TCppValueType (e, Promoted)) cppexpr in
+  | TCppScalar s, (TCppMarshalType ((ValueEnum _ as e), Reference)) ->
+    let promoted = filter_value_enum_casting (TCppMarshalType (e, Promoted)) cppexpr in
     mk_cppexpr (CppCast (promoted, return_type)) return_type
 
   (* Casting going from a value type enum to a scalar *)
-  | TCppValueType ((Enum _ as e), (Stack | Promoted)), TCppScalar s ->
-    let reference = TCppValueType(e, Reference) in
+  | TCppMarshalType ((ValueEnum _ as e), (Stack | Promoted)), TCppScalar s ->
+    let reference = TCppMarshalType(e, Reference) in
     let casted = mk_cppexpr (CppCast (cppexpr, reference)) reference in
     filter_value_enum_casting return_type casted
-  | TCppValueType ((Enum _), Reference), TCppScalar s ->
+  | TCppMarshalType ((ValueEnum _), Reference), TCppScalar s ->
     let dereference = mk_cppexpr (CppDereference (cppexpr)) cppexpr.cpptype in
     mk_cppexpr (CppCastScalar (dereference, s)) return_type
   | _ ->
@@ -66,8 +66,8 @@ let filter_value_type_assignment return_type cppexpr =
   in
 
   match cppexpr.cppexpr with
-  | CppSet (l, ({ cpptype = TCppValueType (vt, (Stack | Promoted)) } as r)) ->
-    let reference = TCppValueType (vt, Reference) in
+  | CppSet (l, ({ cpptype = TCppMarshalType (vt, (Stack | Promoted)) } as r)) ->
+    let reference = TCppMarshalType (vt, Reference) in
     let cast      = mk_cppexpr (CppCast (r, reference)) reference in
     { cppexpr with cppexpr = CppSet(l, cast) }
   | _ ->

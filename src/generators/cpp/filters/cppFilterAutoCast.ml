@@ -72,7 +72,7 @@ let autocast_filter for_cppia return_type cppexpr =
       mk_cppexpr (CppCast (ptr_cast, ptr)) ptr
     (* When going from a dynamic or variant add an explicit cast so the ::cpp::marshal::Reference constructor
      * takes care of checking the dynamic type *)
-    | TCppValueType (_, _) ->
+    | TCppMarshalType (_, _) ->
       mk_cppexpr (CppCast (cppexpr, return_type)) return_type
     | _ ->
       cppexpr
@@ -160,28 +160,28 @@ let autocast_filter for_cppia return_type cppexpr =
 
     (* If we are going between two value type classes which mismatch add a cast so the reference type reinterprets the pointer *)
     (* This happens in inheritance related situations *)
-    | TCppValueType (Class (fst_cls, fst_params), _), TCppValueType (Class (snd_cls, snd_params) as dst, _) when not (fast_eq (TInst (fst_cls, [])) (TInst (snd_cls, []))) ->
-      let reference = TCppValueType(dst, Reference) in
+    | TCppMarshalType (ValueClass (fst_cls, fst_params), _), TCppMarshalType (ValueClass (snd_cls, snd_params) as dst, _) when not (fast_eq (TInst (fst_cls, [])) (TInst (snd_cls, []))) ->
+      let reference = TCppMarshalType(dst, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference
 
     (* Ensure we wrap any access to the stack or promoted type in a reference object. *)
     (* TIdents are wrapped at retyping but array access and others won't be, so this will wrap them. *)
-    | TCppValueType (value_type, Stack), (TCppPointer _)
-    | TCppValueType (value_type, Stack), (TCppRawPointer _)
-    | TCppValueType (value_type, Stack), (TCppStar _)
-    | TCppValueType (value_type, Stack), (TCppReference _)
-    | TCppValueType (_, Stack), TCppValueType (value_type, (Promoted)) ->
-      let reference = TCppValueType(value_type, Reference) in
+    | TCppMarshalType (value_type, Stack), (TCppPointer _)
+    | TCppMarshalType (value_type, Stack), (TCppRawPointer _)
+    | TCppMarshalType (value_type, Stack), (TCppStar _)
+    | TCppMarshalType (value_type, Stack), (TCppReference _)
+    | TCppMarshalType (_, Stack), TCppMarshalType (value_type, (Promoted)) ->
+      let reference = TCppMarshalType(value_type, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference
-    | TCppValueType (value_type, Promoted), (TCppPointer _)
-    | TCppValueType (value_type, Promoted), (TCppRawPointer _)
-    | TCppValueType (value_type, Promoted), (TCppStar _)
-    | TCppValueType (value_type, Promoted), (TCppReference _)
-    | TCppValueType (_, Promoted), TCppValueType (value_type, (Stack)) ->
-      let reference = TCppValueType(value_type, Reference) in
+    | TCppMarshalType (value_type, Promoted), (TCppPointer _)
+    | TCppMarshalType (value_type, Promoted), (TCppRawPointer _)
+    | TCppMarshalType (value_type, Promoted), (TCppStar _)
+    | TCppMarshalType (value_type, Promoted), (TCppReference _)
+    | TCppMarshalType (_, Promoted), TCppMarshalType (value_type, (Stack)) ->
+      let reference = TCppMarshalType(value_type, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference
-    | TCppValueType (value_type, (Stack | Promoted)), (TCppValueType (_, Reference) | TCppDynamic | TCppVariant) ->
-      let reference = TCppValueType(value_type, Reference) in
+    | TCppMarshalType (value_type, (Stack | Promoted)), (TCppMarshalType (_, Reference) | TCppDynamic | TCppVariant) ->
+      let reference = TCppMarshalType(value_type, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference
     | _ -> cppexpr
   in

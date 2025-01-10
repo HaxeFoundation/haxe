@@ -40,14 +40,15 @@ module InterfaceSlots = struct
     StringMap.find_opt name slots.hash
 end
 
-type value_type_state =
+type marshal_type_state =
   | Stack
   | Promoted
   | Reference
 
-and value_type = 
-  | Class of tclass * tcpp list
-  | Enum of tabstract * tcpp
+and marshal_type = 
+  | ValueClass of tclass * tcpp list
+  | ValueEnum of tabstract * tcpp
+  | Pointer of tclass * tcpp list
 
 and tcpp =
   | TCppDynamic
@@ -67,7 +68,7 @@ and tcpp =
   | TCppRest of tcpp
   | TCppReference of tcpp
   | TCppStruct of tcpp
-  | TCppValueType of value_type * value_type_state
+  | TCppMarshalType of marshal_type * marshal_type_state
   | TCppStar of tcpp * bool
   | TCppVoidStar
   | TCppVarArg

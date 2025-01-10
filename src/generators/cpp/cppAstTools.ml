@@ -282,6 +282,9 @@ let is_extern_value_enum a =
 let is_extern_value_class cls =
   has_class_flag cls CExtern && has_meta Meta.CppValueType cls.cl_meta
 
+let is_extern_pointer cls =
+  has_class_flag cls CExtern && has_meta Meta.CppPointerType cls.cl_meta
+
 let is_extern_value_tvar tvar =
   match follow tvar.v_type with
   | TInst (cls, _) ->
@@ -381,9 +384,9 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppObject -> " ::Dynamic"
   | TCppObjectPtr -> " ::hx::Object *"
   | TCppStruct t -> "cpp::Struct< " ^ tcpp_to_string t ^ " >"
-  | TCppReference (TCppValueType (value_type, _)) -> Printf.sprintf "%s&" (get_extern_value_type value_type)
+  | TCppReference (TCppMarshalType (value_type, _)) -> Printf.sprintf "%s&" (get_extern_value_type value_type)
   | TCppReference t -> tcpp_to_string t ^ " &"
-  | TCppStar (TCppValueType (value_type, _), const) ->
+  | TCppStar (TCppMarshalType (value_type, _), const) ->
     Printf.sprintf "%s%s*" (if const then "const " else "") (get_extern_value_type value_type)
   | TCppStar (t, const) ->
       (if const then "const " else "") ^ tcpp_to_string t ^ " *"
@@ -398,11 +401,11 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppString -> "::String"
   | TCppFastIterator it ->
       "::cpp::FastIterator" ^ suffix ^ "< " ^ tcpp_to_string it ^ " >"
-  | TCppPointer (ptrType, TCppValueType (value_type, _)) ->
+  | TCppPointer (ptrType, TCppMarshalType (value_type, _)) ->
     Printf.sprintf "::cpp::%s< %s >" ptrType (get_extern_value_type value_type)
   | TCppPointer (ptrType, valueType) ->
       "::cpp::" ^ ptrType ^ "< " ^ tcpp_to_string valueType ^ " >"
-  | TCppRawPointer (constName, TCppValueType (value_type, _)) ->
+  | TCppRawPointer (constName, TCppMarshalType (value_type, _)) ->
     Printf.sprintf "%s%s*" constName (get_extern_value_type value_type)
   | TCppRawPointer (constName, valueType) ->
       constName ^ tcpp_to_string valueType ^ "*"
@@ -440,19 +443,27 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppGlobal -> "::Dynamic"
   | TCppNull -> " ::Dynamic"
   | TCppCode _ -> "Code"
-  | TCppValueType (value_type, Reference) ->
+  | TCppMarshalType (Pointer _ as value_type, Reference) ->
+    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::Reference< %s* >"
+  | TCppMarshalType (Pointer _ as value_type, Stack) ->
+    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::ValueType< %s* >"
+  | TCppMarshalType (Pointer _ as value_type, Promoted) ->
+    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s* >"
+  | TCppMarshalType (value_type, Reference) ->
     get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::Reference< %s >"
-  | TCppValueType (value_type, Stack) ->
+  | TCppMarshalType (value_type, Stack) ->
     get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::ValueType< %s >"
-  | TCppValueType (value_type, Promoted) ->
+  | TCppMarshalType (value_type, Promoted) ->
     get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s >"
 
 and get_extern_value_type value_type =
   match value_type with
-  | Class (cls, params) ->
+  | ValueClass (cls, params) ->
     get_extern_class_value_type cls params
-  | Enum (e, _) ->
+  | ValueEnum (e, _) ->
     get_extern_enum_value_type e
+  | Pointer (cls, params) ->
+    get_extern_class_pointer_type cls params
 
 and get_extern_enum_value_type abs =
   let get_meta_field field =
@@ -514,6 +525,39 @@ and get_extern_class_value_type cls params =
   in
   
   Printf.sprintf "%s::%s" namespace t
+
+and get_extern_class_pointer_type cls params =
+  let get_meta_field field =
+    match Meta.get Meta.CppPointerType cls.cl_meta with
+    | _, [ (EObjectDecl decls, _) ], _ ->  
+      List.find_opt (fun ((n, _, _), _) -> n = field) decls
+    | _ ->
+      None
+    in
+
+  let typeParams =
+    match params with
+    | [] -> ""
+    | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >"
+    in
+  let namespace =
+    match get_meta_field "namespace" with
+    | Some (_,( EArrayDecl ([]), _)) -> ""
+    | Some (_,( EArrayDecl (els), _)) ->
+      (els
+      |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
+      |> String.concat "::") ^ "::"
+    | _ ->
+      ""
+  in
+  let t = match get_meta_field "type" with
+  | Some (_, (EConst (String (s, _)), _) ) ->
+    s ^ typeParams
+  | _ ->
+    snd cls.cl_path ^ typeParams
+  in
+  
+  Printf.sprintf "%s%s" namespace t
 
 and tcpp_objc_block_struct argTypes retType =
   let args = String.concat "," (List.map tcpp_to_string argTypes) in
@@ -743,13 +787,13 @@ let rec cpp_is_struct_access t =
    | TCppFunction _ -> true
    | TCppStruct _-> false
    | TCppInst (class_def, _) -> Meta.has Meta.StructAccess class_def.cl_meta
-   | TCppReference (TCppValueType _) -> true
+   | TCppReference (TCppMarshalType _) -> true
    | TCppReference (r) -> cpp_is_struct_access r
    | _ -> false
 
 let rec cpp_is_native_array_access t =
    match t with
-   | TCppValueType _ -> true
+   | TCppMarshalType _ -> true
    | TCppStruct s -> cpp_is_native_array_access s
    | TCppReference s -> cpp_is_native_array_access s
    | TCppInst ({ cl_array_access = Some _ } as klass, _) when is_extern_class klass && Meta.has Meta.NativeArrayAccess klass.cl_meta -> true
@@ -763,7 +807,7 @@ let cpp_is_dynamic_type = function
 
 let is_object_element member_type =
   match member_type with
-   | TCppValueType (_, Promoted) ->
+   | TCppMarshalType (_, Promoted) ->
       true
    | TCppInst (x, _)
    | TCppInterface x
@@ -789,7 +833,7 @@ let cpp_variant_type_of t = match t with
   | TCppObjectPtr
   | TCppReference _
   | TCppStruct _
-  | TCppValueType _
+  | TCppMarshalType _
   | TCppStar _
   | TCppVoid
   | TCppFastIterator _
