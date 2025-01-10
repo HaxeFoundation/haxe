@@ -443,12 +443,6 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppGlobal -> "::Dynamic"
   | TCppNull -> " ::Dynamic"
   | TCppCode _ -> "Code"
-  | TCppMarshalType (Pointer _ as value_type, Reference) ->
-    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::Reference< %s* >"
-  | TCppMarshalType (Pointer _ as value_type, Stack) ->
-    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::ValueType< %s* >"
-  | TCppMarshalType (Pointer _ as value_type, Promoted) ->
-    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s* >"
   | TCppMarshalType (value_type, Reference) ->
     get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::Reference< %s >"
   | TCppMarshalType (value_type, Stack) ->
@@ -557,7 +551,7 @@ and get_extern_class_pointer_type cls params =
     snd cls.cl_path ^ typeParams
   in
   
-  Printf.sprintf "%s%s" namespace t
+  Printf.sprintf "%s%s*" namespace t
 
 and tcpp_objc_block_struct argTypes retType =
   let args = String.concat "," (List.map tcpp_to_string argTypes) in
