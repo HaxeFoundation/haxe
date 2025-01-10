@@ -1137,5 +1137,12 @@
 		"doc": "",
 		"platforms": ["cpp"],
 		"targets": [ "TClass" ]
+	},
+	{
+		"name": "CppPointerType",
+		"metadata": ":cpp.PointerType",
+		"doc": "",
+		"platforms": ["cpp"],
+		"targets": [ "TClass" ]
 	}
 ]
