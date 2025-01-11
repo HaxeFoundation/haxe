@@ -80,18 +80,20 @@ let filter_add_boxed_pointer_construction return_type cppexpr =
 
   let is_pointer_type tcpp =
     match tcpp with
-    | TCppMarshalType ((Pointer _), Promoted) ->
+    | TCppMarshalType ((Pointer _), _) ->
       true
     | _ ->
       false
     in
 
   match cppexpr.cppexpr with
-  | CppVarDecl (var, Some expr) when is_pointer_type var.tcppv_type ->
+  (* | CppVarDecl (var, Some expr) when is_pointer_type var.tcppv_type ->
     let construct = mk_cppexpr (CppCall ((FuncNew var.tcppv_type), [ expr ])) var.tcppv_type in
     { cppexpr with cppexpr = CppVarDecl(var, Some construct) }
   | CppVarDecl (var, None) when is_pointer_type var.tcppv_type ->
     let construct = mk_cppexpr (CppCall ((FuncNew var.tcppv_type), [])) var.tcppv_type in
-    { cppexpr with cppexpr = CppVarDecl(var, Some construct) }
+    { cppexpr with cppexpr = CppVarDecl(var, Some construct) } *)
+  | CppNull when is_pointer_type return_type ->
+    mk_cppexpr (CppCall ((FuncNew return_type), [ cppexpr ])) return_type
   | _ ->
     cppexpr

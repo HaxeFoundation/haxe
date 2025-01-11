@@ -466,7 +466,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           ( retyper_ctx,
             CppThis retyper_ctx.this_real,
             if retyper_ctx.this_real = ThisDynamic then TCppDynamic
-            else cpp_type_of_with with_stack_value_type expr.etype )
+            else cpp_type_of_with with_reference_value_type expr.etype )
       | TConst TSuper ->
         let retyper_ctx = { retyper_ctx with uses_this = Some retyper_ctx.this_real } in
           ( retyper_ctx,
@@ -742,7 +742,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             let cppType = cpp_type_of expr.etype in
             match retypedFunc.cppexpr with
             | CppFunction (FuncFromStaticFunction, returnType) -> (
-              let arg_types = List.map (fun _ -> TCppDynamic) args in
+              let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
               let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
               match retypedArgs with
               | [
@@ -763,7 +763,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                 (retyper_ctx, retypedFunc.cppexpr, retypedFunc.cpptype)
             | CppFunction (FuncInstance (obj, InstPtr, member), _)
               when (not forCppia) && return_type = TCppVoid && is_array_splice_call obj member ->
-                let arg_types = List.map (fun _ -> TCppDynamic) args in
+                let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 ( retyper_ctx,
                   CppCall ( FuncInstance (obj, InstPtr, { member with cf_name = "removeRange" }), retypedArgs ),
@@ -799,7 +799,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                 (retyper_ctx, CppDereference arg, TCppReference rawType)
             | CppFunction (FuncStatic (obj, false, member), _)
               when member.cf_name = "_hx_create_array_length" -> (
-                let arg_types = List.map (fun _ -> TCppDynamic) args in
+                let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 (* gc_stack - not needed yet *)
                 match return_type with
@@ -809,7 +809,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                   ( retyper_ctx, CppCall (FuncNew TCppDynamicArray, retypedArgs), return_type ))
             | CppFunction (FuncStatic (obj, false, member), returnType)
               when cpp_is_templated_call ctx member -> (
-                let arg_types = List.map (fun _ -> TCppDynamic) args in
+                let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 match retypedArgs with
                 | { cppexpr = CppClassOf (path, native) } :: rest ->
@@ -820,7 +820,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                     retypedFunc.cpppos)
             | CppFunction (FuncInstance (obj, InstPtr, member), _)
               when is_map_get_call obj member ->
-                let arg_types = List.map (fun _ -> TCppDynamic) args in
+                let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 let fname, cppType =
                   match return_type with
@@ -852,7 +852,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                 (retyper_ctx, CppCall (func, retypedArgs), cppType)
             | CppFunction (FuncInstance (obj, InstPtr, member), _)
               when forCppia && is_map_set_call obj member ->
-                let arg_types = List.map (fun _ -> TCppDynamic) args in
+                let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 let fname =
                   match retypedArgs with
@@ -869,7 +869,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             | CppFunction
                 ((FuncInstance (obj, InstPtr, member) as func), returnType)
               when cpp_can_static_cast returnType cppType ->
-                let arg_types = List.map (fun _ -> TCppDynamic) args in
+                let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 let call =
                   mk_cppexpr (CppCall (func, retypedArgs)) returnType
@@ -909,21 +909,21 @@ let expression ctx request_type function_args function_type expression_tree forI
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 (retyper_ctx, CppCall (func, retypedArgs), returnType)
             | CppFunction (func, returnType) ->
-              let arg_types = List.map (fun _ -> TCppDynamic) args in
+              let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
               let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
               (retyper_ctx, CppCall (func, retypedArgs), returnType)
             | CppEnumField (enum, field) ->
               (* TODO - proper re-typing *)
-              let arg_types = List.map (fun _ -> TCppDynamic) args in
+              let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
               let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
               ( retyper_ctx, CppCall (FuncEnumConstruct (enum, field), retypedArgs), cppType )
             | CppSuper _ ->
               (* TODO - proper re-typing *)
-              let arg_types = List.map (fun _ -> TCppDynamic) args in
+              let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
               let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
               ( retyper_ctx, CppCall (FuncSuperConstruct retypedFunc.cpptype, retypedArgs), TCppVoid )
             | CppDynamicField (expr, name) -> (
-              let arg_types = List.map (fun _ -> TCppDynamic) args in
+              let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
               let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 (* Special function calls *)
                 match (expr.cpptype, name) with
@@ -1193,7 +1193,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           let retyper_ctx, id = close retyper_ctx in
           (retyper_ctx, CppWhile (condition, block, flag, id), TCppVoid)
       | TArrayDecl el ->
-          let el_types = List.map (fun _ -> TCppDynamic) el in
+          let el_types = List.map (fun e -> cpp_type_of e.etype) el in
           let retyper_ctx, retypedEls = retype_function_args retyper_ctx el el_types in
           (retyper_ctx, CppArrayDecl retypedEls, cpp_type_of expr.etype)
       | TBlock expr_list ->
@@ -1253,7 +1253,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           let el_names = List.map (fun ((v, _, _), _) -> v) el in
 
           let retyper_ctx, retyped_els =
-            List.map (fun _ -> TCppDynamic) el |> retype_function_args retyper_ctx el_exprs
+            List.map (fun (_, expr) -> cpp_type_of expr.etype) el |> retype_function_args retyper_ctx el_exprs
           in
           let joined = List.combine el_names retyped_els in
 
