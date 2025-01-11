@@ -443,6 +443,8 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppGlobal -> "::Dynamic"
   | TCppNull -> " ::Dynamic"
   | TCppCode _ -> "Code"
+  | TCppMarshalType (Pointer _ as value_type, Reference) ->
+    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::Pointer< %s >"
   | TCppMarshalType (value_type, Reference) ->
     get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::Reference< %s >"
   | TCppMarshalType (value_type, Stack) ->
