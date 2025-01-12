@@ -283,17 +283,6 @@ let expression ctx request_type function_args function_type expression_tree forI
     new_ctx, resolver
   in
 
-  let cpp_const_type retyper_ctx cval =
-    match cval with
-    | TInt i -> (retyper_ctx, CppInt i, TCppScalar "int")
-    | TBool b -> (retyper_ctx, CppBool b, TCppScalar "bool")
-    | TFloat f -> (retyper_ctx, CppFloat (Texpr.replace_separators f ""), TCppScalar "Float")
-    | TString s -> (retyper_ctx, CppString s, TCppString)
-    | _ ->
-        (* TNull, TThis & TSuper should already be handled *)
-        (retyper_ctx, CppNull, TCppNull)
-  in
-
   let cpp_return_type haxe_type =
     match haxe_type with TFun (_, ret) -> cpp_type_of with_stack_value_type ret | _ -> TCppDynamic
   in
@@ -474,7 +463,20 @@ let expression ctx request_type function_args function_type expression_tree forI
             if retyper_ctx.this_real = ThisDynamic then TCppDynamic
             else cpp_type_of expr.etype )
       | TConst TNull when is_objc_type expr.etype -> (retyper_ctx, CppNil, TCppNull)
-      | TConst x -> cpp_const_type retyper_ctx x
+      | TConst x ->
+        (match x with
+        | TInt i -> (retyper_ctx, CppInt i, TCppScalar "int")
+        | TBool b -> (retyper_ctx, CppBool b, TCppScalar "bool")
+        | TFloat f -> (retyper_ctx, CppFloat (Texpr.replace_separators f ""), TCppScalar "Float")
+        | TString s -> (retyper_ctx, CppString s, TCppString)
+        | _ ->
+          (* TNull, TThis & TSuper should already be handled *)
+          (* We want to preserve the original type with a null marshal type as these may be handled differently in filtering *)
+          (match return_type with
+          | TCppMarshalType _ ->
+            (retyper_ctx, CppNull, return_type)
+          | _ ->
+            (retyper_ctx, CppNull, TCppNull)))
       | TIdent "__global__" ->
           (* functions/vars will appear to be members of the virtual global object *)
           (retyper_ctx, CppClassOf (([], ""), false), TCppGlobal)
@@ -1435,13 +1437,14 @@ let expression ctx request_type function_args function_type expression_tree forI
               (retyper_ctx, CppTCast (baseCpp, return_type), return_type))
     in
     
+    (* Filter order is important *)
+    (* first thing we want to do is determine construction as autocast will then insert casts which can confuse things *)
     retyper_ctx,
     mk_cppexpr retypedExpr retypedType
-      |> CppFilterAutoCast.autocast_filter forCppia return_type
       |> CppFilterValueType.filter_determine_construction return_type
+      |> CppFilterAutoCast.autocast_filter forCppia return_type
       |> CppFilterValueType.filter_value_enum_casting return_type
       |> CppFilterValueType.filter_value_type_assignment return_type
-      |> CppFilterValueType.filter_add_boxed_pointer_construction return_type
   in
   retype initial_ctx request_type expression_tree |> snd
 

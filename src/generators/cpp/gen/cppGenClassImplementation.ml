@@ -77,7 +77,7 @@ let gen_function ctx class_def class_name is_static func =
             | TCppInst (t, _) when Meta.has Meta.StructAccess t.cl_meta ->
               output ("return (cpp::Struct< " ^ tcpp_to_string return_type ^ " >) ")
             | TCppMarshalType (value_type, _) ->
-              CppMarshalling.get_extern_value_type_reference value_type |> Printf.sprintf "return (%s) " |> output
+              TCppMarshalType (value_type, Reference) |> tcpp_to_string |> Printf.sprintf "return (%s) " |> output
             | _ ->
               output "return ");
 
@@ -93,7 +93,7 @@ let gen_function ctx class_def class_name is_static func =
           | TCppInst (t, _) when Meta.has Meta.StructAccess t.cl_meta ->
             Printf.sprintf "(::cpp::Struct< %s >) a%i" (tcpp_to_string arg) idx
           | TCppMarshalType (value_type, _) ->
-            Printf.sprintf "(%s) a%i" (CppMarshalling.get_extern_value_type_reference value_type) idx
+            Printf.sprintf "(%s) a%i" (TCppMarshalType (value_type, Reference) |> tcpp_to_string) idx
           | _ ->
             Printf.sprintf "a%i" idx in
             
