@@ -57,18 +57,3 @@ let rec filter_value_enum_casting return_type cppexpr =
     mk_cppexpr (CppCastScalar (dereference, s)) return_type
   | _ ->
     cppexpr
-
-(* If the RHS of an set operation is a value type ensure its a reference *)
-(* This allows the reference auto cast operators to handle lots of stuff for us *)
-let filter_value_type_assignment return_type cppexpr =
-  let mk_cppexpr new_expr new_type =
-    { cppexpr = new_expr; cpptype = new_type; cpppos = cppexpr.cpppos }
-  in
-
-  match cppexpr.cppexpr with
-  | CppSet (l, ({ cpptype = TCppMarshalType (vt, (Stack | Promoted)) } as r)) ->
-    let reference = TCppMarshalType (vt, Reference) in
-    let cast      = mk_cppexpr (CppCast (r, reference)) reference in
-    { cppexpr with cppexpr = CppSet(l, cast) }
-  | _ ->
-    cppexpr

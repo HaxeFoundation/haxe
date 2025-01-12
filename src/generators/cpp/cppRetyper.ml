@@ -481,16 +481,16 @@ let expression ctx request_type function_args function_type expression_tree forI
           (* functions/vars will appear to be members of the virtual global object *)
           (retyper_ctx, CppClassOf (([], ""), false), TCppGlobal)
       | TLocal tvar ->
-          let new_var = retype_tvar tvar in
+        let new_var = retype_tvar tvar in
 
-          if StringMap.mem new_var.tcppv_name retyper_ctx.declarations then
-            (retyper_ctx, CppVar (VarLocal new_var), new_var.tcppv_type)
-          else (
-            let new_ctx = { retyper_ctx with undeclared = StringMap.add new_var.tcppv_name new_var retyper_ctx.undeclared } in
-            if has_var_flag tvar VCaptured then
-              (new_ctx, CppVar (VarClosure new_var), new_var.tcppv_type)
-            else
-              (new_ctx, CppExtern (new_var.tcppv_var.v_name, false), new_var.tcppv_type))
+        if StringMap.mem new_var.tcppv_name retyper_ctx.declarations then
+          (retyper_ctx, CppVar (VarLocal new_var), new_var.tcppv_type)
+        else (
+          let new_ctx = { retyper_ctx with undeclared = StringMap.add new_var.tcppv_name new_var retyper_ctx.undeclared } in
+          if has_var_flag tvar VCaptured then
+            (new_ctx, CppVar (VarClosure new_var), new_var.tcppv_type)
+          else
+            (new_ctx, CppExtern (new_var.tcppv_var.v_name, false), new_var.tcppv_type))
       | TIdent name -> (retyper_ctx, CppExtern (name, false), return_type)
       | TBreak -> (
           if forCppia then
@@ -1099,6 +1099,9 @@ let expression ctx request_type function_args function_type expression_tree forI
             match binOpType with
             | TCppUnchanged ->
               cpp_type_of left.etype, cpp_type_of right.etype
+            (* if the left type is a value type then ensure the right type is a reference as we are doing assignment *)
+            | TCppMarshalType (value_type, (Stack | Promoted)) as l ->
+              l, TCppMarshalType (value_type, Reference)
             | other ->
               other, other
             in
@@ -1444,7 +1447,6 @@ let expression ctx request_type function_args function_type expression_tree forI
       |> CppFilterValueType.filter_determine_construction return_type
       |> CppFilterAutoCast.autocast_filter forCppia return_type
       |> CppFilterValueType.filter_value_enum_casting return_type
-      |> CppFilterValueType.filter_value_type_assignment return_type
   in
   retype initial_ctx request_type expression_tree |> snd
 
