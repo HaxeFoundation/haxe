@@ -51,16 +51,16 @@ c == 0xfffffffe;
 2147483643 == -(5 + min); // static analyzer issue
 
 #if hl
-0 == min % 0;
+0 == min % 0;              // % 0 div by zero exception
 0 == Std.int(min / 0);
-#end
-0 == min % -1;
-0 == min % 1;
-#if !python
+0 == min % -1;             // min % -1 integer overflow exception
 min == Std.int(min / -1);
-#end
 min == min * -1;
+0 == min % 1;
+0 == max % 0;
+0 == Std.int(max / 0);
 0 == max % -1;
-0 == max % 1;
 -max == Std.int(max / -1);
 -max == max * -1;
+0 == max % 1;
+#end
