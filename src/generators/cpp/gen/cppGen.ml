@@ -821,7 +821,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
             gen obj;
             out (operator ^ member)
         | CppVarRef varLoc ->
-            gen_val_loc varLoc true;
+            gen_val_loc varLoc;
             out " = ";
             gen rvalue
         | CppArrayRef arrayLoc -> (
@@ -910,7 +910,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         if native then out "null()"
         else if path = "::Array" then out "::hx::ArrayBase::__mClass"
         else out ("::hx::ClassOf< " ^ path ^ " >()")
-    | CppVar loc -> gen_val_loc loc false
+    | CppVar loc -> gen_val_loc loc
     | CppClosure closure ->
         out
           (" ::Dynamic(new _hx_Closure_" ^ string_of_int closure.close_id ^ "(");
@@ -1328,7 +1328,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
   and gen expr = gen_with_injection None expr true
   and gen_lvalue lvalue =
     match lvalue with
-    | CppVarRef varLoc -> gen_val_loc varLoc true
+    | CppVarRef varLoc -> gen_val_loc varLoc
     | CppArrayRef arrayLoc -> (
         match arrayLoc with
         | ArrayObject (arrayObj, index, _) ->
@@ -1374,7 +1374,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         out "::hx::FieldRef((";
         gen expr;
         out (")" ^ objPtr ^ "," ^ strq name ^ ")")
-  and gen_val_loc loc lvalue =
+  and gen_val_loc loc =
     match loc with
     | VarClosure var
     | VarLocal var -> out var.tcppv_name
