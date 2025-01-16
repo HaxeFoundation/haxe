@@ -400,8 +400,8 @@ class Context {
 		properly inside that file later on (using `Context.parseInlineString`
 		for example). Works with both real and virtual files.
 	**/
-	public static function loadLexerLines(file:String, content:String):Void {
-		load("load_lexer_lines", 2)(file, content);
+	public static function registerFileContents(file:String, content:String):Void {
+		load("register_file_contents", 2)(file, content);
 	}
 
 	/**

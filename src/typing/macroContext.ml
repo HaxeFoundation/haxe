@@ -196,7 +196,7 @@ let make_macro_com_api com mcom p =
 			| ParseSuccess(r,_,_) -> r
 			| ParseError(_,(msg,p),_) -> Parser.error msg p
 		);
-		load_lexer_lines = (fun file content ->
+		register_file_contents = (fun file content ->
 			let f = Lexer.resolve_file_content_pos file content in
 			Hashtbl.add Lexer.all_files file f;
 		);
