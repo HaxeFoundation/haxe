@@ -108,7 +108,8 @@ class TestSys extends TestCommandBase {
 			 "sys.n"
 		#elseif cpp
 			#if cppia
-				"Main.cppia"
+				//"Main.cppia"
+				"Cppia" + (Sys.systemName() == "Windows" ? ".exe" : "")
 			#else
 				"Main-debug" + (Sys.systemName() == "Windows" ? ".exe" : "")
 			#end

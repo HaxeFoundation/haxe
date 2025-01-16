@@ -86,6 +86,6 @@ class ExitCode {
 	}
 
 	static function main():Void {
-		Sys.exit(Std.parseInt(Sys.args()[0]));
+		Sys.exit(Std.parseInt(Sys.args()[#if cppia 1 #else 0 #end]));
 	}
 }

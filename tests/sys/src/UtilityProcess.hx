@@ -153,7 +153,11 @@ class UtilityProcess {
 	}
 
 	public static function main():Void {
-		var args = Sys.args();
+		final args = Sys.args();
+		#if cppia
+		args.shift();
+		args.remove("-jit");
+		#end
 		function sequenceIndex(d:String, mode:String):String
 			return switch UnicodeSequences.valid[Std.parseInt(d)] {
 				case Only(ref): UnicodeSequences.codepointsToString(ref);
