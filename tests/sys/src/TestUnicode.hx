@@ -11,7 +11,9 @@ import UtilityProcess.runUtility;
 class TestUnicode extends utest.Test {
 	static var BIN_SYMLINK =
 #if cpp
-		#if debug
+		#if cppia
+			"bin-cppia";
+		#elseif debug
 			"bin-cpp-debug";
 		#else
 			"bin-cpp";

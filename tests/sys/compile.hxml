@@ -3,6 +3,7 @@
 --next compile-neko.hxml
 --next compile-python.hxml
 --next compile-cpp.hxml
+--next compile-cppia.hxml
 --next compile-jvm.hxml
 --next compile-php.hxml
 --next compile-hl.hxml

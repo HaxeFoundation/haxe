@@ -9,7 +9,11 @@ import sys.io.Process;
 class UtilityProcess {
 	public static var BIN_PATH =
 #if cpp
+	#if cppia
+		Path.join(["bin", "cppia"]);
+	#else
 		Path.join(["bin", "cpp"]);
+	#end
 #elseif hl
 	#if hlc
 		Path.join(["bin", "hlc/utilityProcess"]);
@@ -35,7 +39,9 @@ class UtilityProcess {
 #end
 	public static var BIN_NAME =
 #if cpp
-		#if debug
+		#if cppia
+			"UtilityProcess.cppia";
+		#elseif debug
 			"UtilityProcess-debug";
 		#else
 			"UtilityProcess";
@@ -73,6 +79,8 @@ class UtilityProcess {
 		var proc =
 		#if (macro || interp)
 		new Process("haxe", ["--hxb-lib", execFull, "--run", Path.withoutExtension(BIN_NAME)].concat(args));
+		#elseif cppia
+		new Process("haxelib", ["run", "hxcpp", execFull].concat(args).concat(Sys.getEnv("CPPIA_IS_JIT") == null ? [] : ["-jit"]));
 		#elseif cpp
 		new Process(execFull, args);
 		#elseif java
@@ -119,6 +127,8 @@ class UtilityProcess {
 		final exitCode =
 		#if (macro || interp)
 		Sys.command("haxe", ["--hxb-lib", execFull, "--run", BIN_NAME.substr(0, -4)].concat(args));
+		#elseif cppia
+		Sys.command("haxelib", ["run", "hxcpp", execFull].concat(args).concat(Sys.getEnv("CPPIA_IS_JIT") == null ? [] : ["-jit"]));
 		#elseif cpp
 		Sys.command(execFull, args);
 		#elseif java

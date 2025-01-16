@@ -78,7 +78,9 @@ class TestArguments extends utest.Test {
 			"bin/hl/TestArguments.hl";
 		#end
 	#elseif cpp
-		#if debug
+		#if cppia
+			"bin/cppia/TestArguments.cppia";
+		#elseif debug
 			"bin/cpp/TestArguments-debug";
 		#else
 			"bin/cpp/TestArguments";

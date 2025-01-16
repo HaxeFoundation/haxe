@@ -20,7 +20,11 @@ class TestCommandBase extends utest.Test {
 			#if (macro || interp)
 				run("haxe", ["--hxb-lib", bin, "--run", "TestArguments"].concat(args));
 			#elseif cpp
+				#if cppia
+				run("haxelib", ["run", "hxcpp", bin].concat(args).concat(Sys.getEnv("CPPIA_IS_JIT") == null ? [] : ["-jit"]));
+				#else
 				run(bin, args);
+				#end
 			#elseif java
 				run(Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", bin].concat(args));
 			#elseif python
@@ -110,7 +114,11 @@ class TestCommandBase extends utest.Test {
 				#if (macro || interp)
 					run("haxe", ["--hxb-lib", bin, "--run", "ExitCode"].concat(args));
 				#elseif cpp
+					#if cppia
+					run("haxelib", ["run", "hxcpp", bin].concat(args).concat(Sys.getEnv("CPPIA_IS_JIT") == null ? [] : ["-jit"]));
+					#else
 					run(bin, args);
+					#end
 				#elseif java
 					run(Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", bin].concat(args));
 				#elseif python

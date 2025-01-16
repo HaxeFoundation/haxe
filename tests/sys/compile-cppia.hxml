@@ -1,0 +1,18 @@
+compile-each.hxml
+--main Main
+-cppia bin/cppia/Main.cppia
+
+--next
+compile-each.hxml
+--main TestArguments
+-cppia bin/cppia/TestArguments.cppia
+
+--next
+compile-each.hxml
+--main ExitCode
+-cppia bin/cppia/ExitCode.cppia
+
+--next
+compile-each.hxml
+--main UtilityProcess
+-cppia bin/cppia/UtilityProcess.cppia

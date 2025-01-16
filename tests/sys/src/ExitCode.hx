@@ -18,7 +18,9 @@ class ExitCode {
 			"bin/hl/ExitCode.hl";
 		#end
 	#elseif cpp
-		#if debug
+		#if cppia
+			"bin/cppia/ExitCode.cppia";
+		#elseif debug
 			"bin/cpp/ExitCode-debug";
 		#else
 			"bin/cpp/ExitCode";

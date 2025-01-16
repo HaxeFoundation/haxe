@@ -107,7 +107,11 @@ class TestSys extends TestCommandBase {
 		#elseif neko
 			 "sys.n"
 		#elseif cpp
-			"Main-debug" + (Sys.systemName() == "Windows" ? ".exe" : "")
+			#if cppia
+				"Main.cppia"
+			#else
+				"Main-debug" + (Sys.systemName() == "Windows" ? ".exe" : "")
+			#end
 		#elseif jvm
 			"sys.jar"
 		#elseif python
