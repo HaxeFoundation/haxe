@@ -57,3 +57,32 @@ let rec filter_value_enum_casting return_type cppexpr =
     mk_cppexpr (CppCastScalar (dereference, s)) return_type
   | _ ->
     cppexpr
+
+let filter_add_boxed_pointer_construction return_type cppexpr =
+  let mk_cppexpr new_expr new_type =
+    { cppexpr = new_expr; cpptype = new_type; cpppos = cppexpr.cpppos }
+  in
+
+  let is_pointer_type tcpp =
+    match tcpp with
+    | TCppMarshalType ((Pointer _), _) ->
+      true
+    | _ ->
+      false
+    in
+
+  match return_type, cppexpr.cppexpr with
+  (* | CppVarDecl (var, Some expr) when is_pointer_type var.tcppv_type ->
+    let construct = mk_cppexpr (CppCall ((FuncNew var.tcppv_type), [ expr ])) var.tcppv_type in
+    { cppexpr with cppexpr = CppVarDecl(var, Some construct) }
+  | CppVarDecl (var, None) when is_pointer_type var.tcppv_type ->
+    let construct = mk_cppexpr (CppCall ((FuncNew var.tcppv_type), [])) var.tcppv_type in
+    { cppexpr with cppexpr = CppVarDecl(var, Some construct) } *)
+  | TCppMarshalType ((Pointer _), (Stack | Promoted)), CppNull ->
+    mk_cppexpr (CppCall ((FuncNew return_type), [ cppexpr ])) return_type
+  | TCppMarshalType ((Pointer _ as value_type), Reference), CppNull ->
+    let stack = TCppMarshalType (value_type, Stack) in
+    let ctor  = mk_cppexpr (CppCall ((FuncNew stack), [ cppexpr ])) stack in
+    mk_cppexpr (CppCast (ctor, return_type)) return_type
+  | _ ->
+    cppexpr

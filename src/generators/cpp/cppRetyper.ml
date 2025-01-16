@@ -1447,6 +1447,7 @@ let expression ctx request_type function_args function_type expression_tree forI
       |> CppFilterValueType.filter_determine_construction return_type
       |> CppFilterAutoCast.autocast_filter forCppia return_type
       |> CppFilterValueType.filter_value_enum_casting return_type
+      |> CppFilterValueType.filter_add_boxed_pointer_construction return_type
   in
   retype initial_ctx request_type expression_tree |> snd
 
