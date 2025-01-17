@@ -466,18 +466,18 @@ let handler =
 			hctx.send_result (jarray !l)
 		);
 		"server/memory",(fun hctx ->
-			let j = Memory.get_memory_json hctx.display#get_cs MCache in
+			let j = DisplayMemory.get_memory_json hctx.display#get_cs MCache in
 			hctx.send_result j
 		);
 		"server/memory/context",(fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
-			let j = Memory.get_memory_json hctx.display#get_cs (MContext sign) in
+			let j = DisplayMemory.get_memory_json hctx.display#get_cs (MContext sign) in
 			hctx.send_result j
 		);
 		"server/memory/module",(fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
-			let j = Memory.get_memory_json hctx.display#get_cs (MModule(sign,path)) in
+			let j = DisplayMemory.get_memory_json hctx.display#get_cs (MModule(sign,path)) in
 			hctx.send_result j
 		);
 		(* TODO: wait till gama complains about the naming, then change it to something else *)
