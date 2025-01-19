@@ -116,7 +116,7 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
               match klass.cl_kind with
               | KTypeParameter _ -> ()
               | _ -> add_type klass.cl_path))
-      | TAbstract (a, params) when is_scalar_abstract a ->
+      | TAbstract (a, _) when is_scalar_abstract a || is_extern_value_enum a ->
           add_extern_type (TAbstractDecl a)
       | TFun (args, haxe_type) ->
           visit_type haxe_type;
