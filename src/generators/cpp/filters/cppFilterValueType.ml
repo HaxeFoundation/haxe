@@ -63,14 +63,6 @@ let filter_add_boxed_pointer_construction return_type cppexpr =
     { cppexpr = new_expr; cpptype = new_type; cpppos = cppexpr.cpppos }
   in
 
-  let is_pointer_type tcpp =
-    match tcpp with
-    | TCppMarshalType ((Pointer _), _) ->
-      true
-    | _ ->
-      false
-    in
-
   match return_type, cppexpr.cppexpr with
   (* | CppVarDecl (var, Some expr) when is_pointer_type var.tcppv_type ->
     let construct = mk_cppexpr (CppCall ((FuncNew var.tcppv_type), [ expr ])) var.tcppv_type in

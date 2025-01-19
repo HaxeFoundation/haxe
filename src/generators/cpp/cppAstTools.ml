@@ -545,9 +545,9 @@ and get_extern_class_pointer_type cls params =
     match get_meta_field "namespace" with
     | Some (_,( EArrayDecl ([]), _)) -> ""
     | Some (_,( EArrayDecl (els), _)) ->
-      (els
+      els
       |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
-      |> String.concat "::") ^ "::"
+      |> String.concat "::"
     | _ ->
       ""
   in
@@ -558,7 +558,7 @@ and get_extern_class_pointer_type cls params =
     snd cls.cl_path ^ typeParams
   in
   
-  Printf.sprintf "%s%s*" namespace t
+  Printf.sprintf "%s::%s*" namespace t
 
 and tcpp_objc_block_struct argTypes retType =
   let args = String.concat "," (List.map tcpp_to_string argTypes) in
