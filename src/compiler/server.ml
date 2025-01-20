@@ -410,7 +410,7 @@ let get_hxb_module com cc path =
 class hxb_reader_api_server
 	(com : Common.context)
 	(cc : context_cache)
-	(delay : (unit -> unit) -> unit)
+	(delay : Typecore.typer_pass -> (unit -> unit) -> unit)
 = object(self)
 
 	method make_module (path : path) (file : string) =
@@ -453,7 +453,7 @@ class hxb_reader_api_server
 			(* We try to avoid reading expressions as much as possible, so we only do this for
 				 our current display file if we're in display mode. *)
 			if full_restore then ignore(f_next chunks EOM)
-			else delay (fun () -> ignore(f_next chunks EOF));
+			else delay PConnectField (fun () -> ignore(f_next chunks EOF));
 			m
 		| BadModule reason ->
 			die (Printf.sprintf "Unexpected BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)) __LOC__
@@ -476,7 +476,7 @@ class hxb_reader_api_server
 
 	method make_lazy_type t f =
 		let r = make_unforced_lazy t f "server-api" in
-		delay (fun () -> ignore(lazy_type r));
+		delay PForce (fun () -> ignore(lazy_type r));
 		TLazy r
 end
 
@@ -605,7 +605,7 @@ and type_module sctx com delay mpath p =
 					(* We try to avoid reading expressions as much as possible, so we only do this for
 					   our current display file if we're in display mode. *)
 					if full_restore then ignore(f_next chunks EOM)
-					else delay (fun () -> ignore(f_next chunks EOF));
+					else delay PConnectField (fun () -> ignore(f_next chunks EOF));
 					add_modules true m;
 				| Some reason ->
 					skip mpath reason
