@@ -410,7 +410,7 @@ let get_hxb_module com cc path =
 class hxb_reader_api_server
 	(com : Common.context)
 	(cc : context_cache)
-	(delay : Typecore.typer_pass -> (unit -> unit) -> unit)
+	(delay : TyperPass.typer_pass -> (unit -> unit) -> unit)
 = object(self)
 
 	method make_module (path : path) (file : string) =
