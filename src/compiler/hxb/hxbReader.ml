@@ -769,9 +769,9 @@ class hxb_reader
 			)
 		| 12 ->
 			let a = self#read_abstract_ref in
-			self#make_lazy_type_dynamic (fun () ->
+			(* self#make_lazy_type_dynamic (fun () -> *)
 				TType(abstract_module_type (Lazy.force a) [],[])
-			)
+			(* ) *)
 		| 13 ->
 			let e = self#read_expr in
 			let c = {null_class with cl_kind = KExpr e; cl_module = current_module } in
@@ -898,28 +898,28 @@ class hxb_reader
 			)
 		| 70 ->
 			let a = self#read_abstract_ref in
-			self#make_lazy_type_dynamic (fun () ->
+			(* self#make_lazy_type_dynamic (fun () -> *)
 				TAbstract(Lazy.force a,[])
-			)
+			(* ) *)
 		| 71 ->
 			let a = self#read_abstract_ref in
 			let t1 = self#read_type_instance in
-			self#make_lazy_type_dynamic (fun () ->
+			(* self#make_lazy_type_dynamic (fun () -> *)
 				TAbstract(Lazy.force a,[t1])
-			)
+			(* ) *)
 		| 72 ->
 			let a = self#read_abstract_ref in
 			let t1 = self#read_type_instance in
 			let t2 = self#read_type_instance in
-			self#make_lazy_type_dynamic (fun () ->
+			(* self#make_lazy_type_dynamic (fun () -> *)
 				TAbstract(Lazy.force a,[t1;t2])
-			)
+			(* ) *)
 		| 79 ->
 			let a = self#read_abstract_ref in
 			let tl = self#read_types in
-			self#make_lazy_type_dynamic (fun () ->
+			(* self#make_lazy_type_dynamic (fun () -> *)
 				TAbstract(Lazy.force a,tl)
-			)
+			(* ) *)
 		| 80 ->
 			empty_anon
 		| 81 ->
