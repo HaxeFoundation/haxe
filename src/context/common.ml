@@ -234,7 +234,7 @@ class file_keys = object(self)
 
 	method generate_virtual mpath step =
 		incr virtual_counter;
-		Printf.sprintf "%s/file_%i_%i" (s_type_path mpath) step !virtual_counter
+		Printf.sprintf "%s/%s_%i_%i" (ExtLib.String.join "/" (fst mpath)) (snd mpath) step !virtual_counter
 
 end
 
