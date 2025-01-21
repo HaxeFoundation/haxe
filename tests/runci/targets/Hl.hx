@@ -39,7 +39,7 @@ class Hl {
 			case "Linux":
 				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev", "libsqlite3-dev"]);
 			case "Mac":
-				runNetworkCommand("brew", ["update", '--preinstall']);
+				runNetworkCommand("brew", ["update", '--auto-update']);
 				runNetworkCommand("brew", ["bundle", '--file=${hlSrc}/Brewfile']);
 			case "Windows":
 				//pass
