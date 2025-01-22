@@ -152,11 +152,20 @@ class RpcDisplayTestContext extends BaseDisplayTestContext {
 		return '$path:${start.line + 1}: $pos';
 	}
 
-	function extractDoc(result:HoverDisplayItemOccurence<Dynamic>) {
-		if (Reflect.hasField(result.item.args, "field")) {
-			return StringTools.trim(result.item.args.field.doc);
-		} else {
-			return StringTools.trim(result.item.args.doc);
-		}
+	function extractDoc<T>(result:HoverDisplayItemOccurence<T>) {
+		return switch result.item.kind {
+			case ClassField | EnumAbstractField:
+				StringTools.trim(result.item.args.field.doc);
+			case EnumField:
+				StringTools.trim(result.item.args.field.doc);
+			case Type:
+				StringTools.trim(result.item.args.doc);
+			case Metadata:
+				result.item.args.doc;
+			case Define:
+				result.item.args.doc;
+			case _:
+				null;
+		};
 	}
 }
