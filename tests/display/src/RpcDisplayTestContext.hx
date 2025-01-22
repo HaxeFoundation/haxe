@@ -87,10 +87,7 @@ class RpcDisplayTestContext extends BaseDisplayTestContext {
 	}
 
 	public function metadataDoc(pos:Position):String {
-		return extractMetadata(callDisplay(DisplayMethods.Hover, {
-			file: new FsPath(source.path),
-			offset: pos,
-		}).result);
+		return doc(pos);
 	}
 
 	public function diagnostics():Array<Diagnostic<Any>> {
@@ -156,10 +153,10 @@ class RpcDisplayTestContext extends BaseDisplayTestContext {
 	}
 
 	function extractDoc(result:HoverDisplayItemOccurence<Dynamic>) {
-		return StringTools.trim(result.item.args.field.doc);
-	}
-
-	function extractMetadata(result:HoverDisplayItemOccurence<Dynamic>) {
-		return result.item.args.doc;
+		if (Reflect.hasField(result.item.args, "field")) {
+			return StringTools.trim(result.item.args.field.doc);
+		} else {
+			return StringTools.trim(result.item.args.doc);
+		}
 	}
 }
