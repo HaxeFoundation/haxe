@@ -66,6 +66,7 @@ jobs:
         with:
           timeout_minutes: 10
           max_attempts: 10
+          retry_on: timeout
           shell: pwsh
           run: |
             Set-PSDebug -Trace 1
