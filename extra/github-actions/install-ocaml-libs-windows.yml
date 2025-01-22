@@ -5,7 +5,7 @@
     max_attempts: 10
     retry_on: timeout
     shell: pwsh
-    run: |
+    command: |
       Set-PSDebug -Trace 1
       # stop after any command returns an error
       $PSNativeCommandUseErrorActionPreference = $true
