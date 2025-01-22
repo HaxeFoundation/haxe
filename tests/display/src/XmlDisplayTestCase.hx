@@ -10,8 +10,9 @@ class XmlDisplayTestCase implements utest.ITest {
 
 	public function new() {}
 
+	@:timeout(3000)
 	public function setup() {
-		var methodArgs = {method: haxe.display.Protocol.Methods.ResetCache, id: 1, params: {}};
+		static var methodArgs = {method: haxe.display.Protocol.Methods.ResetCache, id: 1, params: {}};
 		var args = ['--display', haxe.Json.stringify(methodArgs)];
 		BaseDisplayTestContext.runHaxe(args);
 	}

@@ -15,7 +15,7 @@ class RpcDisplayTestCase implements utest.ITest {
 
 	@:timeout(3000)
 	public function setup() {
-		var methodArgs = {method: Methods.ResetCache, id: 1, params: {}};
+		static var methodArgs = {method: Methods.ResetCache, id: 1, params: {}};
 		var args = ['--display', Json.stringify(methodArgs)];
 		BaseDisplayTestContext.runHaxe(args);
 	}
