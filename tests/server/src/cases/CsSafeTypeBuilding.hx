@@ -13,6 +13,7 @@ using Lambda;
 class CsSafeTypeBuilding extends TestCase {
 	var originalContent:String;
 
+	@:timeout(3000)
 	override public function setup(async:utest.Async) {
 		testDir = "test/cases/" + @:privateAccess TestCase.i++;
 		vfs = new Vfs(testDir);
