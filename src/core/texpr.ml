@@ -624,11 +624,11 @@ let rec type_constant_value basic (e,p) =
 let is_constant_value basic e =
 	try (ignore (type_constant_value basic e); true) with Error {err_message = Custom _} -> false
 
-let for_remap basic v e1 e2 p =
-	let v' = alloc_var v.v_kind v.v_name e1.etype e1.epos in
-	let ev' = mk (TLocal v') e1.etype e1.epos in
-	let t1 = (Abstract.follow_with_abstracts e1.etype) in
-	let ehasnext = mk (TField(ev',try quick_field t1 "hasNext" with Not_found -> raise_typing_error (s_type (print_context()) t1 ^ "has no field hasNext()") p)) (tfun [] basic.tbool) e1.epos in
+let for_remap basic v etype e1 e2 p =
+	let v' = alloc_var v.v_kind v.v_name etype e1.epos in
+	let ev' = mk (TLocal v') etype e1.epos in
+	let t1 = (Abstract.follow_with_abstracts etype) in
+	let ehasnext = mk (TField(ev',try quick_field t1 "hasNext" with Not_found -> raise_typing_error (s_type (print_context()) t1 ^ " has no field hasNext()") p)) (tfun [] basic.tbool) e1.epos in
 	let ehasnext = mk (TCall(ehasnext,[])) basic.tbool ehasnext.epos in
 	let enext = mk (TField(ev',quick_field t1 "next")) (tfun [] v.v_type) e1.epos in
 	let enext = mk (TCall(enext,[])) v.v_type e1.epos in

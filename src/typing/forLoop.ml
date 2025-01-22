@@ -33,7 +33,7 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 		get_class_and_params e1
 	in
 	let _, _, fhasnext = (try raw_class_field (fun cf -> apply_params c.cl_params tl cf.cf_type) c tl "hasNext" with Not_found -> raise Exit) in
-	if fhasnext.cf_kind <> Method MethInline then raise Exit;
+	if not ctx.allow_inline || fhasnext.cf_kind <> Method MethInline then raise Exit;
 	let it_type = TInst(c,tl) in
 	let tmp = gen_local ctx it_type e1.epos in
 	let eit = mk (TLocal tmp) it_type p in
@@ -284,7 +284,7 @@ module IterationKind = struct
 		{
 			it_kind = it;
 			it_type = pt;
-			it_expr = if not ctx.allow_transform then e else e1;
+			it_expr = e1;
 		}
 
 	let to_texpr ctx v iterator e2 p =
@@ -414,7 +414,7 @@ module IterationKind = struct
 			begin try
 				optimize_for_loop_iterator ctx v e1 e2 p
 			with Exit ->
-				Texpr.for_remap ctx.t v e1 e2 p
+				Texpr.for_remap ctx.t v (ctx.t.titerator pt) e1 e2 p
 			end
 		| IteratorGenericStack c ->
 			let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> die "" __LOC__) in
