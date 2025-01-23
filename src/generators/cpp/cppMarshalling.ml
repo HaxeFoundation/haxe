@@ -12,5 +12,10 @@ open CppContext
 
 let get_extern_value_type_boxed value_type =
   let p = get_extern_value_type value_type in
+  let suffix =
+    match value_type with
+    | Pointer _ -> "*"
+    | _ -> ""
+  in
 
-  Printf.sprintf "::cpp::marshal::Boxed< %s >" p, Printf.sprintf "::cpp::marshal::Boxed_obj< %s >" p
+  Printf.sprintf "::cpp::marshal::Boxed< %s%s >" p suffix, Printf.sprintf "::cpp::marshal::Boxed_obj< %s%s >" p suffix
