@@ -751,6 +751,18 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         out ("->__Field(" ^ strq name ^ ",::hx::paccDynamic)")
     | CppArray arrayLoc -> (
         match arrayLoc with
+        (* Special case for pointers to marshal type pointers *)
+        (* ::cpp::Pointer array access returns a T& but we want a T* for the marhsal pointer type reference *)
+        (* So do some manual pointer arithmatic *)
+        | ArrayPointer ({ cpptype = TCppPointer (_, TCppMarshalType (Pointer _, _)) } as arrayObj, index) ->
+          gen arrayObj;
+          out ".ptr + ";
+          gen index
+        | ArrayRawPointer ({ cpptype = TCppRawPointer (_, TCppMarshalType (Pointer _, _)) } as arrayObj, index) ->
+          gen arrayObj;
+          out " + ";
+          gen index
+
         | ArrayTyped (arrayObj, index, _) ->
             gen arrayObj;
             out "->__get(";
