@@ -281,7 +281,7 @@ let generate_source ctx =
 
    let folder acc cur =
       let no_reference_meta pos =
-         abort "CPP0001: Value type extern must be annotated with reference semantics" pos
+         abort "CPP0001: Marshalling type extern must be annotated with reference semantics" pos
       in
 
       (if not (Gctx.defined common_ctx Define.Objc) then
@@ -294,7 +294,7 @@ let generate_source ctx =
       | TAbstractDecl abs when is_extern_value_enum abs && not (ExtType.has_reference_semantics (TAbstract (abs, []))) ->
          no_reference_meta abs.a_pos
       | TClassDecl class_def when is_extern_class class_def ->
-         if is_extern_value_class class_def && not (ExtType.has_reference_semantics (TInst (class_def, []))) then
+         if (is_extern_value_class class_def || is_extern_pointer class_def) && not (ExtType.has_reference_semantics (TInst (class_def, []))) then
             no_reference_meta class_def.cl_pos;
 
          let acc_build_xml  = acc.build_xml ^ (CppGen.get_class_code class_def Meta.BuildXml) in
