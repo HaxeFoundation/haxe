@@ -47,7 +47,7 @@ type marshal_type_state =
 
 and marshal_type = 
   | ValueClass of tclass * tcpp list
-  | ValueEnum of tabstract * tcpp
+  | ValueEnum of tabstract
   | Pointer of tclass * tcpp list
 
 and tcpp =

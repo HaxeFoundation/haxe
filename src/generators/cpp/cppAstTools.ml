@@ -1,6 +1,7 @@
 open Ast
 open Type
 open Globals
+open Error
 open CppAst
 open CppTypeUtils
 
@@ -384,10 +385,10 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppObject -> " ::Dynamic"
   | TCppObjectPtr -> " ::hx::Object *"
   | TCppStruct t -> "cpp::Struct< " ^ tcpp_to_string t ^ " >"
-  | TCppReference (TCppMarshalType (value_type, _)) -> Printf.sprintf "%s&" (get_extern_value_type value_type)
+  | TCppReference (TCppMarshalType (value_type, _)) -> Printf.sprintf "%s&" (get_marshalled_type value_type)
   | TCppReference t -> tcpp_to_string t ^ " &"
   | TCppStar (TCppMarshalType (value_type, _), const) ->
-    Printf.sprintf "%s%s*" (if const then "const " else "") (get_extern_value_type value_type)
+    Printf.sprintf "%s%s*" (if const then "const " else "") (get_marshalled_type value_type)
   | TCppStar (t, const) ->
       (if const then "const " else "") ^ tcpp_to_string t ^ " *"
   | TCppVoid -> "void"
@@ -402,11 +403,11 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppFastIterator it ->
       "::cpp::FastIterator" ^ suffix ^ "< " ^ tcpp_to_string it ^ " >"
   | TCppPointer (ptrType, TCppMarshalType (value_type, _)) ->
-    Printf.sprintf "::cpp::%s< %s >" ptrType (get_extern_value_type value_type)
+    Printf.sprintf "::cpp::%s< %s >" ptrType (get_marshalled_type value_type)
   | TCppPointer (ptrType, valueType) ->
       "::cpp::" ^ ptrType ^ "< " ^ tcpp_to_string valueType ^ " >"
   | TCppRawPointer (constName, TCppMarshalType (value_type, _)) ->
-    Printf.sprintf "%s%s*" constName (get_extern_value_type value_type)
+    Printf.sprintf "%s%s*" constName (get_marshalled_type value_type)
   | TCppRawPointer (constName, valueType) ->
       constName ^ tcpp_to_string valueType ^ "*"
   | TCppFunction (argTypes, retType, abi) ->
@@ -445,121 +446,73 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppCode _ -> "Code"
   
   | TCppMarshalType (Pointer _ as value_type, Promoted) ->
-    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s* >"
+    get_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s* >"
   | TCppMarshalType (Pointer _ as value_type, Reference) ->
-    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::PointerReference< %s >"
+    get_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::PointerReference< %s >"
   | TCppMarshalType (Pointer _ as value_type, Stack) ->
-    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::PointerType< %s >"
+    get_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::PointerType< %s >"
 
   | TCppMarshalType ((ValueClass _ | ValueEnum _) as value_type, Promoted) ->
-    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s >"
+    get_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s >"
   | TCppMarshalType ((ValueClass _ | ValueEnum _) as value_type, Reference) ->
-    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::ValueReference< %s >"
+    get_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::ValueReference< %s >"
   | TCppMarshalType ((ValueClass _ | ValueEnum _) as value_type, Stack) ->
-    get_extern_value_type value_type |> Printf.sprintf "::cpp::marshal::ValueType< %s >"
+    get_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::ValueType< %s >"
 
-and get_extern_value_type value_type =
+and get_marshalled_type value_type =
+  let build_type path pos params meta target =
+    let marshal_type_parameter_to_string tcpp =
+      match tcpp with
+      | TCppMarshalType (value_type, _) -> get_marshalled_type value_type
+      | TCppScalar _
+      | TCppPointer _
+      | TCppRawPointer _
+      | TCppStar _
+      | TCppVoidStar
+      | TCppStruct _ ->
+        tcpp_to_string_suffix "" tcpp
+      | _ ->
+        abort "CPP0003: Invalid parameter for a marshalling type" pos
+    in
+    let get_meta_field field =
+      match Meta.get target meta with
+      | _, [ (EObjectDecl decls, _) ], _ ->  
+        List.find_opt (fun ((n, _, _), _) -> n = field) decls
+      | _ ->
+        None
+      in
+      let typeParams =
+        match params with
+        | [] -> ""
+        | _ -> "< " ^ String.concat "," (List.map marshal_type_parameter_to_string params) ^ " >"
+        in
+      let namespace =
+        match get_meta_field "namespace" with
+        | Some (_,( EArrayDecl ([]), _)) -> ""
+        | Some (_,( EArrayDecl (els), _)) ->
+          "::" ^ (els
+          |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
+          |> String.concat "::")
+        | _ ->
+          ""
+      in
+      let t = match get_meta_field "type" with
+      | Some (_, (EConst (String (s, _)), _) ) ->
+        s ^ typeParams
+      | _ ->
+        snd path ^ typeParams
+      in
+      
+      Printf.sprintf "%s::%s" namespace t
+  in
+
   match value_type with
   | ValueClass (cls, params) ->
-    get_extern_class_value_type cls params
-  | ValueEnum (e, _) ->
-    get_extern_enum_value_type e
+    build_type cls.cl_path cls.cl_pos params cls.cl_meta Meta.CppValueType
+  | ValueEnum abs ->
+    build_type abs.a_path abs.a_pos [] abs.a_meta Meta.CppValueType
   | Pointer (cls, params) ->
-    get_extern_class_pointer_type cls params
-
-and get_extern_enum_value_type abs =
-  let get_meta_field field =
-    match Meta.get Meta.CppValueType abs.a_meta with
-    | _, [ (EObjectDecl decls, _) ], _ ->  
-      List.find_opt (fun ((n, _, _), _) -> n = field) decls
-    | _ ->
-      None
-    in
-  let namespace =
-    match get_meta_field "namespace" with
-    | Some (_,( EArrayDecl ([]), _)) -> ""
-    | Some (_,( EArrayDecl (els), _)) ->
-      "::" ^ 
-      (els
-      |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
-      |> String.concat "::")
-    | _ -> ""
-    in
-  let t = match get_meta_field "type" with
-  | Some (_, (EConst (String (s, _)), _) ) ->
-    s
-  | _ ->
-    snd abs.a_path
-  in
-  
-  Printf.sprintf "%s::%s" namespace t
-
-and get_extern_class_value_type cls params =
-  let get_meta_field field =
-    match Meta.get Meta.CppValueType cls.cl_meta with
-    | _, [ (EObjectDecl decls, _) ], _ ->  
-      List.find_opt (fun ((n, _, _), _) -> n = field) decls
-    | _ ->
-      None
-    in
-
-  let typeParams =
-    match params with
-    | [] -> ""
-    | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >"
-    in
-  let namespace =
-    match get_meta_field "namespace" with
-    | Some (_,( EArrayDecl ([]), _)) -> ""
-    | Some (_,( EArrayDecl (els), _)) ->
-      "::" ^ 
-      (els
-      |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
-      |> String.concat "::")
-    | _ ->
-      ""
-  in
-  let t = match get_meta_field "type" with
-  | Some (_, (EConst (String (s, _)), _) ) ->
-    s ^ typeParams
-  | _ ->
-    snd cls.cl_path ^ typeParams
-  in
-  
-  Printf.sprintf "%s::%s" namespace t
-
-and get_extern_class_pointer_type cls params =
-  let get_meta_field field =
-    match Meta.get Meta.CppPointerType cls.cl_meta with
-    | _, [ (EObjectDecl decls, _) ], _ ->  
-      List.find_opt (fun ((n, _, _), _) -> n = field) decls
-    | _ ->
-      None
-    in
-
-  let typeParams =
-    match params with
-    | [] -> ""
-    | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >"
-    in
-  let namespace =
-    match get_meta_field "namespace" with
-    | Some (_,( EArrayDecl ([]), _)) -> ""
-    | Some (_,( EArrayDecl (els), _)) ->
-      "::" ^ (els
-      |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
-      |> String.concat "::")
-    | _ ->
-      ""
-  in
-  let t = match get_meta_field "type" with
-  | Some (_, (EConst (String (s, _)), _) ) ->
-    s ^ typeParams
-  | _ ->
-    snd cls.cl_path ^ typeParams
-  in
-  
-  Printf.sprintf "%s::%s" namespace t
+    build_type cls.cl_path cls.cl_pos params cls.cl_meta Meta.CppPointerType
 
 and tcpp_objc_block_struct argTypes retType =
   let args = String.concat "," (List.map tcpp_to_string argTypes) in
@@ -575,7 +528,7 @@ and tcpp_to_string tcpp = tcpp_to_string_suffix "" tcpp
 
 and cpp_class_path_of klass params =
    if is_extern_value_class klass then
-    get_extern_class_value_type klass params
+    get_marshalled_type (ValueClass (klass, params))
    else
       match get_meta_string klass.cl_meta Meta.Native with
       | Some s ->

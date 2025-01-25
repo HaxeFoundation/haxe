@@ -30,7 +30,7 @@ let rec cpp_type_of stack value_type_handler haxe_type =
     | TInst (klass, params) ->
       cpp_instance_type stack klass params value_type_handler
     | TAbstract (abs, pl) when is_extern_value_enum abs ->
-      TCppMarshalType (ValueEnum (abs, (cpp_type_of stack value_type_handler (Abstract.get_underlying_type ~return_first:true abs pl))), value_type_handler())
+      TCppMarshalType (ValueEnum abs, value_type_handler())
     | TAbstract (abs, pl) when not (Meta.has Meta.CoreType abs.a_meta) ->
       cpp_type_from_path stack abs.a_path pl value_type_handler (fun () ->
         cpp_type_of stack value_type_handler (Abstract.get_underlying_type ~return_first:true abs pl))
@@ -647,7 +647,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             (retyper_ctx, CppFunction (FuncFromStaticFunction, funcReturn), exprType)
           | FStatic (({ cl_kind = KAbstractImpl abs }), member) when is_extern_value_enum abs ->
             let exprType   = cpp_type_of_with with_promoted_value_type member.cf_type in
-            let enum_name  = Printf.sprintf "%s::%s" (get_extern_enum_value_type abs) (member.cf_name) in
+            let enum_name  = Printf.sprintf "%s::%s" (get_marshalled_type (ValueEnum abs)) (member.cf_name) in
 
             (retyper_ctx, CppCall ((FuncNew exprType), [ mk_cppexpr (CppExtern (enum_name, false)) exprType ]), exprType)
           | FStatic (clazz, member) ->

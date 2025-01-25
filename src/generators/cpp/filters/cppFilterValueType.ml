@@ -39,8 +39,8 @@ let rec filter_value_enum_casting return_type cppexpr =
 
   match cppexpr.cpptype, return_type with
   (* Casting from from a scalar to a value type enum *)
-  | TCppScalar s, (TCppMarshalType ((ValueEnum (abs, _)), (Stack | Promoted))) ->
-    let casted = mk_cppexpr (CppCastScalar (cppexpr, get_extern_enum_value_type abs)) return_type in
+  | TCppScalar s, (TCppMarshalType ((ValueEnum abs), (Stack | Promoted))) ->
+    let casted = mk_cppexpr (CppCastScalar (cppexpr, get_marshalled_type (ValueEnum abs))) return_type in
     mk_cppexpr (CppCall ((FuncNew return_type), [ casted ])) return_type
 
   | TCppScalar s, (TCppMarshalType ((ValueEnum _ as e), Reference)) ->

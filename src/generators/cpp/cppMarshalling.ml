@@ -11,7 +11,7 @@ open CppSourceWriter
 open CppContext
 
 let get_extern_value_type_boxed value_type =
-  let p = get_extern_value_type value_type in
+  let p = get_marshalled_type value_type in
   let suffix =
     match value_type with
     | Pointer _ -> "*"
