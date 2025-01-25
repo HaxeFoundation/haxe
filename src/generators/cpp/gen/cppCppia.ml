@@ -96,6 +96,12 @@ let rec script_cpptype_string cppType =
       "cpp.Pointer." ^ script_cpptype_string valueType
   | TCppRawPointer (_, valueType) ->
       "cpp.RawPointer." ^ script_cpptype_string valueType
+  | TCppMarshalType (ValueClass (cls, _), _) ->
+    "cpp.MarshalValueClass." ^ (join_class_path cls.cl_path ".")
+  | TCppMarshalType (ValueEnum abs, _) ->
+    "cpp.MarshalValueEnum." ^ join_class_path abs.a_path "."
+  | TCppMarshalType (Pointer (cls, _), _) ->
+    "cpp.MarshalPointer." ^ join_class_path cls.cl_path "."
   | TCppFunction _ -> "cpp.Function"
   | TCppObjCBlock _ -> "cpp.ObjCBlock"
   | TCppDynamicArray -> "Array.Any"
