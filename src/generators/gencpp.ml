@@ -297,6 +297,9 @@ let generate_source ctx =
          if (is_extern_value_class class_def || is_extern_pointer class_def) && not (ExtType.has_reference_semantics (TInst (class_def, []))) then
             no_reference_meta class_def.cl_pos;
 
+         if is_extern_pointer class_def && class_def.cl_constructor |> Option.is_some then
+            abort "CPP0004: Pointer type cannot have a constructor" class_def.cl_pos;
+
          let acc_build_xml  = acc.build_xml ^ (CppGen.get_class_code class_def Meta.BuildXml) in
          let acc_extern_src =
             match Ast.get_meta_string class_def.cl_meta Meta.SourceFile with
