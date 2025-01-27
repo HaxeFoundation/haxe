@@ -18,8 +18,13 @@ private class AudioContext {
 class Issue7794 extends Test {
 	function test() {
 		var ctx = new AudioContext();
-		AudioContext.connectMeta(ctx.destination);
 		AudioContext.connect(ctx.destination);
+		noAssert();
+	}
+
+	function testMeta() {
+		var ctx = new AudioContext();
+		AudioContext.connectMeta(ctx.destination);
 		noAssert();
 	}
 }
