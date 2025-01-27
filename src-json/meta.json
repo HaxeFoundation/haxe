@@ -1136,7 +1136,7 @@
 		"metadata": ":cpp.ValueType",
 		"doc": "",
 		"platforms": ["cpp"],
-		"targets": [ "TClass" ]
+		"targets": [ "TClass", "TAbstract" ]
 	},
 	{
 		"name": "CppPointerType",
@@ -1144,5 +1144,12 @@
 		"doc": "",
 		"platforms": ["cpp"],
 		"targets": [ "TClass" ]
+	},
+	{
+		"name": "CppManagedType",
+		"metadata": ":cpp.ManagedType",
+		"doc": "",
+		"platforms": ["cpp"],
+		"targets": ["TClass"]
 	}
 ]

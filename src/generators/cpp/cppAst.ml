@@ -69,6 +69,7 @@ and tcpp =
   | TCppReference of tcpp
   | TCppStruct of tcpp
   | TCppMarshalType of marshal_type * marshal_type_state
+  | TCppMarshalManagedType of tclass * tcpp list
   | TCppStar of tcpp * bool
   | TCppVoidStar
   | TCppVarArg

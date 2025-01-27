@@ -62,8 +62,27 @@ let is_internal_class = function
    | _ ->
       false
 
+let is_extern_managed_class cls =
+   has_class_flag cls CExtern && has_meta Meta.CppManagedType cls.cl_meta
+
+let is_extern_value_enum a =
+  a.a_enum && a.a_extern && has_meta Meta.CppValueType a.a_meta
+
+let is_extern_value_class cls =
+  has_class_flag cls CExtern && has_meta Meta.CppValueType cls.cl_meta
+
+let is_extern_pointer cls =
+  has_class_flag cls CExtern && has_meta Meta.CppPointerType cls.cl_meta
+
+let is_extern_value_tvar tvar =
+  match follow tvar.v_type with
+  | TInst (cls, _) ->
+    is_extern_value_class cls
+  | _ ->
+    false
+
 let is_native_class class_def =
-   (is_extern_class class_def || is_native_gen_class class_def) && not (is_internal_class class_def.cl_path)
+   (is_extern_class class_def || is_native_gen_class class_def) && not (is_internal_class class_def.cl_path) && not (is_extern_managed_class class_def)
 
 let can_quick_alloc klass =
    let rec implements_native_interface class_def =
@@ -74,7 +93,7 @@ let can_quick_alloc klass =
       | _ -> false
    in
 
-  (not (is_native_class klass)) && not (implements_native_interface klass)
+  (not (is_native_class klass)) && not (implements_native_interface klass) && not (is_extern_managed_class klass)
 
 let real_interfaces classes =
    List.filter (function t, pl ->

@@ -113,7 +113,8 @@ and cpp_type_from_path stack path params value_type_handler default =
       | TCppVoid (* ? *) | TCppDynamic -> TCppDynamicArray
       | TCppObject | TCppObjectPtr | TCppReference _ | TCppStruct _ | TCppStar _
       | TCppEnum _ | TCppInst _ | TCppInterface _ | TCppProtocol _ | TCppClass
-      | TCppDynamicArray | TCppObjectArray _ | TCppScalarArray _ | TCppMarshalType _ ->
+      | TCppDynamicArray | TCppObjectArray _ | TCppScalarArray _ | TCppMarshalType _
+      | TCppMarshalManagedType  _ ->
         TCppObjectArray arrayOf
       | _ -> TCppScalarArray arrayOf)
   | ([], "Null"), [ p ] -> cpp_type_of_null stack value_type_handler p
@@ -180,6 +181,9 @@ and cpp_instance_type stack klass params value_type_handler =
       else if is_extern_pointer klass then
         let tcpp_params = List.map (cpp_type_of stack with_stack_value_type) params in
         TCppMarshalType (Pointer (klass, tcpp_params), value_type_handler ())
+      else if is_extern_managed_class klass then
+        let tcpp_params = List.map (cpp_type_of stack value_type_handler) params in
+        TCppMarshalManagedType (klass, tcpp_params)
       else
         let tcpp_params = List.map (cpp_type_of stack value_type_handler) params in
         TCppInst (klass, tcpp_params)
@@ -376,7 +380,7 @@ let expression ctx request_type function_args function_type expression_tree forI
         match inferredType with
         | TCppInst (cls, _) when is_extern_class cls -> false
         | TCppEnum e when is_extern_enum e -> false
-        | TCppInst _ | TCppClass | TCppEnum _ ->
+        | TCppInst _ | TCppClass | TCppEnum _ | TCppMarshalManagedType _ ->
             tcpp_to_string funcType <> tcpp_to_string inferredType
         | _ -> false)
   in
@@ -399,7 +403,7 @@ let expression ctx request_type function_args function_type expression_tree forI
   in
 
   let is_instance_compare = function
-    | TCppInterface _ | TCppInst _ -> true
+    | TCppInterface _ | TCppInst _ | TCppMarshalManagedType _ -> true
     | _ -> false
   in
 
@@ -969,6 +973,7 @@ let expression ctx request_type function_args function_type expression_tree forI
         let gc_stack =
           retyper_ctx.gc_stack || match created_type with
           | TCppInst (t, _) -> not (is_native_class t)
+          | TCppMarshalManagedType _ -> true
           | _ -> false in
         ({ retyper_ctx with gc_stack = gc_stack }, CppCall (FuncNew created_type, retypedArgs), created_type)
       | TFunction func ->
@@ -1401,6 +1406,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             | TCppPointer (_, _)
             | TCppRawPointer (_, _)
             | TCppStar _
+            | TCppMarshalManagedType _
             | TCppInst _ ->
                 (retyper_ctx, CppCast (baseCpp, return_type), return_type)
             | TCppString -> (retyper_ctx, CppCastScalar (baseCpp, "::String"), return_type)

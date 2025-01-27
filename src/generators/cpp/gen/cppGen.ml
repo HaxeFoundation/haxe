@@ -687,6 +687,36 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
                 closeCall := ")";
                 let ptr, obj = get_extern_value_type_boxed value_type in
                 Printf.sprintf "%s( new %s " ptr obj
+              | TCppMarshalManagedType (klass, params) ->
+                let get_meta_field field =
+                  match Meta.get Meta.CppManagedType klass.cl_meta with
+                  | _, [ (EObjectDecl decls, _) ], _ ->  
+                    List.find_opt (fun ((n, _, _), _) -> n = field) decls
+                  | _ ->
+                    None
+                in
+                let typeParams =
+                  match params with
+                  | [] -> ""
+                  | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >"
+                in
+                let namespace =
+                  match get_meta_field "namespace" with
+                  | Some (_,( EArrayDecl ([]), _)) -> ""
+                  | Some (_,( EArrayDecl (els), _)) ->
+                    "::" ^ (els
+                    |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
+                    |> String.concat "::")
+                  | _ ->
+                    ""
+                in
+                let t = match get_meta_field "type" with
+                | Some (_, (EConst (String (s, _)), _) ) ->
+                  s ^ typeParams
+                | _ ->
+                  snd klass.cl_path ^ typeParams
+                in
+                Printf.sprintf "new %s::%s" namespace t
               | TCppMarshalType (value_type, Stack) ->
                 newType |> tcpp_to_string
               | TCppInst (klass, p) when is_native_class klass ->
@@ -1090,7 +1120,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         out ("->_hx_get" ^ baseType ^ "(" ^ string_of_int index ^ ")");
         match valueType with
         | TCppObjectArray _ | TCppScalarArray _ | TCppDynamicArray | TCppClass
-        | TCppEnum _ | TCppInst _ ->
+        | TCppEnum _ | TCppInst _ | TCppMarshalManagedType _ ->
             out (".StaticCast< " ^ tcpp_to_string valueType ^ " >()")
         | _ -> ())
     | CppIntSwitch (condition, cases, defVal) ->

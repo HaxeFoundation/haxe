@@ -52,6 +52,7 @@ let autocast_filter for_cppia return_type cppexpr =
     | TCppDynamicArray
     | TCppObjectPtr
     | TCppVarArg
+    | TCppMarshalManagedType _
     | TCppInst _ ->
       mk_cppexpr (CppCast (cppexpr, return_type)) return_type
     | TCppObjC k ->
@@ -129,11 +130,13 @@ let autocast_filter for_cppia return_type cppexpr =
       mk_cppexpr (CppCast (ptr_cast, TCppDynamic)) TCppDynamic
     | TCppStar (t, const), TCppReference _
     | TCppStar (t, const), TCppInst _
+    | TCppStar (t, const), TCppMarshalManagedType _
     | TCppStar (t, const), TCppStruct _ ->
       mk_cppexpr (CppDereference cppexpr) return_type
     | TCppInst (t, _), TCppStar _ when is_native_class t && match cppexpr.cppexpr with | CppCall (FuncNew _, _) -> true | _ -> false ->
       mk_cppexpr (CppNewNative cppexpr) return_type
     | TCppInst _, TCppStar (p, const)
+    | TCppMarshalManagedType _, TCppStar (p, const)
     | TCppStruct _, TCppStar (p, const) ->
       mk_cppexpr (CppAddressOf cppexpr) return_type
     | TCppObjectPtr, TCppObjectPtr ->

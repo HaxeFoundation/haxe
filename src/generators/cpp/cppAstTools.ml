@@ -277,22 +277,6 @@ let join_class_path_remap path separator =
   | "Class" -> "hx::Class"
   | x -> x
 
-let is_extern_value_enum a =
-  a.a_enum && a.a_extern && has_meta Meta.CppValueType a.a_meta
-
-let is_extern_value_class cls =
-  has_class_flag cls CExtern && has_meta Meta.CppValueType cls.cl_meta
-
-let is_extern_pointer cls =
-  has_class_flag cls CExtern && has_meta Meta.CppPointerType cls.cl_meta
-
-let is_extern_value_tvar tvar =
-  match follow tvar.v_type with
-  | TInst (cls, _) ->
-    is_extern_value_class cls
-  | _ ->
-    false
-
 let rec s_tcpp = function
   | CppInt _ -> "CppInt"
   | CppFloat _ -> "CppFloat"
@@ -435,6 +419,37 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppNativePointer klass ->
       let name = join_class_path_remap klass.cl_path "::" in
       if suffix = "_obj" then name else "::hx::Native< " ^ name ^ "* >"
+  | TCppMarshalManagedType (klass, params) ->
+    let get_meta_field field =
+      match Meta.get Meta.CppManagedType klass.cl_meta with
+      | _, [ (EObjectDecl decls, _) ], _ ->  
+        List.find_opt (fun ((n, _, _), _) -> n = field) decls
+      | _ ->
+        None
+    in
+    let typeParams =
+      match params with
+      | [] -> ""
+      | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >"
+    in
+    let namespace =
+      match get_meta_field "namespace" with
+      | Some (_,( EArrayDecl ([]), _)) -> ""
+      | Some (_,( EArrayDecl (els), _)) ->
+        "::" ^ (els
+        |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
+        |> String.concat "::")
+      | _ ->
+        ""
+    in
+    let t = match get_meta_field "type" with
+    | Some (_, (EConst (String (s, _)), _) ) ->
+      s ^ typeParams
+    | _ ->
+      snd klass.cl_path ^ typeParams
+    in
+
+    Printf.sprintf "::hx::ObjectPtr< %s::%s >" namespace t
   | TCppInst (klass, p) ->
       cpp_class_path_of klass p ^ if is_native_class klass then "" else suffix
   | TCppInterface klass when suffix = "_obj" ->
@@ -480,30 +495,30 @@ and get_marshalled_type value_type =
         List.find_opt (fun ((n, _, _), _) -> n = field) decls
       | _ ->
         None
-      in
-      let typeParams =
-        match params with
-        | [] -> ""
-        | _ -> "< " ^ String.concat "," (List.map marshal_type_parameter_to_string params) ^ " >"
-        in
-      let namespace =
-        match get_meta_field "namespace" with
-        | Some (_,( EArrayDecl ([]), _)) -> ""
-        | Some (_,( EArrayDecl (els), _)) ->
-          "::" ^ (els
-          |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
-          |> String.concat "::")
-        | _ ->
-          ""
-      in
-      let t = match get_meta_field "type" with
-      | Some (_, (EConst (String (s, _)), _) ) ->
-        s ^ typeParams
+    in
+    let typeParams =
+      match params with
+      | [] -> ""
+      | _ -> "< " ^ String.concat "," (List.map marshal_type_parameter_to_string params) ^ " >"
+    in
+    let namespace =
+      match get_meta_field "namespace" with
+      | Some (_,( EArrayDecl ([]), _)) -> ""
+      | Some (_,( EArrayDecl (els), _)) ->
+        "::" ^ (els
+        |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
+        |> String.concat "::")
       | _ ->
-        snd path ^ typeParams
-      in
-      
-      Printf.sprintf "%s::%s" namespace t
+        ""
+    in
+    let t = match get_meta_field "type" with
+    | Some (_, (EConst (String (s, _)), _) ) ->
+      s ^ typeParams
+    | _ ->
+      snd path ^ typeParams
+    in
+    
+    Printf.sprintf "%s::%s" namespace t
   in
 
   match value_type with
@@ -762,6 +777,7 @@ let cpp_is_dynamic_type = function
 
 let is_object_element member_type =
   match member_type with
+   | TCppMarshalManagedType _
    | TCppMarshalType (_, Promoted) ->
       true
    | TCppInst (x, _)
@@ -789,6 +805,7 @@ let cpp_variant_type_of t = match t with
   | TCppReference _
   | TCppStruct _
   | TCppMarshalType _
+  | TCppMarshalManagedType _
   | TCppStar _
   | TCppVoid
   | TCppFastIterator _
@@ -830,7 +847,8 @@ let cpp_cast_variant_type_of t = match t with
   | TCppDynamicArray
   | TCppClass
   | TCppEnum _
-  | TCppInst _ -> t
+  | TCppInst _
+  | TCppMarshalManagedType _ -> t
   | _ -> cpp_variant_type_of t
 
 let enum_getter_type t =
