@@ -1,0 +1,3 @@
+import B;
+
+typedef A = {}
