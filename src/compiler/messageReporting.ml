@@ -410,13 +410,14 @@ let display_messages ctx on_message = begin
 			end
 	end;
 
+	let messages = Ast.remove_duplicates (fun m1 m2 -> m1 <> m2) (List.rev ctx.messages) in
 	List.iter (fun cm ->
 		if !log_messages then (Option.get !log_message) cm;
 
 		match (message_formatter ectx cm) with
 			| None -> ()
 			| Some str -> on_message cm.cm_severity str
-	) (List.rev ctx.messages);
+	) messages;
 
 	if !log_messages then (Option.get !close_logs) ();
 end
