@@ -12,7 +12,6 @@ class Vfs {
 	public function new(physicalPath:String) {
 		this.physicalPath = physicalPath;
 		if (!FileSystem.exists(physicalPath)) {
-			// throw 'Cannot create virtual file-system for $physicalPath: directory exists';
 			FileSystem.createDirectory(physicalPath);
 		}
 	}

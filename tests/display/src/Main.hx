@@ -12,6 +12,7 @@ class Main {
 		report.displaySuccessResults = NeverShowSuccessResults;
 
 		var haxeServer = @:privateAccess BaseDisplayTestContext.haxeServer;
+		Vfs.removeDir('${Sys.getCwd()}/test/cases');
 		runner.run();
 		haxeServer.close();
 	}
