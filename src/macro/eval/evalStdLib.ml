@@ -924,6 +924,12 @@ module StdEReg = struct
 			vfalse
 		end
 	)
+	
+	let matchedNum = vifun0 (fun vthis ->
+		let this = this vthis in
+		let substrings = if Array.length this.r_groups = 0 then exc_string "Invalid regex operation because no match was made" else this.r_groups.(0) in
+		vint (num_of_subs substrings)
+	)
 
 	let replace = vifun2 (fun vthis s by ->
 		let this = this vthis in
@@ -1554,6 +1560,10 @@ module StdIntMap = struct
 		RuntimeIntHashtbl.clear (this vthis);
 		vnull
 	)
+	
+	let size = vifun0 (fun vthis ->
+		vint (IntHashtbl.size (this vthis))
+	)
 end
 
 module StdStringMap = struct
@@ -1613,6 +1623,10 @@ module StdStringMap = struct
 		RuntimeStringHashtbl.clear (this vthis);
 		vnull
 	)
+	
+	let size = vifun0 (fun vthis ->
+		vint (StringHashtbl.size (this vthis))
+	)
 end
 
 module StdObjectMap = struct
@@ -1670,6 +1684,10 @@ module StdObjectMap = struct
 	let clear = vifun0 (fun vthis ->
 		ValueHashtbl.reset (this vthis);
 		vnull
+	)
+	
+	let size = vifun0 (fun vthis ->
+		vint (ValueHashtbl.length (this vthis))
 	)
 end
 
@@ -3205,6 +3223,7 @@ let init_maps builtins =
 		"set",StdIntMap.set;
 		"toString",StdIntMap.toString;
 		"clear",StdIntMap.clear;
+		"size",StdIntMap.size;
 	];
 	init_fields builtins (["haxe";"ds"],"ObjectMap") [] [
 		"copy",StdObjectMap.copy;
@@ -3217,6 +3236,7 @@ let init_maps builtins =
 		"set",StdObjectMap.set;
 		"toString",StdObjectMap.toString;
 		"clear",StdObjectMap.clear;
+		"size",StdObjectMap.size;
 	];
 	init_fields builtins (["haxe";"ds"],"StringMap") [] [
 		"copy",StdStringMap.copy;
@@ -3229,6 +3249,7 @@ let init_maps builtins =
 		"set",StdStringMap.set;
 		"toString",StdStringMap.toString;
 		"clear",StdStringMap.clear;
+		"size",StdStringMap.size;
 	]
 
 let init_constructors builtins =
@@ -3500,6 +3521,7 @@ let init_standard_library builtins =
 		"matchedPos",StdEReg.matchedPos;
 		"matchedRight",StdEReg.matchedRight;
 		"matchSub",StdEReg.matchSub;
+		"matchedNum",StdEReg.matchedNum;
 		"replace",StdEReg.replace;
 		"split",StdEReg.split;
 	];

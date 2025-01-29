@@ -96,4 +96,6 @@ extern class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 		See `Map.clear`
 	**/
 	function clear():Void;
+	
+	function size():Int;
 }
