@@ -184,7 +184,7 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 			keysLoop(node.right, acc);
 		}
 	}
-	
+
 	static function sizeLoop<K,V>(node:TreeNode<K, V>):Int {
 		if (node != null) {
 			return sizeLoop(node.left) + 1 + sizeLoop(node.right);
@@ -244,8 +244,8 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 	public function clear():Void {
 		root = null;
 	}
-	
-	function get_size():Int {
+
+	public function size():Int {
 		return sizeLoop(root);
 	}
 }

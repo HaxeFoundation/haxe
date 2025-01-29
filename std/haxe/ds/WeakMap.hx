@@ -104,8 +104,11 @@ class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		See `Map.clear`
 	**/
 	public function clear():Void {}
-	
-	function get_size():Int {
+
+	/**
+		See `Map.size`
+	**/
+	public function size():Int {
 		return 0;
 	}
 }

@@ -107,9 +107,12 @@ abstract HashMap<K:{function hashCode():Int;}, V>(HashMapData<K, V>) {
 		this.keys.clear();
 		this.values.clear();
 	}
-	
-	inline function get_size():Int {
-		return this.keys.size;
+
+	/**
+		See `Map.size`
+	**/
+	public inline function size():Int {
+		return this.keys.size();
 	}
 }
 

@@ -48,11 +48,6 @@ import haxe.Constraints.IMap;
 @:multiType(@:followWithAbstracts K)
 abstract Map<K, V>(IMap<K, V>) {
 	/**
-		Contains the size of the map.
-	**/
-	var size(get, never):Int;
-	
-	/**
 		Creates a new Map.
 
 		This becomes a constructor call to one of the specialization types in
@@ -164,9 +159,13 @@ abstract Map<K, V>(IMap<K, V>) {
 	public inline function clear():Void {
 		this.clear();
 	}
-	
-	inline function get_size():Int {
-		return this.size;
+
+
+	/**
+		Returns size of `this` Map.
+	**/
+	public inline function size():Int {
+		return this.size();
 	}
 
 	@:arrayAccess @:noCompletion public inline function arrayWrite(k:K, v:V):V {
