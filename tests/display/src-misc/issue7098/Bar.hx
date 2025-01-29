@@ -1,4 +1,4 @@
-package misc.issue7098;
+package issue7098;
 
 enum abstract Foo(Int) {
 	var Value = 0;

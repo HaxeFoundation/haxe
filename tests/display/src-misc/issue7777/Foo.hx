@@ -1,4 +1,4 @@
-package misc.issue7777;
+package issue7777;
 
 #if (eval || macro)
 import haxe.macro.Expr;

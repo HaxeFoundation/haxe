@@ -1,4 +1,4 @@
-package misc.issue10704;
+package issue10704;
 
 class Statics {
 	public static final fooPublic = 0;

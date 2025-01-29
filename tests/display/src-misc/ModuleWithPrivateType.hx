@@ -1,4 +1,4 @@
-package misc;
+package;
 
 class PublicClass {}
 private class PrivateClass {}

@@ -2,7 +2,7 @@ package cases;
 
 class Issue9554 extends DisplayTestCase {
 	/**
-		using cases.Issue9554.Main;
+		using Issue9554.Main;
 
 		class Main {
 			static public function main() {
@@ -25,7 +25,7 @@ class Issue9554 extends DisplayTestCase {
 	}
 
 	/**
-		using cases.Issue9554.Main;
+		using Issue9554.Main;
 
 		class Main {
 			static public function main() {

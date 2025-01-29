@@ -3,7 +3,7 @@ package cases;
 class StaticExtension extends DisplayTestCase {
 	/**
 
-		using cases.StaticExtension.MyStaticExtension;
+		using StaticExtension.MyStaticExtension;
 		class Something {
 			static function test() {
 				var map = ["a" => 1];
@@ -25,7 +25,7 @@ class StaticExtension extends DisplayTestCase {
 
 	/**
 
-		using cases.StaticExtension.MyStaticExtension;
+		using StaticExtension.MyStaticExtension;
 		class Something {
 			static function test() {
 				var map = new haxe.ds.StringMap();
@@ -46,7 +46,7 @@ class StaticExtension extends DisplayTestCase {
 	}
 
 	/**
-		using cases.StaticExtension;
+		using StaticExtension;
 
 		class Overload1 {
 			public static function test(o:String):Void { }
