@@ -344,4 +344,4 @@ new Map<{a: Int}, String>().size() == 0;
 
 new Map<unit.MyAbstract.ClassWithHashCode, Int>().size() == 0;
 [new unit.MyAbstract.ClassWithHashCode(1) => 1].size() == 1;
-[new unit.MyAbstract.ClassWithHashCode(1) => 1, new unit.MyAbstract.ClassWithHashCode(3) => 3].size() == 1;
+[new unit.MyAbstract.ClassWithHashCode(1) => 1, new unit.MyAbstract.ClassWithHashCode(3) => 3].size() == 2;

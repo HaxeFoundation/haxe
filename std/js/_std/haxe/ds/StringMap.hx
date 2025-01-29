@@ -144,8 +144,8 @@ import haxe.DynamicAccess;
 	}
 
 	public inline function size():Int {
-		var s = 0;
-		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}++", h, s);
+		var s:Any = 0;
+		js.Syntax.code("for( var key in {0} ) {1}++", h, s);
 		return s;
 	}
 
@@ -355,7 +355,7 @@ private class StringMapIterator<T> {
 	}
 
 	public inline function size():Int {
-		var s = 0;
+		var s:Any = 0;
 		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}++", h, s);
 		return s;
 	}

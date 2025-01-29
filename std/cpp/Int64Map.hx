@@ -110,6 +110,10 @@ import haxe.Int64;
 		#end
 	}
 
+	public function size():Int {
+		return untyped __global__.__root_hash_size(h);
+	}
+
 	#if (scriptable)
 	private function setString(key:Int64, val:String):Void {
 		untyped __int64_hash_set_string(__cpp__("HX_MAP_THIS"), key, val);

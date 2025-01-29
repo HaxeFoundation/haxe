@@ -5,6 +5,7 @@
 		{"label": "JVM", "args": ["compile-jvm-only.hxml", "-cmd", "java -jar bin/unit.jar"]},
 		{"label": "Interp", "args": ["compile-macro.hxml"]},
 		{"label": "Lua", "args": ["compile-lua.hxml", "-cmd", "lua bin/unit.lua"]},
+		{"label": "Python", "args": ["compile-python.hxml", "-cmd", "python3 bin/unit.py"]},
 	],
 	"[haxe]": {
 		"editor.formatOnSave": true,

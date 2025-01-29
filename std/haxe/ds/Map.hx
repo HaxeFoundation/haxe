@@ -160,7 +160,6 @@ abstract Map<K, V>(IMap<K, V>) {
 		this.clear();
 	}
 
-
 	/**
 		Returns size of `this` Map.
 	**/
