@@ -651,7 +651,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             (retyper_ctx, CppFunction (FuncFromStaticFunction, funcReturn), exprType)
           | FStatic (({ cl_kind = KAbstractImpl abs }), member) when is_extern_value_enum abs ->
             let exprType   = cpp_type_of_with with_promoted_value_type member.cf_type in
-            let enum_name  = Printf.sprintf "%s::%s" (get_marshalled_type (ValueEnum abs)) (member.cf_name) in
+            let enum_name  = Printf.sprintf "%s::%s" (get_native_marshalled_type (ValueEnum abs)) (member.cf_name) in
 
             (retyper_ctx, CppCall ((FuncNew exprType), [ mk_cppexpr (CppExtern (enum_name, false)) exprType ]), exprType)
           | FStatic (clazz, member) ->

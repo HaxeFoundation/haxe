@@ -687,36 +687,23 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
                 closeCall := ")";
                 let ptr, obj = get_extern_value_type_boxed value_type in
                 Printf.sprintf "%s( new %s " ptr obj
-              | TCppMarshalManagedType (klass, params) ->
-                let get_meta_field field =
-                  match Meta.get Meta.CppManagedType klass.cl_meta with
-                  | _, [ (EObjectDecl decls, _) ], _ ->  
-                    List.find_opt (fun ((n, _, _), _) -> n = field) decls
-                  | _ ->
-                    None
+              | TCppMarshalManagedType (cls, params) ->
+                let type_str, flags = build_type cls.cl_path cls.cl_pos params cls.cl_meta Meta.CppManagedType tcpp_to_string in
+                let standard_naming = List.exists (fun f -> f = "StandardNaming") flags in
+                let ptr =
+                  if standard_naming then
+                    type_str
+                  else
+                    Printf.sprintf "::hx::ObjectPtr< %s >" type_str
                 in
-                let typeParams =
-                  match params with
-                  | [] -> ""
-                  | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >"
+                let obj =
+                  if standard_naming then
+                    type_str ^ "_obj"
+                  else
+                    type_str
                 in
-                let namespace =
-                  match get_meta_field "namespace" with
-                  | Some (_,( EArrayDecl ([]), _)) -> ""
-                  | Some (_,( EArrayDecl (els), _)) ->
-                    "::" ^ (els
-                    |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
-                    |> String.concat "::")
-                  | _ ->
-                    ""
-                in
-                let t = match get_meta_field "type" with
-                | Some (_, (EConst (String (s, _)), _) ) ->
-                  s ^ typeParams
-                | _ ->
-                  snd klass.cl_path ^ typeParams
-                in
-                Printf.sprintf "new %s::%s" namespace t
+                closeCall := ")";
+                Printf.sprintf "%s( new %s " ptr obj
               | TCppMarshalType (value_type, Stack) ->
                 newType |> tcpp_to_string
               | TCppInst (klass, p) when is_native_class klass ->

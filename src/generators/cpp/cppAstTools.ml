@@ -369,10 +369,10 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppObject -> " ::Dynamic"
   | TCppObjectPtr -> " ::hx::Object *"
   | TCppStruct t -> "cpp::Struct< " ^ tcpp_to_string t ^ " >"
-  | TCppReference (TCppMarshalType (value_type, _)) -> Printf.sprintf "%s&" (get_marshalled_type value_type)
+  | TCppReference (TCppMarshalType (value_type, _)) -> Printf.sprintf "%s&" (get_native_marshalled_type value_type)
   | TCppReference t -> tcpp_to_string t ^ " &"
   | TCppStar (TCppMarshalType (value_type, _), const) ->
-    Printf.sprintf "%s%s*" (if const then "const " else "") (get_marshalled_type value_type)
+    Printf.sprintf "%s%s*" (if const then "const " else "") (get_native_marshalled_type value_type)
   | TCppStar (t, const) ->
       (if const then "const " else "") ^ tcpp_to_string t ^ " *"
   | TCppVoid -> "void"
@@ -387,11 +387,11 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppFastIterator it ->
       "::cpp::FastIterator" ^ suffix ^ "< " ^ tcpp_to_string it ^ " >"
   | TCppPointer (ptrType, TCppMarshalType (value_type, _)) ->
-    Printf.sprintf "::cpp::%s< %s >" ptrType (get_marshalled_type value_type)
+    Printf.sprintf "::cpp::%s< %s >" ptrType (get_native_marshalled_type value_type)
   | TCppPointer (ptrType, valueType) ->
       "::cpp::" ^ ptrType ^ "< " ^ tcpp_to_string valueType ^ " >"
   | TCppRawPointer (constName, TCppMarshalType (value_type, _)) ->
-    Printf.sprintf "%s%s*" constName (get_marshalled_type value_type)
+    Printf.sprintf "%s%s*" constName (get_native_marshalled_type value_type)
   | TCppRawPointer (constName, valueType) ->
       constName ^ tcpp_to_string valueType ^ "*"
   | TCppFunction (argTypes, retType, abi) ->
@@ -419,37 +419,6 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppNativePointer klass ->
       let name = join_class_path_remap klass.cl_path "::" in
       if suffix = "_obj" then name else "::hx::Native< " ^ name ^ "* >"
-  | TCppMarshalManagedType (klass, params) ->
-    let get_meta_field field =
-      match Meta.get Meta.CppManagedType klass.cl_meta with
-      | _, [ (EObjectDecl decls, _) ], _ ->  
-        List.find_opt (fun ((n, _, _), _) -> n = field) decls
-      | _ ->
-        None
-    in
-    let typeParams =
-      match params with
-      | [] -> ""
-      | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >"
-    in
-    let namespace =
-      match get_meta_field "namespace" with
-      | Some (_,( EArrayDecl ([]), _)) -> ""
-      | Some (_,( EArrayDecl (els), _)) ->
-        "::" ^ (els
-        |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
-        |> String.concat "::")
-      | _ ->
-        ""
-    in
-    let t = match get_meta_field "type" with
-    | Some (_, (EConst (String (s, _)), _) ) ->
-      s ^ typeParams
-    | _ ->
-      snd klass.cl_path ^ typeParams
-    in
-
-    Printf.sprintf "::hx::ObjectPtr< %s::%s >" namespace t
   | TCppInst (klass, p) ->
       cpp_class_path_of klass p ^ if is_native_class klass then "" else suffix
   | TCppInterface klass when suffix = "_obj" ->
@@ -459,75 +428,98 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppGlobal -> "::Dynamic"
   | TCppNull -> " ::Dynamic"
   | TCppCode _ -> "Code"
-  
+
+  | TCppMarshalManagedType (cls, params) ->
+    let type_str, flags = build_type cls.cl_path cls.cl_pos params cls.cl_meta Meta.CppManagedType tcpp_to_string in
+    let standard_naming = List.exists (fun f -> f = "StandardNaming") flags in
+    let wrapped  =
+      if suffix = "_obj" then
+        if standard_naming then
+          type_str ^ suffix
+        else
+          type_str
+      else
+        if standard_naming then
+          Printf.sprintf "%s< %s_obj >" type_str type_str
+        else
+          Printf.sprintf "::hx::ObjectPtr< %s >" type_str
+      in
+    wrapped
+
   | TCppMarshalType (Pointer _ as value_type, Promoted) ->
-    get_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s* >"
+    get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s* >"
   | TCppMarshalType (Pointer _ as value_type, Reference) ->
-    get_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::PointerReference< %s >"
+    get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::PointerReference< %s >"
   | TCppMarshalType (Pointer _ as value_type, Stack) ->
-    get_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::PointerType< %s >"
+    get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::PointerType< %s >"
 
   | TCppMarshalType ((ValueClass _ | ValueEnum _) as value_type, Promoted) ->
-    get_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s >"
+    get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s >"
   | TCppMarshalType ((ValueClass _ | ValueEnum _) as value_type, Reference) ->
-    get_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::ValueReference< %s >"
+    get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::ValueReference< %s >"
   | TCppMarshalType ((ValueClass _ | ValueEnum _) as value_type, Stack) ->
-    get_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::ValueType< %s >"
+    get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::ValueType< %s >"
 
-and get_marshalled_type value_type =
-  let build_type path pos params meta target =
-    let marshal_type_parameter_to_string tcpp =
-      match tcpp with
-      | TCppMarshalType (value_type, _) -> get_marshalled_type value_type
-      | TCppScalar _
-      | TCppPointer _
-      | TCppRawPointer _
-      | TCppStar _
-      | TCppVoidStar
-      | TCppStruct _ ->
-        tcpp_to_string_suffix "" tcpp
-      | _ ->
-        abort "CPP0003: Invalid parameter for a marshalling type" pos
-    in
-    let get_meta_field field =
-      match Meta.get target meta with
-      | _, [ (EObjectDecl decls, _) ], _ ->  
-        List.find_opt (fun ((n, _, _), _) -> n = field) decls
-      | _ ->
-        None
-    in
-    let typeParams =
-      match params with
-      | [] -> ""
-      | _ -> "< " ^ String.concat "," (List.map marshal_type_parameter_to_string params) ^ " >"
-    in
-    let namespace =
-      match get_meta_field "namespace" with
-      | Some (_,( EArrayDecl ([]), _)) -> ""
-      | Some (_,( EArrayDecl (els), _)) ->
-        "::" ^ (els
-        |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
-        |> String.concat "::")
-      | _ ->
-        ""
-    in
-    let t = match get_meta_field "type" with
-    | Some (_, (EConst (String (s, _)), _) ) ->
-      s ^ typeParams
+and build_type path pos params meta target parameter_handler =
+  let get_meta_field field =
+    match Meta.get target meta with
+    | _, [ (EObjectDecl decls, _) ], _ ->  
+      List.find_opt (fun ((n, _, _), _) -> n = field) decls
     | _ ->
-      snd path ^ typeParams
-    in
-    
-    Printf.sprintf "%s::%s" namespace t
+      None
+  in
+  let typeParams =
+    match params with
+    | [] -> ""
+    | _ -> "< " ^ String.concat "," (List.map parameter_handler params) ^ " >"
+  in
+  let namespace =
+    match get_meta_field "namespace" with
+    | Some (_,( EArrayDecl ([]), _)) -> ""
+    | Some (_,( EArrayDecl (els), _)) ->
+      "::" ^ (els
+      |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
+      |> String.concat "::")
+    | _ ->
+      ""
+  in
+  let t = match get_meta_field "type" with
+  | Some (_, (EConst (String (s, _)), _) ) ->
+    s ^ typeParams
+  | _ ->
+    snd path ^ typeParams
+  in
+  let flags = match get_meta_field "flags" with
+  | Some (_, (EArrayDecl decls, _) ) ->
+    decls |> List.filter_map (fun (e, _) -> match e with | EConst (Ident c) -> Some c | _ -> None)
+  | _ ->
+    []
+  in
+  
+  Printf.sprintf "%s::%s" namespace t, flags
+
+and get_native_marshalled_type value_type =
+  let marshal_type_parameter_to_string pos tcpp =
+    match tcpp with
+    | TCppMarshalType (value_type, _) -> get_native_marshalled_type value_type
+    | TCppScalar _
+    | TCppPointer _
+    | TCppRawPointer _
+    | TCppStar _
+    | TCppVoidStar
+    | TCppStruct _ ->
+      tcpp_to_string_suffix "" tcpp
+    | _ ->
+      abort "CPP0003: Invalid parameter for a marshalling type" pos
   in
 
   match value_type with
   | ValueClass (cls, params) ->
-    build_type cls.cl_path cls.cl_pos params cls.cl_meta Meta.CppValueType
+    build_type cls.cl_path cls.cl_pos params cls.cl_meta Meta.CppValueType (marshal_type_parameter_to_string cls.cl_pos) |> fst
   | ValueEnum abs ->
-    build_type abs.a_path abs.a_pos [] abs.a_meta Meta.CppValueType
+    build_type abs.a_path abs.a_pos [] abs.a_meta Meta.CppValueType (marshal_type_parameter_to_string abs.a_pos) |> fst
   | Pointer (cls, params) ->
-    build_type cls.cl_path cls.cl_pos params cls.cl_meta Meta.CppPointerType
+    build_type cls.cl_path cls.cl_pos params cls.cl_meta Meta.CppPointerType (marshal_type_parameter_to_string cls.cl_pos) |> fst
 
 and tcpp_objc_block_struct argTypes retType =
   let args = String.concat "," (List.map tcpp_to_string argTypes) in
@@ -543,7 +535,7 @@ and tcpp_to_string tcpp = tcpp_to_string_suffix "" tcpp
 
 and cpp_class_path_of klass params =
    if is_extern_value_class klass then
-    get_marshalled_type (ValueClass (klass, params))
+    get_native_marshalled_type (ValueClass (klass, params))
    else
       match get_meta_string klass.cl_meta Meta.Native with
       | Some s ->
