@@ -1877,14 +1877,18 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
 		let e_if = mk (TIf(e_cond,cast e1,Some e2)) iftype p in
 		vr#to_texpr e_if
-	| EBinop (OpAssignOp OpNullCoal,e1_orig,e2) ->
+	| EBinop (OpAssignOp OpNullCoal,e1,e2) ->
 		let vr = new value_reference ctx in
-		let e1 = type_expr ctx (Expr.ensure_block e1_orig) with_type in
+		let e_assign = type_assign ctx e1 (Expr.ensure_block e2) WithType.value p in
+		let e1 = match e_assign.eexpr with
+			| TBinop(OpAssign,e1_left,_) -> e1_left
+			| _ -> raise_typing_error "Invalid null coalescing assignment" p
+		in
 		let e1_null_t = if is_nullable e1.etype then e1.etype else ctx.t.tnull e1.etype in
 		let e1_var = vr#as_var (Option.default "tmp" (WithType.get_expected_name with_type)) {e1 with etype = e1_null_t} in
-		let e_null = Builder.make_null e1_null_t e1.epos in
-		let e_cond = mk (TBinop(OpNotEq,e1_var,e_null)) ctx.t.tbool e1.epos in
-		let e_assign = type_assign ctx e1_orig (Expr.ensure_block e2) with_type p in
+
+		let e_null = Builder.make_null e1_null_t p in
+		let e_cond = mk (TBinop(OpNotEq,e1_var,e_null)) ctx.t.tbool p in
 		let e_if = mk (TIf(e_cond,e1_var,Some e_assign)) e1.etype p in
 		vr#to_texpr e_if
 	| EBinop (op,e1,e2) ->

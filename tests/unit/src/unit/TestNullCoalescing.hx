@@ -142,5 +142,48 @@ class TestNullCoalescing extends Test {
 		t(HelperMacros.isNullable(nullF2));
 		f(HelperMacros.isNullable(notNullF));
 		f(HelperMacros.isNullable(notNullF2));
+
+		// test typing
+		#if !macro
+		var a = mut() ?? mut();
+		eq(2, getMut());
+		resetMut();
+
+		var a = 0;
+		mutAssignLeft() ??= mut() ?? mut();
+		eq(3, getMut());
+		resetMut();
+
+		var a = 0;
+		final b = a ??= mut();
+		eq(1, getMut());
+		resetMut();
+
+		var a = 0;
+		mutAssignLeft() ??= 1;
+		eq(1, getMut());
+		resetMut();
+		#end
+	}
+
+	static var mutI = 0;
+
+	static macro function mut() {
+		mutI++;
+		return macro mutI;
+	}
+
+	static macro function getMut() {
+		return macro $v{mutI};
+	}
+
+	static macro function resetMut() {
+		mutI = 0;
+		return macro $v{mutI};
+	}
+
+	static macro function mutAssignLeft() {
+		mutI++;
+		return macro a;
 	}
 }
