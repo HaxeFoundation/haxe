@@ -440,7 +440,7 @@ and tcpp_to_string_suffix suffix tcpp =
           type_str
       else
         if standard_naming then
-          type_str ^ "_obj"
+          type_str
         else
           Printf.sprintf "::hx::ObjectPtr< %s >" type_str
       in
