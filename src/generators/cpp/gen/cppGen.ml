@@ -118,13 +118,20 @@ let cpp_macro_var_type_of var =
   else t
 
 let cpp_class_name klass =
-  let globalNamespace =
-    match get_meta_string klass.cl_meta Meta.Native with
-    | Some _ -> ""
-    | None -> "::"
-  in
-  let path = globalNamespace ^ join_class_path_remap klass.cl_path "::" in
-  if is_native_class klass || path = "::String" then path else path ^ "_obj"
+  if is_extern_value_class klass then
+    get_native_marshalled_type (ValueClass (klass, []))
+  else if is_extern_managed_class klass then
+    let type_str, flags = build_type klass.cl_path klass.cl_pos [] klass.cl_meta Meta.CppManagedType tcpp_to_string in
+    let standard_naming = List.exists (fun f -> f = "StandardNaming") flags in
+    if standard_naming then type_str ^ "_obj" else type_str
+  else
+    let globalNamespace =
+      match get_meta_string klass.cl_meta Meta.Native with
+      | Some _ -> ""
+      | None -> "::"
+    in
+    let path = globalNamespace ^ join_class_path_remap klass.cl_path "::" in
+    if is_native_class klass || path = "::String" then path else path ^ "_obj"
 
 let cpp_is_static_extension member =
   Meta.has Meta.NativeStaticExtension member.cf_meta
