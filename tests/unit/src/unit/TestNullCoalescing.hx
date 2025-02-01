@@ -53,6 +53,7 @@ class TestNullCoalescing extends Test {
 		eq(nullInt ?? 2, 2);
 		eq(nullInt ?? (2 : Null<Int>) ?? 3 + 100, 2);
 		eq(nullInt ?? nullInt ?? 3, 3);
+		f(HelperMacros.isNullable(nullInt ?? nullInt ?? 3));
 
 		final i:Null<Int> = 1;
 		final arr:Array<Int> = [i ?? 2];
@@ -76,6 +77,8 @@ class TestNullCoalescing extends Test {
 		var a:Null<Int> = null;
 		a ??= 5;
 		eq(a, 5);
+		t(HelperMacros.isNullable(a ??= null));
+		f(HelperMacros.isNullable(a ??= 5));
 		var a:Null<Int> = null;
 		eq(a ??= 5, 5);
 		eq(a, 5);
@@ -95,6 +98,10 @@ class TestNullCoalescing extends Test {
 		eq(a, "_");
 		eq(b, "_");
 		eq(c, "_");
+
+		final map:Map<String, Array<Int>> = [];
+		map["foo"] ??= [];
+		t(map["foo"] != null);
 
 		final a:Null<Int> = ({} : Dynamic).x;
 		eq(a ?? 2, 2);
