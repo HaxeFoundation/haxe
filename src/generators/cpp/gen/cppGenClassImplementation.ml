@@ -24,7 +24,7 @@ let gen_function ctx class_def class_name is_static func =
   let needsWrapper t =
     match t with
     | TCppStar _
-    | TCppMarshalType (_, (Stack | Promoted)) -> true
+    | TCppMarshalNativeType (_, (Stack | Promoted)) -> true
     | TCppInst (t, _) -> Meta.has Meta.StructAccess t.cl_meta
     | _ -> false
   in
@@ -76,8 +76,8 @@ let gen_function ctx class_def class_name is_static func =
               output "return (cpp::Pointer<const void *>) "
             | TCppInst (t, _) when Meta.has Meta.StructAccess t.cl_meta ->
               output ("return (cpp::Struct< " ^ tcpp_to_string return_type ^ " >) ")
-            | TCppMarshalType (value_type, _) ->
-              TCppMarshalType (value_type, Reference) |> tcpp_to_string |> Printf.sprintf "return (%s) " |> output
+            | TCppMarshalNativeType (value_type, _) ->
+              TCppMarshalNativeType (value_type, Reference) |> tcpp_to_string |> Printf.sprintf "return (%s) " |> output
             | _ ->
               output "return ");
 
@@ -92,8 +92,8 @@ let gen_function ctx class_def class_name is_static func =
             Printf.sprintf "(::cpp::%sPointer< %s >) a%i" (if const then "Const" else "") (tcpp_to_string t) idx
           | TCppInst (t, _) when Meta.has Meta.StructAccess t.cl_meta ->
             Printf.sprintf "(::cpp::Struct< %s >) a%i" (tcpp_to_string arg) idx
-          | TCppMarshalType (value_type, _) ->
-            Printf.sprintf "(%s) a%i" (TCppMarshalType (value_type, Reference) |> tcpp_to_string) idx
+          | TCppMarshalNativeType (value_type, _) ->
+            Printf.sprintf "(%s) a%i" (TCppMarshalNativeType (value_type, Reference) |> tcpp_to_string) idx
           | _ ->
             Printf.sprintf "a%i" idx in
             

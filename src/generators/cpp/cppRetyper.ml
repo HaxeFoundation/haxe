@@ -30,7 +30,7 @@ let rec cpp_type_of stack value_type_handler haxe_type =
     | TInst (klass, params) ->
       cpp_instance_type stack klass params value_type_handler
     | TAbstract (abs, pl) when is_marshalling_native_enum abs ->
-      TCppMarshalType (ValueEnum abs, value_type_handler())
+      TCppMarshalNativeType (ValueEnum abs, value_type_handler())
     | TAbstract (abs, pl) when not (Meta.has Meta.CoreType abs.a_meta) ->
       cpp_type_from_path stack abs.a_path pl value_type_handler (fun () ->
         cpp_type_of stack value_type_handler (Abstract.get_underlying_type ~return_first:true abs pl))
@@ -113,7 +113,7 @@ and cpp_type_from_path stack path params value_type_handler default =
       | TCppVoid (* ? *) | TCppDynamic -> TCppDynamicArray
       | TCppObject | TCppObjectPtr | TCppReference _ | TCppStruct _ | TCppStar _
       | TCppEnum _ | TCppInst _ | TCppInterface _ | TCppProtocol _ | TCppClass
-      | TCppDynamicArray | TCppObjectArray _ | TCppScalarArray _ | TCppMarshalType _
+      | TCppDynamicArray | TCppObjectArray _ | TCppScalarArray _ | TCppMarshalNativeType _
       | TCppMarshalManagedType  _ ->
         TCppObjectArray arrayOf
       | _ -> TCppScalarArray arrayOf)
@@ -177,10 +177,10 @@ and cpp_instance_type stack klass params value_type_handler =
     else if has_class_flag klass CExtern && not (is_internal_class klass.cl_path) then
       if is_marshalling_native_value_class klass then
         let tcpp_params = List.map (cpp_type_of stack with_stack_value_type) params in
-        TCppMarshalType (ValueClass (klass, tcpp_params), value_type_handler ())
+        TCppMarshalNativeType (ValueClass (klass, tcpp_params), value_type_handler ())
       else if is_marshalling_native_pointer klass then
         let tcpp_params = List.map (cpp_type_of stack with_stack_value_type) params in
-        TCppMarshalType (Pointer (klass, tcpp_params), value_type_handler ())
+        TCppMarshalNativeType (Pointer (klass, tcpp_params), value_type_handler ())
       else if is_marshalling_managed_class klass then
         let tcpp_params = List.map (cpp_type_of stack value_type_handler) params in
         TCppMarshalManagedType (klass, tcpp_params)
@@ -375,7 +375,7 @@ let expression ctx request_type function_args function_type expression_tree forI
 
   let cpp_can_static_cast funcType inferredType =
     match funcType with
-    | TCppReference _ | TCppStar _ | TCppStruct _ | TCppMarshalType _ -> false
+    | TCppReference _ | TCppStar _ | TCppStruct _ | TCppMarshalNativeType _ -> false
     | _ -> (
         match inferredType with
         | TCppInst (cls, _) when is_extern_class cls -> false
@@ -477,7 +477,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           (* TNull, TThis & TSuper should already be handled *)
           (* We want to preserve the original type with a null marshal type as these may be handled differently in filtering *)
           (match return_type with
-          | TCppMarshalType _ ->
+          | TCppMarshalNativeType _ ->
             (retyper_ctx, CppNull, return_type)
           | _ ->
             (retyper_ctx, CppNull, TCppNull)))
@@ -790,8 +790,8 @@ let expression ctx request_type function_args function_type expression_tree forI
               when member.cf_name = "::hx::StarOf" ->
                 let head = List.hd args in
                 let target_type = match cpp_type_of head.etype with
-                | TCppMarshalType (value_type, _) ->
-                  TCppMarshalType (value_type, Reference)
+                | TCppMarshalNativeType (value_type, _) ->
+                  TCppMarshalNativeType (value_type, Reference)
                 | _ ->
                   TCppUnchanged
                 in
@@ -1046,9 +1046,9 @@ let expression ctx request_type function_args function_type expression_tree forI
                     ( retyper_ctx,
                       CppArray (ArrayObject (retypedObj, retypedIdx, TCppDynamic)),
                       TCppDynamic )
-                (* | TCppObjectArray TCppMarshalType (cls, params, _) as elem ->
+                (* | TCppObjectArray TCppMarshalNativeType (cls, params, _) as elem ->
                   let inner = mk_cppexpr (CppArray (ArrayObject (retypedObj, retypedIdx, TCppDynamic))) elem in
-                  let reference = TCppMarshalType (cls, params, Reference) in
+                  let reference = TCppMarshalNativeType (cls, params, Reference) in
 
                   ( retyper_ctx,
                       CppCast (inner, reference),
@@ -1105,8 +1105,8 @@ let expression ctx request_type function_args function_type expression_tree forI
             | TCppUnchanged ->
               cpp_type_of left.etype, cpp_type_of right.etype
             (* if the left type is a value type then ensure the right type is a reference as we are doing assignment *)
-            | TCppMarshalType (value_type, (Stack | Promoted)) as l ->
-              l, TCppMarshalType (value_type, Reference)
+            | TCppMarshalNativeType (value_type, (Stack | Promoted)) as l ->
+              l, TCppMarshalNativeType (value_type, Reference)
             | other ->
               other, other
             in
@@ -1400,7 +1400,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             (retyper_ctx, baseCpp.cppexpr, baseCpp.cpptype (* nothing to do *))
           else
             match return_type with
-            | TCppMarshalType _ ->
+            | TCppMarshalNativeType _ ->
               (retyper_ctx, baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *))
             | TCppObjC k -> (retyper_ctx, CppCastObjC (baseCpp, k), return_type)
             | TCppPointer (_, _)

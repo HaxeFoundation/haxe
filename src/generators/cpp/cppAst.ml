@@ -45,7 +45,7 @@ type marshal_type_state =
   | Promoted
   | Reference
 
-and marshal_type = 
+and native_type = 
   | ValueClass of tclass * tcpp list
   | ValueEnum of tabstract
   | Pointer of tclass * tcpp list
@@ -68,7 +68,7 @@ and tcpp =
   | TCppRest of tcpp
   | TCppReference of tcpp
   | TCppStruct of tcpp
-  | TCppMarshalType of marshal_type * marshal_type_state
+  | TCppMarshalNativeType of native_type * marshal_type_state
   | TCppMarshalManagedType of tclass * tcpp list
   | TCppStar of tcpp * bool
   | TCppVoidStar

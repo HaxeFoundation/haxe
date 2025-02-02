@@ -369,9 +369,9 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppObject -> " ::Dynamic"
   | TCppObjectPtr -> " ::hx::Object *"
   | TCppStruct t -> "cpp::Struct< " ^ tcpp_to_string t ^ " >"
-  | TCppReference (TCppMarshalType (value_type, _)) -> Printf.sprintf "%s&" (get_native_marshalled_type value_type)
+  | TCppReference (TCppMarshalNativeType (value_type, _)) -> Printf.sprintf "%s&" (get_native_marshalled_type value_type)
   | TCppReference t -> tcpp_to_string t ^ " &"
-  | TCppStar (TCppMarshalType (value_type, _), const) ->
+  | TCppStar (TCppMarshalNativeType (value_type, _), const) ->
     Printf.sprintf "%s%s*" (if const then "const " else "") (get_native_marshalled_type value_type)
   | TCppStar (t, const) ->
       (if const then "const " else "") ^ tcpp_to_string t ^ " *"
@@ -386,11 +386,11 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppString -> "::String"
   | TCppFastIterator it ->
       "::cpp::FastIterator" ^ suffix ^ "< " ^ tcpp_to_string it ^ " >"
-  | TCppPointer (ptrType, TCppMarshalType (value_type, _)) ->
+  | TCppPointer (ptrType, TCppMarshalNativeType (value_type, _)) ->
     Printf.sprintf "::cpp::%s< %s >" ptrType (get_native_marshalled_type value_type)
   | TCppPointer (ptrType, valueType) ->
       "::cpp::" ^ ptrType ^ "< " ^ tcpp_to_string valueType ^ " >"
-  | TCppRawPointer (constName, TCppMarshalType (value_type, _)) ->
+  | TCppRawPointer (constName, TCppMarshalNativeType (value_type, _)) ->
     Printf.sprintf "%s%s*" constName (get_native_marshalled_type value_type)
   | TCppRawPointer (constName, valueType) ->
       constName ^ tcpp_to_string valueType ^ "*"
@@ -446,18 +446,18 @@ and tcpp_to_string_suffix suffix tcpp =
       in
     wrapped
 
-  | TCppMarshalType (Pointer _ as value_type, Promoted) ->
+  | TCppMarshalNativeType (Pointer _ as value_type, Promoted) ->
     get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s* >"
-  | TCppMarshalType (Pointer _ as value_type, Reference) ->
+  | TCppMarshalNativeType (Pointer _ as value_type, Reference) ->
     get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::PointerReference< %s >"
-  | TCppMarshalType (Pointer _ as value_type, Stack) ->
+  | TCppMarshalNativeType (Pointer _ as value_type, Stack) ->
     get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::PointerType< %s >"
 
-  | TCppMarshalType ((ValueClass _ | ValueEnum _) as value_type, Promoted) ->
+  | TCppMarshalNativeType ((ValueClass _ | ValueEnum _) as value_type, Promoted) ->
     get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s >"
-  | TCppMarshalType ((ValueClass _ | ValueEnum _) as value_type, Reference) ->
+  | TCppMarshalNativeType ((ValueClass _ | ValueEnum _) as value_type, Reference) ->
     get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::ValueReference< %s >"
-  | TCppMarshalType ((ValueClass _ | ValueEnum _) as value_type, Stack) ->
+  | TCppMarshalNativeType ((ValueClass _ | ValueEnum _) as value_type, Stack) ->
     get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::ValueType< %s >"
 
 and build_type path pos params meta target parameter_handler =
@@ -501,7 +501,7 @@ and build_type path pos params meta target parameter_handler =
 and get_native_marshalled_type value_type =
   let marshal_type_parameter_to_string pos tcpp =
     match tcpp with
-    | TCppMarshalType (value_type, _) -> get_native_marshalled_type value_type
+    | TCppMarshalNativeType (value_type, _) -> get_native_marshalled_type value_type
     | TCppScalar _
     | TCppPointer _
     | TCppRawPointer _
@@ -749,13 +749,13 @@ let rec cpp_is_struct_access t =
    | TCppFunction _ -> true
    | TCppStruct _-> false
    | TCppInst (class_def, _) -> Meta.has Meta.StructAccess class_def.cl_meta
-   | TCppReference (TCppMarshalType _) -> true
+   | TCppReference (TCppMarshalNativeType _) -> true
    | TCppReference (r) -> cpp_is_struct_access r
    | _ -> false
 
 let rec cpp_is_native_array_access t =
    match t with
-   | TCppMarshalType _ -> true
+   | TCppMarshalNativeType _ -> true
    | TCppStruct s -> cpp_is_native_array_access s
    | TCppReference s -> cpp_is_native_array_access s
    | TCppInst ({ cl_array_access = Some _ } as klass, _) when is_extern_class klass && Meta.has Meta.NativeArrayAccess klass.cl_meta -> true
@@ -770,7 +770,7 @@ let cpp_is_dynamic_type = function
 let is_object_element member_type =
   match member_type with
    | TCppMarshalManagedType _
-   | TCppMarshalType (_, Promoted) ->
+   | TCppMarshalNativeType (_, Promoted) ->
       true
    | TCppInst (x, _)
    | TCppInterface x
@@ -796,7 +796,7 @@ let cpp_variant_type_of t = match t with
   | TCppObjectPtr
   | TCppReference _
   | TCppStruct _
-  | TCppMarshalType _
+  | TCppMarshalNativeType _
   | TCppMarshalManagedType _
   | TCppStar _
   | TCppVoid

@@ -94,7 +94,7 @@ let cpp_no_debug_synbol ctx var =
   || (match var.tcppv_var.v_kind with VUser _ -> false | _ -> true)
   ||
   match var.tcppv_type with
-  | TCppStar _ | TCppReference _ | TCppMarshalType _ -> true
+  | TCppStar _ | TCppReference _ | TCppMarshalNativeType _ -> true
   | TCppInst (class_def, _) when Meta.has Meta.StructAccess class_def.cl_meta ->
       true
   | TCppInst (class_def, _) when Meta.has Meta.Unreflective class_def.cl_meta ->
@@ -699,7 +699,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
                   "::Array_obj< " ^ tcpp_to_string value ^ " >::__new"
               | TCppObjC klass -> cpp_class_path_of klass [] ^ "_obj::__new"
               | TCppNativePointer klass -> "new " ^ cpp_class_path_of klass []
-              | TCppMarshalType (value_type, Promoted) ->
+              | TCppMarshalNativeType (value_type, Promoted) ->
                 closeCall := ")";
                 let ptr, obj = get_extern_value_type_boxed value_type in
                 Printf.sprintf "%s( new %s " ptr obj
@@ -720,7 +720,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
                 in
                 closeCall := ")";
                 Printf.sprintf "%s( new %s " ptr obj
-              | TCppMarshalType (value_type, Stack) ->
+              | TCppMarshalNativeType (value_type, Stack) ->
                 newType |> tcpp_to_string
               | TCppInst (klass, p) when is_native_class klass ->
                   cpp_class_path_of klass p
@@ -753,7 +753,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
     | CppNewNative e ->
         out "new ";
         gen e
-    | CppAddressOf ({ cpptype = TCppMarshalType (_, Reference) } as e) ->
+    | CppAddressOf ({ cpptype = TCppMarshalNativeType (_, Reference) } as e) ->
         out "(";
         gen e;
         out ".ptr)"
@@ -761,7 +761,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         out "&(";
         gen e;
         out ")"
-    | CppDereference ({ cpptype = TCppMarshalType (_, Reference) } as e) ->
+    | CppDereference ({ cpptype = TCppMarshalNativeType (_, Reference) } as e) ->
         out "(*(";
         gen e;
         out ").ptr)"
@@ -787,11 +787,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         (* Special case for pointers to marshal type pointers *)
         (* ::cpp::Pointer array access returns a T& but we want a T* for the marhsal pointer type reference *)
         (* So do some manual pointer arithmatic *)
-        | ArrayPointer ({ cpptype = TCppPointer (_, TCppMarshalType (Pointer _, _)) } as arrayObj, index) ->
+        | ArrayPointer ({ cpptype = TCppPointer (_, TCppMarshalNativeType (Pointer _, _)) } as arrayObj, index) ->
           gen arrayObj;
           out ".ptr + ";
           gen index
-        | ArrayRawPointer ({ cpptype = TCppRawPointer (_, TCppMarshalType (Pointer _, _)) } as arrayObj, index) ->
+        | ArrayRawPointer ({ cpptype = TCppRawPointer (_, TCppMarshalNativeType (Pointer _, _)) } as arrayObj, index) ->
           gen arrayObj;
           out " + ";
           gen index

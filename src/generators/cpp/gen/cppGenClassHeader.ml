@@ -60,8 +60,8 @@ let gen_member_function ctx class_def is_static func =
 
   let return_type_str =
     match cpp_type_of func.tcf_func.tf_type with
-    | TCppMarshalType (value_type, (Reference | Promoted)) ->
-      TCppMarshalType (value_type, Stack) |> tcpp_to_string
+    | TCppMarshalNativeType (value_type, (Reference | Promoted)) ->
+      TCppMarshalNativeType (value_type, Stack) |> tcpp_to_string
     | TCppVoid ->
       "void"
     | other ->
