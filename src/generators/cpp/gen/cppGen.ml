@@ -94,7 +94,7 @@ let cpp_no_debug_synbol ctx var =
   || (match var.tcppv_var.v_kind with VUser _ -> false | _ -> true)
   ||
   match var.tcppv_type with
-  | TCppStar _ | TCppReference _ -> true
+  | TCppStar _ | TCppReference _ | TCppMarshalType _ -> true
   | TCppInst (class_def, _) when Meta.has Meta.StructAccess class_def.cl_meta ->
       true
   | TCppInst (class_def, _) when Meta.has Meta.Unreflective class_def.cl_meta ->
