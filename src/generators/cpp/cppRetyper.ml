@@ -29,7 +29,7 @@ let rec cpp_type_of stack value_type_handler haxe_type =
     | TInst ({ cl_kind = KTypeParameter _ }, _) -> TCppDynamic
     | TInst (klass, params) ->
       cpp_instance_type stack klass params value_type_handler
-    | TAbstract (abs, pl) when is_extern_value_enum abs ->
+    | TAbstract (abs, pl) when is_marshalling_native_enum abs ->
       TCppMarshalType (ValueEnum abs, value_type_handler())
     | TAbstract (abs, pl) when not (Meta.has Meta.CoreType abs.a_meta) ->
       cpp_type_from_path stack abs.a_path pl value_type_handler (fun () ->
@@ -175,13 +175,13 @@ and cpp_instance_type stack klass params value_type_handler =
     else if has_class_flag klass CInterface then
       TCppInterface klass
     else if has_class_flag klass CExtern && not (is_internal_class klass.cl_path) then
-      if is_extern_value_class klass then
+      if is_marshalling_native_value_class klass then
         let tcpp_params = List.map (cpp_type_of stack with_stack_value_type) params in
         TCppMarshalType (ValueClass (klass, tcpp_params), value_type_handler ())
-      else if is_extern_pointer klass then
+      else if is_marshalling_native_pointer klass then
         let tcpp_params = List.map (cpp_type_of stack with_stack_value_type) params in
         TCppMarshalType (Pointer (klass, tcpp_params), value_type_handler ())
-      else if is_extern_managed_class klass then
+      else if is_marshalling_managed_class klass then
         let tcpp_params = List.map (cpp_type_of stack value_type_handler) params in
         TCppMarshalManagedType (klass, tcpp_params)
       else
@@ -521,7 +521,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           (retyper_ctx, cppType.cppexpr, cppType.cpptype)
       | TField (obj, field) -> (
           match field with
-          | FClosure (Some (cls, _), _) when is_extern_value_class cls ->
+          | FClosure (Some (cls, _), _) when is_marshalling_native_value_class cls || is_marshalling_native_pointer cls ->
             abort "CPP0002: Value types cannot have function closures created for them" expr.epos
           | FInstance (clazz, params, member)
           | FClosure (Some (clazz, params), member) -> (
@@ -529,7 +529,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             let clazzType = cpp_instance_type clazz params with_reference_value_type in
             let retyper_ctx, retypedObj = retype retyper_ctx clazzType obj in
             (* Value types in haxe classes are always promoted, with value type externs treat them as stack types so the auto casting deals with conversion *)
-            let handler  = if is_extern_value_class clazz then with_stack_value_type else with_promoted_value_type in
+            let handler  = if is_marshalling_native_value_class clazz then with_stack_value_type else with_promoted_value_type in
             let exprType = cpp_type_of_with handler member.cf_type in
             let is_objc  = is_cpp_objc_type retypedObj.cpptype in
 
@@ -649,7 +649,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             let funcReturn = cpp_member_return_type member in
             let exprType   = cpp_type_of member.cf_type in
             (retyper_ctx, CppFunction (FuncFromStaticFunction, funcReturn), exprType)
-          | FStatic (({ cl_kind = KAbstractImpl abs }), member) when is_extern_value_enum abs ->
+          | FStatic (({ cl_kind = KAbstractImpl abs }), member) when is_marshalling_native_enum abs ->
             let exprType   = cpp_type_of_with with_promoted_value_type member.cf_type in
             let enum_name  = Printf.sprintf "%s::%s" (get_native_marshalled_type (ValueEnum abs)) (member.cf_name) in
 

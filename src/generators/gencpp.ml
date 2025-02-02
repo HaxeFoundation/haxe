@@ -291,13 +291,13 @@ let generate_source ctx =
          | _ -> ());
 
       match cur with
-      | TAbstractDecl abs when is_extern_value_enum abs && not (ExtType.has_reference_semantics (TAbstract (abs, []))) ->
+      | TAbstractDecl abs when is_marshalling_native_enum abs && not (ExtType.has_reference_semantics (TAbstract (abs, []))) ->
          no_reference_meta abs.a_pos
       | TClassDecl class_def when is_extern_class class_def ->
-         if (is_extern_value_class class_def || is_extern_pointer class_def) && not (ExtType.has_reference_semantics (TInst (class_def, []))) then
+         if (is_marshalling_native_value_class class_def || is_marshalling_native_pointer class_def) && not (ExtType.has_reference_semantics (TInst (class_def, []))) then
             no_reference_meta class_def.cl_pos;
 
-         if is_extern_pointer class_def && class_def.cl_constructor |> Option.is_some then
+         if is_marshalling_native_pointer class_def && class_def.cl_constructor |> Option.is_some then
             abort "CPP0004: Pointer type cannot have a constructor" class_def.cl_pos;
 
          let acc_build_xml  = acc.build_xml ^ (CppGen.get_class_code class_def Meta.BuildXml) in

@@ -118,9 +118,11 @@ let cpp_macro_var_type_of var =
   else t
 
 let cpp_class_name klass =
-  if is_extern_value_class klass || is_extern_pointer klass then
+  if is_marshalling_native_value_class klass then
     get_native_marshalled_type (ValueClass (klass, []))
-  else if is_extern_managed_class klass then
+  else if is_marshalling_native_pointer klass then
+    get_native_marshalled_type (Pointer (klass, []))
+  else if is_marshalling_managed_class klass then
     let type_str, flags = build_type klass.cl_path klass.cl_pos [] klass.cl_meta Meta.CppManagedType tcpp_to_string in
     let standard_naming = List.exists (fun f -> f = "StandardNaming") flags in
     if standard_naming then type_str ^ "_obj" else type_str
@@ -640,6 +642,13 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
             | _ ->
                 abort "Native static extensions must have at least 1 argument"
                   expr.cpppos)
+        | FuncStatic (clazz, _, field) when is_marshalling_native_value_class clazz || is_marshalling_native_pointer clazz ->
+          let func_name =
+            match get_meta_string field.cf_meta Meta.Native with
+            | Some renamed -> renamed
+            | None -> cpp_member_name_of field
+          in
+          Printf.sprintf "%s::%s" (cpp_class_name clazz) func_name |> out
         | FuncStatic (clazz, _, field) -> (
             match get_meta_string field.cf_meta Meta.Native with
             | Some rename ->

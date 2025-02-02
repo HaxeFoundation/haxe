@@ -534,7 +534,7 @@ and tcpp_objc_block_struct argTypes retType =
 and tcpp_to_string tcpp = tcpp_to_string_suffix "" tcpp
 
 and cpp_class_path_of klass params =
-   if is_extern_value_class klass then
+   if is_marshalling_native_value_class klass then
     get_native_marshalled_type (ValueClass (klass, params))
    else
       match get_meta_string klass.cl_meta Meta.Native with
