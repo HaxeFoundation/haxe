@@ -118,7 +118,7 @@ let cpp_macro_var_type_of var =
   else t
 
 let cpp_class_name klass =
-  if is_extern_value_class klass then
+  if is_extern_value_class klass || is_extern_pointer klass then
     get_native_marshalled_type (ValueClass (klass, []))
   else if is_extern_managed_class klass then
     let type_str, flags = build_type klass.cl_path klass.cl_pos [] klass.cl_meta Meta.CppManagedType tcpp_to_string in
