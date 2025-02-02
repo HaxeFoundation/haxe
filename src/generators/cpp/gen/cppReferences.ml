@@ -11,6 +11,14 @@ open CppContext
    or for building the dependencies in the Build.xml file
 *)
 let find_referenced_types_flags ctx obj filter super_deps constructor_deps header_only for_depends include_super_args =
+  let follow t =
+    match t with
+    | TAbstract (a, _) when is_marshalling_native_enum a ->
+      follow_once t
+    | _ ->
+      Abstract.follow_with_abstracts t
+    in
+
   let all_virtual_functions clazz =
     let current_virtual_functions_rev clazz base_functions =
        let folder result elem =
