@@ -1,0 +1,5 @@
+(rule
+	(deps (env_var ADD_REVISION))
+	(targets version.ml)
+	(action (with-stdout-to version.ml (run ../prebuild.exe version)))
+)
