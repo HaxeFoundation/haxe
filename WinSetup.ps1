@@ -31,9 +31,9 @@ function Install-Init {
 		echo "**ERROR** Neko.exe could not be found in PATH"
 		Exit
 	}
-	
+
 	# reset PATH to prevent conflicting cygwin or existing install
-	Set-Item -Path env:PATH -Value "$CygRoot\usr\x86_64-w64-mingw32\bin;$CygRoot\bin;$Opam;$Neko;$WinSysPath"
+	Set-Item -Path env:PATH -Value "$CygRoot\usr\x86_64-w64-mingw32\bin;$CygRoot\bin;$Opam;$Neko;$Git;$WinSysPath"
 
 	# set OPAM root dir
 	Set-Item -Path env:OPAMROOT -Value "$OpamRepo"
@@ -48,16 +48,16 @@ function Install-Opam {
 }
 
 function Install-Haxe-Deps {
-	Invoke-Expression "opam install . --deps-only --confirm-level=yes"	
-	
+	Invoke-Expression "opam install . --deps-only --confirm-level=yes"
+
 	# install mbedtls mingw package
 	$tmpFile = "./mbed.tgz"
 	Invoke-Expression "curl $MbedTLS -o $tmpFile"
 	Invoke-Expression "tar -C / -xvf $tmpFile"
 	Remove-Item "$tmpFile"
-	
+
 	# install lsp server
-	Invoke-Expression "opam install ocaml-lsp-server --confirm-level=yes"	
+	Invoke-Expression "opam install ocaml-lsp-server --confirm-level=yes"
 }
 
 function Add-Path($NewPath) {
