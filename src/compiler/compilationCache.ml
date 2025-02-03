@@ -93,7 +93,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 				mc_path = path;
 				mc_id = m.m_id;
 				mc_chunks = chunks;
-				mc_extra = { m.m_extra with m_cache_state = MSGood }
+				mc_extra = { m.m_extra with m_cache_state = MSGood; m_display_deps = None }
 			}
 
 	method cache_module_in_memory path m =

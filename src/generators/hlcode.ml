@@ -49,6 +49,7 @@ type ttype =
 	| HMethod of ttype list * ttype
 	| HStruct of class_proto
 	| HPacked of ttype
+	| HGUID
 
 and class_proto = {
 	pname : string;
@@ -259,7 +260,7 @@ let list_mapi f l =
 let is_nullable t =
 	match t with
 	| HBytes | HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ | HType | HMethod _ | HStruct _ -> true
-	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HVoid | HPacked _ -> false
+	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HVoid | HPacked _ | HGUID -> false
 
 let is_struct = function
 	| HStruct _ | HPacked _ -> true
@@ -358,6 +359,8 @@ let rec safe_cast t1 t2 =
 		List.for_all2 (fun t1 t2 -> safe_cast t2 t1 || (t1 = HDyn && is_dynamic t2)) args1 args2 && safe_cast t1 t2
 	| HArray t1,HArray t2 ->
 		compatible_element_types t1 t2
+	| (HI64|HGUID), (HI64|HGUID) ->
+		true
 	| _ ->
 		tsame t1 t2
 
@@ -490,6 +493,7 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 		"enum(" ^ e.ename ^ ")"
 	| HNull t -> "null(" ^ tstr t ^ ")"
 	| HPacked t -> "packed(" ^ tstr t ^ ")"
+	| HGUID -> "guid"
 
 let ostr fstr o =
 	match o with

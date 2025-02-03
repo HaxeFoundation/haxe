@@ -563,7 +563,7 @@ and gen_expr ctx e =
 		spr ctx ")";
 	| TMeta ((Meta.LoopLabel,[(EConst(Int (n, _)),_)],_), e) ->
 		(match e.eexpr with
-		| TWhile _ | TFor _ ->
+		| TWhile _ ->
 			print ctx "_hx_loop%s: " n;
 			gen_expr ctx e
 		| TBreak ->
@@ -676,30 +676,6 @@ and gen_expr ctx e =
 		) fields;
 		spr ctx "}";
 		ctx.separator <- true
-	| TFor (v,it,e) ->
-		check_var_declaration v;
-		let old_in_loop = ctx.in_loop in
-		ctx.in_loop <- true;
-		let it = ident (match it.eexpr with
-			| TLocal v -> v.v_name
-			| _ ->
-				let id = ctx.id_counter in
-				ctx.id_counter <- ctx.id_counter + 1;
-				let name = "$it" ^ string_of_int id in
-				print ctx "%s %s = " (var ctx) name;
-				gen_value ctx it;
-				newline ctx;
-				name
-		) in
-		print ctx "while( %s.hasNext() ) {" it;
-		let bend = open_block ctx in
-		newline ctx;
-		print ctx "%s %s = %s.next()" (var ctx) (ident v.v_name) it;
-		gen_block_element ctx e;
-		bend();
-		newline ctx;
-		spr ctx "}";
-		ctx.in_loop <- old_in_loop
 	| TTry (etry,[(v,ecatch)]) ->
 		spr ctx "try ";
 		gen_expr ctx etry;
@@ -885,7 +861,6 @@ and gen_value ctx e =
 		spr ctx (ctx.type_accessor t);
 		spr ctx ")"
 	| TVar _
-	| TFor _
 	| TWhile _
 	| TThrow _ ->
 		(* value is discarded anyway *)

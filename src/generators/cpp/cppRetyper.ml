@@ -1097,12 +1097,6 @@ let expression ctx request_type function_args function_type expression_tree forI
             | Spread -> die ~p:expr.epos "Unexpected spread operator" __LOC__
           in
           (retyper_ctx, reference, cpp_type_of expr.etype)
-      | TFor (v, init, block) ->
-          let retyper_ctx = { retyper_ctx with declarations = StringMap.add v.v_name () retyper_ctx.declarations } in
-          let retyper_ctx, init = retype retyper_ctx (cpp_type_of v.v_type) init in
-          let retyper_ctx, block = retype retyper_ctx TCppVoid (mk_block block) in
-          let retyper_ctx = { retyper_ctx with declarations = StringMap.remove v.v_name retyper_ctx.declarations } in
-          (retyper_ctx, CppFor (v, init, block), TCppVoid)
       | TWhile (e1, e2, flag) ->
           let retyper_ctx, condition = retype retyper_ctx (TCppScalar "bool") e1 in
           let retyper_ctx, close = begin_loop retyper_ctx in

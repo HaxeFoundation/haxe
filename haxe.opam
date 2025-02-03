@@ -21,7 +21,7 @@ remove: [make "uninstall" "INSTALL_DIR=%{prefix}%"]
 depends: [
   "ocaml"
   "ocamlfind" {build}
-  "dune" {>= "1.11" & < "3.16"}
+  "dune" {>= "3.17"}
   "sedlex" {>= "2.0"}
   "xml-light"
   "extlib" {>= "1.7.8"}

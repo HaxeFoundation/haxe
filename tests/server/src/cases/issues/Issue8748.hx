@@ -8,6 +8,8 @@ class Issue8748 extends TestCase {
 		var args = [
 			"-main",
 			"WithDependency",
+			// hxb optimizations will ignore invalidation there
+			"-D", "disable-hxb-optimizations",
 			"--interp",
 			"--macro",
 			"haxe.macro.Context.registerModuleDependency(\"Dependency\", \"res/dep.dep\")"
@@ -19,7 +21,7 @@ class Issue8748 extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("res/dep.dep")});
 		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("WithDependency.hx"), offset: 65});
 		// check messages manually because module file contains awkward absolute path
-		// var r = ~/skipping Dependency \(.*dep.dep\)/;
-		// Assert.isTrue(messages.exists(message -> r.match(message)));
+		var r = ~/skipping Dependency \(DependencyDirty .*dep.dep - Tainted server\/invalidate\)/;
+		Assert.isTrue(messages.exists(message -> r.match(message)));
 	}
 }

@@ -700,14 +700,6 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			| Some e ->
 				state#set_return_value;
 				map term false e)
-		| TFor (v,e1,e2) ->
-			let i = state#declare v in
-			let e1 = map false false e1 in
-			let old = !in_loop in
-			in_loop := true;
-			let e2 = map false false e2 in
-			in_loop := old;
-			{ e with eexpr = TFor (i.i_subst,e1,e2) }
 		| TWhile (cond,eloop,flag) ->
 			let cond = map false false cond in
 			let old = !in_loop in
@@ -747,7 +739,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 					let r = match e.eexpr with
 					| TReturn _ -> true
 					| TFunction _ -> false
-					| TIf (_,_,None) | TSwitch {switch_default = None} | TFor _ | TWhile (_,_,NormalWhile) -> false (* we might not enter this code at all *)
+					| TIf (_,_,None) | TSwitch {switch_default = None} | TWhile (_,_,NormalWhile) -> false (* we might not enter this code at all *)
 					| TTry (a, catches) -> List.for_all has_term_return (a :: List.map snd catches)
 					| TIf (cond,a,Some b) -> has_term_return cond || (has_term_return a && has_term_return b)
 					| TSwitch ({switch_default = Some def} as switch) -> has_term_return switch.switch_subject || List.for_all has_term_return (def :: List.map (fun case -> case.case_expr) switch.switch_cases)

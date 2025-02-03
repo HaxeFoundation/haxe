@@ -20,7 +20,7 @@ let handle_display_argument_old com file_pos actx =
 		raise (Completion (DisplayOutput.print_keywords ()))
 	| "memory" ->
 		actx.did_something <- true;
-		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
+		(try DisplayMemory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
 	| "diagnostics" ->
 		com.report_mode <- RMLegacyDiagnostics []
 	| _ ->

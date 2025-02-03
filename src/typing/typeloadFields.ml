@@ -735,7 +735,7 @@ module TypeBinding = struct
 		let p = cf.cf_pos in
 		let ctx = TyperManager.clone_for_expr ctx_f (if fctx.is_static then FunStatic else FunMember) false in
 		if (has_class_flag c CInterface) then unexpected_expression ctx.com fctx "Initialization on field of interface" (pos e);
-		cf.cf_meta <- ((Meta.Value,[e],cf.cf_pos) :: cf.cf_meta);
+		cf.cf_meta <- ((Meta.Value,[e],mk_zero_range_pos cf.cf_pos) :: cf.cf_meta);
 		let check_cast e =
 			(* insert cast to keep explicit field type (issue #1901) *)
 			if type_iseq e.etype cf.cf_type then
@@ -1246,8 +1246,10 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 		if fctx.is_inline then invalid_modifier_combination fctx ctx.com fctx "dynamic" "inline" p;
 		if fctx.is_abstract_member then invalid_modifier ctx.com fctx "dynamic" "method of abstract" p;
 	end;
-	let is_override = Option.is_some fctx.override in
-	if (is_override && fctx.is_static) then invalid_modifier_combination fctx ctx.com fctx "override" "static" p;
+	if Option.is_some fctx.override then begin
+		if fctx.is_static then invalid_modifier_combination fctx ctx.com fctx "override" "static" p;
+		add_class_field_flag cf CfOverride;
+	end;
 
 	ctx.type_params <- params @ ctx.type_params;
 	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in

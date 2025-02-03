@@ -17,6 +17,11 @@ class Main {
 		var server:HaxeServerAsync = null;
 		runner.onComplete.add(_ -> server.stop());
 		server = new HaxeServerAsync(() -> new HaxeServerProcessNode("haxe", ["-v"], {}, () -> {
+			var defaultArgs = [];
+			#if disable_hxb_cache defaultArgs = defaultArgs.concat(["-D", "disable-hxb-cache"]); #end
+			#if optimistic_display_requests defaultArgs = defaultArgs.concat(["-D", "optimistic-display-requests"]); #end
+			if (defaultArgs.length > 0) server.setDefaultRequestArguments(defaultArgs);
+
 			TestCase.server = server;
 			TestCase.rootCwd = cwd;
 			runner.run();

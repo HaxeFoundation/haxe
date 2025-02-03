@@ -1263,31 +1263,6 @@ let rec gen_expr_content ctx retval e =
 		List.iter (fun j -> j()) loops;
 		branch();
 		jend()
-	| TFor (v,it,e) ->
-		gen_expr ctx true it;
-		let r = alloc_reg ctx KDynamic in
-		set_reg ctx r;
-		let branch = begin_branch ctx in
-		let b = open_block ctx retval in
-		define_local ctx v e.epos;
-		let end_loop = begin_loop ctx in
-		let continue_pos = ctx.infos.ipos in
-		let start = jump_back ctx in
-		write ctx (HReg r.rid);
-		write ctx (HCallProperty (ident "hasNext",0));
-		let jend = jump ctx J3False in
-		let acc = gen_local_access ctx v e.epos Write in
-		write ctx (HReg r.rid);
-		write ctx (HCallProperty (ident "next",0));
-		setvar ctx acc None;
-		gen_expr ctx false e;
-		start J3Always;
-		end_loop continue_pos;
-		jend();
-		if retval then getvar ctx (gen_local_access ctx v e.epos Read);
-		b();
-		branch();
-		free_reg ctx r;
 	| TBreak ->
 		pop ctx (ctx.infos.istack - ctx.infos.iloop);
 		ctx.breaks <- jump ctx J3Always :: ctx.breaks;
@@ -1859,7 +1834,7 @@ and generate_function ctx fdata stat =
 			| TReturn (Some e) ->
 				let rec inner_loop e =
 					match e.eexpr with
-					| TSwitch _ | TFor _ | TWhile _ | TTry _ -> false
+					| TSwitch _ | TWhile _ | TTry _ -> false
 					| TIf _ -> loop e
 					| TParenthesis e | TMeta(_,e) -> inner_loop e
 					| _ -> true

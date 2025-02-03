@@ -187,7 +187,7 @@ let rec func ctx bb tf t p =
 		| TThrow _ | TReturn _ | TBreak | TContinue ->
 			let bb = block_element bb e in
 			bb,mk (TConst TNull) t_dynamic e.epos
-		| TVar _ | TFor _ | TWhile _ | TIf _ ->
+		| TVar _ | TWhile _ | TIf _ ->
 			Error.raise_typing_error "Cannot use this expression as value" e.epos
 	and value bb e =
 		let bb,e = value' bb e in
@@ -631,7 +631,7 @@ let rec func ctx bb tf t p =
 			block_el false bb el
 		| TObjectDecl fl ->
 			block_el false bb (List.map snd fl)
-		| TFor _ | TWhile(_,_,DoWhile) ->
+		| TWhile(_,_,DoWhile) ->
 			die "" __LOC__
 	and block_el allow_void bb el =
 		let block_element = if allow_void then
