@@ -74,7 +74,7 @@ let is_marshalling_native_value_class cls =
 let is_marshalling_native_pointer cls =
   has_class_flag cls CExtern && has_meta Meta.CppPointerType cls.cl_meta
 
-let is_extern_value_tvar tvar =
+let is_marshalling_native_value_class_tvar tvar =
   match follow tvar.v_type with
   | TInst (cls, _) ->
    is_marshalling_native_value_class cls

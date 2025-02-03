@@ -473,25 +473,37 @@ and build_type path pos params meta target parameter_handler =
     | [] -> ""
     | _ -> "< " ^ String.concat "," (List.map parameter_handler params) ^ " >"
   in
+  let namespace_error pos =
+   abort "CPP0006: Namespace field must be an array declaration of string literals" pos
+  in
+  let flag_error pos =
+    abort "CPP0008: Flags field must be an array of identifiers" pos
+  in
   let namespace =
     match get_meta_field "namespace" with
     | Some (_,( EArrayDecl ([]), _)) -> ""
     | Some (_,( EArrayDecl (els), _)) ->
       "::" ^ (els
-      |> List.filter_map (fun (e, _) -> match e with | EConst (String (s, _)) -> Some s | _ -> None)
+      |> List.filter_map (fun (e, pos) -> match e with | EConst (String (s, _)) -> Some s | _ -> namespace_error pos)
       |> String.concat "::")
+    | Some ((_, pos, _), _) ->
+      namespace_error pos
     | _ ->
       ""
   in
   let t = match get_meta_field "type" with
   | Some (_, (EConst (String (s, _)), _) ) ->
     s ^ typeParams
+  | Some ((_, pos, _), _) ->
+    abort "CPP0007: Type field must be a string literal" pos
   | _ ->
     snd path ^ typeParams
   in
   let flags = match get_meta_field "flags" with
   | Some (_, (EArrayDecl decls, _) ) ->
-    decls |> List.filter_map (fun (e, _) -> match e with | EConst (Ident c) -> Some c | _ -> None)
+    decls |> List.filter_map (fun (e, pos) -> match e with | EConst (Ident c) -> Some c | _ -> flag_error pos)
+  | Some ((_, pos, _), _) ->
+    flag_error pos
   | _ ->
     []
   in

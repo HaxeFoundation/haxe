@@ -1270,6 +1270,8 @@ let expression ctx request_type function_args function_type expression_tree forI
           match return_type with
           | TCppVoid -> (retyper_ctx, CppObjectDecl (joined, false), TCppVoid)
           | _ -> (retyper_ctx, CppObjectDecl (joined, false), TCppDynamic))
+      | TVar (v, None) when is_marshalling_native_value_class_tvar v ->
+        abort "CPP0005: Marshalling value type extern cannot be used for a variable declaration with no expression" expr.epos
       | TVar (v, eo) ->
           let new_var  = retype_tvar v in
           let retyper_ctx, init =
@@ -1666,6 +1668,8 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
 
   let (slots, ids, parent) =
     match class_def.cl_super with
+    | Some (cls, _) when Meta.has Meta.CppManagedType cls.cl_meta ->
+      abort "CPP0009: Class cannot extend a managed type extern" cls.cl_pos
     | Some (cls, params) ->
       let slots, ids, parent = tcpp_class_from_tclass ctx ids slots cls params in
       (slots, ids, Some parent)
