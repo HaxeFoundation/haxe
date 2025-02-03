@@ -1669,7 +1669,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
   let (slots, ids, parent) =
     match class_def.cl_super with
     | Some (cls, _) when Meta.has Meta.CppManagedType cls.cl_meta ->
-      abort "CPP0009: Class cannot extend a managed type extern" cls.cl_pos
+      abort "CPP0009: Class cannot extend a managed type extern" class_def.cl_pos
     | Some (cls, params) ->
       let slots, ids, parent = tcpp_class_from_tclass ctx ids slots cls params in
       (slots, ids, Some parent)
