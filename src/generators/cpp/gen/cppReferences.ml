@@ -11,9 +11,11 @@ open CppContext
    or for building the dependencies in the Build.xml file
 *)
 let find_referenced_types_flags ctx obj filter super_deps constructor_deps header_only for_depends include_super_args =
+  (* Custom follow which will not follow away extern abstracts *)
+  (* Following away extern abstracts means we will miss any cpp include meta attached to it. *)
   let follow t =
     match t with
-    | TAbstract (a, _) when is_marshalling_native_enum a ->
+    | TAbstract ({ a_extern = true }, _) ->
       follow_once t
     | _ ->
       Abstract.follow_with_abstracts t
