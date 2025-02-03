@@ -1,4 +1,3 @@
-open Ast
 open Type
 open Error
 open Globals

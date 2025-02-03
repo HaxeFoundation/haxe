@@ -1483,7 +1483,7 @@ let expression ctx request_type function_args function_type expression_tree forI
   in
   retype initial_ctx request_type expression_tree |> snd
 
-let rec get_id path ids =
+let get_id path ids =
   let class_name = class_text path in
   let needs_new_id id =
     (* IDs less than 100 are reserved for hxcpp internal classes *)
