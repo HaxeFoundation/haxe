@@ -120,7 +120,7 @@ new EReg("^" + EReg.escape("\\ ^ $ * + ? . ( ) | { } [ ]") + "$", "").match("\\ 
 ~/(\d+)/g.replace("a1234b12","$$1") == "a$1b$1";
 
 // #10592 - null character
-#if (!hl && !php)
+#if (!hl && (!php || php_ver >= 8.2))
 var containingNull = new EReg("abc\x00def", "");
 containingNull.match("abc") == false;
 containingNull.match("abc\x00def") == true;
