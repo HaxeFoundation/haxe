@@ -19,6 +19,7 @@ class TestNullCoalescing extends Test {
 	}
 
 	function test() {
+		count = 0;
 		eq(true, 0 != 1 ?? 2);
 		var a = call() ?? "default";
 		eq(count, 1);
@@ -74,35 +75,6 @@ class TestNullCoalescing extends Test {
 		final di3:Null<Dynamic> = 2;
 		eq(di ?? di2 ?? di3, 2);
 
-		var a:Null<Int> = null;
-		a ??= 5;
-		eq(a, 5);
-		t(HelperMacros.isNullable(a ??= null));
-		f(HelperMacros.isNullable(a ??= 5));
-		var a:Null<Int> = null;
-		eq(a ??= 5, 5);
-		eq(a, 5);
-		var a = "default";
-		eq(a ??= "5", "default");
-
-		count = 0;
-		var a = call();
-		eq(count, 1);
-		a ??= call();
-		eq(count, 1);
-
-		var a:Null<String> = null;
-		final b = a ??= call();
-		final c = a ??= call();
-		eq(count, 2);
-		eq(a, "_");
-		eq(b, "_");
-		eq(c, "_");
-
-		final map:Map<String, Array<Int>> = [];
-		map["foo"] ??= [];
-		t(map["foo"] != null);
-
 		final a:Null<Int> = ({} : Dynamic).x;
 		eq(a ?? 2, 2);
 
@@ -149,6 +121,41 @@ class TestNullCoalescing extends Test {
 		t(HelperMacros.isNullable(nullF2));
 		f(HelperMacros.isNullable(notNullF));
 		f(HelperMacros.isNullable(notNullF2));
+	}
+
+	function testAssignOp() {
+		count = 0;
+		var a:Null<Int> = null;
+		a ??= 5;
+		eq(a, 5);
+		t(HelperMacros.isNullable(a ??= null));
+		f(HelperMacros.isNullable(a ??= 5));
+		var a:Null<Int> = null;
+		eq(a ??= 5, 5);
+		eq(a, 5);
+		var a = "default";
+		eq(a ??= "5", "default");
+
+		count = 0;
+		var a = call();
+		eq(count, 1);
+		a ??= call();
+		eq(count, 1);
+
+		var a:Null<String> = null;
+		final b = a ??= call();
+		final c = a ??= call();
+		eq(count, 2);
+		eq(a, "_");
+		eq(b, "_");
+		eq(c, "_");
+
+		final map:Map<String, Array<Int>> = [];
+		var array1 = [];
+		map["foo"] ??= array1;
+		eq(map["foo"], array1);
+		map["foo"] ??= [];
+		eq(map["foo"], array1);
 
 		// test typing
 		#if !macro
@@ -156,17 +163,17 @@ class TestNullCoalescing extends Test {
 		eq(2, getMut());
 		resetMut();
 
-		var a = 0;
+		var a:Null<Int> = 0;
 		mutAssignLeft() ??= mut() ?? mut();
 		eq(3, getMut());
 		resetMut();
 
-		var a = 0;
+		var a:Null<Int> = 0;
 		final b = a ??= mut();
 		eq(1, getMut());
 		resetMut();
 
-		var a = 0;
+		var a:Null<Int> = 0;
 		mutAssignLeft() ??= 1;
 		eq(1, getMut());
 		resetMut();

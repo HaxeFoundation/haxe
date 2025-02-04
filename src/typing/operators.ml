@@ -760,6 +760,78 @@ let type_assign_op ctx op e1 e2 with_type p =
 	loop (!type_access_ref ctx (fst e1) (snd e1) (MSet (Some e2)) with_type)
 
 
+let type_op_null_coal_assign ctx (e1 : expr) (e2 : expr) with_type p =
+	let gen vr e1 e2 e_assign =
+		let e1,eelse,tif = match with_type with
+			| WithType.NoValue ->
+				e1,None,ctx.t.tvoid
+			| _ ->
+				let e1 = vr#as_var "tmp" e1 in
+				(* The e2.etype is here so that `anything ??= 2` doesn't become Null<T> *)
+				e1,Some e1,e2.etype
+		in
+		let e_null = Texpr.Builder.make_null e1.etype e1.epos in
+		let e_null = Texpr.Builder.binop OpEq e1 e_null ctx.t.tbool e1.epos in
+		mk (TIf(e_null,e_assign,eelse)) tif e1.epos
+	in
+	let assign vr e_lhs e_rhs =
+		let e_assign =
+			let e_rhs = AbstractCast.cast_or_unify ctx e_lhs.etype e_rhs p in
+			mk (TBinop(OpAssign,e_lhs,e_rhs)) e_lhs.etype p
+		in
+		let e = gen vr e_lhs e_rhs e_assign in
+		vr#to_texpr e
+	in
+	let e1 = !type_access_ref ctx (fst e1) (snd e1) (MSet (Some e2)) with_type in
+	let type_e2 t = type_expr ctx e2 (WithType.WithType(t,None)) in
+	match e1 with
+	| AKNo(_,p) ->
+		raise_typing_error "This expression cannot be accessed for writing" p
+	| AKSafeNav _
+	| AKUsingField _ ->
+		raise_typing_error "Invalid operation" p
+	| AKExpr e ->
+		let e,vr = process_lhs_expr ctx "lhs" e in
+		assign vr e (type_e2 e.etype)
+	| AKField fa ->
+		assert false
+	| AKAccessor fa ->
+		assert false
+	| AKUsingAccessor sea ->
+		assert false
+	| AKAccess(a,tl,c,ebase,ekey) ->
+		let cf_get,tf_get,r_get,ekey = AbstractCast.find_array_read_access ctx a tl ekey p in
+		(* bind complex keys to a variable so they do not make it into the output twice *)
+		let save = save_locals ctx in
+		let vr = new value_reference ctx in
+		let maybe_bind_to_temp name e = match Optimizer.make_constant_expression ctx e with
+			| Some e -> e
+			| None -> vr#as_var name e
+		in
+		let ebase = maybe_bind_to_temp "base" ebase in
+		let ekey = maybe_bind_to_temp "key" ekey in
+		let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey) c ebase p in
+		let e2 = type_e2 eget.etype in
+		unify ctx eget.etype r_get p;
+		let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_write_access ctx a tl ekey eget p in
+		let et = type_module_type ctx (TClassDecl c) p in
+		let e = match cf_set.cf_expr,cf_get.cf_expr with
+			| Some _,Some _ ->
+				let ef_set = mk (TField(et,(FStatic(c,cf_set)))) tf_set p in
+				let el = [make_call ctx ef_set [ebase;ekey;e2] r_set p] in
+				begin match el with
+					| [e] -> e
+					| el -> mk (TBlock el) r_set p
+				end
+			| _ ->
+				raise_typing_error "Invalid array access getter/setter combination" p
+		in
+		save();
+		let e = gen vr eget e2 e in
+		vr#to_texpr	e
+	| AKResolve(sea,name) ->
+		assert false
+
 let type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with
 	| OpAssign ->
