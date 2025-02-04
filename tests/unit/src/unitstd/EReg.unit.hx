@@ -118,3 +118,13 @@ new EReg("^" + EReg.escape("\\ ^ $ * + ? . ( ) | { } [ ]") + "$", "").match("\\ 
 ~/(\d+)/g.replace("a1234b12","$1") == "a1234b12";
 ~/(\d+)/g.replace("a1234b12","\\$1") == "a\\1234b\\12";
 ~/(\d+)/g.replace("a1234b12","$$1") == "a$1b$1";
+
+// #10592 - null character
+var containingNull = new EReg("abc\x00def", "");
+containingNull.match("abc") == false;
+containingNull.match("abc\x00def") == true;
+containingNull.match("abc\x00fed") == false;
+var containingNull = ~/abc\x00def/;
+containingNull.match("abc") == false;
+containingNull.match("abc\x00def") == true;
+containingNull.match("abc\x00fed") == false;
