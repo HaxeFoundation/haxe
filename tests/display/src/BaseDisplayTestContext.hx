@@ -6,7 +6,16 @@ using StringTools;
 import Types;
 
 class BaseDisplayTestContext {
-	static var haxeServer = haxeserver.HaxeServerSync.launch("haxe", []);
+	static var haxeServer = {
+		var hx = "haxe";
+		var testHaxe = haxe.macro.Compiler.getDefine("test_haxe");
+		if (testHaxe != null) {
+			Sys.putEnv("HAXE_STD_PATH", '${Path.directory(testHaxe)}/std');
+			hx = testHaxe;
+		}
+
+		haxeserver.HaxeServerSync.launch(hx, []);
+	}
 
 	var dir:String = ".";
 	var vfs:Vfs;
