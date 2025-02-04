@@ -53,7 +53,7 @@ class Issue7753 extends DisplayTestCase {
 		}
 	**/
 	function testConstructor() {
-		eq("(i : Int) -> cases.Foo", type(pos(1)));
-		eq("(s : String) -> cases.Foo", type(pos(2)));
+		eq("(i : Int) -> Foo", type(pos(1)));
+		eq("(s : String) -> Foo", type(pos(2)));
 	}
 }

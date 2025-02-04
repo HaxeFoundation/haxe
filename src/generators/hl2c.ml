@@ -124,11 +124,11 @@ let tname str =
 	ident n
 
 let is_gc_ptr = function
-	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ | HPacked _ -> false
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ | HPacked _ | HGUID -> false
 	| HBytes | HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HStruct _ -> true
 
 let is_ptr = function
-	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool -> false
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HGUID -> false
 	| _ -> true
 
 let rec ctype_no_ptr = function
@@ -156,6 +156,7 @@ let rec ctype_no_ptr = function
 	| HPacked t ->
 		let name,v = ctype_no_ptr t in
 		"struct _" ^ name, v
+	| HGUID -> "int64", 0
 
 let ctype t =
 	let t, nptr = ctype_no_ptr t in
@@ -203,6 +204,7 @@ let type_id t =
 	| HMethod _ -> "HMETHOD"
 	| HStruct _  -> "HSTRUCT"
 	| HPacked _ -> "HPACKED"
+	| HGUID -> "HGUID"
 
 let var_type n t =
 	ctype t ^ " " ^ ident n
@@ -237,7 +239,7 @@ let define ctx s =
 
 let rec define_type ctx t =
 	match t with
-	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HDynObj | HNull _ | HRef _ -> ()
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HDynObj | HNull _ | HRef _ | HGUID -> ()
 	| HAbstract _ ->
 		define ctx "#include <hl/natives.h>";
 	| HFun (args,ret) | HMethod (args,ret) ->
@@ -1138,7 +1140,7 @@ let make_types_idents htypes =
 	let types_descs = ref PMap.empty in
 	let rec make_desc t =
 		match t with
-		| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HRef _ | HDynObj | HNull _ ->
+		| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HRef _ | HDynObj | HNull _ | HGUID ->
 			DSimple t
 		| HFun (tl,t) ->
 			DFun (List.map make_desc tl, make_desc t, true)

@@ -100,7 +100,7 @@ class RpcDisplayTestContext extends BaseDisplayTestContext {
 	// Can be removed once module-symbols is migrated to json rpc
 	function callHaxe(displayPart:String) {
 		var args = ["--display", source.path + "@" + displayPart];
-		var result = BaseDisplayTestContext.runHaxe(args, source.content);
+		var result = runHaxe(args, source.content);
 		if (result.hasError || result.stderr == "") {
 			throw new HaxeInvocationException(result.stderr, fieldName, args, source.content);
 		}
@@ -111,7 +111,7 @@ class RpcDisplayTestContext extends BaseDisplayTestContext {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		var args = ['--display', Json.stringify(methodArgs)];
 
-		var result = BaseDisplayTestContext.runHaxe(args, source.content);
+		var result = runHaxe(args, source.content);
 		if (result.hasError || result.stderr == "") {
 			throw new HaxeInvocationException(result.stderr, fieldName, args, source.content);
 		}

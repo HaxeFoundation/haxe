@@ -1,4 +1,4 @@
-package misc.issue7877;
+package issue7877;
 
 import haxe.macro.Expr;
 import haxe.macro.Context;

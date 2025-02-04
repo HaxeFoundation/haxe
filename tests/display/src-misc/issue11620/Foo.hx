@@ -1,4 +1,4 @@
-package misc.issue11620;
+package issue11620;
 
 class Foo {
     public static function foo() {}

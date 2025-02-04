@@ -473,6 +473,7 @@ let rec to_type ?tref ctx t =
 			| ["hl"], "UI16" -> HUI16
 			| ["hl"], "UI8" -> HUI8
 			| ["hl"], "I64" -> HI64
+			| ["hl"], "GUID" -> HGUID
 			| ["hl"], "NativeArray" -> HArray (to_type ctx (List.hd pl))
 			| ["haxe";"macro"], "Position" -> HAbstract ("macro_pos", alloc_string ctx "macro_pos")
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
@@ -4027,6 +4028,8 @@ let write_code ch code debug =
 		| HPacked t ->
 			byte 22;
 			write_type t
+		| HGUID ->
+			byte 23
 	) all_types;
 
 	let write_debug_infos debug =
