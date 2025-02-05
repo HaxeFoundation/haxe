@@ -857,7 +857,14 @@ let type_op_null_coal_assign ctx (e1 : expr) (e2 : expr) with_type p =
 		let e = gen vr eget e2.etype e in
 		vr#to_texpr	e
 	| AKResolve(sea,name) ->
-		raise_typing_error (Printf.sprintf "TODO: AKResolve(%s,%s)" (s_static_extension_access sea) name) p
+		let e,vr = process_lhs_expr ctx "fh" sea.se_this in
+		let e_lhs,e_rhs = field_rhs_by_name name e WithType.value in
+		let e_assign =
+			let e_name = Texpr.Builder.make_string ctx.t name null_pos in
+			(new call_dispatcher ctx (MCall [e2]) with_type p)#field_call sea.se_access [sea.se_this;e_name;e_rhs] []
+		in
+		let e = gen vr e_lhs e_rhs.etype e_assign in
+		vr#to_texpr e
 
 let type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with

@@ -59,6 +59,35 @@ private abstract NullCoalAbstract(NullCoalAbstractData) {
 	}
 }
 
+private abstract NullCoalAbstractResolve(NullCoalAbstractData) {
+	public function new() {
+		this = {
+			field: null,
+			getCounter: 0,
+			setCounter: 0
+		}
+	}
+
+	public function getGetCounter() {
+		return this.getCounter;
+	}
+
+	public function getSetCounter() {
+		return this.setCounter;
+	}
+
+	@:op(a.b) public function readResolve(field:String) {
+		this.getCounter++;
+		return Reflect.field(this, field);
+	}
+
+	@:op(a.b) public function writeResolve<T>(field:String, v:T) {
+		this.setCounter++;
+		Reflect.setField(this, field, v);
+		return Reflect.field(this, field);
+	}
+}
+
 @:nullSafety(StrictThreaded)
 class TestNullCoalescing extends Test {
 	final nullInt:Null<Int> = null;
@@ -286,6 +315,27 @@ class TestNullCoalescing extends Test {
 		eq(1, getMut());
 		eq("value", obj.field ?? "fail");
 		resetMut();
+
+		// resolve
+		var obj = new NullCoalAbstractResolve();
+		obj.field ??= "value";
+		eq(1, obj.getGetCounter());
+		eq(1, obj.getSetCounter());
+		eq("value", obj.field ?? "fail");
+
+		var value = obj.field ??= "value2";
+		eq(3, obj.getGetCounter());
+		eq(1, obj.getSetCounter());
+		eq("value", obj.field ?? "fail");
+		eq("value", value);
+
+		// TODO: this fails at the moment with some "not enough arguments error"
+		// mutAssignLeft(obj.field) ??= "not value";
+		// eq(5, obj.getGetCounter());
+		// eq(1, obj.getSetCounter());
+		// eq(1, getMut());
+		// eq("value", obj.field ?? "fail");
+		// resetMut();
 		#end
 	}
 
