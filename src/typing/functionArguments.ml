@@ -99,6 +99,8 @@ object(self)
 					v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 					loop ((v,None) :: acc) false syntax typed
 				| ((_,pn),opt,m,_,_) :: syntax,(name,eo,t) :: typed ->
+					if name <> "_" && List.exists (fun (v,_) -> v.v_name = name) acc then
+						raise_typing_error ("Duplicate argument name \"" ^ name ^ "\"") pn;
 					delay ctx.g PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
 					if not is_extern then Naming.check_local_variable_name ctx.com name TVOArgument pn;
 					let eo = type_function_arg_value ctx t eo do_display in
