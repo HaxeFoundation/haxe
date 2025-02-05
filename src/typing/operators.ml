@@ -794,11 +794,11 @@ let type_op_null_coal_assign ctx (e1 : expr) (e2 : expr) with_type p =
 		let e,vr = process_lhs_expr ctx "lhs" e in
 		assign vr e (type_e2 e.etype)
 	| AKField fa ->
-		assert false
+		raise_typing_error (Printf.sprintf "TODO: AKField %s" (s_field_access "" fa)) p
 	| AKAccessor fa ->
-		assert false
+		raise_typing_error (Printf.sprintf "TODO: AKAccessor %s" (s_field_access "" fa)) p
 	| AKUsingAccessor sea ->
-		assert false
+		raise_typing_error (Printf.sprintf "TODO: AKUsingAccessor %s" (s_static_extension_access sea)) p
 	| AKAccess(a,tl,c,ebase,ekey) ->
 		let cf_get,tf_get,r_get,ekey = AbstractCast.find_array_read_access ctx a tl ekey p in
 		(* bind complex keys to a variable so they do not make it into the output twice *)
@@ -830,7 +830,7 @@ let type_op_null_coal_assign ctx (e1 : expr) (e2 : expr) with_type p =
 		let e = gen vr eget e2 e in
 		vr#to_texpr	e
 	| AKResolve(sea,name) ->
-		assert false
+		raise_typing_error (Printf.sprintf "TODO: AKResolve(%s,%s)" (s_static_extension_access sea) name) p
 
 let type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with
