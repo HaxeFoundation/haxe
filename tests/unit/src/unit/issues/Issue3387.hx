@@ -6,6 +6,7 @@ class Issue3387 extends unit.Test {
 	}
 
 	static macro function getPos(source:String, file:String) {
+		haxe.macro.Context.registerFileContents(file, source);
 		var e = haxe.macro.Context.parseInlineString(source, haxe.macro.Context.makePosition({min: 0, max: 0, file: file}));
 		return macro $v{Std.string(e.pos)};
 	}

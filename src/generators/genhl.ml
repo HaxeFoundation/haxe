@@ -473,6 +473,7 @@ let rec to_type ?tref ctx t =
 			| ["hl"], "UI16" -> HUI16
 			| ["hl"], "UI8" -> HUI8
 			| ["hl"], "I64" -> HI64
+			| ["hl"], "GUID" -> HGUID
 			| ["hl"], "NativeArray" -> HArray (to_type ctx (List.hd pl))
 			| ["haxe";"macro"], "Position" -> HAbstract ("macro_pos", alloc_string ctx "macro_pos")
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
@@ -2868,8 +2869,6 @@ and eval_expr ctx e =
 			die "" __LOC__)
 	| TMeta (_,e) ->
 		eval_expr ctx e
-	| TFor (v,it,loop) ->
-		eval_expr ctx (Texpr.for_remap ctx.com.basic v it loop e.epos)
 	| TSwitch {switch_subject = en;switch_cases = cases;switch_default = def} ->
 		let rt = to_type ctx e.etype in
 		let r = alloc_tmp ctx rt in
@@ -4029,6 +4028,8 @@ let write_code ch code debug =
 		| HPacked t ->
 			byte 22;
 			write_type t
+		| HGUID ->
+			byte 23
 	) all_types;
 
 	let write_debug_infos debug =

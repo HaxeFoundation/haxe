@@ -1,11 +1,7 @@
-open Ast
 open Type
-open Error
-open Globals
 open CppTypeUtils
 open CppAst
 open CppAstTools
-open CppContext
 
 let autocast_filter for_cppia return_type cppexpr =
   let object_expression =

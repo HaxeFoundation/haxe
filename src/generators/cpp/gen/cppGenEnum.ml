@@ -1,6 +1,5 @@
 open Type
 open CppStrings
-open CppTypeUtils
 open CppAst
 open CppAstTools
 open CppSourceWriter

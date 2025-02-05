@@ -11,6 +11,6 @@ class Issue7022 extends DisplayTestCase {
 		}
 	**/
 	function test() {
-		eq("() -> cases.Main", type(pos(1)));
+		eq("() -> Main", type(pos(1)));
 	}
 }

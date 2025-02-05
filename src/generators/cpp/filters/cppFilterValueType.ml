@@ -1,11 +1,5 @@
-open Ast
-open Type
-open Error
-open Globals
-open CppTypeUtils
 open CppAst
 open CppAstTools
-open CppContext
 
 (* If we are constructing a value type of reference state, inspect the surrounding context and choose a more appropriate construction *)
 let filter_determine_construction return_type cppexpr =

@@ -174,6 +174,7 @@ class Issue7053 extends DisplayTestCase {
 	}
 
 	/**
+		package;
 		{-1-}
 	**/
 	@:filename("import.hx")

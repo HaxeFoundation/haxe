@@ -1189,13 +1189,6 @@ let expression ctx request_type function_args function_type expression_tree forI
             | Spread -> die ~p:expr.epos "Unexpected spread operator" __LOC__
           in
           (retyper_ctx, reference, cpp_type_of expr.etype)
-      | TFor (v, init, block) ->
-          let new_var = retype_tvar v in
-          let retyper_ctx = { retyper_ctx with declarations = StringMap.add v.v_name () retyper_ctx.declarations } in
-          let retyper_ctx, init = retype retyper_ctx new_var.tcppv_type init in
-          let retyper_ctx, block = retype retyper_ctx TCppVoid (mk_block block) in
-          let retyper_ctx = { retyper_ctx with declarations = StringMap.remove v.v_name retyper_ctx.declarations } in
-          (retyper_ctx, CppFor (new_var, init, block), TCppVoid)
       | TWhile (e1, e2, flag) ->
           let retyper_ctx, condition = retype retyper_ctx (TCppScalar "bool") e1 in
           let retyper_ctx, close = begin_loop retyper_ctx in
@@ -1459,7 +1452,7 @@ let expression ctx request_type function_args function_type expression_tree forI
   in
   retype initial_ctx request_type expression_tree |> snd
 
-let rec get_id path ids =
+let get_id path ids =
   let class_name = class_text path in
   let needs_new_id id =
     (* IDs less than 100 are reserved for hxcpp internal classes *)

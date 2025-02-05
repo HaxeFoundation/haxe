@@ -2,8 +2,6 @@ import haxe.Json;
 import haxe.display.Display;
 import haxe.display.Protocol;
 
-import BaseDisplayTestContext.normalizePath;
-
 using StringTools;
 
 import Types;
@@ -60,7 +58,7 @@ class XmlDisplayTestContext extends BaseDisplayTestContext {
 
 	function callHaxe(displayPart:String) {
 		var args = ["--display", source.path + "@" + displayPart];
-		var result = BaseDisplayTestContext.runHaxe(args, source.content);
+		var result = runHaxe(args, source.content);
 		if (result.hasError || result.stderr == "") {
 			throw new HaxeInvocationException(result.stderr, fieldName, args, source.content);
 		}
@@ -76,7 +74,7 @@ class XmlDisplayTestContext extends BaseDisplayTestContext {
 		return StringTools.trim(xml.firstChild().nodeValue);
 	}
 
-	static function extractPositions(result:String) {
+	function extractPositions(result:String) {
 		var xml = Xml.parse(result);
 		xml = xml.firstElement();
 		if (xml.nodeName != "list") {

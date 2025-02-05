@@ -226,6 +226,13 @@ let get_changed_directories sctx com =
 	t();
 	dirs
 
+let full_typing com m_extra =
+	com.is_macro_context
+	|| com.display.dms_full_typing
+	|| Define.defined com.defines Define.DisableHxbCache
+	|| Define.defined com.defines Define.DisableHxbOptimizations
+	|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m_extra.m_file)
+
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
 let check_module sctx com m_path m_extra p =
@@ -327,11 +334,7 @@ let check_module sctx com m_path m_extra p =
 			try
 				check_module_path();
 				if not (has_policy NoFileSystemCheck) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
-				if (
-					com.is_macro_context
-					|| com.display.dms_full_typing
-					|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m_extra.m_file)
-				) then check_dependencies();
+				if full_typing com m_extra then check_dependencies();
 				None
 			with
 			| Dirty reason ->
@@ -393,7 +396,7 @@ let check_module sctx com m_path m_extra p =
 let get_hxb_module com cc path =
 	try
 		let mc = cc#get_hxb_module path in
-		if not com.is_macro_context && not com.display.dms_full_typing && not (DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file)) then begin
+		if not (full_typing com mc.mc_extra) then begin
 			mc.mc_extra.m_cache_state <- MSGood;
 			BinaryModule mc
 		end else
@@ -407,7 +410,7 @@ let get_hxb_module com cc path =
 class hxb_reader_api_server
 	(com : Common.context)
 	(cc : context_cache)
-	(delay : (unit -> unit) -> unit)
+	(delay : TyperPass.typer_pass -> (unit -> unit) -> unit)
 = object(self)
 
 	method make_module (path : path) (file : string) =
@@ -419,7 +422,7 @@ class hxb_reader_api_server
 			m_statics = None;
 			(* Creating a new m_extra because if we keep the same reference, display requests *)
 			(* can alter it with bad data (for example adding dependencies that are not cached) *)
-			m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps }
+			m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps; m_display_deps = None }
 		}
 
 	method add_module (m : module_def) =
@@ -436,20 +439,21 @@ class hxb_reader_api_server
 			m
 		| BinaryModule mc ->
 			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined com Define.HxbTimes) in
-			let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file) in
-			let full_restore = com.is_macro_context || com.display.dms_full_typing || is_display_file in
+			let full_restore = full_typing com mc.mc_extra in
 			let f_next chunks until =
-				let t_hxb = Timer.timer ["server";"module cache";"hxb read";"until " ^ (string_of_chunk_kind until)] in
-				let r = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until (not full_restore) in
+				let macro = if com.is_macro_context then " (macro)" else "" in
+				let t_hxb = Timer.timer ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] in
+				let r = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until full_restore in
 				t_hxb();
 				r
 			in
+
 			let m,chunks = f_next mc.mc_chunks EOT in
 
 			(* We try to avoid reading expressions as much as possible, so we only do this for
 				 our current display file if we're in display mode. *)
 			if full_restore then ignore(f_next chunks EOM)
-			else delay (fun () -> ignore(f_next chunks EOF));
+			else delay PConnectField (fun () -> ignore(f_next chunks EOF));
 			m
 		| BadModule reason ->
 			die (Printf.sprintf "Unexpected BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)) __LOC__
@@ -468,12 +472,11 @@ class hxb_reader_api_server
 		i
 
 	method read_expression_eagerly (cf : tclass_field) =
-		com.display.dms_full_typing
+		com.is_macro_context || com.display.dms_full_typing || Define.defined com.defines Define.DisableHxbOptimizations
 
 	method make_lazy_type t f =
 		let r = make_unforced_lazy t f "server-api" in
-		 (* TODO: This should probably use the PForce pass, not PConnectField *)
-		delay (fun () -> ignore(lazy_type r));
+		delay PForce (fun () -> ignore(lazy_type r));
 		TLazy r
 end
 
@@ -508,11 +511,7 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 				if not from_binary || m != m then
 					com.module_lut#add m.m_path m;
 				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
-				let full_restore =
-					com.is_macro_context
-					|| com.display.dms_full_typing
-					|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file)
-				in
+				let full_restore = full_typing com m.m_extra in
 				PMap.iter (fun _ mdep ->
 					let mpath = mdep.md_path in
 					if mdep.md_sign = own_sign then begin
@@ -531,7 +530,7 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 						in
 						add_modules (tabs ^ "  ") m0 m2
 					end
-				) (if full_restore then m.m_extra.m_deps else Option.default m.m_extra.m_deps m.m_extra.m_sig_deps)
+				) (if full_restore then m.m_extra.m_deps else Option.default m.m_extra.m_deps m.m_extra.m_display_deps)
 			)
 		end
 	in
@@ -584,8 +583,7 @@ and type_module sctx com delay mpath p =
 			begin match check_module sctx mpath mc.mc_extra p with
 				| None ->
 					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined com Define.HxbTimes) in
-					let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mc.mc_extra.m_file) in
-					let full_restore = com.is_macro_context || com.display.dms_full_typing || is_display_file in
+					let full_restore = full_typing com mc.mc_extra in
 					let api = match com.hxb_reader_api with
 						| Some api ->
 							api
@@ -595,16 +593,19 @@ and type_module sctx com delay mpath p =
 							api
 					in
 					let f_next chunks until =
-						let t_hxb = Timer.timer ["server";"module cache";"hxb read";"until " ^ (string_of_chunk_kind until)] in
-						let r = reader#read_chunks_until api chunks until (not full_restore) in
+						let macro = if com.is_macro_context then " (macro)" else "" in
+						let t_hxb = Timer.timer ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] in
+						let r = reader#read_chunks_until api chunks until full_restore in
 						t_hxb();
 						r
 					in
+
 					let m,chunks = f_next mc.mc_chunks EOT in
+
 					(* We try to avoid reading expressions as much as possible, so we only do this for
 					   our current display file if we're in display mode. *)
 					if full_restore then ignore(f_next chunks EOM)
-					else delay (fun () -> ignore(f_next chunks EOF));
+					else delay PConnectField (fun () -> ignore(f_next chunks EOF));
 					add_modules true m;
 				| Some reason ->
 					skip mpath reason

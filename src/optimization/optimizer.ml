@@ -64,7 +64,7 @@ let rec need_parent e =
 	| TConst _ | TLocal _ | TArray _ | TField _ | TEnumParameter _ | TEnumIndex _ | TParenthesis _
 	| TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ | TIdent _ -> false
 	| TCast (e,None) | TMeta(_,e) -> need_parent e
-	| TCast _ | TThrow _ | TReturn _ | TTry _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
+	| TCast _ | TThrow _ | TReturn _ | TTry _ | TSwitch _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
 	| TBlock _ | TVar _ | TFunction _ | TUnop _ -> true
 
 let sanitize_expr com e =
@@ -82,7 +82,6 @@ let sanitize_expr com e =
 		(* complex expressions are the one that once generated to source consists in several expressions  *)
 		match e.eexpr with
 		| TVar _	(* needs to be put into blocks *)
-		| TFor _	(* a temp var is needed for holding iterator *)
 		| TCall ({ eexpr = TIdent "__js__" },_) (* we never know *)
 			-> block e
 		| _ -> e
@@ -92,7 +91,6 @@ let sanitize_expr com e =
 		match e.eexpr with
 		| TIf (_,_,None) -> true
 		| TWhile (_,e,NormalWhile) -> has_if e
-		| TFor (_,_,e) -> has_if e
 		| _ -> false
 	in
 	match e.eexpr with
@@ -156,9 +154,6 @@ let sanitize_expr com e =
 		let e1 = parent e1 in
 		let e2 = complex e2 in
 		{ e with eexpr = TWhile (e1,e2,flag) }
-	| TFor (v,e1,e2) ->
-		let e2 = complex e2 in
-		{ e with eexpr = TFor (v,e1,e2) }
 	| TFunction f ->
 		let f = (match f.tf_expr.eexpr with
 			| TBlock exprs ->

@@ -9,6 +9,7 @@
 *.exe
 .*.swp
 .haxelib
+/opam
 /out
 /installer
 

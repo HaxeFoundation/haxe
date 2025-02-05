@@ -396,6 +396,15 @@ class Context {
 	}
 
 	/**
+		Parse file content for newlines, allowing positions to be resolved
+		properly inside that file later on (using `Context.parseInlineString`
+		for example). Works with both real and virtual files.
+	**/
+	public static function registerFileContents(file:String, content:String):Void {
+		load("register_file_contents", 2)(file, content);
+	}
+
+	/**
 		Builds an expression from `v`.
 
 		This method generates AST nodes depending on the macro-runtime value of

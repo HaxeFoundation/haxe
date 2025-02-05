@@ -2141,8 +2141,6 @@ class texpr_to_jvm
 			if not (need_val ret) then code#pop;
 		| TParenthesis e1 | TMeta(_,e1) ->
 			self#texpr ret e1
-		| TFor(v,e1,e2) ->
-			self#texpr ret (Texpr.for_remap gctx.gctx.basic v e1 e2 e.epos)
 		| TEnumIndex e1 ->
 			self#texpr rvalue_any e1;
 			jm#invokevirtual java_enum_path "ordinal" (method_sig [] (Some TInt))

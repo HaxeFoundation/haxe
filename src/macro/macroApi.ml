@@ -33,6 +33,7 @@ type 'value compiler_api = {
 	after_generate : (unit -> unit) -> unit;
 	on_type_not_found : (string -> 'value) -> unit;
 	parse_string : string -> Globals.pos -> bool -> Ast.expr;
+	register_file_contents : string -> string -> unit;
 	parse : 'a . ((Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
@@ -1379,7 +1380,6 @@ and encode_texpr e =
 			| TFunction func -> 12,[encode_tfunc func]
 			| TVar (v,eo) -> 13,[encode_tvar v;vopt encode_texpr eo]
 			| TBlock el -> 14,[encode_texpr_list el]
-			| TFor(v,e1,e2) -> 15,[encode_tvar v;loop e1;loop e2]
 			| TIf(eif,ethen,eelse) -> 16,[loop eif;loop ethen;vopt encode_texpr eelse]
 			| TWhile(econd,e1,flag) -> 17,[loop econd;loop e1;vbool (flag = NormalWhile)]
 			| TSwitch switch ->
@@ -1529,7 +1529,7 @@ and decode_texpr v =
 		| 12, [f] -> TFunction(decode_tfunc f)
 		| 13, [v;eo] -> TVar(decode_tvar v,opt loop eo)
 		| 14, [vl] -> TBlock(List.map loop (decode_array vl))
-		| 15, [v;v1;v2] -> TFor(decode_tvar v,loop v1,loop v2)
+		(* 15 was TFor *)
 		| 16, [vif;vthen;velse] -> TIf(loop vif,loop vthen,opt loop velse)
 		| 17, [vcond;v1;b] -> TWhile(loop vcond,loop v1,if decode_bool b then NormalWhile else DoWhile)
 		| 18, [v1;cl;vdef] ->
@@ -1907,6 +1907,12 @@ let macro_api ccom get_api =
 			let s = decode_string s in
 			if s = "" then (get_api()).exc_string "Invalid expression";
 			encode_expr ((get_api()).parse_string s (decode_pos p) (decode_bool b))
+		);
+		"register_file_contents", vfun2 (fun f c ->
+			let f = decode_string f in
+			let content = decode_string c in
+			(get_api()).register_file_contents f content;
+			vnull
 		);
 		"make_expr", vfun2 (fun v p ->
 			encode_expr (value_to_expr v (decode_pos p))
@@ -2348,6 +2354,10 @@ let macro_api ccom get_api =
 				"range",range
 			] in
 			location
+		);
+		"position_to_zero_range", vfun1 (fun p ->
+			let p = decode_pos p in
+			encode_pos (mk_zero_range_pos p)
 		);
 		"on_null_safety_report", vfun1 (fun f ->
 			let f = prepare_callback f 1 in

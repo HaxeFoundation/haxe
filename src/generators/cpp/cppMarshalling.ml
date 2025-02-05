@@ -1,14 +1,5 @@
-open Ast
-open Type
-open Error
-open Common
-open Globals
-open CppStrings
-open CppTypeUtils
 open CppAst
 open CppAstTools
-open CppSourceWriter
-open CppContext
 
 let get_extern_value_type_boxed value_type =
   let p = get_native_marshalled_type value_type in

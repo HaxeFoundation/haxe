@@ -281,7 +281,7 @@ let mark_mt dce mt = match mt with
 		mark_enum dce e
 	| TAbstractDecl a ->
 		(* abstract 'feature' is defined as the abstract type beeing used as a value, not as a type *)
-		if not (Meta.has Meta.ValueUsed a.a_meta) then a.a_meta <- (Meta.ValueUsed,[],a.a_pos) :: a.a_meta;
+		if not (Meta.has Meta.ValueUsed a.a_meta) then a.a_meta <- (Meta.ValueUsed,[],mk_zero_range_pos a.a_pos) :: a.a_meta;
 		mark_abstract dce a
 	| TTypeDecl _ ->
 		()
@@ -370,11 +370,11 @@ and field dce c n kind =
 and mark_directly_used_class dce c =
 	(* don't add @:directlyUsed if it's used within the class itself. this can happen with extern inline methods *)
 	if c != dce.curclass && not (Meta.has Meta.DirectlyUsed c.cl_meta) then
-		c.cl_meta <- (Meta.DirectlyUsed,[],c.cl_pos) :: c.cl_meta
+		c.cl_meta <- (Meta.DirectlyUsed,[],mk_zero_range_pos c.cl_pos) :: c.cl_meta
 
 and mark_directly_used_enum e =
 	if not (Meta.has Meta.DirectlyUsed e.e_meta) then
-		e.e_meta <- (Meta.DirectlyUsed,[],e.e_pos) :: e.e_meta
+		e.e_meta <- (Meta.DirectlyUsed,[],mk_zero_range_pos e.e_pos) :: e.e_meta
 
 and mark_directly_used_mt dce mt =
 	match mt with
@@ -828,7 +828,7 @@ let sweep dce com =
 		| (TClassDecl c) as mt :: l ->
 			let check_property cf stat =
 				let add_accessor_metadata cf =
-					if not (Meta.has Meta.Accessor cf.cf_meta) then cf.cf_meta <- (Meta.Accessor,[],c.cl_pos) :: cf.cf_meta
+					if not (Meta.has Meta.Accessor cf.cf_meta) then cf.cf_meta <- (Meta.Accessor,[],mk_zero_range_pos c.cl_pos) :: cf.cf_meta
 				in
 				begin match cf.cf_kind with
 				| Var {v_read = AccCall} ->

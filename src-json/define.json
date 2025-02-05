@@ -72,6 +72,11 @@
 		"doc": "Use in-memory cache instead of hxb powered cache."
 	},
 	{
+		"name": "DisableHxbOptimizations",
+		"define": "disable-hxb-optimizations",
+		"doc": "Disable shortcuts used by hxb cache to speed up display requests."
+	},
+	{
 		"name": "DisableUnicodeStrings",
 		"define": "disable-unicode-strings",
 		"doc": "Disable Unicode support in `String` type.",

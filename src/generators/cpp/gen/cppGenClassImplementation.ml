@@ -9,7 +9,6 @@ open CppAstTools
 open CppSourceWriter
 open CppContext
 open CppGen
-open CppMarshalling
 
 let gen_function ctx class_def class_name is_static func =
   let output      = ctx.ctx_output in

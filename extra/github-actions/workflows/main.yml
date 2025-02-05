@@ -243,61 +243,125 @@ jobs:
           cpp/Dox -i ../../xmldoc -ex microsoft -ex javax -theme $(haxelib libpath dox)/themes/default
         working-directory: ${{github.workspace}}/tests/docgen
 
-  linux-arm64:
-    runs-on: ubuntu-20.04
-    permissions:
-      packages: write
+  linux-arm64-build:
+    runs-on: ubuntu-22.04-arm
     env:
-      FORCE_COLOR: 1
+      PLATFORM: linux-arm64
+      OPAMYES: 1
     steps:
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Earthly
-        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.6.13/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
-
-      - name: Set up QEMU
-        id: qemu
-        uses: docker/setup-qemu-action@v3
-        with:
-            image: tonistiigi/binfmt:latest
-            platforms: all
-
       - uses: actions/checkout@main
         with:
           submodules: recursive
 
-      - name: Set CONTAINER_ vars
-        run: |
-          echo "CONTAINER_REG=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV;
-          echo "CONTAINER_TAG=$(echo ${{ github.ref_name }} | sed -e 's/[^A-Za-z0-9\.]/-/g')" >> $GITHUB_ENV;
+      - name: Cache opam
+        id: cache-opam
+        uses: actions/cache@v4
+        with:
+          path: ~/.opam/
+          key: arm-${{ runner.os }}-${{ hashFiles('./haxe.opam', './libs/') }}
 
-      - name: Build devcontainer
-        run: earthly --platform=linux/arm64 +devcontainer --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}-arm64" --IMAGE_CACHE="ghcr.io/haxefoundation/haxe_devcontainer:development-arm64"
-        env:
-          EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
-          EARTHLY_USE_INLINE_CACHE: true
-          EARTHLY_SAVE_INLINE_CACHE: true
+      @import install-neko-unix.yml
+
+      - name: Install dependencies
+        run: |
+          set -ex
+          sudo apt-get update -qqy
+          sudo apt-get install -qqy ocaml-nox opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
+
+      - name: Install OCaml libraries
+        if: steps.cache-opam.outputs.cache-hit != 'true'
+        run: |
+          set -ex
+          opam init
+          opam pin add haxe . --no-action
+          opam install haxe --deps-only --assume-depexts
+          opam list
+          ocamlopt -v
 
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         run: echo "ADD_REVISION=1" >> $GITHUB_ENV
 
-      - name: Build
-        run: earthly --platform=linux/arm64 +build --ADD_REVISION="$ADD_REVISION" --SET_SAFE_DIRECTORY="true"
-        env:
-          EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
-          EARTHLY_REMOTE_CACHE: "ghcr.io/${{env.CONTAINER_REG}}_cache:build-${{env.CONTAINER_TAG}}-arm64"
+      - name: Build Haxe
+        run: |
+          set -ex
+          eval $(opam env)
+          opam config exec -- make -s -j`nproc` STATICLINK=1 haxe
+          opam config exec -- make -s haxelib
+          make -s package_unix
+          ls -l out
+          ldd -v ./haxe
+          ldd -v ./haxelib
+
+      # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
+      - name: Extract branch name
+        id: extract_branch
+        shell: bash
+        run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: linuxArm64Binaries
-          path: out/linux/arm64
+          path: out
+
+  linux-arm64-test:
+    needs: linux-arm64-build
+    runs-on: ubuntu-22.04-arm
+    env:
+      PLATFORM: linux-arm64
+      TEST: ${{matrix.target}}
+      HXCPP_COMPILE_CACHE: ~/hxcache
+      HAXE_STD_PATH: /usr/local/share/haxe/std
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [macro, js, cpp, jvm, php, python, lua, neko]
+        include:
+          - target: lua
+            APT_PACKAGES: ncurses-dev
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v4
+        with:
+          name: linuxArm64Binaries
+          path: linuxBinaries
+
+      @import install-neko-unix.yml
+
+      - name: Setup Haxe
+        run: |
+          sudo apt install -qqy libmbedtls-dev
+
+          set -ex
+          tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
+          sudo mkdir -p /usr/local/bin/
+          sudo mkdir -p /usr/local/share/haxe/
+          sudo ln -s `pwd`/linuxBinaries/haxe /usr/local/bin/haxe
+          sudo ln -s `pwd`/linuxBinaries/haxelib /usr/local/bin/haxelib
+          sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
+
+      - name: Print Haxe version
+        run: haxe -version
+
+      - name: Setup haxelib
+        run: |
+          set -ex
+          mkdir ~/haxelib
+          haxelib setup ~/haxelib
+
+      - name: Install apt packages
+        if: matrix.APT_PACKAGES
+        run: |
+          set -ex
+          sudo apt update -qqy
+          sudo apt install -qqy ${{matrix.APT_PACKAGES}}
+
+      - name: Test
+        run: haxe RunCi.hxml
+        working-directory: ${{github.workspace}}/tests
 
   mac-build:
     strategy:
@@ -413,7 +477,7 @@ jobs:
 
   deploy:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-test, linux-arm64, mac-test, windows64-test]
+    needs: [linux-test, linux-arm64-test, mac-test, windows64-test]
     runs-on: ubuntu-20.04
     steps:
       # this is only needed for to get `COMMIT_DATE`...
@@ -483,7 +547,7 @@ jobs:
 
   deploy_apidoc:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-test, linux-arm64, mac-test, windows64-test]
+    needs: [linux-test, linux-arm64-test, mac-test, windows64-test]
     runs-on: ubuntu-20.04
     steps:
       - name: Install dependencies

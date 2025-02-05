@@ -175,10 +175,6 @@ let collect_statistics ctx pos_filters with_expressions =
 			| TVar(v,eo) ->
 				Option.may loop eo;
 				var_decl v;
-			| TFor(v,e1,e2) ->
-				var_decl v;
-				loop e1;
-				loop e2;
 			| TFunction tf ->
 				List.iter (fun (v,_) -> var_decl v) tf.tf_args;
 				loop tf.tf_expr;

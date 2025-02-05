@@ -26,32 +26,6 @@ class TestTreGeneration {
 	}
 
 	@:js('
-		if(b == null) {
-			b = 10;
-		}
-		while(true) {
-			if(Std.random(2) == 0) {
-				var _gtmp1 = a;
-				a = b + a;
-				b = _gtmp1;
-				s += "?";
-				continue;
-			}
-			if(s == null) {
-				return a;
-			} else {
-				return b;
-			}
-		}
-	')
-	function testInstanceMethod(a:Int, b:Int = 10, ?s:String):Int {
-		if(Std.random(2) == 0) {
-			return testInstanceMethod(b + a, a, s + '?');
-		}
-		return s == null ? a : b;
-	}
-
-	@:js('
 		var local = null;
 		local = function(a,b,s) {
 			if(b == null) {

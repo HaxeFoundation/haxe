@@ -729,7 +729,7 @@ let inline_constructors ctx original_e =
 	end else begin
 		let el,_ = final_map e in
 		let cf = ctx.f.curfield in
-		if !included_untyped && not (Meta.has Meta.HasUntyped cf.cf_meta) then cf.cf_meta <- (Meta.HasUntyped,[],e.epos) :: cf.cf_meta;
+		if !included_untyped && not (Meta.has Meta.HasUntyped cf.cf_meta) then cf.cf_meta <- (Meta.HasUntyped,[],mk_zero_range_pos e.epos) :: cf.cf_meta;
 		let e = make_expr_for_rev_list el e.etype e.epos in
 		let rec get_pretty_name iv : string list = match iv.iv_kind with
 			| IVKField(io,fname,None) ->

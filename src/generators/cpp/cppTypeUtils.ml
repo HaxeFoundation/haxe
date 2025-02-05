@@ -102,6 +102,24 @@ let real_interfaces classes =
       | _ -> true))
    classes
 
+let can_quick_alloc klass =
+   let rec implements_native_interface class_def =
+      List.exists
+        (fun (intf_def, _) -> is_native_gen_class intf_def || implements_native_interface intf_def) class_def.cl_implements ||
+      match class_def.cl_super with
+      | Some (i, _) -> implements_native_interface i
+      | _ -> false
+   in
+
+  (not (is_native_class klass)) && not (implements_native_interface klass)
+
+let real_interfaces classes =
+   List.filter (function t, pl ->
+      (match (t, pl) with
+      | { cl_path = [ "cpp"; "rtti" ], _ }, [] -> false
+      | _ -> true))
+   classes
+
 let is_interface_type t =
    match follow t with
    | TInst (klass,params) -> (has_class_flag klass CInterface)

@@ -152,7 +152,7 @@ class hxb_reader
 	(timers_enabled : bool)
 = object(self)
 	val mutable api = Obj.magic ""
-	val mutable minimal_restore = false
+	val mutable full_restore = true
 	val mutable current_module = null_module
 
 	val mutable ch = BytesWithPosition.create (Bytes.create 0)
@@ -179,7 +179,13 @@ class hxb_reader
 
 	method resolve_type pack mname tname =
 		try
-			api#resolve_type pack mname tname
+			let mt = api#resolve_type pack mname tname in
+			if not full_restore then begin
+				let mdep = (t_infos mt).mt_module in
+				if mdep != null_module && current_module.m_path != mdep.m_path then
+					current_module.m_extra.m_display_deps <- Some (PMap.add mdep.m_id (create_dependency mdep MDepFromTyping) (Option.get current_module.m_extra.m_display_deps))
+			end;
+			mt
 		with Not_found ->
 			dump_backtrace();
 			error (Printf.sprintf "[HXB] [%s] Cannot resolve type %s" (s_type_path current_module.m_path) (s_type_path ((pack @ [mname]),tname)))
@@ -763,9 +769,9 @@ class hxb_reader
 			)
 		| 12 ->
 			let a = self#read_abstract_ref in
-			self#make_lazy_type_dynamic (fun () ->
+			(* self#make_lazy_type_dynamic (fun () -> *)
 				TType(abstract_module_type (Lazy.force a) [],[])
-			)
+			(* ) *)
 		| 13 ->
 			let e = self#read_expr in
 			let c = {null_class with cl_kind = KExpr e; cl_module = current_module } in
@@ -892,28 +898,28 @@ class hxb_reader
 			)
 		| 70 ->
 			let a = self#read_abstract_ref in
-			self#make_lazy_type_dynamic (fun () ->
+			(* self#make_lazy_type_dynamic (fun () -> *)
 				TAbstract(Lazy.force a,[])
-			)
+			(* ) *)
 		| 71 ->
 			let a = self#read_abstract_ref in
 			let t1 = self#read_type_instance in
-			self#make_lazy_type_dynamic (fun () ->
+			(* self#make_lazy_type_dynamic (fun () -> *)
 				TAbstract(Lazy.force a,[t1])
-			)
+			(* ) *)
 		| 72 ->
 			let a = self#read_abstract_ref in
 			let t1 = self#read_type_instance in
 			let t2 = self#read_type_instance in
-			self#make_lazy_type_dynamic (fun () ->
+			(* self#make_lazy_type_dynamic (fun () -> *)
 				TAbstract(Lazy.force a,[t1;t2])
-			)
+			(* ) *)
 		| 79 ->
 			let a = self#read_abstract_ref in
 			let tl = self#read_types in
-			self#make_lazy_type_dynamic (fun () ->
+			(* self#make_lazy_type_dynamic (fun () -> *)
 				TAbstract(Lazy.force a,tl)
-			)
+			(* ) *)
 		| 80 ->
 			empty_anon
 		| 81 ->
@@ -1227,11 +1233,6 @@ class hxb_reader
 						let e1 = loop () in
 						let e2 = loop () in
 						TWhile(e1,e2,DoWhile),(Some api#basic_types.tvoid)
-					| 86 ->
-						let v  = declare_local () in
-						let e1 = loop () in
-						let e2 = loop () in
-						TFor(v,e1,e2),(Some api#basic_types.tvoid)
 
 					(* control flow 90-99 *)
 					| 90 ->
@@ -1382,8 +1383,9 @@ class hxb_reader
 	method read_class_field_forward =
 		let name = self#read_string in
 		let pos,name_pos = self#read_pos_pair in
+		let cf_meta = self#read_metadata in
 		let overloads = self#read_list (fun () -> self#read_class_field_forward) in
-		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos; cf_overloads = overloads }
+		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos; cf_overloads = overloads; cf_meta = cf_meta }
 
 	method start_texpr =
 		begin match read_byte ch with
@@ -1441,7 +1443,6 @@ class hxb_reader
 		let flags = read_uleb128 ch in
 
 		let doc = self#read_option (fun () -> self#read_documentation) in
-		cf.cf_meta <- self#read_metadata;
 		let kind = self#read_field_kind in
 
 		let expr,expr_unoptimized = match read_byte ch with
@@ -2020,11 +2021,12 @@ class hxb_reader
 			assert(has_string_pool);
 			current_module <- self#read_mdf;
 			incr stats.modules_partially_restored;
+			if not full_restore then current_module.m_extra.m_display_deps <- Some PMap.empty
 		| MTF ->
 			current_module.m_types <- self#read_mtf;
 			api#add_module current_module;
 		| IMP ->
-			if not minimal_restore then self#read_imports;
+			if full_restore then self#read_imports;
 		| CLR ->
 			self#read_clr;
 		| ENR ->
@@ -2092,11 +2094,11 @@ class hxb_reader
 		close()
 
 	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =
-		fst (self#read_chunks_until new_api chunks EOM false)
+		fst (self#read_chunks_until new_api chunks EOM true)
 
-	method read_chunks_until (new_api : hxb_reader_api) (chunks : cached_chunks) end_chunk minimal_restore' =
+	method read_chunks_until (new_api : hxb_reader_api) (chunks : cached_chunks) end_chunk full_restore' =
 		api <- new_api;
-		minimal_restore <- minimal_restore';
+		full_restore <- full_restore';
 		let rec loop = function
 			| (kind,data) :: chunks ->
 				ch <- BytesWithPosition.create data;
@@ -2109,7 +2111,7 @@ class hxb_reader
 
 	method read (new_api : hxb_reader_api) (bytes : bytes) =
 		api <- new_api;
-		minimal_restore <- false;
+		full_restore <- true;
 		ch <- BytesWithPosition.create bytes;
 		if (Bytes.to_string (read_bytes ch 3)) <> "hxb" then
 			raise (HxbFailure "magic");

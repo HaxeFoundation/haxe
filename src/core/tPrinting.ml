@@ -197,7 +197,6 @@ let s_expr_kind e =
 	| TFunction _ -> "Function"
 	| TVar _ -> "Vars"
 	| TBlock _ -> "Block"
-	| TFor (_,_,_) -> "For"
 	| TIf (_,_,_) -> "If"
 	| TWhile (_,_,_) -> "While"
 	| TSwitch _ -> "Switch"
@@ -263,8 +262,6 @@ let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 		(match el with
 			| [] -> "{}"
 			| _ ->  s ^ tabs ^ "}")
-	| TFor (v,econd,e) ->
-		sprintf "for (%s in %s) %s" (local v) (loop econd) (loop e)
 	| TIf (e,e1,e2) ->
 		sprintf "if (%s) %s%s" (loop e) (loop e1) (match e2 with None -> "" | Some e -> " else " ^ loop e)
 	| TWhile (econd,e,flag) ->
@@ -373,7 +370,6 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TReturn (Some e1) -> tag "Return" [loop e1]
 	| TWhile (e1,e2,NormalWhile) -> tag "While" [loop e1; loop e2]
 	| TWhile (e1,e2,DoWhile) -> tag "Do" [loop e1; loop e2]
-	| TFor (v,e1,e2) -> tag "For" [local v None; loop e1; loop e2]
 	| TTry (e1,catches) ->
 		let sl = List.map (fun (v,e) ->
 			sprintf "Catch %s%s" (local v None) (tag_args (tabs ^ "\t") [loop ~extra_tabs:"\t" e]);

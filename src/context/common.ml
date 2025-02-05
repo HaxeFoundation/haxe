@@ -232,9 +232,10 @@ class file_keys = object(self)
 
 	val virtual_counter = ref 0
 
-	method generate_virtual step =
+	method generate_virtual mpath step =
 		incr virtual_counter;
-		Printf.sprintf "file_%i_%i" step !virtual_counter
+		let base = match fst mpath with | [] -> "." | pack -> ExtLib.String.join "/" pack in
+		Printf.sprintf "%s/%s_%i_%i" base (snd mpath) step !virtual_counter
 
 end
 

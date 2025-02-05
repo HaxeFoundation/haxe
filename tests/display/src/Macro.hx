@@ -15,12 +15,13 @@ class Macro {
 			if (field.doc == null) {
 				continue;
 			}
-			var doc = (c.pack.length > 0 ? "package " + c.pack.join(".") + ";\n" : "");
-			if (field.meta.exists(function(meta) return meta.name == ":funcCode")) {
-				doc += "class Main { static function main() { " + field.doc + "}}";
+
+			var doc = if (field.meta.exists(function(meta) return meta.name == ":funcCode")) {
+				"class Main { static function main() { " + field.doc + "}}";
 			} else {
-				doc += field.doc;
-			}
+				field.doc;
+			};
+
 			doc = StringTools.replace(doc, "**\\/", "**/");
 			var transform = Marker.extractMarkers(doc);
 			var markers = transform.markers.length > 0 ? macro $a{transform.markers} : macro new Map();
@@ -40,6 +41,9 @@ class Macro {
 				case FFun(f) if (f.expr != null):
 					f.expr = macro @:pos(f.expr.pos) {
 						ctx = new DisplayTestContext($v{filename}, $v{field.name}, $v{transform.source}, $markers);
+						static var methodArgs = {method: haxe.display.Protocol.Methods.ResetCache, id: 1, params: {}};
+						var args = ['--display', haxe.Json.stringify(methodArgs)];
+						ctx.runHaxe(args);
 						${f.expr}
 					};
 				case _:

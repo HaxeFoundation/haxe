@@ -1,8 +1,6 @@
 open Ast
 open Type
-open Error
 open Common
-open Globals
 open CppStrings
 open CppTypeUtils
 open CppAst
@@ -10,7 +8,6 @@ open CppAstTools
 open CppSourceWriter
 open CppContext
 open CppGen
-open CppMarshalling
 
 let attribs common_ctx = match Gctx.defined common_ctx Define.DllExport with
   | true -> "HXCPP_EXTERN_CLASS_ATTRIBUTES"

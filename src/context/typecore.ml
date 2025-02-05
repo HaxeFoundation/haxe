@@ -21,6 +21,7 @@ open Globals
 open Ast
 open Common
 open Type
+open TyperPass
 open Error
 open Resolution
 open FieldCallCandidate
@@ -49,21 +50,6 @@ type access_mode =
 	| MGet
 	| MSet of Ast.expr option (* rhs, if exists *)
 	| MCall of Ast.expr list (* call arguments *)
-
-type typer_pass =
-	| PBuildModule			(* build the module structure and setup module type parameters *)
-	| PBuildClass			(* build the class structure *)
-	| PConnectField			(* handle associated fields, which may affect each other. E.g. a property and its getter *)
-	| PTypeField			(* type the class field, allow access to types structures *)
-	| PCheckConstraint		(* perform late constraint checks with inferred types *)
-	| PForce				(* usually ensure that lazy have been evaluated *)
-	| PFinal				(* not used, only mark for finalize *)
-
-let all_typer_passes = [
-	PBuildModule;PBuildClass;PConnectField;PTypeField;PCheckConstraint;PForce;PFinal
-]
-
-let all_typer_passes_length = List.length all_typer_passes
 
 type typer_module = {
 	curmod : module_def;
@@ -484,7 +470,7 @@ let delay_if_mono g p t f = match follow t with
 	| _ ->
 		f()
 
-let rec flush_pass g p where =
+let rec flush_pass g (p : typer_pass) where =
 	let rec loop i =
 		if i > (Obj.magic p) then
 			()

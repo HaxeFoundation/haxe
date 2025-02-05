@@ -1,4 +1,3 @@
-open Ast
 open Type
 open Error
 open Globals
@@ -9,7 +8,6 @@ open CppAstTools
 open CppSourceWriter
 open CppContext
 open CppGen
-open CppMarshalling
 
 let gen_member_variable ctx is_static var =
   let tcpp     = CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type var.tcv_type in

@@ -420,12 +420,6 @@ and generate_texpr ctx e =
 	| TBlock el ->
 		let el = List.map (generate_texpr ctx) el in
 		"TBlock",Some (jarray el)
-	| TFor(v,e1,e2) ->
-		"TFor",Some (jobject [
-			"v",generate_tvar ctx v;
-			"expr1",generate_texpr ctx e1;
-			"expr2",generate_texpr ctx e2;
-		]);
 	| TIf(e1,e2,eo) ->
 		"TIf",Some (jobject [
 			"eif",generate_texpr ctx e1;

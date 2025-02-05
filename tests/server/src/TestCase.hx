@@ -100,7 +100,6 @@ class TestCase implements ITest implements ITestCase {
 	}
 
 	function runHaxe(args:Array<String>, done:() -> Void) {
-		#if disable-hxb-cache args = ["-D", "disable-hxb-cache"].concat(args); #end
 		messages = [];
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
@@ -126,7 +125,7 @@ class TestCase implements ITest implements ITestCase {
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
 			handleResult(result);
-			var json = try Json.parse(result.stderr) catch(e) {result: null, error: e.message};
+			var json = try Json.parse(result.stderr) catch(e) {result: null, error: e.message + " (Response: " + result.stderr + ")"};
 
 			if (json.result != null) {
 				callback(json.result?.result);
