@@ -10,9 +10,27 @@
    |                      ^
    | Duplicate argument name "i"
 
-[ERROR] Main1.hx:4: characters 19-20
+[ERROR] Main1.hx:4: characters 30-31
 
- 4 |  var lambda = (i, i) -> {};
+ 4 |  function bar1(i:Int, j:Int, i:Int) {}
+   |                              ^
+   | Duplicate argument name "i"
+
+[ERROR] Main1.hx:5: characters 24-25
+
+ 5 |  function bar2(i:Int, ?i:Int) {}
+   |                        ^
+   | Duplicate argument name "i"
+
+[ERROR] Main1.hx:6: characters 23-24
+
+ 6 |  function bar3(i:Int, i = 42) {}
+   |                       ^
+   | Duplicate argument name "i"
+
+[ERROR] Main1.hx:7: characters 19-20
+
+ 7 |  var lambda = (i, i) -> {};
    |                   ^
    | Duplicate argument name "i"
 
