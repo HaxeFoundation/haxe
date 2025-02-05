@@ -125,7 +125,7 @@ class TestCase implements ITest implements ITestCase {
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
 			handleResult(result);
-			var json = try Json.parse(result.stderr) catch(e) {result: null, error: e.message};
+			var json = try Json.parse(result.stderr) catch(e) {result: null, error: e.message + " (Response: " + result.stderr + ")"};
 
 			if (json.result != null) {
 				callback(json.result?.result);
