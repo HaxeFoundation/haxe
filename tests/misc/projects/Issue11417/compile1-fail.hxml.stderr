@@ -1,0 +1,18 @@
+[ERROR] Main1.hx:2: characters 28-29
+
+ 2 |  var foo = function(i:Int, i:Int) {};
+   |                            ^
+   | Duplicate argument name "i"
+
+[ERROR] Main1.hx:3: characters 22-23
+
+ 3 |  function bar(i:Int, i:Int) {}
+   |                      ^
+   | Duplicate argument name "i"
+
+[ERROR] Main1.hx:4: characters 19-20
+
+ 4 |  var lambda = (i, i) -> {};
+   |                   ^
+   | Duplicate argument name "i"
+
