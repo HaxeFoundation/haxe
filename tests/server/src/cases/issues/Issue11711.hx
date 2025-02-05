@@ -6,7 +6,6 @@ class Issue11711 extends TestCase {
 	function test(_) {
 		vfs.putContent("Main.hx", getTemplate("issues/Issue11711/Main.hx"));
 		var args = ["-main", "Main", "--js", "no.js", "--no-output"];
-		runHaxe(args);
 		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
 			Assert.equals(1, res.length);
 			var diag = res[0];
@@ -20,7 +19,18 @@ class Issue11711 extends TestCase {
 		vfs.putContent("Main.hx", getTemplate("issues/Issue11711/Main1.hx"));
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
 		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
-			trace(res);
+			Assert.equals(1, res.length);
+			var found = false;
+			var diag = res[0];
+			for (d in diag.diagnostics) {
+				if (d.severity != Warning) continue;
+				if (d.code != "WInfo") continue;
+				if (d.args != "Int") continue;
+				found = true;
+				break;
+			}
+
+			Assert.isTrue(found);
 		});
 	}
 }
