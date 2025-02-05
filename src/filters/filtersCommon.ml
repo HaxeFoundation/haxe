@@ -57,7 +57,11 @@ let run_expression_filters ?(ignore_processed_status=false) ctx detail_times fil
 	let com = ctx.com in
 	let run (ctx : typer) identifier e =
 		List.fold_left (fun e (filter_name,f) ->
-			FilterContext.with_timer detail_times filter_name identifier (fun () -> f ctx e)
+			(try
+				FilterContext.with_timer detail_times filter_name identifier (fun () -> f ctx e)
+			with Failure msg ->
+				com.error msg e.epos;
+				e)
 		) e filters
 	in
 	match t with
