@@ -23,6 +23,42 @@ private class NullCoalClass {
 	}
 }
 
+private typedef NullCoalAbstractData = {
+	var field:String;
+	var getCounter:Int;
+	var setCounter:Int;
+}
+
+private abstract NullCoalAbstract(NullCoalAbstractData) {
+	public var field(get, set):String;
+
+	public function new() {
+		this = {
+			field: null,
+			getCounter: 0,
+			setCounter: 0
+		}
+	}
+
+	public function getGetCounter() {
+		return this.getCounter;
+	}
+
+	public function getSetCounter() {
+		return this.setCounter;
+	}
+
+	public function get_field() {
+		this.getCounter++;
+		return this.field;
+	}
+
+	public function set_field(v:String) {
+		this.setCounter++;
+		return this.field = v;
+	}
+}
+
 @:nullSafety(StrictThreaded)
 class TestNullCoalescing extends Test {
 	final nullInt:Null<Int> = null;
@@ -227,6 +263,26 @@ class TestNullCoalescing extends Test {
 		mutAssignLeft(obj.field) ??= "not value";
 		eq(5, obj.getCounter);
 		eq(1, obj.setCounter);
+		eq(1, getMut());
+		eq("value", obj.field ?? "fail");
+		resetMut();
+
+		// static extension accessor
+		var obj = new NullCoalAbstract();
+		obj.field ??= "value";
+		eq(1, obj.getGetCounter());
+		eq(1, obj.getSetCounter());
+		eq("value", obj.field ?? "fail");
+
+		var value = obj.field ??= "value2";
+		eq(3, obj.getGetCounter());
+		eq(1, obj.getSetCounter());
+		eq("value", obj.field ?? "fail");
+		eq("value", value);
+
+		mutAssignLeft(obj.field) ??= "not value";
+		eq(5, obj.getGetCounter());
+		eq(1, obj.getSetCounter());
 		eq(1, getMut());
 		eq("value", obj.field ?? "fail");
 		resetMut();

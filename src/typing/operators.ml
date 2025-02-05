@@ -822,7 +822,10 @@ let type_op_null_coal_assign ctx (e1 : expr) (e2 : expr) with_type p =
 		let e_lhs,e_rhs = field_rhs fa.fa_field ef in
 		set vr {fa with fa_on = ef} e_lhs e_rhs []
 	| AKUsingAccessor sea ->
-		raise_typing_error (Printf.sprintf "TODO: AKUsingAccessor %s" (s_static_extension_access sea)) p
+		let fa = sea.se_access in
+		let ef,vr = process_lhs_expr ctx "fh" sea.se_this in
+		let t_lhs,e_rhs = field_rhs fa.fa_field ef in
+		set vr sea.se_access t_lhs e_rhs [ef]
 	| AKAccess(a,tl,c,ebase,ekey) ->
 		let cf_get,tf_get,r_get,ekey = AbstractCast.find_array_read_access ctx a tl ekey p in
 		(* bind complex keys to a variable so they do not make it into the output twice *)
