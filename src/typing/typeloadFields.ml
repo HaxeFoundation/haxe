@@ -1289,7 +1289,10 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 		if ctx.com.config.pf_overload then
 			add_class_field_flag cf CfOverload
 		else if fctx.field_kind = CfrConstructor then
-			invalid_modifier ctx.com fctx "overload" "constructor" p
+			if (has_class_flag c CExtern || fctx.is_extern) && not fctx.is_inline then
+				add_class_field_flag cf CfOverload
+			else
+				invalid_modifier_only ctx.com fctx "overload" "on extern non-inline constructors" p
 		else begin
 			add_class_field_flag cf CfOverload;
 			if not (has_class_flag c CExtern || fctx.is_extern) then
@@ -1681,12 +1684,13 @@ let init_class ctx_c cctx c p herits fields =
 				begin match c.cl_constructor with
 				| None ->
 					c.cl_constructor <- Some cf
-				| Some ctor when ctx.com.config.pf_overload ->
-					if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
-						ctor.cf_overloads <- cf :: ctor.cf_overloads
-					else
-						display_error ctx.com ("If using overloaded constructors, all constructors must be declared with 'overload'") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
 				| Some ctor ->
+					if ctx.com.config.pf_overload || ((has_class_flag c CExtern || fctx.is_extern) && not fctx.is_inline) then
+						if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
+							ctor.cf_overloads <- cf :: ctor.cf_overloads
+						else
+							display_error ctx.com ("If using overloaded constructors, all constructors must be declared with 'overload'") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
+					else
 						display_error ctx.com "Duplicate constructor" p
 				end
 			| CfrInit ->
