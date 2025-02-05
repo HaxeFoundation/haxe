@@ -1,4 +1,6 @@
 open Gctx
+open Globals
+open Type
 open CppAstTools
 
 (* CPP code generation context *)
@@ -17,20 +19,19 @@ type context = {
   mutable ctx_debug_level : int;
   (* cached as required *)
   mutable ctx_file_info : (string, string) PMap.t ref;
-  ctx_type_ids : (string, Int32.t) Hashtbl.t;
   (* Per file *)
   ctx_output : string -> unit;
   ctx_writer : CppSourceWriter.source_writer;
   ctx_file_id : int ref;
   ctx_is_header : bool;
-  ctx_interface_slot : (string, int) Hashtbl.t ref;
-  ctx_interface_slot_count : int ref;
+  ctx_super_deps : path list CppAst.PathMap.t;
+  ctx_constructor_deps : tclass_field CppAst.PathMap.t;
+  ctx_class_member_types : string StringMap.t;
   (* This is for returning from the child nodes of TSwitch && TTry *)
   mutable ctx_real_this_ptr : bool;
-  mutable ctx_class_member_types : (string, string) Hashtbl.t;
 }
 
-let new_context common_ctx debug file_info member_types =
+let new_context common_ctx debug file_info member_types super_deps constructor_deps =
   let null_file =
     new CppSourceWriter.source_writer common_ctx ignore ignore (fun () -> ())
   in
@@ -40,11 +41,8 @@ let new_context common_ctx debug file_info member_types =
       ctx_common = common_ctx;
       ctx_writer = null_file;
       ctx_file_id = ref (-1);
-      ctx_type_ids = Hashtbl.create 0;
       ctx_is_header = false;
       ctx_output = null_file#write;
-      ctx_interface_slot = ref (Hashtbl.create 0);
-      ctx_interface_slot_count = ref 2;
       ctx_debug_level =
         (if has_def Define.AnnotateSource then 3
          else if has_def Define.HxcppDebugger then 2
@@ -52,6 +50,8 @@ let new_context common_ctx debug file_info member_types =
       ctx_real_this_ptr = true;
       ctx_class_member_types = member_types;
       ctx_file_info = file_info;
+      ctx_super_deps = super_deps;
+      ctx_constructor_deps = constructor_deps;
     }
   in
   result

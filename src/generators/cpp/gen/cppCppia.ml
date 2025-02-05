@@ -2,7 +2,6 @@ open Ast
 open Type
 open Error
 open Globals
-open CppExprUtils
 open CppTypeUtils
 open CppAst
 open CppAstTools
@@ -353,6 +352,19 @@ let rec is_null expr =
 
 let is_virtual_array expr = type_string expr.etype = "cpp::VirtualArray"
 
+let rec remove_parens expression =
+  match expression.eexpr with
+  | TParenthesis e -> remove_parens e
+  | TMeta(_,e) -> remove_parens e
+  | _ -> expression
+
+let rec remove_parens_cast expression =
+  match expression.eexpr with
+  | TParenthesis e -> remove_parens_cast e
+  | TMeta(_,e) -> remove_parens_cast e
+  | TCast ( e,None) -> remove_parens_cast e
+  | _ -> expression
+
 let is_this expression =
   match (remove_parens expression).eexpr with
   | TConst TThis -> true
@@ -447,7 +459,7 @@ and is_dynamic_member_lookup_in_cpp (ctx : context) field_object field =
     | "Dynamic" -> true
     | name ->
         let full_name = name ^ "." ^ member in
-        if Hashtbl.mem ctx.ctx_class_member_types full_name then false
+        if StringMap.mem full_name ctx.ctx_class_member_types then false
         else not (is_extern_class_instance field_object)
 
 and is_dynamic_member_return_in_cpp ctx field_object field =
@@ -462,7 +474,7 @@ and is_dynamic_member_return_in_cpp ctx field_object field =
           "::" ^ join_class_path_remap (t_path t) "::" ^ "." ^ member
         in
         try
-          let mem_type = Hashtbl.find ctx.ctx_class_member_types full_name in
+          let mem_type = StringMap.find full_name ctx.ctx_class_member_types in
           mem_type = "Dynamic"
           || mem_type = "cpp::ArrayBase"
           || mem_type = "cpp::VirtualArray"
@@ -479,7 +491,7 @@ and is_dynamic_member_return_in_cpp ctx field_object field =
             let full_name = name ^ "." ^ member in
             try
               let mem_type =
-                Hashtbl.find ctx.ctx_class_member_types full_name
+                StringMap.find full_name ctx.ctx_class_member_types
               in
               mem_type = "Dynamic"
               || mem_type = "cpp::ArrayBase"

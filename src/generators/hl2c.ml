@@ -825,7 +825,7 @@ let generate_function ctx f =
 		| OSDiv (r,a,b) ->
 			(match rtype r with
 			| HUI8 | HUI16 | HI32 ->
-				sexpr "%s = %s == 0 ? 0 : %s / %s" (reg r) (reg b) (reg a) (reg b)
+				sexpr "%s = (%s == 0 || %s == -1) ? %s * %s : %s / %s" (reg r) (reg b) (reg b) (reg a) (reg b) (reg a) (reg b)
 			| _ ->
 				sexpr "%s = %s / %s" (reg r) (reg a) (reg b))
 		| OUDiv (r,a,b) ->
@@ -833,7 +833,7 @@ let generate_function ctx f =
 		| OSMod (r,a,b) ->
 			(match rtype r with
 			| HUI8 | HUI16 | HI32 | HI64 ->
-				sexpr "%s = %s == 0 ? 0 : %s %% %s" (reg r) (reg b) (reg a) (reg b)
+				sexpr "%s = (%s == 0 || %s == -1) ? 0 : %s %% %s" (reg r) (reg b) (reg b) (reg a) (reg b)
 			| HF32 ->
 				sexpr "%s = fmodf(%s,%s)" (reg r) (reg a) (reg b)
 			| HF64 ->

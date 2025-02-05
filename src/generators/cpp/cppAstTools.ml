@@ -6,6 +6,8 @@ open CppTypeUtils
 
 let follow = Abstract.follow_with_abstracts
 
+let string_map_of_list bs = List.fold_left (fun m (k, v) -> StringMap.add k v m) StringMap.empty bs
+
 (*
    A class_path is made from a package (array of strings) and a class name.
    Join these together, inclding a separator.  eg, "/" for includes : pack1/pack2/Name or "::"
@@ -588,6 +590,19 @@ and array_element_type haxe_type =
    | _ -> "::Dynamic"
 
 and cpp_function_signature tfun abi =
+   let gen_interface_arg_type_name name opt typ =
+      let type_str = (type_string typ) in
+      (* type_str may have already converted Null<X> to Dynamic because of NotNull tag ... *)
+      (if (opt && (cant_be_null typ) && type_str<>"Dynamic" ) then
+         "::hx::Null< " ^ type_str ^ " > "
+      else
+         type_str ) ^ " " ^ (keyword_remap name)
+   in
+   
+   let gen_tfun_interface_arg_list args =
+      String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ) args)
+   in
+
    match follow tfun with
    | TFun(args,ret) -> (type_string ret) ^ " " ^ abi ^ "(" ^ (gen_tfun_interface_arg_list args) ^ ")"
    | _ -> "void *"
@@ -600,18 +615,7 @@ and cpp_function_signature_params params = match params with
    | _ ->
       print_endline ("Params:" ^ (String.concat "," (List.map type_string params) ));
       die "" __LOC__;
-
-and gen_interface_arg_type_name name opt typ =
-   let type_str = (type_string typ) in
-   (* type_str may have already converted Null<X> to Dynamic because of NotNull tag ... *)
-   (if (opt && (cant_be_null typ) && type_str<>"Dynamic" ) then
-      "::hx::Null< " ^ type_str ^ " > "
-   else
-      type_str ) ^ " " ^ (keyword_remap name)
-
-and gen_tfun_interface_arg_list args =
-   String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ) args)
-
+   
 and cant_be_null haxe_type =
    is_numeric haxe_type || (type_has_meta_key Meta.NotNull haxe_type )
 
@@ -725,3 +729,37 @@ let enum_getter_type t =
   | TCppScalar "bool"  -> "Bool"
   | TCppScalar x  -> x
   | _  -> "Object"
+
+let int_of_tcpp_class_flag (flag:tcpp_class_flags) =
+   Obj.magic flag
+
+let set_tcpp_class_flag flags c =
+   set_flag flags (int_of_tcpp_class_flag c)
+
+let has_tcpp_class_flag c flag =
+   has_flag c.tcl_flags (int_of_tcpp_class_flag flag)
+
+let all_interface_functions tcpp_interface =
+   let add_interface_functions existing interface =
+      let folder acc cur =
+         if List.exists (fun f -> f.iff_name = cur.iff_name) acc then
+            acc
+         else
+            cur :: acc
+         in
+      List.fold_left folder existing interface.if_functions
+   in
+
+   let rec visit_interface existing interface =
+      let initial =
+         match interface.if_extends with
+         | None ->
+            existing
+         | Some super ->
+            visit_interface existing super
+      in
+
+      add_interface_functions initial interface
+   in
+
+   visit_interface [] tcpp_interface |> List.rev

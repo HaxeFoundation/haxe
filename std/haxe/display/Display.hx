@@ -129,7 +129,7 @@ typedef DisplayLocal<T> = {
 	var id:Int;
 	var name:String;
 	var type:JsonType<T>;
-	var origin:LocalOrigin;
+	var ?origin:LocalOrigin;
 	var capture:Bool;
 	var ?extra:{
 		var params:Array<JsonTypeParameter>;
