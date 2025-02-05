@@ -761,14 +761,14 @@ let type_assign_op ctx op e1 e2 with_type p =
 
 
 let type_op_null_coal_assign ctx (e1 : expr) (e2 : expr) with_type p =
-	let gen vr e1 e2 e_assign =
+	let gen vr e1 t2 e_assign =
 		let e1,eelse,tif = match with_type with
 			| WithType.NoValue ->
 				e1,None,ctx.t.tvoid
 			| _ ->
 				let e1 = vr#as_var "tmp" e1 in
-				(* The e2.etype is here so that `anything ??= 2` doesn't become Null<T> *)
-				e1,Some e1,e2.etype
+				(* The t2 is here so that `anything ??= 2` doesn't become Null<T> *)
+				e1,Some e1,t2
 		in
 		let e_null = Texpr.Builder.make_null e1.etype e1.epos in
 		let e_null = Texpr.Builder.binop OpEq e1 e_null ctx.t.tbool e1.epos in
@@ -777,7 +777,7 @@ let type_op_null_coal_assign ctx (e1 : expr) (e2 : expr) with_type p =
 	let field_rhs_by_name name ev with_type =
 		let access_get = type_field_default_cfg ctx ev name p MGet with_type in
 		let e_get = acc_get ctx access_get in
-		e_get.etype,type_expr ctx e2 WithType.value
+		e_get,type_expr ctx e2 WithType.value
 	in
 	let field_rhs cf ev =
 		field_rhs_by_name cf.cf_name ev (WithType.with_type cf.cf_type)
@@ -787,7 +787,16 @@ let type_op_null_coal_assign ctx (e1 : expr) (e2 : expr) with_type p =
 			let e_rhs = AbstractCast.cast_or_unify ctx e_lhs.etype e_rhs p in
 			mk (TBinop(OpAssign,e_lhs,e_rhs)) e_lhs.etype p
 		in
-		let e = gen vr e_lhs e_rhs e_assign in
+		let e = gen vr e_lhs e_rhs.etype e_assign in
+		vr#to_texpr e
+	in
+	let set vr fa e_lhs e_rhs el =
+		let e_assign =
+			let e_rhs = AbstractCast.cast_or_unify ctx e_lhs.etype e_rhs p in
+			let dispatcher = new call_dispatcher ctx (MSet (Some e2)) with_type p in
+			dispatcher#accessor_call fa (el @ [e_rhs]) [];
+		in
+		let e = gen vr e_lhs e_rhs.etype e_assign in
 		vr#to_texpr e
 	in
 	let e1 = !type_access_ref ctx (fst e1) (snd e1) (MSet (Some e2)) with_type in
@@ -808,7 +817,10 @@ let type_op_null_coal_assign ctx (e1 : expr) (e2 : expr) with_type p =
 		let e_lhs = FieldAccess.get_field_expr {fa with fa_on = ef} FWrite in
 		assign vr e_lhs e_rhs
 	| AKAccessor fa ->
-		raise_typing_error (Printf.sprintf "TODO: AKAccessor %s" (s_field_access "" fa)) p
+		let vr = new value_reference ctx in
+		let ef = vr#get_expr_part "fh" fa.fa_on in
+		let e_lhs,e_rhs = field_rhs fa.fa_field ef in
+		set vr {fa with fa_on = ef} e_lhs e_rhs []
 	| AKUsingAccessor sea ->
 		raise_typing_error (Printf.sprintf "TODO: AKUsingAccessor %s" (s_static_extension_access sea)) p
 	| AKAccess(a,tl,c,ebase,ekey) ->
@@ -839,7 +851,7 @@ let type_op_null_coal_assign ctx (e1 : expr) (e2 : expr) with_type p =
 				raise_typing_error "Invalid array access getter/setter combination" p
 		in
 		save();
-		let e = gen vr eget e2 e in
+		let e = gen vr eget e2.etype e in
 		vr#to_texpr	e
 	| AKResolve(sea,name) ->
 		raise_typing_error (Printf.sprintf "TODO: AKResolve(%s,%s)" (s_static_extension_access sea) name) p

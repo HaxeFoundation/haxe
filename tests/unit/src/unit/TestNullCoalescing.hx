@@ -4,6 +4,25 @@ private class A {}
 private class B extends A {}
 private class C extends A {}
 
+private class NullCoalClass {
+	@:isVar public var field(get, set):String;
+
+	public var getCounter = 0;
+	public var setCounter = 0;
+
+	public function new() {}
+
+	public function get_field() {
+		getCounter++;
+		return field;
+	}
+
+	public function set_field(v:String) {
+		setCounter++;
+		return field = v;
+	}
+}
+
 @:nullSafety(StrictThreaded)
 class TestNullCoalescing extends Test {
 	final nullInt:Null<Int> = null;
@@ -188,6 +207,26 @@ class TestNullCoalescing extends Test {
 		eq("value", value);
 
 		mutAssignLeft(obj.field) ??= "not value";
+		eq(1, getMut());
+		eq("value", obj.field ?? "fail");
+		resetMut();
+
+		// accessor
+		var obj = new NullCoalClass();
+		obj.field ??= "value";
+		eq(1, obj.getCounter);
+		eq(1, obj.setCounter);
+		eq("value", obj.field ?? "fail");
+
+		var value = obj.field ??= "value2";
+		eq(3, obj.getCounter);
+		eq(1, obj.setCounter);
+		eq("value", obj.field ?? "fail");
+		eq("value", value);
+
+		mutAssignLeft(obj.field) ??= "not value";
+		eq(5, obj.getCounter);
+		eq(1, obj.setCounter);
 		eq(1, getMut());
 		eq("value", obj.field ?? "fail");
 		resetMut();
