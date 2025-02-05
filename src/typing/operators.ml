@@ -655,6 +655,7 @@ type 'a assign_op_api = {
 	type_rhs : texpr -> expr -> 'a;
 	to_texpr : value_reference -> 'a -> (texpr -> texpr) -> texpr;
 	generate : value_reference -> texpr -> texpr -> texpr;
+	assign : value_reference -> texpr -> 'a -> texpr;
 }
 
 let handle_assign_op ctx api e1 e2 with_type p =
@@ -665,18 +666,6 @@ let handle_assign_op ctx api e1 e2 with_type p =
 	in
 	let field_rhs cf ev =
 		field_rhs_by_name cf.cf_name ev (WithType.with_type cf.cf_type)
-	in
-	let assign vr e_lhs r_rhs =
-		let assign e_rhs =
-			let e_rhs = AbstractCast.cast_or_unify ctx e_lhs.etype e_rhs p in
-			match e_rhs.eexpr with
-			(* | TBinop(op',e1',e2') when op = op' && Texpr.equal e e1' ->
-				mk (TBinop(OpAssignOp op',e1',e2')) e.etype p *)
-			| _ ->
-				mk (TBinop(OpAssign,e_lhs,e_rhs)) e_lhs.etype p
-		in
-		let e = api.to_texpr vr r_rhs assign in
-		api.generate vr e_lhs e
 	in
 	let set vr fa e_lhs r_rhs el =
 		let assign e_rhs =
@@ -703,13 +692,13 @@ let handle_assign_op ctx api e1 e2 with_type p =
 		| AKExpr e ->
 			let e,vr = process_lhs_expr ctx "lhs" e in
 			let e_rhs = api.type_rhs e e2 in
-			assign vr e e_rhs
+			api.assign vr e e_rhs
 		| AKField fa ->
 			let vr = new value_reference ctx in
 			let ef = vr#get_expr_part "fh" fa.fa_on in
 			let _,e_rhs = field_rhs fa.fa_field ef in
 			let e_lhs = FieldAccess.get_field_expr {fa with fa_on = ef} FWrite in
-			assign vr e_lhs e_rhs
+			api.assign vr e_lhs e_rhs
 		| AKAccessor fa ->
 			let vr = new value_reference ctx in
 			let ef = vr#get_expr_part "fh" fa.fa_on in
@@ -780,6 +769,19 @@ let type_assign_op ctx op e1 e2 with_type p =
 		generate = (fun vr e_lhs e ->
 			vr#to_texpr e
 		);
+		assign = (fun vr e_lhs r_rhs ->
+			let assign e_rhs =
+				if BinopResult.needs_assign r_rhs then check_assign ctx e_lhs;
+				let e_rhs = AbstractCast.cast_or_unify ctx e_lhs.etype e_rhs p in
+				match e_rhs.eexpr with
+				| TBinop(op',e1',e2') when op = op' && Texpr.equal e_lhs e1' ->
+					mk (TBinop(OpAssignOp op',e1',e2')) e_lhs.etype p
+				| _ ->
+					mk (TBinop(OpAssign,e_lhs,e_rhs)) e_lhs.etype p
+			in
+			let e = BinopResult.to_texpr vr r_rhs assign in
+			vr#to_texpr e
+		)
 	} in
 	handle_assign_op ctx api e1 e2 with_type p
 
@@ -813,6 +815,13 @@ let type_op_null_coal_assign ctx e1 e2 with_type p =
 		generate = (fun vr e_lhs e ->
 			gen vr e_lhs e.etype (!hack e)
 		);
+		assign = (fun vr e_lhs e_rhs ->
+			let assign e_rhs =
+				let e_rhs = AbstractCast.cast_or_unify ctx e_lhs.etype e_rhs p in
+				mk (TBinop(OpAssign,e_lhs,e_rhs)) e_lhs.etype p
+			in
+			gen vr e_lhs e_rhs.etype (assign e_rhs)
+		)
 	} in
 	handle_assign_op ctx api e1 e2 with_type p
 
