@@ -164,7 +164,7 @@ class TestNullCoalescing extends Test {
 		resetMut();
 
 		var a:Null<Int> = 0;
-		mutAssignLeft() ??= mut() ?? mut();
+		mutAssignLeft(a) ??= mut() ?? mut();
 		eq(3, getMut());
 		resetMut();
 
@@ -174,13 +174,31 @@ class TestNullCoalescing extends Test {
 		resetMut();
 
 		var a:Null<Int> = 0;
-		mutAssignLeft() ??= 1;
+		mutAssignLeft(a) ??= 1;
 		eq(1, getMut());
+		resetMut();
+
+		// field
+		var obj = getObj();
+		obj.field ??= "value";
+		eq("value", obj.field ?? "fail");
+
+		var value = obj.field ??= "value2";
+		eq("value", obj.field ?? "fail");
+		eq("value", value);
+
+		mutAssignLeft(obj.field) ??= "not value";
+		eq(1, getMut());
+		eq("value", obj.field ?? "fail");
 		resetMut();
 		#end
 	}
 
 	static var mutI = 0;
+
+	static function getObj<T>():{field:Null<T>} {
+		return {field: null}
+	}
 
 	static macro function mut() {
 		mutI++;
@@ -196,8 +214,8 @@ class TestNullCoalescing extends Test {
 		return macro $v{mutI};
 	}
 
-	static macro function mutAssignLeft() {
+	static macro function mutAssignLeft(e:haxe.macro.Expr) {
 		mutI++;
-		return macro a;
+		return e;
 	}
 }

@@ -774,6 +774,14 @@ let type_op_null_coal_assign ctx (e1 : expr) (e2 : expr) with_type p =
 		let e_null = Texpr.Builder.binop OpEq e1 e_null ctx.t.tbool e1.epos in
 		mk (TIf(e_null,e_assign,eelse)) tif e1.epos
 	in
+	let field_rhs_by_name name ev with_type =
+		let access_get = type_field_default_cfg ctx ev name p MGet with_type in
+		let e_get = acc_get ctx access_get in
+		e_get.etype,type_expr ctx e2 WithType.value
+	in
+	let field_rhs cf ev =
+		field_rhs_by_name cf.cf_name ev (WithType.with_type cf.cf_type)
+	in
 	let assign vr e_lhs e_rhs =
 		let e_assign =
 			let e_rhs = AbstractCast.cast_or_unify ctx e_lhs.etype e_rhs p in
@@ -794,7 +802,11 @@ let type_op_null_coal_assign ctx (e1 : expr) (e2 : expr) with_type p =
 		let e,vr = process_lhs_expr ctx "lhs" e in
 		assign vr e (type_e2 e.etype)
 	| AKField fa ->
-		raise_typing_error (Printf.sprintf "TODO: AKField %s" (s_field_access "" fa)) p
+		let vr = new value_reference ctx in
+		let ef = vr#get_expr_part "fh" fa.fa_on in
+		let _,e_rhs = field_rhs fa.fa_field ef in
+		let e_lhs = FieldAccess.get_field_expr {fa with fa_on = ef} FWrite in
+		assign vr e_lhs e_rhs
 	| AKAccessor fa ->
 		raise_typing_error (Printf.sprintf "TODO: AKAccessor %s" (s_field_access "" fa)) p
 	| AKUsingAccessor sea ->
