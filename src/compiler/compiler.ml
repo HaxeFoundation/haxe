@@ -296,6 +296,7 @@ let do_type ctx mctx actx display_file_dot_path =
 		Some (MacroContext.call_init_macro ctx.com mctx path)
 	) mctx (List.rev actx.config_macros) in
 	enter_stage com CInitMacrosDone;
+	update_platform_config com; (* make sure to adapt all flags changes defined during init macros *)
 	ServerMessage.compiler_stage com;
 
 	let macros = match mctx with None -> None | Some mctx -> mctx.g.macros in
