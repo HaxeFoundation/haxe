@@ -373,13 +373,29 @@ match Array.to_list (Sys.argv) with
 		print_endline "";
 		print_endline "let from_string = function";
 		print_endline (gen_warning_parse warnings);
-	| _ :: "libparams" :: params ->
-		Printf.printf "(%s)" (String.concat " " (List.map (fun s -> Printf.sprintf "\"%s\"" s) params))
-	| [_ ;"version";add_revision;branch;sha] ->
-		begin match add_revision with
-		| "0" | "" ->
+	| [_; "libparams"; os] ->
+		Printf.printf "(";
+		(begin match Sys.getenv_opt "LIB_PARAMS" with
+		| Some params ->
+			Printf.printf "%s" params;
+		| None ->
+			if Sys.win32 then
+				Printf.printf "-cclib -lpcre2-8 -cclib -lz -cclib -lcrypt32 -cclib -lmbedtls -cclib -lmbedcrypto -cclib -lmbedx509"
+			else
+				if Option.is_some (Sys.getenv_opt "STATICLINK") && os <> "macosx" then
+					Printf.printf "-cclib \"-Wl,-Bstatic -lpcre2-8 -lz -lmbedtls -lmbedx509 -lmbedcrypto -Wl,-Bdynamic \""
+				else
+					Printf.printf "-cclib -lpcre2-8 -cclib -lz -cclib -lmbedtls -cclib -lmbedx509 -cclib -lmbedcrypto";
+		end);
+		if os = "macosx" then Printf.printf " -cclib \"-framework Security -framework CoreFoundation\"";
+		Printf.printf ")";
+	| [_ ;"version";] ->
+		begin match Sys.getenv_opt "ADD_REVISION" with
+		| Some "0" | Some "" | None ->
 			print_endline "let version_extra = None"
 		| _ ->
+			let branch = Stdlib.input_line (Unix.open_process_in "git rev-parse --abbrev-ref HEAD") in
+			let sha = Stdlib.input_line (Unix.open_process_in "git rev-parse --short HEAD") in
 			Printf.printf "let version_extra = Some (\"git build %s\",\"%s\")" branch sha
 		end
 	| args ->
