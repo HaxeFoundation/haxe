@@ -2,16 +2,16 @@ open Globals
 open Common
 open CompilationContext
 
+let handle_diagnostics ctx msg p kind =
+	ctx.has_error <- true;
+	add_diagnostics_message ctx.com msg p kind Error;
+	match ctx.com.report_mode with
+	| RMLegacyDiagnostics _ -> DisplayOutput.emit_legacy_diagnostics ctx.com
+	| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
+	| _ -> die "" __LOC__
+
 let run_or_diagnose ctx f =
 	let com = ctx.com in
-	let handle_diagnostics msg p kind =
-		ctx.has_error <- true;
-		add_diagnostics_message com msg p kind Error;
-		match com.report_mode with
-		| RMLegacyDiagnostics _ -> DisplayOutput.emit_legacy_diagnostics ctx.com
-		| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
-		| _ -> die "" __LOC__
-	in
 	if is_diagnostics com then begin try
 			f ()
 		with
@@ -25,9 +25,9 @@ let run_or_diagnose ctx f =
 			| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
 			| _ -> die "" __LOC__)
 		| Parser.Error(msg,p) ->
-			handle_diagnostics (Parser.error_msg msg) p DKParserError
+			handle_diagnostics ctx (Parser.error_msg msg) p DKParserError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics (Lexer.error_msg msg) p DKParserError
+			handle_diagnostics ctx (Lexer.error_msg msg) p DKParserError
 		end
 	else
 		f ()
@@ -441,6 +441,8 @@ with
 		error_ext ctx err
 	| Arg.Bad msg ->
 		error ctx ("Error: " ^ msg) null_pos
+	| Failure msg when is_diagnostics com ->
+		handle_diagnostics ctx msg null_pos DKCompilerMessage;
 	| Failure msg when not Helper.is_debug_run ->
 		error ctx ("Error: " ^ msg) null_pos
 	| Helper.HelpMessage msg ->
