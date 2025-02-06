@@ -66,11 +66,11 @@ NEKO_VERSION_TAG=v$(shell echo "$(NEKO_VERSION)" | sed "s/\./-/g")
 all: haxe tools
 
 haxe:
-	dune build src/haxe.exe
+	dune build --profile release src/haxe.exe
 	cp -f _build/default/src/haxe.exe ./"$(HAXE_OUTPUT)"
 
 plugin: haxe
-	$(DUNE_COMMAND) build --workspace dune-workspace.dev plugins/$(PLUGIN)/$(PLUGIN).cmxs
+	$(DUNE_COMMAND) build --profile release plugins/$(PLUGIN)/$(PLUGIN).cmxs
 	mkdir -p plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)
 	cp -f _build/default/plugins/$(PLUGIN)/$(PLUGIN).cmxs plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)/plugin.cmxs
 
