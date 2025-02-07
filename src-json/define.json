@@ -34,6 +34,12 @@
 		"doc": "Check the used fields of the XML proxy."
 	},
 	{
+		"name": "CompilationTimeout",
+		"define": "compilation-timeout",
+		"doc": "Abort compilation after [timeout] seconds.",
+		"params": ["timeout"]
+	},
+	{
 		"name": "CoreApi",
 		"define": "core-api",
 		"doc": "Defined in the core API context."

@@ -460,8 +460,23 @@ with
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
 		error ctx (Printexc.to_string e) null_pos
 
+
 let compile_safe ctx f =
 	try compile_safe ctx f with Abort -> ()
+
+exception Timeout
+
+let compile_timeout ctx f =
+	let _ =
+		Sys.set_signal Sys.sigalrm (Sys.Signal_handle (fun _ -> raise Timeout))
+	in
+	try
+		if defined ctx.com CompilationTimeout then (fun timeout -> ignore (Unix.alarm timeout)) (int_of_string (defined_value ctx.com CompilationTimeout));
+		f();
+		ignore(Unix.alarm 0)
+	with e ->
+		ignore(Unix.alarm 0);
+		raise e
 
 let finalize ctx =
 	ctx.comm.flush ctx;
@@ -504,7 +519,9 @@ let compile_ctx callbacks ctx =
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
 			process_actx ctx actx;
-			compile ctx actx callbacks;
+			compile_timeout ctx (fun () ->
+				compile ctx actx callbacks;
+			)
 		);
 		finalize ctx;
 		callbacks.after_compilation ctx;
