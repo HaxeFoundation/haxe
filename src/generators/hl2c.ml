@@ -1556,16 +1556,26 @@ let write_c com file (code:code) gnames =
 		sexpr "static struct _%s %s = {%s}" (ctype t) name (String.concat "," fields);
 	) code.constants;
 	line "";
-	line "void hl_init_roots() {";
+	line "void hl_init_roots_constants() {";
 	block ctx;
 	let is_const = Hashtbl.create 0 in
 	Array.iter (fun (g,fields) ->
 		sexpr "%s = &const_%s" gnames.(g) gnames.(g);
 		Hashtbl.add is_const g true;
 	) code.constants;
+	unblock ctx;
+	line "}";
+	line "void hl_init_roots_globals() {";
+	block ctx;
 	Array.iteri (fun i t ->
 		if is_ptr t && not (Hashtbl.mem is_const i) then sexpr "hl_add_root((void**)&%s)" gnames.(i);
 	) code.globals;
+	unblock ctx;
+	line "}";
+	line "void hl_init_roots() {";
+	block ctx;
+	expr "void hl_init_roots_constants()";
+	expr "void hl_init_roots_globals()";
 	unblock ctx;
 	line "}";
 
