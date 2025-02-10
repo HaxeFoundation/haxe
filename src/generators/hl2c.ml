@@ -1574,8 +1574,8 @@ let write_c com file (code:code) gnames =
 	line "}";
 	line "void hl_init_roots() {";
 	block ctx;
-	expr "void hl_init_roots_constants()";
-	expr "void hl_init_roots_globals()";
+	expr "hl_init_roots_constants()";
+	expr "hl_init_roots_globals()";
 	unblock ctx;
 	line "}";
 
