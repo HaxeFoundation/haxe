@@ -37,9 +37,7 @@ class MacroStringTools {
 		elements.
 	**/
 	static public function formatString(s:String, pos:Position):Expr {
-		#if (neko || eval)
 		return Context.load("format_string", 2)(s, pos);
-		#end
 	}
 
 	/**

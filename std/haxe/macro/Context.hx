@@ -42,7 +42,7 @@ enum Message {
 	- `haxe.macro.TypeTools`
 **/
 class Context {
-	#if (neko || eval || display)
+	#if eval
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the current macro call.
@@ -871,13 +871,7 @@ class Context {
 	@:allow(haxe.macro.TypedExprTools)
 	@:allow(haxe.macro.PositionTools)
 	static function load(f:String, nargs:Int):Dynamic {
-		#if neko
-		return neko.Lib.load("macro", f, nargs);
-		#elseif eval
 		return eval.vm.Context.callMacroApi(f);
-		#else
-		return Reflect.makeVarArgs(function(_) return throw "Can't be called outside of macro");
-		#end
 	}
 
 	private static function includeFile(file:String, position:String) {
