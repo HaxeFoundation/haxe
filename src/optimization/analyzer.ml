@@ -1010,7 +1010,7 @@ module Run = struct
 			| TFunction tf ->
 				let get_t t = if ExtType.is_void t then tf.tf_type else t in
 				let doesnt_like_complex_expressions = match actx.com.platform with
-					| Cpp | Hl | Jvm ->
+					| Cpp | Hl | Jvm | Php ->
 						true
 					| _ ->
 						false
