@@ -46,8 +46,8 @@ let promote_local_static lsctx run v eo =
 						let eo = Option.map loop' eo in
 						(v,eo)
 					) tf.tf_args in
-					let e = loop true in_loop tf.tf_expr in
-					{e with eexpr = TFunction {tf with tf_args = args;tf_expr = e}}
+					let e1 = loop true in_loop tf.tf_expr in
+					{e with eexpr = TFunction {tf with tf_args = args;tf_expr = e1}}
 				| TTry(e1,catches) ->
 					let e1 = loop' e1 in
 					let catches = List.map (fun (v,e) ->
