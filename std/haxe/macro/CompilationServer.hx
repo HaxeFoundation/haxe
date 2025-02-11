@@ -70,6 +70,15 @@ class CompilationServer {
 	}
 
 	/**
+		TODO: apply some restrictions
+
+		Invalidates a module, removing it from the cache.
+	**/
+	static public function invalidateModule(path:String) {
+		@:privateAccess Compiler.load("server_invalidate_module", 1)(path);
+	}
+
+	/**
 		Invalidates all files given in `filePaths`, removing them from the cache.
 	**/
 	static public function invalidateFiles(filePaths:Array<String>) {

@@ -2323,6 +2323,11 @@ let macro_api ccom get_api =
 			(get_api()).add_module_check_policy filter policy (decode_bool recursive);
 			vnull
 		);
+		"server_invalidate_module", vfun1 (fun p ->
+			let mpath = parse_path (decode_string p) in
+			(ccom()).cs#taint_module mpath ServerInvalidate;
+			vnull
+		);
 		"server_invalidate_files", vfun1 (fun a ->
 			let com = ccom() in
 			let cs = com.cs in

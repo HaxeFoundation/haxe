@@ -234,15 +234,27 @@ class cache = object(self)
 			) cc#get_modules acc
 		) contexts []
 
+	method taint_module m_path reason =
+		Hashtbl.iter (fun _ cc ->
+			Hashtbl.iter (fun _ m ->
+				if m.m_path = m_path then m.m_extra.m_cache_state <- MSBad (Tainted reason)
+			) cc#get_modules;
+			Hashtbl.iter (fun _ mc ->
+				if mc.HxbData.mc_path = m_path then
+					mc.HxbData.mc_extra.m_cache_state <- match reason, mc.mc_extra.m_cache_state with
+					| CheckDisplayFile, (MSBad _ as state) -> state
+					| _ -> MSBad (Tainted reason)
+			) cc#get_hxb
+		) contexts
+
 	method taint_modules file_key reason =
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
 				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_cache_state <- MSBad (Tainted reason)
 			) cc#get_modules;
-			let open HxbData in
 			Hashtbl.iter (fun _ mc ->
-				if Path.UniqueKey.lazy_key mc.mc_extra.m_file = file_key then
-					mc.mc_extra.m_cache_state <- match reason, mc.mc_extra.m_cache_state with
+				if Path.UniqueKey.lazy_key mc.HxbData.mc_extra.m_file = file_key then
+					mc.HxbData.mc_extra.m_cache_state <- match reason, mc.HxbData.mc_extra.m_cache_state with
 					| CheckDisplayFile, (MSBad _ as state) -> state
 					| _ -> MSBad (Tainted reason)
 			) cc#get_hxb
