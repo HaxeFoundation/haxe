@@ -464,9 +464,8 @@ let make_macro_api ctx mctx p =
 				| _ -> false
 			in
 			let add is_macro ctx =
-				let cc = CommonCache.get_cache ctx.com in
 				try
-					let m_extra = cc#find_module_extra mpath in
+					let m_extra = !TypeloadCacheHook.find_module_extra_hook ctx.com mpath in
 					let pos = { pfile = (Path.UniqueKey.lazy_path m_extra.m_file); pmin = 0; pmax = 0 } in
 					raise_typing_error_ext (make_error ~sub:[
 						make_error ~depth:1 (Custom "Previously defined here") pos
@@ -500,9 +499,8 @@ let make_macro_api ctx mctx p =
 			) usings in
 			let types = imports @ usings @ types in
 			let mpath = Ast.parse_path m in
-			let cc = CommonCache.get_cache ctx.com in
 			begin try
-				let m_extra = cc#find_module_extra mpath in
+				let m_extra = !TypeloadCacheHook.find_module_extra_hook ctx.com mpath in
 				if mpath != ctx.m.curmod.m_path then begin
 					let pos = { pfile = (Path.UniqueKey.lazy_path m_extra.m_file); pmin = 0; pmax = 0 } in
 					raise_typing_error_ext (make_error ~sub:[
