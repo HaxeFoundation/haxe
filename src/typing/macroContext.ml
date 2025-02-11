@@ -500,14 +500,16 @@ let make_macro_api ctx mctx p =
 			let types = imports @ usings @ types in
 			let mpath = Ast.parse_path m in
 			begin try
-				let m_extra = !TypeloadCacheHook.find_module_extra_hook ctx.com mpath in
-				if mpath != ctx.m.curmod.m_path then begin
+				let m = try Some (ctx.com.module_lut#find mpath) with Not_found -> None in
+				if Option.is_some m && Option.get m == ctx.m.curmod then
+					ignore(TypeloadModule.type_types_into_module ctx.com ctx.g ctx.m.curmod types pos)
+				else begin
+					let m_extra = match m with Some m -> m.m_extra | None -> !TypeloadCacheHook.find_module_extra_hook ctx.com mpath in
 					let pos = { pfile = (Path.UniqueKey.lazy_path m_extra.m_file); pmin = 0; pmax = 0 } in
 					raise_typing_error_ext (make_error ~sub:[
 						make_error ~depth:1 (Custom "Previously defined here") pos
 					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
-				end else
-					ignore(TypeloadModule.type_types_into_module ctx.com ctx.g ctx.m.curmod types pos)
+				end
 			with Not_found ->
 				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.file_keys#generate_virtual mpath ctx.com.compilation_step) types pos in
 				mnew.m_extra.m_kind <- MFake;
