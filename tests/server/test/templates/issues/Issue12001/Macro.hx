@@ -1,3 +1,4 @@
+import haxe.macro.CompilationServer;
 import haxe.macro.Context;
 
 function defineType() {
@@ -28,6 +29,23 @@ function defineModule() {
 	});
 }
 
+@:persistent var i = 0;
+function redefineModule() {
+	Context.onAfterInitMacros(() -> {
+		CompilationServer.invalidateModule("Foobar");
+
+		Context.defineModule("Foobar", [{
+			pos: Context.currentPos(),
+			pack: [],
+			name: "Foobar",
+			kind: TDClass(null, null, false, false, false),
+			fields: (macro class Foobar {
+				public static function test() Sys.println("Foobar.test() = " + $v{i++});
+			}).fields
+		}]);
+	});
+}
+
 function hook() {
 	var generated = false;
 	Context.onAfterTyping((_) -> {
@@ -44,6 +62,25 @@ function hook() {
 			}).fields
 		}]);
 	});
+}
 
-	return null;
+@:persistent var j = 0;
+function hookRedefine() {
+	var generated = false;
+	Context.onAfterTyping((_) -> {
+		if (generated) return;
+		generated = true;
+
+		CompilationServer.invalidateModule("Foobaz");
+
+		Context.defineModule("Foobaz", [{
+			pos: Context.currentPos(),
+			pack: [],
+			name: "Foobaz",
+			kind: TDClass(null, null, false, false, false),
+			fields: (macro class Foobaz {
+				public static function __init__() Sys.println("Foobaz.test() = " + $v{j++});
+			}).fields
+		}]);
+	});
 }

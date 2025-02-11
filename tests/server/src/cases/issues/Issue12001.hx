@@ -1,5 +1,7 @@
 package cases.issues;
 
+import utest.Async;
+
 class Issue12001 extends TestCase {
 	function testDefineType(_) {
 		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro.hx"));
@@ -50,6 +52,24 @@ class Issue12001 extends TestCase {
 		assertErrorMessage("Cannot redefine module Bar");
 	}
 
+	@:async
+	@:timeout(3000)
+	function testRedefineModule(async:Async) {
+		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro.hx"));
+		vfs.putContent("Main.hx", getTemplate("issues/Issue12001/Main2.hx"));
+		var args = ["-main", "Main", "--interp", "--macro", "Macro.redefineModule()"];
+		var i = 0;
+		function test() {
+			runHaxe(args, () -> {
+				assertSuccess();
+				assertHasPrint("Foobar.test() = " + i);
+				if (++i >= 5) async.done();
+				else test();
+			});
+		}
+		test();
+	}
+
 	function testAfterTyping(_) {
 		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro.hx"));
 		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
@@ -60,5 +80,23 @@ class Issue12001 extends TestCase {
 		runHaxe(args);
 		Assert.isFalse(0 == errorMessages.length);
 		assertErrorMessage("Cannot redefine module Baz");
+	}
+
+	@:async
+	@:timeout(3000)
+	function testRedefineAfterTyping(async:Async) {
+		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro.hx"));
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		var args = ["-main", "Empty", "--interp", "--macro", "Macro.hookRedefine()"];
+		var i = 0;
+		function test() {
+			runHaxe(args, () -> {
+				assertSuccess();
+				assertHasPrint("Foobaz.test() = " + i);
+				if (++i >= 5) async.done();
+				else test();
+			});
+		}
+		test();
 	}
 }
