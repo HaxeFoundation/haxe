@@ -1009,11 +1009,17 @@ module Run = struct
 			match e.eexpr with
 			| TFunction tf ->
 				let get_t t = if ExtType.is_void t then tf.tf_type else t in
+				let doesnt_like_complex_expressions = match actx.com.platform with
+					| Cpp | Hl | Jvm ->
+						true
+					| _ ->
+						false
+				in
 				let rec loop e = match e.eexpr with
 					| TBlock [e1] ->
 						loop e1
 					(* If there's a complex expression, keep the function and generate a call to it. *)
-					| TBlock _ | TIf _ | TSwitch _ | TTry _ when actx.com.platform = Cpp || actx.com.platform = Hl ->
+					| TBlock _ | TIf _ | TSwitch _ | TTry _ when doesnt_like_complex_expressions ->
 						raise Exit
 					(* Remove generated return *)
 					| TReturn (Some e) ->
