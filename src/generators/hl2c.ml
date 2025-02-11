@@ -1109,7 +1109,7 @@ let generate_function ctx f =
 			let expr = (if fid = 0 then reg r else (match rtype r with
 			| HObj o | HStruct o ->
 				let name, t = resolve_field o (fid - 1) in
-				Printf.sprintf "%s->%s" (reg r) name
+				Printf.sprintf "&%s->%s" (reg r) name
 			| _ ->
 				Globals.die "" __LOC__
 			)) in
