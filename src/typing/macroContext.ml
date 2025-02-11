@@ -464,13 +464,21 @@ let make_macro_api ctx mctx p =
 				| _ -> false
 			in
 			let add is_macro ctx =
-				let mdep = Option.map_default (fun s -> TypeloadModule.load_module ~origin:MDepFromMacro ctx (parse_path s) pos) ctx.m.curmod mdep in
-				let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) mpath (ctx.com.file_keys#generate_virtual mpath ctx.com.compilation_step) [tdef,pos] pos in
-				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
-				add_dependency mnew mdep MDepFromMacro;
-				add_dependency mdep mnew MDepFromMacroDefine;
-				ctx.com.module_nonexistent_lut#clear;
-			in
+				let cc = CommonCache.get_cache ctx.com in
+				try
+					let m_extra = cc#find_module_extra mpath in
+					let pos = { pfile = (Path.UniqueKey.lazy_path m_extra.m_file); pmin = 0; pmax = 0 } in
+					raise_typing_error_ext (make_error ~sub:[
+						make_error ~depth:1 (Custom "Previously defined here") pos
+					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
+				with Not_found ->
+					let mdep = Option.map_default (fun s -> TypeloadModule.load_module ~origin:MDepFromMacro ctx (parse_path s) pos) ctx.m.curmod mdep in
+					let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) mpath (ctx.com.file_keys#generate_virtual mpath ctx.com.compilation_step) [tdef,pos] pos in
+					mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
+					add_dependency mnew mdep MDepFromMacro;
+					add_dependency mdep mnew MDepFromMacroDefine;
+					ctx.com.module_nonexistent_lut#clear;
+				in
 			add false ctx;
 			(* if we are adding a class which has a macro field, we also have to add it to the macro context (issue #1497) *)
 			if not ctx.com.is_macro_context then match tdef with
@@ -492,15 +500,16 @@ let make_macro_api ctx mctx p =
 			) usings in
 			let types = imports @ usings @ types in
 			let mpath = Ast.parse_path m in
+			let cc = CommonCache.get_cache ctx.com in
 			begin try
-				let m = ctx.com.module_lut#find mpath in
-				if m != ctx.m.curmod then begin
-					let pos = { pfile = (Path.UniqueKey.lazy_path m.m_extra.m_file); pmin = 0; pmax = 0 } in
+				let m_extra = cc#find_module_extra mpath in
+				if mpath != ctx.m.curmod.m_path then begin
+					let pos = { pfile = (Path.UniqueKey.lazy_path m_extra.m_file); pmin = 0; pmax = 0 } in
 					raise_typing_error_ext (make_error ~sub:[
 						make_error ~depth:1 (Custom "Previously defined here") pos
 					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
 				end else
-					ignore(TypeloadModule.type_types_into_module ctx.com ctx.g m types pos)
+					ignore(TypeloadModule.type_types_into_module ctx.com ctx.g ctx.m.curmod types pos)
 			with Not_found ->
 				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.file_keys#generate_virtual mpath ctx.com.compilation_step) types pos in
 				mnew.m_extra.m_kind <- MFake;
