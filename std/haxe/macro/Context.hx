@@ -101,7 +101,11 @@ class Context {
 		When it is, configuration phase is over and parsing/typing can start.
 	**/
 	public static function initMacrosDone():Bool {
+		#if macro
 		return load("init_macros_done", 0)();
+		#else
+		return true;
+		#end
 	}
 
 	/**
@@ -133,13 +137,17 @@ class Context {
 	/**
 		Check if current display position is within `pos`.
 	**/
+	#if macro
 	public static function containsDisplayPosition(pos:Position):Bool {
 		return load("contains_display_position", 1)(pos);
 	}
+	#end
 
+	#if macro
 	public static function getDisplayMode():DisplayMode {
 		return load("get_display_mode", 0)();
 	}
+	#end
 
 	/**
 		Returns the position at which the macro was called.
@@ -165,10 +173,12 @@ class Context {
 		Might return `null` if no specific type is expected or if the calling
 		macro is not an expression-macro.
 	**/
+	#if macro
 	public static function getExpectedType():Null<Type> {
 		assertInitMacrosDone(false);
 		return load("get_expected_type", 0)();
 	}
+	#end
 
 	/**
 		Returns the call arguments that lead to the invocation of the current
@@ -176,16 +186,19 @@ class Context {
 
 		Returns `null` if the current macro is not a `@:genericBuild` macro.
 	**/
+	#if macro
 	public static function getCallArguments():Null<Array<Expr>> {
 		assertInitMacrosDone(false);
 		return load("get_call_arguments", 0)();
 	}
+	#end
 
 	/**
 		Returns the current class in which the macro was called.
 
 		If no such class exists, `null` is returned.
 	**/
+	#if macro
 	public static function getLocalClass():Null<Type.Ref<Type.ClassType>> {
 		assertInitMacrosDone(false);
 		var l:Type = load("get_local_type", 0)();
@@ -196,34 +209,41 @@ class Context {
 			default: null;
 		}
 	}
+	#end
 
 	/**
 		Returns the current module path in/on which the macro was called.
 	**/
+	#if macro
 	public static function getLocalModule():String {
 		assertInitMacrosDone(false);
 		return load("get_local_module", 0)();
 	}
+	#end
 
 	/**
 		Returns the current type in/on which the macro was called.
 
 		If no such type exists, `null` is returned.
 	**/
+	#if macro
 	public static function getLocalType():Null<Type> {
 		assertInitMacrosDone(false);
 		return load("get_local_type", 0)();
 	}
+	#end
 
 	/**
 		Returns the name of the method from which the macro was called.
 
 		If no such method exists, `null` is returned.
 	**/
+	#if macro
 	public static function getLocalMethod():Null<String> {
 		assertInitMacrosDone(false);
 		return load("get_local_method", 0)();
 	}
+	#end
 
 	/**
 		Returns an `Array` of classes which are available for `using` usage in
@@ -231,20 +251,24 @@ class Context {
 
 		Modifying the returned array has no effect on the compiler.
 	**/
+	#if macro
 	public static function getLocalUsing():Array<Type.Ref<Type.ClassType>> {
 		assertInitMacrosDone(false);
 		return load("get_local_using", 0)();
 	}
+	#end
 
 	/**
 		Returns an `Array` of all imports in the context the macro was called.
 
 		Modifying the returned array has no effect on the compiler.
 	**/
+	#if macro
 	public static function getLocalImports():Array<ImportExpr> {
 		assertInitMacrosDone(false);
 		return load("get_local_imports", 0)();
 	}
+	#end
 
 	/**
 		Returns a map of local variables accessible in the context the macro was
@@ -255,20 +279,24 @@ class Context {
 
 		Modifying the returned map has no effect on the compiler.
 	**/
+	#if macro
 	@:deprecated("Use Context.getLocalTVars() instead")
 	public static function getLocalVars():Map<String, Type> {
 		assertInitMacrosDone(false);
 		return load("local_vars", 1)(false);
 	}
+	#end
 
 	/**
 		Similar to `getLocalVars`, but returns elements of type `TVar` instead
 		of `Type`.
 	**/
+	#if macro
 	public static function getLocalTVars():Map<String, Type.TVar> {
 		assertInitMacrosDone(false);
 		return load("local_vars", 1)(true);
 	}
+	#end
 
 	/**
 		Tells if the conditional compilation flag `s` has been set.
@@ -325,7 +353,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function getType(name:String):Type {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("get_type", 1)(name);
 	}
 
@@ -343,7 +373,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function getModule(name:String):Array<Type> {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("get_module", 1)(name);
 	}
 
@@ -371,7 +403,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function getAllModuleTypes():Array<haxe.macro.Type.ModuleType> {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("get_module_types", 0)();
 	}
 
@@ -421,7 +455,9 @@ class Context {
 		Returns a hashed MD5 signature of value `v`.
 	**/
 	public static function signature(v:Dynamic):String {
+		#if macro
 		assertInitMacrosDone(false);
+		#end
 		return load("signature", 1)(v);
 	}
 
@@ -441,9 +477,11 @@ class Context {
 
 		*Note*: the callback is still invoked when generation is disabled with  `--no-output`.
 	**/
+	#if macro
 	public static function onGenerate(callback:Array<Type>->Void, persistent:Bool = true) {
 		load("on_generate", 2)(callback, persistent);
 	}
+	#end
 
 	/**
 		Adds a callback function `callback` which is invoked after the compiler
@@ -466,9 +504,11 @@ class Context {
 		It is possible to define new types in the callback, in which case it
 		will be called again with the new types as argument.
 	**/
+	#if macro
 	public static function onAfterTyping(callback:Array<haxe.macro.Type.ModuleType>->Void) {
 		load("on_after_typing", 1)(callback);
 	}
+	#end
 
 	/**
 		Adds a callback function `callback` which is invoked after the compiler
@@ -478,6 +518,7 @@ class Context {
 		your initialization macros, to properly separate configuration phase and
 		actual typing.
 	**/
+	#if macro
 	public static function onAfterInitMacros(callback:Void->Void):Void {
 		if (Context.initMacrosDone()) {
 			callback();
@@ -485,6 +526,7 @@ class Context {
 			load("on_after_init_macros", 1)(callback);
 		}
 	}
+	#end
 
 	/**
 		Adds a callback function `callback` which is invoked when a type name
@@ -509,7 +551,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function typeof(e:Expr):Type {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("typeof", 1)(e);
 	}
 
@@ -527,7 +571,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function typeExpr(e:Expr):TypedExpr {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("type_expr", 1)(e);
 	}
 
@@ -543,7 +589,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function resolveType(t:ComplexType, p:Position):Type {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("resolve_type", 2)(t, p);
 	}
 
@@ -557,7 +605,9 @@ class Context {
 		build any type or trigger macros.
 	**/
 	public static function resolveComplexType(t:ComplexType, p:Position):ComplexType {
+		#if macro
 		assertInitMacrosDone(false);
+		#end
 		return load("resolve_complex_type", 2)(t, p);
 	}
 
@@ -578,7 +628,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function unify(t1:Type, t2:Type):Bool {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("unify", 2)(t1, t2);
 	}
 
@@ -592,7 +644,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function follow(t:Type, ?once:Bool):Type {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("follow", 2)(t, once);
 	}
 
@@ -606,7 +660,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function followWithAbstracts(t:Type, once:Bool = false):Type {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("follow_with_abstracts", 2)(t, once);
 	}
 
@@ -655,10 +711,12 @@ class Context {
 
 		This is only defined for `@:build/@:autoBuild` macros.
 	**/
+	#if macro
 	public static function getBuildFields():Array<Field> {
 		assertInitMacrosDone(false);
 		return load("get_build_fields", 0)();
 	}
+	#end
 
 	/**
 		Defines a new type from `TypeDefinition` `t`.
@@ -671,10 +729,12 @@ class Context {
 		cause compilation server issues. Use `Context.onAfterInitMacros` to
 		run your code once typer is ready to be used.
 	**/
+	#if macro
 	public static function defineType(t:TypeDefinition, ?moduleDependency:String):Void {
 		assertInitMacrosDone();
 		load("define_type", 2)(t, moduleDependency);
 	}
+	#end
 
 	/**
 		Creates and returns a new instance of monomorph (`TMono`) type.
@@ -687,7 +747,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function makeMonomorph():Type {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("make_monomorph", 0)();
 	}
 
@@ -703,6 +765,7 @@ class Context {
 		cause compilation server issues. Use `Context.onAfterInitMacros` to
 		run your code once typer is ready to be used.
 	**/
+	#if macro
 	public static function defineModule(modulePath:String, types:Array<TypeDefinition>, ?imports:Array<ImportExpr>, ?usings:Array<TypePath>):Void {
 		if (imports == null)
 			imports = [];
@@ -711,6 +774,7 @@ class Context {
 		assertInitMacrosDone();
 		load("define_module", 4)(modulePath, types, imports, usings);
 	}
+	#end
 
 	/**
 		Returns a syntax-level expression corresponding to typed expression `t`.
@@ -722,7 +786,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function getTypedExpr(t:Type.TypedExpr):Expr {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("get_typed_expr", 1)(t);
 	}
 
@@ -743,7 +809,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function storeTypedExpr(t:Type.TypedExpr):Expr {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("store_typed_expr", 1)(t);
 	}
 
@@ -767,7 +835,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function storeExpr(e:Expr):Expr {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("store_expr", 1)(e);
 	}
 
@@ -780,7 +850,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function typeAndStoreExpr(e:Expr):{final type:Type.Ref<Type>; final expr:Expr;} {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("type_and_store_expr", 1)(e);
 	}
 
@@ -797,9 +869,11 @@ class Context {
 		cause compilation server issues. Use `Context.onAfterInitMacros` to
 		run your code once typer is ready to be used.
 	**/
+	#if macro
 	public static function registerModuleDependency(modulePath:String, externFile:String) {
 		onAfterInitMacros(() -> load("register_module_dependency", 2)(modulePath, externFile));
 	}
+	#end
 
 	/**
 		Creates a timer which will be printed in the compilation report
@@ -833,10 +907,11 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function withImports<X>(imports:Array<String>, usings:Array<String>, code:() -> X):X {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("with_imports", 3)(imports, usings, code);
 	}
-
 
 	/**
 		Executes `code` in a context that has some compiler options set, restore the compiler to its
@@ -852,7 +927,9 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function withOptions<X>(options:{?allowInlining:Bool,?allowTransform:Bool}, code : () -> X) : X {
+		#if macro
 		assertInitMacrosDone();
+		#end
 		return load("with_options", 2)(options, code);
 	}
 
@@ -881,7 +958,9 @@ class Context {
 	private static function sExpr(e:TypedExpr, pretty:Bool):String {
 		return load("s_expr", 2)(e, pretty);
 	}
+	#end
 
+	#if macro
 	@:allow(haxe.macro.Compiler)
 	private static function assertInitMacro():Void {
 		if (initMacrosDone()) {
