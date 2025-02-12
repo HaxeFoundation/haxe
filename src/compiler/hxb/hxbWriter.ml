@@ -1918,6 +1918,7 @@ module HxbWriter = struct
 		Chunk.write_option writer.chunk a.a_read (write_field_ref writer c CfrStatic );
 		Chunk.write_option writer.chunk a.a_write (write_field_ref writer c CfrStatic);
 		Chunk.write_option writer.chunk a.a_call (write_field_ref writer c CfrStatic);
+		Chunk.write_option writer.chunk a.a_constructor (write_field_ref writer c CfrStatic);
 
 		Chunk.write_list writer.chunk a.a_ops (fun (op, cf) ->
 			Chunk.write_u8 writer.chunk (binop_index op);

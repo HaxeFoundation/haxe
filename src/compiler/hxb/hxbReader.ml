@@ -1589,6 +1589,7 @@ class hxb_reader
 		a.a_read <- self#read_option (fun () -> self#read_field_ref);
 		a.a_write <- self#read_option (fun () -> self#read_field_ref);
 		a.a_call <- self#read_option (fun () -> self#read_field_ref);
+		a.a_constructor <- self#read_option (fun () -> self#read_field_ref);
 
 		a.a_ops <- self#read_list (fun () ->
 			let i = read_byte ch in
