@@ -471,7 +471,7 @@ let make_macro_api ctx mctx p =
 						make_error ~depth:1 (Custom "Previously defined here") pos
 					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
 				with Not_found ->
-					ctx.com.cs#taint_module mpath ServerInvalidate;
+					ctx.com.cs#taint_module mpath DefineType;
 					let mdep = Option.map_default (fun s -> TypeloadModule.load_module ~origin:MDepFromMacro ctx (parse_path s) pos) ctx.m.curmod mdep in
 					let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) mpath (ctx.com.file_keys#generate_virtual mpath ctx.com.compilation_step) [tdef,pos] pos in
 					mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
@@ -510,7 +510,7 @@ let make_macro_api ctx mctx p =
 				end else
 					ignore(TypeloadModule.type_types_into_module ctx.com ctx.g ctx.m.curmod types pos)
 			with Not_found ->
-				ctx.com.cs#taint_module mpath ServerInvalidate;
+				ctx.com.cs#taint_module mpath DefineModule;
 				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.file_keys#generate_virtual mpath ctx.com.compilation_step) types pos in
 				mnew.m_extra.m_kind <- MFake;
 				add_dependency mnew ctx.m.curmod MDepFromMacro;

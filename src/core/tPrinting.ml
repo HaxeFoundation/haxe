@@ -637,8 +637,11 @@ module Printer = struct
 
 	let s_module_tainting_reason = function
 		| CheckDisplayFile -> "check_display_file"
+		| DefineType -> "define_type"
+		| DefineModule -> "define_module"
 		| ServerInvalidate -> "server/invalidate"
 		| ServerInvalidateFiles -> "server_invalidate_files"
+		| ServerInvalidateModule -> "server_invalidate_module"
 
 	let s_module_skip_reason reason =
 		let rec loop stack = function

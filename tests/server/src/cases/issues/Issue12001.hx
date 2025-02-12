@@ -24,8 +24,7 @@ class Issue12001 extends TestCase {
 
 		runHaxe(args);
 		assertSuccess();
-		// TODO: change invalidation reason
-		assertSkipping("Main", DependencyDirty("Foo - Tainted server/invalidate"));
+		assertSkipping("Main", DependencyDirty("Foo - Tainted define_type"));
 	}
 
 	function testDefineModule(_) {
@@ -49,8 +48,7 @@ class Issue12001 extends TestCase {
 
 		runHaxe(args);
 		assertSuccess();
-		// TODO: change invalidation reason
-		assertSkipping("Main", DependencyDirty("Bar - Tainted server/invalidate"));
+		assertSkipping("Main", DependencyDirty("Bar - Tainted define_module"));
 	}
 
 	@:async

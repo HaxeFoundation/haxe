@@ -2332,7 +2332,7 @@ let macro_api ccom get_api =
 				let pos = get_api_call_pos() in
 				compiler_error (Error.make_error (Custom msg) pos)
 			with Not_found ->
-				com.cs#taint_module mpath ServerInvalidate);
+				com.cs#taint_module mpath ServerInvalidateModule);
 			vnull
 		);
 		"server_invalidate_files", vfun1 (fun a ->

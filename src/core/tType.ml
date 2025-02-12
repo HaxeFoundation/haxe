@@ -32,8 +32,11 @@ type module_check_policy =
 
 type module_tainting_reason =
 	| CheckDisplayFile
+	| DefineType
+	| DefineModule
 	| ServerInvalidate
 	| ServerInvalidateFiles
+	| ServerInvalidateModule
 
 type module_skip_reason =
 	| DependencyDirty of path * module_skip_reason
