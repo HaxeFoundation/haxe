@@ -2325,7 +2325,13 @@ let macro_api ccom get_api =
 		);
 		"server_invalidate_module", vfun1 (fun p ->
 			let mpath = parse_path (decode_string p) in
-			(ccom()).cs#taint_module mpath ServerInvalidate;
+			let com = ccom() in
+			(try
+				ignore(com.module_lut#find mpath);
+				let msg = "Cannot invalidate loaded module " ^ (s_type_path mpath) in
+				(get_api()).display_error msg (get_api_call_pos())
+			with Not_found ->
+				com.cs#taint_module mpath ServerInvalidate);
 			vnull
 		);
 		"server_invalidate_files", vfun1 (fun a ->
