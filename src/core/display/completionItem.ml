@@ -186,7 +186,7 @@ module CompletionModuleType = struct
 			| None -> No
 			| Some c ->
 				try
-					let cf = PMap.find "_new" c.cl_statics in
+					let cf = PMap.find "_hx_new" c.cl_statics in
 					if (has_class_flag c CExtern) || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
 				with Not_found ->
 					No

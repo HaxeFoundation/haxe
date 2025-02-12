@@ -271,7 +271,7 @@ let transform_abstract_field com this_t a_t a f =
 			);
 			f_type = Some a_t;
 		} in
-		{ f with cff_name = "_new",pos f.cff_name; cff_kind = FFun fu; cff_meta = meta }
+		{ f with cff_name = "_hx_new",pos f.cff_name; cff_kind = FFun fu; cff_meta = meta }
 	| FFun fu when not stat ->
 		if Meta.has Meta.From f.cff_meta then raise_typing_error "@:from cast functions must be static" f.cff_pos;
 		{ f with cff_kind = FFun fu }
@@ -631,7 +631,7 @@ let check_field_display ctx fctx c cf =
 		let scope, cf = match c.cl_kind with
 			| KAbstractImpl _ ->
 				if has_class_field_flag cf CfImpl then
-					(if cf.cf_name = "_new" then
+					(if cf.cf_name = "_hx_new" then
 						CFSConstructor, {cf with cf_name = "new"}
 					else
 						CFSMember, cf)
@@ -979,7 +979,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		let r = make_lazy ctx.g t (fun () ->
 			let args = if is_multitype_cast then begin
 				let ctor = try
-					PMap.find "_new" c.cl_statics
+					PMap.find "_hx_new" c.cl_statics
 				with Not_found ->
 					raise_typing_error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
 				in
@@ -1087,7 +1087,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		| _ -> ();
 	in
 	List.iter check_meta cf.cf_meta;
-	if cf.cf_name = "_new" && Meta.has Meta.MultiType a.a_meta then fctx.do_bind <- false;
+	if cf.cf_name = "_hx_new" && Meta.has Meta.MultiType a.a_meta then fctx.do_bind <- false;
 	if fd.f_expr = None then begin
 		if fctx.is_inline then missing_expression ctx.com fctx "Inline functions must have an expression" cf.cf_pos;
 		if fd.f_type = None then raise_typing_error ("Functions without expressions must have an explicit return type") cf.cf_pos;
@@ -1160,7 +1160,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 		maybe_use_property_type fd.f_type (fun () -> match Lazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
 	end in
 	let abstract_this = match cctx.abstract with
-		| Some a when fctx.is_abstract_member && name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
+		| Some a when fctx.is_abstract_member && name <> "_hx_new" (* TODO: this sucks *) && not fctx.is_macro ->
 			Some a.a_this
 		| _ ->
 			None

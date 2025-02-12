@@ -188,7 +188,7 @@ let assign_to_this_is_allowed ctx =
 		| KAbstractImpl _ ->
 			(match ctx.f.curfield.cf_kind with
 				| Method MethInline -> true
-				| Method _ when ctx.f.curfield.cf_name = "_new" -> true
+				| Method _ when ctx.f.curfield.cf_name = "_hx_new" -> true
 				| _ -> false
 			)
 		| _ -> false

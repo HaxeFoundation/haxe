@@ -1479,7 +1479,7 @@ and type_array_comprehension ctx e with_type p =
 	]) v.v_type p
 
 and type_return ?(implicit=false) ctx e with_type p =
-	let is_abstract_ctor = ctx.e.curfun = FunMemberAbstract && ctx.f.curfield.cf_name = "_new" in
+	let is_abstract_ctor = ctx.e.curfun = FunMemberAbstract && ctx.f.curfield.cf_name = "_hx_new" in
 	match e with
 	| None when is_abstract_ctor ->
 		let e_cast = mk (TCast(get_this ctx p,None)) ctx.e.ret p in
