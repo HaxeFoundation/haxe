@@ -465,12 +465,13 @@ let make_macro_api ctx mctx p =
 			in
 			let add is_macro ctx =
 				try
-					let m_extra = !TypeloadCacheHook.find_module_extra_hook ctx.com mpath in
-					let pos = { pfile = (Path.UniqueKey.lazy_path m_extra.m_file); pmin = 0; pmax = 0 } in
+					let m = ctx.com.module_lut#find mpath in
+					let pos = { pfile = (Path.UniqueKey.lazy_path m.m_extra.m_file); pmin = 0; pmax = 0 } in
 					raise_typing_error_ext (make_error ~sub:[
 						make_error ~depth:1 (Custom "Previously defined here") pos
 					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
 				with Not_found ->
+					ctx.com.cs#taint_module mpath ServerInvalidate;
 					let mdep = Option.map_default (fun s -> TypeloadModule.load_module ~origin:MDepFromMacro ctx (parse_path s) pos) ctx.m.curmod mdep in
 					let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) mpath (ctx.com.file_keys#generate_virtual mpath ctx.com.compilation_step) [tdef,pos] pos in
 					mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
@@ -500,17 +501,16 @@ let make_macro_api ctx mctx p =
 			let types = imports @ usings @ types in
 			let mpath = Ast.parse_path m in
 			begin try
-				let m = try Some (ctx.com.module_lut#find mpath) with Not_found -> None in
-				if Option.is_some m && Option.get m == ctx.m.curmod then
-					ignore(TypeloadModule.type_types_into_module ctx.com ctx.g ctx.m.curmod types pos)
-				else begin
-					let m_extra = match m with Some m -> m.m_extra | None -> !TypeloadCacheHook.find_module_extra_hook ctx.com mpath in
-					let pos = { pfile = (Path.UniqueKey.lazy_path m_extra.m_file); pmin = 0; pmax = 0 } in
+				let m = ctx.com.module_lut#find mpath in
+				if m != ctx.m.curmod then begin
+					let pos = { pfile = (Path.UniqueKey.lazy_path m.m_extra.m_file); pmin = 0; pmax = 0 } in
 					raise_typing_error_ext (make_error ~sub:[
 						make_error ~depth:1 (Custom "Previously defined here") pos
 					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
-				end
+				end else
+					ignore(TypeloadModule.type_types_into_module ctx.com ctx.g ctx.m.curmod types pos)
 			with Not_found ->
+				ctx.com.cs#taint_module mpath ServerInvalidate;
 				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.file_keys#generate_virtual mpath ctx.com.compilation_step) types pos in
 				mnew.m_extra.m_kind <- MFake;
 				add_dependency mnew ctx.m.curmod MDepFromMacro;

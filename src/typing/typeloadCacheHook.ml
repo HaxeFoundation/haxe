@@ -10,7 +10,6 @@ type find_module_result =
 	| BinaryModule of HxbData.module_cache
 	| NoModule
 
-let find_module_extra_hook : (Common.context -> path -> module_def_extra) ref = ref (fun com mpath -> (com.module_lut#find mpath).m_extra)
 let type_module_hook : (Common.context -> (typer_pass -> (unit -> unit) -> unit) -> path -> pos -> find_module_result) ref = ref (fun _ _ _ _ -> NoModule)
 
 let fake_modules = Hashtbl.create 0

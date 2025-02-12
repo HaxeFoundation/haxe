@@ -779,16 +779,8 @@ let do_connect ip port args =
 	process();
 	if !has_error then exit 1
 
-let find_good_module_extra sctx com path =
-	let cc = CommonCache.get_cache com in
-	let m_extra = cc#find_module_extra path in
-	match check_module sctx com path m_extra null_pos with
-	| None -> m_extra
-	| Some _ -> raise Not_found
-
 let enable_cache_mode sctx =
 	type_module_hook := type_module sctx;
-	find_module_extra_hook := find_good_module_extra sctx;
 	ServerCompilationContext.ensure_macro_setup sctx;
 	TypeloadParse.parse_hook := parse_file sctx.cs
 
