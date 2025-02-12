@@ -10,9 +10,9 @@ class Issue12001 extends TestCase {
 		runHaxe(args);
 		assertSuccess();
 
+		// Nothing is loading Foo, so no redefinition issue
 		runHaxe(args);
-		Assert.isFalse(0 == errorMessages.length);
-		assertErrorMessage("Cannot redefine module Foo");
+		assertSuccess();
 	}
 
 	function testDefineType1(_) {
@@ -23,8 +23,9 @@ class Issue12001 extends TestCase {
 		assertSuccess();
 
 		runHaxe(args);
-		Assert.isFalse(hasErrorMessage('HxbData.HxbFailure("Could not read static field test on Foo while hxbing Main")'));
-		assertErrorMessage("Cannot redefine module Foo");
+		assertSuccess();
+		// TODO: change invalidation reason
+		assertSkipping("Main", DependencyDirty("Foo - Tainted server/invalidate"));
 	}
 
 	function testDefineModule(_) {
@@ -34,9 +35,9 @@ class Issue12001 extends TestCase {
 		runHaxe(args);
 		assertSuccess();
 
+		// Nothing is loading Bar, so no redefinition issue
 		runHaxe(args);
-		Assert.isFalse(0 == errorMessages.length);
-		assertErrorMessage("Cannot redefine module Bar");
+		assertSuccess();
 	}
 
 	function testDefineModule1(_) {
@@ -47,9 +48,9 @@ class Issue12001 extends TestCase {
 		assertSuccess();
 
 		runHaxe(args);
-		Assert.isFalse(0 == errorMessages.length);
-		Assert.isFalse(hasErrorMessage('HxbData.HxbFailure("Could not read static field test on Bar while hxbing Main")'));
-		assertErrorMessage("Cannot redefine module Bar");
+		assertSuccess();
+		// TODO: change invalidation reason
+		assertSkipping("Main", DependencyDirty("Bar - Tainted server/invalidate"));
 	}
 
 	@:async
@@ -77,9 +78,9 @@ class Issue12001 extends TestCase {
 		runHaxe(args);
 		assertSuccess();
 
+		// Nothing is loading Baz, so it can be defined again
 		runHaxe(args);
-		Assert.isFalse(0 == errorMessages.length);
-		assertErrorMessage("Cannot redefine module Baz");
+		assertSuccess();
 	}
 
 	@:async
@@ -92,6 +93,7 @@ class Issue12001 extends TestCase {
 		function test() {
 			runHaxe(args, () -> {
 				assertSuccess();
+				// Newest version is being included
 				assertHasPrint("Foobaz.test() = " + i);
 				if (++i >= 5) async.done();
 				else test();
@@ -101,7 +103,7 @@ class Issue12001 extends TestCase {
 	}
 
 	function testInvalidateError(_) {
-		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro.hx"));
+		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro1.hx"));
 		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
 		var args = ["-main", "Empty", "--interp", "--macro", "Macro.hookInvalidateError()"];
 		runHaxe(args);
@@ -109,7 +111,7 @@ class Issue12001 extends TestCase {
 	}
 
 	function testInvalidateCaughtError(_) {
-		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro.hx"));
+		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro1.hx"));
 		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
 		var args = ["-main", "Empty", "--interp", "--macro", "Macro.hookInvalidateCatch()"];
 		runHaxe(args);

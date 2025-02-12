@@ -1,4 +1,3 @@
-import haxe.macro.CompilationServer;
 import haxe.macro.Context;
 
 function defineType() {
@@ -32,8 +31,6 @@ function defineModule() {
 @:persistent var i = 0;
 function redefineModule() {
 	Context.onAfterInitMacros(() -> {
-		CompilationServer.invalidateModule("Foobar");
-
 		Context.defineModule("Foobar", [{
 			pos: Context.currentPos(),
 			pack: [],
@@ -71,8 +68,6 @@ function hookRedefine() {
 		if (generated) return;
 		generated = true;
 
-		CompilationServer.invalidateModule("Foobaz");
-
 		Context.defineModule("Foobaz", [{
 			pos: Context.currentPos(),
 			pack: [],
@@ -82,21 +77,5 @@ function hookRedefine() {
 				public static function __init__() Sys.println("Foobaz.test() = " + $v{j++});
 			}).fields
 		}]);
-	});
-}
-
-function hookInvalidateError() {
-	Context.onAfterTyping((_) -> {
-		CompilationServer.invalidateModule("Empty");
-	});
-}
-
-function hookInvalidateCatch() {
-	Context.onAfterTyping((_) -> {
-		try {
-			CompilationServer.invalidateModule("Empty");
-		} catch (e:Dynamic) {
-			Sys.println(Std.string(e));
-		}
 	});
 }
