@@ -299,6 +299,7 @@ let null_abstract = {
 	a_read = None;
 	a_write = None;
 	a_call = None;
+	a_constructor = None;
 	a_extern = false;
 	a_enum = false;
 }
