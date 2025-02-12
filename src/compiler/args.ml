@@ -43,7 +43,7 @@ let process_args arg_spec =
 let parse_args com =
 	let usage = Printf.sprintf
 		"Haxe Compiler %s - (C)2005-2024 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
-		s_version_full (if Sys.os_type = "Win32" then ".exe" else "")
+		(s_version_full com.version) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let actx = {
 		classes = [([],"Std")];
@@ -154,7 +154,7 @@ let parse_args com =
 			com.debug <- true;
 		),"","add debug information to the compiled code");
 		("Miscellaneous",["--version"],["-version"],Arg.Unit (fun() ->
-			raise (Helper.HelpMessage s_version_full);
+			raise (Helper.HelpMessage (s_version_full com.version));
 		),"","print version and exit");
 		("Miscellaneous", ["-h";"--help"], ["-help"], Arg.Unit (fun () ->
 			raise (Arg.Help "")

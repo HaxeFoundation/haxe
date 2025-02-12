@@ -1463,7 +1463,7 @@ let write_c com file (code:code) gnames =
 	let bnames = Array.map (fun b -> "bytes$" ^ short_digest (Digest.to_hex (Digest.bytes b))) code.bytes in
 
 	let ctx = {
-		version = com.Gctx.version;
+		version = com.Gctx.version.version;
 		out = Buffer.create 1024;
 		tabs = "";
 		hlcode = code;

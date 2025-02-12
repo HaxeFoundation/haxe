@@ -2238,7 +2238,7 @@ let macro_api ccom get_api =
 		"get_configuration", vfun0 (fun() ->
 			let com = ccom() in
 			encode_obj [
-				"version", vint com.version;
+				"version", vint com.version.version;
 				"args", encode_array (List.map encode_string com.args);
 				"debug", vbool com.debug;
 				"verbose", vbool com.verbose;

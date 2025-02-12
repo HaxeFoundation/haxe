@@ -2078,8 +2078,7 @@ class hxb_reader
 			^ "Attach the following information:"
 		in
 		let backtrace = Printexc.raw_backtrace_to_string backtrace in
-		let s = Printf.sprintf "%s\nHaxe: %s\n%s" msg s_version_full backtrace in
-		failwith s
+		raise (Globals.Ice (msg, backtrace))
 
 	method private read_chunk_data kind =
 		let path = String.concat "_" (ExtLib.String.nsplit (s_type_path mpath) ".") in

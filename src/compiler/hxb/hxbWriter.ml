@@ -452,8 +452,7 @@ module HxbWriter = struct
 			^ "Attach the following information:"
 		in
 		let backtrace = Printexc.raw_backtrace_to_string backtrace in
-		let s = Printf.sprintf "%s\nHaxe: %s\n%s" msg s_version_full backtrace in
-		failwith s
+		raise (Globals.Ice (msg, backtrace))
 
 	let in_nested_scope writer = match writer.field_stack with
 		| [] -> false (* can happen for cl_init and in EXD *)
