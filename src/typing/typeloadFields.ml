@@ -981,10 +981,11 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 			cf.cf_meta <- (Meta.MultiType,[],null_pos) :: cf.cf_meta;
 		let r = make_lazy ctx.g t (fun () ->
 			let args = if is_multitype_cast then begin
-				let ctor = try
-					PMap.find "_hx_new" c.cl_statics
-				with Not_found ->
-					raise_typing_error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
+				let ctor = match a.a_constructor with
+					| Some cf ->
+						cf
+					| None ->
+						raise_typing_error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
 				in
 				(* delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos); *)
 				let args = match follow (monomorphs a.a_params ctor.cf_type) with
