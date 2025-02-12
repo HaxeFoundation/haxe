@@ -168,7 +168,7 @@ let get_constructor_access c tl p =
 					| None ->
 						raise Not_found
 					| Some cf ->
-					cf,FHAbstract(a,tl,c)
+						cf,FHAbstract(a,tl,c)
 				end
 			| _ ->
 				Type.get_constructor c, FHInstance(c,tl)

@@ -929,7 +929,7 @@ let create_variable (ctx,cctx,fctx) c f cf t eo p =
 	cf
 
 let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
-	if fctx.is_abstract_constructor then a.a_constructor <- Some cf;
+	if fctx.is_abstract_constructor && a.a_constructor = None (* TODO: this is pretty dumb, it deals with the overload case *) then a.a_constructor <- Some cf;
 	let m = mk_mono() in
 	let ta = TAbstract(a,List.map (fun _ -> mk_mono()) a.a_params) in
 	let tthis = if fctx.is_abstract_member || Meta.has Meta.To cf.cf_meta then monomorphs a.a_params a.a_this else a.a_this in
