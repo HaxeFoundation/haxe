@@ -99,4 +99,21 @@ class Issue12001 extends TestCase {
 		}
 		test();
 	}
+
+	function testInvalidateError(_) {
+		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro.hx"));
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		var args = ["-main", "Empty", "--interp", "--macro", "Macro.hookInvalidateError()"];
+		runHaxe(args);
+		assertErrorMessage("Cannot invalidate loaded module Empty");
+	}
+
+	function testInvalidateCaughtError(_) {
+		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro.hx"));
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		var args = ["-main", "Empty", "--interp", "--macro", "Macro.hookInvalidateCatch()"];
+		runHaxe(args);
+		assertSuccess();
+		assertHasPrint("Cannot invalidate loaded module Empty");
+	}
 }

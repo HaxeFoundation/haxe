@@ -84,3 +84,19 @@ function hookRedefine() {
 		}]);
 	});
 }
+
+function hookInvalidateError() {
+	Context.onAfterTyping((_) -> {
+		CompilationServer.invalidateModule("Empty");
+	});
+}
+
+function hookInvalidateCatch() {
+	Context.onAfterTyping((_) -> {
+		try {
+			CompilationServer.invalidateModule("Empty");
+		} catch (e:Dynamic) {
+			Sys.println(Std.string(e));
+		}
+	});
+}

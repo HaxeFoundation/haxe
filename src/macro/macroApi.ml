@@ -2329,7 +2329,8 @@ let macro_api ccom get_api =
 			(try
 				ignore(com.module_lut#find mpath);
 				let msg = "Cannot invalidate loaded module " ^ (s_type_path mpath) in
-				(get_api()).display_error msg (get_api_call_pos())
+				let pos = get_api_call_pos() in
+				compiler_error (Error.make_error (Custom msg) pos)
 			with Not_found ->
 				com.cs#taint_module mpath ServerInvalidate);
 			vnull
