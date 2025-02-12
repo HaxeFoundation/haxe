@@ -1,3 +1,3 @@
 function main() {
-	Foo.test;
+	Foo.test();
 }

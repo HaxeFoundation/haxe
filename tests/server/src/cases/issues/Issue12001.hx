@@ -15,16 +15,23 @@ class Issue12001 extends TestCase {
 		assertSuccess();
 	}
 
-	function testDefineType1(_) {
+	@:async
+	@:timeout(3000)
+	function testRedefineType(async:Async) {
 		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro.hx"));
 		vfs.putContent("Main.hx", getTemplate("issues/Issue12001/Main.hx"));
-		var args = ["-main", "Main", "--macro", "Macro.defineType()"];
-		runHaxe(args);
-		assertSuccess();
-
-		runHaxe(args);
-		assertSuccess();
-		assertSkipping("Main", DependencyDirty("Foo - Tainted define_type"));
+		var args = ["-main", "Main", "--interp", "--macro", "Macro.defineType()"];
+		var i = 0;
+		function test() {
+			// Was failing with nightlies (HxbFailure)
+			runHaxe(args, () -> {
+				assertSuccess();
+				assertHasPrint("Foo.test() = " + i);
+				if (++i >= 5) async.done();
+				else test();
+			});
+		}
+		test();
 	}
 
 	function testDefineModule(_) {
@@ -39,46 +46,23 @@ class Issue12001 extends TestCase {
 		assertSuccess();
 	}
 
-	function testDefineModule1(_) {
-		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro.hx"));
-		vfs.putContent("Main.hx", getTemplate("issues/Issue12001/Main1.hx"));
-		var args = ["-main", "Main", "--macro", "Macro.defineModule()"];
-		runHaxe(args);
-		assertSuccess();
-
-		runHaxe(args);
-		assertSuccess();
-		assertSkipping("Main", DependencyDirty("Bar - Tainted define_module"));
-	}
-
 	@:async
 	@:timeout(3000)
 	function testRedefineModule(async:Async) {
 		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro.hx"));
-		vfs.putContent("Main.hx", getTemplate("issues/Issue12001/Main2.hx"));
-		var args = ["-main", "Main", "--interp", "--macro", "Macro.redefineModule()"];
+		vfs.putContent("Main.hx", getTemplate("issues/Issue12001/Main1.hx"));
+		var args = ["-main", "Main", "--interp", "--macro", "Macro.defineModule()"];
 		var i = 0;
 		function test() {
+			// Was failing with nightlies (HxbFailure)
 			runHaxe(args, () -> {
 				assertSuccess();
-				assertHasPrint("Foobar.test() = " + i);
+				assertHasPrint("Bar.test() = " + i);
 				if (++i >= 5) async.done();
 				else test();
 			});
 		}
 		test();
-	}
-
-	function testAfterTyping(_) {
-		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro.hx"));
-		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
-		var args = ["-main", "Empty", "--macro", "Macro.hook()"];
-		runHaxe(args);
-		assertSuccess();
-
-		// Nothing is loading Baz, so it can be defined again
-		runHaxe(args);
-		assertSuccess();
 	}
 
 	@:async
@@ -92,7 +76,7 @@ class Issue12001 extends TestCase {
 			runHaxe(args, () -> {
 				assertSuccess();
 				// Newest version is being included
-				assertHasPrint("Foobaz.test() = " + i);
+				assertHasPrint("Baz.test() = " + i);
 				if (++i >= 5) async.done();
 				else test();
 			});

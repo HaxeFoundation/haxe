@@ -1,3 +1,3 @@
 function main() {
-	Bar.test;
+	Bar.test();
 }
