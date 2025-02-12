@@ -3427,7 +3427,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		regs = DynArray.to_array ctx.m.mregs.arr;
 		code = DynArray.to_array ctx.m.mops;
 		debug = make_debug ctx ctx.m.mdebug;
-		assigns = Array.of_list (List.rev ctx.m.massign);
+		assigns = Array.of_list (List.sort (fun (_,p1) (_,p2) -> p1 - p2) (List.rev ctx.m.massign));
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
