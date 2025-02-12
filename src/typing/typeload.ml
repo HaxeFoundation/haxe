@@ -300,8 +300,8 @@ let rec load_params ctx info params p =
 	let is_java_rest = ctx.com.platform = Jvm && info.build_extern in
 	let is_rest = is_rest || is_java_rest in
 	let load_param t def =
-		match (t, def) with
-		| TPExpr e, _ ->
+		match t with
+		| TPExpr e ->
 			let name = (match fst e with
 				| EConst (String(s,_)) -> "S" ^ s
 				| EConst (Int (_,_) as c) -> "I" ^ s_constant c
@@ -314,11 +314,12 @@ let rec load_params ctx info params p =
 			let c = mk_class ctx.m.curmod ([],name) p (pos e) in
 			c.cl_kind <- KExpr e;
 			TInst (c,[]),pos e
-		| TPType (CTPath({ path = { tpackage = ["$"]; tname = "_hx_default" }}),p), None ->
-			raise_typing_error "Cannot apply default type parameter on non-default type parameter" p
-		| TPType (CTPath({ path = { tpackage = ["$"]; tname = "_hx_default" }}),p), Some def ->
-			def,p
-		| TPType t, _ ->
+		| TPType (CTPath({ path = { tpackage = ["$"]; tname = "_hx_default" }}),p) ->
+			(match def with
+				| Some def -> def,p
+				| None -> raise_typing_error "Cannot apply default type parameter on non-default type parameter" p
+			)
+		| TPType t ->
 			load_complex_type ctx true LoadNormal t,pos t
 	in
 	let checks = DynArray.create () in
