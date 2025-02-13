@@ -663,6 +663,10 @@ class Context {
 	/**
 		Defines a new type from `TypeDefinition` `t`.
 
+		If a matching module has already been loaded in current context, a
+		`haxe.macro.Expr.Error` compiler error will be raised which can be
+		caught using `try ... catch`.
+
 		If `moduleDependency` is given and is not `null`, it should contain
 		a module path that will be used as a dependency for the newly defined module
 		instead of the current module.
@@ -694,6 +698,10 @@ class Context {
 	/**
 		Defines a new module as `modulePath` with several `TypeDefinition`
 		`types`. This is analogous to defining a .hx file.
+
+		If a matching module has already been loaded in current context, a
+		`haxe.macro.Expr.Error` compiler error will be raised which can be
+		caught using `try ... catch`.
 
 		The individual `types` can reference each other and any identifier
 		respects the `imports` and `usings` as usual, expect that imports are

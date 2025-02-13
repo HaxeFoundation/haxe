@@ -72,8 +72,9 @@ class CompilationServer {
 	/**
 		Invalidates a module, removing it from the cache.
 
-		If the module has already been loaded in current context, a compiler
-		error will be raised which can be caught using `try ... catch`.
+		If the module has already been loaded in current context, a
+		`haxe.macro.Expr.Error` compiler error will be raised which can be
+		caught using `try ... catch`.
 	**/
 	static public function invalidateModule(path:String) {
 		@:privateAccess Compiler.load("server_invalidate_module", 1)(path);
