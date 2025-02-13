@@ -299,7 +299,7 @@ let rec load_params ctx info params p =
 	let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
 	let is_java_rest = ctx.com.platform = Jvm && info.build_extern in
 	let is_rest = is_rest || is_java_rest in
-	let load_param t def =
+	let load_param t ttp =
 		match t with
 		| TPExpr e ->
 			let name = (match fst e with
@@ -315,9 +315,14 @@ let rec load_params ctx info params p =
 			c.cl_kind <- KExpr e;
 			TInst (c,[]),pos e
 		| TPType (CTPath({ path = { tpackage = ["$"]; tname = "_hx_default" }}),p) ->
-			(match def with
-				| Some def -> def,p
-				| None -> raise_typing_error "Cannot apply default type parameter on non-default type parameter" p
+			(match ttp with
+				| Some { ttp_default = Some def } -> def,p
+				| Some ttp ->
+					raise_typing_error (Printf.sprintf "Invalid default, type parameter %s has no default value" ttp.ttp_name) p
+				| None when is_rest ->
+					raise_typing_error "Cannot use default with rest type parameters" p
+				| None ->
+					raise_typing_error ("Too many type parameters for " ^ s_type_path info.build_path) p
 			)
 		| TPType t ->
 			load_complex_type ctx true LoadNormal t,pos t
@@ -326,7 +331,7 @@ let rec load_params ctx info params p =
 	let rec loop tl1 tl2 is_rest = match tl1,tl2 with
 		| t :: tl1,ttp:: tl2 ->
 			let name = ttp.ttp_name in
-			let t,pt = load_param t ttp.ttp_default in
+			let t,pt = load_param t (Some ttp) in
 			let check_const c =
 				let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
 				let expects_expression = name = "Const" || Meta.has Meta.Const c.cl_meta in
