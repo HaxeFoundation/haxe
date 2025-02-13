@@ -467,7 +467,7 @@ let make_macro_api ctx mctx p =
 				try
 					let m = ctx.com.module_lut#find mpath in
 					let pos = { pfile = (Path.UniqueKey.lazy_path m.m_extra.m_file); pmin = 0; pmax = 0 } in
-					raise_typing_error_ext (make_error ~sub:[
+					Interp.compiler_error (make_error ~sub:[
 						make_error ~depth:1 (Custom "Previously defined here") pos
 					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
 				with Not_found ->
@@ -504,7 +504,7 @@ let make_macro_api ctx mctx p =
 				let m = ctx.com.module_lut#find mpath in
 				if m != ctx.m.curmod then begin
 					let pos = { pfile = (Path.UniqueKey.lazy_path m.m_extra.m_file); pmin = 0; pmax = 0 } in
-					raise_typing_error_ext (make_error ~sub:[
+					Interp.compiler_error (make_error ~sub:[
 						make_error ~depth:1 (Custom "Previously defined here") pos
 					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
 				end else
