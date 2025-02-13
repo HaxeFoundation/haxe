@@ -15,6 +15,19 @@ class Issue12001 extends TestCase {
 		assertSuccess();
 	}
 
+	function testRedefineTypeCatchError(_) {
+		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro.hx"));
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		var args = ["-main", "Empty", "--macro", "Macro.redefineTypeCatchError()"];
+		runHaxe(args);
+		assertSuccess();
+
+		runHaxe(args);
+		assertSuccess();
+		assertHasPrint("Macro.hx:56: TInst(Foobar,[])");
+		assertHasPrint("Macro.hx:69: Cannot redefine module Foobar");
+	}
+
 	@:async
 	@:timeout(3000)
 	function testRedefineType(async:Async) {
@@ -44,6 +57,19 @@ class Issue12001 extends TestCase {
 		// Nothing is loading Bar, so no redefinition issue
 		runHaxe(args);
 		assertSuccess();
+	}
+
+	function testRedefineModuleCatchError(_) {
+		vfs.putContent("Macro.hx", getTemplate("issues/Issue12001/Macro.hx"));
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		var args = ["-main", "Empty", "--macro", "Macro.redefineModuleCatchError()"];
+		runHaxe(args);
+		assertSuccess();
+
+		runHaxe(args);
+		assertSuccess();
+		assertHasPrint("Macro.hx:77: TInst(Foobaz,[])");
+		assertHasPrint("Macro.hx:90: Cannot redefine module Foobaz");
 	}
 
 	@:async

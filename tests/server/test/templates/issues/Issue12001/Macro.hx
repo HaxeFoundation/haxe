@@ -1,4 +1,5 @@
 import haxe.macro.Context;
+import haxe.macro.Expr.Error;
 
 @:persistent var i = 0;
 function defineType() {
@@ -46,5 +47,47 @@ function hookRedefine() {
 				public static function __init__() Sys.println("Baz.test() = " + $v{k++});
 			}).fields
 		}]);
+	});
+}
+
+@:persistent var l = 0;
+function redefineTypeCatchError() {
+	Context.onAfterInitMacros(() -> {
+		if (l > 0) trace(Context.getType("Foobar"));
+
+		try {
+			l++;
+			Context.defineType({
+				pos: Context.currentPos(),
+				pack: [],
+				name: "Foobar",
+				kind: TDClass(null, null, false, false, false),
+				fields: []
+			});
+		} catch (e:Error) {
+			if (l == 0) throw e;
+			trace(e.message);
+		}
+	});
+}
+
+@:persistent var m = 0;
+function redefineModuleCatchError() {
+	Context.onAfterInitMacros(() -> {
+		if (m > 0) trace(Context.getType("Foobaz"));
+
+		try {
+			m++;
+			Context.defineModule("Foobaz", [{
+				pos: Context.currentPos(),
+				pack: [],
+				name: "Foobaz",
+				kind: TDClass(null, null, false, false, false),
+				fields: []
+			}]);
+		} catch (e:Error) {
+			if (m == 0) throw e;
+			trace(e.message);
+		}
 	});
 }
