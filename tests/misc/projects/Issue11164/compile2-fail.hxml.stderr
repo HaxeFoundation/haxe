@@ -2,5 +2,5 @@
 
  3 |   var b:Array<default> = [];
    |               ^^^^^^^
-   | Cannot apply default type parameter on non-default type parameter
+   | Invalid default, type parameter T has no default value
 
