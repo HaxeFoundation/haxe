@@ -416,7 +416,7 @@ let save_locals ctx =
 
 let add_local ctx k n t p =
 	let v = alloc_var k n t p in
-	if Define.defined ctx.com.defines Define.WarnVarShadowing && n <> "_" then begin
+	if n <> "_" then begin
 		match k with
 		| VUser _ ->
 			begin try

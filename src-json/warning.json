@@ -76,7 +76,8 @@
 	{
 		"name": "WVarShadow",
 		"doc": "A local variable hides another by using the same name",
-		"parent": "WTyper"
+		"parent": "WTyper",
+		"enabled": false
 	},
 	{
 		"name": "WExternWithExpr",
