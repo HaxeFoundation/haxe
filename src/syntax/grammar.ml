@@ -1166,6 +1166,7 @@ and parse_block_var ctx = function%parser
 and parse_block_elt ctx s = match%parser s with
 	| [ [%let vl,p = parse_block_var ctx] ] ->
 		(EVars vl,p)
+	| [ (Kwd Function,p1); [%let e = parse_function ctx p1 false]; [%let _s = semicolon ctx] ]  -> e
 	| [ (Kwd Inline,p1) ] ->
 		begin match%parser s with
 		| [ (Kwd Function,_); [%let e = parse_function ctx p1 true]; [%let _s = semicolon ctx] ] -> e
