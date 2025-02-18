@@ -1603,7 +1603,8 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 		| (Meta.ToString,_,_) ->
 			let e = e() in
 			(match follow e.etype with
-				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx e
+				| TAbstract({a_impl = Some c; a_this},_) when PMap.mem "toString" c.cl_statics ->
+					call_to_string ~no_null_check:(is_explicit_null a_this) ctx e
 				| _ -> e)
 		| (Meta.Markup,_,_) ->
 			raise_typing_error "Markup literals must be processed by a macro" p
@@ -1725,8 +1726,8 @@ and type_call_builtin ctx e el mode with_type p =
 			let e = type_expr ctx e WithType.value in
 			let infos = type_expr ctx infos WithType.value in
 			let e = match follow e.etype with
-				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
-					call_to_string ctx e
+				| TAbstract({a_impl = Some c; a_this},_) when PMap.mem "toString" c.cl_statics ->
+					call_to_string ~no_null_check:(is_explicit_null a_this) ctx e
 				| _ ->
 					e
 			in
