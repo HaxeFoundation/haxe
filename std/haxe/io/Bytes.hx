@@ -404,15 +404,12 @@ class Bytes {
 		interpreted with the given `encoding` (UTF-8 by default).
 	**/
 	public function getString(pos:Int, len:Int, ?encoding:Encoding):String {
-		if (encoding == null)
-			encoding == UTF8;
-		#if !neko
-		if (pos < 0 || len < 0 || pos + len > length)
-			throw Error.OutsideBounds;
-		#end
 		#if neko
 		return try new String(untyped __dollar__ssub(b, pos, len)) catch (e:Dynamic) throw Error.OutsideBounds;
-		#elseif flash
+		#end
+		if (pos < 0 || len < 0 || pos + len > length)
+			throw Error.OutsideBounds;
+		#if flash
 		b.position = pos;
 		return encoding == RawNative ? b.readMultiByte(len, "unicode") : b.readUTFBytes(len);
 		#elseif cpp
