@@ -984,6 +984,9 @@ let type_unop ctx op flag e with_type p =
 			| AKAccess(a,tl,c,ebase,ekey) ->
 				begin try
 					(match op with Increment | Decrement -> () | _ -> raise Not_found);
+					let v_base = alloc_var VGenerated "tmp" ebase.etype ebase.epos in
+					let evar_base = mk (TVar(v_base, Some ebase)) ctx.com.basic.tvoid ebase.epos in
+					let ebase = mk (TLocal v_base) ebase.etype ebase.epos in
 					let v_key = alloc_var VGenerated "tmp" ekey.etype ekey.epos in
 					let evar_key = mk (TVar(v_key,Some ekey)) ctx.com.basic.tvoid ekey.epos in
 					let ekey = mk (TLocal v_key) ekey.etype ekey.epos in
@@ -997,7 +1000,7 @@ let type_unop ctx op flag e with_type p =
 					let e_op = mk (TBinop((if op = Increment then OpAdd else OpSub),ev_get,e_one)) ev_get.etype p in
 					(* set *)
 					let e_set = mk_array_set_call ctx (AbstractCast.find_array_write_access_raise ctx a tl ekey e_op p) c ebase p in
-					let el = evar_key :: evar_get :: e_set :: (if flag = Postfix then [ev_get] else []) in
+					let el = evar_base :: evar_key :: evar_get :: e_set :: (if flag = Postfix then [ev_get] else []) in
 					mk (TBlock el) e_set.etype p
 				with Not_found ->
 					let e = mk_array_get_call ctx (AbstractCast.find_array_read_access ctx a tl ekey p) c ebase p in
