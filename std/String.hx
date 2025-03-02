@@ -96,8 +96,8 @@ extern class String {
 		String.
 
 		If `startIndex` is given, the search is performed within the substring
-		of `this` String from 0 to `startIndex + str.length`. Otherwise the search
-		is performed within `this` String. In either case, the returned position
+		of `this` String from 0 to `startIndex + 1`. Otherwise the search is
+		performed within `this` String. In either case, the returned position
 		is relative to the beginning of `this` String.
 
 		If `startIndex` is negative, the result is unspecifed.
