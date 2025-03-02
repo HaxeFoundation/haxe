@@ -1,2 +1,9 @@
 (dirs src libs)
 (data_only_dirs src-json)
+
+(rule
+ (action
+  (copy src/haxe.exe haxe%{ext_exe}))
+ (mode
+  (promote (until-clean)))
+ (alias default))
