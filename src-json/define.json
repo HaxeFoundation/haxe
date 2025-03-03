@@ -72,6 +72,11 @@
 		"doc": "Use in-memory cache instead of hxb powered cache."
 	},
 	{
+		"name": "DisableHxbOptimizations",
+		"define": "disable-hxb-optimizations",
+		"doc": "Disable shortcuts used by hxb cache to speed up display requests."
+	},
+	{
 		"name": "DisableUnicodeStrings",
 		"define": "disable-unicode-strings",
 		"doc": "Disable Unicode support in `String` type.",
@@ -549,7 +554,8 @@
 	{
 		"name": "NoDeprecationWarnings",
 		"define": "no-deprecation-warnings",
-		"doc": "Do not warn if fields annotated with `@:deprecated` are used."
+		"doc": "Do not warn if fields annotated with `@:deprecated` are used.",
+		"deprecated": "Use -w to configure warnings. See https://haxe.org/manual/cr-warnings.html for more information."
 	},
 	{
 		"name": "NoFlashOverride",
@@ -786,7 +792,8 @@
 	{
 		"name": "WarnVarShadowing",
 		"define": "warn-var-shadowing",
-		"doc": "Warn about shadowing variable declarations."
+		"doc": "Warn about shadowing variable declarations.",
+		"deprecated": "Use -w to configure warnings. See https://haxe.org/manual/cr-warnings.html for more information."
 	},
 	{
 		"name": "NoTre",

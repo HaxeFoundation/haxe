@@ -304,7 +304,7 @@ and jit_expr jit return e =
 	| TWhile(e1,e2,flag) ->
 		let rec has_continue e = match e.eexpr with
 			| TContinue -> true
-			| TWhile _ | TFor _ | TFunction _ -> false
+			| TWhile _ | TFunction _ -> false
 			| _ -> check_expr has_continue e
 		in
 		let exec_cond = jit_expr jit false e1 in
@@ -632,8 +632,6 @@ and jit_expr jit return e =
 	| TUnop(op,flag,v1) ->
 		unop jit op flag v1 e.epos
 	(* rewrites/skips *)
-	| TFor(v,e1,e2) ->
-		loop (Texpr.for_remap (ctx.curapi.MacroApi.get_com()).Common.basic v e1 e2 e.epos)
 	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 		loop e1
 	| TIdent s ->
@@ -650,7 +648,7 @@ and jit_expr jit return e =
 			begin match e.eexpr with
 			| TCall _ | TNew _
 			| TVar({v_kind = VUser _},_)
-			| TFor _ | TIf _ | TWhile _ | TSwitch _ | TTry _
+			| TIf _ | TWhile _ | TSwitch _ | TTry _
 			| TReturn _ | TBreak | TContinue | TThrow _ | TCast(_,Some _) ->
 				wrap()
 			| TUnop((Increment | Decrement),_,e1) | TBinop((OpAssign | OpAssignOp _),e1,_) ->

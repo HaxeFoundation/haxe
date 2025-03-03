@@ -337,19 +337,6 @@ let rec collect_vars ?(in_block=false) rc scope e =
 			if flag = DoWhile then
 				collect_vars scope condition;
 		)
-	(*
-		This only happens for `cross` target, because for real targets all loops are converted to `while` at this point
-		Idk if this works correctly.
-	*)
-	| TFor (v, iterator, body) ->
-		collect_loop scope (fun() ->
-			if rc.rc_hoisting then
-				declare_var rc scope v;
-			collect_vars scope iterator;
-			if not rc.rc_hoisting then
-				declare_var rc scope v;
-			collect_vars scope body
-		)
 	| _ ->
 		iter (collect_vars scope) e
 
@@ -397,24 +384,20 @@ let rec rename_vars rc scope =
 	Rename local variables in `e` expression if needed.
 *)
 let run cl_path ri e =
-	(try
-		let rc = {
-			rc_scope = ri.ri_scope;
-			rc_hoisting = ri.ri_hoisting;
-			rc_no_shadowing = ri.ri_no_shadowing;
-			rc_no_catch_var_shadowing = ri.ri_no_catch_var_shadowing;
-			rc_switch_cases_no_blocks = ri.ri_switch_cases_no_blocks;
-			rc_reserved = ri.ri_reserved;
-			rc_var_origins = Hashtbl.create 0;
-		} in
-		if ri.ri_reserve_current_top_level_symbol then begin
-			match cl_path with
-			| s :: _,_ | [],s -> reserve_ctx rc s
-		end;
-		let scope = create_scope None in
-		collect_vars rc scope e;
-		rename_vars rc scope;
-	with Failure msg ->
-		die ~p:e.epos msg __LOC__
-	);
+	let rc = {
+		rc_scope = ri.ri_scope;
+		rc_hoisting = ri.ri_hoisting;
+		rc_no_shadowing = ri.ri_no_shadowing;
+		rc_no_catch_var_shadowing = ri.ri_no_catch_var_shadowing;
+		rc_switch_cases_no_blocks = ri.ri_switch_cases_no_blocks;
+		rc_reserved = ri.ri_reserved;
+		rc_var_origins = Hashtbl.create 0;
+	} in
+	if ri.ri_reserve_current_top_level_symbol then begin
+		match cl_path with
+		| s :: _,_ | [],s -> reserve_ctx rc s
+	end;
+	let scope = create_scope None in
+	collect_vars rc scope e;
+	rename_vars rc scope;
 	e

@@ -67,44 +67,18 @@ let print_arg_list_name arg_list prefix =
 let print_arg_names args =
   String.concat "," (List.map (fun (name, _, _) -> keyword_remap name) args)
 
-let rec print_tfun_arg_list include_names arg_list =
+let print_tfun_arg_list include_names arg_list =
   let oType o arg_type =
     let type_str = type_to_string arg_type in
     (* type_str may have already converted Null<X> to Dynamic because of NotNull tag ... *)
     if o && type_cant_be_null arg_type && type_str <> "Dynamic" then
       "::hx::Null< " ^ type_str ^ " > "
-    else type_str
+    else
+      type_str
   in
-  match arg_list with
-  | [] -> ""
-  | [ (name, o, arg_type) ] ->
-      oType o arg_type ^ if include_names then " " ^ keyword_remap name else ""
-  | (name, o, arg_type) :: remaining ->
-      oType o arg_type
-      ^ (if include_names then " " ^ keyword_remap name else "")
-      ^ ","
-      ^ print_tfun_arg_list include_names remaining
-
-let has_new_gc_references class_def =
-  let is_gc_reference field =
-    should_implement_field field
-    && is_data_member field
-    && not (type_cant_be_null field.cf_type)
-  in
-  List.exists is_gc_reference class_def.cl_ordered_fields
-
-let rec has_gc_references class_def =
-  (match class_def.cl_super with
-  | Some def when has_gc_references (fst def) -> true
-  | _ -> false)
-  || has_new_gc_references class_def
-
-let rec find_next_super_iteration class_def =
-  match class_def.cl_super with
-  | Some (klass, params) when has_new_gc_references klass ->
-      tcpp_to_string_suffix "_obj" (cpp_instance_type klass params)
-  | Some (klass, _) -> find_next_super_iteration klass
-  | _ -> ""
+  arg_list
+  |> List.map (fun (name, o, arg_type) -> (oType o arg_type) ^ (if include_names then " " ^ keyword_remap name else ""))
+  |> String.concat ","
 
 let cpp_member_name_of member =
   match get_meta_string member.cf_meta Meta.Native with
@@ -174,19 +148,6 @@ let cpp_class_name klass =
   in
   let path = globalNamespace ^ join_class_path_remap klass.cl_path "::" in
   if is_native_class klass || path = "::String" then path else path ^ "_obj"
-
-let rec implements_native_interface class_def =
-  List.exists
-    (fun (intf_def, _) ->
-      is_native_gen_class intf_def || implements_native_interface intf_def)
-    class_def.cl_implements
-  ||
-  match class_def.cl_super with
-  | Some (i, _) -> implements_native_interface i
-  | _ -> false
-
-let can_quick_alloc klass =
-  (not (is_native_class klass)) && not (implements_native_interface klass)
 
 let only_stack_access haxe_type =
   match cpp_type_of haxe_type with
@@ -382,63 +343,7 @@ let hx_stack_push ctx output clazz func_name pos gc_stack =
 (* Add include to source code *)
 let add_include writer class_path = writer#add_include class_path
 
-let real_interfaces =
-  List.filter (function t, pl ->
-      (match (t, pl) with
-      | { cl_path = [ "cpp"; "rtti" ], _ }, [] -> false
-      | _ -> true))
-
-let native_field_name_remap is_static field =
-  let remap_name = keyword_remap field.cf_name in
-  if not is_static then remap_name
-  else
-    match get_meta_string field.cf_meta Meta.Native with
-    | Some nativeImpl ->
-        let r = Str.regexp "^[a-zA-Z_0-9]+$" in
-        if Str.string_match r remap_name 0 then "_hx_" ^ remap_name
-        else "_hx_f" ^ gen_hash 0 remap_name
-    | None -> remap_name
-
-let rec is_dynamic_accessor name acc field class_def =
-  acc ^ "_" ^ field.cf_name = name
-  && (not (List.exists (fun f -> f.cf_name = name) class_def.cl_ordered_fields))
-  &&
-  match class_def.cl_super with
-  | None -> true
-  | Some (parent, _) -> is_dynamic_accessor name acc field parent
-
-(* Builds inheritance tree, so header files can include parents defs.  *)
-let create_super_dependencies common_ctx =
-  let result = Hashtbl.create 0 in
-  let real_non_native_interfaces =
-    List.filter (function t, pl ->
-        (match (t, pl) with
-        | { cl_path = [ "cpp"; "rtti" ], _ }, [] -> false
-        | _ -> not (is_native_gen_class t)))
-  in
-  let iterator object_def =
-    match object_def with
-    | TClassDecl class_def when not (has_class_flag class_def CExtern) ->
-        let deps = ref [] in
-        (match class_def.cl_super with
-        | Some super ->
-            if not (has_class_flag (fst super) CExtern) then
-              deps := (fst super).cl_path :: !deps
-        | _ -> ());
-        List.iter
-          (fun imp ->
-            if not (has_class_flag (fst imp) CExtern) then
-              deps := (fst imp).cl_path :: !deps)
-          (real_non_native_interfaces class_def.cl_implements);
-        Hashtbl.add result class_def.cl_path !deps
-    | TEnumDecl enum_def when not (has_enum_flag enum_def EnExtern) ->
-        Hashtbl.add result enum_def.e_path []
-    | _ -> ()
-  in
-  List.iter iterator common_ctx.types;
-  result
-
-let can_inline_constructor baseCtx class_def super_deps constructor_deps =
+let can_inline_constructor base_ctx class_def =
   match class_def.cl_constructor with
   | Some { cf_expr = Some super_func } ->
       let is_simple = ref true in
@@ -461,24 +366,11 @@ let can_inline_constructor baseCtx class_def super_deps constructor_deps =
       (* Check to see if all the types required by the constructor are already in the header *)
       (* This is quite restrictive, since most classes are forward-declared *)
       let deps, _ =
-        CppReferences.find_referenced_types_flags baseCtx (TClassDecl class_def)
-          "new" super_deps constructor_deps false false true
+        CppReferences.find_referenced_types_flags base_ctx (TClassDecl class_def)
+          (Some "new") base_ctx.ctx_super_deps base_ctx.ctx_constructor_deps false false true
       in
       List.for_all (fun dep -> List.mem dep allowed) deps
   | _ -> true
-
-let create_constructor_dependencies common_ctx =
-  let result = Hashtbl.create 0 in
-  List.iter
-    (fun object_def ->
-      match object_def with
-      | TClassDecl class_def when not (has_class_flag class_def CExtern) -> (
-          match class_def.cl_constructor with
-          | Some func_def -> Hashtbl.add result class_def.cl_path func_def
-          | _ -> ())
-      | _ -> ())
-    common_ctx.types;
-  result
 
 let begin_namespace output class_path =
   List.iter
@@ -511,80 +403,44 @@ let cpp_tfun_signature include_names args return_type =
   let returnType = type_to_string return_type in
   "( " ^ returnType ^ " (::hx::Object::*)(" ^ argList ^ "))"
 
-exception FieldFound of tclass_field
-
-let find_class_implementation class_def name interface =
+let find_class_implementation func tcpp_class =
   let rec find def =
-    List.iter
-      (fun f -> if f.cf_name = name then raise (FieldFound f))
-      def.cl_ordered_fields;
-    match def.cl_super with Some (def, _) -> find def | _ -> ()
+    match List.find_opt (fun f -> f.tcf_name = func.iff_name) def.tcl_functions with
+    | Some f -> Some f.tcf_field
+    | None ->
+      match def.tcl_super with
+      | Some s -> find s
+      | None -> None
   in
-  try
-    find class_def;
-    abort
-      ("Could not find implementation of " ^ name ^ " in "
-      ^ join_class_path class_def.cl_path "."
-      ^ " required by "
-      ^ join_class_path interface.cl_path ".")
-      class_def.cl_pos
-  with FieldFound field -> (
-    match (follow field.cf_type, field.cf_kind) with
-    | _, Method MethDynamic -> ""
-    | TFun (args, return_type), Method _ ->
-        cpp_tfun_signature false args return_type
-    | _, _ -> "")
+
+  match find tcpp_class with
+  | Some { cf_type = TFun (args, ret) } -> 
+    cpp_tfun_signature false args ret
+  | _ ->
+    ""
 
 let gen_gc_name class_path =
   let class_name_text = join_class_path class_path "." in
   const_char_star class_name_text
 
-(* All interfaces (and sub-interfaces) implemented *)
-let implementations class_def =
-  let implemented_hash = Hashtbl.create 0 in
-  let native_implemented = Hashtbl.create 0 in
-
-  let cpp_interface_impl_name interface =
-    "_hx_" ^ join_class_path interface.cl_path "_"
-  in
-  let iterator impl =
-    let rec descend_interface interface =
-      let intf_def = fst interface in
-      let interface_name = cpp_interface_impl_name intf_def in
-      let hash =
-        if is_native_gen_class intf_def then native_implemented
-        else implemented_hash
-      in
-      if not (Hashtbl.mem hash interface_name) then (
-        Hashtbl.replace hash interface_name intf_def;
-        List.iter descend_interface intf_def.cl_implements);
-      match intf_def.cl_super with
-      | Some (interface, params) -> descend_interface (interface, params)
-      | _ -> ()
-    in
-    descend_interface impl
-  in
-
-  List.iter iterator (real_interfaces class_def.cl_implements);
-  (implemented_hash, native_implemented)
-
-let needed_interface_functions implemented_instance_fields
-    native_implementations =
+let needed_interface_functions implemented_instance_fields native_implementations =
   let have =
-    List.map (fun field -> (field.cf_name, ())) implemented_instance_fields
-    |> List.to_seq |> Hashtbl.of_seq
+    implemented_instance_fields
+    |> List.map (fun (func) -> (func.tcf_name, ()))
+    |> string_map_of_list
   in
-  let want = ref [] in
-  Hashtbl.iter
-    (fun _ intf_def ->
-      List.iter
-        (fun field ->
-          if not (Hashtbl.mem have field.cf_name) then (
-            Hashtbl.replace have field.cf_name ();
-            want := field :: !want))
-        intf_def.cl_ordered_fields)
-    native_implementations;
-  !want
+  let func_folder (have, acc) func =
+    if StringMap.mem func.iff_name have then
+      (have, acc)
+    else
+      (StringMap.add func.iff_name () have, func :: acc)
+  in
+  let iface_folder acc iface =
+    List.fold_left func_folder acc iface.if_functions
+  in
+  native_implementations
+  |> List.fold_left iface_folder (have, [])
+  |> snd
 
 let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     function_type injection tree =
@@ -1087,7 +943,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
             separator := ","
         | _ -> ());
 
-        Hashtbl.iter
+        StringMap.iter
           (fun name value ->
             out !separator;
             separator := ",";
@@ -1603,8 +1459,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
     | OpIn -> " in "
     | OpNullCoal -> "??"
     | OpAssign | OpAssignOp _ -> abort "Unprocessed OpAssign" pos
+
   and gen_closure closure =
-    let argc = Hashtbl.length closure.close_undeclared in
+    let argc = StringMap.bindings closure.close_undeclared |> List.length in
     let size = string_of_int argc in
     if argc >= 62 then
       (* Limited by c++ macro size of 128 args *)
@@ -1617,7 +1474,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args
       (if closure.close_this != None then "::hx::LocalThisFunc,"
        else "::hx::LocalFunc,");
     out ("_hx_Closure_" ^ string_of_int closure.close_id);
-    Hashtbl.iter
+    StringMap.iter
       (fun name var ->
         out ("," ^ cpp_macro_var_type_of var ^ "," ^ keyword_remap name))
       closure.close_undeclared;
@@ -1697,11 +1554,11 @@ let generate_main ctx super_deps class_def =
     | _ -> die "" __LOC__
   in
   CppReferences.find_referenced_types ctx (TClassDecl class_def) super_deps
-    (Hashtbl.create 0) false false false
+    PathMap.empty false false false
   |> ignore;
   let depend_referenced =
     CppReferences.find_referenced_types ctx (TClassDecl class_def) super_deps
-      (Hashtbl.create 0) false true false
+    PathMap.empty false true false
   in
   let generate_startup filename is_main =
     (*make_class_directories base_dir ( "src" :: []);*)
@@ -1739,7 +1596,7 @@ let generate_dummy_main common_ctx =
   generate_startup "__main__" true;
   generate_startup "__lib__" false
 
-let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes =
+let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes (slots:CppAst.InterfaceSlots.t) =
   let common_ctx = ctx.ctx_common in
   (* Write boot class too ... *)
   let base_dir = common_ctx.file in
@@ -1754,9 +1611,10 @@ let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes =
   let newScriptable = Gctx.defined common_ctx Define.Scriptable in
   if newScriptable then (
     output_boot "#include <hx/Scriptable.h>\n";
-    let funcs =
-      hash_iterate !(ctx.ctx_interface_slot) (fun name id -> (name, id))
-    in
+
+    
+
+    let funcs = StringMap.bindings slots.hash in
     let sorted = List.sort (fun (_, id1) (_, id2) -> id1 - id2) funcs in
     output_boot
       "static const char *scriptableInterfaceFuncs[] = {\n\t0,\n\t0,\n";
@@ -1773,7 +1631,7 @@ let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes =
   if newScriptable then
     output_boot
       ("::hx::ScriptableRegisterNameSlots(scriptableInterfaceFuncs,"
-      ^ string_of_int !(ctx.ctx_interface_slot_count)
+      ^ string_of_int slots.next
       ^ ");\n");
 
   List.iter
@@ -1905,33 +1763,27 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code
 
 let constructor_arg_var_list class_def =
   match class_def.cl_constructor with
-  | Some definition -> (
-      match definition.cf_expr with
-      | Some { eexpr = TFunction function_def } ->
-          List.map
-            (fun (v, o) ->
-              (v.v_name, type_arg_to_string v.v_name o v.v_type "__o_"))
-            function_def.tf_args
-      | _ -> (
-          match follow definition.cf_type with
-          | TFun (args, _) ->
-              List.map (fun (a, _, t) -> (a, (type_to_string t, a))) args
-          | _ -> []))
+  | Some { cf_expr = Some { eexpr = TFunction function_def } } ->
+    List.map
+      (fun (v, o) -> type_arg_to_string v.v_name o v.v_type "__o_")
+      function_def.tf_args
+  | Some definition ->
+    (match follow definition.cf_type with
+    | TFun (args, _) -> List.map (fun (a, _, t) -> type_to_string t, a) args
+    | _ -> [])
   | _ -> []
 
-let generate_constructor ctx out class_def isHeader =
-  let class_name = class_name class_def in
-  let ptr_name = class_pointer class_def in
-  let can_quick_alloc = can_quick_alloc class_def in
-  let gcName = gen_gc_name class_def.cl_path in
-  let isContainer = if has_gc_references class_def then "true" else "false" in
-  let cargs = constructor_arg_var_list class_def in
-  let constructor_type_var_list = List.map snd cargs in
+let generate_constructor ctx out tcpp_class isHeader =
+  let class_name = tcpp_class.tcl_name in
+  let ptr_name = class_pointer tcpp_class.tcl_class in
+  let can_quick_alloc = has_tcpp_class_flag tcpp_class QuickAlloc in
+  let gcName = gen_gc_name tcpp_class.tcl_class.cl_path in
+  let cargs = constructor_arg_var_list tcpp_class.tcl_class in
   let constructor_type_args =
     String.concat ","
-      (List.map (fun (t, a) -> t ^ " " ^ a) constructor_type_var_list)
+      (List.map (fun (t, a) -> t ^ " " ^ a) cargs)
   in
-  let constructor_var_list = List.map snd constructor_type_var_list in
+  let constructor_var_list = List.map snd cargs in
   let constructor_args = String.concat "," constructor_var_list in
 
   let classScope = if isHeader then "" else class_name ^ "::" in
@@ -1949,10 +1801,9 @@ let generate_constructor ctx out class_def isHeader =
       (staticHead ^ ptr_name ^ " " ^ classScope ^ "__alloc(::hx::Ctx *_hx_ctx"
       ^ (if constructor_type_args = "" then "" else "," ^ constructor_type_args)
       ^ ") {\n");
-    out
-      ("\t" ^ class_name ^ " *__this = (" ^ class_name
-     ^ "*)(::hx::Ctx::alloc(_hx_ctx, sizeof(" ^ class_name ^ "), " ^ isContainer
-     ^ ", " ^ gcName ^ "));\n");
+    Printf.sprintf
+    "\t%s* __this = (%s*)(::hx::Ctx::alloc(_hx_ctx, sizeof(%s), %b, %s));\n"
+    class_name class_name class_name (Option.is_some tcpp_class.tcl_container) gcName |> out;
     out ("\t*(void **)__this = " ^ class_name ^ "::_hx_vtable;\n");
     let rec dump_dynamic class_def =
       if has_dynamic_member_functions class_def then
@@ -1965,16 +1816,16 @@ let generate_constructor ctx out class_def isHeader =
         | Some super -> dump_dynamic (fst super)
         | _ -> ()
     in
-    dump_dynamic class_def;
+    dump_dynamic tcpp_class.tcl_class;
 
     if isHeader then
-      match class_def.cl_constructor with
+      match tcpp_class.tcl_class.cl_constructor with
       | Some
           ({ cf_expr = Some { eexpr = TFunction function_def } } as definition)
         ->
           with_debug ctx definition.cf_meta (fun no_debug ->
               ctx.ctx_real_this_ptr <- false;
-              gen_cpp_function_body ctx class_def false "new" function_def "" ""
+              gen_cpp_function_body ctx tcpp_class.tcl_class false "new" function_def "" ""
                 no_debug;
               out "\n")
       | _ -> ()
@@ -1984,12 +1835,12 @@ let generate_constructor ctx out class_def isHeader =
     out "}\n\n")
 
 let generate_native_constructor ctx out class_def isHeader =
-  let cargs = constructor_arg_var_list class_def in
-  let constructor_type_var_list = List.map snd cargs in
   let constructor_type_args =
-    String.concat ","
-      (List.map (fun (t, a) -> t ^ " " ^ a) constructor_type_var_list)
-  in
+    class_def
+      |> constructor_arg_var_list
+      |> List.map (fun (t, a) -> Printf.sprintf "%s %s" t a)
+      |> String.concat "," in
+
   let class_name = class_name class_def in
 
   match class_def.cl_constructor with
@@ -2035,13 +1886,3 @@ let generate_native_constructor ctx out class_def isHeader =
             gen_cpp_function_body ctx class_def false "new" function_def
               head_code tail_code no_debug)
   | _ -> ()
-
-let dynamic_functions class_def =
-  List.fold_left
-    (fun result field ->
-      match field.cf_expr with
-      | Some { eexpr = TFunction function_def }
-        when is_dynamic_haxe_method field ->
-          keyword_remap field.cf_name :: result
-      | _ -> result)
-    [] class_def.cl_ordered_fields

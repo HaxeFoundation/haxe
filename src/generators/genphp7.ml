@@ -1451,7 +1451,6 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					| TIf (_, _, None) -> true
 					| TTry _ -> true
 					| TWhile _ -> true
-					| TFor _ -> true
 					| TSwitch _ -> true
 					| _ -> false
 			in
@@ -1673,7 +1672,6 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| TFunction fn -> self#write_expr_function fn
 				| TVar (var, expr) -> self#write_expr_var var expr
 				| TBlock exprs -> self#write_expr_block expr
-				| TFor (var, iterator, body) -> fail self#pos __LOC__
 				| TIf (condition, if_expr, else_expr) -> self#write_expr_if condition if_expr else_expr
 				| TWhile (condition, expr, do_while) ->
 					(match (reveal_expr_with_parenthesis condition).eexpr with
@@ -1853,7 +1851,6 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						| TIf (_, _, _) -> false
 						| TWhile (_, _, _) -> false
 						| TTry (_, _) -> false
-						| TFor (_, _, _) -> false
 						| TFunction _ -> false
 						| TBlock _ -> false
 						| TSwitch _ -> false

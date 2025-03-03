@@ -649,7 +649,6 @@ module LocalDce = struct
 			| TField(_,fa) when PurityState.is_explicitly_impure fa -> raise Exit
 			| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
-			| TFor _ -> raise Exit
 			| TArray _ | TEnumParameter _ | TEnumIndex _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _
 			| TField _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TBlock _ | TObjectDecl _ | TVar _ -> Type.iter loop e
 		in
@@ -1010,11 +1009,17 @@ module Run = struct
 			match e.eexpr with
 			| TFunction tf ->
 				let get_t t = if ExtType.is_void t then tf.tf_type else t in
+				let doesnt_like_complex_expressions = match actx.com.platform with
+					| Cpp | Hl | Jvm | Php | Flash ->
+						true
+					| _ ->
+						false
+				in
 				let rec loop e = match e.eexpr with
 					| TBlock [e1] ->
 						loop e1
 					(* If there's a complex expression, keep the function and generate a call to it. *)
-					| TBlock _ | TIf _ | TSwitch _ | TTry _ when actx.com.platform = Cpp || actx.com.platform = Hl ->
+					| TBlock _ | TIf _ | TSwitch _ | TTry _ when doesnt_like_complex_expressions ->
 						raise Exit
 					(* Remove generated return *)
 					| TReturn (Some e) ->

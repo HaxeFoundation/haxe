@@ -104,11 +104,6 @@ let captured_vars com e =
 			{ e with eexpr = TVar (v,ve) }
 		| TLocal v when PMap.mem v.v_id used ->
 			impl#mk_ref_access e v
-		| TFor (v,it,expr) when PMap.mem v.v_id used ->
-			let vtmp = mk_var v used in
-			let it = wrap used it in
-			let expr = wrap used expr in
-			mk (TFor (vtmp,it,Type.concat (impl#mk_init v vtmp e.epos) expr)) e.etype e.epos
 		| TTry (expr,catchs) ->
 			let catchs = List.map (fun (v,e) ->
 				let e = wrap used e in
@@ -194,7 +189,7 @@ let captured_vars com e =
 
 	and out_loop e =
 		match e.eexpr with
-		| TFor _ | TWhile _ ->
+		| TWhile _ ->
 			(*
 				collect variables that are declared in loop but used in subfunctions
 			*)

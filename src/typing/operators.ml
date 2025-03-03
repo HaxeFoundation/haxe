@@ -650,42 +650,38 @@ let process_lhs_expr ctx name e_lhs =
 	let e = vr#get_expr name e_lhs in
 	e,vr
 
-let type_assign_op ctx op e1 e2 with_type p =
-	let field_rhs_by_name op name ev with_type =
+type 'a assign_op_api = {
+	akno_fallback : unit -> texpr;
+	type_rhs : texpr -> expr -> 'a;
+	to_texpr : value_reference -> 'a -> (texpr -> texpr) -> texpr;
+	generate : value_reference -> texpr -> texpr -> texpr;
+	assign : value_reference -> texpr -> 'a -> texpr;
+}
+
+let handle_assign_op ctx api e1 e2 with_type p =
+	let field_rhs_by_name name ev with_type =
 		let access_get = type_field_default_cfg ctx ev name p MGet with_type in
 		let e_get = acc_get ctx access_get in
-		e_get.etype,type_binop2 ctx op e_get e2 true WithType.value p
+		e_get,api.type_rhs e_get e2
 	in
-	let field_rhs op cf ev =
-		field_rhs_by_name op cf.cf_name ev (WithType.with_type cf.cf_type)
+	let field_rhs cf ev =
+		field_rhs_by_name cf.cf_name ev (WithType.with_type cf.cf_type)
 	in
-	let assign vr e r_rhs =
-		if BinopResult.needs_assign r_rhs then check_assign ctx e;
+	let set vr fa e_lhs r_rhs el =
 		let assign e_rhs =
-			let e_rhs = AbstractCast.cast_or_unify ctx e.etype e_rhs p in
-			match e_rhs.eexpr with
-			| TBinop(op',e1',e2') when op = op' && Texpr.equal e e1' ->
-				mk (TBinop(OpAssignOp op',e1',e2')) e.etype p
-			| _ ->
-				mk (TBinop(OpAssign,e,e_rhs)) e.etype p
-		in
-		let e = BinopResult.to_texpr vr r_rhs assign in
-		vr#to_texpr e
-	in
-	let set vr fa t_lhs r_rhs el =
-		let assign e_rhs =
-			let e_rhs = AbstractCast.cast_or_unify ctx t_lhs e_rhs p in
+			let e_rhs = AbstractCast.cast_or_unify ctx e_lhs.etype e_rhs p in
 			let dispatcher = new call_dispatcher ctx (MSet (Some e2)) with_type p in
 			dispatcher#accessor_call fa (el @ [e_rhs]) [];
 		in
-		let e = BinopResult.to_texpr vr r_rhs assign in
-		vr#to_texpr e
+		let e = api.to_texpr vr r_rhs assign in
+		api.generate vr e_lhs e
 	in
 	let rec loop acc = match acc with
 		| AKNo(_,p) ->
 			(* try abstract operator overloading *)
 			begin try
-				type_non_assign_op ctx op e1 e2 true true with_type p
+				api.akno_fallback();
+				(* type_non_assign_op ctx op e1 e2 true true with_type p *)
 			with Not_found ->
 				raise_typing_error "This expression cannot be accessed for writing" p
 			end
@@ -695,23 +691,23 @@ let type_assign_op ctx op e1 e2 with_type p =
 			raise_typing_error "Invalid operation" p
 		| AKExpr e ->
 			let e,vr = process_lhs_expr ctx "lhs" e in
-			let e_rhs = type_binop2 ctx op e e2 true WithType.value p in
-			assign vr e e_rhs
+			let e_rhs = api.type_rhs e e2 in
+			api.assign vr e e_rhs
 		| AKField fa ->
 			let vr = new value_reference ctx in
 			let ef = vr#get_expr_part "fh" fa.fa_on in
-			let _,e_rhs = field_rhs op fa.fa_field ef in
+			let _,e_rhs = field_rhs fa.fa_field ef in
 			let e_lhs = FieldAccess.get_field_expr {fa with fa_on = ef} FWrite in
-			assign vr e_lhs e_rhs
+			api.assign vr e_lhs e_rhs
 		| AKAccessor fa ->
 			let vr = new value_reference ctx in
 			let ef = vr#get_expr_part "fh" fa.fa_on in
-			let t_lhs,e_rhs = field_rhs op fa.fa_field ef in
-			set vr {fa with fa_on = ef} t_lhs e_rhs []
+			let e_lhs,e_rhs = field_rhs fa.fa_field ef in
+			set vr {fa with fa_on = ef} e_lhs e_rhs []
 		| AKUsingAccessor sea ->
 			let fa = sea.se_access in
 			let ef,vr = process_lhs_expr ctx "fh" sea.se_this in
-			let t_lhs,e_rhs = field_rhs op fa.fa_field ef in
+			let t_lhs,e_rhs = field_rhs fa.fa_field ef in
 			set vr sea.se_access t_lhs e_rhs [ef]
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			let cf_get,tf_get,r_get,ekey = AbstractCast.find_array_read_access ctx a tl ekey p in
@@ -724,16 +720,16 @@ let type_assign_op ctx op e1 e2 with_type p =
 			in
 			let ebase = maybe_bind_to_temp "base" ebase in
 			let ekey = maybe_bind_to_temp "key" ekey in
-			let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey) c ebase p in
-			let eget = type_binop2 ctx op eget e2 true WithType.value p in
-			let eget = BinopResult.to_texpr vr eget (fun e -> e) in
+			let eread = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey) c ebase p in
+			let eget = api.type_rhs eread e2 in
+			let eget = api.to_texpr vr eget (fun e -> e) in
 			unify ctx eget.etype r_get p;
 			let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_write_access ctx a tl ekey eget p in
 			let et = type_module_type ctx (TClassDecl c) p in
 			let e = match cf_set.cf_expr,cf_get.cf_expr with
-				| None,None ->
+				(* | None,None ->
 					let ea = mk (TArray(ebase,ekey)) r_get p in
-					mk (TBinop(OpAssignOp op,ea,type_expr ctx e2 (WithType.with_type r_get))) r_set p
+					mk (TBinop(OpAssignOp op,ea,type_expr ctx e2 (WithType.with_type r_get))) r_set p *)
 				| Some _,Some _ ->
 					let ef_set = mk (TField(et,(FStatic(c,cf_set)))) tf_set p in
 					let el = [make_call ctx ef_set [ebase;ekey;eget] r_set p] in
@@ -745,20 +741,89 @@ let type_assign_op ctx op e1 e2 with_type p =
 					raise_typing_error "Invalid array access getter/setter combination" p
 			in
 			save();
-			vr#to_texpr	e
+			api.generate vr eread e
 		| AKResolve(sea,name) ->
 			let e,vr = process_lhs_expr ctx "fh" sea.se_this in
-			let t_lhs,r_rhs = field_rhs_by_name op name e WithType.value in
+			let e_lhs,r_rhs = field_rhs_by_name name e WithType.value in
 			let assign e_rhs =
 				let e_name = Texpr.Builder.make_string ctx.t name null_pos in
 				(new call_dispatcher ctx (MCall [e2]) with_type p)#field_call sea.se_access [sea.se_this;e_name;e_rhs] []
 			in
-			let e = BinopResult.to_texpr vr r_rhs assign in
-			vr#to_texpr e
+			let e = api.to_texpr vr r_rhs assign in
+			api.generate vr e_lhs e
 	in
 	let with_type = with_type_or_value with_type in
 	loop (!type_access_ref ctx (fst e1) (snd e1) (MSet (Some e2)) with_type)
 
+let type_assign_op ctx op e1 e2 with_type p =
+	let api = {
+		akno_fallback = (fun () ->
+			type_non_assign_op ctx op e1 e2 true true with_type p
+		);
+		type_rhs = (fun e_lhs e2 ->
+			type_binop2 ctx op e_lhs e2 true WithType.value p
+		);
+		to_texpr = (fun vr br assign ->
+			BinopResult.to_texpr vr br assign
+		);
+		generate = (fun vr e_lhs e ->
+			vr#to_texpr e
+		);
+		assign = (fun vr e_lhs r_rhs ->
+			let assign e_rhs =
+				if BinopResult.needs_assign r_rhs then check_assign ctx e_lhs;
+				let e_rhs = AbstractCast.cast_or_unify ctx e_lhs.etype e_rhs p in
+				match e_rhs.eexpr with
+				| TBinop(op',e1',e2') when op = op' && Texpr.equal e_lhs e1' ->
+					mk (TBinop(OpAssignOp op',e1',e2')) e_lhs.etype p
+				| _ ->
+					mk (TBinop(OpAssign,e_lhs,e_rhs)) e_lhs.etype p
+			in
+			let e = BinopResult.to_texpr vr r_rhs assign in
+			vr#to_texpr e
+		)
+	} in
+	handle_assign_op ctx api e1 e2 with_type p
+
+let type_op_null_coal_assign ctx e1 e2 with_type p =
+	let hack = ref (fun e -> e) in
+	let gen vr e1 t2 e_assign =
+		let e1,eelse,tif = match with_type with
+			| WithType.NoValue ->
+				e1,None,ctx.t.tvoid
+			| _ ->
+				let e1 = vr#as_var "tmp" e1 in
+				(* The t2 is here so that `anything ??= 2` doesn't become Null<T> *)
+				e1,Some e1,t2
+		in
+		let e_null = Texpr.Builder.make_null e1.etype e1.epos in
+		let e_null = Texpr.Builder.binop OpEq e1 e_null ctx.t.tbool e1.epos in
+		let e = mk (TIf(e_null,e_assign,eelse)) tif e1.epos in
+		vr#to_texpr e
+	in
+	let api = {
+		akno_fallback = (fun () ->
+			raise Not_found
+		);
+		type_rhs = (fun e_lhs e2 ->
+			type_expr ctx e2 (WithType.WithType(e_lhs.etype,None))
+		);
+		to_texpr = (fun vr e assign ->
+			hack := assign;
+			e
+		);
+		generate = (fun vr e_lhs e ->
+			gen vr e_lhs e.etype (!hack e)
+		);
+		assign = (fun vr e_lhs e_rhs ->
+			let assign e_rhs =
+				let e_rhs = AbstractCast.cast_or_unify ctx e_lhs.etype e_rhs p in
+				mk (TBinop(OpAssign,e_lhs,e_rhs)) e_lhs.etype p
+			in
+			gen vr e_lhs e_rhs.etype (assign e_rhs)
+		)
+	} in
+	handle_assign_op ctx api e1 e2 with_type p
 
 let type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with

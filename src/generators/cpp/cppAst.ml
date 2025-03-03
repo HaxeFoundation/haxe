@@ -1,6 +1,45 @@
 open Type
 open Globals
 
+module PathMap = Map.Make(struct type t = path let compare i1 i2 = String.compare (s_type_path i2) (s_type_path i1) end)
+
+module ObjectIds = struct
+  type t = {
+    ids : int32 PathMap.t;
+    cache : unit Int32Map.t;
+  }
+
+  let empty = { ids = PathMap.empty; cache = Int32Map.empty }
+
+  let add path id store =
+    { ids = PathMap.add path id store.ids; cache = Int32Map.add id () store.cache }
+
+  let find_opt path store =
+    PathMap.find_opt path store.ids
+
+  let collision id store =
+    Int32Map.mem id store.cache
+end
+
+module InterfaceSlots = struct
+  type t = {
+    hash : int StringMap.t;
+    next : int;
+  }
+
+  let empty = { hash = StringMap.empty; next = 2 }
+
+  let add name slots =
+    match StringMap.find_opt name slots.hash with
+    | Some slot ->
+      slots
+    | None ->
+      { hash = StringMap.add name slots.next slots.hash; next = slots.next + 1 }
+
+  let find_opt name slots =
+    StringMap.find_opt name slots.hash
+end
+
 type tcpp =
   | TCppDynamic
   | TCppUnchanged
@@ -44,7 +83,7 @@ and tcpp_closure = {
   close_args : (tvar * texpr option) list;
   close_expr : tcppexpr;
   close_id : int;
-  close_undeclared : (string, tvar) Hashtbl.t;
+  close_undeclared : tvar StringMap.t;
   close_this : tcppthis option;
 }
 
@@ -152,3 +191,109 @@ and tcpp_expr_expr =
   | CppCastObjCBlock of tcppexpr * tcpp list * tcpp
   | CppCastProtocol of tcppexpr * tclass
   | CppCastNative of tcppexpr
+
+and tcpp_class_container =
+  | Current (* If the current class holds GC variables *)
+  | Parent (* If one of the current classes parents holds GC variables *)
+
+and tcpp_class_flags =
+  | QuickAlloc
+  | Scriptable
+  | MemberGet
+  | MemberSet
+  | StaticGet
+  | StaticSet
+  | GetFields
+  | Compare
+  | Boot
+
+and tcpp_class_function = {
+  tcf_field : tclass_field;
+  tcf_name : string;
+  tcf_func : tfunc;
+
+  tcf_is_virtual : bool;
+  tcf_is_reflective : bool;
+  tcf_is_external : bool;
+  tcf_is_scriptable : bool;
+  tcf_is_overriding : bool;
+}
+
+and tcpp_class_variable = {
+  tcv_field : tclass_field;
+  tcv_name : string;
+  tcv_type : t;
+  tcv_default : texpr option;
+
+  tcv_is_stackonly : bool;
+  tcv_is_gc_element : bool;
+  tcv_is_reflective : bool;
+}
+
+and tcpp_class = {
+  tcl_class : tclass;
+  tcl_params : tparams;
+  tcl_name : string;
+  tcl_id : int32;
+  tcl_flags : int;
+  tcl_debug_level : int;
+  tcl_super : tcpp_class option;
+  tcl_container : tcpp_class_container option;
+
+  tcl_haxe_interfaces : tcpp_interface list;
+  tcl_native_interfaces : tcpp_interface list;
+
+  tcl_static_variables : tcpp_class_variable list;
+  tcl_static_properties : tcpp_class_variable list;
+  tcl_static_functions : tcpp_class_function list;
+  tcl_static_dynamic_functions : tcpp_class_function list;
+
+  tcl_variables : tcpp_class_variable list;
+  tcl_properties : tcpp_class_variable list;
+  tcl_functions : tcpp_class_function list;
+  tcl_dynamic_functions : tcpp_class_function list;
+
+  tcl_meta : texpr option;
+  tcl_rtti : texpr option;
+  tcl_init : texpr option;
+}
+
+and tcpp_interface_function = {
+  iff_field : tclass_field;
+  iff_name : string;
+  iff_args : (string * bool * t) list;
+  iff_return : t;
+  iff_script_slot : int option;
+}
+
+and tcpp_interface = {
+  if_class : tclass;
+  if_name : string;
+  if_hash : string;
+  if_debug_level : int;
+  if_functions : tcpp_interface_function list;
+  if_variables : tclass_field list;
+  if_extends : tcpp_interface option;
+  if_meta : texpr option;
+  if_rtti : texpr option;
+  if_scriptable : bool;
+}
+
+and tcpp_enum_field = {
+  tef_field : tenum_field;
+  tef_name : string;
+  tef_hash : string;
+}
+
+and tcpp_enum = {
+  te_enum : tenum;
+  te_id : int32;
+  te_constructors : tcpp_enum_field list;
+}
+
+and tcpp_decl =
+  | ManagedClass of tcpp_class
+  | NativeClass of tcpp_class
+  | ManagedInterface of tcpp_interface
+  | NativeInterface of tcpp_interface
+  | Enum of tcpp_enum

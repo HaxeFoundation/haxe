@@ -619,7 +619,7 @@ let handle_display ctx e_ast dk mode with_type =
 						| TClassDecl c -> has_constructor c
 						| TAbstractDecl a -> (match Abstract.follow_with_forward_ctor ~build:true (TAbstract(a,extract_param_types a.a_params)) with
 							| TInst(c,_) -> has_constructor c
-							| TAbstract({a_impl = Some c},_) -> PMap.mem "_new" c.cl_statics
+							| TAbstract(a,_) -> a.a_constructor <> None
 							| _ -> false)
 						| _ -> false
 						end

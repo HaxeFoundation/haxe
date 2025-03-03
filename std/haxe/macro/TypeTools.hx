@@ -258,18 +258,8 @@ class TypeTools {
 			throw 'Incompatible arguments: ${typeParameters.length} type parameters and ${concreteTypes.length} concrete types';
 		else if (typeParameters.length == 0)
 			return t;
-		#if (neko || eval)
 		return Context.load("apply_params", 3)(typeParameters, concreteTypes, t);
-		#else
-		return applyParams(typeParameters, concreteTypes, t);
-		#end
 	}
-
-	#if !neko
-	private static function applyParams(typeParameters:Array<TypeParameter>, concreteTypes:Array<Type>, t:Type):Type {
-		return null;
-	}
-	#end
 
 	/**
 		Transforms `t` by calling `f` on each of its subtypes.
@@ -359,11 +349,7 @@ class TypeTools {
 		Converts type `t` to a human-readable String representation.
 	**/
 	static public function toString(t:Type):String {
-		#if (neko || eval)
 		return Context.load("s_type", 1)(t);
-		#else
-		return null;
-		#end
 	}
 
 	/**
@@ -377,22 +363,14 @@ class TypeTools {
 		Converts type `t` to `haxe.macro.Type.ModuleType`.
 	**/
 	static public function toModuleType(t:Type):ModuleType {
-		#if (neko || eval)
 		return Context.load("type_to_module_type", 1)(t);
-		#else
-		return null;
-		#end
 	}
 
 	/**
 		Creates a type from the `haxe.macro.Type.ModuleType` argument.
 	**/
 	static public function fromModuleType(mt:ModuleType):Type {
-		#if (neko || eval)
 		return Context.load("module_type_to_type", 1)(mt);
-		#else
-		return null;
-		#end
 	}
 
 	/**

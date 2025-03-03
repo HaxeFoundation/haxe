@@ -17,6 +17,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 open Ast
+open CppAst
 open Gctx
 open Type
 open Error
@@ -176,21 +177,65 @@ let write_build_options common_ctx filename defines =
    writer#close
 
 let create_member_types common_ctx =
-   let result = Hashtbl.create 0 in
-      List.iter (fun object_def ->
-         (match object_def with
-         | TClassDecl class_def when not (has_class_flag class_def CInterface) ->
-            let rec add_override to_super =
-               let class_name = (join_class_path to_super.cl_path ".") in
-               List.iter (fun member -> Hashtbl.add result (class_name ^ "." ^ member.cf_name) "virtual " ) class_def.cl_ordered_fields;
-               match to_super.cl_super with
-               | Some super -> add_override (fst super)
-               | _ -> ()
-             in
-             (match  class_def.cl_super with Some super -> add_override (fst super) | _->())
-         | _ -> ()
-         ) ) common_ctx.types;
-   result
+   let folder acc object_def =
+      match object_def with
+      | TClassDecl class_def when not (has_class_flag class_def CInterface) ->
+         let rec add_override acc to_super =
+            let class_name = (join_class_path to_super.cl_path ".") in
+            let folder acc member = StringMap.add (class_name ^ "." ^ member.cf_name) "virtual " acc in
+            let acc = List.fold_left folder acc class_def.cl_ordered_fields in
+            match to_super.cl_super with
+            | Some (super, _) -> add_override acc super
+            | _ -> acc
+         in
+         (match class_def.cl_super with Some (super, _) -> add_override acc super | _ -> acc)
+      | _ -> acc
+   in
+   List.fold_left folder StringMap.empty common_ctx.types
+
+(* Builds inheritance tree, so header files can include parents defs.  *)
+let create_super_dependencies common_ctx =
+   let real_non_native_interfaces =
+     List.filter (function t, pl ->
+      (match (t, pl) with
+      | { cl_path = [ "cpp"; "rtti" ], _ }, [] -> false
+      | _ -> not (is_native_gen_class t)))
+   in
+   let folder acc object_def =
+     match object_def with
+     | TClassDecl class_def when not (has_class_flag class_def CExtern) ->
+         let initial = match class_def.cl_super with
+         | Some (cls, _) when not (has_class_flag cls CExtern) ->
+            [ cls.cl_path ]
+         | _ ->
+            [] in
+
+         let deps =
+            class_def.cl_implements
+            |> real_non_native_interfaces
+            |> List.fold_left
+               (fun acc (cls, _) -> if has_class_flag cls CExtern then acc else cls.cl_path :: acc)
+               initial in
+
+         PathMap.add class_def.cl_path deps acc
+     | TEnumDecl enum_def when not (has_enum_flag enum_def EnExtern) ->
+         PathMap.add enum_def.e_path [] acc
+     | _ ->
+         acc
+   in
+   List.fold_left folder PathMap.empty common_ctx.types
+
+let create_constructor_dependencies common_ctx =
+   List.fold_left
+      (fun acc object_def ->
+         match object_def with
+         | TClassDecl class_def when not (has_class_flag class_def CExtern) ->
+            (match class_def.cl_constructor with
+            | Some func -> PathMap.add class_def.cl_path func acc
+            | None -> acc)
+         | _ -> acc)
+      PathMap.empty
+      common_ctx.types
 
 let is_assign_op op =
    match op with
@@ -198,107 +243,128 @@ let is_assign_op op =
    | OpAssignOp _ -> true
    | _ -> false
 
-let generate_class_files ctx class_def =
-   (* create header and cpp files *)
-   let nativeGen = Meta.has Meta.NativeGen class_def.cl_meta in
-   if not (nativeGen && (has_class_flag class_def CInterface)) then
-      CppGenClassImplementation.generate ctx class_def;
-   CppGenClassHeader.generate ctx class_def
-
 (*
  The common_ctx contains the haxe AST in the "types" field and the resources
 *)
+
+type gensrc_ctx = {
+   extern_src : string list;
+   build_xml : string;
+   boot_classes : path list;
+   init_classes : path list;
+   nonboot_classes : path list;
+   boot_enums : path list;
+   exe_classes : (path * path list * module_type) list;
+   decls : tcpp_decl list;
+   ids : CppAst.ObjectIds.t;
+   slots : CppAst.InterfaceSlots.t;
+}
+
 let generate_source ctx =
    let common_ctx = ctx.ctx_common in
-   let debug = ctx.ctx_debug_level in
    make_base_directory common_ctx.file;
-   let exe_classes = ref [] in
-   let boot_classes = ref [] in
-   let boot_enums = ref [] in
-   let nonboot_classes = ref [] in
-   let init_classes = ref [] in
-   let super_deps = CppGen.create_super_dependencies common_ctx in
-   let constructor_deps = CppGen.create_constructor_dependencies common_ctx in
    let main_deps = ref [] in
-   let extern_src = ref [] in
-   let jobs = ref [] in
-   let build_xml = ref "" in
    let scriptable = (Gctx.defined common_ctx Define.Scriptable) in
-   let existingIds = Hashtbl.create 0 in
 
-   List.iter (fun object_def ->
-      (* check if any @:objc class is referenced while '-D objc' is not defined
-         This will guard all code changes to this flag *)
-      (if not (Gctx.defined common_ctx Define.Objc) then match object_def with
+   let initial = {
+      extern_src = [];
+      build_xml = "";
+      boot_classes = [];
+      init_classes = [];
+      nonboot_classes = [];
+      boot_enums = [];
+      exe_classes = [];
+      decls = [];
+      ids = ObjectIds.empty;
+      slots = InterfaceSlots.empty;
+   } in
+
+   let folder acc cur =
+      (if not (Gctx.defined common_ctx Define.Objc) then
+         match cur with
          | TClassDecl class_def when Meta.has Meta.Objc class_def.cl_meta ->
             abort "In order to compile '@:objc' classes, please define '-D objc'" class_def.cl_pos
          | _ -> ());
-      (match object_def with
+
+      match cur with
       | TClassDecl class_def when is_extern_class class_def ->
-         build_xml := !build_xml ^ (CppGen.get_class_code class_def Meta.BuildXml);
-         let source = get_meta_string_path class_def.cl_meta Meta.SourceFile in
-         if (source<>"") then
-            extern_src := source :: !extern_src;
+         let acc_build_xml  = acc.build_xml ^ (CppGen.get_class_code class_def Meta.BuildXml) in
+         let acc_extern_src =
+            match Ast.get_meta_string class_def.cl_meta Meta.SourceFile with
+            | Some source -> make_path_absolute source class_def.cl_pos :: acc.extern_src
+            | None -> acc.extern_src in
+
+         { acc with build_xml = acc_build_xml; extern_src = acc_extern_src }
+
+      | TClassDecl class_def when is_internal_class class_def.cl_path || Meta.has Meta.Macro class_def.cl_meta ->
+         acc
+
       | TClassDecl class_def ->
-         let name =  class_text class_def.cl_path in
-         let is_internal = is_internal_class class_def.cl_path in
-         if (is_internal || (Meta.has Meta.Macro class_def.cl_meta)) then
-            ( if (debug>=4) then print_endline (" internal class " ^ name ))
-         else begin
-            let rec makeId class_name seed =
-               let id = gen_hash32 seed class_name in
-               (* reserve first 100 ids for runtime *)
-               if id < Int32.of_int 100 || Hashtbl.mem existingIds id then
-                  makeId class_name (seed+100)
-               else begin
-                  Hashtbl.add existingIds id true;
-                  Hashtbl.add ctx.ctx_type_ids class_name id;
-               end in
-            makeId name 0;
+         let native_gen       = Meta.has Meta.NativeGen class_def.cl_meta in
+         let decl, slots, ids =
+            match has_class_flag class_def CInterface with
+            | true ->
+               let (slots, iface) = CppRetyper.tcpp_interface_from_tclass ctx acc.slots class_def in
+               if native_gen then (NativeInterface iface, slots, acc.ids) else (ManagedInterface iface, acc.slots, acc.ids)
+            | false ->
+               let (slots, ids, cls) = CppRetyper.tcpp_class_from_tclass ctx acc.ids acc.slots class_def [] in
+               if native_gen then (NativeClass cls, slots, ids) else (ManagedClass cls, slots, ids) in
 
-            build_xml := !build_xml ^ (CppGen.get_class_code class_def Meta.BuildXml);
-            if (has_init_field class_def) then
-               init_classes := class_def.cl_path ::  !init_classes;
-            if (has_boot_field class_def) then
-               boot_classes := class_def.cl_path ::  !boot_classes
-            else if not (Meta.has Meta.NativeGen class_def.cl_meta) then
-               nonboot_classes := class_def.cl_path ::  !nonboot_classes;
-            jobs := (fun () -> generate_class_files ctx class_def) :: !jobs;
-            let deps = CppReferences.find_referenced_types ctx (TClassDecl class_def) super_deps constructor_deps false true scriptable in
-            if not ((has_class_flag class_def CInterface) && (is_native_gen_class class_def)) then
-               exe_classes := (class_def.cl_path, deps, object_def)  ::  !exe_classes;
-         end
-      | TEnumDecl enum_def when has_enum_flag enum_def EnExtern -> ()
+         let acc_decls           = decl :: acc.decls in
+         let acc_build_xml       = acc.build_xml ^ (CppGen.get_class_code class_def Meta.BuildXml) in
+         let acc_init_classes    = if has_init_field class_def then class_def.cl_path :: acc.init_classes else acc.init_classes in
+         let acc_boot_classes    = if has_boot_field class_def then class_def.cl_path :: acc.boot_classes else acc.boot_classes in
+         let acc_nonboot_classes = if Meta.has Meta.NativeGen class_def.cl_meta then acc.nonboot_classes else class_def.cl_path :: acc.nonboot_classes in
+         let acc_exe_classes     =
+            if (has_class_flag class_def CInterface) && (is_native_gen_class class_def) then
+               acc.exe_classes
+            else
+               let deps = CppReferences.find_referenced_types ctx (TClassDecl class_def) ctx.ctx_super_deps ctx.ctx_constructor_deps false true scriptable in
+
+               (class_def.cl_path, deps, cur) :: acc.exe_classes in
+
+         { acc with
+            build_xml = acc_build_xml;
+            decls = acc_decls;
+            init_classes = acc_init_classes;
+            boot_classes = acc_boot_classes;
+            nonboot_classes = acc_nonboot_classes;
+            exe_classes = acc_exe_classes;
+            ids = ids;
+            slots = slots
+         }
+
+      | TEnumDecl enum_def when is_extern_enum enum_def || is_internal_class enum_def.e_path ->
+         acc
+
       | TEnumDecl enum_def ->
-         let name =  class_text enum_def.e_path in
-         let is_internal = is_internal_class enum_def.e_path in
-         if (is_internal) then
-            (if (debug>1) then print_endline (" internal enum " ^ name ))
-         else begin
-            let rec makeId enum_name seed =
-               let id = gen_hash32 seed enum_name in
-               (* reserve first 100 ids for runtime *)
-               if id < Int32.of_int 100 || Hashtbl.mem existingIds id then
-                  makeId enum_name (seed+100)
-               else begin
-                  Hashtbl.add existingIds id true;
-                  Hashtbl.add ctx.ctx_type_ids enum_name id;
-               end in
-            makeId name 0;
+         let deps             = CppReferences.find_referenced_types ctx (TEnumDecl enum_def) ctx.ctx_super_deps PathMap.empty false true false in
+         let ids, enum        = CppRetyper.tcpp_enum_from_tenum ctx acc.ids enum_def in
+         let acc_decls        = (Enum enum) :: acc.decls in
+         let acc_boot_enums   = enum_def.e_path :: acc.boot_enums in
+         let acc_exe_classes  = (enum_def.e_path, deps, cur) :: acc.exe_classes in
+         
+         { acc with decls = acc_decls; boot_enums = acc_boot_enums; exe_classes = acc_exe_classes; ids = ids }
+      | _ ->
+         acc
+   in
+   let srcctx = List.fold_left folder initial common_ctx.types in
 
-            if (has_enum_flag enum_def EnExtern) then
-               (if (debug>1) then print_endline ("external enum " ^ name ));
-            boot_enums := enum_def.e_path :: !boot_enums;
-            jobs := (fun () -> CppGenEnum.generate ctx enum_def) :: !jobs;
-            let deps = CppReferences.find_referenced_types ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false true false in
-            exe_classes := (enum_def.e_path, deps, object_def) :: !exe_classes;
-         end
-      | TTypeDecl _ | TAbstractDecl _ -> (* already done *) ()
-      );
-   ) common_ctx.types;
-
-   List.iter (fun job -> job () ) !jobs;
-
+   List.iter (fun tcpp_type ->
+      match tcpp_type with
+      | ManagedClass tcpp_class ->
+         CppGenClassHeader.generate_managed_header ctx tcpp_class;
+         CppGenClassImplementation.generate_managed_class ctx tcpp_class;
+      | NativeClass tcpp_class ->
+         CppGenClassHeader.generate_native_header ctx tcpp_class;
+         CppGenClassImplementation.generate_native_class ctx tcpp_class;
+      | ManagedInterface interface_def ->
+         CppGenInterfaceHeader.generate_managed_interface ctx interface_def;
+         CppGenInterfaceImplementation.generate_managed_interface ctx interface_def;
+      | NativeInterface interface_def ->
+         CppGenInterfaceHeader.generate_native_interface ctx interface_def
+      | Enum tcpp_enum ->
+         CppGenEnum.generate ctx tcpp_enum) srcctx.decls;
 
    (match common_ctx.main.main_expr with
    | None -> CppGen.generate_dummy_main common_ctx
@@ -307,11 +373,11 @@ let generate_source ctx =
          cf_expr = Some e;
 	  } in
       let class_def = { null_class with cl_path = ([],"@Main"); cl_ordered_statics = [main_field] } in
-      main_deps := CppReferences.find_referenced_types ctx (TClassDecl class_def) super_deps constructor_deps false true false;
-      CppGen.generate_main ctx super_deps class_def
+      main_deps := CppReferences.find_referenced_types ctx (TClassDecl class_def) ctx.ctx_super_deps ctx.ctx_constructor_deps false true false;
+      CppGen.generate_main ctx ctx.ctx_super_deps class_def
    );
 
-   CppGen.generate_boot ctx !boot_enums !boot_classes !nonboot_classes !init_classes;
+   CppGen.generate_boot ctx srcctx.boot_enums srcctx.boot_classes srcctx.nonboot_classes srcctx.init_classes srcctx.slots;
 
    CppGen.generate_files common_ctx ctx.ctx_file_info;
 
@@ -351,7 +417,7 @@ let generate_source ctx =
             | TEnumDecl enum_def ->
                 out ("enum " ^ (spath name) ^ "\n");
             | _ -> ()
-            ) !exe_classes;
+            ) srcctx.exe_classes;
 
          (* Output file info too *)
          List.iter ( fun file ->
@@ -367,7 +433,7 @@ let generate_source ctx =
    | Some path -> (snd path)
    | _ -> "output" in
 
-   write_build_data common_ctx (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps (!boot_enums@ !boot_classes) !build_xml !extern_src output_name;
+   write_build_data common_ctx (common_ctx.file ^ "/Build.xml") srcctx.exe_classes !main_deps (srcctx.boot_enums@ srcctx.boot_classes) srcctx.build_xml srcctx.extern_src output_name;
    write_build_options common_ctx (common_ctx.file ^ "/Options.txt") common_ctx.defines.Define.values;
    if ( not (Gctx.defined common_ctx Define.NoCompilation) ) then begin
       let t = Timer.timer ["generate";"cpp";"native compilation"] in
@@ -391,10 +457,12 @@ let generate_source ctx =
 
 let generate common_ctx =
    let debug_level = if (Gctx.defined common_ctx Define.NoDebug) then 0 else 1 in
+   let super_deps = create_super_dependencies common_ctx in
+   let constructor_deps = create_constructor_dependencies common_ctx in
    if (Gctx.defined common_ctx Define.Cppia) then begin
-      let ctx = new_context common_ctx debug_level (ref PMap.empty) (Hashtbl.create 0)  in
+      let ctx = new_context common_ctx debug_level (ref PMap.empty) StringMap.empty super_deps constructor_deps in
       CppCppia.generate_cppia ctx
-   end else begin
-      let ctx = new_context common_ctx debug_level (ref PMap.empty) (create_member_types common_ctx) in
+   end else begin   
+      let ctx = new_context common_ctx debug_level (ref PMap.empty) (create_member_types common_ctx) super_deps constructor_deps in
       generate_source ctx
    end

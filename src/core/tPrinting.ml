@@ -28,47 +28,58 @@ let s_module_type_kind = function
 	| TAbstractDecl a -> "TAbstractDecl(" ^ (s_type_path a.a_path) ^ ")"
 	| TTypeDecl t -> "TTypeDecl(" ^ (s_type_path t.t_path) ^ ")"
 
-let show_mono_ids = true
 
-let rec s_mono_constraint_kind s_type constr =
-	let rec loop = function
-		| CUnknown -> ""
-		| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type t) tl)
-		| CStructural(fields,_) -> s_type (mk_anon ~fields (ref Closed))
-		| CMixed l -> String.concat " & " (List.map loop l)
-	in
-	loop constr
+module MonomorphPrinting = struct
+	let show_mono_ids = true
 
-and s_type ctx t =
-	match t with
-	| TMono r ->
-		(match r.tm_type with
-		| None ->
-			let print_name id extra =
-				let s = if show_mono_ids then
-					Printf.sprintf "Unknown<%d>" id
-				else
-					"Unknown"
-				in
-				let s = s ^ extra in
-				List.fold_left (fun s modi -> match modi with
-					| MNullable _ -> Printf.sprintf "Null<%s>" s
-					| MOpenStructure | MDynamic -> s
-				) s r.tm_modifiers
-			in
+	let s_mono_constraint_kind s_type constr =
+		let rec loop = function
+			| CUnknown -> ""
+			| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type t) tl)
+			| CStructural(fields,_) -> s_type (mk_anon ~fields (ref Closed))
+			| CMixed l -> String.concat " & " (List.map loop l)
+		in
+		loop constr
+
+	let print_mono_name m id extra =
+		let s = if show_mono_ids then
+			Printf.sprintf "Unknown<%d>" id
+		else
+			"Unknown"
+		in
+		let s = s ^ extra in
+		List.fold_left (fun s modi -> match modi with
+			| MNullable _ -> Printf.sprintf "Null<%s>" s
+			| MOpenStructure | MDynamic -> s
+		) s m.tm_modifiers
+
+	let s_mono s_type ctx explicit m =
+		match m.tm_type with
+		| Some t when not explicit ->
+			s_type ctx t
+		| _ ->
 			begin try
-				let id = List.assq t (!ctx) in
-				print_name id ""
+				let id = List.assq m (!ctx) in
+				print_mono_name m id ""
 			with Not_found ->
 				let id = List.length !ctx in
-				ctx := (t,id) :: !ctx;
-				let s_const =
-					let s = s_mono_constraint_kind (s_type ctx) (!monomorph_classify_constraints_ref r) in
-					if s = "" then s else " : " ^ s
-				in
-				print_name id s_const
+				ctx := (m,id) :: !ctx;
+				match m.tm_type with
+				| Some t when explicit ->
+					print_mono_name m id (" := " ^ (s_type ctx) t)
+				| _ ->
+					let s_const =
+						let s = s_mono_constraint_kind (s_type ctx) (!monomorph_classify_constraints_ref m) in
+						if s = "" then s else " : " ^ s
+					in
+					print_mono_name m id s_const
 			end
-		| Some t -> s_type ctx t)
+end
+
+let rec s_type ctx t =
+	match t with
+	| TMono r ->
+		MonomorphPrinting.s_mono s_type ctx false r
 	| TEnum (e,tl) ->
 		s_type_path e.e_path ^ s_type_params ctx tl
 	| TInst (c,tl) ->
@@ -186,7 +197,6 @@ let s_expr_kind e =
 	| TFunction _ -> "Function"
 	| TVar _ -> "Vars"
 	| TBlock _ -> "Block"
-	| TFor (_,_,_) -> "For"
 	| TIf (_,_,_) -> "If"
 	| TWhile (_,_,_) -> "While"
 	| TSwitch _ -> "Switch"
@@ -252,8 +262,6 @@ let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 		(match el with
 			| [] -> "{}"
 			| _ ->  s ^ tabs ^ "}")
-	| TFor (v,econd,e) ->
-		sprintf "for (%s in %s) %s" (local v) (loop econd) (loop e)
 	| TIf (e,e1,e2) ->
 		sprintf "if (%s) %s%s" (loop e) (loop e1) (match e2 with None -> "" | Some e -> " else " ^ loop e)
 	| TWhile (econd,e,flag) ->
@@ -362,7 +370,6 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TReturn (Some e1) -> tag "Return" [loop e1]
 	| TWhile (e1,e2,NormalWhile) -> tag "While" [loop e1; loop e2]
 	| TWhile (e1,e2,DoWhile) -> tag "Do" [loop e1; loop e2]
-	| TFor (v,e1,e2) -> tag "For" [local v None; loop e1; loop e2]
 	| TTry (e1,catches) ->
 		let sl = List.map (fun (v,e) ->
 			sprintf "Catch %s%s" (local v None) (tag_args (tabs ^ "\t") [loop ~extra_tabs:"\t" e]);
@@ -630,8 +637,11 @@ module Printer = struct
 
 	let s_module_tainting_reason = function
 		| CheckDisplayFile -> "check_display_file"
+		| DefineType -> "define_type"
+		| DefineModule -> "define_module"
 		| ServerInvalidate -> "server/invalidate"
 		| ServerInvalidateFiles -> "server_invalidate_files"
+		| ServerInvalidateModule -> "server_invalidate_module"
 
 	let s_module_skip_reason reason =
 		let rec loop stack = function

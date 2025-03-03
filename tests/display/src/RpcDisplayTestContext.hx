@@ -87,10 +87,7 @@ class RpcDisplayTestContext extends BaseDisplayTestContext {
 	}
 
 	public function metadataDoc(pos:Position):String {
-		return extractMetadata(callDisplay(DisplayMethods.Hover, {
-			file: new FsPath(source.path),
-			offset: pos,
-		}).result);
+		return doc(pos);
 	}
 
 	public function diagnostics():Array<Diagnostic<Any>> {
@@ -103,7 +100,7 @@ class RpcDisplayTestContext extends BaseDisplayTestContext {
 	// Can be removed once module-symbols is migrated to json rpc
 	function callHaxe(displayPart:String) {
 		var args = ["--display", source.path + "@" + displayPart];
-		var result = BaseDisplayTestContext.runHaxe(args, source.content);
+		var result = runHaxe(args, source.content);
 		if (result.hasError || result.stderr == "") {
 			throw new HaxeInvocationException(result.stderr, fieldName, args, source.content);
 		}
@@ -114,7 +111,7 @@ class RpcDisplayTestContext extends BaseDisplayTestContext {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		var args = ['--display', Json.stringify(methodArgs)];
 
-		var result = BaseDisplayTestContext.runHaxe(args, source.content);
+		var result = runHaxe(args, source.content);
 		if (result.hasError || result.stderr == "") {
 			throw new HaxeInvocationException(result.stderr, fieldName, args, source.content);
 		}
@@ -155,11 +152,20 @@ class RpcDisplayTestContext extends BaseDisplayTestContext {
 		return '$path:${start.line + 1}: $pos';
 	}
 
-	function extractDoc(result:HoverDisplayItemOccurence<Dynamic>) {
-		return StringTools.trim(result.item.args.field.doc);
-	}
-
-	function extractMetadata(result:HoverDisplayItemOccurence<Dynamic>) {
-		return result.item.args.doc;
+	function extractDoc<T>(result:HoverDisplayItemOccurence<T>) {
+		return switch result.item.kind {
+			case ClassField | EnumAbstractField:
+				StringTools.trim(result.item.args.field.doc);
+			case EnumField:
+				StringTools.trim(result.item.args.field.doc);
+			case Type:
+				StringTools.trim(result.item.args.doc);
+			case Metadata:
+				result.item.args.doc;
+			case Define:
+				result.item.args.doc;
+			case _:
+				null;
+		};
 	}
 }

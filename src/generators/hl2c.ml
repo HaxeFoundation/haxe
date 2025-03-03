@@ -124,11 +124,11 @@ let tname str =
 	ident n
 
 let is_gc_ptr = function
-	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ | HPacked _ -> false
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ | HPacked _ | HGUID -> false
 	| HBytes | HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HStruct _ -> true
 
 let is_ptr = function
-	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool -> false
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HGUID -> false
 	| _ -> true
 
 let rec ctype_no_ptr = function
@@ -156,6 +156,7 @@ let rec ctype_no_ptr = function
 	| HPacked t ->
 		let name,v = ctype_no_ptr t in
 		"struct _" ^ name, v
+	| HGUID -> "int64", 0
 
 let ctype t =
 	let t, nptr = ctype_no_ptr t in
@@ -203,6 +204,7 @@ let type_id t =
 	| HMethod _ -> "HMETHOD"
 	| HStruct _  -> "HSTRUCT"
 	| HPacked _ -> "HPACKED"
+	| HGUID -> "HGUID"
 
 let var_type n t =
 	ctype t ^ " " ^ ident n
@@ -237,7 +239,7 @@ let define ctx s =
 
 let rec define_type ctx t =
 	match t with
-	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HDynObj | HNull _ | HRef _ -> ()
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HDynObj | HNull _ | HRef _ | HGUID -> ()
 	| HAbstract _ ->
 		define ctx "#include <hl/natives.h>";
 	| HFun (args,ret) | HMethod (args,ret) ->
@@ -823,7 +825,7 @@ let generate_function ctx f =
 		| OSDiv (r,a,b) ->
 			(match rtype r with
 			| HUI8 | HUI16 | HI32 ->
-				sexpr "%s = %s == 0 ? 0 : %s / %s" (reg r) (reg b) (reg a) (reg b)
+				sexpr "%s = (%s == 0 || %s == -1) ? %s * %s : %s / %s" (reg r) (reg b) (reg b) (reg a) (reg b) (reg a) (reg b)
 			| _ ->
 				sexpr "%s = %s / %s" (reg r) (reg a) (reg b))
 		| OUDiv (r,a,b) ->
@@ -831,7 +833,7 @@ let generate_function ctx f =
 		| OSMod (r,a,b) ->
 			(match rtype r with
 			| HUI8 | HUI16 | HI32 | HI64 ->
-				sexpr "%s = %s == 0 ? 0 : %s %% %s" (reg r) (reg b) (reg a) (reg b)
+				sexpr "%s = (%s == 0 || %s == -1) ? 0 : %s %% %s" (reg r) (reg b) (reg b) (reg a) (reg b)
 			| HF32 ->
 				sexpr "%s = fmodf(%s,%s)" (reg r) (reg a) (reg b)
 			| HF64 ->
@@ -1107,7 +1109,7 @@ let generate_function ctx f =
 			let expr = (if fid = 0 then reg r else (match rtype r with
 			| HObj o | HStruct o ->
 				let name, t = resolve_field o (fid - 1) in
-				Printf.sprintf "%s->%s" (reg r) name
+				Printf.sprintf "&%s->%s" (reg r) name
 			| _ ->
 				Globals.die "" __LOC__
 			)) in
@@ -1138,7 +1140,7 @@ let make_types_idents htypes =
 	let types_descs = ref PMap.empty in
 	let rec make_desc t =
 		match t with
-		| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HRef _ | HDynObj | HNull _ ->
+		| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HRef _ | HDynObj | HNull _ | HGUID ->
 			DSimple t
 		| HFun (tl,t) ->
 			DFun (List.map make_desc tl, make_desc t, true)
@@ -1461,7 +1463,7 @@ let write_c com file (code:code) gnames =
 	let bnames = Array.map (fun b -> "bytes$" ^ short_digest (Digest.to_hex (Digest.bytes b))) code.bytes in
 
 	let ctx = {
-		version = com.Gctx.version;
+		version = com.Gctx.version.version;
 		out = Buffer.create 1024;
 		tabs = "";
 		hlcode = code;
@@ -1554,16 +1556,26 @@ let write_c com file (code:code) gnames =
 		sexpr "static struct _%s %s = {%s}" (ctype t) name (String.concat "," fields);
 	) code.constants;
 	line "";
-	line "void hl_init_roots() {";
+	line "void hl_init_roots_constants() {";
 	block ctx;
 	let is_const = Hashtbl.create 0 in
 	Array.iter (fun (g,fields) ->
 		sexpr "%s = &const_%s" gnames.(g) gnames.(g);
 		Hashtbl.add is_const g true;
 	) code.constants;
+	unblock ctx;
+	line "}";
+	line "void hl_init_roots_globals() {";
+	block ctx;
 	Array.iteri (fun i t ->
 		if is_ptr t && not (Hashtbl.mem is_const i) then sexpr "hl_add_root((void**)&%s)" gnames.(i);
 	) code.globals;
+	unblock ctx;
+	line "}";
+	line "void hl_init_roots() {";
+	block ctx;
+	expr "hl_init_roots_constants()";
+	expr "hl_init_roots_globals()";
 	unblock ctx;
 	line "}";
 

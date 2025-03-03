@@ -1,5 +1,6 @@
 package cases;
 
+import haxe.Json;
 import haxe.display.Diagnostic;
 import haxe.display.Display;
 import haxe.display.FsPath;
@@ -519,6 +520,12 @@ class ServerTests extends TestCase {
 		runHaxeJsonCb(args, DisplayMethods.Defines, {compiler: false, user: false}, function(defines) {
 			Assert.equals(0, defines.length);
 		});
+	}
+
+	function test8671() {
+		runHaxeJson(["--times"], ServerMethods.Contexts, null);
+		var res = Json.parse(lastResult.stderr);
+		Assert.equals(0, res.result.timers.time);
 	}
 
 	function test10986() {

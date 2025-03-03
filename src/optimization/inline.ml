@@ -232,7 +232,7 @@ let inline_default_config cf t =
 let inline_config cls_opt cf call_args return_type =
 	match cls_opt with
 	| Some ({cl_kind = KAbstractImpl _}) when has_class_field_flag cf CfImpl ->
-		let t = if cf.cf_name = "_new" then
+		let t = if has_class_field_flag cf CfAbstractConstructor then
 			return_type
 		else if call_args = [] then
 			raise_typing_error "Invalid abstract implementation function" cf.cf_pos
@@ -580,7 +580,7 @@ class inline_state ctx ethis params cf f p = object(self)
 			(match follow ethis.etype with
 			| TAnon a -> (match !(a.a_status) with
 				| ClassStatics {cl_kind = KAbstractImpl a } when has_class_field_flag cf CfImpl ->
-					if cf.cf_name <> "_new" then begin
+					if not (has_class_field_flag cf CfAbstractConstructor) then begin
 						(* the first argument must unify with a_this for abstract implementation functions *)
 						let tb = (TFun(("",false,map_type a.a_this) :: (List.tl tl),tret)) in
 						unify_raise mt tb p
@@ -700,14 +700,6 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			| Some e ->
 				state#set_return_value;
 				map term false e)
-		| TFor (v,e1,e2) ->
-			let i = state#declare v in
-			let e1 = map false false e1 in
-			let old = !in_loop in
-			in_loop := true;
-			let e2 = map false false e2 in
-			in_loop := old;
-			{ e with eexpr = TFor (i.i_subst,e1,e2) }
 		| TWhile (cond,eloop,flag) ->
 			let cond = map false false cond in
 			let old = !in_loop in
@@ -747,7 +739,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 					let r = match e.eexpr with
 					| TReturn _ -> true
 					| TFunction _ -> false
-					| TIf (_,_,None) | TSwitch {switch_default = None} | TFor _ | TWhile (_,_,NormalWhile) -> false (* we might not enter this code at all *)
+					| TIf (_,_,None) | TSwitch {switch_default = None} | TWhile (_,_,NormalWhile) -> false (* we might not enter this code at all *)
 					| TTry (a, catches) -> List.for_all has_term_return (a :: List.map snd catches)
 					| TIf (cond,a,Some b) -> has_term_return cond || (has_term_return a && has_term_return b)
 					| TSwitch ({switch_default = Some def} as switch) -> has_term_return switch.switch_subject || List.for_all has_term_return (def :: List.map (fun case -> case.case_expr) switch.switch_cases)

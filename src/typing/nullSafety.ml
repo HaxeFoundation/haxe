@@ -766,9 +766,8 @@ class local_safety (mode:safety_mode) =
 			(* let scope = new safety_scope mode STLoop (Hashtbl.create 100) (Hashtbl.create 100) in *)
 			scopes <- scope :: scopes;
 			match e.eexpr with
-				| TFor (v, _, _) -> scope#declare_var v
 				| TWhile _ -> ()
-				| _ -> fail ~msg:"Expected TFor or TWhile." e.epos __POS__
+				| _ -> fail ~msg:"Expected TWhile." e.epos __POS__
 		(**
 			Should be called upon leaving local function declaration.
 		*)
@@ -1131,7 +1130,6 @@ class expr_checker mode immediate_execution report =
 				| TFunction fn -> self#check_function fn
 				| TVar (v, init_expr) -> self#check_var v init_expr e.epos
 				| TBlock exprs -> self#check_block exprs e.epos
-				| TFor _ -> self#check_for e
 				| TIf _ -> self#check_if e
 				| TWhile _ -> self#check_while e
 				| TSwitch switch -> self#check_switch switch e.epos
@@ -1213,20 +1211,7 @@ class expr_checker mode immediate_execution report =
 						);
 					local_safety#scope_closed
 				| _ -> fail ~msg:"Expected TWhile." e.epos __POS__
-		(**
-			Don't iterate on nullable values
-		*)
-		method private check_for e =
-			match e.eexpr with
-				| TFor (v, iterable, body) ->
-					if self#is_nullable_expr iterable then
-						self#error "Cannot iterate over nullable value." [iterable.epos; e.epos];
-					self#check_expr iterable;
-					local_safety#declare_var v;
-					local_safety#loop_declared e;
-					self#check_loop_body None body;
-					local_safety#scope_closed
-				| _ -> fail ~msg:"Expected TFor." e.epos __POS__
+
 		(**
 			Handle safety inside of loops
 		*)

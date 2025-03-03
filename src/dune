@@ -23,7 +23,7 @@
 		xml-light extlib sha terminal_size
 		luv
 	)
-	(modules (:standard \ haxe))
+	(modules (:standard \ haxe prebuild))
 	(preprocess (per_module
 		((pps sedlex.ppx) json lexer)
 		((pps ppx_parser) grammar)
@@ -32,12 +32,24 @@
 )
 
 (executable
+	(name prebuild)
+	(libraries extlib json unix)
+	(modules prebuild)
+)
+
+(rule
+	(deps (env_var STATICLINK) (env_var LIB_PARAMS))
+	(targets libs.sexp)
+	(action (with-stdout-to libs.sexp (run ./prebuild.exe libparams %{system})))
+)
+
+(executable
 	(name haxe)
 	(public_name haxe)
 	(package haxe)
 	(libraries haxe)
 	(modules haxe)
-	(link_flags (:include ../lib.sexp))
+	(link_flags (:include libs.sexp))
 	; Uncomment to enable bytecode output for ocamldebug support
 	; (modes byte)
 )

@@ -170,6 +170,11 @@ class TestXML extends Test {
 		var s = "<a>&gt;<b>&lt;</b>&lt;&gt;<b>&gt;&lt;</b>\"</a>";
 		var xml = haxe.xml.Parser.parse(s);
 		eq(s, xml.toString());
+
+		// Entities are case insensitive
+		var s1 = "<a>&GT;<b>&LT;</b>&Lt;&gT;<b>&GT;&LT;</b>\"</a>";
+		var xml = haxe.xml.Parser.parse(s1);
+		eq(s, xml.toString());
 	}
 
 	function testMore() {

@@ -127,10 +127,6 @@ let build_dependencies t =
 			List.iter (fun (v,_) -> add_type v.v_type) f.tf_args;
 			add_type f.tf_type;
 			add_expr f.tf_expr;
-		| TFor (v,e1,e2) ->
-			add_type v.v_type;
-			add_expr e1;
-			add_expr e2;
 		| TVar (v,eo) ->
 				add_type v.v_type;
 			begin match eo with
@@ -211,7 +207,7 @@ let build_swc_catalog com types =
 	let x = node "swc" ["xmlns","http://www.adobe.com/flash/swccatalog/9"] [
 		node "versions" [] [
 			node "swc" ["version","1.2"] [];
-			node "haxe" ["version",Printf.sprintf "%d.%.2d" (com.version/10000) (com.version mod 10000)] [];
+			node "haxe" ["version",Printf.sprintf "%d.%.2d" (com.Gctx.version.version/10000) (com.version.version mod 10000)] [];
 		];
 		node "features" [] [
 			node "feature-script-deps" [] [];

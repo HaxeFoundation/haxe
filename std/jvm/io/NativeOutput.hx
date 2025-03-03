@@ -46,6 +46,20 @@ import java.io.IOException;
 		}
 	}
 
+	override public function writeBytes(s:Bytes, pos:Int, len:Int) {
+		if (pos < 0 || len < 0 || pos + len > s.length)
+			throw haxe.io.Error.OutsideBounds;
+		try {
+			stream.write(s.getData(), pos, len);
+		} catch (e:EOFException) {
+
+			throw new Eof();
+		} catch (e:IOException) {
+			throw haxe.io.Error.Custom(e);
+		}
+		return len;
+	}
+
 	override public function close():Void {
 		try {
 			stream.close();

@@ -21,6 +21,7 @@ open Globals
 open Ast
 open Common
 open Type
+open TyperPass
 open Error
 open Resolution
 open FieldCallCandidate
@@ -49,21 +50,6 @@ type access_mode =
 	| MGet
 	| MSet of Ast.expr option (* rhs, if exists *)
 	| MCall of Ast.expr list (* call arguments *)
-
-type typer_pass =
-	| PBuildModule			(* build the module structure and setup module type parameters *)
-	| PBuildClass			(* build the class structure *)
-	| PConnectField			(* handle associated fields, which may affect each other. E.g. a property and its getter *)
-	| PTypeField			(* type the class field, allow access to types structures *)
-	| PCheckConstraint		(* perform late constraint checks with inferred types *)
-	| PForce				(* usually ensure that lazy have been evaluated *)
-	| PFinal				(* not used, only mark for finalize *)
-
-let all_typer_passes = [
-	PBuildModule;PBuildClass;PConnectField;PTypeField;PCheckConstraint;PForce;PFinal
-]
-
-let all_typer_passes_length = List.length all_typer_passes
 
 type typer_module = {
 	curmod : module_def;
@@ -141,7 +127,7 @@ and typer_expr = {
 	in_function : bool;
 	mutable ret : t;
 	mutable opened : anon_status ref list;
-	mutable monomorphs : monomorphs;
+	mutable monomorphs : (tmono * pos) list;
 	mutable in_loop : bool;
 	mutable bypass_accessor : int;
 	mutable with_type_stack : WithType.t list;
@@ -175,10 +161,6 @@ and typer = {
 	mutable allow_transform : bool;
 	(* events *)
 	memory_marker : float array;
-}
-
-and monomorphs = {
-	mutable perfunction : (tmono * pos) list;
 }
 
 let pass_name = function
@@ -241,9 +223,7 @@ module TyperManager = struct
 			in_function;
 			ret = t_dynamic;
 			opened = [];
-			monomorphs = {
-				perfunction = [];
-			};
+			monomorphs = [];
 			in_loop = false;
 			bypass_accessor = 0;
 			with_type_stack = [];
@@ -284,6 +264,18 @@ module TyperManager = struct
 
 	let clone_for_expr ctx curfun in_function =
 		let e = create_ctx_e curfun in_function in
+		begin match curfun with
+		| FunMember | FunMemberAbstract | FunStatic | FunConstructor ->
+			(* Monomorphs from field arguments and return types are created before
+			   ctx.e is cloned, so they have to be absorbed here. A better fix might
+			   be to clone ctx.e earlier, but that comes with its own challenges. *)
+			e.monomorphs <- ctx.e.monomorphs;
+			ctx.e.monomorphs <- []
+		| FunMemberAbstractLocal | FunMemberClassLocal ->
+			(* We don't need to do this for local functions because the cloning happens
+			   earlier there. *)
+			()
+		end;
 		create ctx ctx.m ctx.c ctx.f e PTypeField ctx.type_params
 
 	let clone_for_type_params ctx params =
@@ -374,7 +366,7 @@ let unify_min_for_type_source ctx el src = (!unify_min_for_type_source_ref) ctx 
 
 let spawn_monomorph' ctx p =
 	let mono = Monomorph.create () in
-	ctx.e.monomorphs.perfunction <- (mono,p) :: ctx.e.monomorphs.perfunction;
+	ctx.e.monomorphs <- (mono,p) :: ctx.e.monomorphs;
 	mono
 
 let spawn_monomorph ctx p =
@@ -424,7 +416,7 @@ let save_locals ctx =
 
 let add_local ctx k n t p =
 	let v = alloc_var k n t p in
-	if Define.defined ctx.com.defines Define.WarnVarShadowing && n <> "_" then begin
+	if n <> "_" then begin
 		match k with
 		| VUser _ ->
 			begin try
@@ -478,7 +470,7 @@ let delay_if_mono g p t f = match follow t with
 	| _ ->
 		f()
 
-let rec flush_pass g p where =
+let rec flush_pass g (p : typer_pass) where =
 	let rec loop i =
 		if i > (Obj.magic p) then
 			()

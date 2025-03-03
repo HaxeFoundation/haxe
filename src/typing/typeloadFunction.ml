@@ -39,7 +39,6 @@ let type_function_params ctx fd host fname =
 let type_function ctx (args : function_arguments) ret e do_display p =
 	ctx.e.ret <- ret;
 	ctx.e.opened <- [];
-	ctx.e.monomorphs.perfunction <- [];
 	enter_field_typing_pass ctx.g ("type_function",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
 	args#bring_into_context ctx;
 	let e = match e with
@@ -157,7 +156,34 @@ let type_function ctx (args : function_arguments) ret e do_display p =
 		| _ -> e
 	in
 	List.iter (fun r -> r := Closed) ctx.e.opened;
-	List.iter (fun (m,p) -> safe_mono_close ctx m p) ctx.e.monomorphs.perfunction;
+	let mono_debug = Meta.has (Meta.Custom ":debug.mono") ctx.f.curfield.cf_meta in
+	if mono_debug then begin
+		let pctx = print_context () in
+		let print_mono i m =
+			Printf.sprintf "%4i: %s" i (MonomorphPrinting.s_mono s_type pctx true m)
+		in
+		print_endline "BEFORE:";
+		let monos = List.mapi (fun i (m,p) ->
+			let s = print_mono i m in
+			let spos = if p.pmin = -1 then
+				"unknown"
+			else begin
+				let l1,p1,_,_ = Lexer.get_pos_coords p in
+				Printf.sprintf "%i:%i" l1 p1
+			end in
+			print_endline (Printf.sprintf "%s (%s)" s spos);
+			safe_mono_close ctx m p;
+			(i,m,p,s)
+		) ctx.e.monomorphs in
+		print_endline "CHANGED:";
+		List.iter (fun (i,m,p,s) ->
+			let s' = print_mono i m in
+			if s <> s' then begin
+				print_endline s'
+			end
+		) monos
+	end else
+		List.iter (fun (m,p) -> safe_mono_close ctx m p) ctx.e.monomorphs;
 	if is_position_debug then print_endline ("typing:\n" ^ (Texpr.dump_with_pos "" e));
 	e
 

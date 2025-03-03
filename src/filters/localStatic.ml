@@ -27,19 +27,49 @@ let promote_local_static lsctx run v eo =
 			let no_local_in_static p =
 				raise_typing_error "Accessing local variables in static initialization is not allowed" p
 			in
-			let rec loop e = match e.eexpr with
+			let declared_vars = Hashtbl.create 0 in
+			let declare v = Hashtbl.add declared_vars v.v_id () in
+			let rec loop in_function in_loop e =
+				let loop' = loop in_function in_loop in
+				match e.eexpr with
 				| TLocal v when has_var_flag v VStatic ->
 					run e
-				| TFunction _ | TLocal _ ->
+				| TLocal v when not (Hashtbl.mem declared_vars v.v_id) ->
 					no_local_in_static e.epos
+				| TVar(v,eo) ->
+					let eo = Option.map loop' eo in
+					declare v;
+					{e with eexpr = TVar(v,eo)}
+				| TFunction tf ->
+					let args = List.map (fun (v,eo) ->
+						declare v;
+						let eo = Option.map loop' eo in
+						(v,eo)
+					) tf.tf_args in
+					let e1 = loop true in_loop tf.tf_expr in
+					{e with eexpr = TFunction {tf with tf_args = args;tf_expr = e1}}
+				| TTry(e1,catches) ->
+					let e1 = loop' e1 in
+					let catches = List.map (fun (v,e) ->
+						declare v;
+						let e = loop' e in
+						(v,e)
+					) catches in
+					{e with eexpr = TTry(e1,catches)}
+				| TWhile(e1,e2,flag) ->
+					let e1 = loop' e1 in
+					let e2 = loop in_function true e2 in
+					{e with eexpr = TWhile(e1,e2,flag)}
 				| TConst (TThis | TSuper) ->
 					raise_typing_error "Accessing `this` in static initialization is not allowed" e.epos
-				| TReturn _ | TBreak | TContinue ->
+				| TReturn _ when not in_function ->
+					raise_typing_error "This kind of control flow in static initialization is not allowed" e.epos
+				| TBreak | TContinue when not in_loop ->
 					raise_typing_error "This kind of control flow in static initialization is not allowed" e.epos
 				| _ ->
-					map_expr loop e
+					map_expr loop' e
 			in
-			let e = loop e in
+			let e = loop false false e in
 			cf.cf_expr <- Some e
 		end;
 		lsctx.added_fields <- cf :: lsctx.added_fields;

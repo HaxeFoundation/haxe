@@ -54,7 +54,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 		(match cl, ctx.c.curclass.cl_kind, params with
 			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.c.curclass ->
 				if
-					f.cf_name <> "_new"
+					not (has_class_field_flag f CfAbstractConstructor)
 					&& has_meta Meta.This v_meta
 					&& has_class_field_flag f CfModifiesThis
 				then

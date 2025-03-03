@@ -11,7 +11,7 @@ class Issue10106 extends DisplayTestCase {
 			}
 		}
 
-		@:using(cases.Issue10106.CExtension)
+		@:using(Issue10106.CExtension)
 		class C {
 			public function new(){}
 		}
@@ -24,7 +24,7 @@ class Issue10106 extends DisplayTestCase {
 		}
 	**/
 	function testClass() {
-		eq(true, hasField(fields(pos(1)), "fromS", "(s : String) -> cases.C"));
+		eq(true, hasField(fields(pos(1)), "fromS", "(s : String) -> C"));
 	}
 
 	/**
@@ -38,7 +38,7 @@ class Issue10106 extends DisplayTestCase {
 			}
 		}
 
-		@:using(cases.Issue10106.EnExtension)
+		@:using(Issue10106.EnExtension)
 		enum En {
 			A;
 			B;
@@ -52,6 +52,6 @@ class Issue10106 extends DisplayTestCase {
 		}
 	**/
 	function testEnum() {
-		eq(true, hasField(fields(pos(1)), "fromS", "(s : String) -> cases.En"));
+		eq(true, hasField(fields(pos(1)), "fromS", "(s : String) -> En"));
 	}
 }

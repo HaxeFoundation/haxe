@@ -305,20 +305,6 @@ and gen_expr ctx e =
 		(EFunction (List.map arg_name f.tf_args, with_return e),p)
 	| TBlock el ->
 		(EBlock (List.map (gen_expr ctx) el), p)
-	| TFor (v, it, e) ->
-		let it = gen_expr ctx it in
-		let e = gen_expr ctx e in
-		let next = call p (field p (ident p "@tmp") "next") [] in
-		let next = (if has_var_flag v VCaptured then call p (builtin p "array") [next] else next) in
-		(EBlock
-			[(EVars ["@tmp", Some it],p);
-			(EWhile (call p (field p (ident p "@tmp") "hasNext") [],
-				(EBlock [
-					(EVars [v.v_name, Some next],p);
-					e
-				],p)
-			,NormalWhile),p)]
-		,p)
 	| TIf (cond,e1,e2) ->
 		(* if(e)-1 is parsed as if( e - 1 ) *)
 		let parent e = mk (TParenthesis e) e.etype e.epos in

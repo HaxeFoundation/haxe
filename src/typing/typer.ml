@@ -36,10 +36,12 @@ open Operators
 (* ---------------------------------------------------------------------- *)
 (* TOOLS *)
 
-let mono_or_dynamic ctx with_type p = match with_type with
+let terminator_type ctx with_type p = match with_type with
 	| WithType.NoValue ->
 		t_dynamic
-	| Value _ | WithType _ ->
+	| WithType(t,_) ->
+		t
+	| Value _ ->
 		spawn_monomorph ctx p
 
 let get_iterator_param t =
@@ -1134,17 +1136,17 @@ and type_try ctx e1 catches with_type p =
 	mk (TTry (e1,List.rev catches)) t p
 
 and type_map_declaration ctx e1 el with_type p =
-	let (tkey,tval,has_type) =
+	let expected_kv =
 		let get_map_params t = match follow t with
-			| TAbstract({a_path=["haxe";"ds"],"Map"},[tk;tv]) -> tk,tv,true
-			| TInst({cl_path=["haxe";"ds"],"IntMap"},[tv]) -> ctx.t.tint,tv,true
-			| TInst({cl_path=["haxe";"ds"],"StringMap"},[tv]) -> ctx.t.tstring,tv,true
-			| TInst({cl_path=["haxe";"ds"],("ObjectMap" | "EnumValueMap")},[tk;tv]) -> tk,tv,true
-			| _ -> spawn_monomorph ctx p,spawn_monomorph ctx p,false
+			| TAbstract({a_path=["haxe";"ds"],"Map"},[tk;tv]) -> Some (tk,tv)
+			| TInst({cl_path=["haxe";"ds"],"IntMap"},[tv]) -> Some (ctx.t.tint,tv)
+			| TInst({cl_path=["haxe";"ds"],"StringMap"},[tv]) -> Some (ctx.t.tstring,tv)
+			| TInst({cl_path=["haxe";"ds"],("ObjectMap" | "EnumValueMap")},[tk;tv]) -> Some (tk,tv)
+			| _ -> None
 		in
 		match with_type with
 		| WithType.WithType(t,_) -> get_map_params t
-		| _ -> (spawn_monomorph ctx p,spawn_monomorph ctx p,false)
+		| _ -> None
 	in
 	let keys = Hashtbl.create 0 in
 	let check_key e_key =
@@ -1163,31 +1165,37 @@ and type_map_declaration ctx e1 el with_type p =
 	let el_kv = List.map (fun e -> match fst e with
 		| EBinop(OpArrow,e1,e2) -> e1,e2
 		| EDisplay _ ->
-			ignore(type_expr ctx e (WithType.with_type tkey));
+			let tkey = match expected_kv with
+				| Some(tkey,_) -> WithType.with_type tkey
+				| None -> WithType.value
+			in
+			ignore(type_expr ctx e tkey);
 			raise_typing_error "Expected a => b" (pos e)
-		| _ -> raise_typing_error "Expected a => b" (pos e)
+		| _ ->
+			raise_typing_error "Expected a => b" (pos e)
 	) el in
-	let el_k,el_v,tkey,tval = if has_type then begin
-		let el_k,el_v = List.fold_left (fun (el_k,el_v) (e1,e2) ->
-			let e1 = type_expr ctx e1 (WithType.with_type tkey) in
-			check_key e1;
-			let e1 = AbstractCast.cast_or_unify ctx tkey e1 e1.epos in
-			let e2 = type_expr ctx e2 (WithType.with_type tval) in
-			let e2 = AbstractCast.cast_or_unify ctx tval e2 e2.epos in
-			(e1 :: el_k,e2 :: el_v)
-		) ([],[]) el_kv in
-		el_k,el_v,tkey,tval
-	end else begin
-		let el_k,el_v = List.fold_left (fun (el_k,el_v) (e1,e2) ->
-			let e1 = type_expr ctx e1 WithType.value in
-			check_key e1;
-			let e2 = type_expr ctx e2 WithType.value in
-			(e1 :: el_k,e2 :: el_v)
-		) ([],[]) el_kv in
-		let tkey = unify_min_raise ctx el_k in
-		let tval = unify_min_raise ctx el_v in
-		el_k,el_v,tkey,tval
-	end in
+	let el_k,el_v,tkey,tval = match expected_kv with
+		| Some(tkey,tval) ->
+			let el_k,el_v = List.fold_left (fun (el_k,el_v) (e1,e2) ->
+				let e1 = type_expr ctx e1 (WithType.with_type tkey) in
+				check_key e1;
+				let e1 = AbstractCast.cast_or_unify ctx tkey e1 e1.epos in
+				let e2 = type_expr ctx e2 (WithType.with_type tval) in
+				let e2 = AbstractCast.cast_or_unify ctx tval e2 e2.epos in
+				(e1 :: el_k,e2 :: el_v)
+			) ([],[]) el_kv in
+			el_k,el_v,tkey,tval
+		| None ->
+			let el_k,el_v = List.fold_left (fun (el_k,el_v) (e1,e2) ->
+				let e1 = type_expr ctx e1 WithType.value in
+				check_key e1;
+				let e2 = type_expr ctx e2 WithType.value in
+				(e1 :: el_k,e2 :: el_v)
+			) ([],[]) el_kv in
+			let tkey = unify_min_raise ctx el_k in
+			let tval = unify_min_raise ctx el_v in
+			el_k,el_v,tkey,tval
+	in
 	let m = TypeloadModule.load_module ctx (["haxe";"ds"],"Map") null_pos in
 	let a,c = match m.m_types with
 		| (TAbstractDecl ({a_impl = Some c} as a)) :: _ -> a,c
@@ -1471,11 +1479,11 @@ and type_array_comprehension ctx e with_type p =
 	]) v.v_type p
 
 and type_return ?(implicit=false) ctx e with_type p =
-	let is_abstract_ctor = ctx.e.curfun = FunMemberAbstract && ctx.f.curfield.cf_name = "_new" in
+	let is_abstract_ctor = ctx.e.curfun = FunMemberAbstract && has_class_field_flag ctx.f.curfield CfAbstractConstructor in
 	match e with
 	| None when is_abstract_ctor ->
 		let e_cast = mk (TCast(get_this ctx p,None)) ctx.e.ret p in
-		mk (TReturn (Some e_cast)) (mono_or_dynamic ctx with_type p) p
+		mk (TReturn (Some e_cast)) (terminator_type ctx with_type p) p
 	| None ->
 		let v = ctx.t.tvoid in
 		unify ctx v ctx.e.ret p;
@@ -1484,7 +1492,7 @@ and type_return ?(implicit=false) ctx e with_type p =
 			| WithType.Value (Some ImplicitReturn) -> true
 			| _ -> false
 		in
-		mk (TReturn None) (if expect_void then v else (mono_or_dynamic ctx with_type p)) p
+		mk (TReturn None) (if expect_void then v else (terminator_type ctx with_type p)) p
 	| Some e ->
 		if is_abstract_ctor then begin
 			match fst e with
@@ -1510,20 +1518,20 @@ and type_return ?(implicit=false) ctx e with_type p =
 					| _ -> ()
 					end;
 					(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
-					let t = mono_or_dynamic ctx with_type p in
+					let t = terminator_type ctx with_type p in
 					mk (TBlock [
 						e;
 						mk (TReturn None) t p
 					]) t e.epos;
 				| _ ->
-					mk (TReturn (Some e)) (mono_or_dynamic ctx with_type p) p
+					mk (TReturn (Some e)) (terminator_type ctx with_type p) p
 		with Error err ->
 			let p = err.err_pos in
 			check_error ctx err;
 			(* If we have a bad return, let's generate a return null expression at least. This surpresses various
 				follow-up errors that come from the fact that the function no longer has a return expression (issue #6445). *)
 			let e_null = mk (TConst TNull) (mk_mono()) p in
-			mk (TReturn (Some e_null)) (mono_or_dynamic ctx with_type p) p
+			mk (TReturn (Some e_null)) (terminator_type ctx with_type p) p
 
 and type_cast ctx e t p =
 	let tpos = pos t in
@@ -1864,15 +1872,21 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			| _ -> follow_null tmin
 		in
 		let e1_null_t = if is_nullable e1.etype then e1.etype else ctx.t.tnull e1.etype in
-		let e1 = vr#as_var (Option.default "tmp" (WithType.get_expected_name with_type)) {e1 with etype = e1_null_t} in
+		let var_name = match WithType.get_expected_name with_type with
+			| None
+			(* TODO: why does this happen? *)
+			| Some "" ->
+				"tmp"
+			| Some name ->
+				name
+		in
+		let e1 = vr#as_var var_name {e1 with etype = e1_null_t} in
 		let e_null = Builder.make_null e1_null_t e1.epos in
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
 		let e_if = mk (TIf(e_cond,cast e1,Some e2)) iftype p in
 		vr#to_texpr e_if
 	| EBinop (OpAssignOp OpNullCoal,e1,e2) ->
-		let e_cond = EBinop(OpNotEq,e1,(EConst(Ident "null"), p)) in
-		let e_if = EIf ((e_cond, p),e1,Some e2) in
-		type_assign ctx e1 (e_if, p) with_type p
+		type_op_null_coal_assign ctx e1 e2 with_type p
 	| EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 false with_type p
 	| EBlock [] when (match with_type with
@@ -1952,7 +1966,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			display_error ctx.com "Return outside function" p;
 			match e with
 			| None ->
-				Texpr.Builder.make_null (mono_or_dynamic ctx with_type p) p
+				Texpr.Builder.make_null (terminator_type ctx with_type p) p
 			| Some e ->
 				(* type the return expression to see if there are more errors
 				   as well as use its type as if there was no `return`, since
@@ -1962,10 +1976,10 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			type_return ctx e with_type p
 	| EBreak ->
 		if not ctx.e.in_loop then display_error ctx.com "Break outside loop" p;
-		mk TBreak (mono_or_dynamic ctx with_type p) p
+		mk TBreak (terminator_type ctx with_type p) p
 	| EContinue ->
 		if not ctx.e.in_loop then display_error ctx.com "Continue outside loop" p;
-		mk TContinue (mono_or_dynamic ctx with_type p) p
+		mk TContinue (terminator_type ctx with_type p) p
 	| ETry (e1,[]) ->
 		type_expr ctx e1 with_type
 	| ETry (e1,catches) ->
@@ -1977,7 +1991,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			check_error ctx err;
 			Texpr.Builder.make_null t_dynamic p
 		in
-		mk (TThrow e) (mono_or_dynamic ctx with_type p) p
+		mk (TThrow e) (terminator_type ctx with_type p) p
 	| ENew (t,el) ->
 		type_new ctx t el with_type false p
 	| EUnop (op,flag,e) ->
@@ -1987,7 +2001,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EUntyped e ->
 		let old = ctx.f.untyped in
 		ctx.f.untyped <- true;
-		if not (Meta.has Meta.HasUntyped ctx.f.curfield.cf_meta) then ctx.f.curfield.cf_meta <- (Meta.HasUntyped,[],p) :: ctx.f.curfield.cf_meta;
+		if not (Meta.has Meta.HasUntyped ctx.f.curfield.cf_meta) then ctx.f.curfield.cf_meta <- (Meta.HasUntyped,[],mk_zero_range_pos p) :: ctx.f.curfield.cf_meta;
 		let e = type_expr ctx e with_type in
 		ctx.f.untyped <- old;
 		{

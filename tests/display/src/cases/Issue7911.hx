@@ -2,7 +2,7 @@ package cases;
 
 class Issue7911 extends DisplayTestCase {
 	/**
-		import misc.issue7911.{-1-}
+		import issue7911.{-1-}
 	**/
 	function test() {
 		var fields = fields(pos(1));

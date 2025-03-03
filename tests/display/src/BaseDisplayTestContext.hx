@@ -1,18 +1,36 @@
 import haxe.io.Bytes;
+import haxe.io.Path;
 
 using StringTools;
 
 import Types;
 
 class BaseDisplayTestContext {
-	static var haxeServer = haxeserver.HaxeServerSync.launch("haxe", []);
+	static var haxeServer = {
+		var hx = "haxe";
+		var testHaxe = haxe.macro.Compiler.getDefine("test_haxe");
+		if (testHaxe != null) {
+			Sys.putEnv("HAXE_STD_PATH", '${Path.directory(testHaxe)}/std');
+			hx = testHaxe;
+		}
 
+		haxeserver.HaxeServerSync.launch(hx, []);
+	}
+
+	var dir:String = ".";
+	var vfs:Vfs;
 	var markers:Map<Int, Int>;
 	var fieldName:String;
 
 	public final source:File;
 
 	public function new(path:String, fieldName:String, source:String, markers:Map<Int, Int>) {
+		var test = new Path(path).file;
+		this.dir = '${Sys.getCwd()}/test/cases/${test}';
+		this.vfs = new Vfs(dir);
+		var path = Path.withoutDirectory(path);
+		vfs.putContent(path, source);
+
 		this.fieldName = fieldName;
 		this.source = new File(path, source);
 		this.markers = markers;
@@ -38,13 +56,18 @@ class BaseDisplayTestContext {
 		}
 	}
 
-	static public function runHaxe(args:Array<String>, ?stdin:String) {
-		return haxeServer.rawRequest(["-D", "message.reporting=classic"].concat(args), stdin == null ? null : Bytes.ofString(stdin));
+	public function runHaxe(args:Array<String>, ?stdin:String) {
+		return haxeServer.rawRequest([
+			"--cwd", dir,
+			"-cp", '${Sys.getCwd()}/src-misc',
+			"-D", "message.reporting=classic",
+			"--no-output"
+		].concat(args), stdin == null ? null : Bytes.ofString(stdin));
 	}
 
-	static function normalizePath(p:String):String {
+	function normalizePath(p:String):String {
 		if (!haxe.io.Path.isAbsolute(p)) {
-			p = Sys.getCwd() + p;
+			p = vfs.getPhysicalPath(p).toString();
 		}
 		if (Sys.systemName() == "Windows") {
 			// on windows, haxe returns paths with backslashes, drive letter uppercased

@@ -105,7 +105,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 end
 
 class hxb_reader_api_com
-	~(minimal_restore : bool)
+	~(full_restore : bool)
 	(com : Common.context)
 	(cc : CompilationCache.context_cache)
 = object(self)
@@ -118,7 +118,7 @@ class hxb_reader_api_com
 			m_statics = None;
 			(* Creating a new m_extra because if we keep the same reference, display requests *)
 			(* can alter it with bad data (for example adding dependencies that are not cached) *)
-			m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps }
+			m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps; m_display_deps = None }
 		}
 
 	method add_module (m : module_def) =
@@ -140,7 +140,7 @@ class hxb_reader_api_com
 		with Not_found ->
 			let mc = cc#get_hxb_module m_path in
 			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined com Define.HxbTimes) in
-			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if minimal_restore then MTF else EOM) minimal_restore)
+			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if full_restore then EOM else MTF) full_restore)
 
 	method basic_types =
 		com.basic
@@ -155,8 +155,8 @@ class hxb_reader_api_com
 		TLazy (make_unforced_lazy t f "com-api")
 end
 
-let find_module ~(minimal_restore : bool) com cc path =
-	(new hxb_reader_api_com ~minimal_restore com cc)#find_module path
+let find_module ~(full_restore : bool) com cc path =
+	(new hxb_reader_api_com ~full_restore com cc)#find_module path
 
 type handler_context = {
 	com : Common.context;
@@ -179,11 +179,11 @@ let handler =
 			hctx.send_result (JObject [
 				"methods",jarray methods;
 				"haxeVersion",jobject [
-					"major",jint version_major;
-					"minor",jint version_minor;
-					"patch",jint version_revision;
-					"pre",(match version_pre with None -> jnull | Some pre -> jstring pre);
-					"build",(match Version.version_extra with None -> jnull | Some(_,build) -> jstring build);
+					"major",jint hctx.com.version.major;
+					"minor",jint hctx.com.version.minor;
+					"patch",jint hctx.com.version.revision;
+					"pre",(match hctx.com.version.pre with None -> jnull | Some pre -> jstring pre);
+					"build",(match hctx.com.version.extra with None -> jnull | Some(_,build) -> jstring build);
 				];
 				"protocolVersion",jobject [
 					"major",jint 0;
@@ -350,12 +350,13 @@ let handler =
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
 			let cs = hctx.display#get_cs in
 			let cc = cs#get_context sign in
+			let full_restore = Define.defined hctx.com.defines Define.DisableHxbOptimizations in
 			let m = try
-				find_module ~minimal_restore:true hctx.com cc path
+				find_module ~full_restore hctx.com cc path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
-			hctx.send_result (generate_module (cc#get_hxb) (find_module ~minimal_restore:true hctx.com cc) m)
+			hctx.send_result (generate_module (cc#get_hxb) (find_module ~full_restore hctx.com cc) m)
 		);
 		"server/type", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
@@ -363,7 +364,7 @@ let handler =
 			let typeName = hctx.jsonrpc#get_string_param "typeName" in
 			let cc = hctx.display#get_cs#get_context sign in
 			let m = try
-				find_module ~minimal_restore:true hctx.com cc path
+				find_module ~full_restore:true hctx.com cc path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
@@ -466,18 +467,18 @@ let handler =
 			hctx.send_result (jarray !l)
 		);
 		"server/memory",(fun hctx ->
-			let j = Memory.get_memory_json hctx.display#get_cs MCache in
+			let j = DisplayMemory.get_memory_json hctx.display#get_cs MCache in
 			hctx.send_result j
 		);
 		"server/memory/context",(fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
-			let j = Memory.get_memory_json hctx.display#get_cs (MContext sign) in
+			let j = DisplayMemory.get_memory_json hctx.display#get_cs (MContext sign) in
 			hctx.send_result j
 		);
 		"server/memory/module",(fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
-			let j = Memory.get_memory_json hctx.display#get_cs (MModule(sign,path)) in
+			let j = DisplayMemory.get_memory_json hctx.display#get_cs (MModule(sign,path)) in
 			hctx.send_result j
 		);
 		(* TODO: wait till gama complains about the naming, then change it to something else *)

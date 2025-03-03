@@ -197,6 +197,7 @@ module ModuleLevel = struct
 						a_read = None;
 						a_write = None;
 						a_call = None;
+						a_constructor = None;
 						a_extern = List.mem AbExtern d.d_flags;
 						a_enum = List.mem AbEnum d.d_flags || p_enum_meta <> None;
 					} in
@@ -813,7 +814,7 @@ and load_module' com g m p =
 		com.module_lut#find m
 	with Not_found ->
 		(* Check cache *)
-		match !TypeloadCacheHook.type_module_hook com (delay g PConnectField) m p with
+		match !TypeloadCacheHook.type_module_hook com (delay g) m p with
 		| GoodModule m ->
 			m
 		| BinaryModule _ ->
