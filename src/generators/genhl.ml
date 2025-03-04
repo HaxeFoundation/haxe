@@ -2214,7 +2214,7 @@ and eval_expr ctx e =
 			hold ctx r1;
 			let r2 = eval_to ctx e2 HF32 in
 			free ctx r1;
-			op ctx (if unsigned_op e1 e2 then OUDiv (tmp,r1,r2) else OSDiv (tmp, r1, r2));
+			op ctx (OSDiv (tmp, r1, r2));
 			tmp
 		| _ ->
 			abort ("Unknown native call " ^ s) e.epos)
