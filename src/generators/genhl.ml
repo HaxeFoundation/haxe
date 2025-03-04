@@ -2208,14 +2208,6 @@ and eval_expr ctx e =
 			) in
 			op ctx (OAsm (mode, value, (eval_expr ctx reg) + 1));
 			alloc_tmp ctx HVoid
-		| "$f32div", [e1; e2] ->
-			let tmp = alloc_tmp ctx HF32 in
-			let r1 = eval_to ctx e1 HF32 in
-			hold ctx r1;
-			let r2 = eval_to ctx e2 HF32 in
-			free ctx r1;
-			op ctx (OSDiv (tmp, r1, r2));
-			tmp
 		| _ ->
 			abort ("Unknown native call " ^ s) e.epos)
 	| TEnumIndex v ->

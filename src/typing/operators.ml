@@ -305,7 +305,8 @@ let make_binop ctx op e1 e2 is_assign_op p =
 		| KFloat, KFloat ->
 			result := tfloat
 		| KNumParam t1, KNumParam t2 when Type.type_iseq t1 t2 ->
-			if op <> OpDiv then result := t1
+			let is_single = (match follow e2.etype with TAbstract({a_path=[],"Single"},_) -> true | _ -> false) in
+			if op <> OpDiv || is_single then result := t1
 		| KNumParam _, KNumParam _ ->
 			result := tfloat
 		| KNumParam t, KInt | KInt, KNumParam t ->
