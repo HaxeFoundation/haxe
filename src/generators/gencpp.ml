@@ -305,7 +305,7 @@ let generate_source ctx =
             match has_class_flag class_def CInterface with
             | true ->
                let (slots, iface) = CppRetyper.tcpp_interface_from_tclass ctx acc.slots class_def in
-               if native_gen then (NativeInterface iface, slots, acc.ids) else (ManagedInterface iface, acc.slots, acc.ids)
+               if native_gen then (NativeInterface iface, slots, acc.ids) else (ManagedInterface iface, slots, acc.ids)
             | false ->
                let (slots, ids, cls) = CppRetyper.tcpp_class_from_tclass ctx acc.ids acc.slots class_def [] in
                if native_gen then (NativeClass cls, slots, ids) else (ManagedClass cls, slots, ids) in
