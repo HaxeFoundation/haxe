@@ -15,7 +15,9 @@ class Issue12039 extends Test {
 	@:analyzer(ignore)
 	function testSingle() {
 		var s1 : Single = 10.0;
+		feq(10.0, s1);
 		var s2 : Single = 0.3;
+		feq(0.3, s2);
 		var f1 : Float = 10.0;
 		var f2 : Float = 0.3;
 		var a : Single = s1 + s2;
