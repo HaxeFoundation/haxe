@@ -1242,7 +1242,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		let r = alloc_tmp ctx (HNull t) in
 		op ctx (OToDyn (r,tmp));
 		r
-	| HNull ((HUI8 | HUI16 | HI32 | HI64) as it), (HF32 | HF64) ->
+	| HNull ((HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) as it), (HF32 | HF64) ->
 		let i = alloc_tmp ctx it in
 		op ctx (OSafeCast (i,r));
 		let tmp = alloc_tmp ctx t in
