@@ -355,6 +355,8 @@ let rec safe_cast t1 t2 =
 		loop p1
 	| HPacked t1, HStruct _ ->
 		safe_cast t1 t2
+	| HStruct _, HPacked t2 ->
+		safe_cast t1 t2
 	| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
 		List.for_all2 (fun t1 t2 -> safe_cast t2 t1 || (t1 = HDyn && is_dynamic t2)) args1 args2 && safe_cast t1 t2
 	| HArray t1,HArray t2 ->

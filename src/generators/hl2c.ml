@@ -542,8 +542,13 @@ let generate_function ctx f =
 	let funname fid = define_function ctx fid in
 
 	let rcast r t =
-		if tsame (rtype r) t then (reg r)
-		else Printf.sprintf "((%s)%s)" (ctype t) (reg r)
+		let rt = (rtype r) in
+		if tsame rt t then (reg r)
+		else match t, rt with
+		| HPacked _, HStruct _ ->
+			Printf.sprintf "(*(%s*)%s)" (ctype t) (reg r)
+		| _ ->
+			Printf.sprintf "((%s)%s)" (ctype t) (reg r)
 	in
 
 	let rfun r args t =
