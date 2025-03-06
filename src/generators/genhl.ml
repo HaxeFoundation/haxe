@@ -1086,18 +1086,14 @@ let rec eval_to ctx e (t:ttype) =
 		let r = alloc_tmp ctx t in
 		op ctx (OFloat (r,alloc_float ctx (Int32.to_float i)));
 		r
-	(* this causes a bug with NG, to be reviewed later
 	| TConst (TInt i), HF32 ->
 		let r = alloc_tmp ctx t in
-		let bits = Int32.bits_of_float (Int32.to_float i) in
-		op ctx (OFloat (r,alloc_float ctx (Int64.float_of_bits (Int64.of_int32 bits))));
+		op ctx (OFloat (r, alloc_float ctx (Int32.to_float i)));
 		r
 	| TConst (TFloat f), HF32 ->
 		let r = alloc_tmp ctx t in
-		let bits = Int32.bits_of_float (float_of_string f) in
-		op ctx (OFloat (r,alloc_float ctx (Int64.float_of_bits (Int64.of_int32 bits))));
+		op ctx (OFloat (r, alloc_float ctx (float_of_string f)));
 		r
-	*)
 	| _ ->
 		let r = eval_expr ctx e in
 		cast_to ctx r t e.epos
@@ -1242,7 +1238,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		let r = alloc_tmp ctx (HNull t) in
 		op ctx (OToDyn (r,tmp));
 		r
-	| HNull ((HUI8 | HUI16 | HI32 | HI64) as it), (HF32 | HF64) ->
+	| HNull ((HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) as it), (HF32 | HF64) ->
 		let i = alloc_tmp ctx it in
 		op ctx (OSafeCast (i,r));
 		let tmp = alloc_tmp ctx t in
