@@ -130,7 +130,7 @@ type access =
 	| AStaticFun of fundecl index
 	| AInstanceFun of texpr * fundecl index
 	| AInstanceProto of texpr * field index
-	| AInstanceField of texpr * field index
+	| AInstanceField of texpr * field index * bool
 	| AArray of reg * (ttype * ttype) * reg
 	| ACArray of reg * ttype * reg
 	| AVirtualMethod of texpr * field index
@@ -1326,11 +1326,12 @@ and object_access ctx eobj t f =
 	match t with
 	| HObj p | HStruct p ->
 		(try
-			let fid = fst (get_index f.cf_name p) in
+			let fid, t = get_index f.cf_name p in
+			let is_packed = match t with | HPacked _ -> true | _ -> false in
 			if f.cf_kind = Method MethNormal then
 				AInstanceProto (eobj, -fid-1)
 			else
-				AInstanceField (eobj, fid)
+				AInstanceField (eobj, fid, is_packed)
 		with Not_found ->
 			ADynamic (eobj, alloc_string ctx f.cf_name))
 	| HVirtual v ->
@@ -1339,7 +1340,7 @@ and object_access ctx eobj t f =
 			if f.cf_kind = Method MethNormal then
 				AVirtualMethod (eobj, fid)
 			else
-				AInstanceField (eobj, fid)
+				AInstanceField (eobj, fid, false)
 		with Not_found ->
 			ADynamic (eobj, alloc_string ctx f.cf_name))
 	| HDyn ->
@@ -2175,7 +2176,7 @@ and eval_expr ctx e =
 				| _ -> abort "Constant mode required" e.epos
 			) in
 			(match get_access ctx value with
-			| AInstanceField (f, index) -> op ctx (OPrefetch (eval_expr ctx f, index + 1, mode))
+			| AInstanceField (f, index, _) -> op ctx (OPrefetch (eval_expr ctx f, index + 1, mode))
 			| _ -> op ctx (OPrefetch (eval_expr ctx value, 0, mode)));
 			alloc_tmp ctx HVoid
         | "$unsafecast", [value] ->
@@ -2323,7 +2324,7 @@ and eval_expr ctx e =
 			op ctx (OStaticClosure (r,f));
 		| AInstanceFun (ethis, f) ->
 			op ctx (OInstanceClosure (r, f, eval_null_check ctx ethis))
-		| AInstanceField (ethis,fid) ->
+		| AInstanceField (ethis,fid,_) ->
 			let robj = eval_null_check ctx ethis in
 			op ctx (match ethis.eexpr with TConst TThis -> OGetThis (r,fid) | _ -> OField (r,robj,fid));
 		| AInstanceProto (ethis,fid) | AVirtualMethod (ethis, fid) ->
@@ -2521,15 +2522,17 @@ and eval_expr ctx e =
 				op ctx (OGetGlobal (o, g));
 				op ctx (OSetField (o, fid, r));
 				r
-			| AInstanceField ({ eexpr = TConst TThis }, fid) ->
+			| AInstanceField ({ eexpr = TConst TThis }, fid, is_packed) ->
 				let r = value() in
+				if is_packed then op ctx (ONullCheck r);
 				op ctx (OSetThis (fid,r));
 				r
-			| AInstanceField (ethis, fid) ->
+			| AInstanceField (ethis, fid, is_packed) ->
 				let rthis = eval_null_check ctx ethis in
 				hold ctx rthis;
 				let r = value() in
 				free ctx rthis;
+				if is_packed then op ctx (ONullCheck r);
 				op ctx (OSetField (rthis, fid, r));
 				r
 			| ALocal (v,l) ->
@@ -3087,7 +3090,7 @@ and gen_assign_op ctx acc e1 f =
 			f r
 	in
 	match acc with
-	| AInstanceField (eobj, findex) ->
+	| AInstanceField (eobj, findex, _) ->
 		let robj = eval_null_check ctx eobj in
 		hold ctx robj;
 		let t = real_type ctx e1 in
