@@ -88,9 +88,20 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
   in
   let visited = ref [] in
   let rec visit_type in_type =
+    let rec find_base t =
+      match TFunctions.follow t with
+      | TAbstract (a, _) as t when is_scalar_abstract a ->
+        t
+      | TAbstract ({ a_extern = true } as a, _) as t when is_marshalling_native_enum a ->
+        t
+      | TAbstract (a, tl) ->
+        find_base (Abstract.get_underlying_type a tl)
+      | other ->
+        follow other
+      in
     if not (List.exists (fun t2 -> Type.fast_eq in_type t2) !visited) then (
       visited := in_type :: !visited;
-      (match follow_once in_type with
+      (match find_base in_type with
       | TMono r -> ( match r.tm_type with None -> () | Some t -> visit_type t)
       | TEnum (enum, _) -> (
           match is_extern_enum enum with
@@ -117,11 +128,10 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
               match klass.cl_kind with
               | KTypeParameter _ -> ()
               | _ -> add_type klass.cl_path))
-      | TAbstract ({ a_extern = true } as a, _) as t when is_scalar_abstract a || is_marshalling_native_enum a ->
-          add_extern_abstract a;
-          visit_type t
-      | TAbstract (a, _) as t ->
-          visit_type t
+      | TAbstract (a, _) when is_scalar_abstract a ->
+          add_extern_abstract a
+      | TAbstract ({ a_extern = true } as a, _) when is_marshalling_native_enum a ->
+          add_extern_abstract a
       | TFun (args, haxe_type) ->
           visit_type haxe_type;
           List.iter (fun (_, _, t) -> visit_type t) args
