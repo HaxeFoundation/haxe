@@ -11,16 +11,6 @@ open CppContext
    or for building the dependencies in the Build.xml file
 *)
 let find_referenced_types_flags ctx obj filter super_deps constructor_deps header_only for_depends include_super_args =
-  (* Custom follow which will not follow away extern abstracts *)
-  (* Following away extern abstracts means we will miss any cpp include meta attached to it. *)
-  let follow t =
-    match t with
-    | TAbstract ({ a_extern = true }, _) ->
-      follow_once t
-    | _ ->
-      Abstract.follow_with_abstracts t
-    in
-
   let all_virtual_functions clazz =
     let current_virtual_functions_rev clazz base_functions =
        let folder result elem =
@@ -80,6 +70,7 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
 
   let add_extern_class klass = add_extern_type (TClassDecl klass) in
   let add_extern_enum enum = add_extern_type (TEnumDecl enum) in
+  let add_extern_abstract abstract = add_extern_type (TAbstractDecl abstract) in
   let add_native_gen_class klass =
     let include_files =
       get_all_meta_string_path klass.cl_meta
@@ -99,7 +90,7 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
   let rec visit_type in_type =
     if not (List.exists (fun t2 -> Type.fast_eq in_type t2) !visited) then (
       visited := in_type :: !visited;
-      (match follow in_type with
+      (match follow_once in_type with
       | TMono r -> ( match r.tm_type with None -> () | Some t -> visit_type t)
       | TEnum (enum, _) -> (
           match is_extern_enum enum with
@@ -126,8 +117,11 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
               match klass.cl_kind with
               | KTypeParameter _ -> ()
               | _ -> add_type klass.cl_path))
-      | TAbstract (a, _) when is_scalar_abstract a || is_marshalling_native_enum a ->
-          add_extern_type (TAbstractDecl a)
+      | TAbstract ({ a_extern = true } as a, _) as t when is_scalar_abstract a || is_marshalling_native_enum a ->
+          add_extern_abstract a;
+          visit_type t
+      | TAbstract (a, _) as t ->
+          visit_type t
       | TFun (args, haxe_type) ->
           visit_type haxe_type;
           List.iter (fun (_, _, t) -> visit_type t) args
