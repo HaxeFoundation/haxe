@@ -2324,7 +2324,7 @@ and eval_expr ctx e =
 			op ctx (OStaticClosure (r,f));
 		| AInstanceFun (ethis, f) ->
 			op ctx (OInstanceClosure (r, f, eval_null_check ctx ethis))
-		| AInstanceField (ethis,fid,_) ->
+		| AInstanceField (ethis, fid, _) ->
 			let robj = eval_null_check ctx ethis in
 			op ctx (match ethis.eexpr with TConst TThis -> OGetThis (r,fid) | _ -> OField (r,robj,fid));
 		| AInstanceProto (ethis,fid) | AVirtualMethod (ethis, fid) ->
