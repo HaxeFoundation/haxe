@@ -1327,10 +1327,10 @@ and object_access ctx eobj t f =
 	| HObj p | HStruct p ->
 		(try
 			let fid, t = get_index f.cf_name p in
-			let is_packed = match t with | HPacked _ -> true | _ -> false in
 			if f.cf_kind = Method MethNormal then
 				AInstanceProto (eobj, -fid-1)
 			else
+				let is_packed = match t with | HPacked _ -> true | _ -> false in
 				AInstanceField (eobj, fid, is_packed)
 		with Not_found ->
 			ADynamic (eobj, alloc_string ctx f.cf_name))
