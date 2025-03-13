@@ -650,6 +650,9 @@ let get_config com =
 			pf_supports_unicode = false;
 			pf_scoping = { default_config.pf_scoping with
 				vs_flags = [ReserveAllTopLevelSymbols];
+			};
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_avoid_wrapping = false
 			}
 		}
 	| Flash ->
@@ -770,6 +773,9 @@ let get_config com =
 				vs_scope = BlockScope;
 				vs_flags = [NoShadowing]
 			};
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_avoid_wrapping = false
+			}
 		}
 	| Eval ->
 		{
@@ -779,6 +785,9 @@ let get_config com =
 			pf_uses_utf16 = false;
 			pf_supports_threads = true;
 			pf_capture_policy = CPWrapRef;
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_avoid_wrapping = false
+			}
 		}
 
 let memory_marker = [|Unix.time()|]
