@@ -44,6 +44,11 @@
 		"doc": "Generate cpp instruction assembly."
 	},
 	{
+		"name": "CppiaAbsoluteSourcePaths",
+		"define": "cppia.absolute-source-paths",
+		"doc": "Embed absolute paths to source files for debugging."
+	},
+	{
 		"name": "NoCppiaAst",
 		"define": "nocppiaast",
 		"doc": "Use legacy cppia generation."
