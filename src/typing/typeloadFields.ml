@@ -54,6 +54,7 @@ type field_init_ctx = {
 	is_abstract : bool;
 	is_macro : bool;
 	is_abstract_member : bool;
+	is_abstract_constructor : bool;
 	is_display_field : bool;
 	is_field_debug : bool;
 	is_generic : bool;
@@ -271,7 +272,7 @@ let transform_abstract_field com this_t a_t a f =
 			);
 			f_type = Some a_t;
 		} in
-		{ f with cff_name = "_new",pos f.cff_name; cff_kind = FFun fu; cff_meta = meta }
+		{ f with cff_name = "_hx_new",pos f.cff_name; cff_kind = FFun fu; cff_meta = meta }
 	| FFun fu when not stat ->
 		if Meta.has Meta.From f.cff_meta then raise_typing_error "@:from cast functions must be static" f.cff_pos;
 		{ f with cff_kind = FFun fu }
@@ -529,6 +530,7 @@ let create_field_context ctx cctx cff is_display_file display_modifier =
 		is_field_debug = cctx.is_class_debug || Meta.has (Meta.Custom ":debug.typeload") cff.cff_meta;
 		display_modifier = display_modifier;
 		is_abstract_member = is_abstract_member;
+		is_abstract_constructor = is_abstract_member && fst cff.cff_name = "_hx_new";
 		is_generic = Meta.has Meta.Generic cff.cff_meta;
 		field_kind = field_kind;
 		do_bind = (((not ((has_class_flag c CExtern) || !is_extern) || is_inline) && not is_abstract && not (has_class_flag c CInterface)) || field_kind = CfrInit);
@@ -631,7 +633,7 @@ let check_field_display ctx fctx c cf =
 		let scope, cf = match c.cl_kind with
 			| KAbstractImpl _ ->
 				if has_class_field_flag cf CfImpl then
-					(if cf.cf_name = "_new" then
+					(if fctx.is_abstract_constructor then
 						CFSConstructor, {cf with cf_name = "new"}
 					else
 						CFSMember, cf)
@@ -927,6 +929,7 @@ let create_variable (ctx,cctx,fctx) c f cf t eo p =
 	cf
 
 let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
+	if fctx.is_abstract_constructor && a.a_constructor = None (* TODO: this is pretty dumb, it deals with the overload case *) then a.a_constructor <- Some cf;
 	let m = mk_mono() in
 	let ta = TAbstract(a,List.map (fun _ -> mk_mono()) a.a_params) in
 	let tthis = if fctx.is_abstract_member || Meta.has Meta.To cf.cf_meta then monomorphs a.a_params a.a_this else a.a_this in
@@ -978,10 +981,11 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 			cf.cf_meta <- (Meta.MultiType,[],null_pos) :: cf.cf_meta;
 		let r = make_lazy ctx.g t (fun () ->
 			let args = if is_multitype_cast then begin
-				let ctor = try
-					PMap.find "_new" c.cl_statics
-				with Not_found ->
-					raise_typing_error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
+				let ctor = match a.a_constructor with
+					| Some cf ->
+						cf
+					| None ->
+						raise_typing_error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
 				in
 				(* delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos); *)
 				let args = match follow (monomorphs a.a_params ctor.cf_type) with
@@ -1087,7 +1091,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		| _ -> ();
 	in
 	List.iter check_meta cf.cf_meta;
-	if cf.cf_name = "_new" && Meta.has Meta.MultiType a.a_meta then fctx.do_bind <- false;
+	if fctx.is_abstract_constructor && Meta.has Meta.MultiType a.a_meta then fctx.do_bind <- false;
 	if fd.f_expr = None then begin
 		if fctx.is_inline then missing_expression ctx.com fctx "Inline functions must have an expression" cf.cf_pos;
 		if fd.f_type = None then raise_typing_error ("Functions without expressions must have an explicit return type") cf.cf_pos;
@@ -1160,7 +1164,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 		maybe_use_property_type fd.f_type (fun () -> match Lazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
 	end in
 	let abstract_this = match cctx.abstract with
-		| Some a when fctx.is_abstract_member && name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
+		| Some a when fctx.is_abstract_member && not fctx.is_abstract_constructor && not fctx.is_macro ->
 			Some a.a_this
 		| _ ->
 			None
@@ -1271,6 +1275,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 		add_class_field_flag cf CfAbstract;
 	end;
 	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
+	if fctx.is_abstract_constructor then add_class_field_flag cf CfAbstractConstructor;
 	if fctx.is_generic then add_class_field_flag cf CfGeneric;
 	begin match fctx.default with
 	| Some p ->
@@ -1776,7 +1781,7 @@ let init_class ctx_c cctx c p herits fields =
 		| _ ->
 			()
 	end;
-	if not has_struct_init then
+	if not has_struct_init && not (has_class_flag c CAbstract) then
 		(* add_constructor does not deal with overloads correctly *)
 		if not com.config.pf_overload then TypeloadFunction.add_constructor ctx_c c cctx.force_constructor p;
 	finalize_class cctx

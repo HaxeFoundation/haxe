@@ -1589,6 +1589,7 @@ class hxb_reader
 		a.a_read <- self#read_option (fun () -> self#read_field_ref);
 		a.a_write <- self#read_option (fun () -> self#read_field_ref);
 		a.a_call <- self#read_option (fun () -> self#read_field_ref);
+		a.a_constructor <- self#read_option (fun () -> self#read_field_ref);
 
 		a.a_ops <- self#read_list (fun () ->
 			let i = read_byte ch in
@@ -2078,8 +2079,7 @@ class hxb_reader
 			^ "Attach the following information:"
 		in
 		let backtrace = Printexc.raw_backtrace_to_string backtrace in
-		let s = Printf.sprintf "%s\nHaxe: %s\n%s" msg s_version_full backtrace in
-		failwith s
+		raise (Globals.Ice (msg, backtrace))
 
 	method private read_chunk_data kind =
 		let path = String.concat "_" (ExtLib.String.nsplit (s_type_path mpath) ".") in

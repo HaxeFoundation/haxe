@@ -22,7 +22,7 @@ type t = {
 	basic : basic_types;
 	debug : bool;
 	file : string;
-	version : int;
+	version : compiler_version;
 	features : (string,bool) Hashtbl.t;
 	modules : Type.module_def list;
 	main : context_main;

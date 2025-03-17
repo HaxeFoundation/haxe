@@ -109,7 +109,7 @@ let optimize_binop e op e1 e2 =
 		| OpEq -> { e with eexpr = TConst (TBool false) }
 		| OpNotEq -> { e with eexpr = TConst (TBool true) }
 		| _ -> e)
-	| TConst (TInt a), TConst (TInt b) ->
+	| TConst (TInt a), TConst (TInt b) when is_numeric  e1.etype && is_numeric e2.etype ->
 		let opt f = try { e with eexpr = TConst (TInt (f a b)) } with Exit -> e in
 		let check_overflow f =
 			opt (fun a b ->

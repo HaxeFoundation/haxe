@@ -542,8 +542,13 @@ let generate_function ctx f =
 	let funname fid = define_function ctx fid in
 
 	let rcast r t =
-		if tsame (rtype r) t then (reg r)
-		else Printf.sprintf "((%s)%s)" (ctype t) (reg r)
+		let rt = (rtype r) in
+		if tsame rt t then (reg r)
+		else match t, rt with
+		| HPacked _, HStruct _ ->
+			Printf.sprintf "(*(%s*)%s)" (ctype t) (reg r)
+		| _ ->
+			Printf.sprintf "((%s)%s)" (ctype t) (reg r)
 	in
 
 	let rfun r args t =
@@ -806,7 +811,11 @@ let generate_function ctx f =
 				sexpr "%s = %ld" (reg r) code.ints.(idx)
 		| OFloat (r,idx) ->
 			let fstr = sprintf "%.19g" code.floats.(idx) in
-			sexpr "%s = %s" (reg r) (if String.contains fstr '.' || String.contains fstr 'e' then fstr else fstr ^ ".")
+			let fstr = (if String.contains fstr '.' || String.contains fstr 'e' then fstr else fstr ^ ".") in
+			(match rtype r with
+			| HF32 -> sexpr "%s = %sf" (reg r) fstr
+			| _ -> sexpr "%s = %s" (reg r) fstr
+			);
 		| OBool (r,b) ->
 			sexpr "%s = %s" (reg r) (if b then "true" else "false")
 		| OBytes (r,idx) ->
@@ -1109,7 +1118,7 @@ let generate_function ctx f =
 			let expr = (if fid = 0 then reg r else (match rtype r with
 			| HObj o | HStruct o ->
 				let name, t = resolve_field o (fid - 1) in
-				Printf.sprintf "%s->%s" (reg r) name
+				Printf.sprintf "&%s->%s" (reg r) name
 			| _ ->
 				Globals.die "" __LOC__
 			)) in
@@ -1463,7 +1472,7 @@ let write_c com file (code:code) gnames =
 	let bnames = Array.map (fun b -> "bytes$" ^ short_digest (Digest.to_hex (Digest.bytes b))) code.bytes in
 
 	let ctx = {
-		version = com.Gctx.version;
+		version = com.Gctx.version.version;
 		out = Buffer.create 1024;
 		tabs = "";
 		hlcode = code;
@@ -1556,16 +1565,26 @@ let write_c com file (code:code) gnames =
 		sexpr "static struct _%s %s = {%s}" (ctype t) name (String.concat "," fields);
 	) code.constants;
 	line "";
-	line "void hl_init_roots() {";
+	line "void hl_init_roots_constants() {";
 	block ctx;
 	let is_const = Hashtbl.create 0 in
 	Array.iter (fun (g,fields) ->
 		sexpr "%s = &const_%s" gnames.(g) gnames.(g);
 		Hashtbl.add is_const g true;
 	) code.constants;
+	unblock ctx;
+	line "}";
+	line "void hl_init_roots_globals() {";
+	block ctx;
 	Array.iteri (fun i t ->
 		if is_ptr t && not (Hashtbl.mem is_const i) then sexpr "hl_add_root((void**)&%s)" gnames.(i);
 	) code.globals;
+	unblock ctx;
+	line "}";
+	line "void hl_init_roots() {";
+	block ctx;
+	expr "hl_init_roots_constants()";
+	expr "hl_init_roots_globals()";
 	unblock ctx;
 	line "}";
 

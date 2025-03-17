@@ -155,7 +155,7 @@ let rec follow_with_forward_ctor ?(build=false) t = match follow t with
 	| TAbstract(a,tl) as t ->
 		if build then build_abstract a;
 		if Meta.has Meta.ForwardNew a.a_meta && not (match a.a_impl with
-			| Some c -> PMap.mem "_new" c.cl_statics
+			| Some c -> a.a_constructor <> None
 			| None -> false
 		) then
 			follow_with_forward_ctor (get_underlying_type ~return_first:true a tl)

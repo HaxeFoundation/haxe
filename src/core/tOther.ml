@@ -300,6 +300,7 @@ let mk_abstract m path pos name_pos =
 		a_this = mk_mono();
 		a_read = None;
 		a_write = None;
+		a_constructor = None;
 		a_extern = false;
 		a_enum = false;
 		a_call = None;

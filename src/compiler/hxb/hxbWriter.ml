@@ -452,8 +452,7 @@ module HxbWriter = struct
 			^ "Attach the following information:"
 		in
 		let backtrace = Printexc.raw_backtrace_to_string backtrace in
-		let s = Printf.sprintf "%s\nHaxe: %s\n%s" msg s_version_full backtrace in
-		failwith s
+		raise (Globals.Ice (msg, backtrace))
 
 	let in_nested_scope writer = match writer.field_stack with
 		| [] -> false (* can happen for cl_init and in EXD *)
@@ -1918,6 +1917,7 @@ module HxbWriter = struct
 		Chunk.write_option writer.chunk a.a_read (write_field_ref writer c CfrStatic );
 		Chunk.write_option writer.chunk a.a_write (write_field_ref writer c CfrStatic);
 		Chunk.write_option writer.chunk a.a_call (write_field_ref writer c CfrStatic);
+		Chunk.write_option writer.chunk a.a_constructor (write_field_ref writer c CfrStatic);
 
 		Chunk.write_list writer.chunk a.a_ops (fun (op, cf) ->
 			Chunk.write_u8 writer.chunk (binop_index op);

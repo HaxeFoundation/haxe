@@ -554,7 +554,8 @@
 	{
 		"name": "NoDeprecationWarnings",
 		"define": "no-deprecation-warnings",
-		"doc": "Do not warn if fields annotated with `@:deprecated` are used."
+		"doc": "Do not warn if fields annotated with `@:deprecated` are used.",
+		"deprecated": "Use -w to configure warnings. See https://haxe.org/manual/cr-warnings.html for more information."
 	},
 	{
 		"name": "NoFlashOverride",
@@ -791,7 +792,8 @@
 	{
 		"name": "WarnVarShadowing",
 		"define": "warn-var-shadowing",
-		"doc": "Warn about shadowing variable declarations."
+		"doc": "Warn about shadowing variable declarations.",
+		"deprecated": "Use -w to configure warnings. See https://haxe.org/manual/cr-warnings.html for more information."
 	},
 	{
 		"name": "NoTre",

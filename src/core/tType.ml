@@ -32,8 +32,11 @@ type module_check_policy =
 
 type module_tainting_reason =
 	| CheckDisplayFile
+	| DefineType
+	| DefineModule
 	| ServerInvalidate
 	| ServerInvalidateFiles
+	| ServerInvalidateModule
 
 type module_skip_reason =
 	| DependencyDirty of path * module_skip_reason
@@ -382,6 +385,7 @@ and tabstract = {
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
 	mutable a_call : tclass_field option;
+	mutable a_constructor : tclass_field option;
 	mutable a_extern : bool;
 	mutable a_enum : bool;
 }
@@ -494,6 +498,10 @@ type flag_tclass =
 	| CUsed (* Marker for DCE *)
 	| CExcluded (* Marker for exclude macro, turned into CExtern during filters *)
 
+let flag_tclass_names = [
+	"CExtern";"CFinal";"CInterface";"CAbstract";"CFunctionalInterface";"CUsed";"CExcluded";
+]
+
 type flag_tclass_field =
 	| CfPublic
 	| CfStatic
@@ -511,10 +519,11 @@ type flag_tclass_field =
 	| CfUsed (* Marker for DCE *)
 	| CfMaybeUsed (* Marker for DCE *)
 	| CfNoLookup (* Field cannot be accessed by-name. *)
+	| CfAbstractConstructor
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup";"CfAbstractConstructor"
 ]
 
 type flag_tenum =

@@ -179,11 +179,11 @@ let handler =
 			hctx.send_result (JObject [
 				"methods",jarray methods;
 				"haxeVersion",jobject [
-					"major",jint version_major;
-					"minor",jint version_minor;
-					"patch",jint version_revision;
-					"pre",(match version_pre with None -> jnull | Some pre -> jstring pre);
-					"build",(match Version.version_extra with None -> jnull | Some(_,build) -> jstring build);
+					"major",jint hctx.com.version.major;
+					"minor",jint hctx.com.version.minor;
+					"patch",jint hctx.com.version.revision;
+					"pre",(match hctx.com.version.pre with None -> jnull | Some pre -> jstring pre);
+					"build",(match hctx.com.version.extra with None -> jnull | Some(_,build) -> jstring build);
 				];
 				"protocolVersion",jobject [
 					"major",jint 0;

@@ -24,6 +24,15 @@ type platform =
 	| Eval
 	| CustomTarget of string
 
+type compiler_version = {
+	version: int;
+	major: int;
+	minor: int;
+	revision: int;
+	pre: string option;
+	extra: (string * string) option;
+}
+
 let version = 5000
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
@@ -135,13 +144,16 @@ let s_version =
 	let pre = Option.map_default (fun pre -> "-" ^ pre) "" version_pre in
 	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision pre
 
-let s_version_full =
-	match Version.version_extra with
+let s_version_full v =
+	match v.extra with
 		| Some (_,build) -> s_version ^ "+" ^ build
 		| _ -> s_version
 
 
 let patch_string_pos p s = { p with pmin = p.pmax - String.length s }
+
+(* msg * backtrace *)
+exception Ice of string * string
 
 (**
 	Terminates compiler process and prints user-friendly instructions about filing an issue.
@@ -163,10 +175,8 @@ let die ?p msg ml_loc =
 		try snd (ExtString.String.split backtrace "\n")
 		with ExtString.Invalid_string -> backtrace
 	in
-	let ver = s_version_full
-	and os_type = if Sys.unix then "unix" else "windows" in
-	let s = Printf.sprintf "%s\nHaxe: %s; OS type: %s;\n%s\n%s" msg ver os_type ml_loc backtrace in
-	failwith s
+	let backtrace = ml_loc ^ "\n" ^ backtrace in
+	raise (Ice (msg,backtrace))
 
 let dump_callstack () =
 	print_endline (Printexc.raw_backtrace_to_string (Printexc.get_callstack 200))

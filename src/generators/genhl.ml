@@ -130,7 +130,7 @@ type access =
 	| AStaticFun of fundecl index
 	| AInstanceFun of texpr * fundecl index
 	| AInstanceProto of texpr * field index
-	| AInstanceField of texpr * field index
+	| AInstanceField of texpr * field index * bool
 	| AArray of reg * (ttype * ttype) * reg
 	| ACArray of reg * ttype * reg
 	| AVirtualMethod of texpr * field index
@@ -1086,18 +1086,14 @@ let rec eval_to ctx e (t:ttype) =
 		let r = alloc_tmp ctx t in
 		op ctx (OFloat (r,alloc_float ctx (Int32.to_float i)));
 		r
-	(* this causes a bug with NG, to be reviewed later
 	| TConst (TInt i), HF32 ->
 		let r = alloc_tmp ctx t in
-		let bits = Int32.bits_of_float (Int32.to_float i) in
-		op ctx (OFloat (r,alloc_float ctx (Int64.float_of_bits (Int64.of_int32 bits))));
+		op ctx (OFloat (r, alloc_float ctx (Int32.to_float i)));
 		r
 	| TConst (TFloat f), HF32 ->
 		let r = alloc_tmp ctx t in
-		let bits = Int32.bits_of_float (float_of_string f) in
-		op ctx (OFloat (r,alloc_float ctx (Int64.float_of_bits (Int64.of_int32 bits))));
+		op ctx (OFloat (r, alloc_float ctx (float_of_string f)));
 		r
-	*)
 	| _ ->
 		let r = eval_expr ctx e in
 		cast_to ctx r t e.epos
@@ -1242,7 +1238,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		let r = alloc_tmp ctx (HNull t) in
 		op ctx (OToDyn (r,tmp));
 		r
-	| HNull ((HUI8 | HUI16 | HI32 | HI64) as it), (HF32 | HF64) ->
+	| HNull ((HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) as it), (HF32 | HF64) ->
 		let i = alloc_tmp ctx it in
 		op ctx (OSafeCast (i,r));
 		let tmp = alloc_tmp ctx t in
@@ -1330,11 +1326,12 @@ and object_access ctx eobj t f =
 	match t with
 	| HObj p | HStruct p ->
 		(try
-			let fid = fst (get_index f.cf_name p) in
+			let fid, t = get_index f.cf_name p in
 			if f.cf_kind = Method MethNormal then
 				AInstanceProto (eobj, -fid-1)
 			else
-				AInstanceField (eobj, fid)
+				let is_packed = match t with | HPacked _ -> true | _ -> false in
+				AInstanceField (eobj, fid, is_packed)
 		with Not_found ->
 			ADynamic (eobj, alloc_string ctx f.cf_name))
 	| HVirtual v ->
@@ -1343,7 +1340,7 @@ and object_access ctx eobj t f =
 			if f.cf_kind = Method MethNormal then
 				AVirtualMethod (eobj, fid)
 			else
-				AInstanceField (eobj, fid)
+				AInstanceField (eobj, fid, false)
 		with Not_found ->
 			ADynamic (eobj, alloc_string ctx f.cf_name))
 	| HDyn ->
@@ -2179,7 +2176,7 @@ and eval_expr ctx e =
 				| _ -> abort "Constant mode required" e.epos
 			) in
 			(match get_access ctx value with
-			| AInstanceField (f, index) -> op ctx (OPrefetch (eval_expr ctx f, index + 1, mode))
+			| AInstanceField (f, index, _) -> op ctx (OPrefetch (eval_expr ctx f, index + 1, mode))
 			| _ -> op ctx (OPrefetch (eval_expr ctx value, 0, mode)));
 			alloc_tmp ctx HVoid
         | "$unsafecast", [value] ->
@@ -2327,7 +2324,7 @@ and eval_expr ctx e =
 			op ctx (OStaticClosure (r,f));
 		| AInstanceFun (ethis, f) ->
 			op ctx (OInstanceClosure (r, f, eval_null_check ctx ethis))
-		| AInstanceField (ethis,fid) ->
+		| AInstanceField (ethis, fid, _) ->
 			let robj = eval_null_check ctx ethis in
 			op ctx (match ethis.eexpr with TConst TThis -> OGetThis (r,fid) | _ -> OField (r,robj,fid));
 		| AInstanceProto (ethis,fid) | AVirtualMethod (ethis, fid) ->
@@ -2525,15 +2522,17 @@ and eval_expr ctx e =
 				op ctx (OGetGlobal (o, g));
 				op ctx (OSetField (o, fid, r));
 				r
-			| AInstanceField ({ eexpr = TConst TThis }, fid) ->
+			| AInstanceField ({ eexpr = TConst TThis }, fid, is_packed) ->
 				let r = value() in
+				if is_packed then op ctx (ONullCheck r);
 				op ctx (OSetThis (fid,r));
 				r
-			| AInstanceField (ethis, fid) ->
+			| AInstanceField (ethis, fid, is_packed) ->
 				let rthis = eval_null_check ctx ethis in
 				hold ctx rthis;
 				let r = value() in
 				free ctx rthis;
+				if is_packed then op ctx (ONullCheck r);
 				op ctx (OSetField (rthis, fid, r));
 				r
 			| ALocal (v,l) ->
@@ -3091,7 +3090,7 @@ and gen_assign_op ctx acc e1 f =
 			f r
 	in
 	match acc with
-	| AInstanceField (eobj, findex) ->
+	| AInstanceField (eobj, findex, _) ->
 		let robj = eval_null_check ctx eobj in
 		hold ctx robj;
 		let t = real_type ctx e1 in
@@ -3427,7 +3426,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		regs = DynArray.to_array ctx.m.mregs.arr;
 		code = DynArray.to_array ctx.m.mops;
 		debug = make_debug ctx ctx.m.mdebug;
-		assigns = Array.of_list (List.rev ctx.m.massign);
+		assigns = Array.of_list (List.sort (fun (_,p1) (_,p2) -> p1 - p2) (List.rev ctx.m.massign));
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
@@ -4296,9 +4295,9 @@ let generate com =
 		let gnames = Array.make (Array.length code.globals) "" in
 		PMap.iter (fun n i -> gnames.(i) <- n) ctx.cglobals.map;
 		if not (Gctx.defined com Define.SourceHeader) then begin
-			let version_major = com.version / 1000 in
-			let version_minor = (com.version mod 1000) / 100 in
-			let version_revision = (com.version mod 100) in
+			let version_major = com.version.major in
+			let version_minor = com.version.minor in
+			let version_revision = com.version.revision in
 			Gctx.define_value com Define.SourceHeader (Printf.sprintf "Generated by HLC %d.%d.%d (HL v%d)" version_major version_minor version_revision code.version);
 		end;
 		Hl2c.write_c com com.file code gnames;
