@@ -185,6 +185,7 @@ end
 
 module type DataFlowApi = sig
 	type t
+	val to_string : t -> string
 	val flag : BasicBlock.cfg_edge_Flag
 	val transfer : analyzer_context -> BasicBlock.t -> texpr -> t (* The transfer function *)
 	val equals : t -> t -> bool                                   (* The equality function *)
@@ -364,6 +365,16 @@ module ConstPropagation = DataFlow(struct
 		| EnumValue of int * t list
 		| ModuleType of module_type * Type.t
 
+	let rec to_string =
+		let st = s_type (print_context()) in
+		function
+		| Top -> "Top"
+		| Bottom -> "Bottom"
+		| Null t -> Printf.sprintf "Null(%s)" (st t)
+		| Const(ct,t) -> Printf.sprintf "Const(%s,%s)" (s_const ct) (st t)
+		| EnumValue(i,tl) -> Printf.sprintf "EnumValue(%i, %s)" i (String.concat ", " (List.map to_string tl))
+		| ModuleType(mt,t) -> Printf.sprintf "ModuleType(%s,%s)" (s_module_type_kind mt) (st t)
+
 	let conditional = true
 	let flag = FlagExecutable
 
@@ -377,7 +388,7 @@ module ConstPropagation = DataFlow(struct
 
 	let equals lat1 lat2 = match lat1,lat2 with
 		| Top,Top | Bottom,Bottom -> true
-		| Const(ct1,t1),Const(ct2,t2) -> ct1 = ct2 && t1 == t2
+		| Const(ct1,t1),Const(ct2,t2) -> ct1 = ct2 && type_iseq t1 t2
 		| Null t1,Null t2 -> t1 == t2
 		| EnumValue(i1,[]),EnumValue(i2,[]) -> i1 = i2
 		| ModuleType(mt1,_),ModuleType (mt2,_) -> mt1 == mt2
@@ -488,8 +499,9 @@ module ConstPropagation = DataFlow(struct
 		let inline e i = match get_cell i with
 			| Top | Bottom | EnumValue _ | Null _ ->
 				raise Not_found
-			| Const(ct,tTODO) ->
+			| Const(ct,t) ->
 				let e' = Texpr.type_constant ctx.com.basic (tconst_to_const ct) e.epos in
+				let e' = {e' with etype = t} in
 				if not (type_change_ok ctx.com e'.etype e.etype) then raise Not_found;
 				e'
 			| ModuleType(mt,t) ->
