@@ -59,7 +59,7 @@ class Reflect {
 		return untyped func.__Run(args);
 	}
 
-	public static function fields(o:Dynamic):Array<String> untyped {
+	public static function fields(o:haxe.runtime.FieldHost):Array<String> untyped {
 		if (o == null)
 			return new Array();
 		var a:Array<String> = [];
@@ -108,7 +108,7 @@ class Reflect {
 		if (untyped o.__GetType() == ObjectType.vtArray)
 			return untyped o.__Field("copy", untyped __cpp__("::hx::paccDynamic"))();
 		var o2:Dynamic = {};
-		for (f in Reflect.fields(o))
+		for (f in Reflect.fields(cast o))
 			Reflect.setField(o2, f, Reflect.field(o, f));
 		return o2;
 	}

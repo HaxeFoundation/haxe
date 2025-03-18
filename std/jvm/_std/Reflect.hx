@@ -77,12 +77,12 @@ class Reflect {
 		return Jvm.call(cast func, @:privateAccess args.getNative());
 	}
 
-	public static function fields(o:Dynamic):Array<String> {
+	public static function fields(o:haxe.runtime.FieldHost):Array<String> {
 		if (!Jvm.instanceof(o, jvm.DynamicObject)) {
 			if (Jvm.instanceof(o, java.lang.Class)) {
-				return Type.getClassFields(o);
+				return Type.getClassFields(cast o);
 			}
-			var c = (o : java.lang.Object).getClass();
+			var c = (cast o : java.lang.Object).getClass();
 			var ret = [];
 			for (f in c.getDeclaredFields()) {
 				if (java.lang.reflect.Modifier.isStatic(f.getModifiers()) == false && !f.isSynthetic()) {

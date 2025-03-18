@@ -62,7 +62,7 @@
 		return $call(func, o, a);
 	}
 
-	public static function fields(o:Dynamic):Array<String> untyped {
+	public static function fields(o:haxe.runtime.FieldHost):Array<String> untyped {
 		if ($typeof(o) != $tobject)
 			return new Array<String>();
 		else {

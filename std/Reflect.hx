@@ -98,14 +98,14 @@ extern class Reflect {
 	static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic;
 
 	/**
-		Returns the fields of structure `o`.
+		Returns the fields of anonymous structure or class instance `o`.
 
-		This method is only guaranteed to work on anonymous structures. Refer to
-		`Type.getInstanceFields` for a function supporting class instances.
+		On flash, this method is only guaranteed to work on anonymous structures.
+		Refer to `Type.getInstanceFields` for a function supporting class instances.
 
 		If `o` is null, the result is unspecified.
 	**/
-	static function fields(o:Dynamic):Array<String>;
+	static function fields(o:haxe.runtime.FieldHost):Array<String>;
 
 	/**
 		Returns true if `f` is a function, false otherwise.

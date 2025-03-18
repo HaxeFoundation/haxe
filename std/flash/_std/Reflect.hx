@@ -55,7 +55,7 @@
 		return func.apply(o, args);
 	}
 
-	public static function fields(o:Dynamic):Array<String> untyped {
+	public static function fields(o:haxe.runtime.FieldHost):Array<String> untyped {
 		if (o == null)
 			return new Array();
 		var i = 0;
@@ -107,7 +107,7 @@
 		if (o == null)
 			return null;
 		var o2:Dynamic = {};
-		for (f in Reflect.fields(o))
+		for (f in Reflect.fields(cast o))
 			Reflect.setField(o2, f, Reflect.field(o, f));
 		return o2;
 	}

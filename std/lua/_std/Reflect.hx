@@ -83,7 +83,7 @@ import lua.TableTools;
 		}
 	}
 
-	public static function fields(o:Dynamic):Array<String> {
+	public static function fields(o:haxe.runtime.FieldHost):Array<String> {
 		if (lua.Lua.type(o) == "string") {
 			return Reflect.fields(untyped String.prototype);
 		} else {

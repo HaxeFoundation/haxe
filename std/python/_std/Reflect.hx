@@ -76,7 +76,7 @@ class Reflect {
 		return if (UBuiltins.callable(func)) func(python.Syntax.varArgs(args)) else null;
 	}
 
-	public static inline function fields(o:Dynamic):Array<String> {
+	public static inline function fields(o:haxe.runtime.FieldHost):Array<String> {
 		return python.Boot.fields(o);
 	}
 
@@ -131,7 +131,7 @@ class Reflect {
 		if (o == null)
 			return null;
 		var o2:Dynamic = {};
-		for (f in Reflect.fields(o))
+		for (f in Reflect.fields(cast o))
 			Reflect.setField(o2, f, Reflect.field(o, f));
 		return o2;
 	}

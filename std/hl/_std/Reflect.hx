@@ -87,7 +87,7 @@ class Reflect {
 		return null;
 	}
 
-	public static function fields(o:Dynamic):Array<String> {
+	public static function fields(o:haxe.runtime.FieldHost):Array<String> {
 		var fields = getObjectFields(o);
 		if (fields == null)
 			return [];

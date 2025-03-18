@@ -113,9 +113,9 @@ using php.Global;
 		return Global.call_user_func_array(func, @:privateAccess args.arr);
 	}
 
-	public static function fields(o:Dynamic):Array<String> {
+	public static function fields(o:haxe.runtime.FieldHost):Array<String> {
 		if (Global.is_object(o)) {
-			return @:privateAccess Array.wrap(Global.get_object_vars(o).array_keys());
+			return @:privateAccess Array.wrap(Global.get_object_vars(cast o).array_keys());
 		}
 		return [];
 	}

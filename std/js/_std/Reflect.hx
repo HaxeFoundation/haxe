@@ -55,7 +55,7 @@
 		return (cast func : js.lib.Function).apply(o, args);
 	}
 
-	public static function fields(o:Dynamic):Array<String> {
+	public static function fields(o:haxe.runtime.FieldHost):Array<String> {
 		var a = [];
 		if (o != null) untyped {
 			var hasOwnProperty = js.lib.Object.prototype.hasOwnProperty;
@@ -104,7 +104,7 @@
 		if (o == null)
 			return null;
 		var o2:Dynamic = {};
-		for (f in Reflect.fields(o))
+		for (f in Reflect.fields(cast o))
 			Reflect.setField(o2, f, Reflect.field(o, f));
 		return o2;
 	}
