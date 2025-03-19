@@ -31,13 +31,13 @@ import haxe.runtime.FieldHost;
 	@:pure
 	public static function field(o:FieldHost, field:String):Dynamic {
 		try
-			return o.asArrayAccess()[cast field]
+			return o.asDynamic()[cast field]
 		catch (e:Dynamic)
 			return null;
 	}
 
 	public inline static function setField(o:FieldHost, field:String, value:Dynamic):Void {
-		o.asArrayAccess()[cast field] = value;
+		o.asDynamic()[cast field] = value;
 	}
 
 	public static function getProperty(o:FieldHost, field:String):Dynamic untyped {

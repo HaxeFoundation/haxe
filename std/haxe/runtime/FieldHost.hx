@@ -5,10 +5,6 @@ abstract FieldHost(Dynamic) from {}
 	from Dynamic<Dynamic>
 	from Class<Dynamic>
 {
-	public inline function asArrayAccess():ArrayAccess<Dynamic> {
-		return cast this;
-	}
-
 	public inline function asStructure():{} {
 		return cast this;
 	}
