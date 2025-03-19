@@ -27,12 +27,13 @@ import java.lang.Number;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import jvm.Jvm;
+import haxe.runtime.FieldHost;
 
 using jvm.NativeTools.NativeClassTools;
 
 @:coreApi
 class Reflect {
-	public static function hasField(o:Dynamic, field:String):Bool {
+	public static function hasField(o:FieldHost, field:String):Bool {
 		if (!Jvm.instanceof(o, jvm.DynamicObject)) {
 			var c:java.lang.Class<Dynamic> = Jvm.instanceof(o, java.lang.Class) ? cast o : (cast o : java.lang.Object).getClass();
 			try {
@@ -45,18 +46,18 @@ class Reflect {
 		return (cast o : jvm.DynamicObject)._hx_hasField(field);
 	}
 
-	public static function field(o:Dynamic, field:String):Dynamic {
+	public static function field(o:FieldHost, field:String):Dynamic {
 		if (o == null) {
 			return null;
 		}
 		return Jvm.readField(o, field);
 	}
 
-	public static function setField(o:Dynamic, field:String, value:Dynamic):Void {
+	public static function setField(o:FieldHost, field:String, value:Dynamic):Void {
 		Jvm.writeField(o, field, value);
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:FieldHost, field:String):Dynamic {
 		var f = Reflect.field(o, "get_" + field);
 		if (f != null) {
 			return f();
@@ -64,7 +65,7 @@ class Reflect {
 		return Reflect.field(o, field);
 	}
 
-	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
+	public static function setProperty(o:FieldHost, field:String, value:Dynamic):Void {
 		var f = Reflect.field(o, "set_" + field);
 		if (f != null) {
 			f(value);
@@ -77,7 +78,7 @@ class Reflect {
 		return Jvm.call(cast func, @:privateAccess args.getNative());
 	}
 
-	public static function fields(o:haxe.runtime.FieldHost):Array<String> {
+	public static function fields(o:FieldHost):Array<String> {
 		if (!Jvm.instanceof(o, jvm.DynamicObject)) {
 			if (Jvm.instanceof(o, java.lang.Class)) {
 				return Type.getClassFields(cast o);
@@ -191,7 +192,7 @@ class Reflect {
 		return @:privateAccess Type.isEnumValueClass((cast v : java.lang.Object).getClass());
 	}
 
-	public static function deleteField(o:Dynamic, field:String):Bool {
+	public static function deleteField(o:FieldHost, field:String):Bool {
 		if (!Jvm.instanceof(o, jvm.DynamicObject)) {
 			return false;
 		}

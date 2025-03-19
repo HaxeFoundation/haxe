@@ -20,6 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import haxe.runtime.FieldHost;
+
 /**
 	The Reflect API is a way to manipulate values dynamically through an
 	abstract interface in an untyped manner. Use with care.
@@ -35,7 +37,7 @@ extern class Reflect {
 
 		If `o` or `field` are null, the result is unspecified.
 	**/
-	static function hasField(o:Dynamic, field:String):Bool;
+	static function hasField(o:FieldHost, field:String):Bool;
 
 	/**
 		Returns the value of the field named `field` on object `o`.
@@ -48,7 +50,7 @@ extern class Reflect {
 
 		If `field` is null, the result is unspecified.
 	**/
-	static function field(o:Dynamic, field:String):Dynamic;
+	static function field(o:FieldHost, field:String):Dynamic;
 
 	/**
 		Sets the field named `field` of object `o` to value `value`.
@@ -58,7 +60,7 @@ extern class Reflect {
 
 		If `o` or `field` are null, the result is unspecified.
 	**/
-	static function setField(o:Dynamic, field:String, value:Dynamic):Void;
+	static function setField(o:FieldHost, field:String, value:Dynamic):Void;
 
 	/**
 		Returns the value of the field named `field` on object `o`, taking
@@ -69,7 +71,7 @@ extern class Reflect {
 
 		If `o` or `field` are null, the result is unspecified.
 	**/
-	static function getProperty(o:Dynamic, field:String):Dynamic;
+	static function getProperty(o:FieldHost, field:String):Dynamic;
 
 	/**
 		Sets the field named `field` of object `o` to value `value`, taking
@@ -80,7 +82,7 @@ extern class Reflect {
 
 		If `field` is null, the result is unspecified.
 	**/
-	static function setProperty(o:Dynamic, field:String, value:Dynamic):Void;
+	static function setProperty(o:FieldHost, field:String, value:Dynamic):Void;
 
 	/**
 		Call a method `func` with the given arguments `args`.
@@ -105,7 +107,7 @@ extern class Reflect {
 
 		If `o` is null, the result is unspecified.
 	**/
-	static function fields(o:haxe.runtime.FieldHost):Array<String>;
+	static function fields(o:FieldHost):Array<String>;
 
 	/**
 		Returns true if `f` is a function, false otherwise.
@@ -182,7 +184,7 @@ extern class Reflect {
 
 		If `o` or `field` are null, the result is unspecified.
 	**/
-	static function deleteField(o:Dynamic, field:String):Bool;
+	static function deleteField(o:FieldHost, field:String):Bool;
 
 	/**
 		Copies the fields of structure `o`.

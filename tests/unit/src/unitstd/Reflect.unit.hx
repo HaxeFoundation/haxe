@@ -14,8 +14,7 @@ Reflect.field(c, "prop") == "prop";
 Reflect.field(c, "func")() == "foo";
 Reflect.field(c, "propAcc") == "0";
 var n = null;
-Reflect.field(n, n) == null;
-Reflect.field(1, "foo") == null;
+Reflect.field(n, null) == null;
 
 // setField
 Reflect.setField(x, "a", 2);

@@ -30,25 +30,26 @@ import python.internal.MethodClosure;
 import python.internal.StringImpl;
 import python.internal.UBuiltins;
 import python.lib.Inspect;
+import haxe.runtime.FieldHost;
 
 @:access(python.Boot)
 @:coreApi
 class Reflect {
-	public static inline function hasField(o:Dynamic, field:String):Bool {
+	public static inline function hasField(o:FieldHost, field:String):Bool {
 		return Boot.hasField(o, field);
 	}
 
 	@:ifFeature("dynamic_read", "anon_optional_read")
-	public static function field(o:Dynamic, field:String):Dynamic {
+	public static function field(o:FieldHost, field:String):Dynamic {
 		return Boot.field(o, field);
 	}
 
 	@:ifFeature("dynamic_write", "anon_optional_write")
-	public static inline function setField(o:Dynamic, field:String, value:Dynamic):Void {
+	public static inline function setField(o:FieldHost, field:String, value:Dynamic):Void {
 		UBuiltins.setattr(o, handleKeywords(field), value);
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:FieldHost, field:String):Dynamic {
 		if (o == null)
 			return null;
 
@@ -62,7 +63,7 @@ class Reflect {
 			return Reflect.field(o, field);
 	}
 
-	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
+	public static function setProperty(o:FieldHost, field:String, value:Dynamic):Void {
 		var field = handleKeywords(field);
 		if (Boot.isAnonObject(o))
 			UBuiltins.setattr(o, field, value);
@@ -76,7 +77,7 @@ class Reflect {
 		return if (UBuiltins.callable(func)) func(python.Syntax.varArgs(args)) else null;
 	}
 
-	public static inline function fields(o:haxe.runtime.FieldHost):Array<String> {
+	public static inline function fields(o:FieldHost):Array<String> {
 		return python.Boot.fields(o);
 	}
 
@@ -119,7 +120,7 @@ class Reflect {
 		return v != Enum && UBuiltins.isinstance(v, cast Enum);
 	}
 
-	public static function deleteField(o:Dynamic, field:String):Bool {
+	public static function deleteField(o:FieldHost, field:String):Bool {
 		field = handleKeywords(field);
 		if (!hasField(o, field))
 			return false;
@@ -132,7 +133,7 @@ class Reflect {
 			return null;
 		var o2:Dynamic = {};
 		for (f in Reflect.fields(cast o))
-			Reflect.setField(o2, f, Reflect.field(o, f));
+			Reflect.setField(cast o2, f, Reflect.field(cast o, f));
 		return o2;
 	}
 

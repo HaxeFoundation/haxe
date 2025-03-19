@@ -19,20 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.runtime.FieldHost;
+
 @:coreApi class Reflect {
-	public static function hasField(o:Dynamic, field:String):Bool untyped {
+	public static function hasField(o:FieldHost, field:String):Bool untyped {
 		return o.hasOwnProperty(field);
 	}
 
-	public static function field(o:Dynamic, field:String):Dynamic untyped {
+	public static function field(o:FieldHost, field:String):Dynamic untyped {
 		return o != null && __in__(field, o) ? o[field] : null;
 	}
 
-	public inline static function setField(o:Dynamic, field:String, value:Dynamic):Void untyped {
+	public inline static function setField(o:FieldHost, field:String, value:Dynamic):Void untyped {
 		o[field] = value;
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic untyped {
+	public static function getProperty(o:FieldHost, field:String):Dynamic untyped {
 		if (o == null)
 			return null;
 		var getter = 'get_$field';
@@ -42,7 +45,7 @@
 		return __in__(field, o) ? o[field] : null;
 	}
 
-	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void untyped {
+	public static function setProperty(o:FieldHost, field:String, value:Dynamic):Void untyped {
 		var setter = 'set_$field';
 		if (__in__(setter, o)) {
 			o[setter](value);
@@ -55,7 +58,7 @@
 		return func.apply(o, args);
 	}
 
-	public static function fields(o:haxe.runtime.FieldHost):Array<String> untyped {
+	public static function fields(o:FieldHost):Array<String> untyped {
 		if (o == null)
 			return new Array();
 		var i = 0;
@@ -96,7 +99,7 @@
 		return try v.__enum__ == true catch (e:Dynamic) false;
 	}
 
-	public static function deleteField(o:Dynamic, field:String):Bool untyped {
+	public static function deleteField(o:FieldHost, field:String):Bool untyped {
 		if (o.hasOwnProperty(field) != true)
 			return false;
 		__delete__(o, field);
@@ -108,7 +111,7 @@
 			return null;
 		var o2:Dynamic = {};
 		for (f in Reflect.fields(cast o))
-			Reflect.setField(o2, f, Reflect.field(o, f));
+			Reflect.setField(cast o2, f, Reflect.field(cast o, f));
 		return o2;
 	}
 

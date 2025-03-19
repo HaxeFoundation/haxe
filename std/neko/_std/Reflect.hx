@@ -19,28 +19,31 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.runtime.FieldHost;
+
 @:coreApi class Reflect {
-	public static function hasField(o:Dynamic, field:String):Bool untyped {
+	public static function hasField(o:FieldHost, field:String):Bool untyped {
 		return $typeof(o) == $tobject && $objfield(o, $fasthash(field.__s));
 	}
 
-	public inline static function field(o:Dynamic, field:String):Dynamic untyped {
+	public inline static function field(o:FieldHost, field:String):Dynamic untyped {
 		return if ($typeof(o) != $tobject) null else $objget(o, $fasthash(field.__s));
 	}
 
-	public inline static function setField(o:Dynamic, field:String, value:Dynamic):Void untyped {
+	public inline static function setField(o:FieldHost, field:String, value:Dynamic):Void untyped {
 		if ($typeof(o) == $tobject)
 			$objset(o, $hash(field.__s), value);
 	}
 
-	public static inline function getProperty(o:Dynamic, field:String):Dynamic untyped {
+	public static inline function getProperty(o:FieldHost, field:String):Dynamic untyped {
 		var tmp;
 		return if ($typeof(o) != $tobject) null else if (o.__properties__ != null
 			&& (tmp = $objget(o.__properties__, $fasthash("get_".__s + field.__s))) != null) $call($objget(o, $fasthash(tmp)), o, $array()) else $objget(o,
 			$fasthash(field.__s));
 	}
 
-	public static inline function setProperty(o:Dynamic, field:String, value:Dynamic):Void untyped {
+	public static inline function setProperty(o:FieldHost, field:String, value:Dynamic):Void untyped {
 		if ($typeof(o) == $tobject) {
 			var tmp;
 			if (o.__properties__ != null && (tmp = $objget(o.__properties__, $fasthash("set_".__s + field.__s))) != null)
@@ -62,7 +65,7 @@
 		return $call(func, o, a);
 	}
 
-	public static function fields(o:haxe.runtime.FieldHost):Array<String> untyped {
+	public static function fields(o:FieldHost):Array<String> untyped {
 		if ($typeof(o) != $tobject)
 			return new Array<String>();
 		else {
@@ -104,7 +107,7 @@
 		return $typeof(v) == $tobject && v.__enum__ != null;
 	}
 
-	public inline static function deleteField(o:Dynamic, field:String):Bool untyped {
+	public inline static function deleteField(o:FieldHost, field:String):Bool untyped {
 		return $objremove(o, $fasthash(field.__s));
 	}
 
