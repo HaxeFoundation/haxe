@@ -95,6 +95,7 @@ type context = {
 	cfids : (string * path, unit) lookup;
 	cfunctions : fundecl DynArray.t;
 	cconstants : (constval, (global * int array)) lookup;
+	hl_ver : string;
 	optimize : bool;
 	w_null_compare : bool;
 	overrides : (string * path, bool) Hashtbl.t;
@@ -1086,11 +1087,11 @@ let rec eval_to ctx e (t:ttype) =
 		let r = alloc_tmp ctx t in
 		op ctx (OFloat (r,alloc_float ctx (Int32.to_float i)));
 		r
-	| TConst (TInt i), HF32 ->
+	| TConst (TInt i), HF32 when ctx.hl_ver >= "1.15" ->
 		let r = alloc_tmp ctx t in
 		op ctx (OFloat (r, alloc_float ctx (Int32.to_float i)));
 		r
-	| TConst (TFloat f), HF32 ->
+	| TConst (TFloat f), HF32 when ctx.hl_ver >= "1.15" ->
 		let r = alloc_tmp ctx t in
 		op ctx (OFloat (r, alloc_float ctx (float_of_string f)));
 		r
@@ -3461,8 +3462,7 @@ let generate_static ctx c f =
 			| (Meta.HlNative,[(EConst(String(lib,_)),_)] ,_ ) :: _ ->
 				add_native lib f.cf_name
 			| (Meta.HlNative,[(EConst(Float(ver,_)),_)] ,_ ) :: _ ->
-				let cur_ver = (try Gctx.defined_value ctx.com Define.HlVer with Not_found -> "") in
-				if cur_ver < ver then
+				if ctx.hl_ver < ver then
 					let gen_content() =
 						op ctx (OThrow (make_string ctx ("Requires compiling with -D hl-ver=" ^ ver ^ ".0 or higher") null_pos));
 					in
@@ -4126,6 +4126,7 @@ let create_context com dump =
 	in
 	let ctx = {
 		com = com;
+		hl_ver = Gctx.defined_value_safe ~default:"" com Define.HlVer;
 		optimize = not (Gctx.raw_defined com "hl_no_opt");
 		w_null_compare = Gctx.raw_defined com "hl_w_null_compare";
 		dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None;
