@@ -110,6 +110,17 @@ class Serializer {
 	}
 
 	/**
+		Resets the Serializer's internal state so that it
+		can be reused.
+	**/
+	public function reset() {
+		buf = new StringBuf();
+		cach.resize(0);
+		shash.clear();
+		scount = 0;
+	}
+
+	/**
 		Return the String representation of `this` Serializer.
 
 		The exact format specification can be found here:
