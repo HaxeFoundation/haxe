@@ -227,7 +227,7 @@ class TestSerialize extends Test {
 		}
 	}
 
-	public function doTestReset()
+	function doTestReset()
 	{
 		var serializer = new Serializer();
 		serializer.useCache = true;
