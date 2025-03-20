@@ -937,7 +937,14 @@ let generate_managed_class base_ctx tcpp_class =
           ("\t\t" ^ ret ^ "__ctx->run" ^ CppCppia.script_type func.tcf_func.tf_type false ^ "(" ^ vtable ^ ");\n");
         output_cpp ("\t}  else " ^ ret);
 
-        let names = List.map (fun (n, _, _) -> keyword_remap n) f_args in
+        let mapper (n, _, t) =
+          match CppRetyper.cpp_type_of CppRetyper.with_reference_value_type t with
+            | TCppMarshalNativeType _ as reference ->
+              Printf.sprintf "%s(%s)" (tcpp_to_string reference) (keyword_remap n)
+            | _ ->
+              keyword_remap n
+        in
+        let names = List.map mapper f_args in
 
         output_cpp
           (class_name ^ "::" ^ func.tcf_name ^ "(" ^ String.concat "," names ^ ");");
