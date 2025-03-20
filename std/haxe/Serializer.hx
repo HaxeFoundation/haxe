@@ -115,7 +115,7 @@ class Serializer {
 	**/
 	public function reset() {
 		buf = new StringBuf();
-		cach.resize(0);
+		cache.resize(0);
 		shash.clear();
 		scount = 0;
 	}
