@@ -926,7 +926,11 @@ let generate_managed_class base_ctx tcpp_class =
 
         List.iter
           (fun (name, opt, t) ->
-            Printf.sprintf "\t\t__ctx->push%s(%s);\n" (CppCppia.script_type t opt) (keyword_remap name) |> output_cpp)
+            match CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type t with
+            | TCppMarshalNativeType _ as reference ->
+              Printf.sprintf "\t\t__ctx->pushObject(%s(%s));\n" (tcpp_to_string reference) (keyword_remap name) |> output_cpp
+            | _ ->
+              Printf.sprintf "\t\t__ctx->push%s(%s);\n" (CppCppia.script_type t opt) (keyword_remap name) |> output_cpp)
         f_args;
 
         output_cpp
