@@ -856,14 +856,18 @@ let generate_managed_class base_ctx tcpp_class =
         output_cpp
           ("\nstatic void CPPIA_CALL " ^ scriptName
           ^ "(::hx::CppiaCtx *ctx) {\n");
-        let ret =
+        let marshalling, ret =
           match cpp_type_of return_type with
-          | TCppScalar "bool" -> "b"
-          | _ -> CppCppia.script_signature return_type false
+          | TCppScalar "bool" -> false, "b"
+          | TCppMarshalNativeType _ -> true, "o"
+          | _ -> false, CppCppia.script_signature return_type false
         in
         if ret <> "v" then
-          output_cpp
-            ("ctx->return" ^ CppCppia.script_type return_type false ^ "(");
+          if marshalling then
+            let reference = CppRetyper.cpp_type_of CppRetyper.with_reference_value_type return_type |> tcpp_to_string in
+            Printf.sprintf "ctx->returnObject(%s(" reference |> output_cpp
+          else
+            output_cpp ("ctx->return" ^ CppCppia.script_type return_type false ^ "(");
 
         let dump_call cast =
           if isStatic then
@@ -895,7 +899,11 @@ let generate_managed_class base_ctx tcpp_class =
           else dump_call ""
         in
 
-        if ret <> "v" then output_cpp ")";
+        if ret <> "v" then
+          if marshalling then
+            output_cpp "))"
+          else
+            output_cpp ")";
         output_cpp ";\n}\n";
         signature
     | _ -> ""
