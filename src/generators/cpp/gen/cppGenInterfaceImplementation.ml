@@ -144,8 +144,11 @@ let generate_managed_interface base_ctx tcpp_interface =
       output_cpp "\t\t__ctx->pushObject(this);\n";
       List.iter
         (fun (name, opt, t) ->
-          output_cpp
-            ("\t\t__ctx->push" ^ CppCppia.script_type t opt ^ "(" ^ name ^ ");\n"))
+          match CppRetyper.cpp_type_of CppRetyper.with_reference_value_type t with
+          | TCppMarshalNativeType _ as reference ->
+            Printf.sprintf "\t\t__ctx->pushObject(%s(%s));\n" (tcpp_to_string reference) (keyword_remap name) |> output_cpp
+          | _ ->
+            Printf.sprintf "\t\t__ctx->push%s(%s);\n" (CppCppia.script_type t opt) (keyword_remap name) |> output_cpp)
         func.iff_args;
       let interfaceSlot = string_of_int (func.iff_script_slot |> Option.map (fun v -> -v) |>  Option.default 0) in
       output_cpp
@@ -167,12 +170,18 @@ let generate_managed_interface base_ctx tcpp_interface =
       let scriptName = ("__s_" ^ func.iff_field.cf_name) in
 
       output_cpp ("\nstatic void CPPIA_CALL " ^ scriptName ^ "(::hx::CppiaCtx *ctx) {\n");
-      let ret =
+      let marshalling, ret =
         match cpp_type_of func.iff_return with
-        | TCppScalar "bool" -> "b"
-        | _ -> CppCppia.script_signature func.iff_return false in
+        | TCppScalar "bool" -> false, "b"
+        | TCppMarshalNativeType _ -> true, "o"
+        | _ -> false, CppCppia.script_signature func.iff_return false
+      in
       if ret <> "v" then
-        output_cpp ("ctx->return" ^ CppCppia.script_type func.iff_return false ^ "(");
+        if marshalling then
+          let reference = CppRetyper.cpp_type_of CppRetyper.with_reference_value_type func.iff_return |> tcpp_to_string in
+          Printf.sprintf "ctx->returnObject(%s(" reference |> output_cpp
+        else
+          output_cpp ("ctx->return" ^ CppCppia.script_type func.iff_return false ^ "(");
 
       let signature =
         output_cpp (tcpp_interface.if_name ^ "::" ^ func.iff_name ^ "(ctx->getThis()" ^ if List.length func.iff_args > 0 then "," else "");
