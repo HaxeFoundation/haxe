@@ -196,7 +196,11 @@ let generate_managed_interface base_ctx tcpp_interface =
         signature
       in
 
-      if ret <> "v" then output_cpp ")";
+      if ret <> "v" then
+        if marshalling then
+          output_cpp "))"
+        else
+          output_cpp ")";
       output_cpp ";\n}\n";
       (signature, func)
     in
