@@ -4,6 +4,9 @@
 name: CI
 on: [push, pull_request]
 
+env:
+  OCAML_VERSION: 5.3.0
+
 jobs:
   windows64-build:
     runs-on: windows-latest
@@ -48,7 +51,7 @@ jobs:
       - name: Setup ocaml
         uses: ocaml/setup-ocaml@v3
         with:
-          ocaml-compiler: 4
+          ocaml-compiler: ${{ env.OCAML_VERSION }}
           opam-local-packages: |
             haxe.opam
 
@@ -109,10 +112,6 @@ jobs:
     env:
       PLATFORM: linux64
       OPAMYES: 1
-    strategy:
-      fail-fast: false
-      matrix:
-        ocaml: ["4.08.1", "5.0.0"]
     steps:
       - uses: actions/checkout@main
         with:
@@ -123,7 +122,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.opam/
-          key: ${{ runner.os }}-${{ matrix.ocaml }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
+          key: ${{ runner.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
       - name: Install Neko from S3
         run: |
@@ -157,9 +156,8 @@ jobs:
         if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           set -ex
-          opam init # --disable-sandboxing
+          opam init -c ${{ env.OCAML_VERSION }}
           opam update
-          opam switch create ${{ matrix.ocaml }}
           opam pin add haxe . --no-action
           opam install haxe --deps-only --assume-depexts
           opam list
@@ -187,7 +185,6 @@ jobs:
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Build xmldoc
-        if: matrix.ocaml == '4.08.1'
         run: |
           set -ex
           make -s xmldoc
@@ -201,12 +198,11 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
+          name: linuxBinaries
           path: out
 
       - name: Upload xmldoc artifact
         uses: actions/upload-artifact@v4
-        if: matrix.ocaml == '4.08.1'
         with:
           name: xmldoc
           path: extra/doc
@@ -222,7 +218,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ocaml: ["4.08.1", "5.0.0"]
         target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
         include:
           - target: hl
@@ -239,7 +234,7 @@ jobs:
           submodules: recursive
       - uses: actions/download-artifact@v4
         with:
-          name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
+          name: linuxBinaries
           path: linuxBinaries
 
       - name: Install Neko from S3
@@ -393,7 +388,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.opam/
-          key: arm-${{ runner.os }}-${{ hashFiles('./haxe.opam', './libs/') }}
+          key: arm-${{ runner.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
       - name: Install Neko from S3
         run: |
@@ -419,13 +414,13 @@ jobs:
         run: |
           set -ex
           sudo apt-get update -qqy
-          sudo apt-get install -qqy ocaml-nox opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
+          sudo apt-get install -qqy opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
 
       - name: Install OCaml libraries
         if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           set -ex
-          opam init
+          opam init -c ${{ env.OCAML_VERSION }}
           opam pin add haxe . --no-action
           opam install haxe --deps-only --assume-depexts
           opam list
@@ -544,7 +539,6 @@ jobs:
       PLATFORM: mac${{ matrix.os == 'macos-14' && '-arm64' || '' }}
       OPAMYES: 1
       MACOSX_DEPLOYMENT_TARGET: 10.13
-      OCAML_VERSION: 5.1.1
     steps:
       - uses: actions/checkout@main
         with:
@@ -555,7 +549,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.opam/
-          key: ${{ matrix.os }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
+          key: ${{ matrix.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
       - name: Install Neko from S3
         run: |
@@ -605,9 +599,8 @@ jobs:
         if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           set -ex
-          opam init # --disable-sandboxing
+          opam init -c ${{ env.OCAML_VERSION }}
           opam update
-          opam switch create ${{env.OCAML_VERSION}}
           eval $(opam env)
           opam env
           opam pin add haxe . --no-action

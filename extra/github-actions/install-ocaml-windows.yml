@@ -1,7 +1,7 @@
 - name: Setup ocaml
   uses: ocaml/setup-ocaml@v3
   with:
-    ocaml-compiler: 4
+    ocaml-compiler: ${{ env.OCAML_VERSION }}
     opam-local-packages: |
       haxe.opam
 
