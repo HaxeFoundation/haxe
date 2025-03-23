@@ -876,16 +876,19 @@ let generate_managed_class base_ctx tcpp_class =
             output_cpp
               ("((" ^ class_name ^ "*)ctx->getThis())->" ^ cast ^ callName ^ "(");
 
+          let folder (signature, sep, size) (_, opt, t) =
+            let script_type, script_signature =
+              match cpp_type_of t with
+              | TCppMarshalNativeType _ -> "Object", "o"
+              | _ -> CppCppia.script_type t opt, CppCppia.script_signature t opt
+            in
+            Printf.sprintf "%sctx->get%s(%s)" sep script_type size |> output_cpp;
+            signature ^ CppCppia.script_signature t opt,
+            ",",
+            size ^ "+sizeof(" ^ CppCppia.script_size_type t opt ^ ")"
+          in
           let signature, _, _ =
-            List.fold_left
-              (fun (signature, sep, size) (_, opt, t) ->
-                output_cpp
-                  (sep ^ "ctx->get" ^ CppCppia.script_type t opt ^ "(" ^ size
-                  ^ ")");
-                ( signature ^ CppCppia.script_signature t opt,
-                  ",",
-                  size ^ "+sizeof(" ^ CppCppia.script_size_type t opt ^ ")" ))
-              (ret, "", "sizeof(void*)") args
+            List.fold_left folder (ret, "", "sizeof(void*)") args
           in
           output_cpp ")";
           signature

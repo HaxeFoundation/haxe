@@ -186,11 +186,20 @@ let generate_managed_interface base_ctx tcpp_interface =
       let signature =
         output_cpp (tcpp_interface.if_name ^ "::" ^ func.iff_name ^ "(ctx->getThis()" ^ if List.length func.iff_args > 0 then "," else "");
 
+        let folder (signature, sep, size) (_, opt, t) =
+          let script_type, script_signature =
+            match cpp_type_of t with
+            | TCppMarshalNativeType _ -> "Object", "o"
+            | _ -> CppCppia.script_type t opt, CppCppia.script_signature t opt
+          in
+          Printf.sprintf "%sctx->get%s(%s)" sep script_type size |> output_cpp;
+          signature ^ CppCppia.script_signature t opt,
+          ",",
+          size ^ "+sizeof(" ^ CppCppia.script_size_type t opt ^ ")"
+        in
         let signature, _, _ =
           List.fold_left
-            (fun (signature, sep, size) (_, opt, t) ->
-              output_cpp (sep ^ "ctx->get" ^ CppCppia.script_type t opt ^ "(" ^ size ^ ")");
-              ( signature ^ CppCppia.script_signature t opt, ",", size ^ "+sizeof(" ^ CppCppia.script_size_type t opt ^ ")" ))
+            folder
             (ret, "", "sizeof(void*)") func.iff_args in
         output_cpp ")";
         signature
