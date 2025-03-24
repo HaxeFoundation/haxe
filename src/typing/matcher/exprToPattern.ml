@@ -33,7 +33,7 @@ let unapply_type_parameters params monos =
 		match t2,follow t2 with
 		| TMono m1,TMono m2 ->
 			unapplied := (m1,m1.tm_type) :: !unapplied;
-			Monomorph.bind m1 tp1.ttp_type;
+			Monomorph.do_bind m1 tp1.ttp_type;
 		| _ -> ()
 	) params monos;
 	!unapplied

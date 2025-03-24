@@ -185,6 +185,7 @@ end
 
 module type DataFlowApi = sig
 	type t
+	val to_string : t -> string
 	val flag : BasicBlock.cfg_edge_Flag
 	val transfer : analyzer_context -> BasicBlock.t -> texpr -> t (* The transfer function *)
 	val equals : t -> t -> bool                                   (* The equality function *)
@@ -360,9 +361,19 @@ module ConstPropagation = DataFlow(struct
 		| Top
 		| Bottom
 		| Null of Type.t
-		| Const of tconstant
+		| Const of tconstant * Type.t
 		| EnumValue of int * t list
 		| ModuleType of module_type * Type.t
+
+	let rec to_string =
+		let st = s_type (print_context()) in
+		function
+		| Top -> "Top"
+		| Bottom -> "Bottom"
+		| Null t -> Printf.sprintf "Null(%s)" (st t)
+		| Const(ct,t) -> Printf.sprintf "Const(%s,%s)" (s_const ct) (st t)
+		| EnumValue(i,tl) -> Printf.sprintf "EnumValue(%i, %s)" i (String.concat ", " (List.map to_string tl))
+		| ModuleType(mt,t) -> Printf.sprintf "ModuleType(%s,%s)" (s_module_type_kind mt) (st t)
 
 	let conditional = true
 	let flag = FlagExecutable
@@ -377,7 +388,7 @@ module ConstPropagation = DataFlow(struct
 
 	let equals lat1 lat2 = match lat1,lat2 with
 		| Top,Top | Bottom,Bottom -> true
-		| Const ct1,Const ct2 -> ct1 = ct2
+		| Const(ct1,t1),Const(ct2,t2) -> ct1 = ct2 && type_iseq t1 t2
 		| Null t1,Null t2 -> t1 == t2
 		| EnumValue(i1,[]),EnumValue(i2,[]) -> i1 = i2
 		| ModuleType(mt1,_),ModuleType (mt2,_) -> mt1 == mt2
@@ -386,12 +397,12 @@ module ConstPropagation = DataFlow(struct
 	let transfer ctx bb e =
 		let rec eval bb e =
 			let wrap = function
-				| Const ct -> mk (TConst ct) t_dynamic null_pos
+				| Const(ct,t) -> mk (TConst ct) t null_pos
 				| Null t -> mk (TConst TNull) t e.epos
 				| _ -> raise Exit
 			in
 			let unwrap e = match e.eexpr with
-				| TConst ct -> Const ct
+				| TConst ct -> Const(ct,e.etype)
 				| _ -> raise Exit
 			in
 			match e.eexpr with
@@ -400,7 +411,7 @@ module ConstPropagation = DataFlow(struct
 			| TConst TNull ->
 				Null e.etype
 			| TConst ct ->
-				Const ct
+				Const(ct,e.etype)
 			| TTypeExpr mt ->
 				ModuleType(mt,e.etype)
 			| TLocal v ->
@@ -442,12 +453,12 @@ module ConstPropagation = DataFlow(struct
 				end;
 			| TEnumIndex e1 ->
 				begin match eval bb e1 with
-					| EnumValue(i,_) -> Const (TInt (Int32.of_int i))
+					| EnumValue(i,_) -> Const (TInt (Int32.of_int i),ctx.com.basic.tint)
 					| _ -> raise Exit
 				end;
 			| TCall ({ eexpr = TField (_,FStatic({cl_path=[],"Type"} as c,({cf_name="enumIndex"} as cf)))},[e1]) when ctx.com.platform = Eval ->
 				begin match follow e1.etype,eval bb e1 with
-					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i))
+					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i),ctx.com.basic.tint)
 					| _,e1 ->
 						begin match Inline.api_inline2 ctx.com c cf.cf_name [wrap e1] e.epos with
 							| None -> raise Exit
@@ -472,7 +483,7 @@ module ConstPropagation = DataFlow(struct
 					| _ -> raise Exit
 				in
 				begin match follow e1.etype,eval bb e1 with
-					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i))
+					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i),ctx.com.basic.tint)
 					| _ -> raise Exit
 				end
 		in
@@ -488,8 +499,9 @@ module ConstPropagation = DataFlow(struct
 		let inline e i = match get_cell i with
 			| Top | Bottom | EnumValue _ | Null _ ->
 				raise Not_found
-			| Const ct ->
+			| Const(ct,t) ->
 				let e' = Texpr.type_constant ctx.com.basic (tconst_to_const ct) e.epos in
+				let e' = {e' with etype = t} in
 				if not (type_change_ok ctx.com e'.etype e.etype) then raise Not_found;
 				e'
 			| ModuleType(mt,t) ->

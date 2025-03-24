@@ -174,13 +174,16 @@ let dump_dependencies ?(target_override=None) com =
 	List.iter (fun m ->
 		print "%s:\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		PMap.iter (fun _ mdep ->
-			let (ctx,m2) = match mdep.md_kind with
+			let com,ctx = match mdep.md_kind with
 				| MMacro when not com.is_macro_context ->
-					("[macro] ", (Option.get (com.get_macros())).module_lut#find mdep.md_path)
-				| _ ->
-					("", com.module_lut#find mdep.md_path)
+					Option.get (com.get_macros()), "[macro] "
+				| _ -> com, ""
 			in
-			let file = Path.UniqueKey.lazy_path m2.m_extra.m_file in
+			let mdep_extra =
+				try (com.module_lut#find mdep.md_path).m_extra
+				with Not_found -> (com.cs#get_context mdep.md_sign)#find_module_extra mdep.md_path
+			in
+			let file = Path.UniqueKey.lazy_path mdep_extra.m_file in
 			print "\t%s%s\n" ctx file;
 			let l = try Hashtbl.find dep file with Not_found -> [] in
 			Hashtbl.replace dep file (m :: l)

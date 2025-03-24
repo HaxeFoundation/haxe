@@ -518,6 +518,7 @@ module Printer = struct
 			"cl_private",string_of_bool c.cl_private;
 			"cl_doc",s_doc c.cl_doc;
 			"cl_meta",s_metadata c.cl_meta;
+			"cl_flags",s_flags c.cl_flags flag_tclass_names;
 			"cl_params",s_type_params (tabs ^ "\t") c.cl_params;
 			"cl_kind",s_class_kind c.cl_kind;
 			"cl_super",s_opt (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_super;

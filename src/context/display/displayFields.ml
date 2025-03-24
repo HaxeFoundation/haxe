@@ -169,6 +169,8 @@ let collect ctx e_ast e dk with_type p =
 					end
 				end else
 					loop items (mk_anon ~fields (ref Closed))
+			| CTypes [(t,_)] ->
+				loop items t
 			| CTypes tl ->
 				items
 			| CUnknown ->

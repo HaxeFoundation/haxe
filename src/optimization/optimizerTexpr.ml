@@ -130,9 +130,9 @@ let optimize_binop e op e1 e2 =
 		| OpAnd -> opt Int32.logand
 		| OpOr -> opt Int32.logor
 		| OpXor -> opt Int32.logxor
-		| OpShl -> opt (fun a b -> Int32.shift_left a (Int32.to_int (Int32.logand b i32_31)))
-		| OpShr -> opt (fun a b -> Int32.shift_right a (Int32.to_int (Int32.logand b i32_31)))
-		| OpUShr -> opt (fun a b -> Int32.shift_right_logical a (Int32.to_int (Int32.logand b i32_31)))
+		| OpShl when is_numeric e.etype -> opt (fun a b -> Int32.shift_left a (Int32.to_int (Int32.logand b i32_31)))
+		| OpShr when is_numeric e.etype -> opt (fun a b -> Int32.shift_right a (Int32.to_int (Int32.logand b i32_31)))
+		| OpUShr when is_numeric e.etype -> opt (fun a b -> Int32.shift_right_logical a (Int32.to_int (Int32.logand b i32_31)))
 		| OpEq -> ebool (=)
 		| OpNotEq -> ebool (<>)
 		| OpGt -> ebool (>)

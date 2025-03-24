@@ -498,6 +498,10 @@ type flag_tclass =
 	| CUsed (* Marker for DCE *)
 	| CExcluded (* Marker for exclude macro, turned into CExtern during filters *)
 
+let flag_tclass_names = [
+	"CExtern";"CFinal";"CInterface";"CAbstract";"CFunctionalInterface";"CUsed";"CExcluded";
+]
+
 type flag_tclass_field =
 	| CfPublic
 	| CfStatic

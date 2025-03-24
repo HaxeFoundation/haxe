@@ -225,6 +225,7 @@ and tcpp_class_variable = {
   tcv_type : t;
   tcv_default : texpr option;
 
+  tcv_has_getter : bool;
   tcv_is_stackonly : bool;
   tcv_is_gc_element : bool;
   tcv_is_reflective : bool;

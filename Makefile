@@ -66,7 +66,8 @@ NEKO_VERSION_TAG=v$(shell echo "$(NEKO_VERSION)" | sed "s/\./-/g")
 all: haxe tools
 
 haxe:
-	dune build --profile release
+	dune build --profile release src/haxe.exe
+	cp -f _build/default/src/haxe.exe ./"$(HAXE_OUTPUT)"
 
 plugin: haxe
 	$(DUNE_COMMAND) build --profile release plugins/$(PLUGIN)/$(PLUGIN).cmxs
@@ -233,7 +234,7 @@ package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx.tar.gz package_unix
 clean: clean_haxe clean_tools clean_package
 
 clean_haxe:
-	dune clean
+	rm -f -r _build $(HAXE_OUTPUT) $(PREBUILD_OUTPUT)
 
 clean_tools:
 	rm -f $(HAXE_OUTPUT) $(PREBUILD_OUTPUT) $(HAXELIB_OUTPUT)
