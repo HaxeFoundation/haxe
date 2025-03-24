@@ -849,114 +849,110 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp "#endif\n\n");
 
   let generate_script_function isStatic field scriptName callName =
-    match follow field.cf_type with
-    | TFun (args, return_type) when not (is_data_member field) ->
-        let isTemplated = not isStatic in
-        if isTemplated then output_cpp "\ntemplate<bool _HX_SUPER=false>";
-        output_cpp
-          ("\nstatic void CPPIA_CALL " ^ scriptName
-          ^ "(::hx::CppiaCtx *ctx) {\n");
-        let marshalling, ret =
-          match cpp_type_of return_type with
-          | TCppScalar "bool" -> false, "b"
-          | TCppMarshalNativeType _ -> true, "o"
-          | _ -> false, CppCppia.script_signature return_type false
-        in
-        if ret <> "v" then
-          if marshalling then
-            let reference = CppRetyper.cpp_type_of CppRetyper.with_reference_value_type return_type |> tcpp_to_string in
-            Printf.sprintf "ctx->returnObject(%s(" reference |> output_cpp
-          else
-            output_cpp ("ctx->return" ^ CppCppia.script_type return_type false ^ "(");
+    let isTemplated = not isStatic in
+    if isTemplated then output_cpp "\ntemplate<bool _HX_SUPER=false>";
+    output_cpp
+      ("\nstatic void CPPIA_CALL " ^ scriptName
+      ^ "(::hx::CppiaCtx *ctx) {\n");
 
-        let dump_call cast =
-          if isStatic then
-            output_cpp (class_name ^ "::" ^ callName ^ "(")
-          else
-            output_cpp
-              ("((" ^ class_name ^ "*)ctx->getThis())->" ^ cast ^ callName ^ "(");
+    let script_return_type = CppCppia.to_script_type field.tcf_return in
 
-          let folder (signature, sep, size) (_, opt, t) =
-            let script_type, script_signature =
-              match cpp_type_of t with
-              | TCppMarshalNativeType _ -> "Object", "o"
-              | _ -> CppCppia.script_type t opt, CppCppia.script_signature t opt
-            in
-            Printf.sprintf "%sctx->get%s(%s)" sep script_type size |> output_cpp;
-            signature ^ CppCppia.script_signature t opt,
-            ",",
-            size ^ "+sizeof(" ^ CppCppia.script_size_type t opt ^ ")"
-          in
-          let signature, _, _ =
-            List.fold_left folder (ret, "", "sizeof(void*)") args
-          in
-          output_cpp ")";
-          signature
-        in
-        let signature =
-          if isTemplated then (
-            output_cpp " _HX_SUPER ? ";
-            ignore (dump_call (class_name ^ "::"));
-            output_cpp " : ";
-            dump_call "")
-          else dump_call ""
-        in
+    (match field.tcf_return with
+    | TCppVoid ->
+      ()
+    | TCppMarshalNativeType (native_type, _) ->
+      Printf.sprintf "ctx->return%s(%s(" (CppCppia.to_script_type_string script_return_type) (TCppMarshalNativeType (native_type, Reference) |> tcpp_to_string) |> output_cpp
+    | _ ->
+      Printf.sprintf "ctx->return%s(" (CppCppia.to_script_type_string script_return_type) |> output_cpp);
 
-        if ret <> "v" then
-          if marshalling then
-            output_cpp "))"
-          else
-            output_cpp ")";
-        output_cpp ";\n}\n";
-        signature
-    | _ -> ""
+    let dump_call cast =
+      if isStatic then
+        Printf.sprintf "%s::%s(" class_name callName |> output_cpp
+      else
+        Printf.sprintf "((%s*)ctx->getThis())->%s%s(" class_name cast callName |> output_cpp;
+
+      let folder (signature, sep, size) (var, expr) =
+        let script_type =
+          match CppCppia.to_script_type var.tcppv_type with
+          | (CppCppia.ScriptInt | CppCppia.ScriptFloat | CppCppia.ScriptBool) when expr <> None -> CppCppia.ScriptObject
+          | other -> other
+        in
+        Printf.sprintf "%sctx->get%s(%s)" sep (CppCppia.to_script_type_string script_type) size |> output_cpp;
+        signature ^ CppCppia.to_script_type_signature script_type,
+        ",",
+        size ^ "+sizeof(" ^ CppCppia.to_script_type_size script_type ^ ")"
+      in
+      let signature, _, _ =
+        List.fold_left folder (CppCppia.to_script_type_signature script_return_type, "", "sizeof(void*)") field.tcf_args
+      in
+      output_cpp ")";
+      signature
+    in
+    let signature =
+      if isTemplated then (
+        output_cpp " _HX_SUPER ? ";
+        ignore (dump_call (class_name ^ "::"));
+        output_cpp " : ";
+        dump_call "")
+      else dump_call ""
+    in
+
+    (match field.tcf_return with
+    | TCppVoid ->
+      ()
+    | TCppMarshalNativeType (native_type, _) ->
+      output_cpp "))"
+    | _ ->
+      output_cpp ")");
+    output_cpp ";\n}\n";
+    signature
   in
 
   if scriptable then (
     let dump_script_func idx func =
-      match func.tcf_field.cf_type with
-      | TFun (f_args, _) ->
-        let args = print_tfun_arg_list true f_args in
-        let return_type = type_to_string func.tcf_func.tf_type in
-        let ret = if return_type = "Void" || return_type = "void" then " " else "return " in
-        let vtable = Printf.sprintf "__scriptVTable[%i]" (idx + 1) in
+      let args        = print_arg_list func.tcf_args "" in
+      let return_type = tcpp_to_string func.tcf_return in
+      let ret         = if return_type = "Void" || return_type = "void" then " " else "return " in
+      let vtable      = Printf.sprintf "__scriptVTable[%i]" (idx + 1) in
 
-        Printf.sprintf "\t%s %s(%s) {\n" return_type func.tcf_name args |> output_cpp;
-        Printf.sprintf ("\tif (%s) {\n") vtable |> output_cpp;
-        output_cpp "\t\t::hx::CppiaCtx *__ctx = ::hx::CppiaCtx::getCurrent();\n";
-        output_cpp "\t\t::hx::AutoStack __as(__ctx);\n";
-        output_cpp ("\t\t__ctx->pushObject( this );\n");
+      Printf.sprintf "\t%s %s(%s) {\n" return_type func.tcf_name args |> output_cpp;
+      Printf.sprintf ("\tif (%s) {\n") vtable |> output_cpp;
+      output_cpp "\t\t::hx::CppiaCtx *__ctx = ::hx::CppiaCtx::getCurrent();\n";
+      output_cpp "\t\t::hx::AutoStack __as(__ctx);\n";
+      output_cpp ("\t\t__ctx->pushObject( this );\n");
 
-        List.iter
-          (fun (name, opt, t) ->
-            match CppRetyper.cpp_type_of CppRetyper.with_reference_value_type t with
-            | TCppMarshalNativeType _ as reference ->
-              Printf.sprintf "\t\t__ctx->pushObject(%s(%s));\n" (tcpp_to_string reference) (keyword_remap name) |> output_cpp
-            | _ ->
-              Printf.sprintf "\t\t__ctx->push%s(%s);\n" (CppCppia.script_type t opt) (keyword_remap name) |> output_cpp)
-        f_args;
+      let wrap var =
+        match var.tcppv_type with
+        | TCppMarshalNativeType (native_type, _) ->
+          Printf.sprintf "%s(%s)" (tcpp_to_string (TCppMarshalNativeType (native_type, Reference))) var.tcppv_name
+        | _ ->
+          var.tcppv_name
+      in
 
-        output_cpp
-          ("\t\t" ^ ret ^ "__ctx->run" ^ CppCppia.script_type func.tcf_func.tf_type false ^ "(" ^ vtable ^ ");\n");
-        output_cpp ("\t}  else " ^ ret);
+      func.tcf_args
+      |> List.map
+        (fun (var, expr) ->
+          let script_type =
+            match CppCppia.to_script_type var.tcppv_type with
+            | (CppCppia.ScriptInt | CppCppia.ScriptFloat | CppCppia.ScriptBool) when expr <> None -> CppCppia.ScriptObject
+            | other -> other
+          in
+          Printf.sprintf "\t\t__ctx->push%s(%s);" (CppCppia.to_script_type_string script_type) (wrap var))
+      |> String.concat "\n"
+      |> output_cpp;
 
-        let mapper (n, _, t) =
-          match CppRetyper.cpp_type_of CppRetyper.with_reference_value_type t with
-            | TCppMarshalNativeType _ as reference ->
-              Printf.sprintf "%s(%s)" (tcpp_to_string reference) (keyword_remap n)
-            | _ ->
-              keyword_remap n
-        in
-        let names = List.map mapper f_args in
+      output_cpp "\n";
+      output_cpp ("\t\t" ^ ret ^ "__ctx->run" ^ (func.tcf_return |> CppCppia.to_script_type |> CppCppia.to_script_type_string) ^ "(" ^ vtable ^ ");\n");
+      output_cpp ("\t}  else " ^ ret);
 
-        output_cpp
-          (class_name ^ "::" ^ func.tcf_name ^ "(" ^ String.concat "," names ^ ");");
+      let names = List.map (fun (var, _) -> wrap var) func.tcf_args in
 
-        if return_type <> "void" then output_cpp "return null();";
+      output_cpp
+        (class_name ^ "::" ^ func.tcf_name ^ "(" ^ String.concat "," names ^ ");");
 
-        output_cpp "}\n";
-      | _ ->
-        abort "expected function type to be tfun" func.tcf_field.cf_pos
+      if return_type <> "void" then output_cpp "return null();";
+
+      output_cpp "}\n"
     in
 
     let script_name = class_name ^ "__scriptable" in
@@ -1017,7 +1013,7 @@ let generate_managed_class base_ctx tcpp_class =
     if List.length tcpp_class.tcl_functions > 0 || List.length tcpp_class.tcl_static_functions > 0 then (
 
       let dump_script is_static f acc =
-        let signature = generate_script_function is_static f.tcf_field ("__s_" ^ f.tcf_field.cf_name) f.tcf_name in
+        let signature = generate_script_function is_static f ("__s_" ^ f.tcf_field.cf_name) f.tcf_name in
         let superCall = if is_static then "0" else "__s_" ^ f.tcf_field.cf_name ^ "<true>" in
         let named =
           Printf.sprintf
@@ -1051,10 +1047,10 @@ let generate_managed_class base_ctx tcpp_class =
   (* Remap the specialised "extern" classes back to the generic names *)
   output_cpp ("::hx::Class " ^ class_name ^ "::__mClass;\n\n");
   (if scriptable then
-      match class_def.cl_constructor with
-      | Some field ->
+      match tcpp_class.tcl_constructor with
+      | Some f ->
           let signature =
-            generate_script_function false field "__script_construct_func"
+            generate_script_function false f "__script_construct_func"
               "__construct"
           in
           output_cpp

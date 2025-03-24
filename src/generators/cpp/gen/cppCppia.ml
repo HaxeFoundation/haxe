@@ -7,7 +7,56 @@ open CppAst
 open CppAstTools
 open CppContext
 
+type script_type = 
+  | ScriptBool
+  | ScriptInt
+  | ScriptFloat
+  | ScriptString
+  | ScriptObject
+  | ScriptVoid
+
 let cpp_type_of = CppRetyper.cpp_type_of CppRetyper.with_reference_value_type
+
+let to_script_type tcpp =
+  match tcpp with
+  | TCppScalar "bool" -> ScriptBool
+  | TCppScalar "int"
+  | TCppScalar "::cpp::Int32" -> ScriptInt
+  | TCppScalar "float"
+  | TCppScalar "double"
+  | TCppScalar "Float"
+  | TCppScalar "::cpp::Float32"
+  | TCppScalar "::cpp::Float64" -> ScriptFloat
+  | TCppString -> ScriptString
+  | TCppVoid -> ScriptVoid
+  | _ -> ScriptObject
+
+let to_script_type_signature script_type =
+  match script_type with
+  | ScriptBool -> "b"
+  | ScriptInt -> "i"
+  | ScriptFloat -> "f"
+  | ScriptString -> "s"
+  | ScriptVoid -> "v"
+  | ScriptObject -> "o"
+
+let to_script_type_string script_type =
+  match script_type with
+  | ScriptBool
+  | ScriptInt -> "Int"
+  | ScriptFloat -> "Float"
+  | ScriptString -> "String"
+  | ScriptVoid -> "Void"
+  | ScriptObject -> "Object"
+
+let to_script_type_size script_type =
+  match script_type with
+  | ScriptBool
+  | ScriptInt -> "int"
+  | ScriptObject -> "void*"
+  | ScriptFloat -> "Float"
+  | ScriptString -> "String"
+  | v -> to_script_type_string v
 
 let script_type t optional = if optional then begin
   match type_string t with
