@@ -267,7 +267,7 @@
 	{
 		"name": "HlVer",
 		"define": "hl-ver",
-		"doc": "The HashLink version to target. (default: 1.10.0)",
+		"doc": "The HashLink version to target. (default: 1.15.0)",
 		"platforms": ["hl"],
 		"params": ["version"]
 	},
