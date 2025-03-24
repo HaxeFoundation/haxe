@@ -144,16 +144,17 @@ let generate_managed_interface base_ctx tcpp_interface =
       output_cpp "\t\t__ctx->pushObject(this);\n";
       List.iter
         (fun (name, opt, t) ->
-          match CppRetyper.cpp_type_of CppRetyper.with_reference_value_type t with
-          | TCppMarshalNativeType _ as reference ->
-            Printf.sprintf "\t\t__ctx->pushObject(%s(%s));\n" (tcpp_to_string reference) (keyword_remap name) |> output_cpp
-          | _ ->
-            Printf.sprintf "\t\t__ctx->push%s(%s);\n" (CppCppia.script_type t opt) (keyword_remap name) |> output_cpp)
+          let script_type =
+            match t |> cpp_type_of |> CppCppia.to_script_type with
+            | (CppCppia.ScriptInt | CppCppia.ScriptFloat | CppCppia.ScriptBool) when opt -> CppCppia.ScriptObject
+            | other -> other
+          in
+          Printf.sprintf "\t\t__ctx->push%s(%s);\n" (CppCppia.to_script_type_string script_type) (keyword_remap name) |> output_cpp)
         func.iff_args;
       let interfaceSlot = string_of_int (func.iff_script_slot |> Option.map (fun v -> -v) |>  Option.default 0) in
       output_cpp
         ("\t\t" ^ ret ^ "__ctx->run"
-        ^ CppCppia.script_type func.iff_return false
+        ^ (func.iff_return |> cpp_type_of |> CppCppia.to_script_type |> CppCppia.to_script_type_string)
         ^ "(__GetScriptVTable()[" ^ interfaceSlot ^ "]);\n");
       output_cpp "\t}\n";
     in
@@ -170,46 +171,47 @@ let generate_managed_interface base_ctx tcpp_interface =
       let scriptName = ("__s_" ^ func.iff_field.cf_name) in
 
       output_cpp ("\nstatic void CPPIA_CALL " ^ scriptName ^ "(::hx::CppiaCtx *ctx) {\n");
-      let marshalling, ret =
-        match cpp_type_of func.iff_return with
-        | TCppScalar "bool" -> false, "b"
-        | TCppMarshalNativeType _ -> true, "o"
-        | _ -> false, CppCppia.script_signature func.iff_return false
-      in
-      if ret <> "v" then
-        if marshalling then
-          let reference = CppRetyper.cpp_type_of CppRetyper.with_reference_value_type func.iff_return |> tcpp_to_string in
-          Printf.sprintf "ctx->returnObject(%s(" reference |> output_cpp
-        else
-          output_cpp ("ctx->return" ^ CppCppia.script_type func.iff_return false ^ "(");
+
+      let tcpp_return_type = cpp_type_of func.iff_return in
+      let script_return_type = CppCppia.to_script_type tcpp_return_type in
+
+      (match tcpp_return_type with
+      | TCppVoid ->
+        ()
+      | TCppMarshalNativeType (native_type, _) ->
+        Printf.sprintf "ctx->return%s(%s(" (CppCppia.to_script_type_string script_return_type) (TCppMarshalNativeType (native_type, Reference) |> tcpp_to_string) |> output_cpp
+      | _ ->
+        Printf.sprintf "ctx->return%s(" (CppCppia.to_script_type_string script_return_type) |> output_cpp);
 
       let signature =
         output_cpp (tcpp_interface.if_name ^ "::" ^ func.iff_name ^ "(ctx->getThis()" ^ if List.length func.iff_args > 0 then "," else "");
 
         let folder (signature, sep, size) (_, opt, t) =
-          let script_type, script_signature =
-            match cpp_type_of t with
-            | TCppMarshalNativeType _ -> "Object", "o"
-            | _ -> CppCppia.script_type t opt, CppCppia.script_signature t opt
+          let script_type =
+            match t |> cpp_type_of |> CppCppia.to_script_type with
+            | (CppCppia.ScriptInt | CppCppia.ScriptFloat | CppCppia.ScriptBool) when opt -> CppCppia.ScriptObject
+            | other -> other
           in
-          Printf.sprintf "%sctx->get%s(%s)" sep script_type size |> output_cpp;
-          signature ^ CppCppia.script_signature t opt,
+          Printf.sprintf "%sctx->get%s(%s)" sep (CppCppia.to_script_type_string script_type) size |> output_cpp;
+          signature ^ CppCppia.to_script_type_signature script_type,
           ",",
-          size ^ "+sizeof(" ^ CppCppia.script_size_type t opt ^ ")"
+          size ^ "+sizeof(" ^ CppCppia.to_script_type_size script_type ^ ")"
         in
         let signature, _, _ =
           List.fold_left
             folder
-            (ret, "", "sizeof(void*)") func.iff_args in
+            (CppCppia.to_script_type_signature script_return_type, "", "sizeof(void*)") func.iff_args in
         output_cpp ")";
         signature
       in
 
-      if ret <> "v" then
-        if marshalling then
-          output_cpp "))"
-        else
-          output_cpp ")";
+      (match tcpp_return_type with
+      | TCppVoid ->
+        ()
+      | TCppMarshalNativeType (native_type, _) ->
+        output_cpp "))"
+      | _ ->
+        output_cpp ")");
       output_cpp ";\n}\n";
       (signature, func)
     in
