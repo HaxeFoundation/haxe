@@ -7,6 +7,10 @@ on: [push, pull_request]
 env:
   OCAML_VERSION: 5.3.0
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   windows64-build:
     runs-on: windows-latest
