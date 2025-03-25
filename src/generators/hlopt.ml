@@ -547,7 +547,7 @@ let remap_fun ctx f dump get_str old_code =
 	let nregs = Array.length f.regs in
 	let reg_remap = ctx.r_used_regs <> nregs in
 	let assigns = ref f.assigns in
-	let dump_buffer = if dump then Buffer.create 4096 else Buffer.create 0  in
+	let dump_buffer = if dump then Buffer.create 1024 else Buffer.create 0  in
 	let write str = if dump then Buffer.add_string dump_buffer (str ^ "\n") else () in
 	let nargs = (match f.ftype with HFun (args,_) -> List.length args | _ -> Globals.die "" __LOC__) in
 

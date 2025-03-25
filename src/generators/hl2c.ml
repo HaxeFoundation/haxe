@@ -1488,7 +1488,7 @@ let generate_module_types gctx ctx m =
 	line "#endif";
 	line ""
 
-let write_c com file (code:code) gnames pool =
+let write_c com file (code:code) gnames parallel =
 
 	let all_types, htypes = gather_types code in
 	let htypes = make_types_idents htypes in
@@ -1839,14 +1839,15 @@ let write_c com file (code:code) gnames pool =
 	(
 	let modules = Array.of_list modules in
 	(* sequential *)
-	Path.mkdir_recursive "" (ExtString.String.nsplit (gctx.dir) "/");
 	Array.iter (fun m ->
-		Path.mkdir_recursive gctx.dir (ExtString.String.nsplit (Filename.dirname m.m_name) "/");
+		let path = Filename.dirname m.m_name in
+		if not (Sys.file_exists (gctx.dir ^ "/" ^ path)) then
+			Path.mkdir_recursive gctx.dir (ExtString.String.nsplit path "/");
 		(* add cfiles in deterministic order *)
 		if m.m_functions <> [] then save_cfile gctx (m.m_name ^ ".c")
 	) modules;
 	(* parallel *)
-	Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~chunk_size:16 ~start:0 ~finish:(Array.length modules - 1) ~body:(fun idx ->
+	Parallel.run_parallel_for parallel (Array.length modules) (fun idx ->
 		let m = modules.(idx) in
 		let defined_types = ref PMap.empty in
 		if m.m_types <> [] then begin
@@ -1873,7 +1874,7 @@ let write_c com file (code:code) gnames pool =
 			List.iter (fun fe -> match fe.fe_decl with None -> () | Some f -> generate_function gctx ctx f) funcs;
 			close_file ctx;
 		end;
-	));
+	);
 	);
 
 	(
