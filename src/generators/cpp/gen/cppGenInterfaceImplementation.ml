@@ -37,29 +37,29 @@ let generate_protocol_delegate ctx protocol full_class_name functions output =
       | Some nativeName ->
         let parts = ExtString.String.nsplit nativeName ":" in
         (List.hd parts, parts)
-      | None -> (func.iff_field.cf_name, List.map (fun (n, _, _) -> n) func.iff_args)
+      | None -> (func.iff_name, List.map (fun a -> a.tfa_name) func.iff_args)
     in
     output ("- (" ^ retStr ^ ") " ^ fieldName);
 
     let first = ref true in
     (try
         List.iter2
-          (fun (name, _, argType) signature_name ->
+          (fun arg signature_name ->
             if !first then
-              output (" :(" ^ type_to_string argType ^ ")" ^ name)
+              output (" :(" ^ tcpp_to_string arg.tfa_type ^ ")" ^ name)
             else
               output
-                (" " ^ signature_name ^ ":(" ^ type_to_string argType ^ ")"
+                (" " ^ signature_name ^ ":(" ^ tcpp_to_string arg.tfa_type ^ ")"
               ^ name);
             first := false)
           func.iff_args argNames
       with Invalid_argument _ ->
         abort
           (let argString =
-            String.concat "," (List.map (fun (name, _, _) -> name) func.iff_args)
+            String.concat "," (List.map (fun arg -> arg.tfa_name) func.iff_args)
           in
-          "Invalid arg count in delegate in " ^ func.iff_field.cf_name ^ " '"
-          ^ func.iff_field.cf_name ^ "," ^ argString ^ "' != '"
+          "Invalid arg count in delegate in " ^ func.iff_name ^ " '"
+          ^ func.iff_name ^ "," ^ argString ^ "' != '"
           ^ String.concat "," argNames ^ "'")
           func.iff_field.cf_pos);
     output " {\n";
@@ -69,7 +69,7 @@ let generate_protocol_delegate ctx protocol full_class_name functions output =
       ^ full_class_name ^ "::"
       ^ func.iff_name
       ^ "(haxeObj");
-    List.iter (fun (name, _, _) -> output ("," ^ name)) func.iff_args;
+    List.iter (fun arg -> output ("," ^ arg.tfa_name)) func.iff_args;
     output ");\n}\n\n"
   in
   List.iter dump_delegate functions;
@@ -134,7 +134,7 @@ let generate_managed_interface base_ctx tcpp_interface =
 
   if tcpp_interface.if_scriptable then (
     let dump_script_field idx func =
-      let args = print_tfun_arg_list true func.iff_args in
+      let args = print_retyped_tfun_arg_list true func.iff_args in
       let return_type = tcpp_to_string func.iff_return in
       let ret = if return_type = "Void" || return_type = "void" then " " else "return " in
 
@@ -143,13 +143,13 @@ let generate_managed_interface base_ctx tcpp_interface =
       output_cpp "\t\t::hx::AutoStack __as(__ctx);\n";
       output_cpp "\t\t__ctx->pushObject(this);\n";
       List.iter
-        (fun (name, opt, t) ->
+        (fun arg ->
           let script_type =
-            match t |> cpp_type_of |> CppCppia.to_script_type with
-            | (CppCppia.ScriptInt | CppCppia.ScriptFloat | CppCppia.ScriptBool) when opt -> CppCppia.ScriptObject
+            match arg.tfa_type |> CppCppia.to_script_type with
+            | (CppCppia.ScriptInt | CppCppia.ScriptFloat | CppCppia.ScriptBool) when arg.tfa_optional -> CppCppia.ScriptObject
             | other -> other
           in
-          Printf.sprintf "\t\t__ctx->push%s(%s);\n" (CppCppia.to_script_type_string script_type) (keyword_remap name) |> output_cpp)
+          Printf.sprintf "\t\t__ctx->push%s(%s);\n" (CppCppia.to_script_type_string script_type) arg.tfa_name |> output_cpp)
         func.iff_args;
       let interfaceSlot = string_of_int (func.iff_script_slot |> Option.map (fun v -> -v) |>  Option.default 0) in
       output_cpp
@@ -185,10 +185,10 @@ let generate_managed_interface base_ctx tcpp_interface =
       let signature =
         output_cpp (tcpp_interface.if_name ^ "::" ^ func.iff_name ^ "(ctx->getThis()" ^ if List.length func.iff_args > 0 then "," else "");
 
-        let folder (signature, sep, size) (_, opt, t) =
+        let folder (signature, sep, size) arg =
           let script_type =
-            match t |> cpp_type_of |> CppCppia.to_script_type with
-            | (CppCppia.ScriptInt | CppCppia.ScriptFloat | CppCppia.ScriptBool) when opt -> CppCppia.ScriptObject
+            match arg.tfa_type |> CppCppia.to_script_type with
+            | (CppCppia.ScriptInt | CppCppia.ScriptFloat | CppCppia.ScriptBool) when arg.tfa_optional -> CppCppia.ScriptObject
             | other -> other
           in
           Printf.sprintf "%sctx->get%s(%s)" sep (CppCppia.to_script_type_string script_type) size |> output_cpp;

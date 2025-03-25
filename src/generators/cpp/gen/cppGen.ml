@@ -56,7 +56,7 @@ let print_arg_list_name arg_list prefix =
        arg_list)
 
 let print_arg_names args =
-  String.concat "," (List.map (fun (name, _, _) -> keyword_remap name) args)
+  args |> List.map (fun arg -> arg.tfa_name) |> String.concat ", "
 
 let print_retyped_tfun_arg_list include_names arg_list =
   let oType o arg_type =
@@ -71,17 +71,18 @@ let print_retyped_tfun_arg_list include_names arg_list =
   |> List.map (fun arg -> (oType arg.tfa_optional arg.tfa_type) ^ (if include_names then " " ^ arg.tfa_name else ""))
   |> String.concat ","
 
-let print_tfun_arg_list include_names arg_list =
-  arg_list
-  |> List.map (CppRetyper.retype_arg CppRetyper.with_stack_value_type)
-  |> print_retyped_tfun_arg_list include_names
-
 let cpp_member_name_of member =
   match get_meta_string member.cf_meta Meta.Native with
   | Some n -> n
   | None -> keyword_remap member.cf_name
 
 let function_signature include_names tfun abi =
+  let print_tfun_arg_list include_names arg_list =
+    arg_list
+    |> List.map (CppRetyper.retype_arg CppRetyper.with_stack_value_type)
+    |> print_retyped_tfun_arg_list include_names
+  in
+
   match follow tfun with
   | TFun (args, ret) ->
       type_to_string ret ^ " " ^ abi ^ "("
@@ -374,7 +375,7 @@ let end_header_file output_h def_string =
   output_h ("\n#endif /* INCLUDED_" ^ def_string ^ " */ \n")
 
 let cpp_tfun_signature include_names args return_type =
-  let argList = print_tfun_arg_list include_names args in
+  let argList = print_retyped_tfun_arg_list include_names args in
   let returnType = tcpp_to_string return_type in
   "( " ^ returnType ^ " (::hx::Object::*)(" ^ argList ^ "))"
 
@@ -389,8 +390,8 @@ let find_class_implementation func tcpp_class =
   in
 
   match find tcpp_class with
-  | Some ({ tcf_field = { cf_type = TFun (args, return) } } as func) -> 
-    cpp_tfun_signature false args func.tcf_return
+  | Some func -> 
+    print_arg_list func.tcf_args ""
   | _ ->
     ""
 

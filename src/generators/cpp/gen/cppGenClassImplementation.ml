@@ -434,7 +434,7 @@ let generate_managed_class base_ctx tcpp_class =
               if StringMap.mem cast_key glued then
                 glued
               else
-                let arg_list    = print_tfun_arg_list true func.iff_args in
+                let arg_list    = print_retyped_tfun_arg_list true func.iff_args in
                 let return_type = tcpp_to_string func.iff_return in
                 let return_str  = if return_type = "void" then "" else "return " in
                 let cpp_code    =

@@ -1746,7 +1746,7 @@ and tcpp_interface_from_tclass ctx slots class_def =
       let retyped = {
         iff_field       = field;
         iff_name        = native_field_name_remap field;
-        iff_args        = args |> List.map (fun (name, opt, t) -> (keyword_remap name, opt, t));
+        iff_args        = args |> List.map (retype_arg handler);
         iff_return      = cpp_type_of handler ret;
         iff_script_slot = CppAst.InterfaceSlots.find_opt field.cf_name slots
       } in

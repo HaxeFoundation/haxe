@@ -313,11 +313,11 @@ let generate_managed_header base_ctx tcpp_class =
     |> List.iter (fun func ->
       let retVal   = tcpp_to_string func.iff_return in
       let ret      = if retVal = "void" then "" else "return " in
-      let argNames = List.map (fun (name, _, _) -> name) func.iff_args in
+      let argNames = print_arg_names func.iff_args in
       output_h
-        ("\t\t" ^ retVal ^ " " ^ func.iff_name ^ "( " ^ print_tfun_arg_list true func.iff_args ^ ") {\n");
+        ("\t\t" ^ retVal ^ " " ^ func.iff_name ^ "( " ^ print_retyped_tfun_arg_list true func.iff_args ^ ") {\n");
       output_h
-        ("\t\t\t" ^ ret ^ "super::" ^ func.iff_name ^ "( " ^ String.concat "," argNames ^ ");\n\t\t}\n"));
+        ("\t\t\t" ^ ret ^ "super::" ^ func.iff_name ^ "( " ^ argNames ^ ");\n\t\t}\n"));
 
     output_h "\n");
 
@@ -348,7 +348,7 @@ let generate_managed_header base_ctx tcpp_class =
               let glue = Printf.sprintf "%s_%08lx" func.iff_field.cf_name (gen_hash32 0 cast) in
               if not (Hashtbl.mem alreadyGlued castKey) then (
                 Hashtbl.replace alreadyGlued castKey ();
-                let argList = print_tfun_arg_list true func.iff_args in
+                let argList = print_retyped_tfun_arg_list true func.iff_args in
                 let returnType = tcpp_to_string func.iff_return in
                 let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in
                 output_h headerCode;

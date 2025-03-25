@@ -15,7 +15,7 @@ let attribs common_ctx = match Gctx.defined common_ctx Define.DllExport with
 
 let gen_native_function ctx interface func =
   let output   = ctx.ctx_output in
-  let gen_args = print_tfun_arg_list true in
+  let gen_args = print_retyped_tfun_arg_list true in
   let strq     = strq ctx.ctx_common in
 
   Printf.sprintf "\t\tvirtual %s %s(%s)=0;\n" (tcpp_to_string func.iff_return) func.iff_name (gen_args func.iff_args) |> output;
@@ -30,7 +30,7 @@ let gen_native_function ctx interface func =
 
 let gen_function ctx interface func =
   let output       = ctx.ctx_output in
-  let argList      = print_tfun_arg_list true func.iff_args in
+  let argList      = print_retyped_tfun_arg_list true func.iff_args in
   let returnType   = match func.iff_return with
   | TCppMarshalNativeType (value_type, (Reference | Promoted)) ->
     TCppMarshalNativeType (value_type, Stack) |> tcpp_to_string
