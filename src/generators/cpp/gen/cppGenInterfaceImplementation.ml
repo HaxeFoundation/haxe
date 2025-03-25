@@ -31,7 +31,7 @@ let generate_protocol_delegate ctx protocol full_class_name functions output =
   output "}\n\n";
 
   let dump_delegate func =
-    let retStr = type_to_string func.iff_return in
+    let retStr = tcpp_to_string func.iff_return in
     let fieldName, argNames =
       match get_meta_string func.iff_field.cf_meta Meta.ObjcProtocol with
       | Some nativeName ->
@@ -135,7 +135,7 @@ let generate_managed_interface base_ctx tcpp_interface =
   if tcpp_interface.if_scriptable then (
     let dump_script_field idx func =
       let args = print_tfun_arg_list true func.iff_args in
-      let return_type = type_to_string func.iff_return in
+      let return_type = tcpp_to_string func.iff_return in
       let ret = if return_type = "Void" || return_type = "void" then " " else "return " in
 
       output_cpp ("\t" ^ return_type ^ " " ^ func.iff_name ^ "( " ^ args ^ " ) {\n");
@@ -154,7 +154,7 @@ let generate_managed_interface base_ctx tcpp_interface =
       let interfaceSlot = string_of_int (func.iff_script_slot |> Option.map (fun v -> -v) |>  Option.default 0) in
       output_cpp
         ("\t\t" ^ ret ^ "__ctx->run"
-        ^ (func.iff_return |> cpp_type_of |> CppCppia.to_script_type |> CppCppia.to_script_type_string)
+        ^ (func.iff_return |> CppCppia.to_script_type |> CppCppia.to_script_type_string)
         ^ "(__GetScriptVTable()[" ^ interfaceSlot ^ "]);\n");
       output_cpp "\t}\n";
     in
@@ -172,10 +172,9 @@ let generate_managed_interface base_ctx tcpp_interface =
 
       output_cpp ("\nstatic void CPPIA_CALL " ^ scriptName ^ "(::hx::CppiaCtx *ctx) {\n");
 
-      let tcpp_return_type = cpp_type_of func.iff_return in
-      let script_return_type = CppCppia.to_script_type tcpp_return_type in
+      let script_return_type = CppCppia.to_script_type func.iff_return in
 
-      (match tcpp_return_type with
+      (match func.iff_return with
       | TCppVoid ->
         ()
       | TCppMarshalNativeType (native_type, _) ->
@@ -205,7 +204,7 @@ let generate_managed_interface base_ctx tcpp_interface =
         signature
       in
 
-      (match tcpp_return_type with
+      (match func.iff_return with
       | TCppVoid ->
         ()
       | TCppMarshalNativeType (native_type, _) ->

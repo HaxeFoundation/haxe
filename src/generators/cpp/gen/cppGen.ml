@@ -375,13 +375,13 @@ let end_header_file output_h def_string =
 
 let cpp_tfun_signature include_names args return_type =
   let argList = print_tfun_arg_list include_names args in
-  let returnType = type_to_string return_type in
+  let returnType = tcpp_to_string return_type in
   "( " ^ returnType ^ " (::hx::Object::*)(" ^ argList ^ "))"
 
 let find_class_implementation func tcpp_class =
   let rec find def =
     match List.find_opt (fun f -> f.tcf_name = func.iff_name) def.tcl_functions with
-    | Some f -> Some f.tcf_field
+    | Some f -> Some f
     | None ->
       match def.tcl_super with
       | Some s -> find s
@@ -389,8 +389,8 @@ let find_class_implementation func tcpp_class =
   in
 
   match find tcpp_class with
-  | Some { cf_type = TFun (args, ret) } -> 
-    cpp_tfun_signature false args ret
+  | Some ({ tcf_field = { cf_type = TFun (args, return) } } as func) -> 
+    cpp_tfun_signature false args func.tcf_return
   | _ ->
     ""
 

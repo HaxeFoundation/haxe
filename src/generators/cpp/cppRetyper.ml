@@ -1735,7 +1735,7 @@ and tcpp_interface_from_tclass ctx slots class_def =
 
   let scriptable = Gctx.defined ctx.ctx_common Define.Scriptable && not class_def.cl_private in
 
-  let function_filter (slots, fields) field =
+  let function_filter handler (slots, fields) field =
     match (field.cf_type, field.cf_kind) with
     | TFun (args, ret), Method _ ->
       let slots = if scriptable then
@@ -1747,7 +1747,7 @@ and tcpp_interface_from_tclass ctx slots class_def =
         iff_field       = field;
         iff_name        = native_field_name_remap field;
         iff_args        = args |> List.map (fun (name, opt, t) -> (keyword_remap name, opt, t));
-        iff_return      = ret;
+        iff_return      = cpp_type_of handler ret;
         iff_script_slot = CppAst.InterfaceSlots.find_opt field.cf_name slots
       } in
         (slots, retyped :: fields)
@@ -1772,7 +1772,7 @@ and tcpp_interface_from_tclass ctx slots class_def =
       (slots, None)
   in
 
-  let slots, functions = List.fold_left function_filter (slots, []) class_def.cl_ordered_fields in
+  let slots, functions = List.fold_left (function_filter with_stack_value_type) (slots, []) class_def.cl_ordered_fields in
 
   let iface = {
     if_class = class_def;

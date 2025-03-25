@@ -18,7 +18,7 @@ let gen_native_function ctx interface func =
   let gen_args = print_tfun_arg_list true in
   let strq     = strq ctx.ctx_common in
 
-  Printf.sprintf "\t\tvirtual %s %s(%s)=0;\n" (type_to_string func.iff_return) func.iff_name (gen_args func.iff_args) |> output;
+  Printf.sprintf "\t\tvirtual %s %s(%s)=0;\n" (tcpp_to_string func.iff_return) func.iff_name (gen_args func.iff_args) |> output;
   if reflective interface.if_class func.iff_field then
     if Gctx.defined ctx.ctx_common Define.DynamicInterfaceClosures then
       Printf.sprintf
@@ -31,7 +31,7 @@ let gen_native_function ctx interface func =
 let gen_function ctx interface func =
   let output       = ctx.ctx_output in
   let argList      = print_tfun_arg_list true func.iff_args in
-  let returnType   = match cpp_type_of func.iff_return with
+  let returnType   = match func.iff_return with
   | TCppMarshalNativeType (value_type, (Reference | Promoted)) ->
     TCppMarshalNativeType (value_type, Stack) |> tcpp_to_string
   | other ->

@@ -1,6 +1,5 @@
 open Ast
 open Type
-open Error
 open Globals
 open CppStrings
 open CppTypeUtils
@@ -436,7 +435,7 @@ let generate_managed_class base_ctx tcpp_class =
                 glued
               else
                 let arg_list    = print_tfun_arg_list true func.iff_args in
-                let return_type = type_to_string func.iff_return in
+                let return_type = tcpp_to_string func.iff_return in
                 let return_str  = if return_type = "void" then "" else "return " in
                 let cpp_code    =
                   Printf.sprintf

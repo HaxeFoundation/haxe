@@ -284,7 +284,7 @@ and tcpp_interface_function = {
   iff_field : tclass_field;
   iff_name : string;
   iff_args : (string * bool * t) list;
-  iff_return : t;
+  iff_return : tcpp;
   iff_script_slot : int option;
 }
 
