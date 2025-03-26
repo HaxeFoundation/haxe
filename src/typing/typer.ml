@@ -232,7 +232,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 					raise Exit
 			) el in
 			let common_types = UnifyMinT.collect_base_types tr0 in
-			let tr = match UnifyMinT.unify_min' default_unification_context common_types rets with
+			let tr = match UnifyMinT.unify_min' (default_unification_context()) common_types rets with
 			| UnifyMinOk t ->
 				t
 			| UnifyMinError(l,index) ->
@@ -255,7 +255,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 			let common_types = (match List.rev dyn_types with [] -> common_types | l -> common_types @ l) in
 			let el = List.tl el in
 			let tl = List.map (fun e -> e.etype) el in
-			begin match UnifyMinT.unify_min' default_unification_context common_types tl with
+			begin match UnifyMinT.unify_min' (default_unification_context()) common_types tl with
 			| UnifyMinOk t ->
 				t
 			| UnifyMinError(l,index) ->

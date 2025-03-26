@@ -110,7 +110,7 @@ and do_check_cast ctx uctx tleft eright p =
 
 and cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
 	let uctx = match uctx with
-		| None -> default_unification_context
+		| None -> default_unification_context ()
 		| Some uctx -> uctx
 	in
 	try
@@ -200,7 +200,7 @@ let find_array_write_access ctx a tl e1 e2 p =
 		raise_typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
 let find_multitype_specialization' com a pl p =
-	let uctx = default_unification_context in
+	let uctx = default_unification_context () in
 	let m = mk_mono() in
 	let tl,definitive_types = Abstract.find_multitype_params a pl in
 	if com.platform = Globals.Js && a.a_path = (["haxe";"ds"],"Map") then begin match tl with

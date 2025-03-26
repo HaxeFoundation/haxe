@@ -408,7 +408,7 @@ let unify_raise_custom uctx t1 t2 p =
 			(* no untyped check *)
 			raise_error_msg (Unify l) p
 
-let unify_raise = unify_raise_custom default_unification_context
+let unify_raise a b = unify_raise_custom (default_unification_context()) a b
 
 let save_locals ctx =
 	let locals = ctx.f.locals in

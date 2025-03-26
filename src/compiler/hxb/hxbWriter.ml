@@ -1017,7 +1017,7 @@ module HxbWriter = struct
 		end
 
 	and write_anon_ref writer (an : tanon) =
-		let pfm = Option.get (writer.anon_id#identify_anon ~strict:true an) in
+		let pfm = writer.anon_id#identify_anon ~strict:true an in
 		try
 			let index = Pool.get writer.anons pfm.pfm_path in
 			Chunk.write_u8 writer.chunk 0;
