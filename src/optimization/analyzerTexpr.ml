@@ -20,6 +20,7 @@
 open Ast
 open Type
 open Common
+open AnalyzerTypes
 open OptimizerTexpr
 open Globals
 
@@ -108,11 +109,11 @@ let target_handles_unops com = match com.platform with
 let target_handles_assign_ops com e2 = match com.platform with
 	| Php -> not (has_side_effect e2)
 	| Lua -> false
-	| Cpp when not (Common.defined com Define.Cppia) -> false
+	| Cpp when not (Define.defined com.defines Define.Cppia) -> false
 	| _ -> true
 
 let target_handles_side_effect_order com = match com.platform with
-	| Cpp -> Common.defined com Define.Cppia
+	| Cpp -> Define.defined com.defines Define.Cppia
 	| Php -> false
 	| _ -> true
 
@@ -183,7 +184,7 @@ let type_change_ok com t1 t2 =
 		t1 == t2 || match follow t1,follow t2 with
 			| TDynamic _,_ | _,TDynamic _ -> false
 			| _ ->
-				if com.config.pf_static && is_nullable_or_whatever t1 <> is_nullable_or_whatever t2 then false
+				if com.platform_config.pf_static && is_nullable_or_whatever t1 <> is_nullable_or_whatever t2 then false
 				else type_iseq t1 t2
 	end
 
@@ -827,7 +828,7 @@ module Fusion = struct
 				can_be_used_as_value com e1 &&
 				not (ExtType.is_void e1.etype) &&
 				(match com.platform with
-					| Cpp when not (Common.defined com Define.Cppia) -> false
+					| Cpp when not (Define.defined com.defines Define.Cppia) -> false
 					| _ -> true)
 				->
 				begin try

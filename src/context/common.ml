@@ -1117,9 +1117,6 @@ let display_error_ext com err =
 let display_error com ?(depth = 0) msg p =
 	display_error_ext com (Error.make_error ~depth (Custom msg) p)
 
-let dump_path com =
-	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
-
 let adapt_defines_to_macro_context defines =
 	let to_remove = "java" :: List.map Globals.platform_name Globals.platforms in
 	let to_remove = List.fold_left (fun acc d -> Define.get_define_key d :: acc) to_remove [Define.NoTraces] in

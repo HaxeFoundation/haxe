@@ -20,7 +20,6 @@
 open StringHelper
 open Ast
 open Type
-open Common
 open AnalyzerTexpr
 open AnalyzerTypes
 open OptimizerTexpr
@@ -472,7 +471,7 @@ module ConstPropagationImpl = struct
 				begin match follow e1.etype,eval bb e1 with
 					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i),actx.com.basic.tint)
 					| _,e1 ->
-						begin match Inline.api_inline2 actx.com c cf.cf_name [wrap e1] e.epos with
+						begin match Inline.api_inline2 actx.com.basic actx.com.platform c cf.cf_name [wrap e1] e.epos with
 							| None -> raise Exit
 							| Some e -> eval bb e
 						end
@@ -480,7 +479,7 @@ module ConstPropagationImpl = struct
 			| TCall ({ eexpr = TField (_,FStatic(c,cf))},el) ->
 				let el = List.map (eval bb) el in
 				let el = List.map wrap el in
-				begin match Inline.api_inline2 actx.com c cf.cf_name el e.epos with
+				begin match Inline.api_inline2 actx.com.basic actx.com.platform c cf.cf_name el e.epos with
 					| None -> raise Exit
 					| Some e -> eval bb e
 				end
@@ -870,8 +869,12 @@ module Debug = struct
 			end
 		) g.g_var_infos
 
+	let platform_name_macro com =
+		if Define.defined com.defines Define.Macro then "macro"
+		else platform_name com.platform
+
 	let get_dump_path ctx c cf =
-		(dump_path ctx.com) :: [platform_name_macro ctx.com] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
+		(Dump.dump_path ctx.com.defines) :: [platform_name_macro ctx.com] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
 
 	let dot_debug ctx c cf =
 		let g = ctx.graph in
@@ -978,10 +981,16 @@ module Run = struct
 		let timer = Timer.timer name in
 		Std.finally timer f ()
 
-	let create_analyzer_context com config identifier e =
+	let create_analyzer_context (com : Common.context) config identifier e =
 		let g = Graph.create e.etype e.epos in
 		let ctx = {
-			com = com;
+			com = {
+				basic = com.basic;
+				platform = com.platform;
+				platform_config = com.config;
+				defines = com.defines;
+				debug = com.debug;
+			};
 			config = config;
 			graph = g;
 			(* For CPP we want to use variable names which are "probably" not used by users in order to

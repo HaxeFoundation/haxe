@@ -15,36 +15,36 @@ let mk_untyped_call name p params =
 		epos = p;
 	}
 
-let api_inline2 com c field params p =
+let api_inline2 basic platform c field params p =
 	match c.cl_path, field, params with
 	| ([],"Type"),"enumIndex",[{ eexpr = TField (_,FEnum (en,f)) }] ->
-		Some (mk (TConst (TInt (Int32.of_int f.ef_index))) com.basic.tint p)
+		Some (mk (TConst (TInt (Int32.of_int f.ef_index))) basic.tint p)
 	| ([],"Type"),"enumIndex",[{ eexpr = TCall({ eexpr = TField (_,FEnum (en,f)) },pl) }] when List.for_all (fun e -> not (has_side_effect e)) pl ->
-		Some (mk (TConst (TInt (Int32.of_int f.ef_index))) com.basic.tint p)
+		Some (mk (TConst (TInt (Int32.of_int f.ef_index))) basic.tint p)
 	| ([],"Std"),"int",[{ eexpr = TConst (TInt _) } as e] ->
 		Some { e with epos = p }
 	| ([],"String"),"fromCharCode",[{ eexpr = TConst (TInt i) }] when i > 0l && i < 128l ->
-		Some (mk (TConst (TString (String.make 1 (char_of_int (Int32.to_int i))))) com.basic.tstring p)
+		Some (mk (TConst (TString (String.make 1 (char_of_int (Int32.to_int i))))) basic.tstring p)
 	| ([],"Std"),"string",[{ eexpr = TCast ({ eexpr = TConst c } as e, None)}]
 	| ([],"Std"),"string",[{ eexpr = TConst c } as e] ->
 		(match c with
 		| TString s ->
 			Some { e with epos = p }
 		| TInt i ->
-			Some { eexpr = TConst (TString (Int32.to_string i)); epos = p; etype = com.basic.tstring }
+			Some { eexpr = TConst (TString (Int32.to_string i)); epos = p; etype = basic.tstring }
 		| TBool b ->
-			Some { eexpr = TConst (TString (if b then "true" else "false")); epos = p; etype = com.basic.tstring }
+			Some { eexpr = TConst (TString (if b then "true" else "false")); epos = p; etype = basic.tstring }
 		| _ ->
 			None)
 	| ([],"Std"),"string",[{ eexpr = TIf (_,{ eexpr = TConst (TString _)},Some { eexpr = TConst (TString _) }) } as e] ->
 		Some e
-	| ([],"Std"),"string",[{ eexpr = TLocal v | TField({ eexpr = TLocal v },_) } as ev] when (com.platform = Js || com.platform = Flash) && (match v.v_kind with VUser _ -> true | _ -> false) ->
+	| ([],"Std"),"string",[{ eexpr = TLocal v | TField({ eexpr = TLocal v },_) } as ev] when (platform = Js || platform = Flash) && (match v.v_kind with VUser _ -> true | _ -> false) ->
 		let pos = ev.epos in
 		let stringv() =
-			let to_str = mk (TBinop (Ast.OpAdd, mk (TConst (TString "")) com.basic.tstring pos, ev)) com.basic.tstring pos in
-			if com.platform = Js || is_nullable ev.etype then
-				let chk_null = mk (TBinop (Ast.OpEq, ev, mk (TConst TNull) t_dynamic pos)) com.basic.tbool pos in
-				mk (TIf (chk_null, mk (TConst (TString "null")) com.basic.tstring pos, Some to_str)) com.basic.tstring pos
+			let to_str = mk (TBinop (Ast.OpAdd, mk (TConst (TString "")) basic.tstring pos, ev)) basic.tstring pos in
+			if platform = Js || is_nullable ev.etype then
+				let chk_null = mk (TBinop (Ast.OpEq, ev, mk (TConst TNull) t_dynamic pos)) basic.tbool pos in
+				mk (TIf (chk_null, mk (TConst (TString "null")) basic.tstring pos, Some to_str)) basic.tstring pos
 			else
 				to_str
 		in
@@ -69,7 +69,7 @@ let api_inline2 com c field params p =
 		| _ when f <= Int32.to_float Int32.min_int -. 1. || f >= Int32.to_float Int32.max_int +. 1. ->
 			None (* out range, keep platform-specific behavior *)
 		| _ ->
-			Some { eexpr = TConst (TInt (Int32.of_float f)); etype = com.basic.tint; epos = p })
+			Some { eexpr = TConst (TInt (Int32.of_float f)); etype = basic.tint; epos = p })
 	| ([],"Math"),"ceil",[{ eexpr = TConst (TFloat f) }] ->
 		let f = float_of_string f in
 		(match classify_float f with
@@ -78,7 +78,7 @@ let api_inline2 com c field params p =
 		| _ when f <= Int32.to_float Int32.min_int -. 1. || f >= Int32.to_float Int32.max_int ->
 			None (* out range, keep platform-specific behavior *)
 		| _ ->
-			Some { eexpr = TConst (TInt (Int32.of_float (ceil f))); etype = com.basic.tint; epos = p })
+			Some { eexpr = TConst (TInt (Int32.of_float (ceil f))); etype = basic.tint; epos = p })
 	| ([],"Math"),"floor",[{ eexpr = TConst (TFloat f) }] ->
 		let f = float_of_string f in
 		(match classify_float f with
@@ -87,7 +87,7 @@ let api_inline2 com c field params p =
 		| _ when f <= Int32.to_float Int32.min_int || f >= Int32.to_float Int32.max_int +. 1. ->
 			None (* out range, keep platform-specific behavior *)
 		| _ ->
-			Some { eexpr = TConst (TInt (Int32.of_float (floor f))); etype = com.basic.tint; epos = p })
+			Some { eexpr = TConst (TInt (Int32.of_float (floor f))); etype = basic.tint; epos = p })
 	| (["java"],"Lib"),("lock"),[obj;block] ->
 			Some (mk_untyped_call ("__lock__") p [obj;mk_block block])
 	| _ ->
@@ -185,7 +185,7 @@ let api_inline ctx c field params p =
 		with | Exit ->
 			None)
 	| _ ->
-		api_inline2 ctx.com c field params p
+		api_inline2 ctx.com.basic ctx.com.platform c field params p
 
 type in_local = {
 	i_var : tvar;
