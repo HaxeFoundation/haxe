@@ -221,10 +221,9 @@ let unblock ctx =
 	ctx.tabs <- String.sub ctx.tabs 0 (String.length ctx.tabs - 1)
 
 let hash ctx sid =
-	Mutex.lock ctx.hash_mutex;
+	Mutex.protect ctx.hash_mutex (fun () ->
 	try
 		let h = Hashtbl.find ctx.hash_cache sid in
-		Mutex.unlock ctx.hash_mutex;
 		h
 	with Not_found ->
 		let rec loop h =
@@ -234,8 +233,8 @@ let hash ctx sid =
 		Hashtbl.add ctx.hash_cache sid h;
 		Hashtbl.add ctx.hash_mem h true;
 		ctx.hash_cache_list <- sid :: ctx.hash_cache_list;
-		Mutex.unlock ctx.hash_mutex;
 		h
+	)
 
 let type_name ctx t =
 	try PMap.find t ctx.htypes with Not_found -> Globals.die (tstr t) __LOC__
@@ -1491,7 +1490,7 @@ let generate_module_types gctx ctx m =
 let write_c com file (code:code) gnames num_domains =
 
 	let all_types, htypes = gather_types code in
-	let htypes = make_types_idents htypes in
+	let types_ids = make_types_idents htypes in
 	let gnames = make_global_names code gnames in
 	let bnames = Array.map (fun b -> "bytes$" ^ short_digest (Digest.to_hex (Digest.bytes b))) code.bytes in
 	let gctx = {
@@ -1504,7 +1503,7 @@ let write_c com file (code:code) gnames num_domains =
 		dir = (match Filename.dirname file with "" -> "." | dir -> String.concat "/" (ExtString.String.nsplit dir "\\"));
 		cfiles = [];
 		ftable = make_function_table code;
-		htypes = htypes;
+		htypes = types_ids;
 		gnames = gnames;
 		bytes_names = bnames;
 		type_module = PMap.empty;

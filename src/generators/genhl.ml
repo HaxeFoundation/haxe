@@ -4328,7 +4328,7 @@ let generate com =
 	if Gctx.raw_defined com "run" then begin
 		if com.run_command_args "haxelib" ["run";"hashlink";"run";escape_command com.file] <> 0 then failwith "Failed to run HL";
 	end;
-	if Gctx.defined com Define.Interp then begin
+	if Gctx.defined com Define.Interp then
 		try
 			let t = Timer.timer ["generate";"hl";"interp"] in
 			let ctx = Hlinterp.create true in
@@ -4336,4 +4336,3 @@ let generate com =
 			t();
 		with
 			Failure msg -> abort msg null_pos
-	end;
