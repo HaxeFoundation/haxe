@@ -33,14 +33,10 @@ type dce = {
 	std_dirs : string list;
 	debug : bool;
 	follow_expr : dce -> texpr -> unit;
-	dependent_types : (string list * string,module_type list) Hashtbl.t;
 	mutable curclass : tclass;
 	mutable added_fields : (tclass * tclass_field * class_field_ref_kind) list;
 	mutable marked_fields : tclass_field list;
-	mutable marked_maybe_fields : tclass_field list;
-	mutable t_stack : t list;
-	mutable ts_stack : t list;
-	mutable features : (string, class_field_ref list ref) Hashtbl.t;
+	features : (string, class_field_ref list ref) Hashtbl.t;
 }
 
 let push_class dce c =
@@ -240,39 +236,41 @@ end
 
 (* mark a type as kept *)
 and mark_t dce p t =
-	if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.t_stack) then begin
-		dce.t_stack <- t :: dce.t_stack;
-		begin match follow t with
-		| TInst({cl_kind = KTypeParameter ttp} as c,pl) ->
-			if not (has_class_flag c CUsed) then begin
-				add_class_flag c CUsed;
-				List.iter (mark_t dce p) (get_constraints ttp);
-			end;
-			List.iter (mark_t dce p) pl
-		| TInst(c,pl) ->
-			mark_class dce c;
-			List.iter (mark_t dce p) pl
-		| TFun(args,ret) ->
-			List.iter (fun (_,_,t) -> mark_t dce p t) args;
-			mark_t dce p ret
-		| TEnum(e,pl) ->
-			mark_enum dce e;
-			List.iter (mark_t dce p) pl
-		| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
-			begin try
-				mark_t dce p (snd (AbstractCast.find_multitype_specialization dce.com a pl p))
-			with Error.Error _ ->
+	let rec loop stack t =
+		if not (List.exists (fun t2 -> Type.fast_eq t t2) stack) then begin
+			let stack = t :: stack in
+			match follow t with
+			| TInst({cl_kind = KTypeParameter ttp} as c,pl) ->
+				if not (has_class_flag c CUsed) then begin
+					add_class_flag c CUsed;
+					List.iter (loop stack) (get_constraints ttp);
+				end;
+				List.iter (loop stack) pl
+			| TInst(c,pl) ->
+				mark_class dce c;
+				List.iter (loop stack) pl
+			| TFun(args,ret) ->
+				List.iter (fun (_,_,t) -> loop stack t) args;
+				loop stack ret
+			| TEnum(e,pl) ->
+				mark_enum dce e;
+				List.iter (loop stack) pl
+			| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
+				begin try
+					loop stack (snd (AbstractCast.find_multitype_specialization dce.com a pl p))
+				with Error.Error _ ->
+					()
+				end
+			| TAbstract(a,pl) ->
+				mark_abstract dce a;
+				List.iter (loop stack) pl;
+				if not (Meta.has Meta.CoreType a.a_meta) then
+					loop stack (Abstract.get_underlying_type a pl)
+			| TLazy _ | TDynamic _ | TType _ | TAnon _ | TMono _ ->
 				()
-			end
-		| TAbstract(a,pl) ->
-			mark_abstract dce a;
-			List.iter (mark_t dce p) pl;
-			if not (Meta.has Meta.CoreType a.a_meta) then
-				mark_t dce p (Abstract.get_underlying_type a pl)
-		| TLazy _ | TDynamic _ | TType _ | TAnon _ | TMono _ -> ()
-		end;
-		dce.t_stack <- List.tl dce.t_stack
-	end
+		end
+	in
+	loop [] t
 
 let mark_mt dce mt = match mt with
 	| TClassDecl c ->
@@ -298,7 +296,6 @@ let mark_dependent_fields dce csup n kind =
 			(* otherwise it might be kept if the class is kept later, so mark it as :?used *)
 			else if not (has_class_field_flag cf CfMaybeUsed) then begin
 				add_class_field_flag cf CfMaybeUsed;
-				dce.marked_maybe_fields <- cf :: dce.marked_maybe_fields;
 			end
 		with Not_found ->
 			(* if the field is not present on current class, it might come from a base class *)
@@ -314,27 +311,26 @@ let mark_dependent_fields dce csup n kind =
 
 let opt f e = match e with None -> () | Some e -> f e
 
-let rec to_string dce t = match t with
+let rec to_string dce stack t = match t with
 	| TInst(c,tl) ->
 		field dce c "toString" CfrMember;
 	| TType(tt,tl) ->
-		if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.ts_stack) then begin
-			dce.ts_stack <- t :: dce.ts_stack;
-			to_string dce (apply_typedef tt tl)
+		if not (List.exists (fun t2 -> Type.fast_eq t t2) stack) then begin
+			to_string dce (t :: stack) (apply_typedef tt tl)
 		end
 	| TAbstract({a_impl = Some c} as a,tl) ->
 		if Meta.has Meta.CoreType a.a_meta then
 			field dce c "toString" CfrMember
 		else
-			to_string dce (Abstract.get_underlying_type a tl)
+			to_string dce stack (Abstract.get_underlying_type a tl)
 	| TMono r ->
 		(match r.tm_type with
-		| Some t -> to_string dce t
+		| Some t -> to_string dce stack t
 		| _ -> ())
 	| TLazy f ->
-		to_string dce (lazy_type f)
+		to_string dce stack (lazy_type f)
 	| TDynamic (Some t) ->
-		to_string dce t
+		to_string dce stack t
 	| TEnum _ | TFun _ | TAnon _ | TAbstract({a_impl = None},_) | TDynamic None ->
 		(* if we to_string these it does not imply that we need all its sub-types *)
 		()
@@ -561,7 +557,7 @@ and expr dce e =
 
 	(* keep toString method of T when array<T>.join() is called *)
 	| TCall ({eexpr = TField(_, FInstance({cl_path = ([],"Array")}, pl, {cf_name="join"}))} as ef, args) ->
-		List.iter (fun e -> to_string dce e) pl;
+		List.iter (fun e -> to_string dce [] e) pl;
 		expr dce ef;
 		List.iter (expr dce) args;
 
@@ -569,13 +565,13 @@ and expr dce e =
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ((e2 :: el) as args))
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},FStatic (_,{cf_name="string"}))} as ef, ((e2 :: el) as args)) ->
 		mark_class dce c;
-		to_string dce e2.etype;
+		to_string dce [] e2.etype;
 		begin match el with
 			| [{eexpr = TObjectDecl fl}] ->
 				begin try
 					begin match Expr.field_assoc "customParams" fl with
 						| {eexpr = TArrayDecl el} ->
-							List.iter (fun e -> to_string dce e.etype) el
+							List.iter (fun e -> to_string dce [] e.etype) el
 						| _ ->
 							()
 					end
@@ -681,7 +677,7 @@ and expr dce e =
 		check_and_add_feature dce "has_throw";
 		expr dce e;
 		let rec loop e =
-			to_string dce e.etype;
+			to_string dce [] e.etype;
 			Type.iter loop e
 		in
 		loop e
@@ -902,15 +898,11 @@ let run com main mode =
 	let dce = {
 		com = com;
 		full = full;
-		dependent_types = Hashtbl.create 0;
 		std_dirs = if full then [] else List.map (fun path -> Path.get_full_path path#path) com.class_paths#get_std_paths;
 		debug = Common.defined com Define.DceDebug;
 		added_fields = [];
 		follow_expr = expr;
 		marked_fields = [];
-		marked_maybe_fields = [];
-		t_stack = [];
-		ts_stack = [];
 		features = Hashtbl.create 0;
 		curclass = null_class;
 	} in
