@@ -37,10 +37,12 @@ type dce = {
 	added_fields : (tclass * tclass_field * class_field_ref_kind) list ref;
 	marked_fields : tclass_field list ref;
 	features : (string, class_field_ref list ref) Hashtbl.t;
+	checked_features : (string,unit) Hashtbl.t;
 	merge_mutex : Mutex.t;
 	field_marker_mutex : Mutex.t;
 	used_mutex : Mutex.t;
 	feature_mutex : Mutex.t;
+	add_feature_mutex : Mutex.t;
 }
 
 let push_class dce c =
@@ -145,23 +147,27 @@ let rec keep_field dce cf c kind =
 (* marking *)
 
 let rec check_feature dce s =
-	Mutex.lock dce.feature_mutex;
 	try
 		let l = Hashtbl.find dce.features s in
-		Hashtbl.remove dce.features s;
-		Mutex.unlock dce.feature_mutex;
-		List.iter (fun cfr ->
-			let (c, cf) = resolve_class_field_ref dce.com cfr in
-			mark_field dce c cf cfr.cfr_kind
-		) !l;
-
+		Mutex.lock dce.feature_mutex;
+		if not (Hashtbl.mem dce.checked_features s) then begin
+			Hashtbl.add dce.checked_features s ();
+			Mutex.unlock dce.feature_mutex;
+			List.iter (fun cfr ->
+				let (c, cf) = resolve_class_field_ref dce.com cfr in
+				mark_field dce c cf cfr.cfr_kind
+			) !l
+		end else
+			Mutex.unlock dce.feature_mutex
 	with Not_found ->
-		Mutex.unlock dce.feature_mutex;
+		()
 
 and check_and_add_feature dce s =
 	check_feature dce s;
 	assert (dce.curclass != null_class);
-	Mutex.protect dce.feature_mutex (fun () -> Hashtbl.replace dce.curclass.cl_module.m_extra.m_features s true)
+	Mutex.protect dce.add_feature_mutex (fun () ->
+		Hashtbl.replace dce.curclass.cl_module.m_extra.m_features s true
+	)
 
 (* mark a field as kept *)
 and mark_field dce c cf kind =
@@ -316,7 +322,10 @@ let mark_dependent_fields dce csup n kind =
 			let cf = PMap.find n (if stat then c.cl_statics else c.cl_fields) in
 			(* if it's clear that the class is kept, the field has to be kept as well. This is also true for
 				extern interfaces because we cannot remove fields from them *)
-			if has_class_flag c CUsed || ((has_class_flag csup CInterface) && (has_class_flag csup CExtern)) then mark_field dce c cf kind
+			if has_class_flag c CUsed || ((has_class_flag csup CInterface) && (has_class_flag csup CExtern)) then begin
+				let dce = push_class dce c in
+				mark_field dce c cf kind
+			end
 			(* otherwise it might be kept if the class is kept later, so mark it as :?used *)
 			else if not (has_class_field_flag cf CfMaybeUsed) then begin
 				add_class_field_flag cf CfMaybeUsed;
@@ -824,6 +833,8 @@ let mark dce =
 		| [] -> ()
 		| cfl ->
 			dce.added_fields := [];
+			Hashtbl.iter (fun k _ -> Hashtbl.remove dce.features k) dce.checked_features;
+			Hashtbl.clear dce.checked_features;
 			let cfl = Array.of_list cfl in
 			(* extend to dependent (= overriding/implementing) class fields *)
 			Parallel.run_parallel_on_array pool cfl (fun (c,cf,stat) ->
@@ -929,22 +940,33 @@ let run com main mode =
 		follow_expr = expr;
 		marked_fields = ref [];
 		features = Hashtbl.create 0;
+		checked_features = Hashtbl.create 0;
 		curclass = null_class;
 		merge_mutex = Mutex.create();
 		field_marker_mutex = Mutex.create();
 		used_mutex = Mutex.create();
 		feature_mutex = Mutex.create();
+		add_feature_mutex = Mutex.create();
 	} in
 
+	let timer = Timer.timer ["filters";"dce";"collect"] in
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
 	collect_entry_points dce com;
+	timer();
 
+	let timer = Timer.timer ["filters";"dce";"mark"] in
 	(* second step: initiate DCE passes and keep going until no new fields were added *)
 	mark dce;
+	timer();
 
 	(* third step: filter types *)
-	if mode <> DceNo then sweep dce com;
+	if mode <> DceNo then begin
+		let timer = Timer.timer ["filters";"dce";"sweep"] in
+		sweep dce com;
+		timer();
+	end;
 
+	let timer = Timer.timer ["filters";"dce";"cleanup"] in
 	(* extra step to adjust properties that had accessors removed (required for Php and Cpp) *)
 	fix_accessors com;
 
@@ -978,4 +1000,5 @@ let run com main mode =
 	) com.types;
 
 	(* cleanup added fields metadata - compatibility with compilation server *)
-	List.iter (fun cf -> remove_class_field_flag cf CfUsed) !(dce.marked_fields)
+	List.iter (fun cf -> remove_class_field_flag cf CfUsed) !(dce.marked_fields);
+	timer()
