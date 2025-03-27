@@ -821,7 +821,6 @@ let mark dce =
 		| cfl ->
 			dce.added_fields := [];
 			let cfl = Array.of_list cfl in
-			print_endline (Printf.sprintf "length: %i" (Array.length cfl));
 			(* extend to dependent (= overriding/implementing) class fields *)
 			Parallel.run_parallel_on_array pool cfl (fun (c,cf,stat) ->
 				mark_dependent_fields dce c cf.cf_name stat;
