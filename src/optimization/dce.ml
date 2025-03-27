@@ -33,17 +33,20 @@ type dce = {
 	std_dirs : string list;
 	debug : bool;
 	follow_expr : dce -> texpr -> unit;
-	mutable curclass : tclass;
+	curclass : tclass;
 	mutable added_fields : (tclass * tclass_field * class_field_ref_kind) list;
 	mutable marked_fields : tclass_field list;
 	features : (string, class_field_ref list ref) Hashtbl.t;
+	merge_mutex : Mutex.t;
 }
 
 let push_class dce c =
-	let old = dce.curclass in
-	dce.curclass <- c;
-	(fun () ->
-		dce.curclass <- old
+	let dce_new = {dce with curclass = c;added_fields = [];marked_fields = []} in
+	dce_new,(fun () ->
+		Mutex.protect dce.merge_mutex (fun () ->
+			dce.added_fields <- dce.added_fields @ dce_new.added_fields;
+			dce.marked_fields <- dce.marked_fields @ dce_new.marked_fields;
+		)
 	)
 
 let resolve_class_field_ref ctx cfr =
@@ -201,7 +204,7 @@ and mark_field dce c cf kind =
 				| Some ctor -> mark_field dce c ctor CfrConstructor
 
 let rec update_marked_class_fields dce c =
-	let pop = push_class dce c in
+	let dce,pop = push_class dce c in
 	(* mark all :?used fields as surely :used now *)
 	List.iter (fun cf ->
 		if has_class_field_flag cf CfMaybeUsed then mark_field dce c cf CfrStatic
@@ -772,7 +775,7 @@ let collect_entry_points dce com =
 		| TEnumDecl en when keep_whole_enum dce en ->
 			en.e_meta <- Meta.remove Meta.Used en.e_meta;
 			delayed := (fun () ->
-				let pop = push_class dce {null_class with cl_module = en.e_module} in
+				let dce,pop = push_class dce {null_class with cl_module = en.e_module} in
 				mark_enum dce en;
 				pop()
 			) :: !delayed;
@@ -788,33 +791,34 @@ let collect_entry_points dce com =
 	end
 
 let mark dce =
-	let rec loop () =
+	let rec loop pool =
 		match dce.added_fields with
 		| [] -> ()
 		| cfl ->
 			dce.added_fields <- [];
+			let cfl = Array.of_list cfl in
 			(* extend to dependent (= overriding/implementing) class fields *)
-			List.iter (fun (c,cf,stat) -> mark_dependent_fields dce c cf.cf_name stat) cfl;
+			Parallel.run_parallel_on_array pool cfl (fun (c,cf,stat) -> mark_dependent_fields dce c cf.cf_name stat);
 			(* mark fields as used *)
-			List.iter (fun (c,cf,stat) ->
-				let pop = push_class dce c in
+			Parallel.run_parallel_on_array pool cfl (fun (c,cf,stat) ->
+				let dce,pop = push_class dce c in
 				if is_physical_field cf then mark_class dce c;
 				mark_field dce c cf stat;
 				mark_t dce cf.cf_pos cf.cf_type;
 				pop()
-			) cfl;
+			);
 			(* follow expressions to new types/fields *)
-			List.iter (fun (c,cf,_) ->
+			Parallel.run_parallel_on_array pool cfl (fun (c,cf,_) ->
 				if not (has_class_flag c CExtern) then begin
-					let pop = push_class dce c in
+					let dce,pop = push_class dce c in
 					opt (expr dce) cf.cf_expr;
 					List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
 					pop()
 				end
-			) cfl;
-			loop ()
+			);
+			loop pool
 	in
-	loop ()
+	Parallel.run_in_new_pool loop
 
 let sweep dce com =
 	let rec loop acc types =
@@ -905,6 +909,7 @@ let run com main mode =
 		marked_fields = [];
 		features = Hashtbl.create 0;
 		curclass = null_class;
+		merge_mutex = Mutex.create();
 	} in
 
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
