@@ -5,9 +5,7 @@ open Type
 open Typecore
 open Error
 
-let cast_stack = new_rec_stack()
-
-let rec make_static_call ctx c cf a pl args t p =
+let rec make_static_call ctx stack c cf a pl args t p =
 	if cf.cf_kind = Method MethMacro then begin
 		match args with
 			| [e] ->
@@ -18,21 +16,21 @@ let rec make_static_call ctx c cf a pl args t p =
 					| _ ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
 				ctx.e.with_type_stack <- List.tl ctx.e.with_type_stack;
-				let e = try cast_or_unify_raise ctx t e p with Error { err_message = Unify _ } -> raise Not_found in
+				let e = try cast_or_unify_raise ctx stack t e p with Error { err_message = Unify _ } -> raise Not_found in
 				f();
 				e
 			| _ -> die "" __LOC__
 	end else
 		CallUnification.make_static_call_better ctx c cf pl args t p
 
-and do_check_cast ctx uctx tleft eright p =
+and do_check_cast ctx uctx stack tleft eright p =
 	let recurse cf f =
 		(*
 			Without this special check for macro @:from methods we will always get "Recursive implicit cast" error
 			unlike non-macro @:from methods, which generate unification errors if no other @:from methods are involved.
 		*)
 		if cf.cf_kind = Method MethMacro then begin
-			match cast_stack.rec_stack with
+			match stack.rec_stack with
 			| previous_from :: _ when previous_from == cf ->
 				(try
 					Type.unify_custom uctx eright.etype tleft;
@@ -40,15 +38,15 @@ and do_check_cast ctx uctx tleft eright p =
 					raise_error_msg (Unify l) eright.epos)
 			| _ -> ()
 		end;
-		if cf == ctx.f.curfield || rec_stack_memq cf cast_stack then raise_typing_error "Recursive implicit cast" p;
-		rec_stack_loop cast_stack cf f ()
+		if cf == ctx.f.curfield || rec_stack_memq cf stack then raise_typing_error "Recursive implicit cast" p;
+		rec_stack_loop stack cf f ()
 	in
 	let make (a,tl,(tcf,cf)) =
 		if (Meta.has Meta.MultiType cf.cf_meta) then
 			mk_cast eright tleft p
 		else match a.a_impl with
 			| Some c -> recurse cf (fun () ->
-				let ret = make_static_call ctx c cf a tl [eright] tleft p in
+				let ret = make_static_call ctx stack c cf a tl [eright] tleft p in
 				{ ret with eexpr = TMeta( (Meta.ImplicitCast,[],ret.epos), ret) }
 			)
 			| None -> die "" __LOC__
@@ -108,18 +106,21 @@ and do_check_cast ctx uctx tleft eright p =
 		loop [] tleft eright.etype
 	end
 
-and cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
+and cast_or_unify_raise ctx ?(uctx=None) stack tleft eright p =
 	let uctx = match uctx with
 		| None -> default_unification_context ()
 		| Some uctx -> uctx
 	in
 	try
-		do_check_cast ctx uctx tleft eright p
+		do_check_cast ctx uctx stack tleft eright p
 	with Not_found ->
 		unify_raise_custom uctx eright.etype tleft p;
 		eright
 
-and cast_or_unify ctx tleft eright p =
+let cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
+	cast_or_unify_raise ctx ~uctx (new_rec_stack()) tleft eright p
+
+let cast_or_unify ctx tleft eright p =
 	try
 		cast_or_unify_raise ctx tleft eright p
 	with Error ({ err_message = Unify _ } as err) ->
@@ -259,7 +260,7 @@ let handle_abstract_casts ctx e =
 			end else begin
 				(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
 				let cf,m,pl = find_multitype_specialization' ctx.com a pl e.epos in
-				let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
+				let e = make_static_call ctx (new_rec_stack()) c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
 				{e with etype = m}
 			end
 		| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))},[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
@@ -267,7 +268,7 @@ let handle_abstract_casts ctx e =
 				| TAbstract({a_impl = Some c} as a,tl) ->
 					begin try
 						let cf = PMap.find "toString" c.cl_statics in
-						let call() = make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos in
+						let call() = make_static_call ctx (new_rec_stack()) c cf a tl [e1] ctx.t.tstring e.epos in
 						if not ctx.allow_transform then
 							{ e1 with etype = ctx.t.tstring; epos = e.epos }
 						else if not (is_nullable e1.etype) then
@@ -350,7 +351,7 @@ let handle_abstract_casts ctx e =
 							match follow m with
 							| TAbstract({a_impl = Some c} as a,pl) ->
 								let cf = PMap.find fname c.cl_statics in
-								make_static_call ctx c cf a pl (e2 :: el) e.etype e.epos
+								make_static_call ctx (new_rec_stack()) c cf a pl (e2 :: el) e.etype e.epos
 							| _ -> raise Not_found
 						end
 					| _ ->

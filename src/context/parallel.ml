@@ -13,5 +13,5 @@ let run_parallel_on_seq pool seq f =
 	run_parallel_on_array pool (Array.of_seq seq) f
 
 let run_in_new_pool f =
-	let pool = Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count()) () in
+	let pool = Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1) () in
 	Std.finally (fun () -> Domainslib.Task.teardown_pool pool) f pool
