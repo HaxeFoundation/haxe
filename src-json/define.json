@@ -44,12 +44,6 @@
 		"doc": "Generate cpp instruction assembly."
 	},
 	{
-		"name": "Domains",
-		"define": "domains",
-		"doc": "Use up to n domains (cores) during compilation.",
-		"params": ["count: 1-64"]
-	},
-	{
 		"name": "NoCppiaAst",
 		"define": "nocppiaast",
 		"doc": "Use legacy cppia generation."

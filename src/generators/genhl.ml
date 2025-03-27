@@ -4121,7 +4121,7 @@ let create_context com =
 		hl_ver = Gctx.defined_value_safe ~default:"" com Define.HlVer;
 		optimize = not (Gctx.raw_defined com "hl_no_opt");
 		w_null_compare = Gctx.raw_defined com "hl_w_null_compare";
-		num_domains = (try int_of_string (Gctx.defined_value com Define.Domains) with Not_found -> Domain.recommended_domain_count ());
+		num_domains = Domain.recommended_domain_count ();
 		m = method_context 0 HVoid null_capture false;
 		cints = new_lookup();
 		cstrings = new_lookup();
@@ -4260,7 +4260,6 @@ let generate com =
 	if ctx.optimize then begin
 		let t = Timer.timer ["generate";"hl";"opt"] in
 		let dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None in
-		(* parallel *)
 		Parallel.run_parallel_for ctx.num_domains ~chunk_size:16 (DynArray.length ctx.cfunctions) (fun idx ->
 			let f, b = DynArray.get ctx.cfunctions idx in
 			if b then begin

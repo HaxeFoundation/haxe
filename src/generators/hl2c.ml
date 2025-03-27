@@ -1838,7 +1838,6 @@ let write_c com file (code:code) gnames num_domains =
 
 	(
 	let modules = Array.of_list modules in
-	(* sequential *)
 	Array.iter (fun m ->
 		let path = Filename.dirname m.m_name in
 		if not (Sys.file_exists (gctx.dir ^ "/" ^ path)) then
@@ -1846,7 +1845,6 @@ let write_c com file (code:code) gnames num_domains =
 		(* add cfiles in deterministic order *)
 		if m.m_functions <> [] then save_cfile gctx (m.m_name ^ ".c")
 	) modules;
-	(* parallel *)
 	Parallel.run_parallel_for num_domains (Array.length modules) (fun idx ->
 		let m = modules.(idx) in
 		let defined_types = ref PMap.empty in
