@@ -1138,15 +1138,15 @@ module Run = struct
 				| DebugDot -> Debug.dot_debug actx c cf;
 				| DebugFull -> debug()
 			in
-			let e = try
+			let e =
 				run_on_expr actx e
-			with
-			| Error.Error _ | Sys.Break as exc ->
+			(* with *)
+			(* | Error.Error _ | Sys.Break as exc ->
 				maybe_debug();
 				raise exc
 			| exc ->
 				debug();
-				raise exc
+				raise exc *)
 			in
 			let e = reduce_control_flow com e in
 			maybe_debug();
@@ -1197,7 +1197,10 @@ module Run = struct
 		with_timer config.detail_times "" ["other"] (fun () ->
 			if config.optimize && config.purity_inference then
 				with_timer config.detail_times "" ["optimize";"purity-inference"] (fun () -> Purity.infer com);
-			List.iter (run_on_type com config) types
+			Parallel.run_in_new_pool (fun pool ->
+				(* Array.iter (run_on_type com config) (Array.of_list types); *)
+				Parallel.run_parallel_on_array pool (Array.of_list types) (run_on_type com config);
+			)
 		)
 end
 ;;
