@@ -51,6 +51,11 @@ let get_construction_mode c cf =
 	else ConstructInit
 
 (* Haxe *)
+type mutexes = {
+	write_class : Mutex.t;
+	unify : Mutex.t;
+	closure_lookup : Mutex.t;
+}
 
 type generation_context = {
 	gctx : Gctx.t;
@@ -59,19 +64,19 @@ type generation_context = {
 	entry_point : (tclass * texpr) option;
 	t_exception : Type.t;
 	t_throwable : Type.t;
-	anon_identification : jsignature tanon_identification;
-	mutable functional_interfaces : (tclass * tclass_field * JvmFunctions.JavaFunctionalInterface.t) list;
-	mutable preprocessor : jsignature preprocessor;
+	anon_identification : jsignature tanon_identification; (* guards itself *)
+	mutable (* final after preprocessing *) functional_interfaces : (tclass * tclass_field * JvmFunctions.JavaFunctionalInterface.t) list;
+	mutable (* final after preprocessing *) preprocessor : jsignature preprocessor;
 	default_export_config : export_config;
-	typed_functions : JvmFunctions.typed_functions;
-	known_typed_functions : (path,unit) Hashtbl.t;
-	closure_paths : (path * string * jsignature,path) Hashtbl.t;
-	enum_paths : (path,unit) Hashtbl.t;
+	typed_functions : JvmFunctions.typed_functions; (* guards itself *)
+	closure_paths : (path * string * jsignature,path) Hashtbl.t; (* guarded by mutexes.closure_lookup *)
+	enum_paths : (path,unit) Hashtbl.t; (* final after preprocessing *)
 	detail_times : bool;
 	mutable timer : Timer.timer;
-	mutable typedef_interfaces : jsignature typedef_interfaces;
+	mutable (* final after preprocessing *) typedef_interfaces : jsignature typedef_interfaces;
 	jar_compression_level : int;
 	dynamic_level : int;
+	mutexes : mutexes;
 }
 
 type ret =
@@ -194,7 +199,6 @@ let rec jsignature_of_type gctx stack t =
 	| TInst({cl_path = ["_Enum"],"Enum_Impl_"},_) -> java_class_sig
 	| TInst(c,tl) -> TObject(c.cl_path,List.map jtype_argument_of_type tl)
 	| TEnum(en,tl) ->
-		Hashtbl.replace gctx.enum_paths en.e_path ();
 		TObject(en.e_path,List.map jtype_argument_of_type tl)
 	| TFun(tl,tr) -> method_sig (List.map (fun (_,o,t) ->
 		let jsig = jsignature_of_type t in
@@ -355,7 +359,8 @@ let write_class gctx path jc =
 	let t = Timer.timer ["jvm";"write"] in
 	let ch = IO.output_bytes() in
 	JvmWriter.write_jvm_class ch jc;
-	gctx.out#add_entry (Bytes.unsafe_to_string (IO.close_out ch)) path;
+	let bytes = Bytes.unsafe_to_string (IO.close_out ch) in
+	Mutex.protect gctx.mutexes.write_class (fun () -> gctx.out#add_entry bytes path);
 	t()
 
 let is_const_int_pattern case =
@@ -426,31 +431,32 @@ let associate_functional_interfaces gctx f t =
 			let map t = apply_params c.cl_params c_monos t in
 			let cf_monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 			try
-				Type.unify_custom native_unification_context t (apply_params cf.cf_params cf_monos (map cf.cf_type));
-				ignore(List.map follow cf_monos);
-				f#add_functional_interface jfi (List.map (jsignature_of_type gctx) c_monos)
+				Mutex.protect gctx.mutexes.unify (fun () ->
+					Type.unify_custom native_unification_context t (apply_params cf.cf_params cf_monos (map cf.cf_type));
+					ignore(List.map follow cf_monos);
+					f#add_functional_interface jfi (List.map (jsignature_of_type gctx) c_monos)
+				);
 			with Unify_error _ ->
 				()
 		) gctx.functional_interfaces
 	end
 
 let create_typed_function gctx kind jc jm context =
-	let wf = new JvmFunctions.typed_function gctx.typed_functions kind jc jm context in
-	let jc = wf#get_class in
-	Hashtbl.add gctx.known_typed_functions jc#get_this_path ();
-	wf
+	new JvmFunctions.typed_function gctx.typed_functions kind jc jm context
 
 let create_field_closure gctx jc path_this jm name jsig t =
 	let jsig_this = object_path_sig path_this in
 	let context = ["this",jsig_this] in
 	let wf = create_typed_function gctx (FuncMember(path_this,name)) jc jm context in
-	begin match t with
-		| None ->
-			()
-		| Some t ->
-			associate_functional_interfaces gctx wf t
-	end;
 	let jc_closure = wf#get_class in
+	Hashtbl.add gctx.closure_paths (path_this,name,jsig) jc_closure#get_this_path;
+	Mutex.unlock gctx.mutexes.closure_lookup;
+	begin match t with
+	| None ->
+		()
+	| Some t ->
+		associate_functional_interfaces gctx wf t
+	end;
 	ignore(wf#generate_constructor true);
 	let args,ret = match jsig with
 		| TMethod(args,ret) ->
@@ -492,11 +498,13 @@ let create_field_closure gctx jc path_this jm name jsig t =
 
 let create_field_closure gctx jc path_this jm name jsig f t =
 	let jsig_this = object_path_sig path_this in
+	Mutex.lock gctx.mutexes.closure_lookup;
 	let closure_path = try
-		Hashtbl.find gctx.closure_paths (path_this,name,jsig)
+		let r = Hashtbl.find gctx.closure_paths (path_this,name,jsig) in
+		Mutex.unlock gctx.mutexes.closure_lookup;
+		r;
 	with Not_found ->
 		let closure_path = create_field_closure gctx jc path_this jm name jsig t in
-		Hashtbl.add gctx.closure_paths (path_this,name,jsig) closure_path;
 		closure_path
 	in
 	jm#construct ConstructInit closure_path (fun () ->
@@ -690,12 +698,17 @@ class texpr_to_jvm
 
 	method read_static_closure (path : path) (name : string) (args : (string * jsignature) list) (ret : jsignature option) (t : Type.t) =
 		let jsig = method_sig (List.map snd args) ret in
+		Mutex.lock gctx.mutexes.closure_lookup;
 		let closure_path = try
-			Hashtbl.find gctx.closure_paths (path,name,jsig)
+			let r = Hashtbl.find gctx.closure_paths (path,name,jsig) in
+			Mutex.unlock gctx.mutexes.closure_lookup;
+			r
 		with Not_found ->
 			let wf = create_typed_function gctx (FuncStatic(path,name)) jc jm [] in
-			associate_functional_interfaces gctx wf t;
 			let jc_closure = wf#get_class in
+			Hashtbl.add gctx.closure_paths (path,name,jsig) jc_closure#get_this_path;
+			Mutex.unlock gctx.mutexes.closure_lookup;
+			associate_functional_interfaces gctx wf t;
 			ignore(wf#generate_constructor false);
 			let jm_invoke = wf#generate_invoke args ret [] in
 			let vars = List.map (fun (name,jsig) ->
@@ -707,7 +720,7 @@ class texpr_to_jvm
 			) vars;
 			jm_invoke#invokestatic path name (method_sig (List.map snd args) ret);
 			jm_invoke#return;
-			Hashtbl.add gctx.closure_paths (path,name,jsig) jc_closure#get_this_path;
+
 			(* Static init *)
 			self#make_static_closure_field name jc_closure;
 			write_class gctx jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config);
@@ -1069,9 +1082,9 @@ class texpr_to_jvm
 			jm#invokestatic haxe_jvm_path "compare" (method_sig [object_sig;object_sig] (Some TInt));
 			let op = flip_cmp_op op in
 			CmpNormal(op,TBool)
-		| [sig2;TObject(path1,_)] when Hashtbl.mem gctx.known_typed_functions path1 ->
+		| [sig2;TObject(path1,_)] when jc#has_typed_function path1 || path1 = haxe_function_path ->
 			fun_compare path1 sig2
-		| [TObject(path1,_);sig2] when Hashtbl.mem gctx.known_typed_functions path1 ->
+		| [TObject(path1,_);sig2] when jc#has_typed_function path1 || path1 = haxe_function_path ->
 			code#swap;
 			fun_compare path1 sig2
 		| [(TObject _ | TArray _ | TMethod _) as t1;(TObject _ | TArray _ | TMethod _) as t2] ->
@@ -1915,7 +1928,7 @@ class texpr_to_jvm
 		if not jm#is_terminated then self#texpr' ret e
 
 	method texpr' ret e =
-		code#set_line (Lexer.get_error_line e.epos);
+		code#set_line (Lexer.get_error_line_if_exists e.epos);
 		match e.eexpr with
 		| TVar(v,Some e1) ->
 			self#texpr (rvalue_type gctx v.v_type (Some v.v_name)) e1;
@@ -2892,8 +2905,8 @@ let generate_module_type ctx mt =
 		| TEnumDecl en when not (has_enum_flag en EnExtern) -> generate_enum ctx en
 		| _ -> ()
 
-let generate_anons gctx =
-	Hashtbl.iter (fun _ pfm ->
+let generate_anons gctx pool =
+	let run (_,pfm) =
 		let path = pfm.pfm_path in
 		let fields = convert_fields gctx pfm in
 		let jc = new JvmClass.builder path haxe_dynamic_object_path in
@@ -2959,7 +2972,9 @@ let generate_anons gctx =
 			) c.cl_ordered_fields
 		end;
 		write_class gctx path (jc#export_class gctx.default_export_config)
-	) gctx.anon_identification#get_pfms
+	in
+	let seq = Hashtbl.to_seq gctx.anon_identification#get_pfms in
+	Parallel.run_parallel_on_seq pool seq run
 
 let generate_typed_functions gctx =
 	let jc_function = gctx.typed_functions#generate in
@@ -3026,8 +3041,11 @@ module Preprocessor = struct
 				match mt with
 				| TClassDecl c when has_runtime_meta c.cl_meta && has_class_flag c CInterface ->
 					() (* TODO: run-time interface metadata is a problem (issue #2042) *)
-				| TClassDecl _ | TEnumDecl _ ->
+				| TClassDecl _ ->
 					check_path (t_infos mt);
+				| TEnumDecl en ->
+					check_path (t_infos mt);
+					Hashtbl.replace gctx.enum_paths en.e_path ();
 				| TTypeDecl td ->
 					check_path (t_infos mt);
 					gctx.anon_identification#identify_typedef td
@@ -3109,7 +3127,6 @@ let generate jvm_flag gctx =
 		preprocessor = Obj.magic ();
 		typedef_interfaces = Obj.magic ();
 		typed_functions = new JvmFunctions.typed_functions;
-		known_typed_functions = Hashtbl.create 0;
 		closure_paths = Hashtbl.create 0;
 		enum_paths = Hashtbl.create 0;
 		default_export_config = {
@@ -3120,8 +3137,12 @@ let generate jvm_flag gctx =
 		jar_compression_level = compression_level;
 		dynamic_level = dynamic_level;
 		functional_interfaces = [];
+		mutexes = {
+			write_class = Mutex.create();
+			unify = Mutex.create();
+			closure_lookup = Mutex.create();
+		}
 	} in
-	Hashtbl.add gctx.known_typed_functions haxe_function_path ();
 	gctx.preprocessor <- new preprocessor gctx.gctx.basic (jsignature_of_type gctx);
 	gctx.typedef_interfaces <- new typedef_interfaces gctx.preprocessor#get_infos anon_identification;
 	gctx.typedef_interfaces#add_interface_rewrite (["haxe";"root"],"Iterator") (["java";"util"],"Iterator") true;
@@ -3144,17 +3165,23 @@ let generate jvm_flag gctx =
 		let filename = StringHelper.escape_res_name name ['/';'-'] in
 		gctx.out#add_entry v filename;
 	) gctx.gctx.resources;
-	let generate_real_types () =
-		List.iter (generate_module_type gctx) gctx.gctx.types;
+
+	let generate pool =
+		let generate_real_types () =
+			Parallel.run_parallel_on_array pool (Array.of_list gctx.gctx.types) (generate_module_type gctx)
+		in
+		let generate_typed_interfaces () =
+			let seq = Hashtbl.to_seq gctx.typedef_interfaces#get_interfaces in
+			Parallel.run_parallel_on_seq pool seq (fun (_,c) -> generate_module_type gctx (TClassDecl c));
+		in
+		run_timed gctx false "preprocess" (fun () -> Preprocessor.preprocess gctx);
+		run_timed gctx false "real types" generate_real_types;
+		run_timed gctx false "typed interfaces" generate_typed_interfaces;
+		run_timed gctx false "anons" (fun () -> generate_anons gctx pool);
+		run_timed gctx false "typed_functions" (fun () -> generate_typed_functions gctx);
 	in
-	let generate_typed_interfaces () =
-		Hashtbl.iter (fun _ c -> generate_module_type gctx (TClassDecl c)) gctx.typedef_interfaces#get_interfaces;
-	in
-	run_timed gctx false "preprocess" (fun () -> Preprocessor.preprocess gctx);
-	run_timed gctx false "real types" generate_real_types;
-	run_timed gctx false "typed interfaces" generate_typed_interfaces;
-	run_timed gctx false "anons" (fun () -> generate_anons gctx);
-	run_timed gctx false "typed_functions" (fun () -> generate_typed_functions gctx);
+	let pool = Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count()) () in
+	Std.finally (fun () -> Domainslib.Task.teardown_pool pool) generate pool;
 
 	let manifest_content =
 		"Manifest-Version: 1.0\n" ^
