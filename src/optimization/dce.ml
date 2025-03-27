@@ -34,20 +34,16 @@ type dce = {
 	debug : bool;
 	follow_expr : dce -> texpr -> unit;
 	curclass : tclass;
-	mutable added_fields : (tclass * tclass_field * class_field_ref_kind) list;
-	mutable marked_fields : tclass_field list;
+	added_fields : (tclass * tclass_field * class_field_ref_kind) list ref;
+	marked_fields : tclass_field list ref;
 	features : (string, class_field_ref list ref) Hashtbl.t;
 	merge_mutex : Mutex.t;
+	field_marker_mutex : Mutex.t;
+	used_mutex : Mutex.t;
 }
 
 let push_class dce c =
-	let dce_new = {dce with curclass = c;added_fields = [];marked_fields = []} in
-	dce_new,(fun () ->
-		Mutex.protect dce.merge_mutex (fun () ->
-			dce.added_fields <- dce.added_fields @ dce_new.added_fields;
-			dce.marked_fields <- dce.marked_fields @ dce_new.marked_fields;
-		)
-	)
+	{dce with curclass = c}
 
 let resolve_class_field_ref ctx cfr =
 	let ctx = if cfr.cfr_is_macro && not ctx.is_macro_context then Option.get (ctx.get_macros()) else ctx in
@@ -166,11 +162,18 @@ and check_and_add_feature dce s =
 (* mark a field as kept *)
 and mark_field dce c cf kind =
 	let add c' cf =
-		if not (has_class_field_flag cf CfUsed) then begin
-			add_class_field_flag cf CfUsed;
-			dce.added_fields <- (c',cf,kind) :: dce.added_fields;
-			dce.marked_fields <- cf :: dce.marked_fields;
-			check_feature dce (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name);
+		if (has_class_field_flag cf CfUsed) then
+			()
+		else begin
+			Mutex.lock dce.field_marker_mutex;
+			if not (has_class_field_flag cf CfUsed) then begin
+				add_class_field_flag cf CfUsed;
+				dce.added_fields := (c',cf,kind) :: !(dce.added_fields);
+				dce.marked_fields := cf :: !(dce.marked_fields);
+				Mutex.unlock dce.field_marker_mutex;
+				check_feature dce (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name);
+			end else
+				Mutex.unlock dce.field_marker_mutex;
 		end
 	in
 	match kind with
@@ -204,7 +207,7 @@ and mark_field dce c cf kind =
 				| Some ctor -> mark_field dce c ctor CfrConstructor
 
 let rec update_marked_class_fields dce c =
-	let dce,pop = push_class dce c in
+	let dce = push_class dce c in
 	(* mark all :?used fields as surely :used now *)
 	List.iter (fun cf ->
 		if has_class_field_flag cf CfMaybeUsed then mark_field dce c cf CfrStatic
@@ -215,26 +218,40 @@ let rec update_marked_class_fields dce c =
 	(* we always have to keep super classes and implemented interfaces *)
 	(match TClass.get_cl_init c with None -> () | Some init -> dce.follow_expr dce init);
 	List.iter (fun (c,_) -> mark_class dce c) c.cl_implements;
-	(match c.cl_super with None -> () | Some (csup,pl) -> mark_class dce csup);
-	pop()
+	(match c.cl_super with None -> () | Some (csup,pl) -> mark_class dce csup)
 
 (* mark a class as kept. If the class has fields marked as @:?keep, make sure to keep them *)
 and mark_class dce c = if not (has_class_flag c CUsed) then begin
-	add_class_flag c CUsed;
-	check_feature dce (Printf.sprintf "%s.*" (s_type_path c.cl_path));
-	update_marked_class_fields dce c;
+	Mutex.lock dce.used_mutex;
+	if not (has_class_flag c CUsed) then begin
+		add_class_flag c CUsed;
+		Mutex.unlock dce.used_mutex;
+		check_feature dce (Printf.sprintf "%s.*" (s_type_path c.cl_path));
+		update_marked_class_fields dce c;
+	end else
+		Mutex.unlock dce.used_mutex;
 end
 
 let rec mark_enum dce e = if not (Meta.has Meta.Used e.e_meta) then begin
-	e.e_meta <- (mk_used_meta e.e_pos) :: e.e_meta;
-	check_and_add_feature dce "has_enum";
-	check_feature dce (Printf.sprintf "%s.*" (s_type_path e.e_path));
-	PMap.iter (fun _ ef -> mark_t dce ef.ef_pos ef.ef_type) e.e_constrs;
+	Mutex.lock dce.used_mutex;
+	if not (Meta.has Meta.Used e.e_meta) then begin
+		e.e_meta <- (mk_used_meta e.e_pos) :: e.e_meta;
+		Mutex.unlock dce.used_mutex;
+		check_and_add_feature dce "has_enum";
+		check_feature dce (Printf.sprintf "%s.*" (s_type_path e.e_path));
+		PMap.iter (fun _ ef -> mark_t dce ef.ef_pos ef.ef_type) e.e_constrs;
+	end else
+		Mutex.unlock dce.used_mutex;
 end
 
 and mark_abstract dce a = if not (Meta.has Meta.Used a.a_meta) then begin
-	check_feature dce (Printf.sprintf "%s.*" (s_type_path a.a_path));
-	a.a_meta <- (mk_used_meta a.a_pos) :: a.a_meta
+	Mutex.lock dce.used_mutex;
+	if not (Meta.has Meta.Used a.a_meta) then begin
+		a.a_meta <- (mk_used_meta a.a_pos) :: a.a_meta;
+		Mutex.unlock dce.used_mutex;
+		check_feature dce (Printf.sprintf "%s.*" (s_type_path a.a_path));
+	end else
+		Mutex.unlock dce.used_mutex;
 end
 
 (* mark a type as kept *)
@@ -368,19 +385,27 @@ and field dce c n kind =
 
 and mark_directly_used_class dce c =
 	(* don't add @:directlyUsed if it's used within the class itself. this can happen with extern inline methods *)
-	if c != dce.curclass && not (Meta.has Meta.DirectlyUsed c.cl_meta) then
-		c.cl_meta <- (Meta.DirectlyUsed,[],mk_zero_range_pos c.cl_pos) :: c.cl_meta
+	if c != dce.curclass && not (Meta.has Meta.DirectlyUsed c.cl_meta) then begin
+		Mutex.protect dce.used_mutex (fun () ->
+			if not (Meta.has Meta.DirectlyUsed c.cl_meta) then
+				c.cl_meta <- (Meta.DirectlyUsed,[],mk_zero_range_pos c.cl_pos) :: c.cl_meta;
+		);
+	end
 
-and mark_directly_used_enum e =
-	if not (Meta.has Meta.DirectlyUsed e.e_meta) then
-		e.e_meta <- (Meta.DirectlyUsed,[],mk_zero_range_pos e.e_pos) :: e.e_meta
+and mark_directly_used_enum dce e =
+	if not (Meta.has Meta.DirectlyUsed e.e_meta) then begin
+		Mutex.protect dce.used_mutex (fun () ->
+			if not (Meta.has Meta.DirectlyUsed e.e_meta) then
+				e.e_meta <- (Meta.DirectlyUsed,[],mk_zero_range_pos e.e_pos) :: e.e_meta
+		);
+	end
 
 and mark_directly_used_mt dce mt =
 	match mt with
 	| TClassDecl c ->
 		mark_directly_used_class dce c
 	| TEnumDecl e ->
-		mark_directly_used_enum e
+		mark_directly_used_enum dce e
 	| _ ->
 		()
 
@@ -390,7 +415,7 @@ and mark_directly_used_t dce p t =
 		mark_directly_used_class dce c;
 		List.iter (mark_directly_used_t dce p) pl
 	| TEnum(e,pl) ->
-		mark_directly_used_enum e;
+		mark_directly_used_enum dce e;
 		List.iter (mark_directly_used_t dce p) pl
 	| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
 		begin try (* this is copy-pasted from mark_t *)
@@ -775,9 +800,8 @@ let collect_entry_points dce com =
 		| TEnumDecl en when keep_whole_enum dce en ->
 			en.e_meta <- Meta.remove Meta.Used en.e_meta;
 			delayed := (fun () ->
-				let dce,pop = push_class dce {null_class with cl_module = en.e_module} in
+				let dce = push_class dce {null_class with cl_module = en.e_module} in
 				mark_enum dce en;
-				pop()
 			) :: !delayed;
 		| _ ->
 			()
@@ -787,33 +811,27 @@ let collect_entry_points dce com =
 		List.iter (fun (c,cf,_) -> match cf.cf_expr with
 			| None -> ()
 			| Some _ -> print_endline ("[DCE] Entry point: " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name)
-		) dce.added_fields;
+		) !(dce.added_fields);
 	end
 
 let mark dce =
 	let rec loop pool =
-		match dce.added_fields with
+		match !(dce.added_fields) with
 		| [] -> ()
 		| cfl ->
-			dce.added_fields <- [];
+			dce.added_fields := [];
 			let cfl = Array.of_list cfl in
+			print_endline (Printf.sprintf "length: %i" (Array.length cfl));
 			(* extend to dependent (= overriding/implementing) class fields *)
-			Parallel.run_parallel_on_array pool cfl (fun (c,cf,stat) -> mark_dependent_fields dce c cf.cf_name stat);
-			(* mark fields as used *)
 			Parallel.run_parallel_on_array pool cfl (fun (c,cf,stat) ->
-				let dce,pop = push_class dce c in
+				mark_dependent_fields dce c cf.cf_name stat;
+				let dce = push_class dce c in
 				if is_physical_field cf then mark_class dce c;
 				mark_field dce c cf stat;
 				mark_t dce cf.cf_pos cf.cf_type;
-				pop()
-			);
-			(* follow expressions to new types/fields *)
-			Parallel.run_parallel_on_array pool cfl (fun (c,cf,_) ->
 				if not (has_class_flag c CExtern) then begin
-					let dce,pop = push_class dce c in
 					opt (expr dce) cf.cf_expr;
 					List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
-					pop()
 				end
 			);
 			loop pool
@@ -904,12 +922,14 @@ let run com main mode =
 		full = full;
 		std_dirs = if full then [] else List.map (fun path -> Path.get_full_path path#path) com.class_paths#get_std_paths;
 		debug = Common.defined com Define.DceDebug;
-		added_fields = [];
+		added_fields = ref [];
 		follow_expr = expr;
-		marked_fields = [];
+		marked_fields = ref [];
 		features = Hashtbl.create 0;
 		curclass = null_class;
 		merge_mutex = Mutex.create();
+		field_marker_mutex = Mutex.create();
+		used_mutex = Mutex.create();
 	} in
 
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
@@ -954,4 +974,4 @@ let run com main mode =
 	) com.types;
 
 	(* cleanup added fields metadata - compatibility with compilation server *)
-	List.iter (fun cf -> remove_class_field_flag cf CfUsed) dce.marked_fields
+	List.iter (fun cf -> remove_class_field_flag cf CfUsed) !(dce.marked_fields)
