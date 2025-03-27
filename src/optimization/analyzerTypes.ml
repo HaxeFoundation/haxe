@@ -597,8 +597,16 @@ module Graph = struct
 		Hashtbl.iter (fun _ (bb,_,_,_) -> loop [0] bb) g.g_functions
 end
 
+type light_com = {
+	basic : basic_types;
+	platform : platform;
+	defines : Define.define;
+	platform_config : platform_config;
+	debug : bool;
+}
+
 type analyzer_context = {
-	com : Common.context;
+	com : light_com;
 	config : AnalyzerConfig.t;
 	graph : Graph.t;
 	temp_var_name : string;

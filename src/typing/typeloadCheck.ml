@@ -52,7 +52,7 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		type_param_pairs = [];
 		known_type_params = f1.cf_params
 	} in
-	let uctx = {default_unification_context with type_param_mode = TpDefinition tctx} in
+	let uctx = {(default_unification_context()) with type_param_mode = TpDefinition tctx} in
 	let valid t1 t2 =
 		unify_custom uctx t1 t2;
 		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);

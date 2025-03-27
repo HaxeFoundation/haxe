@@ -20,7 +20,6 @@
 open StringHelper
 open Ast
 open Type
-open Common
 open AnalyzerTexpr
 open AnalyzerTypes
 open OptimizerTexpr
@@ -185,17 +184,29 @@ end
 
 module type DataFlowApi = sig
 	type t
+
+	type opt_ctx
+
 	val to_string : t -> string
 	val flag : BasicBlock.cfg_edge_Flag
-	val transfer : analyzer_context -> BasicBlock.t -> texpr -> t (* The transfer function *)
-	val equals : t -> t -> bool                                   (* The equality function *)
-	val bottom : t                                                (* The bottom element of the lattice *)
-	val top : t                                                   (* The top element of the lattice *)
-	val get_cell : int -> t                                       (* Lattice cell getter *)
-	val set_cell : int -> t -> unit                               (* Lattice cell setter *)
-	val init : analyzer_context -> unit                           (* The initialization function which is called at the start *)
-	val commit : analyzer_context -> unit                         (* The commit function which is called at the end *)
-	val conditional : bool                                        (* Whether or not conditional branches are checked *)
+	(* The transfer function *)
+	val transfer : analyzer_context -> opt_ctx -> BasicBlock.t -> texpr -> t
+	(* The equality function *)
+	val equals : t -> t -> bool
+	(* The bottom element of the lattice *)
+	val bottom : t
+	(* The top element of the lattice *)
+	val top : t
+	(* Lattice cell getter *)
+	val get_cell : opt_ctx -> int -> t
+	(* Lattice cell setter *)
+	val set_cell : opt_ctx -> int -> t -> unit
+	(* The initialization function which is called at the start *)
+	val init : analyzer_context -> opt_ctx
+	(* The commit function which is called at the end *)
+	val commit : analyzer_context -> opt_ctx -> unit
+	(* Whether or not conditional branches are checked *)
+	val conditional : bool
 end
 
 (*
@@ -220,8 +231,8 @@ module DataFlow (M : DataFlowApi) = struct
 	let get_ssa_edges_from g v =
 		(get_var_info g v).vi_ssa_edges
 
-	let run ctx =
-		let g = ctx.graph in
+	let run actx ctx =
+		let g = actx.graph in
 		let ssa_work_list = ref [] in
 		let cfg_work_list = ref g.g_root.bb_outgoing in
 		let add_ssa_edge edge =
@@ -234,7 +245,7 @@ module DataFlow (M : DataFlowApi) = struct
 			let el = List.fold_left2 (fun acc e edge ->
 				if has_flag edge M.flag then e :: acc else acc
 			) [] el bb.bb_incoming in
-			let el = List.map (fun e -> M.transfer ctx bb e) el in
+			let el = List.map (fun e -> M.transfer actx ctx bb e) el in
 			match el with
 				| e1 :: el when List.for_all (M.equals e1) el ->
 					e1;
@@ -242,8 +253,8 @@ module DataFlow (M : DataFlowApi) = struct
 					M.bottom;
 		in
 		let set_lattice_cell v e =
-			let e' = M.get_cell v.v_id in
-			M.set_cell v.v_id e;
+			let e' = M.get_cell ctx v.v_id in
+			M.set_cell ctx v.v_id e;
 			if not (M.equals e e') then
 				List.iter (fun edge -> add_ssa_edge edge) (get_ssa_edges_from g v);
 		in
@@ -253,7 +264,7 @@ module DataFlow (M : DataFlowApi) = struct
 				set_lattice_cell v (visit_phi bb v el)
 			| _ ->
 				if List.exists (fun edge -> has_flag edge M.flag) bb.bb_incoming then
-					set_lattice_cell v (M.transfer ctx bb e)
+					set_lattice_cell v (M.transfer actx ctx bb e)
 		in
 		let visit_expression bb cond_branch e =
 			match e.eexpr with
@@ -261,7 +272,7 @@ module DataFlow (M : DataFlowApi) = struct
 				visit_assignment bb v e2;
 				false
 			| _ when M.conditional && cond_branch ->
-				let e1 = M.transfer ctx bb e in
+				let e1 = M.transfer actx ctx bb e in
 				let edges = if e1 == M.bottom || e1 == M.top then
 					bb.bb_outgoing
 				else begin
@@ -269,7 +280,7 @@ module DataFlow (M : DataFlowApi) = struct
 						| edge :: edges ->
 							begin match edge.cfg_kind with
 							| CFGCondBranch e ->
-								let e = M.transfer ctx bb e in
+								let e = M.transfer actx ctx bb e in
 								if M.equals e e1 then
 									loop (edge :: yes) maybe also edges
 								else
@@ -341,10 +352,10 @@ module DataFlow (M : DataFlowApi) = struct
 		in
 		loop ()
 
-	let apply ctx =
-		M.init ctx;
-		run ctx;
-		M.commit ctx
+	let apply actx =
+		let ctx = M.init actx in
+		run actx ctx;
+		M.commit actx ctx
 end
 
 (*
@@ -354,7 +365,7 @@ end
 
 	This module also deals with binop/unop optimization and standard API inlining.
 *)
-module ConstPropagation = DataFlow(struct
+module ConstPropagationImpl = struct
 	open BasicBlock
 
 	type t =
@@ -364,6 +375,8 @@ module ConstPropagation = DataFlow(struct
 		| Const of tconstant * Type.t
 		| EnumValue of int * t list
 		| ModuleType of module_type * Type.t
+
+	type opt_ctx = (int,t) Hashtbl.t
 
 	let rec to_string =
 		let st = s_type (print_context()) in
@@ -378,10 +391,8 @@ module ConstPropagation = DataFlow(struct
 	let conditional = true
 	let flag = FlagExecutable
 
-	let lattice = Hashtbl.create 0
-
-	let get_cell i = try Hashtbl.find lattice i with Not_found -> Top
-	let set_cell i ct = Hashtbl.replace lattice i ct
+	let get_cell ctx i = try Hashtbl.find ctx i with Not_found -> Top
+	let set_cell ctx i ct = Hashtbl.replace ctx i ct
 
 	let top = Top
 	let bottom = Bottom
@@ -394,7 +405,7 @@ module ConstPropagation = DataFlow(struct
 		| ModuleType(mt1,_),ModuleType (mt2,_) -> mt1 == mt2
 		| _ -> false
 
-	let transfer ctx bb e =
+	let transfer actx ctx bb e =
 		let rec eval bb e =
 			let wrap = function
 				| Const(ct,t) -> mk (TConst ct) t null_pos
@@ -418,7 +429,7 @@ module ConstPropagation = DataFlow(struct
 				if (follow v.v_type) == t_dynamic || has_var_flag v VCaptured then
 					Bottom
 				else
-					get_cell v.v_id
+					get_cell ctx v.v_id
 			| TBinop(OpAssign,_,e2) ->
 				eval bb e2
 			| TBinop(op,e1,e2) ->
@@ -453,14 +464,14 @@ module ConstPropagation = DataFlow(struct
 				end;
 			| TEnumIndex e1 ->
 				begin match eval bb e1 with
-					| EnumValue(i,_) -> Const (TInt (Int32.of_int i),ctx.com.basic.tint)
+					| EnumValue(i,_) -> Const (TInt (Int32.of_int i),actx.com.basic.tint)
 					| _ -> raise Exit
 				end;
-			| TCall ({ eexpr = TField (_,FStatic({cl_path=[],"Type"} as c,({cf_name="enumIndex"} as cf)))},[e1]) when ctx.com.platform = Eval ->
+			| TCall ({ eexpr = TField (_,FStatic({cl_path=[],"Type"} as c,({cf_name="enumIndex"} as cf)))},[e1]) when actx.com.platform = Eval ->
 				begin match follow e1.etype,eval bb e1 with
-					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i),ctx.com.basic.tint)
+					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i),actx.com.basic.tint)
 					| _,e1 ->
-						begin match Inline.api_inline2 ctx.com c cf.cf_name [wrap e1] e.epos with
+						begin match Inline.api_inline2 actx.com.basic actx.com.platform c cf.cf_name [wrap e1] e.epos with
 							| None -> raise Exit
 							| Some e -> eval bb e
 						end
@@ -468,22 +479,22 @@ module ConstPropagation = DataFlow(struct
 			| TCall ({ eexpr = TField (_,FStatic(c,cf))},el) ->
 				let el = List.map (eval bb) el in
 				let el = List.map wrap el in
-				begin match Inline.api_inline2 ctx.com c cf.cf_name el e.epos with
+				begin match Inline.api_inline2 actx.com.basic actx.com.platform c cf.cf_name el e.epos with
 					| None -> raise Exit
 					| Some e -> eval bb e
 				end
 			| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 				eval bb e1
 			| _ ->
-				let e1 = match ctx.com.platform,e.eexpr with
-					| Js,TArray(e1,{eexpr = TConst(TInt i)}) when Int32.to_int i = 1 && Define.defined ctx.com.defines Define.JsEnumsAsArrays -> e1
-					| Js,TField(e1,FDynamic "_hx_index") when not (Define.defined ctx.com.defines Define.JsEnumsAsArrays) -> e1
+				let e1 = match actx.com.platform,e.eexpr with
+					| Js,TArray(e1,{eexpr = TConst(TInt i)}) when Int32.to_int i = 1 && Define.defined actx.com.defines Define.JsEnumsAsArrays -> e1
+					| Js,TField(e1,FDynamic "_hx_index") when not (Define.defined actx.com.defines Define.JsEnumsAsArrays) -> e1
 					| Cpp,TCall({eexpr = TField(e1,FDynamic "__Index")},[]) -> e1
 					| Neko,TField(e1,FDynamic "index") -> e1
 					| _ -> raise Exit
 				in
 				begin match follow e1.etype,eval bb e1 with
-					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i),ctx.com.basic.tint)
+					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i),actx.com.basic.tint)
 					| _ -> raise Exit
 				end
 		in
@@ -493,19 +504,19 @@ module ConstPropagation = DataFlow(struct
 			Bottom
 
 	let init ctx =
-		Hashtbl.clear lattice
+		Hashtbl.create 0
 
-	let commit ctx =
-		let inline e i = match get_cell i with
+	let commit actx ctx =
+		let inline e i = match get_cell ctx i with
 			| Top | Bottom | EnumValue _ | Null _ ->
 				raise Not_found
 			| Const(ct,t) ->
-				let e' = Texpr.type_constant ctx.com.basic (tconst_to_const ct) e.epos in
+				let e' = Texpr.type_constant actx.com.basic (tconst_to_const ct) e.epos in
 				let e' = {e' with etype = t} in
-				if not (type_change_ok ctx.com e'.etype e.etype) then raise Not_found;
+				if not (type_change_ok actx.com e'.etype e.etype) then raise Not_found;
 				e'
 			| ModuleType(mt,t) ->
-				if not (type_change_ok ctx.com t e.etype) then raise Not_found;
+				if not (type_change_ok actx.com t e.etype) then raise Not_found;
 				mk (TTypeExpr mt) t e.epos
 		in
 		let is_special_var v = has_var_flag v VCaptured || ExtType.has_variable_semantics v.v_type in
@@ -530,19 +541,21 @@ module ConstPropagation = DataFlow(struct
 			| _ ->
 				Type.map_expr commit e
 		in
-		Graph.iter_dom_tree ctx.graph (fun bb ->
-			if not (List.exists (fun edge -> has_flag edge FlagExecutable) bb.bb_incoming) then bb.bb_dominator <- ctx.graph.Graph.g_unreachable;
+		Graph.iter_dom_tree actx.graph (fun bb ->
+			if not (List.exists (fun edge -> has_flag edge FlagExecutable) bb.bb_incoming) then bb.bb_dominator <- actx.graph.Graph.g_unreachable;
 			dynarray_map commit bb.bb_el;
 			bb.bb_terminator <- terminator_map commit bb.bb_terminator;
 		);
-end)
+end
+
+module ConstPropagation = DataFlow(ConstPropagationImpl)
 
 (*
 	Propagates local variables to other local variables.
 
 	Respects scopes on targets where it matters (all except JS).
 *)
-module CopyPropagation = DataFlow(struct
+module CopyPropagationImpl = struct
 	open BasicBlock
 	open Graph
 
@@ -552,6 +565,8 @@ module CopyPropagation = DataFlow(struct
 		| Local of tvar
 		| This of Type.t
 
+	type opt_ctx = (int,t) Hashtbl.t
+
 	let to_string = function
 		| Top -> "Top"
 		| Bottom -> "Bottom"
@@ -560,10 +575,9 @@ module CopyPropagation = DataFlow(struct
 
 	let conditional = false
 	let flag = FlagCopyPropagation
-	let lattice = Hashtbl.create 0
 
-	let get_cell i = try Hashtbl.find lattice i with Not_found -> Top
-	let set_cell i ct = Hashtbl.replace lattice i ct
+	let get_cell ctx i = try Hashtbl.find ctx i with Not_found -> Top
+	let set_cell ctx i ct = Hashtbl.replace ctx i ct
 
 	let top = Top
 	let bottom = Bottom
@@ -575,7 +589,7 @@ module CopyPropagation = DataFlow(struct
 		| This t1,This t2 -> t1 == t2
 		| _ -> false
 
-	let transfer ctx bb e =
+	let transfer actx ctx bb e =
 		let rec loop e = match e.eexpr with
 			| TLocal v when not (has_var_flag v VCaptured) ->
 				Local v
@@ -588,33 +602,33 @@ module CopyPropagation = DataFlow(struct
 		in
 		loop e
 
-	let init ctx =
-		Hashtbl.clear lattice
+	let init actx =
+		Hashtbl.create 0
 
-	let commit ctx =
+	let commit actx ctx =
 		let rec commit bb e = match e.eexpr with
 			| TLocal v when not (has_var_flag v VCaptured) ->
 				begin try
-					let lat = get_cell v.v_id in
+					let lat = get_cell ctx v.v_id in
 					let leave () =
-						Hashtbl.remove lattice v.v_id;
+						Hashtbl.remove ctx v.v_id;
 						raise Not_found
 					in
 					begin match lat with
 					| Local v' ->
-						if not (type_change_ok ctx.com v'.v_type v.v_type) then leave();
-						let v'' = get_var_origin ctx.graph v' in
+						if not (type_change_ok actx.com v'.v_type v.v_type) then leave();
+						let v'' = get_var_origin actx.graph v' in
 						(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
 						the same origin var, which creates interference that is not tracked in the analysis. We address this by only
 						considering variables whose origin-variables are assigned to at most once. *)
-						let writes = (get_var_info ctx.graph v'').vi_writes in
+						let writes = (get_var_info actx.graph v'').vi_writes in
 						begin match writes with
 							| [bb'] when in_scope bb bb' -> ()
 							| _ -> leave()
 						end;
 						commit bb {e with eexpr = TLocal v'}
 					| This t ->
-						if not (type_change_ok ctx.com t v.v_type) then leave();
+						if not (type_change_ok actx.com t v.v_type) then leave();
 						mk (TConst TThis) t e.epos
 					| Top | Bottom ->
 						leave()
@@ -628,11 +642,13 @@ module CopyPropagation = DataFlow(struct
 			| _ ->
 				Type.map_expr (commit bb) e
 		in
-		Graph.iter_dom_tree ctx.graph (fun bb ->
+		Graph.iter_dom_tree actx.graph (fun bb ->
 			dynarray_map (commit bb) bb.bb_el;
 			bb.bb_terminator <- terminator_map (commit bb) bb.bb_terminator;
 		);
-end)
+end
+
+module CopyPropagation = DataFlow(CopyPropagationImpl)
 
 (*
 	LocalDce implements a mark & sweep dead code elimination. The mark phase follows the CFG edges of the graphs to find
@@ -853,8 +869,12 @@ module Debug = struct
 			end
 		) g.g_var_infos
 
+	let platform_name_macro com =
+		if Define.defined com.defines Define.Macro then "macro"
+		else platform_name com.platform
+
 	let get_dump_path ctx c cf =
-		(dump_path ctx.com) :: [platform_name_macro ctx.com] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
+		(Dump.dump_path ctx.com.defines) :: [platform_name_macro ctx.com] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
 
 	let dot_debug ctx c cf =
 		let g = ctx.graph in
@@ -961,10 +981,16 @@ module Run = struct
 		let timer = Timer.timer name in
 		Std.finally timer f ()
 
-	let create_analyzer_context com config identifier e =
+	let create_analyzer_context (com : Common.context) config identifier e =
 		let g = Graph.create e.etype e.epos in
 		let ctx = {
-			com = com;
+			com = {
+				basic = com.basic;
+				platform = com.platform;
+				platform_config = com.config;
+				defines = com.defines;
+				debug = com.debug;
+			};
 			config = config;
 			graph = g;
 			(* For CPP we want to use variable names which are "probably" not used by users in order to

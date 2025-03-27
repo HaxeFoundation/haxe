@@ -2,6 +2,9 @@ open Globals
 open Common
 open Type
 
+let dump_path defines =
+	Define.defined_value_safe ~default:"dump" defines Define.DumpPath
+
 (*
 	Make a dump of the full typed AST of all types
 *)
@@ -13,7 +16,7 @@ let create_dumpfile acc l =
 		close_out ch)
 
 let create_dumpfile_from_path com path =
-	let buf,close = create_dumpfile [] ((dump_path com) :: (platform_name_macro com) :: fst path @ [snd path]) in
+	let buf,close = create_dumpfile [] ((dump_path com.defines) :: (platform_name_macro com) :: fst path @ [snd path]) in
 	buf,close
 
 let dump_types com pretty =
@@ -27,7 +30,7 @@ let dump_types com pretty =
 		| [] -> ""
 		| l -> Printf.sprintf "<%s>" (String.concat ", " (List.map s_type_param l))
 	in
-	List.iter (fun mt ->
+	let f mt =
 		let path = Type.t_path mt in
 		let buf,close = create_dumpfile_from_path com path in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
@@ -117,11 +120,14 @@ let dump_types com pretty =
 			(String.concat " " (List.map (fun t -> " from " ^ s_type t) a.a_from))
 			(String.concat " " (List.map (fun t -> " to " ^ s_type t) a.a_to));
 		);
-		close();
-	) com.types
+		close()
+	in
+	Parallel.run_in_new_pool (fun pool ->
+		Parallel.run_parallel_on_array pool (Array.of_list com.types) f
+	)
 
 let dump_record com =
-	List.iter (fun mt ->
+	let f mt =
 		let buf,close = create_dumpfile_from_path com (t_path mt) in
 		let s = match mt with
 			| TClassDecl c -> Printer.s_tclass "" c
@@ -130,11 +136,14 @@ let dump_record com =
 			| TAbstractDecl a -> Printer.s_tabstract "" a
 		in
 		Buffer.add_string buf s;
-		close();
-	) com.types
+		close()
+	in
+	Parallel.run_in_new_pool (fun pool ->
+		Parallel.run_parallel_on_array pool (Array.of_list com.types) f
+	)
 
 let dump_position com =
-	List.iter (fun mt ->
+	let f mt =
 		match mt with
 			| TClassDecl c ->
 				let buf,close = create_dumpfile_from_path com (t_path mt) in
@@ -153,7 +162,10 @@ let dump_position com =
 				close();
 			| _ ->
 				()
-	) com.types
+	in
+	Parallel.run_in_new_pool (fun pool ->
+		Parallel.run_parallel_on_array pool (Array.of_list com.types) f
+	)
 
 let dump_types com =
 	match Common.defined_value_safe com Define.Dump with
@@ -167,7 +179,7 @@ let dump_dependencies ?(target_override=None) com =
 		| None -> platform_name_macro com
 		| Some s -> s
 	in
-	let dump_dependencies_path = [dump_path com;target_name;"dependencies"] in
+	let dump_dependencies_path = [dump_path com.defines;target_name;"dependencies"] in
 	let buf,close = create_dumpfile [] dump_dependencies_path in
 	let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 	let dep = Hashtbl.create 0 in
@@ -190,7 +202,7 @@ let dump_dependencies ?(target_override=None) com =
 		) m.m_extra.m_deps;
 	) com.Common.modules;
 	close();
-	let dump_dependants_path = [dump_path com;target_name;"dependants"] in
+	let dump_dependants_path = [dump_path com.defines;target_name;"dependants"] in
 	let buf,close = create_dumpfile [] dump_dependants_path in
 	let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 	Hashtbl.iter (fun n ml ->

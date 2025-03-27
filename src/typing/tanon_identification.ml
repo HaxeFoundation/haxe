@@ -70,7 +70,12 @@ object(self)
 			equality_underlying = false;
 			strict_field_kind = true;
 			type_param_mode = TpDefault;
-		} else {default_unification_context with equality_kind = EqDoNotFollowNull} in
+			unify_stack = new_rec_stack();
+			eq_stack = new_rec_stack();
+			variance_stack = new_rec_stack();
+			abstract_cast_stack = new_rec_stack();
+			unify_new_monos = new_rec_stack();
+		} else {(default_unification_context()) with equality_kind = EqDoNotFollowNull} in
 
 		let check () =
 			let pair_up fields =
@@ -160,11 +165,11 @@ object(self)
 		match !(an.a_status) with
 		| ClassStatics {cl_path = path} | EnumStatics {e_path = path} | AbstractStatics {a_path = path} ->
 			begin try
-				Some (Hashtbl.find pfms path)
+				Hashtbl.find pfms path
 			with Not_found ->
 				let pfm = make_pfm path in
 				self#add_pfm path pfm;
-				Some pfm
+				pfm
 			end
 		| _ ->
 			let arity,fields = PMap.fold (fun cf (i,acc) ->
@@ -173,7 +178,7 @@ object(self)
 			) an.a_fields (0,PMap.empty) in
 			let an = { a_fields = fields; a_status = an.a_status; } in
 			try
-				Some (self#find_compatible ~strict arity (TAnon an))
+				self#find_compatible ~strict arity (TAnon an)
 			with Not_found ->
 				let id = num in
 				num <- num + 1;
@@ -186,7 +191,7 @@ object(self)
 					pfm_arity = count_fields an.a_fields;
 				} in
 				self#add_pfm path pfm;
-				Some pfm
+				pfm
 
 	method identify ?(strict:bool = false) (accept_anons : bool) (t : Type.t) =
 		match t with
@@ -205,7 +210,7 @@ object(self)
 		| TLazy f ->
 			self#identify accept_anons (lazy_type f)
 		| TAnon an when accept_anons && not (PMap.is_empty an.a_fields) ->
-			self#identify_anon ~strict an
+			Some (self#identify_anon ~strict an)
 		| _ ->
 			None
 end

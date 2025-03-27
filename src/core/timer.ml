@@ -25,6 +25,8 @@ type timer_infos = {
 	mutable calls : int;
 }
 
+let in_parallel = Atomic.make false
+
 let measure_times = ref false
 
 let get_time = Extc.time
@@ -70,7 +72,7 @@ let rec close now t =
 			close now tt
 
 let timer id =
-	if !measure_times then (
+	if !measure_times && not (Atomic.get in_parallel) then (
 		let t = new_timer id in
 		curtime := t :: !curtime;
 		(function() -> close (get_time()) t)

@@ -135,8 +135,10 @@ let delete_file f = try Sys.remove f with _ -> ()
 let maybe_generate_dump ctx tctx =
 	let com = tctx.Typecore.com in
 	if Common.defined com Define.Dump then begin
+		let t = Timer.timer ["generate";"dump"] in
 		Dump.dump_types com;
-		Option.may Dump.dump_types (com.get_macros())
+		Option.may Dump.dump_types (com.get_macros());
+		t()
 	end;
 	if Common.defined com Define.DumpDependencies then begin
 		Dump.dump_dependencies com;
