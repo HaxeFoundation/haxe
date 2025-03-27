@@ -67,6 +67,8 @@ module WriterConfigReader (API : DataReaderApi.DataReaderApi) = struct
 					API.read_optional data (fun data -> read_target_config config.target_config (API.read_object data))
 				| "macroConfig" ->
 					API.read_optional data (fun data -> read_target_config config.macro_config (API.read_object data))
+				| "shareStringPool" ->
+					config.share_string_pool <- API.read_bool data;
 				| s ->
 					error (Printf.sprintf "Unknown key for writer config: %s" s)
 			) fl

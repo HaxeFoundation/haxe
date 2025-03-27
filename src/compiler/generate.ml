@@ -31,7 +31,7 @@ let create_writer com config string_pool =
 		IO.close_out out
 	)
 
-let export_hxb from_cache com config string_pool cc platform zip m =
+let export_hxb from_cache com config string_pool cc platform m =
 	let open HxbData in
 	match m.m_extra.m_kind with
 		| MCode | MMacro | MFake | MExtern -> begin
@@ -48,20 +48,22 @@ let export_hxb from_cache com config string_pool cc platform zip m =
 					IO.nwrite out data
 				) hxb_cache.mc_chunks;
 				let data = IO.close_out out in
-				zip#add_entry data path;
+				Some (path,data)
 			end else begin
 				let writer,close = create_writer com config string_pool in
 				HxbWriter.write_module writer m;
 				let bytes = close () in
-				zip#add_entry bytes path;
+				Some (path,bytes)
 			end
 		end
 	| _ ->
-		()
+		None
 
 let check_hxb_output ctx config =
 	let open HxbWriterConfig in
 	let com = ctx.com in
+	(* TODO: I don't think shared string pools and parallelism match very well... not sure what to do about this. *)
+	let config = {config with share_string_pool = false} in
 	let write_string_pool config zip name pool =
 		let writer,close = create_writer com config (Some pool) in
 		let a = StringPool.finalize writer.cp in
@@ -81,13 +83,27 @@ let check_hxb_output ctx config =
 		let export com config string_pool =
 			let cc = CommonCache.get_cache com in
 			let target = Common.platform_name_macro com in
-
-			List.iter (fun m ->
-				let t = Timer.timer ["generate";"hxb";s_type_path m.m_path] in
+			let f m =
 				let sl_path = fst m.m_path @ [snd m.m_path] in
 				if not (match_path_list config.exclude sl_path) || match_path_list config.include' sl_path then
-					Std.finally t (export_hxb from_cache com config string_pool cc target zip) m
-			) com.modules;
+					export_hxb from_cache com config string_pool cc target m
+				else
+					None
+			in
+			let a_in = Array.of_list com.modules in
+			let a_out = Array.make (Array.length a_in) None in
+			let exec idx =
+				a_out.(idx) <- f a_in.(idx)
+			in
+			Parallel.run_in_new_pool (fun pool ->
+				Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~start:0 ~finish:(Array.length a_in - 1) ~body:exec)
+			);
+			Array.iter (function
+				| None ->
+					()
+				| Some(path,bytes) ->
+					zip#add_entry bytes path
+			) a_out
 		in
 		Std.finally (fun () ->
 			zip#close;
