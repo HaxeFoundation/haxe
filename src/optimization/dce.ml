@@ -40,6 +40,7 @@ type dce = {
 	merge_mutex : Mutex.t;
 	field_marker_mutex : Mutex.t;
 	used_mutex : Mutex.t;
+	feature_mutex : Mutex.t;
 }
 
 let push_class dce c =
@@ -144,20 +145,23 @@ let rec keep_field dce cf c kind =
 (* marking *)
 
 let rec check_feature dce s =
+	Mutex.lock dce.feature_mutex;
 	try
 		let l = Hashtbl.find dce.features s in
+		Hashtbl.remove dce.features s;
+		Mutex.unlock dce.feature_mutex;
 		List.iter (fun cfr ->
 			let (c, cf) = resolve_class_field_ref dce.com cfr in
 			mark_field dce c cf cfr.cfr_kind
 		) !l;
-		Hashtbl.remove dce.features s;
+
 	with Not_found ->
-		()
+		Mutex.unlock dce.feature_mutex;
 
 and check_and_add_feature dce s =
 	check_feature dce s;
 	assert (dce.curclass != null_class);
-	Hashtbl.replace dce.curclass.cl_module.m_extra.m_features s true
+	Mutex.protect dce.feature_mutex (fun () -> Hashtbl.replace dce.curclass.cl_module.m_extra.m_features s true)
 
 (* mark a field as kept *)
 and mark_field dce c cf kind =
@@ -929,6 +933,7 @@ let run com main mode =
 		merge_mutex = Mutex.create();
 		field_marker_mutex = Mutex.create();
 		used_mutex = Mutex.create();
+		feature_mutex = Mutex.create();
 	} in
 
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
