@@ -516,6 +516,16 @@ let rvalue_any = RValue(None,None)
 let rvalue_sig jsig = RValue (Some jsig,None)
 let rvalue_type gctx t name = RValue (Some (jsignature_of_type gctx t),name)
 
+type local_ref = (int * (unit -> unit) * (unit -> unit))
+
+type transformed_arg = {
+	a_id : int;
+	a_name : string;
+	a_jsig_arg : jsignature;
+	a_jsig_local : jsignature option;
+	a_texpr : texpr option;
+}
+
 class texpr_to_jvm
 	(gctx : generation_context)
 	(field_info : field_generation_info option)
@@ -545,11 +555,13 @@ class texpr_to_jvm
 	method add_named_local (name : string) (jsig : jsignature) =
 		jm#add_local name jsig VarArgument
 
-	method add_local v init_state : (int * (unit -> unit) * (unit -> unit)) =
-		let t = self#vtype v.v_type in
-		let slot,load,store = jm#add_local v.v_name t init_state in
-		Hashtbl.add local_lookup v.v_id (slot,load,store);
+	method add_local2 id name jsig init_state =
+		let slot,load,store = jm#add_local name jsig init_state in
+		Hashtbl.add local_lookup id (slot,load,store);
 		slot,load,store
+
+	method add_local v init_state =
+		self#add_local2 v.v_id v.v_name (self#vtype v.v_type) init_state
 
 	method get_local_by_id (vid,vname) =
 		if vid = 0 && env = None then
@@ -600,6 +612,49 @@ class texpr_to_jvm
 		jm_init#construct ConstructInit jc_closure#get_this_path (fun () -> []);
 		jm_init#putstatic jc_closure#get_this_path jf_closure#get_name jf_closure#get_jsig;
 
+	method transform_arg (v : tvar) (eo : texpr option) =
+		let jsig_local = self#vtype v.v_type in
+		let dual_vars = eo <> None && is_unboxed jsig_local in
+		let jsig_arg = if dual_vars then get_boxed_type jsig_local else jsig_local in
+		{
+			a_id = v.v_id;
+			a_name = v.v_name;
+			a_jsig_arg = jsig_arg;
+			a_jsig_local = if dual_vars then Some jsig_local else None;
+			a_texpr = eo;
+		}
+
+	method handle_arg_inits (jm : JvmMethod.builder) (handler : texpr_to_jvm) (actual_args : local_ref list) (args : transformed_arg list) =
+		List.iter2 (fun (slot,load,store) arg -> match arg.a_texpr with
+			| Some e when (match e.eexpr with TConst TNull -> false | _ -> true) ->
+				begin match arg.a_jsig_local with
+					| Some jsig_local ->
+						load();
+						jm#if_then_else
+							(jm#get_code#if_nonnull arg.a_jsig_arg)
+							(fun () ->
+								handler#texpr (rvalue_sig jsig_local) e;
+							)
+							(fun () ->
+								load();
+								jm#cast jsig_local;
+							);
+						let _,_,store = handler#add_local2 arg.a_id arg.a_name jsig_local VarWillInit in
+						store();
+					| None ->
+						load();
+						jm#if_then
+							(jm#get_code#if_nonnull arg.a_jsig_arg)
+							(fun () ->
+								handler#texpr (rvalue_sig arg.a_jsig_arg) e;
+								jm#cast arg.a_jsig_arg;
+								store();
+							)
+				end
+			| _ ->
+				()
+		) actual_args args
+
 	method tfunction ret e tf =
 		let outside,accesses_this = Texpr.collect_captured_vars e in
 		let env = List.map (fun v ->
@@ -620,34 +675,17 @@ class texpr_to_jvm
 			| _ -> []
 		in
 		let args,ret =
-			let args = List.map (fun (v,eo) ->
-				(* TODO: Can we do this differently? *)
-				if eo <> None then v.v_type <- self#mknull v.v_type;
-				v.v_name,self#vtype v.v_type
-			) tf.tf_args in
+			let args = List.map (fun (v,eo) -> self#transform_arg v eo) tf.tf_args in
 			args,(return_of_type gctx tf.tf_type)
 		in
-		let jm_invoke = wf#generate_invoke args ret filter in
+		let jm_invoke = wf#generate_invoke (List.map (fun arg -> arg.a_name,arg.a_jsig_arg) args) ret filter in
 		let handler = new texpr_to_jvm gctx field_info jc_closure jm_invoke ret in
 		handler#set_env env;
-		let args = List.map (fun (v,eo) ->
-			handler#add_local v VarArgument,v,eo
-		) tf.tf_args in
+		let actual_args = List.map (fun arg ->
+			handler#add_local2 arg.a_id arg.a_name arg.a_jsig_arg VarArgument
+		) args in
 		jm_invoke#finalize_arguments;
-		List.iter (fun ((_,load,save),v,eo) -> match eo with
-			| Some e when (match e.eexpr with TConst TNull -> false | _ -> true) ->
-				load();
-				let jsig = self#vtype v.v_type in
-				jm_invoke#if_then
-					(jm_invoke#get_code#if_nonnull jsig)
-					(fun () ->
-						handler#texpr (rvalue_sig jsig) e;
-						jm_invoke#cast jsig;
-						save();
-					)
-			| _ ->
-				()
-		) args;
+		self#handle_arg_inits jm_invoke handler actual_args args;
 		handler#texpr RReturn tf.tf_expr;
 		begin match env with
 		| [] ->
