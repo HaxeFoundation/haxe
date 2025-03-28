@@ -26,6 +26,7 @@ class Macro {
 			var transform = Marker.extractMarkers(doc);
 			var markers = transform.markers.length > 0 ? macro $a{transform.markers} : macro new Map();
 			var filename = Context.getPosInfos(c.pos).file;
+			var setup = [];
 			for (meta in field.meta) {
 				if (meta.name == ":filename") {
 					switch (meta.params[0].expr) {
@@ -34,6 +35,10 @@ class Macro {
 						case _:
 							throw "String expected";
 					}
+				}
+
+				if (meta.name == ":target") {
+					setup.push(macro @:pos(meta.params[0].pos) ctx.target = $e{meta.params[0]});
 				}
 			}
 
@@ -44,6 +49,7 @@ class Macro {
 						static var methodArgs = {method: haxe.display.Protocol.Methods.ResetCache, id: 1, params: {}};
 						var args = ['--display', haxe.Json.stringify(methodArgs)];
 						ctx.runHaxe(args);
+						@:mergeBlock $b{setup};
 						${f.expr}
 					};
 				case _:
