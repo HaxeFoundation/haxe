@@ -2552,12 +2552,16 @@ class tclass_to_jvm gctx c = object(self)
 				e,[],None
 		in
 		let handler = new texpr_to_jvm gctx field_info jc jm tr in
-		List.iter (fun (v,_) ->
-			let slot,_,_ = handler#add_local v VarArgument in
+		let arg_pairs = List.map (fun (v,eo) ->
+			let arg = handler#transform_arg v eo in
+			let slot,load,store = handler#add_local2 arg.a_id arg.a_name arg.a_jsig_arg VarArgument in
 			let l = AnnotationHandler.convert_annotations v.v_meta in
 			List.iter (fun (path,annotation,is_runtime_visible) -> jm#add_argument_annotation slot path annotation is_runtime_visible) l;
-		) args;
+			(arg,(slot,load,store))
+		) args in
 		jm#finalize_arguments;
+		let args,actual_args = List.split arg_pairs in
+		handler#handle_arg_inits jm handler actual_args args;
 		begin match mtype with
 		| MConstructor ->
 			DynArray.iter (fun e ->

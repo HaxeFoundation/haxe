@@ -247,6 +247,35 @@ let check_abstract_as_value _ e =
 	loop e;
 	e
 
+module OptionalPatcher = struct
+	let patch_optional basic cf =
+		match follow cf.cf_type with
+			| TFun(args,ret) ->
+				let args = List.map (fun (n,o,t) ->
+					let o,t = if o && not (is_nullable t) then
+						(o,basic.tnull t)
+					else
+						(o,t)
+					in
+					(n,o,t)
+				) args in
+				cf.cf_type <- TFun(args,ret)
+			| _ ->
+				()
+
+	let run com md =
+		match md with
+		| TClassDecl cl ->
+			let apply cf =
+				patch_optional com.basic cf;
+				List.iter (patch_optional com.basic) cf.cf_overloads
+			in
+			List.iter apply cl.cl_ordered_fields;
+			List.iter apply cl.cl_ordered_statics;
+			Option.may apply cl.cl_constructor;
+		| _ -> ()
+end
+
 (* PASS 1 end *)
 
 (* PASS 2 begin *)
@@ -670,7 +699,7 @@ let run tctx ectx main before_destruction =
 		match com.platform with
 		| Jvm ->
 			[
-				DefaultArguments.run com;
+				OptionalPatcher.run com;
 			]
 		| _ ->
 			[]
