@@ -762,8 +762,8 @@ class hxb_reader_api_typeload
 	method get_var_id (i : int) =
 		(* The v_id in .hxb has no relation to this context, make a new one. *)
 		let uid = fst alloc_var' in
-		Atomic.incr uid;
-		Atomic.get uid
+		incr uid;
+		!uid
 
 	method read_expression_eagerly (cf : tclass_field) =
 		com.is_macro_context || match cf.cf_kind with
