@@ -94,7 +94,7 @@ type context = {
 	cints : (int32, int32) lookup;
 	cnatives : (string * int, (string index * string index * ttype * functable index)) lookup;
 	cfids : (string * path, unit) lookup;
-	cfunctions : (fundecl * bool) DynArray.t;
+	cfunctions : fundecl DynArray.t;
 	cconstants : (constval, (global * int array)) lookup;
 	hl_ver : string;
 	optimize : bool;
@@ -3262,9 +3262,10 @@ and gen_method_wrapper ctx rt t p =
 			code = DynArray.to_array ctx.m.mops;
 			debug = make_debug ctx ctx.m.mdebug;
 			assigns = Array.of_list (List.rev ctx.m.massign);
+			need_opt = false;
 		} in
 		ctx.m <- old;
-		DynArray.add ctx.cfunctions (f, false);
+		DynArray.add ctx.cfunctions f;
 		fid
 
 and make_fun ?gen_content ctx name fidx f cthis cparent =
@@ -3428,10 +3429,11 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		code = DynArray.to_array ctx.m.mops;
 		debug = make_debug ctx ctx.m.mdebug;
 		assigns = Array.of_list (List.sort (fun (_,p1) (_,p2) -> p1 - p2) (List.rev ctx.m.massign));
+		need_opt = (gen_content = None || name <> ("",""));
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
-	DynArray.add ctx.cfunctions (hlf, (gen_content = None || name <> ("",""))) ;
+	DynArray.add ctx.cfunctions hlf;
 	capt
 
 let generate_static ctx c f =
@@ -4217,7 +4219,7 @@ let build_code ctx types main =
 		floats = DynArray.to_array ctx.cfloats.arr;
 		globals = DynArray.to_array ctx.cglobals.arr;
 		natives = DynArray.to_array ctx.cnatives.arr;
-		functions = DynArray.to_array (DynArray.map fst ctx.cfunctions);
+		functions = DynArray.to_array ctx.cfunctions;
 		debugfiles = DynArray.to_array ctx.cdebug_files.arr;
 		constants = DynArray.to_array ctx.cconstants.arr;
 	}
@@ -4261,8 +4263,8 @@ let generate com =
 		let t = Timer.timer ["generate";"hl";"opt"] in
 		let dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None in
 		Parallel.run_parallel_for ctx.num_domains ~chunk_size:16 (DynArray.length ctx.cfunctions) (fun idx ->
-			let f, b = DynArray.get ctx.cfunctions idx in
-			if b then begin
+			let f = DynArray.get ctx.cfunctions idx in
+			if f.need_opt then begin
 				let f, dumpstr = Hlopt.optimize dump (Array.get code.strings) f "todosign" in
 				(match dump_out with None -> () | Some ch -> IO.nwrite_string ch dumpstr);
 				code.functions.(idx) <- f;

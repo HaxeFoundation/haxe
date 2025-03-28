@@ -213,6 +213,7 @@ type fundecl = {
 	code : opcode array;
 	debug : (int * int * Globals.pos) array;
 	assigns : (string index * int) array;
+	need_opt : bool;
 }
 
 type code = {
