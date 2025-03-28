@@ -343,10 +343,10 @@ module Graph = struct
 		Hashtbl.add g.g_functions bb.bb_id (bb,t,p,tf)
 
 	let alloc_id =
-		let r = ref 1 in
+		let r = Atomic.make 1 in
 		(fun () ->
-			incr r;
-			!r
+			Atomic.incr r;
+			Atomic.get r
 		)
 
 	let create_node g kind t p =

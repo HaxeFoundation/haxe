@@ -123,7 +123,7 @@ let dump_types com pretty =
 		close()
 	in
 	Parallel.run_in_new_pool (fun pool ->
-		Parallel.run_parallel_on_array pool (Array.of_list com.types) f
+		Parallel.ParallelArray.iter pool f (Array.of_list com.types)
 	)
 
 let dump_record com =
@@ -139,7 +139,7 @@ let dump_record com =
 		close()
 	in
 	Parallel.run_in_new_pool (fun pool ->
-		Parallel.run_parallel_on_array pool (Array.of_list com.types) f
+		Parallel.ParallelArray.iter pool f (Array.of_list com.types)
 	)
 
 let dump_position com =
@@ -164,7 +164,7 @@ let dump_position com =
 				()
 	in
 	Parallel.run_in_new_pool (fun pool ->
-		Parallel.run_parallel_on_array pool (Array.of_list com.types) f
+		Parallel.ParallelArray.iter pool f (Array.of_list com.types)
 	)
 
 let dump_types com =
