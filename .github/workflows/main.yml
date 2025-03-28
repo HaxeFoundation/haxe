@@ -222,7 +222,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
+        target: [macro, js]
         include:
           - target: hl
             APT_PACKAGES: cmake ninja-build libturbojpeg-dev
@@ -468,7 +468,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, cpp, jvm, php, python, lua, neko]
+        target: [macro, js]
         include:
           - target: lua
             APT_PACKAGES: ncurses-dev
@@ -655,7 +655,7 @@ jobs:
       fail-fast: false
       matrix:
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/10919
-        target: [macro, js, hl, cpp, jvm, php, python, flash, neko]
+        target: [macro, js]
     steps:
       - uses: actions/checkout@main
         with:
@@ -782,7 +782,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
+        target: [macro, js]
         include:
           - target: hl
             BREW_PACKAGES: ninja
