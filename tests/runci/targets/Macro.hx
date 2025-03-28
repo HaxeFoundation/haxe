@@ -28,7 +28,7 @@ class Macro {
 		changeDirectory(getMiscSubDir("resolution"));
 		runCommand("haxe", ["run.hxml"]);
 
-		Display.maybeRunDisplayTests("Eval");
+		Display.maybeRunDisplayTests(Eval);
 
 		changeDirectory(sysDir);
 		runSysTest("haxe", ["compile-macro.hxml"].concat(args));

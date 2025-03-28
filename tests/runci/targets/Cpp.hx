@@ -72,7 +72,7 @@ class Cpp {
 				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 		}
 
-		Display.maybeRunDisplayTests("Cpp");
+		Display.maybeRunDisplayTests(Cpp);
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["-D", archFlag, "--each", "compile-cpp.hxml"].concat(args));

@@ -1,10 +1,12 @@
 package runci;
 
 import haxe.io.Path;
+import haxe.macro.Compiler.Platform;
 import sys.FileSystem;
 
 class Display {
-	static public function maybeRunDisplayTests(target:String) {
+	static public function maybeRunDisplayTests(target:Platform) {
+		final target = target.getName();
 		final pack = Path.join([Config.displayDir, "src", "cases", target.toLowerCase()]);
 		if (FileSystem.exists(pack)) {
 			System.changeDirectory(Config.displayDir);

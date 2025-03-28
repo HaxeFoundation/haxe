@@ -67,7 +67,7 @@ class Python {
 			runCommand(py, ["bin/unit34.py"]);
 		}
 
-		Display.maybeRunDisplayTests("Python");
+		Display.maybeRunDisplayTests(Python);
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-python.hxml"].concat(args));
