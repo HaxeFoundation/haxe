@@ -1154,8 +1154,7 @@ module Run = struct
 		| _ -> ()
 
 	let run_on_field com config c cf =
-		run_on_field' com config c cf;
-		List.iter (run_on_field' com config c) cf.cf_overloads
+		run_on_field' com config c cf
 
 	let run_on_class com pool config c =
 		let config = update_config_from_meta com config c.cl_meta in
