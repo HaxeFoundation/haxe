@@ -3096,13 +3096,24 @@ module Preprocessor = struct
 			) m.m_types
 		) gctx.gctx.modules;
 		(* preprocess classes *)
+		let patch_optional c =
+			let apply cf =
+				patch_optional gctx.gctx.basic cf;
+			in
+			List.iter apply c.cl_ordered_fields;
+			List.iter apply c.cl_ordered_statics;
+			Option.may apply c.cl_constructor;
+		in
 		List.iter (fun mt ->
 			match mt with
 			| TClassDecl c ->
 				if not (has_class_flag c CInterface) then
 					gctx.preprocessor#preprocess_class c
-				else if has_class_flag c CFunctionalInterface then
+				else begin
+					patch_optional c;
+					if has_class_flag c CFunctionalInterface then
 					check_functional_interface gctx c
+				end
 			| _ -> ()
 		) gctx.gctx.types;
 		(* find typedef-interface implementations *)

@@ -247,35 +247,6 @@ let check_abstract_as_value _ e =
 	loop e;
 	e
 
-module OptionalPatcher = struct
-	let patch_optional basic cf =
-		match follow cf.cf_type with
-			| TFun(args,ret) ->
-				let args = List.map (fun (n,o,t) ->
-					let o,t = if o && not (is_nullable t) then
-						(o,basic.tnull t)
-					else
-						(o,t)
-					in
-					(n,o,t)
-				) args in
-				cf.cf_type <- TFun(args,ret)
-			| _ ->
-				()
-
-	let run com md =
-		match md with
-		| TClassDecl cl ->
-			let apply cf =
-				patch_optional com.basic cf;
-				List.iter (patch_optional com.basic) cf.cf_overloads
-			in
-			List.iter apply cl.cl_ordered_fields;
-			List.iter apply cl.cl_ordered_statics;
-			Option.may apply cl.cl_constructor;
-		| _ -> ()
-end
-
 (* PASS 1 end *)
 
 (* PASS 2 begin *)
@@ -694,19 +665,6 @@ let run tctx ectx main before_destruction =
 		"captured_vars",(fun _ -> CapturedVars.captured_vars com);
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;
-	(* PASS 1.5: pre-analyzer type filters *)
-	let filters =
-		match com.platform with
-		| Jvm ->
-			[
-				OptionalPatcher.run com;
-			]
-		| _ ->
-			[]
-	in
-	with_timer detail_times "type 1" None (fun () ->
-		List.iter (fun f -> List.iter f new_types) filters;
-	);
 	enter_stage com CAnalyzerStart;
 	if com.platform <> Cross then Analyzer.Run.run_on_types com new_types;
 	enter_stage com CAnalyzerDone;
