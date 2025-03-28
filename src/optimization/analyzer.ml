@@ -1173,7 +1173,7 @@ module Run = struct
 			| None -> ()
 			| Some f -> process_field false f;
 		end;
-		Parallel.run_parallel_on_array pool (DynArray.to_array fields) (run_on_field' com config c);
+		Parallel.ParallelArray.iter pool (run_on_field' com config c) (DynArray.to_array fields);
 		begin match TClass.get_cl_init c with
 			| None ->
 				()
@@ -1203,7 +1203,7 @@ module Run = struct
 			if config.optimize && config.purity_inference then
 				with_timer config.detail_times "" ["optimize";"purity-inference"] (fun () -> Purity.infer com);
 			Parallel.run_in_new_pool (fun pool ->
-				Parallel.run_parallel_on_array pool (Array.of_list types) (run_on_type com pool config);
+				Parallel.ParallelArray.iter pool (run_on_type com pool config) (Array.of_list types);
 			)
 		)
 end
