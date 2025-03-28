@@ -1413,16 +1413,17 @@ let generate_module_types ctx m =
 		match t with
 		| HObj o | HStruct o ->
 			let name = tname o.pname in
+			let td_name = tname ("_" ^ o.pname) in
 			ctx.defined_types <- PMap.add t () ctx.defined_types;
-			define ctx (sprintf "typedef struct _%s *%s;" name name);
+			define ctx (sprintf "typedef struct %s *%s;" td_name name);
 		| _ -> ()
 	) types;
 	line "";
 	List.iter (fun t ->
 		match t with
 		| HObj op | HStruct op ->
-			let name = tname op.pname in
-			line ("struct _" ^ name ^ " {");
+			let name = tname ("_" ^ op.pname) in
+			line ("struct " ^ name ^ " {");
 			block ctx;
 			let rec loop o =
 				(match o.psuper with

@@ -2974,7 +2974,7 @@ let generate_anons gctx pool =
 		write_class gctx path (jc#export_class gctx.default_export_config)
 	in
 	let seq = Hashtbl.to_seq gctx.anon_identification#get_pfms in
-	Parallel.run_parallel_on_seq pool seq run
+	Parallel.ParallelSeq.iter pool run seq
 
 let generate_typed_functions gctx =
 	let jc_function = gctx.typed_functions#generate in
@@ -3168,11 +3168,11 @@ let generate jvm_flag gctx =
 
 	let generate pool =
 		let generate_real_types () =
-			Parallel.run_parallel_on_array pool (Array.of_list gctx.gctx.types) (generate_module_type gctx)
+			Parallel.ParallelArray.iter pool (generate_module_type gctx) (Array.of_list gctx.gctx.types)
 		in
 		let generate_typed_interfaces () =
 			let seq = Hashtbl.to_seq gctx.typedef_interfaces#get_interfaces in
-			Parallel.run_parallel_on_seq pool seq (fun (_,c) -> generate_module_type gctx (TClassDecl c));
+			Parallel.ParallelSeq.iter pool (fun (_,c) -> generate_module_type gctx (TClassDecl c)) seq;
 		in
 		run_timed gctx false "preprocess" (fun () -> Preprocessor.preprocess gctx);
 		run_timed gctx false "real types" generate_real_types;

@@ -3,14 +3,18 @@ let run_parallel_for num_domains ?(chunk_size=0) length f =
 	Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~chunk_size ~start:0 ~finish:(length-1) ~body:f);
 	Domainslib.Task.teardown_pool pool
 
-let run_parallel_on_array pool a f =
-	let f' idx = f a.(idx) in
-	let old = Atomic.exchange Timer.in_parallel true in
-	Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~start:0 ~finish:(Array.length a - 1) ~body:f');
-	Atomic.set Timer.in_parallel old
+module ParallelArray = struct
+	let iter pool f a =
+		let f' idx = f a.(idx) in
+		let old = Atomic.exchange Timer.in_parallel true in
+		Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~start:0 ~finish:(Array.length a - 1) ~body:f');
+		Atomic.set Timer.in_parallel old
+end
 
-let run_parallel_on_seq pool seq f =
-	run_parallel_on_array pool (Array.of_seq seq) f
+module ParallelSeq = struct
+	let iter pool f seq =
+		ParallelArray.iter pool f (Array.of_seq seq)
+end
 
 let run_in_new_pool f =
 	let pool = Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1) () in
