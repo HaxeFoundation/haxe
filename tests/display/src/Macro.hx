@@ -29,15 +29,21 @@ class Macro {
 			var setup = [];
 			for (meta in field.meta) {
 				if (meta.name == ":filename") {
+					if (meta.params.length != 1) {
+						Context.error("String argument expected", meta.pos);
+					}
 					switch (meta.params[0].expr) {
 						case EConst(CString(s)):
 							filename = Path.directory(filename) + "/" + s;
 						case _:
-							throw "String expected";
+							Context.error("String expected", meta.params[0].pos);
 					}
 				}
 
 				if (meta.name == ":target") {
+					if (meta.params.length != 1) {
+						Context.error("haxe.macro.Compiler.Platform argument expected", meta.pos);
+					}
 					setup.push(macro @:pos(meta.params[0].pos) ctx.target = $e{meta.params[0]});
 				}
 			}
