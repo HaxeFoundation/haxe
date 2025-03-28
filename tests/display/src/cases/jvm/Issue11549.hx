@@ -1,4 +1,4 @@
-package cases;
+package cases.jvm;
 
 class Issue11549 extends DisplayTestCase {
 	/**
@@ -21,7 +21,6 @@ class Issue11549 extends DisplayTestCase {
 			exec.{-1-}
 		}
 	**/
-	@:target(Jvm)
 	function test() {
 		eq(true, hasField(fields(pos(1)), "isTerminated", "() -> Bool"));
 	}
