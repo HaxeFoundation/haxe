@@ -7,7 +7,6 @@ open Error
 
 let cast_stack = new_rec_stack()
 
-
 let rec make_static_call ctx c cf a pl args t p =
 	if cf.cf_kind = Method MethMacro then begin
 		match args with

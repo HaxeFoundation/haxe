@@ -75,7 +75,7 @@ let run_expression_filters ?(ignore_processed_status=false) ctx detail_times fil
 				(match cf.cf_expr with
 				| Some e when not (is_removable_field com cf) ->
 					let identifier = Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name in
-					cf.cf_expr <- Some (run ctx (Some identifier) e);
+					cf.cf_expr <- Some (rec_stack_loop AbstractCast.cast_stack cf (run ctx (Some identifier)) e);
 				| _ -> ());
 			end;
 			List.iter process_field cf.cf_overloads
