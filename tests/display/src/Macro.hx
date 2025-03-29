@@ -11,6 +11,11 @@ class Macro {
 	static function buildTestCase():Array<Field> {
 		var fields = Context.getBuildFields();
 		var c = Context.getLocalClass().get();
+
+		var setupTarget = macro {};
+		var target = haxe.macro.Context.definedValue("display.target");
+		if (target != null) setupTarget = macro ctx.target = $i{target};
+
 		for (field in fields) {
 			if (field.doc == null) {
 				continue;
@@ -28,11 +33,14 @@ class Macro {
 			var filename = Context.getPosInfos(c.pos).file;
 			for (meta in field.meta) {
 				if (meta.name == ":filename") {
+					if (meta.params.length != 1) {
+						Context.error("String argument expected", meta.pos);
+					}
 					switch (meta.params[0].expr) {
 						case EConst(CString(s)):
 							filename = Path.directory(filename) + "/" + s;
 						case _:
-							throw "String expected";
+							Context.error("String expected", meta.params[0].pos);
 					}
 				}
 			}
@@ -44,6 +52,7 @@ class Macro {
 						static var methodArgs = {method: haxe.display.Protocol.Methods.ResetCache, id: 1, params: {}};
 						var args = ['--display', haxe.Json.stringify(methodArgs)];
 						ctx.runHaxe(args);
+						$setupTarget;
 						${f.expr}
 					};
 				case _:
@@ -55,6 +64,9 @@ class Macro {
 	#end
 
 	macro static public function getCases(pack:String) {
+		var target = haxe.macro.Context.definedValue("display.target");
+		if (target != null) pack = '$pack.${target.toLowerCase()}';
+
 		var cases = [];
 		var singleCase = haxe.macro.Context.definedValue("test");
 		function loop(pack:Array<String>) {
@@ -70,7 +82,7 @@ class Macro {
 				if (p.ext == "hx") {
 					var tp = {pack: pack, name: p.file};
 					cases.push(macro new $tp());
-				} else if (Path.join([path, file]).isDirectory()) {
+				} else if (file.startsWith("_") && Path.join([path, file]).isDirectory()) {
 					loop(pack.concat([file]));
 				}
 			}

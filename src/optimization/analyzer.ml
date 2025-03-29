@@ -1119,7 +1119,7 @@ module Run = struct
 		let e = Type.map_expr (reduce_control_flow com) e in
 		Optimizer.reduce_control_flow com e
 
-	let run_on_field' com config c cf = match cf.cf_expr with
+	let run_on_field' com exc_out config c cf = match cf.cf_expr with
 		| Some e when not (is_ignored cf.cf_meta) && not (Typecore.is_removable_field com cf) && not (has_class_field_flag cf CfPostProcessed) ->
 			let config = update_config_from_meta com config cf.cf_meta in
 			let actx = create_analyzer_context com config (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name) e in
@@ -1138,25 +1138,31 @@ module Run = struct
 				| DebugDot -> Debug.dot_debug actx c cf;
 				| DebugFull -> debug()
 			in
-			let e = try
-				run_on_expr actx e
+			begin try
+				let e = run_on_expr actx e in
+				let e = reduce_control_flow com e in
+				maybe_debug();
+				cf.cf_expr <- Some e;
 			with
 			| Error.Error _ | Sys.Break as exc ->
 				maybe_debug();
-				raise exc
+				Atomic.set exc_out (Some exc)
 			| exc ->
 				debug();
-				raise exc
-			in
-			let e = reduce_control_flow com e in
-			maybe_debug();
-			cf.cf_expr <- Some e;
-		| _ -> ()
+				Atomic.set exc_out (Some exc)
+			end
+		| _ ->
+			()
+
+	let check_exc_out exc_out =
+		Option.may raise (Atomic.get exc_out)
 
 	let run_on_field com config c cf =
-		run_on_field' com config c cf
+		let exc_out = Atomic.make None in
+		run_on_field' com exc_out config c cf;
+		check_exc_out exc_out
 
-	let run_on_class com pool config c =
+	let run_on_class com exc_out pool config c =
 		let config = update_config_from_meta com config c.cl_meta in
 		let fields = DynArray.create () in
 		let process_field stat cf = match cf.cf_kind with
@@ -1172,7 +1178,7 @@ module Run = struct
 			| None -> ()
 			| Some f -> process_field false f;
 		end;
-		Parallel.ParallelArray.iter pool (run_on_field' com config c) (DynArray.to_array fields);
+		Parallel.ParallelArray.iter pool (run_on_field' com exc_out config c) (DynArray.to_array fields);
 		begin match TClass.get_cl_init c with
 			| None ->
 				()
@@ -1188,10 +1194,10 @@ module Run = struct
 				TClass.set_cl_init c e
 		end
 
-	let run_on_type com pool config t =
+	let run_on_type com exc_out pool config t =
 		match t with
 		| TClassDecl c when (is_ignored c.cl_meta) -> ()
-		| TClassDecl c -> run_on_class com pool config c
+		| TClassDecl c -> run_on_class com exc_out pool config c
 		| TEnumDecl _ -> ()
 		| TTypeDecl _ -> ()
 		| TAbstractDecl _ -> ()
@@ -1201,9 +1207,11 @@ module Run = struct
 		with_timer config.detail_times "" ["other"] (fun () ->
 			if config.optimize && config.purity_inference then
 				with_timer config.detail_times "" ["optimize";"purity-inference"] (fun () -> Purity.infer com);
+			let exc_out = Atomic.make None in
 			Parallel.run_in_new_pool (fun pool ->
-				Parallel.ParallelArray.iter pool (run_on_type com pool config) (Array.of_list types);
-			)
+				Parallel.ParallelArray.iter pool (run_on_type com exc_out pool config) (Array.of_list types);
+			);
+			check_exc_out exc_out
 		)
 end
 ;;
