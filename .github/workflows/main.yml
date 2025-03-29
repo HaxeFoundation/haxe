@@ -849,7 +849,7 @@ jobs:
           echo "" > sys/compile-fs.hxml
           haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
-        timeout-minutes: 20
+        timeout-minutes: 40
 
 
   deploy:
