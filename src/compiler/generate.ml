@@ -91,13 +91,9 @@ let check_hxb_output ctx config =
 					None
 			in
 			let a_in = Array.of_list com.modules in
-			let a_out = Array.make (Array.length a_in) None in
-			let exec idx =
-				a_out.(idx) <- f a_in.(idx)
-			in
-			Parallel.run_in_new_pool (fun pool ->
-				Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~start:0 ~finish:(Array.length a_in - 1) ~body:exec)
-			);
+			let a_out = Parallel.run_in_new_pool (fun pool ->
+				Parallel.ParallelArray.map pool f a_in None
+			) in
 			Array.iter (function
 				| None ->
 					()

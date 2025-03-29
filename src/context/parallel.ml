@@ -9,6 +9,17 @@ module ParallelArray = struct
 		let old = Atomic.exchange Timer.in_parallel true in
 		Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~start:0 ~finish:(Array.length a - 1) ~body:f');
 		Atomic.set Timer.in_parallel old
+
+	let map pool f a x =
+		let length = Array.length a in
+		let a_out = Array.make length x in
+		let f' idx =
+			Array.unsafe_set a_out idx (f (Array.unsafe_get a idx))
+		in
+		let old = Atomic.exchange Timer.in_parallel true in
+		Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~start:0 ~finish:(length - 1) ~body:f');
+		Atomic.set Timer.in_parallel old;
+		a_out
 end
 
 module ParallelSeq = struct
