@@ -665,19 +665,6 @@ let run tctx ectx main before_destruction =
 		"captured_vars",(fun _ -> CapturedVars.captured_vars com);
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;
-	(* PASS 1.5: pre-analyzer type filters *)
-	let filters =
-		match com.platform with
-		| Jvm ->
-			[
-				DefaultArguments.run com;
-			]
-		| _ ->
-			[]
-	in
-	with_timer detail_times "type 1" None (fun () ->
-		List.iter (fun f -> List.iter f new_types) filters;
-	);
 	enter_stage com CAnalyzerStart;
 	if com.platform <> Cross then Analyzer.Run.run_on_types com new_types;
 	enter_stage com CAnalyzerDone;
