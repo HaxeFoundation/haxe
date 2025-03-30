@@ -31,7 +31,7 @@ class Issue11211 extends DisplayTestCase {
 		@:build(Issue11211.SafeAst.build())
 		class Main {
 			static function main() {
-				var errRa{-1-}nge = 0;
+				var errRa{-1-}nge:Null<Int> = 0;
 				{-4-}final pre{-2-}vId = trace("arg");{-5-}
 				if (errRange != null) {
 					final has{-3-}Comma = false;
@@ -45,7 +45,6 @@ class Issue11211 extends DisplayTestCase {
 		eq("Void", type(pos(2)));
 		eq("Bool", type(pos(3)));
 		var d = diagnostics();
-		trace(d);
 		arrayEq([
 			{
 				kind: DKCompilerError,
