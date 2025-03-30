@@ -273,11 +273,17 @@ end
 
 let check_defines com =
 	if is_next com then begin
-		PMap.iter (fun k _ ->
+		PMap.iter (fun k v ->
 			try
 				let reason = Hashtbl.find Define.deprecation_lut k in
 				let p = fake_pos ("-D " ^ k) in
-				com.warning WDeprecatedDefine [] reason p
+				begin match reason with
+				| DueTo reason ->
+					com.warning WDeprecatedDefine [] reason p
+				| InFavorOf d ->
+					Define.raw_define_value com.defines d v;
+					com.warning WDeprecatedDefine [] (Printf.sprintf "-D %s has been deprecated in favor of -D %s" k d) p
+				end;
 			with Not_found ->
 				()
 		) com.defines.values
@@ -422,7 +428,7 @@ let compile ctx actx callbacks =
 		) (List.rev actx.cmds)
 	end
 
-let make_ice_message com msg backtrace = 
+let make_ice_message com msg backtrace =
 		let ver = (s_version_full com.version) in
 		let os_type = if Sys.unix then "unix" else "windows" in
 		Printf.sprintf "%s\nHaxe: %s; OS type: %s;\n%s" msg ver os_type backtrace
@@ -455,7 +461,7 @@ with
 		error ctx ("Error: " ^ msg) null_pos
 	| Globals.Ice (msg,backtrace) when is_diagnostics com ->
 		let s = make_ice_message com msg backtrace in
-		handle_diagnostics ctx s null_pos DKCompilerMessage 
+		handle_diagnostics ctx s null_pos DKCompilerMessage
 	| Globals.Ice (msg,backtrace) when not Helper.is_debug_run ->
 		let s = make_ice_message com msg backtrace in
 		error ctx ("Error: " ^ s) null_pos

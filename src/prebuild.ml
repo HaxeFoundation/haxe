@@ -113,6 +113,7 @@ type parsed_define = {
 	d_platforms : string list;
 	d_links: string list;
 	d_deprecated : string option;
+	d_deprecated_define : string option;
 }
 let parse_define json =
 	let fields = match json with
@@ -127,6 +128,7 @@ let parse_define json =
 		d_platforms = get_optional_field "platforms" as_platforms [] fields;
 		d_links = get_optional_field "links" as_links [] fields;
 		d_deprecated = get_optional_field2 "deprecated" as_string fields;
+		d_deprecated_define = get_optional_field2 "deprecatedDefine" as_string fields;
 	}
 
 let parse_meta json =
@@ -204,18 +206,25 @@ let gen_define_info defines =
 			let platforms_str = gen_platforms def.d_platforms in
 			let params_str = gen_params def.d_params in
 			let links_str = gen_links def.d_links in
-			let define = String.concat "_" (ExtString.String.nsplit def.d_define "-") in
+			let convert_define s = String.concat "_" (ExtString.String.nsplit s "-") in
+			let define = convert_define def.d_define in
 			let deprecated = match def.d_deprecated with
 				| None ->
+					begin match def.d_deprecated_define with
+					| None ->
+						()
+					| Some s ->
+						DynArray.add deprecations (Printf.sprintf "\t(%S,InFavorOf(%S));" (convert_define s) define)
+					end;
 					[]
 				| Some x ->
 					let quoted = Printf.sprintf "%S" x in
-					DynArray.add deprecations (Printf.sprintf "\t(%S,%S)" define x);
+					DynArray.add deprecations (Printf.sprintf "\t(%S,DueTo(%S));" define x);
 					[Printf.sprintf "Deprecated(%s)" quoted]
 			in
 			"\t| " ^ def.d_name ^ " -> \"" ^ define ^ "\",(" ^ (Printf.sprintf "%S" def.d_doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ links_str @ deprecated)) ^ "])"
 	) defines in
-	String.concat "\n" define_str,String.concat ";\n" (DynArray.to_list deprecations)
+	String.concat "\n" define_str,String.concat "\n" (DynArray.to_list deprecations)
 
 let gen_meta_type metas =
 	String.concat "\n" (List.map (function
@@ -289,6 +298,11 @@ type define_parameter =
 	| Platforms of platform list
 	| Link of string
 	| Deprecated of string
+
+type define_deprecation =
+	| DueTo of string
+	| InFavorOf of string
+
 "
 
 let meta_header = autogen_header ^ "
