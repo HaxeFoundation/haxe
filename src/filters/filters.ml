@@ -267,12 +267,12 @@ let remove_extern_fields com t = match t with
 	| TClassDecl c ->
 		if not (Common.defined com Define.DocGen) then begin
 			c.cl_ordered_fields <- List.filter (fun f ->
-				let b = is_removable_field com f in
+				let b = FilterContext.is_removable_field com.is_macro_context f in
 				if b then c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
 				not b
 			) c.cl_ordered_fields;
 			c.cl_ordered_statics <- List.filter (fun f ->
-				let b = is_removable_field com f in
+				let b = FilterContext.is_removable_field com.is_macro_context f in
 				if b then c.cl_statics <- PMap.remove f.cf_name c.cl_statics;
 				not b
 			) c.cl_ordered_statics;
@@ -638,6 +638,8 @@ let run tctx ectx main before_destruction =
 		end;
 		not cached
 	) com.types in
+	let new_types_array = Array.of_list new_types in
+	let safe_com = to_safe_com com in
 	(* IMPORTANT:
 	    There may be types in new_types which have already been post-processed, but then had their m_processed flag unset
 		because they received an additional dependency. This could happen in cases such as @:generic methods in #10635.
@@ -670,16 +672,16 @@ let run tctx ectx main before_destruction =
 	enter_stage com CAnalyzerDone;
 	let locals = RenameVars.init com in
 	let filters = [
-		"sanitize",(fun _ e -> Optimizer.sanitize com e);
+		"sanitize",(fun scom e -> Optimizer.sanitize scom.SafeCom.platform_config e);
 		"add_final_return",(fun _ -> if com.config.pf_add_final_return then AddFinalReturn.add_final_return else (fun e -> e));
 		"RenameVars",(match com.platform with
 		| Eval -> (fun _ e -> e)
 		| Jvm -> (fun _ e -> e)
-		| _ -> (fun tctx e -> RenameVars.run tctx.c.curclass.cl_path locals e));
+		| _ -> (fun scom e -> RenameVars.run scom.curclass.cl_path locals e));
 		"mark_switch_break_loops",(fun _ -> mark_switch_break_loops);
 	] in
 	Parallel.run_in_new_pool (fun pool ->
-		Parallel.ParallelArray.iter pool (run_expression_filters tctx detail_times filters) (Array.of_list new_types)
+		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe safe_com detail_times filters) new_types_array
 	);
 	with_timer detail_times "callbacks" None (fun () ->
 		com.callbacks#run com.error_ext com.callbacks#get_before_save;

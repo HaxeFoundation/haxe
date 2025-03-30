@@ -333,6 +333,19 @@ let to_gctx com = {
 	std = com.std;
 }
 
+let to_safe_com com = {
+	SafeCom.basic = com.basic;
+	platform = com.platform;
+	defines = com.defines;
+	platform_config = com.config;
+	debug = com.debug;
+	is_macro_context = com.is_macro_context;
+	exceptions = ref [];
+	exceptions_mutex = Mutex.create ();
+	curclass = null_class;
+	curfield = null_field;
+}
+
 let enter_stage com stage =
 	(* print_endline (Printf.sprintf "Entering stage %s" (s_compiler_stage stage)); *)
 	com.stage <- stage

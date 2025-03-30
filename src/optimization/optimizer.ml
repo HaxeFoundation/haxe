@@ -67,7 +67,7 @@ let rec need_parent e =
 	| TCast _ | TThrow _ | TReturn _ | TTry _ | TSwitch _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
 	| TBlock _ | TVar _ | TFunction _ | TUnop _ -> true
 
-let sanitize_expr com e =
+let sanitize_expr config e =
 	let parent e =
 		match e.eexpr with
 		| TParenthesis _ -> e
@@ -95,13 +95,13 @@ let sanitize_expr com e =
 	in
 	match e.eexpr with
 	| TConst TNull ->
-		if com.config.pf_static && not (is_nullable e.etype) then begin
+		if config.PlatformConfig.pf_static && not (is_nullable e.etype) then begin
 			let rec loop t = match follow t with
 				| TMono _ -> () (* in these cases the null will cast to default value *)
 				| TFun _ -> () (* this is a bit a particular case, maybe flash-specific actually *)
 				(* TODO: this should use get_underlying_type, but we do not have access to Codegen here.  *)
 				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> loop (apply_params a.a_params tl a.a_this)
-				| _ -> com.error ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos
+				| _ -> raise_typing_error ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos
 			in
 			loop e.etype
 		end;
@@ -226,8 +226,8 @@ let reduce_expr com e =
 	| _ ->
 		e
 
-let rec sanitize com e =
-	sanitize_expr com (reduce_expr com (Type.map_expr (sanitize com) e))
+let rec sanitize config e =
+	sanitize_expr config (reduce_expr config (Type.map_expr (sanitize config) e))
 
 (* ---------------------------------------------------------------------- *)
 (* REDUCE *)
@@ -335,7 +335,7 @@ let reduce_control_flow com e = match e.eexpr with
 
 let rec reduce_loop ctx stack e =
 	let e = Type.map_expr (reduce_loop ctx stack) e in
-	sanitize_expr ctx.com (match e.eexpr with
+	sanitize_expr ctx.com.config (match e.eexpr with
 	| TCall(e1,el) ->
 		begin match Texpr.skip e1 with
 			| { eexpr = TFunction func } as ef ->
