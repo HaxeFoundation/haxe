@@ -458,12 +458,12 @@ let run tctx ectx main before_destruction =
 		"fix_return_dynamic_from_void_function",SafeFilters.fix_return_dynamic_from_void_function;
 		"check_local_vars_init",CheckVarInit.check_local_vars_init;
 		"check_abstract_as_value",SafeFilters.check_abstract_as_value;
+		"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
 	] in
 	run_parallel_safe com scom (fun pool ->
 		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
 	);
 	let filters = [
-		"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
 		"reduce_expression",Optimizer.reduce_expression;
 		"inline_constructors",InlineConstructors.inline_constructors;
 		"Exceptions_filter",(fun _ -> Exceptions.filter ectx);

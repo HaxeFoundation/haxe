@@ -1,13 +1,13 @@
 open Type
-open Typecore
+open SafeCom
 open Globals
 
 let rec collect_new_args_values ctx args declarations values n =
 	match args with
 	| [] -> declarations, values
 	| arg :: rest ->
-		let v = gen_local ctx arg.etype arg.epos in
-		let decl = { eexpr = TVar (v, Some arg); etype = ctx.t.tvoid; epos = v.v_pos }
+		let v = alloc_var VGenerated "tmp" arg.etype arg.epos in
+		let decl = { eexpr = TVar (v, Some arg); etype = ctx.basic.tvoid; epos = v.v_pos }
 		and value = { arg with eexpr = TLocal v } in
 		collect_new_args_values ctx rest (decl :: declarations) (value :: values) (n + 1)
 
@@ -22,13 +22,13 @@ let rec assign_args vars exprs =
 
 let replacement_for_TReturn ctx fn args p =
 	let temps_rev, args_rev = collect_new_args_values ctx args [] [] 0
-	and continue = mk TContinue ctx.t.tvoid Globals.null_pos in
+	and continue = mk TContinue ctx.basic.tvoid Globals.null_pos in
 	{
-		etype = ctx.t.tvoid;
+		etype = ctx.basic.tvoid;
 		epos = p;
 		eexpr = TMeta ((Meta.TailRecursion, [], null_pos), {
 			eexpr = TBlock ((List.rev temps_rev) @ (assign_args fn.tf_args (List.rev args_rev)) @ [continue]);
-			etype = ctx.t.tvoid;
+			etype = ctx.basic.tvoid;
 			epos = p;
 		});
 	}
@@ -51,11 +51,11 @@ let rec redeclare_vars ctx vars declarations replace_list =
 	match vars with
 	| [] -> declarations, replace_list
 	| v :: rest ->
-		let new_v = alloc_var VGenerated (gen_local_prefix ^ v.v_name) v.v_type v.v_pos in
+		let new_v = alloc_var VGenerated (Typecore.gen_local_prefix ^ v.v_name) v.v_type v.v_pos in
 		let decl =
 			{
 				eexpr = TVar (new_v, Some { eexpr = TLocal v; etype = v.v_type; epos = v.v_pos; });
-				etype = ctx.t.tvoid;
+				etype = ctx.basic.tvoid;
 				epos = v.v_pos;
 			}
 		in
@@ -78,7 +78,7 @@ let rec replace_vars replace_list in_tail_recursion e =
 
 let wrap_loop ctx args body =
 	let wrap e =
-		let cond = mk (TConst (TBool true)) ctx.t.tbool Globals.null_pos in
+		let cond = mk (TConst (TBool true)) ctx.basic.tbool Globals.null_pos in
 		{ e with eexpr = TWhile (cond, e, Ast.NormalWhile) }
 	in
 	match collect_captured_args args body with
@@ -154,7 +154,7 @@ let rec transform_function ctx is_recursive_call fn =
 		if !add_loop then
 			let body =
 				if ExtType.is_void (follow fn.tf_type) then
-					mk (TBlock [body; mk (TReturn None) ctx.t.tvoid null_pos]) ctx.t.tvoid null_pos
+					mk (TBlock [body; mk (TReturn None) ctx.basic.tvoid null_pos]) ctx.basic.tvoid null_pos
 				else
 					body
 			in
@@ -199,23 +199,23 @@ let rec has_tail_recursion is_recursive_call cancel_tre function_end e =
 		check_expr (has_tail_recursion is_recursive_call cancel_tre function_end) e
 
 let run ctx =
-	if Common.defined ctx.com Define.NoTre then
+	if Define.defined ctx.defines Define.NoTre then
 		(fun e -> e)
 	else
 		(fun e ->
 			match e.eexpr with
 			| TFunction fn ->
 				let is_tre_eligible =
-					match ctx.f.curfield.cf_kind with
+					match ctx.curfield.cf_kind with
 					| Method MethDynamic -> false
 					| Method MethInline -> true
 					| Method MethNormal ->
-						PMap.mem ctx.f.curfield.cf_name ctx.c.curclass.cl_statics
+						PMap.mem ctx.curfield.cf_name ctx.curclass.cl_statics
 					| _ ->
-						has_class_field_flag ctx.f.curfield CfFinal
+						has_class_field_flag ctx.curfield CfFinal
 					in
 				let is_recursive_call callee args =
-					is_tre_eligible && is_recursive_method_call ctx.c.curclass ctx.f.curfield callee args
+					is_tre_eligible && is_recursive_method_call ctx.curclass ctx.curfield callee args
 				in
 				if has_tail_recursion is_recursive_call false true fn.tf_expr then
 					(* print_endline ("TRE: " ^ ctx.f.curfield.cf_pos.pfile ^ ": " ^ ctx.f.curfield.cf_name); *)
