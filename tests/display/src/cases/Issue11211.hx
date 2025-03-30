@@ -44,6 +44,8 @@ class Issue11211 extends DisplayTestCase {
 		eq("Int", type(pos(1)));
 		eq("Void", type(pos(2)));
 		eq("Bool", type(pos(3)));
+		var d = diagnostics();
+		trace(d);
 		arrayEq([
 			{
 				kind: DKCompilerError,
@@ -53,6 +55,6 @@ class Issue11211 extends DisplayTestCase {
 				relatedInformation: [],
 				args: "Variables of type Void are not allowed"
 			},
-		], diagnostics());
+		], d);
 	}
 }
