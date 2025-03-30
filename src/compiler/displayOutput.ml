@@ -273,7 +273,6 @@ let handle_display_exception_old ctx dex = match dex with
 	| DisplayFields r ->
 		DisplayPosition.display_position#reset;
 		let fields = if !Timer.measure_times then begin
-			Timer.close_times();
 			(List.map (fun (name,value) ->
 				CompletionItem.make_ci_timer ("@TIME " ^ name) value
 			) (get_timer_fields !Helper.start_time)) @ r.fitems

@@ -12,3 +12,6 @@
 -D analyzer-user-var-fusion
 -D message.reporting=pretty
 -D haxe-next
+--times
+-D filter-times=2
+-D analyzer-times=2
