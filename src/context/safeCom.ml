@@ -47,13 +47,16 @@ let add_warning com w msg p =
 
 let run_expression_filters_safe (com : t) detail_times filters t =
 	let run com identifier e =
-		List.fold_left (fun e (filter_name,f) ->
-			try
-				FilterContext.with_timer detail_times filter_name identifier (fun () -> f com e)
-			with exc ->
-				add_exn com exc;
-				e
-		) e filters
+		try
+			List.fold_left (fun e (filter_name,f) ->
+				try
+					FilterContext.with_timer detail_times filter_name identifier (fun () -> f com e)
+				with Failure msg ->
+					Error.raise_typing_error msg e.epos
+			) e filters
+		with exc ->
+			add_exn com exc;
+			e
 	in
 	match t with
 	| TClassDecl c when FilterContext.is_removable_class c -> ()
