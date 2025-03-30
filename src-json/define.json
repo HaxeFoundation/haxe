@@ -18,7 +18,8 @@
 	},
 	{
 		"name": "AnalyzerTimes",
-		"define": "analyzer-times",
+		"define": "times.analyzer",
+		"deprecatedDefine": "analyzer-times",
 		"doc": "Record detailed timers for the analyzer",
 		"params": ["level: 0 | 1 | 2"]
 	},
@@ -166,7 +167,8 @@
 	},
 	{
 		"name": "EvalTimes",
-		"define": "eval-times",
+		"define": "times.eval",
+		"deprecatedDefine": "eval-times",
 		"doc": "Record per-method execution times in macro/interp mode. Implies eval-stack.",
 		"platforms": ["eval"]
 	},
@@ -177,7 +179,8 @@
 	},
 	{
 		"name": "FilterTimes",
-		"define": "filter-times",
+		"define": "times.filter",
+		"deprecatedDefine": "filter-times",
 		"doc": "Record per-filter execution times upon --times."
 	},
 	{
@@ -273,7 +276,8 @@
 	},
 	{
 		"name": "HxbTimes",
-		"define": "hxb-times",
+		"define": "times.hxb",
+		"deprecatedDefine": "hxb-times",
 		"doc": "Display hxb timing when used with `--times`."
 	},
 	{
@@ -510,7 +514,8 @@
 	},
 	{
 		"name": "MacroTimes",
-		"define": "macro-times",
+		"define": "times.macro",
+		"deprecatedDefine": "macro-times",
 		"doc": "Display per-macro timing when used with `--times`."
 	},
 	{
