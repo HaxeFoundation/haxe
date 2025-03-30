@@ -71,7 +71,7 @@ let get_base_config com =
 		fusion = not (Common.raw_defined com "analyzer_no_fusion");
 		purity_inference = not (Common.raw_defined com "analyzer_no_purity_inference");
 		debug_kind = DebugNone;
-		detail_times = BetterTimer.level_from_define com.defines Define.AnalyzerTimes;
+		detail_times = Timer.level_from_define com.defines Define.AnalyzerTimes;
 		user_var_fusion = (match com.platform with Flash | Jvm -> false | _ -> true) && (Common.raw_defined com "analyzer_user_var_fusion" || (not com.debug && not (Common.raw_defined com "analyzer_no_user_var_fusion")));
 		fusion_debug = false;
 	}

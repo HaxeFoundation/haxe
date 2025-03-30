@@ -149,7 +149,7 @@ class hxb_reader
 	(mpath : path)
 	(stats : hxb_reader_stats)
 	(string_pool : string array option)
-	(timer_ctx : BetterTimer.timer_context option)
+	(timer_ctx : Timer.timer_context option)
 = object(self)
 	val mutable api = Obj.magic ""
 	val mutable full_restore = true
@@ -2085,7 +2085,7 @@ class hxb_reader
 		let path = String.concat "_" (ExtLib.String.nsplit (s_type_path mpath) ".") in
 		let id = ["hxb";"read";string_of_chunk_kind kind;path] in
 		let close = match timer_ctx with
-			| Some timer_ctx -> BetterTimer.start_timer timer_ctx id
+			| Some timer_ctx -> Timer.start_timer timer_ctx id
 			| None -> (fun () -> ())
 		in
 		try

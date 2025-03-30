@@ -614,7 +614,7 @@ let generate swf_header swf_libs flash_version com =
 		{header with h_frame_count = header.h_frame_count + 1},loop tags
 	| _ -> swf in
 	(* write swf/swc *)
-	BetterTimer.time com.timer_ctx ["write";"swf"] (fun () ->
+	Timer.time com.timer_ctx ["write";"swf"] (fun () ->
 		let level = (try int_of_string (Gctx.defined_value com Define.SwfCompressLevel) with Not_found -> 9) in
 		SwfParser.init Extc.input_zip (Extc.output_zip ~level);
 		(match swc with

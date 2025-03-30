@@ -291,7 +291,7 @@ let generate com file =
 	let f () =
 		node "haxe" [] (List.map (gen_type_decl com true) (List.filter (fun t -> not (Meta.has Meta.NoDoc (t_infos t).mt_meta)) com.types))
 	in
-	let x = BetterTimer.time com.timer_ctx ["generate";"xml"] f () in
+	let x = Timer.time com.timer_ctx ["generate";"xml"] f () in
 
 	let f () =
 		let ch = IO.output_channel (open_out_bin file) in
@@ -299,7 +299,7 @@ let generate com file =
 		write_xml ch "" x;
 		IO.close_out ch;
 	in
-	BetterTimer.time com.timer_ctx ["write";"xml"] f ()
+	Timer.time com.timer_ctx ["write";"xml"] f ()
 
 let gen_type_string ctx t =
 	let x = gen_type_decl ctx false t in

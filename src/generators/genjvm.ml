@@ -105,7 +105,7 @@ let run_timed gctx detail name f =
 		f()
 	else begin
 		let timer_ctx = gctx.gctx.timer_ctx in
-		BetterTimer.time timer_ctx (timer_ctx.current.id @ [name]) f ()
+		Timer.time timer_ctx (timer_ctx.current.id @ [name]) f ()
 	end
 
 class file_output
@@ -353,7 +353,7 @@ let write_class gctx path jc =
 		| (sl,s) -> String.concat "/" sl ^ "/" ^ s
 	in
 	let path = dir ^ ".class" in
-	BetterTimer.time gctx.gctx.timer_ctx ["jvm";"write"] (fun () ->
+	Timer.time gctx.gctx.timer_ctx ["jvm";"write"] (fun () ->
 		let ch = IO.output_bytes() in
 		JvmWriter.write_jvm_class ch jc;
 		let bytes = Bytes.unsafe_to_string (IO.close_out ch) in

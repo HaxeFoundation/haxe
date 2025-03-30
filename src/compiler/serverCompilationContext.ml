@@ -53,7 +53,7 @@ let reset sctx =
 
 let maybe_cache_context sctx com =
 	if com.display.dms_full_typing && com.display.dms_populate_cache then begin
-		BetterTimer.time com.timer_ctx ["server";"cache context"] (CommonCache.cache_context sctx.cs) com;
+		Timer.time com.timer_ctx ["server";"cache context"] (CommonCache.cache_context sctx.cs) com;
 		ServerMessage.cached_modules com "" (List.length com.modules);
 	end
 

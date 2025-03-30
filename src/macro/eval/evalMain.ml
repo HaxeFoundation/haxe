@@ -163,7 +163,7 @@ let create com api is_macro =
 	ctx
 
 let create com api is_macro =
-	BetterTimer.time com.Common.timer_ctx [(if is_macro then "macro" else "interp");"create"] (create com api) is_macro
+	Timer.time com.Common.timer_ctx [(if is_macro then "macro" else "interp");"create"] (create com api) is_macro
 
 (* API for macroContext.ml *)
 

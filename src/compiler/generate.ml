@@ -75,7 +75,7 @@ let check_hxb_output ctx config =
 	let try_write from_cache =
 		let path = config.HxbWriterConfig.archive_path in
 		let path = Str.global_replace (Str.regexp "\\$target") (platform_name ctx.com.platform) path in
-		let t = BetterTimer.start_timer ctx.timer_ctx ["generate";"hxb"] in
+		let t = Timer.start_timer ctx.timer_ctx ["generate";"hxb"] in
 		Path.mkdir_from_path path;
 		let zip = new Zip_output.zip_output path 6 in
 		let export com config string_pool =
@@ -85,7 +85,7 @@ let check_hxb_output ctx config =
 			List.iter (fun m ->
 				let sl_path = fst m.m_path @ [snd m.m_path] in
 				if not (match_path_list config.exclude sl_path) || match_path_list config.include' sl_path then
-					BetterTimer.time ctx.timer_ctx ["generate";"hxb";s_type_path m.m_path] (export_hxb from_cache com config string_pool cc target zip) m
+					Timer.time ctx.timer_ctx ["generate";"hxb";s_type_path m.m_path] (export_hxb from_cache com config string_pool cc target zip) m
 			) com.modules;
 		in
 		Std.finally (fun () ->
@@ -134,7 +134,7 @@ let delete_file f = try Sys.remove f with _ -> ()
 let maybe_generate_dump ctx tctx =
 	let com = tctx.Typecore.com in
 	if Common.defined com Define.Dump then begin
-		BetterTimer.time ctx.timer_ctx ["generate";"dump"] (fun () ->
+		Timer.time ctx.timer_ctx ["generate";"dump"] (fun () ->
 			Dump.dump_types com;
 			Option.may Dump.dump_types (com.get_macros());
 		) ();
@@ -159,7 +159,7 @@ let generate ctx tctx ext actx =
 		| _ -> Path.mkdir_from_path com.file
 	end;
 	if actx.interp then begin
-		let timer = BetterTimer.start_timer ctx.timer_ctx ["interp"] in
+		let timer = Timer.start_timer ctx.timer_ctx ["interp"] in
 		let old = tctx.com.args in
 		tctx.com.args <- ctx.runtime_args;
 		let restore () =
@@ -201,6 +201,6 @@ let generate ctx tctx ext actx =
 		if name = "" then ()
 		else begin
 			Common.log com ("Generating " ^ name ^ ": " ^ com.file);
-			BetterTimer.time com.timer_ctx ["generate";name] generate (Common.to_gctx com);
+			Timer.time com.timer_ctx ["generate";name] generate (Common.to_gctx com);
 		end
 	end

@@ -355,7 +355,7 @@ type context = {
 	mutable cache : CompilationCache.context_cache option;
 	is_macro_context : bool;
 	mutable json_out : json_api option;
-	timer_ctx : BetterTimer.timer_context;
+	timer_ctx : Timer.timer_context;
 	(* config *)
 	version : compiler_version;
 	mutable args : string list;

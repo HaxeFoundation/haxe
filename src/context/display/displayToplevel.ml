@@ -109,7 +109,7 @@ end
 
 let explore_class_paths com timer class_paths recursive f_pack f_module =
 	let cs = com.cs in
-	BetterTimer.time com.timer_ctx (timer @ ["class path exploration"]) (fun () ->
+	Timer.time com.timer_ctx (timer @ ["class path exploration"]) (fun () ->
 		let checked = Hashtbl.create 0 in
 		let tasks = ExtList.List.filter_map (fun path ->
 			match path#get_directory_path with
@@ -297,7 +297,7 @@ let collect ctx tk with_type sort =
 	| TKType | TKOverride -> ()
 	| TKExpr p | TKPattern p | TKField p ->
 		(* locals *)
-		BetterTimer.time ctx.com.timer_ctx ["display";"toplevel collect";"locals"] (fun () ->
+		Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"locals"] (fun () ->
 			PMap.iter (fun _ v ->
 				if not (is_gen_local v) then
 					add (make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)) (Some v.v_name)
@@ -328,7 +328,7 @@ let collect ctx tk with_type sort =
 			if not (Meta.has Meta.NoCompletion cf.cf_meta) then add_field scope origin cf
 		in
 
-		BetterTimer.time ctx.com.timer_ctx ["display";"toplevel collect";"fields"] (fun () ->
+		Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"fields"] (fun () ->
 			(* member fields *)
 			if ctx.e.curfun <> FunStatic then begin
 				let all_fields = Type.TClass.get_all_fields ctx.c.curclass (extract_param_types ctx.c.curclass.cl_params) in
@@ -358,7 +358,7 @@ let collect ctx tk with_type sort =
 			end;
 		) ();
 
-		BetterTimer.time ctx.com.timer_ctx ["display";"toplevel collect";"enum ctors"] (fun () ->
+		Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"enum ctors"] (fun () ->
 			(* enum constructors *)
 			let rec enum_ctors t =
 				match t with
@@ -395,7 +395,7 @@ let collect ctx tk with_type sort =
 			end;
 		) ();
 
-		BetterTimer.time ctx.com.timer_ctx ["display";"toplevel collect";"globals"] (fun () ->
+		Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"globals"] (fun () ->
 			(* imported globals *)
 			PMap.iter (fun name (mt,s,_) ->
 				try
@@ -427,7 +427,7 @@ let collect ctx tk with_type sort =
 			) ctx.m.import_resolution#extract_field_imports;
 		) ();
 
-		BetterTimer.time ctx.com.timer_ctx ["display";"toplevel collect";"rest"] (fun () ->
+		Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"rest"] (fun () ->
 			(* literals *)
 			add (make_ci_literal "null" (tpair t_dynamic)) (Some "null");
 			add (make_ci_literal "true" (tpair ctx.com.basic.tbool)) (Some "true");
@@ -477,7 +477,7 @@ let collect ctx tk with_type sort =
 		| [] -> ()
 		| s :: sl -> add_package (List.rev sl,s)
 	in
-	BetterTimer.time ctx.com.timer_ctx ["display";"toplevel collect";"syntax"] (fun () ->
+	Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"syntax"] (fun () ->
 		(* types from files *)
 		(* online: iter context files *)
 		init_or_update_server cs ctx.com ["display";"toplevel"];
@@ -507,7 +507,7 @@ let collect ctx tk with_type sort =
 		) files;
 	) ();
 
-	BetterTimer.time ctx.com.timer_ctx ["display";"toplevel collect";"native lib"] (fun () ->
+	Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"native lib"] (fun () ->
 		List.iter (fun file ->
 			match cs#get_native_lib file with
 			| Some lib ->
@@ -519,7 +519,7 @@ let collect ctx tk with_type sort =
 		) ctx.com.native_libs.all_libs;
 	) ();
 
-	BetterTimer.time ctx.com.timer_ctx ["display";"toplevel collect";"packages"] (fun () ->
+	Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"packages"] (fun () ->
 		(* packages *)
 		Hashtbl.iter (fun path _ ->
 			let full_pack = fst path @ [snd path] in
@@ -527,7 +527,7 @@ let collect ctx tk with_type sort =
 		) packages;
 	) ();
 
-	BetterTimer.time ctx.com.timer_ctx ["display";"toplevel sorting"] (fun () ->
+	Timer.time ctx.com.timer_ctx ["display";"toplevel sorting"] (fun () ->
 		(* sorting *)
 		let l = DynArray.to_list cctx.items in
 		let l = if is_legacy_completion then
@@ -541,7 +541,7 @@ let collect ctx tk with_type sort =
 	) ()
 
 let collect ctx tk with_type sort =
-	BetterTimer.time ctx.com.timer_ctx ["display";"toplevel collect"] (collect ctx tk with_type) sort
+	Timer.time ctx.com.timer_ctx ["display";"toplevel collect"] (collect ctx tk with_type) sort
 
 let collect_and_raise ctx tk with_type cr (name,pname) pinsert =
 	let fields = match !DisplayException.last_completion_pos with

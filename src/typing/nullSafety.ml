@@ -1658,7 +1658,7 @@ class class_checker cls immediate_execution report =
 	Run null safety checks.
 *)
 let run (com:Common.context) (types:module_type list) =
-	let report = BetterTimer.time com.timer_ctx ["null safety"] (fun () ->
+	let report = Timer.time com.timer_ctx ["null safety"] (fun () ->
 		let report = { sr_errors = [] } in
 		let immediate_execution = new immediate_execution in
 		let traverse module_type =

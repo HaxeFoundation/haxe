@@ -53,7 +53,7 @@ let parse_file cs com (rfile : ClassPaths.resolved_file) p =
 		TypeloadParse.parse_file_from_string com file p stdin
 	| _ ->
 		let ftime = file_time ffile in
-		let data = Std.finally (BetterTimer.start_timer com.timer_ctx ["server";"parser cache"]) (fun () ->
+		let data = Std.finally (Timer.start_timer com.timer_ctx ["server";"parser cache"]) (fun () ->
 			try
 				let cfile = cc#find_file fkey in
 				if cfile.c_time <> ftime then raise Not_found;
@@ -114,7 +114,7 @@ module Communication = struct
 			);
 			exit = (fun timer_ctx code ->
 				if code = 0 then begin
-					if timer_ctx.measure_times then BetterTimer.report_times timer_ctx (fun s -> self.write_err (s ^ "\n"));
+					if timer_ctx.measure_times then Timer.report_times timer_ctx (fun s -> self.write_err (s ^ "\n"));
 				end;
 				exit code;
 			);
@@ -142,7 +142,7 @@ module Communication = struct
 						ctx.timer_ctx.measure_times <- false;
 						write "\x02\n"
 					end else begin
-						if ctx.timer_ctx.measure_times then BetterTimer.report_times ctx.timer_ctx (fun s -> self.write_err (s ^ "\n"));
+						if ctx.timer_ctx.measure_times then Timer.report_times ctx.timer_ctx (fun s -> self.write_err (s ^ "\n"));
 					end
 				)
 			);
@@ -222,7 +222,7 @@ let get_changed_directories sctx com =
 	dirs
 
 let get_changed_directories sctx com =
-	BetterTimer.time com.Common.timer_ctx ["server";"module cache";"changed dirs"] (get_changed_directories sctx) com
+	Timer.time com.Common.timer_ctx ["server";"module cache";"changed dirs"] (get_changed_directories sctx) com
 
 let full_typing com m_extra =
 	com.is_macro_context
@@ -441,7 +441,7 @@ class hxb_reader_api_server
 			let f_next chunks until =
 				let macro = if com.is_macro_context then " (macro)" else "" in
 				let f  = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until in
-				BetterTimer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] f full_restore
+				Timer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] f full_restore
 			in
 
 			let m,chunks = f_next mc.mc_chunks EOT in
@@ -535,18 +535,18 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 (* Looks up the module referred to by [mpath] in the cache. If it exists, a check is made to
    determine if it's still valid. If this function returns None, the module is re-typed. *)
 and type_module sctx com delay mpath p =
-	let t = BetterTimer.start_timer com.timer_ctx ["server";"module cache"] in
+	let t = Timer.start_timer com.timer_ctx ["server";"module cache"] in
 	let cc = CommonCache.get_cache com in
 	let skip m_path reason =
 		ServerMessage.skipping_dep com "" (m_path,(Printer.s_module_skip_reason reason));
 		BadModule reason
 	in
 	let add_modules from_binary m =
-		BetterTimer.time com.timer_ctx ["server";"module cache";"add modules"] (add_modules sctx com delay m from_binary) p;
+		Timer.time com.timer_ctx ["server";"module cache";"add modules"] (add_modules sctx com delay m from_binary) p;
 		GoodModule m
 	in
 	let check_module sctx m_path m_extra p =
-		BetterTimer.time com.timer_ctx ["server";"module cache";"check"] (check_module sctx com mpath m_extra) p
+		Timer.time com.timer_ctx ["server";"module cache";"check"] (check_module sctx com mpath m_extra) p
 	in
 	let find_module_in_cache cc m_path p =
 		try
@@ -585,7 +585,7 @@ and type_module sctx com delay mpath p =
 					in
 					let f_next chunks until =
 						let macro = if com.is_macro_context then " (macro)" else "" in
-						BetterTimer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] (reader#read_chunks_until api chunks until) full_restore
+						Timer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] (reader#read_chunks_until api chunks until) full_restore
 					in
 
 					let m,chunks = f_next mc.mc_chunks EOT in

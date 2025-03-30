@@ -57,11 +57,11 @@ let safe_decode com v expected t p f =
 
 
 let macro_timer timer_ctx level label identifier f arg =
-	let id = BetterTimer.determine_id level ["macro"] [label] identifier in
-	BetterTimer.time timer_ctx id f arg
+	let id = Timer.determine_id level ["macro"] [label] identifier in
+	Timer.time timer_ctx id f arg
 
 let typing_timer ctx need_type f =
-	let t = BetterTimer.start_timer ctx.com.timer_ctx ["typing"] in
+	let t = Timer.start_timer ctx.com.timer_ctx ["typing"] in
 	let ctx = if need_type && ctx.pass < PTypeField then begin
 		enter_field_typing_pass ctx.g ("typing_timer",[]);
 		TyperManager.clone_for_expr ctx ctx.e.curfun false
@@ -95,7 +95,7 @@ let typing_timer ctx need_type f =
 		raise e
 
 let make_macro_com_api com mcom p =
-	let timer_level = BetterTimer.level_from_define com.defines Define.MacroTimes in
+	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	let parse_metadata s p =
 		try
 			match ParserEntry.parse_string Grammar.parse_meta com.defines s null_pos raise_typing_error false with
@@ -667,7 +667,7 @@ and flush_macro_context mint mctx =
 		(try Interp.add_types mint types ready
 		with Error err -> raise (Fatal_error err));
 	in
-	let timer_level = BetterTimer.level_from_define mctx.com.defines Define.MacroTimes in
+	let timer_level = Timer.level_from_define mctx.com.defines Define.MacroTimes in
 	macro_timer mctx.com.timer_ctx timer_level "flush" None f ()
 
 let create_macro_interp api mctx =
@@ -767,7 +767,7 @@ let load_macro_module mctx com cpath display p =
 
 let load_macro'' com mctx display cpath fname p =
 	let mint = Interp.get_ctx() in
-	let timer_level = BetterTimer.level_from_define com.defines Define.MacroTimes in
+	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	try
 		mctx.com.cached_macros#find (cpath,fname)
 	with Not_found ->
@@ -811,7 +811,7 @@ let load_macro' ctx display cpath f p =
 
 let do_call_macro com api cpath name args p =
 	incr stats.s_macros_called;
-	let timer_level = BetterTimer.level_from_define com.defines Define.MacroTimes in
+	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	let f = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) name args in
 	macro_timer com.timer_ctx timer_level "execution" (Some (s_type_path cpath ^ "." ^ name)) f api
 

@@ -632,7 +632,7 @@ let handle_display ctx e_ast dk mode with_type =
 		end else
 			raise_toplevel ctx dk with_type (s_type_path path,p)
 	| DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
-		let l = BetterTimer.time ctx.com.timer_ctx ["display";"toplevel";"filter ctors"] (filter_ctors ctx) r in
+		let l = Timer.time ctx.com.timer_ctx ["display";"toplevel";"filter ctors"] (filter_ctors ctx) r in
 		raise_fields l CRNew r.fsubject
 	in
 	let e = match e_ast, e.eexpr with

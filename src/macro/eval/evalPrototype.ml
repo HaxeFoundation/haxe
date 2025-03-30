@@ -370,4 +370,4 @@ let add_types ctx types ready =
 	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init
 
 let add_types ctx types ready =
-	BetterTimer.time ctx.timer_ctx [(if ctx.is_macro then "macro" else "interp");"add_types"] (add_types ctx types) ready
+	Timer.time ctx.timer_ctx [(if ctx.is_macro then "macro" else "interp");"add_types"] (add_types ctx types) ready

@@ -1053,11 +1053,11 @@ class java_library_modern com  name file_path = object(self)
 	method load =
 		if not loaded then begin
 			loaded <- true;
-			BetterTimer.time com.Common.timer_ctx ["jar";"load"] (fun () -> self#do_load) ()
+			Timer.time com.Common.timer_ctx ["jar";"load"] (fun () -> self#do_load) ()
 		end
 
 	method private read zip (filename,entry) =
-		BetterTimer.time com.Common.timer_ctx ["jar";"read"] (fun () ->
+		Timer.time com.Common.timer_ctx ["jar";"read"] (fun () ->
 			let data = Zip.read_entry zip entry in
 			let jc = JReaderModern.parse_class (IO.input_string data) in
 			(jc,file_path,file_path ^ "@" ^ filename)
@@ -1085,7 +1085,7 @@ class java_library_modern com  name file_path = object(self)
 					if entries = [] then raise Not_found;
 					let zip = Lazy.force zip in
 					let jcs = List.map (self#read zip) entries in
-					BetterTimer.time com.Common.timer_ctx ["jar";"convert"] (fun () ->
+					Timer.time com.Common.timer_ctx ["jar";"convert"] (fun () ->
 						Some (Converter.convert_module (fst path) jcs)
 					) ();
 				with Not_found ->

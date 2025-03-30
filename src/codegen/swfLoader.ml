@@ -476,7 +476,7 @@ let extract_data (_,tags) =
 	h
 
 let extract_data com arg =
-	BetterTimer.time com.timer_ctx ["read";"swf"] extract_data arg
+	Timer.time com.timer_ctx ["read";"swf"] extract_data arg
 
 let remove_debug_infos as3 =
 	let hl = As3hlparse.parse as3 in
@@ -580,7 +580,7 @@ let parse_swf file =
 	(h,tags)
 
 let parse_swf com file =
-	BetterTimer.time com.timer_ctx ["read";"swf"] parse_swf file
+	Timer.time com.timer_ctx ["read";"swf"] parse_swf file
 
 class swf_library com name file_path = object(self)
 	inherit [swf_lib_type,Swf.swf] native_library name file_path

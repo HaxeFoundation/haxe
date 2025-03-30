@@ -728,11 +728,11 @@ let create_context ?jsonrpc gm = {
 }
 
 let generate timer_ctx types file =
-	let json = BetterTimer.time timer_ctx ["generate";"json";"construct"] (fun () ->
+	let json = Timer.time timer_ctx ["generate";"json";"construct"] (fun () ->
 		let ctx = create_context GMFull in
 		jarray (List.map (generate_module_type ctx) types)
 	) () in
-	BetterTimer.time timer_ctx ["generate";"json";"write"] (fun () ->
+	Timer.time timer_ctx ["generate";"json";"write"] (fun () ->
 		let ch = open_out_bin file in
 		Json.write_json (output_string ch) json;
 		close_out ch;

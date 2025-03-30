@@ -4,7 +4,7 @@ open Jsonrpc_handler
 open Json
 open Common
 open DisplayTypes.DisplayMode
-open BetterTimer
+open Timer
 open Genjson
 open Type
 open DisplayProcessingGlobals
@@ -507,7 +507,7 @@ let parse_input com input =
 			"timestamp",jfloat (Unix.gettimeofday ());
 		] in
 		let fl = if com.timer_ctx.measure_times then begin
-			let _,_,root = BetterTimer.build_times_tree com.timer_ctx in
+			let _,_,root = Timer.build_times_tree com.timer_ctx in
 			begin match json_of_times root with
 			| None -> fl
 			| Some jo -> ("timers",jo) :: fl

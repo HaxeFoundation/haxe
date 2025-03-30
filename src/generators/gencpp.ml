@@ -436,7 +436,7 @@ let generate_source ctx =
    write_build_data common_ctx (common_ctx.file ^ "/Build.xml") srcctx.exe_classes !main_deps (srcctx.boot_enums@ srcctx.boot_classes) srcctx.build_xml srcctx.extern_src output_name;
    write_build_options common_ctx (common_ctx.file ^ "/Options.txt") common_ctx.defines.Define.values;
    if ( not (Gctx.defined common_ctx Define.NoCompilation) ) then begin
-      BetterTimer.time common_ctx.timer_ctx ["generate";"cpp";"native compilation"] (fun () ->
+      Timer.time common_ctx.timer_ctx ["generate";"cpp";"native compilation"] (fun () ->
 		let old_dir = Sys.getcwd() in
 		Sys.chdir common_ctx.file;
 		let cmd = ref ["run"; "hxcpp"; "Build.xml"; "haxe"] in

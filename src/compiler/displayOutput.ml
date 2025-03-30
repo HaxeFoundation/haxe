@@ -24,7 +24,7 @@ let htmlescape s =
 	s
 
 let get_timer_fields timer_ctx =
-	let open BetterTimer in
+	let open Timer in
 	let tot = ref 0. in
 	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) timer_ctx.timer_lut;
 	let fields = [("@TOTAL", Printf.sprintf "%.3fs" (Extc.time() -. timer_ctx.start_time))] in

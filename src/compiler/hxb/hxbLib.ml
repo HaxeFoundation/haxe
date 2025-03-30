@@ -39,14 +39,14 @@ class hxb_library timer_ctx file_path hxb_times = object(self)
 	method load =
 		if not loaded then begin
 			loaded <- true;
-			BetterTimer.time timer_ctx ["hxblib";"read"] (fun () -> self#do_load) ()
+			Timer.time timer_ctx ["hxblib";"read"] (fun () -> self#do_load) ()
 		end
 
 	method get_bytes (target : string) (path : path) =
 		try
 			let path = (target :: fst path,snd path) in
 			let (filename,entry) = Hashtbl.find modules path in
-			let data = BetterTimer.time timer_ctx ["hxblib";"get bytes"] (fun () ->
+			let data = Timer.time timer_ctx ["hxblib";"get bytes"] (fun () ->
 				let zip = Lazy.force zip in
 				Zip.read_entry zip entry
 			) () in

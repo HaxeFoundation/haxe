@@ -611,7 +611,7 @@ let might_need_cf_unoptimized c cf =
 
 let run tctx ectx main before_destruction =
 	let com = tctx.com in
-	let detail_times = BetterTimer.level_from_define com.defines Define.FilterTimes in
+	let detail_times = Timer.level_from_define com.defines Define.FilterTimes in
 	let new_types = List.filter (fun t ->
 		let cached = is_cached com t in
 		begin match t with

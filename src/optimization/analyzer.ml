@@ -971,8 +971,8 @@ module Run = struct
 	open Graph
 
 	let with_timer timer_ctx level identifier s f =
-		let id = BetterTimer.determine_id level ["analyzer"] s identifier in
-		BetterTimer.time timer_ctx id f ()
+		let id = Timer.determine_id level ["analyzer"] s identifier in
+		Timer.time timer_ctx id f ()
 
 	let create_analyzer_context (com : Common.context) config identifier e =
 		let g = Graph.create e.etype e.epos in

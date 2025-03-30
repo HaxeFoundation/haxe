@@ -74,7 +74,7 @@ let run_command ctx cmd =
 	result
 
 let run_command ctx cmd =
-	BetterTimer.time ctx.timer_ctx ["command";cmd] (run_command ctx) cmd
+	Timer.time ctx.timer_ctx ["command";cmd] (run_command ctx) cmd
 
 module Setup = struct
 	let initialize_target ctx com actx =
@@ -340,10 +340,10 @@ let finalize_typing ctx tctx =
 	com.modules <- modules
 
 let finalize_typing ctx tctx =
-	BetterTimer.time ctx.timer_ctx ["finalize"] (finalize_typing ctx) tctx
+	Timer.time ctx.timer_ctx ["finalize"] (finalize_typing ctx) tctx
 
 let filter ctx tctx ectx before_destruction =
-	BetterTimer.time ctx.timer_ctx ["filters"] (fun () ->
+	Timer.time ctx.timer_ctx ["filters"] (fun () ->
 		DeprecationCheck.run ctx.com;
 		run_or_diagnose ctx (fun () -> Filters.run tctx ectx ctx.com.main.main_expr before_destruction)
 	) ()
@@ -370,7 +370,7 @@ let compile ctx actx callbacks =
 	let ext = Setup.initialize_target ctx com actx in
 	update_platform_config com; (* make sure to adapt all flags changes defined after platform *)
 	callbacks.after_target_init ctx;
-	BetterTimer.time ctx.timer_ctx ["init"] (fun () ->
+	Timer.time ctx.timer_ctx ["init"] (fun () ->
 		List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
 		begin match actx.hxb_out with
 			| None ->
@@ -385,7 +385,7 @@ let compile ctx actx callbacks =
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
 	end else begin
 		(* Actual compilation starts here *)
-		let (tctx,display_file_dot_path) = BetterTimer.time ctx.timer_ctx ["typing"] (do_type ctx mctx actx) display_file_dot_path in
+		let (tctx,display_file_dot_path) = Timer.time ctx.timer_ctx ["typing"] (do_type ctx mctx actx) display_file_dot_path in
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		let ectx = Exceptions.create_exception_context tctx in
 		finalize_typing ctx tctx;
@@ -565,7 +565,7 @@ module HighLevel = struct
 			lines
 		in
 		let call_haxelib () =
-			BetterTimer.time timer_ctx ["haxelib"] call_haxelib ()
+			Timer.time timer_ctx ["haxelib"] call_haxelib ()
 		in
 		match libs with
 		| [] ->
@@ -703,7 +703,7 @@ module HighLevel = struct
 		end
 
 	let entry server_api comm args =
-		let timer_ctx = BetterTimer.make_context (BetterTimer.make ["root"]) in
+		let timer_ctx = Timer.make_context (Timer.make ["root"]) in
 		let create = create_context comm server_api.cache timer_ctx in
 		let each_args = ref [] in
 		let curdir = Unix.getcwd () in
