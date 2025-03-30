@@ -401,10 +401,8 @@ let check_scom com scom =
 	| [] ->
 		()
 
-let run_parallel_safe com scom f =
-	Parallel.run_in_new_pool (fun pool ->
-		f pool
-	);
+let run_parallel_safe com scom pool f =
+	f ();
 	check_scom com scom
 
 let run tctx ectx main before_destruction =
@@ -453,46 +451,51 @@ let run tctx ectx main before_destruction =
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;
-	let filters = [
-		"local_statics",LocalStatic.run;
-		"fix_return_dynamic_from_void_function",SafeFilters.fix_return_dynamic_from_void_function;
-		"check_local_vars_init",CheckVarInit.check_local_vars_init;
-		"check_abstract_as_value",SafeFilters.check_abstract_as_value;
-		"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
-	] in
-	run_parallel_safe com scom (fun pool ->
-		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
-	);
-	let filters = [
-		"reduce_expression",Optimizer.reduce_expression;
-		"inline_constructors",InlineConstructors.inline_constructors;
-		"Exceptions_filter",(fun _ -> Exceptions.filter ectx);
-	] in
-	List.iter (run_expression_filters tctx detail_times filters) new_types;
 
-	let cv_wrapper_impl = CapturedVars.get_wrapper_implementation com in
-	let filters = [
-		"captured_vars",(fun scom -> CapturedVars.captured_vars scom cv_wrapper_impl);
-	] in
-	run_parallel_safe com scom (fun pool ->
-		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
-	);
-	enter_stage com CAnalyzerStart;
-	if com.platform <> Cross then Analyzer.Run.run_on_types com new_types;
-	enter_stage com CAnalyzerDone;
-	let locals = RenameVars.init com in
-	let filters = [
-		"sanitize",(fun scom e -> Sanitize.sanitize scom.SafeCom.platform_config e);
-		"add_final_return",(fun _ -> if com.config.pf_add_final_return then AddFinalReturn.add_final_return else (fun e -> e));
-		"RenameVars",(match com.platform with
-		| Eval -> (fun _ e -> e)
-		| Jvm -> (fun _ e -> e)
-		| _ -> (fun scom e -> RenameVars.run scom.curclass.cl_path locals e));
-		"mark_switch_break_loops",SafeFilters.mark_switch_break_loops;
-	] in
-	run_parallel_safe com scom (fun pool ->
-		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
-	);
+	let locals = Parallel.run_in_new_pool (fun pool ->
+		let filters = [
+			"local_statics",LocalStatic.run;
+			"fix_return_dynamic_from_void_function",SafeFilters.fix_return_dynamic_from_void_function;
+			"check_local_vars_init",CheckVarInit.check_local_vars_init;
+			"check_abstract_as_value",SafeFilters.check_abstract_as_value;
+			"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
+		] in
+		run_parallel_safe com scom pool (fun () ->
+			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
+		);
+		let filters = [
+			"reduce_expression",Optimizer.reduce_expression;
+			"inline_constructors",InlineConstructors.inline_constructors;
+			"Exceptions_filter",(fun _ -> Exceptions.filter ectx);
+		] in
+		List.iter (run_expression_filters tctx detail_times filters) new_types;
+
+		let cv_wrapper_impl = CapturedVars.get_wrapper_implementation com in
+		let filters = [
+			"captured_vars",(fun scom -> CapturedVars.captured_vars scom cv_wrapper_impl);
+		] in
+		run_parallel_safe com scom pool (fun () ->
+			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
+		);
+		enter_stage com CAnalyzerStart;
+		if com.platform <> Cross then Analyzer.Run.run_on_types com pool new_types;
+		enter_stage com CAnalyzerDone;
+		let locals = RenameVars.init com in
+		let filters = [
+			"sanitize",(fun scom e -> Sanitize.sanitize scom.SafeCom.platform_config e);
+			"add_final_return",(fun _ -> if com.config.pf_add_final_return then AddFinalReturn.add_final_return else (fun e -> e));
+			"RenameVars",(match com.platform with
+				| Eval -> (fun _ e -> e)
+				| Jvm -> (fun _ e -> e)
+				| _ -> (fun scom e -> RenameVars.run scom.curclass.cl_path locals e)
+			);
+			"mark_switch_break_loops",SafeFilters.mark_switch_break_loops;
+		] in
+		run_parallel_safe com scom pool (fun () ->
+			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
+		);
+		locals
+	) in
 	with_timer detail_times "callbacks" None (fun () ->
 		com.callbacks#run com.error_ext com.callbacks#get_before_save;
 	);

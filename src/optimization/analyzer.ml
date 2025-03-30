@@ -1202,15 +1202,13 @@ module Run = struct
 		| TTypeDecl _ -> ()
 		| TAbstractDecl _ -> ()
 
-	let run_on_types com types =
+	let run_on_types com pool types =
 		let config = get_base_config com in
 		with_timer config.detail_times "" ["other"] (fun () ->
 			if config.optimize && config.purity_inference then
 				with_timer config.detail_times "" ["optimize";"purity-inference"] (fun () -> Purity.infer com);
 			let exc_out = Atomic.make None in
-			Parallel.run_in_new_pool (fun pool ->
-				Parallel.ParallelArray.iter pool (run_on_type com exc_out pool config) (Array.of_list types);
-			);
+			Parallel.ParallelArray.iter pool (run_on_type com exc_out pool config) (Array.of_list types);
 			check_exc_out exc_out
 		)
 end
