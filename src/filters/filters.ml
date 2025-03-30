@@ -32,7 +32,7 @@ let get_native_name = Native.get_native_name
 (* -------------------------------------------------------------------------- *)
 (* CHECK LOCAL VARS INIT *)
 
-let check_local_vars_init ctx e =
+let check_local_vars_init scom e =
 	let intersect vl1 vl2 =
 		PMap.mapi (fun v t -> t && PMap.find v vl2) vl1
 	in
@@ -57,8 +57,8 @@ let check_local_vars_init ctx e =
 			let init = (try PMap.find v.v_id !vars with Not_found -> true) in
 			if not init then begin
 				if IntMap.mem v.v_id !outside_vars then
-					if v.v_name = "this" then warning ctx WVarInit "this might be used before assigning a value to it" e.epos
-					else warning ctx WVarInit ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
+					if v.v_name = "this" then SafeCom.add_warning scom WVarInit "this might be used before assigning a value to it" e.epos
+					else SafeCom.add_warning scom WVarInit ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
 				else
 					if v.v_name = "this" then raise_typing_error "Missing this = value" e.epos
 					else raise_typing_error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
@@ -609,6 +609,26 @@ let might_need_cf_unoptimized c cf =
 	| _ ->
 		has_class_field_flag cf CfGeneric
 
+let check_scom com scom =
+	let open SafeCom in
+	List.iter (fun warning ->
+		module_warning com warning.w_module warning.w_warning warning.w_options warning.w_msg warning.w_pos
+	) !(scom.warnings);
+	scom.warnings := [];
+	let exns = !(scom.exceptions) in
+	scom.exceptions := [];
+	match exns with
+	| x :: _ ->
+		raise x
+	| [] ->
+		()
+
+let run_parallel_safe com scom f =
+	Parallel.run_in_new_pool (fun pool ->
+		f pool
+	);
+	check_scom com scom
+
 let run tctx ectx main before_destruction =
 	let com = tctx.com in
 	let detail_times = (try int_of_string (Common.defined_value_safe com ~default:"0" Define.FilterTimes) with _ -> 0) in
@@ -659,6 +679,11 @@ let run tctx ectx main before_destruction =
 		"local_statics",LocalStatic.run;
 		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function;
 		"check_local_vars_init",check_local_vars_init;
+	] in
+	run_parallel_safe com safe_com (fun pool ->
+		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe safe_com detail_times filters) new_types_array
+	);
+	let filters = [
 		"check_abstract_as_value",check_abstract_as_value;
 		"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
 		"reduce_expression",Optimizer.reduce_expression;
@@ -680,7 +705,7 @@ let run tctx ectx main before_destruction =
 		| _ -> (fun scom e -> RenameVars.run scom.curclass.cl_path locals e));
 		"mark_switch_break_loops",(fun _ -> mark_switch_break_loops);
 	] in
-	Parallel.run_in_new_pool (fun pool ->
+	run_parallel_safe com safe_com (fun pool ->
 		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe safe_com detail_times filters) new_types_array
 	);
 	with_timer detail_times "callbacks" None (fun () ->

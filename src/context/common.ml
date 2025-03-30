@@ -342,6 +342,8 @@ let to_safe_com com = {
 	is_macro_context = com.is_macro_context;
 	exceptions = ref [];
 	exceptions_mutex = Mutex.create ();
+	warnings = ref [];
+	warnings_mutex = Mutex.create ();
 	curclass = null_class;
 	curfield = null_field;
 }

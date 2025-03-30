@@ -611,13 +611,7 @@ and flush_macro_context mint mctx =
 	mctx.com.types <- types;
 	mctx.com.Common.modules <- modules;
 	let ectx = Exceptions.create_exception_context mctx in
-	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
-	let expr_filters = [
-		"handle_abstract_casts",AbstractCast.handle_abstract_casts;
-		"local_statics",LocalStatic.run;
-		"Exceptions",(fun _ -> Exceptions.filter ectx);
-		"captured_vars",(fun _ -> CapturedVars.captured_vars mctx.com);
-	] in
+
 	(*
 		some filters here might cause side effects that would break compilation server.
 		let's save the minimal amount of information we need
@@ -658,6 +652,16 @@ and flush_macro_context mint mctx =
 		in
 		if apply_native then Native.apply_native_paths t
 	in
+	let expr_filters = [
+		"handle_abstract_casts",AbstractCast.handle_abstract_casts;
+		"local_statics",(fun tctx ->
+			let scom = to_safe_com mctx.com in
+			let scom = {scom with curclass = tctx.c.curclass; curfield = tctx.f.curfield} in (* This isn't great *)
+			LocalStatic.run scom
+		);
+		"Exceptions",(fun _ -> Exceptions.filter ectx);
+		"captured_vars",(fun _ -> CapturedVars.captured_vars mctx.com);
+	] in
 	let type_filters = [
 		FiltersCommon.remove_generic_base;
 		Exceptions.patch_constructors mctx ectx;

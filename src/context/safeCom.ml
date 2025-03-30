@@ -2,6 +2,14 @@ open Globals
 open Type
 open PlatformConfig
 
+type saved_warning = {
+	w_module : module_def;
+	w_warning : WarningList.warning;
+	w_options : Warning.warning_option list list;
+	w_msg : string;
+	w_pos : pos;
+}
+
 type t = {
 	basic : basic_types;
 	platform : platform;
@@ -11,12 +19,31 @@ type t = {
 	is_macro_context : bool;
 	exceptions : exn list ref;
 	exceptions_mutex : Mutex.t;
+	warnings : saved_warning list ref;
+	warnings_mutex : Mutex.t;
 	curclass : tclass;
 	curfield : tclass_field;
 }
 
 let add_exn com exn =
 	Mutex.protect com.exceptions_mutex (fun () -> com.exceptions := exn :: !(com.exceptions))
+
+let add_warning com w msg p =
+	let options = (Warning.from_meta com.curfield.cf_meta) @ (Warning.from_meta com.curclass.cl_meta) in
+	match Warning.get_mode w options with
+	| WMEnable ->
+		Mutex.protect com.warnings_mutex (fun () ->
+			let warning = {
+				w_module = com.curclass.cl_module;
+				w_warning = w;
+				w_options = options;
+				w_msg = msg;
+				w_pos = p;
+			} in
+			com.warnings := warning :: !(com.warnings)
+		)
+	| WMDisable ->
+		()
 
 let run_expression_filters_safe (com : t) detail_times filters t =
 	let run com identifier e =
