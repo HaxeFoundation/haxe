@@ -46,14 +46,15 @@ let start_timer ctx id =
 		ctx.current <- old
 	)
 
-let time ctx id f arg = match id with
-	| [] ->
-		f arg
-	| id when Domain.is_main_domain () ->
-		let close = start_timer ctx id in
-		Std.finally close f arg
+let start_timer ctx id = match id with
+	| _ :: _ when ctx.measure_times && Domain.is_main_domain () ->
+		start_timer ctx id
 	| _ ->
-		f arg
+		(fun () -> ())
+
+let time ctx id f arg =
+	let close = start_timer ctx id in
+	Std.finally close f arg
 
 let determine_id level base_labels label1 label2 =
 	match level,label2 with
