@@ -36,6 +36,7 @@ let start_timer ctx id =
 		Hashtbl.add ctx.timer_lut id timer;
 		timer
 	in
+	timer.calls <- timer.calls + 1;
 	ctx.current <- timer;
 	(fun () ->
 		let now = Extc.time () in

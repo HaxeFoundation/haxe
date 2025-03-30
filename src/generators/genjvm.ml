@@ -353,7 +353,7 @@ let write_class gctx path jc =
 		| (sl,s) -> String.concat "/" sl ^ "/" ^ s
 	in
 	let path = dir ^ ".class" in
-	Timer.time gctx.gctx.timer_ctx ["jvm";"write"] (fun () ->
+	Timer.time gctx.gctx.timer_ctx ["generate";"jvm";"write"] (fun () ->
 		let ch = IO.output_bytes() in
 		JvmWriter.write_jvm_class ch jc;
 		let bytes = Bytes.unsafe_to_string (IO.close_out ch) in
