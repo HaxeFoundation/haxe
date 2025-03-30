@@ -467,9 +467,16 @@ let run tctx ectx main before_destruction =
 		"reduce_expression",Optimizer.reduce_expression;
 		"inline_constructors",InlineConstructors.inline_constructors;
 		"Exceptions_filter",(fun _ -> Exceptions.filter ectx);
-		"captured_vars",(fun _ -> CapturedVars.captured_vars com);
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;
+
+	let cv_wrapper_impl = CapturedVars.get_wrapper_implementation com in
+	let filters = [
+		"captured_vars",(fun scom -> CapturedVars.captured_vars scom cv_wrapper_impl);
+	] in
+	run_parallel_safe com scom (fun pool ->
+		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
+	);
 	enter_stage com CAnalyzerStart;
 	if com.platform <> Cross then Analyzer.Run.run_on_types com new_types;
 	enter_stage com CAnalyzerDone;

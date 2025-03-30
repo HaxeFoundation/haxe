@@ -652,15 +652,23 @@ and flush_macro_context mint mctx =
 		in
 		if apply_native then Native.apply_native_paths t
 	in
+	let scom_from_tctx tctx =
+		let scom = to_safe_com mctx.com in
+		let scom = {scom with curclass = tctx.c.curclass; curfield = tctx.f.curfield} in (* This isn't great *)
+		scom
+	in
+	let cv_wrapper_impl = CapturedVars.get_wrapper_implementation mctx.com in
 	let expr_filters = [
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 		"local_statics",(fun tctx ->
-			let scom = to_safe_com mctx.com in
-			let scom = {scom with curclass = tctx.c.curclass; curfield = tctx.f.curfield} in (* This isn't great *)
+			let scom = scom_from_tctx tctx in
 			LocalStatic.run scom
 		);
 		"Exceptions",(fun _ -> Exceptions.filter ectx);
-		"captured_vars",(fun _ -> CapturedVars.captured_vars mctx.com);
+		"captured_vars",(fun tctx ->
+			let scom = scom_from_tctx tctx in
+			CapturedVars.captured_vars scom cv_wrapper_impl
+		);
 	] in
 	let type_filters = [
 		FiltersCommon.remove_generic_base;
