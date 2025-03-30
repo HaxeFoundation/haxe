@@ -697,7 +697,7 @@ let run tctx ectx main before_destruction =
 	enter_stage com CAnalyzerDone;
 	let locals = RenameVars.init com in
 	let filters = [
-		"sanitize",(fun scom e -> Optimizer.sanitize scom.SafeCom.platform_config e);
+		"sanitize",(fun scom e -> Sanitize.sanitize scom.SafeCom.platform_config e);
 		"add_final_return",(fun _ -> if com.config.pf_add_final_return then AddFinalReturn.add_final_return else (fun e -> e));
 		"RenameVars",(match com.platform with
 		| Eval -> (fun _ e -> e)
