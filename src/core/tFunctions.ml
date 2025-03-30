@@ -71,14 +71,14 @@ let has_var_flag v (flag : flag_tvar) =
 (* ======= General utility ======= *)
 
 let alloc_var' =
-	let uid = ref 0 in
+	let uid = Atomic.make 0 in
 	uid,(fun kind n t p ->
-		incr uid;
+		Atomic.incr uid;
 		{
 			v_kind = kind;
 			v_name = n;
 			v_type = t;
-			v_id = !uid;
+			v_id = Atomic.get uid;
 			v_extra = None;
 			v_meta = [];
 			v_pos = p;

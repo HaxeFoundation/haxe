@@ -1781,7 +1781,7 @@ let init_class ctx_c cctx c p herits fields =
 		| _ ->
 			()
 	end;
-	if not has_struct_init && not (has_class_flag c CAbstract) then
+	if not has_struct_init then
 		(* add_constructor does not deal with overloads correctly *)
 		if not com.config.pf_overload then TypeloadFunction.add_constructor ctx_c c cctx.force_constructor p;
 	finalize_class cctx

@@ -97,6 +97,8 @@ class Lua {
 			runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(luaVer));
 			runCommand("lua", ["bin/unit.lua"]);
 
+			Display.maybeRunDisplayTests(Lua);
+
 			changeDirectory(sysDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(luaVer));
 			runSysTest("lua", ["bin/lua/sys.lua"]);

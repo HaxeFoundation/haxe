@@ -663,7 +663,7 @@ module HighLevel = struct
 			| arg :: l ->
 				match List.rev (ExtString.String.nsplit arg ".") with
 				| "hxml" :: _ :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
-					let full_path = Extc.get_full_path arg in
+					let full_path = try Extc.get_full_path arg with Failure(_) -> raise (Arg.Bad (Printf.sprintf "File not found: %s" arg)) in
 					if List.mem full_path !hxml_stack then
 						raise (Arg.Bad (Printf.sprintf "Duplicate hxml inclusion: %s" full_path))
 					else

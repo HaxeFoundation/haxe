@@ -284,6 +284,14 @@ let get_error_line p =
 	let l, _ = find_pos p in
 	l
 
+
+let get_error_line_if_exists p =
+	try
+		let file = Hashtbl.find all_files p.pfile in
+		fst (find_line p.pmin file)
+	with Not_found ->
+		0
+
 let old_format = ref false
 
 let get_pos_coords p =
