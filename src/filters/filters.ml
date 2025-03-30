@@ -437,7 +437,7 @@ let run tctx ectx main before_destruction =
 		not cached
 	) com.types in
 	let new_types_array = Array.of_list new_types in
-	let safe_com = to_safe_com com in
+	let scom = to_safe_com com in
 	(* IMPORTANT:
 	    There may be types in new_types which have already been post-processed, but then had their m_processed flag unset
 		because they received an additional dependency. This could happen in cases such as @:generic methods in #10635.
@@ -459,8 +459,8 @@ let run tctx ectx main before_destruction =
 		"check_local_vars_init",CheckVarInit.check_local_vars_init;
 		"check_abstract_as_value",SafeFilters.check_abstract_as_value;
 	] in
-	run_parallel_safe com safe_com (fun pool ->
-		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe safe_com detail_times filters) new_types_array
+	run_parallel_safe com scom (fun pool ->
+		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
 	);
 	let filters = [
 		"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
@@ -483,8 +483,8 @@ let run tctx ectx main before_destruction =
 		| _ -> (fun scom e -> RenameVars.run scom.curclass.cl_path locals e));
 		"mark_switch_break_loops",SafeFilters.mark_switch_break_loops;
 	] in
-	run_parallel_safe com safe_com (fun pool ->
-		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe safe_com detail_times filters) new_types_array
+	run_parallel_safe com scom (fun pool ->
+		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
 	);
 	with_timer detail_times "callbacks" None (fun () ->
 		com.callbacks#run com.error_ext com.callbacks#get_before_save;

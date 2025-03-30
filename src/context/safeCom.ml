@@ -25,27 +25,27 @@ type t = {
 	curfield : tclass_field;
 }
 
-let add_exn com exn =
-	Mutex.protect com.exceptions_mutex (fun () -> com.exceptions := exn :: !(com.exceptions))
+let add_exn scom exn =
+	Mutex.protect scom.exceptions_mutex (fun () -> scom.exceptions := exn :: !(scom.exceptions))
 
-let add_warning com w msg p =
-	let options = (Warning.from_meta com.curfield.cf_meta) @ (Warning.from_meta com.curclass.cl_meta) in
+let add_warning scom w msg p =
+	let options = (Warning.from_meta scom.curfield.cf_meta) @ (Warning.from_meta scom.curclass.cl_meta) in
 	match Warning.get_mode w options with
 	| WMEnable ->
-		Mutex.protect com.warnings_mutex (fun () ->
+		Mutex.protect scom.warnings_mutex (fun () ->
 			let warning = {
-				w_module = com.curclass.cl_module;
+				w_module = scom.curclass.cl_module;
 				w_warning = w;
 				w_options = options;
 				w_msg = msg;
 				w_pos = p;
 			} in
-			com.warnings := warning :: !(com.warnings)
+			scom.warnings := warning :: !(scom.warnings)
 		)
 	| WMDisable ->
 		()
 
-let run_expression_filters_safe (com : t) detail_times filters t =
+let run_expression_filters_safe scom detail_times filters t =
 	let run com identifier e =
 		try
 			List.fold_left (fun e (filter_name,f) ->
@@ -61,14 +61,14 @@ let run_expression_filters_safe (com : t) detail_times filters t =
 	match t with
 	| TClassDecl c when FilterContext.is_removable_class c -> ()
 	| TClassDecl c ->
-		let com = {com with curclass = c} in
+		let scom = {scom with curclass = c} in
 		let rec process_field cf =
 			if not (has_class_field_flag cf CfPostProcessed) then begin
-				let com = {com with curfield = cf} in
+				let scom = {scom with curfield = cf} in
 				(match cf.cf_expr with
-				| Some e when not (FilterContext.is_removable_field com.is_macro_context cf) ->
+				| Some e when not (FilterContext.is_removable_field scom.is_macro_context cf) ->
 					let identifier = Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name in
-					cf.cf_expr <- Some (run com (Some identifier) e);
+					cf.cf_expr <- Some (run scom (Some identifier) e);
 				| _ -> ());
 			end;
 			List.iter process_field cf.cf_overloads
@@ -82,7 +82,7 @@ let run_expression_filters_safe (com : t) detail_times filters t =
 		| None -> ()
 		| Some e ->
 			let identifier = Printf.sprintf "%s.__init__" (s_type_path c.cl_path) in
-			TClass.set_cl_init c (run com (Some identifier) e))
+			TClass.set_cl_init c (run scom (Some identifier) e))
 	| TEnumDecl _ -> ()
 	| TTypeDecl _ -> ()
 	| TAbstractDecl _ -> ()
