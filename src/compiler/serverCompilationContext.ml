@@ -1,5 +1,4 @@
 open Common
-open Timer
 open CompilationCache
 
 type t = {
@@ -46,14 +45,11 @@ let reset sctx =
 	sctx.was_compilation <- false;
 	Parser.reset_state();
 	Lexer.cur := Lexer.make_file "";
-	measure_times := false;
 	Hashtbl.clear DeprecationCheck.warned_positions;
 	stats.s_files_parsed := 0;
 	stats.s_classes_built := 0;
 	stats.s_methods_typed := 0;
-	stats.s_macros_called := 0;
-	Hashtbl.clear Timer.htimers;
-	Helper.start_time := get_time()
+	stats.s_macros_called := 0
 
 let maybe_cache_context sctx com =
 	if com.display.dms_full_typing && com.display.dms_populate_cache then begin

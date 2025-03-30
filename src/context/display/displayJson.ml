@@ -493,7 +493,7 @@ let handler =
 	List.iter (fun (s,f) -> Hashtbl.add h s f) l;
 	h
 
-let parse_input com input report_times =
+let parse_input com input =
 	let input =
 		JsonRpc.handle_jsonrpc_error (fun () -> JsonRpc.parse_request input) send_json
 	in
@@ -506,7 +506,7 @@ let parse_input com input report_times =
 			"result",json;
 			"timestamp",jfloat (Unix.gettimeofday ());
 		] in
-		let fl = if !report_times then begin
+		let fl = if com.timer_ctx.measure_times then begin
 			let _,_,root = BetterTimer.build_times_tree com.timer_ctx in
 			begin match json_of_times root with
 			| None -> fl

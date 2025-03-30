@@ -6,9 +6,7 @@ let run_parallel_for num_domains ?(chunk_size=0) length f =
 module ParallelArray = struct
 	let iter pool f a =
 		let f' idx = f a.(idx) in
-		let old = Atomic.exchange Timer.in_parallel true in
-		Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~start:0 ~finish:(Array.length a - 1) ~body:f');
-		Atomic.set Timer.in_parallel old
+		Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~start:0 ~finish:(Array.length a - 1) ~body:f')
 end
 
 module ParallelSeq = struct

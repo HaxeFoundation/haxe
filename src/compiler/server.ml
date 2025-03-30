@@ -1,7 +1,6 @@
 open Globals
 open Common
 open CompilationCache
-open Timer
 open Type
 open DisplayProcessingGlobals
 open Ipaddr
@@ -115,7 +114,7 @@ module Communication = struct
 			);
 			exit = (fun timer_ctx code ->
 				if code = 0 then begin
-					if !Timer.measure_times then BetterTimer.report_times timer_ctx (fun s -> self.write_err (s ^ "\n"));
+					if timer_ctx.measure_times then BetterTimer.report_times timer_ctx (fun s -> self.write_err (s ^ "\n"));
 				end;
 				exit code;
 			);
@@ -140,10 +139,10 @@ module Communication = struct
 
 					sctx.was_compilation <- ctx.com.display.dms_full_typing;
 					if has_error ctx then begin
-						measure_times := false;
+						ctx.timer_ctx.measure_times <- false;
 						write "\x02\n"
 					end else begin
-						if !Timer.measure_times then BetterTimer.report_times ctx.timer_ctx (fun s -> self.write_err (s ^ "\n"));
+						if ctx.timer_ctx.measure_times then BetterTimer.report_times ctx.timer_ctx (fun s -> self.write_err (s ^ "\n"));
 					end
 				)
 			);
@@ -774,7 +773,7 @@ let enable_cache_mode sctx =
 	TypeloadParse.parse_hook := parse_file sctx.cs
 
 let rec process sctx comm args =
-	let t0 = get_time() in
+	let t0 = Extc.time() in
 	ServerMessage.arguments args;
 	reset sctx;
 	let api = {
@@ -797,7 +796,7 @@ let rec process sctx comm args =
 	} in
 	Compiler.HighLevel.entry api comm args;
 	run_delays sctx;
-	ServerMessage.stats stats (get_time() -. t0)
+	ServerMessage.stats stats (Extc.time() -. t0)
 
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)

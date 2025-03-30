@@ -7,6 +7,8 @@ type timer = {
 
 type timer_context = {
 	mutable current : timer;
+	mutable measure_times : bool;
+	start_time : float;
 	timer_lut : (string list,timer) Hashtbl.t;
 }
 
@@ -20,6 +22,8 @@ let make id = {
 let make_context root_timer = {
 	current = root_timer;
 	timer_lut = Hashtbl.create 0;
+	measure_times = false;
+	start_time = Extc.time();
 }
 
 let start_timer ctx id =
