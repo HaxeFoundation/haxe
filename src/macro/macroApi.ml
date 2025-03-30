@@ -2,6 +2,7 @@ open Ast
 open DisplayTypes.DisplayMode
 open Type
 open Common
+open PlatformConfig
 open DefineList
 open MetaList
 open Globals

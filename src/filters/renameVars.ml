@@ -2,6 +2,7 @@ open Globals
 open Type
 open Common
 open Ast
+open PlatformConfig
 
 type rename_init = {
 	mutable ri_scope : var_scope;
