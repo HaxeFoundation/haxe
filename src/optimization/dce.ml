@@ -837,7 +837,7 @@ let mark dce =
 			Hashtbl.clear dce.checked_features;
 			let cfl = Array.of_list cfl in
 			(* extend to dependent (= overriding/implementing) class fields *)
-			Parallel.run_parallel_on_array pool cfl (fun (c,cf,stat) ->
+			Parallel.ParallelArray.iter pool (fun (c,cf,stat) ->
 				mark_dependent_fields dce c cf.cf_name stat;
 				let dce = push_class dce c in
 				if is_physical_field cf then mark_class dce c;
@@ -847,7 +847,7 @@ let mark dce =
 					opt (expr dce) cf.cf_expr;
 					List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
 				end
-			);
+			) cfl;
 			loop pool
 	in
 	Parallel.run_in_new_pool loop
