@@ -503,7 +503,7 @@ let catch_completion_and_exit ctx callbacks run =
 			i
 
 let process_actx ctx actx =
-	ctx.timer_ctx.measure_times <- actx.measure_times;
+	ctx.timer_ctx.measure_times <- (if actx.measure_times then Yes else No);
 	DisplayProcessing.process_display_arg ctx actx;
 	List.iter (fun s ->
 		ctx.com.warning WDeprecated [] s null_pos

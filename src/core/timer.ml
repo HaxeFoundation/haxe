@@ -5,10 +5,15 @@ type timer = {
 	mutable calls : int;
 }
 
+type measure_times =
+	| Yes
+	| No
+	| Maybe
+
 type timer_context = {
 	root_timer : timer;
 	mutable current : timer;
-	mutable measure_times : bool;
+	mutable measure_times : measure_times;
 	start_time : float;
 	timer_lut : (string list,timer) Hashtbl.t;
 }
@@ -25,7 +30,7 @@ let make_context root_timer =
 		root_timer = root_timer;
 		current = root_timer;
 		timer_lut = Hashtbl.create 0;
-		measure_times = true;
+		measure_times = Maybe;
 		start_time = Extc.time();
 	} in
 	Hashtbl.add ctx.timer_lut root_timer.id root_timer;
@@ -56,8 +61,8 @@ let start_timer ctx id =
 		ctx.current <- old
 	)
 
-let start_timer ctx id = match id with
-	| _ :: _ when ctx.measure_times && Domain.is_main_domain () ->
+let start_timer ctx id = match id,ctx.measure_times with
+	| (_ :: _),(Yes | Maybe) when Domain.is_main_domain () ->
 		start_timer ctx id
 	| _ ->
 		(fun () -> ())

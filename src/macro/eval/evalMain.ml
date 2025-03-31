@@ -42,8 +42,8 @@ let create com api is_macro =
 			let builtins = {
 				static_builtins = IntMap.empty;
 				instance_builtins = IntMap.empty;
-				constructor_builtins = Hashtbl.create 0;
-				empty_constructor_builtins = Hashtbl.create 0;
+				constructor_builtins = IntHashtbl.create 0;
+				empty_constructor_builtins = IntHashtbl.create 0;
 			} in
 			EvalStdLib.init_standard_library builtins;
 			GlobalState.stdlib := Some builtins;
@@ -77,7 +77,7 @@ let create com api is_macro =
 					None
 			in
 			let debug' = {
-				breakpoints = Hashtbl.create 0;
+				breakpoints = IntHashtbl.create 0;
 				function_breakpoints = Hashtbl.create 0;
 				support_debugger = support_debugger;
 				debug_socket = socket;
@@ -181,7 +181,7 @@ let call_path ctx path f vl api =
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in
-			let info = create_env_info true p.pfile (ctx.file_keys#get p.pfile) (EKMacro (path_hash path, hash f)) (Hashtbl.create 0) 0 0 in
+			let info = create_env_info true p.pfile (ctx.file_keys#get p.pfile) (EKMacro (path_hash path, hash f)) (IntHashtbl.create 0) 0 0 in
 			let env = push_environment ctx info in
 			env.env_leave_pmin <- p.pmin;
 			env.env_leave_pmax <- p.pmax;
@@ -278,7 +278,7 @@ let value_signature v =
 		| VInstance {ikind = IStringMap map} ->
 			cache v (fun() ->
 				addc 'b';
-				StringHashtbl.iter (fun s (_,value) ->
+				RuntimeStringHashtbl.iter (fun s (_,value) ->
 					adds s;
 					loop value
 				) map;
@@ -287,7 +287,7 @@ let value_signature v =
 		| VInstance {ikind = IIntMap map} ->
 			cache v (fun () ->
 				addc 'q';
-				IntHashtbl.iter (fun i value ->
+				RuntimeIntHashtbl.iter (fun i value ->
 					addc ':';
 					add (string_of_int i);
 					loop value
@@ -491,13 +491,13 @@ let rec value_to_expr v p =
 				(ECall (epath, args), p)
 		end
 	| VInstance {ikind = IIntMap m} ->
-		let el = IntHashtbl.fold (fun k v acc ->
+		let el = RuntimeIntHashtbl.fold (fun k v acc ->
 			let e_key = (EConst (Int (string_of_int k, None)),p) in
 			(make_map_entry e_key v) :: acc
 		) m [] in
 		(EArrayDecl el,p)
 	| VInstance {ikind = IStringMap m} ->
-		let el = StringHashtbl.fold (fun k (_,v) acc ->
+		let el = RuntimeStringHashtbl.fold (fun k (_,v) acc ->
 			let e_key = (EConst (String(k,SDoubleQuotes)),p) in
 			(make_map_entry e_key v) :: acc
 		) m [] in

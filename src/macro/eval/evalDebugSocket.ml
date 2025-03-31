@@ -225,7 +225,7 @@ let output_scopes ctx env =
 		JObject fl
 	in
 	let scopes = List.fold_left (fun acc scope ->
-		if Hashtbl.length scope.local_infos <> 0 then
+		if IntHashtbl.length scope.local_infos <> 0 then
 			(mk_scope (ctx.debug.debug_context#add_scope scope env) "Locals" scope.pos) :: acc
 		else
 			acc
@@ -240,11 +240,11 @@ let output_scopes ctx env =
 		(mk_scope (ctx.debug.debug_context#add_debug_scope dbg env) "Eval" null_pos) :: scopes
 	end in
 	let scopes = List.rev scopes in
-	let scopes = if Hashtbl.length capture_infos = 0 then scopes else (mk_scope (ctx.debug.debug_context#add_capture_scope capture_infos env) "Captures" null_pos) :: scopes in
+	let scopes = if IntHashtbl.length capture_infos = 0 then scopes else (mk_scope (ctx.debug.debug_context#add_capture_scope capture_infos env) "Captures" null_pos) :: scopes in
 	JArray scopes
 
 let output_capture_vars infos env =
-	let vars = Hashtbl.fold (fun slot vi acc ->
+	let vars = IntHashtbl.fold (fun slot vi acc ->
 		let value = (env.env_captures.(slot)) in
 		(var_to_json vi.vi_name value (Some vi) env) :: acc
 	) infos [] in
@@ -259,7 +259,7 @@ let output_debug_scope dbg env =
 
 let output_scope_vars env scope =
 	let p = env.env_debug.debug_pos in
-	let vars = Hashtbl.fold (fun local_slot vi acc ->
+	let vars = IntHashtbl.fold (fun local_slot vi acc ->
 		if declared_before vi p then begin
 			let slot = local_slot + scope.local_offset in
 			let value = env.env_locals.(slot) in
@@ -312,7 +312,7 @@ let output_inner_vars v env =
 				n, v
 			) l
 		| VInstance {ikind = IStringMap h} ->
-			StringHashtbl.fold (fun s (_,v) acc ->
+			RuntimeStringHashtbl.fold (fun s (_,v) acc ->
 				(s,v) :: acc
 			) h []
 		| VInstance {ikind = IMutex mutex} ->
@@ -384,7 +384,7 @@ module ValueCompletion = struct
 		in
 		loop env.env_debug.scopes;
 		(* 2. Captures *)
-		Hashtbl.iter (fun slot vi ->
+		IntHashtbl.iter (fun slot vi ->
 			add (hash vi.vi_name) "variable"
 		) env.env_info.capture_infos;
 		(* 3. Instance *)
@@ -644,17 +644,17 @@ let handler =
 			let hash = hash (Path.UniqueKey.to_string (hctx.ctx.file_keys#get (Common.find_file (hctx.ctx.curapi.get_com()) file))) in
 			let h =
 				try
-					let h = Hashtbl.find hctx.ctx.debug.breakpoints hash in
-					Hashtbl.clear h;
+					let h = IntHashtbl.find hctx.ctx.debug.breakpoints hash in
+					IntHashtbl.clear h;
 					h
 				with Not_found ->
-					let h = Hashtbl.create (List.length bps) in
-					Hashtbl.add hctx.ctx.debug.breakpoints hash h;
+					let h = IntHashtbl.create (List.length bps) in
+					IntHashtbl.add hctx.ctx.debug.breakpoints hash h;
 					h
 			in
 			let bps = List.map (fun (line,column,condition) ->
 				let bp = make_breakpoint hash line BPEnabled column condition in
-				Hashtbl.add h line bp;
+				IntHashtbl.add h line bp;
 				JObject ["id",JInt bp.bpid]
 			) bps in
 			JArray bps
@@ -685,10 +685,10 @@ let handler =
 		"removeBreakpoint",(fun hctx ->
 			let id = hctx.jsonrpc#get_int_param "id" in
 			begin try
-				Hashtbl.iter (fun _ h ->
+				IntHashtbl.iter (fun _ h ->
 					let to_delete = ref [] in
-					Hashtbl.iter (fun k breakpoint -> if breakpoint.bpid = id then to_delete := k :: !to_delete) h;
-					List.iter (fun k -> Hashtbl.remove h k) !to_delete;
+					IntHashtbl.iter (fun k breakpoint -> if breakpoint.bpid = id then to_delete := k :: !to_delete) h;
+					List.iter (fun k -> IntHashtbl.remove h k) !to_delete;
 				) hctx.ctx.debug.breakpoints;
 			with Not_found ->
 				hctx.send_error (Printf.sprintf "Unknown breakpoint: %d" id)
@@ -726,7 +726,7 @@ let handler =
 			| Scope(scope,env) ->
 				let value = get_value env in
 				let id = Hashtbl.find scope.local_ids name in
-				let slot = Hashtbl.find scope.locals id in
+				let slot = IntHashtbl.find scope.locals id in
 				env.env_locals.(slot + scope.local_offset) <- value;
 				var_to_json "" value None env
 			| CaptureScope(infos,env) ->

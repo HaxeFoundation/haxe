@@ -229,13 +229,13 @@ and jit_expr jit return e =
 		let fl,exec = jit_tfunction jit_closure true e.epos tf in
 		let hasret = jit_closure.has_nonfinal_return in
 		let eci = get_env_creation jit_closure false tf.tf_expr.epos.pfile (EKLocalFunction jit.num_closures) in
-		let captures = Hashtbl.fold (fun vid (i,declared) acc -> (i,vid,declared) :: acc) jit_closure.captures [] in
+		let captures = IntHashtbl.fold (fun vid (i,declared) acc -> (i,vid,declared) :: acc) jit_closure.captures [] in
 		let captures = List.sort (fun (i1,_,_) (i2,_,_) -> Stdlib.compare i1 i2) captures in
 		(* Check if the out-of-scope var is in the outer scope because otherwise we have to promote outwards. *)
 		List.iter (fun var -> ignore(get_capture_slot jit var)) jit_closure.captures_outside_scope;
 		let captures = ExtList.List.filter_map (fun (i,vid,declared) ->
 			if declared then None
-			else Some (i,fst (try Hashtbl.find jit.captures vid with Not_found -> Error.raise_typing_error (Printf.sprintf "Could not find capture variable %i" vid) e.epos))
+			else Some (i,fst (try IntHashtbl.find jit.captures vid with Not_found -> Error.raise_typing_error (Printf.sprintf "Could not find capture variable %i" vid) e.epos))
 		) captures in
 		let mapping = Array.of_list captures in
 		emit_closure ctx mapping eci hasret exec fl
@@ -696,7 +696,7 @@ and jit_tfunction jit static pos tf =
 	fl,exec
 
 and get_env_creation jit static file info =
-	create_env_info static file (jit.ctx.file_keys#get file) info jit.capture_infos jit.max_num_locals (Hashtbl.length jit.captures)
+	create_env_info static file (jit.ctx.file_keys#get file) info jit.capture_infos jit.max_num_locals (IntHashtbl.length jit.captures)
 
 let jit_timer ctx f =
 	Timer.time ctx.timer_ctx [(if ctx.is_macro then "macro" else "interp");"jit"] f ()
