@@ -1,7 +1,6 @@
-class Main {
+class Main1 {
 	static function main() {
-		var v;
-		trace(() -> v);
+
 	}
 }
 
