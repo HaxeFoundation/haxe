@@ -650,6 +650,7 @@ and flush_macro_context mint mctx =
 			let scom = {scom with curclass = tctx.c.curclass; curfield = tctx.f.curfield} in (* This isn't great *)
 			scom
 		in
+		let scom = scom_from_tctx mctx in
 		let cv_wrapper_impl = CapturedVars.get_wrapper_implementation mctx.com in
 		let expr_filters = [
 			"handle_abstract_casts",AbstractCast.handle_abstract_casts;
@@ -666,7 +667,7 @@ and flush_macro_context mint mctx =
 		let type_filters = [
 			FiltersCommon.remove_generic_base;
 			Exceptions.patch_constructors mctx ectx;
-			(fun mt -> AddFieldInits.add_field_inits mctx.c.curclass.cl_path (RenameVars.init mctx.com.config mctx.com.types) mctx.com mt);
+			(fun mt -> AddFieldInits.add_field_inits mctx.c.curclass.cl_path (RenameVars.init mctx.com.config mctx.com.types) scom mt);
 			Filters.update_cache_dependencies ~close_monomorphs:false mctx.com;
 			minimal_restore;
 			maybe_apply_native_paths

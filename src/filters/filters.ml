@@ -180,7 +180,7 @@ let iter_expressions fl mt =
 
 open FilterContext
 
-let destruction tctx ectx detail_times main locals =
+let destruction tctx scom ectx detail_times main locals =
 	let com = tctx.com in
 	with_timer tctx.com.timer_ctx detail_times "type 2" None (fun () ->
 		(* PASS 2: type filters pre-DCE *)
@@ -220,7 +220,7 @@ let destruction tctx ectx detail_times main locals =
 		(fun _ -> check_private_path com);
 		(fun _ -> Native.apply_native_paths);
 		(fun _ -> add_rtti com);
-		(match com.platform with | Jvm -> (fun _ _ -> ()) | _ -> (fun tctx mt -> AddFieldInits.add_field_inits tctx.c.curclass.cl_path locals com mt));
+		(match com.platform with | Jvm -> (fun _ _ -> ()) | _ -> (fun tctx mt -> AddFieldInits.add_field_inits tctx.c.curclass.cl_path locals scom mt));
 		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> (fun _ -> add_meta_field com));
 		(fun _ -> check_void_field);
 		(fun _ -> (match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ())));
@@ -511,4 +511,4 @@ let run tctx ectx main before_destruction =
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);
 	before_destruction();
-	destruction tctx ectx detail_times main locals
+	destruction tctx scom ectx detail_times main locals
