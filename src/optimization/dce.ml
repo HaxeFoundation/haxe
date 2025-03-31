@@ -949,56 +949,49 @@ let run com main mode =
 		add_feature_mutex = Mutex.create();
 	} in
 
-	let timer = Timer.timer ["filters";"dce";"collect"] in
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
-	collect_entry_points dce com;
-	timer();
+	Timer.time com.timer_ctx ["filters";"dce";"collect"] collect_entry_points dce com;
 
-	let timer = Timer.timer ["filters";"dce";"mark"] in
 	(* second step: initiate DCE passes and keep going until no new fields were added *)
-	mark dce;
-	timer();
+	Timer.time com.timer_ctx ["filters";"dce";"mark"] mark dce;
 
 	(* third step: filter types *)
-	if mode <> DceNo then begin
-		let timer = Timer.timer ["filters";"dce";"sweep"] in
-		sweep dce com;
-		timer();
-	end;
+	if mode <> DceNo then
+		Timer.time com.timer_ctx ["filters";"dce";"sweep"] sweep dce com;
 
-	let timer = Timer.timer ["filters";"dce";"cleanup"] in
-	(* extra step to adjust properties that had accessors removed (required for Php and Cpp) *)
-	fix_accessors com;
+	Timer.time com.timer_ctx ["filters";"dce";"cleanup"] (fun () ->
+		(* extra step to adjust properties that had accessors removed (required for Php and Cpp) *)
+		fix_accessors com;
 
-	(* remove "override" from fields that do not override anything anymore *)
-	List.iter (fun mt -> match mt with
-		| TClassDecl c ->
-			List.iter (fun cf ->
-				if has_class_field_flag cf CfOverride then begin
-					let rec loop c =
-						match c.cl_super with
-						| Some (csup,_) when PMap.mem cf.cf_name csup.cl_fields -> true
-						| Some (csup,_) -> loop csup
-						| None -> false
-					in
-					let b = loop c in
-					if not b then remove_class_field_flag cf CfOverride;
-				end
-			) c.cl_ordered_fields;
-		| _ -> ()
-	) com.types;
+		(* remove "override" from fields that do not override anything anymore *)
+		List.iter (fun mt -> match mt with
+			| TClassDecl c ->
+				List.iter (fun cf ->
+					if has_class_field_flag cf CfOverride then begin
+						let rec loop c =
+							match c.cl_super with
+							| Some (csup,_) when PMap.mem cf.cf_name csup.cl_fields -> true
+							| Some (csup,_) -> loop csup
+							| None -> false
+						in
+						let b = loop c in
+						if not b then remove_class_field_flag cf CfOverride;
+					end
+				) c.cl_ordered_fields;
+			| _ -> ()
+		) com.types;
 
-	(*
-		Mark extern classes as really used if they are extended by non-extern ones.
-	*)
-	List.iter (function
-		| TClassDecl ({cl_super = Some (csup, _)} as c) when not (has_class_flag c CExtern) && (has_class_flag csup CExtern) ->
-			mark_directly_used_class dce csup
-		| TClassDecl c when not (has_class_flag c CExtern) && c.cl_implements <> [] ->
-			List.iter (fun (iface,_) -> if ((has_class_flag iface CExtern)) then mark_directly_used_class dce iface) c.cl_implements;
-		| _ -> ()
-	) com.types;
+		(*
+			Mark extern classes as really used if they are extended by non-extern ones.
+		*)
+		List.iter (function
+			| TClassDecl ({cl_super = Some (csup, _)} as c) when not (has_class_flag c CExtern) && (has_class_flag csup CExtern) ->
+				mark_directly_used_class dce csup
+			| TClassDecl c when not (has_class_flag c CExtern) && c.cl_implements <> [] ->
+				List.iter (fun (iface,_) -> if ((has_class_flag iface CExtern)) then mark_directly_used_class dce iface) c.cl_implements;
+			| _ -> ()
+		) com.types;
 
-	(* cleanup added fields metadata - compatibility with compilation server *)
-	List.iter (fun cf -> remove_class_field_flag cf CfUsed) !(dce.marked_fields);
-	timer()
+		(* cleanup added fields metadata - compatibility with compilation server *)
+		List.iter (fun cf -> remove_class_field_flag cf CfUsed) !(dce.marked_fields);
+	) ()
