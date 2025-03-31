@@ -6,6 +6,7 @@ private typedef Option = {
 }
 
 class Issue3547 extends Test {
+	@:analyzer(ignore)
 	function test() {
 		var o = {foo:12, "x-bar":13};
 		assign(o);
