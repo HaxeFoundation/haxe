@@ -19,7 +19,7 @@
 
 open Ast
 open Type
-open Common
+open SafeCom
 open Globals
 
 type debug_kind =
@@ -64,15 +64,15 @@ let is_ignored meta =
 
 let get_base_config com =
 	{
-		optimize = Common.defined com Define.AnalyzerOptimize;
-		const_propagation = not (Common.raw_defined com "analyzer_no_const_propagation");
-		copy_propagation = not (Common.raw_defined com "analyzer_no_copy_propagation");
-		local_dce = not (Common.raw_defined com "analyzer_no_local_dce");
-		fusion = not (Common.raw_defined com "analyzer_no_fusion");
-		purity_inference = not (Common.raw_defined com "analyzer_no_purity_inference");
+		optimize = Define.defined com.defines Define.AnalyzerOptimize;
+		const_propagation = not (Define.raw_defined com.defines "analyzer_no_const_propagation");
+		copy_propagation = not (Define.raw_defined com.defines "analyzer_no_copy_propagation");
+		local_dce = not (Define.raw_defined com.defines "analyzer_no_local_dce");
+		fusion = not (Define.raw_defined com.defines "analyzer_no_fusion");
+		purity_inference = not (Define.raw_defined com.defines "analyzer_no_purity_inference");
 		debug_kind = DebugNone;
 		detail_times = Timer.level_from_define com.defines Define.AnalyzerTimes;
-		user_var_fusion = (match com.platform with Flash | Jvm -> false | _ -> true) && (Common.raw_defined com "analyzer_user_var_fusion" || (not com.debug && not (Common.raw_defined com "analyzer_no_user_var_fusion")));
+		user_var_fusion = (match com.platform with Flash | Jvm -> false | _ -> true) && (Define.raw_defined com.defines "analyzer_user_var_fusion" || (not com.debug && not (Define.raw_defined com.defines "analyzer_no_user_var_fusion")));
 		fusion_debug = false;
 	}
 
@@ -99,14 +99,12 @@ let update_config_from_meta com config ml =
 						| "fusion_debug" -> { config with fusion_debug = true }
 						| "as_var" -> config
 						| _ ->
-							let options = Warning.from_meta ml in
-							com.warning WOptimizer options (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
+							SafeCom.add_warning com WOptimizer (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
 							config
 					end
 				| _ ->
 					let s = Ast.Printer.s_expr e in
-					let options = Warning.from_meta ml in
-					com.warning WOptimizer options (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
+					SafeCom.add_warning com WOptimizer (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
 					config
 			) config el
 		| (Meta.HasUntyped,_,_) ->

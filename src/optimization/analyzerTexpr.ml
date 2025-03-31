@@ -19,7 +19,7 @@
 
 open Ast
 open Type
-open Common
+open SafeCom
 open AnalyzerTypes
 open OptimizerTexpr
 open Globals
@@ -1252,7 +1252,7 @@ module Purity = struct
 					] impure.pn_field.cf_pos)
 				end
 			| _ -> ()
-		) com.types;
+		) com.Common.types;
 		Hashtbl.iter (fun _ node ->
 			match node.pn_purity with
 			| Pure | MaybePure when not (List.exists (fun (m,_,_) -> m = Meta.Pure) node.pn_field.cf_meta) ->
