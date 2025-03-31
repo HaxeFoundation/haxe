@@ -503,6 +503,7 @@ let catch_completion_and_exit ctx callbacks run =
 			i
 
 let process_actx ctx actx =
+	ctx.timer_ctx.measure_times <- actx.measure_times;
 	DisplayProcessing.process_display_arg ctx actx;
 	List.iter (fun s ->
 		ctx.com.warning WDeprecated [] s null_pos
@@ -703,7 +704,7 @@ module HighLevel = struct
 		end
 
 	let entry server_api comm args =
-		let timer_ctx = Timer.make_context (Timer.make ["root"]) in
+		let timer_ctx = Timer.make_context (Timer.make ["other"]) in
 		let create = create_context comm server_api.cache timer_ctx in
 		let each_args = ref [] in
 		let curdir = Unix.getcwd () in
