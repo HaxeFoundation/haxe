@@ -1,6 +1,6 @@
 open Globals
 open Type
-open Common
+open SafeCom
 open Ast
 open PlatformConfig
 
@@ -26,7 +26,7 @@ let reserve_init ri name =
 	Make all module-level names reserved.
 	No local variable will have a name matching a module-level declaration.
 *)
-let reserve_all_types ri com path_to_name =
+let reserve_all_types ri types path_to_name =
 	List.iter (fun mt ->
 		let tinfos = t_infos mt in
 		let native_name = try fst (Native.get_native_name tinfos.mt_meta) with Not_found -> path_to_name tinfos.mt_path in
@@ -44,14 +44,14 @@ let reserve_all_types ri com path_to_name =
 			) fl
 		| _ ->
 			reserve_init ri native_name
-	) com.types
+	) types
 
 (**
 	Initialize the context for local variables renaming
 *)
-let init com =
+let init config types =
 	let ri = {
-		ri_scope = com.config.pf_scoping.vs_scope;
+		ri_scope = config.pf_scoping.vs_scope;
 		ri_reserved = StringMap.empty;
 		ri_hoisting = false;
 		ri_no_shadowing = false;
@@ -73,11 +73,11 @@ let init com =
 		| ReserveNames names ->
 			List.iter (reserve_init ri) names
 		| ReserveAllTopLevelSymbols ->
-			reserve_all_types ri com (fun (pack,name) -> if pack = [] then name else List.hd pack)
+			reserve_all_types ri types (fun (pack,name) -> if pack = [] then name else List.hd pack)
 		| ReserveAllTypesFlat ->
-			reserve_all_types ri com Path.flat_path
+			reserve_all_types ri types Path.flat_path
 		| ReserveCurrentTopLevelSymbol -> ri.ri_reserve_current_top_level_symbol <- true
-	) com.config.pf_scoping.vs_flags;
+	) config.pf_scoping.vs_flags;
 	ri
 
 module Overlaps = struct
