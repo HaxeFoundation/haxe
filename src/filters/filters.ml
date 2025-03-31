@@ -463,7 +463,7 @@ let run tctx ectx main before_destruction =
 		"check_abstract_as_value",SafeFilters.check_abstract_as_value;
 		"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
 	] in
-	Parallel.run_in_new_pool (fun pool ->
+	Parallel.run_in_new_pool com.timer_ctx (fun pool ->
 		run_parallel_safe com scom pool (fun () ->
 			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
 		);
@@ -485,7 +485,7 @@ let run tctx ectx main before_destruction =
 	let alarm = Gc.create_alarm (fun () ->
 		print_endline "BAD MAJOR";
 	) in
-	let locals = Parallel.run_in_new_pool (fun pool ->
+	let locals = Parallel.run_in_new_pool com.timer_ctx (fun pool ->
 		run_parallel_safe com scom pool (fun () ->
 			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
 		);
