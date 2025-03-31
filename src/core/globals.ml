@@ -10,6 +10,25 @@ module IntMap = Map.Make(struct type t = int let compare i1 i2 = i2 - i1 end)
 module StringMap = Map.Make(struct type t = string let compare = String.compare end)
 module Int32Map = Map.Make(struct type t = Int32.t let compare = Int32.compare end)
 
+module IntHashtbl = Hashtbl.Make(struct
+	type t = int
+
+	let equal =
+		Int.equal
+
+	let hash = Int.hash
+end)
+
+module StringHashtbl = Hashtbl.Make(struct
+	type t = string
+
+	let equal =
+		String.equal
+
+	let hash s =
+		Hashtbl.hash s
+end)
+
 type platform =
 	| Cross
 	| Js

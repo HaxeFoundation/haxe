@@ -45,17 +45,6 @@ let unop_index op flag = match op,flag with
 	| NegBits,Postfix -> 10
 	| Spread,Postfix -> 11
 
-module StringHashtbl = Hashtbl.Make(struct
-	type t = string
-
-	let equal =
-		String.equal
-
-	let hash s =
-		(* What's the best here? *)
-		Hashtbl.hash s
-end)
-
 module Pool = struct
 	type ('key,'value) t = {
 		lut : ('key,int) Hashtbl.t;

@@ -1,10 +1,11 @@
+open Globals
 open Type
 open Typecore
 open Error
 
 type lscontext = {
 	ctx : typer;
-	lut : (int,tclass_field) Hashtbl.t;
+	lut : tclass_field IntHashtbl.t;
 	mutable added_fields : tclass_field list;
 }
 
@@ -75,16 +76,16 @@ let promote_local_static lsctx run v eo =
 		lsctx.added_fields <- cf :: lsctx.added_fields;
 		(* Add to lookup early so that the duplication check works. *)
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
-		Hashtbl.add lsctx.lut v.v_id cf
+		IntHashtbl.add lsctx.lut v.v_id cf
 	end
 
 let find_local_static lut v =
-	Hashtbl.find lut v.v_id
+	IntHashtbl.find lut v.v_id
 
 let run ctx e =
 	let lsctx = {
 		ctx = ctx;
-		lut = Hashtbl.create 0;
+		lut = IntHashtbl.create 0;
 		added_fields = [];
 	} in
 	let c = ctx.c.curclass in

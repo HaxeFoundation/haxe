@@ -376,7 +376,7 @@ module ConstPropagationImpl = struct
 		| EnumValue of int * t list
 		| ModuleType of module_type * Type.t
 
-	type opt_ctx = (int,t) Hashtbl.t
+	type opt_ctx = t IntHashtbl.t
 
 	let rec to_string =
 		let st = s_type (print_context()) in
@@ -391,8 +391,8 @@ module ConstPropagationImpl = struct
 	let conditional = true
 	let flag = FlagExecutable
 
-	let get_cell ctx i = try Hashtbl.find ctx i with Not_found -> Top
-	let set_cell ctx i ct = Hashtbl.replace ctx i ct
+	let get_cell ctx i = try IntHashtbl.find ctx i with Not_found -> Top
+	let set_cell ctx i ct = IntHashtbl.replace ctx i ct
 
 	let top = Top
 	let bottom = Bottom
@@ -504,7 +504,7 @@ module ConstPropagationImpl = struct
 			Bottom
 
 	let init ctx =
-		Hashtbl.create 0
+		IntHashtbl.create 0
 
 	let commit actx ctx =
 		let inline e i = match get_cell ctx i with
@@ -565,7 +565,7 @@ module CopyPropagationImpl = struct
 		| Local of tvar
 		| This of Type.t
 
-	type opt_ctx = (int,t) Hashtbl.t
+	type opt_ctx = t IntHashtbl.t
 
 	let to_string = function
 		| Top -> "Top"
@@ -576,8 +576,8 @@ module CopyPropagationImpl = struct
 	let conditional = false
 	let flag = FlagCopyPropagation
 
-	let get_cell ctx i = try Hashtbl.find ctx i with Not_found -> Top
-	let set_cell ctx i ct = Hashtbl.replace ctx i ct
+	let get_cell ctx i = try IntHashtbl.find ctx i with Not_found -> Top
+	let set_cell ctx i ct = IntHashtbl.replace ctx i ct
 
 	let top = Top
 	let bottom = Bottom
@@ -603,7 +603,7 @@ module CopyPropagationImpl = struct
 		loop e
 
 	let init actx =
-		Hashtbl.create 0
+		IntHashtbl.create 0
 
 	let commit actx ctx =
 		let rec commit bb e = match e.eexpr with
@@ -611,7 +611,7 @@ module CopyPropagationImpl = struct
 				begin try
 					let lat = get_cell ctx v.v_id in
 					let leave () =
-						Hashtbl.remove ctx v.v_id;
+						IntHashtbl.remove ctx v.v_id;
 						raise Not_found
 					in
 					begin match lat with
