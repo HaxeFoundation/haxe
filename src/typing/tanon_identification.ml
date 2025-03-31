@@ -48,17 +48,21 @@ class ['a] tanon_identification =
 object(self)
 
 	val pfms = Hashtbl.create 0
+	val pfm_mutex = Mutex.create ()
 	val pfm_by_arity = DynArray.create ()
+	val add_pfm_mutex = Mutex.create ()
 	val mutable num = 0
 
 	method get_pfms = pfms
 
 	method add_pfm (path : path) (pfm : 'a path_field_mapping) =
+		Mutex.lock add_pfm_mutex;
 		while DynArray.length pfm_by_arity <= pfm.pfm_arity do
 			DynArray.add pfm_by_arity (DynArray.create ())
 		done;
 		DynArray.add (DynArray.get pfm_by_arity pfm.pfm_arity) pfm;
-		Hashtbl.replace pfms path pfm
+		Hashtbl.replace pfms path pfm;
+		Mutex.unlock add_pfm_mutex
 
 	method unify ~(strict:bool) (tc : Type.t) (pfm : 'a path_field_mapping) =
 		let uctx = if strict then {
@@ -164,40 +168,42 @@ object(self)
 		} in
 		match !(an.a_status) with
 		| ClassStatics {cl_path = path} | EnumStatics {e_path = path} | AbstractStatics {a_path = path} ->
-			begin try
+			Mutex.protect pfm_mutex (fun () -> try
 				Hashtbl.find pfms path
 			with Not_found ->
 				let pfm = make_pfm path in
 				self#add_pfm path pfm;
 				pfm
-			end
+			)
 		| _ ->
 			let arity,fields = PMap.fold (fun cf (i,acc) ->
 				let t = replace_mono (not strict) cf.cf_type in
 				(i + 1),(PMap.add cf.cf_name {cf with cf_type = t} acc)
 			) an.a_fields (0,PMap.empty) in
 			let an = { a_fields = fields; a_status = an.a_status; } in
-			try
-				self#find_compatible ~strict arity (TAnon an)
-			with Not_found ->
-				let id = num in
-				num <- num + 1;
-				let path = (["haxe";"generated"],Printf.sprintf "Anon%i" id) in
-				let pfm = {
-					pfm_path = path;
-					pfm_params = [];
-					pfm_fields = an.a_fields;
-					pfm_converted = None;
-					pfm_arity = count_fields an.a_fields;
-				} in
-				self#add_pfm path pfm;
-				pfm
+			Mutex.protect pfm_mutex (fun () ->
+				try
+					self#find_compatible ~strict arity (TAnon an)
+				with Not_found ->
+					let id = num in
+					num <- num + 1;
+					let path = (["haxe";"generated"],Printf.sprintf "Anon%i" id) in
+					let pfm = {
+						pfm_path = path;
+						pfm_params = [];
+						pfm_fields = an.a_fields;
+						pfm_converted = None;
+						pfm_arity = count_fields an.a_fields;
+					} in
+					self#add_pfm path pfm;
+					pfm
+			)
 
 	method identify ?(strict:bool = false) (accept_anons : bool) (t : Type.t) =
 		match t with
 		| TType(td,tl) ->
 			begin try
-				Some (Hashtbl.find pfms td.t_path)
+				Some (Mutex.protect pfm_mutex (fun () -> Hashtbl.find pfms td.t_path))
 			with Not_found ->
 				self#identify accept_anons (apply_typedef td tl)
 			end

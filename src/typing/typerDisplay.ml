@@ -540,6 +540,56 @@ and display_expr ctx e_ast e dk mode with_type p =
 		in
 		raise_fields fields (CRField(item,e.epos,iterator,keyValueIterator)) (make_subject None (DisplayPosition.display_position#with_pos p))
 
+let filter_ctors ctx r =
+	List.filter (fun item ->
+		let is_private_to_current_module mt =
+			(* Remove the _Module nonsense from the package *)
+			let pack = List.rev (List.tl (List.rev mt.pack)) in
+			(pack,mt.module_name) = ctx.m.curmod.m_path
+		in
+		match item.ci_kind with
+		| ITType({kind = (Class | Abstract | TypeAlias)} as mt,_) when not mt.is_private || is_private_to_current_module mt ->
+			begin match mt.has_constructor with
+			| Yes -> true
+			| YesButPrivate ->
+				if (Meta.has Meta.PrivateAccess ctx.f.meta) then true
+				else
+					begin
+						match ctx.c.curclass.cl_kind with
+						| KAbstractImpl { a_path = (pack, name) } -> pack = mt.pack && name = mt.name
+						| _ -> false
+					end
+					|| begin
+						let path = (mt.pack,mt.name) in
+						let rec loop c =
+							if c.cl_path = path then true
+							else match c.cl_super with
+								| Some(c,_) -> loop c
+								| None -> false
+						in
+						loop ctx.c.curclass
+					end
+			| No -> false
+			| Maybe ->
+				begin try
+					let mt = ctx.g.do_load_type_def ctx null_pos {tpackage=mt.pack;tname=mt.module_name;tsub=Some mt.name;tparams=[]} in
+					begin match resolve_typedef mt with
+					| TClassDecl c -> has_constructor c
+					| TAbstractDecl a -> (match Abstract.follow_with_forward_ctor ~build:true (TAbstract(a,extract_param_types a.a_params)) with
+						| TInst(c,_) -> has_constructor c
+						| TAbstract(a,_) -> a.a_constructor <> None
+						| _ -> false)
+					| _ -> false
+					end
+				with _ ->
+					false
+				end
+			end
+		| ITTypeParameter {cl_kind = KTypeParameter ttp} when get_constructible_constraint ctx (get_constraints ttp) null_pos <> None ->
+			true
+		| _ -> false
+	) r.fitems
+
 let handle_display ctx e_ast dk mode with_type =
 	let old = ctx.f.in_display,ctx.f.in_call_args in
 	ctx.f.in_display <- true;
@@ -582,56 +632,7 @@ let handle_display ctx e_ast dk mode with_type =
 		end else
 			raise_toplevel ctx dk with_type (s_type_path path,p)
 	| DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
-		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
-		let l = List.filter (fun item ->
-			let is_private_to_current_module mt =
-				(* Remove the _Module nonsense from the package *)
-				let pack = List.rev (List.tl (List.rev mt.pack)) in
-				(pack,mt.module_name) = ctx.m.curmod.m_path
-			in
-			match item.ci_kind with
-			| ITType({kind = (Class | Abstract | TypeAlias)} as mt,_) when not mt.is_private || is_private_to_current_module mt ->
-				begin match mt.has_constructor with
-				| Yes -> true
-				| YesButPrivate ->
-					if (Meta.has Meta.PrivateAccess ctx.f.meta) then true
-					else
-						begin
-							match ctx.c.curclass.cl_kind with
-							| KAbstractImpl { a_path = (pack, name) } -> pack = mt.pack && name = mt.name
-							| _ -> false
-						end
-						|| begin
-							let path = (mt.pack,mt.name) in
-							let rec loop c =
-								if c.cl_path = path then true
-								else match c.cl_super with
-									| Some(c,_) -> loop c
-									| None -> false
-							in
-							loop ctx.c.curclass
-						end
-				| No -> false
-				| Maybe ->
-					begin try
-						let mt = ctx.g.do_load_type_def ctx null_pos {tpackage=mt.pack;tname=mt.module_name;tsub=Some mt.name;tparams=[]} in
-						begin match resolve_typedef mt with
-						| TClassDecl c -> has_constructor c
-						| TAbstractDecl a -> (match Abstract.follow_with_forward_ctor ~build:true (TAbstract(a,extract_param_types a.a_params)) with
-							| TInst(c,_) -> has_constructor c
-							| TAbstract(a,_) -> a.a_constructor <> None
-							| _ -> false)
-						| _ -> false
-						end
-					with _ ->
-						false
-					end
-				end
-			| ITTypeParameter {cl_kind = KTypeParameter ttp} when get_constructible_constraint ctx (get_constraints ttp) null_pos <> None ->
-				true
-			| _ -> false
-		) r.fitems in
-		timer();
+		let l = Timer.time ctx.com.timer_ctx ["display";"toplevel";"filter ctors"] (filter_ctors ctx) r in
 		raise_fields l CRNew r.fsubject
 	in
 	let e = match e_ast, e.eexpr with
