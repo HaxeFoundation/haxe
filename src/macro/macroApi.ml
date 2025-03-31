@@ -2382,8 +2382,10 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"timer", vfun1 (fun id ->
-			let full_id = (Option.default [] (Timer.current_id())) @ [decode_string id] in
-			let stop = Timer.timer full_id in
+			let com = ccom() in
+			let full_id = com.timer_ctx.current.id @ [decode_string id] in
+			(* TIMERTODO: Exposing this seems potentially dangerous... Have to at least document. *)
+			let stop = Timer.start_timer com.timer_ctx full_id in
 			vfun0 (fun() -> stop(); vnull)
 		);
 		"map_anon_ref", vfun2 (fun a_ref fn ->

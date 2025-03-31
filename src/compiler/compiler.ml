@@ -33,7 +33,6 @@ let run_or_diagnose ctx f =
 		f ()
 
 let run_command ctx cmd =
-	let t = Timer.timer ["command";cmd] in
 	(* TODO: this is a hack *)
 	let cmd = if ctx.comm.is_server then begin
 		let h = Hashtbl.create 0 in
@@ -72,8 +71,10 @@ let run_command ctx cmd =
 			result
 		end
 	in
-	t();
 	result
+
+let run_command ctx cmd =
+	Timer.time ctx.timer_ctx ["command";cmd] (run_command ctx) cmd
 
 module Setup = struct
 	let initialize_target ctx com actx =
@@ -286,7 +287,6 @@ let check_defines com =
 (** Creates the typer context and types [classes] into it. *)
 let do_type ctx mctx actx display_file_dot_path =
 	let com = ctx.com in
-	let t = Timer.timer ["typing"] in
 	let cs = com.cs in
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	enter_stage com CInitMacrosStart;
@@ -327,11 +327,9 @@ let do_type ctx mctx actx display_file_dot_path =
 		| (DMUsage _ | DMImplementation) -> FindReferences.find_possible_references tctx cs;
 		| _ -> ()
 	end;
-	t();
 	(tctx, display_file_dot_path)
 
 let finalize_typing ctx tctx =
-	let t = Timer.timer ["finalize"] in
 	let com = ctx.com in
 	let main_module = Finalization.maybe_load_main tctx in
 	enter_stage com CFilteringStart;
@@ -339,14 +337,16 @@ let finalize_typing ctx tctx =
 	let main, types, modules = run_or_diagnose ctx (fun () -> Finalization.generate tctx main_module) in
 	com.main.main_expr <- main;
 	com.types <- types;
-	com.modules <- modules;
-	t()
+	com.modules <- modules
+
+let finalize_typing ctx tctx =
+	Timer.time ctx.timer_ctx ["finalize"] (finalize_typing ctx) tctx
 
 let filter ctx tctx ectx before_destruction =
-	let t = Timer.timer ["filters"] in
-	DeprecationCheck.run ctx.com;
-	run_or_diagnose ctx (fun () -> Filters.run tctx ectx ctx.com.main.main_expr before_destruction);
-	t()
+	Timer.time ctx.timer_ctx ["filters"] (fun () ->
+		DeprecationCheck.run ctx.com;
+		run_or_diagnose ctx (fun () -> Filters.run tctx ectx ctx.com.main.main_expr before_destruction)
+	) ()
 
 let compile ctx actx callbacks =
 	let com = ctx.com in
@@ -370,22 +370,22 @@ let compile ctx actx callbacks =
 	let ext = Setup.initialize_target ctx com actx in
 	update_platform_config com; (* make sure to adapt all flags changes defined after platform *)
 	callbacks.after_target_init ctx;
-	let t = Timer.timer ["init"] in
-	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
-	begin match actx.hxb_out with
-		| None ->
-			()
-		| Some file ->
-			com.hxb_writer_config <- HxbWriterConfig.process_argument file
-	end;
-	t();
+	Timer.time ctx.timer_ctx ["init"] (fun () ->
+		List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
+		begin match actx.hxb_out with
+			| None ->
+				()
+			| Some file ->
+				com.hxb_writer_config <- HxbWriterConfig.process_argument file
+		end;
+	) ();
 	enter_stage com CInitialized;
 	ServerMessage.compiler_stage com;
 	if actx.classes = [([],"Std")] && not actx.force_typing then begin
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
 	end else begin
 		(* Actual compilation starts here *)
-		let (tctx,display_file_dot_path) = do_type ctx mctx actx display_file_dot_path in
+		let (tctx,display_file_dot_path) = Timer.time ctx.timer_ctx ["typing"] (do_type ctx mctx actx) display_file_dot_path in
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		let ectx = Exceptions.create_exception_context tctx in
 		finalize_typing ctx tctx;
@@ -422,7 +422,7 @@ let compile ctx actx callbacks =
 		) (List.rev actx.cmds)
 	end
 
-let make_ice_message com msg backtrace = 
+let make_ice_message com msg backtrace =
 		let ver = (s_version_full com.version) in
 		let os_type = if Sys.unix then "unix" else "windows" in
 		Printf.sprintf "%s\nHaxe: %s; OS type: %s;\n%s" msg ver os_type backtrace
@@ -455,7 +455,7 @@ with
 		error ctx ("Error: " ^ msg) null_pos
 	| Globals.Ice (msg,backtrace) when is_diagnostics com ->
 		let s = make_ice_message com msg backtrace in
-		handle_diagnostics ctx s null_pos DKCompilerMessage 
+		handle_diagnostics ctx s null_pos DKCompilerMessage
 	| Globals.Ice (msg,backtrace) when not Helper.is_debug_run ->
 		let s = make_ice_message com msg backtrace in
 		error ctx ("Error: " ^ s) null_pos
@@ -529,8 +529,8 @@ let compile_ctx callbacks ctx =
 	end else
 		catch_completion_and_exit ctx callbacks run
 
-let create_context comm cs compilation_step params = {
-	com = Common.create compilation_step cs {
+let create_context comm cs timer_ctx compilation_step params = {
+	com = Common.create timer_ctx compilation_step cs {
 		version = version;
 		major = version_major;
 		minor = version_minor;
@@ -543,16 +543,16 @@ let create_context comm cs compilation_step params = {
 	has_error = false;
 	comm = comm;
 	runtime_args = [];
+	timer_ctx = timer_ctx;
 }
 
 module HighLevel = struct
-	let add_libs libs args cs has_display =
+	let add_libs timer_ctx libs args cs has_display =
 		let global_repo = List.exists (fun a -> a = "--haxelib-global") args in
 		let fail msg =
 			raise (Arg.Bad msg)
 		in
 		let call_haxelib() =
-			let t = Timer.timer ["haxelib"] in
 			let cmd = "haxelib" ^ (if global_repo then " --global" else "") ^ " path " ^ String.concat " " libs in
 			let pin, pout, perr = Unix.open_process_full cmd (Unix.environment()) in
 			let lines = Std.input_list pin in
@@ -562,8 +562,10 @@ module HighLevel = struct
 				| [], [] -> "Failed to call haxelib (command not found ?)"
 				| [], [s] when ExtString.String.ends_with (ExtString.String.strip s) "Module not found: path" -> "The haxelib command has been strip'ed, please install it again"
 				| _ -> String.concat "\n" (lines@err));
-			t();
 			lines
+		in
+		let call_haxelib () =
+			Timer.time timer_ctx ["haxelib"] call_haxelib ()
 		in
 		match libs with
 		| [] ->
@@ -598,7 +600,7 @@ module HighLevel = struct
 			lines
 
 	(* Returns a list of contexts, but doesn't do anything yet *)
-	let process_params server_api create each_args has_display is_server args =
+	let process_params server_api timer_ctx create each_args has_display is_server args =
 		(* We want the loop below to actually see all the --each params, so let's prepend them *)
 		let args = !each_args @ args in
 		let added_libs = Hashtbl.create 0 in
@@ -656,7 +658,7 @@ module HighLevel = struct
 				let libs,args = find_subsequent_libs [name] args in
 				let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) libs in
 				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
-				let lines = add_libs libs args server_api.cache has_display in
+				let lines = add_libs timer_ctx libs args server_api.cache has_display in
 				loop acc (lines @ args)
 			| ("--jvm" | "-jvm" as arg) :: dir :: args ->
 				loop_lib arg dir "hxjava" acc args
@@ -701,7 +703,8 @@ module HighLevel = struct
 		end
 
 	let entry server_api comm args =
-		let create = create_context comm server_api.cache in
+		let timer_ctx = Timer.make_context (Timer.make ["root"]) in
+		let create = create_context comm server_api.cache timer_ctx in
 		let each_args = ref [] in
 		let curdir = Unix.getcwd () in
 		let has_display = ref false in
@@ -715,7 +718,7 @@ module HighLevel = struct
 		in
 		let rec loop args =
 			let args,server_mode,ctx = try
-				process_params server_api create each_args !has_display comm.is_server args
+				process_params server_api timer_ctx create each_args !has_display comm.is_server args
 			with Arg.Bad msg ->
 				let ctx = create 0 args in
 				error ctx ("Error: " ^ msg) null_pos;
@@ -738,5 +741,5 @@ module HighLevel = struct
 				code
 		in
 		let code = loop args in
-		comm.exit code
+		comm.exit timer_ctx code
 end

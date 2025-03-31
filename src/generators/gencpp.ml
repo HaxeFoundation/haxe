@@ -343,7 +343,7 @@ let generate_source ctx =
          let acc_decls        = (Enum enum) :: acc.decls in
          let acc_boot_enums   = enum_def.e_path :: acc.boot_enums in
          let acc_exe_classes  = (enum_def.e_path, deps, cur) :: acc.exe_classes in
-         
+
          { acc with decls = acc_decls; boot_enums = acc_boot_enums; exe_classes = acc_exe_classes; ids = ids }
       | _ ->
          acc
@@ -436,23 +436,23 @@ let generate_source ctx =
    write_build_data common_ctx (common_ctx.file ^ "/Build.xml") srcctx.exe_classes !main_deps (srcctx.boot_enums@ srcctx.boot_classes) srcctx.build_xml srcctx.extern_src output_name;
    write_build_options common_ctx (common_ctx.file ^ "/Options.txt") common_ctx.defines.Define.values;
    if ( not (Gctx.defined common_ctx Define.NoCompilation) ) then begin
-      let t = Timer.timer ["generate";"cpp";"native compilation"] in
-      let old_dir = Sys.getcwd() in
-      Sys.chdir common_ctx.file;
-      let cmd = ref ["run"; "hxcpp"; "Build.xml"; "haxe"] in
-	  if (common_ctx.debug) then cmd := !cmd @ ["-Ddebug"];
-      PMap.iter ( fun name value -> match name with
-         | "true" | "sys" | "dce" | "cpp" | "debug" -> ();
-         | _ -> cmd := !cmd @ [Printf.sprintf "-D%s=\"%s\"" name (escape_command value)];
-      ) common_ctx.defines.values;
-      common_ctx.class_paths#iter (fun path ->
-		let path = path#path in
-		cmd := !cmd @ [Printf.sprintf "-I%s" (escape_command path)]
-	  );
-      common_ctx.print ("haxelib " ^ (String.concat " " !cmd) ^ "\n");
-      if common_ctx.run_command_args "haxelib" !cmd <> 0 then failwith "Build failed";
-      Sys.chdir old_dir;
-      t()
+      Timer.time common_ctx.timer_ctx ["generate";"cpp";"native compilation"] (fun () ->
+		let old_dir = Sys.getcwd() in
+		Sys.chdir common_ctx.file;
+		let cmd = ref ["run"; "hxcpp"; "Build.xml"; "haxe"] in
+		if (common_ctx.debug) then cmd := !cmd @ ["-Ddebug"];
+		PMap.iter ( fun name value -> match name with
+			| "true" | "sys" | "dce" | "cpp" | "debug" -> ();
+			| _ -> cmd := !cmd @ [Printf.sprintf "-D%s=\"%s\"" name (escape_command value)];
+		) common_ctx.defines.values;
+		common_ctx.class_paths#iter (fun path ->
+			let path = path#path in
+			cmd := !cmd @ [Printf.sprintf "-I%s" (escape_command path)]
+		);
+		common_ctx.print ("haxelib " ^ (String.concat " " !cmd) ^ "\n");
+		if common_ctx.run_command_args "haxelib" !cmd <> 0 then failwith "Build failed";
+		Sys.chdir old_dir;
+	  ) ()
    end
 
 let generate common_ctx =
@@ -462,7 +462,7 @@ let generate common_ctx =
    if (Gctx.defined common_ctx Define.Cppia) then begin
       let ctx = new_context common_ctx debug_level (ref PMap.empty) StringMap.empty super_deps constructor_deps in
       CppCppia.generate_cppia ctx
-   end else begin   
+   end else begin
       let ctx = new_context common_ctx debug_level (ref PMap.empty) (create_member_types common_ctx) super_deps constructor_deps in
       generate_source ctx
    end

@@ -206,10 +206,6 @@ let load_type_def ctx p t =
 	with Not_found ->
 		load_type_def' ctx t.tpackage t.tname tname p
 
-(* let load_type_def ctx p t =
-	let timer = Timer.timer ["typing";"load_type_def"] in
-	Std.finally timer (load_type_def ctx p) t *)
-
 let generate_args_meta com cls_opt add_meta args =
 	let values = List.fold_left (fun acc ((name,p),_,_,_,eo) -> match eo with Some e -> ((name,p,NoQuotes),e) :: acc | _ -> acc) [] args in
 	(match values with

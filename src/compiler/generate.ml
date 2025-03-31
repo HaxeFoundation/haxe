@@ -18,7 +18,7 @@ let check_auxiliary_output com actx =
 		| Some file ->
 			Common.log com ("Generating json : " ^ file);
 			Path.mkdir_from_path file;
-			Genjson.generate com.types file
+			Genjson.generate com.timer_ctx com.types file
 	end
 
 let create_writer com config string_pool =
@@ -75,7 +75,7 @@ let check_hxb_output ctx config =
 	let try_write from_cache =
 		let path = config.HxbWriterConfig.archive_path in
 		let path = Str.global_replace (Str.regexp "\\$target") (platform_name ctx.com.platform) path in
-		let t = Timer.timer ["generate";"hxb"] in
+		let t = Timer.start_timer ctx.timer_ctx ["generate";"hxb"] in
 		Path.mkdir_from_path path;
 		let zip = new Zip_output.zip_output path 6 in
 		let export com config string_pool =
@@ -83,10 +83,9 @@ let check_hxb_output ctx config =
 			let target = Common.platform_name_macro com in
 
 			List.iter (fun m ->
-				let t = Timer.timer ["generate";"hxb";s_type_path m.m_path] in
 				let sl_path = fst m.m_path @ [snd m.m_path] in
 				if not (match_path_list config.exclude sl_path) || match_path_list config.include' sl_path then
-					Std.finally t (export_hxb from_cache com config string_pool cc target zip) m
+					Timer.time ctx.timer_ctx ["generate";"hxb";s_type_path m.m_path] (export_hxb from_cache com config string_pool cc target zip) m
 			) com.modules;
 		in
 		Std.finally (fun () ->
@@ -135,10 +134,10 @@ let delete_file f = try Sys.remove f with _ -> ()
 let maybe_generate_dump ctx tctx =
 	let com = tctx.Typecore.com in
 	if Common.defined com Define.Dump then begin
-		let t = Timer.timer ["generate";"dump"] in
-		Dump.dump_types com;
-		Option.may Dump.dump_types (com.get_macros());
-		t()
+		Timer.time ctx.timer_ctx ["generate";"dump"] (fun () ->
+			Dump.dump_types com;
+			Option.may Dump.dump_types (com.get_macros());
+		) ();
 	end;
 	if Common.defined com Define.DumpDependencies then begin
 		Dump.dump_dependencies com;
@@ -160,7 +159,7 @@ let generate ctx tctx ext actx =
 		| _ -> Path.mkdir_from_path com.file
 	end;
 	if actx.interp then begin
-		let timer = Timer.timer ["interp"] in
+		let timer = Timer.start_timer ctx.timer_ctx ["interp"] in
 		let old = tctx.com.args in
 		tctx.com.args <- ctx.runtime_args;
 		let restore () =
@@ -202,8 +201,6 @@ let generate ctx tctx ext actx =
 		if name = "" then ()
 		else begin
 			Common.log com ("Generating " ^ name ^ ": " ^ com.file);
-			let t = Timer.timer ["generate";name] in
-			generate (Common.to_gctx com);
-			t()
+			Timer.time com.timer_ctx ["generate";name] generate (Common.to_gctx com);
 		end
 	end

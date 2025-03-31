@@ -1,7 +1,6 @@
 open Globals
 open Ast
 open Common
-open Timer
 open DisplayTypes.DisplayMode
 open DisplayTypes.CompletionResultKind
 open CompletionItem
@@ -24,14 +23,15 @@ let htmlescape s =
 	let s = String.concat "&quot;" (ExtString.String.nsplit s "\"") in
 	s
 
-let get_timer_fields start_time =
+let get_timer_fields timer_ctx =
+	let open Timer in
 	let tot = ref 0. in
-	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Timer.htimers;
-	let fields = [("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. start_time))] in
+	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) timer_ctx.timer_lut;
+	let fields = [("@TOTAL", Printf.sprintf "%.3fs" (Extc.time() -. timer_ctx.start_time))] in
 	if !tot > 0. then
 		Hashtbl.fold (fun _ t acc ->
 			((String.concat "." t.id),(Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot))) :: acc
-		) Timer.htimers fields
+		) timer_ctx.timer_lut fields
 	else
 		fields
 
@@ -272,11 +272,10 @@ let handle_display_exception_old ctx dex = match dex with
 		raise (Completion (String.concat "." pack))
 	| DisplayFields r ->
 		DisplayPosition.display_position#reset;
-		let fields = if !Timer.measure_times then begin
-			Timer.close_times();
+		let fields = if ctx.com.timer_ctx.measure_times then begin
 			(List.map (fun (name,value) ->
 				CompletionItem.make_ci_timer ("@TIME " ^ name) value
-			) (get_timer_fields !Helper.start_time)) @ r.fitems
+			) (get_timer_fields ctx.com.timer_ctx)) @ r.fitems
 		end else
 			r.fitems
 		in

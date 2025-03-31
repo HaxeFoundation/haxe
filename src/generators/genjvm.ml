@@ -72,7 +72,6 @@ type generation_context = {
 	closure_paths : (path * string * jsignature,path) Hashtbl.t; (* guarded by mutexes.closure_lookup *)
 	enum_paths : (path,unit) Hashtbl.t; (* final after preprocessing *)
 	detail_times : bool;
-	mutable timer : Timer.timer;
 	mutable (* final after preprocessing *) typedef_interfaces : jsignature typedef_interfaces;
 	jar_compression_level : int;
 	dynamic_level : int;
@@ -105,10 +104,8 @@ let run_timed gctx detail name f =
 	if detail && not gctx.detail_times then
 		f()
 	else begin
-		let sub = gctx.timer#nest name in
-		let old = gctx.timer in
-		gctx.timer <- sub;
-		sub#run_finally f (fun () -> gctx.timer <- old)
+		let timer_ctx = gctx.gctx.timer_ctx in
+		Timer.time timer_ctx (timer_ctx.current.id @ [name]) f ()
 	end
 
 class file_output
@@ -356,12 +353,12 @@ let write_class gctx path jc =
 		| (sl,s) -> String.concat "/" sl ^ "/" ^ s
 	in
 	let path = dir ^ ".class" in
-	let t = Timer.timer ["jvm";"write"] in
-	let ch = IO.output_bytes() in
-	JvmWriter.write_jvm_class ch jc;
-	let bytes = Bytes.unsafe_to_string (IO.close_out ch) in
-	Mutex.protect gctx.mutexes.write_class (fun () -> gctx.out#add_entry bytes path);
-	t()
+	Timer.time gctx.gctx.timer_ctx ["generate";"jvm";"write"] (fun () ->
+		let ch = IO.output_bytes() in
+		JvmWriter.write_jvm_class ch jc;
+		let bytes = Bytes.unsafe_to_string (IO.close_out ch) in
+		Mutex.protect gctx.mutexes.write_class (fun () -> gctx.out#add_entry bytes path);
+	) ()
 
 let is_const_int_pattern case =
 	List.for_all (fun e -> match e.eexpr with
@@ -3186,7 +3183,6 @@ let generate jvm_flag gctx =
 			export_debug = true;
 		};
 		detail_times = Gctx.raw_defined gctx "jvm_times";
-		timer = new Timer.timer ["generate";"java"];
 		jar_compression_level = compression_level;
 		dynamic_level = dynamic_level;
 		functional_interfaces = [];

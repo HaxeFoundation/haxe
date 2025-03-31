@@ -970,16 +970,9 @@ module Run = struct
 	open AnalyzerConfig
 	open Graph
 
-	let with_timer level identifier s f =
-		let name = match level with
-			| 0 -> ["analyzer"]
-			| 1 -> "analyzer" :: s
-			| 2 when identifier = "" -> "analyzer" :: s
-			| 2 -> "analyzer" :: s @ [identifier]
-			| _ -> ["analyzer"] (* whatever *)
-		in
-		let timer = Timer.timer name in
-		Std.finally timer f ()
+	let with_timer timer_ctx level identifier s f =
+		let id = Timer.determine_id level ["analyzer"] s identifier in
+		Timer.time timer_ctx id f ()
 
 	let create_analyzer_context (com : Common.context) config identifier e =
 		let g = Graph.create e.etype e.epos in
@@ -997,7 +990,7 @@ module Run = struct
 			   avoid problems with the debugger, see https://github.com/HaxeFoundation/hxcpp/issues/365 *)
 			temp_var_name = (match com.platform with Cpp -> "_hx_tmp" | _ -> "tmp");
 			with_timer = (fun s f ->
-				with_timer config.detail_times identifier s f
+				with_timer com.timer_ctx config.detail_times (Some identifier) s f
 			);
 			identifier = identifier;
 			entry = g.g_unreachable;
@@ -1204,9 +1197,9 @@ module Run = struct
 
 	let run_on_types com types =
 		let config = get_base_config com in
-		with_timer config.detail_times "" ["other"] (fun () ->
+		with_timer com.timer_ctx config.detail_times None ["other"] (fun () ->
 			if config.optimize && config.purity_inference then
-				with_timer config.detail_times "" ["optimize";"purity-inference"] (fun () -> Purity.infer com);
+				with_timer com.timer_ctx config.detail_times None ["optimize";"purity-inference"] (fun () -> Purity.infer com);
 			let exc_out = Atomic.make None in
 			Parallel.run_in_new_pool (fun pool ->
 				Parallel.ParallelArray.iter pool (run_on_type com exc_out pool config) (Array.of_list types);

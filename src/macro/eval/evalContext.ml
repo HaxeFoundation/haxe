@@ -273,6 +273,7 @@ and context = {
 	mutable curapi : value MacroApi.compiler_api;
 	mutable type_cache : Type.module_type IntMap.t;
 	overrides : (Globals.path * string,bool) Hashtbl.t;
+	timer_ctx : Timer.timer_context;
 	(* prototypes *)
 	mutable array_prototype : vprototype;
 	mutable string_prototype : vprototype;
@@ -435,7 +436,7 @@ let create_env_info static pfile pfile_key kind capture_infos num_locals num_cap
 let push_environment ctx info =
 	let eval = get_eval ctx in
 	let timer = if ctx.detail_times then
-		Timer.timer ["macro";"execution";kind_name eval info.kind]
+		Timer.start_timer ctx.timer_ctx ["macro";"execution";kind_name eval info.kind]
 	else
 		no_timer
 	in

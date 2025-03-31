@@ -1,7 +1,6 @@
 open Globals
 open Common
 open CompilationCache
-open Timer
 open Type
 open DisplayProcessingGlobals
 open Ipaddr
@@ -54,7 +53,7 @@ let parse_file cs com (rfile : ClassPaths.resolved_file) p =
 		TypeloadParse.parse_file_from_string com file p stdin
 	| _ ->
 		let ftime = file_time ffile in
-		let data = Std.finally (Timer.timer ["server";"parser cache"]) (fun () ->
+		let data = Std.finally (Timer.start_timer com.timer_ctx ["server";"parser cache"]) (fun () ->
 			try
 				let cfile = cc#find_file fkey in
 				if cfile.c_time <> ftime then raise Not_found;
@@ -113,10 +112,9 @@ module Communication = struct
 				end;
 				flush stdout;
 			);
-			exit = (fun code ->
+			exit = (fun timer_ctx code ->
 				if code = 0 then begin
-					Timer.close_times();
-					if !Timer.measure_times then Timer.report_times (fun s -> self.write_err (s ^ "\n"));
+					if timer_ctx.measure_times then Timer.report_times timer_ctx (fun s -> self.write_err (s ^ "\n"));
 				end;
 				exit code;
 			);
@@ -141,15 +139,14 @@ module Communication = struct
 
 					sctx.was_compilation <- ctx.com.display.dms_full_typing;
 					if has_error ctx then begin
-						measure_times := false;
+						ctx.timer_ctx.measure_times <- false;
 						write "\x02\n"
 					end else begin
-						Timer.close_times();
-						if !Timer.measure_times then Timer.report_times (fun s -> self.write_err (s ^ "\n"));
+						if ctx.timer_ctx.measure_times then Timer.report_times ctx.timer_ctx (fun s -> self.write_err (s ^ "\n"));
 					end
 				)
 			);
-			exit = (fun i ->
+			exit = (fun timer_ctx i ->
 				()
 			);
 			is_server = true;
@@ -163,7 +160,6 @@ let stat dir =
 
 (* Gets a list of changed directories for the current compilation. *)
 let get_changed_directories sctx com =
-	let t = Timer.timer ["server";"module cache";"changed dirs"] in
 	let cs = sctx.cs in
 	let sign = Define.get_signature com.defines in
 	let dirs = try
@@ -223,8 +219,10 @@ let get_changed_directories sctx com =
 		Hashtbl.add sctx.changed_directories sign dirs;
 		dirs
 	in
-	t();
 	dirs
+
+let get_changed_directories sctx com =
+	Timer.time com.Common.timer_ctx ["server";"module cache";"changed dirs"] (get_changed_directories sctx) com
 
 let full_typing com m_extra =
 	com.is_macro_context
@@ -438,14 +436,12 @@ class hxb_reader_api_server
 		| GoodModule m ->
 			m
 		| BinaryModule mc ->
-			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined com Define.HxbTimes) in
+			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (Some cc#get_string_pool_arr) (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
 			let full_restore = full_typing com mc.mc_extra in
 			let f_next chunks until =
 				let macro = if com.is_macro_context then " (macro)" else "" in
-				let t_hxb = Timer.timer ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] in
-				let r = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until full_restore in
-				t_hxb();
-				r
+				let f  = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until in
+				Timer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] f full_restore
 			in
 
 			let m,chunks = f_next mc.mc_chunks EOT in
@@ -539,23 +535,18 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 (* Looks up the module referred to by [mpath] in the cache. If it exists, a check is made to
    determine if it's still valid. If this function returns None, the module is re-typed. *)
 and type_module sctx com delay mpath p =
-	let t = Timer.timer ["server";"module cache"] in
+	let t = Timer.start_timer com.timer_ctx ["server";"module cache"] in
 	let cc = CommonCache.get_cache com in
 	let skip m_path reason =
 		ServerMessage.skipping_dep com "" (m_path,(Printer.s_module_skip_reason reason));
 		BadModule reason
 	in
 	let add_modules from_binary m =
-		let tadd = Timer.timer ["server";"module cache";"add modules"] in
-		add_modules sctx com delay m from_binary p;
-		tadd();
+		Timer.time com.timer_ctx ["server";"module cache";"add modules"] (add_modules sctx com delay m from_binary) p;
 		GoodModule m
 	in
 	let check_module sctx m_path m_extra p =
-		let tcheck = Timer.timer ["server";"module cache";"check"] in
-		let r = check_module sctx com mpath m_extra p in
-		tcheck();
-		r
+		Timer.time com.timer_ctx ["server";"module cache";"check"] (check_module sctx com mpath m_extra) p
 	in
 	let find_module_in_cache cc m_path p =
 		try
@@ -582,7 +573,7 @@ and type_module sctx com delay mpath p =
 			   checking dependencies. This means that the actual decoding never has any reason to fail. *)
 			begin match check_module sctx mpath mc.mc_extra p with
 				| None ->
-					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined com Define.HxbTimes) in
+					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats (Some cc#get_string_pool_arr) (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
 					let full_restore = full_typing com mc.mc_extra in
 					let api = match com.hxb_reader_api with
 						| Some api ->
@@ -594,10 +585,7 @@ and type_module sctx com delay mpath p =
 					in
 					let f_next chunks until =
 						let macro = if com.is_macro_context then " (macro)" else "" in
-						let t_hxb = Timer.timer ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] in
-						let r = reader#read_chunks_until api chunks until full_restore in
-						t_hxb();
-						r
+						Timer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] (reader#read_chunks_until api chunks until) full_restore
 					in
 
 					let m,chunks = f_next mc.mc_chunks EOT in
@@ -785,7 +773,7 @@ let enable_cache_mode sctx =
 	TypeloadParse.parse_hook := parse_file sctx.cs
 
 let rec process sctx comm args =
-	let t0 = get_time() in
+	let t0 = Extc.time() in
 	ServerMessage.arguments args;
 	reset sctx;
 	let api = {
@@ -808,7 +796,7 @@ let rec process sctx comm args =
 	} in
 	Compiler.HighLevel.entry api comm args;
 	run_delays sctx;
-	ServerMessage.stats stats (get_time() -. t0)
+	ServerMessage.stats stats (Extc.time() -. t0)
 
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)

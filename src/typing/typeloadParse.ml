@@ -31,17 +31,14 @@ open Error
 exception DisplayInMacroBlock
 
 let parse_file_from_lexbuf com file p lexbuf =
-	let t = Timer.timer ["parsing"] in
 	Lexer.init file;
 	incr stats.s_files_parsed;
 	let parse_result = try
 		ParserEntry.parse Grammar.parse_file com.defines lexbuf file
 	with
 		| Sedlexing.MalFormed ->
-			t();
 			raise_typing_error "Malformed file. Source files must be encoded with UTF-8." (file_pos file)
 		| e ->
-			t();
 			raise e
 	in
 	begin match !Parser.display_mode,parse_result with
@@ -52,8 +49,10 @@ let parse_file_from_lexbuf com file p lexbuf =
 		| _ ->
 			()
 	end;
-	t();
 	parse_result
+
+let parse_file_from_lexbuf com file p lexbuf =
+	Timer.time com.timer_ctx ["parsing";file] (parse_file_from_lexbuf com file p) lexbuf
 
 let parse_file_from_string com file p string =
 	parse_file_from_lexbuf com file p (Sedlexing.Utf8.from_string string)
@@ -142,10 +141,6 @@ let resolve_module_file com m remap p =
 		let rfile = resolve_module_file com m remap p in
 		com.module_to_file#add m rfile;
 		rfile
-
-(* let resolve_module_file com m remap p =
-	let timer = Timer.timer ["typing";"resolve_module_file"] in
-	Std.finally timer (resolve_module_file com m remap) p *)
 
 module ConditionDisplay = struct
 	open ParserEntry
@@ -342,7 +337,3 @@ let parse_module com m p =
 		) [(EImport (List.map (fun s -> s,null_pos) (!remap @ [snd m]),INormal),null_pos)] decls)
 	else
 		decls
-
-(* let parse_module ctx m p =
-	let timer = Timer.timer ["typing";"parse_module"] in
-	Std.finally timer (parse_module ctx m) p *)

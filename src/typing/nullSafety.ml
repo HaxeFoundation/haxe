@@ -1658,18 +1658,19 @@ class class_checker cls immediate_execution report =
 	Run null safety checks.
 *)
 let run (com:Common.context) (types:module_type list) =
-	let timer = Timer.timer ["null safety"] in
-	let report = { sr_errors = [] } in
-	let immediate_execution = new immediate_execution in
-	let traverse module_type =
-		match module_type with
-			| TEnumDecl enm -> ()
-			| TTypeDecl typedef -> ()
-			| TAbstractDecl abstr -> ()
-			| TClassDecl cls -> (new class_checker cls immediate_execution report)#check
-	in
-	List.iter traverse types;
-	timer();
+	let report = Timer.time com.timer_ctx ["null safety"] (fun () ->
+		let report = { sr_errors = [] } in
+		let immediate_execution = new immediate_execution in
+		let traverse module_type =
+			match module_type with
+				| TEnumDecl enm -> ()
+				| TTypeDecl typedef -> ()
+				| TAbstractDecl abstr -> ()
+				| TClassDecl cls -> (new class_checker cls immediate_execution report)#check
+		in
+		List.iter traverse types;
+		report;
+	) () in
 	match com.callbacks#get_null_safety_report with
 		| [] ->
 			List.iter (fun err -> Common.display_error com err.sm_msg err.sm_pos) (List.rev report.sr_errors)

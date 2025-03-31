@@ -139,7 +139,7 @@ class hxb_reader_api_com
 			cc#find_module m_path
 		with Not_found ->
 			let mc = cc#get_hxb_module m_path in
-			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined com Define.HxbTimes) in
+			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats (Some cc#get_string_pool_arr) (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
 			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if full_restore then EOM else MTF) full_restore)
 
 	method basic_types =
@@ -493,7 +493,7 @@ let handler =
 	List.iter (fun (s,f) -> Hashtbl.add h s f) l;
 	h
 
-let parse_input com input report_times =
+let parse_input com input =
 	let input =
 		JsonRpc.handle_jsonrpc_error (fun () -> JsonRpc.parse_request input) send_json
 	in
@@ -506,9 +506,8 @@ let parse_input com input report_times =
 			"result",json;
 			"timestamp",jfloat (Unix.gettimeofday ());
 		] in
-		let fl = if !report_times then begin
-			close_times();
-			let _,_,root = Timer.build_times_tree () in
+		let fl = if com.timer_ctx.measure_times then begin
+			let _,_,root = Timer.build_times_tree com.timer_ctx in
 			begin match json_of_times root with
 			| None -> fl
 			| Some jo -> ("timers",jo) :: fl
