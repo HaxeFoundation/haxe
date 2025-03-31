@@ -452,28 +452,30 @@ let run tctx ectx main before_destruction =
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;
 
-	let locals = Parallel.run_in_new_pool (fun pool ->
-		let filters = [
-			"local_statics",LocalStatic.run;
-			"fix_return_dynamic_from_void_function",SafeFilters.fix_return_dynamic_from_void_function;
-			"check_local_vars_init",CheckVarInit.check_local_vars_init;
-			"check_abstract_as_value",SafeFilters.check_abstract_as_value;
-			"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
-		] in
+	let filters = [
+		"local_statics",LocalStatic.run;
+		"fix_return_dynamic_from_void_function",SafeFilters.fix_return_dynamic_from_void_function;
+		"check_local_vars_init",CheckVarInit.check_local_vars_init;
+		"check_abstract_as_value",SafeFilters.check_abstract_as_value;
+		"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
+	] in
+	Parallel.run_in_new_pool (fun pool ->
 		run_parallel_safe com scom pool (fun () ->
 			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
 		);
-		let filters = [
-			"reduce_expression",Optimizer.reduce_expression;
-			"inline_constructors",InlineConstructors.inline_constructors;
-			"Exceptions_filter",(fun _ -> Exceptions.filter ectx);
-		] in
-		List.iter (run_expression_filters tctx detail_times filters) new_types;
+	);
+	let filters = [
+		"reduce_expression",Optimizer.reduce_expression;
+		"inline_constructors",InlineConstructors.inline_constructors;
+		"Exceptions_filter",(fun _ -> Exceptions.filter ectx);
+	] in
+	List.iter (run_expression_filters tctx detail_times filters) new_types;
 
-		let cv_wrapper_impl = CapturedVars.get_wrapper_implementation com in
-		let filters = [
-			"captured_vars",(fun scom -> CapturedVars.captured_vars scom cv_wrapper_impl);
-		] in
+	let cv_wrapper_impl = CapturedVars.get_wrapper_implementation com in
+	let filters = [
+		"captured_vars",(fun scom -> CapturedVars.captured_vars scom cv_wrapper_impl);
+	] in
+	let locals = Parallel.run_in_new_pool (fun pool ->
 		run_parallel_safe com scom pool (fun () ->
 			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
 		);
