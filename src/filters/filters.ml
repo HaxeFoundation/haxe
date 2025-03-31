@@ -490,7 +490,7 @@ let run tctx ectx main before_destruction =
 			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
 		);
 		enter_stage com CAnalyzerStart;
-		if com.platform <> Cross then Analyzer.Run.run_on_types com pool new_types;
+		if com.platform <> Cross then Analyzer.Run.run_on_types com pool new_types_array;
 		enter_stage com CAnalyzerDone;
 		let locals = RenameVars.init scom.platform_config com.types in
 		let filters = [
