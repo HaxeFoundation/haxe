@@ -34,7 +34,7 @@ type dce = {
 	debug : bool;
 	follow_expr : dce -> texpr -> unit;
 	curclass : tclass;
-	added_fields : (tclass * tclass_field * class_field_ref_kind) list ref;
+	added_fields : (tclass * tclass_field * class_field_ref_kind) DynArray.t;
 	marked_fields : tclass_field list ref;
 	features : (string, class_field_ref list ref) Hashtbl.t;
 	checked_features : (string,unit) Hashtbl.t;
@@ -177,7 +177,7 @@ and mark_field dce c cf kind =
 			Mutex.lock dce.field_marker_mutex;
 			if not (has_class_field_flag cf CfUsed) then begin
 				add_class_field_flag cf CfUsed;
-				dce.added_fields := (c',cf,kind) :: !(dce.added_fields);
+				DynArray.add dce.added_fields (c',cf,kind);
 				dce.marked_fields := cf :: !(dce.marked_fields);
 				Mutex.unlock dce.field_marker_mutex;
 				check_feature dce (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name);
@@ -820,22 +820,20 @@ let collect_entry_points dce com =
 	) com.types;
 	List.iter (fun f -> f()) !delayed;
 	if dce.debug then begin
-		List.iter (fun (c,cf,_) -> match cf.cf_expr with
+		DynArray.iter (fun (c,cf,_) -> match cf.cf_expr with
 			| None -> ()
 			| Some _ -> print_endline ("[DCE] Entry point: " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name)
-		) !(dce.added_fields);
+		) dce.added_fields;
 	end
 
 let mark dce =
 	let rec loop pool =
-		match !(dce.added_fields) with
-		| [] -> ()
-		| cfl ->
-			dce.added_fields := [];
+		if DynArray.length dce.added_fields > 0 then begin
+			let cfl = DynArray.to_array dce.added_fields in
+			DynArray.clear dce.added_fields;
 			Hashtbl.iter (fun k _ -> Hashtbl.remove dce.features k) dce.checked_features;
 			Hashtbl.clear dce.checked_features;
 			NowOrLater.handle_later dce.add_feature_manager;
-			let cfl = Array.of_list cfl in
 			(* extend to dependent (= overriding/implementing) class fields *)
 			Parallel.ParallelArray.iter pool (fun (c,cf,stat) ->
 				mark_dependent_fields dce c cf.cf_name stat;
@@ -849,6 +847,7 @@ let mark dce =
 				end
 			) cfl;
 			loop pool
+		end
 	in
 	Parallel.run_in_new_pool loop
 
@@ -936,7 +935,7 @@ let run com main mode =
 		full = full;
 		std_dirs = if full then [] else List.map (fun path -> Path.get_full_path path#path) com.class_paths#get_std_paths;
 		debug = Common.defined com Define.DceDebug;
-		added_fields = ref [];
+		added_fields = DynArray.create ();
 		follow_expr = expr;
 		marked_fields = ref [];
 		features = Hashtbl.create 0;
