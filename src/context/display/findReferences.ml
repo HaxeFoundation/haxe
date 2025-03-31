@@ -9,21 +9,19 @@ let find_possible_references tctx cs =
 	ignore(SyntaxExplorer.explore_uncached_modules tctx cs [name,kind])
 
 let find_references tctx com with_definition pos_filters =
-	let t = Timer.timer ["display";"references";"collect"] in
-	let symbols,relations = Statistics.collect_statistics tctx pos_filters true in
-	t();
+	let symbols,relations = Timer.time com.timer_ctx ["display";"references";"collect"] (Statistics.collect_statistics tctx pos_filters) true in
 	let rec loop acc (relations:(Statistics.relation * pos) list) = match relations with
 		| (Statistics.Referenced,p) :: relations when not (List.mem p acc) -> loop (p :: acc) relations
 		| _ :: relations -> loop acc relations
 		| [] -> acc
 	in
-	let t = Timer.timer ["display";"references";"filter"] in
-	let usages = Hashtbl.fold (fun p sym acc ->
-		let acc = if with_definition then p :: acc else acc in
-		(try loop acc (Hashtbl.find relations p)
-		with Not_found -> acc)
-	) symbols [] in
-	t();
+	let usages = Timer.time com.timer_ctx ["display";"references";"filter"] (fun () ->
+		Hashtbl.fold (fun p sym acc ->
+			let acc = if with_definition then p :: acc else acc in
+			(try loop acc (Hashtbl.find relations p)
+			with Not_found -> acc)
+		) symbols []
+	) () in
 	Display.ReferencePosition.reset();
 	usages
 
@@ -138,24 +136,22 @@ let find_references tctx com with_definition =
 	DisplayException.raise_positions usages
 
 let find_implementations tctx com name pos kind =
-	let t = Timer.timer ["display";"implementations";"collect"] in
-	let symbols,relations = Statistics.collect_statistics tctx [SFPos pos] false in
-	t();
+	let symbols,relations = Timer.time com.timer_ctx ["display";"implementations";"collect"] (Statistics.collect_statistics tctx [SFPos pos]) false in
 	let rec loop acc relations = match relations with
 		| ((Statistics.Implemented | Statistics.Overridden | Statistics.Extended),p) :: relations -> loop (p :: acc) relations
 		| _ :: relations -> loop acc relations
 		| [] -> acc
 	in
-	let t = Timer.timer ["display";"implementations";"filter"] in
-	let usages = Hashtbl.fold (fun p sym acc ->
-		(try loop acc (Hashtbl.find relations p)
-		with Not_found -> acc)
-	) symbols [] in
-	let usages = List.sort (fun p1 p2 ->
-		let c = compare p1.pfile p2.pfile in
-		if c <> 0 then c else compare p1.pmin p2.pmin
-	) usages in
-	t();
+	let usages = Timer.time com.timer_ctx ["display";"implementations";"filter"] (fun () ->
+		let usages = Hashtbl.fold (fun p sym acc ->
+			(try loop acc (Hashtbl.find relations p)
+			with Not_found -> acc)
+		) symbols [] in
+		List.sort (fun p1 p2 ->
+			let c = compare p1.pfile p2.pfile in
+			if c <> 0 then c else compare p1.pmin p2.pmin
+		) usages
+	) () in
 	Display.ReferencePosition.reset();
 	DisplayException.raise_positions usages
 

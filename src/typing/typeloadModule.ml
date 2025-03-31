@@ -731,10 +731,6 @@ let type_module com g mpath file ?(dont_check_path=false) ?(is_extern=false) tde
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Naming.check_module_path ctx_m.com m.m_path p;
 	m
 
-(* let type_module ctx mpath file ?(is_extern=false) tdecls p =
-	let timer = Timer.timer ["typing";"type_module"] in
-	Std.finally timer (type_module ctx mpath file ~is_extern tdecls) p *)
-
 class hxb_reader_api_typeload
 	(com : context)
 	(g : typer_globals)
@@ -781,7 +777,7 @@ let rec load_hxb_module com g path p =
 	let read file bytes string_pool =
 		try
 			let api = (new hxb_reader_api_typeload com g load_module' p :> HxbReaderApi.hxb_reader_api) in
-			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats string_pool (Common.defined com Define.HxbTimes) in
+			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats string_pool (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
 			let read = reader#read api bytes in
 			let m = read EOT in
 			delay g PConnectField (fun () ->
@@ -852,9 +848,5 @@ let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 	add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
 	if ctx.pass = PTypeField then flush_pass ctx.g PConnectField ("load_module",fst m @ [snd m]);
 	m2
-
-(* let load_module ctx m p =
-	let timer = Timer.timer ["typing";"load_module"] in
-	Std.finally timer (load_module ctx m) p *)
 
 ;;

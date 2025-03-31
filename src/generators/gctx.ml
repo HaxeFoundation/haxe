@@ -31,6 +31,7 @@ type t = {
 	native_libs : NativeLibraries.native_library_base list;
 	include_files : (string * string) list;
 	std : tclass; (* TODO: I would prefer to not have this here, have to check default_cast *)
+	timer_ctx : Timer.timer_context;
 }
 
 let defined com s =

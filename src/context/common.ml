@@ -234,6 +234,7 @@ type context = {
 	mutable cache : CompilationCache.context_cache option;
 	is_macro_context : bool;
 	mutable json_out : json_api option;
+	timer_ctx : Timer.timer_context;
 	(* config *)
 	version : compiler_version;
 	mutable args : string list;
@@ -331,6 +332,7 @@ let to_gctx com = {
 		| _ -> []);
 	include_files = com.include_files;
 	std = com.std;
+	timer_ctx = com.timer_ctx;
 }
 
 let to_safe_com com = {
@@ -344,6 +346,7 @@ let to_safe_com com = {
 	exceptions_mutex = Mutex.create ();
 	warnings = ref [];
 	warnings_mutex = Mutex.create ();
+	timer_ctx = com.timer_ctx;
 	curclass = null_class;
 	curfield = null_field;
 }
@@ -688,11 +691,12 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create compilation_step cs version args display_mode =
+let create timer_ctx compilation_step cs version args display_mode =
 	let rec com = {
 		compilation_step = compilation_step;
 		cs = cs;
 		cache = None;
+		timer_ctx = timer_ctx;
 		stage = CCreated;
 		version = version;
 		args = args;
@@ -982,10 +986,6 @@ let platform_name_macro com =
 
 let find_file ctx f =
 	(ctx.class_paths#find_file f).file
-
-(* let find_file ctx f =
-	let timer = Timer.timer ["find_file"] in
-	Std.finally timer (find_file ctx) f *)
 
 let mem_size v =
 	Objsize.size_with_headers (Objsize.objsize v [] [])

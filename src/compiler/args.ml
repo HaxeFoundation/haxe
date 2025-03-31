@@ -261,7 +261,7 @@ let parse_args com =
 			actx.hxb_out <- Some file;
 		),"<file>", "generate haxe binary representation to target archive");
 		("Optimization",["--no-output"],[], Arg.Unit (fun() -> actx.no_output <- true),"","compiles but does not generate any file");
-		("Debug",["--times"],[], Arg.Unit (fun() -> Timer.measure_times := true),"","measure compilation times");
+		("Debug",["--times"],[], Arg.Unit (fun() -> com.timer_ctx.measure_times <- true),"","measure compilation times");
 		("Optimization",["--no-inline"],[],Arg.Unit (fun () ->
 			add_deprecation "--no-inline has been deprecated, use -D no-inline instead";
 			Common.define com Define.NoInline

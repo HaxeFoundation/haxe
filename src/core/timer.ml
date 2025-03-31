@@ -1,98 +1,76 @@
-(*
-	The Haxe Compiler
-	Copyright (C) 2005-2019  Haxe Foundation
-
-	This program is free software; you can redistribute it and/or
-	modify it under the terms of the GNU General Public License
-	as published by the Free Software Foundation; either version 2
-	of the License, or (at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- *)
-
-type timer_infos = {
+type timer = {
 	id : string list;
-	mutable start : float list;
-	mutable pauses : float list;
 	mutable total : float;
+	mutable pauses : float;
 	mutable calls : int;
 }
 
-let in_parallel = Atomic.make false
+type timer_context = {
+	mutable current : timer;
+	mutable measure_times : bool;
+	start_time : float;
+	timer_lut : (string list,timer) Hashtbl.t;
+}
 
-let measure_times = ref false
+let make id = {
+	id = id;
+	total = 0.;
+	pauses = 0.;
+	calls = 0;
+}
 
-let get_time = Extc.time
-let htimers = Hashtbl.create 0
+let make_context root_timer = {
+	current = root_timer;
+	timer_lut = Hashtbl.create 0;
+	measure_times = false;
+	start_time = Extc.time();
+}
 
-let new_timer id =
-	let now = get_time() in
-	try
-		let t = Hashtbl.find htimers id in
-		t.start <- now :: t.start;
-		t.pauses <- 0. :: t.pauses;
-		t.calls <- t.calls + 1;
-		t
+let start_timer ctx id =
+	let start = Extc.time () in
+	let old = ctx.current in
+	let timer = try
+		Hashtbl.find ctx.timer_lut id
 	with Not_found ->
-		let t = { id = id; start = [now]; pauses = [0.]; total = 0.; calls = 1; } in
-		Hashtbl.add htimers id t;
-		t
+		let timer = make id in
+		Hashtbl.add ctx.timer_lut id timer;
+		timer
+	in
+	timer.calls <- timer.calls + 1;
+	ctx.current <- timer;
+	(fun () ->
+		let now = Extc.time () in
+		let dt = now -. start in
+		timer.total <- timer.total +. dt -. timer.pauses;
+		timer.pauses <- 0.;
+		old.pauses <- old.pauses +. dt;
+		ctx.current <- old
+	)
 
-let curtime = ref []
+let start_timer ctx id = match id with
+	| _ :: _ when ctx.measure_times && Domain.is_main_domain () ->
+		start_timer ctx id
+	| _ ->
+		(fun () -> ())
 
-let rec close now t =
-	match !curtime with
-	| [] ->
-		failwith ("Timer " ^ (String.concat "." t.id) ^ " closed while not active")
-	| tt :: rest ->
-		if t == tt then begin
-			match t.start, t.pauses with
-			| start :: rest_start, pauses :: rest_pauses ->
-				let dt = now -. start in
-				t.total <- t.total +. dt -. pauses;
-				t.start <- rest_start;
-				t.pauses <- rest_pauses;
-				curtime := rest;
-				(match !curtime with
-				| [] -> ()
-				| current :: _ ->
-					match current.pauses with
-					| pauses :: rest -> current.pauses <- (dt +. pauses) :: rest
-					| _ -> Globals.die "" __LOC__
-				)
-			| _ -> Globals.die "" __LOC__
-		end else
-			close now tt
+let time ctx id f arg =
+	let close = start_timer ctx id in
+	Std.finally close f arg
 
-let timer id =
-	if !measure_times && not (Atomic.get in_parallel) then (
-		let t = new_timer id in
-		curtime := t :: !curtime;
-		(function() -> close (get_time()) t)
-	) else
-		(fun() -> ())
+let determine_id level base_labels label1 label2 =
+	match level,label2 with
+	| 0,_ -> base_labels
+	| 1,_ -> base_labels @ label1
+	| _,Some label2 -> base_labels @ label1 @ [label2]
+	| _ -> base_labels
 
-let current_id() =
-	match !curtime with
-	| [] -> None
-	| t :: _ -> Some t.id
+let level_from_define defines define =
+	try
+		int_of_string (Define.defined_value defines define)
+	with _ ->
+		0
 
-let rec close_times() =
-	let now = get_time() in
-	match !curtime with
-	| [] -> ()
-	| t :: _ -> close now t; close_times()
-
-let close = close (get_time())
-
-(* Printing *)
+(* reporting *)
 
 let timer_threshold = 0.01
 
@@ -106,7 +84,7 @@ type timer_node = {
 	mutable children : timer_node list;
 }
 
-let build_times_tree () =
+let build_times_tree ctx =
 	let nodes = Hashtbl.create 0 in
 	let rec root = {
 		name = "";
@@ -158,7 +136,7 @@ let build_times_tree () =
 		let node = loop root timer.id in
 		if not (List.memq node root.children) then
 			root.children <- node :: root.children
-	) htimers;
+	) ctx.timer_lut;
 	let max_name = ref 0 in
 	let max_calls = ref 0 in
 	let rec loop depth node =
@@ -177,8 +155,8 @@ let build_times_tree () =
 	loop 0 root;
 	!max_name,!max_calls,root
 
-let report_times print =
-	let max_name,max_calls,root = build_times_tree () in
+let report_times ctx print =
+	let max_name,max_calls,root = build_times_tree ctx in
 	let max_calls = String.length (string_of_int max_calls) in
 	print (Printf.sprintf "%-*s | %7s |   %% |  p%% | %*s | info" max_name "name" "time(s)" max_calls "#");
 	let sep = String.make (max_name + max_calls + 27) '-' in
@@ -195,23 +173,3 @@ let report_times print =
 	List.iter (loop 0) root.children;
 	print sep;
 	print_time "total" root
-
-class timer (id : string list) = object(self)
-	method run_finally : 'a . (unit -> 'a) -> (unit -> unit) -> 'a = fun f finally ->
-		let timer = timer id in
-		try
-			let r = f() in
-			timer();
-			finally();
-			r
-		with exc ->
-			timer();
-			finally();
-			raise exc
-
-	method run : 'a . (unit -> 'a) -> 'a = fun f ->
-		self#run_finally f (fun () -> ())
-
-	method nest (name : string) =
-		new timer (id @ [name])
-end

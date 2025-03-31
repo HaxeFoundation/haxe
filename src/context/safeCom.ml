@@ -21,6 +21,7 @@ type t = {
 	exceptions_mutex : Mutex.t;
 	warnings : saved_warning list ref;
 	warnings_mutex : Mutex.t;
+	timer_ctx : Timer.timer_context;
 	curclass : tclass;
 	curfield : tclass_field;
 }
@@ -46,16 +47,16 @@ let add_warning scom w msg p =
 		()
 
 let run_expression_filters_safe scom detail_times filters t =
-	let run com identifier e =
+	let run scom identifier e =
 		try
 			List.fold_left (fun e (filter_name,f) ->
 				try
-					FilterContext.with_timer detail_times filter_name identifier (fun () -> f com e)
+					FilterContext.with_timer scom.timer_ctx detail_times filter_name identifier (fun () -> f scom e)
 				with Failure msg ->
 					Error.raise_typing_error msg e.epos
 			) e filters
 		with exc ->
-			add_exn com exc;
+			add_exn scom exc;
 			e
 	in
 	match t with

@@ -304,7 +304,6 @@ let get_object_prototype ctx l =
 	proto,l
 
 let add_types ctx types ready =
-	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"add_types"] in
 	let new_types = List.filter (fun mt ->
 		let inf = Type.t_infos mt in
 		let key = path_hash inf.mt_path in
@@ -368,5 +367,7 @@ let add_types ctx types ready =
 			ctx.static_prototypes#add_init proto non_persistent_delays;
 	) fl_static;
 	(* 4. Initialize static fields. *)
-	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init;
-	t()
+	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init
+
+let add_types ctx types ready =
+	Timer.time ctx.timer_ctx [(if ctx.is_macro then "macro" else "interp");"add_types"] (add_types ctx types) ready

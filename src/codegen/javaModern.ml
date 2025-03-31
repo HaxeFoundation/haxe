@@ -1018,7 +1018,7 @@ module Converter = struct
 		(pack,types)
 end
 
-class java_library_modern com name file_path = object(self)
+class java_library_modern com  name file_path = object(self)
 	inherit [java_lib_type,unit] native_library name file_path as super
 
 
@@ -1028,35 +1028,36 @@ class java_library_modern com name file_path = object(self)
 	val mutable loaded = false
 	val mutable closed = false
 
+	method private do_load =
+		List.iter (function
+		| ({ Zip.is_directory = false; Zip.filename = filename } as entry) when String.ends_with filename ".class" ->
+			let pack = String.nsplit filename "/" in
+			begin match List.rev pack with
+				| [] -> ()
+				| name :: pack ->
+					let name = String.sub name 0 (String.length name - 6) in
+					let pack = List.rev pack in
+					let pack,(mname,tname) = PathConverter.jpath_to_hx (pack,name) in
+					let path = PathConverter.jpath_to_path (pack,(mname,tname)) in
+					let mname = match mname with
+						| None ->
+							cached_files <- path :: cached_files;
+							tname
+						| Some mname -> mname
+					in
+					Hashtbl.add modules (pack,mname) (filename,entry);
+				end
+		| _ -> ()
+	) (Zip.entries (Lazy.force zip));
+
 	method load =
 		if not loaded then begin
 			loaded <- true;
-			let close = Timer.timer ["jar";"load"] in
-			List.iter (function
-				| ({ Zip.is_directory = false; Zip.filename = filename } as entry) when String.ends_with filename ".class" ->
-					let pack = String.nsplit filename "/" in
-					begin match List.rev pack with
-						| [] -> ()
-						| name :: pack ->
-							let name = String.sub name 0 (String.length name - 6) in
-							let pack = List.rev pack in
-							let pack,(mname,tname) = PathConverter.jpath_to_hx (pack,name) in
-							let path = PathConverter.jpath_to_path (pack,(mname,tname)) in
-							let mname = match mname with
-								| None ->
-									cached_files <- path :: cached_files;
-									tname
-								| Some mname -> mname
-							in
-							Hashtbl.add modules (pack,mname) (filename,entry);
-						end
-				| _ -> ()
-			) (Zip.entries (Lazy.force zip));
-			close();
+			Timer.time com.Common.timer_ctx ["jar";"load"] (fun () -> self#do_load) ()
 		end
 
 	method private read zip (filename,entry) =
-		Std.finally (Timer.timer ["jar";"read"]) (fun () ->
+		Timer.time com.Common.timer_ctx ["jar";"read"] (fun () ->
 			let data = Zip.read_entry zip entry in
 			let jc = JReaderModern.parse_class (IO.input_string data) in
 			(jc,file_path,file_path ^ "@" ^ filename)
@@ -1084,7 +1085,7 @@ class java_library_modern com name file_path = object(self)
 					if entries = [] then raise Not_found;
 					let zip = Lazy.force zip in
 					let jcs = List.map (self#read zip) entries in
-					Std.finally (Timer.timer ["jar";"convert"]) (fun () ->
+					Timer.time com.Common.timer_ctx ["jar";"convert"] (fun () ->
 						Some (Converter.convert_module (fst path) jcs)
 					) ();
 				with Not_found ->

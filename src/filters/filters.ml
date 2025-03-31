@@ -182,7 +182,7 @@ open FilterContext
 
 let destruction tctx ectx detail_times main locals =
 	let com = tctx.com in
-	with_timer detail_times "type 2" None (fun () ->
+	with_timer tctx.com.timer_ctx detail_times "type 2" None (fun () ->
 		(* PASS 2: type filters pre-DCE *)
 		List.iter (fun t ->
 			FiltersCommon.remove_generic_base t;
@@ -193,7 +193,7 @@ let destruction tctx ectx detail_times main locals =
 		) com.types;
 	);
 	enter_stage com CDceStart;
-	with_timer detail_times "dce" None (fun () ->
+	with_timer tctx.com.timer_ctx detail_times "dce" None (fun () ->
 		(* DCE *)
 		let dce_mode = try Common.defined_value com Define.Dce with _ -> "no" in
 		let dce_mode = match dce_mode with
@@ -227,7 +227,7 @@ let destruction tctx ectx detail_times main locals =
 		(fun _ -> commit_features com);
 		(fun _ -> (if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths com else (fun _ -> ())));
 	] in
-	with_timer detail_times "type 3" None (fun () ->
+	with_timer tctx.com.timer_ctx detail_times "type 3" None (fun () ->
 		List.iter (fun t ->
 			let tctx = match t with
 				| TClassDecl c ->
@@ -407,7 +407,7 @@ let run_parallel_safe com scom pool f =
 
 let run tctx ectx main before_destruction =
 	let com = tctx.com in
-	let detail_times = (try int_of_string (Common.defined_value_safe com ~default:"0" Define.FilterTimes) with _ -> 0) in
+	let detail_times = Timer.level_from_define com.defines Define.FilterTimes in
 	let new_types = List.filter (fun t ->
 		let cached = is_cached com t in
 		begin match t with
@@ -496,18 +496,18 @@ let run tctx ectx main before_destruction =
 		);
 		locals
 	) in
-	with_timer detail_times "callbacks" None (fun () ->
+	with_timer tctx.com.timer_ctx detail_times "callbacks" None (fun () ->
 		com.callbacks#run com.error_ext com.callbacks#get_before_save;
 	);
 	enter_stage com CSaveStart;
-	with_timer detail_times "save state" None (fun () ->
+	with_timer tctx.com.timer_ctx detail_times "save state" None (fun () ->
 		List.iter (fun mt ->
 			update_cache_dependencies ~close_monomorphs:true com mt;
 			save_class_state com mt
 		) new_types;
 	);
 	enter_stage com CSaveDone;
-	with_timer detail_times "callbacks" None (fun () ->
+	with_timer tctx.com.timer_ctx detail_times "callbacks" None (fun () ->
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);
 	before_destruction();

@@ -81,7 +81,7 @@ let process_display_arg ctx actx =
 		if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
 			actx.did_something <- true;
 			actx.force_typing <- true;
-			DisplayJson.parse_input ctx.com input Timer.measure_times
+			DisplayJson.parse_input ctx.com input
 		end else
 			handle_display_argument_old ctx.com input actx;
 	| None ->

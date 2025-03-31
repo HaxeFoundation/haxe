@@ -727,13 +727,13 @@ let create_context ?jsonrpc gm = {
 	request = match jsonrpc with None -> None | Some jsonrpc -> Some (new JsonRequest.json_request jsonrpc)
 }
 
-let generate types file =
-	let t = Timer.timer ["generate";"json";"construct"] in
-	let ctx = create_context GMFull in
-	let json = jarray (List.map (generate_module_type ctx) types) in
-	t();
-	let t = Timer.timer ["generate";"json";"write"] in
-	let ch = open_out_bin file in
-	Json.write_json (output_string ch) json;
-	close_out ch;
-	t()
+let generate timer_ctx types file =
+	let json = Timer.time timer_ctx ["generate";"json";"construct"] (fun () ->
+		let ctx = create_context GMFull in
+		jarray (List.map (generate_module_type ctx) types)
+	) () in
+	Timer.time timer_ctx ["generate";"json";"write"] (fun () ->
+		let ch = open_out_bin file in
+		Json.write_json (output_string ch) json;
+		close_out ch;
+	) ()

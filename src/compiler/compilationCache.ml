@@ -140,8 +140,7 @@ class virtual server_task (id : string list) (priority : int) = object(self)
 	method private virtual execute : unit
 
 	method run : unit =
-		let t = Timer.timer ("server" :: "task" :: id) in
-		Std.finally t (fun () -> self#execute) ()
+		self#execute
 
 	method get_priority = priority
 	method get_id = id

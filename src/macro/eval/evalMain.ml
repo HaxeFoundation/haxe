@@ -36,7 +36,6 @@ open Extlib_leftovers
 (* Create *)
 
 let create com api is_macro =
-	let t = Timer.timer [(if is_macro then "macro" else "interp");"create"] in
 	incr GlobalState.sid;
 	let builtins = match !GlobalState.stdlib with
 		| None ->
@@ -126,6 +125,7 @@ let create com api is_macro =
 		eval = eval;
 		evals = evals;
 		exception_stack = [];
+		timer_ctx = com.timer_ctx;
 		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
 		max_print_depth = int_of_string (Common.defined_value_safe ~default:"5" com Define.EvalPrintDepth);
 		print_indentation = match Common.defined_value_safe com Define.EvalPrettyPrint
@@ -160,8 +160,10 @@ let create com api is_macro =
 			Printf.eprintf "%s\n" msg;
 			exit 2
 	);
-	t();
 	ctx
+
+let create com api is_macro =
+	Timer.time com.Common.timer_ctx [(if is_macro then "macro" else "interp");"create"] (create com api) is_macro
 
 (* API for macroContext.ml *)
 

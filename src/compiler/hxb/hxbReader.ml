@@ -149,7 +149,7 @@ class hxb_reader
 	(mpath : path)
 	(stats : hxb_reader_stats)
 	(string_pool : string array option)
-	(timers_enabled : bool)
+	(timer_ctx : Timer.timer_context option)
 = object(self)
 	val mutable api = Obj.magic ""
 	val mutable full_restore = true
@@ -2084,7 +2084,10 @@ class hxb_reader
 	method private read_chunk_data kind =
 		let path = String.concat "_" (ExtLib.String.nsplit (s_type_path mpath) ".") in
 		let id = ["hxb";"read";string_of_chunk_kind kind;path] in
-		let close = if timers_enabled then Timer.timer id else fun() -> () in
+		let close = match timer_ctx with
+			| Some timer_ctx -> Timer.start_timer timer_ctx id
+			| None -> (fun () -> ())
+		in
 		try
 			self#read_chunk_data' kind
 		with Invalid_argument msg -> begin
