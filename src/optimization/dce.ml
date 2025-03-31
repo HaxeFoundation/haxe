@@ -42,7 +42,7 @@ type dce = {
 	field_marker_mutex : Mutex.t;
 	used_mutex : Mutex.t;
 	feature_mutex : Mutex.t;
-	add_feature_mutex : Mutex.t;
+	add_feature_manager : NowOrLater.t;
 }
 
 let push_class dce c =
@@ -164,10 +164,9 @@ let rec check_feature dce s =
 
 and check_and_add_feature dce s =
 	check_feature dce s;
-	assert (dce.curclass != null_class);
-	Mutex.protect dce.add_feature_mutex (fun () ->
-		Hashtbl.replace dce.curclass.cl_module.m_extra.m_features s true
-	)
+	let c = dce.curclass in
+	assert (c != null_class);
+	NowOrLater.try_now dce.add_feature_manager (fun () -> Hashtbl.replace c.cl_module.m_extra.m_features s true)
 
 (* mark a field as kept *)
 and mark_field dce c cf kind =
@@ -835,6 +834,7 @@ let mark dce =
 			dce.added_fields := [];
 			Hashtbl.iter (fun k _ -> Hashtbl.remove dce.features k) dce.checked_features;
 			Hashtbl.clear dce.checked_features;
+			NowOrLater.handle_later dce.add_feature_manager;
 			let cfl = Array.of_list cfl in
 			(* extend to dependent (= overriding/implementing) class fields *)
 			Parallel.ParallelArray.iter pool (fun (c,cf,stat) ->
@@ -946,7 +946,7 @@ let run com main mode =
 		field_marker_mutex = Mutex.create();
 		used_mutex = Mutex.create();
 		feature_mutex = Mutex.create();
-		add_feature_mutex = Mutex.create();
+		add_feature_manager = NowOrLater.create();
 	} in
 
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
