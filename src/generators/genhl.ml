@@ -1689,9 +1689,14 @@ and eval_expr ctx e =
 		| TThis | TSuper ->
 			0 (* first reg *)
 		| TNull ->
-			let r = alloc_tmp ctx (to_type ctx e.etype) in
+			let t = (match e.etype with
+			| TInst (c,pl) when has_class_flag c CExtern -> HDyn
+			| _ -> to_type ctx e.etype
+			) in
+			let r = alloc_tmp ctx t in
 			op ctx (ONull r);
-			r)
+			r
+		)
 	| TVar (v,e) ->
 		(match e with
 		| None ->

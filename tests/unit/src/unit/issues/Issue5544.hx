@@ -25,6 +25,7 @@ private abstract A(T) {
 }
 
 class Issue5544 extends unit.Test {
+	@:analyzer(ignore)
 	function test() {
 		eq("I'm inlined!", new A().get("foo"));
 	}
