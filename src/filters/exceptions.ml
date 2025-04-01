@@ -20,6 +20,7 @@ type context = {
 	haxe_native_stack_trace : tclass;
 	value_exception_type : Type.t;
 	value_exception_class : tclass;
+	is_of_type : (tclass * tclass_field * Type.t);
 }
 
 let is_dynamic t =
@@ -64,17 +65,8 @@ let haxe_exception_instance_call ctx haxe_exception method_name args p =
 *)
 let std_is ctx e t p =
 	let t = follow t in
-	let std_cls = ctx.typer.com.std in
-	let isOfType_field =
-		try PMap.find "isOfType" std_cls.cl_statics
-		with Not_found -> raise_typing_error ("Std has no field isOfType") p
-	in
-	let return_type =
-		match follow isOfType_field.cf_type with
-		| TFun(_,t) -> t
-		| _ -> raise_typing_error ("Std.isOfType is not a function and cannot be called") p
-	in
-	let type_expr = TyperBase.type_module_type ctx.typer (module_type_of_type t) p in
+	let type_expr = TyperBase.type_module_type_simple (module_type_of_type t) p in
+	let (std_cls,isOfType_field,return_type) = ctx.is_of_type in
 	CallUnification.make_static_call_better ctx.typer std_cls isOfType_field [] [e; type_expr] return_type p
 
 (**
@@ -531,6 +523,19 @@ let create_exception_context tctx =
 		let is_path_of_dynamic (pack,name) =
 			name = "Dynamic" && (pack = [] || pack = ["StdTypes"])
 		in
+		let is_of_type =
+			let std_cls = tctx.com.std in
+			let isOfType_field =
+				try PMap.find "isOfType" std_cls.cl_statics
+				with Not_found -> raise_typing_error ("Std has no field isOfType") null_pos
+			in
+			let return_type =
+				match follow isOfType_field.cf_type with
+				| TFun(_,t) -> t
+				| _ -> raise_typing_error ("Std.isOfType is not a function and cannot be called") null_pos
+			in
+			(std_cls,isOfType_field,return_type)
+		in
 		let ctx = {
 			typer = tctx;
 			basic = tctx.t;
@@ -544,6 +549,7 @@ let create_exception_context tctx =
 			haxe_native_stack_trace = haxe_native_stack_trace;
 			value_exception_type = value_exception_type;
 			value_exception_class = value_exception_class;
+			is_of_type = is_of_type;
 		} in
 		Some ctx
 	| Cross | CustomTarget _ ->

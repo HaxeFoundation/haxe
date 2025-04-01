@@ -193,6 +193,33 @@ let assign_to_this_is_allowed ctx =
 			)
 		| _ -> false
 
+let type_module_type_simple mt p =
+	(* No checks and building *)
+	let rec loop mt = match mt with
+		| TClassDecl c ->
+			mk (TTypeExpr (TClassDecl c)) c.cl_type p
+		| TEnumDecl e ->
+			mk (TTypeExpr (TEnumDecl e)) e.e_type p
+		| TTypeDecl s ->
+			let t = apply_typedef s (List.map (fun _ -> mk_mono()) s.t_params) in
+			begin match follow t with
+				| TEnum (e,params) ->
+					loop (TEnumDecl e)
+				| TInst (c,params) ->
+					loop (TClassDecl c)
+				| TAbstract (a,params) ->
+					loop (TAbstractDecl a)
+				| _ ->
+					die "" __LOC__
+			end
+		| TAbstractDecl { a_impl = Some c } ->
+			loop (TClassDecl c)
+		| TAbstractDecl a ->
+			let t_tmp = abstract_module_type a [] in
+			mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
+	in
+	loop mt
+
 let type_module_type ctx t p =
 	let rec loop t tparams =
 		match t with
