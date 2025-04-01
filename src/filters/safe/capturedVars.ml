@@ -17,7 +17,7 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 open Globals
-open Common
+open SafeCom
 open Type
 open LocalUsage
 
@@ -84,7 +84,7 @@ let get_wrapper_implementation com =
 		funs.push(function(x) { function() return x[0]++; }(x));
 	}
 *)
-let captured_vars com impl e =
+let captured_vars scom impl e =
 
 	let mk_var v used =
 		let v2 = alloc_var v.v_kind v.v_name (PMap.find v.v_id used) v.v_pos in
@@ -146,7 +146,7 @@ let captured_vars com impl e =
 				Create a new function scope to make sure that the captured loop variable
 				will not be overwritten in next loop iteration
 			*)
-			if com.config.pf_capture_policy = CPLoopVars then
+			if scom.platform_config.pf_capture_policy = CPLoopVars then
 				(* We don't want to duplicate any variable declarations, so let's make copies (issue #3902). *)
 				let new_vars = List.map (fun v -> v.v_id,alloc_var v.v_kind v.v_name v.v_type v.v_pos) vars in
 				let rec loop e = match e.eexpr with
@@ -273,7 +273,7 @@ let captured_vars com impl e =
 		!assigned
 	in
 	let captured = all_vars e in
-	match com.config.pf_capture_policy with
+	match scom.platform_config.pf_capture_policy with
 	| CPNone -> e
 	| CPWrapRef -> do_wrap captured e
 	| CPLoopVars -> out_loop e

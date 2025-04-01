@@ -605,14 +605,6 @@ and flush_macro_context mint mctx =
 		mctx.com.types <- types;
 		mctx.com.Common.modules <- modules;
 		let ectx = Exceptions.create_exception_context mctx in
-		let cv_wrapper_impl = CapturedVars.get_wrapper_implementation mctx.com in
-		(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
-		let expr_filters = [
-			"handle_abstract_casts",AbstractCast.handle_abstract_casts;
-			"local_statics",LocalStatic.run;
-			"Exceptions",(fun _ -> Exceptions.filter ectx);
-			"captured_vars",(fun _ -> CapturedVars.captured_vars mctx.com cv_wrapper_impl);
-		] in
 		(*
 			some filters here might cause side effects that would break compilation server.
 			let's save the minimal amount of information we need
@@ -653,10 +645,24 @@ and flush_macro_context mint mctx =
 			in
 			if apply_native then Native.apply_native_paths t
 		in
+		let scom = SafeCom.of_com mctx.com in
+		let cv_wrapper_impl = CapturedVars.get_wrapper_implementation mctx.com in
+		let expr_filters = [
+			"handle_abstract_casts",AbstractCast.handle_abstract_casts;
+			"local_statics",(fun tctx ->
+				let scom = SafeCom.of_typer tctx in
+				LocalStatic.run scom
+			);
+			"Exceptions",(fun _ -> Exceptions.filter ectx);
+			"captured_vars",(fun tctx ->
+				let scom = SafeCom.of_typer tctx in
+				CapturedVars.captured_vars scom cv_wrapper_impl
+			);
+		] in
 		let type_filters = [
 			FiltersCommon.remove_generic_base;
 			Exceptions.patch_constructors mctx ectx;
-			(fun mt -> AddFieldInits.add_field_inits mctx.c.curclass.cl_path (RenameVars.init mctx.com) mctx.com mt);
+			(fun mt -> AddFieldInits.add_field_inits mctx.c.curclass.cl_path (RenameVars.init mctx.com.config mctx.com.types) scom mt);
 			Filters.update_cache_dependencies ~close_monomorphs:false mctx.com;
 			minimal_restore;
 			maybe_apply_native_paths

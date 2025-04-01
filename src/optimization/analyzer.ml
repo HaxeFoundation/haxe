@@ -20,6 +20,7 @@
 open StringHelper
 open Ast
 open Type
+open SafeCom
 open AnalyzerTexpr
 open AnalyzerTypes
 open OptimizerTexpr
@@ -974,16 +975,10 @@ module Run = struct
 		let id = Timer.determine_id level ["analyzer"] s identifier in
 		Timer.time timer_ctx id f ()
 
-	let create_analyzer_context (com : Common.context) config identifier e =
+	let create_analyzer_context (com : SafeCom.t) config identifier e =
 		let g = Graph.create e.etype e.epos in
 		let ctx = {
-			com = {
-				basic = com.basic;
-				platform = com.platform;
-				platform_config = com.config;
-				defines = com.defines;
-				debug = com.debug;
-			};
+			com = com;
 			config = config;
 			graph = g;
 			(* For CPP we want to use variable names which are "probably" not used by users in order to
@@ -1113,7 +1108,7 @@ module Run = struct
 		Optimizer.reduce_control_flow com e
 
 	let run_on_field' com exc_out config c cf = match cf.cf_expr with
-		| Some e when not (is_ignored cf.cf_meta) && not (FilterContext.is_removable_field com.Common.is_macro_context cf) && not (has_class_field_flag cf CfPostProcessed) ->
+		| Some e when not (is_ignored cf.cf_meta) && not (FilterContext.is_removable_field com.is_macro_context cf) && not (has_class_field_flag cf CfPostProcessed) ->
 			let config = update_config_from_meta com config cf.cf_meta in
 			let actx = create_analyzer_context com config (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name) e in
 			let debug() =
@@ -1133,7 +1128,7 @@ module Run = struct
 			in
 			begin try
 				let e = run_on_expr actx e in
-				let e = reduce_control_flow com e in
+				let e = reduce_control_flow com.platform e in
 				maybe_debug();
 				cf.cf_expr <- Some e;
 			with
@@ -1195,24 +1190,24 @@ module Run = struct
 		| TTypeDecl _ -> ()
 		| TAbstractDecl _ -> ()
 
-	let run_on_types com types =
-		let config = get_base_config com in
+	let run_on_types com pool types =
+		let scom = SafeCom.of_com com in
+		let config = get_base_config scom in
 		with_timer com.timer_ctx config.detail_times None ["other"] (fun () ->
 			if config.optimize && config.purity_inference then
 				with_timer com.timer_ctx config.detail_times None ["optimize";"purity-inference"] (fun () -> Purity.infer com);
 			let exc_out = Atomic.make None in
-			Parallel.run_in_new_pool com.timer_ctx (fun pool ->
-				Parallel.ParallelArray.iter pool (run_on_type com exc_out pool config) (Array.of_list types);
-			);
+			Parallel.ParallelArray.iter pool (run_on_type scom exc_out pool config) types;
 			check_exc_out exc_out
 		)
 end
 ;;
 Typecore.analyzer_run_on_expr_ref := (fun com identifier e ->
-	let config = AnalyzerConfig.get_base_config com in
+	let scom = SafeCom.of_com com in
+	let config = AnalyzerConfig.get_base_config scom in
 	(* We always want to optimize because const propagation might be required to obtain
 	   a constant expression for inline field initializations (see issue #4977). *)
 	let config = {config with AnalyzerConfig.optimize = true} in
-	let actx = Run.create_analyzer_context com config identifier e in
+	let actx = Run.create_analyzer_context scom config identifier e in
 	Run.run_on_expr actx e
 )

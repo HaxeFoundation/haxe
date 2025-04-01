@@ -96,7 +96,7 @@ in
 			else
 				None
 
-let reduce_control_flow com e = match e.eexpr with
+let reduce_control_flow platform e = match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
 	| TWhile ({ eexpr = TConst (TBool false) },sub,flag) ->
@@ -121,7 +121,7 @@ let reduce_control_flow com e = match e.eexpr with
 		(try List.nth el i with Failure _ -> e)
 	| TCast(e1,None) ->
 		(* TODO: figure out what's wrong with these targets *)
-		let require_cast = match com.platform with
+		let require_cast = match platform with
 			| Cpp | Flash -> true
 			| Jvm -> true
 			| _ -> false
@@ -169,7 +169,7 @@ let rec reduce_loop ctx stack e =
 				reduce_expr ctx e
 		end
 	| _ ->
-		reduce_expr ctx (reduce_control_flow ctx.com e))
+		reduce_expr ctx (reduce_control_flow ctx.com.platform e))
 
 let reduce_expression ctx e =
 	if ctx.com.foptimize then begin

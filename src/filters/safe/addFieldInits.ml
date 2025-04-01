@@ -1,8 +1,8 @@
 open Globals
-open Common
+open SafeCom
 open Type
 
-let add_field_inits cl_path locals com t =
+let add_field_inits cl_path locals scom t =
 	let apply c =
 		let ethis = mk (TConst TThis) (TInst (c,extract_param_types c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
@@ -28,11 +28,11 @@ let add_field_inits cl_path locals com t =
 			let el = if !need_this then (mk (TVar((v, Some ethis))) ethis.etype ethis.epos) :: el else el in
 			let cf = match c.cl_constructor with
 			| None ->
-				let ct = TFun([],com.basic.tvoid) in
+				let ct = TFun([],scom.basic.tvoid) in
 				let ce = mk (TFunction {
 					tf_args = [];
-					tf_type = com.basic.tvoid;
-					tf_expr = mk (TBlock el) com.basic.tvoid c.cl_pos;
+					tf_type = scom.basic.tvoid;
+					tf_expr = mk (TBlock el) scom.basic.tvoid c.cl_pos;
 				}) ct c.cl_pos in
 				let ctor = mk_field "new" ct c.cl_pos null_pos in
 				ctor.cf_kind <- Method MethNormal;
@@ -41,21 +41,21 @@ let add_field_inits cl_path locals com t =
 				match cf.cf_expr with
 				| Some { eexpr = TFunction f } ->
 					let bl = match f.tf_expr with {eexpr = TBlock b } -> b | x -> [x] in
-					let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) com.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
+					let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) scom.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
 					{cf with cf_expr = Some ce };
 				| _ ->
 					die "" __LOC__
 			in
-			let config = AnalyzerConfig.get_field_config com c cf in
+			let config = AnalyzerConfig.get_field_config scom c cf in
 			remove_class_field_flag cf CfPostProcessed;
-			Analyzer.Run.run_on_field com config c cf;
+			Analyzer.Run.run_on_field scom config c cf;
 			add_class_field_flag cf CfPostProcessed;
 			(match cf.cf_expr with
 			| Some e ->
 				(* This seems a bit expensive, but hopefully constructor expressions aren't that massive. *)
 				let e = RenameVars.run cl_path locals e in
-				let e = Sanitize.sanitize com.config e in
-				let e = if com.config.pf_add_final_return then AddFinalReturn.add_final_return e else e in
+				let e = Sanitize.sanitize scom.platform_config e in
+				let e = if scom.platform_config.pf_add_final_return then AddFinalReturn.add_final_return e else e in
 				cf.cf_expr <- Some e
 			| _ ->
 				());
