@@ -6,6 +6,11 @@ type define = {
 	mutable defines_signature : string option;
 }
 
+let empty_defines () = {
+	defines_signature = None;
+	values = PMap.empty;
+}
+
 type user_define = {
 	doc : string;
 	flags : define_parameter list;

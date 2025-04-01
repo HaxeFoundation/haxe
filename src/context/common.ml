@@ -728,10 +728,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 		include_files = [];
 		js_gen = None;
 		load_extern_type = [];
-		defines = {
-			defines_signature = None;
-			values = PMap.empty;
-		};
+		defines = Define.empty_defines ();
 		user_defines = Hashtbl.create 0;
 		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);

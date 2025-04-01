@@ -154,7 +154,7 @@ let create com api is_macro =
 						Error.recurse_error (fun depth err ->
 							messages := (make_compiler_message ~from_macro:err.err_from_macro (Error.error_msg err.err_message) err.err_pos depth DKCompilerMessage Error) :: !messages;
 						) err;
-						MessageReporting.format_messages com !messages
+						MessageReporting.format_messages com.defines !messages
 				| _ -> Printexc.to_string ex
 			in
 			Printf.eprintf "%s\n" msg;
