@@ -500,15 +500,6 @@ let make_lazy ctx t_proc f where =
 	delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
 
-let is_removable_field com f =
-	not (has_class_field_flag f CfOverride) && (
-		has_class_field_flag f CfExtern || has_class_field_flag f CfGeneric
-		|| (match f.cf_kind with
-			| Var {v_read = AccRequire (s,_)} -> true
-			| Method MethMacro -> not com.is_macro_context
-			| _ -> false)
-	)
-
 let is_forced_inline c cf =
 	match c with
 	| Some { cl_kind = KAbstractImpl _ } -> true

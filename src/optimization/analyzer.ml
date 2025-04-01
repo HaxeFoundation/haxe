@@ -1113,7 +1113,7 @@ module Run = struct
 		Optimizer.reduce_control_flow com e
 
 	let run_on_field' com exc_out config c cf = match cf.cf_expr with
-		| Some e when not (is_ignored cf.cf_meta) && not (Typecore.is_removable_field com cf) && not (has_class_field_flag cf CfPostProcessed) ->
+		| Some e when not (is_ignored cf.cf_meta) && not (FilterContext.is_removable_field com.Common.is_macro_context cf) && not (has_class_field_flag cf CfPostProcessed) ->
 			let config = update_config_from_meta com config cf.cf_meta in
 			let actx = create_analyzer_context com config (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name) e in
 			let debug() =

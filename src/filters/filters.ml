@@ -267,12 +267,12 @@ let remove_extern_fields com t = match t with
 	| TClassDecl c ->
 		if not (Common.defined com Define.DocGen) then begin
 			c.cl_ordered_fields <- List.filter (fun f ->
-				let b = is_removable_field com f in
+				let b = FilterContext.is_removable_field com.is_macro_context f in
 				if b then c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
 				not b
 			) c.cl_ordered_fields;
 			c.cl_ordered_statics <- List.filter (fun f ->
-				let b = is_removable_field com f in
+				let b = FilterContext.is_removable_field com.is_macro_context f in
 				if b then c.cl_statics <- PMap.remove f.cf_name c.cl_statics;
 				not b
 			) c.cl_ordered_statics;
