@@ -678,7 +678,7 @@ let run tctx ectx main before_destruction =
 		| _ -> (fun tctx e -> RenameVars.run tctx.c.curclass.cl_path locals e));
 		"mark_switch_break_loops",(fun _ -> mark_switch_break_loops);
 	] in
-	Parallel.run_in_new_pool (fun pool ->
+	Parallel.run_in_new_pool com.timer_ctx (fun pool ->
 		Parallel.ParallelArray.iter pool (run_expression_filters tctx detail_times filters) (Array.of_list new_types)
 	);
 	with_timer tctx.com.timer_ctx detail_times "callbacks" None (fun () ->

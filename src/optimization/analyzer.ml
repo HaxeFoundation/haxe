@@ -1201,7 +1201,7 @@ module Run = struct
 			if config.optimize && config.purity_inference then
 				with_timer com.timer_ctx config.detail_times None ["optimize";"purity-inference"] (fun () -> Purity.infer com);
 			let exc_out = Atomic.make None in
-			Parallel.run_in_new_pool (fun pool ->
+			Parallel.run_in_new_pool com.timer_ctx (fun pool ->
 				Parallel.ParallelArray.iter pool (run_on_type com exc_out pool config) (Array.of_list types);
 			);
 			check_exc_out exc_out
