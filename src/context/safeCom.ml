@@ -26,6 +26,44 @@ type t = {
 	curfield : tclass_field;
 }
 
+let of_com (com : Common.context) = {
+	basic = com.basic;
+	platform = com.platform;
+	defines = com.defines;
+	platform_config = com.config;
+	debug = com.debug;
+	is_macro_context = com.is_macro_context;
+	exceptions = ref [];
+	exceptions_mutex = Mutex.create ();
+	warnings = ref [];
+	warnings_mutex = Mutex.create ();
+	timer_ctx = com.timer_ctx;
+	curclass = null_class;
+	curfield = null_field;
+}
+
+let of_typer (ctx : Typecore.typer) = {
+	(of_com ctx.com) with
+	curclass = ctx.c.curclass;
+	curfield = ctx.f.curfield;
+}
+
+let finalize scom com =
+	List.iter (fun warning ->
+		Common.module_warning com warning.w_module warning.w_warning warning.w_options warning.w_msg warning.w_pos
+	) !(scom.warnings);
+	scom.warnings := [];
+	let exns = !(scom.exceptions) in
+	scom.exceptions := [];
+	match exns with
+	| x :: _ ->
+		raise x
+	| [] ->
+		()
+
+let run_with_scom com scom pool f =
+	Std.finally (fun() -> finalize scom com) f ()
+
 let add_exn scom exn =
 	Mutex.protect scom.exceptions_mutex (fun () -> scom.exceptions := exn :: !(scom.exceptions))
 

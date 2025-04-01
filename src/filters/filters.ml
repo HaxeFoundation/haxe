@@ -387,24 +387,6 @@ let might_need_cf_unoptimized c cf =
 	| _ ->
 		has_class_field_flag cf CfGeneric
 
-let check_scom com scom =
-	let open SafeCom in
-	List.iter (fun warning ->
-		module_warning com warning.w_module warning.w_warning warning.w_options warning.w_msg warning.w_pos
-	) !(scom.warnings);
-	scom.warnings := [];
-	let exns = !(scom.exceptions) in
-	scom.exceptions := [];
-	match exns with
-	| x :: _ ->
-		raise x
-	| [] ->
-		()
-
-let run_parallel_safe com scom pool f =
-	f ();
-	check_scom com scom
-
 let run tctx ectx main before_destruction =
 	let com = tctx.com in
 	let detail_times = Timer.level_from_define com.defines Define.FilterTimes in
@@ -435,7 +417,7 @@ let run tctx ectx main before_destruction =
 		not cached
 	) com.types in
 	let new_types_array = Array.of_list new_types in
-	let scom = to_safe_com com in
+	let scom = SafeCom.of_com com in
 	(* IMPORTANT:
 	    There may be types in new_types which have already been post-processed, but then had their m_processed flag unset
 		because they received an additional dependency. This could happen in cases such as @:generic methods in #10635.
@@ -460,7 +442,7 @@ let run tctx ectx main before_destruction =
 		"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
 	] in
 	Parallel.run_in_new_pool com.timer_ctx (fun pool ->
-		run_parallel_safe com scom pool (fun () ->
+		SafeCom.run_with_scom com scom pool (fun () ->
 			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
 		);
 	);
@@ -478,7 +460,7 @@ let run tctx ectx main before_destruction =
 	] in
 
 	let locals = Parallel.run_in_new_pool com.timer_ctx (fun pool ->
-		run_parallel_safe com scom pool (fun () ->
+		SafeCom.run_with_scom com scom pool (fun () ->
 			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
 		);
 		enter_stage com CAnalyzerStart;
@@ -495,7 +477,7 @@ let run tctx ectx main before_destruction =
 			);
 			"mark_switch_break_loops",SafeFilters.mark_switch_break_loops;
 		] in
-		run_parallel_safe com scom pool (fun () ->
+		SafeCom.run_with_scom com scom pool (fun () ->
 			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
 		);
 		locals

@@ -1191,7 +1191,7 @@ module Run = struct
 		| TAbstractDecl _ -> ()
 
 	let run_on_types com pool types =
-		let scom = Common.to_safe_com com in
+		let scom = SafeCom.of_com com in
 		let config = get_base_config scom in
 		with_timer com.timer_ctx config.detail_times None ["other"] (fun () ->
 			if config.optimize && config.purity_inference then
@@ -1203,7 +1203,7 @@ module Run = struct
 end
 ;;
 Typecore.analyzer_run_on_expr_ref := (fun com identifier e ->
-	let scom = Common.to_safe_com com in
+	let scom = SafeCom.of_com com in
 	let config = AnalyzerConfig.get_base_config scom in
 	(* We always want to optimize because const propagation might be required to obtain
 	   a constant expression for inline field initializations (see issue #4977). *)
