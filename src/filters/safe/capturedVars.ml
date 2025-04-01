@@ -17,32 +17,13 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 open Globals
-open Type
 open Common
+open Type
 open LocalUsage
 
-(* BLOCK VARIABLES CAPTURE *)
-(*
-	For some platforms, it will simply mark the variables which are used in closures
-	using the v_capture flag so it can be processed in a more optimized
-
-	For Flash/JS platforms, it will ensure that variables used in loop sub-functions
-	have an unique scope. It transforms the following expression :
-
-	for( x in array )
-		funs.push(function() return x++);
-
-	Into the following :
-
-	for( _x in array ) {
-		var x = [_x];
-		funs.push(function(x) { function() return x[0]++; }(x));
-	}
-*)
-let captured_vars com e =
-	let t = com.basic in
-
-	let impl = match com.platform with
+let get_wrapper_implementation com =
+	let t = com.Common.basic in
+	match com.platform with
 	(* optimized version for Java - use native arrays *)
 	| Jvm ->
 		let cnativearray =
@@ -84,7 +65,26 @@ let captured_vars com e =
 			method mk_init av v pos =
 				mk (TVar (av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos))) t.tvoid pos
 		end
-	in
+
+(* BLOCK VARIABLES CAPTURE *)
+(*
+	For some platforms, it will simply mark the variables which are used in closures
+	using the v_capture flag so it can be processed in a more optimized
+
+	For Flash/JS platforms, it will ensure that variables used in loop sub-functions
+	have an unique scope. It transforms the following expression :
+
+	for( x in array )
+		funs.push(function() return x++);
+
+	Into the following :
+
+	for( _x in array ) {
+		var x = [_x];
+		funs.push(function(x) { function() return x[0]++; }(x));
+	}
+*)
+let captured_vars com impl e =
 
 	let mk_var v used =
 		let v2 = alloc_var v.v_kind v.v_name (PMap.find v.v_id used) v.v_pos in

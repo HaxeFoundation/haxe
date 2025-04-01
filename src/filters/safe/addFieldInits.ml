@@ -2,7 +2,6 @@ open Globals
 open Common
 open Type
 
-
 let add_field_inits cl_path locals com t =
 	let apply c =
 		let ethis = mk (TConst TThis) (TInst (c,extract_param_types c.cl_params)) c.cl_pos in
@@ -55,7 +54,7 @@ let add_field_inits cl_path locals com t =
 			| Some e ->
 				(* This seems a bit expensive, but hopefully constructor expressions aren't that massive. *)
 				let e = RenameVars.run cl_path locals e in
-				let e = Optimizer.sanitize com e in
+				let e = Sanitize.sanitize com.config e in
 				let e = if com.config.pf_add_final_return then AddFinalReturn.add_final_return e else e in
 				cf.cf_expr <- Some e
 			| _ ->

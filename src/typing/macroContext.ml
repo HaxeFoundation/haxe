@@ -605,12 +605,13 @@ and flush_macro_context mint mctx =
 		mctx.com.types <- types;
 		mctx.com.Common.modules <- modules;
 		let ectx = Exceptions.create_exception_context mctx in
+		let cv_wrapper_impl = CapturedVars.get_wrapper_implementation mctx.com in
 		(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
 		let expr_filters = [
 			"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 			"local_statics",LocalStatic.run;
 			"Exceptions",(fun _ -> Exceptions.filter ectx);
-			"captured_vars",(fun _ -> CapturedVars.captured_vars mctx.com);
+			"captured_vars",(fun _ -> CapturedVars.captured_vars mctx.com cv_wrapper_impl);
 		] in
 		(*
 			some filters here might cause side effects that would break compilation server.

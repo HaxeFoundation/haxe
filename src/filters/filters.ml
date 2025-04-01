@@ -27,228 +27,6 @@ open FiltersCommon
 
 let get_native_name = Native.get_native_name
 
-(* PASS 1 begin *)
-
-(* -------------------------------------------------------------------------- *)
-(* CHECK LOCAL VARS INIT *)
-
-let check_local_vars_init ctx e =
-	let intersect vl1 vl2 =
-		PMap.mapi (fun v t -> t && PMap.find v vl2) vl1
-	in
-	let join vars cvars =
-		List.iter (fun v -> vars := intersect !vars v) cvars
-	in
-	let restore vars old_vars declared =
-		(* restore variables declared in this block to their previous state *)
-		vars := List.fold_left (fun acc v ->
-			try	PMap.add v (PMap.find v old_vars) acc with Not_found -> PMap.remove v acc
-		) !vars declared;
-	in
-	let declared = ref [] in
-	let outside_vars = ref IntMap.empty in
-	(* Set variables which belong to current function *)
-	let set_all_vars vars =
-		vars := PMap.mapi (fun id is_set -> if IntMap.mem id !outside_vars then is_set else true) !vars
-	in
-	let rec loop vars e =
-		match e.eexpr with
-		| TLocal v ->
-			let init = (try PMap.find v.v_id !vars with Not_found -> true) in
-			if not init then begin
-				if IntMap.mem v.v_id !outside_vars then
-					if v.v_name = "this" then warning ctx WVarInit "this might be used before assigning a value to it" e.epos
-					else warning ctx WVarInit ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
-				else
-					if v.v_name = "this" then raise_typing_error "Missing this = value" e.epos
-					else raise_typing_error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
-			end
-		| TVar (v,eo) ->
-			begin
-				match eo with
-				| None when (match v.v_kind with VInlinedConstructorVariable _ -> true | _ -> false) ->
-					()
-				| None ->
-					declared := v.v_id :: !declared;
-					vars := PMap.add v.v_id false !vars
-				| Some e ->
-					loop vars e
-			end
-		| TBlock el ->
-			let old = !declared in
-			let old_vars = !vars in
-			declared := [];
-			List.iter (loop vars) el;
-			restore vars old_vars (List.rev !declared);
-			declared := old;
-		| TBinop (OpAssign,{ eexpr = TLocal v },e) when PMap.mem v.v_id !vars ->
-			begin match (Texpr.skip e).eexpr with
-				| TFunction _ ->
-					(* We can be sure that the function doesn't execute immediately, so it's fine to
-					   consider the local initialized (issue #9919). *)
-					vars := PMap.add v.v_id true !vars;
-					loop vars e;
-				| _ ->
-					loop vars e;
-					vars := PMap.add v.v_id true !vars
-			end
-		| TIf (e1,e2,eo) ->
-			loop vars e1;
-			let vbase = !vars in
-			loop vars e2;
-			(match eo with
-			| None -> vars := vbase
-			(* ignore else false cases (they are added by the side-effect handler) *)
-			| Some {eexpr = TConst (TBool(false))} -> ()
-			| Some e ->
-				let v1 = !vars in
-				vars := vbase;
-				loop vars e;
-				vars := intersect !vars v1)
-		| TWhile (cond,e,flag) ->
-			(match flag with
-			| NormalWhile when (match cond.eexpr with TParenthesis {eexpr = TConst (TBool true)} -> false | _ -> true) ->
-				loop vars cond;
-				let old = !vars in
-				loop vars e;
-				vars := old;
-			| _ ->
-				loop vars e;
-				loop vars cond)
-		| TTry (e,catches) ->
-			let cvars = List.map (fun (v,e) ->
-				let old = !vars in
-				loop vars e;
-				let v = !vars in
-				vars := old;
-				v
-			) catches in
-			loop vars e;
-			join vars cvars;
-		| TSwitch ({switch_subject = e;switch_cases = cases;switch_default = def} as switch) ->
-			loop vars e;
-			let cvars = List.map (fun {case_patterns = ec;case_expr = e} ->
-				let old = !vars in
-				List.iter (loop vars) ec;
-				vars := old;
-				loop vars e;
-				let v = !vars in
-				vars := old;
-				v
-			) cases in
-			(match def with
-			| None when switch.switch_exhaustive ->
-				(match cvars with
-				| cv :: cvars ->
-					PMap.iter (fun i b -> if b then vars := PMap.add i b !vars) cv;
-					join vars cvars
-				| [] -> ())
-			| None -> ()
-			| Some e ->
-				loop vars e;
-				join vars cvars)
-		(* mark all reachable vars as initialized, since we don't exit the block  *)
-		| TBreak | TContinue | TReturn None ->
-			set_all_vars vars
-		| TThrow e | TReturn (Some e) ->
-			loop vars e;
-			set_all_vars vars
-		| TFunction tf ->
-			let old = !outside_vars in
-			(* Mark all known variables as "outside" so we can ignore their initialization state within the function.
-			   We cannot use `vars` directly because we still care about initializations the function might make.
-			*)
-			PMap.iter (fun i _ -> outside_vars := IntMap.add i true !outside_vars) !vars;
-			loop vars tf.tf_expr;
-			outside_vars := old;
-		| _ ->
-			Type.iter (loop vars) e
-	in
-	loop (ref PMap.empty) e;
-	e
-
-let mark_switch_break_loops e =
-	let add_loop_label n e =
-		{ e with eexpr = TMeta ((Meta.LoopLabel,[(EConst(Int(string_of_int n, None)),e.epos)],e.epos), e) }
-	in
-	let in_switch = ref false in
-	let did_found = ref (-1) in
-	let num = ref 0 in
-	let cur_num = ref 0 in
-	let rec run e =
-		match e.eexpr with
-		| TFunction _ ->
-			let old_num = !num in
-			num := 0;
-				let ret = Type.map_expr run e in
-			num := old_num;
-			ret
-		| TWhile _ ->
-			let last_switch = !in_switch in
-			let last_found = !did_found in
-			let last_num = !cur_num in
-			in_switch := false;
-			incr num;
-			cur_num := !num;
-			did_found := -1;
-				let new_e = Type.map_expr run e in (* assuming that no loop will be found in the condition *)
-				let new_e = if !did_found <> -1 then add_loop_label !did_found new_e else new_e in
-			did_found := last_found;
-			in_switch := last_switch;
-			cur_num := last_num;
-
-			new_e
-		| TSwitch _ ->
-			let last_switch = !in_switch in
-			in_switch := true;
-				let new_e = Type.map_expr run e in
-			in_switch := last_switch;
-			new_e
-		| TBreak ->
-			if !in_switch then (
-				did_found := !cur_num;
-				add_loop_label !cur_num e
-			) else
-				e
-		| _ -> Type.map_expr run e
-	in
-	run e
-
-let fix_return_dynamic_from_void_function _ e =
-	let rec loop return_is_void e = match e.eexpr with
-		| TFunction fn ->
-			let is_void = ExtType.is_void (follow fn.tf_type) in
-			let body = loop is_void fn.tf_expr in
-			{ e with eexpr = TFunction { fn with tf_expr = body } }
-		| TReturn (Some return_expr) when return_is_void && t_dynamic == follow return_expr.etype ->
-			let return_pos = { e.epos with pmax = return_expr.epos.pmin - 1 } in
-			let exprs = [
-				loop return_is_void return_expr;
-				{ e with eexpr = TReturn None; epos = return_pos };
-			] in
-			{ e with
-				eexpr = TMeta (
-					(Meta.MergeBlock, [], null_pos),
-					mk (TBlock exprs) e.etype e.epos
-				);
-			}
-		| _ -> Type.map_expr (loop return_is_void) e
-	in
-	loop true e
-
-let check_abstract_as_value _ e =
-	let rec loop e =
-		match e.eexpr with
-		| TField ({ eexpr = TTypeExpr _ }, _) -> ()
-		| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
-			raise_typing_error "Cannot use abstract as value" e.epos
-		| _ -> Type.iter loop e
-	in
-	loop e;
-	e
-
-(* PASS 1 end *)
-
 (* PASS 2 begin *)
 
 (* Applies exclude macro (which turns types into externs) *)
@@ -653,16 +431,17 @@ let run tctx ectx main before_destruction =
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;
+	let cv_wrapper_impl = CapturedVars.get_wrapper_implementation com in
 	let filters = [
 		"local_statics",LocalStatic.run;
-		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function;
-		"check_local_vars_init",check_local_vars_init;
-		"check_abstract_as_value",check_abstract_as_value;
+		"fix_return_dynamic_from_void_function",SafeFilters.fix_return_dynamic_from_void_function;
+		"check_local_vars_init",CheckVarInit.check_local_vars_init;
+		"check_abstract_as_value",SafeFilters.check_abstract_as_value;
 		"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
 		"reduce_expression",Optimizer.reduce_expression;
 		"inline_constructors",InlineConstructors.inline_constructors;
 		"Exceptions_filter",(fun _ -> Exceptions.filter ectx);
-		"captured_vars",(fun _ -> CapturedVars.captured_vars com);
+		"captured_vars",(fun _ -> CapturedVars.captured_vars com cv_wrapper_impl);
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;
 	enter_stage com CAnalyzerStart;
@@ -670,13 +449,13 @@ let run tctx ectx main before_destruction =
 	enter_stage com CAnalyzerDone;
 	let locals = RenameVars.init com in
 	let filters = [
-		"sanitize",(fun _ e -> Optimizer.sanitize com e);
+		"sanitize",(fun _ e -> Sanitize.sanitize com.config e);
 		"add_final_return",(fun _ -> if com.config.pf_add_final_return then AddFinalReturn.add_final_return else (fun e -> e));
 		"RenameVars",(match com.platform with
 		| Eval -> (fun _ e -> e)
 		| Jvm -> (fun _ e -> e)
 		| _ -> (fun tctx e -> RenameVars.run tctx.c.curclass.cl_path locals e));
-		"mark_switch_break_loops",(fun _ -> mark_switch_break_loops);
+		"mark_switch_break_loops",SafeFilters.mark_switch_break_loops;
 	] in
 	Parallel.run_in_new_pool com.timer_ctx (fun pool ->
 		Parallel.ParallelArray.iter pool (run_expression_filters tctx detail_times filters) (Array.of_list new_types)
