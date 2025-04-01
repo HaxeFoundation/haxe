@@ -601,7 +601,7 @@ type light_com = {
 	basic : basic_types;
 	platform : platform;
 	defines : Define.define;
-	platform_config : platform_config;
+	platform_config : PlatformConfig.platform_config;
 	debug : bool;
 }
 
