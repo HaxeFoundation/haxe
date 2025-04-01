@@ -191,8 +191,8 @@ class TestNullCoalescing extends Test {
 		for (i => v in [1, 2, 3])
 			eq(arr[i], v);
 
-		var b:B = cast null;
-		var c:C = cast null;
+		@:nullSafety(Off) var b:B = null;
+		@:nullSafety(Off) var c:C = null;
 		var a = if (b != null) b else c;
 		var a = b ?? c;
 		eq("unit._TestNullCoalescing.A", HelperMacros.typeString(a));

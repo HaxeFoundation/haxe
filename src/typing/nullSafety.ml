@@ -1240,13 +1240,8 @@ class expr_checker mode immediate_execution report =
 		*)
 		method private check_cast expr to_type p =
 			self#check_expr expr;
-			match to_type with
-				(* untyped cast *)
-				| TMono _ -> ()
-				(* typed cast and type check *)
-				| _ ->
-					if not (self#can_pass_expr expr to_type p) then
-						self#error "Cannot cast nullable value to not nullable type." [p; expr.epos]
+			if not (self#can_pass_expr expr to_type p) then
+				self#error "Cannot cast nullable value to not nullable type." [p; expr.epos]
 		(**
 			Check safety in a function
 		*)

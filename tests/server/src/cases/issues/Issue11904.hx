@@ -4,11 +4,12 @@ import haxe.display.Diagnostic;
 
 class Issue11904 extends TestCase {
 	function test(_) {
-		vfs.putContent("Issue11904.hx", getTemplate("issues/Issue11904.hx"));
-		var args = ["-main", "Issue11904", "--js", "no.js", "--no-output"];
+		vfs.putContent("Main.hx", getTemplate("issues/Issue11904/Main.hx"));
+		var args = ["-main", "Main", "--js", "no.js", "--no-output"];
 		runHaxe(args);
-		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Issue11904.hx")});
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Issue11904.hx")}, res -> {
+		assertSuccess();
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
 			Assert.equals(1, res.length);
 			Assert.equals(2, res[0].diagnostics.length);
 
@@ -26,5 +27,13 @@ class Issue11904 extends TestCase {
 			var diag = res[0].diagnostics;
 			for (d in diag) check(d);
 		});
+	}
+
+	function testUntypedCast(_) {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue11904/Main1.hx"));
+		vfs.putContent("MyStringTools.hx", getTemplate("issues/Issue11904/MyStringTools.hx"));
+		var args = ["-main", "Main", "--js", "no.js", "--no-output"];
+		runHaxe(args);
+		assertErrorMessage("Null safety: Cannot unify String with { charCodeAt : Int -> Int }");
 	}
 }

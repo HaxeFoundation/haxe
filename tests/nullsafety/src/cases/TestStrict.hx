@@ -635,11 +635,6 @@ class TestStrict {
 		shouldFail(cast(s, String));
 	}
 
-	static function untypedCast_shouldPass() {
-		var n:Null<String> = null;
-		var s:String = cast n;
-	}
-
 	static function enum_switchOnNullableEnum_shouldFail(e:Null<DummyEnum>) {
 		switch shouldFail(e) {
 			case DummyOne:

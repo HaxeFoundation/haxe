@@ -1,7 +1,7 @@
 using StringTools;
 
 @:nullSafety
-class Issue11904 {
+class Main {
 	static function main() {}
 	static function extractReturnType(hint:String):Void {
 		for (i => code in hint) {}
