@@ -484,16 +484,11 @@ let rec to_type ?tref ctx t =
 				(fun tref -> to_type ~tref ctx (Abstract.get_underlying_type a pl))
 
 and resolve_class ctx c pl statics =
-	let not_supported() =
-		failwith ("Extern type not supported : " ^ s_type (print_context()) (TInst (c,pl)))
-	in
 	match c.cl_path, pl with
 	| ([],"Array"), [t] ->
 		if statics then ctx.array_impl.abase else array_class ctx (to_type ctx t)
 	| ([],"Array"), [] ->
 		die "" __LOC__
-	| _, _ when (has_class_flag c CExtern) ->
-		not_supported()
 	| _ ->
 		c
 
@@ -641,7 +636,7 @@ and class_type ?(tref=None) ctx c pl statics =
 			) :: ctx.ct_delayed;
 			fid
 		in
-		List.iter (fun f ->
+		if not (has_class_flag c CExtern) then List.iter (fun f ->
 			if is_extern_field f || (statics && f.cf_name = "__meta__") then () else
 			let fid = (match f.cf_kind with
 			| Method m when m <> MethDynamic && not statics ->
@@ -1689,14 +1684,9 @@ and eval_expr ctx e =
 		| TThis | TSuper ->
 			0 (* first reg *)
 		| TNull ->
-			let t = (match e.etype with
-			| TInst (c,pl) when has_class_flag c CExtern -> HDyn
-			| _ -> to_type ctx e.etype
-			) in
-			let r = alloc_tmp ctx t in
+			let r = alloc_tmp ctx (to_type ctx e.etype) in
 			op ctx (ONull r);
-			r
-		)
+			r)
 	| TVar (v,e) ->
 		(match e with
 		| None ->
