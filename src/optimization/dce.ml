@@ -849,7 +849,7 @@ let mark dce =
 			loop pool
 		end
 	in
-	Parallel.run_in_new_pool loop
+	Parallel.run_in_new_pool dce.com.timer_ctx loop
 
 let sweep dce com =
 	let rec loop acc types =
