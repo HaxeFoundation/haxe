@@ -21,26 +21,6 @@ type context = {
 	is_of_type : (tclass * tclass_field * Type.t);
 }
 
-let make_call scom eon el tret p =
-	let default () =
-		mk (TCall(eon,el)) tret p
-	in
-	match eon.eexpr with
-	| TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf))) when SafeCom.needs_inline scom (Some cl) cf ->
-		begin match cf.cf_expr with
-		| Some {eexpr = TFunction tf} ->
-			let config = Inline.inline_config (Some cl) cf el tret in
-			Inline.type_inline (Inline.context_of_scom scom) cf tf ef el tret config p false
-		| _ ->
-			default ()
-		end
-	| _ ->
-		default ()
-
-let make_static_call scom c cf el tret p =
-	let ef = Texpr.Builder.make_static_field c cf p in
-	make_call scom ef el tret p
-
 (**
 	Generate `haxe.Exception.method_name(args)`
 *)

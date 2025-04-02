@@ -200,11 +200,11 @@ let find_array_write_access ctx a tl e1 e2 p =
 		let s_type = s_type (print_context()) in
 		raise_typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
-let find_multitype_specialization' com a pl p =
+let find_multitype_specialization' platform a pl p =
 	let uctx = default_unification_context () in
 	let m = mk_mono() in
 	let tl,definitive_types = Abstract.find_multitype_params a pl in
-	if com.platform = Globals.Js && a.a_path = (["haxe";"ds"],"Map") then begin match tl with
+	if platform = Globals.Js && a.a_path = (["haxe";"ds"],"Map") then begin match tl with
 		| t1 :: _ ->
 			let stack = ref [] in
 			let rec loop t =
@@ -248,7 +248,7 @@ let find_multitype_specialization com a pl p =
 	let cf,m,_ = find_multitype_specialization' com a pl p in
 	(cf,m)
 
-let handle_abstract_casts ctx e =
+let handle_abstract_casts (scom : SafeCom.t) e =
 	let rec loop e = match e.eexpr with
 		| TNew({cl_kind = KAbstractImpl a} as c,pl,el) ->
 			if not (Meta.has Meta.MultiType a.a_meta) then begin
@@ -259,24 +259,22 @@ let handle_abstract_casts ctx e =
 				| _ -> raise_typing_error ("Cannot construct " ^ (s_type (print_context()) (TAbstract(a,pl)))) e.epos
 			end else begin
 				(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
-				let cf,m,pl = find_multitype_specialization' ctx.com a pl e.epos in
-				let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
+				let cf,m,pl = find_multitype_specialization' scom.platform a pl e.epos in
+				let e = ExceptionFunctions.make_static_call scom c cf ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el)  m e.epos in
 				{e with etype = m}
 			end
 		| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))},[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
 			begin match follow e1.etype with
-				| TAbstract({a_impl = Some c} as a,tl) ->
+				| TAbstract({a_impl = Some c},tl) ->
 					begin try
 						let cf = PMap.find "toString" c.cl_statics in
-						let call() = make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos in
-						if not ctx.allow_transform then
-							{ e1 with etype = ctx.t.tstring; epos = e.epos }
-						else if not (is_nullable e1.etype) then
+						let call() = ExceptionFunctions.make_static_call scom c cf [e1] scom.basic.tstring e.epos in
+						if not (is_nullable e1.etype) then
 							call()
 						else begin
 							let p = e.epos in
-							let chk_null = mk (TBinop (Ast.OpEq, e1, mk (TConst TNull) e1.etype p)) ctx.com.basic.tbool p in
-							mk (TIf (chk_null, mk (TConst (TString "null")) ctx.com.basic.tstring p, Some (call()))) ctx.com.basic.tstring p
+							let chk_null = mk (TBinop (Ast.OpEq, e1, mk (TConst TNull) e1.etype p)) scom.basic.tbool p in
+							mk (TIf (chk_null, mk (TConst (TString "null")) scom.basic.tstring p, Some (call()))) scom.basic.tstring p
 						end
 					with Not_found ->
 						e
@@ -344,14 +342,14 @@ let handle_abstract_casts ctx e =
 								else
 									el
 							in
-							let ecall = make_call ctx ef el tr e.epos in
+							let ecall = ExceptionFunctions.make_call scom ef el tr e.epos in
 							maybe_cast ecall e.etype e.epos
 						with Not_found ->
 							(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
 							match follow m with
-							| TAbstract({a_impl = Some c} as a,pl) ->
+							| TAbstract({a_impl = Some c},pl) ->
 								let cf = PMap.find fname c.cl_statics in
-								make_static_call ctx c cf a pl (e2 :: el) e.etype e.epos
+								ExceptionFunctions.make_static_call scom c cf  (e2 :: el) e.etype e.epos
 							| _ -> raise Not_found
 						end
 					| _ ->

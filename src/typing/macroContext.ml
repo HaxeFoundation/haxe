@@ -649,15 +649,9 @@ and flush_macro_context mint mctx =
 		let cv_wrapper_impl = CapturedVars.get_wrapper_implementation mctx.com in
 		let expr_filters = [
 			"handle_abstract_casts",AbstractCast.handle_abstract_casts;
-			"local_statics",(fun tctx ->
-				let scom = SafeCom.of_typer tctx in
-				LocalStatic.run scom
-			);
+			"local_statics",LocalStatic.run;
 			"Exceptions",(fun _ -> Exceptions.filter ectx);
-			"captured_vars",(fun tctx ->
-				let scom = SafeCom.of_typer tctx in
-				CapturedVars.captured_vars scom cv_wrapper_impl
-			);
+			"captured_vars",(fun scom -> CapturedVars.captured_vars scom cv_wrapper_impl);
 		] in
 		let type_filters = [
 			FiltersCommon.remove_generic_base;
@@ -668,7 +662,7 @@ and flush_macro_context mint mctx =
 			maybe_apply_native_paths
 		] in
 		let ready = fun t ->
-			FiltersCommon.apply_filters_once mctx expr_filters t;
+			FiltersCommon.apply_filters_once mctx scom expr_filters t;
 			List.iter (fun f -> f t) type_filters
 		in
 		(try Interp.add_types mint types ready

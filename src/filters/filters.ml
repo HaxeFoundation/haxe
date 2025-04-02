@@ -429,18 +429,17 @@ let run tctx ectx main before_destruction =
 	*)
 	NullSafety.run com new_types;
 	(* PASS 1: general expression filters *)
-	let filters = [
-		"handle_abstract_casts",AbstractCast.handle_abstract_casts;
-	] in
-	List.iter (run_expression_filters tctx detail_times filters) new_types;
 
-	let cv_wrapper_impl = CapturedVars.get_wrapper_implementation com in
-	let filters_before_analyzer = [
+	let filters_before_inlining = [
+		"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 		"local_statics",LocalStatic.run;
 		"fix_return_dynamic_from_void_function",SafeFilters.fix_return_dynamic_from_void_function;
 		"check_local_vars_init",CheckVarInit.check_local_vars_init;
 		"check_abstract_as_value",SafeFilters.check_abstract_as_value;
 		"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
+	] in
+	let cv_wrapper_impl = CapturedVars.get_wrapper_implementation com in
+	let filters_before_analyzer = [
 		"reduce_expression",Optimizer.reduce_expression;
 		"inline_constructors",InlineConstructors.inline_constructors;
 		"Exceptions_filter",(fun _ -> Exceptions.filter ectx);
@@ -460,7 +459,8 @@ let run tctx ectx main before_destruction =
 
 	Parallel.run_in_new_pool com.timer_ctx (fun pool ->
 		SafeCom.run_with_scom com scom pool (fun () ->
-			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_before_analyzer) new_types_array
+			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_before_inlining) new_types_array;
+			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_before_analyzer) new_types_array;
 		);
 
 		enter_stage com CAnalyzerStart;

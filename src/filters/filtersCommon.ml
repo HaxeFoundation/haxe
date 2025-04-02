@@ -82,6 +82,6 @@ let is_cached com t =
 	let m = (t_infos t).mt_module.m_extra in
 	m.m_processed <> 0 && m.m_processed < com.compilation_step
 
-let apply_filters_once ctx filters t =
+let apply_filters_once ctx scom filters t =
 	let detail_times = (try int_of_string (Common.defined_value_safe ctx.com ~default:"0" Define.FilterTimes) with _ -> 0) in
-	if not (is_cached ctx.com t) then run_expression_filters ctx detail_times filters t
+	if not (is_cached ctx.com t) then SafeCom.run_expression_filters_safe scom detail_times filters t

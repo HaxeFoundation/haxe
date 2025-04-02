@@ -286,7 +286,7 @@ and mark_t dce p t =
 				List.iter (loop stack) pl
 			| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
 				begin try
-					loop stack (snd (AbstractCast.find_multitype_specialization dce.com a pl p))
+					loop stack (snd (AbstractCast.find_multitype_specialization dce.com.platform a pl p))
 				with Error.Error _ ->
 					()
 				end
@@ -431,7 +431,7 @@ and mark_directly_used_t dce p t =
 		List.iter (mark_directly_used_t dce p) pl
 	| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
 		begin try (* this is copy-pasted from mark_t *)
-			mark_directly_used_t dce p (snd (AbstractCast.find_multitype_specialization dce.com a pl p))
+			mark_directly_used_t dce p (snd (AbstractCast.find_multitype_specialization dce.com.platform a pl p))
 		with Error.Error _ ->
 			()
 		end
