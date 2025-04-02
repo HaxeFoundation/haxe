@@ -114,7 +114,7 @@ module Communication = struct
 			);
 			exit = (fun timer_ctx code ->
 				if code = 0 then begin
-					if timer_ctx.measure_times then Timer.report_times timer_ctx (fun s -> self.write_err (s ^ "\n"));
+					if timer_ctx.measure_times = Yes then Timer.report_times timer_ctx (fun s -> self.write_err (s ^ "\n"));
 				end;
 				exit code;
 			);
@@ -139,11 +139,10 @@ module Communication = struct
 
 					sctx.was_compilation <- ctx.com.display.dms_full_typing;
 					if has_error ctx then begin
-						ctx.timer_ctx.measure_times <- false;
+						ctx.timer_ctx.measure_times <- No;
 						write "\x02\n"
-					end else begin
-						if ctx.timer_ctx.measure_times then Timer.report_times ctx.timer_ctx (fun s -> self.write_err (s ^ "\n"));
-					end
+					end else
+						if ctx.timer_ctx.measure_times = Yes then Timer.report_times ctx.timer_ctx (fun s -> self.write_err (s ^ "\n"));
 				)
 			);
 			exit = (fun timer_ctx i ->

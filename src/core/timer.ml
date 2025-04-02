@@ -5,9 +5,15 @@ type timer = {
 	mutable calls : int;
 }
 
+type measure_times =
+	| Yes
+	| No
+	| Maybe
+
 type timer_context = {
+	root_timer : timer;
 	mutable current : timer;
-	mutable measure_times : bool;
+	mutable measure_times : measure_times;
 	start_time : float;
 	timer_lut : (string list,timer) Hashtbl.t;
 }
@@ -19,12 +25,22 @@ let make id = {
 	calls = 0;
 }
 
-let make_context root_timer = {
-	current = root_timer;
-	timer_lut = Hashtbl.create 0;
-	measure_times = false;
-	start_time = Extc.time();
-}
+let make_context root_timer =
+	let ctx = {
+		root_timer = root_timer;
+		current = root_timer;
+		timer_lut = Hashtbl.create 0;
+		measure_times = Maybe;
+		start_time = Extc.time();
+	} in
+	Hashtbl.add ctx.timer_lut root_timer.id root_timer;
+	ctx
+
+let update_timer timer start =
+	let now = Extc.time () in
+	let dt = now -. start in
+	timer.total <- timer.total +. dt -. timer.pauses;
+	dt
 
 let start_timer ctx id =
 	let start = Extc.time () in
@@ -39,16 +55,14 @@ let start_timer ctx id =
 	timer.calls <- timer.calls + 1;
 	ctx.current <- timer;
 	(fun () ->
-		let now = Extc.time () in
-		let dt = now -. start in
-		timer.total <- timer.total +. dt -. timer.pauses;
+		let dt = update_timer timer start in
 		timer.pauses <- 0.;
 		old.pauses <- old.pauses +. dt;
 		ctx.current <- old
 	)
 
-let start_timer ctx id = match id with
-	| _ :: _ when ctx.measure_times && Domain.is_main_domain () ->
+let start_timer ctx id = match id,ctx.measure_times with
+	| (_ :: _),(Yes | Maybe) when Domain.is_main_domain () ->
 		start_timer ctx id
 	| _ ->
 		(fun () -> ())
@@ -85,6 +99,7 @@ type timer_node = {
 }
 
 let build_times_tree ctx =
+	ignore(update_timer ctx.root_timer ctx.start_time);
 	let nodes = Hashtbl.create 0 in
 	let rec root = {
 		name = "";

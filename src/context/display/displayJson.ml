@@ -506,7 +506,7 @@ let parse_input com input =
 			"result",json;
 			"timestamp",jfloat (Unix.gettimeofday ());
 		] in
-		let fl = if com.timer_ctx.measure_times then begin
+		let fl = if com.timer_ctx.measure_times = Yes then begin
 			let _,_,root = Timer.build_times_tree com.timer_ctx in
 			begin match json_of_times root with
 			| None -> fl

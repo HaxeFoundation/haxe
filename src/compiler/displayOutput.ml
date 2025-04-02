@@ -272,7 +272,7 @@ let handle_display_exception_old ctx dex = match dex with
 		raise (Completion (String.concat "." pack))
 	| DisplayFields r ->
 		DisplayPosition.display_position#reset;
-		let fields = if ctx.com.timer_ctx.measure_times then begin
+		let fields = if ctx.com.timer_ctx.measure_times = Yes then begin
 			(List.map (fun (name,value) ->
 				CompletionItem.make_ci_timer ("@TIME " ^ name) value
 			) (get_timer_fields ctx.com.timer_ctx)) @ r.fitems

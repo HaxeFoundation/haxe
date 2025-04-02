@@ -78,12 +78,11 @@ class Lua {
 			if (lv == "-l5.1")
 				installLib("bit32", "5.2.2-1");
 
+			installLib("luv", "1.50.0-1");
 			if (lv == "-l5.4") {
 				installLib("bit32", "5.3.5.1-1");
-				installLib("luv", "1.44.2-1");
 				installLib("luautf8", "0.1.5-2");
 			} else {
-				installLib("luv", "1.36.0-0");
 				installLib("luautf8", "0.1.1-1");
 			}
 

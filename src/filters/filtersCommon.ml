@@ -21,24 +21,8 @@ open Type
 open Common
 open Typecore
 
-let rec is_removable_class c =
-	match c.cl_kind with
-	| KGeneric ->
-		(Meta.has Meta.Remove c.cl_meta ||
-		(match c.cl_super with
-			| Some (c,_) -> is_removable_class c
-			| _ -> false) ||
-		List.exists (fun tp ->
-			has_ctor_constraint tp.ttp_class || Meta.has Meta.Const tp.ttp_class.cl_meta
-		) c.cl_params)
-	| KTypeParameter _ ->
-		(* this shouldn't happen, have to investigate (see #4092) *)
-		true
-	| _ ->
-		false
-
 let remove_generic_base t = match t with
-	| TClassDecl c when is_removable_class c ->
+	| TClassDecl c when FilterContext.is_removable_class c ->
 		add_class_flag c CExtern;
 	| _ ->
 		()
@@ -65,7 +49,7 @@ let run_expression_filters ?(ignore_processed_status=false) ctx detail_times fil
 		) e filters
 	in
 	match t with
-	| TClassDecl c when is_removable_class c -> ()
+	| TClassDecl c when FilterContext.is_removable_class c -> ()
 	| TClassDecl c ->
 		let ctx = TyperManager.clone_for_module ctx (TypeloadModule.make_curmod ctx.com ctx.g c.cl_module) in
 		let ctx = TyperManager.clone_for_class ctx c in
@@ -73,7 +57,7 @@ let run_expression_filters ?(ignore_processed_status=false) ctx detail_times fil
 			if ignore_processed_status || not (has_class_field_flag cf CfPostProcessed) then begin
 				let ctx = TyperManager.clone_for_field ctx cf cf.cf_params in
 				(match cf.cf_expr with
-				| Some e when not (is_removable_field com cf) ->
+				| Some e when not (FilterContext.is_removable_field com.is_macro_context cf) ->
 					let identifier = Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name in
 					cf.cf_expr <- Some (run ctx (Some identifier) e);
 				| _ -> ());

@@ -86,6 +86,7 @@ type constval =
 
 type context = {
 	com : Gctx.t;
+	num_domains : int;
 	cglobals : (string, ttype) lookup;
 	cstrings : (string, string) lookup;
 	cbytes : (bytes, bytes) lookup;
@@ -100,7 +101,6 @@ type context = {
 	w_null_compare : bool;
 	overrides : (string * path, bool) Hashtbl.t;
 	defined_funs : (int,unit) Hashtbl.t;
-	mutable dump_out : (unit IO.output) option;
 	mutable cached_types : (string list, ttype) PMap.t;
 	mutable m : method_context;
 	mutable anons_cache : (tanon, ttype) PMap.t;
@@ -484,16 +484,11 @@ let rec to_type ?tref ctx t =
 				(fun tref -> to_type ~tref ctx (Abstract.get_underlying_type a pl))
 
 and resolve_class ctx c pl statics =
-	let not_supported() =
-		failwith ("Extern type not supported : " ^ s_type (print_context()) (TInst (c,pl)))
-	in
 	match c.cl_path, pl with
 	| ([],"Array"), [t] ->
 		if statics then ctx.array_impl.abase else array_class ctx (to_type ctx t)
 	| ([],"Array"), [] ->
 		die "" __LOC__
-	| _, _ when (has_class_flag c CExtern) ->
-		not_supported()
 	| _ ->
 		c
 
@@ -641,7 +636,7 @@ and class_type ?(tref=None) ctx c pl statics =
 			) :: ctx.ct_delayed;
 			fid
 		in
-		List.iter (fun f ->
+		if not (has_class_flag c CExtern) then List.iter (fun f ->
 			if is_extern_field f || (statics && f.cf_name = "__meta__") then () else
 			let fid = (match f.cf_kind with
 			| Method m when m <> MethDynamic && not statics ->
@@ -2368,7 +2363,7 @@ and eval_expr ctx e =
 		| _ -> unsafe_cast_to ctx r to_t e.epos)
 	| TObjectDecl fl ->
 		(match to_type ctx e.etype with
-		| HVirtual vp as t when Array.length vp.vfields = List.length fl && not (List.exists (fun ((s,_,_),e) -> s = "toString" && is_to_string e.etype) fl)  ->
+		| HVirtual vp as t when Array.length vp.vfields = List.length fl && not (List.exists (fun ((s,_,_),e) -> (try ignore(PMap.find s vp.vindex); false with Not_found -> true) || (s = "toString" && is_to_string e.etype)) fl) ->
 			let r = alloc_tmp ctx t in
 			op ctx (ONew r);
 			hold ctx r;
@@ -3262,6 +3257,7 @@ and gen_method_wrapper ctx rt t p =
 			code = DynArray.to_array ctx.m.mops;
 			debug = make_debug ctx ctx.m.mdebug;
 			assigns = Array.of_list (List.rev ctx.m.massign);
+			need_opt = false;
 		} in
 		ctx.m <- old;
 		DynArray.add ctx.cfunctions f;
@@ -3428,18 +3424,11 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		code = DynArray.to_array ctx.m.mops;
 		debug = make_debug ctx ctx.m.mdebug;
 		assigns = Array.of_list (List.sort (fun (_,p1) (_,p2) -> p1 - p2) (List.rev ctx.m.massign));
+		need_opt = (gen_content = None || name <> ("",""));
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
-	let f = if ctx.optimize && (gen_content = None || name <> ("","")) then begin
-		let t = Timer.start_timer ctx.com.timer_ctx ["generate";"hl";"opt"] in
-		let f = Hlopt.optimize ctx.dump_out (DynArray.get ctx.cstrings.arr) hlf f in
-		t();
-		f
-	end else
-		hlf
-	in
-	DynArray.add ctx.cfunctions f;
+	DynArray.add ctx.cfunctions hlf;
 	capt
 
 let generate_static ctx c f =
@@ -4105,7 +4094,7 @@ let write_code ch code debug =
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
 
-let create_context com dump =
+let create_context com =
 	let get_type name =
 		try
 			List.find (fun t -> (t_infos t).mt_path = (["hl"],name)) com.types
@@ -4129,7 +4118,7 @@ let create_context com dump =
 		hl_ver = Gctx.defined_value_safe ~default:"" com Define.HlVer;
 		optimize = not (Gctx.raw_defined com "hl_no_opt");
 		w_null_compare = Gctx.raw_defined com "hl_w_null_compare";
-		dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None;
+		num_domains = Domain.recommended_domain_count ();
 		m = method_context 0 HVoid null_capture false;
 		cints = new_lookup();
 		cstrings = new_lookup();
@@ -4259,12 +4248,28 @@ let generate com =
 		close_out ch;
 	end else
 
-	let ctx = create_context com dump in
+	let ctx = create_context com in
 	add_types ctx com.types;
+
 	let code = build_code ctx com.types com.main.main_expr in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
+
+	if ctx.optimize then begin
+		let t = Timer.start_timer com.timer_ctx ["generate";"hl";"opt"] in
+		let dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None in
+		Parallel.run_parallel_for ctx.num_domains ~chunk_size:16 (DynArray.length ctx.cfunctions) (fun idx ->
+			let f = DynArray.get ctx.cfunctions idx in
+			if f.need_opt then begin
+				let f, dumpstr = Hlopt.optimize dump (Array.get code.strings) f "todosign" in
+				(match dump_out with None -> () | Some ch -> IO.nwrite_string ch dumpstr);
+				code.functions.(idx) <- f;
+			end;
+		);
+		(match dump_out with None -> () | Some ch -> IO.close_out ch);
+		t();
+	end;
+
 	if dump then begin
-		(match ctx.dump_out with None -> () | Some ch -> IO.close_out ch);
 		let ch = open_out_bin "dump/hlcode.txt" in
 		Hlcode.dump (fun s -> output_string ch (s ^ "\n")) code;
 		close_out ch;
@@ -4301,7 +4306,7 @@ let generate com =
 			let version_revision = com.version.revision in
 			Gctx.define_value com Define.SourceHeader (Printf.sprintf "Generated by HLC %d.%d.%d (HL v%d)" version_major version_minor version_revision code.version);
 		end;
-		Hl2c.write_c com com.file code gnames;
+		Hl2c.write_c com com.file code gnames ctx.num_domains;
 		let t = Timer.start_timer com.timer_ctx ["nativecompile";"hl"] in
 		if not (Gctx.defined com Define.NoCompilation) && com.run_command_args "haxelib" ["run";"hashlink";"build";escape_command com.file] <> 0 then failwith "Build failed";
 		t();

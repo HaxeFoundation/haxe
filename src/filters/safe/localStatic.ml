@@ -1,16 +1,17 @@
+open Globals
 open Type
 open Typecore
 open Error
 
 type lscontext = {
-	ctx : typer;
-	lut : (int,tclass_field) Hashtbl.t;
+	scom : SafeCom.t;
+	lut : tclass_field IntHashtbl.t;
 	mutable added_fields : tclass_field list;
 }
 
 let promote_local_static lsctx run v eo =
-	let name = Printf.sprintf "%s_%s" lsctx.ctx.f.curfield.cf_name v.v_name in
-	let c = lsctx.ctx.c.curclass in
+	let name = Printf.sprintf "%s_%s" lsctx.scom.curfield.cf_name v.v_name in
+	let c = lsctx.scom.curclass in
 	begin try
 		let cf = PMap.find name c.cl_statics in
 		raise_typing_error_ext (make_error (Custom (Printf.sprintf "The expanded name of this local (%s) conflicts with another static field" name)) ~sub:[
@@ -75,19 +76,19 @@ let promote_local_static lsctx run v eo =
 		lsctx.added_fields <- cf :: lsctx.added_fields;
 		(* Add to lookup early so that the duplication check works. *)
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
-		Hashtbl.add lsctx.lut v.v_id cf
+		IntHashtbl.add lsctx.lut v.v_id cf
 	end
 
 let find_local_static lut v =
-	Hashtbl.find lut v.v_id
+	IntHashtbl.find lut v.v_id
 
-let run ctx e =
+let run scom e =
 	let lsctx = {
-		ctx = ctx;
-		lut = Hashtbl.create 0;
+		scom = scom;
+		lut = IntHashtbl.create 0;
 		added_fields = [];
 	} in
-	let c = ctx.c.curclass in
+	let c = scom.curclass in
 	let rec run e = match e.eexpr with
 		| TBlock el ->
 			let el = ExtList.List.filter_map (fun e -> match e.eexpr with

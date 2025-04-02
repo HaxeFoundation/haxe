@@ -15,8 +15,8 @@ let make_call ctx e params t ?(force_inline=false) p =
 		| TFun (expected_args,_) ->
 			(match List.rev expected_args with
 			| (_,true,t) :: rest when is_pos_infos t && List.length rest = List.length params ->
-				let infos = mk_infos ctx p [] in
-				params @ [type_expr ctx infos (WithType.with_type t)]
+				let infos = mk_infos_t ctx p [] t in
+				params @ [infos]
 			| _ -> params
 			)
 		| _ -> params
@@ -369,8 +369,8 @@ let type_bind ctx (e : texpr) (args,ret) params safe p =
 		| [], [] -> given_args,missing_args,ordered_args
 		| [], _ -> raise_typing_error "Too many callback arguments" p
 		| [n,o,t] , [] when o && is_pos_infos t ->
-			let infos = mk_infos ctx p [] in
-			let ordered_args = ordered_args @ [type_expr ctx infos (WithType.with_argument t n)] in
+			let infos = mk_infos_t ctx p [] t in
+			let ordered_args = ordered_args @ [infos] in
 			given_args,missing_args,ordered_args
 		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when not ctx.com.config.pf_can_skip_non_nullable_argument && o && not (is_nullable t) ->
 			raise_typing_error "Usage of _ is not supported for optional non-nullable arguments" p

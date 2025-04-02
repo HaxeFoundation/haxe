@@ -117,6 +117,11 @@ class Hl {
 		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
 		buildAndRunHlc("bin/hlc", "unit", runCommand);
 
+		runCommand("haxe", ["compile-hl.hxml", "--undefine", "analyzer-optimize"].concat(args));
+		runCommand(hlBinary, ['bin/unit.hl']);
+		runCommand("haxe", ["compile-hlc.hxml", "--undefine", "analyzer-optimize"].concat(args));
+		buildAndRunHlc("bin/hlc", "unit", runCommand);
+
 		changeDirectory(threadsDir);
 		buildAndRun("build.hxml", "export/threads");
 

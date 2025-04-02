@@ -2,6 +2,7 @@ open Globals
 open Ast
 open Type
 open Common
+open PlatformConfig
 open Typecore
 open Error
 open ExceptionFunctions

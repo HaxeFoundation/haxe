@@ -37,6 +37,7 @@ type arg_context = {
 	mutable raise_usage : unit -> unit;
 	mutable display_arg : string option;
 	mutable deprecations : string list;
+	mutable measure_times : bool;
 }
 
 type communication = {

@@ -14,6 +14,6 @@ module ParallelSeq = struct
 		ParallelArray.iter pool f (Array.of_seq seq)
 end
 
-let run_in_new_pool f =
-	let pool = Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1) () in
-	Std.finally (fun () -> Domainslib.Task.teardown_pool pool) f pool
+let run_in_new_pool timer_ctx f =
+	let pool = Timer.time timer_ctx ["domainslib";"setup"] (Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1)) () in
+	Std.finally (fun () -> Timer.time timer_ctx ["domainslib";"teardown"] Domainslib.Task.teardown_pool pool) f pool
