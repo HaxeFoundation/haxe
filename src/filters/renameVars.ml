@@ -356,7 +356,7 @@ let maybe_rename_var rc reserved (v,overlaps) =
 		v.v_name <- name
 	in
 	(* chop escape char for all local variables generated *)
-	if String.unsafe_get v.v_name 0 = String.unsafe_get Typecore.gen_local_prefix 0 then begin
+	if String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0 then begin
 		let name = String.sub v.v_name 1 (String.length v.v_name - 1) in
 		commit ("_g" ^ (Str.replace_first trailing_numbers "" name))
 	end;

@@ -604,7 +604,7 @@ and flush_macro_context mint mctx =
 		let _, types, modules = Finalization.generate mctx main_module in
 		mctx.com.types <- types;
 		mctx.com.Common.modules <- modules;
-		let ectx = Exceptions.create_exception_context mctx in
+		let ectx = ExceptionInit.create_exception_context mctx in
 		(*
 			some filters here might cause side effects that would break compilation server.
 			let's save the minimal amount of information we need
@@ -661,7 +661,7 @@ and flush_macro_context mint mctx =
 		] in
 		let type_filters = [
 			FiltersCommon.remove_generic_base;
-			Exceptions.patch_constructors mctx ectx;
+			SaveStacks.patch_constructors mctx ectx;
 			(fun mt -> AddFieldInits.add_field_inits mctx.c.curclass.cl_path (RenameVars.init mctx.com.config mctx.com.types) scom mt);
 			Filters.update_cache_dependencies ~close_monomorphs:false mctx.com;
 			minimal_restore;

@@ -171,6 +171,8 @@ let s_version_full v =
 
 let patch_string_pos p s = { p with pmin = p.pmax - String.length s }
 
+let gen_local_prefix = "`"
+
 (* msg * backtrace *)
 exception Ice of string * string
 

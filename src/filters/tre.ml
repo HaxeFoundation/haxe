@@ -51,7 +51,7 @@ let rec redeclare_vars ctx vars declarations replace_list =
 	match vars with
 	| [] -> declarations, replace_list
 	| v :: rest ->
-		let new_v = alloc_var VGenerated (Typecore.gen_local_prefix ^ v.v_name) v.v_type v.v_pos in
+		let new_v = alloc_var VGenerated (gen_local_prefix ^ v.v_name) v.v_type v.v_pos in
 		let decl =
 			{
 				eexpr = TVar (new_v, Some { eexpr = TLocal v; etype = v.v_type; epos = v.v_pos; });

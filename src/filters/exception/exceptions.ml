@@ -1,14 +1,12 @@
 open Globals
 open Ast
 open Type
-open Common
 open PlatformConfig
-open Typecore
 open Error
 open ExceptionFunctions
 
 type context = {
-	typer : typer;
+	scom : SafeCom.t;
 	basic : basic_types;
 	config : exceptions_config;
 	wildcard_catch_type : Type.t;
@@ -23,10 +21,13 @@ type context = {
 	is_of_type : (tclass * tclass_field * Type.t);
 }
 
-let is_dynamic t =
-	match Abstract.follow_with_abstracts t with
-	| TAbstract({ a_path = [],"Dynamic" }, _) -> true
-	| t -> t == t_dynamic
+(* TODO: do we need inlining? *)
+let make_call scom eon el tret p =
+	mk (TCall(eon,el)) tret p
+
+let make_static_call scom c cf el tret p =
+	let ef = Texpr.Builder.make_static_field c cf p in
+	make_call scom ef el tret p
 
 (**
 	Generate `haxe.Exception.method_name(args)`
@@ -41,8 +42,8 @@ let haxe_exception_static_call ctx method_name args p =
 		| TFun(_,t) -> t
 		| _ -> raise_typing_error ("haxe.Exception." ^ method_name ^ " is not a function and cannot be called") p
 	in
-	add_dependency ctx.typer.c.curclass.cl_module ctx.haxe_exception_class.cl_module MDepFromTyping;
-	CallUnification.make_static_call_better ctx.typer ctx.haxe_exception_class method_field [] args return_type p
+	add_dependency ctx.scom.curclass.cl_module ctx.haxe_exception_class.cl_module MDepFromTyping;
+	make_static_call ctx.scom ctx.haxe_exception_class method_field args return_type p
 
 (**
 	Generate `haxe_exception.method_name(args)`
@@ -57,7 +58,7 @@ let haxe_exception_instance_call ctx haxe_exception method_name args p =
 			| _ ->
 				raise_typing_error ((s_type (print_context()) haxe_exception.etype) ^ "." ^ method_name ^ " is not a function and cannot be called") p
 		in
-		make_call ctx.typer efield args rt p
+		make_call ctx.scom efield args rt p
 	| _ -> raise_typing_error ((s_type (print_context()) haxe_exception.etype) ^ "." ^ method_name ^ " is expected to be an instance method") p
 
 (**
@@ -67,7 +68,7 @@ let std_is ctx e t p =
 	let t = follow t in
 	let type_expr = TyperBase.type_module_type_simple (module_type_of_type t) p in
 	let (std_cls,isOfType_field,return_type) = ctx.is_of_type in
-	CallUnification.make_static_call_better ctx.typer std_cls isOfType_field [] [e; type_expr] return_type p
+	make_static_call ctx.scom std_cls isOfType_field [e; type_expr] return_type p
 
 (**
 	Check if type path of `t` exists in `lst`
@@ -485,76 +486,6 @@ let catch_native ctx catches t p =
 	in
 	transform [] None catches
 
-let create_exception_context tctx =
-	match tctx.com.platform with (* TODO: implement for all targets *)
-	| Php | Js | Jvm | Python | Lua | Eval | Neko | Flash | Hl | Cpp ->
-		let config = tctx.com.config.pf_exceptions in
-		let tp (pack,name) =
-			let tp = match List.rev pack with
-			| module_name :: pack_rev when not (Ast.is_lower_ident module_name) ->
-				mk_type_path ~sub:name (List.rev pack_rev,module_name)
-			| _ ->
-				mk_type_path (pack,name)
-			in
-			make_ptp tp null_pos
-		in
-		let wildcard_catch_type =
-			let t = Typeload.load_instance tctx (tp config.ec_wildcard_catch) ParamSpawnMonos LoadNormal in
-			if is_dynamic t then t_dynamic
-			else t
-		and base_throw_type =
-			let t = Typeload.load_instance tctx (tp config.ec_base_throw) ParamSpawnMonos LoadNormal in
-			if is_dynamic t then t_dynamic
-			else t
-		and haxe_exception_type, haxe_exception_class =
-			match Typeload.load_instance tctx (tp haxe_exception_type_path) ParamSpawnMonos LoadNormal with
-			| TInst(cls,_) as t -> t,cls
-			| _ -> raise_typing_error "haxe.Exception is expected to be a class" null_pos
-		and value_exception_type, value_exception_class =
-			match Typeload.load_instance tctx (tp value_exception_type_path) ParamSpawnMonos LoadNormal with
-			| TInst(cls,_) as t -> t,cls
-			| _ -> raise_typing_error "haxe.ValueException is expected to be a class" null_pos
-		and haxe_native_stack_trace =
-			match Typeload.load_instance tctx (tp (["haxe"],"NativeStackTrace")) ParamSpawnMonos LoadNormal with
-			| TInst(cls,_) -> cls
-			| TAbstract({ a_impl = Some cls },_) -> cls
-			| _ -> raise_typing_error "haxe.NativeStackTrace is expected to be a class or an abstract" null_pos
-		in
-		let is_path_of_dynamic (pack,name) =
-			name = "Dynamic" && (pack = [] || pack = ["StdTypes"])
-		in
-		let is_of_type =
-			let std_cls = tctx.com.std in
-			let isOfType_field =
-				try PMap.find "isOfType" std_cls.cl_statics
-				with Not_found -> raise_typing_error ("Std has no field isOfType") null_pos
-			in
-			let return_type =
-				match follow isOfType_field.cf_type with
-				| TFun(_,t) -> t
-				| _ -> raise_typing_error ("Std.isOfType is not a function and cannot be called") null_pos
-			in
-			(std_cls,isOfType_field,return_type)
-		in
-		let ctx = {
-			typer = tctx;
-			basic = tctx.t;
-			config = config;
-			wildcard_catch_type = wildcard_catch_type;
-			base_throw_type = base_throw_type;
-			throws_anything = is_path_of_dynamic config.ec_base_throw && config.ec_avoid_wrapping;
-			catches_anything = is_path_of_dynamic config.ec_wildcard_catch && config.ec_avoid_wrapping;
-			haxe_exception_class = haxe_exception_class;
-			haxe_exception_type = haxe_exception_type;
-			haxe_native_stack_trace = haxe_native_stack_trace;
-			value_exception_type = value_exception_type;
-			value_exception_class = value_exception_class;
-			is_of_type = is_of_type;
-		} in
-		Some ctx
-	| Cross | CustomTarget _ ->
-		None
-
 (**
 	Transform `throw` and `try..catch` expressions.
 	`rename_locals` is required to deal with the names of temp vars.
@@ -582,139 +513,3 @@ let filter ectx =
 		)
 	| None ->
 		stub
-
-(**
-	Inserts `haxe.NativeStackTrace.saveStack(e)` in non-haxe.Exception catches.
-*)
-let insert_save_stacks ectx =
-	let tctx = ectx.typer in
-	if not (has_feature tctx.com "haxe.NativeStackTrace.exceptionStack") then
-		(fun e -> e)
-	else
-		let native_stack_trace_cls = ectx.haxe_native_stack_trace in
-		let rec contains_insertion_points e =
-			match e.eexpr with
-			| TTry (e, catches) ->
-				List.exists (fun (v, _) -> Meta.has Meta.NeedsExceptionStack v.v_meta) catches
-				|| contains_insertion_points e
-				|| List.exists (fun (_, e) -> contains_insertion_points e) catches
-			| _ ->
-				check_expr contains_insertion_points e
-		in
-		let save_exception_stack catch_var =
-			(* GOTCHA: `has_feature` always returns `true` if executed before DCE filters *)
-			if has_feature tctx.com "haxe.NativeStackTrace.exceptionStack" then
-				let method_field =
-					try PMap.find "saveStack" native_stack_trace_cls.cl_statics
-					with Not_found -> raise_typing_error ("haxe.NativeStackTrace has no field saveStack") null_pos
-				in
-				let return_type =
-					match follow method_field.cf_type with
-					| TFun(_,t) -> t
-					| _ -> raise_typing_error ("haxe.NativeStackTrace." ^ method_field.cf_name ^ " is not a function and cannot be called") null_pos
-				in
-				let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
-				begin
-					add_dependency tctx.c.curclass.cl_module native_stack_trace_cls.cl_module MDepFromTyping;
-					CallUnification.make_static_call_better tctx native_stack_trace_cls method_field [] [catch_local] return_type catch_var.v_pos
-				end
-			else
-				mk (TBlock[]) tctx.t.tvoid catch_var.v_pos
-		in
-		let rec run e =
-			match e.eexpr with
-			| TTry (e1, catches) ->
-				let e1 = map_expr run e1 in
-				let catches =
-					List.map (fun ((v, body) as catch) ->
-						if Meta.has Meta.NeedsExceptionStack v.v_meta then
-							let exprs =
-								match body.eexpr with
-								| TBlock exprs ->
-									save_exception_stack v :: exprs
-								| _ ->
-									[save_exception_stack v; body]
-							in
-							(v, { body with eexpr = TBlock exprs })
-						else
-							catch
-					) catches
-				in
-				{ e with eexpr = TTry (e1, catches) }
-			| _ ->
-				map_expr run e
-		in
-		(fun e ->
-			if contains_insertion_points e then run e
-			else e
-		)
-
-let insert_save_stacks tctx ectx =
-	match ectx with
-	| Some ctx ->
-		insert_save_stacks {ctx with typer = tctx}
-	| None ->
-		(fun e -> e)
-
-(**
-	Adds `this.__shiftStack()` calls to constructors of classes which extend `haxe.Exception`
-*)
-let patch_constructors ectx =
-	let tctx = ectx.typer in
-	match ectx.haxe_exception_type with
-	(* Add only if `__shiftStack` method exists *)
-	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields ->
-		(fun mt ->
-			match mt with
-			| TClassDecl cls when not (has_class_flag cls CExtern) && cls.cl_path <> haxe_exception_type_path && is_haxe_exception_class cls ->
-				let shift_stack p =
-					let t = type_of_module_type mt in
-					let this = { eexpr = TConst(TThis); etype = t; epos = p } in
-					let faccess =
-						try quick_field t "__shiftStack"
-						with Not_found -> raise_typing_error "haxe.Exception has no field __shiftStack" p
-					in
-					match faccess with
-					| FInstance (_,_,cf) ->
-						let efield = { eexpr = TField(this,faccess); etype = cf.cf_type; epos = p } in
-						let rt =
-							match follow cf.cf_type with
-							| TFun(_,t) -> t
-							| _ ->
-								raise_typing_error "haxe.Exception.__shiftStack is not a function and cannot be called" cf.cf_name_pos
-						in
-						make_call tctx efield [] rt p
-					| _ -> raise_typing_error "haxe.Exception.__shiftStack is expected to be an instance method" p
-				in
-				TypeloadFunction.add_constructor tctx cls true cls.cl_name_pos;
-				Option.may (fun cf -> ignore(follow cf.cf_type)) cls.cl_constructor;
-				(match cls.cl_constructor with
-				| Some ({ cf_expr = Some e_ctor } as ctor) ->
-					let rec add e =
-						match e.eexpr with
-						| TFunction _ -> e
-						| TReturn _ -> mk (TBlock [shift_stack e.epos; e]) e.etype e.epos
-						| _ -> map_expr add e
-					in
-					(ctor.cf_expr <- match e_ctor.eexpr with
-						| TFunction fn ->
-							Some { e_ctor with
-								eexpr = TFunction { fn with
-									tf_expr = mk (TBlock [add fn.tf_expr; shift_stack fn.tf_expr.epos]) tctx.t.tvoid fn.tf_expr.epos
-								}
-							}
-						| _ -> die "" __LOC__
-					)
-				| None -> die "" __LOC__
-				| _ -> ()
-				)
-			| _ -> ()
-		)
-	| _ -> (fun _ -> ())
-
-let patch_constructors tctx ectx =
-	match ectx with
-	| Some ctx ->
-		patch_constructors {ctx with typer = tctx}
-	| None ->
-		(fun _ -> ())

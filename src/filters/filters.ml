@@ -212,11 +212,11 @@ let destruction tctx scom ectx detail_times main locals =
 			tctx
 			detail_times
 			(* This has to run after DCE, or otherwise its condition always holds. *)
-			["insert_save_stacks",(fun tctx -> Exceptions.insert_save_stacks tctx ectx)]
+			["insert_save_stacks",(fun tctx -> SaveStacks.insert_save_stacks tctx ectx)]
 		)
 		com.types;
 	let type_filters = [
-		(fun tctx -> Exceptions.patch_constructors tctx ectx); (* TODO: I don't believe this should load_instance anything at this point... *)
+		(fun tctx -> SaveStacks.patch_constructors tctx ectx); (* TODO: I don't believe this should load_instance anything at this point... *)
 		(fun _ -> check_private_path com);
 		(fun _ -> Native.apply_native_paths);
 		(fun _ -> add_rtti com);
@@ -434,6 +434,7 @@ let run tctx ectx main before_destruction =
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;
 
+	let cv_wrapper_impl = CapturedVars.get_wrapper_implementation com in
 	let filters = [
 		"local_statics",LocalStatic.run;
 		"fix_return_dynamic_from_void_function",SafeFilters.fix_return_dynamic_from_void_function;
@@ -442,22 +443,14 @@ let run tctx ectx main before_destruction =
 		"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
 		"reduce_expression",Optimizer.reduce_expression;
 		"inline_constructors",InlineConstructors.inline_constructors;
+		"Exceptions_filter",(fun _ -> Exceptions.filter ectx);
+		"captured_vars",(fun scom -> CapturedVars.captured_vars scom cv_wrapper_impl);
 	] in
 	Parallel.run_in_new_pool com.timer_ctx (fun pool ->
 		SafeCom.run_with_scom com scom pool (fun () ->
 			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters) new_types_array
 		);
 	);
-
-	let filters = [
-		"Exceptions_filter",(fun _ -> Exceptions.filter ectx);
-	] in
-	List.iter (run_expression_filters tctx detail_times filters) new_types;
-
-	let cv_wrapper_impl = CapturedVars.get_wrapper_implementation com in
-	let filters = [
-		"captured_vars",(fun scom -> CapturedVars.captured_vars scom cv_wrapper_impl);
-	] in
 
 	let locals = Parallel.run_in_new_pool com.timer_ctx (fun pool ->
 		SafeCom.run_with_scom com scom pool (fun () ->

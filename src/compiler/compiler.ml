@@ -387,7 +387,7 @@ let compile ctx actx callbacks =
 		(* Actual compilation starts here *)
 		let (tctx,display_file_dot_path) = Timer.time ctx.timer_ctx ["typing"] (do_type ctx mctx actx) display_file_dot_path in
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
-		let ectx = Exceptions.create_exception_context tctx in
+		let ectx = ExceptionInit.create_exception_context tctx in
 		finalize_typing ctx tctx;
 		let is_compilation = is_compilation com in
 		com.callbacks#add_after_save (fun () ->

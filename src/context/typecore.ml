@@ -438,8 +438,6 @@ let add_local_with_origin ctx origin n t p =
 	Naming.check_local_variable_name ctx.com n origin p;
 	add_local ctx (VUser origin) n t p
 
-let gen_local_prefix = "`"
-
 let gen_local ctx t p =
 	add_local ctx VGenerated gen_local_prefix t p
 
