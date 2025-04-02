@@ -759,7 +759,50 @@ and enum_class ctx e =
 		} in
 		let t = HObj p in
 		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
-		p.psuper <- Some (match class_type ctx ctx.base_enum [] false with HObj o -> o | _ -> die "" __LOC__);
+		let psuper = (match class_type ctx ctx.base_enum [] false with HObj o -> o | _ -> die "" __LOC__) in
+		let start_field = psuper.pnfields in
+		let fa = DynArray.create() in
+		let add_field name t =
+			let fid = start_field + DynArray.length fa in
+			let str = alloc_string ctx name in
+			DynArray.add fa (name, str, t);
+			p.pindex <- PMap.add name (fid, t) p.pindex;
+			fid
+		in
+			PMap.iter (fun _ ef -> 
+			(match ef.ef_type with
+				| TEnum _ -> ignore(add_field ef.ef_name (to_type ctx ef.ef_type))
+				| TFun (args, ret) ->
+					let fid = add_field ef.ef_name (to_type ctx ef.ef_type) in
+					let eid = alloc_eid ctx e ef in
+					let fargs = List.map (fun (_, _, t) -> to_type ctx t) args in
+					let tret = to_type ctx ret in
+					let old = ctx.m in
+					let ft = to_type ctx ef.ef_type in
+					ctx.m <- method_context eid ft null_capture false;
+					let arg_regs = List.map (fun t -> alloc_fresh ctx t) fargs in
+					let ret_reg = alloc_fresh ctx tret in
+					op ctx (OMakeEnum (ret_reg, ef.ef_index, arg_regs));
+					op ctx (ORet ret_reg);
+					let hlf = {
+						fpath = "", "";
+						findex = eid;
+						ftype = HFun (fargs, tret);
+						regs = DynArray.to_array ctx.m.mregs.arr;
+						code = DynArray.to_array ctx.m.mops;
+						debug = make_debug ctx ctx.m.mdebug;
+						assigns = Array.of_list (List.rev ctx.m.massign);
+						need_opt = false;
+					} in
+					ctx.m <- old;
+					Hashtbl.add ctx.defined_funs eid ();
+					DynArray.add ctx.cfunctions hlf;
+					p.pbindings <- (fid, eid) :: p.pbindings
+				| t -> die "" __LOC__);
+		) e.e_constrs;
+		p.pnfields <- DynArray.length fa;
+		p.pfields <- DynArray.to_array fa;
+		p.psuper <- Some psuper;
 		t
 
 and alloc_fun_path ctx path name =
@@ -786,13 +829,13 @@ and class_global ?(resolve=true) ctx c =
 	let t = class_type ctx c [] static in
 	alloc_global ctx ("$" ^ s_type_path c.cl_path) t, t
 
-let resolve_class_global ctx cpath =
+and resolve_class_global ctx cpath =
 	lookup ctx.cglobals ("$" ^ cpath) (fun() -> die "" __LOC__)
 
-let resolve_type ctx path =
+and resolve_type ctx path =
 	PMap.find path ctx.cached_types
 
-let alloc_std ctx name args ret =
+and alloc_std ctx name args ret =
 	let lib = "std" in
 	(* different from :hlNative to prevent mismatch *)
 	let nid = lookup ctx.cnatives ("$" ^ name ^ "@" ^ lib, -1) (fun() ->
@@ -803,12 +846,12 @@ let alloc_std ctx name args ret =
 	let _,_,_,fid = DynArray.get ctx.cnatives.arr nid in
 	fid
 
-let alloc_fresh ctx t =
+and alloc_fresh ctx t =
 	let rid = DynArray.length ctx.m.mregs.arr in
 	DynArray.add ctx.m.mregs.arr t;
 	rid
 
-let alloc_tmp ctx t =
+and alloc_tmp ctx t =
 	if not ctx.optimize then alloc_fresh ctx t else
 	let a = try PMap.find t ctx.m.mallocs with Not_found ->
 		let a = {
@@ -826,13 +869,13 @@ let alloc_tmp ctx t =
 	| r :: _ ->
 		r
 
-let current_pos ctx =
+and current_pos ctx =
 	DynArray.length ctx.m.mops
 
-let rtype ctx r =
+and rtype ctx r =
 	DynArray.get ctx.m.mregs.arr r
 
-let hold ctx r =
+and hold ctx r =
 	if not ctx.optimize then () else
 	let t = rtype ctx r in
 	let a = PMap.find t ctx.m.mallocs in
@@ -845,7 +888,7 @@ let hold ctx r =
 	a.a_all <- loop a.a_all;
 	a.a_hold <- r :: a.a_hold
 
-let free ctx r =
+and free ctx r =
 	if not ctx.optimize then () else
 	let t = rtype ctx r in
 	let a = PMap.find t ctx.m.mallocs in
@@ -868,10 +911,10 @@ let free ctx r =
 	in
 	if !last then a.a_all <- loop a.a_all
 
-let decl_var ctx v =
+and decl_var ctx v =
 	ctx.m.mdeclared <- v.v_id :: ctx.m.mdeclared
 
-let alloc_var ctx v new_var =
+and alloc_var ctx v new_var =
 	if new_var then decl_var ctx v;
 	try
 		Hashtbl.find ctx.m.mvars v.v_id
@@ -882,11 +925,11 @@ let alloc_var ctx v new_var =
 		r
 
 
-let push_op ctx o =
+and push_op ctx o =
 	DynArray.add ctx.m.mdebug ctx.m.mcurpos;
 	DynArray.add ctx.m.mops o
 
-let op ctx o =
+and op ctx o =
 	match o with
 	| OMov (a,b) when a = b ->
 		()
@@ -3682,8 +3725,10 @@ let generate_static_init ctx types main =
 				let rt = alloc_tmp ctx HType in
 				op ctx (OType (rt, t));
 				let r = alloc_tmp ctx (class_type ctx ctx.base_enum [] false) in
+				let etr = alloc_tmp ctx et in
 				op ctx (OCall2 (r, alloc_fun_path ctx ([],"Type") "initEnum", ret, rt));
 				free ctx ret;
+				op ctx (OSafeCast (etr, r));
 
 				let index name =
 					match et with
@@ -3707,6 +3752,7 @@ let generate_static_init ctx types main =
 						op ctx (OGetArray (rd,avalues, reg_int ctx f.ef_index));
 						op ctx (OSafeCast (r, rd));
 						op ctx (OSetGlobal (g,r));
+						op ctx (OSetField (etr, index f.ef_name ,r));
 				) e.e_names;
 
 				(match Texpr.build_metadata ctx.com.basic (TEnumDecl e) with
