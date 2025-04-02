@@ -397,9 +397,9 @@ type hxb_writer = {
 	config : HxbWriterConfig.writer_target_config;
 	warn : Warning.warning -> string -> Globals.pos -> unit;
 	anon_id : Type.t Tanon_identification.tanon_identification;
+	identified_anons : (tanon,int) IdentityPool.t;
 	mutable current_module : module_def;
 	chunks : Chunk.t DynArray.t;
-	has_own_string_pool : bool;
 	cp : StringPool.t;
 	docs : StringPool.t;
 	mutable chunk : Chunk.t;
@@ -1006,26 +1006,33 @@ module HxbWriter = struct
 		end
 
 	and write_anon_ref writer (an : tanon) =
-		let pfm = writer.anon_id#identify_anon ~strict:true an in
 		try
-			let index = Pool.get writer.anons pfm.pfm_path in
+			let index = IdentityPool.get writer.identified_anons an in
 			Chunk.write_u8 writer.chunk 0;
 			Chunk.write_uleb128 writer.chunk index
 		with Not_found ->
-			let restore = start_temporary_chunk writer 256 in
-			writer.needs_local_context <- false;
-			write_anon writer an;
-			let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
-			if writer.needs_local_context then begin
-				let index = Pool.add writer.anons pfm.pfm_path None in
-				Chunk.write_u8 writer.chunk 1;
-				Chunk.write_uleb128 writer.chunk index;
-				Chunk.write_bytes writer.chunk bytes
-			end else begin
-				let index = Pool.add writer.anons pfm.pfm_path (Some bytes) in
+			let pfm = writer.anon_id#identify_anon ~strict:true an in
+			try
+				let index = Pool.get writer.anons pfm.pfm_path in
 				Chunk.write_u8 writer.chunk 0;
-				Chunk.write_uleb128 writer.chunk index;
-			end
+				Chunk.write_uleb128 writer.chunk index
+			with Not_found ->
+				let restore = start_temporary_chunk writer 256 in
+				writer.needs_local_context <- false;
+				write_anon writer an;
+				let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
+				if writer.needs_local_context then begin
+					let index = Pool.add writer.anons pfm.pfm_path None in
+					ignore(IdentityPool.add writer.identified_anons an index);
+					Chunk.write_u8 writer.chunk 1;
+					Chunk.write_uleb128 writer.chunk index;
+					Chunk.write_bytes writer.chunk bytes
+				end else begin
+					let index = Pool.add writer.anons pfm.pfm_path (Some bytes) in
+					ignore(IdentityPool.add writer.identified_anons an index);
+					Chunk.write_u8 writer.chunk 0;
+					Chunk.write_uleb128 writer.chunk index;
+				end
 
 	and write_anon_field_ref writer cf =
 		try
@@ -2246,10 +2253,8 @@ module HxbWriter = struct
 		start_chunk writer EOF;
 		start_chunk writer EOM;
 
-		if writer.has_own_string_pool then begin
-			let a = StringPool.finalize writer.cp in
-			write_string_pool writer STR a
-		end;
+		let a = StringPool.finalize writer.cp in
+		write_string_pool writer STR a;
 		begin
 			let a = StringPool.finalize writer.docs in
 			if a.length > 0 then
@@ -2264,21 +2269,16 @@ module HxbWriter = struct
 		l
 end
 
-let create config string_pool warn anon_id =
-	let cp,has_own_string_pool = match string_pool with
-		| None ->
-			StringPool.create(),true
-		| Some pool ->
-			pool,false
-	in
+let create config warn anon_id =
+	let cp = StringPool.create() in
 	{
 		config;
 		warn;
 		anon_id;
+		identified_anons = IdentityPool.create();
 		current_module = null_module;
 		chunks = DynArray.create ();
 		cp = cp;
-		has_own_string_pool;
 		docs = StringPool.create ();
 		chunk = Obj.magic ();
 		classes = Pool.create ();

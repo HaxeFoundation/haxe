@@ -85,14 +85,12 @@ let rec cache_context cs com =
 	let cc = get_cache com in
 	let sign = Define.get_signature com.defines in
 
-	let cache_module =
+	let parallels = DynArray.create () in
+	let cache_module m =
 		if Define.defined com.defines DisableHxbCache then
-			let cache_module m =
-				(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
-				let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
-				cc#cache_module_in_memory m.m_path m;
-			in
-			cache_module
+			(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
+			let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
+			cc#cache_module_in_memory m.m_path m;
 		else
 			let anon_identification = new Tanon_identification.tanon_identification in
 			let warn w s p = com.warning w com.warning_options s p in
@@ -102,15 +100,24 @@ let rec cache_context cs com =
 				| Some config ->
 					if com.is_macro_context then config.macro_config else config.target_config
 			in
-			let cache_module m =
-				(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
-				let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
-				cc#cache_hxb_module config warn anon_identification m.m_path m;
-			in
-			cache_module
+			(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
+			let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
+			match cc#cache_hxb_module config warn anon_identification m with
+			| None ->
+				()
+			| Some f ->
+				DynArray.add parallels (cc,m,f)
 	in
-
 	List.iter cache_module com.modules;
+	let a = Parallel.run_in_new_pool com.timer_ctx (fun pool ->
+		Parallel.ParallelArray.map pool (fun (cc,m,f) ->
+			let chunks = f() in
+			(cc,m,chunks)
+		) (DynArray.to_array parallels) (cc,null_module,[])
+	) in
+	Array.iter (fun (cc,m,chunks) ->
+		cc#add_binary_cache m chunks
+	) a;
 	begin match com.get_macros() with
 		| None -> ()
 		| Some com -> cache_context cs com

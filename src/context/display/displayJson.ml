@@ -139,7 +139,7 @@ class hxb_reader_api_com
 			cc#find_module m_path
 		with Not_found ->
 			let mc = cc#get_hxb_module m_path in
-			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats (Some cc#get_string_pool_arr) (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
+			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
 			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if full_restore then EOM else MTF) full_restore)
 
 	method basic_types =

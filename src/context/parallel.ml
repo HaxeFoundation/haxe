@@ -7,6 +7,15 @@ module ParallelArray = struct
 	let iter pool f a =
 		let f' idx = f a.(idx) in
 		Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~start:0 ~finish:(Array.length a - 1) ~body:f')
+
+	let map pool f a x =
+		let length = Array.length a in
+		let a_out = Array.make length x in
+		let f' idx =
+			Array.unsafe_set a_out idx (f (Array.unsafe_get a idx))
+		in
+		Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~start:0 ~finish:(length - 1) ~body:f');
+		a_out
 end
 
 module ParallelSeq = struct

@@ -774,10 +774,10 @@ class hxb_reader_api_typeload
 end
 
 let rec load_hxb_module com g path p =
-	let read file bytes string_pool =
+	let read file bytes =
 		try
 			let api = (new hxb_reader_api_typeload com g load_module' p :> HxbReaderApi.hxb_reader_api) in
-			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats string_pool (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
+			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
 			let read = reader#read api bytes in
 			let m = read EOT in
 			delay g PConnectField (fun () ->
@@ -795,7 +795,7 @@ let rec load_hxb_module com g path p =
 		| hxb_lib :: l ->
 			begin match hxb_lib#get_bytes target path with
 				| Some bytes ->
-					read hxb_lib#get_file_path bytes (hxb_lib#get_string_pool target)
+					read hxb_lib#get_file_path bytes
 				| None ->
 					loop l
 			end
