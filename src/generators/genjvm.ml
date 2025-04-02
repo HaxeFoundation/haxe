@@ -3229,8 +3229,7 @@ let generate jvm_flag gctx =
 		run_timed gctx false "anons" (fun () -> generate_anons gctx pool);
 		run_timed gctx false "typed_functions" (fun () -> generate_typed_functions gctx);
 	in
-	let pool = Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count()) () in
-	Std.finally (fun () -> Domainslib.Task.teardown_pool pool) generate pool;
+	Parallel.run_in_new_pool gctx.gctx.timer_ctx generate;
 
 	let manifest_content =
 		"Manifest-Version: 1.0\n" ^
