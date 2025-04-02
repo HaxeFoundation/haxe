@@ -19,7 +19,7 @@
 
 open Ast
 open Type
-open Common
+open SafeCom
 open Typecore
 open OptimizerTexpr
 open Error
@@ -130,11 +130,10 @@ let reduce_control_flow platform e = match e.eexpr with
 	| _ ->
 		e
 
-open Sanitize
-
-let rec reduce_loop ctx stack e =
-	let e = Type.map_expr (reduce_loop ctx stack) e in
-	sanitize_expr ctx.com.config (match e.eexpr with
+let rec reduce_loop (scom : SafeCom.t) stack e =
+	let e = Type.map_expr (reduce_loop scom stack) e in
+	let reduce_expr = Sanitize.reduce_expr in
+	Sanitize.sanitize_expr scom.platform_config (match e.eexpr with
 	| TCall(e1,el) ->
 		begin match Texpr.skip e1 with
 			| { eexpr = TFunction func } as ef ->
@@ -142,68 +141,68 @@ let rec reduce_loop ctx stack e =
 				let ethis = mk (TConst TThis) t_dynamic e.epos in
 				let rt = (match follow ef.etype with TFun (_,rt) -> rt | _ -> die "" __LOC__) in
 				begin try
-					let e = type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false in
-					reduce_loop ctx stack e
+					let e = type_inline (context_of_scom scom) cf func ethis el rt None e.epos ~self_calling_closure:true false in
+					reduce_loop scom stack e
 				with Error { err_message = Custom _ } ->
-					reduce_expr ctx e
+					reduce_expr scom e
 				end;
-			| {eexpr = TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf)))} when needs_inline ctx (Some cl) cf && not (rec_stack_memq cf stack) ->
+			| {eexpr = TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf)))} when SafeCom.needs_inline scom (Some cl) cf && not (rec_stack_memq cf stack) ->
 				begin match cf.cf_expr with
 				| Some {eexpr = TFunction tf} ->
 					let config = inline_config (Some cl) cf el e.etype in
 					let rt = (match Abstract.follow_with_abstracts e1.etype with TFun (_,rt) -> rt | _ -> die "" __LOC__) in
 					begin try
-						let e = type_inline ctx cf tf ef el rt config e.epos false in
-						rec_stack_default stack cf (fun cf' -> cf' == cf) (fun () -> reduce_loop ctx stack e) e
+						let e = type_inline (context_of_scom scom) cf tf ef el rt config e.epos false in
+						rec_stack_default stack cf (fun cf' -> cf' == cf) (fun () -> reduce_loop scom stack e) e
 					with Error { err_message = Custom _ } ->
-						reduce_expr ctx e
+						reduce_expr scom e
 					end
 				| _ ->
-					reduce_expr ctx e
+					reduce_expr scom e
 				end
 			| { eexpr = TField ({ eexpr = TTypeExpr (TClassDecl c) },field) } ->
-				(match api_inline ctx c (field_name field) el e.epos with
-				| None -> reduce_expr ctx e
-				| Some e -> reduce_loop ctx stack e)
+				(match api_inline scom c (field_name field) el e.epos with
+				| None -> reduce_expr scom e
+				| Some e -> reduce_loop scom stack e)
 			| _ ->
-				reduce_expr ctx e
+				reduce_expr scom e
 		end
 	| _ ->
-		reduce_expr ctx (reduce_control_flow ctx.com.platform e))
+		reduce_expr scom (reduce_control_flow scom.platform e))
 
-let reduce_expression ctx e =
-	if ctx.com.foptimize then begin
+let reduce_expression scom e =
+	if scom.foptimize then begin
 		(* We go through rec_stack_default here so that the current field is on inline_stack. This prevents self-recursive
 		   inlining (#7569). *)
 		let stack = new_rec_stack() in
-		rec_stack_default stack ctx.f.curfield (fun cf' -> cf' == ctx.f.curfield) (fun () -> reduce_loop ctx stack e) e
+		rec_stack_default stack scom.curfield (fun cf' -> cf' == scom.curfield) (fun () -> reduce_loop scom stack e) e
 	end else
 		e
 
-let rec make_constant_expression ctx stack ?(concat_strings=false) e =
-	let e = reduce_loop ctx stack e in
+let rec make_constant_expression scom stack ?(concat_strings=false) e =
+	let e = reduce_loop scom stack e in
 	match e.eexpr with
 	| TConst _ -> Some e
 	| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
-	| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod|OpShl|OpShr|OpUShr|OpOr|OpAnd|OpXor) as op,e1,e2) -> (match make_constant_expression ctx stack e1,make_constant_expression ctx stack e2 with
+	| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod|OpShl|OpShr|OpUShr|OpOr|OpAnd|OpXor) as op,e1,e2) -> (match make_constant_expression scom stack e1,make_constant_expression scom stack e2 with
 		| Some ({eexpr = TConst (TString s1)}), Some ({eexpr = TConst (TString s2)}) when concat_strings ->
-			Some (mk (TConst (TString (s1 ^ s2))) ctx.com.basic.tstring (punion e1.epos e2.epos))
+			Some (mk (TConst (TString (s1 ^ s2))) scom.basic.tstring (punion e1.epos e2.epos))
 		| Some e1, Some e2 -> Some (mk (TBinop(op, e1, e2)) e.etype e.epos)
 		| _ -> None)
-	| TUnop((Neg | NegBits) as op,Prefix,e1) -> (match make_constant_expression ctx stack e1 with
+	| TUnop((Neg | NegBits) as op,Prefix,e1) -> (match make_constant_expression scom stack e1 with
 		| Some e1 -> Some (mk (TUnop(op,Prefix,e1)) e.etype e.epos)
 		| None -> None)
 	| TCast (e1, None) ->
-		(match make_constant_expression ctx stack e1 with
+		(match make_constant_expression scom stack e1 with
 		| None -> None
 		| Some e1 -> Some {e with eexpr = TCast(e1,None)})
 	| TParenthesis e1 ->
-		begin match make_constant_expression ctx stack ~concat_strings e1 with
+		begin match make_constant_expression scom stack ~concat_strings e1 with
 			| None -> None
 			| Some e1 -> Some {e with eexpr = TParenthesis e1}
 		end
 	| TMeta(m,e1) ->
-		begin match make_constant_expression ctx stack ~concat_strings e1 with
+		begin match make_constant_expression scom stack ~concat_strings e1 with
 			| None -> None
 			| Some e1 -> Some {e with eexpr = TMeta(m,e1)}
 		end

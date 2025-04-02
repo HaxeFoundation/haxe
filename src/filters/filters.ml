@@ -440,6 +440,8 @@ let run tctx ectx main before_destruction =
 		"check_local_vars_init",CheckVarInit.check_local_vars_init;
 		"check_abstract_as_value",SafeFilters.check_abstract_as_value;
 		"Tre",if defined com Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
+		"reduce_expression",Optimizer.reduce_expression;
+		"inline_constructors",InlineConstructors.inline_constructors;
 	] in
 	Parallel.run_in_new_pool com.timer_ctx (fun pool ->
 		SafeCom.run_with_scom com scom pool (fun () ->
@@ -448,8 +450,6 @@ let run tctx ectx main before_destruction =
 	);
 
 	let filters = [
-		"reduce_expression",Optimizer.reduce_expression;
-		"inline_constructors",InlineConstructors.inline_constructors;
 		"Exceptions_filter",(fun _ -> Exceptions.filter ectx);
 	] in
 	List.iter (run_expression_filters tctx detail_times filters) new_types;

@@ -645,7 +645,7 @@ and flush_macro_context mint mctx =
 			in
 			if apply_native then Native.apply_native_paths t
 		in
-		let scom = SafeCom.of_com mctx.com in
+		let scom = SafeCom.of_typer mctx in
 		let cv_wrapper_impl = CapturedVars.get_wrapper_implementation mctx.com in
 		let expr_filters = [
 			"handle_abstract_casts",AbstractCast.handle_abstract_casts;

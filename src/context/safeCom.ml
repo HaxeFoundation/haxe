@@ -147,3 +147,6 @@ let run_expression_filters_safe scom detail_times filters t =
 	| TEnumDecl _ -> ()
 	| TTypeDecl _ -> ()
 	| TAbstractDecl _ -> ()
+
+let needs_inline scom c cf =
+	cf.cf_kind = Method MethInline && (scom.doinline || Typecore.is_forced_inline c cf)

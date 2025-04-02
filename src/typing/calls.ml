@@ -65,10 +65,10 @@ let make_call ctx e params t ?(force_inline=false) p =
 						raise_typing_error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
 			| _ -> ()
 		);
-		let params = List.map (Optimizer.reduce_expression ctx) params in
+		let params = List.map (Optimizer.reduce_expression (SafeCom.of_typer ctx)) params in
 		let force_inline = is_forced_inline cl f in
 		let inline fd =
-			Inline.type_inline ctx f fd ethis params t config p force_inline
+			Inline.type_inline (Inline.context_of_typer ctx) f fd ethis params t config p force_inline
 		in
 		begin match f.cf_expr_unoptimized with
 		| Some {eexpr = TFunction fd} ->

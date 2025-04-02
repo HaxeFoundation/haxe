@@ -307,15 +307,19 @@ let null_abstract = {
 let create_dependency mdep origin =
 	{md_sign = mdep.m_extra.m_sign; md_path = mdep.m_path; md_kind = mdep.m_extra.m_kind; md_origin = origin}
 
+let add_dependency_mutex = Mutex.create ()
+
 let add_dependency ?(skip_postprocess=false) m mdep = function
 	(* These module dependency origins should not add as a dependency *)
 	| MDepFromMacroInclude -> ()
 
 	| origin ->
 		if m != null_module && mdep != null_module && (m.m_path != mdep.m_path || m.m_extra.m_sign != mdep.m_extra.m_sign) then begin
-			m.m_extra.m_deps <- PMap.add mdep.m_id (create_dependency mdep origin) m.m_extra.m_deps;
-			(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
-			if not skip_postprocess then m.m_extra.m_processed <- 0
+			Mutex.protect add_dependency_mutex (fun () ->
+				m.m_extra.m_deps <- PMap.add mdep.m_id (create_dependency mdep origin) m.m_extra.m_deps;
+				(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
+				if not skip_postprocess then m.m_extra.m_processed <- 0
+			)
 		end
 
 let arg_name (a,_) = a.v_name

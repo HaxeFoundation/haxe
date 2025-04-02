@@ -761,7 +761,7 @@ module TypeBinding = struct
 					| _ -> !analyzer_run_on_expr_ref ctx.com (Printf.sprintf "%s.%s" (s_type_path cctx.tclass.cl_path) cf.cf_name) e
 				in
 				let require_constant_expression e msg =
-					match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
+					match Optimizer.make_constant_expression (SafeCom.of_typer ctx) (maybe_run_analyzer e) with
 					| Some e -> e
 					| None -> display_error ctx.com msg p; e
 				in

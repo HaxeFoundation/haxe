@@ -2,7 +2,6 @@ open Globals
 open Ast
 open Type
 open OptimizerTexpr
-open Common
 open Typecore
 open Error
 
@@ -93,10 +92,25 @@ let api_inline2 basic platform c field params p =
 	| _ ->
 		None
 
-let api_inline ctx c field params p =
+type inline_context = {
+	scom : SafeCom.t;
+	typer : typer option;
+}
+
+let context_of_typer typer = {
+	scom = SafeCom.of_typer typer;
+	typer = Some typer;
+}
+
+let context_of_scom scom = {
+	scom = scom;
+	typer = None;
+}
+
+let api_inline (scom : SafeCom.t) c field params p =
 	let mk_typeexpr path =
-		let m = (try ctx.com.module_lut#find path with Not_found -> die "" __LOC__) in
-		add_dependency ctx.m.curmod m MDepFromTyping;
+		let m = (try scom.find_module path with Not_found -> die "" __LOC__) in
+		add_dependency scom.curclass.cl_module m MDepFromTyping;
 		Option.get (ExtList.List.find_map (function
 			| TClassDecl cl when cl.cl_path = path -> Some (Texpr.Builder.make_static_this cl p)
 			| _ -> None
@@ -106,12 +120,12 @@ let api_inline ctx c field params p =
 	let eJsSyntax () = mk_typeexpr (["js"],"Syntax") in
 	let eJsBoot () = mk_typeexpr (["js"],"Boot") in
 
-	let tstring = ctx.com.basic.tstring in
-	let tbool = ctx.com.basic.tbool in
-	let tint = ctx.com.basic.tint in
+	let tstring = scom.basic.tstring in
+	let tbool = scom.basic.tbool in
+	let tint = scom.basic.tint in
 
 	match c.cl_path, field, params with
-	| ([],"Std"),("is" | "isOfType"),[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
+	| ([],"Std"),("is" | "isOfType"),[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when scom.platform = Js ->
 		let is_trivial e =
 			match e.eexpr with
 			| TConst _ | TLocal _ -> true
@@ -141,7 +155,7 @@ let api_inline ctx c field params p =
 		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
 			(* generate (o instanceof Array) && o.__enum__ == null check *)
 			let iof = Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p in
-			if not (Common.defined ctx.com Define.JsEnumsAsArrays) then
+			if not (Define.defined scom.defines Define.JsEnumsAsArrays) then
 				Some iof
 			else begin
 				let enum = mk (TField (o, FDynamic "__enum__")) t_dynamic p in
@@ -156,13 +170,13 @@ let api_inline ctx c field params p =
 				Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
 		| _ ->
 			None)
-	| (["js"],"Boot"),"__downcastCheck",[o; {eexpr = TTypeExpr (TClassDecl cls) } as t] when ctx.com.platform = Js ->
+	| (["js"],"Boot"),"__downcastCheck",[o; {eexpr = TTypeExpr (TClassDecl cls) } as t] when scom.platform = Js ->
 		if (has_class_flag cls CInterface) then
 			Some (Texpr.Builder.fcall (Texpr.Builder.make_static_this c p) "__implements" [o;t] tbool p)
 		else
 			Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
 	| (["haxe";"ds";"_Vector"],"Vector_Impl_"),("fromArrayCopy"),[{ eexpr = TArrayDecl args } as edecl] -> (try
-			let platf = match ctx.com.platform with
+			let platf = match scom.platform with
 				| Jvm -> "jvm"
 				| _ -> raise Exit
 			in
@@ -172,7 +186,7 @@ let api_inline ctx c field params p =
 				([platf],"NativeArray")
 			in
 
-			let m = ctx.g.do_load_module ctx mpath null_pos in
+			let m = scom.find_module mpath in
 			let main = List.find (function | TClassDecl _ | TAbstractDecl _ -> true | _ -> false) m.m_types in
 			let t = match follow edecl.etype, main with
 				| TInst({ cl_path = [],"Array" }, [t]), TClassDecl(cl) ->
@@ -185,7 +199,7 @@ let api_inline ctx c field params p =
 		with | Exit ->
 			None)
 	| _ ->
-		api_inline2 ctx.com.basic ctx.com.platform c field params p
+		api_inline2 scom.basic scom.platform c field params p
 
 type in_local = {
 	i_var : tvar;
@@ -259,7 +273,9 @@ let inline_metadata e meta =
 	in
 	List.fold_left inline_meta e meta
 
-class inline_state ctx ethis params cf f p = object(self)
+class inline_state (ictx : inline_context) ethis params cf f p =
+	let scom = ictx.scom in
+object(self)
 	val locals = Hashtbl.create 0
 	val checker = create_affection_checker()
 	val mutable _inlined_vars = []
@@ -424,7 +440,7 @@ class inline_state ctx ethis params cf f p = object(self)
 					if we pass a Null<T> var to an inlined method that needs a T.
 					we need to force a local var to be created on some platforms.
 				*)
-				if ctx.com.config.pf_static && not (is_nullable v.v_type) && is_null e.etype then l.i_force_temp <- true;
+				if scom.platform_config.pf_static && not (is_nullable v.v_type) && is_null e.etype then l.i_force_temp <- true;
 				(*
 					if we cast from Dynamic, create a local var as well to do the cast
 					once and allow DCE to perform properly.
@@ -436,7 +452,7 @@ class inline_state ctx ethis params cf f p = object(self)
 					| TConst TNull , Some c ->
 						(* issue #9357 *)
 						{c with epos = e.epos}
-					| _ , Some c when (match c.eexpr with TConst TNull -> false | _ -> true) && (not ctx.com.config.pf_static || is_nullable v.v_type) ->
+					| _ , Some c when (match c.eexpr with TConst TNull -> false | _ -> true) && (not scom.platform_config.pf_static || is_nullable v.v_type) ->
 						l.i_force_temp <- true;
 						l.i_default_value <- Some {c with epos = e.epos};
 						e
@@ -529,7 +545,7 @@ class inline_state ctx ethis params cf f p = object(self)
 		in
 		let e = (if PMap.is_empty subst then e else inline_params false false e) in
 		let init = match vars with [] -> None | l -> Some l in
-		let md = ctx.c.curclass.cl_module.m_extra.m_display in
+		let md = scom.curclass.cl_module.m_extra.m_display in
 		md.m_inline_calls <- (cf.cf_name_pos,{p with pmax = p.pmin + String.length cf.cf_name}) :: md.m_inline_calls;
 		let wrap e =
 			(* we can't mute the type of the expression because it is not correct to do so *)
@@ -541,7 +557,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				| TAbstract ({ a_path = [],"Void" },_) -> e
 				| _ -> raise (Unify_error []))
 			| _ ->
-				type_eq (if ctx.com.config.pf_static then EqDoNotFollowNull else EqStrict) etype tret;
+				type_eq (if scom.platform_config.pf_static then EqDoNotFollowNull else EqStrict) etype tret;
 				e)
 			with Unify_error _ ->
 				mk (TCast (e,None)) tret e.epos
@@ -561,10 +577,10 @@ class inline_state ctx ethis params cf f p = object(self)
 				let el = DynArray.create () in
 				let add = DynArray.add el in
 				List.iter (fun (v,eo) ->
-					add (mk (TVar (v,eo)) ctx.t.tvoid e.epos);
+					add (mk (TVar (v,eo)) scom.basic.tvoid e.epos);
 				) vl;
 				List.iter (fun (l,e) -> match l.i_default_value with
-					| Some e when l.i_read > 0 -> add (Texpr.set_default ctx.com.basic l.i_subst e e.epos)
+					| Some e when l.i_read > 0 -> add (Texpr.set_default scom.basic l.i_subst e e.epos)
 					| _ -> ()
 				) _inlined_vars;
 				begin match e.eexpr with
@@ -589,6 +605,12 @@ class inline_state ctx ethis params cf f p = object(self)
 			| _ -> unify_func());
 		end;
 		let vars = Hashtbl.create 0 in
+		let maybe_reapply_overload_call = match ictx.typer with
+			| Some ctx ->
+				(!maybe_reapply_overload_call_ref) ctx
+			| None ->
+				(fun e -> e)
+		in
 		let rec map_var map_type v =
 			if not (Hashtbl.mem vars v.v_id) then begin
 				Hashtbl.add vars v.v_id ();
@@ -612,7 +634,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				else map_type
 			in
 			let e = Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e in
-			(!maybe_reapply_overload_call_ref) ctx e
+			maybe_reapply_overload_call e
 		in
 		let e = map_expr_type map_type e in
 		let rec drop_unused_vars e =
@@ -630,21 +652,25 @@ class inline_state ctx ethis params cf f p = object(self)
 		drop_unused_vars e
 end
 
-let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=false) force =
-	(* perform some specific optimization before we inline the call since it's not possible to detect at final optimization time *)
+let rec type_inline (ictx : inline_context) cf f ethis params tret config p ?(self_calling_closure=false) force =
+	let scom = ictx.scom in
 	try
 		let cl = (match follow ethis.etype with
 			| TInst (c,_) -> c
 			| TAnon a -> (match !(a.a_status) with ClassStatics c -> c | _ -> raise Exit)
 			| _ -> raise Exit
 		) in
-		(match api_inline ctx cl cf.cf_name params p with
-		| None -> raise Exit
-		| Some e -> e)
+		begin match api_inline scom cl cf.cf_name params p with
+			| None -> raise Exit
+			| Some e -> e
+		end
 	with Exit ->
 	let has_params,map_type = match config with Some config -> config | None -> inline_default_config cf ethis.etype in
-	let params = inline_rest_params ctx f params map_type p in
-	let state = new inline_state ctx ethis params cf f p in
+	let params = match ictx.typer with
+		| Some ctx -> inline_rest_params ctx f params map_type p
+		| None -> params
+	in
+	let state = new inline_state ictx ethis params cf f p in
 	let vthis_opt = state#initialize in
 	let opt f = function
 		| None -> None
@@ -655,12 +681,16 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		(* If the function return is Dynamic or Void, stick to it. *)
 		if follow f.tf_type == t_dynamic || ExtType.is_void (follow f.tf_type) then f.tf_type
 		(* If the expression is Void, find common type of its branches. *)
-		else if ExtType.is_void t then unify_min ctx el
+		else if ExtType.is_void t then UnifyMin.unify_min_raise scom.basic el
 		else t
 	in
 	let map_pos =
-		if self_calling_closure || Common.defined ctx.com Define.KeepInlinePositions then (fun e -> e)
+		if self_calling_closure || Define.defined scom.defines Define.KeepInlinePositions then (fun e -> e)
 		else (fun e -> { e with epos = p })
+	in
+	let save_locals = match ictx.typer with
+		| Some ctx -> (fun () -> save_locals ctx)
+		| None -> (fun () -> fun() -> ())
 	in
 	let rec map term in_call e =
 		let po = e.epos in
@@ -732,7 +762,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				lv,e
 			) catches); etype = t }
 		| TBlock l ->
-			let old = save_locals ctx in
+			let old = save_locals () in
 			let t = ref e.etype in
 			let rec has_term_return e =
 				let rec loop e =
@@ -797,7 +827,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 					{e with eexpr = TObjectDecl fl}
 			end
 		| TFunction f ->
-			let old = save_locals ctx in
+			let old = save_locals () in
 			let args = List.map (function(v,c) -> (state#declare v).i_subst, c) f.tf_args in
 			let restore = state#enter_local_fun in
 			let expr = map false false f.tf_expr in
@@ -808,7 +838,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			state#set_side_effect;
 			begin match follow t with
 			| TInst({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,_) ->
-				let e = type_inline_ctor ctx c cf tf ethis el po in
+				let e = type_inline_ctor ictx c cf tf ethis el po in
 				map term false e
 			| _ -> raise_typing_error "Cannot inline function containing super" po
 			end
@@ -842,19 +872,22 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	in
 	let tl = arg_types params f.tf_args in
 	let e = state#finalize e tl tret has_params map_type p in
-	if Meta.has (Meta.Custom ":inlineDebug") ctx.f.meta then begin
-		let se t = s_expr_ast true t (s_type (print_context())) in
-		print_endline (Printf.sprintf "Inline %s:\n\tArgs: %s\n\tExpr: %s\n\tResult: %s"
-			cf.cf_name
-			(String.concat "" (List.map (fun (i,e) -> Printf.sprintf "\n\t\t%s<%i> = %s" (i.i_subst.v_name) (i.i_subst.v_id) (se "\t\t" e)) state#inlined_vars))
-			(se "\t" f.tf_expr)
-			(se "\t" e)
-		);
+	begin match ictx.typer with
+		| Some ctx when Meta.has (Meta.Custom ":inlineDebug") ctx.f.meta ->
+			let se t = s_expr_ast true t (s_type (print_context())) in
+			print_endline (Printf.sprintf "Inline %s:\n\tArgs: %s\n\tExpr: %s\n\tResult: %s"
+				cf.cf_name
+				(String.concat "" (List.map (fun (i,e) -> Printf.sprintf "\n\t\t%s<%i> = %s" (i.i_subst.v_name) (i.i_subst.v_id) (se "\t\t" e)) state#inlined_vars))
+				(se "\t" f.tf_expr)
+				(se "\t" e)
+			);
+		| _ ->
+			()
 	end;
 	e
 
 (* Same as type_inline, but modifies the function body to add field inits *)
-and type_inline_ctor ctx c cf tf ethis el po =
+and type_inline_ctor ictx c cf tf ethis el po =
 	let field_inits =
 		let cparams = extract_param_types c.cl_params in
 		let ethis = mk (TConst TThis) (TInst (c,cparams)) c.cl_pos in
@@ -872,9 +905,9 @@ and type_inline_ctor ctx c cf tf ethis el po =
 		if field_inits = [] then tf
 		else
 			let bl = match tf.tf_expr with {eexpr = TBlock b } -> b | x -> [x] in
-			{tf with tf_expr = mk (TBlock (field_inits @ bl)) ctx.t.tvoid c.cl_pos}
+			{tf with tf_expr = mk (TBlock (field_inits @ bl)) ictx.scom.basic.tvoid c.cl_pos}
 	in
-	type_inline ctx cf tf ethis el ctx.t.tvoid None po true
+	type_inline ictx cf tf ethis el ictx.scom.basic.tvoid None po true
 
 and inline_rest_params ctx f params map_type p =
 	if not ctx.com.config.pf_supports_rest_args then
