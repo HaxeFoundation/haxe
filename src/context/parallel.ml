@@ -6,7 +6,7 @@ let run_parallel_for num_domains ?(chunk_size=0) length f =
 module ParallelArray = struct
 	let iter pool f a =
 		let f' idx = f a.(idx) in
-		Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~start:0 ~finish:(Array.length a - 1) ~body:f')
+		Domainslib.Task.parallel_for pool ~start:0 ~finish:(Array.length a - 1) ~body:f'
 
 	let map pool f a x =
 		let length = Array.length a in
@@ -14,7 +14,7 @@ module ParallelArray = struct
 		let f' idx =
 			Array.unsafe_set a_out idx (f (Array.unsafe_get a idx))
 		in
-		Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~start:0 ~finish:(length - 1) ~body:f');
+		Domainslib.Task.parallel_for pool ~start:0 ~finish:(length - 1) ~body:f';
 		a_out
 end
 
@@ -25,4 +25,4 @@ end
 
 let run_in_new_pool timer_ctx f =
 	let pool = Timer.time timer_ctx ["domainslib";"setup"] (Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1)) () in
-	Std.finally (fun () -> Timer.time timer_ctx ["domainslib";"teardown"] Domainslib.Task.teardown_pool pool) f pool
+	Std.finally (fun () -> Timer.time timer_ctx ["domainslib";"teardown"] Domainslib.Task.teardown_pool pool) (Domainslib.Task.run pool) (fun () -> f pool)
