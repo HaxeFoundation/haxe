@@ -105,7 +105,7 @@ let patch_constructors tctx ectx =
 							| _ ->
 								raise_typing_error "haxe.Exception.__shiftStack is not a function and cannot be called" cf.cf_name_pos
 						in
-						make_call tctx efield [] rt p
+						make_call ectx.scom efield [] rt p
 					| _ -> raise_typing_error "haxe.Exception.__shiftStack is expected to be an instance method" p
 				in
 				TypeloadFunction.add_constructor tctx cls true cls.cl_name_pos;
