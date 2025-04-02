@@ -2566,14 +2566,14 @@ and eval_expr ctx e =
 				free ctx ra;
 				free ctx ridx;
 				v
-            | ACArray (ra, _, ridx) ->
+			| ACArray (ra, t, ridx) ->
 				hold ctx ra;
 				hold ctx ridx;
-                let v = value() in
-                op ctx (OSetArray (ra,ridx,v));
-                free ctx ridx;
-                free ctx ra;
-                v
+				let v = eval_to ctx e2 t in
+				op ctx (OSetArray (ra,ridx,v));
+				free ctx ridx;
+				free ctx ra;
+				v
 			| ADynamic (ethis,f) ->
 				let obj = eval_null_check ctx ethis in
 				hold ctx obj;
