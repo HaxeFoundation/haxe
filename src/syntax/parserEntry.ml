@@ -394,8 +394,6 @@ let parse_string entry defines s p error inlined =
 		syntax_errors := old_syntax_errors;
 	in
 	let lctx = if inlined then begin
-		display_position#reset;
-		in_display_file := false;
 		begin try
 			let old_file = ThreadSafeHashtbl.find Lexer.all_files p.pfile in
 			let new_file = Lexer.make_file p.pfile in
@@ -404,9 +402,11 @@ let parse_string entry defines s p error inlined =
 		with Not_found ->
 			Lexer.create_temp_ctx p.pfile
 		end
-	end else
+	end else begin
+		display_position#reset;
+		in_display_file := false;
 		Lexer.create_temp_ctx p.pfile
-	in
+	end in
 	let result = try
 		parse entry lctx defines (Sedlexing.Utf8.from_string s) p.pfile
 	with Error (e,pe) ->
