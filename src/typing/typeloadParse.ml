@@ -31,10 +31,9 @@ open Error
 exception DisplayInMacroBlock
 
 let parse_file_from_lexbuf com file p lexbuf =
-	Lexer.init file;
 	incr stats.s_files_parsed;
 	let parse_result = try
-		ParserEntry.parse Grammar.parse_file com.defines lexbuf file
+		ParserEntry.parse Grammar.parse_file (Lexer.create_file_ctx file) com.defines lexbuf file
 	with
 		| Sedlexing.MalFormed ->
 			raise_typing_error "Malformed file. Source files must be encoded with UTF-8." (file_pos file)
@@ -229,7 +228,7 @@ module PdiHandler = struct
 		ParserEntry.is_true (ParserEntry.eval defines e)
 
 	let handle_pdi com pdi =
-		let macro_defines = adapt_defines_to_macro_context com.defines in
+		let macro_defines = adapt_defines_to_macro_context com.Common.defines in
 		let check = (if com.display.dms_kind = DMHover then
 			encloses_position_gt
 		else

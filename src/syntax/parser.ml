@@ -339,9 +339,9 @@ let rec make_meta name params ((v,p2) as e) p1 =
 	| _ -> EMeta((name,params,p1),e),punion p1 p2
 
 let handle_xml_literal p1 =
-	Lexer.reset();
-	let i = Lexer.lex_xml p1.pmin !code_ref in
-	let xml = Lexer.contents() in
+	let lctx = Lexer.create_temp_ctx p1.pfile in
+	let i = Lexer.lex_xml lctx p1.pmin !code_ref in
+	let xml = Lexer.contents lctx in
 	let e = EConst (String(xml,SDoubleQuotes)),{p1 with pmax = i} in (* STRINGTODO: distinct kind? *)
 	let e = make_meta Meta.Markup [] e p1 in
 	e

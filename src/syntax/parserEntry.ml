@@ -209,8 +209,7 @@ class dead_block_collector conds = object(self)
 end
 
 (* parse main *)
-let parse entry ctx code file =
-	let old = Lexer.save() in
+let parse entry lctx defines code file =
 	let restore_cache = TokenCache.clear () in
 	let was_display = !in_display in
 	let was_display_file = !in_display_file in
@@ -230,7 +229,7 @@ let parse entry ctx code file =
 		)
 	in
 	last_doc := None;
-	in_macro := Define.defined ctx Define.Macro;
+	in_macro := Define.defined defines Define.Macro;
 	Lexer.skip_header code;
 
 	let sharp_error s p =
@@ -240,11 +239,11 @@ let parse entry ctx code file =
 
 	let conds = new condition_handler in
 	let dbc = new dead_block_collector conds in
-	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token code)) in
+	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token lctx code)) in
 	let preprocessor_error ppe pos tk =
 		syntax_error (Preprocessor_error ppe) ~pos:(Some pos) sraw tk
 	in
-	let rec next_token() = process_token (Lexer.token code)
+	let rec next_token() = process_token (Lexer.token lctx code)
 
 	and process_token tk =
 		match fst tk with
@@ -280,7 +279,7 @@ let parse entry ctx code file =
 		| Sharp "if" ->
 			process_token (enter_macro true (snd tk))
 		| Sharp "error" ->
-			(match Lexer.token code with
+			(match Lexer.token lctx code with
 			| (Const (String(s,_)),p) -> error (Custom s) p
 			| _ -> error Unimplemented (snd tk))
 		| Sharp "line" ->
@@ -288,7 +287,7 @@ let parse entry ctx code file =
 				| (Const (Int (s, _)),p) -> (try int_of_string s with _ -> error (Custom ("Could not parse ridiculous line number " ^ s)) p)
 				| (t,p) -> error (Unexpected t) p
 			) in
-			!(Lexer.cur).Lexer.lline <- line - 1;
+			lctx.file.Lexer.lline <- line - 1;
 			next_token();
 		| Sharp s ->
 			sharp_error s (pos tk)
@@ -298,8 +297,8 @@ let parse entry ctx code file =
 	and enter_macro is_if p =
 		let tk, e = parse_macro_cond sraw in
 		(if is_if then conds#cond_if e else conds#cond_elseif e p);
-		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
-		if is_true (eval ctx e) then begin
+		let tk = (match tk with None -> Lexer.token lctx code | Some tk -> tk) in
+		if is_true (eval defines e) then begin
 			tk
 		end else begin
 			dbc#open_dead_block (pos e);
@@ -311,7 +310,7 @@ let parse entry ctx code file =
 		| Sharp "end" ->
 			conds#cond_end (snd tk);
 			dbc#close_dead_block (pos tk);
-			Lexer.token code
+			Lexer.token lctx code
 		| Sharp "elseif" when not test ->
 			dbc#close_dead_block (pos tk);
 			let _,(e,pe) = parse_macro_cond sraw in
@@ -326,7 +325,7 @@ let parse entry ctx code file =
 		| Sharp "else" ->
 			conds#cond_else (snd tk);
 			dbc#close_dead_block (pos tk);
-			Lexer.token code
+			Lexer.token lctx code
 		| Sharp "elseif" ->
 			dbc#close_dead_block (pos tk);
 			enter_macro false (snd tk)
@@ -345,7 +344,7 @@ let parse entry ctx code file =
 		| _ ->
 			skip_tokens p test
 
-	and skip_tokens p test = skip_tokens_loop p test (Lexer.token code)
+	and skip_tokens p test = skip_tokens_loop p test (Lexer.token lctx code)
 
 	in
 	let s = Stream.from (fun _ ->
@@ -365,7 +364,6 @@ let parse entry ctx code file =
 		end;
 		let was_display_file = !in_display_file in
 		restore();
-		Lexer.restore old;
 		let pdi = {pd_errors = List.rev !syntax_errors;pd_dead_blocks = dbc#get_dead_blocks;pd_conditions = conds#get_conditions} in
 		if was_display_file then
 			ParseSuccess(l,true,pdi)
@@ -377,50 +375,40 @@ let parse entry ctx code file =
 		| Stream.Error _
 		| Stream.Failure ->
 			let last = (match Stream.peek s with None -> last_token s | Some t -> t) in
-			Lexer.restore old;
 			restore();
 			error (Unexpected (fst last)) (pos last)
 		| e ->
-			Lexer.restore old;
 			restore();
 			raise e
 
-let parse_string entry com s p error inlined =
-	let old = Lexer.save() in
-	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
-	let restore_file_data =
-		let f = Lexer.make_file old.lfile in
-		Lexer.copy_file old f;
-		(fun () ->
-			Lexer.copy_file f old
-		)
-	in
+let parse_string entry defines s p error inlined =
 	let old_display = display_position#get in
 	let old_in_display_file = !in_display_file in
 	let old_syntax_errors = !syntax_errors in
 	syntax_errors := [];
 	let restore() =
-		(match old_file with
-		| None -> Hashtbl.remove Lexer.all_files p.pfile
-		| Some f -> Hashtbl.replace Lexer.all_files p.pfile f);
 		if not inlined then begin
 			display_position#set old_display;
 			in_display_file := old_in_display_file;
 		end;
 		syntax_errors := old_syntax_errors;
-		Lexer.restore old;
-		(* String parsing might mutate lexer_file information, e.g. from newline() calls. Here we
-		   restore the actual file data (issue #10763). *)
-		restore_file_data()
 	in
-	if inlined then
-		Lexer.init p.pfile
-	else begin
+	let lctx = if inlined then begin
 		display_position#reset;
 		in_display_file := false;
-	end;
+		begin try
+			let old_file = ThreadSafeHashtbl.find Lexer.all_files p.pfile in
+			let new_file = Lexer.make_file p.pfile in
+			Lexer.copy_file old_file new_file;
+			Lexer.create_context new_file
+		with Not_found ->
+			Lexer.create_temp_ctx p.pfile
+		end
+	end else
+		Lexer.create_temp_ctx p.pfile
+	in
 	let result = try
-		parse entry com (Sedlexing.Utf8.from_string s) p.pfile
+		parse entry lctx defines (Sedlexing.Utf8.from_string s) p.pfile
 	with Error (e,pe) ->
 		restore();
 		error (error_msg e) (if inlined then pe else p)
@@ -431,9 +419,9 @@ let parse_string entry com s p error inlined =
 	restore();
 	result
 
-let parse_expr_string com s p error inl =
+let parse_expr_string defines s p error inl =
 	let s = if p.pmin > 0 then (String.make p.pmin ' ') ^ s else s in
-	let result = parse_string expr com s p error inl in
+	let result = parse_string expr defines s p error inl in
 	if inl then
 		result
 	else begin

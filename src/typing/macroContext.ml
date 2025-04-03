@@ -192,7 +192,7 @@ let make_macro_com_api com mcom p =
 		);
 		register_file_contents = (fun file content ->
 			let f = Lexer.resolve_file_content_pos file content in
-			Hashtbl.add Lexer.all_files file f;
+			ThreadSafeHashtbl.add Lexer.all_files file f;
 		);
 		type_expr = (fun e ->
 			Interp.exc_string "unsupported"

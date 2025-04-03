@@ -607,7 +607,8 @@
 	{
 		"name": "OldErrorFormat",
 		"define": "old-error-format",
-		"doc": "Use Haxe 3.x zero-based column error messages instead of new one-based format."
+		"doc": "Use Haxe 3.x zero-based column error messages instead of new one-based format.",
+		"deprecated": "OldErrorFormat has been removed in Haxe 5"
 	},
 	{
 		"name": "PhpPrefix",

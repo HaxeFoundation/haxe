@@ -103,17 +103,6 @@ let process_display_configuration ctx =
 			| WMDisable ->
 				()
 		);
-	end;
-	Lexer.old_format := Common.defined com Define.OldErrorFormat;
-	if !Lexer.old_format && !Parser.in_display then begin
-		let p = DisplayPosition.display_position#get in
-		(* convert byte position to utf8 position *)
-		try
-			let content = Std.input_file ~bin:true (Path.get_real_path p.pfile) in
-			let pos = Extlib_leftovers.UTF8.length (String.sub content 0 p.pmin) in
-			DisplayPosition.display_position#set { p with pmin = pos; pmax = pos }
-		with _ ->
-			() (* ignore *)
 	end
 
 let process_display_file com actx =
