@@ -1042,11 +1042,9 @@ let generate_function gctx ctx f =
 		| OSetMem (b,idx,r) ->
 			sexpr "*(%s*)(%s + %s) = %s" (ctype (rtype r)) (reg b) (reg idx) (reg r)
 		| OSetArray (arr,idx,v) ->
-			(match rtype arr, rtype v with
-			| HAbstract _, HStruct _ ->
+			(match rtype arr with
+			| HAbstract _ ->
 				sexpr "((%s)%s)[%s] = *%s" (ctype (rtype v)) (reg arr) (reg idx) (reg v)
-			| HAbstract _, _ ->
-				sexpr "*((%s*)%s)[%s] = *%s" (ctype (rtype v)) (reg arr) (reg idx) (reg v)
 			| _ ->
 				sexpr "((%s*)(%s + 1))[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v))
 		| OSafeCast (r,v) ->
