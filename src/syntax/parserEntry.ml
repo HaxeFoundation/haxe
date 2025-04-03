@@ -393,19 +393,22 @@ let parse_string entry defines s p error inlined =
 		end;
 		syntax_errors := old_syntax_errors;
 	in
-	let lctx = if inlined then begin
-		begin try
-			let old_file = ThreadSafeHashtbl.find Lexer.all_files p.pfile in
-			let new_file = Lexer.make_file p.pfile in
-			Lexer.copy_file old_file new_file;
-			Lexer.create_context new_file
-		with Not_found ->
-			Lexer.create_temp_ctx p.pfile
-		end
-	end else begin
+	let lctx = if inlined then
+		(* In inline mode, we always work with a temp context. *)
+		Lexer.create_temp_ctx p.pfile
+	else begin
 		display_position#reset;
 		in_display_file := false;
-		Lexer.create_temp_ctx p.pfile
+		try
+			let old_file = ThreadSafeHashtbl.find Lexer.all_files p.pfile in
+			(* If the file exists we work with a copy of it. This prevents any mutations from messing
+				up the orignal state. Note that we still don't use a real file context here, so the
+				data is not added to all_files. *)
+			let new_file = Lexer.copy_file old_file in
+			Lexer.create_context new_file
+		with Not_found ->
+			(* Otherwise we have to work with a temp file. *)
+			Lexer.create_temp_ctx p.pfile
 	end in
 	let result = try
 		parse entry lctx defines (Sedlexing.Utf8.from_string s) p.pfile

@@ -99,13 +99,15 @@ let newline ctx lexbuf =
 	cur.lline <- cur.lline + 1;
 	cur.llines <- (lexeme_end lexbuf,cur.lline) :: cur.llines
 
-let copy_file source dest =
-	dest.lline <- source.lline;
-	dest.lmaxline <- source.lmaxline;
-	dest.llines <- source.llines;
-	dest.lalines <- source.lalines;
-	dest.llast <- source.llast;
-	dest.llastindex <- source.llastindex
+let copy_file source = {
+	lfile = source.lfile;
+	lline = source.lline;
+	lmaxline = source.lmaxline;
+	llines = source.llines;
+	lalines = source.lalines;
+	llast = source.llast;
+	llastindex = source.llastindex;
+}
 
 let print_file file =
 	let sllines = String.concat ";" (List.map (fun (i1,i2) -> Printf.sprintf "(%i,%i)" i1 i2) file.llines) in
