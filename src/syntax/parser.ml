@@ -22,10 +22,6 @@ open Globals
 open DisplayTypes.DisplayMode
 open DisplayPosition
 
-type parser_ctx = {
-	lexer_ctx : Lexer.lexer_ctx;
-}
-
 type preprocessor_error =
 	| InvalidEnd
 	| InvalidElse
@@ -75,6 +71,11 @@ exception Error of error_msg * pos
 exception TypePath of string list * (string * bool) option * bool (* in import *) * pos
 exception SyntaxCompletion of syntax_completion * DisplayTypes.completion_subject
 
+type parser_ctx = {
+	lexer_ctx : Lexer.lexer_ctx;
+	syntax_errors : (error_msg * pos) list ref;
+}
+
 let error_msg = function
 	| Unexpected (Kwd k) -> "Unexpected keyword \""^(s_keyword k)^"\""
 	| Unexpected t -> "Unexpected "^(s_token t)
@@ -111,6 +112,7 @@ type 'a parse_result =
 
 let create_context lexer_ctx = {
 	lexer_ctx;
+	syntax_errors = ref [];
 }
 
 let s_decl_flag = function
@@ -171,7 +173,6 @@ let delayed_syntax_completion : (syntax_completion * DisplayTypes.completion_sub
 
 let in_display_file = ref false
 let last_doc : (string * int) option ref = ref None
-let syntax_errors = ref []
 
 let reset_state () =
 	in_display := false;
@@ -183,18 +184,17 @@ let reset_state () =
 	code_ref := Sedlexing.Utf8.from_string "";
 	delayed_syntax_completion := None;
 	in_display_file := false;
-	last_doc := None;
-	syntax_errors := []
+	last_doc := None
 
-let syntax_error_with_pos error_msg p v =
+let syntax_error_with_pos ctx error_msg p v =
 	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in
 	if not !in_display then error error_msg p;
-	syntax_errors := (error_msg,p) :: !syntax_errors;
+	ctx.syntax_errors := (error_msg,p) :: !(ctx.syntax_errors);
 	v
 
 let syntax_error ctx error_msg ?(pos=None) s v =
 	let p = (match pos with Some p -> p | None -> next_pos ctx s) in
-	syntax_error_with_pos error_msg p v
+	syntax_error_with_pos ctx error_msg p v
 
 let handle_stream_error ctx msg s =
 	let err,pos = if msg = "Parse error." then begin
@@ -216,9 +216,9 @@ let get_doc s =
 			last_doc := None;
 			Some d
 
-let unsupported_decl_flag decl flag pos =
+let unsupported_decl_flag decl flag pos ctx =
 	let msg = (s_decl_flag flag) ^ " modifier is not supported for " ^ decl in
-	syntax_error_with_pos (Custom msg) pos None
+	syntax_error_with_pos ctx (Custom msg) pos None
 
 let unsupported_decl_flag_class = unsupported_decl_flag "classes"
 let unsupported_decl_flag_enum = unsupported_decl_flag "enums"
@@ -226,35 +226,35 @@ let unsupported_decl_flag_abstract = unsupported_decl_flag "abstracts"
 let unsupported_decl_flag_typedef = unsupported_decl_flag "typedefs"
 let unsupported_decl_flag_module_field = unsupported_decl_flag "module-level fields"
 
-let decl_flag_to_class_flag (flag,p) = match flag with
+let decl_flag_to_class_flag ctx (flag,p) = match flag with
 	| DPrivate -> Some HPrivate
 	| DExtern -> Some HExtern
 	| DFinal -> Some HFinal
-	| DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_class flag p
+	| DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_class flag p ctx
 
-let decl_flag_to_enum_flag (flag,p) = match flag with
+let decl_flag_to_enum_flag ctx (flag,p) = match flag with
 	| DPrivate -> Some EPrivate
 	| DExtern -> Some EExtern
-	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_enum flag p
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_enum flag p ctx
 
-let decl_flag_to_abstract_flag (flag,p) = match flag with
+let decl_flag_to_abstract_flag ctx (flag,p) = match flag with
 	| DPrivate -> Some AbPrivate
 	| DExtern -> Some AbExtern
-	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_abstract flag p
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_abstract flag p ctx
 
-let decl_flag_to_typedef_flag (flag,p) = match flag with
+let decl_flag_to_typedef_flag ctx (flag,p) = match flag with
 	| DPrivate -> Some TDPrivate
 	| DExtern -> Some TDExtern
-	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_typedef flag p
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_typedef flag p ctx
 
-let decl_flag_to_module_field_flag (flag,p) = match flag with
+let decl_flag_to_module_field_flag ctx (flag,p) = match flag with
 	| DPrivate -> Some (APrivate,p)
 	| DMacro -> Some (AMacro,p)
 	| DDynamic -> Some (ADynamic,p)
 	| DInline -> Some (AInline,p)
 	| DOverload -> Some (AOverload,p)
 	| DExtern -> Some (AExtern,p)
-	| DFinal | DPublic | DStatic -> unsupported_decl_flag_module_field flag p
+	| DFinal | DPublic | DStatic -> unsupported_decl_flag_module_field flag p ctx
 
 let serror() = raise (Stream.Error "Parse error.")
 
@@ -452,8 +452,8 @@ let check_signature_mark ctx e p1 p2 =
 		end
 	end
 
-let convert_abstract_flags flags =
-	ExtList.List.filter_map decl_flag_to_abstract_flag flags
+let convert_abstract_flags ctx flags =
+	ExtList.List.filter_map (decl_flag_to_abstract_flag ctx) flags
 
 let no_keyword what s =
 	match Stream.peek s with

@@ -227,7 +227,7 @@ and parse_class_content ctx doc meta flags n p1 s =
 		d_doc = doc_from_string_opt doc;
 		d_meta = meta;
 		d_params = tl;
-		d_flags = ExtList.List.filter_map decl_flag_to_class_flag flags @ n @ hl;
+		d_flags = ExtList.List.filter_map (decl_flag_to_class_flag ctx) flags @ n @ hl;
 		d_data = fl;
 	}, punion p1 p2)
 
@@ -256,7 +256,7 @@ and parse_type_decl ctx mode s =
 				d_doc = doc_from_string_opt doc;
 				d_meta = meta;
 				d_params = pl;
-				d_flags = ExtList.List.filter_map decl_flag_to_module_field_flag c;
+				d_flags = ExtList.List.filter_map (decl_flag_to_module_field_flag ctx) c;
 				d_data = FFun f;
 			}, punion p1 p2)
 		| [ (Kwd Var,p1); dollar_ident as name ] ->
@@ -275,12 +275,12 @@ and parse_type_decl ctx mode s =
 				d_doc = doc_from_string_opt doc;
 				d_meta = meta;
 				d_params = [];
-				d_flags = ExtList.List.filter_map decl_flag_to_module_field_flag c;
+				d_flags = ExtList.List.filter_map (decl_flag_to_module_field_flag ctx) c;
 				d_data = t;
 			}, punion p1 p2)
 		| [ (Kwd Enum,p1) ] ->
 			begin match%parser s with
-			| [ (Kwd Abstract,p1); [%let a,p = parse_abstract ctx doc meta (AbEnum :: (convert_abstract_flags c)) p1] ] ->
+			| [ (Kwd Abstract,p1); [%let a,p = parse_abstract ctx doc meta (AbEnum :: (convert_abstract_flags ctx c)) p1] ] ->
 				(EAbstract a,p)
 			| [ [%let name = type_name ctx]; [%let tl = parse_constraint_params ctx]; (BrOpen,_); [%let l = plist (parse_enum ctx)]; (BrClose,p2) ] ->
 				(EEnum {
@@ -288,7 +288,7 @@ and parse_type_decl ctx mode s =
 					d_doc = doc_from_string_opt doc;
 					d_meta = meta;
 					d_params = tl;
-					d_flags = ExtList.List.filter_map decl_flag_to_enum_flag c;
+					d_flags = ExtList.List.filter_map (decl_flag_to_enum_flag ctx) c;
 					d_data = l
 				}, punion p1 p2)
 			end
@@ -303,12 +303,12 @@ and parse_type_decl ctx mode s =
 				d_doc = doc_from_string_opt doc;
 				d_meta = meta;
 				d_params = tl;
-				d_flags = ExtList.List.filter_map decl_flag_to_typedef_flag c;
+				d_flags = ExtList.List.filter_map (decl_flag_to_typedef_flag ctx) c;
 				d_data = t;
 			}, punion p1 (pos t))
 		| [ (Kwd Abstract,p1) ] ->
 			begin match%parser s with
-			| [ [%let a,p = parse_abstract ctx doc meta (convert_abstract_flags c) p1] ] ->
+			| [ [%let a,p = parse_abstract ctx doc meta (convert_abstract_flags ctx c) p1] ] ->
 				EAbstract a,p
 			| [ ] ->
 				let c2 = parse_common_flags s in
@@ -329,7 +329,7 @@ and parse_type_decl ctx mode s =
 						d_doc = doc_from_string_opt doc;
 						d_meta = meta;
 						d_params = [];
-						d_flags = (ExtList.List.filter_map decl_flag_to_module_field_flag (List.rev crest)) @ [AFinal,p1];
+						d_flags = (ExtList.List.filter_map (decl_flag_to_module_field_flag ctx) (List.rev crest)) @ [AFinal,p1];
 						d_data = FVar(t,e);
 					}, punion p1 p2)
 				| [ ] -> check_type_decl_flag_completion ctx mode c s)

@@ -220,7 +220,6 @@ let parse entry lctx defines code file =
 	code_ref := code;
 	in_display := display_position#get <> null_pos;
 	in_display_file := !in_display && display_position#is_in_file (Path.UniqueKey.create file);
-	syntax_errors := [];
 	let restore =
 		(fun () ->
 			restore_cache ();
@@ -366,10 +365,10 @@ let parse entry lctx defines code file =
 		end;
 		let was_display_file = !in_display_file in
 		restore();
-		let pdi = {pd_errors = List.rev !syntax_errors;pd_dead_blocks = dbc#get_dead_blocks;pd_conditions = conds#get_conditions} in
+		let pdi = {pd_errors = List.rev !(pctx.syntax_errors);pd_dead_blocks = dbc#get_dead_blocks;pd_conditions = conds#get_conditions} in
 		if was_display_file then
 			ParseSuccess(l,true,pdi)
-		else begin match List.rev !syntax_errors with
+		else begin match List.rev !(pctx.syntax_errors) with
 			| [] -> ParseSuccess(l,false,pdi)
 			| error :: errors -> ParseError(l,error,errors)
 		end
@@ -386,14 +385,11 @@ let parse entry lctx defines code file =
 let parse_string entry defines s p error inlined =
 	let old_display = display_position#get in
 	let old_in_display_file = !in_display_file in
-	let old_syntax_errors = !syntax_errors in
-	syntax_errors := [];
 	let restore() =
 		if not inlined then begin
 			display_position#set old_display;
 			in_display_file := old_in_display_file;
 		end;
-		syntax_errors := old_syntax_errors;
 	in
 	let lctx = Lexer.create_temp_ctx p.pfile in
 	if not inlined then begin
