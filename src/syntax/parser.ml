@@ -22,6 +22,10 @@ open Globals
 open DisplayTypes.DisplayMode
 open DisplayPosition
 
+type parser_ctx = {
+	lexer_ctx : Lexer.lexer_ctx;
+}
+
 type preprocessor_error =
 	| InvalidEnd
 	| InvalidElse
@@ -105,6 +109,10 @@ type 'a parse_result =
 	(* Parsed non-display file with errors *)
 	| ParseError of 'a * parse_error * parse_error list
 
+let create_context lexer_ctx = {
+	lexer_ctx;
+}
+
 let s_decl_flag = function
 	| DPrivate -> "private"
 	| DExtern -> "extern"
@@ -133,21 +141,21 @@ module TokenCache = struct
 		(fun () -> cache := old_cache)
 end
 
-let last_token s =
+let last_token ctx s =
 	let n = Stream.count s in
 	TokenCache.get (if n = 0 then 0 else n - 1)
 
-let last_pos s = pos (last_token s)
+let last_pos ctx s = pos (last_token ctx s)
 
-let next_token s = match Stream.peek s with
+let next_token ctx s = match Stream.peek s with
 	| Some (Eof,p) ->
 		(Eof,p)
 	| Some tk -> tk
 	| None ->
-		let last_pos = pos (last_token s) in
+		let last_pos = pos (last_token ctx s) in
 		(Eof,last_pos)
 
-let next_pos s = pos (next_token s)
+let next_pos ctx s = pos (next_token ctx s)
 
 (* Global state *)
 
@@ -184,18 +192,18 @@ let syntax_error_with_pos error_msg p v =
 	syntax_errors := (error_msg,p) :: !syntax_errors;
 	v
 
-let syntax_error error_msg ?(pos=None) s v =
-	let p = (match pos with Some p -> p | None -> next_pos s) in
+let syntax_error ctx error_msg ?(pos=None) s v =
+	let p = (match pos with Some p -> p | None -> next_pos ctx s) in
 	syntax_error_with_pos error_msg p v
 
-let handle_stream_error msg s =
+let handle_stream_error ctx msg s =
 	let err,pos = if msg = "Parse error." then begin
-		let tk,pos = next_token s in
+		let tk,pos = next_token ctx s in
 		(Unexpected tk),Some pos
 	end else
 		(StreamError msg),None
 	in
-	syntax_error err ~pos s ()
+	syntax_error ctx err ~pos s ()
 
 let get_doc s =
 	(* do the peek first to make sure we fetch the doc *)
@@ -264,7 +272,7 @@ let type_path sl in_import p = match sl with
 	| n :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev l,Some (n,false),in_import,p));
 	| _ -> raise (TypePath (List.rev sl,None,in_import,p))
 
-let would_skip_display_position p1 plus_one s =
+let would_skip_display_position ctx p1 plus_one s =
 	if !in_display_file then match Stream.npeek 1 s with
 		| [ (_,p2) ] ->
 			let p2 = {p2 with pmin = p1.pmax + (if plus_one then 1 else 0)} in
@@ -338,16 +346,16 @@ let rec make_meta name params ((v,p2) as e) p1 =
 	| ETernary (e1,e2,e3) -> ETernary (make_meta name params e1 p1 , e2, e3), punion p1 p2
 	| _ -> EMeta((name,params,p1),e),punion p1 p2
 
-let handle_xml_literal p1 =
-	let lctx = Lexer.create_temp_ctx p1.pfile in
-	let i = Lexer.lex_xml lctx p1.pmin !code_ref in
-	let xml = Lexer.contents lctx in
+let handle_xml_literal ctx p1 =
+	Lexer.reset ctx.lexer_ctx;
+	let i = Lexer.lex_xml ctx.lexer_ctx p1.pmin !code_ref in
+	let xml = Lexer.contents ctx.lexer_ctx in
 	let e = EConst (String(xml,SDoubleQuotes)),{p1 with pmax = i} in (* STRINGTODO: distinct kind? *)
 	let e = make_meta Meta.Markup [] e p1 in
 	e
 
-let punion_next p1 s =
-	let _,p2 = next_token s in
+let punion_next ctx p1 s =
+	let _,p2 = next_token ctx s in
 	{
 		pfile = p1.pfile;
 		pmin = p1.pmin;
@@ -358,22 +366,22 @@ let mk_null_expr p = (EConst(Ident "null"),p)
 
 let mk_display_expr e dk = (EDisplay(e,dk),(pos e))
 
-let is_completion () =
+let is_completion ctx =
 	!display_mode = DMDefault
 
-let is_signature_display () =
+let is_signature_display ctx =
 	!display_mode = DMSignature
 
-let check_resume p fyes fno =
+let check_resume ctx p fyes fno =
 	if is_completion () && !in_display_file && p.pmax = (display_position#get).pmin then begin
 		had_resume := true;
 		fyes()
 	end else
 		fno()
 
-let check_resume_range p s fyes fno =
+let check_resume_range ctx p s fyes fno =
 	if is_completion () && !in_display_file then begin
-		let pnext = next_pos s in
+		let pnext = next_pos ctx s in
 		if p.pmin < (display_position#get).pmin && pnext.pmin >= (display_position#get).pmax then
 			fyes pnext
 		else
@@ -381,18 +389,18 @@ let check_resume_range p s fyes fno =
 	end else
 		fno()
 
-let check_completion p0 plus_one s =
+let check_completion ctx p0 plus_one s =
 	match Stream.peek s with
 	| Some((Const(Ident name),p)) when display_position#enclosed_in p ->
 		Stream.junk s;
 		(Some(Some name,p))
 	| _ ->
-		if would_skip_display_position p0 plus_one s then
+		if would_skip_display_position ctx p0 plus_one s then
 			Some(None,DisplayPosition.display_position#with_pos p0)
 		else
 			None
 
-let check_type_decl_flag_completion mode flags s =
+let check_type_decl_flag_completion ctx mode flags s =
 	if not !in_display_file || not (is_completion()) then raise Stream.Failure;
 	let mode () = match flags with
 		| [] ->
@@ -407,13 +415,13 @@ let check_type_decl_flag_completion mode flags s =
 			the parser would fail otherwise anyway. *)
 		| Some((Const(Ident name),p)) when display_position#enclosed_in p -> syntax_completion (mode()) (Some name) p
 		| _ -> match flags with
-			| (_,p) :: _ when would_skip_display_position p true s ->
+			| (_,p) :: _ when would_skip_display_position ctx p true s ->
 				let flags = List.map fst flags in
 				syntax_completion (SCAfterTypeFlag flags) None (DisplayPosition.display_position#with_pos p)
 			| _ ->
 				raise Stream.Failure
 
-let check_type_decl_completion mode pmax s =
+let check_type_decl_completion ctx mode pmax s =
 	if !in_display_file && is_completion() then begin
 		let pmin = match Stream.peek s with
 			| Some (Eof,_) | None -> max_int
@@ -431,7 +439,7 @@ let check_type_decl_completion mode pmax s =
 		end
 	end
 
-let check_signature_mark e p1 p2 =
+let check_signature_mark ctx e p1 p2 =
 	if not (is_signature_display()) then e
 	else begin
 		let p = punion p1 p2 in

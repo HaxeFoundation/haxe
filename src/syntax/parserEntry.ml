@@ -210,6 +210,8 @@ end
 
 (* parse main *)
 let parse entry lctx defines code file =
+	let pctx = Parser.create_context lctx in
+	let entry = entry pctx in
 	let restore_cache = TokenCache.clear () in
 	let was_display = !in_display in
 	let was_display_file = !in_display_file in
@@ -241,7 +243,7 @@ let parse entry lctx defines code file =
 	let dbc = new dead_block_collector conds in
 	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token lctx code)) in
 	let preprocessor_error ppe pos tk =
-		syntax_error (Preprocessor_error ppe) ~pos:(Some pos) sraw tk
+		syntax_error pctx (Preprocessor_error ppe) ~pos:(Some pos) sraw tk
 	in
 	let rec next_token() = process_token (Lexer.token lctx code)
 
@@ -266,7 +268,7 @@ let parse entry lctx defines code file =
 			conds#cond_end (snd tk);
 			next_token()
 		| Sharp "elseif" ->
-			let _,(e,pe) = parse_macro_cond sraw in
+			let _,(e,pe) = parse_macro_cond pctx sraw in
 			conds#cond_elseif (e,pe) (snd tk);
 			dbc#open_dead_block pe;
 			let tk = skip_tokens (pos tk) false in
@@ -295,7 +297,7 @@ let parse entry lctx defines code file =
 			tk
 
 	and enter_macro is_if p =
-		let tk, e = parse_macro_cond sraw in
+		let tk, e = parse_macro_cond pctx sraw in
 		(if is_if then conds#cond_if e else conds#cond_elseif e p);
 		let tk = (match tk with None -> Lexer.token lctx code | Some tk -> tk) in
 		if is_true (eval defines e) then begin
@@ -313,7 +315,7 @@ let parse entry lctx defines code file =
 			Lexer.token lctx code
 		| Sharp "elseif" when not test ->
 			dbc#close_dead_block (pos tk);
-			let _,(e,pe) = parse_macro_cond sraw in
+			let _,(e,pe) = parse_macro_cond pctx sraw in
 			conds#cond_elseif (e,pe) (snd tk);
 			dbc#open_dead_block pe;
 			skip_tokens p test
@@ -330,7 +332,7 @@ let parse entry lctx defines code file =
 			dbc#close_dead_block (pos tk);
 			enter_macro false (snd tk)
 		| Sharp "if" ->
-			let _,e = parse_macro_cond sraw in
+			let _,e = parse_macro_cond pctx sraw in
 			conds#cond_if e;
 			dbc#open_dead_block (pos e);
 			let tk = skip_tokens p false in
@@ -374,7 +376,7 @@ let parse entry lctx defines code file =
 	with
 		| Stream.Error _
 		| Stream.Failure ->
-			let last = (match Stream.peek s with None -> last_token s | Some t -> t) in
+			let last = (match Stream.peek s with None -> last_token pctx s | Some t -> t) in
 			restore();
 			error (Unexpected (fst last)) (pos last)
 		| e ->

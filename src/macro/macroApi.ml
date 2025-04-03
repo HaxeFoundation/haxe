@@ -35,7 +35,7 @@ type 'value compiler_api = {
 	on_type_not_found : (string -> 'value) -> unit;
 	parse_string : string -> Globals.pos -> bool -> Ast.expr;
 	register_file_contents : string -> string -> unit;
-	parse : 'a . ((Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
+	parse : 'a . (Parser.parser_ctx -> (Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
 	resolve_complex_type : Ast.type_hint -> Ast.type_hint;
@@ -2398,9 +2398,9 @@ let macro_api ccom get_api =
 		);
 		"with_imports", vfun3(fun imports usings f ->
 			let imports = List.map decode_string (decode_array imports) in
-			let imports = List.map ((get_api()).parse (fun s -> Grammar.parse_import' s Globals.null_pos)) imports in
+			let imports = List.map ((get_api()).parse (fun pctx s -> Grammar.parse_import' pctx s Globals.null_pos)) imports in
 			let usings = List.map decode_string (decode_array usings) in
-			let usings = List.map ((get_api()).parse (fun s -> Grammar.parse_using' s Globals.null_pos)) usings in
+			let usings = List.map ((get_api()).parse (fun pctx s -> Grammar.parse_using' pctx s Globals.null_pos)) usings in
 			let f = prepare_callback f 0 in
 			(get_api()).with_imports imports usings (fun () -> f [])
 		);
