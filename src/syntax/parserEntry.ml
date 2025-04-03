@@ -229,7 +229,6 @@ let parse entry lctx defines code file =
 			code_ref := old_code;
 		)
 	in
-	last_doc := None;
 	in_macro := Define.defined defines Define.Macro;
 	Lexer.skip_header code;
 
@@ -251,7 +250,7 @@ let parse entry lctx defines code file =
 		| Comment s ->
 			(* if encloses_resume (pos tk) then syntax_completion SCComment (pos tk); *)
 			let l = String.length s in
-			if l > 0 && s.[0] = '*' then last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
+			if l > 0 && s.[0] = '*' then pctx.last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
 			let tk = next_token() in
 			tk
 		| CommentLine s ->

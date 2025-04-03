@@ -74,6 +74,7 @@ exception SyntaxCompletion of syntax_completion * DisplayTypes.completion_subjec
 type parser_ctx = {
 	lexer_ctx : Lexer.lexer_ctx;
 	syntax_errors : (error_msg * pos) list ref;
+	last_doc : (string * int) option ref;
 }
 
 let error_msg = function
@@ -113,6 +114,7 @@ type 'a parse_result =
 let create_context lexer_ctx = {
 	lexer_ctx;
 	syntax_errors = ref [];
+	last_doc = ref None;
 }
 
 let s_decl_flag = function
@@ -172,7 +174,6 @@ let delayed_syntax_completion : (syntax_completion * DisplayTypes.completion_sub
 (* Per-file state *)
 
 let in_display_file = ref false
-let last_doc : (string * int) option ref = ref None
 
 let reset_state () =
 	in_display := false;
@@ -183,8 +184,7 @@ let reset_state () =
 	had_resume := false;
 	code_ref := Sedlexing.Utf8.from_string "";
 	delayed_syntax_completion := None;
-	in_display_file := false;
-	last_doc := None
+	in_display_file := false
 
 let syntax_error_with_pos ctx error_msg p v =
 	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in
@@ -205,15 +205,15 @@ let handle_stream_error ctx msg s =
 	in
 	syntax_error ctx err ~pos s ()
 
-let get_doc s =
+let get_doc ctx s =
 	(* do the peek first to make sure we fetch the doc *)
 	match Stream.peek s with
 	| None -> None
 	| Some (tk,p) ->
-		match !last_doc with
+		match !(ctx.last_doc) with
 		| None -> None
 		| Some (d,pos) ->
-			last_doc := None;
+			ctx.last_doc := None;
 			Some d
 
 let unsupported_decl_flag decl flag pos ctx =

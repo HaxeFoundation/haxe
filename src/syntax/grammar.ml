@@ -125,7 +125,6 @@ let check_redundant_var ctx p1 = function%parser
 let parsing_macro_cond = ref false
 
 let rec parse_file (ctx : parser_ctx) s =
-	last_doc := None;
 	match%parser s with
 	| [ (Kwd Package,_); parse_package as pack ] ->
 		begin match%parser s with
@@ -235,7 +234,7 @@ and parse_type_decl ctx mode s =
 	match%parser s with
 	| [ (Kwd Import,p1) ] -> parse_import ctx s p1
 	| [ (Kwd Using,p1) ] -> parse_using ctx s p1
-	| [ get_doc as doc; [%let meta = parse_meta ctx]; parse_common_flags as c ] ->
+	| [ [%let doc = get_doc ctx]; [%let meta = parse_meta ctx]; parse_common_flags as c ] ->
 		match%parser s with
 		| [ (Kwd Function,p1); dollar_ident as name; [%let pl = parse_constraint_params ctx]; (POpen,_); [%let args = psep_trailing Comma (parse_fun_param ctx)]; (PClose,_); [%let t = popt (parse_type_hint ctx)] ] ->
 			let e, p2 = (match%parser s with
@@ -880,7 +879,7 @@ and parse_type_anonymous ctx s =
 		if p0 = None then raise Stream.Failure else serror()
 
 and parse_enum ctx s =
-	let doc = get_doc s in
+	let doc = get_doc ctx s in
 	let meta = parse_meta ctx s in
 	match%parser s with
 	| [ [%let name, p1 = ident]; [%let params = parse_constraint_params ctx] ] ->
@@ -942,7 +941,7 @@ and parse_var_field_assignment ctx = function%parser
 	| [ ] -> serror()
 
 and parse_class_field ctx tdecl s =
-	let doc = get_doc s in
+	let doc = get_doc ctx s in
 	let meta = parse_meta ctx s in
 	match%parser s with
 	| [ [%let al = plist parse_cf_rights] ] ->
