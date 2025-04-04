@@ -120,7 +120,7 @@ let fun_to_coro ctx e tf name =
 		let t     = TInst (cls, []) in
 		let tcond = std_is econtinuation t in
 		let tif   = mk_assign econtinuation (mk_cast ecompletion t p) in
-		let telse = mk (TNew (cls, [], [ econtinuation ])) t p in
+		let telse = mk_assign econtinuation (mk (TNew (cls, [], [ econtinuation ])) t p) in
 		mk (TIf (tcond, tif, Some telse)) ctx.typer.com.basic.tvoid p
 	in
 	
