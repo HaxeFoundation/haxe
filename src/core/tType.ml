@@ -463,6 +463,9 @@ type basic_types = {
 	mutable tarray : t -> t;
 	mutable tcoro : (string * bool * t) list -> t -> t;
 	mutable tcoro_control : t;
+	mutable tcoro_continuation : t;
+	mutable tcoro_primitive : t;
+	mutable texception : t;
 }
 
 type class_field_scope =

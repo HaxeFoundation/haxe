@@ -87,7 +87,8 @@ let overrides_extern_field cf c =
 	loop c cf
 
 let is_std_file dce file =
-	List.exists (ExtString.String.starts_with file) dce.std_dirs
+	true
+	(* List.exists (ExtString.String.starts_with file) dce.std_dirs *)
 
 let keep_metas = [Meta.Keep;Meta.Expose]
 

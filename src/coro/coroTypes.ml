@@ -52,7 +52,7 @@ and coro_next = {
 }
 
 type coro_ctx = {
-	com : Common.context;
+	typer : Typecore.typer;
 	coro_debug : bool;
 	mutable vthis : tvar option;
 	mutable next_block_id : int;

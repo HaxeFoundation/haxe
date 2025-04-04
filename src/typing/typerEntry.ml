@@ -175,7 +175,27 @@ let create com macros =
 		| _ ->
 			()
 	) m.m_types;
-	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
+	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"IContinuation") null_pos in
+	List.iter (function
+		| TClassDecl({ cl_path = (["haxe";"coro"], "IContinuation") } as cl) ->
+			ctx.t.tcoro_continuation <- TInst(cl, [ ctx.t.tany ])
+		| _ ->
+			()
+	) m.m_types;
+	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"Primitive") null_pos in
+	List.iter (function
+		| TClassDecl({ cl_path = (["haxe";"coro"], "Primitive") } as cl) ->
+			ctx.t.tcoro_primitive <- TInst(cl, [])
+		| _ ->
+			()
+	) m.m_types;
+	let m = TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos in
+	List.iter (function
+		| TClassDecl({ cl_path = (["haxe"], "Exception") } as cl) ->
+			ctx.t.texception <- TInst(cl, [])
+		| _ ->
+			()
+	) m.m_types;
 	ctx.g.complete <- true;
 	ctx
 

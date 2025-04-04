@@ -11,7 +11,7 @@ type coro_ret =
 	| RValue
 	| RBlock
 
-let expr_to_coro ctx (vresult,verror) cb_root e =
+let expr_to_coro ctx eresult cb_root e =
 	let ordered_value_marker = ref false in
 	let start_ordered_value_list () =
 		let old = !ordered_value_marker in
@@ -112,9 +112,9 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 			cb,{e with eexpr = TNew(c,tl,el)}
 		(* rewrites & forwards *)
 		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
-			loop cb ret (Texpr.not_while_true_to_while_true ctx.com.Common.basic e1 e2 flag e.etype e.epos)
+			loop cb ret (Texpr.not_while_true_to_while_true ctx.typer.com.Common.basic e1 e2 flag e.etype e.epos)
 		| TFor(v,e1,e2) ->
-			loop cb ret (Texpr.for_remap ctx.com.basic v e1 e2 e.epos)
+			loop cb ret (Texpr.for_remap ctx.typer.com.basic v e1 e2 e.epos)
 		| TCast(e1,o) ->
 			let cb,e1 = loop cb ret e1 in
 			if e1 == e_no_value then
@@ -169,7 +169,6 @@ let expr_to_coro ctx (vresult,verror) cb_root e =
 							cs_pos = e.epos
 						} in
 						terminate cb (NextSuspend(suspend,cb_next)) t_dynamic null_pos;
-						let eresult = Texpr.Builder.make_local vresult e.epos in
 						let eresult = mk_cast eresult e.etype e.epos in
 						cb_next,eresult
 					| _ ->
