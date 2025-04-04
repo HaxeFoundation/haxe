@@ -43,6 +43,7 @@ let safe_decode com v expected t p f =
 	let raise_decode_error s =
 		let path = [Dump.dump_path com.defines;"decoding_error"] in
 		let ch = Path.create_file false ".txt" [] path  in
+		Printf.fprintf ch "%s: %s\n" (TPrinting.Printer.s_pos p) s;
 		let errors = Interp.handle_decoding_error (output_string ch) v t in
 		List.iter (fun (s,i) -> Printf.fprintf ch "\nline %i: %s" i s) (List.rev errors);
 		close_out ch;
