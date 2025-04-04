@@ -54,6 +54,7 @@
 		"define": "dce",
 		"doc": "Set the dead code elimination mode. (default: std)",
 		"params": ["mode: std | full | no"],
+		"default": "std",
 		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
@@ -115,6 +116,7 @@
 		"name": "DumpPath",
 		"define": "dump-path",
 		"doc": "Path to generate dumps to (default: \"dump\").",
+		"default": "dump",
 		"params": ["path"]
 	},
 	{
@@ -125,7 +127,8 @@
 	{
 		"name": "DumpIgnoreVarIds",
 		"define": "dump-ignore-var-ids",
-		"doc": "Remove variable IDs from non-pretty dumps (helps with diff)."
+		"doc": "Remove variable IDs from non-pretty dumps (helps with diff).",
+		"default": "1"
 	},
 	{
 		"name": "DynamicInterfaceClosures",
@@ -138,6 +141,7 @@
 		"define": "eval-call-stack-depth",
 		"doc": "Set maximum call stack depth for eval. (default: 1000)",
 		"platforms": ["eval"],
+		"default": "1000",
 		"params": ["depth"]
 	},
 	{
@@ -151,6 +155,7 @@
 		"define": "eval-print-depth",
 		"doc": "Set maximum print depth (before replacing with '<...>') for eval. (default: 5)",
 		"platforms": ["eval"],
+		"default": "5",
 		"params": ["depth"]
 	},
 	{
@@ -239,6 +244,27 @@
 		"name": "Haxe",
 		"define": "haxe",
 		"doc": "The current Haxe version value in SemVer format.",
+		"reserved": true
+	},
+	{
+		"name": "Haxe3",
+		"define": "haxe3",
+		"doc": "The current Haxe major version is >= 3.",
+		"default": "1",
+		"reserved": true
+	},
+	{
+		"name": "Haxe4",
+		"define": "haxe4",
+		"doc": "The current Haxe major version is >= 4.",
+		"default": "1",
+		"reserved": true
+	},
+	{
+		"name": "Haxe5",
+		"define": "haxe5",
+		"doc": "The current Haxe major version is >= 5.",
+		"default": "1",
 		"reserved": true
 	},
 	{
@@ -484,6 +510,7 @@
 		"name": "LoopUnrollMaxCost",
 		"define": "loop-unroll-max-cost",
 		"doc": "Maximum cost (number of expressions * iterations) before loop unrolling is canceled. (default: 250)",
+		"default": "250",
 		"params": ["cost"]
 	},
 	{
@@ -810,6 +837,7 @@
 		"name": "MessageReporting",
 		"define": "message.reporting",
 		"doc": "Select message reporting mode for compiler output. (default: pretty)",
+		"default": "pretty",
 		"params": ["mode: classic | pretty | indent"]
 	},
 	{
@@ -831,6 +859,7 @@
 		"name": "MessageLogFormat",
 		"define": "message.log-format",
 		"doc": "Select message reporting mode for message log file. (default: indent)",
+		"default": "indent",
 		"params": ["format: classic | pretty | indent"]
 	}
 ]

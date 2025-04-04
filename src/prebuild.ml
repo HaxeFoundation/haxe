@@ -114,6 +114,7 @@ type parsed_define = {
 	d_links: string list;
 	d_deprecated : string option;
 	d_deprecated_define : string option;
+	d_default : string option;
 }
 let parse_define json =
 	let fields = match json with
@@ -129,6 +130,7 @@ let parse_define json =
 		d_links = get_optional_field "links" as_links [] fields;
 		d_deprecated = get_optional_field2 "deprecated" as_string fields;
 		d_deprecated_define = get_optional_field2 "deprecatedDefine" as_string fields;
+		d_default = get_optional_field2 "default" as_string fields;
 	}
 
 let parse_meta json =
@@ -201,6 +203,7 @@ let gen_option f = function
 
 let gen_define_info defines =
 	let deprecations = DynArray.create() in
+	let default_values = DynArray.create() in
 	let define_str = List.map (function
 		def ->
 			let platforms_str = gen_platforms def.d_platforms in
@@ -222,9 +225,21 @@ let gen_define_info defines =
 					DynArray.add deprecations (Printf.sprintf "\t(%S,DueTo(%S));" define x);
 					[Printf.sprintf "Deprecated(%s)" quoted]
 			in
-			"\t| " ^ def.d_name ^ " -> \"" ^ define ^ "\",(" ^ (Printf.sprintf "%S" def.d_doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ links_str @ deprecated)) ^ "])"
+			let default = match def.d_default with
+				| None ->
+					[]
+				| Some x ->
+					let quoted = Printf.sprintf "%S" x in
+					DynArray.add default_values (Printf.sprintf "\t(%S,%S)" define x);
+					[Printf.sprintf "DefaultValue(%s)" quoted]
+			in
+			"\t| " ^ def.d_name ^ " -> \"" ^ define ^ "\",(" ^ (Printf.sprintf "%S" def.d_doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ links_str @ deprecated @ default)) ^ "])"
 	) defines in
-	String.concat "\n" define_str,String.concat "\n" (DynArray.to_list deprecations)
+	(
+		String.concat "\n" define_str,
+		String.concat "\n" (DynArray.to_list deprecations),
+		String.concat ";\n" (DynArray.to_list default_values)
+	)
 
 let gen_meta_type metas =
 	String.concat "\n" (List.map (function
@@ -298,6 +313,7 @@ type define_parameter =
 	| Platforms of platform list
 	| Link of string
 	| Deprecated of string
+	| DefaultValue of string
 
 type define_deprecation =
 	| DueTo of string
@@ -363,11 +379,12 @@ match Array.to_list (Sys.argv) with
 		Printf.printf "type strict_defined =\n";
 		Printf.printf "%s" (gen_define_type defines);
 		Printf.printf "\n\t| Last\n\t| Custom of string\n\n";
-		let infos,deprecations = gen_define_info defines in
+		let infos,deprecations,default_values = gen_define_info defines in
 		Printf.printf "let infos = function\n";
 		Printf.printf "%s" infos;
 		Printf.printf "\n\t| Last -> die \"\" __LOC__\n\t| Custom s -> s,(\"\",[])\n";
 		Printf.printf "\nlet deprecated_defines = [\n%s\n]\n" deprecations;
+		Printf.printf "\nlet default_values = [\n%s\n]\n" default_values;
 	| [_; "meta"; meta_path]->
 		let metas = parse_file_array meta_path parse_meta in
 		Printf.printf "%s" meta_header;
