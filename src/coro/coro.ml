@@ -29,7 +29,8 @@ let fun_to_coro ctx e tf name =
 			v
 	in
 
-	let cls = mk_class ctx.typer.m.curmod ([], name) null_pos null_pos in
+	let cls_path = ((fst ctx.typer.m.curmod.m_path) @ [ Printf.sprintf "_%s" (snd ctx.typer.m.curmod.m_path) ]), name in
+	let cls = mk_class ctx.typer.m.curmod cls_path null_pos null_pos in
 
 	(match ctx.typer.com.basic.tcoro_continuation with
 	| TInst (cls_cont, _) ->
