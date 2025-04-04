@@ -1159,7 +1159,7 @@ module Purity = struct
 		taint node;
 		raise Exit
 
-	let apply_to_field com is_ctor is_static c cf =
+	let apply_to_field is_ctor is_static c cf =
 		let node = get_node c cf in
 		let check_field c cf =
 			let node' = get_node c cf in
@@ -1235,24 +1235,24 @@ module Purity = struct
 					with Exit ->
 						()
 
-	let apply_to_class com c =
-		List.iter (apply_to_field com false false c) c.cl_ordered_fields;
-		List.iter (apply_to_field com false true c) c.cl_ordered_statics;
-		(match c.cl_constructor with Some cf -> apply_to_field com true false c cf | None -> ())
+	let apply_to_class c =
+		List.iter (apply_to_field false false c) c.cl_ordered_fields;
+		List.iter (apply_to_field false true c) c.cl_ordered_statics;
+		(match c.cl_constructor with Some cf -> apply_to_field true false c cf | None -> ())
 
-	let infer com =
+	let infer types =
 		Hashtbl.clear node_lut;
-		List.iter (fun mt -> match mt with
+		Array.iter (fun mt -> match mt with
 			| TClassDecl c ->
 				begin try
-					apply_to_class com c
+					apply_to_class c
 				with Purity_conflict(impure,p) ->
 					Error.raise_typing_error_ext (Error.make_error (Custom "Impure field overrides/implements field which was explicitly marked as @:pure") ~sub:[
 						Error.make_error ~depth:1 (Custom (Error.compl_msg "Pure field is here")) p
 					] impure.pn_field.cf_pos)
 				end
 			| _ -> ()
-		) com.Common.types;
+		) types;
 		Hashtbl.iter (fun _ node ->
 			match node.pn_purity with
 			| Pure | MaybePure when not (List.exists (fun (m,_,_) -> m = Meta.Pure) node.pn_field.cf_meta) ->
