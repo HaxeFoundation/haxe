@@ -47,8 +47,8 @@ let parse_file_from_lexbuf com file p lexbuf =
 			DisplayException.raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com [file,ds] filter);
 		| _,ParseSuccess(_,({pd_was_display_file = true} as pdi)) ->
 			if pdi.pd_had_resume then
-				com.had_parser_resume <- true;
-			Atomic.set com.delayed_syntax_completion pdi.pd_delayed_syntax_completion
+				com.parser_state.had_parser_resume <- true;
+			Atomic.set com.parser_state.delayed_syntax_completion pdi.pd_delayed_syntax_completion
 		| _ ->
 			()
 	end;

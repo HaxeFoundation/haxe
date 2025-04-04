@@ -227,6 +227,13 @@ class virtual abstract_hxb_lib = object(self)
 	method virtual get_string_pool : string -> string array option
 end
 
+type parser_state = {
+	mutable was_auto_triggered : bool;
+	mutable had_parser_resume : bool;
+	delayed_syntax_completion : Parser.syntax_completion_on option Atomic.t;
+	special_identifier_files : (Path.UniqueKey.t,string) ThreadSafeHashtbl.t;
+}
+
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
@@ -250,11 +257,7 @@ type context = {
 	main : Gctx.context_main;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
-	(* parser stuff to clean up later *)
-	mutable was_auto_triggered : bool;
-	mutable had_parser_resume : bool;
-	delayed_syntax_completion : Parser.syntax_completion_on option Atomic.t;
-	special_identifier_files : (Path.UniqueKey.t,string) ThreadSafeHashtbl.t;
+	parser_state : parser_state;
 	(* communication *)
 	mutable print : string -> unit;
 	mutable error : Gctx.error_function;
@@ -775,10 +778,12 @@ let create timer_ctx compilation_step cs version args display_mode =
 		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_config = None;
-		was_auto_triggered = false;
-		had_parser_resume = false;
-		delayed_syntax_completion = Atomic.make None;
-		special_identifier_files = ThreadSafeHashtbl.create 0;
+		parser_state = {
+			was_auto_triggered = false;
+			had_parser_resume = false;
+			delayed_syntax_completion = Atomic.make None;
+			special_identifier_files = ThreadSafeHashtbl.create 0;
+		}
 	} in
 	com
 
