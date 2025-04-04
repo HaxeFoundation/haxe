@@ -399,10 +399,10 @@ let compile ctx actx callbacks =
 					()
 		);
 		if is_diagnostics com then
-			filter ctx tctx ectx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)
+			filter ctx com ectx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)
 		else begin
 			DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
-			filter ctx tctx ectx (fun () -> ());
+			filter ctx com ectx (fun () -> ());
 		end;
 		if ctx.has_error then raise Abort;
 		if is_compilation then Generate.check_auxiliary_output com actx;

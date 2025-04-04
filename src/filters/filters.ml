@@ -20,7 +20,6 @@
 open Ast
 open Common
 open Type
-open Typecore
 open Error
 open Globals
 open FiltersCommon
@@ -417,8 +416,7 @@ let run_safe_filters ectx (scom : SafeCom.t) new_types_array cv_wrapper_impl ren
 	(* enter_stage com CAnalyzerDone; *)
 	Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_after_analyzer) new_types_array
 
-let run tctx ectx main before_destruction =
-	let com = tctx.com in
+let run com ectx main before_destruction =
 	let scom = SafeCom.of_com com in
 	let detail_times = Timer.level_from_define com.defines Define.FilterTimes in
 	let new_types = List.filter (fun t ->
