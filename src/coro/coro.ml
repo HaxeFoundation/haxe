@@ -44,15 +44,18 @@ let fun_to_coro ctx e tf name =
 	let cls_error      = mk_field "_hx_error" ctx.typer.com.basic.texception null_pos null_pos in
 
 	let cls_ctor =
-		let name           = "completion" in
-		let field          = mk_field "new" (TFun ([ (name, false, ctx.typer.com.basic.tcoro_continuation) ], ctx.typer.com.basic.tvoid)) null_pos null_pos in
-		let vargcompletion = alloc_var VGenerated name ctx.typer.com.basic.tcoro_continuation p in
-		let eargcompletion = Builder.make_local vargcompletion p in
-		let ethis          = mk (TConst TThis) (TInst (cls, [])) p in
-		let efield         = mk (TField(ethis,FInstance(cls, [], cls_completion))) ctx.typer.com.basic.tint p in
-		let eassign        = mk_assign efield eargcompletion in
+		let name              = "completion" in
+		let field             = mk_field "new" (TFun ([ (name, false, ctx.typer.com.basic.tcoro_continuation) ], ctx.typer.com.basic.tvoid)) null_pos null_pos in
+		let vargcompletion    = alloc_var VGenerated name ctx.typer.com.basic.tcoro_continuation p in
+		let eargcompletion    = Builder.make_local vargcompletion p in
+		let ethis             = mk (TConst TThis) (TInst (cls, [])) p in
+		let ecompletionfield  = mk (TField(ethis,FInstance(cls, [], cls_completion))) ctx.typer.com.basic.tint p in
+		let estatefield       = mk (TField(ethis,FInstance(cls, [], cls_state))) ctx.typer.com.basic.tint p in
+		let eassigncompletion = mk_assign ecompletionfield eargcompletion in
+		let eassignstate      = mk_assign estatefield (mk (TConst (TInt (Int32.of_int 1) )) ctx.typer.com.basic.tint p) in
+		let eblock            = mk (TBlock [ eassigncompletion; eassignstate ]) ctx.typer.com.basic.tvoid p in
 
-		let func = TFunction { tf_type = ctx.typer.com.basic.tvoid; tf_args = [ (vargcompletion, None) ]; tf_expr = eassign } in
+		let func = TFunction { tf_type = ctx.typer.com.basic.tvoid; tf_args = [ (vargcompletion, None) ]; tf_expr = eblock } in
 		let expr = mk (func) field.cf_type p in
 
 		if ctx.coro_debug then
