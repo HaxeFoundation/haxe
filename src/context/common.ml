@@ -250,6 +250,7 @@ type context = {
 	main : Gctx.context_main;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
+	mutable was_auto_triggered : bool;
 	(* communication *)
 	mutable print : string -> unit;
 	mutable error : Gctx.error_function;
@@ -770,6 +771,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_config = None;
+		was_auto_triggered = false;
 	} in
 	com
 

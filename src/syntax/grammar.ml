@@ -1672,7 +1672,7 @@ and parse_switch_cases ctx eswitch cases s = match%parser s with
 		l , Some b
 	| [ (Kwd Case,p1); [%let el = psep Comma (expr_or_var ctx)]; [%let eg = popt (parse_guard ctx)] ] ->
 		let pdot = expect_unless_resume_p ctx DblDot s in
-		if !was_auto_triggered then check_resume ctx pdot (fun () -> ()) (fun () -> ());
+		if ctx.config.was_auto_triggered then check_resume ctx pdot (fun () -> ()) (fun () -> ());
 		(match el with
 		| [] -> syntax_error ctx (Custom "case without a pattern is not allowed") ~pos:(Some p1) s ([],None)
 		| _ ->

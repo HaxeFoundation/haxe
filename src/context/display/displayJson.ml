@@ -64,7 +64,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 		) None in
 
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
-		Parser.was_auto_triggered := was_auto_triggered;
+		com.was_auto_triggered <- was_auto_triggered;
 
 		if file <> file_input_marker then begin
 			let file_unique = com.file_keys#get file in

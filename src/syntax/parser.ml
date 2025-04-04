@@ -75,6 +75,7 @@ type parser_config = {
 	in_display : bool;
 	in_display_file : bool;
 	display_mode : DisplayTypes.DisplayMode.t;
+	was_auto_triggered : bool;
 }
 
 type parser_ctx = {
@@ -125,11 +126,12 @@ let create_context lexer_ctx config = {
 	config;
 }
 
-let create_config defines in_display in_display_file display_mode = {
+let create_config defines in_display in_display_file display_mode was_auto_triggered = {
 	defines;
 	in_display;
 	in_display_file;
 	display_mode;
+	was_auto_triggered;
 }
 
 let s_decl_flag = function
@@ -178,15 +180,12 @@ let next_pos ctx s = pos (next_token ctx s)
 
 (* Global state *)
 
-let was_auto_triggered = ref false
-
 let in_macro = ref false
 let had_resume = ref false
 let code_ref = ref (Sedlexing.Utf8.from_string "")
 let delayed_syntax_completion : (syntax_completion * DisplayTypes.completion_subject) option ref = ref None
 
 let reset_state () =
-	was_auto_triggered := false;
 	display_position#reset;
 	in_macro := false;
 	had_resume := false;
@@ -450,7 +449,7 @@ let check_signature_mark ctx e p1 p2 =
 	if not (is_signature_display ctx) then e
 	else begin
 		let p = punion p1 p2 in
-		if true || not !was_auto_triggered then begin (* TODO: #6383 *)
+		if true || not ctx.config.was_auto_triggered then begin (* TODO: #6383 *)
 			if encloses_position_gt display_position#get p then (mk_display_expr e DKMarked)
 			else e
 		end else begin
