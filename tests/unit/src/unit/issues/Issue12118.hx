@@ -13,9 +13,9 @@ private class NodeObj {
 	public var y : Int;
 }
 
-#if hl
 class Issue12118 extends Test {
 
+	#if hl
 	function testBlitStruct() {
 		var nodes = initNodeStruct(5, 10);
 		nodes.blit(NodeStruct, 1, nodes, 2, 2);
@@ -79,6 +79,5 @@ class Issue12118 extends Test {
 		}
 		return nodes;
 	}
+	#end
 }
-
-#end
