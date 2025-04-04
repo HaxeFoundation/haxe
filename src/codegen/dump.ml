@@ -20,9 +20,17 @@ let create_dumpfile_from_path com path =
 	buf,close
 
 let dump_types com pretty =
+	let print_ids = not (Common.defined com Define.DumpIgnoreVarIds) in
+	let restore =
+		if not pretty then
+			let old = !TPrinting.MonomorphPrinting.show_mono_ids in
+			TPrinting.MonomorphPrinting.show_mono_ids := print_ids;
+			fun () -> TPrinting.MonomorphPrinting.show_mono_ids := old
+		else fun () -> ()
+	in
 	let s_type = s_type (Type.print_context()) in
 	let s_expr,s_type_param = if not pretty then
-		(Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t"),(Printer.s_type_param "")
+		(Type.s_expr_ast print_ids "\t"),(Printer.s_type_param "")
 	else
 		(Type.s_expr_pretty false "\t" true),(s_type_param s_type)
 	in
@@ -124,7 +132,8 @@ let dump_types com pretty =
 	in
 	Parallel.run_in_new_pool com.timer_ctx (fun pool ->
 		Parallel.ParallelArray.iter pool f (Array.of_list com.types)
-	)
+	);
+	restore()
 
 let dump_record com =
 	let f mt =
