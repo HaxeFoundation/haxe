@@ -83,6 +83,7 @@ type parser_ctx = {
 	syntax_errors : (error_msg * pos) list ref;
 	last_doc : (string * int) option ref;
 	in_macro : bool;
+	code : Sedlexing.lexbuf;
 	mutable had_resume : bool;
 	config : parser_config;
 }
@@ -123,11 +124,12 @@ type 'a parse_result =
 	(* Parsed non-display file with errors *)
 	| ParseError of 'a * parse_error * parse_error list
 
-let create_context lexer_ctx config in_macro = {
+let create_context lexer_ctx config in_macro code = {
 	lexer_ctx;
 	syntax_errors = ref [];
 	last_doc = ref None;
 	in_macro;
+	code;
 	had_resume = false;
 	config;
 }
@@ -186,12 +188,10 @@ let next_pos ctx s = pos (next_token ctx s)
 
 (* Global state *)
 
-let code_ref = ref (Sedlexing.Utf8.from_string "")
 let delayed_syntax_completion : (syntax_completion * DisplayTypes.completion_subject) option ref = ref None
 
 let reset_state () =
 	display_position#reset;
-	code_ref := Sedlexing.Utf8.from_string "";
 	delayed_syntax_completion := None
 
 let syntax_error_with_pos ctx error_msg p v =
@@ -356,7 +356,7 @@ let rec make_meta name params ((v,p2) as e) p1 =
 
 let handle_xml_literal ctx p1 =
 	Lexer.reset ctx.lexer_ctx;
-	let i = Lexer.lex_xml ctx.lexer_ctx p1.pmin !code_ref in
+	let i = Lexer.lex_xml ctx.lexer_ctx p1.pmin ctx.code in
 	let xml = Lexer.contents ctx.lexer_ctx in
 	let e = EConst (String(xml,SDoubleQuotes)),{p1 with pmax = i} in (* STRINGTODO: distinct kind? *)
 	let e = make_meta Meta.Markup [] e p1 in

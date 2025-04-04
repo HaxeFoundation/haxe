@@ -212,15 +212,12 @@ end
 let parse config entry lctx code file =
 	let defines = config.defines in
 	let in_macro = Define.defined defines Define.Macro in
-	let ctx = Parser.create_context lctx config in_macro in
+	let ctx = Parser.create_context lctx config in_macro code in
 	let entry = entry ctx in
 	let restore_cache = TokenCache.clear () in
-	let old_code = !code_ref in
-	code_ref := code;
 	let restore =
 		(fun () ->
 			restore_cache ();
-			code_ref := old_code;
 		)
 	in
 	Lexer.skip_header code;
