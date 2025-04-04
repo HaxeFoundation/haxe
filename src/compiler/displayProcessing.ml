@@ -315,9 +315,9 @@ let process_global_display_mode com tctx =
 	promote_type_hints tctx;
 	match com.display.dms_kind with
 	| DMUsage (with_definition,_,_) ->
-		FindReferences.find_references tctx com with_definition
+		FindReferences.find_references com with_definition
 	| DMImplementation ->
-		FindReferences.find_implementations tctx com
+		FindReferences.find_implementations com
 	| DMModuleSymbols filter ->
 		let open CompilationCache in
 		let cs = com.cs in
@@ -359,7 +359,7 @@ let handle_display_after_finalization ctx tctx display_file_dot_path =
 	| RMDiagnostics _ ->
 		DisplayOutput.emit_diagnostics com
 	| RMStatistics ->
-		DisplayOutput.emit_statistics tctx
+		DisplayOutput.emit_statistics com
 	| RMNone ->
 		()
 	end

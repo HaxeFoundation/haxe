@@ -15,7 +15,7 @@ type statistics_filter =
 	| SFPos of pos
 	| SFFile of string
 
-let collect_statistics ctx pos_filters with_expressions =
+let collect_statistics com pos_filters with_expressions =
 	let relations = Hashtbl.create 0 in
 	let symbols = Hashtbl.create 0 in
 	let handled_modules = Hashtbl.create 0 in
@@ -25,7 +25,7 @@ let collect_statistics ctx pos_filters with_expressions =
 			try
 				Hashtbl.find paths path
 			with Not_found ->
-				let unique = ctx.com.file_keys#get path in
+				let unique = com.file_keys#get path in
 				Hashtbl.add paths path unique;
 				unique
 		)
@@ -209,7 +209,7 @@ let collect_statistics ctx pos_filters with_expressions =
 		List.iter f com.types;
 		Option.may loop (com.get_macros())
 	in
-	loop ctx.com;
+	loop com;
 	(* find things *)
 	let f = function
 		| TClassDecl c ->
@@ -254,7 +254,7 @@ let collect_statistics ctx pos_filters with_expressions =
 		List.iter f com.types;
 		Option.may loop (com.get_macros())
 	in
-	loop ctx.com;
+	loop com;
 	(* TODO: Using syntax-exploration here is technically fine, but I worry about performance in real codebases. *)
 	(* let find_symbols = Hashtbl.fold (fun _ kind acc ->
 		let name = string_of_symbol kind in

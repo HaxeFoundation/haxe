@@ -8,8 +8,8 @@ let find_possible_references tctx cs =
 	let name,_,kind = Display.ReferencePosition.get () in
 	ignore(SyntaxExplorer.explore_uncached_modules tctx cs [name,kind])
 
-let find_references tctx com with_definition pos_filters =
-	let symbols,relations = Timer.time com.timer_ctx ["display";"references";"collect"] (Statistics.collect_statistics tctx pos_filters) true in
+let find_references com with_definition pos_filters =
+	let symbols,relations = Timer.time com.timer_ctx ["display";"references";"collect"] (Statistics.collect_statistics com pos_filters) true in
 	let rec loop acc (relations:(Statistics.relation * pos) list) = match relations with
 		| (Statistics.Referenced,p) :: relations when not (List.mem p acc) -> loop (p :: acc) relations
 		| _ :: relations -> loop acc relations
@@ -119,14 +119,14 @@ let rec collect_reference_positions com (name,pos,kind) =
 	| _ ->
 		[name,pos,kind]
 
-let find_references tctx com with_definition =
+let find_references com with_definition =
 	let pos_filters =
 		List.fold_left (fun acc (_,p,_) ->
 			if p = null_pos then acc
 			else Statistics.SFPos p :: acc
 		) [] (collect_reference_positions com (Display.ReferencePosition.get ()))
 	in
-	let usages = find_references tctx com with_definition pos_filters in
+	let usages = find_references com with_definition pos_filters in
 	let usages =
 		List.sort (fun p1 p2 ->
 			let c = compare p1.pfile p2.pfile in
@@ -135,8 +135,8 @@ let find_references tctx com with_definition =
 	in
 	DisplayException.raise_positions usages
 
-let find_implementations tctx com name pos kind =
-	let symbols,relations = Timer.time com.timer_ctx ["display";"implementations";"collect"] (Statistics.collect_statistics tctx [SFPos pos]) false in
+let find_implementations com name pos kind =
+	let symbols,relations = Timer.time com.timer_ctx ["display";"implementations";"collect"] (Statistics.collect_statistics com [SFPos pos]) false in
 	let rec loop acc relations = match relations with
 		| ((Statistics.Implemented | Statistics.Overridden | Statistics.Extended),p) :: relations -> loop (p :: acc) relations
 		| _ :: relations -> loop acc relations
@@ -155,7 +155,7 @@ let find_implementations tctx com name pos kind =
 	Display.ReferencePosition.reset();
 	DisplayException.raise_positions usages
 
-let find_implementations tctx com =
+let find_implementations com =
 	let name,pos,kind = Display.ReferencePosition.get () in
-	if pos <> null_pos then find_implementations tctx com name pos kind
+	if pos <> null_pos then find_implementations com name pos kind
 	else DisplayException.raise_positions []
