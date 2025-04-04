@@ -125,9 +125,7 @@ type parser_display_information = {
 }
 
 type 'a parse_result =
-	(* Parsed non-display-file without errors. *)
 	| ParseSuccess of 'a * parser_display_information
-	(* Parsed non-display file with errors *)
 	| ParseError of 'a * parse_error * parse_error list
 
 let create_context lexer_ctx config in_macro code = {
