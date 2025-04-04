@@ -1,5 +1,5 @@
 package haxe.coro;
 
 interface IScheduler {
-    function scheduler(func:() -> Void):Void;
+    function schedule(func:() -> Void):Void;
 }

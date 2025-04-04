@@ -44,7 +44,7 @@ let fun_to_coro ctx e tf name =
 
 	let cls_ctor =
 		let name           = "completion" in
-		let field          = mk_field "new" (TFun ([ (name, false, ctx.typer.com.basic.texception) ], ctx.typer.com.basic.tvoid)) null_pos null_pos in
+		let field          = mk_field "new" (TFun ([ (name, false, ctx.typer.com.basic.tcoro_continuation) ], ctx.typer.com.basic.tvoid)) null_pos null_pos in
 		let vargcompletion = alloc_var VGenerated name ctx.typer.com.basic.tcoro_continuation p in
 		let eargcompletion = Builder.make_local vargcompletion p in
 		let ethis          = mk (TConst TThis) (TInst (cls, [])) p in
@@ -52,7 +52,7 @@ let fun_to_coro ctx e tf name =
 		let eassign        = mk_assign efield eargcompletion in
 
 		let func = TFunction { tf_type = ctx.typer.com.basic.tvoid; tf_args = [ (vargcompletion, None) ]; tf_expr = eassign } in
-		let expr = mk (func) ctx.typer.com.basic.tvoid p in
+		let expr = mk (func) field.cf_type p in
 
 		if ctx.coro_debug then
 			s_expr_debug expr |> Printf.printf "%s\n";
@@ -93,8 +93,8 @@ let fun_to_coro ctx e tf name =
 	TClass.add_field cls cls_ctor;
 	TClass.add_field cls cls_resume;
 
-	(* if ctx.coro_debug then
-		Printer.s_tclass "\t" cls |> Printf.printf "%s\n"; *)
+	if ctx.coro_debug then
+		Printer.s_tclass "\t" cls |> Printf.printf "%s\n";
 
 	(* ctx.typer.com.types <- ctx.typer.com.types @ [ TClassDecl cls ]; *)
 	ctx.typer.m.curmod.m_types <- ctx.typer.m.curmod.m_types @ [ TClassDecl cls ];

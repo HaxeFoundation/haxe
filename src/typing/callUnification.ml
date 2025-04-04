@@ -308,7 +308,8 @@ let unify_field_call ctx fa el_typed el p inline =
 		in
 		match follow_with_coro t with
 		| Coro(args,ret) when not (TyperManager.is_coroutine_context ctx) ->
-			raise_typing_error "Cannot directly call coroutine from a normal function, use start/create methods instead" p
+			let args, ret = expand_coro_type ctx.com.basic args ret in
+			make args ret false
 		| Coro(args,ret) ->
 			make args ret true
 		| NotCoro (TFun(args,ret)) ->
