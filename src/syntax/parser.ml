@@ -19,7 +19,6 @@
 
 open Ast
 open Globals
-open DisplayTypes.DisplayMode
 open DisplayPosition
 
 type preprocessor_error =
@@ -71,10 +70,18 @@ exception Error of error_msg * pos
 exception TypePath of string list * (string * bool) option * bool (* in import *) * pos
 exception SyntaxCompletion of syntax_completion * DisplayTypes.completion_subject
 
+type parser_config = {
+	defines : Define.define;
+	in_display : bool;
+	in_display_file : bool;
+	display_mode : DisplayTypes.DisplayMode.t;
+}
+
 type parser_ctx = {
 	lexer_ctx : Lexer.lexer_ctx;
 	syntax_errors : (error_msg * pos) list ref;
 	last_doc : (string * int) option ref;
+	config : parser_config;
 }
 
 let error_msg = function
@@ -111,10 +118,18 @@ type 'a parse_result =
 	(* Parsed non-display file with errors *)
 	| ParseError of 'a * parse_error * parse_error list
 
-let create_context lexer_ctx = {
+let create_context lexer_ctx config = {
 	lexer_ctx;
 	syntax_errors = ref [];
 	last_doc = ref None;
+	config;
+}
+
+let create_config defines in_display in_display_file display_mode = {
+	defines;
+	in_display;
+	in_display_file;
+	display_mode;
 }
 
 let s_decl_flag = function
@@ -163,32 +178,24 @@ let next_pos ctx s = pos (next_token ctx s)
 
 (* Global state *)
 
-let in_display = ref false
 let was_auto_triggered = ref false
-let display_mode = ref DMNone
+
 let in_macro = ref false
 let had_resume = ref false
 let code_ref = ref (Sedlexing.Utf8.from_string "")
 let delayed_syntax_completion : (syntax_completion * DisplayTypes.completion_subject) option ref = ref None
 
-(* Per-file state *)
-
-let in_display_file = ref false
-
 let reset_state () =
-	in_display := false;
 	was_auto_triggered := false;
-	display_mode := DMNone;
 	display_position#reset;
 	in_macro := false;
 	had_resume := false;
 	code_ref := Sedlexing.Utf8.from_string "";
-	delayed_syntax_completion := None;
-	in_display_file := false
+	delayed_syntax_completion := None
 
 let syntax_error_with_pos ctx error_msg p v =
 	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in
-	if not !in_display then error error_msg p;
+	if not ctx.config.in_display then error error_msg p;
 	ctx.syntax_errors := (error_msg,p) :: !(ctx.syntax_errors);
 	v
 
@@ -273,7 +280,7 @@ let type_path sl in_import p = match sl with
 	| _ -> raise (TypePath (List.rev sl,None,in_import,p))
 
 let would_skip_display_position ctx p1 plus_one s =
-	if !in_display_file then match Stream.npeek 1 s with
+	if ctx.config.in_display_file then match Stream.npeek 1 s with
 		| [ (_,p2) ] ->
 			let p2 = {p2 with pmin = p1.pmax + (if plus_one then 1 else 0)} in
 			display_position#enclosed_in p2
@@ -367,20 +374,20 @@ let mk_null_expr p = (EConst(Ident "null"),p)
 let mk_display_expr e dk = (EDisplay(e,dk),(pos e))
 
 let is_completion ctx =
-	!display_mode = DMDefault
+	ctx.config.display_mode = DMDefault
 
 let is_signature_display ctx =
-	!display_mode = DMSignature
+	ctx.config.display_mode = DMSignature
 
 let check_resume ctx p fyes fno =
-	if is_completion () && !in_display_file && p.pmax = (display_position#get).pmin then begin
+	if is_completion ctx && ctx.config.in_display_file && p.pmax = (display_position#get).pmin then begin
 		had_resume := true;
 		fyes()
 	end else
 		fno()
 
 let check_resume_range ctx p s fyes fno =
-	if is_completion () && !in_display_file then begin
+	if is_completion ctx && ctx.config.in_display_file then begin
 		let pnext = next_pos ctx s in
 		if p.pmin < (display_position#get).pmin && pnext.pmin >= (display_position#get).pmax then
 			fyes pnext
@@ -401,7 +408,7 @@ let check_completion ctx p0 plus_one s =
 			None
 
 let check_type_decl_flag_completion ctx mode flags s =
-	if not !in_display_file || not (is_completion()) then raise Stream.Failure;
+	if not ctx.config.in_display_file || not (is_completion ctx) then raise Stream.Failure;
 	let mode () = match flags with
 		| [] ->
 			SCTypeDecl mode
@@ -422,7 +429,7 @@ let check_type_decl_flag_completion ctx mode flags s =
 				raise Stream.Failure
 
 let check_type_decl_completion ctx mode pmax s =
-	if !in_display_file && is_completion() then begin
+	if ctx.config.in_display_file && is_completion ctx then begin
 		let pmin = match Stream.peek s with
 			| Some (Eof,_) | None -> max_int
 			| Some tk -> (pos tk).pmin
@@ -440,7 +447,7 @@ let check_type_decl_completion ctx mode pmax s =
 	end
 
 let check_signature_mark ctx e p1 p2 =
-	if not (is_signature_display()) then e
+	if not (is_signature_display ctx) then e
 	else begin
 		let p = punion p1 p2 in
 		if true || not !was_auto_triggered then begin (* TODO: #6383 *)

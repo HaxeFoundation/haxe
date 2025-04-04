@@ -2234,7 +2234,7 @@ let macro_api ccom get_api =
 				encode_obj ["file",encode_string p.Globals.pfile;"pos",vint p.Globals.pmin]
 		);
 		"get_display_mode", vfun0 (fun() ->
-			encode_display_mode !Parser.display_mode
+			encode_display_mode (ccom()).display.dms_kind;
 		);
 		"get_configuration", vfun0 (fun() ->
 			let com = ccom() in

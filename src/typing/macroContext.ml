@@ -98,7 +98,7 @@ let make_macro_com_api com mcom p =
 	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	let parse_metadata s p =
 		try
-			match ParserEntry.parse_string Grammar.parse_meta com.defines s null_pos raise_typing_error false with
+			match ParserEntry.parse_string (ParserConfig.default_config com.defines) Grammar.parse_meta s null_pos raise_typing_error false with
 			| ParseSuccess(meta,_,_) -> meta
 			| ParseError(_,_,_) -> raise_typing_error "Malformed metadata string" p
 		with _ ->
@@ -168,7 +168,7 @@ let make_macro_com_api com mcom p =
 			let exit() = com.error_ext <- old in
 
 			try
-				let r = match ParserEntry.parse_expr_string com.defines s p raise_typing_error inl with
+				let r = match ParserEntry.parse_expr_string (ParserConfig.file_parser_config com p.pfile) s p raise_typing_error inl with
 					| ParseSuccess(data,true,_) when inl -> data (* ignore errors when inline-parsing in display file *)
 					| ParseSuccess(data,_,_) -> data
 					| ParseError _ -> Interp.exc_string "Invalid expression"
@@ -186,7 +186,7 @@ let make_macro_com_api com mcom p =
 				raise e
 		);
 		parse = (fun entry s ->
-			match ParserEntry.parse_string entry com.defines s null_pos raise_typing_error false with
+			match ParserEntry.parse_string (ParserConfig.default_config com.defines) entry s null_pos raise_typing_error false with
 			| ParseSuccess(r,_,_) -> r
 			| ParseError(_,(msg,p),_) -> Parser.error msg p
 		);
@@ -239,7 +239,7 @@ let make_macro_com_api com mcom p =
 			null_module
 		);
 		format_string = (fun s p ->
-			FormatString.format_string com.defines s p (fun e p -> (e,p))
+			FormatString.format_string (ParserConfig.file_parser_config com p.pfile) s p (fun e p -> (e,p))
 		);
 		cast_or_unify = (fun t e p ->
 			Interp.exc_string "unsupported"
@@ -301,7 +301,7 @@ let make_macro_com_api com mcom p =
 let make_macro_api ctx mctx p =
 	let parse_metadata s p =
 		try
-			match ParserEntry.parse_string Grammar.parse_meta ctx.com.defines s null_pos raise_typing_error false with
+			match ParserEntry.parse_string (ParserConfig.default_config mctx.com.defines) Grammar.parse_meta s null_pos raise_typing_error false with
 			| ParseSuccess(meta,_,_) -> meta
 			| ParseError(_,_,_) -> raise_typing_error "Malformed metadata string" p
 		with _ ->
@@ -1027,7 +1027,7 @@ let resolve_init_macro com e =
 	let p = fake_pos ("--macro " ^ e) in
 	let e = try
 		if String.get e (String.length e - 1) = ';' then raise_typing_error "Unexpected ;" p;
-		begin match ParserEntry.parse_expr_string com.defines e p raise_typing_error false with
+		begin match ParserEntry.parse_expr_string (ParserConfig.default_config com.defines) e p raise_typing_error false with
 		| ParseSuccess(data,_,_) -> data
 		| ParseError(_,(msg,p),_) -> (Parser.error msg p)
 		end

@@ -33,14 +33,14 @@ exception DisplayInMacroBlock
 let parse_file_from_lexbuf com file p lexbuf =
 	incr stats.s_files_parsed;
 	let parse_result = try
-		ParserEntry.parse Grammar.parse_file (Lexer.create_file_ctx file) com.defines lexbuf file
+		ParserEntry.parse (ParserConfig.file_parser_config com file) Grammar.parse_file (Lexer.create_file_ctx file) lexbuf file
 	with
 		| Sedlexing.MalFormed ->
 			raise_typing_error "Malformed file. Source files must be encoded with UTF-8." (file_pos file)
 		| e ->
 			raise e
 	in
-	begin match !Parser.display_mode,parse_result with
+	begin match com.display.dms_kind,parse_result with
 		| DMModuleSymbols (Some ""),_ -> ()
 		| DMModuleSymbols filter,(ParseSuccess(data,_,_)) when filter = None && DisplayPosition.display_position#is_in_file (com.file_keys#get file) ->
 			let ds = DocumentSymbols.collect_module_symbols None (filter = None) data in

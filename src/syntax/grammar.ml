@@ -153,7 +153,7 @@ and parse_type_decls ctx mode pmax pack acc s =
 			| _ -> ()
 		) acc;
 		raise (TypePath (pack,Some(name,true),b,p))
-	| Stream.Error msg when !in_display_file ->
+	| Stream.Error msg when ctx.config.in_display_file ->
 		Error msg
 	in
 	match result with
@@ -191,7 +191,7 @@ and parse_class_content ctx doc meta flags n p1 s =
 	let tl = parse_constraint_params ctx s in
 	let rec loop had_display p0 acc =
 		let check_display p1 =
-			if not had_display && !in_display_file && !display_mode = DMDefault && display_position#enclosed_in p1 then
+			if not had_display && ctx.config.in_display_file && ctx.config.display_mode = DMDefault && display_position#enclosed_in p1 then
 				syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) None (display_position#with_pos p1)
 		in
 		match%parser s with
@@ -445,7 +445,7 @@ and parse_using ctx s p1 =
 
 and parse_abstract_relations ctx =
 	let check_display p1 (ct,p2) =
-		if !in_display_file && p1.pmax < (display_position#get).pmin && p2.pmin >= (display_position#get).pmax then
+		if ctx.config.in_display_file && p1.pmax < (display_position#get).pmin && p2.pmin >= (display_position#get).pmax then
 			(* This means we skipped the display position between the to/from and the type-hint we parsed.
 			   Very weird case, it was probably a {} like in #7137. Let's discard it and use magic. *)
 			(magic_type_th (display_position#with_pos p2))
@@ -547,7 +547,7 @@ and parse_class_field_resume ctx acc tdecl s =
 			acc,last_pos ctx s
 
 and parse_class_fields ctx tdecl p1 s =
-	if not (!in_display_file) then begin
+	if not (ctx.config.in_display_file) then begin
 		let acc = plist (parse_class_field ctx tdecl) s in
 		let p2 = (match%parser s with
 			| [ (BrClose,p2) ] -> p2
@@ -734,7 +734,7 @@ and parse_type_path2 ctx p0 pack name p1 s : placed_type_path =
 			| None -> p1
 			| Some p -> punion p p1
 		in
-		if !in_display_file && display_position#enclosed_in p then begin
+		if ctx.config.in_display_file && display_position#enclosed_in p then begin
 			make_ptp (mk_type_path (List.rev pack,name)) p
 		end else
 			f()
@@ -793,7 +793,7 @@ and parse_type_path_or_const ctx plt = function%parser
 	| [ (Kwd False,p) ] -> TPExpr (EConst (Ident "false"),p)
 	| [ [%let e = expr ctx] ] -> TPExpr e
 	| [ [%s s] ] ->
-		if !in_display_file then begin
+		if ctx.config.in_display_file then begin
 			if would_skip_display_position ctx plt false s then begin
 				TPType (magic_type_th (display_position#with_pos plt))
 			end else
@@ -1143,7 +1143,7 @@ and block_with_pos' ctx acc f p s =
 	with
 		| Stream.Failure ->
 			List.rev acc,p
-		| Stream.Error msg when !in_display_file ->
+		| Stream.Error msg when ctx.config.in_display_file ->
 			handle_stream_error ctx msg s;
 			(block_with_pos ctx acc (next_pos ctx s) s)
 
@@ -1389,7 +1389,7 @@ and expr (ctx : parser_ctx) s = match%parser s with
 		begin try
 			make_meta name params (secure_expr ctx s) p
 		with
-		| Stream.Failure | Stream.Error _ when !in_display_file ->
+		| Stream.Failure | Stream.Error _ when ctx.config.in_display_file ->
 			let e = EConst (Ident "null"),null_pos in
 			make_meta name params e p
 		end
@@ -1575,7 +1575,7 @@ and expr (ctx : parser_ctx) s = match%parser s with
 and expr_next ctx e1 s =
 	try
 		expr_next' ctx e1 s
-	with Stream.Error msg when !in_display ->
+	with Stream.Error msg when ctx.config.in_display ->
 		handle_stream_error ctx msg s;
 		e1
 
@@ -1698,7 +1698,7 @@ and parse_catches ctx etry catches pmax = function%parser
 	| [ ] -> List.rev catches,pmax
 
 and parse_call_params ctx f p1 s =
-	if not !in_display_file then begin
+	if not ctx.config.in_display_file then begin
 		let el = psep_trailing Comma (expr ctx) s in
 		match%parser s with
 		| [ (PClose,p2) ] -> f el p2
@@ -1725,7 +1725,7 @@ and parse_call_params ctx f p1 s =
 			| [ (Comma,p2)] ->
 				begin match%parser s with
 					| [ (PClose, p3) ] ->
-						if (is_signature_display()) then begin
+						if (is_signature_display ctx) then begin
 							let prev_arg_pos = punion p1 p2 in
 							let comma_paren_pos = punion p2 p3 in
 							(* first check wether the display position is within the previous argument *)

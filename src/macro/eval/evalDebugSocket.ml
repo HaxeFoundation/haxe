@@ -475,17 +475,16 @@ module ValueCompletion = struct
 	let get_completion ctx text column env =
 		let p = file_pos "" in
 		let save =
-			let old = !Parser.display_mode,DisplayPosition.display_position#get in
+			let old = DisplayPosition.display_position#get in
 			(fun () ->
-				Parser.display_mode := fst old;
-				DisplayPosition.display_position#set (snd old);
+				DisplayPosition.display_position#set old;
 			)
 		in
-		Parser.display_mode := DMDefault;
+		let config = Parser.create_config (ctx.curapi.get_com()).Common.defines true true DMDefault in
 		let offset = column + (String.length "class X{static function main() ") - 1 (* this is retarded *) in
 		DisplayPosition.display_position#set {p with pmin = offset; pmax = offset};
 		begin try
-			let e = parse_expr ctx text p in
+			let e = parse_expr ctx config text p in
 			let e = ExprPreprocessing.find_before_pos DMDefault e in
 			save();
 			let rec loop e = match fst e with
@@ -542,6 +541,9 @@ let expect_env hctx env = match env with
 	| None -> hctx.send_error "No frame found"
 
 let handler =
+	let parse_expr ctx p =
+		parse_expr ctx (ParserConfig.default_config (ctx.curapi.get_com()).Common.defines) p
+	in
 	let parse_breakpoint hctx jo =
 		let j = hctx.jsonrpc in
 		let obj = j#get_object "breakpoint" jo in

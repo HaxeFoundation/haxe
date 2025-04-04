@@ -438,7 +438,7 @@ with
 	| Parser.Error (m,p) ->
 		error ctx (Parser.error_msg m) p
 	| Typecore.Forbid_package ((pack,m,p),pl,pf)  ->
-		if !Parser.display_mode <> DMNone && ctx.has_next then begin
+		if ctx.com.display.dms_kind <> DMNone && ctx.has_next then begin
 			ctx.has_error <- false;
 			ctx.messages <- [];
 		end else begin
@@ -539,7 +539,7 @@ let create_context comm cs timer_ctx compilation_step params = {
 		revision = version_revision;
 		pre = version_pre;
 		extra = Version.version_extra;
-	} params (DisplayTypes.DisplayMode.create !Parser.display_mode);
+	} params (DisplayTypes.DisplayMode.create DMNone);
 	messages = [];
 	has_next = false;
 	has_error = false;

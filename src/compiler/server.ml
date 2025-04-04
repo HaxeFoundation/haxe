@@ -295,7 +295,7 @@ let check_module sctx com m_path m_extra p =
 				end
 		in
 		let has_policy policy = List.mem policy m_extra.m_check_policy || match policy with
-			| NoFileSystemCheck when !ServerConfig.do_not_check_modules && !Parser.display_mode <> DMNone -> true
+			| NoFileSystemCheck when !ServerConfig.do_not_check_modules && com.display.dms_kind <> DMNone -> true
 			| _ -> false
 		in
 		let check_file () =

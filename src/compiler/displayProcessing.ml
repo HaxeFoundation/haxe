@@ -29,7 +29,6 @@ let handle_display_argument_old com file_pos actx =
 		let file_unique = com.file_keys#get file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
 		let create mode =
-			Parser.display_mode := mode;
 			DisplayTypes.DisplayMode.create mode
 		in
 		let dm = match smode with

@@ -51,7 +51,6 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 
 	method enable_display ?(skip_define=false) mode =
 		com.display <- create mode;
-		Parser.display_mode := mode;
 		if not skip_define then Common.define_value com Define.Display "1"
 
 	method set_display_file was_auto_triggered requires_offset =
