@@ -78,6 +78,7 @@ type parser_config = {
 	in_display_file : bool;
 	display_mode : DisplayTypes.DisplayMode.t;
 	was_auto_triggered : bool;
+	special_identifier_files : (Path.UniqueKey.t,string) ThreadSafeHashtbl.t option;
 }
 
 type parser_ctx = {
@@ -139,12 +140,13 @@ let create_context lexer_ctx config in_macro code = {
 	config;
 }
 
-let create_config defines in_display in_display_file display_mode was_auto_triggered = {
+let create_config defines in_display in_display_file display_mode was_auto_triggered special_identifier_files = {
 	defines;
 	in_display;
 	in_display_file;
 	display_mode;
 	was_auto_triggered;
+	special_identifier_files;
 }
 
 let s_decl_flag = function
@@ -162,8 +164,6 @@ let syntax_completion kind so p =
 	raise (SyntaxCompletion(kind,DisplayTypes.make_subject so p))
 
 let error m p = raise (Error (m,p))
-
-let special_identifier_files : (Path.UniqueKey.t,string) Hashtbl.t = Hashtbl.create 0
 
 module TokenCache = struct
 	let cache = ref (DynArray.create ())

@@ -75,7 +75,7 @@ let parse_file cs com (rfile : ClassPaths.resolved_file) p =
 							(* We assume that when not in display mode it's okay to cache stuff that has #if display
 							checks. The reasoning is that non-display mode has more information than display mode. *)
 							if com.display.dms_full_typing then raise Not_found;
-							let ident = Hashtbl.find Parser.special_identifier_files fkey in
+							let ident = ThreadSafeHashtbl.find com.special_identifier_files fkey in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
 							cc#cache_file fkey (ClassPaths.create_resolved_file ffile rfile.class_path) ftime data pdi;

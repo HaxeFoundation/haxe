@@ -481,7 +481,7 @@ module ValueCompletion = struct
 			)
 		in
 		let com = (ctx.curapi.get_com()) in
-		let config = Parser.create_config com.Common.defines true true DMDefault com.was_auto_triggered in
+		let config = Parser.create_config com.Common.defines true true DMDefault com.was_auto_triggered None in
 		let offset = column + (String.length "class X{static function main() ") - 1 (* this is retarded *) in
 		DisplayPosition.display_position#set {p with pmin = offset; pmax = offset};
 		begin try

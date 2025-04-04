@@ -1788,8 +1788,8 @@ let rec validate_macro_cond ctx s e = match fst e with
 	| ECall ((EConst (Ident _),_) as i, args) -> (ECall (i,List.map (validate_macro_cond ctx s) args),snd e)
 	| _ -> syntax_error ctx (Custom ("Invalid conditional expression")) ~pos:(Some (pos e)) s ((EConst (Ident "false"),(pos e)))
 
-let parse_macro_ident t p s =
-	if t = "display" then Hashtbl.replace special_identifier_files (Path.UniqueKey.create p.pfile) t;
+let parse_macro_ident ctx t p s =
+	if t = "display" then Option.may (fun h -> ThreadSafeHashtbl.replace h (Path.UniqueKey.create p.pfile) t) ctx.config.special_identifier_files;
 	let e = (EConst (Ident t),p) in
 	None, e
 
@@ -1798,7 +1798,7 @@ let rec parse_macro_cond ctx s =
 	try
 		let cond = (match%parser s with
 			| [ (Const (Ident t),p) ] ->
-				parse_macro_ident t p s
+				parse_macro_ident ctx t p s
 			| [ (Const (String(s,qs)),p) ] ->
 				None, (EConst (String(s,qs)),p)
 			| [ (Const (Int (i, s)),p) ] ->
@@ -1806,7 +1806,7 @@ let rec parse_macro_cond ctx s =
 			| [ (Const (Float (f, s)),p) ] ->
 				None, (EConst (Float (f, s)),p)
 			| [ (Kwd k,p) ] ->
-				parse_macro_ident (s_keyword k) p s
+				parse_macro_ident ctx (s_keyword k) p s
 			| [ (Unop op,p); [%let tk, e = parse_macro_cond ctx] ] ->
 				tk, make_unop op e p
 			| [ (POpen,p1); [%let (e,p) = expr ctx]; (PClose,p2) ] ->
