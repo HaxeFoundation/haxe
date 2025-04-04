@@ -360,6 +360,7 @@ let parse config entry lctx code file =
 			pd_conditions = conds#get_conditions;
 			pd_was_display_file = was_display_file;
 			pd_had_resume = ctx.had_resume;
+			pd_delayed_syntax_completion = !(ctx.delayed_syntax_completion);
 		} in
 		if was_display_file then
 			ParseSuccess(l,pdi)

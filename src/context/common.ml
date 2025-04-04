@@ -250,8 +250,10 @@ type context = {
 	main : Gctx.context_main;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
+	(* parser stuff to clean up later *)
 	mutable was_auto_triggered : bool;
 	mutable had_parser_resume : bool;
+	delayed_syntax_completion : Parser.syntax_completion_on option Atomic.t;
 	(* communication *)
 	mutable print : string -> unit;
 	mutable error : Gctx.error_function;
@@ -774,6 +776,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 		hxb_writer_config = None;
 		was_auto_triggered = false;
 		had_parser_resume = false;
+		delayed_syntax_completion = Atomic.make None;
 	} in
 	com
 

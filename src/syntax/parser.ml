@@ -66,9 +66,11 @@ type 'a sequence_parsing_result =
 	| End of pos
 	| Error of string
 
+type syntax_completion_on = syntax_completion * DisplayTypes.completion_subject
+
 exception Error of error_msg * pos
 exception TypePath of string list * (string * bool) option * bool (* in import *) * pos
-exception SyntaxCompletion of syntax_completion * DisplayTypes.completion_subject
+exception SyntaxCompletion of syntax_completion_on
 
 type parser_config = {
 	defines : Define.define;
@@ -85,6 +87,7 @@ type parser_ctx = {
 	in_macro : bool;
 	code : Sedlexing.lexbuf;
 	mutable had_resume : bool;
+	delayed_syntax_completion : syntax_completion_on option ref;
 	config : parser_config;
 }
 
@@ -116,6 +119,7 @@ type parser_display_information = {
 	pd_conditions : expr list;
 	pd_was_display_file : bool;
 	pd_had_resume : bool;
+	pd_delayed_syntax_completion : syntax_completion_on option;
 }
 
 type 'a parse_result =
@@ -131,6 +135,7 @@ let create_context lexer_ctx config in_macro code = {
 	in_macro;
 	code;
 	had_resume = false;
+	delayed_syntax_completion = ref None;
 	config;
 }
 
@@ -188,11 +193,8 @@ let next_pos ctx s = pos (next_token ctx s)
 
 (* Global state *)
 
-let delayed_syntax_completion : (syntax_completion * DisplayTypes.completion_subject) option ref = ref None
-
 let reset_state () =
-	display_position#reset;
-	delayed_syntax_completion := None
+	display_position#reset
 
 let syntax_error_with_pos ctx error_msg p v =
 	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in
@@ -273,8 +275,8 @@ let magic_type_ct p = make_ptp_ct magic_type_path p
 
 let magic_type_th p = magic_type_ct p,p
 
-let delay_syntax_completion kind so p =
-	delayed_syntax_completion := Some(kind,DisplayTypes.make_subject so p)
+let delay_syntax_completion ctx kind so p =
+	ctx.delayed_syntax_completion := Some(kind,DisplayTypes.make_subject so p)
 
 let type_path sl in_import p = match sl with
 	| n :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev l,Some (n,false),in_import,p));
@@ -443,7 +445,7 @@ let check_type_decl_completion ctx mode pmax s =
 			| Some(e,p) -> None,p
 			| _ -> None,p
 			in
-			delay_syntax_completion (SCTypeDecl mode) so p
+			delay_syntax_completion ctx (SCTypeDecl mode) so p
 		end
 	end
 
