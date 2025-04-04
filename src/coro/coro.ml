@@ -90,8 +90,9 @@ let fun_to_coro ctx e tf name =
 	TClass.add_field cls cls_state;
 	TClass.add_field cls cls_result;
 	TClass.add_field cls cls_error;
-	TClass.add_field cls cls_ctor;
 	TClass.add_field cls cls_resume;
+
+	cls.cl_constructor <- Some cls_ctor;
 
 	if ctx.coro_debug then
 		Printer.s_tclass "\t" cls |> Printf.printf "%s\n";
