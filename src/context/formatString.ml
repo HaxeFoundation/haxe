@@ -84,7 +84,7 @@ let format_string config s p process_expr =
 					else Error.raise_typing_error msg pos
 				in
 				match ParserEntry.parse_expr_string config scode ep error true with
-					| ParseSuccess(data,_,_) -> data
+					| ParseSuccess(data,_) -> data
 					| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
 			in
 			add_expr e slen

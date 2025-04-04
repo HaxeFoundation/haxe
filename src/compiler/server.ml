@@ -57,12 +57,12 @@ let parse_file cs com (rfile : ClassPaths.resolved_file) p =
 			try
 				let cfile = cc#find_file fkey in
 				if cfile.c_time <> ftime then raise Not_found;
-				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),false,cfile.c_pdi)
+				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),cfile.c_pdi)
 			with Not_found ->
 				let parse_result = TypeloadParse.parse_file com rfile p in
 				let info,is_unusual = match parse_result with
 					| ParseError(_,_,_) -> "not cached, has parse error",true
-					| ParseSuccess(data,is_display_file,pdi) ->
+					| ParseSuccess(data,pdi) ->
 						if is_display_file then begin
 							if pdi.pd_errors <> [] then
 								"not cached, is display file with parse errors",true

@@ -210,21 +210,19 @@ end
 
 (* parse main *)
 let parse config entry lctx code file =
-	let ctx = Parser.create_context lctx config in
 	let defines = config.defines in
+	let in_macro = Define.defined defines Define.Macro in
+	let ctx = Parser.create_context lctx config in_macro in
 	let entry = entry ctx in
 	let restore_cache = TokenCache.clear () in
 	let old_code = !code_ref in
-	let old_macro = !in_macro in
 	code_ref := code;
 	let restore =
 		(fun () ->
 			restore_cache ();
-			in_macro := old_macro;
 			code_ref := old_code;
 		)
 	in
-	in_macro := Define.defined defines Define.Macro;
 	Lexer.skip_header code;
 
 	let sharp_error s p =
@@ -359,11 +357,17 @@ let parse config entry lctx code file =
 		end;
 		let was_display_file = ctx.config.in_display_file in
 		restore();
-		let pdi = {pd_errors = List.rev !(ctx.syntax_errors);pd_dead_blocks = dbc#get_dead_blocks;pd_conditions = conds#get_conditions} in
+		let pdi = {
+			pd_errors = List.rev !(ctx.syntax_errors);
+			pd_dead_blocks = dbc#get_dead_blocks;
+			pd_conditions = conds#get_conditions;
+			pd_was_display_file = was_display_file;
+			pd_had_resume = ctx.had_resume;
+		} in
 		if was_display_file then
-			ParseSuccess(l,true,pdi)
+			ParseSuccess(l,pdi)
 		else begin match List.rev !(ctx.syntax_errors) with
-			| [] -> ParseSuccess(l,false,pdi)
+			| [] -> ParseSuccess(l,pdi)
 			| error :: errors -> ParseError(l,error,errors)
 		end
 	with
@@ -416,6 +420,6 @@ let parse_expr_string config s p error inl =
 			(fst e,p)
 		in
 		match result with
-		| ParseSuccess(data,is_display_file,pdi) -> ParseSuccess(loop data,is_display_file,pdi)
+		| ParseSuccess(data,pdi) -> ParseSuccess(loop data,pdi)
 		| ParseError(data,error,errors) -> ParseError(loop data,error,errors)
 	end

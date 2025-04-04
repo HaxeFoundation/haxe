@@ -81,7 +81,7 @@ exception Parse_expr_error of string
 let parse_expr ctx config s p =
 	let error s = raise (Parse_expr_error s) in
 	match ParserEntry.parse_expr_string config s p error true with
-	| ParseSuccess(data,_,_) -> data
+	| ParseSuccess(data,_) -> data
 	| ParseError(_,(msg,_),_) -> error (Parser.error_msg msg)
 
 (* Vars *)

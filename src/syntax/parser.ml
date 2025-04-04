@@ -82,6 +82,8 @@ type parser_ctx = {
 	lexer_ctx : Lexer.lexer_ctx;
 	syntax_errors : (error_msg * pos) list ref;
 	last_doc : (string * int) option ref;
+	in_macro : bool;
+	mutable had_resume : bool;
 	config : parser_config;
 }
 
@@ -111,18 +113,22 @@ type parser_display_information = {
 	pd_errors : parse_error list;
 	pd_dead_blocks : (pos * expr) list;
 	pd_conditions : expr list;
+	pd_was_display_file : bool;
+	pd_had_resume : bool;
 }
 
 type 'a parse_result =
 	(* Parsed non-display-file without errors. *)
-	| ParseSuccess of 'a * bool * parser_display_information
+	| ParseSuccess of 'a * parser_display_information
 	(* Parsed non-display file with errors *)
 	| ParseError of 'a * parse_error * parse_error list
 
-let create_context lexer_ctx config = {
+let create_context lexer_ctx config in_macro = {
 	lexer_ctx;
 	syntax_errors = ref [];
 	last_doc = ref None;
+	in_macro;
+	had_resume = false;
 	config;
 }
 
@@ -180,15 +186,11 @@ let next_pos ctx s = pos (next_token ctx s)
 
 (* Global state *)
 
-let in_macro = ref false
-let had_resume = ref false
 let code_ref = ref (Sedlexing.Utf8.from_string "")
 let delayed_syntax_completion : (syntax_completion * DisplayTypes.completion_subject) option ref = ref None
 
 let reset_state () =
 	display_position#reset;
-	in_macro := false;
-	had_resume := false;
 	code_ref := Sedlexing.Utf8.from_string "";
 	delayed_syntax_completion := None
 
@@ -380,7 +382,7 @@ let is_signature_display ctx =
 
 let check_resume ctx p fyes fno =
 	if is_completion ctx && ctx.config.in_display_file && p.pmax = (display_position#get).pmin then begin
-		had_resume := true;
+		ctx.had_resume <- true;
 		fyes()
 	end else
 		fno()

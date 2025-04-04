@@ -251,6 +251,7 @@ type context = {
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
 	mutable was_auto_triggered : bool;
+	mutable had_parser_resume : bool;
 	(* communication *)
 	mutable print : string -> unit;
 	mutable error : Gctx.error_function;
@@ -772,6 +773,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_config = None;
 		was_auto_triggered = false;
+		had_parser_resume = false;
 	} in
 	com
 

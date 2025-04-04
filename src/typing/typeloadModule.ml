@@ -294,7 +294,7 @@ module ModuleLevel = struct
 			with Not_found ->
 				if Sys.file_exists path then begin
 					let _,r = match !TypeloadParse.parse_hook com (ClassPaths.create_resolved_file path com.empty_class_path) p with
-						| ParseSuccess(data,_,_) -> data
+						| ParseSuccess(data,_) -> data
 						| ParseError(_,(msg,p),_) -> Parser.error msg p
 					in
 					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> raise_typing_error "Only import and using is allowed in import.hx files" p) r;

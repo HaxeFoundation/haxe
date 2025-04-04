@@ -42,9 +42,11 @@ let parse_file_from_lexbuf com file p lexbuf =
 	in
 	begin match com.display.dms_kind,parse_result with
 		| DMModuleSymbols (Some ""),_ -> ()
-		| DMModuleSymbols filter,(ParseSuccess(data,_,_)) when filter = None && DisplayPosition.display_position#is_in_file (com.file_keys#get file) ->
+		| DMModuleSymbols filter,(ParseSuccess(data,_)) when filter = None && DisplayPosition.display_position#is_in_file (com.file_keys#get file) ->
 			let ds = DocumentSymbols.collect_module_symbols None (filter = None) data in
 			DisplayException.raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com [file,ds] filter);
+		| _,ParseSuccess(_,{pd_had_resume = true}) ->
+			com.had_parser_resume <- true
 		| _ ->
 			()
 	end;
@@ -123,7 +125,7 @@ let resolve_module_file com m remap p =
 			| [] -> []
 		in
 		let meta = match parse_result with
-			| ParseSuccess((_,decls),_,_) -> loop decls
+			| ParseSuccess((_,decls),_) -> loop decls
 			| ParseError _ -> []
 		in
 		if not (Meta.has Meta.NoPackageRestrict meta) then begin
@@ -268,8 +270,8 @@ let handle_parser_result com p result =
 				com.has_error <- true
 	in
 	match result with
-		| ParseSuccess(data,is_display_file,pdi) ->
-			if is_display_file then begin
+		| ParseSuccess(data,pdi) ->
+			if pdi.pd_was_display_file then begin
 				begin match pdi.pd_errors with
 				| (msg,p) :: _ -> handle_parser_error msg p
 				| [] -> ()

@@ -1291,26 +1291,26 @@ and inline_function = function%parser
 
 and parse_macro_expr ctx p = function%parser
 	| [ (DblDot,_); [%let t = parse_complex_type ctx] ] ->
-		let _, to_type, _  = reify !in_macro in
+		let _, to_type, _  = reify ctx.in_macro in
 		let t = to_type t p in
 		let ct = make_ptp_ct_null (mk_type_path ~sub:"ComplexType" (["haxe";"macro"],"Expr")) in
 		(ECheckType (t,(ct,p)),p)
 	| [ (Kwd Var,p1); [%let vl = psep Comma (parse_var_decl ctx false)] ] ->
-		reify_expr (EVars vl,p1) !in_macro
+		reify_expr (EVars vl,p1) ctx.in_macro
 	| [ (Kwd Final,p1); [%s s] ] ->
 		check_redundant_var ctx p1 s;
 		begin match%parser s with
 		| [ [%let vl = psep Comma (parse_var_decl ctx true)] ] ->
-			reify_expr (EVars vl,p1) !in_macro
+			reify_expr (EVars vl,p1) ctx.in_macro
 		| [ ] ->
 			serror()
 		end
 	| [ [%let d = parse_class ctx None [] [] false] ] ->
-		let _,_,to_type = reify !in_macro in
+		let _,_,to_type = reify ctx.in_macro in
 		let ct = make_ptp_ct_null (mk_type_path ~sub:"TypeDefinition" (["haxe";"macro"],"Expr")) in
 		(ECheckType (to_type d,(ct,null_pos)),p)
 	| [ [%let e = secure_expr ctx] ] ->
-		reify_expr e !in_macro
+		reify_expr e ctx.in_macro
 
 and parse_function ctx p1 inl s =
 	let name = match%parser s with
