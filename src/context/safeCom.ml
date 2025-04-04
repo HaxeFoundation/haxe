@@ -106,7 +106,7 @@ let add_warning scom w msg p =
 	| WMDisable ->
 		()
 
-let run_expression_filters_safe scom detail_times filters t =
+let run_expression_filters_safe ?(ignore_processed_status=false) scom detail_times filters t =
 	let run scom identifier e =
 		try
 			List.fold_left (fun e (filter_name,f) ->
@@ -124,7 +124,7 @@ let run_expression_filters_safe scom detail_times filters t =
 	| TClassDecl c ->
 		let scom = {scom with curclass = c} in
 		let rec process_field cf =
-			if not (has_class_field_flag cf CfPostProcessed) then begin
+			if ignore_processed_status || not (has_class_field_flag cf CfPostProcessed) then begin
 				let scom = {scom with curfield = cf} in
 				(match cf.cf_expr with
 				| Some e when not (FilterContext.is_removable_field scom.is_macro_context cf) ->
@@ -147,6 +147,18 @@ let run_expression_filters_safe scom detail_times filters t =
 	| TEnumDecl _ -> ()
 	| TTypeDecl _ -> ()
 	| TAbstractDecl _ -> ()
+
+let adapt_scom_to_mt scom mt = match mt with
+	| TClassDecl c ->
+		{scom with curclass = c}
+	| _ ->
+		scom
+
+let run_type_filters_safe scom filters types =
+	List.iter (fun t ->
+		let scom = adapt_scom_to_mt scom t in
+		List.iter (fun f -> f scom t) filters
+	) types
 
 let needs_inline scom c cf =
 	cf.cf_kind = Method MethInline && (scom.doinline || Typecore.is_forced_inline c cf)

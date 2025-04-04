@@ -655,16 +655,17 @@ and flush_macro_context mint mctx =
 			"captured_vars",(fun scom -> CapturedVars.captured_vars scom cv_wrapper_impl);
 		] in
 		let type_filters = [
-			FiltersCommon.remove_generic_base;
-			SaveStacks.patch_constructors mctx ectx;
-			(fun mt -> AddFieldInits.add_field_inits mctx.c.curclass.cl_path (RenameVars.init mctx.com.config mctx.com.types) scom mt);
-			Filters.update_cache_dependencies ~close_monomorphs:false mctx.com;
-			minimal_restore;
-			maybe_apply_native_paths
+			(fun _ -> FiltersCommon.remove_generic_base);
+			SaveStacks.patch_constructors ectx;
+			(fun _ -> (fun mt -> AddFieldInits.add_field_inits mctx.c.curclass.cl_path (RenameVars.init mctx.com.config mctx.com.types) scom mt));
+			(fun _ -> Filters.update_cache_dependencies ~close_monomorphs:false mctx.com);
+			(fun _ -> minimal_restore);
+			(fun _ -> maybe_apply_native_paths);
 		] in
 		let ready = fun t ->
+			let scom = SafeCom.adapt_scom_to_mt scom t in
 			FiltersCommon.apply_filters_once mctx scom expr_filters t;
-			List.iter (fun f -> f t) type_filters
+			List.iter (fun f -> f scom t) type_filters
 		in
 		(try Interp.add_types mint types ready
 		with Error err -> raise (Fatal_error err));

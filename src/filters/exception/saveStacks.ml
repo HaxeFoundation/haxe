@@ -72,17 +72,17 @@ let insert_save_stacks com ectx =
 			else e
 		)
 
-let insert_save_stacks tctx ectx =
+let insert_save_stacks com ectx scom =
 	match ectx with
 	| Some ctx ->
-		insert_save_stacks tctx.com {ctx with scom = SafeCom.of_typer tctx}
+		insert_save_stacks com {ctx with scom = scom}
 	| None ->
 		(fun e -> e)
 
 (**
 	Adds `this.__shiftStack()` calls to constructors of classes which extend `haxe.Exception`
 *)
-let patch_constructors tctx ectx =
+let patch_constructors ectx =
 	match ectx.haxe_exception_type with
 	(* Add only if `__shiftStack` method exists *)
 	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields ->
@@ -108,7 +108,7 @@ let patch_constructors tctx ectx =
 						make_call ectx.scom efield [] rt p
 					| _ -> raise_typing_error "haxe.Exception.__shiftStack is expected to be an instance method" p
 				in
-				TypeloadFunction.add_constructor tctx cls true cls.cl_name_pos;
+				(* TypeloadFunction.add_constructor tctx cls true cls.cl_name_pos; *) (* TODO: why? *)
 				Option.may (fun cf -> ignore(follow cf.cf_type)) cls.cl_constructor;
 				(match cls.cl_constructor with
 				| Some ({ cf_expr = Some e_ctor } as ctor) ->
@@ -122,7 +122,7 @@ let patch_constructors tctx ectx =
 						| TFunction fn ->
 							Some { e_ctor with
 								eexpr = TFunction { fn with
-									tf_expr = mk (TBlock [add fn.tf_expr; shift_stack fn.tf_expr.epos]) tctx.t.tvoid fn.tf_expr.epos
+									tf_expr = mk (TBlock [add fn.tf_expr; shift_stack fn.tf_expr.epos]) ectx.scom.basic.tvoid fn.tf_expr.epos
 								}
 							}
 						| _ -> die "" __LOC__
@@ -134,9 +134,9 @@ let patch_constructors tctx ectx =
 		)
 	| _ -> (fun _ -> ())
 
-let patch_constructors tctx ectx =
+let patch_constructors ectx scom =
 	match ectx with
 	| Some ctx ->
-		patch_constructors tctx {ctx with scom = SafeCom.of_typer tctx}
+		patch_constructors {ctx with scom = scom}
 	| None ->
 		(fun _ -> ())
