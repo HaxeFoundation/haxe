@@ -89,6 +89,7 @@ type parser_ctx = {
 	code : Sedlexing.lexbuf;
 	mutable had_resume : bool;
 	delayed_syntax_completion : syntax_completion_on option ref;
+	cache : (token * pos) DynArray.t;
 	config : parser_config;
 }
 
@@ -137,6 +138,7 @@ let create_context lexer_ctx config in_macro code = {
 	code;
 	had_resume = false;
 	delayed_syntax_completion = ref None;
+	cache = DynArray.create ();
 	config;
 }
 
@@ -165,19 +167,9 @@ let syntax_completion kind so p =
 
 let error m p = raise (Error (m,p))
 
-module TokenCache = struct
-	let cache = ref (DynArray.create ())
-	let add (token : (token * pos)) = DynArray.add (!cache) token
-	let get index = DynArray.get (!cache) index
-	let clear () =
-		let old_cache = !cache in
-		cache := DynArray.create ();
-		(fun () -> cache := old_cache)
-end
-
 let last_token ctx s =
 	let n = Stream.count s in
-	TokenCache.get (if n = 0 then 0 else n - 1)
+	DynArray.get ctx.cache (if n = 0 then 0 else n - 1)
 
 let last_pos ctx s = pos (last_token ctx s)
 

@@ -214,12 +214,6 @@ let parse config entry lctx code file =
 	let in_macro = Define.defined defines Define.Macro in
 	let ctx = Parser.create_context lctx config in_macro code in
 	let entry = entry ctx in
-	let restore_cache = TokenCache.clear () in
-	let restore =
-		(fun () ->
-			restore_cache ();
-		)
-	in
 	Lexer.skip_header code;
 
 	let sharp_error s p =
@@ -339,7 +333,7 @@ let parse config entry lctx code file =
 	in
 	let s = Stream.from (fun _ ->
 		let t = next_token() in
-		TokenCache.add t;
+		DynArray.add ctx.cache t;
 		Some t
 	) in
 	try
@@ -353,7 +347,6 @@ let parse config entry lctx code file =
 				error (Unexpected tok) p (* This isn't *)
 		end;
 		let was_display_file = ctx.config.in_display_file in
-		restore();
 		let pdi = {
 			pd_errors = List.rev !(ctx.syntax_errors);
 			pd_dead_blocks = dbc#get_dead_blocks;
@@ -372,11 +365,7 @@ let parse config entry lctx code file =
 		| Stream.Error _
 		| Stream.Failure ->
 			let last = (match Stream.peek s with None -> last_token ctx s | Some t -> t) in
-			restore();
 			error (Unexpected (fst last)) (pos last)
-		| e ->
-			restore();
-			raise e
 
 let parse_string config entry s p error inlined =
 	let old_display = display_position#get in
