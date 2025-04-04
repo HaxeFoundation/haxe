@@ -234,7 +234,7 @@ let parse config entry lctx code file =
 		| Comment s ->
 			(* if encloses_resume (pos tk) then syntax_completion SCComment (pos tk); *)
 			let l = String.length s in
-			if l > 0 && s.[0] = '*' then ctx.last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
+			if l > 0 && s.[0] = '*' then ctx.last_doc <- Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
 			let tk = next_token() in
 			tk
 		| CommentLine s ->
@@ -348,16 +348,16 @@ let parse config entry lctx code file =
 		end;
 		let was_display_file = ctx.config.in_display_file in
 		let pdi = {
-			pd_errors = List.rev !(ctx.syntax_errors);
+			pd_errors = List.rev ctx.syntax_errors;
 			pd_dead_blocks = dbc#get_dead_blocks;
 			pd_conditions = conds#get_conditions;
 			pd_was_display_file = was_display_file;
 			pd_had_resume = ctx.had_resume;
-			pd_delayed_syntax_completion = !(ctx.delayed_syntax_completion);
+			pd_delayed_syntax_completion = ctx.delayed_syntax_completion;
 		} in
 		if was_display_file then
 			ParseSuccess(l,pdi)
-		else begin match List.rev !(ctx.syntax_errors) with
+		else begin match List.rev ctx.syntax_errors with
 			| [] -> ParseSuccess(l,pdi)
 			| error :: errors -> ParseError(l,error,errors)
 		end

@@ -83,12 +83,12 @@ type parser_config = {
 
 type parser_ctx = {
 	lexer_ctx : Lexer.lexer_ctx;
-	syntax_errors : (error_msg * pos) list ref;
-	last_doc : (string * int) option ref;
+	mutable syntax_errors : (error_msg * pos) list;
+	mutable last_doc : (string * int) option;
 	in_macro : bool;
 	code : Sedlexing.lexbuf;
 	mutable had_resume : bool;
-	delayed_syntax_completion : syntax_completion_on option ref;
+	mutable delayed_syntax_completion : syntax_completion_on option;
 	cache : (token * pos) DynArray.t;
 	config : parser_config;
 }
@@ -132,12 +132,12 @@ type 'a parse_result =
 
 let create_context lexer_ctx config in_macro code = {
 	lexer_ctx;
-	syntax_errors = ref [];
-	last_doc = ref None;
+	syntax_errors = [];
+	last_doc = None;
 	in_macro;
 	code;
 	had_resume = false;
-	delayed_syntax_completion = ref None;
+	delayed_syntax_completion = None;
 	cache = DynArray.create ();
 	config;
 }
@@ -183,15 +183,13 @@ let next_token ctx s = match Stream.peek s with
 
 let next_pos ctx s = pos (next_token ctx s)
 
-(* Global state *)
-
 let reset_state () =
 	display_position#reset
 
 let syntax_error_with_pos ctx error_msg p v =
 	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in
 	if not ctx.config.in_display then error error_msg p;
-	ctx.syntax_errors := (error_msg,p) :: !(ctx.syntax_errors);
+	ctx.syntax_errors <- (error_msg,p) :: ctx.syntax_errors;
 	v
 
 let syntax_error ctx error_msg ?(pos=None) s v =
@@ -212,10 +210,10 @@ let get_doc ctx s =
 	match Stream.peek s with
 	| None -> None
 	| Some (tk,p) ->
-		match !(ctx.last_doc) with
+		match ctx.last_doc with
 		| None -> None
 		| Some (d,pos) ->
-			ctx.last_doc := None;
+			ctx.last_doc <- None;
 			Some d
 
 let unsupported_decl_flag decl flag pos ctx =
@@ -268,7 +266,7 @@ let magic_type_ct p = make_ptp_ct magic_type_path p
 let magic_type_th p = magic_type_ct p,p
 
 let delay_syntax_completion ctx kind so p =
-	ctx.delayed_syntax_completion := Some(kind,DisplayTypes.make_subject so p)
+	ctx.delayed_syntax_completion <- Some(kind,DisplayTypes.make_subject so p)
 
 let type_path sl in_import p = match sl with
 	| n :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev l,Some (n,false),in_import,p));
