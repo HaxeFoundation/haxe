@@ -33,7 +33,7 @@ let make_control_switch com e_subject e_normal e_error p =
 	} in
 	mk (TSwitch switch) com.basic.tvoid p
 
-let block_to_texpr_coroutine ctx cb cls econtinuation ecompletion eresult estate p =
+let block_to_texpr_coroutine ctx cb cls forbidden_vars econtinuation ecompletion eresult estate p =
 	let open Texpr.Builder in
 	let com = ctx.typer.com in
 
@@ -259,7 +259,7 @@ let block_to_texpr_coroutine ctx cb cls econtinuation ecompletion eresult estate
 	let decls = begin
 		let is_used_across_states v_id =
 			let m = Hashtbl.find var_usages v_id in
-			(Hashtbl.length m) > 1
+			(Hashtbl.length m) > 1 && not ((List.exists (fun id -> id = v_id)) forbidden_vars)
 		in
 		let rec loop cases decls =
 			match cases with
@@ -272,7 +272,7 @@ let block_to_texpr_coroutine ctx cb cls econtinuation ecompletion eresult estate
 						(* Also need to check if this should be the continuation instead of completion *)
 						| TCall ({ eexpr = TField (_, FStatic ({ cl_path = (["haxe";"coro"], "Intrinsics") }, { cf_name = "currentContinuation" })) }, []) ->
 							ecompletion
-						| TVar (v, eo) when is_used_across_states v.v_id && v.v_kind <> VGenerated ->
+						| TVar (v, eo) when is_used_across_states v.v_id ->
 							decls := v :: !decls;
 							e
 							(* let elocal = make_local v e.epos in
@@ -296,14 +296,14 @@ let block_to_texpr_coroutine ctx cb cls econtinuation ecompletion eresult estate
 			let is_used_across_states v_id =
 				match Hashtbl.find_opt var_usages v_id with
 				| Some m ->
-					(Hashtbl.length m) > 1
+					(Hashtbl.length m) > 1 && not ((List.exists (fun id -> id = v_id)) forbidden_vars)
 				| None ->
 					false
 			in
 			let rec loop e =
 				match e.eexpr with
-				| TLocal v when is_used_across_states v.v_id && v.v_kind <> VGenerated ->
-					let field = mk_field v.v_name v.v_type v.v_pos null_pos in
+				| TLocal v when is_used_across_states v.v_id ->
+					let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos null_pos in
 					mk (TField(econtinuation,FInstance(cls, [], field))) field.cf_type p
 				| _ -> Type.map_expr loop e
 			in
@@ -347,4 +347,4 @@ let block_to_texpr_coroutine ctx cb cls econtinuation ecompletion eresult estate
 			e_var :: shared_vars
 	in *)
 
-	eloop, !init_state, decls |> List.map (fun v -> mk_field v.v_name v.v_type v.v_pos null_pos)
+	eloop, !init_state, decls |> List.map (fun v -> mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos null_pos)

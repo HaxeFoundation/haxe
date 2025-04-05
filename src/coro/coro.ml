@@ -58,7 +58,7 @@ let fun_to_coro ctx e tf name =
 	let cb_root = make_block ctx (Some(e.etype,p)) in
 
 	ignore(CoroFromTexpr.expr_to_coro ctx eresult cb_root tf.tf_expr);
-	let eloop, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cls econtinuation ecompletion eresult estate e.epos in
+	let eloop, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cls [ vcompletion.v_id; vcontinuation.v_id ] econtinuation ecompletion eresult estate e.epos in
 
 	let ethis = mk (TConst TThis) (TInst (cls, [])) p in
 
