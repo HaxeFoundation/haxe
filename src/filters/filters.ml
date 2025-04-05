@@ -211,7 +211,9 @@ let destruction_on_com scom com types =
 
 let destruction (com : Common.context) scom ectx detail_times main rename_locals_config types =
 	with_timer scom.timer_ctx detail_times "type 2" None (fun () ->
-		destruction_before_dce scom types;
+		SafeCom.run_with_scom com scom (fun () ->
+			destruction_before_dce scom types
+		)
 	);
 
 	Common.enter_stage com CDceStart;
@@ -234,11 +236,15 @@ let destruction (com : Common.context) scom ectx detail_times main rename_locals
 	) types;
 
 	with_timer scom.timer_ctx detail_times "type 3" None (fun () ->
-		destruction_on_scom scom ectx rename_locals_config types
+		SafeCom.run_with_scom com scom (fun () ->
+			destruction_on_scom scom ectx rename_locals_config types
+		)
 	);
 
 	with_timer scom.timer_ctx detail_times "type 4" None (fun () ->
-		destruction_on_com scom com types
+		SafeCom.run_with_scom com scom (fun () ->
+			destruction_on_com scom com types
+		)
 	);
 
 	com.callbacks#run com.error_ext com.callbacks#get_after_filters;
@@ -472,7 +478,7 @@ let run com ectx main before_destruction =
 	let cv_wrapper_impl = CapturedVars.get_wrapper_implementation com in
 	let rename_locals_config = RenameVars.init scom.SafeCom.platform_config com.types in
 	Parallel.run_in_new_pool scom.timer_ctx (fun pool ->
-		SafeCom.run_with_scom com scom pool (fun () ->
+		SafeCom.run_with_scom com scom (fun () ->
 			run_safe_filters ectx scom new_types_array cv_wrapper_impl rename_locals_config pool
 		)
 	);

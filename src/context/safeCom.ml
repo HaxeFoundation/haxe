@@ -77,7 +77,7 @@ let finalize scom com =
 	| [] ->
 		()
 
-let run_with_scom com scom pool f =
+let run_with_scom com scom f =
 	Std.finally (fun() -> finalize scom com) f ()
 
 let add_error scom err =
