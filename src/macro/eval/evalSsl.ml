@@ -160,11 +160,11 @@ let init_fields init_fields builtins =
 		"strerror",vfun1 (fun code -> encode_string (mbedtls_strerror (decode_int code)));
 	] [];
 	init_fields builtins (["mbedtls"],"PkContext") [] [
-		"parse_key",vifun2 (fun this key password ->
-			vint (mbedtls_pk_parse_key (as_pk_context this) (decode_bytes key) (match password with VNull -> None | _ -> Some (decode_string password)));
+		"parse_key",vifun3 (fun this key password rng ->
+			vint (mbedtls_pk_parse_key (as_pk_context this) (decode_bytes key) (match password with VNull -> None | _ -> Some (decode_string password)) (as_ctr_drbg rng));
 		);
-		"parse_keyfile",vifun2 (fun this path password ->
-			vint (mbedtls_pk_parse_keyfile (as_pk_context this) (decode_string path) (match password with VNull -> None | _ -> Some (decode_string password)));
+		"parse_keyfile",vifun3 (fun this path password rng ->
+			vint (mbedtls_pk_parse_keyfile (as_pk_context this) (decode_string path) (match password with VNull -> None | _ -> Some (decode_string password)) (as_ctr_drbg rng));
 		);
 		"parse_public_key",vifun1 (fun this key ->
 			vint (mbedtls_pk_parse_public_key (as_pk_context this) (decode_bytes key));

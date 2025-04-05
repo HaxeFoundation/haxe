@@ -4,6 +4,7 @@ class InMacro extends DisplayTestCase {
 	/**
 
 		import haxe.macro.Context;
+		import haxe.macro.Expr;
 
 		class Main {
 

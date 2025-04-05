@@ -2,8 +2,10 @@ package cases;
 
 import haxe.display.Display;
 import haxe.display.FsPath;
+import haxe.display.Protocol;
 import haxe.display.Server;
 import utest.Assert;
+import utils.Vfs;
 
 using StringTools;
 using Lambda;
@@ -11,8 +13,10 @@ using Lambda;
 class CsSafeTypeBuilding extends TestCase {
 	var originalContent:String;
 
+	@:timeout(3000)
 	override public function setup(async:utest.Async) {
-		super.setup(async);
+		testDir = "test/cases/" + @:privateAccess TestCase.i++;
+		vfs = new Vfs(testDir);
 
 		originalContent = "";
 		vfs.putContent("Bar.hx", getTemplate("csSafeTypeBuilding/Bar.hx"));
@@ -20,6 +24,10 @@ class CsSafeTypeBuilding extends TestCase {
 		vfs.putContent("Foo.hx", getTemplate("csSafeTypeBuilding/Foo.hx"));
 		vfs.putContent("Macro.macro.hx", getTemplate("csSafeTypeBuilding/Macro.macro.hx"));
 		vfs.putContent("Main.hx", getTemplate("csSafeTypeBuilding/Main.hx"));
+
+		runHaxeJson(["--cwd", TestCase.rootCwd, "--cwd", testDir], Methods.ResetCache, {}, () -> {
+			async.done();
+		});
 	}
 
 	#if debug
@@ -91,11 +99,15 @@ class CsSafeTypeBuilding extends TestCase {
 		}
 	}
 
-	@:variant("JsDefineModule", true, "js")
-	@:variant("JsDefineType", false, "js")
-	@:variant("InterpDefineModule", true, "interp")
-	@:variant("InterpDefineType", false, "interp")
-	function test(defineModule:Bool, target:String) {
+	@:variant("Js_DefineModule_GetType", true, true, "js")
+	@:variant("Js_DefineType_GetType", false, true, "js")
+	@:variant("Js_DefineModule_ResolveType", true, false, "js")
+	@:variant("Js_DefineType_ResolveType", false, false, "js")
+	@:variant("Interp_DefineModule_GetType", true, true, "interp")
+	@:variant("Interp_DefineType_GetType", false, true, "interp")
+	@:variant("Interp_DefineModule_ResolveType", true, false, "interp")
+	@:variant("Interp_DefineType_ResolveType", false, false, "interp")
+	function test(defineModule:Bool, getType:Bool, target:String) {
 		var targetArgs = switch target {
 			case "js": ["-js", "out.js", "-lib", "hxnodejs", "-cmd", "node out.js"];
 			case "interp": ["--interp"];
@@ -104,6 +116,7 @@ class CsSafeTypeBuilding extends TestCase {
 
 		var args = ["-main", "Main", "Baz"];
 		if (defineModule) args = args.concat(["-D", "config.defineModule"]);
+		if (getType) args = args.concat(["-D", "config.getType"]);
 		args = args.concat(targetArgs);
 
 		runHaxe(args);
@@ -115,33 +128,33 @@ class CsSafeTypeBuilding extends TestCase {
 		runHaxe(args);
 		assertResult(target);
 
-		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Baz.hx")});
+		runHaxeJson(args, ServerMethods.Invalidate, {file: new FsPath("Baz.hx")});
 		runHaxe(args);
 		assertBuilt(["Baz"]);
 		assertResult(target);
 
-		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
+		runHaxeJson(args, ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
 		runHaxe(args);
 		assertBuilt(["Main"]);
 		assertResult(target);
 
-		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Bar.hx")});
-		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
+		runHaxeJson(args, ServerMethods.Invalidate, {file: new FsPath("Bar.hx")});
+		runHaxeJson(args, ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
 		runHaxe(args);
 		assertBuilt(["Main", "Bar"]);
 		assertResult(target);
 
-		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Bar.hx")});
+		runHaxeJson(args, ServerMethods.Invalidate, {file: new FsPath("Bar.hx")});
 		runHaxe(args);
 		assertBuilt(["Main", "Bar", "Baz"]);
 		assertResult(target);
 
-		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Foo.hx")});
+		runHaxeJson(args, ServerMethods.Invalidate, {file: new FsPath("Foo.hx")});
 		runHaxe(args);
 		assertBuilt(["Main", "Bar", "Baz"]);
 		assertResult(target);
 
-		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Macro.macro.hx")});
+		runHaxeJson(args, ServerMethods.Invalidate, {file: new FsPath("Macro.macro.hx")});
 		runHaxe(args);
 		assertBuilt(["Main", "Bar", "Baz"], true);
 		assertResult(target);

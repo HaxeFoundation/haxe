@@ -20,13 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import jvm.Jvm;
-import java.lang.Number;
-import java.lang.Long.LongClass;
 import java.lang.Double.DoubleClass;
 import java.lang.Float.FloatClass;
+import java.lang.Long.LongClass;
+import java.lang.Number;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import jvm.Jvm;
 
 using jvm.NativeTools.NativeClassTools;
 
@@ -206,8 +206,7 @@ class Reflect {
 		return cast o._hx_clone();
 	}
 
-	@:overload(function(f:Array<Dynamic>->Void):Dynamic {})
-	public static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic {
+	public static function makeVarArgs<T>(f:Array<Dynamic>->T):Dynamic {
 		return new jvm.Closure.VarArgs((cast f : jvm.Function));
 	}
 }

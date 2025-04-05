@@ -20,16 +20,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import python.internal.AnonObject;
-import python.internal.StringImpl;
-import python.internal.ArrayImpl;
-import python.internal.UBuiltins;
-import python.internal.MethodClosure;
-import python.lib.Inspect;
+import python.Boot.handleKeywords;
+import python.Boot;
 import python.Syntax;
 import python.VarArgs;
-import python.Boot;
-import python.Boot.handleKeywords;
+import python.internal.AnonObject;
+import python.internal.ArrayImpl;
+import python.internal.MethodClosure;
+import python.internal.StringImpl;
+import python.internal.UBuiltins;
+import python.lib.Inspect;
 
 @:access(python.Boot)
 @:coreApi
@@ -136,8 +136,7 @@ class Reflect {
 		return o2;
 	}
 
-	@:overload(function(f:Array<Dynamic>->Void):Dynamic {})
-	public static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic {
+	public static function makeVarArgs<T>(f:Array<Dynamic>->T):Dynamic {
 		return function(v:VarArgs<Dynamic>) {
 			return f(v);
 		}

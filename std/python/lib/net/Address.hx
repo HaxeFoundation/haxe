@@ -22,5 +22,5 @@
 
 package python.lib.net;
 
-@:deprecated("Use python.lib.socket.Adress instead")
+@:deprecated("Use python.lib.socket.Address instead")
 typedef Address = python.lib.socket.Address;

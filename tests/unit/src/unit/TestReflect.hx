@@ -325,4 +325,19 @@ class TestReflect extends Test {
 		eq( Reflect.getProperty(ClassWithProp, "STAT_X"), 16 );
 	}
 
+	function testEnumConstructor() {
+		// Reflect.field
+		var Some:(Dynamic) -> haxe.ds.Option<Dynamic> = Reflect.field(haxe.ds.Option, "Some");
+		utest.Assert.same(Some("Hello"), Some("Hello"));
+		utest.Assert.same(Reflect.callMethod(null, Some, ["Hello"]), Some("Hello"));
+		var None:haxe.ds.Option<Dynamic> = Reflect.field(haxe.ds.Option, "None");
+		utest.Assert.same(None, None);
+
+		// Reflect.getProperty
+		var Some:(Dynamic) -> haxe.ds.Option<Dynamic> = Reflect.getProperty(haxe.ds.Option, "Some");
+		utest.Assert.same(Some("Hello"), Some("Hello"));
+		utest.Assert.same(Reflect.callMethod(null, Some, ["Hello"]), Some("Hello"));
+		var None:haxe.ds.Option<Dynamic> = Reflect.getProperty(haxe.ds.Option, "None");
+		utest.Assert.same(None, None);
+	}
 }

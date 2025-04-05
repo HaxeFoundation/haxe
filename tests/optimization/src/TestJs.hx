@@ -742,6 +742,14 @@ class TestJs {
 			offset = 3;
 		} while (notFalse);
 	}
+
+	@:js('
+		return typeof("") == "string";
+	')
+	@:haxe.warning("-WDeprecated")
+	static function testIs() {
+		return Std.is("", String);
+	}
 }
 
 class Issue9227 {

@@ -28,5 +28,9 @@
 			],
 			"url": "./.vscode/schemas/meta.schema.json"
 		}
-	]
+	],
+	"ocaml.sandbox": {
+		"kind": "opam",
+		"switch": "default"
+	}
 }

@@ -2,6 +2,7 @@
 
 --next
 
+-D message.reporting=classic
 --main Main
 --swf-lib bin/lib.swc
 --swf bin/test.swf

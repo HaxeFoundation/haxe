@@ -41,10 +41,7 @@ class String {
 	public function charAt(index:Int):String {
 		if ((index : UInt) >= (length : UInt))
 			return "";
-		var b = new hl.Bytes(4);
-		b.setUI16(0, bytes.getUI16(index << 1));
-		b.setUI16(2, 0);
-		return __alloc__(b, 1);
+		return __char__(bytes.getUI16(index << 1));
 	}
 
 	public function charCodeAt(index:Int):Null<Int> {
@@ -143,7 +140,8 @@ class String {
 			len = sl - pos;
 		if (pos < 0 || len <= 0)
 			return "";
-
+		if( len == 1 )
+			return __char__(bytes.getUI16(pos << 1));
 		var b = new hl.Bytes((len + 1) << 1);
 		b.blit(0, bytes, pos << 1, len << 1);
 		b.setUI16(len << 1, 0);
@@ -181,10 +179,7 @@ class String {
 		if (code >= 0 && code < 0x10000) {
 			if (code >= 0xD800 && code <= 0xDFFF)
 				throw "Invalid unicode char " + code;
-			var b = new hl.Bytes(4);
-			b.setUI16(0, code);
-			b.setUI16(2, 0);
-			return __alloc__(b, 1);
+			return __char__(code);
 		} else if (code < 0x110000) {
 			var b = new hl.Bytes(6);
 			code -= 0x10000;
@@ -238,14 +233,41 @@ class String {
 	@:keep static function fromUTF8(b:hl.Bytes):String {
 		var outLen = 0;
 		var b2 = @:privateAccess b.utf8ToUtf16(0, outLen);
+		if( outLen == 2 ) {
+			var c = b2.getUI16(0);
+			if( c < 256 ) return __char__(c);
+		}
 		return __alloc__(b2, outLen >> 1);
 	}
 
+	static var CHARS = new hl.NativeArray<String>(256);
+	@:keep static function __char__(code:Int):String {
+		if( code < 256 ) {
+			var s = CHARS[code];
+			if( s == null ) {
+				var b = new hl.Bytes(4);
+				b.setUI16(0, code);
+				b.setUI16(2, 0);
+				s = __alloc__(b, 1);
+				CHARS[code] = s;
+			}
+			return s;
+		}
+		var b = new hl.Bytes(4);
+		b.setUI16(0, code);
+		b.setUI16(2, 0);
+		return __alloc__(b, 1);
+	}
+	
 	@:keep static function __add__(a:String, b:String):String {
 		if (a == null)
 			a = "null";
 		if (b == null)
 			b = "null";
+		if( a.length == 0 )
+			return b;
+		if( b.length == 0 )
+			return a;
 		var asize = a.length << 1, bsize = b.length << 1, tot = asize + bsize;
 		var bytes = new hl.Bytes(tot + 2);
 		bytes.blit(0, a.bytes, 0, asize);

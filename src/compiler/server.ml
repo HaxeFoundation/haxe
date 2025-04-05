@@ -1,7 +1,6 @@
 open Globals
 open Common
 open CompilationCache
-open Timer
 open Type
 open DisplayProcessingGlobals
 open Ipaddr
@@ -54,16 +53,16 @@ let parse_file cs com (rfile : ClassPaths.resolved_file) p =
 		TypeloadParse.parse_file_from_string com file p stdin
 	| _ ->
 		let ftime = file_time ffile in
-		let data = Std.finally (Timer.timer ["server";"parser cache"]) (fun () ->
+		let data = Std.finally (Timer.start_timer com.timer_ctx ["server";"parser cache"]) (fun () ->
 			try
 				let cfile = cc#find_file fkey in
 				if cfile.c_time <> ftime then raise Not_found;
-				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),false,cfile.c_pdi)
+				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),cfile.c_pdi)
 			with Not_found ->
 				let parse_result = TypeloadParse.parse_file com rfile p in
 				let info,is_unusual = match parse_result with
 					| ParseError(_,_,_) -> "not cached, has parse error",true
-					| ParseSuccess(data,is_display_file,pdi) ->
+					| ParseSuccess(data,pdi) ->
 						if is_display_file then begin
 							if pdi.pd_errors <> [] then
 								"not cached, is display file with parse errors",true
@@ -76,7 +75,7 @@ let parse_file cs com (rfile : ClassPaths.resolved_file) p =
 							(* We assume that when not in display mode it's okay to cache stuff that has #if display
 							checks. The reasoning is that non-display mode has more information than display mode. *)
 							if com.display.dms_full_typing then raise Not_found;
-							let ident = Hashtbl.find Parser.special_identifier_files fkey in
+							let ident = ThreadSafeHashtbl.find com.parser_state.special_identifier_files fkey in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
 							cc#cache_file fkey (ClassPaths.create_resolved_file ffile rfile.class_path) ftime data pdi;
@@ -113,10 +112,9 @@ module Communication = struct
 				end;
 				flush stdout;
 			);
-			exit = (fun code ->
+			exit = (fun timer_ctx code ->
 				if code = 0 then begin
-					Timer.close_times();
-					if !Timer.measure_times then Timer.report_times (fun s -> self.write_err (s ^ "\n"));
+					if timer_ctx.measure_times = Yes then Timer.report_times timer_ctx (fun s -> self.write_err (s ^ "\n"));
 				end;
 				exit code;
 			);
@@ -141,15 +139,13 @@ module Communication = struct
 
 					sctx.was_compilation <- ctx.com.display.dms_full_typing;
 					if has_error ctx then begin
-						measure_times := false;
+						ctx.timer_ctx.measure_times <- No;
 						write "\x02\n"
-					end else begin
-						Timer.close_times();
-						if !Timer.measure_times then Timer.report_times (fun s -> self.write_err (s ^ "\n"));
-					end
+					end else
+						if ctx.timer_ctx.measure_times = Yes then Timer.report_times ctx.timer_ctx (fun s -> self.write_err (s ^ "\n"));
 				)
 			);
-			exit = (fun i ->
+			exit = (fun timer_ctx i ->
 				()
 			);
 			is_server = true;
@@ -163,7 +159,6 @@ let stat dir =
 
 (* Gets a list of changed directories for the current compilation. *)
 let get_changed_directories sctx com =
-	let t = Timer.timer ["server";"module cache";"changed dirs"] in
 	let cs = sctx.cs in
 	let sign = Define.get_signature com.defines in
 	let dirs = try
@@ -223,8 +218,17 @@ let get_changed_directories sctx com =
 		Hashtbl.add sctx.changed_directories sign dirs;
 		dirs
 	in
-	t();
 	dirs
+
+let get_changed_directories sctx com =
+	Timer.time com.Common.timer_ctx ["server";"module cache";"changed dirs"] (get_changed_directories sctx) com
+
+let full_typing com m_extra =
+	com.is_macro_context
+	|| com.display.dms_full_typing
+	|| Define.defined com.defines Define.DisableHxbCache
+	|| Define.defined com.defines Define.DisableHxbOptimizations
+	|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m_extra.m_file)
 
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
@@ -291,7 +295,7 @@ let check_module sctx com m_path m_extra p =
 				end
 		in
 		let has_policy policy = List.mem policy m_extra.m_check_policy || match policy with
-			| NoCheckShadowing | NoCheckFileTimeModification when !ServerConfig.do_not_check_modules && !Parser.display_mode <> DMNone -> true
+			| NoFileSystemCheck when !ServerConfig.do_not_check_modules && com.display.dms_kind <> DMNone -> true
 			| _ -> false
 		in
 		let check_file () =
@@ -321,13 +325,13 @@ let check_module sctx com m_path m_extra p =
 				match check mpath m2_extra with
 				| None -> ()
 				| Some reason -> raise (Dirty (DependencyDirty(mpath,reason)))
-			) m_extra.m_deps;
+			) m_extra.m_deps
 		in
 		let check () =
 			try
-				if not (has_policy NoCheckShadowing) then check_module_path();
-				if not (has_policy NoCheckFileTimeModification) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
-				if not (has_policy NoCheckDependencies) then check_dependencies();
+				check_module_path();
+				if not (has_policy NoFileSystemCheck) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
+				if full_typing com m_extra then check_dependencies();
 				None
 			with
 			| Dirty reason ->
@@ -386,10 +390,24 @@ let check_module sctx com m_path m_extra p =
 	end;
 	state
 
+let get_hxb_module com cc path =
+	try
+		let mc = cc#get_hxb_module path in
+		if not (full_typing com mc.mc_extra) then begin
+			mc.mc_extra.m_cache_state <- MSGood;
+			BinaryModule mc
+		end else
+			begin match mc.mc_extra.m_cache_state with
+				| MSBad reason -> BadModule reason
+				| _ -> BinaryModule mc
+			end
+	with Not_found ->
+		NoModule
+
 class hxb_reader_api_server
 	(com : Common.context)
 	(cc : context_cache)
-	(delay : (unit -> unit) -> unit)
+	(delay : TyperPass.typer_pass -> (unit -> unit) -> unit)
 = object(self)
 
 	method make_module (path : path) (file : string) =
@@ -399,7 +417,9 @@ class hxb_reader_api_server
 			m_path = path;
 			m_types = [];
 			m_statics = None;
-			m_extra = mc.mc_extra
+			(* Creating a new m_extra because if we keep the same reference, display requests *)
+			(* can alter it with bad data (for example adding dependencies that are not cached) *)
+			m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps; m_display_deps = None }
 		}
 
 	method add_module (m : module_def) =
@@ -415,37 +435,30 @@ class hxb_reader_api_server
 		| GoodModule m ->
 			m
 		| BinaryModule mc ->
-			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats in
+			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
+			let full_restore = full_typing com mc.mc_extra in
 			let f_next chunks until =
-				let t_hxb = Timer.timer ["server";"module cache";"hxb read"] in
-				let r = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until in
-				t_hxb();
-				r
+				let macro = if com.is_macro_context then " (macro)" else "" in
+				let f  = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until in
+				Timer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] f full_restore
 			in
-			let m,chunks = f_next mc.mc_chunks EOF in
+
+			let m,chunks = f_next mc.mc_chunks EOT in
 
 			(* We try to avoid reading expressions as much as possible, so we only do this for
 				 our current display file if we're in display mode. *)
-			let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file) in
-			if is_display_file || com.display.dms_full_typing then ignore(f_next chunks EOM)
-			else delay (fun () -> ignore(f_next chunks EOM));
+			if full_restore then ignore(f_next chunks EOM)
+			else delay PConnectField (fun () -> ignore(f_next chunks EOF));
 			m
 		| BadModule reason ->
-			die (Printf.sprintf "Unexpected BadModule %s" (s_type_path path)) __LOC__
+			die (Printf.sprintf "Unexpected BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)) __LOC__
 		| NoModule ->
 			die (Printf.sprintf "Unexpected NoModule %s" (s_type_path path)) __LOC__
 
 	method find_module (m_path : path) =
 		try
 			GoodModule (com.module_lut#find m_path)
-		with Not_found -> try
-			let mc = cc#get_hxb_module m_path in
-			begin match mc.mc_extra.m_cache_state with
-				| MSBad reason -> BadModule reason
-				| _ -> BinaryModule mc
-			end
-		with Not_found ->
-			NoModule
+		with Not_found -> get_hxb_module com cc m_path
 
 	method basic_types =
 		com.basic
@@ -454,7 +467,12 @@ class hxb_reader_api_server
 		i
 
 	method read_expression_eagerly (cf : tclass_field) =
-		com.display.dms_full_typing
+		com.is_macro_context || com.display.dms_full_typing || Define.defined com.defines Define.DisableHxbOptimizations
+
+	method make_lazy_type t f =
+		let r = make_unforced_lazy t f "server-api" in
+		delay PForce (fun () -> ignore(lazy_type r));
+		TLazy r
 end
 
 let handle_cache_bound_objects com cbol =
@@ -488,6 +506,7 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 				if not from_binary || m != m then
 					com.module_lut#add m.m_path m;
 				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
+				let full_restore = full_typing com m.m_extra in
 				PMap.iter (fun _ mdep ->
 					let mpath = mdep.md_path in
 					if mdep.md_sign = own_sign then begin
@@ -506,7 +525,7 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 						in
 						add_modules (tabs ^ "  ") m0 m2
 					end
-				) m.m_extra.m_deps
+				) (if full_restore then m.m_extra.m_deps else Option.default m.m_extra.m_deps m.m_extra.m_display_deps)
 			)
 		end
 	in
@@ -515,23 +534,18 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 (* Looks up the module referred to by [mpath] in the cache. If it exists, a check is made to
    determine if it's still valid. If this function returns None, the module is re-typed. *)
 and type_module sctx com delay mpath p =
-	let t = Timer.timer ["server";"module cache"] in
+	let t = Timer.start_timer com.timer_ctx ["server";"module cache"] in
 	let cc = CommonCache.get_cache com in
 	let skip m_path reason =
 		ServerMessage.skipping_dep com "" (m_path,(Printer.s_module_skip_reason reason));
 		BadModule reason
 	in
 	let add_modules from_binary m =
-		let tadd = Timer.timer ["server";"module cache";"add modules"] in
-		add_modules sctx com delay m from_binary p;
-		tadd();
+		Timer.time com.timer_ctx ["server";"module cache";"add modules"] (add_modules sctx com delay m from_binary) p;
 		GoodModule m
 	in
 	let check_module sctx m_path m_extra p =
-		let tcheck = Timer.timer ["server";"module cache";"check"] in
-		let r = check_module sctx com mpath m_extra p in
-		tcheck();
-		r
+		Timer.time com.timer_ctx ["server";"module cache";"check"] (check_module sctx com mpath m_extra) p
 	in
 	let find_module_in_cache cc m_path p =
 		try
@@ -540,14 +554,7 @@ and type_module sctx com delay mpath p =
 				| MSBad reason -> BadModule reason
 				| _ -> GoodModule m
 			end;
-		with Not_found -> try
-			let mc = cc#get_hxb_module m_path in
-			begin match mc.mc_extra.m_cache_state with
-				| MSBad reason -> BadModule reason
-				| _ -> BinaryModule mc
-			end
-		with Not_found ->
-			NoModule
+		with Not_found -> get_hxb_module com cc m_path
 	in
 	(* Should not raise anything! *)
 	let m = match find_module_in_cache cc mpath p with
@@ -565,7 +572,8 @@ and type_module sctx com delay mpath p =
 			   checking dependencies. This means that the actual decoding never has any reason to fail. *)
 			begin match check_module sctx mpath mc.mc_extra p with
 				| None ->
-					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats in
+					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
+					let full_restore = full_typing com mc.mc_extra in
 					let api = match com.hxb_reader_api with
 						| Some api ->
 							api
@@ -575,17 +583,16 @@ and type_module sctx com delay mpath p =
 							api
 					in
 					let f_next chunks until =
-						let t_hxb = Timer.timer ["server";"module cache";"hxb read"] in
-						let r = reader#read_chunks_until api chunks until in
-						t_hxb();
-						r
+						let macro = if com.is_macro_context then " (macro)" else "" in
+						Timer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] (reader#read_chunks_until api chunks until) full_restore
 					in
-					let m,chunks = f_next mc.mc_chunks EOF in
+
+					let m,chunks = f_next mc.mc_chunks EOT in
+
 					(* We try to avoid reading expressions as much as possible, so we only do this for
 					   our current display file if we're in display mode. *)
-					let is_display_file = DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file) in
-					if is_display_file || com.display.dms_full_typing then ignore(f_next chunks EOM)
-					else delay (fun () -> ignore(f_next chunks EOM));
+					if full_restore then ignore(f_next chunks EOM)
+					else delay PConnectField (fun () -> ignore(f_next chunks EOF));
 					add_modules true m;
 				| Some reason ->
 					skip mpath reason
@@ -626,6 +633,7 @@ let after_save sctx ctx =
 		maybe_cache_context sctx ctx.com
 
 let after_compilation sctx ctx =
+	sctx.cs#clear_temp_cache;
 	()
 
 let mk_length_prefixed_communication allow_nonblock chin chout =
@@ -764,7 +772,7 @@ let enable_cache_mode sctx =
 	TypeloadParse.parse_hook := parse_file sctx.cs
 
 let rec process sctx comm args =
-	let t0 = get_time() in
+	let t0 = Extc.time() in
 	ServerMessage.arguments args;
 	reset sctx;
 	let api = {
@@ -787,7 +795,7 @@ let rec process sctx comm args =
 	} in
 	Compiler.HighLevel.entry api comm args;
 	run_delays sctx;
-	ServerMessage.stats stats (get_time() -. t0)
+	ServerMessage.stats stats (Extc.time() -. t0)
 
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)

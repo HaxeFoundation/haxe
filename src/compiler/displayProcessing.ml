@@ -20,7 +20,7 @@ let handle_display_argument_old com file_pos actx =
 		raise (Completion (DisplayOutput.print_keywords ()))
 	| "memory" ->
 		actx.did_something <- true;
-		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
+		(try DisplayMemory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
 	| "diagnostics" ->
 		com.report_mode <- RMLegacyDiagnostics []
 	| _ ->
@@ -29,7 +29,6 @@ let handle_display_argument_old com file_pos actx =
 		let file_unique = com.file_keys#get file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
 		let create mode =
-			Parser.display_mode := mode;
 			DisplayTypes.DisplayMode.create mode
 		in
 		let dm = match smode with
@@ -48,7 +47,7 @@ let handle_display_argument_old com file_pos actx =
 			| "diagnostics" ->
 				com.report_mode <- RMLegacyDiagnostics [file_unique];
 				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPOnly; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display}
+				{dm with dms_display_file_policy = DFPOnly; dms_per_file = true; dms_populate_cache = false}
 			| "statistics" ->
 				com.report_mode <- RMStatistics;
 				let dm = create DMNone in
@@ -81,7 +80,7 @@ let process_display_arg ctx actx =
 		if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
 			actx.did_something <- true;
 			actx.force_typing <- true;
-			DisplayJson.parse_input ctx.com input Timer.measure_times
+			DisplayJson.parse_input ctx.com input
 		end else
 			handle_display_argument_old ctx.com input actx;
 	| None ->
@@ -96,24 +95,13 @@ let process_display_configuration ctx =
 			add_diagnostics_message ?depth com s p DKCompilerMessage Information
 		);
 		com.warning <- (fun ?(depth = 0) ?from_macro w options s p ->
-			match Warning.get_mode w (com.warning_options @ options) with
+			match Warning.get_mode w (options @ com.warning_options) with
 			| WMEnable ->
 				let wobj = Warning.warning_obj w in
 				add_diagnostics_message ~depth ~code:(Some wobj.w_name) com s p DKCompilerMessage Warning
 			| WMDisable ->
 				()
 		);
-	end;
-	Lexer.old_format := Common.defined com Define.OldErrorFormat;
-	if !Lexer.old_format && !Parser.in_display then begin
-		let p = DisplayPosition.display_position#get in
-		(* convert byte position to utf8 position *)
-		try
-			let content = Std.input_file ~bin:true (Path.get_real_path p.pfile) in
-			let pos = Extlib_leftovers.UTF8.length (String.sub content 0 p.pmin) in
-			DisplayPosition.display_position#set { p with pmin = pos; pmax = pos }
-		with _ ->
-			() (* ignore *)
 	end
 
 let process_display_file com actx =
@@ -143,7 +131,7 @@ let process_display_file com actx =
 			DPKNone
 		| DFPOnly when (DisplayPosition.display_position#get).pfile = file_input_marker ->
 			actx.classes <- [];
-			com.main.main_class <- None;
+			com.main.main_path <- None;
 			begin match com.file_contents with
 			| [_, Some input] ->
 				com.file_contents <- [];
@@ -154,38 +142,43 @@ let process_display_file com actx =
 		| dfp ->
 			if dfp = DFPOnly then begin
 				actx.classes <- [];
-				com.main.main_class <- None;
+				com.main.main_path <- None;
 			end;
-			let real = Path.get_real_path (DisplayPosition.display_position#get).pfile in
-			let path = match get_module_path_from_file_path com real with
-			| Some path ->
-				if com.display.dms_kind = DMPackage then DisplayException.raise_package (fst path);
-				let path = match ExtString.String.nsplit (snd path) "." with
-					| [name;"macro"] ->
-						(* If we have a .macro.hx path, don't add the file to classes because the compiler won't find it.
-						   This can happen if we're completing in such a file. *)
-						DPKMacro (fst path,name)
-					| [name] ->
-						actx.classes <- path :: actx.classes;
-						DPKNormal path
-					| [name;target] ->
-						let path = fst path, name in
-						actx.classes <- path :: actx.classes;
-						DPKNormal path
-					| e ->
-						die "" __LOC__
+			let dpk = List.map (fun file_key ->
+				let real = Path.get_real_path (Path.UniqueKey.to_string file_key) in
+				let dpk = match get_module_path_from_file_path com real with
+				| Some path ->
+					if com.display.dms_kind = DMPackage then DisplayException.raise_package (fst path);
+					let dpk = match ExtString.String.nsplit (snd path) "." with
+						| [name;"macro"] ->
+							(* If we have a .macro.hx path, don't add the file to classes because the compiler won't find it.
+								 This can happen if we're completing in such a file. *)
+							DPKMacro (fst path,name)
+						| [name] ->
+							actx.classes <- path :: actx.classes;
+							DPKNormal path
+						| [name;target] ->
+							let path = fst path, name in
+							actx.classes <- path :: actx.classes;
+							DPKNormal path
+						| _ ->
+							failwith ("Invalid display file '" ^ real ^ "'")
+					in
+					dpk
+				| None ->
+					if not (Sys.file_exists real) then failwith "Display file does not exist";
+					(match List.rev (ExtString.String.nsplit real Path.path_sep) with
+					| file :: _ when file.[0] >= 'a' && file.[0] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
+					| _ -> ());
+					DPKDirect real
 				in
-				path
-			| None ->
-				if not (Sys.file_exists real) then failwith "Display file does not exist";
-				(match List.rev (ExtString.String.nsplit real Path.path_sep) with
-				| file :: _ when file.[0] >= 'a' && file.[0] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
-				| _ -> ());
-				DPKDirect real
-			in
-			Common.log com ("Display file : " ^ real);
+				Common.log com ("Display file : " ^ real);
+				dpk
+			) DisplayPosition.display_position#get_files in
 			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path actx.classes)) ^ "]");
-			path
+			match dpk with
+				| [dfile] -> dfile
+				| _ -> DPKNone
 
 (* 3. Loaders for display file that might be called *)
 
@@ -244,7 +237,7 @@ let load_display_file_standalone (ctx : Typecore.typer) file =
 let load_display_content_standalone (ctx : Typecore.typer) input =
 	let com = ctx.com in
 	let file = file_input_marker in
-	let p = {pfile = file; pmin = 0; pmax = 0} in
+	let p = file_pos file in
 	let parsed = TypeloadParse.parse_file_from_string com file p input in
 	let pack,decls = TypeloadParse.handle_parser_result com p parsed in
 	ignore(TypeloadModule.type_module ctx.com ctx.g (pack,"?DISPLAY") file ~dont_check_path:true decls p)
@@ -271,7 +264,7 @@ let maybe_load_display_file_before_typing tctx display_file_dot_path = match dis
 let handle_display_after_typing ctx tctx display_file_dot_path =
 	let com = ctx.com in
 	if ctx.com.display.dms_kind = DMNone && ctx.has_error then raise Abort;
-	begin match ctx.com.display.dms_kind,!Parser.delayed_syntax_completion with
+	begin match ctx.com.display.dms_kind,Atomic.get ctx.com.parser_state.delayed_syntax_completion with
 		| DMDefault,Some(kind,subj) -> DisplayOutput.handle_syntax_completion com kind subj
 		| _ -> ()
 	end;
@@ -310,9 +303,9 @@ let process_global_display_mode com tctx =
 	promote_type_hints tctx;
 	match com.display.dms_kind with
 	| DMUsage (with_definition,_,_) ->
-		FindReferences.find_references tctx com with_definition
+		FindReferences.find_references com with_definition
 	| DMImplementation ->
-		FindReferences.find_implementations tctx com
+		FindReferences.find_implementations com
 	| DMModuleSymbols filter ->
 		let open CompilationCache in
 		let cs = com.cs in
@@ -343,7 +336,7 @@ let handle_display_after_finalization ctx tctx display_file_dot_path =
 		| None -> ()
 		| Some mctx ->
 			(* We don't need a full macro flush here because we're not going to run any macros. *)
-			let _, types, modules = Finalization.generate mctx in
+			let _, types, modules = Finalization.generate mctx (Finalization.maybe_load_main mctx) in
 			mctx.Typecore.com.types <- types;
 			mctx.Typecore.com.Common.modules <- modules
 	end;
@@ -354,7 +347,7 @@ let handle_display_after_finalization ctx tctx display_file_dot_path =
 	| RMDiagnostics _ ->
 		DisplayOutput.emit_diagnostics com
 	| RMStatistics ->
-		DisplayOutput.emit_statistics tctx
+		DisplayOutput.emit_statistics com
 	| RMNone ->
 		()
 	end

@@ -39,7 +39,7 @@ extern class PluralRules {
 	@:pure function resolvedOptions():PluralRulesResolvedOptions;
 
 	/**
-		Returns a String indicating which plurar rule to use for locale-aware formatting.
+		Returns a String indicating which plural rule to use for locale-aware formatting.
 	**/
 	@:pure function select(number:Int):String;
 
@@ -105,12 +105,12 @@ typedef PluralRulesResolvedOptions = {
 
 enum abstract PluralRulesType(String) {
 	/**
-		For cardinal numbers (refering to the quantity of things).
+		For cardinal numbers (referring to the quantity of things).
 	 */
 	var Cardinal = "cardinal";
 
 	/**
-		For ordinal number (refering to the ordering or ranking of things, e.g. "1st", "2nd", "3rd" in English).
+		For ordinal number (referring to the ordering or ranking of things, e.g. "1st", "2nd", "3rd" in English).
 	 */
 	var Ordinal = "ordinal";
 }

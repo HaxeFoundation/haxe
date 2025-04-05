@@ -23,7 +23,7 @@
 open Extlib_leftovers
 open Ast
 open Type
-open Common
+open Gctx
 open ExtList
 open Error
 open JsSourcemap
@@ -31,7 +31,7 @@ open JsSourcemap
 type pos = Globals.pos
 
 type ctx = {
-    com : Common.context;
+    com : Gctx.t;
     buf : Buffer.t;
     packages : (string list,unit) Hashtbl.t;
     smap : sourcemap option;
@@ -137,8 +137,8 @@ let static_field c s =
     | "length" | "name" when not (has_class_flag c CExtern) || Meta.has Meta.HxGen c.cl_meta-> "._hx" ^ s
     | s -> field s
 
-let has_feature ctx = Common.has_feature ctx.com
-let add_feature ctx = Common.add_feature ctx.com
+let has_feature ctx = Gctx.has_feature ctx.com
+let add_feature ctx = Gctx.add_feature ctx.com
 
 let temp ctx =
     ctx.id_counter <- ctx.id_counter + 1;
@@ -458,7 +458,7 @@ and gen_call ctx e el =
      | TIdent "__lua__", [{ eexpr = TConst (TString code) }] ->
          spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
      | TIdent "__lua__", { eexpr = TConst (TString code); epos = p } :: tl ->
-         Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
+         Codegen.interpolate_code ctx.com.error code tl (spr ctx) (gen_expr ctx) p
      | TIdent "__type__",  [o] ->
          spr ctx "type";
          gen_paren ctx [o];
@@ -553,7 +553,7 @@ and gen_call ctx e el =
 and has_continue e =
     let rec loop e = match e.eexpr with
         | TContinue -> raise Exit
-        | TWhile(e1,_,_) | TFor(_,e1,_) -> loop e1 (* in theory there could be a continue there. Note that we don't want to recurse into the loop body because we do not care about inner continue expressions *)
+        | TWhile(e1,_,_) -> loop e1 (* in theory there could be a continue there. Note that we don't want to recurse into the loop body because we do not care about inner continue expressions *)
         | _ -> Type.iter loop e
     in
     try
@@ -585,9 +585,9 @@ and gen_loop ctx cond do_while e =
         println ctx "local _hx_do_first_%i = true;" ctx.break_depth;
     let b = open_block ctx in
     print ctx "while ";
-    gen_cond ctx cond;
     if do_while then
-        print ctx " or _hx_do_first_%i" ctx.break_depth;
+        print ctx "_hx_do_first_%i or " ctx.break_depth;
+    gen_cond ctx cond;
     print ctx " do ";
     if do_while then begin
         newline ctx;
@@ -982,8 +982,6 @@ and gen_expr ?(local=true) ctx e = begin
         concat ctx "," (fun ((f,_,_),e) -> print ctx "%s=" (anon_field f); gen_anon_value ctx e) fields;
         spr ctx "})";
         ctx.separator <- true
-    | TFor (v,it,e2) ->
-        unsupported e.epos;
     | TTry (e,catchs) ->
         (* TODO: add temp variables *)
         let old_in_loop_try = ctx.in_loop_try in
@@ -1229,7 +1227,6 @@ and gen_value ctx e =
     | TCast (e1, _) ->
         gen_value ctx e1
     | TVar _
-    | TFor _
     | TWhile _
     | TThrow _ ->
         (* value is discarded anyway *)
@@ -1550,7 +1547,7 @@ let check_multireturn ctx c =
 
 let check_field_name c f =
     match f.cf_name with
-    | "prototype" | "__proto__" | "constructor" ->
+    | "prototype" | "__proto__" | "constructor" | "__mt__" ->
         raise_typing_error ("The field name '" ^ f.cf_name ^ "'  is not allowed in Lua") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
     | _ -> ()
 
@@ -1660,8 +1657,10 @@ let generate_class ctx c =
                     | TBlock el ->
                         let bend = open_block ctx in
                         newline ctx;
-                        if not (has_prototype ctx c) then println ctx "local self = _hx_new()" else
-                            println ctx "local self = _hx_new(%s.prototype)" p;
+                        if not (has_prototype ctx c) then
+                            println ctx "local self = _hx_new()"
+                        else
+                            println ctx "local self = _hx_nsh(%s.__mt__)" p;
                         println ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map lua_arg_name f.tf_args)));
                         if p = "String" then println ctx "self = string";
                         spr ctx "return self";
@@ -1734,6 +1733,9 @@ let generate_class ctx c =
              if has_property_reflection && Codegen.has_properties csup then
                  println ctx "setmetatable(%s.prototype.__properties__,{__index=%s.prototype.__properties__})" p psup;
         );
+
+        (* Create a metatable specific for this class *)
+        println ctx "%s.__mt__ = _hx_mmt(%s.prototype)" p p;
     end
 
 let generate_enum ctx e =
@@ -1854,7 +1856,7 @@ let generate_type ctx = function
             generate_class ctx c;
         check_multireturn ctx c;
     | TEnumDecl e ->
-        if not e.e_extern then generate_enum ctx e
+        if not (has_enum_flag e EnExtern) then generate_enum ctx e
         else ();
     | TTypeDecl _ | TAbstractDecl _ -> ()
 
@@ -1869,7 +1871,7 @@ let generate_type_forward ctx = function
             end
         else if Meta.has Meta.LuaRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
             generate_require ctx c.cl_path c.cl_meta
-    | TEnumDecl e when e.e_extern ->
+    | TEnumDecl e when has_enum_flag e EnExtern ->
         if Meta.has Meta.LuaRequire e.e_meta && is_directly_used ctx.com e.e_meta then
             generate_require ctx e.e_path e.e_meta;
     | TEnumDecl e ->
@@ -1881,7 +1883,7 @@ let generate_type_forward ctx = function
 
 let alloc_ctx com =
     let smap =
-		if com.debug || Common.defined com Define.SourceMap then
+		if com.debug || Gctx.defined com Define.SourceMap then
 			Some {
 				source_last_pos = { file = 0; line = 0; col = 0};
 				print_comma = false;
@@ -1914,10 +1916,10 @@ let alloc_ctx com =
         type_accessor = (fun _ -> Globals.die "" __LOC__);
         separator = false;
         found_expose = false;
-        lua_jit = Common.defined com Define.LuaJit;
-        lua_vanilla = Common.defined com Define.LuaVanilla;
+        lua_jit = Gctx.defined com Define.LuaJit;
+        lua_vanilla = Gctx.defined com Define.LuaVanilla;
         lua_ver = try
-                float_of_string (Common.defined_value com Define.LuaVer)
+                float_of_string (Gctx.defined_value com Define.LuaVer)
             with | Not_found -> 5.2;
     } in
     ctx.type_accessor <- (fun t ->
@@ -1925,7 +1927,7 @@ let alloc_ctx com =
         match t with
         | TClassDecl c when (has_class_flag c CExtern) &&  not (Meta.has Meta.LuaRequire c.cl_meta)
             -> dot_path p
-        | TEnumDecl { e_extern = true }
+        | TEnumDecl e when has_enum_flag e EnExtern
             -> s_path ctx p
         | _ -> s_path ctx p);
     ctx
@@ -2004,7 +2006,7 @@ let transform_multireturn ctx = function
 let generate com =
     let ctx = alloc_ctx com in
 
-    Codegen.map_source_header com (fun s -> print ctx "-- %s\n" s);
+    Gctx.map_source_header com.defines (fun s -> print ctx "-- %s\n" s);
 
     if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
     if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
@@ -2014,17 +2016,22 @@ let generate com =
         print ctx "%s\n" file_content;
     in
 
+	let find_file f = (com.class_paths#find_file f).file in
+
     (* base table-to-array helpers and metatables *)
-    print_file (Common.find_file com "lua/_lua/_hx_tab_array.lua");
+    print_file (find_file "lua/_lua/_hx_tab_array.lua");
 
     (* base lua "toString" functionality for haxe objects*)
-    print_file (Common.find_file com "lua/_lua/_hx_tostring.lua");
+    print_file (find_file "lua/_lua/_hx_tostring.lua");
 
     (* base lua metatables for prototypes, inheritance, etc. *)
-    print_file (Common.find_file com "lua/_lua/_hx_anon.lua");
+    print_file (find_file "lua/_lua/_hx_anon.lua");
+
+    (* Helpers for creating metatables from prototypes *)
+    print_file (find_file "lua/_lua/_hx_objects.lua");
 
     (* base runtime class stubs for haxe value types (Int, Float, etc) *)
-    print_file (Common.find_file com "lua/_lua/_hx_classes.lua");
+    print_file (find_file "lua/_lua/_hx_classes.lua");
 
     let include_files = List.rev com.include_files in
     List.iter (fun file ->
@@ -2114,18 +2121,18 @@ let generate com =
 
     (* If bit ops are manually imported include the haxe wrapper for them *)
     if has_feature ctx "use._bitop" then begin
-        print_file (Common.find_file com "lua/_lua/_hx_bit.lua");
+        print_file (find_file "lua/_lua/_hx_bit.lua");
     end;
 
     (* integer clamping is always required, and will use bit ops if available *)
-    print_file (Common.find_file com "lua/_lua/_hx_bit_clamp.lua");
+    print_file (find_file "lua/_lua/_hx_bit_clamp.lua");
 
     (* Array is required, always patch it *)
     println ctx "_hx_array_mt.__index = Array.prototype";
     newline ctx;
 
     (* Functions to support auto-run of libuv loop *)
-    print_file (Common.find_file com "lua/_lua/_hx_luv.lua");
+    print_file (find_file "lua/_lua/_hx_luv.lua");
 
     let b = open_block ctx in
     (* Localize init variables inside a do-block *)
@@ -2140,45 +2147,45 @@ let generate com =
     newline ctx;
 
     if has_feature ctx "use._hx_bind" then begin
-        print_file (Common.find_file com "lua/_lua/_hx_bind.lua");
+        print_file (find_file "lua/_lua/_hx_bind.lua");
     end;
 
     if has_feature ctx "use._hx_staticToInstance" then begin
-        print_file (Common.find_file com "lua/_lua/_hx_static_to_instance.lua");
+        print_file (find_file "lua/_lua/_hx_static_to_instance.lua");
     end;
 
     if has_feature ctx "use._hx_funcToField" then begin
-        print_file (Common.find_file com "lua/_lua/_hx_func_to_field.lua");
+        print_file (find_file "lua/_lua/_hx_func_to_field.lua");
     end;
 
     if has_feature ctx "Math.random" then begin
-        print_file (Common.find_file com "lua/_lua/_hx_random_init.lua");
+        print_file (find_file "lua/_lua/_hx_random_init.lua");
     end;
 
     if has_feature ctx "use._hx_print" then
-        print_file (Common.find_file com "lua/_lua/_hx_print.lua");
+        print_file (find_file "lua/_lua/_hx_print.lua");
 
     if has_feature ctx "use._hx_apply_self" then begin
-        print_file (Common.find_file com "lua/_lua/_hx_apply_self.lua");
+        print_file (find_file "lua/_lua/_hx_apply_self.lua");
     end;
 
     if has_feature ctx "use._hx_box_mr" then begin
-        print_file (Common.find_file com "lua/_lua/_hx_box_mr.lua");
+        print_file (find_file "lua/_lua/_hx_box_mr.lua");
     end;
 
     if has_feature ctx "use._hx_table" then begin
-        print_file (Common.find_file com "lua/_lua/_hx_table.lua");
+        print_file (find_file "lua/_lua/_hx_table.lua");
     end;
 
     if has_feature ctx "use._hx_wrap_if_string_field" then begin
-        print_file (Common.find_file com "lua/_lua/_hx_wrap_if_string_field.lua");
+        print_file (find_file "lua/_lua/_hx_wrap_if_string_field.lua");
     end;
 
     if has_feature ctx "use._hx_dyn_add" then begin
-        print_file (Common.find_file com "lua/_lua/_hx_dyn_add.lua");
+        print_file (find_file "lua/_lua/_hx_dyn_add.lua");
     end;
 
-    print_file (Common.find_file com "lua/_lua/_hx_handle_error.lua");
+    print_file (find_file "lua/_lua/_hx_handle_error.lua");
 
     println ctx "_hx_static_init();";
 

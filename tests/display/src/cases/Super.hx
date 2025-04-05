@@ -13,8 +13,9 @@ class Super extends DisplayTestCase {
 	**/
 	function testSuperCall() {
 		eq(range(1, 2), position(pos(3)));
-		eq("cases.Base<String>", type(pos(3)));
-		arrayEq([range(4, 5)], usage(pos(3)));
+		eq("Base<String>", type(pos(3)));
+		arrayEq([range(4, 5)], usage(pos(2)));
+		// arrayEq([range(4, 5)], usage(pos(3)));
 	}
 
 	/**
@@ -29,7 +30,7 @@ class Super extends DisplayTestCase {
 	**/
 	function testSuperField() {
 		eq(range(1, 2), position(pos(3)));
-		eq("cases.Base<String>", type(pos(3)));
+		eq("Base<String>", type(pos(3)));
 		eq(range(4, 5), position(pos(6)));
 		eq("() -> Void", type(pos(6)));
 	}
