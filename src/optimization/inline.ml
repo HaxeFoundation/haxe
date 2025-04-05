@@ -125,7 +125,7 @@ let api_inline (scom : SafeCom.t) c field params p =
 	let tint = scom.basic.tint in
 
 	match c.cl_path, field, params with
-	| ([],"Std"),("is" | "isOfType"),[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when scom.platform = Js ->
+	| ([],"Std"),"isOfType",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when scom.platform = Js ->
 		let is_trivial e =
 			match e.eexpr with
 			| TConst _ | TLocal _ -> true
