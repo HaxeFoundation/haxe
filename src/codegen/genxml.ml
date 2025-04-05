@@ -212,7 +212,7 @@ let rec exists f c =
 			| None -> false
 			| Some (csup,_) -> exists f csup
 
-let rec gen_type_decl com pos t =
+let rec gen_type_decl pos t =
 	let m = (t_infos t).mt_module in
 	match t with
 	| TClassDecl c ->
@@ -257,7 +257,7 @@ let rec gen_type_decl com pos t =
 		let mk_field_cast (t,cf) = if Meta.has Meta.NoDoc cf.cf_meta then None else Some (node "icast" ["field",cf.cf_name] [gen_type t]) in
 		let sub = (match a.a_from,a.a_from_field with [],[] -> [] | l1,l2 -> [node "from" [] ((List.map mk_cast l1) @ (ExtList.List.filter_map mk_field_cast l2))]) in
 		let super = (match a.a_to,a.a_to_field with [],[] -> [] | l1,l2 -> [node "to" [] ((List.map mk_cast l1) @ (ExtList.List.filter_map mk_field_cast l2))]) in
-		let impl = (match a.a_impl with None -> [] | Some c -> [node "impl" [] [gen_type_decl com pos (TClassDecl c)]]) in
+		let impl = (match a.a_impl with None -> [] | Some c -> [node "impl" [] [gen_type_decl pos (TClassDecl c)]]) in
 		let this = [node "this" [] [gen_type a.a_this]] in
 		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_params a.a_pos m) (sub @ this @ super @ doc @ meta @ impl)
 
@@ -289,7 +289,7 @@ let rec write_xml ch tabs x =
 
 let generate com file =
 	let f () =
-		node "haxe" [] (List.map (gen_type_decl com true) (List.filter (fun t -> not (Meta.has Meta.NoDoc (t_infos t).mt_meta)) com.types))
+		node "haxe" [] (List.map (gen_type_decl true) (List.filter (fun t -> not (Meta.has Meta.NoDoc (t_infos t).mt_meta)) com.types))
 	in
 	let x = Timer.time com.timer_ctx ["generate";"xml"] f () in
 
@@ -301,8 +301,8 @@ let generate com file =
 	in
 	Timer.time com.timer_ctx ["write";"xml"] f ()
 
-let gen_type_string ctx t =
-	let x = gen_type_decl ctx false t in
+let gen_type_string t =
+	let x = gen_type_decl false t in
 	let ch = IO.output_string() in
 	write_xml ch "" x;
 	IO.close_out ch

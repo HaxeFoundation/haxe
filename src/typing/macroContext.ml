@@ -658,7 +658,7 @@ and flush_macro_context mint mctx =
 			(fun _ -> FiltersCommon.remove_generic_base);
 			SaveStacks.patch_constructors ectx;
 			(fun _ -> (fun mt -> AddFieldInits.add_field_inits mctx.c.curclass.cl_path (RenameVars.init mctx.com.config mctx.com.types) scom mt));
-			(fun _ -> Filters.update_cache_dependencies ~close_monomorphs:false mctx.com);
+			(fun _ -> Filters.update_cache_dependencies ~close_monomorphs:false scom);
 			(fun _ -> minimal_restore);
 			(fun _ -> maybe_apply_native_paths);
 		] in
