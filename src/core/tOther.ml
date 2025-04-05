@@ -143,9 +143,6 @@ module TExprToExpr = struct
 			and eo = eopt eo in
 			EVars ([mk_evar ~final ?t ?eo ~meta:v.v_meta (v.v_name,v.v_pos)])
 		| TBlock el -> EBlock (List.map convert_expr el)
-		| TFor (v,it,e) ->
-			let ein = (EBinop (OpIn,(EConst (Ident v.v_name),it.epos),convert_expr it),it.epos) in
-			EFor (ein,convert_expr e)
 		| TIf (e,e1,e2) -> EIf (convert_expr e,convert_expr e1,eopt e2)
 		| TWhile (e1,e2,flag) -> EWhile (convert_expr e1, convert_expr e2, flag)
 		| TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->
@@ -274,7 +271,7 @@ let mk_enum m path pos name_pos =
 		e_using = [];
 		e_restore = (fun () -> ());
 		e_private = false;
-		e_extern = false;
+		e_flags = 0;
 		e_constrs = PMap.empty;
 		e_names = [];
 		e_type = mk_mono();
@@ -303,51 +300,8 @@ let mk_abstract m path pos name_pos =
 		a_this = mk_mono();
 		a_read = None;
 		a_write = None;
-		a_enum = false;
-		a_call = None;
-	}
-
-let mk_enum m path pos name_pos =
-	{
-		e_path = path;
-		e_module = m;
-		e_pos = pos;
-		e_name_pos = name_pos;
-		e_doc = None;
-		e_meta = [];
-		e_params = [];
-		e_using = [];
-		e_restore = (fun () -> ());
-		e_private = false;
-		e_extern = false;
-		e_constrs = PMap.empty;
-		e_names = [];
-		e_type = mk_mono();
-	}
-
-let mk_abstract m path pos name_pos =
-	{
-		a_path = path;
-		a_private = false;
-		a_module = m;
-		a_pos = pos;
-		a_name_pos = name_pos;
-		a_doc = None;
-		a_params = [];
-		a_using = [];
-		a_restore = (fun () -> ());
-		a_meta = [];
-		a_from = [];
-		a_to = [];
-		a_from_field = [];
-		a_to_field = [];
-		a_ops = [];
-		a_unops = [];
-		a_impl = None;
-		a_array = [];
-		a_this = mk_mono();
-		a_read = None;
-		a_write = None;
+		a_constructor = None;
+		a_extern = false;
 		a_enum = false;
 		a_call = None;
 	}
@@ -430,6 +384,26 @@ module TClass = struct
 			let cf = mk_field "__init__" t_dynamic null_pos null_pos in
 			cf.cf_expr <- Some e;
 			c.cl_init <- Some cf
+
+	let get_singular_interface_field fields =
+		let is_normal_field cf =
+			not (has_class_field_flag cf CfDefault) && match cf.cf_kind with
+				| Method MethNormal -> true
+				| _ -> false
+		in
+		let rec loop o l = match l with
+			| cf :: l ->
+				if is_normal_field cf then begin
+					if o = None then
+						loop (Some cf) l
+					else
+						None
+				end else
+					loop o l
+			| [] ->
+				o
+		in
+		loop None fields
 
 	let add_cl_init c e =
 		modify_cl_init c e true

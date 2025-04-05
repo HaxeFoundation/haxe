@@ -10,10 +10,12 @@ private abstract class Robot<T> {
 	}
 }
 
+@:functionalInterface
 private interface IGreetRobot {
 	function greet<T>(robot:Robot<T>):Void;
 }
 
+@:functionalInterface
 private interface IMathOperation {
 	function operate(a:Int, b:Int):Int;
 }
@@ -51,7 +53,7 @@ class Issue11054 extends Test {
 		});
 
 		var called = false;
-		robot2.performTask(function(target) {
+		robot2.performTask(function(target:Robot<Dynamic>) {
 			called = true;
 		});
 		t(called);

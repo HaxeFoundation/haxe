@@ -108,6 +108,16 @@ enum abstract MyEnumAbstract(Int) {
 	var C = 3;
 }
 
+class Node {
+	public function new() {}
+
+	public function addNode<T:Node>(node:T):T {
+		return node;
+	}
+}
+
+class AnotherNode extends Node {}
+
 class TestMisc extends Test {
 	static var unit = "testing package conflict";
 
@@ -612,5 +622,26 @@ class TestMisc extends Test {
 	function testAbstractEnumTools() {
 		var values = AbstractEnumTools.getValues(MyEnumAbstract);
 		eq(values.join(","), "1,2,3");
+	}
+
+	function testIntLiterals() {
+		eq(15, 0xF);
+		eq(255, 0xFF);
+		eq(305419896, 0x12345678);
+		eq(162254319, 0x09ABCDEF);
+
+		eq(0, 0b0);
+		eq(1, 0b1);
+		eq(2, 0b10);
+		eq(8, 0b1000);
+		eq(0xFFFFFFFF, 0b11111111111111111111111111111111);
+	}
+
+	function test8812() {
+		var s:Node = new Node();
+		var n1 = new AnotherNode();
+		var f = s.addNode.bind(n1);
+		var n2:AnotherNode = f();
+		eq(n1, n2);
 	}
 }

@@ -155,9 +155,9 @@ let rec compare a b =
 		if f1 != f2 then CUndef
 		else compare v1 v2
 	| VLazy f1,_ ->
-		compare (!f1()) b
+		compare (Lazy.force f1) b
 	| _,VLazy f2 ->
-		compare a (!f2())
+		compare a (Lazy.force f2)
 	| _ -> CUndef
 
 let rec arrays_equal cmp a1 a2 =
@@ -184,8 +184,8 @@ and equals_structurally a b =
 	| VObject a,VObject b -> a == b || arrays_equal equals_structurally a.ofields b.ofields
 	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && arrays_equal equals_structurally a.eargs b.eargs && a.epath = b.epath
 	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
-	| VLazy f1,_ -> equals_structurally (!f1()) b
-	| _,VLazy f2 -> equals_structurally a (!f2())
+	| VLazy f1,_ -> equals_structurally (Lazy.force f1) b
+	| _,VLazy f2 -> equals_structurally a (Lazy.force f2)
 	| _ -> a == b
 
 let is_true v = match v with

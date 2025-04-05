@@ -43,8 +43,8 @@ external mbedtls_ssl_setup : mbedtls_ssl_context -> mbedtls_ssl_config -> mbedtl
 external mbedtls_ssl_write : mbedtls_ssl_context -> bytes -> int -> int -> mbedtls_result = "ml_mbedtls_ssl_write"
 
 external mbedtls_pk_init : unit -> mbedtls_pk_context = "ml_mbedtls_pk_init"
-external mbedtls_pk_parse_key : mbedtls_pk_context -> bytes -> string option -> mbedtls_result = "ml_mbedtls_pk_parse_key"
-external mbedtls_pk_parse_keyfile : mbedtls_pk_context -> string -> string option -> mbedtls_result = "ml_mbedtls_pk_parse_keyfile"
+external mbedtls_pk_parse_key : mbedtls_pk_context -> bytes -> string option -> mbedtls_ctr_drbg_context -> mbedtls_result = "ml_mbedtls_pk_parse_key"
+external mbedtls_pk_parse_keyfile : mbedtls_pk_context -> string -> string option -> mbedtls_ctr_drbg_context -> mbedtls_result = "ml_mbedtls_pk_parse_keyfile"
 external mbedtls_pk_parse_public_keyfile : mbedtls_pk_context -> string -> mbedtls_result = "ml_mbedtls_pk_parse_public_keyfile"
 external mbedtls_pk_parse_public_key : mbedtls_pk_context -> bytes -> mbedtls_result = "ml_mbedtls_pk_parse_public_key"
 

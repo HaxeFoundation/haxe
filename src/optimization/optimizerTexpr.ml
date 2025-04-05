@@ -13,7 +13,7 @@ let has_side_effect e =
 		| TField(_,fa) when PurityState.is_explicitly_impure fa -> raise Exit
 		| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
-		| TArray _ | TEnumParameter _ | TEnumIndex _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _
+		| TArray _ | TEnumParameter _ | TEnumIndex _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _
 		| TField _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TBlock _ | TObjectDecl _ | TVar _ -> Type.iter loop e
 	in
 	try
@@ -130,9 +130,9 @@ let optimize_binop e op e1 e2 =
 		| OpAnd -> opt Int32.logand
 		| OpOr -> opt Int32.logor
 		| OpXor -> opt Int32.logxor
-		| OpShl -> opt (fun a b -> Int32.shift_left a (Int32.to_int (Int32.logand b i32_31)))
-		| OpShr -> opt (fun a b -> Int32.shift_right a (Int32.to_int (Int32.logand b i32_31)))
-		| OpUShr -> opt (fun a b -> Int32.shift_right_logical a (Int32.to_int (Int32.logand b i32_31)))
+		| OpShl when is_numeric e.etype -> opt (fun a b -> Int32.shift_left a (Int32.to_int (Int32.logand b i32_31)))
+		| OpShr when is_numeric e.etype -> opt (fun a b -> Int32.shift_right a (Int32.to_int (Int32.logand b i32_31)))
+		| OpUShr when is_numeric e.etype -> opt (fun a b -> Int32.shift_right_logical a (Int32.to_int (Int32.logand b i32_31)))
 		| OpEq -> ebool (=)
 		| OpNotEq -> ebool (<>)
 		| OpGt -> ebool (>)

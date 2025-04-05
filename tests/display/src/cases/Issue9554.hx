@@ -2,7 +2,7 @@ package cases;
 
 class Issue9554 extends DisplayTestCase {
 	/**
-		using Main;
+		using Issue9554.Main;
 
 		class Main {
 			static public function main() {
@@ -22,5 +22,24 @@ class Issue9554 extends DisplayTestCase {
 		var fields = fields(pos(1));
 		eq(1, fields.length);
 		eq(true, hasField(fields, "foo", "Int", "var"));
+	}
+
+	/**
+		using Issue9554.Main;
+
+		class Main {
+			static public function main() {
+				var a:{foo:Int} = {foo: 12};
+				a.{-1-}
+			}
+
+			static function staticExtension(a:{foo:Int}) {}
+		}
+
+	**/
+	function testStaticExtension() {
+		var fields = fields(pos(1));
+		eq(true, hasField(fields, "foo", "Int", "var"));
+		eq(true, hasField(fields, "staticExtension", "() -> Unknown<0>", "method"));
 	}
 }

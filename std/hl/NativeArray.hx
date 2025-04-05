@@ -94,5 +94,9 @@ package hl;
 		return null;
 	}
 
-	@:hlNative("std", "array_blit") public function blit(pos:Int, src:NativeArray<T>, srcPos:Int, srcLen:Int):Void {}
+	@:hlNative("std", "array_blit") static function real_blit(dest:NativeArray<Any>, pos:Int, src:NativeArray<Any>, srcPos:Int, srcLen:Int):Void {}
+
+	public inline function blit(pos:Int, src:NativeArray<T>, srcPos:Int, srcLen:Int):Void {
+		real_blit(cast this, pos, cast src, srcPos, srcLen);
+	}
 }

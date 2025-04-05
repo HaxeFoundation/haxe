@@ -612,7 +612,7 @@ typedef MetaAccess = {
  */
 enum FieldKind {
 	/**
-		A variable of property, depending on the `read` and `write` values.
+		A variable or property, depending on the `read` and `write` values.
 	**/
 	FVar(read:VarAccess, write:VarAccess);
 
@@ -1015,6 +1015,11 @@ typedef TVar = {
 		The metadata of the variable.
 	**/
 	public var meta(default, never):Null<MetaAccess>;
+
+	/**
+		Whether the variable is a local static variable
+	**/
+	public var isStatic(default, never):Bool;
 }
 
 /**

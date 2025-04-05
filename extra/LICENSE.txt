@@ -1,9 +1,29 @@
 Haxe Licenses
 -------------
 
-For details about Haxe Licenses, please read http://haxe.org/foundation/open-source.html
+The Haxe toolkit is Free and Open-Source software that uses several licenses.
 
-The Haxe Standard Library MIT License :
+The Haxe compiler is licensed under the GNU GPL v2+ license (SPDX: GPL-2.0-or-later).
+
+The compiler is built around the Haxe source code base.
+
+If a file does not have a license header or does not fall under one of the exceptions listed below, 
+it should be assumed to be licensed under the GNU GPL v2+ license with the standard copyright notice:  
+Copyright (C) 2005-2024 Haxe Foundation.
+
+- The Haxe Standard Library is licensed under the MIT License, which is reproduced below.  
+  It is located in the `std/` directory, and the MIT license applies to this part of Haxe.
+
+- Haxe contains third-party source code, some of which is located in the `libs/` directory.  
+  Each third-party module includes its own license.  
+  For integration with Haxe, these modules may contain Haxe-related files such as a "dune" file
+  or other files for integration with Haxe or OCaml.
+  These files are licensed under the Haxe Compiler license (GNU GPL v2+).
+
+For a summary of Haxe licenses, please read [http://haxe.org/foundation/open-source.html](http://haxe.org/foundation/open-source.html).
+
+
+The Haxe Standard Library MIT License:
 --------------------------
 
 Copyright (C)2005-2016 Haxe Foundation
@@ -26,7 +46,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
-The Haxe compiler GPL License :
+The Haxe compiler GPL License:
 -------------------------------
 
 		    GNU GENERAL PUBLIC LICENSE

@@ -1,0 +1,4 @@
+Main.hx:8: characters 4-22 : Int should be String
+Main.hx:3: characters 3-8 : ... Called from macro here
+Main2.hx:16: characters 10-20 : Only generic type parameters can be constructed
+Main2.hx:11: characters 20-38 : ... While specializing this call

@@ -38,27 +38,27 @@ let make_function_breakpoint state =
 	}
 
 let iter_breakpoints ctx f =
-	Hashtbl.iter (fun _ breakpoints ->
-		Hashtbl.iter (fun _ breakpoint -> f breakpoint) breakpoints
+	IntHashtbl.iter (fun _ breakpoints ->
+		IntHashtbl.iter (fun _ breakpoint -> f breakpoint) breakpoints
 	) ctx.debug.breakpoints
 
 let add_breakpoint ctx file line column condition =
 	let hash = hash (Path.UniqueKey.to_string (ctx.file_keys#get (Common.find_file (ctx.curapi.get_com()) file))) in
 	let h = try
-		Hashtbl.find ctx.debug.breakpoints hash
+		IntHashtbl.find ctx.debug.breakpoints hash
 	with Not_found ->
-		let h = Hashtbl.create 0 in
-		Hashtbl.add ctx.debug.breakpoints hash h;
+		let h = IntHashtbl.create 0 in
+		IntHashtbl.add ctx.debug.breakpoints hash h;
 		h
 	in
 	let breakpoint = make_breakpoint hash line BPEnabled column condition in
-	Hashtbl.replace h line breakpoint;
+	IntHashtbl.replace h line breakpoint;
 	breakpoint
 
 let delete_breakpoint ctx file line =
 	let hash = hash (Path.UniqueKey.to_string (ctx.file_keys#get (Common.find_file (ctx.curapi.get_com()) file))) in
-	let h = Hashtbl.find ctx.debug.breakpoints hash in
-	Hashtbl.remove h line
+	let h = IntHashtbl.find ctx.debug.breakpoints hash in
+	IntHashtbl.remove h line
 
 let find_breakpoint ctx sid =
 	let found = ref None in
@@ -78,10 +78,10 @@ let find_breakpoint ctx sid =
 
 exception Parse_expr_error of string
 
-let parse_expr ctx s p =
+let parse_expr ctx config s p =
 	let error s = raise (Parse_expr_error s) in
-	match ParserEntry.parse_expr_string (ctx.curapi.get_com()).Common.defines s p error true with
-	| ParseSuccess(data,_,_) -> data
+	match ParserEntry.parse_expr_string config s p error true with
+	| ParseSuccess(data,_) -> data
 	| ParseError(_,(msg,_),_) -> error (Parser.error_msg msg)
 
 (* Vars *)
@@ -91,8 +91,8 @@ let get_var_slot_by_name env is_read scopes name =
 		| scope :: scopes ->
 			begin try
 				let id = Hashtbl.find scope.local_ids name in
-				let slot = Hashtbl.find scope.locals id in
-				let vi = Hashtbl.find scope.local_infos slot in
+				let slot = IntHashtbl.find scope.locals id in
+				let vi = IntHashtbl.find scope.local_infos slot in
 				if is_read && not (declared_before vi env.env_debug.debug_pos) then raise Not_found;
 				slot + scope.local_offset
 			with Not_found ->
@@ -106,7 +106,7 @@ let get_var_slot_by_name env is_read scopes name =
 let get_capture_slot_by_name capture_infos name =
 	let ret = ref None in
 	try
-		Hashtbl.iter (fun slot vi ->
+		IntHashtbl.iter (fun slot vi ->
 			if name = vi.vi_name then begin
 				ret := (Some slot);
 				raise Exit
@@ -146,6 +146,7 @@ let resolve_ident ctx env s =
 					| Some env -> loop env
 				end
 			| EKMethod _ -> env
+			| EKMacro _ -> env
 			| EKEntrypoint ->
 				(* This can happen due to threads. Have to check what we can do here... *)
 				raise Not_found

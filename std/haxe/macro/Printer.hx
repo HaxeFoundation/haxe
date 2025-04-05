@@ -30,6 +30,9 @@ using StringTools;
 /**
 	This class provides some utility methods to convert elements from the
 	macro context to a human-readable String representation.
+
+	This is only guaranteed to work with data that corresponds to valid Haxe
+	syntax.
  */
 class Printer {
 	var tabs:String;
@@ -87,7 +90,8 @@ class Printer {
 				.replace("\t", "\\t")
 				.replace("\r", "\\r")
 				.replace("'", "\\'")
-				.replace('"', "\\\"") #if sys .replace("\x00", "\\x00") #end + delim;
+				.replace('"', "\\\"")
+				#if sys .replace("\x00", "\\x00") #end + delim;
 	}
 
 	public function printFormatString(s:String) {
@@ -401,18 +405,15 @@ class Printer {
 					}
 
 					(isEnum ? "enum " : "")
-					+ "abstract "
-					+ t.name
-					+ ((t.params != null && t.params.length > 0) ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "")
-					+ (tthis == null ? "" : "(" + printComplexType(tthis) + ")")
-					+ [for (f in from) " from " + printComplexType(f)].join("")
-					+ [for (f in to) " to " + printComplexType(f)].join("")
-					+ " {\n"
-					+ [
-						for (f in t.fields) {
-							tabs + printFieldWithDelimiter(f);
-						}
-					].join("\n") + "\n}";
+						+ "abstract "
+						+ t.name
+						+ ((t.params != null && t.params.length > 0) ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "")
+						+ (tthis == null ? "" : "(" + printComplexType(tthis) + ")")
+						+ [for (f in from) " from " + printComplexType(f)].join("") + [for (f in to) " to " + printComplexType(f)].join("") + " {\n" + [
+							for (f in t.fields) {
+								tabs + printFieldWithDelimiter(f);
+							}
+						].join("\n") + "\n}";
 				case TDField(kind, access):
 					tabs = old;
 					(access != null && access.length > 0 ? access.map(printAccess).join(" ") + " " : "") + switch (kind) {
@@ -473,7 +474,8 @@ class Printer {
 					loopI(e1);
 					loopI(e2);
 				case EField(e, field, kind):
-					if (kind == null) kind = Normal;
+					if (kind == null)
+						kind = Normal;
 					add('EField $field (${kind.getName()})');
 					loopI(e);
 				case EParenthesis(e):

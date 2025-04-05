@@ -347,7 +347,7 @@ class ThreadServer<Client, Message> {
 	}
 
 	/**
-		Called when a message has been recieved. Message handling code should go here.
+		Called when a message has been received. Message handling code should go here.
 	**/
 	public dynamic function clientMessage(c:Client, msg:Message) {}
 

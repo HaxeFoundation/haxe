@@ -92,7 +92,7 @@ extern class Os {
 	static var sep(default, null):String;
 	static var pathsep(default, null):String;
 
-	static function makedirs(path:String, mode:Int = 511 /* Oktal 777 */, exist_ok:Bool = false):Void;
+	static function makedirs(path:String, mode:Int = 511 /* Octal 777 */, exist_ok:Bool = false):Void;
 
-	static function mkdir(path:String, mode:Int = 511 /* Oktal 777 */):Void;
+	static function mkdir(path:String, mode:Int = 511 /* Octal 777 */):Void;
 }

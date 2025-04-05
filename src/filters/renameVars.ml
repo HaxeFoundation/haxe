@@ -1,7 +1,7 @@
 open Globals
 open Type
-open Common
 open Ast
+open PlatformConfig
 
 type rename_init = {
 	mutable ri_scope : var_scope;
@@ -25,32 +25,32 @@ let reserve_init ri name =
 	Make all module-level names reserved.
 	No local variable will have a name matching a module-level declaration.
 *)
-let reserve_all_types ri com path_to_name =
+let reserve_all_types ri types path_to_name =
 	List.iter (fun mt ->
 		let tinfos = t_infos mt in
-		let native_name = try fst (Naming.get_native_name tinfos.mt_meta) with Not_found -> path_to_name tinfos.mt_path in
+		let native_name = try fst (Native.get_native_name tinfos.mt_meta) with Not_found -> path_to_name tinfos.mt_path in
 		match mt with
 		| TClassDecl c when native_name = "" ->
 			List.iter (fun cf ->
-				let native_name = try fst (Naming.get_native_name cf.cf_meta) with Not_found -> cf.cf_name in
+				let native_name = try fst (Native.get_native_name cf.cf_meta) with Not_found -> cf.cf_name in
 				reserve_init ri native_name
 			) c.cl_ordered_statics
 		| TClassDecl { cl_kind = KModuleFields m; cl_ordered_statics = fl } ->
 			let prefix = Path.flat_path m.m_path ^ "_" in
 			List.iter (fun cf ->
-				let name = try fst (Naming.get_native_name cf.cf_meta) with Not_found -> prefix ^ cf.cf_name in
+				let name = try fst (Native.get_native_name cf.cf_meta) with Not_found -> prefix ^ cf.cf_name in
 				reserve_init ri name
 			) fl
 		| _ ->
 			reserve_init ri native_name
-	) com.types
+	) types
 
 (**
 	Initialize the context for local variables renaming
 *)
-let init com =
+let init config types =
 	let ri = {
-		ri_scope = com.config.pf_scoping.vs_scope;
+		ri_scope = config.pf_scoping.vs_scope;
 		ri_reserved = StringMap.empty;
 		ri_hoisting = false;
 		ri_no_shadowing = false;
@@ -72,35 +72,35 @@ let init com =
 		| ReserveNames names ->
 			List.iter (reserve_init ri) names
 		| ReserveAllTopLevelSymbols ->
-			reserve_all_types ri com (fun (pack,name) -> if pack = [] then name else List.hd pack)
+			reserve_all_types ri types (fun (pack,name) -> if pack = [] then name else List.hd pack)
 		| ReserveAllTypesFlat ->
-			reserve_all_types ri com Path.flat_path
+			reserve_all_types ri types Path.flat_path
 		| ReserveCurrentTopLevelSymbol -> ri.ri_reserve_current_top_level_symbol <- true
-	) com.config.pf_scoping.vs_flags;
+	) config.pf_scoping.vs_flags;
 	ri
 
 module Overlaps = struct
 	type t = {
 		mutable ov_vars : tvar list;
-		mutable ov_lut : (int,bool) Hashtbl.t;
+		mutable ov_lut : bool IntHashtbl.t;
 		mutable ov_name_cache : bool StringMap.t option;
 	}
 
 	let create () = {
 		ov_vars = [];
-		ov_lut = Hashtbl.create 0;
+		ov_lut = IntHashtbl.create 0;
 		ov_name_cache = None;
 	}
 
 	let copy ov = {
 		ov_vars = ov.ov_vars;
-		ov_lut = Hashtbl.copy ov.ov_lut;
+		ov_lut = IntHashtbl.copy ov.ov_lut;
 		ov_name_cache = ov.ov_name_cache;
 	}
 
 	let add v ov =
 		ov.ov_vars <- v :: ov.ov_vars;
-		Hashtbl.add ov.ov_lut v.v_id true;
+		IntHashtbl.add ov.ov_lut v.v_id true;
 		ov.ov_name_cache <- None
 
 	let get_cache ov = match ov.ov_name_cache with
@@ -118,11 +118,11 @@ module Overlaps = struct
 		List.iter f ov.ov_vars
 
 	let mem id ov =
-		Hashtbl.mem ov.ov_lut id
+		IntHashtbl.mem ov.ov_lut id
 
 	let reset ov =
 		ov.ov_vars <- [];
-		Hashtbl.clear ov.ov_lut;
+		IntHashtbl.clear ov.ov_lut;
 		ov.ov_name_cache <- None
 
 	let is_empty ov = match ov.ov_vars with
@@ -167,7 +167,7 @@ type rename_context = {
 	rc_scope : var_scope;
 	mutable rc_reserved : bool StringMap.t;
 	(** Scope a variable is declared in *)
-	rc_var_origins : (int,scope) Hashtbl.t;
+	rc_var_origins : scope IntHashtbl.t;
 }
 
 (**
@@ -216,7 +216,7 @@ let declare_var rc scope v =
 			end
 	in
 	scope.own_vars <- (v, overlaps) :: scope.own_vars;
-	Hashtbl.add rc.rc_var_origins v.v_id scope;
+	IntHashtbl.add rc.rc_var_origins v.v_id scope;
 	if scope.loop_count > 0 then
 		Overlaps.add v scope.loop_vars
 
@@ -255,7 +255,7 @@ let use_var rc scope v =
 	if not (will_be_reserved rc v) then
 		determine_overlaps rc scope v
 	else begin
-		let origin = Hashtbl.find rc.rc_var_origins v.v_id in
+		let origin = IntHashtbl.find rc.rc_var_origins v.v_id in
 		let rec loop scope =
 			if scope != origin then begin
 				if (rc.rc_no_shadowing || rc.rc_hoisting) then
@@ -337,19 +337,6 @@ let rec collect_vars ?(in_block=false) rc scope e =
 			if flag = DoWhile then
 				collect_vars scope condition;
 		)
-	(*
-		This only happens for `cross` target, because for real targets all loops are converted to `while` at this point
-		Idk if this works correctly.
-	*)
-	| TFor (v, iterator, body) ->
-		collect_loop scope (fun() ->
-			if rc.rc_hoisting then
-				declare_var rc scope v;
-			collect_vars scope iterator;
-			if not rc.rc_hoisting then
-				declare_var rc scope v;
-			collect_vars scope body
-		)
 	| _ ->
 		iter (collect_vars scope) e
 
@@ -368,7 +355,7 @@ let maybe_rename_var rc reserved (v,overlaps) =
 		v.v_name <- name
 	in
 	(* chop escape char for all local variables generated *)
-	if String.unsafe_get v.v_name 0 = String.unsafe_get Typecore.gen_local_prefix 0 then begin
+	if String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0 then begin
 		let name = String.sub v.v_name 1 (String.length v.v_name - 1) in
 		commit ("_g" ^ (Str.replace_first trailing_numbers "" name))
 	end;
@@ -397,24 +384,20 @@ let rec rename_vars rc scope =
 	Rename local variables in `e` expression if needed.
 *)
 let run cl_path ri e =
-	(try
-		let rc = {
-			rc_scope = ri.ri_scope;
-			rc_hoisting = ri.ri_hoisting;
-			rc_no_shadowing = ri.ri_no_shadowing;
-			rc_no_catch_var_shadowing = ri.ri_no_catch_var_shadowing;
-			rc_switch_cases_no_blocks = ri.ri_switch_cases_no_blocks;
-			rc_reserved = ri.ri_reserved;
-			rc_var_origins = Hashtbl.create 0;
-		} in
-		if ri.ri_reserve_current_top_level_symbol then begin
-			match cl_path with
-			| s :: _,_ | [],s -> reserve_ctx rc s
-		end;
-		let scope = create_scope None in
-		collect_vars rc scope e;
-		rename_vars rc scope;
-	with Failure msg ->
-		die ~p:e.epos msg __LOC__
-	);
+	let rc = {
+		rc_scope = ri.ri_scope;
+		rc_hoisting = ri.ri_hoisting;
+		rc_no_shadowing = ri.ri_no_shadowing;
+		rc_no_catch_var_shadowing = ri.ri_no_catch_var_shadowing;
+		rc_switch_cases_no_blocks = ri.ri_switch_cases_no_blocks;
+		rc_reserved = ri.ri_reserved;
+		rc_var_origins = IntHashtbl.create 0;
+	} in
+	if ri.ri_reserve_current_top_level_symbol then begin
+		match cl_path with
+		| s :: _,_ | [],s -> reserve_ctx rc s
+	end;
+	let scope = create_scope None in
+	collect_vars rc scope e;
+	rename_vars rc scope;
 	e

@@ -23,7 +23,7 @@ let type_function_arg_value ctx t c do_display =
 		| Some e ->
 			let p = pos e in
 			let e = if do_display then Display.preprocess_expr ctx.com e else e in
-			let e = Optimizer.reduce_expression ctx (type_expr ctx e (WithType.with_type t)) in
+			let e = Optimizer.reduce_expression (SafeCom.of_typer ctx) (type_expr ctx e (WithType.with_type t)) in
 			unify ctx e.etype t p;
 			let rec loop e = match e.eexpr with
 				| TConst _ -> Some e
@@ -100,7 +100,11 @@ object(self)
 					loop ((v,None) :: acc) false syntax typed
 				| ((_,pn),opt,m,_,_) :: syntax,(name,eo,t) :: typed ->
 					delay ctx.g PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
-					if not is_extern then Naming.check_local_variable_name ctx.com name TVOArgument pn;
+					if not is_extern then begin
+						Naming.check_local_variable_name ctx.com name TVOArgument pn;
+						if name <> "_" && List.exists (fun (v,_) -> v.v_name = name) acc then
+							raise_typing_error ("Duplicate argument name \"" ^ name ^ "\"") pn;
+					end;
 					let eo = type_function_arg_value ctx t eo do_display in
 					let v = make_local name (VUser TVOArgument) t m pn in
 					if do_display && DisplayPosition.display_position#enclosed_in pn then

@@ -249,8 +249,8 @@ let encode_object_map_direct =
 	create_cached_instance key_haxe_ds_ObjectMap (fun (s : value ValueHashtbl.t) -> IObjectMap (Obj.magic s))
 
 let encode_string_map convert m =
-	let h = StringHashtbl.create () in
-	PMap.iter (fun key value -> StringHashtbl.add h (create_ascii key) (convert value)) m;
+	let h = RuntimeStringHashtbl.create () in
+	PMap.iter (fun key value -> RuntimeStringHashtbl.add h (create_ascii key) (convert value)) m;
 	encode_string_map_direct h
 
 let fake_proto path =
@@ -316,12 +316,7 @@ let encode_ref v convert tostr =
 		ikind = IRef (Obj.repr v);
 	}
 
-let encode_lazy f =
-	let rec r = ref (fun () ->
-		let v = f() in
-		r := (fun () -> v);
-		v
-	) in
+let encode_lazy r =
 	VLazy r
 
 let encode_option encode_value o =

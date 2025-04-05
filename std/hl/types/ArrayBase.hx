@@ -148,4 +148,12 @@ class ArrayBase extends ArrayAccess {
 		a.size = length;
 		return a;
 	}
+
+	public static function allocI64(bytes:BytesAccess<I64>, length:Int) @:privateAccess {
+		var a:ArrayBytes.ArrayI64 = untyped $new(ArrayBytes.ArrayI64);
+		a.length = length;
+		a.bytes = bytes;
+		a.size = length;
+		return a;
+	}
 }

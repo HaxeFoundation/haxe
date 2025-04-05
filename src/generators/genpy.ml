@@ -21,7 +21,7 @@ open Globals
 open Ast
 open Error
 open Type
-open Common
+open Gctx
 open Texpr.Builder
 
 module Utils = struct
@@ -686,30 +686,6 @@ module Transformer = struct
 				lift true [inc_assign] var_assign
 		| (_,TVar(v,eo)) ->
 			transform_var_expr ae eo v
-		| (_,TFor(v,e1,e2)) ->
-			let a1 = trans true [] e1 in
-			let a2 = to_expr (trans false [] e2) in
-
-			let name = (ae.a_next_id ()) in
-			let t_var = alloc_var name e1.etype e1.epos in
-
-			let ev = make_local t_var e1.epos in
-			let ehasnext = mk (TField(ev,quick_field e1.etype "hasNext")) (tfun [] (!t_bool) ) e1.epos in
-			let ehasnext = mk (TCall(ehasnext,[])) ehasnext.etype ehasnext.epos in
-
-			let enext = mk (TField(ev,quick_field e1.etype "next")) (tfun [] v.v_type) e1.epos in
-			let enext = mk (TCall(enext,[])) v.v_type e1.epos in
-
-			let var_assign = mk (TVar (v,Some enext)) v.v_type a_expr.epos in
-
-			let ebody = Type.concat var_assign (a2) in
-
-			let var_decl = mk (TVar (t_var,Some a1.a_expr)) (!t_void) e1.epos in
-			let twhile = mk (TWhile((mk (TParenthesis ehasnext) ehasnext.etype ehasnext.epos),ebody,NormalWhile)) (!t_void) e1.epos in
-
-			let blocks = a1.a_blocks @ [var_decl] in
-
-			lift_expr ae.a_next_id ~blocks: blocks twhile
 		| (_,TReturn None) ->
 			ae
 		| (_,TReturn (Some ({eexpr = TFunction f} as ef))) ->
@@ -955,7 +931,8 @@ module Transformer = struct
 			let r = { a_expr with eexpr = TArrayDecl exprs } in
 			lift_expr ae.a_next_id ~blocks:blocks r
 		| (is_value, TCast(e1,Some mt)) ->
-			let e = Codegen.default_cast ~vtmp:(ae.a_next_id()) (match !como with Some com -> com | None -> die "" __LOC__) e1 mt ae.a_expr.etype ae.a_expr.epos in
+			let com = (match !como with Some com -> com | None -> die "" __LOC__) in
+			let e = Codegen.default_cast ~vtmp:(ae.a_next_id()) com.basic com.std e1 mt ae.a_expr.etype ae.a_expr.epos in
 			transform_expr ae.a_next_id ~is_value:is_value e
 		| (is_value, TCast(e,None)) ->
 			let e = trans is_value [] e in
@@ -999,12 +976,12 @@ module Printer = struct
 		pc_indent : string;
 		pc_next_anon_func : unit -> string;
 		pc_debug : bool;
-		pc_com : Common.context;
+		pc_com : Gctx.t;
 	}
 
-	let has_feature pctx = Common.has_feature pctx.pc_com
+	let has_feature pctx = Gctx.has_feature pctx.pc_com
 
-	let add_feature pctx = Common.add_feature pctx.pc_com
+	let add_feature pctx = Gctx.add_feature pctx.pc_com
 
 	let create_context =
 		let n = ref (-1) in
@@ -1395,7 +1372,7 @@ module Printer = struct
 				print_expr pctx e1
 			| TIdent s ->
 				s
-			| TSwitch _ | TCast(_, Some _) | TFor _ | TUnop(_,Postfix,_) ->
+			| TSwitch _ | TCast(_, Some _) | TUnop(_,Postfix,_) ->
 				die "" __LOC__
 
 	and print_if_else pctx econd eif eelse as_elif =
@@ -1491,11 +1468,9 @@ module Printer = struct
 			| ("python_Syntax.code"),({ eexpr = TConst (TString code) } as ecode) :: tl ->
 				let buf = Buffer.create 0 in
 				let interpolate () =
-					Codegen.interpolate_code pctx.pc_com code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
+					Codegen.interpolate_code pctx.pc_com.error code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
 				in
-				let old = pctx.pc_com.error_ext in
-				pctx.pc_com.error_ext <- (fun err -> raise (Error.Fatal_error err));
-				Std.finally (fun() -> pctx.pc_com.error_ext <- old) interpolate ();
+				interpolate ();
 				Buffer.contents buf
 			| ("python_Syntax._pythonCode"), [e] ->
 				print_expr pctx e
@@ -1673,7 +1648,7 @@ end
 
 module Generator = struct
 	type context = {
-		com : Common.context;
+		com : Gctx.t;
 		buf : Buffer.t;
 		packages : (string,int) Hashtbl.t;
 		mutable static_inits : (unit -> unit) list;
@@ -1683,8 +1658,8 @@ module Generator = struct
 		print_time : float;
 	}
 
-	let has_feature ctx = Common.has_feature ctx.com
-	let add_feature ctx = Common.add_feature ctx.com
+	let has_feature ctx = Gctx.has_feature ctx.com
+	let add_feature ctx = Gctx.add_feature ctx.com
 
 	type class_field_infos = {
 		cfd_fields : string list;
@@ -2229,7 +2204,7 @@ module Generator = struct
 
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
-		| TEnumDecl en when not en.e_extern -> gen_enum ctx en
+		| TEnumDecl en when not (has_enum_flag en EnExtern) -> gen_enum ctx en
 		| TAbstractDecl {a_path = [],"UInt"} -> ()
 		| TAbstractDecl {a_path = [],"Enum"} -> ()
 		| TAbstractDecl {a_path = [],"EnumValue"} when not (has_feature ctx "has_enum") -> ()
@@ -2339,7 +2314,7 @@ module Generator = struct
 		List.iter (fun mt ->
 			match mt with
 			| TClassDecl c when (has_class_flag c CExtern) -> import c.cl_path c.cl_meta
-			| TEnumDecl e when e.e_extern -> import e.e_path e.e_meta
+			| TEnumDecl e when has_enum_flag e EnExtern -> import e.e_path e.e_meta
 			| _ -> ()
 		) ctx.com.types
 
@@ -2427,7 +2402,7 @@ module Generator = struct
 	let run com =
 		Transformer.init com;
 		let ctx = mk_context com in
-		Codegen.map_source_header com (fun s -> print ctx "# %s\n# coding: utf-8\n" s);
+		Gctx.map_source_header com.defines (fun s -> print ctx "# %s\n# coding: utf-8\n" s);
 		if has_feature ctx "closure_Array" || has_feature ctx "closure_String" then
 			spr ctx "from functools import partial as _hx_partial\n";
 		spr ctx "import sys\n";

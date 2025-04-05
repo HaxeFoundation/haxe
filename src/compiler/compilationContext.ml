@@ -37,13 +37,14 @@ type arg_context = {
 	mutable raise_usage : unit -> unit;
 	mutable display_arg : string option;
 	mutable deprecations : string list;
+	mutable measure_times : bool;
 }
 
 type communication = {
 	write_out : string -> unit;
 	write_err : string -> unit;
 	flush     : compilation_context -> unit;
-	exit      : int -> unit;
+	exit      : Timer.timer_context -> int -> unit;
 	is_server : bool;
 }
 
@@ -54,6 +55,7 @@ and compilation_context = {
 	mutable has_error : bool;
 	comm : communication;
 	mutable runtime_args : string list;
+	timer_ctx : Timer.timer_context;
 }
 
 type compilation_callbacks = {
@@ -80,13 +82,21 @@ let message ctx msg =
 	ctx.messages <- msg :: ctx.messages
 
 let error ctx ?(depth=0) ?(from_macro = false) msg p =
-	message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Error);
-	ctx.has_error <- true
+	message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Error)
+
+let after_error ctx =
+	ctx.has_error <- true;
+	if Common.fail_fast ctx.com then raise Abort
 
 let error_ext ctx (err : Error.error) =
 	Error.recurse_error (fun depth err ->
 		error ~depth ~from_macro:err.err_from_macro ctx (Error.error_msg err.err_message) err.err_pos
-	) err
+	) err;
+	after_error ctx
+
+let error ctx ?(depth=0) ?(from_macro = false) msg p =
+	error ctx ~depth ~from_macro msg p;
+	after_error ctx
 
 let create_native_lib file extern kind = {
 	lib_file = file;

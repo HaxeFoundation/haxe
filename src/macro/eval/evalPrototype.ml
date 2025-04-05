@@ -32,7 +32,7 @@ open EvalMisc
 let eval_expr ctx kind e =
 	catch_exceptions ctx (fun () ->
 		let jit,f = jit_expr ctx e in
-		let num_captures = Hashtbl.length jit.captures in
+		let num_captures = IntHashtbl.length jit.captures in
 		let info = create_env_info true e.epos.pfile (ctx.file_keys#get e.epos.pfile) kind jit.capture_infos jit.max_num_locals num_captures in
 		let env = push_environment ctx info in
 		Std.finally (fun _ -> pop_environment ctx env) f env
@@ -304,7 +304,6 @@ let get_object_prototype ctx l =
 	proto,l
 
 let add_types ctx types ready =
-	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"add_types"] in
 	let new_types = List.filter (fun mt ->
 		let inf = Type.t_infos mt in
 		let key = path_hash inf.mt_path in
@@ -320,8 +319,8 @@ let add_types ctx types ready =
 			ctx.type_cache <- IntMap.add key mt ctx.type_cache;
 			if ctx.debug.support_debugger then begin
 				let file_key = hash (Path.UniqueKey.lazy_path inf.mt_module.m_extra.m_file) in
-				if not (Hashtbl.mem ctx.debug.breakpoints file_key) then begin
-					Hashtbl.add ctx.debug.breakpoints file_key (Hashtbl.create 0)
+				if not (IntHashtbl.mem ctx.debug.breakpoints file_key) then begin
+					IntHashtbl.add ctx.debug.breakpoints file_key (IntHashtbl.create 0)
 				end
 			end;
 			true
@@ -368,5 +367,7 @@ let add_types ctx types ready =
 			ctx.static_prototypes#add_init proto non_persistent_delays;
 	) fl_static;
 	(* 4. Initialize static fields. *)
-	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init;
-	t()
+	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init
+
+let add_types ctx types ready =
+	Timer.time ctx.timer_ctx [(if ctx.is_macro then "macro" else "interp");"add_types"] (add_types ctx types) ready

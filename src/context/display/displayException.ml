@@ -184,7 +184,8 @@ let to_json ctx de =
 		let named_source_kind = function
 			| WithType.FunctionArgument name -> (0, name)
 			| WithType.StructureField name -> (1, name)
-			| _ -> die "" __LOC__
+			| LocalVariable name -> (2, name)
+			| ImplicitReturn -> die "" __LOC__
 		in
 		let ctx = Genjson.create_context GMFull in
 		let generate_name kind =

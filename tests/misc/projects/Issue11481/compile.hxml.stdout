@@ -1,1 +1,4 @@
-Main.hx:2: Class<NewClass>
+pack/OldClass.hx:10: Class<pack.OldClass>
+pack/OldEnumAbstract.hx:13: 0
+Main.hx:5: Class<NewClass>
+Main.hx:6: 0

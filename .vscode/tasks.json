@@ -5,8 +5,11 @@
 			"label": "make: haxe",
 			"type": "shell",
 			"command": "make ADD_REVISION=1 -s -j haxe",
+			"osx": {
+				"command": "eval $(opam env) && make ADD_REVISION=1 -s -j haxe",
+			},
 			"windows": {
-				"command": "make ADD_REVISION=1 -f Makefile.win -s -j haxe"
+				"command": "opam exec -- make ADD_REVISION=1 -f Makefile.win -s -j haxe"
 			},
 			"problemMatcher": [],
 			"group": {
@@ -19,7 +22,7 @@
 			"type": "shell",
 			"command": "make -s -j libs",
 			"windows": {
-				"command": "make -f Makefile.win -s -j libs"
+				"command": "opam exec -- make -f Makefile.win -s -j libs"
 			},
 			"problemMatcher": []
 		},
@@ -28,7 +31,7 @@
 			"type": "shell",
 			"command": "make -s haxelib",
 			"windows": {
-				"command": "make -f Makefile.win -s haxelib"
+				"command": "opam exec -- make -f Makefile.win -s haxelib"
 			},
 			"problemMatcher": ["$haxe", "$haxe-absolute"]
 		},
@@ -37,7 +40,7 @@
 			"type": "shell",
 			"command": "make s -j libs && make ADD_REVISION=1 -s -j haxe && make -s haxelib",
 			"windows": {
-				"command": "make -f Makefile.win -s -j libs && make ADD_REVISION=1 -f Makefile.win -s -j haxe && make -f Makefile.win -s haxelib"
+				"command": "opam exec -- make -f Makefile.win -s -j libs && make ADD_REVISION=1 -f Makefile.win -s -j haxe && make -f Makefile.win -s haxelib"
 			},
 			"problemMatcher": ["$haxe", "$haxe-absolute"]
 		},

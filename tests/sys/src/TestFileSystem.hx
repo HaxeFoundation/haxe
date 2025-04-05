@@ -60,6 +60,13 @@ class TestFileSystem extends utest.Test {
 			//read directory with complex path
 			Assert.isTrue(FileSystem.readDirectory("../sys/./.." + tailingSlash).indexOf("sys") > -1);
 		}
+		// should throw if directory doesn't exist
+		try {
+			FileSystem.readDirectory("non-existant");
+			Assert.isFalse(true);
+		} catch (_) {
+			Assert.isTrue(true);
+		}
 	}
 
 	function testCreateDirectory():Void {

@@ -11,7 +11,7 @@ type warning_option = {
 	wo_mode : warning_mode;
 }
 
-let parse_options s ps lexbuf =
+let parse_options lctx s ps lexbuf =
 	let fail msg p =
 		raise_typing_error msg {p with pmin = ps.pmin + p.pmin; pmax = ps.pmin + p.pmax}
 	in
@@ -22,7 +22,7 @@ let parse_options s ps lexbuf =
 			fail (Printf.sprintf "Unknown warning: %s" s) p
 		end
 	in
-	let parse_warning () = match Lexer.token lexbuf with
+	let parse_warning () = match Lexer.token lctx lexbuf with
 		| Const (Ident s),p ->
 			parse_string s p
 		| (_,p) ->
@@ -31,7 +31,7 @@ let parse_options s ps lexbuf =
 	let add acc mode warning =
 		{ wo_warning = warning; wo_mode = mode } :: acc
 	in
-	let rec next acc = match Lexer.token lexbuf with
+	let rec next acc = match Lexer.token lctx lexbuf with
 		| Binop OpAdd,_ ->
 			next (add acc WMEnable (parse_warning()))
 		| Binop OpSub,_ ->
@@ -44,13 +44,9 @@ let parse_options s ps lexbuf =
 	next []
 
 let parse_options s ps =
-	let restore = Lexer.reinit ps.pfile in
-	Std.finally (fun () ->
-		restore()
-	) (fun () ->
-		let lexbuf = Sedlexing.Utf8.from_string s in
-		parse_options s ps lexbuf
-	) ()
+	let lctx = Lexer.create_temp_ctx ps.pfile in
+	let lexbuf = Sedlexing.Utf8.from_string s in
+	parse_options lctx s ps lexbuf
 
 let from_meta ml =
 	let parse_arg e = match fst e with
@@ -79,17 +75,20 @@ let get_mode w (l : warning_option list list) =
 			| None -> false
 			| Some w' -> matches w' id
 	in
-	let rec loop mode l = match l with
+	let rec loop l = match l with
 		| [] ->
-			mode
+			WMEnable
 		| l2 :: l ->
-			let rec loop2 mode l = match l with
+			let rec loop2 l = match l with
 				| [] ->
-					mode
+					None
 				| opt :: l ->
-					let mode = if matches w opt.wo_warning then opt.wo_mode else mode in
-					loop2 mode l
+					if matches w opt.wo_warning then Some opt.wo_mode else loop2 l
 			in
-			loop (loop2 mode l2) l
+			match loop2 l2 with
+			| None ->
+				loop l
+			| Some mode ->
+				mode
 	in
-	loop WMEnable (* ? *) l
+	loop l
