@@ -189,18 +189,24 @@ let destruction_before_dce pool scom all_types_array =
 	Parallel.ParallelArray.iter pool (fun mt -> List.iter (fun f -> f mt) filters) all_types_array
 
 let destruction_on_scom pool scom ectx rename_locals_config all_types_array =
-	let filters = [
+	let filters1 = [
 		SaveStacks.patch_constructors ectx;
 		(fun _ -> Native.apply_native_paths);
-		(fun _ -> add_rtti scom);
+	] in
+	let filters2 = [
+		(fun _ -> add_rtti scom); (* accesses cl_super *)
 		(match scom.platform with | Jvm -> (fun _ _ -> ()) | _ -> (fun scom mt -> AddFieldInits.add_field_inits scom.curclass.cl_path rename_locals_config scom mt));
 		(fun _ -> check_void_field);
-		(fun _ -> (match scom.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ())));
+		(fun _ -> (match scom.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ()))); (* accesses cl_super, cl_implements  *)
 		(fun _ -> (if scom.platform_config.pf_reserved_type_paths <> [] then check_reserved_type_paths scom else (fun _ -> ())));
 	] in
 	Parallel.ParallelArray.iter pool (fun mt ->
 		let scom = adapt_scom_to_mt scom mt in
-		List.iter (fun f -> f scom mt) filters
+		List.iter (fun f -> f scom mt) filters1
+	) all_types_array;
+	Parallel.ParallelArray.iter pool (fun mt ->
+		let scom = adapt_scom_to_mt scom mt in
+		List.iter (fun f -> f scom mt) filters2
 	) all_types_array
 
 let destruction_on_com scom com types =
