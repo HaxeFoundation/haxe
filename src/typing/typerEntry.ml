@@ -196,6 +196,13 @@ let create com macros =
 		| _ ->
 			()
 	) m.m_types;
+	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"IScheduler") null_pos in
+	List.iter (function
+		| TClassDecl({ cl_path = (["haxe";"coro"], "IScheduler") } as cl) ->
+			ctx.t.tcoro_scheduler <- TInst(cl, [])
+		| _ ->
+			()
+	) m.m_types;
 	let m = TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos in
 	List.iter (function
 		| TClassDecl({ cl_path = (["haxe"], "Exception") } as cl) ->

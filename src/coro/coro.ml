@@ -45,10 +45,10 @@ let fun_to_coro ctx e tf name =
 	let cls_error      = mk_field "_hx_error" ctx.typer.com.basic.texception null_pos null_pos in
 	let cls_captured   = mk_field "_hx_captured" ctx.typer.c.tthis null_pos null_pos in
 
+	let ethis = mk (TConst TThis) (TInst (cls, [])) p in
+
 	let cls_ctor =
 		let name = "completion" in
-
-		let ethis = mk (TConst TThis) (TInst (cls, [])) p in
 
 		let vargcompletion    = alloc_var VGenerated name ctx.typer.com.basic.tcoro_continuation p in
 		let eargcompletion    = Builder.make_local vargcompletion p in
@@ -96,7 +96,10 @@ let fun_to_coro ctx e tf name =
 		let vargerror   = alloc_var VGenerated error_name ctx.typer.com.basic.texception p in
 		let eargresult  = Builder.make_local vargresult p in
 		let eargerror   = Builder.make_local vargerror p in
-		let ethis       = mk (TConst TThis) (TInst (cls, [])) p in
+
+		(* Create a custom this variable to be captured, should the compiler already handle this? *)
+		let vfakethis = alloc_var VGenerated "fakethis" (TInst (cls, [])) p in
+		let evarfakethis = mk (TVar (vfakethis, Some ethis)) (TInst (cls, [])) p in
 
 		(* Assign result and error *)
 		let eresultfield  = mk (TField(ethis,FInstance(cls, [], cls_result))) ctx.typer.com.basic.tany p in
@@ -106,10 +109,56 @@ let fun_to_coro ctx e tf name =
 
 		(* Setup the continuation call *)
 
-		
+		let try_block =
+			let ethis        = Builder.make_local vfakethis p in
+			let eresumefield =
+				let ecompletionfield   = mk (TField(ethis,FInstance(cls, [], cls_completion))) ctx.typer.com.basic.tcoro_continuation p in
+				let cls, resultfield =
+					match ctx.typer.com.basic.tcoro_continuation with
+					| TInst (cls, _) -> cls, PMap.find "resume" cls.cl_fields
+					| _ -> die "Expected scheduler to be TInst" __LOC__
+				in
+				mk (TField(ecompletionfield,FInstance(cls, [], resultfield))) resultfield.cf_type p
+			in
+			let ecorocall =
+				if has_class_field_flag ctx.typer.f.curfield CfStatic then
+					let efunction = Builder.make_static_field ctx.typer.c.curclass ctx.typer.f.curfield p in
+					mk (TCall (efunction, [ ethis ])) ctx.typer.com.basic.tany p
+				else
+					let ecapturedfield = mk (TField(ethis,FInstance(cls, [], cls_captured))) ctx.typer.c.tthis p in
+					let efunction      = mk (TField(ecapturedfield,FInstance(cls, [], ctx.typer.f.curfield))) ctx.typer.f.curfield.cf_type p in
+					
+					mk (TCall (efunction, [ ethis ])) ctx.typer.com.basic.tany p
+				in
+			let vresult    = alloc_var VGenerated "result" ctx.typer.com.basic.tany p in
+			let evarresult = mk (TVar (vresult, (Some ecorocall))) ctx.typer.com.basic.tany p in
+			let eresult    = Builder.make_local vresult p in
+			let tcond      = std_is eresult ctx.typer.com.basic.tcoro_primitive in
+			let tif        = mk (TReturn None) ctx.typer.com.basic.tany p in
+			let telse      = mk (TCall (eresumefield, [ eresult; Builder.make_null ctx.typer.com.basic.texception p ])) ctx.typer.com.basic.tvoid p in
+
+			let etryblock =
+				mk (TBlock [
+					evarresult;
+					mk (TIf (tcond, tif, Some telse)) ctx.typer.com.basic.tvoid p
+				]) ctx.typer.com.basic.tvoid p
+			in
+
+			let vcatch = alloc_var VGenerated "exn" ctx.typer.com.basic.texception p in
+			let ecatch = Builder.make_local vcatch p in
+			let ecatchblock =
+				vcatch,
+				mk (TCall (eresumefield, [ Builder.make_null ctx.typer.com.basic.texception p; ecatch ])) ctx.typer.com.basic.tvoid p
+			in
+
+			mk (TTry (etryblock, [ ecatchblock ])) ctx.typer.com.basic.tvoid p
+		in
+
+		(* if ctx.coro_debug then
+			s_expr_debug try_block |> Printf.printf "%s\n"; *)
 
 		(* Bounce our continuation through the scheduler *)
-		let econtextfield   = mk (TField(ethis,FInstance(cls, [], cls_context))) ctx.typer.com.basic.tany p in
+		let econtextfield   = mk (TField(ethis, FInstance(cls, [], cls_context))) ctx.typer.com.basic.tany p in
 		let eschedulerfield =
 			match ctx.typer.com.basic.tcoro_context with
 			| TInst (cls, _) ->
@@ -126,13 +175,17 @@ let fun_to_coro ctx e tf name =
 			| _ ->
 				die "Expected scheduler to be TInst" __LOC__
 		in
+		let lambda =
+			mk
+				(TFunction { tf_expr = try_block; tf_type = ctx.typer.com.basic.tvoid; tf_args = [] })
+				(TFun ([], ctx.typer.com.basic.tvoid))
+				p in
+
 		let eschedulecall =
-			mk (TCall (eschedulefield, [])) ctx.typer.com.basic.tvoid p
+			mk (TCall (eschedulefield, [ lambda ])) ctx.typer.com.basic.tvoid p
 		in
 
-		(* eschedulecall; *)
-
-		let block = mk (TBlock [ eassignresult; eassignerror; ]) ctx.typer.com.basic.tvoid p in
+		let block = mk (TBlock [ evarfakethis; eassignresult; eassignerror; eschedulecall ]) ctx.typer.com.basic.tvoid p in
 		let func  = TFunction { tf_type = ctx.typer.com.basic.tvoid; tf_args = [ (vargresult, None); (vargerror, None) ]; tf_expr = block } in
 		let expr  = mk (func) ctx.typer.com.basic.tvoid p in
 
@@ -163,13 +216,13 @@ let fun_to_coro ctx e tf name =
 	let vcompletion = alloc_var VGenerated "_hx_completion" ctx.typer.com.basic.tcoro_continuation p in
 	let ecompletion = Builder.make_local vcompletion p in
 
-	let vcontinuation = alloc_var VGenerated "_hx_continuation" ctx.typer.com.basic.tcoro_continuation p in
+	let vcontinuation = alloc_var VGenerated "_hx_continuation" (TInst (cls, [])) p in
 	let econtinuation = Builder.make_local vcontinuation p in
 
 	let estate = mk (TField(econtinuation,FInstance(cls, [], cls_state))) ctx.typer.com.basic.tint p in
 	let eresult = mk (TField(econtinuation,FInstance(cls, [], cls_result))) ctx.typer.com.basic.tint p in
 
-	let continuation_var = mk (TVar (vcontinuation, Some (Builder.make_null (TInst (cls, [])) p))) ctx.typer.com.basic.tvoid p in
+	let continuation_var = mk (TVar (vcontinuation, Some (Builder.make_null (TInst (cls, [])) p))) (TInst (cls, [])) p in
 	
 	let cb_root = make_block ctx (Some(e.etype,p)) in
 	ignore(CoroFromTexpr.expr_to_coro ctx eresult cb_root tf.tf_expr);

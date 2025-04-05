@@ -835,6 +835,7 @@ let create compilation_step cs version args display_mode =
 			tcoro_continuation = mk_mono();
 			tcoro_primitive = mk_mono();
 			tcoro_context = mk_mono();
+			tcoro_scheduler = mk_mono();
 			texception = mk_mono();
 			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
@@ -889,6 +890,7 @@ let clone com is_macro_context =
 			tcoro_continuation = mk_mono();
 			tcoro_context = mk_mono();
 			tcoro_primitive = mk_mono();
+			tcoro_scheduler = mk_mono();
 			texception = mk_mono();
 		};
 		main = {
