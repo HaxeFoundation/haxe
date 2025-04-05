@@ -2246,7 +2246,7 @@ let macro_api ccom get_api =
 				"platform", encode_platform com.platform;
 				"platformConfig", encode_platform_config com.config;
 				"stdPath", encode_array (List.map (fun path -> encode_string path#path) com.class_paths#get_std_paths);
-				"mainClass", (match com.main.main_class with None -> vnull | Some path -> encode_path path);
+				"mainClass", (match com.main.main_path with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
 			]
 		);

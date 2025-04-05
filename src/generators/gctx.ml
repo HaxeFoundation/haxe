@@ -3,7 +3,8 @@ open Type
 open Warning
 
 type context_main = {
-	mutable main_class : path option;
+	mutable main_path : path option;
+	mutable main_file : string option;
 	mutable main_expr : texpr option;
 }
 
@@ -109,7 +110,7 @@ let get_entry_point gctx =
 		in
 		let e = Option.get gctx.main.main_expr in (* must be present at this point *)
 		(snd path, c, e)
-	) gctx.main.main_class
+	) gctx.main.main_path
 
 let get_es_version defines =
 	try int_of_string (Define.defined_value defines Define.JsEs) with _ -> 0

@@ -429,7 +429,7 @@ let generate_source ctx =
      end;
    end;
 
-   let output_name = match  common_ctx.main.main_class with
+   let output_name = match  common_ctx.main.main_path with
    | Some path -> (snd path)
    | _ -> "output" in
 

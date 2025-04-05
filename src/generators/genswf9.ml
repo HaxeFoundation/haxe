@@ -2863,7 +2863,7 @@ let generate com boot_name =
 		try_scope_reg = None;
 		for_call = false;
 	} in
-	let types = if ctx.swc && com.main.main_class = None then
+	let types = if ctx.swc && com.main.main_path = None then
 		(*
 			make sure that both Boot and RealBoot are the first two classes in the SWC
 			this way initializing RealBoot will also run externs __init__ blocks before

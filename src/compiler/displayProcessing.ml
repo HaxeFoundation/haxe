@@ -131,7 +131,7 @@ let process_display_file com actx =
 			DPKNone
 		| DFPOnly when (DisplayPosition.display_position#get).pfile = file_input_marker ->
 			actx.classes <- [];
-			com.main.main_class <- None;
+			com.main.main_path <- None;
 			begin match com.file_contents with
 			| [_, Some input] ->
 				com.file_contents <- [];
@@ -142,7 +142,7 @@ let process_display_file com actx =
 		| dfp ->
 			if dfp = DFPOnly then begin
 				actx.classes <- [];
-				com.main.main_class <- None;
+				com.main.main_path <- None;
 			end;
 			let dpk = List.map (fun file_key ->
 				let real = Path.get_real_path (Path.UniqueKey.to_string file_key) in

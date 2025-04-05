@@ -716,7 +716,8 @@ let create timer_ctx compilation_step cs version args display_mode =
 		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;
 		main = {
-			main_class = None;
+			main_path = None;
+			main_file = None;
 			main_expr = None;
 		};
 		package_rules = PMap.empty;
@@ -815,7 +816,8 @@ let clone com is_macro_context =
 			tstring = mk_mono();
 		};
 		main = {
-			main_class = None;
+			main_path = None;
+			main_file = None;
 			main_expr = None;
 		};
 		features = Hashtbl.create 0;
@@ -1041,7 +1043,7 @@ let get_entry_point com =
 		in
 		let e = Option.get com.main.main_expr in (* must be present at this point *)
 		(snd path, c, e)
-	) com.main.main_class
+	) com.main.main_path
 
 let make_unforced_lazy t_proc f where =
 	let r = ref (lazy_available t_dynamic) in

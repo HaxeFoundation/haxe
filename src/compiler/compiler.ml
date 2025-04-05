@@ -340,8 +340,9 @@ let finalize_typing ctx tctx =
 	let main_module = Finalization.maybe_load_main tctx in
 	enter_stage com CFilteringStart;
 	ServerMessage.compiler_stage com;
-	let main, types, modules = run_or_diagnose ctx (fun () -> Finalization.generate tctx main_module) in
-	com.main.main_expr <- main;
+	let (main_expr,main_file),types,modules = run_or_diagnose ctx (fun () -> Finalization.generate tctx main_module) in
+	com.main.main_expr <- main_expr;
+	com.main.main_file <- main_file;
 	com.types <- types;
 	com.modules <- modules
 
