@@ -58,8 +58,8 @@ let fun_to_coro ctx e tf name =
 	let cb_root = make_block ctx (Some(e.etype,p)) in
 
 	ignore(CoroFromTexpr.expr_to_coro ctx eresult cb_root tf.tf_expr);
-	let eloop, initial_state = CoroToTexpr.block_to_texpr_coroutine ctx cb_root econtinuation ecompletion eresult estate e.epos in
-	
+	let eloop, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cls econtinuation ecompletion eresult estate e.epos in
+
 	let ethis = mk (TConst TThis) (TInst (cls, [])) p in
 
 	let cls_ctor =
@@ -244,8 +244,12 @@ let fun_to_coro ctx e tf name =
 	TClass.add_field cls cls_resume;
 	if not (has_class_field_flag ctx.typer.f.curfield CfStatic) then
 		TClass.add_field cls cls_captured;
+	List.iter (TClass.add_field cls) fields;
 
 	cls.cl_constructor <- Some cls_ctor;
+
+	if ctx.coro_debug then
+		Printer.s_tclass "\t" cls |> Printf.printf "%s\n";
 
 	ctx.typer.m.curmod.m_types <- ctx.typer.m.curmod.m_types @ [ TClassDecl cls ];
 

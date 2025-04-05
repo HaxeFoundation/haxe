@@ -33,7 +33,7 @@ let make_control_switch com e_subject e_normal e_error p =
 	} in
 	mk (TSwitch switch) com.basic.tvoid p
 
-let block_to_texpr_coroutine ctx cb econtinuation ecompletion eresult estate p =
+let block_to_texpr_coroutine ctx cb cls econtinuation ecompletion eresult estate p =
 	let open Texpr.Builder in
 	let com = ctx.typer.com in
 
@@ -42,10 +42,6 @@ let block_to_texpr_coroutine ctx cb econtinuation ecompletion eresult estate p =
 	in
 
 	let set_state id = mk_assign estate (mk_int com id) in
-
-	let mk_continuation_call eresult p =
-		mk (TCall (econtinuation, [eresult; mk_control com CoroNormal])) com.basic.tvoid p
-	in
 
 	let std_is e t =
 		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic null_pos in
@@ -276,12 +272,13 @@ let block_to_texpr_coroutine ctx cb econtinuation ecompletion eresult estate p =
 						(* Also need to check if this should be the continuation instead of completion *)
 						| TCall ({ eexpr = TField (_, FStatic ({ cl_path = (["haxe";"coro"], "Intrinsics") }, { cf_name = "currentContinuation" })) }, []) ->
 							ecompletion
-						| TVar (v, eo) when is_used_across_states v.v_id ->
+						| TVar (v, eo) when is_used_across_states v.v_id && v.v_kind <> VGenerated ->
 							decls := v :: !decls;
-							let elocal = make_local v e.epos in
+							e
+							(* let elocal = make_local v e.epos in
 							(match eo with
 							| None -> elocal
-							| Some einit -> mk (TBinop (OpAssign,elocal,einit)) v.v_type e.epos)
+							| Some einit -> mk (TBinop (OpAssign,elocal,einit)) v.v_type e.epos) *)
 						| _ ->
 							Type.map_expr loop e
 					in
@@ -293,6 +290,25 @@ let block_to_texpr_coroutine ctx cb econtinuation ecompletion eresult estate p =
 		in
 		loop states []
 	end in
+
+	List.iter
+		(fun s ->
+			let is_used_across_states v_id =
+				match Hashtbl.find_opt var_usages v_id with
+				| Some m ->
+					(Hashtbl.length m) > 1
+				| None ->
+					false
+			in
+			let rec loop e =
+				match e.eexpr with
+				| TLocal v when is_used_across_states v.v_id && v.v_kind <> VGenerated ->
+					let field = mk_field v.v_name v.v_type v.v_pos null_pos in
+					mk (TField(econtinuation,FInstance(cls, [], field))) field.cf_type p
+				| _ -> Type.map_expr loop e
+			in
+			s.cs_el <- List.map loop s.cs_el)
+		states;
 
 	(* TODO:
 		we can optimize while and switch in some cases:
@@ -316,8 +332,11 @@ let block_to_texpr_coroutine ctx cb econtinuation ecompletion eresult estate p =
 	let eswitch = mk (TSwitch switch) com.basic.tvoid p in
 
 	let eloop = mk (TWhile (make_bool com.basic true p, eswitch, NormalWhile)) com.basic.tvoid p in
+
+	Printf.printf "var shared between states\n";
+	decls |> List.iter (fun v -> Printf.printf "- %s\n" v.v_name);
 	
-	let shared_vars = List.map (fun v -> mk (TVar (v,Some (Texpr.Builder.default_value v.v_type v.v_pos))) com.basic.tvoid null_pos) decls in
+	(* let shared_vars = List.map (fun v -> mk (TVar (v,Some (Texpr.Builder.default_value v.v_type v.v_pos))) com.basic.tvoid null_pos) decls in
 	let shared_vars = List.rev shared_vars in
 	let shared_vars = match ctx.vthis with
 		| None ->
@@ -326,6 +345,6 @@ let block_to_texpr_coroutine ctx cb econtinuation ecompletion eresult estate p =
 			let e_this = mk (TConst TThis) v.v_type v.v_pos in
 			let e_var = mk (TVar(v,Some e_this)) com.basic.tvoid null_pos in
 			e_var :: shared_vars
-	in
+	in *)
 
-	eloop, !init_state
+	eloop, !init_state, decls |> List.map (fun v -> mk_field v.v_name v.v_type v.v_pos null_pos)
