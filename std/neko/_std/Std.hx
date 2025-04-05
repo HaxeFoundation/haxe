@@ -40,7 +40,7 @@
 	}
 
 	public static function string(s:Dynamic):String {
-		if(__hx__stringDepth > 10) {
+		if (__hx__stringDepth > haxe.runtime.Config.maxToStringDepth) {
 			return '<...>';
 		}
 		__hx__stringDepth++;
@@ -48,12 +48,13 @@
 			var result = new String(untyped __dollar__string(s));
 			__hx__stringDepth--;
 			return result;
-		} catch(e:Dynamic) {
+		} catch (e:Dynamic) {
 			__hx__stringDepth--;
 			neko.Lib.rethrow(e);
 			return '<...>';
 		}
 	}
+
 	static var __hx__stringDepth = 0;
 
 	public static function int(x:Float):Int {
@@ -62,46 +63,43 @@
 		return Math.floor(x);
 	}
 
-	public static function parseInt(x:String):Null<Int>
-		untyped {
-			var t = __dollar__typeof(x);
-			if (t == __dollar__tint)
-				return x;
-			if (t == __dollar__tfloat)
-				return __dollar__int(x);
-			if (t != __dollar__tobject)
-				return null;
-			return __dollar__int(x.__s);
-		}
+	public static function parseInt(x:String):Null<Int> untyped {
+		var t = __dollar__typeof(x);
+		if (t == __dollar__tint)
+			return x;
+		if (t == __dollar__tfloat)
+			return __dollar__int(x);
+		if (t != __dollar__tobject)
+			return null;
+		return __dollar__int(x.__s);
+	}
 
-	public static function parseFloat(x:String):Float
-		untyped {
-			if (x == null)
-				return Math.NaN;
-			var t = __dollar__float(x.__s);
-			if (t == null)
-				t = Math.NaN;
-			return t;
-		}
+	public static function parseFloat(x:String):Float untyped {
+		if (x == null)
+			return Math.NaN;
+		var t = __dollar__float(x.__s);
+		if (t == null)
+			t = Math.NaN;
+		return t;
+	}
 
 	public static function random(x:Int):Int {
 		return untyped Math._rand_int(Math.__rnd, x);
 	}
 
-	static function __init__():Void
-		untyped {
-			Int = {__name__: ["Int"]};
-			Float = {__name__: ["Float"]};
-			Bool = {__ename__: ["Bool"]};
-			Dynamic = {__name__: ["Dynamic"]};
-			Class = {__name__: ["Class"]};
-			Enum = {};
-			var cl = neko.Boot.__classes;
-			cl.Int = Int;
-			cl.Float = Float;
-			cl.Bool = Bool;
-			cl.Dynamic = Dynamic;
-			cl.Class = Class;
-			cl.Enum = Enum;
-		}
+	static function __init__():Void untyped {
+		Int = {__name__: ["Int"]};
+		Float = {__name__: ["Float"]};
+		Bool = {__ename__: ["Bool"]};
+		Dynamic = {__name__: ["Dynamic"]};
+		Class = {__name__: ["Class"]};
+		Enum = {};
+		var cl = neko.Boot.__classes;
+		cl.Int = Int;
+		cl.Float = Float;
+		cl.Bool = Bool;
+		cl.Dynamic = Dynamic;
+		cl.Class = Class;
+		cl.Enum = Enum;
+	}
 }

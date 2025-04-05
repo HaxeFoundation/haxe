@@ -430,8 +430,12 @@ class Jvm {
 	}
 
 	// string
+	static var toStringDepth = 0;
 
 	static public function toString<T:java.lang.Object>(obj:T):String {
+		if (toStringDepth > haxe.runtime.Config.maxToStringDepth) {
+			return "<...>";
+		}
 		if (obj == null) {
 			return "null";
 		} else if (instanceof(obj, java.lang.Double.DoubleClass)) {
@@ -441,7 +445,15 @@ class Jvm {
 			}
 			return obj.toString();
 		} else {
-			return obj.toString();
+			++toStringDepth;
+			try {
+				var s = obj.toString();
+				--toStringDepth;
+				return s;
+			} catch (e:Dynamic) {
+				--toStringDepth;
+				throw e;
+			}
 		}
 	}
 
