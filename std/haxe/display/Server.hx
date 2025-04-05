@@ -73,7 +73,6 @@ typedef ConfigurePrintParams = {
 
 typedef ConfigureParams = {
 	final ?noModuleChecks:Bool;
-	final ?populateCacheFromDisplay:Bool;
 	final ?legacyCompletion:Bool;
 	final ?print:ConfigurePrintParams;
 }
@@ -111,6 +110,12 @@ typedef JsonServerFile = {
 	final moduleName:Null<String>;
 }
 
+typedef AdditionalSize = {
+	final name:String;
+	final size:Int;
+	final child:Array<AdditionalSize>;
+}
+
 /* Memory */
 typedef HaxeMemoryResult = {
 	final contexts:Array<{
@@ -123,7 +128,7 @@ typedef HaxeMemoryResult = {
 		final haxelibCache:Int;
 		final directoryCache:Int;
 		final nativeLibCache:Int;
-		final ?additionalSizes:Array<{name:String, size:Int}>;
+		final ?additionalSizes:Array<AdditionalSize>;
 	}
 }
 

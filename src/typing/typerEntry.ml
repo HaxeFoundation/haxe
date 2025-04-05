@@ -14,10 +14,9 @@ let create com macros =
 			core_api = None;
 			macros = macros;
 			module_check_policies = [];
-			delayed = Array.init all_typer_passes_length (fun _ -> { tasks = []});
+			delayed = Array.init TyperPass.all_typer_passes_length (fun _ -> { tasks = []});
 			delayed_min_index = 0;
 			debug_delayed = [];
-			doinline = com.display.dms_inline && not (Common.defined com Define.NoInline);
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
 			std_types = null_module;
 			global_using = [];
@@ -27,7 +26,6 @@ let create com macros =
 			return_partial_type = false;
 			build_count = 0;
 			t_dynamic_def = t_dynamic;
-			functional_interface_lut = new Lookup.pmap_lookup;
 			do_macro = MacroContext.type_macro;
 			do_load_macro = MacroContext.load_macro';
 			do_load_module = TypeloadModule.load_module;
@@ -64,11 +62,7 @@ let create com macros =
 		TypeloadModule.load_module ctx ([],"StdTypes") null_pos
 	with
 		Error { err_message = Module_not_found ([],"StdTypes") } ->
-			try
-				let std_path = Sys.getenv "HAXE_STD_PATH" in
-				raise_typing_error ("Standard library not found. Please check your `HAXE_STD_PATH` environment variable (current value: \"" ^ std_path ^ "\")") null_pos
-			with Not_found ->
-				raise_typing_error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
+			Error.raise_std_not_found ()
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
 	List.iter (fun mt ->
@@ -112,7 +106,14 @@ let create com macros =
 				in
 				ctx.t.tnull <- mk_null;
 			| _ -> ())
-		| TEnumDecl _ | TClassDecl _ | TTypeDecl _ ->
+		| TTypeDecl td ->
+			begin match snd td.t_path with
+			| "Iterator" ->
+				ctx.t.titerator <- (fun t -> TType(td,[t]))
+			| _ ->
+				()
+			end
+		| TEnumDecl _ | TClassDecl _ ->
 			()
 	) ctx.g.std_types.m_types;
 	let m = TypeloadModule.load_module ctx ([],"String") null_pos in
@@ -126,6 +127,17 @@ let create com macros =
 	let m = TypeloadModule.load_module ctx ([],"Std") null_pos in
 	List.iter (fun mt -> match mt with
 		| TClassDecl ({cl_path = ([],"Std")} as c) -> ctx.com.std <- c;
+		| _ -> ()
+	) m.m_types;
+	let m = TypeloadModule.load_module ctx ([],"Any") null_pos in
+	List.iter (fun mt -> match mt with
+		| TAbstractDecl a ->
+			(match snd a.a_path with
+			| "Any" ->
+				let t = TAbstract (a,[]) in
+				Type.unify t ctx.t.tany;
+				ctx.t.tany <- t;
+			| _ -> ())
 		| _ -> ()
 	) m.m_types;
 	let m = TypeloadModule.load_module ctx ([],"Array") null_pos in

@@ -28,7 +28,7 @@ abstract Rest<T>(NativeRest<T>) {
 	}
 
 	@:noDoc
-	@:from extern inline static function fromNative<T>(a:java.NativeArray<T>):Rest<T> {
+	@:from extern inline static function fromNative<T>(a:jvm.NativeArray<T>):Rest<T> {
 		return new Rest(Vector.fromData(a));
 	}
 

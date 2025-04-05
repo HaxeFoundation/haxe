@@ -56,8 +56,12 @@ class Issue11425 extends Test {
 		// generated: variant1 != null ? Variant.toFloat(variant1) : 1.0
 		var testValue9:Float = variant1 ?? cast 1.0; // Works fine.
 		// generated: Variant.toFloat(variant1 != null ? variant1 : 1.0)
+		// testValue10 is inferred as Variant
+		// and hxcpp does not like casting Float to that
+		#if !cpp 
 		var testValue10 = variant1 ?? cast 1.0; // Works fine.
 		// generated: variant1 != null ? variant1 : 1.0
+		#end
 
 		utest.Assert.pass();
 	}

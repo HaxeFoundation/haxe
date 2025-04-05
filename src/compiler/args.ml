@@ -43,7 +43,7 @@ let process_args arg_spec =
 let parse_args com =
 	let usage = Printf.sprintf
 		"Haxe Compiler %s - (C)2005-2024 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
-		s_version_full (if Sys.os_type = "Win32" then ".exe" else "")
+		(s_version_full com.version) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let actx = {
 		classes = [([],"Std")];
@@ -64,6 +64,7 @@ let parse_args com =
 		raise_usage = (fun () -> ());
 		display_arg = None;
 		deprecations = [];
+		measure_times = false;
 	} in
 	let add_deprecation s =
 		actx.deprecations <- s :: actx.deprecations
@@ -104,9 +105,9 @@ let parse_args com =
 		),"<name[=path]>","generate code for a custom target");
 		("Target",[],["-x"], Arg.String (fun cl ->
 			let cpath = Path.parse_type_path cl in
-			(match com.main.main_class with
+			(match com.main.main_path with
 				| Some c -> if cpath <> c then raise (Arg.Bad "Multiple --main classes specified")
-				| None -> com.main.main_class <- Some cpath);
+				| None -> com.main.main_path <- Some cpath);
 			actx.classes <- cpath :: actx.classes;
 			Common.define com Define.Interp;
 			set_platform com Eval "";
@@ -131,9 +132,9 @@ let parse_args com =
 			actx.hxb_libs <- lib :: actx.hxb_libs
 		),"<path>","add a hxb library");
 		("Compilation",["-m";"--main"],["-main"],Arg.String (fun cl ->
-			if com.main.main_class <> None then raise (Arg.Bad "Multiple --main classes specified");
+			if com.main.main_path <> None then raise (Arg.Bad "Multiple --main classes specified");
 			let cpath = Path.parse_type_path cl in
-			com.main.main_class <- Some cpath;
+			com.main.main_path <- Some cpath;
 			actx.classes <- cpath :: actx.classes
 		),"<class>","select startup class");
 		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun _ -> ()),"<name[:ver]>","use a haxelib library");
@@ -154,8 +155,7 @@ let parse_args com =
 			com.debug <- true;
 		),"","add debug information to the compiled code");
 		("Miscellaneous",["--version"],["-version"],Arg.Unit (fun() ->
-			com.info s_version_full null_pos;
-			actx.did_something <- true;
+			raise (Helper.HelpMessage (s_version_full com.version));
 		),"","print version and exit");
 		("Miscellaneous", ["-h";"--help"], ["-help"], Arg.Unit (fun () ->
 			raise (Arg.Help "")
@@ -163,31 +163,27 @@ let parse_args com =
 		("Miscellaneous",["--help-defines"],[], Arg.Unit (fun() ->
 			let all,max_length = Define.get_documentation_list com.user_defines in
 			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-			List.iter (fun msg -> com.print (msg ^ "\n")) all;
-			actx.did_something <- true
+			raise (Helper.HelpMessage (ExtLib.String.join "\n" all));
 		),"","print help for all compiler specific defines");
 		("Miscellaneous",["--help-user-defines"],[], Arg.Unit (fun() ->
 			actx.did_something <- true;
 			com.callbacks#add_after_init_macros (fun() ->
 				let all,max_length = Define.get_user_documentation_list com.user_defines in
 				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-				List.iter (fun msg -> com.print (msg ^ "\n")) all;
-				raise Abort
+				raise (Helper.HelpMessage (ExtLib.String.join "\n" all));
 			)
 		),"","print help for all user defines");
 		("Miscellaneous",["--help-metas"],[], Arg.Unit (fun() ->
 			let all,max_length = Meta.get_documentation_list com.user_metas in
 			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-			List.iter (fun msg -> com.print (msg ^ "\n")) all;
-			actx.did_something <- true
+			raise (Helper.HelpMessage (ExtLib.String.join "\n" all));
 		),"","print help for all compiler metadatas");
 		("Miscellaneous",["--help-user-metas"],[], Arg.Unit (fun() ->
 			actx.did_something <- true;
 			com.callbacks#add_after_init_macros (fun() ->
 				let all,max_length = Meta.get_user_documentation_list com.user_metas in
 				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-				List.iter (fun msg -> com.print (msg ^ "\n")) all;
-				raise Abort
+				raise (Helper.HelpMessage (ExtLib.String.join "\n" all));
 			)
 		),"","print help for all user metadatas");
 	] in
@@ -266,7 +262,9 @@ let parse_args com =
 			actx.hxb_out <- Some file;
 		),"<file>", "generate haxe binary representation to target archive");
 		("Optimization",["--no-output"],[], Arg.Unit (fun() -> actx.no_output <- true),"","compiles but does not generate any file");
-		("Debug",["--times"],[], Arg.Unit (fun() -> Timer.measure_times := true),"","measure compilation times");
+		("Debug",["--times"],[], Arg.Unit (fun() ->
+			actx.measure_times <- true
+		),"","measure compilation times");
 		("Optimization",["--no-inline"],[],Arg.Unit (fun () ->
 			add_deprecation "--no-inline has been deprecated, use -D no-inline instead";
 			Common.define com Define.NoInline
@@ -298,7 +296,7 @@ let parse_args com =
 		),"<directory>","set current working directory");
 		("Compilation",["--haxelib-global"],[], Arg.Unit (fun () -> ()),"","pass --global argument to haxelib");
 		("Compilation",["-w"],[], Arg.String (fun s ->
-			let p = { pfile = "-w " ^ s; pmin = 0; pmax = 0 } in
+			let p = fake_pos ("-w " ^ s) in
 			let l = Warning.parse_options s p in
 			com.warning_options <- l :: com.warning_options
 		),"<warning list>","enable or disable specific warnings");
@@ -330,11 +328,13 @@ let parse_args com =
 					List.rev acc
 			in
 			let args = loop [] args in
-			Arg.parse_argv ~current (Array.of_list ("" :: args)) all_args_spec args_callback "";
+			Arg.parse_argv ~current (Array.of_list ("Haxe" :: args)) all_args_spec args_callback "";
 		with
 		| Arg.Help _ ->
 			raise (Helper.HelpMessage (usage_string all_args usage))
 		| Arg.Bad msg ->
+			(* Strip error prefix added by ocaml's arg parser *)
+			let msg = if ExtLib.String.starts_with msg "Haxe: " then (String.sub msg 6 ((String.length msg) - 6)) else msg in
 			let first_line = List.nth (Str.split (Str.regexp "\n") msg) 0 in
 			let new_msg = (Printf.sprintf "%s" first_line) in
 			let r = Str.regexp "unknown option [`']?\\([-A-Za-z]+\\)[`']?" in

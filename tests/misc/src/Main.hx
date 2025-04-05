@@ -47,7 +47,7 @@ class Main {
 					var expectFailure = file.endsWith("-fail.hxml");
 					var expectStdout = if (FileSystem.exists('$file.stdout')) prepareExpectedOutput(File.getContent('$file.stdout')) else null;
 					var expectStderr = if (FileSystem.exists('$file.stderr')) prepareExpectedOutput(File.getContent('$file.stderr')) else null;
-					var result = runCommand("haxe", [file], expectFailure, expectStdout, expectStderr);
+					var result = runCommand("haxe", ["-D", "message.reporting=classic", file], expectFailure, expectStdout, expectStderr);
 					++count;
 					if (!result.success) {
 						failures++;

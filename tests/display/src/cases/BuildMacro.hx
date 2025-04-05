@@ -12,7 +12,7 @@ class BuildMacro extends DisplayTestCase {
 		typedef {-7-}MyString{-8-} = String;
 
 		#if !macro
-		@:build(cases.BuildMacro.MyMacro.build())
+		@:build(BuildMacro.MyMacro.build())
 		#end
 		class Main {
 			function te{-1-}st({-5-}na{-2-}me{-6-}:MySt{-3-}ring):MyStr{-4-}ing {
@@ -23,9 +23,9 @@ class BuildMacro extends DisplayTestCase {
 		}
 	**/
 	function test1() {
-		eq("cases.MyString", type(pos(2)));
-		eq("cases.MyString", type(pos(3)));
-		eq("cases.MyString", type(pos(4)));
+		eq("MyString", type(pos(2)));
+		eq("MyString", type(pos(3)));
+		eq("MyString", type(pos(4)));
 		eq(range(7, 8), position(pos(3)));
 		eq(range(7, 8), position(pos(4)));
 		eq(range(5, 6), position(pos(2)));

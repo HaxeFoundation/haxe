@@ -77,7 +77,7 @@ let check_other_things com e =
 		| TCall({eexpr = TField(e1,fa)},el) when not in_value && PurityState.is_pure_field_access fa -> compound "call" el e.epos
 		| TNew _ | TCall _ | TBinop ((Ast.OpAssignOp _ | Ast.OpAssign),_,_) | TUnop ((Ast.Increment | Ast.Decrement),_,_)
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _)
-		| TIf _ | TTry _ | TSwitch _ | TWhile _ | TFor _ ->
+		| TIf _ | TTry _ | TSwitch _ | TWhile _ ->
 			had_effect := true;
 			Type.iter (loop true) e
 		| TParenthesis e1 | TMeta(_,e1) ->

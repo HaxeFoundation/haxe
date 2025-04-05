@@ -1,5 +1,7 @@
 import haxe.display.Display;
 import haxe.display.Position.Range;
+import haxe.display.Protocol;
+import haxe.Json;
 import utest.Assert;
 import Types;
 

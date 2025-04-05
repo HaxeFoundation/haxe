@@ -420,12 +420,6 @@ and generate_texpr ctx e =
 	| TBlock el ->
 		let el = List.map (generate_texpr ctx) el in
 		"TBlock",Some (jarray el)
-	| TFor(v,e1,e2) ->
-		"TFor",Some (jobject [
-			"v",generate_tvar ctx v;
-			"expr1",generate_texpr ctx e1;
-			"expr2",generate_texpr ctx e2;
-		]);
 	| TIf(e1,e2,eo) ->
 		"TIf",Some (jobject [
 			"eif",generate_texpr ctx e1;
@@ -637,7 +631,7 @@ let generate_enum ctx e =
 	in
 	[
 		"constructors",generate_enum_constructors ();
-		"isExtern",jbool e.e_extern;
+		"isExtern",jbool (has_enum_flag e EnExtern)
 	]
 
 let generate_typedef ctx td =
@@ -733,13 +727,13 @@ let create_context ?jsonrpc gm = {
 	request = match jsonrpc with None -> None | Some jsonrpc -> Some (new JsonRequest.json_request jsonrpc)
 }
 
-let generate types file =
-	let t = Timer.timer ["generate";"json";"construct"] in
-	let ctx = create_context GMFull in
-	let json = jarray (List.map (generate_module_type ctx) types) in
-	t();
-	let t = Timer.timer ["generate";"json";"write"] in
-	let ch = open_out_bin file in
-	Json.write_json (output_string ch) json;
-	close_out ch;
-	t()
+let generate timer_ctx types file =
+	let json = Timer.time timer_ctx ["generate";"json";"construct"] (fun () ->
+		let ctx = create_context GMFull in
+		jarray (List.map (generate_module_type ctx) types)
+	) () in
+	Timer.time timer_ctx ["generate";"json";"write"] (fun () ->
+		let ch = open_out_bin file in
+		Json.write_json (output_string ch) json;
+		close_out ch;
+	) ()

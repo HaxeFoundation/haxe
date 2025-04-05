@@ -302,14 +302,14 @@ class BytesIterator<T> extends ArrayIterator<T> {
 
 	override function getDyn(pos:Int):Dynamic {
 		var pos:UInt = pos;
-		if (pos >= length)
+		if (pos >= (length : UInt))
 			return bytes.nullValue;
 		return bytes[pos];
 	}
 
 	override function setDyn(pos:Int, v:Dynamic) {
 		var pos:UInt = pos;
-		if (pos >= length)
+		if (pos >= (length : UInt))
 			__expand(pos);
 		bytes[pos] = v;
 	}
@@ -362,3 +362,4 @@ typedef ArrayI32 = ArrayBytes<Int>;
 typedef ArrayUI16 = ArrayBytes<UI16>;
 typedef ArrayF32 = ArrayBytes<F32>;
 typedef ArrayF64 = ArrayBytes<Float>;
+typedef ArrayI64 = ArrayBytes<I64>;

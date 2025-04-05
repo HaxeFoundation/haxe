@@ -38,17 +38,18 @@ type ttype =
 	| HDyn
 	| HFun of ttype list * ttype
 	| HObj of class_proto
-	| HArray
+	| HArray of ttype
 	| HType
 	| HRef of ttype
 	| HVirtual of virtual_proto
 	| HDynObj
 	| HAbstract of string * string index
 	| HEnum of enum_proto
-	| HNull of ttype
+	| HNull of ttype (* for not nullable type only *)
 	| HMethod of ttype list * ttype
 	| HStruct of class_proto
 	| HPacked of ttype
+	| HGUID
 
 and class_proto = {
 	pname : string;
@@ -210,8 +211,9 @@ type fundecl = {
 	ftype : ttype;
 	regs : ttype array;
 	code : opcode array;
-	debug : (int * int) array;
+	debug : (int * int * Globals.pos) array;
 	assigns : (string index * int) array;
+	need_opt : bool;
 }
 
 type code = {
@@ -258,8 +260,8 @@ let list_mapi f l =
 *)
 let is_nullable t =
 	match t with
-	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ | HType | HMethod _ | HStruct _ -> true
-	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HVoid | HPacked _ -> false
+	| HBytes | HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ | HType | HMethod _ | HStruct _ -> true
+	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HVoid | HPacked _ | HGUID -> false
 
 let is_struct = function
 	| HStruct _ | HPacked _ -> true
@@ -277,12 +279,18 @@ let is_number = function
 	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 -> true
 	| _ -> false
 
+let is_nullt = function
+	| HNull (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64) -> true
+	| HNull HBool -> true
+	| HNull _ -> Globals.die "" __LOC__
+	| _ -> false
+
 (*
 	does the runtime value carry its type
 *)
 let is_dynamic t =
 	match t with
-	| HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HNull _ | HEnum _ -> true
+	| HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HNull _ | HEnum _ -> true
 	| _ -> false
 
 let rec tsame t1 t2 =
@@ -307,6 +315,17 @@ let rec tsame t1 t2 =
 	| HNull t1, HNull t2 -> tsame t1 t2
 	| HRef t1, HRef t2 -> tsame t1 t2
 	| _ -> false
+
+let compatible_element_types t1 t2 =
+	if t1 == t2 then
+		true (* equal types are always compatible *)
+	else match t1,t2 with
+	| (HI32 | HF32),(HI32 | HF32)
+	| (HI64 | HF64),(HI64 | HF64) ->
+		true (* same size numbers are also compatible *)
+	| _ ->
+		(* no other number combinations are compatible, but everything else is *)
+		not (is_number t1) && not (is_number t2)
 
 (*
 	can we use a value of t1 as t2
@@ -337,8 +356,14 @@ let rec safe_cast t1 t2 =
 		loop p1
 	| HPacked t1, HStruct _ ->
 		safe_cast t1 t2
+	| HStruct _, HPacked t2 ->
+		safe_cast t1 t2
 	| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
 		List.for_all2 (fun t1 t2 -> safe_cast t2 t1 || (t1 = HDyn && is_dynamic t2)) args1 args2 && safe_cast t1 t2
+	| HArray t1,HArray t2 ->
+		compatible_element_types t1 t2
+	| (HI64|HGUID), (HI64|HGUID) ->
+		true
 	| _ ->
 		tsame t1 t2
 
@@ -450,8 +475,8 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 		let proto = "{"  ^ String.concat "," (List.map (fun p -> (match p.fvirtual with None -> "" | Some _ -> "virtual ") ^ p.fname ^ "@" ^  string_of_int p.fmethod) (Array.to_list o.pproto)) ^ "}" in
 		let str = o.pname ^ "[" ^ (match o.psuper with None -> "" | Some p -> ">" ^ p.pname ^ " ") ^ "fields=" ^ fields ^ " proto=" ^ proto ^ "]" in
 		(match t with HObj o -> str | _ -> "@" ^ str)
-	| HArray ->
-		"array"
+	| HArray t ->
+		"array(" ^ (tstr ~stack ~detailed t) ^ ")"
 	| HType ->
 		"type"
 	| HRef t ->
@@ -471,6 +496,7 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 		"enum(" ^ e.ename ^ ")"
 	| HNull t -> "null(" ^ tstr t ^ ")"
 	| HPacked t -> "packed(" ^ tstr t ^ ")"
+	| HGUID -> "guid"
 
 let ostr fstr o =
 	match o with
@@ -611,7 +637,7 @@ let dump pr code =
 		with _ ->
 			Printf.sprintf "f@%X" fid
 	in
-	let debug_infos (fid,line) =
+	let debug_infos (fid,line,_) =
 		(try code.debugfiles.(fid) with _ -> "???") ^ ":" ^ string_of_int line
 	in
 	pr ("hl v" ^ string_of_int code.version);
@@ -645,17 +671,17 @@ let dump pr code =
 	pr (string_of_int (Array.length code.functions) ^ " functions");
 	Array.iter (fun f ->
 		pr (Printf.sprintf "	fun@%d(%Xh) %s" f.findex f.findex (tstr f.ftype));
-		let fid, _ = f.debug.(0) in
+		let fid, _, _ = f.debug.(0) in
 		let cur_fid = ref fid in
 		pr (Printf.sprintf "	; %s (%s)" (debug_infos f.debug.(0)) (fundecl_name f));
 		Array.iteri (fun i r ->
 			pr ("		r" ^ string_of_int i ^ " " ^ tstr r);
 		) f.regs;
 		Array.iteri (fun i o ->
-			let fid, line = f.debug.(i) in
+			let fid, line, _ = f.debug.(i) in
 			if fid <> !cur_fid then begin
 				cur_fid := fid;
-				pr (Printf.sprintf "	; %s" (debug_infos (fid,line)));
+				pr (Printf.sprintf "	; %s" (debug_infos f.debug.(i)));
 			end;
 			pr (Printf.sprintf "		.%-5d @%X %s" line i (ostr fstr o))
 		) f.code;

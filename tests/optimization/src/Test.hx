@@ -116,9 +116,9 @@ class Test {
 	}
 
 	@:js('
-		var _g_set_amount = 10;
-		var _g_current = 0;
-		while(_g_current++ < 10) {
+		var i_set_amount = 10;
+		var i_current = 0;
+		while(i_current++ < 10) {
 			var i = null;
 		}
 	')
@@ -130,9 +130,9 @@ class Test {
 	}
 
 	@:js('
-		var _g_set_amount = 10;
-		var _g_current = 0;
-		while(_g_current++ < 10) {
+		var i_set_amount = 10;
+		var i_current = 0;
+		while(i_current++ < 10) {
 			var i = null;
 		}
 	')

@@ -18,10 +18,20 @@ let check_auxiliary_output com actx =
 		| Some file ->
 			Common.log com ("Generating json : " ^ file);
 			Path.mkdir_from_path file;
-			Genjson.generate com.types file
+			Genjson.generate com.timer_ctx com.types file
 	end
 
-let export_hxb com config cc platform zip m =
+let create_writer com config =
+	let anon_identification = new tanon_identification in
+	let warn w s p = com.Common.warning w com.warning_options s p in
+	let writer = HxbWriter.create config warn anon_identification in
+	writer,(fun () ->
+		let out = IO.output_string () in
+		HxbWriter.export writer out;
+		IO.close_out out
+	)
+
+let export_hxb from_cache com config cc platform m =
 	let open HxbData in
 	match m.m_extra.m_kind with
 		| MCode | MMacro | MFake | MExtern -> begin
@@ -29,8 +39,8 @@ let export_hxb com config cc platform zip m =
 			let l = platform :: (fst m.m_path @ [snd m.m_path]) in
 			let path = (String.concat "/" l) ^ ".hxb" in
 
-			try
-				let hxb_cache = cc#get_hxb_module m.m_path in
+			if from_cache then begin
+				let hxb_cache = try cc#get_hxb_module m.m_path with Not_found -> raise Abort in
 				let out = IO.output_string () in
 				write_header out;
 				List.iter (fun (kind,data) ->
@@ -38,18 +48,16 @@ let export_hxb com config cc platform zip m =
 					IO.nwrite out data
 				) hxb_cache.mc_chunks;
 				let data = IO.close_out out in
-				zip#add_entry data path;
-			with Not_found ->
-				let anon_identification = new tanon_identification in
-				let warn w s p = com.Common.warning w com.warning_options s p in
-				let writer = HxbWriter.create config warn anon_identification in
+				Some (path,data)
+			end else begin
+				let writer,close = create_writer com config in
 				HxbWriter.write_module writer m;
-				let out = IO.output_string () in
-				HxbWriter.export writer out;
-				zip#add_entry (IO.close_out out) path;
+				let bytes = close () in
+				Some (path,bytes)
+			end
 		end
 	| _ ->
-		()
+		None
 
 let check_hxb_output ctx config =
 	let open HxbWriterConfig in
@@ -57,38 +65,54 @@ let check_hxb_output ctx config =
 	let match_path_list l sl_path =
 		List.exists (fun sl -> Ast.match_path true sl_path sl) l
 	in
-	let try_write () =
+	let try_write from_cache =
 		let path = config.HxbWriterConfig.archive_path in
 		let path = Str.global_replace (Str.regexp "\\$target") (platform_name ctx.com.platform) path in
-		let t = Timer.timer ["generate";"hxb"] in
+		let t = Timer.start_timer ctx.timer_ctx ["generate";"hxb"] in
 		Path.mkdir_from_path path;
 		let zip = new Zip_output.zip_output path 6 in
 		let export com config =
 			let cc = CommonCache.get_cache com in
 			let target = Common.platform_name_macro com in
-			List.iter (fun m ->
-				let t = Timer.timer ["generate";"hxb";s_type_path m.m_path] in
+			let f m =
 				let sl_path = fst m.m_path @ [snd m.m_path] in
 				if not (match_path_list config.exclude sl_path) || match_path_list config.include' sl_path then
-					Std.finally t (export_hxb com config cc target zip) m
-			) com.modules;
+					Timer.time ctx.timer_ctx ["generate";"hxb";s_type_path m.m_path] (export_hxb from_cache com config cc target) m
+				else
+					None
+			in
+			let a_in = Array.of_list com.modules in
+			let a_out = Parallel.run_in_new_pool com.timer_ctx (fun pool ->
+				Parallel.ParallelArray.map pool f a_in None
+			) in
+			Array.iter (function
+				| None ->
+					()
+				| Some(path,bytes) ->
+					zip#add_entry bytes path
+			) a_out
 		in
 		Std.finally (fun () ->
 			zip#close;
 			t()
 		) (fun () ->
-			if  config.target_config.generate then
-				export com config.target_config;
-			begin match com.get_macros() with
-				| Some mcom when config.macro_config.generate ->
-					export mcom config.macro_config
-				| _ ->
-					()
+			if config.target_config.generate then begin
+				export com config.target_config
+			end;
+
+			if config.macro_config.generate then begin
+				match com.get_macros() with
+					| Some mcom ->
+						export mcom config.macro_config;
+					| _ ->
+						()
 			end;
 		) ()
 	in
 	try
-		try_write ()
+		(* This Abort case shouldn't happen, unless some modules are not stored in hxb cache (which should not be the case currently) *)
+		if ctx.comm.is_server then try try_write true with Abort -> try_write false
+		else try_write false
 	with Sys_error s ->
 		CompilationContext.error ctx (Printf.sprintf "Could not write to %s: %s" config.archive_path s) null_pos
 
@@ -107,14 +131,16 @@ let delete_file f = try Sys.remove f with _ -> ()
 let maybe_generate_dump ctx tctx =
 	let com = tctx.Typecore.com in
 	if Common.defined com Define.Dump then begin
-		Codegen.Dump.dump_types com;
-		Option.may Codegen.Dump.dump_types (com.get_macros())
+		Timer.time ctx.timer_ctx ["generate";"dump"] (fun () ->
+			Dump.dump_types com;
+			Option.may Dump.dump_types (com.get_macros());
+		) ();
 	end;
 	if Common.defined com Define.DumpDependencies then begin
-		Codegen.Dump.dump_dependencies com;
+		Dump.dump_dependencies com;
 		if not com.is_macro_context then match tctx.Typecore.g.Typecore.macros with
 			| None -> ()
-			| Some(_,ctx) -> Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
+			| Some(_,ctx) -> Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
 	end
 
 let generate ctx tctx ext actx =
@@ -122,7 +148,7 @@ let generate ctx tctx ext actx =
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
 	if Path.file_extension com.file = ext then delete_file com.file;
-	if com.platform = Flash || com.platform = Cpp || com.platform = Hl then List.iter (Codegen.fix_overrides com) com.types;
+	if com.platform = Flash || com.platform = Cpp || com.platform = Hl then List.iter (FixOverrides.fix_overrides com) com.types;
 	begin match com.platform with
 		| Neko | Hl | Eval when actx.interp -> ()
 		| Cpp when Common.defined com Define.Cppia -> ()
@@ -130,7 +156,7 @@ let generate ctx tctx ext actx =
 		| _ -> Path.mkdir_from_path com.file
 	end;
 	if actx.interp then begin
-		let timer = Timer.timer ["interp"] in
+		let timer = Timer.start_timer ctx.timer_ctx ["interp"] in
 		let old = tctx.com.args in
 		tctx.com.args <- ctx.runtime_args;
 		let restore () =
@@ -146,11 +172,11 @@ let generate ctx tctx ext actx =
 			with Not_found ->
 				None
 			in
-			Genswf.generate header,"swf"
+			Genswf.generate header com.Common.native_libs.swf_libs com.Common.flash_version,"swf"
 		| Neko ->
-			Genneko.generate,"neko"
+			Genneko.generate com.neko_lib_paths,"neko"
 		| Js ->
-			Genjs.generate,"js"
+			Genjs.generate com.js_gen,"js"
 		| Lua ->
 			Genlua.generate,"lua"
 		| Php ->
@@ -172,8 +198,6 @@ let generate ctx tctx ext actx =
 		if name = "" then ()
 		else begin
 			Common.log com ("Generating " ^ name ^ ": " ^ com.file);
-			let t = Timer.timer ["generate";name] in
-			generate com;
-			t()
+			Timer.time com.timer_ctx ["generate";name] generate (Common.to_gctx com);
 		end
 	end

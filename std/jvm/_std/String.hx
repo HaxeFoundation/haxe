@@ -26,8 +26,8 @@ extern class String implements java.lang.CharSequence {
 
 	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int, charsetName:String):Void {})
 	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int):Void {})
-	@:overload(function(b:java.NativeArray<java.StdTypes.Char16>):Void {})
-	@:overload(function(b:java.NativeArray<Int>, offset:Int, count:Int):Void {})
+	@:overload(function(b:jvm.NativeArray<jvm.Char16>):Void {})
+	@:overload(function(b:jvm.NativeArray<Int>, offset:Int, count:Int):Void {})
 	function new(string:String):Void;
 
 	function toUpperCase():String;

@@ -72,7 +72,7 @@ let is_string_type t =
 *)
 let rec is_nullable_type ?(dynamic_is_nullable=false) = function
 	| TMono r ->
-		(match r.tm_type with None -> false | Some t -> is_nullable_type t)
+		(match r.tm_type with None -> is_nullable_mono r | Some t -> is_nullable_type t)
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		true
 	| TAbstract ({ a_path = ([],"Any") },[]) ->
@@ -768,9 +768,8 @@ class local_safety (mode:safety_mode) =
 			(* let scope = new safety_scope mode STLoop (Hashtbl.create 100) (Hashtbl.create 100) in *)
 			scopes <- scope :: scopes;
 			match e.eexpr with
-				| TFor (v, _, _) -> scope#declare_var v
 				| TWhile _ -> ()
-				| _ -> fail ~msg:"Expected TFor or TWhile." e.epos __POS__
+				| _ -> fail ~msg:"Expected TWhile." e.epos __POS__
 		(**
 			Should be called upon leaving local function declaration.
 		*)
@@ -1133,7 +1132,6 @@ class expr_checker mode immediate_execution report =
 				| TFunction fn -> self#check_function fn
 				| TVar (v, init_expr) -> self#check_var v init_expr e.epos
 				| TBlock exprs -> self#check_block exprs e.epos
-				| TFor _ -> self#check_for e
 				| TIf _ -> self#check_if e
 				| TWhile _ -> self#check_while e
 				| TSwitch switch -> self#check_switch switch e.epos
@@ -1215,20 +1213,7 @@ class expr_checker mode immediate_execution report =
 						);
 					local_safety#scope_closed
 				| _ -> fail ~msg:"Expected TWhile." e.epos __POS__
-		(**
-			Don't iterate on nullable values
-		*)
-		method private check_for e =
-			match e.eexpr with
-				| TFor (v, iterable, body) ->
-					if self#is_nullable_expr iterable then
-						self#error "Cannot iterate over nullable value." [iterable.epos; e.epos];
-					self#check_expr iterable;
-					local_safety#declare_var v;
-					local_safety#loop_declared e;
-					self#check_loop_body None body;
-					local_safety#scope_closed
-				| _ -> fail ~msg:"Expected TFor." e.epos __POS__
+
 		(**
 			Handle safety inside of loops
 		*)
@@ -1675,21 +1660,22 @@ class class_checker cls immediate_execution report =
 	Run null safety checks.
 *)
 let run (com:Common.context) (types:module_type list) =
-	let timer = Timer.timer ["null safety"] in
-	let report = { sr_errors = [] } in
-	let immediate_execution = new immediate_execution in
-	let traverse module_type =
-		match module_type with
-			| TEnumDecl enm -> ()
-			| TTypeDecl typedef -> ()
-			| TAbstractDecl abstr -> ()
-			| TClassDecl cls -> (new class_checker cls immediate_execution report)#check
-	in
-	List.iter traverse types;
-	timer();
+	let report = Timer.time com.timer_ctx ["null safety"] (fun () ->
+		let report = { sr_errors = [] } in
+		let immediate_execution = new immediate_execution in
+		let traverse module_type =
+			match module_type with
+				| TEnumDecl enm -> ()
+				| TTypeDecl typedef -> ()
+				| TAbstractDecl abstr -> ()
+				| TClassDecl cls -> (new class_checker cls immediate_execution report)#check
+		in
+		List.iter traverse types;
+		report;
+	) () in
 	match com.callbacks#get_null_safety_report with
 		| [] ->
-			List.iter (fun err -> com.error err.sm_msg err.sm_pos) (List.rev report.sr_errors)
+			List.iter (fun err -> Common.display_error com err.sm_msg err.sm_pos) (List.rev report.sr_errors)
 		| callbacks ->
 			let errors =
 				List.map (fun err -> (err.sm_msg, err.sm_pos)) report.sr_errors

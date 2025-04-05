@@ -10,10 +10,10 @@ exception HxbFailure of string
 	EN = enum
 	AB = abstract
 	TD = typedef
-	AN = anon
+	OB = anonymous object
 	CF = class field
 	EF = enum field
-	AF = anon field
+	OF = object field
 	EX = expression
 	EO = end of (Types | Fields | Module)
 	..F = forward definition
@@ -24,16 +24,18 @@ exception HxbFailure of string
 type chunk_kind =
 	| STR (* string pool *)
 	| DOC (* doc pool *)
-	| MDF (* module foward *)
+	| MDF (* module forward *)
 	| MTF (* module types forward *)
 	(* Module type references *)
-	| MDR (* module references *)
+	| IMP (* imports *)
 	| CLR (* class references *)
 	| ENR (* enum references *)
 	| ABR (* abstract references *)
 	| TDR (* typedef references *)
-	(* Field references *)
-	| AFR (* anon field references *)
+	(* Anonymous objects *)
+	| OFR (* object field references *)
+	| OFD (* object field definitions *)
+	| OBD (* object definitions *)
 	(* Own module type definitions *)
 	| CLD (* class definition *)
 	| END (* enum definition *)
@@ -66,12 +68,14 @@ let string_of_chunk_kind = function
 	| DOC -> "DOC"
 	| MDF -> "MDF"
 	| MTF -> "MTF"
-	| MDR -> "MDR"
+	| IMP -> "IMP"
 	| CLR -> "CLR"
 	| ENR -> "ENR"
 	| ABR -> "ABR"
 	| TDR -> "TDR"
-	| AFR -> "AFR"
+	| OFR -> "OFR"
+	| OFD -> "OFD"
+	| OBD -> "OBD"
 	| EFR -> "EFR"
 	| CFR -> "CFR"
 	| CLD -> "CLD"
@@ -91,12 +95,14 @@ let chunk_kind_of_string = function
 	| "DOC" -> DOC
 	| "MDF" -> MDF
 	| "MTF" -> MTF
-	| "MDR" -> MDR
+	| "IMP" -> IMP
 	| "CLR" -> CLR
 	| "ENR" -> ENR
 	| "ABR" -> ABR
 	| "TDR" -> TDR
-	| "AFR" -> AFR
+	| "OFR" -> OFR
+	| "OFD" -> OFD
+	| "OBD" -> OBD
 	| "EFR" -> EFR
 	| "CFR" -> CFR
 	| "CLD" -> CLD

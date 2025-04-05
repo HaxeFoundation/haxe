@@ -79,7 +79,7 @@ let rec kind_of_type_against ctx t_want e_have =
 				unify ctx e.etype t_want e.epos
 		end;
 		e
-	| TInst({cl_path = (["java"],"NativeArray")},[t1]) ->
+	| TInst({cl_path = (["jvm"],"NativeArray")},[t1]) ->
 		begin match fst e_have with
 			| EArrayDecl el ->
 				let el = List.map (kind_of_type_against ctx t1) el in
