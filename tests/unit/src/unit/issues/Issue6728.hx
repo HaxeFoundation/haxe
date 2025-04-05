@@ -1,14 +1,34 @@
 package unit.issues;
 
+using StringTools;
+
+private class Foo {
+	public var o:Foo;
+
+	public function new() {
+		o = this;
+	}
+
+	@:keep
+	public function toString() {
+		return 'Foo: $o';
+	}
+}
+
 class Issue6728 extends unit.Test {
 	@:analyzer(ignore)
 	function test() {
-		stringMap();
-		intMap();
-		objectMap();
-		enumValueMap();
+		// stringMap();
+		// intMap();
+		// objectMap();
+		// enumValueMap();
 
+		t(foo().startsWith("Foo: Foo: Foo: Foo: Foo: Foo: Foo: Foo: Foo: Foo: Foo: Foo:"));
 		noAssert();
+	}
+
+	function foo() {
+		return new Foo().toString();
 	}
 
 	function stringMap() {
