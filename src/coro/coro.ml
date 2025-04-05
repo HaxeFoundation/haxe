@@ -121,14 +121,20 @@ let fun_to_coro ctx e tf name =
 				mk (TField(ecompletionfield,FInstance(cls, [], resultfield))) resultfield.cf_type p
 			in
 			let ecorocall =
+				let args =
+					match follow_with_coro ctx.typer.f.curfield.cf_type with
+					| Coro (args, _) -> (args |> List.map (fun (_, _, t) -> Texpr.Builder.default_value t p)) @ [ ethis ]
+					| o -> die "Expected curfield to be a coro" __LOC__
+				in
+
 				if has_class_field_flag ctx.typer.f.curfield CfStatic then
 					let efunction = Builder.make_static_field ctx.typer.c.curclass ctx.typer.f.curfield p in
-					mk (TCall (efunction, [ ethis ])) ctx.typer.com.basic.tany p
+					mk (TCall (efunction, args)) ctx.typer.com.basic.tany p
 				else
 					let ecapturedfield = mk (TField(ethis,FInstance(cls, [], cls_captured))) ctx.typer.c.tthis p in
 					let efunction      = mk (TField(ecapturedfield,FInstance(cls, [], ctx.typer.f.curfield))) ctx.typer.f.curfield.cf_type p in
 					
-					mk (TCall (efunction, [ ethis ])) ctx.typer.com.basic.tany p
+					mk (TCall (efunction, args)) ctx.typer.com.basic.tany p
 				in
 			let vresult    = alloc_var VGenerated "result" ctx.typer.com.basic.tany p in
 			let evarresult = mk (TVar (vresult, (Some ecorocall))) ctx.typer.com.basic.tany p in
