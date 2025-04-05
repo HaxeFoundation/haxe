@@ -41,8 +41,21 @@ import flash.Boot;
 		return downcast(value, c);
 	}
 
+	static var toStringDepth = 0;
+
 	public static function string(s:Dynamic):String {
-		return flash.Boot.__string_rec(s, "");
+		if (toStringDepth > haxe.runtime.Config.maxToStringDepth) {
+			return "<...>";
+		}
+		++toStringDepth;
+		try {
+			var s = flash.Boot.__string_rec(s, "");
+			--toStringDepth;
+			return s;
+		} catch (e:Dynamic) {
+			--toStringDepth;
+			throw e;
+		}
 	}
 
 	public inline static function int(x:Float):Int {
