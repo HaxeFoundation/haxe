@@ -105,6 +105,12 @@ let make_macro_com_api com mcom p =
 		with _ ->
 			raise_typing_error "Malformed metadata string" p
 	in
+	let bad_stage () =
+		if com.stage < CInitMacrosDone then
+			Interp.exc_string "This API cannot be used in initialization macros"
+		else
+			Interp.exc_string "This API cannot be used in the interpreter run-time"
+	in
 	{
 		MacroApi.pos = p;
 		get_com = (fun () -> com);
@@ -119,19 +125,19 @@ let make_macro_com_api com mcom p =
 		);
 		init_macros_done = (fun () -> com.stage >= CInitMacrosDone);
 		get_type = (fun s ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		resolve_type = (fun t p ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		resolve_complex_type = (fun t ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		get_module = (fun s ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		include_module = (fun s ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		after_init_macros = (fun f ->
 			com.callbacks#add_after_init_macros (fun () ->
@@ -196,7 +202,7 @@ let make_macro_com_api com mcom p =
 			ThreadSafeHashtbl.add Lexer.all_files file f;
 		);
 		type_expr = (fun e ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		store_typed_expr = (fun te ->
 			let p = te.epos in
@@ -204,37 +210,37 @@ let make_macro_com_api com mcom p =
 		);
 		allow_package = (fun v -> Common.allow_package com v);
 		get_local_type = (fun() ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		get_expected_type = (fun() ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		get_call_arguments = (fun() ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		get_local_method = (fun() ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		get_local_using = (fun() ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		get_local_imports = (fun() ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		get_local_vars = (fun () ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		get_build_fields = (fun() ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		define_type = (fun v mdep ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		define_module = (fun m types imports usings ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		module_dependency = (fun mpath file ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		current_module = (fun() ->
 			null_module
@@ -243,7 +249,7 @@ let make_macro_com_api com mcom p =
 			FormatString.format_string (ParserConfig.file_parser_config com p.pfile) s p (fun e p -> (e,p))
 		);
 		cast_or_unify = (fun t e p ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		add_global_metadata = (fun s1 s2 config p ->
 			let meta = parse_metadata s2 p in
@@ -253,7 +259,7 @@ let make_macro_com_api com mcom p =
 			) meta;
 		);
 		add_module_check_policy = (fun sl il b ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		register_define = (fun s data -> Define.register_user_define com.user_defines s data);
 		register_metadata = (fun s data -> Meta.register_user_meta com.user_metas s data);
@@ -263,10 +269,10 @@ let make_macro_com_api com mcom p =
 		decode_type = Interp.decode_type;
 		display_error = display_error com;
 		with_imports = (fun imports usings f ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		with_options = (fun opts f ->
-			Interp.exc_string "unsupported"
+			bad_stage ()
 		);
 		info = (fun ?(depth=0) msg p ->
 			com.info ~depth msg p
