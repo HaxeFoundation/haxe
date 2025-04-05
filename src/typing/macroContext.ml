@@ -1074,7 +1074,7 @@ let finalize_macro_api tctx mctx =
 
 let interpret ctx =
 	let mctx = get_macro_context ctx in
-	let mctx = Interp.create ctx.com (make_macro_api ctx mctx null_pos) false in
+	let mctx = Interp.create ctx.com (make_macro_com_api ctx.com mctx.com null_pos) false in
 	Interp.add_types mctx ctx.com.types (fun t -> ());
 	match ctx.com.main.main_expr with
 		| None -> ()
