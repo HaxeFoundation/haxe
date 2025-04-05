@@ -39,24 +39,48 @@ let fun_to_coro ctx e tf name =
 		die "Excepted continuation to be TInst" __LOC__);
 
 	let cls_completion = mk_field "_hx_completion" ctx.typer.com.basic.tcoro_continuation null_pos null_pos in
+	let cls_context    = mk_field "_hx_context" ctx.typer.com.basic.tcoro_context null_pos null_pos in
 	let cls_state      = mk_field "_hx_state" ctx.typer.com.basic.tint null_pos null_pos in
 	let cls_result     = mk_field "_hx_result" ctx.typer.com.basic.tany null_pos null_pos in
 	let cls_error      = mk_field "_hx_error" ctx.typer.com.basic.texception null_pos null_pos in
+	let cls_captured   = mk_field "_hx_captured" ctx.typer.c.tthis null_pos null_pos in
 
 	let cls_ctor =
-		let name              = "completion" in
-		let field             = mk_field "new" (TFun ([ (name, false, ctx.typer.com.basic.tcoro_continuation) ], ctx.typer.com.basic.tvoid)) null_pos null_pos in
+		let name = "completion" in
+
+		let ethis = mk (TConst TThis) (TInst (cls, [])) p in
+
 		let vargcompletion    = alloc_var VGenerated name ctx.typer.com.basic.tcoro_continuation p in
 		let eargcompletion    = Builder.make_local vargcompletion p in
-		let ethis             = mk (TConst TThis) (TInst (cls, [])) p in
-		let ecompletionfield  = mk (TField(ethis,FInstance(cls, [], cls_completion))) ctx.typer.com.basic.tint p in
+		let ecompletionfield  = mk (TField(ethis,FInstance(cls, [], cls_completion))) ctx.typer.com.basic.tcoro_continuation p in
 		let estatefield       = mk (TField(ethis,FInstance(cls, [], cls_state))) ctx.typer.com.basic.tint p in
 		let eassigncompletion = mk_assign ecompletionfield eargcompletion in
 		let eassignstate      = mk_assign estatefield (mk (TConst (TInt (Int32.of_int 1) )) ctx.typer.com.basic.tint p) in
-		let eblock            = mk (TBlock [ eassigncompletion; eassignstate ]) ctx.typer.com.basic.tvoid p in
 
-		let func = TFunction { tf_type = ctx.typer.com.basic.tvoid; tf_args = [ (vargcompletion, None) ]; tf_expr = eblock } in
-		let expr = mk (func) field.cf_type p in
+		let vargcaptured    = alloc_var VGenerated "captured" ctx.typer.c.tthis p in
+		let eargcaptured    = Builder.make_local vargcaptured p in
+		let ecapturedfield  = mk (TField(ethis,FInstance(cls, [], cls_captured))) ctx.typer.c.tthis p in
+		let eassigncaptured = mk_assign ecapturedfield eargcaptured in
+
+		(* If the coroutine field is not static then our HxCoro class needs to capture this for future resuming *)
+
+		let eblock =
+			if has_class_field_flag ctx.typer.f.curfield CfStatic then
+				mk (TBlock [ eassigncompletion; eassignstate ]) ctx.typer.com.basic.tvoid p
+			else
+				mk (TBlock [ eassigncaptured; eassigncompletion; eassignstate ]) ctx.typer.com.basic.tvoid p
+		in
+
+		let tfun_args, tfunction_args =
+			if has_class_field_flag ctx.typer.f.curfield CfStatic then
+				[ (name, false, ctx.typer.com.basic.tcoro_continuation) ], [ (vargcompletion, None) ]
+			else
+				[ ("captured", false, ctx.typer.c.tthis); (name, false, ctx.typer.com.basic.tcoro_continuation) ], [ (vargcaptured, None); (vargcompletion, None) ]
+			in
+
+		let field = mk_field "new" (TFun (tfun_args, ctx.typer.com.basic.tvoid)) null_pos null_pos in
+		let func  = TFunction { tf_type = ctx.typer.com.basic.tvoid; tf_args = tfunction_args; tf_expr = eblock } in
+		let expr  = mk (func) field.cf_type p in
 
 		if ctx.coro_debug then
 			s_expr_debug expr |> Printf.printf "%s\n";
@@ -80,9 +104,37 @@ let fun_to_coro ctx e tf name =
 		let eassignresult = mk_assign eresultfield eargresult in
 		let eassignerror  = mk_assign eerrorfield eargerror in
 
+		(* Setup the continuation call *)
+
+		
+
+		(* Bounce our continuation through the scheduler *)
+		let econtextfield   = mk (TField(ethis,FInstance(cls, [], cls_context))) ctx.typer.com.basic.tany p in
+		let eschedulerfield =
+			match ctx.typer.com.basic.tcoro_context with
+			| TInst (cls, _) ->
+				let field = PMap.find "scheduler" cls.cl_fields in
+				mk (TField(econtextfield, FInstance(cls, [], field))) field.cf_type p
+			| _ ->
+				die "Expected context to be TInst" __LOC__
+		in
+		let eschedulefield =
+			match eschedulerfield.etype with
+			| TInst (cls, _) ->
+				let field = PMap.find "schedule" cls.cl_fields in
+				mk (TField(eschedulerfield, FInstance(cls, [], field))) field.cf_type p
+			| _ ->
+				die "Expected scheduler to be TInst" __LOC__
+		in
+		let eschedulecall =
+			mk (TCall (eschedulefield, [])) ctx.typer.com.basic.tvoid p
+		in
+
+		(* eschedulecall; *)
+
 		let block = mk (TBlock [ eassignresult; eassignerror; ]) ctx.typer.com.basic.tvoid p in
 		let func  = TFunction { tf_type = ctx.typer.com.basic.tvoid; tf_args = [ (vargresult, None); (vargerror, None) ]; tf_expr = block } in
-		let expr  = mk (func) ctx.typer.com.basic.tvoid p in		
+		let expr  = mk (func) ctx.typer.com.basic.tvoid p in
 
 		if ctx.coro_debug then
 			s_expr_debug expr |> Printf.printf "%s\n";
@@ -91,15 +143,18 @@ let fun_to_coro ctx e tf name =
 	in
 
 	TClass.add_field cls cls_completion;
+	TClass.add_field cls cls_context;
 	TClass.add_field cls cls_state;
 	TClass.add_field cls cls_result;
 	TClass.add_field cls cls_error;
 	TClass.add_field cls cls_resume;
+	if not (has_class_field_flag ctx.typer.f.curfield CfStatic) then
+		TClass.add_field cls cls_captured;
 
 	cls.cl_constructor <- Some cls_ctor;
 
-	if ctx.coro_debug then
-		Printer.s_tclass "\t" cls |> Printf.printf "%s\n";
+	(* if ctx.coro_debug then
+		Printer.s_tclass "\t" cls |> Printf.printf "%s\n"; *)
 
 	(* ctx.typer.com.types <- ctx.typer.com.types @ [ TClassDecl cls ]; *)
 	ctx.typer.m.curmod.m_types <- ctx.typer.m.curmod.m_types @ [ TClassDecl cls ];
@@ -120,10 +175,16 @@ let fun_to_coro ctx e tf name =
 	ignore(CoroFromTexpr.expr_to_coro ctx eresult cb_root tf.tf_expr);
 	
 	let continuation_assign =
-		let t     = TInst (cls, []) in
-		let tcond = std_is econtinuation t in
-		let tif   = mk_assign econtinuation (mk_cast ecompletion t p) in
-		let telse = mk_assign econtinuation (mk (TNew (cls, [], [ econtinuation ])) t p) in
+		let t         = TInst (cls, []) in
+		let tcond     = std_is econtinuation t in
+		let tif       = mk_assign econtinuation (mk_cast ecompletion t p) in
+		let ctor_args =
+			if has_class_field_flag ctx.typer.f.curfield CfStatic then
+				[ econtinuation ]
+			else
+				[ mk (TConst TThis) ctx.typer.c.tthis p; econtinuation ]
+		in
+		let telse = mk_assign econtinuation (mk (TNew (cls, [], ctor_args)) t p) in
 		mk (TIf (tcond, tif, Some telse)) ctx.typer.com.basic.tvoid p
 	in
 	

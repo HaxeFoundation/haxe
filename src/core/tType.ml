@@ -465,6 +465,7 @@ type basic_types = {
 	mutable tcoro_control : t;
 	mutable tcoro_continuation : t;
 	mutable tcoro_primitive : t;
+	mutable tcoro_context : t;
 	mutable texception : t;
 }
 
