@@ -29,7 +29,7 @@ let get_native_name = Native.get_native_name
 
 (* Applies exclude macro (which turns types into externs) *)
 
-let apply_macro_exclude com t = match t with
+let apply_macro_exclude t = match t with
 	| TClassDecl c when has_class_flag c CExcluded ->
 		add_class_flag c CExtern
 	| TEnumDecl e when has_enum_flag e EnExcluded ->
@@ -178,23 +178,48 @@ let iter_expressions fl mt =
 
 open FilterContext
 
-let destruction (com : Common.context) scom ectx detail_times main locals =
-	with_timer com.timer_ctx detail_times "type 2" None (fun () ->
-		(* PASS 2: type filters pre-DCE *)
-		List.iter (fun t ->
-			FiltersCommon.remove_generic_base t;
-			apply_macro_exclude com t;
-			remove_extern_fields scom t;
-			(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
-			check_remove_metadata t;
-		) com.types;
+let destruction_before_dce scom types =
+	let filters = [
+		(fun _ -> FiltersCommon.remove_generic_base);
+		(fun _ -> apply_macro_exclude);
+		(fun _ -> remove_extern_fields scom);
+		(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
+		(fun _ -> check_remove_metadata);
+	] in
+	SafeCom.run_type_filters_safe scom filters types
+
+let destruction_on_scom scom ectx rename_locals_config types =
+	let filters = [
+		SaveStacks.patch_constructors ectx;
+		(fun _ -> Native.apply_native_paths);
+		(fun _ -> add_rtti scom);
+		(match scom.platform with | Jvm -> (fun _ _ -> ()) | _ -> (fun scom mt -> AddFieldInits.add_field_inits scom.curclass.cl_path rename_locals_config scom mt));
+		(fun _ -> check_void_field);
+		(fun _ -> (match scom.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ())));
+		(fun _ -> (if scom.platform_config.pf_reserved_type_paths <> [] then check_reserved_type_paths scom else (fun _ -> ())));
+	] in
+	SafeCom.run_type_filters_safe scom filters types
+
+let destruction_on_com scom com types =
+	let filters = [
+		(fun _ -> check_private_path com);
+		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> (fun _ -> add_meta_field com));
+		(fun _ -> commit_features com);
+	] in
+	(* These aren't actually safe. The logic works fine regardless, we just can't parallelize this at the moment. *)
+	SafeCom.run_type_filters_safe scom filters types
+
+let destruction (com : Common.context) scom ectx detail_times main rename_locals_config types =
+	with_timer scom.timer_ctx detail_times "type 2" None (fun () ->
+		destruction_before_dce scom types;
 	);
+
 	Common.enter_stage com CDceStart;
-	with_timer com.timer_ctx detail_times "dce" None (fun () ->
+	with_timer scom.timer_ctx detail_times "dce" None (fun () ->
 		(* DCE *)
-		let dce_mode = try Common.defined_value com Define.Dce with _ -> "no" in
+		let dce_mode = try Define.defined_value scom.defines Define.Dce with _ -> "no" in
 		let dce_mode = match dce_mode with
-			| "full" -> if Common.defined com Define.Interp then Dce.DceNo else DceFull
+			| "full" -> if Define.defined scom.defines Define.Interp then Dce.DceNo else DceFull
 			| "std" -> DceStd
 			| "no" -> DceNo
 			| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
@@ -202,32 +227,20 @@ let destruction (com : Common.context) scom ectx detail_times main locals =
 		Dce.run com main dce_mode;
 	);
 	Common.enter_stage com CDceDone;
-	(* PASS 3: type filters post-DCE *)
-	List.iter
-		(SafeCom.run_expression_filters_safe
-			~ignore_processed_status:true
-			scom
-			detail_times
-			(* This has to run after DCE, or otherwise its condition always holds. *)
-			["insert_save_stacks",SaveStacks.insert_save_stacks com ectx]
-		)
-		com.types;
-	let type_filters = [
-		SaveStacks.patch_constructors ectx;
-		(fun _ -> check_private_path com);
-		(fun _ -> Native.apply_native_paths);
-		(fun _ -> add_rtti scom);
-		(match com.platform with | Jvm -> (fun _ _ -> ()) | _ -> (fun scom mt -> AddFieldInits.add_field_inits scom.curclass.cl_path locals scom mt));
-		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> (fun _ -> add_meta_field com));
-		(fun _ -> check_void_field);
-		(fun _ -> (match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ())));
-		(fun _ -> commit_features com);
-		(fun _ -> (if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths scom else (fun _ -> ())));
-	] in
-	with_timer com.timer_ctx detail_times "type 3" None (fun () ->
-		(* These aren't actually safe. The logic works fine regardless, we just can't parallelize this at the moment. *)
-		SafeCom.run_type_filters_safe scom type_filters com.types
+
+	(* This has to run after DCE, or otherwise its condition always holds. *)
+	List.iter (
+		SafeCom.run_expression_filters_safe ~ignore_processed_status:true scom detail_times ["insert_save_stacks",SaveStacks.insert_save_stacks com ectx]
+	) types;
+
+	with_timer scom.timer_ctx detail_times "type 3" None (fun () ->
+		destruction_on_scom scom ectx rename_locals_config types
 	);
+
+	with_timer scom.timer_ctx detail_times "type 4" None (fun () ->
+		destruction_on_com scom com types
+	);
+
 	com.callbacks#run com.error_ext com.callbacks#get_after_filters;
 	Common.enter_stage com CFilteringDone
 
@@ -482,4 +495,4 @@ let run com ectx main before_destruction =
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);
 	before_destruction();
-	destruction com scom ectx detail_times main rename_locals_config
+	destruction com scom ectx detail_times main rename_locals_config com.types
