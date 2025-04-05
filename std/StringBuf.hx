@@ -89,12 +89,7 @@ class StringBuf {
 	}
 
 	/**
-		Visibly removes all characters from `this` StringBuf, making it possible to reuse it.
-
-		Implementation detail: On some targets, `clear`ing a StringBuf
-		MAY not reallocate the internal buffer, preserving its capacity.
-		This is done to avoid unnecessary allocations on later `add` operations,
-		but might be incorrectly perceived as a memory leak.
+		Removes all characters from `this` StringBuf, making it possible to reuse it.
 	**/
 	public inline function clear():Void {
 		b = "";
