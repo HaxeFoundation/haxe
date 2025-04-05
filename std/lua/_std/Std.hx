@@ -43,9 +43,22 @@ import lua.NativeStringTools;
 		return downcast(value, c);
 	}
 
+	static var toStringDepth = 0;
+
 	@:keep
-	public static function string(s:Dynamic) : String {
-		return untyped _hx_tostring(s, 0);
+	public static function string(s:Dynamic):String {
+		if (toStringDepth > haxe.runtime.Config.maxToStringDepth) {
+			return "<...>";
+		}
+		++toStringDepth;
+		try {
+			var s = untyped _hx_tostring(s, 0);
+			--toStringDepth;
+			return s;
+		} catch (e:Dynamic) {
+			--toStringDepth;
+			throw e;
+		}
 	}
 
 	public static function int(x:Float):Int {
