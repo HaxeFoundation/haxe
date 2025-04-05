@@ -14,10 +14,9 @@ class Cpp {
 		//hxcpp dependencies
 		switch (systemName) {
 			case "Linux":
-				Linux.requireAptPackages(["gcc-multilib", switch Linux.arch {
-					case Arm64: "g++-multilib-arm-linux-gnueabi";
-					case Amd64: "g++-multilib";
-				}]);
+				if (Linux.arch == Amd64) {
+					Linux.requireAptPackages(["gcc-multilib", "g++-multilib"]);
+				}
 			case "Mac":
 				//pass
 		}
@@ -72,6 +71,8 @@ class Cpp {
 			if (!isLinuxArm64) // FIXME
 				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 		}
+
+		Display.maybeRunDisplayTests(Cpp);
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["-D", archFlag, "--each", "compile-cpp.hxml"].concat(args));

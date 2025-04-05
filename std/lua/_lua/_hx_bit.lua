@@ -19,3 +19,4 @@ end
 _hx_bit.bor = function(...) return _hx_bit_clamp(_hx_bit_raw.bor(...)) end
 _hx_bit.band = function(...) return _hx_bit_clamp(_hx_bit_raw.band(...)) end
 _hx_bit.arshift = function(...) return _hx_bit_clamp(_hx_bit_raw.arshift(...)) end
+_hx_bit.lshift = function(...) return _hx_bit_clamp(_hx_bit_raw.lshift(...)) end

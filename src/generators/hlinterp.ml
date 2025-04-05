@@ -1083,7 +1083,8 @@ let interp ctx f args =
 					| HNull _ -> 19
 					| HMethod _ -> 20
 					| HStruct _ -> 21
-					| HPacked _ -> 22)))
+					| HPacked _ -> 22
+					| HGUID -> 23)))
 				| _ -> Globals.die "" __LOC__);
 		| ORef (r,v) ->
 			set r (VRef (RStack (v + spos),rtype v))

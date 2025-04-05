@@ -54,6 +54,7 @@ type field_init_ctx = {
 	is_abstract : bool;
 	is_macro : bool;
 	is_abstract_member : bool;
+	is_abstract_constructor : bool;
 	is_display_field : bool;
 	is_field_debug : bool;
 	is_generic : bool;
@@ -271,7 +272,7 @@ let transform_abstract_field com this_t a_t a f =
 			);
 			f_type = Some a_t;
 		} in
-		{ f with cff_name = "_new",pos f.cff_name; cff_kind = FFun fu; cff_meta = meta }
+		{ f with cff_name = "_hx_new",pos f.cff_name; cff_kind = FFun fu; cff_meta = meta }
 	| FFun fu when not stat ->
 		if Meta.has Meta.From f.cff_meta then raise_typing_error "@:from cast functions must be static" f.cff_pos;
 		{ f with cff_kind = FFun fu }
@@ -529,6 +530,7 @@ let create_field_context ctx cctx cff is_display_file display_modifier =
 		is_field_debug = cctx.is_class_debug || Meta.has (Meta.Custom ":debug.typeload") cff.cff_meta;
 		display_modifier = display_modifier;
 		is_abstract_member = is_abstract_member;
+		is_abstract_constructor = is_abstract_member && fst cff.cff_name = "_hx_new";
 		is_generic = Meta.has Meta.Generic cff.cff_meta;
 		field_kind = field_kind;
 		do_bind = (((not ((has_class_flag c CExtern) || !is_extern) || is_inline) && not is_abstract && not (has_class_flag c CInterface)) || field_kind = CfrInit);
@@ -631,7 +633,7 @@ let check_field_display ctx fctx c cf =
 		let scope, cf = match c.cl_kind with
 			| KAbstractImpl _ ->
 				if has_class_field_flag cf CfImpl then
-					(if cf.cf_name = "_new" then
+					(if fctx.is_abstract_constructor then
 						CFSConstructor, {cf with cf_name = "new"}
 					else
 						CFSMember, cf)
@@ -735,7 +737,7 @@ module TypeBinding = struct
 		let p = cf.cf_pos in
 		let ctx = TyperManager.clone_for_expr ctx_f (if fctx.is_static then FunStatic else FunMember) false in
 		if (has_class_flag c CInterface) then unexpected_expression ctx.com fctx "Initialization on field of interface" (pos e);
-		cf.cf_meta <- ((Meta.Value,[e],cf.cf_pos) :: cf.cf_meta);
+		cf.cf_meta <- ((Meta.Value,[e],mk_zero_range_pos cf.cf_pos) :: cf.cf_meta);
 		let check_cast e =
 			(* insert cast to keep explicit field type (issue #1901) *)
 			if type_iseq e.etype cf.cf_type then
@@ -748,7 +750,7 @@ module TypeBinding = struct
 					mk_cast e cf.cf_type e.epos
 			end
 		in
-		let r = make_lazy ~force:false ctx.g t (fun r ->
+		let r = make_unforced_lazy t (fun () ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				enter_field_typing_pass ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
@@ -759,7 +761,7 @@ module TypeBinding = struct
 					| _ -> !analyzer_run_on_expr_ref ctx.com (Printf.sprintf "%s.%s" (s_type_path cctx.tclass.cl_path) cf.cf_name) e
 				in
 				let require_constant_expression e msg =
-					match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
+					match Optimizer.make_constant_expression (SafeCom.of_typer ctx) (maybe_run_analyzer e) with
 					| Some e -> e
 					| None -> display_error ctx.com msg p; e
 				in
@@ -791,7 +793,7 @@ module TypeBinding = struct
 						e
 					end in
 					e
-				| Var v when v.v_read = AccInline && (ctx.g.doinline || is_forced_inline (Some c) cf) ->
+				| Var v when v.v_read = AccInline && (ctx.com.doinline || is_forced_inline (Some c) cf) ->
 					let e = require_constant_expression e "Inline variable initialization must be a constant value" in
 					begin match c.cl_kind with
 						| KAbstractImpl a when has_class_field_flag cf CfEnum && a.a_enum ->
@@ -827,7 +829,7 @@ module TypeBinding = struct
 	let bind_method ctx_f cctx fctx fmode cf t args ret e p =
 		let c = cctx.tclass in
 		let ctx = TyperManager.clone_for_expr ctx_f fmode true in
-		let bind r =
+		let bind () =
 			incr stats.s_methods_typed;
 			if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing method %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
 			begin match ctx.com.platform with
@@ -873,11 +875,11 @@ module TypeBinding = struct
 					check_field_display ctx fctx c cf;
 			end;
 		in
-		let maybe_bind r =
-			if not ctx.g.return_partial_type then bind r;
+		let maybe_bind () =
+			if not ctx.g.return_partial_type then bind ();
 			t
 		in
-		let r = make_lazy ~force:false ctx.g t maybe_bind "type_fun" in
+		let r = make_unforced_lazy t maybe_bind "type_fun" in
 		bind_type ctx cctx fctx cf r p
 end
 
@@ -927,6 +929,7 @@ let create_variable (ctx,cctx,fctx) c f cf t eo p =
 	cf
 
 let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
+	if fctx.is_abstract_constructor && a.a_constructor = None (* TODO: this is pretty dumb, it deals with the overload case *) then a.a_constructor <- Some cf;
 	let m = mk_mono() in
 	let ta = TAbstract(a,List.map (fun _ -> mk_mono()) a.a_params) in
 	let tthis = if fctx.is_abstract_member || Meta.has Meta.To cf.cf_meta then monomorphs a.a_params a.a_this else a.a_this in
@@ -936,7 +939,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		fctx.expr_presence_matters <- true;
 	end in
 	let handle_from () =
-		let r = make_lazy ctx.g t (fun r ->
+		let r = make_lazy ctx.g t (fun () ->
 			(* the return type of a from-function must be the abstract, not the underlying type *)
 			if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> raise_typing_error_ext (make_error (Unify l) p));
 			match t with
@@ -976,12 +979,13 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		let is_multitype_cast = Meta.has Meta.MultiType a.a_meta && not fctx.is_abstract_member in
 		if is_multitype_cast && not (Meta.has Meta.MultiType cf.cf_meta) then
 			cf.cf_meta <- (Meta.MultiType,[],null_pos) :: cf.cf_meta;
-		let r = make_lazy ctx.g t (fun r ->
+		let r = make_lazy ctx.g t (fun () ->
 			let args = if is_multitype_cast then begin
-				let ctor = try
-					PMap.find "_new" c.cl_statics
-				with Not_found ->
-					raise_typing_error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
+				let ctor = match a.a_constructor with
+					| Some cf ->
+						cf
+					| None ->
+						raise_typing_error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
 				in
 				(* delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos); *)
 				let args = match follow (monomorphs a.a_params ctor.cf_type) with
@@ -1014,11 +1018,11 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		in
 		begin match follow t with
 			| TFun((_,_,t1) :: (_,_,t2) :: args,_) when is_empty_or_pos_infos args ->
-				if a.a_read <> None then raise_typing_error "Multiple resolve-read methods are not supported" cf.cf_pos;
+				if a.a_read <> None then display_error ctx.com "Multiple resolve-read methods are not supported" cf.cf_pos;
 				check_fun t1 t2;
 				a.a_read <- Some cf;
 			| TFun((_,_,t1) :: (_,_,t2) :: (_,_,t3) :: args,_) when is_empty_or_pos_infos args ->
-				if a.a_write <> None then raise_typing_error "Multiple resolve-write methods are not supported" cf.cf_pos;
+				if a.a_write <> None then display_error ctx.com "Multiple resolve-write methods are not supported" cf.cf_pos;
 				check_fun t1 t2;
 				a.a_write <- Some cf;
 			| _ ->
@@ -1087,7 +1091,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		| _ -> ();
 	in
 	List.iter check_meta cf.cf_meta;
-	if cf.cf_name = "_new" && Meta.has Meta.MultiType a.a_meta then fctx.do_bind <- false;
+	if fctx.is_abstract_constructor && Meta.has Meta.MultiType a.a_meta then fctx.do_bind <- false;
 	if fd.f_expr = None then begin
 		if fctx.is_inline then missing_expression ctx.com fctx "Inline functions must have an expression" cf.cf_pos;
 		if fd.f_type = None then raise_typing_error ("Functions without expressions must have an explicit return type") cf.cf_pos;
@@ -1160,7 +1164,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 		maybe_use_property_type fd.f_type (fun () -> match Lazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
 	end in
 	let abstract_this = match cctx.abstract with
-		| Some a when fctx.is_abstract_member && name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
+		| Some a when fctx.is_abstract_member && not fctx.is_abstract_constructor && not fctx.is_macro ->
 			Some a.a_this
 		| _ ->
 			None
@@ -1177,7 +1181,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 
 let create_method (ctx,cctx,fctx) c f cf fd p =
 	let name = fst f.cff_name in
-	let params = TypeloadFunction.type_function_params ctx fd TPHMethod name p in
+	let params = TypeloadFunction.type_function_params ctx fd TPHMethod name in
 	if fctx.is_generic then begin
 		if params = [] then raise_typing_error "Generic functions must have type parameters" p;
 	end;
@@ -1246,8 +1250,10 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 		if fctx.is_inline then invalid_modifier_combination fctx ctx.com fctx "dynamic" "inline" p;
 		if fctx.is_abstract_member then invalid_modifier ctx.com fctx "dynamic" "method of abstract" p;
 	end;
-	let is_override = Option.is_some fctx.override in
-	if (is_override && fctx.is_static) then invalid_modifier_combination fctx ctx.com fctx "override" "static" p;
+	if Option.is_some fctx.override then begin
+		if fctx.is_static then invalid_modifier_combination fctx ctx.com fctx "override" "static" p;
+		add_class_field_flag cf CfOverride;
+	end;
 
 	ctx.type_params <- params @ ctx.type_params;
 	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in
@@ -1269,6 +1275,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 		add_class_field_flag cf CfAbstract;
 	end;
 	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
+	if fctx.is_abstract_constructor then add_class_field_flag cf CfAbstractConstructor;
 	if fctx.is_generic then add_class_field_flag cf CfGeneric;
 	begin match fctx.default with
 	| Some p ->
@@ -1287,7 +1294,10 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 		if ctx.com.config.pf_overload then
 			add_class_field_flag cf CfOverload
 		else if fctx.field_kind = CfrConstructor then
-			invalid_modifier ctx.com fctx "overload" "constructor" p
+			if (has_class_flag c CExtern || fctx.is_extern) && not fctx.is_inline then
+				add_class_field_flag cf CfOverload
+			else
+				invalid_modifier_only ctx.com fctx "overload" "on extern non-inline constructors" p
 		else begin
 			add_class_field_flag cf CfOverload;
 			if not (has_class_flag c CExtern || fctx.is_extern) then
@@ -1679,12 +1689,13 @@ let init_class ctx_c cctx c p herits fields =
 				begin match c.cl_constructor with
 				| None ->
 					c.cl_constructor <- Some cf
-				| Some ctor when ctx.com.config.pf_overload ->
-					if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
-						ctor.cf_overloads <- cf :: ctor.cf_overloads
-					else
-						display_error ctx.com ("If using overloaded constructors, all constructors must be declared with 'overload'") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
 				| Some ctor ->
+					if ctx.com.config.pf_overload || ((has_class_flag c CExtern || fctx.is_extern) && not fctx.is_inline) then
+						if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
+							ctor.cf_overloads <- cf :: ctor.cf_overloads
+						else
+							display_error ctx.com ("If using overloaded constructors, all constructors must be declared with 'overload'") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
+					else
 						display_error ctx.com "Duplicate constructor" p
 				end
 			| CfrInit ->

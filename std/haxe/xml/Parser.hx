@@ -341,7 +341,7 @@ class Parser {
 					}
 				case S.ESCAPE:
 					if (c == ';'.code) {
-						var s = str.substr(start, p - start);
+						var s = str.substr(start, p - start).toLowerCase();
 						if (s.fastCodeAt(0) == '#'.code) {
 							var c = s.fastCodeAt(1) == 'x'.code ? Std.parseInt("0" + s.substr(1, s.length - 1)) : Std.parseInt(s.substr(1, s.length - 1));
 							#if !(target.unicode)
@@ -395,8 +395,10 @@ class Parser {
 			if (parent.nodeType == Element) {
 				throw new XmlParserException("Unclosed node <" + parent.nodeName + ">", str, p);
 			}
-			if (p != start || nsubs == 0) {
+			if( p != start )
 				buf.addSub(str, start, p - start);
+			var str = buf.toString();
+			if (str.length > 0 || nsubs == 0) {
 				addChild(Xml.createPCData(buf.toString()));
 			}
 			return p;

@@ -21,6 +21,7 @@ open Globals
 open Ast
 open Common
 open Type
+open TyperPass
 open Error
 open Resolution
 open FieldCallCandidate
@@ -49,21 +50,6 @@ type access_mode =
 	| MGet
 	| MSet of Ast.expr option (* rhs, if exists *)
 	| MCall of Ast.expr list (* call arguments *)
-
-type typer_pass =
-	| PBuildModule			(* build the module structure and setup module type parameters *)
-	| PBuildClass			(* build the class structure *)
-	| PConnectField			(* handle associated fields, which may affect each other. E.g. a property and its getter *)
-	| PTypeField			(* type the class field, allow access to types structures *)
-	| PCheckConstraint		(* perform late constraint checks with inferred types *)
-	| PForce				(* usually ensure that lazy have been evaluated *)
-	| PFinal				(* not used, only mark for finalize *)
-
-let all_typer_passes = [
-	PBuildModule;PBuildClass;PConnectField;PTypeField;PCheckConstraint;PForce;PFinal
-]
-
-let all_typer_passes_length = List.length all_typer_passes
 
 type typer_module = {
 	curmod : module_def;
@@ -108,11 +94,9 @@ type typer_globals = {
 	mutable delayed : typer_pass_tasks Array.t;
 	mutable delayed_min_index : int;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
-	doinline : bool;
 	retain_meta : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
-	mutable std_types : module_def;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
 	mutable global_using : (tclass * pos) list;
 	(* Indicates that Typer.create() finished building this instance *)
@@ -141,7 +125,7 @@ and typer_expr = {
 	in_function : bool;
 	mutable ret : t;
 	mutable opened : anon_status ref list;
-	mutable monomorphs : monomorphs;
+	mutable monomorphs : (tmono * pos) list;
 	mutable in_loop : bool;
 	mutable bypass_accessor : int;
 	mutable with_type_stack : WithType.t list;
@@ -175,10 +159,6 @@ and typer = {
 	mutable allow_transform : bool;
 	(* events *)
 	memory_marker : float array;
-}
-
-and monomorphs = {
-	mutable perfunction : (tmono * pos) list;
 }
 
 let pass_name = function
@@ -241,9 +221,7 @@ module TyperManager = struct
 			in_function;
 			ret = t_dynamic;
 			opened = [];
-			monomorphs = {
-				perfunction = [];
-			};
+			monomorphs = [];
 			in_loop = false;
 			bypass_accessor = 0;
 			with_type_stack = [];
@@ -284,6 +262,18 @@ module TyperManager = struct
 
 	let clone_for_expr ctx curfun in_function =
 		let e = create_ctx_e curfun in_function in
+		begin match curfun with
+		| FunMember | FunMemberAbstract | FunStatic | FunConstructor ->
+			(* Monomorphs from field arguments and return types are created before
+			   ctx.e is cloned, so they have to be absorbed here. A better fix might
+			   be to clone ctx.e earlier, but that comes with its own challenges. *)
+			e.monomorphs <- ctx.e.monomorphs;
+			ctx.e.monomorphs <- []
+		| FunMemberAbstractLocal | FunMemberClassLocal ->
+			(* We don't need to do this for local functions because the cloning happens
+			   earlier there. *)
+			()
+		end;
 		create ctx ctx.m ctx.c ctx.f e PTypeField ctx.type_params
 
 	let clone_for_type_params ctx params =
@@ -374,7 +364,7 @@ let unify_min_for_type_source ctx el src = (!unify_min_for_type_source_ref) ctx 
 
 let spawn_monomorph' ctx p =
 	let mono = Monomorph.create () in
-	ctx.monomorphs.perfunction <- (mono,p) :: ctx.monomorphs.perfunction;
+	ctx.e.monomorphs <- (mono,p) :: ctx.e.monomorphs;
 	mono
 
 let spawn_monomorph ctx p =
@@ -383,12 +373,6 @@ let spawn_monomorph ctx p =
 let make_static_field_access c cf t p =
 	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
-
-let make_static_call ctx c cf map args t p =
-	let monos = List.map (fun _ -> spawn_monomorph ctx.e p) cf.cf_params in
-	let map t = map (apply_params cf.cf_params monos t) in
-	let ef = make_static_field_access c cf (map cf.cf_type) p in
-	make_call ctx ef args (map t) p
 
 let raise_with_type_error ?(depth = 0) msg p =
 	raise (WithTypeError (make_error ~depth (Custom msg) p))
@@ -422,7 +406,7 @@ let unify_raise_custom uctx t1 t2 p =
 			(* no untyped check *)
 			raise_error_msg (Unify l) p
 
-let unify_raise = unify_raise_custom default_unification_context
+let unify_raise a b = unify_raise_custom (default_unification_context()) a b
 
 let save_locals ctx =
 	let locals = ctx.f.locals in
@@ -430,7 +414,7 @@ let save_locals ctx =
 
 let add_local ctx k n t p =
 	let v = alloc_var k n t p in
-	if Define.defined ctx.com.defines Define.WarnVarShadowing && n <> "_" then begin
+	if n <> "_" then begin
 		match k with
 		| VUser _ ->
 			begin try
@@ -452,8 +436,6 @@ let add_local ctx k n t p =
 let add_local_with_origin ctx origin n t p =
 	Naming.check_local_variable_name ctx.com n origin p;
 	add_local ctx (VUser origin) n t p
-
-let gen_local_prefix = "`"
 
 let gen_local ctx t p =
 	add_local ctx VGenerated gen_local_prefix t p
@@ -484,7 +466,7 @@ let delay_if_mono g p t f = match follow t with
 	| _ ->
 		f()
 
-let rec flush_pass g p where =
+let rec flush_pass g (p : typer_pass) where =
 	let rec loop i =
 		if i > (Obj.magic p) then
 			()
@@ -509,29 +491,10 @@ let make_pass ctx f = f
 let enter_field_typing_pass g info =
 	flush_pass g PConnectField info
 
-let make_lazy ?(force=true) ctx t_proc f where =
-	let r = ref (lazy_available t_dynamic) in
-	r := lazy_wait (fun() ->
-		try
-			r := lazy_processing t_proc;
-			let t = f r in
-			r := lazy_available t;
-			t
-		with
-			| Error e ->
-				raise (Fatal_error e)
-	);
-	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
+let make_lazy ctx t_proc f where =
+	let r = make_unforced_lazy t_proc f where in
+	delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
-
-let is_removable_field com f =
-	not (has_class_field_flag f CfOverride) && (
-		has_class_field_flag f CfExtern || has_class_field_flag f CfGeneric
-		|| (match f.cf_kind with
-			| Var {v_read = AccRequire (s,_)} -> true
-			| Method MethMacro -> not com.is_macro_context
-			| _ -> false)
-	)
 
 let is_forced_inline c cf =
 	match c with
@@ -541,7 +504,7 @@ let is_forced_inline c cf =
 	| _ -> false
 
 let needs_inline ctx c cf =
-	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.g.doinline || is_forced_inline c cf)
+	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.com.doinline || is_forced_inline c cf)
 
 (** checks if we can access to a given class field using current context *)
 let can_access ctx c cf stat =
@@ -687,6 +650,28 @@ let safe_mono_close ctx m p =
 
 let relative_path ctx file =
 	ctx.com.class_paths#relative_path file
+
+let mk_infos_t =
+	let fileName = ("fileName",null_pos,NoQuotes) in
+	let lineNumber = ("lineNumber",null_pos,NoQuotes) in
+	let className = ("className",null_pos,NoQuotes) in
+	let methodName = ("methodName",null_pos,NoQuotes) in
+	(fun ctx p params t ->
+		let file = if ctx.com.is_macro_context then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
+		let line = Lexer.get_error_line p in
+		let class_name = s_type_path ctx.c.curclass.cl_path in
+		let fields =
+			(fileName,Texpr.Builder.make_string ctx.com.basic file p) ::
+			(lineNumber,Texpr.Builder.make_int ctx.com.basic line p) ::
+			(className,Texpr.Builder.make_string ctx.com.basic class_name p) ::
+			if ctx.f.curfield.cf_name = "" then
+				params
+			else
+				(methodName,Texpr.Builder.make_string ctx.com.basic ctx.f.curfield.cf_name p) ::
+				params
+		in
+		mk (TObjectDecl fields) t p
+	)
 
 let mk_infos ctx p params =
 	let file = if ctx.com.is_macro_context then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
@@ -899,19 +884,19 @@ let make_where ctx where =
 	let inf = ctx_pos ctx in
 	where ^ " (" ^ String.concat "." inf ^ ")",inf
 
-let make_lazy ?(force=true) ctx t f (where:string) =
+let make_lazy ctx t f (where:string) =
 	let r = ref (lazy_available t_dynamic) in
 	r := lazy_wait (make_pass ~inf:(make_where ctx where) ctx (fun() ->
 		try
 			r := lazy_processing t;
-			let t = f r in
+			let t = f () in
 			r := lazy_available t;
 			t
 		with
 			| Error e ->
 				raise (Fatal_error e)
 	));
-	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
+	delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
 
 *)

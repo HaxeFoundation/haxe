@@ -325,14 +325,14 @@ class ArrayObj<T> extends ArrayBase {
 
 	override function getDyn(pos:Int):Dynamic {
 		var pos:UInt = pos;
-		if (pos >= length)
+		if (pos >= (length : UInt))
 			return null;
 		return array[pos];
 	}
 
 	override function setDyn(pos:Int, v:Dynamic) {
 		var pos:UInt = pos;
-		if (pos >= length)
+		if (pos >= (length : UInt))
 			__expand(pos);
 		array[pos] = Api.safeCast(v, array.getType());
 	}

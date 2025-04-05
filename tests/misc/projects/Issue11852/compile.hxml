@@ -1,0 +1,4 @@
+--macro Main.init()
+-main Main
+-D dump-dependencies
+--interp

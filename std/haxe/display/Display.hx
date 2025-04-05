@@ -129,7 +129,7 @@ typedef DisplayLocal<T> = {
 	var id:Int;
 	var name:String;
 	var type:JsonType<T>;
-	var origin:LocalOrigin;
+	var ?origin:LocalOrigin;
 	var capture:Bool;
 	var ?extra:{
 		var params:Array<JsonTypeParameter>;
@@ -412,7 +412,7 @@ typedef DisplayItem<T> = {
 }
 
 typedef DisplayItemOccurrence<T> = {
-	var range:Range;
+	var ?range:Range;
 	var item:DisplayItem<T>;
 	var ?moduleType:JsonModuleType<Dynamic>;
 	var ?moduleTypeFollowed:JsonModuleType<Dynamic>;

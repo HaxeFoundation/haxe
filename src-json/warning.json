@@ -76,7 +76,8 @@
 	{
 		"name": "WVarShadow",
 		"doc": "A local variable hides another by using the same name",
-		"parent": "WTyper"
+		"parent": "WTyper",
+		"enabled": false
 	},
 	{
 		"name": "WExternWithExpr",
@@ -131,6 +132,11 @@
 	{
 		"name": "WUnboundTypeParameter",
 		"doc": "Hxb (either --hxb output or haxe compiler cache) failed to link a type parameter to an actual type",
+		"parent": "WHxb"
+	},
+	{
+		"name": "WUnclosedMonomorph",
+		"doc": "Hxb writer failed to close a monomorph (that monomorph should have been closed in the first place)",
 		"parent": "WHxb"
 	}
 ]

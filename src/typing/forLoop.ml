@@ -33,7 +33,7 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 		get_class_and_params e1
 	in
 	let _, _, fhasnext = (try raw_class_field (fun cf -> apply_params c.cl_params tl cf.cf_type) c tl "hasNext" with Not_found -> raise Exit) in
-	if fhasnext.cf_kind <> Method MethInline then raise Exit;
+	if not ctx.allow_inline || fhasnext.cf_kind <> Method MethInline then raise Exit;
 	let it_type = TInst(c,tl) in
 	let tmp = gen_local ctx it_type e1.epos in
 	let eit = mk (TLocal tmp) it_type p in
@@ -88,7 +88,7 @@ module IterationKind = struct
 		(mk (TArray (arr,iexpr)) pt p)
 
 	let check_iterator ?(resume=false) ?last_resort ctx s e p =
-		let pt = spawn_monomorph ctx.e p in
+		let pt = spawn_monomorph ctx p in
 		let t = ctx.t.titerator pt in
 		let dynamic_iterator = ref None in
 		let e1 = try
@@ -144,7 +144,7 @@ module IterationKind = struct
 		| TAbstract({a_impl = Some c} as a,tl) ->
 			let cf_length = PMap.find "get_length" c.cl_statics in
 			let get_length e p =
-				make_static_call ctx c cf_length (apply_params a.a_params tl) [e] ctx.com.basic.tint p
+				CallUnification.make_static_call_better ctx c cf_length tl [e] ctx.com.basic.tint p
 			in
 			(match follow cf_length.cf_type with
 				| TFun(_,tr) ->
@@ -160,7 +160,7 @@ module IterationKind = struct
 				let todo = mk (TConst TNull) ctx.t.tint p in
 				let cf,_,r,_ = AbstractCast.find_array_read_access_raise ctx a tl todo p in
 				let get_next e_base e_index t p =
-					make_static_call ctx c cf (apply_params a.a_params tl) [e_base;e_index] r p
+					CallUnification.make_static_call_better ctx c cf tl [e_base;e_index] r p
 				in
 				IteratorCustom(get_next,get_length),e,r
 			with Not_found ->
@@ -284,7 +284,7 @@ module IterationKind = struct
 		{
 			it_kind = it;
 			it_type = pt;
-			it_expr = if not ctx.allow_transform then e else e1;
+			it_expr = e1;
 		}
 
 	let to_texpr ctx v iterator e2 p =
@@ -296,19 +296,6 @@ module IterationKind = struct
 		in
 		let get_array_length arr p =
 			mk (mk_field arr "length") ctx.com.basic.tint p
-		in
-		let check_loop_var_modification vl e =
-			let rec loop e =
-				match e.eexpr with
-				| TBinop (OpAssign,{ eexpr = TLocal l },_)
-				| TBinop (OpAssignOp _,{ eexpr = TLocal l },_)
-				| TUnop (Increment,_,{ eexpr = TLocal l })
-				| TUnop (Decrement,_,{ eexpr = TLocal l })  when List.memq l vl ->
-					raise_typing_error "Loop variable cannot be modified" e.epos
-				| _ ->
-					Type.iter loop e
-			in
-			loop e
 		in
 		let gen_int_iter e1 pt f_get f_length =
 			let index = gen_local ctx t_int v.v_pos in
@@ -339,10 +326,7 @@ module IterationKind = struct
 			mk (TBlock el) t_void p
 		in
 		match iterator.it_kind with
-		| _ when not ctx.allow_transform ->
-			mk (TFor(v,e1,e2)) t_void p
 		| IteratorIntUnroll(offset,length,ascending,unroll_params) ->
-			check_loop_var_modification [v] e2;
 			if not ascending then raise_typing_error "Cannot iterate backwards" p;
 			let rec unroll acc i =
 				if i = length then
@@ -353,6 +337,8 @@ module IterationKind = struct
 					let rec loop e = match e.eexpr with
 					| TLocal v' when v == v' ->
 						{ei with epos = e.epos}
+					| TUnop ((Decrement | Increment), _, { eexpr = TLocal v' }) when v == v' -> raise Exit
+					| TBinop ((OpAssign | OpAssignOp _), { eexpr = TLocal v' }, _) when v == v' -> raise Exit
 					| TVar(v,eo) when has_var_flag v VStatic ->
 						if acc = [] then
 							local_vars := {e with eexpr = TVar(v,eo)} :: !local_vars;
@@ -360,7 +346,14 @@ module IterationKind = struct
 					| _ ->
 						map_expr loop e
 				in
-				let e2 = loop e2 in
+				let e2 = try
+					loop e2
+				with Exit ->
+					{ e2 with eexpr = TBlock (
+						(mk (TVar(v,Some ei)) t_void p) ::
+						(match e2.eexpr with TBlock el -> el | _ -> [e2])
+					)}
+				in
 				let acc = acc @ !local_vars in
 				let e2 = Texpr.duplicate_tvars e_identity e2 in
 				unroll (e2 :: acc) (i + 1)
@@ -368,7 +361,6 @@ module IterationKind = struct
 			let el = unroll [] 0 in
 			mk (TBlock el) t_void p
 		| IteratorIntConst(a,b,ascending) ->
-			check_loop_var_modification [v] e2;
 			if not ascending then raise_typing_error "Cannot iterate backwards" p;
 			let v_index = gen_local ctx t_int a.epos in
 			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
@@ -384,7 +376,6 @@ module IterationKind = struct
 				ewhile;
 			]) t_void p
 		| IteratorInt(a,b) ->
-			check_loop_var_modification [v] e2;
 			let v_index = gen_local ctx t_int a.epos in
 			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
 			let ev_index = make_local v_index v_index.v_pos in
@@ -413,8 +404,11 @@ module IterationKind = struct
 		| IteratorCustom(f_next,f_length) ->
 			gen_int_iter e1 pt f_next f_length
 		| IteratorIterator ->
-			begin try optimize_for_loop_iterator ctx v e1 e2 p
-			with Exit -> mk (TFor(v,e1,e2)) t_void p end
+			begin try
+				optimize_for_loop_iterator ctx v e1 e2 p
+			with Exit ->
+				Texpr.for_remap ctx.t v (ctx.t.titerator pt) e1 e2 p
+			end
 		| IteratorGenericStack c ->
 			let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> die "" __LOC__) in
 			let cell = gen_local ctx tcell p in
@@ -442,7 +436,7 @@ module IterationKind = struct
 				ewhile;
 			]) t_void p
 		| IteratorDynamic ->
-			mk (TFor(v,e1,e2)) t_void p
+			mk (TBlock []) t_void p
 end
 
 let get_unroll_params ctx e2 =
@@ -504,11 +498,7 @@ let type_for_loop ctx handle_display ik e1 e2 p =
 		check_display (i,pi,dko);
 		ctx.e.in_loop <- old_loop;
 		old_locals();
-		begin try
-			IterationKind.to_texpr ctx i iterator e2 p
-		with Exit ->
-			mk (TFor (i,iterator.it_expr,e2)) ctx.t.tvoid p
-		end
+		IterationKind.to_texpr ctx i iterator e2 p
 	| IKKeyValue((ikey,pkey,dkokey),(ivalue,pvalue,dkovalue)) ->
 		(match follow e1.etype with
 		| TDynamic _ | TMono _ ->

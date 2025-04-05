@@ -74,7 +74,7 @@ let create_error_context absolute_positions = {
 	previous = None;
 }
 
-let compiler_pretty_message_string com ectx cm =
+let compiler_pretty_message_string defines ectx cm =
 	match cm.cm_message with
 	(* Filter some messages that don't add much when using this message renderer *)
 	| "End of overload failure reasons" -> None
@@ -142,7 +142,7 @@ let compiler_pretty_message_string com ectx cm =
 
 		let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find cm.cm_depth ectx.max_lines)) with Not_found -> 0) + 2 in
 
-		let no_color = Define.defined com.defines Define.MessageNoColor in
+		let no_color = Define.defined defines Define.MessageNoColor in
 		let c_reset = if no_color then "" else "\x1b[0m" in
 		let c_bold = if no_color then "" else "\x1b[1m" in
 		let c_dim = if no_color then "" else "\x1b[2m" in
@@ -316,21 +316,21 @@ let get_max_line max_lines messages =
 		else max_lines
 	) max_lines messages
 
-let display_source_at com p =
-	let absolute_positions = Define.defined com.defines Define.MessageAbsolutePositions in
+let display_source_at defines p =
+	let absolute_positions = Define.defined defines Define.MessageAbsolutePositions in
 	let ectx = create_error_context absolute_positions in
 	let msg = make_compiler_message "" p 0 MessageKind.DKCompilerMessage MessageSeverity.Information in
 	ectx.max_lines <- get_max_line ectx.max_lines [msg];
-	match compiler_pretty_message_string com ectx msg with
+	match compiler_pretty_message_string defines ectx msg with
 		| None -> ()
 		| Some s -> prerr_endline s
 
 exception ConfigError of string
 
-let get_formatter com def default =
-	let format_mode = Define.defined_value_safe ~default com.defines def in
+let get_formatter defines def default =
+	let format_mode = Define.defined_value_safe ~default defines def in
 	match format_mode with
-		| "pretty" -> compiler_pretty_message_string com
+		| "pretty" -> compiler_pretty_message_string defines
 		| "indent" -> compiler_indented_message_string
 		| "classic" -> compiler_message_string
 		| m -> begin
@@ -345,11 +345,11 @@ let print_error (err : Error.error) =
 	) err;
 	!ret
 
-let format_messages com messages =
-	let absolute_positions = Define.defined com.defines Define.MessageAbsolutePositions in
+let format_messages defines messages =
+	let absolute_positions = Define.defined defines Define.MessageAbsolutePositions in
 	let ectx = create_error_context absolute_positions in
 	ectx.max_lines <- get_max_line ectx.max_lines messages;
-	let message_formatter = get_formatter com Define.MessageReporting "pretty" in
+	let message_formatter = get_formatter defines Define.MessageReporting "pretty" in
 	let lines = List.rev (
 		List.fold_left (fun lines cm -> match (message_formatter ectx cm) with
 			| None -> lines
@@ -369,14 +369,14 @@ let display_messages ctx on_message = begin
 	in
 
 	let get_formatter _ def default =
-		try get_formatter ctx.com def default
+		try get_formatter ctx.com.defines def default
 		with | ConfigError s ->
 			error s;
 			compiler_message_string
 	in
 
-	let message_formatter = get_formatter ctx.com Define.MessageReporting "pretty" in
-	let log_formatter = get_formatter ctx.com Define.MessageLogFormat "indent" in
+	let message_formatter = get_formatter ctx.com.defines Define.MessageReporting "pretty" in
+	let log_formatter = get_formatter ctx.com.defines Define.MessageLogFormat "indent" in
 
 	let log_messages = ref (Define.defined ctx.com.defines Define.MessageLogFile) in
 	let log_message = ref None in

@@ -127,10 +127,6 @@ let build_dependencies t =
 			List.iter (fun (v,_) -> add_type v.v_type) f.tf_args;
 			add_type f.tf_type;
 			add_expr f.tf_expr;
-		| TFor (v,e1,e2) ->
-			add_type v.v_type;
-			add_expr e1;
-			add_expr e2;
 		| TVar (v,eo) ->
 				add_type v.v_type;
 			begin match eo with
@@ -211,7 +207,7 @@ let build_swc_catalog com types =
 	let x = node "swc" ["xmlns","http://www.adobe.com/flash/swccatalog/9"] [
 		node "versions" [] [
 			node "swc" ["version","1.2"] [];
-			node "haxe" ["version",Printf.sprintf "%d.%.2d" (com.version/10000) (com.version mod 10000)] [];
+			node "haxe" ["version",Printf.sprintf "%d.%.2d" (com.Gctx.version.version/10000) (com.version.version mod 10000)] [];
 		];
 		node "features" [] [
 			node "feature-script-deps" [] [];
@@ -618,24 +614,24 @@ let generate swf_header swf_libs flash_version com =
 		{header with h_frame_count = header.h_frame_count + 1},loop tags
 	| _ -> swf in
 	(* write swf/swc *)
-	let t = Timer.timer ["write";"swf"] in
-	let level = (try int_of_string (Gctx.defined_value com Define.SwfCompressLevel) with Not_found -> 9) in
-	SwfParser.init Extc.input_zip (Extc.output_zip ~level);
-	(match swc with
-	| Some cat ->
-		let ch = IO.output_strings() in
-		Swf.write ch swf;
-		let swf = IO.close_out ch in
-		let z = Zip.open_out file in
-		Zip.add_entry (!cat) z "catalog.xml";
-		Zip.add_entry (match swf with [s] -> s | _ -> failwith "SWF too big for SWC") z ~level:0 "library.swf";
-		Zip.close_out z
-	| None ->
-		let ch = IO.output_channel (open_out_bin file) in
-		Swf.write ch swf;
-		IO.close_out ch;
-	);
-	t()
+	Timer.time com.timer_ctx ["write";"swf"] (fun () ->
+		let level = (try int_of_string (Gctx.defined_value com Define.SwfCompressLevel) with Not_found -> 9) in
+		SwfParser.init Extc.input_zip (Extc.output_zip ~level);
+		(match swc with
+		| Some cat ->
+			let ch = IO.output_strings() in
+			Swf.write ch swf;
+			let swf = IO.close_out ch in
+			let z = Zip.open_out file in
+			Zip.add_entry (!cat) z "catalog.xml";
+			Zip.add_entry (match swf with [s] -> s | _ -> failwith "SWF too big for SWC") z ~level:0 "library.swf";
+			Zip.close_out z
+		| None ->
+			let ch = IO.output_channel (open_out_bin file) in
+			Swf.write ch swf;
+			IO.close_out ch;
+		);
+	) ()
 
 ;;
 SwfParser.init Extc.input_zip Extc.output_zip;
