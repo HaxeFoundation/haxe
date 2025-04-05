@@ -66,7 +66,7 @@ class HttpJs extends haxe.http.HttpBase {
 				var rlocalProtocol = ~/^(?:about|app|app-storage|.+-extension|file|res|widget):$/;
 				var isLocal = rlocalProtocol.match(protocol);
 				if (isLocal) {
-					if (r.response == null || Bytes.ofData(r.response).length == 0 ) {
+					if (r.response == null || Bytes.ofData(r.response).length == 0) {
 						s = 404;
 					} else {
 						s = 200;
