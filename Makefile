@@ -63,26 +63,14 @@ NEKO_VERSION=2.4.0-rc.1
 NEKO_MAJOR_VERSION=$(shell echo "$(NEKO_VERSION)" | grep -oE "^[0-9]+")
 NEKO_VERSION_TAG=v$(shell echo "$(NEKO_VERSION)" | sed "s/\./-/g")
 
-ifneq ($(STATICLINK),0)
-	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre2-8 -lz -lmbedtls -lmbedx509 -lmbedcrypto -Wl,-Bdynamic '
-else
-	LIB_PARAMS?= -cclib -lpcre2-8 -cclib -lz -cclib -lmbedtls -cclib -lmbedx509 -cclib -lmbedcrypto
-endif
-ifeq ($(SYSTEM_NAME),Mac)
-	LIB_PARAMS+= -cclib '-framework Security -framework CoreFoundation'
-endif
-
 all: haxe tools
 
 haxe:
-	$(DUNE_COMMAND) build --workspace dune-workspace.dev src-prebuild/prebuild.exe
-	_build/default/src-prebuild/prebuild.exe libparams $(LIB_PARAMS) > lib.sexp
-	_build/default/src-prebuild/prebuild.exe version "$(ADD_REVISION)" "$(BRANCH)" "$(COMMIT_SHA)" > src/compiler/version.ml
-	$(DUNE_COMMAND) build --workspace dune-workspace.dev src/haxe.exe
+	dune build --profile release src/haxe.exe
 	cp -f _build/default/src/haxe.exe ./"$(HAXE_OUTPUT)"
 
 plugin: haxe
-	$(DUNE_COMMAND) build --workspace dune-workspace.dev plugins/$(PLUGIN)/$(PLUGIN).cmxs
+	$(DUNE_COMMAND) build --profile release plugins/$(PLUGIN)/$(PLUGIN).cmxs
 	mkdir -p plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)
 	cp -f _build/default/plugins/$(PLUGIN)/$(PLUGIN).cmxs plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)/plugin.cmxs
 
@@ -142,7 +130,7 @@ uninstall:
 	rm -rf $(DESTDIR)$(INSTALL_STD_DIR)
 
 opam_install:
-	opam install camlp5 ocamlfind dune --yes
+	opam install ocamlfind dune --yes
 
 haxe_deps:
 	opam pin add haxe . --no-action

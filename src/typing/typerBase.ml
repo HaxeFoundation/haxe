@@ -188,10 +188,37 @@ let assign_to_this_is_allowed ctx =
 		| KAbstractImpl _ ->
 			(match ctx.f.curfield.cf_kind with
 				| Method MethInline -> true
-				| Method _ when ctx.f.curfield.cf_name = "_new" -> true
+				| Method _ when has_class_field_flag ctx.f.curfield CfAbstractConstructor -> true
 				| _ -> false
 			)
 		| _ -> false
+
+let type_module_type_simple mt p =
+	(* No checks and building *)
+	let rec loop mt = match mt with
+		| TClassDecl c ->
+			mk (TTypeExpr (TClassDecl c)) c.cl_type p
+		| TEnumDecl e ->
+			mk (TTypeExpr (TEnumDecl e)) e.e_type p
+		| TTypeDecl s ->
+			let t = apply_typedef s (List.map (fun _ -> mk_mono()) s.t_params) in
+			begin match follow t with
+				| TEnum (e,params) ->
+					loop (TEnumDecl e)
+				| TInst (c,params) ->
+					loop (TClassDecl c)
+				| TAbstract (a,params) ->
+					loop (TAbstractDecl a)
+				| _ ->
+					die "" __LOC__
+			end
+		| TAbstractDecl { a_impl = Some c } ->
+			loop (TClassDecl c)
+		| TAbstractDecl a ->
+			let t_tmp = abstract_module_type a [] in
+			mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
+	in
+	loop mt
 
 let type_module_type ctx t p =
 	let rec loop t tparams =
@@ -211,7 +238,7 @@ let type_module_type ctx t p =
 		| TEnumDecl e ->
 			mk (TTypeExpr (TEnumDecl e)) e.e_type p
 		| TTypeDecl s ->
-			let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx.e p) s.t_params) in
+			let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx p) s.t_params) in
 			DeprecationCheck.check_typedef (create_deprecation_context ctx) s p;
 			(match follow t with
 			| TEnum (e,params) ->
@@ -269,7 +296,7 @@ let rec s_access_kind acc =
 	| AKUsingField sea -> Printf.sprintf "AKUsingField(%s)" (s_static_extension_access sea)
 	| AKUsingAccessor sea -> Printf.sprintf "AKUsingAccessor(%s)" (s_static_extension_access sea)
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
-	| AKResolve(_) -> ""
+	| AKResolve(sea,name) -> Printf.sprintf "AKResolve(%s, %s)" (s_static_extension_access sea) name
 
 and s_safe_nav_access sn =
 	let st = s_type (print_context()) in
@@ -326,7 +353,7 @@ let unify_static_extension ctx e t p =
 	if multitype_involed e.etype t then
 		AbstractCast.cast_or_unify_raise ctx t e p
 	else begin
-		Type.unify_custom {default_unification_context with allow_dynamic_to_cast = false} e.etype t;
+		Type.unify_custom {(default_unification_context()) with allow_dynamic_to_cast = false} e.etype t;
 		e
 	end
 

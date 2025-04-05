@@ -2,7 +2,7 @@ package cases;
 
 class Issue10704 extends DisplayTestCase {
 	/**
-		import misc.issue10704.Statics.*;
+		import issue10704.Statics.*;
 		class Main {
 			static function main() {
 				foo{-1-}

@@ -65,6 +65,24 @@ let is_internal_class = function
 let is_native_class class_def =
    (is_extern_class class_def || is_native_gen_class class_def) && not (is_internal_class class_def.cl_path)
 
+let can_quick_alloc klass =
+   let rec implements_native_interface class_def =
+      List.exists
+        (fun (intf_def, _) -> is_native_gen_class intf_def || implements_native_interface intf_def) class_def.cl_implements ||
+      match class_def.cl_super with
+      | Some (i, _) -> implements_native_interface i
+      | _ -> false
+   in
+
+  (not (is_native_class klass)) && not (implements_native_interface klass)
+
+let real_interfaces classes =
+   List.filter (function t, pl ->
+      (match (t, pl) with
+      | { cl_path = [ "cpp"; "rtti" ], _ }, [] -> false
+      | _ -> true))
+   classes
+
 let is_interface_type t =
    match follow t with
    | TInst (klass,params) -> (has_class_flag klass CInterface)
@@ -129,12 +147,7 @@ let is_numeric t =
       -> true
    | _
       -> false
-
-let is_cpp_function_instance t =
-   match follow t with
-   | TInst ({ cl_path = (["cpp"], "Function") }, _) -> true
-   | _ -> false
-
+   
 let is_objc_class klass =
    has_class_flag klass CExtern && Meta.has Meta.Objc klass.cl_meta
 
@@ -177,23 +190,6 @@ let is_array_or_dyn_array haxe_type =
    | TInst ({ cl_path = ([], "Array") }, _)
    | TType ({ t_path = ([], "Array")}, _) -> true
    | _ -> false
-
-let is_array_implementer haxe_type =
-   match follow haxe_type with
-   | TInst ({ cl_array_access = Some _ }, _) -> true
-   | _ -> false
-
-let rec has_rtti_interface c interface =
-   List.exists (function (t,pl) ->
-      (snd t.cl_path) = interface && (match fst t.cl_path with | ["cpp";"rtti"] -> true | _ -> false )
-   ) c.cl_implements ||
-      (match c.cl_super with None -> false | Some (c,_) -> has_rtti_interface c interface)
-
-let has_field_integer_lookup class_def =
-   has_rtti_interface class_def "FieldIntegerLookup"
-
-let has_field_integer_numeric_lookup class_def =
-   has_rtti_interface class_def "FieldNumericIntegerLookup"
 
 let should_implement_field x = is_physical_field x
 
@@ -317,33 +313,6 @@ let has_boot_field class_def =
    match TClass.get_cl_init class_def with
    | None -> List.exists has_field_init (List.filter should_implement_field class_def.cl_ordered_statics)
    | _ -> true
-
-(*
-   Functions are added in reverse order (oldest on right), then list is reversed because this is easier in ocaml
-   The order is important because cppia looks up functions by index
-*)
-let current_virtual_functions_rev clazz base_functions =
-   List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
-      | _, Method MethDynamic -> result
-      | TFun (args,return_type), Method _  ->
-          if (is_override elem ) then
-            if List.exists (fun (e,a,r) -> e.cf_name=elem.cf_name ) result then
-               result
-            else
-               (elem,args,return_type) :: result
-          else
-             (elem,args,return_type) :: result
-      | _,_ -> result
-    ) base_functions clazz.cl_ordered_fields
-
-let all_virtual_functions clazz =
-  let rec all_virtual_functions_rec clazz =
-   current_virtual_functions_rev clazz (match clazz.cl_super with
-       | Some def -> all_virtual_functions_rec (fst def)
-       | _ -> []
-     )
-   in
-   List.rev (all_virtual_functions_rec clazz)
 
 let class_name class_def =
   let (_, class_path) = class_def.cl_path in

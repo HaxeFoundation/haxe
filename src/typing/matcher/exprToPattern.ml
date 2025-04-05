@@ -33,7 +33,7 @@ let unapply_type_parameters params monos =
 		match t2,follow t2 with
 		| TMono m1,TMono m2 ->
 			unapplied := (m1,m1.tm_type) :: !unapplied;
-			Monomorph.bind m1 tp1.ttp_type;
+			Monomorph.do_bind m1 tp1.ttp_type;
 		| _ -> ()
 	) params monos;
 	!unapplied
@@ -63,7 +63,7 @@ let get_general_module_type ctx mt p =
 let unify_type_pattern ctx mt t p =
 	let tcl = get_general_module_type ctx mt p in
 	match tcl with
-		| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx.e p])) t p
+		| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx p])) t p
 		| _ -> die "" __LOC__
 
 let rec make pctx toplevel t e =

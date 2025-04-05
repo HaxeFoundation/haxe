@@ -1,4 +1,5 @@
 open Type
+open CppAst
 open CppStrings
 open CppTypeUtils
 open CppAstTools
@@ -9,7 +10,37 @@ open CppContext
    These are used for "#include"ing the appropriate header files,
    or for building the dependencies in the Build.xml file
 *)
-let find_referenced_types_flags ctx obj field_name super_deps constructor_deps header_only for_depends include_super_args =
+let find_referenced_types_flags ctx obj filter super_deps constructor_deps header_only for_depends include_super_args =
+  let all_virtual_functions clazz =
+    let current_virtual_functions_rev clazz base_functions =
+       let folder result elem =
+          match follow elem.cf_type, elem.cf_kind  with
+          | _, Method MethDynamic -> result
+          | TFun (args,return_type), Method _  ->
+              if (is_override elem ) then
+                if List.exists (fun (e,a,r) -> e.cf_name=elem.cf_name ) result then
+                   result
+                else
+                   (elem,args,return_type) :: result
+              else
+                 (elem,args,return_type) :: result
+          | _,_ -> result
+       in
+    
+       List.fold_left folder base_functions clazz.cl_ordered_fields
+    in
+ 
+    let rec all_virtual_functions_rec clazz =
+       let initial =
+          match clazz.cl_super with
+          | Some (def, _) -> all_virtual_functions_rec def
+          | _ -> [] in
+       current_virtual_functions_rev clazz initial
+    in
+ 
+    all_virtual_functions_rec clazz
+  in
+
   let types = ref PMap.empty in
   (if for_depends then
      let include_files =
@@ -22,7 +53,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
   let rec add_type_flag isNative in_path =
     if not (PMap.mem in_path !types) then (
       types := PMap.add in_path isNative !types;
-      try List.iter (add_type_flag isNative) (Hashtbl.find super_deps in_path)
+      try List.iter (add_type_flag isNative) (PathMap.find in_path super_deps)
       with Not_found -> ())
   and add_type in_path = add_type_flag false in_path in
   let add_extern_type decl =
@@ -113,7 +144,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
       | TNew (klass, params, _) -> (
           visit_type (TInst (klass, params));
           try
-            let construct_type = Hashtbl.find constructor_deps klass.cl_path in
+            let construct_type = PathMap.find klass.cl_path constructor_deps in
             visit_type construct_type.cf_type
           with Not_found -> ())
       (* Must visit type too, Type.iter will visit the expressions ... *)
@@ -133,7 +164,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
           | TInst (klass, params) -> (
               try
                 let construct_type =
-                  Hashtbl.find constructor_deps klass.cl_path
+                  PathMap.find klass.cl_path constructor_deps
                 in
                 visit_type construct_type.cf_type
               with Not_found -> ())
@@ -164,8 +195,11 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
         (match class_def.cl_constructor with Some expr -> [ expr ] | _ -> [])
     in
     let fields_and_constructor =
-      if field_name = "*" then fields_and_constructor
-      else List.filter (fun f -> f.cf_name = field_name) fields_and_constructor
+      match filter with
+      | Some field_name ->
+        List.filter (fun f -> f.cf_name = field_name) fields_and_constructor
+      | None ->
+        fields_and_constructor
     in
     List.iter visit_field fields_and_constructor;
     if include_super_args then
@@ -223,7 +257,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
 
 let find_referenced_types ctx obj super_deps constructor_deps header_only for_depends include_super_args =
   let deps, _ =
-    find_referenced_types_flags ctx obj "*" super_deps constructor_deps
+    find_referenced_types_flags ctx obj None super_deps constructor_deps
       header_only for_depends include_super_args
   in
   deps

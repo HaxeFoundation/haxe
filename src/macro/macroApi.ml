@@ -2,6 +2,7 @@ open Ast
 open DisplayTypes.DisplayMode
 open Type
 open Common
+open PlatformConfig
 open DefineList
 open MetaList
 open Globals
@@ -33,7 +34,8 @@ type 'value compiler_api = {
 	after_generate : (unit -> unit) -> unit;
 	on_type_not_found : (string -> 'value) -> unit;
 	parse_string : string -> Globals.pos -> bool -> Ast.expr;
-	parse : 'a . ((Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
+	register_file_contents : string -> string -> unit;
+	parse : 'a . (Parser.parser_ctx -> (Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
 	resolve_complex_type : Ast.type_hint -> Ast.type_hint;
@@ -1379,7 +1381,6 @@ and encode_texpr e =
 			| TFunction func -> 12,[encode_tfunc func]
 			| TVar (v,eo) -> 13,[encode_tvar v;vopt encode_texpr eo]
 			| TBlock el -> 14,[encode_texpr_list el]
-			| TFor(v,e1,e2) -> 15,[encode_tvar v;loop e1;loop e2]
 			| TIf(eif,ethen,eelse) -> 16,[loop eif;loop ethen;vopt encode_texpr eelse]
 			| TWhile(econd,e1,flag) -> 17,[loop econd;loop e1;vbool (flag = NormalWhile)]
 			| TSwitch switch ->
@@ -1529,7 +1530,7 @@ and decode_texpr v =
 		| 12, [f] -> TFunction(decode_tfunc f)
 		| 13, [v;eo] -> TVar(decode_tvar v,opt loop eo)
 		| 14, [vl] -> TBlock(List.map loop (decode_array vl))
-		| 15, [v;v1;v2] -> TFor(decode_tvar v,loop v1,loop v2)
+		(* 15 was TFor *)
 		| 16, [vif;vthen;velse] -> TIf(loop vif,loop vthen,opt loop velse)
 		| 17, [vcond;v1;b] -> TWhile(loop vcond,loop v1,if decode_bool b then NormalWhile else DoWhile)
 		| 18, [v1;cl;vdef] ->
@@ -1668,7 +1669,6 @@ let decode_path v =
 	(pack,name)
 
 let decode_platform_config v =
-	let open Common in
 	let capture_policy = match decode_enum (field v "capturePolicy") with
 		| 0, [] -> CPNone
 		| 1, [] -> CPWrapRef
@@ -1907,6 +1907,12 @@ let macro_api ccom get_api =
 			let s = decode_string s in
 			if s = "" then (get_api()).exc_string "Invalid expression";
 			encode_expr ((get_api()).parse_string s (decode_pos p) (decode_bool b))
+		);
+		"register_file_contents", vfun2 (fun f c ->
+			let f = decode_string f in
+			let content = decode_string c in
+			(get_api()).register_file_contents f content;
+			vnull
 		);
 		"make_expr", vfun2 (fun v p ->
 			encode_expr (value_to_expr v (decode_pos p))
@@ -2227,12 +2233,12 @@ let macro_api ccom get_api =
 				encode_obj ["file",encode_string p.Globals.pfile;"pos",vint p.Globals.pmin]
 		);
 		"get_display_mode", vfun0 (fun() ->
-			encode_display_mode !Parser.display_mode
+			encode_display_mode (ccom()).display.dms_kind;
 		);
 		"get_configuration", vfun0 (fun() ->
 			let com = ccom() in
 			encode_obj [
-				"version", vint com.version;
+				"version", vint com.version.version;
 				"args", encode_array (List.map encode_string com.args);
 				"debug", vbool com.debug;
 				"verbose", vbool com.verbose;
@@ -2240,7 +2246,7 @@ let macro_api ccom get_api =
 				"platform", encode_platform com.platform;
 				"platformConfig", encode_platform_config com.config;
 				"stdPath", encode_array (List.map (fun path -> encode_string path#path) com.class_paths#get_std_paths);
-				"mainClass", (match com.main.main_class with None -> vnull | Some path -> encode_path path);
+				"mainClass", (match com.main.main_path with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
 			]
 		);
@@ -2317,6 +2323,18 @@ let macro_api ccom get_api =
 			(get_api()).add_module_check_policy filter policy (decode_bool recursive);
 			vnull
 		);
+		"server_invalidate_module", vfun1 (fun p ->
+			let mpath = parse_path (decode_string p) in
+			let com = ccom() in
+			(try
+				ignore(com.module_lut#find mpath);
+				let msg = "Cannot invalidate loaded module " ^ (s_type_path mpath) in
+				let pos = get_api_call_pos() in
+				compiler_error (Error.make_error (Custom msg) pos)
+			with Not_found ->
+				com.cs#taint_module mpath ServerInvalidateModule);
+			vnull
+		);
 		"server_invalidate_files", vfun1 (fun a ->
 			let com = ccom() in
 			let cs = com.cs in
@@ -2349,6 +2367,10 @@ let macro_api ccom get_api =
 			] in
 			location
 		);
+		"position_to_zero_range", vfun1 (fun p ->
+			let p = decode_pos p in
+			encode_pos (mk_zero_range_pos p)
+		);
 		"on_null_safety_report", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
 			(ccom()).callbacks#add_null_safety_report (fun (errors:(string*pos) list) ->
@@ -2360,8 +2382,10 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"timer", vfun1 (fun id ->
-			let full_id = (Option.default [] (Timer.current_id())) @ [decode_string id] in
-			let stop = Timer.timer full_id in
+			let com = ccom() in
+			let full_id = com.timer_ctx.current.id @ [decode_string id] in
+			(* TIMERTODO: Exposing this seems potentially dangerous... Have to at least document. *)
+			let stop = Timer.start_timer com.timer_ctx full_id in
 			vfun0 (fun() -> stop(); vnull)
 		);
 		"map_anon_ref", vfun2 (fun a_ref fn ->
@@ -2373,9 +2397,9 @@ let macro_api ccom get_api =
 		);
 		"with_imports", vfun3(fun imports usings f ->
 			let imports = List.map decode_string (decode_array imports) in
-			let imports = List.map ((get_api()).parse (fun s -> Grammar.parse_import' s Globals.null_pos)) imports in
+			let imports = List.map ((get_api()).parse (fun pctx s -> Grammar.parse_import' pctx s Globals.null_pos)) imports in
 			let usings = List.map decode_string (decode_array usings) in
-			let usings = List.map ((get_api()).parse (fun s -> Grammar.parse_using' s Globals.null_pos)) usings in
+			let usings = List.map ((get_api()).parse (fun pctx s -> Grammar.parse_using' pctx s Globals.null_pos)) usings in
 			let f = prepare_callback f 0 in
 			(get_api()).with_imports imports usings (fun () -> f [])
 		);

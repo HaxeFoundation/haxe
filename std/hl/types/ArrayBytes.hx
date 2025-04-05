@@ -302,14 +302,14 @@ class BytesIterator<T> extends ArrayIterator<T> {
 
 	override function getDyn(pos:Int):Dynamic {
 		var pos:UInt = pos;
-		if (pos >= length)
+		if (pos >= (length : UInt))
 			return bytes.nullValue;
 		return bytes[pos];
 	}
 
 	override function setDyn(pos:Int, v:Dynamic) {
 		var pos:UInt = pos;
-		if (pos >= length)
+		if (pos >= (length : UInt))
 			__expand(pos);
 		bytes[pos] = v;
 	}

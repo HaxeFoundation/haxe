@@ -182,14 +182,11 @@ module CompletionModuleType = struct
 			raise Exit
 
 	let of_module_type mt =
-		let actor a = match a.a_impl with
-			| None -> No
-			| Some c ->
-				try
-					let cf = PMap.find "_new" c.cl_statics in
-					if (has_class_flag c CExtern) || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
-				with Not_found ->
-					No
+		let actor a = match a.a_impl,a.a_constructor with
+			| Some c,Some cf ->
+				if (has_class_flag c CExtern) || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
+			| _ ->
+				No
 		in
 		let ctor c =
 			try
