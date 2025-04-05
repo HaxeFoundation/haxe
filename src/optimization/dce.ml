@@ -827,8 +827,8 @@ let collect_entry_points dce types =
 		) dce.added_fields;
 	end
 
-let mark dce =
-	let rec loop pool =
+let mark pool dce =
+	let rec loop () =
 		if DynArray.length dce.added_fields > 0 then begin
 			let cfl = DynArray.to_array dce.added_fields in
 			DynArray.clear dce.added_fields;
@@ -847,10 +847,10 @@ let mark dce =
 					List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
 				end
 			) cfl;
-			loop pool
+			loop ()
 		end
 	in
-	Parallel.run_in_new_pool dce.scom.timer_ctx loop
+	loop ()
 
 let sweep dce types =
 	let rec loop acc types =
@@ -929,7 +929,7 @@ let sweep dce types =
 	in
 	loop [] (List.rev types)
 
-let run scom mscom main mode std_paths types =
+let run pool scom mscom main mode std_paths types =
 	let full = mode = DceFull in
 	let dce = {
 		scom = scom;
@@ -954,7 +954,7 @@ let run scom mscom main mode std_paths types =
 	Timer.time scom.timer_ctx ["filters";"dce";"collect"] collect_entry_points dce types;
 
 	(* second step: initiate DCE passes and keep going until no new fields were added *)
-	Timer.time scom.timer_ctx ["filters";"dce";"mark"] mark dce;
+	Timer.time scom.timer_ctx ["filters";"dce";"mark"] (mark pool) dce;
 
 	(* third step: filter types *)
 	let types = if mode <> DceNo then
