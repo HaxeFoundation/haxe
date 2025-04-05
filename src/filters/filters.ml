@@ -231,9 +231,14 @@ let destruction (com : Common.context) scom ectx detail_times main rename_locals
 	Common.enter_stage com CDceDone;
 
 	(* This has to run after DCE, or otherwise its condition always holds. *)
-	List.iter (
-		SafeCom.run_expression_filters_safe ~ignore_processed_status:true scom detail_times ["insert_save_stacks",SaveStacks.insert_save_stacks com ectx]
-	) types;
+	begin match ectx with
+		| Some ectx when Common.has_feature com "haxe.NativeStackTrace.exceptionStack" ->
+			List.iter (
+				SafeCom.run_expression_filters_safe ~ignore_processed_status:true scom detail_times ["insert_save_stacks",SaveStacks.insert_save_stacks ectx]
+			) types
+		| _ ->
+			()
+	end;
 
 	with_timer scom.timer_ctx detail_times "type 3" None (fun () ->
 		SafeCom.run_with_scom com scom (fun () ->

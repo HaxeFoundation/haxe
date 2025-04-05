@@ -1,7 +1,6 @@
 open Globals
-open Common
+open SafeCom
 open Type
-open Typecore
 open Error
 open ExceptionFunctions
 open Exceptions
@@ -9,75 +8,60 @@ open Exceptions
 (**
 	Inserts `haxe.NativeStackTrace.saveStack(e)` in non-haxe.Exception catches.
 *)
-let insert_save_stacks com ectx =
-	let scom = ectx.scom in
-	if not (has_feature com "haxe.NativeStackTrace.exceptionStack") then
-		(fun e -> e)
-	else
-		let native_stack_trace_cls = ectx.haxe_native_stack_trace in
-		let rec contains_insertion_points e =
-			match e.eexpr with
-			| TTry (e, catches) ->
-				List.exists (fun (v, _) -> Meta.has Meta.NeedsExceptionStack v.v_meta) catches
-				|| contains_insertion_points e
-				|| List.exists (fun (_, e) -> contains_insertion_points e) catches
-			| _ ->
-				check_expr contains_insertion_points e
+let insert_save_stacks ectx scom =
+	let native_stack_trace_cls = ectx.haxe_native_stack_trace in
+	let rec contains_insertion_points e =
+		match e.eexpr with
+		| TTry (e, catches) ->
+			List.exists (fun (v, _) -> Meta.has Meta.NeedsExceptionStack v.v_meta) catches
+			|| contains_insertion_points e
+			|| List.exists (fun (_, e) -> contains_insertion_points e) catches
+		| _ ->
+			check_expr contains_insertion_points e
+	in
+	let save_exception_stack catch_var =
+		let method_field =
+			try PMap.find "saveStack" native_stack_trace_cls.cl_statics
+			with Not_found -> raise_typing_error ("haxe.NativeStackTrace has no field saveStack") null_pos
 		in
-		let save_exception_stack catch_var =
-			(* GOTCHA: `has_feature` always returns `true` if executed before DCE filters *)
-			if has_feature com "haxe.NativeStackTrace.exceptionStack" then
-				let method_field =
-					try PMap.find "saveStack" native_stack_trace_cls.cl_statics
-					with Not_found -> raise_typing_error ("haxe.NativeStackTrace has no field saveStack") null_pos
-				in
-				let return_type =
-					match follow method_field.cf_type with
-					| TFun(_,t) -> t
-					| _ -> raise_typing_error ("haxe.NativeStackTrace." ^ method_field.cf_name ^ " is not a function and cannot be called") null_pos
-				in
-				let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
-				begin
-					add_dependency scom.curclass.cl_module native_stack_trace_cls.cl_module MDepFromTyping;
-					make_static_call scom native_stack_trace_cls method_field [catch_local] return_type catch_var.v_pos
-				end
-			else
-				mk (TBlock[]) scom.basic.tvoid catch_var.v_pos
+		let return_type =
+			match follow method_field.cf_type with
+			| TFun(_,t) -> t
+			| _ -> raise_typing_error ("haxe.NativeStackTrace." ^ method_field.cf_name ^ " is not a function and cannot be called") null_pos
 		in
-		let rec run e =
-			match e.eexpr with
-			| TTry (e1, catches) ->
-				let e1 = map_expr run e1 in
-				let catches =
-					List.map (fun ((v, body) as catch) ->
-						if Meta.has Meta.NeedsExceptionStack v.v_meta then
-							let exprs =
-								match body.eexpr with
-								| TBlock exprs ->
-									save_exception_stack v :: exprs
-								| _ ->
-									[save_exception_stack v; body]
-							in
-							(v, { body with eexpr = TBlock exprs })
-						else
-							catch
-					) catches
-				in
-				{ e with eexpr = TTry (e1, catches) }
-			| _ ->
-				map_expr run e
-		in
-		(fun e ->
-			if contains_insertion_points e then run e
-			else e
-		)
-
-let insert_save_stacks com ectx scom =
-	match ectx with
-	| Some ctx ->
-		insert_save_stacks com {ctx with scom = scom}
-	| None ->
-		(fun e -> e)
+		let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
+		begin
+			add_dependency scom.curclass.cl_module native_stack_trace_cls.cl_module MDepFromTyping;
+			make_static_call scom native_stack_trace_cls method_field [catch_local] return_type catch_var.v_pos
+		end
+	in
+	let rec run e =
+		match e.eexpr with
+		| TTry (e1, catches) ->
+			let e1 = map_expr run e1 in
+			let catches =
+				List.map (fun ((v, body) as catch) ->
+					if Meta.has Meta.NeedsExceptionStack v.v_meta then
+						let exprs =
+							match body.eexpr with
+							| TBlock exprs ->
+								save_exception_stack v :: exprs
+							| _ ->
+								[save_exception_stack v; body]
+						in
+						(v, { body with eexpr = TBlock exprs })
+					else
+						catch
+				) catches
+			in
+			{ e with eexpr = TTry (e1, catches) }
+		| _ ->
+			map_expr run e
+	in
+	(fun e ->
+		if contains_insertion_points e then run e
+		else e
+	)
 
 (**
 	Adds `this.__shiftStack()` calls to constructors of classes which extend `haxe.Exception`
