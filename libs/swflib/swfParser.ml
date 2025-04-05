@@ -444,7 +444,7 @@ and tag_length t =
 (* READ PRIMS *)
 
 let skip ch n =
-	seek_in ch ((Pervasives.pos_in ch) + n)
+	seek_in ch ((Stdlib.pos_in ch) + n)
 
 let read_rgba ch =
 	let r = read_byte ch in

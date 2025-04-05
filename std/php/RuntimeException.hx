@@ -22,5 +22,44 @@
 
 package php;
 
+/**
+	Exception thrown if an error which can only be found on runtime occurs.
+**/
 @:native('RuntimeException')
 extern class RuntimeException extends Exception {}
+
+/**
+	Exception thrown if a value is not a valid key.
+	This represents errors that cannot be detected at compile time.
+**/
+@:native('OutOfBoundsException')
+extern class OutOfBoundsException extends RuntimeException {}
+
+/**
+	Exception thrown when adding an element to a full container.
+**/
+@:native('OverflowException')
+extern class OverflowException extends RuntimeException {}
+
+/**
+	Exception thrown to indicate range errors during program execution.
+	Normally this means there was an arithmetic error other than under/overflow.
+**/
+@:native('RangeException')
+extern class RangeException extends RuntimeException {}
+
+/**
+	Exception thrown when performing an invalid operation on an empty container,
+	such as removing an element.
+**/
+@:native('UnderflowException')
+extern class UnderflowException extends RuntimeException {}
+
+/**
+	Exception thrown if a value does not match with a set of values.
+	Typically this happens when a function calls another function and
+	expects the return value to be of a certain type or value not including
+	arithmetic or buffer related errors.
+**/
+@:native('UnexpectedValueException')
+extern class UnexpectedValueException extends RuntimeException {}

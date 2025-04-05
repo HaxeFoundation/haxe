@@ -74,7 +74,7 @@ package haxe.ds;
 
 	public function toString():String {
 		var s = new StringBuf();
-		s.add("{");
+		s.add("[");
 		var it = keys();
 		for (i in it) {
 			s.add(i);
@@ -83,7 +83,11 @@ package haxe.ds;
 			if (it.hasNext())
 				s.add(", ");
 		}
-		s.add("}");
+		s.add("]");
 		return s.toString();
+	}
+
+	public inline function clear():Void {
+		h = untyped __dollar__hnew(0);
 	}
 }

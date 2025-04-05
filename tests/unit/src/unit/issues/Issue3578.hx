@@ -14,8 +14,8 @@ class Issue3578 extends Test
 
 private class TestG
 {
-	public var func:Void->Void;
-	public function new(callback:Void->Void)
+	public var func:()->Void;
+	public function new(callback:()->Void)
 	{
 		function x()
 		{

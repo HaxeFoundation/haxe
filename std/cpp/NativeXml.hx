@@ -221,7 +221,7 @@ class Xml {
 	function new():Void {}
 
 	@:native("parse_xml")
-	extern static function parse_xml(str:String, state:NativeXmlState);
+	extern static function parse_xml(str:String, state:NativeXmlState):String;
 
 	public static function parse(str:String):Xml {
 		var x = new Xml();

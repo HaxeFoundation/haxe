@@ -6,6 +6,6 @@ class MySubClass extends MyClass {
 		return val * 2;
 	}
 
-	@:keep #if as3 public #end static var XXX = 3;
+	@:keep static var XXX = 3;
 
 }

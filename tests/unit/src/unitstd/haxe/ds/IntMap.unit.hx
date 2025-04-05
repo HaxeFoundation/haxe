@@ -56,6 +56,16 @@ var values2b = [for (k=>v in map2) v];
 values2b.sort(Reflect.compare); 
 values2b == ["2","4","6"];
 
+// clear
+map2.clear();
+map2.get(1) == null;
+map2.exists(1) == false;
+map2.exists(2) == false;
+map2.exists(3) == false;
+
+var keys3 = [for (k in map2.keys()) k];
+keys3 == [];
+
 
 // Test unification
 

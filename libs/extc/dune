@@ -1,0 +1,20 @@
+(include_subdirs no)
+
+(library
+	(name extc)
+	(libraries extlib)
+	(foreign_stubs
+		(language c)
+		(names extc_stubs))
+	(modules extc)
+	(wrapped false)
+)
+
+(library
+	(name extproc)
+	(foreign_stubs
+		(language c)
+		(names process_stubs))
+	(modules process)
+	(wrapped false)
+)

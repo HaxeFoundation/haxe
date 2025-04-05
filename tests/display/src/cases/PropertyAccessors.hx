@@ -14,7 +14,7 @@ class PropertyAccessors extends DisplayTestCase {
 	function test() {
 		eq(range(3, 4), position(pos(1)));
 		eq(range(5, 6), position(pos(2)));
-		eq("Void -> String", type(pos(1)));
+		eq("() -> String", type(pos(1)));
 		eq("(s : String) -> String", type(pos(2)));
 	}
 }

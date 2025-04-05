@@ -1,0 +1,1 @@
+ImportClassField.hx:1: characters 1-24 : Class<ClassFields> has no field baz (Suggestion: bar)

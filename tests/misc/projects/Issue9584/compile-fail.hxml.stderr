@@ -1,0 +1,3 @@
+Main.hx:5: characters 74-81 : Object requires field y
+Main.hx:5: characters 74-81 : { x : Int } should be { y : Int, x : Int }
+Main.hx:5: characters 74-81 : ... { x : Int } has no field y

@@ -48,7 +48,7 @@ abstract Int32Array(Int32ArrayData) {
 	}
 
 	@:arrayAccess public inline function set(index:Int, value:Int):Int {
-		return this[index] = value | 0; // necessary for html compat
+		return this[index] = value;
 	}
 
 	public inline function sub(begin:Int, ?length:Int):Int32Array {

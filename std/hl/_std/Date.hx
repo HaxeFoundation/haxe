@@ -186,7 +186,7 @@ import hl.Ref;
 	@:hlNative
 	static function date_get_inf(t:Int, year:Ref<Int>, month:Ref<Int>, day:Ref<Int>, hours:Ref<Int>, minutes:Ref<Int>, seconds:Ref<Int>, wday:Ref<Int>):Void {}
 
-	@:hlNative
+	@:hlNative(1.11)
 	static function date_get_utc_inf(t:Int, year:Ref<Int>, month:Ref<Int>, day:Ref<Int>, hours:Ref<Int>, minutes:Ref<Int>, seconds:Ref<Int>, wday:Ref<Int>):Void {}
 
 	@:hlNative

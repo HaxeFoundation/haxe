@@ -22,6 +22,8 @@
 
 package haxe.http;
 
+import haxe.io.Bytes;
+
 private typedef StringKeyValue = {
 	var name:String;
 	var value:String;
@@ -32,7 +34,7 @@ private typedef StringKeyValue = {
 	platforms. There are two intended usages:
 
 	- call `haxe.Http.requestUrl(url)` and receive the result as a `String`
-	(not available on flash)
+	(only available on `sys` targets)
 	- create a `new haxe.Http(url)`, register your callbacks for `onData`,
 	`onError` and `onStatus`, then call `request()`.
 **/
@@ -44,11 +46,16 @@ class HttpBase {
 	**/
 	public var url:String;
 
-	public var responseData(default, null):Null<String>;
+	public var responseData(get,never):Null<String>;
+	public var responseBytes(default,null):Null<Bytes>;
 
-	var postData:String;
+	var responseAsString:Null<String>;
+	var postData:Null<String>;
+	var postBytes:Null<Bytes>;
 	var headers:Array<StringKeyValue>;
 	var params:Array<StringKeyValue>;
+
+	final emptyOnData:(String)->Void;
 
 	/**
 		Creates a new Http instance with `url` as parameter.
@@ -65,12 +72,13 @@ class HttpBase {
 		this.url = url;
 		headers = [];
 		params = [];
+		emptyOnData = onData;
 	}
 
 	/**
-		Sets the header identified as `header` to value `value`.
+		Sets the header identified as `name` to value `value`.
 
-		If `header` or `value` are null, the result is unspecified.
+		If `name` or `value` are null, the result is unspecified.
 
 		This method provides a fluent interface.
 	**/
@@ -95,9 +103,9 @@ class HttpBase {
 	}
 
 	/**
-		Sets the parameter identified as `param` to value `value`.
+		Sets the parameter identified as `name` to value `value`.
 
-		If `header` or `value` are null, the result is unspecified.
+		If `name` or `value` are null, the result is unspecified.
 
 		This method provides a fluent interface.
 	**/
@@ -122,17 +130,36 @@ class HttpBase {
 	}
 
 	/**
-		Sets the post data of `this` Http request to `data`.
+		Sets the post data of `this` Http request to `data` string.
 
-		There can only be one post data per request. Subsequent calls overwrite
-		the previously set value.
+		There can only be one post data per request. Subsequent calls to
+		this method or to `setPostBytes()` overwrite the previously set value.
 
 		If `data` is null, the post data is considered to be absent.
 
 		This method provides a fluent interface.
 	**/
-	public function setPostData(data:String) {
+	public function setPostData(data:Null<String>) {
 		postData = data;
+		postBytes = null;
+		#if hx3compat
+		return this;
+		#end
+	}
+
+	/**
+		Sets the post data of `this` Http request to `data` bytes.
+
+		There can only be one post data per request. Subsequent calls to
+		this method or to `setPostData()` overwrite the previously set value.
+
+		If `data` is null, the post data is considered to be absent.
+
+		This method provides a fluent interface.
+	**/
+	public function setPostBytes(data:Null<Bytes>) {
+		postBytes = data;
+		postData = null;
 		#if hx3compat
 		return this;
 		#end
@@ -145,7 +172,7 @@ class HttpBase {
 		sent as GET request.
 
 		Depending on the outcome of the request, this method calls the
-		`onStatus()`, `onError()` or `onData()` callback functions.
+		`onStatus()`, `onError()`, `onData()` or `onBytes()` callback functions.
 
 		If `this.url` is null, the result is unspecified.
 
@@ -156,7 +183,7 @@ class HttpBase {
 		this method returns.
 	**/
 	public function request(?post:Bool):Void {
-		throw "not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 	}
 
 	/**
@@ -167,6 +194,15 @@ class HttpBase {
 		`httpInstance.onData = function(data) { // handle result }`
 	**/
 	public dynamic function onData(data:String) {}
+
+	/**
+		This method is called upon a successful request, with `data` containing
+		the result String.
+
+		The intended usage is to bind it to a custom function:
+		`httpInstance.onBytes = function(data) { // handle result }`
+	**/
+	public dynamic function onBytes(data:Bytes) {}
 
 	/**
 		This method is called upon a request error, with `msg` containing the
@@ -185,4 +221,31 @@ class HttpBase {
 		`httpInstance.onStatus = function(status) { // handle status }`
 	**/
 	public dynamic function onStatus(status:Int) {}
+
+	/**
+		Override this if extending `haxe.Http` with overriding `onData`
+	**/
+	function hasOnData():Bool {
+		return !Reflect.compareMethods(onData, emptyOnData);
+	}
+
+	function success(data:Bytes) {
+		responseBytes = data;
+		responseAsString = null;
+		if (hasOnData()) {
+			onData(responseData);
+		}
+		onBytes(responseBytes);
+	}
+
+	function get_responseData() {
+		if (responseAsString == null && responseBytes != null) {
+			#if neko
+			responseAsString = neko.Lib.stringReference(responseBytes);
+			#else
+			responseAsString = responseBytes.getString(0, responseBytes.length, UTF8);
+			#end
+		}
+		return responseAsString;
+	}
 }

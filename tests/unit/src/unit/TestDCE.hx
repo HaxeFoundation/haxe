@@ -1,57 +1,85 @@
 package unit;
 
 private typedef Foo = {
-	var bar(get, null): Bar;
+	var bar(get, null):Bar;
 }
 
 private typedef Bar = {
-	var data: Int;
+	var data:Int;
 }
 
 private class AdrianV {
-	public var bar(get, null): Bar = {data: 100};
+	public var bar(get, null):Bar = {data: 100};
+
 	function get_bar() {
 		return bar;
 	}
 
 	public function new() {}
 
-	static public function testFoo(foo: Foo) {
+	static public function testFoo(foo:Foo) {
 		return foo.bar.data;
 	}
 }
 
+@:generic @:keepSub @:keep
+class GenericKeepSub<T> {}
+
+class ChildOfGenericKeepSub extends GenericKeepSub<String> {}
+
 @:analyzer(no_local_dce)
 class DCEClass {
 	// used statics
-	static function staticUsed() { }
-	@:keep static function staticKeep() { }
+	static function staticUsed() {}
+
+	@:keep static function staticKeep() {}
+
 	static var staticVarUsed = "foo";
 	@:isVar static var staticPropUsed(get, set):Int = 1;
-	static function get_staticPropUsed() return staticPropUsed;
-	static function set_staticPropUsed(i:Int) return 0;
+
+	static function get_staticPropUsed()
+		return staticPropUsed;
+
+	static function set_staticPropUsed(i:Int)
+		return 0;
 
 	// used members
-	function memberUsed() { }
-	@:keep function memberKeep() { }
+	function memberUsed() {}
+
+	@:keep function memberKeep() {}
+
 	var memberVarUsed = 0;
 	@:isVar var memberPropUsed(get, set):Int = 1;
-	function get_memberPropUsed() return memberPropUsed;
-	function set_memberPropUsed(i:Int) return 0;
+
+	function get_memberPropUsed()
+		return memberPropUsed;
+
+	function set_memberPropUsed(i:Int)
+		return 0;
 
 	// unused statics
-	static function staticUnused() { }
+	static function staticUnused() {}
+
 	static var staticVarUnused = "bar";
 	static var staticPropUnused(get, set):Int;
-	static function get_staticPropUnused() return 0;
-	static function set_staticPropUnused(i:Int) return 0;
+
+	static function get_staticPropUnused()
+		return 0;
+
+	static function set_staticPropUnused(i:Int)
+		return 0;
 
 	// unused members
-	function memberUnused() { }
+	function memberUnused() {}
+
 	var memberVarUnused = 1;
 	var memberPropUnused(get, set):Int;
-	function get_memberPropUnused() return 0;
-	function set_memberPropUnused(i:Int) return 0;
+
+	function get_memberPropUnused()
+		return 0;
+
+	function set_memberPropUnused(i:Int)
+		return 0;
 
 	static var c:Array<Dynamic> = [null, unit.UsedReferenced2];
 
@@ -68,7 +96,9 @@ class DCEClass {
 
 		new UsedConstructed();
 
-		try cast (null, UsedReferenced) catch(e:Dynamic) { }
+		try
+			cast(null, UsedReferenced)
+		catch (e:Dynamic) {}
 
 		new UsedAsBaseChild();
 		c.push(null);
@@ -77,7 +107,6 @@ class DCEClass {
 
 @:analyzer(no_local_dce)
 class TestDCE extends Test {
-
 	public function testFields() {
 		var dce = new DCEClass();
 		var c = Type.getClass(dce);
@@ -140,7 +169,7 @@ class TestDCE extends Test {
 	}
 
 	// TODO: this should be possible in lua
-	#if (!cpp && !java && !cs && !lua)
+	#if (!cpp && !jvm && !lua)
 	public function testProperty2() {
 		var a = new RemovePropertyKeepAccessors();
 		a.test = 3;
@@ -177,11 +206,15 @@ class TestDCE extends Test {
 		var c = new ThrownWithToString();
 		try {
 			throw c;
-		} catch (_:Dynamic) { }
+		} catch (_:Dynamic) {}
 		#if js
 		if (!js.Browser.supported || js.Browser.navigator.userAgent.indexOf('MSIE 8') == -1)
 		#end
 		hf(ThrownWithToString, "toString");
+	}
+
+	function testIssue6500() {
+		t(Type.resolveClass("unit.ChildOfGenericKeepSub") != null);
 	}
 
 	public function testIssue7259() {
@@ -190,22 +223,28 @@ class TestDCE extends Test {
 		var c = Type.getClass(me);
 		hf(c, "get_bar");
 	}
+
+	public function testIssue10162() {
+		eq('bar', foo(ClassWithBar));
+	}
+
+	static function foo<T:Class<Dynamic> & {function bar():String;}>(cls:T)
+		return cls.bar();
+}
+
+class ClassWithBar {
+	static public function bar()
+		return 'bar';
 }
 
 class UsedConstructed {
-	public function new() { }
+	public function new() {}
 }
 
-class UsedReferenced { }
-class UsedReferenced2 { }
-
-class UsedConstructedChild extends UsedConstructed {
-
-}
-
-class UsedReferencedChild extends UsedReferenced {
-
-}
+class UsedReferenced {}
+class UsedReferenced2 {}
+class UsedConstructedChild extends UsedConstructed {}
+class UsedReferencedChild extends UsedReferenced {}
 
 interface UsedInterface {
 	public function usedInterfaceFunc():Void;
@@ -213,26 +252,28 @@ interface UsedInterface {
 }
 
 class UsedThroughInterface implements UsedInterface {
-	public function new() { }
-	public function usedInterfaceFunc():Void { }
-	public function unusedInterfaceFunc():Void { }
-	public function otherFunc() { }
+	public function new() {}
+
+	public function usedInterfaceFunc():Void {}
+
+	public function unusedInterfaceFunc():Void {}
+
+	public function otherFunc() {}
 }
 
-class UsedAsBase { }
+class UsedAsBase {}
+
 class UsedAsBaseChild extends UsedAsBase {
-	public function new() { }
+	public function new() {}
 }
 
-class Unused {
-
-}
-
-class UnusedChild extends Unused { }
+class Unused {}
+class UnusedChild extends Unused {}
 
 class UnusedImplements implements UsedInterface {
-	public function usedInterfaceFunc():Void { }
-	public function unusedInterfaceFunc():Void { }
+	public function usedInterfaceFunc():Void {}
+
+	public function unusedInterfaceFunc():Void {}
 }
 
 interface PropertyInterface {
@@ -240,37 +281,49 @@ interface PropertyInterface {
 }
 
 class PropertyAccessorsFromBaseClass {
-	public function get_x() return throw "must not set";
-	public function set_x(x:String) return "ok";
+	public function get_x()
+		return throw "must not set";
+
+	public function set_x(x:String)
+		return "ok";
 }
 
 class PropertyAccessorsFromBaseClassChild extends PropertyAccessorsFromBaseClass implements PropertyInterface {
 	public var x(get, set):String;
-	public function new() { }
+
+	public function new() {}
 }
 
 class InterfaceMethodFromBaseClass {
-	public function usedInterfaceFunc():Void { }
-	public function unusedInterfaceFunc():Void { }
+	public function usedInterfaceFunc():Void {}
+
+	public function unusedInterfaceFunc():Void {}
 }
 
 class InterfaceMethodFromBaseClassChild extends InterfaceMethodFromBaseClass implements UsedInterface {
-	public function new() { }
+	public function new() {}
 }
 
 class ThrownWithToString {
-	public function new() { }
-	public function toString() { return "I was thrown today"; }
+	public function new() {}
+
+	public function toString() {
+		return "I was thrown today";
+	}
 }
 
-
-class RemovePropertyKeepAccessors
-{
+class RemovePropertyKeepAccessors {
 	public function new() {}
 
 	var _test:Float;
+
 	public var test(get, set):Float;
 
-	public function get_test():Float return _test;
-	public function set_test(a:Float):Float { _test = a; return _test; }
+	public function get_test():Float
+		return _test;
+
+	public function set_test(a:Float):Float {
+		_test = a;
+		return _test;
+	}
 }

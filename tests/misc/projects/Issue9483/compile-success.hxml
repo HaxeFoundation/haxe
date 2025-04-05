@@ -1,0 +1,3 @@
+--main Main
+--macro Macro.build()
+--macro nullSafety("pack", Loose)

@@ -24,9 +24,7 @@ package haxe.ds;
 
 import haxe.ds.StringMap;
 import haxe.ds.IntMap;
-import haxe.ds.HashMap;
 import haxe.ds.ObjectMap;
-import haxe.ds.WeakMap;
 import haxe.ds.EnumValueMap;
 import haxe.Constraints.IMap;
 
@@ -46,6 +44,7 @@ import haxe.Constraints.IMap;
 
 	@see https://haxe.org/manual/std-Map.html
 **/
+@:transitive
 @:multiType(@:followWithAbstracts K)
 abstract Map<K, V>(IMap<K, V>) {
 	/**
@@ -152,6 +151,13 @@ abstract Map<K, V>(IMap<K, V>) {
 	**/
 	public inline function toString():String {
 		return this.toString();
+	}
+
+	/**
+		Removes all keys from `this` Map.
+	**/
+	public inline function clear():Void {
+		this.clear();
 	}
 
 	@:arrayAccess @:noCompletion public inline function arrayWrite(k:K, v:V):V {

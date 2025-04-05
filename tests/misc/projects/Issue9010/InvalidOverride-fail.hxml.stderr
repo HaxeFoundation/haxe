@@ -1,0 +1,2 @@
+InvalidOverride.hx:4: characters 2-10 : Invalid accessor 'override' for variable field
+InvalidOverride.hx:6: characters 20-24 : Field some is declared 'override' but doesn't override any field

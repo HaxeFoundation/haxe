@@ -37,7 +37,7 @@ let find_property_for_accessor ~isget cl tl accessor_name =
 		None
 
 let is_extern_instance_accessor ~isget cl tl cf =
-	if cl.cl_extern && (if isget then is_getter_name cf.cf_name else is_setter_name cf.cf_name) then
+	if (has_class_flag cl CExtern) && (if isget then is_getter_name cf.cf_name else is_setter_name cf.cf_name) then
 		find_property_for_accessor ~isget cl tl cf.cf_name
 	else
 		None
@@ -54,7 +54,7 @@ let find_static_property_for_accessor ~isget cl accessor_name =
 		None
 
 let is_extern_static_accessor ~isget cl cf =
-	if cl.cl_extern && (if isget then is_getter_name cf.cf_name else is_setter_name cf.cf_name) then
+	if (has_class_flag cl CExtern) && (if isget then is_getter_name cf.cf_name else is_setter_name cf.cf_name) then
 		find_static_property_for_accessor ~isget cl cf.cf_name
 	else
 		None

@@ -168,8 +168,8 @@ class XmlParser {
 					break;
 				}
 			if (found == null)
-				return false; // don't allow by-platform constructor ?
-			if (curplatform != null)
+				e.constructors.push(c2);
+			else if (curplatform != null)
 				found.platforms.push(curplatform);
 		}
 		return true;
@@ -371,12 +371,17 @@ class XmlParser {
 		var fields = new Array();
 		var statics = new Array();
 		var meta = [];
+		var isInterface = x.x.exists("interface");
 		for (c in x.elements)
 			switch (c.name) {
 				case "haxe_doc":
 					doc = c.innerData;
 				case "extends":
-					csuper = xpath(c);
+					if (isInterface) {
+						interfaces.push(xpath(c));
+					} else {
+						csuper = xpath(c);
+					}
 				case "implements":
 					interfaces.push(xpath(c));
 				case "haxe_dynamic":
@@ -396,7 +401,8 @@ class XmlParser {
 			doc: doc,
 			isPrivate: x.x.exists("private"),
 			isExtern: x.x.exists("extern"),
-			isInterface: x.x.exists("interface"),
+			isFinal: x.x.exists("final"),
+			isInterface: isInterface,
 			params: mkTypeParams(x.att.params),
 			superClass: csuper,
 			interfaces: interfaces,

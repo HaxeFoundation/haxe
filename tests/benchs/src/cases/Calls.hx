@@ -35,13 +35,17 @@ class CallClassChild extends CallClass {
 	override function overrideCall2(s2:String, s2:String) { return null; }
 }
 
+typedef TInstanceCall0 = { function instanceCall0():String; };
+typedef TInstanceCall1 = { function instanceCall1(s1:String):String; }
+typedef TInstanceCall2 = { function instanceCall2(s1:String, s2:String):String; }
+
 class Calls extends TestCase {
 	@:analyzer(ignore)
 	function measureCall0() {
 		var c = new CallClass();
 		var cSub:CallClass = new CallClassChild();
 		var cInterface:CallInterface = c;
-		var cAnon:{ function instanceCall0():String; } = c;
+		var cAnon:TInstanceCall0 = c;
 		var cActualAnon = {
 			instanceCall0: function ():String {
 				return null;
@@ -75,9 +79,7 @@ class Calls extends TestCase {
 		var c = new CallClass();
 		var cSub:CallClass = new CallClassChild();
 		var cInterface:CallInterface = c;
-		var cAnon:{
-			function instanceCall1(s1:String):String;
-		} = c;
+		var cAnon:TInstanceCall1 = c;
 		var cActualAnon = {
 			instanceCall1: function (s1:String):String {
 				return null;
@@ -111,9 +113,7 @@ class Calls extends TestCase {
 		var c = new CallClass();
 		var cSub:CallClass = new CallClassChild();
 		var cInterface:CallInterface = c;
-		var cAnon:{
-			function instanceCall2(s1:String, s2:String):String;
-		} = c;
+		var cAnon:TInstanceCall2 = c;
 		var cActualAnon = {
 			instanceCall2: function (s1:String, s2:String):String {
 				return null;

@@ -27,6 +27,6 @@ import python.Syntax;
 
 @:pythonImport("io", "StringIO")
 extern class StringIO extends TextIOBase {
-	public function new(?s:String):Void;
-	public function getvalue():String;
+	function new(?s:String):Void;
+	function getvalue():String;
 }

@@ -73,7 +73,7 @@ class FileOutput extends haxe.io.Output {
 				w = SEEK_END;
 		}
 		var r = fseek(__f, p, w);
-		if (r == false)
+		if (r == -1)
 			throw haxe.io.Error.Custom('An error occurred');
 	}
 

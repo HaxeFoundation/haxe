@@ -11,6 +11,10 @@ s == "あ";
 s.length == 1;
 s.charCodeAt(0) == "あ".code;
 
+//outside of BMP
+var s = String.fromCharCode("𠜎".code);
+s == "𠜎";
+
 var s = "aa😂éé";
 s.indexOf(String.fromCharCode(0x80))<0;
 s.indexOf("é")==s.length-2;

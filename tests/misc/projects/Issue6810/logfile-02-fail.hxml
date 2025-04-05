@@ -1,0 +1,4 @@
+-D message.log-file=logfile-03-fail.hxml.stderr
+-D message.log-format=pretty
+-D message.reporting=indent
+compile-fail.hxml

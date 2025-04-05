@@ -22,15 +22,15 @@
 
 package cpp.cppia;
 
-@:native("hx::CppiaLoadedModule")
+@:native("::hx::CppiaLoadedModule")
 @:build(cpp.cppia.HostClasses.include())
 extern class Module {
 	@:native("__scriptable_cppia_from_string")
-	public static function fromString(sourceCode:String):Module;
+	static function fromString(sourceCode:String):Module;
 	@:native("__scriptable_cppia_from_data")
-	public static function fromData(data:haxe.io.BytesData):Module;
+	static function fromData(data:haxe.io.BytesData):Module;
 
-	public function boot():Void;
-	public function run():Void;
-	public function resolveClass(inName:String):Class<Dynamic>;
+	function boot():Void;
+	function run():Void;
+	function resolveClass(inName:String):Class<Dynamic>;
 }

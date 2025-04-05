@@ -1,13 +1,11 @@
-import utest.Runner;
 import utest.ui.Report;
+import utest.Runner;
 
-class Main {
-	static function main() {
-		var runner = new Runner();
-		runner.addCases("cases");
-		var report = Report.create(runner);
-		report.displayHeader = AlwaysShowHeader;
-		report.displaySuccessResults = NeverShowSuccessResults;
-		runner.run();
-	}
+function main() {
+	var runner = new Runner();
+	var report = Report.create(runner);
+	report.displayHeader = AlwaysShowHeader;
+	report.displaySuccessResults = NeverShowSuccessResults;
+	runner.addCases('cases');
+	runner.run();
 }

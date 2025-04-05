@@ -37,6 +37,17 @@ let read_string socket =
 			let _ = recv socket buf 0 i [] in
 			Bytes.to_string buf
 
+let write_byte this i v =
+	Bytes.set this i (Char.unsafe_chr v)	
+
+let write_i32 this i v =
+	let base = Int32.to_int v in
+	let big = Int32.to_int (Int32.shift_right_logical v 24) in
+	write_byte this i base;
+	write_byte this (i + 1) (base lsr 8);
+	write_byte this (i + 2) (base lsr 16);
+	write_byte this (i + 3) big
+
 let send_string socket s =
 	match socket.socket with
 	| None ->
@@ -45,7 +56,7 @@ let send_string socket s =
 		let b = Bytes.unsafe_of_string s in
 		let l = Bytes.length b in
 		let buf = Bytes.make 4 ' ' in
-		EvalBytes.write_i32 buf 0 (Int32.of_int l);
+		write_i32 buf 0 (Int32.of_int l);
 		ignore(send socket buf 0 4 []);
 		let rec loop length offset =
 			if length <= 0 then

@@ -180,6 +180,11 @@ typedef TypeParameter = {
 		`KTypeParameter` kind.
 	**/
 	var t:Type;
+
+	/**
+		The default type for this type parameter.
+	**/
+	var ?defaultType:Null<Type>;
 }
 
 /**
@@ -210,6 +215,11 @@ typedef ClassField = {
 		Whether or not the class field is final.
 	**/
 	var isFinal:Bool;
+
+	/**
+		Whether or not the class field is abstract.
+	**/
+	var isAbstract:Bool;
 
 	/**
 		The type parameters of the class field.
@@ -303,11 +313,9 @@ enum ClassKind {
 	KTypeParameter(constraints:Array<Type>);
 
 	/**
-		A structurally extended class.
-
-		@deprecated
+		A class containing module fields.
 	**/
-	KExtension(cl:Ref<ClassType>, params:Array<Type>);
+	KModuleFields(module:String);
 
 	/**
 		A special kind of class to encode expressions into type parameters.
@@ -418,6 +426,11 @@ typedef ClassType = BaseType & {
 		If true the class is final and cannot be extended.
 	**/
 	var isFinal:Bool;
+
+	/**
+		If true the class is abstract and cannot be instantiated directly.
+	**/
+	var isAbstract:Bool;
 
 	/**
 		The parent class and its type parameters, if available.
@@ -599,7 +612,7 @@ typedef MetaAccess = {
  */
 enum FieldKind {
 	/**
-		A variable of property, depending on the `read` and `write` values.
+		A variable or property, depending on the `read` and `write` values.
 	**/
 	FVar(read:VarAccess, write:VarAccess);
 
@@ -721,42 +734,6 @@ enum TConstant {
 		The constant `super`.
 	**/
 	TSuper;
-}
-
-/**
-	Represents a variable in the typed AST.
- */
-typedef TVar = {
-	/**
-		The unique ID of the variable.
-	**/
-	public var id(default, never):Int;
-
-	/**
-		The name of the variable.
-	**/
-	public var name(default, never):String;
-
-	/**
-		The type of the variable.
-	**/
-	public var t(default, never):Type;
-
-	/**
-		Whether or not the variable has been captured by a closure.
-	**/
-	public var capture(default, never):Bool;
-
-	/**
-		Special information which is internally used to keep track of closure.
-		information
-	**/
-	public var extra(default, never):Null<{params:Array<TypeParameter>, expr:Null<TypedExpr>}>;
-
-	/**
-		The metadata of the variable.
-	**/
-	public var meta(default, never):Null<MetaAccess>;
 }
 
 /**
@@ -1002,6 +979,47 @@ enum TypedExprDef {
 		An unknown identifier.
 	**/
 	TIdent(s:String);
+}
+
+/**
+	Represents a variable in the typed AST.
+ */
+typedef TVar = {
+	/**
+		The unique ID of the variable.
+	**/
+	public var id(default, never):Int;
+
+	/**
+		The name of the variable.
+	**/
+	public var name(default, never):String;
+
+	/**
+		The type of the variable.
+	**/
+	public var t(default, never):Type;
+
+	/**
+		Whether or not the variable has been captured by a closure.
+	**/
+	public var capture(default, never):Bool;
+
+	/**
+		Special information which is internally used to keep track of closure.
+		information
+	**/
+	public var extra(default, never):Null<{params:Array<TypeParameter>, expr:Null<TypedExpr>}>;
+
+	/**
+		The metadata of the variable.
+	**/
+	public var meta(default, never):Null<MetaAccess>;
+
+	/**
+		Whether the variable is a local static variable
+	**/
+	public var isStatic(default, never):Bool;
 }
 
 /**

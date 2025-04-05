@@ -14,8 +14,8 @@ class Override extends DisplayTestCase {
 	**/
 	function test1() {
 		var fields = fields(pos(1));
-		eq(true, hasField(fields, "test2", "Void -> Int"));
-		eq(false, hasField(fields, "test1", "Void -> Int"));
+		eq(true, hasField(fields, "test2", "() -> Int"));
+		eq(false, hasField(fields, "test1", "() -> Int"));
 	}
 
 	/**
@@ -31,8 +31,8 @@ class Override extends DisplayTestCase {
 	**/
 	function test2() {
 		var fields = fields(pos(1));
-		eq(true, hasField(fields, "test2", "Void -> Int"));
-		eq(false, hasField(fields, "test1", "Void -> Int"));
+		eq(true, hasField(fields, "test2", "() -> Int"));
+		eq(false, hasField(fields, "test1", "() -> Int"));
 	}
 
 	/**
@@ -50,7 +50,7 @@ class Override extends DisplayTestCase {
 	**/
 	function test3() {
 		var fields = fields(pos(1));
-		eq(true, hasField(fields, "test2", "Void -> Int"));
-		eq(false, hasField(fields, "test1", "Void -> Int"));
+		eq(true, hasField(fields, "test2", "() -> Int"));
+		eq(false, hasField(fields, "test1", "() -> Int"));
 	}
 }

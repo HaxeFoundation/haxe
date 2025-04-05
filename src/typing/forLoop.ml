@@ -5,17 +5,47 @@ open Common
 open Typecore
 open TyperBase
 open Fields
+open Calls
 open Error
 open Texpr.Builder
 
 let optimize_for_loop_iterator ctx v e1 e2 p =
-	let c,tl = (match follow e1.etype with TInst (c,pl) -> c,pl | _ -> raise Exit) in
+	let c,tl =
+		let rec get_class_and_params e =
+			match follow e.etype with
+			| TInst (c,pl) -> c,pl
+			| _ ->
+				match e.eexpr with
+				| TCast (e,None) ->
+					get_class_and_params e
+				| TCall ({ eexpr = TField (_, FInstance (c,pl,cf)) }, _) ->
+					let t = apply_params c.cl_params pl cf.cf_type in
+					(match follow t with
+					| TFun (_, t) ->
+						(match follow t with
+						| TInst (c,pl) -> c,pl
+						| _ -> raise Exit
+						)
+					| _ -> raise Exit
+					)
+				| _ -> raise Exit
+		in
+		get_class_and_params e1
+	in
 	let _, _, fhasnext = (try raw_class_field (fun cf -> apply_params c.cl_params tl cf.cf_type) c tl "hasNext" with Not_found -> raise Exit) in
-	if fhasnext.cf_kind <> Method MethInline then raise Exit;
-	let tmp = gen_local ctx e1.etype e1.epos in
-	let eit = mk (TLocal tmp) e1.etype p in
+	if not ctx.allow_inline || fhasnext.cf_kind <> Method MethInline then raise Exit;
+	let it_type = TInst(c,tl) in
+	let tmp = gen_local ctx it_type e1.epos in
+	let eit = mk (TLocal tmp) it_type p in
 	let ehasnext = make_call ctx (mk (TField (eit,FInstance (c, tl, fhasnext))) (TFun([],ctx.t.tbool)) p) [] ctx.t.tbool p in
-	let enext = mk (TVar (v,Some (make_call ctx (mk (TField (eit,quick_field_dynamic eit.etype "next")) (TFun ([],v.v_type)) p) [] v.v_type p))) ctx.t.tvoid p in
+	let fa_next =
+		try
+			match raw_class_field (fun cf -> apply_params c.cl_params tl cf.cf_type) c tl "next" with
+			| _, _, fa -> FInstance (c, tl, fa)
+		with Not_found ->
+			quick_field_dynamic eit.etype "next"
+	in
+	let enext = mk (TVar (v,Some (make_call ctx (mk (TField (eit,fa_next)) (TFun ([],v.v_type)) p) [] v.v_type p))) ctx.t.tvoid p in
 	let eblock = (match e2.eexpr with
 		| TBlock el -> { e2 with eexpr = TBlock (enext :: el) }
 		| _ -> mk (TBlock [enext;e2]) ctx.t.tvoid p
@@ -25,10 +55,14 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 		mk (TWhile (ehasnext,eblock,NormalWhile)) ctx.t.tvoid p
 	]) ctx.t.tvoid p
 
+type unroll_parameters = {
+	expression_weight : int;
+}
+
 module IterationKind = struct
 	type t_kind =
 		| IteratorIntConst of texpr * texpr * bool (* ascending? *)
-		| IteratorIntUnroll of int * int * bool
+		| IteratorIntUnroll of int * int * bool * unroll_parameters
 		| IteratorInt of texpr * texpr
 		| IteratorArrayDecl of texpr list
 		| IteratorArray
@@ -54,7 +88,8 @@ module IterationKind = struct
 		(mk (TArray (arr,iexpr)) pt p)
 
 	let check_iterator ?(resume=false) ?last_resort ctx s e p =
-		let t,pt = Typeload.t_iterator ctx in
+		let pt = spawn_monomorph ctx p in
+		let t = ctx.t.titerator pt in
 		let dynamic_iterator = ref None in
 		let e1 = try
 			let e = AbstractCast.cast_or_unify_raise ctx t e p in
@@ -62,9 +97,9 @@ module IterationKind = struct
 			| TDynamic _ | TMono _ ->
 				(* try to find something better than a dynamic value to iterate on *)
 				dynamic_iterator := Some e;
-				raise (Error (Unify [Unify_custom "Avoid iterating on a dynamic value"], p))
+				raise_error_msg (Unify [Unify_custom "Avoid iterating on a dynamic value"]) p
 			| _ -> e
-		with Error (Unify _,_) ->
+		with Error { err_message = Unify _ } ->
 			let try_last_resort after =
 				try
 					match last_resort with
@@ -74,30 +109,29 @@ module IterationKind = struct
 					after()
 			in
 			let try_acc acc =
-				let acc_expr = !build_call_ref ctx acc [] WithType.value e.epos in
+				let acc_expr = build_call ctx acc [] WithType.value e.epos in
 				try
-					unify_raise ctx acc_expr.etype t acc_expr.epos;
+					unify_raise acc_expr.etype t acc_expr.epos;
 					acc_expr
-				with Error (Unify(l),p) ->
+				with Error ({ err_message = Unify _ } as err) ->
 					try_last_resort (fun () ->
 						match !dynamic_iterator with
 						| Some e -> e
 						| None ->
 							if resume then raise Not_found;
-							display_error ctx "Field iterator has an invalid type" acc_expr.epos;
-							display_error ctx (error_msg (Unify l)) p;
+							display_error_ext ctx.com (make_error ~depth:err.err_depth ~sub:[err] (Custom "Field iterator has an invalid type") acc_expr.epos);
 							mk (TConst TNull) t_dynamic p
 					)
 			in
 			try
-				let acc = type_field ({do_resume = true;allow_resolve = false}) ctx e s e.epos MCall in
+				let acc = type_field ({do_resume = true;allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
 				try_acc acc;
 			with Not_found ->
 				try_last_resort (fun () ->
 					match !dynamic_iterator with
 					| Some e -> e
 					| None ->
-						let acc = type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos MCall in
+						let acc = type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
 						try_acc acc
 				)
 		in
@@ -110,7 +144,7 @@ module IterationKind = struct
 		| TAbstract({a_impl = Some c} as a,tl) ->
 			let cf_length = PMap.find "get_length" c.cl_statics in
 			let get_length e p =
-				make_static_call ctx c cf_length (apply_params a.a_params tl) [e] ctx.com.basic.tint p
+				CallUnification.make_static_call_better ctx c cf_length tl [e] ctx.com.basic.tint p
 			in
 			(match follow cf_length.cf_type with
 				| TFun(_,tr) ->
@@ -124,9 +158,9 @@ module IterationKind = struct
 			(try
 				(* first try: do we have an @:arrayAccess getter field? *)
 				let todo = mk (TConst TNull) ctx.t.tint p in
-				let cf,_,r,_,_ = AbstractCast.find_array_access_raise ctx a tl todo None p in
+				let cf,_,r,_ = AbstractCast.find_array_read_access_raise ctx a tl todo p in
 				let get_next e_base e_index t p =
-					make_static_call ctx c cf (apply_params a.a_params tl) [e_base;e_index] r p
+					CallUnification.make_static_call_better ctx c cf tl [e_base;e_index] r p
 				in
 				IteratorCustom(get_next,get_length),e,r
 			with Not_found ->
@@ -140,9 +174,24 @@ module IterationKind = struct
 			)
 	 	| _ -> raise Not_found
 
-	let of_texpr ?(resume=false) ctx e unroll p =
+	let map_unroll_params ctx unroll_params i = match unroll_params with
+		| None ->
+			None
+		| Some unroll_params ->
+			let cost = i * unroll_params.expression_weight in
+			let max_cost = try
+				int_of_string (Common.defined_value ctx.com Define.LoopUnrollMaxCost)
+			with Not_found ->
+				250
+			in
+			if cost <= max_cost then
+				Some unroll_params
+			else
+				None
+
+	let of_texpr ?(resume=false) ctx e unroll_params p =
 		let dynamic_iterator e =
-			display_error ctx "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e.epos;
+			display_error ctx.com "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e.epos;
 			IteratorDynamic,e,t_dynamic
 		in
 		let check_iterator () =
@@ -181,9 +230,12 @@ module IterationKind = struct
 			let it = match efrom.eexpr,eto.eexpr with
 				| TConst (TInt a),TConst (TInt b) ->
 					let diff = Int32.to_int (Int32.sub a b) in
-					let unroll = unroll (abs diff) in
-					if unroll then IteratorIntUnroll(Int32.to_int a,abs(diff),diff <= 0)
-					else IteratorIntConst(efrom,eto,diff <= 0)
+					begin match map_unroll_params ctx unroll_params (abs diff) with
+					| Some unroll_params ->
+						IteratorIntUnroll(Int32.to_int a,abs(diff),diff <= 0,unroll_params)
+					| None ->
+						IteratorIntConst(efrom,eto,diff <= 0)
+					end
 				| _ ->
 					let eto = match follow eto.etype with
 						| TAbstract ({ a_path = ([],"Int") }, []) -> eto
@@ -193,8 +245,10 @@ module IterationKind = struct
 			in
 			it,e,ctx.t.tint
 		| TArrayDecl el,TInst({ cl_path = [],"Array" },[pt]) ->
-			let it = if unroll (List.length el) then IteratorArrayDecl el
-			else IteratorArray in
+			let it = match map_unroll_params ctx unroll_params (List.length el) with
+				| Some _ -> IteratorArrayDecl el
+				| None -> IteratorArray
+			in
 			(it,e,pt)
 		| _,TInst({ cl_path = [],"Array" },[pt])
 		| _,TInst({ cl_path = ["flash"],"Vector" },[pt]) ->
@@ -203,15 +257,15 @@ module IterationKind = struct
 			(try
 				let v_tmp = gen_local ctx e.etype e.epos in
 				let e_tmp = make_local v_tmp v_tmp.v_pos in
-				let acc_next = type_field type_field_config ctx e_tmp "next" p MCall in
-				let acc_hasNext = type_field type_field_config ctx e_tmp "hasNext" p MCall in
+				let acc_next = type_field type_field_config ctx e_tmp "next" p (MCall []) WithType.value (* WITHTYPETODO *) in
+				let acc_hasNext = type_field type_field_config ctx e_tmp "hasNext" p (MCall []) (WithType.with_type ctx.t.tbool) in
 				(match acc_next, acc_hasNext with
 					| AKExpr({ eexpr = TField(_, FDynamic _)}), _
 					| _, AKExpr({ eexpr = TField(_, FDynamic _)}) -> raise Not_found
 					| _ -> ()
 				);
-				let e_next = !build_call_ref ctx acc_next [] WithType.value e.epos in
-				let e_hasNext = !build_call_ref ctx acc_hasNext [] WithType.value e.epos in
+				let e_next = build_call ctx acc_next [] WithType.value e.epos in
+				let e_hasNext = build_call ctx acc_hasNext [] WithType.value e.epos in
 				IteratorAbstract(v_tmp,e_next,e_hasNext),e,e_next.etype
 			with Not_found ->
 				(try try_forward_array_iterator ()
@@ -238,7 +292,7 @@ module IterationKind = struct
 		let t_void = ctx.t.tvoid in
 		let t_int = ctx.t.tint in
 		let mk_field e n =
-			TField (e,try quick_field e.etype n with Not_found -> assert false)
+			TField (e,try quick_field e.etype n with Not_found -> Error.raise_msg (Printf.sprintf "Could not find field %s on %s" n (s_type_kind e.etype)) e.epos)
 		in
 		let get_array_length arr p =
 			mk (mk_field arr "length") ctx.com.basic.tint p
@@ -272,37 +326,49 @@ module IterationKind = struct
 			mk (TBlock el) t_void p
 		in
 		match iterator.it_kind with
-		| IteratorIntUnroll(offset,length,ascending) ->
-			if not ascending then error "Cannot iterate backwards" p;
-			let el = ExtList.List.init length (fun i ->
-				let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
-				let e2 =
-					try
-						let rec loop e = match e.eexpr with
-							| TLocal v' when v == v' -> {ei with epos = e.epos}
-							| TUnop ((Decrement | Increment), _, { eexpr = TLocal v' }) when v == v' -> raise Exit
-							| TBinop ((OpAssign | OpAssignOp _), { eexpr = TLocal v' }, _) when v == v' -> raise Exit
-							| _ -> map_expr loop e
-						in
-						loop e2
-					with Exit ->
-						{ e2 with eexpr = TBlock (
-							(mk (TVar(v,Some ei)) t_void p) ::
-							(match e2.eexpr with TBlock el -> el | _ -> [e2])
-						)}
+		| IteratorIntUnroll(offset,length,ascending,unroll_params) ->
+			if not ascending then raise_typing_error "Cannot iterate backwards" p;
+			let rec unroll acc i =
+				if i = length then
+					List.rev acc
+				else begin
+					let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
+					let local_vars = ref [] in
+					let rec loop e = match e.eexpr with
+					| TLocal v' when v == v' ->
+						{ei with epos = e.epos}
+					| TUnop ((Decrement | Increment), _, { eexpr = TLocal v' }) when v == v' -> raise Exit
+					| TBinop ((OpAssign | OpAssignOp _), { eexpr = TLocal v' }, _) when v == v' -> raise Exit
+					| TVar(v,eo) when has_var_flag v VStatic ->
+						if acc = [] then
+							local_vars := {e with eexpr = TVar(v,eo)} :: !local_vars;
+						mk (TConst TNull) t_dynamic null_pos
+					| _ ->
+						map_expr loop e
 				in
-				Texpr.duplicate_tvars e2
-			) in
+				let e2 = try
+					loop e2
+				with Exit ->
+					{ e2 with eexpr = TBlock (
+						(mk (TVar(v,Some ei)) t_void p) ::
+						(match e2.eexpr with TBlock el -> el | _ -> [e2])
+					)}
+				in
+				let acc = acc @ !local_vars in
+				let e2 = Texpr.duplicate_tvars e_identity e2 in
+				unroll (e2 :: acc) (i + 1)
+			end in
+			let el = unroll [] 0 in
 			mk (TBlock el) t_void p
 		| IteratorIntConst(a,b,ascending) ->
-			if not ascending then error "Cannot iterate backwards" p;
-			let v_index = gen_local ctx t_int p in
-			let evar_index = mk (TVar(v_index,Some a)) t_void p in
-			let ev_index = make_local v_index p in
+			if not ascending then raise_typing_error "Cannot iterate backwards" p;
+			let v_index = gen_local ctx t_int a.epos in
+			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
+			let ev_index = make_local v_index v_index.v_pos in
 			let op1,op2 = if ascending then (OpLt,Increment) else (OpGt,Decrement) in
-			let econd = binop op1 ev_index b ctx.t.tbool p in
-			let ev_incr = mk (TUnop(op2,Postfix,ev_index)) t_int p in
-			let evar = mk (TVar(v,Some ev_incr)) t_void p in
+			let econd = binop op1 ev_index b ctx.t.tbool (punion v.v_pos b.epos) in
+			let ev_incr = mk (TUnop(op2,Postfix,ev_index)) t_int (punion a.epos b.epos) in
+			let evar = mk (TVar(v,Some ev_incr)) t_void (punion v.v_pos a.epos) in
 			let e2 = concat evar e2 in
 			let ewhile = mk (TWhile(econd,e2,NormalWhile)) t_void p in
 			mk (TBlock [
@@ -310,15 +376,15 @@ module IterationKind = struct
 				ewhile;
 			]) t_void p
 		| IteratorInt(a,b) ->
-			let v_index = gen_local ctx t_int p in
-			let evar_index = mk (TVar(v_index,Some a)) t_void p in
-			let ev_index = make_local v_index p in
+			let v_index = gen_local ctx t_int a.epos in
+			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
+			let ev_index = make_local v_index v_index.v_pos in
 			let v_b = gen_local ctx b.etype b.epos in
-			let evar_b = mk (TVar (v_b,Some b)) t_void p in
+			let evar_b = mk (TVar (v_b,Some b)) t_void b.epos in
 			let ev_b = make_local v_b b.epos in
-			let econd = binop OpLt ev_index ev_b ctx.t.tbool p in
-			let ev_incr = mk (TUnop(Increment,Postfix,ev_index)) t_int p in
-			let evar = mk (TVar(v,Some ev_incr)) t_void p in
+			let econd = binop OpLt ev_index ev_b ctx.t.tbool (punion v.v_pos b.epos) in
+			let ev_incr = mk (TUnop(Increment,Postfix,ev_index)) t_int (punion a.epos b.epos) in
+			let evar = mk (TVar(v,Some ev_incr)) t_void (punion v.v_pos a.epos) in
 			let e2 = concat evar e2 in
 			let ewhile = mk (TWhile(econd,e2,NormalWhile)) t_void p in
 			mk (TBlock [
@@ -330,7 +396,7 @@ module IterationKind = struct
 			let el = List.map (fun e ->
 				let ev = mk (TVar(v,Some e)) t_void e.epos in
 				let e = concat ev e2 in
-				Texpr.duplicate_tvars e
+				Texpr.duplicate_tvars e_identity e
 			) el in
 			mk (TBlock el) t_void p
 		| IteratorArray | IteratorArrayAccess ->
@@ -338,10 +404,13 @@ module IterationKind = struct
 		| IteratorCustom(f_next,f_length) ->
 			gen_int_iter e1 pt f_next f_length
 		| IteratorIterator ->
-			begin try optimize_for_loop_iterator ctx v e1 e2 p
-			with Exit -> mk (TFor(v,e1,e2)) t_void p end
+			begin try
+				optimize_for_loop_iterator ctx v e1 e2 p
+			with Exit ->
+				Texpr.for_remap ctx.t v (ctx.t.titerator pt) e1 e2 p
+			end
 		| IteratorGenericStack c ->
-			let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> assert false) in
+			let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> die "" __LOC__) in
 			let cell = gen_local ctx tcell p in
 			let cexpr = mk (TLocal cell) tcell p in
 			let evar = mk (TVar (v,Some (mk (mk_field cexpr "elt") pt p))) t_void v.v_pos in
@@ -367,10 +436,10 @@ module IterationKind = struct
 				ewhile;
 			]) t_void p
 		| IteratorDynamic ->
-			mk (TFor(v,e1,e2)) t_void p
+			mk (TBlock []) t_void p
 end
 
-let is_cheap_enough ctx e2 i =
+let get_unroll_params ctx e2 =
 	let num_expr = ref 0 in
 	let rec loop e = match fst e with
 		| EContinue | EBreak ->
@@ -382,17 +451,13 @@ let is_cheap_enough ctx e2 i =
 	try
 		if ctx.com.display.dms_kind <> DMNone then raise Exit;
 		ignore(loop e2);
-		let cost = i * !num_expr in
-		let max_cost = try
-			int_of_string (Common.defined_value ctx.com Define.LoopUnrollMaxCost)
-		with Not_found ->
-			250
-		in
-		cost <= max_cost
+		Some {
+			expression_weight = !num_expr;
+		}
 	with Exit ->
-		false
+		None
 
-let is_cheap_enough_t ctx e2 i =
+let get_unroll_params_t ctx e2 =
 	let num_expr = ref 0 in
 	let rec loop e = match e.eexpr with
 		| TContinue | TBreak ->
@@ -404,15 +469,11 @@ let is_cheap_enough_t ctx e2 i =
 	try
 		if ctx.com.display.dms_kind <> DMNone then raise Exit;
 		ignore(loop e2);
-		let cost = i * !num_expr in
-		let max_cost = try
-			int_of_string (Common.defined_value ctx.com Define.LoopUnrollMaxCost)
-		with Not_found ->
-			250
-		in
-		cost <= max_cost
+		Some {
+			expression_weight = !num_expr;
+		}
 	with Exit ->
-		false
+		None
 
 type iteration_ident = string * pos * display_kind option
 
@@ -420,59 +481,39 @@ type iteration_kind =
 	| IKNormal of iteration_ident
 	| IKKeyValue of iteration_ident * iteration_ident
 
-let type_for_loop ctx handle_display it e2 p =
-	let rec loop_ident dko e1 = match e1 with
-		| EConst(Ident i),p -> i,p,dko
-		| EDisplay(e1,dk),_ -> loop_ident (Some dk) e1
-		| _ -> error "Identifier expected" (pos e1)
-	in
-	let rec loop dko e1 = match fst e1 with
-		| EBinop(OpIn,e1,e2) ->
-			begin match fst e1 with
-			| EBinop(OpArrow,ei1,ei2) -> IKKeyValue(loop_ident None ei1,loop_ident None ei2),e2
-			| _ -> IKNormal (loop_ident dko e1),e2
-			end
-		| EDisplay(e1,dk) -> loop (Some dk) e1
-		| EBinop(OpArrow,ei1,(EBinop(OpIn,ei2,e2),_)) -> IKKeyValue(loop_ident None ei1,loop_ident None ei2),e2
-		| _ -> error "For expression should be 'v in expr'" (snd it)
-	in
-	let ik,e1 = loop None it in
-	let e1 = type_expr ctx e1 WithType.value in
-	let old_loop = ctx.in_loop in
+let type_for_loop ctx handle_display ik e1 e2 p =
+	let old_loop = ctx.e.in_loop in
 	let old_locals = save_locals ctx in
-	ctx.in_loop <- true;
+	ctx.e.in_loop <- true;
 	let e2 = Expr.ensure_block e2 in
 	let check_display (i,pi,dko) = match dko with
 		| None -> ()
-		| Some dk -> ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) dk (WithType.with_type i.v_type))
+		| Some dk -> ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) dk MGet (WithType.with_type i.v_type))
 	in
 	match ik with
 	| IKNormal(i,pi,dko) ->
-		let iterator = IterationKind.of_texpr ctx e1 (is_cheap_enough ctx e2) p in
+		let iterator = IterationKind.of_texpr ctx e1 (get_unroll_params ctx e2) p in
 		let i = add_local_with_origin ctx TVOForVariable i iterator.it_type pi in
 		let e2 = type_expr ctx e2 NoValue in
 		check_display (i,pi,dko);
-		ctx.in_loop <- old_loop;
+		ctx.e.in_loop <- old_loop;
 		old_locals();
-		begin try
-			IterationKind.to_texpr ctx i iterator e2 p
-		with Exit ->
-			mk (TFor (i,iterator.it_expr,e2)) ctx.t.tvoid p
-		end
+		IterationKind.to_texpr ctx i iterator e2 p
 	| IKKeyValue((ikey,pkey,dkokey),(ivalue,pvalue,dkovalue)) ->
-		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in
-		begin match follow e1.etype with
-		| TDynamic _ | TMono _ -> display_error ctx "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
+		(match follow e1.etype with
+		| TDynamic _ | TMono _ ->
+			display_error ctx.com "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
 		| _ -> ()
-		end;
+		);
+		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in
 		let vtmp = gen_local ctx e1.etype e1.epos in
 		let etmp = make_local vtmp vtmp.v_pos in
-		let ehasnext = !build_call_ref ctx (type_field_default_cfg ctx etmp "hasNext" etmp.epos MCall) [] WithType.value etmp.epos in
-		let enext = !build_call_ref ctx (type_field_default_cfg ctx etmp "next" etmp.epos MCall) [] WithType.value etmp.epos in
+		let ehasnext = build_call ctx (type_field_default_cfg ctx etmp "hasNext" etmp.epos (MCall []) (WithType.with_type ctx.t.tbool)) [] WithType.value etmp.epos in
+		let enext = build_call ctx (type_field_default_cfg ctx etmp "next" etmp.epos (MCall []) WithType.value (* WITHTYPETODO *)) [] WithType.value etmp.epos in
 		let v = gen_local ctx pt e1.epos in
 		let ev = make_local v v.v_pos in
-		let ekey = Calls.acc_get ctx (type_field_default_cfg ctx ev "key" ev.epos MGet) ev.epos in
-		let evalue = Calls.acc_get ctx (type_field_default_cfg ctx ev "value" ev.epos MGet) ev.epos in
+		let ekey = Calls.acc_get ctx (type_field_default_cfg ctx ev "key" ev.epos MGet WithType.value) in
+		let evalue = Calls.acc_get ctx (type_field_default_cfg ctx ev "value" ev.epos MGet WithType.value) in
 		let vkey = add_local_with_origin ctx TVOForVariable ikey ekey.etype pkey in
 		let vvalue = add_local_with_origin ctx TVOForVariable ivalue evalue.etype pvalue in
 		let e2 = type_expr ctx e2 NoValue in
@@ -488,8 +529,31 @@ let type_for_loop ctx handle_display it e2 p =
 			mk (TVar(vtmp,Some e1)) ctx.t.tvoid e1.epos;
 			mk (TWhile(ehasnext,ebody,NormalWhile)) ctx.t.tvoid p;
 		]) ctx.t.tvoid p in
-		ctx.in_loop <- old_loop;
+		ctx.e.in_loop <- old_loop;
 		old_locals();
 		e
 
-
+let type_for_loop ctx handle_display it e2 p =
+	let rec loop_ident dko e1 = match e1 with
+		| EConst(Ident i),p -> i,p,dko
+		| EDisplay(e1,dk),_ -> loop_ident (Some dk) e1
+		| _ -> raise_typing_error "Identifier expected" (pos e1)
+	in
+	let rec loop dko e1 = match fst e1 with
+		| EBinop(OpIn,e1,e2) ->
+			begin match fst e1 with
+			| EBinop(OpArrow,ei1,ei2) -> IKKeyValue(loop_ident None ei1,loop_ident None ei2),e2
+			| _ -> IKNormal (loop_ident dko e1),e2
+			end
+		| EDisplay(e1,dk) -> loop (Some dk) e1
+		| EBinop(OpArrow,ei1,(EBinop(OpIn,ei2,e2),_)) -> IKKeyValue(loop_ident None ei1,loop_ident None ei2),e2
+		| _ ->
+			begin match dko with
+			| Some dk -> ignore(handle_display ctx e1 dk MGet WithType.value);
+			| None -> ()
+			end;
+			raise_typing_error "For expression should be 'v in expr'" (snd it)
+	in
+	let ik,e1 = loop None it in
+	let e1 = type_expr ctx e1 WithType.value in
+	type_for_loop ctx handle_display ik e1 e2 p

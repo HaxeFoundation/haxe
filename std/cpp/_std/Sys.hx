@@ -63,7 +63,7 @@ import haxe.SysTools;
 		return v;
 	}
 
-	public static function putEnv(s:String, v:String):Void {
+	public static function putEnv(s:String, v:Null<String>):Void {
 		NativeSys.put_env(s, v);
 	}
 

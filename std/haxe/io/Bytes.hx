@@ -39,6 +39,9 @@ class Bytes {
 		#end
 	}
 
+	/**
+		Returns the byte at index `pos`.
+	**/
 	public inline function get(pos:Int):Int {
 		#if neko
 		return untyped $sget(b, pos);
@@ -55,6 +58,9 @@ class Bytes {
 		#end
 	}
 
+	/**
+		Stores the given byte `v` at the given position `pos`.
+	**/
 	public inline function set(pos:Int, v:Int):Void {
 		#if neko
 		untyped $sset(b, pos, v);
@@ -64,8 +70,6 @@ class Bytes {
 		untyped b[pos] = v;
 		#elseif java
 		b[pos] = cast v;
-		#elseif cs
-		b[pos] = cast v;
 		#elseif python
 		python.Syntax.arraySet(b, pos, v & 0xFF);
 		#else
@@ -73,6 +77,14 @@ class Bytes {
 		#end
 	}
 
+	/**
+		Copies `len` bytes from `src` into this instance.
+		@param pos Zero-based location in `this` instance at which to start writing
+			bytes.
+		@param src Source `Bytes` instance from which to copy bytes.
+		@param srcpos Zero-based location at `src` from which bytes will be copied.
+		@param len Number of bytes to be copied.
+	**/
 	public function blit(pos:Int, src:Bytes, srcpos:Int, len:Int):Void {
 		#if !neko
 		if (pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length)
@@ -89,8 +101,6 @@ class Bytes {
 			b.writeBytes(src.b, srcpos, len);
 		#elseif java
 		java.lang.System.arraycopy(src.b, srcpos, b, pos, len);
-		#elseif cs
-		cs.system.Array.Copy(src.b, srcpos, b, pos, len);
 		#elseif python
 		python.Syntax.code("self.b[{0}:{0}+{1}] = src.b[srcpos:srcpos+{1}]", pos, len);
 		#elseif cpp
@@ -111,6 +121,10 @@ class Bytes {
 		#end
 	}
 
+	/**
+		Sets `len` consecutive bytes starting from index `pos` of `this` instance
+		to `value`.
+	**/
 	public function fill(pos:Int, len:Int, value:Int) {
 		#if flash
 		var v4 = value & 0xFF;
@@ -130,6 +144,10 @@ class Bytes {
 		#end
 	}
 
+	/**
+		Returns a new `Bytes` instance that contains a copy of `len` bytes of
+		`this` instance, starting at index `pos`.
+	**/
 	public function sub(pos:Int, len:Int):Bytes {
 		#if !neko
 		if (pos < 0 || len < 0 || pos + len > length)
@@ -146,10 +164,6 @@ class Bytes {
 		var newarr = new java.NativeArray(len);
 		java.lang.System.arraycopy(b, pos, newarr, 0, len);
 		return new Bytes(len, newarr);
-		#elseif cs
-		var newarr = new cs.NativeArray(len);
-		cs.system.Array.Copy(b, pos, newarr, 0, len);
-		return new Bytes(len, newarr);
 		#elseif python
 		return new Bytes(len, python.Syntax.arrayAccess(b, pos, pos + len));
 		#else
@@ -157,6 +171,18 @@ class Bytes {
 		#end
 	}
 
+	/**
+		Returns `0` if the bytes of `this` instance and the bytes of `other` are
+		identical.
+
+		Returns a negative value if the `length` of `this` instance is less than
+		the `length` of `other`, or a positive value if the `length` of `this`
+		instance is greater than the `length` of `other`.
+
+		In case of equal `length`s, returns a negative value if the first different
+		value in `other` is greater than the corresponding value in `this`
+		instance; otherwise returns a positive value.
+	**/
 	public function compare(other:Bytes):Int {
 		#if neko
 		return untyped __dollar__compare(b, other.b);
@@ -186,7 +212,6 @@ class Bytes {
 		b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		return length - other.length;
-		// #elseif cs
 		// TODO: memcmp if unsafe flag is on
 		#elseif cpp
 		return b.memcmp(other.b);
@@ -202,8 +227,9 @@ class Bytes {
 	}
 
 	/**
-		Returns the IEEE double precision value at given position (in low endian encoding).
-		Result is unspecified if reading outside of the bounds
+		Returns the IEEE double-precision value at the given position `pos` (in
+		little-endian encoding). Result is unspecified if `pos` is outside the
+		bounds.
 	**/
 	#if (neko_v21 || (cpp && !cppia) || flash)
 	inline
@@ -224,8 +250,9 @@ class Bytes {
 	}
 
 	/**
-		Returns the IEEE single precision value at given position (in low endian encoding).
-		Result is unspecified if reading outside of the bounds
+		Returns the IEEE single-precision value at the given position `pos` (in
+		little-endian encoding). Result is unspecified if `pos` is outside the
+		bounds.
 	**/
 	#if (neko_v21 || (cpp && !cppia) || flash)
 	inline
@@ -246,8 +273,9 @@ class Bytes {
 	}
 
 	/**
-		Store the IEEE double precision value at given position in low endian encoding.
-		Result is unspecified if writing outside of the bounds.
+		Stores the given IEEE double-precision value `v` at the given position
+		`pos` in little-endian encoding. Result is unspecified if writing outside
+		of bounds.
 	**/
 	#if (neko_v21 || flash)
 	inline
@@ -272,8 +300,9 @@ class Bytes {
 	}
 
 	/**
-		Store the IEEE single precision value at given position in low endian encoding.
-		Result is unspecified if writing outside of the bounds.
+		Stores the given IEEE single-precision value `v` at the given position
+		`pos` in little-endian encoding. Result is unspecified if writing outside
+		of bounds.
 	**/
 	#if (neko_v21 || flash)
 	inline
@@ -296,7 +325,8 @@ class Bytes {
 	}
 
 	/**
-		Returns the 16 bit unsigned integer at given position (in low endian encoding).
+		Returns the 16-bit unsigned integer at the given position `pos` (in
+		little-endian encoding).
 	**/
 	public inline function getUInt16(pos:Int):Int {
 		#if neko_v21
@@ -307,7 +337,8 @@ class Bytes {
 	}
 
 	/**
-		Store the 16 bit unsigned integer at given position (in low endian encoding).
+		Stores the given 16-bit unsigned integer `v` at the given position `pos`
+		(in little-endian encoding).
 	**/
 	public inline function setUInt16(pos:Int, v:Int):Void {
 		#if neko_v21
@@ -319,7 +350,8 @@ class Bytes {
 	}
 
 	/**
-		Returns the 32 bit integer at given position (in low endian encoding).
+		Returns the 32-bit integer at the given position `pos` (in little-endian
+		encoding).
 	**/
 	public inline function getInt32(pos:Int):Int {
 		#if neko_v21
@@ -336,14 +368,16 @@ class Bytes {
 	}
 
 	/**
-		Returns the 64 bit integer at given position (in low endian encoding).
+		Returns the 64-bit integer at the given position `pos` (in little-endian
+		encoding).
 	**/
 	public inline function getInt64(pos:Int):haxe.Int64 {
 		return haxe.Int64.make(getInt32(pos + 4), getInt32(pos));
 	}
 
 	/**
-		Store the 32 bit integer at given position (in low endian encoding).
+		Stores the given 32-bit integer `v` at the given position `pos` (in
+		little-endian encoding).
 	**/
 	public inline function setInt32(pos:Int, v:Int):Void {
 		#if neko_v21
@@ -357,16 +391,19 @@ class Bytes {
 	}
 
 	/**
-		Store the 64 bit integer at given position (in low endian encoding).
+		Stores the given 64-bit integer `v` at the given position `pos` (in
+		little-endian encoding).
 	**/
 	public inline function setInt64(pos:Int, v:haxe.Int64):Void {
 		setInt32(pos, v.low);
 		setInt32(pos + 4, v.high);
 	}
 
+	/**
+		Returns the `len`-bytes long string stored at the given position `pos`,
+		interpreted with the given `encoding` (UTF-8 by default).
+	**/
 	public function getString(pos:Int, len:Int, ?encoding:Encoding):String {
-		if (encoding == null)
-			encoding == UTF8;
 		#if !neko
 		if (pos < 0 || len < 0 || pos + len > length)
 			throw Error.OutsideBounds;
@@ -380,13 +417,6 @@ class Bytes {
 		var result:String = "";
 		untyped __global__.__hxcpp_string_of_bytes(b, result, pos, len);
 		return result;
-		#elseif cs
-		switch (encoding) {
-			case UTF8 | null:
-				return cs.system.text.Encoding.UTF8.GetString(b, pos, len);
-			case RawNative:
-				return cs.system.text.Encoding.Unicode.GetString(b, pos, len);
-		}
 		#elseif java
 		try {
 			switch (encoding) {
@@ -449,7 +479,7 @@ class Bytes {
 	}
 
 	/**
-		Returns string representation of the bytes as UTF8
+		Returns a `String` representation of the bytes interpreted as UTF-8.
 	**/
 	public function toString():String {
 		#if neko
@@ -457,8 +487,6 @@ class Bytes {
 		#elseif flash
 		b.position = 0;
 		return b.toString();
-		#elseif cs
-		return cs.system.text.Encoding.UTF8.GetString(b, 0, length);
 		#elseif java
 		try {
 			return new String(b, 0, length, "UTF-8");
@@ -469,6 +497,10 @@ class Bytes {
 		#end
 	}
 
+	/**
+		Returns a hexadecimal `String` representation of the bytes of `this`
+		instance.
+	**/
 	public function toHex():String {
 		var s = new StringBuf();
 		var chars = [];
@@ -483,10 +515,17 @@ class Bytes {
 		return s.toString();
 	}
 
+	/**
+		Returns the bytes of `this` instance as `BytesData`.
+	**/
 	public inline function getData():BytesData {
 		return b;
 	}
 
+	/**
+		Returns a new `Bytes` instance with the given `length`. The values of the
+		bytes are not initialized and may not be zero.
+	**/
 	public static function alloc(length:Int):Bytes {
 		#if neko
 		return new Bytes(length, untyped __dollar__smake(length));
@@ -499,8 +538,6 @@ class Bytes {
 		if (length > 0)
 			cpp.NativeArray.setSize(a, length);
 		return new Bytes(length, a);
-		#elseif cs
-		return new Bytes(length, new cs.NativeArray(length));
 		#elseif java
 		return new Bytes(length, new java.NativeArray(length));
 		#elseif python
@@ -514,7 +551,8 @@ class Bytes {
 	}
 
 	/**
-		Returns bytes representation of the given String, using specific encoding (UTF-8 by default)
+		Returns the `Bytes` representation of the given `String`, using the
+		specified encoding (UTF-8 by default).
 	**/
 	@:pure
 	public static function ofString(s:String, ?encoding:Encoding):Bytes {
@@ -531,14 +569,6 @@ class Bytes {
 		var a = new BytesData();
 		untyped __global__.__hxcpp_bytes_of_string(a, s);
 		return new Bytes(a.length, a);
-		#elseif cs
-		var b = switch (encoding) {
-			case UTF8 | null:
-				cs.system.text.Encoding.UTF8.GetBytes(s);
-			case RawNative:
-				cs.system.text.Encoding.Unicode.GetBytes(s);
-		};
-		return new Bytes(b.Length, b);
 		#elseif java
 		try {
 			var b:BytesData = switch (encoding) {
@@ -590,21 +620,23 @@ class Bytes {
 		#end
 	}
 
+	/**
+		Returns the `Bytes` representation of the given `BytesData`.
+	**/
 	public static function ofData(b:BytesData) {
 		#if flash
 		return new Bytes(b.length, b);
 		#elseif neko
 		return new Bytes(untyped __dollar__ssize(b), b);
-		#elseif cs
-		return new Bytes(b.Length, b);
 		#else
 		return new Bytes(b.length, b);
 		#end
 	}
 
 	/**
-		Convert hexadecimal string to Bytes.
-		Support only straight hex string ( Example: "0FDA14058916052309" )
+		Converts the given hexadecimal `String` to `Bytes`. `s` must be a string of
+		even length consisting only of hexadecimal digits. For example:
+		`"0FDA14058916052309"`.
 	**/
 	public static function ofHex(s:String):Bytes {
 		var len:Int = s.length;
@@ -623,8 +655,9 @@ class Bytes {
 	}
 
 	/**
-		Read the most efficiently possible the n-th byte of the data.
-		Behavior when reading outside of the available data is unspecified.
+		Reads the `pos`-th byte of the given `b` bytes, in the most efficient way
+		possible. Behavior when reading outside of the available data is
+		unspecified.
 	**/
 	public inline static function fastGet(b:BytesData, pos:Int):Int {
 		#if neko

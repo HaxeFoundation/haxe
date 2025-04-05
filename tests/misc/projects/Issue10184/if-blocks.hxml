@@ -1,0 +1,18 @@
+# test using if blocks
+
+--main IfBlocks
+--interp
+
+--each
+
+-D f-dash
+-D f_underscore
+-D v-dash=value
+-D v_underscore=value
+
+--next
+
+--macro define("f-dash")
+--macro define("f_underscore")
+--macro define("v-dash", "value")
+--macro define("v_underscore", "value")

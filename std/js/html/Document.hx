@@ -510,8 +510,13 @@ extern class Document extends Node {
 		Releases the current mouse capture if it's on an element in this document.
 	**/
 	function releaseCapture() : Void;
-	function exitFullscreen() : Void;
-	
+
+	/**
+		Requests that the element on this document which is currently being presented in fullscreen mode
+		be taken out of fullscreen mode, restoring the previous state of the screen.
+	**/
+	function exitFullscreen() : js.lib.Promise<Void>;
+
 	/**
 		Release the pointer lock.
 	**/

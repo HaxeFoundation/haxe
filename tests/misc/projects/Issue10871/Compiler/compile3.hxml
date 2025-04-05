@@ -1,0 +1,5 @@
+--main Main
+--macro Main.MacroClass.start()
+--cpp bin
+--no-output
+--no-opt

@@ -5,7 +5,7 @@ private class A {
 }
 
 @:generic
-private class B<T:haxe.Constraints.Constructible<Void->Void>> extends A {
+private class B<T:haxe.Constraints.Constructible<()->Void>> extends A {
 }
 
 class Issue4457 extends Test

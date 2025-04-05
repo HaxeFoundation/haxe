@@ -1,6 +1,6 @@
 <list>
 <i n="pubV" k="var"><t>Int</t><d></d></i>
-<i n="pubM" k="method"><t>Void -&gt; Void</t><d></d></i>
+<i n="pubM" k="method"><t>() -&gt; Void</t><d></d></i>
 <i n="MyModule" k="type"><t>MyModule</t><d></d></i>
 <i n="OtherType" k="type"><t>OtherType</t><d></d></i>
 </list>

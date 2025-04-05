@@ -24,10 +24,10 @@ package php.reflection;
 
 @:native('ReflectionProperty')
 extern class ReflectionProperty implements Reflector {
-	@:phpClassConst static var IS_STATIC:Int;
-	@:phpClassConst static var IS_:Int;
-	@:phpClassConst static var IS_PROTECTED:Int;
-	@:phpClassConst static var IS_PRIVATE:Int;
+	@:phpClassConst static final IS_STATIC:Int;
+	@:phpClassConst static final IS_:Int;
+	@:phpClassConst static final IS_PROTECTED:Int;
+	@:phpClassConst static final IS_PRIVATE:Int;
 
 	var name:String;
 

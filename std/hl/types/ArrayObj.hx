@@ -22,6 +22,26 @@
 
 package hl.types;
 
+import haxe.iterators.ArrayIterator;
+import haxe.iterators.ArrayKeyValueIterator;
+
+class ArrayObjIterator<T> extends ArrayIterator<T> {
+	var arr:ArrayObj<T>;
+
+	public inline function new(arr:ArrayObj<T>) {
+		super((null:Dynamic));
+		this.arr = arr;
+	}
+
+	override public function hasNext():Bool {
+		return current < arr.length;
+	}
+
+	override public function next():T {
+		return @:privateAccess arr.array[current++];
+	}
+}
+
 @:keep
 class ArrayObj<T> extends ArrayBase {
 	var array:hl.NativeArray<Dynamic>;
@@ -189,6 +209,10 @@ class ArrayObj<T> extends ArrayBase {
 		array[pos] = x;
 	}
 
+	public function contains(x:T):Bool {
+		return indexOf(x) != -1;
+	}
+
 	public function remove(x:T):Bool {
 		var i = indexOf(x);
 		if (i < 0)
@@ -244,10 +268,12 @@ class ArrayObj<T> extends ArrayBase {
 		return alloc(n);
 	}
 
-	public function iterator():Iterator<T> {
-		var n = new NativeArray.NativeArrayIterator<T>(cast array);
-		@:privateAccess n.length = length;
-		return n;
+	public function iterator():ArrayIterator<T> {
+		return new ArrayObjIterator(this);
+	}
+
+	public function keyValueIterator():ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator<T>(cast this);
 	}
 
 	public function map<S>(f:T->S):ArrayDyn {
@@ -273,7 +299,7 @@ class ArrayObj<T> extends ArrayBase {
 		if (length < len) {
 			__expand(len - 1);
 		} else if (length > len) {
-			for (i in length...len) {
+			for (i in len...length) {
 				array[i] = null;
 			}
 			this.length = len;
@@ -299,14 +325,14 @@ class ArrayObj<T> extends ArrayBase {
 
 	override function getDyn(pos:Int):Dynamic {
 		var pos:UInt = pos;
-		if (pos >= length)
+		if (pos >= (length : UInt))
 			return null;
 		return array[pos];
 	}
 
 	override function setDyn(pos:Int, v:Dynamic) {
 		var pos:UInt = pos;
-		if (pos >= length)
+		if (pos >= (length : UInt))
 			__expand(pos);
 		array[pos] = Api.safeCast(v, array.getType());
 	}
@@ -325,6 +351,9 @@ class ArrayObj<T> extends ArrayBase {
 
 	override function insertDyn(pos:Int, v:Dynamic)
 		insert(pos, v);
+
+	override function containsDyn(v:Dynamic)
+		return contains(v);
 
 	override function removeDyn(v:Dynamic)
 		return remove(v);

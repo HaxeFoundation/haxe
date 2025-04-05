@@ -1,0 +1,11 @@
+- name: Install Neko from S3
+  shell: pwsh
+  run: |
+    Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
+    Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
+    $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
+    echo "$NEKOPATH" >> $env:GITHUB_PATH
+    echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
+
+- name: Print Neko version
+  run: neko -version 2>&1

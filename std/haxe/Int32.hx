@@ -26,6 +26,7 @@ package haxe;
 	Int32 provides a 32-bit integer with consistent overflow behavior across
 	all platforms.
 **/
+@:transitive
 abstract Int32(Int) from Int to Int {
 	@:op(-A) private inline function negate():Int32
 		return clamp(~this + 1);
@@ -67,9 +68,9 @@ abstract Int32(Int) from Int to Int {
 
 	@:op(A - B) private static function subFloat(a:Int32, b:Float):Float;
 
-	@:op(A - B) public static function floatSub(a:Float, b:Int32):Float;
+	@:op(A - B) private static function floatSub(a:Float, b:Int32):Float;
 
-	#if (as3 || js || php || python || lua)
+	#if (js || php || python || lua)
 	#if js
 	// on JS we want to try using Math.imul, but we have to assign that function to Int32.mul only once,
 	// or else V8 will deoptimize it, so we need to be a bit funky with this.
@@ -265,7 +266,7 @@ abstract Int32(Int) from Int to Int {
 	#end
 	static function clamp(x:Int):Int {
 		// force to-int conversion on platforms that require it
-		#if (as3 || js)
+		#if js
 		return x | 0;
 		#elseif php
 		// we might be on 64-bit php, so sign extend from 32-bit

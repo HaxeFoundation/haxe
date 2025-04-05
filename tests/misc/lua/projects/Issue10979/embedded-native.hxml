@@ -1,0 +1,4 @@
+--lua bin/native-error.lua
+--main NativeError
+
+--cmd lua runner.lua 'bin/native-error' '%./bin/native%-error%.lua:%d+: attempt to index .+'

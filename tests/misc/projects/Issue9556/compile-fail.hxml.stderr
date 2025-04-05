@@ -1,0 +1,3 @@
+Main.hx:4: characters 5-10 : Constraint check failure for Main.T
+Main.hx:4: characters 5-10 : ... String should be Int
+Main.hx:4: characters 5-10 : ... For function argument 't'

@@ -35,7 +35,7 @@ class FileInput extends haxe.io.Input {
 	var f:FileHandle;
 	var _eof:Bool;
 
-	public function new(f:FileHandle) {
+	function new(f:FileHandle) {
 		if (f == null)
 			throw 'Invalid filehandle : $f';
 		this.bigEndian = Boot.platformBigEndian;

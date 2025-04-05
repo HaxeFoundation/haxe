@@ -22,7 +22,7 @@
 
 package php;
 
-import haxe.extern.Rest;
+import haxe.Rest;
 import haxe.extern.AsVar;
 import haxe.extern.EitherType;
 
@@ -30,6 +30,7 @@ import haxe.extern.EitherType;
 	Special extern class to support PHP language specifics.
 	Don't use these functions unless you are really sure what you are doing.
 **/
+@:noClosure
 extern class Syntax {
 	/**
 		Embeds plain php code.
@@ -185,7 +186,7 @@ extern class Syntax {
 
 	/**
 		Generates `$value instanceof $phpClassName`.
-		Haxe generates `Std.is(value, Type)` calls as `$value instanceof Type` automatically where possible.
+		Haxe generates `Std.isOfType(value, Type)` calls as `$value instanceof Type` automatically where possible.
 		So you may need this only if you have a `Class` stored in a variable.
 	**/
 	@:overload(function(value:AsVar<Dynamic>, phpClassName:AsVar<String>):Bool {})
@@ -239,7 +240,7 @@ extern class Syntax {
 	/**
 		Generates instance field access for reading on `object`
 	**/
-	@:deprecated("php.Syntax.getFiled() is deprecated. Use php.Syntax.field() instead.")
+	@:deprecated("php.Syntax.getField() is deprecated. Use php.Syntax.field() instead.")
 	static function getField<T>(object:AsVar<T>, fieldName:String):Dynamic;
 
 	/**
@@ -276,11 +277,23 @@ extern class Syntax {
 		[$arg1, $arg2, $arg3]
 		```
 	**/
+	@:pure
 	static function arrayDecl<T>(args:Rest<T>):NativeIndexedArray<T>;
 
 	/**
 		```haxe
-		Syntax.assocDecl({field1:'first', field2:2}});
+		Syntax.customArrayDecl([v1 => v2, v3 => v4]);
+		```
+		Generates native array declaration:
+		```haxe
+		[$v1 => $v2, $v3 => $v4]
+		```
+	**/
+	macro static function customArrayDecl<T>(decl:haxe.macro.Expr):haxe.macro.Expr.ExprOf<php.NativeArray>;
+
+	/**
+		```haxe
+		Syntax.assocDecl({field1:'first', field2:2});
 		```
 		Generates native associative array declaration:
 		```haxe
@@ -291,6 +304,7 @@ extern class Syntax {
 		That means you can't pass an object stored in a variable to this method like `Syntax.assocDecl(someVar)`.
 		Use `php.Lib.associativeArrayOfObject(someVar)` instead.
 	**/
+	@:pure
 	static function assocDecl<T:{}>(?arg:T):NativeAssocArray<Dynamic>;
 
 	/**

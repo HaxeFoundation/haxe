@@ -1,0 +1,3 @@
+--main Main
+--macro Main.setupHxTestTarget()
+--custom-target hxtest=out

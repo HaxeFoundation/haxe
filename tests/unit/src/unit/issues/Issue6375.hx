@@ -4,7 +4,7 @@ class Issue6375 extends Test {
 	var memberField(default,set):Int;
 	static var staticField(default,set):Int;
 
-	static var rollback:Void->Void;
+	static var rollback:()->Void;
 
 	function set_memberField(_) {
 		memberField = 1;

@@ -42,26 +42,13 @@ class Meta {
 		return (meta == null || meta.obj == null) ? {} : meta.obj;
 	}
 
-	// Could move this to Type.hx?
-	private static function isInterface(t:Dynamic):Bool {
-		#if java
-		return java.Lib.toNativeType(t).isInterface();
-		#elseif cs
-		return cs.Lib.toNativeType(t).IsInterface;
-		#elseif (flash && as3)
-		return untyped flash.Lib.describeType(t).factory.extendsClass.length() == 0;
-		#else
-		throw "Something went wrong";
-		#end
-	}
-
 	private static function getMeta(t:Dynamic):MetaObject {
 		#if php
 		return php.Boot.getMeta(t.phpClassName);
-		#elseif (java || cs || (flash && as3))
+		#elseif java
 		var ret = Reflect.field(t, "__meta__");
-		if (ret == null && Std.is(t, Class)) {
-			if (isInterface(t)) {
+		if (ret == null && Std.isOfType(t, Class)) {
+			if (jvm.NativeTools.NativeClassTools.native(t).isInterface()) {
 				var name = Type.getClassName(t),
 					cls = Type.resolveClass(name + '_HxMeta');
 				if (cls != null)

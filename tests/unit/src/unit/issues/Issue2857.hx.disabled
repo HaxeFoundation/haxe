@@ -5,10 +5,10 @@ class Issue2857 extends unit.Test {
 	function testElement() {
 		if (js.Browser.supported) {
 			var vid = js.Browser.document.createVideoElement();
-			t(Std.is(vid, js.html.VideoElement));
-			t(Std.is(vid, js.html.Element));
-			f(Std.is(vid, haxe.Http));
-			f(Std.is(vid, js.html.ArrayBuffer));
+			t(Std.isOfType(vid, js.html.VideoElement));
+			t(Std.isOfType(vid, js.html.Element));
+			f(Std.isOfType(vid, haxe.Http));
+			f(Std.isOfType(vid, js.html.ArrayBuffer));
 			eq(Type.getClass(vid), js.html.VideoElement);
 		}
 	}

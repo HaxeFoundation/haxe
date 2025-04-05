@@ -48,7 +48,7 @@ abstract UInt16Array(UInt16ArrayData) {
 	}
 
 	@:arrayAccess public inline function set(index:Int, value:Int):Int {
-		return this[index] = value & 0xFFFF; // &0xFFFF necessary for html compat
+		return this[index] = value;
 	}
 
 	public inline function sub(begin:Int, ?length:Int):UInt16Array {

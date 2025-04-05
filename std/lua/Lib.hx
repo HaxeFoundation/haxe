@@ -24,7 +24,6 @@ package lua;
 
 import lua.Lua;
 import lua.Io;
-import lua.NativeStringTools;
 
 /**
 	Platform-specific Lua Library. Provides some platform-specific functions
@@ -45,20 +44,6 @@ class Lib {
 	public static inline function print(v:Dynamic):Void {
 		Io.write(Std.string(v));
 		Io.flush();
-	}
-
-	/**
-		Copies the table argument and converts it to an Array
-	**/
-	public inline static function tableToArray<T>(t:Table<Int, T>, ?length:Int):Array<T> {
-		return Boot.defArray(PairTools.copy(t), length);
-	}
-
-	/**
-		Copies the table argument and converts it to an Object.
-	**/
-	public inline static function tableToObject<T>(t:Table<String, T>):Dynamic<T> {
-		return Boot.tableToObject(PairTools.copy(t));
 	}
 
 	/**

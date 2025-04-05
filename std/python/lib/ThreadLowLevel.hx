@@ -26,5 +26,5 @@ import python.Tuple;
 
 @:pythonImport("_thread")
 extern class ThreadLowLevel {
-	public static function start_new_thread(f:Void->Void, args:Tuple<Dynamic>):Dynamic;
+	static function start_new_thread(f:Void->Void, args:Tuple<Dynamic>):Dynamic;
 }

@@ -17,7 +17,7 @@ class Macro {
 	
 	static function buildAnon(a:AnonType):Type {
 		var sig = Context.signature(a);
-		var name = sig;
+		var name = "Type" + sig;
 		try return Context.getType(name) catch(e:Dynamic) {}
 		var pos = Context.currentPos();
 		var fields = [];

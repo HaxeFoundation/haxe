@@ -28,10 +28,8 @@ class BytesInput extends Input {
 	var len:Int;
 	var totlen:Int;
 
-	/** The current position in the stream in bytes. */
 	public var position(get, set):Int;
 
-	/** The length of the stream in bytes. */
 	public var length(get, never):Int;
 
 	public function new(b:Bytes, ?pos:Int, ?len:Int) {

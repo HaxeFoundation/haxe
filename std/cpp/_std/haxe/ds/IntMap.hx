@@ -35,6 +35,7 @@ package haxe.ds;
   inline void set(int key, float value) { __int_hash_set_float(HX_MAP_THIS,key,value); }
   inline void set(int key, double value) { __int_hash_set_float(HX_MAP_THIS,key,value); }
   inline void set(int key, ::String value) { __int_hash_set_string(HX_MAP_THIS,key,value); }
+  inline void set(int key, cpp::Int64 value) { __int_hash_set_int64(HX_MAP_THIS,key,value); }
 
   template<typename V, typename H>
   inline void set(int key, const ::cpp::Struct<V,H> &value) {__int_hash_set(HX_MAP_THIS,key,value); }
@@ -50,6 +51,7 @@ package haxe.ds;
   inline int get_int(int key) { return __int_hash_get_int(h,key); }
   inline Float get_float(int key) { return __int_hash_get_float(h,key); }
   inline String get_string(int key) { return __int_hash_get_string(h,key); }
+  inline cpp::Int64 get_int64(int key) { return __int_hash_get_int64(h,key); }
 ")
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	@:ifFeature("haxe.ds.IntMap.*")
@@ -98,6 +100,14 @@ package haxe.ds;
 		return untyped __global__.__int_hash_to_string(h);
 	}
 
+	public function clear():Void {
+		#if (hxcpp_api_level >= 400)
+		return untyped __global__.__int_hash_clear(h);
+		#else
+		h = null;
+		#end
+	}
+
 	#if (scriptable)
 	private function setString(key:Int, val:String):Void {
 		untyped __int_hash_set_string(__cpp__("HX_MAP_THIS"), key, val);
@@ -115,6 +125,10 @@ package haxe.ds;
 		untyped __int_hash_set_float(__cpp__("HX_MAP_THIS"), key, val);
 	}
 
+	private function setInt64(key:Int, val:haxe.Int64):Void {
+		untyped __int_hash_set_int64(__cpp__("HX_MAP_THIS"), key, val);
+	}
+
 	private function getString(key:Int):String {
 		return untyped __int_hash_get_string(h, key);
 	}
@@ -129,6 +143,10 @@ package haxe.ds;
 
 	private function getFloat(key:Int):Float {
 		return untyped __int_hash_get_float(h, key);
+	}
+
+	private function getInt64(key:Int):haxe.Int64 {
+		return untyped __int_hash_get_int64(h, key);
 	}
 	#end
 }

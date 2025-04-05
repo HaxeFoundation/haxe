@@ -9,8 +9,11 @@
 *.exe
 .*.swp
 .haxelib
+/opam
 /out
 /installer
+
+.tmp-earthly-out*
 
 /extra/hxclasses
 /extra/*.swf
@@ -39,6 +42,7 @@
 /std/tools/haxelib/haxelib.n
 /std/tools/haxelib/index.n
 
+/tests/**/dump
 /tests/unit/as3
 /tests/unit/cpp
 /tests/unit/java
@@ -52,7 +56,6 @@
 /tests/unit/php
 /tests/unit/cs
 /tests/unit/cs_unsafe
-/tests/unit/dump
 /tests/unit/db.db3
 
 /tests/unit/native_java/obj
@@ -67,7 +70,6 @@
 /tests/unit/node_modules/
 
 /tests/nullsafety/bin
-/tests/nullsafety/dump
 
 /haxe.sublime*
 .idea
@@ -78,13 +80,12 @@ tests/unit/compile.php.hxml
 !/extra/build-haxesetup.xml
 tests/optimization/testopt.js
 tests/misc/pythonImport/native_python/__pycache__
+tests/misc/python/pythonImport/native_python/__pycache__
 tests/unit/unit.py
 tests/unit/unit.py.res1.txt
 tests/unit/unit.py.res2.bin
 tests/sys/bin/
-/tests/sys/dump/
 /tests/sys/test-res/
-tests/optimization/dump/
 tests/misc/projects/*/*.n
 tests/misc/*/*/*.lua
 tests/unit/bin/
@@ -97,7 +98,6 @@ tests/misc/projects/Issue4070/cpp/
 /tests/misc/eventLoop/eventLoop.js
 /tests/misc/eventLoop/eventLoop.n
 /tests/misc/eventLoop/eventLoop.swf
-/tests/misc/eventLoop/dump
 /tests/misc/eventLoop/eventLoop.py
 /tests/misc/eventLoop/php
 *.vscode/
@@ -114,16 +114,22 @@ Makefile.modules
 /tests/unit/compiler_loops/log.txt
 tests/benchs/mandelbrot/bin/
 
-tests/unit/pypy3-*
+tests/unit/pypy3*
 tmp.tmp
 
 dev-display.hxml
 
 .DS_Store
+.history
 tests/sourcemaps/bin
 /*_plugin.ml
 tests/benchs/export/
-tests/benchs/dump/
 tests/display/.unittest/
 tests/unit/.unittest/
 tests/threads/export/
+tests/server/test.js.map
+*.merlin
+lib.sexp
+src/compiler/version.ml
+tests/party
+tests/misc/projects/Issue10863/error.log

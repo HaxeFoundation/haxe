@@ -32,7 +32,7 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T>
+	public static function getClass<T>(o:T):Null<Class<T>>
 		untyped {
 			var cname = __global__["flash.utils.getQualifiedClassName"](o);
 			if (cname == "null" || cname == "Object" || cname == "int" || cname == "Number" || cname == "Boolean")
@@ -78,19 +78,14 @@ enum ValueType {
 				return "Float";
 			case "Boolean":
 				return "Bool";
-			#if as3
-			case "Object":
-				return "Dynamic";
-			#end
-			default:
+			case _:
+				var idx = str.lastIndexOf("::");
+				if (idx == -1) {
+					return str;
+				} else {
+					return str.substring(0, idx) + "." + str.substring(idx + 2);
+				}
 		}
-		var parts = str.split("::");
-		#if as3
-		if (parts[parts.length - 1] == "_Object") {
-			parts[parts.length - 1] = "Object";
-		}
-		#end
-		return parts.join(".");
 	}
 
 	public static function getEnumName(e:Enum<Dynamic>):String {
@@ -111,10 +106,6 @@ enum ValueType {
 						return Int;
 					case "Float":
 						return Float;
-					#if as3
-					case "Dynamic":
-						return Dynamic;
-					#end
 				}
 				return null;
 			}

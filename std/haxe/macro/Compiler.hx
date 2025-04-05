@@ -22,14 +22,13 @@
 
 package haxe.macro;
 
+import haxe.display.Display;
 import haxe.macro.Expr;
+import haxe.hxb.WriterConfig;
 
 /**
 	All these methods can be called for compiler configuration macros.
 **/
-#if hl
-@:hlNative("macro")
-#end
 class Compiler {
 	/**
 		A conditional compilation flag can be set on the command line using
@@ -52,125 +51,72 @@ class Compiler {
 		return macro $v{haxe.macro.Context.definedValue(key)};
 	}
 
-	#if (neko || (macro && hl) || (macro && eval))
+	#if macro
 	static var ident = ~/^[A-Za-z_][A-Za-z0-9_]*$/;
 	static var path = ~/^[A-Za-z_][A-Za-z0-9_.]*$/;
 
 	public static function allowPackage(v:String) {
-		#if (neko || eval)
 		load("allow_package", 1)(v);
-		#end
 	}
 
 	/**
 		Set a conditional compiler flag.
+
+		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
 	**/
 	public static function define(flag:String, ?value:String) {
-		#if (neko || eval)
+		Context.assertInitMacro();
 		load("define", 2)(flag, value);
-		#end
-	}
-
-	#if (!neko && !eval)
-	private static function typePatch(cl:String, f:String, stat:Bool, t:String) {}
-
-	private static function metaPatch(meta:String, cl:String, f:String, stat:Bool) {}
-
-	private static function addGlobalMetadataImpl(pathFilter:String, meta:String, recursive:Bool, toTypes:Bool, toFields:Bool) {}
-	#end
-
-	/**
-		Removes a (static) field from a given class by name.
-		An error is thrown when `className` or `field` is invalid.
-	**/
-	public static function removeField(className:String, field:String, ?isStatic:Bool) {
-		if (!path.match(className))
-			throw "Invalid " + className;
-		if (!ident.match(field))
-			throw "Invalid " + field;
-		#if (neko || eval)
-		load("type_patch", 4)(className, field, isStatic == true, null);
-		#else
-		typePatch(className, field, isStatic == true, null);
-		#end
 	}
 
 	/**
-		Set the type of a (static) field at a given class by name.
-		An error is thrown when `className` or `field` is invalid.
-	**/
-	public static function setFieldType(className:String, field:String, type:String, ?isStatic:Bool) {
-		if (!path.match(className))
-			throw "Invalid " + className;
-		if (!ident.match((field.charAt(0) == "$") ? field.substr(1) : field))
-			throw "Invalid " + field;
-		#if (neko || eval)
-		load("type_patch", 4)(className, field, isStatic == true, type);
-		#else
-		typePatch(className, field, isStatic == true, type);
-		#end
-	}
+		Add a class path where ".hx" source files or packages (sub-directories) can be found.
 
-	/**
-		Add metadata to a (static) field or class by name.
-		An error is thrown when `className` or `field` is invalid.
+		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
 	**/
-	public static function addMetadata(meta:String, className:String, ?field:String, ?isStatic:Bool) {
-		if (!path.match(className))
-			throw "Invalid " + className;
-		if (field != null && !ident.match(field))
-			throw "Invalid " + field;
-		#if (neko || eval)
-		load("meta_patch", 4)(meta, className, field, isStatic == true);
-		#else
-		metaPatch(meta, className, field, isStatic == true);
-		#end
-	}
-
 	public static function addClassPath(path:String) {
-		#if (neko || eval)
+		Context.assertInitMacro();
 		load("add_class_path", 1)(path);
-		#end
 	}
 
 	public static function getOutput():String {
-		#if (neko || eval)
 		return load("get_output", 0)();
-		#else
-		return null;
-		#end
 	}
 
 	public static function setOutput(fileOrDir:String) {
-		#if (neko || eval)
 		load("set_output", 1)(fileOrDir);
-		#end
 	}
 
 	public static function getDisplayPos():Null<{file:String, pos:Int}> {
-		#if (neko || eval)
 		return load("get_display_pos", 0)();
-		#else
-		return null;
-		#end
+	}
+
+	/**
+		Returns all the configuration settings applied to the compiler.
+
+		Usage of this function outside a macro context returns `null`.
+	**/
+	public static function getConfiguration():Null<CompilerConfiguration> {
+		return load("get_configuration", 0)();
+	}
+
+	/**
+		Sets the target configuration.
+
+		Usage of this function outside a macro context does nothing.
+	**/
+	public static function setPlatformConfiguration(config:PlatformConfig):Void {
+		load("set_platform_configuration", 1)(config);
 	}
 
 	/**
 		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
+
+		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
 	**/
 	public static function addNativeLib(name:String) {
-		#if (neko || eval)
+		Context.assertInitMacro();
 		load("add_native_lib", 1)(name);
-		#end
-	}
-
-	/**
-		Adds an argument to be passed to the native compiler (e.g. `-javac-arg` for Java).
-	**/
-	public static function addNativeArg(argument:String) {
-		#if (neko || eval)
-		load("add_native_arg", 1)(argument);
-		#end
 	}
 
 	/**
@@ -183,6 +129,9 @@ class Compiler {
 		If you want to specify a different set of paths to search for modules, you can use the optional
 		argument `classPath`.
 
+		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
+
+		@param pack The package dot-path as String. Use `''` to include the root package.
 		@param rec If true, recursively adds all sub-packages.
 		@param ignore Array of module names to ignore for inclusion.
 			   You can use `module*` with a * at the end for Wildcard matching
@@ -191,68 +140,75 @@ class Compiler {
 		@param strict If true and given package wasn't found in any of class paths, fail with an error.
 	**/
 	public static function include(pack:String, ?rec = true, ?ignore:Array<String>, ?classPaths:Array<String>, strict = false) {
-		var ignoreWildcard:Array<String> = [];
-		var ignoreString:Array<String> = [];
-		if (ignore != null) {
-			for (ignoreRule in ignore) {
-				if (StringTools.endsWith(ignoreRule, "*")) {
-					ignoreWildcard.push(ignoreRule.substr(0, ignoreRule.length - 1));
-				} else {
-					ignoreString.push(ignoreRule);
+		function include(pack:String, ?rec = true, ?ignore:Array<String>, ?classPaths:Array<String>, strict = false) {
+			var ignoreWildcard:Array<String> = [];
+			var ignoreString:Array<String> = [];
+			if (ignore != null) {
+				for (ignoreRule in ignore) {
+					if (StringTools.endsWith(ignoreRule, "*")) {
+						ignoreWildcard.push(ignoreRule.substr(0, ignoreRule.length - 1));
+					} else {
+						ignoreString.push(ignoreRule);
+					}
 				}
 			}
-		}
-		var skip = if (ignore == null) {
-			function(c) return false;
-		} else {
-			function(c:String) {
-				if (Lambda.has(ignoreString, c))
-					return true;
-				for (ignoreRule in ignoreWildcard)
-					if (StringTools.startsWith(c, ignoreRule))
+			var skip = if (ignore == null) {
+				function(c) return false;
+			} else {
+				function(c:String) {
+					if (Lambda.has(ignoreString, c))
 						return true;
-				return false;
+					for (ignoreRule in ignoreWildcard)
+						if (StringTools.startsWith(c, ignoreRule))
+							return true;
+					return false;
+				}
 			}
+			var displayValue = Context.definedValue("display");
+			if (classPaths == null) {
+				classPaths = Context.getClassPath();
+				// do not force inclusion when using completion
+				switch (displayValue) {
+					case null:
+					case "usage":
+					case _:
+						return;
+				}
+				// normalize class path
+				for (i in 0...classPaths.length) {
+					var cp = StringTools.replace(classPaths[i], "\\", "/");
+					if (StringTools.endsWith(cp, "/"))
+						cp = cp.substr(0, -1);
+					if (cp == "")
+						cp = ".";
+					classPaths[i] = cp;
+				}
+			}
+			var prefix = pack == '' ? '' : pack + '.';
+			var found = false;
+			for (cp in classPaths) {
+				var path = pack == '' ? cp : cp + "/" + pack.split(".").join("/");
+				if (!sys.FileSystem.exists(path) || !sys.FileSystem.isDirectory(path))
+					continue;
+				found = true;
+				for (file in sys.FileSystem.readDirectory(path)) {
+					if (StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0) {
+						if (file == "import.hx")
+							continue;
+						var cl = prefix + file.substr(0, file.length - 3);
+						if (skip(cl))
+							continue;
+						load("include_module", 1)(cl);
+					} else if (rec && sys.FileSystem.isDirectory(path + "/" + file) && !skip(prefix + file))
+						include(prefix + file, true, ignore, classPaths);
+				}
+			}
+			if (strict && !found)
+				Context.error('Package "$pack" was not found in any of class paths', Context.currentPos());
 		}
-		var displayValue = Context.definedValue("display");
-		if (classPaths == null) {
-			classPaths = Context.getClassPath();
-			// do not force inclusion when using completion
-			switch (displayValue) {
-				case null:
-				case "usage":
-				case _:
-					return;
-			}
-			// normalize class path
-			for (i in 0...classPaths.length) {
-				var cp = StringTools.replace(classPaths[i], "\\", "/");
-				if (StringTools.endsWith(cp, "/"))
-					cp = cp.substr(0, -1);
-				if (cp == "")
-					cp = ".";
-				classPaths[i] = cp;
-			}
-		}
-		var prefix = pack == '' ? '' : pack + '.';
-		var found = false;
-		for (cp in classPaths) {
-			var path = pack == '' ? cp : cp + "/" + pack.split(".").join("/");
-			if (!sys.FileSystem.exists(path) || !sys.FileSystem.isDirectory(path))
-				continue;
-			found = true;
-			for (file in sys.FileSystem.readDirectory(path)) {
-				if (StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0) {
-					var cl = prefix + file.substr(0, file.length - 3);
-					if (skip(cl))
-						continue;
-					Context.getModule(cl);
-				} else if (rec && sys.FileSystem.isDirectory(path + "/" + file) && !skip(prefix + file))
-					include(prefix + file, true, ignore, classPaths);
-			}
-		}
-		if (strict && !found)
-			Context.error('Package "$pack" was not found in any of class paths', Context.currentPos());
+
+		Context.assertInitMacro();
+		Context.onAfterInitMacros(() -> include(pack, rec, ignore, classPaths, strict));
 	}
 
 	/**
@@ -272,6 +228,7 @@ class Compiler {
 		Exclude a specific class, enum, or all classes and enums in a
 		package from being generated. Excluded types become `extern`.
 
+		@param pack The package dot-path as String. Use `''` to exclude the root package.
 		@param rec If true, recursively excludes all sub-packages.
 	**/
 	public static function exclude(pack:String, ?rec = true) {
@@ -281,7 +238,13 @@ class Compiler {
 				switch (t) {
 					case TInst(c, _):
 						name = c.toString();
-						b = c.get();
+						var c = c.get();
+						switch (c.kind) {
+							case KModuleFields(module):
+								name = module;
+							case _:
+						}
+						b = c;
 					case TEnum(e, _):
 						name = e.toString();
 						b = e.get();
@@ -326,61 +289,6 @@ class Compiler {
 	}
 
 	/**
-		Load a type patch file that can modify the field types within declared classes and enums.
-	**/
-	public static function patchTypes(file:String):Void {
-		var file = Context.resolvePath(file);
-		var f = sys.io.File.read(file, true);
-		try {
-			while (true) {
-				var r = StringTools.trim(f.readLine());
-				if (r == "" || r.substr(0, 2) == "//")
-					continue;
-				if (StringTools.endsWith(r, ";"))
-					r = r.substr(0, -1);
-				if (r.charAt(0) == "-") {
-					r = r.substr(1);
-					var isStatic = StringTools.startsWith(r, "static ");
-					if (isStatic)
-						r = r.substr(7);
-					var p = r.split(".");
-					var field = p.pop();
-					removeField(p.join("."), field, isStatic);
-					continue;
-				}
-				if (r.charAt(0) == "@") {
-					var rp = r.split(" ");
-					var type = rp.pop();
-					var isStatic = rp[rp.length - 1] == "static";
-					if (isStatic)
-						rp.pop();
-					var meta = rp.join(" ");
-					var p = type.split(".");
-					var field = if (p.length > 1 && p[p.length - 2].charAt(0) >= "a") null else p.pop();
-					addMetadata(meta, p.join("."), field, isStatic);
-					continue;
-				}
-				if (StringTools.startsWith(r, "enum ")) {
-					define("enumAbstract:" + r.substr(5));
-					continue;
-				}
-				var rp = r.split(" : ");
-				if (rp.length > 1) {
-					r = rp.shift();
-					var isStatic = StringTools.startsWith(r, "static ");
-					if (isStatic)
-						r = r.substr(7);
-					var p = r.split(".");
-					var field = p.pop();
-					setFieldType(p.join("."), field, rp.join(" : "), isStatic);
-					continue;
-				}
-				throw "Invalid type patch " + r;
-			}
-		} catch (e:haxe.io.Eof) {}
-	}
-
-	/**
 		Marks types or packages to be kept by DCE.
 
 		This also extends to the sub-types of resolved modules.
@@ -409,7 +317,7 @@ class Compiler {
 	/**
 		Enables null safety for a type or a package.
 
-		@param path A package, module or sub-type dot path to keep.
+		@param path A package, module or sub-type dot path to enable null safety for.
 		@param recursive If true, recurses into sub-packages for package paths.
 	**/
 	public static function nullSafety(path:String, mode:NullSafetyMode = Loose, recursive:Bool = true) {
@@ -431,37 +339,96 @@ class Compiler {
 		through `Context.getType`.
 	**/
 	public static function addGlobalMetadata(pathFilter:String, meta:String, ?recursive:Bool = true, ?toTypes:Bool = true, ?toFields:Bool = false) {
-		#if (neko || eval)
 		load("add_global_metadata_impl", 5)(pathFilter, meta, recursive, toTypes, toFields);
-		#else
-		addGlobalMetadataImpl(pathFilter, meta, recursive, toTypes, toFields);
-		#end
+	}
+
+	@:deprecated
+	public static function addMetadata(meta:String, className:String, ?field:String, ?isStatic:Bool) {
+		var pathFilter = field == null ? className : '$className.$field';
+		addGlobalMetadata(pathFilter, meta, false, field == null, field != null);
+	}
+
+	/**
+		Reference a json file describing user-defined metadata
+		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/meta.json
+	**/
+	public static function registerMetadataDescriptionFile(path:String, ?source:String):Void {
+		var f = sys.io.File.getContent(path);
+		var content:Array<MetadataDescription> = haxe.Json.parse(f);
+		for (m in content)
+			registerCustomMetadata(m, source);
+	}
+
+	/**
+		Reference a json file describing user-defined defines
+		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/define.json
+	**/
+	public static function registerDefinesDescriptionFile(path:String, ?source:String):Void {
+		var f = sys.io.File.getContent(path);
+		var content:Array<DefineDescription> = haxe.Json.parse(f);
+		for (d in content)
+			registerCustomDefine(d, source);
+	}
+
+	/**
+		Register a custom metadata for documentation and completion purposes
+	**/
+	public static function registerCustomMetadata(meta:MetadataDescription, ?source:String):Void {
+		load("register_metadata_impl", 2)(meta, source);
+	}
+
+	/**
+		Register a custom define for documentation purposes
+	**/
+	public static function registerCustomDefine(define:DefineDescription, ?source:String):Void {
+		load("register_define_impl", 2)(define, source);
 	}
 
 	/**
 		Change the default JS output by using a custom generator callback
 	**/
 	public static function setCustomJSGenerator(callb:JSGenApi->Void) {
-		#if (neko || eval)
 		load("set_custom_js_generator", 1)(callb);
-		#end
 	}
 
-	#if (neko || eval)
 	static inline function load(f, nargs):Dynamic {
 		return @:privateAccess Context.load(f, nargs);
 	}
-	#end
 
 	/**
 		Clears cached results of file lookups
 	**/
 	public static function flushDiskCache() {
-		#if (neko || eval)
 		load("flush_disk_cache", 0)();
-		#end
 	}
 
+	/**
+		Gets the current hxb writer configuration, if any.
+	**/
+	static public function getHxbWriterConfiguration():Null<WriterConfig> {
+		return load("get_hxb_writer_config", 0)();
+	}
+
+	/**
+		Sets the hxb writer configuration to `config`. If no hxb writer configuration
+		exists, it is created.
+
+		The intended usage is
+
+		```
+		var config = Compiler.getHxbWriterConfiguration();
+		config.archivePath = "newPath.zip";
+		// Other changes
+		Compiler.setHxbWriterConfiguration(config);
+		```
+
+		If `config` is `null`, hxb writing is disabled.
+
+		@see haxe.hxb.WriterConfig
+	**/
+	static public function setHxbWriterConfiguration(config:Null<WriterConfig>) {
+		load("set_hxb_writer_config", 1)(config);
+	}
 	#end
 
 	#if (js || lua || macro)
@@ -476,8 +443,11 @@ class Compiler {
 
 				var f = try sys.io.File.getContent(Context.resolvePath(file)) catch (e:Dynamic) Context.error(Std.string(e), Context.currentPos());
 				var p = Context.currentPos();
-				var magic = if (Context.defined("js")) "__js__" else "__lua__";
-				{expr: EUntyped({expr: ECall({expr: EConst(CIdent(magic)), pos: p}, [{expr: EConst(CString(f)), pos: p}]), pos: p}), pos: p};
+				if (Context.defined("js")) {
+					macro @:pos(p) js.Syntax.plainCode($v{f});
+				} else {
+					macro @:pos(p) untyped __lua__($v{f});
+				}
 			case Top | Closure:
 				@:privateAccess Context.includeFile(file, position);
 				macro {};
@@ -514,13 +484,8 @@ enum abstract NullSafetyMode(String) to String {
 	var Off;
 
 	/**
-		Full scale null safety.
-	**/
-	var Strict;
-
-	/**
 		Loose safety.
-		If an expression is checked ` != null`, then it's considered safe even if it could be modified after the check.
+		If an expression is checked `!= null`, then it's considered safe even if it could be modified after the check.
 		E.g.
 		```haxe
 		function example(o:{field:Null<String>}) {
@@ -536,4 +501,154 @@ enum abstract NullSafetyMode(String) to String {
 		```
 	**/
 	var Loose;
+
+	/**
+		Full scale null safety.
+		If a field is checked `!= null` it stays safe until a call is made or any field of any object is reassigned,
+		because that could potentially alter an object of the checked field.
+		E.g.
+		```haxe
+		function example(o:{field:Null<String>}, b:{o:{field:Null<String>}}) {
+			if(o.field != null) {
+				var notNullable:String = o.field; //no error
+				someCall();
+				var notNullable:String = o.field; // Error!
+			}
+			if(o.field != null) {
+				var notNullable:String = o.field; //no error
+				b.o = {field:null};
+				var notNullable:String = o.field; // Error!
+			}
+		}
+		```
+	**/
+	var Strict;
+
+	/**
+		Full scale null safety for a multi-threaded environment.
+		With this mode checking a field `!= null` does not make it safe, because it could be changed from another thread
+		at the same time or immediately after the check.
+		The only nullable thing could be safe are local variables.
+	**/
+	var StrictThreaded;
+}
+
+typedef MetadataDescription = {
+	final metadata:String;
+	final doc:String;
+
+	/**
+		External resources for more information about this metadata.
+	**/
+	@:optional final links:Array<String>;
+
+	/**
+		List (small description) of parameters that this metadata accepts.
+	**/
+	@:optional final params:Array<String>;
+
+	/**
+		Haxe target(s) for which this metadata is used.
+	**/
+	@:optional final platforms:Array<Platform>;
+
+	/**
+		Places where this metadata can be applied.
+	**/
+	@:optional final targets:Array<MetadataTarget>;
+}
+
+typedef DefineDescription = {
+	final define:String;
+	final doc:String;
+
+	/**
+		External resources for more information about this define.
+	**/
+	@:optional final links:Array<String>;
+
+	/**
+		List (small description) of parameters that this define accepts.
+	**/
+	@:optional final params:Array<String>;
+
+	/**
+		Haxe target(s) for which this define is used.
+	**/
+	@:optional final platforms:Array<Platform>;
+}
+
+typedef CompilerConfiguration = {
+	/**
+		The version integer of the current Haxe compiler build.
+	**/
+	final version:Int;
+
+	/**
+		Returns an array of the arguments passed to the compiler from either the `.hxml` file or the command line.
+	**/
+	final args:Array<String>;
+
+	/**
+		If `--debug` mode is enabled, this is `true`.
+	**/
+	final debug:Bool;
+
+	/**
+		If `--verbose` mode is enabled, this is `true`.
+	**/
+	final verbose:Bool;
+
+	/**
+		If `--no-opt` is enabled, this is `false`.
+	**/
+	final foptimize:Bool;
+
+	/**
+		The target platform.
+	**/
+	final platform:Platform;
+
+	/**
+		The compilation configuration for the target platform.
+	**/
+	final platformConfig:PlatformConfig;
+
+	/**
+		A list of paths being used for the standard library.
+	**/
+	final stdPath:Array<String>;
+
+	/**
+		The path of the class passed using the `-main` argument.
+	**/
+	final mainClass:TypePath;
+
+	/**
+		Special access rules for packages depending on the compiler configuration.
+
+		For example, the "java" package is "Forbidden" when the target platform is Python.
+	**/
+	final packageRules:Map<String, PackageRule>;
+}
+
+enum Platform {
+	Cross;
+	Js;
+	Lua;
+	Neko;
+	Flash;
+	Php;
+	Cpp;
+	Jvm;
+	Python;
+	Hl;
+	Eval;
+	CustomTarget(name:String);
+}
+
+enum PackageRule {
+	Forbidden;
+	Directory(path:String);
+	Remap(path:String);
 }

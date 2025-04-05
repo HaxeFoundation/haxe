@@ -49,7 +49,7 @@ private abstract BytesDataAbstract(Container) from Container to Container {
 
 	@:arrayAccess
 	public inline function set(index:Int, val:Int):Void {
-		this.s = Global.substr_replace(this.s, Global.chr(val), index, 1);
+		this.s[index] = Global.chr(val);
 	}
 
 	public inline function compare(other:BytesDataAbstract):Int {
@@ -66,6 +66,10 @@ private abstract BytesDataAbstract(Container) from Container to Container {
 
 	public inline function blit(pos:Int, src:BytesDataAbstract, srcpos:Int, len:Int):Void {
 		this.s = Global.substr(this.s, 0, pos).concat(Global.substr(src, srcpos, len)).concat(Global.substr(this.s, pos + len));
+	}
+
+	public inline function fill(pos:Int, len:Int, value:Int):Void {
+		this.s = Global.substr(this.s, 0, pos).concat(Global.str_repeat(Global.chr(value), len)).concat(Global.substr(this.s, pos + len));
 	}
 
 	inline function get_length():Int {

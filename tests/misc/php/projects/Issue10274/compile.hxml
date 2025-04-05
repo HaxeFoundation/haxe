@@ -1,0 +1,3 @@
+-php bin/main.php
+--no-output
+--main Test

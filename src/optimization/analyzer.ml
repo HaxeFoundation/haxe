@@ -20,7 +20,7 @@
 open StringHelper
 open Ast
 open Type
-open Common
+open SafeCom
 open AnalyzerTexpr
 open AnalyzerTypes
 open OptimizerTexpr
@@ -126,13 +126,13 @@ module Ssa = struct
 					else match e.eexpr with
 					| TLocal v ->
 						let v' = local ctx e v edge.cfg_from in
-						add_ssa_edge ctx.graph v' bb true i;
+						add_ssa_edge ctx.graph v' bb (LUPhi i);
 						{e with eexpr = TLocal v'}
 					| _ ->
-						assert false
+						die "" __LOC__
 				) el edge.cfg_to.bb_incoming in
 				let ephi = {ecall with eexpr = TCall(ephi,el)} in
-				set_var_value ctx.graph v0 bb true i;
+				set_var_value ctx.graph v0 bb (LUPhi i);
 				{e with eexpr = TBinop(OpAssign,e1,ephi)}
 			| _ ->
 				Type.map_expr (loop i) e
@@ -140,39 +140,40 @@ module Ssa = struct
 		dynarray_mapi loop bb.bb_phi
 
 	let rec rename_in_block ctx bb =
-		let write_var v is_phi i =
+		let write_var v luk =
 			update_reaching_def ctx v bb;
 			let v' = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
 			declare_var ctx.graph v' bb;
 			v'.v_meta <- v.v_meta;
-			v'.v_capture <- v.v_capture;
+			if has_var_flag v VCaptured then add_var_flag v' VCaptured;
 			add_var_def ctx.graph bb v';
 			set_reaching_def ctx.graph v' (get_reaching_def ctx.graph v);
 			set_reaching_def ctx.graph v (Some v');
-			set_var_value ctx.graph v' bb is_phi i;
+			set_var_value ctx.graph v' bb luk;
 			add_var_origin ctx.graph v' v;
 			v'
 		in
-		let rec loop is_phi i e = match e.eexpr with
+		let rec loop luk e = match e.eexpr with
 			| TLocal v ->
 				let v' = local ctx e v bb in
-				add_ssa_edge ctx.graph v' bb is_phi i;
+				add_ssa_edge ctx.graph v' bb luk;
 				{e with eexpr = TLocal v'}
 			| TVar(v,Some e1) ->
-				let e1 = (loop is_phi i) e1 in
-				let v' = write_var v is_phi i in
+				let e1 = (loop luk) e1 in
+				let v' = write_var v luk in
 				{e with eexpr = TVar(v',Some e1)}
 			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
-				let e2 = (loop is_phi i) e2 in
-				let v' = write_var v is_phi i in
+				let e2 = (loop luk) e2 in
+				let v' = write_var v luk in
 				{e with eexpr = TBinop(OpAssign,{e1 with eexpr = TLocal v'},e2)};
 			| TCall({eexpr = TConst (TString "phi")},_) ->
 				e
 			| _ ->
-				Type.map_expr (loop is_phi i) e
+				Type.map_expr (loop luk) e
 		in
-		dynarray_mapi (loop true) bb.bb_phi;
-		dynarray_mapi (loop false) bb.bb_el;
+		dynarray_mapi (fun i e -> loop (LUPhi i) e) bb.bb_phi;
+		dynarray_mapi (fun i e -> loop (LUEl i) e) bb.bb_el;
+		bb.bb_terminator <- BasicBlock.terminator_map (loop LUTerm) bb.bb_terminator;
 		List.iter (update_phi ctx) bb.bb_outgoing;
 		List.iter (rename_in_block ctx) bb.bb_dominated
 
@@ -184,16 +185,29 @@ end
 
 module type DataFlowApi = sig
 	type t
+
+	type opt_ctx
+
+	val to_string : t -> string
 	val flag : BasicBlock.cfg_edge_Flag
-	val transfer : analyzer_context -> BasicBlock.t -> texpr -> t (* The transfer function *)
-	val equals : t -> t -> bool                                   (* The equality function *)
-	val bottom : t                                                (* The bottom element of the lattice *)
-	val top : t                                                   (* The top element of the lattice *)
-	val get_cell : int -> t                                       (* Lattice cell getter *)
-	val set_cell : int -> t -> unit                               (* Lattice cell setter *)
-	val init : analyzer_context -> unit                           (* The initialization function which is called at the start *)
-	val commit : analyzer_context -> unit                         (* The commit function which is called at the end *)
-	val conditional : bool                                        (* Whether or not conditional branches are checked *)
+	(* The transfer function *)
+	val transfer : analyzer_context -> opt_ctx -> BasicBlock.t -> texpr -> t
+	(* The equality function *)
+	val equals : t -> t -> bool
+	(* The bottom element of the lattice *)
+	val bottom : t
+	(* The top element of the lattice *)
+	val top : t
+	(* Lattice cell getter *)
+	val get_cell : opt_ctx -> int -> t
+	(* Lattice cell setter *)
+	val set_cell : opt_ctx -> int -> t -> unit
+	(* The initialization function which is called at the start *)
+	val init : analyzer_context -> opt_ctx
+	(* The commit function which is called at the end *)
+	val commit : analyzer_context -> opt_ctx -> unit
+	(* Whether or not conditional branches are checked *)
+	val conditional : bool
 end
 
 (*
@@ -218,8 +232,8 @@ module DataFlow (M : DataFlowApi) = struct
 	let get_ssa_edges_from g v =
 		(get_var_info g v).vi_ssa_edges
 
-	let run ctx =
-		let g = ctx.graph in
+	let run actx ctx =
+		let g = actx.graph in
 		let ssa_work_list = ref [] in
 		let cfg_work_list = ref g.g_root.bb_outgoing in
 		let add_ssa_edge edge =
@@ -232,7 +246,7 @@ module DataFlow (M : DataFlowApi) = struct
 			let el = List.fold_left2 (fun acc e edge ->
 				if has_flag edge M.flag then e :: acc else acc
 			) [] el bb.bb_incoming in
-			let el = List.map (fun e -> M.transfer ctx bb e) el in
+			let el = List.map (fun e -> M.transfer actx ctx bb e) el in
 			match el with
 				| e1 :: el when List.for_all (M.equals e1) el ->
 					e1;
@@ -240,8 +254,8 @@ module DataFlow (M : DataFlowApi) = struct
 					M.bottom;
 		in
 		let set_lattice_cell v e =
-			let e' = M.get_cell v.v_id in
-			M.set_cell v.v_id e;
+			let e' = M.get_cell ctx v.v_id in
+			M.set_cell ctx v.v_id e;
 			if not (M.equals e e') then
 				List.iter (fun edge -> add_ssa_edge edge) (get_ssa_edges_from g v);
 		in
@@ -251,15 +265,15 @@ module DataFlow (M : DataFlowApi) = struct
 				set_lattice_cell v (visit_phi bb v el)
 			| _ ->
 				if List.exists (fun edge -> has_flag edge M.flag) bb.bb_incoming then
-					set_lattice_cell v (M.transfer ctx bb e)
+					set_lattice_cell v (M.transfer actx ctx bb e)
 		in
-		let visit_expression bb e =
+		let visit_expression bb cond_branch e =
 			match e.eexpr with
 			| TBinop(OpAssign,{eexpr = TLocal v},e2) | TVar(v,Some e2) ->
 				visit_assignment bb v e2;
 				false
-			| TMeta((Meta.Custom ":cond-branch",_,_),e1) when M.conditional ->
-				let e1 = M.transfer ctx bb e1 in
+			| _ when M.conditional && cond_branch ->
+				let e1 = M.transfer actx ctx bb e in
 				let edges = if e1 == M.bottom || e1 == M.top then
 					bb.bb_outgoing
 				else begin
@@ -267,7 +281,7 @@ module DataFlow (M : DataFlowApi) = struct
 						| edge :: edges ->
 							begin match edge.cfg_kind with
 							| CFGCondBranch e ->
-								let e = M.transfer ctx bb e in
+								let e = M.transfer actx ctx bb e in
 								if M.equals e e1 then
 									loop (edge :: yes) maybe also edges
 								else
@@ -293,8 +307,17 @@ module DataFlow (M : DataFlowApi) = struct
 		in
 		let visit_expressions bb =
 			let b = DynArray.fold_left (fun b e ->
-				visit_expression bb e || b
+				visit_expression bb false e || b
 			) false bb.bb_el in
+			let b = match bb.bb_terminator with
+			| TermCondBranch e1 ->
+				visit_expression bb true e1 || b
+			| TermReturnValue(e1,_)
+			| TermThrow(e1,_) ->
+				visit_expression bb false e1
+			| _ ->
+				b
+			in
 			if not b then List.iter add_cfg_edge bb.bb_outgoing
 		in
 		let visit_phis bb =
@@ -302,7 +325,7 @@ module DataFlow (M : DataFlowApi) = struct
 				match e.eexpr with
 					| TBinop(OpAssign,{eexpr = TLocal v},{eexpr = TCall({eexpr = TConst (TString "phi")},el)}) ->
 						set_lattice_cell v (visit_phi bb v el)
-					| _ -> assert false
+					| _ -> die "" __LOC__
 			) bb.bb_phi
 		in
 		let rec loop () = match !cfg_work_list,!ssa_work_list with
@@ -320,20 +343,20 @@ module DataFlow (M : DataFlowApi) = struct
 					end
 				end;
 				loop();
-			| [],((bb,is_phi,i) :: edges) ->
+			| [],((bb,luk) :: edges) ->
 				ssa_work_list := edges;
-				let e = get_texpr bb is_phi i in
-				ignore(visit_expression bb e);
+				let e = get_texpr bb luk in
+				ignore(visit_expression bb (match luk with LUTerm -> true | _ -> false) e);
 				loop()
 			| [],[] ->
 				()
 		in
 		loop ()
 
-	let apply ctx =
-		M.init ctx;
-		run ctx;
-		M.commit ctx
+	let apply actx =
+		let ctx = M.init actx in
+		run actx ctx;
+		M.commit actx ctx
 end
 
 (*
@@ -343,45 +366,55 @@ end
 
 	This module also deals with binop/unop optimization and standard API inlining.
 *)
-module ConstPropagation = DataFlow(struct
+module ConstPropagationImpl = struct
 	open BasicBlock
 
 	type t =
 		| Top
 		| Bottom
 		| Null of Type.t
-		| Const of tconstant
+		| Const of tconstant * Type.t
 		| EnumValue of int * t list
 		| ModuleType of module_type * Type.t
+
+	type opt_ctx = t IntHashtbl.t
+
+	let rec to_string =
+		let st = s_type (print_context()) in
+		function
+		| Top -> "Top"
+		| Bottom -> "Bottom"
+		| Null t -> Printf.sprintf "Null(%s)" (st t)
+		| Const(ct,t) -> Printf.sprintf "Const(%s,%s)" (s_const ct) (st t)
+		| EnumValue(i,tl) -> Printf.sprintf "EnumValue(%i, %s)" i (String.concat ", " (List.map to_string tl))
+		| ModuleType(mt,t) -> Printf.sprintf "ModuleType(%s,%s)" (s_module_type_kind mt) (st t)
 
 	let conditional = true
 	let flag = FlagExecutable
 
-	let lattice = Hashtbl.create 0
-
-	let get_cell i = try Hashtbl.find lattice i with Not_found -> Top
-	let set_cell i ct = Hashtbl.replace lattice i ct
+	let get_cell ctx i = try IntHashtbl.find ctx i with Not_found -> Top
+	let set_cell ctx i ct = IntHashtbl.replace ctx i ct
 
 	let top = Top
 	let bottom = Bottom
 
 	let equals lat1 lat2 = match lat1,lat2 with
 		| Top,Top | Bottom,Bottom -> true
-		| Const ct1,Const ct2 -> ct1 = ct2
+		| Const(ct1,t1),Const(ct2,t2) -> ct1 = ct2 && type_iseq t1 t2
 		| Null t1,Null t2 -> t1 == t2
-		| EnumValue(i1,_),EnumValue(i2,_) -> i1 = i2
+		| EnumValue(i1,[]),EnumValue(i2,[]) -> i1 = i2
 		| ModuleType(mt1,_),ModuleType (mt2,_) -> mt1 == mt2
 		| _ -> false
 
-	let transfer ctx bb e =
+	let transfer actx ctx bb e =
 		let rec eval bb e =
 			let wrap = function
-				| Const ct -> mk (TConst ct) t_dynamic null_pos
+				| Const(ct,t) -> mk (TConst ct) t null_pos
 				| Null t -> mk (TConst TNull) t e.epos
 				| _ -> raise Exit
 			in
 			let unwrap e = match e.eexpr with
-				| TConst ct -> Const ct
+				| TConst ct -> Const(ct,e.etype)
 				| _ -> raise Exit
 			in
 			match e.eexpr with
@@ -390,14 +423,14 @@ module ConstPropagation = DataFlow(struct
 			| TConst TNull ->
 				Null e.etype
 			| TConst ct ->
-				Const ct
+				Const(ct,e.etype)
 			| TTypeExpr mt ->
 				ModuleType(mt,e.etype)
 			| TLocal v ->
-				if (follow v.v_type) == t_dynamic || v.v_capture then
+				if (follow v.v_type) == t_dynamic || has_var_flag v VCaptured then
 					Bottom
 				else
-					get_cell v.v_id
+					get_cell ctx v.v_id
 			| TBinop(OpAssign,_,e2) ->
 				eval bb e2
 			| TBinop(op,e1,e2) ->
@@ -432,14 +465,14 @@ module ConstPropagation = DataFlow(struct
 				end;
 			| TEnumIndex e1 ->
 				begin match eval bb e1 with
-					| EnumValue(i,_) -> Const (TInt (Int32.of_int i))
+					| EnumValue(i,_) -> Const (TInt (Int32.of_int i),actx.com.basic.tint)
 					| _ -> raise Exit
 				end;
-			| TCall ({ eexpr = TField (_,FStatic({cl_path=[],"Type"} as c,({cf_name="enumIndex"} as cf)))},[e1]) when ctx.com.platform = Eval ->
+			| TCall ({ eexpr = TField (_,FStatic({cl_path=[],"Type"} as c,({cf_name="enumIndex"} as cf)))},[e1]) when actx.com.platform = Eval ->
 				begin match follow e1.etype,eval bb e1 with
-					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i))
+					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i),actx.com.basic.tint)
 					| _,e1 ->
-						begin match Inline.api_inline2 ctx.com c cf.cf_name [wrap e1] e.epos with
+						begin match Inline.api_inline2 actx.com.basic actx.com.platform c cf.cf_name [wrap e1] e.epos with
 							| None -> raise Exit
 							| Some e -> eval bb e
 						end
@@ -447,22 +480,22 @@ module ConstPropagation = DataFlow(struct
 			| TCall ({ eexpr = TField (_,FStatic(c,cf))},el) ->
 				let el = List.map (eval bb) el in
 				let el = List.map wrap el in
-				begin match Inline.api_inline2 ctx.com c cf.cf_name el e.epos with
+				begin match Inline.api_inline2 actx.com.basic actx.com.platform c cf.cf_name el e.epos with
 					| None -> raise Exit
 					| Some e -> eval bb e
 				end
 			| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 				eval bb e1
 			| _ ->
-				let e1 = match ctx.com.platform,e.eexpr with
-					| Js,TArray(e1,{eexpr = TConst(TInt i)}) when Int32.to_int i = 1 && Define.defined ctx.com.defines Define.JsEnumsAsArrays -> e1
-					| Js,TField(e1,FDynamic "_hx_index") when not (Define.defined ctx.com.defines Define.JsEnumsAsArrays) -> e1
+				let e1 = match actx.com.platform,e.eexpr with
+					| Js,TArray(e1,{eexpr = TConst(TInt i)}) when Int32.to_int i = 1 && Define.defined actx.com.defines Define.JsEnumsAsArrays -> e1
+					| Js,TField(e1,FDynamic "_hx_index") when not (Define.defined actx.com.defines Define.JsEnumsAsArrays) -> e1
 					| Cpp,TCall({eexpr = TField(e1,FDynamic "__Index")},[]) -> e1
 					| Neko,TField(e1,FDynamic "index") -> e1
 					| _ -> raise Exit
 				in
 				begin match follow e1.etype,eval bb e1 with
-					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i))
+					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i),actx.com.basic.tint)
 					| _ -> raise Exit
 				end
 		in
@@ -472,21 +505,22 @@ module ConstPropagation = DataFlow(struct
 			Bottom
 
 	let init ctx =
-		Hashtbl.clear lattice
+		IntHashtbl.create 0
 
-	let commit ctx =
-		let inline e i = match get_cell i with
+	let commit actx ctx =
+		let inline e i = match get_cell ctx i with
 			| Top | Bottom | EnumValue _ | Null _ ->
 				raise Not_found
-			| Const ct ->
-				let e' = Texpr.type_constant ctx.com.basic (tconst_to_const ct) e.epos in
-				if not (type_change_ok ctx.com e'.etype e.etype) then raise Not_found;
+			| Const(ct,t) ->
+				let e' = Texpr.type_constant actx.com.basic (tconst_to_const ct) e.epos in
+				let e' = {e' with etype = t} in
+				if not (type_change_ok actx.com e'.etype e.etype) then raise Not_found;
 				e'
 			| ModuleType(mt,t) ->
-				if not (type_change_ok ctx.com t e.etype) then raise Not_found;
+				if not (type_change_ok actx.com t e.etype) then raise Not_found;
 				mk (TTypeExpr mt) t e.epos
 		in
-		let is_special_var v = v.v_capture || ExtType.has_variable_semantics v.v_type in
+		let is_special_var v = has_var_flag v VCaptured || ExtType.has_variable_semantics v.v_type in
 		let rec commit e = match e.eexpr with
 			| TLocal v when not (is_special_var v) ->
 				begin try
@@ -508,18 +542,21 @@ module ConstPropagation = DataFlow(struct
 			| _ ->
 				Type.map_expr commit e
 		in
-		Graph.iter_dom_tree ctx.graph (fun bb ->
-			if not (List.exists (fun edge -> has_flag edge FlagExecutable) bb.bb_incoming) then bb.bb_dominator <- ctx.graph.Graph.g_unreachable;
-			dynarray_map commit bb.bb_el
+		Graph.iter_dom_tree actx.graph (fun bb ->
+			if not (List.exists (fun edge -> has_flag edge FlagExecutable) bb.bb_incoming) then bb.bb_dominator <- actx.graph.Graph.g_unreachable;
+			dynarray_map commit bb.bb_el;
+			bb.bb_terminator <- terminator_map commit bb.bb_terminator;
 		);
-end)
+end
+
+module ConstPropagation = DataFlow(ConstPropagationImpl)
 
 (*
 	Propagates local variables to other local variables.
 
-	Respects scopes on targets where it matters (all except JS and As3).
+	Respects scopes on targets where it matters (all except JS).
 *)
-module CopyPropagation = DataFlow(struct
+module CopyPropagationImpl = struct
 	open BasicBlock
 	open Graph
 
@@ -527,18 +564,21 @@ module CopyPropagation = DataFlow(struct
 		| Top
 		| Bottom
 		| Local of tvar
+		| This of Type.t
+
+	type opt_ctx = t IntHashtbl.t
 
 	let to_string = function
 		| Top -> "Top"
 		| Bottom -> "Bottom"
 		| Local v -> Printf.sprintf "%s<%i>" v.v_name v.v_id
+		| This _ -> "this"
 
 	let conditional = false
 	let flag = FlagCopyPropagation
-	let lattice = Hashtbl.create 0
 
-	let get_cell i = try Hashtbl.find lattice i with Not_found -> Top
-	let set_cell i ct = Hashtbl.replace lattice i ct
+	let get_cell ctx i = try IntHashtbl.find ctx i with Not_found -> Top
+	let set_cell ctx i ct = IntHashtbl.replace ctx i ct
 
 	let top = Top
 	let bottom = Bottom
@@ -547,12 +587,15 @@ module CopyPropagation = DataFlow(struct
 		| Top,Top -> true
 		| Bottom,Bottom -> true
 		| Local v1,Local v2 -> v1.v_id = v2.v_id
+		| This t1,This t2 -> t1 == t2
 		| _ -> false
 
-	let transfer ctx bb e =
+	let transfer actx ctx bb e =
 		let rec loop e = match e.eexpr with
-			| TLocal v when not v.v_capture ->
+			| TLocal v when not (has_var_flag v VCaptured) ->
 				Local v
+			| TConst TThis ->
+				This e.etype
 			| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 				loop e1
 			| _ ->
@@ -560,30 +603,37 @@ module CopyPropagation = DataFlow(struct
 		in
 		loop e
 
-	let init ctx =
-		Hashtbl.clear lattice
+	let init actx =
+		IntHashtbl.create 0
 
-	let commit ctx =
+	let commit actx ctx =
 		let rec commit bb e = match e.eexpr with
-			| TLocal v when not v.v_capture ->
+			| TLocal v when not (has_var_flag v VCaptured) ->
 				begin try
-					let lat = get_cell v.v_id in
+					let lat = get_cell ctx v.v_id in
 					let leave () =
-						Hashtbl.remove lattice v.v_id;
+						IntHashtbl.remove ctx v.v_id;
 						raise Not_found
 					in
-					let v' = match lat with Local v -> v | _ -> leave() in
-					if not (type_change_ok ctx.com v'.v_type v.v_type) then leave();
-					let v'' = get_var_origin ctx.graph v' in
-					(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
-					   the same origin var, which creates interference that is not tracked in the analysis. We address this by only
-					   considering variables whose origin-variables are assigned to at most once. *)
-					let writes = (get_var_info ctx.graph v'').vi_writes in
-					begin match writes with
-						| [bb'] when in_scope bb bb' -> ()
-						| _ -> leave()
+					begin match lat with
+					| Local v' ->
+						if not (type_change_ok actx.com v'.v_type v.v_type) then leave();
+						let v'' = get_var_origin actx.graph v' in
+						(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
+						the same origin var, which creates interference that is not tracked in the analysis. We address this by only
+						considering variables whose origin-variables are assigned to at most once. *)
+						let writes = (get_var_info actx.graph v'').vi_writes in
+						begin match writes with
+							| [bb'] when in_scope bb bb' -> ()
+							| _ -> leave()
+						end;
+						commit bb {e with eexpr = TLocal v'}
+					| This t ->
+						if not (type_change_ok actx.com t v.v_type) then leave();
+						mk (TConst TThis) t e.epos
+					| Top | Bottom ->
+						leave()
 					end;
-					commit bb {e with eexpr = TLocal v'}
 				with Not_found ->
 					e
 				end
@@ -593,10 +643,13 @@ module CopyPropagation = DataFlow(struct
 			| _ ->
 				Type.map_expr (commit bb) e
 		in
-		Graph.iter_dom_tree ctx.graph (fun bb ->
-			dynarray_map (commit bb) bb.bb_el
+		Graph.iter_dom_tree actx.graph (fun bb ->
+			dynarray_map (commit bb) bb.bb_el;
+			bb.bb_terminator <- terminator_map (commit bb) bb.bb_terminator;
 		);
-end)
+end
+
+module CopyPropagation = DataFlow(CopyPropagationImpl)
 
 (*
 	LocalDce implements a mark & sweep dead code elimination. The mark phase follows the CFG edges of the graphs to find
@@ -614,7 +667,7 @@ module LocalDce = struct
 	open Graph
 	open AnalyzerConfig
 
-	let rec has_side_effect e =
+	let has_side_effect e =
 		let rec loop e =
 			match e.eexpr with
 			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TIdent _ -> ()
@@ -625,7 +678,6 @@ module LocalDce = struct
 			| TField(_,fa) when PurityState.is_explicitly_impure fa -> raise Exit
 			| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
-			| TFor _ -> raise Exit
 			| TArray _ | TEnumParameter _ | TEnumIndex _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _
 			| TField _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TBlock _ | TObjectDecl _ | TVar _ -> Type.iter loop e
 		in
@@ -635,20 +687,26 @@ module LocalDce = struct
 		with Exit ->
 			true
 
-	let rec apply ctx =
+	let apply ctx =
 		let is_used v =
-			Meta.has Meta.Used v.v_meta
+			has_var_flag v VAnalyzed
 		in
 		let keep v =
-			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || v.v_capture || Meta.has Meta.This v.v_meta
+			is_used v || ((match v.v_kind with VUser _ | VInlined | VInlinedConstructorVariable _ -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || has_var_flag v VCaptured || Meta.has Meta.This v.v_meta
 		in
 		let rec use v =
 			if not (is_used v) then begin
-				v.v_meta <- (Meta.Used,[],null_pos) :: v.v_meta;
+				add_var_flag v VAnalyzed;
 				(try expr (get_var_value ctx.graph v) with Not_found -> ());
 				begin match Ssa.get_reaching_def ctx.graph v with
-					| None -> use (get_var_origin ctx.graph v)
-					| Some v -> use v;
+					| None ->
+						(* We don't want to fully recurse for the origin variable because we don't care about its
+						   reaching definition (issue #10972). Simply marking it as being used should be sufficient. *)
+						let v' = get_var_origin ctx.graph v in
+						if not (is_used v') then
+							add_var_flag v' VAnalyzed
+					| Some v ->
+						use v;
 				end
 			end
 		and expr e = match e.eexpr with
@@ -660,20 +718,20 @@ module LocalDce = struct
 			| _ ->
 				Type.iter expr e
 		in
-		let bb_marked = ref [] in
 		let rec mark bb =
-			bb_marked := bb :: !bb_marked;
+			add_block_flag bb BlockDce;
 			DynArray.iter expr bb.bb_el;
 			DynArray.iter expr bb.bb_phi;
+			terminator_iter expr bb.bb_terminator;
 			List.iter (fun edge ->
 				if not (has_flag edge FlagDce) then begin
 					edge.cfg_flags <- FlagDce :: edge.cfg_flags;
 					if not ctx.config.const_propagation || has_flag edge FlagExecutable then
-						mark edge.cfg_from;
+						mark edge.cfg_to;
 				end
-			) bb.bb_incoming
+			) bb.bb_outgoing
 		in
-		mark ctx.graph.g_exit;
+		mark ctx.graph.g_root;
 		let rec sweep e = match e.eexpr with
 			| TBinop(OpAssign,{eexpr = TLocal v},e2) | TVar(v,Some e2) when not (keep v) ->
 				if has_side_effect e2 then
@@ -685,9 +743,12 @@ module LocalDce = struct
 			| _ ->
 				Type.map_expr sweep e
 		in
-		List.iter (fun bb ->
-			dynarray_map sweep bb.bb_el
-		) !bb_marked;
+		Graph.iter_dom_tree ctx.graph (fun bb ->
+			if has_block_flag bb BlockDce then begin
+				dynarray_map sweep bb.bb_el;
+				bb.bb_terminator <- terminator_map sweep bb.bb_terminator;
+			end
+		)
 end
 
 module Debug = struct
@@ -717,6 +778,8 @@ module Debug = struct
 			| BKFunctionBegin _ -> "<function-begin>\n"
 			| BKFunctionEnd -> "<function-end>\n"
 			| BKLoopHead -> "<loop-head>\n"
+			| BKCatch v -> Printf.sprintf "<catch %s<%i>>" v.v_name v.v_id
+			| BKException -> "<exc>"
 			| _ -> ""
 		in
 		Printf.fprintf ch "n%i [shape=box,label=\"%s%s\"];\n" bb.bb_id s_kind (s_escape s)
@@ -755,16 +818,15 @@ module Debug = struct
 			edge bb_then "then";
 			edge bb_else "else";
 			edge bb_next "next";
-		| SEWhile(bb_head,bb_body,bb_next) ->
-			edge bb_head "loop-head";
+		| SEWhile(bb_body,bb_next,_) ->
 			edge bb_body "loop-body";
 			edge bb_next "next";
 		| SEMerge bb_next ->
 			edge bb_next "merge"
-		| SESwitch(bbl,bo,bb_next,_) ->
-			List.iter (fun (el,bb) -> edge bb ("case " ^ (String.concat " | " (List.map s_expr_pretty el)))) bbl;
-			(match bo with None -> () | Some bb -> edge bb "default");
-			edge bb_next "next";
+		| SESwitch ss ->
+			List.iter (fun (el,bb) -> edge bb ("case " ^ (String.concat " | " (List.map s_expr_pretty el)))) ss.ss_cases;
+			(match ss.ss_default with None -> () | Some bb -> edge bb "default");
+			edge ss.ss_next "next";
 		| SETry(bb_try,_,bbl,bb_next,_) ->
 			edge bb_try "try";
 			List.iter (fun (_,bb_catch) -> edge bb_catch "catch") bbl;
@@ -780,14 +842,14 @@ module Debug = struct
 
 	let generate_cfg_ssa ch g =
 		Printf.fprintf ch "\tnode [shape=plaintext];\n";
-		let expr_name b i = Printf.sprintf "e%s%i" (if b then "p" else "") i in
+		let expr_name luk = Printf.sprintf "e%s" (match luk with | LUPhi i -> Printf.sprintf "p%i" i | LUEl i -> Printf.sprintf "%i" i | LUTerm -> "t") in
 		List.iter (fun bb ->
 			Printf.fprintf ch "n%i[label=<<table BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n\t<tr><td port=\"in\" bgcolor=\"lightgray\">(%i) %s</td></tr>\n" bb.bb_id bb.bb_id (BasicBlock.s_block_kind bb.bb_kind);
-			let s_expr b i e =
-				Printf.fprintf ch "\t<tr><td port=\"%s\" align=\"left\">%s</td></tr>\n" (expr_name b i) (s_escape (htmlescape (s_expr_pretty e)))
+			let s_expr luk e =
+				Printf.fprintf ch "\t<tr><td port=\"%s\" align=\"left\">%s</td></tr>\n" (expr_name luk) (s_escape (htmlescape (s_expr_pretty e)))
 			in
-			DynArray.iteri (s_expr true) bb.bb_phi;
-			DynArray.iteri (s_expr false) bb.bb_el;
+			DynArray.iteri (fun i e -> s_expr (LUPhi i) e) bb.bb_phi;
+			DynArray.iteri (fun i e -> s_expr (LUEl i) e) bb.bb_el;
 			Printf.fprintf ch "\t<tr><td port=\"out\"></td></tr>\n</table>>];\n";
 		) g.g_nodes;
 		Graph.iter_edges g (fun edge ->
@@ -795,11 +857,11 @@ module Debug = struct
 		);
 		DynArray.iter (fun vi ->
 			begin try
-				let (bb,is_phi,i) = match vi.vi_value with None -> raise Not_found | Some i -> i in
-				let n1 = Printf.sprintf "n%i:%s" bb.bb_id (expr_name is_phi i) in
-				List.iter (fun (bb',is_phi',i') ->
+				let (bb,luk) = match vi.vi_value with None -> raise Not_found | Some i -> i in
+				let n1 = Printf.sprintf "n%i:%s" bb.bb_id (expr_name luk) in
+				List.iter (fun (bb',luk') ->
 					if bb != bb' then begin (* intra-node edges look stupid in dot *)
-						let n2 = Printf.sprintf "n%i:%s" bb'.bb_id (expr_name is_phi' i') in
+						let n2 = Printf.sprintf "n%i:%s" bb'.bb_id (expr_name luk') in
 						Printf.fprintf ch "%s -> %s[color=lightblue,constraint=false];\n" n1 n2;
 					end
 				) vi.vi_ssa_edges;
@@ -808,8 +870,12 @@ module Debug = struct
 			end
 		) g.g_var_infos
 
+	let platform_name_macro com =
+		if Define.defined com.defines Define.Macro then "macro"
+		else platform_name com.platform
+
 	let get_dump_path ctx c cf =
-		"dump" :: [platform_name_macro ctx.com] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
+		(Dump.dump_path ctx.com.defines) :: [platform_name_macro ctx.com] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
 
 	let dot_debug ctx c cf =
 		let g = ctx.graph in
@@ -859,18 +925,18 @@ module Debug = struct
 		f();
 		let ch,f = start_graph "-ssa-edges.dot" in
 		let nodes = ref PMap.empty in
-		let node_name bb is_phi i = Printf.sprintf "e%i_%b_%i" bb.bb_id is_phi i in
-		let node_name2 bb is_phi i =
-			let n = node_name bb is_phi i in
+		let node_name bb luk = Printf.sprintf "e%i_%s" bb.bb_id (match luk with LUPhi i -> Printf.sprintf "phi_%i" i | LUEl i -> Printf.sprintf "el%i" i | LUTerm -> "term") in
+		let node_name2 bb luk =
+			let n = node_name bb luk in
 			nodes := PMap.add n true !nodes;
 			n
 		in
 		DynArray.iter (fun vi ->
 			begin try
-				let (bb,is_phi,i) = match vi.vi_value with None -> raise Not_found | Some i -> i in
-				let n1 = node_name2 bb is_phi i in
-				List.iter (fun (bb',is_phi',i') ->
-					let n2 = node_name2 bb' is_phi' i' in
+				let (bb,luk) = match vi.vi_value with None -> raise Not_found | Some i -> i in
+				let n1 = node_name2 bb luk in
+				List.iter (fun (bb',luk') ->
+					let n2 = node_name2 bb' luk' in
 					Printf.fprintf ch "%s -> %s;\n" n1 n2
 				) vi.vi_ssa_edges
 			with Not_found ->
@@ -878,15 +944,15 @@ module Debug = struct
 			end
 		) g.g_var_infos;
 		List.iter (fun bb ->
-			let f is_phi acc i e =
-				let n = node_name bb is_phi i in
-				(i + 1),if PMap.mem n !nodes then
+			let f luk acc e =
+				let n = node_name bb luk in
+				if PMap.mem n !nodes then
 					(n,s_expr_pretty e) :: acc
 				else
 					acc
 			in
-			let _,active_nodes = DynArray.fold_left (fun (i,acc) -> f true acc i) (0,[]) bb.bb_phi in
-			let _,active_nodes = DynArray.fold_left (fun (i,acc) -> f false acc i) (0,active_nodes) bb.bb_el in
+			let _,active_nodes = DynArray.fold_left (fun (i,acc) e -> (i + 1),f (LUPhi i) acc e) (0,[]) bb.bb_phi in
+			let _,active_nodes = DynArray.fold_left (fun (i,acc) e -> (i + 1),f (LUEl i) acc e) (0,active_nodes) bb.bb_el in
 			if active_nodes <> [] then begin
 				Printf.fprintf ch "subgraph cluster_%i {\n" bb.bb_id;
 				Printf.fprintf ch "label=%i;\n" bb.bb_id;
@@ -905,13 +971,11 @@ module Run = struct
 	open AnalyzerConfig
 	open Graph
 
-	let with_timer detailed s f =
-		let timer = Timer.timer (if detailed then "analyzer" :: s else ["analyzer"]) in
-		let r = f() in
-		timer();
-		r
+	let with_timer timer_ctx level identifier s f =
+		let id = Timer.determine_id level ["analyzer"] s identifier in
+		Timer.time timer_ctx id f ()
 
-	let create_analyzer_context com config e =
+	let create_analyzer_context (com : SafeCom.t) config identifier e =
 		let g = Graph.create e.etype e.epos in
 		let ctx = {
 			com = com;
@@ -920,12 +984,17 @@ module Run = struct
 			(* For CPP we want to use variable names which are "probably" not used by users in order to
 			   avoid problems with the debugger, see https://github.com/HaxeFoundation/hxcpp/issues/365 *)
 			temp_var_name = (match com.platform with Cpp -> "_hx_tmp" | _ -> "tmp");
+			with_timer = (fun s f ->
+				with_timer com.timer_ctx config.detail_times (Some identifier) s f
+			);
+			identifier = identifier;
 			entry = g.g_unreachable;
 			has_unbound = false;
 			loop_counter = 0;
 			loop_stack = [];
 			debug_exprs = [];
 			name_stack = [];
+			did_optimize = false;
 		} in
 		ctx
 
@@ -934,7 +1003,7 @@ module Run = struct
 
 	let there actx e =
 		if actx.com.debug then add_debug_expr actx "initial" e;
-		let e = with_timer actx.config.detail_times ["->";"filter-apply"] (fun () -> TexprFilter.apply actx.com e) in
+		let e = actx.with_timer ["->";"filter-apply"] (fun () -> TexprFilter.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after filter-apply" e;
 		let tf,t,is_real_function = match e.eexpr with
 			| TFunction tf ->
@@ -946,18 +1015,18 @@ module Run = struct
 				let tf = { tf_args = []; tf_type = t; tf_expr = e; } in
 				tf,tfun [] t,false
 		in
-		with_timer actx.config.detail_times ["->";"from-texpr"] (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf t e.epos);
+		actx.with_timer ["->";"from-texpr"] (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf t e.epos);
 		is_real_function
 
 	let back_again actx is_real_function =
-		let e = with_timer actx.config.detail_times ["<-";"to-texpr"] (fun () -> AnalyzerTexprTransformer.to_texpr actx) in
+		let e = actx.with_timer ["<-";"to-texpr"] (fun () -> AnalyzerTexprTransformer.to_texpr actx) in
 		if actx.com.debug then add_debug_expr actx "after to-texpr" e;
 		DynArray.iter (fun vi ->
 			vi.vi_var.v_extra <- vi.vi_extra;
 		) actx.graph.g_var_infos;
-		let e = if actx.config.fusion then with_timer actx.config.detail_times ["<-";"fusion"] (fun () -> Fusion.apply actx.com actx.config e) else e in
+		let e = if actx.config.fusion then actx.with_timer ["<-";"fusion"] (fun () -> Fusion.apply actx e) else e in
 		if actx.com.debug then add_debug_expr actx "after fusion" e;
-		let e = with_timer actx.config.detail_times ["<-";"cleanup"] (fun () -> Cleanup.apply actx.com e) in
+		let e = actx.with_timer ["<-";"cleanup"] (fun () -> Cleanup.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after cleanup" e;
 		let e = if is_real_function then
 			e
@@ -966,11 +1035,17 @@ module Run = struct
 			match e.eexpr with
 			| TFunction tf ->
 				let get_t t = if ExtType.is_void t then tf.tf_type else t in
+				let doesnt_like_complex_expressions = match actx.com.platform with
+					| Cpp | Hl | Jvm | Php | Flash ->
+						true
+					| _ ->
+						false
+				in
 				let rec loop e = match e.eexpr with
 					| TBlock [e1] ->
 						loop e1
 					(* If there's a complex expression, keep the function and generate a call to it. *)
-					| TBlock _ | TIf _ | TSwitch _ | TTry _ when actx.com.platform = Cpp || actx.com.platform = Hl ->
+					| TBlock _ | TIf _ | TSwitch _ | TTry _ when doesnt_like_complex_expressions ->
 						raise Exit
 					(* Remove generated return *)
 					| TReturn (Some e) ->
@@ -988,10 +1063,14 @@ module Run = struct
 						let e2 = loop e2 in
 						let e3 = loop e3 in
 						{e with eexpr = TIf(e1,e2,Some e3); etype = get_t e.etype}
-					| TSwitch(e1,cases,edef) ->
-						let cases = List.map (fun (el,e) -> el,loop e) cases in
-						let edef = Option.map loop edef in
-						{e with eexpr = TSwitch(e1,cases,edef); etype = get_t e.etype}
+					| TSwitch switch ->
+						let cases = List.map (fun case -> {case with case_expr = loop case.case_expr}) switch.switch_cases in
+						let edef = Option.map loop switch.switch_default in
+						let switch = { switch with
+							switch_cases = cases;
+							switch_default = edef;
+						} in
+						{e with eexpr = TSwitch switch; etype = get_t e.etype}
 					| TTry(e1,catches) ->
 						let e1 = loop e1 in
 						let catches = List.map (fun (v,e) -> v,loop e) catches in
@@ -1005,33 +1084,33 @@ module Run = struct
 				in
 				(try loop tf.tf_expr with Exit -> mk (TCall(e,[])) tf.tf_type e.epos)
 			| _ ->
-				assert false
+				die "" __LOC__
 		end in
 		e
 
 	let run_on_expr actx e =
 		let is_real_function = there actx e in
-		with_timer actx.config.detail_times ["->";"idom"] (fun () -> Graph.infer_immediate_dominators actx.graph);
-		with_timer actx.config.detail_times ["->";"infer_scopes"] (fun () -> Graph.infer_scopes actx.graph);
-		with_timer actx.config.detail_times ["->";"var writes"] (fun () -> Graph.infer_var_writes actx.graph);
+		actx.with_timer ["->";"idom"] (fun () -> Graph.infer_immediate_dominators actx.graph);
+		actx.with_timer ["->";"infer_scopes"] (fun () -> Graph.infer_scopes actx.graph);
+		actx.with_timer ["->";"var writes"] (fun () -> Graph.infer_var_writes actx.graph);
 		if actx.com.debug then Graph.check_integrity actx.graph;
 		if actx.config.optimize && not actx.has_unbound then begin
-			with_timer actx.config.detail_times ["optimize";"ssa-apply"] (fun () -> Ssa.apply actx);
-			if actx.config.const_propagation then with_timer actx.config.detail_times ["optimize";"const-propagation"] (fun () -> ConstPropagation.apply actx);
-			if actx.config.copy_propagation then with_timer actx.config.detail_times ["optimize";"copy-propagation"] (fun () -> CopyPropagation.apply actx);
-			with_timer actx.config.detail_times ["optimize";"local-dce"] (fun () -> LocalDce.apply actx);
+			actx.did_optimize <- true;
+			actx.with_timer ["optimize";"ssa-apply"] (fun () -> Ssa.apply actx);
+			if actx.config.const_propagation then actx.with_timer ["optimize";"const-propagation"] (fun () -> ConstPropagation.apply actx);
+			if actx.config.copy_propagation then actx.with_timer ["optimize";"copy-propagation"] (fun () -> CopyPropagation.apply actx);
+			actx.with_timer ["optimize";"local-dce"] (fun () -> LocalDce.apply actx);
 		end;
 		back_again actx is_real_function
 
-	let rec reduce_control_flow ctx e =
-		let e = Type.map_expr (reduce_control_flow ctx) e in
-		Optimizer.reduce_control_flow ctx e
+	let rec reduce_control_flow com e =
+		let e = Type.map_expr (reduce_control_flow com) e in
+		Optimizer.reduce_control_flow com e
 
-	let run_on_field ctx config c cf = match cf.cf_expr with
-		| Some e when not (is_ignored cf.cf_meta) && not (Typecore.is_removable_field ctx cf) ->
-			let config = update_config_from_meta ctx.Typecore.com config cf.cf_meta in
-			(match e.eexpr with TFunction tf -> cf.cf_expr_unoptimized <- Some tf | _ -> ());
-			let actx = create_analyzer_context ctx.Typecore.com config e in
+	let run_on_field' com exc_out config c cf = match cf.cf_expr with
+		| Some e when not (is_ignored cf.cf_meta) && not (FilterContext.is_removable_field com.is_macro_context cf) && not (has_class_field_flag cf CfPostProcessed) ->
+			let config = update_config_from_meta com config cf.cf_meta in
+			let actx = create_analyzer_context com config (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name) e in
 			let debug() =
 				print_endline (Printf.sprintf "While analyzing %s.%s" (s_type_path c.cl_path) cf.cf_name);
 				List.iter (fun (s,e) ->
@@ -1042,29 +1121,44 @@ module Run = struct
 				Debug.dot_debug actx c cf;
 				print_endline (Printf.sprintf "dot graph written to %s" (String.concat "/" (Debug.get_dump_path actx c cf)));
 			in
-			let e = try
-				run_on_expr actx e
-			with
-			| Error.Error _ | Abort _ | Sys.Break as exc ->
-				raise exc
-			| exc ->
-				debug();
-				raise exc
-			in
-			let e = reduce_control_flow ctx e in
-			begin match config.debug_kind with
+			let maybe_debug () = match config.debug_kind with
 				| DebugNone -> ()
 				| DebugDot -> Debug.dot_debug actx c cf;
 				| DebugFull -> debug()
-			end;
-			cf.cf_expr <- Some e;
-		| _ -> ()
+			in
+			begin try
+				let e = run_on_expr actx e in
+				let e = reduce_control_flow com.platform e in
+				maybe_debug();
+				cf.cf_expr <- Some e;
+			with
+			| Error.Error _ | Sys.Break as exc ->
+				maybe_debug();
+				Atomic.set exc_out (Some exc)
+			| exc ->
+				debug();
+				Atomic.set exc_out (Some exc)
+			end
+		| _ ->
+			()
 
-	let run_on_class ctx config c =
-		let config = update_config_from_meta ctx.Typecore.com config c.cl_meta in
+	let check_exc_out exc_out =
+		Option.may raise (Atomic.get exc_out)
+
+	let run_on_field com config c cf =
+		let exc_out = Atomic.make None in
+		run_on_field' com exc_out config c cf;
+		check_exc_out exc_out
+
+	let run_on_class com exc_out pool config c =
+		let config = update_config_from_meta com config c.cl_meta in
+		let fields = DynArray.create () in
 		let process_field stat cf = match cf.cf_kind with
-			| Var _ when not stat -> ()
-			| _ -> run_on_field ctx config c cf
+			| Var _ when not stat ->
+				()
+			| _ ->
+				DynArray.add fields cf;
+				List.iter (DynArray.add fields) cf.cf_overloads
 		in
 		List.iter (process_field false) c.cl_ordered_fields;
 		List.iter (process_field true) c.cl_ordered_statics;
@@ -1072,44 +1166,47 @@ module Run = struct
 			| None -> ()
 			| Some f -> process_field false f;
 		end;
-		begin match c.cl_init with
+		Parallel.ParallelArray.iter pool (run_on_field' com exc_out config c) (DynArray.to_array fields);
+		begin match TClass.get_cl_init c with
 			| None ->
 				()
 			| Some e ->
 				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
 				let e = mk (TFunction tf) (tfun [] e.etype) e.epos in
-				let actx = create_analyzer_context ctx.Typecore.com {config with optimize = false} e in
+				let actx = create_analyzer_context com {config with optimize = false} (Printf.sprintf "%s.__init__" (s_type_path c.cl_path)) e in
 				let e = run_on_expr actx e in
 				let e = match e.eexpr with
 					| TFunction tf -> tf.tf_expr
-					| _ -> assert false
+					| _ -> die "" __LOC__
 				in
-				c.cl_init <- Some e
+				TClass.set_cl_init c e
 		end
 
-	let run_on_type ctx config t =
+	let run_on_type com exc_out pool config t =
 		match t with
 		| TClassDecl c when (is_ignored c.cl_meta) -> ()
-		| TClassDecl c -> run_on_class ctx config c
+		| TClassDecl c -> run_on_class com exc_out pool config c
 		| TEnumDecl _ -> ()
 		| TTypeDecl _ -> ()
 		| TAbstractDecl _ -> ()
 
-	let run_on_types ctx types =
-		let com = ctx.Typecore.com in
-		let config = get_base_config com in
-		with_timer config.detail_times ["other"] (fun () ->
-			let cfl = if config.optimize && config.purity_inference then with_timer config.detail_times ["optimize";"purity-inference"] (fun () -> Purity.infer com) else [] in
-			List.iter (run_on_type ctx config) types;
-			List.iter (fun cf -> cf.cf_meta <- List.filter (fun (m,_,_) -> m <> Meta.Pure) cf.cf_meta) cfl
+	let run_on_types scom pool types =
+		let config = get_base_config scom in
+		with_timer scom.timer_ctx config.detail_times None ["other"] (fun () ->
+			if config.optimize && config.purity_inference then
+				with_timer scom.timer_ctx config.detail_times None ["optimize";"purity-inference"] (fun () -> Purity.infer types);
+			let exc_out = Atomic.make None in
+			Parallel.ParallelArray.iter pool (run_on_type scom exc_out pool config) types;
+			check_exc_out exc_out
 		)
 end
 ;;
-Typecore.analyzer_run_on_expr_ref := (fun com e ->
-	let config = AnalyzerConfig.get_base_config com in
+Typecore.analyzer_run_on_expr_ref := (fun com identifier e ->
+	let scom = SafeCom.of_com com in
+	let config = AnalyzerConfig.get_base_config scom in
 	(* We always want to optimize because const propagation might be required to obtain
 	   a constant expression for inline field initializations (see issue #4977). *)
 	let config = {config with AnalyzerConfig.optimize = true} in
-	let actx = Run.create_analyzer_context com config e in
+	let actx = Run.create_analyzer_context scom config identifier e in
 	Run.run_on_expr actx e
 )

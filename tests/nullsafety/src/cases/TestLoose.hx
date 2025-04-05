@@ -84,4 +84,40 @@ class TestLoose {
 			return a;
 		}
 	}
+
+	static function testIssue8442() {
+		function from(array: Array<Float>) {
+			return array.length;
+		}
+
+		function create(?array: Array<Float>) {
+			return from(shouldFail(array));
+			// haxe seems to think this unused null check means array is non-nullable
+			if (array != null) {
+			} else {
+				return -1;
+			}
+		}
+	}
+
+	static function nullCoal_returnNull_shouldPass(token:{children:Array<Int>}):Null<Bool> {
+		final children = token.children ?? return null;
+		var i = children.length;
+		return null;
+	}
+
+	static function localFunc_returnNullCoal_shouldFail():Void {
+		function foo() {
+			final x = (null : Null<Bool>) ?? return null;
+			return x;
+		}
+		shouldFail(if (foo()) {});
+	}
+
+	static function nullCoal_continue_shouldPass():Void {
+		for (i in 0...1) {
+			var i:String = staticVar ?? continue;
+			var i2:String = staticVar ?? break;
+		}
+	}
 }

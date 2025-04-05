@@ -25,30 +25,22 @@ package sys.net;
 import haxe.io.Bytes;
 import haxe.io.BytesInput;
 
-/**
-	A given IP host name.
-**/
+import lua.NativeStringTools.find;
+
+import lua.lib.luv.net.Dns;
+import lua.lib.luv.Os;
+
 @:coreapi
 class Host {
-	/**
-		The provided host string.
-	**/
 	public var host(default, null):String;
 
-	/**
-		The actual IP corresponding to the host.
-	**/
 	public var ip(default, null):Int;
 
 	var _ip:String;
 
-	/**
-		Creates a new Host : the name can be an IP in the form "127.0.0.1" or an host name such as "google.com", in which case
-		the corresponding IP address is resolved using DNS. An exception occur if the host name could not be found.
-	**/
 	public function new(name:String):Void {
 		host = name;
-		if (lua.NativeStringTools.find(name, "(%d+)%.(%d+)%.(%d+)%.(%d+)").begin != null) {
+		if (find(name, "(%d+)%.(%d+)%.(%d+)%.(%d+)").begin != null) {
 			_ip = name;
 		} else {
 			var res = lua.lib.luv.net.Dns.getaddrinfo(name);
@@ -65,24 +57,15 @@ class Host {
 		ip = num;
 	}
 
-	/**
-		Returns the IP representation of the host
-	**/
 	public function toString():String {
 		return _ip;
 	}
 
-	/**
-		Perform a reverse-DNS query to resolve a host name from an IP.
-	**/
 	public function reverse():String {
-		return lua.lib.luv.net.Dns.getnameinfo({ip: _ip}).result;
+		return Dns.getnameinfo({ip: _ip}).result;
 	}
 
-	/**
-		Returns the local computer host name
-	**/
 	static public function localhost():String {
-		return lua.lib.luasocket.socket.Dns.gethostname();
+        return Os.gethostname();
 	}
 }

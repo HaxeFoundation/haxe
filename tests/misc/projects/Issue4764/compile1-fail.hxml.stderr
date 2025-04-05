@@ -1,1 +1,1 @@
-Main1.hx:4: characters 16-23 : Cannot construct haxe.Constructible<Void -> Void>
+Main1.hx:4: characters 16-23 : Cannot construct haxe.Constructible<() -> Void>

@@ -37,9 +37,7 @@ class Input {
 	**/
 	public var bigEndian(default, set):Bool;
 
-	#if cs
-	private var helper:BytesData;
-	#elseif java
+	#if java
 	private var helper:java.nio.ByteBuffer;
 	#end
 
@@ -48,9 +46,9 @@ class Input {
 	**/
 	public function readByte():Int {
 		#if cpp
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 		#else
-		return throw "Not implemented";
+		return throw new haxe.exceptions.NotImplementedException();
 		#end
 	}
 

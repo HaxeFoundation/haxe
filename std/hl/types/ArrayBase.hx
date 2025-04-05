@@ -25,16 +25,16 @@ package hl.types;
 @:keep
 class ArrayAccess {
 	public function getDyn(pos:Int):Dynamic {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 		return 0;
 	}
 
 	public function setDyn(pos:Int, v:Dynamic) {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public function blit(pos:Int, src:ArrayAccess, srcpos:Int, len:Int):Void {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 	}
 }
 
@@ -43,62 +43,67 @@ class ArrayBase extends ArrayAccess {
 	public var length(default, null):Int;
 
 	public function pushDyn(v:Dynamic):Int {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 		return 0;
 	}
 
 	public function popDyn():Null<Dynamic> {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 		return null;
 	}
 
 	public function shiftDyn():Null<Dynamic> {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 		return null;
 	}
 
 	public function unshiftDyn(v:Dynamic):Void {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public function insertDyn(pos:Int, v:Dynamic):Void {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
+	}
+
+	public function containsDyn(v:Dynamic):Bool {
+		throw new haxe.exceptions.NotImplementedException();
+		return false;
 	}
 
 	public function removeDyn(v:Dynamic):Bool {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 		return false;
 	}
 
 	public function sortDyn(f:Dynamic->Dynamic->Int):Void {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public function slice(pos:Int, ?end:Int):ArrayBase {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 		return null;
 	}
 
 	public function splice(pos:Int, len:Int):ArrayBase {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 		return null;
 	}
 
 	public function join(sep:String):String {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 		return null;
 	}
 
 	public function reverse() {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public function resize(len:Int) {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public function toString():String {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 		return null;
 	}
 
@@ -138,6 +143,14 @@ class ArrayBase extends ArrayAccess {
 
 	public static function allocF64(bytes:BytesAccess<Float>, length:Int) @:privateAccess {
 		var a:ArrayBytes.ArrayF64 = untyped $new(ArrayBytes.ArrayF64);
+		a.length = length;
+		a.bytes = bytes;
+		a.size = length;
+		return a;
+	}
+
+	public static function allocI64(bytes:BytesAccess<I64>, length:Int) @:privateAccess {
+		var a:ArrayBytes.ArrayI64 = untyped $new(ArrayBytes.ArrayI64);
 		a.length = length;
 		a.bytes = bytes;
 		a.size = length;

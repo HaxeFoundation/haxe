@@ -1,0 +1,4 @@
+--main Main
+--neko bin/main.n
+-lib dummy_ndll
+--cmd neko bin/main.n

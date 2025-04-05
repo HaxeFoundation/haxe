@@ -1,0 +1,7 @@
+compile-macro.hxml
+--hxb bin/hxb/eval.zip
+
+--next
+
+compile-macro.hxml
+--hxb-lib bin/hxb/eval.zip

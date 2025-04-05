@@ -1,0 +1,12 @@
+[WARNING] Main.hx:3: characters 5-10
+
+ 3 |     foo();
+   |     ^^^^^
+   | (WDeprecated) Usage of this field is deprecated
+
+[WARNING] Main.hx:5: characters 5-12
+
+ 5 |     foo("");
+   |     ^^^^^^^
+   | (WDeprecated) Usage of this field is deprecated
+

@@ -1,0 +1,4 @@
+[ERROR] no-rudy.jar@haxe/root/NoRudy.class
+
+   | Should extend by using a class, found TAbstract(Rudy, [])
+

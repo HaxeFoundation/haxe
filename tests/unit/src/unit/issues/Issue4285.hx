@@ -7,6 +7,6 @@ class Issue4285 extends Test {
 	}
 
 	static function myIs(d:Dynamic, t:Dynamic) {
-		return Std.is(d, t);
+		return Std.isOfType(d, t);
 	}
 }

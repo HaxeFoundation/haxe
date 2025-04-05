@@ -40,6 +40,8 @@ class Issue7935 extends DisplayTestCase {
 				kind: DKParserError,
 				range: diagnosticsRange(pos(1), pos(2)),
 				severity: Error,
+				code: null,
+				relatedInformation: [],
 				args: message
 			}
 		], diagnostics());

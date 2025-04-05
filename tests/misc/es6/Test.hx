@@ -32,7 +32,7 @@ class F extends E {
 }
 
 extern class ExtNoCtor {
-	static function __init__():Void haxe.macro.Compiler.includeFile("./extern.js", "top");
+	static function __init__():Void haxe.macro.Compiler.includeFile("./extern.js");
 }
 
 class Base extends ExtNoCtor {
@@ -65,6 +65,22 @@ class GrandChildNoArgs extends ChildOneArg {
 	public function new() {
 		Test.use(this);
 		super(42);
+	}
+}
+
+class Issue9426_1 {
+	static function __init__() {
+		var sameName = Std.random(10);
+		Test.use(sameName);
+		Test.use(sameName);
+	}
+}
+
+class Issue9426_2 {
+	static function __init__() {
+		var sameName = Std.random(10);
+		Test.use(sameName);
+		Test.use(sameName);
 	}
 }
 

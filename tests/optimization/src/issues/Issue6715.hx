@@ -4,27 +4,34 @@ class Issue6715 {
 	@:js('
 		var f = function() {
 			var x = 1;
+			x = 2;
 		};
 		issues_Issue6715.x = f;
 		issues_Issue6715.x = f;
 		issues_Issue6715.x = f;
-		var x1 = 1;
-		var x2 = 1;
-		var x3 = 1;
+		var x = 1;
+		x = 2;
+		var x = 1;
+		x = 2;
+		var x = 1;
+		x = 2;
 	')
 	@:analyzer(no_local_dce)
 	static public function test1() {
-		insanity(function() var x = 1);
+		insanity(function() { var x = 1; x = 2; });
 	}
 
 	@:js('
 		var x = 1;
-		var x1 = 1;
-		var x2 = 1;
+		x = 2;
+		var x = 1;
+		x = 2;
+		var x = 1;
+		x = 2;
 	')
 	@:analyzer(no_local_dce)
 	static public function test2() {
-		insanity2(function() var x = 1);
+		insanity2(function() { var x = 1; x = 2; });
 	}
 
 	@:js('
@@ -46,10 +53,10 @@ class Issue6715 {
 		insanity4(function() var x = 1);
 	}
 
-	static var x:Void->Void;
+	static var x:()->Void;
 
 	// Mixed: inline calls, reference reads
-	static inline function insanity(f:Void -> Void)
+	static inline function insanity(f:() -> Void)
 	{
 		x = f;
 		x = f;
@@ -61,7 +68,7 @@ class Issue6715 {
 	}
 
 	// Only calls: inline all
-	static inline function insanity2(f:Void -> Void)
+	static inline function insanity2(f:() -> Void)
 	{
 		f();
 		f();
@@ -69,13 +76,13 @@ class Issue6715 {
 	}
 
 	// Referenced once: inline
-	static inline function insanity3(f:Void -> Void)
+	static inline function insanity3(f:() -> Void)
 	{
 		x = f;
 	}
 
 	// Referenced multiple times: temp var
-	static inline function insanity4(f:Void -> Void)
+	static inline function insanity4(f:() -> Void)
 	{
 		x = f;
 		x = f;

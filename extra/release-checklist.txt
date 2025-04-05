@@ -2,22 +2,34 @@
 
 - Check that haxelib is working
 - Make sure to update the haxelib submodule
-- Check that the run-time haxelibs are ready for release: hxcpp, hxjava, hxcs
+- Check that the run-time haxelibs are ready for release: hxcpp, hxjava
+- Check that the NEKO_VERSION variable in the "Makefile" is set to the latest Neko version
 
 # Making the release
 
 - Make sure CHANGES.txt has a proper date set!
 - Make sure `version` in globals.ml has the correct value
+- Make sure the copyright year in args.ml has the correct value
+- Update `version` in `haxe.opam`
 - Check if the protocolVersion in displayJson.ml has to be updated
-- Make an empty GitHub release in https://github.com/HaxeFoundation/haxe/releases (do this first because we need the tag for the builds)
-- Wait for the CI to build (check https://builds.haxe.org)
-- Get https://github.com/simn/hxgithub
-- Store your GitHub personal access token in .github-token
-- Run something like this: `neko release.n -h 4.0.0-rc.1 -u -uw -ur -d haxe_2019-02-01_development_1fdd3d5.zip --dry`
-- Tell yourself that you're gonna fix `-doc` generation next time
-- Write the announcement to `./haxe-version/RELEASE.md`
-- If everything was working, run the command again without `--dry` (and probably without the `-d`)
+- Create a version tag and push it with above changes (CI needs to run on the tag)
+- Make an empty GitHub release in https://github.com/HaxeFoundation/haxe/releases
+- Wait for the CI to build (check https://build.haxe.org/builds/haxe/, look for `haxe_[date]_refs/tags`)
+- Get https://github.com/HaxeFoundation/hxgithub
+- Follow "Haxe releases" section of hxgithub README, with the equivalent of `-d haxe_2023-04-28_refs/tags/4.3.1_964c84c.tar.gz`
+	- Tell yourself that you're gonna fix `-doc` generation next time
+	- Make sure changelog isn't empty in `./haxe-version/CHANGES.md`
+	- Write the announcement to `./haxe-version/RELEASE.md`
+	- If everything was working, run the command again without `--dry`
 - Update https://github.com/HaxeFoundation/haxe.org/blob/staging/downloads/versions.json
+- Wait for staging to update, check everything related to release and merge to master
+- Update https://github.com/HaxeFoundation/api.haxe.org/blob/master/theme/templates/topbar.mtt
+- Update https://github.com/HaxeFoundation/code-cookbook/blob/master/assets/content/index.mtt#L62-L63
+
+# Cleanup
+
+- Remove issues with released fixes from the "Hotfix" milestone: https://github.com/HaxeFoundation/haxe/milestone/18
+- Set back the version in `globals.ml` to something appropriate for nightlies
 
 # Announcing the release
 

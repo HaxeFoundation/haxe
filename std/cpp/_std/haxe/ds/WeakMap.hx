@@ -35,6 +35,7 @@ package haxe.ds;
   inline void set(Dynamic key, float value) { __object_hash_set_float(HX_MAP_THIS,key,value,true); }
   inline void set(Dynamic key, double value) { __object_hash_set_float(HX_MAP_THIS,key,value,true); }
   inline void set(Dynamic key, ::String value) { __object_hash_set_string(HX_MAP_THIS,key,value,true); }
+  inline void set(Dynamic key, cpp::Int64 value) { __object_hash_set_int64(HX_MAP_THIS,key,value,true); }
 
   template<typename V, typename H>
   inline void set(Dynamic key, const ::cpp::Struct<V,H> &value) {__object_hash_set(HX_MAP_THIS,key,value,true); }
@@ -89,5 +90,13 @@ class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 
 	public function toString():String {
 		return untyped __global__.__object_hash_to_string(h);
+	}
+
+	public function clear():Void {
+		#if (hxcpp_api_level >= 400)
+		return untyped __global__.__object_hash_clear(h);
+		#else
+		h = null;
+		#end
 	}
 }

@@ -48,7 +48,7 @@ abstract UInt8Array(UInt8ArrayData) {
 	}
 
 	@:arrayAccess public inline function set(index:Int, value:Int):Int {
-		return this[index] = value & 0xFF; // &0xFF necessary for html compat
+		return this[index] = value;
 	}
 
 	public inline function sub(begin:Int, ?length:Int):UInt8Array {

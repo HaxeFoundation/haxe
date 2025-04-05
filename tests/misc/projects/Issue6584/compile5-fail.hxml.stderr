@@ -1,2 +1,2 @@
 Main5.hx:1: lines 1-6 : This class has uninitialized final vars, which requires a constructor
-Main5.hx:2: characters 2-14 : Example of an uninitialized final var
+Main5.hx:2: characters 8-9 : Example of an uninitialized final var

@@ -26,13 +26,13 @@ import python.Syntax;
 
 @:native("bytearray")
 extern class Bytearray implements ArrayAccess<Int> {
-	public var length(get, never):Int;
+	var length(get, never):Int;
 
 	@:overload(function():Void {})
 	@:overload(function(it:Array<Int>):Void {})
 	@:overload(function(it:NativeIterable<Int>):Void {})
 	@:overload(function(size:Int):Void {})
-	public function new(source:String, encoding:String, ?errors:Dynamic):Void;
+	function new(source:String, encoding:String, ?errors:Dynamic):Void;
 
 	private inline function get_length():Int {
 		return python.internal.UBuiltins.len(this);
@@ -41,15 +41,15 @@ extern class Bytearray implements ArrayAccess<Int> {
 	function append(x:Int):Void;
 	function extend(t:Bytearray):Void;
 
-	public inline function get(i:Int):Int {
+	inline function get(i:Int):Int {
 		return Syntax.arrayAccess(this, i);
 	}
 
-	public inline function set(i:Int, v:Int):Void {
+	inline function set(i:Int, v:Int):Void {
 		this.__setitem__(i, v);
 	}
 
-	public function __setitem__(i:Int, v:Int):Void;
+	function __setitem__(i:Int, v:Int):Void;
 
-	public function decode(encoding:String = "utf-8", errors:String = "strict"):String;
+	function decode(encoding:String = "utf-8", errors:String = "strict"):String;
 }

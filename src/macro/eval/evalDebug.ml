@@ -1,21 +1,14 @@
-open Gc
 open Globals
-open Ast
 open Type
 open EvalJitContext
 open EvalContext
 open EvalValue
 open EvalExceptions
-open EvalPrinting
-open EvalHash
-open EvalEncode
-open EvalMisc
 open EvalDebugMisc
-open MacroApi
 
 let is_caught eval v =
 	try
-		Hashtbl.iter (fun path _ -> if is v path then raise Exit) eval.caught_types;
+		IntHashtbl.iter (fun path _ -> if is v path then raise Exit) eval.caught_types;
 		false
 	with Exit ->
 		true
@@ -31,7 +24,7 @@ let rec run_loop run env : value =
 			check_breakpoint();
 			run env
 		| DbgNext(env',p) ->
-			let b = DisplayPosition.encloses_position (env.env_debug.expr.epos) p in
+			let b = DisplayPosition.encloses_position (env.env_debug.debug_pos) p in
 			let rec is_on_stack env =
 				match env.env_parent with
 				| Some env -> env == env' || is_on_stack env
@@ -80,8 +73,8 @@ let debug_loop jit conn e f =
 	let rec run_check_breakpoint env =
 		let eval = env.env_eval in
 		try
-			let h = Hashtbl.find ctx.debug.breakpoints env.env_info.pfile_unique in
-			let breakpoint = Hashtbl.find h env.env_debug.line in
+			let h = IntHashtbl.find ctx.debug.breakpoints env.env_info.pfile_unique in
+			let breakpoint = IntHashtbl.find h env.env_debug.line in
 			begin match breakpoint.bpstate with
 				| BPEnabled when column_matches breakpoint && condition_holds env breakpoint ->
 					breakpoint.bpstate <- BPHit;
@@ -116,7 +109,8 @@ let debug_loop jit conn e f =
 	let run_set env =
 		env.env_debug.scopes <- scopes;
 		env.env_debug.line <- line;
-		env.env_debug.expr <- e;
+		env.env_debug.debug_pos <- e.epos;
+		env.env_debug.debug_expr <- s_expr_pretty e;
 		run_loop run_check_breakpoint env;
 	in
 	run_set

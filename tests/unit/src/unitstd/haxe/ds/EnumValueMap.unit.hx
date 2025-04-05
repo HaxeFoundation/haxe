@@ -96,3 +96,9 @@ evm.exists(EVMF([EVMA, EVMB()])) == true;
 evm.exists(EVMF([EVMA, EVMB(null)])) == true;
 evm.get(EVMF([EVMA, EVMB()])) == 12;
 evm.get(EVMF([EVMA, EVMB(null)])) == 12;
+
+evm.clear();
+evm.exists(EVMF([EVMA, EVMB()])) == false;
+evm.exists(EVMF([EVMA, EVMB(null)])) == false;
+
+[for (k=>v in evm) k] == [];

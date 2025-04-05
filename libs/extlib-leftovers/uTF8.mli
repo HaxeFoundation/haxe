@@ -23,7 +23,7 @@
    The Module for UTF-8 encoded Unicode strings.
 *)
 
-open UChar
+open UCharExt
 
 (** UTF-8 encoded Unicode strings. the type is normal string. *)
 type t = string

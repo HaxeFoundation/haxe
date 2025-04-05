@@ -26,9 +26,14 @@ import haxe.iterators.StringIteratorUnicode;
 import haxe.iterators.StringKeyValueIteratorUnicode;
 
 /**
-	This abstract provides consistent cross-target unicode support.
+	This abstract provides consistent cross-target unicode support for characters of any width.
 
-	@see https://haxe.org/manual/std-UnicodeString.html
+	Due to differing internal representations of strings across targets, only the basic
+	multilingual plane (BMP) is supported consistently by `String` class.
+
+	This abstract provides API to consistently handle all characters even beyond BMP.
+
+	@see https://haxe.org/manual/std-String-unicode.html
 **/
 @:forward
 @:access(StringTools)
@@ -183,27 +188,19 @@ abstract UnicodeString(String) from String to String {
 	}
 
 	/**
-		Returns the position of the leftmost occurrence of `str` within `this`
-		String.
-
-		If `startIndex` is given, the search is performed within the substring
-		of `this` String starting from `startIndex` (if `startIndex` is posivite
-		or 0) or `max(this.length + startIndex, 0)` (if `startIndex` is negative).
-
-		If `startIndex` exceeds `this.length`, -1 is returned.
-
-		Otherwise the search is performed within `this` String. In either case,
-		the returned position is relative to the beginning of `this` String.
-
-		If `str` cannot be found, -1 is returned.
+		@see String.indexOf
 	**/
 	public function indexOf(str:String, ?startIndex:Int):Int {
-		if (startIndex == null) {
-			startIndex = 0;
+		var startIndex:Int = if (startIndex == null || startIndex < 0) {
+			0;
 		} else {
-			if (startIndex < 0) {
-				startIndex = (this : UnicodeString).length + startIndex;
+			startIndex;
+		}
+		if (str.length == 0) {
+			if (startIndex > length) {
+				return length;
 			}
+			return startIndex;
 		}
 
 		var unicodeOffset = 0;
@@ -437,7 +434,7 @@ abstract UnicodeString(String) from String to String {
 
 	@:op(A += B) static function assignAdd(a:UnicodeString, b:UnicodeString):UnicodeString;
 
-	@:op(A + B) @:commutative static function add(a:UnicodeString, b:String):UnicodeString;
+	@:op(A + B) @:commutative static function addString(a:UnicodeString, b:String):UnicodeString;
 
-	@:op(A += B) @:commutative static function assignAdd(a:UnicodeString, b:String):UnicodeString;
+	@:op(A += B) @:commutative static function assignAddString(a:UnicodeString, b:String):UnicodeString;
 }

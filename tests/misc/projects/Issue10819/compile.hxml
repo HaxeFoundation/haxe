@@ -1,0 +1,3 @@
+--main Main
+--interp
+-D warn-var-shadowing

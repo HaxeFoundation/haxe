@@ -19,6 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.iterators.ArrayKeyValueIterator;
+
 @:coreApi
 extern class Array<T> {
 	var length(default, null):Int;
@@ -44,6 +47,14 @@ extern class Array<T> {
 		return @:privateAccess HxOverrides.remove(this, x);
 	}
 
+	inline function contains(x:T):Bool {
+		#if (js_es >= 6)
+		return (cast this).includes(x);
+		#else
+		return this.indexOf(x) != -1;
+		#end
+	}
+
 	#if (js_es >= 5)
 	@:pure function indexOf(x:T, ?fromIndex:Int):Int;
 	@:pure function lastIndexOf(x:T, ?fromIndex:Int):Int;
@@ -62,11 +73,24 @@ extern class Array<T> {
 		return (cast this).slice();
 	}
 
-	function map<S>(f:T->S):Array<S>;
-	function filter(f:T->Bool):Array<T>;
+	@:runtime inline function map<S>(f:T->S):Array<S> {
+		var result:Array<S> = js.Syntax.construct(Array, length);
+		for(i in 0...length) {
+			result[i] = f(this[i]);
+		}
+		return result;
+	}
 
-	@:runtime inline function iterator():Iterator<T> {
-		return @:privateAccess HxOverrides.iter(this);
+	@:runtime inline function filter(f:T->Bool):Array<T> {
+		return [for (v in this) if (f(v)) v];
+	}
+
+	@:runtime inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
+	}
+
+	@:runtime inline function keyValueIterator():ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator(this);
 	}
 
 	inline function resize(len:Int):Void {

@@ -1,1 +1,2 @@
 Main.hx:8: characters 9-16 : Unknown identifier : my_typo
+Main.hx:8: characters 9-16 : ... For function argument 's'

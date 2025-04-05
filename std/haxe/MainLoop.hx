@@ -1,6 +1,10 @@
 package haxe;
 
 import haxe.EntryPoint;
+#if (target.threaded && !cppia)
+import sys.thread.EventLoop;
+import sys.thread.Thread;
+#end
 
 class MainEvent {
 	var f:Void->Void;
@@ -18,7 +22,7 @@ class MainEvent {
 	function new(f, p) {
 		this.f = f;
 		this.priority = p;
-		nextRun = -1;
+		nextRun = Math.NEGATIVE_INFINITY;
 	}
 
 	/**
@@ -26,7 +30,7 @@ class MainEvent {
 		If t is null, the event will be run at tick() time.
 	**/
 	public function delay(t:Null<Float>) {
-		nextRun = t == null ? -1 : haxe.Timer.stamp() + t;
+		nextRun = t == null ? Math.NEGATIVE_INFINITY : haxe.Timer.stamp() + t;
 	}
 
 	/**
@@ -44,7 +48,7 @@ class MainEvent {
 		if (f == null)
 			return;
 		f = null;
-		nextRun = -1;
+		nextRun = Math.NEGATIVE_INFINITY;
 		if (prev == null)
 			@:privateAccess MainLoop.pending = next;
 		else
@@ -56,6 +60,7 @@ class MainEvent {
 
 @:access(haxe.MainEvent)
 class MainLoop {
+
 	static var pending:MainEvent;
 
 	public static var threadCount(get, never):Int;
@@ -84,7 +89,7 @@ class MainLoop {
 	/**
 		Add a pending event to be run into the main loop.
 	**/
-	public static function add(f:Void->Void, priority = 0):MainEvent@:privateAccess {
+	public static function add(f:Void->Void, priority = 0) : MainEvent {
 		if (f == null)
 			throw "Event function is null";
 		var e = new MainEvent(f, priority);
@@ -169,7 +174,7 @@ class MainLoop {
 		while (e != null) {
 			var next = e.next;
 			var wt = e.nextRun - now;
-			if (e.nextRun < 0 || wt <= 0) {
+			if (wt <= 0) {
 				wait = 0;
 				e.call();
 			} else if (wait > wt)

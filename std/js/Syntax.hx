@@ -28,6 +28,7 @@ import haxe.extern.Rest;
 	Generate JavaScript syntax not directly supported by Haxe.
 	Use only at low-level when specific target-specific code-generation is required.
 **/
+@:noClosure
 extern class Syntax {
 	/**
 		Inject `code` directly into generated source.
@@ -42,8 +43,16 @@ extern class Syntax {
 		```haxe
 		console.log("hi", 42);
 		```
+
+		Emits a compilation error if the count of `args` does not match the count of placeholders in `code`.
 	**/
 	static function code(code:String, args:Rest<Dynamic>):Dynamic;
+
+	/**
+		Inject `code` directly into generated source.
+		The same as `js.Syntax.code` except this one does not provide code interpolation.
+	**/
+	static function plainCode(code:String):Dynamic;
 
 	/**
 		Generate `new cl(...args)` expression.
@@ -62,12 +71,12 @@ extern class Syntax {
 	@:pure static function typeof(o:Dynamic):String;
 
 	/**
-		Genearte `a === b` expression.
+		Generate `a === b` expression.
 	**/
 	@:pure static function strictEq(a:Dynamic, b:Dynamic):Bool;
 
 	/**
-		Genearte `a !== b` expression.
+		Generate `a !== b` expression.
 	**/
 	@:pure static function strictNeq(a:Dynamic, b:Dynamic):Bool;
 

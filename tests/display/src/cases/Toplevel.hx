@@ -167,6 +167,7 @@ class Toplevel extends DisplayTestCase {
 		eq(true, hasToplevel(toplevel(pos(2)), "type", "FieldT2"));
 	}
 
+	#if (!display.protocol || display.protocol == "xml")
 	/**
 		import cases.Toplevel.E.a;
 
@@ -186,10 +187,11 @@ class Toplevel extends DisplayTestCase {
 	**/
 	function testDuplicates() {
 		var toplevels = toplevel(pos(1));
-		toplevels = toplevels.filter(function(t) return t.name == "a");
+		toplevels = toplevels.filter(t -> isToplevel(t, "a"));
 		eq(1, toplevels.length);
-		eq("local", toplevels[0].kind);
+		eq(true, isToplevel(toplevels[0], "a", null, "local"));
 	}
+	#end
 
 	/**
 		class Main {

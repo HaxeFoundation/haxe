@@ -1,0 +1,10 @@
+[ERROR] Main.hx:11: characters 11-14
+
+ 11 |  @:native("z") override public function a() {}
+    |           ^^^
+    | Field a has different @:native value than in superclass
+
+     6 |  public function a() {}
+       |                  ^
+       | Base field is defined here
+

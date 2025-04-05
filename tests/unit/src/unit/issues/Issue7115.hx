@@ -4,15 +4,15 @@ private interface Interface { }
 
 class Issue7115 extends unit.Test {
 	function testIs() {
-		f(Std.is(getNull(), Int));
-		f(Std.is(getNull(), Float));
-		f(Std.is(getNull(), Bool));
-		f(Std.is(getNull(), String));
-		f(Std.is(getNull(), Issue7115));
-		f(Std.is(getNull(), haxe.ds.Option));
-		f(Std.is(getNull(), Dynamic));
-		f(Std.is(getNull(), null));
-		f(Std.is(getNull(), Interface));
+		f(Std.isOfType(getNull(), Int));
+		f(Std.isOfType(getNull(), Float));
+		f(Std.isOfType(getNull(), Bool));
+		f(Std.isOfType(getNull(), String));
+		f(Std.isOfType(getNull(), Issue7115));
+		f(Std.isOfType(getNull(), haxe.ds.Option));
+		f(Std.isOfType(getNull(), Dynamic));
+		f(Std.isOfType(getNull(), null));
+		f(Std.isOfType(getNull(), Interface));
 	}
 
 	function testCast() {

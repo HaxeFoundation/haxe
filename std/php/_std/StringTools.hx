@@ -124,24 +124,15 @@ import haxe.iterators.StringKeyValueIterator;
 		return Boot.unsafeOrd(char);
 	}
 
-	/**
-		Returns an iterator of the char codes.
+	public static function unsafeCodeAt(s:String, index:Int):Int {
+		var char:NativeString = (index == 0 ? s : Global.mb_substr(s, index, 1));
+		return Boot.unsafeOrd(char);
+	}
 
-		Note that char codes may differ across platforms because of different
-		internal encoding of strings in different runtimes.
-		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringIteratorUnicode`.
-	**/
 	public static inline function iterator(s:String):StringIterator {
 		return new StringIterator(s);
 	}
 
-	/**
-		Returns an iterator of the char indexes and codes.
-
-		Note that char codes may differ across platforms because of different
-		internal encoding of strings in different of runtimes.
-		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringKeyValueIteratorUnicode`.
-	**/
 	public static inline function keyValueIterator(s:String):StringKeyValueIterator {
 		return new StringKeyValueIterator(s);
 	}

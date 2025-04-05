@@ -1,14 +1,12 @@
 package unit.issues;
 
 class Issue6059 extends Test {
-#if !as3 // See #6891
 	public static inline function foo (name : B, ?id : B, data : Array<String>) : Void { }
 
 	public static function test () : Void {
 		Issue6059.foo ("", []); // -> stackoverflow
 		Issue6059.foo ("", null, []); // ok
 	}
-#end
 }
 
 private abstract A (String) {

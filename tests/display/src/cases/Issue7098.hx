@@ -2,7 +2,7 @@ package cases;
 
 class Issue7098 extends DisplayTestCase {
 	/**
-		import misc.issue7098.Bar;
+		import issue7098.Bar;
 		class Main {
 			public static function main() {
 				Bar.foo(Va{-1-}lue);

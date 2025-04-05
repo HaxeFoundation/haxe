@@ -8,14 +8,14 @@ private abstract Meters(Float) from Float {
 		this = f;
 	}
 
-	@:op(-A) extern public static function neg(s:Meters):Meters;
-	@:op(A+B) extern public static function add(lhs:Meters, rhs:Meters):Meters;
-	@:op(A-B) extern public static function sub(lhs:Meters, rhs:Meters):Meters;
-	@:op(A>B) extern public static function gt(lhs:Meters, rhs:Meters):Bool;
-	@:op(A>=B) extern public static function gte(lhs:Meters, rhs:Meters):Bool;
-	@:op(A<B) extern public static function lt(lhs:Meters, rhs:Meters):Bool;
-	@:op(A<=B) extern public static function lte(lhs:Meters, rhs:Meters):Bool;
-	@:op(A==B) extern public static function eq(lhs:Meters, rhs:Meters):Bool;
+	@:op(-A) static private function neg(s:Meters):Meters;
+	@:op(A+B) static private function add(lhs:Meters, rhs:Meters):Meters;
+	@:op(A-B) static private function sub(lhs:Meters, rhs:Meters):Meters;
+	@:op(A>B) static private function gt(lhs:Meters, rhs:Meters):Bool;
+	@:op(A>=B) static private function gte(lhs:Meters, rhs:Meters):Bool;
+	@:op(A<B) static private function lt(lhs:Meters, rhs:Meters):Bool;
+	@:op(A<=B) static private function lte(lhs:Meters, rhs:Meters):Bool;
+	@:op(A==B) static private function eq(lhs:Meters, rhs:Meters):Bool;
 	extern inline public function float() return this;
 
 	@:to inline public function toString() {

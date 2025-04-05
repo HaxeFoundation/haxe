@@ -19,18 +19,15 @@ vec.get(1) == vNullFloat;
 vec.get(2) == vNullFloat;
 
 // bool init
-// Adobe's compilers seem to have a bug here that gives null instead of false
-#if !as3
 var vec = new haxe.ds.Vector<Bool>(3);
 vec.get(0) == vNullBool;
 vec.get(1) == vNullBool;
 vec.get(2) == vNullBool;
-#end
 
 // fromArray
 var arr = ["1", "2", "3"];
 var vec:haxe.ds.Vector<String> = haxe.ds.Vector.fromArrayCopy(arr);
-#if (!flash && !neko && !cs && !java && !lua && !eval && !php)
+#if (!flash && !neko && !jvm && !lua && !eval && !php)
 arr != vec.toData();
 #end
 vec.length == 3;
@@ -44,9 +41,7 @@ vec.set(1, 2);
 var arr = vec.toArray();
 arr[0] == vNullInt;
 arr[1] == 2;
-#if !as3
 arr[3] == vNullInt;
-#end
 
 // objects
 var tpl = new C();
@@ -97,6 +92,20 @@ vec3[3] == 4;
 vec3[4] == 4;
 vec3[5] == 5;
 vec3[6] == 6;
+
+var vec5 = new haxe.ds.Vector(3, 5);
+vec5[0] == 5;
+vec5[1] == 5;
+vec5[2] == 5;
+vec5.fill(1);
+vec5[0] == 1;
+vec5[1] == 1;
+vec5[2] == 1;
+
+var vec5 = new haxe.ds.Vector(3, true);
+vec5[0] == true;
+vec5[1] == true;
+vec5[2] == true;
 
 var vec5 = haxe.ds.Vector.fromArrayCopy([0,1,2,3,4]);
 haxe.ds.Vector.blit(vec5, 0, vec5, 1, 4);
@@ -183,7 +192,7 @@ vec2[1] == "value: 13";
 
 // sort
 
-#if !(neko || cs || java || eval)
+#if !(neko || jvm || eval)
 var vec = new haxe.ds.Vector(4);
 vec[0] = 99;
 vec[1] = 101;

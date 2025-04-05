@@ -1,3 +1,3 @@
 Main.hx:4: characters 3-33 : error: Cannot unify final and non-final fields
-Main.hx:4: characters 3-33 :  have: { foo: Dynamic }
-Main.hx:4: characters 3-33 :  want: { foo: Dynamic }
+Main.hx:4: characters 3-33 : ... have: { foo: Dynamic }
+Main.hx:4: characters 3-33 : ... want: { foo: Dynamic }

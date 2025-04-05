@@ -46,7 +46,7 @@ abstract VarArgs<T>(Dynamic) {
 	}
 
 	@:to public inline function toArray():Array<T> {
-		return if (!Std.is(raw(), Array)) list(raw()) else (raw() : Array<T>);
+		return if (!Std.isOfType(raw(), Array)) list(raw()) else (raw() : Array<T>);
 	}
 
 	@:from static inline function fromArray<T>(d:Array<T>):VarArgs<T> {

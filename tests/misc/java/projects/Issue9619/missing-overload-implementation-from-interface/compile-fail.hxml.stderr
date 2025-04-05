@@ -1,0 +1,4 @@
+Main.hx:9: characters 7-18 : This class extends abstract class Abstract but doesn't implement the following methods
+Main.hx:9: characters 7-18 : Implement them or make NotAbstract abstract as well
+Main.hx:2: characters 22-37 : ... toBeImplemented()
+Main.hx:3: characters 29-44 : ... toBeImplemented(i:Int)

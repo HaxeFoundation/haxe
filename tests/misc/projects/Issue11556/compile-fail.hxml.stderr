@@ -1,0 +1,2 @@
+Main.hx:1: characters 25-29 : Constraint check failure for Foo.T
+Main.hx:1: characters 25-29 : ... Void should be EnumValue

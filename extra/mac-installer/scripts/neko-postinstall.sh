@@ -15,5 +15,5 @@ ln -s /usr/local/lib/neko/nekoc /usr/local/bin/nekoc
 ln -s /usr/local/lib/neko/nekoml /usr/local/bin/nekoml
 ln -s /usr/local/lib/neko/nekotools /usr/local/bin/nekotools
 ln -s /usr/local/lib/neko/libneko.dylib /usr/local/lib/libneko.dylib
-ln -s /usr/local/lib/neko/libneko.2.dylib /usr/local/lib/libneko.2.dylib
-ln -s /usr/local/lib/neko/libneko.2.1.0.dylib /usr/local/lib/libneko.2.1.0.dylib
+ln -s /usr/local/lib/neko/libneko.%%NEKO_MAJOR_VERSION%%.dylib /usr/local/lib/libneko.%%NEKO_MAJOR_VERSION%%.dylib
+ln -s /usr/local/lib/neko/libneko.%%NEKO_VERSION%%.dylib /usr/local/lib/libneko.%%NEKO_VERSION%%.dylib
