@@ -50,25 +50,45 @@ let fun_to_coro ctx e tf name =
 	let cls_ctor =
 		let name = "completion" in
 
-		let vargcompletion    = alloc_var VGenerated name ctx.typer.com.basic.tcoro_continuation p in
-		let eargcompletion    = Builder.make_local vargcompletion p in
-		let ecompletionfield  = mk (TField(ethis,FInstance(cls, [], cls_completion))) ctx.typer.com.basic.tcoro_continuation p in
-		let estatefield       = mk (TField(ethis,FInstance(cls, [], cls_state))) ctx.typer.com.basic.tint p in
-		let eassigncompletion = mk_assign ecompletionfield eargcompletion in
-		let eassignstate      = mk_assign estatefield (mk (TConst (TInt (Int32.of_int 1) )) ctx.typer.com.basic.tint p) in
+		let vargcompletion = alloc_var VGenerated name ctx.typer.com.basic.tcoro_continuation p in
+		let vargcaptured   = alloc_var VGenerated "captured" ctx.typer.c.tthis p in
 
-		let vargcaptured    = alloc_var VGenerated "captured" ctx.typer.c.tthis p in
-		let eargcaptured    = Builder.make_local vargcaptured p in
-		let ecapturedfield  = mk (TField(ethis,FInstance(cls, [], cls_captured))) ctx.typer.c.tthis p in
-		let eassigncaptured = mk_assign ecapturedfield eargcaptured in
+		let eassigncompletion =
+			let eargcompletion    = Builder.make_local vargcompletion p in
+			let ecompletionfield  = mk (TField(ethis,FInstance(cls, [], cls_completion))) ctx.typer.com.basic.tcoro_continuation p in
+			mk_assign ecompletionfield eargcompletion in
+
+		let eassignstate =
+			let estatefield = mk (TField(ethis,FInstance(cls, [], cls_state))) ctx.typer.com.basic.tint p in
+			mk_assign estatefield (mk (TConst (TInt (Int32.of_int 1) )) ctx.typer.com.basic.tint p) in
+
+		let eassigncaptured =
+			let eargcaptured    = Builder.make_local vargcaptured p in
+			let ecapturedfield  = mk (TField(ethis,FInstance(cls, [], cls_captured))) ctx.typer.c.tthis p in
+			mk_assign ecapturedfield eargcaptured in
+
+		let eassigncontext =
+			let eargcompletion = Builder.make_local vargcompletion p in
+			let econtextfield  =
+				match ctx.typer.com.basic.tcoro_continuation with
+				| TInst (cls, _) ->
+					let field = PMap.find "_hx_context" cls.cl_fields in
+					mk (TField(eargcompletion, FInstance(cls, [], field))) field.cf_type p
+				| _ ->
+					die "Expected context to be TInst" __LOC__
+			in
+
+			let ecompletionfield = mk (TField(ethis,FInstance(cls, [], cls_context))) ctx.typer.com.basic.tcoro_context p in
+			mk_assign ecompletionfield econtextfield
+		in
 
 		(* If the coroutine field is not static then our HxCoro class needs to capture this for future resuming *)
 
 		let eblock =
 			if has_class_field_flag ctx.typer.f.curfield CfStatic then
-				mk (TBlock [ eassigncompletion; eassignstate ]) ctx.typer.com.basic.tvoid p
+				mk (TBlock [ eassigncompletion; eassignstate; eassigncontext ]) ctx.typer.com.basic.tvoid p
 			else
-				mk (TBlock [ eassigncaptured; eassigncompletion; eassignstate ]) ctx.typer.com.basic.tvoid p
+				mk (TBlock [ eassigncaptured; eassigncompletion; eassignstate; eassigncontext ]) ctx.typer.com.basic.tvoid p
 		in
 
 		let tfun_args, tfunction_args =
@@ -212,10 +232,6 @@ let fun_to_coro ctx e tf name =
 
 	cls.cl_constructor <- Some cls_ctor;
 
-	(* if ctx.coro_debug then
-		Printer.s_tclass "\t" cls |> Printf.printf "%s\n"; *)
-
-	(* ctx.typer.com.types <- ctx.typer.com.types @ [ TClassDecl cls ]; *)
 	ctx.typer.m.curmod.m_types <- ctx.typer.m.curmod.m_types @ [ TClassDecl cls ];
 
 	(* Generate and assign the continuation variable *)
@@ -235,19 +251,19 @@ let fun_to_coro ctx e tf name =
 	
 	let continuation_assign =
 		let t         = TInst (cls, []) in
-		let tcond     = std_is econtinuation t in
+		let tcond     = std_is ecompletion t in
 		let tif       = mk_assign econtinuation (mk_cast ecompletion t p) in
 		let ctor_args =
 			if has_class_field_flag ctx.typer.f.curfield CfStatic then
-				[ econtinuation ]
+				[ ecompletion ]
 			else
-				[ mk (TConst TThis) ctx.typer.c.tthis p; econtinuation ]
+				[ mk (TConst TThis) ctx.typer.c.tthis p; ecompletion ]
 		in
 		let telse = mk_assign econtinuation (mk (TNew (cls, [], ctor_args)) t p) in
 		mk (TIf (tcond, tif, Some telse)) ctx.typer.com.basic.tvoid p
 	in
 	
-	let eloop   = CoroToTexpr.block_to_texpr_coroutine ctx cb_root econtinuation eresult estate e.epos in
+	let eloop   = CoroToTexpr.block_to_texpr_coroutine ctx cb_root econtinuation ecompletion eresult estate e.epos in
 	let tf_expr = mk (TBlock [
 		continuation_var;
 		continuation_assign;

@@ -33,7 +33,7 @@ let make_control_switch com e_subject e_normal e_error p =
 	} in
 	mk (TSwitch switch) com.basic.tvoid p
 
-let block_to_texpr_coroutine ctx cb econtinuation eresult estate p =
+let block_to_texpr_coroutine ctx cb econtinuation ecompletion eresult estate p =
 	let open Texpr.Builder in
 	let com = ctx.typer.com in
 
@@ -273,6 +273,10 @@ let block_to_texpr_coroutine ctx cb econtinuation eresult estate p =
 				begin
 					let rec loop e =
 						match e.eexpr with
+						(* TODO : Should this be handled here? *)
+						(* Also need to check if this should be the continuation instead of completion *)
+						| TCall ({ eexpr = TField (_, FStatic ({ cl_path = (["haxe";"coro"], "Intrinsics") }, { cf_name = "currentContinuation" })) }, []) ->
+							ecompletion
 						| TVar (v, eo) when is_used_across_states v.v_id ->
 							decls := v :: !decls;
 							let elocal = make_local v e.epos in
