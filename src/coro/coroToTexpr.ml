@@ -104,7 +104,7 @@ let block_to_texpr_coroutine ctx cb econtinuation ecompletion eresult estate p =
 		assert (cb != ctx.cb_unreachable);
 		let el = DynArray.to_list cb.cb_el in
 
-		let ereturn = mk (TReturn None) com.basic.tvoid p in
+		let ereturn = mk (TReturn (Some (make_null com.basic.tany p))) com.basic.tany p in
 
 		let add_state next_id extra_el =
 			let el = current_el @ el @ extra_el in
@@ -130,8 +130,7 @@ let block_to_texpr_coroutine ctx cb econtinuation ecompletion eresult estate p =
 			let ecallcoroutine = mk_suspending_call call in
 			add_state (Some next_state_id) ecallcoroutine;
 		| NextUnknown ->
-			let ecallcontinuation = mk_continuation_call (make_null t_dynamic p) p in
-			add_state (Some (-1)) [ecallcontinuation; ereturn]
+			add_state (Some (-1)) [ereturn]
 		| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
 			let rec skip_loop cb =
 				if DynArray.empty cb.cb_el then begin match cb.cb_next.next_kind with
@@ -329,4 +328,4 @@ let block_to_texpr_coroutine ctx cb econtinuation ecompletion eresult estate p =
 			e_var :: shared_vars
 	in
 
-	eloop
+	eloop, !init_state

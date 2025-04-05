@@ -45,6 +45,21 @@ let fun_to_coro ctx e tf name =
 	let cls_error      = mk_field "_hx_error" ctx.typer.com.basic.texception null_pos null_pos in
 	let cls_captured   = mk_field "_hx_captured" ctx.typer.c.tthis null_pos null_pos in
 
+	(* Generate and assign the continuation variable *)
+	let vcompletion = alloc_var VGenerated "_hx_completion" ctx.typer.com.basic.tcoro_continuation p in
+	let ecompletion = Builder.make_local vcompletion p in
+
+	let vcontinuation = alloc_var VGenerated "_hx_continuation" (TInst (cls, [])) p in
+	let econtinuation = Builder.make_local vcontinuation p in
+
+	let estate = mk (TField(econtinuation,FInstance(cls, [], cls_state))) ctx.typer.com.basic.tint p in
+	let eresult = mk (TField(econtinuation,FInstance(cls, [], cls_result))) ctx.typer.com.basic.tint p in
+
+	let cb_root = make_block ctx (Some(e.etype,p)) in
+
+	ignore(CoroFromTexpr.expr_to_coro ctx eresult cb_root tf.tf_expr);
+	let eloop, initial_state = CoroToTexpr.block_to_texpr_coroutine ctx cb_root econtinuation ecompletion eresult estate e.epos in
+	
 	let ethis = mk (TConst TThis) (TInst (cls, [])) p in
 
 	let cls_ctor =
@@ -60,7 +75,7 @@ let fun_to_coro ctx e tf name =
 
 		let eassignstate =
 			let estatefield = mk (TField(ethis,FInstance(cls, [], cls_state))) ctx.typer.com.basic.tint p in
-			mk_assign estatefield (mk (TConst (TInt (Int32.of_int 1) )) ctx.typer.com.basic.tint p) in
+			mk_assign estatefield (mk (TConst (TInt (Int32.of_int initial_state) )) ctx.typer.com.basic.tint p) in
 
 		let eassigncaptured =
 			let eargcaptured    = Builder.make_local vargcaptured p in
@@ -234,20 +249,7 @@ let fun_to_coro ctx e tf name =
 
 	ctx.typer.m.curmod.m_types <- ctx.typer.m.curmod.m_types @ [ TClassDecl cls ];
 
-	(* Generate and assign the continuation variable *)
-	let vcompletion = alloc_var VGenerated "_hx_completion" ctx.typer.com.basic.tcoro_continuation p in
-	let ecompletion = Builder.make_local vcompletion p in
-
-	let vcontinuation = alloc_var VGenerated "_hx_continuation" (TInst (cls, [])) p in
-	let econtinuation = Builder.make_local vcontinuation p in
-
-	let estate = mk (TField(econtinuation,FInstance(cls, [], cls_state))) ctx.typer.com.basic.tint p in
-	let eresult = mk (TField(econtinuation,FInstance(cls, [], cls_result))) ctx.typer.com.basic.tint p in
-
 	let continuation_var = mk (TVar (vcontinuation, Some (Builder.make_null (TInst (cls, [])) p))) (TInst (cls, [])) p in
-	
-	let cb_root = make_block ctx (Some(e.etype,p)) in
-	ignore(CoroFromTexpr.expr_to_coro ctx eresult cb_root tf.tf_expr);
 	
 	let continuation_assign =
 		let t         = TInst (cls, []) in
@@ -263,7 +265,6 @@ let fun_to_coro ctx e tf name =
 		mk (TIf (tcond, tif, Some telse)) ctx.typer.com.basic.tvoid p
 	in
 	
-	let eloop   = CoroToTexpr.block_to_texpr_coroutine ctx cb_root econtinuation ecompletion eresult estate e.epos in
 	let tf_expr = mk (TBlock [
 		continuation_var;
 		continuation_assign;
