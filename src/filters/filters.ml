@@ -194,7 +194,6 @@ let destruction_on_scom pool scom ectx rename_locals_config all_types_array =
 		(fun _ -> Native.apply_native_paths);
 	] in
 	let filters2 = [
-		(fun _ -> add_rtti scom); (* accesses cl_super *)
 		(match scom.platform with | Jvm -> (fun _ _ -> ()) | _ -> (fun scom mt -> AddFieldInits.add_field_inits scom.curclass.cl_path rename_locals_config scom mt));
 		(fun _ -> check_void_field);
 		(fun _ -> (match scom.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ()))); (* accesses cl_super, cl_implements  *)
@@ -211,6 +210,7 @@ let destruction_on_scom pool scom ectx rename_locals_config all_types_array =
 
 let destruction_on_com scom com types =
 	let filters = [
+		(fun _ -> add_rtti scom); (* accesses cl_super *)
 		(fun _ -> check_private_path com);
 		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> (fun _ -> add_meta_field com));
 		(fun _ -> commit_features com);
