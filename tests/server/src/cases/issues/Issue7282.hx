@@ -12,7 +12,7 @@ class Issue7282 extends TestCase {
 		runHaxe(args);
 		assertSuccess();
 		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
-			var arg:ReplacableCode = res[0].diagnostics[0].args;
+			var arg:ReplaceableCodeDiagnostics = res[0].diagnostics[0].args;
 			Assert.equals("Unused variable", arg.description);
 			Assert.same(transform.range(1,2), res[0].diagnostics[0].range);
 			Assert.same(transform.range(1,2), arg.range);

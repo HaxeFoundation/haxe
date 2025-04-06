@@ -26,7 +26,68 @@ import js.lib.Object;
 import haxe.Constraints.IMap;
 import haxe.DynamicAccess;
 
-#if (js_es >= 5)
+#if (js_es >= 6)
+@:coreApi class StringMap<T> implements IMap<String, T> {
+	private var m:js.lib.Map<String, T>;
+
+	public inline function new():Void {
+		m = new js.lib.Map();
+	}
+
+	public inline function set(key:String, value:T):Void {
+		m.set(key, value);
+	}
+
+	public inline function get(key:String):Null<T> {
+		return m.get(key);
+	}
+
+	public inline function exists(key:String):Bool {
+		return m.has(key);
+	}
+
+	public inline function remove(key:String):Bool {
+		return m.delete(key);
+	}
+
+	public inline function keys():Iterator<String> {
+		return new js.lib.HaxeIterator(m.keys());
+	}
+
+	public inline function iterator():Iterator<T> {
+		return m.iterator();
+	}
+
+	public inline function keyValueIterator():KeyValueIterator<String, T> {
+		return m.keyValueIterator();
+	}
+
+	public inline function copy():StringMap<T> {
+		var copied = new StringMap();
+		copied.m = new js.lib.Map(m);
+		return copied;
+	}
+
+	public function toString():String {
+		var s = new StringBuf();
+		s.add("[");
+		var it = keyValueIterator();
+		for (i in it) {
+			s.add(i.key);
+			s.add(" => ");
+			s.add(Std.string(i.value));
+			if (it.hasNext())
+				s.add(", ");
+		}
+		s.add("]");
+		return s.toString();
+	}
+
+	public inline function clear():Void {
+		m.clear();
+	}
+}
+#elseif (js_es == 5)
 @:coreApi class StringMap<T> implements IMap<String, T> {
 	var h:Dynamic;
 
@@ -55,7 +116,7 @@ import haxe.DynamicAccess;
 	}
 
 	public inline function keys():Iterator<String> {
-		return new StringMapKeyIterator(h);
+		return new haxe.iterators.ArrayIterator(Object.keys(h));
 	}
 
 	public inline function iterator():Iterator<T> {
@@ -93,28 +154,6 @@ import haxe.DynamicAccess;
 		js.Syntax.code("\t{0} += key + ' => ' + {1}({2}[key]);", s, Std.string, h);
 		js.Syntax.code("}");
 		return s + "]";
-	}
-}
-
-private class StringMapKeyIterator {
-	final h:Dynamic;
-	final keys:Array<String>;
-	final length:Int;
-	var current:Int;
-
-	public inline function new(h:Dynamic) {
-		this.h = h;
-		keys = Object.keys(h);
-		length = keys.length;
-		current = 0;
-	}
-
-	public inline function hasNext():Bool {
-		return current < length;
-	}
-
-	public inline function next():String {
-		return keys[current++];
 	}
 }
 

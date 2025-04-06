@@ -51,7 +51,7 @@ class StringBuf {
 	@:overload
 	@:native("add")
 	@:ifFeature("StringBuf.add")
-	function addOpt(v:java.types.Char16):Void {
+	function addOpt(v:jvm.Char16):Void {
 		b.append(v);
 	}
 
@@ -97,6 +97,10 @@ class StringBuf {
 
 	public function addChar(c:Int):Void {
 		b.appendCodePoint(c);
+	}
+
+	public function clear():Void {
+		b.setLength(0);
 	}
 
 	public function toString():String {

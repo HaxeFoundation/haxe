@@ -21,7 +21,6 @@ class Lua {
 				else
 					runNetworkCommand("brew", ["install", "python3"]);
 
-				attemptCommand("brew", ["install", "pcre2"]);
 				runCommand("pip3", ["install", "hererocks"]);
 				runCommand("brew", ["install", "openssl"]);
 			}
@@ -79,12 +78,11 @@ class Lua {
 			if (lv == "-l5.1")
 				installLib("bit32", "5.2.2-1");
 
+			installLib("luv", "1.50.0-1");
 			if (lv == "-l5.4") {
 				installLib("bit32", "5.3.5.1-1");
-				installLib("luv", "1.44.2-1");
 				installLib("luautf8", "0.1.5-2");
 			} else {
-				installLib("luv", "1.36.0-0");
 				installLib("luautf8", "0.1.1-1");
 			}
 
@@ -97,6 +95,8 @@ class Lua {
 			final luaVer = ["-D", luaDefine];
 			runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(luaVer));
 			runCommand("lua", ["bin/unit.lua"]);
+
+			Display.maybeRunDisplayTests(Lua);
 
 			changeDirectory(sysDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(luaVer));

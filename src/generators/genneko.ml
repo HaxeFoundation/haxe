@@ -21,11 +21,11 @@ open Ast
 open Globals
 open Type
 open Nast
-open Common
+open Gctx
 
 type context = {
 	version : int;
-	com : Common.context;
+	com : Gctx.t;
 	packages : (string list, unit) Hashtbl.t;
 	globals : (string list * string, string) Hashtbl.t;
 	mutable curglobal : int;
@@ -50,7 +50,7 @@ let pos ctx p =
 			try
 				Hashtbl.find files p.pfile
 			with Not_found ->
-				let path = (match Common.defined ctx.com Common.Define.AbsolutePath with
+				let path = (match Gctx.defined ctx.com Define.AbsolutePath with
 				| true -> if (Filename.is_relative p.pfile)
 					then Filename.concat (Sys.getcwd()) p.pfile
 					else p.pfile
@@ -305,20 +305,6 @@ and gen_expr ctx e =
 		(EFunction (List.map arg_name f.tf_args, with_return e),p)
 	| TBlock el ->
 		(EBlock (List.map (gen_expr ctx) el), p)
-	| TFor (v, it, e) ->
-		let it = gen_expr ctx it in
-		let e = gen_expr ctx e in
-		let next = call p (field p (ident p "@tmp") "next") [] in
-		let next = (if has_var_flag v VCaptured then call p (builtin p "array") [next] else next) in
-		(EBlock
-			[(EVars ["@tmp", Some it],p);
-			(EWhile (call p (field p (ident p "@tmp") "hasNext") [],
-				(EBlock [
-					(EVars [v.v_name, Some next],p);
-					e
-				],p)
-			,NormalWhile),p)]
-		,p)
 	| TIf (cond,e1,e2) ->
 		(* if(e)-1 is parsed as if( e - 1 ) *)
 		let parent e = mk (TParenthesis e) e.etype e.epos in
@@ -371,7 +357,7 @@ and gen_expr ctx e =
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
-		gen_expr ctx (Codegen.default_cast ~vtmp:"@tmp" ctx.com e1 t e.etype e.epos)
+		gen_expr ctx (Codegen.default_cast ~vtmp:"@tmp" ctx.com.basic ctx.com.std e1 t e.etype e.epos)
 	| TIdent s ->
 		ident p s
 	| TSwitch {switch_subject = e;switch_cases = cases;switch_default = eo} ->
@@ -563,7 +549,7 @@ let gen_type ctx t acc =
 		else
 			gen_class ctx c :: acc
 	| TEnumDecl e ->
-		if e.e_extern then
+		if has_enum_flag e EnExtern then
 			acc
 		else
 			gen_enum ctx e :: acc
@@ -622,7 +608,7 @@ let gen_boot ctx =
 
 let gen_name ctx acc t =
 	match t with
-	| TEnumDecl e when e.e_extern ->
+	| TEnumDecl e when has_enum_flag e EnExtern ->
 		acc
 	| TEnumDecl e ->
 		let p = pos ctx e.e_pos in
@@ -686,7 +672,7 @@ let generate_libs_init = function
 			(EVars [
 				"@s",Some (call p (loadp "sys_string" 0) []);
 			],p);
-			(EIf (op ">=" (builtin p "version") (int p 240),
+			(EIf (op ">=" (call p (builtin p "version") []) (int p 240),
 				(op "=" es (op "+" es (ESwitch (call p (loadp "sys_cpu_arch" 0) [],[
 					(str p "arm64", str p "Arm64");
 					(str p "arm", str p "Arm");
@@ -771,19 +757,19 @@ let build ctx types =
 	let vars = List.concat (List.map (gen_static_vars ctx) types) in
 	packs @ methods @ boot :: names @ inits @ vars
 
-let generate com =
+let generate neko_lib_paths com =
 	Hashtbl.clear files;
-	let ctx = new_context com (if Common.defined com Define.NekoV1 then 1 else 2) false in
+	let ctx = new_context com (if Gctx.defined com Define.NekoV1 then 1 else 2) false in
 	let libs = (EBlock
-		(if Common.defined com Define.NekoNoHaxelibPaths then []
-		else generate_libs_init com.neko_lib_paths),
+		(if Gctx.defined com Define.NekoNoHaxelibPaths then []
+		else generate_libs_init neko_lib_paths),
 		{ psource = "<header>"; pline = 1; }
 	) in
 	let el = build ctx com.types in
 	let emain = (match com.main.main_expr with None -> [] | Some e -> [gen_expr ctx e]) in
 	let e = (EBlock ((header()) @ libs :: el @ emain), null_pos) in
-	let source = Common.defined com Define.NekoSource in
-	let use_nekoc = Common.defined com Define.UseNekoc in
+	let source = Gctx.defined com Define.NekoSource in
+	let use_nekoc = Gctx.defined com Define.UseNekoc in
 	if not use_nekoc then begin
 		try
 			Path.mkdir_from_path com.file;
@@ -791,7 +777,7 @@ let generate com =
 			Nbytecode.write ch (Ncompile.compile ctx.version e);
 			IO.close_out ch;
 		with Ncompile.Error (msg,pos) ->
-			let pfile = Common.find_file com pos.psource in
+			let pfile = Gctx.find_file com pos.psource in
 			let rec loop p =
 				let pp = { pfile = pfile; pmin = p; pmax = p; } in
 				if Lexer.get_error_line pp >= pos.pline then

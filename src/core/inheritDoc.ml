@@ -181,7 +181,7 @@ and get_target_doc ctx e_target =
 			| TAbstract ({ a_impl = Some c }, _) ->
 				let c_opt, cf =
 					let field_name =
-						if field_name = "new" then "_new"
+						if field_name = "new" then "_hx_new"
 						else field_name
 					in
 					get_class_field c field_name

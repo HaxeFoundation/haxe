@@ -37,13 +37,14 @@ type arg_context = {
 	mutable raise_usage : unit -> unit;
 	mutable display_arg : string option;
 	mutable deprecations : string list;
+	mutable measure_times : bool;
 }
 
 type communication = {
 	write_out : string -> unit;
 	write_err : string -> unit;
 	flush     : compilation_context -> unit;
-	exit      : int -> unit;
+	exit      : Timer.timer_context -> int -> unit;
 	is_server : bool;
 }
 
@@ -54,6 +55,7 @@ and compilation_context = {
 	mutable has_error : bool;
 	comm : communication;
 	mutable runtime_args : string list;
+	timer_ctx : Timer.timer_context;
 }
 
 type compilation_callbacks = {

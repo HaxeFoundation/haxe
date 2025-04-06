@@ -44,6 +44,18 @@ let remove_class_field_flag cf (flag : flag_tclass_field) =
 let has_class_field_flag cf (flag : flag_tclass_field) =
 	has_flag cf.cf_flags (int_of_class_field_flag flag)
 
+let int_of_enum_flag (flag : flag_tenum) =
+	Obj.magic flag
+
+let add_enum_flag e (flag : flag_tenum) =
+	e.e_flags <- set_flag e.e_flags (int_of_enum_flag flag)
+
+let remove_enum_flag e (flag : flag_tenum) =
+	e.e_flags <- unset_flag e.e_flags (int_of_enum_flag flag)
+
+let has_enum_flag e (flag : flag_tenum) =
+	has_flag e.e_flags (int_of_enum_flag flag)
+
 let int_of_var_flag (flag : flag_tvar) =
 	Obj.magic flag
 
@@ -59,14 +71,14 @@ let has_var_flag v (flag : flag_tvar) =
 (* ======= General utility ======= *)
 
 let alloc_var' =
-	let uid = ref 0 in
+	let uid = Atomic.make 0 in
 	uid,(fun kind n t p ->
-		incr uid;
+		Atomic.incr uid;
 		{
 			v_kind = kind;
 			v_name = n;
 			v_type = t;
-			v_id = !uid;
+			v_id = Atomic.get uid;
 			v_extra = None;
 			v_meta = [];
 			v_pos = p;
@@ -171,7 +183,7 @@ let module_extra file sign time kind added policy =
 		m_time = time;
 		m_processed = 0;
 		m_deps = PMap.empty;
-		m_sig_deps = None;
+		m_display_deps = None;
 		m_kind = kind;
 		m_cache_bound_objects = DynArray.create ();
 		m_features = Hashtbl.create 0;
@@ -247,7 +259,7 @@ let null_enum = {
 	e_using = [];
 	e_restore = (fun () -> ());
 	e_type = t_dynamic;
-	e_extern = false;
+	e_flags = 0;
 	e_constrs = PMap.empty;
 	e_names = [];
 }
@@ -287,16 +299,28 @@ let null_abstract = {
 	a_read = None;
 	a_write = None;
 	a_call = None;
+	a_constructor = None;
 	a_extern = false;
 	a_enum = false;
 }
 
-let add_dependency ?(skip_postprocess=false) m mdep origin =
-	if m != null_module && mdep != null_module && (m.m_path != mdep.m_path || m.m_extra.m_sign != mdep.m_extra.m_sign) then begin
-		m.m_extra.m_deps <- PMap.add mdep.m_id ({md_sign = mdep.m_extra.m_sign; md_path = mdep.m_path; md_kind = mdep.m_extra.m_kind; md_origin = origin}) m.m_extra.m_deps;
-		(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
-		if not skip_postprocess then m.m_extra.m_processed <- 0
-	end
+let create_dependency mdep origin =
+	{md_sign = mdep.m_extra.m_sign; md_path = mdep.m_path; md_kind = mdep.m_extra.m_kind; md_origin = origin}
+
+let add_dependency_mutex = Mutex.create ()
+
+let add_dependency ?(skip_postprocess=false) m mdep = function
+	(* These module dependency origins should not add as a dependency *)
+	| MDepFromMacroInclude -> ()
+
+	| origin ->
+		if m != null_module && mdep != null_module && (m.m_path != mdep.m_path || m.m_extra.m_sign != mdep.m_extra.m_sign) then begin
+			Mutex.protect add_dependency_mutex (fun () ->
+				m.m_extra.m_deps <- PMap.add mdep.m_id (create_dependency mdep origin) m.m_extra.m_deps;
+				(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
+				if not skip_postprocess then m.m_extra.m_processed <- 0
+			)
+		end
 
 let arg_name (a,_) = a.v_name
 
@@ -416,6 +440,7 @@ let dynamify_monos t =
 	loop t
 
 exception ApplyParamsRecursion
+exception ApplyParamsMismatch
 
 (* substitute parameters with other types *)
 let apply_params ?stack cparams params t =
@@ -426,7 +451,7 @@ let apply_params ?stack cparams params t =
 		match l1, l2 with
 		| [] , [] -> []
 		| ttp :: l1 , t2 :: l2 -> (ttp.ttp_class,t2) :: loop l1 l2
-		| _ -> die "" __LOC__
+		| _ -> raise ApplyParamsMismatch
 	in
 	let subst = loop cparams params in
 	let rec loop t =
@@ -629,9 +654,12 @@ let rec ambiguate_funs t =
 	| TFun _ -> TFun ([], t_dynamic)
 	| _ -> map ambiguate_funs t
 
+let is_nullable_mono m =
+	List.exists (function MNullable _ -> true | _ -> false) m.tm_modifiers
+
 let rec is_nullable ?(no_lazy=false) = function
 	| TMono r ->
-		(match r.tm_type with None -> false | Some t -> is_nullable ~no_lazy t)
+		(match r.tm_type with None -> is_nullable_mono r | Some t -> is_nullable ~no_lazy t)
 	| TAbstract ({ a_path = ([],"Null") },[_]) ->
 		true
 	| TLazy f ->
@@ -662,7 +690,7 @@ let rec is_nullable ?(no_lazy=false) = function
 
 let rec is_null ?(no_lazy=false) = function
 	| TMono r ->
-		(match r.tm_type with None -> false | Some t -> is_null ~no_lazy t)
+		(match r.tm_type with None -> is_nullable_mono r | Some t -> is_null ~no_lazy t)
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		not (is_nullable ~no_lazy (follow t))
 	| TLazy f ->
@@ -679,7 +707,7 @@ let rec is_null ?(no_lazy=false) = function
 (* Determines if we have a Null<T>. Unlike is_null, this returns true even if the wrapped type is nullable itself. *)
 let rec is_explicit_null = function
 	| TMono r ->
-		(match r.tm_type with None -> false | Some t -> is_explicit_null t)
+		(match r.tm_type with None -> is_nullable_mono r | Some t -> is_explicit_null t)
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		true
 	| TLazy f ->

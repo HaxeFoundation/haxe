@@ -147,9 +147,8 @@ module ModuleLevel = struct
 						e_doc = d.d_doc;
 						e_meta = d.d_meta;
 						e_private = priv;
-						e_extern = List.mem EExtern d.d_flags;
 					} in
-					if not e.e_extern then check_type_name name d.d_meta p;
+					if List.mem EExtern d.d_flags then add_enum_flag e EnExtern else check_type_name name d.d_meta p;
 					add_declaration decl (TEnumDecl e)
 				| ETypedef d ->
 					let name = fst d.d_name in
@@ -198,6 +197,7 @@ module ModuleLevel = struct
 						a_read = None;
 						a_write = None;
 						a_call = None;
+						a_constructor = None;
 						a_extern = List.mem AbExtern d.d_flags;
 						a_enum = List.mem AbEnum d.d_flags || p_enum_meta <> None;
 					} in
@@ -294,7 +294,7 @@ module ModuleLevel = struct
 			with Not_found ->
 				if Sys.file_exists path then begin
 					let _,r = match !TypeloadParse.parse_hook com (ClassPaths.create_resolved_file path com.empty_class_path) p with
-						| ParseSuccess(data,_,_) -> data
+						| ParseSuccess(data,_) -> data
 						| ParseError(_,(msg,p),_) -> Parser.error msg p
 					in
 					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> raise_typing_error "Only import and using is allowed in import.hx files" p) r;
@@ -318,7 +318,7 @@ module ModuleLevel = struct
 		 List.iter (fun d ->
 			match d with
 			| ((EClass d, p),TClassDecl c) ->
-				c.cl_params <- type_type_params ctx_m TPHType c.cl_path p d.d_params;
+				c.cl_params <- type_type_params ctx_m TPHType c.cl_path d.d_params;
 				if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
 				if Meta.has Meta.FunctionalInterface c.cl_meta then begin
 					if not (has_class_flag c CInterface) then
@@ -332,11 +332,11 @@ module ModuleLevel = struct
 				end;
 				if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 			| ((EEnum d, p),TEnumDecl e) ->
-				e.e_params <- type_type_params ctx_m TPHType e.e_path p d.d_params;
+				e.e_params <- type_type_params ctx_m TPHType e.e_path d.d_params;
 			| ((ETypedef d, p),TTypeDecl t) ->
-				t.t_params <- type_type_params ctx_m TPHType t.t_path p d.d_params;
+				t.t_params <- type_type_params ctx_m TPHType t.t_path d.d_params;
 			| ((EAbstract d, p),TAbstractDecl a) ->
-				a.a_params <- type_type_params ctx_m TPHType a.a_path p d.d_params;
+				a.a_params <- type_type_params ctx_m TPHType a.a_path d.d_params;
 			| _ ->
 				die "" __LOC__
 		) decls
@@ -345,7 +345,7 @@ end
 module TypeLevel = struct
 	let load_enum_field ctx_en e et is_flat index c =
 		let p = c.ec_pos in
-		let params = type_type_params ctx_en TPHEnumConstructor ([],fst c.ec_name) c.ec_pos c.ec_params in
+		let params = type_type_params ctx_en TPHEnumConstructor ([],fst c.ec_name) c.ec_params in
 		let ctx_ef = TyperManager.clone_for_enum_field ctx_en (params @ ctx_en.type_params) in
 		let rt = (match c.ec_type with
 			| None -> et
@@ -513,12 +513,11 @@ module TypeLevel = struct
 				delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx_en f);
 		) (!constructs);
 		e.e_names <- List.rev !names;
-		e.e_extern <- e.e_extern;
 		unify ctx_en (TType(enum_module_type e,[])) e.e_type p;
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
 			delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_doc ctx_en e);
-		if (ctx_en.com.platform = Jvm) && not e.e_extern then
+		if (ctx_en.com.platform = Jvm) && not (has_enum_flag e EnExtern) then
 			delay ctx_en.g PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_en e.e_meta in
 				e.e_meta <- metas @ e.e_meta;
@@ -559,7 +558,7 @@ module TypeLevel = struct
 					| _ ->
 						()
 				in
-				let r = make_lazy ctx_td.g tt (fun r ->
+				let r = make_lazy ctx_td.g tt (fun () ->
 					check_rec tt;
 					tt
 				) "typedef_rec_check" in
@@ -593,7 +592,7 @@ module TypeLevel = struct
 			let t = load_complex_type ctx_a true LoadNormal t in
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
-					let r = make_lazy ctx_a.g t (fun r ->
+					let r = make_lazy ctx_a.g t (fun () ->
 						(try (if from then Type.unify t a.a_this else Type.unify a.a_this t) with Unify_error _ -> raise_typing_error "You can only declare from/to with compatible types" pos);
 						t
 					) "constraint" in
@@ -687,10 +686,7 @@ module TypeLevel = struct
 end
 
 let make_curmod com g m =
-	let rl = new resolution_list ["import";s_type_path m.m_path] in
-	List.iter (fun mt ->
-		rl#add (module_type_resolution mt None null_pos))
-	(List.rev g.std_types.m_types);
+	let rl = g.root_typer.m.import_resolution#clone_as ["import";s_type_path m.m_path] in
 	{
 		curmod = m;
 		import_resolution = rl;
@@ -707,12 +703,6 @@ let make_curmod com g m =
 let type_types_into_module com g m tdecls p =
 	let ctx_m = TyperManager.clone_for_module g.root_typer (make_curmod com g m) in
 	let imports_and_usings,decls = ModuleLevel.create_module_types ctx_m m tdecls p in
-	(* define the per-module context for the next pass *)
-	if ctx_m.g.std_types != null_module then begin
-		add_dependency m ctx_m.g.std_types MDepFromTyping;
-		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
-		ignore(load_instance ctx_m (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal LoadNormal)
-	end;
 	ModuleLevel.init_type_params ctx_m decls;
 	List.iter (TypeLevel.init_imports_or_using ctx_m) imports_and_usings;
 	(* setup module types *)
@@ -731,10 +721,6 @@ let type_module com g mpath file ?(dont_check_path=false) ?(is_extern=false) tde
 	let ctx_m = type_types_into_module com g m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Naming.check_module_path ctx_m.com m.m_path p;
 	m
-
-(* let type_module ctx mpath file ?(is_extern=false) tdecls p =
-	let timer = Timer.timer ["typing";"type_module"] in
-	Std.finally timer (type_module ctx mpath file ~is_extern tdecls) p *)
 
 class hxb_reader_api_typeload
 	(com : context)
@@ -763,8 +749,8 @@ class hxb_reader_api_typeload
 	method get_var_id (i : int) =
 		(* The v_id in .hxb has no relation to this context, make a new one. *)
 		let uid = fst alloc_var' in
-		incr uid;
-		!uid
+		Atomic.incr uid;
+		Atomic.get uid
 
 	method read_expression_eagerly (cf : tclass_field) =
 		com.is_macro_context || match cf.cf_kind with
@@ -773,13 +759,16 @@ class hxb_reader_api_typeload
 			| Method _ ->
 				delay g PTypeField (fun () -> ignore(follow cf.cf_type));
 				false
+
+	method make_lazy_type t f =
+		TLazy (make_lazy g t f "typeload-api")
 end
 
 let rec load_hxb_module com g path p =
-	let read file bytes string_pool =
+	let read file bytes =
 		try
 			let api = (new hxb_reader_api_typeload com g load_module' p :> HxbReaderApi.hxb_reader_api) in
-			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats string_pool (Common.defined com Define.HxbTimes) in
+			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
 			let read = reader#read api bytes in
 			let m = read EOT in
 			delay g PConnectField (fun () ->
@@ -797,7 +786,7 @@ let rec load_hxb_module com g path p =
 		| hxb_lib :: l ->
 			begin match hxb_lib#get_bytes target path with
 				| Some bytes ->
-					read hxb_lib#get_file_path bytes (hxb_lib#get_string_pool target)
+					read hxb_lib#get_file_path bytes
 				| None ->
 					loop l
 			end
@@ -812,7 +801,7 @@ and load_module' com g m p =
 		com.module_lut#find m
 	with Not_found ->
 		(* Check cache *)
-		match !TypeloadCacheHook.type_module_hook com (delay g PConnectField) m p with
+		match !TypeloadCacheHook.type_module_hook com (delay g) m p with
 		| GoodModule m ->
 			m
 		| BinaryModule _ ->
@@ -850,9 +839,5 @@ let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 	add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
 	if ctx.pass = PTypeField then flush_pass ctx.g PConnectField ("load_module",fst m @ [snd m]);
 	m2
-
-(* let load_module ctx m p =
-	let timer = Timer.timer ["typing";"load_module"] in
-	Std.finally timer (load_module ctx m) p *)
 
 ;;

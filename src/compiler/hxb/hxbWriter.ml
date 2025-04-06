@@ -45,17 +45,6 @@ let unop_index op flag = match op,flag with
 	| NegBits,Postfix -> 10
 	| Spread,Postfix -> 11
 
-module StringHashtbl = Hashtbl.Make(struct
-	type t = string
-
-	let equal =
-		String.equal
-
-	let hash s =
-		(* What's the best here? *)
-		Hashtbl.hash s
-end)
-
 module Pool = struct
 	type ('key,'value) t = {
 		lut : ('key,int) Hashtbl.t;
@@ -408,15 +397,12 @@ type hxb_writer = {
 	config : HxbWriterConfig.writer_target_config;
 	warn : Warning.warning -> string -> Globals.pos -> unit;
 	anon_id : Type.t Tanon_identification.tanon_identification;
+	identified_anons : (tanon,int) IdentityPool.t;
 	mutable current_module : module_def;
 	chunks : Chunk.t DynArray.t;
-	has_own_string_pool : bool;
 	cp : StringPool.t;
 	docs : StringPool.t;
 	mutable chunk : Chunk.t;
-
-	mutable in_expr : bool;
-	mutable sig_deps : module_def list;
 
 	classes : (path,tclass) Pool.t;
 	enums : (path,tenum) Pool.t;
@@ -440,6 +426,7 @@ type hxb_writer = {
 	mutable wrote_local_type_param : bool;
 	mutable needs_local_context : bool;
 	unbound_ttp : (typed_type_param,unit) IdentityPool.t;
+	unclosed_mono : (tmono,unit) IdentityPool.t;
 	t_instance_chunk : Chunk.t;
 }
 
@@ -454,8 +441,7 @@ module HxbWriter = struct
 			^ "Attach the following information:"
 		in
 		let backtrace = Printexc.raw_backtrace_to_string backtrace in
-		let s = Printf.sprintf "%s\nHaxe: %s\n%s" msg s_version_full backtrace in
-		failwith s
+		raise (Globals.Ice (msg, backtrace))
 
 	let in_nested_scope writer = match writer.field_stack with
 		| [] -> false (* can happen for cl_init and in EXD *)
@@ -869,28 +855,20 @@ module HxbWriter = struct
 
 	(* References *)
 
-	let maybe_add_sig_dep writer m =
-		if not writer.in_expr && m.m_path <> writer.current_module.m_path && not (List.exists (fun m' -> m'.m_path = m.m_path) writer.sig_deps) then
-			writer.sig_deps <- m :: writer.sig_deps
-
 	let write_class_ref writer (c : tclass) =
 		let i = Pool.get_or_add writer.classes c.cl_path c in
-		maybe_add_sig_dep writer c.cl_module;
 		Chunk.write_uleb128 writer.chunk i
 
 	let write_enum_ref writer (en : tenum) =
 		let i = Pool.get_or_add writer.enums en.e_path en in
-		maybe_add_sig_dep writer en.e_module;
 		Chunk.write_uleb128 writer.chunk i
 
 	let write_typedef_ref writer (td : tdef) =
 		let i = Pool.get_or_add writer.typedefs td.t_path td in
-		maybe_add_sig_dep writer td.t_module;
 		Chunk.write_uleb128 writer.chunk i
 
 	let write_abstract_ref writer (a : tabstract) =
 		let i = Pool.get_or_add writer.abstracts a.a_path a in
-		maybe_add_sig_dep writer a.a_module;
 		Chunk.write_uleb128 writer.chunk i
 
 	let write_tmono_ref writer (mono : tmono) =
@@ -1028,26 +1006,33 @@ module HxbWriter = struct
 		end
 
 	and write_anon_ref writer (an : tanon) =
-		let pfm = Option.get (writer.anon_id#identify_anon ~strict:true an) in
 		try
-			let index = Pool.get writer.anons pfm.pfm_path in
+			let index = IdentityPool.get writer.identified_anons an in
 			Chunk.write_u8 writer.chunk 0;
 			Chunk.write_uleb128 writer.chunk index
 		with Not_found ->
-			let restore = start_temporary_chunk writer 256 in
-			writer.needs_local_context <- false;
-			write_anon writer an;
-			let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
-			if writer.needs_local_context then begin
-				let index = Pool.add writer.anons pfm.pfm_path None in
-				Chunk.write_u8 writer.chunk 1;
-				Chunk.write_uleb128 writer.chunk index;
-				Chunk.write_bytes writer.chunk bytes
-			end else begin
-				let index = Pool.add writer.anons pfm.pfm_path (Some bytes) in
+			let pfm = writer.anon_id#identify_anon ~strict:true an in
+			try
+				let index = Pool.get writer.anons pfm.pfm_path in
 				Chunk.write_u8 writer.chunk 0;
-				Chunk.write_uleb128 writer.chunk index;
-			end
+				Chunk.write_uleb128 writer.chunk index
+			with Not_found ->
+				let restore = start_temporary_chunk writer 256 in
+				writer.needs_local_context <- false;
+				write_anon writer an;
+				let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
+				if writer.needs_local_context then begin
+					let index = Pool.add writer.anons pfm.pfm_path None in
+					ignore(IdentityPool.add writer.identified_anons an index);
+					Chunk.write_u8 writer.chunk 1;
+					Chunk.write_uleb128 writer.chunk index;
+					Chunk.write_bytes writer.chunk bytes
+				end else begin
+					let index = Pool.add writer.anons pfm.pfm_path (Some bytes) in
+					ignore(IdentityPool.add writer.identified_anons an index);
+					Chunk.write_u8 writer.chunk 0;
+					Chunk.write_uleb128 writer.chunk index;
+				end
 
 	and write_anon_field_ref writer cf =
 		try
@@ -1197,7 +1182,19 @@ module HxbWriter = struct
 			| TInst ({cl_path = ([],"String")},[]) ->
 				Chunk.write_u8 writer.chunk 104;
 			| TMono r ->
-				Monomorph.close r;
+				(try Monomorph.close r with TUnification.Unify_error e ->
+					try ignore(IdentityPool.get writer.unclosed_mono r) with Not_found -> begin
+						ignore(IdentityPool.add writer.unclosed_mono r ());
+
+						let p = file_pos (Path.UniqueKey.lazy_path writer.current_module.m_extra.m_file) in
+						let msg = Printf.sprintf
+							"Error while handling unclosed monomorph:\n%s\n\n%s"
+								(Error.error_msg (Unify e))
+								"Unclosed monomorph should not reach hxb writer, please submit an issue at https://github.com/HaxeFoundation/haxe/issues/new"
+						in
+						writer.warn WUnclosedMonomorph msg p
+					end;
+				);
 				begin match r.tm_type with
 				| None ->
 					Chunk.write_u8 writer.chunk 0;
@@ -1486,12 +1483,6 @@ module HxbWriter = struct
 				loop e1;
 				loop e2;
 				false;
-			| TFor(v,e1,e2) ->
-				Chunk.write_u8 writer.chunk 86;
-				declare_var v;
-				loop e1;
-				loop e2;
-				false;
 			(* control flow 90-99 *)
 			| TReturn None ->
 				Chunk.write_u8 writer.chunk 90;
@@ -1744,6 +1735,7 @@ module HxbWriter = struct
 	and write_class_field_forward writer cf =
 		Chunk.write_string writer.chunk cf.cf_name;
 		write_pos_pair writer cf.cf_pos cf.cf_name_pos;
+		write_metadata writer cf.cf_meta;
 		Chunk.write_list writer.chunk cf.cf_overloads (fun cf ->
 			write_class_field_forward writer cf;
 		);
@@ -1792,7 +1784,6 @@ module HxbWriter = struct
 		write_type_instance writer cf.cf_type;
 		Chunk.write_uleb128 writer.chunk cf.cf_flags;
 		maybe_write_documentation writer cf.cf_doc;
-		write_metadata writer cf.cf_meta;
 		write_field_kind writer cf.cf_kind;
 		let expr_chunk = match cf.cf_expr with
 			| None ->
@@ -1801,21 +1792,15 @@ module HxbWriter = struct
 			| Some e when not write_expr_immediately ->
 				Chunk.write_u8 writer.chunk 2;
 				let fctx,close = start_texpr writer e.epos in
-				let old = writer.in_expr in
-				writer.in_expr <- true;
 				write_texpr writer fctx e;
 				Chunk.write_option writer.chunk cf.cf_expr_unoptimized (write_texpr writer fctx);
-				writer.in_expr <- old;
 				let expr_chunk = close() in
 				Some expr_chunk
 			| Some e ->
 				Chunk.write_u8 writer.chunk 1;
 				let fctx,close = start_texpr writer e.epos in
-				let old = writer.in_expr in
-				writer.in_expr <- true;
 				write_texpr writer fctx e;
 				Chunk.write_option writer.chunk cf.cf_expr_unoptimized (write_texpr writer fctx);
-				writer.in_expr <- old;
 				let expr_pre_chunk,expr_chunk = close() in
 				Chunk.export_data expr_pre_chunk writer.chunk;
 				Chunk.export_data expr_chunk writer.chunk;
@@ -1928,6 +1913,7 @@ module HxbWriter = struct
 		Chunk.write_option writer.chunk a.a_read (write_field_ref writer c CfrStatic );
 		Chunk.write_option writer.chunk a.a_write (write_field_ref writer c CfrStatic);
 		Chunk.write_option writer.chunk a.a_call (write_field_ref writer c CfrStatic);
+		Chunk.write_option writer.chunk a.a_constructor (write_field_ref writer c CfrStatic);
 
 		Chunk.write_list writer.chunk a.a_ops (fun (op, cf) ->
 			Chunk.write_u8 writer.chunk (binop_index op);
@@ -1950,7 +1936,7 @@ module HxbWriter = struct
 	let write_enum writer (e : tenum) =
 		select_type writer e.e_path;
 		write_common_module_type writer (Obj.magic e);
-		Chunk.write_bool writer.chunk e.e_extern;
+		Chunk.write_uleb128 writer.chunk e.e_flags;
 		Chunk.write_list writer.chunk e.e_names (Chunk.write_string writer.chunk)
 
 	let write_typedef writer (td : tdef) =
@@ -2031,7 +2017,7 @@ module HxbWriter = struct
 			Chunk.write_list writer.chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
 				Chunk.write_string writer.chunk s;
 				write_pos_pair writer ef.ef_pos ef.ef_name_pos;
-				Chunk.write_u8 writer.chunk ef.ef_index
+				Chunk.write_uleb128 writer.chunk ef.ef_index
 			);
 		| TAbstractDecl a ->
 			()
@@ -2263,27 +2249,12 @@ module HxbWriter = struct
 			end;
 		end;
 
-		(* Note: this is only a start, and is still including a lot of dependencies *)
-		(* that are not actually needed for signature only. *)
-		let sig_deps = ref PMap.empty in
-		List.iter (fun mdep ->
-			let dep = {md_sign = mdep.m_extra.m_sign; md_path = mdep.m_path; md_kind = mdep.m_extra.m_kind; md_origin = MDepFromTyping} in
-			sig_deps := PMap.add mdep.m_id dep !sig_deps;
-		) writer.sig_deps;
-		PMap.iter (fun id mdep -> match mdep.md_kind, mdep.md_origin with
-			| (MCode | MExtern), MDepFromMacro when mdep.md_sign = m.m_extra.m_sign -> sig_deps := PMap.add id mdep !sig_deps;
-			| _ -> ()
-		) m.m_extra.m_deps;
-		m.m_extra.m_sig_deps <- Some !sig_deps;
-
 		start_chunk writer EOT;
 		start_chunk writer EOF;
 		start_chunk writer EOM;
 
-		if writer.has_own_string_pool then begin
-			let a = StringPool.finalize writer.cp in
-			write_string_pool writer STR a
-		end;
+		let a = StringPool.finalize writer.cp in
+		write_string_pool writer STR a;
 		begin
 			let a = StringPool.finalize writer.docs in
 			if a.length > 0 then
@@ -2298,23 +2269,16 @@ module HxbWriter = struct
 		l
 end
 
-let create config string_pool warn anon_id =
-	let cp,has_own_string_pool = match string_pool with
-		| None ->
-			StringPool.create(),true
-		| Some pool ->
-			pool,false
-	in
+let create config warn anon_id =
+	let cp = StringPool.create() in
 	{
 		config;
 		warn;
 		anon_id;
+		identified_anons = IdentityPool.create();
 		current_module = null_module;
 		chunks = DynArray.create ();
 		cp = cp;
-		has_own_string_pool;
-		sig_deps = [];
-		in_expr = false;
 		docs = StringPool.create ();
 		chunk = Obj.magic ();
 		classes = Pool.create ();
@@ -2338,6 +2302,7 @@ let create config string_pool warn anon_id =
 		wrote_local_type_param = false;
 		needs_local_context = false;
 		unbound_ttp = IdentityPool.create ();
+		unclosed_mono = IdentityPool.create ();
 		t_instance_chunk = Chunk.create EOM cp 32;
 	}
 

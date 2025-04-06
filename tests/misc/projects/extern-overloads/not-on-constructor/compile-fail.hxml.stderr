@@ -1,1 +1,2 @@
-Main.hx:2: characters 2-10 : Invalid modifier: overload on constructor
+Main.hx:6: characters 2-10 : Invalid modifier: overload is only supported on extern non-inline constructors
+Main.hx:2: characters 2-10 : Invalid modifier: overload is only supported on extern non-inline constructors

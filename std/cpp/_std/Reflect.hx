@@ -25,21 +25,18 @@ import cpp.ObjectType;
 @:coreApi
 @:analyzer(ignore)
 class Reflect {
-	public static function hasField(o:Dynamic, field:String):Bool
-		untyped {
-			return o != null && o.__HasField(field);
-		}
+	public static function hasField(o:Dynamic, field:String):Bool untyped {
+		return o != null && o.__HasField(field);
+	}
 
-	public static function field(o:Dynamic, field:String):Dynamic
-		untyped {
-			return (o == null) ? null : o.__Field(field, untyped __cpp__("::hx::paccNever"));
-		}
+	public static function field(o:Dynamic, field:String):Dynamic untyped {
+		return (o == null) ? null : o.__Field(field, untyped __cpp__("::hx::paccNever"));
+	}
 
-	public static function setField(o:Dynamic, field:String, value:Dynamic):Void
-		untyped {
-			if (o != null)
-				o.__SetField(field, value, untyped __cpp__("::hx::paccNever"));
-		}
+	public static function setField(o:Dynamic, field:String, value:Dynamic):Void untyped {
+		if (o != null)
+			o.__SetField(field, value, untyped __cpp__("::hx::paccNever"));
+	}
 
 	public static function getProperty(o:Dynamic, field:String):Dynamic {
 		return (o == null) ? null : o.__Field(field, untyped __cpp__("::hx::paccAlways"));
@@ -50,32 +47,29 @@ class Reflect {
 			o.__SetField(field, value, untyped __cpp__("::hx::paccAlways"));
 	}
 
-	public static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic
-		untyped {
-			if (func != null && func.__GetType() == ObjectType.vtString) {
-				if (o == null)
-					throw cpp.ErrorConstants.invalidObject;
-				func = o.__Field(func, untyped __cpp__("::hx::paccDynamic"));
-			}
-			if (func == null)
-				throw cpp.ErrorConstants.nullFunctionPointer;
-			untyped func.__SetThis(o);
-			return untyped func.__Run(args);
-		}
-
-	public static function fields(o:Dynamic):Array<String>
-		untyped {
+	public static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic untyped {
+		if (func != null && func.__GetType() == ObjectType.vtString) {
 			if (o == null)
-				return new Array();
-			var a:Array<String> = [];
-			o.__GetFields(a);
-			return a;
+				throw cpp.ErrorConstants.invalidObject;
+			func = o.__Field(func, untyped __cpp__("::hx::paccDynamic"));
 		}
+		if (func == null)
+			throw cpp.ErrorConstants.nullFunctionPointer;
+		untyped func.__SetThis(o);
+		return untyped func.__Run(args);
+	}
 
-	public static function isFunction(f:Dynamic):Bool
-		untyped {
-			return f != null && f.__GetType() == ObjectType.vtFunction;
-		}
+	public static function fields(o:Dynamic):Array<String> untyped {
+		if (o == null)
+			return new Array();
+		var a:Array<String> = [];
+		o.__GetFields(a);
+		return a;
+	}
+
+	public static function isFunction(f:Dynamic):Bool untyped {
+		return f != null && f.__GetType() == ObjectType.vtFunction;
+	}
 
 	public static function compare<T>(a:T, b:T):Int {
 		return (a == b) ? 0 : (((a : Dynamic) > (b : Dynamic)) ? 1 : -1);
@@ -89,25 +83,22 @@ class Reflect {
 		return untyped __global__.__hxcpp_same_closure(f1, f2);
 	}
 
-	public static function isObject(v:Dynamic):Bool
-		untyped {
-			if (v == null)
-				return false;
-			var t:Int = v.__GetType();
-			return t == ObjectType.vtObject || t == ObjectType.vtClass || t == ObjectType.vtString || t == ObjectType.vtArray;
-		}
+	public static function isObject(v:Dynamic):Bool untyped {
+		if (v == null)
+			return false;
+		var t:Int = v.__GetType();
+		return t == ObjectType.vtObject || t == ObjectType.vtClass || t == ObjectType.vtString || t == ObjectType.vtArray;
+	}
 
-	public static function isEnumValue(v:Dynamic):Bool
-		untyped {
-			return v != null && v.__GetType() == ObjectType.vtEnum;
-		}
+	public static function isEnumValue(v:Dynamic):Bool untyped {
+		return v != null && v.__GetType() == ObjectType.vtEnum;
+	}
 
-	public static function deleteField(o:Dynamic, field:String):Bool
-		untyped {
-			if (o == null)
-				return false;
-			return untyped __global__.__hxcpp_anon_remove(o, field);
-		}
+	public static function deleteField(o:Dynamic, field:String):Bool untyped {
+		if (o == null)
+			return false;
+		return untyped __global__.__hxcpp_anon_remove(o, field);
+	}
 
 	public static function copy<T>(o:Null<T>):Null<T> {
 		if (o == null)
@@ -122,8 +113,7 @@ class Reflect {
 		return o2;
 	}
 
-	@:overload(function(f:Array<Dynamic>->Void):Dynamic {})
-	public static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic {
+	public static function makeVarArgs<T>(f:Array<Dynamic>->T):Dynamic {
 		return untyped __global__.__hxcpp_create_var_args(f);
 	}
 }

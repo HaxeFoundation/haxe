@@ -52,6 +52,22 @@ module Info = struct
 	end
 end
 
+let rec patch_optional basic cf =
+	List.iter (patch_optional basic) cf.cf_overloads;
+	match follow cf.cf_type with
+		| TFun(args,ret) ->
+			let args = List.map (fun (n,o,t) ->
+				let o,t = if o && not (is_nullable t) then
+					(o,basic.tnull t)
+				else
+					(o,t)
+				in
+				(n,o,t)
+			) args in
+			cf.cf_type <- TFun(args,ret)
+		| _ ->
+			()
+
 open Info
 open OverloadResolution
 open Tanon_identification
@@ -170,6 +186,7 @@ object(self)
 		let has_dynamic_instance_method = ref false in
 		let has_field_init = ref false in
 		let field mtype cf =
+			patch_optional basic cf;
 			match mtype with
 			| MConstructor ->
 				()
@@ -199,6 +216,7 @@ object(self)
 				()
 			end;
 		| Some cf ->
+			patch_optional basic cf;
 			let field cf =
 				if !has_dynamic_instance_method then make_haxe cf;
 				begin match cf.cf_expr with

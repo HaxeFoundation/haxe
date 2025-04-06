@@ -11,6 +11,8 @@ class Neko {
 		changeDirectory(getMiscSubDir('neko'));
 		runCommand("haxe", ["run.hxml"].concat(args));
 
+		Display.maybeRunDisplayTests(Neko);
+
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-neko.hxml"].concat(args));
 		runSysTest("neko", ["bin/neko/sys.n"]);

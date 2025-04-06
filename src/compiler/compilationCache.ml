@@ -36,7 +36,6 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
 	val tmp_binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
-	val string_pool  = StringPool.create ()
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
@@ -81,20 +80,28 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		try (Hashtbl.find modules path).m_extra
 		with Not_found -> (self#get_hxb_module path).mc_extra
 
-	method cache_module config warn anon_identification path m =
+	method add_binary_cache m chunks =
+		Hashtbl.replace binary_cache m.m_path {
+			mc_path = m.m_path;
+			mc_id = m.m_id;
+			mc_chunks = chunks;
+			mc_extra = { m.m_extra with m_cache_state = MSGood; m_display_deps = None }
+		}
+
+	method cache_hxb_module config warn anon_identification m =
 		match m.m_extra.m_kind with
 		| MImport ->
-			Hashtbl.add modules m.m_path m
+			Hashtbl.add modules m.m_path m;
+			None
 		| _ ->
-			let writer = HxbWriter.create config (Some string_pool) warn anon_identification in
-			HxbWriter.write_module writer m;
-			let chunks = HxbWriter.get_chunks writer in
-			Hashtbl.replace binary_cache path {
-				mc_path = path;
-				mc_id = m.m_id;
-				mc_chunks = chunks;
-				mc_extra = { m.m_extra with m_cache_state = MSGood }
-			}
+			Some (fun () ->
+				let writer = HxbWriter.create config warn anon_identification in
+				HxbWriter.write_module writer m;
+				HxbWriter.get_chunks writer
+			)
+
+	method cache_module_in_memory path m =
+		Hashtbl.replace modules path m
 
 	method clear_temp_cache =
 		Hashtbl.clear tmp_binary_cache
@@ -114,8 +121,6 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method get_modules = modules
 
 	method get_hxb = binary_cache
-	method get_string_pool = string_pool
-	method get_string_pool_arr = string_pool.items.arr
 
 	(* TODO handle hxb cache there too *)
 	method get_removed_files = removed_files
@@ -137,8 +142,7 @@ class virtual server_task (id : string list) (priority : int) = object(self)
 	method private virtual execute : unit
 
 	method run : unit =
-		let t = Timer.timer ("server" :: "task" :: id) in
-		Std.finally t (fun () -> self#execute) ()
+		self#execute
 
 	method get_priority = priority
 	method get_id = id
@@ -231,15 +235,27 @@ class cache = object(self)
 			) cc#get_modules acc
 		) contexts []
 
+	method taint_module m_path reason =
+		Hashtbl.iter (fun _ cc ->
+			Hashtbl.iter (fun _ m ->
+				if m.m_path = m_path then m.m_extra.m_cache_state <- MSBad (Tainted reason)
+			) cc#get_modules;
+			Hashtbl.iter (fun _ mc ->
+				if mc.HxbData.mc_path = m_path then
+					mc.HxbData.mc_extra.m_cache_state <- match reason, mc.mc_extra.m_cache_state with
+					| CheckDisplayFile, (MSBad _ as state) -> state
+					| _ -> MSBad (Tainted reason)
+			) cc#get_hxb
+		) contexts
+
 	method taint_modules file_key reason =
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
 				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_cache_state <- MSBad (Tainted reason)
 			) cc#get_modules;
-			let open HxbData in
 			Hashtbl.iter (fun _ mc ->
-				if Path.UniqueKey.lazy_key mc.mc_extra.m_file = file_key then
-					mc.mc_extra.m_cache_state <- match reason, mc.mc_extra.m_cache_state with
+				if Path.UniqueKey.lazy_key mc.HxbData.mc_extra.m_file = file_key then
+					mc.HxbData.mc_extra.m_cache_state <- match reason, mc.HxbData.mc_extra.m_cache_state with
 					| CheckDisplayFile, (MSBad _ as state) -> state
 					| _ -> MSBad (Tainted reason)
 			) cc#get_hxb

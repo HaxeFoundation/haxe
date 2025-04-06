@@ -4,6 +4,13 @@
 name: CI
 on: [push, pull_request]
 
+env:
+  OCAML_VERSION: 5.3.0
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   windows64-build:
     runs-on: windows-latest
@@ -17,11 +24,6 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
-
-      - name: Use GNU Tar from msys
-        run: |
-          echo "C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          rm C:\msys64\usr\bin\bash.exe
 
       - name: choco install nsis
         uses: nick-invision/retry@v3
@@ -51,43 +53,37 @@ jobs:
         run: neko -version 2>&1
 
       - name: Setup ocaml
-        uses: ocaml/setup-ocaml@v2
+        uses: ocaml/setup-ocaml@v3
         with:
-          ocaml-compiler: 4.08.1
-          opam-repositories: |
-            opam-repository-mingw: https://github.com/ocaml-opam/opam-repository-mingw.git#sunset
-            default: https://github.com/ocaml/opam-repository.git
+          ocaml-compiler: ${{ env.OCAML_VERSION }}
           opam-local-packages: |
             haxe.opam
 
       - name: Install dependencies
         shell: pwsh
+        env:
+          MBEDTLS_VERSION: 2.16.3
         run: |
-          Set-PSDebug -Trace 1
-          curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 https://github.com/Simn/mingw64-mbedtls/releases/download/2.16.3/mingw64-$($env:MINGW_ARCH)-mbedtls-2.16.3-1.tar.xz
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'curl -L https://cpanmin.us | perl - App::cpanminus')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cpanm IPC::System::Simple module')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cpanm String::ShellQuote')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'echo "$OLDPWD"')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -C / -xvf libmbedtls.tar.xz')
+          curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 `
+            https://github.com/Simn/mingw64-mbedtls/releases/download/${{ env.MBEDTLS_VERSION }}/mingw64-${{ env.MINGW_ARCH }}-mbedtls-${{ env.MBEDTLS_VERSION }}-1.tar.xz
+          ${{ env.CYG_ROOT }}\bin\tar.exe -C ${{ env.CYG_ROOT }} -xvf libmbedtls.tar.xz
 
       - name: Install OCaml libraries
-        shell: pwsh
-        run: |
-          Set-PSDebug -Trace 1
-          opam install haxe --deps-only
-          opam list
-
-      - name: Expose mingw dll files
-        shell: pwsh
-        run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
-
-      # required to be able to retrieve the revision
-      - name: Mark directory as safe
-        shell: pwsh
-        run: |
-          Set-PSDebug -Trace 1
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'git config --global --add safe.directory "$OLDPWD"')
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 10
+          retry_on: timeout
+          shell: pwsh
+          command: |
+            Set-PSDebug -Trace 1
+            # stop after any command returns an error
+            $PSNativeCommandUseErrorActionPreference = $true
+            $ErrorActionPreference = 'Stop'
+            # see: https://github.com/aantron/luv/issues/162
+            $env:PATH="${env:CYG_ROOT}\bin;${env:CYG_ROOT}\usr\x86_64-w64-mingw32\bin;${env:PATH}"
+            opam install haxe --deps-only
+            opam list
 
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -98,20 +94,15 @@ jobs:
         shell: pwsh
         run: |
           Set-PSDebug -Trace 1
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -s -f Makefile.win -j`nproc` haxe 2>&1')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -s -f Makefile.win haxelib 2>&1')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -f Makefile.win echo_package_files package_bin package_installer_win package_choco 2>&1')
-          dir out
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && cygcheck ./haxe.exe')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && cygcheck ./haxelib.exe')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && ls ./out')
-
-      - name: Check artifact
-        shell: bash
-        run: |
-          ls out
-          # Output should contain binaries zip, installer zip and nupkg
-          [ $(ls -1 out | wc -l) -eq "3" ]
+          # stop after any command returns an error
+          $PSNativeCommandUseErrorActionPreference = $true
+          $ErrorActionPreference = 'Stop'
+          opam exec -- make -s -f Makefile.win -j"$env:NUMBER_OF_PROCESSORS" haxe
+          opam exec -- make -s -f Makefile.win haxelib
+          opam exec -- make -f Makefile.win echo_package_files package_bin package_installer_win package_choco
+          cygcheck ./haxe.exe
+          cygcheck ./haxelib.exe
+          ls ./out
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -121,14 +112,10 @@ jobs:
 
 
   linux-build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       PLATFORM: linux64
       OPAMYES: 1
-    strategy:
-      fail-fast: false
-      matrix:
-        ocaml: ["4.08.1", "5.0.0"]
     steps:
       - uses: actions/checkout@main
         with:
@@ -139,7 +126,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.opam/
-          key: ${{ runner.os }}-${{ matrix.ocaml }}-${{ hashFiles('./haxe.opam', './libs/') }}
+          key: ${{ runner.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
       - name: Install Neko from S3
         run: |
@@ -149,9 +136,11 @@ jobs:
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/include
           sudo mkdir -p /usr/local/lib/neko
           sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
           sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
           sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
           echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
 
@@ -162,18 +151,17 @@ jobs:
       - name: Install dependencies
         run: |
           set -ex
-          sudo add-apt-repository ppa:avsm/ppa -y # provides OPAM 2
-          sudo add-apt-repository ppa:haxe/ocaml -y # provides newer version of mbedtls
           sudo apt-get update -qqy
-          sudo apt-get install -qqy ocaml-nox camlp5 opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build libstring-shellquote-perl libipc-system-simple-perl
+          sudo apt-get install -qqy darcs bubblewrap ocaml-nox libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
+          curl -sSL https://github.com/ocaml/opam/releases/download/2.3.0/opam-2.3.0-x86_64-linux -o $RUNNER_TEMP/opam
+          sudo install $RUNNER_TEMP/opam /usr/local/bin/opam
 
       - name: Install OCaml libraries
         if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           set -ex
-          opam init # --disable-sandboxing
+          opam init -c ${{ env.OCAML_VERSION }}
           opam update
-          opam switch create ${{ matrix.ocaml }}
           opam pin add haxe . --no-action
           opam install haxe --deps-only --assume-depexts
           opam list
@@ -201,7 +189,6 @@ jobs:
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Build xmldoc
-        if: matrix.ocaml == '4.08.1'
         run: |
           set -ex
           make -s xmldoc
@@ -215,19 +202,18 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
+          name: linuxBinaries
           path: out
 
       - name: Upload xmldoc artifact
         uses: actions/upload-artifact@v4
-        if: matrix.ocaml == '4.08.1'
         with:
           name: xmldoc
           path: extra/doc
 
   linux-test:
     needs: linux-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       PLATFORM: linux64
       TEST: ${{matrix.target}}
@@ -236,7 +222,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ocaml: ["4.08.1", "5.0.0"]
         target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
         include:
           - target: hl
@@ -253,7 +238,7 @@ jobs:
           submodules: recursive
       - uses: actions/download-artifact@v4
         with:
-          name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
+          name: linuxBinaries
           path: linuxBinaries
 
       - name: Install Neko from S3
@@ -264,9 +249,11 @@ jobs:
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/include
           sudo mkdir -p /usr/local/lib/neko
           sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
           sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
           sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
           echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
 
@@ -309,10 +296,11 @@ jobs:
       - name: Test
         run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
+        timeout-minutes: 20
 
   test-docgen:
     needs: linux-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       PLATFORM: linux64
       HXCPP_COMPILE_CACHE: ~/hxcache
@@ -340,9 +328,11 @@ jobs:
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/include
           sudo mkdir -p /usr/local/lib/neko
           sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
           sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
           sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
           echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
 
@@ -388,74 +378,11 @@ jobs:
           cpp/Dox -i ../../xmldoc -ex microsoft -ex javax -theme $(haxelib libpath dox)/themes/default
         working-directory: ${{github.workspace}}/tests/docgen
 
-  linux-arm64:
-    runs-on: ubuntu-20.04
-    permissions:
-      packages: write
+  linux-arm64-build:
+    runs-on: ubuntu-22.04-arm
     env:
-      FORCE_COLOR: 1
-    steps:
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Earthly
-        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.6.13/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
-
-      - name: Set up QEMU
-        id: qemu
-        uses: docker/setup-qemu-action@v3
-        with:
-            image: tonistiigi/binfmt:latest
-            platforms: all
-
-      - uses: actions/checkout@main
-        with:
-          submodules: recursive
-
-      - name: Set CONTAINER_ vars
-        run: |
-          echo "CONTAINER_REG=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV;
-          echo "CONTAINER_TAG=$(echo ${{ github.ref_name }} | sed -e 's/[^A-Za-z0-9\.]/-/g')" >> $GITHUB_ENV;
-
-      - name: Build devcontainer
-        run: earthly --platform=linux/arm64 +devcontainer --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}-arm64" --IMAGE_CACHE="ghcr.io/haxefoundation/haxe_devcontainer:development-arm64"
-        env:
-          EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
-          EARTHLY_USE_INLINE_CACHE: true
-          EARTHLY_SAVE_INLINE_CACHE: true
-
-      - name: Set ADD_REVISION=1 for non-release
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
-
-      - name: Build
-        run: earthly --platform=linux/arm64 +build --ADD_REVISION="$ADD_REVISION" --SET_SAFE_DIRECTORY="true"
-        env:
-          EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
-          EARTHLY_REMOTE_CACHE: "ghcr.io/${{env.CONTAINER_REG}}_cache:build-${{env.CONTAINER_TAG}}-arm64"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linuxArm64Binaries
-          path: out/linux/arm64
-
-  mac-build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-14, macos-13]
-    runs-on: ${{ matrix.os }}
-    env:
-      PLATFORM: mac
+      PLATFORM: linux-arm64
       OPAMYES: 1
-      MACOSX_DEPLOYMENT_TARGET: 10.13
-      OCAML_VERSION: 5.1.1
-      CTYPES: 0.21.1
     steps:
       - uses: actions/checkout@main
         with:
@@ -466,7 +393,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.opam/
-          key: ${{ matrix.os }}-${{ hashFiles('./haxe.opam', './libs/') }}
+          key: arm-${{ runner.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
       - name: Install Neko from S3
         run: |
@@ -476,9 +403,173 @@ jobs:
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/include
           sudo mkdir -p /usr/local/lib/neko
           sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
           sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
+          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
+
+      - name: Print Neko version
+        run: neko -version 2>&1
+
+
+      - name: Install dependencies
+        run: |
+          set -ex
+          sudo apt-get update -qqy
+          sudo apt-get install -qqy opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
+
+      - name: Install OCaml libraries
+        if: steps.cache-opam.outputs.cache-hit != 'true'
+        run: |
+          set -ex
+          opam init -c ${{ env.OCAML_VERSION }}
+          opam pin add haxe . --no-action
+          opam install haxe --deps-only --assume-depexts
+          opam list
+          ocamlopt -v
+
+      - name: Set ADD_REVISION=1 for non-release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
+
+      - name: Build Haxe
+        run: |
+          set -ex
+          eval $(opam env)
+          opam config exec -- make -s -j`nproc` STATICLINK=1 haxe
+          opam config exec -- make -s haxelib
+          make -s package_unix
+          ls -l out
+          ldd -v ./haxe
+          ldd -v ./haxelib
+
+      # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
+      - name: Extract branch name
+        id: extract_branch
+        shell: bash
+        run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linuxArm64Binaries
+          path: out
+
+  linux-arm64-test:
+    needs: linux-arm64-build
+    runs-on: ubuntu-22.04-arm
+    env:
+      PLATFORM: linux-arm64
+      TEST: ${{matrix.target}}
+      HXCPP_COMPILE_CACHE: ~/hxcache
+      HAXE_STD_PATH: /usr/local/share/haxe/std
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [macro, js, cpp, jvm, php, python, lua, neko]
+        include:
+          - target: lua
+            APT_PACKAGES: ncurses-dev
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v4
+        with:
+          name: linuxArm64Binaries
+          path: linuxBinaries
+
+      - name: Install Neko from S3
+        run: |
+          set -ex
+
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
+          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
+          sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/include
+          sudo mkdir -p /usr/local/lib/neko
+          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
+          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
+
+      - name: Print Neko version
+        run: neko -version 2>&1
+
+
+      - name: Setup Haxe
+        run: |
+          sudo apt install -qqy libmbedtls-dev
+
+          set -ex
+          tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
+          sudo mkdir -p /usr/local/bin/
+          sudo mkdir -p /usr/local/share/haxe/
+          sudo ln -s `pwd`/linuxBinaries/haxe /usr/local/bin/haxe
+          sudo ln -s `pwd`/linuxBinaries/haxelib /usr/local/bin/haxelib
+          sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
+
+      - name: Print Haxe version
+        run: haxe -version
+
+      - name: Setup haxelib
+        run: |
+          set -ex
+          mkdir ~/haxelib
+          haxelib setup ~/haxelib
+
+      - name: Install apt packages
+        if: matrix.APT_PACKAGES
+        run: |
+          set -ex
+          sudo apt update -qqy
+          sudo apt install -qqy ${{matrix.APT_PACKAGES}}
+
+      - name: Test
+        run: haxe RunCi.hxml
+        working-directory: ${{github.workspace}}/tests
+        timeout-minutes: 20
+
+  mac-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-13]
+    runs-on: ${{ matrix.os }}
+    env:
+      PLATFORM: mac${{ matrix.os == 'macos-14' && '-arm64' || '' }}
+      OPAMYES: 1
+      MACOSX_DEPLOYMENT_TARGET: 10.13
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+
+      - name: Cache opam
+        id: cache-opam
+        uses: actions/cache@v4
+        with:
+          path: ~/.opam/
+          key: ${{ matrix.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
+
+      - name: Install Neko from S3
+        run: |
+          set -ex
+
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
+          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
+          sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/include
+          sudo mkdir -p /usr/local/lib/neko
+          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
           sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
           echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
 
@@ -495,8 +586,6 @@ jobs:
           set -ex
           brew update
           brew bundle --file=tests/Brewfile --no-upgrade
-          cpanm IPC::System::Simple
-          cpanm String::ShellQuote
           curl -L https://github.com/madler/zlib/releases/download/v$ZLIB_VERSION/zlib-$ZLIB_VERSION.tar.gz | tar xz
           cd zlib-$ZLIB_VERSION
           ./configure
@@ -516,12 +605,10 @@ jobs:
         if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           set -ex
-          opam init # --disable-sandboxing
+          opam init -c ${{ env.OCAML_VERSION }}
           opam update
-          opam switch create ${{env.OCAML_VERSION}}
           eval $(opam env)
           opam env
-          opam pin add ctypes ${{env.CTYPES}} --yes
           opam pin add haxe . --no-action
           opam install haxe --deps-only --assume-depexts
           opam list
@@ -535,7 +622,7 @@ jobs:
         run: |
           set -ex
           eval $(opam env)
-          opam config exec -- make -s -j`sysctl -n hw.ncpu` STATICLINK=1 "LIB_PARAMS=/usr/local/lib/libz.a /usr/local/lib/libpcre2-8.a /usr/local/lib/libmbedtls.a /usr/local/lib/libmbedcrypto.a /usr/local/lib/libmbedx509.a -cclib '-framework Security -framework CoreFoundation'" haxe
+          opam config exec -- make -s STATICLINK=1 "LIB_PARAMS=\"/usr/local/lib/libz.a\" \"/usr/local/lib/libpcre2-8.a\" \"/usr/local/lib/libmbedtls.a\" \"/usr/local/lib/libmbedcrypto.a\" \"/usr/local/lib/libmbedx509.a\"" haxe
           opam config exec -- make -s haxelib
           make -s package_unix package_installer_mac
           ls -l out
@@ -651,6 +738,7 @@ jobs:
         shell: pwsh
         run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
+        timeout-minutes: 20
 
 
   mac-build-universal:
@@ -674,9 +762,8 @@ jobs:
           tar -xf macX64Binaries/*_bin.tar.gz -C macX64Binaries --strip-components=1
           tar -xf macArmBinaries/*_bin.tar.gz -C macArmBinaries --strip-components=1
           lipo -create -output haxe macX64Binaries/haxe macArmBinaries/haxe
-          # there is only x64 haxelib
-          mv macX64Binaries/haxelib .
-          make -s package_unix package_installer_mac
+          lipo -create -output haxelib macX64Binaries/haxelib macArmBinaries/haxelib
+          make -s package_unix package_installer_mac PACKAGE_INSTALLER_MAC_ARCH=universal
           ls -l out
           otool -L ./haxe
           otool -L ./haxelib
@@ -719,9 +806,11 @@ jobs:
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/include
           sudo mkdir -p /usr/local/lib/neko
           sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
           sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
           sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
           echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
 
@@ -760,12 +849,13 @@ jobs:
           echo "" > sys/compile-fs.hxml
           haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
+        timeout-minutes: 60
 
 
   deploy:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-test, linux-arm64, mac-test, windows64-test]
-    runs-on: ubuntu-20.04
+    needs: [linux-test, linux-arm64-test, mac-test, windows64-test]
+    runs-on: ubuntu-22.04
     steps:
       # this is only needed for to get `COMMIT_DATE`...
       # maybe https://github.community/t/expose-commit-timestamp-in-the-github-context-data/16460/3
@@ -834,8 +924,8 @@ jobs:
 
   deploy_apidoc:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-test, linux-arm64, mac-test, windows64-test]
-    runs-on: ubuntu-20.04
+    needs: [linux-test, linux-arm64-test, mac-test, windows64-test]
+    runs-on: ubuntu-22.04
     steps:
       - name: Install dependencies
         run: |

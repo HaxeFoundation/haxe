@@ -487,7 +487,7 @@
 		"name": "InheritDoc",
 		"metadata": ":inheritDoc",
 		"doc": "Append documentation from a parent field or class (if used without an argument) or from a specified class or field (if used like @:inheritDoc(pack.Some.field)).",
-		"targets": ["TClass", "TClass", "TEnum", "TAbstract", "TAnyField"]
+		"targets": ["TClass", "TEnum", "TAbstract", "TAnyField"]
 	},
 	{
 		"name": "InitPackage",

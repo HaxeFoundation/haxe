@@ -163,8 +163,15 @@ let get_constructor_access c tl p =
 			| _ -> c, tl
 		in
 		let cf, fh = match c.cl_kind with
-			| KAbstractImpl a -> PMap.find "_new" c.cl_statics, FHAbstract(a,tl,c)
-			| _ -> Type.get_constructor c, FHInstance(c,tl)
+			| KAbstractImpl a ->
+				begin match a.a_constructor with
+					| None ->
+						raise Not_found
+					| Some cf ->
+						cf,FHAbstract(a,tl,c)
+				end
+			| _ ->
+				Type.get_constructor c, FHInstance(c,tl)
 		in
 		create e_static cf fh false p
 	with Not_found ->

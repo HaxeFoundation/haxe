@@ -12,7 +12,7 @@ let resolve_source file l1 p1 l2 p2 =
 		let rec loop p line =
 			let inc i line =
 				if (!curline >= l1) && (!curline <= l2) then lines := (!curline, line) :: !lines;
-				curline := !curline + 1;
+				incr curline;
 				(i, "")
 			in
 
@@ -56,15 +56,6 @@ let resolve_source file l1 p1 l2 p2 =
 		List.rev !lines
 	end
 
-let resolve_file ctx f =
-	let ext = StringHelper.extension f in
-	let second_ext = StringHelper.extension (StringHelper.remove_extension f) in
-	let platform_ext = "." ^ (platform_name_macro ctx) in
-	if platform_ext = second_ext then
-		(StringHelper.remove_extension (StringHelper.remove_extension f)) ^ ext
-	else
-		f
-
 let error_printer file line = Printf.sprintf "%s:%d:" file line
 
 type error_context = {
@@ -83,7 +74,7 @@ let create_error_context absolute_positions = {
 	previous = None;
 }
 
-let compiler_pretty_message_string com ectx cm =
+let compiler_pretty_message_string defines ectx cm =
 	match cm.cm_message with
 	(* Filter some messages that don't add much when using this message renderer *)
 	| "End of overload failure reasons" -> None
@@ -98,10 +89,8 @@ let compiler_pretty_message_string com ectx cm =
 				let epos = if is_unknown_file cm.cm_pos.pfile then "(unknown position)" else cm.cm_pos.pfile in
 				(-1, -1, -1, -1, epos, [])
 			end else try begin
-				let f = resolve_file com cm.cm_pos.pfile in
-				let f = Common.find_file com f in
 				let l1, p1, l2, p2 = Lexer.get_pos_coords cm.cm_pos in
-				let lines = resolve_source f l1 p1 l2 p2 in
+				let lines = resolve_source cm.cm_pos.pfile l1 p1 l2 p2 in
 				let epos =
 					if lines = [] then cm.cm_pos.pfile
 					else if ectx.absolute_positions then TPrinting.Printer.s_pos cm.cm_pos
@@ -153,7 +142,7 @@ let compiler_pretty_message_string com ectx cm =
 
 		let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find cm.cm_depth ectx.max_lines)) with Not_found -> 0) + 2 in
 
-		let no_color = Define.defined com.defines Define.MessageNoColor in
+		let no_color = Define.defined defines Define.MessageNoColor in
 		let c_reset = if no_color then "" else "\x1b[0m" in
 		let c_bold = if no_color then "" else "\x1b[1m" in
 		let c_dim = if no_color then "" else "\x1b[2m" in
@@ -184,6 +173,20 @@ let compiler_pretty_message_string com ectx cm =
 				(* File + line pointer *)
 				epos;
 
+		(* Macros can send all sorts of bad positions; avoid failing too hard *)
+		let safe_sub s pos len =
+			if len < 0 then ""
+			else
+				let pos = if pos < 0 then 0 else pos in
+				let slen = String.length s in
+				if pos >= slen then ""
+				else
+					let len = if (pos + len) > slen then slen - pos else len in
+					try String.sub s pos len with
+					(* Should not happen anymore, but still better than a crash if I missed some case... *)
+					| Invalid_argument _ -> (Printf.sprintf "[%s;%i;%i]" s pos len)
+		in
+
 		(* Error source *)
 		if display_source then out := List.fold_left (fun out (l, line) ->
 			let nb_len = String.length (string_of_int l) in
@@ -202,18 +205,18 @@ let compiler_pretty_message_string com ectx cm =
 					if l = 0 then
 						c_dim ^ line ^ c_reset
 					else if l1 = l2 then
-						(if p1 > 1 then c_dim ^ (String.sub line 0 (p1-1)) else "")
-						^ c_reset ^ c_bold ^ (String.sub line (p1-1) (p2-p1))
-						^ c_reset ^ c_dim ^ (String.sub line (p2-1) (len - p2 + 1))
+						(if p1 > 1 then c_dim ^ (safe_sub line 0 (p1-1)) else "")
+						^ c_reset ^ c_bold ^ (safe_sub line (p1-1) (p2-p1))
+						^ c_reset ^ c_dim ^ (safe_sub line (p2-1) (len - p2 + 1))
 						^ c_reset
 					else begin
 						(if (l = l1) then
-							(if p1 > 1 then c_dim ^ (String.sub line 0 (p1-1)) else "")
-							^ c_reset ^ c_bold ^ (String.sub line (p1-1) (len-p1+1))
+							c_dim ^ (safe_sub line 0 (p1-1))
+							^ c_reset ^ c_bold ^ (safe_sub line (p1-1) (len-p1+1))
 							^ c_reset
 						else if (l = l2) then
-							(if p2 > 1 then c_bold ^ (String.sub line 0 (p2-1)) else "")
-							^ c_reset ^ c_dim ^ (String.sub line (p2-1) (len-p2+1))
+							c_bold ^ (safe_sub line 0 (p2-1))
+							^ c_reset ^ c_dim ^ (safe_sub line (p2-1) (len-p2+1))
 							^ c_reset
 						else c_bold ^ line ^ c_reset)
 					end
@@ -313,21 +316,21 @@ let get_max_line max_lines messages =
 		else max_lines
 	) max_lines messages
 
-let display_source_at com p =
-	let absolute_positions = Define.defined com.defines Define.MessageAbsolutePositions in
+let display_source_at defines p =
+	let absolute_positions = Define.defined defines Define.MessageAbsolutePositions in
 	let ectx = create_error_context absolute_positions in
 	let msg = make_compiler_message "" p 0 MessageKind.DKCompilerMessage MessageSeverity.Information in
 	ectx.max_lines <- get_max_line ectx.max_lines [msg];
-	match compiler_pretty_message_string com ectx msg with
+	match compiler_pretty_message_string defines ectx msg with
 		| None -> ()
 		| Some s -> prerr_endline s
 
 exception ConfigError of string
 
-let get_formatter com def default =
-	let format_mode = Define.defined_value_safe ~default com.defines def in
+let get_formatter defines def default =
+	let format_mode = Define.defined_value_safe ~default defines def in
 	match format_mode with
-		| "pretty" -> compiler_pretty_message_string com
+		| "pretty" -> compiler_pretty_message_string defines
 		| "indent" -> compiler_indented_message_string
 		| "classic" -> compiler_message_string
 		| m -> begin
@@ -342,11 +345,11 @@ let print_error (err : Error.error) =
 	) err;
 	!ret
 
-let format_messages com messages =
-	let absolute_positions = Define.defined com.defines Define.MessageAbsolutePositions in
+let format_messages defines messages =
+	let absolute_positions = Define.defined defines Define.MessageAbsolutePositions in
 	let ectx = create_error_context absolute_positions in
 	ectx.max_lines <- get_max_line ectx.max_lines messages;
-	let message_formatter = get_formatter com Define.MessageReporting "pretty" in
+	let message_formatter = get_formatter defines Define.MessageReporting "pretty" in
 	let lines = List.rev (
 		List.fold_left (fun lines cm -> match (message_formatter ectx cm) with
 			| None -> lines
@@ -366,14 +369,14 @@ let display_messages ctx on_message = begin
 	in
 
 	let get_formatter _ def default =
-		try get_formatter ctx.com def default
+		try get_formatter ctx.com.defines def default
 		with | ConfigError s ->
 			error s;
 			compiler_message_string
 	in
 
-	let message_formatter = get_formatter ctx.com Define.MessageReporting "pretty" in
-	let log_formatter = get_formatter ctx.com Define.MessageLogFormat "indent" in
+	let message_formatter = get_formatter ctx.com.defines Define.MessageReporting "pretty" in
+	let log_formatter = get_formatter ctx.com.defines Define.MessageLogFormat "indent" in
 
 	let log_messages = ref (Define.defined ctx.com.defines Define.MessageLogFile) in
 	let log_message = ref None in

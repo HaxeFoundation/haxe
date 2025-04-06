@@ -33,7 +33,7 @@ let unapply_type_parameters params monos =
 		match t2,follow t2 with
 		| TMono m1,TMono m2 ->
 			unapplied := (m1,m1.tm_type) :: !unapplied;
-			Monomorph.bind m1 tp1.ttp_type;
+			Monomorph.do_bind m1 tp1.ttp_type;
 		| _ -> ()
 	) params monos;
 	!unapplied
@@ -63,7 +63,7 @@ let get_general_module_type ctx mt p =
 let unify_type_pattern ctx mt t p =
 	let tcl = get_general_module_type ctx mt p in
 	match tcl with
-		| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx.e p])) t p
+		| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx p])) t p
 		| _ -> die "" __LOC__
 
 let rec make pctx toplevel t e =
@@ -365,9 +365,14 @@ let rec make pctx toplevel t e =
 			let is_matchable cf =
 				match cf.cf_kind with Method _ -> false | _ -> true
 			in
+			(* TODO: This needs a better check, but it's not obvious how to approach this. See #11433 *)
+			let is_probably_pos cf = match cf.cf_name with
+				| "pos" | "posPath" | "namePos" -> true
+				| _ -> false
+			in
 			let patterns,fields = List.fold_left (fun (patterns,fields) (cf,t) ->
 				try
-					if pctx.in_reification && cf.cf_name = "pos" then raise Not_found;
+					if pctx.in_reification && is_probably_pos cf then raise Not_found;
 					let e1 = Expr.field_assoc cf.cf_name fl in
 					make pctx false t e1 :: patterns,cf.cf_name :: fields
 				with Not_found ->

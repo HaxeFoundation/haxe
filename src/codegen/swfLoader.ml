@@ -456,7 +456,6 @@ let build_class com c file =
 	(path.tpackage, [(EClass class_data,pos)])
 
 let extract_data (_,tags) =
-	let t = Timer.timer ["read";"swf"] in
 	let h = Hashtbl.create 0 in
 	let loop_field f =
 		match f.hlf_kind with
@@ -474,8 +473,10 @@ let extract_data (_,tags) =
 			List.iter (fun i -> Array.iter loop_field i.hls_fields) (As3hlparse.parse as3)
 		| _ -> ()
 	) tags;
-	t();
 	h
+
+let extract_data com arg =
+	Timer.time com.timer_ctx ["read";"swf"] extract_data arg
 
 let remove_debug_infos as3 =
 	let hl = As3hlparse.parse as3 in
@@ -547,8 +548,7 @@ let remove_debug_infos as3 =
 	in
 	As3hlparse.flatten (List.map loop_static hl)
 
-let parse_swf com file =
-	let t = Timer.timer ["read";"swf"] in
+let parse_swf file =
 	let is_swc = Path.file_extension file = "swc" || Path.file_extension file = "ane" in
 	let ch = if is_swc then begin
 		let zip = Zip.open_in file in
@@ -577,8 +577,10 @@ let parse_swf com file =
 			t.tdata <- TActionScript3 (id,remove_debug_infos as3)
 		| _ -> ()
 	) tags;
-	t();
 	(h,tags)
+
+let parse_swf com file =
+	Timer.time com.timer_ctx ["read";"swf"] parse_swf file
 
 class swf_library com name file_path = object(self)
 	inherit [swf_lib_type,Swf.swf] native_library name file_path
@@ -600,7 +602,7 @@ class swf_library com name file_path = object(self)
 
 	method extract = match swf_classes with
 		| None ->
-			let d = extract_data self#get_swf in
+			let d = extract_data com self#get_swf in
 			swf_classes <- Some d;
 			d
 		| Some d ->

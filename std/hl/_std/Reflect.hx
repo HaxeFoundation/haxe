@@ -130,8 +130,7 @@ class Reflect {
 		return null;
 	}
 
-	@:overload(function(f:Array<Dynamic>->Void):Dynamic {})
-	extern public static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic;
+	extern public static function makeVarArgs<T>(f:Array<Dynamic>->T):Dynamic;
 
 	@:ifFeature("Reflect.makeVarArgs") static function _makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic {
 		return hl.Api.makeVarArgs(function(args:hl.NativeArray<Dynamic>) {

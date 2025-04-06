@@ -1,0 +1,2 @@
+MacroFail.hx:3: characters 11-42 : Cannot use this API from initialization macros.
+MacroFail.hx:3: characters 11-42 : ... Use `Context.onAfterInitMacros` to register a callback to run when context is ready.

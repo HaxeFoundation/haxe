@@ -134,11 +134,13 @@ class System {
 	}
 
 	static public function addToLIBPATH(path:String):Void {
-		infoMsg('Prepending $path to LD_LIBRARY_PATH.');
+		infoMsg('Prepending $path to loader path.');
 		switch (systemName) {
 			case "Windows": // pass
-			case "Mac", "Linux":
+			case "Linux":
 				Sys.putEnv("LD_LIBRARY_PATH", path + ":" + Sys.getEnv("LD_LIBRARY_PATH"));
+			case "Mac":
+				Sys.putEnv("DYLD_LIBRARY_PATH", path + ":" + Sys.getEnv("DYLD_LIBRARY_PATH"));
 		}
 	}
 
