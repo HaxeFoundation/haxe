@@ -108,6 +108,17 @@ let load_array ctx =
 	with Exit ->
 		()
 
+let load_unit ctx =
+	let m = TypeloadModule.load_module ctx (["haxe"],"Unit") null_pos in
+	List.iter (fun mt -> match mt with
+		| TEnumDecl en ->
+			(match snd en.e_path with
+			| "Unit" ->
+				ctx.m.import_resolution#add (module_type_resolution mt None null_pos);
+			| _ -> ())
+		| _ -> ()
+	) m.m_types
+
 let load_enum_tools ctx =
 	let m = TypeloadModule.load_module ctx (["haxe"],"EnumTools") null_pos in
 	match m.m_types with
@@ -179,6 +190,7 @@ let create com macros =
 	load_string ctx;
 	load_std ctx;
 	load_any ctx;
+	load_unit ctx;
 	load_array ctx;
 	load_enum_tools ctx;
 	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
