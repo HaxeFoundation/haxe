@@ -23,7 +23,7 @@
 package haxe;
 
 /**
-	A unit type which can only be `null` at run-time.
+	A unit type that only has one value.
 **/
 enum Unit {
 	Unit;
