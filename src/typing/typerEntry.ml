@@ -7,17 +7,14 @@ open Resolution
 open Error
 
 let load_std_types ctx =
-	ctx.g.std_types <- (try
+	let std_types = try
 		TypeloadModule.load_module ctx ([],"StdTypes") null_pos
 	with
 		Error { err_message = Module_not_found ([],"StdTypes") } ->
 			Error.raise_std_not_found ()
-	);
-	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
-	List.iter (fun mt ->
-		ctx.m.import_resolution#add (module_type_resolution mt None null_pos))
-	(List.rev ctx.g.std_types.m_types);
+	in
 	List.iter (fun t ->
+		ctx.m.import_resolution#add (module_type_resolution t None null_pos);
 		match t with
 		| TAbstractDecl a ->
 			(match snd a.a_path with
@@ -64,7 +61,7 @@ let load_std_types ctx =
 			end
 		| TEnumDecl _ | TClassDecl _ ->
 			()
-	) ctx.g.std_types.m_types
+	) (List.rev std_types.m_types)
 
 let load_string ctx =
 	let m = TypeloadModule.load_module ctx ([],"String") null_pos in
@@ -139,7 +136,6 @@ let create com macros =
 			delayed_min_index = 0;
 			debug_delayed = [];
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
-			std_types = null_module;
 			global_using = [];
 			complete = false;
 			type_hints = [];

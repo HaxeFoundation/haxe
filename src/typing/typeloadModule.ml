@@ -686,10 +686,7 @@ module TypeLevel = struct
 end
 
 let make_curmod com g m =
-	let rl = new resolution_list ["import";s_type_path m.m_path] in
-	List.iter (fun mt ->
-		rl#add (module_type_resolution mt None null_pos))
-	(List.rev g.std_types.m_types);
+	let rl = g.root_typer.m.import_resolution#clone_as ["import";s_type_path m.m_path] in
 	{
 		curmod = m;
 		import_resolution = rl;
@@ -706,12 +703,6 @@ let make_curmod com g m =
 let type_types_into_module com g m tdecls p =
 	let ctx_m = TyperManager.clone_for_module g.root_typer (make_curmod com g m) in
 	let imports_and_usings,decls = ModuleLevel.create_module_types ctx_m m tdecls p in
-	(* define the per-module context for the next pass *)
-	if ctx_m.g.std_types != null_module then begin
-		add_dependency m ctx_m.g.std_types MDepFromTyping;
-		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
-		ignore(load_instance ctx_m (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal LoadNormal)
-	end;
 	ModuleLevel.init_type_params ctx_m decls;
 	List.iter (TypeLevel.init_imports_or_using ctx_m) imports_and_usings;
 	(* setup module types *)

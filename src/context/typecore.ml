@@ -97,7 +97,6 @@ type typer_globals = {
 	retain_meta : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
-	mutable std_types : module_def;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
 	mutable global_using : (tclass * pos) list;
 	(* Indicates that Typer.create() finished building this instance *)

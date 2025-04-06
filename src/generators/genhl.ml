@@ -770,7 +770,7 @@ and enum_class ctx e =
 			fid
 		in
 			PMap.iter (fun _ ef -> 
-			(match ef.ef_type with
+			(match follow ef.ef_type with
 				| TEnum _ -> ignore(add_field ef.ef_name (to_type ctx ef.ef_type))
 				| TFun (args, ret) ->
 					let fid = add_field ef.ef_name (to_type ctx ef.ef_type) in

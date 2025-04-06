@@ -297,19 +297,6 @@ module IterationKind = struct
 		let get_array_length arr p =
 			mk (mk_field arr "length") ctx.com.basic.tint p
 		in
-		let check_loop_var_modification vl e =
-			let rec loop e =
-				match e.eexpr with
-				| TBinop (OpAssign,{ eexpr = TLocal l },_)
-				| TBinop (OpAssignOp _,{ eexpr = TLocal l },_)
-				| TUnop (Increment,_,{ eexpr = TLocal l })
-				| TUnop (Decrement,_,{ eexpr = TLocal l })  when List.memq l vl ->
-					raise_typing_error "Loop variable cannot be modified" e.epos
-				| _ ->
-					Type.iter loop e
-			in
-			loop e
-		in
 		let gen_int_iter e1 pt f_get f_length =
 			let index = gen_local ctx t_int v.v_pos in
 			index.v_meta <- (Meta.ForLoopVariable,[],null_pos) :: index.v_meta;
@@ -340,7 +327,6 @@ module IterationKind = struct
 		in
 		match iterator.it_kind with
 		| IteratorIntUnroll(offset,length,ascending,unroll_params) ->
-			check_loop_var_modification [v] e2;
 			if not ascending then raise_typing_error "Cannot iterate backwards" p;
 			let rec unroll acc i =
 				if i = length then
@@ -351,6 +337,8 @@ module IterationKind = struct
 					let rec loop e = match e.eexpr with
 					| TLocal v' when v == v' ->
 						{ei with epos = e.epos}
+					| TUnop ((Decrement | Increment), _, { eexpr = TLocal v' }) when v == v' -> raise Exit
+					| TBinop ((OpAssign | OpAssignOp _), { eexpr = TLocal v' }, _) when v == v' -> raise Exit
 					| TVar(v,eo) when has_var_flag v VStatic ->
 						if acc = [] then
 							local_vars := {e with eexpr = TVar(v,eo)} :: !local_vars;
@@ -358,7 +346,14 @@ module IterationKind = struct
 					| _ ->
 						map_expr loop e
 				in
-				let e2 = loop e2 in
+				let e2 = try
+					loop e2
+				with Exit ->
+					{ e2 with eexpr = TBlock (
+						(mk (TVar(v,Some ei)) t_void p) ::
+						(match e2.eexpr with TBlock el -> el | _ -> [e2])
+					)}
+				in
 				let acc = acc @ !local_vars in
 				let e2 = Texpr.duplicate_tvars e_identity e2 in
 				unroll (e2 :: acc) (i + 1)
@@ -366,7 +361,6 @@ module IterationKind = struct
 			let el = unroll [] 0 in
 			mk (TBlock el) t_void p
 		| IteratorIntConst(a,b,ascending) ->
-			check_loop_var_modification [v] e2;
 			if not ascending then raise_typing_error "Cannot iterate backwards" p;
 			let v_index = gen_local ctx t_int a.epos in
 			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
@@ -382,7 +376,6 @@ module IterationKind = struct
 				ewhile;
 			]) t_void p
 		| IteratorInt(a,b) ->
-			check_loop_var_modification [v] e2;
 			let v_index = gen_local ctx t_int a.epos in
 			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
 			let ev_index = make_local v_index v_index.v_pos in
