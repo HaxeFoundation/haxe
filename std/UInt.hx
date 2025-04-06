@@ -226,19 +226,19 @@ abstract UInt(Int) from Int to Int {
 		return a.toFloat() > b;
 	}
 
-	@:commutative @:op(A == B) private static inline function equalsInt<T:Int>(a:UInt, b:T):Bool {
+	@:commutative @:op(A == B) private static inline function equalsInt<T>(a:UInt, b:Int):Bool {
 		return a.toInt() == b;
 	}
 
-	@:commutative @:op(A != B) private static inline function notEqualsInt<T:Int>(a:UInt, b:T):Bool {
+	@:commutative @:op(A != B) private static inline function notEqualsInt<T>(a:UInt, b:Int):Bool {
 		return a.toInt() != b;
 	}
 
-	@:commutative @:op(A == B) private static inline function equalsFloat<T:Float>(a:UInt, b:T):Bool {
+	@:commutative @:op(A == B) private static inline function equalsFloat<T>(a:UInt, b:Float):Bool {
 		return a.toFloat() == b;
 	}
 
-	@:commutative @:op(A != B) private static inline function notEqualsFloat<T:Float>(a:UInt, b:T):Bool {
+	@:commutative @:op(A != B) private static inline function notEqualsFloat<T>(a:UInt, b:Float):Bool {
 		return a.toFloat() != b;
 	}
 
