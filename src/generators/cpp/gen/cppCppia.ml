@@ -521,7 +521,6 @@ class script_writer ctx filename asciiOut =
     val fileTable = Hashtbl.create 0
     val identBuffer = Buffer.create 0
     val cppiaAst = not (Gctx.defined ctx.ctx_common Define.NoCppiaAst)
-    val absoluteSourcePaths = Gctx.defined ctx.ctx_common Define.CppiaAbsoluteSourcePaths
 
     method stringId name =
       try Hashtbl.find identTable name
@@ -786,12 +785,8 @@ class script_writer ctx filename asciiOut =
 
     method wpos p =
       if debug then
-        let filepath = if absoluteSourcePaths then
-          Path.get_full_path p.pfile
-        else p.pfile
-        in
         this#write
-          (this#fileText filepath ^ "\t"
+          (this#fileText (Path.get_full_path p.pfile) ^ "\t"
           ^ string_of_int (Lexer.get_error_line p)
           ^ indent)
 
