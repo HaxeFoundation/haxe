@@ -274,11 +274,18 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 							ecompletion
 						| TVar (v, eo) when is_used_across_states v.v_id ->
 							decls := v :: !decls;
-							e
-							(* let elocal = make_local v e.epos in
-							(match eo with
-							| None -> elocal
-							| Some einit -> mk (TBinop (OpAssign,elocal,einit)) v.v_type e.epos) *)
+
+							let name = if v.v_kind = VGenerated then
+								Printf.sprintf "_hx_hoisted%i" v.v_id
+							else
+								v.v_name in
+							let field  = mk_field name v.v_type v.v_pos null_pos in
+							let efield = mk (TField(econtinuation,FInstance(cls, [], field))) field.cf_type p in
+							let einit  =
+								match eo with
+								| None -> default_value v.v_type v.v_pos
+								| Some e -> Type.map_expr loop e in
+							mk (TBinop (OpAssign,efield,einit)) v.v_type e.epos
 						| _ ->
 							Type.map_expr loop e
 					in
@@ -303,7 +310,11 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 			let rec loop e =
 				match e.eexpr with
 				| TLocal v when is_used_across_states v.v_id ->
-					let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos null_pos in
+					let name = if v.v_kind = VGenerated then
+						Printf.sprintf "_hx_hoisted%i" v.v_id
+					else
+						v.v_name in
+					let field = mk_field name v.v_type v.v_pos null_pos in
 					mk (TField(econtinuation,FInstance(cls, [], field))) field.cf_type p
 				| _ -> Type.map_expr loop e
 			in
@@ -328,7 +339,11 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 			in
 
 			let initial = List.hd states in
-			let field   = mk_field (Printf.sprintf "_hx_hoisted%i" arg.v_id) arg.v_type arg.v_pos null_pos in
+			let name = if arg.v_kind = VGenerated then
+				Printf.sprintf "_hx_hoisted%i" arg.v_id
+			else
+				arg.v_name in
+			let field   = mk_field name arg.v_type arg.v_pos null_pos in
 			let efield  = mk (TField(econtinuation,FInstance(cls, [], field))) field.cf_type p in
 			let assign  = mk_assign efield (Builder.make_local arg p) in
 
@@ -371,4 +386,9 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 			e_var :: shared_vars
 	in *)
 
-	eloop, !init_state, decls |> List.map (fun v -> mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos null_pos)
+	eloop, !init_state, decls |> List.map (fun v ->
+		let name = if v.v_kind = VGenerated then
+			Printf.sprintf "_hx_hoisted%i" v.v_id
+		else
+			v.v_name in
+		mk_field name v.v_type v.v_pos null_pos)
