@@ -761,7 +761,7 @@ module TypeBinding = struct
 					| _ -> !analyzer_run_on_expr_ref ctx.com (Printf.sprintf "%s.%s" (s_type_path cctx.tclass.cl_path) cf.cf_name) e
 				in
 				let require_constant_expression e msg =
-					match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
+					match Optimizer.make_constant_expression (SafeCom.of_typer ctx) (maybe_run_analyzer e) with
 					| Some e -> e
 					| None -> display_error ctx.com msg p; e
 				in
@@ -793,7 +793,7 @@ module TypeBinding = struct
 						e
 					end in
 					e
-				| Var v when v.v_read = AccInline && (ctx.g.doinline || is_forced_inline (Some c) cf) ->
+				| Var v when v.v_read = AccInline && (ctx.com.doinline || is_forced_inline (Some c) cf) ->
 					let e = require_constant_expression e "Inline variable initialization must be a constant value" in
 					begin match c.cl_kind with
 						| KAbstractImpl a when has_class_field_flag cf CfEnum && a.a_enum ->
@@ -1018,11 +1018,11 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		in
 		begin match follow t with
 			| TFun((_,_,t1) :: (_,_,t2) :: args,_) when is_empty_or_pos_infos args ->
-				if a.a_read <> None then raise_typing_error "Multiple resolve-read methods are not supported" cf.cf_pos;
+				if a.a_read <> None then display_error ctx.com "Multiple resolve-read methods are not supported" cf.cf_pos;
 				check_fun t1 t2;
 				a.a_read <- Some cf;
 			| TFun((_,_,t1) :: (_,_,t2) :: (_,_,t3) :: args,_) when is_empty_or_pos_infos args ->
-				if a.a_write <> None then raise_typing_error "Multiple resolve-write methods are not supported" cf.cf_pos;
+				if a.a_write <> None then display_error ctx.com "Multiple resolve-write methods are not supported" cf.cf_pos;
 				check_fun t1 t2;
 				a.a_write <- Some cf;
 			| _ ->
@@ -1781,7 +1781,7 @@ let init_class ctx_c cctx c p herits fields =
 		| _ ->
 			()
 	end;
-	if not has_struct_init && not (has_class_flag c CAbstract) then
+	if not has_struct_init then
 		(* add_constructor does not deal with overloads correctly *)
 		if not com.config.pf_overload then TypeloadFunction.add_constructor ctx_c c cctx.force_constructor p;
 	finalize_class cctx

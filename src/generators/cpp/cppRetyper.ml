@@ -1533,6 +1533,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     tcv_type = field.cf_type;
     tcv_default = None;
 
+    tcv_has_getter = (match field.cf_kind with | Var { v_read = AccCall } -> true | _ -> false);
     tcv_is_stackonly = has_meta Meta.StackOnly field.cf_meta;
     tcv_is_reflective = reflective class_def field;
     tcv_is_gc_element = cpp_type_of field.cf_type |> is_gc_element ctx;

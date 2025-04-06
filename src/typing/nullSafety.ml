@@ -1368,7 +1368,7 @@ class expr_checker mode immediate_execution report =
 				(* Local named functions like `function fn() {}`, which are generated as `var fn = null; fn = function(){}` *)
 				| Some { eexpr = TConst TNull } when v.v_kind = VUser TVOLocalFunction -> ()
 				(* `_this = null` is generated for local `inline function` *)
-				| Some { eexpr = TConst TNull } when v.v_kind = VGenerated -> ()
+				(* | Some { eexpr = TConst TNull } when v.v_kind = VGenerated -> () *)
 				| Some e ->
 					let local = { eexpr = TLocal v; epos = v.v_pos; etype = v.v_type } in
 					self#check_binop OpAssign local e p
@@ -1658,18 +1658,19 @@ class class_checker cls immediate_execution report =
 	Run null safety checks.
 *)
 let run (com:Common.context) (types:module_type list) =
-	let timer = Timer.timer ["null safety"] in
-	let report = { sr_errors = [] } in
-	let immediate_execution = new immediate_execution in
-	let traverse module_type =
-		match module_type with
-			| TEnumDecl enm -> ()
-			| TTypeDecl typedef -> ()
-			| TAbstractDecl abstr -> ()
-			| TClassDecl cls -> (new class_checker cls immediate_execution report)#check
-	in
-	List.iter traverse types;
-	timer();
+	let report = Timer.time com.timer_ctx ["null safety"] (fun () ->
+		let report = { sr_errors = [] } in
+		let immediate_execution = new immediate_execution in
+		let traverse module_type =
+			match module_type with
+				| TEnumDecl enm -> ()
+				| TTypeDecl typedef -> ()
+				| TAbstractDecl abstr -> ()
+				| TClassDecl cls -> (new class_checker cls immediate_execution report)#check
+		in
+		List.iter traverse types;
+		report;
+	) () in
 	match com.callbacks#get_null_safety_report with
 		| [] ->
 			List.iter (fun err -> Common.display_error com err.sm_msg err.sm_pos) (List.rev report.sr_errors)

@@ -5,9 +5,9 @@ class TestTreGeneration {
 		}
 		while(true) {
 			if(Std.random(2) == 0) {
-				var _g = a;
+				var tmp = a;
 				a = b + a;
-				b = _g;
+				b = tmp;
 				s += "?";
 				continue;
 			}
@@ -33,9 +33,9 @@ class TestTreGeneration {
 			}
 			while(true) {
 				if(Std.random(2) == 0) {
-					var _g = a;
+					var tmp = a;
 					a = b + a;
-					b = _g;
+					b = tmp;
 					s += "?";
 					continue;
 				}

@@ -20,8 +20,7 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 	in
 
 	let mk_pos_infos t =
-		let infos = mk_infos ctx callp [] in
-		type_expr ctx infos (WithType.with_type t)
+		mk_infos_t ctx callp [] t
 	in
 	let default_value name t =
 		if is_pos_infos t then
@@ -133,7 +132,7 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 				ignore(loop [] args);
 				[]
 			end else begin match loop [] args with
-				| [] when not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
+				| [] when not (inline && (ctx.com.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
 					if is_pos_infos t then [mk_pos_infos t]
 					else []
 				| args ->

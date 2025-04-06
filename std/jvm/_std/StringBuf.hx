@@ -99,6 +99,10 @@ class StringBuf {
 		b.appendCodePoint(c);
 	}
 
+	public function clear():Void {
+		b.setLength(0);
+	}
+
 	public function toString():String {
 		return b.toString();
 	}

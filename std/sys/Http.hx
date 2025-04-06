@@ -98,6 +98,7 @@ class Http extends haxe.http.HttpBase {
 			return;
 		}
 		var secure = (url_regexp.matched(1) == "https://");
+		var ownsSocket = false;
 		if (sock == null) {
 			if (secure) {
 				#if php
@@ -117,6 +118,7 @@ class Http extends haxe.http.HttpBase {
 				sock = new Socket();
 			}
 			sock.setTimeout(cnxTimeout);
+			ownsSocket = true;
 		}
 		var host = url_regexp.matched(2);
 		var portString = url_regexp.matched(3);
@@ -246,11 +248,13 @@ class Http extends haxe.http.HttpBase {
 			else
 				writeBody(b, null, 0, null, sock);
 			readHttpResponse(api, sock);
-			sock.close();
+			if (ownsSocket)
+				sock.close();
 		} catch (e:Dynamic) {
-			try
-				sock.close()
-			catch (e:Dynamic) {};
+			if (ownsSocket)
+				try
+					sock.close()
+				catch (e:Dynamic) {};
 			onError(Std.string(e));
 		}
 	}

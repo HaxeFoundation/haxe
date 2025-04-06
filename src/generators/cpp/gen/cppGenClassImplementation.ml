@@ -582,17 +582,16 @@ let generate_managed_class base_ctx tcpp_class =
       value
     in
 
-  let print_variable var_printer get_printer (var:tcpp_class_variable) acc =
+  let print_variable var_printer get_printer var acc =
     if var.tcv_is_reflective && not (is_abstract_impl class_def) then
       let variable = get_wrapper var.tcv_field var.tcv_name in
 
-      match var.tcv_field.cf_kind with
-      | Var { v_read = AccCall } ->
+      if var.tcv_has_getter then
         let prop_check = checkPropCall var.tcv_field in
         let getter     = Printf.sprintf "get_%s()" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
 
         (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, get_printer prop_check getter variable) :: acc
-      | _ ->
+      else
         (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, var_printer variable) :: acc
     else
       acc
@@ -608,11 +607,11 @@ let generate_managed_class base_ctx tcpp_class =
       acc
   in
 
-  let print_property printer (var:tcpp_class_variable) acc =
-    if var.tcv_is_reflective && not (is_abstract_impl class_def) then
+  let print_property printer var acc =
+    if var.tcv_has_getter && var.tcv_is_reflective && not (is_abstract_impl class_def) then (
       let prop_check = checkPropCall var.tcv_field in
       let getter     = Printf.sprintf "get_%s()" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
-      (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, printer prop_check getter) :: acc
+      (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, printer prop_check getter) :: acc)
     else
       acc
   in

@@ -209,28 +209,11 @@ class dead_block_collector conds = object(self)
 end
 
 (* parse main *)
-let parse entry ctx code file =
-	let old = Lexer.save() in
-	let restore_cache = TokenCache.clear () in
-	let was_display = !in_display in
-	let was_display_file = !in_display_file in
-	let old_code = !code_ref in
-	let old_macro = !in_macro in
-	code_ref := code;
-	in_display := display_position#get <> null_pos;
-	in_display_file := !in_display && display_position#is_in_file (Path.UniqueKey.create file);
-	syntax_errors := [];
-	let restore =
-		(fun () ->
-			restore_cache ();
-			in_display := was_display;
-			in_macro := old_macro;
-			in_display_file := was_display_file;
-			code_ref := old_code;
-		)
-	in
-	last_doc := None;
-	in_macro := Define.defined ctx Define.Macro;
+let parse config entry lctx code file =
+	let defines = config.defines in
+	let in_macro = Define.defined defines Define.Macro in
+	let ctx = Parser.create_context lctx config in_macro code in
+	let entry = entry ctx in
 	Lexer.skip_header code;
 
 	let sharp_error s p =
@@ -240,25 +223,25 @@ let parse entry ctx code file =
 
 	let conds = new condition_handler in
 	let dbc = new dead_block_collector conds in
-	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token code)) in
+	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token lctx code)) in
 	let preprocessor_error ppe pos tk =
-		syntax_error (Preprocessor_error ppe) ~pos:(Some pos) sraw tk
+		syntax_error ctx (Preprocessor_error ppe) ~pos:(Some pos) sraw tk
 	in
-	let rec next_token() = process_token (Lexer.token code)
+	let rec next_token() = process_token (Lexer.token lctx code)
 
 	and process_token tk =
 		match fst tk with
 		| Comment s ->
 			(* if encloses_resume (pos tk) then syntax_completion SCComment (pos tk); *)
 			let l = String.length s in
-			if l > 0 && s.[0] = '*' then last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
+			if l > 0 && s.[0] = '*' then ctx.last_doc <- Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
 			let tk = next_token() in
 			tk
 		| CommentLine s ->
-			if !in_display_file then begin
+			if ctx.config.in_display_file then begin
 				let p = pos tk in
 				(* Completion at the / should not pick up the comment (issue #9133) *)
-				let p = if is_completion() then {p with pmin = p.pmin + 1} else p in
+				let p = if is_completion ctx then {p with pmin = p.pmin + 1} else p in
 				(* The > 0 check is to deal with the special case of line comments at the beginning of the file (issue #10322) *)
 				if display_position#enclosed_in p && p.pmin > 0 then syntax_completion SCComment None (pos tk);
 			end;
@@ -267,7 +250,7 @@ let parse entry ctx code file =
 			conds#cond_end (snd tk);
 			next_token()
 		| Sharp "elseif" ->
-			let _,(e,pe) = parse_macro_cond sraw in
+			let _,(e,pe) = parse_macro_cond ctx sraw in
 			conds#cond_elseif (e,pe) (snd tk);
 			dbc#open_dead_block pe;
 			let tk = skip_tokens (pos tk) false in
@@ -280,7 +263,7 @@ let parse entry ctx code file =
 		| Sharp "if" ->
 			process_token (enter_macro true (snd tk))
 		| Sharp "error" ->
-			(match Lexer.token code with
+			(match Lexer.token lctx code with
 			| (Const (String(s,_)),p) -> error (Custom s) p
 			| _ -> error Unimplemented (snd tk))
 		| Sharp "line" ->
@@ -288,7 +271,7 @@ let parse entry ctx code file =
 				| (Const (Int (s, _)),p) -> (try int_of_string s with _ -> error (Custom ("Could not parse ridiculous line number " ^ s)) p)
 				| (t,p) -> error (Unexpected t) p
 			) in
-			!(Lexer.cur).Lexer.lline <- line - 1;
+			lctx.file.Lexer.lline <- line - 1;
 			next_token();
 		| Sharp s ->
 			sharp_error s (pos tk)
@@ -296,10 +279,10 @@ let parse entry ctx code file =
 			tk
 
 	and enter_macro is_if p =
-		let tk, e = parse_macro_cond sraw in
+		let tk, e = parse_macro_cond ctx sraw in
 		(if is_if then conds#cond_if e else conds#cond_elseif e p);
-		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
-		if is_true (eval ctx e) then begin
+		let tk = (match tk with None -> Lexer.token lctx code | Some tk -> tk) in
+		if is_true (eval defines e) then begin
 			tk
 		end else begin
 			dbc#open_dead_block (pos e);
@@ -311,10 +294,10 @@ let parse entry ctx code file =
 		| Sharp "end" ->
 			conds#cond_end (snd tk);
 			dbc#close_dead_block (pos tk);
-			Lexer.token code
+			Lexer.token lctx code
 		| Sharp "elseif" when not test ->
 			dbc#close_dead_block (pos tk);
-			let _,(e,pe) = parse_macro_cond sraw in
+			let _,(e,pe) = parse_macro_cond ctx sraw in
 			conds#cond_elseif (e,pe) (snd tk);
 			dbc#open_dead_block pe;
 			skip_tokens p test
@@ -326,12 +309,12 @@ let parse entry ctx code file =
 		| Sharp "else" ->
 			conds#cond_else (snd tk);
 			dbc#close_dead_block (pos tk);
-			Lexer.token code
+			Lexer.token lctx code
 		| Sharp "elseif" ->
 			dbc#close_dead_block (pos tk);
 			enter_macro false (snd tk)
 		| Sharp "if" ->
-			let _,e = parse_macro_cond sraw in
+			let _,e = parse_macro_cond ctx sraw in
 			conds#cond_if e;
 			dbc#open_dead_block (pos e);
 			let tk = skip_tokens p false in
@@ -345,12 +328,12 @@ let parse entry ctx code file =
 		| _ ->
 			skip_tokens p test
 
-	and skip_tokens p test = skip_tokens_loop p test (Lexer.token code)
+	and skip_tokens p test = skip_tokens_loop p test (Lexer.token lctx code)
 
 	in
 	let s = Stream.from (fun _ ->
 		let t = next_token() in
-		TokenCache.add t;
+		DynArray.add ctx.cache t;
 		Some t
 	) in
 	try
@@ -363,77 +346,59 @@ let parse entry ctx code file =
 			| Some (tok,p) ->
 				error (Unexpected tok) p (* This isn't *)
 		end;
-		let was_display_file = !in_display_file in
-		restore();
-		Lexer.restore old;
-		let pdi = {pd_errors = List.rev !syntax_errors;pd_dead_blocks = dbc#get_dead_blocks;pd_conditions = conds#get_conditions} in
+		let was_display_file = ctx.config.in_display_file in
+		let pdi = {
+			pd_errors = List.rev ctx.syntax_errors;
+			pd_dead_blocks = dbc#get_dead_blocks;
+			pd_conditions = conds#get_conditions;
+			pd_was_display_file = was_display_file;
+			pd_had_resume = ctx.had_resume;
+			pd_delayed_syntax_completion = ctx.delayed_syntax_completion;
+		} in
 		if was_display_file then
-			ParseSuccess(l,true,pdi)
-		else begin match List.rev !syntax_errors with
-			| [] -> ParseSuccess(l,false,pdi)
+			ParseSuccess(l,pdi)
+		else begin match List.rev ctx.syntax_errors with
+			| [] -> ParseSuccess(l,pdi)
 			| error :: errors -> ParseError(l,error,errors)
 		end
 	with
 		| Stream.Error _
 		| Stream.Failure ->
-			let last = (match Stream.peek s with None -> last_token s | Some t -> t) in
-			Lexer.restore old;
-			restore();
+			let last = (match Stream.peek s with None -> last_token ctx s | Some t -> t) in
 			error (Unexpected (fst last)) (pos last)
-		| e ->
-			Lexer.restore old;
-			restore();
-			raise e
 
-let parse_string entry com s p error inlined =
-	let old = Lexer.save() in
-	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
-	let restore_file_data =
-		let f = Lexer.make_file old.lfile in
-		Lexer.copy_file old f;
-		(fun () ->
-			Lexer.copy_file f old
-		)
-	in
+let parse_string config entry s p error inlined =
 	let old_display = display_position#get in
-	let old_in_display_file = !in_display_file in
-	let old_syntax_errors = !syntax_errors in
-	syntax_errors := [];
 	let restore() =
-		(match old_file with
-		| None -> Hashtbl.remove Lexer.all_files p.pfile
-		| Some f -> Hashtbl.replace Lexer.all_files p.pfile f);
 		if not inlined then begin
 			display_position#set old_display;
-			in_display_file := old_in_display_file;
 		end;
-		syntax_errors := old_syntax_errors;
-		Lexer.restore old;
-		(* String parsing might mutate lexer_file information, e.g. from newline() calls. Here we
-		   restore the actual file data (issue #10763). *)
-		restore_file_data()
 	in
-	if inlined then
-		Lexer.init p.pfile
-	else begin
+	let lctx = Lexer.create_temp_ctx p.pfile in
+	let config = if not inlined then begin
 		display_position#reset;
-		in_display_file := false;
-	end;
+		{ config with in_display_file = false }
+	end else
+		config
+	in
 	let result = try
-		parse entry com (Sedlexing.Utf8.from_string s) p.pfile
+		parse config entry lctx (Sedlexing.Utf8.from_string s) p.pfile
 	with Error (e,pe) ->
 		restore();
 		error (error_msg e) (if inlined then pe else p)
 	| Lexer.Error (e,pe) ->
 		restore();
 		error (Lexer.error_msg e) (if inlined then pe else p)
+	| exc ->
+		restore();
+		raise exc
 	in
 	restore();
 	result
 
-let parse_expr_string com s p error inl =
+let parse_expr_string config s p error inl =
 	let s = if p.pmin > 0 then (String.make p.pmin ' ') ^ s else s in
-	let result = parse_string expr com s p error inl in
+	let result = parse_string config expr s p error inl in
 	if inl then
 		result
 	else begin
@@ -442,6 +407,6 @@ let parse_expr_string com s p error inl =
 			(fst e,p)
 		in
 		match result with
-		| ParseSuccess(data,is_display_file,pdi) -> ParseSuccess(loop data,is_display_file,pdi)
+		| ParseSuccess(data,pdi) -> ParseSuccess(loop data,pdi)
 		| ParseError(data,error,errors) -> ParseError(loop data,error,errors)
 	end

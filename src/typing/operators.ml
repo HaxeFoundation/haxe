@@ -720,7 +720,7 @@ let handle_assign_op ctx api e1 e2 with_type p =
 			(* bind complex keys to a variable so they do not make it into the output twice *)
 			let save = save_locals ctx in
 			let vr = new value_reference ctx in
-			let maybe_bind_to_temp name e = match Optimizer.make_constant_expression ctx e with
+			let maybe_bind_to_temp name e = match Optimizer.make_constant_expression (SafeCom.of_typer ctx) e with
 				| Some e -> e
 				| None -> vr#as_var name e
 			in

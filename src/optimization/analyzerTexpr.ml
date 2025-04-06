@@ -19,7 +19,8 @@
 
 open Ast
 open Type
-open Common
+open SafeCom
+open AnalyzerTypes
 open OptimizerTexpr
 open Globals
 
@@ -108,11 +109,11 @@ let target_handles_unops com = match com.platform with
 let target_handles_assign_ops com e2 = match com.platform with
 	| Php -> not (has_side_effect e2)
 	| Lua -> false
-	| Cpp when not (Common.defined com Define.Cppia) -> false
+	| Cpp when not (Define.defined com.defines Define.Cppia) -> false
 	| _ -> true
 
 let target_handles_side_effect_order com = match com.platform with
-	| Cpp -> Common.defined com Define.Cppia
+	| Cpp -> Define.defined com.defines Define.Cppia
 	| Php -> false
 	| _ -> true
 
@@ -183,7 +184,7 @@ let type_change_ok com t1 t2 =
 		t1 == t2 || match follow t1,follow t2 with
 			| TDynamic _,_ | _,TDynamic _ -> false
 			| _ ->
-				if com.config.pf_static && is_nullable_or_whatever t1 <> is_nullable_or_whatever t2 then false
+				if com.platform_config.pf_static && is_nullable_or_whatever t1 <> is_nullable_or_whatever t2 then false
 				else type_iseq t1 t2
 	end
 
@@ -827,7 +828,7 @@ module Fusion = struct
 				can_be_used_as_value com e1 &&
 				not (ExtType.is_void e1.etype) &&
 				(match com.platform with
-					| Cpp when not (Common.defined com Define.Cppia) -> false
+					| Cpp when not (Define.defined com.defines Define.Cppia) -> false
 					| _ -> true)
 				->
 				begin try
@@ -1158,7 +1159,7 @@ module Purity = struct
 		taint node;
 		raise Exit
 
-	let apply_to_field com is_ctor is_static c cf =
+	let apply_to_field is_ctor is_static c cf =
 		let node = get_node c cf in
 		let check_field c cf =
 			let node' = get_node c cf in
@@ -1234,24 +1235,24 @@ module Purity = struct
 					with Exit ->
 						()
 
-	let apply_to_class com c =
-		List.iter (apply_to_field com false false c) c.cl_ordered_fields;
-		List.iter (apply_to_field com false true c) c.cl_ordered_statics;
-		(match c.cl_constructor with Some cf -> apply_to_field com true false c cf | None -> ())
+	let apply_to_class c =
+		List.iter (apply_to_field false false c) c.cl_ordered_fields;
+		List.iter (apply_to_field false true c) c.cl_ordered_statics;
+		(match c.cl_constructor with Some cf -> apply_to_field true false c cf | None -> ())
 
-	let infer com =
+	let infer types =
 		Hashtbl.clear node_lut;
-		List.iter (fun mt -> match mt with
+		Array.iter (fun mt -> match mt with
 			| TClassDecl c ->
 				begin try
-					apply_to_class com c
+					apply_to_class c
 				with Purity_conflict(impure,p) ->
 					Error.raise_typing_error_ext (Error.make_error (Custom "Impure field overrides/implements field which was explicitly marked as @:pure") ~sub:[
 						Error.make_error ~depth:1 (Custom (Error.compl_msg "Pure field is here")) p
 					] impure.pn_field.cf_pos)
 				end
 			| _ -> ()
-		) com.types;
+		) types;
 		Hashtbl.iter (fun _ node ->
 			match node.pn_purity with
 			| Pure | MaybePure when not (List.exists (fun (m,_,_) -> m = Meta.Pure) node.pn_field.cf_meta) ->

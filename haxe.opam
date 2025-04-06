@@ -34,4 +34,5 @@ depends: [
   "luv" {>= "0.5.13"}
   "ipaddr"
   "terminal_size"
+  "domainslib"
 ]

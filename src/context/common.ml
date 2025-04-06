@@ -45,127 +45,6 @@ type stats = {
 	s_macros_called : int ref;
 }
 
-(**
-	The capture policy tells which handling we make of captured locals
-	(the locals which are referenced in local functions)
-
-	See details/implementation in Codegen.captured_vars
-*)
-type capture_policy =
-	(** do nothing, let the platform handle it *)
-	| CPNone
-	(** wrap all captured variables into a single-element array to allow modifications *)
-	| CPWrapRef
-	(** similar to wrap ref, but will only apply to the locals that are declared in loops *)
-	| CPLoopVars
-
-type exceptions_config = {
-	(* Base types which may be thrown from Haxe code without wrapping. *)
-	ec_native_throws : path list;
-	(* Base types which may be caught from Haxe code without wrapping. *)
-	ec_native_catches : path list;
-	(*
-		Hint exceptions filter to avoid wrapping for targets, which can throw/catch any type
-		Ignored on targets with a specific native base type for exceptions.
-	*)
-	ec_avoid_wrapping : bool;
-	(* Path of a native class or interface, which can be used for wildcard catches. *)
-	ec_wildcard_catch : path;
-	(*
-		Path of a native base class or interface, which can be thrown.
-		This type is used to cast `haxe.Exception.thrown(v)` calls to.
-		For example `throw 123` is compiled to `throw (cast Exception.thrown(123):ec_base_throw)`
-	*)
-	ec_base_throw : path;
-	(*
-		Checks if throwing this expression is a special case for current target
-		and should not be modified.
-	*)
-	ec_special_throw : texpr -> bool;
-}
-
-type var_scope =
-	| FunctionScope
-	| BlockScope
-
-type var_scoping_flags =
-	(**
-		Variables are hoisted in their scope
-	*)
-	| VarHoisting
-	(**
-		It's not allowed to shadow existing variables in a scope.
-	*)
-	| NoShadowing
-	(**
-		It's not allowed to shadow a `catch` variable.
-	*)
-	| NoCatchVarShadowing
-	(**
-		Local vars cannot have the same name as the current top-level package or
-		(if in the root package) current class name
-	*)
-	| ReserveCurrentTopLevelSymbol
-	(**
-		Local vars cannot have a name used for any top-level symbol
-		(packages and classes in the root package)
-	*)
-	| ReserveAllTopLevelSymbols
-	(**
-		Reserve all type-paths converted to "flat path" with `Path.flat_path`
-	*)
-	| ReserveAllTypesFlat
-	(**
-		List of names cannot be taken by local vars
-	*)
-	| ReserveNames of string list
-	(**
-		Cases in a `switch` won't have blocks, but will share the same outer scope.
-	*)
-	| SwitchCasesNoBlocks
-
-type var_scoping_config = {
-	vs_flags : var_scoping_flags list;
-	vs_scope : var_scope;
-}
-
-type platform_config = {
-	(** has a static type system, with not-nullable basic types (Int/Float/Bool) *)
-	pf_static : bool;
-	(** has access to the "sys" package *)
-	pf_sys : bool;
-	(** captured variables handling (see before) *)
-	pf_capture_policy : capture_policy;
-	(** when calling a method with optional args, do we replace the missing args with "null" constants *)
-	pf_pad_nulls : bool;
-	(** add a final return to methods not having one already - prevent some compiler warnings *)
-	pf_add_final_return : bool;
-	(** does the platform natively support overloaded functions *)
-	pf_overload : bool;
-	(** can the platform use default values for non-nullable arguments *)
-	pf_can_skip_non_nullable_argument : bool;
-	(** type paths that are reserved on the platform *)
-	pf_reserved_type_paths : path list;
-	(** supports function == function **)
-	pf_supports_function_equality : bool;
-	(** uses utf16 encoding with ucs2 api **)
-	pf_uses_utf16 : bool;
-	(** target supports accessing `this` before calling `super(...)` **)
-	pf_this_before_super : bool;
-	(** target supports threads **)
-	pf_supports_threads : bool;
-	(** target supports Unicode **)
-	pf_supports_unicode : bool;
-	(** target supports rest arguments **)
-	pf_supports_rest_args : bool;
-	(** exceptions handling config **)
-	pf_exceptions : exceptions_config;
-	(** the scoping of local variables *)
-	pf_scoping : var_scoping_config;
-	(** target supports atomic operations via haxe.Atomic **)
-	pf_supports_atomics : bool;
-}
-
 class compiler_callbacks = object(self)
 	val before_typer_create = ref [];
 	val after_init_macros = ref [];
@@ -348,6 +227,13 @@ class virtual abstract_hxb_lib = object(self)
 	method virtual get_string_pool : string -> string array option
 end
 
+type parser_state = {
+	mutable was_auto_triggered : bool;
+	mutable had_parser_resume : bool;
+	delayed_syntax_completion : Parser.syntax_completion_on option Atomic.t;
+	special_identifier_files : (Path.UniqueKey.t,string) ThreadSafeHashtbl.t;
+}
+
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
@@ -355,6 +241,7 @@ type context = {
 	mutable cache : CompilationCache.context_cache option;
 	is_macro_context : bool;
 	mutable json_out : json_api option;
+	timer_ctx : Timer.timer_context;
 	(* config *)
 	version : compiler_version;
 	mutable args : string list;
@@ -362,13 +249,15 @@ type context = {
 	mutable debug : bool;
 	mutable verbose : bool;
 	mutable foptimize : bool;
+	mutable doinline : bool;
 	mutable platform : platform;
-	mutable config : platform_config;
+	mutable config : PlatformConfig.platform_config;
 	empty_class_path : ClassPath.class_path;
 	class_paths : ClassPaths.class_paths;
 	main : Gctx.context_main;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
+	parser_state : parser_state;
 	(* communication *)
 	mutable print : string -> unit;
 	mutable error : Gctx.error_function;
@@ -452,8 +341,8 @@ let to_gctx com = {
 		| _ -> []);
 	include_files = com.include_files;
 	std = com.std;
+	timer_ctx = com.timer_ctx;
 }
-
 let enter_stage com stage =
 	(* print_endline (Printf.sprintf "Entering stage %s" (s_compiler_stage stage)); *)
 	com.stage <- stage
@@ -564,6 +453,8 @@ let stats =
 		s_methods_typed = ref 0;
 		s_macros_called = ref 0;
 	}
+
+open PlatformConfig
 
 let default_config =
 	{
@@ -792,11 +683,12 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create compilation_step cs version args display_mode =
+let create timer_ctx compilation_step cs version args display_mode =
 	let rec com = {
 		compilation_step = compilation_step;
 		cs = cs;
 		cache = None;
+		timer_ctx = timer_ctx;
 		stage = CCreated;
 		version = version;
 		args = args;
@@ -814,6 +706,7 @@ let create compilation_step cs version args display_mode =
 		display = display_mode;
 		verbose = false;
 		foptimize = true;
+		doinline = true;
 		features = Hashtbl.create 0;
 		platform = Cross;
 		config = default_config;
@@ -823,7 +716,8 @@ let create compilation_step cs version args display_mode =
 		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;
 		main = {
-			main_class = None;
+			main_path = None;
+			main_file = None;
 			main_expr = None;
 		};
 		package_rules = PMap.empty;
@@ -845,10 +739,7 @@ let create compilation_step cs version args display_mode =
 		include_files = [];
 		js_gen = None;
 		load_extern_type = [];
-		defines = {
-			defines_signature = None;
-			values = PMap.empty;
-		};
+		defines = Define.empty_defines ();
 		user_defines = Hashtbl.create 0;
 		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);
@@ -888,6 +779,12 @@ let create compilation_step cs version args display_mode =
 		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_config = None;
+		parser_state = {
+			was_auto_triggered = false;
+			had_parser_resume = false;
+			delayed_syntax_completion = Atomic.make None;
+			special_identifier_files = ThreadSafeHashtbl.create 0;
+		}
 	} in
 	com
 
@@ -919,7 +816,8 @@ let clone com is_macro_context =
 			tstring = mk_mono();
 		};
 		main = {
-			main_class = None;
+			main_path = None;
+			main_file = None;
 			main_expr = None;
 		};
 		features = Hashtbl.create 0;
@@ -1087,10 +985,6 @@ let platform_name_macro com =
 let find_file ctx f =
 	(ctx.class_paths#find_file f).file
 
-(* let find_file ctx f =
-	let timer = Timer.timer ["find_file"] in
-	Std.finally timer (find_file ctx) f *)
-
 let mem_size v =
 	Objsize.size_with_headers (Objsize.objsize v [] [])
 
@@ -1116,9 +1010,6 @@ let display_error_ext com err =
 
 let display_error com ?(depth = 0) msg p =
 	display_error_ext com (Error.make_error ~depth (Custom msg) p)
-
-let dump_path com =
-	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
 
 let adapt_defines_to_macro_context defines =
 	let to_remove = "java" :: List.map Globals.platform_name Globals.platforms in
@@ -1152,7 +1043,7 @@ let get_entry_point com =
 		in
 		let e = Option.get com.main.main_expr in (* must be present at this point *)
 		(snd path, c, e)
-	) com.main.main_class
+	) com.main.main_path
 
 let make_unforced_lazy t_proc f where =
 	let r = ref (lazy_available t_dynamic) in

@@ -109,20 +109,20 @@ end
 
 let explore_class_paths com timer class_paths recursive f_pack f_module =
 	let cs = com.cs in
-	let t = Timer.timer (timer @ ["class path exploration"]) in
-	let checked = Hashtbl.create 0 in
-	let tasks = ExtList.List.filter_map (fun path ->
-		match path#get_directory_path with
-			| Some path ->
-				Some (new explore_class_path_task com checked recursive f_pack f_module path [])
-			| None ->
-				None
-	) class_paths in
-	let task = new arbitrary_task ["explore"] 50 (fun () ->
-		List.iter (fun task -> task#run) tasks
-	) in
-	cs#add_task task;
-	t()
+	Timer.time com.timer_ctx (timer @ ["class path exploration"]) (fun () ->
+		let checked = Hashtbl.create 0 in
+		let tasks = ExtList.List.filter_map (fun path ->
+			match path#get_directory_path with
+				| Some path ->
+					Some (new explore_class_path_task com checked recursive f_pack f_module path [])
+				| None ->
+					None
+		) class_paths in
+		let task = new arbitrary_task ["explore"] 50 (fun () ->
+			List.iter (fun task -> task#run) tasks
+		) in
+		cs#add_task task;
+	) ()
 
 let read_class_paths com timer =
 	explore_class_paths com timer (com.class_paths#filter (fun cp -> cp#path <> "")) true (fun _ -> ()) (fun file path ->
@@ -225,7 +225,6 @@ let is_pack_visible pack =
 	not (List.exists (fun s -> String.length s > 0 && s.[0] = '_') pack)
 
 let collect ctx tk with_type sort =
-	let t = Timer.timer ["display";"toplevel collect"] in
 	let cctx = CollectionContext.create ctx in
 	let curpack = fst ctx.c.curclass.cl_path in
 	(* Note: This checks for the explicit `ServerConfig.legacy_completion` setting instead of using
@@ -298,12 +297,12 @@ let collect ctx tk with_type sort =
 	| TKType | TKOverride -> ()
 	| TKExpr p | TKPattern p | TKField p ->
 		(* locals *)
-		let t = Timer.timer ["display";"toplevel collect";"locals"] in
-		PMap.iter (fun _ v ->
-			if not (is_gen_local v) then
-				add (make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)) (Some v.v_name)
-		) ctx.f.locals;
-		t();
+		Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"locals"] (fun () ->
+			PMap.iter (fun _ v ->
+				if not (is_gen_local v) then
+					add (make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)) (Some v.v_name)
+			) ctx.f.locals;
+		) ();
 
 		let add_field scope origin cf =
 			let origin,cf = match origin with
@@ -329,137 +328,137 @@ let collect ctx tk with_type sort =
 			if not (Meta.has Meta.NoCompletion cf.cf_meta) then add_field scope origin cf
 		in
 
-		let t = Timer.timer ["display";"toplevel collect";"fields"] in
-		(* member fields *)
-		if ctx.e.curfun <> FunStatic then begin
-			let all_fields = Type.TClass.get_all_fields ctx.c.curclass (extract_param_types ctx.c.curclass.cl_params) in
-			PMap.iter (fun _ (c,cf) ->
-				let origin = if c == ctx.c.curclass then Self (TClassDecl c) else Parent (TClassDecl c) in
-				maybe_add_field CFSMember origin cf
-			) all_fields;
-			(* TODO: local using? *)
-		end;
+		Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"fields"] (fun () ->
+			(* member fields *)
+			if ctx.e.curfun <> FunStatic then begin
+				let all_fields = Type.TClass.get_all_fields ctx.c.curclass (extract_param_types ctx.c.curclass.cl_params) in
+				PMap.iter (fun _ (c,cf) ->
+					let origin = if c == ctx.c.curclass then Self (TClassDecl c) else Parent (TClassDecl c) in
+					maybe_add_field CFSMember origin cf
+				) all_fields;
+				(* TODO: local using? *)
+			end;
 
-		(* statics *)
-		begin match ctx.c.curclass.cl_kind with
-		| KAbstractImpl ({a_impl = Some c} as a) ->
-			let origin = Self (TAbstractDecl a) in
-			List.iter (fun cf ->
-				if has_class_field_flag cf CfImpl then begin
-					if ctx.e.curfun = FunStatic then ()
-					else begin
-						let cf = prepare_using_field cf in
-						maybe_add_field CFSMember origin cf
-					end
-				end else
-					maybe_add_field CFSStatic origin cf
-			) c.cl_ordered_statics
-		| _ ->
-			List.iter (maybe_add_field CFSStatic (Self (TClassDecl ctx.c.curclass))) ctx.c.curclass.cl_ordered_statics
-		end;
-		t();
-
-		let t = Timer.timer ["display";"toplevel collect";"enum ctors"] in
-		(* enum constructors *)
-		let rec enum_ctors t =
-			match t with
-			| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum && not (path_exists cctx a.a_path) && ctx.c.curclass != c ->
-				add_path cctx a.a_path;
+			(* statics *)
+			begin match ctx.c.curclass.cl_kind with
+			| KAbstractImpl ({a_impl = Some c} as a) ->
+				let origin = Self (TAbstractDecl a) in
 				List.iter (fun cf ->
-					let ccf = CompletionClassField.make cf CFSMember (Self (decl_of_class c)) true in
-					if (has_class_field_flag cf CfEnum) && not (Meta.has Meta.NoCompletion cf.cf_meta) then
-						add (make_ci_enum_abstract_field a ccf (tpair cf.cf_type)) (Some cf.cf_name);
+					if has_class_field_flag cf CfImpl then begin
+						if ctx.e.curfun = FunStatic then ()
+						else begin
+							let cf = prepare_using_field cf in
+							maybe_add_field CFSMember origin cf
+						end
+					end else
+						maybe_add_field CFSStatic origin cf
 				) c.cl_ordered_statics
-			| TTypeDecl t ->
-				begin match follow t.t_type with
-					| TEnum (e,_) -> enum_ctors (TEnumDecl e)
-					| _ -> ()
-				end
-			| TEnumDecl e when not (path_exists cctx e.e_path) ->
-				add_path cctx e.e_path;
-				let origin = Self (TEnumDecl e) in
-				PMap.iter (fun _ ef ->
-					let is_qualified = is_qualified cctx ef.ef_name in
-					add (make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) (tpair ef.ef_type)) (Some ef.ef_name)
-				) e.e_constrs;
 			| _ ->
-				()
-		in
-		List.iter enum_ctors ctx.m.curmod.m_types;
-		List.iter enum_ctors (List.map fst ctx.m.import_resolution#extract_type_imports);
+				List.iter (maybe_add_field CFSStatic (Self (TClassDecl ctx.c.curclass))) ctx.c.curclass.cl_ordered_statics
+			end;
+		) ();
 
-		(* enum constructors of expected type *)
-		begin match with_type with
-			| WithType.WithType(t,_) ->
-				(try enum_ctors (module_type_of_type (follow t)) with Exit -> ())
-			| _ -> ()
-		end;
-		t();
-
-		let t = Timer.timer ["display";"toplevel collect";"globals"] in
-		(* imported globals *)
-		PMap.iter (fun name (mt,s,_) ->
-			try
-				let is_qualified = is_qualified cctx name in
-				let class_import c =
-					let cf = PMap.find s c.cl_statics in
-					let cf = if name = cf.cf_name then cf else {cf with cf_name = name} in
-					let decl,make = match c.cl_kind with
-						| KAbstractImpl a -> TAbstractDecl a,
-							if has_class_field_flag cf CfEnum then make_ci_enum_abstract_field a else make_ci_class_field
-						| _ -> TClassDecl c,make_ci_class_field
-					in
-					let origin = StaticImport decl in
-					if can_access ctx c cf true && not (Meta.has Meta.NoCompletion cf.cf_meta) then begin
-						add (make (CompletionClassField.make cf CFSStatic origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some name)
+		Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"enum ctors"] (fun () ->
+			(* enum constructors *)
+			let rec enum_ctors t =
+				match t with
+				| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum && not (path_exists cctx a.a_path) && ctx.c.curclass != c ->
+					add_path cctx a.a_path;
+					List.iter (fun cf ->
+						let ccf = CompletionClassField.make cf CFSMember (Self (decl_of_class c)) true in
+						if (has_class_field_flag cf CfEnum) && not (Meta.has Meta.NoCompletion cf.cf_meta) then
+							add (make_ci_enum_abstract_field a ccf (tpair cf.cf_type)) (Some cf.cf_name);
+					) c.cl_ordered_statics
+				| TTypeDecl t ->
+					begin match follow t.t_type with
+						| TEnum (e,_) -> enum_ctors (TEnumDecl e)
+						| _ -> ()
 					end
-				in
-				match resolve_typedef mt with
-					| TClassDecl c -> class_import c;
-					| TEnumDecl en ->
-						let ef = PMap.find s en.e_constrs in
-						let ef = if name = ef.ef_name then ef else {ef with ef_name = name} in
-						let origin = StaticImport (TEnumDecl en) in
-						add (make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) (tpair ef.ef_type)) (Some s)
-					| TAbstractDecl {a_impl = Some c} -> class_import c;
-					| _ -> raise Not_found
-			with Not_found ->
-				()
-		) ctx.m.import_resolution#extract_field_imports;
-		t();
+				| TEnumDecl e when not (path_exists cctx e.e_path) ->
+					add_path cctx e.e_path;
+					let origin = Self (TEnumDecl e) in
+					PMap.iter (fun _ ef ->
+						let is_qualified = is_qualified cctx ef.ef_name in
+						add (make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) (tpair ef.ef_type)) (Some ef.ef_name)
+					) e.e_constrs;
+				| _ ->
+					()
+			in
+			List.iter enum_ctors ctx.m.curmod.m_types;
+			List.iter enum_ctors (List.map fst ctx.m.import_resolution#extract_type_imports);
 
-		let t = Timer.timer ["display";"toplevel collect";"rest"] in
-		(* literals *)
-		add (make_ci_literal "null" (tpair t_dynamic)) (Some "null");
-		add (make_ci_literal "true" (tpair ctx.com.basic.tbool)) (Some "true");
-		add (make_ci_literal "false" (tpair ctx.com.basic.tbool)) (Some "false");
-		begin match ctx.e.curfun with
-			| FunMember | FunConstructor | FunMemberClassLocal ->
-				let t = TInst(ctx.c.curclass,extract_param_types ctx.c.curclass.cl_params) in
-				add (make_ci_literal "this" (tpair t)) (Some "this");
-				begin match ctx.c.curclass.cl_super with
-					| Some(c,tl) -> add (make_ci_literal "super" (tpair (TInst(c,tl)))) (Some "super")
-					| None -> ()
-				end
-			| FunMemberAbstract ->
-				let t = TInst(ctx.c.curclass,extract_param_types ctx.c.curclass.cl_params) in
-				add (make_ci_literal "abstract" (tpair t)) (Some "abstract");
-			| _ ->
-				()
-		end;
+			(* enum constructors of expected type *)
+			begin match with_type with
+				| WithType.WithType(t,_) ->
+					(try enum_ctors (module_type_of_type (follow t)) with Exit -> ())
+				| _ -> ()
+			end;
+		) ();
 
-		if not is_legacy_completion then begin
-			(* keywords *)
-			let kwds = [
-				Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
-				Try; New; Throw; Untyped; Cast; Inline;
-			] in
-			List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
+		Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"globals"] (fun () ->
+			(* imported globals *)
+			PMap.iter (fun name (mt,s,_) ->
+				try
+					let is_qualified = is_qualified cctx name in
+					let class_import c =
+						let cf = PMap.find s c.cl_statics in
+						let cf = if name = cf.cf_name then cf else {cf with cf_name = name} in
+						let decl,make = match c.cl_kind with
+							| KAbstractImpl a -> TAbstractDecl a,
+								if has_class_field_flag cf CfEnum then make_ci_enum_abstract_field a else make_ci_class_field
+							| _ -> TClassDecl c,make_ci_class_field
+						in
+						let origin = StaticImport decl in
+						if can_access ctx c cf true && not (Meta.has Meta.NoCompletion cf.cf_meta) then begin
+							add (make (CompletionClassField.make cf CFSStatic origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some name)
+						end
+					in
+					match resolve_typedef mt with
+						| TClassDecl c -> class_import c;
+						| TEnumDecl en ->
+							let ef = PMap.find s en.e_constrs in
+							let ef = if name = ef.ef_name then ef else {ef with ef_name = name} in
+							let origin = StaticImport (TEnumDecl en) in
+							add (make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) (tpair ef.ef_type)) (Some s)
+						| TAbstractDecl {a_impl = Some c} -> class_import c;
+						| _ -> raise Not_found
+				with Not_found ->
+					()
+			) ctx.m.import_resolution#extract_field_imports;
+		) ();
 
-			(* builtins *)
-			add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace")
-		end;
-		t()
+		Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"rest"] (fun () ->
+			(* literals *)
+			add (make_ci_literal "null" (tpair t_dynamic)) (Some "null");
+			add (make_ci_literal "true" (tpair ctx.com.basic.tbool)) (Some "true");
+			add (make_ci_literal "false" (tpair ctx.com.basic.tbool)) (Some "false");
+			begin match ctx.e.curfun with
+				| FunMember | FunConstructor | FunMemberClassLocal ->
+					let t = TInst(ctx.c.curclass,extract_param_types ctx.c.curclass.cl_params) in
+					add (make_ci_literal "this" (tpair t)) (Some "this");
+					begin match ctx.c.curclass.cl_super with
+						| Some(c,tl) -> add (make_ci_literal "super" (tpair (TInst(c,tl)))) (Some "super")
+						| None -> ()
+					end
+				| FunMemberAbstract ->
+					let t = TInst(ctx.c.curclass,extract_param_types ctx.c.curclass.cl_params) in
+					add (make_ci_literal "abstract" (tpair t)) (Some "abstract");
+				| _ ->
+					()
+			end;
+
+			if not is_legacy_completion then begin
+				(* keywords *)
+				let kwds = [
+					Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
+					Try; New; Throw; Untyped; Cast; Inline;
+				] in
+				List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
+
+				(* builtins *)
+				add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace")
+			end;
+		) ();
 	end;
 
 	(* type params *)
@@ -473,75 +472,76 @@ let collect ctx tk with_type sort =
 	(* module imports *)
 	List.iter add_type (List.rev_map fst ctx.m.import_resolution#extract_type_imports); (* reverse! *)
 
-	let t_syntax = Timer.timer ["display";"toplevel collect";"syntax"] in
-	(* types from files *)
 	let cs = ctx.com.cs in
-	(* online: iter context files *)
-	init_or_update_server cs ctx.com ["display";"toplevel"];
-	let cc = CommonCache.get_cache ctx.com in
-	let files = cc#get_files in
-	(* Sort files by reverse distance of their package to our current package. *)
-	let files = Hashtbl.fold (fun file cfile acc ->
-		let i = pack_similarity curpack cfile.c_package in
-		((file,cfile),i) :: acc
-	) files [] in
-	let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
-	let check_package pack = match List.rev pack with
+		let check_package pack = match List.rev pack with
 		| [] -> ()
 		| s :: sl -> add_package (List.rev sl,s)
 	in
-	List.iter (fun ((file_key,cfile),_) ->
-		let module_name = CompilationCache.get_module_name_of_cfile cfile.c_file_path.file cfile in
-		let dot_path = s_type_path (cfile.c_package,module_name) in
-		(* In legacy mode we only show toplevel types. *)
-		if is_legacy_completion && cfile.c_package <> [] then begin
-			(* And only toplevel packages. *)
-			match cfile.c_package with
-			| [s] -> add_package ([],s)
-			| _ -> ()
-		end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
-			()
-		else begin
-			ctx.com.module_to_file#add (cfile.c_package,module_name) cfile.c_file_path;
-			if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
-		end
-	) files;
-	t_syntax();
+	Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"syntax"] (fun () ->
+		(* types from files *)
+		(* online: iter context files *)
+		init_or_update_server cs ctx.com ["display";"toplevel"];
+		let cc = CommonCache.get_cache ctx.com in
+		let files = cc#get_files in
+		(* Sort files by reverse distance of their package to our current package. *)
+		let files = Hashtbl.fold (fun file cfile acc ->
+			let i = pack_similarity curpack cfile.c_package in
+			((file,cfile),i) :: acc
+		) files [] in
+		let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
+		List.iter (fun ((file_key,cfile),_) ->
+			let module_name = CompilationCache.get_module_name_of_cfile cfile.c_file_path.file cfile in
+			let dot_path = s_type_path (cfile.c_package,module_name) in
+			(* In legacy mode we only show toplevel types. *)
+			if is_legacy_completion && cfile.c_package <> [] then begin
+				(* And only toplevel packages. *)
+				match cfile.c_package with
+				| [s] -> add_package ([],s)
+				| _ -> ()
+			end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
+				()
+			else begin
+				ctx.com.module_to_file#add (cfile.c_package,module_name) cfile.c_file_path;
+				if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
+			end
+		) files;
+	) ();
 
-	let t_native_lib = Timer.timer ["display";"toplevel collect";"native lib"] in
-	List.iter (fun file ->
-		match cs#get_native_lib file with
-		| Some lib ->
-			Hashtbl.iter (fun path (pack,decls) ->
-				if process_decls pack (snd path) decls then check_package pack;
-			) lib.c_nl_files
-		| None ->
-			()
-	) ctx.com.native_libs.all_libs;
-	t_native_lib();
+	Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"native lib"] (fun () ->
+		List.iter (fun file ->
+			match cs#get_native_lib file with
+			| Some lib ->
+				Hashtbl.iter (fun path (pack,decls) ->
+					if process_decls pack (snd path) decls then check_package pack;
+				) lib.c_nl_files
+			| None ->
+				()
+		) ctx.com.native_libs.all_libs;
+	) ();
 
-	let t_packages = Timer.timer ["display";"toplevel collect";"packages"] in
-	(* packages *)
-	Hashtbl.iter (fun path _ ->
-		let full_pack = fst path @ [snd path] in
-		if is_pack_visible full_pack then add (make_ci_package path []) (Some (snd path))
-	) packages;
-	t_packages();
+	Timer.time ctx.com.timer_ctx ["display";"toplevel collect";"packages"] (fun () ->
+		(* packages *)
+		Hashtbl.iter (fun path _ ->
+			let full_pack = fst path @ [snd path] in
+			if is_pack_visible full_pack then add (make_ci_package path []) (Some (snd path))
+		) packages;
+	) ();
 
-	t();
-
-	let t = Timer.timer ["display";"toplevel sorting"] in
-	(* sorting *)
-	let l = DynArray.to_list cctx.items in
-	let l = if is_legacy_completion then
-		List.sort (fun item1 item2 -> compare (get_name item1) (get_name item2)) l
-	else if sort then
-		Display.sort_fields l with_type tk
-	else
+	Timer.time ctx.com.timer_ctx ["display";"toplevel sorting"] (fun () ->
+		(* sorting *)
+		let l = DynArray.to_list cctx.items in
+		let l = if is_legacy_completion then
+			List.sort (fun item1 item2 -> compare (get_name item1) (get_name item2)) l
+		else if sort then
+			Display.sort_fields l with_type tk
+		else
+			l
+		in
 		l
-	in
-	t();
-	l
+	) ()
+
+let collect ctx tk with_type sort =
+	Timer.time ctx.com.timer_ctx ["display";"toplevel collect"] (collect ctx tk with_type) sort
 
 let collect_and_raise ctx tk with_type cr (name,pname) pinsert =
 	let fields = match !DisplayException.last_completion_pos with

@@ -22,6 +22,7 @@ class BaseDisplayTestContext {
 	var markers:Map<Int, Int>;
 	var fieldName:String;
 
+	public var target:Null<haxe.macro.Compiler.Platform> = Cross;
 	public final source:File;
 
 	public function new(path:String, fieldName:String, source:String, markers:Map<Int, Int>) {
@@ -57,6 +58,21 @@ class BaseDisplayTestContext {
 	}
 
 	public function runHaxe(args:Array<String>, ?stdin:String) {
+		args = switch (target) {
+			case Cross: args;
+			case Js: ["--js", "out.js"].concat(args);
+			case Lua: ["--lua", "out.lua"].concat(args);
+			case Neko: ["--neko", "out.n"].concat(args);
+			case Flash: ["--swf", "out.swf"].concat(args);
+			case Php: ["--php", "php-out"].concat(args);
+			case Cpp: ["--cpp", "cpp-out"].concat(args);
+			case Jvm: ["--jvm", "out.jar"].concat(args);
+			case Python: ["--python", "out.py"].concat(args);
+			case Hl: ["--hl", "out.hl"].concat(args);
+			case Eval: ["--interp"].concat(args);
+			case CustomTarget(name): ["--custom-target", name].concat(args);
+		}
+
 		return haxeServer.rawRequest([
 			"--cwd", dir,
 			"-cp", '${Sys.getCwd()}/src-misc',

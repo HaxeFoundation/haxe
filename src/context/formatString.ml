@@ -1,7 +1,7 @@
 open Globals
 open Ast
 
-let format_string defines s p process_expr =
+let format_string config s p process_expr =
 	let e = ref None in
 	let pmin = ref p.pmin in
 	let min = ref (p.pmin + 1) in
@@ -83,8 +83,8 @@ let format_string defines s p process_expr =
 					if Lexer.string_is_whitespace scode then Error.raise_typing_error "Expression cannot be empty" ep
 					else Error.raise_typing_error msg pos
 				in
-				match ParserEntry.parse_expr_string defines scode ep error true with
-					| ParseSuccess(data,_,_) -> data
+				match ParserEntry.parse_expr_string config scode ep error true with
+					| ParseSuccess(data,_) -> data
 					| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
 			in
 			add_expr e slen

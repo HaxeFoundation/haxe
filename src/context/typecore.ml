@@ -94,11 +94,9 @@ type typer_globals = {
 	mutable delayed : typer_pass_tasks Array.t;
 	mutable delayed_min_index : int;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
-	doinline : bool;
 	retain_meta : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
-	mutable std_types : module_def;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
 	mutable global_using : (tclass * pos) list;
 	(* Indicates that Typer.create() finished building this instance *)
@@ -408,7 +406,7 @@ let unify_raise_custom uctx t1 t2 p =
 			(* no untyped check *)
 			raise_error_msg (Unify l) p
 
-let unify_raise = unify_raise_custom default_unification_context
+let unify_raise a b = unify_raise_custom (default_unification_context()) a b
 
 let save_locals ctx =
 	let locals = ctx.f.locals in
@@ -438,8 +436,6 @@ let add_local ctx k n t p =
 let add_local_with_origin ctx origin n t p =
 	Naming.check_local_variable_name ctx.com n origin p;
 	add_local ctx (VUser origin) n t p
-
-let gen_local_prefix = "`"
 
 let gen_local ctx t p =
 	add_local ctx VGenerated gen_local_prefix t p
@@ -500,15 +496,6 @@ let make_lazy ctx t_proc f where =
 	delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
 
-let is_removable_field com f =
-	not (has_class_field_flag f CfOverride) && (
-		has_class_field_flag f CfExtern || has_class_field_flag f CfGeneric
-		|| (match f.cf_kind with
-			| Var {v_read = AccRequire (s,_)} -> true
-			| Method MethMacro -> not com.is_macro_context
-			| _ -> false)
-	)
-
 let is_forced_inline c cf =
 	match c with
 	| Some { cl_kind = KAbstractImpl _ } -> true
@@ -517,7 +504,7 @@ let is_forced_inline c cf =
 	| _ -> false
 
 let needs_inline ctx c cf =
-	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.g.doinline || is_forced_inline c cf)
+	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.com.doinline || is_forced_inline c cf)
 
 (** checks if we can access to a given class field using current context *)
 let can_access ctx c cf stat =
@@ -663,6 +650,28 @@ let safe_mono_close ctx m p =
 
 let relative_path ctx file =
 	ctx.com.class_paths#relative_path file
+
+let mk_infos_t =
+	let fileName = ("fileName",null_pos,NoQuotes) in
+	let lineNumber = ("lineNumber",null_pos,NoQuotes) in
+	let className = ("className",null_pos,NoQuotes) in
+	let methodName = ("methodName",null_pos,NoQuotes) in
+	(fun ctx p params t ->
+		let file = if ctx.com.is_macro_context then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
+		let line = Lexer.get_error_line p in
+		let class_name = s_type_path ctx.c.curclass.cl_path in
+		let fields =
+			(fileName,Texpr.Builder.make_string ctx.com.basic file p) ::
+			(lineNumber,Texpr.Builder.make_int ctx.com.basic line p) ::
+			(className,Texpr.Builder.make_string ctx.com.basic class_name p) ::
+			if ctx.f.curfield.cf_name = "" then
+				params
+			else
+				(methodName,Texpr.Builder.make_string ctx.com.basic ctx.f.curfield.cf_name p) ::
+				params
+		in
+		mk (TObjectDecl fields) t p
+	)
 
 let mk_infos ctx p params =
 	let file = if ctx.com.is_macro_context then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in

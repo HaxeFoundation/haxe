@@ -30,7 +30,7 @@ let s_module_type_kind = function
 
 
 module MonomorphPrinting = struct
-	let show_mono_ids = true
+	let show_mono_ids = ref true
 
 	let s_mono_constraint_kind s_type constr =
 		let rec loop = function
@@ -42,7 +42,7 @@ module MonomorphPrinting = struct
 		loop constr
 
 	let print_mono_name m id extra =
-		let s = if show_mono_ids then
+		let s = if !show_mono_ids then
 			Printf.sprintf "Unknown<%d>" id
 		else
 			"Unknown"
