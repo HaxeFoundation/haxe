@@ -23,7 +23,7 @@ type native_lib_flags =
 	| FlagIsStd
 	| FlagIsExtern
 
-class virtual ['a,'data] native_library (name : string) (file_path : string) = object(self)
+class virtual native_library_base (name : string) (file_path : string) = object(self)
 	val mutable flags : native_lib_flags list = []
 
 	method add_flag flag = flags <- flag :: flags
@@ -31,6 +31,10 @@ class virtual ['a,'data] native_library (name : string) (file_path : string) = o
 
 	method get_name = name
 	method get_file_path = file_path
+end
+
+class virtual ['a,'data] native_library (name : string) (file_path : string) = object(self)
+	inherit native_library_base name file_path
 
 	method virtual build : path -> pos -> Ast.package option
 	method virtual close : unit

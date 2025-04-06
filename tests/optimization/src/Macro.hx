@@ -53,17 +53,24 @@ class Macro {
 		className = className.replace(".", "_");
 		#end
 		var fields = [];
-		function checkField(cf:ClassField) {
+		function checkField(cf:ClassField, isStatic:Bool) {
 			if (cf.meta.has(":js")) {
-				fields.push({name: cf.name, js: extractJs(cf.meta.get()), pos: cf.pos});
+				fields.push({
+					name: cf.name,
+					isStatic: isStatic,
+					js: extractJs(cf.meta.get()),
+					pos: cf.pos
+				});
 			}
 		}
 		for (cf in c.statics.get()) {
-			checkField(cf);
+			checkField(cf, true);
+		}
+		for (cf in c.fields.get()) {
+			checkField(cf, false);
 		}
 		for (field in fields) {
-			var name = '$className.${field.name}';
-			var output = getOutput(name);
+			var output = getOutput(className, field.name, field.isStatic);
 			++tests;
 			if (output != field.js) {
 				++failures;
@@ -90,19 +97,36 @@ class Macro {
 		throw false;
 	}
 
-	static function getOutput(identifier:String) {
+	static function getOutput(cls:String, field:String, isStatic:Bool) {
 		var buf = new StringBuf();
 		for (i in 0...lines.length) {
-			if (lines[i].startsWith(identifier)) {
-				for (k in (i + 1)...lines.length) {
-					if (lines[k].startsWith("\t")) {
-						buf.add(lines[k].trim());
-					} else {
-						return buf.toString();
+			if (isStatic) {
+				if (lines[i].startsWith('$cls.$field =')) {
+					for (k in (i + 1)...lines.length) {
+						if (lines[k].startsWith("\t")) {
+							buf.add(lines[k].trim());
+						} else {
+							return buf.toString();
+						}
+					}
+				}
+			} else {
+				if (lines[i].startsWith('$cls.prototype =')) {
+					for (k in (i + 1)...lines.length) {
+						if (lines[k].startsWith('\t$field: ') || lines[k].startsWith('\t,$field: ')) {
+							for (l in (k + 1)...lines.length) {
+								if (lines[l].startsWith("\t\t")) {
+									buf.add(lines[l].trim());
+								} else {
+									return buf.toString();
+								}
+							}
+						}
 					}
 				}
 			}
 		}
+		final identifier = isStatic ? '$cls.$field' : '$cls.prototype.$field';
 		return Context.error('Could not find $identifier in output', Context.currentPos());
 	}
 }

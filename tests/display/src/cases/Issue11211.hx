@@ -28,7 +28,7 @@ class Issue11211 extends DisplayTestCase {
 		}
 
 		#if !macro
-		@:build(cases.Issue11211.SafeAst.build())
+		@:build(Issue11211.SafeAst.build())
 		class Main {
 			static function main() {
 				var errRa{-1-}nge = 0;

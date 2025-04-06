@@ -64,6 +64,7 @@ let declassify = function
 	| CObject -> object_path_sig object_path
 
 class typed_functions = object(self)
+	val signature_mutex = Mutex.create ()
 	val signatures = Hashtbl.create 0
 	val mutable max_arity = 0
 
@@ -80,10 +81,27 @@ class typed_functions = object(self)
 		(cl : signature_classification list)
 		(cr : signature_classification option)
 	=
-		try
+		Mutex.lock signature_mutex;
+		let meth = try
 			Hashtbl.find signatures (cl,cr)
 		with Not_found ->
 			self#do_register_signature cl cr
+		in
+		Mutex.unlock signature_mutex;
+		(* If the method has something that's not java.lang.Object, the next method is one where all arguments are
+		   of type java.lang.Object. *)
+		   if meth.has_nonobject then begin
+			let meth_objects = self#objectify meth in
+			meth.next <- Some meth_objects;
+		(* Otherwise, if the method has a return type that's not java.lang.Object, the next method is one that returns
+		   java.lang.Object. *)
+		end else begin match cr with
+			| Some CObject ->
+				()
+			| _ ->
+				meth.next <- Some (self#get_signature meth.cargs (Some CObject))
+		end;
+		meth
 
 	method private do_register_signature
 		(cl : signature_classification list)
@@ -107,19 +125,6 @@ class typed_functions = object(self)
 		} in
 		if meth.arity > max_arity then max_arity <- meth.arity;
 		Hashtbl.add signatures (meth.cargs,meth.cret) meth;
-		(* If the method has something that's not java.lang.Object, the next method is one where all arguments are
-		   of type java.lang.Object. *)
-		if meth.has_nonobject then begin
-			let meth_objects = self#objectify meth in
-			meth.next <- Some meth_objects;
-		(* Otherwise, if the method has a return type that's not java.lang.Object, the next method is one that returns
-		   java.lang.Object. *)
-		end else begin match cr with
-			| Some CObject ->
-				()
-			| _ ->
-				meth.next <- Some (self#get_signature meth.cargs (Some CObject))
-		end;
 		meth
 
 	method make_forward_method_jsig
@@ -341,6 +346,7 @@ class typed_function
 				Printf.sprintf "%s_%s" (snd path) (patch_name name)
 		in
 		let jc = host_class#spawn_inner_class None haxe_function_path (Some name) in
+		jc#add_typed_function jc#get_this_path;
 		jc#add_access_flag 0x10; (* final *)
 		jc
 

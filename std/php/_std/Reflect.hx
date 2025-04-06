@@ -20,12 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import haxe.Constraints;
 import php.Boot;
-import php.Syntax;
 import php.Closure;
 import php.Const;
 import php.NativeAssocArray;
-import haxe.Constraints;
+import php.Syntax;
 
 using php.Global;
 
@@ -171,8 +171,7 @@ using php.Global;
 		}
 	}
 
-	@:overload(function(f:Array<Dynamic>->Void):Dynamic {})
-	public static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic {
+	public static function makeVarArgs<T>(f:Array<Dynamic>->T):Dynamic {
 		return function() {
 			return Global.call_user_func(f, @:privateAccess Array.wrap(Global.func_get_args()));
 		}

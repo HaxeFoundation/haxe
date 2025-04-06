@@ -13,6 +13,8 @@ import haxe.test.TEnum;
 import java.util.EnumSet;
 import java.vm.*;
 
+using jvm.NativeTools;
+
 #if jvm
 @:strict(haxe.test.MyClass.MyClass_MyAnnotation({author: "John Doe", someEnum: TB}))
 @:strict(MyClass_ParameterLessAnnotation)
@@ -84,15 +86,15 @@ class TestJava extends Test {
 
 	@:strict(MyClass_MyAnnotation({author: "author", currentRevision: 2}))
 	public function testAnnotations() {
-		var cl = java.Lib.toNativeType(TestJava);
-		var a = cl.getAnnotation(java.Lib.toNativeType(MyClass_MyAnnotation));
+		var cl = TestJava.native();
+		var a = cl.getAnnotation(MyClass_MyAnnotation.native());
 		t(a != null);
 		eq(a.author(), "John Doe");
 		eq(a.someEnum(), TB);
 		eq(a.currentRevision(), 1);
-		t(cl.getAnnotation(java.Lib.toNativeType(MyClass_ParameterLessAnnotation)) != null);
+		t(cl.getAnnotation(MyClass_ParameterLessAnnotation.native()) != null);
 		var m = cl.getMethod("testAnnotations");
-		a = m.getAnnotation(java.Lib.toNativeType(MyClass_MyAnnotation));
+		a = m.getAnnotation(MyClass_MyAnnotation.native());
 		t(a != null);
 		eq(a.author(), "author");
 		eq(a.someEnum(), TC);
@@ -110,7 +112,7 @@ class TestJava extends Test {
 	}
 
 	function testEnumSet() {
-		var es1:EnumSet<TEnum> = EnumSet.noneOf(java.Lib.toNativeEnum(TEnum));
+		var es1:EnumSet<TEnum> = EnumSet.noneOf(TEnum.native());
 		f(es1.contains(TA));
 		es1.add(TA);
 		t(es1.contains(TA));

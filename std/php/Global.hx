@@ -2158,4 +2158,29 @@ extern class Global {
 		@see http://php.net/manual/en/function.php-strip-whitespace.php
 	**/
 	static function php_strip_whitespace(filename: String): String;
+
+	/**
+		@see http://php.net/manual/en/function.posix-getgid.php
+	**/
+	static function posix_getgid(): Int;
+
+	/**
+		@see http://php.net/manual/en/function.posix-getpid.php
+	**/
+	static function posix_getpid(): Int;
+
+	/**
+		@see http://php.net/manual/en/function.posix-getuid.php
+	**/
+	static function posix_getuid(): Int;
+
+	/**
+		@see http://php.net/manual/en/function.posix-setgid.php
+	**/
+	static function posix_setgid(group_id: Int): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.posix-setuid.php
+	**/
+	static function posix_setuid(user_id: Int): Bool;
 }

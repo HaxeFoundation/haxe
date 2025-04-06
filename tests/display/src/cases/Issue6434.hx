@@ -2,7 +2,7 @@ package cases;
 
 class Issue6434 extends DisplayTestCase {
 	/**
-		import misc.ModuleWithPrivateType;
+		import ModuleWithPrivateType;
 
 		class Main {
 			static function main() {

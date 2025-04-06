@@ -183,9 +183,7 @@ module BetterErrors = struct
 	let rec s_type ctx t =
 		match t with
 		| TMono r ->
-			(match r.tm_type with
-			| None -> Printf.sprintf "Unknown<%d>" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n)
-			| Some t -> s_type ctx t)
+			MonomorphPrinting.s_mono s_type ctx false r
 		| TEnum (e,tl) ->
 			s_type_path e.e_path ^ s_type_params ctx tl
 		| TInst (c,tl) ->

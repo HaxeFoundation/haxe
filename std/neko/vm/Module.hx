@@ -103,7 +103,7 @@ class Module {
 	}
 
 	/**
-		Each Module has an export table which can be useful to transfert
+		Each Module has an export table which can be useful to transfer
 		values between modules.
 	**/
 	public function getExports():Map<String, Dynamic> {
@@ -157,7 +157,7 @@ class Module {
 	}
 
 	/**
-		Reads a module from a name and using the specified seach path and loader.
+		Reads a module from a name and using the specified search path and loader.
 		The module is initialized but has not yet been executed.
 	**/
 	public static function readPath(name:String, path:Array<String>, loader:Loader) {

@@ -3,8 +3,6 @@ exception HelpMessage of string
 
 let is_debug_run = try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
 
-let start_time = ref (Timer.get_time())
-
 let prompt = ref false
 
 let expand_env ?(h=None) path  =

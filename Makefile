@@ -59,30 +59,18 @@ PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(COMMIT_SHA)
 HAXE_VERSION=$(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1 | awk '{print $$1;}')
 HAXE_VERSION_SHORT=$(shell echo "$(HAXE_VERSION)" | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+")
 
-NEKO_VERSION=2.3.0
+NEKO_VERSION=2.4.0-rc.1
 NEKO_MAJOR_VERSION=$(shell echo "$(NEKO_VERSION)" | grep -oE "^[0-9]+")
 NEKO_VERSION_TAG=v$(shell echo "$(NEKO_VERSION)" | sed "s/\./-/g")
-
-ifneq ($(STATICLINK),0)
-	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre2-8 -lz -lmbedtls -lmbedx509 -lmbedcrypto -Wl,-Bdynamic '
-else
-	LIB_PARAMS?= -cclib -lpcre2-8 -cclib -lz -cclib -lmbedtls -cclib -lmbedx509 -cclib -lmbedcrypto
-endif
-ifeq ($(SYSTEM_NAME),Mac)
-	LIB_PARAMS+= -cclib '-framework Security -framework CoreFoundation'
-endif
 
 all: haxe tools
 
 haxe:
-	$(DUNE_COMMAND) build --workspace dune-workspace.dev src-prebuild/prebuild.exe
-	_build/default/src-prebuild/prebuild.exe libparams $(LIB_PARAMS) > lib.sexp
-	_build/default/src-prebuild/prebuild.exe version "$(ADD_REVISION)" "$(BRANCH)" "$(COMMIT_SHA)" > src/compiler/version.ml
-	$(DUNE_COMMAND) build --workspace dune-workspace.dev src/haxe.exe
+	dune build --profile release src/haxe.exe
 	cp -f _build/default/src/haxe.exe ./"$(HAXE_OUTPUT)"
 
 plugin: haxe
-	$(DUNE_COMMAND) build --workspace dune-workspace.dev plugins/$(PLUGIN)/$(PLUGIN).cmxs
+	$(DUNE_COMMAND) build --profile release plugins/$(PLUGIN)/$(PLUGIN).cmxs
 	mkdir -p plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)
 	cp -f _build/default/plugins/$(PLUGIN)/$(PLUGIN).cmxs plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)/plugin.cmxs
 
@@ -142,7 +130,7 @@ uninstall:
 	rm -rf $(DESTDIR)$(INSTALL_STD_DIR)
 
 opam_install:
-	opam install camlp5 ocamlfind dune --yes
+	opam install ocamlfind dune --yes
 
 haxe_deps:
 	opam pin add haxe . --no-action
@@ -181,19 +169,29 @@ xmldoc:
 $(INSTALLER_TMP_DIR):
 	mkdir -p $(INSTALLER_TMP_DIR)
 
-$(INSTALLER_TMP_DIR)/neko-osx64.tar.gz: $(INSTALLER_TMP_DIR)
-	wget -nv https://github.com/HaxeFoundation/neko/releases/download/$(NEKO_VERSION_TAG)/neko-$(NEKO_VERSION)-osx64.tar.gz -O installer/neko-osx64.tar.gz
+# Can be 'universal', 'arm64', or 'x86_64'
+ifndef PACKAGE_INSTALLER_MAC_ARCH
+PACKAGE_INSTALLER_MAC_ARCH:=$(shell uname -m)
+endif
+
+$(INSTALLER_TMP_DIR)/neko-osx.tar.gz: $(INSTALLER_TMP_DIR)
+	NEKO_ARCH_SUFFIX=$$(if [ "$(PACKAGE_INSTALLER_MAC_ARCH)" = "x86_64" ]; then \
+		echo 64; \
+	else \
+		echo "-$(PACKAGE_INSTALLER_MAC_ARCH)"; \
+	fi); \
+	wget -nv https://github.com/HaxeFoundation/neko/releases/download/$(NEKO_VERSION_TAG)/neko-$(NEKO_VERSION)-osx$$NEKO_ARCH_SUFFIX.tar.gz -O installer/neko-osx.tar.gz
 
 # Installer
 
-package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
+package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx.tar.gz package_unix
 	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.tar.gz)
 	$(eval PACKFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz)
 	$(eval VERSION := $(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1))
 	bash -c "rm -rf $(INSTALLER_TMP_DIR)/{resources,pkg,tgz,haxe.tar.gz}"
 	mkdir $(INSTALLER_TMP_DIR)/resources
 	# neko - unpack to change the dir name
-	cd $(INSTALLER_TMP_DIR)/resources && tar -zxvf ../neko-osx64.tar.gz
+	cd $(INSTALLER_TMP_DIR)/resources && tar -zxvf ../neko-osx.tar.gz
 	mv $(INSTALLER_TMP_DIR)/resources/neko* $(INSTALLER_TMP_DIR)/resources/neko
 	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf neko.tar.gz neko
 	# haxe - unpack to change the dir name

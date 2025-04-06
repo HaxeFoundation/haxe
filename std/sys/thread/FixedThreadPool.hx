@@ -72,7 +72,7 @@ class FixedThreadPool implements IThreadPool {
 
 	/**
 		Initiates a shutdown.
-		All previousely submitted tasks will be executed, but no new tasks will
+		All previously submitted tasks will be executed, but no new tasks will
 		be accepted.
 
 		Multiple calls to this method have no effect.

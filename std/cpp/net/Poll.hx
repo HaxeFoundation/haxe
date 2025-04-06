@@ -25,30 +25,64 @@ package cpp.net;
 import sys.net.Socket;
 import cpp.NativeSocket;
 
+/**
+ * A wrapper around native socket polling functionality for monitoring multiple sockets for I/O readiness.
+ * This class provides a high-level abstraction over native `poll` operations, allowing you to monitor sockets for read and write events.
+ */
 class Poll {
 	var mPollHandle:Dynamic;
-
+	
+	/**
+     	 * An array of indices corresponding to sockets ready for reading after polling.
+     	 */
 	public var readIndexes:Array<Int>;
+	
+	/**
+     	 * An array of indices corresponding to sockets ready for writing after polling.
+     	 */
 	public var writeIndexes:Array<Int>;
 
+	/**
+    	 * Creates a new `Poll` instance.
+     	 * 
+     	 * @param n The maximum number of sockets to monitor.
+     	 */
 	public function new(n:Int) {
 		mPollHandle = NativeSocket.socket_poll_alloc(n);
 		readIndexes = [];
 		writeIndexes = [];
 	}
 
+	/**
+     	 * Prepares the poll structure for monitoring read and write events on the given sockets.
+     	 * 
+     	 * @param read  An array of sockets to monitor for readability.
+     	 * @param write An array of sockets to monitor for writability.
+     	 */
 	public function prepare(read:Array<Socket>, write:Array<Socket>) {
 		var k = NativeSocket.socket_poll_prepare(mPollHandle, read, write);
 		readIndexes = k[0];
 		writeIndexes = k[1];
 	}
 
+	/**
+     	 * Waits for events on the prepared sockets.
+     	 * 
+     	 * @param t The timeout in seconds. Use `-1.0` for an infinite wait. Defaults to `-1.0` if not specified.
+     	 */
 	public function events(?t:Float) {
 		if (t == null)
 			t = -1.0;
 		NativeSocket.socket_poll_events(mPollHandle, t);
 	}
 
+	/**
+     	 * Polls the given sockets for any events (e.g., readability or writability).
+     	 * 
+     	 * @param a An array of sockets to monitor for events.
+     	 * @param t The timeout in seconds. Use `-1.0` for an infinite wait. Defaults to `-1.0` if not specified.
+     	 * @return An array of sockets that are ready for I/O operations.
+     	 */
 	public function poll(a:Array<Socket>, ?t:Float):Array<Socket> {
 		if (t == null)
 			t = -1.0;

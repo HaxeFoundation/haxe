@@ -20,8 +20,7 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 	in
 
 	let mk_pos_infos t =
-		let infos = mk_infos ctx callp [] in
-		type_expr ctx infos (WithType.with_type t)
+		mk_infos_t ctx callp [] t
 	in
 	let default_value name t =
 		if is_pos_infos t then
@@ -133,7 +132,7 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 				ignore(loop [] args);
 				[]
 			end else begin match loop [] args with
-				| [] when not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
+				| [] when not (inline && (ctx.com.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
 					if is_pos_infos t then [mk_pos_infos t]
 					else []
 				| args ->
@@ -232,7 +231,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			cfl,Some c,false,TClass.get_map_function c tl,(fun t -> t)
 		| FHAbstract(a,tl,c) ->
 			let map = apply_params a.a_params tl in
-			let tmap = if fa.fa_field.cf_name = "_new" (* TODO: BAD BAD BAD BAD *) then (fun t -> t) else (fun t -> map a.a_this) in
+			let tmap = if has_class_field_flag fa.fa_field CfAbstractConstructor then (fun t -> t) else (fun t -> map a.a_this) in
 			expand_overloads fa.fa_field,Some c,true,map,tmap
 	in
 	let is_forced_inline = is_forced_inline co fa.fa_field in
@@ -327,11 +326,11 @@ let unify_field_call ctx fa el_typed el p inline =
 			| cf :: candidates ->
 				let known_monos = List.map (fun (m,_) ->
 					m,m.tm_type,m.tm_down_constraints
-				) ctx.e.monomorphs.perfunction in
-				let current_monos = ctx.e.monomorphs.perfunction in
+				) ctx.e.monomorphs in
+				let current_monos = ctx.e.monomorphs in
 				begin try
 					let candidate = attempt_call cf true in
-					ctx.e.monomorphs.perfunction <- current_monos;
+					ctx.e.monomorphs <- current_monos;
 					if overload_kind = OverloadProper then begin
 						let candidates,failures = loop candidates in
 						candidate :: candidates,failures
@@ -342,7 +341,7 @@ let unify_field_call ctx fa el_typed el p inline =
 						if t != m.tm_type then m.tm_type <- t;
 						if constr != m.tm_down_constraints then m.tm_down_constraints <- constr;
 					) known_monos;
-					ctx.e.monomorphs.perfunction <- current_monos;
+					ctx.e.monomorphs <- current_monos;
 					check_unknown_ident err;
 					let candidates,failures = loop candidates in
 					candidates,(cf,err,extract_delayed_display()) :: failures
@@ -655,3 +654,15 @@ let maybe_reapply_overload_call ctx e =
 			end
 		| _ ->
 			e
+
+let make_static_call_better ctx c cf tl el t p =
+	let fh = match c.cl_kind with
+		| KAbstractImpl a when has_class_field_flag cf CfImpl ->
+			FHAbstract(a,tl,c)
+		| _ ->
+			FHStatic c
+	in
+	let e1 = Builder.make_static_this c p in
+	let fa = FieldAccess.create e1 cf fh false p in
+	let fcc = unify_field_call ctx fa el [] p false in
+	fcc.fc_data()

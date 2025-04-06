@@ -404,8 +404,6 @@ class Bytes {
 		interpreted with the given `encoding` (UTF-8 by default).
 	**/
 	public function getString(pos:Int, len:Int, ?encoding:Encoding):String {
-		if (encoding == null)
-			encoding == UTF8;
 		#if !neko
 		if (pos < 0 || len < 0 || pos + len > length)
 			throw Error.OutsideBounds;
