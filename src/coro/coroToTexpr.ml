@@ -359,9 +359,6 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 	let eswitch = mk (TSwitch switch) com.basic.tvoid p in
 
 	let eloop = mk (TWhile (make_bool com.basic true p, eswitch, NormalWhile)) com.basic.tvoid p in
-
-	Printf.printf "var shared between states\n";
-	decls |> List.iter (fun v -> Printf.printf "- %s\n" v.v_name);
 	
 	(* let shared_vars = List.map (fun v -> mk (TVar (v,Some (Texpr.Builder.default_value v.v_type v.v_pos))) com.basic.tvoid null_pos) decls in
 	let shared_vars = List.rev shared_vars in

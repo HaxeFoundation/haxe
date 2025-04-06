@@ -1,6 +1,73 @@
 package haxe.coro;
 
-import haxe.coro.Continuation;
+import sys.thread.Mutex;
+
+private class SafeContinuation<T> implements IContinuation<T> {
+    final _hx_completion:IContinuation<Any>;
+    
+    final lock:Mutex;
+
+    var assigned:Bool;
+
+    var _hx_result:Any;
+
+    var _hx_error:Any;
+
+	public final _hx_context:CoroutineContext;
+
+    public function new(completion) {
+        _hx_completion = completion;
+        _hx_context    = _hx_completion._hx_context;
+        _hx_result     = null;
+        _hx_error      = null;
+        assigned       = false;
+        lock           = new Mutex();
+    }
+
+    public function resume(result:T, error:Exception) {
+        _hx_context.scheduler.schedule(() -> {
+            lock.acquire();
+
+            if (assigned) {
+                lock.release();
+    
+                _hx_completion.resume(result, error);
+            } else {
+                assigned   = true;
+                _hx_result = result;
+                _hx_error  = error;
+
+                lock.release();
+            }
+        });
+    }
+
+    public function getOrThrow():Any {
+        lock.acquire();
+
+        if (assigned) {
+            if (_hx_error != null) {
+                final tmp = _hx_error;
+
+                lock.release();
+
+                throw tmp;
+            }
+
+            final tmp = _hx_result;
+
+            lock.release();
+
+            return tmp;
+        }
+
+        assigned = true;
+
+        lock.release();
+
+        return haxe.coro.Primitive.suspended;
+    }
+}
 
 /**
 	Coroutine function.
@@ -8,27 +75,13 @@ import haxe.coro.Continuation;
 @:callable
 @:coreType
 abstract Coroutine<T:haxe.Constraints.Function> {
-	/**
-		Suspend running coroutine and expose the continuation callback
-		for resuming coroutine execution.
-	**/
-	@:coroutine
-	#if cpp
-	@:native("::hx::Coroutine::suspend")
-	#end
-	public static extern function suspend<T>(f:(cont:Continuation<T>) -> Void):T;
+	@:coroutine public static function suspend<T>(func:(IContinuation<Any>)->Void):T {
+		final cont = haxe.coro.Intrinsics.currentContinuation();
+		final safe = new SafeContinuation(cont);
 
-	#if (jvm || eval)
-	@:native("suspend")
-	@:keep
-	static function nativeSuspend<T>(f, cont:Continuation<T>) {
-		return (_, _) -> f(cont);
-	}
-	#end
+		func(safe);
 
-	#if js // TODO: implement this all properly for all the targets
-	static function __init__():Void {
-		js.Syntax.code("{0} = {1}", Coroutine.suspend, cast function(f, cont) return (_, _) -> f(cont));
+		// This cast is important, need to figure out why / if there's a better solution.
+		return cast safe.getOrThrow();
 	}
-	#end
 }
