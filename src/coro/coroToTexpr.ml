@@ -33,7 +33,7 @@ let make_control_switch com e_subject e_normal e_error p =
 	} in
 	mk (TSwitch switch) com.basic.tvoid p
 
-let block_to_texpr_coroutine ctx cb cls forbidden_vars econtinuation ecompletion eresult estate p =
+let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation ecompletion eresult estate p =
 	let open Texpr.Builder in
 	let com = ctx.typer.com in
 
@@ -310,12 +310,39 @@ let block_to_texpr_coroutine ctx cb cls forbidden_vars econtinuation ecompletion
 			s.cs_el <- List.map loop s.cs_el)
 		states;
 
+	let states = List.sort (fun state1 state2 -> state1.cs_id - state2.cs_id) states in
+
+	(* Also check function argumens to see if they're used across states *)
+	(* If so insert an assignment into the initial state to set our hoisted field *)
+	let decls = decls @ List.filter_map (fun (arg, _) ->
+		let is_used_across_states v_id =
+			match Hashtbl.find_opt var_usages v_id with
+			| Some m ->
+				(Hashtbl.length m) > 1 && not ((List.exists (fun id -> id = v_id)) forbidden_vars)
+			| None ->
+				false
+		in
+		if is_used_across_states arg.v_id then
+			let mk_assign estate eid =
+				mk (TBinop (OpAssign,estate,eid)) eid.etype null_pos
+			in
+
+			let initial = List.hd states in
+			let field   = mk_field (Printf.sprintf "_hx_hoisted%i" arg.v_id) arg.v_type arg.v_pos null_pos in
+			let efield  = mk (TField(econtinuation,FInstance(cls, [], field))) field.cf_type p in
+			let assign  = mk_assign efield (Builder.make_local arg p) in
+
+			initial.cs_el <- assign :: initial.cs_el;
+
+			Some arg
+		else
+			None
+	) tf_args in
+
 	(* TODO:
 		we can optimize while and switch in some cases:
 		- if there's only one state (no suspensions) - don't wrap into while/switch, don't introduce state var
 	*)
-
-	let states = List.sort (fun state1 state2 -> state1.cs_id - state2.cs_id) states in
 
 	let ethrow = mk (TBlock [
 		mk (TThrow (make_string com.basic "Invalid coroutine state" p)) com.basic.tvoid p
