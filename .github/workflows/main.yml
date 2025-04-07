@@ -684,12 +684,12 @@ jobs:
         with:
           node-version: 18.17.1
 
-      - name: Quick test
-        shell: pwsh
-        run: |
-          $DOWNLOADDIR="./win$($env:ARCH)Binaries"
-          new-item -Name $DOWNLOADDIR -ItemType directory
-          Invoke-WebRequest https://build.haxe.org/builds/haxe/$env:PLATFORM/haxe_latest.zip -OutFile $DOWNLOADDIR/haxe_bin.zip
+      # - name: Quick test
+      #   shell: pwsh
+      #   run: |
+      #     $DOWNLOADDIR="./win$($env:ARCH)Binaries"
+      #     new-item -Name $DOWNLOADDIR -ItemType directory
+      #     Invoke-WebRequest https://build.haxe.org/builds/haxe/$env:PLATFORM/haxe_latest.zip -OutFile $DOWNLOADDIR/haxe_bin.zip
 
       - name: Setup Haxe
         shell: pwsh
