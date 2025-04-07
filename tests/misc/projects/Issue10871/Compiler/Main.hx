@@ -13,7 +13,7 @@ class MacroClass {
 	public static function start() {
 		final config = Compiler.getConfiguration();
 
-		trace(config.args);
+		trace(filterArgs(config.args));
 		trace(config.debug);
 		trace(config.verbose);
 		trace(config.foptimize);
@@ -36,6 +36,13 @@ class MacroClass {
 			case Cpp: "cpp";
 			case _: "unused platform";
 		}
+	}
+
+	static function filterArgs(args:Array<String>):Array<String> {
+		if (args.length < 2) return args;
+		// We're currently prepending that to all tests while moving to pretty errors by default
+		if (args[0] == "-D" && args[1] == "message.reporting=classic") return args.slice(2);
+		return args;
 	}
 }
 #end

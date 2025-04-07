@@ -45,52 +45,6 @@ let unop_index op flag = match op,flag with
 	| NegBits,Postfix -> 10
 	| Spread,Postfix -> 11
 
-module StringHashtbl = Hashtbl.Make(struct
-	type t = string
-
-	let equal =
-		String.equal
-
-	let hash s =
-		(* What's the best here? *)
-		Hashtbl.hash s
-end)
-
-module StringPool = struct
-	type t = {
-		lut : int StringHashtbl.t;
-		items : string DynArray.t;
-		mutable closed : bool;
-	}
-
-	let create () = {
-		lut = StringHashtbl.create 16;
-		items = DynArray.create ();
-		closed = false;
-	}
-
-	let add sp s =
-		assert (not sp.closed);
-		let index = DynArray.length sp.items in
-		StringHashtbl.add sp.lut s index;
-		DynArray.add sp.items s;
-		index
-
-	let get sp s =
-		StringHashtbl.find sp.lut s
-
-	let get_or_add sp s =
-		try
-			get sp s
-		with Not_found ->
-			add sp s
-
-	let finalize sp =
-		assert (not sp.closed);
-		sp.closed <- true;
-		DynArray.to_list sp.items,DynArray.length sp.items
-end
-
 module Pool = struct
 	type ('key,'value) t = {
 		lut : ('key,int) Hashtbl.t;
@@ -443,6 +397,7 @@ type hxb_writer = {
 	config : HxbWriterConfig.writer_target_config;
 	warn : Warning.warning -> string -> Globals.pos -> unit;
 	anon_id : Type.t Tanon_identification.tanon_identification;
+	identified_anons : (tanon,int) IdentityPool.t;
 	mutable current_module : module_def;
 	chunks : Chunk.t DynArray.t;
 	cp : StringPool.t;
@@ -469,11 +424,25 @@ type hxb_writer = {
 	mutable local_type_parameters : (typed_type_param,unit) IdentityPool.t;
 	mutable field_stack : unit list;
 	mutable wrote_local_type_param : bool;
+	mutable needs_local_context : bool;
 	unbound_ttp : (typed_type_param,unit) IdentityPool.t;
+	unclosed_mono : (tmono,unit) IdentityPool.t;
 	t_instance_chunk : Chunk.t;
 }
 
 module HxbWriter = struct
+	let get_backtrace () = Printexc.get_raw_backtrace ()
+	let get_callstack () = Printexc.get_callstack 200
+
+	let failwith writer msg backtrace =
+		let msg =
+			(Printf.sprintf "Compiler failure while writing hxb chunk %s of %s: %s\n" (string_of_chunk_kind writer.chunk.kind) (s_type_path writer.current_module.m_path) (msg))
+			^ "Please submit an issue at https://github.com/HaxeFoundation/haxe/issues/new\n"
+			^ "Attach the following information:"
+		in
+		let backtrace = Printexc.raw_backtrace_to_string backtrace in
+		raise (Globals.Ice (msg, backtrace))
+
 	let in_nested_scope writer = match writer.field_stack with
 		| [] -> false (* can happen for cl_init and in EXD *)
 		| [_] -> false
@@ -485,7 +454,7 @@ module HxbWriter = struct
 		let initial_size = match kind with
 			| EOT | EOF | EOM -> 0
 			| MDF -> 16
-			| MTF | MDR | CLR | END | ABD | ENR | ABR | TDR | EFR | CFR | AFD -> 64
+			| MTF | IMP | CLR | END | ABD | ENR | ABR | TDR | EFR | CFR | AFD -> 64
 			| OFR | OFD | OBD | CLD | TDD | EFD -> 128
 			| STR | DOC -> 256
 			| CFD | EXD -> 512
@@ -527,7 +496,7 @@ module HxbWriter = struct
 	let write_full_path writer (pack : string list) (mname : string) (tname : string) =
 		Chunk.write_list writer.chunk pack (Chunk.write_string writer.chunk);
 		if mname = "" || tname = "" then
-			die (Printf.sprintf "write_full_path: pack = %s, mname = %s, tname = %s" (String.concat "." pack) mname tname) __LOC__;
+			failwith writer (Printf.sprintf "write_full_path: pack = %s, mname = %s, tname = %s" (String.concat "." pack) mname tname) (get_callstack ());
 		Chunk.write_string writer.chunk mname;
 		Chunk.write_string writer.chunk tname
 
@@ -1006,12 +975,11 @@ module HxbWriter = struct
 		write_pos writer v.v_pos
 
 	let rec write_anon writer (an : tanon) =
-		let needs_local_context = ref false in
 		let write_fields () =
 			let restore = start_temporary_chunk writer 256 in
 			let i = ref 0 in
 			PMap.iter (fun _ cf ->
-				write_anon_field_ref writer needs_local_context cf;
+				write_anon_field_ref writer cf;
 				incr i;
 			) an.a_fields;
 			let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
@@ -1035,31 +1003,38 @@ module HxbWriter = struct
 			assert false
 		| AbstractStatics _ ->
 			assert false
-		end;
-		!needs_local_context
+		end
 
 	and write_anon_ref writer (an : tanon) =
-		let pfm = Option.get (writer.anon_id#identify_anon ~strict:true an) in
 		try
-			let index = Pool.get writer.anons pfm.pfm_path in
+			let index = IdentityPool.get writer.identified_anons an in
 			Chunk.write_u8 writer.chunk 0;
 			Chunk.write_uleb128 writer.chunk index
 		with Not_found ->
-			let restore = start_temporary_chunk writer 256 in
-			let needs_local_context = write_anon writer an in
-			let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
-			if needs_local_context then begin
-				let index = Pool.add writer.anons pfm.pfm_path None in
-				Chunk.write_u8 writer.chunk 1;
-				Chunk.write_uleb128 writer.chunk index;
-				Chunk.write_bytes writer.chunk bytes
-			end else begin
-				let index = Pool.add writer.anons pfm.pfm_path (Some bytes) in
+			let pfm = writer.anon_id#identify_anon ~strict:true an in
+			try
+				let index = Pool.get writer.anons pfm.pfm_path in
 				Chunk.write_u8 writer.chunk 0;
-				Chunk.write_uleb128 writer.chunk index;
-			end
+				Chunk.write_uleb128 writer.chunk index
+			with Not_found ->
+				let restore = start_temporary_chunk writer 256 in
+				writer.needs_local_context <- false;
+				write_anon writer an;
+				let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
+				if writer.needs_local_context then begin
+					let index = Pool.add writer.anons pfm.pfm_path None in
+					ignore(IdentityPool.add writer.identified_anons an index);
+					Chunk.write_u8 writer.chunk 1;
+					Chunk.write_uleb128 writer.chunk index;
+					Chunk.write_bytes writer.chunk bytes
+				end else begin
+					let index = Pool.add writer.anons pfm.pfm_path (Some bytes) in
+					ignore(IdentityPool.add writer.identified_anons an index);
+					Chunk.write_u8 writer.chunk 0;
+					Chunk.write_uleb128 writer.chunk index;
+				end
 
-	and write_anon_field_ref writer needs_local_context cf =
+	and write_anon_field_ref writer cf =
 		try
 			let index = HashedIdentityPool.get writer.anon_fields cf.cf_name cf in
 			Chunk.write_u8 writer.chunk 0;
@@ -1067,15 +1042,14 @@ module HxbWriter = struct
 		with Not_found ->
 			let restore = start_temporary_chunk writer 256 in
 			let old = writer.wrote_local_type_param in
+			writer.wrote_local_type_param <- false;
 			ignore(write_class_field_and_overloads_data writer true cf);
-			let wrote_local_type_param = writer.wrote_local_type_param in
-			writer.wrote_local_type_param <- old;
 			let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
-			if wrote_local_type_param then begin
+			if writer.needs_local_context || writer.wrote_local_type_param then begin
 				(* If we access something from the method scope, we have to write the anon field immediately.
 				   This should be fine because in such cases the field cannot be referenced elsewhere. *)
 				let index = HashedIdentityPool.add writer.anon_fields cf.cf_name cf None in
-				needs_local_context := true;
+				writer.needs_local_context <- true;
 				Chunk.write_u8 writer.chunk 1;
 				Chunk.write_uleb128 writer.chunk index;
 				Chunk.write_bytes writer.chunk bytes
@@ -1083,7 +1057,8 @@ module HxbWriter = struct
 				let index = HashedIdentityPool.add writer.anon_fields cf.cf_name cf (Some bytes) in
 				Chunk.write_u8 writer.chunk 0;
 				Chunk.write_uleb128 writer.chunk index;
-			end
+			end;
+			writer.wrote_local_type_param <- old
 
 	(* Type instances *)
 
@@ -1106,14 +1081,18 @@ module HxbWriter = struct
 				writer.wrote_local_type_param <- true;
 				Chunk.write_u8 writer.chunk 3;
 				Chunk.write_uleb128 writer.chunk index;
+			| TPHUnbound ->
+				raise Not_found
 		end with Not_found ->
 			(try ignore(IdentityPool.get writer.unbound_ttp ttp) with Not_found -> begin
 				ignore(IdentityPool.add writer.unbound_ttp ttp ());
-				let p = { null_pos with pfile = (Path.UniqueKey.lazy_path writer.current_module.m_extra.m_file) } in
+				let p = file_pos (Path.UniqueKey.lazy_path writer.current_module.m_extra.m_file) in
 				let msg = Printf.sprintf "Unbound type parameter %s" (s_type_path ttp.ttp_class.cl_path) in
 				writer.warn WUnboundTypeParameter msg p
 			end);
-			Chunk.write_u8 writer.chunk 4; (* TDynamic None *)
+			writer.wrote_local_type_param <- true;
+			Chunk.write_u8 writer.chunk 5;
+			write_path writer ttp.ttp_class.cl_path;
 		end
 
 	(*
@@ -1203,7 +1182,19 @@ module HxbWriter = struct
 			| TInst ({cl_path = ([],"String")},[]) ->
 				Chunk.write_u8 writer.chunk 104;
 			| TMono r ->
-				Monomorph.close r;
+				(try Monomorph.close r with TUnification.Unify_error e ->
+					try ignore(IdentityPool.get writer.unclosed_mono r) with Not_found -> begin
+						ignore(IdentityPool.add writer.unclosed_mono r ());
+
+						let p = file_pos (Path.UniqueKey.lazy_path writer.current_module.m_extra.m_file) in
+						let msg = Printf.sprintf
+							"Error while handling unclosed monomorph:\n%s\n\n%s"
+								(Error.error_msg (Unify e))
+								"Unclosed monomorph should not reach hxb writer, please submit an issue at https://github.com/HaxeFoundation/haxe/issues/new"
+						in
+						writer.warn WUnclosedMonomorph msg p
+					end;
+				);
 				begin match r.tm_type with
 				| None ->
 					Chunk.write_u8 writer.chunk 0;
@@ -1492,12 +1483,6 @@ module HxbWriter = struct
 				loop e1;
 				loop e2;
 				false;
-			| TFor(v,e1,e2) ->
-				Chunk.write_u8 writer.chunk 86;
-				declare_var v;
-				loop e1;
-				loop e2;
-				false;
 			(* control flow 90-99 *)
 			| TReturn None ->
 				Chunk.write_u8 writer.chunk 90;
@@ -1565,7 +1550,7 @@ module HxbWriter = struct
 			| TField(e1,FAnon cf) ->
 				Chunk.write_u8 writer.chunk 104;
 				loop e1;
-				write_anon_field_ref writer (ref false) cf;
+				write_anon_field_ref writer cf;
 				true;
 			| TField(e1,FClosure(Some(c,tl),cf)) ->
 				Chunk.write_u8 writer.chunk 105;
@@ -1577,7 +1562,7 @@ module HxbWriter = struct
 			| TField(e1,FClosure(None,cf)) ->
 				Chunk.write_u8 writer.chunk 106;
 				loop e1;
-				write_anon_field_ref writer (ref false) cf;
+				write_anon_field_ref writer cf;
 				true;
 			| TField(e1,FEnum(en,ef)) ->
 				Chunk.write_u8 writer.chunk 107;
@@ -1671,6 +1656,7 @@ module HxbWriter = struct
 				| TPHEnumConstructor -> 3
 				| TPHAnonField -> 4
 				| TPHLocal -> 5
+				| TPHUnbound -> 6
 			in
 			Chunk.write_u8 writer.chunk i
 		in
@@ -1749,6 +1735,7 @@ module HxbWriter = struct
 	and write_class_field_forward writer cf =
 		Chunk.write_string writer.chunk cf.cf_name;
 		write_pos_pair writer cf.cf_pos cf.cf_name_pos;
+		write_metadata writer cf.cf_meta;
 		Chunk.write_list writer.chunk cf.cf_overloads (fun cf ->
 			write_class_field_forward writer cf;
 		);
@@ -1767,11 +1754,11 @@ module HxbWriter = struct
 					write_type_parameters writer ltp
 				end;
 				Chunk.write_option writer.chunk fctx.texpr_this (fun e -> write_type_instance writer e.etype);
-				let items,length = StringPool.finalize fctx.t_pool in
-				Chunk.write_uleb128 writer.chunk length;
-				List.iter (fun bytes ->
+				let a = StringPool.finalize fctx.t_pool in
+				Chunk.write_uleb128 writer.chunk a.length;
+				StringDynArray.iter a (fun bytes ->
 					Chunk.write_bytes writer.chunk (Bytes.unsafe_of_string bytes)
-				) items;
+				);
 				Chunk.write_uleb128 writer.chunk (DynArray.length fctx.vars);
 				DynArray.iter (fun (v,v_id) ->
 					v.v_id <- v_id;
@@ -1797,7 +1784,6 @@ module HxbWriter = struct
 		write_type_instance writer cf.cf_type;
 		Chunk.write_uleb128 writer.chunk cf.cf_flags;
 		maybe_write_documentation writer cf.cf_doc;
-		write_metadata writer cf.cf_meta;
 		write_field_kind writer cf.cf_kind;
 		let expr_chunk = match cf.cf_expr with
 			| None ->
@@ -1912,6 +1898,7 @@ module HxbWriter = struct
 		end;
 		Chunk.write_list writer.chunk a.a_from (write_type_instance writer);
 		Chunk.write_list writer.chunk a.a_to (write_type_instance writer);
+		Chunk.write_bool writer.chunk a.a_extern;
 		Chunk.write_bool writer.chunk a.a_enum
 
 	let write_abstract_fields writer (a : tabstract) =
@@ -1926,6 +1913,7 @@ module HxbWriter = struct
 		Chunk.write_option writer.chunk a.a_read (write_field_ref writer c CfrStatic );
 		Chunk.write_option writer.chunk a.a_write (write_field_ref writer c CfrStatic);
 		Chunk.write_option writer.chunk a.a_call (write_field_ref writer c CfrStatic);
+		Chunk.write_option writer.chunk a.a_constructor (write_field_ref writer c CfrStatic);
 
 		Chunk.write_list writer.chunk a.a_ops (fun (op, cf) ->
 			Chunk.write_u8 writer.chunk (binop_index op);
@@ -1948,7 +1936,7 @@ module HxbWriter = struct
 	let write_enum writer (e : tenum) =
 		select_type writer e.e_path;
 		write_common_module_type writer (Obj.magic e);
-		Chunk.write_bool writer.chunk e.e_extern;
+		Chunk.write_uleb128 writer.chunk e.e_flags;
 		Chunk.write_list writer.chunk e.e_names (Chunk.write_string writer.chunk)
 
 	let write_typedef writer (td : tdef) =
@@ -2029,12 +2017,20 @@ module HxbWriter = struct
 			Chunk.write_list writer.chunk (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
 				Chunk.write_string writer.chunk s;
 				write_pos_pair writer ef.ef_pos ef.ef_name_pos;
-				Chunk.write_u8 writer.chunk ef.ef_index
+				Chunk.write_uleb128 writer.chunk ef.ef_index
 			);
 		| TAbstractDecl a ->
 			()
 		| TTypeDecl t ->
 			()
+
+	let write_string_pool writer kind a =
+		start_chunk writer kind;
+		Chunk.write_uleb128 writer.chunk a.StringDynArray.length;
+		StringDynArray.iter a (fun s ->
+			let b = Bytes.unsafe_of_string s in
+			Chunk.write_bytes_length_prefixed writer.chunk b;
+		)
 
 	let write_module writer (m : module_def) =
 		writer.current_module <- m;
@@ -2235,43 +2231,34 @@ module HxbWriter = struct
 		end;
 
 		begin
-			let deps = DynArray.create () in
+			let imports = DynArray.create () in
 			PMap.iter (fun _ mdep ->
-				match mdep.md_kind with
-				| MCode | MExtern when mdep.md_sign = m.m_extra.m_sign ->
-					DynArray.add deps mdep.md_path;
+				match mdep.md_kind, mdep.md_origin with
+				| (MCode | MExtern), MDepFromImport when mdep.md_sign = m.m_extra.m_sign ->
+					DynArray.add imports mdep.md_path;
 				| _ ->
 					()
 			) m.m_extra.m_deps;
-			if DynArray.length deps > 0 then begin
-				start_chunk writer MDR;
-				Chunk.write_uleb128 writer.chunk (DynArray.length deps);
+
+			if DynArray.length imports > 0 then begin
+				start_chunk writer IMP;
+				Chunk.write_uleb128 writer.chunk (DynArray.length imports);
 				DynArray.iter (fun path ->
 					write_path writer path
-				) deps
-			end
+				) imports
+			end;
 		end;
 
 		start_chunk writer EOT;
 		start_chunk writer EOF;
 		start_chunk writer EOM;
 
-		let finalize_string_pool kind items length =
-			start_chunk writer kind;
-			Chunk.write_uleb128 writer.chunk length;
-			List.iter (fun s ->
-				let b = Bytes.unsafe_of_string s in
-				Chunk.write_bytes_length_prefixed writer.chunk b;
-			) items
-		in
+		let a = StringPool.finalize writer.cp in
+		write_string_pool writer STR a;
 		begin
-			let items,length = StringPool.finalize writer.cp in
-			finalize_string_pool STR items length
-		end;
-		begin
-			let items,length = StringPool.finalize writer.docs in
-			if length > 0 then
-				finalize_string_pool DOC items length
+			let a = StringPool.finalize writer.docs in
+			if a.length > 0 then
+				write_string_pool writer DOC a
 		end
 
 	let get_sorted_chunks writer =
@@ -2283,11 +2270,12 @@ module HxbWriter = struct
 end
 
 let create config warn anon_id =
-	let cp = StringPool.create () in
+	let cp = StringPool.create() in
 	{
 		config;
 		warn;
 		anon_id;
+		identified_anons = IdentityPool.create();
 		current_module = null_module;
 		chunks = DynArray.create ();
 		cp = cp;
@@ -2312,7 +2300,9 @@ let create config warn anon_id =
 		local_type_parameters = IdentityPool.create ();
 		field_stack = [];
 		wrote_local_type_param = false;
+		needs_local_context = false;
 		unbound_ttp = IdentityPool.create ();
+		unclosed_mono = IdentityPool.create ();
 		t_instance_chunk = Chunk.create EOM cp 32;
 	}
 

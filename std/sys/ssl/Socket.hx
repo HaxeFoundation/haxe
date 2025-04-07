@@ -58,7 +58,7 @@ extern class Socket extends sys.net.Socket {
 	function setCertificate(cert:Certificate, key:Key):Void;
 
 	/**
-		Configure additionals certificates and private keys for Server Name Indication extension.
+		Configure additional certificates and private keys for Server Name Indication extension.
 		The callback may be called during handshake to determine the certificate to use.
 	**/
 	function addSNICertificate(cbServernameMatch:String->Bool, cert:Certificate, key:Key):Void;

@@ -28,9 +28,6 @@ import haxe.macro.Expr;
 	This class provides some utility methods to work with strings in macro
 	context.
 **/
-#if hl
-@:hlNative("macro")
-#end
 class MacroStringTools {
 	#if macro
 	/**
@@ -40,9 +37,7 @@ class MacroStringTools {
 		elements.
 	**/
 	static public function formatString(s:String, pos:Position):Expr {
-		#if (neko || eval)
 		return Context.load("format_string", 2)(s, pos);
-		#end
 	}
 
 	/**

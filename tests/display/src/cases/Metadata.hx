@@ -44,7 +44,7 @@ class Metadata extends DisplayTestCase {
 	**/
 	function testArgs() {
 		eq(range(1, 2), position(pos(3)));
-		eq("Class<cases.SomeOther>", type(pos(3)));
+		eq("Class<SomeOther>", type(pos(3)));
 	}
 
 	/**
@@ -112,7 +112,7 @@ class Metadata extends DisplayTestCase {
 
 	/**
 		#if !macro
-		@:build(cases.Metadata.Main.build())
+		@:build(Metadata.Main.build())
 		#end
 		class Main {
 			#if !macro

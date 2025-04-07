@@ -361,7 +361,7 @@ class Xml {
 
 	/**
 		Removes a child from the Document or Element.
-		Returns true if the child was successfuly removed.
+		Returns true if the child was successfully removed.
 	**/
 	public function removeChild(x:Xml):Bool {
 		ensureElementType();

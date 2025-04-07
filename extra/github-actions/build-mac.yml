@@ -8,8 +8,6 @@
     set -ex
     brew update
     brew bundle --file=tests/Brewfile --no-upgrade
-    cpanm IPC::System::Simple
-    cpanm String::ShellQuote
     curl -L https://github.com/madler/zlib/releases/download/v$ZLIB_VERSION/zlib-$ZLIB_VERSION.tar.gz | tar xz
     cd zlib-$ZLIB_VERSION
     ./configure
@@ -29,12 +27,10 @@
   if: steps.cache-opam.outputs.cache-hit != 'true'
   run: |
     set -ex
-    opam init # --disable-sandboxing
+    opam init -c ${{ env.OCAML_VERSION }}
     opam update
-    opam switch create ${{env.OCAML_VERSION}}
     eval $(opam env)
     opam env
-    opam pin add ctypes ${{env.CTYPES}} --yes
     opam pin add haxe . --no-action
     opam install haxe --deps-only --assume-depexts
     opam list
@@ -48,7 +44,7 @@
   run: |
     set -ex
     eval $(opam env)
-    opam config exec -- make -s -j`sysctl -n hw.ncpu` STATICLINK=1 "LIB_PARAMS=/usr/local/lib/libz.a /usr/local/lib/libpcre2-8.a /usr/local/lib/libmbedtls.a /usr/local/lib/libmbedcrypto.a /usr/local/lib/libmbedx509.a -cclib '-framework Security -framework CoreFoundation'" haxe
+    opam config exec -- make -s STATICLINK=1 "LIB_PARAMS=\"/usr/local/lib/libz.a\" \"/usr/local/lib/libpcre2-8.a\" \"/usr/local/lib/libmbedtls.a\" \"/usr/local/lib/libmbedcrypto.a\" \"/usr/local/lib/libmbedx509.a\"" haxe
     opam config exec -- make -s haxelib
     make -s package_unix package_installer_mac
     ls -l out
@@ -56,14 +52,14 @@
     otool -L ./haxelib
 
 - name: Upload artifact (x64)
-  if: matrix.os == 'macos-latest'
+  if: runner.arch == 'X64'
   uses: actions/upload-artifact@v4
   with:
     name: macX64Binaries
     path: out
 
 - name: Upload artifact (arm)
-  if: matrix.os == 'macos-14'
+  if: runner.arch == 'ARM64'
   uses: actions/upload-artifact@v4
   with:
     name: macArmBinaries

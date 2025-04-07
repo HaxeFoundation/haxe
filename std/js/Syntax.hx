@@ -71,12 +71,12 @@ extern class Syntax {
 	@:pure static function typeof(o:Dynamic):String;
 
 	/**
-		Genearte `a === b` expression.
+		Generate `a === b` expression.
 	**/
 	@:pure static function strictEq(a:Dynamic, b:Dynamic):Bool;
 
 	/**
-		Genearte `a !== b` expression.
+		Generate `a !== b` expression.
 	**/
 	@:pure static function strictNeq(a:Dynamic, b:Dynamic):Bool;
 

@@ -114,7 +114,7 @@ let collect_module_symbols mname with_locals (pack,decls) =
 	) decls;
 	begin match mname with
 	| Some(file,mname) when not (Hashtbl.mem type_decls mname) ->
-		add mname Module {pfile = file; pmin = 0; pmax = 0} (String.concat "." pack) false
+		add mname Module (file_pos file) (String.concat "." pack) false
 	| _ ->
 		()
 	end;

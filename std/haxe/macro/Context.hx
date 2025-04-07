@@ -42,7 +42,7 @@ enum Message {
 	- `haxe.macro.TypeTools`
 **/
 class Context {
-	#if (neko || eval || display)
+	#if eval
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the current macro call.
@@ -396,6 +396,15 @@ class Context {
 	}
 
 	/**
+		Parse file content for newlines, allowing positions to be resolved
+		properly inside that file later on (using `Context.parseInlineString`
+		for example). Works with both real and virtual files.
+	**/
+	public static function registerFileContents(file:String, content:String):Void {
+		load("register_file_contents", 2)(file, content);
+	}
+
+	/**
 		Builds an expression from `v`.
 
 		This method generates AST nodes depending on the macro-runtime value of
@@ -466,7 +475,7 @@ class Context {
 		is done running initialization macros, when typing begins.
 
 		`onAfterInitMacros` should be used to delay typer-dependant code from
-		your initalization macros, to properly separate configuration phase and
+		your initialization macros, to properly separate configuration phase and
 		actual typing.
 	**/
 	public static function onAfterInitMacros(callback:Void->Void):Void {
@@ -654,6 +663,10 @@ class Context {
 	/**
 		Defines a new type from `TypeDefinition` `t`.
 
+		If a matching module has already been loaded in current context, a
+		`haxe.macro.Expr.Error` compiler error will be raised which can be
+		caught using `try ... catch`.
+
 		If `moduleDependency` is given and is not `null`, it should contain
 		a module path that will be used as a dependency for the newly defined module
 		instead of the current module.
@@ -685,6 +698,10 @@ class Context {
 	/**
 		Defines a new module as `modulePath` with several `TypeDefinition`
 		`types`. This is analogous to defining a .hx file.
+
+		If a matching module has already been loaded in current context, a
+		`haxe.macro.Expr.Error` compiler error will be raised which can be
+		caught using `try ... catch`.
 
 		The individual `types` can reference each other and any identifier
 		respects the `imports` and `usings` as usual, expect that imports are
@@ -862,13 +879,7 @@ class Context {
 	@:allow(haxe.macro.TypedExprTools)
 	@:allow(haxe.macro.PositionTools)
 	static function load(f:String, nargs:Int):Dynamic {
-		#if neko
-		return neko.Lib.load("macro", f, nargs);
-		#elseif eval
 		return eval.vm.Context.callMacroApi(f);
-		#else
-		return Reflect.makeVarArgs(function(_) return throw "Can't be called outside of macro");
-		#end
 	}
 
 	private static function includeFile(file:String, position:String) {

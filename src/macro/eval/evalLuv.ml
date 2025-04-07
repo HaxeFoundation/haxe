@@ -94,6 +94,8 @@ let encode_uv_error (e:Error.t) =
 	| `EILSEQ -> 77
 	| `EOVERFLOW -> 78
 	| `ESOCKTNOSUPPORT -> 79
+	| `ENODATA -> 80
+	| `EUNATCH -> 81
 	)
 
 let decode_uv_error v : Error.t =
@@ -178,6 +180,8 @@ let decode_uv_error v : Error.t =
 	| 77 -> `EILSEQ
 	| 78 -> `EOVERFLOW
 	| 79 -> `ESOCKTNOSUPPORT
+	| 80 -> `ENODATA
+	| 81 -> `EUNATCH
 	| _ -> unexpected_value v "eval.luv.UVError"
 
 let luv_exception e =
@@ -1313,7 +1317,7 @@ let process_fields = [
 					get key_environment (fun v ->
 						match decode_instance v with
 						| { ikind = IStringMap m } ->
-							StringHashtbl.fold (fun k (_,v) acc -> (k, decode_native_string v) :: acc) m []
+							RuntimeStringHashtbl.fold (fun k (_,v) acc -> (k, decode_native_string v) :: acc) m []
 						| _ ->
 							unexpected_value v "haxe.ds.Map<String,String>"
 					)
@@ -1942,7 +1946,7 @@ let fs_event_fields = [
 					) events
 				in
 				encode_obj [
-					key_file,vnative_string file;
+					key_file,encode_nullable vnative_string file;
 					key_events,encode_array vevents;
 				]
 			) v4
@@ -2162,9 +2166,9 @@ let env_fields = [
 		let encode env =
 			let map =
 				List.fold_left (fun map (name,value) ->
-					StringHashtbl.add map (EvalString.create_unknown_vstring name) (vnative_string value);
+					RuntimeStringHashtbl.add map (EvalString.create_unknown_vstring name) (vnative_string value);
 					map
-				) (StringHashtbl.create()) env
+				) (RuntimeStringHashtbl.create()) env
 			in
 			encode_string_map_direct map
 		in
@@ -2175,7 +2179,7 @@ let env_fields = [
 let time_fields = [
 	"getTimeOfDay", vfun0 (fun() ->
 		encode_result (fun (t:Time.t) ->
-			encode_obj [key_sec,VInt64 t.tv_sec; key_usec,vint32 t.tv_usec]
+			encode_obj [key_sec,VInt64 t.sec; key_usec,vint32 t.usec]
 		) (Time.gettimeofday())
 	);
 	"hrTime", vfun0 (fun() ->
@@ -2292,10 +2296,10 @@ let resource_fields = [
 		encode_array_a [|vfloat m1; vfloat m5; vfloat m15|];
 	);
 	"freeMemory", vfun0 (fun() ->
-		VUInt64 (Resource.free_memory())
+		encode_nullable (fun u -> VUInt64 u) (Resource.free_memory())
 	);
 	"totalMemory", vfun0 (fun() ->
-		VUInt64 (Resource.total_memory())
+		encode_nullable (fun u -> VUInt64 u) (Resource.total_memory())
 	);
 	"constrainedMemory", vfun0 (fun() ->
 		encode_nullable (fun u -> VUInt64 u) (Resource.constrained_memory())

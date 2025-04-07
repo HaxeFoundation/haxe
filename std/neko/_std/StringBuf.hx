@@ -45,6 +45,10 @@
 			__add_char(b, c);
 		}
 
+	public inline function clear():Void {
+		buffer_reset(b);
+	}
+
 	public inline function toString():String {
 		return new String(__to_string(b));
 	}
@@ -54,5 +58,6 @@
 	static var __add_char:Dynamic = neko.Lib.load("std", "buffer_add_char", 2);
 	static var __add_sub:Dynamic = neko.Lib.load("std", "buffer_add_sub", 4);
 	static var __to_string:Dynamic = neko.Lib.load("std", "buffer_string", 1);
+	static var buffer_reset:Dynamic = neko.Lib.load("std", "buffer_reset", 1);
 	static var __get_length:Dynamic = try neko.Lib.load("std", "buffer_get_length", 1) catch (e:Dynamic) null;
 }

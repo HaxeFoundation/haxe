@@ -19,11 +19,11 @@
 open Extlib_leftovers
 open Globals
 open Ast
+open Gctx
 open Type
 open Error
 open As3
 open As3hl
-open Common
 open FlashProps
 
 type read = Read
@@ -81,7 +81,7 @@ type try_infos = {
 
 type context = {
 	(* globals *)
-	com : Common.context;
+	com : Gctx.t;
 	debugger : bool;
 	swc : bool;
 	boot : path;
@@ -255,7 +255,7 @@ let rec type_id ctx t =
 		type_path ctx ([],"Function")
 	| TType ({ t_path = ([],"UInt") as path },_) ->
 		type_path ctx path
-	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
+	| TEnum ({ e_path = ["flash"],"XmlType" } as e,_) when has_enum_flag e EnExtern ->
 		HMPath ([],"String")
 	| TEnum (e,_) ->
 		type_path ctx e.e_path
@@ -284,7 +284,7 @@ let classify ctx t =
 		KDynamic
 	| TAbstract ({ a_path = ["flash"],"AnyType" },_) ->
 		KDynamic
-	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
+	| TEnum ({ e_path = ["flash"],"XmlType" } as e,_) when has_enum_flag e EnExtern ->
 		KType (HMPath ([],"String"))
 	| TEnum (e,_) ->
 		KType (type_id ctx t)
@@ -351,7 +351,7 @@ let property ctx fa t =
 	| TInst ({ cl_path = [],"Array" },_) ->
 		(match p with
 		| "length" -> ident p, Some KInt, false (* UInt in the spec *)
-		| "map" | "filter" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
+		| "map" | "filter" when Gctx.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
 		| "copy" | "insert" | "contains" | "remove" | "iterator" | "keyValueIterator"
 		| "toString" | "map" | "filter" | "resize" -> ident p , None, true
 		| _ -> as3 p, None, false);
@@ -364,13 +364,13 @@ let property ctx fa t =
 	| TInst ({ cl_path = [],"String" },_) ->
 		(match p with
 		| "length" (* Int in AS3/Haxe *) -> ident p, None, false
-		| "charCodeAt" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
+		| "charCodeAt" when Gctx.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
 		| "charCodeAt" (* use Haxe version *) -> ident p, None, true
 		| "cca" -> as3 "charCodeAt", None, false
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = [],"Date" },_) ->
 		(match p with
-		| "toString" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
+		| "toString" when Gctx.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
 		| _ -> ident p, None, false)
 	| TAnon a ->
 		(match !(a.a_status) with
@@ -1263,31 +1263,6 @@ let rec gen_expr_content ctx retval e =
 		List.iter (fun j -> j()) loops;
 		branch();
 		jend()
-	| TFor (v,it,e) ->
-		gen_expr ctx true it;
-		let r = alloc_reg ctx KDynamic in
-		set_reg ctx r;
-		let branch = begin_branch ctx in
-		let b = open_block ctx retval in
-		define_local ctx v e.epos;
-		let end_loop = begin_loop ctx in
-		let continue_pos = ctx.infos.ipos in
-		let start = jump_back ctx in
-		write ctx (HReg r.rid);
-		write ctx (HCallProperty (ident "hasNext",0));
-		let jend = jump ctx J3False in
-		let acc = gen_local_access ctx v e.epos Write in
-		write ctx (HReg r.rid);
-		write ctx (HCallProperty (ident "next",0));
-		setvar ctx acc None;
-		gen_expr ctx false e;
-		start J3Always;
-		end_loop continue_pos;
-		jend();
-		if retval then getvar ctx (gen_local_access ctx v e.epos Read);
-		b();
-		branch();
-		free_reg ctx r;
 	| TBreak ->
 		pop ctx (ctx.infos.istack - ctx.infos.iloop);
 		ctx.breaks <- jump ctx J3Always :: ctx.breaks;
@@ -1859,7 +1834,7 @@ and generate_function ctx fdata stat =
 			| TReturn (Some e) ->
 				let rec inner_loop e =
 					match e.eexpr with
-					| TSwitch _ | TFor _ | TWhile _ | TTry _ -> false
+					| TSwitch _ | TWhile _ | TTry _ -> false
 					| TIf _ -> loop e
 					| TParenthesis e | TMeta(_,e) -> inner_loop e
 					| _ -> true
@@ -2800,7 +2775,7 @@ let rec generate_type ctx t =
 				hlf_metas = extract_meta c.cl_meta;
 			})
 	| TEnumDecl e ->
-		if e.e_extern then
+		if has_enum_flag e EnExtern then
 			None
 		else
 			let meta = Texpr.build_metadata ctx.com.basic t in
@@ -2833,7 +2808,7 @@ let generate_resource ctx name =
 let generate com boot_name =
 	let ctx = {
 		com = com;
-		need_ctor_skip = Common.has_feature com "Type.createEmptyInstance";
+		need_ctor_skip = Gctx.has_feature com "Type.createEmptyInstance";
 		handle_spread_args = (fun basic args t_result args_to_expr ->
 			match List.rev args with
 			| { eexpr = TUnop (Spread,Prefix,rest) } :: args_rev ->
@@ -2869,12 +2844,12 @@ let generate com boot_name =
 			| _ ->
 				None
 		);
-		debug = com.Common.debug;
+		debug = com.Gctx.debug;
 		cur_class = null_class;
 		boot = ([],boot_name);
-		debugger = Common.defined com Define.Fdb;
-		swc = Common.defined com Define.Swc;
-		swf_protected = Common.defined com Define.SwfProtected;
+		debugger = Gctx.defined com Define.Fdb;
+		swc = Gctx.defined com Define.Swc;
+		swf_protected = Gctx.defined com Define.SwfProtected;
 		code = DynArray.create();
 		locals = PMap.empty;
 		infos = default_infos();
@@ -2888,7 +2863,7 @@ let generate com boot_name =
 		try_scope_reg = None;
 		for_call = false;
 	} in
-	let types = if ctx.swc && com.main.main_class = None then
+	let types = if ctx.swc && com.main.main_path = None then
 		(*
 			make sure that both Boot and RealBoot are the first two classes in the SWC
 			this way initializing RealBoot will also run externs __init__ blocks before

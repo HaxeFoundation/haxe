@@ -31,25 +31,16 @@ module ReferencePosition = struct
 end
 
 let preprocess_expr com e = match com.display.dms_kind with
-	| DMDefinition | DMTypeDefinition | DMUsage _ | DMImplementation | DMHover | DMDefault -> ExprPreprocessing.find_before_pos com.display.dms_kind e
-	| DMSignature -> ExprPreprocessing.find_display_call e
+	| DMDefinition | DMTypeDefinition | DMUsage _ | DMImplementation | DMHover | DMDefault -> ExprPreprocessing.find_before_pos com.parser_state.was_auto_triggered com.display.dms_kind e
+	| DMSignature -> ExprPreprocessing.find_display_call com.parser_state.was_auto_triggered e
 	| _ -> e
-
-let get_expected_name with_type = match with_type with
-	| WithType.Value (Some src) | WithType.WithType(_,Some src) ->
-		(match src with
-		| WithType.FunctionArgument si -> Some si.si_name
-		| WithType.StructureField si -> Some si .si_name
-		| WithType.ImplicitReturn -> None
-		)
-	| _ -> None
 
 let sort_fields l with_type tk =
 	let p = match tk with
 		| TKExpr p | TKField p -> Some p
 		| _ -> None
 	in
-	let expected_name = get_expected_name with_type in
+	let expected_name = WithType.get_expected_name with_type in
 	let l = List.map (fun ci ->
 		let i = get_sort_index tk ci (Option.default Globals.null_pos p) expected_name in
 		ci,i

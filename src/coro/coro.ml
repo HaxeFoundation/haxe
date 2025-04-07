@@ -168,7 +168,7 @@ let fun_to_coro ctx e tf name =
 				else
 					let ecapturedfield = mk (TField(ethis,FInstance(cls, [], cls_captured))) ctx.typer.c.tthis p in
 					let efunction      = mk (TField(ecapturedfield,FInstance(cls, [], ctx.typer.f.curfield))) ctx.typer.f.curfield.cf_type p in
-					
+
 					mk (TCall (efunction, args)) ctx.typer.com.basic.tany p
 				in
 			let vresult    = alloc_var VGenerated "result" ctx.typer.com.basic.tany p in
@@ -254,7 +254,7 @@ let fun_to_coro ctx e tf name =
 	ctx.typer.m.curmod.m_types <- ctx.typer.m.curmod.m_types @ [ TClassDecl cls ];
 
 	let continuation_var = mk (TVar (vcontinuation, Some (Builder.make_null (TInst (cls, [])) p))) (TInst (cls, [])) p in
-	
+
 	let continuation_assign =
 		let t         = TInst (cls, []) in
 		let tcond     = std_is ecompletion t in
@@ -268,7 +268,7 @@ let fun_to_coro ctx e tf name =
 		let telse = mk_assign econtinuation (mk (TNew (cls, [], ctor_args)) t p) in
 		mk (TIf (tcond, tif, Some telse)) ctx.typer.com.basic.tvoid p
 	in
-	
+
 	let tf_expr = mk (TBlock [
 		continuation_var;
 		continuation_assign;
@@ -280,7 +280,7 @@ let fun_to_coro ctx e tf name =
 	let tf_type = ctx.typer.com.basic.tany in
 	if ctx.coro_debug then begin
 		print_endline ("BEFORE:\n" ^ (s_expr_debug e));
-		CoroDebug.create_dotgraph (DotGraph.get_dump_path ctx.typer.com ([],e.epos.pfile) (Printf.sprintf "pos_%i" e.epos.pmin)) cb_root
+		(* CoroDebug.create_dotgraph (DotGraph.get_dump_path ctx.typer.com ([],e.epos.pfile) (Printf.sprintf "pos_%i" e.epos.pmin)) cb_root *)
 	end;
 	let e = { e with eexpr = TFunction {tf_args; tf_expr; tf_type}; etype = TFun (tf_args |> List.map (fun (v, _) -> (v.v_name, false, v.v_type)), ctx.typer.com.basic.tany) } in
 	if ctx.coro_debug then print_endline ("AFTER:\n" ^ (s_expr_debug e));

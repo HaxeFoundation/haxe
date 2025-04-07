@@ -1,7 +1,6 @@
 import SkipReason;
 import haxe.PosInfos;
 import haxe.Exception;
-import haxe.coro.Coroutine;
 import haxe.display.Position;
 import haxeserver.HaxeServerRequestResult;
 import haxe.display.JsonModuleTypes;
@@ -78,8 +77,7 @@ class TestCase implements ITest implements ITestCase {
 	public function setup(async:utest.Async) {
 		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
-		runHaxeJson.start(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {}, (_,err) -> {
-			if (err != null) throw err;
+		runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {}, () -> {
 			async.done();
 		});
 	}
@@ -101,54 +99,43 @@ class TestCase implements ITest implements ITestCase {
 		}
 	}
 
-	@:coroutine
-	function runHaxe(args:Array<String>) {
+	function runHaxe(args:Array<String>, done:() -> Void) {
 		messages = [];
 		errorMessages = [];
-
-		Coroutine.suspend(cont -> {
-			server.rawRequest(args, null, function(result) {
-				handleResult(result);
-				if (result.hasError) {
-					sendErrorMessage(result.stderr);
-				}
-				cont(null, null);
-			}, err -> {
-				sendErrorMessage(err);
-				cont(null, null);
-			});
-		});
+		server.rawRequest(args, null, function(result) {
+			handleResult(result);
+			if (result.hasError) {
+				sendErrorMessage(result.stderr);
+			}
+			done();
+		}, sendErrorMessage);
 	}
 
-	@:coroutine
-	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams) {
+	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:() -> Void) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
-		runHaxe(args);
+		runHaxe(args, done);
 	}
 
-	@:coroutine
 	function runHaxeJsonCb<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, Response<TResponse>>, methodArgs:TParams,
-			callback:TResponse->Void) {
+			callback:TResponse->Void, done:() -> Void, ?pos:PosInfos) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
 		messages = [];
 		errorMessages = [];
+		server.rawRequest(args, null, function(result) {
+			handleResult(result);
+			var json = try Json.parse(result.stderr) catch(e) {result: null, error: e.message + " (Response: " + result.stderr + ")"};
 
-		Coroutine.suspend(cont -> {
-			server.rawRequest(args, null, function(result) {
-				handleResult(result);
-				var json = Json.parse(result.stderr);
-				if (json.result != null) {
-					callback(json.result.result);
-				} else {
-					sendErrorMessage('Error: ' + json.error);
-				}
-				cont(null, null);
-			}, function(msg) {
-				sendErrorMessage(msg);
-				cont(null, null);
-			});
+			if (json.result != null) {
+				callback(json.result?.result);
+			} else {
+				Assert.fail('Error: ' + json.error, pos);
+			}
+			done();
+		}, function(msg) {
+			sendErrorMessage(msg);
+			done();
 		});
 	}
 

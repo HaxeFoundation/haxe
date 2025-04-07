@@ -111,9 +111,9 @@ extern class EnumTools {
 		return Type.getEnumConstructs(e);
 	}
 
-	#if (java && jvm)
+	#if jvm
 	@:noCompletion
-	extern static function values<T>(en:Enum<T>):java.NativeArray<java.lang.Enum<T>>;
+	extern static function values<T>(en:Enum<T>):jvm.NativeArray<java.lang.Enum<T>>;
 	#end
 }
 

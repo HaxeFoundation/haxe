@@ -98,12 +98,13 @@ class Http extends haxe.http.HttpBase {
 			return;
 		}
 		var secure = (url_regexp.matched(1) == "https://");
+		var ownsSocket = false;
 		if (sock == null) {
 			if (secure) {
 				#if php
 				sock = new php.net.SslSocket();
 				#elseif java
-				sock = new java.net.SslSocket();
+				sock = new jvm.net.SslSocket();
 				#elseif python
 				sock = new python.net.SslSocket();
 				#elseif (!no_ssl && (hxssl || hl || cpp || (neko && !(macro || interp) || eval) || (lua && !lua_vanilla)))
@@ -117,6 +118,7 @@ class Http extends haxe.http.HttpBase {
 				sock = new Socket();
 			}
 			sock.setTimeout(cnxTimeout);
+			ownsSocket = true;
 		}
 		var host = url_regexp.matched(2);
 		var portString = url_regexp.matched(3);
@@ -223,7 +225,8 @@ class Http extends haxe.http.HttpBase {
 			else
 				b.writeString("Content-Length: " + uri.length + "\r\n");
 		}
-		b.writeString("Connection: close\r\n");
+		if( !Lambda.exists(headers, function(h) return h.name == "Connection") )
+			b.writeString("Connection: close\r\n");
 		for (h in headers) {
 			b.writeString(h.name);
 			b.writeString(": ");
@@ -245,11 +248,13 @@ class Http extends haxe.http.HttpBase {
 			else
 				writeBody(b, null, 0, null, sock);
 			readHttpResponse(api, sock);
-			sock.close();
+			if (ownsSocket)
+				sock.close();
 		} catch (e:Dynamic) {
-			try
-				sock.close()
-			catch (e:Dynamic) {};
+			if (ownsSocket)
+				try
+					sock.close()
+				catch (e:Dynamic) {};
 			onError(Std.string(e));
 		}
 	}

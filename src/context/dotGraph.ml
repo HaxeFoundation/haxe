@@ -1,7 +1,11 @@
-open Common
+open SafeCom
+
+let platform_name_macro com =
+	if Define.defined com.defines Define.Macro then "macro"
+	else Globals.platform_name com.platform
 
 let get_dump_path com path name =
-	(dump_path com) :: [platform_name_macro com] @ (fst path) @ [Printf.sprintf "%s.%s" (snd path) name]
+	(Dump.dump_path com.defines) :: [platform_name_macro com] @ (fst path) @ [Printf.sprintf "%s.%s" (snd path) name]
 
 let start_graph ?(graph_config=[]) base_path suffix =
 	let ch = Path.create_file false suffix [] base_path in

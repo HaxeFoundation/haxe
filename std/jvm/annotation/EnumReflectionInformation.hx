@@ -26,5 +26,5 @@ package jvm.annotation;
 @:native("haxe.jvm.annotation.EnumReflectionInformation")
 @:keep
 interface EnumReflectionInformation extends java.lang.annotation.Annotation {
-	function constructorNames():java.NativeArray<String>;
+	function constructorNames():jvm.NativeArray<String>;
 }

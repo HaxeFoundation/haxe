@@ -19,7 +19,7 @@ private class C<T> {
 
 class Issue3713 {
 	@:js('
-		var b = BImpl._new();
+		var b = BImpl._hx_new();
 		var c_x = 1;
 	')
 	@:analyzer(no_const_propagation, no_local_dce)

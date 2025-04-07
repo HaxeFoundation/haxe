@@ -14,10 +14,9 @@ class Cpp {
 		//hxcpp dependencies
 		switch (systemName) {
 			case "Linux":
-				Linux.requireAptPackages(["gcc-multilib", switch Linux.arch {
-					case Arm64: "g++-multilib-arm-linux-gnueabi";
-					case Amd64: "g++-multilib";
-				}]);
+				if (Linux.arch == Amd64) {
+					Linux.requireAptPackages(["gcc-multilib", "g++-multilib"]);
+				}
 			case "Mac":
 				//pass
 		}
@@ -76,6 +75,7 @@ class Cpp {
 		changeDirectory(getMiscSubDir("coroutines"));
 		runCommand("haxe", ["build-cpp.hxml"]);
 		runCpp("bin/cpp/Main-debug");
+		Display.maybeRunDisplayTests(Cpp);
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["-D", archFlag, "--each", "compile-cpp.hxml"].concat(args));

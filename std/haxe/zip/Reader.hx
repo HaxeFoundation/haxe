@@ -127,55 +127,59 @@ class Reader {
 			if (e == null)
 				break;
 			// do we have a data descriptor? (see readEntryHeader)
+			if (e.compressed) {
+				#if neko
+				// enter progressive mode : we use a different input which has
+				// a temporary buffer, this is necessary since we have to uncompress
+				// progressively, and after that we might have pending read data
+				// that needs to be processed
+				var bufSize = 65536;
+				if (buf == null) {
+					buf = new haxe.io.BufferInput(i, haxe.io.Bytes.alloc(bufSize));
+					tmp = haxe.io.Bytes.alloc(bufSize);
+					i = buf;
+				}
+				var out = new haxe.io.BytesBuffer();
+				var z = new neko.zip.Uncompress(-15);
+				z.setFlushMode(neko.zip.Flush.SYNC);
+				while (true) {
+					if (buf.available == 0)
+						buf.refill();
+					var p = bufSize - buf.available;
+					if (p != buf.pos) {
+						// because of lack of "srcLen" in zip api, we need to always be stuck to the buffer end
+						buf.buf.blit(p, buf.buf, buf.pos, buf.available);
+						buf.pos = p;
+					}
+					var r = z.execute(buf.buf, buf.pos, tmp, 0);
+					out.addBytes(tmp, 0, r.write);
+					buf.pos += r.read;
+					buf.available -= r.read;
+					if (r.done)
+						break;
+				}
+				e.data = out.getBytes();
+				e.compressed = false;
+				#else
+				var bufSize = 65536;
+				if (tmp == null)
+					tmp = haxe.io.Bytes.alloc(bufSize);
+				var out = new haxe.io.BytesBuffer();
+				var z = new InflateImpl(i, false, false);
+				while (true) {
+					var n = z.readBytes(tmp, 0, bufSize);
+					out.addBytes(tmp, 0, n);
+					if (n < bufSize)
+						break;
+				}
+				e.data = out.getBytes();
+				#end
+			} else
+				e.data = i.read(e.dataSize);
+
+			// If CRC32 is not defined in the header,
+			// it's defined in a data descriptor after the compressed data.
 			if (e.crc32 == null) {
-				if (e.compressed) {
-					#if neko
-					// enter progressive mode : we use a different input which has
-					// a temporary buffer, this is necessary since we have to uncompress
-					// progressively, and after that we might have pending read data
-					// that needs to be processed
-					var bufSize = 65536;
-					if (buf == null) {
-						buf = new haxe.io.BufferInput(i, haxe.io.Bytes.alloc(bufSize));
-						tmp = haxe.io.Bytes.alloc(bufSize);
-						i = buf;
-					}
-					var out = new haxe.io.BytesBuffer();
-					var z = new neko.zip.Uncompress(-15);
-					z.setFlushMode(neko.zip.Flush.SYNC);
-					while (true) {
-						if (buf.available == 0)
-							buf.refill();
-						var p = bufSize - buf.available;
-						if (p != buf.pos) {
-							// because of lack of "srcLen" in zip api, we need to always be stuck to the buffer end
-							buf.buf.blit(p, buf.buf, buf.pos, buf.available);
-							buf.pos = p;
-						}
-						var r = z.execute(buf.buf, buf.pos, tmp, 0);
-						out.addBytes(tmp, 0, r.write);
-						buf.pos += r.read;
-						buf.available -= r.read;
-						if (r.done)
-							break;
-					}
-					e.data = out.getBytes();
-					#else
-					var bufSize = 65536;
-					if (tmp == null)
-						tmp = haxe.io.Bytes.alloc(bufSize);
-					var out = new haxe.io.BytesBuffer();
-					var z = new InflateImpl(i, false, false);
-					while (true) {
-						var n = z.readBytes(tmp, 0, bufSize);
-						out.addBytes(tmp, 0, n);
-						if (n < bufSize)
-							break;
-					}
-					e.data = out.getBytes();
-					#end
-				} else
-					e.data = i.read(e.dataSize);
 				e.crc32 = i.readInt32();
 				if (e.crc32 == 0x08074b50)
 					e.crc32 = i.readInt32();
@@ -184,8 +188,7 @@ class Reader {
 				// set data to uncompressed
 				e.dataSize = e.fileSize;
 				e.compressed = false;
-			} else
-				e.data = i.read(e.dataSize);
+			}
 			l.add(e);
 		}
 		return l;

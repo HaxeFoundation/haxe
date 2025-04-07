@@ -46,7 +46,7 @@ let expr_to_coro ctx eresult cb_root e =
 			| Some v ->
 				v
 			| None ->
-				let v = alloc_var VGenerated (Printf.sprintf "%sthis" Typecore.gen_local_prefix) e.etype e.epos in
+				let v = alloc_var VGenerated (Printf.sprintf "%sthis" gen_local_prefix) e.etype e.epos in
 				ctx.vthis <- Some v;
 				v
 		in
@@ -113,8 +113,6 @@ let expr_to_coro ctx eresult cb_root e =
 		(* rewrites & forwards *)
 		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
 			loop cb ret (Texpr.not_while_true_to_while_true ctx.typer.com.Common.basic e1 e2 flag e.etype e.epos)
-		| TFor(v,e1,e2) ->
-			loop cb ret (Texpr.for_remap ctx.typer.com.basic v e1 e2 e.epos)
 		| TCast(e1,o) ->
 			let cb,e1 = loop cb ret e1 in
 			if e1 == e_no_value then

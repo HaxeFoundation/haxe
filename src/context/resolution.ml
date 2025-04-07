@@ -180,6 +180,17 @@ class resolution_list (id : string list) = object(self)
 	method get_list =
 		l
 
+	method set_list l' =
+		l <- l';
+		cached_type_imports <- false
+
+	method clone_as (id : string list) =
+		self#resolve_lazies;
+		let rl = new resolution_list id in
+		rl#set_list l;
+		rl#cache_type_imports;
+		rl
+
 	method cache_type_imports =
 		let rec loop = function
 		| [] ->
@@ -202,17 +213,6 @@ class resolution_list (id : string list) = object(self)
 	method find_type_import alias =
 		self#cache_type_imports;
 		StringMap.find alias type_import_cache
-
-	method find_type_import_weirdly pack name =
-		let rec find l = match l with
-			| [] ->
-				raise Not_found
-			| {r_kind = RTypeImport(alias,mt); r_pos = p} :: l ->
-				if  t_path mt = (pack,name) then (mt,p) else find l
-			| _ :: l ->
-				find l
-		in
-		find l
 
 	method extract_type_imports =
 		ExtList.List.filter_map (fun res -> match res.r_kind with

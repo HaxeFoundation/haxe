@@ -66,6 +66,9 @@ function main() {
 		new TestNumericCasts(),
 		new TestHashMap(),
 		new TestRest(),
+		#if (!php && !lua)
+		new TestHttps(),
+		#end
 		#if !no_pattern_matching
 		new TestMatch(),
 		#end

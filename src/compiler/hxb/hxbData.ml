@@ -24,10 +24,10 @@ exception HxbFailure of string
 type chunk_kind =
 	| STR (* string pool *)
 	| DOC (* doc pool *)
-	| MDF (* module foward *)
+	| MDF (* module forward *)
 	| MTF (* module types forward *)
 	(* Module type references *)
-	| MDR (* module references *)
+	| IMP (* imports *)
 	| CLR (* class references *)
 	| ENR (* enum references *)
 	| ABR (* abstract references *)
@@ -68,7 +68,7 @@ let string_of_chunk_kind = function
 	| DOC -> "DOC"
 	| MDF -> "MDF"
 	| MTF -> "MTF"
-	| MDR -> "MDR"
+	| IMP -> "IMP"
 	| CLR -> "CLR"
 	| ENR -> "ENR"
 	| ABR -> "ABR"
@@ -95,7 +95,7 @@ let chunk_kind_of_string = function
 	| "DOC" -> DOC
 	| "MDF" -> MDF
 	| "MTF" -> MTF
-	| "MDR" -> MDR
+	| "IMP" -> IMP
 	| "CLR" -> CLR
 	| "ENR" -> ENR
 	| "ABR" -> ABR

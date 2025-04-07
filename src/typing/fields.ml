@@ -126,7 +126,7 @@ let field_access ctx mode f fh e pfield =
 		in
 		let default () =
 			match m, mode with
-			| MethInline, _ when ctx.g.doinline && ctx.allow_inline ->
+			| MethInline, _ when ctx.com.doinline && ctx.allow_inline ->
 				AKField (make_access true)
 			| MethMacro, MGet ->
 				display_error ctx.com "Macro functions must be called immediately" pfield; normal()
@@ -221,8 +221,9 @@ let field_access ctx mode f fh e pfield =
 			if bypass_accessor then (
 				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> warning ctx WTemp "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" pfield | _ -> ());
 				if not (is_physical_field f) then begin
-					display_error ctx.com "This field cannot be accessed because it is not a real variable" pfield;
-					display_error ctx.com "Add @:isVar here to enable it" f.cf_pos;
+					display_error_ext ctx.com (make_error (Custom "This field cannot be accessed because it is not a real variable") ~sub:[
+						make_error ~depth:1 (Custom "Add @:isVar here to enable it") f.cf_pos
+					] pfield);
 				end;
 				normal false
 			)
@@ -309,6 +310,9 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			acc
 		) c.cl_implements
 	in
+	let no_no_lookup cf =
+		if has_class_field_flag cf CfNoLookup then display_error ctx.com "This field cannot be accessed explicitly" pfield
+	in
 	let rec type_field_by_type e t =
 		let field_access = field_access e in
 		match t with
@@ -333,6 +337,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					begin try
 						let cf = PMap.find i c.cl_statics in
 						if has_class_field_flag cf CfImpl && not (has_class_field_flag cf CfEnum) then display_error ctx.com "Cannot access non-static abstract field statically" pfield;
+						no_no_lookup cf;
 						field_access cf (FHStatic c)
 					with Not_found ->
 						begin match c.cl_kind with
@@ -357,7 +362,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			end;
 		| TMono r ->
 			let mk_field () = {
-				(mk_field i (mk_mono()) p null_pos) with
+				(mk_field i (spawn_monomorph ctx p) p null_pos) with
 				cf_kind = Var { v_read = AccNormal; v_write = if is_set then AccNormal else AccNo }
 			} in
 			let rec check_constr = function
@@ -377,11 +382,11 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			| CTypes tl ->
 				type_field_by_list (fun (t,_) -> type_field_by_et type_field_by_type e t) tl
 			| CUnknown ->
-				if not (List.exists (fun (m,_) -> m == r) ctx.e.monomorphs.perfunction) && not (ctx.f.untyped && ctx.com.platform = Neko) then
-					ctx.e.monomorphs.perfunction <- (r,p) :: ctx.e.monomorphs.perfunction;
+				if not (List.exists (fun (m,_) -> m == r) ctx.e.monomorphs) && not (ctx.f.untyped && ctx.com.platform = Neko) then
+					ctx.e.monomorphs <- (r,p) :: ctx.e.monomorphs;
 				let f = mk_field() in
 				Monomorph.add_down_constraint r (MField f);
-				Monomorph.add_down_constraint r MOpenStructure;
+				Monomorph.add_modifier r MOpenStructure;
 				field_access f FHAnon
 			| CMixed l ->
 				let rec loop_constraints l =
@@ -400,6 +405,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				let c = find_some a.a_impl in
 				let f = PMap.find i c.cl_statics in
 				if not (has_class_field_flag f CfImpl) then raise Not_found;
+				no_no_lookup f;
 				field_access f (FHAbstract (a,tl,c))
 			with Not_found ->
 				type_field_by_forward_member type_field_by_type e a tl
@@ -421,9 +427,9 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					check cfl
 				| cf :: cfl ->
 					(* We always want to reset monomorphs here because they will be handled again when making the actual call. *)
-					let current_monos = ctx.e.monomorphs.perfunction in
+					let current_monos = ctx.e.monomorphs in
 					let check () =
-						ctx.e.monomorphs.perfunction <- current_monos;
+						ctx.e.monomorphs <- current_monos;
 						check cfl
 					in
 					try
@@ -436,7 +442,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 							else begin
 								let e = unify_static_extension ctx e t0 p in
 								ImportHandling.mark_import_position ctx pc;
-								ctx.e.monomorphs.perfunction <- current_monos;
+								ctx.e.monomorphs <- current_monos;
 								AKUsingField (make_static_extension_access c cf e false p)
 							end
 						| _ ->
@@ -487,7 +493,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			with Not_found ->
 				match loop ctx.g.global_using with
 				| AKUsingField { se_access = { fa_host = FHStatic c } } as acc ->
-					add_dependency ctx.m.curmod c.cl_module;
+					add_dependency ctx.m.curmod c.cl_module MDepFromTyping;
 					acc
 				| _ -> die "" __LOC__
 		) t e in
@@ -589,7 +595,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				with Exit ->
 					display_error ctx.com (StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i)) pfield
 		end;
-		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx.e p) p)
+		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx p) p)
 
 let type_field_default_cfg = type_field TypeFieldConfig.default
 

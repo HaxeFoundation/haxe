@@ -14,15 +14,13 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 		let msg = ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'") in
 		let e = match e.err_message with
 			| Unify l -> { e with err_message = Unify (l @ [(Unify_custom msg)])}
-			| Custom parent -> { e with err_message = Custom (parent ^ "\n" ^ msg)}
 			| _ -> { e with err_sub = (make_error (Custom (compl_msg msg)) e.err_pos) :: e.err_sub }
 		in
 		raise_error { e with err_message = (Call_error (Could_not_unify e.err_message)) }
 	in
 
 	let mk_pos_infos t =
-		let infos = mk_infos ctx callp [] in
-		type_expr ctx infos (WithType.with_type t)
+		mk_infos_t ctx callp [] t
 	in
 	let default_value name t =
 		if is_pos_infos t then
@@ -134,7 +132,7 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 				ignore(loop [] args);
 				[]
 			end else begin match loop [] args with
-				| [] when not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
+				| [] when not (inline && (ctx.com.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
 					if is_pos_infos t then [mk_pos_infos t]
 					else []
 				| args ->
@@ -233,7 +231,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			cfl,Some c,false,TClass.get_map_function c tl,(fun t -> t)
 		| FHAbstract(a,tl,c) ->
 			let map = apply_params a.a_params tl in
-			let tmap = if fa.fa_field.cf_name = "_new" (* TODO: BAD BAD BAD BAD *) then (fun t -> t) else (fun t -> map a.a_this) in
+			let tmap = if has_class_field_flag fa.fa_field CfAbstractConstructor then (fun t -> t) else (fun t -> map a.a_this) in
 			expand_overloads fa.fa_field,Some c,true,map,tmap
 	in
 	let is_forced_inline = is_forced_inline co fa.fa_field in
@@ -337,11 +335,11 @@ let unify_field_call ctx fa el_typed el p inline =
 			| cf :: candidates ->
 				let known_monos = List.map (fun (m,_) ->
 					m,m.tm_type,m.tm_down_constraints
-				) ctx.e.monomorphs.perfunction in
-				let current_monos = ctx.e.monomorphs.perfunction in
+				) ctx.e.monomorphs in
+				let current_monos = ctx.e.monomorphs in
 				begin try
 					let candidate = attempt_call cf true in
-					ctx.e.monomorphs.perfunction <- current_monos;
+					ctx.e.monomorphs <- current_monos;
 					if overload_kind = OverloadProper then begin
 						let candidates,failures = loop candidates in
 						candidate :: candidates,failures
@@ -352,7 +350,7 @@ let unify_field_call ctx fa el_typed el p inline =
 						if t != m.tm_type then m.tm_type <- t;
 						if constr != m.tm_down_constraints then m.tm_down_constraints <- constr;
 					) known_monos;
-					ctx.e.monomorphs.perfunction <- current_monos;
+					ctx.e.monomorphs <- current_monos;
 					check_unknown_ident err;
 					let candidates,failures = loop candidates in
 					candidates,(cf,err,extract_delayed_display()) :: failures
@@ -424,9 +422,8 @@ let unify_field_call ctx fa el_typed el p inline =
 							p
 						) :: acc
 					) [] failures in
-
-					display_error_ext ctx.com (make_error ~sub (Custom "Could not find a suitable overload, reasons follow") p);
-					raise_typing_error_ext (make_error ~depth:1 (Custom "End of overload failure reasons") p)
+					let sub = (make_error ~depth:1 (Custom "End of overload failure reasons") p) :: sub in
+					raise_typing_error_ext (make_error ~sub (Custom "Could not find a suitable overload, reasons follow") p)
 				| Some err ->
 					raise_typing_error_ext err
 			end
@@ -438,12 +435,11 @@ let unify_field_call ctx fa el_typed el p inline =
 				maybe_check_access fcc.fc_field;
 				commit_delayed_display fcc
 			| fcc :: l ->
-				(* TODO construct error with sub *)
-				display_error ctx.com "Ambiguous overload, candidates follow" p;
 				let st = s_type (print_context()) in
-				List.iter (fun fcc ->
-					display_error ~depth:1 ctx.com (compl_msg (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
-				) (fcc :: l);
+				let sub = List.map (fun fcc ->
+					make_error ~depth:1 (Custom (compl_msg (st fcc.fc_type))) fcc.fc_field.cf_name_pos
+				) (fcc :: l) in
+				display_error_ext ctx.com (make_error (Custom "Ambiguous overload, candidates follow") ~sub:(List.rev sub) p);
 				commit_delayed_display fcc
 		end else begin match List.rev candidates with
 			| [] -> fail()
@@ -522,9 +518,10 @@ object(self)
 			let ep = err.err_pos in
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
-				old (if (ep = null_pos) then { err with err_pos = p } else err);
-				(* TODO add as sub for above error *)
-				if ep <> null_pos then old (make_error ~depth:(err.err_depth+1) (Custom (compl_msg "Called from macro here")) p);
+				if ep = null_pos then
+					old { err with err_pos = p }
+				else
+					old { err with err_sub = (make_error ~depth:(err.err_depth+1) (Custom (compl_msg "Called from macro here")) p) :: err.err_sub }
 			end else
 				old err;
 		);
@@ -671,3 +668,15 @@ let maybe_reapply_overload_call ctx e =
 			end
 		| _ ->
 			e
+
+let make_static_call_better ctx c cf tl el t p =
+	let fh = match c.cl_kind with
+		| KAbstractImpl a when has_class_field_flag cf CfImpl ->
+			FHAbstract(a,tl,c)
+		| _ ->
+			FHStatic c
+	in
+	let e1 = Builder.make_static_this c p in
+	let fa = FieldAccess.create e1 cf fh false p in
+	let fcc = unify_field_call ctx fa el [] p false in
+	fcc.fc_data()

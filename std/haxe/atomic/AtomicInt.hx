@@ -19,7 +19,7 @@ abstract AtomicInt {
 	public function add(b:Int):Int;
 
 	/**
-		Atomically substracts `b` from `a`.
+		Atomically subtracts `b` from `a`.
 		Returns the original value of `a`.
 	**/
 	public function sub(b:Int):Int;
