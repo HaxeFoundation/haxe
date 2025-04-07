@@ -13,7 +13,6 @@ concurrency:
 
 jobs:
   windows64-build:
-    if: false
     runs-on: windows-latest
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
@@ -651,6 +650,7 @@ jobs:
 
 
   windows64-test:
+    needs: windows64-build
     runs-on: windows-latest
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
