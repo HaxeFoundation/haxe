@@ -87,6 +87,7 @@ class Hl {
 
 		final compiler = if (systemName == "Mac") "clang" else "gcc";
 		final extraCompilerFlags = if (systemName == "Windows") ["-ldbghelp", "-municode"] else [];
+
 		runCommand(compiler, [
 			"-o", '$dir/$filename.exe',
 			'$dir/$filename.c',
