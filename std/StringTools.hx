@@ -151,7 +151,7 @@ class StringTools {
 		- `"` becomes `&quot`;
 		- `'` becomes `&#039`;
 	**/
-	public static function htmlEscape(s:String, ?quotes:Bool):String {
+	public static function htmlEscape(s:String, quotes = false):String {
 		var buf = new StringBuf();
 		for (code in #if neko iterator(s) #else new haxe.iterators.StringIteratorUnicode(s) #end) {
 			switch (code) {

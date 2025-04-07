@@ -126,7 +126,7 @@ class InflateImpl {
 
 	static var FIXED_HUFFMAN = null;
 
-	public function new(i, ?header = true, ?crc = true) {
+	public function new(i, header = true, crc = true) {
 		isFinal = false;
 		htools = new HuffTools();
 		huffman = buildFixedHuffman();
@@ -385,7 +385,7 @@ class InflateImpl {
 		}
 	}
 
-	public static function run(i:haxe.io.Input, ?bufsize = 65536) {
+	public static function run(i:haxe.io.Input, bufsize = 65536) {
 		var buf = haxe.io.Bytes.alloc(bufsize);
 		var output = new haxe.io.BytesBuffer();
 		var inflate = new InflateImpl(i);
