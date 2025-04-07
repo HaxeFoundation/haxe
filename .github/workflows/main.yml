@@ -112,7 +112,6 @@ jobs:
 
 
   linux-build:
-    if: false
     runs-on: ubuntu-22.04
     env:
       PLATFORM: linux64
@@ -213,7 +212,6 @@ jobs:
           path: extra/doc
 
   linux-test:
-    if: false
     needs: linux-build
     runs-on: ubuntu-22.04
     env:
@@ -301,7 +299,6 @@ jobs:
         timeout-minutes: 20
 
   test-docgen:
-    if: false
     needs: linux-build
     runs-on: ubuntu-22.04
     env:
@@ -382,7 +379,6 @@ jobs:
         working-directory: ${{github.workspace}}/tests/docgen
 
   linux-arm64-build:
-    if: false
     runs-on: ubuntu-22.04-arm
     env:
       PLATFORM: linux-arm64
@@ -540,7 +536,6 @@ jobs:
         timeout-minutes: 20
 
   mac-build:
-    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -662,7 +657,7 @@ jobs:
       fail-fast: false
       matrix:
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/10919
-        target: [hl]
+        target: [macro, js, hl, cpp, jvm, php, python, flash, neko]
     steps:
       - uses: actions/checkout@main
         with:
@@ -752,7 +747,6 @@ jobs:
 
 
   mac-build-universal:
-    if: false
     needs: mac-build
     runs-on: macos-latest
     steps:
@@ -786,7 +780,6 @@ jobs:
           path: out
 
   mac-test:
-    if: false
     needs: mac-build-universal
     runs-on: macos-13
     env:
