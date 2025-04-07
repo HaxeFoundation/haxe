@@ -43,14 +43,14 @@ enum ValueType {
 			return lua.Boot.getClass(o);
 		}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic>
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>>
 		untyped {
 			if (o == null)
 				return null;
 			return o.__enum__;
 		}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic>
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>>
 		untyped {
 			return c.__super__;
 		}
@@ -65,7 +65,7 @@ enum ValueType {
 		return untyped e.__ename__;
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic>
+	public static function resolveClass(name:String):Null<Class<Dynamic>>
 		untyped {
 			// TODO: better tmp name for _hxClasses
 			var cl:Class<Dynamic> = _hxClasses[name];
@@ -75,7 +75,7 @@ enum ValueType {
 			return cl;
 		}
 
-	public static function resolveEnum(name:String):Enum<Dynamic>
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>>
 		untyped {
 			// TODO: better tmp name for _hxClasses
 			var e:Dynamic = _hxClasses[name];
