@@ -36,7 +36,7 @@ end
 class virtual ['a,'data] native_library (name : string) (file_path : string) = object(self)
 	inherit native_library_base name file_path
 
-	method virtual build : path -> pos -> Ast.package option
+	method virtual build : path -> pos -> ExternTypeLoaderResult.t
 	method virtual close : unit
 	method virtual list_modules : path list
 	method virtual load : unit

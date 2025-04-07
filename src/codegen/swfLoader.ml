@@ -24,6 +24,7 @@ open Common
 open Globals
 open Ast
 open NativeLibraries
+open ExternTypeLoaderResult
 
 let lowercase_pack pack =
 	let rec loop acc pack =
@@ -139,8 +140,8 @@ let is_valid_path com pack name =
 			false
 		| (file,load) :: l ->
 			match load (pack,name) null_pos with
-			| None -> loop l
-			| Some (_,a) -> true
+			| NoType -> loop l
+			| TypeDefinition (_,_) | PathForwarding _ -> true
 	in
 	let file = Printf.sprintf "%s/%s.hx" (String.concat "/" pack) name in
 	loop com.load_extern_type || (try ignore(Common.find_file com file); true with Not_found -> false)
@@ -618,16 +619,16 @@ class swf_library com name file_path = object(self)
 	method close =
 		()
 
-	method build (path : path) (p : pos) : Ast.package option =
+	method build (path : path) (p : pos) =
 		try
-			Some (Hashtbl.find haxe_classes path)
+			TypeDefinition (Hashtbl.find haxe_classes path)
 		with Not_found -> try
 			let c = Hashtbl.find (self#extract) path in
 			let c = build_class com c file_path in
 			Hashtbl.add haxe_classes path c;
-			Some c
+			TypeDefinition  c
 		with Not_found ->
-			None
+			NoType
 
 	method get_data = self#get_swf
 end

@@ -273,9 +273,9 @@ let check_module sctx com m_path m_extra p =
 						raise (Dirty LibraryChanged)
 					| (file,load) :: l ->
 						match load m_path p with
-						| None ->
+						| ExternTypeLoaderResult.NoType ->
 							loop l
-						| Some _ ->
+						| TypeDefinition _ | PathForwarding _ ->
 							if com.file_keys#get file <> (Path.UniqueKey.lazy_key m_extra.m_file) then begin
 								if sctx.verbose then print_endline ("Library file was changed for " ^ s_type_path m_path); (* TODO *)
 								raise (Dirty LibraryChanged)

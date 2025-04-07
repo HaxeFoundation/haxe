@@ -163,10 +163,14 @@ let make_macro_com_api com mcom p =
 			com.load_extern_type <- com.load_extern_type @ ["onTypeNotFound",fun path p ->
 				let td = f (s_type_path path) in
 				if td = Interp.vnull then
-					None
+					ExternTypeLoaderResult.NoType
 				else
-					let (pack,name),tdef,p = Interp.decode_type_def td in
-					Some (pack,[tdef,p])
+					let s = Interp.decode_string td in
+					let path' = Ast.parse_path s in
+					if path' = path then
+						NoType
+					else
+						PathForwarding path'
 			];
 		);
 		parse_string = (fun s p inl ->

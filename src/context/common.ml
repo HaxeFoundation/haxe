@@ -233,7 +233,6 @@ type parser_state = {
 	delayed_syntax_completion : Parser.syntax_completion_on option Atomic.t;
 	special_identifier_files : (Path.UniqueKey.t,string) ThreadSafeHashtbl.t;
 }
-
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
@@ -270,7 +269,7 @@ type context = {
 	mutable run_command : string -> int;
 	mutable run_command_args : string -> string list -> int;
 	(* typing setup *)
-	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
+	mutable load_extern_type : (string * (path -> pos -> ExternTypeLoaderResult.t)) list;
 	callbacks : compiler_callbacks;
 	defines : Define.define;
 	mutable user_defines : (string, Define.user_define) Hashtbl.t;

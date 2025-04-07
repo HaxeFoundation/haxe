@@ -1,5 +1,6 @@
 open Globals
 open Common
+open ExternTypeLoaderResult
 open Type
 
 class lib_build_task cs file ftime lib = object(self)
@@ -13,8 +14,8 @@ class lib_build_task cs file ftime lib = object(self)
 			if not (Hashtbl.mem h path) then begin
 				let p = file_pos (file ^ " @ " ^ Globals.s_type_path path) in
 				try begin match lib#build path p with
-				| Some r -> Hashtbl.add h path r
-				| None -> ()
+				| TypeDefinition r -> Hashtbl.add h path r
+				| NoType | PathForwarding _ -> ()
 				end with _ ->
 					()
 			end
@@ -29,8 +30,9 @@ let handle_native_lib com lib =
 	let build path =
 		(* The first build has to load, afterwards we install a direct lib#build call. *)
 		lib#load;
-		com.load_extern_type <- List.map (fun (name,f) ->
-			name,if name = lib#get_file_path then lib#build else f
+		com.load_extern_type <- List.map (fun (name,r) ->
+			let r = if name = lib#get_file_path then lib#build else r in
+			(name,r)
 		) com.load_extern_type;
 		lib#build path;
 	in
@@ -55,8 +57,8 @@ let handle_native_lib com lib =
 			match lut with
 			| Some lut ->
 				let build path p =
-					try Some (Hashtbl.find lut path)
-					with Not_found -> None
+					try TypeDefinition (Hashtbl.find lut path)
+					with Not_found -> NoType
 				in
 				com.load_extern_type <- List.map (fun (name,f) ->
 					name,if name = lib#get_file_path then build else f

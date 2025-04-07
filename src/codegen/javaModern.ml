@@ -1075,10 +1075,10 @@ class java_library_modern com  name file_path = object(self)
 	method list_modules : path list =
 		cached_files
 
-	method build path (p : pos) : Ast.package option =
+	method build path (p : pos) =
 		let build path =
 			if path = (["java";"lang"],"String") then
-				None
+				ExternTypeLoaderResult.NoType
 			else begin
 				try
 					let entries = Hashtbl.find_all modules path in
@@ -1086,10 +1086,10 @@ class java_library_modern com  name file_path = object(self)
 					let zip = Lazy.force zip in
 					let jcs = List.map (self#read zip) entries in
 					Timer.time com.Common.timer_ctx ["jar";"convert"] (fun () ->
-						Some (Converter.convert_module (fst path) jcs)
+						ExternTypeLoaderResult.TypeDefinition (Converter.convert_module (fst path) jcs)
 					) ();
 				with Not_found ->
-					None
+					ExternTypeLoaderResult.NoType
 			end
 		in
 		build path

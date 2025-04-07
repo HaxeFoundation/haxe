@@ -812,11 +812,10 @@ and load_module' com g m p =
 			let raise_not_found () = raise_error_msg (Module_not_found m) p in
 			if com.module_nonexistent_lut#mem m then raise_not_found();
 			if g.load_only_cached_modules then raise_not_found();
-			let is_extern = ref false in
-			let file, decls = try
+			try
 				(* Try parsing *)
 				let rfile,decls = TypeloadParse.parse_module com m p in
-				rfile.file,decls
+				type_module com g m rfile.file decls p
 			with Not_found ->
 				(* Nothing to parse, try loading extern type *)
 				let rec loop = function
@@ -825,14 +824,14 @@ and load_module' com g m p =
 						raise_not_found()
 					| (file,load) :: l ->
 						match load m p with
-						| None -> loop l
-						| Some (_,a) -> file, a
+						| ExternTypeLoaderResult.NoType ->
+							loop l
+						| TypeDefinition (_,decls) ->
+							type_module com g m ~is_extern:true file decls p
+						| PathForwarding path ->
+							load_module' com g path p
 				in
-				is_extern := true;
 				loop com.load_extern_type
-			in
-			let is_extern = !is_extern in
-			type_module com g m file ~is_extern decls p
 
 let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 	let m2 = load_module' ctx.com ctx.g m p in
