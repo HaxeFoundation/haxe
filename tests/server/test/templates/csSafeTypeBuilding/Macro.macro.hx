@@ -11,23 +11,19 @@ class Macro {
 
 	@:persistent static var generated = new Map<String, Bool>();
 
-	#if config.getType
-	static function isAlive(name:String):Bool {
+	static function isAlive(name:String, ct:ComplexType, pos:Position):Bool {
 		// Null check is just there to make it a one liner
 		// Basically returning true if no exception is caught
+		#if config.getType
 		return try Context.getType(name) != null
 			catch(s:String) {
 				if (s != 'Type not found \'$name\'') throw s;
 				false;
 			};
-	}
-	#else
-	static function isAlive(ct:ComplexType, pos:Position):Bool {
-		// Null check is just there to make it a one liner
-		// Basically returning true if no exception is caught
+		#else
 		return try Context.resolveType(ct, pos) != null catch(e) false;
+		#end
 	}
-	#end
 
 	public static function buildFoo() {
 		var from = '[${Context.getLocalModule()}] ';
@@ -41,11 +37,7 @@ class Macro {
 				var ct = TPath({pack: [], name: key});
 
 				if (generated.exists(key)) {
-					#if config.getType
-					if (isAlive(key)) {
-					#else
-					if (isAlive(ct, pos)) {
-					#end
+					if (isAlive(key, ct, pos)) {
 						print('Reusing previously generated type for $key.');
 						return ct;
 					}

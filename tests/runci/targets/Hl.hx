@@ -39,7 +39,7 @@ class Hl {
 			case "Linux":
 				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev", "libsqlite3-dev"]);
 			case "Mac":
-				runNetworkCommand("brew", ["update", '--preinstall']);
+				runNetworkCommand("brew", ["update", '--auto-update']);
 				runNetworkCommand("brew", ["bundle", '--file=${hlSrc}/Brewfile']);
 			case "Windows":
 				//pass
@@ -133,8 +133,15 @@ class Hl {
 		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
 		buildAndRunHlc("bin/hlc", "unit", runCommand);
 
+		runCommand("haxe", ["compile-hl.hxml", "--undefine", "analyzer-optimize"].concat(args));
+		runCommand(hlBinary, ['bin/unit.hl']);
+		runCommand("haxe", ["compile-hlc.hxml", "--undefine", "analyzer-optimize"].concat(args));
+		buildAndRunHlc("bin/hlc", "unit", runCommand);
+
 		changeDirectory(threadsDir);
 		buildAndRun("build.hxml", "export/threads");
+
+		Display.maybeRunDisplayTests(Hl);
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-hl.hxml"].concat(args));

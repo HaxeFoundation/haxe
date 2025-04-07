@@ -164,7 +164,7 @@ and s_value ?(indent_level=0) depth v =
 	| VInstance {ikind=IRegex r} -> r.r_rex_string
 	| VInstance i -> (try call_to_string () with Not_found -> s_hash i.iproto.ppath)
 	| VObject o -> (try call_to_string () with Not_found -> s_object (depth + 1) indent_level o)
-	| VLazy f -> s_value ~indent_level depth (!f())
+	| VLazy f -> s_value ~indent_level depth (Lazy.force f)
 	| VPrototype proto ->
 		try
 			call_to_string()

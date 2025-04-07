@@ -15,8 +15,8 @@ let make_call ctx e params t ?(force_inline=false) p =
 		| TFun (expected_args,_) ->
 			(match List.rev expected_args with
 			| (_,true,t) :: rest when is_pos_infos t && List.length rest = List.length params ->
-				let infos = mk_infos ctx p [] in
-				params @ [type_expr ctx infos (WithType.with_type t)]
+				let infos = mk_infos_t ctx p [] t in
+				params @ [infos]
 			| _ -> params
 			)
 		| _ -> params
@@ -54,7 +54,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 		(match cl, ctx.c.curclass.cl_kind, params with
 			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.c.curclass ->
 				if
-					f.cf_name <> "_new"
+					not (has_class_field_flag f CfAbstractConstructor)
 					&& has_meta Meta.This v_meta
 					&& has_class_field_flag f CfModifiesThis
 				then
@@ -65,10 +65,10 @@ let make_call ctx e params t ?(force_inline=false) p =
 						raise_typing_error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
 			| _ -> ()
 		);
-		let params = List.map (Optimizer.reduce_expression ctx) params in
+		let params = List.map (Optimizer.reduce_expression (SafeCom.of_typer ctx)) params in
 		let force_inline = is_forced_inline cl f in
 		let inline fd =
-			Inline.type_inline ctx f fd ethis params t config p force_inline
+			Inline.type_inline (Inline.context_of_typer ctx) f fd ethis params t config p force_inline
 		in
 		begin match f.cf_expr_unoptimized with
 		| Some {eexpr = TFunction fd} ->
@@ -355,7 +355,7 @@ let call_to_string ctx ?(resume=false) e =
 			mk (TIf (check_null, string_null, Some (gen_to_string e))) ctx.t.tstring e.epos
 	end
 
-let type_bind ctx (e : texpr) (args,ret) params p =
+let type_bind ctx (e : texpr) (args,ret) params safe p =
 	let vexpr v = mk (TLocal v) v.v_type p in
 	let acount = ref 0 in
 	let alloc_name n =
@@ -369,8 +369,8 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 		| [], [] -> given_args,missing_args,ordered_args
 		| [], _ -> raise_typing_error "Too many callback arguments" p
 		| [n,o,t] , [] when o && is_pos_infos t ->
-			let infos = mk_infos ctx p [] in
-			let ordered_args = ordered_args @ [type_expr ctx infos (WithType.with_argument t n)] in
+			let infos = mk_infos_t ctx p [] t in
+			let ordered_args = ordered_args @ [infos] in
 			given_args,missing_args,ordered_args
 		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when not ctx.com.config.pf_can_skip_non_nullable_argument && o && not (is_nullable t) ->
 			raise_typing_error "Usage of _ is not supported for optional non-nullable arguments" p
@@ -409,10 +409,23 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			let e_var = alloc_var VGenerated gen_local_prefix e.etype e.epos in
 			(mk (TLocal e_var) e.etype e.epos), (mk (TVar(e_var,Some e)) ctx.t.tvoid e.epos) :: var_decls
 	in
-	let call = make_call ctx e ordered_args ret p in
+	let e_body = if safe then begin
+		let eobj, tempvar = get_safe_nav_base ctx e in
+		let sn = {
+			sn_pos = p;
+			sn_base = eobj;
+			sn_temp_var = tempvar;
+			sn_access = AKExpr e; (* This is weird, but it's not used by safe_nav_branch. *)
+		} in
+		safe_nav_branch ctx sn (fun () ->
+			make_call ctx eobj ordered_args ret p
+		)
+	end else
+		make_call ctx e ordered_args ret p
+	in
 	let body =
-		if ExtType.is_void (follow ret) then call
-		else mk (TReturn(Some call)) ret p
+		if ExtType.is_void (follow ret) then e_body
+		else mk (TReturn(Some e_body)) ret p
 	in
 	let arg_default optional t =
 		if optional then Some (Texpr.Builder.make_null t null_pos)
@@ -468,7 +481,7 @@ let array_access ctx e1 e2 mode p =
 				let skip_abstract = fast_eq et at in
 				loop ~skip_abstract at
 			| _, _ ->
-				let pt = spawn_monomorph ctx.e p in
+				let pt = spawn_monomorph ctx p in
 				let t = ctx.t.tarray pt in
 				begin try
 					unify_raise et t p

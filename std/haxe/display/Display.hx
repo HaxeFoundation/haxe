@@ -129,7 +129,7 @@ typedef DisplayLocal<T> = {
 	var id:Int;
 	var name:String;
 	var type:JsonType<T>;
-	var origin:LocalOrigin;
+	var ?origin:LocalOrigin;
 	var capture:Bool;
 	var ?extra:{
 		var params:Array<JsonTypeParameter>;
@@ -164,7 +164,7 @@ enum abstract ClassFieldOriginKind<T>(Int) {
 
 	/**
 		The field is declared on a parent type, such as:
-		- a super class field that is not overriden
+		- a super class field that is not overridden
 		- a forwarded abstract field
 	**/
 	var Parent:ClassFieldOriginKind<JsonModuleType<T>>;
@@ -412,7 +412,7 @@ typedef DisplayItem<T> = {
 }
 
 typedef DisplayItemOccurrence<T> = {
-	var range:Range;
+	var ?range:Range;
 	var item:DisplayItem<T>;
 	var ?moduleType:JsonModuleType<Dynamic>;
 	var ?moduleTypeFollowed:JsonModuleType<Dynamic>;
@@ -508,7 +508,7 @@ enum abstract FindReferencesKind(String) to String {
 	var Direct = "direct";
 
 	/**
-		Find references to the base field and all the overidding fields in the inheritance chain.
+		Find references to the base field and all the overriding fields in the inheritance chain.
 	**/
 	var WithBaseAndDescendants = "withBaseAndDescendants";
 

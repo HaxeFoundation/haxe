@@ -121,7 +121,7 @@ class Debugger {
 		Sets the handler callback to be made when asynchronous events occur,
 		specifically, when threads are created, terminated, started, or
 		stopped. The calling thread becomes the "debugger" thread, which means
-		that it will be discluded from any breakpoints and will not be reported
+		that it will be excluded from any breakpoints and will not be reported
 		on by any thread reporting requests.
 
 		Be aware that this callback is made asynchronously and possibly by
@@ -320,6 +320,17 @@ class Debugger {
 		return untyped __global__.__hxcpp_dbg_setStackVariableValue(threadNumber, stackFrameNumber, name, value, unsafe, NONEXISTENT_VALUE,
 			THREAD_NOT_STOPPED);
 	}
+
+	#if scriptable
+	/**
+		Sets the callback to run whenever a new CPPIA script is loaded.
+
+		This can be helpful for adding breakpoints to a script.
+	**/
+	public static function setOnScriptLoadedFunction(callback:Void->Void):Void {
+		untyped __global__.__hxcpp_dbg_setOnScriptLoadedFunction(callback);
+	}
+	#end
 
 	// The hxcpp runtime calls back through these functions to create Haxe
 	// objects as needed, which allows the C++ implementation code to create

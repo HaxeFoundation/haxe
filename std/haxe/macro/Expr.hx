@@ -342,7 +342,7 @@ typedef Var = {
 	var ?isStatic:Bool;
 
 	/**
-		Metadata associatied with the variable, if available.
+		Metadata associated with the variable, if available.
 	**/
 	var ?meta:Metadata;
 }
@@ -670,6 +670,16 @@ typedef TypePath = {
 		`pack.Module.Type` has `name = "Module"`, `sub = "Type"`, if available.
 	**/
 	var ?sub:String;
+
+	/**
+		The full position of the type path, including type parameters.
+	**/
+	var ?pos:Position;
+
+	/**
+		The position of the dot-path itself, without type parameters.
+	**/
+	var ?posPath:Position;
 }
 
 /**

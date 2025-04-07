@@ -349,9 +349,15 @@ let to_texpr ctx t_switch with_type dt =
 					let e_then = loop dt_rec params dt1 in
 					begin match e_then with
 					| None ->
-						if toplevel then
-							loop dt_rec params dt2
-						else if ignore_error ctx.com then
+						if toplevel then begin match loop dt_rec params dt2 with
+							| None ->
+								None
+							| Some e_else ->
+								(* In some cases like extractors, the original e expression might be significant for the
+								   output, so let's make sure it appears there (issue #11738). *)
+								let e = mk (TBlock [e;e_else]) e_else.etype e_else.epos in
+								Some e
+						end else if ignore_error ctx.com then
 							Some (mk (TConst TNull) (mk_mono()) dt2.dt_pos)
 						else
 							report_not_exhaustive !v_lookup e [(ConConst TNull,dt.dt_pos),dt.dt_pos]

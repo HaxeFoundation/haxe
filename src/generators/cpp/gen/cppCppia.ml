@@ -1,14 +1,10 @@
-open Extlib_leftovers
 open Ast
 open Type
 open Error
-open Common
 open Globals
-open CppExprUtils
 open CppTypeUtils
 open CppAst
 open CppAstTools
-open CppSourceWriter
 open CppContext
 
 let cpp_type_of = CppRetyper.cpp_type_of
@@ -356,6 +352,19 @@ let rec is_null expr =
 
 let is_virtual_array expr = type_string expr.etype = "cpp::VirtualArray"
 
+let rec remove_parens expression =
+  match expression.eexpr with
+  | TParenthesis e -> remove_parens e
+  | TMeta(_,e) -> remove_parens e
+  | _ -> expression
+
+let rec remove_parens_cast expression =
+  match expression.eexpr with
+  | TParenthesis e -> remove_parens_cast e
+  | TMeta(_,e) -> remove_parens_cast e
+  | TCast ( e,None) -> remove_parens_cast e
+  | _ -> expression
+
 let is_this expression =
   match (remove_parens expression).eexpr with
   | TConst TThis -> true
@@ -450,7 +459,7 @@ and is_dynamic_member_lookup_in_cpp (ctx : context) field_object field =
     | "Dynamic" -> true
     | name ->
         let full_name = name ^ "." ^ member in
-        if Hashtbl.mem ctx.ctx_class_member_types full_name then false
+        if StringMap.mem full_name ctx.ctx_class_member_types then false
         else not (is_extern_class_instance field_object)
 
 and is_dynamic_member_return_in_cpp ctx field_object field =
@@ -465,7 +474,7 @@ and is_dynamic_member_return_in_cpp ctx field_object field =
           "::" ^ join_class_path_remap (t_path t) "::" ^ "." ^ member
         in
         try
-          let mem_type = Hashtbl.find ctx.ctx_class_member_types full_name in
+          let mem_type = StringMap.find full_name ctx.ctx_class_member_types in
           mem_type = "Dynamic"
           || mem_type = "cpp::ArrayBase"
           || mem_type = "cpp::VirtualArray"
@@ -482,7 +491,7 @@ and is_dynamic_member_return_in_cpp ctx field_object field =
             let full_name = name ^ "." ^ member in
             try
               let mem_type =
-                Hashtbl.find ctx.ctx_class_member_types full_name
+                StringMap.find full_name ctx.ctx_class_member_types
               in
               mem_type = "Dynamic"
               || mem_type = "cpp::ArrayBase"
@@ -499,7 +508,7 @@ class script_writer ctx filename asciiOut =
     val debug = asciiOut
 
     val doComment =
-      asciiOut && Common.defined ctx.ctx_common Define.AnnotateSource
+      asciiOut && Gctx.defined ctx.ctx_common Define.AnnotateSource
 
     val indent_str = if asciiOut then "\t" else ""
     val mutable indent = ""
@@ -511,7 +520,7 @@ class script_writer ctx filename asciiOut =
     val identTable = Hashtbl.create 0
     val fileTable = Hashtbl.create 0
     val identBuffer = Buffer.create 0
-    val cppiaAst = not (Common.defined ctx.ctx_common Define.NoCppiaAst)
+    val cppiaAst = not (Gctx.defined ctx.ctx_common Define.NoCppiaAst)
 
     method stringId name =
       try Hashtbl.find identTable name
@@ -777,7 +786,7 @@ class script_writer ctx filename asciiOut =
     method wpos p =
       if debug then
         this#write
-          (this#fileText p.pfile ^ "\t"
+          (this#fileText (Path.get_full_path p.pfile) ^ "\t"
           ^ string_of_int (Lexer.get_error_line p)
           ^ indent)
 
@@ -1233,12 +1242,6 @@ class script_writer ctx filename asciiOut =
             (this#op IaWhile ^ (if flag = NormalWhile then "1" else "0") ^ "\n");
           this#gen_expression e1;
           this#gen_expression e2
-      | TFor (tvar, init, loop) ->
-          this#writeOp IaFor;
-          this#writeVar tvar;
-          this#write "\n";
-          this#gen_expression init;
-          this#gen_expression loop
       | TEnumParameter (expr, ef, i) ->
           let enum =
             match follow ef.ef_type with
@@ -1800,7 +1803,7 @@ let generate_script_class common_ctx script class_def =
               if
                 Meta.has Meta.NativeProperty class_def.cl_meta
                 || Meta.has Meta.NativeProperty field.cf_meta
-                || Common.defined common_ctx Define.ForceNativeProperty
+                || Gctx.defined common_ctx Define.ForceNativeProperty
               then IaAccessCallNative
               else IaAccessCall
           | AccInline -> IaAccessNormal

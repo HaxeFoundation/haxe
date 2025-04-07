@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue10965 extends Test {
-	#if jvm
+	#if (jvm || hl || cpp)
 	function testNeg() {
 		var a:Single = 1;
 		var c = -a;

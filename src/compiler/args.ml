@@ -43,7 +43,7 @@ let process_args arg_spec =
 let parse_args com =
 	let usage = Printf.sprintf
 		"Haxe Compiler %s - (C)2005-2024 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
-		s_version_full (if Sys.os_type = "Win32" then ".exe" else "")
+		(s_version_full com.version) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let actx = {
 		classes = [([],"Std")];
@@ -64,6 +64,7 @@ let parse_args com =
 		raise_usage = (fun () -> ());
 		display_arg = None;
 		deprecations = [];
+		measure_times = false;
 	} in
 	let add_deprecation s =
 		actx.deprecations <- s :: actx.deprecations
@@ -104,9 +105,9 @@ let parse_args com =
 		),"<name[=path]>","generate code for a custom target");
 		("Target",[],["-x"], Arg.String (fun cl ->
 			let cpath = Path.parse_type_path cl in
-			(match com.main.main_class with
+			(match com.main.main_path with
 				| Some c -> if cpath <> c then raise (Arg.Bad "Multiple --main classes specified")
-				| None -> com.main.main_class <- Some cpath);
+				| None -> com.main.main_path <- Some cpath);
 			actx.classes <- cpath :: actx.classes;
 			Common.define com Define.Interp;
 			set_platform com Eval "";
@@ -131,9 +132,9 @@ let parse_args com =
 			actx.hxb_libs <- lib :: actx.hxb_libs
 		),"<path>","add a hxb library");
 		("Compilation",["-m";"--main"],["-main"],Arg.String (fun cl ->
-			if com.main.main_class <> None then raise (Arg.Bad "Multiple --main classes specified");
+			if com.main.main_path <> None then raise (Arg.Bad "Multiple --main classes specified");
 			let cpath = Path.parse_type_path cl in
-			com.main.main_class <- Some cpath;
+			com.main.main_path <- Some cpath;
 			actx.classes <- cpath :: actx.classes
 		),"<class>","select startup class");
 		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun _ -> ()),"<name[:ver]>","use a haxelib library");
@@ -154,7 +155,7 @@ let parse_args com =
 			com.debug <- true;
 		),"","add debug information to the compiled code");
 		("Miscellaneous",["--version"],["-version"],Arg.Unit (fun() ->
-			raise (Helper.HelpMessage s_version_full);
+			raise (Helper.HelpMessage (s_version_full com.version));
 		),"","print version and exit");
 		("Miscellaneous", ["-h";"--help"], ["-help"], Arg.Unit (fun () ->
 			raise (Arg.Help "")
@@ -261,7 +262,9 @@ let parse_args com =
 			actx.hxb_out <- Some file;
 		),"<file>", "generate haxe binary representation to target archive");
 		("Optimization",["--no-output"],[], Arg.Unit (fun() -> actx.no_output <- true),"","compiles but does not generate any file");
-		("Debug",["--times"],[], Arg.Unit (fun() -> Timer.measure_times := true),"","measure compilation times");
+		("Debug",["--times"],[], Arg.Unit (fun() ->
+			actx.measure_times <- true
+		),"","measure compilation times");
 		("Optimization",["--no-inline"],[],Arg.Unit (fun () ->
 			add_deprecation "--no-inline has been deprecated, use -D no-inline instead";
 			Common.define com Define.NoInline

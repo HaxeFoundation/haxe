@@ -289,6 +289,13 @@ class TestStrict {
 		shouldFail((true ? 'hello' : v).length);
 	}
 
+	static function inlineCallWithNullArg_shouldFail() {
+		inline function check(value: Int): Int {
+			return value;
+		}
+		shouldFail(check((null : Null<Int>)));
+	}
+
 	static function ternary_returnedFromInlinedFunction_shouldPass() {
 		var str:String = inlinedNullableSafeString([null]);
 	}
@@ -779,6 +786,12 @@ class TestStrict {
 				cb();
 			}
 		}
+		inline function cb2() {
+			if(foo != null) {
+				trace(foo);
+			}
+		}
+		cb2();
 	}
 
 	static public function closure_immediatelyExecuted_shouldInheritSafety(?s:String) {

@@ -43,7 +43,7 @@ type vstring_buffer = {
 let vstring_equal s1 s2 =
 	s1 == s2 || s1.sstring = s2.sstring
 
-module StringHashtbl = struct
+module RuntimeStringHashtbl = struct
 	type 'value t = (vstring * 'value) StringMap.t ref
 
 	let add this key v = this := StringMap.add key.sstring (key,v) !this
@@ -58,19 +58,19 @@ module StringHashtbl = struct
 	let clear this = this := StringMap.empty
 end
 
-module IntHashtbl = struct
-	type 'value t = (int, 'value) Hashtbl.t
+module RuntimeIntHashtbl = struct
+	type 'value t = 'value IntHashtbl.t
 
-	let add this key v = Hashtbl.replace this key v
-	let copy this = Hashtbl.copy this
-	let create () = Hashtbl.create 0
-	let find this key = Hashtbl.find this key
-	let fold f this acc = Hashtbl.fold f this acc
-	let is_empty this = Hashtbl.length this = 0
-	let iter f this = Hashtbl.iter f this
-	let mem this key = Hashtbl.mem this key
-	let remove this key = Hashtbl.remove this key
-	let clear this = Hashtbl.clear this
+	let add this key v = IntHashtbl.replace this key v
+	let copy this = IntHashtbl.copy this
+	let create () = IntHashtbl.create 0
+	let find this key = IntHashtbl.find this key
+	let fold f this acc = IntHashtbl.fold f this acc
+	let is_empty this = IntHashtbl.length this = 0
+	let iter f this = IntHashtbl.iter f this
+	let mem this key = IntHashtbl.mem this key
+	let remove this key = IntHashtbl.remove this key
+	let clear this = IntHashtbl.clear this
 end
 
 type vregex = {
@@ -141,7 +141,7 @@ type value =
 	| VPrototype of vprototype
 	| VFunction of vfunc * bool
 	| VFieldClosure of value * vfunc
-	| VLazy of (unit -> value) ref
+	| VLazy of value Lazy.t
 	| VNativeString of string
 	| VHandle of vhandle
 	| VInt64 of Signed.Int64.t
@@ -186,8 +186,8 @@ and vinstance_kind =
 	| IBytes of bytes
 	| IRegex of vregex
 	| IDate of float
-	| IStringMap of value StringHashtbl.t
-	| IIntMap of value IntHashtbl.t
+	| IStringMap of value RuntimeStringHashtbl.t
+	| IIntMap of value RuntimeIntHashtbl.t
 	| IObjectMap of (value,value) Hashtbl.t
 	| IOutput of Buffer.t (* BytesBuffer *)
 	| IBuffer of vstring_buffer(* StringBuf *)
@@ -323,8 +323,8 @@ let rec equals a b = match a,b with
 	| VFieldClosure(v1,f1),VFieldClosure(v2,f2) -> f1 == f2 && equals v1 v2
 	| VNativeString s1,VNativeString s2 -> s1 = s2
 	| VHandle h1,VHandle h2 -> same_handle h1 h2
-	| VLazy f1,_ -> equals (!f1()) b
-	| _,VLazy f2 -> equals a (!f2())
+	| VLazy f1,_ -> equals (Lazy.force f1) b
+	| _,VLazy f2 -> equals a (Lazy.force f2)
 	| _ -> a == b
 
 module ValueHashtbl = Hashtbl.Make(struct
@@ -354,5 +354,5 @@ let vnative_string s = VNativeString s
 let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.print_context())) e)
 
 let rec vresolve v = match v with
-	| VLazy f -> vresolve (!f())
+	| VLazy f -> vresolve (Lazy.force f)
 	| _ -> v

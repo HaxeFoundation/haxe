@@ -9,6 +9,7 @@ class virtual hxb_reader_api = object(self)
 	method virtual basic_types : basic_types
 	method virtual get_var_id : int -> int
 	method virtual read_expression_eagerly : tclass_field -> bool
+	method virtual make_lazy_type : Type.t -> (unit -> Type.t) -> Type.t
 end
 
 class hxb_reader_api_null = object(self)
@@ -21,4 +22,5 @@ class hxb_reader_api_null = object(self)
 	method basic_types = assert false
 	method get_var_id _ = assert false
 	method read_expression_eagerly _ = assert false
+	method make_lazy_type _ _ = assert false
 end

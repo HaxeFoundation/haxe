@@ -192,8 +192,15 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 				| _ ->
 					(if p' = null_pos then p else p'),stack
 			in
+			let stack = List.fold_left (fun stack p -> match stack with
+				| (hd,n) :: stack when hd = p -> (hd,n+1) :: stack
+				| stack -> (p,1) :: stack
+			) [] stack in
 			Error.raise_error (Error.make_error
-				~sub:(List.map (fun p -> Error.make_error (Error.Custom "Called from here") p) (List.rev stack))
+				~sub:(List.map (fun (p, n) ->
+					let suf = if n > 1 then (Printf.sprintf " (%i times)" n) else "" in
+					Error.make_error (Error.Custom ("Called from here" ^ suf)) p
+				) stack)
 				(Error.Custom ("Uncaught exception " ^ (value_string v)))
 				p
 			)

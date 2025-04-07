@@ -1,0 +1,6 @@
+[ERROR] Main.hx:2: characters 21-22
+
+ 2 | function bar(i:Int, i:Int) {} // Not OK
+   |                     ^
+   | Duplicate argument name "i"
+

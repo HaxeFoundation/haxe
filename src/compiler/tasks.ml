@@ -6,7 +6,7 @@ class gc_task (max_working_memory : float) (heap_size : float) = object(self)
 	inherit server_task ["gc"] 100
 
 	method private execute =
-		let t0 = Timer.get_time() in
+		let t0 = Extc.time() in
 		let stats = Gc.stat() in
 		let live_words = float_of_int stats.live_words in
 		(* Maximum heap size needed for the last X compilations = sum of what's live + max working memory. *)
@@ -27,7 +27,7 @@ class gc_task (max_working_memory : float) (heap_size : float) = object(self)
 			Gc.full_major();
 		end;
 		Gc.set old_gc;
-		ServerMessage.gc_stats (Timer.get_time() -. t0) stats do_compact new_space_overhead
+		ServerMessage.gc_stats (Extc.time() -. t0) stats do_compact new_space_overhead
 end
 
 class class_maintenance_task (cs : CompilationCache.t) (c : tclass) = object(self)

@@ -72,7 +72,7 @@ let create_eval thread = {
 	debug_channel = Event.new_channel ();
 	debug_state = DbgRunning;
 	breakpoint = make_breakpoint 0 0 BPDisabled BPAny None;
-	caught_types = Hashtbl.create 0;
+	caught_types = IntHashtbl.create 0;
 	last_return = None;
 	caught_exception = vnull;
 }

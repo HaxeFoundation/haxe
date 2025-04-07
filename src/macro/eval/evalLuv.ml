@@ -1317,7 +1317,7 @@ let process_fields = [
 					get key_environment (fun v ->
 						match decode_instance v with
 						| { ikind = IStringMap m } ->
-							StringHashtbl.fold (fun k (_,v) acc -> (k, decode_native_string v) :: acc) m []
+							RuntimeStringHashtbl.fold (fun k (_,v) acc -> (k, decode_native_string v) :: acc) m []
 						| _ ->
 							unexpected_value v "haxe.ds.Map<String,String>"
 					)
@@ -2166,9 +2166,9 @@ let env_fields = [
 		let encode env =
 			let map =
 				List.fold_left (fun map (name,value) ->
-					StringHashtbl.add map (EvalString.create_unknown_vstring name) (vnative_string value);
+					RuntimeStringHashtbl.add map (EvalString.create_unknown_vstring name) (vnative_string value);
 					map
-				) (StringHashtbl.create()) env
+				) (RuntimeStringHashtbl.create()) env
 			in
 			encode_string_map_direct map
 		in

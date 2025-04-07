@@ -1,6 +1,6 @@
 package jvm;
 
-import java.NativeArray;
+import jvm.NativeArray;
 
 @:native("haxe.jvm.Function")
 @:nativeGen

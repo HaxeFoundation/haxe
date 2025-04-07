@@ -33,7 +33,7 @@ open Typecore
 open Error
 open Globals
 
-let type_function_params_ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
+let type_function_params_ref = ref (fun _ _ _ _ -> die "" __LOC__)
 
 let check_field_access ctx cff =
 	let display_access = ref None in
@@ -112,14 +112,7 @@ let find_type_in_current_module_context ctx pack name =
 			ImportHandling.mark_import_position ctx pi;
 			t
 	end else begin
-		(* All this is very weird *)
-		try
-			List.find (fun mt -> t_path mt = (pack,name)) ctx.m.curmod.m_types
-		with Not_found ->
-			(* see also https://github.com/HaxeFoundation/haxe/issues/9150 *)
-			let t,pi = ctx.m.import_resolution#find_type_import_weirdly pack name in
-			ImportHandling.mark_import_position ctx pi;
-		t
+		List.find (fun mt -> t_path mt = (pack,name)) ctx.m.curmod.m_types
 	end
 
 let find_in_wildcard_imports ctx mname p f =
@@ -137,7 +130,7 @@ let find_in_wildcard_imports ctx mname p f =
 					with Error { err_message = Module_not_found mpath } when mpath = path ->
 						raise Not_found
 				in
-				let r = f m ~resume:true in
+				let r = f m in
 				ImportHandling.mark_import_position ctx ppack;
 				r
 			with Not_found ->
@@ -146,48 +139,36 @@ let find_in_wildcard_imports ctx mname p f =
 	in
 	loop (ctx.m.import_resolution#extract_wildcard_packages)
 
-(* TODO: move these generic find functions into a separate module *)
-let find_in_modules_starting_from_current_package ~resume ctx mname p f =
+let find_in_modules_starting_from_current_package ctx mname p f =
 	let rec loop l =
 		let path = (List.rev l,mname) in
+		try
+			ctx.g.do_load_module ctx path p
+		with Error { err_message = Module_not_found mpath } when mpath = path ->
 		match l with
-		| [] ->
-			let m =
-				try
-					ctx.g.do_load_module ctx path p
-				with Error { err_message = Module_not_found mpath } when resume && mpath = path ->
-					raise Not_found
-			in
-			f m ~resume:resume
-		| _ :: sl ->
-			try
-				let m =
-					try
-						ctx.g.do_load_module ctx path p
-					with Error { err_message = Module_not_found mpath } when mpath = path ->
-						raise Not_found
-					in
-				f m ~resume:true;
-			with Not_found ->
+			| [] ->
+				raise Not_found
+			| _ :: sl ->
 				loop sl
 	in
 	let pack = fst ctx.m.curmod.m_path in
-	loop (List.rev pack)
+	let m = loop (List.rev pack) in
+	f m
 
-let find_in_unqualified_modules ctx name p f ~resume =
+let find_in_unqualified_modules ctx name p f =
 	try
 		find_in_wildcard_imports ctx name p f
 	with Not_found ->
-		find_in_modules_starting_from_current_package ctx name p f ~resume:resume
+		find_in_modules_starting_from_current_package ctx name p f
 
 let load_unqualified_type_def ctx mname tname p =
-	let find_type m ~resume =
-		if resume then
-			find_type_in_module m tname
-		else
-			find_type_in_module_raise ctx m tname p
+	let find_type m =
+		find_type_in_module_raise ctx m tname p
 	in
-	find_in_unqualified_modules ctx mname p find_type ~resume:false
+	try
+		find_in_unqualified_modules ctx mname p find_type
+	with Not_found ->
+		raise_error_msg (Module_not_found ([],mname)) p
 
 let load_module ctx path p =
 	try
@@ -224,10 +205,6 @@ let load_type_def ctx p t =
 		find_type_in_current_module_context ctx t.tpackage tname
 	with Not_found ->
 		load_type_def' ctx t.tpackage t.tname tname p
-
-(* let load_type_def ctx p t =
-	let timer = Timer.timer ["typing";"load_type_def"] in
-	Std.finally timer (load_type_def ctx p) t *)
 
 let generate_args_meta com cls_opt add_meta args =
 	let values = List.fold_left (fun acc ((name,p),_,_,_,eo) -> match eo with Some e -> ((name,p,NoQuotes),e) :: acc | _ -> acc) [] args in
@@ -322,7 +299,7 @@ let rec load_params ctx info params p =
 	let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
 	let is_java_rest = ctx.com.platform = Jvm && info.build_extern in
 	let is_rest = is_rest || is_java_rest in
-	let load_param t =
+	let load_param t ttp =
 		match t with
 		| TPExpr e ->
 			let name = (match fst e with
@@ -337,6 +314,16 @@ let rec load_params ctx info params p =
 			let c = mk_class ctx.m.curmod ([],name) p (pos e) in
 			c.cl_kind <- KExpr e;
 			TInst (c,[]),pos e
+		| TPType (CTPath({ path = { tpackage = ["$"]; tname = "_hx_default" }}),p) ->
+			(match ttp with
+				| Some { ttp_default = Some def } -> def,p
+				| Some ttp ->
+					raise_typing_error (Printf.sprintf "Invalid default, type parameter %s has no default value" ttp.ttp_name) p
+				| None when is_rest ->
+					raise_typing_error "Cannot use default with rest type parameters" p
+				| None ->
+					raise_typing_error ("Too many type parameters for " ^ s_type_path info.build_path) p
+			)
 		| TPType t ->
 			load_complex_type ctx true LoadNormal t,pos t
 	in
@@ -344,7 +331,7 @@ let rec load_params ctx info params p =
 	let rec loop tl1 tl2 is_rest = match tl1,tl2 with
 		| t :: tl1,ttp:: tl2 ->
 			let name = ttp.ttp_name in
-			let t,pt = load_param t in
+			let t,pt = load_param t (Some ttp) in
 			let check_const c =
 				let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
 				let expects_expression = name = "Const" || Meta.has Meta.Const c.cl_meta in
@@ -383,7 +370,7 @@ let rec load_params ctx info params p =
 					t :: loop [] tl is_rest
 			end
 		| t :: tl,[] ->
-			let t,pt = load_param t in
+			let t,pt = load_param t None in
 			if is_rest then
 				t :: loop tl [] true
 			else if ignore_error ctx.com then
@@ -414,7 +401,7 @@ and load_instance' ctx ptp get_params mode =
 		if t.tparams <> [] then raise_typing_error ("Class type parameter " ^ t.tname ^ " can't have parameters") ptp.pos_full;
 		pt
 	with Not_found ->
-		let mt = load_type_def ctx (if ptp.pos_path == null_pos then ptp.pos_full else ptp.pos_path) t in
+		let mt = load_type_def ctx ptp.pos_path t in
 		let info = ctx.g.get_build_info ctx mt ptp.pos_full in
 		if info.build_path = ([],"Dynamic") then match t.tparams with
 			| [] -> t_dynamic
@@ -461,7 +448,8 @@ and load_instance ctx ?(allow_display=false) ptp get_params mode =
 and load_complex_type' ctx allow_display mode (t,p) =
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display mode t
-	| CTPath { path = {tpackage = ["$"]; tname = "_hx_mono" }} -> spawn_monomorph ctx.e p
+	| CTPath { path = {tpackage = ["$"]; tname = "_hx_mono" }} -> spawn_monomorph ctx p
+	| CTPath { path = {tpackage = ["$"]; tname = "_hx_default" }} -> raise_typing_error "Invalid type : default" p
 	| CTPath ptp -> load_instance ~allow_display ctx ptp ParamNormal mode
 	| CTOptional _ -> raise_typing_error "Optional type not allowed here" p
 	| CTNamed _ -> raise_typing_error "Named type not allowed here" p
@@ -478,7 +466,7 @@ and load_complex_type' ctx allow_display mode (t,p) =
 		) tl in
 		let tr = Monomorph.create() in
 		let t = TMono tr in
-		let r = make_lazy ctx.g t (fun r ->
+		let r = make_lazy ctx.g t (fun () ->
 			let ta = make_extension_type ctx tl in
 			Monomorph.bind tr ta;
 			ta
@@ -519,7 +507,7 @@ and load_complex_type' ctx allow_display mode (t,p) =
 			) tl in
 			let tr = Monomorph.create() in
 			let t = TMono tr in
-			let r = make_lazy ctx.g t (fun r ->
+			let r = make_lazy ctx.g t (fun () ->
 				Monomorph.bind tr (match il with
 					| [i] ->
 						mk_extension i
@@ -576,7 +564,7 @@ and load_complex_type' ctx allow_display mode (t,p) =
 					no_expr e;
 					topt LoadNormal t, Var { v_read = AccNormal; v_write = AccNormal }
 				| FFun fd ->
-					params := (!type_function_params_ref) ctx fd TPHAnonField (fst f.cff_name) p;
+					params := (!type_function_params_ref) ctx fd TPHAnonField (fst f.cff_name);
 					no_expr fd.f_expr;
 					let old = ctx.type_params in
 					ctx.type_params <- !params @ old;
@@ -671,7 +659,7 @@ and init_meta_overloads ctx co cf =
 						ttp.ttp_host <> TPHMethod
 					) ctx.type_params
 			end;
-			let params : type_params = (!type_function_params_ref) ctx f TPHMethod cf.cf_name p in
+			let params : type_params = (!type_function_params_ref) ctx f TPHMethod cf.cf_name in
 			ctx.type_params <- params @ ctx.type_params;
 			let topt mode = function None -> raise_typing_error "Explicit type required" p | Some t -> load_complex_type ctx true mode t in
 			let args =
@@ -708,7 +696,7 @@ let t_iterator ctx p =
 	match load_qualified_type_def ctx [] "StdTypes" "Iterator" p with
 	| TTypeDecl t ->
 		add_dependency ctx.m.curmod t.t_module MDepFromTyping;
-		let pt = spawn_monomorph ctx.e p in
+		let pt = spawn_monomorph ctx p in
 		apply_typedef t [pt], pt
 	| _ ->
 		die "" __LOC__
@@ -718,7 +706,7 @@ let t_iterator ctx p =
 *)
 let load_type_hint ?(opt=false) ctx pcur mode t =
 	let t = match t with
-		| None -> spawn_monomorph ctx.e pcur
+		| None -> spawn_monomorph ctx pcur
 		| Some (t,p) ->	load_complex_type ctx true mode (t,p)
 	in
 	if opt then ctx.t.tnull t else t
@@ -726,22 +714,22 @@ let load_type_hint ?(opt=false) ctx pcur mode t =
 (* ---------------------------------------------------------------------- *)
 (* PASS 1 & 2 : Module and Class Structure *)
 
-let rec type_type_param ctx host path p tp =
+let rec type_type_param ctx host path tp =
 	let n = fst tp.tp_name in
 	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) (pos tp.tp_name) (pos tp.tp_name) in
-	c.cl_params <- type_type_params ctx host c.cl_path p tp.tp_params;
+	c.cl_params <- type_type_params ctx host c.cl_path tp.tp_params;
 	c.cl_meta <- tp.Ast.tp_meta;
 	let ttp = mk_type_param c host None None in
 	if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos tp.tp_name) then
 		DisplayEmitter.display_type ctx ttp.ttp_type (pos tp.tp_name);
 	ttp
 
-and type_type_params ctx host path p tpl =
+and type_type_params ctx host path tpl =
 	let names = ref [] in
 	let param_pairs = List.map (fun tp ->
 		if List.exists (fun name -> name = fst tp.tp_name) !names then display_error ctx.com ("Duplicate type parameter name: " ^ fst tp.tp_name) (pos tp.tp_name);
 		names := (fst tp.tp_name) :: !names;
-		tp,type_type_param ctx host path p tp
+		tp,type_type_param ctx host path tp
 	) tpl in
 	let params = List.map snd param_pairs in
 	let ctx = TyperManager.clone_for_type_params ctx (params @ ctx.type_params) in
@@ -750,7 +738,7 @@ and type_type_params ctx host path p tpl =
 			| None ->
 				()
 			| Some ct ->
-				let r = make_lazy ctx.g ttp.ttp_type (fun r ->
+				let r = make_lazy ctx.g ttp.ttp_type (fun () ->
 					let t = load_complex_type ctx true LoadNormal ct in
 					begin match host with
 						| TPHType ->
@@ -783,9 +771,9 @@ and type_type_params ctx host path p tpl =
 				let rec loop t =
 					match follow t with
 					| TInst (c2,_) when ttp.ttp_class == c2 ->
-						raise_typing_error "Recursive constraint parameter is not allowed" p
+						raise_typing_error "Recursive constraint parameter is not allowed" (pos th)
 					| TInst ({ cl_kind = KTypeParameter ttp },_) ->
-						List.iter loop (get_constraints ttp)
+						delay ctx.g PConnectField (fun () -> List.iter loop (get_constraints ttp))
 					| _ ->
 						()
 				in
@@ -801,6 +789,7 @@ let load_core_class ctx c =
 	let ctx2 = (match ctx.g.core_api with
 		| None ->
 			let com2 = Common.clone ctx.com ctx.com.is_macro_context in
+			enter_stage com2 CInitMacrosDone;
 			com2.defines.Define.values <- PMap.empty;
 			Common.define com2 Define.CoreApi;
 			Common.define com2 Define.Sys;

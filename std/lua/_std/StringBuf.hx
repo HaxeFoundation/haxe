@@ -20,15 +20,25 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import lua.Lua;
 import lua.Table;
 
 class StringBuf {
-	var b:Table<Int, String>;
+	private var b:Table<Int, String>;
+
+	/**
+		Count of "good" elements in the internal buffer table.
+
+		If `this` StringBuf has been `clear`ed previously,
+		this value might not be equal to the length (`#`) of that table.
+	**/
+	private var bufferLength:Int;
 
 	public var length(get, null):Int;
 
 	public inline function new() {
 		b = Table.create();
+		this.bufferLength = 0;
 		this.length = 0;
 	}
 
@@ -37,23 +47,32 @@ class StringBuf {
 	}
 
 	public inline function add<T>(x:T):Void {
-		var str = Std.string(x);
-		Table.insert(b, str);
-		length += str.length;
+		final str = Std.string(x);
+		final i = this.bufferLength += 1;
+		Lua.rawset(this.b, i, str);
+		this.length += str.length;
 	}
 
 	public inline function addChar(c:Int):Void {
-		Table.insert(b, String.fromCharCode(c));
-		length += 1;
+		final i = this.bufferLength += 1;
+		Lua.rawset(this.b, i, String.fromCharCode(c));
+		this.length += 1;
 	}
 
 	public inline function addSub(s:String, pos:Int, ?len:Int):Void {
-		var part = len == null ? s.substr(pos) : s.substr(pos, len);
-		Table.insert(b, part);
-		length += part.length;
+		this.add(s.substr(pos, len));
+	}
+
+	public inline function clear():Void {
+		this.bufferLength = 0;
+		this.length = 0;
 	}
 
 	public inline function toString():String {
-		return Table.concat(b);
+		final len = this.bufferLength;
+		if (len == 0) {
+			return "";
+		}
+		return Table.concat(this.b, "", 1, len);
 	}
 }

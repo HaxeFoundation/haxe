@@ -118,3 +118,22 @@ new EReg("^" + EReg.escape("\\ ^ $ * + ? . ( ) | { } [ ]") + "$", "").match("\\ 
 ~/(\d+)/g.replace("a1234b12","$1") == "a1234b12";
 ~/(\d+)/g.replace("a1234b12","\\$1") == "a\\1234b\\12";
 ~/(\d+)/g.replace("a1234b12","$$1") == "a$1b$1";
+
+// #10592 - null character
+#if !hl
+#if php
+// There is a bug in php < 8.2, see #10592
+if (php.Global.version_compare(php.Global.phpversion(), "8.2", ">=")) {
+#end
+var containingNull = new EReg("abc\x00def", "");
+f(containingNull.match("abc"));
+t(containingNull.match("abc\x00def"));
+f(containingNull.match("abc\x00fed"));
+var containingNull = ~/abc\x00def/;
+f(containingNull.match("abc"));
+t(containingNull.match("abc\x00def"));
+f(containingNull.match("abc\x00fed"));
+#if php
+}
+#end
+#end

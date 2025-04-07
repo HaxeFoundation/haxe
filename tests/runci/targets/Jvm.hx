@@ -33,6 +33,8 @@ class Jvm {
 			runCommand("java", ["-jar", "bin/unit.jar"]);
 		}
 
+		Display.maybeRunDisplayTests(Jvm);
+
 		changeDirectory(miscJavaDir);
 		runCommand("haxe", ["run.hxml"]);
 

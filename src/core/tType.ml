@@ -32,8 +32,11 @@ type module_check_policy =
 
 type module_tainting_reason =
 	| CheckDisplayFile
+	| DefineType
+	| DefineModule
 	| ServerInvalidate
 	| ServerInvalidateFiles
+	| ServerInvalidateModule
 
 type module_skip_reason =
 	| DependencyDirty of path * module_skip_reason
@@ -83,13 +86,13 @@ and tmono = {
 	*)
 	mutable tm_down_constraints : tmono_constraint list;
 	mutable tm_up_constraints : (t * string option) list;
+	mutable tm_modifiers : tmono_modifier list;
 }
 
 and tmono_constraint =
 	| MMono of tmono * string option
 	| MField of tclass_field
 	| MType of t * string option
-	| MOpenStructure
 	| MEmptyStructure
 
 and tmono_constraint_kind =
@@ -97,6 +100,11 @@ and tmono_constraint_kind =
 	| CStructural of (string,tclass_field) PMap.t * bool
 	| CMixed of tmono_constraint_kind list
 	| CTypes of (t * string option) list
+
+and tmono_modifier =
+	| MNullable of (t -> t)
+	| MOpenStructure
+	| MDynamic (* There was a unificaiton against Dynamic, which didn't bind the mono *)
 
 and tlazy =
 	| LAvailable of t
@@ -194,7 +202,6 @@ and texpr_expr =
 	| TFunction of tfunc
 	| TVar of tvar * texpr option
 	| TBlock of texpr list
-	| TFor of tvar * texpr * texpr
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
 	| TSwitch of tswitch
@@ -378,6 +385,7 @@ and tabstract = {
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
 	mutable a_call : tclass_field option;
+	mutable a_constructor : tclass_field option;
 	mutable a_extern : bool;
 	mutable a_enum : bool;
 }
@@ -429,7 +437,7 @@ and module_def_extra = {
 	mutable m_checked : int;
 	mutable m_processed : int;
 	mutable m_deps : (int,module_dep) PMap.t;
-	mutable m_sig_deps : (int,module_dep) PMap.t option;
+	mutable m_display_deps : (int,module_dep) PMap.t option;
 	mutable m_kind : module_kind;
 	mutable m_cache_bound_objects : cache_bound_object DynArray.t;
 	mutable m_features : (string,bool) Hashtbl.t;
@@ -473,6 +481,7 @@ type basic_types = {
 	mutable tnull : t -> t;
 	mutable tstring : t;
 	mutable tarray : t -> t;
+	mutable titerator : t -> t
 }
 
 type class_field_scope =
@@ -488,6 +497,10 @@ type flag_tclass =
 	| CFunctionalInterface
 	| CUsed (* Marker for DCE *)
 	| CExcluded (* Marker for exclude macro, turned into CExtern during filters *)
+
+let flag_tclass_names = [
+	"CExtern";"CFinal";"CInterface";"CAbstract";"CFunctionalInterface";"CUsed";"CExcluded";
+]
 
 type flag_tclass_field =
 	| CfPublic
@@ -505,10 +518,12 @@ type flag_tclass_field =
 	| CfPostProcessed (* Marker to indicate the field has been post-processed *)
 	| CfUsed (* Marker for DCE *)
 	| CfMaybeUsed (* Marker for DCE *)
+	| CfNoLookup (* Field cannot be accessed by-name. *)
+	| CfAbstractConstructor
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup";"CfAbstractConstructor"
 ]
 
 type flag_tenum =

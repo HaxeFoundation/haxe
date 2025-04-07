@@ -1,8 +1,10 @@
 // This file is auto-generated from RunCastGenerator.hx - do not edit!
 package unit;
 #if jvm
-import java.StdTypes;
+import jvm.Int16;
+import jvm.Int8;
 private typedef Int32 = Int;
+private typedef Int64 = haxe.Int64;
 private typedef Float32 = Single;
 private typedef Float64 = Float;
 #else

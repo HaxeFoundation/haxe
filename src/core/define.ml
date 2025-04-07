@@ -6,6 +6,11 @@ type define = {
 	mutable defines_signature : string option;
 }
 
+let empty_defines () = {
+	defines_signature = None;
+	values = PMap.empty;
+}
+
 type user_define = {
 	doc : string;
 	flags : define_parameter list;
@@ -26,16 +31,18 @@ type define_infos = {
 	d_origin : define_origin;
 	d_links : string list;
 	d_deprecated : string option;
+	d_default : string option;
 }
 
 let infos ?user_defines d =
 	let extract_infos (t, (doc, flags), origin) =
-		let params = ref [] and pfs = ref [] and links = ref [] and deprecated = ref None in
+		let params = ref [] and pfs = ref [] and links = ref [] and deprecated = ref None and default = ref None in
 		List.iter (function
 			| HasParam s -> params := s :: !params
 			| Platforms fl -> pfs := fl @ !pfs
 			| Link url -> links := url :: !links
 			| Deprecated s -> deprecated := Some s
+			| DefaultValue s -> default := Some s
 		) flags;
 		(t, {
 			d_doc = doc;
@@ -44,6 +51,7 @@ let infos ?user_defines d =
 			d_origin = origin;
 			d_links = !links;
 			d_deprecated = !deprecated;
+			d_default = !default;
 		})
 	in
 

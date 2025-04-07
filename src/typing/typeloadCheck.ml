@@ -52,13 +52,13 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		type_param_pairs = [];
 		known_type_params = f1.cf_params
 	} in
-	let uctx = {default_unification_context with type_param_mode = TpDefinition tctx} in
+	let uctx = {(default_unification_context()) with type_param_mode = TpDefinition tctx} in
 	let valid t1 t2 =
 		unify_custom uctx t1 t2;
 		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);
 	in
 	begin match PurityState.get_purity_from_meta f2.cf_meta,PurityState.get_purity_from_meta f1.cf_meta with
-		| PurityState.Pure,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),f2.cf_pos],null_pos) :: f1.cf_meta
+		| PurityState.Pure,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),mk_zero_range_pos f2.cf_pos],null_pos) :: f1.cf_meta
 		| PurityState.ExpectPure p,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),p],null_pos) :: f1.cf_meta
 		| _ -> ()
 	end;
@@ -128,9 +128,9 @@ let check_native_name_override ctx child base =
 		]) child_pos);
 	in
 	try
-		let child_name, child_pos = Naming.get_native_name child.cf_meta in
+		let child_name, child_pos = Native.get_native_name child.cf_meta in
 		try
-			let base_name, base_pos = Naming.get_native_name base.cf_meta in
+			let base_name, base_pos = Native.get_native_name base.cf_meta in
 			if base_name <> child_name then
 				error base_pos child_pos
 		with Not_found ->
@@ -306,7 +306,7 @@ let rec return_flow ctx e =
 		(* a special case for "inifite" while loops that have no break *)
 		let rec loop e = match e.eexpr with
 			(* ignore nested loops to not accidentally get one of its breaks *)
-			| TWhile _ | TFor _ -> ()
+			| TWhile _ -> ()
 			| TBreak -> error()
 			| _ -> Type.iter loop e
 		in
@@ -501,7 +501,7 @@ module Inheritance = struct
 		let process_meta csup =
 			List.iter (fun m ->
 				match m with
-				| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,{ c.cl_pos with pmax = c.cl_pos.pmin }(* prevent display metadata *)) :: m :: c.cl_meta
+				| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,mk_zero_range_pos c.cl_pos) :: m :: c.cl_meta
 				| _ -> ()
 			) (List.rev csup.cl_meta);
 			if has_class_flag csup CFinal && not (((has_class_flag csup CExtern) && Meta.has Meta.Hack c.cl_meta) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then

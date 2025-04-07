@@ -13,6 +13,6 @@ class Issue7089 extends DisplayTestCase {
 		}
 	**/
 	function test() {
-		eq("Abstract<cases.Foo>", type(pos(1)));
+		eq("Abstract<Foo>", type(pos(1)));
 	}
 }

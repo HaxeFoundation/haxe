@@ -296,17 +296,17 @@ enum abstract FileSymlinkFlag(Int) {
 	static public function realPath(loop:Loop, path:NativeString, ?request:FileRequest, callback:(result:Result<NativeString>)->Void):Void;
 
 	/**
-		Changes owneship of the file at the given path.
+		Changes ownership of the file at the given path.
 	**/
 	static public function chown(loop:Loop, path:NativeString, uid:Int, gid:Int, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
 
 	/**
-		Changes owneship of the file at the given path. without dereferencing symlinks.
+		Changes ownership of the file at the given path. without dereferencing symlinks.
 	**/
 	static public function lchown(loop:Loop, path:NativeString, uid:Int, gid:Int, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
 
 	/**
-		Changes owneship of the file.
+		Changes ownership of the file.
 	**/
 	public function fchown(loop:Loop, uid:Int, gid:Int, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
 
