@@ -1261,7 +1261,8 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in
 	let is_coroutine = Meta.has Meta.Coroutine f.cff_meta in
 	let function_mode = if is_coroutine then FunCoroutine else FunFunction in
-	let t = TFun (args#for_type,ret) in
+	let targs = args#for_type in
+	let t = if is_coroutine then ctx.t.tcoro targs ret else TFun (targs,ret) in
 	cf.cf_type <- t;
 	cf.cf_kind <- Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
 	cf.cf_params <- params;
