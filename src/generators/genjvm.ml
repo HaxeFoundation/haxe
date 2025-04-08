@@ -171,10 +171,9 @@ let rec jsignature_of_type gctx stack t =
 				| ["haxe";"coro"],"Coroutine" ->
 					begin match tl with
 					| [TFun(args,ret)] ->
-						let tcontinuation = tfun [ret; t_dynamic] gctx.gctx.basic.tvoid in
+						let tcontinuation = gctx.gctx.basic.tcoro_continuation in
 						let args = args @ [("",false,tcontinuation)] in
-						let ret = tfun [t_dynamic; t_dynamic] gctx.gctx.basic.tvoid in
-						jsignature_of_type (TFun(args,ret))
+						jsignature_of_type (TFun(args,t_dynamic))
 					| _ ->
 						die "" __LOC__
 					end
