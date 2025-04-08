@@ -47,6 +47,10 @@ class DynamicAccessIterator<T> {
 		See `Iterator.next`
 	**/
 	public inline function next():T {
-		return access[keys[index++]];
+		final key = keys[index++];
+		// inline with value cast breaks iterator (see #9100)
+		@:nullSafety(Off)
+		final value:T = access[key];
+		return value;
 	}
 }

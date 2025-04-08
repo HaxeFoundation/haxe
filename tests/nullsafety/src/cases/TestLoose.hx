@@ -1,5 +1,6 @@
 package cases;
 
+import haxe.DynamicAccess;
 import Validator.shouldFail;
 
 typedef NotNullAnon = {
@@ -150,6 +151,17 @@ class TestLoose {
 		for (i in 0...1) {
 			var i:String = staticVar ?? continue;
 			var i2:String = staticVar ?? break;
+		}
+	}
+
+	static function dynamicAccessIteration_shouldPass():Void {
+		var a = new DynamicAccess<String>();
+		var b = new DynamicAccess<String>();
+		for (value in a) {
+			b["a"] = value;
+		}
+		for (key => value in a) {
+			b[key] = value;
 		}
 	}
 }
