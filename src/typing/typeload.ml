@@ -299,7 +299,7 @@ let rec load_params ctx info params p =
 	let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
 	let is_java_rest = ctx.com.platform = Jvm && info.build_extern in
 	let is_rest = is_rest || is_java_rest in
-	let load_param t =
+	let load_param t ttp =
 		match t with
 		| TPExpr e ->
 			let name = (match fst e with
@@ -314,6 +314,16 @@ let rec load_params ctx info params p =
 			let c = mk_class ctx.m.curmod ([],name) p (pos e) in
 			c.cl_kind <- KExpr e;
 			TInst (c,[]),pos e
+		| TPType (CTPath({ path = { tpackage = ["$"]; tname = "_hx_default" }}),p) ->
+			(match ttp with
+				| Some { ttp_default = Some def } -> def,p
+				| Some ttp ->
+					raise_typing_error (Printf.sprintf "Invalid default, type parameter %s has no default value" ttp.ttp_name) p
+				| None when is_rest ->
+					raise_typing_error "Cannot use default with rest type parameters" p
+				| None ->
+					raise_typing_error ("Too many type parameters for " ^ s_type_path info.build_path) p
+			)
 		| TPType t ->
 			load_complex_type ctx true LoadNormal t,pos t
 	in
@@ -321,7 +331,7 @@ let rec load_params ctx info params p =
 	let rec loop tl1 tl2 is_rest = match tl1,tl2 with
 		| t :: tl1,ttp:: tl2 ->
 			let name = ttp.ttp_name in
-			let t,pt = load_param t in
+			let t,pt = load_param t (Some ttp) in
 			let check_const c =
 				let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
 				let expects_expression = name = "Const" || Meta.has Meta.Const c.cl_meta in
@@ -360,7 +370,7 @@ let rec load_params ctx info params p =
 					t :: loop [] tl is_rest
 			end
 		| t :: tl,[] ->
-			let t,pt = load_param t in
+			let t,pt = load_param t None in
 			if is_rest then
 				t :: loop tl [] true
 			else if ignore_error ctx.com then
@@ -439,6 +449,7 @@ and load_complex_type' ctx allow_display mode (t,p) =
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display mode t
 	| CTPath { path = {tpackage = ["$"]; tname = "_hx_mono" }} -> spawn_monomorph ctx p
+	| CTPath { path = {tpackage = ["$"]; tname = "_hx_default" }} -> raise_typing_error "Invalid type : default" p
 	| CTPath ptp -> load_instance ~allow_display ctx ptp ParamNormal mode
 	| CTOptional _ -> raise_typing_error "Optional type not allowed here" p
 	| CTNamed _ -> raise_typing_error "Named type not allowed here" p

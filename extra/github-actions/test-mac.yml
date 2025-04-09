@@ -30,3 +30,4 @@
     echo "" > sys/compile-fs.hxml
     haxe RunCi.hxml
   working-directory: ${{github.workspace}}/tests
+  timeout-minutes: 60

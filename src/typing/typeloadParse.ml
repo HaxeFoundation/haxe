@@ -52,6 +52,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 		| _ ->
 			()
 	end;
+	Common.log com ("Parsed " ^ file);
 	parse_result
 
 let parse_file_from_lexbuf com file p lexbuf =

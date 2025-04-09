@@ -179,6 +179,7 @@ jobs:
       - name: Test
         run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
+        timeout-minutes: 20
 
   test-docgen:
     needs: linux-build
@@ -361,6 +362,7 @@ jobs:
       - name: Test
         run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
+        timeout-minutes: 20
 
   mac-build:
     strategy:

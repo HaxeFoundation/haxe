@@ -178,30 +178,39 @@ let iter_expressions fl mt =
 
 open FilterContext
 
-let destruction_before_dce scom types =
+let destruction_before_dce pool scom all_types_array =
 	let filters = [
-		(fun _ -> FiltersCommon.remove_generic_base);
-		(fun _ -> apply_macro_exclude);
-		(fun _ -> remove_extern_fields scom);
+		FiltersCommon.remove_generic_base;
+		apply_macro_exclude;
+		remove_extern_fields scom;
 		(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
-		(fun _ -> check_remove_metadata);
+		check_remove_metadata;
 	] in
-	SafeCom.run_type_filters_safe scom filters types
+	Parallel.ParallelArray.iter pool (fun mt -> List.iter (fun f -> f mt) filters) all_types_array
 
-let destruction_on_scom scom ectx rename_locals_config types =
-	let filters = [
+let destruction_on_scom pool scom ectx rename_locals_config all_types_array =
+	let filters1 = [
 		SaveStacks.patch_constructors ectx;
 		(fun _ -> Native.apply_native_paths);
-		(fun _ -> add_rtti scom);
+	] in
+	let filters2 = [
 		(match scom.platform with | Jvm -> (fun _ _ -> ()) | _ -> (fun scom mt -> AddFieldInits.add_field_inits scom.curclass.cl_path rename_locals_config scom mt));
 		(fun _ -> check_void_field);
-		(fun _ -> (match scom.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ())));
+		(fun _ -> (match scom.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ()))); (* accesses cl_super, cl_implements  *)
 		(fun _ -> (if scom.platform_config.pf_reserved_type_paths <> [] then check_reserved_type_paths scom else (fun _ -> ())));
 	] in
-	SafeCom.run_type_filters_safe scom filters types
+	Parallel.ParallelArray.iter pool (fun mt ->
+		let scom = adapt_scom_to_mt scom mt in
+		List.iter (fun f -> f scom mt) filters1
+	) all_types_array;
+	Parallel.ParallelArray.iter pool (fun mt ->
+		let scom = adapt_scom_to_mt scom mt in
+		List.iter (fun f -> f scom mt) filters2
+	) all_types_array
 
 let destruction_on_com scom com types =
 	let filters = [
+		(fun _ -> add_rtti scom); (* accesses cl_super *)
 		(fun _ -> check_private_path com);
 		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> (fun _ -> add_meta_field com));
 		(fun _ -> commit_features com);
@@ -209,50 +218,53 @@ let destruction_on_com scom com types =
 	(* These aren't actually safe. The logic works fine regardless, we just can't parallelize this at the moment. *)
 	SafeCom.run_type_filters_safe scom filters types
 
-let destruction (com : Common.context) scom ectx detail_times main rename_locals_config types =
-	with_timer scom.timer_ctx detail_times "type 2" None (fun () ->
-		SafeCom.run_with_scom com scom (fun () ->
-			destruction_before_dce scom types
-		)
-	);
+let destruction (com : Common.context) scom ectx detail_times main rename_locals_config all_types all_types_array =
+	let all_types = Parallel.run_in_new_pool scom.timer_ctx (fun pool ->
+		with_timer scom.timer_ctx detail_times "type 2" None (fun () ->
+			SafeCom.run_with_scom com scom (fun () ->
+				destruction_before_dce pool scom all_types_array
+			)
+		);
 
-	Common.enter_stage com CDceStart;
-	with_timer scom.timer_ctx detail_times "dce" None (fun () ->
-		(* DCE *)
-		let dce_mode = try Define.defined_value scom.defines Define.Dce with _ -> "no" in
-		let dce_mode = match dce_mode with
-			| "full" -> if Define.defined scom.defines Define.Interp then Dce.DceNo else DceFull
-			| "std" -> DceStd
-			| "no" -> DceNo
-			| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
-		in
-		let std_paths = com.class_paths#get_std_paths in
-		let mscom = Option.map of_com (com.get_macros()) in
-		let types = Dce.run scom mscom main dce_mode std_paths types in
-		com.types <- types
-	);
-	Common.enter_stage com CDceDone;
-	let types = com.types in
+		Common.enter_stage com CDceStart;
+		let all_types = with_timer scom.timer_ctx detail_times "dce" None (fun () ->
+			(* DCE *)
+			let dce_mode = try Define.defined_value scom.defines Define.Dce with _ -> "no" in
+			let dce_mode = match dce_mode with
+				| "full" -> if Define.defined scom.defines Define.Interp then Dce.DceNo else DceFull
+				| "std" -> DceStd
+				| "no" -> DceNo
+				| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
+			in
+			let std_paths = com.class_paths#get_std_paths in
+			let mscom = Option.map of_com (com.get_macros()) in
+			let types = Dce.run pool scom mscom main dce_mode std_paths all_types in
+			types
+		) in
+		Common.enter_stage com CDceDone;
 
-	(* This has to run after DCE, or otherwise its condition always holds. *)
-	begin match ectx with
-		| Some ectx when Common.has_feature com "haxe.NativeStackTrace.exceptionStack" ->
-			List.iter (
-				SafeCom.run_expression_filters_safe ~ignore_processed_status:true scom detail_times ["insert_save_stacks",SaveStacks.insert_save_stacks ectx]
-			) types
-		| _ ->
-			()
-	end;
+		(* This has to run after DCE, or otherwise its condition always holds. *)
+		begin match ectx with
+			| Some ectx when Common.has_feature com "haxe.NativeStackTrace.exceptionStack" ->
+				Parallel.ParallelArray.iter pool (
+					SafeCom.run_expression_filters_safe ~ignore_processed_status:true scom detail_times ["insert_save_stacks",SaveStacks.insert_save_stacks ectx]
+				)  all_types_array
+			| _ ->
+				()
+		end;
 
-	with_timer scom.timer_ctx detail_times "type 3" None (fun () ->
-		SafeCom.run_with_scom com scom (fun () ->
-			destruction_on_scom scom ectx rename_locals_config types
-		)
-	);
+		with_timer scom.timer_ctx detail_times "type 3" None (fun () ->
+			SafeCom.run_with_scom com scom (fun () ->
+				destruction_on_scom pool scom ectx rename_locals_config all_types_array
+			)
+		);
+		all_types
+	) in
+	com.types <- all_types;
 
 	with_timer scom.timer_ctx detail_times "type 4" None (fun () ->
 		SafeCom.run_with_scom com scom (fun () ->
-			destruction_on_com scom com types
+			destruction_on_com scom com all_types
 		)
 	);
 
@@ -510,4 +522,5 @@ let run com ectx main before_destruction =
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);
 	before_destruction();
-	destruction com scom ectx detail_times main rename_locals_config com.types
+	let all_types_array = Array.of_list com.types in
+	destruction com scom ectx detail_times main rename_locals_config com.types all_types_array
