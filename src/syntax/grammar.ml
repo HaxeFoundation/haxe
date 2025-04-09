@@ -1172,6 +1172,7 @@ and parse_block_var ctx = function%parser
 and parse_block_elt ctx s = match%parser s with
 	| [ [%let vl,p = parse_block_var ctx] ] ->
 		(EVars vl,p)
+	| [ (Kwd Function,p1); [%let e = parse_function ctx p1 false]; [%let _s = semicolon ctx] ]  -> e
 	| [ (Kwd Inline,p1) ] ->
 		begin match%parser s with
 		| [ (Kwd Function,_); [%let e = parse_function ctx p1 true]; [%let _s = semicolon ctx] ] -> e
@@ -1494,7 +1495,15 @@ and expr (ctx : parser_ctx) s = match%parser s with
 				syntax_error ctx (Expected [")";",";":"]) s (expr_next ctx (EParenthesis e, punion p1 (pos e)) s))
 		)
 	| [ (BkOpen,p1); [%let e = parse_array_decl ctx p1] ] -> expr_next ctx e s
-	| [ (Kwd Function,p1); [%let e = parse_function ctx p1 false]; ] -> e
+	| [ (Kwd Function,p1); [%let e = parse_function ctx p1 false]; [%s s]; ] ->
+		begin match Stream.peek s with
+		| Some (POpen,_) | Some (BkOpen,_) ->
+			e
+		| Some (Unop op, _) when is_postfix op ->
+			e
+		| _ ->
+			expr_next ctx e s
+		end
 	| [ (Unop op,p1); [%let e = expr ctx] ] -> make_unop op e p1
 	| [ (Spread,p1); [%let e = expr ctx] ] -> make_unop Spread e (punion p1 (pos e))
 	| [ (Binop OpSub,p1); [%let e = expr ctx] ] ->
@@ -1618,7 +1627,7 @@ and expr_next' ctx e1 s = match%parser s with
 			make_binop OpGt e1 e2)
 	| [ (Binop op,_); [%let e2 = secure_expr ctx] ] -> make_binop op e1 e2
 	| [ (Spread,_); [%let e2 = secure_expr ctx] ] -> make_binop OpInterval e1 e2
-	| [ (Unop op,p) ] when is_postfix e1 op ->
+	| [ (Unop op,p) ] when is_postfix op ->
 		expr_next ctx (EUnop (op,Postfix,e1), punion (pos e1) p) s
 	| [ (Question,_); [%let e2 = expr ctx] ] ->
 		begin match%parser s with

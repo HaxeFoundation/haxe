@@ -45,7 +45,7 @@ enum ValueType {
 			return c;
 		}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic>
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>>
 		untyped {
 			var cname = __global__["flash.utils.getQualifiedClassName"](o);
 			if (cname == "null" || cname.substr(0, 8) == "builtin.")
@@ -59,7 +59,7 @@ enum ValueType {
 			return c;
 		}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic>
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>>
 		untyped {
 			var cname = __global__["flash.utils.getQualifiedSuperclassName"](c);
 			if (cname == null || cname == "Object")
@@ -92,7 +92,7 @@ enum ValueType {
 		return getClassName(cast e);
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic>
+	public static function resolveClass(name:String):Null<Class<Dynamic>>
 		untyped {
 			var cl:Class<Dynamic>;
 			try {
@@ -115,7 +115,7 @@ enum ValueType {
 			return cl;
 		}
 
-	public static function resolveEnum(name:String):Enum<Dynamic>
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>>
 		untyped {
 			var e:Dynamic;
 			try {

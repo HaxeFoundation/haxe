@@ -243,7 +243,8 @@ class Serializer {
 	
 		All haxe-defined values and objects with the exception of functions can
 		be serialized. Serialization of external/native objects is not
-		guaranteed to work.
+		guaranteed to work. This is also true for classes extending external/native
+		classes. On some targets, this might include exceptions, too.
 	
 		The values of `this.useCache` and `this.useEnumIndex` may affect
 		serialization output.

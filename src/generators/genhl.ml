@@ -769,7 +769,7 @@ and enum_class ctx e =
 			p.pindex <- PMap.add name (fid, t) p.pindex;
 			fid
 		in
-			PMap.iter (fun _ ef -> 
+			PMap.iter (fun _ ef ->
 			(match follow ef.ef_type with
 				| TEnum _ -> ignore(add_field ef.ef_name (to_type ctx ef.ef_type))
 				| TFun (args, ret) ->
@@ -3565,13 +3565,20 @@ let generate_member ctx c f =
 		in
 		ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) ff (Some c) None);
 		if f.cf_name = "toString" && not (has_class_field_flag f CfOverride) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
-			let p = f.cf_pos in
-			(* function __string() return this.toString().bytes *)
+			let p = {f.cf_pos with pmax = f.cf_pos.pmin} in
+			(* function __string() { var str = this.toString(); return if (str == null) null else str.bytes; } *)
 			let ethis = mk (TConst TThis) (TInst (c,extract_param_types c.cl_params)) p in
 			let tstr = mk (TCall (mk (TField (ethis,FInstance(c,extract_param_types c.cl_params,f))) f.cf_type p,[])) ctx.com.basic.tstring p in
+			let vtmp = Type.alloc_var VGenerated "str" ctx.com.basic.tstring p in
+			let vstr = mk (TLocal vtmp) ctx.com.basic.tstring p in
 			let cstr, cf_bytes = (try (match ctx.com.basic.tstring with TInst(c,_) -> c, PMap.find "bytes" c.cl_fields | _ -> die "" __LOC__) with Not_found -> die "" __LOC__) in
-			let estr = mk (TReturn (Some (mk (TField (tstr,FInstance (cstr,[],cf_bytes))) cf_bytes.cf_type p))) ctx.com.basic.tvoid p in
-			ignore(make_fun ctx (s_type_path c.cl_path,"__string") (alloc_fun_path ctx c.cl_path "__string") { tf_expr = estr; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None)
+			let ebytes = mk (TField (vstr,FInstance (cstr,[],cf_bytes))) cf_bytes.cf_type p in
+			let econd = mk (TBinop (OpEq, vstr, mk (TConst TNull) ctx.com.basic.tstring p)) ctx.com.basic.tbool p in
+			let efun = mk (TBlock [
+				mk (TVar (vtmp,Some tstr)) ctx.com.basic.tvoid p;
+				mk (TReturn (Some (mk (TIf (econd, mk (TConst TNull) cf_bytes.cf_type p, Some ebytes)) cf_bytes.cf_type p))) cf_bytes.cf_type p
+			]) ctx.com.basic.tvoid p in
+			ignore(make_fun ctx (s_type_path c.cl_path,"__string") (alloc_fun_path ctx c.cl_path "__string") { tf_expr = efun; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None)
 		end
 
 let generate_type ctx t =

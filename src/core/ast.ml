@@ -466,7 +466,7 @@ let gen_doc_text_opt = Option.map gen_doc_text
 
 let get_own_doc_opt = Option.map_default (fun d -> d.doc_own) None
 
-let is_postfix (e,_) op = match op with
+let is_postfix op = match op with
 	| Increment | Decrement | Not -> true
 	| Neg | NegBits | Spread -> false
 

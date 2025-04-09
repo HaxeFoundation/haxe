@@ -75,7 +75,7 @@ class Reader {
 		return fields;
 	}
 
-	public function readEntryHeader():Entry {
+	public function readEntryHeader():Null<Entry> {
 		var i = this.i;
 		var h = i.readInt32();
 		if (h == 0x02014B50 || h == 0x06054B50)

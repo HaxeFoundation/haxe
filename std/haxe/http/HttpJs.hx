@@ -51,7 +51,7 @@ class HttpJs extends haxe.http.HttpBase {
 		req = null;
 	}
 
-	public override function request(?post:Bool) {
+	public override function request(post = false) {
 		this.responseAsString = null;
 		this.responseBytes = null;
 		this.responseHeaders = null;
