@@ -775,8 +775,11 @@ class texpr_to_jvm
 
 	method read cast e1 fa =
 		let read_static_closure path cf =
-			let args,ret = match follow cf.cf_type with
-				| TFun(tl,tr) -> List.map (fun (n,_,t) -> n,self#vtype t) tl,(return_of_type gctx tr)
+			let args,ret = match follow_with_coro cf.cf_type with
+				| NotCoro TFun(tl,tr) -> List.map (fun (n,_,t) -> n,self#vtype t) tl,(return_of_type gctx tr)
+				| Coro (tl,tr) ->
+					let tl,tr = Common.expand_coro_type gctx.gctx.basic tl tr in
+					List.map (fun (n,_,t) -> n,self#vtype t) tl,(return_of_type gctx tr)
 				| _ -> die "" __LOC__
 			in
 			self#read_static_closure path cf.cf_name args ret cf.cf_type
