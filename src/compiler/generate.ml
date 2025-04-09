@@ -128,15 +128,9 @@ let parse_swf_header ctx h = match ExtString.String.nsplit h ":" with
 
 let delete_file f = try Sys.remove f with _ -> ()
 
-let maybe_generate_dump ctx tctx =
+let maybe_generate_dump_dependencies ctx tctx =
 	let com = tctx.Typecore.com in
-	if Common.defined com Define.Dump then begin
-		Timer.time ctx.timer_ctx ["generate";"dump"] (fun () ->
-			Dump.dump_types com;
-			Option.may Dump.dump_types (com.get_macros());
-		) ();
-	end;
-	if Common.defined com Define.DumpDependencies then begin
+	if com.dump_config.dump_dependencies then begin
 		Dump.dump_dependencies com;
 		if not com.is_macro_context then match tctx.Typecore.g.Typecore.macros with
 			| None -> ()

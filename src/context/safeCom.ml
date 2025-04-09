@@ -19,6 +19,7 @@ type t = {
 	is_macro_context : bool;
 	foptimize : bool;
 	doinline : bool;
+	dump_config : DumpConfig.t;
 	exceptions : exn list ref;
 	exceptions_mutex : Mutex.t;
 	warnings : saved_warning list ref;
@@ -41,6 +42,7 @@ let of_com (com : Common.context) = {
 	is_macro_context = com.is_macro_context;
 	foptimize = com.foptimize;
 	doinline = com.doinline;
+	dump_config = com.dump_config;
 	exceptions = ref [];
 	exceptions_mutex = Mutex.create ();
 	warnings = ref [];

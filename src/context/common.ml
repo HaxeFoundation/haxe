@@ -258,6 +258,7 @@ type context = {
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
 	parser_state : parser_state;
+	dump_config : DumpConfig.t;
 	(* communication *)
 	mutable print : string -> unit;
 	mutable error : Gctx.error_function;
@@ -784,7 +785,8 @@ let create timer_ctx compilation_step cs version args display_mode =
 			had_parser_resume = false;
 			delayed_syntax_completion = Atomic.make None;
 			special_identifier_files = ThreadSafeHashtbl.create 0;
-		}
+		};
+		dump_config = DumpConfig.create_default ();
 	} in
 	com
 

@@ -307,6 +307,7 @@ let do_type ctx mctx actx display_file_dot_path =
 	let tctx = Setup.create_typer_context ctx macros in
 	let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
 	check_defines ctx.com;
+	DumpConfig.update_from_defines com.dump_config com.defines;
 	CommonCache.lock_signature com "after_init_macros";
 	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;
 	(try begin
@@ -393,6 +394,7 @@ let compile ctx actx callbacks =
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		let ectx = ExceptionInit.create_exception_context tctx in
 		finalize_typing ctx tctx;
+		Dump.maybe_generate_dump ctx.com AfterTyping;
 		let is_compilation = is_compilation com in
 		com.callbacks#add_after_save (fun () ->
 			callbacks.after_save ctx;
@@ -412,7 +414,8 @@ let compile ctx actx callbacks =
 		if is_compilation then Generate.check_auxiliary_output com actx;
 		enter_stage com CGenerationStart;
 		ServerMessage.compiler_stage com;
-		Generate.maybe_generate_dump ctx tctx;
+		Dump.maybe_generate_dump ctx.com AfterDce;
+		Generate.maybe_generate_dump_dependencies ctx tctx;
 		if not actx.no_output then Generate.generate ctx tctx ext actx;
 		enter_stage com CGenerationDone;
 		ServerMessage.compiler_stage com;

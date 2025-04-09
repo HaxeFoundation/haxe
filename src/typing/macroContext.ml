@@ -41,7 +41,7 @@ let macro_interp_cache = ref None
 
 let safe_decode com v expected t p f =
 	let raise_decode_error s =
-		let path = [Dump.dump_path com.defines;"decoding_error"] in
+		let path = [com.dump_config.DumpConfig.dump_path;"decoding_error"] in
 		let ch = Path.create_file false ".txt" [] path  in
 		Printf.fprintf ch "%s: %s\n" (TPrinting.Printer.s_pos p) s;
 		let errors = Interp.handle_decoding_error (output_string ch) v t in
