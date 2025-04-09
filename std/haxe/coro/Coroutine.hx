@@ -2,7 +2,7 @@ package haxe.coro;
 
 import sys.thread.Mutex;
 
-private class SafeContinuation<T> implements IContinuation<T> {
+private class RacingContinuation<T> implements IContinuation<T> {
     final _hx_completion:IContinuation<Any>;
     
     final lock:Mutex;
@@ -77,7 +77,7 @@ private class SafeContinuation<T> implements IContinuation<T> {
 abstract Coroutine<T:haxe.Constraints.Function> {
 	@:coroutine public static function suspend<T>(func:(IContinuation<Any>)->Void):T {
 		final cont = haxe.coro.Intrinsics.currentContinuation();
-		final safe = new SafeContinuation(cont);
+		final safe = new RacingContinuation(cont);
 
 		func(safe);
 
