@@ -1,6 +1,9 @@
 package haxe.coro;
 
 import sys.thread.Mutex;
+import sys.thread.EventLoop;
+import haxe.coro.schedulers.EventLoopScheduler;
+import haxe.coro.continuations.BlockingContinuation;
 
 private class RacingContinuation<T> implements IContinuation<T> {
     final _hx_completion:IContinuation<Any>;
@@ -95,5 +98,14 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 		Coroutine.suspend(cont -> {
 			cont._hx_context.scheduler.schedule(() -> cont.resume(null, null));
 		});
+	}
+
+    public static function run<T>(f:Coroutine<()->T>) {
+		final loop = new EventLoop();
+        final cont = new BlockingContinuation(loop, new EventLoopScheduler(loop));
+
+		f(cont);
+
+		return cast cont.wait();
 	}
 }
