@@ -84,4 +84,16 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 		// This cast is important, need to figure out why / if there's a better solution.
 		return cast safe.getOrThrow();
 	}
+
+    @:coroutine public static function delay(ms:Int):Void {
+		Coroutine.suspend(cont -> {
+			cont._hx_context.scheduler.scheduleIn(() -> cont.resume(null, null), ms);
+		});
+	}
+
+	@:coroutine public static function yield():Void {
+		Coroutine.suspend(cont -> {
+			cont._hx_context.scheduler.schedule(() -> cont.resume(null, null));
+		});
+	}
 }
