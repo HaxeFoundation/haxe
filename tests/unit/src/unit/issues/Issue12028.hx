@@ -1,7 +1,7 @@
 package unit.issues;
 
 private typedef StateHandler<T> = {
-    public function onUpdate():T;
+	public function onUpdate():T;
 }
 
 class Issue12028 extends Test {
@@ -22,9 +22,9 @@ class Issue12028 extends Test {
 	}
 
 	function testVoid2Dyn() {
-		var handlers:StateHandler<Void> = {
-			onUpdate: function():Bool {
-				return true;
+		var handlers:StateHandler<Unit> = {
+			onUpdate: function() {
+				return Unit;
 			}
 		}
 		foo2(handlers);
