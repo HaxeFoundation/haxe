@@ -1,3 +1,9 @@
+# Usage:
+# - install Git
+# - install Neko
+# - checkout haxe git
+# - run from command "powershell -noexit -ExecutionPolicy Bypass -File .\WinSetup.ps1"
+
 function Cmd-Path($file) {
 	try { Split-Path -Parent (Get-Command "$file.exe" -ErrorAction Stop).Source } catch { "" }
 }

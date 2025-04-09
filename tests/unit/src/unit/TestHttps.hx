@@ -1,5 +1,6 @@
 package unit;
 
+import utest.Assert;
 import utest.Async;
 
 class TestHttps extends Test {
@@ -59,4 +60,35 @@ class TestHttps extends Test {
 		}
 		req.request();
 	});
+
+	#if sys
+	@:timeout(3000)
+	public function testCustomRequestWithSocket(async:Async) run(async, () -> {
+		final url = 'http://build.haxe.org/builds/haxe/linux64/haxe_latest.tar.gz';
+
+		final http = new haxe.Http(url);
+		final socket = new sys.net.Socket();
+		socket.setTimeout(10);
+		final output = new haxe.io.BytesOutput();
+		http.customRequest(false, output, socket);
+
+		try {
+			// our socket shouldn't be closed until we close it,
+			// so this should work
+			Assert.notNull(socket.host());
+			socket.setTimeout(10);
+			noAssert();
+		} catch (e) {
+			assert('socket should be unclosed, but got error: $e');
+		}
+
+		try {
+			socket.close();
+			noAssert();
+		} catch (e) {
+			assert("Failed to close socket");
+		}
+		async.done();
+	});
+	#end
 }

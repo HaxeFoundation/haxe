@@ -2,6 +2,12 @@ package cases;
 
 import Validator.shouldFail;
 
+typedef NotNullAnon = {
+	a:String
+}
+
+typedef NotNullAnonRef = NotNullAnon;
+
 class TestLoose {
 	static var staticVar:Null<String>;
 	var instanceVar:Null<String>;
@@ -83,6 +89,32 @@ class TestLoose {
 		var fn = function():String {
 			return a;
 		}
+	}
+
+	static function objectDecl_nullInField_shouldFail():Void {
+		shouldFail({
+			final value:Null<{a:String}> = {a: null};
+		});
+		final value:Map<Int, Null<{a:String}>> = [
+			1 => shouldFail({a: null})
+		];
+	}
+
+	static function objectDecl_nullInTypedef_shouldFail():Void {
+		shouldFail({
+			final value:NotNullAnon = {a: null};
+		});
+		final value:Map<Int, Null<NotNullAnon>> = [
+			1 => shouldFail({a: null})
+		];
+		var value:NotNullAnon = {a: ""};
+		shouldFail(value = {a: null});
+
+		final value:Map<Int, Null<NotNullAnonRef>> = [
+			1 => shouldFail({a: null})
+		];
+		var value:Null<NotNullAnonRef> = {a: ""};
+		shouldFail(value = {a: null});
 	}
 
 	static function testIssue8442() {

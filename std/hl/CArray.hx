@@ -20,5 +20,15 @@ abstract CArray<T>(Abstract<"hl_carray">) {
 		return null;
 	}
 
+	#if (hl_ver >= version("1.16.0"))
+	public inline function blit( cl : Class<T>, pos : Int, src : CArray<T>, srcPos : Int, srcLen : Int ) : Void {
+		carray_blit( cast this, (cast cl:BaseType).__type__, pos, src, srcPos, srcLen );
+	}
+
+	@:hlNative("?std","carray_blit")
+	static function carray_blit( dst: CArray<Dynamic>, t : hl.Type, pos : Int, src : CArray<Dynamic>, srcPos : Int, srcLen : Int ) : Void {
+	}
+	#end
+
 }
 #end

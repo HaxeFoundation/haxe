@@ -18,7 +18,8 @@
 	},
 	{
 		"name": "AnalyzerTimes",
-		"define": "analyzer-times",
+		"define": "times.analyzer",
+		"deprecatedDefine": "analyzer-times",
 		"doc": "Record detailed timers for the analyzer",
 		"params": ["level: 0 | 1 | 2"]
 	},
@@ -53,6 +54,7 @@
 		"define": "dce",
 		"doc": "Set the dead code elimination mode. (default: std)",
 		"params": ["mode: std | full | no"],
+		"default": "std",
 		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
@@ -111,9 +113,17 @@
 		"params": ["mode: pretty | record | position | legacy"]
 	},
 	{
+		"name": "DumpStage",
+		"define": "dump.stage",
+		"doc": "The compiler stage after which to generate the dump",
+		"params": ["stage: typing | casting | inlining | analyzing | dce"],
+		"default": "dce"
+	},
+	{
 		"name": "DumpPath",
 		"define": "dump-path",
 		"doc": "Path to generate dumps to (default: \"dump\").",
+		"default": "dump",
 		"params": ["path"]
 	},
 	{
@@ -124,7 +134,8 @@
 	{
 		"name": "DumpIgnoreVarIds",
 		"define": "dump-ignore-var-ids",
-		"doc": "Remove variable IDs from non-pretty dumps (helps with diff)."
+		"doc": "Remove variable IDs from non-pretty dumps (helps with diff).",
+		"default": "1"
 	},
 	{
 		"name": "DynamicInterfaceClosures",
@@ -137,6 +148,7 @@
 		"define": "eval-call-stack-depth",
 		"doc": "Set maximum call stack depth for eval. (default: 1000)",
 		"platforms": ["eval"],
+		"default": "1000",
 		"params": ["depth"]
 	},
 	{
@@ -150,6 +162,7 @@
 		"define": "eval-print-depth",
 		"doc": "Set maximum print depth (before replacing with '<...>') for eval. (default: 5)",
 		"platforms": ["eval"],
+		"default": "5",
 		"params": ["depth"]
 	},
 	{
@@ -166,7 +179,8 @@
 	},
 	{
 		"name": "EvalTimes",
-		"define": "eval-times",
+		"define": "times.eval",
+		"deprecatedDefine": "eval-times",
 		"doc": "Record per-method execution times in macro/interp mode. Implies eval-stack.",
 		"platforms": ["eval"]
 	},
@@ -177,7 +191,8 @@
 	},
 	{
 		"name": "FilterTimes",
-		"define": "filter-times",
+		"define": "times.filter",
+		"deprecatedDefine": "filter-times",
 		"doc": "Record per-filter execution times upon --times."
 	},
 	{
@@ -239,6 +254,27 @@
 		"reserved": true
 	},
 	{
+		"name": "Haxe3",
+		"define": "haxe3",
+		"doc": "The current Haxe major version is >= 3.",
+		"default": "1",
+		"reserved": true
+	},
+	{
+		"name": "Haxe4",
+		"define": "haxe4",
+		"doc": "The current Haxe major version is >= 4.",
+		"default": "1",
+		"reserved": true
+	},
+	{
+		"name": "Haxe5",
+		"define": "haxe5",
+		"doc": "The current Haxe major version is >= 5.",
+		"default": "1",
+		"reserved": true
+	},
+	{
 		"name": "HaxeNext",
 		"define": "haxe-next",
 		"doc": "Enable experimental features that are meant to be released on next Haxe version."
@@ -267,13 +303,14 @@
 	{
 		"name": "HlVer",
 		"define": "hl-ver",
-		"doc": "The HashLink version to target. (default: 1.10.0)",
+		"doc": "The HashLink version to target. (default: 1.15.0)",
 		"platforms": ["hl"],
 		"params": ["version"]
 	},
 	{
 		"name": "HxbTimes",
-		"define": "hxb-times",
+		"define": "times.hxb",
+		"deprecatedDefine": "hxb-times",
 		"doc": "Display hxb timing when used with `--times`."
 	},
 	{
@@ -480,6 +517,7 @@
 		"name": "LoopUnrollMaxCost",
 		"define": "loop-unroll-max-cost",
 		"doc": "Maximum cost (number of expressions * iterations) before loop unrolling is canceled. (default: 250)",
+		"default": "250",
 		"params": ["cost"]
 	},
 	{
@@ -510,7 +548,8 @@
 	},
 	{
 		"name": "MacroTimes",
-		"define": "macro-times",
+		"define": "times.macro",
+		"deprecatedDefine": "macro-times",
 		"doc": "Display per-macro timing when used with `--times`."
 	},
 	{
@@ -607,7 +646,8 @@
 	{
 		"name": "OldErrorFormat",
 		"define": "old-error-format",
-		"doc": "Use Haxe 3.x zero-based column error messages instead of new one-based format."
+		"doc": "Use Haxe 3.x zero-based column error messages instead of new one-based format.",
+		"deprecated": "OldErrorFormat has been removed in Haxe 5"
 	},
 	{
 		"name": "PhpPrefix",
@@ -804,6 +844,7 @@
 		"name": "MessageReporting",
 		"define": "message.reporting",
 		"doc": "Select message reporting mode for compiler output. (default: pretty)",
+		"default": "pretty",
 		"params": ["mode: classic | pretty | indent"]
 	},
 	{
@@ -825,6 +866,7 @@
 		"name": "MessageLogFormat",
 		"define": "message.log-format",
 		"doc": "Select message reporting mode for message log file. (default: indent)",
+		"default": "indent",
 		"params": ["format: classic | pretty | indent"]
 	}
 ]

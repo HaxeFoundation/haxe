@@ -2,6 +2,7 @@ open Ast
 open DisplayTypes.DisplayMode
 open Type
 open Common
+open PlatformConfig
 open DefineList
 open MetaList
 open Globals
@@ -34,7 +35,7 @@ type 'value compiler_api = {
 	on_type_not_found : (string -> 'value) -> unit;
 	parse_string : string -> Globals.pos -> bool -> Ast.expr;
 	register_file_contents : string -> string -> unit;
-	parse : 'a . ((Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
+	parse : 'a . (Parser.parser_ctx -> (Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
 	resolve_complex_type : Ast.type_hint -> Ast.type_hint;
@@ -1668,7 +1669,6 @@ let decode_path v =
 	(pack,name)
 
 let decode_platform_config v =
-	let open Common in
 	let capture_policy = match decode_enum (field v "capturePolicy") with
 		| 0, [] -> CPNone
 		| 1, [] -> CPWrapRef
@@ -2233,7 +2233,7 @@ let macro_api ccom get_api =
 				encode_obj ["file",encode_string p.Globals.pfile;"pos",vint p.Globals.pmin]
 		);
 		"get_display_mode", vfun0 (fun() ->
-			encode_display_mode !Parser.display_mode
+			encode_display_mode (ccom()).display.dms_kind;
 		);
 		"get_configuration", vfun0 (fun() ->
 			let com = ccom() in
@@ -2246,7 +2246,7 @@ let macro_api ccom get_api =
 				"platform", encode_platform com.platform;
 				"platformConfig", encode_platform_config com.config;
 				"stdPath", encode_array (List.map (fun path -> encode_string path#path) com.class_paths#get_std_paths);
-				"mainClass", (match com.main.main_class with None -> vnull | Some path -> encode_path path);
+				"mainClass", (match com.main.main_path with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
 			]
 		);
@@ -2382,8 +2382,10 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"timer", vfun1 (fun id ->
-			let full_id = (Option.default [] (Timer.current_id())) @ [decode_string id] in
-			let stop = Timer.timer full_id in
+			let com = ccom() in
+			let full_id = com.timer_ctx.current.id @ [decode_string id] in
+			(* TIMERTODO: Exposing this seems potentially dangerous... Have to at least document. *)
+			let stop = Timer.start_timer com.timer_ctx full_id in
 			vfun0 (fun() -> stop(); vnull)
 		);
 		"map_anon_ref", vfun2 (fun a_ref fn ->
@@ -2395,9 +2397,9 @@ let macro_api ccom get_api =
 		);
 		"with_imports", vfun3(fun imports usings f ->
 			let imports = List.map decode_string (decode_array imports) in
-			let imports = List.map ((get_api()).parse (fun s -> Grammar.parse_import' s Globals.null_pos)) imports in
+			let imports = List.map ((get_api()).parse (fun pctx s -> Grammar.parse_import' pctx s Globals.null_pos)) imports in
 			let usings = List.map decode_string (decode_array usings) in
-			let usings = List.map ((get_api()).parse (fun s -> Grammar.parse_using' s Globals.null_pos)) usings in
+			let usings = List.map ((get_api()).parse (fun pctx s -> Grammar.parse_using' pctx s Globals.null_pos)) usings in
 			let f = prepare_callback f 0 in
 			(get_api()).with_imports imports usings (fun () -> f [])
 		);

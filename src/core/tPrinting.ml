@@ -30,7 +30,7 @@ let s_module_type_kind = function
 
 
 module MonomorphPrinting = struct
-	let show_mono_ids = true
+	let show_mono_ids = ref true
 
 	let s_mono_constraint_kind s_type constr =
 		let rec loop = function
@@ -42,7 +42,7 @@ module MonomorphPrinting = struct
 		loop constr
 
 	let print_mono_name m id extra =
-		let s = if show_mono_ids then
+		let s = if !show_mono_ids then
 			Printf.sprintf "Unknown<%d>" id
 		else
 			"Unknown"
@@ -518,6 +518,7 @@ module Printer = struct
 			"cl_private",string_of_bool c.cl_private;
 			"cl_doc",s_doc c.cl_doc;
 			"cl_meta",s_metadata c.cl_meta;
+			"cl_flags",s_flags c.cl_flags flag_tclass_names;
 			"cl_params",s_type_params (tabs ^ "\t") c.cl_params;
 			"cl_kind",s_class_kind c.cl_kind;
 			"cl_super",s_opt (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_super;

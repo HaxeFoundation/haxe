@@ -8,7 +8,7 @@ open Typecore
 (* ---------------------------------------------------------------------- *)
 (* FINALIZATION *)
 
-let maybe_load_main tctx = match tctx.com.main.main_class with
+let maybe_load_main tctx = match tctx.com.main.main_path with
 	| Some path ->
 		Some (Typeload.load_module tctx path null_pos)
 	| None ->
@@ -17,7 +17,8 @@ let maybe_load_main tctx = match tctx.com.main.main_class with
 
 let get_main ctx main_module types =
 	match main_module with
-	| None -> None
+	| None ->
+		None,None
 	| Some main_module ->
 		let p = null_pos in
 		let path = main_module.m_path in
@@ -83,7 +84,7 @@ let get_main ctx main_module types =
 			| [e] -> e
 			| _ -> mk (TBlock exprs) ctx.t.tvoid p
 		in
-		Some main
+		Some main,Some (Path.UniqueKey.lazy_path main_module.m_extra.m_file)
 
 let finalize ctx =
 	flush_pass ctx.g PFinal ("final",[]);
@@ -203,6 +204,6 @@ let sort_types com (modules : module_lut) =
 	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
 	List.rev !types, sorted_modules
 
-let generate ctx main_class =
+let generate ctx main_path =
 	let types,modules = sort_types ctx.com ctx.com.module_lut in
-	get_main ctx main_class types,types,modules
+	get_main ctx main_path types,types,modules

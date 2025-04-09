@@ -305,7 +305,13 @@ let make_binop ctx op e1 e2 is_assign_op p =
 		| KFloat, KFloat ->
 			result := tfloat
 		| KNumParam t1, KNumParam t2 when Type.type_iseq t1 t2 ->
-			if op <> OpDiv then result := t1
+			(match op with
+			| OpDiv ->
+				let is_single = (match follow e1.etype with TAbstract({a_path=[],"Single"},_) -> true | _ -> false) in
+				if is_single then result := t1
+			| _ ->
+				result := t1
+			)
 		| KNumParam _, KNumParam _ ->
 			result := tfloat
 		| KNumParam t, KInt | KInt, KNumParam t ->
@@ -714,7 +720,7 @@ let handle_assign_op ctx api e1 e2 with_type p =
 			(* bind complex keys to a variable so they do not make it into the output twice *)
 			let save = save_locals ctx in
 			let vr = new value_reference ctx in
-			let maybe_bind_to_temp name e = match Optimizer.make_constant_expression ctx e with
+			let maybe_bind_to_temp name e = match Optimizer.make_constant_expression (SafeCom.of_typer ctx) e with
 				| Some e -> e
 				| None -> vr#as_var name e
 			in
@@ -984,6 +990,9 @@ let type_unop ctx op flag e with_type p =
 			| AKAccess(a,tl,c,ebase,ekey) ->
 				begin try
 					(match op with Increment | Decrement -> () | _ -> raise Not_found);
+					let v_base = alloc_var VGenerated "tmp" ebase.etype ebase.epos in
+					let evar_base = mk (TVar(v_base, Some ebase)) ctx.com.basic.tvoid ebase.epos in
+					let ebase = mk (TLocal v_base) ebase.etype ebase.epos in
 					let v_key = alloc_var VGenerated "tmp" ekey.etype ekey.epos in
 					let evar_key = mk (TVar(v_key,Some ekey)) ctx.com.basic.tvoid ekey.epos in
 					let ekey = mk (TLocal v_key) ekey.etype ekey.epos in
@@ -997,7 +1006,7 @@ let type_unop ctx op flag e with_type p =
 					let e_op = mk (TBinop((if op = Increment then OpAdd else OpSub),ev_get,e_one)) ev_get.etype p in
 					(* set *)
 					let e_set = mk_array_set_call ctx (AbstractCast.find_array_write_access_raise ctx a tl ekey e_op p) c ebase p in
-					let el = evar_key :: evar_get :: e_set :: (if flag = Postfix then [ev_get] else []) in
+					let el = evar_base :: evar_key :: evar_get :: e_set :: (if flag = Postfix then [ev_get] else []) in
 					mk (TBlock el) e_set.etype p
 				with Not_found ->
 					let e = mk_array_get_call ctx (AbstractCast.find_array_read_access ctx a tl ekey p) c ebase p in

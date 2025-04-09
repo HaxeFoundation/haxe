@@ -63,7 +63,7 @@ let type_function ctx (args : function_arguments) ret e do_display p =
 	end else begin
 		let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.f.curfield.cf_meta in
 		if is_display_debug then print_endline ("before processing:\n" ^ (Expr.dump_with_pos e));
-		let e = if !Parser.had_resume then e else Display.preprocess_expr ctx.com e in
+		let e = if ctx.com.parser_state.had_parser_resume then e else Display.preprocess_expr ctx.com e in
 		if is_display_debug then print_endline ("after processing:\n" ^ (Expr.dump_with_pos e));
 		type_expr ctx e NoValue
 	end in

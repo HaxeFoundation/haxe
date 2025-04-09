@@ -38,7 +38,7 @@ class Printer {
 	var tabs:String;
 	var tabString:String;
 
-	public function new(?tabString = "\t") {
+	public function new(tabString = "\t") {
 		tabs = "";
 		this.tabString = tabString;
 	}

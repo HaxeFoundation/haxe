@@ -119,16 +119,20 @@ class ServerTests extends TestCase {
 	function testDisplayModuleRecache(inMemory:Bool) {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
-		if (inMemory) args = args.concat(["-D", "disable-hxb-cache"]);
-		else args = args.concat(["--undefine", "disable-hxb-cache"]);
+		if (inMemory)
+			args = args.concat(["-D", "disable-hxb-cache"]);
+		else
+			args = args.concat(["--undefine", "disable-hxb-cache"]);
 
 		runHaxe(args);
 		runHaxe(args);
 		assertReuse("HelloWorld");
 
 		var args2 = ["--main", "HelloWorld", "--interp", "--display", "HelloWorld.hx@64@type"];
-		if (inMemory) args2 = args2.concat(["-D", "disable-hxb-cache"]);
-		else args2 = args2.concat(["--undefine", "disable-hxb-cache"]);
+		if (inMemory)
+			args2 = args2.concat(["-D", "disable-hxb-cache"]);
+		else
+			args2 = args2.concat(["--undefine", "disable-hxb-cache"]);
 
 		runHaxe(args2);
 		runHaxe(args);
@@ -140,8 +144,10 @@ class ServerTests extends TestCase {
 
 		runHaxe(args);
 
-		if (inMemory) assertSkipping("HelloWorld", Tainted("check_display_file"));
-		else assertSkipping("HelloWorld", Tainted("server/invalidate"));
+		if (inMemory)
+			assertSkipping("HelloWorld", Tainted("check_display_file"));
+		else
+			assertSkipping("HelloWorld", Tainted("server/invalidate"));
 	}
 
 	function testMutuallyDependent() {
@@ -299,10 +305,9 @@ class ServerTests extends TestCase {
 		vfs.putContent("File3.hx", getTemplate("diagnostics/multi-files/File3.hx"));
 
 		var args = ["--main", "Main", "--interp"];
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {fileContents: [
-			{file: new FsPath("Main.hx")},
-			{file: new FsPath("File1.hx")}
-		]}, res -> {
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {
+			fileContents: [{file: new FsPath("Main.hx")}, {file: new FsPath("File1.hx")}]
+		}, res -> {
 			Assert.equals(2, res.length); // Asked diagnostics for 2 files
 
 			for (fileDiagnostics in res) {
@@ -329,12 +334,15 @@ class ServerTests extends TestCase {
 		// Check that File2 was reached
 		var context = null;
 		runHaxeJsonCb(args, ServerMethods.Contexts, null, res -> context = res.find(ctx -> ctx.desc == "after_init_macros"));
-		runHaxeJsonCb(args, ServerMethods.Type, {signature: context.signature, modulePath: "File2", typeName: "File2"}, res -> Assert.equals(res.pos.file, "File2.hx"));
+		runHaxeJsonCb(args, ServerMethods.Type, {signature: context.signature, modulePath: "File2", typeName: "File2"},
+			res -> Assert.equals(res.pos.file, "File2.hx"));
 
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {fileContents: [
-			{file: new FsPath("Main.hx")},
-			{file: new FsPath("File3.hx")}, // Not reached by normal compilation
-		]}, res -> {
+		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {
+			fileContents: [
+				{file: new FsPath("Main.hx")},
+				{file: new FsPath("File3.hx")}, // Not reached by normal compilation
+			]
+		}, res -> {
 			Assert.equals(2, res.length); // Asked diagnostics for 2 files
 
 			for (fileDiagnostics in res) {
@@ -520,12 +528,6 @@ class ServerTests extends TestCase {
 		runHaxeJsonCb(args, DisplayMethods.Defines, {compiler: false, user: false}, function(defines) {
 			Assert.equals(0, defines.length);
 		});
-	}
-
-	function test8671() {
-		runHaxeJson(["--times"], ServerMethods.Contexts, null);
-		var res = Json.parse(lastResult.stderr);
-		Assert.equals(0, res.result.timers.time);
 	}
 
 	function test10986() {

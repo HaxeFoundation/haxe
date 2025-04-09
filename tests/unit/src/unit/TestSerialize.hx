@@ -139,6 +139,7 @@ class TestSerialize extends Test {
 			b.set(i, i % 10);
 		doTestBytes(b);
 		doTestBytesCrossPlatform();
+		doTestReset();
 
 		// recursivity
 		c.ref = c;
@@ -224,5 +225,56 @@ class TestSerialize extends Test {
 			if (i != byte)
 				break;
 		}
+	}
+
+	function doTestReset()
+	{
+		var serializer = new Serializer();
+		serializer.useCache = true;
+
+		// first serialization
+		var obj1 = { a: 1, b: 2, c: "test" };
+		serializer.serialize(obj1);
+		var serialized1 = serializer.toString();
+		var deserialized1 = Unserializer.run(serialized1);
+
+		eq(deserialized1.a, obj1.a);
+		eq(deserialized1.b, obj1.b);
+		eq(deserialized1.c, obj1.c);
+
+		// reset the serializer
+		serializer.reset();
+
+		// checks if buffer is empty after reset
+		eq(serializer.toString(), "");
+
+		// we serialize a second, different object
+		var obj2 = { x: 42, y: "new", z: false };
+		serializer.serialize(obj2);
+		var serialized2 = serializer.toString();
+		var deserialized2 = Unserializer.run(serialized2);
+
+		eq(deserialized2.x, obj2.x);
+		eq(deserialized2.y, obj2.y);
+		eq(deserialized2.z, obj2.z);
+
+		// ensures serialization changed after reset
+		f(serialized1 == serialized2);
+
+		// resets again and serialize obj2 again to verify consistency
+		serializer.reset();
+		serializer.serialize(obj2);
+		var serialized2Again = serializer.toString();
+
+		// serialization should be identical if reset() truly resets state
+		eq(serialized2, serialized2Again);
+
+		// check against a fresh serializer instance
+		var freshSerializer = new Serializer();
+		freshSerializer.useCache = true;
+		freshSerializer.serialize(obj2);
+		var freshSerialized2 = freshSerializer.toString();
+
+		eq(serialized2, freshSerialized2);
 	}
 }

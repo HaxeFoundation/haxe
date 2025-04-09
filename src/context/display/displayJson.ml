@@ -51,7 +51,6 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 
 	method enable_display ?(skip_define=false) mode =
 		com.display <- create mode;
-		Parser.display_mode := mode;
 		if not skip_define then Common.define_value com Define.Display "1"
 
 	method set_display_file was_auto_triggered requires_offset =
@@ -65,7 +64,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 		) None in
 
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
-		Parser.was_auto_triggered := was_auto_triggered;
+		com.parser_state.was_auto_triggered <- was_auto_triggered;
 
 		if file <> file_input_marker then begin
 			let file_unique = com.file_keys#get file in
@@ -139,7 +138,7 @@ class hxb_reader_api_com
 			cc#find_module m_path
 		with Not_found ->
 			let mc = cc#get_hxb_module m_path in
-			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats (Some cc#get_string_pool_arr) (Common.defined com Define.HxbTimes) in
+			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
 			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if full_restore then EOM else MTF) full_restore)
 
 	method basic_types =
@@ -493,7 +492,7 @@ let handler =
 	List.iter (fun (s,f) -> Hashtbl.add h s f) l;
 	h
 
-let parse_input com input report_times =
+let parse_input com input =
 	let input =
 		JsonRpc.handle_jsonrpc_error (fun () -> JsonRpc.parse_request input) send_json
 	in
@@ -506,9 +505,8 @@ let parse_input com input report_times =
 			"result",json;
 			"timestamp",jfloat (Unix.gettimeofday ());
 		] in
-		let fl = if !report_times then begin
-			close_times();
-			let _,_,root = Timer.build_times_tree () in
+		let fl = if com.timer_ctx.measure_times = Yes then begin
+			let _,_,root = Timer.build_times_tree com.timer_ctx in
 			begin match json_of_times root with
 			| None -> fl
 			| Some jo -> ("timers",jo) :: fl

@@ -13,7 +13,6 @@ class Issue10831 extends Test {
 	function test() {
 		switch (get()) {
 			case EnumTest(p):
-				trace(p);
 		}
 		Assert.pass();
 	}

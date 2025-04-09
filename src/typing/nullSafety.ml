@@ -1076,8 +1076,26 @@ class expr_checker mode immediate_execution report =
 			E.g.: `Array<Null<String>>` vs `Array<String>` returns `true`, but also adds a compilation error.
 		*)
 		method can_pass_expr expr to_type p =
+			let try_unify expr to_type =
+				if self#is_nullable_expr expr && not (is_nullable_type ~dynamic_is_nullable:true to_type) then
+					false
+				else begin
+					let expr_type = unfold_null expr.etype in
+					try
+						new unificator#unify expr_type to_type;
+						true
+					with
+						| Safety_error err ->
+							self#error ("Cannot unify " ^ (str_type expr_type) ^ " with " ^ (str_type to_type)) [p; expr.epos];
+							(* returning `true` because error is already logged in the line above *)
+							true
+						| e ->
+							fail ~msg:"Null safety unification failure" expr.epos __POS__
+				end
+			in
 			match expr.eexpr, to_type with
 				| TLocal v, _ when contains_unsafe_meta v.v_meta -> true
+				| TObjectDecl fields, TAbstract ({ a_path = ([],"Null") }, [TAnon to_type])
 				| TObjectDecl fields, TAnon to_type ->
 					List.for_all
 						(fun ((name, _, _), field_expr) ->
@@ -1086,22 +1104,20 @@ class expr_checker mode immediate_execution report =
 								self#can_pass_expr field_expr field_to_type.cf_type p
 							with Not_found -> false)
 						fields
-				| _, _ ->
-					if self#is_nullable_expr expr && not (is_nullable_type ~dynamic_is_nullable:true to_type) then
-						false
-					else begin
-						let expr_type = unfold_null expr.etype in
-						try
-							new unificator#unify expr_type to_type;
-							true
-						with
-							| Safety_error err ->
-								self#error ("Cannot unify " ^ (str_type expr_type) ^ " with " ^ (str_type to_type)) [p; expr.epos];
-								(* returning `true` because error is already logged in the line above *)
-								true
-							| e ->
-								fail ~msg:"Null safety unification failure" expr.epos __POS__
-					end
+				| TObjectDecl fields, TAbstract ({ a_path = ([],"Null") }, [TType (t,tl)])
+				| TObjectDecl fields, TType (t,tl) ->
+					(match follow_without_null t.t_type with
+							| TAnon to_type ->
+								List.for_all
+									(fun ((name, _, _), field_expr) ->
+										try
+											let field_to_type = PMap.find name to_type.a_fields in
+											self#can_pass_expr field_expr field_to_type.cf_type p
+										with Not_found -> false)
+									fields
+							| _ -> try_unify expr to_type
+					)
+				| _, _ -> try_unify expr to_type
 		(**
 			Should be called for the root expressions of a method or for then initialization expressions of fields.
 		*)
@@ -1368,7 +1384,7 @@ class expr_checker mode immediate_execution report =
 				(* Local named functions like `function fn() {}`, which are generated as `var fn = null; fn = function(){}` *)
 				| Some { eexpr = TConst TNull } when v.v_kind = VUser TVOLocalFunction -> ()
 				(* `_this = null` is generated for local `inline function` *)
-				| Some { eexpr = TConst TNull } when v.v_kind = VGenerated -> ()
+				(* | Some { eexpr = TConst TNull } when v.v_kind = VGenerated -> () *)
 				| Some e ->
 					let local = { eexpr = TLocal v; epos = v.v_pos; etype = v.v_type } in
 					self#check_binop OpAssign local e p
@@ -1658,18 +1674,19 @@ class class_checker cls immediate_execution report =
 	Run null safety checks.
 *)
 let run (com:Common.context) (types:module_type list) =
-	let timer = Timer.timer ["null safety"] in
-	let report = { sr_errors = [] } in
-	let immediate_execution = new immediate_execution in
-	let traverse module_type =
-		match module_type with
-			| TEnumDecl enm -> ()
-			| TTypeDecl typedef -> ()
-			| TAbstractDecl abstr -> ()
-			| TClassDecl cls -> (new class_checker cls immediate_execution report)#check
-	in
-	List.iter traverse types;
-	timer();
+	let report = Timer.time com.timer_ctx ["null safety"] (fun () ->
+		let report = { sr_errors = [] } in
+		let immediate_execution = new immediate_execution in
+		let traverse module_type =
+			match module_type with
+				| TEnumDecl enm -> ()
+				| TTypeDecl typedef -> ()
+				| TAbstractDecl abstr -> ()
+				| TClassDecl cls -> (new class_checker cls immediate_execution report)#check
+		in
+		List.iter traverse types;
+		report;
+	) () in
 	match com.callbacks#get_null_safety_report with
 		| [] ->
 			List.iter (fun err -> Common.display_error com err.sm_msg err.sm_pos) (List.rev report.sr_errors)

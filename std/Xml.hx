@@ -143,7 +143,7 @@ class Xml {
 		Returns the parent object in the Xml hierarchy.
 		The parent can be `null`, an Element or a Document.
 	**/
-	public var parent(default, null):Xml;
+	public var parent(default, null):Null<Xml>;
 
 	var children:Array<Xml>;
 	var attributeMap:Map<String, String>;
@@ -241,7 +241,7 @@ class Xml {
 		Get the given attribute of an Element node. Returns `null` if not found.
 		Attributes are case-sensitive.
 	**/
-	public function get(att:String):String {
+	public function get(att:String):Null<String> {
 		if (nodeType != Element) {
 			throw 'Bad node type, expected Element but found $nodeType';
 		}
@@ -334,7 +334,7 @@ class Xml {
 	/**
 		Returns the first child node which is an Element.
 	**/
-	public function firstElement():Xml {
+	public function firstElement():Null<Xml> {
 		ensureElementType();
 		for (child in children) {
 			if (child.nodeType == Element) {

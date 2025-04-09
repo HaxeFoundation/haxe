@@ -34,12 +34,12 @@ import js.Syntax;
 		return @:privateAccess js.Boot.__instanceof(v, t);
 	}
 
-	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):S @:privateAccess {
+	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> @:privateAccess {
 		return if (js.Boot.__downcastCheck(value, c)) cast value else null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return downcast(value, c);
 	}
 

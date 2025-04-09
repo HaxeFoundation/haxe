@@ -1,13 +1,4 @@
-module StringHashtbl = Hashtbl.Make(struct
-	type t = string
-
-	let equal =
-		String.equal
-
-	let hash s =
-		(* What's the best here? *)
-		Hashtbl.hash s
-end)
+open Globals
 
 type t = {
 	lut : int StringHashtbl.t;
