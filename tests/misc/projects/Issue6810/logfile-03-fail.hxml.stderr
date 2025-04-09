@@ -1,0 +1,16 @@
+[30;41m ERROR [0m Fail.hx:7: characters 8-12
+
+ 7 | [2m  test([0m[1mvoid[0m[2m);[0m
+   |        [31m^^^^[0m
+   | error: Void should be haxe.NotVoid
+   | have: (...) -> Void
+   | want: (...) -> haxe.NotVoid
+
+[30;41m ERROR [0m Fail.hx:8: characters 8-16
+
+ 8 | [2m  test([0m[1mfakeVoid[0m[2m);[0m
+   |        [31m^^^^^^^^[0m
+   | error: FakeVoid should be haxe.NotVoid
+   | have: (...) -> FakeVoid
+   | want: (...) -> haxe.NotVoid
+

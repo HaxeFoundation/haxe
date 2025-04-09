@@ -1,9 +1,9 @@
 // from vshaxe
 package haxe.display;
 
+import haxe.display.JsonModuleTypes;
 import haxe.display.Position.Location;
 import haxe.display.Position.Range;
-import haxe.display.JsonModuleTypes;
 
 enum abstract UnresolvedIdentifierSuggestion(Int) {
 	var UISImport;
@@ -53,13 +53,13 @@ typedef ReplaceableCodeDiagnostics = {
 }
 
 enum abstract DiagnosticKind<T>(Int) from Int to Int {
-	final DKUnusedImport:DiagnosticKind<Void>;
+	final DKUnusedImport:DiagnosticKind<Unit>;
 	final DKUnresolvedIdentifier:DiagnosticKind<Array<{kind:UnresolvedIdentifierSuggestion, name:String}>>;
 	final DKCompilerError:DiagnosticKind<String>;
 	final ReplaceableCode:DiagnosticKind<ReplaceableCodeDiagnostics>;
 	final DKParserError:DiagnosticKind<String>;
 	final DeprecationWarning:DiagnosticKind<String>;
-	final InactiveBlock:DiagnosticKind<Void>;
+	final InactiveBlock:DiagnosticKind<Unit>;
 	final MissingFields:DiagnosticKind<MissingFieldDiagnostics>;
 }
 
