@@ -551,18 +551,20 @@ object(self)
 			in
 			mk (TCall (e,el)) t p
 		in
-		let make args ret coro =
-			if coro && not (TyperManager.is_coroutine_context ctx) then raise_typing_error "Cannot directly call coroutine from a normal function, use start/create methods instead" p;
+		let make args ret =
 			let args_typed,args_left = unify_typed_args ctx (fun t -> t) args el_typed p in
 			let el = unify_call_args ctx el args_left ret p false false false in
 			let el = el_typed @ el in
 			mk (TCall (e,el)) ret p
 		in
 		let rec loop t = match follow_with_coro t with
+		| Coro(args,ret) when not (TyperManager.is_coroutine_context ctx) ->
+			let args, ret = expand_coro_type ctx.com.basic args ret in
+			make args ret
 		| Coro(args,ret) ->
-			make args ret true
+			make args ret
 		| NotCoro(TFun(args,ret)) ->
-			make args ret false
+			make args ret
 		| NotCoro(TAbstract(a,tl) as t) ->
 			let check_callable () =
 				if Meta.has Meta.Callable a.a_meta then
