@@ -122,7 +122,7 @@ let create com api is_macro =
 			ofields = [||];
 			oproto = OProto (fake_proto key_eval_toplevel);
 		};
-		eval = eval;
+		eval = Thread_local_storage.create ();
 		evals = evals;
 		exception_stack = [];
 		timer_ctx = com.timer_ctx;
@@ -131,6 +131,7 @@ let create com api is_macro =
 		print_indentation = match Common.defined_value_safe com Define.EvalPrettyPrint
 			with | "" -> None | "1" -> Some "  " | indent -> Some indent;
 	} in
+	Thread_local_storage.set ctx.eval eval;
 	if debug.support_debugger && not !GlobalState.debugger_initialized then begin
 		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
 		   Note that configuration is shared between macro and interpreter contexts, which is why the check

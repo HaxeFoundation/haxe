@@ -285,7 +285,7 @@ and context = {
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* eval *)
 	toplevel : value;
-	eval : eval;
+	eval : eval Thread_local_storage.t;
 	mutable evals : eval IntMap.t;
 	mutable exception_stack : (pos * env_kind) list;
 	max_stack_depth : int;
@@ -321,14 +321,7 @@ let s_debug_state = function
 (* Misc *)
 
 let get_eval ctx =
-	let id = Thread.id (Thread.self()) in
-	if id = 0 then
-		ctx.eval
-	else
-		try
-			IntMap.find id ctx.evals
-		with Not_found ->
-			die "Cannot run Haxe code in a non-Haxe thread" __LOC__
+	Thread_local_storage.get_exn ctx.eval
 
 let kind_name eval kind =
 	let rec loop kind env = match kind with

@@ -751,7 +751,7 @@ let handler =
 		);
 		"evaluate",(fun hctx ->
 			let ctx = hctx.ctx in
-			let env = try select_frame hctx with _ -> expect_env hctx ctx.eval.env in
+			let env = try select_frame hctx with _ -> expect_env hctx (Thread_local_storage.get_exn ctx.eval).env in
 			let s = hctx.jsonrpc#get_string_param "expr" in
 			begin try
 				let e = parse_expr ctx s env.env_debug.debug_pos in
@@ -765,7 +765,7 @@ let handler =
 			end
 		);
 		"getCompletion",(fun hctx ->
-			let env = expect_env hctx hctx.ctx.eval.env in
+			let env = expect_env hctx (Thread_local_storage.get_exn hctx.ctx.eval).env in
 			let text = hctx.jsonrpc#get_string_param "text" in
 			let column = hctx.jsonrpc#get_int_param "column" in
 			try

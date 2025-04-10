@@ -87,6 +87,7 @@ let run ctx f thread =
 	in
 	let new_eval = create_eval thread in
 	ctx.evals <- IntMap.add id new_eval ctx.evals;
+	Thread_local_storage.set ctx.eval new_eval;
 	let close () =
 		ctx.evals <- IntMap.remove id ctx.evals;
 		maybe_send_thread_event "exited";
