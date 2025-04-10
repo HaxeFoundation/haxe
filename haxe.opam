@@ -35,4 +35,5 @@ depends: [
   "ipaddr"
   "terminal_size"
   "domainslib"
+  "thread-local-storage"
 ]
