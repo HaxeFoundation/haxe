@@ -251,6 +251,9 @@ class TestExceptions extends Test {
 			var expected = null;
 			var lineShift = 0;
 			for(s in stacks) {
+				// This will avoid hl/c errors on platforms without callstack support
+				#if hlc if (s.length == 0) continue; #end
+
 				if(expected == null) {
 					expected = stackItemData(s[0]);
 				} else {
