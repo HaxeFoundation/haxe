@@ -638,8 +638,19 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 	in
 	let e1 = type_expr ctx e1 wt in
 	let e1 = match wt with
-		| WithType.WithType(t,_) -> AbstractCast.cast_or_unify ctx t e1 e1.epos
-		| _ -> e1
+		| WithType.WithType(t,_) ->
+			let has_matching_op a =
+				List.exists (fun (o,_) -> o = op) a.a_ops
+			in
+			begin match follow e1.etype with
+				| TAbstract(a,tl) when has_matching_op a ->
+					(* The operator could be ambiguous, let's not cast (issue #12145). *)
+					e1
+				| _ ->
+					AbstractCast.cast_or_unify ctx t e1 e1.epos
+			end
+		| _ ->
+			e1
 	in
 	let result = if abstract_overload_only then begin
 		let e2 = type_binop_rhs ctx op e1 e2 is_assign_op with_type p in
