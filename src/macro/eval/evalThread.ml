@@ -69,6 +69,7 @@ end
 let create_eval thread = {
 	env = None;
 	thread = thread;
+	exception_stack = [];
 	debug_channel = Event.new_channel ();
 	debug_state = DbgRunning;
 	breakpoint = make_breakpoint 0 0 BPDisabled BPAny None;

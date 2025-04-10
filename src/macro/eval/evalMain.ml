@@ -124,7 +124,6 @@ let create com api is_macro =
 		};
 		eval = Thread_local_storage.create ();
 		evals = evals;
-		exception_stack = [];
 		timer_ctx = com.timer_ctx;
 		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
 		max_print_depth = int_of_string (Common.defined_value_safe ~default:"5" com Define.EvalPrintDepth);

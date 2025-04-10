@@ -231,7 +231,7 @@ let emit_try exec catches env =
 	with RunTimeException(v,_,_) as exc ->
 		eval.caught_exception <- vnull;
 		restore();
-		build_exception_stack ctx env;
+		build_exception_stack eval env;
 		let rec loop () = match eval.env with
 			| Some env' when env' != env ->
 				pop_environment ctx env';

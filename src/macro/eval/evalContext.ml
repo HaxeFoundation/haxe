@@ -109,6 +109,7 @@ type env = {
 and eval = {
 	mutable env : env option;
 	thread : vthread;
+	mutable exception_stack : (pos * env_kind) list;
 	(* The threads current debug state *)
 	mutable debug_state : debug_state;
 	(* The currently active breakpoint. Set to a dummy value initially. *)
@@ -287,7 +288,6 @@ and context = {
 	toplevel : value;
 	eval : eval Thread_local_storage.t;
 	evals : (int,eval) ThreadSafeHashtbl.t;
-	mutable exception_stack : (pos * env_kind) list;
 	max_stack_depth : int;
 	max_print_depth : int;
 	print_indentation : string option;

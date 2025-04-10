@@ -80,7 +80,7 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 								jobject ["name",jstring "debug_channel";"size",jint (mem_size_2 eval.debug_channel [Obj.repr interp; Obj.repr eval])];
 							]];
 							jobject ["name",jstring "evals";"size",jint (mem_size_2 interp.evals [Obj.repr interp])];
-							jobject ["name",jstring "exception_stack";"size",jint (mem_size_2 interp.exception_stack [Obj.repr interp])];
+							jobject ["name",jstring "exception_stack";"size",jint (mem_size_2 eval.exception_stack [Obj.repr interp])];
 						]];
 					| None ->
 						jobject ["name",jstring "macro interpreter";"size",jint (mem_size MacroContext.macro_interp_cache)];

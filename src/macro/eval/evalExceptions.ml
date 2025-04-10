@@ -120,7 +120,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 	with
 	| RunTimeException(v,eval_stack,p') ->
 		eval.caught_exception <- vnull;
-		Option.may (build_exception_stack ctx) env;
+		Option.may (build_exception_stack eval) env;
 		eval.env <- env;
 
 		(* Careful: We have to get the message before resetting the context because toString() might access it. *)
