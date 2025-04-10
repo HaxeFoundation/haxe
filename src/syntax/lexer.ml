@@ -570,89 +570,170 @@ let rec token ctx lexbuf =
 	| _ -> invalid_char ctx lexbuf
 
 and comment ctx lexbuf =
-	match%sedlex lexbuf with
-	| eof -> raise Exit
-	| '\n' | '\r' | "\r\n" -> newline ctx lexbuf; store ctx lexbuf; comment ctx lexbuf
-	| "*/" -> lexeme_end lexbuf
-	| '*' -> store ctx lexbuf; comment ctx lexbuf
-	| Plus (Compl ('*' | '\n' | '\r')) -> store ctx lexbuf; comment ctx lexbuf
-	| _ -> die "" __LOC__
+	let rec loop () = match%sedlex lexbuf with
+		| eof ->
+			raise Exit
+		| '\n' | '\r' | "\r\n" ->
+			newline ctx lexbuf;
+			store ctx lexbuf;
+			loop ()
+		| "*/" ->
+			lexeme_end lexbuf
+		| '*' ->
+			store ctx lexbuf;
+			loop ()
+		| Plus (Compl ('*' | '\n' | '\r')) ->
+			store ctx lexbuf;
+			loop ()
+		| _ ->
+			die "" __LOC__
+	in
+	loop ()
 
 and string ctx lexbuf =
-	match%sedlex lexbuf with
-	| eof -> raise Exit
-	| '\n' | '\r' | "\r\n" -> newline ctx lexbuf; store ctx lexbuf; string ctx lexbuf
-	| "\\\"" -> store ctx lexbuf; string ctx lexbuf
-	| "\\\\" -> store ctx lexbuf; string ctx lexbuf
-	| '\\' -> store ctx lexbuf; string ctx lexbuf
-	| '"' -> lexeme_end lexbuf
-	| Plus (Compl ('"' | '\\' | '\r' | '\n')) -> store ctx lexbuf; string ctx lexbuf
-	| _ -> die "" __LOC__
+	let rec loop () = match%sedlex lexbuf with
+		| eof -> raise Exit
+		| '\n' | '\r' | "\r\n" ->
+			newline ctx lexbuf;
+			store ctx lexbuf;
+			loop ()
+		| "\\\"" ->
+			store ctx lexbuf;
+			loop ()
+		| "\\\\" ->
+			store ctx lexbuf;
+			loop ()
+		| '\\' ->
+			store ctx lexbuf;
+			loop ()
+		| '"' ->
+			lexeme_end lexbuf
+		| Plus (Compl ('"' | '\\' | '\r' | '\n')) ->
+			store ctx lexbuf;
+			loop ()
+		| _ ->
+			die "" __LOC__
+	in
+	loop ()
 
 and string2 ctx lexbuf =
-	match%sedlex lexbuf with
-	| eof -> raise Exit
-	| '\n' | '\r' | "\r\n" -> newline ctx lexbuf; store ctx lexbuf; string2 ctx lexbuf
-	| '\\' -> store ctx lexbuf; string2 ctx lexbuf
-	| "\\\\" -> store ctx lexbuf; string2 ctx lexbuf
-	| "\\'" -> store ctx lexbuf; string2 ctx lexbuf
-	| "'" -> lexeme_end lexbuf
-	| "$$" | "\\$" | '$' -> store ctx lexbuf; string2 ctx lexbuf
-	| "${" ->
-		let pmin = lexeme_start lexbuf in
-		store ctx lexbuf;
-		(try code_string ctx lexbuf 0 with Exit -> error ctx Unclosed_code pmin);
-		string2 ctx lexbuf;
-	| Plus (Compl ('\'' | '\\' | '\r' | '\n' | '$')) -> store ctx lexbuf; string2 ctx lexbuf
-	| _ -> die "" __LOC__
+	let rec loop () = match%sedlex lexbuf with
+		| eof ->
+			raise Exit
+		| '\n' | '\r' | "\r\n" ->
+			newline ctx lexbuf;
+			store ctx lexbuf;
+			loop ()
+		| '\\' ->
+			store ctx lexbuf;
+			loop ()
+		| "\\\\" ->
+			store ctx lexbuf;
+			loop ();
+		| "\\'" ->
+			store ctx lexbuf;
+			loop ();
+		| "'" ->
+			lexeme_end lexbuf
+		| "$$" | "\\$" | '$' ->
+			store ctx lexbuf;
+			loop ();
+		| "${" ->
+			let pmin = lexeme_start lexbuf in
+			store ctx lexbuf;
+			(try code_string ctx lexbuf with Exit -> error ctx Unclosed_code pmin);
+			loop ();
+		| Plus (Compl ('\'' | '\\' | '\r' | '\n' | '$')) ->
+			store ctx lexbuf;
+			loop ();
+		| _ ->
+			die "" __LOC__
+	in
+	loop ()
 
-and code_string ctx lexbuf open_braces =
-	match%sedlex lexbuf with
-	| eof -> raise Exit
-	| '\n' | '\r' | "\r\n" -> newline ctx lexbuf; store ctx lexbuf; code_string ctx lexbuf open_braces
-	| '{' -> store ctx lexbuf; code_string ctx lexbuf (open_braces + 1)
-	| '/' -> store ctx lexbuf; code_string ctx lexbuf open_braces
-	| '}' ->
-		store ctx lexbuf;
-		if open_braces > 0 then code_string ctx lexbuf (open_braces - 1)
-	| '"' ->
-		add ctx "\"";
-		let pmin = lexeme_start lexbuf in
-		(try ignore(string ctx lexbuf) with Exit -> error ctx Unterminated_string pmin);
-		add ctx "\"";
-		code_string ctx lexbuf open_braces
-	| "'" ->
-		add ctx "'";
-		let pmin = lexeme_start lexbuf in
-		(try ignore(string2 ctx lexbuf) with Exit -> error ctx Unterminated_string pmin);
-		add ctx "'";
-		code_string ctx lexbuf open_braces
-	| "/*" ->
-		let pmin = lexeme_start lexbuf in
-		let save = contents ctx in
-		reset ctx;
-		(try ignore(comment ctx lexbuf) with Exit -> error ctx Unclosed_comment pmin);
-		reset ctx;
-		Buffer.add_string ctx.buf save;
-		code_string ctx lexbuf open_braces
-	| "//", Star (Compl ('\n' | '\r')) -> store ctx lexbuf; code_string ctx lexbuf open_braces
-	| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) -> store ctx lexbuf; code_string ctx lexbuf open_braces
-	| _ -> die "" __LOC__
+and code_string ctx lexbuf =
+	let rec loop open_braces = match%sedlex lexbuf with
+		| eof -> raise Exit
+		| '\n' | '\r' | "\r\n" ->
+			newline ctx lexbuf;
+			store ctx lexbuf;
+			loop open_braces
+		| '{' ->
+			store ctx lexbuf;
+			loop (open_braces + 1)
+		| '/' ->
+			store ctx lexbuf;
+			loop open_braces
+		| '}' ->
+			store ctx lexbuf;
+			if open_braces > 0 then loop (open_braces - 1)
+		| '"' ->
+			add ctx "\"";
+			let pmin = lexeme_start lexbuf in
+			(try ignore(string ctx lexbuf) with Exit -> error ctx Unterminated_string pmin);
+			add ctx "\"";
+			loop open_braces
+		| "'" ->
+			add ctx "'";
+			let pmin = lexeme_start lexbuf in
+			(try ignore(string2 ctx lexbuf) with Exit -> error ctx Unterminated_string pmin);
+			add ctx "'";
+			loop open_braces
+		| "/*" ->
+			let pmin = lexeme_start lexbuf in
+			let save = contents ctx in
+			reset ctx;
+			(try ignore(comment ctx lexbuf) with Exit -> error ctx Unclosed_comment pmin);
+			reset ctx;
+			Buffer.add_string ctx.buf save;
+			loop open_braces
+		| "//", Star (Compl ('\n' | '\r')) ->
+			store ctx lexbuf;
+			loop open_braces
+		| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) ->
+			store ctx lexbuf;
+			loop open_braces
+		| _ ->
+			die "" __LOC__
+	in
+	loop 0
 
 and regexp ctx lexbuf =
-	match%sedlex lexbuf with
-	| eof | '\n' | '\r' -> raise Exit
-	| '\\', '/' -> add  ctx"/"; regexp ctx lexbuf
-	| '\\', 'r' -> add  ctx"\r"; regexp ctx lexbuf
-	| '\\', 'n' -> add  ctx"\n"; regexp ctx lexbuf
-	| '\\', 't' -> add  ctx"\t"; regexp ctx lexbuf
-	| '\\', ('\\' | '$' | '.' | '*' | '+' | '^' | '|' | '{' | '}' | '[' | ']' | '(' | ')' | '?' | '-' | '0'..'9') -> add  ctx(lexeme lexbuf); regexp ctx lexbuf
-	| '\\', ('w' | 'W' | 'b' | 'B' | 's' | 'S' | 'd' | 'D' | 'x') -> add  ctx(lexeme lexbuf); regexp ctx lexbuf
-	| '\\', ('u' | 'U'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F') -> add  ctx(lexeme lexbuf); regexp ctx lexbuf
-	| '\\', Compl '\\' -> error ctx (Invalid_character (Uchar.to_int (lexeme_char lexbuf 0))) (lexeme_end lexbuf - 1)
-	| '/' -> regexp_options ctx lexbuf, lexeme_end lexbuf
-	| Plus (Compl ('\\' | '/' | '\r' | '\n')) -> store ctx lexbuf; regexp ctx lexbuf
-	| _ -> die "" __LOC__
+	let rec loop () = match%sedlex lexbuf with
+		| eof | '\n' | '\r' ->
+			raise Exit
+		| '\\', '/' ->
+			add  ctx"/";
+			loop ()
+		| '\\', 'r' ->
+			add  ctx"\r";
+			loop ()
+		| '\\', 'n' ->
+			add  ctx"\n";
+			loop ()
+		| '\\', 't' ->
+			add  ctx"\t";
+			loop ()
+		| '\\', ('\\' | '$' | '.' | '*' | '+' | '^' | '|' | '{' | '}' | '[' | ']' | '(' | ')' | '?' | '-' | '0'..'9') ->
+			add  ctx(lexeme lexbuf);
+			loop ()
+		| '\\', ('w' | 'W' | 'b' | 'B' | 's' | 'S' | 'd' | 'D' | 'x') ->
+			add ctx (lexeme lexbuf);
+			loop ()
+		| '\\', ('u' | 'U'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F') ->
+			add ctx (lexeme lexbuf);
+			loop ()
+		| '\\', Compl '\\' ->
+			error ctx (Invalid_character (Uchar.to_int (lexeme_char lexbuf 0))) (lexeme_end lexbuf - 1)
+		| '/' ->
+			regexp_options ctx lexbuf, lexeme_end lexbuf
+		| Plus (Compl ('\\' | '/' | '\r' | '\n')) ->
+			store ctx lexbuf;
+			loop ()
+	| _ ->
+		die "" __LOC__
+	in
+	loop ()
 
 and regexp_options ctx lexbuf =
 	match%sedlex lexbuf with
