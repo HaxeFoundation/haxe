@@ -199,7 +199,7 @@ let output_threads ctx =
 			"name",JString (Printf.sprintf "Thread %i" (Thread.id eval.thread.tthread));
 		]) :: acc
 	in
-	let threads = IntMap.fold fold ctx.evals [] in
+	let threads = ThreadSafeHashtbl.fold fold ctx.evals [] in
 	JArray threads
 
 let is_simn = false
@@ -566,7 +566,7 @@ let handler =
 	in
 	let select_thread hctx =
 		let id = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "threadId") 0 in
-		let eval = try IntMap.find id hctx.ctx.evals with Not_found -> hctx.send_error "Invalid thread id" in
+		let eval = try ThreadSafeHashtbl.find hctx.ctx.evals id with Not_found -> hctx.send_error "Invalid thread id" in
 		eval
 	in
 	let h = Hashtbl.create 0 in

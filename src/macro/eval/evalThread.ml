@@ -86,10 +86,10 @@ let run ctx f thread =
 			()
 	in
 	let new_eval = create_eval thread in
-	ctx.evals <- IntMap.add id new_eval ctx.evals;
+	ThreadSafeHashtbl.add ctx.evals id new_eval;
 	Thread_local_storage.set ctx.eval new_eval;
 	let close () =
-		ctx.evals <- IntMap.remove id ctx.evals;
+		ThreadSafeHashtbl.remove ctx.evals id;
 		maybe_send_thread_event "exited";
 	in
 	try
@@ -125,7 +125,7 @@ let spawn ctx f =
 *)
 let run ctx f =
 	let id = Thread.id (Thread.self()) in
-	if IntMap.mem id ctx.evals then
+	if ThreadSafeHashtbl.mem ctx.evals id then
 		ignore(f())
 	else begin
 		let thread = {

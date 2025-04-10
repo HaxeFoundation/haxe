@@ -286,7 +286,7 @@ and context = {
 	(* eval *)
 	toplevel : value;
 	eval : eval Thread_local_storage.t;
-	mutable evals : eval IntMap.t;
+	evals : (int,eval) ThreadSafeHashtbl.t;
 	mutable exception_stack : (pos * env_kind) list;
 	max_stack_depth : int;
 	max_print_depth : int;

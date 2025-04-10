@@ -97,7 +97,7 @@ let create com api is_macro =
 		tdeque = EvalThread.Deque.create();
 	} in
 	let eval = EvalThread.create_eval thread in
-	let evals = IntMap.singleton 0 eval in
+	let evals = ThreadSafeHashtbl.create 1 in
 	let ctx = {
 		ctx_id = !GlobalState.sid;
 		is_macro = is_macro;
