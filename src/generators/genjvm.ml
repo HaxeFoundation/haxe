@@ -3012,7 +3012,7 @@ let generate_anons gctx pool =
 		end;
 		write_class gctx path (jc#export_class gctx.default_export_config)
 	in
-	let seq = Hashtbl.to_seq gctx.anon_identification#get_pfms in
+	let seq = gctx.anon_identification#get_pfms in
 	Parallel.ParallelSeq.iter pool run seq
 
 let generate_typed_functions gctx =

@@ -314,7 +314,7 @@ class ['a] typedef_interfaces (infos : 'a info_context) (anon_identification : '
 		let tc = TInst(c,extract_param_types c.cl_params) in
 		(* TODO: this entire architecture looks slightly retarded because typedef_implements is only modified at the end of the
 		   loop, which I think could cause items to be missed. *)
-		let l = Hashtbl.fold (fun _ pfm acc ->
+		let l = Seq.fold_left (fun acc (_,pfm) ->
 			let path = pfm.pfm_path in
 			let path_inner = (fst path,snd path ^ "$Interface") in
 			try
@@ -327,6 +327,6 @@ class ['a] typedef_interfaces (infos : 'a info_context) (anon_identification : '
 				(ci :: acc)
 			with Unify_error _ ->
 				acc
-		) anon_identification#get_pfms [] in
+		) [] anon_identification#get_pfms in
 		info.typedef_implements <- Some l
 end

@@ -1,5 +1,6 @@
 open Globals
 open Type
+open Saturn
 
 let replace_mono tmono_as_tdynamic t =
 	let visited_anons = ref [] in
@@ -47,22 +48,19 @@ class ['a] tanon_identification =
 	in
 object(self)
 
-	val pfms = Hashtbl.create 0
+	val pfms = Htbl.create ()
 	val pfm_mutex = Mutex.create ()
 	val pfm_by_arity = DynArray.create ()
-	val add_pfm_mutex = Mutex.create ()
 	val mutable num = 0
 
-	method get_pfms = pfms
+	method get_pfms = Htbl.to_seq pfms
 
 	method add_pfm (path : path) (pfm : 'a path_field_mapping) =
-		Mutex.lock add_pfm_mutex;
 		while DynArray.length pfm_by_arity <= pfm.pfm_arity do
 			DynArray.add pfm_by_arity (DynArray.create ())
 		done;
 		DynArray.add (DynArray.get pfm_by_arity pfm.pfm_arity) pfm;
-		Hashtbl.replace pfms path pfm;
-		Mutex.unlock add_pfm_mutex
+		ignore(Htbl.try_add pfms path pfm)
 
 	method unify ~(strict:bool) (tc : Type.t) (pfm : 'a path_field_mapping) =
 		let uctx = if strict then {
@@ -169,7 +167,7 @@ object(self)
 		match !(an.a_status) with
 		| ClassStatics {cl_path = path} | EnumStatics {e_path = path} | AbstractStatics {a_path = path} ->
 			Mutex.protect pfm_mutex (fun () -> try
-				Hashtbl.find pfms path
+				Htbl.find_exn pfms path
 			with Not_found ->
 				let pfm = make_pfm path in
 				self#add_pfm path pfm;
@@ -203,7 +201,7 @@ object(self)
 		match t with
 		| TType(td,tl) ->
 			begin try
-				Some (Mutex.protect pfm_mutex (fun () -> Hashtbl.find pfms td.t_path))
+				Some (Mutex.protect pfm_mutex (fun () -> Htbl.find_exn pfms td.t_path))
 			with Not_found ->
 				self#identify accept_anons (apply_typedef td tl)
 			end
