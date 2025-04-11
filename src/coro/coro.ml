@@ -40,11 +40,10 @@ module ContinuationClassBuilder = struct
 			| LocalFunc f ->
 				let n = Printf.sprintf "HxCoroAnonFunc_%i" !localFuncCount in
 				localFuncCount := !localFuncCount + 1;
-				match follow_with_coro f.tf_type with
-				| Coro (args, return) ->
-					let t = TFun (Common.expand_coro_type ctx.typer.com.basic args return) in
-					n, Some (mk_field captured_field_name t null_pos null_pos)
-				| _ -> die "" __LOC__
+				
+				let args = f.tf_args |> List.map (fun (v, _) -> (v.v_name, false, v.v_type)) in
+				let t = TFun (Common.expand_coro_type ctx.typer.com.basic args f.tf_type) in
+				n, Some (mk_field captured_field_name t null_pos null_pos)
 			in
 
 		(* Is there a pre-existing function somewhere to a valid path? *)
@@ -157,7 +156,7 @@ module ContinuationClassBuilder = struct
 		let ethis       = mk (TConst TThis) (TInst (coro_class.cls, [])) null_pos in
 
 		(* Create a custom this variable to be captured, should the compiler already handle this? *)
-		let vfakethis = alloc_var VGenerated "fakethis" (TInst (coro_class.cls, [])) null_pos in
+		let vfakethis    = alloc_var VGenerated "fakethis" (TInst (coro_class.cls, [])) null_pos in
 		let evarfakethis = mk (TVar (vfakethis, Some ethis)) (TInst (coro_class.cls, [])) null_pos in
 
 		(* Assign result and error *)
@@ -196,6 +195,11 @@ module ContinuationClassBuilder = struct
 					let ecapturedfield = mk (TField(ethis,FInstance(coro_class.cls, [], captured))) ethis.etype null_pos in
 					let efunction      = mk (TField(ecapturedfield,FInstance(coro_class.cls, [], field))) field.cf_type null_pos in
 					mk (TCall (efunction, args)) ctx.typer.com.basic.tany null_pos
+				| LocalFunc f ->
+					let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type null_pos)) @ [ ethis ] in
+					let captured  = coro_class.captured |> Option.get in
+					let ecapturedfield = mk (TField(ethis,FInstance(coro_class.cls, [], captured))) ethis.etype null_pos in
+					mk (TCall (ecapturedfield, args)) ctx.typer.com.basic.tany null_pos
 				| _ ->
 					die "" __LOC__
 				in
@@ -270,11 +274,6 @@ let fun_to_coro ctx coro_type =
 		mk (TBinop (OpAssign,estate,eid)) eid.etype null_pos
 	in
 
-	(* if ctx.coro_debug then (
-		Printf.printf "%s\n" name;
-		Printf.printf "type - %s\n" (s_type_kind (follow tf.tf_type));
-		Printf.printf "args - %s\n" (tf.tf_args |> List.map (fun (v, _) -> s_type_kind ((follow v.v_type))) |> String.concat ", ")); *)
-
 	let coro_class = ContinuationClassBuilder.create ctx coro_type in
 
 	(* Generate and assign the continuation variable *)
@@ -289,9 +288,10 @@ let fun_to_coro ctx coro_type =
 
 	let expr, args, e =
 		match coro_type with
-		| ClassField (_, { cf_expr = (Some ({ eexpr = TFunction f } as e)) })
-		| LocalFunc ({ tf_expr = { eexpr = TFunction f }  as e }) ->
+		| ClassField (_, { cf_expr = (Some ({ eexpr = TFunction f } as e)) }) ->
 			f.tf_expr, f.tf_args, e
+		| LocalFunc f ->
+			f.tf_expr, f.tf_args, f.tf_expr
 		| _ ->
 			die "" __LOC__
 		in
@@ -326,16 +326,43 @@ let fun_to_coro ctx coro_type =
 		Texpr.Builder.resolve_and_make_static_call ctx.typer.com.std "isOfType" [e;type_expr] null_pos
 	in
 
+	let prefix_arg, mapper, vcompletion =
+		match coro_class.coro_type with
+		| ClassField (_, field) when has_class_field_flag field CfStatic ->
+			[], (fun e -> e), vcompletion
+		| ClassField _ ->
+			[ mk (TConst TThis) ctx.typer.c.tthis null_pos; ], (fun e -> e), vcompletion
+		| LocalFunc f ->
+			let vnewcompletion = alloc_var VGenerated "_hx_completion_outer" ctx.typer.com.basic.tcoro_continuation null_pos in
+			let enewcompletion = Builder.make_local vnewcompletion null_pos in
+
+			let tf             = TFun ([ (vcompletion.v_name, false, vcompletion.v_type) ], ctx.typer.com.basic.tany) in
+			let vcorofunc      = alloc_var VGenerated "_hx_coro_func" (ctx.typer.com.basic.tarray tf) null_pos in
+			let ecorofunclocal = Builder.make_local vcorofunc null_pos in
+			let eindex         = mk (TArray (ecorofunclocal, Builder.make_int ctx.typer.com.basic 0 null_pos)) tf null_pos in
+			
+			[ eindex ],
+			(fun e ->
+				let null_init = mk (TArrayDecl [ Builder.make_null tf null_pos ]) vcorofunc.v_type null_pos in
+				let evar      = mk (TVar (vcorofunc, Some null_init)) vcorofunc.v_type null_pos in
+				let efunc     = mk (TFunction { tf_args = [ (vcompletion, None) ]; tf_type = ctx.typer.com.basic.tany; tf_expr = e }) tf null_pos in
+				let eassign   = mk_assign eindex efunc in
+				
+				let ecall   = mk (TCall (eindex, [ enewcompletion ])) ctx.typer.com.basic.tany null_pos in
+				let ereturn = Builder.mk_return ecall in
+				mk (TBlock [
+					evar;
+					eassign;
+					ereturn;
+				]) ctx.typer.com.basic.tvoid null_pos),
+			vnewcompletion
+	in
+
 	let continuation_assign =
 		let t         = TInst (coro_class.cls, []) in
 		let tcond     = std_is ecompletion t in
 		let tif       = mk_assign econtinuation (mk_cast ecompletion t null_pos) in
-		let ctor_args =
-			if has_class_field_flag ctx.typer.f.curfield CfStatic then
-				[ ecompletion ]
-			else
-				[ mk (TConst TThis) ctx.typer.c.tthis null_pos; ecompletion ]
-		in
+		let ctor_args = prefix_arg @ [ ecompletion ] in
 		let telse = mk_assign econtinuation (mk (TNew (coro_class.cls, [], ctor_args)) t null_pos) in
 		mk (TIf (tcond, tif, Some telse)) ctx.typer.com.basic.tvoid null_pos
 	in
@@ -345,9 +372,9 @@ let fun_to_coro ctx coro_type =
 		continuation_assign;
 		eloop;
 		Builder.mk_return (Builder.make_null ctx.typer.com.basic.tany null_pos);
-	]) ctx.typer.com.basic.tvoid null_pos in
+	]) ctx.typer.com.basic.tvoid null_pos |> mapper in
 
-	let tf_args = args @ [(vcompletion,None)] in
+	let tf_args = args @ [ (vcompletion,None) ] in
 	let tf_type = ctx.typer.com.basic.tany in
 	if ctx.coro_debug then begin
 		print_endline ("BEFORE:\n" ^ (s_expr_debug expr));
