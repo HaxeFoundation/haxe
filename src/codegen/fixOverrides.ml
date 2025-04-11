@@ -41,7 +41,11 @@ let fix_override com c f fd =
 	let f2 = (try Some (find_field com c f) with Not_found -> None) in
 	match f2,fd with
 		| Some (f2), Some(fd) ->
-			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> die "" __LOC__) in
+			let targs, tret = 
+				match follow_with_coro f2.cf_type with
+				| Coro (args,ret) -> Common.expand_coro_type com.basic args ret
+				| NotCoro (TFun(args, ret)) -> args, ret
+				| _ -> die "" __LOC__ in
 			let changed_args = ref [] in
 			let prefix = "_tmp_" in
 			let nargs = List.map2 (fun ((v,ct) as cur) (_,_,t2) ->
