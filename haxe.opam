@@ -35,5 +35,6 @@ depends: [
   "ipaddr"
   "terminal_size"
   "domainslib"
+  "saturn"
   "thread-local-storage"
 ]
