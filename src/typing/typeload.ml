@@ -203,8 +203,13 @@ let load_type_def ctx p t =
 		(* If there's a sub-type, there's no reason to look in our module or its imports *)
 		if t.tsub <> None then raise Not_found;
 		find_type_in_current_module_context ctx t.tpackage tname
-	with Not_found ->
+	with Not_found -> try
 		load_type_def' ctx t.tpackage t.tname tname p
+	with Error { err_message = Module_not_found mpath } as exc when mpath = (t.tpackage,t.tname) -> try
+		let mt,_ = ctx.g.global_import#find_type_import t.tname in
+		mt
+	with Not_found ->
+		raise exc
 
 let generate_args_meta com cls_opt add_meta args =
 	let values = List.fold_left (fun acc ((name,p),_,_,_,eo) -> match eo with Some e -> ((name,p,NoQuotes),e) :: acc | _ -> acc) [] args in

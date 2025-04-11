@@ -114,7 +114,7 @@ let load_unit ctx =
 		| TEnumDecl en ->
 			(match snd en.e_path with
 			| "Unit" ->
-				ctx.m.import_resolution#add (module_type_resolution mt None null_pos);
+				ctx.g.global_import#add (module_type_resolution mt None null_pos);
 			| _ -> ())
 		| _ -> ()
 	) m.m_types
@@ -148,6 +148,7 @@ let create com macros =
 			debug_delayed = [];
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
 			global_using = [];
+			global_import = new resolution_list ["global"];
 			complete = false;
 			type_hints = [];
 			load_only_cached_modules = false;
@@ -190,7 +191,7 @@ let create com macros =
 	load_string ctx;
 	load_std ctx;
 	load_any ctx;
-	(* load_unit ctx; *)
+	load_unit ctx;
 	load_array ctx;
 	load_enum_tools ctx;
 	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);

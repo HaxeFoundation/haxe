@@ -201,28 +201,29 @@ let resolve_against_expected_enum ctx i =
 	| Some mt ->
 		loop mt
 
+let resolve_import ctx mode res p =
+	ImportHandling.mark_import_position ctx res.r_pos;
+	match res.r_kind with
+	| RTypeImport(_,mt) ->
+		AKExpr (type_module_type ctx mt p)
+	| RClassFieldImport(_,c,cf) ->
+		let e = type_module_type ctx (TClassDecl c) p in
+		field_access ctx mode cf (FHStatic c) e p
+	| RAbstractFieldImport(_,a,c,cf) ->
+		let et = type_module_type ctx (TClassDecl c) p in
+		let inline = match cf.cf_kind with
+			| Var {v_read = AccInline} -> true
+			|  _ -> false
+		in
+		let fa = FieldAccess.create et cf (FHAbstract(a,extract_param_types a.a_params,c)) inline p in
+		AKField fa
+	| REnumConstructorImport(_,en,ef) ->
+		enum_field_access ctx en ef mode p res.r_pos
+	| RWildcardPackage _ | RLazy _ | RClassStatics _ | REnumStatics _ ->
+		assert false
+
 let rec type_ident_raise ctx i p mode with_type =
-	let resolve res =
-		ImportHandling.mark_import_position ctx res.r_pos;
-		match res.r_kind with
-		| RTypeImport(_,mt) ->
-			AKExpr (type_module_type ctx mt p)
-		| RClassFieldImport(_,c,cf) ->
-			let e = type_module_type ctx (TClassDecl c) p in
-			field_access ctx mode cf (FHStatic c) e p
-		| RAbstractFieldImport(_,a,c,cf) ->
-			let et = type_module_type ctx (TClassDecl c) p in
-			let inline = match cf.cf_kind with
-				| Var {v_read = AccInline} -> true
-				|  _ -> false
-			in
-			let fa = FieldAccess.create et cf (FHAbstract(a,extract_param_types a.a_params,c)) inline p in
-			AKField fa
-		| REnumConstructorImport(_,en,ef) ->
-			enum_field_access ctx en ef mode p res.r_pos
-		| RWildcardPackage _ | RLazy _ | RClassStatics _ | REnumStatics _ ->
-			assert false
-	in
+	let resolve res = resolve_import ctx mode res p in
 	match i with
 	| "true" ->
 		let acc = AKExpr (mk (TConst (TBool true)) ctx.t.tbool p) in
@@ -382,6 +383,8 @@ and type_ident ctx i p mode with_type =
 				AKExpr {e with etype = (extract_param_type t)}
 			end else
 				raise Not_found
+		with Not_found -> try
+			resolve_import ctx mode (ctx.g.global_import#resolve i) p
 		with Not_found ->
 			if ctx.f.untyped then begin
 				if i = "__this__" then

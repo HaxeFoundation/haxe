@@ -99,6 +99,7 @@ type typer_globals = {
 	mutable macros : ((unit -> unit) * typer) option;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
 	mutable global_using : (tclass * pos) list;
+	global_import : resolution_list;
 	(* Indicates that Typer.create() finished building this instance *)
 	mutable complete : bool;
 	mutable type_hints : (module_def_display * pos * t) list;
