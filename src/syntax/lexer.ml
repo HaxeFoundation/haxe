@@ -56,16 +56,8 @@ type xml_lexing_context = {
 	lexbuf : Sedlexing.lexbuf;
 }
 
-type format_part =
-	| FmtStringStart
-	| FmtString of string
-	| FmtStringEnd
-	| FmtCodeStart
-	| FmtCode of string
-	| FmtCodeEnd
-
 type format_context = {
-	format_parts : format_part DynArray.t;
+	format_buffer : Buffer.t;
 	mutable format_quote_open : bool;
 	mutable format_quote_pmin : int;
 }
@@ -81,14 +73,6 @@ let error_msg = function
 	| Invalid_escape (c,Some msg) -> Printf.sprintf "Invalid escape sequence \\%s. %s" (Char.escaped c) msg
 	| Invalid_option -> "Invalid regular expression option"
 	| Unterminated_markup -> "Unterminated markup literal"
-
-let string_of_format_part = function
-	| FmtStringStart -> "FmtStringStart"
-	| FmtString s -> Printf.sprintf "FmtString `%s`" s
-	| FmtStringEnd -> "FmtStringEnd"
-	| FmtCodeStart -> "FmtCodeStart"
-	| FmtCode s -> Printf.sprintf "FmtCode `%s`" s
-	| FmtCodeEnd -> "FmtCodeEnd"
 
 let make_file file =
 	{
@@ -470,10 +454,13 @@ let string ctx lexbuf =
 	in
 	loop ()
 
+let add_format_part fmt part =
+	Buffer.add_string fmt.format_buffer part
+
 let consume_buffer ctx fmt lexbuf f =
 	let s = Buffer.contents ctx.buf in
 	reset ctx;
-	DynArray.add fmt.format_parts (f s)
+	add_format_part fmt (f s)
 
 let unescape_format ctx fmt s =
 	try
@@ -499,16 +486,16 @@ let rec string2 ctx fmt lexbuf =
 			store ctx lexbuf;
 			loop ();
 		| "'" ->
-			consume_buffer ctx fmt lexbuf (fun s -> FmtString (if fmt.format_quote_open then s else unescape_format ctx fmt s));
-			if fmt.format_quote_open then DynArray.add fmt.format_parts FmtStringEnd;
+			consume_buffer ctx fmt lexbuf (fun s -> if fmt.format_quote_open then s else unescape_format ctx fmt s);
+			if fmt.format_quote_open then add_format_part fmt "'";
 			lexeme_end lexbuf
 		| "$$" | "\\$" | '$' ->
 			store ctx lexbuf;
 			loop ();
 		| "${" ->
 			let pmin = lexeme_start lexbuf in
-			consume_buffer ctx fmt lexbuf (fun s -> FmtString (if fmt.format_quote_open then s else unescape_format ctx fmt s));
-			DynArray.add fmt.format_parts FmtCodeStart;
+			consume_buffer ctx fmt lexbuf (fun s -> if fmt.format_quote_open then s else unescape_format ctx fmt s);
+			add_format_part fmt "${";
 			(try code_string ctx fmt lexbuf with Exit -> error ctx Unclosed_code pmin);
 			loop ();
 		| Plus (Compl ('\'' | '\\' | '\r' | '\n' | '$')) ->
@@ -537,8 +524,8 @@ and code_string ctx fmt lexbuf =
 				store ctx lexbuf;
 				loop (open_braces - 1)
 			end else begin
-				consume_buffer ctx fmt lexbuf (fun s -> FmtCode s);
-				DynArray.add fmt.format_parts FmtCodeEnd;
+				consume_buffer ctx fmt lexbuf (fun s -> s);
+				add_format_part fmt "}"
 			end
 		| '"' ->
 			add ctx "\"";
@@ -548,8 +535,8 @@ and code_string ctx fmt lexbuf =
 			loop open_braces
 		| "'" ->
 			let pmin = lexeme_start lexbuf in
-			consume_buffer ctx fmt lexbuf (fun s -> FmtCode s);
-			DynArray.add fmt.format_parts FmtStringStart;
+			consume_buffer ctx fmt lexbuf (fun s -> s);
+			add_format_part fmt "'";
 			let old_quote,old_pmin = fmt.format_quote_open,fmt.format_quote_pmin in
 			fmt.format_quote_open <- true;
 			fmt.format_quote_pmin <- pmin;
@@ -764,34 +751,12 @@ let rec token ctx lexbuf =
 		reset ctx;
 		let pmin = lexeme_start lexbuf in
 		let fmt = {
-			format_parts = DynArray.create ();
+			format_buffer = Buffer.create 10;
 			format_quote_open = false;
 			format_quote_pmin = pmin;
 		} in
 		let pmax = (try string2 ctx fmt lexbuf with Exit -> error ctx Unterminated_string pmin) in
-		let l = DynArray.to_list fmt.format_parts in
-		let rec loop buf l = match l with
-			| fmt :: l ->
-				begin match fmt with
-					| FmtStringStart ->
-						Buffer.add_char buf '\'';
-					| FmtString s ->
-						Buffer.add_string buf s;
-					| FmtStringEnd ->
-						Buffer.add_char buf '\'';
-					| FmtCodeStart ->
-						Buffer.add_string buf "${"
-					| FmtCode s ->
-						Buffer.add_string buf s
-					| FmtCodeEnd ->
-						Buffer.add_string buf "}"
-				end;
-				loop buf l
-			| [] ->
-				Buffer.contents buf
-		in
-		let str = loop (Buffer.create 0) l in
-		mk_tok (Const (String(str,SSingleQuotes))) pmin pmax;
+		mk_tok (Const (String(Buffer.contents fmt.format_buffer,SSingleQuotes))) pmin pmax;
 	| "~/" ->
 		reset ctx;
 		let pmin = lexeme_start lexbuf in
