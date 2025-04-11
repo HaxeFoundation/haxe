@@ -56,6 +56,20 @@ type xml_lexing_context = {
 	lexbuf : Sedlexing.lexbuf;
 }
 
+type format_part =
+	| FmtStringStart
+	| FmtString of string
+	| FmtStringEnd
+	| FmtCodeStart
+	| FmtCode of string
+	| FmtCodeEnd
+
+type format_context = {
+	format_parts : format_part DynArray.t;
+	mutable format_quote_open : bool;
+	mutable format_quote_pmin : int;
+}
+
 let error_msg = function
 	| Invalid_character c when c > 32 && c < 128 -> Printf.sprintf "Invalid character '%c'" (char_of_int c)
 	| Invalid_character c -> Printf.sprintf "Invalid character 0x%.2X" c
@@ -67,6 +81,14 @@ let error_msg = function
 	| Invalid_escape (c,Some msg) -> Printf.sprintf "Invalid escape sequence \\%s. %s" (Char.escaped c) msg
 	| Invalid_option -> "Invalid regular expression option"
 	| Unterminated_markup -> "Unterminated markup literal"
+
+let string_of_format_part = function
+	| FmtStringStart -> "FmtStringStart"
+	| FmtString s -> Printf.sprintf "FmtString `%s`" s
+	| FmtStringEnd -> "FmtStringEnd"
+	| FmtCodeStart -> "FmtCodeStart"
+	| FmtCode s -> Printf.sprintf "FmtCode `%s`" s
+	| FmtCodeEnd -> "FmtCodeEnd"
 
 let make_file file =
 	{
@@ -448,7 +470,18 @@ let string ctx lexbuf =
 	in
 	loop ()
 
-let rec string2 ctx lexbuf =
+let consume_buffer ctx fmt lexbuf f =
+	let s = Buffer.contents ctx.buf in
+	reset ctx;
+	DynArray.add fmt.format_parts (f s)
+
+let unescape_format ctx fmt s =
+	try
+		unescape s
+	with Invalid_escape_sequence(c,i,msg) ->
+		error ctx (Invalid_escape (c,msg)) (fmt.format_quote_pmin + i)
+
+let rec string2 ctx fmt lexbuf =
 	let rec loop () = match%sedlex lexbuf with
 		| eof ->
 			raise Exit
@@ -466,14 +499,17 @@ let rec string2 ctx lexbuf =
 			store ctx lexbuf;
 			loop ();
 		| "'" ->
+			consume_buffer ctx fmt lexbuf (fun s -> FmtString (if fmt.format_quote_open then s else unescape_format ctx fmt s));
+			if fmt.format_quote_open then DynArray.add fmt.format_parts FmtStringEnd;
 			lexeme_end lexbuf
 		| "$$" | "\\$" | '$' ->
 			store ctx lexbuf;
 			loop ();
 		| "${" ->
 			let pmin = lexeme_start lexbuf in
-			store ctx lexbuf;
-			(try code_string ctx lexbuf with Exit -> error ctx Unclosed_code pmin);
+			consume_buffer ctx fmt lexbuf (fun s -> FmtString (if fmt.format_quote_open then s else unescape_format ctx fmt s));
+			DynArray.add fmt.format_parts FmtCodeStart;
+			(try code_string ctx fmt lexbuf with Exit -> error ctx Unclosed_code pmin);
 			loop ();
 		| Plus (Compl ('\'' | '\\' | '\r' | '\n' | '$')) ->
 			store ctx lexbuf;
@@ -483,7 +519,7 @@ let rec string2 ctx lexbuf =
 	in
 	loop ()
 
-and code_string ctx lexbuf =
+and code_string ctx fmt lexbuf =
 	let rec loop open_braces = match%sedlex lexbuf with
 		| eof -> raise Exit
 		| '\n' | '\r' | "\r\n" ->
@@ -497,8 +533,13 @@ and code_string ctx lexbuf =
 			store ctx lexbuf;
 			loop open_braces
 		| '}' ->
-			store ctx lexbuf;
-			if open_braces > 0 then loop (open_braces - 1)
+			if open_braces > 0 then begin
+				store ctx lexbuf;
+				loop (open_braces - 1)
+			end else begin
+				consume_buffer ctx fmt lexbuf (fun s -> FmtCode s);
+				DynArray.add fmt.format_parts FmtCodeEnd;
+			end
 		| '"' ->
 			add ctx "\"";
 			let pmin = lexeme_start lexbuf in
@@ -506,10 +547,15 @@ and code_string ctx lexbuf =
 			add ctx "\"";
 			loop open_braces
 		| "'" ->
-			add ctx "'";
 			let pmin = lexeme_start lexbuf in
-			(try ignore(string2 ctx lexbuf) with Exit -> error ctx Unterminated_string pmin);
-			add ctx "'";
+			consume_buffer ctx fmt lexbuf (fun s -> FmtCode s);
+			DynArray.add fmt.format_parts FmtStringStart;
+			let old_quote,old_pmin = fmt.format_quote_open,fmt.format_quote_pmin in
+			fmt.format_quote_open <- true;
+			fmt.format_quote_pmin <- pmin;
+			(try ignore(string2 ctx fmt lexbuf) with Exit -> error ctx Unterminated_string pmin);
+			fmt.format_quote_open <- old_quote;
+			fmt.format_quote_pmin <- old_pmin;
 			loop open_braces
 		| "/*" ->
 			let pmin = lexeme_start lexbuf in
@@ -717,8 +763,34 @@ let rec token ctx lexbuf =
 	| "'" ->
 		reset ctx;
 		let pmin = lexeme_start lexbuf in
-		let pmax = (try string2 ctx lexbuf with Exit -> error ctx Unterminated_string pmin) in
-		let str = (try unescape (contents ctx) with Invalid_escape_sequence(c,i,msg) -> error ctx (Invalid_escape (c,msg)) (pmin + i)) in
+		let fmt = {
+			format_parts = DynArray.create ();
+			format_quote_open = false;
+			format_quote_pmin = pmin;
+		} in
+		let pmax = (try string2 ctx fmt lexbuf with Exit -> error ctx Unterminated_string pmin) in
+		let l = DynArray.to_list fmt.format_parts in
+		let rec loop buf l = match l with
+			| fmt :: l ->
+				begin match fmt with
+					| FmtStringStart ->
+						Buffer.add_char buf '\'';
+					| FmtString s ->
+						Buffer.add_string buf s;
+					| FmtStringEnd ->
+						Buffer.add_char buf '\'';
+					| FmtCodeStart ->
+						Buffer.add_string buf "${"
+					| FmtCode s ->
+						Buffer.add_string buf s
+					| FmtCodeEnd ->
+						Buffer.add_string buf "}"
+				end;
+				loop buf l
+			| [] ->
+				Buffer.contents buf
+		in
+		let str = loop (Buffer.create 0) l in
 		mk_tok (Const (String(str,SSingleQuotes))) pmin pmax;
 	| "~/" ->
 		reset ctx;
