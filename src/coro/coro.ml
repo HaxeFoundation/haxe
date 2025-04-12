@@ -193,7 +193,7 @@ module ContinuationClassBuilder = struct
 					let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type null_pos)) @ [ ethis ] in
 					let captured  = coro_class.captured |> Option.get in
 					let ecapturedfield = mk (TField(ethis,FInstance(coro_class.cls, [], captured))) captured.cf_type null_pos in
-					let efunction      = mk (TField(ecapturedfield,FInstance(coro_class.cls, [], field))) field.cf_type null_pos in
+					let efunction      = mk (TField(ecapturedfield,FInstance(cls, [], field))) field.cf_type null_pos in
 					mk (TCall (efunction, args)) ctx.typer.com.basic.tany null_pos
 				| LocalFunc f ->
 					let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type null_pos)) @ [ ethis ] in
