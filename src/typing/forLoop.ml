@@ -119,7 +119,7 @@ module IterationKind = struct
 						| Some e -> e
 						| None ->
 							if resume then raise Not_found;
-							display_error_ext ctx.com (make_error ~depth:err.err_depth ~sub:[err] (Custom "Field iterator has an invalid type") acc_expr.epos);
+							display_error_ext ctx.com (make_error ~sub:[err] (Custom "Field iterator has an invalid type") acc_expr.epos);
 							mk (TConst TNull) t_dynamic p
 					)
 			in

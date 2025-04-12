@@ -131,7 +131,7 @@ let inline_constructors (scom : SafeCom.t) original_e =
 				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) io.io_dependent_vars;
 				if ioc.ioc_forced then begin
 					SafeCom.add_error scom (make_error (Custom "Forced inline constructor could not be inlined") ~sub:([
-						(make_error ~depth:1 (Custom (compl_msg "Cancellation happened here")) p)
+						(make_error (Custom (compl_msg "Cancellation happened here")) p)
 					]) io.io_pos);
 				end
 			| _ -> ()

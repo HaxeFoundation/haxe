@@ -374,8 +374,8 @@ let make_static_field_access c cf t p =
 	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
-let raise_with_type_error ?(depth = 0) msg p =
-	raise (WithTypeError (make_error ~depth (Custom msg) p))
+let raise_with_type_error msg p =
+	raise (WithTypeError (make_error (Custom msg) p))
 
 let raise_or_display ctx l p =
 	if ctx.f.untyped then ()

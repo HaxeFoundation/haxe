@@ -421,13 +421,13 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 				let t_expected = BinopResult.get_type result in
 				begin try
 					unify_raise tret t_expected p
-				with Error { err_message = Unify _; err_depth = depth } ->
+				with Error { err_message = Unify _ } ->
 					match follow tret with
 						| TAbstract(a,tl) when type_iseq (Abstract.get_underlying_type a tl) t_expected ->
 							()
 						| _ ->
 							let st = s_type (print_context()) in
-							raise_typing_error ~depth (Printf.sprintf "The result of this operation (%s) is not compatible with declared return type %s" (st t_expected) (st tret)) p
+							raise_typing_error (Printf.sprintf "The result of this operation (%s) is not compatible with declared return type %s" (st t_expected) (st tret)) p
 				end;
 			end;
 			(*

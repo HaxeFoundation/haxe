@@ -340,7 +340,7 @@ let get_formatter defines def default =
 
 let print_error (err : Error.error) =
 	let ret = ref "" in
-	Error.recurse_error (fun depth err ->
+	Error.recurse_error (fun _ err ->
 		ret := !ret ^ (Lexer.get_error_pos (Printf.sprintf "%s:%d: ") err.err_pos) ^ (Error.error_msg err.err_message) ^ "\n"
 	) err;
 	!ret

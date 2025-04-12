@@ -747,7 +747,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 		info = (fun ?depth ?from_macro _ _ -> die "" __LOC__);
 		warning = (fun ?depth ?from_macro _ _ _ -> die "" __LOC__);
 		warning_options = [List.map (fun w -> {wo_warning = w;wo_mode = WMDisable}) WarningList.disabled_warnings];
-		error = (fun ?depth _ _ -> die "" __LOC__);
+		error = (fun _ _ -> die "" __LOC__);
 		error_ext = (fun _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
@@ -1010,8 +1010,8 @@ let display_error_ext com err =
 	end else
 		com.error_ext err
 
-let display_error com ?(depth = 0) msg p =
-	display_error_ext com (Error.make_error ~depth (Custom msg) p)
+let display_error com msg p =
+	display_error_ext com (Error.make_error (Custom msg) p)
 
 let adapt_defines_to_macro_context defines =
 	let to_remove = "java" :: List.map Globals.platform_name Globals.platforms in

@@ -469,7 +469,7 @@ let make_macro_api ctx mctx p =
 					let m = ctx.com.module_lut#find mpath in
 					let pos = { pfile = (Path.UniqueKey.lazy_path m.m_extra.m_file); pmin = 0; pmax = 0 } in
 					Interp.compiler_error (make_error ~sub:[
-						make_error ~depth:1 (Custom "Previously defined here") pos
+						make_error (Custom "Previously defined here") pos
 					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
 				with Not_found ->
 					ctx.com.cs#taint_module mpath DefineType;
@@ -506,7 +506,7 @@ let make_macro_api ctx mctx p =
 				if m != ctx.m.curmod then begin
 					let pos = { pfile = (Path.UniqueKey.lazy_path m.m_extra.m_file); pmin = 0; pmax = 0 } in
 					Interp.compiler_error (make_error ~sub:[
-						make_error ~depth:1 (Custom "Previously defined here") pos
+						make_error (Custom "Previously defined here") pos
 					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
 				end else
 					ignore(TypeloadModule.type_types_into_module ctx.com ctx.g ctx.m.curmod types pos)

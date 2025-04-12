@@ -407,13 +407,12 @@ let unify_field_call ctx fa el_typed el p inline =
 				| None ->
 					let sub = List.fold_left (fun acc (cf,err) ->
 						(make_error
-							~depth:1 (* pretty much optional here *)
 							~sub:[err]
 							(Custom ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)))
 							p
 						) :: acc
 					) [] failures in
-					let sub = (make_error ~depth:1 (Custom "End of overload failure reasons") p) :: sub in
+					let sub = (make_error (Custom "End of overload failure reasons") p) :: sub in
 					raise_typing_error_ext (make_error ~sub (Custom "Could not find a suitable overload, reasons follow") p)
 				| Some err ->
 					raise_typing_error_ext err
@@ -428,7 +427,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			| fcc :: l ->
 				let st = s_type (print_context()) in
 				let sub = List.map (fun fcc ->
-					make_error ~depth:1 (Custom (compl_msg (st fcc.fc_type))) fcc.fc_field.cf_name_pos
+					make_error (Custom (compl_msg (st fcc.fc_type))) fcc.fc_field.cf_name_pos
 				) (fcc :: l) in
 				display_error_ext ctx.com (make_error (Custom "Ambiguous overload, candidates follow") ~sub:(List.rev sub) p);
 				commit_delayed_display fcc
@@ -512,7 +511,7 @@ object(self)
 				if ep = null_pos then
 					old { err with err_pos = p }
 				else
-					old { err with err_sub = (make_error ~depth:(err.err_depth+1) (Custom (compl_msg "Called from macro here")) p) :: err.err_sub }
+					old { err with err_sub = (make_error (Custom (compl_msg "Called from macro here")) p) :: err.err_sub }
 			end else
 				old err;
 		);
