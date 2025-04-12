@@ -15,19 +15,14 @@ class CoroFile {
 }
 
 class TestTricky extends utest.Test {
-	function testCapturedThis(async:Async) {
-		var file = new CoroFile("value");
-		file.write.start((result, _) -> {
-			Assert.equals("value", result);
-			async.done();
-		});
+	function testCapturedThis() {
+		final file = new CoroFile("value");
+		Assert.equals("value", Coroutine.run(file.write));
 	}
 
-	function testPreviouslyCapturedThis(async:Async) {
-		var file = new CoroFile("value");
-		file.almostWrite.start((result, _) -> {
-			Assert.equals("value", result());
-			async.done();
-		});
+	function testPreviouslyCapturedThis() {
+		final file = new CoroFile("value");
+		final func : ()->String = Coroutine.run(file.almostWrite);
+		Assert.equals("value", func());
 	}
 }

@@ -1,34 +1,20 @@
 class TestBasic extends utest.Test {
-	function testSimpleStart(async:Async) {
-		simple.start(42, (result,error) -> {
-			Assert.equals(42, result);
-			async.done();
-		});
+	function testSimple() {
+		Assert.equals(42, Coroutine.run(@:coroutine function run() {
+			return simple(42);
+		}));
 	}
 
-	function testSimpleCreate(async:Async) {
-		var cont = simple.create(42, (result,error) -> {
-			Assert.equals(42, result);
-			async.done();
-		});
-		cont(null, Normal);
+	function testErrorDirect() {
+		Assert.raises(() -> Coroutine.run(error), String);
 	}
 
-	function testErrorDirect(async:Async) {
-		error.start((result, error) -> {
-			Assert.equals("nope", error);
-			async.done();
-		});
-	}
-
-	function testErrorPropagation(async:Async) {
+	function testErrorPropagation() {
 		@:coroutine function propagate() {
 			error();
 		}
-		propagate.start((result, error) -> {
-			Assert.equals("nope", error);
-			async.done();
-		});
+		
+		Assert.raises(() -> Coroutine.run(propagate), String);
 	}
 
 	@:coroutine static function simple(arg:Int):Int {

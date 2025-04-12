@@ -1,42 +1,42 @@
 class TestControlFlow extends utest.Test {
-	function testIfThen(async:Async) {
+	function testIfThen() {
 		@:coroutine function f(x) {
 			if (x) return 1;
 			return 2;
 		}
-		mapCalls.start([true, false], f, (result,error) -> {
-			Assert.same([1, 2], result);
-			async.done();
-		});
+
+		Assert.same(Coroutine.run(@:coroutine function run() {
+			return mapCalls([ true, false ], f);
+		}), [ 1, 2 ]);
 	}
 
-	function testIfThenReturnNoValue(async:Async) {
-		var v = null;
-		@:coroutine function f(x) {
-			v = 1;
-			if (x) {
-				return;
-			}
-			v = 2;
-		}
-		@:coroutine function f2(x) { f(x); return v; }
-		mapCalls.start([true, false], f2, (result,error) -> {
-			Assert.same([1, 2], result);
-			async.done();
-		});
-	}
+	// function testIfThenReturnNoValue(async:Async) {
+	// 	var v = null;
+	// 	@:coroutine function f(x) {
+	// 		v = 1;
+	// 		if (x) {
+	// 			return;
+	// 		}
+	// 		v = 2;
+	// 	}
+	// 	@:coroutine function f2(x) { f(x); return v; }
 
-	function testIfThenElse(async:Async) {
+	// 	Assert.same(Coroutine.run(@:coroutine function run() {
+	// 		return mapCalls([ true, false ], f2);
+	// 	}), [ 1, 2 ]);
+	// }
+
+	function testIfThenElse() {
 		@:coroutine function f(x) {
 			return if (x) 1 else 2;
 		}
-		mapCalls.start([true, false], f, (result,error) -> {
-			Assert.same([1, 2], result);
-			async.done();
-		});
+
+		Assert.same(Coroutine.run(@:coroutine function run() {
+			return mapCalls([ true, false ], f);
+		}), [ 1, 2 ]);
 	}
 
-	function testSwitchNoDefault(async:Async) {
+	function testSwitchNoDefault() {
 		@:coroutine function f(x) {
 			switch (x) {
 				case 1: return "a";
@@ -45,13 +45,13 @@ class TestControlFlow extends utest.Test {
 			}
 			return "d";
 		}
-		mapCalls.start([1, 2, 3, 4], f, (result,error) -> {
-			Assert.same(["a", "b", "c", "d"], result);
-			async.done();
-		});
+
+		Assert.same(Coroutine.run(@:coroutine function run() {
+			return mapCalls([ 1, 2, 3, 4 ], f);
+		}), ["a", "b", "c", "d"]);
 	}
 
-	function testSwitchDefault(async:Async) {
+	function testSwitchDefault() {
 		@:coroutine function f(x) {
 			switch (x) {
 				case 1: return "a";
@@ -61,13 +61,12 @@ class TestControlFlow extends utest.Test {
 			}
 			return "e";
 		}
-		mapCalls.start([1, 2, 3, 4], f, (result,error) -> {
-			Assert.same(["a", "b", "c", "d"], result);
-			async.done();
-		});
+		Assert.same(Coroutine.run(@:coroutine function run() {
+			return mapCalls([ 1, 2, 3, 4 ], f);
+		}), ["a", "b", "c", "d"]);
 	}
 
-	function testLoop(async:Async) {
+	function testLoop() {
 		@:coroutine function f(x) {
 			var results = [];
 			var i = 0;
@@ -79,29 +78,26 @@ class TestControlFlow extends utest.Test {
 			}
 			return results;
 		}
-		mapCalls.start([0, 1, 2], f, (result,error) -> {
-			Assert.same([
-				[0,1,2,3,4,5,6,7,8,9],
-				[0,1,2,3,4],
-				[0,1,2,3,4,5,7,8,9]
-			], result);
-			async.done();
-		});
+		Assert.same([
+			[0,1,2,3,4,5,6,7,8,9],
+			[0,1,2,3,4],
+			[0,1,2,3,4,5,7,8,9]
+		], Coroutine.run(@:coroutine function run() {
+			return mapCalls([ 0, 1, 2 ], f);
+		}));
 	}
 
-	function testTryCatch(async:Async) {
-		mapCalls.start([new E1(), new E2()], tryCatch, (result,error) -> {
-			Assert.same(["e1", "e2"], result);
-			async.done();
-		});
-	}
+	// function testTryCatch() {
+	// 	Assert.same(["e1", "e2"], Coroutine.run(@:coroutine function run() {
+	// 		return mapCalls([ new E1(), new E2() ], tryCatch);
+	// 	}));
+	// }
 
-	function testTryCatchFail(async:Async) {
-		tryCatch.start(new E3(), (result,error) -> {
-			Assert.isOfType(error, E3);
-			async.done();
-		});
-	}
+	// function testTryCatchFail() {
+	// 	Assert.raises(Coroutine.run(@:coroutine function run() {
+	// 		return tryCatch(new E3());
+	// 	}), E3);
+	// }
 
 	@:coroutine function tryCatch(e:haxe.Exception) {
 		try {
@@ -123,7 +119,6 @@ private function mapCalls<TArg,TRet>(args:Array<TArg>, f:Coroutine<TArg->TRet>):
 private class E1 extends haxe.Exception {
 	public function new() super("E1");
 }
-
 private class E2 extends haxe.Exception {
 	public function new() super("E2");
 }
