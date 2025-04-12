@@ -35,11 +35,14 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 	}
 
 	public static function run<T>(f:Coroutine<()->T>) {
-		final loop = new EventLoop();
-		final cont = new BlockingContinuation(loop, new EventLoopScheduler(loop));
+		final loop   = new EventLoop();
+		final cont   = new BlockingContinuation(loop, new EventLoopScheduler(loop));
+		final result = f(cont);
 
-		f(cont);
-
-		return cast cont.wait();
+		return if (result is Primitive) {
+			cast cont.wait();
+		} else {
+			cast result;
+		}
 	}
 }
