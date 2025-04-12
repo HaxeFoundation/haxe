@@ -1890,7 +1890,7 @@ let generate_cppia ctx =
           () (*if (gen_externs) then gen_extern_class common_ctx class_def;*)
       | TClassDecl class_def ->
           let is_internal = is_internal_class class_def.cl_path in
-          if is_internal || Meta.has Meta.Macro class_def.cl_meta then (
+          if is_internal then (
             if debug >= 4 then
               print_endline
                 (" internal class " ^ join_class_path class_def.cl_path "."))

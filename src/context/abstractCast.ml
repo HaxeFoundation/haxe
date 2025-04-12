@@ -204,27 +204,6 @@ let find_multitype_specialization' platform a pl p =
 	let uctx = default_unification_context () in
 	let m = mk_mono() in
 	let tl,definitive_types = Abstract.find_multitype_params a pl in
-	if platform = Globals.Js && a.a_path = (["haxe";"ds"],"Map") then begin match tl with
-		| t1 :: _ ->
-			let stack = ref [] in
-			let rec loop t =
-				if List.exists (fun t2 -> fast_eq t t2) !stack then
-					t
-				else begin
-					stack := t :: !stack;
-					match follow t with
-					| TAbstract ({ a_path = [],"Class" },_) ->
-						raise_typing_error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable on JavaScript" (s_type (print_context()) t1)) p;
-					| TEnum(en,tl) ->
-						PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
-						Type.map loop t
-					| t ->
-						Type.map loop t
-				end
-			in
-			ignore(loop t1)
-		| _ -> die "" __LOC__
-	end;
 	let _,cf =
 		try
 			let t = Abstract.find_to uctx m a tl in

@@ -1,9 +1,7 @@
 open Globals
 open Common
+open DumpConfig
 open Type
-
-let dump_path defines =
-	Define.defined_value_safe ~default:"dump" defines Define.DumpPath
 
 (*
 	Make a dump of the full typed AST of all types
@@ -16,21 +14,20 @@ let create_dumpfile acc l =
 		close_out ch)
 
 let create_dumpfile_from_path com path =
-	let buf,close = create_dumpfile [] ((dump_path com.defines) :: (platform_name_macro com) :: fst path @ [snd path]) in
+	let buf,close = create_dumpfile [] (com.dump_config.dump_path :: (string_of_dump_stage com.dump_config.dump_stage) :: (platform_name_macro com) :: fst path @ [snd path]) in
 	buf,close
 
 let dump_types com pretty =
-	let print_ids = not (Common.defined com Define.DumpIgnoreVarIds) in
 	let restore =
 		if not pretty then
 			let old = !TPrinting.MonomorphPrinting.show_mono_ids in
-			TPrinting.MonomorphPrinting.show_mono_ids := print_ids;
+			TPrinting.MonomorphPrinting.show_mono_ids := com.dump_config.dump_print_ids;
 			fun () -> TPrinting.MonomorphPrinting.show_mono_ids := old
 		else fun () -> ()
 	in
 	let s_type = s_type (Type.print_context()) in
 	let s_expr,s_type_param = if not pretty then
-		(Type.s_expr_ast print_ids "\t"),(Printer.s_type_param "")
+		(Type.s_expr_ast com.dump_config.dump_print_ids "\t"),(Printer.s_type_param "")
 	else
 		(Type.s_expr_pretty false "\t" true),(s_type_param s_type)
 	in
@@ -177,18 +174,19 @@ let dump_position com =
 	)
 
 let dump_types com =
-	match Common.defined_value_safe com Define.Dump with
-		| "pretty" -> dump_types com true
-		| "record" -> dump_record com
-		| "position" -> dump_position com
-		| _ -> dump_types com false
+	match com.dump_config.dump_mode with
+		| NoDump -> ()
+		| Pretty -> dump_types com true
+		| Record -> dump_record com
+		| Position -> dump_position com
+		| Ast -> dump_types com false
 
 let dump_dependencies ?(target_override=None) com =
 	let target_name = match target_override with
 		| None -> platform_name_macro com
 		| Some s -> s
 	in
-	let dump_dependencies_path = [dump_path com.defines;target_name;"dependencies"] in
+	let dump_dependencies_path = [com.dump_config.dump_path;target_name;"dependencies"] in
 	let buf,close = create_dumpfile [] dump_dependencies_path in
 	let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 	let dep = Hashtbl.create 0 in
@@ -211,7 +209,7 @@ let dump_dependencies ?(target_override=None) com =
 		) m.m_extra.m_deps;
 	) com.Common.modules;
 	close();
-	let dump_dependants_path = [dump_path com.defines;target_name;"dependants"] in
+	let dump_dependants_path = [com.dump_config.dump_path;target_name;"dependants"] in
 	let buf,close = create_dumpfile [] dump_dependants_path in
 	let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 	Hashtbl.iter (fun n ml ->
@@ -221,3 +219,11 @@ let dump_dependencies ?(target_override=None) com =
 		) ml;
 	) dep;
 	close()
+
+let maybe_generate_dump com stage =
+	if com.Common.dump_config.dump_mode <> NoDump && com.dump_config.dump_stage = stage then begin
+		Timer.time com.timer_ctx ["generate";"dump"] (fun () ->
+			dump_types com;
+			Option.may dump_types (com.get_macros());
+		) ();
+	end

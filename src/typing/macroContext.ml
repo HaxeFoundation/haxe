@@ -41,7 +41,7 @@ let macro_interp_cache = ref None
 
 let safe_decode com v expected t p f =
 	let raise_decode_error s =
-		let path = [Dump.dump_path com.defines;"decoding_error"] in
+		let path = [com.dump_config.DumpConfig.dump_path;"decoding_error"] in
 		let ch = Path.create_file false ".txt" [] path  in
 		Printf.fprintf ch "%s: %s\n" (TPrinting.Printer.s_pos p) s;
 		let errors = Interp.handle_decoding_error (output_string ch) v t in
@@ -483,7 +483,7 @@ let make_macro_api ctx mctx p =
 			add false ctx;
 			(* if we are adding a class which has a macro field, we also have to add it to the macro context (issue #1497) *)
 			if not ctx.com.is_macro_context then match tdef with
-			| EClass c when List.exists (fun cff -> (Meta.has Meta.Macro cff.cff_meta || List.mem_assoc AMacro cff.cff_access)) c.d_data ->
+			| EClass c when List.exists (fun cff -> (List.mem_assoc AMacro cff.cff_access)) c.d_data ->
 				add true mctx
 			| _ ->
 				()
@@ -819,10 +819,13 @@ let load_macro' ctx display cpath f p =
 	fst (load_macro'' ctx.com (get_macro_context ctx) display cpath f p)
 
 let do_call_macro com api cpath name args p =
+	if com.verbose then Common.log com ("Calling macro " ^ s_type_path cpath ^ "." ^ name ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
 	incr stats.s_macros_called;
 	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	let f = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) name args in
-	macro_timer com.timer_ctx timer_level "execution" (Some (s_type_path cpath ^ "." ^ name)) f api
+	let r = macro_timer com.timer_ctx timer_level "execution" (Some (s_type_path cpath ^ "." ^ name)) f api in
+	if com.verbose then Common.log com ("Exiting macro " ^ s_type_path cpath ^ "." ^ name);
+	r
 
 let load_macro ctx com mctx api display cpath f p =
 	let meth,mloaded = load_macro'' com mctx display cpath f p in

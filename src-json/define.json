@@ -113,6 +113,13 @@
 		"params": ["mode: pretty | record | position | legacy"]
 	},
 	{
+		"name": "DumpStage",
+		"define": "dump.stage",
+		"doc": "The compiler stage after which to generate the dump",
+		"params": ["stage: typing | casting | inlining | analyzing | dce"],
+		"default": "dce"
+	},
+	{
 		"name": "DumpPath",
 		"define": "dump-path",
 		"doc": "Path to generate dumps to (default: \"dump\").",

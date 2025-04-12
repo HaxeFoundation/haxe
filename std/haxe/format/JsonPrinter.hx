@@ -53,7 +53,7 @@ class JsonPrinter {
 	var pretty:Bool;
 	var nind:Int;
 
-	function new(replacer:(key:Dynamic, value:Dynamic) -> Dynamic, space:String) {
+	function new(replacer:Null<(key:Dynamic, value:Dynamic) -> Dynamic>, space:Null<String>) {
 		this.replacer = replacer;
 		this.indent = space;
 		this.pretty = space != null;

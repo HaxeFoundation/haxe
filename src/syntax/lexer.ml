@@ -56,6 +56,12 @@ type xml_lexing_context = {
 	lexbuf : Sedlexing.lexbuf;
 }
 
+type format_context = {
+	format_buffer : Buffer.t;
+	mutable format_quote_open : bool;
+	mutable format_quote_pmin : int;
+}
+
 let error_msg = function
 	| Invalid_character c when c > 32 && c < 128 -> Printf.sprintf "Invalid character '%c'" (char_of_int c)
 	| Invalid_character c -> Printf.sprintf "Invalid character 0x%.2X" c
@@ -400,6 +406,253 @@ let rec skip_header lexbuf =
 	| "" | eof -> ()
 	| _ -> die "" __LOC__
 
+
+let comment ctx lexbuf =
+	let rec loop () = match%sedlex lexbuf with
+		| eof ->
+			raise Exit
+		| '\n' | '\r' | "\r\n" ->
+			newline ctx lexbuf;
+			store ctx lexbuf;
+			loop ()
+		| "*/" ->
+			lexeme_end lexbuf
+		| '*' ->
+			store ctx lexbuf;
+			loop ()
+		| Plus (Compl ('*' | '\n' | '\r')) ->
+			store ctx lexbuf;
+			loop ()
+		| _ ->
+			die "" __LOC__
+	in
+	loop ()
+
+let string ctx lexbuf =
+	let rec loop () = match%sedlex lexbuf with
+		| eof -> raise Exit
+		| '\n' | '\r' | "\r\n" ->
+			newline ctx lexbuf;
+			store ctx lexbuf;
+			loop ()
+		| "\\\"" ->
+			store ctx lexbuf;
+			loop ()
+		| "\\\\" ->
+			store ctx lexbuf;
+			loop ()
+		| '\\' ->
+			store ctx lexbuf;
+			loop ()
+		| '"' ->
+			lexeme_end lexbuf
+		| Plus (Compl ('"' | '\\' | '\r' | '\n')) ->
+			store ctx lexbuf;
+			loop ()
+		| _ ->
+			die "" __LOC__
+	in
+	loop ()
+
+let add_format_part fmt part =
+	Buffer.add_string fmt.format_buffer part
+
+let consume_buffer ctx fmt lexbuf f =
+	let s = Buffer.contents ctx.buf in
+	reset ctx;
+	add_format_part fmt (f s)
+
+let unescape_format ctx fmt s =
+	try
+		unescape s
+	with Invalid_escape_sequence(c,i,msg) ->
+		error ctx (Invalid_escape (c,msg)) (fmt.format_quote_pmin + i)
+
+let rec string2 ctx fmt lexbuf =
+	let rec loop () = match%sedlex lexbuf with
+		| eof ->
+			raise Exit
+		| '\n' | '\r' | "\r\n" ->
+			newline ctx lexbuf;
+			store ctx lexbuf;
+			loop ()
+		| '\\' ->
+			store ctx lexbuf;
+			loop ()
+		| "\\\\" ->
+			store ctx lexbuf;
+			loop ();
+		| "\\'" ->
+			store ctx lexbuf;
+			loop ();
+		| "'" ->
+			consume_buffer ctx fmt lexbuf (fun s -> if fmt.format_quote_open then s else unescape_format ctx fmt s);
+			if fmt.format_quote_open then add_format_part fmt "'";
+			lexeme_end lexbuf
+		| "$$" | "\\$" | '$' ->
+			store ctx lexbuf;
+			loop ();
+		| "${" ->
+			let pmin = lexeme_start lexbuf in
+			consume_buffer ctx fmt lexbuf (fun s -> if fmt.format_quote_open then s else unescape_format ctx fmt s);
+			add_format_part fmt "${";
+			(try code_string ctx fmt lexbuf with Exit -> error ctx Unclosed_code pmin);
+			loop ();
+		| Plus (Compl ('\'' | '\\' | '\r' | '\n' | '$')) ->
+			store ctx lexbuf;
+			loop ();
+		| _ ->
+			die "" __LOC__
+	in
+	loop ()
+
+and code_string ctx fmt lexbuf =
+	let rec loop open_braces = match%sedlex lexbuf with
+		| eof -> raise Exit
+		| '\n' | '\r' | "\r\n" ->
+			newline ctx lexbuf;
+			store ctx lexbuf;
+			loop open_braces
+		| '{' ->
+			store ctx lexbuf;
+			loop (open_braces + 1)
+		| '/' ->
+			store ctx lexbuf;
+			loop open_braces
+		| '}' ->
+			if open_braces > 0 then begin
+				store ctx lexbuf;
+				loop (open_braces - 1)
+			end else begin
+				consume_buffer ctx fmt lexbuf (fun s -> s);
+				add_format_part fmt "}"
+			end
+		| '"' ->
+			add ctx "\"";
+			let pmin = lexeme_start lexbuf in
+			(try ignore(string ctx lexbuf) with Exit -> error ctx Unterminated_string pmin);
+			add ctx "\"";
+			loop open_braces
+		| "'" ->
+			let pmin = lexeme_start lexbuf in
+			consume_buffer ctx fmt lexbuf (fun s -> s);
+			add_format_part fmt "'";
+			let old_quote,old_pmin = fmt.format_quote_open,fmt.format_quote_pmin in
+			fmt.format_quote_open <- true;
+			fmt.format_quote_pmin <- pmin;
+			(try ignore(string2 ctx fmt lexbuf) with Exit -> error ctx Unterminated_string pmin);
+			fmt.format_quote_open <- old_quote;
+			fmt.format_quote_pmin <- old_pmin;
+			loop open_braces
+		| "/*" ->
+			let pmin = lexeme_start lexbuf in
+			let save = contents ctx in
+			reset ctx;
+			(try ignore(comment ctx lexbuf) with Exit -> error ctx Unclosed_comment pmin);
+			reset ctx;
+			Buffer.add_string ctx.buf save;
+			loop open_braces
+		| "//", Star (Compl ('\n' | '\r')) ->
+			store ctx lexbuf;
+			loop open_braces
+		| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) ->
+			store ctx lexbuf;
+			loop open_braces
+		| _ ->
+			die "" __LOC__
+	in
+	loop 0
+
+let rec regexp ctx lexbuf =
+	let rec loop () = match%sedlex lexbuf with
+		| eof | '\n' | '\r' ->
+			raise Exit
+		| '\\', '/' ->
+			add  ctx"/";
+			loop ()
+		| '\\', 'r' ->
+			add  ctx"\r";
+			loop ()
+		| '\\', 'n' ->
+			add  ctx"\n";
+			loop ()
+		| '\\', 't' ->
+			add  ctx"\t";
+			loop ()
+		| '\\', ('\\' | '$' | '.' | '*' | '+' | '^' | '|' | '{' | '}' | '[' | ']' | '(' | ')' | '?' | '-' | '0'..'9') ->
+			add  ctx(lexeme lexbuf);
+			loop ()
+		| '\\', ('w' | 'W' | 'b' | 'B' | 's' | 'S' | 'd' | 'D' | 'x') ->
+			add ctx (lexeme lexbuf);
+			loop ()
+		| '\\', ('u' | 'U'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F') ->
+			add ctx (lexeme lexbuf);
+			loop ()
+		| '\\', Compl '\\' ->
+			error ctx (Invalid_character (Uchar.to_int (lexeme_char lexbuf 0))) (lexeme_end lexbuf - 1)
+		| '/' ->
+			regexp_options ctx lexbuf, lexeme_end lexbuf
+		| Plus (Compl ('\\' | '/' | '\r' | '\n')) ->
+			store ctx lexbuf;
+			loop ()
+	| _ ->
+		die "" __LOC__
+	in
+	loop ()
+
+and regexp_options ctx lexbuf =
+	match%sedlex lexbuf with
+	| 'g' | 'i' | 'm' | 's' | 'u' ->
+		let l = lexeme lexbuf in
+		l ^ regexp_options ctx lexbuf
+	| 'a'..'z' -> error ctx Invalid_option (lexeme_start lexbuf)
+	| "" -> ""
+	| _ -> die "" __LOC__
+
+let rec not_xml ctx depth in_open =
+	let lexbuf = ctx.lexbuf in
+	match%sedlex lexbuf with
+	| eof ->
+		raise Exit
+	| '\n' | '\r' | "\r\n" ->
+		newline ctx.lexer_ctx lexbuf;
+		store ctx.lexer_ctx lexbuf;
+		not_xml ctx depth in_open
+	(* closing tag *)
+	| '<','/',xml_name,'>' ->
+		let s = lexeme lexbuf in
+		Buffer.add_string ctx.lexer_ctx.buf s;
+		(* If it matches our document close tag, finish or decrease depth. *)
+		if s = ctx.close_tag then begin
+			if depth = 0 then lexeme_end lexbuf
+			else not_xml ctx (depth - 1) false
+		end else
+			not_xml ctx depth false
+	(* opening tag *)
+	| '<',xml_name ->
+		let s = lexeme lexbuf in
+		Buffer.add_string ctx.lexer_ctx.buf s;
+		(* If it matches our document open tag, increase depth and set in_open to true. *)
+		let depth,in_open = if s = ctx.open_tag then depth + 1,true else depth,false in
+		not_xml ctx depth in_open
+	(* /> *)
+	| '/','>' ->
+		let s = lexeme lexbuf in
+		Buffer.add_string ctx.lexer_ctx.buf s;
+		(* We only care about this if we are still in the opening tag, i.e. if it wasn't closed yet.
+			In that case, decrease depth and finish if it's 0. *)
+		let depth = if in_open then depth - 1 else depth in
+		if depth < 0 then lexeme_end lexbuf
+		else not_xml ctx depth false
+	| '<' | '/' | '>' ->
+		store ctx.lexer_ctx lexbuf;
+		not_xml ctx depth in_open
+	| Plus (Compl ('<' | '/' | '>' | '\n' | '\r')) ->
+		store ctx.lexer_ctx lexbuf;
+		not_xml ctx depth in_open
+	| _ ->
+		die "" __LOC__
+
 let rec token ctx lexbuf =
 	let mk = mk ctx in
 	let token = token ctx in
@@ -497,9 +750,13 @@ let rec token ctx lexbuf =
 	| "'" ->
 		reset ctx;
 		let pmin = lexeme_start lexbuf in
-		let pmax = (try string2 ctx lexbuf with Exit -> error ctx Unterminated_string pmin) in
-		let str = (try unescape (contents ctx) with Invalid_escape_sequence(c,i,msg) -> error ctx (Invalid_escape (c,msg)) (pmin + i)) in
-		mk_tok (Const (String(str,SSingleQuotes))) pmin pmax;
+		let fmt = {
+			format_buffer = Buffer.create 10;
+			format_quote_open = false;
+			format_quote_pmin = pmin;
+		} in
+		let pmax = (try string2 ctx fmt lexbuf with Exit -> error ctx Unterminated_string pmin) in
+		mk_tok (Const (String(Buffer.contents fmt.format_buffer,SSingleQuotes))) pmin pmax;
 	| "~/" ->
 		reset ctx;
 		let pmin = lexeme_start lexbuf in
@@ -568,144 +825,6 @@ let rec token ctx lexbuf =
 	| ident -> mk_ident ctx lexbuf
 	| idtype -> mk lexbuf (Const (Ident (lexeme lexbuf)))
 	| _ -> invalid_char ctx lexbuf
-
-and comment ctx lexbuf =
-	match%sedlex lexbuf with
-	| eof -> raise Exit
-	| '\n' | '\r' | "\r\n" -> newline ctx lexbuf; store ctx lexbuf; comment ctx lexbuf
-	| "*/" -> lexeme_end lexbuf
-	| '*' -> store ctx lexbuf; comment ctx lexbuf
-	| Plus (Compl ('*' | '\n' | '\r')) -> store ctx lexbuf; comment ctx lexbuf
-	| _ -> die "" __LOC__
-
-and string ctx lexbuf =
-	match%sedlex lexbuf with
-	| eof -> raise Exit
-	| '\n' | '\r' | "\r\n" -> newline ctx lexbuf; store ctx lexbuf; string ctx lexbuf
-	| "\\\"" -> store ctx lexbuf; string ctx lexbuf
-	| "\\\\" -> store ctx lexbuf; string ctx lexbuf
-	| '\\' -> store ctx lexbuf; string ctx lexbuf
-	| '"' -> lexeme_end lexbuf
-	| Plus (Compl ('"' | '\\' | '\r' | '\n')) -> store ctx lexbuf; string ctx lexbuf
-	| _ -> die "" __LOC__
-
-and string2 ctx lexbuf =
-	match%sedlex lexbuf with
-	| eof -> raise Exit
-	| '\n' | '\r' | "\r\n" -> newline ctx lexbuf; store ctx lexbuf; string2 ctx lexbuf
-	| '\\' -> store ctx lexbuf; string2 ctx lexbuf
-	| "\\\\" -> store ctx lexbuf; string2 ctx lexbuf
-	| "\\'" -> store ctx lexbuf; string2 ctx lexbuf
-	| "'" -> lexeme_end lexbuf
-	| "$$" | "\\$" | '$' -> store ctx lexbuf; string2 ctx lexbuf
-	| "${" ->
-		let pmin = lexeme_start lexbuf in
-		store ctx lexbuf;
-		(try code_string ctx lexbuf 0 with Exit -> error ctx Unclosed_code pmin);
-		string2 ctx lexbuf;
-	| Plus (Compl ('\'' | '\\' | '\r' | '\n' | '$')) -> store ctx lexbuf; string2 ctx lexbuf
-	| _ -> die "" __LOC__
-
-and code_string ctx lexbuf open_braces =
-	match%sedlex lexbuf with
-	| eof -> raise Exit
-	| '\n' | '\r' | "\r\n" -> newline ctx lexbuf; store ctx lexbuf; code_string ctx lexbuf open_braces
-	| '{' -> store ctx lexbuf; code_string ctx lexbuf (open_braces + 1)
-	| '/' -> store ctx lexbuf; code_string ctx lexbuf open_braces
-	| '}' ->
-		store ctx lexbuf;
-		if open_braces > 0 then code_string ctx lexbuf (open_braces - 1)
-	| '"' ->
-		add ctx "\"";
-		let pmin = lexeme_start lexbuf in
-		(try ignore(string ctx lexbuf) with Exit -> error ctx Unterminated_string pmin);
-		add ctx "\"";
-		code_string ctx lexbuf open_braces
-	| "'" ->
-		add ctx "'";
-		let pmin = lexeme_start lexbuf in
-		(try ignore(string2 ctx lexbuf) with Exit -> error ctx Unterminated_string pmin);
-		add ctx "'";
-		code_string ctx lexbuf open_braces
-	| "/*" ->
-		let pmin = lexeme_start lexbuf in
-		let save = contents ctx in
-		reset ctx;
-		(try ignore(comment ctx lexbuf) with Exit -> error ctx Unclosed_comment pmin);
-		reset ctx;
-		Buffer.add_string ctx.buf save;
-		code_string ctx lexbuf open_braces
-	| "//", Star (Compl ('\n' | '\r')) -> store ctx lexbuf; code_string ctx lexbuf open_braces
-	| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) -> store ctx lexbuf; code_string ctx lexbuf open_braces
-	| _ -> die "" __LOC__
-
-and regexp ctx lexbuf =
-	match%sedlex lexbuf with
-	| eof | '\n' | '\r' -> raise Exit
-	| '\\', '/' -> add  ctx"/"; regexp ctx lexbuf
-	| '\\', 'r' -> add  ctx"\r"; regexp ctx lexbuf
-	| '\\', 'n' -> add  ctx"\n"; regexp ctx lexbuf
-	| '\\', 't' -> add  ctx"\t"; regexp ctx lexbuf
-	| '\\', ('\\' | '$' | '.' | '*' | '+' | '^' | '|' | '{' | '}' | '[' | ']' | '(' | ')' | '?' | '-' | '0'..'9') -> add  ctx(lexeme lexbuf); regexp ctx lexbuf
-	| '\\', ('w' | 'W' | 'b' | 'B' | 's' | 'S' | 'd' | 'D' | 'x') -> add  ctx(lexeme lexbuf); regexp ctx lexbuf
-	| '\\', ('u' | 'U'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F') -> add  ctx(lexeme lexbuf); regexp ctx lexbuf
-	| '\\', Compl '\\' -> error ctx (Invalid_character (Uchar.to_int (lexeme_char lexbuf 0))) (lexeme_end lexbuf - 1)
-	| '/' -> regexp_options ctx lexbuf, lexeme_end lexbuf
-	| Plus (Compl ('\\' | '/' | '\r' | '\n')) -> store ctx lexbuf; regexp ctx lexbuf
-	| _ -> die "" __LOC__
-
-and regexp_options ctx lexbuf =
-	match%sedlex lexbuf with
-	| 'g' | 'i' | 'm' | 's' | 'u' ->
-		let l = lexeme lexbuf in
-		l ^ regexp_options ctx lexbuf
-	| 'a'..'z' -> error ctx Invalid_option (lexeme_start lexbuf)
-	| "" -> ""
-	| _ -> die "" __LOC__
-
-and not_xml ctx depth in_open =
-	let lexbuf = ctx.lexbuf in
-	match%sedlex lexbuf with
-	| eof ->
-		raise Exit
-	| '\n' | '\r' | "\r\n" ->
-		newline ctx.lexer_ctx lexbuf;
-		store ctx.lexer_ctx lexbuf;
-		not_xml ctx depth in_open
-	(* closing tag *)
-	| '<','/',xml_name,'>' ->
-		let s = lexeme lexbuf in
-		Buffer.add_string ctx.lexer_ctx.buf s;
-		(* If it matches our document close tag, finish or decrease depth. *)
-		if s = ctx.close_tag then begin
-			if depth = 0 then lexeme_end lexbuf
-			else not_xml ctx (depth - 1) false
-		end else
-			not_xml ctx depth false
-	(* opening tag *)
-	| '<',xml_name ->
-		let s = lexeme lexbuf in
-		Buffer.add_string ctx.lexer_ctx.buf s;
-		(* If it matches our document open tag, increase depth and set in_open to true. *)
-		let depth,in_open = if s = ctx.open_tag then depth + 1,true else depth,false in
-		not_xml ctx depth in_open
-	(* /> *)
-	| '/','>' ->
-		let s = lexeme lexbuf in
-		Buffer.add_string ctx.lexer_ctx.buf s;
-		(* We only care about this if we are still in the opening tag, i.e. if it wasn't closed yet.
-		   In that case, decrease depth and finish if it's 0. *)
-		let depth = if in_open then depth - 1 else depth in
-		if depth < 0 then lexeme_end lexbuf
-		else not_xml ctx depth false
-	| '<' | '/' | '>' ->
-		store ctx.lexer_ctx lexbuf;
-		not_xml ctx depth in_open
-	| Plus (Compl ('<' | '/' | '>' | '\n' | '\r')) ->
-		store ctx.lexer_ctx lexbuf;
-		not_xml ctx depth in_open
-	| _ ->
-		die "" __LOC__
 
 let rec sharp_token ctx lexbuf =
 	match%sedlex lexbuf with

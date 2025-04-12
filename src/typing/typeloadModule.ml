@@ -141,7 +141,6 @@ module ModuleLevel = struct
 					has_declaration := true;
 					let priv = List.mem EPrivate d.d_flags in
 					let path = make_path name priv d.d_meta p in
-					if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then raise_typing_error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
 					let e = {
 						(mk_enum m path p (pos d.d_name)) with
 						e_doc = d.d_doc;

@@ -75,7 +75,7 @@ class Reader {
 		return fields;
 	}
 
-	public function readEntryHeader():Entry {
+	public function readEntryHeader():Null<Entry> {
 		var i = this.i;
 		var h = i.readInt32();
 		if (h == 0x02014B50 || h == 0x06054B50)
@@ -158,8 +158,6 @@ class Reader {
 					if (r.done)
 						break;
 				}
-				e.data = out.getBytes();
-				e.compressed = false;
 				#else
 				var bufSize = 65536;
 				if (tmp == null)
@@ -172,8 +170,9 @@ class Reader {
 					if (n < bufSize)
 						break;
 				}
-				e.data = out.getBytes();
 				#end
+				e.data = out.getBytes();
+				e.compressed = false;
 			} else
 				e.data = i.read(e.dataSize);
 

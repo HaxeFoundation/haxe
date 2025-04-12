@@ -296,7 +296,7 @@ let generate_source ctx =
 
          { acc with build_xml = acc_build_xml; extern_src = acc_extern_src }
 
-      | TClassDecl class_def when is_internal_class class_def.cl_path || Meta.has Meta.Macro class_def.cl_meta ->
+      | TClassDecl class_def when is_internal_class class_def.cl_path ->
          acc
 
       | TClassDecl class_def ->

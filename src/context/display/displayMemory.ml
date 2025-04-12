@@ -36,6 +36,7 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 				"additionalSizes",jarray (
 					(match !MacroContext.macro_interp_cache with
 					| Some interp ->
+						let eval = Thread_local_storage.get_exn interp.eval in
 						jobject ["name",jstring "macro interpreter";"size",jint (mem_size MacroContext.macro_interp_cache);"child",jarray [
 							jobject ["name",jstring "builtins";"size",jint (mem_size_2 interp.builtins [Obj.repr interp])];
 							jobject ["name",jstring "debug";"size",jint (mem_size_2 interp.debug [Obj.repr interp])];
@@ -51,35 +52,35 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 							jobject ["name",jstring "file_keys";"size",jint (mem_size_2 interp.file_keys [Obj.repr interp])];
 							jobject ["name",jstring "toplevel";"size",jint (mem_size_2 interp.toplevel [Obj.repr interp])];
 							jobject ["name",jstring "eval";"size",jint (mem_size_2 interp.eval [Obj.repr interp]);"child", jarray [
-								(match interp.eval.env with
+								(match eval.env with
 								| Some env ->
-									jobject ["name",jstring "env";"size",jint (mem_size_2 interp.eval.env [Obj.repr interp; Obj.repr interp.eval]);"child", jarray [
-										jobject ["name",jstring "env_info";"size",jint (mem_size_2 env.env_info [Obj.repr interp; Obj.repr interp.eval; Obj.repr env])];
-										jobject ["name",jstring "env_debug";"size",jint (mem_size_2 env.env_debug [Obj.repr interp; Obj.repr interp.eval; Obj.repr env])];
-										jobject ["name",jstring "env_locals";"size",jint (mem_size_2 env.env_locals [Obj.repr interp; Obj.repr interp.eval; Obj.repr env])];
-										jobject ["name",jstring "env_captures";"size",jint (mem_size_2 env.env_captures [Obj.repr interp; Obj.repr interp.eval; Obj.repr env])];
-										jobject ["name",jstring "env_extra_locals";"size",jint (mem_size_2 env.env_extra_locals [Obj.repr interp; Obj.repr interp.eval; Obj.repr env])];
-										jobject ["name",jstring "env_parent";"size",jint (mem_size_2 env.env_parent [Obj.repr interp; Obj.repr interp.eval; Obj.repr env])];
-										jobject ["name",jstring "env_eval";"size",jint (mem_size_2 env.env_eval [Obj.repr interp; Obj.repr interp.eval; Obj.repr env])];
+									jobject ["name",jstring "env";"size",jint (mem_size_2 eval.env [Obj.repr interp; Obj.repr eval]);"child", jarray [
+										jobject ["name",jstring "env_info";"size",jint (mem_size_2 env.env_info [Obj.repr interp; Obj.repr eval; Obj.repr env])];
+										jobject ["name",jstring "env_debug";"size",jint (mem_size_2 env.env_debug [Obj.repr interp; Obj.repr eval; Obj.repr env])];
+										jobject ["name",jstring "env_locals";"size",jint (mem_size_2 env.env_locals [Obj.repr interp; Obj.repr eval; Obj.repr env])];
+										jobject ["name",jstring "env_captures";"size",jint (mem_size_2 env.env_captures [Obj.repr interp; Obj.repr eval; Obj.repr env])];
+										jobject ["name",jstring "env_extra_locals";"size",jint (mem_size_2 env.env_extra_locals [Obj.repr interp; Obj.repr eval; Obj.repr env])];
+										jobject ["name",jstring "env_parent";"size",jint (mem_size_2 env.env_parent [Obj.repr interp; Obj.repr eval; Obj.repr env])];
+										jobject ["name",jstring "env_eval";"size",jint (mem_size_2 env.env_eval [Obj.repr interp; Obj.repr eval; Obj.repr env])];
 									]];
 								| None ->
-									jobject ["name",jstring "env";"size",jint (mem_size_2 interp.eval.env [Obj.repr interp; Obj.repr interp.eval])];
+									jobject ["name",jstring "env";"size",jint (mem_size_2 eval.env [Obj.repr interp; Obj.repr eval])];
 								);
-								jobject ["name",jstring "thread";"size",jint (mem_size_2 interp.eval.thread [Obj.repr interp; Obj.repr interp.eval]);"child", jarray [
-									jobject ["name",jstring "tthread";"size",jint (mem_size_2 interp.eval.thread.tthread [Obj.repr interp; Obj.repr interp.eval; Obj.repr interp.eval.thread])];
-									jobject ["name",jstring "tdeque";"size",jint (mem_size_2 interp.eval.thread.tdeque [Obj.repr interp; Obj.repr interp.eval; Obj.repr interp.eval.thread])];
-									jobject ["name",jstring "tevents";"size",jint (mem_size_2 interp.eval.thread.tevents [Obj.repr interp; Obj.repr interp.eval; Obj.repr interp.eval.thread])];
-									jobject ["name",jstring "tstorage";"size",jint (mem_size_2 interp.eval.thread.tstorage [Obj.repr interp; Obj.repr interp.eval; Obj.repr interp.eval.thread])];
+								jobject ["name",jstring "thread";"size",jint (mem_size_2 eval.thread [Obj.repr interp; Obj.repr eval]);"child", jarray [
+									jobject ["name",jstring "tthread";"size",jint (mem_size_2 eval.thread.tthread [Obj.repr interp; Obj.repr eval; Obj.repr eval.thread])];
+									jobject ["name",jstring "tdeque";"size",jint (mem_size_2 eval.thread.tdeque [Obj.repr interp; Obj.repr eval; Obj.repr eval.thread])];
+									jobject ["name",jstring "tevents";"size",jint (mem_size_2 eval.thread.tevents [Obj.repr interp; Obj.repr eval; Obj.repr eval.thread])];
+									jobject ["name",jstring "tstorage";"size",jint (mem_size_2 eval.thread.tstorage [Obj.repr interp; Obj.repr eval; Obj.repr eval.thread])];
 								]];
-								jobject ["name",jstring "debug_state";"size",jint (mem_size_2 interp.eval.debug_state [Obj.repr interp; Obj.repr interp.eval])];
-								jobject ["name",jstring "breakpoint";"size",jint (mem_size_2 interp.eval.breakpoint [Obj.repr interp; Obj.repr interp.eval])];
-								jobject ["name",jstring "caught_types";"size",jint (mem_size_2 interp.eval.caught_types [Obj.repr interp; Obj.repr interp.eval])];
-								jobject ["name",jstring "caught_exception";"size",jint (mem_size_2 interp.eval.caught_exception [Obj.repr interp; Obj.repr interp.eval])];
-								jobject ["name",jstring "last_return";"size",jint (mem_size_2 interp.eval.last_return [Obj.repr interp; Obj.repr interp.eval])];
-								jobject ["name",jstring "debug_channel";"size",jint (mem_size_2 interp.eval.debug_channel [Obj.repr interp; Obj.repr interp.eval])];
+								jobject ["name",jstring "debug_state";"size",jint (mem_size_2 eval.debug_state [Obj.repr interp; Obj.repr eval])];
+								jobject ["name",jstring "breakpoint";"size",jint (mem_size_2 eval.breakpoint [Obj.repr interp; Obj.repr eval])];
+								jobject ["name",jstring "caught_types";"size",jint (mem_size_2 eval.caught_types [Obj.repr interp; Obj.repr eval])];
+								jobject ["name",jstring "caught_exception";"size",jint (mem_size_2 eval.caught_exception [Obj.repr interp; Obj.repr eval])];
+								jobject ["name",jstring "last_return";"size",jint (mem_size_2 eval.last_return [Obj.repr interp; Obj.repr eval])];
+								jobject ["name",jstring "debug_channel";"size",jint (mem_size_2 eval.debug_channel [Obj.repr interp; Obj.repr eval])];
 							]];
 							jobject ["name",jstring "evals";"size",jint (mem_size_2 interp.evals [Obj.repr interp])];
-							jobject ["name",jstring "exception_stack";"size",jint (mem_size_2 interp.exception_stack [Obj.repr interp])];
+							jobject ["name",jstring "exception_stack";"size",jint (mem_size_2 eval.exception_stack [Obj.repr interp])];
 						]];
 					| None ->
 						jobject ["name",jstring "macro interpreter";"size",jint (mem_size MacroContext.macro_interp_cache)];

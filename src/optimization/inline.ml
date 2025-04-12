@@ -873,7 +873,7 @@ let rec type_inline (ictx : inline_context) cf f ethis params tret config p ?(se
 	let tl = arg_types params f.tf_args in
 	let e = state#finalize e tl tret has_params map_type p in
 	begin match ictx.typer with
-		| Some ctx when Meta.has (Meta.Custom ":inlineDebug") ctx.f.meta ->
+		| Some ctx when Meta.has (Meta.Custom ":debug.inline") ctx.f.meta ->
 			let se t = s_expr_ast true t (s_type (print_context())) in
 			print_endline (Printf.sprintf "Inline %s:\n\tArgs: %s\n\tExpr: %s\n\tResult: %s"
 				cf.cf_name

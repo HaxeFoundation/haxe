@@ -294,7 +294,7 @@ jobs:
         run: export DISPLAY=:99.0
 
       - name: Test
-        run: haxe RunCi.hxml
+        run: haxe RunCi.hxml -D include_legacy
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 20
 
@@ -531,7 +531,7 @@ jobs:
           sudo apt install -qqy ${{matrix.APT_PACKAGES}}
 
       - name: Test
-        run: haxe RunCi.hxml
+        run: haxe RunCi.hxml -D include_legacy
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 20
 
@@ -734,9 +734,14 @@ jobs:
           mkdir "$env:HAXELIB_ROOT"
           haxelib setup "$env:HAXELIB_ROOT"
 
+      - name: Add msbuild to PATH (hl/c)
+        uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+
       - name: Test
         shell: pwsh
-        run: haxe RunCi.hxml
+        run: haxe RunCi.hxml -D include_legacy
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 20
 
@@ -847,7 +852,7 @@ jobs:
         run: |
           # disable invalid Unicode filenames on APFS
           echo "" > sys/compile-fs.hxml
-          haxe RunCi.hxml
+          haxe RunCi.hxml -D include_legacy
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 60
 

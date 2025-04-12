@@ -52,10 +52,11 @@ let parse_file_from_lexbuf com file p lexbuf =
 		| _ ->
 			()
 	end;
+	Common.log com ("Parsed " ^ file);
 	parse_result
 
 let parse_file_from_lexbuf com file p lexbuf =
-	Timer.time com.timer_ctx ["parsing";file] (parse_file_from_lexbuf com file p) lexbuf
+	Timer.time com.timer_ctx ["parsing"] (parse_file_from_lexbuf com file p) lexbuf
 
 let parse_file_from_string com file p string =
 	parse_file_from_lexbuf com file p (Sedlexing.Utf8.from_string string)

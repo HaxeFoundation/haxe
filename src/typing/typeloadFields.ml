@@ -478,7 +478,6 @@ let create_typer_context_for_class ctx cctx p =
 	incr stats.s_classes_built;
 	let c = cctx.tclass in
 	if cctx.is_lib && not (has_class_flag c CExtern) then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
-	if Meta.has Meta.Macro c.cl_meta then display_error ctx.com "Macro classes are no longer allowed in haxe 3" c.cl_pos;
 	TyperManager.clone_for_class ctx c
 
 let create_field_context ctx cctx cff is_display_file display_modifier =
@@ -754,7 +753,7 @@ module TypeBinding = struct
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				enter_field_typing_pass ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
-				if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing field %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
+				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
 					| TConst _ | TLocal _ | TFunction _ -> e
@@ -831,7 +830,7 @@ module TypeBinding = struct
 		let ctx = TyperManager.clone_for_expr ctx_f fmode function_mode in
 		let bind () =
 			incr stats.s_methods_typed;
-			if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing method %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
+			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 			begin match ctx.com.platform with
 				| Jvm when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
 					if e <> None then

@@ -127,11 +127,8 @@ let emit_array_declaration execs env =
 
 let emit_type_expr proto env = proto
 
-let emit_mk_pos exec1 exec2 exec3 env =
-	let file = exec1 env in
-	let min = exec2 env in
-	let max = exec3 env in
-	encode_pos { pfile = decode_string file; pmin = decode_int min; pmax = decode_int max }
+let emit_mk_pos p env =
+	encode_pos p
 
 let emit_enum_construction key i execs p env =
 	encode_enum_value key i (Array.map (apply env) execs) p
@@ -231,7 +228,7 @@ let emit_try exec catches env =
 	with RunTimeException(v,_,_) as exc ->
 		eval.caught_exception <- vnull;
 		restore();
-		build_exception_stack ctx env;
+		build_exception_stack eval env;
 		let rec loop () = match eval.env with
 			| Some env' when env' != env ->
 				pop_environment ctx env';

@@ -875,7 +875,7 @@ module Debug = struct
 		else platform_name com.platform
 
 	let get_dump_path ctx c cf =
-		(Dump.dump_path ctx.com.defines) :: [platform_name_macro ctx.com] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
+		(ctx.com.dump_config.DumpConfig.dump_path) :: [platform_name_macro ctx.com] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
 
 	let dot_debug ctx c cf =
 		let g = ctx.graph in

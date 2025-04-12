@@ -41,6 +41,6 @@ let getCallStack = vfun0 (fun () ->
 
 let getExceptionStack = vfun0 (fun () ->
 	let ctx = get_ctx() in
-	let envs = ctx.exception_stack in
+	let envs = (get_eval ctx).exception_stack in
 	make_stack (List.rev envs)
 )

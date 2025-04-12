@@ -28,8 +28,8 @@ import haxe.ds.List;
 
 @:noDoc
 typedef TypeResolver = {
-	function resolveClass(name:String):Class<Dynamic>;
-	function resolveEnum(name:String):Enum<Dynamic>;
+	function resolveClass(name:String):Null<Class<Dynamic>>;
+	function resolveEnum(name:String):Null<Enum<Dynamic>>;
 }
 
 /**
@@ -56,9 +56,9 @@ class Unserializer {
 
 		A type resolver must provide two methods:
 
-		1. `resolveClass(name:String):Class<Dynamic>` is called to determine a
+		1. `resolveClass(name:String):Null<Class<Dynamic>>` is called to determine a
 				`Class` from a class name
-		2. `resolveEnum(name:String):Enum<Dynamic>` is called to determine an
+		2. `resolveEnum(name:String):Null<Enum<Dynamic>>` is called to determine an
 				`Enum` from an enum name
 
 		This value is applied when a new `Unserializer` instance is created.
@@ -511,20 +511,20 @@ class Unserializer {
 private class DefaultResolver {
 	public function new() {}
 
-	public inline function resolveClass(name:String):Class<Dynamic>
+	public inline function resolveClass(name:String):Null<Class<Dynamic>>
 		return Type.resolveClass(name);
 
-	public inline function resolveEnum(name:String):Enum<Dynamic>
+	public inline function resolveEnum(name:String):Null<Enum<Dynamic>>
 		return Type.resolveEnum(name);
 }
 
 private class NullResolver {
 	function new() {}
 
-	public inline function resolveClass(name:String):Class<Dynamic>
+	public inline function resolveClass(name:String):Null<Class<Dynamic>>
 		return null;
 
-	public inline function resolveEnum(name:String):Enum<Dynamic>
+	public inline function resolveEnum(name:String):Null<Enum<Dynamic>>
 		return null;
 
 	public static var instance(get, null):NullResolver;

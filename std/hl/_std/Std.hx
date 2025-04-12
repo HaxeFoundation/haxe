@@ -79,10 +79,10 @@ class Std {
 		return t.check(v);
 	}
 
-	extern public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S;
+	extern public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S>;
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return downcast(value, c);
 	}
 

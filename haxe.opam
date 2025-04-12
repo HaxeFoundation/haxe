@@ -34,5 +34,7 @@ depends: [
   "luv" {>= "0.5.13"}
   "ipaddr"
   "terminal_size"
-  "domainslib"
+  "domainslib" {>= "0.5.2"}
+  "saturn"
+  "thread-local-storage"
 ]

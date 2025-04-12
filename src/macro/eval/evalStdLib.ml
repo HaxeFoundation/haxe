@@ -2782,8 +2782,7 @@ module StdTls = struct
 	let get_value = vifun0 (fun vthis ->
 		let this = this vthis in
 		try
-			let id = Thread.id (Thread.self()) in
-			let eval = IntMap.find id (get_ctx()).evals in
+			let eval = get_eval (get_ctx()) in
 			IntMap.find this eval.thread.tstorage
 		with Not_found ->
 			vnull

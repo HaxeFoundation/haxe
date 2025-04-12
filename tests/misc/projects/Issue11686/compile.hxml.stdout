@@ -32,3 +32,6 @@ MORETEXTMORETEXTMORETEXTMORETEXT
 ,]
 Main.hx:14: [,test/salut.txt,4,-662733300,]
 Main.hx:15: [,test,]
+Main.hx:17: Archive from neko haxe.zip.Writer
+Main.hx:21: [,test.txt,12,62177901,]
+Main.hx:22: [,hello world!,]

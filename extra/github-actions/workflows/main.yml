@@ -177,8 +177,9 @@ jobs:
         run: export DISPLAY=:99.0
 
       - name: Test
-        run: haxe RunCi.hxml
+        run: haxe RunCi.hxml -D include_legacy
         working-directory: ${{github.workspace}}/tests
+        timeout-minutes: 20
 
   test-docgen:
     needs: linux-build
@@ -359,8 +360,9 @@ jobs:
           sudo apt install -qqy ${{matrix.APT_PACKAGES}}
 
       - name: Test
-        run: haxe RunCi.hxml
+        run: haxe RunCi.hxml -D include_legacy
         working-directory: ${{github.workspace}}/tests
+        timeout-minutes: 20
 
   mac-build:
     strategy:

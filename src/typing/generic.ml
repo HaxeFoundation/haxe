@@ -493,7 +493,15 @@ let type_generic_function ctx fa fcc with_type p =
 			in
 			cf2.cf_expr <- (match cf.cf_expr with
 				| None ->
-					display_error ctx.com "Recursive @:generic function" p; None;
+					let st = s_type (print_context()) in
+					let mappings = List.map2 (fun ttp t ->
+						Printf.sprintf "%s = %s" ttp.ttp_name (st t)
+					) cf.cf_params monos in
+					let sub = [
+						(Error.make_error ~depth:1 (Custom (Printf.sprintf "Mapping: %s" (String.concat ", " mappings))) p);
+						(Error.make_error ~depth:1 (Custom (Printf.sprintf "For function %s.%s" (s_type_path c.cl_path) cf.cf_name)) p);
+					] in
+					display_error_ext ctx.com (Error.make_error ~sub (Custom "Recursive @:generic function") p); None;
 				| Some e ->
 					let e = generic_substitute_expr gctx e in
 					check e;
