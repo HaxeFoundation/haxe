@@ -41,29 +41,11 @@ let expr_to_coro ctx eresult cb_root e =
 	let goto cb_from cb_to =
 		terminate cb_from (NextGoto cb_to) t_dynamic null_pos
 	in
-	let replace_this e =
-		let v = match ctx.vthis with
-			| Some v ->
-				v
-			| None ->
-				let v = alloc_var VGenerated (Printf.sprintf "%sthis" gen_local_prefix) e.etype e.epos in
-				ctx.vthis <- Some v;
-				v
-		in
-		Builder.make_local v e.epos
-	in
-	let rec map_expr e = match e.eexpr with
-		| TConst TThis ->
-			replace_this e
-		| _ ->
-			Type.map_expr map_expr e
-	in
 	let loop_stack = ref [] in
 	let rec loop cb ret e = match e.eexpr with
 		(* special cases *)
 		| TConst TThis ->
-			let ev = replace_this e in
-			cb,ev
+			cb,e
 		(* simple values *)
 		| TConst _ | TLocal _ | TTypeExpr _ | TIdent _ ->
 			cb,e
@@ -100,7 +82,7 @@ let expr_to_coro ctx eresult cb_root e =
 		| TField(e1,fa) ->
 			(* TODO: this is quite annoying because factoring out field access behaves very creatively on
 			   some targets. This means that (coroCall()).field doesn't work (and isn't tested). *)
-			cb,map_expr e
+			cb,e
 		| TEnumParameter(e1,ef,i) ->
 			let cb,e1 = loop cb RValue e1 in
 			cb,{e with eexpr = TEnumParameter(e1,ef,i)}
@@ -145,9 +127,6 @@ let expr_to_coro ctx eresult cb_root e =
 		(* variables *)
 		| TVar(v,None) ->
 			add_expr cb e;
-			cb,e_no_value
-		| TVar(v,Some {eexpr = TConst TThis}) ->
-			ctx.vthis <- Some v;
 			cb,e_no_value
 		| TVar(v,Some e1) ->
 			add_expr cb {e with eexpr = TVar(v,None)};
