@@ -227,6 +227,9 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 	ignore(loop cb []);
 
 	let states = !states in
+	let rethrow_state_id = cb_uncaught.cb_id in
+	let rethrow_state = make_state rethrow_state_id [mk (TThrow eresult) com.basic.tvoid null_pos] in
+	let states = states @ [rethrow_state] in
 
 	(* TODO: this (and the coroutine transform in general) should probably be run before captured vars handling *)
 	(* very ugly, but seems to work: extract locals that are used across states *)
@@ -373,8 +376,43 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 	in
 	let eswitch = mk (TSwitch switch) com.basic.tvoid p in
 
-	let eloop = mk (TWhile (make_bool com.basic true p, eswitch, NormalWhile)) com.basic.tvoid p in
-	
+	let etry = mk (TTry (
+		eswitch,
+		[
+			let vcaught = alloc_var VGenerated "e" t_dynamic null_pos in
+			let cases = DynArray.create () in
+			Array.iteri (fun i l -> match !l with
+				| [] ->
+					()
+				| l ->
+					let patterns = List.map (mk_int com) l in
+					let expr = mk (TBlock [
+						set_state i;
+						Builder.binop OpAssign eresult (Builder.make_local vcaught null_pos) vcaught.v_type null_pos;
+					]) com.basic.tvoid null_pos in
+					DynArray.add cases {case_patterns = patterns; case_expr = expr};
+			) exc_state_map;
+			let default = mk (TBlock [
+				set_state rethrow_state_id;
+				mk (TThrow(make_local vcaught null_pos)) t_dynamic null_pos;
+			]) com.basic.tvoid null_pos in
+			if DynArray.empty cases then
+				(vcaught,default)
+			else begin
+				let switch = {
+					switch_subject = estate;
+					switch_cases = DynArray.to_list cases;
+					switch_default = Some default;
+					switch_exhaustive = true
+				} in
+				let e = mk (TSwitch switch) com.basic.tvoid null_pos in
+				(vcaught,e)
+			end
+		]
+	)) com.basic.tvoid null_pos in
+
+	let eloop = mk (TWhile (make_bool com.basic true p, etry, NormalWhile)) com.basic.tvoid p in
+
 	(* let shared_vars = List.map (fun v -> mk (TVar (v,Some (Texpr.Builder.default_value v.v_type v.v_pos))) com.basic.tvoid null_pos) decls in
 	let shared_vars = List.rev shared_vars in
 	let shared_vars = match ctx.vthis with

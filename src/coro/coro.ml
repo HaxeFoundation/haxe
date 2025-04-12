@@ -40,7 +40,7 @@ module ContinuationClassBuilder = struct
 			| LocalFunc f ->
 				let n = Printf.sprintf "HxCoroAnonFunc_%i" !localFuncCount in
 				localFuncCount := !localFuncCount + 1;
-				
+
 				let args = f.tf_args |> List.map (fun (v, _) -> (v.v_name, false, v.v_type)) in
 				let t = TFun (Common.expand_coro_type ctx.typer.com.basic args f.tf_type) in
 				n, Some (mk_field captured_field_name t null_pos null_pos)
@@ -340,14 +340,14 @@ let fun_to_coro ctx coro_type =
 			let vcorofunc      = alloc_var VGenerated "_hx_coro_func" (ctx.typer.com.basic.tarray tf) null_pos in
 			let ecorofunclocal = Builder.make_local vcorofunc null_pos in
 			let eindex         = mk (TArray (ecorofunclocal, Builder.make_int ctx.typer.com.basic 0 null_pos)) tf null_pos in
-			
+
 			[ eindex ],
 			(fun e ->
 				let null_init = mk (TArrayDecl [ Builder.make_null tf null_pos ]) vcorofunc.v_type null_pos in
 				let evar      = mk (TVar (vcorofunc, Some null_init)) vcorofunc.v_type null_pos in
 				let efunc     = mk (TFunction { tf_args = [ (vcompletion, None) ]; tf_type = ctx.typer.com.basic.tany; tf_expr = e }) tf null_pos in
 				let eassign   = mk_assign eindex efunc in
-				
+
 				let ecall   = mk (TCall (eindex, [ enewcompletion ])) ctx.typer.com.basic.tany null_pos in
 				let ereturn = Builder.mk_return ecall in
 				mk (TBlock [
@@ -378,7 +378,7 @@ let fun_to_coro ctx coro_type =
 	let tf_type = ctx.typer.com.basic.tany in
 	if ctx.coro_debug then begin
 		print_endline ("BEFORE:\n" ^ (s_expr_debug expr));
-		(* CoroDebug.create_dotgraph (DotGraph.get_dump_path ctx.typer.com ([],e.epos.pfile) (Printf.sprintf "pos_%i" e.epos.pmin)) cb_root *)
+		CoroDebug.create_dotgraph (DotGraph.get_dump_path (SafeCom.of_com ctx.typer.com) (* TODO: stupid *) ([],e.epos.pfile) (Printf.sprintf "pos_%i" e.epos.pmin)) cb_root
 	end;
 	let e = { e with eexpr = TFunction {tf_args; tf_expr; tf_type}; etype = TFun (tf_args |> List.map (fun (v, _) -> (v.v_name, false, v.v_type)), ctx.typer.com.basic.tany) } in
 	if ctx.coro_debug then print_endline ("AFTER:\n" ^ (s_expr_debug e));
