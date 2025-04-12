@@ -483,9 +483,8 @@ let rec to_type ?tref ctx t =
 			| ["haxe";"coro"], "Coroutine" ->
 				begin match pl with
 				| [TFun(args,ret)] ->
-					let tcontinuation = tfun [ret; t_dynamic] ctx.com.basic.tvoid in
+					let tcontinuation = ctx.com.basic.tcoro_continuation in
 					let args = args @ [("",false,tcontinuation)] in
-					let ret = tfun [t_dynamic; t_dynamic] ctx.com.basic.tvoid in
 					to_type ctx (TFun(args,ret))
 				| _ ->
 					die "" __LOC__
