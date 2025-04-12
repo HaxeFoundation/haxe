@@ -1110,7 +1110,7 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 		| _ -> FunMemberClassLocal
 	in
 	let is_coroutine = match name, with_type with
-		| None, WithType.WithType (texpected,_) ->
+		| None, WithType.WithType (texpected,_) when not (ExtType.is_mono (follow texpected)) ->
 			(match follow_with_coro texpected with
 			| Coro _ ->
 				true
@@ -1123,7 +1123,7 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 	let ctx = TyperManager.clone_for_expr ctx_from curfun function_mode in
 	let vname,pname= match name with
 		| None ->
-			if params <> [] then begin
+			if params <> [] || is_coroutine then begin
 				Some(gen_local_prefix,VGenerated),null_pos
 			end else
 				None,p
