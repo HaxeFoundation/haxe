@@ -276,16 +276,12 @@ let fun_to_coro ctx coro_type =
 	in
 
 	let coro_class = ContinuationClassBuilder.create ctx coro_type in
-	let suffix =
-		match coro_type with
-		| ClassField _ -> ""
-		| LocalFunc _ -> Printf.sprintf "_%i" (!localFuncCount - 1) in
 
 	(* Generate and assign the continuation variable *)
 	let vcompletion = alloc_var VGenerated "_hx_completion" basic.tcoro_continuation null_pos in
 	let ecompletion = Builder.make_local vcompletion null_pos in
 
-	let vcontinuation = alloc_var VGenerated ("_hx_continuation" ^ suffix) (TInst (coro_class.cls, [])) null_pos in
+	let vcontinuation = alloc_var VGenerated "_hx_continuation" (TInst (coro_class.cls, [])) null_pos in
 	let econtinuation = Builder.make_local vcontinuation null_pos in
 
 	let estate  = mk (TField(econtinuation,FInstance(coro_class.cls, [], coro_class.state))) basic.tint null_pos in
