@@ -1555,11 +1555,19 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| _ -> e()
 			end
 		| (Meta.Coroutine,_,_) ->
-			begin match fst e1 with
-			| EFunction (kind, f) ->
-				type_local_function ctx kind f with_type true p
-			| _ -> e()
-			end
+			let old = ctx.f.meta in
+			let rec loop e1 = match fst e1 with
+				| EMeta(m,e1) ->
+					ctx.f.meta <- m :: ctx.f.meta;
+					loop e1
+				| EFunction (kind, f) ->
+					type_local_function ctx kind f with_type true p
+				| _ ->
+					e ()
+			in
+			let e = loop e1 in
+			ctx.f.meta <- old;
+			e
 		(* Allow `${...}` reification because it's a noop and happens easily with macros *)
 		| (Meta.Dollar "",_,p) ->
 			e()
