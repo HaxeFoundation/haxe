@@ -1,3 +1,5 @@
+import haxe.Exception;
+
 class TestBasic extends utest.Test {
 	function testSimple() {
 		Assert.equals(42, Coroutine.run(@:coroutine function run() {
@@ -15,6 +17,16 @@ class TestBasic extends utest.Test {
 		}
 		
 		Assert.raises(() -> Coroutine.run(propagate), String);
+	}
+
+	function testResumeWithError() {
+		@:coroutine function foo() {
+			Coroutine.suspend(cont -> {
+				cont.resume(null, new Exception(""));
+			});
+		}
+
+		Assert.raises(() -> Coroutine.run(foo), Exception);
 	}
 
 	@:coroutine static function simple(arg:Int):Int {
