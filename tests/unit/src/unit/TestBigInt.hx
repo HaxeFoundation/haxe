@@ -3039,7 +3039,7 @@ class TestBigInt extends Test {
 		return ""+v;
 	}
 	
-	public function testNullCheckAndtoString):Void {
+	public function testNullCheckAndtoString():Void {
 		eq(fooBigInt(10), 10);
 		eq(toStringBigInt(), "null");
 	}
