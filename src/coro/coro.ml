@@ -207,10 +207,10 @@ module ContinuationClassBuilder = struct
 					die "" __LOC__
 				in
 			let vresult    = alloc_var VGenerated "result" basic.tany null_pos in
-			let evarresult = mk (TVar (vresult, (Some ecorocall))) basic.tany null_pos in
+			let evarresult = mk (TVar (vresult, (Some ecorocall))) basic.tvoid null_pos in
 			let eresult    = Builder.make_local vresult null_pos in
 			let tcond      = std_is eresult basic.tcoro_primitive in
-			let tif        = mk (TReturn None) basic.tany null_pos in
+			let tif        = mk (TReturn None) t_dynamic null_pos in
 			let telse      = mk (TCall (eresumefield, [ eresult; Builder.make_null basic.texception null_pos ])) basic.tvoid null_pos in
 
 			let etryblock =
@@ -288,7 +288,7 @@ let fun_to_coro ctx coro_type =
 	let econtinuation = Builder.make_local vcontinuation null_pos in
 
 	let estate  = mk (TField(econtinuation,FInstance(coro_class.cls, [], coro_class.state))) basic.tint null_pos in
-	let eresult = mk (TField(econtinuation,FInstance(coro_class.cls, [], coro_class.result))) basic.tint null_pos in
+	let eresult = mk (TField(econtinuation,FInstance(coro_class.cls, [], coro_class.result))) basic.tany null_pos in
 
 	let expr, args, e =
 		match coro_type with
