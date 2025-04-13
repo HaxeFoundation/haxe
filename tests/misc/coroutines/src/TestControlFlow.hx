@@ -10,21 +10,21 @@ class TestControlFlow extends utest.Test {
 		}), [ 1, 2 ]);
 	}
 
-	// function testIfThenReturnNoValue(async:Async) {
-	// 	var v = null;
-	// 	@:coroutine function f(x) {
-	// 		v = 1;
-	// 		if (x) {
-	// 			return;
-	// 		}
-	// 		v = 2;
-	// 	}
-	// 	@:coroutine function f2(x) { f(x); return v; }
+	function testIfThenReturnNoValue() {
+		var v = null;
+		@:coroutine function f(x) {
+			v = 1;
+			if (x) {
+				return;
+			}
+			v = 2;
+		}
+		@:coroutine function f2(x) { f(x); return v; }
 
-	// 	Assert.same(Coroutine.run(@:coroutine function run() {
-	// 		return mapCalls([ true, false ], f2);
-	// 	}), [ 1, 2 ]);
-	// }
+		Assert.same(Coroutine.run(@:coroutine function run() {
+			return mapCalls([ true, false ], f2);
+		}), [ 1, 2 ]);
+	}
 
 	function testIfThenElse() {
 		@:coroutine function f(x) {

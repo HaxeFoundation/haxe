@@ -229,133 +229,120 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 	let states = !states in
 	let rethrow_state_id = cb_uncaught.cb_id in
 	let rethrow_state = make_state rethrow_state_id [mk (TThrow eresult) com.basic.tvoid null_pos] in
-	let states = states @ [rethrow_state] in
+	let states = states @ [rethrow_state] |> List.sort (fun state1 state2 -> state1.cs_id - state2.cs_id) in
+
+	let module IntSet = Set.Make(struct
+		let compare a b = b - a
+		type t = int
+	end) in
 
 	(* TODO: this (and the coroutine transform in general) should probably be run before captured vars handling *)
 	(* very ugly, but seems to work: extract locals that are used across states *)
-	let var_usages = Hashtbl.create 5 in
-	begin
-		let use v state_id =
-			let m = try
-				Hashtbl.find var_usages v.v_id
-			with Not_found ->
-				let m = Hashtbl.create 1 in
-				Hashtbl.add var_usages v.v_id m;
-				m
-			in
-			Hashtbl.replace m state_id true
-		in
-		List.iter (fun state ->
-			let rec loop e =
-				match e.eexpr with
-				| TVar (v, eo) ->
-					Option.may loop eo;
-					use v state.cs_id;
-				| TLocal v ->
-					use v state.cs_id;
-				| _ ->
-					Type.iter loop e
-			in
-			List.iter loop state.cs_el
-		) states;
-	end;
-	let decls = begin
-		let is_used_across_states v_id =
-			let m = Hashtbl.find var_usages v_id in
-			(Hashtbl.length m) > 1 && not ((List.exists (fun id -> id = v_id)) forbidden_vars)
-		in
-		let rec loop cases decls =
-			match cases with
-			| state :: rest ->
-				let decls = ref decls in
-				begin
-					let rec loop e =
-						match e.eexpr with
-						(* TODO : Should this be handled here? *)
-						(* Also need to check if this should be the continuation instead of completion *)
-						| TCall ({ eexpr = TField (_, FStatic ({ cl_path = (["haxe";"coro"], "Intrinsics") }, { cf_name = "currentContinuation" })) }, []) ->
-							ecompletion
-						| TVar (v, eo) when is_used_across_states v.v_id ->
-							decls := v :: !decls;
 
-							let name = if v.v_kind = VGenerated then
-								Printf.sprintf "_hx_hoisted%i" v.v_id
-							else
-								v.v_name in
-							let field  = mk_field name v.v_type v.v_pos null_pos in
-							let efield = mk (TField(econtinuation,FInstance(cls, [], field))) field.cf_type p in
-							let einit  =
-								match eo with
-								| None -> default_value v.v_type v.v_pos
-								| Some e -> Type.map_expr loop e in
-							mk (TBinop (OpAssign,efield,einit)) v.v_type e.epos
-						| _ ->
-							Type.map_expr loop e
-					in
-					state.cs_el <- List.map loop state.cs_el
-				end;
-				loop rest !decls
-			| [] ->
-				decls
-		in
-		loop states []
-	end in
+	(* function arguments are accessible from the initial state without hoisting needed, so set that now *)
+	let arg_state_set = IntSet.of_list [ (List.hd states).cs_id ] in
+	let var_usages    = tf_args |> List.map (fun (v, _) -> v.v_id, arg_state_set) |> List.to_seq |> Hashtbl.of_seq in
 
-	List.iter
-		(fun s ->
-			let is_used_across_states v_id =
-				match Hashtbl.find_opt var_usages v_id with
-				| Some m ->
-					(Hashtbl.length m) > 1 && not ((List.exists (fun id -> id = v_id)) forbidden_vars)
+	(* First iteration, just add newly discovered local variables *)
+	(* After this var_usages will contain all arguments and local vars and the states sets will be just the creation state *)
+	(* We don't handle locals here so we don't poison the var_usage hashtbl with non local var data *)
+	List.iter (fun state ->
+		let rec loop e =
+			match e.eexpr with
+			| TVar (v, eo) ->
+				Option.may loop eo;
+				Hashtbl.replace var_usages v.v_id (IntSet.of_list [ state.cs_id ])
+			| _ ->
+				Type.iter loop e
+		in
+		List.iter loop state.cs_el
+	) states;
+
+	(* Second interation, visit all locals and update any local variable state sets *)
+	List.iter (fun state ->
+		let rec loop e =
+			match e.eexpr with
+			| TLocal (v) ->
+				(match Hashtbl.find_opt var_usages v.v_id with
+				| Some set ->
+					Hashtbl.replace var_usages v.v_id (IntSet.add state.cs_id set)
 				| None ->
-					false
-			in
-			let rec loop e =
-				match e.eexpr with
-				| TLocal v when is_used_across_states v.v_id ->
-					let name = if v.v_kind = VGenerated then
-						Printf.sprintf "_hx_hoisted%i" v.v_id
-					else
-						v.v_name in
-					let field = mk_field name v.v_type v.v_pos null_pos in
-					mk (TField(econtinuation,FInstance(cls, [], field))) field.cf_type p
-				| _ -> Type.map_expr loop e
-			in
-			s.cs_el <- List.map loop s.cs_el)
-		states;
-
-	let states = List.sort (fun state1 state2 -> state1.cs_id - state2.cs_id) states in
-
-	(* Also check function argumens to see if they're used across states *)
-	(* If so insert an assignment into the initial state to set our hoisted field *)
-	let decls = decls @ List.filter_map (fun (arg, _) ->
-		let is_used_across_states v_id =
-			match Hashtbl.find_opt var_usages v_id with
-			| Some m ->
-				(Hashtbl.length m) > 1 && not ((List.exists (fun id -> id = v_id)) forbidden_vars)
-			| None ->
-				false
+					())
+			| _ ->
+				Type.iter loop e
 		in
-		if is_used_across_states arg.v_id then
-			let mk_assign estate eid =
-				mk (TBinop (OpAssign,estate,eid)) eid.etype null_pos
-			in
+		List.iter loop state.cs_el
+	) states;
 
-			let initial = List.hd states in
-			let name = if arg.v_kind = VGenerated then
-				Printf.sprintf "_hx_hoisted%i" arg.v_id
+	let is_used_across_states v_id =
+		let many_states set v_id =
+			IntSet.elements set |> List.length > 1 in
+		(* forbidden vars are things like the _hx_continuation variable, they should not be hoisted *)
+		let non_coro_var v_id =
+			forbidden_vars |> List.exists (fun id -> id = v_id) |> not in
+
+		match Hashtbl.find_opt var_usages v_id with
+		| Some set when many_states set v_id && non_coro_var v_id ->
+			true
+		| _ ->
+			false
+	in
+
+	let fields =
+		tf_args
+		|> List.filter_map (fun (v, _) ->
+			if is_used_across_states v.v_id then			
+				Some (v.v_id, mk_field v.v_name v.v_type v.v_pos null_pos)
 			else
-				arg.v_name in
-			let field   = mk_field name arg.v_type arg.v_pos null_pos in
+				None)
+		|> List.to_seq
+		|> Hashtbl.of_seq in
+
+	(* Third iteration, create fields for vars used across states and remap access to those fields *)
+	List.iter (fun state ->
+		let rec loop e =
+			match e.eexpr with
+			(* TODO : Should this be handled here? *)
+			(* Also need to check if this should be the continuation instead of completion *)
+			| TCall ({ eexpr = TField (_, FStatic ({ cl_path = (["haxe";"coro"], "Intrinsics") }, { cf_name = "currentContinuation" })) }, []) ->
+				ecompletion
+			| TVar (v, eo) when is_used_across_states v.v_id ->
+				let name = if v.v_kind = VGenerated then
+					Printf.sprintf "_hx_hoisted%i" v.v_id
+				else
+					v.v_name in
+					
+				let field = mk_field name v.v_type v.v_pos null_pos in
+
+				Hashtbl.replace fields v.v_id field;
+
+				let efield = mk (TField(econtinuation,FInstance(cls, [], field))) field.cf_type p in
+				let einit  =
+					match eo with
+					| None -> default_value v.v_type v.v_pos
+					| Some e -> Type.map_expr loop e in
+				mk_assign efield einit
+			(* A local of a var should never appear before its declaration, right? *)
+			| TLocal (v) when is_used_across_states v.v_id ->
+				let field = Hashtbl.find fields v.v_id in
+
+				mk (TField(econtinuation,FInstance(cls, [], field))) field.cf_type p
+			| _ ->
+				Type.map_expr loop e
+		in
+		state.cs_el <- List.map loop state.cs_el
+	) states;
+
+	(* We need to do this argument copying as the last thing we do *)
+	(* Doing it when the initial fields hashtbl is created will cause the third iterations TLocal to re-write them... *)
+	List.iter (fun (v, _) ->
+		if is_used_across_states v.v_id then
+			let initial = List.hd states in
+			let field   = Hashtbl.find fields v.v_id in
 			let efield  = mk (TField(econtinuation,FInstance(cls, [], field))) field.cf_type p in
-			let assign  = mk_assign efield (Builder.make_local arg p) in
+			let assign  = mk_assign efield (Builder.make_local v p) in
 
-			initial.cs_el <- assign :: initial.cs_el;
-
-			Some arg
-		else
-			None
-	) tf_args in
+			initial.cs_el <- assign :: initial.cs_el) tf_args;
 
 	(* TODO:
 		we can optimize while and switch in some cases:
@@ -413,20 +400,4 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 
 	let eloop = mk (TWhile (make_bool com.basic true p, etry, NormalWhile)) com.basic.tvoid p in
 
-	(* let shared_vars = List.map (fun v -> mk (TVar (v,Some (Texpr.Builder.default_value v.v_type v.v_pos))) com.basic.tvoid null_pos) decls in
-	let shared_vars = List.rev shared_vars in
-	let shared_vars = match ctx.vthis with
-		| None ->
-			shared_vars
-		| Some v ->
-			let e_this = mk (TConst TThis) v.v_type v.v_pos in
-			let e_var = mk (TVar(v,Some e_this)) com.basic.tvoid null_pos in
-			e_var :: shared_vars
-	in *)
-
-	eloop, !init_state, decls |> List.map (fun v ->
-		let name = if v.v_kind = VGenerated then
-			Printf.sprintf "_hx_hoisted%i" v.v_id
-		else
-			v.v_name in
-		mk_field name v.v_type v.v_pos null_pos)
+	eloop, !init_state, fields |> Hashtbl.to_seq_values |> List.of_seq
