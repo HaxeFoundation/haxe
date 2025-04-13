@@ -19,6 +19,7 @@ module ContinuationClassBuilder = struct
 		state : tclass_field;
 		result : tclass_field;
 		error : tclass_field;
+		recursing : tclass_field;
 		(* Some coroutine classes (member functions, local functions) need to capture state, this field stores that *)
 		captured : tclass_field option;
 	}
@@ -61,6 +62,7 @@ module ContinuationClassBuilder = struct
 		let cls_state      = mk_field "_hx_state" basic.tint null_pos null_pos in
 		let cls_result     = mk_field "_hx_result" basic.tany null_pos null_pos in
 		let cls_error      = mk_field "_hx_error" basic.texception null_pos null_pos in
+		let cls_recursing  = mk_field "_hx_recusing" basic.tbool null_pos null_pos in
 
 		{
 			cls        = cls;
@@ -70,6 +72,7 @@ module ContinuationClassBuilder = struct
 			state      = cls_state;
 			result     = cls_result;
 			error      = cls_error;
+			recursing  = cls_recursing;
 			captured   = cls_captured;
 		}
 
@@ -79,21 +82,17 @@ module ContinuationClassBuilder = struct
 		let ethis = mk (TConst TThis) (TInst (coro_class.cls, [])) null_pos in
 
 		let vargcompletion = alloc_var VGenerated name basic.tcoro_continuation null_pos in
-		(* let vargcaptured   = alloc_var VGenerated "captured" ctx.typer.c.tthis null_pos in *)
 
 		let eassigncompletion =
 			let eargcompletion    = Builder.make_local vargcompletion null_pos in
-			let ecompletionfield  = mk (TField(ethis,FInstance(coro_class.cls, [], coro_class.completion))) basic.tcoro_continuation null_pos in
+			let ecompletionfield  = mk (TField(ethis,FInstance(coro_class.cls, [], coro_class.completion))) coro_class.completion.cf_type null_pos in
 			mk_assign ecompletionfield eargcompletion in
 
 		let eassignstate =
-			let estatefield = mk (TField(ethis,FInstance(coro_class.cls, [], coro_class.state))) basic.tint null_pos in
-			mk_assign estatefield (mk (TConst (TInt (Int32.of_int initial_state) )) basic.tint null_pos) in
+			let estatefield = mk (TField(ethis,FInstance(coro_class.cls, [], coro_class.state))) coro_class.state.cf_type null_pos in
+			mk_assign estatefield (mk (TConst (TInt (Int32.of_int initial_state) )) basic.tint null_pos)
+		in
 
-		(* let eassigncaptured =
-			let eargcaptured    = Builder.make_local vargcaptured null_pos in
-			let ecapturedfield  = mk (TField(ethis,FInstance(coro_class.cls, [], coro_class.captured))) ctx.typer.c.tthis p in
-			mk_assign ecapturedfield eargcaptured in *)
 		let captured =
 			coro_class.captured
 			|> Option.map
@@ -203,6 +202,11 @@ module ContinuationClassBuilder = struct
 					let ecapturedfield = mk (TField(ethis,FInstance(coro_class.cls, [], captured))) captured.cf_type null_pos in
 					mk (TCall (ecapturedfield, args)) basic.tany null_pos
 				in
+			let eresetrecursive =
+				let efield = mk (TField(ethis,FInstance(coro_class.cls, [], coro_class.recursing))) coro_class.recursing.cf_type null_pos in
+				let econst = mk (TConst (TBool false)) coro_class.recursing.cf_type null_pos in
+				mk_assign efield econst
+			in
 			let vresult    = alloc_var VGenerated "result" basic.tany null_pos in
 			let evarresult = mk (TVar (vresult, (Some ecorocall))) basic.tvoid null_pos in
 			let eresult    = Builder.make_local vresult null_pos in
@@ -212,6 +216,7 @@ module ContinuationClassBuilder = struct
 
 			let etryblock =
 				mk (TBlock [
+					eresetrecursive;
 					evarresult;
 					mk (TIf (tcond, tif, Some telse)) basic.tvoid null_pos
 				]) basic.tvoid null_pos
@@ -308,6 +313,7 @@ let fun_to_coro ctx coro_type =
 	TClass.add_field coro_class.cls coro_class.state;
 	TClass.add_field coro_class.cls coro_class.result;
 	TClass.add_field coro_class.cls coro_class.error;
+	TClass.add_field coro_class.cls coro_class.recursing;
 	TClass.add_field coro_class.cls resume;
 	Option.may (TClass.add_field coro_class.cls) coro_class.captured;
 	List.iter (TClass.add_field coro_class.cls) fields;
@@ -359,8 +365,15 @@ let fun_to_coro ctx coro_type =
 	in
 
 	let continuation_assign =
-		let t         = TInst (coro_class.cls, []) in
-		let tcond     = std_is ecompletion t in
+		let t = TInst (coro_class.cls, []) in
+		
+		let tcond =
+			(* Is it alright to use the continuations recursing field against the completion? *)
+			let erecursingfield = mk (TField(ecompletion, FInstance(coro_class.cls, [], coro_class.recursing))) basic.tbool null_pos in
+			let estdis          = std_is ecompletion t in
+			let erecursingcheck = mk (TBinop (OpEq, erecursingfield, (mk (TConst (TBool false)) basic.tbool null_pos))) basic.tbool null_pos in
+			mk (TBinop (OpBoolAnd, estdis, erecursingcheck)) basic.tbool null_pos
+		in
 		let tif       = mk_assign econtinuation (mk_cast ecompletion t null_pos) in
 		let tif       = mk (TBlock [
 			tif;
@@ -374,6 +387,9 @@ let fun_to_coro ctx coro_type =
 	let tf_expr = mk (TBlock [
 		continuation_var;
 		continuation_assign;
+		mk_assign
+			(mk (TField(econtinuation, FInstance(coro_class.cls, [], coro_class.recursing))) basic.tbool null_pos)
+			(mk (TConst (TBool true)) basic.tbool null_pos);
 		eloop;
 		Builder.mk_return (Builder.make_null basic.tany null_pos);
 	]) basic.tvoid null_pos |> mapper in
