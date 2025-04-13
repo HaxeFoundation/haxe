@@ -8,7 +8,7 @@ let localFuncCount = ref 0
 
 type coro_for =
 	| LocalFunc of tfunc
-	| ClassField of tclass * tclass_field
+	| ClassField of tclass * tclass_field * tfunc * pos (* expr pos *)
 
 module ContinuationClassBuilder = struct
 	type coro_class = {
@@ -32,7 +32,7 @@ module ContinuationClassBuilder = struct
 		let name, cls_captured =
 			let captured_field_name = "_hx_captured" in
 			match coro_type with
-			| ClassField (cls, field) ->
+			| ClassField (cls, field, _, _) ->
 				Printf.sprintf "HxCoro_%s_%s_%s" (ctx.typer.m.curmod.m_path |> fst |> String.concat "_") (ctx.typer.m.curmod.m_path |> snd) field.cf_name,
 				if has_class_field_flag field CfStatic then
 					None
@@ -188,11 +188,11 @@ module ContinuationClassBuilder = struct
 			in
 			let ecorocall =
 				match coro_class.coro_type with
-				| ClassField (cls, ({ cf_expr = Some ({ eexpr = TFunction f }) } as field)) when has_class_field_flag field CfStatic ->
+				| ClassField (cls, field, f, _) when has_class_field_flag field CfStatic ->
 					let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type null_pos)) @ [ ethis ] in
 					let efunction = Builder.make_static_field cls field null_pos in
 					mk (TCall (efunction, args)) basic.tany null_pos
-				| ClassField (cls, ({ cf_expr = Some ({ eexpr = TFunction f }) } as field)) ->
+				| ClassField (cls, field,f, _) ->
 					let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type null_pos)) @ [ ethis ] in
 					let captured  = coro_class.captured |> Option.get in
 					let ecapturedfield = mk (TField(ethis,FInstance(coro_class.cls, [], captured))) captured.cf_type null_pos in
@@ -203,8 +203,6 @@ module ContinuationClassBuilder = struct
 					let captured  = coro_class.captured |> Option.get in
 					let ecapturedfield = mk (TField(ethis,FInstance(coro_class.cls, [], captured))) captured.cf_type null_pos in
 					mk (TCall (ecapturedfield, args)) basic.tany null_pos
-				| _ ->
-					die "" __LOC__
 				in
 			let vresult    = alloc_var VGenerated "result" basic.tany null_pos in
 			let evarresult = mk (TVar (vresult, (Some ecorocall))) basic.tvoid null_pos in
@@ -290,14 +288,12 @@ let fun_to_coro ctx coro_type =
 	let estate  = mk (TField(econtinuation,FInstance(coro_class.cls, [], coro_class.state))) basic.tint null_pos in
 	let eresult = mk (TField(econtinuation,FInstance(coro_class.cls, [], coro_class.result))) basic.tany null_pos in
 
-	let expr, args, e =
+	let expr, args, pe =
 		match coro_type with
-		| ClassField (_, { cf_expr = (Some ({ eexpr = TFunction f } as e)) }) ->
-			f.tf_expr, f.tf_args, e
+		| ClassField (_, cf, f, p) ->
+			f.tf_expr, f.tf_args, p
 		| LocalFunc f ->
-			f.tf_expr, f.tf_args, f.tf_expr
-		| _ ->
-			die "" __LOC__
+			f.tf_expr, f.tf_args, f.tf_expr.epos
 		in
 
 	let cb_root = make_block ctx (Some(expr.etype, null_pos)) in
@@ -332,7 +328,7 @@ let fun_to_coro ctx coro_type =
 
 	let prefix_arg, mapper, vcompletion =
 		match coro_class.coro_type with
-		| ClassField (_, field) when has_class_field_flag field CfStatic ->
+		| ClassField (_, field, _, _) when has_class_field_flag field CfStatic ->
 			[], (fun e -> e), vcompletion
 		| ClassField _ ->
 			[ mk (TConst TThis) ctx.typer.c.tthis null_pos; ], (fun e -> e), vcompletion
@@ -382,9 +378,9 @@ let fun_to_coro ctx coro_type =
 	let tf_type = basic.tany in
 	if ctx.coro_debug then begin
 		print_endline ("BEFORE:\n" ^ (s_expr_debug expr));
-		CoroDebug.create_dotgraph (DotGraph.get_dump_path (SafeCom.of_com ctx.typer.com) (* TODO: stupid *) ([],e.epos.pfile) (Printf.sprintf "pos_%i" e.epos.pmin)) cb_root
+		CoroDebug.create_dotgraph (DotGraph.get_dump_path (SafeCom.of_com ctx.typer.com) (* TODO: stupid *) ([],pe.pfile) (Printf.sprintf "pos_%i" pe.pmin)) cb_root
 	end;
-	let e = { e with eexpr = TFunction {tf_args; tf_expr; tf_type}; etype = TFun (tf_args |> List.map (fun (v, _) -> (v.v_name, false, v.v_type)), basic.tany) } in
+	let e = mk (TFunction {tf_args; tf_expr; tf_type}) (TFun (tf_args |> List.map (fun (v, _) -> (v.v_name, false, v.v_type)), basic.tany)) pe in
 	if ctx.coro_debug then print_endline ("AFTER:\n" ^ (s_expr_debug e));
 	e
 
