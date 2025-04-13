@@ -238,7 +238,7 @@ abstract BigInt(BigInt_) {
 		return BigInt_.equals2(a, b);
 	}
 
-	@:op(A == B) @:noCompletion @:noDoc public static inline function eqMutable_(a:BigInt, b:MutableBigInt):Bool {
+	@:op(A == B) @:noCompletion @:noDoc public static inline function eqMutable_<T:MutableBigInt_>(a:BigInt, b:T):Bool {
 		return BigInt_.equals2(a, b);
 	}
 
@@ -251,7 +251,7 @@ abstract BigInt(BigInt_) {
 		return !BigInt_.equals2(a, b);
 	}
 
-	@:op(A != B) @:noCompletion @:noDoc public static inline function ineqMutable_(a:BigInt, b:MutableBigInt):Bool {
+	@:op(A != B) @:noCompletion @:noDoc public static inline function ineqMutable_<T:MutableBigInt_>(a:BigInt, b:T):Bool {
 		return !BigInt_.equals2(a, b);
 	}
 
@@ -321,7 +321,7 @@ abstract BigInt(BigInt_) {
 		return new BigInt(BigInt_.addInt2(a, b));
 	}
 
-	@:op(A + B) @:noCompletion @:noDoc public static inline function add_(a:BigInt, b:BigInt):BigInt {
+	@:op(A + B) @:noCompletion @:noDoc public static inline function add_<T:BigInt_>(a:BigInt, b:T):BigInt {
 		return new BigInt(BigInt_.add2(a, b));
 	}
 
