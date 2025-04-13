@@ -237,6 +237,7 @@ let expr_to_coro ctx eresult cb_root e =
 			terminate cb (NextWhile(e1,cb_body,cb_next)) e.etype e.epos;
 			cb_next,e_no_value
 		| TTry(e1,catches) ->
+			ctx.has_catch <- true;
 			let cb_next = make_block None in
 			let catches = List.map (fun (v,e) ->
 				let cb_catch = block_from_e e in

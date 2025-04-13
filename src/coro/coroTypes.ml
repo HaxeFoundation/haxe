@@ -58,4 +58,5 @@ type coro_ctx = {
 	mutable next_block_id : int;
 	mutable cb_unreachable : coro_block;
 	mutable current_catch : coro_block option;
+	mutable has_catch : bool;
 }

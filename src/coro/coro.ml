@@ -397,6 +397,7 @@ let create_coro_context typer meta =
 		next_block_id = 0;
 		cb_unreachable = Obj.magic "";
 		current_catch = None;
+		has_catch = false;
 	} in
 	ctx.cb_unreachable <- make_block ctx None;
 	ctx

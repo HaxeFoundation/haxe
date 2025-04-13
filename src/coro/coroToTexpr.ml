@@ -381,7 +381,9 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 		)) com.basic.tvoid p
 	in
 
-	let etry = mk (TTry (
+	let etry = if not ctx.has_catch then
+		eswitch (* If our coro doesn't catch anything then we shouldn't have to rethrow by hand *)
+	else mk (TTry (
 		eswitch,
 		[
 			let vcaught = alloc_var VGenerated "e" t_dynamic null_pos in
