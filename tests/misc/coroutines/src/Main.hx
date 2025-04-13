@@ -5,7 +5,8 @@ function main() {
 		new TestBasic(),
 		new TestTricky(),
 		new TestControlFlow(),
-		new TestHoisting()
+		new TestHoisting(),
+		new TestMisc()
 		// new TestGenerator(),
 		// #if js
 		// new TestJsPromise(),

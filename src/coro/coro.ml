@@ -42,8 +42,7 @@ module ContinuationClassBuilder = struct
 				let n = Printf.sprintf "HxCoroAnonFunc_%i" !localFuncCount in
 				localFuncCount := !localFuncCount + 1;
 
-				let args = f.tf_args |> List.map (fun (v, _) -> (v.v_name, false, v.v_type)) in
-				let t = TFun (Common.expand_coro_type basic args f.tf_type) in
+				let t = TFun ([ ("_hx_continuation", false, basic.tcoro_continuation) ], basic.tany) in
 				n, Some (mk_field captured_field_name t null_pos null_pos)
 			in
 
@@ -199,7 +198,7 @@ module ContinuationClassBuilder = struct
 					let efunction      = mk (TField(ecapturedfield,FInstance(cls, [], field))) field.cf_type null_pos in
 					mk (TCall (efunction, args)) basic.tany null_pos
 				| LocalFunc f ->
-					let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type null_pos)) @ [ ethis ] in
+					let args      = [ ethis ] in
 					let captured  = coro_class.captured |> Option.get in
 					let ecapturedfield = mk (TField(ethis,FInstance(coro_class.cls, [], captured))) captured.cf_type null_pos in
 					mk (TCall (ecapturedfield, args)) basic.tany null_pos
