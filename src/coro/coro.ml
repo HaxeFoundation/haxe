@@ -287,6 +287,7 @@ let fun_to_coro ctx coro_type =
 
 	let estate  = mk (TField(econtinuation,FInstance(coro_class.cls, [], coro_class.state))) basic.tint null_pos in
 	let eresult = mk (TField(econtinuation,FInstance(coro_class.cls, [], coro_class.result))) basic.tany null_pos in
+	let eerror = mk (TField(econtinuation,FInstance(coro_class.cls, [], coro_class.error))) basic.texception null_pos in
 
 	let expr, args, pe =
 		match coro_type with
@@ -299,7 +300,7 @@ let fun_to_coro ctx coro_type =
 	let cb_root = make_block ctx (Some(expr.etype, null_pos)) in
 
 	ignore(CoroFromTexpr.expr_to_coro ctx eresult cb_root expr);
-	let eloop, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root coro_class.cls args [ vcompletion.v_id; vcontinuation.v_id ] econtinuation ecompletion eresult estate null_pos in
+	let eloop, eif_error, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root coro_class.cls args [ vcompletion.v_id; vcontinuation.v_id ] econtinuation ecompletion eresult estate eerror null_pos in
 	let ctor   = ContinuationClassBuilder.mk_ctor ctx coro_class initial_state in
 	let resume = ContinuationClassBuilder.mk_resume ctx coro_class in
 
@@ -362,6 +363,10 @@ let fun_to_coro ctx coro_type =
 		let t         = TInst (coro_class.cls, []) in
 		let tcond     = std_is ecompletion t in
 		let tif       = mk_assign econtinuation (mk_cast ecompletion t null_pos) in
+		let tif       = mk (TBlock [
+			tif;
+			eif_error;
+		]) basic.tvoid null_pos in
 		let ctor_args = prefix_arg @ [ ecompletion ] in
 		let telse = mk_assign econtinuation (mk (TNew (coro_class.cls, [], ctor_args)) t null_pos) in
 		mk (TIf (tcond, tif, Some telse)) basic.tvoid null_pos

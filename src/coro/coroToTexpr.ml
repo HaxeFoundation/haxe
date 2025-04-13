@@ -33,7 +33,7 @@ let make_control_switch com e_subject e_normal e_error p =
 	} in
 	mk (TSwitch switch) com.basic.tvoid p
 
-let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation ecompletion eresult estate p =
+let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation ecompletion eresult estate eerror p =
 	let open Texpr.Builder in
 	let com = ctx.typer.com in
 
@@ -228,7 +228,7 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 
 	let states = !states in
 	let rethrow_state_id = cb_uncaught.cb_id in
-	let rethrow_state = make_state rethrow_state_id [mk (TThrow eresult) com.basic.tvoid null_pos] in
+	let rethrow_state = make_state rethrow_state_id [mk (TThrow eerror) com.basic.tvoid null_pos] in
 	let states = states @ [rethrow_state] |> List.sort (fun state1 state2 -> state1.cs_id - state2.cs_id) in
 
 	let module IntSet = Set.Make(struct
@@ -369,6 +369,18 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 	in
 	let eswitch = mk (TSwitch switch) com.basic.tvoid p in
 
+	let eif_error =
+		mk (TIf (
+			mk (TBinop (
+				OpNotEq,
+				eerror,
+				make_null eerror.etype p
+			)) com.basic.tbool p,
+			set_state cb_uncaught.cb_id,
+			None
+		)) com.basic.tvoid p
+	in
+
 	let etry = mk (TTry (
 		eswitch,
 		[
@@ -406,4 +418,4 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 
 	let eloop = mk (TWhile (make_bool com.basic true p, etry, NormalWhile)) com.basic.tvoid p in
 
-	eloop, !init_state, fields |> Hashtbl.to_seq_values |> List.of_seq
+	eloop, eif_error, !init_state, fields |> Hashtbl.to_seq_values |> List.of_seq
