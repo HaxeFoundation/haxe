@@ -1,4 +1,5 @@
 import haxe.Exception;
+import haxe.coro.Coroutine.yield;
 
 class TestBasic extends utest.Test {
 	function testSimple() {
@@ -27,6 +28,16 @@ class TestBasic extends utest.Test {
 		}
 
 		Assert.raises(() -> Coroutine.run(foo), Exception);
+	}
+
+	function testUnnamedLocalCoroutines() {
+		final c1 = @:coroutine function () {
+			yield();
+
+			return 10;
+		};
+
+		Assert.equals(10, Coroutine.run(c1));
 	}
 
 	@:coroutine static function simple(arg:Int):Int {
