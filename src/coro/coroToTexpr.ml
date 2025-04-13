@@ -291,7 +291,7 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 	let fields =
 		tf_args
 		|> List.filter_map (fun (v, _) ->
-			if is_used_across_states v.v_id then			
+			if is_used_across_states v.v_id then
 				Some (v.v_id, mk_field v.v_name v.v_type v.v_pos null_pos)
 			else
 				None)
@@ -311,17 +311,23 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 					Printf.sprintf "_hx_hoisted%i" v.v_id
 				else
 					v.v_name in
-					
+
 				let field = mk_field name v.v_type v.v_pos null_pos in
 
 				Hashtbl.replace fields v.v_id field;
 
-				let efield = mk (TField(econtinuation,FInstance(cls, [], field))) field.cf_type p in
-				let einit  =
-					match eo with
-					| None -> default_value v.v_type v.v_pos
-					| Some e -> Type.map_expr loop e in
-				mk_assign efield einit
+				begin match eo with
+					| None ->
+						(* We need an expression, so let's just emit `null`. The analyzer will clean this up. *)
+						Builder.make_null t_dynamic e.epos
+					| Some e ->
+						let efield = mk (TField(econtinuation,FInstance(cls, [], field))) field.cf_type p in
+						let einit  =
+							match eo with
+							| None -> default_value v.v_type v.v_pos
+							| Some e -> Type.map_expr loop e in
+						mk_assign efield einit
+				end
 			(* A local of a var should never appear before its declaration, right? *)
 			| TLocal (v) when is_used_across_states v.v_id ->
 				let field = Hashtbl.find fields v.v_id in
