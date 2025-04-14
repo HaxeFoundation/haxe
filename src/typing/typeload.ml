@@ -793,6 +793,7 @@ let load_core_class ctx c =
 			com2.defines.Define.values <- PMap.empty;
 			Common.define com2 Define.CoreApi;
 			Common.define com2 Define.Sys;
+			allow_package com2 "sys";
 			Define.raw_define_value com2.defines "target.threaded" "true"; (* hack because we check this in sys.thread classes *)
 			if ctx.com.is_macro_context then Common.define com2 Define.Macro;
 			com2.class_paths#lock_context (platform_name_macro ctx.com) true;
