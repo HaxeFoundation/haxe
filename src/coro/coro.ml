@@ -71,7 +71,7 @@ module ContinuationClassBuilder = struct
 		(* Is there a pre-existing function somewhere to a valid path? *)
 		let cls_path = ((fst ctx.typer.m.curmod.m_path) @ [ Printf.sprintf "_%s" (snd ctx.typer.m.curmod.m_path) ]), name in
 		let cls      = mk_class ctx.typer.m.curmod cls_path null_pos null_pos in
-		let params_inside = List.map (fun ttp -> clone_type_parameter (fun t -> t) (* TODO: ? *) ([],ttp.ttp_name) ttp) params_outside in
+		let params_inside = List.map (fun ttp -> clone_type_parameter (fun t -> t) (* TODO: ? *) ([snd cls_path],ttp.ttp_name) ttp) params_outside in
 		cls.cl_params <- params_inside;
 
 		cls.cl_implements <- [ (basic.tcoro.continuation_class, [ basic.tany ]) ];
@@ -174,12 +174,14 @@ module ContinuationClassBuilder = struct
 
 		let field = mk_field "new" (TFun (tfun_args, basic.tvoid)) null_pos null_pos in
 		let func  = TFunction { tf_type = basic.tvoid; tf_args = tfunction_args; tf_expr = eblock } in
-		let expr  = mk func field.cf_type null_pos in
+		let expr = mk func field.cf_type null_pos in
+		field.cf_expr <- Some expr;
+		field.cf_kind <- Method MethNormal;
 
 		if ctx.coro_debug then
 			s_expr_debug expr |> Printf.printf "%s\n";
 
-		{ field with cf_kind = Method MethNormal; cf_expr = Some expr }
+		field
 
 	let mk_resume ctx coro_class =
 		let basic = ctx.typer.t in
@@ -314,11 +316,13 @@ module ContinuationClassBuilder = struct
 		let block = mk (TBlock [ evarfakethis; eassignresult; eassignerror; eschedulecall ]) basic.tvoid null_pos in
 		let func  = TFunction { tf_type = basic.tvoid; tf_args = [ (vargresult, None); (vargerror, None) ]; tf_expr = block } in
 		let expr  = mk (func) basic.tvoid null_pos in
+		field.cf_expr <- Some expr;
+		field.cf_kind <- Method MethNormal;
 
 		if ctx.coro_debug then
 			s_expr_debug expr |> Printf.printf "%s\n";
 
-		{ field with cf_kind = Method MethNormal; cf_expr = Some expr }
+		field
 end
 
 let fun_to_coro ctx coro_type =
