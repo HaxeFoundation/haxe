@@ -227,7 +227,7 @@ module ContinuationClassBuilder = struct
 					| TInst (completion, _) -> completion, PMap.find "resume" completion.cl_fields
 					| _ -> die "Expected scheduler to be TInst" __LOC__
 				in
-				mk (TField(ecompletionfield,FInstance(completion, coro_class.inside.param_types, resultfield))) resultfield.cf_type null_pos
+				mk (TField(ecompletionfield,FInstance(completion, coro_class.inside.param_types, resultfield))) (apply_params basic.tcoro.continuation_class.cl_params [basic.tany] resultfield.cf_type) null_pos
 			in
 			let ecorocall =
 				match coro_class.coro_type with
