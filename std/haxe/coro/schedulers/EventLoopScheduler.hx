@@ -1,6 +1,6 @@
 package haxe.coro.schedulers;
 
-import sys.thread.EventLoop;
+import haxe.coro.EventLoop;
 
 class EventLoopScheduler implements IScheduler {
     final loop : EventLoop;
@@ -14,12 +14,6 @@ class EventLoopScheduler implements IScheduler {
     }
 
 	public function scheduleIn(func : ()->Void, ms:Int) {
-		var handle : EventHandler = null;
-
-		handle = loop.repeat(() -> {
-			loop.cancel(handle);
-
-			func();
-		}, ms);
+		loop.runIn(func, ms);
 	}
 }

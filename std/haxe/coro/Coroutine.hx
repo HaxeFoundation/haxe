@@ -1,7 +1,6 @@
 package haxe.coro;
 
-import sys.thread.Mutex;
-import sys.thread.EventLoop;
+import haxe.coro.EventLoop;
 import haxe.coro.schedulers.EventLoopScheduler;
 import haxe.coro.continuations.RacingContinuation;
 import haxe.coro.continuations.BlockingContinuation;

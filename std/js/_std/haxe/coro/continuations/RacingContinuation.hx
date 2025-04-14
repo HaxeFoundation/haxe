@@ -1,11 +1,7 @@
 package haxe.coro.continuations;
 
-import sys.thread.Mutex;
-
 @:coreApi class RacingContinuation<T> implements IContinuation<T> {
 	final _hx_completion:IContinuation<Any>;
-
-	final lock:Mutex;
 
 	var assigned:Bool;
 
@@ -21,49 +17,30 @@ import sys.thread.Mutex;
 		_hx_result = null;
 		_hx_error = null;
 		assigned = false;
-		lock = new Mutex();
 	}
 
 	public function resume(result:T, error:Exception):Void {
 		_hx_context.scheduler.schedule(() -> {
-			lock.acquire();
-
 			if (assigned) {
-				lock.release();
-
 				_hx_completion.resume(result, error);
 			} else {
 				assigned = true;
 				_hx_result = result;
 				_hx_error = error;
-
-				lock.release();
 			}
 		});
 	}
 
 	public function getOrThrow():Any {
-		lock.acquire();
-
 		if (assigned) {
 			if (_hx_error != null) {
-				final tmp = _hx_error;
-
-				lock.release();
-
-				throw tmp;
+				throw _hx_error;
 			}
 
-			final tmp = _hx_result;
-
-			lock.release();
-
-			return tmp;
+			return _hx_result;
 		}
 
 		assigned = true;
-
-		lock.release();
 
 		return haxe.coro.Primitive.suspended;
 	}

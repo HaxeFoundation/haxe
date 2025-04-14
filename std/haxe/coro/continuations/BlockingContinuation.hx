@@ -1,7 +1,5 @@
 package haxe.coro.continuations;
 
-import sys.thread.EventLoop;
-
 class BlockingContinuation implements IContinuation<Any> {
 	public final _hx_context:CoroutineContext;
 
@@ -28,13 +26,8 @@ class BlockingContinuation implements IContinuation<Any> {
 	}
 
 	public function wait():Any {
-		while (running) {
-			switch loop.progress() {
-				case Never:
-					break;
-				case _:
-					continue;
-			}
+		while (loop.tick()) {
+			// Busy wait
 		}
 
 		if (error != null) {
