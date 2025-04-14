@@ -51,11 +51,7 @@ module ContinuationClassBuilder = struct
 		let cls_path = ((fst ctx.typer.m.curmod.m_path) @ [ Printf.sprintf "_%s" (snd ctx.typer.m.curmod.m_path) ]), name in
 		let cls      = mk_class ctx.typer.m.curmod cls_path null_pos null_pos in
 
-		(match basic.tcoro.continuation with
-		| TInst (cls_cont, _) ->
-			cls.cl_implements <- [ (cls_cont, [ basic.tany ]) ]
-		| _ ->
-			die "Excepted continuation to be TInst" __LOC__);
+		cls.cl_implements <- [ (basic.tcoro.continuation_class, [ basic.tany ]) ];
 
 		let cls_completion = mk_field "_hx_completion" basic.tcoro.continuation null_pos null_pos in
 		let cls_context    = mk_field "_hx_context" basic.tcoro.context null_pos null_pos in
@@ -369,7 +365,7 @@ let fun_to_coro ctx coro_type =
 
 		let tcond =
 			(* Is it alright to use the continuations recursing field against the completion? *)
-			let erecursingfield = mk (TField(ecompletion, FInstance(coro_class.cls, [], coro_class.recursing))) basic.tbool null_pos in
+			let erecursingfield = mk (TField(ecompletion, FInstance(basic.tcoro.continuation_class, [], coro_class.recursing))) basic.tbool null_pos in
 			let estdis          = std_is ecompletion t in
 			let erecursingcheck = mk (TBinop (OpEq, erecursingfield, (mk (TConst (TBool false)) basic.tbool null_pos))) basic.tbool null_pos in
 			mk (TBinop (OpBoolAnd, estdis, erecursingcheck)) basic.tbool null_pos
