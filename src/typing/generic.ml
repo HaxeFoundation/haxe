@@ -121,7 +121,8 @@ let generic_substitute_expr gctx e =
 	in
 	let rec build_expr e =
 		let e = match e.eexpr with
-		| TField(e1, FInstance({cl_kind = KGeneric} as c,tl,cf)) ->
+		| TField(e1, (FInstance({cl_kind = KGeneric} as c,tl,cf) as fa_orig)) 
+		| TField(e1, (FClosure(Some ({cl_kind = KGeneric} as c, tl), cf) as fa_orig)) ->
 			let info = gctx.ctx.g.get_build_info gctx.ctx (TClassDecl c) gctx.p in
 			let t = info.build_apply (List.map (generic_substitute_type' gctx true) tl) in
 			begin match follow t with
@@ -133,6 +134,11 @@ let generic_substitute_expr gctx e =
 					quick_field t cf.cf_name
 				with Not_found ->
 					raise_typing_error (Printf.sprintf "Type %s has no field %s (possible typing order issue)" (s_type (print_context()) t) cf.cf_name) e.epos
+				in
+				(* preserve FClosure *)
+				let fa = match fa_orig, fa with
+					| FClosure _, FInstance(c,tl,cf) -> FClosure(Some(c,tl),cf)
+					| _ -> fa
 				in
 				build_expr {e with eexpr = TField(e1,fa)}
 			end;
