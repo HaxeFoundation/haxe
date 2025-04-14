@@ -422,7 +422,7 @@ let fun_to_coro ctx coro_type =
 		let ecastedcompletion = mk_cast ecompletion t null_pos in
 
 		let tcond =
-			let erecursingfield = mk (TField(ecastedcompletion, FInstance(basic.tcoro.continuation_class, [] (* TODO: check *), coro_class.recursing))) basic.tbool null_pos in
+			let erecursingfield = mk (TField(ecastedcompletion, FInstance(coro_class.cls, coro_class.outside.param_types, coro_class.recursing))) basic.tbool null_pos in
 			let estdis          = std_is ecompletion t in
 			let erecursingcheck = mk (TBinop (OpEq, erecursingfield, (mk (TConst (TBool false)) basic.tbool null_pos))) basic.tbool null_pos in
 			mk (TBinop (OpBoolAnd, estdis, erecursingcheck)) basic.tbool null_pos
