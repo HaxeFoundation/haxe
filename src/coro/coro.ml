@@ -58,7 +58,7 @@ module ContinuationClassBuilder = struct
 		let cls_state      = mk_field "_hx_state" basic.tint null_pos null_pos in
 		let cls_result     = mk_field "_hx_result" basic.tany null_pos null_pos in
 		let cls_error      = mk_field "_hx_error" basic.texception null_pos null_pos in
-		let cls_recursing  = mk_field "_hx_recusing" basic.tbool null_pos null_pos in
+		let cls_recursing  = mk_field "_hx_recursing" basic.tbool null_pos null_pos in
 
 		{
 			cls        = cls;
@@ -364,8 +364,8 @@ let fun_to_coro ctx coro_type =
 		let t = TInst (coro_class.cls, []) in
 
 		let tcond =
-			(* Is it alright to use the continuations recursing field against the completion? *)
-			let erecursingfield = mk (TField(ecompletion, FInstance(basic.tcoro.continuation_class, [], coro_class.recursing))) basic.tbool null_pos in
+			let cf_recursing = PMap.find "_hx_recursing" basic.tcoro.continuation_class.cl_fields in
+			let erecursingfield = mk (TField(ecompletion, FInstance(basic.tcoro.continuation_class, [], cf_recursing))) basic.tbool null_pos in
 			let estdis          = std_is ecompletion t in
 			let erecursingcheck = mk (TBinop (OpEq, erecursingfield, (mk (TConst (TBool false)) basic.tbool null_pos))) basic.tbool null_pos in
 			mk (TBinop (OpBoolAnd, estdis, erecursingcheck)) basic.tbool null_pos
