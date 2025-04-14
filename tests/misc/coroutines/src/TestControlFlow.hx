@@ -95,12 +95,11 @@ class TestControlFlow extends utest.Test {
 		}));
 	}
 
-	// this seems to throw E3 but not catch it?
-	// function testTryCatchFail() {
-	// 	Assert.raises(() -> Coroutine.run(@:coroutine function run() {
-	// 		return tryCatch(new E3());
-	// 	}), E3);
-	// }
+	function testTryCatchFail() {
+		Assert.raises(() -> Coroutine.run(@:coroutine function run() {
+			return tryCatch(new E3());
+		}), E3);
+	}
 
 	function testRecursion() {
 		var maxIters = 3;

@@ -207,6 +207,7 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 			let _ = loop bb_next [] in
 			let try_state_id = loop bb_try [] in
 			let erethrow = mk (TBlock [
+				mk_assign eerror eresult;
 				set_state (match catch.cc_cb.cb_catch with None -> cb_uncaught.cb_id | Some cb -> cb.cb_id);
 			]) t_dynamic null_pos in
 			let eif =
