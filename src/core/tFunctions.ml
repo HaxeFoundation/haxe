@@ -779,6 +779,16 @@ let mk_type_param c host def constraints =
 	c.cl_kind <- KTypeParameter ttp;
 	ttp
 
+let clone_type_parameter map path ttp =
+	let c = ttp.ttp_class in
+	let c = {c with cl_path = path} in
+	let def = Option.map map ttp.ttp_default in
+	let constraints = match ttp.ttp_constraints with
+		| None -> None
+		| Some constraints -> Some (lazy (List.map map (Lazy.force constraints)))
+	in
+	mk_type_param c ttp.ttp_host def constraints
+
 let type_of_module_type = function
 	| TClassDecl c -> TInst (c,extract_param_types c.cl_params)
 	| TEnumDecl e -> TEnum (e,extract_param_types e.e_params)
