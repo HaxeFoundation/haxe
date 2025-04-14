@@ -115,13 +115,17 @@ module ContinuationClassBuilder = struct
 
 		let vargcompletion = alloc_var VGenerated name basic.tcoro.continuation null_pos in
 
+		let this_field cf =
+			mk (TField(ethis,FInstance(coro_class.cls, coro_class.inside.param_types, cf))) cf.cf_type null_pos
+		in
+
 		let eassigncompletion =
 			let eargcompletion    = Builder.make_local vargcompletion null_pos in
-			let ecompletionfield  = mk (TField(ethis,FInstance(coro_class.cls, coro_class.inside.param_types, coro_class.completion))) coro_class.completion.cf_type null_pos in
+			let ecompletionfield  = this_field coro_class.completion in
 			mk_assign ecompletionfield eargcompletion in
 
 		let eassignstate =
-			let estatefield = mk (TField(ethis,FInstance(coro_class.cls, coro_class.inside.param_types, coro_class.state))) coro_class.state.cf_type null_pos in
+			let estatefield = this_field coro_class.state in
 			mk_assign estatefield (mk (TConst (TInt (Int32.of_int initial_state) )) basic.tint null_pos)
 		in
 
@@ -131,7 +135,7 @@ module ContinuationClassBuilder = struct
 				(fun field ->
 					let vargcaptured    = alloc_var VGenerated "captured" field.cf_type null_pos in
 					let eargcaptured    = Builder.make_local vargcaptured null_pos in
-					let ecapturedfield  = mk (TField(ethis,FInstance(coro_class.cls, coro_class.inside.param_types, field))) field.cf_type null_pos in
+					let ecapturedfield  = this_field field in
 					vargcaptured, mk_assign ecapturedfield eargcaptured)
 			in
 
@@ -146,7 +150,7 @@ module ContinuationClassBuilder = struct
 					die "Expected context to be TInst" __LOC__
 			in
 
-			let ecompletionfield = mk (TField(ethis,FInstance(coro_class.cls, coro_class.inside.param_types, coro_class.context))) basic.tcoro.context null_pos in
+			let ecompletionfield = this_field coro_class.context in
 			mk_assign ecompletionfield econtextfield
 		in
 
@@ -192,9 +196,13 @@ module ContinuationClassBuilder = struct
 		let vfakethis    = alloc_var VGenerated "fakethis" coro_class.inside.cls_t null_pos in
 		let evarfakethis = mk (TVar (vfakethis, Some ethis)) coro_class.inside.cls_t null_pos in
 
+		let this_field cf =
+			mk (TField(ethis,FInstance(coro_class.cls, coro_class.inside.param_types, cf))) cf.cf_type null_pos
+		in
+
 		(* Assign result and error *)
-		let eresultfield  = mk (TField(ethis,FInstance(coro_class.cls, coro_class.inside.param_types, coro_class.result))) basic.tany null_pos in
-		let eerrorfield   = mk (TField(ethis,FInstance(coro_class.cls, coro_class.inside.param_types, coro_class.error))) basic.texception null_pos in
+		let eresultfield  = this_field coro_class.result in
+		let eerrorfield   = this_field coro_class.error in
 		let eassignresult = mk_assign eresultfield eargresult in
 		let eassignerror  = mk_assign eerrorfield eargerror in
 
@@ -207,8 +215,11 @@ module ContinuationClassBuilder = struct
 
 		let try_block =
 			let ethis        = Builder.make_local vfakethis null_pos in
+			let this_field cf =
+				mk (TField(ethis,FInstance(coro_class.cls, coro_class.inside.param_types, cf))) cf.cf_type null_pos
+			in
 			let eresumefield =
-				let ecompletionfield = mk (TField(ethis,FInstance(coro_class.cls, coro_class.inside.param_types, coro_class.completion))) coro_class.completion.cf_type null_pos in
+				let ecompletionfield = this_field coro_class.completion in
 				let completion, resultfield =
 					match coro_class.completion.cf_type with
 					| TInst (completion, _) -> completion, PMap.find "resume" completion.cl_fields
@@ -225,13 +236,13 @@ module ContinuationClassBuilder = struct
 				| ClassField (cls, field,f, _) ->
 					let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type null_pos)) @ [ ethis ] in
 					let captured  = coro_class.captured |> Option.get in
-					let ecapturedfield = mk (TField(ethis,FInstance(coro_class.cls, coro_class.inside.param_types, captured))) captured.cf_type null_pos in
+					let ecapturedfield = this_field captured in
 					let efunction      = mk (TField(ecapturedfield,FInstance(cls, [] (* TODO: check *), field))) field.cf_type null_pos in
 					mk (TCall (efunction, args)) basic.tany null_pos
 				| LocalFunc f ->
 					let args      = [ ethis ] in
 					let captured  = coro_class.captured |> Option.get in
-					let ecapturedfield = mk (TField(ethis,FInstance(coro_class.cls, coro_class.inside.param_types, captured))) captured.cf_type null_pos in
+					let ecapturedfield = this_field captured in
 					mk (TCall (ecapturedfield, args)) basic.tany null_pos
 			in
 			(* TODO: this is awkward, it would be better to avoid the entire expression and work with the correct types right away *)
@@ -240,7 +251,7 @@ module ContinuationClassBuilder = struct
 			in
 			let ecorocall = map_expr_type ecorocall in
 			let eresetrecursive =
-				let efield = mk (TField(ethis,FInstance(coro_class.cls, coro_class.inside.param_types, coro_class.recursing))) coro_class.recursing.cf_type null_pos in
+				let efield = this_field coro_class.recursing in
 				let econst = mk (TConst (TBool false)) coro_class.recursing.cf_type null_pos in
 				mk_assign efield econst
 			in
@@ -273,7 +284,7 @@ module ContinuationClassBuilder = struct
 			s_expr_debug try_block |> Printf.printf "%s\n"; *)
 
 		(* Bounce our continuation through the scheduler *)
-		let econtextfield   = mk (TField(ethis, FInstance(coro_class.cls, coro_class.inside.param_types, coro_class.context))) basic.tany null_pos in
+		let econtextfield   = this_field coro_class.context in
 		let eschedulerfield =
 			match basic.tcoro.context with
 			| TInst (cls, _) ->
