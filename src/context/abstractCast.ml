@@ -200,13 +200,45 @@ let find_array_write_access ctx a tl e1 e2 p =
 		let s_type = s_type (print_context()) in
 		raise_typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
+(* TODO: This duplicates pretty much all the code from unifies_to_field. The only reason for that is
+   that we want the monos so we can apply them to the type. Surely we can design our data better here... *)
+let find_to_field uctx b ab tl =
+	let a = TAbstract(ab,tl) in
+	let check t cf = match follow cf.cf_type with
+		| TFun((_,_,ta) :: _,_) ->
+			let map = apply_params ab.a_params tl in
+			let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+			let map t = map (apply_params cf.cf_params monos t) in
+			let uctx = get_abstract_context uctx a b ab in
+			let unify_func = get_abstract_unify_func uctx EqStrict in
+			let athis = map ab.a_this in
+			(* we cannot allow implicit casts when the this type is not completely known yet *)
+			if Meta.has Meta.MultiType ab.a_meta && has_mono athis then raise (Unify_error []);
+			with_variance uctx (type_eq_custom {uctx with equality_kind = EqStrict}) athis (map ta);
+			unify_func (map t) b;
+			t,cf,monos
+		| _ ->
+			die "" __LOC__
+	in
+	let rec loop cfl = match cfl with
+		| [] ->
+			raise Not_found
+		| (t,cf) :: cfl ->
+			begin try
+				check t cf
+			with Unify_error _ ->
+				loop cfl
+			end
+	in
+	loop ab.a_to_field
+
 let find_multitype_specialization' platform a pl p =
 	let uctx = default_unification_context () in
 	let m = mk_mono() in
 	let tl,definitive_types = Abstract.find_multitype_params a pl in
-	let _,cf =
+	let _,cf,field_monos =
 		try
-			let t = Abstract.find_to uctx m a tl in
+			let t = find_to_field uctx m a tl in
 			if List.exists (fun t -> has_mono t) definitive_types then begin
 				let at = apply_params a.a_params pl a.a_this in
 				let st = s_type (print_context()) at in
@@ -221,10 +253,10 @@ let find_multitype_specialization' platform a pl p =
 			else
 				raise_typing_error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
 	in
-	cf,follow m,tl
+	cf,field_monos,follow m,tl
 
 let find_multitype_specialization platform a pl p =
-	let cf,m,_ = find_multitype_specialization' platform a pl p in
+	let cf,field_monos,m,_ = find_multitype_specialization' platform a pl p in
 	(cf,m)
 
 let handle_abstract_casts (scom : SafeCom.t) e =
@@ -238,8 +270,10 @@ let handle_abstract_casts (scom : SafeCom.t) e =
 				| _ -> raise_typing_error ("Cannot construct " ^ (s_type (print_context()) (TAbstract(a,pl)))) e.epos
 			end else begin
 				(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
-				let cf,m,pl = find_multitype_specialization' scom.platform a pl e.epos in
-				let e = ExceptionFunctions.make_static_call scom c cf ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el)  m e.epos in
+				let cf,field_monos,m,pl = find_multitype_specialization' scom.platform a pl e.epos in
+				let e_this = Texpr.Builder.make_static_this c e.epos in
+				let ef = mk (TField(e_this,FStatic(c,cf))) (apply_params cf.cf_params field_monos cf.cf_type) e.epos in
+				let e = ExceptionFunctions.make_call scom ef ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
 				{e with etype = m}
 			end
 		| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))},[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
