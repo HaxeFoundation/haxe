@@ -70,14 +70,14 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 		let cororesult_var = mk (TVar (vcororesult, (Some ecreatecoroutine))) com.basic.tany p in
 
 		let cls_primitive =
-			match com.basic.tcoro_primitive with
+			match com.basic.tcoro.primitive with
 			| TInst (cls, _) -> cls
 			| _ -> die "Unexpected coroutine primitive type" __LOC__
 			in
 
 		let cls_field = cls_primitive.cl_statics |> PMap.find "suspended" in
 
-		let tcond = std_is ecororesult com.basic.tcoro_primitive in
+		let tcond = std_is ecororesult com.basic.tcoro.primitive in
 		let tif = mk (TReturn (Some (make_static_field cls_primitive cls_field p))) com.basic.tany p in
 		let telse = mk_assign eresult ecororesult in
 		[

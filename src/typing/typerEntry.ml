@@ -142,42 +142,35 @@ let load_coro ctx =
 			let mk_coro args ret =
 				TAbstract(a,[TFun(args,ret)])
 			in
-			ctx.t.tcoro <- mk_coro
-		| _ ->
-			()
-	) m.m_types;
-	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"CoroutineControl") null_pos in
-	List.iter (function
-		| TAbstractDecl({a_path = (["haxe";"coro"],"CoroutineControl")} as a) ->
-			ctx.t.tcoro_control <- TAbstract(a,[])
+			ctx.t.tcoro.tcoro <- mk_coro
 		| _ ->
 			()
 	) m.m_types;
 	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"IContinuation") null_pos in
 	List.iter (function
 		| TClassDecl({ cl_path = (["haxe";"coro"], "IContinuation") } as cl) ->
-			ctx.t.tcoro_continuation <- TInst(cl, [ ctx.t.tany ])
+			ctx.t.tcoro.continuation <- TInst(cl, [ ctx.t.tany ])
 		| _ ->
 			()
 	) m.m_types;
 	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"Primitive") null_pos in
 	List.iter (function
 		| TClassDecl({ cl_path = (["haxe";"coro"], "Primitive") } as cl) ->
-			ctx.t.tcoro_primitive <- TInst(cl, [])
+			ctx.t.tcoro.primitive <- TInst(cl, [])
 		| _ ->
 			()
 	) m.m_types;
 	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"CoroutineContext") null_pos in
 	List.iter (function
 		| TClassDecl({ cl_path = (["haxe";"coro"], "CoroutineContext") } as cl) ->
-			ctx.t.tcoro_context <- TInst(cl, [])
+			ctx.t.tcoro.context <- TInst(cl, [])
 		| _ ->
 			()
 	) m.m_types;
 	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"IScheduler") null_pos in
 	List.iter (function
 		| TClassDecl({ cl_path = (["haxe";"coro"], "IScheduler") } as cl) ->
-			ctx.t.tcoro_scheduler <- TInst(cl, [])
+			ctx.t.tcoro.scheduler <- TInst(cl, [])
 		| _ ->
 			()
 	) m.m_types;

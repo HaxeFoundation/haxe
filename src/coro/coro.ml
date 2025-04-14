@@ -43,7 +43,7 @@ module ContinuationClassBuilder = struct
 				let n = Printf.sprintf "HxCoroAnonFunc_%i" !localFuncCount in
 				localFuncCount := !localFuncCount + 1;
 
-				let t = TFun ([ ("_hx_continuation", false, basic.tcoro_continuation) ], basic.tany) in
+				let t = TFun ([ ("_hx_continuation", false, basic.tcoro.continuation) ], basic.tany) in
 				n, Some (mk_field captured_field_name t null_pos null_pos)
 			in
 
@@ -51,14 +51,14 @@ module ContinuationClassBuilder = struct
 		let cls_path = ((fst ctx.typer.m.curmod.m_path) @ [ Printf.sprintf "_%s" (snd ctx.typer.m.curmod.m_path) ]), name in
 		let cls      = mk_class ctx.typer.m.curmod cls_path null_pos null_pos in
 
-		(match basic.tcoro_continuation with
+		(match basic.tcoro.continuation with
 		| TInst (cls_cont, _) ->
 			cls.cl_implements <- [ (cls_cont, [ basic.tany ]) ]
 		| _ ->
 			die "Excepted continuation to be TInst" __LOC__);
 
-		let cls_completion = mk_field "_hx_completion" basic.tcoro_continuation null_pos null_pos in
-		let cls_context    = mk_field "_hx_context" basic.tcoro_context null_pos null_pos in
+		let cls_completion = mk_field "_hx_completion" basic.tcoro.continuation null_pos null_pos in
+		let cls_context    = mk_field "_hx_context" basic.tcoro.context null_pos null_pos in
 		let cls_state      = mk_field "_hx_state" basic.tint null_pos null_pos in
 		let cls_result     = mk_field "_hx_result" basic.tany null_pos null_pos in
 		let cls_error      = mk_field "_hx_error" basic.texception null_pos null_pos in
@@ -81,7 +81,7 @@ module ContinuationClassBuilder = struct
 		let name  = "completion" in
 		let ethis = mk (TConst TThis) (TInst (coro_class.cls, [])) null_pos in
 
-		let vargcompletion = alloc_var VGenerated name basic.tcoro_continuation null_pos in
+		let vargcompletion = alloc_var VGenerated name basic.tcoro.continuation null_pos in
 
 		let eassigncompletion =
 			let eargcompletion    = Builder.make_local vargcompletion null_pos in
@@ -106,7 +106,7 @@ module ContinuationClassBuilder = struct
 		let eassigncontext =
 			let eargcompletion = Builder.make_local vargcompletion null_pos in
 			let econtextfield  =
-				match basic.tcoro_continuation with
+				match basic.tcoro.continuation with
 				| TInst (cls, _) ->
 					(* let field = PMap.find "_hx_context" cls.cl_fields in *)
 					mk (TField(eargcompletion, FInstance(cls, [], coro_class.context))) coro_class.context.cf_type null_pos
@@ -114,7 +114,7 @@ module ContinuationClassBuilder = struct
 					die "Expected context to be TInst" __LOC__
 			in
 
-			let ecompletionfield = mk (TField(ethis,FInstance(coro_class.cls, [], coro_class.context))) basic.tcoro_context null_pos in
+			let ecompletionfield = mk (TField(ethis,FInstance(coro_class.cls, [], coro_class.context))) basic.tcoro.context null_pos in
 			mk_assign ecompletionfield econtextfield
 		in
 
@@ -132,7 +132,7 @@ module ContinuationClassBuilder = struct
 				in
 
 			mk (TBlock (extra_exprs @ [ eassigncompletion; eassignstate; eassigncontext ])) basic.tvoid null_pos,
-			extra_tfun_args @ [ (name, false, basic.tcoro_continuation) ],
+			extra_tfun_args @ [ (name, false, basic.tcoro.continuation) ],
 			extra_tfunction_args @ [ (vargcompletion, None) ]
 		in
 
@@ -210,7 +210,7 @@ module ContinuationClassBuilder = struct
 			let vresult    = alloc_var VGenerated "result" basic.tany null_pos in
 			let evarresult = mk (TVar (vresult, (Some ecorocall))) basic.tvoid null_pos in
 			let eresult    = Builder.make_local vresult null_pos in
-			let tcond      = std_is eresult basic.tcoro_primitive in
+			let tcond      = std_is eresult basic.tcoro.primitive in
 			let tif        = mk (TReturn None) t_dynamic null_pos in
 			let telse      = mk (TCall (eresumefield, [ eresult; Builder.make_null basic.texception null_pos ])) basic.tvoid null_pos in
 
@@ -238,7 +238,7 @@ module ContinuationClassBuilder = struct
 		(* Bounce our continuation through the scheduler *)
 		let econtextfield   = mk (TField(ethis, FInstance(coro_class.cls, [], coro_class.context))) basic.tany null_pos in
 		let eschedulerfield =
-			match basic.tcoro_context with
+			match basic.tcoro.context with
 			| TInst (cls, _) ->
 				let field = PMap.find "scheduler" cls.cl_fields in
 				mk (TField(econtextfield, FInstance(cls, [], field))) field.cf_type null_pos
@@ -283,7 +283,7 @@ let fun_to_coro ctx coro_type =
 	let coro_class = ContinuationClassBuilder.create ctx coro_type in
 
 	(* Generate and assign the continuation variable *)
-	let vcompletion = alloc_var VGenerated "_hx_completion" basic.tcoro_continuation null_pos in
+	let vcompletion = alloc_var VGenerated "_hx_completion" basic.tcoro.continuation null_pos in
 	let ecompletion = Builder.make_local vcompletion null_pos in
 
 	let vcontinuation = alloc_var VGenerated "_hx_continuation" (TInst (coro_class.cls, [])) null_pos in
@@ -339,7 +339,7 @@ let fun_to_coro ctx coro_type =
 		| ClassField _ ->
 			[ mk (TConst TThis) ctx.typer.c.tthis null_pos; ], (fun e -> e), vcompletion
 		| LocalFunc f ->
-			let vnewcompletion = alloc_var VGenerated "_hx_completion_outer" basic.tcoro_continuation null_pos in
+			let vnewcompletion = alloc_var VGenerated "_hx_completion_outer" basic.tcoro.continuation null_pos in
 			let enewcompletion = Builder.make_local vnewcompletion null_pos in
 
 			let tf             = TFun ([ (vcompletion.v_name, false, vcompletion.v_type) ], basic.tany) in
@@ -366,7 +366,7 @@ let fun_to_coro ctx coro_type =
 
 	let continuation_assign =
 		let t = TInst (coro_class.cls, []) in
-		
+
 		let tcond =
 			(* Is it alright to use the continuations recursing field against the completion? *)
 			let erecursingfield = mk (TField(ecompletion, FInstance(coro_class.cls, [], coro_class.recursing))) basic.tbool null_pos in

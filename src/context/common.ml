@@ -759,16 +759,17 @@ let create timer_ctx compilation_step cs version args display_mode =
 			tfloat = mk_mono();
 			tbool = mk_mono();
 			tstring = mk_mono();
-			tcoro_control = mk_mono();
-			tcoro_continuation = mk_mono();
-			tcoro_primitive = mk_mono();
-			tcoro_context = mk_mono();
-			tcoro_scheduler = mk_mono();
 			texception = mk_mono();
 			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 			titerator = (fun _ -> die "Could not locate typedef Iterator<T> (was it redefined?)" __LOC__);
-			tcoro = (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
+			tcoro = {
+				tcoro = (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
+				continuation = mk_mono();
+				primitive = mk_mono();
+				context = mk_mono();
+				scheduler = mk_mono();
+			}
 		};
 		std = null_class;
 		file_keys = new file_keys;
@@ -823,12 +824,14 @@ let clone com is_macro_context =
 			tfloat = mk_mono();
 			tbool = mk_mono();
 			tstring = mk_mono();
-			tcoro_control = mk_mono();
-			tcoro_continuation = mk_mono();
-			tcoro_context = mk_mono();
-			tcoro_primitive = mk_mono();
-			tcoro_scheduler = mk_mono();
 			texception = mk_mono();
+			tcoro = {
+				tcoro = (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
+				continuation = mk_mono();
+				primitive = mk_mono();
+				context = mk_mono();
+				scheduler = mk_mono();
+			}
 		};
 		main = {
 			main_path = None;
@@ -1061,7 +1064,7 @@ let get_entry_point com =
 	) com.main.main_path
 
 let expand_coro_type basic args ret =
-	let args = args @ [("_hx_continuation",false,basic.tcoro_continuation)] in
+	let args = args @ [("_hx_continuation",false,basic.tcoro.continuation)] in
 	(args,basic.tany)
 
 let make_unforced_lazy t_proc f where =

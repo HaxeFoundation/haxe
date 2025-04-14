@@ -1229,7 +1229,7 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 	| _ ->
 		()
 	);
-	let ft = if is_coroutine then ctx.t.tcoro targs rt else TFun(targs,rt) in
+	let ft = if is_coroutine then ctx.t.tcoro.tcoro targs rt else TFun(targs,rt) in
 	let ft = match with_type with
 		| WithType.NoValue ->
 			ft
@@ -1631,36 +1631,6 @@ and type_call_access ctx e el mode with_type p_inline p =
 		build_call_access ctx acc el mode with_type p
 
 and type_call_builtin ctx e el mode with_type p =
-	let create_coroutine e args ret p =
-		let args,ret = expand_coro_type ctx.t args ret in
-		let el = unify_call_args ctx el args ctx.t.tvoid p false false false in
-		let el = match List.rev el with
-			| e_cb :: el ->
-				let v_result = alloc_var VGenerated "_hx_result" t_dynamic p in
-				let v_control = alloc_var VGenerated "_hx_control" ctx.com.basic.tcoro_control p in
-				let v_cb = alloc_var VGenerated "_hx_continuation" e_cb.etype e_cb.epos in
-				let e_cb_local = Texpr.Builder.make_local v_cb e_cb.epos in
-				let e_result = Texpr.Builder.make_local v_result p in
-				let e_null = Texpr.Builder.make_null t_dynamic p in
-				let e_normal = mk (TCall(e_cb_local,[e_result;e_null])) ctx.com.basic.tvoid p in
-				let e_error = mk (TCall(e_cb_local,[e_null;e_result])) ctx.com.basic.tvoid p in
-				let e_controlswitch = CoroToTexpr.make_control_switch ctx.com (Texpr.Builder.make_local v_control p) e_normal e_error p in
-				let tf = {
-					tf_args = [(v_result,None);(v_control,None)];
-					tf_expr = mk (TBlock [
-						mk (TVar(v_cb,Some e_cb)) ctx.com.basic.tvoid p;
-						e_controlswitch;
-					]) ctx.com.basic.tvoid p;
-					tf_type = ctx.com.basic.tvoid;
-				} in
-				let e = mk (TFunction tf) (tfun [t_dynamic;ctx.com.basic.tcoro_control] ctx.com.basic.tvoid) p in
-				List.rev (e :: el)
-			| [] ->
-				die "" __LOC__
-		in
-		let e = mk e.eexpr (TFun(args,ret)) p in
-		mk (TCall (e, el)) ret p
-	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
 		if Common.defined ctx.com Define.NoTraces then
@@ -1689,20 +1659,6 @@ and type_call_builtin ctx e el mode with_type p =
 		let e = type_expr ctx e WithType.value in
 		(match follow e.etype with
 			| TFun signature -> type_bind ctx e signature args (efk = EFSafe) p
-			| _ -> raise Exit)
-	| (EField (e,"start",_),_), args ->
-		let e = type_expr ctx e WithType.value in
-		(match follow_with_coro e.etype with
-			| Coro (args, ret) ->
-				let ecoro = create_coroutine e args ret p in
-				let enull = Builder.make_null t_dynamic p in
-				mk (TCall (ecoro, [enull; CoroToTexpr.mk_control ctx.com CoroNormal])) ctx.com.basic.tvoid p
-			| _ -> raise Exit)
-	| (EField (e,"create",_),_), args ->
-		let e = type_expr ctx e WithType.value in
-		(match follow_with_coro e.etype with
-			| Coro (args, ret) ->
-				create_coroutine e args ret p
 			| _ -> raise Exit)
 	| (EConst (Ident "$type"),_) , e1 :: el ->
 		let expected = match el with

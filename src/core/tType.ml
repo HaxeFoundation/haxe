@@ -472,6 +472,14 @@ and build_state =
 
 exception Type_exception of t
 
+type coro_types = {
+	mutable tcoro : (string * bool * t) list -> t -> t;
+	mutable continuation : t;
+	mutable primitive : t;
+	mutable context : t;
+	mutable scheduler : t;
+}
+
 type basic_types = {
 	mutable tvoid : t;
 	mutable tany : t;
@@ -481,14 +489,9 @@ type basic_types = {
 	mutable tnull : t -> t;
 	mutable tstring : t;
 	mutable tarray : t -> t;
-	mutable tcoro : (string * bool * t) list -> t -> t;
-	mutable tcoro_control : t;
-	mutable tcoro_continuation : t;
-	mutable tcoro_primitive : t;
-	mutable tcoro_context : t;
-	mutable tcoro_scheduler : t;
 	mutable texception : t;
-	mutable titerator : t -> t
+	mutable titerator : t -> t;
+	mutable tcoro : coro_types;
 }
 
 type class_field_scope =
