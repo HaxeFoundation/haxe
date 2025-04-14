@@ -13,8 +13,6 @@ class RacingContinuation<T> implements IContinuation<T> {
 
 	var _hx_error:Any;
 
-	public var _hx_recursing:Bool;
-
 	public final _hx_context:CoroutineContext;
 
 	public function new(completion) {

@@ -11,8 +11,6 @@ class BlockingContinuation implements IContinuation<Any> {
 	var result:Int;
 	var error:Exception;
 
-	public var _hx_recursing:Bool;
-
 	public function new(loop, scheduler) {
 		this.loop = loop;
 

@@ -419,14 +419,15 @@ let fun_to_coro ctx coro_type =
 	let continuation_assign =
 		let t = coro_class.outside.cls_t in
 
+		let ecastedcompletion = mk_cast ecompletion t null_pos in
+
 		let tcond =
-			let cf_recursing = PMap.find "_hx_recursing" basic.tcoro.continuation_class.cl_fields in
-			let erecursingfield = mk (TField(ecompletion, FInstance(basic.tcoro.continuation_class, [] (* TODO: check *), cf_recursing))) basic.tbool null_pos in
+			let erecursingfield = mk (TField(ecastedcompletion, FInstance(basic.tcoro.continuation_class, [] (* TODO: check *), coro_class.recursing))) basic.tbool null_pos in
 			let estdis          = std_is ecompletion t in
 			let erecursingcheck = mk (TBinop (OpEq, erecursingfield, (mk (TConst (TBool false)) basic.tbool null_pos))) basic.tbool null_pos in
 			mk (TBinop (OpBoolAnd, estdis, erecursingcheck)) basic.tbool null_pos
 		in
-		let tif       = mk_assign econtinuation (mk_cast ecompletion t null_pos) in
+		let tif       = mk_assign econtinuation ecastedcompletion in
 		let tif       = mk (TBlock [
 			tif;
 			eif_error;
