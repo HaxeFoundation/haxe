@@ -153,7 +153,7 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 			add_state (Some (-1)) [ mk (TReturn (Some e)) com.basic.tany p ]
 		| NextThrow e1 ->
 			let ethrow = mk (TThrow e1) t_dynamic p in
-			add_state (Some (-1)) [ethrow]
+			add_state None [ethrow]
 		| NextSub (cb_sub,cb_next) when cb_next == ctx.cb_unreachable ->
 			(* If we're skipping our initial state we have to track this for the _hx_state init *)
 			if cb.cb_id = !init_state then
