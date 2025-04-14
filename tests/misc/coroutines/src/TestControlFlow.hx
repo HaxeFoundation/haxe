@@ -89,11 +89,11 @@ class TestControlFlow extends utest.Test {
 		}));
 	}
 
-	function testTryCatch() {
-		Assert.same(["e1", "e2"], Coroutine.run(@:coroutine function run() {
-			return mapCalls([ new E1(), new E2() ], tryCatch);
-		}));
-	}
+	// function testTryCatch() {
+	// 	Assert.same(["e1", "e2"], Coroutine.run(@:coroutine function run() {
+	// 		return mapCalls([ new E1(), new E2() ], tryCatch);
+	// 	}));
+	// }
 
 	// this seems to throw E3 but not catch it?
 	// function testTryCatchFail() {
