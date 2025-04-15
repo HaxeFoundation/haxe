@@ -11,7 +11,7 @@ import haxe.coro.continuations.BlockingContinuation;
 @:callable
 @:coreType
 abstract Coroutine<T:haxe.Constraints.Function> {
-	@:coroutine public static function suspend<T>(func:(IContinuation<Any>)->Void):T {
+	@:coroutine public static function suspend<T>(func:(IContinuation<Any>) -> Void):T {
 		final cont = haxe.coro.Intrinsics.currentContinuation();
 		final safe = new RacingContinuation(cont);
 
@@ -21,7 +21,7 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 		return cast safe.getOrThrow();
 	}
 
-    @:coroutine public static function delay(ms:Int):Void {
+	@:coroutine public static function delay(ms:Int):Void {
 		Coroutine.suspend(cont -> {
 			cont._hx_context.scheduler.scheduleIn(() -> cont.resume(null, null), ms);
 		});
@@ -33,9 +33,9 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 		});
 	}
 
-	public static function run<T>(f:Coroutine<()->T>) {
-		final loop   = new EventLoop();
-		final cont   = new BlockingContinuation(loop, new EventLoopScheduler(loop));
+	public static function run<T>(f:Coroutine<() -> T>):T {
+		final loop = new EventLoop();
+		final cont = new BlockingContinuation(loop, new EventLoopScheduler(loop));
 		final result = f(cont);
 
 		return if (result is Primitive) {

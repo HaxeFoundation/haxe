@@ -5,9 +5,7 @@ function main() {
 		new TestBasic(),
 		new TestTricky(),
 		new TestControlFlow(),
-		#if !jvm
 		new TestHoisting(),
-		#end
 		new TestMisc()
 		// new TestGenerator(),
 		// #if js
