@@ -93,8 +93,6 @@ let expr_to_coro ctx eresult cb_root e =
 			let cb,el = ordered_loop cb el in
 			cb,{e with eexpr = TNew(c,tl,el)}
 		(* rewrites & forwards *)
-		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
-			loop cb ret (Texpr.not_while_true_to_while_true ctx.typer.com.Common.basic e1 e2 flag e.etype e.epos)
 		| TCast(e1,o) ->
 			let cb,e1 = loop cb ret e1 in
 			if e1 == e_no_value then
@@ -227,6 +225,8 @@ let expr_to_coro ctx eresult cb_root e =
 			} in
 			terminate cb (NextSwitch(switch,cb_next)) e.etype e.epos;
 			cb_next,e_no_value
+		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
+			loop cb ret (Texpr.not_while_true_to_while_true ctx.typer.com.Common.basic e1 e2 flag e.etype e.epos)
 		| TWhile(e1,e2,flag) (* always while(true) *) ->
 			let cb_next = make_block None in
 			let cb_body = block_from_e e2 in
