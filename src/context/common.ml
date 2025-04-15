@@ -854,6 +854,7 @@ let clone com is_macro_context =
 		hxb_writer_config = com.hxb_writer_config;
 		parser_state = com.parser_state;
 		dump_config = com.dump_config;
+		file_contents = com.file_contents;
 		(* reinits *)
 		cache = None;
 		stage = CCreated;
@@ -889,7 +890,6 @@ let clone com is_macro_context =
 			titerator = (fun _ -> die "Could not locate typedef Iterator<T> (was it redefined?)" __LOC__);
 		};
 		std = null_class;
-		file_contents = []; (* ! *)
 		module_to_file = new hashtbl_lookup;
 		parser_cache = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup; (* ! *)
