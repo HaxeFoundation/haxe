@@ -297,6 +297,7 @@ let do_type ctx mctx actx display_file_dot_path =
 		Some (MacroContext.call_init_macro ctx.com mctx path)
 	) mctx (List.rev actx.config_macros) in
 	enter_stage com CInitMacrosDone;
+	check_defines ctx.com;
 	update_platform_config com; (* make sure to adapt all flags changes defined during init macros *)
 	ServerMessage.compiler_stage com;
 
@@ -304,7 +305,6 @@ let do_type ctx mctx actx display_file_dot_path =
 	Setup.init_native_libs com actx.native_libs;
 	let tctx = Setup.create_typer_context ctx macros in
 	let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
-	check_defines ctx.com;
 	DumpConfig.update_from_defines com.dump_config com.defines;
 	CommonCache.lock_signature com "after_init_macros";
 	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;

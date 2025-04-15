@@ -307,8 +307,6 @@ type context = {
 	mutable include_files : (string * string) list;
 	mutable native_libs : native_libraries;
 	mutable hxb_libs : abstract_hxb_lib list;
-	mutable net_std : string list;
-	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable js_gen : (unit -> unit) option;
 	(* misc *)
 	mutable basic : basic_types;
@@ -732,10 +730,8 @@ let create timer_ctx compilation_step cs version args display_mode =
 		fake_modules = Hashtbl.create 0;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
-		net_std = [];
 		native_libs = create_native_libs();
 		hxb_libs = [];
-		net_path_map = Hashtbl.create 0;
 		neko_lib_paths = [];
 		include_files = [];
 		js_gen = None;
@@ -814,17 +810,93 @@ let log com str =
 	if com.verbose then com.print (str ^ "\n")
 
 let clone com is_macro_context =
-	let t = com.basic in
-	{ com with
+	{
+		(* keeps *)
+		compilation_step = com.compilation_step;
+		cs = com.cs;
+		timer_ctx = com.timer_ctx;
+		version = com.version;
+		args = com.args;
+		shared = com.shared;
+		debug = com.debug;
+		display = com.display;
+		verbose = com.verbose;
+		foptimize = com.foptimize;
+		doinline = com.doinline;
+		platform = com.platform;
+		config = com.config;
+		print = com.print;
+		run_command = com.run_command;
+		run_command_args = com.run_command_args;
+		package_rules = com.package_rules;
+		file = com.file;
+		global_metadata = com.global_metadata;
+		flash_version = com.flash_version;
+		resources = com.resources;
+		native_libs = com.native_libs;
+		hxb_libs = com.hxb_libs;
+		neko_lib_paths = com.neko_lib_paths;
+		include_files = com.include_files;
+		js_gen = com.js_gen;
+		defines = {
+			values = com.defines.values;
+			defines_signature = com.defines.defines_signature;
+		};
+		user_defines = com.user_defines;
+		user_metas = com.user_metas;
+		get_macros = com.get_macros;
+		info = com.info;
+		warning = com.warning;
+		warning_options = com.warning_options;
+		error = com.error;
+		error_ext = com.error_ext;
+		get_messages = com.get_messages;
+		filter_messages = com.filter_messages;
+		pass_debug_messages = com.pass_debug_messages;
+		file_keys = com.file_keys;
+		stored_typed_exprs = com.stored_typed_exprs;
+		cached_macros = com.cached_macros;
+		memory_marker = com.memory_marker;
+		json_out = com.json_out;
+		has_error = com.has_error;
+		report_mode = com.report_mode;
+		hxb_writer_config = com.hxb_writer_config;
+		parser_state = com.parser_state;
+		dump_config = com.dump_config;
+		file_contents = com.file_contents;
+		(* reinits *)
 		cache = None;
 		stage = CCreated;
-		basic = { t with
+		display_information = {
+			unresolved_identifiers = [];
+			display_module_has_macro_defines = false;
+			module_diagnostics = [];
+		};
+		features = Hashtbl.create 0;
+		empty_class_path = new ClassPath.directory_class_path "" User;
+		class_paths = new ClassPaths.class_paths;
+		main = {
+			main_path = None;
+			main_file = None;
+			main_expr = None;
+		};
+		types = [];
+		callbacks = new compiler_callbacks;
+		modules = [];
+		module_lut = new module_lut;
+		module_nonexistent_lut = new hashtbl_lookup;
+		fake_modules = Hashtbl.create 0;
+		load_extern_type = []; (* ! *)
+		basic = {
 			tvoid = mk_mono();
 			tany = mk_mono();
 			tint = mk_mono();
 			tfloat = mk_mono();
 			tbool = mk_mono();
 			tstring = mk_mono();
+			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
+			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
+			titerator = (fun _ -> die "Could not locate typedef Iterator<T> (was it redefined?)" __LOC__);
 			texception = mk_mono();
 			tcoro = {
 				tcoro = (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
@@ -833,37 +905,16 @@ let clone com is_macro_context =
 				primitive = mk_mono();
 				context = mk_mono();
 				scheduler = mk_mono();
-			}
+			};
 		};
-		main = {
-			main_path = None;
-			main_file = None;
-			main_expr = None;
-		};
-		features = Hashtbl.create 0;
-		callbacks = new compiler_callbacks;
-		display_information = {
-			unresolved_identifiers = [];
-			display_module_has_macro_defines = false;
-			module_diagnostics = [];
-		};
-		defines = {
-			values = com.defines.values;
-			defines_signature = com.defines.defines_signature;
-		};
-		native_libs = create_native_libs();
-		is_macro_context = is_macro_context;
-		parser_cache = new hashtbl_lookup;
+		std = null_class;
 		module_to_file = new hashtbl_lookup;
-		overload_cache = new hashtbl_lookup;
-		module_lut = new module_lut;
-		fake_modules = Hashtbl.create 0;
+		parser_cache = new hashtbl_lookup;
+		overload_cache = new hashtbl_lookup; (* ! *)
+		is_macro_context = is_macro_context;
+		functional_interface_lut = new Lookup.hashtbl_lookup;
 		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
-		std = null_class;
-		functional_interface_lut = new Lookup.hashtbl_lookup;
-		empty_class_path = new ClassPath.directory_class_path "" User;
-		class_paths = new ClassPaths.class_paths;
 	}
 
 let file_time file = Extc.filetime file
