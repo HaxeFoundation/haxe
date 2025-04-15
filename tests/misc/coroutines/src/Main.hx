@@ -6,11 +6,11 @@ function main() {
 		new TestTricky(),
 		new TestControlFlow(),
 		new TestHoisting(),
-		new TestMisc()
+		new TestMisc(),
 		// new TestGenerator(),
-		// #if js
-		// new TestJsPromise(),
-		// #end
+		#if js
+		new TestJsPromise(),
+		#end
 		// new TestYieldBasic(),
 		// new TestYieldIf(),
 		// new TestYieldFor(),
