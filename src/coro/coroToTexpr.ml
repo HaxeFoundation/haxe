@@ -158,7 +158,7 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 			(* If we're skipping our initial state we have to track this for the _hx_state init *)
 			if cb.cb_id = !init_state then
 				init_state := cb_sub.cb_id;
-			loop cb_sub current_el
+			loop cb_sub (current_el @ el)
 		| NextSub (bb_sub,bb_next) ->
 			let next_state_id = loop bb_next [] in
 			let sub_state_id = loop bb_sub [] in

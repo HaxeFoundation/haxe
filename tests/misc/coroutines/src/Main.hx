@@ -1,7 +1,8 @@
 import yield.*;
 
 function main() {
-	utest.UTest.run([
+
+	var cases = [
 		new TestBasic(),
 		new TestTricky(),
 		new TestControlFlow(),
@@ -18,5 +19,15 @@ function main() {
 		// new TestYieldSwitch(),
 		// new TestYieldTryCatch(),
 		// new TestYieldWhile(),
-	]);
+	];
+
+	var runner = new utest.Runner();
+
+	for (eachCase in cases) {
+		runner.addCase(eachCase);
+	}
+	runner.addCases("issues");
+
+    utest.ui.Report.create(runner);
+    runner.run();
 }
