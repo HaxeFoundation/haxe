@@ -71,7 +71,18 @@ module ContinuationClassBuilder = struct
 		(* Is there a pre-existing function somewhere to a valid path? *)
 		let cls_path = ((fst ctx.typer.m.curmod.m_path) @ [ Printf.sprintf "_%s" (snd ctx.typer.m.curmod.m_path) ]), name in
 		let cls      = mk_class ctx.typer.m.curmod cls_path null_pos null_pos in
-		let params_inside = List.map (fun ttp -> clone_type_parameter (fun t -> t) (* TODO: ? *) ([snd cls_path],ttp.ttp_name) ttp) params_outside in
+		let params_inside = List.map (fun ttp ->
+			(* TODO: this duplicates clone_type_parameter *)
+			let c = ttp.ttp_class in
+			let map = fun t -> t in (* TODO: ? *)
+			let c = {c with cl_path = ([],ttp.ttp_name)} in
+			let def = Option.map map ttp.ttp_default in
+			let constraints = match ttp.ttp_constraints with
+				| None -> None
+				| Some constraints -> Some (lazy (List.map map (Lazy.force constraints)))
+			in
+			mk_type_param c TPHType (* !!! *) def constraints
+		 ) params_outside in
 		cls.cl_params <- params_inside;
 
 		cls.cl_implements <- [ (basic.tcoro.continuation_class, [ basic.tany ]) ];
