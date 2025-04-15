@@ -476,6 +476,8 @@ type coro_types = {
 	mutable tcoro : (string * bool * t) list -> t -> t;
 	mutable continuation : t;
 	mutable continuation_class : tclass;
+	mutable base_continuation : t;
+	mutable base_continuation_class : tclass;
 	mutable primitive : t;
 	mutable context : t;
 	mutable scheduler : t;
