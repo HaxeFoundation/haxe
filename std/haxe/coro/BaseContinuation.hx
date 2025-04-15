@@ -30,6 +30,8 @@ abstract class BaseContinuation implements IContinuation<Any> {
         _hx_context.scheduler.schedule(() -> {
             try
             {
+                _hx_recursing = false;
+
                 final result = invokeResume();
                 if (result is Primitive) {
                     return;
