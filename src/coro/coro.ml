@@ -206,7 +206,7 @@ module ContinuationClassBuilder = struct
 		let ethis       = mk (TConst TThis) coro_class.inside.cls_t null_pos in
 
 		(* Create a custom this variable to be captured, should the compiler already handle this? *)
-		let vfakethis    = alloc_var VGenerated "fakethis" coro_class.inside.cls_t null_pos in
+		let vfakethis    = alloc_var VGenerated (Printf.sprintf "%sthis" gen_local_prefix) coro_class.inside.cls_t null_pos in
 		let evarfakethis = mk (TVar (vfakethis, Some ethis)) coro_class.inside.cls_t null_pos in
 
 		let this_field cf =
