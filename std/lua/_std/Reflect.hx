@@ -23,9 +23,10 @@
 import lua.Boot;
 import lua.Lua;
 import lua.TableTools;
+import haxe.runtime.FieldHost;
 
 @:coreApi class Reflect {
-	public inline static function hasField(o:Dynamic, field:String):Bool {
+	public inline static function hasField(o:FieldHost, field:String):Bool {
 		return if (inline isFunction(o)) {
 			false;
 		} else if (Lua.type(o) == "string" && (untyped String.prototype[field] != null || field == "length")) {
@@ -33,7 +34,7 @@ import lua.TableTools;
 		} else untyped o.__fields__ != null ? o.__fields__[field] != null : o[field] != null;
 	}
 
-	public static function field(o:Dynamic, field:String):Dynamic untyped {
+	public static function field(o:FieldHost, field:String):Dynamic untyped {
 		if (Lua.type(o) == "string") {
 			if (field == "length") {
 				return cast(o : String).length;
@@ -44,21 +45,21 @@ import lua.TableTools;
 		}
 	}
 
-	public inline static function setField(o:Dynamic, field:String, value:Dynamic):Void untyped {
+	public inline static function setField(o:FieldHost, field:String, value:Dynamic):Void untyped {
 		o[field] = value;
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:FieldHost, field:String):Dynamic {
 		return if (o == null) {
 			untyped __define_feature__("Reflect.getProperty", null);
-		} else if (o.__properties__ != null && Reflect.field(o, "get_" + field) != null) {
+		} else if (o.asDynamic().__properties__ != null && Reflect.field(o, "get_" + field) != null) {
 			callMethod(o, Reflect.field(o, "get_" + field), []);
 		} else {
 			Reflect.field(o, field);
 		}
 	}
 
-	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void untyped {
+	public static function setProperty(o:FieldHost, field:String, value:Dynamic):Void untyped {
 		if (o.__properties__ != null && o.__properties__["set_" + field]) {
 			var tmp:String = o.__properties__["set_" + field];
 			callMethod(o, Reflect.field(o, tmp), [value]);
@@ -83,7 +84,7 @@ import lua.TableTools;
 		}
 	}
 
-	public static function fields(o:Dynamic):Array<String> {
+	public static function fields(o:FieldHost):Array<String> {
 		if (lua.Lua.type(o) == "string") {
 			return Reflect.fields(untyped String.prototype);
 		} else {
@@ -122,7 +123,7 @@ import lua.TableTools;
 		return v != null && Std.isOfType(v, lua.Table) && v.__enum__ != null;
 	}
 
-	public static function deleteField(o:Dynamic, field:String):Bool untyped {
+	public static function deleteField(o:FieldHost, field:String):Bool untyped {
 		if (!hasField(o, field))
 			return false;
 		o[field] = null;
@@ -134,8 +135,8 @@ import lua.TableTools;
 		if (o == null)
 			return null;
 		var o2:Dynamic = {};
-		for (f in Reflect.fields(o))
-			Reflect.setField(o2, f, Reflect.field(o, f));
+		for (f in Reflect.fields(cast o))
+			Reflect.setField(cast o2, f, Reflect.field(cast o, f));
 		return o2;
 	}
 

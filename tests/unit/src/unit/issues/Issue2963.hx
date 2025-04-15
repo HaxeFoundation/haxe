@@ -9,7 +9,7 @@ class Issue2963 extends Test {
 		var x:Dynamic<Null<Int>> = {};
 		var v2:Null<Int> = Reflect.field(x,'k');
 		eq(v2,null);
-		var v3:Null<Int> = Reflect.field(a,'k');
+		var v3:Null<Int> = Reflect.field(cast a, 'k');
 		eq(v3,null);
 		var v4 = x.k;
 		eq(v4,null);

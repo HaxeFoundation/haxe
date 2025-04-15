@@ -26,18 +26,19 @@ import php.Closure;
 import php.Const;
 import php.NativeAssocArray;
 import php.Syntax;
+import haxe.runtime.FieldHost;
 
 using php.Global;
 
 @:coreApi class Reflect {
-	public static function hasField(o:Dynamic, field:String):Bool {
+	public static function hasField(o:FieldHost, field:String):Bool {
 		if (!o.is_object())
 			return false;
 		if (o.property_exists(field))
 			return true;
 
 		if (Boot.isClass(o)) {
-			var phpClassName = Boot.castClass(o).phpClassName;
+			var phpClassName = Boot.castClass(o.asDynamic()).phpClassName;
 			return Global.property_exists(phpClassName, field)
 				|| Global.method_exists(phpClassName, field)
 				|| Global.defined('$phpClassName::$field');
@@ -46,9 +47,9 @@ using php.Global;
 		return false;
 	}
 
-	public static function field(o:Dynamic, field:String):Dynamic {
+	public static function field(o:FieldHost, field:String):Dynamic {
 		if (o.is_string()) {
-			return Syntax.field(Boot.dynamicString(o), field);
+			return Syntax.field(Boot.dynamicString(o.asDynamic()), field);
 		}
 		if (!o.is_object())
 			return null;
@@ -58,14 +59,14 @@ using php.Global;
 		}
 
 		if (o.property_exists(field)) {
-			return Syntax.field(o, field);
+			return Syntax.field(o.asDynamic(), field);
 		}
 		if (o.method_exists(field)) {
-			return Boot.getInstanceClosure(o, field);
+			return Boot.getInstanceClosure(o.asDynamic(), field);
 		}
 
 		if (Boot.isClass(o)) {
-			var phpClassName = Boot.castClass(o).phpClassName;
+			var phpClassName = Boot.castClass(o.asDynamic()).phpClassName;
 			if (Global.defined('$phpClassName::$field')) {
 				return Global.constant('$phpClassName::$field');
 			}
@@ -80,18 +81,18 @@ using php.Global;
 		return null;
 	}
 
-	public static function setField(o:Dynamic, field:String, value:Dynamic):Void {
+	public static function setField(o:FieldHost, field:String, value:Dynamic):Void {
 		Syntax.setField(o, field, value);
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:FieldHost, field:String):Dynamic {
 		if (o.is_object()) {
 			if (Boot.isClass(o)) {
-				var phpClassName = Boot.castClass(o).phpClassName;
+				var phpClassName = Boot.castClass(o.asDynamic()).phpClassName;
 				if (Boot.hasGetter(phpClassName, field)) {
 					return Syntax.staticCall(phpClassName, 'get_$field');
 				}
-			} else if (Boot.hasGetter(Global.get_class(o), field)) {
+			} else if (Boot.hasGetter(Global.get_class(o.asDynamic()), field)) {
 				return Syntax.call(o, 'get_$field');
 			}
 		}
@@ -99,9 +100,9 @@ using php.Global;
 		return Reflect.field(o, field);
 	}
 
-	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
+	public static function setProperty(o:FieldHost, field:String, value:Dynamic):Void {
 		if (o.is_object()) {
-			if (Boot.hasSetter(Global.get_class(o), field)) {
+			if (Boot.hasSetter(Global.get_class(o.asStructure()), field)) {
 				Syntax.call(o, 'set_$field', value);
 			} else {
 				Syntax.setField(o, field, value);
@@ -113,9 +114,9 @@ using php.Global;
 		return Global.call_user_func_array(func, @:privateAccess args.arr);
 	}
 
-	public static function fields(o:Dynamic):Array<String> {
+	public static function fields(o:FieldHost):Array<String> {
 		if (Global.is_object(o)) {
-			return @:privateAccess Array.wrap(Global.get_object_vars(o).array_keys());
+			return @:privateAccess Array.wrap(Global.get_object_vars(cast o).array_keys());
 		}
 		return [];
 	}
@@ -154,7 +155,7 @@ using php.Global;
 		return Boot.isEnumValue(v);
 	}
 
-	public static function deleteField(o:Dynamic, field:String):Bool {
+	public static function deleteField(o:FieldHost, field:String):Bool {
 		if (hasField(o, field)) {
 			Global.unset(Syntax.field(o, field));
 			return true;

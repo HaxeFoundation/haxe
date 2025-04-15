@@ -19,35 +19,38 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.runtime.FieldHost;
+
 @:coreApi
 class Reflect {
-	public static function hasField(o:Dynamic, field:String):Bool {
+	public static function hasField(o:FieldHost, field:String):Bool {
 		if (field == null)
 			return false;
 		var hash = @:privateAccess field.bytes.hash();
 		return hl.Api.hasField(o, hash);
 	}
 
-	public static function field(o:Dynamic, field:String):Dynamic {
+	public static function field(o:FieldHost, field:String):Dynamic {
 		if (field == null)
 			return null;
 		var hash = @:privateAccess field.bytes.hash();
 		return hl.Api.getField(o, hash);
 	}
 
-	public static function setField(o:Dynamic, field:String, value:Dynamic):Void {
+	public static function setField(o:FieldHost, field:String, value:Dynamic):Void {
 		var hash = @:privateAccess field.bytes.hash();
 		hl.Api.setField(o, hash, value);
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:FieldHost, field:String):Dynamic {
 		var f:Dynamic = Reflect.field(o, "get_" + field);
 		if (f != null)
 			return f();
 		return Reflect.field(o, field);
 	}
 
-	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
+	public static function setProperty(o:FieldHost, field:String, value:Dynamic):Void {
 		var f:Dynamic = Reflect.field(o, "set_" + field);
 		if (f != null)
 			f(value);
@@ -87,7 +90,7 @@ class Reflect {
 		return null;
 	}
 
-	public static function fields(o:Dynamic):Array<String> {
+	public static function fields(o:FieldHost):Array<String> {
 		var fields = getObjectFields(o);
 		if (fields == null)
 			return [];
@@ -121,7 +124,7 @@ class Reflect {
 		return t.kind == HEnum;
 	}
 
-	public static function deleteField(o:Dynamic, field:String):Bool {
+	public static function deleteField(o:FieldHost, field:String):Bool {
 		return hl.Api.deleteField(o, @:privateAccess field.bytes.hash());
 	}
 

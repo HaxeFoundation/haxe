@@ -21,30 +21,31 @@
  */
 
 import cpp.ObjectType;
+import haxe.runtime.FieldHost;
 
 @:coreApi
 @:analyzer(ignore)
 class Reflect {
-	public static function hasField(o:Dynamic, field:String):Bool untyped {
+	public static function hasField(o:FieldHost, field:String):Bool untyped {
 		return o != null && o.__HasField(field);
 	}
 
-	public static function field(o:Dynamic, field:String):Dynamic untyped {
+	public static function field(o:FieldHost, field:String):Dynamic untyped {
 		return (o == null) ? null : o.__Field(field, untyped __cpp__("::hx::paccNever"));
 	}
 
-	public static function setField(o:Dynamic, field:String, value:Dynamic):Void untyped {
+	public static function setField(o:FieldHost, field:String, value:Dynamic):Void untyped {
 		if (o != null)
 			o.__SetField(field, value, untyped __cpp__("::hx::paccNever"));
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
-		return (o == null) ? null : o.__Field(field, untyped __cpp__("::hx::paccAlways"));
+	public static function getProperty(o:FieldHost, field:String):Dynamic {
+		return (o == null) ? null : o.asDynamic().__Field(field, untyped __cpp__("::hx::paccAlways"));
 	}
 
-	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
+	public static function setProperty(o:FieldHost, field:String, value:Dynamic):Void {
 		if (o != null)
-			o.__SetField(field, value, untyped __cpp__("::hx::paccAlways"));
+			o.asDynamic().__SetField(field, value, untyped __cpp__("::hx::paccAlways"));
 	}
 
 	public static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic untyped {
@@ -59,7 +60,7 @@ class Reflect {
 		return untyped func.__Run(args);
 	}
 
-	public static function fields(o:Dynamic):Array<String> untyped {
+	public static function fields(o:FieldHost):Array<String> untyped {
 		if (o == null)
 			return new Array();
 		var a:Array<String> = [];
@@ -94,7 +95,7 @@ class Reflect {
 		return v != null && v.__GetType() == ObjectType.vtEnum;
 	}
 
-	public static function deleteField(o:Dynamic, field:String):Bool untyped {
+	public static function deleteField(o:FieldHost, field:String):Bool untyped {
 		if (o == null)
 			return false;
 		return untyped __global__.__hxcpp_anon_remove(o, field);
@@ -108,8 +109,8 @@ class Reflect {
 		if (untyped o.__GetType() == ObjectType.vtArray)
 			return untyped o.__Field("copy", untyped __cpp__("::hx::paccDynamic"))();
 		var o2:Dynamic = {};
-		for (f in Reflect.fields(o))
-			Reflect.setField(o2, f, Reflect.field(o, f));
+		for (f in Reflect.fields(cast o))
+			Reflect.setField(cast o2, f, Reflect.field(cast o, f));
 		return o2;
 	}
 

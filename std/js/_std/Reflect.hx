@@ -19,31 +19,34 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.runtime.FieldHost;
+
 @:coreApi class Reflect {
 	@:pure
-	public inline static function hasField(o:Dynamic, field:String):Bool {
+	public inline static function hasField(o:FieldHost, field:String):Bool {
 		return js.lib.Object.prototype.hasOwnProperty.call(o, field);
 	}
 
 	@:pure
-	public static function field(o:Dynamic, field:String):Dynamic {
+	public static function field(o:FieldHost, field:String):Dynamic {
 		try
-			return o[cast field]
+			return o.asDynamic()[cast field]
 		catch (e:Dynamic)
 			return null;
 	}
 
-	public inline static function setField(o:Dynamic, field:String, value:Dynamic):Void {
-		o[cast field] = value;
+	public inline static function setField(o:FieldHost, field:String, value:Dynamic):Void {
+		o.asDynamic()[cast field] = value;
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic untyped {
+	public static function getProperty(o:FieldHost, field:String):Dynamic untyped {
 		var tmp;
 		return if (o == null) __define_feature__("Reflect.getProperty",
 			null) else if (o.__properties__ && (tmp = o.__properties__["get_" + field])) o[tmp]() else o[field];
 	}
 
-	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void untyped {
+	public static function setProperty(o:FieldHost, field:String, value:Dynamic):Void untyped {
 		var tmp;
 		if (o.__properties__ && (tmp = o.__properties__["set_" + field]))
 			o[tmp](value)
@@ -55,7 +58,7 @@
 		return (cast func : js.lib.Function).apply(o, args);
 	}
 
-	public static function fields(o:Dynamic):Array<String> {
+	public static function fields(o:FieldHost):Array<String> {
 		var a = [];
 		if (o != null) untyped {
 			var hasOwnProperty = js.lib.Object.prototype.hasOwnProperty;
@@ -93,7 +96,7 @@
 		return v != null && v.__enum__ != null;
 	}
 
-	public static function deleteField(o:Dynamic, field:String):Bool {
+	public static function deleteField(o:FieldHost, field:String):Bool {
 		if (!hasField(o, field))
 			return false;
 		js.Syntax.delete(o, field);
@@ -104,8 +107,8 @@
 		if (o == null)
 			return null;
 		var o2:Dynamic = {};
-		for (f in Reflect.fields(o))
-			Reflect.setField(o2, f, Reflect.field(o, f));
+		for (f in Reflect.fields(cast o))
+			Reflect.setField(cast o2, f, Reflect.field(cast o, f));
 		return o2;
 	}
 
