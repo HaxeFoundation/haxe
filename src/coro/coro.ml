@@ -196,6 +196,7 @@ module ContinuationClassBuilder = struct
 		let ecorocall = map_expr_type ecorocall in
 
 		let field = mk_field "invokeResume" (TFun ([], basic.tany)) null_pos null_pos in
+		add_class_field_flag field CfOverride;
 		let block = mk (TBlock [ Builder.mk_return ecorocall ]) basic.tany null_pos in
 		let func  = TFunction { tf_type = basic.tany; tf_args = []; tf_expr = block } in
 		let expr  = mk (func) basic.tvoid null_pos in
