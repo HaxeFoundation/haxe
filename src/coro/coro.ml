@@ -50,7 +50,7 @@ module ContinuationClassBuilder = struct
 	let create ctx coro_type =
 		let basic = ctx.typer.t in
 		(* Mangle class names to hopefully get unique names and avoid collisions *)
-		let name, cls_captured, params_outside =
+		let name, cf_captured, params_outside =
 			let captured_field_name = "_hx_captured" in
 			match coro_type with
 			| ClassField (cls, field, _, _) ->
@@ -87,12 +87,12 @@ module ContinuationClassBuilder = struct
 
 		cls.cl_super <- Some (basic.tcoro.base_continuation_class, []);
 
-		let cls_completion = PMap.find "_hx_completion" basic.tcoro.base_continuation_class.cl_fields in
-		let cls_context    = PMap.find "_hx_context" basic.tcoro.base_continuation_class.cl_fields in
-		let cls_state      = PMap.find "_hx_state" basic.tcoro.base_continuation_class.cl_fields in
-		let cls_result     = PMap.find "_hx_result" basic.tcoro.base_continuation_class.cl_fields in
-		let cls_error      = PMap.find "_hx_error" basic.tcoro.base_continuation_class.cl_fields in
-		let cls_recursing  = PMap.find "_hx_recursing" basic.tcoro.base_continuation_class.cl_fields in
+		let cf_completion = PMap.find "_hx_completion" basic.tcoro.base_continuation_class.cl_fields in
+		let cf_context    = PMap.find "_hx_context" basic.tcoro.base_continuation_class.cl_fields in
+		let cf_state      = PMap.find "_hx_state" basic.tcoro.base_continuation_class.cl_fields in
+		let cf_result     = PMap.find "_hx_result" basic.tcoro.base_continuation_class.cl_fields in
+		let cf_error      = PMap.find "_hx_error" basic.tcoro.base_continuation_class.cl_fields in
+		let cf_recursing  = PMap.find "_hx_recursing" basic.tcoro.base_continuation_class.cl_fields in
 
 		let param_types_inside = extract_param_types params_inside in
 		let param_types_outside = extract_param_types params_outside in
@@ -110,13 +110,13 @@ module ContinuationClassBuilder = struct
 			};
 			type_param_subst = List.combine params_outside param_types_inside;
 			coro_type  = coro_type;
-			completion = cls_completion;
-			context    = cls_context;
-			state      = cls_state;
-			result     = cls_result;
-			error      = cls_error;
-			recursing  = cls_recursing;
-			captured   = cls_captured;
+			completion = cf_completion;
+			context    = cf_context;
+			state      = cf_state;
+			result     = cf_result;
+			error      = cf_error;
+			recursing  = cf_recursing;
+			captured   = cf_captured;
 		}
 
 	let mk_ctor ctx coro_class initial_state =
