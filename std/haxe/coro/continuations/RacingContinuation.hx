@@ -64,7 +64,7 @@ private class Thread {
 		});
 	}
 
-	@:coroutine public function getOrThrow():RacingContinuation<T> {
+	public function getOrThrow():RacingContinuation<T> {
 		lock.acquire();
 
 		if (assigned) {
