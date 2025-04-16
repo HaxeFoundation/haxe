@@ -451,7 +451,7 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 	let is_eq_op = match op with OpEq | OpNotEq -> true | _ -> false in
 	if is_eq_op then begin match follow e1.etype,follow e2.etype with
 		| TMono _,_ | _,TMono _ ->
-			Type.unify e1.etype e2.etype
+			(try Type.unify e1.etype e2.etype with Unify_error _ -> () (* this will fail later again *));
 		| _ ->
 			()
 	end;
