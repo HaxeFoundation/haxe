@@ -60,7 +60,9 @@ module ContinuationClassBuilder = struct
 				let n = Printf.sprintf "HxCoroAnonFunc_%i" !localFuncCount in
 				localFuncCount := !localFuncCount + 1;
 
-				let t = TFun ([ ("_hx_continuation", false, basic.tcoro.continuation) ], basic.tany) in
+				let args = List.map (fun (v, _) -> (v.v_name, false, v.v_type)) f.tf_args in
+				let t    = TFun (Common.expand_coro_type basic args f.tf_type) in
+
 				n, Some (mk_field captured_field_name t null_pos null_pos), [] (* TODO: need the tvar for params *)
 			in
 
@@ -184,7 +186,7 @@ module ContinuationClassBuilder = struct
 				let efunction      = mk (TField(ecapturedfield,FInstance(cls, [] (* TODO: check *), field))) field.cf_type null_pos in
 				mk (TCall (efunction, args)) basic.tany null_pos
 			| LocalFunc(f,_) ->
-				let args      = [ ethis ] in
+				let args      = (List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type null_pos) f.tf_args) @ [ ethis ] in
 				let captured  = coro_class.captured |> Option.get in
 				let ecapturedfield = this_field captured in
 				mk (TCall (ecapturedfield, args)) basic.tany null_pos
@@ -271,36 +273,14 @@ let fun_to_coro ctx coro_type =
 		Texpr.Builder.resolve_and_make_static_call ctx.typer.com.std "isOfType" [e;type_expr] null_pos
 	in
 
-	let prefix_arg, mapper, vcompletion =
+	let prefix_arg =
 		match coro_class.coro_type with
 		| ClassField (_, field, _, _) when has_class_field_flag field CfStatic ->
-			[], (fun e -> e), vcompletion
+			[]
 		| ClassField _ ->
-			[ mk (TConst TThis) ctx.typer.c.tthis null_pos; ], (fun e -> e), vcompletion
+			[ mk (TConst TThis) ctx.typer.c.tthis null_pos ]
 		| LocalFunc(f,v) ->
-			let vnewcompletion = alloc_var VGenerated "_hx_completion_outer" basic.tcoro.continuation null_pos in
-			let enewcompletion = Builder.make_local vnewcompletion null_pos in
-
-			let tf             = TFun ([ (vcompletion.v_name, false, vcompletion.v_type) ], basic.tany) in
-			let vcorofunc      = alloc_var VGenerated "_hx_coro_func" (basic.tarray tf) null_pos in
-			let ecorofunclocal = Builder.make_local vcorofunc null_pos in
-			let eindex         = mk (TArray (ecorofunclocal, Builder.make_int basic 0 null_pos)) tf null_pos in
-
-			[ eindex ],
-			(fun e ->
-				let null_init = mk (TArrayDecl [ Builder.make_null tf null_pos ]) vcorofunc.v_type null_pos in
-				let evar      = mk (TVar (vcorofunc, Some null_init)) vcorofunc.v_type null_pos in
-				let efunc     = mk (TFunction { tf_args = [ (vcompletion, None) ]; tf_type = basic.tany; tf_expr = e }) tf null_pos in
-				let eassign   = mk_assign eindex efunc in
-
-				let ecall   = mk (TCall (eindex, [ enewcompletion ])) basic.tany null_pos in
-				let ereturn = Builder.mk_return ecall in
-				mk (TBlock [
-					evar;
-					eassign;
-					ereturn;
-				]) basic.tvoid null_pos),
-			vnewcompletion
+			[ Builder.make_local v null_pos ]
 	in
 
 	let continuation_assign =
@@ -332,7 +312,7 @@ let fun_to_coro ctx coro_type =
 			(mk (TConst (TBool true)) basic.tbool null_pos);
 		eloop;
 		Builder.mk_return (Builder.make_null basic.tany null_pos);
-	]) basic.tvoid null_pos |> mapper in
+	]) basic.tvoid null_pos in
 
 	let tf_args = args @ [ (vcompletion,None) ] in
 	let tf_type = basic.tany in
