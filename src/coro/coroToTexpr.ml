@@ -2,16 +2,12 @@ open Globals
 open CoroTypes
 open Type
 open Texpr
+open CoroControl
 
 type coro_state = {
 	cs_id : int;
 	mutable cs_el : texpr list;
 }
-
-type coro_control =
-	| CoroNormal
-	| CoroError
-	| CoroSuspend
 
 let mk_int com i = Texpr.Builder.make_int com.Common.basic i null_pos
 
@@ -24,6 +20,8 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 	in
 
 	let set_state id = mk_assign estate (mk_int com id) in
+
+	let set_control (c : coro_control) = mk_assign econtrol (CoroControl.mk_control com.basic c) in
 
 	let std_is e t =
 		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic null_pos in
@@ -60,7 +58,10 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 		let cls_field = cls_primitive.cl_statics |> PMap.find "suspended" in
 
 		let tcond = std_is ecororesult com.basic.tcoro.primitive in
-		let tif = mk (TReturn (Some (make_static_field cls_primitive cls_field p))) com.basic.tany p in
+		let tif = mk (TBlock [
+			set_control CoroPending;
+			mk (TReturn (Some (make_static_field cls_primitive cls_field p))) com.basic.tany p
+		]) com.basic.tvoid p in
 		let telse = mk_assign eresult ecororesult in
 		[
 			cororesult_var;
@@ -81,8 +82,6 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 	let rec loop cb current_el =
 		assert (cb != ctx.cb_unreachable);
 		let el = DynArray.to_list cb.cb_el in
-
-		let ereturn = mk (TReturn (Some (make_null com.basic.tany p))) com.basic.tany p in
 
 		let add_state next_id extra_el =
 			let el = current_el @ el @ extra_el in
@@ -108,7 +107,8 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 			let ecallcoroutine = mk_suspending_call call in
 			add_state (Some next_state_id) ecallcoroutine;
 		| NextUnknown ->
-			add_state (Some (-1)) [ereturn]
+			let ereturn = mk (TReturn (Some (make_null com.basic.tany p))) com.basic.tany p in
+			add_state (Some (-1)) [set_control CoroReturned; ereturn]
 		| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
 			let rec skip_loop cb =
 				if DynArray.empty cb.cb_el then begin match cb.cb_next.next_kind with
@@ -124,7 +124,7 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 			else
 				skip_loop cb
 		| NextReturnVoid ->
-			add_state (Some (-1)) [ mk (TReturn (Some (make_null com.basic.tany p))) com.basic.tany p ]
+			add_state (Some (-1)) [ set_control CoroReturned; mk (TReturn (Some (make_null com.basic.tany p))) com.basic.tany p ]
 		| NextReturn e ->
 			(* let eresult = match r with
 				| NextReturn e -> e
@@ -132,7 +132,7 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 			in *)
 			(* let ecallcontinuation = mk_continuation_call eresult p in *)
 			(* ecallcontinuation; *)
-			add_state (Some (-1)) [ mk (TReturn (Some e)) com.basic.tany p ]
+			add_state (Some (-1)) [ set_control CoroReturned; mk (TReturn (Some e)) com.basic.tany p ]
 		| NextThrow e1 ->
 			let ethrow = mk (TThrow e1) t_dynamic p in
 			add_state None [ethrow]
