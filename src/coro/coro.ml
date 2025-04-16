@@ -3,6 +3,7 @@ open Type
 open CoroTypes
 open CoroFunctions
 open Texpr
+open ContTypes
 
 let localFuncCount = ref 0
 
@@ -34,12 +35,7 @@ module ContinuationClassBuilder = struct
 		outside : coro_cls;
 		type_param_subst : (typed_type_param * Type.t) list;
 		coro_type : coro_for;
-		completion : tclass_field;
-		context : tclass_field;
-		state : tclass_field;
-		result : tclass_field;
-		error : tclass_field;
-		recursing : tclass_field;
+		continuation_api : ContTypes.continuation_api;
 		(* Some coroutine classes (member functions, local functions) need to capture state, this field stores that *)
 		captured : tclass_field option;
 	}
@@ -87,12 +83,14 @@ module ContinuationClassBuilder = struct
 
 		cls.cl_super <- Some (basic.tcoro.base_continuation_class, []);
 
+		(* TODO: This should be cached on the typer context so we don't have to dig up the fields for every coro *)
 		let cf_completion = PMap.find "_hx_completion" basic.tcoro.base_continuation_class.cl_fields in
 		let cf_context    = PMap.find "_hx_context" basic.tcoro.base_continuation_class.cl_fields in
 		let cf_state      = PMap.find "_hx_state" basic.tcoro.base_continuation_class.cl_fields in
 		let cf_result     = PMap.find "_hx_result" basic.tcoro.base_continuation_class.cl_fields in
 		let cf_error      = PMap.find "_hx_error" basic.tcoro.base_continuation_class.cl_fields in
 		let cf_recursing  = PMap.find "_hx_recursing" basic.tcoro.base_continuation_class.cl_fields in
+		let continuation_api = ContTypes.create_continuation_api cf_completion cf_context cf_state cf_result cf_error cf_recursing in
 
 		let param_types_inside = extract_param_types params_inside in
 		let param_types_outside = extract_param_types params_outside in
@@ -110,12 +108,7 @@ module ContinuationClassBuilder = struct
 			};
 			type_param_subst = List.combine params_outside param_types_inside;
 			coro_type  = coro_type;
-			completion = cf_completion;
-			context    = cf_context;
-			state      = cf_state;
-			result     = cf_result;
-			error      = cf_error;
-			recursing  = cf_recursing;
+			continuation_api;
 			captured   = cf_captured;
 		}
 
@@ -223,6 +216,7 @@ let fun_to_coro ctx coro_type =
 	in
 
 	let coro_class = ContinuationClassBuilder.create ctx coro_type in
+	let cont = coro_class.continuation_api in
 
 	(* Generate and assign the continuation variable *)
 	let vcompletion = alloc_var VGenerated "_hx_completion" basic.tcoro.continuation null_pos in
@@ -235,9 +229,9 @@ let fun_to_coro ctx coro_type =
 		mk (TField(econtinuation,FInstance(coro_class.cls, coro_class.outside.param_types, cf))) t null_pos
 	in
 
-	let estate  = continuation_field coro_class.state basic.tint in
-	let eresult = continuation_field coro_class.result basic.tany in
-	let eerror = continuation_field coro_class.error basic.texception in
+	let estate  = continuation_field cont.state basic.tint in
+	let eresult = continuation_field cont.result basic.tany in
+	let eerror = continuation_field cont.error basic.texception in
 
 	let expr, args, pe =
 		match coro_type with
@@ -314,7 +308,7 @@ let fun_to_coro ctx coro_type =
 		let ecastedcompletion = mk_cast ecompletion t null_pos in
 
 		let tcond =
-			let erecursingfield = mk (TField(ecastedcompletion, FInstance(coro_class.cls, coro_class.outside.param_types, coro_class.recursing))) basic.tbool null_pos in
+			let erecursingfield = mk (TField(ecastedcompletion, FInstance(coro_class.cls, coro_class.outside.param_types, cont.recursing))) basic.tbool null_pos in
 			let estdis          = std_is ecompletion t in
 			let erecursingcheck = mk (TBinop (OpEq, erecursingfield, (mk (TConst (TBool false)) basic.tbool null_pos))) basic.tbool null_pos in
 			mk (TBinop (OpBoolAnd, estdis, erecursingcheck)) basic.tbool null_pos
@@ -333,7 +327,7 @@ let fun_to_coro ctx coro_type =
 		continuation_var;
 		continuation_assign;
 		mk_assign
-			(continuation_field coro_class.recursing basic.tbool)
+			(continuation_field cont.recursing basic.tbool)
 			(mk (TConst (TBool true)) basic.tbool null_pos);
 		eloop;
 		Builder.mk_return (Builder.make_null basic.tany null_pos);

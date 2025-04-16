@@ -15,24 +15,6 @@ type coro_control =
 
 let mk_int com i = Texpr.Builder.make_int com.Common.basic i null_pos
 
-let mk_control com (c : coro_control) = mk_int com (Obj.magic c)
-
-let make_control_switch com e_subject e_normal e_error p =
-	let cases = [{
-		case_patterns = [mk_control com CoroNormal];
-		case_expr = e_normal;
-	}; {
-		case_patterns = [mk_control com CoroError];
-		case_expr = e_error;
-	}] in
-	let switch = {
-		switch_subject = e_subject;
-		switch_cases = cases;
-		switch_default = None;
-		switch_exhaustive = true;
-	} in
-	mk (TSwitch switch) com.basic.tvoid p
-
 let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation ecompletion eresult estate eerror p =
 	let open Texpr.Builder in
 	let com = ctx.typer.com in
