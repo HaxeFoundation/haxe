@@ -231,9 +231,13 @@ let fun_to_coro ctx coro_type =
 	let vcontinuation = alloc_var VGenerated "_hx_continuation" coro_class.outside.cls_t null_pos in
 	let econtinuation = Builder.make_local vcontinuation null_pos in
 
-	let estate  = mk (TField(econtinuation,FInstance(coro_class.cls, coro_class.outside.param_types, coro_class.state))) basic.tint null_pos in
-	let eresult = mk (TField(econtinuation,FInstance(coro_class.cls, coro_class.outside.param_types, coro_class.result))) basic.tany null_pos in
-	let eerror = mk (TField(econtinuation,FInstance(coro_class.cls, coro_class.outside.param_types, coro_class.error))) basic.texception null_pos in
+	let continuation_field cf t =
+		mk (TField(econtinuation,FInstance(coro_class.cls, coro_class.outside.param_types, cf))) t null_pos
+	in
+
+	let estate  = continuation_field coro_class.state basic.tint in
+	let eresult = continuation_field coro_class.result basic.tany in
+	let eerror = continuation_field coro_class.error basic.texception in
 
 	let expr, args, pe =
 		match coro_type with
@@ -329,7 +333,7 @@ let fun_to_coro ctx coro_type =
 		continuation_var;
 		continuation_assign;
 		mk_assign
-			(mk (TField(econtinuation, FInstance(coro_class.cls, coro_class.outside.param_types, coro_class.recursing))) basic.tbool null_pos)
+			(continuation_field coro_class.recursing basic.tbool)
 			(mk (TConst (TBool true)) basic.tbool null_pos);
 		eloop;
 		Builder.mk_return (Builder.make_null basic.tany null_pos);
