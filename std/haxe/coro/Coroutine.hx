@@ -38,8 +38,6 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 		final cont = new BlockingContinuation(loop, new EventLoopScheduler(loop));
 		final result = f(cont);
 
-		trace(result);
-
 		return switch (result._hx_control) {
 			case Pending:
 				cast cont.wait();
