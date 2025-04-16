@@ -472,12 +472,16 @@ and build_state =
 
 exception Type_exception of t
 
+(* TODO: Most of this can probably be moved to the typer context
+   with lazy initialization from the coro code. *)
 type coro_types = {
 	mutable tcoro : (string * bool * t) list -> t -> t;
 	mutable continuation : t;
 	mutable continuation_class : tclass;
 	mutable base_continuation : t;
 	mutable base_continuation_class : tclass;
+	mutable continuation_result : t;
+	mutable continuation_result_class : tclass;
 	mutable primitive : t;
 	mutable context : t;
 	mutable scheduler : t;

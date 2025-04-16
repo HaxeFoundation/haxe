@@ -2,16 +2,12 @@ package haxe.coro;
 
 import haxe.Exception;
 
-abstract class BaseContinuation implements IContinuation<Any> {
+abstract class BaseContinuation extends ContinuationResult implements IContinuation<Any> {
     public final _hx_completion:IContinuation<Any>;
 
 	public final _hx_context:CoroutineContext;
 
     public var _hx_state:Int;
-
-    public var _hx_result:Any;
-
-    public var _hx_error:Exception;
 
     public var _hx_recursing:Bool;
 

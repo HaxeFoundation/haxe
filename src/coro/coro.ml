@@ -87,9 +87,9 @@ module ContinuationClassBuilder = struct
 		let cf_completion = PMap.find "_hx_completion" basic.tcoro.base_continuation_class.cl_fields in
 		let cf_context    = PMap.find "_hx_context" basic.tcoro.base_continuation_class.cl_fields in
 		let cf_state      = PMap.find "_hx_state" basic.tcoro.base_continuation_class.cl_fields in
-		let cf_result     = PMap.find "_hx_result" basic.tcoro.base_continuation_class.cl_fields in
-		let cf_error      = PMap.find "_hx_error" basic.tcoro.base_continuation_class.cl_fields in
 		let cf_recursing  = PMap.find "_hx_recursing" basic.tcoro.base_continuation_class.cl_fields in
+		let cf_result     = PMap.find "_hx_result" basic.tcoro.continuation_result_class.cl_fields in
+		let cf_error      = PMap.find "_hx_error" basic.tcoro.continuation_result_class.cl_fields in
 		let continuation_api = ContTypes.create_continuation_api cf_completion cf_context cf_state cf_result cf_error cf_recursing in
 
 		let param_types_inside = extract_param_types params_inside in
