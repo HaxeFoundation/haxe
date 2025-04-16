@@ -16,7 +16,7 @@ class TestBasic extends utest.Test {
 		@:coroutine function propagate() {
 			error();
 		}
-		
+
 		Assert.raises(() -> Coroutine.run(propagate), String);
 	}
 

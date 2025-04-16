@@ -178,13 +178,6 @@ let load_coro ctx =
 		| _ ->
 			()
 	) m.m_types;
-	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"Primitive") null_pos in
-	List.iter (function
-		| TClassDecl({ cl_path = (["haxe";"coro"], "Primitive") } as cl) ->
-			ctx.t.tcoro.primitive <- TInst(cl, [])
-		| _ ->
-			()
-	) m.m_types;
 	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"CoroutineContext") null_pos in
 	List.iter (function
 		| TClassDecl({ cl_path = (["haxe";"coro"], "CoroutineContext") } as cl) ->

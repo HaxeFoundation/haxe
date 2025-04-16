@@ -768,7 +768,6 @@ let create timer_ctx compilation_step cs version args display_mode =
 				continuation_result = mk_mono();
 				continuation_result_class = null_class;
 				control = mk_mono();
-				primitive = mk_mono();
 				context = mk_mono();
 				scheduler = mk_mono();
 			}
@@ -912,7 +911,6 @@ let clone com is_macro_context =
 				continuation_result = mk_mono();
 				continuation_result_class = null_class;
 				control = mk_mono();
-				primitive = mk_mono();
 				context = mk_mono();
 				scheduler = mk_mono();
 			};

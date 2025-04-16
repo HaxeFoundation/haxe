@@ -28,16 +28,12 @@ private class Thread {
 }
 #end
 
-@:coreApi class RacingContinuation<T> implements IContinuation<T> {
+@:coreApi class RacingContinuation<T> extends ContinuationResult implements IContinuation<T> {
 	final _hx_completion:IContinuation<Any>;
 
 	final lock:Mutex;
 
 	var assigned:Bool;
-
-	var _hx_result:Any;
-
-	var _hx_error:Any;
 
 	public final _hx_context:CoroutineContext;
 
@@ -68,7 +64,7 @@ private class Thread {
 		});
 	}
 
-	public function getOrThrow():Any {
+	public function getOrThrow():RacingContinuation<T> {
 		lock.acquire();
 
 		if (assigned) {
@@ -76,21 +72,18 @@ private class Thread {
 				final tmp = _hx_error;
 
 				lock.release();
-
+				// TODO: _hx_control = Thrown once we support it
 				throw tmp;
 			}
 
-			final tmp = _hx_result;
+			_hx_control = Returned;
 
 			lock.release();
-
-			return tmp;
+		} else {
+			assigned = true;
+			_hx_control = Pending;
+			lock.release();
 		}
-
-		assigned = true;
-
-		lock.release();
-
-		return haxe.coro.Primitive.suspended;
+		return this;
 	}
 }
