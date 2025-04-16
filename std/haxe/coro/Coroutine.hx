@@ -33,15 +33,18 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 		});
 	}
 
-	public static function run<T>(f:Coroutine<() -> T>):T {
+	public static function run<T>(f:Coroutine<() -> ContinuationResult>):T {
 		final loop = new EventLoop();
 		final cont = new BlockingContinuation(loop, new EventLoopScheduler(loop));
 		final result = f(cont);
 
-		return if (result is Primitive) {
-			cast cont.wait();
-		} else {
-			cast result;
+		trace(result);
+
+		return switch (result._hx_control) {
+			case Pending:
+				cast cont.wait();
+			case _:
+				cast result._hx_result;
 		}
 	}
 }

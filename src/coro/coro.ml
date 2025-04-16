@@ -170,6 +170,7 @@ module ContinuationClassBuilder = struct
 
 	let mk_invoke_resume ctx coro_class =
 		let basic     = ctx.typer.t in
+		let tret_invoke_resume = basic.tcoro.continuation_result in (* TODO: This could be the inner class maybe *)
 		let ethis     = mk (TConst TThis) coro_class.inside.cls_t null_pos in
 		let ecorocall =
 			let this_field cf =
@@ -179,18 +180,18 @@ module ContinuationClassBuilder = struct
 			| ClassField (cls, field, f, _) when has_class_field_flag field CfStatic ->
 				let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type null_pos)) @ [ ethis ] in
 				let efunction = Builder.make_static_field cls field null_pos in
-				mk (TCall (efunction, args)) basic.tany null_pos
+				mk (TCall (efunction, args)) tret_invoke_resume null_pos
 			| ClassField (cls, field,f, _) ->
 				let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type null_pos)) @ [ ethis ] in
 				let captured  = coro_class.captured |> Option.get in
 				let ecapturedfield = this_field captured in
 				let efunction      = mk (TField(ecapturedfield,FInstance(cls, [] (* TODO: check *), field))) field.cf_type null_pos in
-				mk (TCall (efunction, args)) basic.tany null_pos
+				mk (TCall (efunction, args)) tret_invoke_resume null_pos
 			| LocalFunc(f,_) ->
 				let args      = (List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type null_pos) f.tf_args) @ [ ethis ] in
 				let captured  = coro_class.captured |> Option.get in
 				let ecapturedfield = this_field captured in
-				mk (TCall (ecapturedfield, args)) basic.tany null_pos
+				mk (TCall (ecapturedfield, args)) tret_invoke_resume null_pos
 		in
 		(* TODO: this is awkward, it would be better to avoid the entire expression and work with the correct types right away *)
 		let rec map_expr_type e =
@@ -198,10 +199,10 @@ module ContinuationClassBuilder = struct
 		in
 		let ecorocall = map_expr_type ecorocall in
 
-		let field = mk_field "invokeResume" (TFun ([], basic.tany)) null_pos null_pos in
+		let field = mk_field "invokeResume" (TFun ([], tret_invoke_resume)) null_pos null_pos in
 		add_class_field_flag field CfOverride;
-		let block = mk (TBlock [ Builder.mk_return ecorocall ]) basic.tany null_pos in
-		let func  = TFunction { tf_type = basic.tany; tf_args = []; tf_expr = block } in
+		let block = mk (TBlock [ Builder.mk_return ecorocall ]) tret_invoke_resume null_pos in
+		let func  = TFunction { tf_type = tret_invoke_resume; tf_args = []; tf_expr = block } in
 		let expr  = mk (func) basic.tvoid null_pos in
 		field.cf_expr <- Some expr;
 		field.cf_kind <- Method MethNormal;
@@ -249,7 +250,7 @@ let fun_to_coro ctx coro_type =
 	let cb_root = make_block ctx (Some(expr.etype, null_pos)) in
 
 	ignore(CoroFromTexpr.expr_to_coro ctx eresult cb_root expr);
-	let eloop, eif_error, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root coro_class.cls args [ vcompletion.v_id; vcontinuation.v_id ] econtinuation ecompletion econtrol eresult estate eerror null_pos in
+	let eloop, eif_error, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls args [ vcompletion.v_id; vcontinuation.v_id ] econtinuation ecompletion econtrol eresult estate eerror null_pos in
 	(* update cf_type to use inside type parameters *)
 	List.iter (fun cf ->
 		cf.cf_type <- substitute_type_params coro_class.type_param_subst cf.cf_type;
@@ -317,12 +318,12 @@ let fun_to_coro ctx coro_type =
 	]) basic.tvoid null_pos in
 
 	let tf_args = args @ [ (vcompletion,None) ] in
-	let tf_type = basic.tany in
+	let tf_type = coro_class.outside.cls_t in
 	if ctx.coro_debug then begin
 		print_endline ("BEFORE:\n" ^ (s_expr_debug expr));
 		CoroDebug.create_dotgraph (DotGraph.get_dump_path (SafeCom.of_com ctx.typer.com) (* TODO: stupid *) ([],pe.pfile) (Printf.sprintf "pos_%i" pe.pmin)) cb_root
 	end;
-	let e = mk (TFunction {tf_args; tf_expr; tf_type}) (TFun (tf_args |> List.map (fun (v, _) -> (v.v_name, false, v.v_type)), basic.tany)) pe in
+	let e = mk (TFunction {tf_args; tf_expr; tf_type}) (TFun (tf_args |> List.map (fun (v, _) -> (v.v_name, false, v.v_type)), coro_class.outside.cls_t)) pe in
 	if ctx.coro_debug then print_endline ("AFTER:\n" ^ (s_expr_debug e));
 	e
 

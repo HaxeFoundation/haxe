@@ -29,9 +29,11 @@ abstract class BaseContinuation extends ContinuationResult implements IContinuat
                 _hx_recursing = false;
 
                 final result = invokeResume();
-                if (result is Primitive) {
-                    return;
-                }
+                switch (result._hx_control) {
+					case Pending:
+						return;
+					case Returned | Thrown:
+				}
 
                 _hx_completion.resume(result, null);
             }
@@ -41,5 +43,5 @@ abstract class BaseContinuation extends ContinuationResult implements IContinuat
         });
     }
 
-    abstract function invokeResume():Any;
+    abstract function invokeResume():ContinuationResult;
 }

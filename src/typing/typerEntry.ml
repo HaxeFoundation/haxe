@@ -140,7 +140,8 @@ let load_coro ctx =
 	List.iter (function
 		| TAbstractDecl({a_path = (["haxe";"coro"],"Coroutine")} as a) ->
 			let mk_coro args ret =
-				TAbstract(a,[TFun(args,ret)])
+				(* TODO: this loses ret because we have no type parameters on ContinuationResult yet*)
+				TAbstract(a,[TFun(args,ctx.t.tcoro.continuation_result)])
 			in
 			ctx.t.tcoro.tcoro <- mk_coro
 		| _ ->
@@ -165,7 +166,7 @@ let load_coro ctx =
 	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"ContinuationResult") null_pos in
 	List.iter (function
 		| TClassDecl({ cl_path = (["haxe";"coro"], "ContinuationResult") } as cl) ->
-			ctx.t.tcoro.continuation_result <- TInst(cl, [ ctx.t.tany ]);
+			ctx.t.tcoro.continuation_result <- TInst(cl, [ ]);
 			ctx.t.tcoro.continuation_result_class <- cl;
 		| _ ->
 			()

@@ -11,9 +11,13 @@ type coro_state = {
 
 let mk_int com i = Texpr.Builder.make_int com.Common.basic i null_pos
 
-let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation ecompletion econtrol eresult estate eerror p = (* TODO: this arg list is awful *)
+let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars econtinuation ecompletion econtrol eresult estate eerror p = (* TODO: this arg list is awful *)
 	let open Texpr.Builder in
 	let com = ctx.typer.com in
+
+	let assign lhs rhs =
+		mk (TBinop(OpAssign,lhs,rhs)) lhs.etype null_pos
+	in
 
 	let mk_assign estate eid =
 		mk (TBinop (OpAssign,estate,eid)) eid.etype null_pos
@@ -28,6 +32,12 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 		Texpr.Builder.resolve_and_make_static_call com.std "isOfType" [e;type_expr] p
 	in
 
+	let base_continuation_field_on e cf =
+		mk (TField(e,FInstance(com.basic.tcoro.continuation_result_class, [] (* TODO: once we have them *), cf))) cf.cf_type null_pos
+	in
+
+	let ereturn = mk (TReturn (Some econtinuation)) econtinuation.etype p in
+
 	let cb_uncaught = CoroFunctions.make_block ctx None in
 	let mk_suspending_call call =
 		let p = call.cs_pos in
@@ -37,35 +47,29 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 		let tfun = match follow_with_coro call.cs_fun.etype with
 			| Coro (args, ret) ->
 				let args,ret = Common.expand_coro_type com.basic args ret in
-				TFun (args, com.basic.tany)
+				TFun (args, ret)
 			| NotCoro _ ->
 				die "Unexpected coroutine type" __LOC__
 		in
 		let efun = { call.cs_fun with etype = tfun } in
 		let args = call.cs_args @ [ econtinuation ] in
-		let ecreatecoroutine = mk (TCall (efun, args)) com.basic.tany call.cs_pos in
+		let ecreatecoroutine = mk (TCall (efun, args)) com.basic.tcoro.continuation_result call.cs_pos in
 
-		let vcororesult = alloc_var VGenerated "_hx_tmp" com.basic.tany p in
+		let vcororesult = alloc_var VGenerated "_hx_tmp" com.basic.tcoro.continuation_result p in
 		let ecororesult = make_local vcororesult p in
 		let cororesult_var = mk (TVar (vcororesult, (Some ecreatecoroutine))) com.basic.tany p in
 
-		let cls_primitive =
-			match com.basic.tcoro.primitive with
-			| TInst (cls, _) -> cls
-			| _ -> die "Unexpected coroutine primitive type" __LOC__
-			in
-
-		let cls_field = cls_primitive.cl_statics |> PMap.find "suspended" in
-
-		let tcond = std_is ecororesult com.basic.tcoro.primitive in
-		let tif = mk (TBlock [
+		let esubject = base_continuation_field_on ecororesult cont.ContTypes.control in
+		let esuspended = mk (TBlock [
 			set_control CoroPending;
-			mk (TReturn (Some (make_static_field cls_primitive cls_field p))) com.basic.tany p
+			ereturn;
 		]) com.basic.tvoid p in
-		let telse = mk_assign eresult ecororesult in
+		let ereturned = assign (base_continuation_field_on econtinuation cont.ContTypes.result) (base_continuation_field_on ecororesult cont.ContTypes.result) in
+		let edoesnthappenyet = ereturn in
+		let econtrol_switch = CoroControl.make_control_switch com.basic esubject esuspended ereturned edoesnthappenyet p in
 		[
 			cororesult_var;
-			mk (TIf (tcond, tif, Some telse)) com.basic.tvoid p
+			econtrol_switch;
 		]
 	in
 
@@ -107,7 +111,6 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 			let ecallcoroutine = mk_suspending_call call in
 			add_state (Some next_state_id) ecallcoroutine;
 		| NextUnknown ->
-			let ereturn = mk (TReturn (Some (make_null com.basic.tany p))) com.basic.tany p in
 			add_state (Some (-1)) [set_control CoroReturned; ereturn]
 		| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
 			let rec skip_loop cb =
@@ -124,15 +127,9 @@ let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation eco
 			else
 				skip_loop cb
 		| NextReturnVoid ->
-			add_state (Some (-1)) [ set_control CoroReturned; mk (TReturn (Some (make_null com.basic.tany p))) com.basic.tany p ]
+			add_state (Some (-1)) [ set_control CoroReturned; ereturn ]
 		| NextReturn e ->
-			(* let eresult = match r with
-				| NextReturn e -> e
-				| _ -> make_null t_dynamic p
-			in *)
-			(* let ecallcontinuation = mk_continuation_call eresult p in *)
-			(* ecallcontinuation; *)
-			add_state (Some (-1)) [ set_control CoroReturned; mk (TReturn (Some e)) com.basic.tany p ]
+			add_state (Some (-1)) [ set_control CoroReturned; assign eresult e; ereturn ]
 		| NextThrow e1 ->
 			let ethrow = mk (TThrow e1) t_dynamic p in
 			add_state None [ethrow]

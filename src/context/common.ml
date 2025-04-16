@@ -1128,7 +1128,7 @@ let get_entry_point com =
 
 let expand_coro_type basic args ret =
 	let args = args @ [("_hx_continuation",false,basic.tcoro.continuation)] in
-	(args,basic.tany)
+	(args,basic.tcoro.continuation_result)
 
 let make_unforced_lazy t_proc f where =
 	let r = ref (lazy_available t_dynamic) in
