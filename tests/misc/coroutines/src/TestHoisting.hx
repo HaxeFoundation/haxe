@@ -46,7 +46,7 @@ class TestHoisting extends utest.Test {
         Assert.equals(7, Coroutine.run(() -> {
             @:coroutine function foo(v:Int) {
                 yield();
-
+        
                 return v;
             }
 
@@ -89,30 +89,30 @@ class TestHoisting extends utest.Test {
     function testCapturingLocal() {
         var i = 0;
 
-        // Coroutine.run(() -> {
-        //     i = 7;
-        //     yield();
-        //     i *= 2;
-        // });
+        Coroutine.run(() -> {
+            i = 7;
+            yield();
+            i *= 2;
+        });
 
         Assert.equals(14, i);
     }
 
-    // function testMultiHoisting() {
-    //     Assert.equals(14, Coroutine.run(() -> {
+    function testMultiHoisting() {
+        Assert.equals(14, Coroutine.run(() -> {
 
-    //         var i = 0;
+            var i = 0;
+            
+            @:coroutine function foo() {
+                yield();
 
-    //         @:coroutine function foo() {
-    //             yield();
+                i = 7;
+            }
 
-    //             i = 7;
-    //         }
+            foo();
 
-    //         foo();
+            return i * 2;
 
-    //         return i * 2;
-
-    //     }));
-    // }
+        }));
+    }
 }

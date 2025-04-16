@@ -33,7 +33,7 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 		});
 	}
 
-	public static function run<T>(f:Coroutine<() -> ContinuationResult>):T {
+	public static function run<T>(f:Coroutine<() -> T>):T {
 		final loop = new EventLoop();
 		final cont = new BlockingContinuation(loop, new EventLoopScheduler(loop));
 		final result = f(cont);
