@@ -8,7 +8,7 @@ open ContTypes
 let localFuncCount = ref 0
 
 type coro_for =
-	| LocalFunc of tfunc
+	| LocalFunc of tfunc * tvar
 	| ClassField of tclass * tclass_field * tfunc * pos (* expr pos *)
 
 type coro_cls = {
@@ -56,7 +56,7 @@ module ContinuationClassBuilder = struct
 				else
 					Some (mk_field captured_field_name ctx.typer.c.tthis null_pos null_pos)),
 				field.cf_params
-			| LocalFunc f ->
+			| LocalFunc(f,_) ->
 				let n = Printf.sprintf "HxCoroAnonFunc_%i" !localFuncCount in
 				localFuncCount := !localFuncCount + 1;
 
@@ -183,7 +183,7 @@ module ContinuationClassBuilder = struct
 				let ecapturedfield = this_field captured in
 				let efunction      = mk (TField(ecapturedfield,FInstance(cls, [] (* TODO: check *), field))) field.cf_type null_pos in
 				mk (TCall (efunction, args)) basic.tany null_pos
-			| LocalFunc f ->
+			| LocalFunc(f,_) ->
 				let args      = [ ethis ] in
 				let captured  = coro_class.captured |> Option.get in
 				let ecapturedfield = this_field captured in
@@ -237,7 +237,7 @@ let fun_to_coro ctx coro_type =
 		match coro_type with
 		| ClassField (_, cf, f, p) ->
 			f.tf_expr, f.tf_args, p
-		| LocalFunc f ->
+		| LocalFunc(f,_) ->
 			f.tf_expr, f.tf_args, f.tf_expr.epos
 		in
 
@@ -276,7 +276,7 @@ let fun_to_coro ctx coro_type =
 			[], (fun e -> e), vcompletion
 		| ClassField _ ->
 			[ mk (TConst TThis) ctx.typer.c.tthis null_pos; ], (fun e -> e), vcompletion
-		| LocalFunc f ->
+		| LocalFunc(f,v) ->
 			let vnewcompletion = alloc_var VGenerated "_hx_completion_outer" basic.tcoro.continuation null_pos in
 			let enewcompletion = Builder.make_local vnewcompletion null_pos in
 
