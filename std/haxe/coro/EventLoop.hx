@@ -1,8 +1,12 @@
 package haxe.coro;
 
+#if (target.threaded && !cppia)
 import sys.thread.EventLoop;
-
 private typedef EventLoopImpl = sys.thread.EventLoop;
+#else
+import haxe.coro.EventLoopImpl;
+private typedef EventLoopImpl = haxe.coro.EventLoopImpl;
+#end
 
 @:coreApi abstract EventLoop(EventLoopImpl) {
     public function new() {

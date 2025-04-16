@@ -1,6 +1,32 @@
 package haxe.coro.continuations;
 
+#if (target.threaded && !cppia)
+import sys.thread.Lock;
 import sys.thread.Mutex;
+import sys.thread.Thread;
+#else
+private class Lock {
+	public function new() {}
+
+	public inline function release() {}
+
+	public inline function wait(?t:Float) {}
+}
+
+private class Mutex {
+	public function new() {}
+
+	public inline function acquire() {}
+
+	public inline function release() {}
+}
+
+private class Thread {
+	public static function create(f:Void->Void) {
+		f();
+	}
+}
+#end
 
 @:coreApi class RacingContinuation<T> implements IContinuation<T> {
 	final _hx_completion:IContinuation<Any>;
