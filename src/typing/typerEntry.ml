@@ -170,6 +170,13 @@ let load_coro ctx =
 		| _ ->
 			()
 	) m.m_types;
+	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"CoroutineControl") null_pos in
+	List.iter (function
+		| TAbstractDecl({a_path = (["haxe";"coro"],"CoroutineControl")} as a) ->
+			ctx.t.tcoro.control <- TAbstract(a,[])
+		| _ ->
+			()
+	) m.m_types;
 	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"Primitive") null_pos in
 	List.iter (function
 		| TClassDecl({ cl_path = (["haxe";"coro"], "Primitive") } as cl) ->

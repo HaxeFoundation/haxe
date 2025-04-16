@@ -482,6 +482,7 @@ type coro_types = {
 	mutable base_continuation_class : tclass;
 	mutable continuation_result : t;
 	mutable continuation_result_class : tclass;
+	mutable control : t;
 	mutable primitive : t;
 	mutable context : t;
 	mutable scheduler : t;

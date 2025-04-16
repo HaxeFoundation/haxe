@@ -15,7 +15,7 @@ type coro_control =
 
 let mk_int com i = Texpr.Builder.make_int com.Common.basic i null_pos
 
-let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation ecompletion eresult estate eerror p =
+let block_to_texpr_coroutine ctx cb cls tf_args forbidden_vars econtinuation ecompletion econtrol eresult estate eerror p = (* TODO: this arg list is awful *)
 	let open Texpr.Builder in
 	let com = ctx.typer.com in
 

@@ -84,13 +84,14 @@ module ContinuationClassBuilder = struct
 		cls.cl_super <- Some (basic.tcoro.base_continuation_class, []);
 
 		(* TODO: This should be cached on the typer context so we don't have to dig up the fields for every coro *)
+		let cf_control    = PMap.find "_hx_control" basic.tcoro.continuation_result_class.cl_fields in
+		let cf_result     = PMap.find "_hx_result" basic.tcoro.continuation_result_class.cl_fields in
+		let cf_error      = PMap.find "_hx_error" basic.tcoro.continuation_result_class.cl_fields in
 		let cf_completion = PMap.find "_hx_completion" basic.tcoro.base_continuation_class.cl_fields in
 		let cf_context    = PMap.find "_hx_context" basic.tcoro.base_continuation_class.cl_fields in
 		let cf_state      = PMap.find "_hx_state" basic.tcoro.base_continuation_class.cl_fields in
 		let cf_recursing  = PMap.find "_hx_recursing" basic.tcoro.base_continuation_class.cl_fields in
-		let cf_result     = PMap.find "_hx_result" basic.tcoro.continuation_result_class.cl_fields in
-		let cf_error      = PMap.find "_hx_error" basic.tcoro.continuation_result_class.cl_fields in
-		let continuation_api = ContTypes.create_continuation_api cf_completion cf_context cf_state cf_result cf_error cf_recursing in
+		let continuation_api = ContTypes.create_continuation_api cf_control cf_result cf_error cf_completion cf_context cf_state cf_recursing in
 
 		let param_types_inside = extract_param_types params_inside in
 		let param_types_outside = extract_param_types params_outside in
@@ -231,6 +232,7 @@ let fun_to_coro ctx coro_type =
 	in
 
 	let estate  = continuation_field cont.state basic.tint in
+	let econtrol = continuation_field cont.control basic.tcoro.control in
 	let eresult = continuation_field cont.result basic.tany in
 	let eerror = continuation_field cont.error basic.texception in
 
@@ -245,7 +247,7 @@ let fun_to_coro ctx coro_type =
 	let cb_root = make_block ctx (Some(expr.etype, null_pos)) in
 
 	ignore(CoroFromTexpr.expr_to_coro ctx eresult cb_root expr);
-	let eloop, eif_error, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root coro_class.cls args [ vcompletion.v_id; vcontinuation.v_id ] econtinuation ecompletion eresult estate eerror null_pos in
+	let eloop, eif_error, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root coro_class.cls args [ vcompletion.v_id; vcontinuation.v_id ] econtinuation ecompletion econtrol eresult estate eerror null_pos in
 	(* update cf_type to use inside type parameters *)
 	List.iter (fun cf ->
 		cf.cf_type <- substitute_type_params coro_class.type_param_subst cf.cf_type;
