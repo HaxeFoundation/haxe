@@ -831,8 +831,8 @@ let generate_managed_class base_ctx tcpp_class =
     output_cpp "#endif\n\n");
 
   let generate_script_function isStatic field scriptName callName =
-    match follow field.cf_type with
-    | TFun (args, return_type) when not (is_data_member field) ->
+    if not (is_data_member field) then
+      let gen (args, return_type) =
         let isTemplated = not isStatic in
         if isTemplated then output_cpp "\ntemplate<bool _HX_SUPER=false>";
         output_cpp
@@ -880,43 +880,51 @@ let generate_managed_class base_ctx tcpp_class =
         if ret <> "v" then output_cpp ")";
         output_cpp ";\n}\n";
         signature
-    | _ -> ""
+      in
+      match follow_with_coro field.cf_type with
+      | Coro (args, return) -> Common.expand_coro_type ctx.ctx_common.basic args return |> gen
+      | NotCoro TFun (args, return) -> gen (args, return)
+      | _ -> ""
+    else
+      ""
   in
 
   if scriptable then (
     let dump_script_func idx func =
-      match func.tcf_field.cf_type with
-      | TFun (f_args, _) ->
-        let args = print_tfun_arg_list true f_args in
-        let return_type = type_to_string func.tcf_func.tf_type in
-        let ret = if return_type = "Void" || return_type = "void" then " " else "return " in
-        let vtable = Printf.sprintf "__scriptVTable[%i]" (idx + 1) in
+      let f_args =
+        match follow_with_coro func.tcf_field.cf_type with
+        | Coro (args, return) -> Common.expand_coro_type ctx.ctx_common.basic args return |> fst
+        | NotCoro TFun (args, _) -> args
+        | _ -> abort "expected function type to be tfun" func.tcf_field.cf_pos
+      in
+      let args = print_tfun_arg_list true f_args in
+      let return_type = type_to_string func.tcf_func.tf_type in
+      let ret = if return_type = "Void" || return_type = "void" then " " else "return " in
+      let vtable = Printf.sprintf "__scriptVTable[%i]" (idx + 1) in
 
-        Printf.sprintf "\t%s %s(%s) {\n" return_type func.tcf_name args |> output_cpp;
-        Printf.sprintf ("\tif (%s) {\n") vtable |> output_cpp;
-        output_cpp "\t\t::hx::CppiaCtx *__ctx = ::hx::CppiaCtx::getCurrent();\n";
-        output_cpp "\t\t::hx::AutoStack __as(__ctx);\n";
-        output_cpp ("\t\t__ctx->pushObject( this );\n");
+      Printf.sprintf "\t%s %s(%s) {\n" return_type func.tcf_name args |> output_cpp;
+      Printf.sprintf ("\tif (%s) {\n") vtable |> output_cpp;
+      output_cpp "\t\t::hx::CppiaCtx *__ctx = ::hx::CppiaCtx::getCurrent();\n";
+      output_cpp "\t\t::hx::AutoStack __as(__ctx);\n";
+      output_cpp ("\t\t__ctx->pushObject( this );\n");
 
-        List.iter
-          (fun (name, opt, t) ->
-            Printf.sprintf "\t\t__ctx->push%s(%s);\n" (CppCppia.script_type t opt) (keyword_remap name) |> output_cpp)
-        f_args;
+      List.iter
+        (fun (name, opt, t) ->
+          Printf.sprintf "\t\t__ctx->push%s(%s);\n" (CppCppia.script_type t opt) (keyword_remap name) |> output_cpp)
+      f_args;
 
-        output_cpp
-          ("\t\t" ^ ret ^ "__ctx->run" ^ CppCppia.script_type func.tcf_func.tf_type false ^ "(" ^ vtable ^ ");\n");
-        output_cpp ("\t}  else " ^ ret);
+      output_cpp
+        ("\t\t" ^ ret ^ "__ctx->run" ^ CppCppia.script_type func.tcf_func.tf_type false ^ "(" ^ vtable ^ ");\n");
+      output_cpp ("\t}  else " ^ ret);
 
-        let names = List.map (fun (n, _, _) -> keyword_remap n) f_args in
+      let names = List.map (fun (n, _, _) -> keyword_remap n) f_args in
 
-        output_cpp
-          (class_name ^ "::" ^ func.tcf_name ^ "(" ^ String.concat "," names ^ ");");
+      output_cpp
+        (class_name ^ "::" ^ func.tcf_name ^ "(" ^ String.concat "," names ^ ");");
 
-        if return_type <> "void" then output_cpp "return null();";
+      if return_type <> "void" then output_cpp "return null();";
 
-        output_cpp "}\n";
-      | _ ->
-        abort "expected function type to be tfun" func.tcf_field.cf_pos
+      output_cpp "}\n"
     in
 
     let script_name = class_name ^ "__scriptable" in
