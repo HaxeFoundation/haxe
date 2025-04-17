@@ -170,9 +170,6 @@ let expr_to_coro ctx eresult cb_root e =
 			let cb_ret,e1 = loop_assign cb ret e1 in
 			terminate cb_ret (NextReturn e1) e.etype e.epos;
 			ctx.cb_unreachable,e_no_value
-		| TThrow {eexpr = TReturn None} ->
-			terminate cb NextExit e.etype e.epos;
-			ctx.cb_unreachable,e_no_value
 		| TThrow e1 ->
 			let f_terminate cb e1 =
 				terminate cb (NextThrow e1) e.etype e.epos;

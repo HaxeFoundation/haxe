@@ -14,7 +14,6 @@ and coro_next_kind =
 	| NextSub of coro_block * coro_block
 	| NextReturnVoid
 	| NextReturn of texpr
-	| NextExit (* like return but doesn't update control state *)
 	| NextThrow of texpr
 	| NextIfThen of texpr * coro_block * coro_block
 	| NextIfThenElse of texpr * coro_block * coro_block * coro_block

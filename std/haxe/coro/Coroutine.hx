@@ -5,19 +5,29 @@ import haxe.coro.schedulers.EventLoopScheduler;
 import haxe.coro.continuations.RacingContinuation;
 import haxe.coro.continuations.BlockingContinuation;
 
+private class CoroSuspend extends haxe.coro.BaseContinuation {
+	public function new(completion:haxe.coro.IContinuation<Any>) {
+		super(completion, 1);
+	}
+
+	public function invokeResume() {
+		return Coroutine.suspend(null, this);
+	}
+}
+
 /**
 	Coroutine function.
 **/
 @:callable
 @:coreType
 abstract Coroutine<T:haxe.Constraints.Function> {
-	@:coroutine public static function suspend<T>(func:(IContinuation<Any>) -> Void) {
-		final inputCont = haxe.coro.Intrinsics.currentContinuation();
-		final outputCont = haxe.coro.Intrinsics.outputContinuation();
-		final safe = new RacingContinuation(inputCont, outputCont);
+	@:coroutine @:coroutine.transformed
+	public static function suspend<T>(func:haxe.coro.IContinuation<Any>->Void, _hx_completion:haxe.coro.IContinuation<Any>):T {
+		var _hx_continuation = new CoroSuspend(_hx_completion);
+		var safe = new haxe.coro.continuations.RacingContinuation(_hx_completion, _hx_continuation);
 		func(safe);
 		safe.resolve();
-		throw return;
+		return cast _hx_continuation;
 	}
 
 	@:coroutine public static function delay(ms:Int):Void {

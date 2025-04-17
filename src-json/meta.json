@@ -149,6 +149,12 @@
 		"targets": ["TClassField"]
 	},
 	{
+		"name": "CoroutineTransformed",
+		"metadata": ":coroutine.transformed",
+		"doc": "Marks a field as being a coroutine that has already been transformed",
+		"targets": ["TClassField"]
+	},
+	{
 		"name": "CppFileCode",
 		"metadata": ":cppFileCode",
 		"doc": "Code to be injected into generated cpp file.",
