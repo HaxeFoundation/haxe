@@ -307,15 +307,6 @@ abstract BigInt(BigInt_) {
 		return BigIntArithmetic.compare(a, b) >= 0;
 	}
 
-	// String conversions
-	@:op(A + B) @:noCompletion @:noDoc public static inline function toStr_left(a:String, b:BigInt):String {
-		return a + b.toString();
-	}
-
-	@:op(A + B) @:noCompletion @:noDoc public static inline function toStr_right(a:BigInt, b:String):String {
-		return a.toString() + b;
-	}
-
 	// Binary addition
 	@:commutative @:op(A + B) @:noCompletion @:noDoc public static inline function addInt_(a:BigInt, b:Int):BigInt {
 		return new BigInt(BigInt_.addInt2(a, b));
@@ -369,7 +360,7 @@ abstract BigInt(BigInt_) {
 	}
 
 	// Binary modulus
-	@:op(A % B) @:noCompletion @:noDoc public static inline function modInt_(a:BigInt, b:Int):Int {
+	@:commutative @:op(A % B) @:noCompletion @:noDoc public static inline function modInt_(a:BigInt, b:Int):Int {
 		return BigInt_.modulusInt2(a, b);
 	}
 
