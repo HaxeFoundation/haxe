@@ -13,12 +13,10 @@ import haxe.coro.continuations.BlockingContinuation;
 abstract Coroutine<T:haxe.Constraints.Function> {
 	@:coroutine public static function suspend<T>(func:(IContinuation<Any>) -> Void) {
 		final inputCont = haxe.coro.Intrinsics.currentContinuation();
-		final safe = new RacingContinuation(inputCont);
-		func(safe);
-		safe.getOrThrow();
 		final outputCont = haxe.coro.Intrinsics.outputContinuation();
-		outputCont._hx_control = safe._hx_control;
-		outputCont._hx_result = safe._hx_result;
+		final safe = new RacingContinuation(inputCont, outputCont);
+		func(safe);
+		safe.resolve();
 		throw return;
 	}
 

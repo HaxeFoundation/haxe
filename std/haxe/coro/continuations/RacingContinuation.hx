@@ -28,8 +28,9 @@ private class Thread {
 }
 #end
 
-@:coreApi class RacingContinuation<T> extends ContinuationResult implements IContinuation<T> {
-	final _hx_completion:IContinuation<Any>;
+@:coreApi class RacingContinuation<T> implements IContinuation<T> {
+	final inputCont:IContinuation<Any>;
+	final outputCont:ContinuationResult;
 
 	final lock:Mutex;
 
@@ -37,11 +38,10 @@ private class Thread {
 
 	public final _hx_context:CoroutineContext;
 
-	public function new(completion:IContinuation<Any>) {
-		_hx_completion = completion;
-		_hx_context = _hx_completion._hx_context;
-		_hx_result = null;
-		_hx_error = null;
+	public function new(inputCont:IContinuation<Any>, outputCont:ContinuationResult) {
+		this.inputCont = inputCont;
+		this.outputCont = outputCont;
+		_hx_context = inputCont._hx_context;
 		assigned = false;
 		lock = new Mutex();
 	}
@@ -52,38 +52,35 @@ private class Thread {
 
 			if (assigned) {
 				lock.release();
-
-				_hx_completion.resume(result, error);
+				inputCont.resume(result, error);
 			} else {
 				assigned = true;
-				_hx_result = result;
-				_hx_error = error;
+				outputCont._hx_result = result;
+				outputCont._hx_error = error;
 
 				lock.release();
 			}
 		});
 	}
 
-	public function getOrThrow():RacingContinuation<T> {
+	public function resolve():Void {
 		lock.acquire();
-
 		if (assigned) {
-			if (_hx_error != null) {
-				final tmp = _hx_error;
+			if (outputCont._hx_error != null) {
+				final tmp = outputCont._hx_error;
 
 				lock.release();
 				// TODO: _hx_control = Thrown once we support it
 				throw tmp;
 			}
 
-			_hx_control = Returned;
+			outputCont._hx_control = Returned;
 
 			lock.release();
 		} else {
 			assigned = true;
-			_hx_control = Pending;
+			outputCont._hx_control = Pending;
 			lock.release();
 		}
-		return this;
 	}
 }
