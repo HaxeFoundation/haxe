@@ -35,7 +35,7 @@ abstract class BaseContinuation extends ContinuationResult implements IContinuat
 					case Returned | Thrown:
 				}
 
-                _hx_completion.resume(result, null);
+                _hx_completion.resume(result._hx_result, null);
             }
             catch (exn:Exception) {
                 _hx_completion.resume(null, exn);

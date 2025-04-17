@@ -12,13 +12,14 @@ import haxe.coro.continuations.BlockingContinuation;
 @:coreType
 abstract Coroutine<T:haxe.Constraints.Function> {
 	@:coroutine public static function suspend<T>(func:(IContinuation<Any>) -> Void) {
-		final cont = haxe.coro.Intrinsics.currentContinuation();
-		final safe = new RacingContinuation(cont);
-
+		final inputCont = haxe.coro.Intrinsics.currentContinuation();
+		final safe = new RacingContinuation(inputCont);
 		func(safe);
-
-		// This cast is important, need to figure out why / if there's a better solution.
 		safe.getOrThrow();
+		final outputCont = haxe.coro.Intrinsics.outputContinuation();
+		outputCont._hx_control = safe._hx_control;
+		outputCont._hx_result = safe._hx_result;
+		throw return;
 	}
 
 	@:coroutine public static function delay(ms:Int):Void {

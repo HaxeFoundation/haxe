@@ -112,6 +112,8 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars econtinuatio
 			add_state (Some next_state_id) ecallcoroutine;
 		| NextUnknown ->
 			add_state (Some (-1)) [set_control CoroReturned; ereturn]
+		| NextExit ->
+			add_state (Some (-1)) [ereturn]
 		| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
 			let rec skip_loop cb =
 				if DynArray.empty cb.cb_el then begin match cb.cb_next.next_kind with
@@ -286,6 +288,8 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars econtinuatio
 			(* Also need to check if this should be the continuation instead of completion *)
 			| TCall ({ eexpr = TField (_, FStatic ({ cl_path = (["haxe";"coro"], "Intrinsics") }, { cf_name = "currentContinuation" })) }, []) ->
 				ecompletion
+			| TCall ({ eexpr = TField (_, FStatic ({ cl_path = (["haxe";"coro"], "Intrinsics") }, { cf_name = "outputContinuation" })) }, []) ->
+				econtinuation
 			| TVar (v, eo) when is_used_across_states v.v_id ->
 				let name = if v.v_kind = VGenerated then
 					Printf.sprintf "_hx_hoisted%i" v.v_id
