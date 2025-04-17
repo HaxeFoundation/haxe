@@ -10,7 +10,7 @@
 		; 32 - Unused value declaration
 		; 36 - Unused `as super`
 		; 50 - Unexpected docstring
-		(flags (:standard -w -3 -w -6 -w -9 -w -23 -w -27 -w -32 -w -36 -w -50 -thread -g))
+		(flags (:standard -w -3 -w -6 -w -9 -w -23 -w -27 -w -32 -w -36 -w -50 -thread))
 	)
 )
 
