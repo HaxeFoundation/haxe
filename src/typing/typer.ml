@@ -1109,7 +1109,8 @@ and type_local_function ctx_from kind f with_type p =
 		| FunMemberAbstractLocal -> FunMemberAbstractLocal
 		| _ -> FunMemberClassLocal
 	in
-	let ctx = TyperManager.clone_for_expr ctx_from curfun true in
+	let function_mode = FunFunction in
+	let ctx = TyperManager.clone_for_expr ctx_from curfun function_mode in
 	let vname,pname= match name with
 		| None ->
 			if params <> [] then begin
@@ -1850,7 +1851,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e = Matcher.Match.match_expr ctx e1 cases def with_type false p in
 		wrap e
 	| EReturn e ->
-		if not ctx.e.in_function then begin
+		if not (TyperManager.is_function_context ctx) then begin
 			display_error ctx.com "Return outside function" p;
 			match e with
 			| None ->
