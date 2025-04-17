@@ -317,7 +317,7 @@ abstract BigInt(BigInt_) {
 	}
 
 	// Binary addition
-	@:op(A + B) @:noCompletion @:noDoc public static inline function addInt_(a:BigInt, b:Int):BigInt {
+	@:commutative @:op(A + B) @:noCompletion @:noDoc public static inline function addInt_(a:BigInt, b:Int):BigInt {
 		return new BigInt(BigInt_.addInt2(a, b));
 	}
 
@@ -330,7 +330,7 @@ abstract BigInt(BigInt_) {
 	}
 
 	// Binary subtraction
-	@:op(A - B) @:noCompletion @:noDoc public static inline function subInt_(a:BigInt, b:Int):BigInt {
+	@:commutative @:op(A - B) @:noCompletion @:noDoc public static inline function subInt_(a:BigInt, b:Int):BigInt {
 		return new BigInt(BigInt_.subInt2(a, b));
 	}
 
@@ -343,7 +343,7 @@ abstract BigInt(BigInt_) {
 	}
 
 	// Binary multiplication
-	@:op(A * B) @:noCompletion @:noDoc public static inline function mulInt_(a:BigInt, b:Int):BigInt {
+	@:commutative @:op(A * B) @:noCompletion @:noDoc public static inline function mulInt_(a:BigInt, b:Int):BigInt {
 		return new BigInt(BigInt_.multiplyInt2(a, b));
 	}
 
@@ -356,7 +356,7 @@ abstract BigInt(BigInt_) {
 	}
 
 	// Binary division
-	@:op(A / B) @:noCompletion @:noDoc public static inline function divInt_(a:BigInt, b:Int):BigInt {
+	@:commutative @:op(A / B) @:noCompletion @:noDoc public static inline function divInt_(a:BigInt, b:Int):BigInt {
 		return new BigInt(BigInt_.divideInt2(a, b));
 	}
 
