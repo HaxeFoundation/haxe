@@ -547,6 +547,16 @@ module Builder = struct
 	let index basic e index t p =
 		mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) basic.tint p)) t p
 
+	let default_value t p = match follow_without_null t with
+		| TAbstract({a_path = ([],"Int")},[]) ->
+			mk (TConst (TInt (Int32.zero))) t p
+		| TAbstract({a_path = ([],"Float")},[]) ->
+			mk (TConst (TFloat "0.0")) t p
+		| TAbstract({a_path = ([],"Bool")},[]) ->
+			mk (TConst (TBool false)) t p
+		| _ ->
+			mk (TConst TNull) t p
+
 	let resolve_and_make_static_call c name args p =
 		ignore(c.cl_build());
 		let cf = try
