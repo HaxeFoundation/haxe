@@ -318,7 +318,7 @@ let fun_to_coro ctx coro_type =
 	]) basic.tvoid null_pos in
 
 	let tf_args = args @ [ (vcompletion,None) ] in
-	let tf_type = basic.tany in (* TODO: this should be basic.tcoro.continuation_result, but cpp hates it *)
+	let tf_type = basic.tcoro.continuation_result in
 	if ctx.coro_debug then begin
 		print_endline ("BEFORE:\n" ^ (s_expr_debug expr));
 		CoroDebug.create_dotgraph (DotGraph.get_dump_path (SafeCom.of_com ctx.typer.com) (* TODO: stupid *) ([],pe.pfile) (Printf.sprintf "pos_%i" pe.pmin)) cb_root
