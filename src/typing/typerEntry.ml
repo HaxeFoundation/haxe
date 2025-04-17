@@ -140,7 +140,6 @@ let load_coro ctx =
 	List.iter (function
 		| TAbstractDecl({a_path = (["haxe";"coro"],"Coroutine")} as a) ->
 			let mk_coro args ret =
-				(* TODO: this loses ret because we have no type parameters on ContinuationResult yet*)
 				TAbstract(a,[TFun(args,ret)])
 			in
 			ctx.t.tcoro.tcoro <- mk_coro
