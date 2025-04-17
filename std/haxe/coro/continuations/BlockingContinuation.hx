@@ -6,7 +6,7 @@ class BlockingContinuation implements IContinuation<Any> {
 	final loop:EventLoop;
 
 	var running:Bool;
-	var result:Int;
+	var result:Any;
 	var error:Exception;
 
 	public function new(loop, scheduler) {

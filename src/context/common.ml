@@ -765,7 +765,9 @@ let create timer_ctx compilation_step cs version args display_mode =
 				continuation_class = null_class;
 				base_continuation = mk_mono();
 				base_continuation_class = null_class;
-				primitive = mk_mono();
+				continuation_result = mk_mono();
+				continuation_result_class = null_class;
+				control = mk_mono();
 				context = mk_mono();
 				scheduler = mk_mono();
 			}
@@ -906,7 +908,9 @@ let clone com is_macro_context =
 				continuation_class = null_class;
 				base_continuation = mk_mono();
 				base_continuation_class = null_class;
-				primitive = mk_mono();
+				continuation_result = mk_mono();
+				continuation_result_class = null_class;
+				control = mk_mono();
 				context = mk_mono();
 				scheduler = mk_mono();
 			};
@@ -1122,7 +1126,7 @@ let get_entry_point com =
 
 let expand_coro_type basic args ret =
 	let args = args @ [("_hx_continuation",false,basic.tcoro.continuation)] in
-	(args,basic.tany)
+	(args,basic.tcoro.continuation_result)
 
 let make_unforced_lazy t_proc f where =
 	let r = ref (lazy_available t_dynamic) in

@@ -162,10 +162,18 @@ let load_coro ctx =
 		| _ ->
 			()
 	) m.m_types;
-	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"Primitive") null_pos in
+	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"ContinuationResult") null_pos in
 	List.iter (function
-		| TClassDecl({ cl_path = (["haxe";"coro"], "Primitive") } as cl) ->
-			ctx.t.tcoro.primitive <- TInst(cl, [])
+		| TClassDecl({ cl_path = (["haxe";"coro"], "ContinuationResult") } as cl) ->
+			ctx.t.tcoro.continuation_result <- TInst(cl, [ ]);
+			ctx.t.tcoro.continuation_result_class <- cl;
+		| _ ->
+			()
+	) m.m_types;
+	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"ContinuationControl") null_pos in
+	List.iter (function
+		| TAbstractDecl({a_path = (["haxe";"coro"],"ContinuationControl")} as a) ->
+			ctx.t.tcoro.control <- TAbstract(a,[])
 		| _ ->
 			()
 	) m.m_types;

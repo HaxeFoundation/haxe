@@ -2,16 +2,12 @@ package haxe.coro;
 
 import haxe.Exception;
 
-abstract class BaseContinuation implements IContinuation<Any> {
+abstract class BaseContinuation extends ContinuationResult implements IContinuation<Any> {
     public final _hx_completion:IContinuation<Any>;
 
 	public final _hx_context:CoroutineContext;
 
     public var _hx_state:Int;
-
-    public var _hx_result:Any;
-
-    public var _hx_error:Exception;
 
     public var _hx_recursing:Bool;
 
@@ -33,11 +29,13 @@ abstract class BaseContinuation implements IContinuation<Any> {
                 _hx_recursing = false;
 
                 final result = invokeResume();
-                if (result is Primitive) {
-                    return;
-                }
+                switch (result._hx_control) {
+					case Pending:
+						return;
+					case Returned | Thrown:
+				}
 
-                _hx_completion.resume(result, null);
+                _hx_completion.resume(result._hx_result, null);
             }
             catch (exn:Exception) {
                 _hx_completion.resume(null, exn);
@@ -45,5 +43,5 @@ abstract class BaseContinuation implements IContinuation<Any> {
         });
     }
 
-    abstract function invokeResume():Any;
+    abstract function invokeResume():ContinuationResult;
 }

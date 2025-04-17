@@ -144,7 +144,7 @@ let expr_to_coro ctx eresult cb_root e =
 							cs_pos = e.epos
 						} in
 						terminate cb (NextSuspend(suspend,cb_next)) t_dynamic null_pos;
-						let eresult = mk_cast eresult e.etype e.epos in
+						(* let eresult = mk_cast eresult e.etype e.epos in *)
 						cb_next,eresult
 					| _ ->
 						cb,{e with eexpr = TCall(e1,el)}
@@ -169,6 +169,9 @@ let expr_to_coro ctx eresult cb_root e =
 			let ret = RTerminate f_terminate in
 			let cb_ret,e1 = loop_assign cb ret e1 in
 			terminate cb_ret (NextReturn e1) e.etype e.epos;
+			ctx.cb_unreachable,e_no_value
+		| TThrow {eexpr = TReturn None} ->
+			terminate cb NextExit e.etype e.epos;
 			ctx.cb_unreachable,e_no_value
 		| TThrow e1 ->
 			let f_terminate cb e1 =

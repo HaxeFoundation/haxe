@@ -173,7 +173,7 @@ let rec jsignature_of_type gctx stack t =
 					| [TFun(args,ret)] ->
 						let tcontinuation = gctx.gctx.basic.tcoro.continuation in
 						let args = args @ [("",false,tcontinuation)] in
-						jsignature_of_type (TFun(args,t_dynamic))
+						jsignature_of_type (TFun(args,gctx.gctx.basic.tcoro.continuation_result))
 					| _ ->
 						die "" __LOC__
 					end

@@ -31,6 +31,8 @@ let create_dotgraph path cb =
 				Some "continue"
 			| NextReturnVoid ->
 				Some "return"
+			| NextExit ->
+				Some "exit"
 			| NextReturn e ->
 				Some ("return " ^ se e)
 			| NextThrow e ->
