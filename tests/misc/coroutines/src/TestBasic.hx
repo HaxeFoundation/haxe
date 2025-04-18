@@ -40,6 +40,20 @@ class TestBasic extends utest.Test {
 		Assert.equals(10, Coroutine.run(c1));
 	}
 
+	#if sys
+
+	function testDelay() {
+		var elapsed = Coroutine.run(() -> {
+			var start = Sys.time();
+			Coroutine.delay(500);
+			return Sys.time() - start;
+		});
+		// This might not be super accurate, but it's good enough
+		Assert.isTrue(elapsed > 0.4);
+	}
+
+	#end
+
 	@:coroutine static function simple(arg:Int):Int {
 		return arg;
 	}
