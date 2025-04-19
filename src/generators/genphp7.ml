@@ -411,8 +411,9 @@ let rec needs_temp_var expr =
 	@return (arguments_list, return_type)
 *)
 let get_function_signature (field:tclass_field) : (string * bool * Type.t) list * Type.t =
-	match follow field.cf_type with
-		| TFun (args, return_type) -> (args, return_type)
+	match follow_with_coro field.cf_type with
+		| Coro (args, return_type)
+		| NotCoro TFun (args, return_type) -> (args, return_type)
 		| _ -> fail field.cf_pos __LOC__
 
 (**
@@ -599,8 +600,9 @@ let fix_tsignature_args args =
 	Inserts `null`s if there are missing optional args before empty rest arguments.
 *)
 let fix_call_args callee_type exprs =
-	match follow callee_type with
-	| TFun (args,_) ->
+	match follow_with_coro callee_type with
+	| Coro (args,_)
+	| NotCoro TFun (args,_) ->
 		(match List.rev args with
 		| (_,_,t) :: args_rev when is_rest_type t && List.length args_rev > List.length exprs ->
 			let rec loop args exprs =
@@ -1490,8 +1492,9 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| current :: _ ->
 					match self#parent_expr with
 						| Some { eexpr = TCall (target, params) } when current != (reveal_expr target) ->
-							(match follow target.etype with
-								| TFun (args,_) ->
+							(match follow_with_coro target.etype with
+								| Coro (args,_)
+								| NotCoro TFun (args,_) ->
 									let rec check args params =
 										match args, params with
 										| (_, _, t) :: _, param :: _ when current == (reveal_expr param) ->
@@ -3455,8 +3458,9 @@ class class_builder ctx (cls:tclass) =
 				| Some (cls, _) ->
 					let fields = if is_static then cls.cl_statics else cls.cl_fields in
 					try
-						match (PMap.find name fields).cf_type with
-							| TFun (args,_) ->
+						match follow_with_coro (PMap.find name fields).cf_type with
+							| Coro (args,_)
+							| NotCoro TFun (args,_) ->
 								let rec count args mandatory total =
 									match args with
 										| [] ->
