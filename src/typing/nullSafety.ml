@@ -1075,7 +1075,7 @@ class expr_checker mode immediate_execution report =
 			This method has side effects:
 			- it logs an error if `expr` has a type parameter incompatible with the type parameter of `to_type`.
 				E.g.: `Array<Null<String>>` vs `Array<String>` returns `true`, but also adds a compilation error.
-			- it logs an error on anon structure field nullability mismatch to report specific field error and returns `true`
+			- it logs an error on anon structure field nullability mismatch to report specific field error and returns `true`.
 		*)
 		method can_pass_expr expr to_type p =
 			let try_unify expr to_type =
@@ -1101,7 +1101,7 @@ class expr_checker mode immediate_execution report =
 						let field_to_type = PMap.find name to_type.a_fields in
 						let field_pos = field_expr.epos in
 						if not (self#can_pass_expr field_expr field_to_type.cf_type field_pos) then
-							self#error "Cannot assign nullable value here" [field_pos];
+							self#error "Cannot assign nullable value here." [field_pos];
 						acc && true
 					with Not_found -> false) true fields
 			in
