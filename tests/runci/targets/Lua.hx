@@ -96,6 +96,9 @@ class Lua {
 			runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(luaVer));
 			runCommand("lua", ["bin/unit.lua"]);
 
+			changeDirectory(getMiscSubDir('coroutines'));
+			runCommand("haxe", ["build-lua.hxml"]);
+
 			Display.maybeRunDisplayTests(Lua);
 
 			changeDirectory(sysDir);
