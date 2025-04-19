@@ -1,0 +1,3 @@
+build-base.hxml
+--neko bin/neko.n
+--cmd neko bin/neko.n
