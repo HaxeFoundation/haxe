@@ -30,6 +30,11 @@ typedef AnonAsStruct = {
 	?optional:String
 }
 
+typedef AnonDefaultNever = {
+	var name(default, never):String;
+	var version(default, never):String;
+}
+
 /** Test `@:nullSafety(Off)` is respected on fields */
 class UnsafeFields {
 	@:nullSafety(Off) var unsafeVar:String = null;
@@ -662,10 +667,10 @@ class TestStrict {
 	}
 
 	static function objectDecl_passObjWithNullabelFieldToObjWithNotNullableField_shouldFail(?a:String) {
-		shouldFail(var o:{field:String} = {field:a});
+		var o:{field:String} = {field:shouldFail(a)};
 		shouldFail(o = new TestStrict('')); //Test has `field:Null<String>`
 		var arr = (['', a]:Array<Null<String>>);
-		shouldFail(var q:{field:Array<String>} = {field:arr});
+		var q:{field:Array<String>} = {field:shouldFail(arr)};
 		shouldFail(var v:{value:Array<String>} = new Generic(arr));
 	}
 
@@ -1037,6 +1042,32 @@ class TestStrict {
 
 	static function issue10272_nullableConcatString_shouldPass(msg:Null<Dynamic>) {
 		trace("Message: " + msg);
+	}
+}
+
+private class AnonFields {
+	var nullableStr:Null<String> = "";
+
+	final anon:AnonDefaultNever = {
+		name: "",
+		// TODO should fail
+		version: null
+	};
+	final anon2:{name:String, version:String} = {
+		name: "",
+		version: shouldFail(null)
+	};
+
+	function reportNullableFieldValues():Null<AnonDefaultNever> {
+		final nullStr:Null<String> = null;
+		final object:{field:String} = {field: shouldFail(null)};
+		final object:{field:String} = {field: shouldFail(nullStr)};
+		final object:{field:String} = {field: shouldFail(nullableStr)};
+		final obj:AnonDefaultNever = {
+			name: "name",
+			version: shouldFail(null),
+		}
+		return {name: "foo", version: shouldFail(null)};
 	}
 }
 
