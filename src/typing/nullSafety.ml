@@ -1072,8 +1072,10 @@ class expr_checker mode immediate_execution report =
 					is_nullable_type e.etype && not (local_safety#is_safe e)
 		(**
 			Check if `expr` can be passed to a place where `to_type` is expected.
-			This method has side effect: it logs an error if `expr` has a type parameter incompatible with the type parameter of `to_type`.
-			E.g.: `Array<Null<String>>` vs `Array<String>` returns `true`, but also adds a compilation error.
+			This method has side effects:
+			- it logs an error if `expr` has a type parameter incompatible with the type parameter of `to_type`.
+				E.g.: `Array<Null<String>>` vs `Array<String>` returns `true`, but also adds a compilation error.
+			- it logs an error on anon structure field nullability mismatch to report specific field error and returns `true`.
 		*)
 		method can_pass_expr expr to_type p =
 			let try_unify expr to_type =
@@ -1093,28 +1095,26 @@ class expr_checker mode immediate_execution report =
 							fail ~msg:"Null safety unification failure" expr.epos __POS__
 				end
 			in
+			let check_anon_fields fields to_type =
+				List.fold_left (fun acc ((name, _, _), field_expr) ->
+					try
+						let field_to_type = PMap.find name to_type.a_fields in
+						let field_pos = field_expr.epos in
+						if not (self#can_pass_expr field_expr field_to_type.cf_type field_pos) then
+							self#error "Cannot assign nullable value here." [field_pos];
+						acc && true
+					with Not_found -> false) true fields
+			in
 			match expr.eexpr, to_type with
 				| TLocal v, _ when contains_unsafe_meta v.v_meta -> true
 				| TObjectDecl fields, TAbstract ({ a_path = ([],"Null") }, [TAnon to_type])
 				| TObjectDecl fields, TAnon to_type ->
-					List.for_all
-						(fun ((name, _, _), field_expr) ->
-							try
-								let field_to_type = PMap.find name to_type.a_fields in
-								self#can_pass_expr field_expr field_to_type.cf_type p
-							with Not_found -> false)
-						fields
+					check_anon_fields fields to_type
 				| TObjectDecl fields, TAbstract ({ a_path = ([],"Null") }, [TType (t,tl)])
 				| TObjectDecl fields, TType (t,tl) ->
 					(match follow_without_null t.t_type with
 							| TAnon to_type ->
-								List.for_all
-									(fun ((name, _, _), field_expr) ->
-										try
-											let field_to_type = PMap.find name to_type.a_fields in
-											self#can_pass_expr field_expr field_to_type.cf_type p
-										with Not_found -> false)
-									fields
+								check_anon_fields fields to_type
 							| _ -> try_unify expr to_type
 					)
 				| _, _ -> try_unify expr to_type
