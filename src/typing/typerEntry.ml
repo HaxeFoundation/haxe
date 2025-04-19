@@ -157,7 +157,7 @@ let load_coro ctx =
 	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"BaseContinuation") null_pos in
 	List.iter (function
 		| TClassDecl({ cl_path = (["haxe";"coro"], "BaseContinuation") } as cl) ->
-			ctx.t.tcoro.base_continuation <- TInst(cl, [ ctx.t.tany ]);
+			ctx.t.tcoro.base_continuation <- TInst(cl, [ ]);
 			ctx.t.tcoro.base_continuation_class <- cl;
 		| _ ->
 			()
