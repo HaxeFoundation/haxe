@@ -1,0 +1,3 @@
+build-base.hxml
+--python bin/coro.py
+--cmd python bin/coro.py

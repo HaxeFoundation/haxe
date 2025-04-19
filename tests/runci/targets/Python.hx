@@ -67,6 +67,9 @@ class Python {
 			runCommand(py, ["bin/unit34.py"]);
 		}
 
+		changeDirectory(getMiscSubDir('coroutines'));
+		runCommand("haxe", ["build-python.hxml"]);
+
 		Display.maybeRunDisplayTests(Python);
 
 		changeDirectory(sysDir);
