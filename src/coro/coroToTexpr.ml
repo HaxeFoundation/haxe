@@ -38,6 +38,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars econtinuatio
 
 	let ereturn = mk (TReturn (Some econtinuation)) econtinuation.etype p in
 
+
 	let cb_uncaught = CoroFunctions.make_block ctx None in
 	let mk_suspending_call call =
 		let p = call.cs_pos in
@@ -65,8 +66,11 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars econtinuatio
 			ereturn;
 		]) com.basic.tvoid p in
 		let ereturned = assign (base_continuation_field_on econtinuation cont.ContTypes.result) (base_continuation_field_on ecororesult cont.ContTypes.result) in
-		let edoesnthappenyet = ereturn in
-		let econtrol_switch = CoroControl.make_control_switch com.basic esubject esuspended ereturned edoesnthappenyet p in
+		let ethrown = mk (TBlock [
+			assign eresult (base_continuation_field_on ecororesult cont.ContTypes.error);
+			mk TBreak t_dynamic p;
+		]) com.basic.tvoid p in
+		let econtrol_switch = CoroControl.make_control_switch com.basic esubject esuspended ereturned ethrown p in
 		[
 			cororesult_var;
 			econtrol_switch;
@@ -82,6 +86,13 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars econtinuatio
 		cs_el = el;
 	} in
 
+	(* TODO: this sucks a bit and its usage isn't much better *)
+	let wrap_thrown = match com.basic.texception with
+		| TInst(c,_) ->
+			(fun e -> Texpr.Builder.resolve_and_make_static_call c "thrown" [e] e.epos)
+		| _ ->
+			die "" __LOC__
+	in
 	let exc_state_map = Array.init ctx.next_block_id (fun _ -> ref []) in
 	let rec loop cb current_el =
 		assert (cb != ctx.cb_unreachable);
@@ -131,8 +142,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars econtinuatio
 		| NextReturn e ->
 			add_state (Some (-1)) [ set_control CoroReturned; assign eresult e; ereturn ]
 		| NextThrow e1 ->
-			let ethrow = mk (TThrow e1) t_dynamic p in
-			add_state None [ethrow]
+			add_state None [ assign eresult e1; mk TBreak t_dynamic p ]
 		| NextSub (cb_sub,cb_next) when cb_next == ctx.cb_unreachable ->
 			(* If we're skipping our initial state we have to track this for the _hx_state init *)
 			if cb.cb_id = !init_state then
@@ -185,10 +195,15 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars econtinuatio
 			let new_exc_state_id = catch.cc_cb.cb_id in
 			let _ = loop bb_next [] in
 			let try_state_id = loop bb_try [] in
-			let erethrow = mk (TBlock [
-				mk_assign eerror eresult;
-				set_state (match catch.cc_cb.cb_catch with None -> cb_uncaught.cb_id | Some cb -> cb.cb_id);
-			]) t_dynamic null_pos in
+			let erethrow = match catch.cc_cb.cb_catch with
+				| Some cb ->
+					set_state cb.cb_id
+				| None ->
+					mk (TBlock [
+					set_state cb_uncaught.cb_id;
+					mk TBreak t_dynamic p
+				]) t_dynamic null_pos
+			in
 			let eif =
 				List.fold_left (fun enext (vcatch,bb_catch) ->
 					let ecatchvar = mk (TVar (vcatch, Some eresult)) com.basic.tvoid null_pos in
@@ -208,7 +223,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars econtinuatio
 
 	let states = !states in
 	let rethrow_state_id = cb_uncaught.cb_id in
-	let rethrow_state = make_state rethrow_state_id [mk (TThrow eerror) com.basic.tvoid null_pos] in
+	let rethrow_state = make_state rethrow_state_id [assign eresult eerror; mk TBreak t_dynamic p] in
 	let states = states @ [rethrow_state] |> List.sort (fun state1 state2 -> state1.cs_id - state2.cs_id) in
 
 	let module IntSet = Set.Make(struct
@@ -332,7 +347,8 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars econtinuatio
 	*)
 
 	let ethrow = mk (TBlock [
-		mk (TThrow (make_string com.basic "Invalid coroutine state" p)) com.basic.tvoid p
+		assign eresult (make_string com.basic "Invalid coroutine state" p);
+		mk TBreak t_dynamic p
 	]) com.basic.tvoid null_pos
 	in
 
@@ -357,43 +373,57 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars econtinuatio
 		)) com.basic.tvoid p
 	in
 
-	let etry = if not ctx.has_catch then
-		eswitch (* If our coro doesn't catch anything then we shouldn't have to rethrow by hand *)
-	else mk (TTry (
-		eswitch,
+	let eloop = mk (TWhile (make_bool com.basic true p, eswitch, NormalWhile)) com.basic.tvoid p in
+
+	let etry = mk (TTry (
+		eloop,
 		[
 			let vcaught = alloc_var VGenerated "e" t_dynamic null_pos in
-			let cases = DynArray.create () in
-			Array.iteri (fun i l -> match !l with
-				| [] ->
-					()
-				| l ->
-					let patterns = List.map (mk_int com) l in
-					let expr = mk (TBlock [
-						set_state i;
-						Builder.binop OpAssign eresult (Builder.make_local vcaught null_pos) vcaught.v_type null_pos;
-					]) com.basic.tvoid null_pos in
-					DynArray.add cases {case_patterns = patterns; case_expr = expr};
-			) exc_state_map;
-			let default = mk (TBlock [
-				set_state rethrow_state_id;
-				mk (TThrow(make_local vcaught null_pos)) t_dynamic null_pos;
-			]) com.basic.tvoid null_pos in
-			if DynArray.empty cases then
-				(vcaught,default)
-			else begin
-				let switch = {
-					switch_subject = estate;
-					switch_cases = DynArray.to_list cases;
-					switch_default = Some default;
-					switch_exhaustive = true
-				} in
-				let e = mk (TSwitch switch) com.basic.tvoid null_pos in
-				(vcaught,e)
-			end
+			(vcaught,assign eresult (make_local vcaught null_pos))
 		]
 	)) com.basic.tvoid null_pos in
 
-	let eloop = mk (TWhile (make_bool com.basic true p, etry, NormalWhile)) com.basic.tvoid p in
+	let eexchandle =
+		let cases = DynArray.create () in
+		Array.iteri (fun i l -> match !l with
+			| [] ->
+				()
+			| l ->
+				let patterns = List.map (mk_int com) l in
+				let expr = mk (TBlock [
+					set_state i;
+				]) com.basic.tvoid null_pos in
+				DynArray.add cases {case_patterns = patterns; case_expr = expr};
+		) exc_state_map;
+		let el = [
+			assign eerror (wrap_thrown eresult);
+			set_control CoroThrown;
+			ereturn;
+		] in
+		let default = mk (TBlock el) com.basic.tvoid null_pos in
+		if DynArray.empty cases then
+			default
+		else begin
+			let switch = {
+				switch_subject = estate;
+				switch_cases = DynArray.to_list cases;
+				switch_default = Some default;
+				switch_exhaustive = true
+			} in
+			mk (TSwitch switch) com.basic.tvoid null_pos
+		end
+	in
+
+	let etry = mk (TBlock [
+		etry;
+		eexchandle;
+	]) com.basic.tvoid null_pos in
+
+	let eloop = if ctx.has_catch then
+		mk (TWhile (make_bool com.basic true p, etry, NormalWhile)) com.basic.tvoid p
+	else
+		(* If there is no catch we don't need to pseudo-goto back into the state loop, so we don't need a control loop. *)
+		etry
+	in
 
 	eloop, eif_error, !init_state, fields |> Hashtbl.to_seq_values |> List.of_seq

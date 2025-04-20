@@ -24,22 +24,17 @@ abstract class BaseContinuation extends ContinuationResult implements IContinuat
         _hx_result = result;
         _hx_error  = error;
         _hx_context.scheduler.schedule(() -> {
-            try
-            {
-                _hx_recursing = false;
+		_hx_recursing = false;
 
-                final result = invokeResume();
-                switch (result._hx_control) {
-					case Pending:
-						return;
-					case Returned | Thrown:
-				}
-
-                _hx_completion.resume(result._hx_result, null);
-            }
-            catch (exn:Exception) {
-                _hx_completion.resume(null, exn);
-            }
+		final result = invokeResume();
+			switch (result._hx_control) {
+				case Pending:
+					return;
+				case Returned:
+					_hx_completion.resume(result._hx_result, null);
+				case Thrown:
+					_hx_completion.resume(null, result._hx_error);
+			}
         });
     }
 

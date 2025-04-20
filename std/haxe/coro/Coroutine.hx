@@ -50,8 +50,10 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 		return switch (result._hx_control) {
 			case Pending:
 				cast cont.wait();
-			case _:
+			case Returned:
 				cast result._hx_result;
+			case Thrown:
+				throw result._hx_error;
 		}
 	}
 }

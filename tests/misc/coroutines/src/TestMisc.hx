@@ -2,7 +2,7 @@ import haxe.coro.Coroutine.yield;
 
 class TestMisc extends utest.Test {
     function testDebugMetadataLocalFunction() {
-        @:coroutine @:coroutine.debug function foo() {
+        @:coroutine @:coroutine.debgu function foo() {
             yield();
         }
 

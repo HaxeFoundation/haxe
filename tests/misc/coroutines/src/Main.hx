@@ -6,6 +6,7 @@ function main() {
 		new TestBasic(),
 		new TestTricky(),
 		new TestControlFlow(),
+		new TestTryCatch(),
 		new TestHoisting(),
 		new TestMisc(),
 		// new TestGenerator(),

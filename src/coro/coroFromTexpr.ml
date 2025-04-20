@@ -144,7 +144,6 @@ let expr_to_coro ctx eresult cb_root e =
 							cs_pos = e.epos
 						} in
 						terminate cb (NextSuspend(suspend,cb_next)) t_dynamic null_pos;
-						(* let eresult = mk_cast eresult e.etype e.epos in *)
 						cb_next,eresult
 					| _ ->
 						cb,{e with eexpr = TCall(e1,el)}

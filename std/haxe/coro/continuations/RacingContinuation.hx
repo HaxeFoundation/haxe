@@ -67,16 +67,12 @@ private class Thread {
 		lock.acquire();
 		if (assigned) {
 			if (outputCont._hx_error != null) {
-				final tmp = outputCont._hx_error;
-
+				outputCont._hx_control = Thrown;
 				lock.release();
-				// TODO: _hx_control = Thrown once we support it
-				throw tmp;
+			} else {
+				outputCont._hx_control = Returned;
+				lock.release();
 			}
-
-			outputCont._hx_control = Returned;
-
-			lock.release();
 		} else {
 			assigned = true;
 			outputCont._hx_control = Pending;
