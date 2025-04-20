@@ -1,12 +1,12 @@
 package haxe.coro.continuations;
 
-class BlockingContinuation implements IContinuation<Any> {
+class BlockingContinuation<T> implements IContinuation<T> {
 	public final _hx_context:CoroutineContext;
 
 	final loop:EventLoop;
 
 	var running:Bool;
-	var result:Any;
+	var result:T;
 	var error:Exception;
 
 	public function new(loop, scheduler) {
@@ -14,18 +14,17 @@ class BlockingContinuation implements IContinuation<Any> {
 
 		_hx_context = new CoroutineContext(scheduler);
 		running = true;
-		result = 0;
 		error = null;
 	}
 
-	public function resume(result:Any, error:Exception) {
+	public function resume(result:T, error:Exception) {
 		running = false;
 
 		this.result = result;
 		this.error = error;
 	}
 
-	public function wait():Any {
+	public function wait():T {
 		while (loop.tick()) {
 			// Busy wait
 		}
@@ -33,7 +32,7 @@ class BlockingContinuation implements IContinuation<Any> {
 		if (error != null) {
 			throw error;
 		} else {
-			return cast result;
+			return result;
 		}
 	}
 }

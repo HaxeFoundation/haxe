@@ -40,6 +40,13 @@ class TestBasic extends utest.Test {
 		Assert.equals(10, Coroutine.run(c1));
 	}
 
+	function testLocalTypeParameters() {
+		Coroutine.run(@:coroutine function f<T>():T {
+			return null;
+		});
+		Assert.pass(); // The test is that this doesn't cause an unbound type parameter
+	}
+
 	#if sys
 
 	function testDelay() {

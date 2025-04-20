@@ -32,17 +32,15 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars econtinuatio
 		Texpr.Builder.resolve_and_make_static_call com.std "isOfType" [e;type_expr] p
 	in
 
-	let base_continuation_field_on e cf =
-		mk (TField(e,FInstance(com.basic.tcoro.continuation_result_class, [] (* TODO: once we have them *), cf))) cf.cf_type null_pos
-	in
-
 	let ereturn = mk (TReturn (Some econtinuation)) econtinuation.etype p in
 
 
 	let cb_uncaught = CoroFunctions.make_block ctx None in
 	let mk_suspending_call call =
 		let p = call.cs_pos in
-
+		let base_continuation_field_on e cf t =
+			mk (TField(e,FInstance(com.basic.tcoro.continuation_result_class, [com.basic.tany], cf))) t null_pos
+		in
 		(* lose Coroutine<T> type for the called function not to confuse further filters and generators *)
 		(* let tcoroutine = tfun [t_dynamic; t_dynamic] com.basic.tvoid in *)
 		let tfun = match follow_with_coro call.cs_fun.etype with
@@ -54,20 +52,20 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars econtinuatio
 		in
 		let efun = { call.cs_fun with etype = tfun } in
 		let args = call.cs_args @ [ econtinuation ] in
-		let ecreatecoroutine = mk (TCall (efun, args)) com.basic.tcoro.continuation_result call.cs_pos in
+		let ecreatecoroutine = mk (TCall (efun, args)) (com.basic.tcoro.continuation_result com.basic.tany) call.cs_pos in
 
-		let vcororesult = alloc_var VGenerated "_hx_tmp" com.basic.tcoro.continuation_result p in
+		let vcororesult = alloc_var VGenerated "_hx_tmp" (com.basic.tcoro.continuation_result com.basic.tany) p in
 		let ecororesult = make_local vcororesult p in
 		let cororesult_var = mk (TVar (vcororesult, (Some ecreatecoroutine))) com.basic.tany p in
-
-		let esubject = base_continuation_field_on ecororesult cont.ContTypes.control in
+		let open ContTypes in
+		let esubject = base_continuation_field_on ecororesult cont.control cont.control.cf_type in
 		let esuspended = mk (TBlock [
 			set_control CoroPending;
 			ereturn;
 		]) com.basic.tvoid p in
-		let ereturned = assign (base_continuation_field_on econtinuation cont.ContTypes.result) (base_continuation_field_on ecororesult cont.ContTypes.result) in
+		let ereturned = assign (base_continuation_field_on econtinuation cont.result com.basic.tany (* !!! *)) (base_continuation_field_on ecororesult cont.result com.basic.tany) in
 		let ethrown = mk (TBlock [
-			assign eresult (base_continuation_field_on ecororesult cont.ContTypes.error);
+			assign eresult (base_continuation_field_on ecororesult cont.error cont.error.cf_type);
 			mk TBreak t_dynamic p;
 		]) com.basic.tvoid p in
 		let econtrol_switch = CoroControl.make_control_switch com.basic esubject esuspended ereturned ethrown p in

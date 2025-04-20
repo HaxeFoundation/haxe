@@ -763,9 +763,9 @@ let create timer_ctx compilation_step cs version args display_mode =
 				tcoro = (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
 				continuation = mk_mono();
 				continuation_class = null_class;
-				base_continuation = mk_mono();
+				base_continuation = (fun _ -> die "Could not locate class BaseContinuation<T> (was it redefined?)" __LOC__);
 				base_continuation_class = null_class;
-				continuation_result = mk_mono();
+				continuation_result = (fun _ -> die "Could not locate class ContinuationResult<T> (was it redefined?)" __LOC__);
 				continuation_result_class = null_class;
 				control = mk_mono();
 				context = mk_mono();
@@ -906,9 +906,9 @@ let clone com is_macro_context =
 				tcoro = (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
 				continuation = mk_mono();
 				continuation_class = null_class;
-				base_continuation = mk_mono();
+				base_continuation = (fun _ -> die "Could not locate class BaseContinuation<T> (was it redefined?)" __LOC__);
 				base_continuation_class = null_class;
-				continuation_result = mk_mono();
+				continuation_result = (fun _ -> die "Could not locate class ContinuationResult<T> (was it redefined?)" __LOC__);
 				continuation_result_class = null_class;
 				control = mk_mono();
 				context = mk_mono();
@@ -1126,7 +1126,7 @@ let get_entry_point com =
 
 let expand_coro_type basic args ret =
 	let args = args @ [("_hx_continuation",false,basic.tcoro.continuation)] in
-	(args,basic.tcoro.continuation_result)
+	(args,basic.tcoro.continuation_result ret)
 
 let make_unforced_lazy t_proc f where =
 	let r = ref (lazy_available t_dynamic) in
