@@ -35,4 +35,8 @@ class BlockingContinuation<T> implements IContinuation<T> {
 			return result;
 		}
 	}
+
+	public function toString() {
+		return '[BlockingContinuation running: $running]';
+	}
 }

@@ -52,7 +52,7 @@ private class Thread {
 
 			if (assigned) {
 				lock.release();
-				inputCont.resume(result, error);
+				_hx_context.maybeIntercept(inputCont, result, error);
 			} else {
 				assigned = true;
 				outputCont._hx_result = result;
