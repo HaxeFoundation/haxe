@@ -27,13 +27,20 @@ let expr_to_coro ctx eresult cb_root e =
 	let block_from_e e =
 		make_block (Some(e.etype,e.epos))
 	in
+	let has_side_effect e = match e.eexpr with
+		| TVar _ ->
+			(* has_side_effect doesn't consider var declarations a side effect which may just be wrong *)
+			true
+		| _ ->
+			OptimizerTexpr.has_side_effect e
+	in
 	let add_expr cb e =
-		if cb.cb_next.next_kind = NextUnknown && e != e_no_value && cb != ctx.cb_unreachable then
+		if cb.cb_next = NextUnknown && e != e_no_value && cb != ctx.cb_unreachable && has_side_effect e then
 			DynArray.add cb.cb_el e
 	in
 	let terminate cb kind t p =
-		if cb.cb_next.next_kind = NextUnknown && cb != ctx.cb_unreachable then
-			cb.cb_next <- {next_kind = kind; next_type = t; next_pos = p}
+		if cb.cb_next = NextUnknown && cb != ctx.cb_unreachable then
+			cb.cb_next <- kind;
 	in
 	let fall_through cb_from cb_to =
 		terminate cb_from (NextFallThrough cb_to) t_dynamic null_pos

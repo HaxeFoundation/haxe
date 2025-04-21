@@ -9,7 +9,7 @@ type coro_block = {
 	mutable cb_next : coro_next;
 }
 
-and coro_next_kind =
+and coro_next =
 	| NextUnknown
 	| NextSub of coro_block * coro_block
 	| NextReturnVoid
@@ -43,12 +43,6 @@ and coro_suspend = {
 	cs_fun : texpr;
 	cs_args : texpr list;
 	cs_pos : pos;
-}
-
-and coro_next = {
-	next_kind : coro_next_kind;
-	next_type : Type.t;
-	next_pos : pos;
 }
 
 type coro_ctx = {

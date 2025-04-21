@@ -123,7 +123,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 			end;
 			cb.cb_id
 		in
-		match cb.cb_next.next_kind with
+		match cb.cb_next with
 		| NextSuspend (call, cb_next) ->
 			let next_state_id = loop cb_next [] in
 			let ecallcoroutine = mk_suspending_call call in
@@ -132,7 +132,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 			add_state (Some (-1)) [set_control CoroReturned; ereturn]
 		| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
 			let rec skip_loop cb =
-				if DynArray.empty cb.cb_el then begin match cb.cb_next.next_kind with
+				if DynArray.empty cb.cb_el then begin match cb.cb_next with
 					| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
 						skip_loop cb_next
 					| _ ->

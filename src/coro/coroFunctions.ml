@@ -9,6 +9,6 @@ let make_block ctx typepos =
 		cb_id = id;
 		cb_el = DynArray.create ();
 		cb_typepos = typepos;
-		cb_next = {next_kind = NextUnknown; next_type = t_dynamic; next_pos = null_pos};
+		cb_next = NextUnknown;
 		cb_catch = ctx.current_catch;
 	}
