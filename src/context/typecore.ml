@@ -114,6 +114,7 @@ type typer_globals = {
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	root_typer : typer;
 	(* api *)
+	mutable continuation_api : ContTypes.continuation_api option;
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
 	do_load_module : ?origin:module_dep_origin -> typer -> path -> pos -> module_def;

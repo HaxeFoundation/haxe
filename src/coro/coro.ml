@@ -86,22 +86,28 @@ module ContinuationClassBuilder = struct
 		 ) params_outside in
 		cls.cl_params <- params_inside;
 
+		let continuation_api = match ctx.typer.g.continuation_api with
+			| Some api ->
+				api
+			| None ->
+				let cf_control    = PMap.find "_hx_control" basic.tcoro.continuation_result_class.cl_fields in
+				let cf_result     = PMap.find "_hx_result" basic.tcoro.continuation_result_class.cl_fields in
+				let cf_error      = PMap.find "_hx_error" basic.tcoro.continuation_result_class.cl_fields in
+				let cf_completion = PMap.find "_hx_completion" basic.tcoro.base_continuation_class.cl_fields in
+				let cf_context    = PMap.find "_hx_context" basic.tcoro.base_continuation_class.cl_fields in
+				let cf_state      = PMap.find "_hx_state" basic.tcoro.base_continuation_class.cl_fields in
+				let cf_recursing  = PMap.find "_hx_recursing" basic.tcoro.base_continuation_class.cl_fields in
+				let api = ContTypes.create_continuation_api cf_control cf_result cf_error cf_completion cf_context cf_state cf_recursing in
+				ctx.typer.g.continuation_api <- Some api;
+				api
+		in
+
 		let param_types_inside = extract_param_types params_inside in
 		let param_types_outside = extract_param_types params_outside in
 		let subst = List.combine params_outside param_types_inside in
 		let result_type_inside = substitute_type_params subst result_type in
 		cls.cl_super <- Some (basic.tcoro.base_continuation_class, [result_type_inside]);
 		cf_captured |> Option.may (fun cf -> cf.cf_type <- substitute_type_params subst cf.cf_type);
-
-		(* TODO: This should be cached on the typer context so we don't have to dig up the fields for every coro *)
-		let cf_control    = PMap.find "_hx_control" basic.tcoro.continuation_result_class.cl_fields in
-		let cf_result     = PMap.find "_hx_result" basic.tcoro.continuation_result_class.cl_fields in
-		let cf_error      = PMap.find "_hx_error" basic.tcoro.continuation_result_class.cl_fields in
-		let cf_completion = PMap.find "_hx_completion" basic.tcoro.base_continuation_class.cl_fields in
-		let cf_context    = PMap.find "_hx_context" basic.tcoro.base_continuation_class.cl_fields in
-		let cf_state      = PMap.find "_hx_state" basic.tcoro.base_continuation_class.cl_fields in
-		let cf_recursing  = PMap.find "_hx_recursing" basic.tcoro.base_continuation_class.cl_fields in
-		let continuation_api = ContTypes.create_continuation_api cf_control cf_result cf_error cf_completion cf_context cf_state cf_recursing in
 
 		{
 			cls        = cls;

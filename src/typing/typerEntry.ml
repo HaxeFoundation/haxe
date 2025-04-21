@@ -218,6 +218,7 @@ let create com macros =
 			return_partial_type = false;
 			build_count = 0;
 			t_dynamic_def = t_dynamic;
+			continuation_api = None;
 			do_macro = MacroContext.type_macro;
 			do_load_macro = MacroContext.load_macro';
 			do_load_module = TypeloadModule.load_module;
