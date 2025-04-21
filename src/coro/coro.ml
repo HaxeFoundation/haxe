@@ -116,14 +116,14 @@ module ContinuationClassBuilder = struct
 				param_types = param_types_inside;
 				cls_t = TInst(cls,param_types_inside);
 				result_type = result_type_inside;
-				cont_type = basic.tcoro.base_continuation result_type_inside;
+				cont_type = TInst(basic.tcoro.base_continuation_class,[result_type_inside]);
 			};
 			outside = {
 				params = params_outside;
 				param_types = param_types_outside;
 				cls_t = TInst(cls,param_types_outside);
 				result_type = result_type;
-				cont_type = basic.tcoro.base_continuation result_type;
+				cont_type = TInst(basic.tcoro.base_continuation_class,[result_type]);
 			};
 			type_param_subst = subst;
 			coro_type  = coro_type;

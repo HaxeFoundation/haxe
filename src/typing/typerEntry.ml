@@ -150,14 +150,12 @@ let load_coro ctx =
 	List.iter (function
 		| TClassDecl({ cl_path = (["haxe";"coro"], "IContinuation") } as cl) ->
 			ctx.t.tcoro.continuation <- TInst(cl, [ ctx.t.tany ]);
-			ctx.t.tcoro.continuation_class <- cl;
 		| _ ->
 			()
 	) m.m_types;
 	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"BaseContinuation") null_pos in
 	List.iter (function
 		| TClassDecl({ cl_path = (["haxe";"coro"], "BaseContinuation") } as cl) ->
-			ctx.t.tcoro.base_continuation <- (fun t -> TInst(cl, [t]));
 			ctx.t.tcoro.base_continuation_class <- cl;
 		| _ ->
 			()
@@ -174,20 +172,6 @@ let load_coro ctx =
 	List.iter (function
 		| TAbstractDecl({a_path = (["haxe";"coro"],"ContinuationControl")} as a) ->
 			ctx.t.tcoro.control <- TAbstract(a,[])
-		| _ ->
-			()
-	) m.m_types;
-	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"CoroutineContext") null_pos in
-	List.iter (function
-		| TClassDecl({ cl_path = (["haxe";"coro"], "CoroutineContext") } as cl) ->
-			ctx.t.tcoro.context <- TInst(cl, [])
-		| _ ->
-			()
-	) m.m_types;
-	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"IScheduler") null_pos in
-	List.iter (function
-		| TClassDecl({ cl_path = (["haxe";"coro"], "IScheduler") } as cl) ->
-			ctx.t.tcoro.scheduler <- TInst(cl, [])
 		| _ ->
 			()
 	) m.m_types;
