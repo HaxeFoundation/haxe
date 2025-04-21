@@ -335,13 +335,13 @@ let fun_to_coro ctx coro_type =
 	]) basic.tvoid null_pos in
 
 	let tf_args = args @ [ (vcompletion,None) ] in
-	(* I'm not sure what this should be, but let's stick to the narrowest one for now.
+	(* I'm not sure what this should be, but let's stick to the widest one for now.
 	   Cpp dies if I try to use coro_class.outside.cls_t here, which might be something
 	   to investigate independently. *)
 	let tf_type = basic.tcoro.continuation_result coro_class.outside.result_type in
 	if ctx.coro_debug then begin
 		print_endline ("BEFORE:\n" ^ (s_expr_debug expr));
-		CoroDebug.create_dotgraph (DotGraph.get_dump_path (SafeCom.of_com ctx.typer.com) (* TODO: stupid *) ([],pe.pfile) (Printf.sprintf "pos_%i" pe.pmin)) cb_root
+		CoroDebug.create_dotgraph (DotGraph.get_dump_path (SafeCom.of_com ctx.typer.com) ([],pe.pfile) (Printf.sprintf "pos_%i" pe.pmin)) cb_root
 	end;
 	let e = mk (TFunction {tf_args; tf_expr; tf_type}) (TFun (tf_args |> List.map (fun (v, _) -> (v.v_name, false, v.v_type)), tf_type)) pe in
 	if ctx.coro_debug then print_endline ("AFTER:\n" ^ (s_expr_debug e));

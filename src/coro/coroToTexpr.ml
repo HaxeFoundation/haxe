@@ -52,7 +52,6 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 			mk (TField(e,FInstance(com.basic.tcoro.continuation_result_class, [com.basic.tany], cf))) t null_pos
 		in
 		(* lose Coroutine<T> type for the called function not to confuse further filters and generators *)
-		(* let tcoroutine = tfun [t_dynamic; t_dynamic] com.basic.tvoid in *)
 		let tfun = match follow_with_coro call.cs_fun.etype with
 			| Coro (args, ret) ->
 				let args,ret = Common.expand_coro_type com.basic args ret in
@@ -87,7 +86,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 
 	let states = ref [] in
 
-	let init_state = ref 1 in (* TODO: this seems brittle *)
+	let init_state = ref 1 in
 
 	let make_state id el = {
 		cs_id = id;
@@ -239,9 +238,6 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 		type t = int
 	end) in
 
-	(* TODO: this (and the coroutine transform in general) should probably be run before captured vars handling *)
-	(* very ugly, but seems to work: extract locals that are used across states *)
-
 	(* function arguments are accessible from the initial state without hoisting needed, so set that now *)
 	let arg_state_set = IntSet.of_list [ (List.hd states).cs_id ] in
 	let var_usages    = tf_args |> List.map (fun (v, _) -> v.v_id, arg_state_set) |> List.to_seq |> Hashtbl.of_seq in
@@ -348,11 +344,6 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 			let assign  = mk_assign efield (Builder.make_local v p) in
 
 			initial.cs_el <- assign :: initial.cs_el) tf_args;
-
-	(* TODO:
-		we can optimize while and switch in some cases:
-		- if there's only one state (no suspensions) - don't wrap into while/switch, don't introduce state var
-	*)
 
 	let ethrow = mk (TBlock [
 		assign eresult (make_string com.basic "Invalid coroutine state" p);
