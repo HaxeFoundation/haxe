@@ -9,9 +9,19 @@ type coro_state = {
 	mutable cs_el : texpr list;
 }
 
+type coro_to_texpr_exprs = {
+	econtinuation : texpr;
+	ecompletion :  texpr;
+	econtrol : texpr;
+	eresult : texpr;
+	estate : texpr;
+	eerror : texpr;
+}
+
 let mk_int com i = Texpr.Builder.make_int com.Common.basic i null_pos
 
-let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars econtinuation ecompletion econtrol eresult estate eerror p = (* TODO: this arg list is awful *)
+let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
+	let {econtinuation;ecompletion;econtrol;eresult;estate;eerror} = exprs in
 	let open Texpr.Builder in
 	let com = ctx.typer.com in
 

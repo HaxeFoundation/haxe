@@ -266,7 +266,8 @@ let fun_to_coro ctx coro_type =
 	let cb_root = make_block ctx (Some(expr.etype, null_pos)) in
 
 	ignore(CoroFromTexpr.expr_to_coro ctx eresult cb_root expr);
-	let eloop, eif_error, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls args [ vcompletion.v_id; vcontinuation.v_id ] econtinuation ecompletion econtrol eresult estate eerror null_pos in
+	let exprs = {CoroToTexpr.econtinuation;ecompletion;econtrol;eresult;estate;eerror} in
+	let eloop, eif_error, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls args [ vcompletion.v_id; vcontinuation.v_id ] exprs null_pos in
 	(* update cf_type to use inside type parameters *)
 	List.iter (fun cf ->
 		cf.cf_type <- substitute_type_params coro_class.type_param_subst cf.cf_type;
