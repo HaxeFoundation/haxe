@@ -2,11 +2,12 @@ open Globals
 open Type
 
 type coro_block = {
-	cb_id : int;
+	mutable cb_id : int;
 	cb_el : texpr DynArray.t;
 	cb_typepos : (Type.t * pos) option;
-	cb_catch : coro_block option;
+	mutable cb_catch : coro_block option;
 	mutable cb_next : coro_next;
+	mutable cb_flags : int;
 }
 
 and coro_next =
@@ -54,3 +55,9 @@ type coro_ctx = {
 	mutable current_catch : coro_block option;
 	mutable has_catch : bool;
 }
+
+type cb_flag =
+	| CbEmptyMarked
+	| CbForwardMarked
+	| CbReindexed
+	| CbGenerated

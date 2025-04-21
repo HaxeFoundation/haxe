@@ -1,5 +1,6 @@
 open Globals
 open CoroTypes
+open CoroFunctions
 open Type
 open Texpr
 open CoroControl
@@ -86,7 +87,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 
 	let states = ref [] in
 
-	let init_state = ref 1 in
+	let init_state = cb.cb_id in
 
 	let make_state id el = {
 		cs_id = id;
@@ -101,12 +102,27 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 			die "" __LOC__
 	in
 	let exc_state_map = Array.init ctx.next_block_id (fun _ -> ref []) in
-	let rec loop cb current_el =
+	let get_block_exprs cb =
+		let rec loop idx acc =
+		if idx < 0 then
+			acc
+		else begin
+			let acc = match DynArray.unsafe_get cb.cb_el idx with
+				| {eexpr = TBlock el} ->
+					el @ acc
+				| e ->
+					e :: acc
+			in
+			loop (idx - 1) acc
+		end in
+		loop (DynArray.length cb.cb_el - 1) []
+	in
+	let generate cb =
 		assert (cb != ctx.cb_unreachable);
-		let el = DynArray.to_list cb.cb_el in
+		let el = get_block_exprs cb in
 
 		let add_state next_id extra_el =
-			let el = current_el @ el @ extra_el in
+			let el = el @ extra_el in
 			let el = match next_id with
 				| None ->
 					el
@@ -125,83 +141,51 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 		in
 		match cb.cb_next with
 		| NextSuspend (call, cb_next) ->
-			let next_state_id = loop cb_next [] in
 			let ecallcoroutine = mk_suspending_call call in
-			add_state (Some next_state_id) ecallcoroutine;
+			add_state (Some cb_next.cb_id) ecallcoroutine;
 		| NextUnknown ->
 			add_state (Some (-1)) [set_control CoroReturned; ereturn]
 		| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
-			let rec skip_loop cb =
-				if DynArray.empty cb.cb_el then begin match cb.cb_next with
-					| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
-						skip_loop cb_next
-					| _ ->
-						cb.cb_id
-				end else
-					cb.cb_id
-			in
-			if not (DynArray.empty cb.cb_el) then
-				add_state (Some (skip_loop cb_next)) []
-			else
-				skip_loop cb
+			add_state (Some cb_next.cb_id) []
 		| NextReturnVoid ->
 			add_state (Some (-1)) [ set_control CoroReturned; ereturn ]
 		| NextReturn e ->
 			add_state (Some (-1)) [ set_control CoroReturned; assign eresult e; ereturn ]
 		| NextThrow e1 ->
 			add_state None [ assign eresult e1; mk TBreak t_dynamic p ]
-		| NextSub (cb_sub,cb_next) when cb_next == ctx.cb_unreachable ->
-			(* If we're skipping our initial state we have to track this for the _hx_state init *)
-			if cb.cb_id = !init_state then
-				init_state := cb_sub.cb_id;
-			loop cb_sub (current_el @ el)
-		| NextSub (bb_sub,bb_next) ->
-			let next_state_id = loop bb_next [] in
-			let sub_state_id = loop bb_sub [] in
-			ignore(next_state_id);
-			add_state (Some sub_state_id) []
+		| NextSub (cb_sub,cb_next) ->
+			ignore(cb_next.cb_id);
+			add_state (Some cb_sub.cb_id) []
 
-		| NextIfThen (econd,bb_then,bb_next) ->
-			let next_state_id = loop bb_next [] in
-			let then_state_id = loop bb_then [] in
-			let eif = mk (TIf (econd, set_state then_state_id, Some (set_state next_state_id))) com.basic.tint p in
+		| NextIfThen (econd,cb_then,cb_next) ->
+			let eif = mk (TIf (econd, set_state cb_then.cb_id, Some (set_state cb_next.cb_id))) com.basic.tint p in
 			add_state None [eif]
 
-		| NextIfThenElse (econd,bb_then,bb_else,bb_next) ->
-			let _ = loop bb_next [] in
-			let then_state_id = loop bb_then [] in
-			let else_state_id = loop bb_else [] in
-			let eif = mk (TIf (econd, set_state then_state_id, Some (set_state else_state_id))) com.basic.tint p in
+		| NextIfThenElse (econd,cb_then,cb_else,cb_next) ->
+			let eif = mk (TIf (econd, set_state cb_then.cb_id, Some (set_state cb_else.cb_id))) com.basic.tint p in
 			add_state None [eif]
 
-		| NextSwitch(switch, bb_next) ->
+		| NextSwitch(switch,cb_next) ->
 			let esubj = switch.cs_subject in
-			let next_state_id = loop bb_next [] in
-			let ecases = List.map (fun (patterns,bb) ->
-				let case_state_id = loop bb [] in
-				{case_patterns = patterns;case_expr = set_state case_state_id}
+			let ecases = List.map (fun (patterns,cb) ->
+				{case_patterns = patterns;case_expr = set_state cb.cb_id}
 			) switch.cs_cases in
 			let default_state_id = match switch.cs_default with
-				| Some bb ->
-					let default_state_id = loop bb [] in
-					default_state_id
+				| Some cb ->
+					cb.cb_id
 				| None ->
-					next_state_id
+					cb_next.cb_id
 			in
 			let eswitch = mk_switch esubj ecases (Some (set_state default_state_id)) true in
 			let eswitch = mk (TSwitch eswitch) com.basic.tvoid p in
 
 			add_state None [eswitch]
 
-		| NextWhile (e_cond, bb_body, bb_next) ->
-			let body_state_id = loop bb_body [] in
-			let _ = loop bb_next [] in
-			add_state (Some body_state_id) []
+		| NextWhile (e_cond,cb_body,cb_next) ->
+			add_state (Some cb_body.cb_id) []
 
-		| NextTry (bb_try,catch,bb_next) ->
+		| NextTry (cb_try,catch,cb_next) ->
 			let new_exc_state_id = catch.cc_cb.cb_id in
-			let _ = loop bb_next [] in
-			let try_state_id = loop bb_try [] in
 			let erethrow = match catch.cc_cb.cb_catch with
 				| Some cb ->
 					set_state cb.cb_id
@@ -212,21 +196,26 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 				]) t_dynamic null_pos
 			in
 			let eif =
-				List.fold_left (fun enext (vcatch,bb_catch) ->
-					let ecatchvar = mk (TVar (vcatch, Some eresult)) com.basic.tvoid null_pos in
-					let catch_state_id = loop bb_catch [ecatchvar] in
+				List.fold_left (fun enext (vcatch,cb_catch) ->
 					match follow vcatch.v_type with
 					| TDynamic _ ->
-						set_state catch_state_id (* no next *)
+						set_state cb_catch.cb_id (* no next *)
 					| t ->
 						let etypecheck = std_is eresult vcatch.v_type in
-						mk (TIf (etypecheck, set_state catch_state_id, Some enext)) com.basic.tvoid null_pos
+						mk (TIf (etypecheck, set_state cb_catch.cb_id, Some enext)) com.basic.tvoid null_pos
 				) erethrow (List.rev catch.cc_catches)
 			in
 			states := (make_state new_exc_state_id [eif]) :: !states;
-			add_state (Some try_state_id) []
+			add_state (Some cb_try.cb_id) []
 	in
-	ignore(loop cb []);
+	let rec loop cb =
+		if not (has_block_flag cb CbGenerated) then begin
+			add_block_flag cb CbGenerated;
+			ignore(generate cb);
+			coro_iter loop cb;
+		end
+	in
+	loop cb;
 
 	let states = !states in
 	let rethrow_state_id = cb_uncaught.cb_id in
@@ -425,4 +414,4 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 		etry
 	in
 
-	eloop, eif_error, !init_state, fields |> Hashtbl.to_seq_values |> List.of_seq
+	eloop, eif_error, init_state, fields |> Hashtbl.to_seq_values |> List.of_seq

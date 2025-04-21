@@ -247,11 +247,15 @@ let expr_to_coro ctx eresult cb_root e =
 			let cb_next = make_block None in
 			let catches = List.map (fun (v,e) ->
 				let cb_catch = block_from_e e in
+				add_expr cb_catch (mk (TVar(v,Some eresult)) ctx.typer.t.tvoid null_pos);
 				let cb_catch_next,_ = loop_block cb_catch ret e in
 				fall_through cb_catch_next cb_next;
 				v,cb_catch
 			) catches in
 			let catch = make_block None in
+			(* This block is handled in a special way in the texpr transformer, let's mark it as
+			   already generated so we don't generate it twice. *)
+			add_block_flag catch CbGenerated;
 			let old = ctx.current_catch in
 			ctx.current_catch <- Some catch;
 			let catch = {
@@ -320,3 +324,65 @@ let expr_to_coro ctx eresult cb_root e =
 				aux' cb el
 	in
 	loop_block cb_root RBlock e
+
+let optimize_cfg ctx cb =
+	let forward_el cb_from cb_to =
+		if DynArray.length cb_from.cb_el > 0 then begin
+			if DynArray.length cb_to.cb_el = 0 then begin
+				DynArray.iter (fun e -> DynArray.add cb_to.cb_el e) cb_from.cb_el
+			end else begin
+				let e = mk (TBlock (DynArray.to_list cb_from.cb_el)) ctx.typer.t.tvoid null_pos in
+				DynArray.set cb_to.cb_el 0 (concat e (DynArray.get cb_to.cb_el 0))
+			end
+		end
+	in
+	(* first pass: find empty blocks and store their replacement*)
+	let forward = Array.make ctx.next_block_id None in
+	let rec loop cb =
+		if not (has_block_flag cb CbEmptyMarked) then begin
+			add_block_flag cb CbEmptyMarked;
+			match cb.cb_next with
+			| NextSub(cb_sub,cb_next) when cb_next == ctx.cb_unreachable ->
+				loop cb_sub;
+				forward_el cb cb_sub;
+				forward.(cb.cb_id) <- Some cb_sub
+			| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next when DynArray.empty cb.cb_el ->
+				loop cb_next;
+				forward.(cb.cb_id) <- Some cb_next
+			| _ ->
+				coro_iter loop cb
+		end
+	in
+	loop cb;
+	(* second pass: map graph to skip forwarding block *)
+	let rec loop cb = match forward.(cb.cb_id) with
+		| Some cb ->
+			loop cb
+		| None ->
+			if not (has_block_flag cb CbForwardMarked) then begin
+				add_block_flag cb CbForwardMarked;
+				coro_next_map loop cb;
+			end;
+			cb
+	in
+	let cb = loop cb in
+	(* third pass: reindex cb_id for tighter switches. Breadth-first because that makes the numbering more natural, maybe. *)
+	let i = ref 0 in
+	let queue = Queue.create () in
+	Queue.push cb queue;
+	let rec loop () =
+		if not (Queue.is_empty queue) then begin
+			let cb = Queue.pop queue in
+			if not (has_block_flag cb CbReindexed) then begin
+				add_block_flag cb CbReindexed;
+				cb.cb_id <- !i;
+				incr i;
+				coro_iter (fun cb -> Queue.add cb queue) cb;
+				Option.may (fun cb -> Queue.add cb queue) cb.cb_catch;
+			end;
+			loop ()
+		end
+	in
+	loop ();
+	ctx.next_block_id <- !i;
+	cb
