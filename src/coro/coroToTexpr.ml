@@ -17,6 +17,7 @@ type coro_to_texpr_exprs = {
 	eresult : texpr;
 	estate : texpr;
 	eerror : texpr;
+	etmp : texpr;
 }
 
 let mk_int com i = Texpr.Builder.make_int com.Common.basic i null_pos
@@ -35,7 +36,7 @@ let make_suspending_call basic call econtinuation =
 	mk (TCall (efun, args)) (basic.tcoro.continuation_result basic.tany) call.cs_pos
 
 let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
-	let {econtinuation;ecompletion;econtrol;eresult;estate;eerror} = exprs in
+	let {econtinuation;ecompletion;econtrol;eresult;estate;eerror;etmp} = exprs in
 	let open Texpr.Builder in
 	let com = ctx.typer.com in
 
@@ -75,9 +76,9 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 			set_control CoroPending;
 			ereturn;
 		]) com.basic.tvoid p in
-		let ereturned = assign (base_continuation_field_on econtinuation cont.result com.basic.tany (* !!! *)) (base_continuation_field_on ecororesult cont.result com.basic.tany) in
+		let ereturned = assign etmp (base_continuation_field_on ecororesult cont.result com.basic.tany) in
 		let ethrown = mk (TBlock [
-			assign eresult (base_continuation_field_on ecororesult cont.error cont.error.cf_type);
+			assign etmp (base_continuation_field_on ecororesult cont.error cont.error.cf_type);
 			mk TBreak t_dynamic p;
 		]) com.basic.tvoid p in
 		let econtrol_switch = CoroControl.make_control_switch com.basic esubject esuspended ereturned ethrown p in
@@ -139,7 +140,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 		| NextReturn e ->
 			add_state (Some (-1)) [ set_control CoroReturned; assign eresult e; ereturn ]
 		| NextThrow e1 ->
-			add_state None [ assign eresult e1; mk TBreak t_dynamic p ]
+			add_state None [ assign etmp e1; mk TBreak t_dynamic p ]
 		| NextSub (cb_sub,cb_next) ->
 			ignore(cb_next.cb_id);
 			add_state (Some cb_sub.cb_id) []
@@ -188,7 +189,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 					| TDynamic _ ->
 						set_state cb_catch.cb_id (* no next *)
 					| t ->
-						let etypecheck = std_is eresult vcatch.v_type in
+						let etypecheck = std_is etmp vcatch.v_type in
 						mk (TIf (etypecheck, set_state cb_catch.cb_id, Some enext)) com.basic.tvoid null_pos
 				) erethrow (List.rev catch.cc_catches)
 			in
@@ -206,7 +207,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 
 	let states = !states in
 	let rethrow_state_id = cb_uncaught.cb_id in
-	let rethrow_state = make_state rethrow_state_id [assign eresult eerror; mk TBreak t_dynamic p] in
+	let rethrow_state = make_state rethrow_state_id [assign etmp eerror; mk TBreak t_dynamic p] in
 	let states = states @ [rethrow_state] |> List.sort (fun state1 state2 -> state1.cs_id - state2.cs_id) in
 
 	let module IntSet = Set.Make(struct
@@ -322,7 +323,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 			initial.cs_el <- assign :: initial.cs_el) tf_args;
 
 	let ethrow = mk (TBlock [
-		assign eresult (make_string com.basic "Invalid coroutine state" p);
+		assign etmp (make_string com.basic "Invalid coroutine state" p);
 		mk TBreak t_dynamic p
 	]) com.basic.tvoid null_pos
 	in
@@ -357,7 +358,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 			eloop,
 			[
 				let vcaught = alloc_var VGenerated "e" t_dynamic null_pos in
-				(vcaught,assign eresult (make_local vcaught null_pos))
+				(vcaught,assign etmp (make_local vcaught null_pos))
 			]
 		)) com.basic.tvoid null_pos
 	in
@@ -375,7 +376,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 				DynArray.add cases {case_patterns = patterns; case_expr = expr};
 		) exc_state_map;
 		let el = [
-			assign eerror (wrap_thrown eresult);
+			assign eerror (wrap_thrown etmp);
 			set_control CoroThrown;
 			ereturn;
 		] in

@@ -250,7 +250,7 @@ let create_continuation_class ctx coro_class initial_state =
 
 	ctx.typer.m.curmod.m_types <- ctx.typer.m.curmod.m_types @ [ TClassDecl coro_class.cls ]
 
-let coro_to_state_machine ctx coro_class cb_root exprs args vcompletion vcontinuation =
+let coro_to_state_machine ctx coro_class cb_root exprs args vtmp vcompletion vcontinuation =
 	let basic = ctx.typer.t in
 	let cont = coro_class.ContinuationClassBuilder.continuation_api in
 	let eloop, eif_error, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls args [ vcompletion.v_id; vcontinuation.v_id ] exprs null_pos in
@@ -313,6 +313,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vcompletion vcontinu
 		mk_assign
 			(continuation_field cont.recursing basic.tbool)
 			(mk (TConst (TBool true)) basic.tbool null_pos);
+		mk (TVar(vtmp,Some eresult)) vtmp.v_type null_pos;
 		eloop;
 		Builder.mk_return (Builder.make_null basic.tany null_pos);
 	]) basic.tvoid null_pos
@@ -452,6 +453,9 @@ let fun_to_coro ctx coro_type =
 	let eresult = continuation_field cont.result basic.tany in
 	let eerror = continuation_field cont.error basic.texception in
 
+	let vtmp = alloc_var VGenerated "_hx_tmp" basic.tany null_pos in
+	let etmp = mk (TLocal vtmp) vtmp.v_type null_pos in
+
 	let expr, args, pe, name =
 		match coro_type with
 		| ClassField (_, cf, f, p) ->
@@ -462,11 +466,11 @@ let fun_to_coro ctx coro_type =
 
 	let cb_root = make_block ctx (Some(expr.etype, null_pos)) in
 
-	ignore(CoroFromTexpr.expr_to_coro ctx eresult cb_root expr);
-	let exprs = {CoroToTexpr.econtinuation;ecompletion;econtrol;eresult;estate;eerror} in
+	ignore(CoroFromTexpr.expr_to_coro ctx etmp cb_root expr);
+	let exprs = {CoroToTexpr.econtinuation;ecompletion;econtrol;eresult;estate;eerror;etmp} in
 	let tf_expr,cb_root = try
 		let cb_root = CoroFromTexpr.optimize_cfg ctx cb_root in
-		coro_to_state_machine ctx coro_class cb_root exprs args vcompletion vcontinuation,cb_root
+		coro_to_state_machine ctx coro_class cb_root exprs args vtmp vcompletion vcontinuation,cb_root
 	with CoroTco cb_root ->
 		coro_to_normal ctx coro_class cb_root exprs vcontinuation,cb_root
 	in

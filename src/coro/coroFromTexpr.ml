@@ -11,7 +11,7 @@ type coro_ret =
 	| RValue
 	| RBlock
 
-let expr_to_coro ctx eresult cb_root e =
+let expr_to_coro ctx etmp cb_root e =
 	let ordered_value_marker = ref false in
 	let start_ordered_value_list () =
 		let old = !ordered_value_marker in
@@ -151,7 +151,7 @@ let expr_to_coro ctx eresult cb_root e =
 							cs_pos = e.epos
 						} in
 						terminate cb (NextSuspend(suspend,cb_next)) t_dynamic null_pos;
-						cb_next,eresult
+						cb_next,etmp
 					| _ ->
 						cb,{e with eexpr = TCall(e1,el)}
 					end
@@ -247,9 +247,7 @@ let expr_to_coro ctx eresult cb_root e =
 			let cb_next = make_block None in
 			let catches = List.map (fun (v,e) ->
 				let cb_catch = block_from_e e in
-				(* If we ever want to have TCO in functions with try/catch we'll have to handle this differently
-				   because there's no eresult in such cases. *)
-				add_expr cb_catch (mk (TVar(v,Some eresult)) ctx.typer.t.tvoid null_pos);
+				add_expr cb_catch (mk (TVar(v,Some etmp)) ctx.typer.t.tvoid null_pos);
 				let cb_catch_next,_ = loop_block cb_catch ret e in
 				fall_through cb_catch_next cb_next;
 				v,cb_catch
