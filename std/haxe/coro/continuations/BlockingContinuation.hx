@@ -25,7 +25,7 @@ class BlockingContinuation<T> implements IContinuation<T> {
 	}
 
 	public function wait():T {
-		while (loop.tick()) {
+		while (loop.tick() || running) {
 			// Busy wait
 		}
 
