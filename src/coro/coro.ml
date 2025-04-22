@@ -97,7 +97,17 @@ module ContinuationClassBuilder = struct
 				let cf_context    = PMap.find "_hx_context" basic.tcoro.base_continuation_class.cl_fields in
 				let cf_state      = PMap.find "_hx_state" basic.tcoro.base_continuation_class.cl_fields in
 				let cf_recursing  = PMap.find "_hx_recursing" basic.tcoro.base_continuation_class.cl_fields in
-				let api = ContTypes.create_continuation_api cf_control cf_result cf_error cf_completion cf_context cf_state cf_recursing in
+				let immediate_result,immediate_error =
+					let c = basic.tcoro.immediate_continuation_result_class in
+					let cf_result = PMap.find "withResult" c.cl_statics in
+					let cf_error = PMap.find "withError" c.cl_statics in
+					(fun e ->
+						CallUnification.make_static_call_better ctx.typer c cf_result [e.etype] [e] (TInst(c,[e.etype])) null_pos
+					), (fun e t ->
+						CallUnification.make_static_call_better ctx.typer c cf_error [] [e] (TInst(c,[t])) null_pos
+					)
+				in
+				let api = ContTypes.create_continuation_api immediate_result immediate_error cf_control cf_result cf_error cf_completion cf_context cf_state cf_recursing in
 				ctx.typer.g.continuation_api <- Some api;
 				api
 		in
@@ -229,64 +239,27 @@ module ContinuationClassBuilder = struct
 		field
 end
 
-let fun_to_coro ctx coro_type =
+let create_continuation_class ctx coro_class initial_state =
+	let ctor   = ContinuationClassBuilder.mk_ctor ctx coro_class initial_state in
+	let resume = ContinuationClassBuilder.mk_invoke_resume ctx coro_class in
+	TClass.add_field coro_class.cls resume;
+	Option.may (TClass.add_field coro_class.cls) coro_class.captured;
+	coro_class.cls.cl_constructor <- Some ctor;
+	if ctx.coro_debug then
+		Printer.s_tclass "\t" coro_class.cls |> Printf.printf "%s\n";
+
+	ctx.typer.m.curmod.m_types <- ctx.typer.m.curmod.m_types @ [ TClassDecl coro_class.cls ]
+
+let coro_to_state_machine ctx coro_class cb_root exprs args vcompletion vcontinuation =
 	let basic = ctx.typer.t in
-
-	let mk_assign estate eid =
-		mk (TBinop (OpAssign,estate,eid)) eid.etype null_pos
-	in
-
-	let coro_class = ContinuationClassBuilder.create ctx coro_type in
-	let cont = coro_class.continuation_api in
-
-	(* Generate and assign the continuation variable *)
-	let vcompletion = alloc_var VGenerated "_hx_completion" basic.tcoro.continuation null_pos in
-	let ecompletion = Builder.make_local vcompletion null_pos in
-
-	let vcontinuation = alloc_var VGenerated "_hx_continuation" coro_class.outside.cls_t null_pos in
-	let econtinuation = Builder.make_local vcontinuation null_pos in
-
-	let continuation_field cf t =
-		mk (TField(econtinuation,FInstance(coro_class.cls, coro_class.outside.param_types, cf))) t null_pos
-	in
-
-	let estate  = continuation_field cont.state basic.tint in
-	let econtrol = continuation_field cont.control basic.tcoro.control in
-	let eresult = continuation_field cont.result basic.tany in
-	let eerror = continuation_field cont.error basic.texception in
-
-	let expr, args, pe =
-		match coro_type with
-		| ClassField (_, cf, f, p) ->
-			f.tf_expr, f.tf_args, p
-		| LocalFunc(f,_) ->
-			f.tf_expr, f.tf_args, f.tf_expr.epos
-		in
-
-	let cb_root = make_block ctx (Some(expr.etype, null_pos)) in
-
-	ignore(CoroFromTexpr.expr_to_coro ctx eresult cb_root expr);
-	let cb_root = CoroFromTexpr.optimize_cfg ctx cb_root in
-	let exprs = {CoroToTexpr.econtinuation;ecompletion;econtrol;eresult;estate;eerror} in
+	let cont = coro_class.ContinuationClassBuilder.continuation_api in
 	let eloop, eif_error, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls args [ vcompletion.v_id; vcontinuation.v_id ] exprs null_pos in
 	(* update cf_type to use inside type parameters *)
 	List.iter (fun cf ->
 		cf.cf_type <- substitute_type_params coro_class.type_param_subst cf.cf_type;
 		TClass.add_field coro_class.cls cf
 	) fields;
-	let ctor   = ContinuationClassBuilder.mk_ctor ctx coro_class initial_state in
-	let resume = ContinuationClassBuilder.mk_invoke_resume ctx coro_class in
-
-	TClass.add_field coro_class.cls resume;
-	Option.may (TClass.add_field coro_class.cls) coro_class.captured;
-
-	coro_class.cls.cl_constructor <- Some ctor;
-
-	if ctx.coro_debug then
-		Printer.s_tclass "\t" coro_class.cls |> Printf.printf "%s\n";
-
-	ctx.typer.m.curmod.m_types <- ctx.typer.m.curmod.m_types @ [ TClassDecl coro_class.cls ];
-
+	create_continuation_class ctx coro_class initial_state;
 	let continuation_var = mk (TVar (vcontinuation, Some (Builder.make_null coro_class.outside.cls_t null_pos))) coro_class.outside.cls_t null_pos in
 
 	let std_is e t =
@@ -303,6 +276,12 @@ let fun_to_coro ctx coro_type =
 		| LocalFunc(f,v) ->
 			[ Builder.make_local v null_pos ]
 	in
+
+	let mk_assign eto efrom =
+		mk (TBinop (OpAssign,eto,efrom)) efrom.etype null_pos
+	in
+
+	let {CoroToTexpr.econtinuation;ecompletion;econtrol;eresult;estate;eerror} = exprs in
 
 	let continuation_assign =
 		let t = coro_class.outside.cls_t in
@@ -325,7 +304,10 @@ let fun_to_coro ctx coro_type =
 		mk (TIf (tcond, tif, Some telse)) basic.tvoid null_pos
 	in
 
-	let tf_expr = mk (TBlock [
+	let continuation_field cf t =
+		mk (TField(econtinuation,FInstance(coro_class.cls, coro_class.outside.param_types, cf))) t null_pos
+	in
+	mk (TBlock [
 		continuation_var;
 		continuation_assign;
 		mk_assign
@@ -333,7 +315,161 @@ let fun_to_coro ctx coro_type =
 			(mk (TConst (TBool true)) basic.tbool null_pos);
 		eloop;
 		Builder.mk_return (Builder.make_null basic.tany null_pos);
-	]) basic.tvoid null_pos in
+	]) basic.tvoid null_pos
+
+let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
+	let open ContinuationClassBuilder in
+	let open CoroToTexpr in
+	let basic = ctx.typer.t in
+	create_continuation_class ctx coro_class 0;
+	let rec loop cb previous_el =
+		let p = null_pos in
+		let loop_as_block cb =
+			let el,term = loop cb [] in
+			mk (TBlock el) basic.tvoid p,term
+		in
+		let current_el = ref (previous_el @ (get_block_exprs cb)) in
+		let continue cb_next e =
+			loop cb_next (!current_el @ [e])
+		in
+		let maybe_continue cb_next term e =
+			if not term then
+				continue cb_next e
+			else
+				(!current_el @ [e]),true
+		in
+		let add e = current_el := !current_el @ [e] in
+		let terminate e =
+			add e;
+			!current_el,true
+		in
+		begin match cb.cb_next with
+			| NextSub(cb_sub,cb_next) ->
+				let e_next,term = loop_as_block cb_sub in
+				maybe_continue cb_next term e_next
+			| NextReturn e1 ->
+				let e1 = coro_class.continuation_api.immediate_result e1 in
+				terminate ((mk (TReturn (Some e1)) t_dynamic p));
+			| NextThrow e1 ->
+				let e1 = coro_class.continuation_api.immediate_error e1 coro_class.inside.result_type in
+				terminate ((mk (TReturn (Some e1)) t_dynamic p));
+			| NextUnknown | NextReturnVoid ->
+				let e1 = coro_class.continuation_api.immediate_result (mk (TConst TNull) t_dynamic null_pos) in
+				terminate ((mk (TReturn (Some e1)) t_dynamic p));
+			| NextBreak _ ->
+				terminate (mk TBreak t_dynamic p);
+			| NextContinue _ ->
+				terminate (mk TContinue t_dynamic p);
+			| NextIfThen(e1,cb_then,cb_next) ->
+				let e_then,_ = loop_as_block cb_then in
+				let e_if = mk (TIf(e1,e_then,None)) basic.tvoid p in
+				continue cb_next e_if
+			| NextIfThenElse(e1,cb_then,cb_else,cb_next) ->
+				let e_then,term_then = loop_as_block cb_then in
+				let e_else,term_else = loop_as_block cb_else in
+				let e_if = mk (TIf(e1,e_then,Some e_else)) basic.tvoid p in
+				maybe_continue cb_next (term_then && term_else) e_if
+			| NextSwitch(switch,cb_next) ->
+				let term = ref true in
+				let switch_cases = List.map (fun (el,cb) ->
+					let e,term' = loop_as_block cb in
+					term := !term && term';
+					{
+					case_patterns = el;
+					case_expr = e;
+				}) switch.cs_cases in
+				let switch_default = Option.map (fun cb ->
+					let e,term' = loop_as_block cb in
+					term := !term && term';
+					e
+				) switch.cs_default in
+				let switch = {
+					switch_subject = switch.cs_subject;
+					switch_cases;
+					switch_default;
+					switch_exhaustive = switch.cs_exhaustive
+				} in
+				maybe_continue cb_next (switch.switch_exhaustive && !term) (mk (TSwitch switch) basic.tvoid p)
+			| NextWhile(e1,cb_body,cb_next) ->
+				let e_body,_ = loop_as_block cb_body in
+				let e_while = mk (TWhile(e1,e_body,NormalWhile)) basic.tvoid p in
+				continue cb_next e_while
+			| NextTry(cb_try,catches,cb_next) ->
+				let e_try,term = loop_as_block cb_try in
+				let term = ref term in
+				let catches = List.map (fun (v,cb) ->
+					let e,term' = loop_as_block cb in
+					term := !term && term';
+					(v,e)
+				) catches.cc_catches in
+				let e_try = mk (TTry(e_try,catches)) basic.tvoid p in
+				maybe_continue cb_next !term e_try
+			| NextFallThrough _ | NextGoto _ ->
+				!current_el,false
+			| NextSuspend(suspend,cb_next) ->
+				let e_sus = CoroToTexpr.make_suspending_call basic suspend exprs.ecompletion in
+				add (mk (TReturn (Some e_sus)) t_dynamic p);
+				!current_el,true
+		end
+	in
+	let el,_ = loop cb_root [] in
+	let e = mk (TBlock el) basic.tvoid null_pos in
+	let e = if ctx.nothrow then
+		e
+	else begin
+		let catch =
+			let v = alloc_var VGenerated "e" t_dynamic null_pos in
+			let ev = mk (TLocal v) v.v_type null_pos in
+			let eerr = coro_class.continuation_api.immediate_error ev coro_class.inside.result_type in
+			let eret = mk (TReturn (Some eerr)) t_dynamic null_pos in
+			(v,eret)
+		in
+		mk (TTry(e,[catch])) basic.tvoid null_pos
+	end in
+	mk (TBlock [
+		e
+	]) basic.tvoid null_pos
+
+let fun_to_coro ctx coro_type =
+	let basic = ctx.typer.t in
+
+	let coro_class = ContinuationClassBuilder.create ctx coro_type in
+	let cont = coro_class.continuation_api in
+
+	(* Generate and assign the continuation variable *)
+	let vcompletion = alloc_var VGenerated "_hx_completion" basic.tcoro.continuation null_pos in
+	let ecompletion = Builder.make_local vcompletion null_pos in
+
+	let vcontinuation = alloc_var VGenerated "_hx_continuation" coro_class.outside.cls_t null_pos in
+	let econtinuation = Builder.make_local vcontinuation null_pos in
+
+	let continuation_field cf t =
+		mk (TField(econtinuation,FInstance(coro_class.cls, coro_class.outside.param_types, cf))) t null_pos
+	in
+
+	let estate  = continuation_field cont.state basic.tint in
+	let econtrol = continuation_field cont.control basic.tcoro.control in
+	let eresult = continuation_field cont.result basic.tany in
+	let eerror = continuation_field cont.error basic.texception in
+
+	let expr, args, pe, name =
+		match coro_type with
+		| ClassField (_, cf, f, p) ->
+			f.tf_expr, f.tf_args, p, cf.cf_name
+		| LocalFunc(f,v) ->
+			f.tf_expr, f.tf_args, f.tf_expr.epos, v.v_name
+		in
+
+	let cb_root = make_block ctx (Some(expr.etype, null_pos)) in
+
+	ignore(CoroFromTexpr.expr_to_coro ctx eresult cb_root expr);
+	let exprs = {CoroToTexpr.econtinuation;ecompletion;econtrol;eresult;estate;eerror} in
+	let tf_expr,cb_root = try
+		let cb_root = CoroFromTexpr.optimize_cfg ctx cb_root in
+		coro_to_state_machine ctx coro_class cb_root exprs args vcompletion vcontinuation,cb_root
+	with CoroTco cb_root ->
+		coro_to_normal ctx coro_class cb_root exprs vcontinuation,cb_root
+	in
 
 	let tf_args = args @ [ (vcompletion,None) ] in
 	(* I'm not sure what this should be, but let's stick to the widest one for now.
@@ -342,7 +478,7 @@ let fun_to_coro ctx coro_type =
 	let tf_type = basic.tcoro.continuation_result coro_class.outside.result_type in
 	if ctx.coro_debug then begin
 		print_endline ("BEFORE:\n" ^ (s_expr_debug expr));
-		CoroDebug.create_dotgraph (DotGraph.get_dump_path (SafeCom.of_com ctx.typer.com) ([],pe.pfile) (Printf.sprintf "pos_%i" pe.pmin)) cb_root
+		CoroDebug.create_dotgraph (DotGraph.get_dump_path (SafeCom.of_com ctx.typer.com) (ctx.typer.c.curclass.cl_path) name) cb_root
 	end;
 	let e = mk (TFunction {tf_args; tf_expr; tf_type}) (TFun (tf_args |> List.map (fun (v, _) -> (v.v_name, false, v.v_type)), tf_type)) pe in
 	if ctx.coro_debug then print_endline ("AFTER:\n" ^ (s_expr_debug e));
@@ -352,6 +488,8 @@ let create_coro_context typer meta =
 	let ctx = {
 		typer;
 		coro_debug = Meta.has (Meta.Custom ":coroutine.debug") meta;
+		allow_tco = not (Meta.has (Meta.Custom ":coroutine.notco") meta);
+		nothrow = Meta.has (Meta.Custom ":coroutine.nothrow") meta;
 		vthis = None;
 		next_block_id = 0;
 		cb_unreachable = Obj.magic "";

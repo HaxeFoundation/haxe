@@ -30,13 +30,13 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 		return cast _hx_continuation;
 	}
 
-	@:coroutine public static function delay(ms:Int):Void {
+	@:coroutine @:coroutine.nothrow public static function delay(ms:Int):Void {
 		Coroutine.suspend(cont -> {
 			cont._hx_context.scheduler.scheduleIn(() -> cont.resume(null, null), ms);
 		});
 	}
 
-	@:coroutine public static function yield():Void {
+	@:coroutine @:coroutine.nothrow public static function yield():Void {
 		Coroutine.suspend(cont -> {
 			cont._hx_context.scheduler.schedule(() -> cont.resume(null, null));
 		});

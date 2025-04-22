@@ -20,6 +20,21 @@ let add_block_flag cb (flag : cb_flag) =
 let has_block_flag cb (flag : cb_flag) =
 	has_flag cb.cb_flags (Obj.magic flag)
 
+let get_block_exprs cb =
+	let rec loop idx acc =
+	if idx < 0 then
+		acc
+	else begin
+		let acc = match DynArray.unsafe_get cb.cb_el idx with
+			| {eexpr = TBlock el} ->
+				el @ acc
+			| e ->
+				e :: acc
+		in
+		loop (idx - 1) acc
+	end in
+	loop (DynArray.length cb.cb_el - 1) []
+
 let coro_iter f cb =
 	Option.may f cb.cb_catch;
 	match cb.cb_next with

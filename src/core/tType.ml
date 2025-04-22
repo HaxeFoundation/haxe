@@ -480,6 +480,7 @@ type coro_types = {
 	mutable base_continuation_class : tclass;
 	mutable continuation_result : t -> t;
 	mutable continuation_result_class : tclass;
+	mutable immediate_continuation_result_class : tclass;
 	mutable control : t;
 }
 

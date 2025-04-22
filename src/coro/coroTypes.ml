@@ -49,6 +49,8 @@ and coro_suspend = {
 type coro_ctx = {
 	typer : Typecore.typer;
 	coro_debug : bool;
+	allow_tco : bool;
+	nothrow : bool;
 	mutable vthis : tvar option;
 	mutable next_block_id : int;
 	mutable cb_unreachable : coro_block;
@@ -59,5 +61,8 @@ type coro_ctx = {
 type cb_flag =
 	| CbEmptyMarked
 	| CbForwardMarked
+	| CbTcoChecked
 	| CbReindexed
 	| CbGenerated
+
+exception CoroTco of coro_block

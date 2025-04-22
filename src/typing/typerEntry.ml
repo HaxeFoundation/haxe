@@ -168,6 +168,13 @@ let load_coro ctx =
 		| _ ->
 			()
 	) m.m_types;
+	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"ImmediateContinuationResult") null_pos in
+	List.iter (function
+		| TClassDecl({ cl_path = (["haxe";"coro"], "ImmediateContinuationResult") } as cl) ->
+			ctx.t.tcoro.immediate_continuation_result_class <- cl;
+		| _ ->
+			()
+	) m.m_types;
 	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"ContinuationControl") null_pos in
 	List.iter (function
 		| TAbstractDecl({a_path = (["haxe";"coro"],"ContinuationControl")} as a) ->

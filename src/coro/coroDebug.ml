@@ -4,7 +4,7 @@ open Type
 
 let create_dotgraph path cb =
 	print_endline (String.concat "." path);
-	let ch,close = DotGraph.start_graph path "coro" in
+	let ch,close = DotGraph.start_graph path ".coro" in
 	let pctx = print_context() in
 	let st = s_type pctx in
 	let se = s_expr_pretty true "" false st in

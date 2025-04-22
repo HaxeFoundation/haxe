@@ -765,6 +765,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 				base_continuation_class = null_class;
 				continuation_result = (fun _ -> die "Could not locate class ContinuationResult<T> (was it redefined?)" __LOC__);
 				continuation_result_class = null_class;
+				immediate_continuation_result_class = null_class;
 				control = mk_mono();
 			}
 		};
@@ -904,6 +905,7 @@ let clone com is_macro_context =
 				base_continuation_class = null_class;
 				continuation_result = (fun _ -> die "Could not locate class ContinuationResult<T> (was it redefined?)" __LOC__);
 				continuation_result_class = null_class;
+				immediate_continuation_result_class = null_class;
 				control = mk_mono();
 			};
 		};

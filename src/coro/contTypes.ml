@@ -8,9 +8,13 @@ type continuation_api = {
 	context : tclass_field;
 	state : tclass_field;
 	recursing : tclass_field;
+	immediate_result : texpr -> texpr;
+	immediate_error : texpr -> Type.t -> texpr;
 }
 
-let create_continuation_api control result error completion context state recursing = {
+let create_continuation_api immediate_result immediate_error control result error completion context state recursing = {
+	immediate_result;
+	immediate_error;
 	control;
 	result;
 	error;

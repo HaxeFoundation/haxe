@@ -21,6 +21,19 @@ type coro_to_texpr_exprs = {
 
 let mk_int com i = Texpr.Builder.make_int com.Common.basic i null_pos
 
+let make_suspending_call basic call econtinuation =
+	(* lose Coroutine<T> type for the called function not to confuse further filters and generators *)
+	let tfun = match follow_with_coro call.cs_fun.etype with
+		| Coro (args, ret) ->
+			let args,ret = Common.expand_coro_type basic args ret in
+			TFun (args, ret)
+		| NotCoro _ ->
+			die "Unexpected coroutine type" __LOC__
+	in
+	let efun = { call.cs_fun with etype = tfun } in
+	let args = call.cs_args @ [ econtinuation ] in
+	mk (TCall (efun, args)) (basic.tcoro.continuation_result basic.tany) call.cs_pos
+
 let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 	let {econtinuation;ecompletion;econtrol;eresult;estate;eerror} = exprs in
 	let open Texpr.Builder in
@@ -45,24 +58,13 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 
 	let ereturn = mk (TReturn (Some econtinuation)) econtinuation.etype p in
 
-
 	let cb_uncaught = CoroFunctions.make_block ctx None in
 	let mk_suspending_call call =
 		let p = call.cs_pos in
 		let base_continuation_field_on e cf t =
 			mk (TField(e,FInstance(com.basic.tcoro.continuation_result_class, [com.basic.tany], cf))) t null_pos
 		in
-		(* lose Coroutine<T> type for the called function not to confuse further filters and generators *)
-		let tfun = match follow_with_coro call.cs_fun.etype with
-			| Coro (args, ret) ->
-				let args,ret = Common.expand_coro_type com.basic args ret in
-				TFun (args, ret)
-			| NotCoro _ ->
-				die "Unexpected coroutine type" __LOC__
-		in
-		let efun = { call.cs_fun with etype = tfun } in
-		let args = call.cs_args @ [ econtinuation ] in
-		let ecreatecoroutine = mk (TCall (efun, args)) (com.basic.tcoro.continuation_result com.basic.tany) call.cs_pos in
+		let ecreatecoroutine = make_suspending_call com.basic call econtinuation in
 
 		let vcororesult = alloc_var VGenerated "_hx_tmp" (com.basic.tcoro.continuation_result com.basic.tany) p in
 		let ecororesult = make_local vcororesult p in
@@ -102,21 +104,6 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 			die "" __LOC__
 	in
 	let exc_state_map = Array.init ctx.next_block_id (fun _ -> ref []) in
-	let get_block_exprs cb =
-		let rec loop idx acc =
-		if idx < 0 then
-			acc
-		else begin
-			let acc = match DynArray.unsafe_get cb.cb_el idx with
-				| {eexpr = TBlock el} ->
-					el @ acc
-				| e ->
-					e :: acc
-			in
-			loop (idx - 1) acc
-		end in
-		loop (DynArray.length cb.cb_el - 1) []
-	in
 	let generate cb =
 		assert (cb != ctx.cb_unreachable);
 		let el = get_block_exprs cb in
@@ -363,13 +350,17 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 
 	let eloop = mk (TWhile (make_bool com.basic true p, eswitch, NormalWhile)) com.basic.tvoid p in
 
-	let etry = mk (TTry (
-		eloop,
-		[
-			let vcaught = alloc_var VGenerated "e" t_dynamic null_pos in
-			(vcaught,assign eresult (make_local vcaught null_pos))
-		]
-	)) com.basic.tvoid null_pos in
+	let etry = if ctx.nothrow then
+		eloop
+	else
+		mk (TTry (
+			eloop,
+			[
+				let vcaught = alloc_var VGenerated "e" t_dynamic null_pos in
+				(vcaught,assign eresult (make_local vcaught null_pos))
+			]
+		)) com.basic.tvoid null_pos
+	in
 
 	let eexchandle =
 		let cases = DynArray.create () in
