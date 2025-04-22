@@ -382,11 +382,11 @@ let rec process_condition mode condition (is_nullable_expr:texpr->bool) callback
 	let rec traverse positive e =
 		match e.eexpr with
 			| TUnop (Not, Prefix, e) -> traverse (not positive) e
-			| TBinop (OpAssign, checked_expr, e) when (is_nullable_expr e) ->
+			| TBinop (OpAssign, checked_expr, e) when is_suitable mode checked_expr && (is_nullable_expr e) ->
 				(* remove expr from both list if there is `e = nullable` in condition *)
 				remove checked_expr
 			| TBlock exprs ->
-				List.iter (fun e -> ignore (traverse positive e)) exprs
+				List.iter (fun e -> traverse positive e) exprs
 			| TBinop (OpEq, { eexpr = TConst TNull }, checked_expr) when is_suitable mode checked_expr ->
 				add positive checked_expr
 			| TBinop (OpEq, checked_expr, { eexpr = TConst TNull }) when is_suitable mode checked_expr ->
@@ -995,10 +995,24 @@ class local_safety (mode:safety_mode) =
 			Handle boolean OR outside of `if` condition.
 		*)
 		method process_or left_expr right_expr is_nullable_expr (callback:texpr->unit) =
+			let original_safe = self#get_safe_locals_copy in
+			(* save nulls for `a == null || a > 0` *)
 			let (nulls, _) = process_condition mode left_expr is_nullable_expr callback in
-			List.iter self#get_current_scope#add_to_safety nulls;
+			(* create temp scope for right_expr *)
+			let temp_scope = new safety_scope mode STNormal (Hashtbl.copy original_safe) (Hashtbl.create 10) in
+			List.iter temp_scope#add_to_safety nulls;
+			scopes <- temp_scope :: scopes;
 			callback right_expr;
-			List.iter self#get_current_scope#remove_from_safety nulls
+			self#scope_closed;
+
+			let safe_after_rhs = temp_scope#get_safe_locals in
+			let final_safe = Hashtbl.create (Hashtbl.length original_safe) in
+			Hashtbl.iter (fun subj e ->
+				if Hashtbl.mem original_safe subj && Hashtbl.mem safe_after_rhs subj then
+					Hashtbl.replace final_safe subj e
+			) original_safe;
+
+			self#get_current_scope#reset_to final_safe;
 		(**
 			Remove subject from the safety list if a nullable value is assigned or if an object with safe field is reassigned.
 		*)

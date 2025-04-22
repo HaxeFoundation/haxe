@@ -1124,6 +1124,18 @@ abstract NullFloat(Null<Float>) from Null<Float> to Null<Float> {
 }
 
 class BinopFlow {
+	function ifAndTrue_shoudPass(?a:Int):Void {
+		if (a == null) return;
+		if (a == 2 && true) {}
+		a++;
+	}
+
+	function ifOrTrue_shoudPass(?a:Int):Void {
+		if (a == null) return;
+		if (a == null || true) {}
+		a++;
+	}
+
 	function ifWithBlock_after_return_shouldPass(?a:Int):Void {
 		var safe = 0;
 		if (a == null) return;
@@ -1150,6 +1162,8 @@ class BinopFlow {
 		if (a != null && (b != null && a + b > 0)) {
 			final sum:Int = a + b;
 		}
+
+		if (a == null || (b != null && a + b > 0)) {}
 	}
 
 	function ifOrCondition_shouldFail(?a:Int, ?b:Int):Void {
@@ -1208,8 +1222,9 @@ class BinopFlow {
 	function ifMultipleAssigns_shouldFail(?a:Int, ?b:Int, ?c:Int, ?d:Int):Void {
 		if (c == null || d == null) return;
 		if (a == 2 || ({ a = 1; b = 1; c = null; d = null; false; })) return;
-		var safe:Int = a;
-		var safe:Int = b;
+		// `a` cannot be null here, but this is hard quest
+		shouldFail(var safe:Int = a);
+		shouldFail(var safe:Int = b);
 		shouldFail(var safe:Int = c);
 		shouldFail(var safe:Int = d);
 	}
@@ -1222,8 +1237,8 @@ class BinopFlow {
 		shouldFail(var safe:Int = c);
 		shouldFail(var safe:Int = d);
 		if (a == 2 || ({ a = 1; b = 1; c = null; d = null; false; })) return;
-		var safe:Int = a;
-		var safe:Int = b;
+		shouldFail(var safe:Int = a);
+		shouldFail(var safe:Int = b);
 		shouldFail(var safe:Int = c);
 		shouldFail(var safe:Int = d);
 	}
@@ -1297,5 +1312,11 @@ class BinopFlow {
 		if (a != null && {shouldFail(a += b); true;}) {
 			a++;
 		}
+	}
+
+	function if_orAssignBlock_shouldFail(?a:Int, ?b:Int):Void {
+		var safe = 1;
+		if (a == null || {safe = a; true;}) {}
+		if (a != null || {shouldFail(safe = a); true;}) {}
 	}
 }
