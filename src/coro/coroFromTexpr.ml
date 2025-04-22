@@ -339,14 +339,6 @@ let optimize_cfg ctx cb =
 	in
 	(* first pass: find empty blocks and store their replacement*)
 	let forward = Array.make ctx.next_block_id None in
-	let catch_blocks_equal cb1 cb2 = match cb1.cb_catch,cb2.cb_catch with
-		| None,None ->
-			true
-		| Some cb1,Some cb2 ->
-			cb1 == cb2
-		| _ ->
-			false
-	in
 	let rec loop cb =
 		if not (has_block_flag cb CbEmptyMarked) then begin
 			add_block_flag cb CbEmptyMarked;
@@ -355,7 +347,7 @@ let optimize_cfg ctx cb =
 				loop cb_sub;
 				forward_el cb cb_sub;
 				forward.(cb.cb_id) <- Some cb_sub
-			| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next when DynArray.empty cb.cb_el && catch_blocks_equal cb cb_next ->
+			| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next when DynArray.empty cb.cb_el ->
 				loop cb_next;
 				forward.(cb.cb_id) <- Some cb_next
 			| _ ->
