@@ -253,7 +253,7 @@ let create_continuation_class ctx coro_class initial_state =
 let coro_to_state_machine ctx coro_class cb_root exprs args vtmp vcompletion vcontinuation =
 	let basic = ctx.typer.t in
 	let cont = coro_class.ContinuationClassBuilder.continuation_api in
-	let eloop, eif_error, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls args [ vcompletion.v_id; vcontinuation.v_id ] exprs null_pos in
+	let eloop, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls args [ vcompletion.v_id; vcontinuation.v_id ] exprs null_pos in
 	(* update cf_type to use inside type parameters *)
 	List.iter (fun cf ->
 		cf.cf_type <- substitute_type_params coro_class.type_param_subst cf.cf_type;
@@ -297,7 +297,6 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp vcompletion vco
 		let tif       = mk_assign econtinuation ecastedcompletion in
 		let tif       = mk (TBlock [
 			tif;
-			eif_error;
 		]) basic.tvoid null_pos in
 		let ctor_args = prefix_arg @ [ ecompletion ] in
 		let telse = mk_assign econtinuation (mk (TNew (coro_class.cls, coro_class.outside.param_types, ctor_args)) t null_pos) in

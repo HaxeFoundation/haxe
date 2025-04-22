@@ -145,6 +145,7 @@ let expr_to_coro ctx etmp cb_root e =
 					begin match follow_with_coro e1.etype with
 					| Coro _ ->
 						let cb_next = block_from_e e1 in
+						add_block_flag cb_next CbResumeState;
 						let suspend = {
 							cs_fun = e1;
 							cs_args = el;

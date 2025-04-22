@@ -59,7 +59,6 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 
 	let ereturn = mk (TReturn (Some econtinuation)) econtinuation.etype p in
 
-	let cb_uncaught = CoroFunctions.make_block ctx None in
 	let mk_suspending_call call =
 		let p = call.cs_pos in
 		let base_continuation_field_on e cf t =
@@ -104,6 +103,22 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 		| _ ->
 			die "" __LOC__
 	in
+	let eif_error =
+		let e_then = mk (TBlock [
+			assign etmp eerror;
+			mk TBreak t_dynamic p;
+		]) com.basic.tvoid null_pos in
+		mk (TIf (
+			mk (TBinop (
+				OpNotEq,
+				eerror,
+				make_null eerror.etype p
+			)) com.basic.tbool p,
+			e_then,
+			None
+		)) com.basic.tvoid p
+	in
+
 	let exc_state_map = Array.init ctx.next_block_id (fun _ -> ref []) in
 	let generate cb =
 		assert (cb != ctx.cb_unreachable);
@@ -116,6 +131,11 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 					el
 				| Some id ->
 					(set_state id) :: el
+			in
+			let el = if has_block_flag cb CbResumeState then
+				eif_error :: el
+			else
+				el
 			in
 			states := (make_state cb.cb_id el) :: !states;
 			begin match cb.cb_catch with
@@ -179,7 +199,6 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 					set_state cb.cb_id
 				| None ->
 					mk (TBlock [
-					set_state cb_uncaught.cb_id;
 					mk TBreak t_dynamic p
 				]) t_dynamic null_pos
 			in
@@ -206,9 +225,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 	loop cb;
 
 	let states = !states in
-	let rethrow_state_id = cb_uncaught.cb_id in
-	let rethrow_state = make_state rethrow_state_id [assign etmp eerror; mk TBreak t_dynamic p] in
-	let states = states @ [rethrow_state] |> List.sort (fun state1 state2 -> state1.cs_id - state2.cs_id) in
+	let states = states |> List.sort (fun state1 state2 -> state1.cs_id - state2.cs_id) in
 
 	let module IntSet = Set.Make(struct
 		let compare a b = b - a
@@ -337,18 +354,6 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 	in
 	let eswitch = mk (TSwitch switch) com.basic.tvoid p in
 
-	let eif_error =
-		mk (TIf (
-			mk (TBinop (
-				OpNotEq,
-				eerror,
-				make_null eerror.etype p
-			)) com.basic.tbool p,
-			set_state cb_uncaught.cb_id,
-			None
-		)) com.basic.tvoid p
-	in
-
 	let eloop = mk (TWhile (make_bool com.basic true p, eswitch, NormalWhile)) com.basic.tvoid p in
 
 	let etry = if ctx.nothrow then
@@ -406,4 +411,4 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 		etry
 	in
 
-	eloop, eif_error, init_state, fields |> Hashtbl.to_seq_values |> List.of_seq
+	eloop, init_state, fields |> Hashtbl.to_seq_values |> List.of_seq
