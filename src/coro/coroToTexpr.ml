@@ -104,10 +104,13 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 			die "" __LOC__
 	in
 	let eif_error =
-		let e_then = mk (TBlock [
+		let el = if ctx.throw then
+			[mk (TThrow eerror) t_dynamic p]
+		else [
 			assign etmp eerror;
 			mk TBreak t_dynamic p;
-		]) com.basic.tvoid null_pos in
+		] in
+		let e_then = mk (TBlock el) com.basic.tvoid null_pos in
 		mk (TIf (
 			mk (TBinop (
 				OpNotEq,
@@ -160,7 +163,10 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 		| NextReturn e ->
 			add_state (Some (-1)) [ set_control CoroReturned; assign eresult e; ereturn ]
 		| NextThrow e1 ->
-			add_state None [ assign etmp e1; mk TBreak t_dynamic p ]
+			if ctx.throw then
+				add_state None [mk (TThrow e1) t_dynamic p]
+			else
+				add_state None [ assign etmp e1; mk TBreak t_dynamic p ]
 		| NextSub (cb_sub,cb_next) ->
 			ignore(cb_next.cb_id);
 			add_state (Some cb_sub.cb_id) []
@@ -356,7 +362,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 
 	let eloop = mk (TWhile (make_bool com.basic true p, eswitch, NormalWhile)) com.basic.tvoid p in
 
-	let etry = if ctx.nothrow then
+	let etry = if ctx.nothrow || (ctx.throw && not ctx.has_catch) then
 		eloop
 	else
 		mk (TTry (
@@ -380,7 +386,9 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 				]) com.basic.tvoid null_pos in
 				DynArray.add cases {case_patterns = patterns; case_expr = expr};
 		) exc_state_map;
-		let el = [
+		let el = if ctx.throw then [
+			mk (TThrow etmp) t_dynamic null_pos
+		] else [
 			assign eerror (wrap_thrown etmp);
 			set_control CoroThrown;
 			ereturn;

@@ -50,6 +50,7 @@ type coro_ctx = {
 	typer : Typecore.typer;
 	coro_debug : bool;
 	allow_tco : bool;
+	throw : bool;
 	nothrow : bool;
 	mutable vthis : tvar option;
 	mutable next_block_id : int;

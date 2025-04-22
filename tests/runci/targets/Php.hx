@@ -89,6 +89,7 @@ class Php {
 
 			changeDirectory(getMiscSubDir('coroutines'));
 			runCommand("haxe", ["build-php.hxml"]);
+			runCommand("haxe", ["build-php.hxml", "-D", "coroutine.throw"]);
 
 			Display.maybeRunDisplayTests(Php);
 

@@ -79,6 +79,7 @@ class Js {
 		infoMsg("Test coroutines:");
 		changeDirectory(getMiscSubDir("coroutines"));
 		runCommand("haxe", ["build-js.hxml"]);
+		runCommand("haxe", ["build-js.hxml", "-D", "coroutine.throw"]);
 
 		haxelibInstallGit("HaxeFoundation", "hxnodejs");
 		final env = Sys.environment();

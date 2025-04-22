@@ -69,6 +69,7 @@ class Python {
 
 		changeDirectory(getMiscSubDir('coroutines'));
 		runCommand("haxe", ["build-python.hxml"]);
+		runCommand("haxe", ["build-python.hxml", "-D", "coroutine.throw"]);
 
 		Display.maybeRunDisplayTests(Python);
 

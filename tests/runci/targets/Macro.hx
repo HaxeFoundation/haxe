@@ -11,6 +11,7 @@ class Macro {
 		infoMsg("Test coroutines:");
 		changeDirectory(getMiscSubDir("coroutines"));
 		runCommand("haxe", ["build-eval.hxml"]);
+		runCommand("haxe", ["build-eval.hxml", "-D", "coroutine.throw"]);
 
 		changeDirectory(displayDir);
 		haxelibInstallGit("Simn", "haxeserver");

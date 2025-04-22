@@ -24,9 +24,12 @@ abstract class BaseContinuation<T> extends ContinuationResult<T> implements ICon
         _hx_result = result;
         _hx_error  = error;
         _hx_context.scheduler.schedule(() -> {
-		_hx_recursing = false;
+			_hx_recursing = false;
 
-		final result = invokeResume();
+			#if coroutine.throw
+			try {
+			#end
+			final result = invokeResume();
 			switch (result._hx_control) {
 				case Pending:
 					return;
@@ -35,6 +38,11 @@ abstract class BaseContinuation<T> extends ContinuationResult<T> implements ICon
 				case Thrown:
 					_hx_completion.resume(null, result._hx_error);
 			}
+			#if coroutine.throw
+			} catch (e:Dynamic) {
+				_hx_completion.resume(null, @:privateAccess Exception.thrown(e));
+			}
+			#end
         });
     }
 

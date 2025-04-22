@@ -10,6 +10,7 @@ class Neko {
 
 		changeDirectory(getMiscSubDir('coroutines'));
 		runCommand("haxe", ["build-neko.hxml"]);
+		runCommand("haxe", ["build-neko.hxml", "-D", "coroutine.throw"]);
 
 		changeDirectory(getMiscSubDir('neko'));
 		runCommand("haxe", ["run.hxml"].concat(args));

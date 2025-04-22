@@ -36,6 +36,7 @@ class Jvm {
 		infoMsg("Test coroutines:");
 		changeDirectory(getMiscSubDir("coroutines"));
 		runCommand("haxe", ["build-jvm.hxml"]);
+		runCommand("haxe", ["build-jvm.hxml", "-D", "coroutine.throw"]);
 		Display.maybeRunDisplayTests(Jvm);
 
 		changeDirectory(miscJavaDir);

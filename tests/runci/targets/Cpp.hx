@@ -75,6 +75,9 @@ class Cpp {
 		changeDirectory(getMiscSubDir("coroutines"));
 		runCommand("haxe", ["build-cpp.hxml"]);
 		runCpp("bin/cpp/Main-debug");
+		runCommand("haxe", ["build-cpp.hxml", "-D", "coroutine.throw"]);
+		runCpp("bin/cpp/Main-debug");
+
 		Display.maybeRunDisplayTests(Cpp);
 
 		changeDirectory(sysDir);

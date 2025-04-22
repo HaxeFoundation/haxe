@@ -142,6 +142,7 @@ class Hl {
 		infoMsg("Test coroutines:");
 		changeDirectory(getMiscSubDir("coroutines"));
 		runCommand("haxe", ["build-hl.hxml"]);
+		runCommand("haxe", ["build-hl.hxml", "-D", "coroutine.throw"]);
 
 		changeDirectory(threadsDir);
 		buildAndRun("build.hxml", "export/threads");

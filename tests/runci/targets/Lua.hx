@@ -98,6 +98,7 @@ class Lua {
 
 			changeDirectory(getMiscSubDir('coroutines'));
 			runCommand("haxe", ["build-lua.hxml"]);
+			runCommand("haxe", ["build-lua.hxml", "-D", "coroutine.throw"]);
 
 			Display.maybeRunDisplayTests(Lua);
 
