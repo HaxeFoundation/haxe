@@ -5,7 +5,7 @@ package issues.aidan;
 	throw "fail";
 }
 
-@:coroutine @:coroutine.debug function f() {
+@:coroutine function f() {
 	try {
 		suspendThenThrow();
 		return "wrong";

@@ -128,18 +128,19 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 		let el = get_block_exprs cb in
 
 		let add_state next_id extra_el =
-			let el = el @ extra_el in
+			let el = el in
 			let el = match next_id with
 				| None ->
 					el
 				| Some id ->
-					(set_state id) :: el
+					el @ [set_state id]
 			in
 			let el = if has_block_flag cb CbResumeState then
 				eif_error :: el
 			else
 				el
 			in
+			let el = el @ extra_el in
 			states := (make_state cb.cb_id el) :: !states;
 			begin match cb.cb_catch with
 				| None ->
