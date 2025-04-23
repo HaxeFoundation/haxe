@@ -2408,8 +2408,14 @@ and eval_expr ctx e =
 		| HFun _ -> cast_to ctx r to_t e.epos
 		| _ -> unsafe_cast_to ctx r to_t e.epos)
 	| TObjectDecl fl ->
-		(match to_type ctx e.etype with
-		| HVirtual vp as t when Array.length vp.vfields = List.length fl && not (List.exists (fun ((s,_,_),e) -> (try ignore(PMap.find s vp.vindex); false with Not_found -> true) || (s = "toString" && is_to_string e.etype)) fl) ->
+		(* We cannot rely on e.etype because it might have optional field etc, see jvm *)
+		let fields = List.fold_left (fun acc ((name,_,_),e) ->
+			let cf = mk_field name e.etype e.epos e.epos in
+			PMap.add name cf acc
+		) PMap.empty fl in
+		let rt = to_type ctx (mk_anon ~fields (ref Closed)) in
+		(match rt with
+		| HVirtual vp as t when safe_cast rt (to_type ctx e.etype) && not (List.exists (fun ((s,_,_),e) -> s = "toString" && is_to_string e.etype) fl) ->
 			let r = alloc_tmp ctx t in
 			op ctx (ONew r);
 			hold ctx r;

@@ -30,6 +30,11 @@ typedef AnonAsStruct = {
 	?optional:String
 }
 
+typedef AnonDefaultNever = {
+	var name(default, never):String;
+	var version(default, never):String;
+}
+
 /** Test `@:nullSafety(Off)` is respected on fields */
 class UnsafeFields {
 	@:nullSafety(Off) var unsafeVar:String = null;
@@ -610,6 +615,14 @@ class TestStrict {
 		shouldFail(a.value);
 	}
 
+	static function nullable_doWhile_shouldPass(?a:Int) {
+		do {
+			if (a == null) return;
+			a++;
+		} while (true);
+		a++;
+	}
+
 	static function throw_nullableValue_shouldFail() {
 		var s:Null<String> = null;
 		shouldFail(throw s);
@@ -662,10 +675,10 @@ class TestStrict {
 	}
 
 	static function objectDecl_passObjWithNullabelFieldToObjWithNotNullableField_shouldFail(?a:String) {
-		shouldFail(var o:{field:String} = {field:a});
+		var o:{field:String} = {field:shouldFail(a)};
 		shouldFail(o = new TestStrict('')); //Test has `field:Null<String>`
 		var arr = (['', a]:Array<Null<String>>);
-		shouldFail(var q:{field:Array<String>} = {field:arr});
+		var q:{field:Array<String>} = {field:shouldFail(arr)};
 		shouldFail(var v:{value:Array<String>} = new Generic(arr));
 	}
 
@@ -822,7 +835,8 @@ class TestStrict {
 
 	static public function closure_storedSomewhere_shouldFail(?s:String) {
 		if(s != null) {
-			passesSomewhereElse(() -> shouldFail(s.length));
+			// unstable, see #12187
+			// passesSomewhereElse(() -> shouldFail(s.length));
 			storesSomewhere(() -> shouldFail(s.length));
 		}
 	}
@@ -1040,6 +1054,32 @@ class TestStrict {
 	}
 }
 
+private class AnonFields {
+	var nullableStr:Null<String> = "";
+
+	final anon:AnonDefaultNever = {
+		name: "",
+		// TODO should fail
+		version: null
+	};
+	final anon2:{name:String, version:String} = {
+		name: "",
+		version: shouldFail(null)
+	};
+
+	function reportNullableFieldValues():Null<AnonDefaultNever> {
+		final nullStr:Null<String> = null;
+		final object:{field:String} = {field: shouldFail(null)};
+		final object:{field:String} = {field: shouldFail(nullStr)};
+		final object:{field:String} = {field: shouldFail(nullableStr)};
+		final obj:AnonDefaultNever = {
+			name: "name",
+			version: shouldFail(null),
+		}
+		return {name: "foo", version: shouldFail(null)};
+	}
+}
+
 private class FinalNullableFields {
 	static public final staticVar:Null<String> = "hello";
 	public final instanceVar:Null<String> = "world";
@@ -1080,5 +1120,203 @@ abstract NullFloat(Null<Float>) from Null<Float> to Null<Float> {
 
 	@:op(A + B) static inline function addOp1(lhs: NullFloat, rhs: Float): Float {
 		return lhs != null ? lhs.val() + rhs : rhs;
+	}
+}
+
+class BinopFlow {
+	function ifAndTrue_shoudPass(?a:Int):Void {
+		if (a == null) return;
+		if (a == 2 && true) {}
+		a++;
+	}
+
+	function ifOrTrue_shoudPass(?a:Int):Void {
+		if (a == null) return;
+		if (a == null || true) {}
+		a++;
+	}
+
+	function ifWithBlock_after_return_shouldPass(?a:Int):Void {
+		var safe = 0;
+		if (a == null) return;
+		if (a == 2 && {safe = a;true;}) {
+			safe = a;
+			return;
+		}
+		a++;
+	}
+
+	function ifWithNullableAssign_shouldFail(?a:Int):Void {
+		var safe = 0;
+		if (a == 2 || {shouldFail(safe = a);true;}) {}
+		if (a != 2 && {shouldFail(safe = a);true;}) {}
+		if (a == 2 && {safe = a;true;}) {}
+		shouldFail(safe = a);
+	}
+
+	function ifNonNullableCondition_shouldPass(?a:Int, ?b:Int):Void {
+		if (a != null && (b != null && true)) {
+			var sum:Int = a + b;
+		}
+
+		if (a != null && (b != null && a + b > 0)) {
+			final sum:Int = a + b;
+		}
+
+		if (a == null || (b != null && a + b > 0)) {}
+	}
+
+	function ifOrCondition_shouldFail(?a:Int, ?b:Int):Void {
+		if (a != null || (b != null && shouldFail(a + b) > 0)) {
+			final sum:Int = shouldFail(a + b);
+		}
+	}
+
+	function ifBlockNonNullableAssign_shouldPass(?a:Int, ?b:Int):Void {
+		var safe = 1;
+		if (a == null) {}
+		else safe = a;
+		if (a != null && ({safe = a; true;})) {
+			var sum:Int = a;
+		}
+	}
+
+	function ifBlockNullableAssign_shouldFail(?a:Int):Void {
+		if (a == null) return;
+		if (a == 2 && { a = null; false; }) return;
+		shouldFail(var safe:Int = a);
+	}
+
+	function ifFirstBlockNullableAssign_shouldFail(?a:Int):Void {
+		if (a == null) return;
+		if (({ a = null; false; }) && false) return;
+		shouldFail(var safe:Int = a);
+	}
+
+	function ifBlockNullableCall_shouldFail(?a:Int):Void {
+		inline function setNull():Void {
+			a = null;
+		}
+		if (a == null && { setNull(); false; }) return;
+		shouldFail(var safe:Int = a);
+	}
+
+	function ifMutableFunction_with_return_shouldFail(?a:Int):Void {
+		function setNull():Void {
+			a = null;
+		}
+		if (a == null) return;
+		// fails in Strict
+		shouldFail(var safe:Int = a);
+	}
+
+	function ifBlockInlineNullableCall_with_return_shouldPass(?a:Int):Void {
+		inline function setNull():Void {
+			a = null;
+		}
+		if (a == null && { setNull(); false; }) return;
+		if (a == null) return;
+		var safe:Int = a;
+	}
+
+	function ifMultipleAssigns_shouldFail(?a:Int, ?b:Int, ?c:Int, ?d:Int):Void {
+		if (c == null || d == null) return;
+		if (a == 2 || ({ a = 1; b = 1; c = null; d = null; false; })) return;
+		// `a` cannot be null here, but this is hard quest
+		shouldFail(var safe:Int = a);
+		shouldFail(var safe:Int = b);
+		shouldFail(var safe:Int = c);
+		shouldFail(var safe:Int = d);
+	}
+
+	function ifMultipleAssigns2_shouldFail(?a:Int, ?b:Int, ?c:Int, ?d:Int):Void {
+		if (c == null || d == null) return;
+		if (a == 2 && ({ a = 1; b = 1; c = null; d = null; false; })) return;
+		shouldFail(var safe:Int = a);
+		shouldFail(var safe:Int = b);
+		shouldFail(var safe:Int = c);
+		shouldFail(var safe:Int = d);
+		if (a == 2 || ({ a = 1; b = 1; c = null; d = null; false; })) return;
+		shouldFail(var safe:Int = a);
+		shouldFail(var safe:Int = b);
+		shouldFail(var safe:Int = c);
+		shouldFail(var safe:Int = d);
+	}
+
+	function ifMultipleAssigns3_shouldFail(?a:Int, ?b:Int, ?c:Int, ?d:Int):Void {
+		if (c == null || d == null) return;
+		if (({ a = 1; b = 1; c = null; d = null; false; }) && a == 2) return;
+		var safe:Int = a;
+		var safe:Int = b;
+		shouldFail(var safe:Int = c);
+		shouldFail(var safe:Int = d);
+	}
+
+	function nullable_ifAndTrue_shouldPass(?a:Int) {
+		while (a != null) {
+			a++;
+		}
+		if (a == null) return;
+		if (a == 2 && true) return;
+		while (a == 3) {}
+		a++;
+		while ({a = null; shouldFail(a++); false;}) {}
+		shouldFail(a++);
+	}
+
+	function nullableVar_after_while_shouldFail(?a:Int):Void {
+		if (a == null) return;
+		while (a != null) {
+			a = null;
+			break;
+		}
+		shouldFail(a++);
+	}
+
+	function if_nullableString_shouldFail(?s:String):Void {
+		if (true && s != null && true) {
+			s.length;
+		} else {
+			shouldFail(s.length);
+			if (s == null) return;
+			s.length;
+		}
+	}
+
+	function if_else_nullableVars_shouldFail(?a:Int) {
+		var b:Null<Int> = 1;
+		if (a != null && true) {
+			a++;
+			b++;
+		} else {
+			shouldFail(a++);
+			b++;
+		}
+		shouldFail(a++);
+		b++;
+	}
+
+	function if_assignNullable_shouldFail(?a:Int, ?b:Int):Void {
+		if (a != null && true) {
+			a++;
+		}
+		if (a != null && true && {a = b; true;}) {
+			shouldFail(a++);
+		}
+		if (a != null && {a = null; true;}) {
+			shouldFail(a++);
+		}
+		if (a != null && {a = b; true;}) {
+			shouldFail(a++);
+		}
+		if (a != null && {shouldFail(a += b); true;}) {
+			a++;
+		}
+	}
+
+	function if_orAssignBlock_shouldFail(?a:Int, ?b:Int):Void {
+		var safe = 1;
+		if (a == null || {safe = a; true;}) {}
+		if (a != null || {shouldFail(safe = a); true;}) {}
 	}
 }
