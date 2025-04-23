@@ -146,6 +146,14 @@ class TestLoose {
 		shouldFail(if (foo()) {});
 	}
 
+	static function return_localFuncNullableAccess_shouldPass():Void {
+		if (staticVar == null) return;
+		function foo() {
+			trace(staticVar.length);
+		}
+		foo();
+	}
+
 	static function nullCoal_continue_shouldPass():Void {
 		for (i in 0...1) {
 			var i:String = staticVar ?? continue;

@@ -53,7 +53,8 @@ jobs:
         run: neko -version 2>&1
 
       - name: Setup ocaml
-        uses: ocaml/setup-ocaml@v3
+      # Lock to 3.2.19 to work around an issue with 32-bit libraries getting installed
+        uses: ocaml/setup-ocaml@3d85bf33a66e089149cd1e9c75da7b9cb6d9d3a7
         with:
           ocaml-compiler: ${{ env.OCAML_VERSION }}
           opam-local-packages: |
