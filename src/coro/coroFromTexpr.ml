@@ -151,6 +151,7 @@ let expr_to_coro ctx etmp cb_root e =
 							cs_args = el;
 							cs_pos = e.epos
 						} in
+						add_block_flag cb CbSuspendState;
 						terminate cb (NextSuspend(suspend,cb_next)) t_dynamic null_pos;
 						cb_next,etmp
 					| _ ->
@@ -346,8 +347,10 @@ let optimize_cfg ctx cb =
 			| NextSub(cb_sub,cb_next) when cb_next == ctx.cb_unreachable ->
 				loop cb_sub;
 				forward_el cb cb_sub;
+				if has_block_flag cb CbResumeState then add_block_flag cb_sub CbResumeState;
 				forward.(cb.cb_id) <- Some cb_sub
 			| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next when DynArray.empty cb.cb_el ->
+				if has_block_flag cb CbResumeState then add_block_flag cb_next CbResumeState;
 				loop cb_next;
 				forward.(cb.cb_id) <- Some cb_next
 			| _ ->

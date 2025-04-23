@@ -65,6 +65,7 @@ type cb_flag =
 	| CbTcoChecked
 	| CbReindexed
 	| CbGenerated
+	| CbSuspendState
 	| CbResumeState
 
 exception CoroTco of coro_block
