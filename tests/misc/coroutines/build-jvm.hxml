@@ -3,8 +3,3 @@ build-base.hxml
 --jvm bin/coro.jar
 --hxb bin/coro.hxb
 --cmd java -jar bin/coro.jar
-
---next
---hxb-lib bin/coro.hxb
---jvm bin/coro.jar
---cmd java -jar bin/coro.jar

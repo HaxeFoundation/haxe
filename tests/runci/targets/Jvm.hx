@@ -35,8 +35,10 @@ class Jvm {
 
 		infoMsg("Test coroutines:");
 		changeDirectory(getMiscSubDir("coroutines"));
-		runCommand("haxe", ["build-jvm.hxml"]);
-		runCommand("haxe", ["build-jvm.hxml", "-D", "coroutine.throw"]);
+		runCommand("haxe", ["build-jvm.hxml", "--hxb", "bin/coro.hxb"]);
+		runCommand("haxe", ["build-jvm.hxml", "--hxb-lib", "bin/coro.hxb"]);
+		runCommand("haxe", ["build-jvm.hxml", "--hxb", "bin/coro.hxb", "-D", "coroutine.throw"]);
+		runCommand("haxe", ["build-jvm.hxml", "--hxb-lib", "bin/coro.hxb", "-D", "coroutine.throw"]);
 		Display.maybeRunDisplayTests(Jvm);
 
 		changeDirectory(miscJavaDir);
