@@ -495,6 +495,7 @@ type basic_types = {
 	mutable tarray : t -> t;
 	mutable texception : t;
 	mutable titerator : t -> t;
+	mutable tunit : t;
 	mutable tcoro : coro_types;
 }
 

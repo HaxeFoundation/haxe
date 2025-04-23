@@ -759,6 +759,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 			titerator = (fun _ -> die "Could not locate typedef Iterator<T> (was it redefined?)" __LOC__);
+			tunit = mk_mono();
 			tcoro = {
 				tcoro = (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
 				continuation = mk_mono();
@@ -899,6 +900,7 @@ let clone com is_macro_context =
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 			titerator = (fun _ -> die "Could not locate typedef Iterator<T> (was it redefined?)" __LOC__);
 			texception = mk_mono();
+			tunit = mk_mono();
 			tcoro = {
 				tcoro = (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
 				continuation = mk_mono();
@@ -1120,6 +1122,7 @@ let get_entry_point com =
 
 let expand_coro_type basic args ret =
 	let args = args @ [("_hx_continuation",false,basic.tcoro.continuation)] in
+	let ret = if ExtType.is_void (follow ret) then basic.tunit else ret in
 	(args,basic.tcoro.continuation_result ret)
 
 let make_unforced_lazy t_proc f where =

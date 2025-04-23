@@ -114,7 +114,8 @@ let load_unit ctx =
 		| TEnumDecl en ->
 			(match snd en.e_path with
 			| "Unit" ->
-				ctx.m.import_resolution#add (module_type_resolution mt None null_pos);
+				ctx.t.tunit <- TEnum(en,[]);
+				(* ctx.m.import_resolution#add (module_type_resolution mt None null_pos); *)
 			| _ -> ())
 		| _ -> ()
 	) m.m_types
@@ -246,7 +247,7 @@ let create com macros =
 	load_string ctx;
 	load_std ctx;
 	load_any ctx;
-	(* load_unit ctx; *)
+	load_unit ctx;
 	load_array ctx;
 	load_enum_tools ctx;
 	load_coro ctx;

@@ -171,8 +171,7 @@ let rec jsignature_of_type gctx stack t =
 				| ["haxe";"coro"],"Coroutine" ->
 					begin match tl with
 					| [TFun(args,ret)] ->
-						let tcontinuation = gctx.gctx.basic.tcoro.continuation in
-						let args = args @ [("",false,tcontinuation)] in
+						let args,ret = Common.expand_coro_type gctx.gctx.basic args ret in
 						jsignature_of_type (TFun(args,gctx.gctx.basic.tcoro.continuation_result ret))
 					| _ ->
 						die "" __LOC__

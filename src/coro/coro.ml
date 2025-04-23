@@ -69,6 +69,7 @@ module ContinuationClassBuilder = struct
 				n, Some (mk_field captured_field_name t null_pos null_pos), (match v.v_extra with Some ve -> ve.v_params | None -> []), f.tf_type
 			in
 
+		let result_type = if ExtType.is_void (follow result_type) then ctx.typer.t.tunit else result_type in
 		(* Is there a pre-existing function somewhere to a valid path? *)
 		let cls_path = ((fst ctx.typer.m.curmod.m_path) @ [ Printf.sprintf "_%s" (snd ctx.typer.m.curmod.m_path) ]), name in
 		let cls      = mk_class ctx.typer.m.curmod cls_path null_pos null_pos in
