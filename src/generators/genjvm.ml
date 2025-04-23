@@ -172,7 +172,7 @@ let rec jsignature_of_type gctx stack t =
 					begin match tl with
 					| [TFun(args,ret)] ->
 						let args,ret = Common.expand_coro_type gctx.gctx.basic args ret in
-						jsignature_of_type (TFun(args,gctx.gctx.basic.tcoro.continuation_result ret))
+						jsignature_of_type (TFun(args,gctx.gctx.basic.tcoro.suspension_result ret))
 					| _ ->
 						die "" __LOC__
 					end

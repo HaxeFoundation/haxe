@@ -10,7 +10,7 @@ private class CoroSuspend<T> extends haxe.coro.BaseContinuation<T> {
 		super(completion, 1);
 	}
 
-	public function invokeResume():ContinuationResult<T> {
+	public function invokeResume():SuspensionResult<T> {
 		return Coroutine.suspend(null, this);
 	}
 }

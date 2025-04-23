@@ -478,10 +478,10 @@ type coro_types = {
 	mutable tcoro : (string * bool * t) list -> t -> t;
 	mutable continuation : t;
 	mutable base_continuation_class : tclass;
-	mutable continuation_result : t -> t;
-	mutable continuation_result_class : tclass;
-	mutable immediate_continuation_result_class : tclass;
-	mutable control : t;
+	mutable suspension_state : t;
+	mutable suspension_result : t -> t;
+	mutable suspension_result_class : tclass;
+	mutable immediate_suspension_result_class : tclass;
 }
 
 type basic_types = {

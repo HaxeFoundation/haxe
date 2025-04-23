@@ -2,7 +2,7 @@ package haxe.coro;
 
 import haxe.Exception;
 
-class ImmediateContinuationResult<T> extends ContinuationResult<T> {
+class ImmediateSuspensionResult<T> extends SuspensionResult<T> {
 	function new(result:T, error:Exception) {
 		_hx_result = result;
 		_hx_error = error;
@@ -10,14 +10,14 @@ class ImmediateContinuationResult<T> extends ContinuationResult<T> {
 	}
 
 	static public function withResult<T>(result:T) {
-		return new ImmediateContinuationResult(result, null);
+		return new ImmediateSuspensionResult(result, null);
 	}
 
 	static public function withError<T>(error:T) {
-		return new ImmediateContinuationResult<T>(null, @:privateAccess haxe.Exception.thrown(error));
+		return new ImmediateSuspensionResult<T>(null, @:privateAccess haxe.Exception.thrown(error));
 	}
 
 	public override function toString() {
-		return '[ImmediateContinuationResult ${_hx_control.toString()}, $_hx_result]';
+		return '[ImmediateSuspensionResult ${_hx_control.toString()}, $_hx_result]';
 	}
 }

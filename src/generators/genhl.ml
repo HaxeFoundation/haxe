@@ -484,7 +484,7 @@ let rec to_type ?tref ctx t =
 				begin match pl with
 				| [TFun(args,ret)] ->
 					let args,ret = Common.expand_coro_type ctx.com.basic args ret in
-					to_type ctx (TFun(args,ctx.com.basic.tcoro.continuation_result ret))
+					to_type ctx (TFun(args,ctx.com.basic.tcoro.suspension_result ret))
 				| _ ->
 					die "" __LOC__
 				end

@@ -161,25 +161,25 @@ let load_coro ctx =
 		| _ ->
 			()
 	) m.m_types;
-	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"ContinuationResult") null_pos in
+	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"SuspensionResult") null_pos in
 	List.iter (function
-		| TClassDecl({ cl_path = (["haxe";"coro"], "ContinuationResult") } as cl) ->
-			ctx.t.tcoro.continuation_result <- (fun t -> TInst(cl, [t]));
-			ctx.t.tcoro.continuation_result_class <- cl;
+		| TClassDecl({ cl_path = (["haxe";"coro"], "SuspensionResult") } as cl) ->
+			ctx.t.tcoro.suspension_result <- (fun t -> TInst(cl, [t]));
+			ctx.t.tcoro.suspension_result_class <- cl;
 		| _ ->
 			()
 	) m.m_types;
-	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"ImmediateContinuationResult") null_pos in
+	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"ImmediateSuspensionResult") null_pos in
 	List.iter (function
-		| TClassDecl({ cl_path = (["haxe";"coro"], "ImmediateContinuationResult") } as cl) ->
-			ctx.t.tcoro.immediate_continuation_result_class <- cl;
+		| TClassDecl({ cl_path = (["haxe";"coro"], "ImmediateSuspensionResult") } as cl) ->
+			ctx.t.tcoro.immediate_suspension_result_class <- cl;
 		| _ ->
 			()
 	) m.m_types;
-	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"ContinuationControl") null_pos in
+	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"SuspensionState") null_pos in
 	List.iter (function
-		| TAbstractDecl({a_path = (["haxe";"coro"],"ContinuationControl")} as a) ->
-			ctx.t.tcoro.control <- TAbstract(a,[])
+		| TAbstractDecl({a_path = (["haxe";"coro"],"SuspensionState")} as a) ->
+			ctx.t.tcoro.suspension_state <- TAbstract(a,[])
 		| _ ->
 			()
 	) m.m_types;

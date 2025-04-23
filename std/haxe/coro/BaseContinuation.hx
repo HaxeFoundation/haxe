@@ -2,7 +2,7 @@ package haxe.coro;
 
 import haxe.Exception;
 
-abstract class BaseContinuation<T> extends ContinuationResult<T> implements IContinuation<T> {
+abstract class BaseContinuation<T> extends SuspensionResult<T> implements IContinuation<T> {
     public final _hx_completion:IContinuation<Any>;
 
 	public final _hx_context:CoroutineContext;
@@ -46,5 +46,5 @@ abstract class BaseContinuation<T> extends ContinuationResult<T> implements ICon
         });
     }
 
-    abstract function invokeResume():ContinuationResult<T>;
+    abstract function invokeResume():SuspensionResult<T>;
 }

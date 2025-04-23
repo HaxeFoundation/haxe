@@ -91,15 +91,15 @@ module ContinuationClassBuilder = struct
 			| Some api ->
 				api
 			| None ->
-				let cf_control    = PMap.find "_hx_control" basic.tcoro.continuation_result_class.cl_fields in
-				let cf_result     = PMap.find "_hx_result" basic.tcoro.continuation_result_class.cl_fields in
-				let cf_error      = PMap.find "_hx_error" basic.tcoro.continuation_result_class.cl_fields in
+				let cf_control    = PMap.find "_hx_control" basic.tcoro.suspension_result_class.cl_fields in
+				let cf_result     = PMap.find "_hx_result" basic.tcoro.suspension_result_class.cl_fields in
+				let cf_error      = PMap.find "_hx_error" basic.tcoro.suspension_result_class.cl_fields in
 				let cf_completion = PMap.find "_hx_completion" basic.tcoro.base_continuation_class.cl_fields in
 				let cf_context    = PMap.find "_hx_context" basic.tcoro.base_continuation_class.cl_fields in
 				let cf_state      = PMap.find "_hx_state" basic.tcoro.base_continuation_class.cl_fields in
 				let cf_recursing  = PMap.find "_hx_recursing" basic.tcoro.base_continuation_class.cl_fields in
 				let immediate_result,immediate_error =
-					let c = basic.tcoro.immediate_continuation_result_class in
+					let c = basic.tcoro.immediate_suspension_result_class in
 					let cf_result = PMap.find "withResult" c.cl_statics in
 					let cf_error = PMap.find "withError" c.cl_statics in
 					(fun e ->
@@ -453,7 +453,7 @@ let fun_to_coro ctx coro_type =
 	in
 
 	let estate  = continuation_field cont.state basic.tint in
-	let econtrol = continuation_field cont.control basic.tcoro.control in
+	let econtrol = continuation_field cont.control basic.tcoro.suspension_state in
 	let eresult = continuation_field cont.result basic.tany in
 	let eerror = continuation_field cont.error basic.texception in
 
@@ -483,7 +483,7 @@ let fun_to_coro ctx coro_type =
 	(* I'm not sure what this should be, but let's stick to the widest one for now.
 	   Cpp dies if I try to use coro_class.outside.cls_t here, which might be something
 	   to investigate independently. *)
-	let tf_type = basic.tcoro.continuation_result coro_class.outside.result_type in
+	let tf_type = basic.tcoro.suspension_result coro_class.outside.result_type in
 	if ctx.coro_debug then begin
 		print_endline ("BEFORE:\n" ^ (s_expr_debug expr));
 		CoroDebug.create_dotgraph (DotGraph.get_dump_path (SafeCom.of_com ctx.typer.com) (ctx.typer.c.curclass.cl_path) name) cb_root
