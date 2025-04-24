@@ -333,10 +333,10 @@ let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
 		let continue cb_next e =
 			loop cb_next (!current_el @ [e])
 		in
-		let maybe_continue cb_next term e =
-			if not term then
+		let maybe_continue cb_next term e = match cb_next with
+			| Some cb_next when not term ->
 				continue cb_next e
-			else
+			| _ ->
 				(!current_el @ [e]),true
 		in
 		let add e = current_el := !current_el @ [e] in
@@ -398,7 +398,7 @@ let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
 			| NextWhile(e1,cb_body,cb_next) ->
 				let e_body,_ = loop_as_block cb_body in
 				let e_while = mk (TWhile(e1,e_body,NormalWhile)) basic.tvoid p in
-				continue cb_next e_while
+				maybe_continue cb_next false e_while
 			| NextTry(cb_try,catches,cb_next) ->
 				let e_try,term = loop_as_block cb_try in
 				let term = ref term in
@@ -473,7 +473,7 @@ let fun_to_coro ctx coro_type =
 	ignore(CoroFromTexpr.expr_to_coro ctx etmp cb_root expr);
 	let exprs = {CoroToTexpr.econtinuation;ecompletion;econtrol;eresult;estate;eerror;etmp} in
 	let tf_expr,cb_root = try
-		let cb_root = CoroFromTexpr.optimize_cfg ctx cb_root in
+		let cb_root = if ctx.optimize then CoroFromTexpr.optimize_cfg ctx cb_root else cb_root in
 		coro_to_state_machine ctx coro_class cb_root exprs args vtmp vcompletion vcontinuation,cb_root
 	with CoroTco cb_root ->
 		coro_to_normal ctx coro_class cb_root exprs vcontinuation,cb_root
@@ -493,17 +493,17 @@ let fun_to_coro ctx coro_type =
 	e
 
 let create_coro_context typer meta =
+	let optimize = not (Define.raw_defined typer.Typecore.com.defines "coroutine.noopt") in
 	let ctx = {
 		typer;
 		coro_debug = Meta.has (Meta.Custom ":coroutine.debug") meta;
-		allow_tco = not (Meta.has (Meta.Custom ":coroutine.notco") meta);
+		optimize;
+		allow_tco = optimize && not (Meta.has (Meta.Custom ":coroutine.notco") meta);
 		throw = Define.raw_defined typer.com.defines "coroutine.throw";
 		nothrow = Meta.has (Meta.Custom ":coroutine.nothrow") meta;
 		vthis = None;
 		next_block_id = 0;
-		cb_unreachable = Obj.magic "";
 		current_catch = None;
 		has_catch = false;
 	} in
-	ctx.cb_unreachable <- make_block ctx None;
 	ctx

@@ -8,9 +8,7 @@ class Neko {
 		runCommand("haxe", ["compile-neko.hxml", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args));
 		runCommand("neko", ["bin/unit.n"]);
 
-		changeDirectory(getMiscSubDir('coroutines'));
-		runCommand("haxe", ["build-neko.hxml"]);
-		runCommand("haxe", ["build-neko.hxml", "-D", "coroutine.throw"]);
+		runci.tests.CoroutineTests.run(["build-neko.hxml"]);
 
 		changeDirectory(getMiscSubDir('neko'));
 		runCommand("haxe", ["run.hxml"].concat(args));

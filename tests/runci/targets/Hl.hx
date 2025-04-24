@@ -139,10 +139,7 @@ class Hl {
 		runCommand("haxe", ["compile-hlc.hxml", "--undefine", "analyzer-optimize"].concat(args));
 		buildAndRunHlc("bin/hlc", "unit", runCommand);
 
-		infoMsg("Test coroutines:");
-		changeDirectory(getMiscSubDir("coroutines"));
-		runCommand("haxe", ["build-hl.hxml"]);
-		runCommand("haxe", ["build-hl.hxml", "-D", "coroutine.throw"]);
+		runci.tests.CoroutineTests.run(["build-hl.hxml"]);
 
 		changeDirectory(threadsDir);
 		buildAndRun("build.hxml", "export/threads");

@@ -8,7 +8,7 @@ function throwing() {
 	throw new NotImplementedException();
 }
 
-@:coroutine @:coroutine.debug function recursion(i:Int, acc:Int) {
+@:coroutine function recursion(i:Int, acc:Int) {
 	yield();
 	return if (i > 0) {
 		recursion(i - 1, acc + i);

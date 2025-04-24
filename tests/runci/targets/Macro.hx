@@ -8,10 +8,7 @@ class Macro {
 		runCommand("haxe", ["compile-macro.hxml", "--hxb", "bin/hxb/eval.zip"].concat(args));
 		runCommand("haxe", ["compile-macro.hxml", "--hxb-lib", "bin/hxb/eval.zip"].concat(args));
 
-		infoMsg("Test coroutines:");
-		changeDirectory(getMiscSubDir("coroutines"));
-		runCommand("haxe", ["build-eval.hxml"]);
-		runCommand("haxe", ["build-eval.hxml", "-D", "coroutine.throw"]);
+		runci.tests.CoroutineTests.run(["build-eval.hxml"]);
 
 		changeDirectory(displayDir);
 		haxelibInstallGit("Simn", "haxeserver");

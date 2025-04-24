@@ -10,18 +10,20 @@ type coro_block = {
 	mutable cb_flags : int;
 }
 
+and coro_block_next = coro_block option
+
 and coro_next =
 	| NextUnknown
-	| NextSub of coro_block * coro_block
+	| NextSub of coro_block * coro_block_next
 	| NextReturnVoid
 	| NextReturn of texpr
 	| NextThrow of texpr
 	| NextIfThen of texpr * coro_block * coro_block
-	| NextIfThenElse of texpr * coro_block * coro_block * coro_block
-	| NextSwitch of coro_switch * coro_block
-	| NextWhile of texpr * coro_block * coro_block
-	| NextTry of coro_block * coro_catch * coro_block
-	| NextSuspend of coro_suspend * coro_block
+	| NextIfThenElse of texpr * coro_block * coro_block * coro_block_next
+	| NextSwitch of coro_switch * coro_block_next
+	| NextWhile of texpr * coro_block * coro_block_next
+	| NextTry of coro_block * coro_catch * coro_block_next
+	| NextSuspend of coro_suspend * coro_block_next
 	(* graph connections from here on, careful with traversal *)
 	| NextBreak of coro_block
 	| NextContinue of coro_block
@@ -49,12 +51,12 @@ and coro_suspend = {
 type coro_ctx = {
 	typer : Typecore.typer;
 	coro_debug : bool;
+	optimize : bool;
 	allow_tco : bool;
 	throw : bool;
 	nothrow : bool;
 	mutable vthis : tvar option;
 	mutable next_block_id : int;
-	mutable cb_unreachable : coro_block;
 	mutable current_catch : coro_block option;
 	mutable has_catch : bool;
 }

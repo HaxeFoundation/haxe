@@ -72,11 +72,9 @@ class Cpp {
 				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 		}
 
-		changeDirectory(getMiscSubDir("coroutines"));
-		runCommand("haxe", ["build-cpp.hxml"]);
-		runCpp("bin/cpp/Main-debug");
-		runCommand("haxe", ["build-cpp.hxml", "-D", "coroutine.throw"]);
-		runCpp("bin/cpp/Main-debug");
+		runci.tests.CoroutineTests.run(["build-cpp.hxml"], args ->
+			runCpp("bin/cpp/Main-debug")
+		);
 
 		Display.maybeRunDisplayTests(Cpp);
 

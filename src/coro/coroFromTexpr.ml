@@ -35,11 +35,11 @@ let expr_to_coro ctx etmp cb_root e =
 			OptimizerTexpr.has_side_effect e
 	in
 	let add_expr cb e =
-		if cb.cb_next = NextUnknown && e != e_no_value && cb != ctx.cb_unreachable && has_side_effect e then
+		if cb.cb_next = NextUnknown && e != e_no_value && has_side_effect e then
 			DynArray.add cb.cb_el e
 	in
 	let terminate cb kind t p =
-		if cb.cb_next = NextUnknown && cb != ctx.cb_unreachable then
+		if cb.cb_next = NextUnknown then
 			cb.cb_next <- kind;
 	in
 	let fall_through cb_from cb_to =
@@ -52,206 +52,243 @@ let expr_to_coro ctx etmp cb_root e =
 	let rec loop cb ret e = match e.eexpr with
 		(* special cases *)
 		| TConst TThis ->
-			cb,e
+			Some (cb,e)
 		(* simple values *)
 		| TConst _ | TLocal _ | TTypeExpr _ | TIdent _ ->
-			cb,e
+			Some (cb,e)
 		(* compound values *)
 		| TBlock [e1] ->
 			loop cb ret e1
 		| TBlock _ ->
 			let cb_sub = block_from_e e in
-			let cb_sub_next,e1 = loop_block cb_sub ret e in
-			let cb_next = if cb_sub_next == ctx.cb_unreachable then
-				cb_sub_next
-			else begin
-				let cb_next = make_block None in
-				fall_through cb_sub_next cb_next;
-				cb_next
-			end in
-			terminate cb (NextSub(cb_sub,cb_next)) e.etype e.epos;
-			cb_next,e1
+			let sub_next = loop_block cb_sub ret e in
+			let cb_next = match sub_next with
+				| None ->
+					None
+				| Some (cb_sub_next,e1) ->
+					let cb_next = make_block None in
+					fall_through cb_sub_next cb_next;
+					Some (cb_next,e1)
+			in
+			terminate cb (NextSub(cb_sub,Option.map fst cb_next)) e.etype e.epos;
+			cb_next
 		| TArray(e1,e2) ->
-			let cb,el = ordered_loop cb [e1;e2] in
-			begin match el with
-			| [e1;e2] ->
-				cb,{e with eexpr = TArray(e1,e2)}
-			| _ ->
-				die "" __LOC__
-			end
+			let cb = ordered_loop cb [e1;e2] in
+			Option.map (fun (cb,el) -> match el with
+				| [e1;e2] ->
+					(cb,{e with eexpr = TArray(e1,e2)})
+				| _ ->
+					die "" __LOC__
+			) cb
 		| TArrayDecl el ->
-			let cb,el = ordered_loop cb el in
-			cb,{e with eexpr = TArrayDecl el}
+			let cb = ordered_loop cb el in
+			Option.map (fun (cb,el) -> (cb,{e with eexpr = TArrayDecl el})) cb
 		| TObjectDecl fl ->
-			let cb,el = ordered_loop cb (List.map snd fl) in
-			let fl = List.map2 (fun (f,_) e -> (f,e)) fl el in
-			cb,{e with eexpr = TObjectDecl fl}
+			let cb = ordered_loop cb (List.map snd fl) in
+			Option.map (fun (cb,el) ->
+				let fl = List.map2 (fun (f,_) e -> (f,e)) fl el in
+				(cb,{e with eexpr = TObjectDecl fl})
+			) cb
 		| TField(e1,fa) ->
 			(* TODO: this is quite annoying because factoring out field access behaves very creatively on
 			   some targets. This means that (coroCall()).field doesn't work (and isn't tested). *)
-			cb,e
+			Some (cb,e)
 		| TEnumParameter(e1,ef,i) ->
-			let cb,e1 = loop cb RValue e1 in
-			cb,{e with eexpr = TEnumParameter(e1,ef,i)}
+			let cb = loop cb RValue e1 in
+			Option.map (fun (cb,e) -> (cb,{e with eexpr = TEnumParameter(e1,ef,i)})) cb
 		| TEnumIndex e1 ->
-			let cb,e1 = loop cb RValue e1 in
-			cb,{e with eexpr = TEnumIndex e1}
+			let cb = loop cb RValue e1 in
+			Option.map (fun (cb,e1) -> (cb,{e with eexpr = TEnumIndex e1})) cb
 		| TNew(c,tl,el) ->
-			let cb,el = ordered_loop cb el in
-			cb,{e with eexpr = TNew(c,tl,el)}
+			let cb = ordered_loop cb el in
+			Option.map (fun (cb,e1) -> cb,{e with eexpr = TNew(c,tl,el)}) cb
 		(* rewrites & forwards *)
 		| TCast(e1,o) ->
-			let cb,e1 = loop cb ret e1 in
-			if e1 == e_no_value then
-				cb,e1
-			else
-				cb,{e with eexpr = TCast(e1,o)}
+			let cb = loop cb ret e1 in
+			Option.map (fun (cb,e1) -> (cb,{e with eexpr = TCast(e1,o)})) cb
 		| TParenthesis e1 ->
-			let cb,e1 = loop cb ret e1 in
-			if e1 == e_no_value then
-				cb,e1
-			else
-				cb,{e with eexpr = TParenthesis e1}
+			let cb = loop cb ret e1 in
+			Option.map (fun (cb,e1) -> (cb,{e with eexpr = TParenthesis e1})) cb
 		| TMeta(meta,e1) ->
-			let cb,e1 = loop cb ret e1 in
-			if e1 == e_no_value then
-				cb,e1
-			else
-				cb,{e with eexpr = TMeta(meta,e1)}
+			let cb = loop cb ret e1 in
+			Option.map (fun (cb,e1) -> (cb,{e with eexpr = TMeta(meta,e1)})) cb
 		| TUnop(op,flag,e1) ->
-			let cb,e1 = loop cb ret (* TODO: is this right? *) e1 in
-			cb,{e with eexpr = TUnop(op,flag,e1)}
+			let cb = loop cb ret (* TODO: is this right? *) e1 in
+			Option.map (fun (cb,e1) -> (cb,{e with eexpr = TUnop(op,flag,e1)})) cb
 		| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
-			let cb,e2 = loop_assign cb (RLocal v) e2 in
-			cb,{e with eexpr = TBinop(OpAssign,e1,e2)}
+			let cb = loop_assign cb (RLocal v) e2 in
+			Option.map (fun (cb,e2) -> (cb,{e with eexpr = TBinop(OpAssign,e1,e2)})) cb
 		(* TODO: OpAssignOp and other OpAssign *)
 		| TBinop(op,e1,e2) ->
-			let cb,e1 = loop cb RValue e1 in
-			let cb,e2 = loop cb RValue e2 in
-			cb,{e with eexpr = TBinop(op,e1,e2)}
+			let cb = loop cb RValue e1 in
+			begin match cb with
+			| None ->
+				None
+			| Some (cb,e1) ->
+				let cb2 = loop cb RValue e2 in
+				begin match cb2 with
+				| None ->
+					add_expr cb e1;
+					None
+				| Some (cb,e2) ->
+					Some (cb,{e with eexpr = TBinop(op,e1,e2)})
+				end
+			end
 		(* variables *)
 		| TVar(v,None) ->
 			add_expr cb e;
-			cb,e_no_value
+			Some (cb,e_no_value)
 		| TVar(v,Some e1) ->
 			add_expr cb {e with eexpr = TVar(v,None)};
-			let cb,e1 = loop_assign cb (RLocal v) e1 in
-			cb,e1
+			let cb = loop_assign cb (RLocal v) e1 in
+			cb
 		(* calls *)
 		| TCall(e1,el) ->
-			let cb,el = ordered_loop cb (e1 :: el) in
-			begin match el with
-				| e1 :: el ->
-					begin match follow_with_coro e1.etype with
-					| Coro _ ->
-						let cb_next = block_from_e e1 in
-						add_block_flag cb_next CbResumeState;
-						let suspend = {
-							cs_fun = e1;
-							cs_args = el;
-							cs_pos = e.epos
-						} in
-						add_block_flag cb CbSuspendState;
-						terminate cb (NextSuspend(suspend,cb_next)) t_dynamic null_pos;
-						cb_next,etmp
-					| _ ->
-						cb,{e with eexpr = TCall(e1,el)}
-					end
-				| [] ->
-					die "" __LOC__
-			end
+			let cb = ordered_loop cb (e1 :: el) in
+			Option.map (fun (cb,el) ->
+				begin match el with
+					| e1 :: el ->
+						begin match follow_with_coro e1.etype with
+						| Coro _ ->
+							let cb_next = block_from_e e1 in
+							add_block_flag cb_next CbResumeState;
+							let suspend = {
+								cs_fun = e1;
+								cs_args = el;
+								cs_pos = e.epos
+							} in
+							add_block_flag cb CbSuspendState;
+							terminate cb (NextSuspend(suspend,Some cb_next)) t_dynamic null_pos;
+							cb_next,etmp
+						| _ ->
+							cb,{e with eexpr = TCall(e1,el)}
+						end
+					| [] ->
+						die "" __LOC__
+				end
+			) cb
 		(* terminators *)
 		| TBreak ->
-			terminate cb (NextBreak (snd (List.hd !loop_stack))) e.etype e.epos;
-			cb,e_no_value
+			terminate cb (NextBreak (Lazy.force (snd (List.hd !loop_stack)))) e.etype e.epos;
+			None
 		| TContinue ->
 			terminate cb (NextContinue (fst (List.hd !loop_stack))) e.etype e.epos;
-			cb,e_no_value
+			None
 		| TReturn None ->
 			terminate cb NextReturnVoid e.etype e.epos;
-			ctx.cb_unreachable,e_no_value
+			None
 		| TReturn (Some e1) ->
 			let f_terminate cb e1 =
 				terminate cb (NextReturn e1) e.etype e.epos;
 			in
 			let ret = RTerminate f_terminate in
-			let cb_ret,e1 = loop_assign cb ret e1 in
-			terminate cb_ret (NextReturn e1) e.etype e.epos;
-			ctx.cb_unreachable,e_no_value
+			let cb_ret = loop_assign cb ret e1 in
+			Option.may (fun (cb_ret,e1) -> terminate cb_ret (NextReturn e1) e.etype e.epos) cb_ret;
+			None
 		| TThrow e1 ->
 			let f_terminate cb e1 =
 				terminate cb (NextThrow e1) e.etype e.epos;
 			in
 			let ret = RTerminate f_terminate in
-			let cb_ret,e1 = loop_assign cb ret e1 in
-			terminate cb_ret (NextThrow e1) e.etype e.epos;
-			ctx.cb_unreachable,e_no_value
+			let cb_ret = loop_assign cb ret e1 in
+			Option.may (fun (cb_ret,e1) -> terminate cb_ret (NextThrow e1) e.etype e.epos) cb_ret;
+			None
 		(* branching *)
 		| TIf(e1,e2,None) ->
-			let cb,e1 = loop cb RValue e1 in
-			let cb_then = block_from_e e2 in
-			let cb_then_next,_ = loop_block cb_then RBlock e2 in
-			let cb_next = make_block None in
-			fall_through cb_then_next cb_next;
-			terminate cb (NextIfThen(e1,cb_then,cb_next)) e.etype e.epos;
-			cb_next,e_no_value
+			let cb = loop cb RValue e1 in
+			Option.map (fun (cb,e1) ->
+				let cb_then = block_from_e e2 in
+				let cb_then_next = loop_block cb_then RBlock e2 in
+				let cb_next = make_block None in
+				Option.may (fun (cb_then_next,_) -> fall_through cb_then_next cb_next) cb_then_next;
+				terminate cb (NextIfThen(e1,cb_then,cb_next)) e.etype e.epos;
+				cb_next,e_no_value
+			) cb
 		| TIf(e1,e2,Some e3) ->
-			let cb,e1 = loop cb RValue e1 in
-			let cb_then = block_from_e e2 in
-			let cb_then_next,_ = loop_block cb_then ret e2 in
-			let cb_else = block_from_e e3 in
-			let cb_else_next,_ = loop_block cb_else ret e3 in
-			let cb_next = make_block None in
-			fall_through cb_then_next cb_next;
-			fall_through cb_else_next cb_next;
-			terminate cb (NextIfThenElse(e1,cb_then,cb_else,cb_next)) e.etype e.epos;
-			cb_next,e_no_value
-		| TSwitch switch ->
-			let e1 = switch.switch_subject in
-			let cb,e1 = loop cb RValue e1 in
-			let cb_next = make_block None in
-			let cases = List.map (fun case ->
-				let cb_case = block_from_e case.case_expr in
-				let cb_case_next,_ = loop_block cb_case ret case.case_expr in
-				fall_through cb_case_next cb_next;
-				(case.case_patterns,cb_case)
-			) switch.switch_cases in
-			let def = match switch.switch_default with
+			let cb = loop cb RValue e1 in
+			begin match cb with
 				| None ->
 					None
-				| Some e ->
-					let cb_default = block_from_e e in
-					let cb_default_next,_ = loop_block cb_default ret e in
-					fall_through cb_default_next cb_next;
-					Some cb_default
-			in
-			let switch = {
-				cs_subject = e1;
-				cs_cases = cases;
-				cs_default = def;
-				cs_exhaustive = switch.switch_exhaustive
-			} in
-			terminate cb (NextSwitch(switch,cb_next)) e.etype e.epos;
-			cb_next,e_no_value
+				| Some(cb,e1) ->
+					let cb_then = block_from_e e2 in
+					let cb_then_next = loop_block cb_then ret e2 in
+					let cb_else = block_from_e e3 in
+					let cb_else_next = loop_block cb_else ret e3 in
+					let cb_next = match cb_then_next,cb_else_next with
+						| Some (cb_then_next,_),Some(cb_else_next,_) ->
+							let cb_next = make_block None in
+							fall_through cb_then_next cb_next;
+							fall_through cb_else_next cb_next;
+							Some cb_next
+						| (Some (cb_branch_next,_),None) | (None,Some (cb_branch_next,_)) ->
+							let cb_next = make_block None in
+							fall_through cb_branch_next cb_next;
+							Some cb_next
+						| None,None ->
+							None
+					in
+					terminate cb (NextIfThenElse(e1,cb_then,cb_else,cb_next)) e.etype e.epos;
+					Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
+			end
+		| TSwitch switch ->
+			let e1 = switch.switch_subject in
+			let cb = loop cb RValue e1 in
+			begin match cb with
+				| None ->
+					None
+				| Some(cb,e1) ->
+					let cb_next = lazy (make_block None) in
+					let cases = List.map (fun case ->
+						let cb_case = block_from_e case.case_expr in
+						let cb_case_next = loop_block cb_case ret case.case_expr in
+						Option.may (fun (cb_case_next,_) ->
+							fall_through cb_case_next (Lazy.force cb_next);
+						) cb_case_next;
+						(case.case_patterns,cb_case)
+					) switch.switch_cases in
+					let def = match switch.switch_default with
+						| None ->
+							None
+						| Some e ->
+							let cb_default = block_from_e e in
+							let cb_default_next = loop_block cb_default ret e in
+							Option.may (fun (cb_default_next,_) ->
+								fall_through cb_default_next (Lazy.force cb_next);
+							) cb_default_next;
+							Some cb_default
+					in
+					let switch = {
+						cs_subject = e1;
+						cs_cases = cases;
+						cs_default = def;
+						cs_exhaustive = switch.switch_exhaustive
+					} in
+					let cb_next = if Lazy.is_val cb_next || not switch.cs_exhaustive then Some (Lazy.force cb_next) else None in
+					terminate cb (NextSwitch(switch,cb_next)) e.etype e.epos;
+					Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
+			end
 		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
 			loop cb ret (Texpr.not_while_true_to_while_true ctx.typer.com.Common.basic e1 e2 flag e.etype e.epos)
 		| TWhile(e1,e2,flag) (* always while(true) *) ->
-			let cb_next = make_block None in
+			let cb_next = lazy (make_block None) in
 			let cb_body = block_from_e e2 in
 			loop_stack := (cb_body,cb_next) :: !loop_stack;
-			let cb_body_next,_ = loop_block cb_body RBlock e2 in
-			goto cb_body_next cb_body;
+			let cb_body_next = loop_block cb_body RBlock e2 in
+			Option.may (fun (cb_body_next,_) -> goto cb_body_next cb_body) cb_body_next;
 			loop_stack := List.tl !loop_stack;
+			let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
 			terminate cb (NextWhile(e1,cb_body,cb_next)) e.etype e.epos;
-			cb_next,e_no_value
+			Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
 		| TTry(e1,catches) ->
 			ctx.has_catch <- true;
-			let cb_next = make_block None in
+			let cb_next = lazy (make_block None) in
 			let catches = List.map (fun (v,e) ->
 				let cb_catch = block_from_e e in
 				add_expr cb_catch (mk (TVar(v,Some etmp)) ctx.typer.t.tvoid null_pos);
-				let cb_catch_next,_ = loop_block cb_catch ret e in
-				fall_through cb_catch_next cb_next;
+				let cb_catch_next = loop_block cb_catch ret e in
+				Option.may (fun (cb_catch_next,_) ->
+					fall_through cb_catch_next (Lazy.force cb_next);
+				) cb_catch_next;
 				v,cb_catch
 			) catches in
 			let catch = make_block None in
@@ -265,43 +302,58 @@ let expr_to_coro ctx etmp cb_root e =
 				cc_catches = catches;
 			} in
 			let cb_try = block_from_e e1 in
-			let cb_try_next,_ = loop_block cb_try ret e1 in
+			let cb_try_next = loop_block cb_try ret e1 in
 			ctx.current_catch <- old;
-			fall_through cb_try_next cb_next;
+			Option.may (fun (cb_try_next,_) ->
+				fall_through cb_try_next (Lazy.force cb_next)
+			) cb_try_next;
+			let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
 			terminate cb (NextTry(cb_try,catch,cb_next)) e.etype e.epos;
-			cb_next,e_no_value
+			Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
 		| TFunction tf ->
-			cb,e
+			Some (cb,e)
 	and ordered_loop cb el =
 		let close = start_ordered_value_list () in
 		let rec aux' cb acc el = match el with
 			| [] ->
-				cb,List.rev acc
+				Some (cb,List.rev acc)
 			| e :: el ->
-				let cb,e = loop cb RValue e in
-				aux' cb (e :: acc) el
+				let cb' = loop cb RValue e in
+				match cb' with
+				| None ->
+					List.iter (fun e ->
+						add_expr cb e
+					) (List.rev acc);
+					None
+				| Some (cb,e) ->
+					aux' cb (e :: acc) el
 		in
-		let cb,el = aux' cb [] el in
+		let cb = aux' cb [] el in
 		let _ = close () in
-		cb,el
+		cb
 	and loop_assign cb ret e =
-		let cb,e = loop cb ret e in
-		if e == e_no_value then
-			cb,e
-		else match ret with
+		let cb = loop cb ret e in
+		match cb with
+		| Some (cb,e) when e != e_no_value ->
+			begin match ret with
 			| RBlock ->
 				add_expr cb e;
-				cb,e_no_value
+				Some (cb,e_no_value)
 			| RValue ->
-				cb,e
+				Some (cb,e)
 			| RLocal v ->
 				let ev = Texpr.Builder.make_local v v.v_pos in
 				let eass = Texpr.Builder.binop OpAssign ev e ev.etype ev.epos in
 				add_expr cb eass;
-				cb,ev
+				Some (cb,ev)
 			| RTerminate f ->
 				f cb e;
-				ctx.cb_unreachable,e_no_value
+				None
+			end
+		| Some(cb,e) ->
+			Some(cb,e)
+		| None ->
+			None
 	and loop_block cb ret e =
 		let el = match e.eexpr with
 			| TBlock el ->
@@ -315,13 +367,18 @@ let expr_to_coro ctx etmp cb_root e =
 			| [e] ->
 				loop_assign cb ret e
 			| e :: el ->
-				let cb,e = loop cb RBlock e in
-				add_expr cb e;
-				aux' cb el
+				let cb = loop cb RBlock e in
+				begin match cb with
+				| None ->
+					None
+				| Some(cb,e) ->
+					add_expr cb e;
+					aux' cb el
+				end
 		in
 		match el with
 			| [] ->
-				cb,e_no_value
+				None
 			| _ ->
 				aux' cb el
 	in
@@ -344,7 +401,7 @@ let optimize_cfg ctx cb =
 		if not (has_block_flag cb CbEmptyMarked) then begin
 			add_block_flag cb CbEmptyMarked;
 			match cb.cb_next with
-			| NextSub(cb_sub,cb_next) when cb_next == ctx.cb_unreachable ->
+			| NextSub(cb_sub,None) ->
 				loop cb_sub;
 				forward_el cb cb_sub;
 				if has_block_flag cb CbResumeState then add_block_flag cb_sub CbResumeState;
@@ -370,12 +427,15 @@ let optimize_cfg ctx cb =
 			cb
 	in
 	let cb = loop cb in
-	let is_empty_termination_block cb =
-		DynArray.empty cb.cb_el && match cb.cb_next with
-			| NextReturnVoid | NextUnknown ->
-				true
-			| _ ->
-				false
+	let is_empty_termination_block cb = match cb with
+		| None ->
+			true
+		| Some cb ->
+			DynArray.empty cb.cb_el && match cb.cb_next with
+				| NextReturnVoid | NextUnknown ->
+					true
+				| _ ->
+					false
 	in
 	let rec loop cb =
 		if not (has_block_flag cb CbTcoChecked) then begin

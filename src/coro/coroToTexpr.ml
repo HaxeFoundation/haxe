@@ -272,7 +272,6 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 
 	let exc_state_map = Array.init ctx.next_block_id (fun _ -> ref []) in
 	let generate cb =
-		assert (cb != ctx.cb_unreachable);
 		let el = get_block_exprs cb in
 
 		let add_state next_id extra_el =
@@ -302,7 +301,7 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 		match cb.cb_next with
 		| NextSuspend (call, cb_next) ->
 			let ecallcoroutine = mk_suspending_call call in
-			add_state (Some cb_next.cb_id) ecallcoroutine;
+			add_state (Option.map (fun cb_next -> cb_next.cb_id) cb_next) ecallcoroutine;
 		| NextUnknown ->
 			add_state (Some (-1)) [set_control CoroReturned; ereturn]
 		| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
@@ -317,7 +316,6 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 			else
 				add_state None [ b#assign etmp e1; b#break p ]
 		| NextSub (cb_sub,cb_next) ->
-			ignore(cb_next.cb_id);
 			add_state (Some cb_sub.cb_id) []
 
 		| NextIfThen (econd,cb_then,cb_next) ->
@@ -333,13 +331,13 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 			let ecases = List.map (fun (patterns,cb) ->
 				{case_patterns = patterns;case_expr = set_state cb.cb_id}
 			) switch.cs_cases in
-			let default_state_id = match switch.cs_default with
+			let next_id = match switch.cs_default with
 				| Some cb ->
-					cb.cb_id
+					Some (set_state cb.cb_id)
 				| None ->
-					cb_next.cb_id
+					Option.map (fun cb_next -> set_state cb_next.cb_id) cb_next
 			in
-			let eswitch = mk_switch esubj ecases (Some (set_state default_state_id)) true in
+			let eswitch = mk_switch esubj ecases next_id true in
 			let eswitch = mk (TSwitch eswitch) com.basic.tvoid p in
 
 			add_state None [eswitch]

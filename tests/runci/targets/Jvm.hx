@@ -33,12 +33,10 @@ class Jvm {
 			runCommand("java", ["-jar", "bin/unit.jar"]);
 		}
 
-		infoMsg("Test coroutines:");
-		changeDirectory(getMiscSubDir("coroutines"));
-		runCommand("haxe", ["build-jvm.hxml", "--hxb", "bin/coro.hxb"]);
-		runCommand("haxe", ["build-jvm.hxml", "--hxb-lib", "bin/coro.hxb"]);
-		runCommand("haxe", ["build-jvm.hxml", "--hxb", "bin/coro.hxb", "-D", "coroutine.throw"]);
-		runCommand("haxe", ["build-jvm.hxml", "--hxb-lib", "bin/coro.hxb", "-D", "coroutine.throw"]);
+		runci.tests.CoroutineTests.run(["build-jvm.hxml", "--hxb", "bin/coro.hxb"], args ->
+			runCommand("haxe", args.concat(["--hxb-lib", "bin/coro.hxb"]))
+		);
+
 		Display.maybeRunDisplayTests(Jvm);
 
 		changeDirectory(miscJavaDir);
