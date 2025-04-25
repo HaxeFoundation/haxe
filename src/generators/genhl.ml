@@ -783,6 +783,7 @@ and enum_class ctx e =
 					let old = ctx.m in
 					let ft = to_type ctx ef.ef_type in
 					ctx.m <- method_context eid ft null_capture false;
+					set_curpos ctx ef.ef_pos;
 					let arg_regs = List.map (fun t -> alloc_fresh ctx t) fargs in
 					let ret_reg = alloc_fresh ctx tret in
 					op ctx (OMakeEnum (ret_reg, ef.ef_index, arg_regs));
@@ -3290,6 +3291,7 @@ and gen_method_wrapper ctx rt t p =
 		let targs, tret = (match t with HFun (args, ret) -> args, ret | _ -> die "" __LOC__) in
 		let iargs, iret = (match rt with HFun (args, ret) -> args, ret | _ -> die "" __LOC__) in
 		ctx.m <- method_context fid HDyn null_capture false;
+		set_curpos ctx p;
 		let rfun = alloc_tmp ctx rt in
 		let rargs = List.map (fun t ->
 			let r = alloc_tmp ctx t in
@@ -3837,7 +3839,8 @@ let generate_static_init ctx types main =
 	| Some e -> exprs := e :: !exprs);
 	let fid = lookup_alloc ctx.cfids () in
 	let exprs = List.rev !init_exprs @ List.rev !exprs in
-	ignore(make_fun ~gen_content ctx ("","") fid { tf_expr = mk (TBlock exprs) t_void null_pos; tf_args = []; tf_type = t_void } None None);
+	let initpos = fake_pos "fun$init" in
+	ignore(make_fun ~gen_content ctx ("","") fid { tf_expr = mk (TBlock exprs) t_void initpos; tf_args = []; tf_type = t_void } None None);
 	fid
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
