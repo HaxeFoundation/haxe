@@ -1493,7 +1493,9 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 			display_error ctx.com (name ^ ": Custom property accessor is no longer supported, please use `set`") pset;
 			AccCall
 	) in
-	if (set = AccNever && get = AccNever)  then raise_typing_error (name ^ ": Unsupported property combination") p;
+	if (set = AccNever && get = AccNever) then raise_typing_error (name ^ ": Unsupported property combination") p;
+	if (set = AccPrivateCall && get = AccPrivateCall && has_class_field_flag cf CfPublic) then
+		raise_typing_error (name ^ ": (private get, private set) property cannot be public") p;
 	cf.cf_kind <- Var { v_read = get; v_write = set };
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if List.mem_assoc AEnum f.cff_access then add_class_field_flag cf CfEnum;

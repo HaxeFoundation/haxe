@@ -385,7 +385,7 @@ module Inheritance = struct
 					if (has_class_field_flag f CfPublic) && not (has_class_field_flag f2 CfPublic) && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
 						display_error com ("Field " ^ f.cf_name ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
 					else if not (unify_kind ~strict:false f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
-						display_error com ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
+						display_error com ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ ": " ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind) p
 					else try
 						let map1 = TClass.get_map_function  intf params in
 						valid_redefinition map1 map2 f2 t2 f (apply_params intf.cl_params params f.cf_type)

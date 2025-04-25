@@ -1,8 +1,14 @@
-typedef MainPrivateType = {
+typedef BadType = {
+	// should error but not yet
 	var foo(private get, private set):Int;
+	var foo2(never, never):Int;
 }
 
-typedef MainType = {
+typedef FooPrivateGetType = {
+	var foo(private get, set):Int;
+}
+
+typedef FooType = {
 	var foo(get, set):Int;
 }
 
@@ -11,14 +17,14 @@ class Main {
 		final main = new Main();
 		main.foo = 1;
 
-		var privateObj:MainPrivateType = main;
-		var obj:MainType = main; // err, should be allowed?
+		var privateObj:FooPrivateGetType = main;
+		var obj:FooType = main; // err, should be allowed?
 
 		privateObj = obj;
 		obj = privateObj; // err
 	}
 
-	public var foo(private get, private set):Int;
+	public var foo(private get, set):Int;
 
 	function get_foo():Int {
 		return 0;
@@ -26,6 +32,16 @@ class Main {
 
 	function set_foo(v) {
 		return v;
+	}
+
+	public var notAllowed(private get, private set):Int; // err
+
+	function set_notAllowed(value:Int):Int {
+		throw new haxe.exceptions.NotImplementedException();
+	}
+
+	function get_notAllowed():Int {
+		throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public function new() {
@@ -41,7 +57,7 @@ class Main {
 		rect.width;
 
 		final shape:Shape = rect;
-		shape.width = 1; // err
+		shape.width = 1;
 		shape.width; // err
 
 		final bar = new Bar();
@@ -55,11 +71,14 @@ class Main {
 		bar.width; // err
 
 		bar.defaultNull = 1; // err
+
+		final child = new Child();
+		@:privateAccess child.width = 1;
 	}
 }
 
 interface Shape {
-	var width(private get, private set):Int;
+	var width(private get, set):Int;
 }
 
 interface PublicShape {
@@ -85,7 +104,7 @@ class Rect implements Shape {
 	}
 
 	public function new() {}
-	public var width(get, private set):Int;
+	public var width(get, private set):Int; // err
 
 	function set_width(value:Int):Int {
 		return 0;
@@ -108,7 +127,7 @@ class Bar {
 		return value;
 	}
 
-	public var width(private get, private set):Int;
+	var width(private get, private set):Int;
 
 	function set_width(value:Int):Int {
 		return value;

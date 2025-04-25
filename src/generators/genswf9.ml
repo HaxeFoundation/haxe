@@ -2324,7 +2324,7 @@ let realize_required_accessors ctx cl =
 				if not (is_implemented_by_super ci) then begin
 					List.iter (fun cf ->
 						match cf.cf_kind with
-						| Var { v_read = (AccCall | AccNever) as read; v_write = (AccCall | AccNever) as write } ->
+						| Var { v_read = (AccCall | AccPrivateCall | AccNever) as read; v_write = (AccCall | AccPrivateCall | AccNever) as write } ->
 							begin try
 								let read', write', native = Hashtbl.find h cf.cf_name in
 								let read = if read = AccNever then read' else true in
@@ -2496,10 +2496,10 @@ let generate_class ctx c =
 				maybe_gen_instance_setter ctx c f acc alloc_slot
 			else
 				maybe_gen_static_setter ctx c f acc alloc_slot
-		| Var { v_read = (AccCall | AccNever) as read; v_write = (AccCall | AccNever) as write } when not (has_class_flag c CInterface) && not (Meta.has Meta.IsVar f.cf_meta) ->
+		| Var { v_read = (AccCall | AccPrivateCall | AccNever) as read; v_write = (AccCall | AccPrivateCall | AccNever) as write } when not (has_class_flag c CInterface) && not (Meta.has Meta.IsVar f.cf_meta) ->
 			(* if the accessor methods were defined in super classes, we still need to generate native getter/setter *)
 			let acc =
-				if read = AccCall then begin
+				if read = AccCall || read = AccPrivateCall then begin
 					try
 						begin
 						let tl = extract_param_types c.cl_params in
@@ -2524,7 +2524,7 @@ let generate_class ctx c =
 						acc
 				end else acc
 			in
-			if write = AccCall then begin
+			if write = AccCall || write = AccPrivateCall then begin
 				try
 					begin
 					let tl = extract_param_types c.cl_params in
