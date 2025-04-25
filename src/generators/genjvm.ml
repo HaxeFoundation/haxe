@@ -1978,7 +1978,8 @@ class texpr_to_jvm
 		if not jm#is_terminated then self#texpr' ret e
 
 	method texpr' ret e =
-		code#set_line (Lexer.get_error_line_if_exists e.epos);
+		if e.epos.pmin >= 0 then
+			code#set_line (Lexer.get_error_line_if_exists e.epos);
 		match e.eexpr with
 		| TVar(v,Some e1) ->
 			self#texpr (rvalue_type gctx v.v_type (Some v.v_name)) e1;

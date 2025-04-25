@@ -20,56 +20,6 @@ type coro_to_texpr_exprs = {
 	etmp : texpr;
 }
 
-class texpr_builder (basic : basic_types) =
-	let open Ast in
-object(self)
-	method assign (lhs : texpr) (rhs : texpr) =
-		mk (TBinop(OpAssign,lhs,rhs)) lhs.etype (punion lhs.epos rhs.epos)
-
-	method binop (op : binop) (lhs : texpr) (rhs : texpr) (t : Type.t) =
-		mk (TBinop(op,lhs,rhs)) t (punion lhs.epos rhs.epos)
-
-	method bool (b : bool) (p : pos) =
-		mk (TConst (TBool b)) basic.tbool p
-
-	method break (p : pos) =
-		mk TBreak t_dynamic p
-
-	method local (v : tvar) (p : pos) =
-		mk (TLocal v) v.v_type p
-
-	method if_then (eif : texpr) (ethen : texpr) =
-		mk (TIf(eif,ethen,None)) basic.tvoid (punion eif.epos ethen.epos)
-
-	method if_then_else (eif : texpr) (ethen : texpr) (eelse : texpr) (t : Type.t) =
-		mk (TIf(eif,ethen,Some eelse)) t (punion eif.epos eelse.epos)
-
-	method instance_field (e : texpr) (c : tclass) (params : Type.t list) (cf : tclass_field) (t : Type.t) =
-		mk (TField(e,FInstance(c,params,cf))) t e.epos
-
-	method int (i : int) (p : pos) =
-		mk (TConst (TInt (Int32.of_int i))) basic.tint p
-
-	method null (t : Type.t) (p : pos) =
-		mk (TConst TNull) t p
-
-	method return (e : texpr) =
-		mk (TReturn (Some e)) t_dynamic e.epos
-
-	method string (s : string) (p : pos) =
-		mk (TConst (TString s)) basic.tstring p
-
-	method throw (e : texpr) =
-		mk (TThrow e) t_dynamic e.epos
-
-	method var_init (v : tvar) (e : texpr) =
-		mk (TVar(v,Some e)) basic.tvoid (punion v.v_pos e.epos)
-
-	method void_block (el : texpr list) =
-		mk (TBlock el) basic.tvoid (Texpr.punion_el null_pos el)
-
-end
-
 let make_suspending_call basic call econtinuation =
 	(* lose Coroutine<T> type for the called function not to confuse further filters and generators *)
 	let tfun = match follow_with_coro call.cs_fun.etype with
@@ -197,10 +147,10 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 			initial.cs_el <- assign :: initial.cs_el) tf_args;
 	fields
 
-let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
+	let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs p stack_item_inserter start_exception =
 	let {econtinuation;ecompletion;econtrol;eresult;estate;eerror;etmp} = exprs in
 	let com = ctx.typer.com in
-	let b = new texpr_builder com.basic in
+	let b = ctx.builder in
 
 	let set_state id = b#assign estate (b#int id null_pos) in
 
@@ -231,11 +181,13 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 		] in
 		let ereturned = b#assign etmp (base_continuation_field_on ecororesult cont.result com.basic.tany) in
 		let ethrown = b#void_block [
+			b#assign eresult (* TODO: wrong type? *) (base_continuation_field_on ecororesult cont.result com.basic.tany);
 			b#assign etmp (base_continuation_field_on ecororesult cont.error cont.error.cf_type);
 			b#break p;
 		] in
 		let econtrol_switch = CoroControl.make_control_switch com.basic esubject esuspended ereturned ethrown p in
 		[
+			stack_item_inserter call.cs_pos;
 			cororesult_var;
 			econtrol_switch;
 		]
@@ -251,9 +203,10 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 	} in
 
 	(* TODO: this sucks a bit and its usage isn't much better *)
-	let wrap_thrown = match com.basic.texception with
+	let wrap_thrown,get_caught = match com.basic.texception with
 		| TInst(c,_) ->
-			(fun e -> Texpr.Builder.resolve_and_make_static_call c "thrown" [e] e.epos)
+			(fun e -> Texpr.Builder.resolve_and_make_static_call c "thrown" [e] e.epos),
+			(fun e -> Texpr.Builder.resolve_and_make_static_call c "caught" [e] e.epos)
 		| _ ->
 			die "" __LOC__
 	in
@@ -312,9 +265,9 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 			add_state (Some (-1)) [ set_control CoroReturned; b#assign eresult e; ereturn ]
 		| NextThrow e1 ->
 			if ctx.throw then
-				add_state None [b#throw e1]
+				add_state None ([stack_item_inserter e1.epos; start_exception (b#bool true p); b#throw e1])
 			else
-				add_state None [ b#assign etmp e1; b#break p ]
+				add_state None ([stack_item_inserter e1.epos; start_exception (b#bool true p); b#assign etmp e1; b#break p ])
 		| NextSub (cb_sub,cb_next) ->
 			add_state (Some cb_sub.cb_id) []
 
@@ -405,7 +358,12 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 			eloop,
 			[
 				let vcaught = alloc_var VGenerated "e" t_dynamic null_pos in
-				(vcaught,b#assign etmp (b#local vcaught null_pos))
+				let ecaught = b#local vcaught null_pos in
+				let e = b#void_block [
+					start_exception (b#bool false p);
+					b#assign etmp ecaught
+				] in
+				(vcaught,e)
 			]
 		)) com.basic.tvoid null_pos
 	in
@@ -424,11 +382,17 @@ let block_to_texpr_coroutine ctx cb cont cls tf_args forbidden_vars exprs p =
 		) exc_state_map;
 		let el = if ctx.throw then [
 			b#throw etmp
-		] else [
-			b#assign eerror (wrap_thrown etmp);
-			set_control CoroThrown;
-			ereturn;
-		] in
+		] else begin
+			let field         = PMap.find "buildCallStack" com.basic.tcoro.base_continuation_class.cl_fields in
+			let eaccess       = b#instance_field econtinuation com.basic.tcoro.base_continuation_class params field field.cf_type in
+			let ewrapped_call = mk (TCall (eaccess, [ ])) com.basic.tvoid null_pos in
+			[
+				ewrapped_call;
+				b#assign eerror (wrap_thrown etmp);
+				set_control CoroThrown;
+				ereturn;
+			]
+		end in
 		let default = b#void_block el in
 		if DynArray.empty cases then
 			default

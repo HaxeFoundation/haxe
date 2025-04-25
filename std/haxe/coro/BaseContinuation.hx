@@ -1,8 +1,9 @@
 package haxe.coro;
 
+import haxe.CallStack.StackItem;
 import haxe.Exception;
 
-abstract class BaseContinuation<T> extends SuspensionResult<T> implements IContinuation<T> {
+abstract class BaseContinuation<T> extends SuspensionResult<T> implements IContinuation<T> implements IStackFrame {
     public final _hx_completion:IContinuation<Any>;
 
 	public final _hx_context:CoroutineContext;
@@ -36,7 +37,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 				case Returned:
 					_hx_completion.resume(result._hx_result, null);
 				case Thrown:
-					_hx_completion.resume(null, result._hx_error);
+					_hx_completion.resume(result._hx_result, result._hx_error);
 			}
 			#if coroutine.throw
 			} catch (e:Dynamic) {
@@ -44,6 +45,50 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 			}
 			#end
         });
+    }
+
+    public function callerFrame():Null<IStackFrame> {
+        return if (_hx_completion is IStackFrame) {
+            cast _hx_completion;
+        } else {
+            null;
+        }
+    }
+
+	public function getStackItem():Null<StackItem> {
+		return cast _hx_result;
+	}
+
+    public function setClassFuncStackItem(cls:String, func:String, file:String, line:Int, pos:Int, pmin:Int, pmax:Int) {
+        _hx_result = cast StackItem.FilePos(StackItem.Method(cls, func), file, line, pos);
+    }
+
+    public function setLocalFuncStackItem(id:Int, file:String, line:Int, pos:Int, pmin:Int, pmax:Int) {
+        _hx_result = cast StackItem.FilePos(StackItem.LocalFunction(id), file, line, pos);
+    }
+
+	public function startException(fromThrow:Bool) {
+		if (fromThrow) {
+			/*
+				This comes from a coro-level throw, which pushes its position via one of the functions
+				above. In this case we turn _hx_result into the stack item array now.
+			*/
+			_hx_result = cast [_hx_result];
+		} else {
+			/*
+				This means we caught an exception, which must come from outside our current coro. We
+				don't need our current _hx_result value because if anything it points to the last
+				suspension call.
+			*/
+			_hx_result = cast [];
+		}
+	}
+
+    public function buildCallStack() {
+        var frame = callerFrame();
+        if (frame != null) {
+            (cast _hx_result : Array<StackItem>).push(frame.getStackItem());
+        }
     }
 
     abstract function invokeResume():SuspensionResult<T>;

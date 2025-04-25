@@ -49,6 +49,7 @@ and coro_suspend = {
 }
 
 type coro_ctx = {
+	builder : CoroElsewhere.texpr_builder;
 	typer : Typecore.typer;
 	coro_debug : bool;
 	optimize : bool;

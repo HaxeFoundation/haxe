@@ -14,7 +14,7 @@ class ImmediateSuspensionResult<T> extends SuspensionResult<T> {
 	}
 
 	static public function withError<T>(error:T) {
-		return new ImmediateSuspensionResult<T>(null, @:privateAccess haxe.Exception.thrown(error));
+		return new ImmediateSuspensionResult<T>(cast [] /* stack items */, @:privateAccess haxe.Exception.thrown(error));
 	}
 
 	public override function toString() {
