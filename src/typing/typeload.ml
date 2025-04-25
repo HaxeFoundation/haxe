@@ -582,6 +582,8 @@ and load_complex_type' ctx allow_display mode (t,p) =
 						| "dynamic" -> AccCall
 						| "get" when get -> AccCall
 						| "set" when not get -> AccCall
+						| "private get" when get -> AccPrivateCall
+						| "private set" when not get -> AccPrivateCall
 						| x when get && x = "get_" ^ n -> AccCall
 						| x when not get && x = "set_" ^ n -> AccCall
 						| _ ->

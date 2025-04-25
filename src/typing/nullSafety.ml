@@ -1592,7 +1592,9 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 										| _ -> ()
 					in
 					if read_access = AccCall then check_accessor "get_";
-					if write_access = AccCall then check_accessor "set_"
+					if write_access = AccCall then check_accessor "set_";
+					if read_access = AccPrivateCall then check_accessor "get_";
+					if write_access = AccPrivateCall then check_accessor "set_";
 				| _ -> ()
 		(**
 			Get safety mode for the current class

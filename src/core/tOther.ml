@@ -58,7 +58,7 @@ module TExprToExpr = struct
 								| AccNormal | AccCtor | AccInline | AccRequire _ -> "default"
 								| AccNo -> "null"
 								| AccNever -> "never"
-								| AccCall -> get_or_set
+								| AccCall | AccPrivateCall -> get_or_set
 							in
 							let read = (var_access_to_string v.v_read "get",null_pos) in
 							let write = (var_access_to_string v.v_write "set",null_pos) in

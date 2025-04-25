@@ -164,6 +164,7 @@ let s_access is_read = function
 	| AccNo -> "null"
 	| AccNever -> "never"
 	| AccCall -> if is_read then "get" else "set"
+	| AccPrivateCall -> if is_read then "private get" else "private set"
 	| AccInline	-> "inline"
 	| AccRequire (n,_) -> "require " ^ n
 	| AccCtor -> "ctor"

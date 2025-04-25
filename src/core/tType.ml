@@ -16,6 +16,7 @@ and var_access =
 	| AccNever          (* can't be accessed, even in subclasses *)
 	| AccCtor           (* can only be accessed from the constructor *)
 	| AccCall           (* perform a method call when accessed *)
+	| AccPrivateCall    (* perform a method call when accessed, but private like AccNo *)
 	| AccInline         (* similar to Normal but inline when accessed *)
 	| AccRequire of string * string option (* set when @:require(cond) fails *)
 

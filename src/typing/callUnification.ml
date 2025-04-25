@@ -626,7 +626,7 @@ object(self)
 			end;
 		| Var v ->
 			begin match (if is_set then v.v_write else v.v_read) with
-			| AccCall ->
+			| AccCall | AccPrivateCall ->
 				self#accessor_call fa el_typed el
 			| _ ->
 				self#expr_call (FieldAccess.get_field_expr fa FCall) el_typed el

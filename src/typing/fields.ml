@@ -174,9 +174,9 @@ let field_access ctx mode f fh e pfield =
 				()
 			end;
 			if e.eexpr = TConst TSuper then begin match mode with
-				| MGet | MCall _ when v.v_read = AccCall ->
+				| MGet | MCall _ when v.v_read = AccCall || v.v_read = AccPrivateCall ->
 					()
-				| MSet _ when v.v_write = AccCall ->
+				| MSet _ when v.v_write = AccCall || v.v_write = AccPrivateCall ->
 					()
 				| _ ->
 					display_error ctx.com "Normal variables cannot be accessed with 'super', use 'this' instead" pfield;
@@ -203,9 +203,9 @@ let field_access ctx mode f fh e pfield =
 				if ctx.f.untyped then normal false else normal_failure())
 		| AccNormal | AccNo ->
 			normal false
-		| AccCall when (not ctx.allow_transform) || (ctx.f.in_display && DisplayPosition.display_position#enclosed_in pfull) ->
+		| AccCall | AccPrivateCall when (not ctx.allow_transform) || (ctx.f.in_display && DisplayPosition.display_position#enclosed_in pfull) ->
 			normal false
-		| AccCall ->
+		| AccCall | AccPrivateCall ->
 			let m = (match mode with MSet _ -> "set_" | _ -> "get_") ^ f.cf_name in
 			let bypass_accessor =
 				(

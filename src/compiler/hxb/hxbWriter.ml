@@ -1710,6 +1710,7 @@ module HxbWriter = struct
 					Chunk.write_u8 writer.chunk 6;
 					Chunk.write_string writer.chunk s;
 					Chunk.write_option writer.chunk so (Chunk.write_string writer.chunk)
+				| AccPrivateCall -> Chunk.write_u8 writer.chunk 7
 			in
 			f r;
 			f w
