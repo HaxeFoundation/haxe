@@ -1979,7 +1979,7 @@ class texpr_to_jvm
 
 	method texpr' ret e =
 		if e.epos.pmin >= 0 then
-			code#set_line (Lexer.get_error_line_if_exists e.epos);
+			code#set_line (Lexer.get_error_line e.epos);
 		match e.eexpr with
 		| TVar(v,Some e1) ->
 			self#texpr (rvalue_type gctx v.v_type (Some v.v_name)) e1;

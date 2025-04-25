@@ -270,15 +270,13 @@ let resolve_file_pos file =
 		f
 
 let find_file file =
-	try
-		ThreadSafeHashtbl.find all_files file
-	with Not_found ->
+	ThreadSafeHashtbl.find_or_add all_files file (fun () ->
 		try
-			let f = resolve_file_pos file in
-			ThreadSafeHashtbl.add all_files file f;
-			f
+			(* TODO: It's actually stupid to block the entire Hashtbl while we're reading a file... *)
+			resolve_file_pos file
 		with Sys_error _ ->
 			make_file file
+	)
 
 let find_pos p =
 	find_line p.pmin (find_file p.pfile)
@@ -286,13 +284,6 @@ let find_pos p =
 let get_error_line p =
 	let l, _ = find_pos p in
 	l
-
-let get_error_line_if_exists p =
-	try
-		let file = ThreadSafeHashtbl.find all_files p.pfile in
-		fst (find_line p.pmin file)
-	with Not_found ->
-		0
 
 let get_pos_coords p =
 	let file = find_file p.pfile in
