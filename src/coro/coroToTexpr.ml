@@ -92,7 +92,7 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 		tf_args
 		|> List.filter_map (fun (v, _) ->
 			if is_used_across_states v.v_id then
-				Some (v.v_id, mk_field v.v_name v.v_type v.v_pos null_pos)
+				Some (v.v_id, mk_field v.v_name v.v_type v.v_pos v.v_pos)
 			else
 				None)
 		|> List.to_seq
@@ -108,7 +108,7 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 				else
 					v.v_name in
 
-				let field = mk_field name v.v_type v.v_pos null_pos in
+				let field = mk_field name v.v_type v.v_pos v.v_pos in
 
 				Hashtbl.replace fields v.v_id field;
 
@@ -142,22 +142,22 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 			let initial = List.hd states in
 			let field   = Hashtbl.find fields v.v_id in
 			let efield  = b#instance_field econtinuation cls [] field field.cf_type in
-			let assign  = b#assign efield (b#local v null_pos) in
+			let assign  = b#assign efield (b#local v v.v_pos) in
 
 			initial.cs_el <- assign :: initial.cs_el) tf_args;
 	fields
 
-	let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs p stack_item_inserter start_exception =
+let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs p stack_item_inserter start_exception =
 	let {econtinuation;ecompletion;econtrol;eresult;estate;eerror;etmp} = exprs in
 	let com = ctx.typer.com in
 	let b = ctx.builder in
 
-	let set_state id = b#assign estate (b#int id null_pos) in
+	let set_state id = b#assign estate (b#int id p) in
 
 	let set_control (c : coro_control) = b#assign econtrol (CoroControl.mk_control com.basic c) in
 
 	let std_is e t =
-		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic null_pos in
+		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic p in
 		Texpr.Builder.resolve_and_make_static_call com.std "isOfType" [e;type_expr] p
 	in
 
@@ -357,15 +357,15 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 		mk (TTry (
 			eloop,
 			[
-				let vcaught = alloc_var VGenerated "e" t_dynamic null_pos in
-				let ecaught = b#local vcaught null_pos in
+				let vcaught = alloc_var VGenerated "e" t_dynamic p in
+				let ecaught = b#local vcaught p in
 				let e = b#void_block [
 					start_exception (b#bool false p);
 					b#assign etmp ecaught
 				] in
 				(vcaught,e)
 			]
-		)) com.basic.tvoid null_pos
+		)) com.basic.tvoid p
 	in
 
 	let eexchandle =
@@ -385,7 +385,7 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 		] else begin
 			let field         = PMap.find "buildCallStack" com.basic.tcoro.base_continuation_class.cl_fields in
 			let eaccess       = b#instance_field econtinuation com.basic.tcoro.base_continuation_class params field field.cf_type in
-			let ewrapped_call = mk (TCall (eaccess, [ ])) com.basic.tvoid null_pos in
+			let ewrapped_call = mk (TCall (eaccess, [ ])) com.basic.tvoid p in
 			[
 				ewrapped_call;
 				b#assign eerror (wrap_thrown etmp);
@@ -403,7 +403,7 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 				switch_default = Some default;
 				switch_exhaustive = true
 			} in
-			mk (TSwitch switch) com.basic.tvoid null_pos
+			mk (TSwitch switch) com.basic.tvoid p
 		end
 	in
 

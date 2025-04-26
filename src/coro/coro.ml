@@ -31,6 +31,7 @@ let substitute_type_params subst t =
 module ContinuationClassBuilder = struct
 	type coro_class = {
 		cls : tclass;
+		name_pos : pos;
 		(* inside = inside the continuation class *)
 		inside : coro_cls;
 		(* outside = in the original function *)
@@ -45,7 +46,7 @@ module ContinuationClassBuilder = struct
 	let create ctx coro_type =
 		let basic = ctx.typer.t in
 		(* Mangle class names to hopefully get unique names and avoid collisions *)
-		let name, cf_captured, params_outside, result_type =
+		let name, cf_captured, params_outside, result_type, name_pos =
 			let captured_field_name = "_hx_captured" in
 			match coro_type with
 			| ClassField (cls, field, tf, _) ->
@@ -53,9 +54,10 @@ module ContinuationClassBuilder = struct
 				(if has_class_field_flag field CfStatic then
 					None
 				else
-					Some (mk_field captured_field_name ctx.typer.c.tthis null_pos null_pos)),
+					Some (mk_field captured_field_name ctx.typer.c.tthis field.cf_name_pos field.cf_name_pos)),
 				field.cf_params,
-				tf.tf_type
+				tf.tf_type,
+				field.cf_name_pos
 			| LocalFunc(f,v) ->
 				let n = Printf.sprintf "HxCoroAnonFunc_%i" !localFuncCount in
 				localFuncCount := !localFuncCount + 1;
@@ -63,13 +65,13 @@ module ContinuationClassBuilder = struct
 				let args = List.map (fun (v, _) -> (v.v_name, false, v.v_type)) f.tf_args in
 				let t    = TFun (Common.expand_coro_type basic args f.tf_type) in
 
-				n, Some (mk_field captured_field_name t null_pos null_pos), (match v.v_extra with Some ve -> ve.v_params | None -> []), f.tf_type
+				n, Some (mk_field captured_field_name t v.v_pos v.v_pos), (match v.v_extra with Some ve -> ve.v_params | None -> []), f.tf_type, v.v_pos
 			in
 
 		let result_type = if ExtType.is_void (follow result_type) then ctx.typer.t.tunit else result_type in
 		(* Is there a pre-existing function somewhere to a valid path? *)
 		let cls_path = ((fst ctx.typer.m.curmod.m_path) @ [ Printf.sprintf "_%s" (snd ctx.typer.m.curmod.m_path) ]), name in
-		let cls      = mk_class ctx.typer.m.curmod cls_path null_pos null_pos in
+		let cls      = mk_class ctx.typer.m.curmod cls_path name_pos name_pos in
 		let params_inside = List.map (fun ttp ->
 			(* TODO: this duplicates clone_type_parameter *)
 			let c = ttp.ttp_class in
@@ -100,9 +102,9 @@ module ContinuationClassBuilder = struct
 					let cf_result = PMap.find "withResult" c.cl_statics in
 					let cf_error = PMap.find "withError" c.cl_statics in
 					(fun e ->
-						CallUnification.make_static_call_better ctx.typer c cf_result [e.etype] [e] (TInst(c,[e.etype])) null_pos
+						CallUnification.make_static_call_better ctx.typer c cf_result [e.etype] [e] (TInst(c,[e.etype])) name_pos
 					), (fun e t ->
-						CallUnification.make_static_call_better ctx.typer c cf_error [] [e] (TInst(c,[t])) null_pos
+						CallUnification.make_static_call_better ctx.typer c cf_error [] [e] (TInst(c,[t])) name_pos
 					)
 				in
 				let api = ContTypes.create_continuation_api immediate_result immediate_error cf_control cf_result cf_error cf_completion cf_context cf_state cf_recursing in
@@ -119,6 +121,7 @@ module ContinuationClassBuilder = struct
 
 		{
 			cls        = cls;
+			name_pos;
 			inside = {
 				params = params_inside;
 				param_types = param_types_inside;
@@ -143,12 +146,12 @@ module ContinuationClassBuilder = struct
 		let basic = ctx.typer.t in
 		let b     = ctx.builder in
 		let name  = "completion" in
-		let ethis = mk (TConst TThis) coro_class.inside.cls_t null_pos in
+		let ethis = mk (TConst TThis) coro_class.inside.cls_t coro_class.name_pos in
 
-		let vargcompletion    = alloc_var VGenerated name basic.tcoro.continuation null_pos in
-		let evarargcompletion = b#local vargcompletion null_pos in
-		let einitialstate     = b#int initial_state null_pos in
-		let esuper            = b#call (b#super coro_class.inside.cont_type null_pos) [ evarargcompletion; einitialstate ] basic.tvoid in
+		let vargcompletion    = alloc_var VGenerated name basic.tcoro.continuation coro_class.name_pos in
+		let evarargcompletion = b#local vargcompletion coro_class.name_pos in
+		let einitialstate     = b#int initial_state coro_class.name_pos in
+		let esuper            = b#call (b#super coro_class.inside.cont_type coro_class.name_pos) [ evarargcompletion; einitialstate ] basic.tvoid in
 
 		let this_field cf =
 			b#instance_field ethis coro_class.cls coro_class.inside.param_types cf cf.cf_type
@@ -158,8 +161,8 @@ module ContinuationClassBuilder = struct
 			coro_class.captured
 			|> Option.map
 				(fun field ->
-					let vargcaptured    = alloc_var VGenerated "captured" field.cf_type null_pos in
-					let eargcaptured    = b#local vargcaptured null_pos in
+					let vargcaptured    = alloc_var VGenerated "captured" field.cf_type coro_class.name_pos in
+					let eargcaptured    = b#local vargcaptured coro_class.name_pos in
 					let ecapturedfield  = this_field field in
 					vargcaptured, b#assign ecapturedfield eargcaptured)
 			in
@@ -182,9 +185,9 @@ module ContinuationClassBuilder = struct
 			extra_tfunction_args @ [ (vargcompletion, None) ]
 		in
 
-		let field = mk_field "new" (TFun (tfun_args, basic.tvoid)) null_pos null_pos in
+		let field = mk_field "new" (TFun (tfun_args, basic.tvoid)) coro_class.name_pos coro_class.name_pos in
 		let func  = TFunction { tf_type = basic.tvoid; tf_args = tfunction_args; tf_expr = eblock } in
-		let expr = mk func field.cf_type null_pos in
+		let expr = mk func field.cf_type coro_class.name_pos in
 		field.cf_expr <- Some expr;
 		field.cf_kind <- Method MethNormal;
 
@@ -197,24 +200,24 @@ module ContinuationClassBuilder = struct
 		let basic     = ctx.typer.t in
 		let b         = ctx.builder in
 		let tret_invoke_resume = coro_class.inside.cls_t in
-		let ethis     = b#this coro_class.inside.cls_t null_pos in
+		let ethis     = b#this coro_class.inside.cls_t coro_class.name_pos in
 		let ecorocall =
 			let this_field cf =
 				b#instance_field ethis coro_class.cls coro_class.inside.param_types cf cf.cf_type
 			in
 			match coro_class.coro_type with
 			| ClassField (cls, field, f, _) when has_class_field_flag field CfStatic ->
-				let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type null_pos)) @ [ ethis ] in
-				let efunction = Builder.make_static_field cls field null_pos in
+				let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type coro_class.name_pos)) @ [ ethis ] in
+				let efunction = Builder.make_static_field cls field coro_class.name_pos in
 				b#call efunction args tret_invoke_resume
 			| ClassField (cls, field,f, _) ->
-				let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type null_pos)) @ [ ethis ] in
+				let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type coro_class.name_pos)) @ [ ethis ] in
 				let captured  = coro_class.captured |> Option.get in
 				let ecapturedfield = this_field captured in
 				let efunction      = b#instance_field ecapturedfield cls [] (* TODO: check *) field field.cf_type in
 				b#call efunction args tret_invoke_resume
 			| LocalFunc(f,_) ->
-				let args      = (List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type null_pos) f.tf_args) @ [ ethis ] in
+				let args      = (List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type coro_class.name_pos) f.tf_args) @ [ ethis ] in
 				let captured  = coro_class.captured |> Option.get in
 				let ecapturedfield = this_field captured in
 				b#call ecapturedfield args tret_invoke_resume
@@ -225,11 +228,11 @@ module ContinuationClassBuilder = struct
 		in
 		let ecorocall = map_expr_type ecorocall in
 
-		let field = mk_field "invokeResume" (TFun ([], tret_invoke_resume)) null_pos null_pos in
+		let field = mk_field "invokeResume" (TFun ([], tret_invoke_resume)) coro_class.name_pos coro_class.name_pos in
 		add_class_field_flag field CfOverride;
 		let block = b#void_block [ b#return ecorocall ] in
 		let func  = TFunction { tf_type = tret_invoke_resume; tf_args = []; tf_expr = block } in
-		let expr  = mk (func) basic.tvoid null_pos in
+		let expr  = mk (func) basic.tvoid coro_class.name_pos in
 		field.cf_expr <- Some expr;
 		field.cf_kind <- Method MethNormal;
 
@@ -254,7 +257,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp vcompletion vco
 	let basic = ctx.typer.t in
 	let b = ctx.builder in
 	let cont = coro_class.ContinuationClassBuilder.continuation_api in
-	let eloop, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls coro_class.outside.param_types args [ vcompletion.v_id; vcontinuation.v_id ] exprs null_pos stack_item_inserter start_exception in
+	let eloop, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls coro_class.outside.param_types args [ vcompletion.v_id; vcontinuation.v_id ] exprs coro_class.name_pos stack_item_inserter start_exception in
 	(* update cf_type to use inside type parameters *)
 	List.iter (fun cf ->
 		cf.cf_type <- substitute_type_params coro_class.type_param_subst cf.cf_type;
@@ -264,8 +267,8 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp vcompletion vco
 	let continuation_var = b#var_init_null vcontinuation in
 
 	let std_is e t =
-		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic null_pos in
-		Texpr.Builder.resolve_and_make_static_call ctx.typer.com.std "isOfType" [e;type_expr] null_pos
+		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic coro_class.name_pos in
+		Texpr.Builder.resolve_and_make_static_call ctx.typer.com.std "isOfType" [e;type_expr] coro_class.name_pos
 	in
 
 	let prefix_arg =
@@ -273,9 +276,9 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp vcompletion vco
 		| ClassField (_, field, _, _) when has_class_field_flag field CfStatic ->
 			[]
 		| ClassField _ ->
-			[ b#this ctx.typer.c.tthis null_pos ]
+			[ b#this ctx.typer.c.tthis coro_class.name_pos ]
 		| LocalFunc(f,v) ->
-			[ b#local v null_pos ]
+			[ b#local v coro_class.name_pos ]
 	in
 
 	let {CoroToTexpr.econtinuation;ecompletion;econtrol;eresult;estate;eerror} = exprs in
@@ -283,18 +286,18 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp vcompletion vco
 	let continuation_assign =
 		let t = coro_class.outside.cls_t in
 
-		let ecastedcompletion = mk_cast ecompletion t null_pos in
+		let ecastedcompletion = mk_cast ecompletion t coro_class.name_pos in
 
 		let tcond =
 			let erecursingfield = b#instance_field ecastedcompletion coro_class.cls coro_class.outside.param_types cont.recursing basic.tbool in
 			let estdis          = std_is ecompletion t in
-			let erecursingcheck = b#op_eq erecursingfield (b#bool false null_pos) in
+			let erecursingcheck = b#op_eq erecursingfield (b#bool false coro_class.name_pos) in
 			b#op_bool_and estdis erecursingcheck
 		in
 		let tif       = b#assign econtinuation ecastedcompletion in
 		let tif       = b#void_block [tif] in
 		let ctor_args = prefix_arg @ [ ecompletion ] in
-		let telse = b#assign econtinuation (mk (TNew (coro_class.cls, coro_class.outside.param_types, ctor_args)) t null_pos) in
+		let telse = b#assign econtinuation (mk (TNew (coro_class.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos) in
 		b#if_then_else tcond tif telse basic.tvoid
 	in
 
@@ -306,10 +309,10 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp vcompletion vco
 		continuation_assign;
 		b#assign
 			(continuation_field cont.recursing basic.tbool)
-			(b#bool true null_pos);
+			(b#bool true coro_class.name_pos);
 		b#var_init vtmp eresult;
 		eloop;
-		b#return (b#null basic.tany null_pos);
+		b#return (b#null basic.tany coro_class.name_pos);
 	]
 
 let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
@@ -319,7 +322,7 @@ let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
 	let b = ctx.builder in
 	create_continuation_class ctx coro_class 0;
 	let rec loop cb previous_el =
-		let p = null_pos in
+		let p = coro_class.name_pos in
 		let loop_as_block cb =
 			let el,term = loop cb [] in
 			b#void_block el,term
@@ -354,7 +357,7 @@ let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
 					terminate (b#return e1);
 				end
 			| NextUnknown | NextReturnVoid ->
-				let e1 = coro_class.continuation_api.immediate_result (b#null t_dynamic null_pos) in
+				let e1 = coro_class.continuation_api.immediate_result (b#null t_dynamic coro_class.name_pos) in
 				terminate (b#return e1);
 			| NextBreak _ ->
 				terminate (b#break p);
@@ -418,13 +421,13 @@ let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
 		e
 	else begin
 		let catch =
-			let v = alloc_var VGenerated "e" t_dynamic null_pos in
-			let ev = b#local v null_pos in
+			let v = alloc_var VGenerated "e" t_dynamic coro_class.name_pos in
+			let ev = b#local v coro_class.name_pos in
 			let eerr = coro_class.continuation_api.immediate_error ev coro_class.inside.result_type in
 			let eret = b#return eerr in
 			(v,eret)
 		in
-		mk (TTry(e,[catch])) basic.tvoid null_pos
+		mk (TTry(e,[catch])) basic.tvoid coro_class.name_pos
 	end in
 	b#void_block [e]
 
@@ -436,11 +439,11 @@ let fun_to_coro ctx coro_type =
 	let cont = coro_class.continuation_api in
 
 	(* Generate and assign the continuation variable *)
-	let vcompletion = alloc_var VGenerated "_hx_completion" basic.tcoro.continuation null_pos in
-	let ecompletion = b#local vcompletion null_pos in
+	let vcompletion = alloc_var VGenerated "_hx_completion" basic.tcoro.continuation coro_class.name_pos in
+	let ecompletion = b#local vcompletion coro_class.name_pos in
 
-	let vcontinuation = alloc_var VGenerated "_hx_continuation" coro_class.outside.cls_t null_pos in
-	let econtinuation = b#local vcontinuation null_pos in
+	let vcontinuation = alloc_var VGenerated "_hx_continuation" coro_class.outside.cls_t coro_class.name_pos in
+	let econtinuation = b#local vcontinuation coro_class.name_pos in
 
 	let continuation_field cf t =
 		b#instance_field econtinuation basic.tcoro.base_continuation_class coro_class.outside.param_types cf t
@@ -451,8 +454,8 @@ let fun_to_coro ctx coro_type =
 	let eresult = continuation_field cont.result basic.tany in
 	let eerror = continuation_field cont.error basic.texception in
 
-	let vtmp = alloc_var VGenerated "_hx_tmp" basic.tany null_pos in
-	let etmp = b#local vtmp null_pos in
+	let vtmp = alloc_var VGenerated "_hx_tmp" basic.tany coro_class.name_pos in
+	let etmp = b#local vtmp coro_class.name_pos in
 
 	let expr, args, pe, name =
 		match coro_type with
@@ -462,7 +465,7 @@ let fun_to_coro ctx coro_type =
 			f.tf_expr, f.tf_args, f.tf_expr.epos, v.v_name
 		in
 
-	let cb_root = make_block ctx (Some(expr.etype, null_pos)) in
+	let cb_root = make_block ctx (Some(expr.etype, coro_class.name_pos)) in
 
 	ignore(CoroFromTexpr.expr_to_coro ctx etmp cb_root expr);
 	let exprs = {CoroToTexpr.econtinuation;ecompletion;econtrol;eresult;estate;eerror;etmp} in
@@ -472,31 +475,31 @@ let fun_to_coro ctx coro_type =
 			| ClassField (cls, field, _, _) ->
 				PMap.find "setClassFuncStackItem" basic.tcoro.base_continuation_class.cl_fields,
 				[
-					b#string (s_class_path cls) null_pos;
-					b#string field.cf_name null_pos;
+					b#string (s_class_path cls) coro_class.name_pos;
+					b#string field.cf_name coro_class.name_pos;
 				]
 			| LocalFunc (f, v) ->
 				PMap.find "setLocalFuncStackItem" basic.tcoro.base_continuation_class.cl_fields,
 				[
-					b#int v.v_id null_pos;
+					b#int v.v_id coro_class.name_pos;
 				]
 		in
 		let eaccess = continuation_field field field.cf_type in
 		let l1,c1,_,_ = Lexer.get_pos_coords pos in
 		let eargs   = eargs @ [
-			b#string pos.pfile null_pos;
-			b#int l1 null_pos;
-			b#int c1 null_pos;
-			b#int pos.pmin null_pos;
-			b#int pos.pmax null_pos;
+			b#string pos.pfile coro_class.name_pos;
+			b#int l1 coro_class.name_pos;
+			b#int c1 coro_class.name_pos;
+			b#int pos.pmin coro_class.name_pos;
+			b#int pos.pmax coro_class.name_pos;
 		] in
-		mk (TCall (eaccess, eargs)) basic.tvoid null_pos
+		mk (TCall (eaccess, eargs)) basic.tvoid coro_class.name_pos
 	in
 	let start_exception =
 		let cf = PMap.find "startException" basic.tcoro.base_continuation_class.cl_fields in
 		let ef = continuation_field cf cf.cf_type in
 		(fun e ->
-			mk (TCall(ef,[e])) basic.tvoid null_pos
+			mk (TCall(ef,[e])) basic.tvoid coro_class.name_pos
 		)
 	in
 	let tf_expr,cb_root = try
