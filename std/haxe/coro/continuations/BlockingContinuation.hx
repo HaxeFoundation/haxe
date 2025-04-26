@@ -1,7 +1,7 @@
 package haxe.coro.continuations;
 
 class BlockingContinuation<T> implements IContinuation<T> {
-	public final _hx_context:CoroutineContext;
+	public final context:CoroutineContext;
 
 	final loop:EventLoop;
 
@@ -12,7 +12,7 @@ class BlockingContinuation<T> implements IContinuation<T> {
 	public function new(loop, scheduler) {
 		this.loop = loop;
 
-		_hx_context = new CoroutineContext(scheduler);
+		context = new CoroutineContext(scheduler);
 		running = true;
 		error = null;
 	}

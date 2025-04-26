@@ -36,18 +36,18 @@ private class Thread {
 
 	var assigned:Bool;
 
-	public final _hx_context:CoroutineContext;
+	public final context:CoroutineContext;
 
 	public function new(inputCont:IContinuation<T>, outputCont:SuspensionResult<T>) {
 		this.inputCont = inputCont;
 		this.outputCont = outputCont;
-		_hx_context = inputCont._hx_context;
+		context = inputCont.context;
 		assigned = false;
 		lock = new Mutex();
 	}
 
 	public function resume(result:T, error:Exception):Void {
-		_hx_context.scheduler.schedule(() -> {
+		context.scheduler.schedule(() -> {
 			lock.acquire();
 
 			if (assigned) {
@@ -55,8 +55,8 @@ private class Thread {
 				inputCont.resume(result, error);
 			} else {
 				assigned = true;
-				outputCont._hx_result = result;
-				outputCont._hx_error = error;
+				outputCont.result = result;
+				outputCont.error = error;
 
 				lock.release();
 			}
@@ -66,16 +66,16 @@ private class Thread {
 	public function resolve():Void {
 		lock.acquire();
 		if (assigned) {
-			if (outputCont._hx_error != null) {
-				outputCont._hx_control = Thrown;
+			if (outputCont.error != null) {
+				outputCont.control = Thrown;
 				lock.release();
 			} else {
-				outputCont._hx_control = Returned;
+				outputCont.control = Returned;
 				lock.release();
 			}
 		} else {
 			assigned = true;
-			outputCont._hx_control = Pending;
+			outputCont.control = Pending;
 			lock.release();
 		}
 	}
