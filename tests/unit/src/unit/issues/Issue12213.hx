@@ -4,7 +4,6 @@ import haxe.CallStack;
 import haxe.exceptions.NotImplementedException;
 
 class Issue12213 extends Test {
-	#if !js
 	function test() {
 		try {
 			throw new haxe.exceptions.NotImplementedException();
@@ -20,5 +19,4 @@ class Issue12213 extends Test {
 			utest.Assert.same(stack, e.stack);
 		}
 	}
-	#end
 }
