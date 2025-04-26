@@ -92,7 +92,7 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 		tf_args
 		|> List.filter_map (fun (v, _) ->
 			if is_used_across_states v.v_id then
-				Some (v.v_id, mk_field v.v_name v.v_type v.v_pos v.v_pos)
+				Some (v.v_id, mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos v.v_pos)
 			else
 				None)
 		|> List.to_seq
@@ -103,11 +103,7 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 		let rec loop e =
 			match e.eexpr with
 			| TVar (v, eo) when is_used_across_states v.v_id ->
-				let name = if v.v_kind = VGenerated then
-					Printf.sprintf "_hx_hoisted%i" v.v_id
-				else
-					v.v_name in
-
+				let name  = Printf.sprintf "_hx_hoisted%i" v.v_id in
 				let field = mk_field name v.v_type v.v_pos v.v_pos in
 
 				Hashtbl.replace fields v.v_id field;
