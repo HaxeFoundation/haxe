@@ -45,6 +45,12 @@ class UnsafeFields {
 		var s:String = null;
 	}
 
+	@:nullSafety(Off)
+	public static inline function unsafeCall():Int {
+		var n:Int = null;
+		return n;
+	}
+
 	static function unsafeExpr() {
 		var s:String;
 		@:nullSafety(Off) cast(null, String);
@@ -1052,6 +1058,23 @@ class TestStrict {
 	static function issue10272_nullableConcatString_shouldPass(msg:Null<Dynamic>) {
 		trace("Message: " + msg);
 	}
+
+	static function inlineUnsafeCall_shouldPass(msg:Null<Dynamic>) {
+		final v = UnsafeFields.unsafeCall();
+		final obj = new haxe.DynamicAccess<String>();
+		for (v in obj) obj["foo"] = v;
+		for (i => v in obj) obj["foo"] = v;
+	}
+
+	public static function overloadNullableArgs_shouldPass(cmd:String, ?args:Array<String>):Int {
+		if (args == null)
+			return spawnSome(cmd, {shell: true, stdio: "inherit"}).status;
+		else
+			return spawnSome(cmd, args, {stdio: "inherit"}).status;
+	}
+
+	@:overload(function(command:String, args:Array<String>, ?options:{}):{status:Int} {})
+	static function spawnSome(command:String, ?options:{}):{status:Int} return {status: 0};
 }
 
 private class AnonFields {
