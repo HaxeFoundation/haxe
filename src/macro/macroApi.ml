@@ -174,6 +174,8 @@ module type InterpApi = sig
 	val handle_decoding_error : (string -> unit) -> value -> Type.t -> (string * int) list
 
 	val get_api_call_pos : unit -> pos
+
+	val associate_enum_value_pos : value -> pos -> unit
 end
 
 let s_type_path = Globals.s_type_path
@@ -2435,6 +2437,11 @@ let macro_api ccom get_api =
 		"set_hxb_writer_config", vfun1 (fun v ->
 			(get_api()).set_hxb_writer_config v;
 			vnull
-		)
+		);
+		"associate_enum_value_pos",vfun2 (fun ve vp ->
+			let p = decode_pos vp in
+			associate_enum_value_pos ve p;
+			vnull;
+		);
 	]
 end
