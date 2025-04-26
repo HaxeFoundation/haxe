@@ -72,6 +72,11 @@ class Main {
 
 		bar.defaultNull = 1; // err
 
+		bar.age;
+		@:bypassAccessor bar.age = 1;
+		@:privateAccess bar.age = 1;
+		bar.age = 1; // err
+
 		final child = new Child();
 		@:privateAccess child.width = 1;
 	}
@@ -115,6 +120,7 @@ class Rect implements Shape {
 	}
 }
 
+@:build(PropertyMacro.addIntProperty("age"))
 class Bar {
 	public function new() {
 		width = 2;
