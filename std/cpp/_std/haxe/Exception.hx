@@ -14,7 +14,7 @@ class Exception {
 	@:noCompletion @:ifFeature("haxe.Exception.get_stack") var __skipStack:Int = 0;
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
-	@:noCompletion var __customStack:Null<String>;
+	@:noCompletion var _hx_customStack:Null<String>;
 
 	static function caught(value:Any):Exception {
 		if(Std.isOfType(value, Exception)) {
@@ -93,7 +93,7 @@ class Exception {
 	}
 
 	function set_stack(stack:CallStack) {
-		__customStack = CallStack.toString(stack);
+		_hx_customStack = CallStack.toString(stack);
 
 		return __exceptionStack = stack;
 	}
