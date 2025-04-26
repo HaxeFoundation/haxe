@@ -3,11 +3,11 @@ package haxe.coro;
 import haxe.Exception;
 
 abstract class SuspensionResult<T> {
-	public var _hx_control:SuspensionState;
-	public var _hx_result:T;
-	public var _hx_error:Exception;
+	public var control:SuspensionState;
+	public var result:T;
+	public var error:Exception;
 
 	public function toString() {
-		return '[SuspensionResult ${_hx_control.toString()}, $_hx_result]';
+		return '[SuspensionResult ${control.toString()}, $result]';
 	}
 }

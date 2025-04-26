@@ -22,23 +22,23 @@ private class CoroSuspend<T> extends haxe.coro.BaseContinuation<T> {
 @:coreType
 abstract Coroutine<T:haxe.Constraints.Function> {
 	@:coroutine @:coroutine.transformed
-	public static function suspend<T>(func:haxe.coro.IContinuation<T>->Void, _hx_completion:haxe.coro.IContinuation<T>):T {
-		var _hx_continuation = new CoroSuspend(_hx_completion);
-		var safe = new haxe.coro.continuations.RacingContinuation(_hx_completion, _hx_continuation);
+	public static function suspend<T>(func:haxe.coro.IContinuation<T>->Void, completion:haxe.coro.IContinuation<T>):T {
+		var continuation = new CoroSuspend(completion);
+		var safe = new haxe.coro.continuations.RacingContinuation(completion, continuation);
 		func(safe);
 		safe.resolve();
-		return cast _hx_continuation;
+		return cast continuation;
 	}
 
 	@:coroutine @:coroutine.nothrow public static function delay(ms:Int):Void {
 		Coroutine.suspend(cont -> {
-			cont._hx_context.scheduler.scheduleIn(() -> cont.resume(null, null), ms);
+			cont.context.scheduler.scheduleIn(() -> cont.resume(null, null), ms);
 		});
 	}
 
 	@:coroutine @:coroutine.nothrow public static function yield():Void {
 		Coroutine.suspend(cont -> {
-			cont._hx_context.scheduler.schedule(() -> cont.resume(null, null));
+			cont.context.scheduler.schedule(() -> cont.resume(null, null));
 		});
 	}
 
@@ -47,13 +47,13 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 		final cont = new BlockingContinuation<T>(loop, new EventLoopScheduler(loop));
 		final result = f(cont);
 
-		return switch (result._hx_control) {
+		return switch (result.control) {
 			case Pending:
 				cont.wait();
 			case Returned:
-				result._hx_result;
+				result.result;
 			case Thrown:
-				throw result._hx_error;
+				throw result.error;
 		}
 	}
 }

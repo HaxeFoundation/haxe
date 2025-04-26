@@ -4,9 +4,9 @@ import haxe.Exception;
 
 class ImmediateSuspensionResult<T> extends SuspensionResult<T> {
 	function new(result:T, error:Exception) {
-		_hx_result = result;
-		_hx_error = error;
-		_hx_control = error == null ? Returned : Thrown;
+		this.result  = result;
+		this.error   = error;
+		this.control = error == null ? Returned : Thrown;
 	}
 
 	static public function withResult<T>(result:T) {
@@ -18,6 +18,6 @@ class ImmediateSuspensionResult<T> extends SuspensionResult<T> {
 	}
 
 	public override function toString() {
-		return '[ImmediateSuspensionResult ${_hx_control.toString()}, $_hx_result]';
+		return '[ImmediateSuspensionResult ${control.toString()}, $result]';
 	}
 }

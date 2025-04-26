@@ -47,7 +47,7 @@ module ContinuationClassBuilder = struct
 		let basic = ctx.typer.t in
 		(* Mangle class names to hopefully get unique names and avoid collisions *)
 		let name, cf_captured, params_outside, result_type, name_pos =
-			let captured_field_name = "_hx_captured" in
+			let captured_field_name = "captured" in
 			match coro_type with
 			| ClassField (cls, field, tf, _) ->
 				Printf.sprintf "HxCoro_%s_%s_%s" (ctx.typer.m.curmod.m_path |> fst |> String.concat "_") (ctx.typer.m.curmod.m_path |> snd) field.cf_name,
@@ -90,13 +90,13 @@ module ContinuationClassBuilder = struct
 			| Some api ->
 				api
 			| None ->
-				let cf_control    = PMap.find "_hx_control" basic.tcoro.suspension_result_class.cl_fields in
-				let cf_result     = PMap.find "_hx_result" basic.tcoro.suspension_result_class.cl_fields in
-				let cf_error      = PMap.find "_hx_error" basic.tcoro.suspension_result_class.cl_fields in
-				let cf_completion = PMap.find "_hx_completion" basic.tcoro.base_continuation_class.cl_fields in
-				let cf_context    = PMap.find "_hx_context" basic.tcoro.base_continuation_class.cl_fields in
-				let cf_state      = PMap.find "_hx_state" basic.tcoro.base_continuation_class.cl_fields in
-				let cf_recursing  = PMap.find "_hx_recursing" basic.tcoro.base_continuation_class.cl_fields in
+				let cf_control    = PMap.find "control" basic.tcoro.suspension_result_class.cl_fields in
+				let cf_result     = PMap.find "result" basic.tcoro.suspension_result_class.cl_fields in
+				let cf_error      = PMap.find "error" basic.tcoro.suspension_result_class.cl_fields in
+				let cf_completion = PMap.find "completion" basic.tcoro.base_continuation_class.cl_fields in
+				let cf_context    = PMap.find "context" basic.tcoro.base_continuation_class.cl_fields in
+				let cf_state      = PMap.find "state" basic.tcoro.base_continuation_class.cl_fields in
+				let cf_recursing  = PMap.find "recursing" basic.tcoro.base_continuation_class.cl_fields in
 				let immediate_result,immediate_error =
 					let c = basic.tcoro.immediate_suspension_result_class in
 					let cf_result = PMap.find "withResult" c.cl_statics in

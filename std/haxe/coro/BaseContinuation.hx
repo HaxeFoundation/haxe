@@ -4,90 +4,91 @@ import haxe.CallStack.StackItem;
 import haxe.Exception;
 
 abstract class BaseContinuation<T> extends SuspensionResult<T> implements IContinuation<T> implements IStackFrame {
-    public final _hx_completion:IContinuation<Any>;
+    public final completion:IContinuation<Any>;
 
-	public final _hx_context:CoroutineContext;
+	public final context:CoroutineContext;
 
-    public var _hx_state:Int;
+    public var state:Int;
 
-    public var _hx_recursing:Bool;
+    public var recursing:Bool;
 
     function new(completion:IContinuation<Any>, initialState:Int) {
-        _hx_completion = completion;
-        _hx_context    = completion._hx_context;
-        _hx_state      = initialState;
-        _hx_error      = null;
-        _hx_result     = null;
-        _hx_recursing  = false;
+        this.completion = completion;
+
+        context    = completion.context;
+        state      = initialState;
+        error      = null;
+        result     = null;
+        recursing  = false;
     }
 
     public final function resume(result:Any, error:Exception):Void {
-        _hx_result = result;
-        _hx_error  = error;
-        _hx_context.scheduler.schedule(() -> {
-			_hx_recursing = false;
+        this.result = result;
+        this.error  = error;
+        context.scheduler.schedule(() -> {
+			recursing = false;
 
 			#if coroutine.throw
 			try {
 			#end
 			final result = invokeResume();
-			switch (result._hx_control) {
+			switch (result.control) {
 				case Pending:
 					return;
 				case Returned:
-					_hx_completion.resume(result._hx_result, null);
+					completion.resume(result.result, null);
 				case Thrown:
-					_hx_completion.resume(result._hx_result, result._hx_error);
+					completion.resume(result.result, result.error);
 			}
 			#if coroutine.throw
 			} catch (e:Dynamic) {
-				_hx_completion.resume(null, @:privateAccess Exception.thrown(e));
+				completion.resume(null, @:privateAccess Exception.thrown(e));
 			}
 			#end
         });
     }
 
     public function callerFrame():Null<IStackFrame> {
-        return if (_hx_completion is IStackFrame) {
-            cast _hx_completion;
+        return if (completion is IStackFrame) {
+            cast completion;
         } else {
             null;
         }
     }
 
 	public function getStackItem():Null<StackItem> {
-		return cast _hx_result;
+		return cast result;
 	}
 
     public function setClassFuncStackItem(cls:String, func:String, file:String, line:Int, pos:Int, pmin:Int, pmax:Int) {
-        _hx_result = cast StackItem.FilePos(StackItem.Method(cls, func), file, line, pos);
+        result = cast StackItem.FilePos(StackItem.Method(cls, func), file, line, pos);
     }
 
     public function setLocalFuncStackItem(id:Int, file:String, line:Int, pos:Int, pmin:Int, pmax:Int) {
-        _hx_result = cast StackItem.FilePos(StackItem.LocalFunction(id), file, line, pos);
+        result = cast StackItem.FilePos(StackItem.LocalFunction(id), file, line, pos);
     }
 
 	public function startException(fromThrow:Bool) {
 		if (fromThrow) {
 			/*
 				This comes from a coro-level throw, which pushes its position via one of the functions
-				above. In this case we turn _hx_result into the stack item array now.
+				above. In this case we turn result into the stack item array now.
 			*/
-			_hx_result = cast [_hx_result];
+			result = cast [result];
 		} else {
 			/*
 				This means we caught an exception, which must come from outside our current coro. We
-				don't need our current _hx_result value because if anything it points to the last
+				don't need our current result value because if anything it points to the last
 				suspension call.
 			*/
-			_hx_result = cast [];
+			result = cast [];
 		}
 	}
 
     public function buildCallStack() {
         var frame = callerFrame();
         if (frame != null) {
-            (cast _hx_result : Array<StackItem>).push(frame.getStackItem());
+            (cast result : Array<StackItem>).push(frame.getStackItem());
         }
     }
 
