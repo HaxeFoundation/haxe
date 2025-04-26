@@ -238,7 +238,7 @@ and venum_value = {
 	eindex : int;
 	eargs : value array;
 	epath : int;
-	enpos : pos option;
+	mutable enpos : pos option;
 }
 
 and vthread = {
@@ -356,3 +356,9 @@ let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.prin
 let rec vresolve v = match v with
 	| VLazy f -> vresolve (Lazy.force f)
 	| _ -> v
+
+let associate_enum_value_pos ve p = match ve with
+	| VEnumValue ve ->
+		ve.enpos <- Some p
+	| _ ->
+		()

@@ -5,7 +5,7 @@ import js.lib.Error;
 @:coreApi
 class Exception extends NativeException {
 	public var message(get,never):String;
-	public var stack(get,never):CallStack;
+	public var stack(get,set):CallStack;
 	public var previous(get,never):Null<Exception>;
 	public var native(get,never):Any;
 
@@ -104,6 +104,10 @@ class Exception extends NativeException {
 				__exceptionStack = NativeStackTrace.toHaxe(NativeStackTrace.normalize((cast this).stack), __skipStack);
 			case s: s;
 		}
+	}
+
+	function set_stack(stack:CallStack) {
+		return __exceptionStack = stack;
 	}
 
 	@:noCompletion

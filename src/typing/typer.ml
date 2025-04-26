@@ -693,29 +693,35 @@ and type_object_decl ctx fl with_type p =
 		let fl = List.map (fun ((n,pn,qs),e) ->
 			let is_valid = Lexer.is_valid_identifier n in
 			if PMap.mem n !fields then raise_typing_error ("Duplicate field in object declaration : " ^ n) pn;
-			let is_final = ref false in
-			let e = try
-				let t = match !dynamic_parameter with
-					| Some t -> t
+			let e,cfo = try
+				let t,cfo = match !dynamic_parameter with
+					| Some t ->
+						t,None
 					| None ->
 						let cf = PMap.find n field_map in
-						if (has_class_field_flag cf CfFinal) then is_final := true;
 						if ctx.f.in_display && DisplayPosition.display_position#enclosed_in pn then DisplayEmitter.display_field ctx Unknown CFSMember cf pn;
-						cf.cf_type
+						cf.cf_type,Some cf
 				in
 				let e = type_expr ctx e (WithType.with_structure_field t n) in
 				let e = AbstractCast.cast_or_unify ctx t e e.epos in
 				let e = if is_null t && not (is_null e.etype) then mk (TCast(e,None)) (ctx.t.tnull e.etype) e.epos else e in
-				(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
+				(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos),cfo
 			with Not_found ->
 				if is_valid then
 					extra_fields := (n,pn) :: !extra_fields;
-				type_expr ctx e WithType.value
+				type_expr ctx e WithType.value,None
 			in
 			if is_valid then begin
 				if starts_with n '$' then raise_typing_error "Field names starting with a dollar are not allowed" p;
 				let cf = mk_field n e.etype (punion pn e.epos) pn in
-				if !is_final then add_class_field_flag cf CfFinal;
+				begin match cfo with
+					| Some cf' ->
+						(* If we're assigning to an existing field, copy some of its characteristics *)
+						if has_class_field_flag cf' CfFinal then add_class_field_flag cf CfFinal;
+						cf.cf_kind <- cf'.cf_kind;
+					| None ->
+						()
+				end;
 				fields := PMap.add n cf !fields;
 			end;
 			((n,pn,qs),e)

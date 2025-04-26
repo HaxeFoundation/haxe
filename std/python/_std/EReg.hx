@@ -51,6 +51,7 @@ class EReg {
 	}
 
 	public inline function match(s:String):Bool {
+		@:nullSafety(Off)
 		matchObj = Re.search(pattern, s);
 		return matchObj != null;
 	}
