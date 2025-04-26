@@ -1059,8 +1059,7 @@ private class AnonFields {
 
 	final anon:AnonDefaultNever = {
 		name: "",
-		// TODO should fail
-		version: null
+		version: shouldFail(null)
 	};
 	final anon2:{name:String, version:String} = {
 		name: "",
