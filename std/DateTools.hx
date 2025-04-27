@@ -199,11 +199,11 @@ class DateTools {
 	public static function getDayOfYear(d:Date):Int {
 		var startOfYear = new Date(d.getFullYear(), 0, 0, 0, 0, 0);
 		var days = Std.int((d.getTime() - startOfYear.getTime()) / DateTools.days(1));
-        #if (neko || php || python)
-            return days + 1;
-        #else
-            return days;
-        #end
+	        #if (neko || php || python)
+	            return days + 1;
+	        #else
+	            return days;
+	        #end
 	}
 
 	/**
