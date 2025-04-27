@@ -1726,7 +1726,10 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 			let rec check_unsafe_usage init_list safety_enabled e =
 				if Hashtbl.length init_list > 0 then
 					match e.eexpr with
-						| TField ({ eexpr = TConst TThis }, FInstance (_, _, field)) ->
+						| TField ({ eexpr = TConst TThis }, FInstance (_, _, field)) when not is_static ->
+							if Hashtbl.mem init_list field.cf_name then
+								checker#error ("Cannot use field " ^ field.cf_name ^ " until initialization.") [e.epos]
+						| TField (_, FStatic (_, field)) when is_static ->
 							if Hashtbl.mem init_list field.cf_name then
 								checker#error ("Cannot use field " ^ field.cf_name ^ " until initialization.") [e.epos]
 						| TField ({ eexpr = TConst TThis }, FClosure (_, field)) ->

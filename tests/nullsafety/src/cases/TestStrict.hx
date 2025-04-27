@@ -160,14 +160,19 @@ class TestStrict {
 		var s:Null<String> = null;
 		shouldFail(s.length);
 
+		final v:Int = shouldFail(init);
+
 		if (true) init = 1;
 		else init = 1;
 		init2 = 1;
 
+		final v:Int = init;
+		final v:Int = shouldFail(badInit);
+
 		function name():Void {
-			badInit = 1;
+			shouldFail(badInit) = 1;
 		}
-		if (true) badInit = 1;
+		if (true) shouldFail(badInit) = 1;
 	}
 
 	static public function main() { // not a real main
