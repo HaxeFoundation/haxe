@@ -15,6 +15,8 @@ class Issue12213 extends Test {
 				Method("Class", "method"),
 				LocalFunction(0)
 			];
+			e.stack = [];
+			// test if we can set again because that might be a special case
 			e.stack = stack;
 			utest.Assert.same(stack, e.stack);
 		}

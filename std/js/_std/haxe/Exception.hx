@@ -113,7 +113,7 @@ class Exception extends NativeException {
 	@:noCompletion
 	function setProperty(name:String, value:Any):Void {
 		try {
-			js.lib.Object.defineProperty(this, name, {value:value});
+			js.lib.Object.defineProperty(this, name, {value:value, writable: true});
 		} catch(e:Exception) {
 			js.Syntax.code('{0}[{1}] = {2}', this, name, value);
 		}
