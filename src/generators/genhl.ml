@@ -333,18 +333,8 @@ let make_debug ctx arr =
 		| true -> if (Filename.is_relative p.pfile)
 			then Filename.concat (Sys.getcwd()) p.pfile
 			else p.pfile
-		| false -> try
-			(* lookup relative path *)
-			let len = String.length p.pfile in
-			let base = ctx.com.class_paths#find (fun path ->
-				let path = path#path in
-				let l = String.length path in
-				len > l && String.sub p.pfile 0 l = path
-			) in
-			let l = String.length base#path in
-			String.sub p.pfile l (len - l)
-		with Not_found ->
-			p.pfile
+		| false ->
+			ctx.com.class_paths#relative_path p.pfile
 	in
 	let pos = ref (0,0,Globals.null_pos) in
 	let cur_file = ref 0 in
