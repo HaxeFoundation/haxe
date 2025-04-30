@@ -5,6 +5,7 @@ cases.TestStrictThreaded
 cases.TestLoose
 cases.TestSafeFieldInUnsafeClass
 cases.TestAbstract
+cases.TestNonNullable
 
 --macro nullSafety('cases.TestLoose', Loose)
 --macro nullSafety('cases.TestStrict', Strict)

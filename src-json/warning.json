@@ -126,6 +126,11 @@
 		"enabled": false
 	},
 	{
+		"name": "WRedundantNullCheck",
+		"doc": "Value can't be null, so comparison with null is excessive",
+		"parent": "WTyper"
+	},
+	{
 		"name": "WHxb",
 		"doc": "Hxb (either --hxb output or haxe compiler cache) related warnings"
 	},

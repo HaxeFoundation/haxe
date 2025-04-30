@@ -2375,9 +2375,10 @@ let macro_api ccom get_api =
 		);
 		"on_null_safety_report", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
-			(ccom()).callbacks#add_null_safety_report (fun (errors:(string*pos) list) ->
-				let encode_item (msg,pos) =
-					encode_obj [("msg", encode_string msg); ("pos", encode_pos pos)]
+			(ccom()).callbacks#add_null_safety_report (fun (errors:(WarningList.warning option*string*pos) list) ->
+				let encode_item (wtype,msg,pos) =
+					let wtype = match wtype with | Some _ -> "warning" | None -> "error" in
+					encode_obj [("type", encode_string wtype); ("msg", encode_string msg); ("pos", encode_pos pos)]
 				in
 				ignore(f [encode_array (List.map encode_item errors)])
 			);
