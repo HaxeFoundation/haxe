@@ -329,7 +329,10 @@ class Unserializer {
 					throw "Enum not found " + name;
 				pos++; /* skip ':' */
 				var index = readDigits();
-				var tag = Type.getEnumConstructs(edecl)[index];
+				var typeEnumConstruct = Type.getEnumConstructs(edecl);
+				if (index < 0 || index >= typeEnumConstruct.length)
+					throw "Invalid enum index";
+				var tag = typeEnumConstruct[index];
 				if (tag == null)
 					throw "Unknown enum index " + name + "@" + index;
 				var e = unserializeEnum(edecl, tag);
