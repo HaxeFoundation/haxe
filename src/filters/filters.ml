@@ -417,7 +417,7 @@ let might_need_cf_unoptimized c cf =
 	| _ ->
 		has_class_field_flag cf CfGeneric
 
-let run_safe_filters ectx com (scom : SafeCom.t) new_types_array cv_wrapper_impl rename_locals_config pool =
+let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array cv_wrapper_impl rename_locals_config pool =
 	let detail_times = Timer.level_from_define scom.defines Define.FilterTimes in
 
 	let filters_before_inlining = [
@@ -454,7 +454,7 @@ let run_safe_filters ectx com (scom : SafeCom.t) new_types_array cv_wrapper_impl
 	Dump.maybe_generate_dump com AfterInlining;
 
 	Common.enter_stage com CAnalyzerStart;
-	if scom.platform <> Cross then Analyzer.Run.run_on_types scom pool new_types_array;
+	if scom.platform <> Cross then Analyzer.Run.run_on_types scom pool all_types_array new_types_array;
 	Dump.maybe_generate_dump com AfterAnalyzing;
 	Common.enter_stage com CAnalyzerDone;
 
@@ -491,6 +491,7 @@ let run com ectx main before_destruction =
 		not cached
 	) com.types in
 	let new_types_array = Array.of_list new_types in
+	let all_types_array = Array.of_list com.types in
 
 	(* IMPORTANT:
 	    There may be types in new_types which have already been post-processed, but then had their m_processed flag unset
@@ -506,7 +507,7 @@ let run com ectx main before_destruction =
 	let rename_locals_config = RenameVars.init scom.SafeCom.platform_config com.types in
 	Parallel.run_in_new_pool scom.timer_ctx (fun pool ->
 		SafeCom.run_with_scom com scom (fun () ->
-			run_safe_filters ectx com scom new_types_array cv_wrapper_impl rename_locals_config pool
+			run_safe_filters ectx com scom all_types_array new_types_array cv_wrapper_impl rename_locals_config pool
 		)
 	);
 	with_timer com.timer_ctx detail_times "callbacks" None (fun () ->
@@ -528,5 +529,4 @@ let run com ectx main before_destruction =
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);
 	before_destruction();
-	let all_types_array = Array.of_list com.types in
 	destruction com scom ectx detail_times main rename_locals_config com.types all_types_array
