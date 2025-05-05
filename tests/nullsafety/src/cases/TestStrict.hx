@@ -149,15 +149,34 @@ class TestStrict {
 		shouldFail(return v);
 	}
 
+	@:shouldFail static var badInit:Int;
+	static var init:Int;
+	@:shouldFail static var init2:Int = null;
+
 	/**
 	 *  Null safety should work in __init__ functions
 	 */
 	static function __init__() {
 		var s:Null<String> = null;
 		shouldFail(s.length);
+
+		final v:Int = shouldFail(init);
+
+		if (true) init = 1;
+		else init = 1;
+		init2 = 1;
+
+		final v:Int = init;
+		final v:Int = shouldFail(badInit);
+
+		function name():Void {
+			shouldFail(badInit) = 1;
+		}
+		if (true) shouldFail(badInit) = 1;
 	}
 
-	static public function main() {
+	static public function main() { // not a real main
+		badInit = 1;
 	}
 
 	/**
