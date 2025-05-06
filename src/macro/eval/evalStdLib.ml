@@ -924,7 +924,7 @@ module StdEReg = struct
 			vfalse
 		end
 	)
-	
+
 	let matchedNum = vifun0 (fun vthis ->
 		let this = this vthis in
 		let substrings = if Array.length this.r_groups = 0 then exc_string "Invalid regex operation because no match was made" else this.r_groups.(0) in
@@ -1560,9 +1560,9 @@ module StdIntMap = struct
 		RuntimeIntHashtbl.clear (this vthis);
 		vnull
 	)
-	
+
 	let size = vifun0 (fun vthis ->
-		vint (IntHashtbl.size (this vthis))
+		vint (RuntimeIntHashtbl.size (this vthis))
 	)
 end
 
@@ -1623,9 +1623,9 @@ module StdStringMap = struct
 		RuntimeStringHashtbl.clear (this vthis);
 		vnull
 	)
-	
+
 	let size = vifun0 (fun vthis ->
-		vint (StringHashtbl.size (this vthis))
+		vint (RuntimeStringHashtbl.size (this vthis))
 	)
 end
 
@@ -1685,7 +1685,7 @@ module StdObjectMap = struct
 		ValueHashtbl.reset (this vthis);
 		vnull
 	)
-	
+
 	let size = vifun0 (fun vthis ->
 		vint (ValueHashtbl.length (this vthis))
 	)
