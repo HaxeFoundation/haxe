@@ -455,8 +455,13 @@ let rec contains_unsafe_meta metadata =
 let rec contains_safe_meta metadata =
 	match metadata with
 		| [] -> false
-		| (Meta.NullSafety, [], _) :: _
-		| (Meta.NullSafety, [(EConst (Ident ("Loose" | "Strict" | "StrictThreaded")), _)], _) :: _  -> true
+		| (Meta.NullSafety, args, _) :: rest ->
+			let is_safe_mode = match args with
+				| [] -> true
+				| (EConst (Ident ("Loose" | "Strict" | "StrictThreaded")), _) :: _ -> true
+				| _ -> false
+			in
+			is_safe_mode || contains_safe_meta rest
 		| _ :: rest -> contains_safe_meta rest
 
 let safety_enabled meta =
@@ -468,8 +473,8 @@ let get_safety_config (metadata:Ast.metadata) : safety_config =
 			| EArrayDecl list, p ->
 				List.fold_left (fun acc e ->
 					match e with
-					| (EConst (Ident "WarnNonNullable"), _) -> SOWarnNonNullable :: opts
-					| _ -> opts
+					| (EConst (Ident "WarnNonNullable"), _) -> SOWarnNonNullable :: acc
+					| _ -> acc
 				) opts list
 			| _ -> opts
 		) options args

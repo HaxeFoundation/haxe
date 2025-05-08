@@ -1,13 +1,13 @@
 package cases;
 
 import Validator.shouldWarn;
+import Validator.shouldFail;
 
 typedef Data = {
 	var foo:String;
 }
 
-@:nullSafety(Loose, [WarnNonNullable])
-class Main {
+class TestNonNullable {
 	static function main() {
 		final foo = 0;
 		if (shouldWarn(foo) == null) {}
@@ -48,5 +48,13 @@ class Main {
 		if (shouldWarn(data.foo) == null) {
 			data.foo = "default";
 		}
+	}
+}
+
+@:build(Validator.checkFields())
+class BasicErrors {
+	@:shouldFail static var foo2:Int;
+	public function new() {
+		shouldFail(var foo:Int = null);
 	}
 }

@@ -320,8 +320,9 @@ class Compiler {
 		@param path A package, module or sub-type dot path to enable null safety for.
 		@param recursive If true, recurses into sub-packages for package paths.
 	**/
-	public static function nullSafety(path:String, mode:NullSafetyMode = Loose, recursive:Bool = true) {
-		addGlobalMetadata(path, '@:nullSafety($mode)', recursive);
+	public static function nullSafety(path:String, mode:NullSafetyMode = Loose, ?options:Array<NullSafetyOption>, recursive:Bool = true) {
+		if (options == null) addGlobalMetadata(path, '@:nullSafety($mode)', recursive);
+		else addGlobalMetadata(path, '@:nullSafety($mode, $options)', recursive);
 	}
 
 	/**
@@ -531,6 +532,22 @@ enum abstract NullSafetyMode(String) to String {
 		The only nullable thing could be safe are local variables.
 	**/
 	var StrictThreaded;
+}
+
+enum abstract NullSafetyOption(String) to String {
+	/**
+		Issues warnings when performing explicit null checks (`== null` or `!= null`) on expressions
+		that are known to be non-nullable according to their type.
+		E.g.
+		```haxe
+		final nonNullable = "hello";
+		if (nonNullable != null) { // warning
+			trace(nonNullable);
+		}
+		final foo = nonNullable ?? "default"; // warning
+		```
+**/
+	var WarnNonNullable;
 }
 
 typedef MetadataDescription = {
