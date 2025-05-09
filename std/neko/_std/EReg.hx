@@ -69,11 +69,10 @@
 			last = null;
 		return p;
 	}
-	
+
 	public function matchedNum():Int {
 		var num = regexp_matched_num(r);
-		if(last == null || num == -1)
-			throw "No string matched";
+		if(last == null || num == -1) return 0;
 		return num;
 	}
 
@@ -214,7 +213,7 @@
 	static var regexp_matched = neko.Lib.load("regexp", "regexp_matched", 2);
 	static var regexp_matched_pos:Dynamic->Int->{pos: Int, len: Int} = neko.Lib.load("regexp", "regexp_matched_pos", 2);
 	static var regexp_matched_num = try neko.Lib.load("regexp", "regexp_matched_num", 1) catch (_:Dynamic) fallback_matched_num;
-	
+
 	private static function fallback_matched_num(r:Dynamic):Int {
 		var i = 0;
 		var num = 0;

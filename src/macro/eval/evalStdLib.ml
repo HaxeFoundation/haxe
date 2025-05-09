@@ -927,8 +927,12 @@ module StdEReg = struct
 
 	let matchedNum = vifun0 (fun vthis ->
 		let this = this vthis in
-		let substrings = if Array.length this.r_groups = 0 then exc_string "Invalid regex operation because no match was made" else this.r_groups.(0) in
-		vint (num_of_subs substrings)
+		if Array.length this.r_groups = 0 then
+			vint 0
+		else begin
+			let substrings = this.r_groups.(0) in
+			vint (num_of_subs substrings)
+		end
 	)
 
 	let replace = vifun2 (fun vthis s by ->

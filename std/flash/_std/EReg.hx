@@ -58,10 +58,9 @@
 			throw "No string matched";
 		return {pos: result.index, len: (result[0] : String).length};
 	}
-	
+
 	public function matchedNum():Int {
-		if (result == null)
-			throw "No string matched";
+		if (result == null) return 0;
 		return result.length;
 	}
 

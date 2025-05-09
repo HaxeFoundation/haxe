@@ -133,14 +133,14 @@ class EReg {
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		return false;
 	}
-	
+
 	/**
 		Returns the total number of groups captures by the last matched substring.
-		
+
 		To stay consistent with `this.matched`, the matched substring is also
 		counted as a group.
-		
-		If no substring has been matched, an error is thrown.
+
+		Returns `0` if no substring has been matched.
 	**/
 	public function matchedNum():Int {
 		return 0;

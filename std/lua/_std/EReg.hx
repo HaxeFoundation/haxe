@@ -110,10 +110,9 @@ class EReg {
 			len: matched.length
 		}
 	}
-	
+
 	public function matchedNum():Int {
-		if (m == null)
-			throw "No string matched";
+		if (m == null) return 0;
 		else if (m[1] == null)
 			return 0;
 		else

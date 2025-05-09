@@ -56,10 +56,10 @@
 			throw "No string matched";
 		return {pos: r.m.index, len: r.m[0].length};
 	}
-	
+
 	public function matchedNum():Int {
 		if (r.m == null)
-			throw "No string matched";
+			return 0;
 		return r.m.length;
 	}
 

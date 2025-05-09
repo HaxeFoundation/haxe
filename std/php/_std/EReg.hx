@@ -108,10 +108,9 @@ import php.*;
 			len: Global.mb_strlen(matches[0][0])
 		};
 	}
-	
+
 	public function matchedNum():Int {
-		if(matches == null)
-			throw "No string matched";
+		if(matches == null) return 0;
 		return Global.count(matches);
 	}
 

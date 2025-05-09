@@ -52,15 +52,15 @@ var rg6 = ~/a(b)(c)?/;
 rg3.match("a") == true;
 rg3.matchedNum() == 1;
 rg3.match("b") == false;
-// rg3.matchedNum() == 0;
+rg3.matchedNum() == 0;
 
 rg4.match("a") == false;
-// rg4.matchedNum() == 0;
+rg4.matchedNum() == 0;
 rg4.match("ab") == true;
 rg4.matchedNum() == 2;
 
 rg5.match("a") == false;
-// rg5.matchedNum() == 0;
+rg5.matchedNum() == 0;
 rg5.match("abc") == true;
 rg5.matchedNum() == 3;
 rg6.match("ab") == true;

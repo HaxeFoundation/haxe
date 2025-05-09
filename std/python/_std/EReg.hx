@@ -73,8 +73,7 @@ class EReg {
 	}
 
 	public function matchedNum():Int {
-		if (matchObj == null)
-			throw "No string matched";
+		if (matchObj == null) return 0;
 		return (matchObj.lastindex ?? 0) + 1;
 	}
 
