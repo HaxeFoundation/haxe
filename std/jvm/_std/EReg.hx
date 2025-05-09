@@ -70,12 +70,16 @@ using StringTools;
 		var start = matcher.start();
 		return {pos: start, len: matcher.end() - start};
 	}
-	
+
 	public function matchedNum():Int {
-		if(matcher.group() == null) {
+		try {
+			if (matcher.group() == null) {
+				return 0;
+			} else {
+				return matcher.groupCount() + 1;
+			}
+		} catch (e) {
 			return 0;
-		} else {
-			return matcher.groupCount() + 1;
 		}
 	}
 
