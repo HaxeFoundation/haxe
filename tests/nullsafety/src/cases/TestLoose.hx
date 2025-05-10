@@ -1,6 +1,7 @@
 package cases;
 
 import Validator.shouldFail;
+import Validator.shouldWarn;
 
 typedef NotNullAnon = {
 	a:String
@@ -133,7 +134,7 @@ class TestLoose {
 	}
 
 	static function nullCoal_returnNull_shouldPass(token:{children:Array<Int>}):Null<Bool> {
-		final children = token.children ?? return null;
+		final children = shouldWarn(token.children ?? return null);
 		var i = children.length;
 		return null;
 	}
