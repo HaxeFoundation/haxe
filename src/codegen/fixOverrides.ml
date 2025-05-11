@@ -90,7 +90,11 @@ let fix_override com c f fd =
 			f.cf_expr <- Some { fde with eexpr = TFunction fd2 };
 			f.cf_type <- TFun(targs,tret);
 		| Some(f2), None when (has_class_flag c CInterface) ->
-			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> die "" __LOC__) in
+			let targs, tret = 
+				match follow_with_coro f2.cf_type with
+				| Coro (args,ret) -> Common.expand_coro_type com.basic args ret
+				| NotCoro (TFun(args, ret)) -> args, ret
+				| _ -> die "" __LOC__ in
 			f.cf_type <- TFun(targs,tret)
 		| _ ->
 			()
