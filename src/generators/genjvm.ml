@@ -2444,8 +2444,9 @@ class tclass_to_jvm gctx c = object(self)
 				maybe_make_bridge cf_impl.cf_name jsig_super jsig_impl
 		in
 		let find_overload map_type c cf =
-			let tl = match follow (map_type cf.cf_type) with
-				| TFun(tl,_) -> tl
+			let tl = match follow_with_coro (map_type cf.cf_type) with
+				| Coro (tl, _) -> tl
+				| NotCoro TFun(tl,_) -> tl
 				| _ -> die "" __LOC__
 			in
 			OverloadResolution.resolve_instance_overload false map_type c cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl)
