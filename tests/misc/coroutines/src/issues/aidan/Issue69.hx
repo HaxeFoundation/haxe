@@ -16,7 +16,7 @@ private class Foo implements IFoo {
     }
 }
 
-class Issue61 extends utest.Test {
+class Issue69 extends utest.Test {
     public function test() {
         Coroutine.run(() -> {
             final f : IFoo = new Foo();
