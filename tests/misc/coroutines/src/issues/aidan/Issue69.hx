@@ -23,5 +23,7 @@ class Issue69 extends utest.Test {
     
             f.bar();
         });
+
+        Assert.pass();
     }
 }
