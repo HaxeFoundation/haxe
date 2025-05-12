@@ -99,7 +99,7 @@ let run_on_field dctx cf =
 	| _ ->
 		()
 
-let run com =
+let run com types =
 	let dctx = create_context com in
 	List.iter (fun t -> match t with
 		| TClassDecl c when not (Meta.has Meta.Deprecated c.cl_meta) ->
@@ -110,7 +110,7 @@ let run com =
 			List.iter (run_on_field dctx) c.cl_ordered_fields;
 		| _ ->
 			()
-	) com.types
+	) types
 
 let check_is com m cl_meta cf_meta name meta p =
 	let dctx = {

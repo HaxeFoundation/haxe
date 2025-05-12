@@ -347,7 +347,7 @@ let finalize_typing ctx tctx =
 
 let filter ctx tctx ectx before_destruction =
 	Timer.time ctx.timer_ctx ["filters"] (fun () ->
-		DeprecationCheck.run ctx.com;
+		DeprecationCheck.run ctx.com (List.filter (fun t -> not (FiltersCommon.is_cached ctx.com t)) ctx.com.types);
 		run_or_diagnose ctx (fun () -> Filters.run tctx ectx ctx.com.main.main_expr before_destruction)
 	) ()
 
