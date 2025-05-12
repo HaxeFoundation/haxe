@@ -149,10 +149,10 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		return untyped {
 			ref: h,
 			it: keys(),
-			hasNext: function() {
+			hasNext: @:js.function function() {
 				return __this__.it.hasNext();
 			},
-			next: function() {
+			next: @:js.function function() {
 				var i = __this__.it.next();
 				return __this__.ref[getId(i)];
 			}

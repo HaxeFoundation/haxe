@@ -118,6 +118,8 @@ type platform_config = {
 	pf_exceptions : exceptions_config;
 	(** the scoping of local variables *)
 	pf_scoping : var_scoping_config;
+	(** whether or not the target needs a variable to capture `this` *)
+	pf_can_capture_this : bool;
 	(** target supports atomic operations via haxe.Atomic **)
 	pf_supports_atomics : bool;
 }

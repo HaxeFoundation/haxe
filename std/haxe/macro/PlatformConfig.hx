@@ -91,6 +91,10 @@ typedef PlatformConfig = {
 	**/
 	final supportsAtomics:Bool;
 
+	/**
+		Whether or not the target needs a variable to capture `this`
+	**/
+	final canCaptureThis:Bool;
 }
 
 enum CapturePolicy {

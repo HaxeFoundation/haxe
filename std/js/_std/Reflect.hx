@@ -110,7 +110,7 @@
 	}
 
 	public static function makeVarArgs<T>(f:Array<Dynamic>->T):Dynamic {
-		return function() {
+		return @:js.function function() {
 			var a = untyped Array.prototype.slice.call(js.Syntax.code("arguments"));
 			return f(a);
 		};

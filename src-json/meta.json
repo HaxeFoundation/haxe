@@ -581,6 +581,13 @@
 		"targets": ["TClass"]
 	},
 	{
+		"name": "JsFunction",
+		"metadata": ":js.function",
+		"doc": "Generate `function` keyword instead of arrow function in `-D js_es >= 6` mode to enable access to function scope `this`.",
+		"platforms": ["js"],
+		"targets": ["TExpr"]
+	},
+	{
 		"name": "LuaRequire",
 		"metadata": ":luaRequire",
 		"doc": "Generate Lua module require expression for given extern.",

@@ -465,6 +465,7 @@ and encode_platform_config pc =
 		"supportsRestArgs", vbool pc.pf_supports_rest_args;
 		"exceptions", encode_exceptions_config pc.pf_exceptions;
 		"scoping", encode_var_scoping_config pc.pf_scoping;
+		"canCaptureThis", vbool pc.pf_can_capture_this;
 		"supportsAtomics", vbool pc.pf_supports_atomics;
 	]
 
@@ -1750,6 +1751,7 @@ let decode_platform_config v =
 		pf_supports_rest_args = decode_bool (field v "supportsRestArgs");
 		pf_exceptions = exception_config;
 		pf_scoping = var_scoping_config;
+		pf_can_capture_this = decode_bool (field v "canCaptureThis");
 		pf_supports_atomics = decode_bool (field v "supportsAtomics");
 	}
 
