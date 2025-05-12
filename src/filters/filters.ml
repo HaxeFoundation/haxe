@@ -499,9 +499,10 @@ let run com ectx main before_destruction =
 		It is important that all filters from here up to save_class_state only process fields which do not have the
 		CfPostProcessed flag set.
 
-		This is mostly covered by run_expression_filters already, but any new additions which don't utilize that have to
-		be aware of this.
+		This is mostly covered by run_expression_filters_safe already, but any new additions which don't utilize that have
+		to be aware of this.
 	*)
+	DeprecationCheck.run com new_types;
 	NullSafety.run com new_types;
 	let cv_wrapper_impl = CapturedVars.get_wrapper_implementation com in
 	let rename_locals_config = RenameVars.init scom.SafeCom.platform_config com.types in
