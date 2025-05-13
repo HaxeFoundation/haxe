@@ -9,6 +9,7 @@ function main() {
 		new TestTryCatch(),
 		new TestHoisting(),
 		new TestMisc(),
+		new TestMutex(),
 		// new TestGenerator(),
 		#if js
 		new TestJsPromise(),
