@@ -8,15 +8,15 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 
 	public final context:CoroutineContext;
 
-    public var state:Int;
+    public var gotoLabel:Int;
 
     public var recursing:Bool;
 
-    function new(completion:IContinuation<Any>, initialState:Int) {
+    function new(completion:IContinuation<Any>, initialLabel:Int) {
         this.completion = completion;
 
         context    = completion.context;
-        state      = initialState;
+        gotoLabel  = initialLabel;
         error      = null;
         result     = null;
         recursing  = false;
@@ -32,7 +32,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 			try {
 			#end
 			final result = invokeResume();
-			switch (result.control) {
+			switch (result.state) {
 				case Pending:
 					return;
 				case Returned:

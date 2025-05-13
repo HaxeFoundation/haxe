@@ -67,15 +67,15 @@ private class Thread {
 		lock.acquire();
 		if (assigned) {
 			if (outputCont.error != null) {
-				outputCont.control = Thrown;
+				outputCont.state = Thrown;
 				lock.release();
 			} else {
-				outputCont.control = Returned;
+				outputCont.state = Returned;
 				lock.release();
 			}
 		} else {
 			assigned = true;
-			outputCont.control = Pending;
+			outputCont.state = Pending;
 			lock.release();
 		}
 	}

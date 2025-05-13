@@ -90,12 +90,12 @@ module ContinuationClassBuilder = struct
 			| Some api ->
 				api
 			| None ->
-				let cf_control    = PMap.find "control" basic.tcoro.suspension_result_class.cl_fields in
+				let cf_state      = PMap.find "state" basic.tcoro.suspension_result_class.cl_fields in
 				let cf_result     = PMap.find "result" basic.tcoro.suspension_result_class.cl_fields in
 				let cf_error      = PMap.find "error" basic.tcoro.suspension_result_class.cl_fields in
 				let cf_completion = PMap.find "completion" basic.tcoro.base_continuation_class.cl_fields in
 				let cf_context    = PMap.find "context" basic.tcoro.base_continuation_class.cl_fields in
-				let cf_state      = PMap.find "state" basic.tcoro.base_continuation_class.cl_fields in
+				let cf_goto_label = PMap.find "gotoLabel" basic.tcoro.base_continuation_class.cl_fields in
 				let cf_recursing  = PMap.find "recursing" basic.tcoro.base_continuation_class.cl_fields in
 				let immediate_result,immediate_error =
 					let c = basic.tcoro.immediate_suspension_result_class in
@@ -107,7 +107,7 @@ module ContinuationClassBuilder = struct
 						CallUnification.make_static_call_better ctx.typer c cf_error [] [e] (TInst(c,[t])) name_pos
 					)
 				in
-				let api = ContTypes.create_continuation_api immediate_result immediate_error cf_control cf_result cf_error cf_completion cf_context cf_state cf_recursing in
+				let api = ContTypes.create_continuation_api immediate_result immediate_error cf_state cf_result cf_error cf_completion cf_context cf_goto_label cf_recursing in
 				ctx.typer.g.continuation_api <- Some api;
 				api
 		in
@@ -281,7 +281,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp vcompletion vco
 			[ b#local v coro_class.name_pos ]
 	in
 
-	let {CoroToTexpr.econtinuation;ecompletion;econtrol;eresult;estate;eerror} = exprs in
+	let {CoroToTexpr.econtinuation;ecompletion;estate;eresult;egoto;eerror} = exprs in
 
 	let continuation_assign =
 		let t = coro_class.outside.cls_t in
@@ -449,8 +449,8 @@ let fun_to_coro ctx coro_type =
 		b#instance_field econtinuation basic.tcoro.base_continuation_class coro_class.outside.param_types cf t
 	in
 
-	let estate  = continuation_field cont.state basic.tint in
-	let econtrol = continuation_field cont.control basic.tcoro.suspension_state in
+	let egoto  = continuation_field cont.goto_label basic.tint in
+	let estate = continuation_field cont.state basic.tcoro.suspension_state in
 	let eresult = continuation_field cont.result basic.tany in
 	let eerror = continuation_field cont.error basic.texception in
 
@@ -468,7 +468,7 @@ let fun_to_coro ctx coro_type =
 	let cb_root = make_block ctx (Some(expr.etype, coro_class.name_pos)) in
 
 	ignore(CoroFromTexpr.expr_to_coro ctx etmp cb_root expr);
-	let exprs = {CoroToTexpr.econtinuation;ecompletion;econtrol;eresult;estate;eerror;etmp} in
+	let exprs = {CoroToTexpr.econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp} in
 	let stack_item_inserter pos =
 		let field, eargs =
 			match coro_type with

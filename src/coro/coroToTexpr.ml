@@ -13,9 +13,9 @@ type coro_state = {
 type coro_to_texpr_exprs = {
 	econtinuation : texpr;
 	ecompletion :  texpr;
-	econtrol : texpr;
-	eresult : texpr;
 	estate : texpr;
+	eresult : texpr;
+	egoto : texpr;
 	eerror : texpr;
 	etmp : texpr;
 }
@@ -144,13 +144,13 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 	fields
 
 let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs p stack_item_inserter start_exception =
-	let {econtinuation;ecompletion;econtrol;eresult;estate;eerror;etmp} = exprs in
+	let {econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp} = exprs in
 	let com = ctx.typer.com in
 	let b = ctx.builder in
 
-	let set_state id = b#assign estate (b#int id p) in
+	let set_state id = b#assign egoto (b#int id p) in
 
-	let set_control (c : coro_control) = b#assign econtrol (CoroControl.mk_control com.basic c) in
+	let set_control (c : coro_control) = b#assign estate (CoroControl.mk_control com.basic c) in
 
 	let std_is e t =
 		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic p in
@@ -170,7 +170,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		let ecororesult = b#local vcororesult p in
 		let cororesult_var = b#var_init vcororesult ecreatecoroutine in
 		let open ContTypes in
-		let esubject = base_continuation_field_on ecororesult cont.control cont.control.cf_type in
+		let esubject = base_continuation_field_on ecororesult cont.state cont.state.cf_type in
 		let esuspended = b#void_block [
 			set_control CoroPending;
 			ereturn;
@@ -181,11 +181,11 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			b#assign etmp (base_continuation_field_on ecororesult cont.error cont.error.cf_type);
 			b#break p;
 		] in
-		let econtrol_switch = CoroControl.make_control_switch com.basic esubject esuspended ereturned ethrown p in
+		let estate_switch = CoroControl.make_control_switch com.basic esubject esuspended ereturned ethrown p in
 		[
 			stack_item_inserter call.cs_pos;
 			cororesult_var;
-			econtrol_switch;
+			estate_switch;
 		]
 	in
 
@@ -341,7 +341,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			{case_patterns = [b#int state.cs_id p];
 				case_expr = b#void_block state.cs_el;
 			}) states in
-		mk_switch estate cases (Some ethrow) true
+		mk_switch egoto cases (Some ethrow) true
 	in
 	let eswitch = mk (TSwitch switch) com.basic.tvoid p in
 
@@ -394,7 +394,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			default
 		else begin
 			let switch = {
-				switch_subject = estate;
+				switch_subject = egoto;
 				switch_cases = DynArray.to_list cases;
 				switch_default = Some default;
 				switch_exhaustive = true

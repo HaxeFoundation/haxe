@@ -6,7 +6,7 @@ class ImmediateSuspensionResult<T> extends SuspensionResult<T> {
 	function new(result:T, error:Exception) {
 		this.result  = result;
 		this.error   = error;
-		this.control = error == null ? Returned : Thrown;
+		this.state = error == null ? Returned : Thrown;
 	}
 
 	static public function withResult<T>(result:T) {
@@ -18,6 +18,6 @@ class ImmediateSuspensionResult<T> extends SuspensionResult<T> {
 	}
 
 	public override function toString() {
-		return '[ImmediateSuspensionResult ${control.toString()}, $result]';
+		return '[ImmediateSuspensionResult ${state.toString()}, $result]';
 	}
 }
