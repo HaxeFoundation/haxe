@@ -7,25 +7,27 @@ class TestCallStack extends utest.Test {
 			Assert.fail("Exception expected");
 		} catch(e:haxe.exceptions.NotImplementedException) {
 			var inspector = new CallStackInspector(e.stack.asArray());
-			final prefix = #if hl "" #else "src/" #end;
 			var r = inspector.inspect([
-				File('${prefix}callstack/Top.hx'),
+				File('callstack/Top.hx'),
 					Line(4),
 					Line(8),
 					Line(12),
-				File('${prefix}callstack/CoroUpper.hx'),
+				File('callstack/CoroUpper.hx'),
 					Line(10),
+				#if hl
+					Line(5), // I still don't think this should be here
+				#end
 					Line(8),
 					Line(8),
 					Line(8),
 					Line(8),
 					Line(17),
-				Skip('${prefix}callstack/SyncMiddle.hx'),
+				Skip('callstack/SyncMiddle.hx'),
 					Line(4),
 					Line(8),
-				File('${prefix}callstack/CoroLower.hx'),
+				File('callstack/CoroLower.hx'),
 					Line(8),
-				Skip('${prefix}callstack/Bottom.hx'),
+				Skip('callstack/Bottom.hx'),
 					Line(4)
 
 			]);
