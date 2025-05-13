@@ -94,7 +94,8 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
     public function buildCallStack() {
         var frame = callerFrame();
         if (frame != null) {
-            (cast result : Array<StackItem>).push(frame.getStackItem());
+			var result:Array<StackItem> = cast result ?? cast [];
+            result.push(frame.getStackItem());
         }
     }
 
