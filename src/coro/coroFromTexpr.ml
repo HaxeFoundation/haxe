@@ -406,8 +406,7 @@ let optimize_cfg ctx cb =
 				forward_el cb cb_sub;
 				if has_block_flag cb CbResumeState then add_block_flag cb_sub CbResumeState;
 				forward.(cb.cb_id) <- Some cb_sub
-			| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next when DynArray.empty cb.cb_el ->
-				if has_block_flag cb CbResumeState then add_block_flag cb_next CbResumeState;
+			| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next when DynArray.empty cb.cb_el && not (has_block_flag cb CbResumeState) ->
 				loop cb_next;
 				forward.(cb.cb_id) <- Some cb_next
 			| _ ->
