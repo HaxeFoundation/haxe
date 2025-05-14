@@ -46,7 +46,7 @@ module ContinuationClassBuilder = struct
 	let create ctx coro_type =
 		let basic = ctx.typer.t in
 		(* Mangle class names to hopefully get unique names and avoid collisions *)
-		let name, cf_captured, params_outside, result_type, name_pos =
+		let name, cf_captured, result_type, name_pos =
 			let captured_field_name = "captured" in
 			match coro_type with
 			| ClassField (cls, field, tf, _) ->
@@ -55,7 +55,6 @@ module ContinuationClassBuilder = struct
 					None
 				else
 					Some (mk_field captured_field_name ctx.typer.c.tthis field.cf_name_pos field.cf_name_pos)),
-				field.cf_params,
 				tf.tf_type,
 				field.cf_name_pos
 			| LocalFunc(f,v) ->
@@ -65,13 +64,14 @@ module ContinuationClassBuilder = struct
 				let args = List.map (fun (v, _) -> (v.v_name, false, v.v_type)) f.tf_args in
 				let t    = TFun (Common.expand_coro_type basic args f.tf_type) in
 
-				n, Some (mk_field captured_field_name t v.v_pos v.v_pos), (match v.v_extra with Some ve -> ve.v_params | None -> []), f.tf_type, v.v_pos
+				n, Some (mk_field captured_field_name t v.v_pos v.v_pos), f.tf_type, v.v_pos
 			in
 
 		let result_type = if ExtType.is_void (follow result_type) then ctx.typer.t.tunit else result_type in
 		(* Is there a pre-existing function somewhere to a valid path? *)
 		let cls_path = ((fst ctx.typer.m.curmod.m_path) @ [ Printf.sprintf "_%s" (snd ctx.typer.m.curmod.m_path) ]), name in
 		let cls      = mk_class ctx.typer.m.curmod cls_path name_pos name_pos in
+		let params_outside = ctx.typer.type_params in
 		let params_inside = List.map (fun ttp ->
 			(* TODO: this duplicates clone_type_parameter *)
 			let c = ttp.ttp_class in
