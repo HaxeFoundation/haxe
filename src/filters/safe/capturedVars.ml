@@ -227,6 +227,7 @@ let captured_vars scom impl e =
 		let used = ref PMap.empty in
 		let assigned = ref PMap.empty in
 		let depth = ref 0 in
+		let in_loop = ref false in
 		let rec collect_vars = function
 		| Block f ->
 			let old = !vars in
@@ -234,7 +235,10 @@ let captured_vars scom impl e =
 			vars := old;
 		| Loop f ->
 			let old = !vars in
+			let old_loop = !in_loop in
+			in_loop := true;
 			f collect_vars;
+			in_loop := old_loop;
 			vars := old;
 		| Function f ->
 			incr depth;
@@ -247,7 +251,7 @@ let captured_vars scom impl e =
 				let d = PMap.find v.v_id !vars in
 				if d <> !depth then begin
 					used := PMap.add v.v_id v !used;
-					if has_var_flag v VAssigned then assigned := PMap.add v.v_id v !assigned;
+					if has_var_flag v VAssigned && !in_loop then assigned := PMap.add v.v_id v !assigned;
 				end
 			with Not_found -> ())
 		| Assign v ->
@@ -261,7 +265,7 @@ let captured_vars scom impl e =
 				(* same depth but assigned after being used on a different depth - needs wrap *)
 				else if PMap.mem v.v_id !used then
 					assigned := PMap.add v.v_id v !assigned
-				else
+				else if !in_loop then
 					add_var_flag v VAssigned;
 			with Not_found -> ())
 		in
