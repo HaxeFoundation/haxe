@@ -59,8 +59,21 @@ let expr_to_coro ctx etmp cb_root e =
 		(* compound values *)
 		| TBlock [e1] ->
 			loop cb ret e1
-		| TBlock _ ->
+		| TBlock el ->
 			let cb_sub = block_from_e e in
+			let ret = match ret,el with
+				| RValue,_ :: _ ->
+					(*
+					   If we have a multi-element block in a value-place we might need a temp var
+					   because the result expression might reference local variables declared in
+					   that block (https://github.com/Aidan63/haxe/issues/79).
+					*)
+					let v = alloc_var VGenerated "tmp" e.etype e.epos in
+					add_expr cb {e with eexpr = TVar(v,None)};
+					RLocal v
+				| _ ->
+					ret
+			in
 			let sub_next = loop_block cb_sub ret e in
 			let cb_next = match sub_next with
 				| None ->
