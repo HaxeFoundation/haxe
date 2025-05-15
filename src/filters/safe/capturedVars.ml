@@ -277,10 +277,11 @@ let captured_vars scom impl e =
 			(try
 				let d = PMap.find v.v_id !vars in
 				(* different depth - needs wrap *)
-				if d <> !depth then
+				if d <> !depth then begin
+					used := PMap.add v.v_id v !used;
 					mark_assigned v
 				(* same depth but assigned after being used on a different depth - needs wrap *)
-				else if PMap.mem v.v_id !used then
+				end else if PMap.mem v.v_id !used then
 					mark_assigned v
 				else
 					check_loop_var v true
