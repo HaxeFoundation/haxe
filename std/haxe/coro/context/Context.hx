@@ -2,7 +2,7 @@ package haxe.coro.context;
 
 import haxe.ds.BalancedTree;
 
-class ElementTree extends BalancedTree<Key<Any>, Element<Any>> {
+class ElementTree extends BalancedTree<Key<Any>, IElement<Any>> {
 	override function compare(k1:Key<Any>, k2:Key<Any>) {
 		return k2.id - k1.id;
 	}
@@ -33,15 +33,15 @@ abstract Context(ElementTree) {
 		this = tree;
 	}
 
-	public function add<T:Element<Any>>(value:T) {
-		this.set(value.id, value);
+	public function add<T:IElement<Any>>(value:T) {
+		this.set(value.getKey(), value);
 	}
 
 	public function clone():Context {
 		return new Context(this.copy());
 	}
 
-	public function set<T:Element<V>, V>(key:Key<T>, value:T):Void {
+	public function set<T:IElement<V>, V>(key:Key<T>, value:T):Void {
 		this.set(key, value);
 	}
 

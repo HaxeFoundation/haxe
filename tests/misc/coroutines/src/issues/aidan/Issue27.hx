@@ -1,16 +1,19 @@
 package issues.aidan;
 import haxe.coro.context.Key;
-import haxe.coro.context.Element;
+import haxe.coro.context.IElement;
 import haxe.coro.Coroutine;
 
-class DebugName extends Element<DebugName> {
+class DebugName implements IElement<DebugName> {
 	static public var key:Key<DebugName> = Key.createNew("DebugName");
 
 	public var name:String;
 
 	public function new(name:String) {
-		super(key);
 		this.name = name;
+	}
+
+	public function getKey() {
+		return key;
 	}
 
 	public function toString() {
