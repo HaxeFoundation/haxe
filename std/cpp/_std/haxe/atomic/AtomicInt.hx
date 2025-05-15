@@ -1,9 +1,9 @@
 package haxe.atomic;
 
 private final class Data {
-	public  var value:Int;
-	public function new(value0) {
-		value = value0;
+	public var value:Int;
+	public function new(value:Int) {
+		this.value = value;
 	}
 }
 #if cppia
