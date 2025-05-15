@@ -1,12 +1,14 @@
 package haxe.coro;
 
+import haxe.coro.context.Context;
+import haxe.coro.schedulers.Scheduler;
 import haxe.CallStack.StackItem;
 import haxe.Exception;
 
 abstract class BaseContinuation<T> extends SuspensionResult<T> implements IContinuation<T> implements IStackFrame {
     public final completion:IContinuation<Any>;
 
-	public final context:CoroutineContext;
+	public final context:Context;
 
     public var gotoLabel:Int;
 
@@ -25,7 +27,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
     public final function resume(result:Any, error:Exception):Void {
         this.result = result;
         this.error  = error;
-        context.scheduler.schedule(() -> {
+        context.get(Scheduler.key).schedule(() -> {
 			recursing = false;
 
 			#if coroutine.throw

@@ -1,5 +1,8 @@
 package haxe.coro.continuations;
 
+import haxe.coro.context.Context;
+import haxe.coro.schedulers.Scheduler;
+
 #if (target.threaded && !cppia)
 import sys.thread.Lock;
 import sys.thread.Mutex;
@@ -36,7 +39,7 @@ private class Thread {
 
 	var assigned:Bool;
 
-	public final context:CoroutineContext;
+	public final context:Context;
 
 	public function new(inputCont:IContinuation<T>, outputCont:SuspensionResult<T>) {
 		this.inputCont = inputCont;
@@ -47,7 +50,7 @@ private class Thread {
 	}
 
 	public function resume(result:T, error:Exception):Void {
-		context.scheduler.schedule(() -> {
+		context.get(Scheduler.key).schedule(() -> {
 			lock.acquire();
 
 			if (assigned) {

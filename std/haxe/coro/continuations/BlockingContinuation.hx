@@ -1,9 +1,11 @@
 package haxe.coro.continuations;
 
 import haxe.CallStack;
+import haxe.coro.context.Context;
+import haxe.coro.schedulers.Scheduler;
 
 class BlockingContinuation<T> implements IContinuation<T> {
-	public final context:CoroutineContext;
+	public final context:Context;
 
 	final loop:EventLoop;
 
@@ -11,10 +13,11 @@ class BlockingContinuation<T> implements IContinuation<T> {
 	var result:T;
 	var error:Exception;
 
-	public function new(loop, scheduler) {
+	public function new(loop:EventLoop, scheduler:Scheduler) {
 		this.loop = loop;
 
-		context = new CoroutineContext(scheduler);
+		context = Context.empty();
+		context.set(Scheduler.key, scheduler);
 		running = true;
 		error = null;
 	}

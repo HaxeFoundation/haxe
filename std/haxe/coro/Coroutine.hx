@@ -2,6 +2,7 @@ package haxe.coro;
 
 import haxe.coro.EventLoop;
 import haxe.coro.schedulers.EventLoopScheduler;
+import haxe.coro.schedulers.Scheduler;
 import haxe.coro.continuations.RacingContinuation;
 import haxe.coro.continuations.BlockingContinuation;
 
@@ -32,13 +33,13 @@ abstract Coroutine<T:haxe.Constraints.Function> {
 
 	@:coroutine @:coroutine.nothrow public static function delay(ms:Int):Void {
 		Coroutine.suspend(cont -> {
-			cont.context.scheduler.scheduleIn(() -> cont.resume(null, null), ms);
+			cont.context.get(Scheduler.key).scheduleIn(() -> cont.resume(null, null), ms);
 		});
 	}
 
 	@:coroutine @:coroutine.nothrow public static function yield():Void {
 		Coroutine.suspend(cont -> {
-			cont.context.scheduler.schedule(() -> cont.resume(null, null));
+			cont.context.get(Scheduler.key).schedule(() -> cont.resume(null, null));
 		});
 	}
 

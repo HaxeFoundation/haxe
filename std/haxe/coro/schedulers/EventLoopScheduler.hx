@@ -2,10 +2,12 @@ package haxe.coro.schedulers;
 
 import haxe.coro.EventLoop;
 
-class EventLoopScheduler implements IScheduler {
+class EventLoopScheduler extends Scheduler {
+
     final loop : EventLoop;
 
-    public function new(loop) {
+    public function new(loop:EventLoop) {
+		super();
         this.loop = loop;
     }
 
@@ -15,5 +17,9 @@ class EventLoopScheduler implements IScheduler {
 
 	public function scheduleIn(func : ()->Void, ms:Int) {
 		loop.runIn(func, ms);
+	}
+
+	public function toString() {
+		return '[EventLoopScheduler: $loop]';
 	}
 }
