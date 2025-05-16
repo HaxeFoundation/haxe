@@ -164,7 +164,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		let base_continuation_field_on e cf t =
 			b#instance_field e com.basic.tcoro.suspension_result_class [com.basic.tany] cf t
 		in
-		let ecreatecoroutine = make_suspending_call com.basic call econtinuation in
+		let ecreatecoroutine = make_suspending_call com.basic call {econtinuation with epos = p} in
 
 		let vcororesult = alloc_var VGenerated "_hx_tmp" (com.basic.tcoro.suspension_result com.basic.tany) p in
 		let ecororesult = b#local vcororesult p in
@@ -177,7 +177,17 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		] in
 		let ereturned = b#assign etmp (base_continuation_field_on ecororesult cont.result com.basic.tany) in
 		let ethrown = b#void_block [
-			b#assign eresult (* TODO: wrong type? *) (base_continuation_field_on ecororesult cont.result com.basic.tany);
+			begin
+				let estack = base_continuation_field_on ecororesult cont.result com.basic.tany in
+				b#if_then_else (b#op_eq estack (b#null estack.etype p))
+				(*
+				   We assume that if we get a Thrown state with result == null, it was caused by
+				   an ImmediateSuspensionResult.
+				*)
+				(start_exception (b#int 2 p))
+				(b#assign eresult (* TODO: wrong type? *) estack)
+				com.basic.tvoid;
+			end;
 			b#assign etmp (base_continuation_field_on ecororesult cont.error cont.error.cf_type);
 			b#break p;
 		] in
@@ -261,9 +271,9 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			add_state (Some (-1)) [ set_control CoroReturned; b#assign eresult e; ereturn ]
 		| NextThrow e1 ->
 			if ctx.throw then
-				add_state None ([stack_item_inserter e1.epos; start_exception (b#bool true p); b#throw e1])
+				add_state None ([stack_item_inserter e1.epos; start_exception (b#int 0 p); b#throw e1])
 			else
-				add_state None ([stack_item_inserter e1.epos; start_exception (b#bool true p); b#assign etmp e1; b#break p ])
+				add_state None ([stack_item_inserter e1.epos; start_exception (b#int 0 p); b#assign etmp e1; b#break p ])
 		| NextSub (cb_sub,cb_next) ->
 			add_state (Some cb_sub.cb_id) []
 
@@ -356,7 +366,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 				let vcaught = alloc_var VGenerated "e" t_dynamic p in
 				let ecaught = b#local vcaught p in
 				let e = b#void_block [
-					start_exception (b#bool false p);
+					start_exception (b#int 1 p);
 					b#assign etmp ecaught
 				] in
 				(vcaught,e)

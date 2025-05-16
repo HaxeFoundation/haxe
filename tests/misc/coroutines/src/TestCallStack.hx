@@ -1,3 +1,5 @@
+import haxe.CallStack;
+import haxe.Exception;
 import callstack.CallStackInspector;
 
 class TestCallStack extends utest.Test {
@@ -6,7 +8,8 @@ class TestCallStack extends utest.Test {
 			callstack.Bottom.entry();
 			Assert.fail("Exception expected");
 		} catch(e:haxe.exceptions.NotImplementedException) {
-			var inspector = new CallStackInspector(e.stack.asArray());
+			final stack = e.stack.asArray();
+			var inspector = new CallStackInspector(stack);
 			var r = inspector.inspect([
 				File('callstack/Top.hx'),
 					Line(4),
@@ -14,9 +17,6 @@ class TestCallStack extends utest.Test {
 					Line(12),
 				File('callstack/CoroUpper.hx'),
 					Line(10),
-				#if hl
-					Line(5), // I still don't think this should be here
-				#end
 					Line(8),
 					Line(8),
 					Line(8),
@@ -29,15 +29,40 @@ class TestCallStack extends utest.Test {
 					Line(8),
 				Skip('callstack/Bottom.hx'),
 					Line(4)
-
 			]);
-			if (r == null) {
-				Assert.pass();
-			} else {
-				var i = 0;
-				var lines = e.stack.asArray().map(item -> '\t[${i++}] $item');
-				Assert.fail('${r.toString()}\n${lines.join("\n")}');
-			}
+			checkFailure(stack, r);
+		}
+	}
+
+	function checkFailure(stack:Array<StackItem>, r:Null<CallStackInspectorFailure>) {
+		if (r == null) {
+			Assert.pass();
+		} else {
+			var i = 0;
+			var lines = stack.map(item -> '\t[${i++}] $item');
+			Assert.fail('${r.toString()}\n${lines.join("\n")}');
+		}
+	}
+
+	function testFooBazBaz() {
+		try {
+			Coroutine.run(callstack.FooBarBaz.foo);
+			Assert.fail("Exception expected");
+		} catch(e:Exception) {
+			final stack = e.stack.asArray();
+			var inspector = new CallStackInspector(stack);
+			var r = inspector.inspect([
+				File('callstack/FooBarBaz.hx'),
+				#if (cpp && coroutine.noopt)
+				// TODO: cpp has inaccurate positions which causes the top stack to be wrong
+				Line(6),
+				Line(12),
+				#end
+				Line(7),
+				Line(12),
+				Line(16)
+			]);
+			checkFailure(stack, r);
 		}
 	}
 }
