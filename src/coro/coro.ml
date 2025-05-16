@@ -323,6 +323,13 @@ let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
 	create_continuation_class ctx coro_class 0;
 	let rec loop cb previous_el =
 		let bad_pos = coro_class.name_pos in
+		let loop cb el =
+			if not (has_block_flag cb CbGenerated) then begin
+				add_block_flag cb CbGenerated;
+				loop cb el
+			end else
+				el,false
+		in
 		let loop_as_block cb =
 			let el,term = loop cb [] in
 			b#void_block el,term
