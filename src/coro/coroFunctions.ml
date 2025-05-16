@@ -115,7 +115,7 @@ let coro_next_map f cb =
 	| NextContinue cb_next ->
 		cb.cb_next <- NextContinue (f cb_next);
 	| NextGoto cb_next ->
-		cb.cb_next <- NextContinue (f cb_next);
+		cb.cb_next <- NextGoto (f cb_next);
 	| NextFallThrough cb_next ->
 		cb.cb_next <- NextFallThrough (f cb_next);
 	| NextReturnVoid | NextReturn _ | NextThrow _ | NextUnknown ->

@@ -102,9 +102,9 @@ module ContinuationClassBuilder = struct
 					let cf_result = PMap.find "withResult" c.cl_statics in
 					let cf_error = PMap.find "withError" c.cl_statics in
 					(fun e ->
-						CallUnification.make_static_call_better ctx.typer c cf_result [e.etype] [e] (TInst(c,[e.etype])) name_pos
+						CallUnification.make_static_call_better ctx.typer c cf_result [e.etype] [e] (TInst(c,[e.etype])) e.epos
 					), (fun e t ->
-						CallUnification.make_static_call_better ctx.typer c cf_error [] [e] (TInst(c,[t])) name_pos
+						CallUnification.make_static_call_better ctx.typer c cf_error [] [e] (TInst(c,[t])) e.epos
 					)
 				in
 				let api = ContTypes.create_continuation_api immediate_result immediate_error cf_state cf_result cf_error cf_completion cf_context cf_goto_label cf_recursing in
@@ -322,7 +322,7 @@ let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
 	let b = ctx.builder in
 	create_continuation_class ctx coro_class 0;
 	let rec loop cb previous_el =
-		let p = coro_class.name_pos in
+		let bad_pos = coro_class.name_pos in
 		let loop_as_block cb =
 			let el,term = loop cb [] in
 			b#void_block el,term
@@ -360,9 +360,9 @@ let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
 				let e1 = coro_class.continuation_api.immediate_result (b#null t_dynamic coro_class.name_pos) in
 				terminate (b#return e1);
 			| NextBreak _ ->
-				terminate (b#break p);
+				terminate (b#break bad_pos);
 			| NextContinue _ ->
-				terminate (b#continue p);
+				terminate (b#continue bad_pos);
 			| NextIfThen(e1,cb_then,cb_next) ->
 				let e_then,_ = loop_as_block cb_then in
 				let e_if = b#if_then e1 e_then in
@@ -374,15 +374,19 @@ let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
 				maybe_continue cb_next (term_then && term_else) e_if
 			| NextSwitch(switch,cb_next) ->
 				let term = ref true in
+				let p = ref switch.cs_subject.epos in
 				let switch_cases = List.map (fun (el,cb) ->
 					let e,term' = loop_as_block cb in
 					term := !term && term';
+					p := Ast.punion !p e.epos;
 					{
-					case_patterns = el;
-					case_expr = e;
-				}) switch.cs_cases in
+						case_patterns = el;
+						case_expr = e;
+					}
+				) switch.cs_cases in
 				let switch_default = Option.map (fun cb ->
 					let e,term' = loop_as_block cb in
+					p := Ast.punion !p e.epos;
 					term := !term && term';
 					e
 				) switch.cs_default in
@@ -392,26 +396,28 @@ let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
 					switch_default;
 					switch_exhaustive = switch.cs_exhaustive
 				} in
-				maybe_continue cb_next (switch.switch_exhaustive && !term) (mk (TSwitch switch) basic.tvoid p)
+				maybe_continue cb_next (switch.switch_exhaustive && !term) (mk (TSwitch switch) basic.tvoid !p)
 			| NextWhile(e1,cb_body,cb_next) ->
 				let e_body,_ = loop_as_block cb_body in
-				let e_while = mk (TWhile(e1,e_body,NormalWhile)) basic.tvoid p in
+				let e_while = mk (TWhile(e1,e_body,NormalWhile)) basic.tvoid (Ast.punion e1.epos e_body.epos) in
 				maybe_continue cb_next false e_while
 			| NextTry(cb_try,catches,cb_next) ->
 				let e_try,term = loop_as_block cb_try in
+				let p = ref e_try.epos in
 				let term = ref term in
 				let catches = List.map (fun (v,cb) ->
 					let e,term' = loop_as_block cb in
+					p := Ast.punion !p e.epos;
 					term := !term && term';
 					(v,e)
 				) catches.cc_catches in
-				let e_try = mk (TTry(e_try,catches)) basic.tvoid p in
+				let e_try = mk (TTry(e_try,catches)) basic.tvoid !p in
 				maybe_continue cb_next !term e_try
 			| NextFallThrough _ | NextGoto _ ->
 				!current_el,false
 			| NextSuspend(suspend,cb_next) ->
-				let e_sus = CoroToTexpr.make_suspending_call basic suspend exprs.ecompletion in
-				add (mk (TReturn (Some e_sus)) t_dynamic p);
+				let e_sus = CoroToTexpr.make_suspending_call basic suspend {exprs.ecompletion with epos = suspend.cs_pos} in
+				add (mk (TReturn (Some e_sus)) t_dynamic e_sus.epos);
 				!current_el,true
 		end
 	in
@@ -421,13 +427,13 @@ let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
 		e
 	else begin
 		let catch =
-			let v = alloc_var VGenerated "e" t_dynamic coro_class.name_pos in
-			let ev = b#local v coro_class.name_pos in
+			let v = alloc_var VGenerated "e" t_dynamic e.epos in
+			let ev = b#local v e.epos in
 			let eerr = coro_class.continuation_api.immediate_error ev coro_class.inside.result_type in
 			let eret = b#return eerr in
 			(v,eret)
 		in
-		mk (TTry(e,[catch])) basic.tvoid coro_class.name_pos
+		mk (TTry(e,[catch])) basic.tvoid e.epos
 	end in
 	b#void_block [e]
 
@@ -457,12 +463,12 @@ let fun_to_coro ctx coro_type =
 	let vtmp = alloc_var VGenerated "_hx_tmp" basic.tany coro_class.name_pos in
 	let etmp = b#local vtmp coro_class.name_pos in
 
-	let expr, args, pe, name =
+	let expr, args, name =
 		match coro_type with
 		| ClassField (_, cf, f, p) ->
-			f.tf_expr, f.tf_args, p, cf.cf_name
+			f.tf_expr, f.tf_args, cf.cf_name
 		| LocalFunc(f,v) ->
-			f.tf_expr, f.tf_args, f.tf_expr.epos, v.v_name
+			f.tf_expr, f.tf_args, v.v_name
 		in
 
 	let cb_root = make_block ctx (Some(expr.etype, coro_class.name_pos)) in
@@ -518,7 +524,7 @@ let fun_to_coro ctx coro_type =
 		print_endline ("BEFORE:\n" ^ (s_expr_debug expr));
 		CoroDebug.create_dotgraph (DotGraph.get_dump_path (SafeCom.of_com ctx.typer.com) (ctx.typer.c.curclass.cl_path) name) cb_root
 	end;
-	let e = mk (TFunction {tf_args; tf_expr; tf_type}) (TFun (tf_args |> List.map (fun (v, _) -> (v.v_name, false, v.v_type)), tf_type)) pe in
+	let e = mk (TFunction {tf_args; tf_expr; tf_type}) (TFun (tf_args |> List.map (fun (v, _) -> (v.v_name, false, v.v_type)), tf_type)) tf_expr.epos in
 	if ctx.coro_debug then print_endline ("AFTER:\n" ^ (s_expr_debug e));
 	e
 
