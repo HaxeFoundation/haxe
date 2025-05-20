@@ -176,19 +176,9 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			ereturn;
 		] in
 		let ereturned = b#assign etmp (base_continuation_field_on ecororesult cont.result com.basic.tany) in
+		let eerror = base_continuation_field_on ecororesult cont.error cont.error.cf_type in
 		let ethrown = b#void_block [
-			begin
-				let estack = base_continuation_field_on ecororesult cont.result com.basic.tany in
-				b#if_then_else (b#op_eq estack (b#null estack.etype p))
-				(*
-				   We assume that if we get a Thrown state with result == null, it was caused by
-				   an ImmediateSuspensionResult.
-				*)
-				(start_exception (b#int 2 p))
-				(b#assign eresult (* TODO: wrong type? *) estack)
-				com.basic.tvoid;
-			end;
-			b#assign etmp (base_continuation_field_on ecororesult cont.error cont.error.cf_type);
+			b#assign etmp eerror;
 			b#break p;
 		] in
 		let estate_switch = CoroControl.make_control_switch com.basic esubject esuspended ereturned ethrown p in
@@ -271,9 +261,9 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			add_state (Some (-1)) [ set_control CoroReturned; b#assign eresult e; ereturn ]
 		| NextThrow e1 ->
 			if ctx.throw then
-				add_state None ([stack_item_inserter e1.epos; start_exception (b#int 0 p); b#throw e1])
+				add_state None ([b#assign etmp e1; stack_item_inserter e1.epos; start_exception (wrap_thrown etmp); b#throw etmp])
 			else
-				add_state None ([stack_item_inserter e1.epos; start_exception (b#int 0 p); b#assign etmp e1; b#break p ])
+				add_state None ([b#assign etmp e1; stack_item_inserter e1.epos; start_exception (wrap_thrown etmp); b#break p ])
 		| NextSub (cb_sub,cb_next) ->
 			add_state (Some cb_sub.cb_id) []
 
@@ -366,7 +356,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 				let vcaught = alloc_var VGenerated "e" t_dynamic p in
 				let ecaught = b#local vcaught p in
 				let e = b#void_block [
-					start_exception (b#int 1 p);
+					start_exception (wrap_thrown ecaught);
 					b#assign etmp ecaught
 				] in
 				(vcaught,e)
@@ -393,8 +383,8 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			let eaccess       = b#instance_field econtinuation com.basic.tcoro.base_continuation_class params field field.cf_type in
 			let ewrapped_call = mk (TCall (eaccess, [ ])) com.basic.tvoid p in
 			[
-				ewrapped_call;
 				b#assign eerror (wrap_thrown etmp);
+				ewrapped_call;
 				set_control CoroThrown;
 				ereturn;
 			]

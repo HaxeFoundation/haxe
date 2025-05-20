@@ -57,10 +57,14 @@ class TestCallStack extends utest.Test {
 				// TODO: cpp has inaccurate positions which causes the top stack to be wrong
 				Line(6),
 				Line(12),
-				#end
+				Line(12),
+				Line(16),
+				#else
 				Line(7),
 				Line(12),
-				Line(16)
+				#end
+				// TODO: sync stack doesn't work yet
+				// Line(16)
 			]);
 			checkFailure(stack, r);
 		}

@@ -1,25 +1,24 @@
 package haxe.coro;
 
 import haxe.coro.context.Context;
+import haxe.coro.context.Key;
+import haxe.coro.context.IElement;
 import haxe.coro.schedulers.Scheduler;
 import haxe.CallStack.StackItem;
 import haxe.Exception;
 
-private enum abstract ExceptionMode(Int) {
-	/**
-		The exception was raised by our own coroutine.
-	**/
-	var ExceptionSelf;
-	/**
-		The exception was raised further up the call stack, e.g. from a function
-		our current coroutine called.
-	**/
-	var ExceptionTop;
-	/**
-		The exception was created (but not raised) by a suspension function further
-		up the call stack and returned to our current coroutine.
-	**/
-	var ExceptionImmediate;
+private class StackTraceManager implements IElement<StackTraceManager> {
+	public static final key:Key<StackTraceManager> = Key.createNew('StackTraceManager');
+
+	public var insertIndex:Int;
+
+	public function new(index:Int) {
+		insertIndex = index;
+	}
+
+	public function getKey() {
+		return key;
+	}
 }
 
 abstract class BaseContinuation<T> extends SuspensionResult<T> implements IContinuation<T> implements IStackFrame {
@@ -31,7 +30,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 
     public var recursing:Bool;
 
-	var callStackOnFirstSuspension:Null<Array<StackItem>>;
+	var stackItem:Null<StackItem>;
 	var startedException:Bool;
 
     function new(completion:IContinuation<Any>, initialLabel:Int) {
@@ -61,7 +60,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 				case Returned:
 					completion.resume(result.result, null);
 				case Thrown:
-					completion.resume(result.result, result.error);
+					completion.resume(null, result.error);
 			}
 			#if coroutine.throw
 			} catch (e:Dynamic) {
@@ -80,72 +79,90 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
     }
 
 	public function getStackItem():Null<StackItem> {
-		return cast result;
+		return stackItem;
 	}
 
     public function setClassFuncStackItem(cls:String, func:String, file:String, line:Int, pos:Int, pmin:Int, pmax:Int) {
-        result = cast StackItem.FilePos(StackItem.Method(cls, func), file, line, pos);
-		callStackOnFirstSuspension ??= CallStack.callStack();
+        stackItem = StackItem.FilePos(StackItem.Method(cls, func), file, line, pos);
 		#if eval
-		eval.vm.Context.callMacroApi("associate_enum_value_pos")(result, haxe.macro.Context.makePosition({file: file, min: pmin, max: pmax}));
+		eval.vm.Context.callMacroApi("associate_enum_value_pos")(stackItem, haxe.macro.Context.makePosition({file: file, min: pmin, max: pmax}));
 		#end
     }
 
     public function setLocalFuncStackItem(id:Int, file:String, line:Int, pos:Int, pmin:Int, pmax:Int) {
-        result = cast StackItem.FilePos(StackItem.LocalFunction(id), file, line, pos);
-		callStackOnFirstSuspension ??= CallStack.callStack();
+        stackItem = StackItem.FilePos(StackItem.LocalFunction(id), file, line, pos);
 		#if eval
-		eval.vm.Context.callMacroApi("associate_enum_value_pos")(result, haxe.macro.Context.makePosition({file: file, min: pmin, max: pmax}));
+		eval.vm.Context.callMacroApi("associate_enum_value_pos")(stackItem, haxe.macro.Context.makePosition({file: file, min: pmin, max: pmax}));
 		#end
     }
 
-	public function startException(exceptionMode:ExceptionMode) {
+	public function startException(exception:Exception) {
+		#if js
+		return;
+		#end
+		var stack = [];
+		var skipping = 0;
+		var insertIndex = 0;
+		var stackItem = stackItem;
 		startedException = true;
-		if (callStackOnFirstSuspension != null) {
-			/*
-				On the first suspension of any coroutine we record the synchronous call stack which tells
-				us how we got here. This will ensure we don't miss synchronous stack items, such as ones
-				from a TCOed parent function.
 
-				We skip the two topmost elements because they're from the set functions above and the call
-				to them from the state machine.
-			*/
-			callStackOnFirstSuspension = CallStackHelper.cullTopStack(callStackOnFirstSuspension, 2);
-		} else {
-			/**
-				This can only occur in ExceptionTop mode and means we caught a foreigh exception.
-			**/
-			result = cast callStackOnFirstSuspension = [];
-			return;
+		/*
+			Find first coro stack element
+		*/
+		while (stackItem == null) {
+			var callerFrame = callerFrame();
+			if (callerFrame != null) {
+				stackItem = callerFrame.getStackItem();
+			}
 		}
-		switch (exceptionMode) {
-			case ExceptionSelf | ExceptionImmediate:
-				/*
-					In these modes we add our current stack item as the topmost element to the call-stack.
-					In both cases the value will be set:
-						* A `throw` in Self mode is always preceeded by a call to one of the set functions above.
-						* Immediate mode only occurs after a suspension call, which also calls a set function.
-				*/
-				callStackOnFirstSuspension.unshift(cast result);
-			case ExceptionTop:
+
+		switch (stackItem) {
+			case null:
+				return;
+			case FilePos(_, file, line, _):
+				for (index => item in exception.stack.asArray()) {
+					switch (item) {
+						case FilePos(_, file2, line2, _) if (skipping == 0 && file == file2 && line == line2):
+							stack.push(item);
+							skipping = 0;
+						// TODO: this is silly
+						case FilePos(Method("haxe.coro._Coroutine.Coroutine_Impl_" | "haxe.coro.Coroutine$Coroutine_Impl_", "run"), _) if (skipping == 1):
+							skipping = 2;
+						// this is a hack
+						case FilePos(Method(_, "invokeResume"), _) if (skipping == 0):
+							skipping = 1;
+							insertIndex = index;
+						case _:
+							if (skipping != 1) {
+								stack.push(item);
+							}
+					}
+				}
+			case _:
+				return;
 		}
-		result = cast callStackOnFirstSuspension;
+		exception.stack = stack;
+		context.add(new StackTraceManager(insertIndex));
 	}
 
     public function buildCallStack() {
+		#if js
+		return;
+		#end
 		if (startedException) {
-			/*
-				If we started the exception in our current coroutine then we don't need to do any additional
-				management. The caller frame will be part of the top stack added by startException.
-			*/
 			return;
 		}
-        var frame = callerFrame();
-        if (frame != null) {
-			var result:Array<StackItem> = cast result;
-			result ??= [];
-            result.push(frame.getStackItem());
-        }
+		var stackTraceManager = context.get(StackTraceManager.key);
+		// Can happen in the case of ImmediateSuspensionResult.withError
+		if (stackTraceManager == null) {
+			startException(error);
+			stackTraceManager = context.get(StackTraceManager.key);
+		}
+		if (stackItem != null) {
+			final stack = error.stack.asArray();
+			stack.insert(stackTraceManager.insertIndex++, stackItem);
+			error.stack = stack;
+		}
     }
 
     abstract function invokeResume():SuspensionResult<T>;
