@@ -7,13 +7,13 @@ import haxe.coro.schedulers.Scheduler;
 import haxe.CallStack.StackItem;
 import haxe.Exception;
 
-private class StackTraceManager implements IElement<StackTraceManager> {
+class StackTraceManager implements IElement<StackTraceManager> {
 	public static final key:Key<StackTraceManager> = Key.createNew('StackTraceManager');
 
-	public var insertIndex:Int;
+	public var insertIndex:Null<Int>;
 
-	public function new(index:Int) {
-		insertIndex = index;
+	public function new() {
+
 	}
 
 	public function getKey() {
@@ -142,7 +142,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 				return;
 		}
 		exception.stack = stack;
-		context.add(new StackTraceManager(insertIndex));
+		context.get(StackTraceManager.key).insertIndex = insertIndex;
 	}
 
     public function buildCallStack() {
@@ -154,9 +154,8 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 		}
 		var stackTraceManager = context.get(StackTraceManager.key);
 		// Can happen in the case of ImmediateSuspensionResult.withError
-		if (stackTraceManager == null) {
+		if (stackTraceManager.insertIndex == null) {
 			startException(error);
-			stackTraceManager = context.get(StackTraceManager.key);
 		}
 		if (stackItem != null) {
 			final stack = error.stack.asArray();

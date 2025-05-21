@@ -16,8 +16,7 @@ class BlockingContinuation<T> implements IContinuation<T> {
 	public function new(loop:EventLoop, scheduler:Scheduler) {
 		this.loop = loop;
 
-		context = Context.empty();
-		context.set(Scheduler.key, scheduler);
+		this.context = Context.create(scheduler, new BaseContinuation.StackTraceManager());
 		running = true;
 		error = null;
 	}
