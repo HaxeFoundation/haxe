@@ -270,6 +270,7 @@ module Setup = struct
 end
 
 let check_defines com =
+	if defined com Define.DisableParallelism then Parallel.enable := false;
 	PMap.iter (fun k v ->
 		try
 			let reason = Hashtbl.find Define.deprecation_lut k in

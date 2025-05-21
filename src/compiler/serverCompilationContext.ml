@@ -44,6 +44,7 @@ let reset sctx =
 	Hashtbl.clear sctx.changed_directories;
 	sctx.was_compilation <- false;
 	Parser.reset_state();
+	Parallel.enable := true;
 	Hashtbl.clear DeprecationCheck.warned_positions;
 	stats.s_files_parsed := 0;
 	stats.s_classes_built := 0;
