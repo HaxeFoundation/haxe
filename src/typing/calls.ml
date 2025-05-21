@@ -231,6 +231,19 @@ let rec acc_get ctx g =
 				FieldAccess.get_field_expr fa FRead
 		end
 	| AKAccessor fa ->
+		let c,stat = match fa.fa_host with
+			| FHInstance(c,tl) -> Some c,false
+			| FHStatic c -> Some c,true
+			| FHAbstract(a,tl,c) -> Some c,true
+			| FHAnon -> None,false
+		in
+		begin match c with
+			| Some c ->
+				let can = can_access ctx c fa.fa_field ~check_prop:true ~is_setter:false stat in
+				if not can then
+					raise_typing_error "This property cannot be accessed for reading" fa.fa_pos
+			| _ -> ()
+		end;
 		(dispatcher fa.fa_pos)#field_call fa [] []
 	| AKUsingAccessor sea ->
 		(dispatcher sea.se_access.fa_pos)#field_call sea.se_access [sea.se_this] []

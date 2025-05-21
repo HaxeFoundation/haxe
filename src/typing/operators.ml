@@ -598,6 +598,19 @@ let type_assign ctx e1 e2 with_type p =
 		| AKExpr e1  ->
 			assign_to e1
 		| AKAccessor fa ->
+			let c,stat = match fa.fa_host with
+				| FHInstance(c,tl) -> Some c,false
+				| FHStatic c -> Some c,true
+				| FHAbstract(a,tl,c) -> Some c,true
+				| _ -> None,false
+			in
+			begin match c with
+				| Some c ->
+					let can = can_access ctx c fa.fa_field ~check_prop:true ~is_setter:true stat in
+					if not can then
+						raise_typing_error "This property cannot be accessed for writing" fa.fa_pos
+				| _ -> ()
+			end;
 			let dispatcher = new call_dispatcher ctx (MSet (Some e2)) with_type p in
 			dispatcher#accessor_call fa [] [e2]
 		| AKAccess(a,tl,c,ebase,ekey) ->

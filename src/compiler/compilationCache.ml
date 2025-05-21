@@ -36,6 +36,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
 	val tmp_binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
+	val get_hxb_module_mutex = Mutex.create ()
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
@@ -68,13 +69,16 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		Hashtbl.find_opt modules path
 
 	method get_hxb_module path =
-		try Hashtbl.find tmp_binary_cache path
-		with Not_found ->
-			let mc = Hashtbl.find binary_cache path in
-			let m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps } in
-			let mc = { mc with mc_extra = m_extra } in
-			Hashtbl.add tmp_binary_cache path mc;
-			mc
+		Mutex.protect get_hxb_module_mutex (fun () ->
+			try
+				Hashtbl.find tmp_binary_cache path
+			with Not_found ->
+				let mc = Hashtbl.find binary_cache path in
+				let m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps } in
+				let mc = { mc with mc_extra = m_extra } in
+				Hashtbl.add tmp_binary_cache path mc;
+				mc
+		)
 
 	method find_module_extra path =
 		try (Hashtbl.find modules path).m_extra

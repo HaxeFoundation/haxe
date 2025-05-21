@@ -140,8 +140,8 @@ let rec keep_field dce cf c kind =
 			with Not_found -> false
 		in
 		match cf.cf_kind with
-		| Var { v_read = AccCall } -> check_accessor "get_"
-		| Var { v_write = AccCall } -> check_accessor "set_"
+		| Var { v_read = AccCall | AccPrivateCall } -> check_accessor "get_"
+		| Var { v_write = AccCall | AccPrivateCall } -> check_accessor "set_"
 		| _ -> false
 	end
 
@@ -747,11 +747,17 @@ let fix_accessors types =
 				| Var {v_read = AccCall; v_write = a} ->
 					let s = "get_" ^ cf.cf_name in
 					cf.cf_kind <- Var {v_read = if has_accessor c s stat then AccCall else AccNever; v_write = a}
+				| Var {v_read = AccPrivateCall; v_write = a} ->
+					let s = "get_" ^ cf.cf_name in
+					cf.cf_kind <- Var {v_read = if has_accessor c s stat then AccPrivateCall else AccNever; v_write = a}
 				| _ -> ());
 				(match cf.cf_kind with
 				| Var {v_write = AccCall; v_read = a} ->
 					let s = "set_" ^ cf.cf_name in
 					cf.cf_kind <- Var {v_write = if has_accessor c s stat then AccCall else AccNever; v_read = a}
+				| Var {v_write = AccPrivateCall; v_read = a} ->
+					let s = "set_" ^ cf.cf_name in
+					cf.cf_kind <- Var {v_write = if has_accessor c s stat then AccPrivateCall else AccNever; v_read = a}
 				| _ -> ())
 			in
 			List.iter (check_prop true) c.cl_ordered_statics;
@@ -863,7 +869,7 @@ let sweep dce types =
 					if not (Meta.has Meta.Accessor cf.cf_meta) then cf.cf_meta <- (Meta.Accessor,[],mk_zero_range_pos c.cl_pos) :: cf.cf_meta
 				in
 				begin match cf.cf_kind with
-				| Var {v_read = AccCall} ->
+				| Var {v_read = AccCall | AccPrivateCall} ->
 					begin try
 						add_accessor_metadata (PMap.find ("get_" ^ cf.cf_name) (if stat then c.cl_statics else c.cl_fields))
 					with Not_found ->
@@ -873,7 +879,7 @@ let sweep dce types =
 					()
 				end;
 				begin match cf.cf_kind with
-				| Var {v_write = AccCall} ->
+				| Var {v_write = AccCall | AccPrivateCall} ->
 					begin try
 						add_accessor_metadata (PMap.find ("set_" ^ cf.cf_name) (if stat then c.cl_statics else c.cl_fields))
 					with Not_found ->

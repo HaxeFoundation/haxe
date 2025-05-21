@@ -1144,7 +1144,8 @@ let setup_args_ret ctx cctx fctx name fd p =
 		let name = String.sub name 4 (String.length name - 4) in
 		let cf = if fctx.is_static then PMap.find name c.cl_statics else PMap.find name c.cl_fields (* TODO: inheritance? *) in
 		match Lazy.force mk, cf.cf_kind with
-			| MKGetter, Var({v_read = AccCall}) | MKSetter, Var({v_write = AccCall}) -> cf.cf_type
+			| MKGetter, Var({v_read = AccCall | AccPrivateCall})
+			| MKSetter, Var({v_write = AccCall | AccPrivateCall}) -> cf.cf_type
 			| _ -> raise Not_found;
 	in
 	let maybe_use_property_type th check def =
@@ -1473,6 +1474,11 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pget then delay ctx.g PConnectField (fun () -> display_accessor get pget);
 			if not cctx.is_lib then delay_check (fun() -> check_method get t_get true);
 			AccCall
+		| "private get",pget ->
+			let get = "get_" ^ name in
+			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pget then delay ctx.g PConnectField (fun () -> display_accessor get pget);
+			if not cctx.is_lib then delay_check (fun() -> check_method get t_get true);
+			AccPrivateCall
 		| _,pget ->
 			display_error ctx.com (name ^ ": Custom property accessor is no longer supported, please use `get`") pget;
 			AccCall
@@ -1492,11 +1498,18 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pset then delay ctx.g PConnectField (fun () -> display_accessor set pset);
 			if not cctx.is_lib then delay_check (fun() -> check_method set t_set false);
 			AccCall
+		| "private set",pset ->
+			let set = "set_" ^ name in
+			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pset then delay ctx.g PConnectField (fun () -> display_accessor set pset);
+			if not cctx.is_lib then delay_check (fun() -> check_method set t_set false);
+			AccPrivateCall
 		| _,pset ->
 			display_error ctx.com (name ^ ": Custom property accessor is no longer supported, please use `set`") pset;
 			AccCall
 	) in
-	if (set = AccNever && get = AccNever)  then raise_typing_error (name ^ ": Unsupported property combination") p;
+	if (set = AccNever && get = AccNever) then raise_typing_error (name ^ ": Unsupported property combination") p;
+	if (set = AccPrivateCall && get = AccPrivateCall && has_class_field_flag cf CfPublic) then
+		raise_typing_error (name ^ ": (private get, private set) property cannot be public") p;
 	cf.cf_kind <- Var { v_read = get; v_write = set };
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if List.mem_assoc AEnum f.cff_access then add_class_field_flag cf CfEnum;

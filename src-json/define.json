@@ -79,6 +79,11 @@
 		"doc": "Disable shortcuts used by hxb cache to speed up display requests."
 	},
 	{
+		"name": "DisableParallelism",
+		"define": "disable-parallelism",
+		"doc": "Disable all uses of parallelism in the compiler."
+	},
+	{
 		"name": "DisableUnicodeStrings",
 		"define": "disable-unicode-strings",
 		"doc": "Disable Unicode support in `String` type.",

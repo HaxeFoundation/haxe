@@ -1799,7 +1799,7 @@ let generate_script_class common_ctx script class_def =
           | AccNormal | AccCtor -> IaAccessNormal
           | AccNo -> IaAccessNot
           | AccNever -> IaAccessNot
-          | AccCall ->
+          | AccCall | AccPrivateCall ->
               if
                 Meta.has Meta.NativeProperty class_def.cl_meta
                 || Meta.has Meta.NativeProperty field.cf_meta
