@@ -532,8 +532,9 @@ let fun_to_coro ctx coro_type =
 	e
 
 let create_coro_context typer meta =
-	let optimize = not (Define.raw_defined typer.Typecore.com.defines "coroutine.noopt") in
-	let builder = new CoroElsewhere.texpr_builder typer.t in
+	(* let optimize = not (Define.raw_defined typer.Typecore.com.defines "coroutine.noopt") in *)
+	let optimize = false in
+	let builder = new CoroElsewhere.texpr_builder typer.Typecore.t in
 	let ctx = {
 		builder;
 		typer;
