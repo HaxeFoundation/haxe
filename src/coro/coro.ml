@@ -357,12 +357,8 @@ let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
 				let e1 = coro_class.continuation_api.immediate_result e1 in
 				terminate (b#return e1);
 			| NextThrow e1 ->
-				if ctx.throw then
-					terminate (b#throw e1)
-				else begin
-					let e1 = coro_class.continuation_api.immediate_error e1 coro_class.inside.result_type in
-					terminate (b#return e1);
-				end
+				let e1 = coro_class.continuation_api.immediate_error e1 coro_class.inside.result_type in
+				terminate (b#return e1);
 			| NextUnknown | NextReturnVoid ->
 				let e1 = coro_class.continuation_api.immediate_result (b#null t_dynamic coro_class.name_pos) in
 				terminate (b#return e1);
@@ -430,7 +426,7 @@ let coro_to_normal ctx coro_class cb_root exprs vcontinuation =
 	in
 	let el,_ = loop cb_root [] in
 	let e = b#void_block el in
-	let e = if ctx.throw || ctx.nothrow then
+	let e = if ctx.nothrow then
 		e
 	else begin
 		let catch =
@@ -544,7 +540,6 @@ let create_coro_context typer meta =
 		coro_debug = Meta.has (Meta.Custom ":coroutine.debug") meta;
 		optimize;
 		allow_tco = optimize && not (Meta.has (Meta.Custom ":coroutine.notco") meta);
-		throw = Define.raw_defined typer.com.defines "coroutine.throw";
 		nothrow = Meta.has (Meta.Custom ":coroutine.nothrow") meta;
 		vthis = None;
 		next_block_id = 0;

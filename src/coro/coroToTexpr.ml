@@ -207,9 +207,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			die "" __LOC__
 	in
 	let eif_error =
-		let el = if ctx.throw then
-			[b#throw eerror]
-		else [
+		let el = [
 			b#assign etmp eerror;
 			b#break p;
 		] in
@@ -260,10 +258,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		| NextReturn e ->
 			add_state (Some (-1)) [ set_control CoroReturned; b#assign eresult e; ereturn ]
 		| NextThrow e1 ->
-			if ctx.throw then
-				add_state None ([b#assign etmp e1; stack_item_inserter e1.epos; start_exception (wrap_thrown etmp); b#throw etmp])
-			else
-				add_state None ([b#assign etmp e1; stack_item_inserter e1.epos; start_exception (wrap_thrown etmp); b#break p ])
+			add_state None ([b#assign etmp e1; stack_item_inserter e1.epos; start_exception (wrap_thrown etmp); b#break p ])
 		| NextSub (cb_sub,cb_next) ->
 			add_state (Some cb_sub.cb_id) []
 
@@ -347,7 +342,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 
 	let eloop = mk (TWhile (b#bool true p, eswitch, NormalWhile)) com.basic.tvoid p in
 
-	let etry = if ctx.nothrow || (ctx.throw && not ctx.has_catch) then
+	let etry = if ctx.nothrow then
 		eloop
 	else
 		mk (TTry (
@@ -376,9 +371,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 				] in
 				DynArray.add cases {case_patterns = patterns; case_expr = expr};
 		) exc_state_map;
-		let el = if ctx.throw then [
-			b#throw etmp
-		] else begin
+		let el =
 			let field         = PMap.find "buildCallStack" com.basic.tcoro.base_continuation_class.cl_fields in
 			let eaccess       = b#instance_field econtinuation com.basic.tcoro.base_continuation_class params field field.cf_type in
 			let ewrapped_call = mk (TCall (eaccess, [ ])) com.basic.tvoid p in
@@ -388,7 +381,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 				set_control CoroThrown;
 				ereturn;
 			]
-		end in
+		in
 		let default = b#void_block el in
 		if DynArray.empty cases then
 			default

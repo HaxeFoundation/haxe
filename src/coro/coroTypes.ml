@@ -54,7 +54,6 @@ type coro_ctx = {
 	coro_debug : bool;
 	optimize : bool;
 	allow_tco : bool;
-	throw : bool;
 	nothrow : bool;
 	mutable vthis : tvar option;
 	mutable next_block_id : int;
