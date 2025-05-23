@@ -358,7 +358,17 @@ let collect ctx e_ast e dk with_type p =
 let handle_missing_field_raise ctx tthis i mode with_type pfield =
 	let tret = match with_type with
 		| WithType.WithType(t,_) -> t
-		| WithType.Value _ -> mk_mono()
+		| WithType.Value _ ->
+			begin match mode with
+				| MSet (Some e) ->
+					begin try
+						let e = type_expr ctx e WithType.value in
+						e.etype
+					with _ ->
+						mk_mono()
+					end
+				| _ -> mk_mono()
+			end
 		| WithType.NoValue ->
 			match mode with
 			| MCall _ -> ctx.t.tvoid
