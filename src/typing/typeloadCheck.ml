@@ -112,7 +112,13 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		| ct1,ct2 ->
 			List.iter (fun t2 ->
 				let t2 = map2 t2 in
-				if not (List.exists (fun t1 -> does_unify (map1 t1) t2) ct1) then
+				if not (List.exists (fun t1 ->
+					try
+						Type.unify_custom uctx (map1 t1) t2;
+						true
+					with Unify_error _ ->
+						false
+				) ct1) then
 					raise (Unify_error ([Unify_custom (Printf.sprintf "Constraint unsatisfied for type parameter %s: %s" ttp2.ttp_name (s_type (print_context()) t2))]))
 			) ct2
 	in
