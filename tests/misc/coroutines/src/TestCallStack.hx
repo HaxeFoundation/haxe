@@ -53,7 +53,7 @@ class TestCallStack extends utest.Test {
 			var inspector = new CallStackInspector(stack);
 			var r = inspector.inspect([
 				File('callstack/FooBarBaz.hx'),
-				#if (cpp && coroutine.noopt)
+				#if cpp
 				// TODO: cpp has inaccurate positions which causes the top stack to be wrong
 				Line(6),
 				Line(12),

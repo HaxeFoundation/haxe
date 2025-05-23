@@ -48,6 +48,19 @@ let expr_to_coro ctx etmp cb_root e =
 	let goto cb_from cb_to =
 		terminate cb_from (NextGoto cb_to) t_dynamic null_pos
 	in
+	let tmp_local cb t p =
+		let v = alloc_var VGenerated "tmp" t p in
+		add_expr cb (mk (TVar(v,None)) ctx.typer.t.tvoid p);
+		v
+	in
+	let check_complex cb ret t p = match ret with
+		| RValue ->
+			let v = tmp_local cb t p in
+			let ev = Texpr.Builder.make_local v v.v_pos in
+			ev,RLocal v
+		| _ ->
+			e_no_value,ret
+	in
 	let loop_stack = ref [] in
 	let rec loop cb ret e = match e.eexpr with
 		(* special cases *)
@@ -68,8 +81,7 @@ let expr_to_coro ctx etmp cb_root e =
 					   because the result expression might reference local variables declared in
 					   that block (https://github.com/Aidan63/haxe/issues/79).
 					*)
-					let v = alloc_var VGenerated "tmp" e.etype e.epos in
-					add_expr cb {e with eexpr = TVar(v,None)};
+					let v = tmp_local cb e.etype e.epos in
 					RLocal v
 				| _ ->
 					ret
@@ -218,6 +230,7 @@ let expr_to_coro ctx etmp cb_root e =
 				cb_next,e_no_value
 			) cb
 		| TIf(e1,e2,Some e3) ->
+			let e_value,ret = check_complex cb ret e.etype e.epos in
 			let cb = loop cb RValue e1 in
 			begin match cb with
 				| None ->
@@ -241,9 +254,10 @@ let expr_to_coro ctx etmp cb_root e =
 							None
 					in
 					terminate cb (NextIfThenElse(e1,cb_then,cb_else,cb_next)) e.etype e.epos;
-					Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
+					Option.map (fun cb_next -> (cb_next,e_value)) cb_next
 			end
 		| TSwitch switch ->
+			let e_value,ret = check_complex cb ret e.etype e.epos in
 			let e1 = switch.switch_subject in
 			let cb = loop cb RValue e1 in
 			begin match cb with
@@ -278,7 +292,7 @@ let expr_to_coro ctx etmp cb_root e =
 					} in
 					let cb_next = if Lazy.is_val cb_next || not switch.cs_exhaustive then Some (Lazy.force cb_next) else None in
 					terminate cb (NextSwitch(switch,cb_next)) e.etype e.epos;
-					Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
+					Option.map (fun cb_next -> (cb_next,e_value)) cb_next
 			end
 		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
 			loop cb ret (Texpr.not_while_true_to_while_true ctx.typer.com.Common.basic e1 e2 flag e.etype e.epos)
@@ -293,6 +307,7 @@ let expr_to_coro ctx etmp cb_root e =
 			terminate cb (NextWhile(e1,cb_body,cb_next)) e.etype e.epos;
 			Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
 		| TTry(e1,catches) ->
+			let e_value,ret = check_complex cb ret e.etype e.epos in
 			ctx.has_catch <- true;
 			let cb_next = lazy (make_block None) in
 			let catches = List.map (fun (v,e) ->
@@ -322,7 +337,7 @@ let expr_to_coro ctx etmp cb_root e =
 			) cb_try_next;
 			let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
 			terminate cb (NextTry(cb_try,catch,cb_next)) e.etype e.epos;
-			Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
+			Option.map (fun cb_next -> (cb_next,e_value)) cb_next
 		| TFunction tf ->
 			Some (cb,e)
 	and ordered_loop cb el =
