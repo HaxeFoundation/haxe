@@ -28,6 +28,7 @@ class EventLoop {
 	final waitLock = new Lock();
 	var promisedEventsCount = 0;
 	var regularEvents:Null<RegularEvent>;
+	var lastRegularEvent:Null<RegularEvent>;
 	var isMainThread:Bool;
 	static var CREATED : Bool;
 
@@ -53,12 +54,20 @@ class EventLoop {
 		switch regularEvents {
 			case null:
 				regularEvents = event;
+				lastRegularEvent = null;
 			case current:
 				var previous = null;
+				if (lastRegularEvent != null && lastRegularEvent.nextRunTime <= event.nextRunTime) {
+					lastRegularEvent.next = event;
+					event.previous = lastRegularEvent;
+					lastRegularEvent = event;
+					return;
+				}
 				while(true) {
 					if(current == null) {
 						previous.next = event;
 						event.previous = previous;
+						lastRegularEvent = event;
 						break;
 					} else if(event.nextRunTime < current.nextRunTime) {
 						event.next = current;
@@ -66,7 +75,7 @@ class EventLoop {
 						switch previous {
 							case null:
 								regularEvents = event;
-								case _:
+							case _:
 								event.previous = previous;
 								previous.next = event;
 								current.previous = event;
