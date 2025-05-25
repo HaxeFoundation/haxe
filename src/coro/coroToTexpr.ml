@@ -175,7 +175,13 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			set_control CoroPending;
 			ereturn;
 		] in
-		let ereturned = b#assign etmp (base_continuation_field_on ecororesult cont.result com.basic.tany) in
+		let ereturned = b#assign call.cs_result (base_continuation_field_on ecororesult cont.result com.basic.tany) in
+		(* TODO: all this is very awkward *)
+		let ereturned = if call.cs_result == etmp then
+			ereturned
+		else
+			b#assign etmp ereturned
+		in
 		let eerror = base_continuation_field_on ecororesult cont.error cont.error.cf_type in
 		let ethrown = b#void_block [
 			b#assign etmp eerror;
@@ -206,15 +212,19 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		| _ ->
 			die "" __LOC__
 	in
-	let eif_error =
+	let eif_error cb =
 		let el = [
 			b#assign etmp eerror;
 			b#break p;
 		] in
 		let e_then = b#void_block el in
-		b#if_then
-			(b#binop OpNotEq eerror (b#null eerror.etype p) com.basic.tbool)
-			e_then
+		let e_if = b#binop OpNotEq eerror (b#null eerror.etype p) com.basic.tbool in
+		match cb.cb_stack_value with
+			| None ->
+				b#if_then e_if e_then
+			| Some e ->
+				let e_assign = b#assign e etmp in
+				b#if_then_else e_if e_then e_assign com.basic.tvoid
 	in
 
 	let exc_state_map = Array.init ctx.next_block_id (fun _ -> ref []) in
@@ -230,7 +240,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 					el @ [set_state id]
 			in
 			let el = if has_block_flag cb CbResumeState then
-				eif_error :: el
+				eif_error cb :: el
 			else
 				el
 			in

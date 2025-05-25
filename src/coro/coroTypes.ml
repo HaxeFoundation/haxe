@@ -8,6 +8,7 @@ type coro_block = {
 	mutable cb_catch : coro_block option;
 	mutable cb_next : coro_next;
 	mutable cb_flags : int;
+	mutable cb_stack_value : texpr option;
 }
 
 and coro_block_next = coro_block option
@@ -46,6 +47,7 @@ and coro_suspend = {
 	cs_fun : texpr;
 	cs_args : texpr list;
 	cs_pos : pos;
+	cs_result : texpr;
 }
 
 type coro_ctx = {

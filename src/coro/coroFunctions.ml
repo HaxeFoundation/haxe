@@ -12,6 +12,7 @@ let make_block ctx typepos =
 		cb_next = NextUnknown;
 		cb_catch = ctx.current_catch;
 		cb_flags = 0;
+		cb_stack_value = None;
 	}
 
 let add_block_flag cb (flag : cb_flag) =
