@@ -12,6 +12,15 @@ type coro_ret =
 	| RBlock
 
 let expr_to_coro ctx etmp cb_root e =
+	let ordered_value_marker = ref false in
+	let start_ordered_value_list () =
+		let old = !ordered_value_marker in
+		(fun () ->
+			let cur = !ordered_value_marker in
+			ordered_value_marker := old;
+			cur
+		)
+	in
 	let make_block typepos =
 		make_block ctx typepos
 	in
@@ -168,23 +177,14 @@ let expr_to_coro ctx etmp cb_root e =
 						| Coro _ ->
 							let cb_next = block_from_e e1 in
 							add_block_flag cb_next CbResumeState;
-							add_block_flag cb CbSuspendState;
-							let eres = match ret with
-							| RValue ->
-								let v = tmp_local cb e.etype e.epos in
-								let ev = Texpr.Builder.make_local v v.v_pos in
-								ev
-							| _ ->
-								etmp
-							in
 							let suspend = {
 								cs_fun = e1;
 								cs_args = el;
-								cs_pos = e.epos;
-								cs_result = eres;
+								cs_pos = e.epos
 							} in
+							add_block_flag cb CbSuspendState;
 							terminate cb (NextSuspend(suspend,Some cb_next)) t_dynamic null_pos;
-							cb_next,eres
+							cb_next,etmp
 						| _ ->
 							cb,{e with eexpr = TCall(e1,el)}
 						end
@@ -341,6 +341,7 @@ let expr_to_coro ctx etmp cb_root e =
 		| TFunction tf ->
 			Some (cb,e)
 	and ordered_loop cb el =
+		let close = start_ordered_value_list () in
 		let rec aux' cb acc el = match el with
 			| [] ->
 				Some (cb,List.rev acc)
@@ -355,7 +356,9 @@ let expr_to_coro ctx etmp cb_root e =
 				| Some (cb,e) ->
 					aux' cb (e :: acc) el
 		in
-		aux' cb [] el
+		let cb = aux' cb [] el in
+		let _ = close () in
+		cb
 	and loop_assign cb ret e =
 		let cb = loop cb ret e in
 		match cb with
