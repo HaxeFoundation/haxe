@@ -5,7 +5,7 @@ open CoroFunctions
 open Texpr
 open ContTypes
 
-let localFuncCount = ref 0
+let next_closure_id = Hashtbl.create 0;
 
 type coro_for =
 	| LocalFunc of tfunc * tvar
@@ -48,9 +48,10 @@ module ContinuationClassBuilder = struct
 		(* Mangle class names to hopefully get unique names and avoid collisions *)
 		let name, cf_captured, result_type, name_pos =
 			let captured_field_name = "captured" in
+			let managled_class_name = Printf.sprintf "HxCoro_%s_%s" (ctx.typer.c.curclass.cl_path |> fst |> String.concat "_") (ctx.typer.c.curclass.cl_path |> snd) in
 			match coro_type with
-			| ClassField (cls, field, tf, _) ->
-				Printf.sprintf "HxCoro_%s_%s_%s" (cls.cl_path |> fst |> String.concat "_") (cls.cl_path |> snd) field.cf_name,
+			| ClassField (_, field, tf, _) ->
+				Printf.sprintf "%s_%s" managled_class_name field.cf_name,
 				(if has_class_field_flag field CfStatic then
 					None
 				else
@@ -58,8 +59,16 @@ module ContinuationClassBuilder = struct
 				tf.tf_type,
 				field.cf_name_pos
 			| LocalFunc(f,v) ->
-				let n = Printf.sprintf "HxCoroAnonFunc_%i" !localFuncCount in
-				localFuncCount := !localFuncCount + 1;
+				let next_id =
+					match Hashtbl.find_opt next_closure_id managled_class_name with
+					| Some id ->
+						Hashtbl.replace next_closure_id managled_class_name (id + 1);
+						id
+					| _ ->
+						Hashtbl.replace next_closure_id managled_class_name 1;
+						0
+					in
+				let n = Printf.sprintf "%s_AnonFunc%i" managled_class_name next_id in
 
 				let args = List.map (fun (v, _) -> (v.v_name, false, v.v_type)) f.tf_args in
 				let t    = TFun (Common.expand_coro_type basic args f.tf_type) in
