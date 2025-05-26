@@ -50,7 +50,7 @@ module ContinuationClassBuilder = struct
 			let captured_field_name = "captured" in
 			match coro_type with
 			| ClassField (cls, field, tf, _) ->
-				Printf.sprintf "HxCoro_%s_%s_%s" (ctx.typer.m.curmod.m_path |> fst |> String.concat "_") (ctx.typer.m.curmod.m_path |> snd) field.cf_name,
+				Printf.sprintf "HxCoro_%s_%s_%s" (cls.cl_path |> fst |> String.concat "_") (cls.cl_path |> snd) field.cf_name,
 				(if has_class_field_flag field CfStatic then
 					None
 				else
