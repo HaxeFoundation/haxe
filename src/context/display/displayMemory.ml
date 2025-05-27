@@ -7,6 +7,8 @@ open Type
 let get_memory_json (cs : CompilationCache.t) mreq =
 	begin match mreq with
 	| MCache ->
+		let t0 = Extc.time() in
+		let stats = Gc.stat() in
 		let old_gc = Gc.get() in
 		Gc.set { old_gc with
 			Gc.max_overhead = 0;
@@ -14,6 +16,7 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 		};
 		Gc.compact();
 		Gc.set old_gc;
+		ServerMessage.gc_stats (Extc.time() -. t0) stats true 0;
 		let stat = Gc.quick_stat() in
 		let size = (float_of_int stat.Gc.heap_words) *. (float_of_int (Sys.word_size / 8)) in
 		let cache_mem = cs#get_pointers in
