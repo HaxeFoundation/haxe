@@ -106,12 +106,11 @@ let expr_to_coro ctx etmp cb_root e =
 				(cb,{e with eexpr = TObjectDecl fl})
 			) cb
 		| TField(e1,fa) ->
-			(* TODO: this is quite annoying because factoring out field access behaves very creatively on
-			   some targets. This means that (coroCall()).field doesn't work (and isn't tested). *)
-			Some (cb,e)
+			let cb = loop cb RValue e1 in
+			Option.map (fun (cb,e1) -> (cb,{e with eexpr = TField(e1,fa)})) cb
 		| TEnumParameter(e1,ef,i) ->
 			let cb = loop cb RValue e1 in
-			Option.map (fun (cb,e) -> (cb,{e with eexpr = TEnumParameter(e1,ef,i)})) cb
+			Option.map (fun (cb,e1) -> (cb,{e with eexpr = TEnumParameter(e1,ef,i)})) cb
 		| TEnumIndex e1 ->
 			let cb = loop cb RValue e1 in
 			Option.map (fun (cb,e1) -> (cb,{e with eexpr = TEnumIndex e1})) cb

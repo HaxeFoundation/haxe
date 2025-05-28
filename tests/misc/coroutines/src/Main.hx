@@ -10,6 +10,7 @@ function main() {
 		new TestHoisting(),
 		new TestMisc(),
 		new TestMutex(),
+		new TestTexpr(),
 		// new TestGenerator(),
 		#if js
 		new TestJsPromise(),
@@ -17,13 +18,6 @@ function main() {
 		#if (!coroutine.throw && (jvm || cpp || eval))
 		new TestCallStack(),
 		#end
-		// new TestYieldBasic(),
-		// new TestYieldIf(),
-		// new TestYieldFor(),
-		// new TestYieldClosure(),
-		// new TestYieldSwitch(),
-		// new TestYieldTryCatch(),
-		// new TestYieldWhile(),
 	];
 
 	var runner = new utest.Runner();
