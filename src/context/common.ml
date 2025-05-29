@@ -1099,14 +1099,21 @@ let get_entry_point com =
 
 let make_unforced_lazy t_proc f where =
 	let r = ref (lazy_available t_dynamic) in
+	let m = Mutex.create () in
 	r := lazy_wait (fun() ->
 		try
+			Mutex.lock m;
 			r := lazy_processing t_proc;
 			let t = f () in
 			r := lazy_available t;
+			Mutex.unlock m;
 			t
 		with
 			| Error.Error e ->
+				Mutex.unlock m;
 				raise (Error.Fatal_error e)
+			| exc ->
+				Mutex.unlock m;
+				raise exc
 	);
 	r
