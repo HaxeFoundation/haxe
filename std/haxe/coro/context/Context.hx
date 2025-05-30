@@ -1,32 +1,103 @@
 package haxe.coro.context;
 
-import haxe.ds.BalancedTree;
+class KeyChainNode {
+	public final key:Int;
+	public final value:Any;
+	public var next:Null<KeyChainNode>;
 
-class ElementTree extends BalancedTree<Key<Any>, IElement<Any>> {
-	override function compare(k1:Key<Any>, k2:Key<Any>) {
-		return k2.id - k1.id;
+	public function new(key:Int, value:Any) {
+		this.key = key;
+		this.value = value;
 	}
 
-	override function copy():ElementTree {
-		var copied = new ElementTree();
-		copied.root = root;
-		return copied;
+	@:keep public function toString() {
+		return '$key => $value';
+	}
+}
+
+class KeyChain {
+	static final unused = new KeyChainNode(-1, null);
+
+	var root:Null<KeyChainNode>;
+	var last:KeyChainNode;
+
+	public function new() {
+		last = unused;
 	}
 
-	override function toString() {
-		var buf = new StringBuf();
-		var first = true;
-		for (key => value in this) {
-			if (!first) {
-				buf.add(", ");
-			} else {
-				first = false;
-			}
-			buf.add('${key.name}: $value');
+	public function get(key:Int) {
+		if (last.key == key) {
+			return last.value;
 		}
+		var current = root;
+		while (true) {
+			if (current == null) {
+				return null;
+			}
+			if (current.key == key) {
+				last = current;
+				return current.value;
+			}
+			current = current.next;
+		}
+	}
+
+	public function set(key:Int, value:Any) {
+		last = new KeyChainNode(key, value);
+		if (root == null) {
+			root = last;
+		} else if (root.key == key) {
+			last.next = root.next;
+			root = last;
+		} else {
+			var current = new KeyChainNode(root.key, root.value);
+			last.next = current;
+			current.next = root.next;
+			root = last;
+			while (true) {
+				if (current.next == null) {
+					// new element
+					break;
+				} else if (current.next.key == key) {
+					// keep tail
+					current.next = current.next.next;
+					break;
+				} else {
+					final newCurrent = new KeyChainNode(current.next.key, current.next.value);
+					newCurrent.next = current.next.next;
+					current = newCurrent;
+				}
+			}
+		}
+	}
+
+	public function copy() {
+		final newChain = new KeyChain();
+		newChain.root = root;
+		return newChain;
+	}
+
+	public function toString() {
+		var buf = new StringBuf();
+		buf.add("[");
+		var current = root;
+		while (current != null) {
+			buf.add(current.key);
+			buf.add(" => ");
+			buf.add(current.value);
+			if (current.next != null) {
+				buf.add(", ");
+				current = current.next;
+			} else {
+				break;
+			}
+		}
+		buf.add("]");
 		return buf.toString();
 	}
 }
+
+typedef ElementTree = KeyChain;
 
 abstract Context(ElementTree) {
 	public inline function new(tree:ElementTree) {
@@ -38,7 +109,7 @@ abstract Context(ElementTree) {
 	}
 
 	public function get<T>(key:Key<T>):T {
-		return cast this.get(key);
+		return cast this.get(key.id);
 	}
 
 	public function toString() {
@@ -57,7 +128,7 @@ abstract AdjustableContext(ElementTree) {
 
 	public function with(...elements:IElement<Any>) {
 		for (element in elements) {
-			this.set(element.getKey(), element);
+			this.set(element.getKey().id, element);
 		}
 		return abstract;
 	}
