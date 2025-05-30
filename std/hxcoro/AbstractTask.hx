@@ -26,6 +26,7 @@ abstract class AbstractTask<T> {
 	var state:TaskState;
 	var error:Null<Exception>;
 	var numCompletedChildren:Int;
+	var indexInParent:Int;
 
 	/**
 		Creates a new task.
@@ -34,6 +35,7 @@ abstract class AbstractTask<T> {
 		state = Created;
 		children = [];
 		numCompletedChildren = 0;
+		indexInParent = -1;
 	}
 
 	/**
@@ -103,7 +105,9 @@ abstract class AbstractTask<T> {
 
 	function cancelChildren(?cause:CancellationException) {
 		for (child in children) {
-			child.cancel(cause);
+			if (child != null) {
+				child.cancel(cause);
+			}
 		}
 	}
 
@@ -118,6 +122,9 @@ abstract class AbstractTask<T> {
 
 	function startChildren() {
 		for (child in children) {
+			if (child == null) {
+				continue;
+			}
 			switch (child.state) {
 				case Created:
 					child.start();
@@ -171,9 +178,13 @@ abstract class AbstractTask<T> {
 			}
 		}
 		checkCompletion();
+		if (child.indexInParent >= 0) {
+			children[child.indexInParent] = null;
+		}
 	}
 
 	function addChild(child:AbstractTask<Any>) {
-		children.push(child);
+		final index = children.push(child);
+		child.indexInParent = index - 1;
 	}
 }
