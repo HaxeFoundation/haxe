@@ -18,6 +18,7 @@ function main() {
 		#if (!coroutine.throw && (jvm || cpp || eval))
 		new TestCallStack(),
 		#end
+		new schedulers.TestVirtualTimeScheduler(),
 		new structured.TestChildScopes(),
 		new structured.TestLazyScopes(),
 		new structured.TestThrowingScopes(),
