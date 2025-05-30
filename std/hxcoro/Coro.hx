@@ -3,6 +3,7 @@ package hxcoro;
 import haxe.coro.IContinuation;
 import haxe.coro.SuspensionResult;
 import haxe.coro.schedulers.Scheduler;
+import haxe.coro.schedulers.ISchedulerHandle;
 import haxe.exceptions.CancellationException;
 
 class Coro {
@@ -20,13 +21,18 @@ class Coro {
 
 	@:coroutine @:coroutine.nothrow public static function delay(ms:Int):Void {
 		suspend(cont -> {
-			final task   = cont.context.get(hxcoro.CoroTask.key);
-			final handle = cont.context.get(Scheduler.key).schedule(ms, () -> {
+			var scheduleHandle     : ISchedulerHandle = null;
+			var cancellationHandle : hxcoro.AbstractTask.CancellationHandle = null;
+
+			final task = cont.context.get(hxcoro.CoroTask.key);
+
+			scheduleHandle = cont.context.get(Scheduler.key).schedule(ms, () -> {
+				cancellationHandle.close();
 				cont.resume(null, cancellationRequested(cont) ? new CancellationException() : null);
 			});
 
-			task.onCancellationRequested(() -> {
-				handle.close();
+			cancellationHandle = task.onCancellationRequested(() -> {
+				scheduleHandle.close();
 				cont.resume(null, new CancellationException());
 			});
 		});

@@ -14,6 +14,24 @@ enum abstract TaskState(Int) {
 
 class TaskException extends Exception {}
 
+class CancellationHandle {
+	final func : ()->Void;
+	final all : Array<CancellationHandle>;
+
+	public function new(func, all) {
+		this.func = func;
+		this.all  = all;
+	}
+
+	public function run() {
+		func();
+	}
+
+	public function close() {
+		all.remove(this);
+	}
+}
+
 /**
 	AbstractTask is the base class for tasks which manages its `TaskState` and children.
 
@@ -23,7 +41,7 @@ class TaskException extends Exception {}
 **/
 abstract class AbstractTask<T> {
 	final children:Array<AbstractTask<Any>>;
-	final cancellationCallbacks:Array<()->Void>;
+	final cancellationCallbacks:Array<CancellationHandle>;
 	var state:TaskState;
 	var error:Null<Exception>;
 	var numCompletedChildren:Int;
@@ -64,8 +82,8 @@ abstract class AbstractTask<T> {
 				}
 				state = Cancelling;
 
-				for (f in cancellationCallbacks) {
-					f();
+				for (h in cancellationCallbacks) {
+					h.run();
 				}
 
 				cancelChildren(cause);
@@ -101,11 +119,19 @@ abstract class AbstractTask<T> {
 	}
 
 	public function onCancellationRequested(f:()->Void) {
-		switch state {
+		return switch state {
 			case Cancelling | Cancelled:
 				f();
+
+				// todo have some sort of no op handle again.
+
+				new CancellationHandle(f, cancellationCallbacks);
 			case _:
-				cancellationCallbacks.push(f);
+				final handle = new CancellationHandle(f, cancellationCallbacks);
+
+				cancellationCallbacks.push(handle);
+
+				handle;
 		}
 	}
 
