@@ -2,8 +2,8 @@ package structured;
 
 import haxe.Exception;
 import haxe.coro.schedulers.VirtualTimeScheduler;
+import haxe.coro.cancellation.ICancellationHandle;
 import hxcoro.CoroTask;
-import hxcoro.AbstractTask.CancellationHandle;
 
 class TestTaskCancellation extends utest.Test {
 	public function test_cancellation_callback() {
@@ -27,7 +27,7 @@ class TestTaskCancellation extends utest.Test {
 	}
 
 	public function test_closing_cancellation_callback() {
-		var handle : CancellationHandle = null;
+		var handle : ICancellationHandle = null;
 
 		final result    = [];
 		final scheduler = new VirtualTimeScheduler();

@@ -4,6 +4,7 @@ import haxe.coro.IContinuation;
 import haxe.coro.SuspensionResult;
 import haxe.coro.schedulers.Scheduler;
 import haxe.coro.schedulers.ISchedulerHandle;
+import haxe.coro.cancellation.ICancellationHandle;
 import haxe.exceptions.CancellationException;
 
 class Coro {
@@ -16,19 +17,19 @@ class Coro {
 	}
 
 	static function cancellationRequested(cont:IContinuation<Any>) {
-		return cont.context.get(hxcoro.CoroTask.key)?.cancellationRequested();
+		return cont.context.get(hxcoro.CoroTask.key)?.isCancellationRequested;
 	}
 
 	@:coroutine @:coroutine.nothrow public static function delay(ms:Int):Void {
 		suspend(cont -> {
 			var scheduleHandle     : ISchedulerHandle = null;
-			var cancellationHandle : hxcoro.AbstractTask.CancellationHandle = null;
+			var cancellationHandle : ICancellationHandle = null;
 
 			final task = cont.context.get(hxcoro.CoroTask.key);
 
 			scheduleHandle = cont.context.get(Scheduler.key).schedule(ms, () -> {
 				cancellationHandle.close();
-				cont.resume(null, cancellationRequested(cont) ? new CancellationException() : null);
+				cont.resume(null, task.isCancellationRequested ? new CancellationException() : null);
 			});
 
 			cancellationHandle = task.onCancellationRequested(() -> {

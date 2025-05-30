@@ -1,5 +1,7 @@
 package hxcoro;
 
+import haxe.coro.cancellation.ICancellationToken;
+import haxe.coro.cancellation.ICancellationHandle;
 import haxe.exceptions.CancellationException;
 import haxe.Exception;
 
@@ -12,24 +14,45 @@ enum abstract TaskState(Int) {
 	final Cancelled;
 }
 
-class TaskException extends Exception {}
+private class TaskException extends Exception {}
 
-class CancellationHandle {
+private class CancellationHandle implements ICancellationHandle {
 	final func : ()->Void;
 	final all : Array<CancellationHandle>;
+
+	var closed : Bool;
 
 	public function new(func, all) {
 		this.func = func;
 		this.all  = all;
+
+		closed = false;
 	}
 
 	public function run() {
+		if (closed) {
+			return;
+		}
+
 		func();
+
+		closed = true;
 	}
 
 	public function close() {
+		if (closed) {
+			return;
+		}
+
 		all.remove(this);
+
+		closed = true;
 	}
+}
+
+private class NoOpCancellationHandle implements ICancellationHandle {
+	public function new() {}
+	public function close() {}
 }
 
 /**
@@ -39,13 +62,25 @@ class CancellationHandle {
 	and should be kept in a state where it could even be moved outside the hxcoro package. Also, `state` should
 	be treated like a truly private variable and only be modified from within this class.
 **/
-abstract class AbstractTask<T> {
+abstract class AbstractTask<T> implements ICancellationToken {
 	final children:Array<AbstractTask<Any>>;
 	final cancellationCallbacks:Array<CancellationHandle>;
+	final noOpCancellationHandle:NoOpCancellationHandle;
 	var state:TaskState;
 	var error:Null<Exception>;
 	var numCompletedChildren:Int;
 	var indexInParent:Int;
+
+	public var isCancellationRequested (get, never) : Bool;
+
+	inline function get_isCancellationRequested() {
+		return switch state {
+			case Cancelling | Cancelled:
+				true;
+			case _:
+				false;
+		}
+	}
 
 	/**
 		Creates a new task.
@@ -56,6 +91,7 @@ abstract class AbstractTask<T> {
 		cancellationCallbacks = [];
 		numCompletedChildren = 0;
 		indexInParent = -1;
+		noOpCancellationHandle = new NoOpCancellationHandle();
 	}
 
 	/**
@@ -106,26 +142,12 @@ abstract class AbstractTask<T> {
 		}
 	}
 
-	/**
-		Returns `true` if cancellation has been requested. This remains true even if cancellation has completed.
-	**/
-	public function cancellationRequested() {
-		return switch (state) {
-			case Cancelling | Cancelled:
-				true;
-			case _:
-				false;
-		}
-	}
-
-	public function onCancellationRequested(f:()->Void) {
+	public function onCancellationRequested(f:()->Void):ICancellationHandle {
 		return switch state {
 			case Cancelling | Cancelled:
 				f();
 
-				// todo have some sort of no op handle again.
-
-				new CancellationHandle(f, cancellationCallbacks);
+				return noOpCancellationHandle;
 			case _:
 				final handle = new CancellationHandle(f, cancellationCallbacks);
 
