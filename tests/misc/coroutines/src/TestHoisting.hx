@@ -1,4 +1,4 @@
-import haxe.coro.Coroutine.yield;
+import hxcoro.Coro.*;
 
 class TestHoisting extends utest.Test {
     function testLocalVariable() {
@@ -11,7 +11,7 @@ class TestHoisting extends utest.Test {
             return bar;
         }
 
-        Assert.equals(7, Coroutine.run(foo));
+        Assert.equals(7, CoroRun.run(foo));
     }
 
     function testModifyingLocalVariable() {
@@ -27,7 +27,7 @@ class TestHoisting extends utest.Test {
             return bar;
         }
 
-        Assert.equals(14, Coroutine.run(foo));
+        Assert.equals(14, CoroRun.run(foo));
     }
 
     @:coroutine function fooTestArgument(v:Int) {
@@ -37,16 +37,16 @@ class TestHoisting extends utest.Test {
     }
 
     function testArgument() {
-        Assert.equals(7, Coroutine.run(() -> {
+        Assert.equals(7, CoroRun.run(() -> {
             return fooTestArgument(7);
         }));
     }
 
     function testLocalArgument() {
-        Assert.equals(7, Coroutine.run(() -> {
+        Assert.equals(7, CoroRun.run(() -> {
             @:coroutine function foo(v:Int) {
                 yield();
-        
+
                 return v;
             }
 
@@ -65,13 +65,13 @@ class TestHoisting extends utest.Test {
     }
 
     function testModifyingArgument() {
-        Assert.equals(14, Coroutine.run(() -> {
+        Assert.equals(14, CoroRun.run(() -> {
             return fooTestModifyingArgument(7);
         }));
     }
 
     function testModifyingLocalArgument() {
-        Assert.equals(14, Coroutine.run(() -> {
+        Assert.equals(14, CoroRun.run(() -> {
             @:coroutine function foo(v:Int) {
                 yield();
 
@@ -89,7 +89,7 @@ class TestHoisting extends utest.Test {
     function testCapturingLocal() {
         var i = 0;
 
-        Coroutine.run(() -> {
+        CoroRun.run(() -> {
             i = 7;
             yield();
             i *= 2;
@@ -99,10 +99,10 @@ class TestHoisting extends utest.Test {
     }
 
     function testMultiHoisting() {
-        Assert.equals(14, Coroutine.run(() -> {
+        Assert.equals(14, CoroRun.run(() -> {
 
             var i = 0;
-            
+
             @:coroutine function foo() {
                 yield();
 

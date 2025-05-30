@@ -1,4 +1,4 @@
-import haxe.coro.Coroutine.yield;
+import hxcoro.Coro.*;
 
 class TestMisc extends utest.Test {
     function testDebugMetadataLocalFunction() {
@@ -6,7 +6,7 @@ class TestMisc extends utest.Test {
             yield();
         }
 
-        Coroutine.run(foo);
+        CoroRun.run(foo);
 
         Assert.pass();
     }

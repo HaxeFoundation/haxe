@@ -1,12 +1,10 @@
 package issues.aidan;
 
 import utest.Assert;
-import haxe.coro.Coroutine;
-import haxe.coro.Coroutine.yield;
 
 class Issue61 extends utest.Test {
 	public function test() {
-		Coroutine.run(foo);
+		CoroRun.run(foo);
 	}
 
     @:coroutine function foo() {

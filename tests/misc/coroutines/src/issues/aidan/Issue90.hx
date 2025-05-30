@@ -6,7 +6,7 @@ class Issue90 extends utest.Test {
 		function ret(value:String) {
 			return value;
 		}
-		Assert.equals("foo", Coroutine.run(() -> ret(val == null ? "null" : val)));
+		Assert.equals("foo", CoroRun.run(() -> ret(val == null ? "null" : val)));
 	}
 
 	function testSwitch() {
@@ -14,7 +14,7 @@ class Issue90 extends utest.Test {
 		function ret(value:String) {
 			return value;
 		}
-		Assert.equals("foo", Coroutine.run(() -> ret(switch(val) {
+		Assert.equals("foo", CoroRun.run(() -> ret(switch(val) {
 			case "bar": "bar";
 			case "foo": "foo";
 			case _: "_";
@@ -26,6 +26,6 @@ class Issue90 extends utest.Test {
 		function ret(value:String) {
 			return value;
 		}
-		Assert.equals("foo", Coroutine.run(() -> ret(try val catch(e:Dynamic) null)));
+		Assert.equals("foo", CoroRun.run(() -> ret(try val catch(e:Dynamic) null)));
 	}
 }

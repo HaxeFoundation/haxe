@@ -4,7 +4,7 @@ import haxe.Exception;
 import haxe.coro.context.Context;
 
 interface IContinuation<T> {
-	final context:Context;
+	var context(get, never):Context;
 
 	function resume(result:T, error:Exception):Void;
 }

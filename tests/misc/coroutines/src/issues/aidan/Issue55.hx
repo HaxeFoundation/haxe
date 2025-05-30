@@ -18,7 +18,7 @@ function throwing(v:Dynamic) {
 
 class Issue55 extends utest.Test {
 	public function test() {
-		Assert.equals("caught", Coroutine.run(() -> foo("caught")));
-		Assert.raises(() -> Coroutine.run(() -> foo(new haxe.exceptions.NotImplementedException())), NotImplementedException);
+		Assert.equals("caught", CoroRun.run(() -> foo("caught")));
+		Assert.raises(() -> CoroRun.run(() -> foo(new haxe.exceptions.NotImplementedException())), NotImplementedException);
 	}
 }

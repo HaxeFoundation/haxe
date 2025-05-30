@@ -6,7 +6,7 @@ using TestJsPromise.CoroTools;
 class CoroTools {
 	static public function start<T, E>(c:Coroutine<() -> T>, f:(T, E) -> Void) {
 		try {
-			f(Coroutine.run(c), null);
+			f(CoroRun.run(c), null);
 		} catch(e:Dynamic) {
 			f(null, e);
 		}
@@ -15,7 +15,7 @@ class CoroTools {
 
 @:coroutine
 private function await<T>(p:Promise<T>) {
-	Coroutine.suspend(cont -> p.then(r -> cont.resume(r, null), e -> cont.resume(null, e)));
+	suspend(cont -> p.then(r -> cont.resume(r, null), e -> cont.resume(null, e)));
 }
 
 private function promise<T>(c:Coroutine<()->T>):Promise<T> {

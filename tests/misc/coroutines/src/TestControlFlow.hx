@@ -1,6 +1,6 @@
 import Helper;
 
-import haxe.coro.Coroutine.yield;
+import hxcoro.Coro.*;
 
 class TestControlFlow extends utest.Test {
 	function testIfThen() {
@@ -9,7 +9,7 @@ class TestControlFlow extends utest.Test {
 			return 2;
 		}
 
-		Assert.same(Coroutine.run(@:coroutine function run() {
+		Assert.same(CoroRun.run(@:coroutine function run() {
 			return mapCalls([ true, false ], f);
 		}), [ 1, 2 ]);
 	}
@@ -25,7 +25,7 @@ class TestControlFlow extends utest.Test {
 		}
 		@:coroutine function f2(x) { f(x); return v; }
 
-		Assert.same(Coroutine.run(@:coroutine function run() {
+		Assert.same(CoroRun.run(@:coroutine function run() {
 			return mapCalls([ true, false ], f2);
 		}), [ 1, 2 ]);
 	}
@@ -35,7 +35,7 @@ class TestControlFlow extends utest.Test {
 			return if (x) 1 else 2;
 		}
 
-		Assert.same(Coroutine.run(@:coroutine function run() {
+		Assert.same(CoroRun.run(@:coroutine function run() {
 			return mapCalls([ true, false ], f);
 		}), [ 1, 2 ]);
 	}
@@ -50,7 +50,7 @@ class TestControlFlow extends utest.Test {
 			return "d";
 		}
 
-		Assert.same(Coroutine.run(@:coroutine function run() {
+		Assert.same(CoroRun.run(@:coroutine function run() {
 			return mapCalls([ 1, 2, 3, 4 ], f);
 		}), ["a", "b", "c", "d"]);
 	}
@@ -65,7 +65,7 @@ class TestControlFlow extends utest.Test {
 			}
 			return "e";
 		}
-		Assert.same(Coroutine.run(@:coroutine function run() {
+		Assert.same(CoroRun.run(@:coroutine function run() {
 			return mapCalls([ 1, 2, 3, 4 ], f);
 		}), ["a", "b", "c", "d"]);
 	}
@@ -86,7 +86,7 @@ class TestControlFlow extends utest.Test {
 			[0,1,2,3,4,5,6,7,8,9],
 			[0,1,2,3,4],
 			[0,1,2,3,4,5,7,8,9]
-		], Coroutine.run(@:coroutine function run() {
+		], CoroRun.run(@:coroutine function run() {
 			return mapCalls([ 0, 1, 2 ], f);
 		}));
 	}
@@ -101,7 +101,7 @@ class TestControlFlow extends utest.Test {
 			}
 		}
 
-		Coroutine.run(foo);
+		CoroRun.run(foo);
 
 		Assert.equals(counter, maxIters);
 	}
@@ -117,7 +117,7 @@ class TestControlFlow extends utest.Test {
 			}
 		}
 
-		Coroutine.run(foo);
+		CoroRun.run(foo);
 
 		Assert.equals(counter, maxIters);
 	}

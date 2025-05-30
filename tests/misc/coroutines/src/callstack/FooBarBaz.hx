@@ -1,7 +1,7 @@
 package callstack;
 
 import haxe.Exception;
-import haxe.coro.Coroutine.yield;
+import hxcoro.Coro.*;
 
 @:coroutine function baz() {
 	throw new Exception('hello');

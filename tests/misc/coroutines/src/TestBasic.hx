@@ -1,15 +1,15 @@
 import haxe.Exception;
-import haxe.coro.Coroutine.yield;
+import haxe.coro.schedulers.VirtualTimeScheduler;
 
 class TestBasic extends utest.Test {
 	function testSimple() {
-		Assert.equals(42, Coroutine.run(@:coroutine function run() {
+		Assert.equals(42, CoroRun.run(@:coroutine function run() {
 			return simple(42);
 		}));
 	}
 
 	function testErrorDirect() {
-		Assert.raises(() -> Coroutine.run(error), String);
+		Assert.raises(() -> CoroRun.run(error), String);
 	}
 
 	function testErrorPropagation() {
@@ -17,17 +17,17 @@ class TestBasic extends utest.Test {
 			error();
 		}
 
-		Assert.raises(() -> Coroutine.run(propagate), String);
+		Assert.raises(() -> CoroRun.run(propagate), String);
 	}
 
 	function testResumeWithError() {
 		@:coroutine function foo() {
-			Coroutine.suspend(cont -> {
+			suspend(cont -> {
 				cont.resume(null, new Exception(""));
 			});
 		}
 
-		Assert.raises(() -> Coroutine.run(foo), Exception);
+		Assert.raises(() -> CoroRun.run(foo), Exception);
 	}
 
 	function testUnnamedLocalCoroutines() {
@@ -37,11 +37,11 @@ class TestBasic extends utest.Test {
 			return 10;
 		};
 
-		Assert.equals(10, Coroutine.run(c1));
+		Assert.equals(10, CoroRun.run(c1));
 	}
 
 	function testLocalTypeParameters() {
-		Coroutine.run(@:coroutine function f<T>():T {
+		CoroRun.run(@:coroutine function f<T>():T {
 			return null;
 		});
 		Assert.pass(); // The test is that this doesn't cause an unbound type parameter
@@ -50,13 +50,18 @@ class TestBasic extends utest.Test {
 	#if sys
 
 	function testDelay() {
-		var elapsed = Coroutine.run(() -> {
-			var start = Sys.time();
-			Coroutine.delay(500);
-			return Sys.time() - start;
+		final scheduler = new VirtualTimeScheduler();
+		final task      = CoroRun.with(scheduler).create(_ -> {
+			delay(500);
 		});
-		// This might not be super accurate, but it's good enough
-		Assert.isTrue(elapsed > 0.4);
+
+		task.start();
+
+		scheduler.advanceTo(499);
+		Assert.isTrue(task.isActive());
+
+		scheduler.advanceTo(500);
+		Assert.isFalse(task.isActive());
 	}
 
 	#end

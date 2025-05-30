@@ -1,7 +1,5 @@
 package callstack;
 
-import haxe.coro.Coroutine.yield;
-
 @:coroutine function recursion(i:Int, acc:Int) {
 	yield();
 	return if (i > 0) {

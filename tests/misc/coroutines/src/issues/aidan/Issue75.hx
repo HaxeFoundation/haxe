@@ -2,11 +2,9 @@ package issues.aidan;
 
 import utest.Assert;
 import haxe.Exception;
-import haxe.coro.Coroutine;
-import haxe.coro.Coroutine.yield;
 
 @:coroutine function foo() {
-	Coroutine.suspend(cont -> {
+	suspend(cont -> {
 		cont.resume(null, new Exception("error"));
 	});
 }
@@ -14,7 +12,7 @@ import haxe.coro.Coroutine.yield;
 class Issue75 extends utest.Test {
     public function test() {
 		var s = "";
-		Coroutine.run(() -> {
+		CoroRun.run(() -> {
 			try {
 				foo();
 			} catch (_:Dynamic) {

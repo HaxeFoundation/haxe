@@ -1,4 +1,4 @@
-import haxe.coro.Coroutine.yield;
+import hxcoro.Coro.*;
 
 private class C<T> {
 	final value:T;
@@ -18,7 +18,7 @@ private class C<T> {
 }
 
 function run<T>(f:Coroutine<() -> T>) {
-	return Coroutine.run(f);
+	return CoroRun.run(f);
 }
 
 class TestTexpr extends utest.Test {

@@ -16,17 +16,17 @@ class TestCallStack extends utest.Test {
 					Line(8),
 					Line(12),
 				File('callstack/CoroUpper.hx'),
-					Line(10),
 					Line(8),
-					Line(8),
-					Line(8),
-					Line(8),
-					Line(17),
+					Line(6),
+					Line(6),
+					Line(6),
+					Line(6),
+					Line(15),
 				Skip('callstack/SyncMiddle.hx'),
 					Line(4),
 					Line(8),
 				File('callstack/CoroLower.hx'),
-					Line(8),
+					Line(6),
 				Skip('callstack/Bottom.hx'),
 					Line(4)
 			]);
@@ -45,10 +45,7 @@ class TestCallStack extends utest.Test {
 	}
 
 	function testFooBazBaz() {
-		try {
-			Coroutine.run(callstack.FooBarBaz.foo);
-			Assert.fail("Exception expected");
-		} catch(e:Exception) {
+		function checkStack(e:Exception) {
 			final stack = e.stack.asArray();
 			var inspector = new CallStackInspector(stack);
 			var r = inspector.inspect([
@@ -67,6 +64,25 @@ class TestCallStack extends utest.Test {
 				// Line(16)
 			]);
 			checkFailure(stack, r);
+		}
+		try {
+			CoroRun.run(callstack.FooBarBaz.foo);
+			Assert.fail("Exception expected");
+		} catch(e:Exception) {
+			checkStack(e);
+		}
+
+		try {
+			CoroRun.runScoped(scope -> {
+				scope.async(scope -> {
+					scope.async(_ -> {
+						callstack.FooBarBaz.foo();
+					});
+				});
+			});
+			Assert.fail("Exception expected");
+		} catch (e:Exception) {
+			checkStack(e);
 		}
 	}
 }

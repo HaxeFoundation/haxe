@@ -1,8 +1,6 @@
 package issues.aidan;
 
 import utest.Assert;
-import haxe.coro.Coroutine;
-import haxe.coro.Coroutine.yield;
 
 private interface IFoo {
     @:coroutine function bar():Void;
@@ -18,9 +16,9 @@ private class Foo implements IFoo {
 
 class Issue69 extends utest.Test {
     public function test() {
-        Coroutine.run(() -> {
+        CoroRun.run(() -> {
             final f : IFoo = new Foo();
-    
+
             f.bar();
         });
 

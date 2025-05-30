@@ -1,4 +1,4 @@
-import haxe.coro.Coroutine;
+import hxcoro.CoroRun;
 
 class C<TC> {
 	public function new() {}
@@ -8,7 +8,7 @@ class C<TC> {
 			return null;
 		}
 
-		Coroutine.run(f);
+		CoroRun.run(f);
 	}
 
 	@:coroutine public function coro<TF>():{tc: TC, tf:TF} {
@@ -20,5 +20,5 @@ function main() {
 	var c = new C();
 	c.test();
 
-	Coroutine.run(c.coro);
+	CoroRun.run(c.coro);
 }

@@ -1,13 +1,13 @@
 package issues.aidan;
 
 @:coroutine function foo() : String {
-	return Coroutine.suspend(cont -> {
+	return suspend(cont -> {
 		cont.resume('Hello, World!', null);
 	});
 }
 
 class Issue38 extends utest.Test {
 	function test() {
-		Assert.equals("Hello, World!", Coroutine.run(foo));
+		Assert.equals("Hello, World!", CoroRun.run(foo));
 	}
 }

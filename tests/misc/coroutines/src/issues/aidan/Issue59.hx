@@ -1,7 +1,5 @@
 package issues.aidan;
 
-import haxe.coro.Coroutine;
-import haxe.coro.Coroutine.yield;
 import haxe.exceptions.NotImplementedException;
 
 function throwing() {
@@ -18,6 +16,6 @@ function throwing() {
 }
 class Issue59 extends utest.Test {
 	public function test() {
-		Assert.raises(() -> Coroutine.run(() -> recursion(2, 0)), NotImplementedException);
+		Assert.raises(() -> CoroRun.run(() -> recursion(2, 0)), NotImplementedException);
 	}
 }
