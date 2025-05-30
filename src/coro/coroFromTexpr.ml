@@ -10,6 +10,7 @@ type coro_ret =
 	| RTerminate of (coro_block -> texpr -> unit)
 	| RValue
 	| RBlock
+	| RMapExpr of coro_ret * (texpr -> texpr)
 
 let expr_to_coro ctx etmp cb_root e =
 	let make_block typepos =
@@ -51,6 +52,10 @@ let expr_to_coro ctx etmp cb_root e =
 			ev,RLocal v
 		| _ ->
 			e_no_value,ret
+	in
+	let ret_map_expr ret f =
+		let ret = RMapExpr(ret,f) in
+		(ret,(fun e -> if e == e_no_value then e else f e))
 	in
 	let loop_stack = ref [] in
 	let rec loop cb ret e = match e.eexpr with
@@ -119,11 +124,13 @@ let expr_to_coro ctx etmp cb_root e =
 			Option.map (fun (cb,e1) -> cb,{e with eexpr = TNew(c,tl,el)}) cb
 		(* rewrites & forwards *)
 		| TCast(e1,o) ->
+			let (ret,map) = ret_map_expr ret (fun e1 -> {e with eexpr = TCast(e1,o)}) in
 			let cb = loop cb ret e1 in
-			Option.map (fun (cb,e1) -> (cb,{e with eexpr = TCast(e1,o)})) cb
+			Option.map (fun (cb,e1) -> (cb,map e1)) cb
 		| TParenthesis e1 ->
+			let (ret,map) = ret_map_expr ret (fun e1 -> {e with eexpr = TParenthesis e1}) in
 			let cb = loop cb ret e1 in
-			Option.map (fun (cb,e1) -> (cb,{e with eexpr = TParenthesis e1})) cb
+			Option.map (fun (cb,e1) -> (cb,map e1)) cb
 		| TMeta(meta,e1) ->
 			let cb = loop cb ret e1 in
 			Option.map (fun (cb,e1) -> (cb,{e with eexpr = TMeta(meta,e1)})) cb
@@ -358,27 +365,31 @@ let expr_to_coro ctx etmp cb_root e =
 		aux' cb [] el
 	and loop_assign cb ret e =
 		let cb = loop cb ret e in
-		match cb with
-		| Some (cb,e) when e != e_no_value ->
-			begin match ret with
-			| RBlock ->
-				add_expr cb e;
-				Some (cb,e_no_value)
-			| RValue ->
-				Some (cb,e)
-			| RLocal v ->
-				let ev = Texpr.Builder.make_local v v.v_pos in
-				let eass = Texpr.Builder.binop OpAssign ev e ev.etype ev.epos in
-				add_expr cb eass;
-				Some (cb,ev)
-			| RTerminate f ->
-				f cb e;
+		let rec aux ret cb = match cb with
+			| Some (cb,e) when e != e_no_value ->
+				begin match ret with
+				| RBlock ->
+					add_expr cb e;
+					Some (cb,e_no_value)
+				| RValue ->
+					Some (cb,e)
+				| RLocal v ->
+					let ev = Texpr.Builder.make_local v v.v_pos in
+					let eass = Texpr.Builder.binop OpAssign ev e ev.etype ev.epos in
+					add_expr cb eass;
+					Some (cb,ev)
+				| RTerminate f ->
+					f cb e;
+					None
+				| RMapExpr(ret,f) ->
+					aux ret (Some(cb,f e))
+				end
+			| Some(cb,e) ->
+				Some(cb,e)
+			| None ->
 				None
-			end
-		| Some(cb,e) ->
-			Some(cb,e)
-		| None ->
-			None
+		in
+		aux ret cb
 	and loop_block cb ret e =
 		let el = match e.eexpr with
 			| TBlock el ->
