@@ -23,6 +23,7 @@ class TaskException extends Exception {}
 **/
 abstract class AbstractTask<T> {
 	final children:Array<AbstractTask<Any>>;
+	final cancellationCallbacks:Array<()->Void>;
 	var state:TaskState;
 	var error:Null<Exception>;
 	var numCompletedChildren:Int;
@@ -34,6 +35,7 @@ abstract class AbstractTask<T> {
 	public function new() {
 		state = Created;
 		children = [];
+		cancellationCallbacks = [];
 		numCompletedChildren = 0;
 		indexInParent = -1;
 	}
@@ -61,6 +63,11 @@ abstract class AbstractTask<T> {
 					error = cause;
 				}
 				state = Cancelling;
+
+				for (f in cancellationCallbacks) {
+					f();
+				}
+
 				cancelChildren(cause);
 				checkCompletion();
 			case _:
@@ -90,6 +97,15 @@ abstract class AbstractTask<T> {
 				true;
 			case _:
 				false;
+		}
+	}
+
+	public function onCancellationRequested(f:()->Void) {
+		switch state {
+			case Cancelling | Cancelled:
+				f();
+			case _:
+				cancellationCallbacks.push(f);
 		}
 	}
 

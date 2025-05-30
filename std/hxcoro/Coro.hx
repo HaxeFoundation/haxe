@@ -20,8 +20,14 @@ class Coro {
 
 	@:coroutine @:coroutine.nothrow public static function delay(ms:Int):Void {
 		suspend(cont -> {
-			cont.context.get(Scheduler.key).schedule(ms, () -> {
+			final task   = cont.context.get(hxcoro.CoroTask.key);
+			final handle = cont.context.get(Scheduler.key).schedule(ms, () -> {
 				cont.resume(null, cancellationRequested(cont) ? new CancellationException() : null);
+			});
+
+			task.onCancellationRequested(() -> {
+				handle.close();
+				cont.resume(null, new CancellationException());
 			});
 		});
 	}
