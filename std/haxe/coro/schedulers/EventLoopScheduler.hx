@@ -3,20 +3,46 @@ package haxe.coro.schedulers;
 import haxe.exceptions.ArgumentException;
 
 private typedef Lambda = ()->Void;
+private typedef CloseClosure = (handle:ISchedulerHandle)->Void;
 
-private class ScheduledEvent {
-	public final func : Lambda;
+private class ScheduledEvent implements ISchedulerHandle {
+	final closure : CloseClosure;
+	final func : Lambda;
+	var closed : Bool;
 	public final runTime : Float;
 	public var next : Null<ScheduledEvent>;
 	public var previous : Null<ScheduledEvent>;
 
-	public function new(func, runTime) {
+	public function new(closure, func, runTime) {
+		this.closure = closure;
 		this.func    = func;
 		this.runTime = runTime;
 
+		closed   = false;
 		next     = null;
 		previous = null;
 	}
+
+	public inline function run() {
+		func();
+
+		closed = true;
+	}
+
+	public function close() {
+		if (closed) {
+			return;
+		}
+
+		closure(this);
+
+		closed = true;
+	}
+}
+
+private class NoOpHandle implements ISchedulerHandle {
+	public function new() {}
+	public function close() {}
 }
 
 private class DoubleBuffer {
@@ -53,29 +79,33 @@ class EventLoopScheduler extends Scheduler {
 	var first : Null<ScheduledEvent>;
 	var last : Null<ScheduledEvent>;
 
+	final noOpHandle : NoOpHandle;
 	final zeroEvents : DoubleBuffer;
+	final closeClosure : CloseClosure;
 
 	public function new() {
 		super();
 
-		first = null;
-		last = null;
-		zeroEvents = new DoubleBuffer();
+		first        = null;
+		last         = null;
+		noOpHandle   = new NoOpHandle();
+		zeroEvents   = new DoubleBuffer();
+		closeClosure = close;
 	}
 
-    public function schedule(ms:Int, func:()->Void) {
+    public function schedule(ms:Int, func:()->Void):ISchedulerHandle {
 		if (ms < 0) {
 			throw new ArgumentException("Time must be greater or equal to zero");
 		} else if (ms == 0) {
 			zeroEvents.push(func);
-			return;
+			return noOpHandle;
 		}
 
-		final event = new ScheduledEvent(func, now() + (ms / 1000));
+		final event = new ScheduledEvent(closeClosure, func, now() + (ms / 1000));
 		if (first == null) {
 			first = event;
 			last = event;
-			return;
+			return event;
 		}
 
 		var current = last;
@@ -83,7 +113,7 @@ class EventLoopScheduler extends Scheduler {
 			if (current == null) {
 				event.next = first;
 				first = event;
-				break;
+				return event;
 			} else if (event.runTime >= current.runTime) {
 				final next = current.next;
 				current.next = event;
@@ -94,7 +124,7 @@ class EventLoopScheduler extends Scheduler {
 				} else {
 					last = event;
 				}
-				break;
+				return event;
 			} else {
 				current = current.previous;
 			}
@@ -119,12 +149,12 @@ class EventLoopScheduler extends Scheduler {
 					break;
 				}
 				if (first.runTime <= currentTime) {
-					final func = first.func;
+					final toRun = first;
 					first = first.next;
 					if (first != null) {
 						first.previous = null;
 					}
-					func();
+					toRun.run();
 				} else {
 					break;
 				}
@@ -137,5 +167,30 @@ class EventLoopScheduler extends Scheduler {
 
 	public function toString() {
 		return '[EventLoopScheduler]';
+	}
+
+	function close(handle : ISchedulerHandle) {
+		var current = first;
+		while (true) {
+			if (null == current) {
+				return;
+			}
+
+			if (current == handle) {
+				if (first == current) {
+					first = current.next;
+				} else {
+					final a = current.previous;
+					final b = current.next;
+	
+					a.next = b;
+					b.previous = a;
+				}
+
+				return;
+			} else {
+				current = current.next;
+			}
+		}
 	}
 }

@@ -46,13 +46,13 @@ class VirtualTimeScheduler extends EventLoopScheduler {
 					break;
 				}
 				if (first.runTime <= endTime) {
-					final func = first.func;
+					final toRun = first;
 					currentTime = first.runTime;
 					first = first.next;
 					if (first != null) {
 						first.previous = null;
 					}
-					func();
+					toRun.run();
 				} else {
 					break;
 				}

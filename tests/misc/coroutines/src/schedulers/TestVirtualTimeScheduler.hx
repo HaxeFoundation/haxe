@@ -122,4 +122,55 @@ class TestVirtualTimeScheduler extends utest.Test {
 
 		Assert.raises(() -> sut.advanceTo(500), ArgumentException);
 	}
+
+	public function test_cancelling_scheduled_event() {
+		final result = [];
+		final sut    = new VirtualTimeScheduler();
+		final _      = sut.schedule(10, () -> result.push(0));
+		final handle = sut.schedule(20, () -> result.push(1));
+		final _      = sut.schedule(30, () -> result.push(2));
+
+		handle.close();
+
+		sut.advanceTo(30);
+
+		Assert.same([ 0, 2 ], result);
+	}
+
+	public function test_cancelling_head() {
+		final result = [];
+		final sut    = new VirtualTimeScheduler();
+		final handle = sut.schedule(10, () -> result.push(0));
+		final _      = sut.schedule(20, () -> result.push(1));
+
+		handle.close();
+
+		sut.advanceTo(20);
+
+		Assert.same([ 1 ], result);
+	}
+
+	public function test_cancelling_single_head() {
+		final result = [];
+		final sut    = new VirtualTimeScheduler();
+		final handle = sut.schedule(10, () -> result.push(0));
+
+		handle.close();
+
+		sut.advanceTo(10);
+
+		Assert.same([], result);
+	}
+
+	public function test_cancelling_executed_function() {
+		final result = [];
+		final sut    = new VirtualTimeScheduler();
+		final handle = sut.schedule(10, () -> result.push(0));
+
+		sut.advanceTo(10);
+
+		handle.close();
+
+		Assert.same([ 0 ], result);
+	}
 }
