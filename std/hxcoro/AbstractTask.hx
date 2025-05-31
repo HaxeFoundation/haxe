@@ -151,12 +151,10 @@ abstract class AbstractTask<T> implements ICancellationToken {
 
 				return noOpCancellationHandle;
 			case _:
-				if (null == cancellationCallbacks) {
-					cancellationCallbacks = [];
-				}
-				final handle = new CancellationHandle(f, cancellationCallbacks);
+				final container = cancellationCallbacks ??= [];
+				final handle    = new CancellationHandle(f, container);
 
-				cancellationCallbacks.push(handle);
+				container.push(handle);
 
 				handle;
 		}
@@ -261,11 +259,8 @@ abstract class AbstractTask<T> implements ICancellationToken {
 	}
 
 	function addChild(child:AbstractTask<Any>) {
-		if (null == children) {
-			children = [];
-		}
-
-		final index = children.push(child);
+		final container = children ??= [];
+		final index     = container.push(child);
 		child.indexInParent = index - 1;
 	}
 }
