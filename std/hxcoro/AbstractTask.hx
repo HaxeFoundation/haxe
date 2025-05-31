@@ -63,9 +63,10 @@ private class NoOpCancellationHandle implements ICancellationHandle {
 	be treated like a truly private variable and only be modified from within this class.
 **/
 abstract class AbstractTask<T> implements ICancellationToken {
+	static final noOpCancellationHandle = new NoOpCancellationHandle();
+
 	final children:Array<AbstractTask<Any>>;
 	final cancellationCallbacks:Array<CancellationHandle>;
-	final noOpCancellationHandle:NoOpCancellationHandle;
 	var state:TaskState;
 	var error:Null<Exception>;
 	var numCompletedChildren:Int;
@@ -91,7 +92,6 @@ abstract class AbstractTask<T> implements ICancellationToken {
 		cancellationCallbacks = [];
 		numCompletedChildren = 0;
 		indexInParent = -1;
-		noOpCancellationHandle = new NoOpCancellationHandle();
 	}
 
 	/**
