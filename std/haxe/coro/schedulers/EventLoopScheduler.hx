@@ -78,25 +78,42 @@ class EventLoopScheduler extends Scheduler {
 			return;
 		}
 
-		var current = last;
+		var currentLast = last;
+		var currentFirst = first;
 		while (true) {
-			if (current == null) {
-				event.next = first;
-				first = event;
-				break;
-			} else if (event.runTime >= current.runTime) {
-				final next = current.next;
-				current.next = event;
-				event.previous = current;
+			if (event.runTime >= currentLast.runTime) {
+				final next = currentLast.next;
+				currentLast.next = event;
+				event.previous = currentLast;
 				if (next != null) {
 					event.next = next;
 					next.previous = event;
 				} else {
 					last = event;
 				}
-				break;
+				return;
+			}
+			else if (event.runTime < currentFirst.runTime) {
+				final previous = currentFirst.previous;
+				currentFirst.previous = event;
+				event.next = currentFirst;
+				if (previous != null) {
+					event.previous = previous;
+					previous.next = event;
+				} else {
+					first = event;
+				}
+				return;
 			} else {
-				current = current.previous;
+				currentFirst = currentLast.next;
+				currentLast = currentLast.previous;
+				// if one of them is null, set to the other so the next iteration will definitely
+				// hit one of the two branches above
+				if (currentFirst == null) {
+					currentFirst = currentLast;
+				} else if (currentLast == null) {
+					currentLast = currentFirst;
+				}
 			}
 		}
     }
