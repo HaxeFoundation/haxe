@@ -1,12 +1,13 @@
 package hxcoro;
 
 import haxe.coro.IContinuation;
-import haxe.coro.SuspensionResult;
 import haxe.coro.schedulers.Scheduler;
 import haxe.coro.schedulers.ISchedulerHandle;
 import haxe.coro.cancellation.CancellationToken;
 import haxe.coro.cancellation.ICancellationHandle;
 import haxe.exceptions.CancellationException;
+import hxcoro.exceptions.TimeoutException;
+import hxcoro.continuations.TimeoutContinuation;
 
 class Coro {
 	@:coroutine @:coroutine.transformed
@@ -53,6 +54,18 @@ class Coro {
 			final context = cont.context;
 			final scope = new CoroScopeTask(context, lambda);
 			scope.awaitContinuation(cont);
+		});
+	}
+
+	@:coroutine public static function timeout<T>(ms:Int, lambda:NodeLambda<T>):T {
+		return suspend(cont -> {
+			final context = cont.context;
+			final scope   = new CoroScopeTask(context, lambda);
+			final handle  = context.get(Scheduler.key).schedule(ms, () -> {
+				scope.cancel(new TimeoutException());
+			});
+	
+			scope.awaitContinuation(new TimeoutContinuation(cont, handle));
 		});
 	}
 }
