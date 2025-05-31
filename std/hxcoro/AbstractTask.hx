@@ -65,8 +65,8 @@ private class NoOpCancellationHandle implements ICancellationHandle {
 abstract class AbstractTask<T> implements ICancellationToken {
 	static final noOpCancellationHandle = new NoOpCancellationHandle();
 
-	final children:Array<AbstractTask<Any>>;
-	final cancellationCallbacks:Array<CancellationHandle>;
+	var children:Null<Array<AbstractTask<Any>>>;
+	var cancellationCallbacks:Null<Array<CancellationHandle>>;
 	var state:TaskState;
 	var error:Null<Exception>;
 	var numCompletedChildren:Int;
@@ -88,8 +88,8 @@ abstract class AbstractTask<T> implements ICancellationToken {
 	**/
 	public function new() {
 		state = Created;
-		children = [];
-		cancellationCallbacks = [];
+		children = null;
+		cancellationCallbacks = null;
 		numCompletedChildren = 0;
 		indexInParent = -1;
 	}
@@ -118,8 +118,10 @@ abstract class AbstractTask<T> implements ICancellationToken {
 				}
 				state = Cancelling;
 
-				for (h in cancellationCallbacks) {
-					h.run();
+				if (null != cancellationCallbacks) {
+					for (h in cancellationCallbacks) {
+						h.run();
+					}
 				}
 
 				cancelChildren(cause);
@@ -149,6 +151,9 @@ abstract class AbstractTask<T> implements ICancellationToken {
 
 				return noOpCancellationHandle;
 			case _:
+				if (null == cancellationCallbacks) {
+					cancellationCallbacks = [];
+				}
 				final handle = new CancellationHandle(f, cancellationCallbacks);
 
 				cancellationCallbacks.push(handle);
@@ -168,6 +173,10 @@ abstract class AbstractTask<T> implements ICancellationToken {
 	abstract public function start():Void;
 
 	function cancelChildren(?cause:CancellationException) {
+		if (null == children) {
+			return;
+		}
+
 		for (child in children) {
 			if (child != null) {
 				child.cancel(cause);
@@ -185,6 +194,10 @@ abstract class AbstractTask<T> implements ICancellationToken {
 	}
 
 	function startChildren() {
+		if (null == children) {
+			return;
+		}
+
 		for (child in children) {
 			if (child == null) {
 				continue;
@@ -204,7 +217,7 @@ abstract class AbstractTask<T> implements ICancellationToken {
 				return;
 			case _:
 		}
-		if (numCompletedChildren != children.length) {
+		if (numCompletedChildren != children?.length ?? 0) {
 			return;
 		}
 		switch (state) {
@@ -248,6 +261,10 @@ abstract class AbstractTask<T> implements ICancellationToken {
 	}
 
 	function addChild(child:AbstractTask<Any>) {
+		if (null == children) {
+			children = [];
+		}
+
 		final index = children.push(child);
 		child.indexInParent = index - 1;
 	}
