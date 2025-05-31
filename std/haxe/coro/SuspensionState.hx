@@ -1,9 +1,23 @@
 package haxe.coro;
 
+/**
+	The state of a coroutine.
+**/
 @:using(SuspensionState.SuspensionStateTools)
 enum abstract SuspensionState(Int) {
+	/**
+		The coroutine is still running.
+	**/
 	final Pending;
+
+	/**
+		The coroutine has returned a value.
+	**/
 	final Returned;
+
+	/**
+		The coroutine has thrown an exception.
+	**/
 	final Thrown;
 }
 

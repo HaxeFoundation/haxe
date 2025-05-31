@@ -54,9 +54,6 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
         context.get(Scheduler.key).schedule(0, () -> {
 			recursing = false;
 
-			#if coroutine.throw
-			try {
-			#end
 			final result = invokeResume();
 			switch (result.state) {
 				case Pending:
@@ -66,11 +63,6 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 				case Thrown:
 					completion.resume(null, result.error);
 			}
-			#if coroutine.throw
-			} catch (e:Dynamic) {
-				completion.resume(null, @:privateAccess Exception.thrown(e));
-			}
-			#end
         });
     }
 
