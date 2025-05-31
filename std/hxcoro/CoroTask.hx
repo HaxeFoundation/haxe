@@ -1,14 +1,15 @@
 package hxcoro;
 
-import haxe.exceptions.CancellationException;
-import hxcoro.AbstractTask;
 import hxcoro.ICoroTask;
-import haxe.coro.context.Context;
-import haxe.coro.context.Key;
-import haxe.coro.context.IElement;
-import haxe.coro.IContinuation;
-import haxe.coro.schedulers.Scheduler;
+import hxcoro.AbstractTask;
 import haxe.Exception;
+import haxe.coro.IContinuation;
+import haxe.coro.context.Key;
+import haxe.coro.context.Context;
+import haxe.coro.context.IElement;
+import haxe.coro.schedulers.Scheduler;
+import haxe.coro.cancellation.CancellationToken;
+import haxe.exceptions.CancellationException;
 
 private class CoroTaskWith<T> implements ICoroNode {
 	public var context(get, null):Context;
@@ -67,7 +68,7 @@ abstract class CoroTask<T> extends AbstractTask<T> implements IContinuation<T> i
 	**/
 	public function new(context:Context, lambda:NodeLambda<T>) {
 		super();
-		this.context = context.clone().with(this);
+		this.context = context.clone().with(this).add(CancellationToken.key, this);
 		this.lambda = lambda;
 		awaitingContinuations = [];
 		wasResumed = true;
