@@ -1,5 +1,7 @@
 package hxcoro;
 
+import haxe.coro.cancellation.ICancellationToken;
+import haxe.coro.cancellation.ICancellationHandle;
 import haxe.exceptions.CancellationException;
 import haxe.Exception;
 
@@ -12,7 +14,46 @@ enum abstract TaskState(Int) {
 	final Cancelled;
 }
 
-class TaskException extends Exception {}
+private class TaskException extends Exception {}
+
+private class CancellationHandle implements ICancellationHandle {
+	final func : ()->Void;
+	final all : Array<CancellationHandle>;
+
+	var closed : Bool;
+
+	public function new(func, all) {
+		this.func = func;
+		this.all  = all;
+
+		closed = false;
+	}
+
+	public function run() {
+		if (closed) {
+			return;
+		}
+
+		func();
+
+		closed = true;
+	}
+
+	public function close() {
+		if (closed) {
+			return;
+		}
+
+		all.remove(this);
+
+		closed = true;
+	}
+}
+
+private class NoOpCancellationHandle implements ICancellationHandle {
+	public function new() {}
+	public function close() {}
+}
 
 /**
 	AbstractTask is the base class for tasks which manages its `TaskState` and children.
@@ -21,19 +62,34 @@ class TaskException extends Exception {}
 	and should be kept in a state where it could even be moved outside the hxcoro package. Also, `state` should
 	be treated like a truly private variable and only be modified from within this class.
 **/
-abstract class AbstractTask<T> {
-	final children:Array<AbstractTask<Any>>;
+abstract class AbstractTask<T> implements ICancellationToken {
+	static final noOpCancellationHandle = new NoOpCancellationHandle();
+
+	var children:Null<Array<AbstractTask<Any>>>;
+	var cancellationCallbacks:Null<Array<CancellationHandle>>;
 	var state:TaskState;
 	var error:Null<Exception>;
 	var numCompletedChildren:Int;
 	var indexInParent:Int;
+
+	public var isCancellationRequested (get, never) : Bool;
+
+	inline function get_isCancellationRequested() {
+		return switch state {
+			case Cancelling | Cancelled:
+				true;
+			case _:
+				false;
+		}
+	}
 
 	/**
 		Creates a new task.
 	**/
 	public function new() {
 		state = Created;
-		children = [];
+		children = null;
+		cancellationCallbacks = null;
 		numCompletedChildren = 0;
 		indexInParent = -1;
 	}
@@ -61,6 +117,13 @@ abstract class AbstractTask<T> {
 					error = cause;
 				}
 				state = Cancelling;
+
+				if (null != cancellationCallbacks) {
+					for (h in cancellationCallbacks) {
+						h.run();
+					}
+				}
+
 				cancelChildren(cause);
 				checkCompletion();
 			case _:
@@ -81,15 +144,19 @@ abstract class AbstractTask<T> {
 		}
 	}
 
-	/**
-		Returns `true` if cancellation has been requested. This remains true even if cancellation has completed.
-	**/
-	public function cancellationRequested() {
-		return switch (state) {
+	public function onCancellationRequested(f:()->Void):ICancellationHandle {
+		return switch state {
 			case Cancelling | Cancelled:
-				true;
+				f();
+
+				return noOpCancellationHandle;
 			case _:
-				false;
+				final container = cancellationCallbacks ??= [];
+				final handle    = new CancellationHandle(f, container);
+
+				container.push(handle);
+
+				handle;
 		}
 	}
 
@@ -104,6 +171,10 @@ abstract class AbstractTask<T> {
 	abstract public function start():Void;
 
 	function cancelChildren(?cause:CancellationException) {
+		if (null == children) {
+			return;
+		}
+
 		for (child in children) {
 			if (child != null) {
 				child.cancel(cause);
@@ -121,6 +192,10 @@ abstract class AbstractTask<T> {
 	}
 
 	function startChildren() {
+		if (null == children) {
+			return;
+		}
+
 		for (child in children) {
 			if (child == null) {
 				continue;
@@ -140,7 +215,7 @@ abstract class AbstractTask<T> {
 				return;
 			case _:
 		}
-		if (numCompletedChildren != children.length) {
+		if (numCompletedChildren != children?.length ?? 0) {
 			return;
 		}
 		switch (state) {
@@ -184,7 +259,8 @@ abstract class AbstractTask<T> {
 	}
 
 	function addChild(child:AbstractTask<Any>) {
-		final index = children.push(child);
+		final container = children ??= [];
+		final index     = container.push(child);
 		child.indexInParent = index - 1;
 	}
 }
