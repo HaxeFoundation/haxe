@@ -31,6 +31,7 @@ function main() {
 		runner.addCase(eachCase);
 	}
 	runner.addCases("issues");
+	runner.addCases("ds");
 
     utest.ui.Report.create(runner);
     runner.run();
