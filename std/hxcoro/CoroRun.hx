@@ -12,7 +12,7 @@ private abstract RunnableContext(ElementTree) {
 	}
 
 	public function create<T>(lambda:NodeLambda<T>):IStartableCoroTask<T> {
-		return new CoroScopeTask(new Context(this), lambda);
+		return new CoroScopeTask.StartableCoroScopeTask(new Context(this), lambda);
 	}
 
 	public function run<T>(lambda:NodeLambda<T>):T {
@@ -54,8 +54,8 @@ class CoroRun {
 
 	static public function runWith<T>(context:Context, lambda:NodeLambda<T>):T {
 		final schedulerComponent = new EventLoopScheduler();
-		final scope = new CoroScopeTask(context.clone().with(schedulerComponent), lambda);
-		scope.start();
+		final scope = new CoroScopeTask(context.clone().with(schedulerComponent));
+		scope.runNodeLambda(lambda);
 		while (scope.isActive()) {
 			schedulerComponent.run();
 		}

@@ -3,12 +3,13 @@ package hxcoro;
 import haxe.coro.context.Context;
 import haxe.Exception;
 import haxe.exceptions.CancellationException;
+import hxcoro.ICoroTask;
 
 class CoroChildTask<T> extends CoroTask<T> {
 	final parent:AbstractTask<Any>;
 
-	public function new(context:Context, lambda:NodeLambda<T>, parent:AbstractTask<Any>) {
-		super(context, lambda);
+	public function new(context:Context, parent:AbstractTask<Any>) {
+		super(context);
 		this.parent = parent;
 		parent.addChild(this);
 	}
@@ -40,5 +41,25 @@ class CoroChildTask<T> extends CoroTask<T> {
 	function complete() {
 		parent?.childCompletes(this, true);
 		handleAwaitingContinuations();
+	}
+}
+
+class StartableCoroChildTask<T> extends CoroChildTask<T> implements IStartableCoroTask<T> {
+	final lambda:NodeLambda<T>;
+
+	/**
+		Creates a new task using the provided `context` in order to execute `lambda`.
+	**/
+	public function new(context:Context, lambda:NodeLambda<T>, parent:AbstractTask<Any>) {
+		super(context, parent);
+		this.lambda = lambda;
+	}
+
+	/**
+		Starts executing this task's `lambda`. Has no effect if the task is already active or has completed.
+	**/
+	override public function doStart() {
+		super.doStart();
+		runNodeLambda(lambda);
 	}
 }

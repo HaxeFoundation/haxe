@@ -37,7 +37,8 @@ class Coro {
 	@:coroutine static public function scope<T>(lambda:NodeLambda<T>):T {
 		return suspend(cont -> {
 			final context = cont.context;
-			final scope = new CoroScopeTask(context, lambda);
+			final scope = new CoroScopeTask(context);
+			scope.runNodeLambda(lambda);
 			scope.awaitContinuation(cont);
 		});
 	}

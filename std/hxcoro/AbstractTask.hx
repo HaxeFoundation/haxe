@@ -101,7 +101,15 @@ abstract class AbstractTask<T> {
 	/**
 		Starts executing this task. Has no effect if the task is already active or has completed.
 	**/
-	abstract public function start():Void;
+	public function start() {
+		switch (state) {
+			case Created:
+				state = Running;
+				doStart();
+			case _:
+				return;
+		}
+	}
 
 	function cancelChildren(?cause:CancellationException) {
 		for (child in children) {
@@ -114,10 +122,6 @@ abstract class AbstractTask<T> {
 	final inline function beginCompleting() {
 		state = Completing;
 		startChildren();
-	}
-
-	final inline function beginRunning() {
-		state = Running;
 	}
 
 	function startChildren() {
@@ -153,6 +157,8 @@ abstract class AbstractTask<T> {
 		}
 		complete();
 	}
+
+	abstract function doStart():Void;
 
 	abstract function complete():Void;
 
