@@ -6,6 +6,7 @@ import haxe.coro.schedulers.ISchedulerHandle;
 import haxe.coro.cancellation.CancellationToken;
 import haxe.coro.cancellation.ICancellationHandle;
 import haxe.exceptions.CancellationException;
+import haxe.exceptions.ArgumentException;
 import hxcoro.exceptions.TimeoutException;
 import hxcoro.continuations.TimeoutContinuation;
 
@@ -59,6 +60,17 @@ class Coro {
 
 	@:coroutine public static function timeout<T>(ms:Int, lambda:NodeLambda<T>):T {
 		return suspend(cont -> {
+			if (ms < 0) {
+				cont.resume(null, new ArgumentException('timeout must be positive'));
+
+				return;
+			}
+			if (ms == 0) {
+				cont.resume(null, new TimeoutException());
+
+				return;
+			}
+
 			final context = cont.context;
 			final scope   = new CoroScopeTask(context, lambda);
 			final handle  = context.get(Scheduler.key).schedule(ms, () -> {
