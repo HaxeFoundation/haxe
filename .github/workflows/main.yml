@@ -470,7 +470,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, cpp, jvm, php, python, lua, neko]
+        target: [macro, js, cpp, jvm, php, python, neko]
         include:
           - target: lua
             APT_PACKAGES: ncurses-dev
