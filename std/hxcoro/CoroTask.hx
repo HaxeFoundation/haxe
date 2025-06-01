@@ -58,7 +58,7 @@ abstract class CoroTask<T> extends AbstractTask<T> implements IContinuation<T> i
 	public var context(get, null):Context;
 
 	var result:Null<T>;
-	var awaitingContinuations:Array<IContinuation<T>>;
+	var awaitingContinuations:Null<Array<IContinuation<T>>>;
 	var wasResumed:Bool;
 
 	/**
@@ -67,7 +67,6 @@ abstract class CoroTask<T> extends AbstractTask<T> implements IContinuation<T> i
 	public function new(context:Context) {
 		super();
 		this.context = context.clone().with(this).add(CancellationToken.key, this);
-		awaitingContinuations = [];
 		wasResumed = true;
 	}
 
@@ -141,6 +140,7 @@ abstract class CoroTask<T> extends AbstractTask<T> implements IContinuation<T> i
 			case Cancelled:
 				cont.resume(null, error);
 			case _:
+				awaitingContinuations ??= [];
 				awaitingContinuations.push(cont);
 				start();
 		}
@@ -182,6 +182,9 @@ abstract class CoroTask<T> extends AbstractTask<T> implements IContinuation<T> i
 	}
 
 	function handleAwaitingContinuations() {
+		if (awaitingContinuations == null) {
+			return;
+		}
 		while (awaitingContinuations.length > 0) {
 			final continuations = awaitingContinuations;
 			awaitingContinuations = [];
