@@ -2,6 +2,7 @@ package hxcoro;
 
 import hxcoro.ICoroTask;
 import hxcoro.AbstractTask;
+import hxcoro.ICoroNode;
 import haxe.Exception;
 import haxe.coro.IContinuation;
 import haxe.coro.context.Key;
@@ -11,7 +12,7 @@ import haxe.coro.schedulers.Scheduler;
 import haxe.coro.cancellation.CancellationToken;
 import haxe.exceptions.CancellationException;
 
-private class CoroTaskWith<T> implements ICoroNode {
+private class CoroTaskWith<T> implements ICoroNodeWith {
 	public var context(get, null):Context;
 
 	final task:CoroTask<T>;
@@ -37,10 +38,6 @@ private class CoroTaskWith<T> implements ICoroNode {
 		return new CoroChildTask.StartableCoroChildTask(context, lambda, task);
 	}
 
-	public function cancel(?cause:CancellationException) {
-		task.cancel();
-	}
-
 	public function with(...elements:IElement<Any>) {
 		return task.with(...elements);
 	}
@@ -59,6 +56,7 @@ abstract class CoroTask<T> extends AbstractTask<T> implements IContinuation<T> i
 
 	var result:Null<T>;
 	var awaitingContinuations:Null<Array<IContinuation<T>>>;
+	var awaitingChildContinuation:Null<IContinuation<Any>>;
 	var wasResumed:Bool;
 
 	/**
@@ -146,6 +144,14 @@ abstract class CoroTask<T> extends AbstractTask<T> implements IContinuation<T> i
 		}
 	}
 
+	@:coroutine public function awaitChildren() {
+		if (allChildrenCompleted) {
+			awaitingChildContinuation.resume(null, null);
+		}
+		startChildren();
+		Coro.suspend(cont -> awaitingChildContinuation = cont);
+	}
+
 	/**
 		Suspends this task until it completes.
 	**/
@@ -179,6 +185,10 @@ abstract class CoroTask<T> extends AbstractTask<T> implements IContinuation<T> i
 			return;
 		}
 		super.checkCompletion();
+	}
+
+	function childrenCompleted() {
+		awaitingChildContinuation?.resume(null, null);
 	}
 
 	function handleAwaitingContinuations() {

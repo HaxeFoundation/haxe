@@ -5,10 +5,14 @@ import haxe.coro.context.Context;
 import haxe.coro.context.IElement;
 import hxcoro.ICoroTask;
 
-interface ICoroNode {
+interface ICoroNodeWith {
 	var context(get, null):Context;
 	function async<T>(lambda:NodeLambda<T>):ICoroTask<T>;
 	function lazy<T>(lambda:NodeLambda<T>):IStartableCoroTask<T>;
+	function with(...elements:IElement<Any>):ICoroNodeWith;
+}
+
+interface ICoroNode extends ICoroNodeWith {
+	@:coroutine function awaitChildren():Void;
 	function cancel(?cause:CancellationException):Void;
-	function with(...elements:IElement<Any>):ICoroNode;
 }
