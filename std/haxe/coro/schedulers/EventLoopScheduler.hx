@@ -81,6 +81,8 @@ class EventLoopScheduler extends Scheduler {
 
 	final noOpHandle : NoOpHandle;
 	final zeroEvents : DoubleBuffer;
+	final zeroMutex : Mutex;
+	final futureMutex : Mutex;
 	final closeClosure : CloseClosure;
 
 	public function new() {
@@ -90,6 +92,8 @@ class EventLoopScheduler extends Scheduler {
 		last         = null;
 		noOpHandle   = new NoOpHandle();
 		zeroEvents   = new DoubleBuffer();
+		zeroMutex    = new Mutex();
+		futureMutex  = new Mutex();
 		closeClosure = close;
 	}
 
@@ -97,14 +101,19 @@ class EventLoopScheduler extends Scheduler {
 		if (ms < 0) {
 			throw new ArgumentException("Time must be greater or equal to zero");
 		} else if (ms == 0) {
+			zeroMutex.acquire();
 			zeroEvents.push(func);
+			zeroMutex.release();
 			return noOpHandle;
 		}
 
 		final event = new ScheduledEvent(closeClosure, func, now() + (ms / 1000));
+
+		futureMutex.acquire();
 		if (first == null) {
 			first = event;
 			last = event;
+			futureMutex.release();
 			return event;
 		}
 
@@ -121,6 +130,7 @@ class EventLoopScheduler extends Scheduler {
 				} else {
 					last = event;
 				}
+				futureMutex.release();
 				return event;
 			}
 			else if (event.runTime < currentFirst.runTime) {
@@ -133,6 +143,7 @@ class EventLoopScheduler extends Scheduler {
 				} else {
 					first = event;
 				}
+				futureMutex.release();
 				return event;
 			} else {
 				currentFirst = currentLast.next;
@@ -155,11 +166,15 @@ class EventLoopScheduler extends Scheduler {
 	public function run() {
 
 		while (true) {
+			zeroMutex.acquire();
 			for (event in zeroEvents.flip()) {
 				event();
 			}
+			zeroMutex.release();
 
 			final currentTime = now();
+
+			futureMutex.acquire();
 			while (true) {
 				if (first == null) {
 					last = null;
@@ -176,9 +191,14 @@ class EventLoopScheduler extends Scheduler {
 					break;
 				}
 			}
+			futureMutex.release();
+
+			zeroMutex.acquire();
 			if (zeroEvents.empty()) {
+				zeroMutex.release();
 				return;
 			}
+			zeroMutex.release();
 		}
 	}
 
