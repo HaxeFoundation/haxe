@@ -212,7 +212,7 @@ class Printer {
 
 	public function printFunction(func:Function, ?kind:FunctionKind) {
 		var skipParentheses = switch func.args {
-			case [{type: null}]: kind == FArrow;
+			case [{type: null, value: null}]: kind == FArrow;
 			case _: false;
 		}
 		return (func.params == null ? "" : func.params.length > 0 ? "<" + func.params.map(printTypeParamDecl).join(", ") + ">" : "")
