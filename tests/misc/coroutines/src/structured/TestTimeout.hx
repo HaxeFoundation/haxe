@@ -74,4 +74,30 @@ class TestTimeout extends utest.Test {
 		Assert.isFalse(task.isActive());
 		Assert.isOfType(task.getError(), ArgumentException);
 	}
+
+	function test_timeout_does_not_propagate_cancellation() {
+		final scheduler = new VirtualTimeScheduler();
+		final task      = CoroRun.with(scheduler).create(node -> {
+			node.async(_ -> {
+				try {
+					timeout(500, _ -> {
+						delay(1000);
+					});
+				} catch (_) {}
+			});
+
+			return node.async(_ -> {
+				delay(100);
+
+				return 10;
+			}).await();
+		});
+
+		task.start();
+
+		scheduler.advanceBy(500);
+
+		Assert.isFalse(task.isActive());
+		Assert.equals(10, task.get());
+	}
 }
