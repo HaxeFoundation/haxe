@@ -27,6 +27,52 @@ class PagedDeque<T> {
 		lastIndex = 0;
 	}
 
+	public function forEach(f:T->Void) {
+		var currentPage = currentPage;
+		var currentIndex = currentIndex;
+		while (currentPage != lastPage) {
+			while (currentIndex < vectorSize) {
+				f(currentPage.data[currentIndex++]);
+			}
+			currentIndex = 0;
+			currentPage = currentPage.next;
+		}
+		while (currentIndex < lastIndex) {
+			f(currentPage.data[currentIndex++]);
+		}
+	}
+
+	public function mapInPlace(f:T->T) {
+		var currentPage = currentPage;
+		var currentIndex = currentIndex;
+		while (currentPage != lastPage) {
+			while (currentIndex < vectorSize) {
+				currentPage.data[currentIndex] = f(currentPage.data[currentIndex++]);
+			}
+			currentIndex = 0;
+			currentPage = currentPage.next;
+		}
+		while (currentIndex < lastIndex) {
+			currentPage.data[currentIndex] = f(currentPage.data[currentIndex++]);
+		}
+	}
+
+	public function fold<A>(acc:A, f:(acc:A, elt:T) -> A) {
+		var currentPage = currentPage;
+		var currentIndex = currentIndex;
+		while (currentPage != lastPage) {
+			while (currentIndex < vectorSize) {
+				acc = f(acc, currentPage.data[currentIndex++]);
+			}
+			currentIndex = 0;
+			currentPage = currentPage.next;
+		}
+		while (currentIndex < lastIndex) {
+			acc = f(acc, currentPage.data[currentIndex++]);
+		}
+		return acc;
+	}
+
 	public function push(x:T) {
 		if (lastIndex == vectorSize) {
 			// current page is full
