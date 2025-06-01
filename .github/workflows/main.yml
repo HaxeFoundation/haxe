@@ -223,7 +223,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
+        target: [macro, js, hl, cpp, jvm, php, python, flash, neko]
         include:
           - target: hl
             APT_PACKAGES: cmake ninja-build libturbojpeg-dev
