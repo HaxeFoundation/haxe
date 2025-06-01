@@ -71,6 +71,7 @@ abstract class AbstractTask<T> implements ICancellationToken {
 	var error:Null<Exception>;
 	var numCompletedChildren:Int;
 	var indexInParent:Int;
+	var allChildrenCompleted:Bool;
 
 	public var isCancellationRequested (get, never) : Bool;
 
@@ -92,6 +93,7 @@ abstract class AbstractTask<T> implements ICancellationToken {
 		cancellationCallbacks = null;
 		numCompletedChildren = 0;
 		indexInParent = -1;
+		allChildrenCompleted = false;
 	}
 
 	/**
@@ -214,13 +216,14 @@ abstract class AbstractTask<T> implements ICancellationToken {
 	}
 
 	function checkCompletion() {
+		updateChildrenCompletion();
+		if (!allChildrenCompleted) {
+			return;
+		}
 		switch (state) {
 			case Created | Running | Completed | Cancelled:
 				return;
 			case _:
-		}
-		if (numCompletedChildren != children?.length ?? 0) {
-			return;
 		}
 		switch (state) {
 			case Completing:
@@ -233,9 +236,24 @@ abstract class AbstractTask<T> implements ICancellationToken {
 		complete();
 	}
 
+	function updateChildrenCompletion() {
+		if (allChildrenCompleted) {
+			return;
+		}
+		if (children == null) {
+			allChildrenCompleted = true;
+			childrenCompleted();
+		} else if (numCompletedChildren == children.length) {
+			allChildrenCompleted = true;
+			childrenCompleted();
+		}
+	}
+
 	abstract function doStart():Void;
 
 	abstract function complete():Void;
+
+	abstract function childrenCompleted():Void;
 
 	abstract function childSucceeds(child:AbstractTask<Any>):Void;
 
@@ -258,6 +276,7 @@ abstract class AbstractTask<T> implements ICancellationToken {
 				childSucceeds(child);
 			}
 		}
+		updateChildrenCompletion();
 		checkCompletion();
 		if (child.indexInParent >= 0) {
 			children[child.indexInParent] = null;
