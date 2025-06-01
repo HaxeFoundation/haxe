@@ -110,11 +110,9 @@ class TestThrowingScopes extends utest.Test {
 			child.cancel();
 		});
 
-		// TODO : Once eager cancellation of delay is implemented advance time by 500ms and see if we're active.
-
 		task.start();
 
-		scheduler.advanceBy(1000);
+		scheduler.advanceBy(500);
 
 		Assert.isFalse(task.isActive());
 	}
