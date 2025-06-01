@@ -80,7 +80,7 @@
 	},
 	{
 		"name": "WConditionAssign",
-		"doc": "Using the result of an assignment as a condition without parentheses",
+		"doc": "Using the result of an assignment as a condition",
 		"parent": "WTyper"
 	},
 	{
