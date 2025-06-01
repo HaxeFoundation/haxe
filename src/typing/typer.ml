@@ -1517,10 +1517,37 @@ and make_if_then_else ctx e0 e1 e2 with_type p =
 	let e2 = cast e2 in
 	mk (TIf (e0,e1,Some e2)) t p
 
+and warn_assign_in_condition ctx cond =
+	let rec skip_without_parentheses e = match e.eexpr with
+		| TMeta(_,e1) | TBlock [e1] | TCast(e1,None) -> skip e1
+		| _ -> e in
+	let rec is_assign e =
+		let e = skip_without_parentheses e in
+		match e.eexpr with
+			| TBinop (OpAssign, _, rhs) ->
+				let t = follow rhs.etype in
+				let is_bool = ExtType.is_bool t in
+				let is_null = match (skip_without_parentheses rhs).eexpr with | TConst TNull -> true | _ -> false in
+				if is_bool || is_null then
+					warning ctx WConditionAssign "Using the result of an assignment as a condition without parentheses" e.epos
+			| TBinop ((OpBoolAnd | OpBoolOr), e1, e2) ->
+				is_assign e1;
+				is_assign e2;
+			| TBlock el ->
+				let rec last = function
+					| [] -> ()
+					| [e] -> is_assign e;
+					| _ :: rest -> last rest in
+				last el;
+			| _ -> ()
+	in
+	if not ctx.f.untyped then is_assign cond;
+
 and type_if ctx e e1 e2 with_type is_ternary p =
 	let e = type_expr ctx e WithType.value in
 	if is_ternary then begin match e.eexpr with
 		| TConst TNull -> raise_typing_error "Cannot use null as ternary condition" e.epos
+		| TParenthesis e -> warn_assign_in_condition ctx e;
 		| _ -> ()
 	end;
 	let e = AbstractCast.cast_or_unify ctx ctx.t.tbool e e.epos in
@@ -1896,6 +1923,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EWhile (cond,e,NormalWhile) ->
 		let old_loop = ctx.e.in_loop in
 		let cond = type_expr ctx cond WithType.value in
+		warn_assign_in_condition ctx cond;
 		let cond = AbstractCast.cast_or_unify ctx ctx.t.tbool cond p in
 		ctx.e.in_loop <- true;
 		let e = type_expr ctx (Expr.ensure_block e) WithType.NoValue in
@@ -1907,6 +1935,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e = type_expr ctx (Expr.ensure_block e) WithType.NoValue in
 		ctx.e.in_loop <- old_loop;
 		let cond = type_expr ctx cond WithType.value in
+		warn_assign_in_condition ctx cond;
 		let cond = AbstractCast.cast_or_unify ctx ctx.t.tbool cond cond.epos in
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
 	| ESwitch (e1,cases,def) ->
