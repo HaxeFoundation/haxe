@@ -164,46 +164,36 @@ class EventLoopScheduler extends Scheduler {
 	}
 
 	public function run() {
-
-		while (true) {
-			zeroMutex.acquire();
-			final events = zeroEvents.flip();
-			// no need to hold onto the mutex because it's a double buffer and run itself is single-threaded
-			zeroMutex.release();
-			for (event in events) {
-				event();
-			}
-
-			final currentTime = now();
-
-			futureMutex.acquire();
-			while (true) {
-				if (first == null) {
-					last = null;
-					break;
-				}
-				if (first.runTime <= currentTime) {
-					final toRun = first;
-					first = first.next;
-					if (first != null) {
-						first.previous = null;
-					}
-					futureMutex.release();
-					toRun.run();
-					futureMutex.acquire();
-				} else {
-					break;
-				}
-			}
-			futureMutex.release();
-
-			zeroMutex.acquire();
-			if (zeroEvents.empty()) {
-				zeroMutex.release();
-				return;
-			}
-			zeroMutex.release();
+		zeroMutex.acquire();
+		final events = zeroEvents.flip();
+		// no need to hold onto the mutex because it's a double buffer and run itself is single-threaded
+		zeroMutex.release();
+		for (event in events) {
+			event();
 		}
+
+		final currentTime = now();
+
+		futureMutex.acquire();
+		while (true) {
+			if (first == null) {
+				last = null;
+				break;
+			}
+			if (first.runTime <= currentTime) {
+				final toRun = first;
+				first = first.next;
+				if (first != null) {
+					first.previous = null;
+				}
+				futureMutex.release();
+				toRun.run();
+				futureMutex.acquire();
+			} else {
+				break;
+			}
+		}
+		futureMutex.release();
 	}
 
 	public function toString() {
