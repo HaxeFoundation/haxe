@@ -1,4 +1,4 @@
-package hxcoro;
+package hxcoro.task;
 
 import haxe.coro.Coroutine;
 

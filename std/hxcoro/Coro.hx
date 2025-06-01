@@ -7,7 +7,8 @@ import haxe.coro.cancellation.CancellationToken;
 import haxe.coro.cancellation.ICancellationHandle;
 import haxe.exceptions.CancellationException;
 import haxe.exceptions.ArgumentException;
-import hxcoro.ICoroTask.IStartableCoroTask;
+import hxcoro.task.NodeLambda;
+import hxcoro.task.CoroScopeTask;
 import hxcoro.exceptions.TimeoutException;
 import hxcoro.continuations.TimeoutContinuation;
 
@@ -26,8 +27,8 @@ class Coro {
 
 	@:coroutine @:coroutine.nothrow public static function delay(ms:Int):Void {
 		suspend(cont -> {
-			var scheduleHandle     : ISchedulerHandle = null;
-			var cancellationHandle : ICancellationHandle = null;
+			var scheduleHandle:ISchedulerHandle = null;
+			var cancellationHandle:ICancellationHandle = null;
 
 			final ct = cont.context.get(CancellationToken.key);
 
@@ -82,12 +83,12 @@ class Coro {
 			}
 
 			final context = cont.context;
-			final scope   = new CoroScopeTask(context);
-			final handle  = context.get(Scheduler.key).schedule(ms, () -> {
+			final scope = new CoroScopeTask(context);
+			final handle = context.get(Scheduler.key).schedule(ms, () -> {
 				scope.cancel(new TimeoutException());
 			});
-	
-			scope.runNodeLambda(lambda);	
+
+			scope.runNodeLambda(lambda);
 			scope.awaitContinuation(new TimeoutContinuation(cont, handle));
 		});
 	}

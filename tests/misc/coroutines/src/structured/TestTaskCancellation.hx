@@ -3,7 +3,7 @@ package structured;
 import haxe.Exception;
 import haxe.coro.schedulers.VirtualTimeScheduler;
 import haxe.coro.cancellation.ICancellationHandle;
-import hxcoro.CoroTask;
+import hxcoro.task.CoroTask;
 
 class TestTaskCancellation extends utest.Test {
 	public function test_cancellation_callback() {

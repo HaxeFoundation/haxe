@@ -5,7 +5,7 @@ import haxe.coro.schedulers.Scheduler;
 import haxe.coro.schedulers.VirtualTimeScheduler;
 import haxe.coro.context.Key;
 import haxe.coro.context.IElement;
-import hxcoro.ICoroTask;
+import hxcoro.task.ICoroTask;
 
 class DebugName implements IElement<DebugName> {
 	static public var key:Key<DebugName> = Key.createNew("DebugName");

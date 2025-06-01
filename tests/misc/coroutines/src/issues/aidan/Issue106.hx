@@ -3,7 +3,7 @@ package issues.aidan;
 import haxe.coro.schedulers.VirtualTimeScheduler;
 import hxcoro.CoroRun;
 import hxcoro.Coro.*;
-import hxcoro.AbstractTask;
+import hxcoro.task.AbstractTask;
 
 class Issue106 extends utest.Test {
 	public function test() {

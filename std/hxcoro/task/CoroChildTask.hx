@@ -1,9 +1,9 @@
-package hxcoro;
+package hxcoro.task;
 
 import haxe.coro.context.Context;
 import haxe.Exception;
 import haxe.exceptions.CancellationException;
-import hxcoro.ICoroTask;
+import hxcoro.task.ICoroTask;
 
 class CoroChildTask<T> extends CoroTask<T> {
 	final parent:AbstractTask<Any>;

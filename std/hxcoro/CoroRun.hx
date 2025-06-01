@@ -4,7 +4,9 @@ import haxe.coro.Coroutine;
 import haxe.coro.context.Context;
 import haxe.coro.context.IElement;
 import haxe.coro.schedulers.EventLoopScheduler;
-import hxcoro.ICoroTask;
+import hxcoro.task.ICoroTask;
+import hxcoro.task.NodeLambda;
+import hxcoro.task.CoroScopeTask;
 
 private abstract RunnableContext(ElementTree) {
 	inline function new(tree:ElementTree) {
@@ -12,7 +14,7 @@ private abstract RunnableContext(ElementTree) {
 	}
 
 	public function create<T>(lambda:NodeLambda<T>):IStartableCoroTask<T> {
-		return new CoroScopeTask.StartableCoroScopeTask(new Context(this), lambda);
+		return new StartableCoroScopeTask(new Context(this), lambda);
 	}
 
 	public function run<T>(lambda:NodeLambda<T>):T {

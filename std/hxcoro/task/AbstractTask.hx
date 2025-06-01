@@ -1,4 +1,4 @@
-package hxcoro;
+package hxcoro.task;
 
 import haxe.coro.cancellation.ICancellationToken;
 import haxe.coro.cancellation.ICancellationHandle;
@@ -17,14 +17,14 @@ enum abstract TaskState(Int) {
 private class TaskException extends Exception {}
 
 private class CancellationHandle implements ICancellationHandle {
-	final func : ()->Void;
-	final all : Array<CancellationHandle>;
+	final func:() -> Void;
+	final all:Array<CancellationHandle>;
 
-	var closed : Bool;
+	var closed:Bool;
 
 	public function new(func, all) {
 		this.func = func;
-		this.all  = all;
+		this.all = all;
 
 		closed = false;
 	}
@@ -52,6 +52,7 @@ private class CancellationHandle implements ICancellationHandle {
 
 private class NoOpCancellationHandle implements ICancellationHandle {
 	public function new() {}
+
 	public function close() {}
 }
 
@@ -73,7 +74,7 @@ abstract class AbstractTask<T> implements ICancellationToken {
 	var indexInParent:Int;
 	var allChildrenCompleted:Bool;
 
-	public var isCancellationRequested (get, never) : Bool;
+	public var isCancellationRequested(get, never):Bool;
 
 	inline function get_isCancellationRequested() {
 		return switch state {
@@ -146,7 +147,7 @@ abstract class AbstractTask<T> implements ICancellationToken {
 		}
 	}
 
-	public function onCancellationRequested(f:()->Void):ICancellationHandle {
+	public function onCancellationRequested(f:() -> Void):ICancellationHandle {
 		return switch state {
 			case Cancelling | Cancelled:
 				f();
@@ -154,7 +155,7 @@ abstract class AbstractTask<T> implements ICancellationToken {
 				return noOpCancellationHandle;
 			case _:
 				final container = cancellationCallbacks ??= [];
-				final handle    = new CancellationHandle(f, container);
+				final handle = new CancellationHandle(f, container);
 
 				container.push(handle);
 
@@ -285,7 +286,7 @@ abstract class AbstractTask<T> implements ICancellationToken {
 
 	function addChild(child:AbstractTask<Any>) {
 		final container = children ??= [];
-		final index     = container.push(child);
+		final index = container.push(child);
 		child.indexInParent = index - 1;
 	}
 }

@@ -1,9 +1,9 @@
-package hxcoro;
+package hxcoro.task;
 
 import haxe.exceptions.CancellationException;
 import haxe.coro.context.Context;
 import haxe.coro.context.IElement;
-import hxcoro.ICoroTask;
+import hxcoro.task.ICoroTask;
 
 interface ICoroNodeWith {
 	var context(get, null):Context;

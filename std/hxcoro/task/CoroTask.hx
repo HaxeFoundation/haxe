@@ -1,8 +1,8 @@
-package hxcoro;
+package hxcoro.task;
 
-import hxcoro.ICoroTask;
-import hxcoro.AbstractTask;
-import hxcoro.ICoroNode;
+import hxcoro.task.ICoroTask;
+import hxcoro.task.AbstractTask;
+import hxcoro.task.ICoroNode;
 import haxe.Exception;
 import haxe.coro.IContinuation;
 import haxe.coro.context.Key;
@@ -10,7 +10,6 @@ import haxe.coro.context.Context;
 import haxe.coro.context.IElement;
 import haxe.coro.schedulers.Scheduler;
 import haxe.coro.cancellation.CancellationToken;
-import haxe.exceptions.CancellationException;
 
 private class CoroTaskWith<T> implements ICoroNodeWith {
 	public var context(get, null):Context;
