@@ -79,21 +79,25 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 	}
 
     public function setClassFuncStackItem(cls:String, func:String, file:String, line:Int, pos:Int, pmin:Int, pmax:Int) {
+		#if debug
         stackItem = StackItem.FilePos(StackItem.Method(cls, func), file, line, pos);
 		#if eval
 		eval.vm.Context.callMacroApi("associate_enum_value_pos")(stackItem, haxe.macro.Context.makePosition({file: file, min: pmin, max: pmax}));
 		#end
+		#end
     }
 
     public function setLocalFuncStackItem(id:Int, file:String, line:Int, pos:Int, pmin:Int, pmax:Int) {
+		#if debug
         stackItem = StackItem.FilePos(StackItem.LocalFunction(id), file, line, pos);
 		#if eval
 		eval.vm.Context.callMacroApi("associate_enum_value_pos")(stackItem, haxe.macro.Context.makePosition({file: file, min: pmin, max: pmax}));
 		#end
+		#end
     }
 
 	public function startException(exception:Exception) {
-		#if js
+		#if (js || !debug)
 		return;
 		#end
 		var stack = [];
@@ -142,7 +146,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 	}
 
     public function buildCallStack() {
-		#if js
+		#if (js || !debug)
 		return;
 		#end
 		if (startedException) {
