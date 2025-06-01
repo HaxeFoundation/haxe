@@ -167,10 +167,12 @@ class EventLoopScheduler extends Scheduler {
 
 		while (true) {
 			zeroMutex.acquire();
-			for (event in zeroEvents.flip()) {
+			final events = zeroEvents.flip();
+			// no need to hold onto the mutex because it's a double buffer and run itself is single-threaded
+			zeroMutex.release();
+			for (event in events) {
 				event();
 			}
-			zeroMutex.release();
 
 			final currentTime = now();
 
@@ -221,7 +223,7 @@ class EventLoopScheduler extends Scheduler {
 				} else {
 					final a = current.previous;
 					final b = current.next;
-	
+
 					a.next = b;
 					b.previous = a;
 				}
