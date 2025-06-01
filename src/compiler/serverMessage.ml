@@ -24,6 +24,7 @@ type server_message_options = {
 	mutable print_signature : bool;
 	mutable print_display_position : bool;
 	mutable print_stats : bool;
+	mutable print_gc_stats : bool;
 	mutable print_message : bool;
 	mutable print_socket_message : bool;
 	mutable print_uncaught_error : bool;
@@ -51,6 +52,7 @@ let config = {
 	print_signature = false;
 	print_display_position = false;
 	print_stats = false;
+	print_gc_stats = false;
 	print_message = false;
 	print_socket_message = false;
 	print_uncaught_error = false;
@@ -143,7 +145,7 @@ let message s =
 	if config.print_message then print_endline ("> " ^ s)
 
 let gc_stats time stats_before did_compact space_overhead =
-	if config.print_stats then begin
+	if config.print_stats || config.print_gc_stats then begin
 		let stats = Gc.quick_stat() in
 		print_endline (Printf.sprintf "GC %s done in %.2fs with space_overhead = %i\n\tbefore: %s\n\tafter: %s"
 			(if did_compact then "compaction" else "collection")
@@ -180,6 +182,7 @@ let enable_all () =
 	config.print_signature <- true;
 	config.print_display_position <- true;
 	config.print_stats <- true;
+	config.print_gc_stats <- true;
 	config.print_message <- true;
 	config.print_socket_message <- true;
 	config.print_uncaught_error <- true;
@@ -205,6 +208,7 @@ let set_by_name name value = match name with
 	| "signature" -> config.print_signature <- value;
 	| "displayPosition" -> config.print_display_position <- value;
 	| "stats" -> config.print_stats <- value;
+	| "gcStats" -> config.print_gc_stats <- value;
 	| "message" -> config.print_message <- value;
 	| "socketMessage" -> config.print_socket_message <- value;
 	| "uncaughtError" -> config.print_uncaught_error <- value;
