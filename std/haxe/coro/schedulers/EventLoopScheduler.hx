@@ -186,7 +186,9 @@ class EventLoopScheduler extends Scheduler {
 					if (first != null) {
 						first.previous = null;
 					}
+					futureMutex.release();
 					toRun.run();
+					futureMutex.acquire();
 				} else {
 					break;
 				}
