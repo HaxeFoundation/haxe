@@ -229,8 +229,6 @@ jobs:
             APT_PACKAGES: cmake ninja-build libturbojpeg-dev
           - target: cpp
             APT_PACKAGES: gcc-multilib g++-multilib
-          - target: lua
-            APT_PACKAGES: ncurses-dev
           - target: flash
             APT_PACKAGES: libglib2.0-0 libgtk2.0-0 libfreetype6 xvfb
     steps:
@@ -471,9 +469,6 @@ jobs:
       fail-fast: false
       matrix:
         target: [macro, js, cpp, jvm, php, python, neko]
-        include:
-          - target: lua
-            APT_PACKAGES: ncurses-dev
     steps:
       - uses: actions/checkout@main
         with:
