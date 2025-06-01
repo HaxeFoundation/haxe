@@ -7,6 +7,7 @@ import haxe.coro.cancellation.CancellationToken;
 import haxe.coro.cancellation.ICancellationHandle;
 import haxe.exceptions.CancellationException;
 import haxe.exceptions.ArgumentException;
+import hxcoro.ICoroTask.IStartableCoroTask;
 import hxcoro.exceptions.TimeoutException;
 import hxcoro.continuations.TimeoutContinuation;
 
@@ -58,6 +59,14 @@ class Coro {
 		});
 	}
 
+	/**
+	 * Runs the provided lambda with a timeout, if the timeout is exceeded this functions throws `hxcoro.exceptions.TimeoutException`.
+	 * If a timeout of zero is provided the function immediately throws `hxcoro.exceptions.TimeoutException`.
+	 * @param ms Timeout in milliseconds.
+	 * @param lambda Lambda function to execute.
+	 * @throws `hxcoro.exceptions.TimeoutException` If the timeout is exceeded.
+	 * @throws `haxe.ArgumentException` If the `ms` parameter is less than zero.
+	 */
 	@:coroutine public static function timeout<T>(ms:Int, lambda:NodeLambda<T>):T {
 		return suspend(cont -> {
 			if (ms < 0) {
