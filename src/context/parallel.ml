@@ -1,4 +1,4 @@
-let enable = ref true
+let enable = ref false
 
 let run_parallel_for num_domains ?(chunk_size=0) length f =
 	if not !enable then begin
