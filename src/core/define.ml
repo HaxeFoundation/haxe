@@ -159,8 +159,9 @@ let get_signature def =
 			(* If we add something here that might be used in conditional compilation it should be added to
 			   Grammar.parse_macro_ident as well (issue #5682).
 			*)
-			if DefineList.is_signature_neutral sanitized then acc else (k ^ "=" ^ v) :: acc
+			if DefineList.is_signature_neutral sanitized then acc else (sanitized ^ "=" ^ v) :: acc
 		) def.values [] in
+		let defines = Ast.remove_duplicates (fun a b -> a != b) defines in
 		let str = String.concat "@" (List.sort compare defines) in
 		let s = Digest.string str in
 		def.defines_signature <- Some s;
