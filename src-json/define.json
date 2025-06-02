@@ -61,6 +61,7 @@
 	{
 		"name": "DceDebug",
 		"define": "dce-debug",
+		"signatureNeutral": true,
 		"doc": "Show DCE log.",
 		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
@@ -78,6 +79,7 @@
 	{
 		"name": "DisableHxbOptimizations",
 		"define": "disable-hxb-optimizations",
+		"signatureNeutral": true,
 		"doc": "Disable shortcuts used by hxb cache to speed up display requests."
 	},
 	{
@@ -607,6 +609,7 @@
 	{
 		"name": "NoCompilation",
 		"define": "no-compilation",
+		"signatureNeutral": true,
 		"doc": "Disable final compilation.",
 		"platforms": ["cpp", "hl"]
 	},
