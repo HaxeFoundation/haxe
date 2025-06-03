@@ -215,7 +215,7 @@ class EventLoopScheduler extends Scheduler {
 					final b = current.next;
 
 					a.next = b;
-					b.previous = a;
+					b?.previous = a;
 				}
 
 				return;

@@ -169,7 +169,7 @@ abstract class CoroTask<T> extends AbstractTask<T> implements IContinuation<T> i
 
 	@:coroutine public function awaitChildren() {
 		if (allChildrenCompleted) {
-			awaitingChildContinuation.resume(null, null);
+			awaitingChildContinuation?.resume(null, null);
 		}
 		startChildren();
 		Coro.suspend(cont -> awaitingChildContinuation = cont);
