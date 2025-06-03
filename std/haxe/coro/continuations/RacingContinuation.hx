@@ -8,16 +8,15 @@ class RacingContinuation<T> extends SuspensionResult<T> implements IContinuation
 
 	var mutex:Null<Mutex>;
 
-	public var context(get, null):Context;
+	public var context(get, never):Context;
 
 	public function new(inputCont:IContinuation<T>) {
 		this.inputCont = inputCont;
-		context = inputCont.context;
 		mutex = new Mutex();
 	}
 
 	inline function get_context() {
-		return context;
+		return inputCont.context;
 	}
 
 	public function resume(result:T, error:Exception):Void {

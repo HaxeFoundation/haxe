@@ -53,6 +53,7 @@ abstract class CoroTask<T> extends AbstractTask<T> implements IContinuation<T> i
 	**/
 	public var context(get, null):Context;
 
+	var initialContext:Context;
 	var result:Null<T>;
 	var awaitingContinuations:Null<Array<IContinuation<T>>>;
 	var awaitingChildContinuation:Null<IContinuation<Any>>;
@@ -63,11 +64,14 @@ abstract class CoroTask<T> extends AbstractTask<T> implements IContinuation<T> i
 	**/
 	public function new(context:Context) {
 		super();
-		this.context = context.clone().with(this).add(CancellationToken.key, this);
+		initialContext = context;
 		wasResumed = true;
 	}
 
 	inline function get_context() {
+		if (context == null) {
+			context = initialContext.clone().with(this).add(CancellationToken.key, this);
+		}
 		return context;
 	}
 
@@ -101,15 +105,15 @@ abstract class CoroTask<T> extends AbstractTask<T> implements IContinuation<T> i
 		method is called. This occurrs automatically once this task has finished execution.
 	**/
 	public function lazy<T>(lambda:NodeLambda<T>):IStartableCoroTask<T> {
-		return new CoroChildTask.StartableCoroChildTask(context, lambda, this);
+		return new CoroChildTask.StartableCoroChildTask(initialContext, lambda, this);
 	}
 
 	/**
 		Creates a child task to execute `lambda` and starts it automatically.
 	**/
 	public function async<T>(lambda:NodeLambda<T>):ICoroTask<T> {
-		final child = new CoroChildTask<T>(context, this);
-		context.get(Scheduler.key).schedule(0, () -> {
+		final child = new CoroChildTask<T>(initialContext, this);
+		initialContext.get(Scheduler.key).schedule(0, () -> {
 			child.runNodeLambda(lambda);
 		});
 		return child;
