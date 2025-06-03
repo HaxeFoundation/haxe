@@ -24,7 +24,7 @@ class StackTraceManager implements IElement<StackTraceManager> {
 abstract class BaseContinuation<T> extends SuspensionResult<T> implements IContinuation<T> implements IStackFrame {
     public final completion:IContinuation<Any>;
 
-	public var context(get, never):Context;
+	public var context(get, null):Context;
 
     public var gotoLabel:Int;
 
@@ -46,7 +46,10 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
     }
 
 	inline function get_context() {
-		return completion.context;
+		if (context == null) {
+			context = completion.context;
+		}
+		return context;
 	}
 
     public final function resume(result:Any, error:Exception):Void {

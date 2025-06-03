@@ -10,9 +10,12 @@ class RacingContinuation<T> extends SuspensionResult<T> implements IContinuation
 
 	public var context(get, never):Context;
 
+	final scheduler:Scheduler;
+
 	public function new(inputCont:IContinuation<T>) {
 		this.inputCont = inputCont;
 		mutex = new Mutex();
+		scheduler = context.get(Scheduler.key);
 	}
 
 	inline function get_context() {
@@ -23,7 +26,7 @@ class RacingContinuation<T> extends SuspensionResult<T> implements IContinuation
 		// store in a local to avoid `this` capturing.
 		final inputCont = inputCont;
 		inline function resumeContinue(result:T, error:Exception) {
-			context.get(Scheduler.key).schedule(0, () -> {
+			scheduler.schedule(0, () -> {
 				inputCont.resume(result, error);
 			});
 		}
