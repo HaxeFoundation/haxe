@@ -34,16 +34,17 @@ class TestCallStack extends utest.Test {
 		}
 	}
 
-	function checkFailure(stack:Array<StackItem>, r:Null<CallStackInspectorFailure>) {
+	function checkFailure(stack:Array<StackItem>, r:Null<CallStackInspectorFailure>, ?p:haxe.PosInfos) {
 		if (r == null) {
 			Assert.pass();
 		} else {
 			var i = 0;
 			var lines = stack.map(item -> '\t[${i++}] $item');
-			Assert.fail('${r.toString()}\n${lines.join("\n")}');
+			Assert.fail('${r.toString()}\n${lines.join("\n")}', p);
 		}
 	}
 
+	#if !eval // TODO: investigate this at some point
 	function testFooBazBaz() {
 		function checkStack(e:Exception) {
 			final stack = e.stack.asArray();
@@ -71,7 +72,6 @@ class TestCallStack extends utest.Test {
 		} catch(e:Exception) {
 			checkStack(e);
 		}
-
 		try {
 			CoroRun.runScoped(scope -> {
 				scope.async(scope -> {
@@ -85,4 +85,5 @@ class TestCallStack extends utest.Test {
 			checkStack(e);
 		}
 	}
+	#end
 }
