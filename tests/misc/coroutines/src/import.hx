@@ -3,3 +3,5 @@ import utest.Async;
 import haxe.coro.Coroutine;
 import hxcoro.Coro.*;
 import hxcoro.CoroRun;
+
+using Helper.SchedulerTools;
