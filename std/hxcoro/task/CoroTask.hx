@@ -87,6 +87,26 @@ abstract class CoroTask<T> extends AbstractTask<T> implements IContinuation<T> i
 		wasResumed = false;
 	}
 
+	/**
+		Indicates that the task has been suspended, which allows it to clean up some of
+		its internal resources. Has no effect on the observable state of the task.
+
+		This function should be called when it is expected that the task might not be resumed
+		for a while, e.g. when waiting on a sparse `Channel` or a contended `Mutex`.
+	**/
+	public function putOnHold() {
+		context = null;
+		if (awaitingContinuations != null && awaitingContinuations.length == 0) {
+			awaitingContinuations = null;
+		}
+		if (cancellationCallbacks != null && cancellationCallbacks.length == 0) {
+			cancellationCallbacks = null;
+		}
+		if (allChildrenCompleted) {
+			children = null;
+		}
+	}
+
 	public function runNodeLambda(lambda:NodeLambda<T>) {
 		final result = lambda(this, this);
 		start();
