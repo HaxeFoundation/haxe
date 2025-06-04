@@ -84,6 +84,7 @@ class ImportAll {
 					if( StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0 ) {
 						var cl = full.substr(0, full.length - 3);
 						switch( cl ) {
+						case "import": continue;
 						case "ImportAll", "neko.db.MacroManager": continue;
 						case "haxe.TimerQueue": if( Context.defined("neko") || Context.defined("php") || Context.defined("cpp") ) continue;
 						case "Sys": if(!isSysTarget()) continue;
