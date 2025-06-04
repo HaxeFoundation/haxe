@@ -34,24 +34,23 @@ class TestCallStack extends utest.Test {
 		}
 	}
 
-	function checkFailure(stack:Array<StackItem>, r:Null<CallStackInspectorFailure>, ?p:haxe.PosInfos) {
+	function checkFailure(stack:Array<StackItem>, r:Null<CallStackInspectorFailure>) {
 		if (r == null) {
 			Assert.pass();
 		} else {
 			var i = 0;
 			var lines = stack.map(item -> '\t[${i++}] $item');
-			Assert.fail('${r.toString()}\n${lines.join("\n")}', p);
+			Assert.fail('${r.toString()}\n${lines.join("\n")}');
 		}
 	}
 
-	#if !eval // TODO: investigate this at some point
 	function testFooBazBaz() {
 		function checkStack(e:Exception) {
 			final stack = e.stack.asArray();
 			var inspector = new CallStackInspector(stack);
 			var r = inspector.inspect([
 				File('callstack/FooBarBaz.hx'),
-				#if (cpp && coroutine.noopt)
+				#if cpp
 				// TODO: cpp has inaccurate positions which causes the top stack to be wrong
 				Line(6),
 				Line(12),
@@ -72,6 +71,7 @@ class TestCallStack extends utest.Test {
 		} catch(e:Exception) {
 			checkStack(e);
 		}
+
 		try {
 			CoroRun.runScoped(scope -> {
 				scope.async(scope -> {
@@ -85,5 +85,4 @@ class TestCallStack extends utest.Test {
 			checkStack(e);
 		}
 	}
-	#end
 }

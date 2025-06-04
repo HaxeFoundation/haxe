@@ -1,10 +1,10 @@
 package hxcoro;
 
+import hxcoro.continuations.CancellingContinuation;
 import haxe.coro.IContinuation;
+import haxe.coro.ICancellableContinuation;
 import haxe.coro.schedulers.Scheduler;
-import haxe.coro.schedulers.ISchedulerHandle;
 import haxe.coro.cancellation.CancellationToken;
-import haxe.coro.cancellation.ICancellationHandle;
 import haxe.exceptions.CancellationException;
 import haxe.exceptions.ArgumentException;
 import hxcoro.task.NodeLambda;
@@ -14,11 +14,22 @@ import hxcoro.continuations.TimeoutContinuation;
 
 class Coro {
 	@:coroutine @:coroutine.transformed
-	public static function suspend<T>(func:haxe.coro.IContinuation<T>->Void, completion:haxe.coro.IContinuation<T>):T {
+	public static function suspend<T>(func:IContinuation<T>->Void, completion:IContinuation<T>):T {
 		var safe = new haxe.coro.continuations.RacingContinuation(completion);
 		func(safe);
 		safe.resolve();
 		return cast safe;
+	}
+
+	/**
+	 * Suspends a coroutine which will be automatically resumed with a `haxe.exceptions.CancellationException` when cancelled.
+	 * The `ICancellableContinuation` passed to the function allows registering a callback which is invoked on cancellation
+	 * allowing the easy cleanup of resources.
+	 */
+	@:coroutine public static function suspendCancellable<T>(func:ICancellableContinuation<T>->Void) {
+		return suspend(cont -> {
+			func(new CancellingContinuation(cont));
+		});
 	}
 
 	static function cancellationRequested(cont:IContinuation<Any>) {
@@ -26,21 +37,14 @@ class Coro {
 	}
 
 	@:coroutine @:coroutine.nothrow public static function delay(ms:Int):Void {
-		suspend(cont -> {
-			var scheduleHandle:ISchedulerHandle = null;
-			var cancellationHandle:ICancellationHandle = null;
-
-			final ct = cont.context.get(CancellationToken.key);
-
-			scheduleHandle = cont.context.get(Scheduler.key).schedule(ms, () -> {
-				cancellationHandle.close();
-				cont.resume(null, ct.isCancellationRequested ? new CancellationException() : null);
+		suspendCancellable(cont -> {
+			final handle = cont.context.get(Scheduler.key).schedule(ms, () -> {
+				cont.resume(null, null);
 			});
 
-			cancellationHandle = ct.onCancellationRequested(() -> {
-				scheduleHandle.close();
-				cont.resume(null, new CancellationException());
-			});
+			cont.onCancellationRequested = () -> {
+				handle.close();
+			}
 		});
 	}
 

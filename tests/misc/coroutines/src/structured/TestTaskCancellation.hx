@@ -1,18 +1,28 @@
 package structured;
 
-import haxe.Exception;
 import haxe.coro.schedulers.VirtualTimeScheduler;
 import haxe.coro.cancellation.ICancellationHandle;
+import haxe.coro.cancellation.ICancellationCallback;
 import hxcoro.task.CoroTask;
+
+class ResultPusherHandle implements ICancellationCallback {
+	final result:Array<Int>;
+
+	public function new(result:Array<Int>) {
+		this.result = result;
+	}
+
+	public function onCancellation() {
+		result.push(0);
+	}
+}
 
 class TestTaskCancellation extends utest.Test {
 	public function test_cancellation_callback() {
 		final result    = [];
 		final scheduler = new VirtualTimeScheduler();
 		final task      = CoroRun.with(scheduler).create(node -> {
-			node.context.get(CoroTask.key).onCancellationRequested(() -> {
-				result.push(0);
-			});
+			node.context.get(CoroTask.key).onCancellationRequested(new ResultPusherHandle(result));
 
 			delay(1000);
 		});
@@ -32,9 +42,7 @@ class TestTaskCancellation extends utest.Test {
 		final result    = [];
 		final scheduler = new VirtualTimeScheduler();
 		final task      = CoroRun.with(scheduler).create(node -> {
-			handle = node.context.get(CoroTask.key).onCancellationRequested(() -> {
-				result.push(0);
-			});
+			handle = node.context.get(CoroTask.key).onCancellationRequested(new ResultPusherHandle(result));
 
 			delay(1000);
 		});

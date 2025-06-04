@@ -23,7 +23,8 @@ function main() {
 		new structured.TestThrowingScopes(),
 		new structured.TestCoroutineScope(),
 		new structured.TestTaskCancellation(),
-		new structured.TestTimeout()
+		new structured.TestTimeout(),
+		new structured.TestCancellingSuspend()
 	];
 
 	var runner = new utest.Runner();

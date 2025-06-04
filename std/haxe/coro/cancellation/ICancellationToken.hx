@@ -11,11 +11,11 @@ interface ICancellationToken {
 
 	/**
 	 * Register a callback which will be executed when this token is cancelled.
-	 * 
+	 *
 	 * If this token has already been cancelled the function will be executed immediately and synchronously, any exception raised will not be caught.
 	 * The thread the callback is executed on is implementation defined if cancellation has not been yet been requested.
 	 * @param func Callback to be executed when the token is cancelled.
 	 * @return Cancellation handle which can be used to cancel the callback from executing.
 	 */
-	function onCancellationRequested(func : ()->Void) : ICancellationHandle;
+	function onCancellationRequested(handle : ICancellationCallback) : ICancellationHandle;
 }
