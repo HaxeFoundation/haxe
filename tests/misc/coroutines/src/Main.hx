@@ -35,6 +35,7 @@ function main() {
 	runner.addCases("issues");
 	runner.addCases("ds");
 	runner.addCases("concurrent");
+	runner.addCases("components");
 
     utest.ui.Report.create(runner);
     runner.run();
