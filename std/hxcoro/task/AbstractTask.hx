@@ -46,7 +46,11 @@ private class CancellationHandle implements ICancellationHandle {
 			return;
 		}
 
-		all.remove(this);
+		if (all.length == 1 && all[0] == this) {
+			all.resize(0);
+		} else {
+			all.remove(this);
+		}
 
 		closed = true;
 	}
