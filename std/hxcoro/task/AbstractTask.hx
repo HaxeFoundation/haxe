@@ -182,7 +182,7 @@ abstract class AbstractTask<T> implements ICancellationToken {
 		}
 	}
 
-	function cancelChildren(?cause:CancellationException) {
+	public function cancelChildren(?cause:CancellationException) {
 		if (null == children) {
 			return;
 		}

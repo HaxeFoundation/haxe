@@ -3,7 +3,7 @@ package hxcoro.ds;
 import haxe.ds.Vector;
 import haxe.Exception;
 
-private class Page<T> {
+class Page<T> {
 	public final data:Vector<T>;
 	public var next:Null<Page<T>>;
 
@@ -17,7 +17,7 @@ class PagedDeque<T> {
 	var currentPage:Page<T>;
 	var currentIndex:Int;
 	var lastPage:Page<T>;
-	var lastIndex:Int;
+	public var lastIndex(default, null):Int;
 
 	public function new(vectorSize = 8) {
 		this.vectorSize = vectorSize;
@@ -84,9 +84,10 @@ class PagedDeque<T> {
 			lastPage.next = null;
 			lastIndex = 1;
 			lastPage.data[0] = x;
-			return;
+			return lastPage;
 		}
 		lastPage.data[lastIndex++] = x;
+		return lastPage;
 	}
 
 	public function pop() {

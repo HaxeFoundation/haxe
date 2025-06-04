@@ -5,6 +5,9 @@ import haxe.coro.context.Context;
 import hxcoro.task.ICoroTask;
 import hxcoro.task.CoroScopeTask;
 import hxcoro.ds.Channel;
+import hxcoro.task.ICoroNode;
+
+using issues.aidan.Issue124.NumberProducer;
 
 interface IReceiver<T> extends ICoroTask<haxe.Unit> {
 	@:coroutine function receive():T;
@@ -32,7 +35,7 @@ class CoroChannelTask<T> extends CoroScopeTask<haxe.Unit> implements IReceiver<T
 }
 
 function produce<T>(context:Context, lambda:Coroutine<ISender<T>->Void>):IReceiver<T> {
-	final channel = new Channel();
+	final channel = new Channel(3);
 	final task = new CoroChannelTask(context, channel);
 	task.start();
 	final result = lambda(task, task);
@@ -47,32 +50,73 @@ function produce<T>(context:Context, lambda:Coroutine<ISender<T>->Void>):IReceiv
 	return task;
 }
 
-function produceNumbers(context:Context) {
-	return produce(context, node -> {
-		for (i in 1...10) {
-			node.send(i);
-		}
-	});
-}
+class NumberProducer {
+	static public function produceNumbers(node:ICoroNode) {
+		return produce(node.context, node -> {
+			var i = 1;
+			while (true) {
+				node.send(i++);
+			}
+		});
+	}
 
-function square(context:Context, numbers:IReceiver<Int>) {
-	return produce(context, node -> {
-		for (i in 1...10) {
-			var x = numbers.receive();
-			node.send(x * x);
-		}
-	});
+	static public function square(node:ICoroNode, numbers:IReceiver<Int>) {
+		return produce(node.context, node -> {
+			while (true) {
+				var x = numbers.receive();
+				node.send(x * x);
+			}
+		});
+	}
+
+	static public function numbersFrom(node:ICoroNode, start:Int) {
+		return produce(node.context, node -> {
+			var i = start;
+			while (true) {
+				node.send(i++);
+			}
+		});
+	}
+
+	static public function filter(node:ICoroNode, numbers:IReceiver<Int>, prime:Int) {
+		return produce(node.context, node -> {
+			while (true) {
+				final x = numbers.receive();
+				if (x % prime != 0) {
+					node.send(x);
+				}
+			}
+		});
+	}
 }
 
 class Issue124 extends utest.Test {
 	function test() {
 		final result = CoroRun.runScoped(node -> {
-			final numbers = produceNumbers(node.context);
-			final squares = square(node.context, numbers);
-			[for (i in 1...10) {
+			final numbers = node.produceNumbers();
+			final squares = node.square(numbers);
+			final result = [for (i in 1...10) {
 				squares.receive();
 			}];
+			node.cancelChildren();
+			result;
 		});
 		Assert.same([1, 4, 9, 16, 25, 36, 49, 64, 81], result);
+	}
+
+	function testPrime() {
+		final result = CoroRun.runScoped(node -> {
+			var cur = node.numbersFrom(2);
+			final result = [
+				for (_ in 0...10) {
+					final prime = cur.receive();
+					cur = node.filter(cur, prime);
+					prime;
+				}
+			];
+			node.cancelChildren();
+			result;
+		});
+		Assert.same([2, 3, 5, 7, 11, 13, 17, 19, 23, 29], result);
 	}
 }

@@ -65,13 +65,13 @@ class CancellingContinuation<T> implements ICancellableContinuation<T> implement
 	}
 
 	public function onCancellation() {
-		handle.close();
+		handle?.close();
 
 		if (state.compareExchange(Active, Cancelled) == Active) {
 			if (null != onCancellationRequested) {
 				onCancellationRequested();
 			}
-	
+
 			resume(null, null);
 		}
 	}
