@@ -1,6 +1,5 @@
 package haxe.coro.context;
 
-@:native("haxe.coro.context.Key")
 class KeyImpl<T> {
 	static var counter = 0;
 	static var counterMutex = new Mutex();
