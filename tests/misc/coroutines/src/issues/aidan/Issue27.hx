@@ -8,7 +8,7 @@ import haxe.coro.context.IElement;
 import hxcoro.task.ICoroTask;
 
 class DebugName implements IElement<DebugName> {
-	static public var key:Key<DebugName> = Key.createNew("DebugName");
+	static public var key = new Key<DebugName>("DebugName");
 
 	public var name:String;
 

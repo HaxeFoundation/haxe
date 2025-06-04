@@ -1,6 +1,7 @@
 package haxe.coro.context;
 
-class Key<T> {
+@:native("haxe.coro.context.Key")
+class KeyImpl<T> {
 	static var counter = 0;
 	static var counterMutex = new Mutex();
 
@@ -16,6 +17,14 @@ class Key<T> {
 		counterMutex.acquire();
 		var id = counter++;
 		counterMutex.release();
-		return new Key<T>(id, name);
+		return new KeyImpl<T>(id, name);
+	}
+}
+
+@:forward
+@:forward.statics
+extern abstract Key<T>(KeyImpl<T>) {
+	public inline function new(name:String) {
+		this = KeyImpl.createNew(name);
 	}
 }

@@ -46,7 +46,7 @@ private class CoroTaskWith<T> implements ICoroNodeWith {
 	CoroTask provides the basic functionality for coroutine tasks.
 **/
 abstract class CoroTask<T> extends AbstractTask<T> implements IContinuation<T> implements ICoroNode implements ICoroTask<T> implements IElement<CoroTask<Any>> {
-	public static final key:Key<CoroTask<Any>> = Key.createNew('Task');
+	public static final key = new Key<CoroTask<Any>>('Task');
 
 	/**
 		This task's immutable `Context`.

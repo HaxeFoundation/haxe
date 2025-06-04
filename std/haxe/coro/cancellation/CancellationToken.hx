@@ -23,7 +23,7 @@ private class NoOpCancellationToken implements ICancellationToken {
 }
 
 class CancellationToken {
-	public static final key : Key<ICancellationToken> = Key.createNew('CancellationToken');
+	public static final key = new Key<ICancellationToken>('CancellationToken');
 
 	/**
 	 * Returns a cancellation token which will never be cancelled.

@@ -8,7 +8,7 @@ import haxe.CallStack.StackItem;
 import haxe.Exception;
 
 class StackTraceManager implements IElement<StackTraceManager> {
-	public static final key:Key<StackTraceManager> = Key.createNew('StackTraceManager');
+	public static final key = new Key<StackTraceManager>('StackTraceManager');
 
 	public var insertIndex:Null<Int>;
 

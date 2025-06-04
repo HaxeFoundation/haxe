@@ -4,7 +4,7 @@ import haxe.coro.context.Key;
 import haxe.coro.context.IElement;
 
 abstract class Scheduler implements IElement<Scheduler> {
-	public static final key:Key<Scheduler> = Key.createNew('Scheduler');
+	public static final key = new Key<Scheduler>('Scheduler');
 
 	function new() {}
 
