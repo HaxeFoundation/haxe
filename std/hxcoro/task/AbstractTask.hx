@@ -1,5 +1,6 @@
 package hxcoro.task;
 
+import hxcoro.concurrent.AtomicInt;
 import haxe.coro.cancellation.ICancellationToken;
 import haxe.coro.cancellation.ICancellationHandle;
 import haxe.coro.cancellation.ICancellationCallback;
@@ -65,6 +66,7 @@ private class NoOpCancellationHandle implements ICancellationHandle {
 	be treated like a truly private variable and only be modified from within this class.
 **/
 abstract class AbstractTask<T> implements ICancellationToken {
+	static final atomicId = new AtomicInt(1); // start with 1 so we can use 0 for "no task" situations
 	static final noOpCancellationHandle = new NoOpCancellationHandle();
 
 	var children:Null<Array<AbstractTask<Any>>>;
@@ -75,6 +77,7 @@ abstract class AbstractTask<T> implements ICancellationToken {
 	var indexInParent:Int;
 	var allChildrenCompleted:Bool;
 
+	public var id(get, null):Int;
 	public var isCancellationRequested(get, never):Bool;
 
 	inline function get_isCancellationRequested() {
@@ -86,10 +89,15 @@ abstract class AbstractTask<T> implements ICancellationToken {
 		}
 	}
 
+	public inline function get_id() {
+		return id;
+	}
+
 	/**
 		Creates a new task.
 	**/
 	public function new() {
+		id = atomicId.add(1);
 		state = Created;
 		children = null;
 		cancellationCallbacks = null;

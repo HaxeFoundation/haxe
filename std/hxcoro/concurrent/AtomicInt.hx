@@ -49,8 +49,10 @@ abstract AtomicIntImpl(AtomicIntData) {
 
 	public function add(b:Int) {
 		this.mutex.acquire();
+		final value = this.value;
 		this.value += b;
 		this.mutex.release();
+		return value;
 	}
 }
 #end

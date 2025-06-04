@@ -13,6 +13,7 @@ interface ICoroNodeWith {
 }
 
 interface ICoroNode extends ICoroNodeWith {
+	var id(get, never):Int;
 	@:coroutine function awaitChildren():Void;
 	function cancel(?cause:CancellationException):Void;
 	function cancelChildren(?cause:CancellationException):Void;
