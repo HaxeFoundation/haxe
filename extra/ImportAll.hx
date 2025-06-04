@@ -78,13 +78,14 @@ class ImportAll {
 				if( !sys.FileSystem.exists(p) || !sys.FileSystem.isDirectory(p) )
 					continue;
 				for( file in sys.FileSystem.readDirectory(p) ) {
-					if( file == ".svn" || file == "_std" )
-						continue;
+					switch (file) {
+						case ".svn" | "_std" | "import.hx":
+							continue;
+					}
 					var full = (pack == "") ? file : pack + "." + file;
 					if( StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0 ) {
 						var cl = full.substr(0, full.length - 3);
 						switch( cl ) {
-						case "import": continue;
 						case "ImportAll", "neko.db.MacroManager": continue;
 						case "haxe.TimerQueue": if( Context.defined("neko") || Context.defined("php") || Context.defined("cpp") ) continue;
 						case "Sys": if(!isSysTarget()) continue;
