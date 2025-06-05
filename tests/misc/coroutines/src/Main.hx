@@ -10,7 +10,9 @@ function main() {
 		new TestHoisting(),
 		new TestMisc(),
 		new TestTexpr(),
-		// new TestGenerator(),
+		#if !hl
+		new TestGenerator(),
+		#end
 		#if js
 		new TestJsPromise(),
 		#end

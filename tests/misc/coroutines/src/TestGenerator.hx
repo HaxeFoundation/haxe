@@ -1,4 +1,68 @@
-import yield.Yield;
+import haxe.coro.schedulers.Scheduler;
+import hxcoro.task.CoroScopeTask;
+import haxe.coro.context.Context;
+import haxe.Exception;
+
+private typedef Yield<T> = Coroutine<T->Void>;
+
+class ImmediateScheduler extends Scheduler {
+	public function new() {
+		super();
+	}
+
+	public function schedule(ms:Int, f:() -> Void) {
+		if (ms != 0) {
+			throw 'Only immediate scheduling is allowed in this scheduler';
+		}
+		f();
+		return null;
+	}
+
+	public function now() {
+		return 0.0;
+	}
+}
+
+private function sequence<T>(f:Coroutine<Yield<T>->Void>):Iterator<T> {
+	var hasValue = false;
+	var nextValue:T = null;
+	var exception:Null<Exception> = null;
+
+	var nextStep = null;
+	final scope = new CoroScopeTask(Context.create(new ImmediateScheduler()));
+
+	@:coroutine function yield(value:T) {
+		nextValue = value;
+		hasValue = true;
+		suspend(cont -> {
+			nextStep = () -> {
+				hasValue = false;
+				cont.resume(null, null);
+				if (!scope.isActive()) {
+					exception = scope.getError();
+				}
+			}
+		});
+	}
+
+	nextStep = () -> {
+		f(yield, scope);
+		scope.start();
+	}
+
+	function hasNext() {
+		nextStep();
+		if (exception != null) {
+			throw exception;
+		}
+		return hasValue;
+	}
+	function next() {
+		return nextValue;
+	}
+
+	return {hasNext: hasNext, next: next};
+}
 
 class TestGenerator extends utest.Test {
 	function testSimple() {
@@ -35,6 +99,21 @@ class TestGenerator extends utest.Test {
 		};
 
 		Assert.same([1,2,3,4,5,6,7], [for (v in iterTree(tree)) v]);
+	}
+
+	function testException() {
+		final result = [];
+		Assert.raises(() -> {
+			for (i in sequence(yield -> {
+				yield(1);
+				yield(2);
+				throw "oh no";
+				yield(3);
+			})) {
+				result.push(i);
+			}
+		});
+		Assert.same([1, 2], result);
 	}
 }
 
