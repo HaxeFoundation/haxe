@@ -19,14 +19,6 @@ function main() {
 		#if (!coroutine.throw && (jvm || cpp || eval))
 		new TestCallStack(),
 		#end
-		new schedulers.TestVirtualTimeScheduler(),
-		new structured.TestChildScopes(),
-		new structured.TestLazyScopes(),
-		new structured.TestThrowingScopes(),
-		new structured.TestCoroutineScope(),
-		new structured.TestTaskCancellation(),
-		new structured.TestTimeout(),
-		new structured.TestCancellingSuspend()
 	];
 
 	var runner = new utest.Runner();
@@ -38,6 +30,7 @@ function main() {
 	runner.addCases("ds");
 	runner.addCases("concurrent");
 	runner.addCases("components");
+	runner.addCases("structured");
 
     utest.ui.Report.create(runner);
     runner.run();

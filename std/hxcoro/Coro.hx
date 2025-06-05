@@ -9,6 +9,7 @@ import haxe.exceptions.CancellationException;
 import haxe.exceptions.ArgumentException;
 import hxcoro.task.NodeLambda;
 import hxcoro.task.CoroScopeTask;
+import hxcoro.task.CoroSupervisorTask;
 import hxcoro.exceptions.TimeoutException;
 import hxcoro.continuations.TimeoutContinuation;
 
@@ -60,6 +61,21 @@ class Coro {
 		return suspend(cont -> {
 			final context = cont.context;
 			final scope = new CoroScopeTask(context);
+			scope.runNodeLambda(lambda);
+			scope.awaitContinuation(cont);
+		});
+	}
+
+	/**
+		Executes `lambda` in a new task, ignoring all child exceptions.
+
+		The task itself can still raise an exception. This is also true when calling
+		`child.await()` on a child that raises an exception.
+	**/
+	@:coroutine static public function supervisor<T>(lambda:NodeLambda<T>):T {
+		return suspend(cont -> {
+			final context = cont.context;
+			final scope = new CoroSupervisorTask(context);
 			scope.runNodeLambda(lambda);
 			scope.awaitContinuation(cont);
 		});
