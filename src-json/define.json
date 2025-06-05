@@ -85,6 +85,7 @@
 	{
 		"name": "DisableParallelism",
 		"define": "disable-parallelism",
+		"signatureNeutral": true,
 		"doc": "Disable all uses of parallelism in the compiler."
 	},
 	{
