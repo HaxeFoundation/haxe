@@ -220,6 +220,8 @@ class Timer {
 		return hl.Api.timestampMs();
 		#elseif jvm
 		return java.lang.System.nanoTime() / 1000000i64;
+		#elseif eval
+		return @:privateAccess Sys.timestamp_ms();
 		#else
 		return Std.int(stamp() * 1000);
 		#end
