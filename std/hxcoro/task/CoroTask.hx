@@ -63,8 +63,8 @@ abstract class CoroTask<T, C = Any> extends AbstractTask<T, C> implements IConti
 	/**
 		Creates a new task using the provided `context`.
 	**/
-	public function new(context:Context) {
-		super();
+	public function new(context:Context, parent:Null<AbstractTask>) {
+		super(parent);
 		initialContext = context;
 		wasResumed = true;
 	}

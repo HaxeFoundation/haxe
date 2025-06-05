@@ -6,15 +6,8 @@ import haxe.coro.context.Context;
 import hxcoro.task.ICoroTask;
 
 class CoroScopeTask<T, C = Any> extends CoroTask<T, C> {
-	final parent:Null<AbstractTask<Any>>;
-
 	public function new(context:Context) {
-		super(context);
-		// slightly subtle: context here refers to the incoming context which still holds the parent
-		parent = context.get(CoroTask.key);
-		if (parent != null) {
-			parent.addChild(this);
-		}
+		super(context, context.get(CoroTask.key));
 	}
 
 	function childSucceeds(_:AbstractTask<C>) {}

@@ -6,12 +6,8 @@ import haxe.exceptions.CancellationException;
 import hxcoro.task.ICoroTask;
 
 class CoroChildTask<T, C> extends CoroTask<T, C> {
-	final parent:AbstractTask<Any>;
-
 	public function new(context:Context, parent:AbstractTask<Any>) {
-		super(context);
-		this.parent = parent;
-		parent.addChild(this);
+		super(context, parent);
 	}
 
 	// called from parent
