@@ -58,5 +58,6 @@ extern class Api {
 		return _registerGUIDName(guid,@:privateAccess name.bytes);
 	}
 	#end
-	
+	@:hlNative('std', 'sys_timestamp_ms')
+	static function timestampMs():haxe.Int64;
 }

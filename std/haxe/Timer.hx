@@ -22,6 +22,7 @@
 
 package haxe;
 
+import haxe.Int64;
 #if (target.threaded && !cppia)
 import sys.thread.Thread;
 import sys.thread.EventLoop;
@@ -193,6 +194,34 @@ class Timer {
 		return Sys.time();
 		#else
 		return 0;
+		#end
+	}
+
+	/**
+	 * Returns a monotonically increasing timestamp with millisecond resolution.
+	 * 
+	 * The precision and epoch of the timer is platform defined.
+	 */
+	public static inline function milliseconds():Int64 {
+		#if flash
+		return flash.Lib.getTimer();
+		#elseif js
+		#if nodejs
+		var hrtime = js.Syntax.code('process.hrtime()'); // [seconds, remaining nanoseconds]
+		return hrtime[0] * 1000 + (hrtime[1] / 1000000i64);
+		#else
+		return @:privateAccess HxOverrides.now();
+		#end
+		#elseif cpp
+		return untyped __global__.__time_stamp_ms();
+		#elseif python
+		return python.lib.Time.perf_counter_ns() / 1000000i64;
+		#elseif hl
+		return hl.Api.timestampMs();
+		#elseif jvm
+		return java.lang.System.nanoTime() / 1000000i64;
+		#else
+		return Std.int(stamp() * 1000);
 		#end
 	}
 }
