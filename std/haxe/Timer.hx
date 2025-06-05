@@ -210,7 +210,7 @@ class Timer {
 		var hrtime = js.Syntax.code('process.hrtime()'); // [seconds, remaining nanoseconds]
 		return hrtime[0] * 1000 + (hrtime[1] / 1000000i64);
 		#else
-		return @:privateAccess HxOverrides.now();
+		return Std.int(@:privateAccess HxOverrides.now());
 		#end
 		#elseif cpp
 		return untyped __global__.__time_stamp_ms();
