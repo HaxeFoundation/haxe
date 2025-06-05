@@ -57,7 +57,7 @@ class Coro {
 		});
 	}
 
-	@:coroutine static public function scope<T>(lambda:NodeLambda<T>):T {
+	@:coroutine static public function scope<T, C>(lambda:NodeLambda<T, C>):T {
 		return suspend(cont -> {
 			final context = cont.context;
 			final scope = new CoroScopeTask(context);
@@ -72,7 +72,7 @@ class Coro {
 		The task itself can still raise an exception. This is also true when calling
 		`child.await()` on a child that raises an exception.
 	**/
-	@:coroutine static public function supervisor<T>(lambda:NodeLambda<T>):T {
+	@:coroutine static public function supervisor<T, C>(lambda:NodeLambda<T, C>):T {
 		return suspend(cont -> {
 			final context = cont.context;
 			final scope = new CoroSupervisorTask(context);
@@ -89,7 +89,7 @@ class Coro {
 	 * @throws `hxcoro.exceptions.TimeoutException` If the timeout is exceeded.
 	 * @throws `haxe.ArgumentException` If the `ms` parameter is less than zero.
 	 */
-	@:coroutine public static function timeout<T>(ms:Int, lambda:NodeLambda<T>):T {
+	@:coroutine public static function timeout<T, C>(ms:Int, lambda:NodeLambda<T, C>):T {
 		return suspend(cont -> {
 			if (ms < 0) {
 				cont.resume(null, new ArgumentException('timeout must be positive'));

@@ -5,7 +5,7 @@ import haxe.Exception;
 import haxe.exceptions.CancellationException;
 import hxcoro.task.ICoroTask;
 
-class CoroChildTask<T> extends CoroTask<T> {
+class CoroChildTask<T, C> extends CoroTask<T, C> {
 	final parent:AbstractTask<Any>;
 
 	public function new(context:Context, parent:AbstractTask<Any>) {
@@ -16,9 +16,9 @@ class CoroChildTask<T> extends CoroTask<T> {
 
 	// called from parent
 
-	function childSucceeds(child:AbstractTask<Any>) {}
+	function childSucceeds(child:AbstractTask<C>) {}
 
-	function childErrors(child:AbstractTask<Any>, error:Exception) {
+	function childErrors(child:AbstractTask<C>, error:Exception) {
 		switch (state) {
 			case Created | Running | Completing:
 				// inherit child error
@@ -32,7 +32,7 @@ class CoroChildTask<T> extends CoroTask<T> {
 		}
 	}
 
-	function childCancels(child:AbstractTask<Any>, cause:CancellationException) {
+	function childCancels(child:AbstractTask<C>, cause:CancellationException) {
 		// Cancellation is often issued from the parent anyway, but I don't know if that's always the case
 		// Calling cancel is fine because it won't do anything if we're already cancelling
 		cancel(cause);
@@ -44,13 +44,13 @@ class CoroChildTask<T> extends CoroTask<T> {
 	}
 }
 
-class StartableCoroChildTask<T> extends CoroChildTask<T> implements IStartableCoroTask<T> {
-	final lambda:NodeLambda<T>;
+class StartableCoroChildTask<T, C> extends CoroChildTask<T, C> implements IStartableCoroTask<T> {
+	final lambda:NodeLambda<T, C>;
 
 	/**
 		Creates a new task using the provided `context` in order to execute `lambda`.
 	**/
-	public function new(context:Context, lambda:NodeLambda<T>, parent:AbstractTask<Any>) {
+	public function new(context:Context, lambda:NodeLambda<T, C>, parent:AbstractTask<Any>) {
 		super(context, parent);
 		this.lambda = lambda;
 	}

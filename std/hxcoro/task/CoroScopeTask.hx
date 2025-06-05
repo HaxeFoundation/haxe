@@ -5,7 +5,7 @@ import haxe.exceptions.CancellationException;
 import haxe.coro.context.Context;
 import hxcoro.task.ICoroTask;
 
-class CoroScopeTask<T> extends CoroTask<T> {
+class CoroScopeTask<T, C = Any> extends CoroTask<T, C> {
 	final parent:Null<AbstractTask<Any>>;
 
 	public function new(context:Context) {
@@ -17,16 +17,16 @@ class CoroScopeTask<T> extends CoroTask<T> {
 		}
 	}
 
-	function childSucceeds(_) {}
+	function childSucceeds(_:AbstractTask<C>) {}
 
-	function childErrors(_, error:Exception) {
+	function childErrors(_:AbstractTask<C>, error:Exception) {
 		if (this.error == null) {
 			this.error = error;
 			cancel();
 		}
 	}
 
-	function childCancels(_, cause:CancellationException) {}
+	function childCancels(_:AbstractTask<C>, cause:CancellationException) {}
 
 	function complete() {
 		parent?.childCompletes(this, false);
@@ -34,13 +34,13 @@ class CoroScopeTask<T> extends CoroTask<T> {
 	}
 }
 
-class StartableCoroScopeTask<T> extends CoroScopeTask<T> implements IStartableCoroTask<T> {
-	final lambda:NodeLambda<T>;
+class StartableCoroScopeTask<T, C = Any> extends CoroScopeTask<T, C> implements IStartableCoroTask<T> {
+	final lambda:NodeLambda<T, C>;
 
 	/**
 		Creates a new task using the provided `context` in order to execute `lambda`.
 	**/
-	public function new(context:Context, lambda:NodeLambda<T>) {
+	public function new(context:Context, lambda:NodeLambda<T, C>) {
 		super(context);
 		this.lambda = lambda;
 	}
