@@ -215,7 +215,11 @@ class Timer {
 		#elseif cpp
 		return untyped __global__.__time_stamp_ms();
 		#elseif python
+		#if (python_version >= 3.7)
 		return python.lib.Time.perf_counter_ns() / 1000000i64;
+		#else
+		return Std.int(stamp() * 1000);
+		#end
 		#elseif hl
 		return hl.Api.timestampMs();
 		#elseif jvm
