@@ -463,14 +463,19 @@ let fun_to_coro ctx coro_type =
 	let vcontinuation = alloc_var VGenerated "_hx_continuation" coro_class.outside.cls_t coro_class.name_pos in
 	let econtinuation = b#local vcontinuation coro_class.name_pos in
 
+	let continuation_field c cf t =
+		b#instance_field econtinuation c coro_class.outside.param_types cf t
+	in
+
+	let estate = continuation_field basic.tcoro.suspension_result_class cont.state basic.tcoro.suspension_state in
+	let eresult = continuation_field basic.tcoro.suspension_result_class cont.result basic.tany in
+	let eerror = continuation_field basic.tcoro.suspension_result_class cont.error basic.texception in
+
 	let continuation_field cf t =
 		b#instance_field econtinuation basic.tcoro.base_continuation_class coro_class.outside.param_types cf t
 	in
 
 	let egoto  = continuation_field cont.goto_label basic.tint in
-	let estate = continuation_field cont.state basic.tcoro.suspension_state in
-	let eresult = continuation_field cont.result basic.tany in
-	let eerror = continuation_field cont.error basic.texception in
 
 	let vtmp = alloc_var VGenerated "_hx_tmp" basic.tany coro_class.name_pos in
 	let etmp = b#local vtmp coro_class.name_pos in
