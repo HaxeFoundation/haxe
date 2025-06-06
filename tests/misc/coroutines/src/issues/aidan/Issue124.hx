@@ -3,7 +3,7 @@ package issues.aidan;
 import haxe.coro.Coroutine;
 import haxe.coro.context.Context;
 import hxcoro.task.ICoroTask;
-import hxcoro.task.CoroScopeTask;
+import hxcoro.task.CoroTask;
 import hxcoro.ds.Channel;
 import hxcoro.task.ICoroNode;
 
@@ -17,11 +17,11 @@ interface ISender<T> {
 	@:coroutine function send(v:T):Void;
 }
 
-class CoroChannelTask<T> extends CoroScopeTask<haxe.Unit> implements IReceiver<T> implements ISender<T> {
+class CoroChannelTask<T> extends CoroTask<haxe.Unit> implements IReceiver<T> implements ISender<T> {
 	final channel:Channel<T>;
 
 	public function new(context:Context, channel:Channel<T>) {
-		super(context);
+		super(context, CoroTask.CoroScopeStrategy);
 		this.channel = channel;
 	}
 

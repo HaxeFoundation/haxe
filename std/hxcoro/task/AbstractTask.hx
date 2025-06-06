@@ -69,13 +69,13 @@ private class NoOpCancellationHandle implements ICancellationHandle {
 	and should be kept in a state where it could even be moved outside the hxcoro package. Also, `state` should
 	be treated like a truly private variable and only be modified from within this class.
 **/
-abstract class AbstractTask<T = Any, C = Any> implements ICancellationToken {
+abstract class AbstractTask<T = Any> implements ICancellationToken {
 	static final atomicId = new AtomicInt(1); // start with 1 so we can use 0 for "no task" situations
 	static final noOpCancellationHandle = new NoOpCancellationHandle();
 
 	final parent:AbstractTask<Any>;
 
-	var children:Null<Array<AbstractTask<C>>>;
+	var children:Null<Array<AbstractTask>>;
 	var cancellationCallbacks:Null<Array<CancellationHandle>>;
 	var state:TaskState;
 	var error:Null<Exception>;
@@ -275,15 +275,15 @@ abstract class AbstractTask<T = Any, C = Any> implements ICancellationToken {
 
 	abstract function childrenCompleted():Void;
 
-	abstract function childSucceeds(child:AbstractTask<C>):Void;
+	abstract function childSucceeds(child:AbstractTask):Void;
 
-	abstract function childErrors(child:AbstractTask<C>, cause:Exception):Void;
+	abstract function childErrors(child:AbstractTask, cause:Exception):Void;
 
-	abstract function childCancels(child:AbstractTask<C>, cause:CancellationException):Void;
+	abstract function childCancels(child:AbstractTask, cause:CancellationException):Void;
 
 	// called from child
 
-	function childCompletes(child:AbstractTask<C>, processResult:Bool) {
+	function childCompletes(child:AbstractTask, processResult:Bool) {
 		numCompletedChildren++;
 		if (processResult) {
 			if (child.error != null) {
@@ -303,7 +303,7 @@ abstract class AbstractTask<T = Any, C = Any> implements ICancellationToken {
 		}
 	}
 
-	function addChild(child:AbstractTask<C, Any>) {
+	function addChild(child:AbstractTask) {
 		final container = children ??= [];
 		final index = container.push(child);
 		child.indexInParent = index - 1;

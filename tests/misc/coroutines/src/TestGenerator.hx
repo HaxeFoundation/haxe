@@ -1,5 +1,5 @@
 import haxe.coro.schedulers.Scheduler;
-import hxcoro.task.CoroScopeTask;
+import hxcoro.task.CoroTask;
 import haxe.coro.context.Context;
 import haxe.Exception;
 
@@ -29,7 +29,7 @@ private function sequence<T>(f:Coroutine<Yield<T>->Void>):Iterator<T> {
 	var exception:Null<Exception> = null;
 
 	var nextStep = null;
-	final scope = new CoroScopeTask(Context.create(new ImmediateScheduler()));
+	final scope = new CoroTask(Context.create(new ImmediateScheduler()), CoroTask.CoroScopeStrategy);
 
 	@:coroutine function yield(value:T) {
 		nextValue = value;
