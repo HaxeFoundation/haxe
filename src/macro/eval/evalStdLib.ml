@@ -2709,6 +2709,8 @@ module StdSys = struct
 		)
 
 	let time = vfun0 (fun () -> vfloat (catch_unix_error Unix.gettimeofday()))
+
+	let timestamp_ms = vfun0 (fun () -> EvalIntegers.encode_haxe_i64_direct (* TODO: use vint64 once that works *) (Extc.timestamp_ms()))
 end
 
 module StdThread = struct
@@ -3727,6 +3729,7 @@ let init_standard_library builtins =
 		"stdout",StdSys.stdout;
 		"systemName",StdSys.systemName;
 		"time",StdSys.time;
+		"timestamp_ms",StdSys.timestamp_ms;
 	] [];
 	init_fields builtins (["eval";"vm"],"NativeThread") [
 		"delay",StdThread.delay;

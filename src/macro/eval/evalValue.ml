@@ -347,6 +347,7 @@ let vfield_closure v f = VFieldClosure(v,f)
 let vobject o = VObject o
 let vint i = VInt32 (Int32.of_int i)
 let vint32 i = VInt32 i
+let vint64 i = VInt64 i
 let vfloat f = VFloat f
 let venum_value e = VEnumValue e
 let vnative_string s = VNativeString s
