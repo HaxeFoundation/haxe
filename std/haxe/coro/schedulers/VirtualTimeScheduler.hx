@@ -8,7 +8,7 @@ class VirtualTimeScheduler extends EventLoopScheduler {
 	public function new() {
 		super();
 
-		currentTime = 0;
+		currentTime = 0i64;
 	}
 
 	public override function now() {
