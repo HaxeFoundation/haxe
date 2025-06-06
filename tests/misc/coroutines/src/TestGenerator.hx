@@ -1,3 +1,4 @@
+import haxe.Int64;
 import haxe.coro.schedulers.Scheduler;
 import hxcoro.task.CoroTask;
 import haxe.coro.context.Context;
@@ -10,7 +11,7 @@ class ImmediateScheduler extends Scheduler {
 		super();
 	}
 
-	public function schedule(ms:Int, f:() -> Void) {
+	public function schedule(ms:Int64, f:() -> Void) {
 		if (ms != 0) {
 			throw 'Only immediate scheduling is allowed in this scheduler';
 		}
@@ -19,7 +20,7 @@ class ImmediateScheduler extends Scheduler {
 	}
 
 	public function now() {
-		return 0.0;
+		return 0i64;
 	}
 }
 

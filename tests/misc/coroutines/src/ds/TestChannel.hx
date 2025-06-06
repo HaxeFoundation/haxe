@@ -104,7 +104,7 @@ class TestChannel extends utest.Test {
 						channel.write('Hello');
 					});
 				} catch (_:TimeoutException) {
-					exceptions.push(scheduler.nowMs());
+					exceptions.push(scheduler.now());
 				}
 			});
 
@@ -124,7 +124,8 @@ class TestChannel extends utest.Test {
 
 		scheduler.advanceBy(1);
 		Assert.same([], actual);
-		Assert.same([100], exceptions);
+		Assert.equals(1, exceptions.length);
+		Assert.isTrue(100i64 == exceptions[0]);
 
 		scheduler.advanceBy(100);
 		Assert.same([ 'World' ], actual);
@@ -144,7 +145,7 @@ class TestChannel extends utest.Test {
 						return channel.read();
 					});
 				} catch(_:TimeoutException) {
-					exceptions.push(scheduler.nowMs());
+					exceptions.push(scheduler.now());
 					"";
 				}
 			});
@@ -164,7 +165,8 @@ class TestChannel extends utest.Test {
 		scheduler.advanceBy(100);
 
 		Assert.same([ 'Hello' ], actual);
-		Assert.same([100], exceptions);
+		Assert.equals(1, exceptions.length);
+		Assert.isTrue(100i64 == exceptions[0]);
 		Assert.isFalse(task.isActive());
 	}
 }
