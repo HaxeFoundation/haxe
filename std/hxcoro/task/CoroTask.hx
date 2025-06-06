@@ -34,9 +34,9 @@ class CoroTask<T> extends CoroBaseTask<T> implements IContinuation<T> {
 			case Pending:
 				return;
 			case Returned:
-				resume(result.result, null);
+				this.succeedSync(result.result);
 			case Thrown:
-				resume(null, result.error);
+				this.failSync(result.error);
 		}
 	}
 

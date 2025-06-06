@@ -1,13 +1,9 @@
 package hxcoro.concurrent;
 
-import haxe.coro.cancellation.ICancellationCallback;
 import haxe.coro.Mutex;
-import hxcoro.Coro.*;
 import hxcoro.task.CoroTask;
 import hxcoro.ds.PagedDeque;
 import haxe.coro.IContinuation;
-import haxe.coro.cancellation.ICancellationHandle;
-import haxe.exceptions.CancellationException;
 import haxe.coro.cancellation.CancellationToken;
 
 class CoroSemaphore {
@@ -71,7 +67,7 @@ class CoroSemaphore {
 			} else {
 				// continue normally
 				dequeMutex.release();
-				cont.resume(null, null);
+				cont.callAsync();
 				return;
 			}
 		}

@@ -23,6 +23,6 @@ class TimeoutContinuation<T> implements IContinuation<T> {
 	public function resume(value:T, error:Exception) {
 		handle.close();
 
-		cont.resume(value, error);
+		cont.resumeAsync(value, error);
 	}
 }

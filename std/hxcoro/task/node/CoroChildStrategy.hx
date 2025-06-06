@@ -13,10 +13,6 @@ class CoroChildStrategy implements INodeStrategy {
 		task.handleAwaitingContinuations();
 	}
 
-	public function childrenCompleted<T>(task:CoroBaseTask<T>) {
-		task.awaitingChildContinuation?.resume(null, null);
-	}
-
 	public function childSucceeds<T>(task:CoroBaseTask<T>, child:AbstractTask) {}
 
 	public function childErrors<T>(task:CoroBaseTask<T>, child:AbstractTask, cause:Exception) {

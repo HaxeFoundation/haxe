@@ -59,7 +59,7 @@ class CancellingContinuation<T> implements ICancellableContinuation<T> implement
 				handle.close();
 				cont.resume(result, error);
 			} else {
-				cont.resume(null, new CancellationException());
+				cont.failAsync(new CancellationException());
 			}
 		});
 	}

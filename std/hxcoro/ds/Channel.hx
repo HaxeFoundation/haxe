@@ -35,7 +35,7 @@ private class SuspendedWrite<T> implements IContinuation<T> {
 
 	public function resume(v:T, error:Exception) {
 		if (context.get(CancellationToken.key).isCancellationRequested) {
-			continuation.resume(null, new CancellationException());
+			continuation.failAsync(new CancellationException());
 		} else {
 			continuation.resume(v, error);
 		}
@@ -47,7 +47,7 @@ private class SuspendedWrite<T> implements IContinuation<T> {
 			hostPage.data[hostIndex] = null;
 		}
 		// writeMutex.release();
-		resume(null, null);
+		this.callSync();
 	}
 }
 
@@ -75,7 +75,7 @@ class SuspendedRead<T> implements IContinuation<T> {
 
 	public function resume(v:T, error:Exception) {
 		if (context.get(CancellationToken.key).isCancellationRequested) {
-			continuation.resume(null, new CancellationException());
+			continuation.failAsync(new CancellationException());
 		} else {
 			continuation.resume(v, error);
 		}
@@ -87,7 +87,7 @@ class SuspendedRead<T> implements IContinuation<T> {
 			hostPage.data[hostIndex] = null;
 		}
 		// readMutex.release();
-		resume(null, null);
+		this.callSync();
 	}
 }
 
@@ -128,7 +128,7 @@ class Channel<T> {
 				if (suspendedRead == null) {
 					continue;
 				} else {
-					suspendedRead.resume(v, null);
+					suspendedRead.succeedAsync(v);
 					break;
 				}
 			}
@@ -145,7 +145,7 @@ class Channel<T> {
 			if (resuming == null) {
 				continue;
 			}
-			resuming.resume(null, null);
+			resuming.callSync();
 			if (writeQueue.length == 0) {
 				return resuming.value;
 			} else {

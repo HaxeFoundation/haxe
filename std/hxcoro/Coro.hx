@@ -39,7 +39,7 @@ class Coro {
 	@:coroutine @:coroutine.nothrow public static function delay(ms:Int):Void {
 		suspendCancellable(cont -> {
 			final handle = cont.context.get(Scheduler.key).schedule(ms, () -> {
-				cont.resume(null, null);
+				cont.callSync();
 			});
 
 			cont.onCancellationRequested = () -> {
@@ -51,7 +51,7 @@ class Coro {
 	@:coroutine @:coroutine.nothrow public static function yield():Void {
 		suspend(cont -> {
 			cont.context.get(Scheduler.key).schedule(0, () -> {
-				cont.resume(null, cancellationRequested(cont) ? new CancellationException() : null);
+				cont.failSync(cancellationRequested(cont) ? new CancellationException() : null);
 			});
 		});
 	}
@@ -91,12 +91,12 @@ class Coro {
 	@:coroutine public static function timeout<T>(ms:Int, lambda:NodeLambda<T>):T {
 		return suspend(cont -> {
 			if (ms < 0) {
-				cont.resume(null, new ArgumentException('timeout must be positive'));
+				cont.failSync(new ArgumentException('timeout must be positive'));
 
 				return;
 			}
 			if (ms == 0) {
-				cont.resume(null, new TimeoutException());
+				cont.failSync(new TimeoutException());
 
 				return;
 			}
