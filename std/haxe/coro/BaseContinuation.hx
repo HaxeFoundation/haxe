@@ -170,4 +170,8 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
     }
 
     abstract function invokeResume():SuspensionResult<T>;
+
+	override function toString() {
+		return '[BaseContinuation ${state.toString()}, $result]';
+	}
 }

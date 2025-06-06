@@ -77,4 +77,8 @@ class RacingContinuation<T> extends SuspensionResult<T> implements IContinuation
 		mutex.release();
 		state = Pending;
 	}
+
+	override function toString() {
+		return '[RacingContinuation ${state.toString()}, $result]';
+	}
 }
