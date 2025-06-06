@@ -44,7 +44,7 @@ import sys.thread.EventLoop;
 
 	Notice for threaded targets:
 	`Timer` instances require threads they were created in to run with Haxe's event loops.
-	Main thread of a Haxe program always contains an event loop. For other cases use 
+	Main thread of a Haxe program always contains an event loop. For other cases use
 	`sys.thread.Thread.createWithEventLoop` and `sys.thread.Thread.runWithEventLoop` methods.
 **/
 class Timer {
@@ -199,7 +199,7 @@ class Timer {
 
 	/**
 	 * Returns a monotonically increasing timestamp with millisecond resolution.
-	 * 
+	 *
 	 * The precision and epoch of the timer is platform defined.
 	 */
 	public static inline function milliseconds():Int64 {
@@ -220,7 +220,7 @@ class Timer {
 		#else
 		return Std.int(stamp() * 1000);
 		#end
-		#elseif hl
+		#elseif (hl && hl_ver >= version("1.16.0"))
 		return hl.Api.timestampMs();
 		#elseif jvm
 		return java.lang.System.nanoTime() / 1000000i64;
