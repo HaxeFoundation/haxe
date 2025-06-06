@@ -20,7 +20,7 @@ class ImmediateScheduler extends Scheduler {
 	}
 
 	public function now() {
-		return 0.0;
+		return 0i64;
 	}
 }
 
