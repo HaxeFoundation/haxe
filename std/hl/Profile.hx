@@ -49,6 +49,17 @@ class Result {
 	}
 }
 
+enum abstract EventCode(Int) to Int from Int {
+	final EndOfFrame = 0;
+	final Pause = -1;
+	final Resume = -2;
+	final ClearData = -3;
+	final PauseAll = -4;
+	final ResumeAll = -5;
+	final Dump = -6;
+	final Setup = -7;
+}
+
 @:hlNative("std")
 class Profile {
 	public static var threadBits(get, set):haxe.EnumFlags<TrackKind>;
@@ -218,14 +229,14 @@ class Profile {
 	public static function getFieldName(hash:Int):Bytes {
 		return null;
 	}
-	
+
 	@:hlNative(1.11)
 	static function sys_profile_event( code : Int, data : hl.Bytes, dataLen : Int ) : Void {}
-	public static function event( code : Int, ?data : String ) @:privateAccess {
+	public static function event( code : EventCode, ?data : String ) @:privateAccess {
 		sys_profile_event(code,data == null ? null : data.bytes, data == null ? 0 : (data.length<<1));
 	}
-	public static function eventBytes( code : Int, data : haxe.io.Bytes ) @:privateAccess {
+	public static function eventBytes( code : EventCode, data : haxe.io.Bytes ) @:privateAccess {
 		sys_profile_event(code,data == null ? null : data, data == null ? 0 : data.length);
 	}
-	
+
 }
