@@ -104,7 +104,7 @@ class TestChannel extends utest.Test {
 						channel.write('Hello');
 					});
 				} catch (_:TimeoutException) {
-					exceptions.push(scheduler.nowMs());
+					exceptions.push(scheduler.now());
 				}
 			});
 
@@ -144,7 +144,7 @@ class TestChannel extends utest.Test {
 						return channel.read();
 					});
 				} catch(_:TimeoutException) {
-					exceptions.push(scheduler.nowMs());
+					exceptions.push(scheduler.now());
 					"";
 				}
 			});

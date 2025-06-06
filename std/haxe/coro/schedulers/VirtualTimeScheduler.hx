@@ -3,7 +3,7 @@ package haxe.coro.schedulers;
 import haxe.exceptions.ArgumentException;
 
 class VirtualTimeScheduler extends EventLoopScheduler {
-	var currentTime : Float;
+	var currentTime : Int64;
 
 	public function new() {
 		super();
@@ -20,21 +20,21 @@ class VirtualTimeScheduler extends EventLoopScheduler {
 			throw new ArgumentException("Time must be greater or equal to zero");
 		}
 
-		virtualRun(currentTime + (ms / 1000));
+		virtualRun(currentTime + ms);
 	}
 
 	public function advanceTo(ms:Int) {
 		if (ms < 0) {
 			throw new ArgumentException("Time must be greater or equal to zero");
 		}
-		if ((ms / 1000) < currentTime) {
+		if (ms < currentTime) {
 			throw new ArgumentException("Cannot travel back in time");
 		}
 
-		virtualRun(ms / 1000);
+		virtualRun(ms);
 	}
 
-	function virtualRun(endTime : Float) {
+	function virtualRun(endTime : Int64) {
 		while (true) {
 			for (event in zeroEvents.flip()) {
 				event();

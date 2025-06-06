@@ -9,7 +9,7 @@ private class ScheduledEvent implements ISchedulerHandle {
 	final closure : CloseClosure;
 	final func : Lambda;
 	var closed : Bool;
-	public final runTime : Float;
+	public final runTime : Int64;
 	public var next : Null<ScheduledEvent>;
 	public var previous : Null<ScheduledEvent>;
 
@@ -97,7 +97,7 @@ class EventLoopScheduler extends Scheduler {
 		closeClosure = close;
 	}
 
-    public function schedule(ms:Int, func:()->Void):ISchedulerHandle {
+    public function schedule(ms:Int64, func:()->Void):ISchedulerHandle {
 		if (ms < 0) {
 			throw new ArgumentException("Time must be greater or equal to zero");
 		} else if (ms == 0) {
@@ -107,7 +107,7 @@ class EventLoopScheduler extends Scheduler {
 			return noOpHandle;
 		}
 
-		final event = new ScheduledEvent(closeClosure, func, now() + (ms / 1000));
+		final event = new ScheduledEvent(closeClosure, func, now() + ms);
 
 		futureMutex.acquire();
 		if (first == null) {
@@ -160,7 +160,7 @@ class EventLoopScheduler extends Scheduler {
     }
 
 	public function now() {
-		return Timer.stamp();
+		return Timer.milliseconds();
 	}
 
 	public function run() {

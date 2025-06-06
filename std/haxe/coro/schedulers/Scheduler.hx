@@ -8,9 +8,9 @@ abstract class Scheduler implements IElement<Scheduler> {
 
 	function new() {}
 
-	public abstract function schedule(ms:Int, func:() -> Void):ISchedulerHandle;
+	public abstract function schedule(ms:Int64, func:() -> Void):ISchedulerHandle;
 
-	public abstract function now():Float;
+	public abstract function now():Int64;
 
 	public function getKey() {
 		return key;

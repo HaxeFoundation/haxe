@@ -20,7 +20,7 @@ class TestMutex extends utest.Test {
 		var scheduler = new VirtualTimeScheduler();
 		final lines = [];
 		function report(s:String) {
-			final now = scheduler.nowMs();
+			final now = scheduler.now();
 			lines.push('$now: $s');
 		}
 		final task = CoroRun.with(scheduler).create(node -> {
@@ -140,7 +140,7 @@ class TestMutex extends utest.Test {
 		var scheduler = new VirtualTimeScheduler();
 		final lines = [];
 		function report(s:String) {
-			final now = scheduler.nowMs();
+			final now = scheduler.now();
 			lines.push('$now: $s');
 		}
 		final task = CoroRun.with(scheduler).create(node -> {

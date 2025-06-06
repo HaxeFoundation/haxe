@@ -24,7 +24,7 @@ class TestCancellingSuspend extends utest.Test {
 
 		scheduler.advanceBy(100);
 
-		Assert.same([ 0.1 ], actual);
+		Assert.same([ 100 ], actual);
 		Assert.isFalse(task.isActive());
 		Assert.isOfType(task.getError(), CancellationException);
 	}
