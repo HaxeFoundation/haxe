@@ -31,6 +31,7 @@ function main() {
 	runner.addCases("concurrent");
 	runner.addCases("components");
 	runner.addCases("structured");
+	runner.addCases("features");
 
     utest.ui.Report.create(runner);
     runner.run();

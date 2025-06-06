@@ -131,6 +131,10 @@ abstract AdjustableContext(ElementTree) {
 		return abstract;
 	}
 
+	public function get<T>(key:Key<T>):T {
+		return cast this.get(key.id);
+	}
+
 	public function with(...elements:IElement<Any>) {
 		for (element in elements) {
 			this.set(element.getKey().id, element);

@@ -12,7 +12,7 @@ interface ICoroNodeWith {
 	function with(...elements:IElement<Any>):ICoroNodeWith;
 }
 
-interface ICoroNode extends ICoroNodeWith {
+interface ICoroNode extends ICoroNodeWith extends ILocalContext {
 	var id(get, never):Int;
 	@:coroutine function awaitChildren():Void;
 	function cancel(?cause:CancellationException):Void;
