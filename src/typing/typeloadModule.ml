@@ -27,7 +27,6 @@ open DisplayTypes.DisplayMode
 open Common
 open Typeload
 open Error
-open Resolution
 
 let get_policy g mpath =
 	let sl1 = full_dot_path2 mpath mpath in

@@ -1,7 +1,6 @@
 open Globals
 open Type
 open Common
-open Typecore
 open DisplayTypes
 
 type relation =

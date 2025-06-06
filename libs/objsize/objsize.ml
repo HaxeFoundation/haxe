@@ -11,7 +11,9 @@ type info =
 
 external internal_objsize : Obj.t -> Obj.t list -> Obj.t list -> info = "ml_objsize"
 
-let objsize obj exclude reach = internal_objsize (Obj.repr obj) exclude reach
+let objsize obj (exclude:Obj.t list) (reach:Obj.t list) =
+  (* internal_objsize (Obj.repr obj) exclude reach *)
+  {data = (Obj.reachable_words (Obj.repr obj)); headers = 0; depth = 0; reached = false}
 
 let size_with_headers i = (Sys.word_size/8) * (i.data + i.headers)
 
