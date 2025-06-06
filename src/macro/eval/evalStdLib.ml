@@ -2710,7 +2710,7 @@ module StdSys = struct
 
 	let time = vfun0 (fun () -> vfloat (catch_unix_error Unix.gettimeofday()))
 
-	let timestamp_ms = vfun0 (fun () -> vint64 (Extc.timestamp_ms()))
+	let timestamp_ms = vfun0 (fun () -> EvalIntegers.encode_haxe_i64_direct (* TODO: use vint64 once that works *) (Extc.timestamp_ms()))
 end
 
 module StdThread = struct
