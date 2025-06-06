@@ -125,7 +125,7 @@ class TestChannel extends utest.Test {
 		scheduler.advanceBy(1);
 		Assert.same([], actual);
 		Assert.equals(1, exceptions.length);
-		Assert.equals(100i64, exceptions[0]);
+		Assert.isTrue(100i64 == exceptions[0]);
 
 		scheduler.advanceBy(100);
 		Assert.same([ 'World' ], actual);
@@ -166,7 +166,7 @@ class TestChannel extends utest.Test {
 
 		Assert.same([ 'Hello' ], actual);
 		Assert.equals(1, exceptions.length);
-		Assert.equals(100i64, exceptions[0]);
+		Assert.isTrue(100i64 == exceptions[0]);
 		Assert.isFalse(task.isActive());
 	}
 }
