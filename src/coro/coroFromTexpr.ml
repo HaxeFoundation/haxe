@@ -50,6 +50,9 @@ let expr_to_coro ctx etmp cb_root e =
 			let v = tmp_local cb t p in
 			let ev = Texpr.Builder.make_local v v.v_pos in
 			ev,RLocal v
+		| RLocal v ->
+			let ev = Texpr.Builder.make_local v v.v_pos in
+			ev,ret
 		| _ ->
 			e_no_value,ret
 	in
