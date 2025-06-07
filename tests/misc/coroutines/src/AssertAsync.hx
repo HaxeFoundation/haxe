@@ -9,7 +9,7 @@ class AssertAsync {
 
 		try {
 			method();
-		} catch (ex) {
+		} catch (ex:Dynamic) {
 			var ex = Std.isOfType(ex, ValueException) ? (cast ex:ValueException).value : (ex:Any);
 
 			return Assert.isTrue(Std.isOfType(ex, type), "expected " + typeDescr + " but it is "  + ex);
