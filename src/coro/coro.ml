@@ -214,19 +214,27 @@ module ContinuationClassBuilder = struct
 			let this_field cf =
 				b#instance_field ethis coro_class.cls coro_class.inside.param_types cf cf.cf_type
 			in
+			let map_args =
+				List.map (fun (v, _) ->
+					let t = substitute_type_params coro_class.type_param_subst v.v_type in
+					Texpr.Builder.default_value t coro_class.name_pos
+				)
+			in
 			match coro_class.coro_type with
 			| ClassField (cls, field, f, _) when has_class_field_flag field CfStatic ->
-				let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type coro_class.name_pos)) @ [ ethis ] in
-				let efunction = Builder.make_static_field cls field coro_class.name_pos in
+				let args      = (f.tf_args |> map_args) @ [ ethis ] in
+				let estaticthis = Builder.make_static_this cls coro_class.name_pos in
+				let tcf = substitute_type_params coro_class.type_param_subst field.cf_type in
+				let efunction = b#static_field estaticthis cls field tcf in
 				b#call efunction args tret_invoke_resume
 			| ClassField (cls, field,f, _) ->
-				let args      = (f.tf_args |> List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type coro_class.name_pos)) @ [ ethis ] in
+				let args      = (f.tf_args |> map_args) @ [ ethis ] in
 				let captured  = coro_class.captured |> Option.get in
 				let ecapturedfield = this_field captured in
 				let efunction      = b#instance_field ecapturedfield cls [] (* TODO: check *) field field.cf_type in
 				b#call efunction args tret_invoke_resume
 			| LocalFunc(f,_) ->
-				let args      = (List.map (fun (v, _) -> Texpr.Builder.default_value v.v_type coro_class.name_pos) f.tf_args) @ [ ethis ] in
+				let args      = (f.tf_args |> map_args) @ [ ethis ] in
 				let captured  = coro_class.captured |> Option.get in
 				let ecapturedfield = this_field captured in
 				b#call ecapturedfield args tret_invoke_resume

@@ -53,6 +53,9 @@ object(self)
 	method return (e : texpr) =
 		mk (TReturn (Some e)) t_dynamic e.epos
 
+	method static_field (e : texpr) (c : tclass) (cf : tclass_field) (t : Type.t) =
+		mk (TField(e,FStatic(c,cf))) t e.epos
+
 	method string (s : string) (p : pos) =
 		mk (TConst (TString s)) basic.tstring p
 
