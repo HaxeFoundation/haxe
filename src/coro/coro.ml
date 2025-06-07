@@ -231,11 +231,6 @@ module ContinuationClassBuilder = struct
 				let ecapturedfield = this_field captured in
 				b#call ecapturedfield args tret_invoke_resume
 		in
-		(* TODO: this is awkward, it would be better to avoid the entire expression and work with the correct types right away *)
-		let rec map_expr_type e =
-			Type.map_expr_type map_expr_type (substitute_type_params coro_class.type_param_subst) (fun v -> v) e
-		in
-		let ecorocall = map_expr_type ecorocall in
 
 		let field = mk_field "invokeResume" (TFun ([], tret_invoke_resume)) coro_class.name_pos coro_class.name_pos in
 		add_class_field_flag field CfOverride;
