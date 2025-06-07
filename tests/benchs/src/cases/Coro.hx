@@ -3,7 +3,9 @@ package cases;
 import hxbenchmark.Suite;
 import hxcoro.Coro.*;
 import hxcoro.CoroRun;
+import hxcoro.ds.Channel;
 
+// the results for each suite should be roughly linear, so 100%/10%/1%
 class Coro extends TestCase {
 	function measureYield() {
 		var suite = new Suite("yield");
@@ -65,7 +67,7 @@ class Coro extends TestCase {
 		return suite.run();
 	}
 
-	function measureHoising() {
+	function measureHoisting() {
 		var suite = new Suite("hoising");
 		suite.add("100", CoroRun.runScoped(node -> {
 			var a = 0;
@@ -86,6 +88,50 @@ class Coro extends TestCase {
 			for (i in 0...10000) {
 				a++;
 				yield();
+			}
+		}));
+		return suite.run();
+	}
+
+	function measureChannel() {
+		var suite = new Suite("channel");
+		suite.add("100", CoroRun.runScoped(node -> {
+			var ch = new Channel();
+			for (i in 0...100) {
+				node.async(_ -> {
+					ch.write(1);
+				});
+			}
+			for (i in 0...100) {
+				node.async(_ -> {
+					ch.read();
+				});
+			}
+		}));
+		suite.add("1000", CoroRun.runScoped(node -> {
+			var ch = new Channel();
+			for (i in 0...1000) {
+				node.async(_ -> {
+					ch.write(1);
+				});
+			}
+			for (i in 0...1000) {
+				node.async(_ -> {
+					ch.read();
+				});
+			}
+		}));
+		suite.add("10000", CoroRun.runScoped(node -> {
+			var ch = new Channel();
+			for (i in 0...10000) {
+				node.async(_ -> {
+					ch.write(1);
+				});
+			}
+			for (i in 0...10000) {
+				node.async(_ -> {
+					ch.read();
+				});
 			}
 		}));
 		return suite.run();
