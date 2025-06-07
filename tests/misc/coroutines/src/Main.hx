@@ -32,6 +32,7 @@ function main() {
 	runner.addCases("components");
 	runner.addCases("structured");
 	runner.addCases("features");
+	runner.addCases("schedulers");
 
     utest.ui.Report.create(runner);
     runner.run();

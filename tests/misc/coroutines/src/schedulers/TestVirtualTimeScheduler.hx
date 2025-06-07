@@ -7,25 +7,25 @@ class TestVirtualTimeScheduler extends utest.Test {
 	public function test_time_after_advancing_by() {
 		final sut = new VirtualTimeScheduler();
 
-		Assert.equals(0f64, sut.now());
+		Assert.isTrue(0i64 == sut.now());
 
 		sut.advanceBy(100);
-		Assert.equals(0.1f64, sut.now());
+		Assert.isTrue(100i64 == sut.now());
 
 		sut.advanceBy(400);
-		Assert.equals(0.5f64, sut.now());
+		Assert.isTrue(500i64 == sut.now());
 	}
 
 	public function test_time_after_advancing_to() {
 		final sut = new VirtualTimeScheduler();
 
-		Assert.equals(0f64, sut.now());
+		Assert.isTrue(0i64 == sut.now());
 
 		sut.advanceTo(100);
-		Assert.equals(0.1f64, sut.now());
+		Assert.isTrue(100i64 == sut.now());
 
 		sut.advanceTo(400);
-		Assert.equals(0.4f64, sut.now());
+		Assert.isTrue(400i64 == sut.now());
 	}
 
 	public function test_scheduling_immediate_function() {
@@ -78,7 +78,8 @@ class TestVirtualTimeScheduler extends utest.Test {
 		sut.schedule(20, () -> result.push(sut.now()));
 		sut.advanceBy(20);
 
-		Assert.same([ 0.01, 0.02 ], result);
+		Assert.isTrue(10i64 == result[0]);
+		Assert.isTrue(20i64 == result[1]);
 	}
 
 	public function test_scheduling_recursive_immediate_functions() {
