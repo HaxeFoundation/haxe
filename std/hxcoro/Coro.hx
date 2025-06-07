@@ -49,11 +49,7 @@ class Coro {
 	}
 
 	@:coroutine @:coroutine.nothrow public static function yield():Void {
-		suspend(cont -> {
-			cont.context.get(Scheduler).schedule(0, () -> {
-				cont.failSync(cancellationRequested(cont) ? new CancellationException() : null);
-			});
-		});
+		delay(0);
 	}
 
 	@:coroutine static public function scope<T>(lambda:NodeLambda<T>):T {
