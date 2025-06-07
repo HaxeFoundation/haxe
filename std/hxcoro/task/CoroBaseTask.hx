@@ -66,8 +66,8 @@ abstract class CoroBaseTask<T> extends AbstractTask<T> implements ICoroNode impl
 	/**
 		Creates a new task using the provided `context`.
 	**/
-	public function new(context:Context, nodeStrategy:INodeStrategy) {
-		super(context.get(CoroTask.key));
+	public function new(context:Context, nodeStrategy:INodeStrategy, initialState:TaskState) {
+		super(context.get(CoroTask.key), initialState);
 		initialContext = context;
 		this.nodeStrategy = nodeStrategy;
 	}

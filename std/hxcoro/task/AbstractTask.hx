@@ -102,7 +102,7 @@ abstract class AbstractTask<T = Any> implements ICancellationToken {
 	/**
 		Creates a new task.
 	**/
-	public function new(parent:Null<AbstractTask>) {
+	public function new(parent:Null<AbstractTask>, initialState:TaskState) {
 		id = atomicId.add(1);
 		this.parent = parent;
 		state = Created;
@@ -113,6 +113,13 @@ abstract class AbstractTask<T = Any> implements ICancellationToken {
 		allChildrenCompleted = false;
 		if (parent != null) {
 			parent.addChild(this);
+		}
+		switch (initialState) {
+			case Created:
+			case Running:
+				start();
+			case _:
+				throw new TaskException('Invalid initial state $initialState');
 		}
 	}
 

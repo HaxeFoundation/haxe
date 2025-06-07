@@ -4,6 +4,7 @@ import hxcoro.task.node.CoroChildStrategy;
 import hxcoro.task.node.CoroScopeStrategy;
 import hxcoro.task.node.CoroSupervisorStrategy;
 import hxcoro.task.node.INodeStrategy;
+import hxcoro.task.AbstractTask;
 import haxe.coro.IContinuation;
 import haxe.coro.context.Key;
 import haxe.coro.context.Context;
@@ -18,8 +19,8 @@ class CoroTask<T> extends CoroBaseTask<T> implements IContinuation<T> {
 
 	var wasResumed:Bool;
 
-	public function new(context:Context, nodeStrategy:INodeStrategy) {
-		super(context, nodeStrategy);
+	public function new(context:Context, nodeStrategy:INodeStrategy, initialState:TaskState = Running) {
+		super(context, nodeStrategy, initialState);
 		wasResumed = true;
 	}
 

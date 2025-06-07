@@ -11,7 +11,7 @@ class StartableCoroTask<T> extends CoroTask<T> implements IStartableCoroTask<T> 
 		Creates a new task using the provided `context` in order to execute `lambda`.
 	**/
 	public function new(context:Context, lambda:NodeLambda<T>, nodeStrategy:INodeStrategy) {
-		super(context, nodeStrategy);
+		super(context, nodeStrategy, Created);
 		this.lambda = lambda;
 	}
 
