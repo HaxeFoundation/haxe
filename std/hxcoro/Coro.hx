@@ -33,12 +33,12 @@ class Coro {
 	}
 
 	static function cancellationRequested(cont:IContinuation<Any>) {
-		return cont.context.get(CancellationToken.key)?.isCancellationRequested;
+		return cont.context.get(CancellationToken)?.isCancellationRequested;
 	}
 
 	@:coroutine @:coroutine.nothrow public static function delay(ms:Int):Void {
 		suspendCancellable(cont -> {
-			final handle = cont.context.get(Scheduler.key).schedule(ms, () -> {
+			final handle = cont.context.get(Scheduler).schedule(ms, () -> {
 				cont.callSync();
 			});
 
@@ -50,7 +50,7 @@ class Coro {
 
 	@:coroutine @:coroutine.nothrow public static function yield():Void {
 		suspend(cont -> {
-			cont.context.get(Scheduler.key).schedule(0, () -> {
+			cont.context.get(Scheduler).schedule(0, () -> {
 				cont.failSync(cancellationRequested(cont) ? new CancellationException() : null);
 			});
 		});
@@ -103,7 +103,7 @@ class Coro {
 
 			final context = cont.context;
 			final scope = new CoroTask(context, CoroTask.CoroScopeStrategy);
-			final handle = context.get(Scheduler.key).schedule(ms, () -> {
+			final handle = context.get(Scheduler).schedule(ms, () -> {
 				scope.cancel(new TimeoutException());
 			});
 

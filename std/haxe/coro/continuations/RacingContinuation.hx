@@ -15,7 +15,7 @@ class RacingContinuation<T> extends SuspensionResult<T> implements IContinuation
 	public function new(inputCont:IContinuation<T>) {
 		this.inputCont = inputCont;
 		mutex = new Mutex();
-		scheduler = context.get(Scheduler.key);
+		scheduler = context.get(Scheduler);
 	}
 
 	inline function get_context() {

@@ -33,7 +33,7 @@ class CancellingContinuation<T> implements ICancellableContinuation<T> implement
 	public var onCancellationRequested (default, set) : ()->Void;
 
 	function set_onCancellationRequested(f : ()->Void) {
-		return if (cont.context.get(CancellationToken.key).isCancellationRequested) {
+		return if (cont.context.get(CancellationToken).isCancellationRequested) {
 			f();
 
 			f;
@@ -50,11 +50,11 @@ class CancellingContinuation<T> implements ICancellableContinuation<T> implement
 	public function new(cont) {
 		this.state  = new AtomicInt(Active);
 		this.cont   = cont;
-		this.handle = this.cont.context.get(CancellationToken.key).onCancellationRequested(this);
+		this.handle = this.cont.context.get(CancellationToken).onCancellationRequested(this);
 	}
 
 	public function resume(result:T, error:Exception) {
-		context.get(Scheduler.key).schedule(0, () -> {
+		context.get(Scheduler).schedule(0, () -> {
 			if (state.compareExchange(Active, Resumed) == Active) {
 				handle.close();
 				cont.resume(result, error);

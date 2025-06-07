@@ -42,7 +42,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
         result     = null;
         recursing  = false;
 		startedException = false;
-		scheduler = completion.context.get(Scheduler.key);
+		scheduler = completion.context.get(Scheduler);
     }
 
 	inline function get_context() {
@@ -147,7 +147,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 				return;
 		}
 		exception.stack = stack;
-		context.get(StackTraceManager.key).insertIndex = insertIndex;
+		context.get(StackTraceManager).insertIndex = insertIndex;
 	}
 
     public function buildCallStack() {
@@ -157,7 +157,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 		if (startedException) {
 			return;
 		}
-		var stackTraceManager = context.get(StackTraceManager.key);
+		var stackTraceManager = context.get(StackTraceManager);
 		// Can happen in the case of ImmediateSuspensionResult.withError
 		if (stackTraceManager.insertIndex == null) {
 			startException(error);

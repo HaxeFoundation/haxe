@@ -66,6 +66,6 @@ class Convenience {
 		thread if the current dispatcher allows that.
 	**/
 	static public inline function resumeAsync<T>(cont:IContinuation<T>, result:T, error:Exception) {
-		cont.context.get(Scheduler.key).schedule(0, () -> cont.resume(result, error));
+		cont.context.get(Scheduler).schedule(0, () -> cont.resume(result, error));
 	}
 }

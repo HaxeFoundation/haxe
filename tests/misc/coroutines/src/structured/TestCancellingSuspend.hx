@@ -109,7 +109,7 @@ class TestCancellingSuspend extends utest.Test {
 				cont.resume(null, null);
 			});
 
-			node.context.get(hxcoro.task.CoroTask.key).cancel();
+			node.context.get(hxcoro.task.CoroTask).cancel();
 
 			final actual = [];
 

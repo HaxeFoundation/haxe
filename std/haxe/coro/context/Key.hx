@@ -20,10 +20,18 @@ class KeyImpl<T> {
 	}
 }
 
+private typedef WithKey<K> = {
+	final key:Key<K>;
+}
+
 @:forward
 @:forward.statics
 extern abstract Key<T>(KeyImpl<T>) {
 	public inline function new(name:String) {
 		this = KeyImpl.createNew(name);
+	}
+
+	@:from static public inline function fromClass<K, C:(Class<Any> & WithKey<K>)>(c:C):Key<K> {
+		return c.key;
 	}
 }

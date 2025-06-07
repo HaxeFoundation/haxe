@@ -8,7 +8,7 @@ import haxe.coro.context.IElement;
 import hxcoro.task.ICoroTask;
 
 class DebugName implements IElement<DebugName> {
-	static public var key = new Key<DebugName>("DebugName");
+	static public final key = new Key<DebugName>("DebugName");
 
 	public var name:String;
 
@@ -29,14 +29,14 @@ class Issue27 extends utest.Test {
 	@:coroutine
 	function logDebug() {
 		return suspend(cont -> {
-			cont.resume(cont.context.get(DebugName.key).name, null);
+			cont.resume(cont.context.get(DebugName).name, null);
 		});
 	}
 
 	@:coroutine
 	function modifyDebug(name:String) {
 		suspend(cont -> {
-			cont.context.get(DebugName.key).name = name;
+			cont.context.get(DebugName).name = name;
 			cont.resume(null, null);
 		});
 	}

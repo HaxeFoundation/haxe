@@ -6,7 +6,7 @@ class TestCoroName extends utest.Test {
 	@:coroutine
 	function logDebug() {
 		return suspend(cont -> {
-			cont.resume(cont.context.get(CoroName.key).name, null);
+			cont.resume(cont.context.get(CoroName).name, null);
 		});
 	}
 
@@ -30,7 +30,7 @@ class TestCoroName extends utest.Test {
 
 	function testChildrenNames() {
 		final result = CoroRun.with(new CoroName("Parent")).run(node -> {
-			final children = [for (i in 0...10) node.with(new CoroName('Name: $i')).async(node -> node.context.get(CoroName.key).name)];
+			final children = [for (i in 0...10) node.with(new CoroName('Name: $i')).async(node -> node.context.get(CoroName).name)];
 			[for (child in children) child.await()];
 		});
 		final expected = [for (i in 0...10) 'Name: $i'];

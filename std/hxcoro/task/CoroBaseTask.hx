@@ -29,7 +29,7 @@ private class CoroTaskWith<T> implements ICoroNodeWith {
 
 	public function async<T>(lambda:NodeLambda<T>):ICoroTask<T> {
 		final child = new CoroTask(context, CoroTask.CoroChildStrategy);
-		context.get(Scheduler.key).schedule(0, () -> {
+		context.get(Scheduler).schedule(0, () -> {
 			child.runNodeLambda(lambda);
 		});
 		return child;
@@ -67,14 +67,14 @@ abstract class CoroBaseTask<T> extends AbstractTask<T> implements ICoroNode impl
 		Creates a new task using the provided `context`.
 	**/
 	public function new(context:Context, nodeStrategy:INodeStrategy, initialState:TaskState) {
-		super(context.get(CoroTask.key), initialState);
+		super(context.get(CoroTask), initialState);
 		initialContext = context;
 		this.nodeStrategy = nodeStrategy;
 	}
 
 	inline function get_context() {
 		if (context == null) {
-			context = initialContext.clone().with(this).add(CancellationToken.key, this);
+			context = initialContext.clone().with(this).add(CancellationToken, this);
 		}
 		return context;
 	}
@@ -131,7 +131,7 @@ abstract class CoroBaseTask<T> extends AbstractTask<T> implements ICoroNode impl
 	**/
 	public function async<T>(lambda:NodeLambda<T>):ICoroTask<T> {
 		final child = new CoroTask<T>(context, CoroTask.CoroChildStrategy);
-		context.get(Scheduler.key).schedule(0, () -> {
+		context.get(Scheduler).schedule(0, () -> {
 			child.runNodeLambda(lambda);
 		});
 		return child;

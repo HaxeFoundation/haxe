@@ -17,7 +17,7 @@ class Junction {
 	function flushWaiters() {
 		while (!waiters.isEmpty()) {
 			final cont = waiters.pop();
-			cont.context.get(Scheduler.key).schedule(0, () -> cont.resume(null, null));
+			cont.context.get(Scheduler).schedule(0, () -> cont.resume(null, null));
 		}
 	}
 

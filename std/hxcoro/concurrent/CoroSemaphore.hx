@@ -23,7 +23,7 @@ class CoroSemaphore {
 			return;
 		}
 		suspendCancellable(cont -> {
-			final task = cont.context.get(CoroTask.key);
+			final task = cont.context.get(CoroTask);
 			dequeMutex.acquire();
 			if (deque == null) {
 				deque = new PagedDeque();
@@ -61,7 +61,7 @@ class CoroSemaphore {
 			}
 			// a continuation waits for this mutex, wake it up now
 			final cont = deque.pop();
-			final ct = cont.context.get(CancellationToken.key);
+			final ct = cont.context.get(CancellationToken);
 			if (ct.isCancellationRequested) {
 				// ignore, back to the loop
 			} else {

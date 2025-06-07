@@ -22,7 +22,7 @@ class TestTaskCancellation extends utest.Test {
 		final result    = [];
 		final scheduler = new VirtualTimeScheduler();
 		final task      = CoroRun.with(scheduler).create(node -> {
-			node.context.get(CoroTask.key).onCancellationRequested(new ResultPusherHandle(result));
+			node.context.get(CoroTask).onCancellationRequested(new ResultPusherHandle(result));
 
 			delay(1000);
 		});
@@ -42,7 +42,7 @@ class TestTaskCancellation extends utest.Test {
 		final result    = [];
 		final scheduler = new VirtualTimeScheduler();
 		final task      = CoroRun.with(scheduler).create(node -> {
-			handle = node.context.get(CoroTask.key).onCancellationRequested(new ResultPusherHandle(result));
+			handle = node.context.get(CoroTask).onCancellationRequested(new ResultPusherHandle(result));
 
 			delay(1000);
 		});

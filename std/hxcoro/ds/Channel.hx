@@ -34,7 +34,7 @@ private class SuspendedWrite<T> implements IContinuation<T> {
 	}
 
 	public function resume(v:T, error:Exception) {
-		if (context.get(CancellationToken.key).isCancellationRequested) {
+		if (context.get(CancellationToken).isCancellationRequested) {
 			continuation.failAsync(new CancellationException());
 		} else {
 			continuation.resume(v, error);
@@ -74,7 +74,7 @@ class SuspendedRead<T> implements IContinuation<T> {
 	}
 
 	public function resume(v:T, error:Exception) {
-		if (context.get(CancellationToken.key).isCancellationRequested) {
+		if (context.get(CancellationToken).isCancellationRequested) {
 			continuation.failAsync(new CancellationException());
 		} else {
 			continuation.resume(v, error);
