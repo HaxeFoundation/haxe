@@ -4,6 +4,7 @@ import haxe.coro.context.Context;
 import haxe.coro.context.Key;
 import haxe.coro.context.IElement;
 import haxe.coro.schedulers.Scheduler;
+import haxe.coro.schedulers.IScheduleObject;
 import haxe.CallStack.StackItem;
 import haxe.Exception;
 
@@ -21,7 +22,7 @@ class StackTraceManager implements IElement<StackTraceManager> {
 	}
 }
 
-abstract class BaseContinuation<T> extends SuspensionResult<T> implements IContinuation<T> implements IStackFrame {
+abstract class BaseContinuation<T> extends SuspensionResult<T> implements IContinuation<T> implements IStackFrame implements IScheduleObject {
     public final completion:IContinuation<Any>;
 
 	public var context(get, null):Context;
@@ -30,6 +31,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 
     public var recursing:Bool;
 
+	var resumeResult:Null<SuspensionResult<Any>>;
 	var stackItem:Null<StackItem>;
 	var startedException:Bool;
 	var scheduler:Scheduler;
@@ -56,19 +58,8 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
         this.result = result;
         this.error  = error;
 		recursing = false;
-
-		final result = invokeResume();
-		final completion = completion; // avoid capturing `this` in the closure
-		scheduler.schedule(0, () -> {
-			switch (result.state) {
-				case Pending:
-					return;
-				case Returned:
-					completion.resume(result.result, null);
-				case Thrown:
-					completion.resume(null, result.error);
-			}
-		});
+		resumeResult = invokeResume();
+		scheduler.scheduleObject(this);
     }
 
     public function callerFrame():Null<IStackFrame> {
@@ -173,5 +164,16 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 
 	override function toString() {
 		return '[BaseContinuation ${state.toString()}, $result]';
+	}
+
+	public function onSchedule() {
+		switch (resumeResult.state) {
+			case Pending:
+				return;
+			case Returned:
+				completion.resume(resumeResult.result, null);
+			case Thrown:
+				completion.resume(null, resumeResult.error);
+		}
 	}
 }

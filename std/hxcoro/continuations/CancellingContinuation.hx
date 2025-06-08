@@ -1,5 +1,7 @@
 package hxcoro.continuations;
 
+import haxe.coro.SuspensionResult;
+import haxe.coro.schedulers.IScheduleObject;
 import hxcoro.concurrent.AtomicInt;
 import haxe.Exception;
 import haxe.exceptions.CancellationException;
@@ -17,8 +19,8 @@ private enum abstract State(Int) to Int {
 	var Cancelled;
 }
 
-class CancellingContinuation<T> implements ICancellableContinuation<T> implements ICancellationCallback {
-	final state : AtomicInt;
+class CancellingContinuation<T> extends SuspensionResult<T> implements ICancellableContinuation<T> implements ICancellationCallback implements IScheduleObject {
+	final resumeState : AtomicInt;
 
 	final cont : IContinuation<T>;
 
@@ -48,31 +50,37 @@ class CancellingContinuation<T> implements ICancellableContinuation<T> implement
 	}
 
 	public function new(cont) {
-		this.state  = new AtomicInt(Active);
+		this.resumeState  = new AtomicInt(Active);
 		this.cont   = cont;
 		this.handle = this.cont.context.get(CancellationToken).onCancellationRequested(this);
+		this.state  = Pending;
 	}
 
 	public function resume(result:T, error:Exception) {
-		context.get(Scheduler).schedule(0, () -> {
-			if (state.compareExchange(Active, Resumed) == Active) {
-				handle.close();
-				cont.resume(result, error);
-			} else {
-				cont.failAsync(new CancellationException());
-			}
-		});
+		this.result = result;
+		this.error = error;
+		if (resumeState.compareExchange(Active, Resumed) == Active) {
+			handle.close();
+			context.get(Scheduler).scheduleObject(this);
+		} else {
+			cont.failAsync(new CancellationException());
+		}
+
 	}
 
 	public function onCancellation() {
 		handle?.close();
 
-		if (state.compareExchange(Active, Cancelled) == Active) {
+		if (resumeState.compareExchange(Active, Cancelled) == Active) {
 			if (null != onCancellationRequested) {
 				onCancellationRequested();
 			}
 
-			resume(null, null);
+			cont.failAsync(new CancellationException());
 		}
+	}
+
+	public function onSchedule() {
+		cont.resume(result, error);
 	}
 }

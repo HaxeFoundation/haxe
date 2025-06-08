@@ -26,30 +26,32 @@ class Coro {
 	 * The `ICancellableContinuation` passed to the function allows registering a callback which is invoked on cancellation
 	 * allowing the easy cleanup of resources.
 	 */
-	@:coroutine public static function suspendCancellable<T>(func:ICancellableContinuation<T>->Void) {
-		return suspend(cont -> {
-			func(new CancellingContinuation(cont));
-		});
+	@:coroutine @:coroutine.transformed public static function suspendCancellable<T>(func:ICancellableContinuation<T>->Void, completion:IContinuation<T>):T {
+		var safe = new CancellingContinuation(completion);
+		func(safe);
+		return cast safe;
 	}
 
 	static function cancellationRequested(cont:IContinuation<Any>) {
 		return cont.context.get(CancellationToken)?.isCancellationRequested;
 	}
 
-	@:coroutine @:coroutine.nothrow public static function delay(ms:Int):Void {
-		suspendCancellable(cont -> {
-			final handle = cont.context.get(Scheduler).schedule(ms, () -> {
-				cont.callSync();
-			});
-
-			cont.onCancellationRequested = () -> {
-				handle.close();
-			}
+	static function delayImpl<T>(ms:Int, cont:ICancellableContinuation<T>) {
+		final handle = cont.context.get(Scheduler).schedule(ms, () -> {
+			cont.callSync();
 		});
+
+		cont.onCancellationRequested = () -> {
+			handle.close();
+		}
+	}
+
+	@:coroutine @:coroutine.nothrow public static function delay(ms:Int):Void {
+		suspendCancellable(cont -> delayImpl(ms, cont));
 	}
 
 	@:coroutine @:coroutine.nothrow public static function yield():Void {
-		delay(0);
+		suspendCancellable(cont -> delayImpl(0, cont));
 	}
 
 	@:coroutine static public function scope<T>(lambda:NodeLambda<T>):T {

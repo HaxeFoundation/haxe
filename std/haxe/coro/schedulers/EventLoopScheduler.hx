@@ -45,11 +45,11 @@ private class NoOpHandle implements ISchedulerHandle {
 	public function close() {}
 }
 
-private class DoubleBuffer {
-	final a : Array<Lambda>;
-	final b : Array<Lambda>;
+private class DoubleBuffer<T> {
+	final a : Array<T>;
+	final b : Array<T>;
 
-	var current : Array<Lambda>;
+	var current : Array<T>;
 
 	public function new() {
 		a       = [];
@@ -66,7 +66,7 @@ private class DoubleBuffer {
 		return returning;
 	}
 
-	public function push(l : Lambda) {
+	public function push(l : T) {
 		current.push(l);
 	}
 
@@ -75,12 +75,24 @@ private class DoubleBuffer {
 	}
 }
 
+class FunctionScheduleObject implements IScheduleObject {
+	var func:() -> Void;
+
+	public function new(func:() -> Void) {
+		this.func = func;
+	}
+
+	public function onSchedule() {
+		func();
+	}
+}
+
 class EventLoopScheduler extends Scheduler {
 	var first : Null<ScheduledEvent>;
 	var last : Null<ScheduledEvent>;
 
 	final noOpHandle : NoOpHandle;
-	final zeroEvents : DoubleBuffer;
+	final zeroEvents : DoubleBuffer<IScheduleObject>;
 	final zeroMutex : Mutex;
 	final futureMutex : Mutex;
 	final closeClosure : CloseClosure;
@@ -102,7 +114,7 @@ class EventLoopScheduler extends Scheduler {
 			throw new ArgumentException("Time must be greater or equal to zero");
 		} else if (ms == 0) {
 			zeroMutex.acquire();
-			zeroEvents.push(func);
+			zeroEvents.push(new FunctionScheduleObject(func));
 			zeroMutex.release();
 			return noOpHandle;
 		}
@@ -159,18 +171,28 @@ class EventLoopScheduler extends Scheduler {
 		}
     }
 
+	public function scheduleObject(obj:IScheduleObject) {
+		zeroMutex.acquire();
+		zeroEvents.push(obj);
+		zeroMutex.release();
+	}
+
 	public function now() {
 		return Timer.milliseconds();
 	}
 
-	public function run() {
+	function runZeroEvents() {
 		zeroMutex.acquire();
 		final events = zeroEvents.flip();
 		// no need to hold onto the mutex because it's a double buffer and run itself is single-threaded
 		zeroMutex.release();
-		for (event in events) {
-			event();
+		for (obj in events) {
+			obj.onSchedule();
 		}
+	}
+
+	public function run() {
+		runZeroEvents();
 
 		final currentTime = now();
 

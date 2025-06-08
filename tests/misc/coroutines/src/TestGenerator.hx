@@ -1,3 +1,4 @@
+import haxe.coro.schedulers.IScheduleObject;
 import haxe.Int64;
 import haxe.coro.schedulers.Scheduler;
 import hxcoro.task.CoroTask;
@@ -17,6 +18,10 @@ class ImmediateScheduler extends Scheduler {
 		}
 		f();
 		return null;
+	}
+
+	public function scheduleObject(obj:IScheduleObject) {
+		obj.onSchedule();
 	}
 
 	public function now() {

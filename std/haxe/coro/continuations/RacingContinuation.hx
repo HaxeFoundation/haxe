@@ -1,12 +1,20 @@
 package haxe.coro.continuations;
 
+import hxcoro.concurrent.AtomicInt;
 import haxe.coro.context.Context;
 import haxe.coro.schedulers.Scheduler;
+import haxe.coro.schedulers.IScheduleObject;
 
-class RacingContinuation<T> extends SuspensionResult<T> implements IContinuation<T> {
+private enum abstract State(Int) to Int {
+	var Active;
+	var Resumed;
+	var Resolved;
+}
+
+class RacingContinuation<T> extends SuspensionResult<T> implements IContinuation<T> implements IScheduleObject {
 	final inputCont:IContinuation<T>;
 
-	var mutex:Null<Mutex>;
+	var resumeState:AtomicInt;
 
 	public var context(get, never):Context;
 
@@ -14,7 +22,7 @@ class RacingContinuation<T> extends SuspensionResult<T> implements IContinuation
 
 	public function new(inputCont:IContinuation<T>) {
 		this.inputCont = inputCont;
-		mutex = new Mutex();
+		resumeState = new AtomicInt(Active);
 		scheduler = context.get(Scheduler);
 	}
 
@@ -23,62 +31,26 @@ class RacingContinuation<T> extends SuspensionResult<T> implements IContinuation
 	}
 
 	public function resume(result:T, error:Exception):Void {
-		// store in a local to avoid `this` capturing.
-		final inputCont = inputCont;
-		inline function resumeContinue(result:T, error:Exception) {
-			scheduler.schedule(0, () -> {
-				inputCont.resume(result, error);
-			});
-		}
-
-		// Store mutex as stack value.
-		final mutex = mutex;
-		if (mutex == null) {
-			// If that's already null we're definitely done.
-			return resumeContinue(result, error);
-		}
-		// Otherwise we take the mutex now. We know that the stack value isn't null, so that's safe.
-		mutex.acquire();
-		if (this.mutex == null) {
-			// The shared reference has become null in the meantime, so we're done.
-			mutex.release();
-			return resumeContinue(result, error);
-		}
-		// At this point we own the mutex, so we're first. We can set the shared reference to null and release it.
-		this.mutex = null;
-		mutex.release();
 		this.result = result;
 		this.error = error;
+		if (resumeState.compareExchange(Active, Resumed) != Active) {
+			scheduler.scheduleObject(this);
+		}
 	}
-
 
 	public function resolve():Void {
-		// same logic as resume
-		final mutex = mutex;
-		if (mutex == null) {
+		if (resumeState.compareExchange(Active, Resolved) == Active) {
+			state = Pending;
+		} else {
 			if (error != null) {
 				state = Thrown;
 			} else {
 				state = Returned;
 			}
-			return;
 		}
-		mutex.acquire();
-		if (this.mutex == null) {
-			mutex.release();
-			if (error != null) {
-				state = Thrown;
-			} else {
-				state = Returned;
-			}
-			return;
-		}
-		this.mutex = null;
-		mutex.release();
-		state = Pending;
 	}
 
-	override function toString() {
-		return '[RacingContinuation ${state.toString()}, $result]';
+	public function onSchedule() {
+		inputCont.resume(result, error);
 	}
 }

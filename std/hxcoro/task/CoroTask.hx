@@ -8,6 +8,7 @@ import hxcoro.task.AbstractTask;
 import haxe.coro.IContinuation;
 import haxe.coro.context.Key;
 import haxe.coro.context.Context;
+import haxe.coro.schedulers.IScheduleObject;
 import haxe.Exception;
 
 class CoroTask<T> extends CoroBaseTask<T> implements IContinuation<T> {
@@ -67,5 +68,21 @@ class CoroTask<T> extends CoroBaseTask<T> implements IContinuation<T> {
 			return;
 		}
 		super.checkCompletion();
+	}
+}
+
+class CoroTaskWithLambda<T> extends CoroTask<T> implements IScheduleObject {
+	final lambda:NodeLambda<T>;
+
+	/**
+		Creates a new task using the provided `context` in order to execute `lambda`.
+	**/
+	public function new(context:Context, lambda:NodeLambda<T>, nodeStrategy:INodeStrategy) {
+		super(context, nodeStrategy);
+		this.lambda = lambda;
+	}
+
+	public function onSchedule() {
+		runNodeLambda(lambda);
 	}
 }

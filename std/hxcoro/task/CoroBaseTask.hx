@@ -1,5 +1,6 @@
 package hxcoro.task;
 
+import hxcoro.task.CoroTask;
 import hxcoro.task.node.INodeStrategy;
 import hxcoro.task.ICoroTask;
 import hxcoro.task.AbstractTask;
@@ -28,10 +29,8 @@ private class CoroTaskWith<T> implements ICoroNodeWith {
 	}
 
 	public function async<T>(lambda:NodeLambda<T>):ICoroTask<T> {
-		final child = new CoroTask(context, CoroTask.CoroChildStrategy);
-		context.get(Scheduler).schedule(0, () -> {
-			child.runNodeLambda(lambda);
-		});
+		final child = new CoroTaskWithLambda(context, lambda, CoroTask.CoroChildStrategy);
+		context.get(Scheduler).scheduleObject(child);
 		return child;
 	}
 
@@ -130,10 +129,8 @@ abstract class CoroBaseTask<T> extends AbstractTask<T> implements ICoroNode impl
 		Creates a child task to execute `lambda` and starts it automatically.
 	**/
 	public function async<T>(lambda:NodeLambda<T>):ICoroTask<T> {
-		final child = new CoroTask<T>(context, CoroTask.CoroChildStrategy);
-		context.get(Scheduler).schedule(0, () -> {
-			child.runNodeLambda(lambda);
-		});
+		final child = new CoroTaskWithLambda<T>(context, lambda, CoroTask.CoroChildStrategy);
+		context.get(Scheduler).scheduleObject(child);
 		return child;
 	}
 
