@@ -104,19 +104,19 @@ abstract Context(ElementTree) {
 		this = tree;
 	}
 
-	public function clone() {
+	public inline function clone() {
 		return new AdjustableContext(this.copy());
 	}
 
-	public function get<T>(key:Key<T>):T {
+	public inline function get<T>(key:Key<T>):T {
 		return cast this.get(key.id);
 	}
 
-	public function toString() {
+	public inline function toString() {
 		return this.toString();
 	}
 
-	static public function create(...elements:IElement<Any>) {
+	static public inline function create(...elements:IElement<Any>) {
 		return new AdjustableContext(new ElementTree()).with(...elements);
 	}
 }
@@ -126,12 +126,12 @@ abstract AdjustableContext(ElementTree) {
 		this = tree;
 	}
 
-	public function add<T>(key:Key<T>, element:T) {
+	public inline function add<T>(key:Key<T>, element:T) {
 		this.set(key.id, element);
 		return abstract;
 	}
 
-	public function get<T>(key:Key<T>):T {
+	public inline function get<T>(key:Key<T>):T {
 		return cast this.get(key.id);
 	}
 
@@ -142,7 +142,7 @@ abstract AdjustableContext(ElementTree) {
 		return abstract;
 	}
 
-	@:to function toContext():Context {
+	@:to inline function toContext():Context {
 		return new Context(this);
 	}
 }
