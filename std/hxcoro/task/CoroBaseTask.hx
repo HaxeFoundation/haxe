@@ -168,6 +168,7 @@ abstract class CoroBaseTask<T> extends AbstractTask<T> implements ICoroNode impl
 	@:coroutine public function awaitChildren() {
 		if (allChildrenCompleted) {
 			getLocalElement(CoroKeys.awaitingChildContinuation)?.callSync();
+			return;
 		}
 		startChildren();
 		Coro.suspend(cont -> setLocalElement(CoroKeys.awaitingChildContinuation, cont));
