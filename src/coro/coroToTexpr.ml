@@ -177,12 +177,12 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			set_control CoroPending;
 			ereturn;
 		] in
-		let ereturned = b#assign call.cs_result (base_continuation_field_on ecororesult cont.result com.basic.tany) in
-		(* TODO: all this is very awkward *)
-		let ereturned = if call.cs_result == etmp_result then
-			ereturned
-		else
-			b#assign etmp_result ereturned
+		let eres = base_continuation_field_on ecororesult cont.result com.basic.tany in
+		let ereturned = match call.cs_result with
+			| SusBlock ->
+				b#void_block []
+			| SusResult ->
+				b#assign etmp_result eres
 		in
 		let eerror = base_continuation_field_on ecororesult cont.error cont.error.cf_type in
 		let ethrown = b#void_block [

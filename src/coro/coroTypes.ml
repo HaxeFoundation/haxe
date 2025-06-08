@@ -1,6 +1,10 @@
 open Globals
 open Type
 
+type suspend_expr =
+	| SusBlock
+	| SusResult
+
 type coro_block = {
 	mutable cb_id : int;
 	cb_el : texpr DynArray.t;
@@ -47,7 +51,7 @@ and coro_suspend = {
 	cs_fun : texpr;
 	cs_args : texpr list;
 	cs_pos : pos;
-	cs_result : texpr;
+	cs_result : suspend_expr;
 }
 
 type coro_ctx = {

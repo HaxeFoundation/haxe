@@ -178,20 +178,22 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 							let cb_next = block_from_e e1 in
 							add_block_flag cb_next CbResumeState;
 							add_block_flag cb CbSuspendState;
-							let eres = match ret with
+							let eres,res = match ret with
 							| RValue ->
 								let v = tmp_local cb e.etype e.epos in
 								let ev = Texpr.Builder.make_local v v.v_pos in
 								cb_next.cb_stack_value <- Some ev;
-								ev
-							| _ ->
-								etmp_result
+								ev,SusResult
+							| RTerminate _ | RMapExpr _ | RLocal _ ->
+								etmp_result,SusResult
+							| RBlock ->
+								e_no_value,SusBlock
 							in
 							let suspend = {
 								cs_fun = e1;
 								cs_args = el;
 								cs_pos = e.epos;
-								cs_result = eres;
+								cs_result = res;
 							} in
 							terminate cb (NextSuspend(suspend,Some cb_next)) t_dynamic null_pos;
 							cb_next,eres
