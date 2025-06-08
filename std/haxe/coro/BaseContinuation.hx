@@ -32,9 +32,10 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
     public var recursing:Bool;
 
 	var resumeResult:Null<SuspensionResult<Any>>;
+	#if debug
 	var stackItem:Null<StackItem>;
 	var startedException:Bool;
-	var scheduler:Scheduler;
+	#end
 
     function new(completion:IContinuation<Any>, initialLabel:Int) {
         this.completion = completion;
@@ -43,14 +44,13 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
         error      = null;
         result     = null;
         recursing  = false;
+		context    = completion.context;
+		#if debug
 		startedException = false;
-		scheduler = completion.context.get(Scheduler);
+		#end
     }
 
 	inline function get_context() {
-		if (context == null) {
-			context = completion.context;
-		}
 		return context;
 	}
 
@@ -59,7 +59,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
         this.error  = error;
 		recursing = false;
 		resumeResult = invokeResume();
-		scheduler.scheduleObject(this);
+		context.get(Scheduler).scheduleObject(this);
     }
 
     public function callerFrame():Null<IStackFrame> {
@@ -71,7 +71,11 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
     }
 
 	public function getStackItem():Null<StackItem> {
+		#if debug
 		return stackItem;
+		#else
+		return null;
+		#end
 	}
 
     public function setClassFuncStackItem(cls:String, func:String, file:String, line:Int, pos:Int, pmin:Int, pmax:Int) {
@@ -93,9 +97,10 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
     }
 
 	public function startException(exception:Exception) {
-		#if (js || !debug)
+		#if js
 		return;
 		#end
+		#if debug
 		var stack = [];
 		var skipping = 0;
 		var insertIndex = 0;
@@ -139,12 +144,14 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 		}
 		exception.stack = stack;
 		context.get(StackTraceManager).insertIndex = insertIndex;
+		#end
 	}
 
     public function buildCallStack() {
-		#if (js || !debug)
+		#if js
 		return;
 		#end
+		#if debug
 		if (startedException) {
 			return;
 		}
@@ -158,6 +165,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 			stack.insert(stackTraceManager.insertIndex++, stackItem);
 			error.stack = stack;
 		}
+		#end
     }
 
     abstract function invokeResume():SuspensionResult<T>;
