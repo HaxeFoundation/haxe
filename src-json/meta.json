@@ -490,6 +490,12 @@
 		"targets": ["TClass", "TEnum", "TAbstract", "TAnyField"]
 	},
 	{
+		"name": "InheritDocFields",
+		"metadata": ":inheritDocFields",
+		"doc": "Adds `@:inheritDoc` metadata to all class fields that don't have their own documentation.",
+		"targets": ["TClass"]
+	},
+	{
 		"name": "InitPackage",
 		"metadata": ":initPackage",
 		"doc": "Some weird thing for Genjs we want to remove someday.",
