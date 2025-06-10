@@ -165,7 +165,7 @@ let field_access ctx mode f fh e pfield =
 	| Var v ->
 		let is_prop_access access =
 			match access with
-				| AccCall | AccPrivateCall -> not (bypass_accessor ())
+				| AccCall | AccPrivateCall -> not (ctx.e.bypass_accessor > 0)
 				| _ -> false
 		in
 		let check_field_with_mode c stat =
