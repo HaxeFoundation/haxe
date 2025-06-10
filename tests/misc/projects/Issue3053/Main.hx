@@ -159,3 +159,27 @@ class Child extends Parent {
 		width = 0;
 	}
 }
+
+@:access(Element)
+class MainElement {
+	public static function main() {
+		new Element().foo;
+		new Element().fooSet = false;
+	}
+}
+
+class Element extends Entity {}
+
+class Entity {
+	function new() {}
+
+	var foo(private get, never):Bool;
+
+	function get_foo():Bool
+		return true;
+
+	var fooSet(default, private set):Bool;
+
+	function set_fooSet(v):Bool
+		return fooSet = v;
+}

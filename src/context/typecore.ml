@@ -518,11 +518,11 @@ let needs_inline ctx c cf =
 
 (** checks if we can access to a given class field using current context *)
 let can_access ctx c cf ?(check_prop=false) ?(is_setter=false) stat =
-	let is_not_private_prop = not check_prop || match cf.cf_kind with
-		| Var { v_read = AccPrivateCall } when not is_setter -> false
-		| Var { v_write = AccPrivateCall } when is_setter -> false
-		| _ -> true in
-	if (is_not_private_prop && has_class_field_flag cf CfPublic) then
+	let is_private_prop = check_prop && match cf.cf_kind with
+		| Var { v_read = AccPrivateCall } when not is_setter -> true
+		| Var { v_write = AccPrivateCall } when is_setter -> true
+		| _ -> false in
+	if (not is_private_prop && has_class_field_flag cf CfPublic) then
 		true
 	else if c == ctx.c.curclass then
 		true
