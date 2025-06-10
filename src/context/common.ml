@@ -233,6 +233,34 @@ type parser_state = {
 	special_identifier_files : (Path.UniqueKey.t,string) ThreadSafeHashtbl.t;
 }
 
+module LocalWrapper = struct
+	type t = <
+		captured_type : TType.t -> TType.t;
+		mk_init : tvar -> tvar -> pos -> texpr;
+		mk_ref : tvar -> texpr option -> pos -> texpr;
+		mk_ref_access : texpr -> tvar -> texpr
+	>
+
+	let null_wrapper = object
+		method captured_type =
+			(fun t -> t)
+
+		method mk_ref v ve p =
+			let ev = Texpr.Builder.make_local v p in
+			match ve with
+			| None ->
+				ev
+			| Some e ->
+				Texpr.Builder.binop OpAssign ev e ev.etype p
+
+		method mk_ref_access e v =
+			e
+
+		method mk_init av v p =
+			mk (TVar (av,Some (mk (TLocal v) v.v_type p))) t_dynamic p
+	end
+end
+
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
@@ -276,6 +304,7 @@ type context = {
 	mutable user_defines : (string, Define.user_define) Hashtbl.t;
 	mutable user_metas : (string, Meta.user_meta) Hashtbl.t;
 	mutable get_macros : unit -> context option;
+	mutable local_wrapper : LocalWrapper.t;
 	(* typing state *)
 	mutable std : tclass;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
@@ -739,6 +768,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 		user_defines = Hashtbl.create 0;
 		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);
+		local_wrapper = LocalWrapper.null_wrapper;
 		info = (fun ?depth ?from_macro _ _ -> die "" __LOC__);
 		warning = (fun ?depth ?from_macro _ _ _ -> die "" __LOC__);
 		warning_options = [List.map (fun w -> {wo_warning = w;wo_mode = WMDisable}) WarningList.disabled_warnings];
@@ -888,6 +918,7 @@ let clone com is_macro_context =
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 			titerator = (fun _ -> die "Could not locate typedef Iterator<T> (was it redefined?)" __LOC__);
 		};
+		local_wrapper = LocalWrapper.null_wrapper;
 		std = null_class;
 		module_to_file = new hashtbl_lookup;
 		parser_cache = new hashtbl_lookup;

@@ -653,12 +653,11 @@ and flush_macro_context mint mctx =
 			if apply_native then Native.apply_native_paths t
 		in
 		let scom = SafeCom.of_typer mctx in
-		let cv_wrapper_impl = CapturedVars.get_wrapper_implementation mctx.com in
 		let expr_filters = [
 			"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 			"local_statics",LocalStatic.run;
 			"Exceptions",(fun _ -> Exceptions.filter ectx);
-			"captured_vars",(fun scom -> CapturedVars.captured_vars scom cv_wrapper_impl);
+			"captured_vars",(fun scom -> CapturedVars.captured_vars scom mctx.com.local_wrapper);
 		] in
 		let type_filters = [
 			(fun _ -> FiltersCommon.remove_generic_base);

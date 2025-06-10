@@ -135,6 +135,55 @@ let load_enum_tools ctx =
 	| _ ->
 		die "" __LOC__
 
+let load_local_wrapper ctx =
+	let t = ctx.t in
+	match ctx.com.platform with
+	(* optimized version for Java - use native arrays *)
+	| Jvm ->
+		let cnativearray =
+			let m = TypeloadModule.load_module ctx (["jvm"],"NativeArray") null_pos in
+			let mt = List.find (fun md -> match md with
+					| TClassDecl ({ cl_path = ["jvm"],"NativeArray" }) -> true
+					| _ -> false
+				) m.m_types
+			in
+			match mt with
+			| TClassDecl cl -> cl
+			| _ -> die "" __LOC__
+		in
+
+		object
+			method captured_type t = TInst (cnativearray,[t])
+
+			method mk_ref v ve p =
+				match ve with
+				| None ->
+					let eone = mk (TConst (TInt (Int32.of_int 1))) t.tint p in
+					let t = match v.v_type with TInst (_, [t]) -> t | _ -> die "" __LOC__ in
+					mk (TNew (cnativearray,[t],[eone])) v.v_type p
+				| Some e ->
+					{ (Inline.mk_untyped_call "__array__" p [e]) with etype = v.v_type }
+
+			method mk_ref_access e v =
+				mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
+
+			method mk_init av v pos =
+				let elocal = mk (TLocal v) v.v_type pos in
+				let earray = { (Inline.mk_untyped_call "__array__" pos [elocal]) with etype = av.v_type } in
+				mk (TVar (av,Some earray)) t.tvoid pos
+		end
+	(* default implementation - use haxe array *)
+	| _ ->
+		object
+			method captured_type = t.tarray
+			method mk_ref v ve p =
+				mk (TArrayDecl (match ve with None -> [] | Some e -> [e])) v.v_type p
+			method mk_ref_access e v =
+				mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
+			method mk_init av v pos =
+				mk (TVar (av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos))) t.tvoid pos
+		end
+
 let create com macros =
 	let rec ctx = {
 		com = com;
@@ -194,6 +243,7 @@ let create com macros =
 	load_array ctx;
 	load_enum_tools ctx;
 	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
+	ctx.com.local_wrapper <- load_local_wrapper ctx;
 	ctx.g.complete <- true;
 	ctx
 
