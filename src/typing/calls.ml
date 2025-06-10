@@ -232,7 +232,13 @@ let rec acc_get ctx g =
 		end
 	| AKAccessor fa ->
 		let c,stat = match fa.fa_host with
-			| FHInstance(c,tl) -> Some c,false
+			| FHInstance(c,tl) ->
+				(* c refers to the host of the field, let's find the class we're actually accessing on *)
+				let c = match follow fa.fa_on.etype with
+					| TInst(c,_) -> c
+					| _ -> c
+				in
+				Some c,false
 			| FHStatic c -> Some c,true
 			| FHAbstract(a,tl,c) -> Some c,true
 			| FHAnon -> None,false

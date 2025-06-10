@@ -417,9 +417,9 @@ let might_need_cf_unoptimized c cf =
 	| _ ->
 		has_class_field_flag cf CfGeneric
 
-let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array cv_wrapper_impl rename_locals_config pool =
+let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array rename_locals_config pool =
 	let detail_times = Timer.level_from_define scom.defines Define.FilterTimes in
-
+	let cv_wrapper_impl = com.Common.local_wrapper in
 	let filters_before_inlining = [
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 		"local_statics",LocalStatic.run;
@@ -504,11 +504,10 @@ let run com ectx main before_destruction =
 	*)
 	DeprecationCheck.run com new_types;
 	NullSafety.run com new_types;
-	let cv_wrapper_impl = CapturedVars.get_wrapper_implementation com in
 	let rename_locals_config = RenameVars.init scom.SafeCom.platform_config com.types in
 	Parallel.run_in_new_pool scom.timer_ctx (fun pool ->
 		SafeCom.run_with_scom com scom (fun () ->
-			run_safe_filters ectx com scom all_types_array new_types_array cv_wrapper_impl rename_locals_config pool
+			run_safe_filters ectx com scom all_types_array new_types_array rename_locals_config pool
 		)
 	);
 	with_timer com.timer_ctx detail_times "callbacks" None (fun () ->
