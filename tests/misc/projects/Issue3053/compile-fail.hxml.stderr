@@ -1,15 +1,35 @@
-Main.hx:37: characters 2-54 : notAllowed: (private get, private set) property cannot be public
-Main.hx:53: characters 8-17 : This property cannot be accessed for writing
-Main.hx:56: characters 8-13 : This property cannot be accessed for writing
-Main.hx:61: characters 9-14 : This property cannot be accessed for reading
-Main.hx:65: characters 7-24 : This property cannot be accessed for writing
-Main.hx:70: characters 7-12 : This property cannot be accessed for writing
-Main.hx:71: characters 7-12 : This property cannot be accessed for reading
-Main.hx:73: characters 7-18 : This expression cannot be accessed for writing
-Main.hx:78: characters 7-10 : This property cannot be accessed for writing
-Main.hx:21: characters 3-26 : Main should be FooType
-Main.hx:21: characters 3-26 : ... Inconsistent getter for field foo : private get should be get
-Main.hx:24: characters 3-19 : FooPrivateGetType should be FooType
-Main.hx:24: characters 3-19 : ... Inconsistent getter for field foo : private get should be get
-Main.hx:112: characters 13-18 : Field width has different property access than in Shape: (get,private set) should be (private get,set)
-Main.hx:94: characters 13-18 : Field width has different property access than in PublicShape: (get,private set) should be (get,set)
+Main.hx:123: characters 2-54 : notAllowed: (private get, private set) property cannot be public
+Main.hx:47: characters 8-16 : This expression cannot be accessed for writing
+Main.hx:49: characters 8-21 : This property cannot be accessed for writing
+Main.hx:50: characters 8-21 : This property cannot be accessed for reading
+Main.hx:52: characters 8-19 : This property cannot be accessed for reading
+Main.hx:53: characters 8-19 : This property cannot be accessed for writing
+Main.hx:56: characters 25-36 : This field cannot be accessed because it is not a real variable
+Main.hx:8: characters 2-48 : Add @:isVar here to enable it
+Main.hx:57: characters 25-36 : This field cannot be accessed because it is not a real variable
+Main.hx:8: characters 2-48 : Add @:isVar here to enable it
+Main.hx:60: characters 8-25 : This property cannot be accessed for writing
+Main.hx:66: characters 8-21 : This property cannot be accessed for writing
+Main.hx:67: characters 8-21 : This property cannot be accessed for reading
+Main.hx:69: characters 8-19 : This property cannot be accessed for reading
+Main.hx:70: characters 8-19 : This property cannot be accessed for writing
+Main.hx:74: characters 8-25 : This property cannot be accessed for writing
+Main.hx:79: characters 21-35 : This property cannot be accessed for writing
+Main.hx:80: characters 21-35 : This property cannot be accessed for reading
+Main.hx:82: characters 21-33 : This property cannot be accessed for reading
+Main.hx:83: characters 21-33 : This property cannot be accessed for writing
+Main.hx:87: characters 21-39 : This property cannot be accessed for writing
+Main.hx:133: characters 8-17 : This property cannot be accessed for writing
+Main.hx:136: characters 8-13 : This property cannot be accessed for writing
+Main.hx:141: characters 9-14 : This property cannot be accessed for reading
+Main.hx:145: characters 7-24 : This property cannot be accessed for writing
+Main.hx:150: characters 7-12 : This property cannot be accessed for writing
+Main.hx:151: characters 7-12 : This property cannot be accessed for reading
+Main.hx:153: characters 7-18 : This expression cannot be accessed for writing
+Main.hx:158: characters 7-10 : This property cannot be accessed for writing
+Main.hx:107: characters 3-26 : Main should be FooType
+Main.hx:107: characters 3-26 : ... Inconsistent getter for field foo : private get should be get
+Main.hx:110: characters 3-19 : FooPrivateGetType should be FooType
+Main.hx:110: characters 3-19 : ... Inconsistent getter for field foo : private get should be get
+Main.hx:192: characters 13-18 : Field width has different property access than in Shape: (get,private set) should be (private get,set)
+Main.hx:174: characters 13-18 : Field width has different property access than in PublicShape: (get,private set) should be (get,set)
