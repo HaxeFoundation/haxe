@@ -47,46 +47,90 @@ class CheckVariations {
 		type.getNever = 1; // err
 		type.getPrivateSet;
 		type.getPrivateSet = 1; // err
+		type.getPrivateSet += 1; // err
+		type.getPrivateSet++; // err
 		type.privateGetSet; // err
 		type.privateGetSet = 1;
+		type.privateGetSet += 1; // err (reading)
+		type.privateGetSet++; // err (reading)
 		type.privateBoth; // err
 		type.privateBoth = 1; // err
+		type.privateBoth += 1; // err
+		type.privateBoth++; // err
 		@:privateAccess type.privateBoth;
 		@:privateAccess type.privateBoth = 1;
+		@:privateAccess type.privateBoth += 1;
+		@:privateAccess type.privateBoth++;
 		@:bypassAccessor type.privateBoth; // err
 		@:bypassAccessor type.privateBoth = 1; // err
+		@:bypassAccessor type.privateBoth += 1; // err
+		@:bypassAccessor type.privateBoth++; // err
 
 		type.defaultPrivateSet;
 		type.defaultPrivateSet = 1; // err
+		type.defaultPrivateSet += 1; // err
+		type.defaultPrivateSet++; // err
 		@:privateAccess type.defaultPrivateSet = 1;
+		@:privateAccess type.defaultPrivateSet += 1;
+		@:privateAccess type.defaultPrivateSet++;
 		@:bypassAccessor type.defaultPrivateSet = 1;
+		@:bypassAccessor type.defaultPrivateSet += 1;
+		@:bypassAccessor type.defaultPrivateSet++;
 
 		final vars = new PrivateVariations();
 		vars.getPrivateSet;
 		vars.getPrivateSet = 1; // err
+		vars.getPrivateSet += 1; // err
+		vars.getPrivateSet++; // err
 		vars.privateGetSet; // err
 		vars.privateGetSet = 1;
+		vars.privateGetSet += 1; // err (reading)
+		vars.privateGetSet++; // err (reading)
 		vars.privateBoth; // err
 		vars.privateBoth = 1; // err
+		vars.privateBoth += 1; // err
+		vars.privateBoth++; // err
 		@:privateAccess vars.privateBoth;
 		@:privateAccess vars.privateBoth = 1;
+		@:privateAccess vars.privateBoth += 1;
+		@:privateAccess vars.privateBoth++;
 		vars.defaultPrivateSet;
 		vars.defaultPrivateSet = 1; // err
+		vars.defaultPrivateSet += 1; // err
+		vars.defaultPrivateSet++; // err
 		@:privateAccess vars.defaultPrivateSet = 1;
+		@:privateAccess vars.defaultPrivateSet += 1;
+		@:privateAccess vars.defaultPrivateSet++;
 		@:bypassAccessor vars.defaultPrivateSet = 1;
+		@:bypassAccessor vars.defaultPrivateSet += 1;
+		@:bypassAccessor vars.defaultPrivateSet++;
 
 		PrivateVariations.sgetPrivateSet;
 		PrivateVariations.sgetPrivateSet = 1; // err
+		PrivateVariations.sgetPrivateSet += 1; // err
+		PrivateVariations.sgetPrivateSet++; // err
 		PrivateVariations.sprivateGetSet; // err
 		PrivateVariations.sprivateGetSet = 1;
+		PrivateVariations.sprivateGetSet += 1; // err (reading)
+		PrivateVariations.sprivateGetSet++; // err (reading)
 		PrivateVariations.sprivateBoth; // err
 		PrivateVariations.sprivateBoth = 1; // err
+		PrivateVariations.sprivateBoth += 1; // err
+		PrivateVariations.sprivateBoth++; // err
 		@:privateAccess PrivateVariations.sprivateBoth;
 		@:privateAccess PrivateVariations.sprivateBoth = 1;
+		@:privateAccess PrivateVariations.sprivateBoth += 1;
+		@:privateAccess PrivateVariations.sprivateBoth++;
 		PrivateVariations.sdefaultPrivateSet;
 		PrivateVariations.sdefaultPrivateSet = 1; // err
+		PrivateVariations.sdefaultPrivateSet += 1; // err
+		PrivateVariations.sdefaultPrivateSet++; // err
 		@:privateAccess PrivateVariations.sdefaultPrivateSet = 1;
+		@:privateAccess PrivateVariations.sdefaultPrivateSet += 1;
+		@:privateAccess PrivateVariations.sdefaultPrivateSet++;
 		@:bypassAccessor PrivateVariations.sdefaultPrivateSet = 1;
+		@:bypassAccessor PrivateVariations.sdefaultPrivateSet += 1;
+		@:bypassAccessor PrivateVariations.sdefaultPrivateSet++;
 	}
 }
 
