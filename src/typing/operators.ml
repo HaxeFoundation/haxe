@@ -971,7 +971,8 @@ let type_unop ctx op flag e with_type p =
 			| AKField fa ->
 				let vr = new value_reference ctx in
 				let ef = vr#get_expr_part "fh" fa.fa_on in
-				let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name p MGet WithType.value in
+				let field_pos = snd e in
+				let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name field_pos MGet WithType.value in
 				let e,e_out = match access_get with
 				| AKField _ ->
 					let e = FieldAccess.get_field_expr {fa with fa_on = ef} FGet in

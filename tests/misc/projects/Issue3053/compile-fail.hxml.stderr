@@ -19,7 +19,7 @@ Main.hx:8: characters 2-48 : Add @:isVar here to enable it
 Main.hx:66: characters 25-36 : This property cannot be accessed for reading
 Main.hx:67: characters 25-36 : This field cannot be accessed because it is not a real variable
 Main.hx:8: characters 2-48 : Add @:isVar here to enable it
-Main.hx:67: characters 27-38 : This property cannot be accessed for reading
+Main.hx:67: characters 25-36 : This property cannot be accessed for reading
 Main.hx:70: characters 8-25 : This property cannot be accessed for writing
 Main.hx:71: characters 8-25 : This property cannot be accessed for writing
 Main.hx:72: characters 8-25 : This property cannot be accessed for writing
