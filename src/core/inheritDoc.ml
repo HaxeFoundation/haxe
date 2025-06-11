@@ -111,7 +111,7 @@ and build_abstract_doc ctx a =
 (**
 	Populates `doc_inherited` field of `cf.cf_doc`
 *)
-and build_class_field_doc ctx c_opt ?(inherit_fields = false) cf =
+and build_class_field_doc ctx c_opt cf =
 	(match cf.cf_doc with
 	| None | Some { doc_inherited = [] } -> ()
 	| Some d -> d.doc_inherited <- []
@@ -127,8 +127,10 @@ and build_class_field_doc ctx c_opt ?(inherit_fields = false) cf =
 							if cf.cf_name = "new" then get_constructor cl
 							else get_class_field cl cf.cf_name
 						in
-						build_class_field_doc ctx parent_cl parent_cf;
-						add parent_cf.cf_doc
+						if Option.is_some parent_cf.cf_doc then begin
+							build_class_field_doc ctx parent_cl parent_cf;
+							add parent_cf.cf_doc
+						end else raise Not_found
 					with Not_found -> find_in_parents rest
 		in
 		match c_opt with
@@ -140,20 +142,6 @@ and build_class_field_doc ctx c_opt ?(inherit_fields = false) cf =
 				end
 			| None -> ()
 	in
-	(*
-		If class has `@:InheritDocFields`, add `@:InheritDoc` to all class fields
-		to get default doc from class parents
-	*)
-	if (inherit_fields) then begin
-		(* Do not inherit doc from parent field if there is own doc or `@:inheritDoc` on field *)
-		let has_own_doc = match cf.cf_doc with
-			| Some doc -> Option.is_some doc.doc_own
-			| None -> false
-		in
-		let has_cf_meta = Meta.has Meta.InheritDoc cf.cf_meta in
-		if (not has_own_doc && not has_cf_meta) then
-			cf.cf_meta <- (Meta.InheritDoc,[],Globals.null_pos) :: cf.cf_meta;
-	end;
 	build_doc ctx ~no_args_cb doc cf.cf_meta;
 	cf.cf_doc <- !doc
 

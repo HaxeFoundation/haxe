@@ -1557,9 +1557,8 @@ let init_field (ctx,cctx,fctx) f cf =
 			create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p
 	in
 	(if (fctx.is_static || fctx.is_macro && ctx.com.is_macro_context) then add_class_field_flag cf CfStatic);
-	let inherit_fields = Meta.has Meta.InheritDocFields c.cl_meta in
-	if Meta.has Meta.InheritDoc cf.cf_meta || inherit_fields then
-		delay ctx.g PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) ~inherit_fields:inherit_fields cf)
+	if Meta.has Meta.InheritDoc cf.cf_meta then
+		delay ctx.g PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
 
 let check_overload ctx f fs is_extern_class =
 	try
