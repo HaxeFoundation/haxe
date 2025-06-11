@@ -127,10 +127,9 @@ and build_class_field_doc ctx c_opt cf =
 							if cf.cf_name = "new" then get_constructor cl
 							else get_class_field cl cf.cf_name
 						in
-						if Option.is_some parent_cf.cf_doc then begin
-							build_class_field_doc ctx parent_cl parent_cf;
-							add parent_cf.cf_doc
-						end else raise Not_found
+						build_class_field_doc ctx parent_cl parent_cf;
+						add parent_cf.cf_doc;
+						if Option.is_none parent_cf.cf_doc then raise Not_found
 					with Not_found -> find_in_parents rest
 		in
 		match c_opt with
