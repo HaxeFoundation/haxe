@@ -134,7 +134,7 @@ and build_class_field_doc ctx c_opt cf =
 		in
 		match c_opt with
 			| Some c ->
-				let interfaces = List.map (fun (cl, _) -> cl) c.cl_implements in
+				let interfaces = List.rev (List.map (fun (cl, _) -> cl) c.cl_implements) in
 				begin match c.cl_super with
 					| Some (csup, _) -> find_in_parents (csup :: interfaces)
 					| None -> find_in_parents interfaces
