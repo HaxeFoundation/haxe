@@ -1,5 +1,6 @@
 package haxe.coro.cancellation;
 
+import haxe.exceptions.CancellationException;
 import haxe.coro.context.Key;
 
 private class NoOpCancellationHandle implements ICancellationHandle {
@@ -10,15 +11,15 @@ private class NoOpCancellationHandle implements ICancellationHandle {
 private class NoOpCancellationToken implements ICancellationToken {
 	static final handle = new NoOpCancellationHandle();
 
-	public var isCancellationRequested (get, never) : Bool;
+	public var cancellationException (get, never) : Null<CancellationException>;
 
 	public function new() {}
 
 	public function onCancellationRequested(_:ICancellationCallback):ICancellationHandle {
 		return handle;
 	}
-	public function get_isCancellationRequested() {
-		return false;
+	public function get_cancellationException() {
+		return null;
 	}
 }
 

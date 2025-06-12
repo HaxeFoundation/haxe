@@ -1,5 +1,6 @@
 package structured;
 
+import haxe.exceptions.CancellationException;
 import haxe.coro.schedulers.VirtualTimeScheduler;
 import haxe.coro.cancellation.ICancellationHandle;
 import haxe.coro.cancellation.ICancellationCallback;
@@ -12,7 +13,7 @@ class ResultPusherHandle implements ICancellationCallback {
 		this.result = result;
 	}
 
-	public function onCancellation() {
+	public function onCancellation(cause:CancellationException) {
 		result.push(0);
 	}
 }

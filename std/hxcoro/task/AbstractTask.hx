@@ -20,13 +20,13 @@ private class TaskException extends Exception {}
 
 private class CancellationHandle implements ICancellationHandle {
 	final callback:ICancellationCallback;
-	final all:Array<CancellationHandle>;
+	final task:AbstractTask;
 
 	var closed:Bool;
 
-	public function new(callback, all) {
+	public function new(callback, task) {
 		this.callback = callback;
-		this.all = all;
+		this.task = task;
 
 		closed = false;
 	}
@@ -36,7 +36,8 @@ private class CancellationHandle implements ICancellationHandle {
 			return;
 		}
 
-		callback.onCancellation();
+		final error = task.getError();
+		callback.onCancellation(error.orCancellationException());
 
 		closed = true;
 	}
@@ -45,11 +46,14 @@ private class CancellationHandle implements ICancellationHandle {
 		if (closed) {
 			return;
 		}
+		final all = @:privateAccess task.cancellationCallbacks;
 
-		if (all.length == 1 && all[0] == this) {
-			all.resize(0);
-		} else {
-			all.remove(this);
+		if (all != null) {
+			if (all.length == 1 && all[0] == this) {
+				all.resize(0);
+			} else {
+				all.remove(this);
+			}
 		}
 
 		closed = true;
@@ -84,14 +88,14 @@ abstract class AbstractTask<T = Any> implements ICancellationToken {
 	var allChildrenCompleted:Bool;
 
 	public var id(get, null):Int;
-	public var isCancellationRequested(get, never):Bool;
+	public var cancellationException(get, never):Null<CancellationException>;
 
-	inline function get_isCancellationRequested() {
+	inline function get_cancellationException() {
 		return switch state {
 			case Cancelling | Cancelled:
-				true;
+				error.orCancellationException();
 			case _:
-				false;
+				null;
 		}
 	}
 
@@ -176,12 +180,12 @@ abstract class AbstractTask<T = Any> implements ICancellationToken {
 	public function onCancellationRequested(callback:ICancellationCallback):ICancellationHandle {
 		return switch state {
 			case Cancelling | Cancelled:
-				callback.onCancellation();
+				callback.onCancellation(error.orCancellationException());
 
 				return noOpCancellationHandle;
 			case _:
 				final container = cancellationCallbacks ??= [];
-				final handle = new CancellationHandle(callback, container);
+				final handle = new CancellationHandle(callback, this);
 
 				container.push(handle);
 
@@ -208,9 +212,11 @@ abstract class AbstractTask<T = Any> implements ICancellationToken {
 	}
 
 	public function cancelChildren(?cause:CancellationException) {
-		if (null == children) {
+		if (null == children || children.length == 0) {
 			return;
 		}
+
+		cause ??= new CancellationException();
 
 		for (child in children) {
 			if (child != null) {

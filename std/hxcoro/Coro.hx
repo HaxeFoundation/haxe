@@ -33,7 +33,7 @@ class Coro {
 	}
 
 	static function cancellationRequested(cont:IContinuation<Any>) {
-		return cont.context.get(CancellationToken)?.isCancellationRequested;
+		return cont.context.get(CancellationToken)?.isCancellationRequested();
 	}
 
 	static function delayImpl<T>(ms:Int, cont:ICancellableContinuation<T>) {
@@ -41,7 +41,7 @@ class Coro {
 			cont.callSync();
 		});
 
-		cont.onCancellationRequested = () -> {
+		cont.onCancellationRequested = _ -> {
 			handle.close();
 		}
 	}

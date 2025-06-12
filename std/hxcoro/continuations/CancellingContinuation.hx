@@ -32,21 +32,21 @@ class CancellingContinuation<T> extends SuspensionResult<T> implements ICancella
 		return cont.context;
 	}
 
-	public var onCancellationRequested (default, set) : ()->Void;
+	public var onCancellationRequested (default, set) : CancellationException->Void;
 
-	function set_onCancellationRequested(f : ()->Void) {
-		return if (cont.context.get(CancellationToken).isCancellationRequested) {
-			f();
+	function set_onCancellationRequested(f : CancellationException->Void) {
+		return switch (cont.context.get(CancellationToken).cancellationException) {
+			case null:
+				if (null != onCancellationRequested) {
+					throw new Exception("Callback already registered");
+				}
 
-			f;
-		} else {
-			if (null != onCancellationRequested) {
-				throw new Exception("Callback already registered");
-			}
+				onCancellationRequested = f;
+			case exc:
+				f(exc);
 
-			onCancellationRequested = f;
+				f;
 		}
-
 	}
 
 	public function new(cont) {
@@ -63,20 +63,20 @@ class CancellingContinuation<T> extends SuspensionResult<T> implements ICancella
 			handle.close();
 			context.get(Scheduler).scheduleObject(this);
 		} else {
-			cont.failAsync(new CancellationException());
+			cont.failAsync(error.orCancellationException());
 		}
 
 	}
 
-	public function onCancellation() {
+	public function onCancellation(cause:CancellationException) {
 		handle?.close();
 
 		if (resumeState.compareExchange(Active, Cancelled) == Active) {
 			if (null != onCancellationRequested) {
-				onCancellationRequested();
+				onCancellationRequested(cause);
 			}
 
-			cont.failAsync(new CancellationException());
+			cont.failAsync(cause);
 		}
 	}
 

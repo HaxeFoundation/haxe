@@ -62,7 +62,7 @@ class CoroSemaphore {
 			// a continuation waits for this mutex, wake it up now
 			final cont = deque.pop();
 			final ct = cont.context.get(CancellationToken);
-			if (ct.isCancellationRequested) {
+			if (ct.isCancellationRequested()) {
 				// ignore, back to the loop
 			} else {
 				// continue normally

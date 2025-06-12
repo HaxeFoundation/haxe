@@ -1,5 +1,7 @@
 package haxe.coro.cancellation;
 
+import haxe.exceptions.CancellationException;
+
 /**
  * A cancellation token enables cooperative cancellation between units of work (threads, coroutines, etc).
  * The token cannot be used to initiate cancellation, only to poll for a cancellation request or register a callback for when cancellation is requested.
@@ -7,7 +9,7 @@ package haxe.coro.cancellation;
  * Access to this interface is thread safe.
  */
 interface ICancellationToken {
-	var isCancellationRequested (get, never) : Bool;
+	var cancellationException (get, never) : Null<CancellationException>;
 
 	/**
 	 * Register a callback which will be executed when this token is cancelled.

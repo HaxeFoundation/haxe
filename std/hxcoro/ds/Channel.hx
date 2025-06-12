@@ -34,20 +34,21 @@ private class SuspendedWrite<T> implements IContinuation<T> {
 	}
 
 	public function resume(v:T, error:Exception) {
-		if (context.get(CancellationToken).isCancellationRequested) {
-			continuation.failAsync(new CancellationException());
-		} else {
-			continuation.resume(v, error);
+		switch (context.get(CancellationToken).cancellationException) {
+			case null:
+				continuation.resume(v, error);
+			case exc:
+				continuation.failAsync(exc);
 		}
 	}
 
-	function onCancellation() {
+	function onCancellation(cause:CancellationException) {
 		// writeMutex.acquire();
 		if (hostPage.data[hostIndex] == this) {
 			hostPage.data[hostIndex] = null;
 		}
 		// writeMutex.release();
-		this.callSync();
+		continuation.failSync(cause);
 	}
 }
 
@@ -74,20 +75,21 @@ class SuspendedRead<T> implements IContinuation<T> {
 	}
 
 	public function resume(v:T, error:Exception) {
-		if (context.get(CancellationToken).isCancellationRequested) {
-			continuation.failAsync(new CancellationException());
-		} else {
-			continuation.resume(v, error);
+		switch (context.get(CancellationToken).cancellationException) {
+			case null:
+				continuation.resume(v, error);
+			case exc:
+				continuation.failAsync(exc);
 		}
 	}
 
-	function onCancellation() {
+	function onCancellation(cause:CancellationException) {
 		// readMutex.acquire();
 		if (hostPage.data[hostIndex] == this) {
 			hostPage.data[hostIndex] = null;
 		}
 		// readMutex.release();
-		this.callSync();
+		this.failSync(cause);
 	}
 }
 

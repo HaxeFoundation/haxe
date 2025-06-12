@@ -13,7 +13,7 @@ class TestCancellingSuspend extends utest.Test {
 		final task      = CoroRun.with(scheduler).create(node -> {
 			timeout(100, _ -> {
 				suspendCancellable(cont -> {
-					cont.onCancellationRequested = () -> {
+					cont.onCancellationRequested = _ -> {
 						actual.push(scheduler.now());
 					}
 				});
@@ -77,7 +77,7 @@ class TestCancellingSuspend extends utest.Test {
 		final scheduler = new VirtualTimeScheduler();
 		final task      = CoroRun.with(scheduler).create(node -> {
 			suspendCancellable(cont -> {
-				cont.onCancellationRequested = () -> {
+				cont.onCancellationRequested = _ -> {
 					Assert.fail('should not be invoked');
 				}
 				cont.resume(null, null);
@@ -113,7 +113,7 @@ class TestCancellingSuspend extends utest.Test {
 
 			final actual = [];
 
-			stashed.onCancellationRequested = () -> {
+			stashed.onCancellationRequested = _ -> {
 				actual.push('hello');
 			}
 
@@ -131,12 +131,12 @@ class TestCancellingSuspend extends utest.Test {
 		final scheduler = new VirtualTimeScheduler();
 		final task      = CoroRun.with(scheduler).create(node -> {
 			suspendCancellable(cont -> {
-				cont.onCancellationRequested = () -> {
+				cont.onCancellationRequested = _ -> {
 					trace('foo');
 				}
 
 				Assert.raises(() -> {
-					cont.onCancellationRequested = () -> {
+					cont.onCancellationRequested = _ -> {
 						trace('foo');
 					}
 				});
