@@ -237,7 +237,12 @@ let gen_define_info defines =
 					[Printf.sprintf "DefaultValue(%s)" quoted]
 			in
 			(match def.d_signature_neutral with
-				| Some true -> DynArray.add sig_neutral (Printf.sprintf "| %S" (convert_define define))
+				| Some true ->
+					DynArray.add sig_neutral (Printf.sprintf "| %S" (convert_define define));
+					begin match def.d_deprecated_define with
+					| None -> ()
+					| Some s -> DynArray.add sig_neutral (Printf.sprintf "| %S" (convert_define s))
+					end
 				| _ -> ());
 			"\t| " ^ def.d_name ^ " -> \"" ^ define ^ "\",(" ^ (Printf.sprintf "%S" def.d_doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ links_str @ deprecated @ default)) ^ "])"
 	) defines in

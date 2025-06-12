@@ -214,6 +214,9 @@ and vinstance_kind =
 	| IMbedtlsSsl of Mbedtls.mbedtls_ssl_context
 	| IMbedtlsX509Crt of Mbedtls.mbedtls_x509_crt
 	| INormal
+	| IAtomicBool of bool Atomic.t
+	| IAtomicInt of int Atomic.t
+	| IAtomicObject of value Atomic.t
 
 and vinstance = {
 	(* The fields of this instance. *)

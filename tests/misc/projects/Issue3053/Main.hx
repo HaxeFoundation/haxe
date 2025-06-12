@@ -35,14 +35,8 @@ class Main {
 	}
 
 	public var notAllowed(private get, private set):Int; // err
-
-	function set_notAllowed(value:Int):Int {
-		throw new haxe.exceptions.NotImplementedException();
-	}
-
-	function get_notAllowed():Int {
-		throw new haxe.exceptions.NotImplementedException();
-	}
+	function set_notAllowed(v):Int return 0;
+	function get_notAllowed():Int return 0;
 
 	public function new() {
 		foo = 1;
@@ -110,14 +104,8 @@ class Rect implements Shape {
 
 	public function new() {}
 	public var width(get, private set):Int; // err
-
-	function set_width(value:Int):Int {
-		return 0;
-	}
-
-	function get_width():Int {
-		return 0;
-	}
+	function set_width(v):Int return 0;
+	function get_width():Int return 0;
 }
 
 @:build(PropertyMacro.addIntProperty("age"))
@@ -129,9 +117,7 @@ class Bar {
 	public var defaultNull(default, null):Int;
 
 	public var defaultPrivateSet(default, private set):Int;
-	function set_defaultPrivateSet(value:Int):Int {
-		return value;
-	}
+	function set_defaultPrivateSet(v):Int return v;
 
 	var width(private get, private set):Int;
 
@@ -146,16 +132,38 @@ class Bar {
 
 class Parent {
 	var width(private get, private set):Int;
-	function set_width(value:Int):Int {
-		return 0;
-	}
-	function get_width():Int {
-		return 0;
-	}
+	function set_width(v):Int return 0;
+	function get_width():Int return 0;
 }
 
 class Child extends Parent {
 	public function new() {
 		width = 0;
+		super.width;
+		super.width = 0;
 	}
+}
+
+@:access(Element)
+class MainElement {
+	public static function main() {
+		new Element().foo;
+		new Element().fooSet = false;
+	}
+}
+
+class Element extends Entity {}
+
+class Entity {
+	function new() {}
+
+	var foo(private get, never):Bool;
+
+	function get_foo():Bool
+		return true;
+
+	var fooSet(default, private set):Bool;
+
+	function set_fooSet(v):Bool
+		return fooSet = v;
 }

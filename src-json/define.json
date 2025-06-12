@@ -108,6 +108,13 @@
 		"doc": "Read the contents of a file specified in `--display` from standard input."
 	},
 	{
+		"name": "DisplayDetails",
+		"define": "display-details",
+		"signatureNeutral": true,
+		"doc": "Not used anymore, but still sent by vshaxe.",
+		"deprecated": "This flag is no longer supported in Haxe 5"
+	},
+	{
 		"name": "DllExport",
 		"define": "dll-export",
 		"doc": "GenCPP experimental linking.",

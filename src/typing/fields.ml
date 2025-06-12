@@ -163,13 +163,31 @@ let field_access ctx mode f fh e pfield =
 			AKUsingField sea
 		end;
 	| Var v ->
+		let is_prop_access access =
+			match access with
+				| AccCall | AccPrivateCall -> ctx.e.bypass_accessor = 0
+				| _ -> false
+		in
+		let check_field_with_mode c stat =
+			begin match mode with
+				| MGet when is_prop_access v.v_read ->
+					let can = can_access ctx c f ~check_prop:true ~is_setter:false stat in
+					if not can then
+						raise_typing_error "This property cannot be accessed for reading" pfield
+				| MSet _ when is_prop_access v.v_write ->
+					let can = can_access ctx c f ~check_prop:true ~is_setter:true stat in
+					if not can then
+						raise_typing_error "This property cannot be accessed for writing" pfield
+				| _ -> check_field_access ctx c f stat pfield
+			end
+		in
 		begin match fh with
 		| FHStatic c | FHAbstract(_,_,c) ->
-			check_field_access ctx c f true pfield
+			check_field_with_mode c true;
 		| FHInstance _ ->
 			begin match follow e.etype with
 			| TInst(c,_) ->
-				check_field_access ctx c f false pfield
+				check_field_with_mode c false;
 			| _ ->
 				()
 			end;
@@ -182,7 +200,16 @@ let field_access ctx mode f fh e pfield =
 					display_error ctx.com "Normal variables cannot be accessed with 'super', use 'this' instead" pfield;
 			end;
 		| FHAnon ->
-			()
+			let is_private_access access =
+				access = AccPrivateCall && not (Meta.has Meta.PrivateAccess ctx.f.meta) && ctx.e.bypass_accessor = 0
+			in
+			begin match mode with
+				| MGet when is_private_access v.v_read ->
+					raise_typing_error "This property cannot be accessed for reading" pfield
+				| MSet _ when is_private_access v.v_write ->
+					raise_typing_error "This property cannot be accessed for writing" pfield
+				| _ -> ()
+			end;
 		end;
 		let normal inline =
 			AKField (make_access inline)

@@ -705,7 +705,8 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_exceptions = { default_config.pf_exceptions with
 				ec_avoid_wrapping = false
-			}
+			};
+			pf_supports_atomics = true;
 		}
 
 let memory_marker = [|Unix.time()|]
