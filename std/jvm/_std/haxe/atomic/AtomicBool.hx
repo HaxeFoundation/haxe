@@ -1,7 +1,21 @@
 package haxe.atomic;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+#if doc_gen
+@:coreApi
+@:coreType
+abstract AtomicBool {
+	public function new(value:Bool):Void;
 
+	public function compareExchange(expected:Bool, replacement:Bool):Bool;
+
+	public function exchange(value:Bool):Bool;
+
+	public function load():Bool;
+
+	public function store(value:Bool):Bool;
+}
+#else
 abstract AtomicBool(AtomicBoolean) {
 	public inline function new(value:Bool) {
 		this = new AtomicBoolean(value);
@@ -32,3 +46,4 @@ abstract AtomicBool(AtomicBoolean) {
 		return value;
 	}
 }
+#end

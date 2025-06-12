@@ -3852,4 +3852,7 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv";"_Prepare"], "Prepare_Impl_") EvalLuv.prepare_fields [];
 	init_fields builtins (["eval";"luv";"_Check"], "Check_Impl_") EvalLuv.check_fields [];
 	init_fields builtins (["eval";"luv"], "Version") EvalLuv.version_fields [];
-	EvalSsl.init_fields init_fields builtins
+	EvalSsl.init_fields init_fields builtins;
+	init_fields builtins (["haxe";"atomic"; "_AtomicBool"], "AtomicBool_Impl_") EvalAtomic.atomic_bool_fields [];
+	init_fields builtins (["haxe";"atomic"; "_AtomicInt"], "AtomicInt_Impl_") EvalAtomic.atomic_int_fields [];
+	init_fields builtins (["haxe";"atomic"; "_AtomicObject"], "AtomicObject_Impl_") EvalAtomic.atomic_object_fields [];
