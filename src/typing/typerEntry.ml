@@ -186,52 +186,36 @@ let load_local_wrapper ctx =
 		end
 
 let load_coro ctx =
-	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"Coroutine") null_pos in
-	List.iter (function
-		| TAbstractDecl({a_path = (["haxe";"coro"],"Coroutine")} as a) ->
-			let mk_coro args ret =
-				TAbstract(a,[TFun(args,ret)])
-			in
-			ctx.t.tcoro.tcoro <- mk_coro
-		| _ ->
-			()
-	) m.m_types;
-	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"IContinuation") null_pos in
-	List.iter (function
-		| TClassDecl({ cl_path = (["haxe";"coro"], "IContinuation") } as cl) ->
-			ctx.t.tcoro.continuation <- TInst(cl, [ ctx.t.tany ]);
-		| _ ->
-			()
-	) m.m_types;
-	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"BaseContinuation") null_pos in
-	List.iter (function
-		| TClassDecl({ cl_path = (["haxe";"coro"], "BaseContinuation") } as cl) ->
-			ctx.t.tcoro.base_continuation_class <- cl;
-		| _ ->
-			()
-	) m.m_types;
-	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"SuspensionResult") null_pos in
-	List.iter (function
-		| TClassDecl({ cl_path = (["haxe";"coro"], "SuspensionResult") } as cl) ->
-			ctx.t.tcoro.suspension_result <- (fun t -> TInst(cl, [t]));
-			ctx.t.tcoro.suspension_result_class <- cl;
-		| _ ->
-			()
-	) m.m_types;
-	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"ImmediateSuspensionResult") null_pos in
-	List.iter (function
-		| TClassDecl({ cl_path = (["haxe";"coro"], "ImmediateSuspensionResult") } as cl) ->
-			ctx.t.tcoro.immediate_suspension_result_class <- cl;
-		| _ ->
-			()
-	) m.m_types;
-	let m = TypeloadModule.load_module ctx (["haxe";"coro"],"SuspensionState") null_pos in
-	List.iter (function
-		| TAbstractDecl({a_path = (["haxe";"coro"],"SuspensionState")} as a) ->
-			ctx.t.tcoro.suspension_state <- TAbstract(a,[])
-		| _ ->
-			()
-	) m.m_types;
+	ctx.t.tcoro.tcoro <- lazy begin
+		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"Coroutine") null_pos in
+		ExtList.List.find_map_exn (function
+			| TAbstractDecl({a_path = (["haxe";"coro"],"Coroutine")} as a) ->
+				let mk_coro args ret =
+					TAbstract(a,[TFun(args,ret)])
+				in
+				Some mk_coro
+			| _ ->
+				None
+		) m.m_types;
+	end;
+	ctx.t.tcoro.continuation <- lazy begin
+		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"IContinuation") null_pos in
+		ExtList.List.find_map_exn (function
+			| TClassDecl({ cl_path = (["haxe";"coro"], "IContinuation") } as cl) ->
+				Some (TInst(cl, [ ctx.t.tany ]))
+			| _ ->
+				None
+		) m.m_types;
+	end;
+	ctx.t.tcoro.suspension_result_class <- lazy begin
+		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"SuspensionResult") null_pos in
+		ExtList.List.find_map_exn (function
+			| TClassDecl({ cl_path = (["haxe";"coro"], "SuspensionResult") } as cl) ->
+				Some cl
+			| _ ->
+				None;
+		) m.m_types;
+	end;
 	let m = TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos in
 	List.iter (function
 		| TClassDecl({ cl_path = (["haxe"], "Exception") } as cl) ->
@@ -300,7 +284,6 @@ let create com macros =
 	load_array ctx;
 	load_enum_tools ctx;
 	load_coro ctx;
-	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
 	ctx.com.local_wrapper <- load_local_wrapper ctx;
 	ctx.g.complete <- true;
 	ctx

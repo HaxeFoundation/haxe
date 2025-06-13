@@ -297,7 +297,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			(* here *)
 			let el = el_typed @ el in
 			let args = (args_typed @ args) in
-			let tf = if coro then ctx.t.tcoro.tcoro args ret else TFun(args,ret) in
+			let tf = if coro then (Lazy.force ctx.t.tcoro.tcoro) args ret else TFun(args,ret) in
 			let mk_call () =
 				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
 				!make_call_ref ctx ef el ret ~force_inline:inline p

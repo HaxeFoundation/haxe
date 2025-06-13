@@ -1268,11 +1268,11 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 		match List.rev targs with
 			| _ :: targs ->
 				(* Ignore trailing continuation for actual signature *)
-				ctx.t.tcoro.tcoro (List.rev targs) ret
+				(Lazy.force ctx.t.tcoro.tcoro) (List.rev targs) ret
 			| _ ->
 				die "" __LOC__
 	end else
-		ctx.t.tcoro.tcoro targs ret
+		(Lazy.force ctx.t.tcoro.tcoro) targs ret
 	in
 	cf.cf_type <- t;
 	cf.cf_kind <- Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);

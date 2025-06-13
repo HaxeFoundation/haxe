@@ -482,16 +482,10 @@ and build_state =
 
 exception Type_exception of t
 
-(* TODO: Most of this can probably be moved to the typer context
-   with lazy initialization from the coro code. *)
 type coro_types = {
-	mutable tcoro : (string * bool * t) list -> t -> t;
-	mutable continuation : t;
-	mutable base_continuation_class : tclass;
-	mutable suspension_state : t;
-	mutable suspension_result : t -> t;
-	mutable suspension_result_class : tclass;
-	mutable immediate_suspension_result_class : tclass;
+	mutable tcoro : ((string * bool * t) list -> t -> t) Lazy.t;
+	mutable continuation : t Lazy.t;
+	mutable suspension_result_class : tclass Lazy.t;
 }
 
 type basic_types = {

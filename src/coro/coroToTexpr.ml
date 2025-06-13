@@ -2,6 +2,7 @@ open Globals
 open CoroTypes
 open CoroFunctions
 open Type
+open ContTypes
 open Texpr
 open CoroControl
 
@@ -22,7 +23,7 @@ type coro_to_texpr_exprs = {
 	etmp_error_unwrapped : texpr Lazy.t;
 }
 
-let make_suspending_call basic call econtinuation =
+let make_suspending_call basic cont call econtinuation =
 	(* lose Coroutine<T> type for the called function not to confuse further filters and generators *)
 	let tfun = match follow_with_coro call.cs_fun.etype with
 		| Coro (args, ret) ->
@@ -33,7 +34,7 @@ let make_suspending_call basic call econtinuation =
 	in
 	let efun = { call.cs_fun with etype = tfun } in
 	let args = call.cs_args @ [ econtinuation ] in
-	mk (TCall (efun, args)) (basic.tcoro.suspension_result basic.tany) call.cs_pos
+	mk (TCall (efun, args)) (cont.suspension_result basic.tany) call.cs_pos
 
 let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 	let module IntSet = Set.Make(struct
@@ -164,11 +165,11 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 	let mk_suspending_call call =
 		let p = call.cs_pos in
 		let base_continuation_field_on e cf t =
-			b#instance_field e com.basic.tcoro.suspension_result_class [com.basic.tany] cf t
+			b#instance_field e cont.suspension_result_class [com.basic.tany] cf t
 		in
-		let ecreatecoroutine = make_suspending_call com.basic call {econtinuation with epos = p} in
+		let ecreatecoroutine = make_suspending_call com.basic cont call {econtinuation with epos = p} in
 
-		let vcororesult = alloc_var VGenerated "_hx_tmp" (com.basic.tcoro.suspension_result com.basic.tany) p in
+		let vcororesult = alloc_var VGenerated "_hx_tmp" (cont.suspension_result com.basic.tany) p in
 		let ecororesult = b#local vcororesult p in
 		let cororesult_var = b#var_init vcororesult ecreatecoroutine in
 		let open ContTypes in
@@ -396,8 +397,8 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 				DynArray.add cases {case_patterns = patterns; case_expr = expr};
 		) exc_state_map;
 		let el =
-			let field         = PMap.find "buildCallStack" com.basic.tcoro.base_continuation_class.cl_fields in
-			let eaccess       = b#instance_field econtinuation com.basic.tcoro.base_continuation_class params field field.cf_type in
+			let field         = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
+			let eaccess       = b#instance_field econtinuation cont.base_continuation_class params field field.cf_type in
 			let ewrapped_call = mk (TCall (eaccess, [ ])) com.basic.tvoid p in
 			[
 				b#assign eerror etmp_error;
