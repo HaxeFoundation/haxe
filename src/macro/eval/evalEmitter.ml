@@ -759,33 +759,33 @@ let process_arguments fl vl env =
 
 let create_function_noret ctx eci exec fl vl =
 	let env = push_environment ctx eci in
-	process_arguments fl vl env;
-	let v = exec env in
-	pop_environment ctx env;
-	v
+	Std.finally (fun () -> pop_environment ctx env) (fun () ->
+		process_arguments fl vl env;
+		exec env
+	) ()
 
 let create_function ctx eci exec fl vl =
 	let env = push_environment ctx eci in
-	process_arguments fl vl env;
-	let v = try exec env with Return v -> v in
-	pop_environment ctx env;
-	v
+	Std.finally (fun () -> pop_environment ctx env) (fun () ->
+		process_arguments fl vl env;
+		try exec env with Return v -> v
+	) ()
 
 let create_closure_noret ctx eci refs exec fl vl =
 	let env = push_environment ctx eci in
-	Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
-	process_arguments fl vl env;
-	let v = exec env in
-	pop_environment ctx env;
-	v
+	Std.finally (fun () -> pop_environment ctx env) (fun () ->
+		Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
+		process_arguments fl vl env;
+		exec env
+	) ()
 
 let create_closure refs ctx eci exec fl vl =
 	let env = push_environment ctx eci in
-	Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
-	process_arguments fl vl env;
-	let v = try exec env with Return v -> v in
-	pop_environment ctx env;
-	v
+	Std.finally (fun () -> pop_environment ctx env) (fun () ->
+		Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
+		process_arguments fl vl env;
+		try exec env with Return v -> v
+	) ()
 
 let emit_closure ctx mapping eci hasret exec fl env =
 	let refs = Array.map (fun (i,slot) -> i,emit_capture_read slot env) mapping in
