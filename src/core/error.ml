@@ -47,7 +47,7 @@ let make_error ?(from_macro = false) ?(sub = []) msg p = {
 }
 
 let rec convert_error (err:macro_error) =
-	let sub = List.map convert_error err.sub in
+	let sub = List.rev_map convert_error err.sub in
 	make_error ~sub (Custom err.msg) err.pos
 
 let recurse_error cb err =
