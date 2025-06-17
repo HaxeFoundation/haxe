@@ -18,6 +18,7 @@
  *)
 open Ast
 open Type
+open Error
 open Globals
 open Lookup
 open Define
@@ -1092,8 +1093,8 @@ let display_error_ext com err =
 	end else
 		com.error_ext err
 
-let display_error com msg p =
-	display_error_ext com (Error.make_error (Custom msg) p)
+let display_error com ?(sub:macro_error list = []) msg pos =
+	display_error_ext com (convert_error {msg; pos; sub})
 
 let adapt_defines_to_macro_context defines =
 	let to_remove = "java" :: List.map Globals.platform_name Globals.platforms in

@@ -33,12 +33,22 @@ type error = {
 	err_from_macro : bool;
 }
 
+type macro_error = {
+	msg : string;
+	pos : pos;
+	sub : macro_error list;
+}
+
 let make_error ?(from_macro = false) ?(sub = []) msg p = {
 	err_message = msg;
 	err_pos = p;
 	err_from_macro = from_macro;
 	err_sub = sub;
 }
+
+let rec convert_error (err:macro_error) =
+	let sub = List.map convert_error err.sub in
+	make_error ~sub (Custom err.msg) err.pos
 
 let recurse_error cb err =
 	let rec loop depth err =
