@@ -1,8 +1,13 @@
+open Effect
+open Effect.Deep
 open Globals
 open Ast
 open Type
 open HxbData
 open Tanon_identification
+
+type _ Effect.t += UnboundTTP : (string * Globals.pos) Effect.t
+type _ Effect.t += UnboundTTPWithoutPosition : (Globals.pos) Effect.t
 
 let rec binop_index op = match op with
 	| OpAdd -> 0
@@ -425,7 +430,7 @@ type hxb_writer = {
 	mutable field_stack : unit list;
 	mutable wrote_local_type_param : bool;
 	mutable needs_local_context : bool;
-	unbound_ttp : (typed_type_param,unit) IdentityPool.t;
+	(* unbound_ttp : (typed_type_param,unit) IdentityPool.t; *)
 	unclosed_mono : (tmono,unit) IdentityPool.t;
 	t_instance_chunk : Chunk.t;
 }
@@ -1084,16 +1089,35 @@ module HxbWriter = struct
 			| TPHUnbound ->
 				raise Not_found
 		end with Not_found ->
-			(try ignore(IdentityPool.get writer.unbound_ttp ttp) with Not_found -> begin
-				ignore(IdentityPool.add writer.unbound_ttp ttp ());
-				let p = file_pos (Path.UniqueKey.lazy_path writer.current_module.m_extra.m_file) in
-				let msg = Printf.sprintf "Unbound type parameter %s" (s_type_path ttp.ttp_class.cl_path) in
-				writer.warn WUnboundTypeParameter msg p
-			end);
+			(* TODO: adjust filtering *)
+			(* (try ignore(IdentityPool.get writer.unbound_ttp ttp) with Not_found -> begin *)
+			(* 	ignore(IdentityPool.add writer.unbound_ttp ttp ()); *)
+				let (source, p) = perform UnboundTTP in
+				let msg = Printf.sprintf "Unbound type parameter %s while writing %s" (s_type_path ttp.ttp_class.cl_path) source in
+				writer.warn WUnboundTypeParameter msg p;
+			(* end); *)
 			writer.wrote_local_type_param <- true;
 			Chunk.write_u8 writer.chunk 5;
 			write_path writer ttp.ttp_class.cl_path;
 		end
+
+	and catch_unbound_ttp f (source:string) (p:Globals.pos option) =
+		try_with f () {
+			effc = (fun (type c) (eff : c Effect.t) ->
+				match eff with
+				| UnboundTTP ->
+						Some (fun (k:(c,_) continuation) ->
+							match p with
+							| Some p -> continue k (source,p)
+							| None ->
+									let p = perform UnboundTTPWithoutPosition in
+									continue k (source,p)
+						)
+				| UnboundTTPWithoutPosition when Option.is_some p ->
+						Some (fun (k:(c,_) continuation) -> continue k (Option.get p))
+				| _ -> None
+			)
+		}
 
 	(*
 		simple references:
@@ -1165,7 +1189,7 @@ module HxbWriter = struct
 		let write_function_arg (n,o,t) =
 			Chunk.write_string writer.chunk n;
 			Chunk.write_bool writer.chunk o;
-			write_type_instance writer t;
+			catch_unbound_ttp (fun () -> write_type_instance writer t) (Printf.sprintf "function arg `%s`" n) None
 		in
 		let write_inlined_list offset max f_first f_elt l =
 			write_inlined_list writer offset max (Chunk.write_u8 writer.chunk) f_first f_elt l
@@ -1269,6 +1293,7 @@ module HxbWriter = struct
 				write_type_instance writer t
 
 	and write_types writer tl =
+		(* TODO (?): catch_unbound_ttp *)
 		Chunk.write_list writer.chunk tl (write_type_instance writer)
 
 	(* texpr *)
@@ -1305,12 +1330,12 @@ module HxbWriter = struct
 					let index = IdentityPool.add writer.local_type_parameters ttp () in
 					Chunk.write_uleb128 writer.chunk index
 				);
-				Chunk.write_option writer.chunk ve.v_expr (write_texpr writer fctx);
+				catch_unbound_ttp (fun () -> Chunk.write_option writer.chunk ve.v_expr (write_texpr writer fctx)) "var expression" (Some v.v_pos)
 			);
-			write_type_instance writer v.v_type;
+			catch_unbound_ttp (fun () -> write_type_instance writer v.v_type) "var type" (Some v.v_pos)
 		in
-		let rec loop e =
-			let write_type = match e.eexpr with
+		let rec loop e' =
+			let write_type = match e'.eexpr with
 			(* values 0-19 *)
 			| TConst ct ->
 				begin match ct with
@@ -1318,27 +1343,27 @@ module HxbWriter = struct
 					Chunk.write_u8 writer.chunk 0;
 					true
 				| TThis ->
-					fctx.texpr_this <- Some e;
+					fctx.texpr_this <- Some e';
 					Chunk.write_u8 writer.chunk 1;
 					false;
 				| TSuper ->
 					Chunk.write_u8 writer.chunk 2;
 					true;
-				| TBool false when (ExtType.is_bool (follow_lazy_and_mono e.etype)) ->
+				| TBool false when (ExtType.is_bool (follow_lazy_and_mono e'.etype)) ->
 					Chunk.write_u8 writer.chunk 3;
 					false;
-				| TBool true when (ExtType.is_bool (follow_lazy_and_mono e.etype)) ->
+				| TBool true when (ExtType.is_bool (follow_lazy_and_mono e'.etype)) ->
 					Chunk.write_u8 writer.chunk 4;
 					false;
-				| TInt i32 when (ExtType.is_int (follow_lazy_and_mono e.etype)) ->
+				| TInt i32 when (ExtType.is_int (follow_lazy_and_mono e'.etype)) ->
 					Chunk.write_u8 writer.chunk 5;
 					Chunk.write_i32 writer.chunk i32;
 					false;
-				| TFloat f when (ExtType.is_float (follow_lazy_and_mono e.etype)) ->
+				| TFloat f when (ExtType.is_float (follow_lazy_and_mono e'.etype)) ->
 					Chunk.write_u8 writer.chunk 6;
 					Chunk.write_string writer.chunk f;
 					false;
-				| TString s when (ExtType.is_string (follow_lazy_and_mono e.etype)) ->
+				| TString s when (ExtType.is_string (follow_lazy_and_mono e'.etype)) ->
 					Chunk.write_u8 writer.chunk 7;
 					Chunk.write_string writer.chunk s;
 					false
@@ -1412,7 +1437,8 @@ module HxbWriter = struct
 					declare_var v;
 					Chunk.write_option writer.chunk eo loop;
 				);
-				write_type_instance writer tf.tf_type;
+				if e == e' then write_type_instance writer tf.tf_type
+				else catch_unbound_ttp (fun () -> write_type_instance writer tf.tf_type) "TFunction" (Some e'.epos);
 				loop tf.tf_expr;
 				true;
 			(* texpr compounds 60-79 *)
@@ -1637,8 +1663,10 @@ module HxbWriter = struct
 				true;
 			in
 			if write_type then
-				write_texpr_type_instance writer fctx e.etype;
-			PosWriter.write_pos fctx.pos_writer writer.chunk true 0 e.epos;
+				(* Unbound TTP in top level expr type will be caught be calling site with a better position *)
+				if e == e' then write_texpr_type_instance writer fctx e.etype
+				else catch_unbound_ttp (fun () -> write_texpr_type_instance writer fctx e'.etype) "texpr type" (Some e'.epos);
+			PosWriter.write_pos fctx.pos_writer writer.chunk true 0 e'.epos;
 
 		and loop_el el =
 			Chunk.write_list writer.chunk el loop
@@ -1667,6 +1695,7 @@ module HxbWriter = struct
 			let c = ttp.ttp_class in
 			write_metadata writer c.cl_meta;
 			write_types writer (get_constraints ttp);
+			(* TODO: catch_unbound_ttp *)
 			Chunk.write_option writer.chunk ttp.ttp_default (write_type_instance writer)
 		in
 		List.iter write_type_parameter_data ttps
@@ -1754,7 +1783,9 @@ module HxbWriter = struct
 					let ltp = List.map fst (IdentityPool.to_list writer.local_type_parameters) in
 					write_type_parameters writer ltp
 				end;
-				Chunk.write_option writer.chunk fctx.texpr_this (fun e -> write_type_instance writer e.etype);
+				Chunk.write_option writer.chunk fctx.texpr_this (fun e ->
+					catch_unbound_ttp (fun () -> write_type_instance writer e.etype) "`this` type" (Some e.epos);
+				);
 				let a = StringPool.finalize fctx.t_pool in
 				Chunk.write_uleb128 writer.chunk a.length;
 				StringDynArray.iter a (fun bytes ->
@@ -1782,7 +1813,7 @@ module HxbWriter = struct
 
 	and write_class_field_data writer (write_expr_immediately : bool) (cf : tclass_field) =
 		let restore = start_temporary_chunk writer 512 in
-		write_type_instance writer cf.cf_type;
+		catch_unbound_ttp (fun () -> write_type_instance writer cf.cf_type) "field type" (Some cf.cf_pos);
 		Chunk.write_uleb128 writer.chunk cf.cf_flags;
 		maybe_write_documentation writer cf.cf_doc;
 		write_field_kind writer cf.cf_kind;
@@ -1793,15 +1824,15 @@ module HxbWriter = struct
 			| Some e when not write_expr_immediately ->
 				Chunk.write_u8 writer.chunk 2;
 				let fctx,close = start_texpr writer e.epos in
-				write_texpr writer fctx e;
-				Chunk.write_option writer.chunk cf.cf_expr_unoptimized (write_texpr writer fctx);
+				catch_unbound_ttp (fun () -> write_texpr writer fctx e) "field expression" (Some cf.cf_pos);
+				catch_unbound_ttp (fun () -> Chunk.write_option writer.chunk cf.cf_expr_unoptimized (write_texpr writer fctx)) "field unoptimized expression" (Some cf.cf_pos);
 				let expr_chunk = close() in
 				Some expr_chunk
 			| Some e ->
 				Chunk.write_u8 writer.chunk 1;
 				let fctx,close = start_texpr writer e.epos in
-				write_texpr writer fctx e;
-				Chunk.write_option writer.chunk cf.cf_expr_unoptimized (write_texpr writer fctx);
+				catch_unbound_ttp (fun () -> write_texpr writer fctx e) "field expression" (Some cf.cf_pos);
+				catch_unbound_ttp (fun () -> Chunk.write_option writer.chunk cf.cf_expr_unoptimized (write_texpr writer fctx)) "field unoptimized expression" (Some cf.cf_pos);
 				let expr_pre_chunk,expr_chunk = close() in
 				Chunk.export_data expr_pre_chunk writer.chunk;
 				Chunk.export_data expr_chunk writer.chunk;
@@ -1895,8 +1926,10 @@ module HxbWriter = struct
 			Chunk.write_u8 writer.chunk 0
 		else begin
 			Chunk.write_u8 writer.chunk 1;
+			(* TODO: catch_unbound_ttp *)
 			write_type_instance writer a.a_this;
 		end;
+		(* TODO: catch_unbound_ttp *)
 		Chunk.write_list writer.chunk a.a_from (write_type_instance writer);
 		Chunk.write_list writer.chunk a.a_to (write_type_instance writer);
 		Chunk.write_bool writer.chunk a.a_extern;
@@ -1943,6 +1976,7 @@ module HxbWriter = struct
 	let write_typedef writer (td : tdef) =
 		select_type writer td.t_path;
 		write_common_module_type writer (Obj.magic td);
+		(* TODO: catch_unbound_ttp *)
 		write_type_instance writer td.t_type
 
 	(* Module *)
@@ -2101,7 +2135,7 @@ module HxbWriter = struct
 					let close = open_field_scope writer ef.ef_params in
 					Chunk.write_string writer.chunk s;
 					let restore = start_temporary_chunk writer 32 in
-					write_type_instance writer ef.ef_type;
+					catch_unbound_ttp (fun () -> write_type_instance writer ef.ef_type) "enum field type" (Some ef.ef_pos);
 					let t_bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
 					commit_field_type_parameters writer ef.ef_params;
 					Chunk.write_bytes writer.chunk t_bytes;
@@ -2302,7 +2336,7 @@ let create config warn anon_id =
 		field_stack = [];
 		wrote_local_type_param = false;
 		needs_local_context = false;
-		unbound_ttp = IdentityPool.create ();
+		(* unbound_ttp = IdentityPool.create (); *)
 		unclosed_mono = IdentityPool.create ();
 		t_instance_chunk = Chunk.create EOM cp 32;
 	}
