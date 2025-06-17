@@ -1,0 +1,18 @@
+[30;41m ERROR [0m Main.hx:2: characters 17-28
+
+ 2 | [2mfunction main() [0m[1mtestMacro()[0m[2m;[0m
+   |                 [31m^^^^^^^^^^^[0m
+   | Top level error
+
+    6 | [2m var p1 = (macro [0m[1m"1st position"[0m[2m).pos;[0m
+      |                  [31m^^^^^^^^^^^^^^[0m
+      | 1st sub error
+
+       7 | [2m var p2 = (macro [0m[1m"2nd position"[0m[2m).pos;[0m
+         |                  [31m^^^^^^^^^^^^^^[0m
+         | Nested sub error
+
+    7 | [2m var p2 = (macro [0m[1m"2nd position"[0m[2m).pos;[0m
+      |                  [31m^^^^^^^^^^^^^^[0m
+      | 2nd sub error
+
