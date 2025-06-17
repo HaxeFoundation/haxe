@@ -1,0 +1,2 @@
+build.hxml
+-D display.protocol=jsonrpc

@@ -511,11 +511,12 @@ let unify_access a1 a2 =
 	a1 = a2 || match a1, a2 with
 	| _, AccNo | _, AccNever -> true
 	| AccInline, AccNormal -> true
+	| AccCall, AccPrivateCall -> true
 	| _ -> false
 
 let direct_access = function
 	| AccNo | AccNever | AccNormal | AccInline | AccRequire _ | AccCtor -> true
-	| AccCall -> false
+	| AccCall | AccPrivateCall -> false
 
 let unify_kind ~(strict:bool) k1 k2 =
 	k1 = k2 || match k1, k2 with
@@ -908,8 +909,8 @@ let rec unify (uctx : unification_context) a b =
 							with Not_found ->
 								()
 						in
-						(match vk.v_read with AccCall -> check ("get_" ^ f1.cf_name) | _ -> ());
-						(match vk.v_write with AccCall -> check ("set_" ^ f1.cf_name) | _ -> ());
+						(match vk.v_read with AccCall | AccPrivateCall -> check ("get_" ^ f1.cf_name) | _ -> ());
+						(match vk.v_write with AccCall | AccPrivateCall -> check ("set_" ^ f1.cf_name) | _ -> ());
 					| _ -> ()
 				end;
 				(match f1.cf_kind with

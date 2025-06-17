@@ -451,7 +451,7 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 	let is_eq_op = match op with OpEq | OpNotEq -> true | _ -> false in
 	if is_eq_op then begin match follow e1.etype,follow e2.etype with
 		| TMono _,_ | _,TMono _ ->
-			Type.unify e1.etype e2.etype
+			(try Type.unify e1.etype e2.etype with Unify_error _ -> () (* this will fail later again *));
 		| _ ->
 			()
 	end;
@@ -677,7 +677,8 @@ type 'a assign_op_api = {
 
 let handle_assign_op ctx api e1 e2 with_type p =
 	let field_rhs_by_name name ev with_type =
-		let access_get = type_field_default_cfg ctx ev name p MGet with_type in
+		let field_pos = snd e1 in
+		let access_get = type_field_default_cfg ctx ev name field_pos MGet with_type in
 		let e_get = acc_get ctx access_get in
 		e_get,api.type_rhs e_get e2
 	in
@@ -944,7 +945,8 @@ let type_unop ctx op flag e with_type p =
 				e_lhs,None
 		in
 		let read_on vr ef fa =
-			let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name p MGet WithType.value in
+			let field_pos = snd e in
+			let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name field_pos MGet WithType.value in
 			let e_lhs = acc_get ctx access_get in
 			let e_lhs,e_out = maybe_tempvar_postfix vr e_lhs in
 			e_lhs,e_out
@@ -969,7 +971,8 @@ let type_unop ctx op flag e with_type p =
 			| AKField fa ->
 				let vr = new value_reference ctx in
 				let ef = vr#get_expr_part "fh" fa.fa_on in
-				let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name p MGet WithType.value in
+				let field_pos = snd e in
+				let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name field_pos MGet WithType.value in
 				let e,e_out = match access_get with
 				| AKField _ ->
 					let e = FieldAccess.get_field_expr {fa with fa_on = ef} FGet in

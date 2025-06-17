@@ -5,7 +5,7 @@ open PlatformConfig
 type saved_warning = {
 	w_module : module_def;
 	w_warning : WarningList.warning;
-	w_options : Warning.warning_option list list;
+	w_options : warning_option list list;
 	w_msg : string;
 	w_pos : pos;
 }

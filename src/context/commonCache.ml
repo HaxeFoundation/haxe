@@ -122,7 +122,7 @@ let rec cache_context cs com =
 		| None -> ()
 		| Some com -> cache_context cs com
 	end;
-	if Define.raw_defined com.defines "hxb.stats" then
+	if Define.defined com.defines HxbStats then
 		HxbReader.dump_stats (platform_name com.platform) com.hxb_reader_stats
 
 let maybe_add_context_sign cs com desc =

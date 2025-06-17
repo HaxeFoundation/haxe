@@ -10,7 +10,7 @@ private extern class V8Error {
 	static var prepareStackTrace:(error:Error, structuredStackTrace:Array<V8CallSite>)->Any;
 }
 
-typedef V8CallSite = {
+private typedef V8CallSite = {
 	function getFunctionName():String;
 	function getFileName():String;
 	function getLineNumber():Int;

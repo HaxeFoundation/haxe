@@ -574,7 +574,9 @@ and gen_cond ctx cond =
 
 and gen_loop ctx cond do_while e =
     let old_in_loop = ctx.in_loop in
+    let old_in_loop_try = ctx.in_loop_try in
     ctx.in_loop <- true;
+    ctx.in_loop_try <- false;
     let old_handle_continue = ctx.handle_continue in
     let will_continue = has_continue e in
     ctx.handle_continue <- has_continue e;
@@ -610,6 +612,7 @@ and gen_loop ctx cond do_while e =
     b();
     newline ctx;
     print ctx "end";
+    ctx.in_loop_try <- old_in_loop_try;
     ctx.in_loop <- old_in_loop;
     ctx.break_depth <- ctx.break_depth-1;
     ctx.handle_continue <- old_handle_continue;
@@ -1296,6 +1299,9 @@ and gen_value ctx e =
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
      | Ast.OpAssign, TField(e3, (FInstance _ as ci)), TFunction f ->
+         let old = ctx.in_value, ctx.in_loop in
+         ctx.in_value <- None;
+         ctx.in_loop <- false;
          gen_expr ctx e1;
          spr ctx " = " ;
          let fn_args = List.map ident (List.map arg_name f.tf_args) in
@@ -1323,6 +1329,8 @@ and gen_tbinop ctx op e1 e2 =
               bend();
               newline ctx;
           | _ -> gen_value ctx e2);
+         ctx.in_value <- fst old;
+         ctx.in_loop <- snd old;
          spr ctx " end"
      | Ast.OpAssign, _, _ ->
          let iife_assign = ctx.iife_assign in

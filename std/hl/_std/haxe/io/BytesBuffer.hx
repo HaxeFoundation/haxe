@@ -47,9 +47,11 @@ class BytesBuffer {
 	}
 
 	function __expand(req:Int):Void {
-		var nsize = (size * 3) >> 1;
+		var nsize = (size * 3) >>> 1;
 		if (nsize < req)
 			nsize = req;
+		if (nsize < pos)
+			throw "Can't expand " + (size >> 10) + "K";
 		var b2 = new hl.Bytes(nsize);
 		b2.blit(0, b, 0, pos);
 		b = b2;

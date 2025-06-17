@@ -4,6 +4,7 @@ import hl.NativeArray;
 import hl.Bytes;
 import haxe.CallStack.StackItem;
 
+@:dox(hide)
 typedef Symbol = #if (hl_ver >= version("1.12.0")) hl.Abstract<"hl_symbol"> #else hl.Bytes #end
 
 /**

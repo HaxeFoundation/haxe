@@ -582,6 +582,8 @@ and load_complex_type' ctx allow_display mode (t,p) =
 						| "dynamic" -> AccCall
 						| "get" when get -> AccCall
 						| "set" when not get -> AccCall
+						| "private get" when get -> AccPrivateCall
+						| "private set" when not get -> AccPrivateCall
 						| x when get && x = "get_" ^ n -> AccCall
 						| x when not get && x = "set_" ^ n -> AccCall
 						| _ ->
@@ -793,6 +795,7 @@ let load_core_class ctx c =
 			com2.defines.Define.values <- PMap.empty;
 			Common.define com2 Define.CoreApi;
 			Common.define com2 Define.Sys;
+			allow_package com2 "sys";
 			Define.raw_define_value com2.defines "target.threaded" "true"; (* hack because we check this in sys.thread classes *)
 			if ctx.com.is_macro_context then Common.define com2 Define.Macro;
 			com2.class_paths#lock_context (platform_name_macro ctx.com) true;

@@ -1006,10 +1006,19 @@ end
 
 module Cleanup = struct
 	let apply com e =
-		let if_or_op e e1 e2 e3 = match (Texpr.skip e1).eexpr,(Texpr.skip e3).eexpr with
-			| TUnop(Not,Prefix,e1),TConst (TBool true) -> optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2
-			| _,TConst (TBool false) -> optimize_binop {e with eexpr = TBinop(OpBoolAnd,e1,e2)} OpBoolAnd e1 e2
-			| _,TBlock [] -> {e with eexpr = TIf(e1,e2,None)}
+		let if_or_op e e1 e2 e3 = match (Texpr.skip e1).eexpr,(Texpr.skip e2).eexpr,(Texpr.skip e3).eexpr with
+			| _,TReturn(Some b),TReturn(Some {eexpr = TConst (TBool false)}) ->
+				let binop = optimize_binop {e with eexpr = TBinop(OpBoolAnd,e1,b)} OpBoolAnd e1 b in
+				{e with eexpr = TReturn(Some binop)}
+			| TUnop(Not,Prefix,e1),TReturn(Some b),TReturn(Some {eexpr = TConst (TBool true)}) ->
+				let binop = optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,b)} OpBoolOr e1 b in
+				{e with eexpr = TReturn(Some binop)}
+			| TUnop(Not,Prefix,e1),_,TConst (TBool true) ->
+				optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2
+			| _,_,TConst (TBool false) ->
+				optimize_binop {e with eexpr = TBinop(OpBoolAnd,e1,e2)} OpBoolAnd e1 e2
+			| _,_,TBlock [] ->
+				{e with eexpr = TIf(e1,e2,None)}
 			| _ -> match (Texpr.skip e2).eexpr with
 				| TBlock [] ->
 					let e1' = mk (TUnop(Not,Prefix,e1)) e1.etype e1.epos in

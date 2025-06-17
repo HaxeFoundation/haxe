@@ -130,7 +130,30 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 				| l when p' = null_pos -> l (* If the exception position is null_pos, we're "probably" in a built-in function. *)
 				| _ :: l -> l (* Otherwise, ignore topmost frame position. *)
 			in
-			get_exc_error_stack ctx stack
+			let def () =
+				get_exc_error_stack ctx stack
+			in
+			begin match v with
+			| VInstance vi when is v key_haxe_Exception ->
+				begin try
+					let vf = instance_field vi key_custom_stack in
+					begin match vf with
+					| VVector vv ->
+						Array.to_list vv |> List.map (fun v -> match v with
+							| VEnumValue {enpos = Some p} ->
+								p
+							| _ ->
+								die "" __LOC__
+						)
+					| _ ->
+						def();
+					end
+				with Not_found ->
+					def ()
+				end
+			| _ ->
+				def();
+			end
 		in
 
 		if is v key_haxe_macro_Error then begin

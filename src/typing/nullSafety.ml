@@ -367,9 +367,26 @@ let rec process_condition mode condition (is_nullable_expr:texpr->bool) callback
 		if to_nulls then nulls := expr :: !nulls
 		else not_nulls := expr :: !not_nulls
 	in
+	let remove expr =
+		let expr = reveal_expr expr in
+		let subj = get_subject mode expr in
+		nulls := List.filter (fun e ->
+			let e_subj = get_subject mode (reveal_expr e) in
+			e_subj <> subj
+		) !nulls;
+		not_nulls := List.filter (fun e ->
+			let e_subj = get_subject mode (reveal_expr e) in
+			e_subj <> subj
+		) !not_nulls;
+	in
 	let rec traverse positive e =
 		match e.eexpr with
 			| TUnop (Not, Prefix, e) -> traverse (not positive) e
+			| TBinop (OpAssign, checked_expr, e) when is_suitable mode checked_expr && (is_nullable_expr e) ->
+				(* remove expr from both list if there is `e = nullable` in condition *)
+				remove checked_expr
+			| TBlock exprs ->
+				List.iter (fun e -> traverse positive e) exprs
 			| TBinop (OpEq, { eexpr = TConst TNull }, checked_expr) when is_suitable mode checked_expr ->
 				add positive checked_expr
 			| TBinop (OpEq, checked_expr, { eexpr = TConst TNull }) when is_suitable mode checked_expr ->
@@ -834,12 +851,13 @@ class local_safety (mode:safety_mode) =
 				| TWhile (condition, body, NormalWhile) ->
 					condition_callback condition;
 					let (nulls, not_nulls) = process_condition mode condition is_nullable_expr (fun _ -> ()) in
+					let original_safe = self#get_safe_locals_copy in
 					(** execute `body` with known not-null variables *)
 					List.iter self#get_current_scope#add_to_safety not_nulls;
 					body_callback
 						(fun () -> List.iter self#get_current_scope#add_to_safety not_nulls)
 						body;
-					List.iter self#get_current_scope#remove_from_safety not_nulls;
+					self#get_current_scope#filter_safety original_safe;
 				| _ -> fail ~msg:"Expected TWhile" expr.epos __POS__
 		(**
 			Should be called for bodies of loops (for, while)
@@ -955,18 +973,46 @@ class local_safety (mode:safety_mode) =
 		*)
 		method process_and left_expr right_expr is_nullable_expr (callback:texpr->unit) =
 			callback left_expr;
-			let (_, not_nulls) = process_condition mode left_expr is_nullable_expr (fun e -> ()) in
-			List.iter self#get_current_scope#add_to_safety not_nulls;
+			let original_safe = self#get_safe_locals_copy in
+			(* save not_nulls for `a != null && a > 0` *)
+			let (_, not_nulls) = process_condition mode left_expr is_nullable_expr (fun _ -> ()) in
+			(* create temp scope for right_expr *)
+			let temp_scope = new safety_scope mode STNormal (Hashtbl.copy original_safe) (Hashtbl.create 10) in
+			List.iter temp_scope#add_to_safety not_nulls;
+			scopes <- temp_scope :: scopes;
 			callback right_expr;
-			List.iter self#get_current_scope#remove_from_safety not_nulls
+			self#scope_closed;
+
+			let safe_after_rhs = temp_scope#get_safe_locals in
+			let final_safe = Hashtbl.create (Hashtbl.length original_safe) in
+			Hashtbl.iter (fun subj e ->
+				if Hashtbl.mem original_safe subj && Hashtbl.mem safe_after_rhs subj then
+					Hashtbl.replace final_safe subj e
+			) original_safe;
+
+			self#get_current_scope#reset_to final_safe;
 		(**
 			Handle boolean OR outside of `if` condition.
 		*)
 		method process_or left_expr right_expr is_nullable_expr (callback:texpr->unit) =
+			let original_safe = self#get_safe_locals_copy in
+			(* save nulls for `a == null || a > 0` *)
 			let (nulls, _) = process_condition mode left_expr is_nullable_expr callback in
-			List.iter self#get_current_scope#add_to_safety nulls;
+			(* create temp scope for right_expr *)
+			let temp_scope = new safety_scope mode STNormal (Hashtbl.copy original_safe) (Hashtbl.create 10) in
+			List.iter temp_scope#add_to_safety nulls;
+			scopes <- temp_scope :: scopes;
 			callback right_expr;
-			List.iter self#get_current_scope#remove_from_safety nulls
+			self#scope_closed;
+
+			let safe_after_rhs = temp_scope#get_safe_locals in
+			let final_safe = Hashtbl.create (Hashtbl.length original_safe) in
+			Hashtbl.iter (fun subj e ->
+				if Hashtbl.mem original_safe subj && Hashtbl.mem safe_after_rhs subj then
+					Hashtbl.replace final_safe subj e
+			) original_safe;
+
+			self#get_current_scope#reset_to final_safe;
 		(**
 			Remove subject from the safety list if a nullable value is assigned or if an object with safe field is reassigned.
 		*)
@@ -1072,8 +1118,10 @@ class expr_checker mode immediate_execution report =
 					is_nullable_type e.etype && not (local_safety#is_safe e)
 		(**
 			Check if `expr` can be passed to a place where `to_type` is expected.
-			This method has side effect: it logs an error if `expr` has a type parameter incompatible with the type parameter of `to_type`.
-			E.g.: `Array<Null<String>>` vs `Array<String>` returns `true`, but also adds a compilation error.
+			This method has side effects:
+			- it logs an error if `expr` has a type parameter incompatible with the type parameter of `to_type`.
+				E.g.: `Array<Null<String>>` vs `Array<String>` returns `true`, but also adds a compilation error.
+			- it logs an error on anon structure field nullability mismatch to report specific field error and returns `true`.
 		*)
 		method can_pass_expr expr to_type p =
 			let try_unify expr to_type =
@@ -1093,28 +1141,26 @@ class expr_checker mode immediate_execution report =
 							fail ~msg:"Null safety unification failure" expr.epos __POS__
 				end
 			in
+			let check_anon_fields fields to_type =
+				List.fold_left (fun acc ((name, _, _), field_expr) ->
+					try
+						let field_to_type = PMap.find name to_type.a_fields in
+						let field_pos = field_expr.epos in
+						if not (self#can_pass_expr field_expr field_to_type.cf_type field_pos) then
+							self#error "Cannot assign nullable value here." [field_pos];
+						acc && true
+					with Not_found -> false) true fields
+			in
 			match expr.eexpr, to_type with
 				| TLocal v, _ when contains_unsafe_meta v.v_meta -> true
 				| TObjectDecl fields, TAbstract ({ a_path = ([],"Null") }, [TAnon to_type])
 				| TObjectDecl fields, TAnon to_type ->
-					List.for_all
-						(fun ((name, _, _), field_expr) ->
-							try
-								let field_to_type = PMap.find name to_type.a_fields in
-								self#can_pass_expr field_expr field_to_type.cf_type p
-							with Not_found -> false)
-						fields
+					check_anon_fields fields to_type
 				| TObjectDecl fields, TAbstract ({ a_path = ([],"Null") }, [TType (t,tl)])
 				| TObjectDecl fields, TType (t,tl) ->
 					(match follow_without_null t.t_type with
 							| TAnon to_type ->
-								List.for_all
-									(fun ((name, _, _), field_expr) ->
-										try
-											let field_to_type = PMap.find name to_type.a_fields in
-											self#can_pass_expr field_expr field_to_type.cf_type p
-										with Not_found -> false)
-									fields
+								check_anon_fields fields to_type
 							| _ -> try_unify expr to_type
 					)
 				| _, _ -> try_unify expr to_type
@@ -1488,7 +1534,7 @@ class expr_checker mode immediate_execution report =
 			traverse 0 args types meta
 	end
 
-class class_checker cls immediate_execution report =
+class class_checker cls immediate_execution report (main_expr : texpr option) =
 	let cls_meta = cls.cl_meta @ (match cls.cl_kind with KAbstractImpl a -> a.a_meta | _ -> []) in
 	object (self)
 			val is_safe_class = (safety_enabled cls_meta)
@@ -1546,7 +1592,9 @@ class class_checker cls immediate_execution report =
 										| _ -> ()
 					in
 					if read_access = AccCall then check_accessor "get_";
-					if write_access = AccCall then check_accessor "set_"
+					if write_access = AccCall then check_accessor "set_";
+					if read_access = AccPrivateCall then check_accessor "get_";
+					if write_access = AccPrivateCall then check_accessor "set_";
 				| _ -> ()
 		(**
 			Get safety mode for the current class
@@ -1571,33 +1619,83 @@ class class_checker cls immediate_execution report =
 		method private is_in_safety field =
 			(is_safe_class && not (contains_unsafe_meta field.cf_meta)) || safety_enabled field.cf_meta
 		(**
+			Extract `tf_expr` from `com.main.main_expr` if this expr in current class
+		*)
+		method private get_main_tf_expr (main_expr : texpr option) =
+			match main_expr with
+				| Some main_expr ->
+					begin match main_expr.eexpr with
+						| TCall ({ eexpr = TField (_, FStatic (cl, field))}, _) when cl == cls ->
+							begin match field.cf_expr with
+								| Some ({ eexpr = TFunction { tf_expr = e } }) ->
+									Some e
+								| _ -> None
+							end
+						| _ -> None
+					end
+				| None -> None
+		(**
 			Check `var` fields are initialized properly
 		*)
 		method check_var_fields =
 			let check_field is_static field =
 				validate_safety_meta report field.cf_meta;
-				if should_be_initialized field then
-					if not (is_nullable_type field.cf_type) && self#is_in_safety field then
-						match field.cf_expr with
-							| None ->
-								if is_static then
-									checker#error
-										("Field \"" ^ field.cf_name ^ "\" is not nullable thus should have an initial value.")
-										[field.cf_pos]
-							| Some e ->
-								if not (checker#can_pass_expr e field.cf_type e.epos) then
-									checker#error ("Cannot set nullable initial value for not-nullable field \"" ^ field.cf_name ^ "\".") [field.cf_pos]
+				if
+					should_be_initialized field
+					&& not (is_nullable_type field.cf_type)
+					&& self#is_in_safety field
+				then
+					match field.cf_expr with
+						| Some e ->
+							if not (checker#can_pass_expr e field.cf_type e.epos) then
+								checker#error
+								("Cannot set nullable initial value for not-nullable field \"" ^ field.cf_name ^ "\".") [field.cf_pos]
+						| None -> ()
 			in
 			List.iter (check_field false) cls.cl_ordered_fields;
 			List.iter (check_field true) cls.cl_ordered_statics;
+
+			self#check_statics_initialization ();
 			self#check_fields_initialization_in_constructor ()
+
+		method private check_statics_initialization () =
+			let fields_to_initialize = Hashtbl.create 20 in
+			List.iter
+				(fun f ->
+					if
+						should_be_initialized f
+						&& not (is_nullable_type f.cf_type)
+						&& not (contains_unsafe_meta f.cf_meta)
+					then
+						match f.cf_expr with
+							| Some _ -> ()
+							| None -> Hashtbl.add fields_to_initialize f.cf_name f
+				)
+				cls.cl_ordered_statics;
+
+			begin match TClass.get_cl_init cls with
+				| Some init_expr ->
+					ignore (self#check_fields_initialization fields_to_initialize init_expr true);
+				| None -> ()
+			end;
+			let main_tf_expr = self#get_main_tf_expr main_expr in
+			(match main_tf_expr with
+				| Some tf_expr ->
+					ignore (self#check_fields_initialization fields_to_initialize tf_expr true);
+				| _ -> ()
+			);
+			Hashtbl.iter
+				(fun name field ->
+					checker#error
+						("Field \"" ^ name ^ "\" is not nullable thus should have an initial value.")
+						[field.cf_pos]
+				)
+				fields_to_initialize
 		(**
 			Check instance fields without initial values are properly initialized in constructor
 		*)
 		method private check_fields_initialization_in_constructor () =
-			let fields_to_initialize = Hashtbl.create 20
-			(* Compiler-autogenerated local vars for transfering `this` to local functions *)
-			and this_vars = Hashtbl.create 5 in
+			let fields_to_initialize = Hashtbl.create 20 in
 			List.iter
 				(fun f ->
 					if
@@ -1610,10 +1708,30 @@ class class_checker cls immediate_execution report =
 							| None -> Hashtbl.add fields_to_initialize f.cf_name f
 				)
 				cls.cl_ordered_fields;
+
+			(match cls.cl_constructor with
+				| Some { cf_expr = Some { eexpr = TFunction { tf_expr = e } } } ->
+					ignore (self#check_fields_initialization fields_to_initialize e false);
+				| _ -> ()
+			);
+			Hashtbl.iter
+				(fun name field ->
+					checker#error
+						("Field \"" ^ name ^ "\" is not nullable thus should have an initial value or should be initialized in constructor.")
+						[field.cf_pos]
+				)
+				fields_to_initialize
+
+		method private check_fields_initialization fields_to_initialize tf_expr is_static =
+			(* Compiler-autogenerated local vars for transfering `this` to local functions *)
+			let this_vars = Hashtbl.create 5 in
 			let rec check_unsafe_usage init_list safety_enabled e =
 				if Hashtbl.length init_list > 0 then
 					match e.eexpr with
-						| TField ({ eexpr = TConst TThis }, FInstance (_, _, field)) ->
+						| TField ({ eexpr = TConst TThis }, FInstance (_, _, field)) when not is_static ->
+							if Hashtbl.mem init_list field.cf_name then
+								checker#error ("Cannot use field " ^ field.cf_name ^ " until initialization.") [e.epos]
+						| TField (_, FStatic (_, field)) when is_static ->
 							if Hashtbl.mem init_list field.cf_name then
 								checker#error ("Cannot use field " ^ field.cf_name ^ " until initialization.") [e.epos]
 						| TField ({ eexpr = TConst TThis }, FClosure (_, field)) ->
@@ -1634,7 +1752,11 @@ class class_checker cls immediate_execution report =
 			in
 			let rec traverse init_list e =
 				(match e.eexpr with
-					| TBinop (OpAssign, { eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, right_expr) ->
+					| TBinop (OpAssign, { eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, right_expr)
+						when not is_static ->
+						Hashtbl.remove init_list f.cf_name;
+						ignore (traverse init_list right_expr)
+					| TBinop (OpAssign, { eexpr = TField(_, FStatic(_, f)) }, right_expr) when is_static ->
 						Hashtbl.remove init_list f.cf_name;
 						ignore (traverse init_list right_expr)
 					| TWhile (condition, body, DoWhile) ->
@@ -1656,18 +1778,7 @@ class class_checker cls immediate_execution report =
 				);
 				init_list
 			in
-			(match cls.cl_constructor with
-				| Some { cf_expr = Some { eexpr = TFunction { tf_expr = e } } } ->
-					ignore (traverse fields_to_initialize e);
-				| _ -> ()
-			);
-			Hashtbl.iter
-				(fun name field ->
-					checker#error
-						("Field \"" ^ name ^ "\" is not nullable thus should have an initial value or should be initialized in constructor.")
-						[field.cf_pos]
-				)
-				fields_to_initialize
+			traverse fields_to_initialize tf_expr
 	end
 
 (**
@@ -1682,7 +1793,7 @@ let run (com:Common.context) (types:module_type list) =
 				| TEnumDecl enm -> ()
 				| TTypeDecl typedef -> ()
 				| TAbstractDecl abstr -> ()
-				| TClassDecl cls -> (new class_checker cls immediate_execution report)#check
+				| TClassDecl cls -> (new class_checker cls immediate_execution report com.main.main_expr)#check
 		in
 		List.iter traverse types;
 		report;

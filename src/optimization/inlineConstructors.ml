@@ -232,23 +232,26 @@ let inline_constructors (scom : SafeCom.t) original_e =
 		The id is incremented each time and is used later in the final_map phase to identify the correct inline_object.
 	*)
 	let rec mark_ctors ?(force_inline=false) e : texpr =
-		let is_meta_inline = match e.eexpr with (TMeta((Meta.Inline,_,_),e)) -> true | _ -> false in
-		let e = Type.map_expr (mark_ctors ~force_inline:is_meta_inline) e in
-		let mark() =
-			incr curr_io_id;
-			let id_expr = (EConst(Int (string_of_int !curr_io_id, None)), e.epos) in
-			let meta = (Meta.InlineObject, [id_expr], e.epos) in
-			mk (TMeta(meta, e)) e.etype e.epos
-		in
-		match e.eexpr, force_inline with
-			| TObjectDecl _, _
-			| TArrayDecl _, _
-			| TNew _, true ->
-				mark()
-			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
-				if needs_inline scom (Some c) cf then mark()
-				else e
-			| _ -> e
+		match e.eexpr with
+			| TMeta((Meta.InlineConstructorArgument _,_,_),_) -> e
+			| _ ->
+				let is_meta_inline = match e.eexpr with (TMeta((Meta.Inline,_,_),e)) -> true | _ -> false in
+				let e = Type.map_expr (mark_ctors ~force_inline:is_meta_inline) e in
+				let mark() =
+					incr curr_io_id;
+					let id_expr = (EConst(Int (string_of_int !curr_io_id, None)), e.epos) in
+					let meta = (Meta.InlineObject, [id_expr], e.epos) in
+					mk (TMeta(meta, e)) e.etype e.epos
+				in
+				match e.eexpr, force_inline with
+					| TObjectDecl _, _
+					| TArrayDecl _, _
+					| TNew _, true ->
+						mark()
+					| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
+						if needs_inline scom (Some c) cf then mark()
+						else e
+					| _ -> e
 	in
 
 	(*

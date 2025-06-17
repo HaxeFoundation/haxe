@@ -880,13 +880,7 @@ module Debug = struct
 	let dot_debug ctx c cf =
 		let g = ctx.graph in
 		let start_graph ?(graph_config=[]) suffix =
-			let ch = Path.create_file false suffix [] (get_dump_path ctx c cf) in
-			Printf.fprintf ch "digraph graphname {\n";
-			List.iter (fun s -> Printf.fprintf ch "%s;\n" s) graph_config;
-			ch,(fun () ->
-				Printf.fprintf ch "}\n";
-				close_out ch
-			)
+			DotGraph.start_graph ~graph_config (DotGraph.get_dump_path ctx.com c cf) suffix
 		in
 		let ch,f = start_graph "-cfg.dot" in
 		List.iter (fun bb -> dot_debug_node g ch [NILoopGroups;NIScopes;NIPhi;NIExpr] bb) g.g_nodes;
@@ -1118,12 +1112,12 @@ module Run = struct
 					print_endline (Type.s_expr_pretty true "" false (s_type (print_context())) e);
 					print_endline (Printf.sprintf "</%s>" s);
 				) (List.rev actx.debug_exprs);
-				Debug.dot_debug actx c cf;
-				print_endline (Printf.sprintf "dot graph written to %s" (String.concat "/" (Debug.get_dump_path actx c cf)));
+				Debug.dot_debug actx c.cl_path cf.cf_name;
+				print_endline (Printf.sprintf "dot graph written to %s" (String.concat "/" (DotGraph.get_dump_path actx.com c.cl_path cf.cf_name)));
 			in
 			let maybe_debug () = match config.debug_kind with
 				| DebugNone -> ()
-				| DebugDot -> Debug.dot_debug actx c cf;
+				| DebugDot -> Debug.dot_debug actx c.cl_path cf.cf_name;
 				| DebugFull -> debug()
 			in
 			begin try
@@ -1190,13 +1184,13 @@ module Run = struct
 		| TTypeDecl _ -> ()
 		| TAbstractDecl _ -> ()
 
-	let run_on_types scom pool types =
+	let run_on_types scom pool all_types new_types =
 		let config = get_base_config scom in
 		with_timer scom.timer_ctx config.detail_times None ["other"] (fun () ->
 			if config.optimize && config.purity_inference then
-				with_timer scom.timer_ctx config.detail_times None ["optimize";"purity-inference"] (fun () -> Purity.infer types);
+				with_timer scom.timer_ctx config.detail_times None ["optimize";"purity-inference"] (fun () -> Purity.infer all_types);
 			let exc_out = Atomic.make None in
-			Parallel.ParallelArray.iter pool (run_on_type scom exc_out pool config) types;
+			Parallel.ParallelArray.iter pool (run_on_type scom exc_out pool config) new_types;
 			check_exc_out exc_out
 		)
 end

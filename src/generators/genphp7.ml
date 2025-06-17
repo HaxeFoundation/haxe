@@ -3891,6 +3891,8 @@ class class_builder ctx (cls:tclass) =
 					| Var { v_read = read; v_write = write } ->
 						if read = AccCall then getters := field.cf_name :: !getters;
 						if write = AccCall then setters := field.cf_name :: !setters;
+						if read = AccPrivateCall then getters := field.cf_name :: !getters;
+						if write = AccPrivateCall then setters := field.cf_name :: !setters;
 					| _ -> ()
 			in
 			List.iter collect cls.cl_ordered_fields;

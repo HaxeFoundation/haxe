@@ -39,7 +39,7 @@ let rec collect_reference_positions com (name,pos,kind) =
 			| Var vk ->
 				let host = FieldAccess.get_host c cf in
 				let check r mode = match r with
-					| AccCall ->
+					| AccCall | AccPrivateCall ->
 						begin match FieldAccess.find_accessor_for_field host cf cf.cf_type mode with
 						| AccessorFound (cf_acc,new_host) ->
 							let c_host = FieldAccess.get_host_class_raise new_host in

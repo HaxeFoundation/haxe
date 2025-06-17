@@ -174,6 +174,8 @@ module type InterpApi = sig
 	val handle_decoding_error : (string -> unit) -> value -> Type.t -> (string * int) list
 
 	val get_api_call_pos : unit -> pos
+
+	val associate_enum_value_pos : value -> pos -> unit
 end
 
 let s_type_path = Globals.s_type_path
@@ -1124,6 +1126,7 @@ and encode_var_access a =
 		| AccInline	-> 5, []
 		| AccRequire (s,msg) -> 6, [encode_string s; null encode_string msg]
 		| AccCtor -> 7, []
+		| AccPrivateCall -> 8, []
 	) in
 	encode_enum IVarAccess tag pl
 
@@ -1450,6 +1453,7 @@ let decode_var_access v =
 	| 5, [] -> AccInline
 	| 6, [s1;s2] -> AccRequire(decode_string s1, opt decode_string s2)
 	| 7, [] -> AccCtor
+	| 8, [] -> AccPrivateCall
 	| _ -> raise Invalid_expr
 
 let decode_method_kind v =
@@ -2432,6 +2436,11 @@ let macro_api ccom get_api =
 		"set_hxb_writer_config", vfun1 (fun v ->
 			(get_api()).set_hxb_writer_config v;
 			vnull
-		)
+		);
+		"associate_enum_value_pos",vfun2 (fun ve vp ->
+			let p = decode_pos vp in
+			associate_enum_value_pos ve p;
+			vnull;
+		);
 	]
 end

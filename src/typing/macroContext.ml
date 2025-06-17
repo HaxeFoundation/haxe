@@ -57,15 +57,15 @@ let safe_decode com v expected t p f =
 			raise_decode_error (Printf.sprintf "Expected %s but got %s" expected (Interp.value_string v))
 
 
-let macro_timer timer_ctx level label identifier f arg =
-	let id = Timer.determine_id level ["macro"] [label] identifier in
+let macro_timer timer_ctx level s identifier f arg =
+	let id = Timer.determine_id level ["macro"] s identifier in
 	Timer.time timer_ctx id f arg
 
 let typing_timer ctx need_type f =
 	let t = Timer.start_timer ctx.com.timer_ctx ["typing"] in
 	let ctx = if need_type && ctx.pass < PTypeField then begin
 		enter_field_typing_pass ctx.g ("typing_timer",[]);
-		TyperManager.clone_for_expr ctx ctx.e.curfun false
+		TyperManager.clone_for_expr ctx ctx.e.curfun FunFunction
 	end else
 		ctx
 	in
@@ -141,22 +141,22 @@ let make_macro_com_api com mcom p =
 		);
 		after_init_macros = (fun f ->
 			com.callbacks#add_after_init_macros (fun () ->
-				macro_timer com.timer_ctx timer_level "afterInitMacros" None f ();
+				macro_timer com.timer_ctx timer_level ["afterInitMacros"] None f ();
 			)
 		);
 		after_typing = (fun f ->
 			com.callbacks#add_after_typing (fun tl ->
-				macro_timer com.timer_ctx timer_level "afterTyping" None f tl;
+				macro_timer com.timer_ctx timer_level ["afterTyping"] None f tl;
 			)
 		);
 		on_generate = (fun f b ->
 			(if b then com.callbacks#add_before_save else com.callbacks#add_after_save) (fun() ->
-				macro_timer com.timer_ctx timer_level "onGenerate"None f (List.map type_of_module_type com.types);
+				macro_timer com.timer_ctx timer_level ["onGenerate"] None f (List.map type_of_module_type com.types);
 			)
 		);
 		after_generate = (fun f ->
 			com.callbacks#add_after_generation (fun() ->
-				macro_timer com.timer_ctx timer_level "afterGenerate" None f ();
+				macro_timer com.timer_ctx timer_level ["afterGenerate"] None f ();
 			)
 		);
 		on_type_not_found = (fun f ->
@@ -653,12 +653,11 @@ and flush_macro_context mint mctx =
 			if apply_native then Native.apply_native_paths t
 		in
 		let scom = SafeCom.of_typer mctx in
-		let cv_wrapper_impl = CapturedVars.get_wrapper_implementation mctx.com in
 		let expr_filters = [
 			"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 			"local_statics",LocalStatic.run;
 			"Exceptions",(fun _ -> Exceptions.filter ectx);
-			"captured_vars",(fun scom -> CapturedVars.captured_vars scom cv_wrapper_impl);
+			"captured_vars",(fun scom -> CapturedVars.captured_vars scom mctx.com.local_wrapper);
 		] in
 		let type_filters = [
 			(fun _ -> FiltersCommon.remove_generic_base);
@@ -677,7 +676,7 @@ and flush_macro_context mint mctx =
 		with Error err -> raise (Fatal_error err));
 	in
 	let timer_level = Timer.level_from_define mctx.com.defines Define.MacroTimes in
-	macro_timer mctx.com.timer_ctx timer_level "flush" None f ()
+	macro_timer mctx.com.timer_ctx timer_level ["flush"] None f ()
 
 let create_macro_interp api mctx =
 	let com2 = mctx.com in
@@ -810,7 +809,7 @@ let load_macro'' com mctx display cpath fname p =
 			mctx.com.cached_macros#add (cpath,fname) meth;
 			meth
 		in
-		macro_timer com.timer_ctx timer_level "typing" (Some (s_type_path cpath ^ "." ^ fname)) f ()
+		macro_timer com.timer_ctx timer_level ["typing";s_type_path cpath ^ "." ^ fname] None f ()
 
 let load_macro' ctx display cpath f p =
 	(* TODO: The only reason this nonsense is here is because this is the signature
@@ -823,7 +822,7 @@ let do_call_macro com api cpath name args p =
 	incr stats.s_macros_called;
 	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	let f = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) name args in
-	let r = macro_timer com.timer_ctx timer_level "execution" (Some (s_type_path cpath ^ "." ^ name)) f api in
+	let r = macro_timer com.timer_ctx timer_level ["execution";s_type_path cpath ^ "." ^ name] None f api in
 	if com.verbose then Common.log com ("Exiting macro " ^ s_type_path cpath ^ "." ^ name);
 	r
 

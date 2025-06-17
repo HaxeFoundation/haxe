@@ -85,6 +85,7 @@ let lower_ident_or_macro = function%parser
 
 let property_ident = function%parser
 	| [ ident as i ] -> i
+	| [ (Kwd Private,p1); (Const (Ident i),p2) ] -> "private " ^ i, punion p1 p2
 	| [ (Kwd Dynamic,p) ] -> "dynamic",p
 	| [ (Kwd Default,p) ] -> "default",p
 	| [ (Kwd Null,p) ] -> "null",p

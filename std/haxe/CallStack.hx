@@ -112,7 +112,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return this[index];
 	}
 
-	inline function asArray():Array<StackItem> {
+	public inline function asArray():Array<StackItem> {
 		return this;
 	}
 

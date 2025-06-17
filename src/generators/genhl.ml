@@ -333,18 +333,8 @@ let make_debug ctx arr =
 		| true -> if (Filename.is_relative p.pfile)
 			then Filename.concat (Sys.getcwd()) p.pfile
 			else p.pfile
-		| false -> try
-			(* lookup relative path *)
-			let len = String.length p.pfile in
-			let base = ctx.com.class_paths#find (fun path ->
-				let path = path#path in
-				let l = String.length path in
-				len > l && String.sub p.pfile 0 l = path
-			) in
-			let l = String.length base#path in
-			String.sub p.pfile l (len - l)
-		with Not_found ->
-			p.pfile
+		| false ->
+			ctx.com.class_paths#relative_path p.pfile
 	in
 	let pos = ref (0,0,Globals.null_pos) in
 	let cur_file = ref 0 in
@@ -783,6 +773,7 @@ and enum_class ctx e =
 					let old = ctx.m in
 					let ft = to_type ctx ef.ef_type in
 					ctx.m <- method_context eid ft null_capture false;
+					set_curpos ctx ef.ef_pos;
 					let arg_regs = List.map (fun t -> alloc_fresh ctx t) fargs in
 					let ret_reg = alloc_fresh ctx tret in
 					op ctx (OMakeEnum (ret_reg, ef.ef_index, arg_regs));
@@ -2408,8 +2399,14 @@ and eval_expr ctx e =
 		| HFun _ -> cast_to ctx r to_t e.epos
 		| _ -> unsafe_cast_to ctx r to_t e.epos)
 	| TObjectDecl fl ->
-		(match to_type ctx e.etype with
-		| HVirtual vp as t when Array.length vp.vfields = List.length fl && not (List.exists (fun ((s,_,_),e) -> (try ignore(PMap.find s vp.vindex); false with Not_found -> true) || (s = "toString" && is_to_string e.etype)) fl) ->
+		(* We cannot rely on e.etype because it might have optional field etc, see jvm *)
+		let fields = List.fold_left (fun acc ((name,_,_),e) ->
+			let cf = mk_field name e.etype e.epos e.epos in
+			PMap.add name cf acc
+		) PMap.empty fl in
+		let rt = to_type ctx (mk_anon ~fields (ref Closed)) in
+		(match rt with
+		| HVirtual vp as t when safe_cast rt (to_type ctx e.etype) && not (List.exists (fun ((s,_,_),e) -> s = "toString" && is_to_string e.etype) fl) ->
 			let r = alloc_tmp ctx t in
 			op ctx (ONew r);
 			hold ctx r;
@@ -3284,6 +3281,7 @@ and gen_method_wrapper ctx rt t p =
 		let targs, tret = (match t with HFun (args, ret) -> args, ret | _ -> die "" __LOC__) in
 		let iargs, iret = (match rt with HFun (args, ret) -> args, ret | _ -> die "" __LOC__) in
 		ctx.m <- method_context fid HDyn null_capture false;
+		set_curpos ctx p;
 		let rfun = alloc_tmp ctx rt in
 		let rargs = List.map (fun t ->
 			let r = alloc_tmp ctx t in
@@ -3831,7 +3829,8 @@ let generate_static_init ctx types main =
 	| Some e -> exprs := e :: !exprs);
 	let fid = lookup_alloc ctx.cfids () in
 	let exprs = List.rev !init_exprs @ List.rev !exprs in
-	ignore(make_fun ~gen_content ctx ("","") fid { tf_expr = mk (TBlock exprs) t_void null_pos; tf_args = []; tf_type = t_void } None None);
+	let initpos = fake_pos "fun$init" in
+	ignore(make_fun ~gen_content ctx ("","") fid { tf_expr = mk (TBlock exprs) t_void initpos; tf_args = []; tf_type = t_void } None None);
 	fid
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
